@@ -709,17 +709,6 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	val = pci_read_config(ntb->device, NTB_PPD_OFFSET, 1);
 
 	connection_type = val & XEON_PPD_CONN_TYPE;
-	switch (connection_type) {
-	case NTB_CONN_B2B:
-		ntb->conn_type = NTB_CONN_B2B;
-		break;
-	case NTB_CONN_CLASSIC:
-	case NTB_CONN_RP:
-	default:
-		device_printf(ntb->device, "Connection type %d not supported\n",
-		    connection_type);
-		return (ENXIO);
-	}
 
 	if ((val & XEON_PPD_DEV_TYPE) != 0)
 		ntb->dev_type = NTB_DEV_USD;
@@ -728,12 +717,42 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 
 	ntb->reg_ofs.ldb	= XEON_PDOORBELL_OFFSET;
 	ntb->reg_ofs.ldb_mask	= XEON_PDBMSK_OFFSET;
+	ntb->reg_ofs.spad_local	= XEON_SPAD_OFFSET;
 	ntb->reg_ofs.bar2_xlat	= XEON_SBAR2XLAT_OFFSET;
 	ntb->reg_ofs.bar4_xlat	= XEON_SBAR4XLAT_OFFSET;
-	ntb->reg_ofs.lnk_cntl	= XEON_NTBCNTL_OFFSET;
-	ntb->reg_ofs.lnk_stat	= XEON_LINK_STATUS_OFFSET;
-	ntb->reg_ofs.spad_local	= XEON_SPAD_OFFSET;
-	ntb->reg_ofs.spci_cmd	= XEON_PCICMD_OFFSET;
+
+	switch (connection_type) {
+	case NTB_CONN_B2B:
+		ntb->conn_type = NTB_CONN_B2B;
+
+		/*
+		 * reg_ofs.rdb and reg_ofs.spad_remote are effectively ignored
+		 * with the NTB_REGS_THRU_MW errata mode enabled.  (See
+		 * ntb_ring_doorbell() and ntb_read/write_remote_spad().)
+		 */
+		ntb->reg_ofs.rdb	 = XEON_B2B_DOORBELL_OFFSET;
+		ntb->reg_ofs.spad_remote = XEON_B2B_SPAD_OFFSET;
+
+		ntb->limits.max_spads	 = XEON_MAX_SPADS;
+		break;
+
+	case NTB_CONN_RP:
+		/*
+		 * Every Xeon today needs NTB_REGS_THRU_MW, so punt on RP for
+		 * now.
+		 */
+		KASSERT(HAS_FEATURE(NTB_REGS_THRU_MW),
+		    ("Xeon without MW errata unimplemented"));
+		device_printf(ntb->device,
+		    "NTB-RP disabled to due hardware errata.\n");
+		return (ENXIO);
+
+	case NTB_CONN_TRANSPARENT:
+	default:
+		device_printf(ntb->device, "Connection type %d not supported\n",
+		    connection_type);
+		return (ENXIO);
+	}
 
 	/*
 	 * There is a Xeon hardware errata related to writes to SDOORBELL or
@@ -757,15 +776,9 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 		ntb_reg_write(8, XEON_PBAR4LMT_OFFSET, 0);
 
 
-	if (ntb->conn_type == NTB_CONN_B2B) {
-		ntb->reg_ofs.rdb	 = XEON_B2B_DOORBELL_OFFSET;
-		ntb->reg_ofs.spad_remote = XEON_B2B_SPAD_OFFSET;
-		ntb->limits.max_spads	 = XEON_MAX_SPADS;
-	} else {
-		ntb->reg_ofs.rdb	 = XEON_SDOORBELL_OFFSET;
-		ntb->reg_ofs.spad_remote = XEON_SPAD_OFFSET;
-		ntb->limits.max_spads	 = XEON_MAX_COMPAT_SPADS;
-	}
+	ntb->reg_ofs.lnk_cntl	 = XEON_NTBCNTL_OFFSET;
+	ntb->reg_ofs.lnk_stat	 = XEON_LINK_STATUS_OFFSET;
+	ntb->reg_ofs.spci_cmd	 = XEON_PCICMD_OFFSET;
 
 	ntb->limits.max_db_bits	 = XEON_MAX_DB_BITS;
 	ntb->limits.msix_cnt	 = XEON_MSIX_CNT;
@@ -774,8 +787,9 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	configure_xeon_secondary_side_bars(ntb);
 
 	/* Enable Bus Master and Memory Space on the secondary side */
-	ntb_reg_write(2, ntb->reg_ofs.spci_cmd,
-	    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
+	if (ntb->conn_type == NTB_CONN_B2B)
+		ntb_reg_write(2, ntb->reg_ofs.spci_cmd,
+		    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
 
 	/* Enable link training */
 	ntb_reg_write(4, ntb->reg_ofs.lnk_cntl,
@@ -996,7 +1010,8 @@ ntb_handle_link_event(struct ntb_softc *ntb, int link_state)
 		ntb->link_status = NTB_LINK_UP;
 		event = NTB_EVENT_HW_LINK_UP;
 
-		if (ntb->type == NTB_SOC)
+		if (ntb->type == NTB_SOC ||
+		    ntb->conn_type == NTB_CONN_TRANSPARENT)
 			status = ntb_reg_read(2, ntb->reg_ofs.lnk_stat);
 		else
 			status = pci_read_config(ntb->device,
