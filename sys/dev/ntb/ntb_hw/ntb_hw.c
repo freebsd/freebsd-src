@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/bus.h>
@@ -231,6 +232,8 @@ static driver_t ntb_pci_driver = {
 static devclass_t ntb_devclass;
 DRIVER_MODULE(ntb_hw, pci, ntb_pci_driver, ntb_devclass, NULL, NULL);
 MODULE_VERSION(ntb_hw, 1);
+
+SYSCTL_NODE(_hw, OID_AUTO, ntb, CTLFLAG_RW, 0, "NTB sysctls");
 
 /*
  * OS <-> Driver linkage functions
