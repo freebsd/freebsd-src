@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -944,23 +945,18 @@ main(int argc, char **argv)
 	if (argc - optind > 1)
 		usage();
 
-	if (chrootenv == NULL) {
-		strcpy(path_zonetab, _PATH_ZONETAB);
-		strcpy(path_iso3166, _PATH_ISO3166);
-		strcpy(path_zoneinfo, _PATH_ZONEINFO);
-		strcpy(path_localtime, _PATH_LOCALTIME);
-		strcpy(path_db, _PATH_DB);
-		strcpy(path_wall_cmos_clock, _PATH_WALL_CMOS_CLOCK);
-	} else {
-		sprintf(path_zonetab, "%s/%s", chrootenv, _PATH_ZONETAB);
-		sprintf(path_iso3166, "%s/%s", chrootenv, _PATH_ISO3166);
-		sprintf(path_zoneinfo, "%s/%s", chrootenv, _PATH_ZONEINFO);
-		sprintf(path_localtime, "%s/%s", chrootenv, _PATH_LOCALTIME);
-		sprintf(path_db, "%s/%s", chrootenv, _PATH_DB);
-		sprintf(path_wall_cmos_clock, "%s/%s", chrootenv,
-		    _PATH_WALL_CMOS_CLOCK);
+	if (chrootenv != NULL) {
+		rv = chroot(chrootenv);
+		if (rv != 0)
+			err(EX_OSERR, "chroot to %s", chrootenv);
 	}
 
+	strcpy(path_zonetab, _PATH_ZONETAB);
+	strcpy(path_iso3166, _PATH_ISO3166);
+	strcpy(path_zoneinfo, _PATH_ZONEINFO);
+	strcpy(path_localtime, _PATH_LOCALTIME);
+	strcpy(path_db, _PATH_DB);
+	strcpy(path_wall_cmos_clock, _PATH_WALL_CMOS_CLOCK);
 
 	/* Override the user-supplied umask. */
 	(void)umask(S_IWGRP | S_IWOTH);
