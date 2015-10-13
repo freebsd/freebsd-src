@@ -58,7 +58,7 @@ void *ntb_find_transport(struct ntb_softc *ntb);
 struct ntb_softc *ntb_register_transport(struct ntb_softc *ntb,
     void *transport);
 void ntb_unregister_transport(struct ntb_softc *ntb);
-int ntb_get_max_spads(struct ntb_softc *ntb);
+uint8_t ntb_get_max_spads(struct ntb_softc *ntb);
 int ntb_write_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val);
 int ntb_read_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t *val);
 int ntb_write_remote_spad(struct ntb_softc *ntb, unsigned int idx,
@@ -72,5 +72,9 @@ void ntb_set_mw_addr(struct ntb_softc *ntb, unsigned int mw, uint64_t addr);
 void ntb_ring_sdb(struct ntb_softc *ntb, unsigned int db);
 bool ntb_query_link_status(struct ntb_softc *ntb);
 device_t ntb_get_device(struct ntb_softc *ntb);
+
+#define NTB_BAR_SIZE_4K		(1 << 0)
+#define NTB_REGS_THRU_MW	(1 << 1)
+bool ntb_has_feature(struct ntb_softc *, uint64_t);
 
 #endif /* _NTB_HW_H_ */

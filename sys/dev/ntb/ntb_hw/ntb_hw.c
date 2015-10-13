@@ -81,9 +81,6 @@ enum ntb_device_type {
 #define HAS_FEATURE(feature)	\
 	((ntb->features & (feature)) != 0)
 
-#define NTB_BAR_SIZE_4K		(1 << 0)
-#define NTB_REGS_THRU_MW	(1 << 1)
-
 struct ntb_hw_info {
 	uint32_t		device_id;
 	const char		*desc;
@@ -131,9 +128,9 @@ struct ntb_softc {
 	struct ntb_db_cb 	*db_cb;
 
 	struct {
-		uint32_t max_spads;
-		uint32_t max_db_bits;
-		uint32_t msix_cnt;
+		uint8_t max_spads;
+		uint8_t max_db_bits;
+		uint8_t msix_cnt;
 	} limits;
 	struct {
 		uint32_t pdb;
@@ -706,6 +703,28 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	ntb->reg_ofs.spad_local	= XEON_SPAD_OFFSET;
 	ntb->reg_ofs.spci_cmd	= XEON_PCICMD_OFFSET;
 
+	/*
+	 * There is a Xeon hardware errata related to writes to SDOORBELL or
+	 * B2BDOORBELL in conjunction with inbound access to NTB MMIO space,
+	 * which may hang the system.  To workaround this use the second memory
+	 * window to access the interrupt and scratch pad registers on the
+	 * remote system.
+	 */
+	if (HAS_FEATURE(NTB_REGS_THRU_MW))
+		/*
+		 * Set the Limit register to 4k, the minimum size, to prevent
+		 * an illegal access.
+		 */
+		ntb_reg_write(8, XEON_PBAR4LMT_OFFSET,
+		    ntb_get_mw_size(ntb, 1) + 0x1000);
+	else
+		/*
+		 * Disable the limit register, just in case it is set to
+		 * something silly.
+		 */
+		ntb_reg_write(8, XEON_PBAR4LMT_OFFSET, 0);
+
+
 	if (ntb->conn_type == NTB_CONN_B2B) {
 		ntb->reg_ofs.sdb	 = XEON_B2B_DOORBELL_OFFSET;
 		ntb->reg_ofs.spad_remote = XEON_B2B_SPAD_OFFSET;
@@ -825,9 +844,18 @@ configure_xeon_secondary_side_bars(struct ntb_softc *ntb)
 		if (HAS_FEATURE(NTB_REGS_THRU_MW))
 			ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
 			    MBAR01_DSD_ADDR);
-		else
+		else {
 			ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
 			    PBAR4XLAT_USD_ADDR);
+			/*
+			 * B2B_XLAT_OFFSET is a 64-bit register but can only be
+			 * written 32 bits at a time.
+			 */
+			ntb_reg_write(4, XEON_B2B_XLAT_OFFSETL,
+			    MBAR01_DSD_ADDR & 0xffffffff);
+			ntb_reg_write(4, XEON_B2B_XLAT_OFFSETU,
+			    MBAR01_DSD_ADDR >> 32);
+		}
 		ntb_reg_write(8, XEON_SBAR0BASE_OFFSET, MBAR01_USD_ADDR);
 		ntb_reg_write(8, XEON_SBAR2BASE_OFFSET, MBAR23_USD_ADDR);
 		ntb_reg_write(8, XEON_SBAR4BASE_OFFSET, MBAR45_USD_ADDR);
@@ -836,9 +864,18 @@ configure_xeon_secondary_side_bars(struct ntb_softc *ntb)
 		if (HAS_FEATURE(NTB_REGS_THRU_MW))
 			ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
 			    MBAR01_USD_ADDR);
-		else
+		else {
 			ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
 			    PBAR4XLAT_DSD_ADDR);
+			/*
+			 * B2B_XLAT_OFFSET is a 64-bit register but can only be
+			 * written 32 bits at a time.
+			 */
+			ntb_reg_write(4, XEON_B2B_XLAT_OFFSETL,
+			    MBAR01_USD_ADDR & 0xffffffff);
+			ntb_reg_write(4, XEON_B2B_XLAT_OFFSETU,
+			    MBAR01_USD_ADDR >> 32);
+		}
 		ntb_reg_write(8, XEON_SBAR0BASE_OFFSET, MBAR01_DSD_ADDR);
 		ntb_reg_write(8, XEON_SBAR2BASE_OFFSET, MBAR23_DSD_ADDR);
 		ntb_reg_write(8, XEON_SBAR4BASE_OFFSET, MBAR45_DSD_ADDR);
@@ -1171,7 +1208,7 @@ ntb_unregister_transport(struct ntb_softc *ntb)
  *
  * RETURNS: total number of scratch pad registers available
  */
-int
+uint8_t
 ntb_get_max_spads(struct ntb_softc *ntb)
 {
 
@@ -1414,4 +1451,12 @@ device_t ntb_get_device(struct ntb_softc *ntb)
 {
 
 	return (ntb->device);
+}
+
+/* Export HW-specific errata information. */
+bool
+ntb_has_feature(struct ntb_softc *ntb, uint64_t feature)
+{
+
+	return (HAS_FEATURE(feature));
 }
