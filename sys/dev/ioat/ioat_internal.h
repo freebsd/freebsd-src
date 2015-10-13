@@ -65,7 +65,7 @@ ioat_bus_space_write_8_lower_first(bus_space_tag_t tag,
 	bus_space_write_4(tag, handle, offset + 4, val >> 32);
 }
 
-#ifdef i386
+#ifdef __i386__
 #define ioat_bus_space_read_8 ioat_bus_space_read_8_lower_first
 #define ioat_bus_space_write_8 ioat_bus_space_write_8_lower_first
 #else
