@@ -13,8 +13,8 @@ Items affecting the ports and packages system can be found in
 
 NOTE: FreeBSD has switched from gcc to clang. If you have trouble bootstrapping
 from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
-the tip of head, and then rebuild without this option. The bootstrap process from
-older version of current across the gcc/clang cutover is a bit fragile.
+the tip of head, and then rebuild without this option. The bootstrap process
+from older version of current across the gcc/clang cutover is a bit fragile.
 
 NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	FreeBSD 11.x has many debugging features turned on, in both the kernel
