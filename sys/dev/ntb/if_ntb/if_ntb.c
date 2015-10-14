@@ -566,7 +566,7 @@ ntb_transport_init_queue(struct ntb_netdev *nt, unsigned int qp_num)
 	qp->client_ready = NTB_LINK_DOWN;
 	qp->event_handler = NULL;
 
-	if (nt->max_qps % NTB_NUM_MW && mw_num < nt->max_qps % NTB_NUM_MW)
+	if (nt->max_qps % NTB_NUM_MW && mw_num + 1 < nt->max_qps / NTB_NUM_MW)
 		num_qps_mw = nt->max_qps / NTB_NUM_MW + 1;
 	else
 		num_qps_mw = nt->max_qps / NTB_NUM_MW;
@@ -1197,7 +1197,7 @@ ntb_transport_setup_qp_mw(struct ntb_netdev *nt, unsigned int qp_num)
 	uint8_t mw_num = QP_TO_MW(qp_num);
 	unsigned int i;
 
-	if (nt->max_qps % NTB_NUM_MW && mw_num < nt->max_qps % NTB_NUM_MW)
+	if (nt->max_qps % NTB_NUM_MW && mw_num + 1 < nt->max_qps / NTB_NUM_MW)
 		num_qps_mw = nt->max_qps / NTB_NUM_MW + 1;
 	else
 		num_qps_mw = nt->max_qps / NTB_NUM_MW;
