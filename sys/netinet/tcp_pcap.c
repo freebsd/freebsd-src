@@ -76,12 +76,16 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcp_pcap_packets, CTLFLAG_RW,
 
 /* Initialize the values. */
 static void
-tcp_pcap_max_set() {
+tcp_pcap_max_set(void)
+{
+
 	tcp_pcap_clusters_referenced_max = nmbclusters / 4;
 }
 
 void
-tcp_pcap_init() {
+tcp_pcap_init(void)
+{
+
 	tcp_pcap_max_set();
 	EVENTHANDLER_REGISTER(nmbclusters_change, tcp_pcap_max_set,
 		NULL, EVENTHANDLER_PRI_ANY);
