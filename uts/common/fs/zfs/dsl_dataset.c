@@ -50,6 +50,8 @@
 #include <sys/dsl_destroy.h>
 #include <sys/dsl_userhold.h>
 #include <sys/dsl_bookmark.h>
+#include <sys/dmu_send.h>
+#include <sys/zio_checksum.h>
 
 /*
  * The SPA supports block sizes up to 16MB.  However, very large blocks
@@ -124,10 +126,16 @@ dsl_dataset_block_born(dsl_dataset_t *ds, const blkptr_t *bp, dmu_tx_t *tx)
 	dsl_dataset_phys(ds)->ds_compressed_bytes += compressed;
 	dsl_dataset_phys(ds)->ds_uncompressed_bytes += uncompressed;
 	dsl_dataset_phys(ds)->ds_unique_bytes += used;
+
 	if (BP_GET_LSIZE(bp) > SPA_OLD_MAXBLOCKSIZE) {
 		ds->ds_feature_activation_needed[SPA_FEATURE_LARGE_BLOCKS] =
 		    B_TRUE;
 	}
+
+	spa_feature_t f = zio_checksum_to_feature(BP_GET_CHECKSUM(bp));
+	if (f != SPA_FEATURE_NONE)
+		ds->ds_feature_activation_needed[f] = B_TRUE;
+
 	mutex_exit(&ds->ds_lock);
 	dsl_dir_diduse_space(ds->ds_dir, DD_USED_HEAD, delta,
 	    compressed, uncompressed, tx);

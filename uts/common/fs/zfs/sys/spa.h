@@ -23,6 +23,7 @@
  * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
+ * Copyright 2013 Saso Kiselkov. All rights reserved.
  */
 
 #ifndef _SYS_SPA_H
@@ -145,6 +146,14 @@ typedef struct dva {
 typedef struct zio_cksum {
 	uint64_t	zc_word[4];
 } zio_cksum_t;
+
+/*
+ * Some checksums/hashes need a 256-bit initialization salt. This salt is kept
+ * secret and is suitable for use in MAC algorithms as the key.
+ */
+typedef struct zio_cksum_salt {
+	uint8_t		zcs_bytes[32];
+} zio_cksum_salt_t;
 
 /*
  * Each block is described by its DVAs, time of birth, checksum, etc.

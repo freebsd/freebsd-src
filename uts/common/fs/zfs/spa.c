@@ -24,6 +24,7 @@
  * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2015, Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
+ * Copyright 2013 Saso Kiselkov. All rights reserved.
  */
 
 /*
@@ -2512,6 +2513,19 @@ spa_load_impl(spa_t *spa, uint64_t pool_guid, nvlist_t *config,
 		return (spa_load(spa, state, SPA_IMPORT_EXISTING, B_TRUE));
 	}
 
+	/* Grab the secret checksum salt from the MOS. */
+	error = zap_lookup(spa->spa_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
+	    DMU_POOL_CHECKSUM_SALT, 1,
+	    sizeof (spa->spa_cksum_salt.zcs_bytes),
+	    spa->spa_cksum_salt.zcs_bytes);
+	if (error == ENOENT) {
+		/* Generate a new salt for subsequent use */
+		(void) random_get_pseudo_bytes(spa->spa_cksum_salt.zcs_bytes,
+		    sizeof (spa->spa_cksum_salt.zcs_bytes));
+	} else if (error != 0) {
+		return (spa_vdev_err(rvd, VDEV_AUX_CORRUPT_DATA, EIO));
+	}
+
 	if (spa_dir_prop(spa, DMU_POOL_SYNC_BPOBJ, &obj) != 0)
 		return (spa_vdev_err(rvd, VDEV_AUX_CORRUPT_DATA, EIO));
 	error = bpobj_open(&spa->spa_deferred_bpobj, spa->spa_meta_objset, obj);
@@ -3663,6 +3677,12 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	 */
 	if (version >= SPA_VERSION_ZPOOL_HISTORY)
 		spa_history_create_obj(spa, tx);
+
+	/*
+	 * Generate some random noise for salted checksums to operate on.
+	 */
+	(void) random_get_pseudo_bytes(spa->spa_cksum_salt.zcs_bytes,
+	    sizeof (spa->spa_cksum_salt.zcs_bytes));
 
 	/*
 	 * Set pool properties.
@@ -6215,6 +6235,20 @@ spa_sync_upgrades(spa_t *spa, dmu_tx_t *tx)
 		if (lz4_en && !lz4_ac)
 			spa_feature_incr(spa, SPA_FEATURE_LZ4_COMPRESS, tx);
 	}
+
+	/*
+	 * If we haven't written the salt, do so now.  Note that the
+	 * feature may not be activated yet, but that's fine since
+	 * the presence of this ZAP entry is backwards compatible.
+	 */
+	if (zap_contains(spa->spa_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
+	    DMU_POOL_CHECKSUM_SALT) == ENOENT) {
+		VERIFY0(zap_add(spa->spa_meta_objset,
+		    DMU_POOL_DIRECTORY_OBJECT, DMU_POOL_CHECKSUM_SALT, 1,
+		    sizeof (spa->spa_cksum_salt.zcs_bytes),
+		    spa->spa_cksum_salt.zcs_bytes, tx));
+	}
+
 	rrw_exit(&dp->dp_config_rwlock, FTAG);
 }
 

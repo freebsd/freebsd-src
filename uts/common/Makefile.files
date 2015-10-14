@@ -509,6 +509,10 @@ SHA1_OBJS +=	sha1.o sha1_mod.o
 
 SHA2_OBJS +=	sha2.o sha2_mod.o
 
+SKEIN_OBJS +=	skein.o skein_block.o skein_iv.o skein_mod.o
+
+EDONR_OBJS +=	edonr.o edonr_mod.o
+
 IPGPC_OBJS +=   classifierddi.o classifier.o filters.o trie.o table.o \
 		ba_table.o
 
@@ -1370,6 +1374,8 @@ ZFS_COMMON_OBJS +=		\
 	rrwlock.o		\
 	sa.o			\
 	sha256.o		\
+	edonr_zfs.o		\
+	skein_zfs.o		\
 	spa.o			\
 	spa_config.o		\
 	spa_errlog.o		\
