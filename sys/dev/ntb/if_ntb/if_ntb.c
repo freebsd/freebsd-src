@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/ktr.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -249,9 +250,8 @@ static int ntb_process_tx(struct ntb_transport_qp *qp,
 static void ntb_tx_copy_task(struct ntb_transport_qp *qp,
     struct ntb_queue_entry *entry, void *offset);
 static void ntb_qp_full(void *arg);
-static void ntb_transport_rxc_db(void *data, int db_num);
+static int ntb_transport_rxc_db(void *arg, int dummy);
 static void ntb_rx_pendq_full(void *arg);
-static void ntb_transport_rx(struct ntb_transport_qp *qp);
 static int ntb_process_rxc(struct ntb_transport_qp *qp);
 static void ntb_rx_copy_task(struct ntb_transport_qp *qp,
     struct ntb_queue_entry *entry, void *offset);
@@ -840,24 +840,17 @@ ntb_qp_full(void *arg)
 
 /* Transport Rx */
 static void
-ntb_transport_rxc_db(void *data, int db_num)
-{
-	struct ntb_transport_qp *qp = data;
-
-	ntb_transport_rx(qp);
-}
-
-static void
 ntb_rx_pendq_full(void *arg)
 {
 
 	CTR0(KTR_NTB, "RX: ntb_rx_pendq_full callout");
-	ntb_transport_rx(arg);
+	ntb_transport_rxc_db(arg, 0);
 }
 
-static void
-ntb_transport_rx(struct ntb_transport_qp *qp)
+static int
+ntb_transport_rxc_db(void *arg, int dummy __unused)
 {
+	struct ntb_transport_qp *qp = arg;
 	uint64_t i;
 	int rc;
 
@@ -867,7 +860,7 @@ ntb_transport_rx(struct ntb_transport_qp *qp)
 	 */
 	mtx_lock(&qp->transport->rx_lock);
 	CTR0(KTR_NTB, "RX: transport_rx");
-	for (i = 0; i < qp->rx_max_entry; i++) {
+	for (i = 0; i < MIN(qp->rx_max_entry, INT_MAX); i++) {
 		rc = ntb_process_rxc(qp);
 		if (rc != 0) {
 			CTR0(KTR_NTB, "RX: process_rxc failed");
@@ -875,6 +868,8 @@ ntb_transport_rx(struct ntb_transport_qp *qp)
 		}
 	}
 	mtx_unlock(&qp->transport->rx_lock);
+
+	return ((int)i);
 }
 
 static int

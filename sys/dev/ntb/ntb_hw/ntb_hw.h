@@ -46,7 +46,7 @@ enum ntb_hw_event {
 
 SYSCTL_DECL(_hw_ntb);
 
-typedef void (*ntb_db_callback)(void *data, int db_num);
+typedef int (*ntb_db_callback)(void *data, int db_num);
 typedef void (*ntb_event_callback)(void *data, enum ntb_hw_event event);
 
 int ntb_register_event_callback(struct ntb_softc *ntb, ntb_event_callback func);
