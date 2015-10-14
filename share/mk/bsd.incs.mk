@@ -99,4 +99,7 @@ STAGE_SYMLINKS.INCS= ${INCSLINKS}
 .endif
 .endif
 
+includes: buildincludes installincludes
+.ORDER: buildincludes installincludes
+
 .endif # ${MK_INCLUDES} != "no"
