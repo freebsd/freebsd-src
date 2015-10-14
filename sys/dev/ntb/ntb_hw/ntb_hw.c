@@ -110,6 +110,7 @@ struct ntb_db_cb {
 	void			*data;
 	struct ntb_softc	*ntb;
 	struct callout		irq_work;
+	bool			reserved;
 };
 
 struct ntb_softc {
@@ -513,6 +514,12 @@ ntb_setup_xeon_msix(struct ntb_softc *ntb, uint32_t num_vectors)
 			return (ENXIO);
 		}
 	}
+
+	/*
+	 * Prevent consumers from registering callbacks on the link event irq
+	 * slot, from which they will never be called back.
+	 */
+	ntb->db_cb[num_vectors - 1].reserved = true;
 	return (0);
 }
 
@@ -1302,15 +1309,17 @@ int
 ntb_register_db_callback(struct ntb_softc *ntb, unsigned int idx, void *data,
     ntb_db_callback func)
 {
+	struct ntb_db_cb *db_cb = &ntb->db_cb[idx];
 
-	if (idx >= ntb->allocated_interrupts || ntb->db_cb[idx].callback) {
+	if (idx >= ntb->allocated_interrupts || db_cb->callback ||
+	    db_cb->reserved) {
 		device_printf(ntb->device, "Invalid Index.\n");
 		return (EINVAL);
 	}
 
-	ntb->db_cb[idx].callback = func;
-	ntb->db_cb[idx].data = data;
-	callout_init(&ntb->db_cb[idx].irq_work, 1);
+	db_cb->callback = func;
+	db_cb->data = data;
+	callout_init(&db_cb->irq_work, 1);
 
 	unmask_ldb_interrupt(ntb, idx);
 
