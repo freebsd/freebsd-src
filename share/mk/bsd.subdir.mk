@@ -33,8 +33,9 @@
 __<bsd.subdir.mk>__:
 
 ALL_SUBDIR_TARGETS= all all-man checkdpadd clean cleandepend cleandir \
-	cleanilinks cleanobj depend distribute lint maninstall manlint obj \
-	objlink realinstall regress tags ${SUBDIR_TARGETS}
+		    cleanilinks cleanobj depend distribute lint maninstall \
+		    manlint obj objlink realinstall regress tags \
+		    ${SUBDIR_TARGETS}
 
 .include <bsd.init.mk>
 
