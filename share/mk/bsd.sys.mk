@@ -165,13 +165,13 @@ CXXFLAGS+=	 ${CXXFLAGS.${COMPILER_TYPE}}
 # Tell bmake not to mistake standard targets for things to be searched for
 # or expect to ever be up-to-date.
 PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
-		beforelinking build build-tools buildfiles buildincludes \
-		checkdpadd clean cleandepend cleandir cleanobj configure \
-		depend dependall distclean distribute exe \
-		html includes install installfiles installincludes lint \
-		obj objlink objs objwarn realall realdepend \
-		realinstall regress subdir-all subdir-depend subdir-install \
-		tags whereobj
+		beforelinking build build-tools buildconfig buildfiles \
+		buildincludes checkdpadd clean cleandepend cleandir cleanobj \
+		configure depend dependall distclean distribute exe \
+		files html includes install installconfig installfiles \
+		installincludes lint obj objlink objs objwarn realall \
+		realdepend realinstall regress subdir-all subdir-depend \
+		subdir-install tags whereobj
 
 # we don't want ${PROG} to be PHONY
 .PHONY: ${PHONY_NOTMAIN:N${PROG:U}}
