@@ -56,7 +56,7 @@ PROG_FULL=${PROG}.full
 # Use ${DEBUGDIR} for base system debug files, else .debug subdirectory
 .if defined(BINDIR) && (\
     ${BINDIR} == "/bin" ||\
-    ${BINDIR} == "/libexec" ||\
+    ${BINDIR:C%/libexec(/.*)?%/libexec%} == "/libexec" ||\
     ${BINDIR} == "/sbin" ||\
     ${BINDIR:C%/usr/(bin|bsdinstall|libexec|lpr|sendmail|sm.bin|sbin)(/.*)?%/usr/bin%} == "/usr/bin"\
      )
