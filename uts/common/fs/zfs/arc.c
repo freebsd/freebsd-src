@@ -5021,6 +5021,16 @@ arc_init(void)
 	arc_c_max = MAX(allmem * 3 / 4, arc_c_max);
 
 	/*
+	 * In userland, there's only the memory pressure that we artificially
+	 * create (see arc_available_memory()).  Don't let arc_c get too
+	 * small, because it can cause transactions to be larger than
+	 * arc_c, causing arc_tempreserve_space() to fail.
+	 */
+#ifndef _KERNEL
+	arc_c_min = arc_c_max / 2;
+#endif
+
+	/*
 	 * Allow the tunables to override our calculations if they are
 	 * reasonable (ie. over 64MB)
 	 */
