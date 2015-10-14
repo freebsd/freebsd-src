@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 
 #include <netinet/in.h>
@@ -227,6 +228,7 @@ __res_vinit(res_state statp, int preinit) {
 	statp->pfcode = 0;
 	statp->_vcsock = -1;
 	statp->_flags = 0;
+	statp->reload_period = 2;
 	statp->qhook = NULL;
 	statp->rhook = NULL;
 	statp->_u._ext.nscount = 0;
@@ -321,6 +323,22 @@ __res_vinit(res_state statp, int preinit) {
 
 	nserv = 0;
 	if ((fp = fopen(_PATH_RESCONF, "re")) != NULL) {
+	    struct stat sb;
+	    struct timespec now;
+
+	    if (_fstat(fileno(fp), &sb) == 0) {
+		statp->conf_mtim = sb.st_mtim;
+		if (clock_gettime(CLOCK_MONOTONIC_FAST, &now) == 0) {
+		    statp->conf_stat = now.tv_sec;
+		} else {
+		    statp->conf_stat = 0;
+		}
+	    } else {
+		statp->conf_mtim.tv_sec = 0;
+		statp->conf_mtim.tv_nsec = 0;
+		statp->conf_stat = 0;
+	    }
+
 	    /* read the config file */
 	    while (fgets(buf, sizeof(buf), fp) != NULL) {
 		/* skip comments */
@@ -666,6 +684,10 @@ res_setoptions(res_state statp, const char *options, const char *source)
 		} else if (!strncmp(cp, "no-check-names",
 				    sizeof("no-check-names") - 1)) {
 			statp->options |= RES_NOCHECKNAME;
+		} else if (!strncmp(cp, "reload-period:",
+				    sizeof("reload-period:") - 1)) {
+			statp->reload_period = (u_short)
+				atoi(cp + sizeof("reload-period:") - 1);
 		}
 #ifdef RES_USE_EDNS0
 		else if (!strncmp(cp, "edns0", sizeof("edns0") - 1)) {
