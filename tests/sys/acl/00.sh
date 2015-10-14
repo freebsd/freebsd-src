@@ -75,7 +75,7 @@ chmod 600 xxx
 rm xxx
 echo "ok 2"
 
-perl $TESTDIR/run $TESTDIR/tools-posix.test > /dev/null
+perl $TESTDIR/run $TESTDIR/tools-posix.test >&2
 
 if [ $? -eq 0 ]; then
 	echo "ok 3"
