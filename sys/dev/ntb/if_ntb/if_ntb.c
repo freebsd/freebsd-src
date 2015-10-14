@@ -1163,12 +1163,25 @@ ntb_set_mw(struct ntb_netdev *nt, int num_mw, unsigned int size)
 	    BUS_SPACE_MAXADDR, mw->size, 0);
 	if (mw->virt_addr == NULL) {
 		mw->size = 0;
-		printf("ntb: Unable to allocate MW buffer of size %d\n",
-		    (int)mw->size);
+		printf("ntb: Unable to allocate MW buffer of size %zu\n",
+		    mw->size);
 		return (ENOMEM);
 	}
 	/* TODO: replace with bus_space_* functions */
 	mw->dma_addr = vtophys(mw->virt_addr);
+
+	/*
+	 * Ensure that the allocation from contigmalloc is aligned as
+	 * requested.  XXX: This may not be needed -- brought in for parity
+	 * with the Linux driver.
+	 */
+	if (mw->dma_addr % size != 0) {
+		device_printf(ntb_get_device(nt->ntb),
+		    "DMA memory 0x%jx not aligned to BAR size 0x%x\n",
+		    (uintmax_t)mw->dma_addr, size);
+		ntb_free_mw(nt, num_mw);
+		return (ENOMEM);
+	}
 
 	/* Notify HW the memory location of the receive buffer */
 	ntb_set_mw_addr(nt->ntb, num_mw, mw->dma_addr);
