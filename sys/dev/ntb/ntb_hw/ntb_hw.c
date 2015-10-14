@@ -109,6 +109,7 @@ struct ntb_db_cb {
 	unsigned int		db_num;
 	void			*data;
 	struct ntb_softc	*ntb;
+	struct callout		irq_work;
 };
 
 struct ntb_softc {
@@ -204,6 +205,9 @@ static void handle_soc_irq(void *arg);
 static void handle_xeon_irq(void *arg);
 static void handle_xeon_event_irq(void *arg);
 static void ntb_handle_legacy_interrupt(void *arg);
+static void ntb_irq_work(void *arg);
+static void mask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx);
+static void unmask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx);
 static int ntb_create_callbacks(struct ntb_softc *ntb, int num_vectors);
 static void ntb_free_callbacks(struct ntb_softc *ntb);
 static struct ntb_hw_info *ntb_get_device_info(uint32_t device_id);
@@ -580,6 +584,26 @@ ntb_teardown_interrupts(struct ntb_softc *ntb)
 }
 
 static void
+mask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx)
+{
+	unsigned long mask;
+
+	mask = ntb_reg_read(2, ntb->reg_ofs.ldb_mask);
+	mask |= 1 << (idx * ntb->bits_per_vector);
+	ntb_reg_write(2, ntb->reg_ofs.ldb_mask, mask);
+}
+
+static void
+unmask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx)
+{
+	unsigned long mask;
+
+	mask = ntb_reg_read(2, ntb->reg_ofs.ldb_mask);
+	mask &= ~(1 << (idx * ntb->bits_per_vector));
+	ntb_reg_write(2, ntb->reg_ofs.ldb_mask, mask);
+}
+
+static void
 handle_soc_irq(void *arg)
 {
 	struct ntb_db_cb *db_cb = arg;
@@ -587,8 +611,10 @@ handle_soc_irq(void *arg)
 
 	ntb_reg_write(8, ntb->reg_ofs.ldb, (uint64_t) 1 << db_cb->db_num);
 
-	if (db_cb->callback != NULL)
-		db_cb->callback(db_cb->data, db_cb->db_num);
+	if (db_cb->callback != NULL) {
+		mask_ldb_interrupt(ntb, db_cb->db_num);
+		callout_reset(&db_cb->irq_work, 0, ntb_irq_work, db_cb);
+	}
 }
 
 static void
@@ -607,8 +633,10 @@ handle_xeon_irq(void *arg)
 	    ((1 << ntb->bits_per_vector) - 1) <<
 	    (db_cb->db_num * ntb->bits_per_vector));
 
-	if (db_cb->callback != NULL)
-		db_cb->callback(db_cb->data, db_cb->db_num);
+	if (db_cb->callback != NULL) {
+		mask_ldb_interrupt(ntb, db_cb->db_num);
+		callout_reset(&db_cb->irq_work, 0, ntb_irq_work, db_cb);
+	}
 }
 
 /* Since we do not have a HW doorbell in SOC, this is only used in JF/JT */
@@ -1191,6 +1219,25 @@ ntb_unregister_event_callback(struct ntb_softc *ntb)
 	ntb->event_cb = NULL;
 }
 
+static void
+ntb_irq_work(void *arg)
+{
+	struct ntb_db_cb *db_cb = arg;
+	struct ntb_softc *ntb;
+	int rc;
+
+	rc = db_cb->callback(db_cb->data, db_cb->db_num);
+	/* Poll if forward progress was made. */
+	if (rc != 0) {
+		callout_reset(&db_cb->irq_work, 0, ntb_irq_work, db_cb);
+		return;
+	}
+
+	/* Unmask interrupt if no progress was made. */
+	ntb = db_cb->ntb;
+	unmask_ldb_interrupt(ntb, db_cb->db_num);
+}
+
 /**
  * ntb_register_db_callback() - register a callback for doorbell interrupt
  * @ntb: pointer to ntb_softc instance
@@ -1208,7 +1255,6 @@ int
 ntb_register_db_callback(struct ntb_softc *ntb, unsigned int idx, void *data,
     ntb_db_callback func)
 {
-	uint16_t mask;
 
 	if (idx >= ntb->allocated_interrupts || ntb->db_cb[idx].callback) {
 		device_printf(ntb->device, "Invalid Index.\n");
@@ -1217,11 +1263,9 @@ ntb_register_db_callback(struct ntb_softc *ntb, unsigned int idx, void *data,
 
 	ntb->db_cb[idx].callback = func;
 	ntb->db_cb[idx].data = data;
+	callout_init(&ntb->db_cb[idx].irq_work, 1);
 
-	/* unmask interrupt */
-	mask = ntb_reg_read(2, ntb->reg_ofs.ldb_mask);
-	mask &= ~(1 << (idx * ntb->bits_per_vector));
-	ntb_reg_write(2, ntb->reg_ofs.ldb_mask, mask);
+	unmask_ldb_interrupt(ntb, idx);
 
 	return (0);
 }
@@ -1237,15 +1281,13 @@ ntb_register_db_callback(struct ntb_softc *ntb, unsigned int idx, void *data,
 void
 ntb_unregister_db_callback(struct ntb_softc *ntb, unsigned int idx)
 {
-	unsigned long mask;
 
 	if (idx >= ntb->allocated_interrupts || !ntb->db_cb[idx].callback)
 		return;
 
-	mask = ntb_reg_read(2, ntb->reg_ofs.ldb_mask);
-	mask |= 1 << (idx * ntb->bits_per_vector);
-	ntb_reg_write(2, ntb->reg_ofs.ldb_mask, mask);
+	mask_ldb_interrupt(ntb, idx);
 
+	callout_drain(&ntb->db_cb[idx].irq_work);
 	ntb->db_cb[idx].callback = NULL;
 }
 
