@@ -54,7 +54,9 @@ else
   ifdef CONFIG_LIBNL_TINY
     DRV_LIBS += -lnl-tiny
   else
-    DRV_LIBS += -lnl
+    ifndef CONFIG_OSX
+      DRV_LIBS += -lnl
+    endif
   endif
 
   ifdef CONFIG_LIBNL20

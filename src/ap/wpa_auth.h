@@ -1,6 +1,6 @@
 /*
  * hostapd - IEEE 802.11i-2004 / WPA Authenticator
- * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2015, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -12,6 +12,9 @@
 #include "common/defs.h"
 #include "common/eapol_common.h"
 #include "common/wpa_common.h"
+#include "common/ieee802_11_defs.h"
+
+#define MAX_OWN_IE_OVERRIDE 256
 
 #ifdef _MSC_VER
 #pragma pack(push, 1)
@@ -146,8 +149,7 @@ struct wpa_auth_config {
 	int group_mgmt_cipher;
 #endif /* CONFIG_IEEE80211W */
 #ifdef CONFIG_IEEE80211R
-#define SSID_LEN 32
-	u8 ssid[SSID_LEN];
+	u8 ssid[SSID_MAX_LEN];
 	size_t ssid_len;
 	u8 mobility_domain[MOBILITY_DOMAIN_ID_LEN];
 	u8 r0_key_holder[FT_R0KH_ID_MAX_LEN];
@@ -164,6 +166,8 @@ struct wpa_auth_config {
 	int ap_mlme;
 #ifdef CONFIG_TESTING_OPTIONS
 	double corrupt_gtk_rekey_mic_probability;
+	u8 own_ie_override[MAX_OWN_IE_OVERRIDE];
+	size_t own_ie_override_len;
 #endif /* CONFIG_TESTING_OPTIONS */
 #ifdef CONFIG_P2P
 	u8 ip_addr_go[4];
@@ -189,6 +193,7 @@ struct wpa_auth_callbacks {
 		       const char *txt);
 	void (*disconnect)(void *ctx, const u8 *addr, u16 reason);
 	int (*mic_failure_report)(void *ctx, const u8 *addr);
+	void (*psk_failure_report)(void *ctx, const u8 *addr);
 	void (*set_eapol)(void *ctx, const u8 *addr, wpa_eapol_variable var,
 			  int value);
 	int (*get_eapol)(void *ctx, const u8 *addr, wpa_eapol_variable var);
@@ -251,12 +256,12 @@ void wpa_auth_sta_deinit(struct wpa_state_machine *sm);
 void wpa_receive(struct wpa_authenticator *wpa_auth,
 		 struct wpa_state_machine *sm,
 		 u8 *data, size_t data_len);
-typedef enum {
+enum wpa_event {
 	WPA_AUTH, WPA_ASSOC, WPA_DISASSOC, WPA_DEAUTH, WPA_REAUTH,
 	WPA_REAUTH_EAPOL, WPA_ASSOC_FT
-} wpa_event;
+};
 void wpa_remove_ptk(struct wpa_state_machine *sm);
-int wpa_auth_sm_event(struct wpa_state_machine *sm, wpa_event event);
+int wpa_auth_sm_event(struct wpa_state_machine *sm, enum wpa_event event);
 void wpa_auth_sm_notify(struct wpa_state_machine *sm);
 void wpa_gtk_rekey(struct wpa_authenticator *wpa_auth);
 int wpa_get_mib(struct wpa_authenticator *wpa_auth, char *buf, size_t buflen);

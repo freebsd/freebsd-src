@@ -322,7 +322,8 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 }
 
 
-static void wpa_supplicant_ctrl_iface_msg_cb(void *ctx, int level, int global,
+static void wpa_supplicant_ctrl_iface_msg_cb(void *ctx, int level,
+					     enum wpa_msg_type type,
 					     const char *txt, size_t len)
 {
 	struct wpa_supplicant *wpa_s = ctx;

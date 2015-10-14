@@ -192,7 +192,7 @@ struct prism2_hostapd_param {
 		} mlme;
 		struct {
 			u8 ssid_len;
-			u8 ssid[32];
+			u8 ssid[SSID_MAX_LEN];
 		} scan_req;
 	} u;
 };

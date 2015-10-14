@@ -1,0 +1,398 @@
+This patch adds support for TLS SessionTicket extension (RFC 5077) for
+the parts used by EAP-FAST (RFC 4851).
+
+This is based on the patch from Alexey Kobozev <akobozev@cisco.com>
+(sent to openssl-dev mailing list on Tue, 07 Jun 2005 15:40:58 +0300).
+
+OpenSSL 0.9.8zf does not enable TLS extension support by default, so it
+will need to be enabled by adding enable-tlsext to config script
+command line.
+
+
+diff -upr openssl-0.9.8zf.orig/ssl/s3_clnt.c openssl-0.9.8zf/ssl/s3_clnt.c
+--- openssl-0.9.8zf.orig/ssl/s3_clnt.c	2015-03-19 15:46:46.000000000 +0200
++++ openssl-0.9.8zf/ssl/s3_clnt.c	2015-03-24 16:19:14.043911769 +0200
+@@ -760,6 +760,23 @@ int ssl3_get_server_hello(SSL *s)
+         goto f_err;
+     }
+ 
++#ifndef OPENSSL_NO_TLSEXT
++    /* check if we want to resume the session based on external pre-shared secret */
++    if (s->version >= TLS1_VERSION && s->tls_session_secret_cb) {
++        SSL_CIPHER *pref_cipher = NULL;
++
++        s->session->master_key_length = sizeof(s->session->master_key);
++        if (s->tls_session_secret_cb(s, s->session->master_key,
++				     &s->session->master_key_length,
++				     NULL, &pref_cipher,
++				     s->tls_session_secret_cb_arg)) {
++            s->session->cipher = pref_cipher ?
++		    pref_cipher : ssl_get_cipher_by_char(s, p + j);
++	    s->s3->flags |= SSL3_FLAGS_CCS_OK;
++	}
++    }
++#endif /* OPENSSL_NO_TLSEXT */
++
+     if (j != 0 && j == s->session->session_id_length
+         && memcmp(p, s->session->session_id, j) == 0) {
+         if (s->sid_ctx_length != s->session->sid_ctx_length
+@@ -2684,12 +2701,8 @@ int ssl3_check_finished(SSL *s)
+ {
+     int ok;
+     long n;
+-    /*
+-     * If we have no ticket or session ID is non-zero length (a match of a
+-     * non-zero session length would never reach here) it cannot be a resumed
+-     * session.
+-     */
+-    if (!s->session->tlsext_tick || s->session->session_id_length)
++    /* If we have no ticket it cannot be a resumed session. */
++    if (!s->session->tlsext_tick)
+         return 1;
+     /*
+      * this function is called when we really expect a Certificate message,
+diff -upr openssl-0.9.8zf.orig/ssl/s3_srvr.c openssl-0.9.8zf/ssl/s3_srvr.c
+--- openssl-0.9.8zf.orig/ssl/s3_srvr.c	2015-03-19 15:46:46.000000000 +0200
++++ openssl-0.9.8zf/ssl/s3_srvr.c	2015-03-24 16:23:34.567909681 +0200
+@@ -999,6 +999,59 @@ int ssl3_get_client_hello(SSL *s)
+         SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, SSL_R_CLIENTHELLO_TLSEXT);
+         goto err;
+     }
++
++    /* Check if we want to use external pre-shared secret for this
++     * handshake for not reused session only. We need to generate
++     * server_random before calling tls_session_secret_cb in order to allow
++     * SessionTicket processing to use it in key derivation. */
++    {
++        unsigned long Time;
++	unsigned char *pos;
++	Time = (unsigned long)time(NULL);			/* Time */
++	pos = s->s3->server_random;
++	l2n(Time, pos);
++	if (RAND_pseudo_bytes(pos, SSL3_RANDOM_SIZE - 4) <= 0) {
++		al = SSL_AD_INTERNAL_ERROR;
++		goto f_err;
++	}
++    }
++
++    if (!s->hit && s->version >= TLS1_VERSION && s->tls_session_secret_cb) {
++	SSL_CIPHER *pref_cipher = NULL;
++
++	s->session->master_key_length = sizeof(s->session->master_key);
++	if (s->tls_session_secret_cb(s, s->session->master_key,
++				     &s->session->master_key_length, 
++				     ciphers, &pref_cipher,
++				     s->tls_session_secret_cb_arg)) {
++	    s->hit = 1;
++	    s->session->ciphers = ciphers;
++	    s->session->verify_result = X509_V_OK;
++
++	    ciphers = NULL;
++
++	    /* check if some cipher was preferred by call back */
++	    pref_cipher = pref_cipher ? pref_cipher :
++		    ssl3_choose_cipher(s, s->session->ciphers,
++				       SSL_get_ciphers(s));
++	    if (pref_cipher == NULL) {
++		al = SSL_AD_HANDSHAKE_FAILURE;
++		SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, SSL_R_NO_SHARED_CIPHER);
++		goto f_err;
++	    }
++
++	    s->session->cipher = pref_cipher;
++
++	    if (s->cipher_list)
++		sk_SSL_CIPHER_free(s->cipher_list);
++
++	    if (s->cipher_list_by_id)
++		sk_SSL_CIPHER_free(s->cipher_list_by_id);
++
++	    s->cipher_list = sk_SSL_CIPHER_dup(s->session->ciphers);
++	    s->cipher_list_by_id = sk_SSL_CIPHER_dup(s->session->ciphers);
++	}
++    }
+ #endif
+     /*
+      * Worst case, we will use the NULL compression, but if we have other
+@@ -1143,15 +1196,21 @@ int ssl3_send_server_hello(SSL *s)
+     unsigned char *buf;
+     unsigned char *p, *d;
+     int i, sl;
+-    unsigned long l, Time;
++    unsigned long l;
++#ifdef OPENSSL_NO_TLSEXT
++    unsigned long Time;
++#endif
+ 
+     if (s->state == SSL3_ST_SW_SRVR_HELLO_A) {
+         buf = (unsigned char *)s->init_buf->data;
++#ifdef OPENSSL_NO_TLSEXT
+         p = s->s3->server_random;
++        /* Generate server_random if it was not needed previously */
+         Time = (unsigned long)time(NULL); /* Time */
+         l2n(Time, p);
+         if (RAND_pseudo_bytes(p, SSL3_RANDOM_SIZE - 4) <= 0)
+             return -1;
++#endif
+         /* Do the message type and length last */
+         d = p = &(buf[4]);
+ 
+diff -upr openssl-0.9.8zf.orig/ssl/ssl_err.c openssl-0.9.8zf/ssl/ssl_err.c
+--- openssl-0.9.8zf.orig/ssl/ssl_err.c	2015-03-19 15:46:46.000000000 +0200
++++ openssl-0.9.8zf/ssl/ssl_err.c	2015-03-24 16:35:58.627903717 +0200
+@@ -316,6 +316,7 @@ static ERR_STRING_DATA SSL_str_functs[]
+     {ERR_FUNC(SSL_F_TLS1_ENC), "TLS1_ENC"},
+     {ERR_FUNC(SSL_F_TLS1_SETUP_KEY_BLOCK), "TLS1_SETUP_KEY_BLOCK"},
+     {ERR_FUNC(SSL_F_WRITE_PENDING), "WRITE_PENDING"},
++    {ERR_FUNC(SSL_F_SSL_SET_SESSION_TICKET_EXT), "SSL_set_session_ticket_ext"},
+     {0, NULL}
+ };
+ 
+diff -upr openssl-0.9.8zf.orig/ssl/ssl.h openssl-0.9.8zf/ssl/ssl.h
+--- openssl-0.9.8zf.orig/ssl/ssl.h	2015-03-19 15:46:46.000000000 +0200
++++ openssl-0.9.8zf/ssl/ssl.h	2015-03-24 16:25:44.339908641 +0200
+@@ -349,6 +349,7 @@ extern "C" {
+  * function parameters used to prototype callbacks in SSL_CTX.
+  */
+ typedef struct ssl_st *ssl_crock_st;
++typedef struct tls_session_ticket_ext_st TLS_SESSION_TICKET_EXT;
+ 
+ /* used to hold info on the particular ciphers used */
+ typedef struct ssl_cipher_st {
+@@ -366,6 +367,12 @@ typedef struct ssl_cipher_st {
+ 
+ DECLARE_STACK_OF(SSL_CIPHER)
+ 
++typedef int (*tls_session_ticket_ext_cb_fn)(SSL *s, const unsigned char *data,
++					    int len, void *arg);
++typedef int (*tls_session_secret_cb_fn)(SSL *s, void *secret, int *secret_len,
++					STACK_OF(SSL_CIPHER) *peer_ciphers,
++					SSL_CIPHER **cipher, void *arg);
++
+ /* Used to hold functions for SSLv2 or SSLv3/TLSv1 functions */
+ typedef struct ssl_method_st {
+     int version;
+@@ -1116,6 +1123,18 @@ struct ssl_st {
+     int tlsext_ocsp_resplen;
+     /* RFC4507 session ticket expected to be received or sent */
+     int tlsext_ticket_expected;
++
++    /* TLS Session Ticket extension override */
++    TLS_SESSION_TICKET_EXT *tlsext_session_ticket;
++
++    /* TLS Session Ticket extension callback */
++    tls_session_ticket_ext_cb_fn tls_session_ticket_ext_cb;
++    void *tls_session_ticket_ext_cb_arg;
++
++    /* TLS pre-shared secret session resumption */
++    tls_session_secret_cb_fn tls_session_secret_cb;
++    void *tls_session_secret_cb_arg;
++
+     SSL_CTX *initial_ctx;       /* initial ctx, used to store sessions */
+ #  define session_ctx initial_ctx
+ # else
+@@ -1772,6 +1791,17 @@ void *SSL_COMP_get_compression_methods(v
+ int SSL_COMP_add_compression_method(int id, void *cm);
+ # endif
+ 
++/* TLS extensions functions */
++int SSL_set_session_ticket_ext(SSL *s, void *ext_data, int ext_len);
++
++int SSL_set_session_ticket_ext_cb(SSL *s, tls_session_ticket_ext_cb_fn cb,
++				  void *arg);
++
++/* Pre-shared secret session resumption functions */
++int SSL_set_session_secret_cb(SSL *s,
++			      tls_session_secret_cb_fn tls_session_secret_cb,
++			      void *arg);
++
+ /* BEGIN ERROR CODES */
+ /*
+  * The following lines are auto generated by the script mkerr.pl. Any changes
+@@ -1977,6 +2007,7 @@ void ERR_load_SSL_strings(void);
+ # define SSL_F_TLS1_ENC                                   210
+ # define SSL_F_TLS1_SETUP_KEY_BLOCK                       211
+ # define SSL_F_WRITE_PENDING                              212
++#define SSL_F_SSL_SET_SESSION_TICKET_EXT                  213
+ 
+ /* Reason codes. */
+ # define SSL_R_APP_DATA_IN_HANDSHAKE                      100
+diff -upr openssl-0.9.8zf.orig/ssl/ssl_sess.c openssl-0.9.8zf/ssl/ssl_sess.c
+--- openssl-0.9.8zf.orig/ssl/ssl_sess.c	2015-03-19 15:46:46.000000000 +0200
++++ openssl-0.9.8zf/ssl/ssl_sess.c	2015-03-24 16:28:04.819907515 +0200
+@@ -716,6 +716,61 @@ long SSL_CTX_get_timeout(const SSL_CTX *
+     return (s->session_timeout);
+ }
+ 
++#ifndef OPENSSL_NO_TLSEXT
++int SSL_set_session_secret_cb(
++	SSL *s,
++	int (*tls_session_secret_cb)(SSL *s, void *secret, int *secret_len,
++				     STACK_OF(SSL_CIPHER) *peer_ciphers,
++				     SSL_CIPHER **cipher, void *arg), void *arg)
++{
++    if (s == NULL)
++	    return 0;
++    s->tls_session_secret_cb = tls_session_secret_cb;
++    s->tls_session_secret_cb_arg = arg;
++    return 1;
++}
++
++int SSL_set_session_ticket_ext_cb(SSL *s, tls_session_ticket_ext_cb_fn cb,
++				  void *arg)
++{
++    if (s == NULL)
++	    return 0;
++    s->tls_session_ticket_ext_cb = cb;
++    s->tls_session_ticket_ext_cb_arg = arg;
++    return 1;
++}
++
++int SSL_set_session_ticket_ext(SSL *s, void *ext_data, int ext_len)
++{
++    if (s->version >= TLS1_VERSION) {
++	if (s->tlsext_session_ticket) {
++	    OPENSSL_free(s->tlsext_session_ticket);
++	    s->tlsext_session_ticket = NULL;
++	}
++
++	s->tlsext_session_ticket = OPENSSL_malloc(
++		sizeof(TLS_SESSION_TICKET_EXT) + ext_len);
++	if (!s->tlsext_session_ticket) {
++	    SSLerr(SSL_F_SSL_SET_SESSION_TICKET_EXT, ERR_R_MALLOC_FAILURE);
++	    return 0;
++	}
++
++	if (ext_data) {
++	    s->tlsext_session_ticket->length = ext_len;
++	    s->tlsext_session_ticket->data = s->tlsext_session_ticket + 1;
++	    memcpy(s->tlsext_session_ticket->data, ext_data, ext_len);
++	} else {
++		s->tlsext_session_ticket->length = 0;
++		s->tlsext_session_ticket->data = NULL;
++	}
++
++	return 1;
++    }
++
++    return 0;
++}
++#endif /* OPENSSL_NO_TLSEXT */
++
+ typedef struct timeout_param_st {
+     SSL_CTX *ctx;
+     long time;
+diff -upr openssl-0.9.8zf.orig/ssl/t1_lib.c openssl-0.9.8zf/ssl/t1_lib.c
+--- openssl-0.9.8zf.orig/ssl/t1_lib.c	2015-03-19 15:46:46.000000000 +0200
++++ openssl-0.9.8zf/ssl/t1_lib.c	2015-03-24 16:32:46.923905254 +0200
+@@ -108,6 +108,11 @@ int tls1_new(SSL *s)
+ 
+ void tls1_free(SSL *s)
+ {
++#ifndef OPENSSL_NO_TLSEXT
++    if (s->tlsext_session_ticket) {
++	OPENSSL_free(s->tlsext_session_ticket);
++    }
++#endif
+     ssl3_free(s);
+ }
+ 
+@@ -206,8 +211,20 @@ unsigned char *ssl_add_clienthello_tlsex
+         int ticklen;
+         if (!s->new_session && s->session && s->session->tlsext_tick)
+             ticklen = s->session->tlsext_ticklen;
+-        else
++	else if (s->session && s->tlsext_session_ticket &&
++		 s->tlsext_session_ticket->data) {
++	    ticklen = s->tlsext_session_ticket->length;
++	    s->session->tlsext_tick = OPENSSL_malloc(ticklen);
++	    if (!s->session->tlsext_tick)
++		return NULL;
++	    memcpy(s->session->tlsext_tick, s->tlsext_session_ticket->data,
++		   ticklen);
++	    s->session->tlsext_ticklen = ticklen;
++	} else
+             ticklen = 0;
++	if (ticklen == 0 && s->tlsext_session_ticket &&
++	    s->tlsext_session_ticket->data == NULL)
++	    goto skip_ext;
+         /*
+          * Check for enough room 2 for extension type, 2 for len rest for
+          * ticket
+@@ -221,6 +238,7 @@ unsigned char *ssl_add_clienthello_tlsex
+             ret += ticklen;
+         }
+     }
++skip_ext:
+ 
+     if (s->tlsext_status_type == TLSEXT_STATUSTYPE_ocsp &&
+         s->version != DTLS1_VERSION) {
+@@ -560,6 +578,14 @@ int ssl_parse_clienthello_tlsext(SSL *s,
+             if (!ssl_parse_clienthello_renegotiate_ext(s, data, size, al))
+                 return 0;
+             renegotiate_seen = 1;
++	} else if (type == TLSEXT_TYPE_session_ticket) {
++	    if (s->tls_session_ticket_ext_cb &&
++		!s->tls_session_ticket_ext_cb(s, data, size,
++					      s->tls_session_ticket_ext_cb_arg))
++	    {
++		*al = TLS1_AD_INTERNAL_ERROR;
++		return 0;
++	    }
+         } else if (type == TLSEXT_TYPE_status_request &&
+                    s->version != DTLS1_VERSION && s->ctx->tlsext_status_cb) {
+ 
+@@ -710,6 +736,13 @@ int ssl_parse_serverhello_tlsext(SSL *s,
+             }
+             tlsext_servername = 1;
+         } else if (type == TLSEXT_TYPE_session_ticket) {
++	    if (s->tls_session_ticket_ext_cb &&
++		!s->tls_session_ticket_ext_cb(
++			s, data, size,
++			s->tls_session_ticket_ext_cb_arg)) {
++		*al = TLS1_AD_INTERNAL_ERROR;
++		return 0;
++	    }
+             if ((SSL_get_options(s) & SSL_OP_NO_TICKET)
+                 || (size > 0)) {
+                 *al = TLS1_AD_UNSUPPORTED_EXTENSION;
+@@ -993,6 +1026,14 @@ int tls1_process_ticket(SSL *s, unsigned
+                 s->tlsext_ticket_expected = 1;
+                 return 0;       /* Cache miss */
+             }
++	    if (s->tls_session_secret_cb) {
++		/* Indicate cache miss here and instead of
++		 * generating the session from ticket now,
++		 * trigger abbreviated handshake based on
++		 * external mechanism to calculate the master
++		 * secret later. */
++		return 0;
++	    }
+             return tls_decrypt_ticket(s, p, size, session_id, len, ret);
+         }
+         p += size;
+diff -upr openssl-0.9.8zf.orig/ssl/tls1.h openssl-0.9.8zf/ssl/tls1.h
+--- openssl-0.9.8zf.orig/ssl/tls1.h	2015-03-19 15:46:46.000000000 +0200
++++ openssl-0.9.8zf/ssl/tls1.h	2015-03-24 16:33:31.855904894 +0200
+@@ -460,6 +460,12 @@ SSL_CTX_callback_ctrl(ssl,SSL_CTRL_SET_T
+ #  define TLS_MD_MASTER_SECRET_CONST    "\x6d\x61\x73\x74\x65\x72\x20\x73\x65\x63\x72\x65\x74"
+ # endif
+ 
++/* TLS extension struct */
++struct tls_session_ticket_ext_st {
++    unsigned short length;
++    void *data;
++};
++
+ #ifdef  __cplusplus
+ }
+ #endif
+diff -upr openssl-0.9.8zf.orig/util/ssleay.num openssl-0.9.8zf/util/ssleay.num
+--- openssl-0.9.8zf.orig/util/ssleay.num	2015-03-19 15:47:15.000000000 +0200
++++ openssl-0.9.8zf/util/ssleay.num	2015-03-24 16:33:51.127904739 +0200
+@@ -242,3 +242,5 @@ SSL_set_SSL_CTX
+ SSL_get_servername                      291	EXIST::FUNCTION:TLSEXT
+ SSL_get_servername_type                 292	EXIST::FUNCTION:TLSEXT
+ SSL_CTX_set_client_cert_engine          293	EXIST::FUNCTION:ENGINE
++SSL_set_session_ticket_ext		306	EXIST::FUNCTION:TLSEXT
++SSL_set_session_secret_cb		307	EXIST::FUNCTION:TLSEXT

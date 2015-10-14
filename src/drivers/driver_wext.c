@@ -1,6 +1,6 @@
 /*
  * Driver interaction with generic Linux Wireless Extensions
- * Copyright (c) 2003-2010, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2015, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <net/if_arp.h>
+#include <dirent.h>
 
 #include "linux_wext.h"
 #include "common.h"
@@ -131,7 +132,7 @@ int wpa_driver_wext_get_ssid(void *priv, u8 *ssid)
 	os_memset(&iwr, 0, sizeof(iwr));
 	os_strlcpy(iwr.ifr_name, drv->ifname, IFNAMSIZ);
 	iwr.u.essid.pointer = (caddr_t) ssid;
-	iwr.u.essid.length = 32;
+	iwr.u.essid.length = SSID_MAX_LEN;
 
 	if (ioctl(drv->ioctl_sock, SIOCGIWESSID, &iwr) < 0) {
 		wpa_printf(MSG_ERROR, "ioctl[SIOCGIWESSID]: %s",
@@ -139,8 +140,8 @@ int wpa_driver_wext_get_ssid(void *priv, u8 *ssid)
 		ret = -1;
 	} else {
 		ret = iwr.u.essid.length;
-		if (ret > 32)
-			ret = 32;
+		if (ret > SSID_MAX_LEN)
+			ret = SSID_MAX_LEN;
 		/* Some drivers include nul termination in the SSID, so let's
 		 * remove it here before further processing. WE-21 changes this
 		 * to explicitly require the length _not_ to include nul
@@ -168,7 +169,7 @@ int wpa_driver_wext_set_ssid(void *priv, const u8 *ssid, size_t ssid_len)
 	int ret = 0;
 	char buf[33];
 
-	if (ssid_len > 32)
+	if (ssid_len > SSID_MAX_LEN)
 		return -1;
 
 	os_memset(&iwr, 0, sizeof(iwr));
@@ -874,6 +875,105 @@ static void wpa_driver_wext_send_rfkill(void *eloop_ctx, void *timeout_ctx)
 }
 
 
+static int wext_hostap_ifname(struct wpa_driver_wext_data *drv,
+			      const char *ifname)
+{
+	char buf[200], *res;
+	int type;
+	FILE *f;
+
+	if (strcmp(ifname, ".") == 0 || strcmp(ifname, "..") == 0)
+		return -1;
+
+	snprintf(buf, sizeof(buf), "/sys/class/net/%s/device/net/%s/type",
+		 drv->ifname, ifname);
+
+	f = fopen(buf, "r");
+	if (!f)
+		return -1;
+	res = fgets(buf, sizeof(buf), f);
+	fclose(f);
+
+	type = res ? atoi(res) : -1;
+	wpa_printf(MSG_DEBUG, "WEXT: hostap ifname %s type %d", ifname, type);
+
+	if (type == ARPHRD_IEEE80211) {
+		wpa_printf(MSG_DEBUG,
+			   "WEXT: Found hostap driver wifi# interface (%s)",
+			   ifname);
+		wpa_driver_wext_alternative_ifindex(drv, ifname);
+		return 0;
+	}
+	return -1;
+}
+
+
+static int wext_add_hostap(struct wpa_driver_wext_data *drv)
+{
+	char buf[200];
+	int n;
+	struct dirent **names;
+	int ret = -1;
+
+	snprintf(buf, sizeof(buf), "/sys/class/net/%s/device/net", drv->ifname);
+	n = scandir(buf, &names, NULL, alphasort);
+	if (n < 0)
+		return -1;
+
+	while (n--) {
+		if (ret < 0 && wext_hostap_ifname(drv, names[n]->d_name) == 0)
+			ret = 0;
+		free(names[n]);
+	}
+	free(names);
+
+	return ret;
+}
+
+
+static void wext_check_hostap(struct wpa_driver_wext_data *drv)
+{
+	char buf[200], *pos;
+	ssize_t res;
+
+	/*
+	 * Host AP driver may use both wlan# and wifi# interface in wireless
+	 * events. Since some of the versions included WE-18 support, let's add
+	 * the alternative ifindex also from driver_wext.c for the time being.
+	 * This may be removed at some point once it is believed that old
+	 * versions of the driver are not in use anymore. However, it looks like
+	 * the wifi# interface is still used in the current kernel tree, so it
+	 * may not really be possible to remove this before the Host AP driver
+	 * gets removed from the kernel.
+	 */
+
+	/* First, try to see if driver information is available from sysfs */
+	snprintf(buf, sizeof(buf), "/sys/class/net/%s/device/driver",
+		 drv->ifname);
+	res = readlink(buf, buf, sizeof(buf) - 1);
+	if (res > 0) {
+		buf[res] = '\0';
+		pos = strrchr(buf, '/');
+		if (pos)
+			pos++;
+		else
+			pos = buf;
+		wpa_printf(MSG_DEBUG, "WEXT: Driver: %s", pos);
+		if (os_strncmp(pos, "hostap", 6) == 0 &&
+		    wext_add_hostap(drv) == 0)
+			return;
+	}
+
+	/* Second, use the old design with hardcoded ifname */
+	if (os_strncmp(drv->ifname, "wlan", 4) == 0) {
+		char ifname2[IFNAMSIZ + 1];
+		os_strlcpy(ifname2, drv->ifname, sizeof(ifname2));
+		os_memcpy(ifname2, "wifi", 4);
+		wpa_driver_wext_alternative_ifindex(drv, ifname2);
+	}
+}
+
+
 static int wpa_driver_wext_finish_drv_init(struct wpa_driver_wext_data *drv)
 {
 	int send_rfkill_event = 0;
@@ -914,20 +1014,7 @@ static int wpa_driver_wext_finish_drv_init(struct wpa_driver_wext_data *drv)
 
 	drv->ifindex = if_nametoindex(drv->ifname);
 
-	if (os_strncmp(drv->ifname, "wlan", 4) == 0) {
-		/*
-		 * Host AP driver may use both wlan# and wifi# interface in
-		 * wireless events. Since some of the versions included WE-18
-		 * support, let's add the alternative ifindex also from
-		 * driver_wext.c for the time being. This may be removed at
-		 * some point once it is believed that old versions of the
-		 * driver are not in use anymore.
-		 */
-		char ifname2[IFNAMSIZ + 1];
-		os_strlcpy(ifname2, drv->ifname, sizeof(ifname2));
-		os_memcpy(ifname2, "wifi", 4);
-		wpa_driver_wext_alternative_ifindex(drv, ifname2);
-	}
+	wext_check_hostap(drv);
 
 	netlink_send_oper_ifla(drv->netlink, drv->ifindex,
 			       1, IF_OPER_DORMANT);
@@ -1112,7 +1199,7 @@ struct wext_scan_data {
 	struct wpa_scan_res res;
 	u8 *ie;
 	size_t ie_len;
-	u8 ssid[32];
+	u8 ssid[SSID_MAX_LEN];
 	size_t ssid_len;
 	int maxrate;
 };
@@ -1865,7 +1952,7 @@ static void wpa_driver_wext_disconnect(struct wpa_driver_wext_data *drv)
 {
 	struct iwreq iwr;
 	const u8 null_bssid[ETH_ALEN] = { 0, 0, 0, 0, 0, 0 };
-	u8 ssid[32];
+	u8 ssid[SSID_MAX_LEN];
 	int i;
 
 	/*
@@ -1907,9 +1994,9 @@ static void wpa_driver_wext_disconnect(struct wpa_driver_wext_data *drv)
 		 * SIOCSIWMLME commands (or tries to associate automatically
 		 * after deauth/disassoc).
 		 */
-		for (i = 0; i < 32; i++)
+		for (i = 0; i < SSID_MAX_LEN; i++)
 			ssid[i] = rand() & 0xFF;
-		if (wpa_driver_wext_set_ssid(drv, ssid, 32) < 0) {
+		if (wpa_driver_wext_set_ssid(drv, ssid, SSID_MAX_LEN) < 0) {
 			wpa_printf(MSG_DEBUG, "WEXT: Failed to set bogus "
 				   "SSID to disconnect");
 		}

@@ -759,7 +759,7 @@ static int wps_process_cred_e(struct wps_data *wps, const u8 *cred,
 
 
 static int wps_process_creds(struct wps_data *wps, const u8 *cred[],
-			     size_t cred_len[], size_t num_cred, int wps2)
+			     u16 cred_len[], unsigned int num_cred, int wps2)
 {
 	size_t i;
 	int ok = 0;
@@ -799,6 +799,7 @@ static int wps_process_ap_settings_e(struct wps_data *wps,
 				     struct wpabuf *attrs, int wps2)
 {
 	struct wps_credential cred;
+	int ret = 0;
 
 	if (!wps->wps->ap)
 		return 0;
@@ -877,10 +878,10 @@ static int wps_process_ap_settings_e(struct wps_data *wps,
 	if (wps->wps->cred_cb) {
 		cred.cred_attr = wpabuf_head(attrs);
 		cred.cred_attr_len = wpabuf_len(attrs);
-		wps->wps->cred_cb(wps->wps->cb_ctx, &cred);
+		ret = wps->wps->cred_cb(wps->wps->cb_ctx, &cred);
 	}
 
-	return 0;
+	return ret;
 }
 
 

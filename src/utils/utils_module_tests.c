@@ -9,10 +9,13 @@
 #include "utils/includes.h"
 
 #include "utils/common.h"
+#include "common/ieee802_11_defs.h"
 #include "utils/bitfield.h"
 #include "utils/ext_password.h"
 #include "utils/trace.h"
 #include "utils/base64.h"
+#include "utils/ip_addr.h"
+#include "utils/eloop.h"
 
 
 struct printf_test_data {
@@ -43,6 +46,7 @@ static int printf_encode_decode_tests(void)
 	char buf[100];
 	u8 bin[100];
 	int errors = 0;
+	int array[10];
 
 	wpa_printf(MSG_INFO, "printf encode/decode tests");
 
@@ -91,7 +95,22 @@ static int printf_encode_decode_tests(void)
 	if (printf_decode(bin, 3, "\\xa") != 1 || bin[0] != 10)
 		errors++;
 
+	if (printf_decode(bin, 3, "\\xq") != 1 || bin[0] != 'q')
+		errors++;
+
 	if (printf_decode(bin, 3, "\\a") != 1 || bin[0] != 'a')
+		errors++;
+
+	array[0] = 10;
+	array[1] = 10;
+	array[2] = 5;
+	array[3] = 10;
+	array[4] = 5;
+	array[5] = 0;
+	if (int_array_len(array) != 5)
+		errors++;
+	int_array_sort_unique(array);
+	if (int_array_len(array) != 2)
 		errors++;
 
 	if (errors) {
@@ -335,11 +354,14 @@ static int base64_tests(void)
 
 static int common_tests(void)
 {
-	char buf[3];
+	char buf[3], longbuf[100];
 	u8 addr[ETH_ALEN] = { 1, 2, 3, 4, 5, 6 };
 	u8 bin[3];
 	int errors = 0;
 	struct wpa_freq_range_list ranges;
+	size_t len;
+	const char *txt;
+	u8 ssid[255];
 
 	wpa_printf(MSG_INFO, "common tests");
 
@@ -395,10 +417,422 @@ static int common_tests(void)
 	if (utf8_escape("a", 0, buf, sizeof(buf)) != 1 || buf[0] != 'a')
 		errors++;
 
+	os_memset(ssid, 0, sizeof(ssid));
+	txt = wpa_ssid_txt(ssid, sizeof(ssid));
+	len = os_strlen(txt);
+	/* Verify that SSID_MAX_LEN * 4 buffer limit is enforced. */
+	if (len != SSID_MAX_LEN * 4) {
+		wpa_printf(MSG_ERROR,
+			   "Unexpected wpa_ssid_txt() result with too long SSID");
+		errors++;
+	}
+
+	if (wpa_snprintf_hex_sep(longbuf, 0, addr, ETH_ALEN, '-') != 0 ||
+	    wpa_snprintf_hex_sep(longbuf, 5, addr, ETH_ALEN, '-') != 3 ||
+	    os_strcmp(longbuf, "01-0") != 0)
+		errors++;
+
 	if (errors) {
 		wpa_printf(MSG_ERROR, "%d common test(s) failed", errors);
 		return -1;
 	}
+
+	return 0;
+}
+
+
+static int os_tests(void)
+{
+	int errors = 0;
+	void *ptr;
+	os_time_t t;
+
+	wpa_printf(MSG_INFO, "os tests");
+
+	ptr = os_calloc((size_t) -1, (size_t) -1);
+	if (ptr) {
+		errors++;
+		os_free(ptr);
+	}
+	ptr = os_calloc((size_t) 2, (size_t) -1);
+	if (ptr) {
+		errors++;
+		os_free(ptr);
+	}
+	ptr = os_calloc((size_t) -1, (size_t) 2);
+	if (ptr) {
+		errors++;
+		os_free(ptr);
+	}
+
+	ptr = os_realloc_array(NULL, (size_t) -1, (size_t) -1);
+	if (ptr) {
+		errors++;
+		os_free(ptr);
+	}
+
+	os_sleep(1, 1);
+
+	if (os_mktime(1969, 1, 1, 1, 1, 1, &t) == 0 ||
+	    os_mktime(1971, 0, 1, 1, 1, 1, &t) == 0 ||
+	    os_mktime(1971, 13, 1, 1, 1, 1, &t) == 0 ||
+	    os_mktime(1971, 1, 0, 1, 1, 1, &t) == 0 ||
+	    os_mktime(1971, 1, 32, 1, 1, 1, &t) == 0 ||
+	    os_mktime(1971, 1, 1, -1, 1, 1, &t) == 0 ||
+	    os_mktime(1971, 1, 1, 24, 1, 1, &t) == 0 ||
+	    os_mktime(1971, 1, 1, 1, -1, 1, &t) == 0 ||
+	    os_mktime(1971, 1, 1, 1, 60, 1, &t) == 0 ||
+	    os_mktime(1971, 1, 1, 1, 1, -1, &t) == 0 ||
+	    os_mktime(1971, 1, 1, 1, 1, 61, &t) == 0 ||
+	    os_mktime(1971, 1, 1, 1, 1, 1, &t) != 0 ||
+	    os_mktime(2020, 1, 2, 3, 4, 5, &t) != 0 ||
+	    os_mktime(2015, 12, 31, 23, 59, 59, &t) != 0)
+		errors++;
+
+	if (os_setenv("hwsim_test_env", "test value", 0) != 0 ||
+	    os_setenv("hwsim_test_env", "test value 2", 1) != 0 ||
+	    os_unsetenv("hwsim_test_env") != 0)
+		errors++;
+
+	if (os_file_exists("/this-file-does-not-exists-hwsim") != 0)
+		errors++;
+
+	if (errors) {
+		wpa_printf(MSG_ERROR, "%d os test(s) failed", errors);
+		return -1;
+	}
+
+	return 0;
+}
+
+
+static int wpabuf_tests(void)
+{
+	int errors = 0;
+	void *ptr;
+	struct wpabuf *buf;
+
+	wpa_printf(MSG_INFO, "wpabuf tests");
+
+	ptr = os_malloc(100);
+	if (ptr) {
+		buf = wpabuf_alloc_ext_data(ptr, 100);
+		if (buf) {
+			if (wpabuf_resize(&buf, 100) < 0)
+				errors++;
+			else
+				wpabuf_put(buf, 100);
+			wpabuf_free(buf);
+		} else {
+			errors++;
+			os_free(ptr);
+		}
+	} else {
+		errors++;
+	}
+
+	buf = wpabuf_alloc(100);
+	if (buf) {
+		struct wpabuf *buf2;
+
+		wpabuf_put(buf, 100);
+		if (wpabuf_resize(&buf, 100) < 0)
+			errors++;
+		else
+			wpabuf_put(buf, 100);
+		buf2 = wpabuf_concat(buf, NULL);
+		if (buf2 != buf)
+			errors++;
+		wpabuf_free(buf2);
+	} else {
+		errors++;
+	}
+
+	buf = NULL;
+	buf = wpabuf_zeropad(buf, 10);
+	if (buf != NULL)
+		errors++;
+
+	if (errors) {
+		wpa_printf(MSG_ERROR, "%d wpabuf test(s) failed", errors);
+		return -1;
+	}
+
+	return 0;
+}
+
+
+static int ip_addr_tests(void)
+{
+	int errors = 0;
+	struct hostapd_ip_addr addr;
+	char buf[100];
+
+	wpa_printf(MSG_INFO, "ip_addr tests");
+
+	if (hostapd_parse_ip_addr("1.2.3.4", &addr) != 0 ||
+	    addr.af != AF_INET ||
+	    hostapd_ip_txt(NULL, buf, sizeof(buf)) != NULL ||
+	    hostapd_ip_txt(&addr, buf, 1) != buf || buf[0] != '\0' ||
+	    hostapd_ip_txt(&addr, buf, 0) != NULL ||
+	    hostapd_ip_txt(&addr, buf, sizeof(buf)) != buf)
+		errors++;
+
+	if (hostapd_parse_ip_addr("::", &addr) != 0 ||
+	    addr.af != AF_INET6 ||
+	    hostapd_ip_txt(&addr, buf, 1) != buf || buf[0] != '\0' ||
+	    hostapd_ip_txt(&addr, buf, sizeof(buf)) != buf)
+		errors++;
+
+	if (errors) {
+		wpa_printf(MSG_ERROR, "%d ip_addr test(s) failed", errors);
+		return -1;
+	}
+
+	return 0;
+}
+
+
+struct test_eloop {
+	unsigned int magic;
+	int close_in_timeout;
+	int pipefd1[2];
+	int pipefd2[2];
+};
+
+
+static void eloop_tests_start(int close_in_timeout);
+
+
+static void eloop_test_read_2(int sock, void *eloop_ctx, void *sock_ctx)
+{
+	struct test_eloop *t = eloop_ctx;
+	ssize_t res;
+	char buf[10];
+
+	wpa_printf(MSG_INFO, "%s: sock=%d", __func__, sock);
+
+	if (t->magic != 0x12345678) {
+		wpa_printf(MSG_INFO, "%s: unexpected magic 0x%x",
+			   __func__, t->magic);
+	}
+
+	if (t->pipefd2[0] != sock) {
+		wpa_printf(MSG_INFO, "%s: unexpected sock %d != %d",
+			   __func__, sock, t->pipefd2[0]);
+	}
+
+	res = read(sock, buf, sizeof(buf));
+	wpa_printf(MSG_INFO, "%s: sock=%d --> res=%d",
+		   __func__, sock, (int) res);
+}
+
+
+static void eloop_test_read_2_wrong(int sock, void *eloop_ctx, void *sock_ctx)
+{
+	struct test_eloop *t = eloop_ctx;
+
+	wpa_printf(MSG_INFO, "%s: sock=%d", __func__, sock);
+
+	if (t->magic != 0x12345678) {
+		wpa_printf(MSG_INFO, "%s: unexpected magic 0x%x",
+			   __func__, t->magic);
+	}
+
+	if (t->pipefd2[0] != sock) {
+		wpa_printf(MSG_INFO, "%s: unexpected sock %d != %d",
+			   __func__, sock, t->pipefd2[0]);
+	}
+
+	/*
+	 * This is expected to block due to the original socket with data having
+	 * been closed and no new data having been written to the new socket
+	 * with the same fd. To avoid blocking the process during test, skip the
+	 * read here.
+	 */
+	wpa_printf(MSG_ERROR, "%s: FAIL - should not have called this function",
+		   __func__);
+}
+
+
+static void reopen_pipefd2(struct test_eloop *t)
+{
+	if (t->pipefd2[0] < 0) {
+		wpa_printf(MSG_INFO, "pipefd2 had been closed");
+	} else {
+		int res;
+
+		wpa_printf(MSG_INFO, "close pipefd2");
+		eloop_unregister_read_sock(t->pipefd2[0]);
+		close(t->pipefd2[0]);
+		t->pipefd2[0] = -1;
+		close(t->pipefd2[1]);
+		t->pipefd2[1] = -1;
+
+		res = pipe(t->pipefd2);
+		if (res < 0) {
+			wpa_printf(MSG_INFO, "pipe: %s", strerror(errno));
+			t->pipefd2[0] = -1;
+			t->pipefd2[1] = -1;
+			return;
+		}
+
+		wpa_printf(MSG_INFO,
+			   "re-register pipefd2 with new sockets %d,%d",
+			   t->pipefd2[0], t->pipefd2[1]);
+		eloop_register_read_sock(t->pipefd2[0], eloop_test_read_2_wrong,
+					 t, NULL);
+	}
+}
+
+
+static void eloop_test_read_1(int sock, void *eloop_ctx, void *sock_ctx)
+{
+	struct test_eloop *t = eloop_ctx;
+	ssize_t res;
+	char buf[10];
+
+	wpa_printf(MSG_INFO, "%s: sock=%d", __func__, sock);
+
+	if (t->magic != 0x12345678) {
+		wpa_printf(MSG_INFO, "%s: unexpected magic 0x%x",
+			   __func__, t->magic);
+	}
+
+	if (t->pipefd1[0] != sock) {
+		wpa_printf(MSG_INFO, "%s: unexpected sock %d != %d",
+			   __func__, sock, t->pipefd1[0]);
+	}
+
+	res = read(sock, buf, sizeof(buf));
+	wpa_printf(MSG_INFO, "%s: sock=%d --> res=%d",
+		   __func__, sock, (int) res);
+
+	if (!t->close_in_timeout)
+		reopen_pipefd2(t);
+}
+
+
+static void eloop_test_cb(void *eloop_data, void *user_ctx)
+{
+	struct test_eloop *t = eloop_data;
+
+	wpa_printf(MSG_INFO, "%s", __func__);
+
+	if (t->magic != 0x12345678) {
+		wpa_printf(MSG_INFO, "%s: unexpected magic 0x%x",
+			   __func__, t->magic);
+	}
+
+	if (t->close_in_timeout)
+		reopen_pipefd2(t);
+}
+
+
+static void eloop_test_timeout(void *eloop_data, void *user_ctx)
+{
+	struct test_eloop *t = eloop_data;
+	int next_run = 0;
+
+	wpa_printf(MSG_INFO, "%s", __func__);
+
+	if (t->magic != 0x12345678) {
+		wpa_printf(MSG_INFO, "%s: unexpected magic 0x%x",
+			   __func__, t->magic);
+	}
+
+	if (t->pipefd1[0] >= 0) {
+		wpa_printf(MSG_INFO, "pipefd1 had not been closed");
+		eloop_unregister_read_sock(t->pipefd1[0]);
+		close(t->pipefd1[0]);
+		t->pipefd1[0] = -1;
+		close(t->pipefd1[1]);
+		t->pipefd1[1] = -1;
+	}
+
+	if (t->pipefd2[0] >= 0) {
+		wpa_printf(MSG_INFO, "pipefd2 had not been closed");
+		eloop_unregister_read_sock(t->pipefd2[0]);
+		close(t->pipefd2[0]);
+		t->pipefd2[0] = -1;
+		close(t->pipefd2[1]);
+		t->pipefd2[1] = -1;
+	}
+
+	next_run = t->close_in_timeout;
+	t->magic = 0;
+	wpa_printf(MSG_INFO, "%s - free(%p)", __func__, t);
+	os_free(t);
+
+	if (next_run)
+		eloop_tests_start(0);
+}
+
+
+static void eloop_tests_start(int close_in_timeout)
+{
+	struct test_eloop *t;
+	int res;
+
+	t = os_zalloc(sizeof(*t));
+	if (!t)
+		return;
+	t->magic = 0x12345678;
+	t->close_in_timeout = close_in_timeout;
+
+	wpa_printf(MSG_INFO, "starting eloop tests (%p) (close_in_timeout=%d)",
+		   t, close_in_timeout);
+
+	res = pipe(t->pipefd1);
+	if (res < 0) {
+		wpa_printf(MSG_INFO, "pipe: %s", strerror(errno));
+		os_free(t);
+		return;
+	}
+
+	res = pipe(t->pipefd2);
+	if (res < 0) {
+		wpa_printf(MSG_INFO, "pipe: %s", strerror(errno));
+		close(t->pipefd1[0]);
+		close(t->pipefd1[1]);
+		os_free(t);
+		return;
+	}
+
+	wpa_printf(MSG_INFO, "pipe fds: %d,%d %d,%d",
+		   t->pipefd1[0], t->pipefd1[1],
+		   t->pipefd2[0], t->pipefd2[1]);
+
+	eloop_register_read_sock(t->pipefd1[0], eloop_test_read_1, t, NULL);
+	eloop_register_read_sock(t->pipefd2[0], eloop_test_read_2, t, NULL);
+	eloop_register_timeout(0, 0, eloop_test_cb, t, NULL);
+	eloop_register_timeout(0, 200000, eloop_test_timeout, t, NULL);
+
+	if (write(t->pipefd1[1], "HELLO", 5) < 0)
+		wpa_printf(MSG_INFO, "write: %s", strerror(errno));
+	if (write(t->pipefd2[1], "TEST", 4) < 0)
+		wpa_printf(MSG_INFO, "write: %s", strerror(errno));
+	os_sleep(0, 50000);
+	wpa_printf(MSG_INFO, "waiting for eloop callbacks");
+}
+
+
+static void eloop_tests_run(void *eloop_data, void *user_ctx)
+{
+	eloop_tests_start(1);
+}
+
+
+static int eloop_tests(void)
+{
+	wpa_printf(MSG_INFO, "schedule eloop tests to be run");
+
+	/*
+	 * Cannot return error from these without a significant design change,
+	 * so for now, run the tests from a scheduled timeout and require
+	 * separate verification of the results from the debug log.
+	 */
+	eloop_register_timeout(0, 0, eloop_tests_run, NULL, NULL);
 
 	return 0;
 }
@@ -416,6 +850,10 @@ int utils_module_tests(void)
 	    bitfield_tests() < 0 ||
 	    base64_tests() < 0 ||
 	    common_tests() < 0 ||
+	    os_tests() < 0 ||
+	    wpabuf_tests() < 0 ||
+	    ip_addr_tests() < 0 ||
+	    eloop_tests() < 0 ||
 	    int_array_tests() < 0)
 		ret = -1;
 
