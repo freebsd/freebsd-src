@@ -211,6 +211,8 @@ static void handle_xeon_irq(void *arg);
 static void handle_xeon_event_irq(void *arg);
 static void ntb_handle_legacy_interrupt(void *arg);
 static void ntb_irq_work(void *arg);
+static uint64_t db_ioread(struct ntb_softc *, uint32_t regoff);
+static void db_iowrite(struct ntb_softc *, uint32_t regoff, uint64_t val);
 static void mask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx);
 static void unmask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx);
 static int ntb_create_callbacks(struct ntb_softc *ntb, uint32_t num_vectors);
@@ -601,18 +603,19 @@ static int
 ntb_setup_interrupts(struct ntb_softc *ntb)
 {
 	uint32_t desired_vectors, num_vectors;
+	uint64_t mask;
 	int rc;
 
 	ntb->allocated_interrupts = 0;
+
 	/*
 	 * On SOC, disable all interrupts.  On XEON, disable all but Link
 	 * Interrupt.  The rest will be unmasked as callbacks are registered.
 	 */
-	if (ntb->type == NTB_SOC)
-		ntb_reg_write(8, ntb->reg_ofs.ldb_mask, ~0);
-	else
-		ntb_reg_write(2, ntb->reg_ofs.ldb_mask,
-		    (uint16_t) ~(1 << XEON_LINK_DB));
+	mask = 0;
+	if (ntb->type == NTB_XEON)
+		mask = (1 << XEON_LINK_DB);
+	db_iowrite(ntb, ntb->reg_ofs.ldb_mask, ~mask);
 
 	num_vectors = desired_vectors = MIN(pci_msix_count(ntb->device),
 	    ntb->limits.max_db_bits);
@@ -700,24 +703,53 @@ ntb_teardown_interrupts(struct ntb_softc *ntb)
 	pci_release_msi(ntb->device);
 }
 
+/*
+ * Doorbell register and mask are 64-bit on SoC, 16-bit on Xeon.  Abstract it
+ * out to make code clearer.
+ */
+static uint64_t
+db_ioread(struct ntb_softc *ntb, uint32_t regoff)
+{
+
+	if (ntb->type == NTB_SOC)
+		return (ntb_reg_read(8, regoff));
+
+	KASSERT(ntb->type == NTB_XEON, ("bad ntb type"));
+
+	return (ntb_reg_read(2, regoff));
+}
+
+static void
+db_iowrite(struct ntb_softc *ntb, uint32_t regoff, uint64_t val)
+{
+
+	if (ntb->type == NTB_SOC) {
+		ntb_reg_write(8, regoff, val);
+		return;
+	}
+
+	KASSERT(ntb->type == NTB_XEON, ("bad ntb type"));
+	ntb_reg_write(2, regoff, (uint16_t)val);
+}
+
 static void
 mask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx)
 {
-	unsigned long mask;
+	uint64_t mask;
 
-	mask = ntb_reg_read(2, ntb->reg_ofs.ldb_mask);
+	mask = db_ioread(ntb, ntb->reg_ofs.ldb_mask);
 	mask |= 1 << (idx * ntb->bits_per_vector);
-	ntb_reg_write(2, ntb->reg_ofs.ldb_mask, mask);
+	db_iowrite(ntb, ntb->reg_ofs.ldb_mask, mask);
 }
 
 static void
 unmask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx)
 {
-	unsigned long mask;
+	uint64_t mask;
 
-	mask = ntb_reg_read(2, ntb->reg_ofs.ldb_mask);
+	mask = db_ioread(ntb, ntb->reg_ofs.ldb_mask);
 	mask &= ~(1 << (idx * ntb->bits_per_vector));
-	ntb_reg_write(2, ntb->reg_ofs.ldb_mask, mask);
+	db_iowrite(ntb, ntb->reg_ofs.ldb_mask, mask);
 }
 
 static void
@@ -726,7 +758,7 @@ handle_soc_irq(void *arg)
 	struct ntb_db_cb *db_cb = arg;
 	struct ntb_softc *ntb = db_cb->ntb;
 
-	ntb_reg_write(8, ntb->reg_ofs.ldb, (uint64_t) 1 << db_cb->db_num);
+	db_iowrite(ntb, ntb->reg_ofs.ldb, (uint64_t) 1 << db_cb->db_num);
 
 	if (db_cb->callback != NULL) {
 		mask_ldb_interrupt(ntb, db_cb->db_num);
@@ -746,7 +778,7 @@ handle_xeon_irq(void *arg)
 	 * vectors, with the 4th having a single bit for link
 	 * interrupts.
 	 */
-	ntb_reg_write(2, ntb->reg_ofs.ldb,
+	db_iowrite(ntb, ntb->reg_ofs.ldb,
 	    ((1 << ntb->bits_per_vector) - 1) <<
 	    (db_cb->db_num * ntb->bits_per_vector));
 
@@ -768,40 +800,31 @@ handle_xeon_event_irq(void *arg)
 		device_printf(ntb->device, "Error determining link status\n");
 
 	/* bit 15 is always the link bit */
-	ntb_reg_write(2, ntb->reg_ofs.ldb, 1 << XEON_LINK_DB);
+	db_iowrite(ntb, ntb->reg_ofs.ldb, 1 << XEON_LINK_DB);
 }
 
 static void
 ntb_handle_legacy_interrupt(void *arg)
 {
 	struct ntb_softc *ntb = arg;
-	unsigned int i = 0;
-	uint64_t ldb64;
-	uint16_t ldb16;
+	unsigned int i;
+	uint64_t ldb;
 
-	if (ntb->type == NTB_SOC) {
-		ldb64 = ntb_reg_read(8, ntb->reg_ofs.ldb);
+	ldb = db_ioread(ntb, ntb->reg_ofs.ldb);
 
-		while (ldb64) {
-			i = ffs(ldb64);
-			ldb64 &= ldb64 - 1;
-			handle_soc_irq(&ntb->db_cb[i]);
-		}
-	} else {
-		ldb16 = ntb_reg_read(2, ntb->reg_ofs.ldb);
-
-		if ((ldb16 & XEON_DB_HW_LINK) != 0) {
-			handle_xeon_event_irq(ntb);
-			ldb16 &= ~XEON_DB_HW_LINK;
-		}
-
-		while (ldb16 != 0) {
-			i = ffs(ldb16);
-			ldb16 &= ldb16 - 1;
-			handle_xeon_irq(&ntb->db_cb[i]);
-		}
+	if (ntb->type == NTB_XEON && (ldb & XEON_DB_HW_LINK) != 0) {
+		handle_xeon_event_irq(ntb);
+		ldb &= ~XEON_DB_HW_LINK;
 	}
 
+	while (ldb != 0) {
+		i = ffs(ldb);
+		ldb &= ldb - 1;
+		if (ntb->type == NTB_SOC)
+			handle_soc_irq(&ntb->db_cb[i]);
+		else
+			handle_xeon_irq(&ntb->db_cb[i]);
+	}
 }
 
 static int
@@ -1669,25 +1692,24 @@ ntb_set_mw_addr(struct ntb_softc *ntb, unsigned int mw, uint64_t addr)
  *
  * This function allows triggering of a doorbell on the secondary/external
  * side that will initiate an interrupt on the remote host
- *
- * RETURNS: An appropriate ERRNO error value on error, or zero for success.
  */
 void
 ntb_ring_doorbell(struct ntb_softc *ntb, unsigned int db)
 {
+	uint64_t bit;
 
 	if (ntb->type == NTB_SOC)
-		ntb_reg_write(8, ntb->reg_ofs.rdb, (uint64_t) 1 << db);
-	else {
-		if (HAS_FEATURE(NTB_REGS_THRU_MW))
-			ntb_mw_write(2, XEON_SHADOW_PDOORBELL_OFFSET,
-			    ((1 << ntb->bits_per_vector) - 1) <<
-			    (db * ntb->bits_per_vector));
-		else
-			ntb_reg_write(2, ntb->reg_ofs.rdb,
-			    ((1 << ntb->bits_per_vector) - 1) <<
-			    (db * ntb->bits_per_vector));
+		bit = 1 << db;
+	else
+		bit = ((1 << ntb->bits_per_vector) - 1) <<
+		    (db * ntb->bits_per_vector);
+
+	if (HAS_FEATURE(NTB_REGS_THRU_MW)) {
+		ntb_mw_write(2, XEON_SHADOW_PDOORBELL_OFFSET, bit);
+		return;
 	}
+
+	db_iowrite(ntb, ntb->reg_ofs.rdb, bit);
 }
 
 /**
