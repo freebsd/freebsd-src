@@ -342,6 +342,10 @@ zfs_prop_init(void)
 	zprop_register_string(ZFS_PROP_MLSLABEL, "mlslabel",
 	    ZFS_MLSLABEL_DEFAULT, PROP_INHERIT, ZFS_TYPE_DATASET,
 	    "<sensitivity label>", "MLSLABEL");
+	zprop_register_string(ZFS_PROP_RECEIVE_RESUME_TOKEN,
+	    "receive_resume_token",
+	    NULL, PROP_READONLY, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
+	    "<string token>", "RESUMETOK");
 
 	/* readonly number properties */
 	zprop_register_number(ZFS_PROP_USED, "used", 0, PROP_READONLY,
