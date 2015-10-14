@@ -73,6 +73,7 @@ SUBDIR=	adduser \
 	rtprio \
 	service \
 	services_mkdb \
+	sesutil \
 	setfib \
 	setfmac \
 	setpmac \
