@@ -56,7 +56,7 @@ arm/arm/platform_if.m		optional	platform
 arm/arm/pmap.c			optional	!armv6
 arm/arm/pmap-v6.c		optional	armv6 !arm_new_pmap
 arm/arm/pmap-v6-new.c		optional	armv6 arm_new_pmap
-arm/arm/pmu.c			optional	pmu | hwpmc
+arm/arm/pmu.c			optional	pmu
 arm/arm/sc_machdep.c		optional	sc
 arm/arm/setcpsr.S		standard
 arm/arm/setstack.s		standard
