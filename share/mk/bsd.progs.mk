@@ -31,6 +31,9 @@ UPDATE_DEPENDFILE_PROG = ${PROGS:[1]}
 # They may have asked us to build just one
 .for t in ${PROGS}
 .if make($t)
+.if ${PROGS_CXX:M${t}}
+PROG_CXX ?= $t
+.endif
 PROG ?= $t
 .endif
 .endfor
@@ -61,7 +64,7 @@ UPDATE_DEPENDFILE ?= yes
 UPDATE_DEPENDFILE ?= NO
 
 # prog.mk will do the rest
-.else
+.else # !defined(PROG)
 all: ${PROGS}
 
 # We cannot capture dependencies for meta mode here
@@ -80,7 +83,7 @@ $v =
 # handle being called [bsd.]progs.mk
 .include <bsd.prog.mk>
 
-.if !empty(PROGS) && !defined(_RECURSING_PROGS)
+.if !empty(PROGS) && !defined(_RECURSING_PROGS) && !defined(PROG)
 # tell progs.mk we might want to install things
 PROGS_TARGETS+= checkdpadd clean cleandepend cleandir depend install
 
@@ -130,4 +133,4 @@ $p.$t: .PHONY .MAKE
 .for t in ${PROGS_TARGETS:O:u}
 $t: ${PROGS:%=%.$t}
 .endfor
-.endif
+.endif	# !empty(PROGS) && !defined(_RECURSING_PROGS) && !defined(PROG)
