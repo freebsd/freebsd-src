@@ -32,9 +32,12 @@
 .if !target(__<bsd.subdir.mk>__)
 __<bsd.subdir.mk>__:
 
-ALL_SUBDIR_TARGETS= all all-man checkdpadd clean cleandepend cleandir \
-	cleanilinks cleanobj depend distribute lint maninstall manlint obj \
-	objlink realinstall regress tags ${SUBDIR_TARGETS}
+ALL_SUBDIR_TARGETS= all all-man buildconfig buildfiles buildincludes \
+		    checkdpadd clean cleandepend cleandir cleanilinks \
+		    cleanobj config depend distribute files includes \
+		    installconfig installfiles installincludes lint \
+		    maninstall manlint obj objlink realinstall regress tags \
+		    ${SUBDIR_TARGETS}
 
 .include <bsd.init.mk>
 
@@ -120,23 +123,6 @@ ${__target}: ${__subdir_targets}
 .else
 ${__target}: _sub.${__target}
 _sub.${__target}: _SUBDIR
-.endif
-.endfor
-
-# This is to support 'make includes' calling 'make buildincludes' and
-# 'make installincludes' in the proper order, and to support these
-# targets as SUBDIR_TARGETS.
-.for __target in files includes config
-.for __stage in build install
-${__stage}${__target}:
-.if make(${__stage}${__target})
-${__stage}${__target}: _sub.${__stage}${__target}
-_sub.${__stage}${__target}: _SUBDIR
-.endif
-.endfor
-.if !target(${__target})
-${__target}: .MAKE
-	${_+_}cd ${.CURDIR}; ${MAKE} build${__target}; ${MAKE} install${__target}
 .endif
 .endfor
 
