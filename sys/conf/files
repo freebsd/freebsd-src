@@ -3682,7 +3682,7 @@ netinet/tcp_input.c		optional inet | inet6
 netinet/tcp_lro.c		optional inet | inet6
 netinet/tcp_output.c		optional inet | inet6
 netinet/tcp_offload.c		optional tcp_offload inet | tcp_offload inet6
-netinet/tcp_pcap.c		optional tcppcap
+netinet/tcp_pcap.c		optional inet tcppcap | inet6 tcppcap
 netinet/tcp_reass.c		optional inet | inet6
 netinet/tcp_sack.c		optional inet | inet6
 netinet/tcp_subr.c		optional inet | inet6
