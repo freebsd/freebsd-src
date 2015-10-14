@@ -94,7 +94,4 @@ buildfiles: stage_as
 .endif
 .endif
 
-files: buildfiles installfiles
-.ORDER: buildfiles installfiles
-
 .endif # !target(__<bsd.files.mk>__)
