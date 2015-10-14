@@ -6243,7 +6243,8 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
     boolean_t *headroom_boost)
 {
 	arc_buf_hdr_t *hdr, *hdr_prev, *head;
-	uint64_t write_asize, write_sz, headroom, buf_compress_minsz;
+	uint64_t write_asize, write_sz, headroom,
+	    buf_compress_minsz;
 	void *buf_data;
 	boolean_t full;
 	l2arc_write_callback_t *cb;
@@ -6405,6 +6406,7 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
 			 * using it to denote the header's state change.
 			 */
 			hdr->b_l2hdr.b_daddr = L2ARC_ADDR_UNSET;
+
 			hdr->b_flags |= ARC_FLAG_HAS_L2HDR;
 
 			mutex_enter(&dev->l2ad_mtx);
