@@ -1379,6 +1379,21 @@ mmc_discover_cards(struct mmc_softc *sc)
 					ivar->hs_tran_speed = SD_MAX_HS;
 				}
 			}
+
+			/*
+			 * We deselect then reselect the card here.  Some cards
+			 * become unselected and timeout with the above two
+			 * commands, although the state tables / diagrams in the
+			 * standard suggest they go back to the transfer state.
+			 * Other cards don't become deselected, and if we
+			 * atttempt to blindly re-select them, we get timeout
+			 * errors from some controllers.  So we deselect then
+			 * reselect to handle all situations.  The only thing we
+			 * use from the sd_status is the erase sector size, but
+			 * it is still nice to get that right.
+			 */
+			mmc_select_card(sc, 0);
+			mmc_select_card(sc, ivar->rca);
 			mmc_app_sd_status(sc, ivar->rca, ivar->raw_sd_status);
 			mmc_app_decode_sd_status(ivar->raw_sd_status,
 			    &ivar->sd_status);
@@ -1386,7 +1401,6 @@ mmc_discover_cards(struct mmc_softc *sc)
 				ivar->erase_sector =
 				    16 << ivar->sd_status.au_size;
 			}
-			mmc_select_card(sc, 0);
 			/* Find max supported bus width. */
 			if ((mmcbr_get_caps(sc->dev) & MMC_CAP_4_BIT_DATA) &&
 			    (ivar->scr.bus_widths & SD_SCR_BUS_WIDTH_4))
@@ -1414,6 +1428,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 				child = device_add_child(sc->dev, NULL, -1);
 				device_set_ivars(child, ivar);
 			}
+			mmc_select_card(sc, 0);
 			return;
 		}
 		mmc_decode_cid_mmc(ivar->raw_cid, &ivar->cid);
@@ -1446,10 +1461,10 @@ mmc_discover_cards(struct mmc_softc *sc)
 			break;
 		}
 
+		mmc_select_card(sc, ivar->rca);
+
 		/* Only MMC >= 4.x cards support EXT_CSD. */
 		if (ivar->csd.spec_vers >= 4) {
-			/* Card must be selected to fetch EXT_CSD. */
-			mmc_select_card(sc, ivar->rca);
 			mmc_send_ext_csd(sc, ivar->raw_ext_csd);
 			/* Handle extended capacity from EXT_CSD */
 			sec_count = ivar->raw_ext_csd[EXT_CSD_SEC_CNT] +
@@ -1472,7 +1487,6 @@ mmc_discover_cards(struct mmc_softc *sc)
 				ivar->hs_tran_speed = ivar->tran_speed;
 			/* Find max supported bus width. */
 			ivar->bus_width = mmc_test_bus_width(sc);
-			mmc_select_card(sc, 0);
 			/* Handle HC erase sector size. */
 			if (ivar->raw_ext_csd[EXT_CSD_ERASE_GRP_SIZE] != 0) {
 				ivar->erase_sector = 1024 *
@@ -1506,6 +1520,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 			child = device_add_child(sc->dev, NULL, -1);
 			device_set_ivars(child, ivar);
 		}
+		mmc_select_card(sc, 0);
 	}
 }
 
