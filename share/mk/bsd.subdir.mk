@@ -123,6 +123,9 @@ _sub.${__target}: _SUBDIR
 .endif
 .endfor
 
+# This is to support 'make includes' calling 'make buildincludes' and
+# 'make installincludes' in the proper order, and to support these
+# targets as SUBDIR_TARGETS.
 .for __target in files includes config
 .for __stage in build install
 ${__stage}${__target}:
