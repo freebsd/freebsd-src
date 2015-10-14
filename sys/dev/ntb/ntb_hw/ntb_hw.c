@@ -200,6 +200,9 @@ static int map_memory_window_bar(struct ntb_softc *ntb,
     struct ntb_pci_bar_info *bar);
 static void ntb_unmap_pci_bar(struct ntb_softc *ntb);
 static int ntb_setup_interrupts(struct ntb_softc *ntb);
+static int ntb_setup_legacy_interrupt(struct ntb_softc *ntb);
+static int ntb_setup_xeon_msix(struct ntb_softc *ntb, uint32_t num_vectors);
+static int ntb_setup_soc_msix(struct ntb_softc *ntb, uint32_t num_vectors);
 static void ntb_teardown_interrupts(struct ntb_softc *ntb);
 static void handle_soc_irq(void *arg);
 static void handle_xeon_irq(void *arg);
@@ -208,7 +211,7 @@ static void ntb_handle_legacy_interrupt(void *arg);
 static void ntb_irq_work(void *arg);
 static void mask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx);
 static void unmask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx);
-static int ntb_create_callbacks(struct ntb_softc *ntb, int num_vectors);
+static int ntb_create_callbacks(struct ntb_softc *ntb, uint32_t num_vectors);
 static void ntb_free_callbacks(struct ntb_softc *ntb);
 static struct ntb_hw_info *ntb_get_device_info(uint32_t device_id);
 static int ntb_setup_xeon(struct ntb_softc *ntb);
@@ -473,13 +476,79 @@ ntb_unmap_pci_bar(struct ntb_softc *ntb)
 }
 
 static int
-ntb_setup_interrupts(struct ntb_softc *ntb)
+ntb_setup_xeon_msix(struct ntb_softc *ntb, uint32_t num_vectors)
 {
 	void (*interrupt_handler)(void *);
 	void *int_arg;
-	bool use_msix = false;
+	uint32_t i;
+	int rc;
+
+	if (num_vectors < 4)
+		return (ENOSPC);
+
+	for (i = 0; i < num_vectors; i++) {
+		ntb->int_info[i].rid = i + 1;
+		ntb->int_info[i].res = bus_alloc_resource_any(ntb->device,
+		    SYS_RES_IRQ, &ntb->int_info[i].rid, RF_ACTIVE);
+		if (ntb->int_info[i].res == NULL) {
+			device_printf(ntb->device,
+			    "bus_alloc_resource failed\n");
+			return (ENOMEM);
+		}
+		ntb->int_info[i].tag = NULL;
+		ntb->allocated_interrupts++;
+		if (i == num_vectors - 1) {
+			interrupt_handler = handle_xeon_event_irq;
+			int_arg = ntb;
+		} else {
+			interrupt_handler = handle_xeon_irq;
+			int_arg = &ntb->db_cb[i];
+		}
+		rc = bus_setup_intr(ntb->device, ntb->int_info[i].res,
+		    INTR_MPSAFE | INTR_TYPE_MISC, NULL, interrupt_handler,
+		    int_arg, &ntb->int_info[i].tag);
+		if (rc != 0) {
+			device_printf(ntb->device,
+			    "bus_setup_intr failed\n");
+			return (ENXIO);
+		}
+	}
+	return (0);
+}
+
+static int
+ntb_setup_soc_msix(struct ntb_softc *ntb, uint32_t num_vectors)
+{
+	uint32_t i;
+	int rc;
+
+	for (i = 0; i < num_vectors; i++) {
+		ntb->int_info[i].rid = i + 1;
+		ntb->int_info[i].res = bus_alloc_resource_any(ntb->device,
+		    SYS_RES_IRQ, &ntb->int_info[i].rid, RF_ACTIVE);
+		if (ntb->int_info[i].res == NULL) {
+			device_printf(ntb->device,
+			    "bus_alloc_resource failed\n");
+			return (ENOMEM);
+		}
+		ntb->int_info[i].tag = NULL;
+		ntb->allocated_interrupts++;
+		rc = bus_setup_intr(ntb->device, ntb->int_info[i].res,
+		    INTR_MPSAFE | INTR_TYPE_MISC, NULL, handle_soc_irq,
+		    &ntb->db_cb[i], &ntb->int_info[i].tag);
+		if (rc != 0) {
+			device_printf(ntb->device, "bus_setup_intr failed\n");
+			return (ENXIO);
+		}
+	}
+	return (0);
+}
+
+static int
+ntb_setup_interrupts(struct ntb_softc *ntb)
+{
 	uint32_t num_vectors;
-	int i;
+	int rc;
 
 	ntb->allocated_interrupts = 0;
 	/*
@@ -494,69 +563,47 @@ ntb_setup_interrupts(struct ntb_softc *ntb)
 
 	num_vectors = MIN(pci_msix_count(ntb->device),
 	    ntb->limits.max_db_bits);
-	if (num_vectors >= 1) {
+	if (num_vectors >= 1)
 		pci_alloc_msix(ntb->device, &num_vectors);
-		if (num_vectors >= 4)
-			use_msix = true;
-	}
 
 	ntb_create_callbacks(ntb, num_vectors);
-	if (use_msix == true) {
-		for (i = 0; i < num_vectors; i++) {
-			ntb->int_info[i].rid = i + 1;
-			ntb->int_info[i].res = bus_alloc_resource_any(
-			    ntb->device, SYS_RES_IRQ, &ntb->int_info[i].rid,
-			    RF_ACTIVE);
-			if (ntb->int_info[i].res == NULL) {
-				device_printf(ntb->device,
-				    "bus_alloc_resource failed\n");
-				return (ENOMEM);
-			}
-			ntb->int_info[i].tag = NULL;
-			ntb->allocated_interrupts++;
-			if (ntb->type == NTB_SOC) {
-				interrupt_handler = handle_soc_irq;
-				int_arg = &ntb->db_cb[i];
-			} else {
-				if (i == num_vectors - 1) {
-					interrupt_handler =
-					    handle_xeon_event_irq;
-					int_arg = ntb;
-				} else {
-					interrupt_handler =
-					    handle_xeon_irq;
-					int_arg = &ntb->db_cb[i];
-				}
-			}
-			if (bus_setup_intr(ntb->device, ntb->int_info[i].res,
-			    INTR_MPSAFE | INTR_TYPE_MISC, NULL,
-			    interrupt_handler, int_arg,
-			    &ntb->int_info[i].tag) != 0) {
-				device_printf(ntb->device,
-				    "bus_setup_intr failed\n");
-				return (ENXIO);
-			}
-		}
-	} else {
-		ntb->int_info[0].rid = 0;
-		ntb->int_info[0].res = bus_alloc_resource_any(ntb->device,
-		    SYS_RES_IRQ, &ntb->int_info[0].rid, RF_SHAREABLE|RF_ACTIVE);
-		interrupt_handler = ntb_handle_legacy_interrupt;
-		if (ntb->int_info[0].res == NULL) {
-			device_printf(ntb->device,
-			    "bus_alloc_resource failed\n");
-			return (ENOMEM);
-		}
-		ntb->int_info[0].tag = NULL;
-		ntb->allocated_interrupts = 1;
 
-		if (bus_setup_intr(ntb->device, ntb->int_info[0].res,
-			INTR_MPSAFE | INTR_TYPE_MISC, NULL,
-			interrupt_handler, ntb, &ntb->int_info[0].tag) != 0) {
+	if (ntb->type == NTB_XEON)
+		rc = ntb_setup_xeon_msix(ntb, num_vectors);
+	else
+		rc = ntb_setup_soc_msix(ntb, num_vectors);
+	if (rc != 0)
+		device_printf(ntb->device,
+		    "Error allocating MSI-X interrupts: %d\n", rc);
 
-			device_printf(ntb->device, "bus_setup_intr failed\n");
-			return (ENXIO);
-		}
+	if (ntb->type == NTB_XEON && rc == ENOSPC)
+		rc = ntb_setup_legacy_interrupt(ntb);
+
+	return (rc);
+}
+
+static int
+ntb_setup_legacy_interrupt(struct ntb_softc *ntb)
+{
+	int rc;
+
+	ntb->int_info[0].rid = 0;
+	ntb->int_info[0].res = bus_alloc_resource_any(ntb->device, SYS_RES_IRQ,
+	    &ntb->int_info[0].rid, RF_SHAREABLE|RF_ACTIVE);
+	if (ntb->int_info[0].res == NULL) {
+		device_printf(ntb->device, "bus_alloc_resource failed\n");
+		return (ENOMEM);
+	}
+
+	ntb->int_info[0].tag = NULL;
+	ntb->allocated_interrupts = 1;
+
+	rc = bus_setup_intr(ntb->device, ntb->int_info[0].res,
+	    INTR_MPSAFE | INTR_TYPE_MISC, NULL, ntb_handle_legacy_interrupt,
+	    ntb, &ntb->int_info[0].tag);
+	if (rc != 0) {
+		device_printf(ntb->device, "bus_setup_intr failed\n");
+		return (ENXIO);
 	}
 
 	return (0);
@@ -688,9 +735,9 @@ ntb_handle_legacy_interrupt(void *arg)
 }
 
 static int
-ntb_create_callbacks(struct ntb_softc *ntb, int num_vectors)
+ntb_create_callbacks(struct ntb_softc *ntb, uint32_t num_vectors)
 {
-	int i;
+	uint32_t i;
 
 	ntb->db_cb = malloc(num_vectors * sizeof(*ntb->db_cb), M_NTB,
 	    M_ZERO | M_WAITOK);
@@ -705,7 +752,7 @@ ntb_create_callbacks(struct ntb_softc *ntb, int num_vectors)
 static void
 ntb_free_callbacks(struct ntb_softc *ntb)
 {
-	int i;
+	uint8_t i;
 
 	for (i = 0; i < ntb->limits.max_db_bits; i++)
 		ntb_unregister_db_callback(ntb, i);
