@@ -17,11 +17,6 @@ UTF8=	af_ZA am_ET be_BY bg_BG ca_AD ca_ES ca_FR ca_IT \
 	zh_Hant_HK \
 	zh_Hant_TW
 
-EURO=	ca_AD ca_ES ca_FR ca_IT da_DK de_AT de_CH de_DE \
-	en_GB es_ES et_EE eu_ES fi_FI fr_BE fr_CH fr_FR \
-	is_IS it_CH it_IT nb_NO nl_BE nl_NL nn_NO pt_PT \
-	sv_FI sv_SE
-
 STD1=	af_ZA en_AU en_CA en_HK en_NZ en_SG en_US en_ZA \
 	es_AR es_MX fr_CA pt_BR
 STD2=	cs_CZ hr_HR hu_HU ro_RO sr_Latn_RS
@@ -59,9 +54,6 @@ SYMLINKS+=	${symdir}.ISO8859-15 ${LOCALEDIR}/${symdir}
 SYMLINKS+=	${symdir}.UTF-8 ${LOCALEDIR}/${symdir}
 .  endif
 SYMLINKS+=	${symdir}.UTF-8 ${LOCALEDIR}/${symdir}.UTF8
-.endfor
-.for symdir in ${EURO}
-SYMLINKS+=	${symdir}.ISO8859-15 ${LOCALEDIR}/${symdir}@euro
 .endfor
 
 # We need to keep zh_CN.* around as aliases to zh_Hans_CN.* because some
