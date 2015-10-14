@@ -92,6 +92,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/tcp6_var.h>
 #endif
 #include <netinet/tcpip.h>
+#ifdef TCPPCAP
+#include <netinet/tcp_pcap.h>
+#endif
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
@@ -427,6 +430,9 @@ tcp_init(void)
 		SHUTDOWN_PRI_DEFAULT);
 	EVENTHANDLER_REGISTER(maxsockets_change, tcp_zone_change, NULL,
 		EVENTHANDLER_PRI_ANY);
+#ifdef TCPPCAP
+	tcp_pcap_init();
+#endif
 }
 
 #ifdef VIMAGE
@@ -832,6 +838,12 @@ tcp_newtcpcb(struct inpcb *inp)
 	 */
 	inp->inp_ip_ttl = V_ip_defttl;
 	inp->inp_ppcb = tp;
+#ifdef TCPPCAP
+	/*
+	 * Init the TCP PCAP queues.
+	 */
+	tcp_pcap_tcpcb_init(tp);
+#endif
 	return (tp);		/* XXX */
 }
 
@@ -1015,6 +1027,12 @@ tcp_discardcb(struct tcpcb *tp)
 #endif
 		
 	tcp_free_sackholes(tp);
+
+#ifdef TCPPCAP
+	/* Free the TCP PCAP queues. */
+	tcp_pcap_drain(&(tp->t_inpkts));
+	tcp_pcap_drain(&(tp->t_outpkts));
+#endif
 
 	/* Allow the CC algorithm to clean up after itself. */
 	if (CC_ALGO(tp)->cb_destroy != NULL)
