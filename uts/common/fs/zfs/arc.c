@@ -1372,7 +1372,7 @@ arc_cksum_verify(arc_buf_t *buf)
 		mutex_exit(&buf->b_hdr->b_l1hdr.b_freeze_lock);
 		return;
 	}
-	fletcher_2_native(buf->b_data, buf->b_hdr->b_size, &zc);
+	fletcher_2_native(buf->b_data, buf->b_hdr->b_size, NULL, &zc);
 	if (!ZIO_CHECKSUM_EQUAL(*buf->b_hdr->b_freeze_cksum, zc))
 		panic("buffer modified while frozen!");
 	mutex_exit(&buf->b_hdr->b_l1hdr.b_freeze_lock);
@@ -1385,7 +1385,7 @@ arc_cksum_equal(arc_buf_t *buf)
 	int equal;
 
 	mutex_enter(&buf->b_hdr->b_l1hdr.b_freeze_lock);
-	fletcher_2_native(buf->b_data, buf->b_hdr->b_size, &zc);
+	fletcher_2_native(buf->b_data, buf->b_hdr->b_size, NULL, &zc);
 	equal = ZIO_CHECKSUM_EQUAL(*buf->b_hdr->b_freeze_cksum, zc);
 	mutex_exit(&buf->b_hdr->b_l1hdr.b_freeze_lock);
 
@@ -1405,7 +1405,7 @@ arc_cksum_compute(arc_buf_t *buf, boolean_t force)
 	}
 	buf->b_hdr->b_freeze_cksum = kmem_alloc(sizeof (zio_cksum_t), KM_SLEEP);
 	fletcher_2_native(buf->b_data, buf->b_hdr->b_size,
-	    buf->b_hdr->b_freeze_cksum);
+	    NULL, buf->b_hdr->b_freeze_cksum);
 	mutex_exit(&buf->b_hdr->b_l1hdr.b_freeze_lock);
 	arc_buf_watch(buf);
 }
