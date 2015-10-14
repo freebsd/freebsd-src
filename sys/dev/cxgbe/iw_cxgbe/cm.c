@@ -809,7 +809,7 @@ SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, ep_timeout_secs, CTLFLAG_RWTUN, &ep_timeout_s
 
 static int mpa_rev = 1;
 SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, mpa_rev, CTLFLAG_RWTUN, &mpa_rev, 0,
-		"MPA Revision, 0 supports amso1100, 1 is RFC0544 spec compliant, 2 is IETF MPA Peer Connect Draft compliant (default = 1)");
+		"MPA Revision, 0 supports amso1100, 1 is RFC5044 spec compliant, 2 is IETF MPA Peer Connect Draft compliant (default = 1)");
 
 static int markers_enabled;
 SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, markers_enabled, CTLFLAG_RWTUN, &markers_enabled, 0,
