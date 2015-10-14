@@ -38,6 +38,11 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,9 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
 #include "un-namespace.h"
 
 #include "collate.h"
