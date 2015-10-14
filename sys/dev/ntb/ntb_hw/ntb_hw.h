@@ -32,8 +32,11 @@
 struct ntb_softc;
 
 #define NTB_NUM_MW	2
-#define NTB_LINK_DOWN	0
-#define NTB_LINK_UP	1
+
+enum ntb_link_event {
+	NTB_LINK_DOWN = 0,
+	NTB_LINK_UP,
+};
 
 enum ntb_hw_event {
 	NTB_EVENT_SW_EVENT0 = 0,

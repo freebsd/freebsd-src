@@ -137,7 +137,7 @@ struct ntb_transport_qp {
 	uint64_t		rx_max_entry;
 	uint64_t		rx_max_frame;
 
-	void (*event_handler) (void *data, int status);
+	void (*event_handler) (void *data, enum ntb_link_event status);
 	struct callout		link_work;
 	struct callout		queue_full;
 	struct callout		rx_full;
@@ -161,7 +161,7 @@ struct ntb_queue_handlers {
 	    void *data, int len);
 	void (*tx_handler) (struct ntb_transport_qp *qp, void *qp_data,
 	    void *data, int len);
-	void (*event_handler) (void *data, int status);
+	void (*event_handler) (void *data, enum ntb_link_event status);
 };
 
 
@@ -234,7 +234,7 @@ static void ntb_net_tx_handler(struct ntb_transport_qp *qp, void *qp_data,
     void *data, int len);
 static void ntb_net_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
     void *data, int len);
-static void ntb_net_event_handler(void *data, int status);
+static void ntb_net_event_handler(void *data, enum ntb_link_event status);
 static int ntb_transport_init(struct ntb_softc *ntb);
 static void ntb_transport_free(void *transport);
 static void ntb_transport_init_queue(struct ntb_netdev *nt,
@@ -465,9 +465,23 @@ ntb_net_rx_handler(struct ntb_transport_qp *qp, void *qp_data, void *data,
 }
 
 static void
-ntb_net_event_handler(void *data, int status)
+ntb_net_event_handler(void *data, enum ntb_link_event status)
 {
+	struct ifnet *ifp;
 
+	ifp = data;
+	(void)ifp;
+
+	/* XXX The Linux driver munges with the carrier status here. */
+
+	switch (status) {
+	case NTB_LINK_DOWN:
+		break;
+	case NTB_LINK_UP:
+		break;
+	default:
+		panic("Bogus ntb_link_event %u\n", status);
+	}
 }
 
 /* Transport Init and teardown */
