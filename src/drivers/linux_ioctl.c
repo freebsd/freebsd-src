@@ -219,3 +219,26 @@ int linux_br_get(char *brname, const char *ifname)
 	os_strlcpy(brname, pos, IFNAMSIZ);
 	return 0;
 }
+
+
+int linux_master_get(char *master_ifname, const char *ifname)
+{
+	char buf[128], masterlink[128], *pos;
+	ssize_t res;
+
+	/* check whether there is a master */
+	os_snprintf(buf, sizeof(buf), "/sys/class/net/%s/master", ifname);
+
+	res = readlink(buf, masterlink, sizeof(masterlink));
+	if (res < 0 || (size_t) res >= sizeof(masterlink))
+		return -1;
+
+	masterlink[res] = '\0';
+
+	pos = os_strrchr(masterlink, '/');
+	if (pos == NULL)
+		return -1;
+	pos++;
+	os_strlcpy(master_ifname, pos, IFNAMSIZ);
+	return 0;
+}

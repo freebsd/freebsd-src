@@ -161,7 +161,7 @@ struct omac1_test_vector {
 	u8 tag[16];
 };
 
-static struct omac1_test_vector omac1_test_vectors[] =
+static const struct omac1_test_vector omac1_test_vectors[] =
 {
 	{
 		{ 0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
@@ -210,7 +210,8 @@ static struct omac1_test_vector omac1_test_vectors[] =
 };
 
 
-static int test_omac1_vector(struct omac1_test_vector *tv, unsigned int i)
+static int test_omac1_vector(const struct omac1_test_vector *tv,
+			     unsigned int i)
 {
 	u8 key[] = {
 		0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
@@ -515,6 +516,7 @@ static int test_key_wrap(void)
 		0xAE, 0xF3, 0x4B, 0xD8, 0xFB, 0x5A, 0x7B, 0x82,
 		0x9D, 0x3E, 0x86, 0x23, 0x71, 0xD2, 0xCF, 0xE5
 	};
+#ifndef CONFIG_BORINGSSL
 	/* RFC 3394 - Test vector 4.2 */
 	u8 kek42[] = {
 		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -530,6 +532,7 @@ static int test_key_wrap(void)
 		0xF9, 0x2B, 0x5B, 0x97, 0xC0, 0x50, 0xAE, 0xD2,
 		0x46, 0x8A, 0xB8, 0xA1, 0x7A, 0xD8, 0x4E, 0x5D
 	};
+#endif /* CONFIG_BORINGSSL */
 	/* RFC 3394 - Test vector 4.3 */
 	u8 kek43[] = {
 		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -546,6 +549,7 @@ static int test_key_wrap(void)
 		0x63, 0xE9, 0x77, 0x79, 0x05, 0x81, 0x8A, 0x2A,
 		0x93, 0xC8, 0x19, 0x1E, 0x7D, 0x6E, 0x8A, 0xE7,
 	};
+#ifndef CONFIG_BORINGSSL
 	/* RFC 3394 - Test vector 4.4 */
 	u8 kek44[] = {
 		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -563,6 +567,7 @@ static int test_key_wrap(void)
 		0xE1, 0xC6, 0xC7, 0xDD, 0xEE, 0x72, 0x5A, 0x93,
 		0x6B, 0xA8, 0x14, 0x91, 0x5C, 0x67, 0x62, 0xD2
 	};
+#endif /* CONFIG_BORINGSSL */
 	/* RFC 3394 - Test vector 4.5 */
 	u8 kek45[] = {
 		0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -623,6 +628,7 @@ static int test_key_wrap(void)
 		ret++;
 	}
 
+#ifndef CONFIG_BORINGSSL
 	wpa_printf(MSG_INFO, "RFC 3394 - Test vector 4.2");
 	if (aes_wrap(kek42, sizeof(kek42), sizeof(plain42) / 8, plain42,
 		     result)) {
@@ -642,6 +648,7 @@ static int test_key_wrap(void)
 		wpa_printf(MSG_ERROR, "AES-UNWRAP-192 failed");
 		ret++;
 	}
+#endif /* CONFIG_BORINGSSL */
 
 	wpa_printf(MSG_INFO, "RFC 3394 - Test vector 4.3");
 	if (aes_wrap(kek43, sizeof(kek43), sizeof(plain43) / 8, plain43,
@@ -663,6 +670,7 @@ static int test_key_wrap(void)
 		ret++;
 	}
 
+#ifndef CONFIG_BORINGSSL
 	wpa_printf(MSG_INFO, "RFC 3394 - Test vector 4.4");
 	if (aes_wrap(kek44, sizeof(kek44), sizeof(plain44) / 8, plain44,
 		     result)) {
@@ -682,6 +690,7 @@ static int test_key_wrap(void)
 		wpa_printf(MSG_ERROR, "AES-UNWRAP-192 failed");
 		ret++;
 	}
+#endif /* CONFIG_BORINGSSL */
 
 	wpa_printf(MSG_INFO, "RFC 3394 - Test vector 4.5");
 	if (aes_wrap(kek45, sizeof(kek45), sizeof(plain45) / 8, plain45,
@@ -732,6 +741,7 @@ static int test_key_wrap(void)
 
 static int test_md5(void)
 {
+#ifndef CONFIG_FIPS
 	struct {
 		char *data;
 		char *hash;
@@ -810,6 +820,10 @@ static int test_md5(void)
 		wpa_printf(MSG_INFO, "MD5 test cases passed");
 
 	return errors;
+#else /* CONFIG_FIPS */
+	wpa_printf(MSG_INFO, "MD5 test cases skipped due to CONFIG_FIPS");
+	return 0;
+#endif /* CONFIG_FIPS */
 }
 
 
@@ -841,6 +855,7 @@ static int test_eap_fast(void)
 		0x38, 0x4B, 0x7A, 0x85, 0xBE, 0x16, 0x4D, 0x27,
 		0x33, 0xD5, 0x24, 0x79, 0x87, 0xB1, 0xC5, 0xA2
 	};
+#ifndef CONFIG_FIPS
 	const u8 key_block[] = {
 		0x59, 0x59, 0xBE, 0x8E, 0x41, 0x3A, 0x77, 0x74,
 		0x8B, 0xB2, 0xE5, 0xD3, 0x60, 0xAC, 0x4D, 0x35,
@@ -857,6 +872,7 @@ static int test_eap_fast(void)
 		0x64, 0xC1, 0xC8, 0x0C, 0x96, 0x44, 0x09, 0x98,
 		0xFF, 0x92, 0xA8, 0xB4, 0xC6, 0x42, 0x28, 0x71
 	};
+#endif /* CONFIG_FIPS */
 	const u8 sks[] = {
 		0xD6, 0x4B, 0x7D, 0x72, 0x17, 0x59, 0x28, 0x05,
 		0xAF, 0xF9, 0xB7, 0xFF, 0x66, 0x6D, 0xA1, 0x96,
@@ -931,6 +947,7 @@ static int test_eap_fast(void)
 		errors++;
 	}
 
+#ifndef CONFIG_FIPS
 	wpa_printf(MSG_INFO, "- PRF (TLS, SHA1/MD5) test case / key_block");
 	if (tls_prf_sha1_md5(master_secret, sizeof(master_secret),
 			     "key expansion", seed, sizeof(seed),
@@ -939,6 +956,7 @@ static int test_eap_fast(void)
 		wpa_printf(MSG_INFO, "PRF test - FAILED!");
 		errors++;
 	}
+#endif /* CONFIG_FIPS */
 
 	wpa_printf(MSG_INFO, "- T-PRF (SHA1) test case / IMCK");
 	if (sha1_t_prf(sks, sizeof(sks), "Inner Methods Compound Keys",
@@ -983,14 +1001,14 @@ static int test_eap_fast(void)
 }
 
 
-static u8 key0[] =
+static const u8 key0[] =
 {
 	0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
 	0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
 	0x0b, 0x0b, 0x0b, 0x0b
 };
-static u8 data0[] = "Hi There";
-static u8 prf0[] =
+static const u8 data0[] = "Hi There";
+static const u8 prf0[] =
 {
 	0xbc, 0xd4, 0xc6, 0x50, 0xb3, 0x0b, 0x96, 0x84,
 	0x95, 0x18, 0x29, 0xe0, 0xd7, 0x5f, 0x9d, 0x54,
@@ -1002,9 +1020,9 @@ static u8 prf0[] =
 	0xdb, 0x83, 0x73, 0x69, 0x83, 0x56, 0xcf, 0x5a
 };
 
-static u8 key1[] = "Jefe";
-static u8 data1[] = "what do ya want for nothing?";
-static u8 prf1[] =
+static const u8 key1[] = "Jefe";
+static const u8 data1[] = "what do ya want for nothing?";
+static const u8 prf1[] =
 {
 	0x51, 0xf4, 0xde, 0x5b, 0x33, 0xf2, 0x49, 0xad,
 	0xf8, 0x1a, 0xeb, 0x71, 0x3a, 0x3c, 0x20, 0xf4,
@@ -1017,13 +1035,13 @@ static u8 prf1[] =
 };
 
 
-static u8 key2[] =
+static const u8 key2[] =
 {
 	0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
 	0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
 	0xaa, 0xaa, 0xaa, 0xaa
 };
-static u8 data2[] =
+static const u8 data2[] =
 {
 	0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
 	0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
@@ -1033,7 +1051,7 @@ static u8 data2[] =
 	0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
 	0xdd, 0xdd
 };
-static u8 prf2[] =
+static const u8 prf2[] =
 {
 	0xe1, 0xac, 0x54, 0x6e, 0xc4, 0xcb, 0x63, 0x6f,
 	0x99, 0x76, 0x48, 0x7b, 0xe5, 0xc8, 0x6b, 0xe1,
@@ -1052,7 +1070,7 @@ struct passphrase_test {
 	char psk[32];
 };
 
-static struct passphrase_test passphrase_tests[] =
+static const struct passphrase_test passphrase_tests[] =
 {
 	{
 		"password",
@@ -1097,7 +1115,7 @@ struct rfc6070_test {
 	size_t dk_len;
 };
 
-static struct rfc6070_test rfc6070_tests[] =
+static const struct rfc6070_test rfc6070_tests[] =
 {
 	{
 		"password",
@@ -1214,7 +1232,7 @@ static int test_sha1(void)
 	wpa_printf(MSG_INFO, "PBKDF2-SHA1 Passphrase test cases:");
 	for (i = 0; i < NUM_PASSPHRASE_TESTS; i++) {
 		u8 psk[32];
-		struct passphrase_test *test = &passphrase_tests[i];
+		const struct passphrase_test *test = &passphrase_tests[i];
 
 		if (pbkdf2_sha1(test->passphrase,
 				(const u8 *) test->ssid, strlen(test->ssid),
@@ -1230,7 +1248,7 @@ static int test_sha1(void)
 	wpa_printf(MSG_INFO, "PBKDF2-SHA1 test cases (RFC 6070):");
 	for (i = 0; i < NUM_RFC6070_TESTS; i++) {
 		u8 dk[25];
-		struct rfc6070_test *test = &rfc6070_tests[i];
+		const struct rfc6070_test *test = &rfc6070_tests[i];
 
 		if (pbkdf2_sha1(test->p, (const u8 *) test->s, strlen(test->s),
 				test->c, dk, test->dk_len) == 0 &&
@@ -1248,7 +1266,7 @@ static int test_sha1(void)
 }
 
 
-struct {
+const struct {
 	char *data;
 	u8 hash[32];
 } tests[] = {
@@ -1272,7 +1290,7 @@ struct {
 	}
 };
 
-struct hmac_test {
+const struct hmac_test {
 	u8 key[80];
 	size_t key_len;
 	u8 data[128];
@@ -1513,7 +1531,7 @@ static int test_sha256(void)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(hmac_tests); i++) {
-		struct hmac_test *t = &hmac_tests[i];
+		const struct hmac_test *t = &hmac_tests[i];
 
 		wpa_printf(MSG_INFO, "HMAC-SHA256 test case %d:", i + 1);
 
@@ -1563,6 +1581,7 @@ static int test_sha256(void)
 
 static int test_ms_funcs(void)
 {
+#ifndef CONFIG_FIPS
 	/* Test vector from RFC2759 example */
 	char *username = "User";
 	char *password = "clientPass";
@@ -1655,6 +1674,10 @@ static int test_ms_funcs(void)
 		wpa_printf(MSG_INFO, "ms_funcs test cases passed");
 
 	return errors;
+#else /* CONFIG_FIPS */
+	wpa_printf(MSG_INFO, "ms_funcs test cases skipped due to CONFIG_FIPS");
+	return 0;
+#endif /* CONFIG_FIPS */
 }
 
 

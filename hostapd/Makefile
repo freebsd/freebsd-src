@@ -107,7 +107,16 @@ LIBS_h += -lrt
 LIBS_n += -lrt
 endif
 
+ifdef CONFIG_ELOOP_POLL
+CFLAGS += -DCONFIG_ELOOP_POLL
+endif
+
+ifdef CONFIG_ELOOP_EPOLL
+CFLAGS += -DCONFIG_ELOOP_EPOLL
+endif
+
 OBJS += ../src/utils/common.o
+OBJS_c += ../src/utils/common.o
 OBJS += ../src/utils/wpa_debug.o
 OBJS_c += ../src/utils/wpa_debug.o
 OBJS += ../src/utils/wpabuf.o
@@ -227,6 +236,7 @@ CFLAGS += -DCONFIG_SAE
 OBJS += ../src/common/sae.o
 NEED_ECC=y
 NEED_DH_GROUPS=y
+NEED_AP_MLME=y
 endif
 
 ifdef CONFIG_WNM
@@ -531,8 +541,14 @@ HOBJS += ../src/crypto/crypto_openssl.o
 ifdef NEED_FIPS186_2_PRF
 OBJS += ../src/crypto/fips_prf_openssl.o
 endif
+NEED_SHA256=y
+NEED_TLS_PRF_SHA256=y
 LIBS += -lcrypto
 LIBS_h += -lcrypto
+ifdef CONFIG_TLS_ADD_DL
+LIBS += -ldl
+LIBS_h += -ldl
+endif
 endif
 
 ifeq ($(CONFIG_TLS), gnutls)
@@ -548,17 +564,6 @@ SHA1OBJS += ../src/crypto/sha1-internal.o
 endif
 LIBS += -lgcrypt
 LIBS_h += -lgcrypt
-CONFIG_INTERNAL_SHA256=y
-CONFIG_INTERNAL_RC4=y
-CONFIG_INTERNAL_DH_GROUP5=y
-endif
-
-ifeq ($(CONFIG_TLS), schannel)
-ifdef TLS_FUNCS
-OBJS += ../src/crypto/tls_schannel.o
-endif
-OBJS += ../src/crypto/crypto_cryptoapi.o
-OBJS_p += ../src/crypto/crypto_cryptoapi.o
 CONFIG_INTERNAL_SHA256=y
 CONFIG_INTERNAL_RC4=y
 CONFIG_INTERNAL_DH_GROUP5=y
@@ -694,7 +699,9 @@ endif
 endif
 ifdef NEED_AES_CBC
 NEED_AES_DEC=y
+ifneq ($(CONFIG_TLS), openssl)
 AESOBJS += ../src/crypto/aes-cbc.o
+endif
 endif
 ifdef NEED_AES_DEC
 ifdef CONFIG_INTERNAL_AES
@@ -754,9 +761,15 @@ OBJS += ../src/crypto/des-internal.o
 endif
 endif
 
+ifdef CONFIG_NO_RC4
+CFLAGS += -DCONFIG_NO_RC4
+endif
+
 ifdef NEED_RC4
 ifdef CONFIG_INTERNAL_RC4
+ifndef CONFIG_NO_RC4
 OBJS += ../src/crypto/rc4.o
+endif
 endif
 endif
 
@@ -778,6 +791,7 @@ endif
 endif
 ifdef NEED_SHA384
 CFLAGS += -DCONFIG_SHA384
+OBJS += ../src/crypto/sha384-prf.o
 endif
 
 ifdef NEED_DH_GROUPS
@@ -803,7 +817,9 @@ OBJS += ../src/crypto/random.o
 HOBJS += ../src/crypto/random.o
 HOBJS += ../src/utils/eloop.o
 HOBJS += $(SHA1OBJS)
+ifneq ($(CONFIG_TLS), openssl)
 HOBJS += ../src/crypto/md5.o
+endif
 endif
 
 ifdef CONFIG_RADIUS_SERVER
@@ -903,6 +919,21 @@ LIBS += -lsqlite3
 LIBS_h += -lsqlite3
 endif
 
+ifdef CONFIG_FST
+CFLAGS += -DCONFIG_FST
+OBJS += ../src/fst/fst.o
+OBJS += ../src/fst/fst_group.o
+OBJS += ../src/fst/fst_iface.o
+OBJS += ../src/fst/fst_session.o
+OBJS += ../src/fst/fst_ctrl_aux.o
+ifdef CONFIG_FST_TEST
+CFLAGS += -DCONFIG_FST_TEST
+endif
+ifndef CONFIG_NO_CTRL_IFACE
+OBJS += ../src/fst/fst_ctrl_iface.o
+endif
+endif
+
 ALL=hostapd hostapd_cli
 
 all: verify_config $(ALL)
@@ -965,7 +996,9 @@ NOBJS = nt_password_hash.o ../src/crypto/ms_funcs.o $(SHA1OBJS)
 NOBJS += ../src/utils/common.o
 ifdef NEED_RC4
 ifdef CONFIG_INTERNAL_RC4
+ifndef CONFIG_NO_RC4
 NOBJS += ../src/crypto/rc4.o
+endif
 endif
 endif
 ifdef CONFIG_INTERNAL_MD5

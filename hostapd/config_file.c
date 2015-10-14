@@ -222,9 +222,15 @@ static int hostapd_config_read_eap_user(const char *fname,
 		return 0;
 
 	if (os_strncmp(fname, "sqlite:", 7) == 0) {
+#ifdef CONFIG_SQLITE
 		os_free(conf->eap_user_sqlite);
 		conf->eap_user_sqlite = os_strdup(fname + 7);
 		return 0;
+#else /* CONFIG_SQLITE */
+		wpa_printf(MSG_ERROR,
+			   "EAP user file in SQLite DB, but CONFIG_SQLITE was not enabled in the build.");
+		return -1;
+#endif /* CONFIG_SQLITE */
 	}
 
 	f = fopen(fname, "r");
@@ -775,6 +781,24 @@ static int hostapd_config_read_wep(struct hostapd_wep_keys *wep, int keyidx,
 }
 
 
+static int hostapd_parse_chanlist(struct hostapd_config *conf, char *val)
+{
+	char *pos;
+
+	/* for backwards compatibility, translate ' ' in conf str to ',' */
+	pos = val;
+	while (pos) {
+		pos = os_strchr(pos, ' ');
+		if (pos)
+			*pos++ = ',';
+	}
+	if (freq_range_list_parse(&conf->acs_ch_list, val))
+		return -1;
+
+	return 0;
+}
+
+
 static int hostapd_parse_intlist(int **int_list, char *val)
 {
 	int *list;
@@ -875,7 +899,9 @@ static int hostapd_config_read_int10(const char *value)
 static int valid_cw(int cw)
 {
 	return (cw == 1 || cw == 3 || cw == 7 || cw == 15 || cw == 31 ||
-		cw == 63 || cw == 127 || cw == 255 || cw == 511 || cw == 1023);
+		cw == 63 || cw == 127 || cw == 255 || cw == 511 || cw == 1023 ||
+		cw == 2047 || cw == 4095 || cw == 8191 || cw == 16383 ||
+		cw == 32767);
 }
 
 
@@ -886,11 +912,11 @@ enum {
 	IEEE80211_TX_QUEUE_DATA3 = 3 /* used for EDCA AC_BK data */
 };
 
-static int hostapd_config_tx_queue(struct hostapd_config *conf, char *name,
-				   char *val)
+static int hostapd_config_tx_queue(struct hostapd_config *conf,
+				   const char *name, const char *val)
 {
 	int num;
-	char *pos;
+	const char *pos;
 	struct hostapd_tx_queue_params *queue;
 
 	/* skip 'tx_queue_' prefix */
@@ -1134,13 +1160,23 @@ static int hostapd_config_vht_capab(struct hostapd_config *conf,
 	if (os_strstr(capab, "[BF-ANTENNA-2]") &&
 	    (conf->vht_capab & VHT_CAP_SU_BEAMFORMEE_CAPABLE))
 		conf->vht_capab |= (1 << VHT_CAP_BEAMFORMEE_STS_OFFSET);
+	if (os_strstr(capab, "[BF-ANTENNA-3]") &&
+	    (conf->vht_capab & VHT_CAP_SU_BEAMFORMEE_CAPABLE))
+		conf->vht_capab |= (2 << VHT_CAP_BEAMFORMEE_STS_OFFSET);
+	if (os_strstr(capab, "[BF-ANTENNA-4]") &&
+	    (conf->vht_capab & VHT_CAP_SU_BEAMFORMEE_CAPABLE))
+		conf->vht_capab |= (3 << VHT_CAP_BEAMFORMEE_STS_OFFSET);
 	if (os_strstr(capab, "[SOUNDING-DIMENSION-2]") &&
 	    (conf->vht_capab & VHT_CAP_SU_BEAMFORMER_CAPABLE))
 		conf->vht_capab |= (1 << VHT_CAP_SOUNDING_DIMENSION_OFFSET);
+	if (os_strstr(capab, "[SOUNDING-DIMENSION-3]") &&
+	    (conf->vht_capab & VHT_CAP_SU_BEAMFORMER_CAPABLE))
+		conf->vht_capab |= (2 << VHT_CAP_SOUNDING_DIMENSION_OFFSET);
+	if (os_strstr(capab, "[SOUNDING-DIMENSION-4]") &&
+	    (conf->vht_capab & VHT_CAP_SU_BEAMFORMER_CAPABLE))
+		conf->vht_capab |= (3 << VHT_CAP_SOUNDING_DIMENSION_OFFSET);
 	if (os_strstr(capab, "[MU-BEAMFORMER]"))
 		conf->vht_capab |= VHT_CAP_MU_BEAMFORMER_CAPABLE;
-	if (os_strstr(capab, "[MU-BEAMFORMEE]"))
-		conf->vht_capab |= VHT_CAP_MU_BEAMFORMEE_CAPABLE;
 	if (os_strstr(capab, "[VHT-TXOP-PS]"))
 		conf->vht_capab |= VHT_CAP_VHT_TXOP_PS;
 	if (os_strstr(capab, "[HTC-VHT]"))
@@ -1699,7 +1735,7 @@ static int hs20_parse_osu_ssid(struct hostapd_bss_config *bss,
 	char *str;
 
 	str = wpa_config_parse_string(pos, &slen);
-	if (str == NULL || slen < 1 || slen > HOSTAPD_MAX_SSID_LEN) {
+	if (str == NULL || slen < 1 || slen > SSID_MAX_LEN) {
 		wpa_printf(MSG_ERROR, "Line %d: Invalid SSID '%s'", line, pos);
 		os_free(str);
 		return -1;
@@ -1900,7 +1936,7 @@ fail:
 
 static int hostapd_config_fill(struct hostapd_config *conf,
 			       struct hostapd_bss_config *bss,
-			       char *buf, char *pos, int line)
+			       const char *buf, char *pos, int line)
 {
 	if (os_strcmp(buf, "interface") == 0) {
 		os_strlcpy(conf->bss[0]->iface, pos,
@@ -1946,7 +1982,7 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 			   line);
 	} else if (os_strcmp(buf, "ssid") == 0) {
 		bss->ssid.ssid_len = os_strlen(pos);
-		if (bss->ssid.ssid_len > HOSTAPD_MAX_SSID_LEN ||
+		if (bss->ssid.ssid_len > SSID_MAX_LEN ||
 		    bss->ssid.ssid_len < 1) {
 			wpa_printf(MSG_ERROR, "Line %d: invalid SSID '%s'",
 				   line, pos);
@@ -1957,7 +1993,7 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 	} else if (os_strcmp(buf, "ssid2") == 0) {
 		size_t slen;
 		char *str = wpa_config_parse_string(pos, &slen);
-		if (str == NULL || slen < 1 || slen > HOSTAPD_MAX_SSID_LEN) {
+		if (str == NULL || slen < 1 || slen > SSID_MAX_LEN) {
 			wpa_printf(MSG_ERROR, "Line %d: invalid SSID '%s'",
 				   line, pos);
 			os_free(str);
@@ -2043,6 +2079,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 		bss->private_key_passwd = os_strdup(pos);
 	} else if (os_strcmp(buf, "check_crl") == 0) {
 		bss->check_crl = atoi(pos);
+	} else if (os_strcmp(buf, "tls_session_lifetime") == 0) {
+		bss->tls_session_lifetime = atoi(pos);
 	} else if (os_strcmp(buf, "ocsp_stapling_response") == 0) {
 		os_free(bss->ocsp_stapling_response);
 		bss->ocsp_stapling_response = os_strdup(pos);
@@ -2515,13 +2553,17 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 			conf->hw_mode = HOSTAPD_MODE_IEEE80211G;
 		else if (os_strcmp(pos, "ad") == 0)
 			conf->hw_mode = HOSTAPD_MODE_IEEE80211AD;
+		else if (os_strcmp(pos, "any") == 0)
+			conf->hw_mode = HOSTAPD_MODE_IEEE80211ANY;
 		else {
 			wpa_printf(MSG_ERROR, "Line %d: unknown hw_mode '%s'",
 				   line, pos);
 			return 1;
 		}
 	} else if (os_strcmp(buf, "wps_rf_bands") == 0) {
-		if (os_strcmp(pos, "a") == 0)
+		if (os_strcmp(pos, "ad") == 0)
+			bss->wps_rf_bands = WPS_RF_60GHZ;
+		else if (os_strcmp(pos, "a") == 0)
 			bss->wps_rf_bands = WPS_RF_50GHZ;
 		else if (os_strcmp(pos, "g") == 0 ||
 			 os_strcmp(pos, "b") == 0)
@@ -2542,12 +2584,15 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 				   line);
 			return 1;
 #else /* CONFIG_ACS */
+			conf->acs = 1;
 			conf->channel = 0;
 #endif /* CONFIG_ACS */
-		} else
+		} else {
 			conf->channel = atoi(pos);
+			conf->acs = conf->channel == 0;
+		}
 	} else if (os_strcmp(buf, "chanlist") == 0) {
-		if (hostapd_parse_intlist(&conf->chanlist, pos)) {
+		if (hostapd_parse_chanlist(conf, pos)) {
 			wpa_printf(MSG_ERROR, "Line %d: invalid channel list",
 				   line);
 			return 1;
@@ -2810,7 +2855,7 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 		os_free(bss->wps_pin_requests);
 		bss->wps_pin_requests = os_strdup(pos);
 	} else if (os_strcmp(buf, "device_name") == 0) {
-		if (os_strlen(pos) > 32) {
+		if (os_strlen(pos) > WPS_DEV_NAME_MAX_LEN) {
 			wpa_printf(MSG_ERROR, "Line %d: Too long "
 				   "device_name", line);
 			return 1;
@@ -3111,6 +3156,8 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 		bss->disable_dgaf = atoi(pos);
 	} else if (os_strcmp(buf, "proxy_arp") == 0) {
 		bss->proxy_arp = atoi(pos);
+	} else if (os_strcmp(buf, "na_mcast_to_ucast") == 0) {
+		bss->na_mcast_to_ucast = atoi(pos);
 	} else if (os_strcmp(buf, "osen") == 0) {
 		bss->osen = atoi(pos);
 	} else if (os_strcmp(buf, "anqp_domain_id") == 0) {
@@ -3223,6 +3270,24 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 		bss->bss_load_test_set = 1;
 	} else if (os_strcmp(buf, "radio_measurements") == 0) {
 		bss->radio_measurements = atoi(pos);
+	} else if (os_strcmp(buf, "own_ie_override") == 0) {
+		struct wpabuf *tmp;
+		size_t len = os_strlen(pos) / 2;
+
+		tmp = wpabuf_alloc(len);
+		if (!tmp)
+			return 1;
+
+		if (hexstr2bin(pos, wpabuf_put(tmp, len), len)) {
+			wpabuf_free(tmp);
+			wpa_printf(MSG_ERROR,
+				   "Line %d: Invalid own_ie_override '%s'",
+				   line, pos);
+			return 1;
+		}
+
+		wpabuf_free(bss->own_ie_override);
+		bss->own_ie_override = tmp;
 #endif /* CONFIG_TESTING_OPTIONS */
 	} else if (os_strcmp(buf, "vendor_elements") == 0) {
 		struct wpabuf *elems;
@@ -3276,6 +3341,74 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 	} else if (os_strcmp(buf, "wowlan_triggers") == 0) {
 		os_free(bss->wowlan_triggers);
 		bss->wowlan_triggers = os_strdup(pos);
+#ifdef CONFIG_FST
+	} else if (os_strcmp(buf, "fst_group_id") == 0) {
+		size_t len = os_strlen(pos);
+
+		if (!len || len >= sizeof(conf->fst_cfg.group_id)) {
+			wpa_printf(MSG_ERROR,
+				   "Line %d: Invalid fst_group_id value '%s'",
+				   line, pos);
+			return 1;
+		}
+
+		if (conf->fst_cfg.group_id[0]) {
+			wpa_printf(MSG_ERROR,
+				   "Line %d: Duplicate fst_group value '%s'",
+				   line, pos);
+			return 1;
+		}
+
+		os_strlcpy(conf->fst_cfg.group_id, pos,
+			   sizeof(conf->fst_cfg.group_id));
+	} else if (os_strcmp(buf, "fst_priority") == 0) {
+		char *endp;
+		long int val;
+
+		if (!*pos) {
+			wpa_printf(MSG_ERROR,
+				   "Line %d: fst_priority value not supplied (expected 1..%u)",
+				   line, FST_MAX_PRIO_VALUE);
+			return -1;
+		}
+
+		val = strtol(pos, &endp, 0);
+		if (*endp || val < 1 || val > FST_MAX_PRIO_VALUE) {
+			wpa_printf(MSG_ERROR,
+				   "Line %d: Invalid fst_priority %ld (%s) (expected 1..%u)",
+				   line, val, pos, FST_MAX_PRIO_VALUE);
+			return 1;
+		}
+		conf->fst_cfg.priority = (u8) val;
+	} else if (os_strcmp(buf, "fst_llt") == 0) {
+		char *endp;
+		long int val;
+
+		if (!*pos) {
+			wpa_printf(MSG_ERROR,
+				   "Line %d: fst_llt value not supplied (expected 1..%u)",
+				   line, FST_MAX_LLT_MS);
+			return -1;
+		}
+		val = strtol(pos, &endp, 0);
+		if (*endp || val < 1 || val > FST_MAX_LLT_MS) {
+			wpa_printf(MSG_ERROR,
+				   "Line %d: Invalid fst_llt %ld (%s) (expected 1..%u)",
+				   line, val, pos, FST_MAX_LLT_MS);
+			return 1;
+		}
+		conf->fst_cfg.llt = (u32) val;
+#endif /* CONFIG_FST */
+	} else if (os_strcmp(buf, "track_sta_max_num") == 0) {
+		conf->track_sta_max_num = atoi(pos);
+	} else if (os_strcmp(buf, "track_sta_max_age") == 0) {
+		conf->track_sta_max_age = atoi(pos);
+	} else if (os_strcmp(buf, "no_probe_resp_if_seen_on") == 0) {
+		os_free(bss->no_probe_resp_if_seen_on);
+		bss->no_probe_resp_if_seen_on = os_strdup(pos);
+	} else if (os_strcmp(buf, "no_auth_if_seen_on") == 0) {
+		os_free(bss->no_auth_if_seen_on);
+		bss->no_auth_if_seen_on = os_strdup(pos);
 	} else {
 		wpa_printf(MSG_ERROR,
 			   "Line %d: unknown configuration item '%s'",
@@ -3378,7 +3511,8 @@ struct hostapd_config * hostapd_config_read(const char *fname)
 
 
 int hostapd_set_iface(struct hostapd_config *conf,
-		      struct hostapd_bss_config *bss, char *field, char *value)
+		      struct hostapd_bss_config *bss, const char *field,
+		      char *value)
 {
 	int errors;
 	size_t i;
