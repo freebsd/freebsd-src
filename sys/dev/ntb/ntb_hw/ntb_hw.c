@@ -200,6 +200,7 @@ static int map_mmr_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar);
 static int map_memory_window_bar(struct ntb_softc *ntb,
     struct ntb_pci_bar_info *bar);
 static void ntb_unmap_pci_bar(struct ntb_softc *ntb);
+static int ntb_remap_msix(device_t, uint32_t desired, uint32_t avail);
 static int ntb_setup_interrupts(struct ntb_softc *ntb);
 static int ntb_setup_legacy_interrupt(struct ntb_softc *ntb);
 static int ntb_setup_xeon_msix(struct ntb_softc *ntb, uint32_t num_vectors);
@@ -551,10 +552,55 @@ ntb_setup_soc_msix(struct ntb_softc *ntb, uint32_t num_vectors)
 	return (0);
 }
 
+/*
+ * The Linux NTB driver drops from MSI-X to legacy INTx if a unique vector
+ * cannot be allocated for each MSI-X message.  JHB seems to think remapping
+ * should be okay.  This tunable should enable us to test that hypothesis
+ * when someone gets their hands on some Xeon hardware.
+ */
+static int ntb_force_remap_mode;
+SYSCTL_INT(_hw_ntb, OID_AUTO, force_remap_mode, CTLFLAG_RDTUN,
+    &ntb_force_remap_mode, 0, "If enabled, force MSI-X messages to be remapped"
+    " to a smaller number of ithreads, even if the desired number are "
+    "available");
+
+/*
+ * In case it is NOT ok, give consumers an abort button.
+ */
+static int ntb_prefer_intx;
+SYSCTL_INT(_hw_ntb, OID_AUTO, prefer_intx_to_remap, CTLFLAG_RDTUN,
+    &ntb_prefer_intx, 0, "If enabled, prefer to use legacy INTx mode rather "
+    "than remapping MSI-X messages over available slots (match Linux driver "
+    "behavior)");
+
+/*
+ * Remap the desired number of MSI-X messages to available ithreads in a simple
+ * round-robin fashion.
+ */
+static int
+ntb_remap_msix(device_t dev, uint32_t desired, uint32_t avail)
+{
+	u_int *vectors;
+	uint32_t i;
+	int rc;
+
+	if (ntb_prefer_intx != 0)
+		return (ENXIO);
+
+	vectors = malloc(desired * sizeof(*vectors), M_NTB, M_ZERO | M_WAITOK);
+
+	for (i = 0; i < desired; i++)
+		vectors[i] = (i % avail) + 1;
+
+	rc = pci_remap_msix(dev, desired, vectors);
+	free(vectors, M_NTB);
+	return (rc);
+}
+
 static int
 ntb_setup_interrupts(struct ntb_softc *ntb)
 {
-	uint32_t num_vectors;
+	uint32_t desired_vectors, num_vectors;
 	int rc;
 
 	ntb->allocated_interrupts = 0;
@@ -568,10 +614,27 @@ ntb_setup_interrupts(struct ntb_softc *ntb)
 		ntb_reg_write(2, ntb->reg_ofs.ldb_mask,
 		    (uint16_t) ~(1 << XEON_LINK_DB));
 
-	num_vectors = MIN(pci_msix_count(ntb->device),
+	num_vectors = desired_vectors = MIN(pci_msix_count(ntb->device),
 	    ntb->limits.max_db_bits);
-	if (num_vectors >= 1)
-		pci_alloc_msix(ntb->device, &num_vectors);
+	if (desired_vectors >= 1) {
+		rc = pci_alloc_msix(ntb->device, &num_vectors);
+
+		if (ntb_force_remap_mode != 0 && rc == 0 &&
+		    num_vectors == desired_vectors)
+			num_vectors--;
+
+		if (rc == 0 && num_vectors < desired_vectors) {
+			rc = ntb_remap_msix(ntb->device, desired_vectors,
+			    num_vectors);
+			if (rc == 0)
+				num_vectors = desired_vectors;
+			else
+				pci_release_msi(ntb->device);
+		}
+		if (rc != 0)
+			num_vectors = 1;
+	} else
+		num_vectors = 1;
 
 	ntb_create_callbacks(ntb, num_vectors);
 
