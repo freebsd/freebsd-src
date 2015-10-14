@@ -175,7 +175,10 @@ driver was written by
 .An Damien Bergamini Aq Mt damien@openbsd.org
 and ported by
 .An Rui Paulo Aq Mt rpaulo@freebsd.org .
+The 802.11n support was added by
+.An Adrian Chadd Aq Mt adrian@freebsd.org .
 .Sh CAVEATS
 The
 .Nm
-driver only supports 1T1R 802.11n operation.
+driver currently does not support 802.11n transmit aggregation,
+either A-MSDU or A-MPDU.
