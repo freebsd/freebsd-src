@@ -1050,12 +1050,18 @@ ntb_handle_link_event(struct ntb_softc *ntb, int link_state)
 static void
 ntb_hw_link_up(struct ntb_softc *ntb)
 {
+	uint32_t cntl;
 
-	if (ntb->conn_type == NTB_CONN_TRANSPARENT)
+	if (ntb->conn_type == NTB_CONN_TRANSPARENT) {
 		ntb_handle_link_event(ntb, NTB_LINK_UP);
-	else
-		ntb_reg_write(4, ntb->reg_ofs.lnk_cntl,
-		    NTB_CNTL_BAR23_SNOOP | NTB_CNTL_BAR45_SNOOP);
+		return;
+	}
+
+	cntl = ntb_reg_read(4, ntb->reg_ofs.lnk_cntl);
+	cntl &= ~(NTB_CNTL_LINK_DISABLE | NTB_CNTL_CFG_LOCK);
+	cntl |= NTB_CNTL_P2S_BAR23_SNOOP | NTB_CNTL_S2P_BAR23_SNOOP;
+	cntl |= NTB_CNTL_P2S_BAR45_SNOOP | NTB_CNTL_S2P_BAR45_SNOOP;
+	ntb_reg_write(4, ntb->reg_ofs.lnk_cntl, cntl);
 }
 
 static void
@@ -1069,8 +1075,9 @@ ntb_hw_link_down(struct ntb_softc *ntb)
 	}
 
 	cntl = ntb_reg_read(4, ntb->reg_ofs.lnk_cntl);
-	cntl &= ~(NTB_CNTL_BAR23_SNOOP | NTB_CNTL_BAR45_SNOOP);
-	cntl |= NTB_CNTL_LINK_DISABLE;
+	cntl &= ~(NTB_CNTL_P2S_BAR23_SNOOP | NTB_CNTL_S2P_BAR23_SNOOP);
+	cntl &= ~(NTB_CNTL_P2S_BAR45_SNOOP | NTB_CNTL_S2P_BAR45_SNOOP);
+	cntl |= NTB_CNTL_LINK_DISABLE | NTB_CNTL_CFG_LOCK;
 	ntb_reg_write(4, ntb->reg_ofs.lnk_cntl, cntl);
 }
 
