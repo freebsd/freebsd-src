@@ -146,6 +146,7 @@ struct ntb_softc {
 		uint32_t lnk_stat;
 		uint32_t spci_cmd;
 	} reg_ofs;
+	uint32_t ppd;
 	uint8_t conn_type;
 	uint8_t dev_type;
 	uint8_t bits_per_vector;
@@ -218,6 +219,8 @@ static void unmask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx);
 static int ntb_create_callbacks(struct ntb_softc *ntb, uint32_t num_vectors);
 static void ntb_free_callbacks(struct ntb_softc *ntb);
 static struct ntb_hw_info *ntb_get_device_info(uint32_t device_id);
+static int ntb_detect_xeon(struct ntb_softc *ntb);
+static int ntb_detect_soc(struct ntb_softc *ntb);
 static int ntb_setup_xeon(struct ntb_softc *ntb);
 static int ntb_setup_soc(struct ntb_softc *ntb);
 static void ntb_teardown_xeon(struct ntb_softc *ntb);
@@ -310,6 +313,13 @@ ntb_attach(device_t device)
 	/* Heartbeat timer for NTB_SOC since there is no link interrupt */
 	callout_init(&ntb->heartbeat_timer, 1);
 	callout_init(&ntb->lr_timer, 1);
+
+	if (ntb->type == NTB_SOC)
+		error = ntb_detect_soc(ntb);
+	else
+		error = ntb_detect_xeon(ntb);
+	if (error)
+		goto out;
 
 	error = ntb_map_pci_bars(ntb);
 	if (error)
@@ -874,18 +884,61 @@ ntb_teardown_xeon(struct ntb_softc *ntb)
 }
 
 static int
-ntb_setup_xeon(struct ntb_softc *ntb)
+ntb_detect_xeon(struct ntb_softc *ntb)
 {
-	uint8_t val, connection_type;
+	uint8_t ppd, conn_type;
 
-	val = pci_read_config(ntb->device, NTB_PPD_OFFSET, 1);
+	ppd = pci_read_config(ntb->device, NTB_PPD_OFFSET, 1);
+	ntb->ppd = ppd;
 
-	connection_type = val & XEON_PPD_CONN_TYPE;
-
-	if ((val & XEON_PPD_DEV_TYPE) != 0)
+	if ((ppd & XEON_PPD_DEV_TYPE) != 0)
 		ntb->dev_type = NTB_DEV_USD;
 	else
 		ntb->dev_type = NTB_DEV_DSD;
+
+	conn_type = ppd & XEON_PPD_CONN_TYPE;
+	switch (conn_type) {
+	case NTB_CONN_B2B:
+		ntb->conn_type = conn_type;
+		break;
+	case NTB_CONN_RP:
+	case NTB_CONN_TRANSPARENT:
+	default:
+		device_printf(ntb->device, "Unsupported connection type: %u\n",
+		    (unsigned)conn_type);
+		return (ENXIO);
+	}
+	return (0);
+}
+
+static int
+ntb_detect_soc(struct ntb_softc *ntb)
+{
+	uint32_t ppd, conn_type;
+
+	ppd = pci_read_config(ntb->device, NTB_PPD_OFFSET, 4);
+	ntb->ppd = ppd;
+
+	if ((ppd & SOC_PPD_DEV_TYPE) != 0)
+		ntb->dev_type = NTB_DEV_DSD;
+	else
+		ntb->dev_type = NTB_DEV_USD;
+
+	conn_type = (ppd & SOC_PPD_CONN_TYPE) >> 8;
+	switch (conn_type) {
+	case NTB_CONN_B2B:
+		ntb->conn_type = conn_type;
+		break;
+	default:
+		device_printf(ntb->device, "Unsupported NTB configuration\n");
+		return (ENXIO);
+	}
+	return (0);
+}
+
+static int
+ntb_setup_xeon(struct ntb_softc *ntb)
+{
 
 	ntb->reg_ofs.ldb	= XEON_PDOORBELL_OFFSET;
 	ntb->reg_ofs.ldb_mask	= XEON_PDBMSK_OFFSET;
@@ -893,10 +946,8 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	ntb->reg_ofs.bar2_xlat	= XEON_SBAR2XLAT_OFFSET;
 	ntb->reg_ofs.bar4_xlat	= XEON_SBAR4XLAT_OFFSET;
 
-	switch (connection_type) {
+	switch (ntb->conn_type) {
 	case NTB_CONN_B2B:
-		ntb->conn_type = NTB_CONN_B2B;
-
 		/*
 		 * reg_ofs.rdb and reg_ofs.spad_remote are effectively ignored
 		 * with the NTB_REGS_THRU_MW errata mode enabled.  (See
@@ -922,7 +973,7 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	case NTB_CONN_TRANSPARENT:
 	default:
 		device_printf(ntb->device, "Connection type %d not supported\n",
-		    connection_type);
+		    ntb->conn_type);
 		return (ENXIO);
 	}
 
@@ -971,7 +1022,7 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	 */
 	if (HAS_FEATURE(NTB_B2BDOORBELL_BIT14) &&
 	    !HAS_FEATURE(NTB_REGS_THRU_MW) &&
-	    connection_type == NTB_CONN_B2B)
+	    ntb->conn_type == NTB_CONN_B2B)
 		ntb->limits.max_db_bits = XEON_MAX_DB_BITS - 1;
 
 	configure_xeon_secondary_side_bars(ntb);
@@ -990,29 +1041,13 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 static int
 ntb_setup_soc(struct ntb_softc *ntb)
 {
-	uint32_t val, connection_type;
 
-	val = pci_read_config(ntb->device, NTB_PPD_OFFSET, 4);
-
-	connection_type = (val & SOC_PPD_CONN_TYPE) >> 8;
-	switch (connection_type) {
-	case NTB_CONN_B2B:
-		ntb->conn_type = NTB_CONN_B2B;
-		break;
-	default:
-		device_printf(ntb->device,
-		    "Unsupported NTB configuration (%d)\n", connection_type);
-		return (ENXIO);
-	}
-
-	if ((val & SOC_PPD_DEV_TYPE) != 0)
-		ntb->dev_type = NTB_DEV_DSD;
-	else
-		ntb->dev_type = NTB_DEV_USD;
+	KASSERT(ntb->conn_type == NTB_CONN_B2B,
+	    ("Unsupported NTB configuration (%d)\n", ntb->conn_type));
 
 	/* Initiate PCI-E link training */
-	pci_write_config(ntb->device, NTB_PPD_OFFSET, val | SOC_PPD_INIT_LINK,
-	    4);
+	pci_write_config(ntb->device, NTB_PPD_OFFSET,
+	    ntb->ppd | SOC_PPD_INIT_LINK, 4);
 
 	ntb->reg_ofs.ldb	 = SOC_PDOORBELL_OFFSET;
 	ntb->reg_ofs.ldb_mask	 = SOC_PDBMSK_OFFSET;
