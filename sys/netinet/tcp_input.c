@@ -2523,6 +2523,16 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						tp->snd_nxt = onxt;
 					goto drop;
 				} else if (V_tcp_do_rfc3042) {
+					/*
+					 * Process first and second duplicate
+					 * ACKs. Each indicates a segment
+					 * leaving the network, creating room
+					 * for more. Make sure we can send a
+					 * packet on reception of each duplicate
+					 * ACK by increasing snd_cwnd by one
+					 * segment. Restore the original
+					 * snd_cwnd after packet transmission.
+					 */
 					cc_ack_received(tp, th, CC_DUPACK);
 					u_long oldcwnd = tp->snd_cwnd;
 					tcp_seq oldsndmax = tp->snd_max;
