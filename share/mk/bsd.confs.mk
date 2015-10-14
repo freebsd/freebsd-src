@@ -84,4 +84,4 @@ STAGE_TARGETS+= stage_config
 .endif
 .endif
 
-.endif # ${MK_TOOLCHAIN} != "no"
+.endif # ${MK_INCLUDES} != "no"
