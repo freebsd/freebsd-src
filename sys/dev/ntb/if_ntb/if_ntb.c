@@ -116,7 +116,7 @@ struct ntb_transport_qp {
 	struct ntb_rx_info	*rx_info;
 	struct ntb_rx_info	*remote_rx_info;
 
-	void (*tx_handler) (struct ntb_transport_qp *qp, void *qp_data,
+	void (*tx_handler)(struct ntb_transport_qp *qp, void *qp_data,
 	    void *data, int len);
 	struct ntb_queue_list	tx_free_q;
 	struct mtx		ntb_tx_free_q_lock;
@@ -125,7 +125,7 @@ struct ntb_transport_qp {
 	uint64_t		tx_max_entry;
 	uint64_t		tx_max_frame;
 
-	void (*rx_handler) (struct ntb_transport_qp *qp, void *qp_data,
+	void (*rx_handler)(struct ntb_transport_qp *qp, void *qp_data,
 	    void *data, int len);
 	struct ntb_queue_list	rx_pend_q;
 	struct ntb_queue_list	rx_free_q;
@@ -137,7 +137,7 @@ struct ntb_transport_qp {
 	uint64_t		rx_max_entry;
 	uint64_t		rx_max_frame;
 
-	void (*event_handler) (void *data, enum ntb_link_event status);
+	void (*event_handler)(void *data, enum ntb_link_event status);
 	struct callout		link_work;
 	struct callout		queue_full;
 	struct callout		rx_full;
@@ -157,11 +157,11 @@ struct ntb_transport_qp {
 };
 
 struct ntb_queue_handlers {
-	void (*rx_handler) (struct ntb_transport_qp *qp, void *qp_data,
+	void (*rx_handler)(struct ntb_transport_qp *qp, void *qp_data,
 	    void *data, int len);
-	void (*tx_handler) (struct ntb_transport_qp *qp, void *qp_data,
+	void (*tx_handler)(struct ntb_transport_qp *qp, void *qp_data,
 	    void *data, int len);
-	void (*event_handler) (void *data, enum ntb_link_event status);
+	void (*event_handler)(void *data, enum ntb_link_event status);
 };
 
 
@@ -825,7 +825,7 @@ ntb_tx_copy_task(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry,
 
 	ntb_ring_doorbell(qp->ntb, qp->qp_num);
 
-	/* 
+	/*
 	 * The entry length can only be zero if the packet is intended to be a
 	 * "link down" or similar.  Since no payload is being sent in these
 	 * cases, there is nothing to add to the completion queue.
@@ -868,7 +868,7 @@ ntb_transport_rxc_db(void *arg, int dummy __unused)
 	uint64_t i;
 	int rc;
 
-	/* 
+	/*
 	 * Limit the number of packets processed in a single interrupt to
 	 * provide fairness to others
 	 */
@@ -1276,7 +1276,7 @@ ntb_transport_link_cleanup(struct ntb_netdev *nt)
 	else
 		nt->transport_link = NTB_LINK_DOWN;
 
-	/* 
+	/*
 	 * The scratchpad registers keep the values if the remote side
 	 * goes down, blast them now to give them a sane value the next
 	 * time they are accessed
