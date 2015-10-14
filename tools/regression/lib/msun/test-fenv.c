@@ -133,7 +133,34 @@ test_dfl_env(void)
 	fenv_t env;
 
 	fegetenv(&env);
+
+#ifdef __amd64__
+	/*
+	 * Compare the fields that the AMD [1] and Intel [2] specs say will be
+	 * set once fnstenv returns.
+	 *
+	 * Not all amd64 capable processors implement the fnstenv instruction
+	 * by zero'ing out the env.__x87.__other field (example: AMD Opteron
+	 * 6308). The AMD64/x64 specs aren't explicit on what the
+	 * env.__x87.__other field will contain after fnstenv is executed, so
+	 * the values in env.__x87.__other could be filled with arbitrary
+	 * data depending on how the CPU implements fnstenv.
+	 *
+	 * 1. http://support.amd.com/TechDocs/26569_APM_v5.pdf
+	 * 2. http://www.intel.com/Assets/en_US/PDF/manual/253666.pdf
+	 */
+	assert(memcmp(&env.__mxcsr, &FE_DFL_ENV->__mxcsr,
+	    sizeof(env.__mxcsr)) == 0);
+	assert(memcmp(&env.__x87.__control, &FE_DFL_ENV->__x87.__control,
+	    sizeof(env.__x87.__control)) == 0);
+	assert(memcmp(&env.__x87.__status, &FE_DFL_ENV->__x87.__status,
+	    sizeof(env.__x87.__status)) == 0);
+	assert(memcmp(&env.__x87.__tag, &FE_DFL_ENV->__x87.__tag,
+	    sizeof(env.__x87.__tag)) == 0);
+#else
 	assert(memcmp(&env, FE_DFL_ENV, sizeof(env)) == 0);
+#endif
+
 #endif
 	assert(fetestexcept(FE_ALL_EXCEPT) == 0);
 }
