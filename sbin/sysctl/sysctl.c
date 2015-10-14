@@ -247,7 +247,11 @@ parse(const char *string, int lineno)
 		if (qflag)
 			return (1);
 		else {
-			warn("unknown oid '%s'%s", bufp, line);
+			if (errno == ENOENT) {
+				warnx("unknown oid '%s'%s", bufp, line);
+			} else {
+				warn("unknown oid '%s'%s", bufp, line);
+			}
 			return (1);
 		}
 	}
