@@ -6,4 +6,6 @@ SUBDIR=		contrib font man src tmac
 SUBDIR_DEPEND_${subdir}=	src
 .endfor
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>
