@@ -951,7 +951,7 @@ lem_start_locked(struct ifnet *ifp)
 	if (adapter->num_tx_desc_avail <= EM_TX_OP_THRESHOLD)
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 #ifdef NIC_PARAVIRT
-	if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE && adapter->csb &&
+	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) && adapter->csb &&
 	    adapter->csb->guest_csb_on &&
 	    !(adapter->csb->guest_need_txkick & 1))  {
 		adapter->csb->guest_need_txkick = 1;

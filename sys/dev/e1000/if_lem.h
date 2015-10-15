@@ -265,6 +265,13 @@
 #define PICOSECS_PER_TICK	20833
 #define TSYNC_PORT		319 /* UDP port for the protocol */
 
+#ifdef NIC_PARAVIRT
+#define E1000_PARA_SUBDEV 0x1101    /* special id */
+#define E1000_CSBAL 0x02830         /* csb phys. addr. low */
+#define E1000_CSBAH 0x02834         /* csb phys. addr. hi */
+#include <net/paravirt.h>
+#endif
+
 /*
  * Bus dma allocation structure used by
  * e1000_dma_malloc and e1000_dma_free.
@@ -437,6 +444,15 @@ struct adapter {
 	boolean_t       pcix_82544;
 	boolean_t       in_detach;
 
+#ifdef NIC_PARAVIRT
+	struct em_dma_alloc csb_mem;
+	struct paravirt_csb *csb;
+	uint32_t rx_retries;
+	uint32_t tdt_csb_count;
+	uint32_t tdt_reg_count;
+	uint32_t tdt_int_count;
+	uint32_t guest_need_kick_count;
+#endif
 
 	struct e1000_hw_stats stats;
 };
