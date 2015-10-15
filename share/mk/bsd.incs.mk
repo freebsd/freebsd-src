@@ -70,7 +70,7 @@ _${group}INS: ${_${group}INCS}
 	    ${.ALLSRC} ${DESTDIR}${${group}DIR}/${${group}NAME}
 .else
 	${INSTALL} -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
-	    ${.ALLSRC} ${DESTDIR}${${group}DIR}
+	    ${.ALLSRC} ${DESTDIR}${${group}DIR}/
 .endif
 .endif
 
