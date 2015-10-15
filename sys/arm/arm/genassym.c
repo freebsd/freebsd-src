@@ -161,6 +161,7 @@ ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
 ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
+ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
 
 ASSYM(DCACHE_LINE_SIZE, offsetof(struct cpuinfo, dcache_line_size));
 ASSYM(DCACHE_LINE_MASK, offsetof(struct cpuinfo, dcache_line_mask));
