@@ -31,7 +31,7 @@
 
 struct ntb_softc;
 
-#define NTB_MAX_NUM_MW	2
+#define NTB_MAX_NUM_MW	3
 
 enum ntb_link_event {
 	NTB_LINK_DOWN = 0,
@@ -78,11 +78,14 @@ void ntb_ring_doorbell(struct ntb_softc *ntb, unsigned int db);
 bool ntb_query_link_status(struct ntb_softc *ntb);
 device_t ntb_get_device(struct ntb_softc *ntb);
 
+/* Hardware owns the low 32 bits of features. */
 #define NTB_BAR_SIZE_4K		(1 << 0)
 /* REGS_THRU_MW is the equivalent of Linux's NTB_HWERR_SDOORBELL_LOCKUP */
 #define NTB_REGS_THRU_MW	(1 << 1)
 #define NTB_SB01BASE_LOCKUP	(1 << 2)
 #define NTB_B2BDOORBELL_BIT14	(1 << 3)
+/* Software/configuration owns the top 32 bits. */
+#define NTB_SPLIT_BAR		(1ull << 32)
 bool ntb_has_feature(struct ntb_softc *, uint64_t);
 
 #endif /* _NTB_HW_H_ */
