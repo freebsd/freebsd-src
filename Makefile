@@ -250,7 +250,7 @@ ${TGTS}: .MAKE
 tinderbox toolchains kernel-toolchains: .MAKE
 .endif
 
-${TGTS}:
+${TGTS}: .PHONY
 	${_+_}@cd ${.CURDIR}; ${_MAKE} ${.TARGET}
 
 # The historic default "all" target creates files which may cause stale

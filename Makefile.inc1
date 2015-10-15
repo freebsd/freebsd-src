@@ -1062,7 +1062,7 @@ INSTALLKERNEL= ${_kernel}
 .endif
 .endfor
 
-buildkernel ${WMAKE_TGTS:N_worldtmp} ${.ALLTARGETS:M_*:N_worldtmp}: .MAKE
+buildkernel ${WMAKE_TGTS:N_worldtmp} ${.ALLTARGETS:M_*:N_worldtmp}: .MAKE .PHONY
 
 #
 # buildkernel
