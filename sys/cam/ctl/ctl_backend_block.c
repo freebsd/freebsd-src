@@ -2637,9 +2637,11 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 			error = ctl_be_block_open(be_lun, req);
 		else if (vn_isdisk(be_lun->vn, &error))
 			error = ctl_be_block_open_dev(be_lun, req);
-		else if (be_lun->vn->v_type == VREG)
+		else if (be_lun->vn->v_type == VREG) {
+			vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
 			error = ctl_be_block_open_file(be_lun, req);
-		else
+			VOP_UNLOCK(be_lun->vn, 0);
+		} else
 			error = EINVAL;
 		if ((cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) &&
 		    be_lun->vn != NULL) {
