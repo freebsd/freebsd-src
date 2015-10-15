@@ -119,7 +119,7 @@ __FBSDID("$FreeBSD$");
 /* the kernel process "vm_pageout"*/
 static void vm_pageout(void);
 static void vm_pageout_init(void);
-static int vm_pageout_clean(vm_page_t m);
+static int vm_pageout_clean(vm_page_t m, int *numpagedout);
 static int vm_pageout_cluster(vm_page_t m);
 static void vm_pageout_scan(struct vm_domain *vmd, int pass);
 static void vm_pageout_mightbe_oom(struct vm_domain *vmd, int pass);
@@ -534,6 +534,9 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 			 * worked.
 			 */
 			vm_page_undirty(mt);
+			vm_page_lock(mt);
+			vm_page_deactivate(mt);
+			vm_page_unlock(mt);
 			break;
 		case VM_PAGER_ERROR:
 		case VM_PAGER_FAIL:
@@ -907,7 +910,7 @@ vm_pageout_map_deactivate_pages(map, desired)
  * Returns 0 on success and an errno otherwise.
  */
 static int
-vm_pageout_clean(vm_page_t m)
+vm_pageout_clean(vm_page_t m, int *numpagedout)
 {
 	struct vnode *vp;
 	struct mount *mp;
@@ -989,7 +992,7 @@ vm_pageout_clean(vm_page_t m)
 	 * laundry.  If it is still in the laundry, then we
 	 * start the cleaning operation. 
 	 */
-	if (vm_pageout_cluster(m) == 0)
+	if ((*numpagedout = vm_pageout_cluster(m)) == 0)
 		error = EIO;
 
 unlock_all:
@@ -1017,7 +1020,7 @@ vm_pageout_launder1(struct vm_domain *vmd)
 	struct vm_page laundry_marker;
 	struct vm_pagequeue *pq;
 	vm_object_t object;
-	int act_delta, error, maxlaunder, maxscan, vnodes_skipped;
+	int act_delta, error, maxlaunder, maxscan, numpagedout, vnodes_skipped;
 	boolean_t pageout_ok, queues_locked;
 
 	vm_pageout_init_marker(&laundry_marker, PQ_LAUNDRY);
@@ -1029,7 +1032,7 @@ vm_pageout_launder1(struct vm_domain *vmd)
 	    vm_paging_target() + vm_pageout_deficit;
 	if (maxlaunder < 0)
 		return;
-	maxlaunder /= 8;
+	maxlaunder /= 5;
 
 	vnodes_skipped = 0;
 
@@ -1157,9 +1160,9 @@ free_page:
 				vm_page_requeue_locked(m);
 				goto drop_page;
 			}
-			error = vm_pageout_clean(m);
+			error = vm_pageout_clean(m, &numpagedout);
 			if (error == 0)
-				maxlaunder--;
+				maxlaunder -= numpagedout;
 			else if (error == EDEADLK) {
 				pageout_lock_miss++;
 				vnodes_skipped++;
