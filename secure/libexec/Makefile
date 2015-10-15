@@ -11,4 +11,6 @@ SUBDIR+=sftp-server ssh-keysign ssh-pkcs11-helper
 SUBDIR+=tests
 .endif
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>
