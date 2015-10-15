@@ -184,7 +184,6 @@ ${DFILE.html}: ${SRCS}
 .else # unroff(1) requires a macro package as an argument
 	cd ${SRCDIR}; ${UNROFF} -ms ${UNROFFFLAGS} \
 	    document=${DOC} ${SRCS}
-.else
 .endif
 .endif
 .endfor
