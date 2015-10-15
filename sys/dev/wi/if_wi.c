@@ -1077,6 +1077,7 @@ wi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m0,
 		goto out;
 	}
 	m0 = NULL;
+	ieee80211_free_node(ni);
 
 	sc->sc_txnext = cur = (cur + 1) % sc->sc_ntxbuf;
 out:
@@ -1084,7 +1085,6 @@ out:
 
 	if (m0 != NULL)
 		m_freem(m0);
-	ieee80211_free_node(ni);
 	return rc;
 }
 

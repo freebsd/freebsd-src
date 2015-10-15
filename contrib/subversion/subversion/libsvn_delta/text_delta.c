@@ -366,14 +366,14 @@ txdelta_next_window(svn_txdelta_window_t **window,
   /* Read the source stream. */
   if (b->more_source)
     {
-      SVN_ERR(svn_stream_read(b->source, b->buf, &source_len));
+      SVN_ERR(svn_stream_read_full(b->source, b->buf, &source_len));
       b->more_source = (source_len == SVN_DELTA_WINDOW_SIZE);
     }
   else
     source_len = 0;
 
   /* Read the target stream. */
-  SVN_ERR(svn_stream_read(b->target, b->buf + source_len, &target_len));
+  SVN_ERR(svn_stream_read_full(b->target, b->buf + source_len, &target_len));
   b->pos += source_len;
 
   if (target_len == 0)
@@ -522,7 +522,7 @@ tpush_write_handler(void *baton, const char *data, apr_size_t *len)
       if (tb->source_len == 0 && !tb->source_done)
         {
           tb->source_len = SVN_DELTA_WINDOW_SIZE;
-          SVN_ERR(svn_stream_read(tb->source, tb->buf, &tb->source_len));
+          SVN_ERR(svn_stream_read_full(tb->source, tb->buf, &tb->source_len));
           if (tb->source_len < SVN_DELTA_WINDOW_SIZE)
             tb->source_done = TRUE;
         }
@@ -623,68 +623,31 @@ size_buffer(char **buf, apr_size_t *buf_size,
   return SVN_NO_ERROR;
 }
 
-/* Copy LEN bytes from SOURCE to TARGET, optimizing for the case where LEN
- * is often very small.  Return a pointer to the first byte after the copied
- * target range, unlike standard memcpy(), as a potential further
- * optimization for the caller.
- *
- * memcpy() is hard to tune for a wide range of buffer lengths.  Therefore,
- * it is often tuned for high throughput on large buffers and relatively
- * low latency for mid-sized buffers (tens of bytes).  However, the overhead
- * for very small buffers (<10 bytes) is still high.  Even passing the
- * parameters, for instance, may take as long as copying 3 bytes.
- *
- * Because short copy sequences seem to be a common case, at least in
- * "format 2" FSFS repositories, we copy them directly.  Larger buffer sizes
- * aren't hurt measurably by the exta 'if' clause.  */
-static APR_INLINE char *
-fast_memcpy(char *target, const char *source, apr_size_t len)
-{
-  if (len > 7)
-    {
-      memcpy(target, source, len);
-      target += len;
-    }
-  else
-    {
-      /* memcpy is not exactly fast for small block sizes.
-       * Since they are common, let's run optimized code for them. */
-      const char *end = source + len;
-      for (; source != end; source++)
-        *(target++) = *source;
-    }
-
-  return target;
-}
-
 /* Copy LEN bytes from SOURCE to TARGET.  Unlike memmove() or memcpy(),
  * create repeating patterns if the source and target ranges overlap.
  * Return a pointer to the first byte after the copied target range.  */
 static APR_INLINE char *
 patterning_copy(char *target, const char *source, apr_size_t len)
 {
-  const char *end = source + len;
-
-  /* On many machines, we can do "chunky" copies. */
-
-#if SVN_UNALIGNED_ACCESS_IS_OK
-
-  if (end + sizeof(apr_uint32_t) <= target)
+  /* If the source and target overlap, repeat the overlapping pattern
+     in the target buffer. Always copy from the source buffer because
+     presumably it will be in the L1 cache after the first iteration
+     and doing this should avoid pipeline stalls due to write/read
+     dependencies. */
+  const apr_size_t overlap = target - source;
+  while (len > overlap)
     {
-      /* Source and target are at least 4 bytes apart, so we can copy in
-       * 4-byte chunks.  */
-      for (; source + sizeof(apr_uint32_t) <= end;
-           source += sizeof(apr_uint32_t),
-           target += sizeof(apr_uint32_t))
-      *(apr_uint32_t *)(target) = *(apr_uint32_t *)(source);
+      memcpy(target, source, overlap);
+      target += overlap;
+      len -= overlap;
     }
 
-#endif
-
-  /* fall through to byte-wise copy (either for the below-chunk-size tail
-   * or the whole copy) */
-  for (; source != end; source++)
-    *(target++) = *source;
+  /* Copy any remaining source pattern. */
+  if (len)
+    {
+      memcpy(target, source, len);
+      target += len;
+    }
 
   return target;
 }
@@ -696,6 +659,11 @@ svn_txdelta_apply_instructions(svn_txdelta_window_t *window,
 {
   const svn_txdelta_op_t *op;
   apr_size_t tpos = 0;
+
+  /* Nothing to do for empty buffers.
+   * This check allows for NULL TBUF in that case. */
+  if (*tlen == 0)
+    return;
 
   for (op = window->ops; op < window->ops + window->num_ops; op++)
     {
@@ -711,7 +679,7 @@ svn_txdelta_apply_instructions(svn_txdelta_window_t *window,
           /* Copy from source area.  */
           assert(sbuf);
           assert(op->offset + op->length <= window->sview_len);
-          fast_memcpy(tbuf + tpos, sbuf + op->offset, buf_len);
+          memcpy(tbuf + tpos, sbuf + op->offset, buf_len);
           break;
 
         case svn_txdelta_target:
@@ -728,9 +696,9 @@ svn_txdelta_apply_instructions(svn_txdelta_window_t *window,
         case svn_txdelta_new:
           /* Copy from window new area.  */
           assert(op->offset + op->length <= window->new_data->len);
-          fast_memcpy(tbuf + tpos,
-                      window->new_data->data + op->offset,
-                      buf_len);
+          memcpy(tbuf + tpos,
+                 window->new_data->data + op->offset,
+                 buf_len);
           break;
 
         default:
@@ -746,20 +714,6 @@ svn_txdelta_apply_instructions(svn_txdelta_window_t *window,
   assert(tpos == window->tview_len);
   *tlen = tpos;
 }
-
-/* This is a private interlibrary compatibility wrapper. */
-void
-svn_txdelta__apply_instructions(svn_txdelta_window_t *window,
-                                const char *sbuf, char *tbuf,
-                                apr_size_t *tlen);
-void
-svn_txdelta__apply_instructions(svn_txdelta_window_t *window,
-                                const char *sbuf, char *tbuf,
-                                apr_size_t *tlen)
-{
-  svn_txdelta_apply_instructions(window, sbuf, tbuf, tlen);
-}
-
 
 /* Apply WINDOW to the streams given by APPL.  */
 static svn_error_t *
@@ -819,7 +773,7 @@ apply_window(svn_txdelta_window_t *window, void *baton)
   if (ab->sbuf_len < window->sview_len)
     {
       len = window->sview_len - ab->sbuf_len;
-      err = svn_stream_read(ab->source, ab->sbuf + ab->sbuf_len, &len);
+      err = svn_stream_read_full(ab->source, ab->sbuf + ab->sbuf_len, &len);
       if (err == SVN_NO_ERROR && len != window->sview_len - ab->sbuf_len)
         err = svn_error_create(SVN_ERR_INCOMPLETE_DATA, NULL,
                                "Delta source ended unexpectedly");
@@ -836,13 +790,7 @@ apply_window(svn_txdelta_window_t *window, void *baton)
 
   /* Write out the output. */
 
-  /* ### We've also considered just adding two (optionally null)
-     arguments to svn_stream_create(): read_checksum and
-     write_checksum.  Then instead of every caller updating an md5
-     context when it calls svn_stream_write() or svn_stream_read(),
-     streams would do it automatically, and verify the checksum in
-     svn_stream_closed().  But this might be overkill for issue #689;
-     so for now we just update the context here. */
+  /* Just update the context here. */
   if (ab->result_digest)
     apr_md5_update(&(ab->md5_context), ab->tbuf, len);
 
@@ -936,7 +884,7 @@ svn_error_t *svn_txdelta_send_stream(svn_stream_t *stream,
     {
       apr_size_t read_len = SVN__STREAM_CHUNK_SIZE;
 
-      SVN_ERR(svn_stream_read(stream, read_buf, &read_len));
+      SVN_ERR(svn_stream_read_full(stream, read_buf, &read_len));
       if (read_len == 0)
         break;
 

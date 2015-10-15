@@ -22,7 +22,7 @@ support for ra_serf:
 
 For more about how ra_serf/ra_neon talk WebDAV, consult notes/webdav-protocol.
 
-Working copies are interchangable between ra_serf and ra_neon.  (They both use
+Working copies are interchangeable between ra_serf and ra_neon.  (They both use
 the svn:wc:ra_dav:version-url property to store the latest revision of a file.)
 
 Completed tasks

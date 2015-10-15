@@ -37,7 +37,6 @@
 #include "svn_types.h"
 #include "svn_io.h"       /* for svn_stream_t */
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */

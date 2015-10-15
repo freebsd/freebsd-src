@@ -436,20 +436,18 @@ typedef struct {
  */
 
 typedef struct {
-	uint32_t
+	int			isp_gbspeed;		/* Connection speed */
+	int			isp_linkstate;		/* Link state */
+	int			isp_fwstate;		/* ISP F/W state */
+	int			isp_loopstate;		/* Loop State */
+	int			isp_topo;		/* Connection Type */
+
+	uint32_t				: 3,
 				fctape_enabled	: 1,
-				link_active	: 1,
 				sendmarker	: 1,
+				loop_seen_once	: 1,
 				role		: 2,
-				isp_gbspeed	: 4,
-				isp_loopstate	: 4,	/* Current Loop State */
-				isp_fwstate	: 4,	/* ISP F/W state */
-				isp_topo	: 3,	/* Connection Type */
-				loop_seen_once	: 1;
-
-	uint32_t				: 8,
 				isp_portid	: 24;	/* S_ID */
-
 
 	uint16_t		isp_fwoptions;
 	uint16_t		isp_xfwoptions;

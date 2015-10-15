@@ -1164,9 +1164,6 @@ svn_path_cstring_to_utf8(const char **path_utf8,
 }
 
 
-/* Return a copy of PATH, allocated from POOL, for which control
-   characters have been escaped using the form \NNN (where NNN is the
-   octal representation of the byte's ordinal value).  */
 const char *
 svn_path_illegal_path_escape(const char *path, apr_pool_t *pool)
 {
@@ -1228,8 +1225,7 @@ svn_path_check_valid(const char *path, apr_pool_t *pool)
     {
       if (svn_ctype_iscntrl(*c))
         {
-          return svn_error_createf
-            (SVN_ERR_FS_PATH_SYNTAX, NULL,
+          return svn_error_createf(SVN_ERR_FS_PATH_SYNTAX, NULL,
              _("Invalid control character '0x%02x' in path '%s'"),
              (unsigned char)*c,
              svn_path_illegal_path_escape(svn_dirent_local_style(path, pool),
@@ -1256,7 +1252,7 @@ svn_path_splitext(const char **path_root,
      anything after it?  We look for the "rightmost" period in the
      string. */
   last_dot = strrchr(path, '.');
-  if (last_dot && (last_dot + 1 != '\0'))
+  if (last_dot && (*(last_dot + 1) != '\0'))
     {
       /* If we have a period, we need to make sure it occurs in the
          final path component -- that there's no path separator
@@ -1303,12 +1299,12 @@ svn_path_resolve_repos_relative_url(const char **absolute_url,
                              _("Improper relative URL '%s'"),
                              relative_url);
 
-  /* No assumptions are made about the canonicalization of the inut
+  /* No assumptions are made about the canonicalization of the input
    * arguments, it is presumed that the output will be canonicalized after
    * this function, which will remove any duplicate path separator.
    */
   *absolute_url = apr_pstrcat(pool, repos_root_url, relative_url + 1,
-                              (char *)NULL);
+                              SVN_VA_NULL);
 
   return SVN_NO_ERROR;
 }

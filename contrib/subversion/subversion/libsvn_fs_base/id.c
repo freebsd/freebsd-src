@@ -108,13 +108,14 @@ svn_fs_base__id_check_related(const svn_fs_id_t *a,
 }
 
 
-int
+svn_fs_node_relation_t
 svn_fs_base__id_compare(const svn_fs_id_t *a,
                         const svn_fs_id_t *b)
 {
   if (svn_fs_base__id_eq(a, b))
-    return 0;
-  return (svn_fs_base__id_check_related(a, b) ? 1 : -1);
+    return svn_fs_node_unchanged;
+  return (svn_fs_base__id_check_related(a, b) ? svn_fs_node_common_ancestor
+                                              : svn_fs_node_unrelated);
 }
 
 

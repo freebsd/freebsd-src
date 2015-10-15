@@ -1,0 +1,142 @@
+Pull in r250085 from upstream llvm trunk (by Andrea Di Biagio):
+
+  [x86] Fix wrong lowering of vsetcc nodes (PR25080).
+
+  Function LowerVSETCC (in X86ISelLowering.cpp) worked under the wrong
+  assumption that for non-AVX512 targets, the source type and destination type
+  of a type-legalized setcc node were always the same type.
+
+  This assumption was unfortunately incorrect; the type legalizer is not always
+  able to promote the return type of a setcc to the same type as the first
+  operand of a setcc.
+
+  In the case of a vsetcc node, the legalizer firstly checks if the first input
+  operand has a legal type. If so, then it promotes the return type of the vsetcc
+  to that same type. Otherwise, the return type is promoted to the 'next legal
+  type', which, for vectors of MVT::i1 is always a 128-bit integer vector type.
+
+  Example (-mattr=+avx):
+
+    %0 = trunc <8 x i32> %a to <8 x i23>
+    %1 = icmp eq <8 x i23> %0, zeroinitializer
+
+  The initial selection dag for the code above is:
+
+  v8i1 = setcc t5, t7, seteq:ch
+    t5: v8i23 = truncate t2
+      t2: v8i32,ch = CopyFromReg t0, Register:v8i32 %vreg1
+      t7: v8i32 = build_vector of all zeroes.
+
+  The type legalizer would firstly check if 't5' has a legal type. If so, then it
+  would reuse that same type to promote the return type of the setcc node.
+  Unfortunately 't5' is of illegal type v8i23, and therefore it cannot be used to
+  promote the return type of the setcc node. Consequently, the setcc return type
+  is promoted to v8i16. Later on, 't5' is promoted to v8i32 thus leading to the
+  following dag node:
+    v8i16 = setcc t32, t25, seteq:ch
+
+    where t32 and t25 are now values of type v8i32.
+
+  Before this patch, function LowerVSETCC would have wrongly expanded the setcc
+  to a single X86ISD::PCMPEQ. Surprisingly, ISel was still able to match an
+  instruction. In our case, ISel would have matched a VPCMPEQWrr:
+    t37: v8i16 = X86ISD::VPCMPEQWrr t36, t25
+
+  However, t36 and t25 are both VR256, while the result type is instead of class
+  VR128. This inconsistency ended up causing the insertion of COPY instructions
+  like this:
+    %vreg7<def> = COPY %vreg3; VR128:%vreg7 VR256:%vreg3
+
+  Which is an invalid full copy (not a sub register copy).
+  Eventually, the backend would have hit an UNREACHABLE "Cannot emit physreg copy
+  instruction" in the attempt to expand the malformed pseudo COPY instructions.
+
+  This patch fixes the problem adding the missing logic in LowerVSETCC to handle
+  the corner case of a setcc with 128-bit return type and 256-bit operand type.
+
+  This problem was originally reported by Dimitry as PR25080. It has been latent
+  for a very long time. I have added the minimal reproducible from that bugzilla
+  as test setcc-lowering.ll.
+
+  Differential Revision: http://reviews.llvm.org/D13660
+
+This should fix the "Cannot emit physreg copy instruction" errors when
+compiling contrib/wpa/src/common/ieee802_11_common.c, and CPUTYPE is set
+to a CPU supporting AVX (e.g. sandybridge, ivybridge).
+
+Introduced here: http://svnweb.freebsd.org/changeset/base/289221
+
+Index: lib/Target/X86/X86ISelLowering.cpp
+===================================================================
+--- lib/Target/X86/X86ISelLowering.cpp
++++ lib/Target/X86/X86ISelLowering.cpp
+@@ -13573,6 +13573,35 @@ static SDValue LowerVSETCC(SDValue Op, const X86Su
+                        DAG.getConstant(SSECC, dl, MVT::i8));
+   }
+ 
++  MVT VTOp0 = Op0.getSimpleValueType();
++  assert(VTOp0 == Op1.getSimpleValueType() &&
++         "Expected operands with same type!");
++  assert(VT.getVectorNumElements() == VTOp0.getVectorNumElements() &&
++         "Invalid number of packed elements for source and destination!");
++
++  if (VT.is128BitVector() && VTOp0.is256BitVector()) {
++    // On non-AVX512 targets, a vector of MVT::i1 is promoted by the type
++    // legalizer to a wider vector type.  In the case of 'vsetcc' nodes, the
++    // legalizer firstly checks if the first operand in input to the setcc has
++    // a legal type. If so, then it promotes the return type to that same type.
++    // Otherwise, the return type is promoted to the 'next legal type' which,
++    // for a vector of MVT::i1 is always a 128-bit integer vector type.
++    //
++    // We reach this code only if the following two conditions are met:
++    // 1. Both return type and operand type have been promoted to wider types
++    //    by the type legalizer.
++    // 2. The original operand type has been promoted to a 256-bit vector.
++    //
++    // Note that condition 2. only applies for AVX targets.
++    SDValue NewOp = DAG.getSetCC(dl, VTOp0, Op0, Op1, SetCCOpcode);
++    return DAG.getZExtOrTrunc(NewOp, dl, VT);
++  }
++
++  // The non-AVX512 code below works under the assumption that source and
++  // destination types are the same.
++  assert((Subtarget->hasAVX512() || (VT == VTOp0)) &&
++         "Value types for source and destination must be the same!");
++
+   // Break 256-bit integer vector compare into smaller ones.
+   if (VT.is256BitVector() && !Subtarget->hasInt256())
+     return Lower256IntVSETCC(Op, DAG);
+Index: test/CodeGen/X86/setcc-lowering.ll
+===================================================================
+--- test/CodeGen/X86/setcc-lowering.ll
++++ test/CodeGen/X86/setcc-lowering.ll
+@@ -0,0 +1,29 @@
++; RUN: llc -mtriple=x86_64-unknown-unknown -mattr=+avx < %s | FileCheck %s
++
++; Verify that we don't crash during codegen due to a wrong lowering
++; of a setcc node with illegal operand types and return type.
++
++define <8 x i16> @pr25080(<8 x i32> %a) {
++; CHECK-LABEL: pr25080:
++; CHECK:       # BB#0: # %entry
++; CHECK-NEXT:    vandps {{.*}}(%rip), %ymm0, %ymm0
++; CHECK-NEXT:    vextractf128 $1, %ymm0, %xmm1
++; CHECK-NEXT:    vpxor %xmm2, %xmm2, %xmm2
++; CHECK-NEXT:    vpcmpeqd %xmm2, %xmm1, %xmm1
++; CHECK-NEXT:    vmovdqa {{.*#+}} xmm3 = [0,1,4,5,8,9,12,13,8,9,12,13,12,13,14,15]
++; CHECK-NEXT:    vpshufb %xmm3, %xmm1, %xmm1
++; CHECK-NEXT:    vpcmpeqd %xmm2, %xmm0, %xmm0
++; CHECK-NEXT:    vpshufb %xmm3, %xmm0, %xmm0
++; CHECK-NEXT:    vpunpcklqdq {{.*#+}} xmm0 = xmm0[0],xmm1[0]
++; CHECK-NEXT:    vpor {{.*}}(%rip), %xmm0, %xmm0
++; CHECK-NEXT:    vpsllw $15, %xmm0, %xmm0
++; CHECK-NEXT:    vpsraw $15, %xmm0, %xmm0
++; CHECK-NEXT:    vzeroupper
++; CHECK-NEXT:    retq
++entry:
++  %0 = trunc <8 x i32> %a to <8 x i23>
++  %1 = icmp eq <8 x i23> %0, zeroinitializer
++  %2 = or <8 x i1> %1, <i1 true, i1 true, i1 true, i1 true, i1 false, i1 false, i1 false, i1 false>
++  %3 = sext <8 x i1> %2 to <8 x i16>
++  ret <8 x i16> %3
++}

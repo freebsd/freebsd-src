@@ -8,7 +8,7 @@ hint.argemdio.0.at="nexus0"
 hint.argemdio.0.maddr=0x1a000000
 hint.argemdio.0.msize=0x1000
 hint.argemdio.0.order=0
-
+ 
 # There's no need to set the ar933x GMAC configuration bits.
 # This just creates a switch instance and correctly uses it.
 
@@ -34,10 +34,12 @@ hint.arge.1.fduplex=1
 
 # Where the ART is - last 64k in the flash
 # 0x9fff1000 ?
-hint.ath.0.eepromaddr=0x1fff0000
+hint.ath.0.eepromaddr=0x1fff1000
 hint.ath.0.eepromsize=16384
+ 
+hint.ar71xx.0.eeprom_mac_addr=0x1f01fc00
 
-# The board 16MiB flash layout in uboot env:
+# The board 4MiB flash layout in uboot env:
 #
 # 256k(u-boot),64k(u-boot-env),2752k(rootfs),896k(uImage),64k(NVRAM),64k(ART)
 
@@ -56,35 +58,28 @@ hint.map.1.at="flash/spi0"
 hint.map.1.start=0x00040000
 hint.map.1.end=0x00050000
 hint.map.1.name="uboot-env"
-hint.map.1.readonly=0
+hint.map.1.readonly=1
 
-# 2752KB
+# 3648KB
 hint.map.2.at="flash/spi0"
 hint.map.2.start=0x00050000
-hint.map.2.end="search:0x00100000:0x10000:.!/bin/sh"
+hint.map.2.end=0x003e0000
 hint.map.2.name="kernel"
-hint.map.2.readonly=0
-
-# 896KB
-hint.map.3.at="flash/spi0"
-hint.map.3.start="search:0x00100000:0x10000:.!/bin/sh"
-hint.map.3.end=0x003e0000
-hint.map.3.name="rootfs"
-hint.map.3.readonly=0
+hint.map.2.readonly=1
 
 # 64K NVRAM
-hint.map.4.at="flash/spi0"
-hint.map.4.start=0x003e0000
-hint.map.4.end=0x003f0000
-hint.map.4.name="cfg"
-hint.map.4.readonly=0
+hint.map.3.at="flash/spi0"
+hint.map.3.start=0x003e0000
+hint.map.3.end=0x003f0000
+hint.map.3.name="cfg"
+hint.map.3.readonly=0
 
 # 64K ART
-hint.map.5.at="flash/spi0"
-hint.map.5.start=0x003f0000
-hint.map.5.end=0x00400000
-hint.map.5.name="art"
-hint.map.5.readonly=1
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x003f0000
+hint.map.4.end=0x00400000
+hint.map.4.name="art"
+hint.map.4.readonly=1
 
 # GPIO specific configuration block
 

@@ -106,4 +106,4 @@ STAGE_SYMLINKS.INCS= ${INCSLINKS}
 .endif
 .endif
 
-.endif # ${MK_TOOLCHAIN} != "no"
+.endif # ${MK_INCLUDES} != "no"

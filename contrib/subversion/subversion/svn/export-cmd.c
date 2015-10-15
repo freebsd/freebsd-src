@@ -85,7 +85,15 @@ svn_cl__export(apr_getopt_t *os,
 
       if (strcmp("", to) != 0)
         /* svn_cl__eat_peg_revisions() but only on one target */
-        SVN_ERR(svn_opt__split_arg_at_peg_revision(&to, NULL, to, pool));
+        {
+          const char *peg;
+
+          SVN_ERR(svn_opt__split_arg_at_peg_revision(&to, &peg, to, pool));
+          if (peg[0] && peg[1])
+            return svn_error_createf(SVN_ERR_ILLEGAL_TARGET, NULL,
+                                     _("'%s': a peg revision is not allowed here"),
+                                     APR_ARRAY_IDX(targets, 1, const char *));
+        }
     }
 
   SVN_ERR(svn_cl__check_target_is_local_path(to));

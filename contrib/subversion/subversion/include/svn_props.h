@@ -440,13 +440,20 @@ svn_prop_name_is_valid(const char *prop_name);
  * @verbatim
      /trunk: 1-6,9,37-38
      /trunk/foo: 10 @endverbatim
+ * @since New in 1.5.
  */
 #define SVN_PROP_MERGEINFO SVN_PROP_PREFIX "mergeinfo"
 
-/** Property used to record inheritable configuration auto-props. */
+/** Property used to record inheritable configuration auto-props.
+ *
+ * @since New in 1.8.
+ */
 #define SVN_PROP_INHERITABLE_AUTO_PROPS SVN_PROP_PREFIX "auto-props"
 
-/** Property used to record inheritable configuration ignores. */
+/** Property used to record inheritable configuration ignores.
+ *
+ * @since New in 1.8.
+ */
 #define SVN_PROP_INHERITABLE_IGNORES SVN_PROP_PREFIX "global-ignores"
 
 /** Meta-data properties.
@@ -671,7 +678,7 @@ svn_prop_name_is_valid(const char *prop_name);
  */
 #define SVN_PROP_TXN_PREFIX  SVN_PROP_PREFIX "txn-"
 
-/** Identifies the client version compability level.  For clients
+/** Identifies the client version compatibility level.  For clients
  * compiled against Subversion libraries, this is @c SVN_VER_NUMBER.
  * Third-party implementations are advised to use similar formatting
  * for values of this property.

@@ -125,7 +125,7 @@ read_hdr(dmu_replay_record_t *drr, zio_cksum_t *cksum)
 		    saved_cksum.zc_word[1],
 		    saved_cksum.zc_word[2],
 		    saved_cksum.zc_word[3]);
-		exit(1);
+		return (0);
 	}
 	return (sizeof (*drr));
 }
@@ -346,8 +346,7 @@ main(int argc, char *argv[])
 			if (verbose)
 				(void) printf("\n");
 
-			if ((DMU_GET_STREAM_HDRTYPE(drrb->drr_versioninfo) ==
-			    DMU_COMPOUNDSTREAM) && drr->drr_payloadlen != 0) {
+			if (drr->drr_payloadlen != 0) {
 				nvlist_t *nv;
 				int sz = drr->drr_payloadlen;
 

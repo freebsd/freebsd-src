@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_debug.h>
 
 #include <dev/usb/wlan/if_urtwnreg.h>
+#include <dev/usb/wlan/if_urtwnvar.h>
 
 #ifdef USB_DEBUG
 static int urtwn_debug = 0;
@@ -1630,6 +1631,19 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		if (vap->iv_opmode == IEEE80211_M_MONITOR) {
 			/* Enable Rx of data frames. */
 			urtwn_write_2(sc, R92C_RXFLTMAP2, 0xffff);
+
+			/* Enable Rx of ctrl frames. */
+			urtwn_write_2(sc, R92C_RXFLTMAP1, 0xffff);
+
+			/*
+			 * Accept data/control/management frames
+			 * from any BSSID.
+			 */
+			urtwn_write_4(sc, R92C_RCR,
+			    (urtwn_read_4(sc, R92C_RCR) & ~(R92C_RCR_APM |
+			    R92C_RCR_CBSSID_DATA | R92C_RCR_CBSSID_BCN)) |
+			    R92C_RCR_ADF | R92C_RCR_ACF | R92C_RCR_AMF |
+			    R92C_RCR_AAP);
 
 			/* Turn link LED on. */
 			urtwn_set_led(sc, URTWN_LED_LINK, 1);
@@ -3460,13 +3474,11 @@ urtwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	/* prevent management frames from being sent if we're not ready */
 	if (!(sc->sc_flags & URTWN_RUNNING)) {
 		m_freem(m);
-		ieee80211_free_node(ni);
 		return (ENETDOWN);
 	}
 	URTWN_LOCK(sc);
 	bf = urtwn_getbuf(sc);
 	if (bf == NULL) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		URTWN_UNLOCK(sc);
 		return (ENOBUFS);
@@ -3474,7 +3486,6 @@ urtwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	if (urtwn_tx_start(sc, ni, m, bf) != 0) {
 		m_freem(m);
-		ieee80211_free_node(ni);
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 		URTWN_UNLOCK(sc);
 		return (EIO);

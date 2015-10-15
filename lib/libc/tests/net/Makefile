@@ -2,8 +2,6 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/lib/libc/net
-
 BINDIR=		${TESTSDIR}
 
 NETBSD_ATF_TESTS_C=	getprotoent_test

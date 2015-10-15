@@ -214,6 +214,35 @@ static const u_int8_t bootcode[] = {
     0
 };
 
+struct msdos_options {
+    const char *bootstrap;
+    const char *volume_label;
+    const char *OEM_string;
+    const char *floppy;
+    u_int fat_type;
+    u_int volume_id;
+    u_int bytes_per_sector;
+    u_int sectors_per_fat;
+    u_int block_size;
+    u_int sectors_per_cluster;
+    u_int directory_entries;
+    u_int drive_heads;
+    u_int info_sector;
+    u_int backup_sector;
+    u_int media_descriptor;
+    u_int num_FAT;
+    u_int hidden_sectors;
+    u_int reserved_sectors;
+    u_int size;
+    u_int sectors_per_track;
+    int no_create;
+    off_t create_size;
+    off_t offset;
+    int volume_id_set;
+    int media_descriptor_set;
+    int hidden_sectors_set;
+};
+
 static volatile sig_atomic_t got_siginfo;
 static void infohandler(int);
 
@@ -226,6 +255,7 @@ static u_int ckgeom(const char *, u_int, const char *);
 static u_int argtou(const char *, u_int, u_int, const char *);
 static off_t argtooff(const char *, const char *);
 static int oklabel(const char *);
+static int mkfs_msdos(const char *, const char *, const struct msdos_options *);
 static void mklabel(u_int8_t *, const char *);
 static void setstr(u_int8_t *, const char *, size_t);
 static void usage(void);
@@ -237,12 +267,117 @@ int
 main(int argc, char *argv[])
 {
     static const char opts[] = "@:NB:C:F:I:L:O:S:a:b:c:e:f:h:i:k:m:n:o:r:s:u:";
-    const char *opt_B = NULL, *opt_L = NULL, *opt_O = NULL, *opt_f = NULL;
-    u_int opt_F = 0, opt_I = 0, opt_S = 0, opt_a = 0, opt_b = 0, opt_c = 0;
-    u_int opt_e = 0, opt_h = 0, opt_i = 0, opt_k = 0, opt_m = 0, opt_n = 0;
-    u_int opt_o = 0, opt_r = 0, opt_s = 0, opt_u = 0;
-    int opt_N = 0;
-    int Iflag = 0, mflag = 0, oflag = 0;
+    struct msdos_options o;
+    const char *fname, *dtype;
+    char buf[MAXPATHLEN];
+    int ch;
+
+    memset(&o, 0, sizeof(o));
+
+    while ((ch = getopt(argc, argv, opts)) != -1)
+	switch (ch) {
+	case '@':
+	    o.offset = argtooff(optarg, "offset");
+	    break;
+	case 'N':
+	    o.no_create = 1;
+	    break;
+	case 'B':
+	    o.bootstrap = optarg;
+	    break;
+	case 'C':
+	    o.create_size = argtooff(optarg, "create size");
+	    break;
+	case 'F':
+	    if (strcmp(optarg, "12") &&
+		strcmp(optarg, "16") &&
+		strcmp(optarg, "32"))
+		errx(1, "%s: bad FAT type", optarg);
+	    o.fat_type = atoi(optarg);
+	    break;
+	case 'I':
+	    o.volume_id = argto4(optarg, 0, "volume ID");
+	    o.volume_id_set = 1;
+	    break;
+	case 'L':
+	    if (!oklabel(optarg))
+		errx(1, "%s: bad volume label", optarg);
+	    o.volume_label = optarg;
+	    break;
+	case 'O':
+	    if (strlen(optarg) > 8)
+		errx(1, "%s: bad OEM string", optarg);
+	    o.OEM_string = optarg;
+	    break;
+	case 'S':
+	    o.bytes_per_sector = argto2(optarg, 1, "bytes/sector");
+	    break;
+	case 'a':
+	    o.sectors_per_fat = argto4(optarg, 1, "sectors/FAT");
+	    break;
+	case 'b':
+	    o.block_size = argtox(optarg, 1, "block size");
+	    o.sectors_per_cluster = 0;
+	    break;
+	case 'c':
+	    o.sectors_per_cluster = argto1(optarg, 1, "sectors/cluster");
+	    o.block_size = 0;
+	    break;
+	case 'e':
+	    o.directory_entries = argto2(optarg, 1, "directory entries");
+	    break;
+	case 'f':
+	    o.floppy = optarg;
+	    break;
+	case 'h':
+	    o.drive_heads = argto2(optarg, 1, "drive heads");
+	    break;
+	case 'i':
+	    o.info_sector = argto2(optarg, 1, "info sector");
+	    break;
+	case 'k':
+	    o.backup_sector = argto2(optarg, 1, "backup sector");
+	    break;
+	case 'm':
+	    o.media_descriptor = argto1(optarg, 0, "media descriptor");
+	    o.media_descriptor_set = 1;
+	    break;
+	case 'n':
+	    o.num_FAT = argto1(optarg, 1, "number of FATs");
+	    break;
+	case 'o':
+	    o.hidden_sectors = argto4(optarg, 0, "hidden sectors");
+	    o.hidden_sectors_set = 1;
+	    break;
+	case 'r':
+	    o.reserved_sectors = argto2(optarg, 1, "reserved sectors");
+	    break;
+	case 's':
+	    o.size = argto4(optarg, 1, "file system size");
+	    break;
+	case 'u':
+	    o.sectors_per_track = argto2(optarg, 1, "sectors/track");
+	    break;
+	default:
+	    usage();
+	}
+    argc -= optind;
+    argv += optind;
+    if (argc < 1 || argc > 2)
+	usage();
+    fname = *argv++;
+    if (!o.create_size && !strchr(fname, '/')) {
+	snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
+	if (!(fname = strdup(buf)))
+	    err(1, NULL);
+    }
+    dtype = *argv;
+    return mkfs_msdos(fname, dtype, &o);
+}
+
+int mkfs_msdos(const char *fname, const char *dtype,
+    const struct msdos_options *op)
+{
     char buf[MAXPATHLEN];
     struct sigaction si_sa;
     struct stat sb;
@@ -255,156 +390,58 @@ main(int argc, char *argv[])
     struct bsx *bsx;
     struct de *de;
     u_int8_t *img;
-    const char *fname, *dtype, *bname;
+    const char *bname;
     ssize_t n;
     time_t now;
     u_int fat, bss, rds, cls, dir, lsn, x, x1, x2;
-    int ch, fd, fd1;
-    off_t opt_create = 0, opt_ofs = 0;
+    int fd, fd1;
+    struct msdos_options o = *op;
 
-    while ((ch = getopt(argc, argv, opts)) != -1)
-	switch (ch) {
-	case '@':
-	    opt_ofs = argtooff(optarg, "offset");
-	    break;
-	case 'N':
-	    opt_N = 1;
-	    break;
-	case 'B':
-	    opt_B = optarg;
-	    break;
-	case 'C':
-	    opt_create = argtooff(optarg, "create size");
-	    break;
-	case 'F':
-	    if (strcmp(optarg, "12") &&
-		strcmp(optarg, "16") &&
-		strcmp(optarg, "32"))
-		errx(1, "%s: bad FAT type", optarg);
-	    opt_F = atoi(optarg);
-	    break;
-	case 'I':
-	    opt_I = argto4(optarg, 0, "volume ID");
-	    Iflag = 1;
-	    break;
-	case 'L':
-	    if (!oklabel(optarg))
-		errx(1, "%s: bad volume label", optarg);
-	    opt_L = optarg;
-	    break;
-	case 'O':
-	    if (strlen(optarg) > 8)
-		errx(1, "%s: bad OEM string", optarg);
-	    opt_O = optarg;
-	    break;
-	case 'S':
-	    opt_S = argto2(optarg, 1, "bytes/sector");
-	    break;
-	case 'a':
-	    opt_a = argto4(optarg, 1, "sectors/FAT");
-	    break;
-	case 'b':
-	    opt_b = argtox(optarg, 1, "block size");
-	    opt_c = 0;
-	    break;
-	case 'c':
-	    opt_c = argto1(optarg, 1, "sectors/cluster");
-	    opt_b = 0;
-	    break;
-	case 'e':
-	    opt_e = argto2(optarg, 1, "directory entries");
-	    break;
-	case 'f':
-	    opt_f = optarg;
-	    break;
-	case 'h':
-	    opt_h = argto2(optarg, 1, "drive heads");
-	    break;
-	case 'i':
-	    opt_i = argto2(optarg, 1, "info sector");
-	    break;
-	case 'k':
-	    opt_k = argto2(optarg, 1, "backup sector");
-	    break;
-	case 'm':
-	    opt_m = argto1(optarg, 0, "media descriptor");
-	    mflag = 1;
-	    break;
-	case 'n':
-	    opt_n = argto1(optarg, 1, "number of FATs");
-	    break;
-	case 'o':
-	    opt_o = argto4(optarg, 0, "hidden sectors");
-	    oflag = 1;
-	    break;
-	case 'r':
-	    opt_r = argto2(optarg, 1, "reserved sectors");
-	    break;
-	case 's':
-	    opt_s = argto4(optarg, 1, "file system size");
-	    break;
-	case 'u':
-	    opt_u = argto2(optarg, 1, "sectors/track");
-	    break;
-	default:
-	    usage();
-	}
-    argc -= optind;
-    argv += optind;
-    if (argc < 1 || argc > 2)
-	usage();
-    fname = *argv++;
-    if (!opt_create && !strchr(fname, '/')) {
-	snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
-	if (!(fname = strdup(buf)))
-	    err(1, NULL);
-    }
-    dtype = *argv;
-    if (opt_create) {
-	if (opt_N)
+    if (o.create_size) {
+	if (o.no_create)
 	    errx(1, "create (-C) is incompatible with -N");
 	fd = open(fname, O_RDWR | O_CREAT | O_TRUNC, 0644);
 	if (fd == -1)
 	    errx(1, "failed to create %s", fname);
-	if (ftruncate(fd, opt_create))
-	    errx(1, "failed to initialize %jd bytes", (intmax_t)opt_create);
-    } else if ((fd = open(fname, opt_N ? O_RDONLY : O_RDWR)) == -1)
+	if (ftruncate(fd, o.create_size))
+	    errx(1, "failed to initialize %jd bytes", (intmax_t)o.create_size);
+    } else if ((fd = open(fname, o.no_create ? O_RDONLY : O_RDWR)) == -1)
 	err(1, "%s", fname);
     if (fstat(fd, &sb))
 	err(1, "%s", fname);
-    if (opt_create) {
+    if (o.create_size) {
 	if (!S_ISREG(sb.st_mode))
 	    warnx("warning, %s is not a regular file", fname);
     } else {
 	if (!S_ISCHR(sb.st_mode))
 	    warnx("warning, %s is not a character device", fname);
     }
-    if (!opt_N)
+    if (!o.no_create)
 	check_mounted(fname, sb.st_mode);
-    if (opt_ofs && opt_ofs != lseek(fd, opt_ofs, SEEK_SET))
-	errx(1, "cannot seek to %jd", (intmax_t)opt_ofs);
+    if (o.offset && o.offset != lseek(fd, o.offset, SEEK_SET))
+	errx(1, "cannot seek to %jd", (intmax_t)o.offset);
     memset(&bpb, 0, sizeof(bpb));
-    if (opt_f) {
-	getstdfmt(opt_f, &bpb);
+    if (o.floppy) {
+	getstdfmt(o.floppy, &bpb);
 	bpb.bpbHugeSectors = bpb.bpbSectors;
 	bpb.bpbSectors = 0;
 	bpb.bpbBigFATsecs = bpb.bpbFATsecs;
 	bpb.bpbFATsecs = 0;
     }
-    if (opt_h)
-	bpb.bpbHeads = opt_h;
-    if (opt_u)
-	bpb.bpbSecPerTrack = opt_u;
-    if (opt_S)
-	bpb.bpbBytesPerSec = opt_S;
-    if (opt_s)
-	bpb.bpbHugeSectors = opt_s;
-    if (oflag)
-	bpb.bpbHiddenSecs = opt_o;
-    if (!(opt_f || (opt_h && opt_u && opt_S && opt_s && oflag))) {
+    if (o.drive_heads)
+	bpb.bpbHeads = o.drive_heads;
+    if (o.sectors_per_track)
+	bpb.bpbSecPerTrack = o.sectors_per_track;
+    if (o.bytes_per_sector)
+	bpb.bpbBytesPerSec = o.bytes_per_sector;
+    if (o.size)
+	bpb.bpbHugeSectors = o.size;
+    if (o.hidden_sectors_set)
+	bpb.bpbHiddenSecs = o.hidden_sectors;
+    if (!(o.floppy || (o.drive_heads && o.sectors_per_track && o.bytes_per_sector && o.size && o.hidden_sectors_set))) {
 	off_t delta;
-	getdiskinfo(fd, fname, dtype, oflag, &bpb);
-	bpb.bpbHugeSectors -= (opt_ofs / bpb.bpbBytesPerSec);
+	getdiskinfo(fd, fname, dtype, o.hidden_sectors_set, &bpb);
+	bpb.bpbHugeSectors -= (o.offset / bpb.bpbBytesPerSec);
 	delta = bpb.bpbHugeSectors % bpb.bpbSecPerTrack;
 	if (delta != 0) {
 	    warnx("trim %d sectors to adjust to a multiple of %d",
@@ -429,60 +466,60 @@ main(int argc, char *argv[])
     if (bpb.bpbBytesPerSec < MINBPS)
 	errx(1, "bytes/sector (%u) is too small; minimum is %u",
 	     bpb.bpbBytesPerSec, MINBPS);
-    if (!(fat = opt_F)) {
-	if (opt_f)
+    if (!(fat = o.fat_type)) {
+	if (o.floppy)
 	    fat = 12;
-	else if (!opt_e && (opt_i || opt_k))
+	else if (!o.directory_entries && (o.info_sector || o.backup_sector))
 	    fat = 32;
     }
-    if ((fat == 32 && opt_e) || (fat != 32 && (opt_i || opt_k)))
+    if ((fat == 32 && o.directory_entries) || (fat != 32 && (o.info_sector || o.backup_sector)))
 	errx(1, "-%c is not a legal FAT%s option",
-	     fat == 32 ? 'e' : opt_i ? 'i' : 'k',
+	     fat == 32 ? 'e' : o.info_sector ? 'i' : 'k',
 	     fat == 32 ? "32" : "12/16");
-    if (opt_f && fat == 32)
+    if (o.floppy && fat == 32)
 	bpb.bpbRootDirEnts = 0;
-    if (opt_b) {
-	if (!powerof2(opt_b))
-	    errx(1, "block size (%u) is not a power of 2", opt_b);
-	if (opt_b < bpb.bpbBytesPerSec)
+    if (o.block_size) {
+	if (!powerof2(o.block_size))
+	    errx(1, "block size (%u) is not a power of 2", o.block_size);
+	if (o.block_size < bpb.bpbBytesPerSec)
 	    errx(1, "block size (%u) is too small; minimum is %u",
-		 opt_b, bpb.bpbBytesPerSec);
-	if (opt_b > bpb.bpbBytesPerSec * MAXSPC)
+		 o.block_size, bpb.bpbBytesPerSec);
+	if (o.block_size > bpb.bpbBytesPerSec * MAXSPC)
 	    errx(1, "block size (%u) is too large; maximum is %u",
-		 opt_b, bpb.bpbBytesPerSec * MAXSPC);
-	bpb.bpbSecPerClust = opt_b / bpb.bpbBytesPerSec;
+		 o.block_size, bpb.bpbBytesPerSec * MAXSPC);
+	bpb.bpbSecPerClust = o.block_size / bpb.bpbBytesPerSec;
     }
-    if (opt_c) {
-	if (!powerof2(opt_c))
-	    errx(1, "sectors/cluster (%u) is not a power of 2", opt_c);
-	bpb.bpbSecPerClust = opt_c;
+    if (o.sectors_per_cluster) {
+	if (!powerof2(o.sectors_per_cluster))
+	    errx(1, "sectors/cluster (%u) is not a power of 2", o.sectors_per_cluster);
+	bpb.bpbSecPerClust = o.sectors_per_cluster;
     }
-    if (opt_r)
-	bpb.bpbResSectors = opt_r;
-    if (opt_n) {
-	if (opt_n > MAXNFT)
+    if (o.reserved_sectors)
+	bpb.bpbResSectors = o.reserved_sectors;
+    if (o.num_FAT) {
+	if (o.num_FAT > MAXNFT)
 	    errx(1, "number of FATs (%u) is too large; maximum is %u",
-		 opt_n, MAXNFT);
-	bpb.bpbFATs = opt_n;
+		 o.num_FAT, MAXNFT);
+	bpb.bpbFATs = o.num_FAT;
     }
-    if (opt_e)
-	bpb.bpbRootDirEnts = opt_e;
-    if (mflag) {
-	if (opt_m < 0xf0)
-	    errx(1, "illegal media descriptor (%#x)", opt_m);
-	bpb.bpbMedia = opt_m;
+    if (o.directory_entries)
+	bpb.bpbRootDirEnts = o.directory_entries;
+    if (o.media_descriptor_set) {
+	if (o.media_descriptor < 0xf0)
+	    errx(1, "illegal media descriptor (%#x)", o.media_descriptor);
+	bpb.bpbMedia = o.media_descriptor;
     }
-    if (opt_a)
-	bpb.bpbBigFATsecs = opt_a;
-    if (opt_i)
-	bpb.bpbFSInfo = opt_i;
-    if (opt_k)
-	bpb.bpbBackup = opt_k;
+    if (o.sectors_per_fat)
+	bpb.bpbBigFATsecs = o.sectors_per_fat;
+    if (o.info_sector)
+	bpb.bpbFSInfo = o.info_sector;
+    if (o.backup_sector)
+	bpb.bpbBackup = o.backup_sector;
     bss = 1;
     bname = NULL;
     fd1 = -1;
-    if (opt_B) {
-	bname = opt_B;
+    if (o.bootstrap) {
+	bname = o.bootstrap;
 	if (!strchr(bname, '/')) {
 	    snprintf(buf, sizeof(buf), "/boot/%s", bname);
 	    if (!(bname = strdup(buf)))
@@ -612,7 +649,7 @@ main(int argc, char *argv[])
 	bpb.bpbBigFATsecs = 0;
     }
     print_bpb(&bpb);
-    if (!opt_N) {
+    if (!o.no_create) {
 	gettimeofday(&tv, NULL);
 	now = tv.tv_sec;
 	tm = localtime(&now);
@@ -634,14 +671,14 @@ main(int argc, char *argv[])
 		    got_siginfo = 0;
 	    }
 	    x = lsn;
-	    if (opt_B &&
+	    if (o.bootstrap &&
 		fat == 32 && bpb.bpbBackup != MAXU16 &&
 		bss <= bpb.bpbBackup && x >= bpb.bpbBackup) {
 		x -= bpb.bpbBackup;
-		if (!x && lseek(fd1, opt_ofs, SEEK_SET))
+		if (!x && lseek(fd1, o.offset, SEEK_SET))
 		    err(1, "%s", bname);
 	    }
-	    if (opt_B && x < bss) {
+	    if (o.bootstrap && x < bss) {
 		if ((n = read(fd1, img, bpb.bpbBytesPerSec)) == -1)
 		    err(1, "%s", bname);
 		if ((unsigned)n != bpb.bpbBytesPerSec)
@@ -678,8 +715,8 @@ main(int argc, char *argv[])
 		}
 		bsx = (struct bsx *)(img + x1);
 		mk1(bsx->exBootSignature, 0x29);
-		if (Iflag)
-		    x = opt_I;
+		if (o.volume_id_set)
+		    x = o.volume_id;
 		else
 		    x = (((u_int)(1 + tm->tm_mon) << 8 |
 			  (u_int)tm->tm_mday) +
@@ -689,16 +726,16 @@ main(int argc, char *argv[])
 			 ((u_int)tm->tm_hour << 8 |
 			  (u_int)tm->tm_min));
 		mk4(bsx->exVolumeID, x);
-		mklabel(bsx->exVolumeLabel, opt_L ? opt_L : "NO NAME");
+		mklabel(bsx->exVolumeLabel, o.volume_label ? o.volume_label : "NO NAME");
 		sprintf(buf, "FAT%u", fat);
 		setstr(bsx->exFileSysType, buf, sizeof(bsx->exFileSysType));
-		if (!opt_B) {
+		if (!o.bootstrap) {
 		    x1 += sizeof(struct bsx);
 		    bs = (struct bs *)img;
 		    mk1(bs->bsJump[0], 0xeb);
 		    mk1(bs->bsJump[1], x1 - 2);
 		    mk1(bs->bsJump[2], 0x90);
-		    setstr(bs->bsOemName, opt_O ? opt_O : "BSD4.4  ",
+		    setstr(bs->bsOemName, o.OEM_string ? o.OEM_string : "BSD4.4  ",
 			   sizeof(bs->bsOemName));
 		    memcpy(img + x1, bootcode, sizeof(bootcode));
 		    mk2(img + MINBPS - 2, DOSMAGIC);
@@ -719,9 +756,9 @@ main(int argc, char *argv[])
 		mk1(img[0], bpb.bpbMedia);
 		for (x = 1; x < fat * (fat == 32 ? 3 : 2) / 8; x++)
 		    mk1(img[x], fat == 32 && x % 4 == 3 ? 0x0f : 0xff);
-	    } else if (lsn == dir && opt_L) {
+	    } else if (lsn == dir && o.volume_label) {
 		de = (struct de *)img;
-		mklabel(de->deName, opt_L);
+		mklabel(de->deName, o.volume_label);
 		mk1(de->deAttributes, 050);
 		x = (u_int)tm->tm_hour << 11 |
 		    (u_int)tm->tm_min << 5 |
