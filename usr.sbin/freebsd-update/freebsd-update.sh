@@ -2736,7 +2736,7 @@ backup_kernel () {
 	if [ $BACKUPKERNELSYMBOLFILES = yes ]; then
 		FINDFILTER=""
 	else
-		FINDFILTER=-"a ! -name *.symbols"
+		FINDFILTER="-a ! -name *.debug -a ! -name *.symbols"
 	fi
 
 	# Backup all the kernel files using hardlinks.
