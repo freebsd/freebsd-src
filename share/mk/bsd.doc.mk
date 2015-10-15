@@ -140,11 +140,11 @@ CLEANFILES+=	${DOC}.ascii ${DOC}.ascii${DCOMPRESS_EXT} \
 		${DOC}.html ${DOC}-*.html
 
 realinstall:
-.for _dev in ${PRINTERDEVICE:Mhtml}
+.if ${PRINTERDEVICE:Mhtml}
 	cd ${SRCDIR}; \
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},docs} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}
-.endfor
+.endif
 .for _dev in ${PRINTERDEVICE:Nhtml}
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},docs} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${DFILE.${_dev}} ${DESTDIR}${BINDIR}/${VOLUME}
@@ -191,7 +191,6 @@ ${DFILE.html}: ${SRCS}
 .else # unroff(1) requires a macro package as an argument
 	cd ${SRCDIR}; ${UNROFF} -ms ${UNROFFFLAGS} \
 	    document=${DOC} ${SRCS}
-.else
 .endif
 .endif
 .endfor
