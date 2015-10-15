@@ -62,7 +62,8 @@ __FBSDID("$FreeBSD$");
 #define NTB_CONFIG_BAR	0
 #define NTB_B2B_BAR_1	1
 #define NTB_B2B_BAR_2	2
-#define NTB_MAX_BARS	3
+#define NTB_B2B_BAR_3	3
+#define NTB_MAX_BARS	4
 #define NTB_MW_TO_BAR(mw) ((mw) + 1)
 
 #define MAX_MSIX_INTERRUPTS MAX(XEON_MAX_DB_BITS, SOC_MAX_DB_BITS)
@@ -85,7 +86,7 @@ struct ntb_hw_info {
 	uint32_t		device_id;
 	const char		*desc;
 	enum ntb_device_type	type;
-	uint64_t		features;
+	uint32_t		features;
 };
 
 struct ntb_pci_bar_info {
@@ -142,6 +143,7 @@ struct ntb_softc {
 		uint32_t rdb;
 		uint32_t bar2_xlat;
 		uint32_t bar4_xlat;
+		uint32_t bar5_xlat;
 		uint32_t spad_remote;
 		uint32_t spad_local;
 		uint32_t lnk_cntl;
@@ -186,9 +188,11 @@ bus_space_write_8(bus_space_tag_t tag, bus_space_handle_t handle,
 #define ntb_reg_read(SIZE, offset) ntb_bar_read(SIZE, NTB_CONFIG_BAR, offset)
 #define ntb_reg_write(SIZE, offset, val) \
 	    ntb_bar_write(SIZE, NTB_CONFIG_BAR, offset, val)
-#define ntb_mw_read(SIZE, offset) ntb_bar_read(SIZE, NTB_B2B_BAR_2, offset)
+#define ntb_mw_read(SIZE, offset) \
+	    ntb_bar_read(SIZE, NTB_MW_TO_BAR(ntb->limits.max_mw), offset)
 #define ntb_mw_write(SIZE, offset, val) \
-	    ntb_bar_write(SIZE, NTB_B2B_BAR_2, offset, val)
+	    ntb_bar_write(SIZE, NTB_MW_TO_BAR(ntb->limits.max_mw), \
+		offset, val)
 
 typedef int (*bar_map_strategy)(struct ntb_softc *ntb,
     struct ntb_pci_bar_info *bar);
@@ -221,6 +225,7 @@ static void unmask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx);
 static int ntb_create_callbacks(struct ntb_softc *ntb, uint32_t num_vectors);
 static void ntb_free_callbacks(struct ntb_softc *ntb);
 static struct ntb_hw_info *ntb_get_device_info(uint32_t device_id);
+static void ntb_detect_max_mw(struct ntb_softc *ntb);
 static int ntb_detect_xeon(struct ntb_softc *ntb);
 static int ntb_detect_soc(struct ntb_softc *ntb);
 static int ntb_setup_xeon(struct ntb_softc *ntb);
@@ -323,7 +328,7 @@ ntb_attach(device_t device)
 	if (error)
 		goto out;
 
-	ntb->limits.max_mw = NTB_MAX_NUM_MW;
+	ntb_detect_max_mw(ntb);
 
 	error = ntb_map_pci_bars(ntb);
 	if (error)
@@ -357,6 +362,12 @@ ntb_detach(device_t device)
 	if (ntb->type == NTB_XEON)
 		ntb_teardown_xeon(ntb);
 	ntb_teardown_interrupts(ntb);
+
+	/*
+	 * Redetect total MWs so we unmap properly -- in case we lowered the
+	 * maximum to work around Xeon errata.
+	 */
+	ntb_detect_max_mw(ntb);
 	ntb_unmap_pci_bar(ntb);
 
 	return (0);
@@ -379,12 +390,22 @@ ntb_map_pci_bars(struct ntb_softc *ntb)
 		return (rc);
 
 	ntb->bar_info[NTB_B2B_BAR_2].pci_resource_id = PCIR_BAR(4);
-	if (HAS_FEATURE(NTB_REGS_THRU_MW))
+	if (HAS_FEATURE(NTB_REGS_THRU_MW) && !HAS_FEATURE(NTB_SPLIT_BAR))
 		rc = map_pci_bar(ntb, map_mmr_bar,
 		    &ntb->bar_info[NTB_B2B_BAR_2]);
 	else
 		rc = map_pci_bar(ntb, map_memory_window_bar,
 		    &ntb->bar_info[NTB_B2B_BAR_2]);
+	if (!HAS_FEATURE(NTB_SPLIT_BAR))
+		return (rc);
+
+	ntb->bar_info[NTB_B2B_BAR_3].pci_resource_id = PCIR_BAR(5);
+	if (HAS_FEATURE(NTB_REGS_THRU_MW))
+		rc = map_pci_bar(ntb, map_mmr_bar,
+		    &ntb->bar_info[NTB_B2B_BAR_3]);
+	else
+		rc = map_pci_bar(ntb, map_memory_window_bar,
+		    &ntb->bar_info[NTB_B2B_BAR_3]);
 	return (rc);
 }
 
@@ -484,7 +505,7 @@ ntb_unmap_pci_bar(struct ntb_softc *ntb)
 	struct ntb_pci_bar_info *current_bar;
 	int i;
 
-	for (i = 0; i< NTB_MAX_BARS; i++) {
+	for (i = 0; i < NTB_MAX_BARS; i++) {
 		current_bar = &ntb->bar_info[i];
 		if (current_bar->pci_resource != NULL)
 			bus_release_resource(ntb->device, SYS_RES_MEMORY,
@@ -906,6 +927,21 @@ ntb_teardown_xeon(struct ntb_softc *ntb)
 	ntb_hw_link_down(ntb);
 }
 
+static void
+ntb_detect_max_mw(struct ntb_softc *ntb)
+{
+
+	if (ntb->type == NTB_SOC) {
+		ntb->limits.max_mw = SOC_MAX_MW;
+		return;
+	}
+
+	if (HAS_FEATURE(NTB_SPLIT_BAR))
+		ntb->limits.max_mw = XEON_HSXSPLIT_MAX_MW;
+	else
+		ntb->limits.max_mw = XEON_SNB_MAX_MW;
+}
+
 static int
 ntb_detect_xeon(struct ntb_softc *ntb)
 {
@@ -918,6 +954,9 @@ ntb_detect_xeon(struct ntb_softc *ntb)
 		ntb->dev_type = NTB_DEV_USD;
 	else
 		ntb->dev_type = NTB_DEV_DSD;
+
+	if ((ppd & XEON_PPD_SPLIT_BAR) != 0)
+		ntb->features |= NTB_SPLIT_BAR;
 
 	conn_type = ppd & XEON_PPD_CONN_TYPE;
 	switch (conn_type) {
@@ -968,6 +1007,8 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	ntb->reg_ofs.spad_local	= XEON_SPAD_OFFSET;
 	ntb->reg_ofs.bar2_xlat	= XEON_SBAR2XLAT_OFFSET;
 	ntb->reg_ofs.bar4_xlat	= XEON_SBAR4XLAT_OFFSET;
+	if (HAS_FEATURE(NTB_SPLIT_BAR))
+		ntb->reg_ofs.bar5_xlat = XEON_SBAR5XLAT_OFFSET;
 
 	switch (ntb->conn_type) {
 	case NTB_CONN_B2B:
@@ -1013,21 +1054,23 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	 * write the limit registers first just in case.
 	 */
 	if (HAS_FEATURE(NTB_REGS_THRU_MW)) {
-		/* Reserve the last MW for mapping remote spad */
-		ntb->limits.max_mw--;
 		/*
 		 * Set the Limit register to 4k, the minimum size, to prevent
 		 * an illegal access.
+		 *
+		 * XXX: Should this be PBAR5LMT / get_mw_size(, max_mw - 1)?
 		 */
 		ntb_reg_write(8, XEON_PBAR4LMT_OFFSET,
 		    ntb_get_mw_size(ntb, 1) + 0x1000);
+		/* Reserve the last MW for mapping remote spad */
+		ntb->limits.max_mw--;
 	} else
 		/*
 		 * Disable the limit register, just in case it is set to
-		 * something silly.
+		 * something silly.  A 64-bit write will also clear PBAR5LMT in
+		 * split-bar mode, and this is desired.
 		 */
 		ntb_reg_write(8, XEON_PBAR4LMT_OFFSET, 0);
-
 
 	ntb->reg_ofs.lnk_cntl	 = XEON_NTBCNTL_OFFSET;
 	ntb->reg_ofs.lnk_stat	 = XEON_LINK_STATUS_OFFSET;
@@ -1112,15 +1155,15 @@ configure_soc_secondary_side_bars(struct ntb_softc *ntb)
 {
 
 	if (ntb->dev_type == NTB_DEV_USD) {
-		ntb_reg_write(8, SOC_PBAR2XLAT_OFFSET, PBAR2XLAT_USD_ADDR);
-		ntb_reg_write(8, SOC_PBAR4XLAT_OFFSET, PBAR4XLAT_USD_ADDR);
+		ntb_reg_write(8, SOC_PBAR2XLAT_OFFSET, MBAR23_DSD_ADDR);
+		ntb_reg_write(8, SOC_PBAR4XLAT_OFFSET, MBAR4_DSD_ADDR);
 		ntb_reg_write(8, SOC_MBAR23_OFFSET, MBAR23_USD_ADDR);
-		ntb_reg_write(8, SOC_MBAR45_OFFSET, MBAR45_USD_ADDR);
+		ntb_reg_write(8, SOC_MBAR45_OFFSET, MBAR4_USD_ADDR);
 	} else {
-		ntb_reg_write(8, SOC_PBAR2XLAT_OFFSET, PBAR2XLAT_DSD_ADDR);
-		ntb_reg_write(8, SOC_PBAR4XLAT_OFFSET, PBAR4XLAT_DSD_ADDR);
+		ntb_reg_write(8, SOC_PBAR2XLAT_OFFSET, MBAR23_USD_ADDR);
+		ntb_reg_write(8, SOC_PBAR4XLAT_OFFSET, MBAR4_USD_ADDR);
 		ntb_reg_write(8, SOC_MBAR23_OFFSET, MBAR23_DSD_ADDR);
-		ntb_reg_write(8, SOC_MBAR45_OFFSET, MBAR45_DSD_ADDR);
+		ntb_reg_write(8, SOC_MBAR45_OFFSET, MBAR4_DSD_ADDR);
 	}
 }
 
@@ -1129,13 +1172,19 @@ configure_xeon_secondary_side_bars(struct ntb_softc *ntb)
 {
 
 	if (ntb->dev_type == NTB_DEV_USD) {
-		ntb_reg_write(8, XEON_PBAR2XLAT_OFFSET, PBAR2XLAT_USD_ADDR);
+		ntb_reg_write(8, XEON_PBAR2XLAT_OFFSET, MBAR23_DSD_ADDR);
 		if (HAS_FEATURE(NTB_REGS_THRU_MW))
 			ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
 			    MBAR01_DSD_ADDR);
 		else {
-			ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
-			    PBAR4XLAT_USD_ADDR);
+			if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+				ntb_reg_write(4, XEON_PBAR4XLAT_OFFSET,
+				    MBAR4_DSD_ADDR);
+				ntb_reg_write(4, XEON_PBAR5XLAT_OFFSET,
+				    MBAR5_DSD_ADDR);
+			} else
+				ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
+				    MBAR4_DSD_ADDR);
 			/*
 			 * B2B_XLAT_OFFSET is a 64-bit register but can only be
 			 * written 32 bits at a time.
@@ -1147,15 +1196,25 @@ configure_xeon_secondary_side_bars(struct ntb_softc *ntb)
 		}
 		ntb_reg_write(8, XEON_SBAR0BASE_OFFSET, MBAR01_USD_ADDR);
 		ntb_reg_write(8, XEON_SBAR2BASE_OFFSET, MBAR23_USD_ADDR);
-		ntb_reg_write(8, XEON_SBAR4BASE_OFFSET, MBAR45_USD_ADDR);
+		if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+			ntb_reg_write(4, XEON_SBAR4BASE_OFFSET, MBAR4_USD_ADDR);
+			ntb_reg_write(4, XEON_SBAR5BASE_OFFSET, MBAR5_USD_ADDR);
+		} else
+			ntb_reg_write(8, XEON_SBAR4BASE_OFFSET, MBAR4_USD_ADDR);
 	} else {
-		ntb_reg_write(8, XEON_PBAR2XLAT_OFFSET, PBAR2XLAT_DSD_ADDR);
+		ntb_reg_write(8, XEON_PBAR2XLAT_OFFSET, MBAR23_USD_ADDR);
 		if (HAS_FEATURE(NTB_REGS_THRU_MW))
 			ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
 			    MBAR01_USD_ADDR);
 		else {
-			ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
-			    PBAR4XLAT_DSD_ADDR);
+			if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+				ntb_reg_write(4, XEON_PBAR4XLAT_OFFSET,
+				    MBAR4_USD_ADDR);
+				ntb_reg_write(4, XEON_PBAR5XLAT_OFFSET,
+				    MBAR5_USD_ADDR);
+			} else
+				ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
+				    MBAR4_USD_ADDR);
 			/*
 			 * B2B_XLAT_OFFSET is a 64-bit register but can only be
 			 * written 32 bits at a time.
@@ -1167,7 +1226,14 @@ configure_xeon_secondary_side_bars(struct ntb_softc *ntb)
 		}
 		ntb_reg_write(8, XEON_SBAR0BASE_OFFSET, MBAR01_DSD_ADDR);
 		ntb_reg_write(8, XEON_SBAR2BASE_OFFSET, MBAR23_DSD_ADDR);
-		ntb_reg_write(8, XEON_SBAR4BASE_OFFSET, MBAR45_DSD_ADDR);
+		if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+			ntb_reg_write(4, XEON_SBAR4BASE_OFFSET,
+			    MBAR4_DSD_ADDR);
+			ntb_reg_write(4, XEON_SBAR5BASE_OFFSET,
+			    MBAR5_DSD_ADDR);
+		} else
+			ntb_reg_write(8, XEON_SBAR4BASE_OFFSET,
+			    MBAR4_DSD_ADDR);
 	}
 }
 
@@ -1288,7 +1354,9 @@ ntb_hw_link_up(struct ntb_softc *ntb)
 	cntl = ntb_reg_read(4, ntb->reg_ofs.lnk_cntl);
 	cntl &= ~(NTB_CNTL_LINK_DISABLE | NTB_CNTL_CFG_LOCK);
 	cntl |= NTB_CNTL_P2S_BAR23_SNOOP | NTB_CNTL_S2P_BAR23_SNOOP;
-	cntl |= NTB_CNTL_P2S_BAR45_SNOOP | NTB_CNTL_S2P_BAR45_SNOOP;
+	cntl |= NTB_CNTL_P2S_BAR4_SNOOP | NTB_CNTL_S2P_BAR4_SNOOP;
+	if (HAS_FEATURE(NTB_SPLIT_BAR))
+		cntl |= NTB_CNTL_P2S_BAR5_SNOOP | NTB_CNTL_S2P_BAR5_SNOOP;
 	ntb_reg_write(4, ntb->reg_ofs.lnk_cntl, cntl);
 }
 
@@ -1304,7 +1372,9 @@ ntb_hw_link_down(struct ntb_softc *ntb)
 
 	cntl = ntb_reg_read(4, ntb->reg_ofs.lnk_cntl);
 	cntl &= ~(NTB_CNTL_P2S_BAR23_SNOOP | NTB_CNTL_S2P_BAR23_SNOOP);
-	cntl &= ~(NTB_CNTL_P2S_BAR45_SNOOP | NTB_CNTL_S2P_BAR45_SNOOP);
+	cntl &= ~(NTB_CNTL_P2S_BAR4_SNOOP | NTB_CNTL_S2P_BAR4_SNOOP);
+	if (HAS_FEATURE(NTB_SPLIT_BAR))
+		cntl &= ~(NTB_CNTL_P2S_BAR5_SNOOP | NTB_CNTL_S2P_BAR5_SNOOP);
 	cntl |= NTB_CNTL_LINK_DISABLE | NTB_CNTL_CFG_LOCK;
 	ntb_reg_write(4, ntb->reg_ofs.lnk_cntl, cntl);
 }
@@ -1753,7 +1823,13 @@ ntb_set_mw_addr(struct ntb_softc *ntb, unsigned int mw, uint64_t addr)
 		ntb_reg_write(8, ntb->reg_ofs.bar2_xlat, addr);
 		break;
 	case NTB_B2B_BAR_2:
-		ntb_reg_write(8, ntb->reg_ofs.bar4_xlat, addr);
+		if (HAS_FEATURE(NTB_SPLIT_BAR))
+			ntb_reg_write(4, ntb->reg_ofs.bar4_xlat, addr);
+		else
+			ntb_reg_write(8, ntb->reg_ofs.bar4_xlat, addr);
+		break;
+	case NTB_B2B_BAR_3:
+		ntb_reg_write(4, ntb->reg_ofs.bar5_xlat, addr);
 		break;
 	}
 }
