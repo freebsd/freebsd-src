@@ -63,4 +63,10 @@ SYMLINKS+=	${symdir}.UTF-8 ${LOCALEDIR}/${symdir}.UTF8
 SYMLINKS+=	zh_Hans_CN.${CN} ${LOCALEDIR}/zh_CN.${CN}
 .endfor
 
+.for TW in BIG5 UTF-8
+SYMLINKS+=	zh_Hant_TW.${TW} ${LOCALEDIR}/zh_TW.${TW}
+.endfor
+
+SYMLINKS+=	zh_Hant_TW.UTF-8 ${LOCALEDIR}/zh_TW
+
 .include <bsd.prog.mk>
