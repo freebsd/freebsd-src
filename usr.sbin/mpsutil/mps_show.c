@@ -148,11 +148,11 @@ show_adapter(int ac, char **av)
 	}
 	printf("\n");
 
-	printf("PhyNum  CtlrHandle  DevHandle  Disabled  Speed   Min    Max      Device\n");
+	printf("%-8s%-12s%-11s%-10s%-8s%-7s%-7s%s\n", "PhyNum", "CtlrHandle",
+	    "DevHandle", "Disabled", "Speed", "Min", "Max", "Device");
 	for (i = 0; i < sas0->NumPhys; i++) {
 		phy0 = &sas0->PhyData[i];
 		phy1 = &sas1->PhyData[i];
-		printf("  %d  ", i);
 		if (phy0->PortFlags &
 		     MPI2_SASIOUNIT0_PORTFLAGS_DISCOVERY_IN_PROGRESS) {
 			printf("Discovery still in progress\n");
@@ -177,8 +177,8 @@ show_adapter(int ac, char **av)
 			snprintf(ctrlhandle, 5, "    ");
 			speed = "     ";
 		}
-		printf("      %s       %s        %s      %s  %s  %s  %s\n",
-		    ctrlhandle, devhandle, isdisabled, speed, minspeed,
+		printf("%-8d%-12s%-11s%-10s%-8s%-7s%-7s%s\n",
+		    i, ctrlhandle, devhandle, isdisabled, speed, minspeed,
 		    maxspeed, type);
 	}
 	free(sas0);
@@ -436,7 +436,8 @@ show_devices(int ac, char **av)
 	MPI2_CONFIG_PAGE_SAS_DEV_0	*device;
 	MPI2_CONFIG_PAGE_EXPANDER_1	*exp1;
 	uint16_t IOCStatus, handle, bus, target;
-	char *type, *speed, enchandle[5], slot[3], bt[7];
+	char *type, *speed, enchandle[5], slot[3], bt[8];
+	char buf[256];
 	int fd, error, nphys;
 
 	fd = mps_open(mps_unit);
@@ -456,7 +457,9 @@ show_devices(int ac, char **av)
 	}
 	nphys = sas0->NumPhys;
 
-	printf("B____T    SAS Address     Handle  Parent    Device       Speed Enc  Slot  Wdt\n");
+	printf("B____%-5s%-17s%-8s%-10s%-14s%-6s%-5s%-6s%s\n",
+	    "T", "SAS Address", "Handle", "Parent", "Device", "Speed",
+	    "Enc", "Slot", "Wdt");
 	handle = 0xffff;
 	while (1) {
 		device = mps_read_extended_config_page(fd,
@@ -486,9 +489,9 @@ show_devices(int ac, char **av)
 			continue;
 		}
 		if ((bus == 0xffff) || (target == 0xffff))
-			snprintf(bt, 7, "      ");
+			snprintf(bt, sizeof(bt), "       ");
 		else
-			snprintf(bt, 7, "%02d  %02d", bus, target);
+			snprintf(bt, sizeof(bt), "%02d   %02d", bus, target);
 
 		type = get_device_type(device->DeviceInfo);
 
@@ -525,9 +528,15 @@ show_devices(int ac, char **av)
 			snprintf(enchandle, 5, "    ");
 			snprintf(slot, 3, "  ");
 		}
-		printf("%s    %08x%08x   %04x    %04x   %s  %s  %s  %s    %d\n",
-		    bt, device->SASAddress.High, device->SASAddress.Low,
-		    device->DevHandle, device->ParentDevHandle, type, speed,
+		printf("%-10s", bt);
+		snprintf(buf, sizeof(buf), "%08x%08x", device->SASAddress.High,
+		    device->SASAddress.Low);
+		printf("%-17s", buf);
+		snprintf(buf, sizeof(buf), "%04x", device->DevHandle);
+		printf("%-8s", buf);
+		snprintf(buf, sizeof(buf), "%04x", device->ParentDevHandle);
+		printf("%-10s", buf);
+		printf("%-14s%-6s%-5s%-6s%d\n", type, speed,
 		    enchandle, slot, device->MaxPortConnections);
 		free(device);
 	}
