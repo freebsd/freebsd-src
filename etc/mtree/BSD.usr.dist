@@ -198,6 +198,8 @@
                 ..
                 intel_wpi
                 ..
+                realtek
+                ..
             ..
             llvm
                 clang
