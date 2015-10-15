@@ -13,8 +13,8 @@ Items affecting the ports and packages system can be found in
 
 NOTE: FreeBSD has switched from gcc to clang. If you have trouble bootstrapping
 from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
-the tip of head, and then rebuild without this option. The bootstrap process from
-older version of current across the gcc/clang cutover is a bit fragile.
+the tip of head, and then rebuild without this option. The bootstrap process
+from older version of current across the gcc/clang cutover is a bit fragile.
 
 NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	FreeBSD 11.x has many debugging features turned on, in both the kernel
@@ -30,6 +30,22 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20151012:
+	If you specify SENDMAIL_MC or SENDMAIL_CF in make.conf, mergemaster
+	and etcupdate will now use this file. A custom sendmail.cf is now
+	updated via this mechanism rather than via installworld.  If you had
+	excluded sendmail.cf in mergemaster.rc or etcupdate.conf, you may
+	want to remove the exclusion or change it to "always install".
+	/etc/mail/sendmail.cf is now managed the same way regardless of
+	whether SENDMAIL_MC/SENDMAIL_CF is used.  If you are not using
+	SENDMAIL_MC/SENDMAIL_CF there should be no change in behavior.
+
+20151011:
+	Compatibility shims for legacy ATA device names have been removed.
+	It includes ATA_STATIC_ID kernel option, kern.cam.ada.legacy_aliases
+	and kern.geom.raid.legacy_aliases loader tunables, kern.devalias.*
+	environment variables, /dev/ad* and /dev/ar* symbolic links.
 
 20151006:
 	Clang, llvm, lldb, compiler-rt and libc++ have been upgraded to 3.7.0.

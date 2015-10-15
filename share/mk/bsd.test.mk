@@ -10,9 +10,8 @@
 
 __<bsd.test.mk>__:
 
-.ifndef TESTSDIR
-.error "Please define TESTSDIR when including bsd.test.mk"
-.endif
+# Tests install directory
+TESTSDIR?=	${TESTSBASE}/${RELDIR:H}
 PACKAGE=	tests
 
 # List of subdirectories containing tests into which to recurse.  This has the

@@ -20,7 +20,7 @@ fsck_start()
 	elif [ ! -r /etc/fstab ]; then
 		echo "Warning! No /etc/fstab: skipping disk checks."
 	elif [ "$autoboot" = yes ]; then
-					# During fsck ignore SIGQUIT
+		# During fsck ignore SIGQUIT
 		trap : 3
 
 		check_startmsgs && echo "Starting file system checks:"

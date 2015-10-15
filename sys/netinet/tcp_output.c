@@ -74,6 +74,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
+#ifdef TCPPCAP
+#include <netinet/tcp_pcap.h>
+#endif
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
@@ -1305,6 +1308,11 @@ send:
 
 		TCP_PROBE5(send, NULL, tp, ip6, tp, th);
 
+#ifdef TCPPCAP
+		/* Save packet, if requested. */
+		tcp_pcap_add(th, m, &(tp->t_outpkts));
+#endif
+
 		/* TODO: IPv6 IP6TOS_ECT bit on */
 		error = ip6_output(m, tp->t_inpcb->in6p_outputopts, &ro,
 		    ((so->so_options & SO_DONTROUTE) ?  IP_ROUTETOIF : 0),
@@ -1347,6 +1355,11 @@ send:
 		TCP_PROBE5(connect__request, NULL, tp, ip, tp, th);
 
 	TCP_PROBE5(send, NULL, tp, ip, tp, th);
+
+#ifdef TCPPCAP
+	/* Save packet, if requested. */
+	tcp_pcap_add(th, m, &(tp->t_outpkts));
+#endif
 
 	error = ip_output(m, tp->t_inpcb->inp_options, &ro,
 	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,

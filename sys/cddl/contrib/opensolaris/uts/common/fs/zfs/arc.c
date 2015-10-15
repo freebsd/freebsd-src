@@ -5295,6 +5295,16 @@ arc_init(void)
 		arc_c_max = arc_c_min;
 	arc_c_max = MAX(arc_c * 5, arc_c_max);
 
+	/*
+	 * In userland, there's only the memory pressure that we artificially
+	 * create (see arc_available_memory()).  Don't let arc_c get too
+	 * small, because it can cause transactions to be larger than
+	 * arc_c, causing arc_tempreserve_space() to fail.
+	 */
+#ifndef _KERNEL
+	arc_c_min = arc_c_max / 2;
+#endif
+
 #ifdef _KERNEL
 	/*
 	 * Allow the tunables to override our calculations if they are
@@ -6243,7 +6253,8 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
     boolean_t *headroom_boost)
 {
 	arc_buf_hdr_t *hdr, *hdr_prev, *head;
-	uint64_t write_asize, write_sz, headroom, buf_compress_minsz;
+	uint64_t write_asize, write_sz, headroom,
+	    buf_compress_minsz;
 	void *buf_data;
 	boolean_t full;
 	l2arc_write_callback_t *cb;
@@ -6405,6 +6416,7 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
 			 * using it to denote the header's state change.
 			 */
 			hdr->b_l2hdr.b_daddr = L2ARC_ADDR_UNSET;
+
 			hdr->b_flags |= ARC_FLAG_HAS_L2HDR;
 
 			mutex_enter(&dev->l2ad_mtx);

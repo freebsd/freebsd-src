@@ -105,6 +105,8 @@ static const struct sdhci_device {
 	{ 0x2381197B, 	0xffff,	"JMicron JMB38X SD",
 	    SDHCI_QUIRK_32BIT_DMA_SIZE |
 	    SDHCI_QUIRK_RESET_AFTER_REQUEST },
+	{ 0x16bc14e4,	0xffff,	"Broadcom BCM577xx SDXC/MMC Card Reader",
+	    SDHCI_QUIRK_BCM577XX_400KHZ_CLKSRC },
 	{ 0,		0xffff,	NULL,
 	    0 }
 };
@@ -334,6 +336,8 @@ sdhci_pci_attach(device_t dev)
 			device_printf(dev, "Can't allocate memory for slot %d\n", i);
 			continue;
 		}
+		
+		slot->quirks = sc->quirks;
 
 		if (sdhci_init_slot(dev, slot, i) != 0)
 			continue;

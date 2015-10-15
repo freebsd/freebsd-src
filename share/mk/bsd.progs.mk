@@ -31,6 +31,9 @@ UPDATE_DEPENDFILE_PROG = ${PROGS:[1]}
 # They may have asked us to build just one
 .for t in ${PROGS}
 .if make($t)
+.if ${PROGS_CXX:M${t}}
+PROG_CXX ?= $t
+.endif
 PROG ?= $t
 .endif
 .endfor
@@ -61,7 +64,7 @@ UPDATE_DEPENDFILE ?= yes
 UPDATE_DEPENDFILE ?= NO
 
 # prog.mk will do the rest
-.else
+.else # !defined(PROG)
 all: ${PROGS}
 
 # We cannot capture dependencies for meta mode here
@@ -80,9 +83,28 @@ $v =
 # handle being called [bsd.]progs.mk
 .include <bsd.prog.mk>
 
-.if !empty(PROGS) && !defined(_RECURSING_PROGS)
+.if !empty(PROGS) && !defined(_RECURSING_PROGS) && !defined(PROG)
 # tell progs.mk we might want to install things
 PROGS_TARGETS+= checkdpadd clean cleandepend cleandir depend install
+
+# Find common sources among the PROGS and depend on them before building
+# anything.  This allows parallelization without them each fighting over
+# the same objects.
+_PROGS_COMMON_SRCS=
+_PROGS_ALL_SRCS=
+.for p in ${PROGS}
+.for s in ${SRCS.${p}}
+.if ${_PROGS_ALL_SRCS:M${s}} && !${_PROGS_COMMON_SRCS:M${s}}
+_PROGS_COMMON_SRCS+=	${s}
+.else
+_PROGS_ALL_SRCS+=	${s}
+.endif
+.endfor
+.endfor
+.if !empty(_PROGS_COMMON_SRCS)
+_PROGS_COMMON_OBJS=	${_PROGS_COMMON_SRCS:N*.h:R:S/$/.o/g}
+${PROGS}: ${_PROGS_COMMON_OBJS}
+.endif
 
 .for p in ${PROGS}
 .if defined(PROGS_CXX) && !empty(PROGS_CXX:M$p)
@@ -111,4 +133,4 @@ $p.$t: .PHONY .MAKE
 .for t in ${PROGS_TARGETS:O:u}
 $t: ${PROGS:%=%.$t}
 .endfor
-.endif
+.endif	# !empty(PROGS) && !defined(_RECURSING_PROGS) && !defined(PROG)

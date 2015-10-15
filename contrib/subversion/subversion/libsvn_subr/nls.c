@@ -37,6 +37,8 @@
 #include "svn_pools.h"
 #include "svn_path.h"
 
+#include "private/svn_utf_private.h"
+
 #include "svn_private_config.h"
 
 svn_error_t *
@@ -53,69 +55,38 @@ svn_nls_init(void)
     {
 #ifdef WIN32
       WCHAR ucs2_path[MAX_PATH];
-      char* utf8_path;
+      const char* utf8_path;
       const char* internal_path;
-      apr_pool_t* pool;
-      apr_size_t inwords, outbytes, outlength;
+      apr_pool_t* scratch_pool;
 
-      apr_pool_create(&pool, 0);
+      scratch_pool = svn_pool_create(NULL);
       /* get exe name - our locale info will be in '../share/locale' */
-      inwords = GetModuleFileNameW(0, ucs2_path,
-                                   sizeof(ucs2_path) / sizeof(ucs2_path[0]));
-      if (! inwords)
+      GetModuleFileNameW(NULL, ucs2_path,
+          sizeof(ucs2_path) / sizeof(ucs2_path[0]));
+      if (apr_get_os_error())
         {
-          /* We must be on a Win9x machine, so attempt to get an ANSI path,
-             and convert it to Unicode. */
-          CHAR ansi_path[MAX_PATH];
-
-          if (GetModuleFileNameA(0, ansi_path, sizeof(ansi_path)))
-            {
-              inwords =
-                MultiByteToWideChar(CP_ACP, 0, ansi_path, -1, ucs2_path,
-                                    sizeof(ucs2_path) / sizeof(ucs2_path[0]));
-              if (! inwords)
-                {
-                err =
-                  svn_error_createf(APR_EINVAL, NULL,
-                                    _("Can't convert string to UCS-2: '%s'"),
-                                    ansi_path);
-                }
-            }
-          else
-            {
-              err = svn_error_create(APR_EINVAL, NULL,
-                                     _("Can't get module file name"));
-            }
+          err = svn_error_wrap_apr(apr_get_os_error(),
+                                   _("Can't get module file name"));
         }
 
       if (! err)
+        err = svn_utf__win32_utf16_to_utf8(&utf8_path, ucs2_path,
+                                           NULL, scratch_pool);
+
+      if (! err)
         {
-          outbytes = outlength = 3 * (inwords + 1);
-          utf8_path = apr_palloc(pool, outlength);
-
-          outbytes = WideCharToMultiByte(CP_UTF8, 0, ucs2_path, inwords,
-                                         utf8_path, outbytes, NULL, NULL);
-
-          if (outbytes == 0)
-            {
-              err = svn_error_wrap_apr(apr_get_os_error(),
-                                       _("Can't convert module path "
-                                         "to UTF-8 from UCS-2: '%s'"),
-                                       ucs2_path);
-            }
-          else
-            {
-              utf8_path[outlength - outbytes] = '\0';
-              internal_path = svn_dirent_internal_style(utf8_path, pool);
-              /* get base path name */
-              internal_path = svn_dirent_dirname(internal_path, pool);
-              internal_path = svn_dirent_join(internal_path,
-                                              SVN_LOCALE_RELATIVE_PATH,
-                                              pool);
-              bindtextdomain(PACKAGE_NAME, internal_path);
-            }
+          internal_path = svn_dirent_internal_style(utf8_path, scratch_pool);
+          /* get base path name */
+          internal_path = svn_dirent_dirname(internal_path, scratch_pool);
+          internal_path = svn_dirent_join(internal_path,
+                                          SVN_LOCALE_RELATIVE_PATH,
+                                          scratch_pool);
+          SVN_ERR(svn_dirent_get_absolute(&internal_path, internal_path,
+                                          scratch_pool));
+          bindtextdomain(PACKAGE_NAME, internal_path);
         }
-      svn_pool_destroy(pool);
+
+      svn_pool_destroy(scratch_pool);
     }
 #else /* ! WIN32 */
       bindtextdomain(PACKAGE_NAME, SVN_LOCALE_DIR);
