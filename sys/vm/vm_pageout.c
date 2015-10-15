@@ -1174,12 +1174,11 @@ unlock_page:
 		queues_locked = FALSE;
 
 		/*
-		 * Invalid pages cannot appear on a queue.  If
-		 * vm_pageout_fallback_object_lock() allowed a window
-		 * where the page could be invalidated, it should
-		 * detect this.
+		 * Invalid pages can be easily freed. They cannot be
+		 * mapped, vm_page_free() asserts this.
 		 */
-		KASSERT(m->valid != 0, ("Invalid page %p on inact queue", m));
+		if (m->valid == 0)
+			goto free_page;
 
 		/*
 		 * If the page has been referenced and the object is not dead,
@@ -1232,6 +1231,7 @@ unlock_page:
 			/*
 			 * Clean pages can be freed.
 			 */
+free_page:
 			vm_page_free(m);
 			PCPU_INC(cnt.v_dfree);
 			--page_shortage;
