@@ -64,11 +64,11 @@ static const char rcsid[] =
 #define DEFRDE	  512		/* default root directory entries */
 #define RESFTE	  2		/* reserved FAT entries */
 #define MINCLS12  1U		/* minimum FAT12 clusters */
-#define MINCLS16  0x1000U	/* minimum FAT16 clusters */
-#define MINCLS32  2U		/* minimum FAT32 clusters */
-#define MAXCLS12  0xfedU	/* maximum FAT12 clusters */
-#define MAXCLS16  0xfff5U	/* maximum FAT16 clusters */
-#define MAXCLS32  0xffffff5U	/* maximum FAT32 clusters */
+#define MINCLS16  0xff5U	/* minimum FAT16 clusters */
+#define MINCLS32  0xfff5U	/* minimum FAT32 clusters */
+#define MAXCLS12  0xff4U	/* maximum FAT12 clusters */
+#define MAXCLS16  0xfff4U	/* maximum FAT16 clusters */
+#define MAXCLS32  0xffffff4U	/* maximum FAT32 clusters */
 
 #define mincls(fat)  ((fat) == 12 ? MINCLS12 :	\
 		      (fat) == 16 ? MINCLS16 :	\
