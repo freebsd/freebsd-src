@@ -192,9 +192,9 @@
             legal
                 intel_ipw
                 ..
-                intel_iwn
-                ..
                 intel_iwi
+                ..
+                intel_iwn
                 ..
                 intel_wpi
                 ..
