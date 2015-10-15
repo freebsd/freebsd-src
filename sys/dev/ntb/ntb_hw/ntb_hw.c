@@ -127,9 +127,11 @@ struct ntb_softc {
 
 	void			*ntb_transport;
 	ntb_event_callback	event_cb;
-	struct ntb_db_cb 	*db_cb;
+	struct ntb_db_cb	*db_cb;
+	uint8_t			max_cbs;
 
 	struct {
+		uint8_t max_mw;
 		uint8_t max_spads;
 		uint8_t max_db_bits;
 		uint8_t msix_cnt;
@@ -320,6 +322,8 @@ ntb_attach(device_t device)
 		error = ntb_detect_xeon(ntb);
 	if (error)
 		goto out;
+
+	ntb->limits.max_mw = NTB_MAX_NUM_MW;
 
 	error = ntb_map_pci_bars(ntb);
 	if (error)
@@ -533,6 +537,7 @@ ntb_setup_xeon_msix(struct ntb_softc *ntb, uint32_t num_vectors)
 	 * slot, from which they will never be called back.
 	 */
 	ntb->db_cb[num_vectors - 1].reserved = true;
+	ntb->max_cbs--;
 	return (0);
 }
 
@@ -649,15 +654,31 @@ ntb_setup_interrupts(struct ntb_softc *ntb)
 	} else
 		num_vectors = 1;
 
+	/*
+	 * If allocating MSI-X interrupts succeeds, limit callbacks to the
+	 * number of MSI-X slots available.
+	 */
 	ntb_create_callbacks(ntb, num_vectors);
 
 	if (ntb->type == NTB_XEON)
 		rc = ntb_setup_xeon_msix(ntb, num_vectors);
 	else
 		rc = ntb_setup_soc_msix(ntb, num_vectors);
-	if (rc != 0)
+	if (rc != 0) {
 		device_printf(ntb->device,
 		    "Error allocating MSI-X interrupts: %d\n", rc);
+
+		/*
+		 * If allocating MSI-X interrupts failed and we're forced to
+		 * use legacy INTx anyway, the only limit on individual
+		 * callbacks is the number of doorbell bits.
+		 *
+		 * CEM: This seems odd to me but matches the behavior of the
+		 * Linux driver ca. September 2013
+		 */
+		ntb_free_callbacks(ntb);
+		ntb_create_callbacks(ntb, ntb->limits.max_db_bits);
+	}
 
 	if (ntb->type == NTB_XEON && rc == ENOSPC)
 		rc = ntb_setup_legacy_interrupt(ntb);
@@ -842,6 +863,7 @@ ntb_create_callbacks(struct ntb_softc *ntb, uint32_t num_vectors)
 {
 	uint32_t i;
 
+	ntb->max_cbs = num_vectors;
 	ntb->db_cb = malloc(num_vectors * sizeof(*ntb->db_cb), M_NTB,
 	    M_ZERO | M_WAITOK);
 	for (i = 0; i < num_vectors; i++) {
@@ -857,10 +879,11 @@ ntb_free_callbacks(struct ntb_softc *ntb)
 {
 	uint8_t i;
 
-	for (i = 0; i < ntb->limits.max_db_bits; i++)
+	for (i = 0; i < ntb->max_cbs; i++)
 		ntb_unregister_db_callback(ntb, i);
 
 	free(ntb->db_cb, M_NTB);
+	ntb->max_cbs = 0;
 }
 
 static struct ntb_hw_info *
@@ -989,14 +1012,16 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	 * This should already be the case based on the driver defaults, but
 	 * write the limit registers first just in case.
 	 */
-	if (HAS_FEATURE(NTB_REGS_THRU_MW))
+	if (HAS_FEATURE(NTB_REGS_THRU_MW)) {
+		/* Reserve the last MW for mapping remote spad */
+		ntb->limits.max_mw--;
 		/*
 		 * Set the Limit register to 4k, the minimum size, to prevent
 		 * an illegal access.
 		 */
 		ntb_reg_write(8, XEON_PBAR4LMT_OFFSET,
 		    ntb_get_mw_size(ntb, 1) + 0x1000);
-	else
+	} else
 		/*
 		 * Disable the limit register, just in case it is set to
 		 * something silly.
@@ -1432,8 +1457,7 @@ ntb_register_db_callback(struct ntb_softc *ntb, unsigned int idx, void *data,
 {
 	struct ntb_db_cb *db_cb = &ntb->db_cb[idx];
 
-	if (idx >= ntb->allocated_interrupts || db_cb->callback ||
-	    db_cb->reserved) {
+	if (idx >= ntb->max_cbs || db_cb->callback != NULL || db_cb->reserved) {
 		device_printf(ntb->device, "Invalid Index.\n");
 		return (EINVAL);
 	}
@@ -1459,7 +1483,7 @@ void
 ntb_unregister_db_callback(struct ntb_softc *ntb, unsigned int idx)
 {
 
-	if (idx >= ntb->allocated_interrupts || !ntb->db_cb[idx].callback)
+	if (idx >= ntb->max_cbs || ntb->db_cb[idx].callback == NULL)
 		return;
 
 	mask_ldb_interrupt(ntb, idx);
@@ -1518,12 +1542,12 @@ ntb_register_transport(struct ntb_softc *ntb, void *transport)
 void
 ntb_unregister_transport(struct ntb_softc *ntb)
 {
-	int i;
+	uint8_t i;
 
 	if (ntb->ntb_transport == NULL)
 		return;
 
-	for (i = 0; i < ntb->allocated_interrupts; i++)
+	for (i = 0; i < ntb->max_cbs; i++)
 		ntb_unregister_db_callback(ntb, i);
 
 	ntb_unregister_event_callback(ntb);
@@ -1544,6 +1568,20 @@ ntb_get_max_spads(struct ntb_softc *ntb)
 {
 
 	return (ntb->limits.max_spads);
+}
+
+uint8_t
+ntb_get_max_cbs(struct ntb_softc *ntb)
+{
+
+	return (ntb->max_cbs);
+}
+
+uint8_t
+ntb_get_max_mw(struct ntb_softc *ntb)
+{
+
+	return (ntb->limits.max_mw);
 }
 
 /**
@@ -1658,7 +1696,7 @@ void *
 ntb_get_mw_vbase(struct ntb_softc *ntb, unsigned int mw)
 {
 
-	if (mw >= NTB_NUM_MW)
+	if (mw >= ntb_get_max_mw(ntb))
 		return (NULL);
 
 	return (ntb->bar_info[NTB_MW_TO_BAR(mw)].vbase);
@@ -1668,7 +1706,7 @@ vm_paddr_t
 ntb_get_mw_pbase(struct ntb_softc *ntb, unsigned int mw)
 {
 
-	if (mw >= NTB_NUM_MW)
+	if (mw >= ntb_get_max_mw(ntb))
 		return (0);
 
 	return (ntb->bar_info[NTB_MW_TO_BAR(mw)].pbase);
@@ -1687,7 +1725,7 @@ u_long
 ntb_get_mw_size(struct ntb_softc *ntb, unsigned int mw)
 {
 
-	if (mw >= NTB_NUM_MW)
+	if (mw >= ntb_get_max_mw(ntb))
 		return (0);
 
 	return (ntb->bar_info[NTB_MW_TO_BAR(mw)].size);
@@ -1707,7 +1745,7 @@ void
 ntb_set_mw_addr(struct ntb_softc *ntb, unsigned int mw, uint64_t addr)
 {
 
-	if (mw >= NTB_NUM_MW)
+	if (mw >= ntb_get_max_mw(ntb))
 		return;
 
 	switch (NTB_MW_TO_BAR(mw)) {
