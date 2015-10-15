@@ -1285,8 +1285,8 @@ STAGEDIR=	${MAKEOBJDIRPREFIX}${.CURDIR}/stage
 packages:
 	@mkdir -p ${MAKEOBJDIRPREFIX}${.CURDIR}/stage
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} buildworld ; \
-		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} -DNO_ROOT stageworld ; \
+		${MAKE} ${.MAKEFLAGS} buildworld ; \
+		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} -DNO_ROOT -B stageworld ; \
 		${MAKE} DESTDIR=${DESTDIR:U${STAGEDIR}} create-world-packages
 
 create-kernel-packages:
