@@ -50,6 +50,7 @@ static struct {
 } scheme_alias[] = {
 	{ "ebr", ALIAS_EBR },
 	{ "efi", ALIAS_EFI },
+	{ "fat16b", ALIAS_FAT16B },
 	{ "fat32", ALIAS_FAT32 },
 	{ "freebsd", ALIAS_FREEBSD },
 	{ "freebsd-boot", ALIAS_FREEBSD_BOOT },
