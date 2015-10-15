@@ -38,6 +38,7 @@ __RCSID("$FreeBSD$");
 #include <sys/mps_ioctl.h>
 #else
 #include "mps_ioctl.h"
+#include "mpr_ioctl.h"
 #endif
 #include <sys/sysctl.h>
 #include <sys/uio.h>
@@ -219,6 +220,26 @@ static const char *mps_ioc_status_codes[] = {
 	"Diagnostic released",			/* 0x00A0 */
 };
 
+struct mprs_pass_thru {
+        uint64_t        PtrRequest;
+        uint64_t        PtrReply;
+        uint64_t        PtrData;
+        uint32_t        RequestSize;
+        uint32_t        ReplySize;
+        uint32_t        DataSize;
+        uint32_t        DataDirection;
+        uint64_t        PtrDataOut;
+        uint32_t        DataOutSize;
+        uint32_t        Timeout;
+};
+
+struct mprs_btdh_mapping {
+        uint16_t        TargetID;
+        uint16_t        Bus;
+        uint16_t        DevHandle;
+        uint16_t        Reserved;
+};
+
 const char *
 mps_ioc_status(U16 IOCStatus)
 {
@@ -237,9 +258,8 @@ int
 mps_map_btdh(int fd, uint16_t *devhandle, uint16_t *bus, uint16_t *target)
 {
 	int error;
-	struct mps_btdh_mapping map;
+	struct mprs_btdh_mapping map;
 
-	bzero(&map, sizeof(map));
 	map.Bus = *bus;
 	map.TargetID = *target;
 	map.DevHandle = *devhandle;
@@ -640,7 +660,7 @@ mps_user_command(int fd, void *req, uint32_t req_len, void *reply,
 	cmd.len = len;
 	cmd.flags = flags;
 
-	if (ioctl(fd, MPSIO_MPS_COMMAND, &cmd) < 0)
+	if (ioctl(fd, is_mps ? MPSIO_MPS_COMMAND : MPRIO_MPR_COMMAND, &cmd) < 0)
 		return (errno);
 	return (0);
 }
@@ -650,7 +670,7 @@ mps_pass_command(int fd, void *req, uint32_t req_len, void *reply,
 	uint32_t reply_len, void *data_in, uint32_t datain_len, void *data_out,
 	uint32_t dataout_len, uint32_t timeout)
 {
-	struct mps_pass_thru pass;
+	struct mprs_pass_thru pass;
 
 	pass.PtrRequest = (uint64_t)(uintptr_t)req;
 	pass.PtrReply = (uint64_t)(uintptr_t)reply;
@@ -660,14 +680,31 @@ mps_pass_command(int fd, void *req, uint32_t req_len, void *reply,
 	pass.ReplySize = reply_len;
 	pass.DataSize = datain_len;
 	pass.DataOutSize = dataout_len;
-	if (datain_len && dataout_len)
-		pass.DataDirection = MPS_PASS_THRU_DIRECTION_BOTH;
-	else if (datain_len)
-		pass.DataDirection = MPS_PASS_THRU_DIRECTION_READ;
-	else if (dataout_len)
-		pass.DataDirection = MPS_PASS_THRU_DIRECTION_WRITE;
-	else
-		pass.DataDirection = MPS_PASS_THRU_DIRECTION_NONE;
+	if (datain_len && dataout_len) {
+		if (is_mps) {
+			pass.DataDirection = MPS_PASS_THRU_DIRECTION_BOTH;
+		} else {
+			pass.DataDirection = MPR_PASS_THRU_DIRECTION_BOTH;
+		}
+	} else if (datain_len) {
+		if (is_mps) {
+			pass.DataDirection = MPS_PASS_THRU_DIRECTION_READ;
+		} else {
+			pass.DataDirection = MPR_PASS_THRU_DIRECTION_READ;
+		}
+	} else if (dataout_len) {
+		if (is_mps) {
+			pass.DataDirection = MPS_PASS_THRU_DIRECTION_WRITE;
+		} else {
+			pass.DataDirection = MPR_PASS_THRU_DIRECTION_WRITE;
+		}
+	} else {
+		if (is_mps) {
+			pass.DataDirection = MPS_PASS_THRU_DIRECTION_NONE;
+		} else {
+			pass.DataDirection = MPR_PASS_THRU_DIRECTION_NONE;
+		}
+	}
 	pass.Timeout = timeout;
 
 	if (ioctl(fd, MPTIOCTL_PASS_THRU, &pass) < 0)
