@@ -72,10 +72,11 @@ struct wpi_tx_ring {
 	struct wpi_tx_cmd	*cmd;
 	struct wpi_tx_data	data[WPI_TX_RING_COUNT];
 	bus_dma_tag_t		data_dmat;
-	int			qid;
-	int			queued;
-	int			cur;
-	int			update;
+	uint8_t			qid;
+	uint8_t			cur;
+	uint8_t			pending;
+	int16_t			queued;
+	int			update:1;
 };
 
 struct wpi_rx_data {
@@ -88,7 +89,7 @@ struct wpi_rx_ring {
 	uint32_t		*desc;
 	struct wpi_rx_data	data[WPI_RX_RING_COUNT];
 	bus_dma_tag_t		data_dmat;
-	int			cur;
+	uint16_t		cur;
 	int			update;
 };
 
@@ -116,8 +117,8 @@ struct wpi_buf {
 	struct ieee80211_node	*ni;
 	struct mbuf		*m;
 	size_t			size;
-	int			code;
-	int			ac;
+	uint8_t			code;
+	uint16_t		ac;
 };
 
 struct wpi_vap {
@@ -126,7 +127,7 @@ struct wpi_vap {
 	struct wpi_buf		wv_bcbuf;
 	struct mtx		wv_mtx;
 
-	uint32_t		wv_gtk;
+	uint8_t			wv_gtk;
 #define WPI_VAP_KEY(kid)	(1 << kid)
 
 	int			(*wv_newstate)(struct ieee80211vap *,
@@ -176,7 +177,7 @@ struct wpi_softc {
 	struct wpi_dma_info	shared_dma;
 	struct wpi_shared	*shared;
 
-	struct wpi_tx_ring	txq[WPI_NTXQUEUES];
+	struct wpi_tx_ring	txq[WPI_DRV_NTXQUEUES];
 	struct mtx		txq_mtx;
 	struct mtx		txq_state_mtx;
 

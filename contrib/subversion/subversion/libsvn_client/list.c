@@ -34,6 +34,7 @@
 
 #include "private/svn_fspath.h"
 #include "private/svn_ra_private.h"
+#include "private/svn_sorts_private.h"
 #include "private/svn_wc_private.h"
 #include "svn_private_config.h"
 
@@ -128,6 +129,10 @@ get_dir_contents(apr_uint32_t dirent_fields,
     }
   SVN_ERR(err);
 
+ /* Locks will often be empty.  Prevent pointless lookups in that case. */
+ if (locks && apr_hash_count(locks) == 0)
+   locks = NULL;
+
  /* Filter out svn:externals from all properties hash. */
   if (prop_hash)
     prop_val = svn_hash_gets(prop_hash, SVN_PROP_EXTERNALS);
@@ -187,114 +192,6 @@ get_dir_contents(apr_uint32_t dirent_fields,
   return SVN_NO_ERROR;
 }
 
-/* Like svn_ra_stat() but with a compatibility hack for pre-1.2 svnserve. */
-/* ### Maybe we should move this behavior into the svn_ra_stat wrapper? */
-svn_error_t *
-svn_client__ra_stat_compatible(svn_ra_session_t *ra_session,
-                               svn_revnum_t rev,
-                               svn_dirent_t **dirent_p,
-                               apr_uint32_t dirent_fields,
-                               svn_client_ctx_t *ctx,
-                               apr_pool_t *pool)
-{
-  svn_error_t *err;
-
-  err = svn_ra_stat(ra_session, "", rev, dirent_p, pool);
-
-  /* svnserve before 1.2 doesn't support the above, so fall back on
-     a less efficient method. */
-  if (err && err->apr_err == SVN_ERR_RA_NOT_IMPLEMENTED)
-    {
-      const char *repos_root_url;
-      const char *session_url;
-      svn_node_kind_t kind;
-      svn_dirent_t *dirent;
-
-      svn_error_clear(err);
-
-      SVN_ERR(svn_ra_get_repos_root2(ra_session, &repos_root_url, pool));
-      SVN_ERR(svn_ra_get_session_url(ra_session, &session_url, pool));
-
-      SVN_ERR(svn_ra_check_path(ra_session, "", rev, &kind, pool));
-
-      if (kind != svn_node_none)
-        {
-          if (strcmp(session_url, repos_root_url) != 0)
-            {
-              svn_ra_session_t *parent_session;
-              apr_hash_t *parent_ents;
-              const char *parent_url, *base_name;
-              apr_pool_t *subpool = svn_pool_create(pool);
-
-              /* Open another session to the path's parent.  This server
-                 doesn't support svn_ra_reparent anyway, so don't try it. */
-              svn_uri_split(&parent_url, &base_name, session_url, subpool);
-
-              SVN_ERR(svn_client_open_ra_session2(&parent_session, parent_url,
-                                                  NULL, ctx,
-                                                  subpool, subpool));
-
-              /* Get all parent's entries, no props. */
-              SVN_ERR(svn_ra_get_dir2(parent_session, &parent_ents, NULL,
-                                      NULL, "", rev, dirent_fields, subpool));
-
-              /* Get the relevant entry. */
-              dirent = svn_hash_gets(parent_ents, base_name);
-
-              if (dirent)
-                *dirent_p = svn_dirent_dup(dirent, pool);
-              else
-                *dirent_p = NULL;
-
-              svn_pool_destroy(subpool); /* Close RA session */
-            }
-          else
-            {
-              /* We can't get the directory entry for the repository root,
-                 but we can still get the information we want.
-                 The created-rev of the repository root must, by definition,
-                 be rev. */
-              dirent = apr_palloc(pool, sizeof(*dirent));
-              dirent->kind = kind;
-              dirent->size = SVN_INVALID_FILESIZE;
-              if (dirent_fields & SVN_DIRENT_HAS_PROPS)
-                {
-                  apr_hash_t *props;
-                  SVN_ERR(svn_ra_get_dir2(ra_session, NULL, NULL, &props,
-                                          "", rev, 0 /* no dirent fields */,
-                                          pool));
-                  dirent->has_props = (apr_hash_count(props) != 0);
-                }
-              dirent->created_rev = rev;
-              if (dirent_fields & (SVN_DIRENT_TIME | SVN_DIRENT_LAST_AUTHOR))
-                {
-                  apr_hash_t *props;
-                  svn_string_t *val;
-
-                  SVN_ERR(svn_ra_rev_proplist(ra_session, rev, &props,
-                                              pool));
-                  val = svn_hash_gets(props, SVN_PROP_REVISION_DATE);
-                  if (val)
-                    SVN_ERR(svn_time_from_cstring(&dirent->time, val->data,
-                                                  pool));
-                  else
-                    dirent->time = 0;
-
-                  val = svn_hash_gets(props, SVN_PROP_REVISION_AUTHOR);
-                  dirent->last_author = val ? val->data : NULL;
-                }
-
-              *dirent_p = dirent;
-            }
-        }
-      else
-        *dirent_p = NULL;
-    }
-  else
-    SVN_ERR(err);
-
-  return SVN_NO_ERROR;
-}
 
 /* List the file/directory entries for PATH_OR_URL at REVISION.
    The actual node revision selected is determined by the path as
@@ -369,8 +266,7 @@ list_internal(const char *path_or_url,
 
   fs_path = svn_client__pathrev_fspath(loc, pool);
 
-  SVN_ERR(svn_client__ra_stat_compatible(ra_session, loc->rev, &dirent,
-                                         dirent_fields, ctx, pool));
+  SVN_ERR(svn_ra_stat(ra_session, "", loc->rev, &dirent, pool));
   if (! dirent)
     return svn_error_createf(SVN_ERR_FS_NOT_FOUND, NULL,
                              _("URL '%s' non-existent in revision %ld"),
@@ -530,8 +426,8 @@ list_externals(apr_hash_t *externals,
        hi;
        hi = apr_hash_next(hi))
     {
-      const char *externals_parent_url = svn__apr_hash_index_key(hi);
-      svn_string_t *externals_desc = svn__apr_hash_index_val(hi);
+      const char *externals_parent_url = apr_hash_this_key(hi);
+      svn_string_t *externals_desc = apr_hash_this_val(hi);
       apr_array_header_t *external_items;
 
       svn_pool_clear(iterpool);

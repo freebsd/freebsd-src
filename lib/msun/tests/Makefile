@@ -1,10 +1,6 @@
 # $FreeBSD$
 
-OBJTOP=		${.OBJDIR:H:H:H}
-SRCTOP=		${.CURDIR:H:H:H}
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libm
-
-TESTSDIR=	${TESTSBASE}/lib/msun
 
 # All architectures on FreeBSD have fenv.h
 CFLAGS+=	-DHAVE_FENV_H

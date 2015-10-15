@@ -213,7 +213,6 @@ NLSGRP?=	${SHAREGRP}
 NLSMODE?=	${NOBINMODE}
 
 INCLUDEDIR?=	/usr/include
-ETCDIR?=	/etc
 
 #
 # install(1) parameters.

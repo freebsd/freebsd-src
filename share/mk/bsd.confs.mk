@@ -22,7 +22,7 @@ all: buildconfig
 ${group}OWN?=	${SHAREOWN}
 ${group}GRP?=	${SHAREGRP}
 ${group}MODE?=	${CONFMODE}
-${group}DIR?=	${ETCDIR}/
+${group}DIR?=	${CONFIGDIR}/
 STAGE_SETS+=	${group}
 STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
 STAGE_SYMLINKS_DIR.${group}= ${STAGE_OBJTOP}
@@ -84,4 +84,4 @@ STAGE_TARGETS+= stage_config
 .endif
 .endif
 
-.endif # ${MK_TOOLCHAIN} != "no"
+.endif # ${MK_INCLUDES} != "no"

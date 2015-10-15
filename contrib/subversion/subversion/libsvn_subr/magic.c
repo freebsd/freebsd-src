@@ -33,6 +33,8 @@
 #include "svn_types.h"
 #include "svn_pools.h"
 #include "svn_error.h"
+#include "svn_config.h"
+#include "svn_hash.h"
 
 #include "svn_private_config.h"
 
@@ -61,14 +63,30 @@ close_magic_cookie(void *baton)
 }
 #endif
 
-void
+svn_error_t *
 svn_magic__init(svn_magic__cookie_t **magic_cookie,
+                apr_hash_t *config,
                 apr_pool_t *result_pool)
 {
-
   svn_magic__cookie_t *mc = NULL;
 
 #ifdef SVN_HAVE_LIBMAGIC
+  if (config)
+    {
+      svn_boolean_t enable;
+      svn_config_t *cfg = svn_hash_gets(config, SVN_CONFIG_CATEGORY_CONFIG);
+
+      SVN_ERR(svn_config_get_bool(cfg, &enable,
+                                  SVN_CONFIG_SECTION_MISCELLANY,
+                                  SVN_CONFIG_OPTION_ENABLE_MAGIC_FILE,
+                                  TRUE));
+      if (!enable)
+        {
+          *magic_cookie = NULL;
+          return SVN_NO_ERROR;
+        }
+    }
+
   mc = apr_palloc(result_pool, sizeof(*mc));
 
   /* Initialise libmagic. */
@@ -97,6 +115,8 @@ svn_magic__init(svn_magic__cookie_t **magic_cookie,
 #endif
 
   *magic_cookie = mc;
+
+  return SVN_NO_ERROR;
 }
 
 svn_error_t *

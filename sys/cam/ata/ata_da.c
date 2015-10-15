@@ -582,7 +582,6 @@ static void		adaresume(void *arg);
 #define	ata_disk_firmware_geom_adjust(disk)
 #endif
 
-static int ada_legacy_aliases = ADA_DEFAULT_LEGACY_ALIASES;
 static int ada_retry_count = ADA_DEFAULT_RETRY;
 static int ada_default_timeout = ADA_DEFAULT_TIMEOUT;
 static int ada_send_ordered = ADA_DEFAULT_SEND_ORDERED;
@@ -593,8 +592,6 @@ static int ada_write_cache = ADA_DEFAULT_WRITE_CACHE;
 
 static SYSCTL_NODE(_kern_cam, OID_AUTO, ada, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, legacy_aliases, CTLFLAG_RWTUN,
-           &ada_legacy_aliases, 0, "Create legacy-like device aliases");
 SYSCTL_INT(_kern_cam_ada, OID_AUTO, retry_count, CTLFLAG_RWTUN,
            &ada_retry_count, 0, "Normal I/O retry count");
 SYSCTL_INT(_kern_cam_ada, OID_AUTO, default_timeout, CTLFLAG_RWTUN,
@@ -1164,11 +1161,11 @@ adaregister(struct cam_periph *periph, void *arg)
 	struct ada_softc *softc;
 	struct ccb_pathinq cpi;
 	struct ccb_getdev *cgd;
-	char   announce_buf[80], buf1[32];
+	char   announce_buf[80];
 	struct disk_params *dp;
 	caddr_t match;
 	u_int maxio;
-	int legacy_id, quirks;
+	int quirks;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
@@ -1331,22 +1328,6 @@ adaregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_fwheads = softc->params.heads;
 	ata_disk_firmware_geom_adjust(softc->disk);
 
-	if (ada_legacy_aliases) {
-#ifdef ATA_STATIC_ID
-		legacy_id = xpt_path_legacy_ata_id(periph->path);
-#else
-		legacy_id = softc->disk->d_unit;
-#endif
-		if (legacy_id >= 0) {
-			snprintf(announce_buf, sizeof(announce_buf),
-			    "kern.devalias.%s%d",
-			    softc->disk->d_name, softc->disk->d_unit);
-			snprintf(buf1, sizeof(buf1),
-			    "ad%d", legacy_id);
-			kern_setenv(announce_buf, buf1);
-		}
-	} else
-		legacy_id = -1;
 	/*
 	 * Acquire a reference to the periph before we register with GEOM.
 	 * We'll release this reference once GEOM calls us back (via
@@ -1364,17 +1345,11 @@ adaregister(struct cam_periph *periph, void *arg)
 
 	dp = &softc->params;
 	snprintf(announce_buf, sizeof(announce_buf),
-		"%juMB (%ju %u byte sectors: %dH %dS/T %dC)",
-		(uintmax_t)(((uintmax_t)dp->secsize *
-		dp->sectors) / (1024*1024)),
-		(uintmax_t)dp->sectors,
-		dp->secsize, dp->heads,
-		dp->secs_per_track, dp->cylinders);
+	    "%juMB (%ju %u byte sectors)",
+	    ((uintmax_t)dp->secsize * dp->sectors) / (1024 * 1024),
+	    (uintmax_t)dp->sectors, dp->secsize);
 	xpt_announce_periph(periph, announce_buf);
 	xpt_announce_quirks(periph, softc->quirks, ADA_Q_BIT_STRING);
-	if (legacy_id >= 0)
-		printf("%s%d: Previously was known as ad%d\n",
-		       periph->periph_name, periph->unit_number, legacy_id);
 
 	/*
 	 * Create our sysctl variables, now that we know

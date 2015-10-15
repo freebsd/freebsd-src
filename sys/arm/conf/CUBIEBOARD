@@ -59,7 +59,6 @@ device		mmcsd			# mmc/sd flash cards
 # ATA controllers
 device		ahci			# AHCI-compatible SATA controllers
 #device		ata			# Legacy ATA/SATA controllers
-#options 	ATA_STATIC_ID		# Static device numbering
 
 # Console and misc
 device		uart

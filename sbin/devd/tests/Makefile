@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/sbin/devd
-
 ATF_TESTS_C=	client_test
 TEST_METADATA.client_test=	required_programs="devd"
 TEST_METADATA.client_test+=	required_user="root"

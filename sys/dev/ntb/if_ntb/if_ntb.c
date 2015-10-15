@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/ktr.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -39,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <net/if.h>
 #include <net/if_media.h>
@@ -77,6 +79,11 @@ __FBSDID("$FreeBSD$");
 #define	NTB_RXQ_SIZE		300
 
 static unsigned int transport_mtu = 0x4000 + ETHER_HDR_LEN + ETHER_CRC_LEN;
+
+/*
+ * This is an oversimplification to work around Xeon Errata.  The second client
+ * may be usable for unidirectional traffic.
+ */
 static unsigned int max_num_clients = 1;
 
 STAILQ_HEAD(ntb_queue_list, ntb_queue_entry);
@@ -109,7 +116,7 @@ struct ntb_transport_qp {
 	struct ntb_rx_info	*rx_info;
 	struct ntb_rx_info	*remote_rx_info;
 
-	void (*tx_handler) (struct ntb_transport_qp *qp, void *qp_data,
+	void (*tx_handler)(struct ntb_transport_qp *qp, void *qp_data,
 	    void *data, int len);
 	struct ntb_queue_list	tx_free_q;
 	struct mtx		ntb_tx_free_q_lock;
@@ -118,7 +125,7 @@ struct ntb_transport_qp {
 	uint64_t		tx_max_entry;
 	uint64_t		tx_max_frame;
 
-	void (*rx_handler) (struct ntb_transport_qp *qp, void *qp_data,
+	void (*rx_handler)(struct ntb_transport_qp *qp, void *qp_data,
 	    void *data, int len);
 	struct ntb_queue_list	rx_pend_q;
 	struct ntb_queue_list	rx_free_q;
@@ -130,7 +137,7 @@ struct ntb_transport_qp {
 	uint64_t		rx_max_entry;
 	uint64_t		rx_max_frame;
 
-	void (*event_handler) (void *data, int status);
+	void (*event_handler)(void *data, enum ntb_link_event status);
 	struct callout		link_work;
 	struct callout		queue_full;
 	struct callout		rx_full;
@@ -150,11 +157,11 @@ struct ntb_transport_qp {
 };
 
 struct ntb_queue_handlers {
-	void (*rx_handler) (struct ntb_transport_qp *qp, void *qp_data,
+	void (*rx_handler)(struct ntb_transport_qp *qp, void *qp_data,
 	    void *data, int len);
-	void (*tx_handler) (struct ntb_transport_qp *qp, void *qp_data,
+	void (*tx_handler)(struct ntb_transport_qp *qp, void *qp_data,
 	    void *data, int len);
-	void (*event_handler) (void *data, int status);
+	void (*event_handler)(void *data, enum ntb_link_event status);
 };
 
 
@@ -194,11 +201,22 @@ struct ntb_payload_header {
 };
 
 enum {
+	/*
+	 * The order of this enum is part of the if_ntb remote protocol.  Do
+	 * not reorder without bumping protocol version (and it's probably best
+	 * to keep the protocol in lock-step with the Linux NTB driver.
+	 */
 	IF_NTB_VERSION = 0,
-	IF_NTB_MW0_SZ,
-	IF_NTB_MW1_SZ,
-	IF_NTB_NUM_QPS,
 	IF_NTB_QP_LINKS,
+	IF_NTB_NUM_QPS,
+	IF_NTB_NUM_MWS,
+	/*
+	 * N.B.: transport_link_work assumes MW1 enums = MW0 + 2.
+	 */
+	IF_NTB_MW0_SZ_HIGH,
+	IF_NTB_MW0_SZ_LOW,
+	IF_NTB_MW1_SZ_HIGH,
+	IF_NTB_MW1_SZ_LOW,
 	IF_NTB_MAX_SPAD,
 };
 
@@ -216,7 +234,7 @@ static void ntb_net_tx_handler(struct ntb_transport_qp *qp, void *qp_data,
     void *data, int len);
 static void ntb_net_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
     void *data, int len);
-static void ntb_net_event_handler(void *data, int status);
+static void ntb_net_event_handler(void *data, enum ntb_link_event status);
 static int ntb_transport_init(struct ntb_softc *ntb);
 static void ntb_transport_free(void *transport);
 static void ntb_transport_init_queue(struct ntb_netdev *nt,
@@ -232,9 +250,8 @@ static int ntb_process_tx(struct ntb_transport_qp *qp,
 static void ntb_tx_copy_task(struct ntb_transport_qp *qp,
     struct ntb_queue_entry *entry, void *offset);
 static void ntb_qp_full(void *arg);
-static void ntb_transport_rxc_db(void *data, int db_num);
+static int ntb_transport_rxc_db(void *arg, int dummy);
 static void ntb_rx_pendq_full(void *arg);
-static void ntb_transport_rx(struct ntb_transport_qp *qp);
 static int ntb_process_rxc(struct ntb_transport_qp *qp);
 static void ntb_rx_copy_task(struct ntb_transport_qp *qp,
     struct ntb_queue_entry *entry, void *offset);
@@ -242,6 +259,7 @@ static void ntb_rx_completion_task(void *arg, int pending);
 static void ntb_transport_event_callback(void *data, enum ntb_hw_event event);
 static void ntb_transport_link_work(void *arg);
 static int ntb_set_mw(struct ntb_netdev *nt, int num_mw, unsigned int size);
+static void ntb_free_mw(struct ntb_netdev *nt, int num_mw);
 static void ntb_transport_setup_qp_mw(struct ntb_netdev *nt,
     unsigned int qp_num);
 static void ntb_qp_link_work(void *arg);
@@ -289,7 +307,7 @@ DECLARE_MODULE(if_ntb, if_ntb_mod, SI_SUB_KLD, SI_ORDER_ANY);
 MODULE_DEPEND(if_ntb, ntb_hw, 1, 1, 1);
 
 static int
-ntb_setup_interface()
+ntb_setup_interface(void)
 {
 	struct ifnet *ifp;
 	struct ntb_queue_handlers handlers = { ntb_net_rx_handler,
@@ -332,7 +350,7 @@ ntb_setup_interface()
 }
 
 static int
-ntb_teardown_interface()
+ntb_teardown_interface(void)
 {
 
 	if (net_softc.qp != NULL)
@@ -447,9 +465,23 @@ ntb_net_rx_handler(struct ntb_transport_qp *qp, void *qp_data, void *data,
 }
 
 static void
-ntb_net_event_handler(void *data, int status)
+ntb_net_event_handler(void *data, enum ntb_link_event status)
 {
+	struct ifnet *ifp;
 
+	ifp = data;
+	(void)ifp;
+
+	/* XXX The Linux driver munges with the carrier status here. */
+
+	switch (status) {
+	case NTB_LINK_DOWN:
+		break;
+	case NTB_LINK_UP:
+		break;
+	default:
+		panic("Bogus ntb_link_event %u\n", status);
+	}
 }
 
 /* Transport Init and teardown */
@@ -501,7 +533,7 @@ ntb_transport_free(void *transport)
 	struct ntb_softc *ntb = nt->ntb;
 	int i;
 
-	nt->transport_link = NTB_LINK_DOWN;
+	ntb_transport_link_cleanup(nt);
 
 	callout_drain(&nt->link_work);
 
@@ -510,13 +542,10 @@ ntb_transport_free(void *transport)
 		if (!test_bit(i, &nt->qp_bitmap))
 			ntb_transport_free_queue(&nt->qps[i]);
 
-
 	ntb_unregister_event_callback(ntb);
 
 	for (i = 0; i < NTB_NUM_MW; i++)
-		if (nt->mw[i].virt_addr != NULL)
-			contigfree(nt->mw[i].virt_addr, nt->mw[i].size,
-					  M_NTB_IF);
+		ntb_free_mw(nt, i);
 
 	free(nt->qps, M_NTB_IF);
 	ntb_unregister_transport(ntb);
@@ -537,7 +566,7 @@ ntb_transport_init_queue(struct ntb_netdev *nt, unsigned int qp_num)
 	qp->client_ready = NTB_LINK_DOWN;
 	qp->event_handler = NULL;
 
-	if (nt->max_qps % NTB_NUM_MW && mw_num < nt->max_qps % NTB_NUM_MW)
+	if (nt->max_qps % NTB_NUM_MW && mw_num + 1 < nt->max_qps / NTB_NUM_MW)
 		num_qps_mw = nt->max_qps / NTB_NUM_MW + 1;
 	else
 		num_qps_mw = nt->max_qps / NTB_NUM_MW;
@@ -548,11 +577,11 @@ ntb_transport_init_queue(struct ntb_netdev *nt, unsigned int qp_num)
 	    (qp_num / NTB_NUM_MW * tx_size));
 	tx_size -= sizeof(struct ntb_rx_info);
 
-	qp->tx_mw = qp->rx_info + sizeof(struct ntb_rx_info);
+	qp->tx_mw = qp->rx_info + 1;
+	/* Due to house-keeping, there must be at least 2 buffs */
 	qp->tx_max_frame = min(transport_mtu + sizeof(struct ntb_payload_header),
-	    tx_size);
+	    tx_size / 2);
 	qp->tx_max_entry = tx_size / qp->tx_max_frame;
-	qp->tx_index = 0;
 
 	callout_init(&qp->link_work, 0);
 	callout_init(&qp->queue_full, 1);
@@ -700,7 +729,7 @@ ntb_transport_link_up(struct ntb_transport_qp *qp)
  * @len: length of the data buffer
  *
  * Enqueue a new transmit buffer onto the transport queue from which a NTB
- * payload will be transmitted.  This assumes that a lock is behing held to
+ * payload will be transmitted.  This assumes that a lock is being held to
  * serialize access to the qp.
  *
  * RETURNS: An appropriate ERRNO error value on error, or zero for success.
@@ -794,9 +823,9 @@ ntb_tx_copy_task(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry,
 	/* TODO: replace with bus_space_write */
 	hdr->flags = entry->flags | IF_NTB_DESC_DONE_FLAG;
 
-	ntb_ring_sdb(qp->ntb, qp->qp_num);
+	ntb_ring_doorbell(qp->ntb, qp->qp_num);
 
-	/* 
+	/*
 	 * The entry length can only be zero if the packet is intended to be a
 	 * "link down" or similar.  Since no payload is being sent in these
 	 * cases, there is nothing to add to the completion queue.
@@ -825,33 +854,27 @@ ntb_qp_full(void *arg)
 
 /* Transport Rx */
 static void
-ntb_transport_rxc_db(void *data, int db_num)
-{
-	struct ntb_transport_qp *qp = data;
-
-	ntb_transport_rx(qp);
-}
-
-static void
 ntb_rx_pendq_full(void *arg)
 {
 
 	CTR0(KTR_NTB, "RX: ntb_rx_pendq_full callout");
-	ntb_transport_rx(arg);
+	ntb_transport_rxc_db(arg, 0);
 }
 
-static void
-ntb_transport_rx(struct ntb_transport_qp *qp)
+static int
+ntb_transport_rxc_db(void *arg, int dummy __unused)
 {
-	int rc, i;
+	struct ntb_transport_qp *qp = arg;
+	uint64_t i;
+	int rc;
 
-	/* 
+	/*
 	 * Limit the number of packets processed in a single interrupt to
 	 * provide fairness to others
 	 */
 	mtx_lock(&qp->transport->rx_lock);
 	CTR0(KTR_NTB, "RX: transport_rx");
-	for (i = 0; i < NTB_RX_MAX_PKTS; i++) {
+	for (i = 0; i < MIN(qp->rx_max_entry, INT_MAX); i++) {
 		rc = ntb_process_rxc(qp);
 		if (rc != 0) {
 			CTR0(KTR_NTB, "RX: process_rxc failed");
@@ -859,6 +882,8 @@ ntb_transport_rx(struct ntb_transport_qp *qp)
 		}
 	}
 	mtx_unlock(&qp->transport->rx_lock);
+
+	return ((int)i);
 }
 
 static int
@@ -1019,19 +1044,29 @@ ntb_transport_link_work(void *arg)
 	struct ntb_netdev *nt = arg;
 	struct ntb_softc *ntb = nt->ntb;
 	struct ntb_transport_qp *qp;
-	uint32_t val;
-	int rc, i;
+	uint64_t val64;
+	uint32_t val, i, num_mw;
+	int rc;
 
-	/* send the local info */
-	rc = ntb_write_remote_spad(ntb, IF_NTB_VERSION, NTB_TRANSPORT_VERSION);
-	if (rc != 0)
-		goto out;
+	if (ntb_has_feature(ntb, NTB_REGS_THRU_MW))
+		num_mw = NTB_NUM_MW - 1;
+	else
+		num_mw = NTB_NUM_MW;
 
-	rc = ntb_write_remote_spad(ntb, IF_NTB_MW0_SZ, ntb_get_mw_size(ntb, 0));
-	if (rc != 0)
-		goto out;
+	/* send the local info, in the opposite order of the way we read it */
+	for (i = 0; i < num_mw; i++) {
+		rc = ntb_write_remote_spad(ntb, IF_NTB_MW0_SZ_HIGH + (i * 2),
+		    (uint64_t)ntb_get_mw_size(ntb, i) >> 32);
+		if (rc != 0)
+			goto out;
 
-	rc = ntb_write_remote_spad(ntb, IF_NTB_MW1_SZ, ntb_get_mw_size(ntb, 1));
+		rc = ntb_write_remote_spad(ntb, IF_NTB_MW0_SZ_LOW + (i * 2),
+		    (uint32_t)ntb_get_mw_size(ntb, i));
+		if (rc != 0)
+			goto out;
+	}
+
+	rc = ntb_write_remote_spad(ntb, IF_NTB_NUM_MWS, num_mw);
 	if (rc != 0)
 		goto out;
 
@@ -1039,11 +1074,7 @@ ntb_transport_link_work(void *arg)
 	if (rc != 0)
 		goto out;
 
-	rc = ntb_read_remote_spad(ntb, IF_NTB_QP_LINKS, &val);
-	if (rc != 0)
-		goto out;
-
-	rc = ntb_write_remote_spad(ntb, IF_NTB_QP_LINKS, val);
+	rc = ntb_write_remote_spad(ntb, IF_NTB_VERSION, NTB_TRANSPORT_VERSION);
 	if (rc != 0)
 		goto out;
 
@@ -1062,27 +1093,32 @@ ntb_transport_link_work(void *arg)
 	if (val != nt->max_qps)
 		goto out;
 
-	rc = ntb_read_local_spad(ntb, IF_NTB_MW0_SZ, &val);
+	rc = ntb_read_local_spad(ntb, IF_NTB_NUM_MWS, &val);
 	if (rc != 0)
 		goto out;
 
-	if (val == 0)
+	if (val != num_mw)
 		goto out;
 
-	rc = ntb_set_mw(nt, 0, val);
-	if (rc != 0)
-		return;
+	for (i = 0; i < num_mw; i++) {
+		rc = ntb_read_local_spad(ntb, IF_NTB_MW0_SZ_HIGH + (i * 2),
+		    &val);
+		if (rc != 0)
+			goto free_mws;
 
-	rc = ntb_read_local_spad(ntb, IF_NTB_MW1_SZ, &val);
-	if (rc != 0)
-		goto out;
+		val64 = (uint64_t)val << 32;
 
-	if (val == 0)
-		goto out;
+		rc = ntb_read_local_spad(ntb, IF_NTB_MW0_SZ_LOW + (i * 2),
+		    &val);
+		if (rc != 0)
+			goto free_mws;
 
-	rc = ntb_set_mw(nt, 1, val);
-	if (rc != 0)
-		return;
+		val64 |= val;
+
+		rc = ntb_set_mw(nt, i, val64);
+		if (rc != 0)
+			goto free_mws;
+	}
 
 	nt->transport_link = NTB_LINK_UP;
 	if (bootverbose)
@@ -1099,10 +1135,13 @@ ntb_transport_link_work(void *arg)
 
 	return;
 
+free_mws:
+	for (i = 0; i < NTB_NUM_MW; i++)
+		ntb_free_mw(nt, i);
 out:
 	if (ntb_query_link_status(ntb))
 		callout_reset(&nt->link_work,
-				      NTB_LINK_DOWN_TIMEOUT * hz / 1000, ntb_transport_link_work, nt);
+		    NTB_LINK_DOWN_TIMEOUT * hz / 1000, ntb_transport_link_work, nt);
 }
 
 static int
@@ -1110,23 +1149,56 @@ ntb_set_mw(struct ntb_netdev *nt, int num_mw, unsigned int size)
 {
 	struct ntb_transport_mw *mw = &nt->mw[num_mw];
 
+	/* No need to re-setup */
+	if (mw->size == size)
+		return (0);
+
+	if (mw->size != 0)
+		ntb_free_mw(nt, num_mw);
+
 	/* Alloc memory for receiving data.  Must be 4k aligned */
 	mw->size = size;
 
 	mw->virt_addr = contigmalloc(mw->size, M_NTB_IF, M_ZERO, 0,
 	    BUS_SPACE_MAXADDR, mw->size, 0);
 	if (mw->virt_addr == NULL) {
-		printf("ntb: Unable to allocate MW buffer of size %d\n",
-		    (int)mw->size);
+		mw->size = 0;
+		printf("ntb: Unable to allocate MW buffer of size %zu\n",
+		    mw->size);
 		return (ENOMEM);
 	}
 	/* TODO: replace with bus_space_* functions */
 	mw->dma_addr = vtophys(mw->virt_addr);
 
+	/*
+	 * Ensure that the allocation from contigmalloc is aligned as
+	 * requested.  XXX: This may not be needed -- brought in for parity
+	 * with the Linux driver.
+	 */
+	if (mw->dma_addr % size != 0) {
+		device_printf(ntb_get_device(nt->ntb),
+		    "DMA memory 0x%jx not aligned to BAR size 0x%x\n",
+		    (uintmax_t)mw->dma_addr, size);
+		ntb_free_mw(nt, num_mw);
+		return (ENOMEM);
+	}
+
 	/* Notify HW the memory location of the receive buffer */
 	ntb_set_mw_addr(nt->ntb, num_mw, mw->dma_addr);
 
 	return (0);
+}
+
+static void
+ntb_free_mw(struct ntb_netdev *nt, int num_mw)
+{
+	struct ntb_transport_mw *mw = &nt->mw[num_mw];
+
+	if (mw->virt_addr == NULL)
+		return;
+
+	contigfree(mw->virt_addr, mw->size, M_NTB_IF);
+	mw->virt_addr = NULL;
 }
 
 static void
@@ -1138,7 +1210,7 @@ ntb_transport_setup_qp_mw(struct ntb_netdev *nt, unsigned int qp_num)
 	uint8_t mw_num = QP_TO_MW(qp_num);
 	unsigned int i;
 
-	if (nt->max_qps % NTB_NUM_MW && mw_num < nt->max_qps % NTB_NUM_MW)
+	if (nt->max_qps % NTB_NUM_MW && mw_num + 1 < nt->max_qps / NTB_NUM_MW)
 		num_qps_mw = nt->max_qps / NTB_NUM_MW + 1;
 	else
 		num_qps_mw = nt->max_qps / NTB_NUM_MW;
@@ -1148,14 +1220,14 @@ ntb_transport_setup_qp_mw(struct ntb_netdev *nt, unsigned int qp_num)
 			     (qp_num / NTB_NUM_MW * rx_size));
 	rx_size -= sizeof(struct ntb_rx_info);
 
-	qp->rx_buff = qp->remote_rx_info + sizeof(struct ntb_rx_info);
+	qp->rx_buff = qp->remote_rx_info + 1;
+	/* Due to house-keeping, there must be at least 2 buffs */
 	qp->rx_max_frame = min(transport_mtu + sizeof(struct ntb_payload_header),
-	    rx_size);
+	    rx_size / 2);
 	qp->rx_max_entry = rx_size / qp->rx_max_frame;
 	qp->rx_index = 0;
-	qp->tx_index = 0;
 
-	qp->remote_rx_info->entry = qp->rx_max_entry;
+	qp->remote_rx_info->entry = qp->rx_max_entry - 1;
 
 	/* setup the hdr offsets with 0's */
 	for (i = 0; i < qp->rx_max_entry; i++) {
@@ -1167,6 +1239,7 @@ ntb_transport_setup_qp_mw(struct ntb_netdev *nt, unsigned int qp_num)
 
 	qp->rx_pkts = 0;
 	qp->tx_pkts = 0;
+	qp->tx_index = 0;
 }
 
 static void
@@ -1206,17 +1279,17 @@ ntb_transport_link_cleanup(struct ntb_netdev *nt)
 {
 	int i;
 
-	if (nt->transport_link == NTB_LINK_DOWN)
-		callout_drain(&nt->link_work);
-	else
-		nt->transport_link = NTB_LINK_DOWN;
-
 	/* Pass along the info to any clients */
 	for (i = 0; i < nt->max_qps; i++)
 		if (!test_bit(i, &nt->qp_bitmap))
 			ntb_qp_link_down(&nt->qps[i]);
 
-	/* 
+	if (nt->transport_link == NTB_LINK_DOWN)
+		callout_drain(&nt->link_work);
+	else
+		nt->transport_link = NTB_LINK_DOWN;
+
+	/*
 	 * The scratchpad registers keep the values if the remote side
 	 * goes down, blast them now to give them a sane value the next
 	 * time they are accessed
@@ -1260,7 +1333,7 @@ ntb_qp_link_cleanup(struct ntb_transport_qp *qp)
  *
  * Notify NTB transport layer of client's desire to no longer receive data on
  * transport queue specified.  It is the client's responsibility to ensure all
- * entries on queue are purged or otherwise handled appropraitely.
+ * entries on queue are purged or otherwise handled appropriately.
  */
 static void
 ntb_transport_link_down(struct ntb_transport_qp *qp)

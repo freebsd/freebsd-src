@@ -37,6 +37,7 @@
 #include "tree_conflicts.h"
 #include "wc-queries.h"  /* for STMT_*  */
 #include "workqueue.h"
+#include "token-map.h"
 
 #include "svn_private_config.h"
 #include "private/svn_wc_private.h"
@@ -193,7 +194,7 @@ read_many_wcprops(apr_hash_t **all_wcprops,
        hi;
        hi = apr_hash_next(hi))
     {
-      const char *name = svn__apr_hash_index_key(hi);
+      const char *name = apr_hash_this_key(hi);
 
       svn_pool_clear(iterpool);
 
@@ -293,15 +294,15 @@ get_versioned_subdirs(apr_array_header_t **children,
        hi;
        hi = apr_hash_next(hi))
     {
-      const char *name = svn__apr_hash_index_key(hi);
-      const svn_wc_entry_t *entry = svn__apr_hash_index_val(hi);
+      const char *name = apr_hash_this_key(hi);
+      const svn_wc_entry_t *entry = apr_hash_this_val(hi);
       const char *child_abspath;
       svn_boolean_t hidden;
 
       /* skip "this dir"  */
       if (*name == '\0')
         {
-          this_dir = svn__apr_hash_index_val(hi);
+          this_dir = apr_hash_this_val(hi);
           continue;
         }
       else if (entry->kind != svn_node_dir)
@@ -400,7 +401,7 @@ build_lockfile_path(const char *local_dir_abspath,
                               local_dir_abspath,
                               svn_wc_get_adm_dir(result_pool),
                               ADM_LOCK,
-                              NULL);
+                              SVN_VA_NULL);
 }
 
 
@@ -612,13 +613,13 @@ ensure_repos_info(svn_wc_entry_t *entry,
       for (hi = apr_hash_first(scratch_pool, repos_cache);
            hi; hi = apr_hash_next(hi))
         {
-          if (svn_uri__is_ancestor(svn__apr_hash_index_key(hi), entry->url))
+          if (svn_uri__is_ancestor(apr_hash_this_key(hi), entry->url))
             {
               if (!entry->repos)
-                entry->repos = svn__apr_hash_index_key(hi);
+                entry->repos = apr_hash_this_key(hi);
 
               if (!entry->uuid)
-                entry->uuid = svn__apr_hash_index_val(hi);
+                entry->uuid = apr_hash_this_val(hi);
 
               return SVN_NO_ERROR;
             }
@@ -727,8 +728,7 @@ migrate_single_tree_conflict_data(svn_sqlite__db_t *sdb,
        hi;
        hi = apr_hash_next(hi))
     {
-      const svn_wc_conflict_description2_t *conflict =
-          svn__apr_hash_index_val(hi);
+      const svn_wc_conflict_description2_t *conflict = apr_hash_this_val(hi);
       const char *conflict_relpath;
       const char *conflict_data;
       svn_sqlite__stmt_t *stmt;
@@ -755,13 +755,13 @@ migrate_single_tree_conflict_data(svn_sqlite__db_t *sdb,
         {
           /* There is an existing ACTUAL row, so just update it. */
           SVN_ERR(svn_sqlite__get_statement(&stmt, sdb,
-                                            STMT_UPDATE_ACTUAL_CONFLICT_DATA));
+                                            STMT_UPDATE_ACTUAL_CONFLICT));
         }
       else
         {
           /* We need to insert an ACTUAL row with the tree conflict data. */
           SVN_ERR(svn_sqlite__get_statement(&stmt, sdb,
-                                            STMT_INSERT_ACTUAL_CONFLICT_DATA));
+                                            STMT_INSERT_ACTUAL_CONFLICT));
         }
 
       SVN_ERR(svn_sqlite__bindf(stmt, "iss", wc_id, conflict_relpath,
@@ -825,6 +825,190 @@ migrate_tree_conflict_data(svn_sqlite__db_t *sdb, apr_pool_t *scratch_pool)
   return SVN_NO_ERROR;
 }
 
+/* ### need much more docco
+
+   ### this function should be called within a sqlite transaction. it makes
+   ### assumptions around this fact.
+
+   Apply the various sets of properties to the database nodes based on
+   their existence/presence, the current state of the node, and the original
+   format of the working copy which provided these property sets.
+*/
+static svn_error_t *
+upgrade_apply_props(svn_sqlite__db_t *sdb,
+                    const char *dir_abspath,
+                    const char *local_relpath,
+                    apr_hash_t *base_props,
+                    apr_hash_t *revert_props,
+                    apr_hash_t *working_props,
+                    int original_format,
+                    apr_int64_t wc_id,
+                    apr_pool_t *scratch_pool)
+{
+  svn_sqlite__stmt_t *stmt;
+  svn_boolean_t have_row;
+  int top_op_depth = -1;
+  int below_op_depth = -1;
+  svn_wc__db_status_t top_presence;
+  svn_wc__db_status_t below_presence;
+  int affected_rows;
+
+  /* ### working_props: use set_props_txn.
+     ### if working_props == NULL, then skip. what if they equal the
+     ### pristine props? we should probably do the compare here.
+     ###
+     ### base props go into WORKING_NODE if avail, otherwise BASE.
+     ###
+     ### revert only goes into BASE. (and WORKING better be there!)
+
+     Prior to 1.4.0 (ORIGINAL_FORMAT < 8), REVERT_PROPS did not exist. If a
+     file was deleted, then a copy (potentially with props) was disallowed
+     and could not replace the deletion. An addition *could* be performed,
+     but that would never bring its own props.
+
+     1.4.0 through 1.4.5 created the concept of REVERT_PROPS, but had a
+     bug in svn_wc_add_repos_file2() whereby a copy-with-props did NOT
+     construct a REVERT_PROPS if the target had no props. Thus, reverting
+     the delete/copy would see no REVERT_PROPS to restore, leaving the
+     props from the copy source intact, and appearing as if they are (now)
+     the base props for the previously-deleted file. (wc corruption)
+
+     1.4.6 ensured that an empty REVERT_PROPS would be established at all
+     times. See issue 2530, and r861670 as starting points.
+
+     We will use ORIGINAL_FORMAT and SVN_WC__NO_REVERT_FILES to determine
+     the handling of our inputs, relative to the state of this node.
+  */
+
+  SVN_ERR(svn_sqlite__get_statement(&stmt, sdb, STMT_SELECT_NODE_INFO));
+  SVN_ERR(svn_sqlite__bindf(stmt, "is", wc_id, local_relpath));
+  SVN_ERR(svn_sqlite__step(&have_row, stmt));
+  if (have_row)
+    {
+      top_op_depth = svn_sqlite__column_int(stmt, 0);
+      top_presence = svn_sqlite__column_token(stmt, 3, presence_map);
+      SVN_ERR(svn_sqlite__step(&have_row, stmt));
+      if (have_row)
+        {
+          below_presence = svn_sqlite__column_token(stmt, 3, presence_map);
+
+          /* There might be an intermediate layer on mixed-revision copies,
+             or when BASE is shadowed */
+          if (below_presence == svn_wc__db_status_not_present
+              || below_presence == svn_wc__db_status_deleted)
+            SVN_ERR(svn_sqlite__step(&have_row, stmt));
+
+          if (have_row)
+            {
+              below_presence = svn_sqlite__column_token(stmt, 3, presence_map);
+              below_op_depth = svn_sqlite__column_int(stmt, 0);
+            }
+        }
+    }
+  SVN_ERR(svn_sqlite__reset(stmt));
+
+  /* Detect the buggy scenario described above. We cannot upgrade this
+     working copy if we have no idea where BASE_PROPS should go.  */
+  if (original_format > SVN_WC__NO_REVERT_FILES
+      && revert_props == NULL
+      && top_op_depth != -1
+      && top_presence == svn_wc__db_status_normal
+      && below_op_depth != -1
+      && below_presence != svn_wc__db_status_not_present)
+    {
+      /* There should be REVERT_PROPS, so it appears that we just ran into
+         the described bug. Sigh.  */
+      return svn_error_createf(SVN_ERR_WC_CORRUPT, NULL,
+                               _("The properties of '%s' are in an "
+                                 "indeterminate state and cannot be "
+                                 "upgraded. See issue #2530."),
+                               svn_dirent_local_style(
+                                 svn_dirent_join(dir_abspath, local_relpath,
+                                                 scratch_pool), scratch_pool));
+    }
+
+  /* Need at least one row, or two rows if there are revert props */
+  if (top_op_depth == -1
+      || (below_op_depth == -1 && revert_props))
+    return svn_error_createf(SVN_ERR_WC_CORRUPT, NULL,
+                             _("Insufficient NODES rows for '%s'"),
+                             svn_dirent_local_style(
+                               svn_dirent_join(dir_abspath, local_relpath,
+                                               scratch_pool), scratch_pool));
+
+  /* one row, base props only: upper row gets base props
+     two rows, base props only: lower row gets base props
+     two rows, revert props only: lower row gets revert props
+     two rows, base and revert props: upper row gets base, lower gets revert */
+
+
+  if (revert_props || below_op_depth == -1)
+    {
+      SVN_ERR(svn_sqlite__get_statement(&stmt, sdb,
+                                        STMT_UPDATE_NODE_PROPS));
+      SVN_ERR(svn_sqlite__bindf(stmt, "isd",
+                                wc_id, local_relpath, top_op_depth));
+      SVN_ERR(svn_sqlite__bind_properties(stmt, 4, base_props, scratch_pool));
+      SVN_ERR(svn_sqlite__update(&affected_rows, stmt));
+
+      SVN_ERR_ASSERT(affected_rows == 1);
+    }
+
+  if (below_op_depth != -1)
+    {
+      apr_hash_t *props = revert_props ? revert_props : base_props;
+
+      SVN_ERR(svn_sqlite__get_statement(&stmt, sdb,
+                                        STMT_UPDATE_NODE_PROPS));
+      SVN_ERR(svn_sqlite__bindf(stmt, "isd",
+                                wc_id, local_relpath, below_op_depth));
+      SVN_ERR(svn_sqlite__bind_properties(stmt, 4, props, scratch_pool));
+      SVN_ERR(svn_sqlite__update(&affected_rows, stmt));
+
+      SVN_ERR_ASSERT(affected_rows == 1);
+    }
+
+  /* If there are WORKING_PROPS, then they always go into ACTUAL_NODE.  */
+  if (working_props != NULL
+      && base_props != NULL)
+    {
+      apr_array_header_t *diffs;
+
+      SVN_ERR(svn_prop_diffs(&diffs, working_props, base_props, scratch_pool));
+
+      if (diffs->nelts == 0)
+        working_props = NULL; /* No differences */
+    }
+
+  if (working_props != NULL)
+    {
+      SVN_ERR(svn_sqlite__get_statement(&stmt, sdb,
+                                  STMT_UPDATE_ACTUAL_PROPS));
+      SVN_ERR(svn_sqlite__bindf(stmt, "is", wc_id, local_relpath));
+      SVN_ERR(svn_sqlite__bind_properties(stmt, 3, working_props,
+                                          scratch_pool));
+      SVN_ERR(svn_sqlite__update(&affected_rows, stmt));
+
+      if (affected_rows == 0)
+        {
+          /* We have to insert a row in ACTUAL */
+
+          SVN_ERR(svn_sqlite__get_statement(&stmt, sdb,
+                                            STMT_INSERT_ACTUAL_PROPS));
+          SVN_ERR(svn_sqlite__bindf(stmt, "is", wc_id, local_relpath));
+          if (*local_relpath != '\0')
+            SVN_ERR(svn_sqlite__bind_text(stmt, 3,
+                                          svn_relpath_dirname(local_relpath,
+                                                              scratch_pool)));
+          SVN_ERR(svn_sqlite__bind_properties(stmt, 4, working_props,
+                                              scratch_pool));
+          return svn_error_trace(svn_sqlite__step_done(stmt));
+        }
+    }
+
+  return SVN_NO_ERROR;
+}
+
 
 struct bump_baton {
   const char *wcroot_abspath;
@@ -875,21 +1059,21 @@ migrate_node_props(const char *dir_abspath,
                                      apr_pstrcat(scratch_pool,
                                                  name,
                                                  SVN_WC__BASE_EXT,
-                                                 (char *)NULL),
+                                                 SVN_VA_NULL),
                                      scratch_pool);
 
       revert_abspath = svn_dirent_join(basedir_abspath,
                                        apr_pstrcat(scratch_pool,
                                                    name,
                                                    SVN_WC__REVERT_EXT,
-                                                   (char *)NULL),
+                                                   SVN_VA_NULL),
                                        scratch_pool);
 
       working_abspath = svn_dirent_join(propsdir_abspath,
                                         apr_pstrcat(scratch_pool,
                                                     name,
                                                     SVN_WC__WORK_EXT,
-                                                    (char *)NULL),
+                                                    SVN_VA_NULL),
                                         scratch_pool);
     }
 
@@ -900,7 +1084,7 @@ migrate_node_props(const char *dir_abspath,
   SVN_ERR(read_propfile(&working_props, working_abspath,
                         scratch_pool, scratch_pool));
 
-  return svn_error_trace(svn_wc__db_upgrade_apply_props(
+  return svn_error_trace(upgrade_apply_props(
                             sdb, new_wcroot_abspath,
                             svn_relpath_join(dir_relpath, name, scratch_pool),
                             base_props, revert_props, working_props,
@@ -1017,7 +1201,7 @@ migrate_text_bases(apr_hash_t **text_bases_info,
   for (hi = apr_hash_first(scratch_pool, dirents); hi;
        hi = apr_hash_next(hi))
     {
-      const char *text_base_basename = svn__apr_hash_index_key(hi);
+      const char *text_base_basename = apr_hash_this_key(hi);
       svn_checksum_t *md5_checksum;
       svn_checksum_t *sha1_checksum;
 
@@ -1248,7 +1432,7 @@ rename_pristine_file(void *baton,
           == PRISTINE_BASENAME_OLD_LEN))
     {
       const char *new_abspath
-        = apr_pstrcat(pool, abspath, PRISTINE_STORAGE_EXT, (char *)NULL);
+        = apr_pstrcat(pool, abspath, PRISTINE_STORAGE_EXT, SVN_VA_NULL);
 
       SVN_ERR(svn_io_file_rename(abspath, new_abspath, pool));
     }
@@ -1349,7 +1533,8 @@ bump_to_29(void *baton, svn_sqlite__db_t *sdb, apr_pool_t *scratch_pool)
   /* Rename all pristine files, adding a ".svn-base" suffix. */
   pristine_dir_abspath = svn_dirent_join_many(scratch_pool, wcroot_abspath,
                                               svn_wc_get_adm_dir(scratch_pool),
-                                              PRISTINE_STORAGE_RELPATH, NULL);
+                                              PRISTINE_STORAGE_RELPATH,
+                                              SVN_VA_NULL);
   SVN_ERR(svn_io_dir_walk2(pristine_dir_abspath, APR_FINFO_MIN,
                            rename_pristine_file, NULL, scratch_pool));
 
@@ -1671,6 +1856,43 @@ bump_to_31(void *baton,
   return SVN_NO_ERROR;
 }
 
+static svn_error_t *
+upgrade_apply_dav_cache(svn_sqlite__db_t *sdb,
+                        const char *dir_relpath,
+                        apr_int64_t wc_id,
+                        apr_hash_t *cache_values,
+                        apr_pool_t *scratch_pool)
+{
+  apr_pool_t *iterpool = svn_pool_create(scratch_pool);
+  apr_hash_index_t *hi;
+  svn_sqlite__stmt_t *stmt;
+
+  SVN_ERR(svn_sqlite__get_statement(&stmt, sdb,
+                                    STMT_UPDATE_BASE_NODE_DAV_CACHE));
+
+  /* Iterate over all the wcprops, writing each one to the wc_db. */
+  for (hi = apr_hash_first(scratch_pool, cache_values);
+       hi;
+       hi = apr_hash_next(hi))
+    {
+      const char *name = apr_hash_this_key(hi);
+      apr_hash_t *props = apr_hash_this_val(hi);
+      const char *local_relpath;
+
+      svn_pool_clear(iterpool);
+
+      local_relpath = svn_relpath_join(dir_relpath, name, iterpool);
+
+      SVN_ERR(svn_sqlite__bindf(stmt, "is", wc_id, local_relpath));
+      SVN_ERR(svn_sqlite__bind_properties(stmt, 3, props, iterpool));
+      SVN_ERR(svn_sqlite__step_done(stmt));
+    }
+
+  svn_pool_destroy(iterpool);
+
+  return SVN_NO_ERROR;
+}
+
 
 struct upgrade_data_t {
   svn_sqlite__db_t *sdb;
@@ -1808,8 +2030,8 @@ upgrade_to_wcng(void **dir_baton,
         SVN_ERR(read_wcprops(&all_wcprops, dir_abspath,
                              scratch_pool, scratch_pool));
 
-      SVN_ERR(svn_wc__db_upgrade_apply_dav_cache(data->sdb, dir_relpath,
-                                                 all_wcprops, scratch_pool));
+      SVN_ERR(upgrade_apply_dav_cache(data->sdb, dir_relpath, wc_id,
+                                      all_wcprops, scratch_pool));
     }
 
   /* Upgrade all the properties (including "this dir").
@@ -2144,40 +2366,6 @@ is_old_wcroot(const char *local_abspath,
     svn_dirent_local_style(parent_abspath, scratch_pool));
 }
 
-/* Data for upgrade_working_copy_txn(). */
-typedef struct upgrade_working_copy_baton_t
-{
-  svn_wc__db_t *db;
-  const char *dir_abspath;
-  svn_wc_upgrade_get_repos_info_t repos_info_func;
-  void *repos_info_baton;
-  apr_hash_t *repos_cache;
-  const struct upgrade_data_t *data;
-  svn_cancel_func_t cancel_func;
-  void *cancel_baton;
-  svn_wc_notify_func2_t notify_func;
-  void *notify_baton;
-  apr_pool_t *result_pool;
-} upgrade_working_copy_baton_t;
-
-
-/* Helper for svn_wc_upgrade. Implements svn_sqlite__transaction_callback_t */
-static svn_error_t *
-upgrade_working_copy_txn(void *baton,
-                         svn_sqlite__db_t *sdb,
-                         apr_pool_t *scratch_pool)
-{
-  upgrade_working_copy_baton_t *b = baton;
-
-  /* Upgrade the pre-wcng into a wcng in a temporary location. */
-  return(upgrade_working_copy(NULL, b->db, b->dir_abspath,
-                              b->repos_info_func, b->repos_info_baton,
-                              b->repos_cache, b->data,
-                              b->cancel_func, b->cancel_baton,
-                              b->notify_func, b->notify_baton,
-                              b->result_pool, scratch_pool));
-}
-
 svn_error_t *
 svn_wc_upgrade(svn_wc_context_t *wc_ctx,
                const char *local_abspath,
@@ -2197,7 +2385,6 @@ svn_wc_upgrade(svn_wc_context_t *wc_ctx,
   svn_wc_entry_t *this_dir;
   apr_hash_t *entries;
   const char *root_adm_abspath;
-  upgrade_working_copy_baton_t cb_baton;
   svn_error_t *err;
   int result_format;
   svn_boolean_t bumped_format;
@@ -2295,22 +2482,14 @@ svn_wc_upgrade(svn_wc_context_t *wc_ctx,
   SVN_ERR(svn_wc__db_wclock_obtain(db, data.root_abspath, 0, FALSE,
                                    scratch_pool));
 
-  cb_baton.db = db;
-  cb_baton.dir_abspath = local_abspath;
-  cb_baton.repos_info_func = repos_info_func;
-  cb_baton.repos_info_baton = repos_info_baton;
-  cb_baton.repos_cache = repos_cache;
-  cb_baton.data = &data;
-  cb_baton.cancel_func = cancel_func;
-  cb_baton.cancel_baton = cancel_baton;
-  cb_baton.notify_func = notify_func;
-  cb_baton.notify_baton = notify_baton;
-  cb_baton.result_pool = scratch_pool;
-
-  SVN_ERR(svn_sqlite__with_lock(data.sdb,
-                                upgrade_working_copy_txn,
-                                &cb_baton,
-                                scratch_pool));
+  SVN_SQLITE__WITH_LOCK(
+    upgrade_working_copy(NULL, db, local_abspath,
+                         repos_info_func, repos_info_baton,
+                         repos_cache, &data,
+                         cancel_func, cancel_baton,
+                         notify_func, notify_baton,
+                         scratch_pool, scratch_pool),
+    data.sdb);
 
   /* A workqueue item to move the pristine dir into place */
   pristine_from = svn_wc__adm_child(data.root_abspath, PRISTINE_STORAGE_RELPATH,

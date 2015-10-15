@@ -808,13 +808,8 @@ SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, ep_timeout_secs, CTLFLAG_RWTUN, &ep_timeout_s
 		"CM Endpoint operation timeout in seconds (default = 60)");
 
 static int mpa_rev = 1;
-#ifdef IW_CM_MPAV2
 SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, mpa_rev, CTLFLAG_RWTUN, &mpa_rev, 0,
-		"MPA Revision, 0 supports amso1100, 1 is RFC0544 spec compliant, 2 is IETF MPA Peer Connect Draft compliant (default = 1)");
-#else
-SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, mpa_rev, CTLFLAG_RWTUN, &mpa_rev, 0,
-		"MPA Revision, 0 supports amso1100, 1 is RFC0544 spec compliant (default = 1)");
-#endif
+		"MPA Revision, 0 supports amso1100, 1 is RFC5044 spec compliant, 2 is IETF MPA Peer Connect Draft compliant (default = 1)");
 
 static int markers_enabled;
 SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, markers_enabled, CTLFLAG_RWTUN, &markers_enabled, 0,
@@ -1335,10 +1330,8 @@ static int connect_request_upcall(struct c4iw_ep *ep)
 
 	if (!ep->tried_with_mpa_v1) {
 		/* this means MPA_v2 is used */
-#ifdef IW_CM_MPAV2
 		event.ord = ep->ord;
 		event.ird = ep->ird;
-#endif
 		event.private_data_len = ep->plen -
 			sizeof(struct mpa_v2_conn_params);
 		event.private_data = ep->mpa_pkt + sizeof(struct mpa_message) +
@@ -1346,10 +1339,8 @@ static int connect_request_upcall(struct c4iw_ep *ep)
 	} else {
 
 		/* this means MPA_v1 is used. Send max supported */
-#ifdef IW_CM_MPAV2
 		event.ord = c4iw_max_read_depth;
 		event.ird = c4iw_max_read_depth;
-#endif
 		event.private_data_len = ep->plen;
 		event.private_data = ep->mpa_pkt + sizeof(struct mpa_message);
 	}
@@ -1372,10 +1363,9 @@ static void established_upcall(struct c4iw_ep *ep)
 	CTR2(KTR_IW_CXGBE, "%s:euB %p", __func__, ep);
 	memset(&event, 0, sizeof(event));
 	event.event = IW_CM_EVENT_ESTABLISHED;
-#ifdef IW_CM_MPAV2
 	event.ird = ep->ird;
 	event.ord = ep->ord;
-#endif
+
 	if (ep->com.cm_id) {
 
 		CTR2(KTR_IW_CXGBE, "%s:eu1 %p", __func__, ep);
