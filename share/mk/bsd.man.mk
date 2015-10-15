@@ -187,7 +187,7 @@ _maninstall: ${MAN}
 .endfor
 .else
 .for _page _sect in ${.ALLSRC:C/\.([^.]*)$/.\1 \1/}
-	@d=${DESTDIR}${MANDIR}${_sect}${MANSUBDIR}; \
+	@d=${DESTDIR}${MANDIR}${_sect}${MANSUBDIR}/; \
 	${ECHO} ${MINSTALL} ${_page} $${d}; \
 	${MINSTALL} $${page} $${d};
 .endfor
@@ -201,7 +201,7 @@ _maninstall: ${MAN}
 .else
 .for __page in ${MAN}
 	${MINSTALL} ${__page:T:S/$/${MCOMPRESS_EXT}/g} \
-		${DESTDIR}${MANDIR}${__page:E}${MANSUBDIR}
+		${DESTDIR}${MANDIR}${__page:E}${MANSUBDIR}/
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 	${MINSTALL} ${__page:T:S/$/${CATEXT}${MCOMPRESS_EXT}/g} \
 		${DESTDIR}${CATDIR}${__page:E}${MANSUBDIR}/${__page:T:S/$/${MCOMPRESS_EXT}/}
