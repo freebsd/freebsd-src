@@ -8,6 +8,7 @@ MAN=	mpsutil.8
 WARNS?= 3
 
 LIBADD=	cam util
+LINKS=	${BINDIR}/mpsutil ${BINDIR}/mprutil
 
 CFLAGS+= -I${.CURDIR}/../../sys -I. -DUSE_MPT_IOCTLS -g
 

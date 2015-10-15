@@ -270,7 +270,8 @@ show_adapters(int ac, char **av)
 			free(man0);
 			return (EINVAL);
 		}
-		printf("/dev/mps%d\t%16s %16s        %08x\n", unit,
+		printf("/dev/mp%s%d\t%16s %16s        %08x\n",
+		    is_mps ? "s": "r", unit,
 		    man0->ChipName, man0->BoardName, facts->FWVersion.Word);
 		free(man0);
 		free(facts);

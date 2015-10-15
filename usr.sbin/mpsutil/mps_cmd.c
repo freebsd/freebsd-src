@@ -621,7 +621,7 @@ mps_open(int unit)
 {
 	char path[MAXPATHLEN];
 
-	snprintf(path, sizeof(path), "/dev/mps%d", unit);
+	snprintf(path, sizeof(path), "/dev/mp%s%d", is_mps ? "s": "r", unit);
 	return (open(path, O_RDWR));
 }
 
