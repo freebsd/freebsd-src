@@ -133,11 +133,11 @@ CLEANFILES+=	${DOC}.ascii ${DOC}.ascii${DCOMPRESS_EXT} \
 		${DOC}.html ${DOC}-*.html
 
 realinstall:
-.for _dev in ${PRINTERDEVICE:Mhtml}
+.if ${PRINTERDEVICE:Mhtml}
 	cd ${SRCDIR}; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}
-.endfor
+.endif
 .for _dev in ${PRINTERDEVICE:Nhtml}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${DFILE.${_dev}} ${DESTDIR}${BINDIR}/${VOLUME}
