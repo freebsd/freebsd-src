@@ -80,11 +80,11 @@ __FBSDID("$FreeBSD$");
 
 static unsigned int transport_mtu = 0x4000 + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
-/*
- * This is an oversimplification to work around Xeon Errata.  The second client
- * may be usable for unidirectional traffic.
- */
-static unsigned int max_num_clients = 1;
+static unsigned int max_num_clients;
+SYSCTL_UINT(_hw_ntb, OID_AUTO, max_num_clients, CTLFLAG_RDTUN,
+    &max_num_clients, 0, "Maximum number of NTB transport clients.  "
+    "0 (default) - use all available NTB memory windows; "
+    "positive integer N - Limit to N memory windows.");
 
 STAILQ_HEAD(ntb_queue_list, ntb_queue_entry);
 
@@ -174,7 +174,7 @@ struct ntb_transport_mw {
 struct ntb_netdev {
 	struct ntb_softc	*ntb;
 	struct ifnet		*ifp;
-	struct ntb_transport_mw	mw[NTB_NUM_MW];
+	struct ntb_transport_mw	mw[NTB_MAX_NUM_MW];
 	struct ntb_transport_qp	*qps;
 	uint64_t		max_qps;
 	uint64_t		qp_bitmap;
@@ -220,7 +220,7 @@ enum {
 	IF_NTB_MAX_SPAD,
 };
 
-#define QP_TO_MW(qp)		((qp) % NTB_NUM_MW)
+#define QP_TO_MW(ntb, qp)	((qp) % ntb_get_max_mw(ntb))
 #define NTB_QP_DEF_NUM_ENTRIES	100
 #define NTB_LINK_DOWN_TIMEOUT	10
 
@@ -492,7 +492,11 @@ ntb_transport_init(struct ntb_softc *ntb)
 	struct ntb_netdev *nt = &net_softc;
 	int rc, i;
 
-	nt->max_qps = max_num_clients;
+	if (max_num_clients == 0)
+		nt->max_qps = MIN(ntb_get_max_cbs(ntb), ntb_get_max_mw(ntb));
+	else
+		nt->max_qps = MIN(ntb_get_max_cbs(ntb), max_num_clients);
+
 	ntb_register_transport(ntb, nt);
 	mtx_init(&nt->tx_lock, "ntb transport tx", NULL, MTX_DEF);
 	mtx_init(&nt->rx_lock, "ntb transport rx", NULL, MTX_DEF);
@@ -544,7 +548,7 @@ ntb_transport_free(void *transport)
 
 	ntb_unregister_event_callback(ntb);
 
-	for (i = 0; i < NTB_NUM_MW; i++)
+	for (i = 0; i < NTB_MAX_NUM_MW; i++)
 		ntb_free_mw(nt, i);
 
 	free(nt->qps, M_NTB_IF);
@@ -556,7 +560,10 @@ ntb_transport_init_queue(struct ntb_netdev *nt, unsigned int qp_num)
 {
 	struct ntb_transport_qp *qp;
 	unsigned int num_qps_mw, tx_size;
-	uint8_t mw_num = QP_TO_MW(qp_num);
+	uint8_t mw_num, mw_max;
+
+	mw_max = ntb_get_max_mw(nt->ntb);
+	mw_num = QP_TO_MW(nt->ntb, qp_num);
 
 	qp = &nt->qps[qp_num];
 	qp->qp_num = qp_num;
@@ -566,15 +573,15 @@ ntb_transport_init_queue(struct ntb_netdev *nt, unsigned int qp_num)
 	qp->client_ready = NTB_LINK_DOWN;
 	qp->event_handler = NULL;
 
-	if (nt->max_qps % NTB_NUM_MW && mw_num + 1 < nt->max_qps / NTB_NUM_MW)
-		num_qps_mw = nt->max_qps / NTB_NUM_MW + 1;
+	if (nt->max_qps % mw_max && mw_num + 1 < nt->max_qps / mw_max)
+		num_qps_mw = nt->max_qps / mw_max + 1;
 	else
-		num_qps_mw = nt->max_qps / NTB_NUM_MW;
+		num_qps_mw = nt->max_qps / mw_max;
 
 	tx_size = (unsigned int) ntb_get_mw_size(qp->ntb, mw_num) / num_qps_mw;
 	qp->rx_info = (struct ntb_rx_info *)
 	    ((char *)ntb_get_mw_vbase(qp->ntb, mw_num) +
-	    (qp_num / NTB_NUM_MW * tx_size));
+	    (qp_num / mw_max * tx_size));
 	tx_size -= sizeof(struct ntb_rx_info);
 
 	qp->tx_mw = qp->rx_info + 1;
@@ -1048,10 +1055,7 @@ ntb_transport_link_work(void *arg)
 	uint32_t val, i, num_mw;
 	int rc;
 
-	if (ntb_has_feature(ntb, NTB_REGS_THRU_MW))
-		num_mw = NTB_NUM_MW - 1;
-	else
-		num_mw = NTB_NUM_MW;
+	num_mw = ntb_get_max_mw(ntb);
 
 	/* send the local info, in the opposite order of the way we read it */
 	for (i = 0; i < num_mw; i++) {
@@ -1136,7 +1140,7 @@ ntb_transport_link_work(void *arg)
 	return;
 
 free_mws:
-	for (i = 0; i < NTB_NUM_MW; i++)
+	for (i = 0; i < NTB_MAX_NUM_MW; i++)
 		ntb_free_mw(nt, i);
 out:
 	if (ntb_query_link_status(ntb))
@@ -1207,17 +1211,20 @@ ntb_transport_setup_qp_mw(struct ntb_netdev *nt, unsigned int qp_num)
 	struct ntb_transport_qp *qp = &nt->qps[qp_num];
 	void *offset;
 	unsigned int rx_size, num_qps_mw;
-	uint8_t mw_num = QP_TO_MW(qp_num);
+	uint8_t mw_num, mw_max;
 	unsigned int i;
 
-	if (nt->max_qps % NTB_NUM_MW && mw_num + 1 < nt->max_qps / NTB_NUM_MW)
-		num_qps_mw = nt->max_qps / NTB_NUM_MW + 1;
+	mw_max = ntb_get_max_mw(nt->ntb);
+	mw_num = QP_TO_MW(nt->ntb, qp_num);
+
+	if (nt->max_qps % mw_max && mw_num + 1 < nt->max_qps / mw_max)
+		num_qps_mw = nt->max_qps / mw_max + 1;
 	else
-		num_qps_mw = nt->max_qps / NTB_NUM_MW;
+		num_qps_mw = nt->max_qps / mw_max;
 
 	rx_size = (unsigned int) nt->mw[mw_num].size / num_qps_mw;
 	qp->remote_rx_info = (void *)((uint8_t *)nt->mw[mw_num].virt_addr +
-			     (qp_num / NTB_NUM_MW * rx_size));
+			     (qp_num / mw_max * rx_size));
 	rx_size -= sizeof(struct ntb_rx_info);
 
 	qp->rx_buff = qp->remote_rx_info + 1;
