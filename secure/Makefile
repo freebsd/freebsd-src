@@ -17,7 +17,7 @@ SPROGS+=usr.sbin/sendmail
 .endif
 
 # This target is used to rebuild these programs with crypto.
-secure:
+secure: .MAKE .PHONY
 .for entry in ${SPROGS}
 	cd ${.CURDIR}/../${entry}; \
 	${MAKE} cleandir; \
@@ -28,7 +28,7 @@ secure:
 .endfor
 
 # This target is used to rebuild these programs without crypto.
-insecure:
+insecure: .MAKE .PHONY
 .for entry in ${SPROGS}
 	cd ${.CURDIR}/../${entry}; \
 	${MAKE} MK_CRYPT=no cleandir; \
