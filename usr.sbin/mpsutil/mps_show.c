@@ -89,7 +89,7 @@ show_adapter(int ac, char **av)
 		warnx("Invalid controller info");
 		return (EINVAL);
 	}
-	printf("mps%d Adapter:\n", mps_unit);
+	printf("mp%s%d Adapter:\n", is_mps ? "s": "r", mps_unit);
 	printf("       Board Name: %.16s\n", man0->BoardName);
 	printf("   Board Assembly: %.16s\n", man0->BoardAssembly);
 	printf("        Chip Name: %.16s\n", man0->ChipName);
