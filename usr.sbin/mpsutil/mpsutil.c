@@ -44,6 +44,7 @@ SET_DECLARE(MPS_DATASET(top), struct mpsutil_command);
 SET_DECLARE(MPS_DATASET(usage), struct mpsutil_usage);
 
 int mps_unit;
+int is_mps;
 
 static void
 usage(void)
@@ -51,7 +52,7 @@ usage(void)
 	struct mpsutil_usage **cmd;
 	const char *args, *desc;
 
-	fprintf(stderr, "usage: mpsutil [-u unit] <command> ...\n\n");
+	fprintf(stderr, "usage: %s [-u unit] <command> ...\n\n", getprogname());
 	fprintf(stderr, "Commands include:\n");
 	SET_FOREACH(cmd, MPS_DATASET(usage)) {
 		if (*cmd == NULL)
@@ -72,7 +73,7 @@ static int
 version(int ac, char **av)
 {
 
-	printf("mpsutil: version %s", MPSUTIL_VERSION);
+	printf("%s: version %s", MPSUTIL_VERSION, getprogname());
 #ifdef DEBUG
 	printf(" (DEBUG)");
 #endif
@@ -87,6 +88,8 @@ main(int ac, char **av)
 {
 	struct mpsutil_command **cmd;
 	int ch;
+
+	is_mps = !strcmp(getprogname(), "mpsutil");
 
 	while ((ch = getopt(ac, av, "u:h?")) != -1) {
 		switch (ch) {

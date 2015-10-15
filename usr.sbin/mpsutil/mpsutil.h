@@ -91,6 +91,7 @@ struct mpsutil_usage {
 	_MPS_COMMAND(set, name, mpsutil_ ## name ## _table_handler)
 
 extern int mps_unit;
+extern int is_mps;
 #define MPS_MAX_UNIT 10
 
 void	hexdump(const void *ptr, int length, const char *hdr, int flags);
