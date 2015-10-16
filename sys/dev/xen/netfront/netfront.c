@@ -378,7 +378,7 @@ static int
 netfront_probe(device_t dev)
 {
 
-	if (xen_hvm_domain() && xen_disable_pv_nics != 0)
+	if (xen_pv_nics_disabled())
 		return (ENXIO);
 
 	if (!strcmp(xenbus_get_type(dev), "vif")) {
