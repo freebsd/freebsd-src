@@ -74,8 +74,6 @@ xen_get_console_evtchn(void)
 
 extern shared_info_t *HYPERVISOR_shared_info;
 
-extern int xen_disable_pv_disks;
-
 extern bool xen_suspend_cancelled;
 
 enum xen_domain_type {
