@@ -250,7 +250,7 @@ ${TGTS}: .MAKE
 tinderbox toolchains kernel-toolchains: .MAKE
 .endif
 
-${TGTS}:
+${TGTS}: .PHONY
 	${_+_}@cd ${.CURDIR}; ${_MAKE} ${.TARGET}
 
 # The historic default "all" target creates files which may cause stale
@@ -259,9 +259,9 @@ ${TGTS}:
 # if they want the historic behavior.
 .MAIN:	_guard
 
-_guard:
+_guard: .PHONY
 	@echo
-	@echo "Explicit target required (use \"all\" for historic behavior)"
+	@echo "Explicit target required.  Likely \"buildworld\" is wanted.  See build(7)."
 	@echo
 	@false
 

@@ -75,7 +75,7 @@ _${group}INS: ${_${group}FILES}
 	    ${DESTDIR}${${group}DIR}/${${group}NAME}
 .else
 	${INSTALL} -o ${${group}OWN} -g ${${group}GRP} \
-	    -m ${${group}MODE} ${.ALLSRC} ${DESTDIR}${${group}DIR}
+	    -m ${${group}MODE} ${.ALLSRC} ${DESTDIR}${${group}DIR}/
 .endif
 .endif
 

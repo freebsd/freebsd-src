@@ -14,7 +14,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2014
+.Dd October 15, 2015
 .Dt URTWN 4
 .Os
 .Sh NAME
@@ -68,14 +68,14 @@ This driver requires the firmware built with the
 .Nm urtwnfw
 module to work.
 For the loaded firmware to be enabled for use the license at
-.Pa /usr/share/doc/legal/realtek
+.Pa /usr/share/doc/legal/realtek.LICENSE
 must be agreed by adding the following line to
 .Xr loader.conf 5 :
 .Pp
 .Dl "legal.realtek.license_ack=1"
 .Sh FILES
-.Bl -tag -width ".Pa /usr/share/doc/legal/realtek" -compact
-.It Pa /usr/share/doc/legal/realtek
+.Bl -tag -width ".Pa /usr/share/doc/legal/realtek.LICENSE" -compact
+.It Pa /usr/share/doc/legal/realtek.LICENSE
 .Nm
 firmware license
 .El
