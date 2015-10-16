@@ -1728,7 +1728,6 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 		if (ret_val)
 			return ret_val;
 	}
-
 	/* Clear link partner's EEE ability */
 	hw->dev_spec.ich8lan.eee_lp_ability = 0;
 
@@ -1749,6 +1748,9 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 			fextnvm6 &= ~E1000_FEXTNVM6_K1_OFF_ENABLE;
 
 		E1000_WRITE_REG(hw, E1000_FEXTNVM6, fextnvm6);
+
+		/* Configure K0s minimum time */
+		e1000_configure_k0s_lpt(hw, K1_ENTRY_LATENCY, K1_MIN_TIME);
 	}
 
 	if (!link)
@@ -6144,3 +6146,44 @@ release:
 	}
 }
 
+/**
+ *  e1000_configure_k0s_lpt - Configure K0s power state
+ *  @hw: pointer to the HW structure
+ *  @entry_latency: Tx idle period for entering K0s - valid values are 0 to 3.
+ *	0 corresponds to 128ns, each value over 0 doubles the duration.
+ *  @min_time: Minimum Tx idle period allowed  - valid values are 0 to 4.
+ *	0 corresponds to 128ns, each value over 0 doubles the duration.
+ *
+ *  Configure the K1 power state based on the provided parameter.
+ *  Assumes semaphore already acquired.
+ *
+ *  Success returns 0, Failure returns:
+ *	-E1000_ERR_PHY (-2) in case of access error
+ *	-E1000_ERR_PARAM (-4) in case of parameters error
+ **/
+s32 e1000_configure_k0s_lpt(struct e1000_hw *hw, u8 entry_latency, u8 min_time)
+{
+	s32 ret_val;
+	u16 kmrn_reg = 0;
+
+	DEBUGFUNC("e1000_configure_k0s_lpt");
+
+	if (entry_latency > 3 || min_time > 4)
+		return -E1000_ERR_PARAM;
+
+	ret_val = e1000_read_kmrn_reg_locked(hw, E1000_KMRNCTRLSTA_K0S_CTRL,
+					     &kmrn_reg);
+	if (ret_val)
+		return ret_val;
+
+	/* for now don't touch the latency */
+	kmrn_reg &= ~(E1000_KMRNCTRLSTA_K0S_CTRL_MIN_TIME_MASK);
+	kmrn_reg |= ((min_time << E1000_KMRNCTRLSTA_K0S_CTRL_MIN_TIME_SHIFT));
+
+	ret_val = e1000_write_kmrn_reg_locked(hw, E1000_KMRNCTRLSTA_K0S_CTRL,
+					      kmrn_reg);
+	if (ret_val)
+		return ret_val;
+
+	return E1000_SUCCESS;
+}
