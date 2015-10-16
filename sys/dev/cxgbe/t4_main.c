@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -55,6 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/if_vlan_var.h>
+#ifdef RSS
+#include <net/rss_config.h>
+#endif
 #if defined(__i386__) || defined(__amd64__)
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -3464,6 +3468,71 @@ adapter_full_uninit(struct adapter *sc)
 	return (0);
 }
 
+#ifdef RSS
+#define SUPPORTED_RSS_HASHTYPES (RSS_HASHTYPE_RSS_IPV4 | \
+    RSS_HASHTYPE_RSS_TCP_IPV4 | RSS_HASHTYPE_RSS_IPV6 | \
+    RSS_HASHTYPE_RSS_TCP_IPV6 | RSS_HASHTYPE_RSS_UDP_IPV4 | \
+    RSS_HASHTYPE_RSS_UDP_IPV6)
+
+/* Translates kernel hash types to hardware. */
+static int
+hashconfig_to_hashen(int hashconfig)
+{
+	int hashen = 0;
+
+	if (hashconfig & RSS_HASHTYPE_RSS_IPV4)
+		hashen |= F_FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN;
+	if (hashconfig & RSS_HASHTYPE_RSS_IPV6)
+		hashen |= F_FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN;
+	if (hashconfig & RSS_HASHTYPE_RSS_UDP_IPV4) {
+		hashen |= F_FW_RSS_VI_CONFIG_CMD_UDPEN |
+		    F_FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN;
+	}
+	if (hashconfig & RSS_HASHTYPE_RSS_UDP_IPV6) {
+		hashen |= F_FW_RSS_VI_CONFIG_CMD_UDPEN |
+		    F_FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN;
+	}
+	if (hashconfig & RSS_HASHTYPE_RSS_TCP_IPV4)
+		hashen |= F_FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN;
+	if (hashconfig & RSS_HASHTYPE_RSS_TCP_IPV6)
+		hashen |= F_FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN;
+
+	return (hashen);
+}
+
+/* Translates hardware hash types to kernel. */
+static int
+hashen_to_hashconfig(int hashen)
+{
+	int hashconfig = 0;
+
+	if (hashen & F_FW_RSS_VI_CONFIG_CMD_UDPEN) {
+		/*
+		 * If UDP hashing was enabled it must have been enabled for
+		 * either IPv4 or IPv6 (inclusive or).  Enabling UDP without
+		 * enabling any 4-tuple hash is nonsense configuration.
+		 */
+		MPASS(hashen & (F_FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN |
+		    F_FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN));
+
+		if (hashen & F_FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN)
+			hashconfig |= RSS_HASHTYPE_RSS_UDP_IPV4;
+		if (hashen & F_FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN)
+			hashconfig |= RSS_HASHTYPE_RSS_UDP_IPV6;
+	}
+	if (hashen & F_FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN)
+		hashconfig |= RSS_HASHTYPE_RSS_TCP_IPV4;
+	if (hashen & F_FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN)
+		hashconfig |= RSS_HASHTYPE_RSS_TCP_IPV6;
+	if (hashen & F_FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN)
+		hashconfig |= RSS_HASHTYPE_RSS_IPV4;
+	if (hashen & F_FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN)
+		hashconfig |= RSS_HASHTYPE_RSS_IPV6;
+
+	return (hashconfig);
+}
+#endif
+
 int
 port_full_init(struct port_info *pi)
 {
@@ -3471,7 +3540,14 @@ port_full_init(struct port_info *pi)
 	struct ifnet *ifp = pi->ifp;
 	uint16_t *rss;
 	struct sge_rxq *rxq;
-	int rc, i, j;
+	int rc, i, j, hashen;
+#ifdef RSS
+	int nbuckets = rss_getnumbuckets();
+	int hashconfig = rss_gethashconfig();
+	int extra;
+	uint32_t raw_rss_key[RSS_KEYSIZE / sizeof(uint32_t)];
+	uint32_t rss_key[RSS_KEYSIZE / sizeof(uint32_t)];
+#endif
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 	KASSERT((pi->flags & PORT_INIT_DONE) == 0,
@@ -3490,19 +3566,96 @@ port_full_init(struct port_info *pi)
 	/*
 	 * Setup RSS for this port.  Save a copy of the RSS table for later use.
 	 */
+	if (pi->nrxq > pi->rss_size) {
+		if_printf(ifp, "nrxq (%d) > hw RSS table size (%d); "
+		    "some queues will never receive traffic.\n", pi->nrxq,
+		    pi->rss_size);
+	} else if (pi->rss_size % pi->nrxq) {
+		if_printf(ifp, "nrxq (%d), hw RSS table size (%d); "
+		    "expect uneven traffic distribution.\n", pi->nrxq,
+		    pi->rss_size);
+	}
+#ifdef RSS
+	MPASS(RSS_KEYSIZE == 40);
+	if (pi->nrxq != nbuckets) {
+		if_printf(ifp, "nrxq (%d) != kernel RSS buckets (%d);"
+		    "performance will be impacted.\n", pi->nrxq, nbuckets);
+	}
+
+	rss_getkey((void *)&raw_rss_key[0]);
+	for (i = 0; i < nitems(rss_key); i++) {
+		rss_key[i] = htobe32(raw_rss_key[nitems(rss_key) - 1 - i]);
+	}
+	t4_write_rss_key(sc, (void *)&rss_key[0], -1);
+#endif
 	rss = malloc(pi->rss_size * sizeof (*rss), M_CXGBE, M_ZERO | M_WAITOK);
 	for (i = 0; i < pi->rss_size;) {
+#ifdef RSS
+		j = rss_get_indirection_to_bucket(i);
+		j %= pi->nrxq;
+		rxq = &sc->sge.rxq[pi->first_rxq + j];
+		rss[i++] = rxq->iq.abs_id;
+#else
 		for_each_rxq(pi, j, rxq) {
 			rss[i++] = rxq->iq.abs_id;
 			if (i == pi->rss_size)
 				break;
 		}
+#endif
 	}
 
 	rc = -t4_config_rss_range(sc, sc->mbox, pi->viid, 0, pi->rss_size, rss,
 	    pi->rss_size);
 	if (rc != 0) {
 		if_printf(ifp, "rss_config failed: %d\n", rc);
+		goto done;
+	}
+
+#ifdef RSS
+	hashen = hashconfig_to_hashen(hashconfig);
+
+	/*
+	 * We may have had to enable some hashes even though the global config
+	 * wants them disabled.  This is a potential problem that must be
+	 * reported to the user.
+	 */
+	extra = hashen_to_hashconfig(hashen) ^ hashconfig;
+
+	/*
+	 * If we consider only the supported hash types, then the enabled hashes
+	 * are a superset of the requested hashes.  In other words, there cannot
+	 * be any supported hash that was requested but not enabled, but there
+	 * can be hashes that were not requested but had to be enabled.
+	 */
+	extra &= SUPPORTED_RSS_HASHTYPES;
+	MPASS((extra & hashconfig) == 0);
+
+	if (extra) {
+		if_printf(ifp,
+		    "global RSS config (0x%x) cannot be accomodated.\n",
+		    hashconfig);
+	}
+	if (extra & RSS_HASHTYPE_RSS_IPV4)
+		if_printf(ifp, "IPv4 2-tuple hashing forced on.\n");
+	if (extra & RSS_HASHTYPE_RSS_TCP_IPV4)
+		if_printf(ifp, "TCP/IPv4 4-tuple hashing forced on.\n");
+	if (extra & RSS_HASHTYPE_RSS_IPV6)
+		if_printf(ifp, "IPv6 2-tuple hashing forced on.\n");
+	if (extra & RSS_HASHTYPE_RSS_TCP_IPV6)
+		if_printf(ifp, "TCP/IPv6 4-tuple hashing forced on.\n");
+	if (extra & RSS_HASHTYPE_RSS_UDP_IPV4)
+		if_printf(ifp, "UDP/IPv4 4-tuple hashing forced on.\n");
+	if (extra & RSS_HASHTYPE_RSS_UDP_IPV6)
+		if_printf(ifp, "UDP/IPv6 4-tuple hashing forced on.\n");
+#else
+	hashen = F_FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN |
+	    F_FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN |
+	    F_FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN |
+	    F_FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN | F_FW_RSS_VI_CONFIG_CMD_UDPEN;
+#endif
+	rc = -t4_config_vi_rss(sc, sc->mbox, pi->viid, hashen, rss[0]);
+	if (rc != 0) {
+		if_printf(ifp, "rss hash/defaultq config failed: %d\n", rc);
 		goto done;
 	}
 
@@ -8380,17 +8533,39 @@ tweak_tunables(void)
 {
 	int nc = mp_ncpus;	/* our snapshot of the number of CPUs */
 
-	if (t4_ntxq10g < 1)
+	if (t4_ntxq10g < 1) {
+#ifdef RSS
+		t4_ntxq10g = rss_getnumbuckets();
+#else
 		t4_ntxq10g = min(nc, NTXQ_10G);
+#endif
+	}
 
-	if (t4_ntxq1g < 1)
+	if (t4_ntxq1g < 1) {
+#ifdef RSS
+		/* XXX: way too many for 1GbE? */
+		t4_ntxq1g = rss_getnumbuckets();
+#else
 		t4_ntxq1g = min(nc, NTXQ_1G);
+#endif
+	}
 
-	if (t4_nrxq10g < 1)
+	if (t4_nrxq10g < 1) {
+#ifdef RSS
+		t4_nrxq10g = rss_getnumbuckets();
+#else
 		t4_nrxq10g = min(nc, NRXQ_10G);
+#endif
+	}
 
-	if (t4_nrxq1g < 1)
+	if (t4_nrxq1g < 1) {
+#ifdef RSS
+		/* XXX: way too many for 1GbE? */
+		t4_nrxq1g = rss_getnumbuckets();
+#else
 		t4_nrxq1g = min(nc, NRXQ_1G);
+#endif
+	}
 
 #ifdef TCP_OFFLOAD
 	if (t4_nofldtxq10g < 1)
