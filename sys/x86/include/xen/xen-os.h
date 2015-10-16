@@ -43,8 +43,18 @@
 /* If non-zero, the hypervisor has been configured to use a direct vector */
 extern int xen_vector_callback_enabled;
 
+/* tunable for disabling PV disks */
+extern int xen_disable_pv_disks;
+
 /* tunable for disabling PV nics */
 extern int xen_disable_pv_nics;
+
+static inline bool
+xen_pv_disks_disabled(void)
+{
+
+	return (xen_hvm_domain() && xen_disable_pv_disks != 0);
+}
 
 static inline bool
 xen_pv_nics_disabled(void)

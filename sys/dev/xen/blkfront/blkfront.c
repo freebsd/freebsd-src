@@ -1439,7 +1439,7 @@ xbd_probe(device_t dev)
 	if (strcmp(xenbus_get_type(dev), "vbd") != 0)
 		return (ENXIO);
 
-	if (xen_hvm_domain() && xen_disable_pv_disks != 0)
+	if (xen_pv_disks_disabled())
 		return (ENXIO);
 
 	if (xen_hvm_domain()) {
