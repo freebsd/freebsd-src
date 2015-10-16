@@ -1063,7 +1063,7 @@ INSTALLKERNEL= ${_kernel}
 .endif
 .endfor
 
-buildkernel ${WMAKE_TGTS:N_worldtmp} ${.ALLTARGETS:M_*:N_worldtmp}: .MAKE .PHONY
+buildkernel ${WMAKE_TGTS:N_worldtmp:Nbuild32} ${.ALLTARGETS:M_*:N_worldtmp}: .MAKE .PHONY
 
 #
 # buildkernel
@@ -1493,7 +1493,7 @@ build-tools: .MAKE
 #
 # kernel-tools: Build kernel-building tools
 #
-kernel-tools: .MAKE
+kernel-tools:
 	mkdir -p ${MAKEOBJDIRPREFIX}/usr
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${MAKEOBJDIRPREFIX}/usr >/dev/null
@@ -1593,7 +1593,7 @@ NXBMAKE=	${NXBENV} ${MAKE} \
 # For non-clang enabled targets that are still using the in tree gcc
 # we must build a gperf binary for one instance of its Makefiles.  On
 # clang-enabled systems, the gperf binary is obsolete.
-native-xtools: .MAKE
+native-xtools:
 .if ${MK_GCC_BOOTSTRAP} != "no"
 	mkdir -p ${OBJTREE}/gperf_for_gcc/usr/bin
 	${_+_}@${ECHODIR} "===> ${_gperf} (obj,depend,all,install)"; \
