@@ -58,7 +58,6 @@ struct mpssas_target {
 
 	uint16_t	tid;
 	SLIST_HEAD(, mpssas_lun) luns;
-	TAILQ_HEAD(, mps_command) commands;
 	struct mps_command *tm;
 	TAILQ_HEAD(, mps_command) timedout_commands;
 	uint16_t        exp_dev_handle;
