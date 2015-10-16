@@ -1775,13 +1775,12 @@ vm_pageout_worker(void *arg)
 			 * set by another thread during the previous scan
 			 * (typically, this happens during a level 0 scan) or
 			 * vm_pages_needed was already set and the scan failed
-			 * to free enough pages.  If we haven't yet performed
-			 * a level >= 2 scan (unlimited dirty cleaning), then
-			 * upgrade the level and scan again now.  Otherwise,
-			 * sleep a bit and try again later.  While sleeping,
-			 * vm_pages_needed can be cleared.
+			 * to free enough pages.  If we've only performed a
+			 * level 0 scan, then upgrade the level and scan again
+			 * now.  Otherwise, sleep a bit and try again later.
+			 * While sleeping, vm_pages_needed can be cleared.
 			 */
-			if (domain->vmd_pass > 1)
+			if (domain->vmd_pass > 0)
 				msleep(&vm_pages_needed,
 				    &vm_page_queue_free_mtx, PVM, "psleep",
 				    hz / 2);
