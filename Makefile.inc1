@@ -88,10 +88,6 @@ SUBDIR+=	tests
 .if ${MK_OFED} != "no"
 SUBDIR+=contrib/ofed
 .endif
-#
-# We must do etc/ last for install/distribute to work.
-#
-SUBDIR+=etc
 
 # Local directories are last, since it is nice to at least get the base
 # system rebuilt before you do them.
@@ -114,6 +110,12 @@ SUBDIR+=	${_DIR}
 .endif
 .endfor
 .endif
+
+# We must do etc/ last as it hooks into building the man whatis file
+# by calling 'makedb' in share/man.  This is only relevant for
+# install/distribute so they build the whatis file after every manpage is
+# installed.
+SUBDIR+=etc
 
 .if defined(NOCLEAN)
 NO_CLEAN=	${NOCLEAN}
