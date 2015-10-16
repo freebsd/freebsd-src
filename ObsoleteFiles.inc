@@ -38,6 +38,19 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20151015: Rename files due to file-installed-as-dir bug
+OLD_FILES+=usr/share/doc/legal/realtek
+OLD_FILES+=usr/share/doc/legal/realtek/LICENSE
+OLD_DIRS+=usr/share/doc/legal/realtek
+OLD_DIRS+=usr/share/doc/legal/intel_ipw
+OLD_FILES+=usr/share/doc/legal/intel_ipw/LICENSE
+OLD_FILES+=usr/share/doc/legal/intel_iwn
+OLD_FILES+=usr/share/doc/legal/intel_iwn/LICENSE
+OLD_DIRS+=usr/share/doc/legal/intel_iwn
+OLD_DIRS+=usr/share/doc/legal/intel_iwi
+OLD_FILES+=usr/share/doc/legal/intel_iwi/LICENSE
+OLD_DIRS+=usr/share/doc/legal/intel_wpi
+OLD_FILES+=usr/share/doc/legal/intel_wpi/LICENSE
 # 20151006: new libc++ import
 OLD_FILES+=usr/include/c++/__tuple_03
 # 20151006: new clang import which bumps version from 3.6.1 to 3.7.0.
