@@ -324,11 +324,9 @@ static SYSCTL_NODE(_debug, OID_AUTO, hashstat, CTLFLAG_RW, NULL,
 static int
 sysctl_debug_hashstat_rawnchash(SYSCTL_HANDLER_ARGS)
 {
-	int error;
 	struct nchashhead *ncpp;
 	struct namecache *ncp;
-	int n_nchash;
-	int count;
+	int i, error, n_nchash, *cntbuf;
 
 retry:
 	n_nchash = nchash + 1;	/* nchash is max index, not count */
