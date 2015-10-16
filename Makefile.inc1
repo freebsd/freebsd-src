@@ -823,7 +823,7 @@ _zoneinfo=	zic tzsetup
 
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown cmp cp \
 	date echo egrep find grep id install ${_install-info} \
-	ln lockf make mkdir mtree mv pwd_mkdb \
+	ln make mkdir mtree mv pwd_mkdb \
 	rm sed services_mkdb sh strip sysctl test true uname wc ${_zoneinfo} \
 	${LOCAL_ITOOLS}
 
