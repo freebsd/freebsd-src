@@ -261,7 +261,7 @@ ${TGTS}: .PHONY
 
 _guard: .PHONY
 	@echo
-	@echo "Explicit target required.  Likely \"buildworld\" is wanted.  See build(7)."
+	@echo "Explicit target required.  Likely \"${SUBDIR_OVERRIDE:Dall:Ubuildworld}\" is wanted.  See build(7)."
 	@echo
 	@false
 
