@@ -386,12 +386,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	p2_held = 0;
 	p1 = td->td_proc;
 
-	/*
-	 * Increment the nprocs resource before blocking can occur.  There
-	 * are hard-limits as to the number of processes that can run.
-	 */
-	nprocs++;
-
 	trypid = fork_findpid(flags);
 
 	sx_sunlock(&proctree_lock);
@@ -773,18 +767,16 @@ int
 fork1(struct thread *td, int flags, int pages, struct proc **procp,
     int *procdescp, int pdflags)
 {
-	struct proc *p1;
-	struct proc *newproc;
-	int ok;
+	struct proc *p1, *newproc;
 	struct thread *td2;
 	struct vmspace *vm2;
+#ifdef PROCDESC
+	struct file *fp_procdesc;
+#endif
 	vm_ooffset_t mem_charged;
-	int error;
+	int error, nprocs_new, ok;
 	static int curfail;
 	static struct timeval lastfail;
-#ifdef PROCDESC
-	struct file *fp_procdesc = NULL;
-#endif
 
 	/* Check for the undefined or unimplemented flags. */
 	if ((flags & ~(RFFLAGS | RFTSIGFLAGS(RFTSIGMASK))) != 0)
@@ -826,6 +818,37 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	}
 
 #ifdef PROCDESC
+	fp_procdesc = NULL;
+#endif
+	newproc = NULL;
+	vm2 = NULL;
+
+	/*
+	 * Increment the nprocs resource before allocations occur.
+	 * Although process entries are dynamically created, we still
+	 * keep a global limit on the maximum number we will
+	 * create. There are hard-limits as to the number of processes
+	 * that can run, established by the KVA and memory usage for
+	 * the process data.
+	 *
+	 * Don't allow a nonprivileged user to use the last ten
+	 * processes; don't let root exceed the limit.
+	 */
+	nprocs_new = atomic_fetchadd_int(&nprocs, 1) + 1;
+	if ((nprocs_new >= maxproc - 10 && priv_check_cred(td->td_ucred,
+	    PRIV_MAXPROC, 0) != 0) || nprocs_new >= maxproc) {
+		sx_xlock(&allproc_lock);
+		if (ppsratecheck(&lastfail, &curfail, 1)) {
+			printf("maxproc limit exceeded by uid %u (pid %d); "
+			    "see tuning(7) and login.conf(5)\n",
+			    td->td_ucred->cr_ruid, p1->p_pid);
+		}
+		sx_xunlock(&allproc_lock);
+		error = EAGAIN;
+		goto fail1;
+	}
+
+#ifdef PROCDESC
 	/*
 	 * If required, create a process descriptor in the parent first; we
 	 * will abandon it if something goes wrong. We don't finit() until
@@ -834,12 +857,11 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	if (flags & RFPROCDESC) {
 		error = falloc(td, &fp_procdesc, procdescp, 0);
 		if (error != 0)
-			return (error);
+			goto fail1;
 	}
 #endif
 
 	mem_charged = 0;
-	vm2 = NULL;
 	if (pages == 0)
 		pages = KSTACK_PAGES;
 	/* Allocate new proc. */
@@ -906,20 +928,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 
 	/* We have to lock the process tree while we look for a pid. */
 	sx_slock(&proctree_lock);
-
-	/*
-	 * Although process entries are dynamically created, we still keep
-	 * a global limit on the maximum number we will create.  Don't allow
-	 * a nonprivileged user to use the last ten processes; don't let root
-	 * exceed the limit. The variable nprocs is the current number of
-	 * processes, maxproc is the limit.
-	 */
 	sx_xlock(&allproc_lock);
-	if ((nprocs >= maxproc - 10 && priv_check_cred(td->td_ucred,
-	    PRIV_MAXPROC, 0) != 0) || nprocs >= maxproc) {
-		error = EAGAIN;
-		goto fail;
-	}
 
 	/*
 	 * Increment the count of procs running with this uid. Don't allow
@@ -954,11 +963,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	}
 
 	error = EAGAIN;
-fail:
 	sx_sunlock(&proctree_lock);
-	if (ppsratecheck(&lastfail, &curfail, 1))
-		printf("maxproc limit exceeded by uid %u (pid %d); see tuning(7) and login.conf(5)\n",
-		    td->td_ucred->cr_ruid, p1->p_pid);
 	sx_xunlock(&allproc_lock);
 #ifdef MAC
 	mac_proc_destroy(newproc);
@@ -974,6 +979,7 @@ fail1:
 		fdrop(fp_procdesc, td);
 	}
 #endif
+	atomic_add_int(&nprocs, -1);
 	pause("fork", hz / 2);
 	return (error);
 }
