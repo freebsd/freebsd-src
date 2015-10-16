@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20151015:
+	Added ZFS support for resumable send/receive changed respective
+	IOCTL API/ABI.  Compatibility ABI shims were provided for other
+	functionality, while receive require version match between world
+	and kernel.
+
 20151012:
 	If you specify SENDMAIL_MC or SENDMAIL_CF in make.conf, mergemaster
 	and etcupdate will now use this file. A custom sendmail.cf is now
