@@ -585,7 +585,7 @@ int mkfs_msdos(const char *fname, const char *dtype,
 			  (u_int)tm->tm_min));
 		mk4(bsx->exVolumeID, x);
 		mklabel(bsx->exVolumeLabel, o.volume_label ? o.volume_label : "NO NAME");
-		sprintf(buf, "FAT%u", fat);
+		snprintf(buf, sizeof(buf), "FAT%u", fat);
 		setstr(bsx->exFileSysType, buf, sizeof(bsx->exFileSysType));
 		if (!o.bootstrap) {
 		    x1 += sizeof(struct bsx);
