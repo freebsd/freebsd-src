@@ -931,13 +931,6 @@ rt_flushifroutes(struct ifnet *ifp)
 #define	ifpaddr	info->rti_info[RTAX_IFP]
 #define	flags	info->rti_flags
 
-int
-rt_getifa(struct rt_addrinfo *info)
-{
-
-	return (rt_getifa_fib(info, RT_DEFAULT_FIB));
-}
-
 /*
  * Look up rt_addrinfo for a specific fib.  Note that if rti_ifa is defined,
  * it will be referenced so the caller must free it.
