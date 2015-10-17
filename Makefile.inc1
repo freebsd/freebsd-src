@@ -63,6 +63,10 @@ SRCDIR?=	${.CURDIR}
 SUBDIR=	${SUBDIR_OVERRIDE}
 .else
 SUBDIR=	lib libexec
+.if make(install*)
+# Ensure libraries are installed before progressing.
+SUBDIR+=.WAIT
+.endif
 SUBDIR+=bin
 .if ${MK_CDDL} != "no"
 SUBDIR+=cddl
@@ -115,6 +119,9 @@ SUBDIR+=	${_DIR}
 # by calling 'makedb' in share/man.  This is only relevant for
 # install/distribute so they build the whatis file after every manpage is
 # installed.
+.if make(install*)
+SUBDIR+=.WAIT
+.endif
 SUBDIR+=etc
 
 .if defined(NOCLEAN)
@@ -589,9 +596,9 @@ _cleanobj:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.1: cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${WMAKE} ${CLEANDIR:S/^/par-/}
+	${_+_}cd ${.CURDIR}; ${WMAKE} ${CLEANDIR}
 .if defined(LIB32TMP)
-	${_+_}cd ${.CURDIR}; ${LIB32WMAKE} -f Makefile.inc1 ${CLEANDIR:S/^/par-/}
+	${_+_}cd ${.CURDIR}; ${LIB32WMAKE} -f Makefile.inc1 ${CLEANDIR}
 .endif
 .endif
 _obj:
@@ -599,7 +606,7 @@ _obj:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.2: rebuilding the object tree"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${WMAKE} par-obj
+	${_+_}cd ${.CURDIR}; ${WMAKE} obj
 _build-tools:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -618,7 +625,7 @@ _includes:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.1: building includes"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${WMAKE} SHARED=symlinks par-includes
+	${_+_}cd ${.CURDIR}; ${WMAKE} SHARED=symlinks includes
 _libraries:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -632,7 +639,7 @@ _depend:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.3: make dependencies"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${WMAKE} par-depend
+	${_+_}cd ${.CURDIR}; ${WMAKE} depend
 everything:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -1944,22 +1951,18 @@ _startup_libs: ${_startup_libs:S/$/__L/}
 _prebuild_libs: ${_prebuild_libs:S/$/__L/}
 _generic_libs: ${_generic_libs:S/$/__L/}
 
-.for __target in all clean cleandepend cleandir depend includes obj
-.for entry in ${SUBDIR}
-${entry}.${__target}__D: .PHONY .MAKE
-	${_+_}@set -e; if test -d ${.CURDIR}/${entry}.${MACHINE_ARCH}; then \
-		${ECHODIR} "===> ${DIRPRFX}${entry}.${MACHINE_ARCH} (${__target})"; \
-		edir=${entry}.${MACHINE_ARCH}; \
-		cd ${.CURDIR}/$${edir}; \
-	else \
-		${ECHODIR} "===> ${DIRPRFX}${entry} (${__target})"; \
-		edir=${entry}; \
-		cd ${.CURDIR}/$${edir}; \
-	fi; \
-	${MAKE} ${__target} DIRPRFX=${DIRPRFX}$${edir}/
-.endfor
-par-${__target}: ${SUBDIR:S/$/.${__target}__D/}
-.endfor
+# Enable SUBDIR_PARALLEL when not calling 'make all', unless called as
+# 'par-all'.  This is because it is unlikely that running 'make all' from
+# the top-level, especially with a SUBDIR_OVERRIDE or LOCAL_DIRS set,
+# will have a reliable build if SUBDIRs are built in parallel.  This is
+# safe for the world stage of buildworld though since it has already
+# built libraries in a proper order and installed includes into WORLDTMP.
+# Special handling is done for SUBDIR ordering for 'install*' to avoid
+# trashing a system if it crashes mid-install.
+par-all: all .PHONY
+.if !make(all)
+SUBDIR_PARALLEL=
+.endif
 
 .include <bsd.subdir.mk>
 
@@ -2267,7 +2270,7 @@ _xi-cross-tools:
 .endfor
 
 _xi-includes:
-	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 par-includes \
+	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 includes \
 		DESTDIR=${XDDESTDIR}
 
 _xi-libraries:
