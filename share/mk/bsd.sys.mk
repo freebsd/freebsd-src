@@ -148,9 +148,13 @@ CXXFLAGS.clang+=	 -Wno-c++11-extensions
 
 .if ${MK_SSP} != "no" && \
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
+.if (${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30500) || \
+    (${COMPILER_TYPE} == "gcc" && \
+     (${COMPILER_VERSION} == 40201 || ${COMPILER_VERSION} >= 40800))
 # Don't use -Wstack-protector as it breaks world with -Werror.
 SSP_CFLAGS?=	-fstack-protector-strong
 CFLAGS+=	${SSP_CFLAGS}
+.endif
 .endif # SSP && !ARM && !MIPS
 
 # Allow user-specified additional warning flags, plus compiler specific flag overrides.
