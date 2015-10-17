@@ -179,7 +179,7 @@ CRUNCH_BUILDOPTS_dhclient= -DRELEASE_CRUNCH -Dlint
 #
 CRUNCH_SRCDIRS+= usr.bin
 
-CRUNCH_PROGS_usr.bin= head iscsictl mt nc sed tail tee
+CRUNCH_PROGS_usr.bin= head mt nc sed tail tee
 
 CRUNCH_PROGS_usr.bin+= gzip
 CRUNCH_ALIAS_gzip= gunzip gzcat zcat
@@ -214,12 +214,17 @@ CRUNCH_ALIAS_id= groups whoami
 #
 CRUNCH_SRCDIRS+= usr.sbin
 
-CRUNCH_PROGS_usr.sbin+= chroot iscsid
+CRUNCH_PROGS_usr.sbin+= chroot
 
 CRUNCH_PROGS_usr.sbin+= chown
 CRUNCH_ALIAS_chown= chgrp
 ##################################################################
 CRUNCH_LIBS+= -lm
+
+.if ${MK_ISCSI} != "no"
+CRUNCH_PROGS_usr.bin+=	iscsictl
+CRUNCH_PROGS_usr.sbin+=	iscsid
+.endif
 
 .include <bsd.crunchgen.mk>
 .include <bsd.prog.mk>
