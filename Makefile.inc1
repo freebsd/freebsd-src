@@ -148,6 +148,7 @@ OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 .else
 OSRELDATE=	0
 .endif
+.export OSRELDATE
 .endif
 
 .if !defined(VERSION)
