@@ -597,7 +597,6 @@ kernel_wait(int iscsi_fd, int timeout)
 {
 	struct iscsi_session_state *states = NULL;
 	const struct iscsi_session_state *state;
-	const struct iscsi_session_conf *conf;
 	struct iscsi_session_list isl;
 	unsigned int i, nentries = 1;
 	bool all_connected;
@@ -629,7 +628,6 @@ kernel_wait(int iscsi_fd, int timeout)
 		all_connected = true;
 		for (i = 0; i < isl.isl_nentries; i++) {
 			state = &states[i];
-			conf = &state->iss_conf;
 
 			if (!state->iss_connected) {
 				all_connected = false;
