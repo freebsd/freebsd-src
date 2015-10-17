@@ -1017,22 +1017,19 @@ static void
 vm_pageout_launder1(struct vm_domain *vmd)
 {
 	vm_page_t m, next;
-	struct vm_page laundry_marker;
 	struct vm_pagequeue *pq;
 	vm_object_t object;
-	int act_delta, error, maxlaunder, maxscan, numpagedout, vnodes_skipped;
+	int act_delta, error, launder, maxscan, numpagedout, vnodes_skipped;
 	boolean_t pageout_ok, queues_locked;
-
-	vm_pageout_init_marker(&laundry_marker, PQ_LAUNDRY);
 
 	/*
 	 * XXX
 	 */
-	maxlaunder = vm_cnt.v_inactive_target - vm_cnt.v_inactive_count +
+	launder = vm_cnt.v_inactive_target - vm_cnt.v_inactive_count +
 	    vm_paging_target() + vm_pageout_deficit;
-	if (maxlaunder < 0)
+	if (launder < 0)
 		return;
-	maxlaunder /= 5;
+	launder /= 5;
 
 	vnodes_skipped = 0;
 
@@ -1044,7 +1041,7 @@ vm_pageout_launder1(struct vm_domain *vmd)
 	vm_pagequeue_lock(pq);
 	queues_locked = TRUE;
 	for (m = TAILQ_FIRST(&pq->pq_pl);
-	    m != NULL && maxscan-- > 0 && maxlaunder > 0;
+	    m != NULL && maxscan-- > 0 && launder > 0;
 	    m = next) {
 		vm_pagequeue_assert_locked(pq);
 		KASSERT(queues_locked, ("unlocked laundry queue"));
@@ -1075,7 +1072,8 @@ vm_pageout_launder1(struct vm_domain *vmd)
 		 * 'next' pointer.  Use our marker to remember our
 		 * place.
 		 */
-		TAILQ_INSERT_AFTER(&pq->pq_pl, m, &laundry_marker, plinks.q);
+		TAILQ_INSERT_AFTER(&pq->pq_pl, m, &vmd->vmd_laundry_marker,
+		    plinks.q);
 		vm_pagequeue_unlock(pq);
 		queues_locked = FALSE;
 
@@ -1162,7 +1160,7 @@ free_page:
 			}
 			error = vm_pageout_clean(m, &numpagedout);
 			if (error == 0)
-				maxlaunder -= numpagedout;
+				launder -= numpagedout;
 			else if (error == EDEADLK) {
 				pageout_lock_miss++;
 				vnodes_skipped++;
@@ -1177,8 +1175,8 @@ relock_queues:
 			vm_pagequeue_lock(pq);
 			queues_locked = TRUE;
 		}
-		next = TAILQ_NEXT(&laundry_marker, plinks.q);
-		TAILQ_REMOVE(&pq->pq_pl, &laundry_marker, plinks.q);
+		next = TAILQ_NEXT(&vmd->vmd_laundry_marker, plinks.q);
+		TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_laundry_marker, plinks.q);
 	}
 	vm_pagequeue_unlock(pq);
 
@@ -1186,7 +1184,7 @@ relock_queues:
 	 * Wakeup the sync daemon if we skipped a vnode in a writeable object
 	 * and we didn't launder enough pages.
 	 */
-	if (vnodes_skipped > 0 && maxlaunder > 0)
+	if (vnodes_skipped > 0 && launder > 0)
 		(void)speedup_syncer();
 }
 
@@ -1202,6 +1200,7 @@ vm_pageout_laundry_worker(void *arg)
 	domidx = (uintptr_t)arg;
 	domain = &vm_dom[domidx];
 	KASSERT(domain->vmd_segs != 0, ("domain without segments"));
+	vm_pageout_init_marker(&domain->vmd_laundry_marker, PQ_LAUNDRY);
 
 	/*
 	 * The pageout laundry worker is never done, so loop forever.
