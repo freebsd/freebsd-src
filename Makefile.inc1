@@ -151,12 +151,14 @@ OSRELDATE=	0
 .export OSRELDATE
 .endif
 
+# Set VERSION for CTFMERGE to use via the default CTFFLAGS=-L VERSION.
 .if !defined(VERSION)
 REVISION!=	${MAKE} -C ${SRCDIR}/release -V REVISION
 BRANCH!=	${MAKE} -C ${SRCDIR}/release -V BRANCH
 SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 		${SRCDIR}/sys/sys/param.h
 VERSION=	FreeBSD ${REVISION}-${BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE}
+.export VERSION
 .endif
 
 KNOWN_ARCHES?=	aarch64/arm64 amd64 arm armeb/arm armv6/arm armv6hf/arm i386 i386/pc98 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
@@ -265,7 +267,6 @@ CROSSENV+=	${TARGET_CFLAGS}
 BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${BPATH}:${PATH} \
 		WORLDTMP=${WORLDTMP} \
-		VERSION="${VERSION}" \
 		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}"
 # need to keep this in sync with targets/pseudo/bootstrap-tools/Makefile
 BSARGS= 	DESTDIR= \
@@ -302,8 +303,7 @@ XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 # kernel-tools stage
 KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${BPATH}:${PATH} \
-		WORLDTMP=${WORLDTMP} \
-		VERSION="${VERSION}"
+		WORLDTMP=${WORLDTMP}
 KTMAKE=		TOOLS_PREFIX=${WORLDTMP} MAKEOBJDIRPREFIX=${WORLDTMP} \
 		${KTMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		DESTDIR= \
@@ -316,7 +316,6 @@ KTMAKE=		TOOLS_PREFIX=${WORLDTMP} MAKEOBJDIRPREFIX=${WORLDTMP} \
 # world stage
 WMAKEENV=	${CROSSENV} \
 		_LDSCRIPTROOT= \
-		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
 
@@ -459,7 +458,6 @@ LIB32FLAGS+=		--sysroot=${WORLDTMP}
 # Yes, the flags are redundant.
 LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${LIB32_OBJTREE} \
 		_LDSCRIPTROOT=${LIB32TMP} \
-		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
 		LIBDIR=/usr/lib32 \
@@ -1587,7 +1585,6 @@ cross-tools: .MAKE
 
 NXBENV=		MAKEOBJDIRPREFIX=${OBJTREE}/nxb \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
-		VERSION="${VERSION}" \
 		PATH=${PATH}:${OBJTREE}/gperf_for_gcc/usr/bin
 NXBMAKE=	${NXBENV} ${MAKE} \
 		TBLGEN=${OBJTREE}/nxb-bin/usr/bin/tblgen \
