@@ -276,12 +276,14 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"cswhi",     "v,+O(+w)",   0xe8000006, 0xfc00f807, 0, 0, I1},
 /* there is no csdhi */
 
+#ifdef OLD_CLLSCD
 {"clld",      "v,d,+O(+w)", 0xc8000007, 0xfc000007, 0, 0, I1},
 {"cscd",      "v,d,+O(+w)", 0xe8000007, 0xfc000007, 0, 0, I1},
 {"clldr",     "v,d(+w)",    0xc8000007, 0xfc0007ff, 0, 0, I1},
 {"cscdr",     "v,d(+w)",    0xe8000007, 0xfc0007ff, 0, 0, I1},
 {"clldi",     "v,+O(+w)",   0xc8000007, 0xfc00f807, 0, 0, I1},
 {"cscdi",     "v,+O(+w)",   0xe8000007, 0xfc00f807, 0, 0, I1},
+#endif
 
 {"cseal",     "+w,+b,+v",   0x48400000, 0xffe0003f, 0, 0, I1},
 {"csealcode", "+w,+b",      0x48200000, 0xffe007ff, 0, 0, I1},
@@ -299,6 +301,26 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"cle",	      "t,+b,+v",    0x49c00003, 0xffe0003f, 0, 0, I1},
 {"cltu",      "t,+b,+v",    0x49c00004, 0xffe0003f, 0, 0, I1},
 {"cleu",      "t,+b,+v",    0x49c00005, 0xffe0003f, 0, 0, I1},
+
+{"cscb",      "m,t,+b",     0x4a000000, 0xffe0003f, 0, 0, I1},
+{"csch",      "m,t,+b",     0x4a000001, 0xffe0003f, 0, 0, I1},
+{"cscw",      "m,t,+b",     0x4a000002, 0xffe0003f, 0, 0, I1},
+#ifndef OLD_CLLSCD
+{"cscd",      "m,t,+b",     0x4a000003, 0xffe0003f, 0, 0, I1},
+#endif
+{"cscc",      "+v,t,+b",    0x4a000007, 0xffe0003f, 0, 0, I1},
+
+{"cllbu",     "t,+b",       0x4a000008, 0xffe007ff, 0, 0, I1},
+{"cllhu",     "t,+b",       0x4a000009, 0xffe007ff, 0, 0, I1},
+{"cllwu",     "t,+b",       0x4a00000a, 0xffe007ff, 0, 0, I1},
+#ifndef OLD_CLLSCD
+{"clld",      "t,+b",       0x4a00000b, 0xffe007ff, 0, 0, I1},
+#endif
+{"cllb",      "t,+b",       0x4a00000c, 0xffe007ff, 0, 0, I1},
+{"cllh",      "t,+b",       0x4a00000d, 0xffe007ff, 0, 0, I1},
+{"cllw",      "t,+b",       0x4a00000e, 0xffe007ff, 0, 0, I1},
+{"cllc",      "+w,+b",      0x4a00000f, 0xffe007ff, 0, 0, I1},
+
 
 {"b",       "p",	0x10000000, 0xffff0000,	UBD,			INSN2_ALIAS,	I1	},/* beq 0,0 */
 {"b",       "p",	0x04010000, 0xffff0000,	UBD,			INSN2_ALIAS,	I1	},/* bgez 0 */
