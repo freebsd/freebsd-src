@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 12, 2014
+.Dd October 17, 2015
 .Dt ISCSICTL 8
 .Os
 .Sh NAME
@@ -36,7 +36,9 @@
 .Sh SYNOPSIS
 .Nm
 .Fl A
-.Fl p Ar portal Fl t Ar target Op Fl u Ar user Fl s Ar secret
+.Fl p Ar portal Fl t Ar target
+.Op Fl u Ar user Fl s Ar secret
+.Op Fl w Ar timeout
 .Nm
 .Fl A
 .Fl d Ar discovery-host Op Fl u Ar user Fl s Ar secret
@@ -70,6 +72,7 @@
 .Nm
 .Fl L
 .Op Fl v
+.Op Fl w Ar timeout
 .Sh DESCRIPTION
 The
 .Nm
@@ -113,6 +116,10 @@ Target name.
 CHAP login.
 .It Fl v
 Verbose mode.
+.It Fl w
+Instead of returning immediately, wait up to
+.Ar timeout
+seconds until all configured sessions are successfully established.
 .El
 .Pp
 Certain parameters are necessary when adding a session.
@@ -132,9 +139,11 @@ via configuration file.
 .Pp
 Since connecting to the target is performed in background, non-zero
 exit status does not mean that the session was successfully established.
-Use
+Use either
 .Nm Fl L
-to check the connection status.
+to check the connection status, or the
+.Fl w
+flag to wait for session establishment.
 .Pp
 Note that in order for the iSCSI initiator to be able to connect to a target,
 the
