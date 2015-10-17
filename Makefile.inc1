@@ -624,7 +624,8 @@ _includes:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.1: building includes"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${WMAKE} SHARED=symlinks includes
+	${_+_}cd ${.CURDIR}; ${WMAKE} SHARED=symlinks buildincludes
+	${_+_}cd ${.CURDIR}; ${WMAKE} SHARED=symlinks installincludes
 _libraries:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -2268,7 +2269,9 @@ _xi-cross-tools:
 .endfor
 
 _xi-includes:
-	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 includes \
+	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 buildincludes \
+		DESTDIR=${XDDESTDIR}
+	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 installincludes \
 		DESTDIR=${XDDESTDIR}
 
 _xi-libraries:
