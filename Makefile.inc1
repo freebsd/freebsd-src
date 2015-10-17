@@ -325,10 +325,6 @@ HMAKE=		PATH=${TMPPATH} ${MAKE} LOCAL_MTREE=${LOCAL_MTREE:Q}
 HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
 .endif
 
-.if ${MK_CDDL} == "no"
-WMAKEENV+=	MK_CTF=no
-.endif
-
 .if defined(CROSS_TOOLCHAIN)
 LOCALBASE?=	/usr/local
 .include "${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk"
@@ -624,7 +620,8 @@ _includes:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.1: building includes"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${WMAKE} SHARED=symlinks includes
+	${_+_}cd ${.CURDIR}; ${WMAKE} SHARED=symlinks buildincludes
+	${_+_}cd ${.CURDIR}; ${WMAKE} SHARED=symlinks installincludes
 _libraries:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -2268,7 +2265,9 @@ _xi-cross-tools:
 .endfor
 
 _xi-includes:
-	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 includes \
+	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 buildincludes \
+		DESTDIR=${XDDESTDIR}
+	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 installincludes \
 		DESTDIR=${XDDESTDIR}
 
 _xi-libraries:

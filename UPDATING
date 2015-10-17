@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20151017:
+	The build previously allowed using 'make -n' to not recurse into
+	sub-directories while showing what commands would be executed, and
+	'make -n -n' to recursively show commands.  Now 'make -n' will recurse
+	and 'make -N' will not.
+
 20151012:
 	If you specify SENDMAIL_MC or SENDMAIL_CF in make.conf, mergemaster
 	and etcupdate will now use this file. A custom sendmail.cf is now
