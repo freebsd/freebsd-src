@@ -27,84 +27,67 @@
 # $FreeBSD$
 #
 
-# This is a wrapper script to run tools-crossfs.test between UFS without
-# ACLs, UFS with POSIX.1e ACLs, and ZFS with NFSv4 ACLs.
+# This is a wrapper script to run tools-nfs4.test on UFS filesystem.
 #
-# WARNING: It uses hardcoded ZFS pool name "acltools"
+# If any of the tests fails, here is how to debug it: go to
+# the directory with problematic filesystem mounted on it,
+# and do /path/to/test run /path/to/test tools-nfs4.test, e.g.
+#
+# /usr/src/tools/regression/acltools/run /usr/src/tools/regression/acltools/tools-nfs4.test
 #
 # Output should be obvious.
 
-echo "1..5"
-
-if [ `whoami` != "root" ]; then
-	echo "not ok 1 - you need to be root to run this test."
-	exit 1
+if [ $(sysctl -n kern.features.ufs_acl 2>/dev/null || echo 0) -eq 0 ]; then
+	echo "1..0 # SKIP system does not have UFS ACL support"
+	exit 0
+fi
+if [ $(id -u) -ne 0 ]; then
+	echo "1..0 # SKIP you must be root"
+	exit 0
 fi
 
-TESTDIR=$(dirname $(realpath $0))
-MNTROOT=`mktemp -dt acltools`
+echo "1..4"
 
-# Set up the test filesystems.
-MD1=`mdconfig -at swap -s 64m`
-MNT1=$MNTROOT/nfs4
-mkdir $MNT1
-zpool create -m $MNT1 acltools /dev/$MD1
+TESTDIR=$(dirname $(realpath $0))
+
+# Set up the test filesystem.
+MD=`mdconfig -at swap -s 10m`
+MNT=`mktemp -dt acltools`
+newfs /dev/$MD > /dev/null
+trap "cd /; umount -f $MNT; rmdir $MNT; mdconfig -d -u $MD" EXIT
+mount -o nfsv4acls /dev/$MD $MNT
 if [ $? -ne 0 ]; then
-	echo "not ok 1 - 'zpool create' failed."
+	echo "not ok 1 - mount failed."
+	echo 'Bail out!'
 	exit 1
 fi
 
 echo "ok 1"
 
-MD2=`mdconfig -at swap -s 10m`
-MNT2=$MNTROOT/posix
-mkdir $MNT2
-newfs /dev/$MD2 > /dev/null
-mount -o acls /dev/$MD2 $MNT2
-if [ $? -ne 0 ]; then
-	echo "not ok 2 - mount failed."
-	exit 1
-fi
+cd $MNT
 
+# First, check whether we can crash the kernel by creating too many
+# entries.  For some reason this won't work in the test file.
+touch xxx
+setfacl -x2 xxx
+while :; do setfacl -a0 u:42:rwx:allow xxx 2> /dev/null; if [ $? -ne 0 ]; then break; fi; done
+chmod 600 xxx
+rm xxx
 echo "ok 2"
 
-MD3=`mdconfig -at swap -s 10m`
-MNT3=$MNTROOT/none
-mkdir $MNT3
-newfs /dev/$MD3 > /dev/null
-mount /dev/$MD3 $MNT3
-if [ $? -ne 0 ]; then
-	echo "not ok 3 - mount failed."
-	exit 1
+if [ `sysctl -n vfs.acl_nfs4_old_semantics` = 0 ]; then
+	perl $TESTDIR/run $TESTDIR/tools-nfs4-psarc.test > /dev/null
+else
+	perl $TESTDIR/run $TESTDIR/tools-nfs4.test > /dev/null
 fi
 
-echo "ok 3"
-
-cd $MNTROOT
-
-perl $TESTDIR/run $TESTDIR/tools-crossfs.test > /dev/null
-
 if [ $? -eq 0 ]; then
-	echo "ok 4"
+	echo "ok 3"
 else
-	echo "not ok 4"
+	echo "not ok 3"
 fi
 
 cd /
 
-umount -f $MNT3
-rmdir $MNT3
-mdconfig -du $MD3
-
-umount -f $MNT2
-rmdir $MNT2
-mdconfig -du $MD2
-
-zpool destroy -f acltools
-rmdir $MNT1
-mdconfig -du $MD1
-
-rmdir $MNTROOT
-
-echo "ok 5"
+echo "ok 4"
 

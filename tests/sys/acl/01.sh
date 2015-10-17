@@ -39,21 +39,27 @@
 #
 # Output should be obvious.
 
-echo "1..4"
-
-if [ `whoami` != "root" ]; then
-	echo "not ok 1 - you need to be root to run this test."
-	exit 1
+if ! sysctl vfs.zfs.version.spa >/dev/null 2>&1; then
+	echo "1..0 # SKIP system doesn't have ZFS loaded"
+	exit 0
 fi
+if [ $(id -u) -ne 0 ]; then
+	echo "1..0 # SKIP you must be root"
+	exit 0
+fi
+
+echo "1..4"
 
 TESTDIR=$(dirname $(realpath $0))
 
 # Set up the test filesystem.
 MD=`mdconfig -at swap -s 64m`
 MNT=`mktemp -dt acltools`
+trap "cd /; zpool destroy -f acltools; rmdir $MNT; mdconfig -d -u $MD" EXIT
 zpool create -m $MNT acltools /dev/$MD
 if [ $? -ne 0 ]; then
 	echo "not ok 1 - 'zpool create' failed."
+	echo 'Bail out!'
 	exit 1
 fi
 
@@ -77,10 +83,5 @@ if [ $? -eq 0 ]; then
 else
 	echo "not ok 3"
 fi
-
-cd /
-zpool destroy -f acltools
-rmdir $MNT
-mdconfig -du $MD
 
 echo "ok 4"

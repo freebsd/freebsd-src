@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2008, 2009 Edward Tomasz Napierała <trasz@FreeBSD.org>
+# Copyright (c) 2011 Edward Tomasz Napierała <trasz@FreeBSD.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,32 +27,29 @@
 # $FreeBSD$
 #
 
-# This is a wrapper script to run tools-posix.test on UFS filesystem.
+# This is a wrapper script to run tools-nfs4-trivial.test on ZFS filesystem.
 #
-# If any of the tests fails, here is how to debug it: go to
-# the directory with problematic filesystem mounted on it,
-# and do /path/to/test run /path/to/test tools-posix.test, e.g.
-#
-# /usr/src/tools/regression/acltools/run /usr/src/tools/regression/acltools/tools-posix.test
-#
-# Output should be obvious.
+# WARNING: It uses hardcoded ZFS pool name "acltools"
 
-echo "1..4"
-
-if [ `whoami` != "root" ]; then
-	echo "not ok 1 - you need to be root to run this test."
-	exit 1
+if ! sysctl vfs.zfs.version.spa >/dev/null 2>&1; then
+	echo "1..0 # SKIP system doesn't have ZFS loaded"
+	exit 0
 fi
+if [ $(id -u) -ne 0 ]; then
+	echo "1..0 # SKIP you must be root"
+	exit 0
+fi
+
+echo "1..3"
 
 TESTDIR=$(dirname $(realpath $0))
 
 # Set up the test filesystem.
-MD=`mdconfig -at swap -s 10m`
+MD=`mdconfig -at swap -s 64m`
 MNT=`mktemp -dt acltools`
-newfs /dev/$MD > /dev/null
-mount -o acls /dev/$MD $MNT
+zpool create -m $MNT acltools /dev/$MD
 if [ $? -ne 0 ]; then
-	echo "not ok 1 - mount failed."
+	echo "not ok 1 - 'zpool create' failed."
 	exit 1
 fi
 
@@ -60,26 +57,17 @@ echo "ok 1"
 
 cd $MNT
 
-# First, check whether we can crash the kernel by creating too many
-# entries.  For some reason this won't work in the test file.
-touch xxx
-i=0;
-while :; do i=$(($i+1)); setfacl -m u:$i:rwx xxx 2> /dev/null; if [ $? -ne 0 ]; then break; fi; done
-chmod 600 xxx
-rm xxx
-echo "ok 2"
-
-perl $TESTDIR/run $TESTDIR/tools-posix.test > /dev/null
+perl $TESTDIR/run $TESTDIR/tools-nfs4-trivial.test > /dev/null
 
 if [ $? -eq 0 ]; then
-	echo "ok 3"
+	echo "ok 2"
 else
-	echo "not ok 3"
+	echo "not ok 2"
 fi
 
 cd /
-umount -f $MNT
+zpool destroy -f acltools
 rmdir $MNT
 mdconfig -du $MD
 
-echo "ok 4"
+echo "ok 3"
