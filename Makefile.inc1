@@ -325,10 +325,6 @@ HMAKE=		PATH=${TMPPATH} ${MAKE} LOCAL_MTREE=${LOCAL_MTREE:Q}
 HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
 .endif
 
-.if ${MK_CDDL} == "no"
-WMAKEENV+=	MK_CTF=no
-.endif
-
 .if defined(CROSS_TOOLCHAIN)
 LOCALBASE?=	/usr/local
 .include "${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk"
