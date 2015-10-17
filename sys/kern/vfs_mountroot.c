@@ -468,9 +468,9 @@ parse_dir_ask(char **conf)
 	printf("\n");
 	printf("    eg. ufs:/dev/da0s1a\n");
 	printf("        zfs:tank\n");
-	printf("        cd9660:/dev/acd0 ro\n");
+	printf("        cd9660:/dev/cd0 ro\n");
 	printf("          (which is equivalent to: ");
-	printf("mount -t cd9660 -o ro /dev/acd0 /)\n");
+	printf("mount -t cd9660 -o ro /dev/cd0 /)\n");
 	printf("\n");
 	printf("  ?               List valid disk boot devices\n");
 	printf("  .               Yield 1 second (for background tasks)\n");
@@ -837,7 +837,7 @@ vfs_mountroot_conf0(struct sbuf *sb)
 	if (boothowto & RB_CDROM) {
 		sbuf_printf(sb, "cd9660:/dev/cd0 ro\n");
 		sbuf_printf(sb, ".timeout 0\n");
-		sbuf_printf(sb, "cd9660:/dev/acd0 ro\n");
+		sbuf_printf(sb, "cd9660:/dev/cd1 ro\n");
 		sbuf_printf(sb, ".timeout %d\n", root_mount_timeout);
 	}
 	s = kern_getenv("vfs.root.mountfrom");
