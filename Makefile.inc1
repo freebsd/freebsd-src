@@ -747,7 +747,7 @@ buildworld_epilogue:
 # to quote multiword values.
 #
 buildenvvars:
-	@echo ${WMAKEENV:Q}
+	@echo ${WMAKEENV:Q} ${.MAKE.EXPORTED:@v@$v=\"${$v}\"@}
 
 .if ${.TARGETS:Mbuildenv}
 .if ${.MAKEFLAGS:M-j}
