@@ -357,7 +357,7 @@ create_pagetables:
 	mov	x7, #NORMAL_MEM
 	mov	x8, #(KERNBASE & L2_BLOCK_MASK)
 	mov	x9, x28
-	bl	build_block_pagetable
+	bl	build_l2_block_pagetable
 
 	/* Move to the l1 table */
 	add	x26, x26, #PAGE_SIZE
@@ -427,7 +427,7 @@ build_section_pagetable:
  * Builds an L1 -> L2 table descriptor
  *
  * This is a link for a 1GiB block of memory with up to 2MiB regions mapped
- * within it by build_block_pagetable.
+ * within it by build_l1_block_pagetable.
  *
  *  x6  = L1 table
  *  x8  = Virtual Address
@@ -463,7 +463,7 @@ link_l1_pagetable:
  *  x10 = Entry count (TODO)
  *  x11, x12 and x13 are trashed
  */
-build_block_pagetable:
+build_l2_block_pagetable:
 	/*
 	 * Build the L2 table entry.
 	 */
