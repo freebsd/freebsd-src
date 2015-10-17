@@ -243,14 +243,8 @@ cleanworld:
 # Handle the user-driven targets, using the source relative mk files.
 #
 
-.if !(!empty(.MAKEFLAGS:M-n) && ${.MAKEFLAGS:M-n} == "-n")
-# skip this for -n to avoid changing previous behavior of 
-# 'make -n buildworld' etc.  Using -n -n will run it.
-${TGTS}: .MAKE
 tinderbox toolchains kernel-toolchains: .MAKE
-.endif
-
-${TGTS}: .PHONY
+${TGTS}: .PHONY .MAKE
 	${_+_}@cd ${.CURDIR}; ${_MAKE} ${.TARGET}
 
 # The historic default "all" target creates files which may cause stale
