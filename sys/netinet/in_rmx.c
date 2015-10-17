@@ -228,19 +228,6 @@ in_rtalloc_ign(struct route *ro, u_long ignflags, u_int fibnum)
 	rtalloc_ign_fib(ro, ignflags, fibnum);
 }
 
-int
-in_rtrequest( int req,
-	struct sockaddr *dst,
-	struct sockaddr *gateway,
-	struct sockaddr *netmask,
-	int flags,
-	struct rtentry **ret_nrt,
-	u_int fibnum)
-{
-	return (rtrequest_fib(req, dst, gateway, netmask, 
-	    flags, ret_nrt, fibnum));
-}
-
 struct rtentry *
 in_rtalloc1(struct sockaddr *dst, int report, u_long ignflags, u_int fibnum)
 {
@@ -263,11 +250,4 @@ in_rtalloc(struct route *ro, u_int fibnum)
 {
 	rtalloc_ign_fib(ro, 0UL, fibnum);
 }
-
-#if 0
-int	 in_rt_getifa(struct rt_addrinfo *, u_int fibnum);
-int	 in_rtioctl(u_long, caddr_t, u_int);
-int	 in_rtrequest1(int, struct rt_addrinfo *, struct rtentry **, u_int);
-#endif
-
 
