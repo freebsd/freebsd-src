@@ -1,5 +1,6 @@
 /*-
  * Copyright (C) 2013 Intel Corporation
+ * Copyright (C) 2015 EMC Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -150,14 +151,19 @@
 #define NTB_DEV_USD	0
 
 /* All addresses are in low 32-bit space so 32-bit BARs can function */
-#define XEON_B2B_BAR0_USD_ADDR		0x2100000cull
-#define XEON_B2B_BAR2_USD_ADDR		0x4100000cull
-#define XEON_B2B_BAR4_USD_ADDR		0x8100000cull
-#define XEON_B2B_BAR5_USD_ADDR		0xa100000cull
-#define XEON_B2B_BAR0_DSD_ADDR		0x2000000cull
-#define XEON_B2B_BAR2_DSD_ADDR		0x4000000cull
-#define XEON_B2B_BAR4_DSD_ADDR		0x8000000cull
-#define XEON_B2B_BAR5_DSD_ADDR		0xa000000cull
+#define XEON_B2B_BAR0_USD_ADDR		0x1000000000000000ull
+#define XEON_B2B_BAR2_USD_ADDR64	0x2000000000000000ull
+#define XEON_B2B_BAR4_USD_ADDR64	0x4000000000000000ull
+#define XEON_B2B_BAR4_USD_ADDR32	0x20000000ull
+#define XEON_B2B_BAR5_USD_ADDR32	0x40000000ull
+#define XEON_B2B_BAR0_DSD_ADDR		0x9000000000000000ull
+#define XEON_B2B_BAR2_DSD_ADDR64	0xa000000000000000ull
+#define XEON_B2B_BAR4_DSD_ADDR64	0xc000000000000000ull
+#define XEON_B2B_BAR4_DSD_ADDR32	0xa0000000ull
+#define XEON_B2B_BAR5_DSD_ADDR32	0xc0000000ull
+
+/* The peer ntb secondary config space is 32KB fixed size */
+#define XEON_B2B_MIN_SIZE		0x8000
 
 /* XEON Shadowed MMIO Space */
 #define XEON_SHADOW_PDOORBELL_OFFSET	0x60

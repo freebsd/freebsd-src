@@ -1,5 +1,6 @@
 /*-
  * Copyright (C) 2013 Intel Corporation
+ * Copyright (C) 2015 EMC Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,10 +72,11 @@ int ntb_write_remote_spad(struct ntb_softc *ntb, unsigned int idx,
 int ntb_read_remote_spad(struct ntb_softc *ntb, unsigned int idx,
     uint32_t *val);
 void *ntb_get_mw_vbase(struct ntb_softc *ntb, unsigned int mw);
-vm_paddr_t ntb_get_mw_pbase(struct ntb_softc *ntb, unsigned int mw);
+bus_addr_t ntb_get_mw_pbase(struct ntb_softc *ntb, unsigned int mw);
 u_long ntb_get_mw_size(struct ntb_softc *ntb, unsigned int mw);
 void ntb_set_mw_addr(struct ntb_softc *ntb, unsigned int mw, uint64_t addr);
 void ntb_ring_doorbell(struct ntb_softc *ntb, unsigned int db);
+bus_addr_t ntb_get_peer_db_addr(struct ntb_softc *ntb, vm_size_t *sz_out);
 bool ntb_query_link_status(struct ntb_softc *ntb);
 device_t ntb_get_device(struct ntb_softc *ntb);
 
