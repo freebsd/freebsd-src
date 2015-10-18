@@ -192,7 +192,7 @@ u8 eap_get_id(const struct wpabuf *msg)
 
 
 /**
- * eap_get_id - Get EAP Type from wpabuf
+ * eap_get_type - Get EAP Type from wpabuf
  * @msg: Buffer starting with an EAP header
  * Returns: The EAP Type after the EAP header
  */
