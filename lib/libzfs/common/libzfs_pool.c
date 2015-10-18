@@ -373,27 +373,6 @@ bootfs_name_valid(const char *pool, char *bootfs)
 	return (B_FALSE);
 }
 
-/*
- * Inspect the configuration to determine if any of the devices contain
- * an EFI label.
- */
-static boolean_t
-pool_uses_efi(nvlist_t *config)
-{
-	nvlist_t **child;
-	uint_t c, children;
-
-	if (nvlist_lookup_nvlist_array(config, ZPOOL_CONFIG_CHILDREN,
-	    &child, &children) != 0)
-		return (read_efi_label(config, NULL) >= 0);
-
-	for (c = 0; c < children; c++) {
-		if (pool_uses_efi(child[c]))
-			return (B_TRUE);
-	}
-	return (B_FALSE);
-}
-
 boolean_t
 zpool_is_bootable(zpool_handle_t *zhp)
 {
@@ -422,7 +401,6 @@ zpool_valid_proplist(libzfs_handle_t *hdl, const char *poolname,
 	char *slash, *check;
 	struct stat64 statbuf;
 	zpool_handle_t *zhp;
-	nvlist_t *nvroot;
 
 	if (nvlist_alloc(&retprops, NV_UNIQUE_NAME, 0) != 0) {
 		(void) no_memory(hdl);
@@ -539,21 +517,6 @@ zpool_valid_proplist(libzfs_handle_t *hdl, const char *poolname,
 				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 				    "could not open pool '%s'"), poolname);
 				(void) zfs_error(hdl, EZFS_OPENFAILED, errbuf);
-				goto error;
-			}
-			verify(nvlist_lookup_nvlist(zpool_get_config(zhp, NULL),
-			    ZPOOL_CONFIG_VDEV_TREE, &nvroot) == 0);
-
-			/*
-			 * bootfs property cannot be set on a disk which has
-			 * been EFI labeled.
-			 */
-			if (pool_uses_efi(nvroot)) {
-				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-				    "property '%s' not supported on "
-				    "EFI labeled devices"), propname);
-				(void) zfs_error(hdl, EZFS_POOL_NOTSUP, errbuf);
-				zpool_close(zhp);
 				goto error;
 			}
 			zpool_close(zhp);
@@ -1291,25 +1254,6 @@ zpool_add(zpool_handle_t *zhp, nvlist_t *nvroot)
 		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN, "pool must be "
 		    "upgraded to add hot spares"));
 		return (zfs_error(hdl, EZFS_BADVERSION, msg));
-	}
-
-	if (zpool_is_bootable(zhp) && nvlist_lookup_nvlist_array(nvroot,
-	    ZPOOL_CONFIG_SPARES, &spares, &nspares) == 0) {
-		uint64_t s;
-
-		for (s = 0; s < nspares; s++) {
-			char *path;
-
-			if (nvlist_lookup_string(spares[s], ZPOOL_CONFIG_PATH,
-			    &path) == 0 && pool_uses_efi(spares[s])) {
-				zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-				    "device '%s' contains an EFI label and "
-				    "cannot be used on root pools."),
-				    zpool_vdev_name(hdl, NULL, spares[s],
-				    B_FALSE));
-				return (zfs_error(hdl, EZFS_POOL_NOTSUP, msg));
-			}
-		}
 	}
 
 	if (zpool_get_prop_int(zhp, ZPOOL_PROP_VERSION, NULL) <
@@ -2326,11 +2270,9 @@ zpool_get_config_physpath(nvlist_t *config, char *physpath, size_t phypath_size)
 		return (EZFS_INVALCONFIG);
 
 	/*
-	 * root pool can not have EFI labeled disks and can only have
-	 * a single top-level vdev.
+	 * root pool can only have a single top-level vdev.
 	 */
-	if (strcmp(type, VDEV_TYPE_ROOT) != 0 || count != 1 ||
-	    pool_uses_efi(vdev_root))
+	if (strcmp(type, VDEV_TYPE_ROOT) != 0 || count != 1)
 		return (EZFS_POOL_INVALARG);
 
 	(void) vdev_get_physpaths(child[0], physpath, phypath_size, &rsz,
@@ -2631,16 +2573,6 @@ zpool_vdev_attach(zpool_handle_t *zhp,
 	else
 		(void) snprintf(msg, sizeof (msg), dgettext(TEXT_DOMAIN,
 		    "cannot attach %s to %s"), new_disk, old_disk);
-
-	/*
-	 * If this is a root pool, make sure that we're not attaching an
-	 * EFI labeled device.
-	 */
-	if (rootpool && pool_uses_efi(nvroot)) {
-		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-		    "EFI labeled devices are not supported on root pools."));
-		return (zfs_error(hdl, EZFS_POOL_NOTSUP, msg));
-	}
 
 	(void) strlcpy(zc.zc_name, zhp->zpool_name, sizeof (zc.zc_name));
 	if ((tgt = zpool_find_vdev(zhp, old_disk, &avail_spare, &l2cache,
@@ -3916,13 +3848,6 @@ zpool_label_disk(libzfs_handle_t *hdl, zpool_handle_t *zhp, char *name)
 
 	if (zhp) {
 		nvlist_t *nvroot;
-
-		if (zpool_is_bootable(zhp)) {
-			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
-			    "EFI labeled devices are not supported on root "
-			    "pools."));
-			return (zfs_error(hdl, EZFS_POOL_NOTSUP, errbuf));
-		}
 
 		verify(nvlist_lookup_nvlist(zhp->zpool_config,
 		    ZPOOL_CONFIG_VDEV_TREE, &nvroot) == 0);
