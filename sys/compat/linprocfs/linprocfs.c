@@ -393,7 +393,6 @@ linprocfs_domtab(PFS_FILL_ARGS)
 
 /*
  * Filler function for proc/partitions
- *
  */
 static int
 linprocfs_dopartitions(PFS_FILL_ARGS)
@@ -401,27 +400,9 @@ linprocfs_dopartitions(PFS_FILL_ARGS)
 	struct g_class *cp;
 	struct g_geom *gp;
 	struct g_provider *pp;
-	struct nameidata nd;
-	const char *lep;
-	char  *dlep, *flep;
-	size_t lep_len;
-	int error;
 	int major, minor;
 
-	/* resolve symlinks etc. in the emulation tree prefix */
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path, td);
-	flep = NULL;
-	error = namei(&nd);
-	lep = linux_emul_path;
-	if (error == 0) {
-		if (vn_fullpath(td, nd.ni_vp, &dlep, &flep) == 0)
-			lep = dlep;
-		vrele(nd.ni_vp);
-	}
-	lep_len = strlen(lep);
-
 	g_topology_lock();
-	error = 0;
 	sbuf_printf(sb, "major minor  #blocks  name rio rmerge rsect "
 	    "ruse wio wmerge wsect wuse running use aveq\n");
 
@@ -447,8 +428,7 @@ linprocfs_dopartitions(PFS_FILL_ARGS)
 	}
 	g_topology_unlock();
 
-	free(flep, M_TEMP);
-	return (error);
+	return (0);
 }
 
 
