@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
- * Copyright (c) 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  */
 
 /*
@@ -739,8 +739,9 @@ zcmd_alloc_dst_nvlist(libzfs_handle_t *hdl, zfs_cmd_t *zc, size_t len)
 	if (len == 0)
 		len = 16 * 1024;
 	zc->zc_nvlist_dst_size = len;
-	if ((zc->zc_nvlist_dst = (uint64_t)(uintptr_t)
-	    zfs_alloc(hdl, zc->zc_nvlist_dst_size)) == NULL)
+	zc->zc_nvlist_dst =
+	    (uint64_t)(uintptr_t)zfs_alloc(hdl, zc->zc_nvlist_dst_size);
+	if (zc->zc_nvlist_dst == 0)
 		return (-1);
 
 	return (0);
@@ -755,9 +756,9 @@ int
 zcmd_expand_dst_nvlist(libzfs_handle_t *hdl, zfs_cmd_t *zc)
 {
 	free((void *)(uintptr_t)zc->zc_nvlist_dst);
-	if ((zc->zc_nvlist_dst = (uint64_t)(uintptr_t)
-	    zfs_alloc(hdl, zc->zc_nvlist_dst_size))
-	    == NULL)
+	zc->zc_nvlist_dst =
+	    (uint64_t)(uintptr_t)zfs_alloc(hdl, zc->zc_nvlist_dst_size);
+	if (zc->zc_nvlist_dst == 0)
 		return (-1);
 
 	return (0);
@@ -772,6 +773,9 @@ zcmd_free_nvlists(zfs_cmd_t *zc)
 	free((void *)(uintptr_t)zc->zc_nvlist_conf);
 	free((void *)(uintptr_t)zc->zc_nvlist_src);
 	free((void *)(uintptr_t)zc->zc_nvlist_dst);
+	zc->zc_nvlist_conf = NULL;
+	zc->zc_nvlist_src = NULL;
+	zc->zc_nvlist_dst = NULL;
 }
 
 static int
