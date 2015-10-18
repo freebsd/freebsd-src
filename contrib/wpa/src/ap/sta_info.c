@@ -16,6 +16,7 @@
 #include "radius/radius.h"
 #include "radius/radius_client.h"
 #include "p2p/p2p.h"
+#include "fst/fst.h"
 #include "hostapd.h"
 #include "accounting.h"
 #include "ieee802_1x.h"
@@ -171,6 +172,19 @@ void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
 	    !(sta->flags & WLAN_STA_PREAUTH))
 		hostapd_drv_sta_remove(hapd, sta->addr);
 
+#ifndef CONFIG_NO_VLAN
+	if (sta->vlan_id_bound) {
+		/*
+		 * Need to remove the STA entry before potentially removing the
+		 * VLAN.
+		 */
+		if (hapd->iface->driver_ap_teardown &&
+		    !(sta->flags & WLAN_STA_PREAUTH))
+			hostapd_drv_sta_remove(hapd, sta->addr);
+		vlan_remove_dynamic(hapd, sta->vlan_id_bound);
+	}
+#endif /* CONFIG_NO_VLAN */
+
 	ap_sta_hash_del(hapd, sta);
 	ap_sta_list_del(hapd, sta);
 
@@ -283,6 +297,9 @@ void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
 	wpabuf_free(sta->wps_ie);
 	wpabuf_free(sta->p2p_ie);
 	wpabuf_free(sta->hs20_ie);
+#ifdef CONFIG_FST
+	wpabuf_free(sta->mb_ies);
+#endif /* CONFIG_FST */
 
 	os_free(sta->ht_capabilities);
 	os_free(sta->vht_capabilities);
@@ -619,7 +636,6 @@ struct sta_info * ap_sta_add(struct hostapd_data *hapd, const u8 *addr)
 	hapd->sta_list = sta;
 	hapd->num_sta++;
 	ap_sta_hash_add(hapd, sta);
-	sta->ssid = &hapd->conf->ssid;
 	ap_sta_remove_in_other_bss(hapd, sta);
 	sta->last_seq_ctrl = WLAN_INVALID_MGMT_SEQ;
 	dl_list_init(&sta->ip6addr);
@@ -768,26 +784,19 @@ int ap_sta_wps_cancel(struct hostapd_data *hapd,
 #endif /* CONFIG_WPS */
 
 
-int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta,
-		     int old_vlanid)
+int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta)
 {
 #ifndef CONFIG_NO_VLAN
 	const char *iface;
 	struct hostapd_vlan *vlan = NULL;
 	int ret;
-
-	/*
-	 * Do not proceed furthur if the vlan id remains same. We do not want
-	 * duplicate dynamic vlan entries.
-	 */
-	if (sta->vlan_id == old_vlanid)
-		return 0;
+	int old_vlanid = sta->vlan_id_bound;
 
 	iface = hapd->conf->iface;
-	if (sta->ssid->vlan[0])
-		iface = sta->ssid->vlan;
+	if (hapd->conf->ssid.vlan[0])
+		iface = hapd->conf->ssid.vlan;
 
-	if (sta->ssid->dynamic_vlan == DYNAMIC_VLAN_DISABLED)
+	if (hapd->conf->ssid.dynamic_vlan == DYNAMIC_VLAN_DISABLED)
 		sta->vlan_id = 0;
 	else if (sta->vlan_id > 0) {
 		struct hostapd_vlan *wildcard_vlan = NULL;
@@ -804,6 +813,14 @@ int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta,
 		if (vlan)
 			iface = vlan->ifname;
 	}
+
+	/*
+	 * Do not increment ref counters if the VLAN ID remains same, but do
+	 * not skip hostapd_drv_set_sta_vlan() as hostapd_drv_sta_remove() might
+	 * have been called before.
+	 */
+	if (sta->vlan_id == old_vlanid)
+		goto skip_counting;
 
 	if (sta->vlan_id > 0 && vlan == NULL) {
 		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
@@ -825,7 +842,7 @@ int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta,
 		}
 
 		iface = vlan->ifname;
-		if (vlan_setup_encryption_dyn(hapd, sta->ssid, iface) != 0) {
+		if (vlan_setup_encryption_dyn(hapd, iface) != 0) {
 			hostapd_logger(hapd, sta->addr,
 				       HOSTAPD_MODULE_IEEE80211,
 				       HOSTAPD_LEVEL_DEBUG, "could not "
@@ -838,7 +855,7 @@ int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta,
 			       HOSTAPD_LEVEL_DEBUG, "added new dynamic VLAN "
 			       "interface '%s'", iface);
 	} else if (vlan && vlan->vlan_id == sta->vlan_id) {
-		if (sta->vlan_id > 0) {
+		if (vlan->dynamic_vlan > 0) {
 			vlan->dynamic_vlan++;
 			hostapd_logger(hapd, sta->addr,
 				       HOSTAPD_MODULE_IEEE80211,
@@ -852,7 +869,7 @@ int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta,
 		 * configuration for the case where hostapd did not yet know
 		 * which keys are to be used when the interface was added.
 		 */
-		if (vlan_setup_encryption_dyn(hapd, sta->ssid, iface) != 0) {
+		if (vlan_setup_encryption_dyn(hapd, iface) != 0) {
 			hostapd_logger(hapd, sta->addr,
 				       HOSTAPD_MODULE_IEEE80211,
 				       HOSTAPD_LEVEL_DEBUG, "could not "
@@ -862,6 +879,10 @@ int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta,
 		}
 	}
 
+	/* ref counters have been increased, so mark the station */
+	sta->vlan_id_bound = sta->vlan_id;
+
+skip_counting:
 	hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
 		       HOSTAPD_LEVEL_DEBUG, "binding station to interface "
 		       "'%s'", iface);
@@ -876,10 +897,10 @@ int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta,
 			       "entry to vlan_id=%d", sta->vlan_id);
 	}
 
-done:
 	/* During 1x reauth, if the vlan id changes, then remove the old id. */
-	if (old_vlanid > 0)
+	if (old_vlanid > 0 && old_vlanid != sta->vlan_id)
 		vlan_remove_dynamic(hapd, old_vlanid);
+done:
 
 	return ret;
 #else /* CONFIG_NO_VLAN */
@@ -1043,6 +1064,16 @@ void ap_sta_set_authorized(struct hostapd_data *hapd, struct sta_info *sta,
 			wpa_msg_no_global(hapd->msg_ctx_parent, MSG_INFO,
 					  AP_STA_DISCONNECTED "%s", buf);
 	}
+
+#ifdef CONFIG_FST
+	if (hapd->iface->fst) {
+		if (authorized)
+			fst_notify_peer_connected(hapd->iface->fst, sta->addr);
+		else
+			fst_notify_peer_disconnected(hapd->iface->fst,
+						     sta->addr);
+	}
+#endif /* CONFIG_FST */
 }
 
 
