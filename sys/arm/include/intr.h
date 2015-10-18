@@ -85,7 +85,7 @@ extern int (*arm_config_irq)(int irq, enum intr_trigger trig,
 
 void arm_irq_memory_barrier(uintptr_t);
 
-void arm_init_secondary_ic(void);
+void arm_pic_init_secondary(void);
 int  gic_decode_fdt(uint32_t iparentnode, uint32_t *intrcells, int *interrupt,
     int *trig, int *pol);
 
