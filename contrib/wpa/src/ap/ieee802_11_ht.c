@@ -209,7 +209,7 @@ void hostapd_2040_coex_action(struct hostapd_data *hapd,
 	struct hostapd_iface *iface = hapd->iface;
 	struct ieee80211_2040_bss_coex_ie *bc_ie;
 	struct ieee80211_2040_intol_chan_report *ic_report;
-	int is_ht_allowed = 1;
+	int is_ht40_allowed = 1;
 	int i;
 	const u8 *start = (const u8 *) mgmt;
 	const u8 *data = start + IEEE80211_HDRLEN + 2;
@@ -242,7 +242,7 @@ void hostapd_2040_coex_action(struct hostapd_data *hapd,
 			       HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_DEBUG,
 			       "20 MHz BSS width request bit is set in BSS coexistence information field");
-		is_ht_allowed = 0;
+		is_ht40_allowed = 0;
 	}
 
 	if (bc_ie->coex_param & WLAN_20_40_BSS_COEX_40MHZ_INTOL) {
@@ -250,7 +250,7 @@ void hostapd_2040_coex_action(struct hostapd_data *hapd,
 			       HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_DEBUG,
 			       "40 MHz intolerant bit is set in BSS coexistence information field");
-		is_ht_allowed = 0;
+		is_ht40_allowed = 0;
 	}
 
 	if (start + len - data >= 3 &&
@@ -276,13 +276,13 @@ void hostapd_2040_coex_action(struct hostapd_data *hapd,
 				       HOSTAPD_LEVEL_DEBUG,
 				       "20_40_INTOLERANT channel %d reported",
 				       chan);
-			is_ht_allowed = 0;
+			is_ht40_allowed = 0;
 		}
 	}
-	wpa_printf(MSG_DEBUG, "is_ht_allowed=%d num_sta_ht40_intolerant=%d",
-		   is_ht_allowed, iface->num_sta_ht40_intolerant);
+	wpa_printf(MSG_DEBUG, "is_ht40_allowed=%d num_sta_ht40_intolerant=%d",
+		   is_ht40_allowed, iface->num_sta_ht40_intolerant);
 
-	if (!is_ht_allowed &&
+	if (!is_ht40_allowed &&
 	    (iface->drv_flags & WPA_DRIVER_FLAGS_HT_2040_COEX)) {
 		if (iface->conf->secondary_channel) {
 			hostapd_logger(hapd, mgmt->sa,
@@ -310,12 +310,15 @@ void hostapd_2040_coex_action(struct hostapd_data *hapd,
 
 
 u16 copy_sta_ht_capab(struct hostapd_data *hapd, struct sta_info *sta,
-		      const u8 *ht_capab, size_t ht_capab_len)
+		      const u8 *ht_capab)
 {
-	/* Disable HT caps for STAs associated to no-HT BSSes. */
+	/*
+	 * Disable HT caps for STAs associated to no-HT BSSes, or for stations
+	 * that did not specify a valid WMM IE in the (Re)Association Request
+	 * frame.
+	 */
 	if (!ht_capab ||
-	    ht_capab_len < sizeof(struct ieee80211_ht_capabilities) ||
-	    hapd->conf->disable_11n) {
+	    !(sta->flags & WLAN_STA_WMM) || hapd->conf->disable_11n) {
 		sta->flags &= ~WLAN_STA_HT;
 		os_free(sta->ht_capabilities);
 		sta->ht_capabilities = NULL;

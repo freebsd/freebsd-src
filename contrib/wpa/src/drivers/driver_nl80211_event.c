@@ -271,6 +271,7 @@ static void mlme_event_connect(struct wpa_driver_nl80211_data *drv,
 			       struct nlattr *ptk_kek)
 {
 	union wpa_event_data event;
+	const u8 *ssid;
 	u16 status_code;
 
 	if (drv->capa.flags & WPA_DRIVER_FLAGS_SME) {
@@ -331,6 +332,16 @@ static void mlme_event_connect(struct wpa_driver_nl80211_data *drv,
 	if (req_ie) {
 		event.assoc_info.req_ies = nla_data(req_ie);
 		event.assoc_info.req_ies_len = nla_len(req_ie);
+
+		if (cmd == NL80211_CMD_ROAM) {
+			ssid = nl80211_get_ie(event.assoc_info.req_ies,
+					      event.assoc_info.req_ies_len,
+					      WLAN_EID_SSID);
+			if (ssid && ssid[1] > 0 && ssid[1] <= 32) {
+				drv->ssid_len = ssid[1];
+				os_memcpy(drv->ssid, ssid + 2, ssid[1]);
+			}
+		}
 	}
 	if (resp_ie) {
 		event.assoc_info.resp_ies = nla_data(resp_ie);
@@ -1480,6 +1491,25 @@ static void qca_nl80211_avoid_freq(struct wpa_driver_nl80211_data *drv,
 }
 
 
+static enum hostapd_hw_mode get_qca_hw_mode(u8 hw_mode)
+{
+	switch (hw_mode) {
+	case QCA_ACS_MODE_IEEE80211B:
+		return HOSTAPD_MODE_IEEE80211B;
+	case QCA_ACS_MODE_IEEE80211G:
+		return HOSTAPD_MODE_IEEE80211G;
+	case QCA_ACS_MODE_IEEE80211A:
+		return HOSTAPD_MODE_IEEE80211A;
+	case QCA_ACS_MODE_IEEE80211AD:
+		return HOSTAPD_MODE_IEEE80211AD;
+	case QCA_ACS_MODE_IEEE80211ANY:
+		return HOSTAPD_MODE_IEEE80211ANY;
+	default:
+		return NUM_HOSTAPD_MODES;
+	}
+}
+
+
 static void qca_nl80211_acs_select_ch(struct wpa_driver_nl80211_data *drv,
 				   const u8 *data, size_t len)
 {
@@ -1500,6 +1530,39 @@ static void qca_nl80211_acs_select_ch(struct wpa_driver_nl80211_data *drv,
 		nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_ACS_PRIMARY_CHANNEL]);
 	event.acs_selected_channels.sec_channel =
 		nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_ACS_SECONDARY_CHANNEL]);
+	if (tb[QCA_WLAN_VENDOR_ATTR_ACS_VHT_SEG0_CENTER_CHANNEL])
+		event.acs_selected_channels.vht_seg0_center_ch =
+			nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_ACS_VHT_SEG0_CENTER_CHANNEL]);
+	if (tb[QCA_WLAN_VENDOR_ATTR_ACS_VHT_SEG0_CENTER_CHANNEL])
+		event.acs_selected_channels.vht_seg1_center_ch =
+			nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_ACS_VHT_SEG1_CENTER_CHANNEL]);
+	if (tb[QCA_WLAN_VENDOR_ATTR_ACS_CHWIDTH])
+		event.acs_selected_channels.ch_width =
+			nla_get_u16(tb[QCA_WLAN_VENDOR_ATTR_ACS_CHWIDTH]);
+	if (tb[QCA_WLAN_VENDOR_ATTR_ACS_HW_MODE]) {
+		u8 hw_mode = nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_ACS_HW_MODE]);
+
+		event.acs_selected_channels.hw_mode = get_qca_hw_mode(hw_mode);
+		if (event.acs_selected_channels.hw_mode == NUM_HOSTAPD_MODES ||
+		    event.acs_selected_channels.hw_mode ==
+		    HOSTAPD_MODE_IEEE80211ANY) {
+			wpa_printf(MSG_DEBUG,
+				   "nl80211: Invalid hw_mode %d in ACS selection event",
+				   hw_mode);
+			return;
+		}
+	}
+
+	wpa_printf(MSG_INFO,
+		   "nl80211: ACS Results: PCH: %d SCH: %d BW: %d VHT0: %d VHT1: %d HW_MODE: %d",
+		   event.acs_selected_channels.pri_channel,
+		   event.acs_selected_channels.sec_channel,
+		   event.acs_selected_channels.ch_width,
+		   event.acs_selected_channels.vht_seg0_center_ch,
+		   event.acs_selected_channels.vht_seg1_center_ch,
+		   event.acs_selected_channels.hw_mode);
+
+	/* Ignore ACS channel list check for backwards compatibility */
 
 	wpa_supplicant_event(drv->ctx, EVENT_ACS_CHANNEL_SELECTED, &event);
 }

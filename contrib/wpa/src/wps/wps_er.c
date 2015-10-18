@@ -1649,11 +1649,15 @@ static void wps_er_http_put_message_cb(void *ctx, struct http_client *c,
 	case HTTP_CLIENT_OK:
 		wpa_printf(MSG_DEBUG, "WPS ER: PutMessage OK");
 		reply = http_client_get_body(c);
-		if (reply == NULL)
+		if (reply)
+			msg = os_zalloc(wpabuf_len(reply) + 1);
+		if (msg == NULL) {
+			if (ap->wps) {
+				wps_deinit(ap->wps);
+				ap->wps = NULL;
+			}
 			break;
-		msg = os_zalloc(wpabuf_len(reply) + 1);
-		if (msg == NULL)
-			break;
+		}
 		os_memcpy(msg, wpabuf_head(reply), wpabuf_len(reply));
 		break;
 	case HTTP_CLIENT_FAILED:
@@ -1709,21 +1713,30 @@ static void wps_er_ap_put_message(struct wps_er_ap *ap,
 	url = http_client_url_parse(ap->control_url, &dst, &path);
 	if (url == NULL) {
 		wpa_printf(MSG_DEBUG, "WPS ER: Failed to parse controlURL");
-		return;
+		goto fail;
 	}
 
 	buf = wps_er_soap_hdr(msg, "PutMessage", "NewInMessage", path, &dst,
 			      &len_ptr, &body_ptr);
 	os_free(url);
 	if (buf == NULL)
-		return;
+		goto fail;
 
 	wps_er_soap_end(buf, "PutMessage", len_ptr, body_ptr);
 
 	ap->http = http_client_addr(&dst, buf, 10000,
 				    wps_er_http_put_message_cb, ap);
-	if (ap->http == NULL)
+	if (ap->http == NULL) {
 		wpabuf_free(buf);
+		goto fail;
+	}
+	return;
+
+fail:
+	if (ap->wps) {
+		wps_deinit(ap->wps);
+		ap->wps = NULL;
+	}
 }
 
 

@@ -53,7 +53,7 @@ static int wpas_dbus_handler_wps_role(DBusMessage *message,
 	else if (os_strcmp(val, "registrar") == 0)
 		params->role = 2;
 	else {
-		wpa_printf(MSG_DEBUG, "dbus: WPS.Start - Uknown role %s", val);
+		wpa_printf(MSG_DEBUG, "dbus: WPS.Start - Unknown role %s", val);
 		*reply = wpas_dbus_error_invalid_args(message, val);
 		return -1;
 	}
@@ -113,7 +113,7 @@ static int wpas_dbus_handler_wps_bssid(DBusMessage *message,
 	dbus_message_iter_recurse(&variant_iter, &array_iter);
 	dbus_message_iter_get_fixed_array(&array_iter, &params->bssid, &len);
 	if (len != ETH_ALEN) {
-		wpa_printf(MSG_DEBUG, "dbus: WPS.Stsrt - Wrong Bssid length %d",
+		wpa_printf(MSG_DEBUG, "dbus: WPS.Start - Wrong Bssid length %d",
 			   len);
 		*reply = wpas_dbus_error_invalid_args(message,
 						      "Bssid is wrong length");
@@ -320,6 +320,26 @@ DBusMessage * wpas_dbus_handler_wps_start(DBusMessage *message,
 
 
 /**
+ * wpas_dbus_handler_wps_cancel - Cancel ongoing WPS configuration
+ * @message: Pointer to incoming dbus message
+ * @wpa_s: %wpa_supplicant data structure
+ * Returns: NULL on success or DBus error on failure
+ *
+ * Handler for "Cancel" method call. Returns NULL if WPS cancel successfull
+ * or DBus error on WPS cancel failure
+ */
+DBusMessage * wpas_dbus_handler_wps_cancel(DBusMessage *message,
+					   struct wpa_supplicant *wpa_s)
+{
+	if (wpas_wps_cancel(wpa_s))
+		return wpas_dbus_error_unknown_error(message,
+						     "WPS cancel failed");
+
+	return NULL;
+}
+
+
+/**
  * wpas_dbus_getter_process_credentials - Check if credentials are processed
  * @message: Pointer to incoming dbus message
  * @wpa_s: %wpa_supplicant data structure
@@ -358,6 +378,8 @@ dbus_bool_t wpas_dbus_setter_process_credentials(DBusMessageIter *iter,
 	struct wpa_supplicant *wpa_s = user_data;
 	dbus_bool_t process_credentials, old_pc;
 
+	if (!wpa_s->dbus_new_path)
+		return FALSE;
 	if (!wpas_dbus_simple_property_setter(iter, error, DBUS_TYPE_BOOLEAN,
 					      &process_credentials))
 		return FALSE;

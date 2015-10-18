@@ -41,6 +41,7 @@ struct hapd_interfaces {
 
 	size_t count;
 	int global_ctrl_sock;
+	struct wpa_ctrl_dst *global_ctrl_dst;
 	char *global_iface_path;
 	char *global_iface_name;
 #ifndef CONFIG_NATIVE_WINDOWS
@@ -49,6 +50,9 @@ struct hapd_interfaces {
 	struct hostapd_iface **iface;
 
 	size_t terminate_on_error;
+#ifndef CONFIG_NO_VLAN
+	struct dynamic_iface *vlan_priv;
+#endif /* CONFIG_NO_VLAN */
 };
 
 enum hostapd_chan_status {
@@ -265,6 +269,7 @@ struct hostapd_data {
 	/** Key used for generating SAE anti-clogging tokens */
 	u8 sae_token_key[8];
 	struct os_reltime last_sae_token_key_update;
+	int dot11RSNASAERetransPeriod; /* msec */
 #endif /* CONFIG_SAE */
 
 #ifdef CONFIG_TESTING_OPTIONS
@@ -275,6 +280,12 @@ struct hostapd_data {
 #endif /* CONFIG_TESTING_OPTIONS */
 };
 
+
+struct hostapd_sta_info {
+	struct dl_list list;
+	u8 addr[ETH_ALEN];
+	struct os_reltime last_seen;
+};
 
 /**
  * struct hostapd_iface - hostapd per-interface data structure
@@ -305,6 +316,10 @@ struct hostapd_iface {
 
 	unsigned int wait_channel_update:1;
 	unsigned int cac_started:1;
+#ifdef CONFIG_FST
+	struct fst_iface *fst;
+	const struct wpabuf *fst_ies;
+#endif /* CONFIG_FST */
 
 	/*
 	 * When set, indicates that the driver will handle the AP
@@ -400,6 +415,9 @@ struct hostapd_iface {
 
 	void (*scan_cb)(struct hostapd_iface *iface);
 	int num_ht40_scan_tries;
+
+	struct dl_list sta_seen; /* struct hostapd_sta_info */
+	unsigned int num_sta_seen;
 };
 
 /* hostapd.c */
@@ -437,6 +455,7 @@ void
 hostapd_switch_channel_fallback(struct hostapd_iface *iface,
 				const struct hostapd_freq_params *freq_params);
 void hostapd_cleanup_cs_params(struct hostapd_data *hapd);
+void hostapd_periodic_iface(struct hostapd_iface *iface);
 
 /* utils.c */
 int hostapd_register_probereq_cb(struct hostapd_data *hapd,
@@ -463,5 +482,13 @@ void hostapd_event_ch_switch(struct hostapd_data *hapd, int freq, int ht,
 const struct hostapd_eap_user *
 hostapd_get_eap_user(struct hostapd_data *hapd, const u8 *identity,
 		     size_t identity_len, int phase2);
+
+struct hostapd_data * hostapd_get_iface(struct hapd_interfaces *interfaces,
+					const char *ifname);
+
+#ifdef CONFIG_FST
+void fst_hostapd_fill_iface_obj(struct hostapd_data *hapd,
+				struct fst_wpa_obj *iface_obj);
+#endif /* CONFIG_FST */
 
 #endif /* HOSTAPD_H */

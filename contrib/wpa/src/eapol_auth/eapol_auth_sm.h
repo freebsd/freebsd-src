@@ -1,6 +1,6 @@
 /*
  * IEEE 802.1X-2004 Authenticator - EAPOL state machine
- * Copyright (c) 2002-2009, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2015, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -27,6 +27,7 @@ struct eapol_auth_config {
 	int erp_send_reauth_start;
 	char *erp_domain; /* a copy of this will be allocated */
 	int erp; /* Whether ERP is enabled on authentication server */
+	unsigned int tls_session_lifetime;
 	u8 *pac_opaque_encr_key;
 	u8 *eap_fast_a_id;
 	size_t eap_fast_a_id_len;
@@ -94,5 +95,8 @@ void eapol_auth_step(struct eapol_state_machine *sm);
 int eapol_auth_dump_state(struct eapol_state_machine *sm, char *buf,
 			  size_t buflen);
 int eapol_auth_eap_pending_cb(struct eapol_state_machine *sm, void *ctx);
+void eapol_auth_reauthenticate(struct eapol_state_machine *sm);
+int eapol_auth_set_conf(struct eapol_state_machine *sm, const char *param,
+			const char *value);
 
 #endif /* EAPOL_AUTH_SM_H */

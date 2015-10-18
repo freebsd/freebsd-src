@@ -151,7 +151,7 @@ int android_pno_stop(struct i802_bss *bss)
 
 
 #ifdef ANDROID_P2P
-#ifdef ANDROID_P2P_STUB
+#ifdef ANDROID_LIB_STUB
 
 int wpa_driver_set_p2p_noa(void *priv, u8 count, int start, int duration)
 {
@@ -178,7 +178,7 @@ int wpa_driver_set_ap_wps_p2p_ie(void *priv, const struct wpabuf *beacon,
 	return 0;
 }
 
-#endif /* ANDROID_P2P_STUB */
+#endif /* ANDROID_LIB_STUB */
 #endif /* ANDROID_P2P */
 
 
@@ -188,33 +188,3 @@ int android_nl_socket_set_nonblocking(struct nl_handle *handle)
 }
 
 
-int android_genl_ctrl_resolve(struct nl_handle *handle, const char *name)
-{
-	/*
-	 * Android ICS has very minimal genl_ctrl_resolve() implementation, so
-	 * need to work around that.
-	 */
-	struct nl_cache *cache = NULL;
-	struct genl_family *nl80211 = NULL;
-	int id = -1;
-
-	if (genl_ctrl_alloc_cache(handle, &cache) < 0) {
-		wpa_printf(MSG_ERROR, "nl80211: Failed to allocate generic "
-			   "netlink cache");
-		goto fail;
-	}
-
-	nl80211 = genl_ctrl_search_by_name(cache, name);
-	if (nl80211 == NULL)
-		goto fail;
-
-	id = genl_family_get_id(nl80211);
-
-fail:
-	if (nl80211)
-		genl_family_put(nl80211);
-	if (cache)
-		nl_cache_free(cache);
-
-	return id;
-}

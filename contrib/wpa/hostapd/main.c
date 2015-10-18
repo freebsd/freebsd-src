@@ -24,6 +24,7 @@
 #include "ap/hostapd.h"
 #include "ap/ap_config.h"
 #include "ap/ap_drv_ops.h"
+#include "fst/fst.h"
 #include "config_file.h"
 #include "eap_register.h"
 #include "ctrl_iface.h"
@@ -533,6 +534,28 @@ static int gen_uuid(const char *txt_addr)
 #endif /* CONFIG_WPS */
 
 
+#ifndef HOSTAPD_CLEANUP_INTERVAL
+#define HOSTAPD_CLEANUP_INTERVAL 10
+#endif /* HOSTAPD_CLEANUP_INTERVAL */
+
+static int hostapd_periodic_call(struct hostapd_iface *iface, void *ctx)
+{
+	hostapd_periodic_iface(iface);
+	return 0;
+}
+
+
+/* Periodic cleanup tasks */
+static void hostapd_periodic(void *eloop_ctx, void *timeout_ctx)
+{
+	struct hapd_interfaces *interfaces = eloop_ctx;
+
+	eloop_register_timeout(HOSTAPD_CLEANUP_INTERVAL, 0,
+			       hostapd_periodic, interfaces, NULL);
+	hostapd_for_each_interface(interfaces, hostapd_periodic_call, NULL);
+}
+
+
 int main(int argc, char *argv[])
 {
 	struct hapd_interfaces interfaces;
@@ -561,6 +584,7 @@ int main(int argc, char *argv[])
 	interfaces.global_iface_path = NULL;
 	interfaces.global_iface_name = NULL;
 	interfaces.global_ctrl_sock = -1;
+	interfaces.global_ctrl_dst = NULL;
 
 	for (;;) {
 		c = getopt(argc, argv, "b:Bde:f:hKP:Ttu:vg:G:");
@@ -661,9 +685,23 @@ int main(int argc, char *argv[])
 	}
 
 	if (hostapd_global_init(&interfaces, entropy_file)) {
-		wpa_printf(MSG_ERROR, "Failed to initilize global context");
+		wpa_printf(MSG_ERROR, "Failed to initialize global context");
 		return -1;
 	}
+
+	eloop_register_timeout(HOSTAPD_CLEANUP_INTERVAL, 0,
+			       hostapd_periodic, &interfaces, NULL);
+
+	if (fst_global_init()) {
+		wpa_printf(MSG_ERROR,
+			   "Failed to initialize global FST context");
+		goto out;
+	}
+
+#if defined(CONFIG_FST) && defined(CONFIG_CTRL_IFACE)
+	if (!fst_global_add_ctrl(fst_ctrl_cli))
+		wpa_printf(MSG_WARNING, "Failed to add CLI FST ctrl");
+#endif /* CONFIG_FST && CONFIG_CTRL_IFACE */
 
 	/* Allocate and parse configuration for full interface files */
 	for (i = 0; i < interfaces.count; i++) {
@@ -749,6 +787,7 @@ int main(int argc, char *argv[])
 	}
 	os_free(interfaces.iface);
 
+	eloop_cancel_timeout(hostapd_periodic, &interfaces, NULL);
 	hostapd_global_deinit(pid_file);
 	os_free(pid_file);
 
@@ -757,6 +796,8 @@ int main(int argc, char *argv[])
 	wpa_debug_close_linux_tracing();
 
 	os_free(bss_config);
+
+	fst_global_deinit();
 
 	os_program_deinit();
 
