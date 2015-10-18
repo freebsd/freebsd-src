@@ -239,6 +239,7 @@ _DP_vmmapi=	util
 _DP_ctf=	z
 _DP_proc=	rtld_db util
 _DP_dtrace=	rtld_db pthread
+_DP_xo=		util
 
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
