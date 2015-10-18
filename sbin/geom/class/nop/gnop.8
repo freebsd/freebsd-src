@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 14, 2013
+.Dd September 15, 2015
 .Dt GNOP 8
 .Os
 .Sh NAME
@@ -36,6 +36,8 @@
 .Op Fl v
 .Op Fl e Ar error
 .Op Fl o Ar offset
+.Op Fl p Ar stripesize
+.Op Fl P Ar stripeoffset
 .Op Fl r Ar rfailprob
 .Op Fl s Ar size
 .Op Fl S Ar secsize
@@ -115,6 +117,10 @@ Specifies the error number to return on failure.
 Force the removal of the specified provider.
 .It Fl o Ar offset
 Where to begin on the original provider.
+.It Fl p Ar stripesize
+Value of the stripesize property of the transparent provider.
+.It Fl P Ar stripeoffset
+Value of the stripeoffset property of the transparent provider.
 .It Fl r Ar rfailprob
 Specifies read failure probability in percent.
 .It Fl s Ar size

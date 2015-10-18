@@ -59,6 +59,8 @@ struct g_nop_softc {
 	int		sc_error;
 	off_t		sc_offset;
 	off_t		sc_explicitsize;
+	off_t		sc_stripesize;
+	off_t		sc_stripeoffset;
 	u_int		sc_rfailprob;
 	u_int		sc_wfailprob;
 	uintmax_t	sc_reads;
