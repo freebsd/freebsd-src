@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright 2012 Milan Jurik. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
@@ -861,7 +861,6 @@ zfs_do_create(int argc, char **argv)
 			goto error;
 		spa_version = zpool_get_prop_int(zpool_handle,
 		    ZPOOL_PROP_VERSION, NULL);
-		zpool_close(zpool_handle);
 		if (spa_version >= SPA_VERSION_REFRESERVATION)
 			resv_prop = ZFS_PROP_REFRESERVATION;
 		else
@@ -870,8 +869,11 @@ zfs_do_create(int argc, char **argv)
 		(void) snprintf(msg, sizeof (msg),
 		    gettext("cannot create '%s'"), argv[0]);
 		if (props && (real_props = zfs_valid_proplist(g_zfs, type,
-		    props, 0, NULL, msg)) == NULL)
+		    props, 0, NULL, zpool_handle, msg)) == NULL) {
+			zpool_close(zpool_handle);
 			goto error;
+		}
+		zpool_close(zpool_handle);
 
 		volsize = zvol_volsize_to_reservation(volsize, real_props);
 		nvlist_free(real_props);
