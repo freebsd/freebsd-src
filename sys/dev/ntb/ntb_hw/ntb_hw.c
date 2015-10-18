@@ -99,6 +99,13 @@ struct ntb_pci_bar_info {
 	vm_paddr_t		pbase;
 	void			*vbase;
 	u_long			size;
+
+	/* Configuration register offsets */
+	uint32_t		psz_off;
+	uint32_t		ssz_off;
+	uint32_t		sbarbase_off;
+	uint32_t		sbarlmt_off;
+	uint32_t		pbarxlat_off;
 };
 
 struct ntb_int_info {
@@ -178,6 +185,7 @@ struct ntb_softc {
 	/* Offset of peer bar0 in B2B BAR */
 	uint64_t			b2b_off;
 	/* Memory window used to access peer bar0 */
+#define B2B_MW_DISABLED			UINT8_MAX
 	uint8_t				b2b_mw_idx;
 
 	uint8_t				mw_count;
@@ -277,7 +285,12 @@ static int ntb_xeon_init_dev(struct ntb_softc *ntb);
 static int ntb_soc_init_dev(struct ntb_softc *ntb);
 static void ntb_teardown_xeon(struct ntb_softc *ntb);
 static void configure_soc_secondary_side_bars(struct ntb_softc *ntb);
-static void configure_xeon_secondary_side_bars(struct ntb_softc *ntb);
+static void xeon_reset_sbar_size(struct ntb_softc *, enum ntb_bar idx,
+    enum ntb_bar regbar);
+static void xeon_set_sbar_base_and_limit(struct ntb_softc *,
+    uint64_t base_addr, enum ntb_bar idx, enum ntb_bar regbar);
+static void xeon_set_pbar_xlat(struct ntb_softc *, uint64_t base_addr,
+    enum ntb_bar idx);
 static int xeon_setup_b2b_mw(struct ntb_softc *,
     const struct ntb_b2b_addr *addr, const struct ntb_b2b_addr *peer_addr);
 static void soc_link_hb(void *arg);
@@ -418,7 +431,7 @@ ntb_attach(device_t device)
 	ntb->device = device;
 	ntb->type = p->type;
 	ntb->features = p->features;
-	ntb->b2b_mw_idx = UINT8_MAX;
+	ntb->b2b_mw_idx = B2B_MW_DISABLED;
 
 	/* Heartbeat timer for NTB_SOC since there is no link interrupt */
 	callout_init(&ntb->heartbeat_timer, 1);
@@ -488,7 +501,8 @@ static inline enum ntb_bar
 ntb_mw_to_bar(struct ntb_softc *ntb, unsigned mw)
 {
 
-	KASSERT(mw < ntb->mw_count || (mw != UINT8_MAX && mw == ntb->b2b_mw_idx),
+	KASSERT(mw < ntb->mw_count ||
+	    (mw != B2B_MW_DISABLED && mw == ntb->b2b_mw_idx),
 	    ("%s: mw:%u > count:%u", __func__, mw, (unsigned)ntb->mw_count));
 
 	return (ntb->reg->mw_bar[mw]);
@@ -508,12 +522,24 @@ ntb_map_pci_bars(struct ntb_softc *ntb)
 	rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_1]);
 	if (rc != 0)
 		goto out;
+	ntb->bar_info[NTB_B2B_BAR_1].psz_off = XEON_PBAR23SZ_OFFSET;
+	ntb->bar_info[NTB_B2B_BAR_1].ssz_off = XEON_SBAR23SZ_OFFSET;
+	ntb->bar_info[NTB_B2B_BAR_1].sbarbase_off = XEON_SBAR2BASE_OFFSET;
+	ntb->bar_info[NTB_B2B_BAR_1].sbarlmt_off = XEON_SBAR2LMT_OFFSET;
+	ntb->bar_info[NTB_B2B_BAR_1].pbarxlat_off = XEON_PBAR2XLAT_OFFSET;
 
 	ntb->bar_info[NTB_B2B_BAR_2].pci_resource_id = PCIR_BAR(4);
+	/* XXX Are shared MW B2Bs write-combining? */
 	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP) && !HAS_FEATURE(NTB_SPLIT_BAR))
 		rc = map_mmr_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_2]);
 	else
 		rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_2]);
+	ntb->bar_info[NTB_B2B_BAR_2].psz_off = XEON_PBAR4SZ_OFFSET;
+	ntb->bar_info[NTB_B2B_BAR_2].ssz_off = XEON_SBAR4SZ_OFFSET;
+	ntb->bar_info[NTB_B2B_BAR_2].sbarbase_off = XEON_SBAR4BASE_OFFSET;
+	ntb->bar_info[NTB_B2B_BAR_2].sbarlmt_off = XEON_SBAR4LMT_OFFSET;
+	ntb->bar_info[NTB_B2B_BAR_2].pbarxlat_off = XEON_PBAR4XLAT_OFFSET;
+
 	if (!HAS_FEATURE(NTB_SPLIT_BAR))
 		goto out;
 
@@ -522,6 +548,11 @@ ntb_map_pci_bars(struct ntb_softc *ntb)
 		rc = map_mmr_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_3]);
 	else
 		rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_3]);
+	ntb->bar_info[NTB_B2B_BAR_3].psz_off = XEON_PBAR5SZ_OFFSET;
+	ntb->bar_info[NTB_B2B_BAR_3].ssz_off = XEON_SBAR5SZ_OFFSET;
+	ntb->bar_info[NTB_B2B_BAR_3].sbarbase_off = XEON_SBAR5BASE_OFFSET;
+	ntb->bar_info[NTB_B2B_BAR_3].sbarlmt_off = XEON_SBAR5LMT_OFFSET;
+	ntb->bar_info[NTB_B2B_BAR_3].pbarxlat_off = XEON_PBAR5XLAT_OFFSET;
 
 out:
 	if (rc != 0)
@@ -1117,35 +1148,11 @@ ntb_xeon_init_dev(struct ntb_softc *ntb)
 	 * which may hang the system.  To workaround this use the second memory
 	 * window to access the interrupt and scratch pad registers on the
 	 * remote system.
-	 *
-	 * There is another HW errata on the limit registers -- they can only
-	 * be written when the base register is (?)4GB aligned and < 32-bit.
-	 * This should already be the case based on the driver defaults, but
-	 * write the limit registers first just in case.
 	 */
-	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP)) {
-		/* Reserve the last MW for mapping remote spad */
+	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP))
+		/* Use the last MW for mapping remote spad */
 		ntb->b2b_mw_idx = ntb->mw_count - 1;
-		ntb->mw_count--;
-		/*
-		 * Set the Limit register to 4k, the minimum size, to prevent
-		 * an illegal access.
-		 */
-		if (HAS_FEATURE(NTB_SPLIT_BAR)) {
-			ntb_reg_write(4, XEON_PBAR4LMT_OFFSET, 0);
-			ntb_reg_write(4, XEON_PBAR5LMT_OFFSET,
-			    ntb_get_mw_size(ntb, ntb->b2b_mw_idx) + 0x1000);
-		} else
-			ntb_reg_write(8, XEON_PBAR4LMT_OFFSET,
-			    ntb_get_mw_size(ntb, ntb->b2b_mw_idx) + 0x1000);
-	} else {
-		/*
-		 * Disable the limit register, just in case it is set to
-		 * something silly.  A 64-bit write will also clear PBAR5LMT in
-		 * split-bar mode, and this is desired.
-		 */
-		ntb_reg_write(8, XEON_PBAR4LMT_OFFSET, 0);
-
+	else if (HAS_FEATURE(NTB_B2BDOORBELL_BIT14))
 		/*
 		 * HW Errata on bit 14 of b2bdoorbell register.  Writes will not be
 		 * mirrored to the remote system.  Shrink the number of bits by one,
@@ -1154,9 +1161,7 @@ ntb_xeon_init_dev(struct ntb_softc *ntb)
 		 * On REGS_THRU_MW errata mode, we don't use the b2bdoorbell register
 		 * anyway.  Nor for non-B2B connection types.
 		 */
-		if (HAS_FEATURE(NTB_B2BDOORBELL_BIT14))
-			ntb->db_count = XEON_DB_COUNT - 1;
-	}
+		ntb->db_count = XEON_DB_COUNT - 1;
 
 	ntb->db_valid_mask = (1ull << ntb->db_count) - 1;
 
@@ -1244,44 +1249,198 @@ configure_soc_secondary_side_bars(struct ntb_softc *ntb)
 	}
 }
 
+
+/*
+ * When working around Xeon SDOORBELL errata by remapping remote registers in a
+ * MW, limit the B2B MW to half a MW.  By sharing a MW, half the shared MW
+ * remains for use by a higher layer.
+ *
+ * Will only be used if working around SDOORBELL errata and the BIOS-configured
+ * MW size is sufficiently large.
+ */
+static unsigned int ntb_b2b_mw_share;
+SYSCTL_UINT(_hw_ntb, OID_AUTO, b2b_mw_share, CTLFLAG_RDTUN, &ntb_b2b_mw_share,
+    0, "If enabled (non-zero), prefer to share half of the B2B peer register "
+    "MW with higher level consumers.  Both sides of the NTB MUST set the same "
+    "value here.");
+
+static void
+xeon_reset_sbar_size(struct ntb_softc *ntb, enum ntb_bar idx,
+    enum ntb_bar regbar)
+{
+	struct ntb_pci_bar_info *bar;
+	uint8_t bar_sz;
+
+	if (!HAS_FEATURE(NTB_SPLIT_BAR) && idx >= NTB_B2B_BAR_3)
+		return;
+
+	bar = &ntb->bar_info[idx];
+	bar_sz = pci_read_config(ntb->device, bar->psz_off, 1);
+	if (idx == regbar) {
+		if (ntb->b2b_off != 0)
+			bar_sz--;
+		else
+			bar_sz = 0;
+	}
+	pci_write_config(ntb->device, bar->ssz_off, bar_sz, 1);
+	bar_sz = pci_read_config(ntb->device, bar->ssz_off, 1);
+	(void)bar_sz;
+}
+
+static void
+xeon_set_sbar_base_and_limit(struct ntb_softc *ntb, uint64_t base_addr,
+    enum ntb_bar idx, enum ntb_bar regbar)
+{
+	struct ntb_pci_bar_info *bar;
+	vm_paddr_t bar_addr;
+
+	bar = &ntb->bar_info[idx];
+	bar_addr = base_addr + ((idx == regbar) ? ntb->b2b_off : 0);
+
+	if (HAS_FEATURE(NTB_SPLIT_BAR) && idx >= NTB_B2B_BAR_2) {
+		ntb_reg_write(4, bar->sbarbase_off, bar_addr);
+		ntb_reg_write(4, bar->sbarlmt_off, bar_addr);
+		bar_addr = ntb_reg_read(4, bar->sbarbase_off);
+		(void)bar_addr;
+		bar_addr = ntb_reg_read(4, bar->sbarlmt_off);
+	} else {
+		ntb_reg_write(8, bar->sbarbase_off, bar_addr);
+		ntb_reg_write(8, bar->sbarlmt_off, bar_addr);
+		bar_addr = ntb_reg_read(8, bar->sbarbase_off);
+		(void)bar_addr;
+		bar_addr = ntb_reg_read(8, bar->sbarlmt_off);
+	}
+	(void)bar_addr;
+}
+
+static void
+xeon_set_pbar_xlat(struct ntb_softc *ntb, uint64_t base_addr, enum ntb_bar idx)
+{
+	struct ntb_pci_bar_info *bar;
+
+	bar = &ntb->bar_info[idx];
+	if (HAS_FEATURE(NTB_SPLIT_BAR) && idx >= NTB_B2B_BAR_2) {
+		ntb_reg_write(4, bar->pbarxlat_off, base_addr);
+		base_addr = ntb_reg_read(4, bar->pbarxlat_off);
+	} else {
+		ntb_reg_write(8, bar->pbarxlat_off, base_addr);
+		base_addr = ntb_reg_read(8, bar->pbarxlat_off);
+	}
+	(void)base_addr;
+}
+
 static int
 xeon_setup_b2b_mw(struct ntb_softc *ntb, const struct ntb_b2b_addr *addr,
     const struct ntb_b2b_addr *peer_addr)
 {
+	struct ntb_pci_bar_info *b2b_bar;
+	vm_size_t bar_size;
+	uint64_t bar_addr;
+	enum ntb_bar b2b_bar_num, i;
 
-	/* Local addresses */
-	ntb_reg_write(8, XEON_PBAR2XLAT_OFFSET, addr->bar2_addr64);
-	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP))
-		ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET, addr->bar0_addr);
-	else {
-		if (HAS_FEATURE(NTB_SPLIT_BAR)) {
-			ntb_reg_write(4, XEON_PBAR4XLAT_OFFSET,
-			    addr->bar4_addr32);
-			ntb_reg_write(4, XEON_PBAR5XLAT_OFFSET,
-			    addr->bar5_addr32);
-		} else
-			ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
-			    addr->bar4_addr64);
-		/*
-		 * B2B_XLAT_OFFSET is a 64-bit register but can only be
-		 * written 32 bits at a time.
-		 */
-		ntb_reg_write(4, XEON_B2B_XLAT_OFFSETL,
-		    addr->bar0_addr & 0xffffffff);
-		ntb_reg_write(4, XEON_B2B_XLAT_OFFSETU, addr->bar0_addr >> 32);
+	if (ntb->b2b_mw_idx == B2B_MW_DISABLED) {
+		b2b_bar = NULL;
+		b2b_bar_num = NTB_CONFIG_BAR;
+		ntb->b2b_off = 0;
+	} else {
+		b2b_bar_num = ntb_mw_to_bar(ntb, ntb->b2b_mw_idx);
+		KASSERT(b2b_bar_num > 0 && b2b_bar_num < NTB_MAX_BARS,
+		    ("invalid b2b mw bar"));
+
+		b2b_bar = &ntb->bar_info[b2b_bar_num];
+		bar_size = b2b_bar->size;
+
+		if (ntb_b2b_mw_share != 0 &&
+		    (bar_size >> 1) >= XEON_B2B_MIN_SIZE)
+			ntb->b2b_off = bar_size >> 1;
+		else if (bar_size >= XEON_B2B_MIN_SIZE) {
+			ntb->b2b_off = 0;
+			ntb->mw_count--;
+		} else {
+			device_printf(ntb->device,
+			    "B2B bar size is too small!\n");
+			return (EIO);
+		}
 	}
 
-	/* Peer addresses */
-	ntb_reg_write(8, XEON_SBAR0BASE_OFFSET, peer_addr->bar0_addr);
-	ntb_reg_write(8, XEON_SBAR2BASE_OFFSET, peer_addr->bar2_addr64);
+	/*
+	 * Reset the secondary bar sizes to match the primary bar sizes.
+	 * (Except, disable or halve the size of the B2B secondary bar.)
+	 */
+	for (i = NTB_B2B_BAR_1; i < NTB_MAX_BARS; i++)
+		xeon_reset_sbar_size(ntb, i, b2b_bar_num);
+
+	bar_addr = 0;
+	if (b2b_bar_num == NTB_CONFIG_BAR)
+		bar_addr = addr->bar0_addr;
+	else if (b2b_bar_num == NTB_B2B_BAR_1)
+		bar_addr = addr->bar2_addr64;
+	else if (b2b_bar_num == NTB_B2B_BAR_2 && !HAS_FEATURE(NTB_SPLIT_BAR))
+		bar_addr = addr->bar4_addr64;
+	else if (b2b_bar_num == NTB_B2B_BAR_2)
+		bar_addr = addr->bar4_addr32;
+	else if (b2b_bar_num == NTB_B2B_BAR_3)
+		bar_addr = addr->bar5_addr32;
+	else
+		KASSERT(false, ("invalid bar"));
+
+	ntb_reg_write(8, XEON_SBAR0BASE_OFFSET, bar_addr);
+
+	/*
+	 * Other SBARs are normally hit by the PBAR xlat, except for the b2b
+	 * register BAR.  The B2B BAR is either disabled above or configured
+	 * half-size.  It starts at PBAR xlat + offset.
+	 *
+	 * Also set up incoming BAR limits == base (zero length window).
+	 */
+	xeon_set_sbar_base_and_limit(ntb, addr->bar2_addr64, NTB_B2B_BAR_1,
+	    b2b_bar_num);
 	if (HAS_FEATURE(NTB_SPLIT_BAR)) {
-		ntb_reg_write(4, XEON_SBAR4BASE_OFFSET,
-		    peer_addr->bar4_addr32);
-		ntb_reg_write(4, XEON_SBAR5BASE_OFFSET,
-		    peer_addr->bar5_addr32);
+		xeon_set_sbar_base_and_limit(ntb, addr->bar4_addr32,
+		    NTB_B2B_BAR_2, b2b_bar_num);
+		xeon_set_sbar_base_and_limit(ntb, addr->bar5_addr32,
+		    NTB_B2B_BAR_3, b2b_bar_num);
 	} else
-		ntb_reg_write(8, XEON_SBAR4BASE_OFFSET,
-		    peer_addr->bar4_addr64);
+		xeon_set_sbar_base_and_limit(ntb, addr->bar4_addr64,
+		    NTB_B2B_BAR_2, b2b_bar_num);
+
+	/* Zero incoming translation addrs */
+	ntb_reg_write(8, XEON_SBAR2XLAT_OFFSET, 0);
+	ntb_reg_write(8, XEON_SBAR4XLAT_OFFSET, 0);
+
+	/* Zero outgoing translation limits (whole bar size windows) */
+	ntb_reg_write(8, XEON_PBAR2LMT_OFFSET, 0);
+	ntb_reg_write(8, XEON_PBAR4LMT_OFFSET, 0);
+
+	/* Set outgoing translation offsets */
+	xeon_set_pbar_xlat(ntb, peer_addr->bar2_addr64, NTB_B2B_BAR_1);
+	if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+		xeon_set_pbar_xlat(ntb, peer_addr->bar4_addr32, NTB_B2B_BAR_2);
+		xeon_set_pbar_xlat(ntb, peer_addr->bar5_addr32, NTB_B2B_BAR_3);
+	} else
+		xeon_set_pbar_xlat(ntb, peer_addr->bar4_addr64, NTB_B2B_BAR_2);
+
+	/* Set the translation offset for B2B registers */
+	bar_addr = 0;
+	if (b2b_bar_num == NTB_CONFIG_BAR)
+		bar_addr = peer_addr->bar0_addr;
+	else if (b2b_bar_num == NTB_B2B_BAR_1)
+		bar_addr = peer_addr->bar2_addr64;
+	else if (b2b_bar_num == NTB_B2B_BAR_2 && !HAS_FEATURE(NTB_SPLIT_BAR))
+		bar_addr = peer_addr->bar4_addr64;
+	else if (b2b_bar_num == NTB_B2B_BAR_2)
+		bar_addr = peer_addr->bar4_addr32;
+	else if (b2b_bar_num == NTB_B2B_BAR_3)
+		bar_addr = peer_addr->bar5_addr32;
+	else
+		KASSERT(false, ("invalid bar"));
+
+	/*
+	 * B2B_XLAT_OFFSET is a 64-bit register but can only be written 32 bits
+	 * at a time.
+	 */
+	ntb_reg_write(4, XEON_B2B_XLAT_OFFSETL, bar_addr & 0xffffffff);
+	ntb_reg_write(4, XEON_B2B_XLAT_OFFSETU, bar_addr >> 32);
 	return (0);
 }
 
@@ -1966,7 +2125,8 @@ ntb_get_peer_db_addr(struct ntb_softc *ntb, vm_size_t *sz_out)
 		KASSERT((HAS_FEATURE(NTB_SPLIT_BAR) && ntb->mw_count == 2) ||
 		    (!HAS_FEATURE(NTB_SPLIT_BAR) && ntb->mw_count == 1),
 		    ("mw_count invalid after setup"));
-		KASSERT(ntb->b2b_mw_idx != UINT8_MAX, ("invalid b2b idx"));
+		KASSERT(ntb->b2b_mw_idx != B2B_MW_DISABLED,
+		    ("invalid b2b idx"));
 
 		bar = &ntb->bar_info[ntb_mw_to_bar(ntb, ntb->b2b_mw_idx)];
 		regoff = XEON_SHADOW_PDOORBELL_OFFSET;
