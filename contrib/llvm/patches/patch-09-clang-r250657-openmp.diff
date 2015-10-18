@@ -1,0 +1,182 @@
+﻿Pull in r248379 from upstream clang trunk (by Jörg Sonnenberger):
+
+  Refactor library decision for -fopenmp support from Darwin into a
+  function for sharing with other platforms.
+
+Pull in r248424 from upstream clang trunk (by Jörg Sonnenberger):
+
+  Push OpenMP linker flags after linker input on Darwin. Don't add any
+  libraries if -nostdlib is specified. Test.
+
+Pull in r248426 from upstream clang trunk (by Jörg Sonnenberger):
+
+  Support linking against OpenMP runtime on NetBSD.
+
+Pull in r250657 from upstream clang trunk (by Dimitry Andric):
+
+  Support linking against OpenMP runtime on FreeBSD.
+
+Introduced here: http://svnweb.freebsd.org/changeset/base/289523
+
+Index: tools/clang/lib/Driver/Tools.cpp
+===================================================================
+--- tools/clang/lib/Driver/Tools.cpp
++++ tools/clang/lib/Driver/Tools.cpp
+@@ -2460,6 +2460,28 @@ static OpenMPRuntimeKind getOpenMPRuntime(const To
+   return RT;
+ }
+ 
++static void addOpenMPRuntime(ArgStringList &CmdArgs, const ToolChain &TC,
++                              const ArgList &Args) {
++  if (!Args.hasFlag(options::OPT_fopenmp, options::OPT_fopenmp_EQ,
++                    options::OPT_fno_openmp, false))
++    return;
++
++  switch (getOpenMPRuntime(TC, Args)) {
++  case OMPRT_OMP:
++    CmdArgs.push_back("-lomp");
++    break;
++  case OMPRT_GOMP:
++    CmdArgs.push_back("-lgomp");
++    break;
++  case OMPRT_IOMP5:
++    CmdArgs.push_back("-liomp5");
++    break;
++  case OMPRT_Unknown:
++    // Already diagnosed.
++    break;
++  }
++}
++
+ static void addSanitizerRuntime(const ToolChain &TC, const ArgList &Args,
+                                 ArgStringList &CmdArgs, StringRef Sanitizer,
+                                 bool IsShared) {
+@@ -6527,24 +6549,6 @@ void darwin::Linker::ConstructJob(Compilation &C,
+ 
+   Args.AddAllArgs(CmdArgs, options::OPT_L);
+ 
+-  if (Args.hasFlag(options::OPT_fopenmp, options::OPT_fopenmp_EQ,
+-                   options::OPT_fno_openmp, false)) {
+-    switch (getOpenMPRuntime(getToolChain(), Args)) {
+-    case OMPRT_OMP:
+-      CmdArgs.push_back("-lomp");
+-      break;
+-    case OMPRT_GOMP:
+-      CmdArgs.push_back("-lgomp");
+-      break;
+-    case OMPRT_IOMP5:
+-      CmdArgs.push_back("-liomp5");
+-      break;
+-    case OMPRT_Unknown:
+-      // Already diagnosed.
+-      break;
+-    }
+-  }
+-
+   AddLinkerInputs(getToolChain(), Inputs, Args, CmdArgs);
+   // Build the input file for -filelist (list of linker input files) in case we
+   // need it later
+@@ -6563,6 +6567,10 @@ void darwin::Linker::ConstructJob(Compilation &C,
+     InputFileList.push_back(II.getFilename());
+   }
+ 
++  if (!Args.hasArg(options::OPT_nostdlib) &&
++      !Args.hasArg(options::OPT_nodefaultlibs))
++    addOpenMPRuntime(CmdArgs, getToolChain(), Args);
++
+   if (isObjCRuntimeLinked(Args) && !Args.hasArg(options::OPT_nostdlib) &&
+       !Args.hasArg(options::OPT_nodefaultlibs)) {
+     // We use arclite library for both ARC and subscripting support.
+@@ -7358,6 +7366,7 @@ void freebsd::Linker::ConstructJob(Compilation &C,
+ 
+   if (!Args.hasArg(options::OPT_nostdlib) &&
+       !Args.hasArg(options::OPT_nodefaultlibs)) {
++    addOpenMPRuntime(CmdArgs, ToolChain, Args);
+     if (D.CCCIsCXX()) {
+       ToolChain.AddCXXStdlibLibArgs(Args, CmdArgs);
+       if (Args.hasArg(options::OPT_pg))
+@@ -7673,6 +7682,7 @@ void netbsd::Linker::ConstructJob(Compilation &C,
+ 
+   if (!Args.hasArg(options::OPT_nostdlib) &&
+       !Args.hasArg(options::OPT_nodefaultlibs)) {
++    addOpenMPRuntime(CmdArgs, getToolChain(), Args);
+     if (D.CCCIsCXX()) {
+       getToolChain().AddCXXStdlibLibArgs(Args, CmdArgs);
+       CmdArgs.push_back("-lm");
+Index: tools/clang/test/Driver/fopenmp.c
+===================================================================
+--- tools/clang/test/Driver/fopenmp.c
++++ tools/clang/test/Driver/fopenmp.c
+@@ -1,6 +1,15 @@
+ // RUN: %clang -target x86_64-linux-gnu -fopenmp=libomp -c %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-CC1-OPENMP
+ // RUN: %clang -target x86_64-linux-gnu -fopenmp=libgomp -c %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-CC1-NO-OPENMP
+ // RUN: %clang -target x86_64-linux-gnu -fopenmp=libiomp5 -c %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-CC1-OPENMP
++// RUN: %clang -target x86_64-apple-darwin -fopenmp=libomp -c %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-CC1-OPENMP
++// RUN: %clang -target x86_64-apple-darwin -fopenmp=libgomp -c %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-CC1-NO-OPENMP
++// RUN: %clang -target x86_64-apple-darwin -fopenmp=libiomp5 -c %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-CC1-OPENMP
++// RUN: %clang -target x86_64-freebsd -fopenmp=libomp -c %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-CC1-OPENMP
++// RUN: %clang -target x86_64-freebsd -fopenmp=libgomp -c %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-CC1-NO-OPENMP
++// RUN: %clang -target x86_64-freebsd -fopenmp=libiomp5 -c %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-CC1-OPENMP
++// RUN: %clang -target x86_64-netbsd -fopenmp=libomp -c %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-CC1-OPENMP
++// RUN: %clang -target x86_64-netbsd -fopenmp=libgomp -c %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-CC1-NO-OPENMP
++// RUN: %clang -target x86_64-netbsd -fopenmp=libiomp5 -c %s -### 2>&1 | FileCheck %s --check-prefix=CHECK-CC1-OPENMP
+ //
+ // CHECK-CC1-OPENMP: "-cc1"
+ // CHECK-CC1-OPENMP: "-fopenmp"
+@@ -12,6 +21,30 @@
+ // RUN: %clang -target x86_64-linux-gnu -fopenmp=libgomp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-LD-GOMP
+ // RUN: %clang -target x86_64-linux-gnu -fopenmp=libiomp5 %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-LD-IOMP5
+ //
++// RUN: %clang -nostdlib -target x86_64-linux-gnu -fopenmp=libomp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-NO-OMP
++// RUN: %clang -nostdlib -target x86_64-linux-gnu -fopenmp=libgomp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-NO-GOMP
++// RUN: %clang -nostdlib -target x86_64-linux-gnu -fopenmp=libiomp5 %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-NO-IOMP5
++//
++// RUN: %clang -target x86_64-darwin -fopenmp=libomp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-LD-OMP
++// RUN: %clang -target x86_64-darwin -fopenmp=libgomp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-LD-GOMP
++// RUN: %clang -target x86_64-darwin -fopenmp=libiomp5 %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-LD-IOMP5
++//
++// RUN: %clang -nostdlib -target x86_64-darwin -fopenmp=libomp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-NO-OMP
++// RUN: %clang -nostdlib -target x86_64-darwin -fopenmp=libgomp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-NO-GOMP
++// RUN: %clang -nostdlib -target x86_64-darwin -fopenmp=libiomp5 %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-NO-IOMP5
++//
++// RUN: %clang -target x86_64-netbsd -fopenmp=libomp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-LD-OMP
++// RUN: %clang -target x86_64-netbsd -fopenmp=libgomp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-LD-GOMP
++// RUN: %clang -target x86_64-netbsd -fopenmp=libiomp5 %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-LD-IOMP5
++//
++// RUN: %clang -nostdlib -target x86_64-freebsd -fopenmp=libomp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-NO-OMP
++// RUN: %clang -nostdlib -target x86_64-freebsd -fopenmp=libgomp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-NO-GOMP
++// RUN: %clang -nostdlib -target x86_64-freebsd -fopenmp=libiomp5 %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-NO-IOMP5
++//
++// RUN: %clang -nostdlib -target x86_64-netbsd -fopenmp=libomp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-NO-OMP
++// RUN: %clang -nostdlib -target x86_64-netbsd -fopenmp=libgomp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-NO-GOMP
++// RUN: %clang -nostdlib -target x86_64-netbsd -fopenmp=libiomp5 %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-NO-IOMP5
++//
+ // CHECK-LD-OMP: "{{.*}}ld{{(.exe)?}}"
+ // CHECK-LD-OMP: "-lomp"
+ //
+@@ -21,6 +54,15 @@
+ // CHECK-LD-IOMP5: "{{.*}}ld{{(.exe)?}}"
+ // CHECK-LD-IOMP5: "-liomp5"
+ //
++// CHECK-NO-OMP: "{{.*}}ld{{(.exe)?}}"
++// CHECK-NO-OMP-NOT: "-lomp"
++//
++// CHECK-NO-GOMP: "{{.*}}ld{{(.exe)?}}"
++// CHECK-NO-GOMP-NOT: "-lgomp"
++//
++// CHECK-NO-IOMP5: "{{.*}}ld{{(.exe)?}}"
++// CHECK-NO-IOMP5-NOT: "-liomp5"
++//
+ // We'd like to check that the default is sane, but until we have the ability
+ // to *always* semantically analyze OpenMP without always generating runtime
+ // calls (in the event of an unsupported runtime), we don't have a good way to
+@@ -28,6 +70,9 @@
+ // OpenMP runtime.
+ //
+ // RUN: %clang -target x86_64-linux-gnu -fopenmp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-LD-ANY
++// RUN: %clang -target x86_64-darwin -fopenmp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-LD-ANY
++// RUN: %clang -target x86_64-freebsd -fopenmp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-LD-ANY
++// RUN: %clang -target x86_64-netbsd -fopenmp %s -o %t -### 2>&1 | FileCheck %s --check-prefix=CHECK-LD-ANY
+ //
+ // CHECK-LD-ANY: "{{.*}}ld{{(.exe)?}}"
+ // CHECK-LD-ANY: "-l{{(omp|gomp|iomp5)}}"
