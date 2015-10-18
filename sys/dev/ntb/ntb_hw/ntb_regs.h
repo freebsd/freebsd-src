@@ -33,8 +33,8 @@
 #define NTB_LINK_SPEED_MASK	0x000f
 #define NTB_LINK_WIDTH_MASK	0x03f0
 
-#define XEON_SNB_MAX_MW		2
-#define XEON_HSXSPLIT_MAX_MW	3
+#define XEON_SNB_MW_COUNT	2
+#define XEON_HSX_SPLIT_MW_COUNT	3
 /* Reserve the uppermost bit for link interrupt */
 #define XEON_DB_COUNT		15
 #define XEON_DB_LINK		15
@@ -79,7 +79,7 @@
 #define XEON_B2B_XLAT_OFFSETL	0x0144
 #define XEON_B2B_XLAT_OFFSETU	0x0148
 
-#define SOC_MAX_MW		2
+#define SOC_MW_COUNT		2
 #define SOC_DB_COUNT		34
 #define SOC_DB_MSIX_VECTOR_COUNT	34
 #define SOC_DB_MSIX_VECTOR_SHIFT	1

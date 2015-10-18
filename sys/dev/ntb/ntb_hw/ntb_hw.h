@@ -62,7 +62,7 @@ struct ntb_softc *ntb_register_transport(struct ntb_softc *ntb,
     void *transport);
 void ntb_unregister_transport(struct ntb_softc *ntb);
 uint8_t ntb_get_max_cbs(struct ntb_softc *ntb);
-uint8_t ntb_get_max_mw(struct ntb_softc *ntb);
+uint8_t ntb_mw_count(struct ntb_softc *ntb);
 uint8_t ntb_get_max_spads(struct ntb_softc *ntb);
 int ntb_write_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val);
 int ntb_read_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t *val);

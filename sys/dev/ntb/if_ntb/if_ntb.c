@@ -220,7 +220,7 @@ enum {
 	IF_NTB_MAX_SPAD,
 };
 
-#define QP_TO_MW(ntb, qp)	((qp) % ntb_get_max_mw(ntb))
+#define QP_TO_MW(ntb, qp)	((qp) % ntb_mw_count(ntb))
 #define NTB_QP_DEF_NUM_ENTRIES	100
 #define NTB_LINK_DOWN_TIMEOUT	10
 
@@ -493,7 +493,7 @@ ntb_transport_init(struct ntb_softc *ntb)
 	int rc, i;
 
 	if (max_num_clients == 0)
-		nt->max_qps = MIN(ntb_get_max_cbs(ntb), ntb_get_max_mw(ntb));
+		nt->max_qps = MIN(ntb_get_max_cbs(ntb), ntb_mw_count(ntb));
 	else
 		nt->max_qps = MIN(ntb_get_max_cbs(ntb), max_num_clients);
 
@@ -562,7 +562,7 @@ ntb_transport_init_queue(struct ntb_netdev *nt, unsigned int qp_num)
 	unsigned int num_qps_mw, tx_size;
 	uint8_t mw_num, mw_max;
 
-	mw_max = ntb_get_max_mw(nt->ntb);
+	mw_max = ntb_mw_count(nt->ntb);
 	mw_num = QP_TO_MW(nt->ntb, qp_num);
 
 	qp = &nt->qps[qp_num];
@@ -1055,7 +1055,7 @@ ntb_transport_link_work(void *arg)
 	uint32_t val, i, num_mw;
 	int rc;
 
-	num_mw = ntb_get_max_mw(ntb);
+	num_mw = ntb_mw_count(ntb);
 
 	/* send the local info, in the opposite order of the way we read it */
 	for (i = 0; i < num_mw; i++) {
@@ -1214,7 +1214,7 @@ ntb_transport_setup_qp_mw(struct ntb_netdev *nt, unsigned int qp_num)
 	uint8_t mw_num, mw_max;
 	unsigned int i;
 
-	mw_max = ntb_get_max_mw(nt->ntb);
+	mw_max = ntb_mw_count(nt->ntb);
 	mw_num = QP_TO_MW(nt->ntb, qp_num);
 
 	if (nt->max_qps % mw_max && mw_num + 1 < nt->max_qps / mw_max)
