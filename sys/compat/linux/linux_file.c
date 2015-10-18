@@ -55,10 +55,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-#include <ufs/ufs/extattr.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/ufsmount.h>
-
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
@@ -1072,12 +1068,10 @@ linux_pwrite(td, uap)
 int
 linux_mount(struct thread *td, struct linux_mount_args *args)
 {
-	struct ufs_args ufs;
 	char fstypename[MFSNAMELEN];
 	char mntonname[MNAMELEN], mntfromname[MNAMELEN];
 	int error;
 	int fsflags;
-	void *fsdata;
 
 	error = copyinstr(args->filesystemtype, fstypename, MFSNAMELEN - 1,
 	    NULL);
@@ -1098,20 +1092,10 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 
 	if (strcmp(fstypename, "ext2") == 0) {
 		strcpy(fstypename, "ext2fs");
-		fsdata = &ufs;
-		ufs.fspec = mntfromname;
-#define DEFAULT_ROOTID		-2
-		ufs.export.ex_root = DEFAULT_ROOTID;
-		ufs.export.ex_flags =
-		    args->rwflag & LINUX_MS_RDONLY ? MNT_EXRDONLY : 0;
 	} else if (strcmp(fstypename, "proc") == 0) {
 		strcpy(fstypename, "linprocfs");
-		fsdata = NULL;
 	} else if (strcmp(fstypename, "vfat") == 0) {
 		strcpy(fstypename, "msdosfs");
-		fsdata = NULL;
-	} else {
-		return (ENODEV);
 	}
 
 	fsflags = 0;
@@ -1131,19 +1115,11 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 			fsflags |= MNT_UPDATE;
 	}
 
-	if (strcmp(fstypename, "linprocfs") == 0) {
-		error = kernel_vmount(fsflags,
-			"fstype", fstypename,
-			"fspath", mntonname,
-			NULL);
-	} else if (strcmp(fstypename, "msdosfs") == 0) {
-		error = kernel_vmount(fsflags,
-			"fstype", fstypename,
-			"fspath", mntonname,
-			"from", mntfromname,
-			NULL);
-	} else
-		error = EOPNOTSUPP;
+	error = kernel_vmount(fsflags,
+	    "fstype", fstypename,
+	    "fspath", mntonname,
+	    "from", mntfromname,
+	    NULL);
 	return (error);
 }
 
