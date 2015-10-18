@@ -15,7 +15,7 @@
 #define BUG_REPORT_URL "https://bugs.freebsd.org/submit/"
 
 /* Default OpenMP runtime used by -fopenmp. */
-#define CLANG_DEFAULT_OPENMP_RUNTIME "libgomp"
+#define CLANG_DEFAULT_OPENMP_RUNTIME "libomp"
 
 /* Define if we have libxml2 */
 /* #undef CLANG_HAVE_LIBXML */
