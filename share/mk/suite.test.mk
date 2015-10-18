@@ -51,7 +51,7 @@ KYUAFILE?= auto
 
 # Path to the prefix of the installed Kyua CLI, if any.
 #
-# If kyua is installed from ports, we automatically define a realtest target
+# If kyua is installed from ports, we automatically define a realregress target
 # below to run the tests using this tool.  The tools are searched for in the
 # hierarchy specified by this variable.
 KYUA_PREFIX?= /usr/local
@@ -92,9 +92,13 @@ Kyuafile.auto: Makefile
 	@mv Kyuafile.auto.tmp Kyuafile.auto
 .endif
 
+_kyuafile=	${DESTDIR}${TESTSDIR}/Kyuafile
+
 KYUA?= ${KYUA_PREFIX}/bin/kyua
+
+realregress: .PHONY
 .if exists(${KYUA})
-# Definition of the "make test" target and supporting variables.
+# Definition of the "make regress" target and supporting variables.
 #
 # This target, by necessity, can only work for native builds (i.e. a FreeBSD
 # host building a release for the same system).  The target runs Kyua, which is
@@ -103,35 +107,5 @@ KYUA?= ${KYUA_PREFIX}/bin/kyua
 # Due to the dependencies of the binaries built by the source tree and how they
 # are used by tests, it is highly possible for a execution of "make test" to
 # report bogus results unless the new binaries are put in place.
-realtest: .PHONY
-	@echo "*** WARNING: make test is experimental"
-	@echo "***"
-	@echo "*** Using this test does not preclude you from running the tests"
-	@echo "*** installed in ${TESTSBASE}.  This test run may raise false"
-	@echo "*** positives and/or false negatives."
-	@echo
-	@${KYUA} test -k ${DESTDIR}${TESTSDIR}/Kyuafile; \
-	result=0; \
-	echo; \
-	echo "*** Once again, note that "make test" is unsupported."; \
-	test $${result} -eq 0
+	@${KYUA} test -k ${DESTDIR}${TESTSDIR}/Kyuafile
 .endif
-
-beforetest: .PHONY
-.if defined(TESTSDIR)
-.if ${TESTSDIR} == ${TESTSBASE}
-# Forbid running from ${TESTSBASE}.  It can cause false positives/negatives and
-# it does not cover all the tests (e.g. it misses testing software in external).
-	@echo "*** Sorry, you cannot use make test from src/tests.  Install the"
-	@echo "*** tests into their final location and run them from ${TESTSBASE}"
-	@false
-.else
-	@echo "*** Using this test does not preclude you from running the tests"
-	@echo "*** installed in ${TESTSBASE}.  This test run may raise false"
-	@echo "*** positives and/or false negatives."
-.endif
-.else
-	@echo "*** No TESTSDIR defined; nothing to do."
-	@false
-.endif
-	@echo
