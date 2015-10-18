@@ -1113,10 +1113,8 @@ vm_pageout_launder1(struct vm_domain *vmd)
  				 */
 				m->act_count += act_delta + ACT_ADVANCE;
 				goto drop_page;
-			} else if ((object->flags & OBJ_DEAD) == 0) {
-				vm_page_deactivate(m);	// XXX
-				goto drop_page;
-			}
+			} else if ((object->flags & OBJ_DEAD) == 0)
+				goto requeue_page;
 		}
 
 		/*
@@ -1134,11 +1132,10 @@ vm_pageout_launder1(struct vm_domain *vmd)
 		}
 
 		/*
-		 * Clean pages can be freed, but dirty pages must be sent back
-		 * to the laundry, unless they belong to a dead object.
-		 * Requeueing dirty pages from dead objects is pointless, as
-		 * they are being paged out and freed by the thread that
-		 * destroyed the object.
+		 * Clean pages are freed, and dirty pages are paged out unless
+		 * they belong to a dead object.  Requeueing dirty pages from
+		 * dead objects is pointless, as they are being paged out and
+		 * freed by the thread that destroyed the object.
 		 */
 		if (m->dirty == 0) {
 free_page:
@@ -1153,6 +1150,7 @@ free_page:
 			else
 				pageout_ok = TRUE;
 			if (!pageout_ok) {
+requeue_page:
 				vm_pagequeue_lock(pq);
 				queues_locked = TRUE;
 				vm_page_requeue_locked(m);
