@@ -2324,11 +2324,23 @@ iscsi_shutdown(struct iscsi_softc *sc)
 {
 	struct iscsi_session *is;
 
-	ISCSI_DEBUG("removing all sessions due to shutdown");
+	/*
+	 * Trying to reconnect during system shutdown would lead to hang.
+	 */
+	fail_on_disconnection = 1;
 
+	/*
+	 * If we have any sessions waiting for reconnection, request
+	 * maintenance thread to fail them immediately instead of waiting
+	 * for reconnect timeout.
+	 */
 	sx_slock(&sc->sc_lock);
-	TAILQ_FOREACH(is, &sc->sc_sessions, is_next)
-		iscsi_session_terminate(is);
+	TAILQ_FOREACH(is, &sc->sc_sessions, is_next) {
+		ISCSI_SESSION_LOCK(is);
+		if (is->is_waiting_for_iscsid)
+			iscsi_session_reconnect(is);
+		ISCSI_SESSION_UNLOCK(is);
+	}
 	sx_sunlock(&sc->sc_lock);
 }
 
@@ -2354,12 +2366,7 @@ iscsi_load(void)
 	}
 	sc->sc_cdev->si_drv1 = sc;
 
-	/*
-	 * Note that this needs to get run before dashutdown().  Otherwise,
-	 * when rebooting with iSCSI session with outstanding requests,
-	 * but disconnected, dashutdown() will hang on cam_periph_runccb().
-	 */
-	sc->sc_shutdown_eh = EVENTHANDLER_REGISTER(shutdown_post_sync,
+	sc->sc_shutdown_eh = EVENTHANDLER_REGISTER(shutdown_pre_sync,
 	    iscsi_shutdown, sc, SHUTDOWN_PRI_FIRST);
 
 	return (0);
@@ -2377,7 +2384,7 @@ iscsi_unload(void)
 	}
 
 	if (sc->sc_shutdown_eh != NULL)
-		EVENTHANDLER_DEREGISTER(shutdown_post_sync, sc->sc_shutdown_eh);
+		EVENTHANDLER_DEREGISTER(shutdown_pre_sync, sc->sc_shutdown_eh);
 
 	sx_slock(&sc->sc_lock);
 	TAILQ_FOREACH_SAFE(is, &sc->sc_sessions, is_next, tmp)
