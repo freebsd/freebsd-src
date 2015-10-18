@@ -65,19 +65,19 @@ void ntb_unregister_transport(struct ntb_softc *ntb);
 uint8_t ntb_get_max_cbs(struct ntb_softc *ntb);
 uint8_t ntb_mw_count(struct ntb_softc *ntb);
 uint8_t ntb_get_max_spads(struct ntb_softc *ntb);
-int ntb_write_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val);
-int ntb_read_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t *val);
-int ntb_write_remote_spad(struct ntb_softc *ntb, unsigned int idx,
+int ntb_spad_write(struct ntb_softc *ntb, unsigned int idx, uint32_t val);
+int ntb_spad_read(struct ntb_softc *ntb, unsigned int idx, uint32_t *val);
+int ntb_peer_spad_write(struct ntb_softc *ntb, unsigned int idx,
     uint32_t val);
-int ntb_read_remote_spad(struct ntb_softc *ntb, unsigned int idx,
+int ntb_peer_spad_read(struct ntb_softc *ntb, unsigned int idx,
     uint32_t *val);
 void *ntb_get_mw_vbase(struct ntb_softc *ntb, unsigned int mw);
 bus_addr_t ntb_get_mw_pbase(struct ntb_softc *ntb, unsigned int mw);
 u_long ntb_get_mw_size(struct ntb_softc *ntb, unsigned int mw);
 void ntb_set_mw_addr(struct ntb_softc *ntb, unsigned int mw, uint64_t addr);
-void ntb_ring_doorbell(struct ntb_softc *ntb, unsigned int db);
+void ntb_peer_db_set(struct ntb_softc *ntb, uint64_t bit);
 bus_addr_t ntb_get_peer_db_addr(struct ntb_softc *ntb, vm_size_t *sz_out);
-bool ntb_query_link_status(struct ntb_softc *ntb);
+bool ntb_link_is_up(struct ntb_softc *ntb);
 device_t ntb_get_device(struct ntb_softc *ntb);
 
 /* Hardware owns the low 32 bits of features. */
