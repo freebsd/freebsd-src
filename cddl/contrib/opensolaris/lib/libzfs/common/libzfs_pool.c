@@ -3729,17 +3729,18 @@ zpool_history_unpack(char *buf, uint64_t bytes_read, uint64_t *leftover,
 int
 zpool_get_history(zpool_handle_t *zhp, nvlist_t **nvhisp)
 {
-	char *buf = NULL;
-	uint64_t bufsize = HIS_BUF_LEN_DEF;
+	char *buf;
+	uint64_t buflen = HIS_BUF_LEN_DEF;
 	uint64_t off = 0;
 	nvlist_t **records = NULL;
 	uint_t numrecords = 0;
 	int err, i;
 
-	if ((buf = malloc(bufsize)) == NULL)
+	buf = malloc(buflen);
+	if (buf == NULL)
 		return (ENOMEM);
 	do {
-		uint64_t bytes_read = bufsize;
+		uint64_t bytes_read = buflen;
 		uint64_t leftover;
 
 		if ((err = get_history(zhp, buf, &off, &bytes_read)) != 0)
@@ -3753,18 +3754,16 @@ zpool_get_history(zpool_handle_t *zhp, nvlist_t **nvhisp)
 		    &leftover, &records, &numrecords)) != 0)
 			break;
 		off -= leftover;
-
-		/*
-		 * If the history block is too big, double the buffer
-		 * size and try again.
-		 */
 		if (leftover == bytes_read) {
+			/*
+			 * no progress made, because buffer is not big enough
+			 * to hold this record; resize and retry.
+			 */
+			buflen *= 2;
 			free(buf);
 			buf = NULL;
-
-			bufsize <<= 1;
-			if ((bufsize >= HIS_BUF_LEN_MAX) ||
-			    ((buf = malloc(bufsize)) == NULL)) {
+			if ((buflen >= HIS_BUF_LEN_MAX) ||
+			    ((buf = malloc(buflen)) == NULL)) {
 				err = ENOMEM;
 				break;
 			}
@@ -3772,6 +3771,7 @@ zpool_get_history(zpool_handle_t *zhp, nvlist_t **nvhisp)
 
 		/* CONSTCOND */
 	} while (1);
+
 	free(buf);
 
 	if (!err) {
