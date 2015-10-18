@@ -399,19 +399,15 @@ static void hostapd_acl_expire_queries(struct hostapd_data *hapd,
 
 /**
  * hostapd_acl_expire - ACL cache expiration callback
- * @eloop_ctx: struct hostapd_data *
- * @timeout_ctx: Not used
+ * @hapd: struct hostapd_data *
  */
-static void hostapd_acl_expire(void *eloop_ctx, void *timeout_ctx)
+void hostapd_acl_expire(struct hostapd_data *hapd)
 {
-	struct hostapd_data *hapd = eloop_ctx;
 	struct os_reltime now;
 
 	os_get_reltime(&now);
 	hostapd_acl_expire_cache(hapd, &now);
 	hostapd_acl_expire_queries(hapd, &now);
-
-	eloop_register_timeout(10, 0, hostapd_acl_expire, hapd, NULL);
 }
 
 
@@ -561,6 +557,19 @@ hostapd_acl_recv_radius(struct radius_msg *msg, struct radius_msg *req,
 		if (hapd->conf->wpa_psk_radius == PSK_RADIUS_REQUIRED &&
 		    !cache->psk)
 			cache->accepted = HOSTAPD_ACL_REJECT;
+
+		if (cache->vlan_id &&
+		    !hostapd_vlan_id_valid(hapd->conf->vlan, cache->vlan_id)) {
+			hostapd_logger(hapd, query->addr,
+				       HOSTAPD_MODULE_RADIUS,
+				       HOSTAPD_LEVEL_INFO,
+				       "Invalid VLAN ID %d received from RADIUS server",
+				       cache->vlan_id);
+			cache->vlan_id = 0;
+		}
+		if (hapd->conf->ssid.dynamic_vlan == DYNAMIC_VLAN_REQUIRED &&
+		    !cache->vlan_id)
+			cache->accepted = HOSTAPD_ACL_REJECT;
 	} else
 		cache->accepted = HOSTAPD_ACL_REJECT;
 	cache->next = hapd->acl_cache;
@@ -602,8 +611,6 @@ int hostapd_acl_init(struct hostapd_data *hapd)
 	if (radius_client_register(hapd->radius, RADIUS_AUTH,
 				   hostapd_acl_recv_radius, hapd))
 		return -1;
-
-	eloop_register_timeout(10, 0, hostapd_acl_expire, hapd, NULL);
 #endif /* CONFIG_NO_RADIUS */
 
 	return 0;
@@ -619,8 +626,6 @@ void hostapd_acl_deinit(struct hostapd_data *hapd)
 	struct hostapd_acl_query_data *query, *prev;
 
 #ifndef CONFIG_NO_RADIUS
-	eloop_cancel_timeout(hostapd_acl_expire, hapd, NULL);
-
 	hostapd_acl_cache_free(hapd->acl_cache);
 #endif /* CONFIG_NO_RADIUS */
 
