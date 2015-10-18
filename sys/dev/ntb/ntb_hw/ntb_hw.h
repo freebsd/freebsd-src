@@ -80,8 +80,7 @@ device_t ntb_get_device(struct ntb_softc *ntb);
 
 /* Hardware owns the low 32 bits of features. */
 #define NTB_BAR_SIZE_4K		(1 << 0)
-/* REGS_THRU_MW is the equivalent of Linux's NTB_HWERR_SDOORBELL_LOCKUP */
-#define NTB_REGS_THRU_MW	(1 << 1)
+#define NTB_SDOORBELL_LOCKUP	(1 << 1)
 #define NTB_SB01BASE_LOCKUP	(1 << 2)
 #define NTB_B2BDOORBELL_BIT14	(1 << 3)
 /* Software/configuration owns the top 32 bits. */

@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #define NTB_MAX_BARS	4
 #define NTB_MW_TO_BAR(mw) ((mw) + 1)
 
-#define MAX_MSIX_INTERRUPTS MAX(XEON_MAX_DB_BITS, SOC_MAX_DB_BITS)
+#define MAX_MSIX_INTERRUPTS MAX(XEON_DB_COUNT, SOC_DB_COUNT)
 
 #define NTB_HB_TIMEOUT	1 /* second */
 #define SOC_LINK_RECOVERY_TIME	500
@@ -246,18 +246,18 @@ static struct ntb_hw_info pci_ids[] = {
 
 	/* XXX: PS/SS IDs left out until they are supported. */
 	{ 0x37258086, "JSF Xeon C35xx/C55xx Non-Transparent Bridge B2B",
-		NTB_XEON, NTB_REGS_THRU_MW | NTB_B2BDOORBELL_BIT14 },
+		NTB_XEON, NTB_SDOORBELL_LOCKUP | NTB_B2BDOORBELL_BIT14 },
 	{ 0x3C0D8086, "SNB Xeon E5/Core i7 Non-Transparent Bridge B2B",
-		NTB_XEON, NTB_REGS_THRU_MW | NTB_B2BDOORBELL_BIT14 },
+		NTB_XEON, NTB_SDOORBELL_LOCKUP | NTB_B2BDOORBELL_BIT14 },
 	{ 0x0E0D8086, "IVT Xeon E5 V2 Non-Transparent Bridge B2B", NTB_XEON,
-		NTB_REGS_THRU_MW | NTB_B2BDOORBELL_BIT14 | NTB_SB01BASE_LOCKUP
-		    | NTB_BAR_SIZE_4K },
+		NTB_SDOORBELL_LOCKUP | NTB_B2BDOORBELL_BIT14 |
+		    NTB_SB01BASE_LOCKUP | NTB_BAR_SIZE_4K },
 	{ 0x2F0D8086, "HSX Xeon E5 V3 Non-Transparent Bridge B2B", NTB_XEON,
-		NTB_REGS_THRU_MW | NTB_B2BDOORBELL_BIT14 | NTB_SB01BASE_LOCKUP
-	},
+		NTB_SDOORBELL_LOCKUP | NTB_B2BDOORBELL_BIT14 |
+		    NTB_SB01BASE_LOCKUP },
 	{ 0x6F0D8086, "BDX Xeon E5 V4 Non-Transparent Bridge B2B", NTB_XEON,
-		NTB_REGS_THRU_MW | NTB_B2BDOORBELL_BIT14 | NTB_SB01BASE_LOCKUP
-	},
+		NTB_SDOORBELL_LOCKUP | NTB_B2BDOORBELL_BIT14 |
+		    NTB_SB01BASE_LOCKUP },
 
 	{ 0x00000000, NULL, NTB_SOC, 0 }
 };
@@ -390,7 +390,7 @@ ntb_map_pci_bars(struct ntb_softc *ntb)
 		return (rc);
 
 	ntb->bar_info[NTB_B2B_BAR_2].pci_resource_id = PCIR_BAR(4);
-	if (HAS_FEATURE(NTB_REGS_THRU_MW) && !HAS_FEATURE(NTB_SPLIT_BAR))
+	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP) && !HAS_FEATURE(NTB_SPLIT_BAR))
 		rc = map_pci_bar(ntb, map_mmr_bar,
 		    &ntb->bar_info[NTB_B2B_BAR_2]);
 	else
@@ -400,7 +400,7 @@ ntb_map_pci_bars(struct ntb_softc *ntb)
 		return (rc);
 
 	ntb->bar_info[NTB_B2B_BAR_3].pci_resource_id = PCIR_BAR(5);
-	if (HAS_FEATURE(NTB_REGS_THRU_MW))
+	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP))
 		rc = map_pci_bar(ntb, map_mmr_bar,
 		    &ntb->bar_info[NTB_B2B_BAR_3]);
 	else
@@ -650,7 +650,7 @@ ntb_setup_interrupts(struct ntb_softc *ntb)
 	 */
 	mask = 0;
 	if (ntb->type == NTB_XEON)
-		mask = (1 << XEON_LINK_DB);
+		mask = (1 << XEON_DB_LINK);
 	db_iowrite(ntb, ntb->reg_ofs.ldb_mask, ~mask);
 
 	num_vectors = desired_vectors = MIN(pci_msix_count(ntb->device),
@@ -852,7 +852,7 @@ handle_xeon_event_irq(void *arg)
 		device_printf(ntb->device, "Error determining link status\n");
 
 	/* bit 15 is always the link bit */
-	db_iowrite(ntb, ntb->reg_ofs.ldb, 1 << XEON_LINK_DB);
+	db_iowrite(ntb, ntb->reg_ofs.ldb, 1 << XEON_DB_LINK);
 }
 
 static void
@@ -864,9 +864,9 @@ ntb_handle_legacy_interrupt(void *arg)
 
 	ldb = db_ioread(ntb, ntb->reg_ofs.ldb);
 
-	if (ntb->type == NTB_XEON && (ldb & XEON_DB_HW_LINK) != 0) {
+	if (ntb->type == NTB_XEON && (ldb & XEON_DB_LINK_BIT) != 0) {
 		handle_xeon_event_irq(ntb);
-		ldb &= ~XEON_DB_HW_LINK;
+		ldb &= ~XEON_DB_LINK_BIT;
 	}
 
 	while (ldb != 0) {
@@ -1014,21 +1014,21 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	case NTB_CONN_B2B:
 		/*
 		 * reg_ofs.rdb and reg_ofs.spad_remote are effectively ignored
-		 * with the NTB_REGS_THRU_MW errata mode enabled.  (See
+		 * with the NTB_SDOORBELL_LOCKUP errata mode enabled.  (See
 		 * ntb_ring_doorbell() and ntb_read/write_remote_spad().)
 		 */
 		ntb->reg_ofs.rdb	 = XEON_B2B_DOORBELL_OFFSET;
 		ntb->reg_ofs.spad_remote = XEON_B2B_SPAD_OFFSET;
 
-		ntb->limits.max_spads	 = XEON_MAX_SPADS;
+		ntb->limits.max_spads	 = XEON_SPAD_COUNT;
 		break;
 
 	case NTB_CONN_RP:
 		/*
-		 * Every Xeon today needs NTB_REGS_THRU_MW, so punt on RP for
+		 * Every Xeon today needs NTB_SDOORBELL_LOCKUP, so punt on RP for
 		 * now.
 		 */
-		KASSERT(HAS_FEATURE(NTB_REGS_THRU_MW),
+		KASSERT(HAS_FEATURE(NTB_SDOORBELL_LOCKUP),
 		    ("Xeon without MW errata unimplemented"));
 		device_printf(ntb->device,
 		    "NTB-RP disabled to due hardware errata.\n");
@@ -1053,7 +1053,7 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	 * This should already be the case based on the driver defaults, but
 	 * write the limit registers first just in case.
 	 */
-	if (HAS_FEATURE(NTB_REGS_THRU_MW)) {
+	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP)) {
 		/*
 		 * Set the Limit register to 4k, the minimum size, to prevent
 		 * an illegal access.
@@ -1076,9 +1076,9 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	ntb->reg_ofs.lnk_stat	 = XEON_LINK_STATUS_OFFSET;
 	ntb->reg_ofs.spci_cmd	 = XEON_PCICMD_OFFSET;
 
-	ntb->limits.max_db_bits	 = XEON_MAX_DB_BITS;
-	ntb->limits.msix_cnt	 = XEON_MSIX_CNT;
-	ntb->bits_per_vector	 = XEON_DB_BITS_PER_VEC;
+	ntb->limits.max_db_bits	 = XEON_DB_COUNT;
+	ntb->limits.msix_cnt	 = XEON_DB_MSIX_VECTOR_COUNT;
+	ntb->bits_per_vector	 = XEON_DB_MSIX_VECTOR_SHIFT;
 
 	/*
 	 * HW Errata on bit 14 of b2bdoorbell register.  Writes will not be
@@ -1089,9 +1089,9 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	 * anyway.  Nor for non-B2B connection types.
 	 */
 	if (HAS_FEATURE(NTB_B2BDOORBELL_BIT14) &&
-	    !HAS_FEATURE(NTB_REGS_THRU_MW) &&
+	    !HAS_FEATURE(NTB_SDOORBELL_LOCKUP) &&
 	    ntb->conn_type == NTB_CONN_B2B)
-		ntb->limits.max_db_bits = XEON_MAX_DB_BITS - 1;
+		ntb->limits.max_db_bits = XEON_DB_COUNT - 1;
 
 	configure_xeon_secondary_side_bars(ntb);
 
@@ -1128,10 +1128,10 @@ ntb_setup_soc(struct ntb_softc *ntb)
 	ntb->reg_ofs.spad_remote = SOC_B2B_SPAD_OFFSET;
 	ntb->reg_ofs.spci_cmd	 = SOC_PCICMD_OFFSET;
 
-	ntb->limits.max_spads	 = SOC_MAX_SPADS;
-	ntb->limits.max_db_bits	 = SOC_MAX_DB_BITS;
-	ntb->limits.msix_cnt	 = SOC_MSIX_CNT;
-	ntb->bits_per_vector	 = SOC_DB_BITS_PER_VEC;
+	ntb->limits.max_spads	 = SOC_SPAD_COUNT;
+	ntb->limits.max_db_bits	 = SOC_DB_COUNT;
+	ntb->limits.msix_cnt	 = SOC_DB_MSIX_VECTOR_COUNT;
+	ntb->bits_per_vector	 = SOC_DB_MSIX_VECTOR_SHIFT;
 
 	/*
 	 * FIXME - MSI-X bug on early SOC HW, remove once internal issue is
@@ -1155,15 +1155,17 @@ configure_soc_secondary_side_bars(struct ntb_softc *ntb)
 {
 
 	if (ntb->dev_type == NTB_DEV_USD) {
-		ntb_reg_write(8, SOC_PBAR2XLAT_OFFSET, MBAR23_DSD_ADDR);
-		ntb_reg_write(8, SOC_PBAR4XLAT_OFFSET, MBAR4_DSD_ADDR);
-		ntb_reg_write(8, SOC_MBAR23_OFFSET, MBAR23_USD_ADDR);
-		ntb_reg_write(8, SOC_MBAR45_OFFSET, MBAR4_USD_ADDR);
+		ntb_reg_write(8, SOC_PBAR2XLAT_OFFSET,
+		    XEON_B2B_BAR2_DSD_ADDR);
+		ntb_reg_write(8, SOC_PBAR4XLAT_OFFSET, XEON_B2B_BAR4_DSD_ADDR);
+		ntb_reg_write(8, SOC_MBAR23_OFFSET, XEON_B2B_BAR2_USD_ADDR);
+		ntb_reg_write(8, SOC_MBAR45_OFFSET, XEON_B2B_BAR4_USD_ADDR);
 	} else {
-		ntb_reg_write(8, SOC_PBAR2XLAT_OFFSET, MBAR23_USD_ADDR);
-		ntb_reg_write(8, SOC_PBAR4XLAT_OFFSET, MBAR4_USD_ADDR);
-		ntb_reg_write(8, SOC_MBAR23_OFFSET, MBAR23_DSD_ADDR);
-		ntb_reg_write(8, SOC_MBAR45_OFFSET, MBAR4_DSD_ADDR);
+		ntb_reg_write(8, SOC_PBAR2XLAT_OFFSET,
+		    XEON_B2B_BAR2_USD_ADDR);
+		ntb_reg_write(8, SOC_PBAR4XLAT_OFFSET, XEON_B2B_BAR4_USD_ADDR);
+		ntb_reg_write(8, SOC_MBAR23_OFFSET, XEON_B2B_BAR2_DSD_ADDR);
+		ntb_reg_write(8, SOC_MBAR45_OFFSET, XEON_B2B_BAR4_DSD_ADDR);
 	}
 }
 
@@ -1172,68 +1174,77 @@ configure_xeon_secondary_side_bars(struct ntb_softc *ntb)
 {
 
 	if (ntb->dev_type == NTB_DEV_USD) {
-		ntb_reg_write(8, XEON_PBAR2XLAT_OFFSET, MBAR23_DSD_ADDR);
-		if (HAS_FEATURE(NTB_REGS_THRU_MW))
+		ntb_reg_write(8, XEON_PBAR2XLAT_OFFSET,
+		    XEON_B2B_BAR2_DSD_ADDR);
+		if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP))
 			ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
-			    MBAR01_DSD_ADDR);
+			    XEON_B2B_BAR0_DSD_ADDR);
 		else {
 			if (HAS_FEATURE(NTB_SPLIT_BAR)) {
 				ntb_reg_write(4, XEON_PBAR4XLAT_OFFSET,
-				    MBAR4_DSD_ADDR);
+				    XEON_B2B_BAR4_DSD_ADDR);
 				ntb_reg_write(4, XEON_PBAR5XLAT_OFFSET,
-				    MBAR5_DSD_ADDR);
+				    XEON_B2B_BAR5_DSD_ADDR);
 			} else
 				ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
-				    MBAR4_DSD_ADDR);
+				    XEON_B2B_BAR4_DSD_ADDR);
 			/*
 			 * B2B_XLAT_OFFSET is a 64-bit register but can only be
 			 * written 32 bits at a time.
 			 */
 			ntb_reg_write(4, XEON_B2B_XLAT_OFFSETL,
-			    MBAR01_DSD_ADDR & 0xffffffff);
+			    XEON_B2B_BAR0_DSD_ADDR & 0xffffffff);
 			ntb_reg_write(4, XEON_B2B_XLAT_OFFSETU,
-			    MBAR01_DSD_ADDR >> 32);
+			    XEON_B2B_BAR0_DSD_ADDR >> 32);
 		}
-		ntb_reg_write(8, XEON_SBAR0BASE_OFFSET, MBAR01_USD_ADDR);
-		ntb_reg_write(8, XEON_SBAR2BASE_OFFSET, MBAR23_USD_ADDR);
-		if (HAS_FEATURE(NTB_SPLIT_BAR)) {
-			ntb_reg_write(4, XEON_SBAR4BASE_OFFSET, MBAR4_USD_ADDR);
-			ntb_reg_write(4, XEON_SBAR5BASE_OFFSET, MBAR5_USD_ADDR);
-		} else
-			ntb_reg_write(8, XEON_SBAR4BASE_OFFSET, MBAR4_USD_ADDR);
-	} else {
-		ntb_reg_write(8, XEON_PBAR2XLAT_OFFSET, MBAR23_USD_ADDR);
-		if (HAS_FEATURE(NTB_REGS_THRU_MW))
-			ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
-			    MBAR01_USD_ADDR);
-		else {
-			if (HAS_FEATURE(NTB_SPLIT_BAR)) {
-				ntb_reg_write(4, XEON_PBAR4XLAT_OFFSET,
-				    MBAR4_USD_ADDR);
-				ntb_reg_write(4, XEON_PBAR5XLAT_OFFSET,
-				    MBAR5_USD_ADDR);
-			} else
-				ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
-				    MBAR4_USD_ADDR);
-			/*
-			 * B2B_XLAT_OFFSET is a 64-bit register but can only be
-			 * written 32 bits at a time.
-			 */
-			ntb_reg_write(4, XEON_B2B_XLAT_OFFSETL,
-			    MBAR01_USD_ADDR & 0xffffffff);
-			ntb_reg_write(4, XEON_B2B_XLAT_OFFSETU,
-			    MBAR01_USD_ADDR >> 32);
-		}
-		ntb_reg_write(8, XEON_SBAR0BASE_OFFSET, MBAR01_DSD_ADDR);
-		ntb_reg_write(8, XEON_SBAR2BASE_OFFSET, MBAR23_DSD_ADDR);
+		ntb_reg_write(8, XEON_SBAR0BASE_OFFSET,
+		    XEON_B2B_BAR0_USD_ADDR);
+		ntb_reg_write(8, XEON_SBAR2BASE_OFFSET,
+		    XEON_B2B_BAR2_USD_ADDR);
 		if (HAS_FEATURE(NTB_SPLIT_BAR)) {
 			ntb_reg_write(4, XEON_SBAR4BASE_OFFSET,
-			    MBAR4_DSD_ADDR);
+			    XEON_B2B_BAR4_USD_ADDR);
 			ntb_reg_write(4, XEON_SBAR5BASE_OFFSET,
-			    MBAR5_DSD_ADDR);
+			    XEON_B2B_BAR5_USD_ADDR);
 		} else
 			ntb_reg_write(8, XEON_SBAR4BASE_OFFSET,
-			    MBAR4_DSD_ADDR);
+			    XEON_B2B_BAR4_USD_ADDR);
+	} else {
+		ntb_reg_write(8, XEON_PBAR2XLAT_OFFSET,
+		    XEON_B2B_BAR2_USD_ADDR);
+		if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP))
+			ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
+			    XEON_B2B_BAR0_USD_ADDR);
+		else {
+			if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+				ntb_reg_write(4, XEON_PBAR4XLAT_OFFSET,
+				    XEON_B2B_BAR4_USD_ADDR);
+				ntb_reg_write(4, XEON_PBAR5XLAT_OFFSET,
+				    XEON_B2B_BAR5_USD_ADDR);
+			} else
+				ntb_reg_write(8, XEON_PBAR4XLAT_OFFSET,
+				    XEON_B2B_BAR4_USD_ADDR);
+			/*
+			 * B2B_XLAT_OFFSET is a 64-bit register but can only be
+			 * written 32 bits at a time.
+			 */
+			ntb_reg_write(4, XEON_B2B_XLAT_OFFSETL,
+			    XEON_B2B_BAR0_USD_ADDR & 0xffffffff);
+			ntb_reg_write(4, XEON_B2B_XLAT_OFFSETU,
+			    XEON_B2B_BAR0_USD_ADDR >> 32);
+		}
+		ntb_reg_write(8, XEON_SBAR0BASE_OFFSET,
+		    XEON_B2B_BAR0_DSD_ADDR);
+		ntb_reg_write(8, XEON_SBAR2BASE_OFFSET,
+		    XEON_B2B_BAR2_DSD_ADDR);
+		if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+			ntb_reg_write(4, XEON_SBAR4BASE_OFFSET,
+			    XEON_B2B_BAR4_DSD_ADDR);
+			ntb_reg_write(4, XEON_SBAR5BASE_OFFSET,
+			    XEON_B2B_BAR5_DSD_ADDR);
+		} else
+			ntb_reg_write(8, XEON_SBAR4BASE_OFFSET,
+			    XEON_B2B_BAR4_DSD_ADDR);
 	}
 }
 
@@ -1718,7 +1729,7 @@ ntb_write_remote_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
 	if (idx >= ntb->limits.max_spads)
 		return (EINVAL);
 
-	if (HAS_FEATURE(NTB_REGS_THRU_MW))
+	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP))
 		ntb_mw_write(4, XEON_SHADOW_SPAD_OFFSET + idx * 4, val);
 	else
 		ntb_reg_write(4, ntb->reg_ofs.spad_remote + idx * 4, val);
@@ -1744,7 +1755,7 @@ ntb_read_remote_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
 	if (idx >= ntb->limits.max_spads)
 		return (EINVAL);
 
-	if (HAS_FEATURE(NTB_REGS_THRU_MW))
+	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP))
 		*val = ntb_mw_read(4, XEON_SHADOW_SPAD_OFFSET + idx * 4);
 	else
 		*val = ntb_reg_read(4, ntb->reg_ofs.spad_remote + idx * 4);
@@ -1853,7 +1864,7 @@ ntb_ring_doorbell(struct ntb_softc *ntb, unsigned int db)
 		bit = ((1 << ntb->bits_per_vector) - 1) <<
 		    (db * ntb->bits_per_vector);
 
-	if (HAS_FEATURE(NTB_REGS_THRU_MW)) {
+	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP)) {
 		ntb_mw_write(2, XEON_SHADOW_PDOORBELL_OFFSET, bit);
 		return;
 	}
