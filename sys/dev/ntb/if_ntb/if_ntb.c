@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/bitset.h>
 #include <sys/bus.h>
 #include <sys/ktr.h>
 #include <sys/limits.h>
@@ -42,14 +43,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
+
 #include <machine/bus.h>
 #include <machine/cpufunc.h>
 #include <machine/pmap.h>
@@ -67,10 +71,12 @@ __FBSDID("$FreeBSD$");
  * be picked up and redistributed in Linux with a dual GPL/BSD license.
  */
 
-/* TODO: These functions should really be part of the kernel */
-#define test_bit(pos, bitmap_addr)  (*(bitmap_addr) & 1UL << (pos))
-#define set_bit(pos, bitmap_addr)   *(bitmap_addr) |= 1UL << (pos)
-#define clear_bit(pos, bitmap_addr) *(bitmap_addr) &= ~(1UL << (pos))
+#define QP_SETSIZE	64
+BITSET_DEFINE(_qpset, QP_SETSIZE);
+#define test_bit(pos, addr)	BIT_ISSET(QP_SETSIZE, (pos), (addr))
+#define set_bit(pos, addr)	BIT_SET(QP_SETSIZE, (pos), (addr))
+#define clear_bit(pos, addr)	BIT_CLR(QP_SETSIZE, (pos), (addr))
+#define ffs_bit(addr)		BIT_FFS(QP_SETSIZE, (addr))
 
 #define KTR_NTB KTR_SPARE3
 
@@ -176,9 +182,9 @@ struct ntb_netdev {
 	struct ifnet		*ifp;
 	struct ntb_transport_mw	mw[NTB_MAX_NUM_MW];
 	struct ntb_transport_qp	*qps;
-	uint64_t		max_qps;
-	uint64_t		qp_bitmap;
-	bool			transport_link;
+	struct _qpset		qp_bitmap;
+	uint8_t			max_qps;
+	enum ntb_link_event	transport_link;
 	struct callout		link_work;
 	struct ntb_transport_qp *qp;
 	uint64_t		bufsize;
@@ -490,7 +496,8 @@ static int
 ntb_transport_init(struct ntb_softc *ntb)
 {
 	struct ntb_netdev *nt = &net_softc;
-	int rc, i;
+	int rc;
+	uint8_t i;
 
 	if (max_num_clients == 0)
 		nt->max_qps = MIN(ntb_get_max_cbs(ntb), ntb_mw_count(ntb));
@@ -504,10 +511,12 @@ ntb_transport_init(struct ntb_softc *ntb)
 	nt->qps = malloc(nt->max_qps * sizeof(struct ntb_transport_qp),
 			  M_NTB_IF, M_WAITOK|M_ZERO);
 
-	nt->qp_bitmap = ((uint64_t) 1 << nt->max_qps) - 1;
+	KASSERT(nt->max_qps <= QP_SETSIZE, ("invalid max_qps"));
 
-	for (i = 0; i < nt->max_qps; i++)
+	for (i = 0; i < nt->max_qps; i++) {
+		set_bit(i, &nt->qp_bitmap);
 		ntb_transport_init_queue(nt, i);
+	}
 
 	callout_init(&nt->link_work, 0);
 
@@ -535,7 +544,7 @@ ntb_transport_free(void *transport)
 {
 	struct ntb_netdev *nt = transport;
 	struct ntb_softc *ntb = nt->ntb;
-	int i;
+	uint8_t i;
 
 	ntb_transport_link_cleanup(nt);
 
@@ -656,7 +665,7 @@ ntb_transport_create_queue(void *data, struct ntb_softc *pdev,
 	if (nt == NULL)
 		goto err;
 
-	free_queue = ffs(nt->qp_bitmap);
+	free_queue = ffs_bit(&nt->qp_bitmap);
 	if (free_queue == 0)
 		goto err;
 
@@ -1284,7 +1293,7 @@ ntb_qp_link_work(void *arg)
 static void
 ntb_transport_link_cleanup(struct ntb_netdev *nt)
 {
-	int i;
+	uint8_t i;
 
 	/* Pass along the info to any clients */
 	for (i = 0; i < nt->max_qps; i++)
