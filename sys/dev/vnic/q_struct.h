@@ -30,6 +30,8 @@
 #ifndef Q_STRUCT_H
 #define Q_STRUCT_H
 
+#define	__LITTLE_ENDIAN_BITFIELD
+
 /* Load transaction types for reading segment bytes specified by
  * NIC_SEND_GATHER_S[LD_TYPE].
  */
@@ -191,185 +193,185 @@ enum cqe_rx_err_opcode {
 
 struct cqe_rx_t {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u64   cqe_type:4; /* W0 */
-	u64   stdn_fault:1;
-	u64   rsvd0:1;
-	u64   rq_qs:7;
-	u64   rq_idx:3;
-	u64   rsvd1:12;
-	u64   rss_alg:4;
-	u64   rsvd2:4;
-	u64   rb_cnt:4;
-	u64   vlan_found:1;
-	u64   vlan_stripped:1;
-	u64   vlan2_found:1;
-	u64   vlan2_stripped:1;
-	u64   l4_type:4;
-	u64   l3_type:4;
-	u64   l2_present:1;
-	u64   err_level:3;
-	u64   err_opcode:8;
+	uint64_t   cqe_type:4; /* W0 */
+	uint64_t   stdn_fault:1;
+	uint64_t   rsvd0:1;
+	uint64_t   rq_qs:7;
+	uint64_t   rq_idx:3;
+	uint64_t   rsvd1:12;
+	uint64_t   rss_alg:4;
+	uint64_t   rsvd2:4;
+	uint64_t   rb_cnt:4;
+	uint64_t   vlan_found:1;
+	uint64_t   vlan_stripped:1;
+	uint64_t   vlan2_found:1;
+	uint64_t   vlan2_stripped:1;
+	uint64_t   l4_type:4;
+	uint64_t   l3_type:4;
+	uint64_t   l2_present:1;
+	uint64_t   err_level:3;
+	uint64_t   err_opcode:8;
 
-	u64   pkt_len:16; /* W1 */
-	u64   l2_ptr:8;
-	u64   l3_ptr:8;
-	u64   l4_ptr:8;
-	u64   cq_pkt_len:8;
-	u64   align_pad:3;
-	u64   rsvd3:1;
-	u64   chan:12;
+	uint64_t   pkt_len:16; /* W1 */
+	uint64_t   l2_ptr:8;
+	uint64_t   l3_ptr:8;
+	uint64_t   l4_ptr:8;
+	uint64_t   cq_pkt_len:8;
+	uint64_t   align_pad:3;
+	uint64_t   rsvd3:1;
+	uint64_t   chan:12;
 
-	u64   rss_tag:32; /* W2 */
-	u64   vlan_tci:16;
-	u64   vlan_ptr:8;
-	u64   vlan2_ptr:8;
+	uint64_t   rss_tag:32; /* W2 */
+	uint64_t   vlan_tci:16;
+	uint64_t   vlan_ptr:8;
+	uint64_t   vlan2_ptr:8;
 
-	u64   rb3_sz:16; /* W3 */
-	u64   rb2_sz:16;
-	u64   rb1_sz:16;
-	u64   rb0_sz:16;
+	uint64_t   rb3_sz:16; /* W3 */
+	uint64_t   rb2_sz:16;
+	uint64_t   rb1_sz:16;
+	uint64_t   rb0_sz:16;
 
-	u64   rb7_sz:16; /* W4 */
-	u64   rb6_sz:16;
-	u64   rb5_sz:16;
-	u64   rb4_sz:16;
+	uint64_t   rb7_sz:16; /* W4 */
+	uint64_t   rb6_sz:16;
+	uint64_t   rb5_sz:16;
+	uint64_t   rb4_sz:16;
 
-	u64   rb11_sz:16; /* W5 */
-	u64   rb10_sz:16;
-	u64   rb9_sz:16;
-	u64   rb8_sz:16;
+	uint64_t   rb11_sz:16; /* W5 */
+	uint64_t   rb10_sz:16;
+	uint64_t   rb9_sz:16;
+	uint64_t   rb8_sz:16;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u64   err_opcode:8;
-	u64   err_level:3;
-	u64   l2_present:1;
-	u64   l3_type:4;
-	u64   l4_type:4;
-	u64   vlan2_stripped:1;
-	u64   vlan2_found:1;
-	u64   vlan_stripped:1;
-	u64   vlan_found:1;
-	u64   rb_cnt:4;
-	u64   rsvd2:4;
-	u64   rss_alg:4;
-	u64   rsvd1:12;
-	u64   rq_idx:3;
-	u64   rq_qs:7;
-	u64   rsvd0:1;
-	u64   stdn_fault:1;
-	u64   cqe_type:4; /* W0 */
-	u64   chan:12;
-	u64   rsvd3:1;
-	u64   align_pad:3;
-	u64   cq_pkt_len:8;
-	u64   l4_ptr:8;
-	u64   l3_ptr:8;
-	u64   l2_ptr:8;
-	u64   pkt_len:16; /* W1 */
-	u64   vlan2_ptr:8;
-	u64   vlan_ptr:8;
-	u64   vlan_tci:16;
-	u64   rss_tag:32; /* W2 */
-	u64   rb0_sz:16;
-	u64   rb1_sz:16;
-	u64   rb2_sz:16;
-	u64   rb3_sz:16; /* W3 */
-	u64   rb4_sz:16;
-	u64   rb5_sz:16;
-	u64   rb6_sz:16;
-	u64   rb7_sz:16; /* W4 */
-	u64   rb8_sz:16;
-	u64   rb9_sz:16;
-	u64   rb10_sz:16;
-	u64   rb11_sz:16; /* W5 */
+	uint64_t   err_opcode:8;
+	uint64_t   err_level:3;
+	uint64_t   l2_present:1;
+	uint64_t   l3_type:4;
+	uint64_t   l4_type:4;
+	uint64_t   vlan2_stripped:1;
+	uint64_t   vlan2_found:1;
+	uint64_t   vlan_stripped:1;
+	uint64_t   vlan_found:1;
+	uint64_t   rb_cnt:4;
+	uint64_t   rsvd2:4;
+	uint64_t   rss_alg:4;
+	uint64_t   rsvd1:12;
+	uint64_t   rq_idx:3;
+	uint64_t   rq_qs:7;
+	uint64_t   rsvd0:1;
+	uint64_t   stdn_fault:1;
+	uint64_t   cqe_type:4; /* W0 */
+	uint64_t   chan:12;
+	uint64_t   rsvd3:1;
+	uint64_t   align_pad:3;
+	uint64_t   cq_pkt_len:8;
+	uint64_t   l4_ptr:8;
+	uint64_t   l3_ptr:8;
+	uint64_t   l2_ptr:8;
+	uint64_t   pkt_len:16; /* W1 */
+	uint64_t   vlan2_ptr:8;
+	uint64_t   vlan_ptr:8;
+	uint64_t   vlan_tci:16;
+	uint64_t   rss_tag:32; /* W2 */
+	uint64_t   rb0_sz:16;
+	uint64_t   rb1_sz:16;
+	uint64_t   rb2_sz:16;
+	uint64_t   rb3_sz:16; /* W3 */
+	uint64_t   rb4_sz:16;
+	uint64_t   rb5_sz:16;
+	uint64_t   rb6_sz:16;
+	uint64_t   rb7_sz:16; /* W4 */
+	uint64_t   rb8_sz:16;
+	uint64_t   rb9_sz:16;
+	uint64_t   rb10_sz:16;
+	uint64_t   rb11_sz:16; /* W5 */
 #endif
-	u64   rb0_ptr:64;
-	u64   rb1_ptr:64;
-	u64   rb2_ptr:64;
-	u64   rb3_ptr:64;
-	u64   rb4_ptr:64;
-	u64   rb5_ptr:64;
-	u64   rb6_ptr:64;
-	u64   rb7_ptr:64;
-	u64   rb8_ptr:64;
-	u64   rb9_ptr:64;
-	u64   rb10_ptr:64;
-	u64   rb11_ptr:64;
+	uint64_t   rb0_ptr:64;
+	uint64_t   rb1_ptr:64;
+	uint64_t   rb2_ptr:64;
+	uint64_t   rb3_ptr:64;
+	uint64_t   rb4_ptr:64;
+	uint64_t   rb5_ptr:64;
+	uint64_t   rb6_ptr:64;
+	uint64_t   rb7_ptr:64;
+	uint64_t   rb8_ptr:64;
+	uint64_t   rb9_ptr:64;
+	uint64_t   rb10_ptr:64;
+	uint64_t   rb11_ptr:64;
 };
 
 struct cqe_rx_tcp_err_t {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u64   cqe_type:4; /* W0 */
-	u64   rsvd0:60;
+	uint64_t   cqe_type:4; /* W0 */
+	uint64_t   rsvd0:60;
 
-	u64   rsvd1:4; /* W1 */
-	u64   partial_first:1;
-	u64   rsvd2:27;
-	u64   rbdr_bytes:8;
-	u64   rsvd3:24;
+	uint64_t   rsvd1:4; /* W1 */
+	uint64_t   partial_first:1;
+	uint64_t   rsvd2:27;
+	uint64_t   rbdr_bytes:8;
+	uint64_t   rsvd3:24;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u64   rsvd0:60;
-	u64   cqe_type:4;
+	uint64_t   rsvd0:60;
+	uint64_t   cqe_type:4;
 
-	u64   rsvd3:24;
-	u64   rbdr_bytes:8;
-	u64   rsvd2:27;
-	u64   partial_first:1;
-	u64   rsvd1:4;
+	uint64_t   rsvd3:24;
+	uint64_t   rbdr_bytes:8;
+	uint64_t   rsvd2:27;
+	uint64_t   partial_first:1;
+	uint64_t   rsvd1:4;
 #endif
 };
 
 struct cqe_rx_tcp_t {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u64   cqe_type:4; /* W0 */
-	u64   rsvd0:52;
-	u64   cq_tcp_status:8;
+	uint64_t   cqe_type:4; /* W0 */
+	uint64_t   rsvd0:52;
+	uint64_t   cq_tcp_status:8;
 
-	u64   rsvd1:32; /* W1 */
-	u64   tcp_cntx_bytes:8;
-	u64   rsvd2:8;
-	u64   tcp_err_bytes:16;
+	uint64_t   rsvd1:32; /* W1 */
+	uint64_t   tcp_cntx_bytes:8;
+	uint64_t   rsvd2:8;
+	uint64_t   tcp_err_bytes:16;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u64   cq_tcp_status:8;
-	u64   rsvd0:52;
-	u64   cqe_type:4; /* W0 */
+	uint64_t   cq_tcp_status:8;
+	uint64_t   rsvd0:52;
+	uint64_t   cqe_type:4; /* W0 */
 
-	u64   tcp_err_bytes:16;
-	u64   rsvd2:8;
-	u64   tcp_cntx_bytes:8;
-	u64   rsvd1:32; /* W1 */
+	uint64_t   tcp_err_bytes:16;
+	uint64_t   rsvd2:8;
+	uint64_t   tcp_cntx_bytes:8;
+	uint64_t   rsvd1:32; /* W1 */
 #endif
 };
 
 struct cqe_send_t {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u64   cqe_type:4; /* W0 */
-	u64   rsvd0:4;
-	u64   sqe_ptr:16;
-	u64   rsvd1:4;
-	u64   rsvd2:10;
-	u64   sq_qs:7;
-	u64   sq_idx:3;
-	u64   rsvd3:8;
-	u64   send_status:8;
+	uint64_t   cqe_type:4; /* W0 */
+	uint64_t   rsvd0:4;
+	uint64_t   sqe_ptr:16;
+	uint64_t   rsvd1:4;
+	uint64_t   rsvd2:10;
+	uint64_t   sq_qs:7;
+	uint64_t   sq_idx:3;
+	uint64_t   rsvd3:8;
+	uint64_t   send_status:8;
 
-	u64   ptp_timestamp:64; /* W1 */
+	uint64_t   ptp_timestamp:64; /* W1 */
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u64   send_status:8;
-	u64   rsvd3:8;
-	u64   sq_idx:3;
-	u64   sq_qs:7;
-	u64   rsvd2:10;
-	u64   rsvd1:4;
-	u64   sqe_ptr:16;
-	u64   rsvd0:4;
-	u64   cqe_type:4; /* W0 */
+	uint64_t   send_status:8;
+	uint64_t   rsvd3:8;
+	uint64_t   sq_idx:3;
+	uint64_t   sq_qs:7;
+	uint64_t   rsvd2:10;
+	uint64_t   rsvd1:4;
+	uint64_t   sqe_ptr:16;
+	uint64_t   rsvd0:4;
+	uint64_t   cqe_type:4; /* W0 */
 
-	u64   ptp_timestamp:64; /* W1 */
+	uint64_t   ptp_timestamp:64; /* W1 */
 #endif
 };
 
 union cq_desc_t {
-	u64    u[64];
+	uint64_t    u[64];
 	struct cqe_send_t snd_hdr;
 	struct cqe_rx_t rx_hdr;
 	struct cqe_rx_tcp_t rx_tcp_hdr;
@@ -378,54 +380,54 @@ union cq_desc_t {
 
 struct rbdr_entry_t {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u64   rsvd0:15;
-	u64   buf_addr:42;
-	u64   cache_align:7;
+	uint64_t   rsvd0:15;
+	uint64_t   buf_addr:42;
+	uint64_t   cache_align:7;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u64   cache_align:7;
-	u64   buf_addr:42;
-	u64   rsvd0:15;
+	uint64_t   cache_align:7;
+	uint64_t   buf_addr:42;
+	uint64_t   rsvd0:15;
 #endif
 };
 
 /* TCP reassembly context */
 struct rbe_tcp_cnxt_t {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u64   tcp_pkt_cnt:12;
-	u64   rsvd1:4;
-	u64   align_hdr_bytes:4;
-	u64   align_ptr_bytes:4;
-	u64   ptr_bytes:16;
-	u64   rsvd2:24;
-	u64   cqe_type:4;
-	u64   rsvd0:54;
-	u64   tcp_end_reason:2;
-	u64   tcp_status:4;
+	uint64_t   tcp_pkt_cnt:12;
+	uint64_t   rsvd1:4;
+	uint64_t   align_hdr_bytes:4;
+	uint64_t   align_ptr_bytes:4;
+	uint64_t   ptr_bytes:16;
+	uint64_t   rsvd2:24;
+	uint64_t   cqe_type:4;
+	uint64_t   rsvd0:54;
+	uint64_t   tcp_end_reason:2;
+	uint64_t   tcp_status:4;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u64   tcp_status:4;
-	u64   tcp_end_reason:2;
-	u64   rsvd0:54;
-	u64   cqe_type:4;
-	u64   rsvd2:24;
-	u64   ptr_bytes:16;
-	u64   align_ptr_bytes:4;
-	u64   align_hdr_bytes:4;
-	u64   rsvd1:4;
-	u64   tcp_pkt_cnt:12;
+	uint64_t   tcp_status:4;
+	uint64_t   tcp_end_reason:2;
+	uint64_t   rsvd0:54;
+	uint64_t   cqe_type:4;
+	uint64_t   rsvd2:24;
+	uint64_t   ptr_bytes:16;
+	uint64_t   align_ptr_bytes:4;
+	uint64_t   align_hdr_bytes:4;
+	uint64_t   rsvd1:4;
+	uint64_t   tcp_pkt_cnt:12;
 #endif
 };
 
 /* Always Big endian */
 struct rx_hdr_t {
-	u64   opaque:32;
-	u64   rss_flow:8;
-	u64   skip_length:6;
-	u64   disable_rss:1;
-	u64   disable_tcp_reassembly:1;
-	u64   nodrop:1;
-	u64   dest_alg:2;
-	u64   rsvd0:2;
-	u64   dest_rq:11;
+	uint64_t   opaque:32;
+	uint64_t   rss_flow:8;
+	uint64_t   skip_length:6;
+	uint64_t   disable_rss:1;
+	uint64_t   disable_tcp_reassembly:1;
+	uint64_t   nodrop:1;
+	uint64_t   dest_alg:2;
+	uint64_t   rsvd0:2;
+	uint64_t   dest_rq:11;
 };
 
 enum send_l4_csum_type {
@@ -472,247 +474,247 @@ enum sq_subdesc_type {
 
 struct sq_crc_subdesc {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u64    rsvd1:32;
-	u64    crc_ival:32;
-	u64    subdesc_type:4;
-	u64    crc_alg:2;
-	u64    rsvd0:10;
-	u64    crc_insert_pos:16;
-	u64    hdr_start:16;
-	u64    crc_len:16;
+	uint64_t    rsvd1:32;
+	uint64_t    crc_ival:32;
+	uint64_t    subdesc_type:4;
+	uint64_t    crc_alg:2;
+	uint64_t    rsvd0:10;
+	uint64_t    crc_insert_pos:16;
+	uint64_t    hdr_start:16;
+	uint64_t    crc_len:16;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u64    crc_len:16;
-	u64    hdr_start:16;
-	u64    crc_insert_pos:16;
-	u64    rsvd0:10;
-	u64    crc_alg:2;
-	u64    subdesc_type:4;
-	u64    crc_ival:32;
-	u64    rsvd1:32;
+	uint64_t    crc_len:16;
+	uint64_t    hdr_start:16;
+	uint64_t    crc_insert_pos:16;
+	uint64_t    rsvd0:10;
+	uint64_t    crc_alg:2;
+	uint64_t    subdesc_type:4;
+	uint64_t    crc_ival:32;
+	uint64_t    rsvd1:32;
 #endif
 };
 
 struct sq_gather_subdesc {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u64    subdesc_type:4; /* W0 */
-	u64    ld_type:2;
-	u64    rsvd0:42;
-	u64    size:16;
+	uint64_t    subdesc_type:4; /* W0 */
+	uint64_t    ld_type:2;
+	uint64_t    rsvd0:42;
+	uint64_t    size:16;
 
-	u64    rsvd1:15; /* W1 */
-	u64    addr:49;
+	uint64_t    rsvd1:15; /* W1 */
+	uint64_t    addr:49;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u64    size:16;
-	u64    rsvd0:42;
-	u64    ld_type:2;
-	u64    subdesc_type:4; /* W0 */
+	uint64_t    size:16;
+	uint64_t    rsvd0:42;
+	uint64_t    ld_type:2;
+	uint64_t    subdesc_type:4; /* W0 */
 
-	u64    addr:49;
-	u64    rsvd1:15; /* W1 */
+	uint64_t    addr:49;
+	uint64_t    rsvd1:15; /* W1 */
 #endif
 };
 
 /* SQ immediate subdescriptor */
 struct sq_imm_subdesc {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u64    subdesc_type:4; /* W0 */
-	u64    rsvd0:46;
-	u64    len:14;
+	uint64_t    subdesc_type:4; /* W0 */
+	uint64_t    rsvd0:46;
+	uint64_t    len:14;
 
-	u64    data:64; /* W1 */
+	uint64_t    data:64; /* W1 */
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u64    len:14;
-	u64    rsvd0:46;
-	u64    subdesc_type:4; /* W0 */
+	uint64_t    len:14;
+	uint64_t    rsvd0:46;
+	uint64_t    subdesc_type:4; /* W0 */
 
-	u64    data:64; /* W1 */
+	uint64_t    data:64; /* W1 */
 #endif
 };
 
 struct sq_mem_subdesc {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u64    subdesc_type:4; /* W0 */
-	u64    mem_alg:4;
-	u64    mem_dsz:2;
-	u64    wmem:1;
-	u64    rsvd0:21;
-	u64    offset:32;
+	uint64_t    subdesc_type:4; /* W0 */
+	uint64_t    mem_alg:4;
+	uint64_t    mem_dsz:2;
+	uint64_t    wmem:1;
+	uint64_t    rsvd0:21;
+	uint64_t    offset:32;
 
-	u64    rsvd1:15; /* W1 */
-	u64    addr:49;
+	uint64_t    rsvd1:15; /* W1 */
+	uint64_t    addr:49;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u64    offset:32;
-	u64    rsvd0:21;
-	u64    wmem:1;
-	u64    mem_dsz:2;
-	u64    mem_alg:4;
-	u64    subdesc_type:4; /* W0 */
+	uint64_t    offset:32;
+	uint64_t    rsvd0:21;
+	uint64_t    wmem:1;
+	uint64_t    mem_dsz:2;
+	uint64_t    mem_alg:4;
+	uint64_t    subdesc_type:4; /* W0 */
 
-	u64    addr:49;
-	u64    rsvd1:15; /* W1 */
+	uint64_t    addr:49;
+	uint64_t    rsvd1:15; /* W1 */
 #endif
 };
 
 struct sq_hdr_subdesc {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u64    subdesc_type:4;
-	u64    tso:1;
-	u64    post_cqe:1; /* Post CQE on no error also */
-	u64    dont_send:1;
-	u64    tstmp:1;
-	u64    subdesc_cnt:8;
-	u64    csum_l4:2;
-	u64    csum_l3:1;
-	u64    rsvd0:5;
-	u64    l4_offset:8;
-	u64    l3_offset:8;
-	u64    rsvd1:4;
-	u64    tot_len:20; /* W0 */
+	uint64_t    subdesc_type:4;
+	uint64_t    tso:1;
+	uint64_t    post_cqe:1; /* Post CQE on no error also */
+	uint64_t    dont_send:1;
+	uint64_t    tstmp:1;
+	uint64_t    subdesc_cnt:8;
+	uint64_t    csum_l4:2;
+	uint64_t    csum_l3:1;
+	uint64_t    rsvd0:5;
+	uint64_t    l4_offset:8;
+	uint64_t    l3_offset:8;
+	uint64_t    rsvd1:4;
+	uint64_t    tot_len:20; /* W0 */
 
-	u64    tso_sdc_cont:8;
-	u64    tso_sdc_first:8;
-	u64    tso_l4_offset:8;
-	u64    tso_flags_last:12;
-	u64    tso_flags_first:12;
-	u64    rsvd2:2;
-	u64    tso_max_paysize:14; /* W1 */
+	uint64_t    tso_sdc_cont:8;
+	uint64_t    tso_sdc_first:8;
+	uint64_t    tso_l4_offset:8;
+	uint64_t    tso_flags_last:12;
+	uint64_t    tso_flags_first:12;
+	uint64_t    rsvd2:2;
+	uint64_t    tso_max_paysize:14; /* W1 */
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u64    tot_len:20;
-	u64    rsvd1:4;
-	u64    l3_offset:8;
-	u64    l4_offset:8;
-	u64    rsvd0:5;
-	u64    csum_l3:1;
-	u64    csum_l4:2;
-	u64    subdesc_cnt:8;
-	u64    tstmp:1;
-	u64    dont_send:1;
-	u64    post_cqe:1; /* Post CQE on no error also */
-	u64    tso:1;
-	u64    subdesc_type:4; /* W0 */
+	uint64_t    tot_len:20;
+	uint64_t    rsvd1:4;
+	uint64_t    l3_offset:8;
+	uint64_t    l4_offset:8;
+	uint64_t    rsvd0:5;
+	uint64_t    csum_l3:1;
+	uint64_t    csum_l4:2;
+	uint64_t    subdesc_cnt:8;
+	uint64_t    tstmp:1;
+	uint64_t    dont_send:1;
+	uint64_t    post_cqe:1; /* Post CQE on no error also */
+	uint64_t    tso:1;
+	uint64_t    subdesc_type:4; /* W0 */
 
-	u64    tso_max_paysize:14;
-	u64    rsvd2:2;
-	u64    tso_flags_first:12;
-	u64    tso_flags_last:12;
-	u64    tso_l4_offset:8;
-	u64    tso_sdc_first:8;
-	u64    tso_sdc_cont:8; /* W1 */
+	uint64_t    tso_max_paysize:14;
+	uint64_t    rsvd2:2;
+	uint64_t    tso_flags_first:12;
+	uint64_t    tso_flags_last:12;
+	uint64_t    tso_l4_offset:8;
+	uint64_t    tso_sdc_first:8;
+	uint64_t    tso_sdc_cont:8; /* W1 */
 #endif
 };
 
 /* Queue config register formats */
 struct rq_cfg {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u64 reserved_2_63:62;
-	u64 ena:1;
-	u64 tcp_ena:1;
+	uint64_t reserved_2_63:62;
+	uint64_t ena:1;
+	uint64_t tcp_ena:1;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u64 tcp_ena:1;
-	u64 ena:1;
-	u64 reserved_2_63:62;
+	uint64_t tcp_ena:1;
+	uint64_t ena:1;
+	uint64_t reserved_2_63:62;
 #endif
 };
 
 struct cq_cfg {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u64 reserved_43_63:21;
-	u64 ena:1;
-	u64 reset:1;
-	u64 caching:1;
-	u64 reserved_35_39:5;
-	u64 qsize:3;
-	u64 reserved_25_31:7;
-	u64 avg_con:9;
-	u64 reserved_0_15:16;
+	uint64_t reserved_43_63:21;
+	uint64_t ena:1;
+	uint64_t reset:1;
+	uint64_t caching:1;
+	uint64_t reserved_35_39:5;
+	uint64_t qsize:3;
+	uint64_t reserved_25_31:7;
+	uint64_t avg_con:9;
+	uint64_t reserved_0_15:16;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u64 reserved_0_15:16;
-	u64 avg_con:9;
-	u64 reserved_25_31:7;
-	u64 qsize:3;
-	u64 reserved_35_39:5;
-	u64 caching:1;
-	u64 reset:1;
-	u64 ena:1;
-	u64 reserved_43_63:21;
+	uint64_t reserved_0_15:16;
+	uint64_t avg_con:9;
+	uint64_t reserved_25_31:7;
+	uint64_t qsize:3;
+	uint64_t reserved_35_39:5;
+	uint64_t caching:1;
+	uint64_t reset:1;
+	uint64_t ena:1;
+	uint64_t reserved_43_63:21;
 #endif
 };
 
 struct sq_cfg {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u64 reserved_20_63:44;
-	u64 ena:1;
-	u64 reserved_18_18:1;
-	u64 reset:1;
-	u64 ldwb:1;
-	u64 reserved_11_15:5;
-	u64 qsize:3;
-	u64 reserved_3_7:5;
-	u64 tstmp_bgx_intf:3;
+	uint64_t reserved_20_63:44;
+	uint64_t ena:1;
+	uint64_t reserved_18_18:1;
+	uint64_t reset:1;
+	uint64_t ldwb:1;
+	uint64_t reserved_11_15:5;
+	uint64_t qsize:3;
+	uint64_t reserved_3_7:5;
+	uint64_t tstmp_bgx_intf:3;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u64 tstmp_bgx_intf:3;
-	u64 reserved_3_7:5;
-	u64 qsize:3;
-	u64 reserved_11_15:5;
-	u64 ldwb:1;
-	u64 reset:1;
-	u64 reserved_18_18:1;
-	u64 ena:1;
-	u64 reserved_20_63:44;
+	uint64_t tstmp_bgx_intf:3;
+	uint64_t reserved_3_7:5;
+	uint64_t qsize:3;
+	uint64_t reserved_11_15:5;
+	uint64_t ldwb:1;
+	uint64_t reset:1;
+	uint64_t reserved_18_18:1;
+	uint64_t ena:1;
+	uint64_t reserved_20_63:44;
 #endif
 };
 
 struct rbdr_cfg {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u64 reserved_45_63:19;
-	u64 ena:1;
-	u64 reset:1;
-	u64 ldwb:1;
-	u64 reserved_36_41:6;
-	u64 qsize:4;
-	u64 reserved_25_31:7;
-	u64 avg_con:9;
-	u64 reserved_12_15:4;
-	u64 lines:12;
+	uint64_t reserved_45_63:19;
+	uint64_t ena:1;
+	uint64_t reset:1;
+	uint64_t ldwb:1;
+	uint64_t reserved_36_41:6;
+	uint64_t qsize:4;
+	uint64_t reserved_25_31:7;
+	uint64_t avg_con:9;
+	uint64_t reserved_12_15:4;
+	uint64_t lines:12;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u64 lines:12;
-	u64 reserved_12_15:4;
-	u64 avg_con:9;
-	u64 reserved_25_31:7;
-	u64 qsize:4;
-	u64 reserved_36_41:6;
-	u64 ldwb:1;
-	u64 reset:1;
-	u64 ena: 1;
-	u64 reserved_45_63:19;
+	uint64_t lines:12;
+	uint64_t reserved_12_15:4;
+	uint64_t avg_con:9;
+	uint64_t reserved_25_31:7;
+	uint64_t qsize:4;
+	uint64_t reserved_36_41:6;
+	uint64_t ldwb:1;
+	uint64_t reset:1;
+	uint64_t ena: 1;
+	uint64_t reserved_45_63:19;
 #endif
 };
 
 struct qs_cfg {
 #if defined(__BIG_ENDIAN_BITFIELD)
-	u64 reserved_32_63:32;
-	u64 ena:1;
-	u64 reserved_27_30:4;
-	u64 sq_ins_ena:1;
-	u64 sq_ins_pos:6;
-	u64 lock_ena:1;
-	u64 lock_viol_cqe_ena:1;
-	u64 send_tstmp_ena:1;
-	u64 be:1;
-	u64 reserved_7_15:9;
-	u64 vnic:7;
+	uint64_t reserved_32_63:32;
+	uint64_t ena:1;
+	uint64_t reserved_27_30:4;
+	uint64_t sq_ins_ena:1;
+	uint64_t sq_ins_pos:6;
+	uint64_t lock_ena:1;
+	uint64_t lock_viol_cqe_ena:1;
+	uint64_t send_tstmp_ena:1;
+	uint64_t be:1;
+	uint64_t reserved_7_15:9;
+	uint64_t vnic:7;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	u64 vnic:7;
-	u64 reserved_7_15:9;
-	u64 be:1;
-	u64 send_tstmp_ena:1;
-	u64 lock_viol_cqe_ena:1;
-	u64 lock_ena:1;
-	u64 sq_ins_pos:6;
-	u64 sq_ins_ena:1;
-	u64 reserved_27_30:4;
-	u64 ena:1;
-	u64 reserved_32_63:32;
+	uint64_t vnic:7;
+	uint64_t reserved_7_15:9;
+	uint64_t be:1;
+	uint64_t send_tstmp_ena:1;
+	uint64_t lock_viol_cqe_ena:1;
+	uint64_t lock_ena:1;
+	uint64_t sq_ins_pos:6;
+	uint64_t sq_ins_ena:1;
+	uint64_t reserved_27_30:4;
+	uint64_t ena:1;
+	uint64_t reserved_32_63:32;
 #endif
 };
 
