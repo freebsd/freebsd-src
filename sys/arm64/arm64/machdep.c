@@ -251,7 +251,13 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 
 	memset(tf, 0, sizeof(struct trapframe));
 
-	tf->tf_sp = stack;
+	/*
+	 * We need to set x0 for init as it doesn't call
+	 * cpu_set_syscall_retval to copy the value. We also
+	 * need to set td_retval for the cases where we do.
+	 */
+	tf->tf_x[0] = td->td_retval[0] = stack;
+	tf->tf_sp = STACKALIGN(stack);
 	tf->tf_lr = imgp->entry_addr;
 	tf->tf_elr = imgp->entry_addr;
 }
