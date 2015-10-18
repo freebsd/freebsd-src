@@ -194,16 +194,12 @@ bus_space_write_8(bus_space_tag_t tag, bus_space_handle_t handle,
 	    ntb_bar_write(SIZE, ntb_mw_to_bar(ntb, ntb->mw_count), \
 		offset, val)
 
-typedef int (*bar_map_strategy)(struct ntb_softc *ntb,
-    struct ntb_pci_bar_info *bar);
-
 static int ntb_probe(device_t device);
 static int ntb_attach(device_t device);
 static int ntb_detach(device_t device);
 static inline enum ntb_bar ntb_mw_to_bar(struct ntb_softc *, unsigned mw);
 static int ntb_map_pci_bars(struct ntb_softc *ntb);
-static int map_pci_bar(struct ntb_softc *ntb, bar_map_strategy strategy,
-    struct ntb_pci_bar_info *bar);
+static void print_map_success(struct ntb_softc *, struct ntb_pci_bar_info *);
 static int map_mmr_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar);
 static int map_memory_window_bar(struct ntb_softc *ntb,
     struct ntb_pci_bar_info *bar);
@@ -388,51 +384,42 @@ ntb_map_pci_bars(struct ntb_softc *ntb)
 	int rc;
 
 	ntb->bar_info[NTB_CONFIG_BAR].pci_resource_id = PCIR_BAR(0);
-	rc = map_pci_bar(ntb, map_mmr_bar, &ntb->bar_info[NTB_CONFIG_BAR]);
+	rc = map_mmr_bar(ntb, &ntb->bar_info[NTB_CONFIG_BAR]);
 	if (rc != 0)
-		return (rc);
+		goto out;
 
 	ntb->bar_info[NTB_B2B_BAR_1].pci_resource_id = PCIR_BAR(2);
-	rc = map_pci_bar(ntb, map_memory_window_bar,
-	    &ntb->bar_info[NTB_B2B_BAR_1]);
+	rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_1]);
 	if (rc != 0)
-		return (rc);
+		goto out;
 
 	ntb->bar_info[NTB_B2B_BAR_2].pci_resource_id = PCIR_BAR(4);
 	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP) && !HAS_FEATURE(NTB_SPLIT_BAR))
-		rc = map_pci_bar(ntb, map_mmr_bar,
-		    &ntb->bar_info[NTB_B2B_BAR_2]);
+		rc = map_mmr_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_2]);
 	else
-		rc = map_pci_bar(ntb, map_memory_window_bar,
-		    &ntb->bar_info[NTB_B2B_BAR_2]);
+		rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_2]);
 	if (!HAS_FEATURE(NTB_SPLIT_BAR))
-		return (rc);
+		goto out;
 
 	ntb->bar_info[NTB_B2B_BAR_3].pci_resource_id = PCIR_BAR(5);
 	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP))
-		rc = map_pci_bar(ntb, map_mmr_bar,
-		    &ntb->bar_info[NTB_B2B_BAR_3]);
+		rc = map_mmr_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_3]);
 	else
-		rc = map_pci_bar(ntb, map_memory_window_bar,
-		    &ntb->bar_info[NTB_B2B_BAR_3]);
-	return (rc);
-}
+		rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_3]);
 
-static int
-map_pci_bar(struct ntb_softc *ntb, bar_map_strategy strategy,
-    struct ntb_pci_bar_info *bar)
-{
-	int rc;
-
-	rc = strategy(ntb, bar);
+out:
 	if (rc != 0)
 		device_printf(ntb->device,
 		    "unable to allocate pci resource\n");
-	else
-		device_printf(ntb->device,
-		    "Bar size = %lx, v %p, p %p\n",
-		    bar->size, bar->vbase, (void *)(bar->pbase));
 	return (rc);
+}
+
+static void
+print_map_success(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
+{
+
+	device_printf(ntb->device, "Bar size = %lx, v %p, p %p\n",
+	    bar->size, bar->vbase, (void *)(bar->pbase));
 }
 
 static int
@@ -445,6 +432,7 @@ map_mmr_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 		return (ENXIO);
 
 	save_bar_parameters(bar);
+	print_map_success(ntb, bar);
 	return (0);
 }
 
@@ -505,6 +493,7 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 		    "unable to mark bar as WRITE_COMBINING\n");
 		return (rc);
 	}
+	print_map_success(ntb, bar);
 	return (0);
 }
 
