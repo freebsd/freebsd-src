@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_platform.h"
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -288,10 +290,23 @@ arm_gic_init_secondary(device_t dev)
  
 #ifndef ARM_INTRNG
 int
-gic_decode_fdt(uint32_t iparent, uint32_t *intr, int *interrupt,
+gic_decode_fdt(phandle_t iparent, pcell_t *intr, int *interrupt,
     int *trig, int *pol)
 {
 	static u_int num_intr_cells;
+	static phandle_t self;
+	struct ofw_compat_data *ocd;
+
+	if (self == 0) {
+		for (ocd = compat_data; ocd->ocd_str != NULL; ocd++) {
+			if (fdt_is_compatible(iparent, ocd->ocd_str)) {
+				self = iparent;
+				break;
+			}
+		}
+	}
+	if (self != iparent)
+		return (ENXIO);
 
 	if (num_intr_cells == 0) {
 		if (OF_searchencprop(OF_node_from_xref(iparent),
