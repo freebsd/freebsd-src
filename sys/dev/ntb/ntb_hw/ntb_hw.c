@@ -209,14 +209,12 @@ static int map_memory_window_bar(struct ntb_softc *ntb,
     struct ntb_pci_bar_info *bar);
 static void ntb_unmap_pci_bar(struct ntb_softc *ntb);
 static int ntb_remap_msix(device_t, uint32_t desired, uint32_t avail);
-static int ntb_setup_interrupts(struct ntb_softc *ntb);
+static int ntb_init_isr(struct ntb_softc *ntb);
 static int ntb_setup_legacy_interrupt(struct ntb_softc *ntb);
-static int ntb_setup_xeon_msix(struct ntb_softc *ntb, uint32_t num_vectors);
-static int ntb_setup_soc_msix(struct ntb_softc *ntb, uint32_t num_vectors);
+static int ntb_setup_msix(struct ntb_softc *ntb, uint32_t num_vectors);
 static void ntb_teardown_interrupts(struct ntb_softc *ntb);
-static void handle_soc_irq(void *arg);
-static void handle_xeon_irq(void *arg);
-static void handle_xeon_event_irq(void *arg);
+static inline uint64_t ntb_vec_mask(struct ntb_softc *, uint64_t db_vector);
+static void handle_irq(void *arg);
 static void ntb_handle_legacy_interrupt(void *arg);
 static void ntb_irq_work(void *arg);
 static inline uint64_t ntb_db_read(struct ntb_softc *, uint64_t regoff);
@@ -340,7 +338,7 @@ ntb_attach(device_t device)
 		error = ntb_setup_xeon(ntb);
 	if (error)
 		goto out;
-	error = ntb_setup_interrupts(ntb);
+	error = ntb_init_isr(ntb);
 	if (error)
 		goto out;
 
@@ -526,55 +524,7 @@ ntb_unmap_pci_bar(struct ntb_softc *ntb)
 }
 
 static int
-ntb_setup_xeon_msix(struct ntb_softc *ntb, uint32_t num_vectors)
-{
-	void (*interrupt_handler)(void *);
-	void *int_arg;
-	uint32_t i;
-	int rc;
-
-	if (num_vectors < 4)
-		return (ENOSPC);
-
-	for (i = 0; i < num_vectors; i++) {
-		ntb->int_info[i].rid = i + 1;
-		ntb->int_info[i].res = bus_alloc_resource_any(ntb->device,
-		    SYS_RES_IRQ, &ntb->int_info[i].rid, RF_ACTIVE);
-		if (ntb->int_info[i].res == NULL) {
-			device_printf(ntb->device,
-			    "bus_alloc_resource failed\n");
-			return (ENOMEM);
-		}
-		ntb->int_info[i].tag = NULL;
-		ntb->allocated_interrupts++;
-		if (i == num_vectors - 1) {
-			interrupt_handler = handle_xeon_event_irq;
-			int_arg = ntb;
-		} else {
-			interrupt_handler = handle_xeon_irq;
-			int_arg = &ntb->db_cb[i];
-		}
-		rc = bus_setup_intr(ntb->device, ntb->int_info[i].res,
-		    INTR_MPSAFE | INTR_TYPE_MISC, NULL, interrupt_handler,
-		    int_arg, &ntb->int_info[i].tag);
-		if (rc != 0) {
-			device_printf(ntb->device,
-			    "bus_setup_intr failed\n");
-			return (ENXIO);
-		}
-	}
-
-	/*
-	 * Prevent consumers from registering callbacks on the link event irq
-	 * slot, from which they will never be called back.
-	 */
-	ntb->db_cb[num_vectors - 1].reserved = true;
-	ntb->max_cbs--;
-	return (0);
-}
-
-static int
-ntb_setup_soc_msix(struct ntb_softc *ntb, uint32_t num_vectors)
+ntb_setup_msix(struct ntb_softc *ntb, uint32_t num_vectors)
 {
 	uint32_t i;
 	int rc;
@@ -591,7 +541,7 @@ ntb_setup_soc_msix(struct ntb_softc *ntb, uint32_t num_vectors)
 		ntb->int_info[i].tag = NULL;
 		ntb->allocated_interrupts++;
 		rc = bus_setup_intr(ntb->device, ntb->int_info[i].res,
-		    INTR_MPSAFE | INTR_TYPE_MISC, NULL, handle_soc_irq,
+		    INTR_MPSAFE | INTR_TYPE_MISC, NULL, handle_irq,
 		    &ntb->db_cb[i], &ntb->int_info[i].tag);
 		if (rc != 0) {
 			device_printf(ntb->device, "bus_setup_intr failed\n");
@@ -647,7 +597,7 @@ ntb_remap_msix(device_t dev, uint32_t desired, uint32_t avail)
 }
 
 static int
-ntb_setup_interrupts(struct ntb_softc *ntb)
+ntb_init_isr(struct ntb_softc *ntb)
 {
 	uint32_t desired_vectors, num_vectors;
 	uint64_t mask;
@@ -698,10 +648,7 @@ ntb_setup_interrupts(struct ntb_softc *ntb)
 		rc = ntb_setup_legacy_interrupt(ntb);
 	} else {
 		ntb_create_callbacks(ntb, num_vectors);
-		if (ntb->type == NTB_XEON)
-			rc = ntb_setup_xeon_msix(ntb, num_vectors);
-		else
-			rc = ntb_setup_soc_msix(ntb, num_vectors);
+		rc = ntb_setup_msix(ntb, num_vectors);
 		if (rc == 0 && ntb->type == NTB_XEON) {
 			/*
 			 * Prevent consumers from registering callbacks on the link event irq
@@ -807,7 +754,7 @@ mask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx)
 	ntb_db_write(ntb, ntb->reg_ofs.ldb_mask, mask);
 }
 
-static void
+static inline void
 unmask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx)
 {
 	uint64_t mask;
@@ -817,55 +764,42 @@ unmask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx)
 	ntb_db_write(ntb, ntb->reg_ofs.ldb_mask, mask);
 }
 
-static void
-handle_soc_irq(void *arg)
+static inline uint64_t
+ntb_vec_mask(struct ntb_softc *ntb, uint64_t db_vector)
 {
-	struct ntb_db_cb *db_cb = arg;
-	struct ntb_softc *ntb = db_cb->ntb;
+	uint64_t shift, mask;
 
-	ntb_db_write(ntb, ntb->reg_ofs.ldb, (uint64_t) 1 << db_cb->db_num);
-
-	if (db_cb->callback != NULL) {
-		mask_ldb_interrupt(ntb, db_cb->db_num);
-		callout_reset(&db_cb->irq_work, 0, ntb_irq_work, db_cb);
-	}
+	shift = ntb->db_vec_shift;
+	mask = (1ull << shift) - 1;
+	return (mask << (shift * db_vector));
 }
 
 static void
-handle_xeon_irq(void *arg)
+handle_irq(void *arg)
 {
 	struct ntb_db_cb *db_cb = arg;
 	struct ntb_softc *ntb = db_cb->ntb;
-
-	/*
-	 * On Xeon, there are 16 bits in the interrupt register
-	 * but only 4 vectors.  So, 5 bits are assigned to the first 3
-	 * vectors, with the 4th having a single bit for link
-	 * interrupts.
-	 */
-	ntb_db_write(ntb, ntb->reg_ofs.ldb,
-	    ((1 << ntb->db_vec_shift) - 1) <<
-	    (db_cb->db_num * ntb->db_vec_shift));
-
-	if (db_cb->callback != NULL) {
-		mask_ldb_interrupt(ntb, db_cb->db_num);
-		callout_reset(&db_cb->irq_work, 0, ntb_irq_work, db_cb);
-	}
-}
-
-/* Since we do not have a HW doorbell in SOC, this is only used in JF/JT */
-static void
-handle_xeon_event_irq(void *arg)
-{
-	struct ntb_softc *ntb = arg;
+	uint64_t vec_mask;
 	int rc;
 
-	rc = ntb_check_link_status(ntb);
-	if (rc != 0)
-		device_printf(ntb->device, "Error determining link status\n");
+	vec_mask = ntb_vec_mask(ntb, db_cb->db_num);
 
-	/* bit 15 is always the link bit */
-	ntb_db_write(ntb, ntb->reg_ofs.ldb, 1 << XEON_DB_LINK);
+	if (ntb->type == NTB_XEON && (vec_mask & XEON_DB_LINK_BIT) != 0) {
+		rc = ntb_check_link_status(ntb);
+		if (rc != 0)
+			device_printf(ntb->device,
+			    "Error determining link status\n");
+	}
+
+	if (db_cb->callback != NULL) {
+		KASSERT(!db_cb->reserved, ("user callback on link event cb"));
+		mask_ldb_interrupt(ntb, db_cb->db_num);
+	}
+
+	ntb_db_write(ntb, ntb->reg_ofs.ldb, vec_mask);
+
+	if (db_cb->callback != NULL)
+		callout_reset(&db_cb->irq_work, 0, ntb_irq_work, db_cb);
 }
 
 static void
@@ -876,19 +810,10 @@ ntb_handle_legacy_interrupt(void *arg)
 	uint64_t ldb;
 
 	ldb = ntb_db_read(ntb, ntb->reg_ofs.ldb);
-
-	if (ntb->type == NTB_XEON && (ldb & XEON_DB_LINK_BIT) != 0) {
-		handle_xeon_event_irq(ntb);
-		ldb &= ~XEON_DB_LINK_BIT;
-	}
-
 	while (ldb != 0) {
 		i = ffs(ldb);
 		ldb &= ldb - 1;
-		if (ntb->type == NTB_SOC)
-			handle_soc_irq(&ntb->db_cb[i]);
-		else
-			handle_xeon_irq(&ntb->db_cb[i]);
+		handle_irq(&ntb->db_cb[i]);
 	}
 }
 
