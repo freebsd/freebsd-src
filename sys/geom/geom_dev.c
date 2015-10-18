@@ -356,6 +356,13 @@ g_dev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 #else
 	e = 0;
 #endif
+
+	/*
+	 * This happens on attempt to open a device node with O_EXEC.
+	 */
+	if (r + w + e == 0)
+		return (EINVAL);
+
 	if (w) {
 		/*
 		 * When running in very secure mode, do not allow
