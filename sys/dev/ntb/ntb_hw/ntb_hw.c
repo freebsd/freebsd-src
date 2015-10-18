@@ -59,23 +59,24 @@ __FBSDID("$FreeBSD$");
  * be picked up and redistributed in Linux with a dual GPL/BSD license.
  */
 
-#define NTB_CONFIG_BAR	0
-#define NTB_B2B_BAR_1	1
-#define NTB_B2B_BAR_2	2
-#define NTB_B2B_BAR_3	3
-#define NTB_MAX_BARS	4
-#define NTB_MW_TO_BAR(mw) ((mw) + 1)
-
 #define MAX_MSIX_INTERRUPTS MAX(XEON_DB_COUNT, SOC_DB_COUNT)
 
-#define NTB_HB_TIMEOUT	1 /* second */
-#define SOC_LINK_RECOVERY_TIME	500
+#define NTB_HB_TIMEOUT		1 /* second */
+#define SOC_LINK_RECOVERY_TIME	500 /* ms */
 
 #define DEVICE2SOFTC(dev) ((struct ntb_softc *) device_get_softc(dev))
 
 enum ntb_device_type {
 	NTB_XEON,
 	NTB_SOC
+};
+
+enum ntb_bar {
+	NTB_CONFIG_BAR = 0,
+	NTB_B2B_BAR_1,
+	NTB_B2B_BAR_2,
+	NTB_B2B_BAR_3,
+	NTB_MAX_BARS
 };
 
 /* Device features and workarounds */
@@ -132,12 +133,6 @@ struct ntb_softc {
 	uint8_t			max_cbs;
 
 	struct {
-		uint8_t max_mw;
-		uint8_t max_spads;
-		uint8_t max_db_bits;
-		uint8_t msix_cnt;
-	} limits;
-	struct {
 		uint32_t ldb;
 		uint32_t ldb_mask;
 		uint32_t rdb;
@@ -153,10 +148,15 @@ struct ntb_softc {
 	uint32_t ppd;
 	uint8_t conn_type;
 	uint8_t dev_type;
-	uint8_t bits_per_vector;
 	uint8_t link_status;
 	uint8_t link_width;
 	uint8_t link_speed;
+
+	uint8_t				mw_count;
+	uint8_t				spad_count;
+	uint8_t				db_count;
+	uint8_t				db_vec_count;
+	uint8_t				db_vec_shift;
 };
 
 #ifdef __i386__
@@ -189,9 +189,9 @@ bus_space_write_8(bus_space_tag_t tag, bus_space_handle_t handle,
 #define ntb_reg_write(SIZE, offset, val) \
 	    ntb_bar_write(SIZE, NTB_CONFIG_BAR, offset, val)
 #define ntb_mw_read(SIZE, offset) \
-	    ntb_bar_read(SIZE, NTB_MW_TO_BAR(ntb->limits.max_mw), offset)
+	    ntb_bar_read(SIZE, ntb_mw_to_bar(ntb, ntb->mw_count), offset)
 #define ntb_mw_write(SIZE, offset, val) \
-	    ntb_bar_write(SIZE, NTB_MW_TO_BAR(ntb->limits.max_mw), \
+	    ntb_bar_write(SIZE, ntb_mw_to_bar(ntb, ntb->mw_count), \
 		offset, val)
 
 typedef int (*bar_map_strategy)(struct ntb_softc *ntb,
@@ -200,6 +200,7 @@ typedef int (*bar_map_strategy)(struct ntb_softc *ntb,
 static int ntb_probe(device_t device);
 static int ntb_attach(device_t device);
 static int ntb_detach(device_t device);
+static inline enum ntb_bar ntb_mw_to_bar(struct ntb_softc *, unsigned mw);
 static int ntb_map_pci_bars(struct ntb_softc *ntb);
 static int map_pci_bar(struct ntb_softc *ntb, bar_map_strategy strategy,
     struct ntb_pci_bar_info *bar);
@@ -218,10 +219,10 @@ static void handle_xeon_irq(void *arg);
 static void handle_xeon_event_irq(void *arg);
 static void ntb_handle_legacy_interrupt(void *arg);
 static void ntb_irq_work(void *arg);
-static uint64_t db_ioread(struct ntb_softc *, uint32_t regoff);
-static void db_iowrite(struct ntb_softc *, uint32_t regoff, uint64_t val);
-static void mask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx);
-static void unmask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx);
+static inline uint64_t ntb_db_read(struct ntb_softc *, uint64_t regoff);
+static inline void ntb_db_write(struct ntb_softc *, uint64_t regoff, uint64_t val);
+static inline void mask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx);
+static inline void unmask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx);
 static int ntb_create_callbacks(struct ntb_softc *ntb, uint32_t num_vectors);
 static void ntb_free_callbacks(struct ntb_softc *ntb);
 static struct ntb_hw_info *ntb_get_device_info(uint32_t device_id);
@@ -371,6 +372,16 @@ ntb_detach(device_t device)
 	ntb_unmap_pci_bar(ntb);
 
 	return (0);
+}
+
+static inline enum ntb_bar
+ntb_mw_to_bar(struct ntb_softc *ntb, unsigned mw)
+{
+
+	KASSERT(mw < ntb->mw_count, ("%s: mw:%u > count:%u", __func__, mw,
+	    (unsigned)ntb->mw_count));
+
+	return (NTB_B2B_BAR_1 + mw);
 }
 
 static int
@@ -651,10 +662,10 @@ ntb_setup_interrupts(struct ntb_softc *ntb)
 	mask = 0;
 	if (ntb->type == NTB_XEON)
 		mask = (1 << XEON_DB_LINK);
-	db_iowrite(ntb, ntb->reg_ofs.ldb_mask, ~mask);
+	ntb_db_write(ntb, ntb->reg_ofs.ldb_mask, ~mask);
 
 	num_vectors = desired_vectors = MIN(pci_msix_count(ntb->device),
-	    ntb->limits.max_db_bits);
+	    ntb->db_count);
 	if (desired_vectors >= 1) {
 		rc = pci_alloc_msix(ntb->device, &num_vectors);
 
@@ -675,34 +686,36 @@ ntb_setup_interrupts(struct ntb_softc *ntb)
 	} else
 		num_vectors = 1;
 
-	/*
-	 * If allocating MSI-X interrupts succeeds, limit callbacks to the
-	 * number of MSI-X slots available.
-	 */
-	ntb_create_callbacks(ntb, num_vectors);
-
-	if (ntb->type == NTB_XEON)
-		rc = ntb_setup_xeon_msix(ntb, num_vectors);
-	else
-		rc = ntb_setup_soc_msix(ntb, num_vectors);
-	if (rc != 0) {
-		device_printf(ntb->device,
-		    "Error allocating MSI-X interrupts: %d\n", rc);
-
+	if (ntb->type == NTB_XEON && num_vectors < ntb->db_vec_count) {
 		/*
 		 * If allocating MSI-X interrupts failed and we're forced to
 		 * use legacy INTx anyway, the only limit on individual
 		 * callbacks is the number of doorbell bits.
-		 *
-		 * CEM: This seems odd to me but matches the behavior of the
-		 * Linux driver ca. September 2013
 		 */
-		ntb_free_callbacks(ntb);
-		ntb_create_callbacks(ntb, ntb->limits.max_db_bits);
-	}
-
-	if (ntb->type == NTB_XEON && rc == ENOSPC)
+		ntb->db_vec_count = 1;
+		ntb->db_vec_shift = ntb->db_count;
+		ntb_create_callbacks(ntb, ntb->db_count);
 		rc = ntb_setup_legacy_interrupt(ntb);
+	} else {
+		ntb_create_callbacks(ntb, num_vectors);
+		if (ntb->type == NTB_XEON)
+			rc = ntb_setup_xeon_msix(ntb, num_vectors);
+		else
+			rc = ntb_setup_soc_msix(ntb, num_vectors);
+		if (rc == 0 && ntb->type == NTB_XEON) {
+			/*
+			 * Prevent consumers from registering callbacks on the link event irq
+			 * slot, from which they will never be called back.
+			 */
+			ntb->db_cb[num_vectors - 1].reserved = true;
+			ntb->max_cbs--;
+		}
+	}
+	if (rc != 0) {
+		device_printf(ntb->device,
+		    "Error allocating interrupts: %d\n", rc);
+		ntb_free_callbacks(ntb);
+	}
 
 	return (rc);
 }
@@ -759,8 +772,8 @@ ntb_teardown_interrupts(struct ntb_softc *ntb)
  * Doorbell register and mask are 64-bit on SoC, 16-bit on Xeon.  Abstract it
  * out to make code clearer.
  */
-static uint64_t
-db_ioread(struct ntb_softc *ntb, uint32_t regoff)
+static inline uint64_t
+ntb_db_read(struct ntb_softc *ntb, uint64_t regoff)
 {
 
 	if (ntb->type == NTB_SOC)
@@ -771,8 +784,8 @@ db_ioread(struct ntb_softc *ntb, uint32_t regoff)
 	return (ntb_reg_read(2, regoff));
 }
 
-static void
-db_iowrite(struct ntb_softc *ntb, uint32_t regoff, uint64_t val)
+static inline void
+ntb_db_write(struct ntb_softc *ntb, uint64_t regoff, uint64_t val)
 {
 
 	if (ntb->type == NTB_SOC) {
@@ -789,9 +802,9 @@ mask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx)
 {
 	uint64_t mask;
 
-	mask = db_ioread(ntb, ntb->reg_ofs.ldb_mask);
-	mask |= 1 << (idx * ntb->bits_per_vector);
-	db_iowrite(ntb, ntb->reg_ofs.ldb_mask, mask);
+	mask = ntb_db_read(ntb, ntb->reg_ofs.ldb_mask);
+	mask |= 1 << (idx * ntb->db_vec_shift);
+	ntb_db_write(ntb, ntb->reg_ofs.ldb_mask, mask);
 }
 
 static void
@@ -799,9 +812,9 @@ unmask_ldb_interrupt(struct ntb_softc *ntb, unsigned int idx)
 {
 	uint64_t mask;
 
-	mask = db_ioread(ntb, ntb->reg_ofs.ldb_mask);
-	mask &= ~(1 << (idx * ntb->bits_per_vector));
-	db_iowrite(ntb, ntb->reg_ofs.ldb_mask, mask);
+	mask = ntb_db_read(ntb, ntb->reg_ofs.ldb_mask);
+	mask &= ~(1 << (idx * ntb->db_vec_shift));
+	ntb_db_write(ntb, ntb->reg_ofs.ldb_mask, mask);
 }
 
 static void
@@ -810,7 +823,7 @@ handle_soc_irq(void *arg)
 	struct ntb_db_cb *db_cb = arg;
 	struct ntb_softc *ntb = db_cb->ntb;
 
-	db_iowrite(ntb, ntb->reg_ofs.ldb, (uint64_t) 1 << db_cb->db_num);
+	ntb_db_write(ntb, ntb->reg_ofs.ldb, (uint64_t) 1 << db_cb->db_num);
 
 	if (db_cb->callback != NULL) {
 		mask_ldb_interrupt(ntb, db_cb->db_num);
@@ -830,9 +843,9 @@ handle_xeon_irq(void *arg)
 	 * vectors, with the 4th having a single bit for link
 	 * interrupts.
 	 */
-	db_iowrite(ntb, ntb->reg_ofs.ldb,
-	    ((1 << ntb->bits_per_vector) - 1) <<
-	    (db_cb->db_num * ntb->bits_per_vector));
+	ntb_db_write(ntb, ntb->reg_ofs.ldb,
+	    ((1 << ntb->db_vec_shift) - 1) <<
+	    (db_cb->db_num * ntb->db_vec_shift));
 
 	if (db_cb->callback != NULL) {
 		mask_ldb_interrupt(ntb, db_cb->db_num);
@@ -852,7 +865,7 @@ handle_xeon_event_irq(void *arg)
 		device_printf(ntb->device, "Error determining link status\n");
 
 	/* bit 15 is always the link bit */
-	db_iowrite(ntb, ntb->reg_ofs.ldb, 1 << XEON_DB_LINK);
+	ntb_db_write(ntb, ntb->reg_ofs.ldb, 1 << XEON_DB_LINK);
 }
 
 static void
@@ -862,7 +875,7 @@ ntb_handle_legacy_interrupt(void *arg)
 	unsigned int i;
 	uint64_t ldb;
 
-	ldb = db_ioread(ntb, ntb->reg_ofs.ldb);
+	ldb = ntb_db_read(ntb, ntb->reg_ofs.ldb);
 
 	if (ntb->type == NTB_XEON && (ldb & XEON_DB_LINK_BIT) != 0) {
 		handle_xeon_event_irq(ntb);
@@ -900,10 +913,14 @@ ntb_free_callbacks(struct ntb_softc *ntb)
 {
 	uint8_t i;
 
+	if (ntb->db_cb == NULL)
+		return;
+
 	for (i = 0; i < ntb->max_cbs; i++)
 		ntb_unregister_db_callback(ntb, i);
 
 	free(ntb->db_cb, M_NTB);
+	ntb->db_cb = NULL;
 	ntb->max_cbs = 0;
 }
 
@@ -932,14 +949,14 @@ ntb_detect_max_mw(struct ntb_softc *ntb)
 {
 
 	if (ntb->type == NTB_SOC) {
-		ntb->limits.max_mw = SOC_MAX_MW;
+		ntb->mw_count = SOC_MW_COUNT;
 		return;
 	}
 
 	if (HAS_FEATURE(NTB_SPLIT_BAR))
-		ntb->limits.max_mw = XEON_HSXSPLIT_MAX_MW;
+		ntb->mw_count = XEON_HSX_SPLIT_MW_COUNT;
 	else
-		ntb->limits.max_mw = XEON_SNB_MAX_MW;
+		ntb->mw_count = XEON_SNB_MW_COUNT;
 }
 
 static int
@@ -1020,7 +1037,7 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 		ntb->reg_ofs.rdb	 = XEON_B2B_DOORBELL_OFFSET;
 		ntb->reg_ofs.spad_remote = XEON_B2B_SPAD_OFFSET;
 
-		ntb->limits.max_spads	 = XEON_SPAD_COUNT;
+		ntb->spad_count	 = XEON_SPAD_COUNT;
 		break;
 
 	case NTB_CONN_RP:
@@ -1063,7 +1080,7 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 		ntb_reg_write(8, XEON_PBAR4LMT_OFFSET,
 		    ntb_get_mw_size(ntb, 1) + 0x1000);
 		/* Reserve the last MW for mapping remote spad */
-		ntb->limits.max_mw--;
+		ntb->mw_count--;
 	} else
 		/*
 		 * Disable the limit register, just in case it is set to
@@ -1076,9 +1093,9 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	ntb->reg_ofs.lnk_stat	 = XEON_LINK_STATUS_OFFSET;
 	ntb->reg_ofs.spci_cmd	 = XEON_PCICMD_OFFSET;
 
-	ntb->limits.max_db_bits	 = XEON_DB_COUNT;
-	ntb->limits.msix_cnt	 = XEON_DB_MSIX_VECTOR_COUNT;
-	ntb->bits_per_vector	 = XEON_DB_MSIX_VECTOR_SHIFT;
+	ntb->db_count		 = XEON_DB_COUNT;
+	ntb->db_vec_count	 = XEON_DB_MSIX_VECTOR_COUNT;
+	ntb->db_vec_shift	 = XEON_DB_MSIX_VECTOR_SHIFT;
 
 	/*
 	 * HW Errata on bit 14 of b2bdoorbell register.  Writes will not be
@@ -1091,7 +1108,7 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	if (HAS_FEATURE(NTB_B2BDOORBELL_BIT14) &&
 	    !HAS_FEATURE(NTB_SDOORBELL_LOCKUP) &&
 	    ntb->conn_type == NTB_CONN_B2B)
-		ntb->limits.max_db_bits = XEON_DB_COUNT - 1;
+		ntb->db_count = XEON_DB_COUNT - 1;
 
 	configure_xeon_secondary_side_bars(ntb);
 
@@ -1128,10 +1145,10 @@ ntb_setup_soc(struct ntb_softc *ntb)
 	ntb->reg_ofs.spad_remote = SOC_B2B_SPAD_OFFSET;
 	ntb->reg_ofs.spci_cmd	 = SOC_PCICMD_OFFSET;
 
-	ntb->limits.max_spads	 = SOC_SPAD_COUNT;
-	ntb->limits.max_db_bits	 = SOC_DB_COUNT;
-	ntb->limits.msix_cnt	 = SOC_DB_MSIX_VECTOR_COUNT;
-	ntb->bits_per_vector	 = SOC_DB_MSIX_VECTOR_SHIFT;
+	ntb->spad_count	 = SOC_SPAD_COUNT;
+	ntb->db_count		 = SOC_DB_COUNT;
+	ntb->db_vec_count	 = SOC_DB_MSIX_VECTOR_COUNT;
+	ntb->db_vec_shift	 = SOC_DB_MSIX_VECTOR_SHIFT;
 
 	/*
 	 * FIXME - MSI-X bug on early SOC HW, remove once internal issue is
@@ -1648,7 +1665,7 @@ uint8_t
 ntb_get_max_spads(struct ntb_softc *ntb)
 {
 
-	return (ntb->limits.max_spads);
+	return (ntb->spad_count);
 }
 
 uint8_t
@@ -1659,10 +1676,10 @@ ntb_get_max_cbs(struct ntb_softc *ntb)
 }
 
 uint8_t
-ntb_get_max_mw(struct ntb_softc *ntb)
+ntb_mw_count(struct ntb_softc *ntb)
 {
 
-	return (ntb->limits.max_mw);
+	return (ntb->mw_count);
 }
 
 /**
@@ -1680,7 +1697,7 @@ int
 ntb_write_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
 {
 
-	if (idx >= ntb->limits.max_spads)
+	if (idx >= ntb->spad_count)
 		return (EINVAL);
 
 	ntb_reg_write(4, ntb->reg_ofs.spad_local + idx * 4, val);
@@ -1703,7 +1720,7 @@ int
 ntb_read_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
 {
 
-	if (idx >= ntb->limits.max_spads)
+	if (idx >= ntb->spad_count)
 		return (EINVAL);
 
 	*val = ntb_reg_read(4, ntb->reg_ofs.spad_local + idx * 4);
@@ -1726,7 +1743,7 @@ int
 ntb_write_remote_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
 {
 
-	if (idx >= ntb->limits.max_spads)
+	if (idx >= ntb->spad_count)
 		return (EINVAL);
 
 	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP))
@@ -1752,7 +1769,7 @@ int
 ntb_read_remote_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
 {
 
-	if (idx >= ntb->limits.max_spads)
+	if (idx >= ntb->spad_count)
 		return (EINVAL);
 
 	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP))
@@ -1777,20 +1794,20 @@ void *
 ntb_get_mw_vbase(struct ntb_softc *ntb, unsigned int mw)
 {
 
-	if (mw >= ntb_get_max_mw(ntb))
+	if (mw >= ntb_mw_count(ntb))
 		return (NULL);
 
-	return (ntb->bar_info[NTB_MW_TO_BAR(mw)].vbase);
+	return (ntb->bar_info[ntb_mw_to_bar(ntb, mw)].vbase);
 }
 
 vm_paddr_t
 ntb_get_mw_pbase(struct ntb_softc *ntb, unsigned int mw)
 {
 
-	if (mw >= ntb_get_max_mw(ntb))
+	if (mw >= ntb_mw_count(ntb))
 		return (0);
 
-	return (ntb->bar_info[NTB_MW_TO_BAR(mw)].pbase);
+	return (ntb->bar_info[ntb_mw_to_bar(ntb, mw)].pbase);
 }
 
 /**
@@ -1806,10 +1823,10 @@ u_long
 ntb_get_mw_size(struct ntb_softc *ntb, unsigned int mw)
 {
 
-	if (mw >= ntb_get_max_mw(ntb))
+	if (mw >= ntb_mw_count(ntb))
 		return (0);
 
-	return (ntb->bar_info[NTB_MW_TO_BAR(mw)].size);
+	return (ntb->bar_info[ntb_mw_to_bar(ntb, mw)].size);
 }
 
 /**
@@ -1826,10 +1843,10 @@ void
 ntb_set_mw_addr(struct ntb_softc *ntb, unsigned int mw, uint64_t addr)
 {
 
-	if (mw >= ntb_get_max_mw(ntb))
+	if (mw >= ntb_mw_count(ntb))
 		return;
 
-	switch (NTB_MW_TO_BAR(mw)) {
+	switch (ntb_mw_to_bar(ntb, mw)) {
 	case NTB_B2B_BAR_1:
 		ntb_reg_write(8, ntb->reg_ofs.bar2_xlat, addr);
 		break;
@@ -1841,6 +1858,9 @@ ntb_set_mw_addr(struct ntb_softc *ntb, unsigned int mw, uint64_t addr)
 		break;
 	case NTB_B2B_BAR_3:
 		ntb_reg_write(4, ntb->reg_ofs.bar5_xlat, addr);
+		break;
+	default:
+		KASSERT(false, ("invalid BAR"));
 		break;
 	}
 }
@@ -1861,15 +1881,15 @@ ntb_ring_doorbell(struct ntb_softc *ntb, unsigned int db)
 	if (ntb->type == NTB_SOC)
 		bit = 1 << db;
 	else
-		bit = ((1 << ntb->bits_per_vector) - 1) <<
-		    (db * ntb->bits_per_vector);
+		bit = ((1 << ntb->db_vec_shift) - 1) <<
+		    (db * ntb->db_vec_shift);
 
 	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP)) {
 		ntb_mw_write(2, XEON_SHADOW_PDOORBELL_OFFSET, bit);
 		return;
 	}
 
-	db_iowrite(ntb, ntb->reg_ofs.rdb, bit);
+	ntb_db_write(ntb, ntb->reg_ofs.rdb, bit);
 }
 
 /**
