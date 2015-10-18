@@ -822,7 +822,6 @@ void vnode_destroy_vobject(struct vnode *vp);
 extern struct vop_vector fifo_specops;
 extern struct vop_vector dead_vnodeops;
 extern struct vop_vector default_vnodeops;
-extern struct vop_vector devfs_specops;
 
 #define VOP_PANIC	((void*)(uintptr_t)vop_panic)
 #define VOP_NULL	((void*)(uintptr_t)vop_null)
