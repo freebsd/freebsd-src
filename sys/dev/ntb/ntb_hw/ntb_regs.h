@@ -33,17 +33,15 @@
 #define NTB_LINK_SPEED_MASK	0x000f
 #define NTB_LINK_WIDTH_MASK	0x03f0
 
-#define XEON_MSIX_CNT		4
 #define XEON_SNB_MAX_MW		2
 #define XEON_HSXSPLIT_MAX_MW	3
-#define XEON_MAX_SPADS		16
-#define XEON_MAX_COMPAT_SPADS	16
 /* Reserve the uppermost bit for link interrupt */
-#define XEON_MAX_DB_BITS	15
-#define XEON_LINK_DB		15
-#define XEON_DB_BITS_PER_VEC	5
-
-#define XEON_DB_HW_LINK		0x8000
+#define XEON_DB_COUNT		15
+#define XEON_DB_LINK		15
+#define XEON_DB_MSIX_VECTOR_COUNT	4
+#define XEON_DB_MSIX_VECTOR_SHIFT	5
+#define XEON_DB_LINK_BIT	(1 << XEON_DB_LINK)
+#define XEON_SPAD_COUNT		16
 
 #define XEON_PCICMD_OFFSET	0x0504
 #define XEON_DEVCTRL_OFFSET	0x0598
@@ -81,11 +79,11 @@
 #define XEON_B2B_XLAT_OFFSETL	0x0144
 #define XEON_B2B_XLAT_OFFSETU	0x0148
 
-#define SOC_MSIX_CNT		34
 #define SOC_MAX_MW		2
-#define SOC_MAX_SPADS		16
-#define SOC_MAX_DB_BITS		34
-#define SOC_DB_BITS_PER_VEC	1
+#define SOC_DB_COUNT		34
+#define SOC_DB_MSIX_VECTOR_COUNT	34
+#define SOC_DB_MSIX_VECTOR_SHIFT	1
+#define SOC_SPAD_COUNT		16
 
 #define SOC_PCICMD_OFFSET	0xb004
 #define SOC_MBAR23_OFFSET	0xb018
@@ -152,14 +150,14 @@
 #define NTB_DEV_USD	0
 
 /* All addresses are in low 32-bit space so 32-bit BARs can function */
-#define MBAR01_USD_ADDR		0x2100000cull
-#define MBAR23_USD_ADDR		0x4100000cull
-#define MBAR4_USD_ADDR		0x8100000cull
-#define MBAR5_USD_ADDR		0xa100000cull
-#define MBAR01_DSD_ADDR		0x2000000cull
-#define MBAR23_DSD_ADDR		0x4000000cull
-#define MBAR4_DSD_ADDR		0x8000000cull
-#define MBAR5_DSD_ADDR		0xa000000cull
+#define XEON_B2B_BAR0_USD_ADDR		0x2100000cull
+#define XEON_B2B_BAR2_USD_ADDR		0x4100000cull
+#define XEON_B2B_BAR4_USD_ADDR		0x8100000cull
+#define XEON_B2B_BAR5_USD_ADDR		0xa100000cull
+#define XEON_B2B_BAR0_DSD_ADDR		0x2000000cull
+#define XEON_B2B_BAR2_DSD_ADDR		0x4000000cull
+#define XEON_B2B_BAR4_DSD_ADDR		0x8000000cull
+#define XEON_B2B_BAR5_DSD_ADDR		0xa000000cull
 
 /* XEON Shadowed MMIO Space */
 #define XEON_SHADOW_PDOORBELL_OFFSET	0x60
