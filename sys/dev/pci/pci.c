@@ -535,7 +535,7 @@ pci_romsize(uint64_t testval)
 	}
 	return (ln2size);
 }
-	
+
 /* return log2 of address range supported by map register */
 
 static int
@@ -1706,7 +1706,7 @@ pci_remap_msix_method(device_t dev, device_t child, int count,
 		free(used, M_DEVBUF);
 		return (EINVAL);
 	}
-	
+
 	/* Make sure none of the resources are allocated. */
 	for (i = 0; i < msix->msix_table_len; i++) {
 		if (msix->msix_table[i].mte_vector == 0)
@@ -2003,7 +2003,7 @@ pci_remap_intr_method(device_t bus, device_t dev, u_int irq)
 	struct msix_table_entry *mte;
 	struct msix_vector *mv;
 	uint64_t addr;
-	uint32_t data;	
+	uint32_t data;
 	int error, i, j;
 
 	/*
@@ -4830,7 +4830,7 @@ pci_deactivate_resource(device_t dev, device_t child, int type,
 	if (error)
 		return (error);
 
-	/* Disable decoding for device ROMs. */	
+	/* Disable decoding for device ROMs. */
 	if (device_get_parent(child) == dev) {
 		dinfo = device_get_ivars(child);
 		if (type == SYS_RES_MEMORY && PCIR_IS_BIOS(&dinfo->cfg, rid))
