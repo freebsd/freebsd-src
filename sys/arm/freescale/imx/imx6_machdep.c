@@ -58,6 +58,7 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 
 static uint32_t gpio1_node;
 
+#ifndef ARM_INTRNG
 /*
  * Work around the linux workaround for imx6 erratum 006687, in which some
  * ethernet interrupts don't go to the GPC and thus won't wake the system from
@@ -91,6 +92,7 @@ fdt_pic_decode_t fdt_pic_table[] = {
 	&imx6_decode_fdt,
 	NULL
 };
+#endif
 
 static vm_offset_t
 imx6_lastaddr(platform_t plat)
