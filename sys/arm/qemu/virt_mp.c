@@ -108,7 +108,7 @@ void
 platform_mp_init_secondary(void)
 {
 
-	arm_init_secondary_ic();
+	arm_pic_init_secondary();
 }
 
 void

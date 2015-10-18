@@ -492,7 +492,7 @@ arm_get_next_irq(int last_irq)
 }
 
 void
-arm_init_secondary_ic(void)
+arm_pic_init_secondary(void)
 {
 
 	arm_gic_init_secondary(arm_gic_sc->gic_dev);
