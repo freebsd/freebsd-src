@@ -73,6 +73,8 @@ dev/vnic/nicvf_main.c		optional	vnic pci pci_iov
 dev/vnic/nicvf_queues.c		optional	vnic pci pci_iov
 dev/vnic/thunder_bgx_fdt.c	optional	vnic fdt
 dev/vnic/thunder_bgx.c		optional	vnic pci
+dev/vnic/thunder_mdio_fdt.c	optional	vnic fdt
+dev/vnic/thunder_mdio.c		optional	vnic
 dev/vnic/lmac_if.m		optional	vnic
 kern/kern_clocksource.c		standard
 kern/subr_dummy_vdso_tc.c	standard
