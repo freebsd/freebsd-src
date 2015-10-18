@@ -17,7 +17,3 @@ makeoptions	KERNVIRTADDR=0xc0200000
 options		SOC_OMAP4
 
 options		ARM_L2_PIPT
-
-options		IPI_IRQ_START=0
-options		IPI_IRQ_END=15
-

@@ -70,7 +70,7 @@ fdt_aintc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
 #endif
 
 fdt_pic_decode_t fdt_pic_table[] = {
-#ifdef SOC_OMAP4
+#if defined(SOC_OMAP4) && !defined(ARM_INTRNG)
 	&gic_decode_fdt,
 #endif
 #ifdef SOC_TI_AM335X
