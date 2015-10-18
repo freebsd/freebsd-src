@@ -1891,7 +1891,7 @@ ntb_mw_count(struct ntb_softc *ntb)
 }
 
 /**
- * ntb_write_local_spad() - write to the secondary scratchpad register
+ * ntb_spad_write() - write to the secondary scratchpad register
  * @ntb: pointer to ntb_softc instance
  * @idx: index to the scratchpad register, 0 based
  * @val: the data value to put into the register
@@ -1902,7 +1902,7 @@ ntb_mw_count(struct ntb_softc *ntb)
  * RETURNS: An appropriate ERRNO error value on error, or zero for success.
  */
 int
-ntb_write_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
+ntb_spad_write(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
 {
 
 	if (idx >= ntb->spad_count)
@@ -1914,7 +1914,7 @@ ntb_write_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
 }
 
 /**
- * ntb_read_local_spad() - read from the primary scratchpad register
+ * ntb_spad_read() - read from the primary scratchpad register
  * @ntb: pointer to ntb_softc instance
  * @idx: index to scratchpad register, 0 based
  * @val: pointer to 32bit integer for storing the register value
@@ -1925,7 +1925,7 @@ ntb_write_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
  * RETURNS: An appropriate ERRNO error value on error, or zero for success.
  */
 int
-ntb_read_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
+ntb_spad_read(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
 {
 
 	if (idx >= ntb->spad_count)
@@ -1937,7 +1937,7 @@ ntb_read_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
 }
 
 /**
- * ntb_write_remote_spad() - write to the secondary scratchpad register
+ * ntb_peer_spad_write() - write to the secondary scratchpad register
  * @ntb: pointer to ntb_softc instance
  * @idx: index to the scratchpad register, 0 based
  * @val: the data value to put into the register
@@ -1948,7 +1948,7 @@ ntb_read_local_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
  * RETURNS: An appropriate ERRNO error value on error, or zero for success.
  */
 int
-ntb_write_remote_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
+ntb_peer_spad_write(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
 {
 
 	if (idx >= ntb->spad_count)
@@ -1963,7 +1963,7 @@ ntb_write_remote_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
 }
 
 /**
- * ntb_read_remote_spad() - read from the primary scratchpad register
+ * ntb_peer_spad_read() - read from the primary scratchpad register
  * @ntb: pointer to ntb_softc instance
  * @idx: index to scratchpad register, 0 based
  * @val: pointer to 32bit integer for storing the register value
@@ -1974,7 +1974,7 @@ ntb_write_remote_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
  * RETURNS: An appropriate ERRNO error value on error, or zero for success.
  */
 int
-ntb_read_remote_spad(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
+ntb_peer_spad_read(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
 {
 
 	if (idx >= ntb->spad_count)
@@ -2074,23 +2074,16 @@ ntb_set_mw_addr(struct ntb_softc *ntb, unsigned int mw, uint64_t addr)
 }
 
 /**
- * ntb_ring_doorbell() - Set the doorbell on the secondary/external side
+ * ntb_peer_db_set() - Set the doorbell on the secondary/external side
  * @ntb: pointer to ntb_softc instance
- * @db: doorbell to ring
+ * @bit: doorbell bits to ring
  *
  * This function allows triggering of a doorbell on the secondary/external
  * side that will initiate an interrupt on the remote host
  */
 void
-ntb_ring_doorbell(struct ntb_softc *ntb, unsigned int db)
+ntb_peer_db_set(struct ntb_softc *ntb, uint64_t bit)
 {
-	uint64_t bit;
-
-	if (ntb->type == NTB_SOC)
-		bit = 1 << db;
-	else
-		bit = ((1 << ntb->db_vec_shift) - 1) <<
-		    (db * ntb->db_vec_shift);
 
 	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP)) {
 		ntb_mw_write(2, XEON_SHADOW_PDOORBELL_OFFSET, bit);
@@ -2139,7 +2132,7 @@ ntb_get_peer_db_addr(struct ntb_softc *ntb, vm_size_t *sz_out)
 }
 
 /**
- * ntb_query_link_status() - return the hardware link status
+ * ntb_link_is_up() - return the hardware link status
  * @ndev: pointer to ntb_device instance
  *
  * Returns true if the hardware is connected to the remote system
@@ -2147,7 +2140,7 @@ ntb_get_peer_db_addr(struct ntb_softc *ntb, vm_size_t *sz_out)
  * RETURNS: true or false based on the hardware link state
  */
 bool
-ntb_query_link_status(struct ntb_softc *ntb)
+ntb_link_is_up(struct ntb_softc *ntb)
 {
 
 	return (ntb->link_status == NTB_LINK_UP);
