@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  * Copyright 2014 Nexenta Systems, Inc.  All rights reserved.
  */
 
@@ -4137,7 +4137,7 @@ top:
 /* ARGSUSED */
 static int
 zfs_null_putapage(vnode_t *vp, page_t *pp, u_offset_t *offp,
-		size_t *lenp, int flags, cred_t *cr)
+    size_t *lenp, int flags, cred_t *cr)
 {
 	pvn_write_done(pp, B_INVAL|B_FORCE|B_ERROR);
 	return (0);
@@ -4163,7 +4163,7 @@ zfs_null_putapage(vnode_t *vp, page_t *pp, u_offset_t *offp,
 /* ARGSUSED */
 static int
 zfs_putapage(vnode_t *vp, page_t *pp, u_offset_t *offp,
-		size_t *lenp, int flags, cred_t *cr)
+    size_t *lenp, int flags, cred_t *cr)
 {
 	znode_t		*zp = VTOZ(vp);
 	zfsvfs_t	*zfsvfs = zp->z_zfsvfs;

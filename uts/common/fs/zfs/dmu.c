@@ -1670,7 +1670,7 @@ dmu_sync(zio_t *pio, uint64_t txg, dmu_sync_cb_t *done, zgd_t *zgd)
 
 int
 dmu_object_set_blocksize(objset_t *os, uint64_t object, uint64_t size, int ibs,
-	dmu_tx_t *tx)
+    dmu_tx_t *tx)
 {
 	dnode_t *dn;
 	int err;
@@ -1685,7 +1685,7 @@ dmu_object_set_blocksize(objset_t *os, uint64_t object, uint64_t size, int ibs,
 
 void
 dmu_object_set_checksum(objset_t *os, uint64_t object, uint8_t checksum,
-	dmu_tx_t *tx)
+    dmu_tx_t *tx)
 {
 	dnode_t *dn;
 
@@ -1705,7 +1705,7 @@ dmu_object_set_checksum(objset_t *os, uint64_t object, uint8_t checksum,
 
 void
 dmu_object_set_compress(objset_t *os, uint64_t object, uint8_t compress,
-	dmu_tx_t *tx)
+    dmu_tx_t *tx)
 {
 	dnode_t *dn;
 
@@ -1873,7 +1873,8 @@ dmu_offset_next(objset_t *os, uint64_t object, boolean_t hole, uint64_t *off)
  * ID and wait for that to be synced.
  */
 int
-dmu_object_wait_synced(objset_t *os, uint64_t object) {
+dmu_object_wait_synced(objset_t *os, uint64_t object)
+{
 	dnode_t *dn;
 	int error, i;
 

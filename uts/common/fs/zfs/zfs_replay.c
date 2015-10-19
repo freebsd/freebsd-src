@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2015 by Delphix. All rights reserved.
  */
 
 #include <sys/types.h>
@@ -55,7 +55,7 @@
 
 static void
 zfs_init_vattr(vattr_t *vap, uint64_t mask, uint64_t mode,
-	uint64_t uid, uint64_t gid, uint64_t rdev, uint64_t nodeid)
+    uint64_t uid, uint64_t gid, uint64_t rdev, uint64_t nodeid)
 {
 	bzero(vap, sizeof (*vap));
 	vap->va_mask = (uint_t)mask;
