@@ -91,11 +91,11 @@ do {									\
 
 #define	flush_scheduled_work()	flush_taskqueue(taskqueue_thread)
 
-static inline int queue_work (struct workqueue_struct *q, struct work_struct *work)
+static inline int queue_work(struct workqueue_struct *q, struct work_struct *work)
 {
 	(work)->taskqueue = (q)->taskqueue;
 	/* Return opposite val to align with Linux logic */
-        return !taskqueue_enqueue((q)->taskqueue, &(work)->work_task);
+	return !taskqueue_enqueue((q)->taskqueue, &(work)->work_task);
 }
 
 static inline void
@@ -150,6 +150,12 @@ _create_workqueue_common(char *name, int cpus)
 
 #define	create_workqueue(name)						\
 	_create_workqueue_common(name, MAXCPU)
+
+#define	alloc_ordered_workqueue(name, flags)				\
+	_create_workqueue_common(name, 1)
+
+#define	alloc_workqueue(name, flags, max_active)			\
+	_create_workqueue_common(name, max_active)
 
 static inline void
 destroy_workqueue(struct workqueue_struct *wq)
