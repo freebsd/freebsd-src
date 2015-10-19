@@ -2117,6 +2117,23 @@ ntb_mw_set_trans(struct ntb_softc *ntb, unsigned idx, bus_addr_t addr,
 	return (0);
 }
 
+/*
+ * ntb_mw_clear_trans() - clear the translation of a memory window
+ * @ntb:	NTB device context
+ * @idx:	Memory window number
+ *
+ * Clear the translation of a memory window.  The peer may no longer access
+ * local memory through the window.
+ *
+ * Return: Zero on success, otherwise an error number.
+ */
+int
+ntb_mw_clear_trans(struct ntb_softc *ntb, unsigned mw_idx)
+{
+
+	return (ntb_mw_set_trans(ntb, mw_idx, 0, 0));
+}
+
 /**
  * ntb_peer_db_set() - Set the doorbell on the secondary/external side
  * @ntb: pointer to ntb_softc instance
