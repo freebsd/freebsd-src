@@ -1853,8 +1853,8 @@ create_netdev(device_t dev)
 
 	np->xbdev         = dev;
 
-	mtx_init(&np->tx_lock, "xntx", "network transmit lock", MTX_DEF);
-	mtx_init(&np->rx_lock, "xnrx", "network receive lock", MTX_DEF);
+	mtx_init(&np->tx_lock, "xntx", "netfront transmit lock", MTX_DEF);
+	mtx_init(&np->rx_lock, "xnrx", "netfront receive lock", MTX_DEF);
 	mtx_init(&np->sc_lock, "xnsc", "netfront softc lock", MTX_DEF);
 
 	ifmedia_init(&np->sc_media, 0, xn_ifmedia_upd, xn_ifmedia_sts);
