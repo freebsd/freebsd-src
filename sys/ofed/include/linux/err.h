@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,12 @@ static inline long
 IS_ERR(const void *ptr)
 {
 	return IS_ERR_VALUE((unsigned long)ptr);
+}
+
+static inline long
+IS_ERR_OR_NULL(const void *ptr)
+{
+	return !ptr || IS_ERR_VALUE((unsigned long)ptr);
 }
 
 static inline void *
