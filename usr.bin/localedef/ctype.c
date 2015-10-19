@@ -117,7 +117,7 @@ add_ctype_impl(ctype_node_t *ctn)
 		ctn->ctype |= (_ISALPHA | _ISGRAPH | _ISPRINT);
 		break;
 	case T_ISDIGIT:
-		ctn->ctype |= (_ISDIGIT | _ISGRAPH | _ISPRINT | _ISXDIGIT);
+		ctn->ctype |= (_ISDIGIT | _ISGRAPH | _ISPRINT | _ISXDIGIT | _E4);
 		break;
 	case T_ISSPACE:
 		ctn->ctype |= _ISSPACE;
@@ -135,7 +135,7 @@ add_ctype_impl(ctype_node_t *ctn)
 		ctn->ctype |= (_ISPUNCT | _ISGRAPH | _ISPRINT);
 		break;
 	case T_ISXDIGIT:
-		ctn->ctype |= (_ISXDIGIT | _ISPRINT);
+		ctn->ctype |= (_ISXDIGIT | _ISPRINT | _E4);
 		break;
 	case T_ISBLANK:
 		ctn->ctype |= (_ISBLANK | _ISSPACE);
