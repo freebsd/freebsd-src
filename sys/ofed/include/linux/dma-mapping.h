@@ -87,7 +87,7 @@ struct dma_map_ops {
 	int is_phys;
 };
 
-#define	DMA_BIT_MASK(n)	(((n) == 64) ? ~0ULL : ((1ULL << (n)) - 1))
+#define	DMA_BIT_MASK(n)	((2ULL << ((n) - 1)) - 1ULL)
 
 static inline int
 dma_supported(struct device *dev, u64 mask)
