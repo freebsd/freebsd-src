@@ -759,6 +759,7 @@ otus_attachhook(struct otus_softc *sc)
 	    IEEE80211_C_WME |		/* WME/QoS */
 	    IEEE80211_C_SHSLOT |	/* Short slot time supported. */
 	    IEEE80211_C_FF |		/* Atheros fast-frames supported. */
+	    IEEE80211_C_MONITOR |
 	    IEEE80211_C_WPA;		/* WPA/RSN. */
 
 	/* XXX TODO: 11n */
@@ -2229,6 +2230,9 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_DATA) {
 		/* Get lowest rate */
 		rate = otus_rate_to_hw_rate(sc, 0);
+	} else if (m->m_flags & M_EAPOL) {
+		/* Get lowest rate */
+		rate = otus_rate_to_hw_rate(sc, 0);
 	} else {
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = otus_rate_to_hw_rate(sc, ni->ni_txrate);
@@ -3094,13 +3098,22 @@ otus_init(struct otus_softc *sc)
 	}
 #endif
 
-	/* Expect STA operation */
-	otus_write(sc, 0x1c3700, 0x0f000002);
-	otus_write(sc, 0x1c3c40, 0x1);
+	switch (ic->ic_opmode) {
+	case IEEE80211_M_STA:
+		otus_write(sc, 0x1c3700, 0x0f000002);
+		otus_write(sc, 0x1c3c40, 0x1);
+		break;
+	case IEEE80211_M_MONITOR:
+		otus_write(sc, 0x1c368c, 0xffffffff);
+		break;
+	default:
+		break;
+	}
 
 	/* XXX ic_opmode? */
 	otus_write(sc, AR_MAC_REG_SNIFFER,
 	    (ic->ic_opmode == IEEE80211_M_MONITOR) ? 0x2000001 : 0x2000000);
+
 	(void)otus_write_barrier(sc);
 
 	sc->bb_reset = 1;	/* Force cold reset. */
