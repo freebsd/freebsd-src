@@ -110,18 +110,6 @@ TUNABLE_INT("hw.xn.enable_lro", &xn_enable_lro);
 
 #endif
 
-#ifdef CONFIG_XEN
-static int MODPARM_rx_copy = 0;
-module_param_named(rx_copy, MODPARM_rx_copy, bool, 0);
-MODULE_PARM_DESC(rx_copy, "Copy packets from network card (rather than flip)");
-static int MODPARM_rx_flip = 0;
-module_param_named(rx_flip, MODPARM_rx_flip, bool, 0);
-MODULE_PARM_DESC(rx_flip, "Flip packets from network card (rather than copy)");
-#else
-static const int MODPARM_rx_copy = 1;
-static const int MODPARM_rx_flip = 0;
-#endif
-
 /**
  * \brief The maximum allowed data fragments in a single transmit
  *        request.
@@ -186,7 +174,7 @@ static void xn_free_tx_ring(struct netfront_info *);
 
 static int xennet_get_responses(struct netfront_info *np,
 	struct netfront_rx_info *rinfo, RING_IDX rp, RING_IDX *cons,
-	struct mbuf **list, int *pages_flipped_p);
+	struct mbuf **list);
 
 #define virt_to_mfn(x) (vtophys(x) >> PAGE_SHIFT)
 
@@ -253,7 +241,6 @@ struct netfront_info {
 	struct mtx   sc_lock;
 
 	xen_intr_handle_t xen_intr_handle;
-	u_int copying_receiver;
 	u_int carrier;
 	u_int maxfrags;
 
@@ -551,8 +538,7 @@ talk_to_backend(device_t dev, struct netfront_info *info)
 		message = "writing event-channel";
 		goto abort_transaction;
 	}
-	err = xs_printf(xst, node, "request-rx-copy", "%u",
-			info->copying_receiver);
+	err = xs_printf(xst, node, "request-rx-copy", "%u", 1);
 	if (err) {
 		message = "writing request-rx-copy";
 		goto abort_transaction;
@@ -792,9 +778,7 @@ network_alloc_rx_buffers(struct netfront_info *sc)
 	struct mbuf *m_new;
 	int i, batch_target, notify;
 	RING_IDX req_prod;
-	struct xen_memory_reservation reservation;
 	grant_ref_t ref;
-	int nr_flips;
 	netif_rx_request_t *req;
 	vm_offset_t vaddr;
 	u_long pfn;
@@ -855,7 +839,7 @@ network_alloc_rx_buffers(struct netfront_info *sc)
 	}
 
 refill:
-	for (nr_flips = i = 0; ; i++) {
+	for (i = 0; ; i++) {
 		if ((m_new = mbufq_dequeue(&sc->xn_rx_batch)) == NULL)
 			break;
 
@@ -876,16 +860,7 @@ refill:
 		pfn = vtophys(vaddr) >> PAGE_SHIFT;
 		req = RING_GET_REQUEST(&sc->rx, req_prod + i);
 
-		if (sc->copying_receiver == 0) {
-			gnttab_grant_foreign_transfer_ref(ref,
-			    otherend_id, pfn);
-			sc->rx_pfn_array[nr_flips] = pfn;
-			nr_flips++;
-		} else {
-			gnttab_grant_foreign_access_ref(ref,
-			    otherend_id,
-			    pfn, 0);
-		}
+		gnttab_grant_foreign_access_ref(ref, otherend_id, pfn, 0);
 		req->id = id;
 		req->gref = ref;
 
@@ -899,19 +874,7 @@ refill:
 	 * We may have allocated buffers which have entries outstanding
 	 * in the page * update queue -- make sure we flush those first!
 	 */
-	if (nr_flips != 0) {
-#ifdef notyet
-		/* Tell the ballon driver what is going on. */
-		balloon_update_driver_allowance(i);
-#endif
-		set_xen_guest_handle(reservation.extent_start, sc->rx_pfn_array);
-		reservation.nr_extents   = i;
-		reservation.extent_order = 0;
-		reservation.address_bits = 0;
-		reservation.domid        = DOMID_SELF;
-	} else {
-		wmb();
-	}
+	wmb();
 
 	/* Above is a suitable barrier to ensure backend will see requests. */
 	sc->rx.req_prod_pvt = req_prod + i;
@@ -935,7 +898,7 @@ xn_rxeof(struct netfront_info *np)
 	RING_IDX i, rp;
 	struct mbuf *m;
 	struct mbufq rxq, errq;
-	int err, pages_flipped = 0, work_to_do;
+	int err, work_to_do;
 
 	do {
 		XN_RX_LOCK_ASSERT(np);
@@ -957,8 +920,7 @@ xn_rxeof(struct netfront_info *np)
 			memset(extras, 0, sizeof(rinfo.extras));
 
 			m = NULL;
-			err = xennet_get_responses(np, &rinfo, rp, &i, &m,
-			    &pages_flipped);
+			err = xennet_get_responses(np, &rinfo, rp, &i, &m);
 
 			if (__predict_false(err)) {
 				if (m)
@@ -986,13 +948,6 @@ xn_rxeof(struct netfront_info *np)
 
 			(void )mbufq_enqueue(&rxq, m);
 			np->rx.rsp_cons = i;
-		}
-
-		if (pages_flipped) {
-			/* Some pages are no longer absent... */
-#ifdef notyet
-			balloon_update_driver_allowance(-pages_flipped);
-#endif
 		}
 
 		mbufq_drain(&errq);
@@ -1227,10 +1182,8 @@ xennet_get_extras(struct netfront_info *np,
 static int
 xennet_get_responses(struct netfront_info *np,
 	struct netfront_rx_info *rinfo, RING_IDX rp, RING_IDX *cons,
-	struct mbuf  **list,
-	int *pages_flipped_p)
+	struct mbuf  **list)
 {
-	int pages_flipped = *pages_flipped_p;
 	struct netif_rx_response *rx = &rinfo->rx;
 	struct netif_extra_info *extras = rinfo->extras;
 	struct mbuf *m, *m0, *m_prev;
@@ -1252,8 +1205,6 @@ xennet_get_responses(struct netfront_info *np,
 	}
 
 	for (;;) {
-		u_long mfn;
-
 #if 0
 		DPRINTK("rx->status=%hd rx->offset=%hu frags=%u\n",
 			rx->status, rx->offset, frags);
@@ -1290,23 +1241,8 @@ xennet_get_responses(struct netfront_info *np,
 			goto next;
 		}
 
-		if (!np->copying_receiver) {
-			/* Memory pressure, insufficient buffer
-			 * headroom, ...
-			 */
-			if (!(mfn = gnttab_end_foreign_transfer_ref(ref))) {
-				WPRINTK("Unfulfilled rx req (id=%d, st=%d).\n",
-					rx->id, rx->status);
-				xennet_move_rx_slot(np, m, ref);
-				err = ENOMEM;
-				goto next;
-			}
-
-			pages_flipped++;
-		} else {
-			ret = gnttab_end_foreign_access_ref(ref);
-			KASSERT(ret, ("ret != 0"));
-		}
+		ret = gnttab_end_foreign_access_ref(ref);
+		KASSERT(ret, ("Unable to end access to grant references"));
 
 		gnttab_release_grant_reference(&np->gref_rx_head, ref);
 
@@ -1359,7 +1295,6 @@ next_skip_queue:
 	}
 	*list = m0;
 	*cons += frags;
-	*pages_flipped_p = pages_flipped;
 
 	return (err);
 }
@@ -1815,24 +1750,16 @@ network_connect(struct netfront_info *np)
 	int i, requeue_idx, error;
 	grant_ref_t ref;
 	netif_rx_request_t *req;
-	u_int feature_rx_copy, feature_rx_flip;
+	u_int feature_rx_copy;
 
 	error = xs_scanf(XST_NIL, xenbus_get_otherend_path(np->xbdev),
 	    "feature-rx-copy", NULL, "%u", &feature_rx_copy);
 	if (error)
 		feature_rx_copy = 0;
-	error = xs_scanf(XST_NIL, xenbus_get_otherend_path(np->xbdev),
-	    "feature-rx-flip", NULL, "%u", &feature_rx_flip);
-	if (error)
-		feature_rx_flip = 1;
 
-	/*
-	 * Copy packets on receive path if:
-	 *  (a) This was requested by user, and the backend supports it; or
-	 *  (b) Flipping was requested, but this is unsupported by the backend.
-	 */
-	np->copying_receiver = ((MODPARM_rx_copy && feature_rx_copy) ||
-				(MODPARM_rx_flip && !feature_rx_flip));
+	/* We only support rx copy. */
+	if (!feature_rx_copy)
+		return (EPROTONOSUPPORT);
 
 	/* Recovery procedure: */
 	error = talk_to_backend(np->xbdev, np);
@@ -1858,15 +1785,10 @@ network_connect(struct netfront_info *np)
 		req = RING_GET_REQUEST(&np->rx, requeue_idx);
 		pfn = vtophys(mtod(m, vm_offset_t)) >> PAGE_SHIFT;
 
-		if (!np->copying_receiver) {
-			gnttab_grant_foreign_transfer_ref(ref,
-			    xenbus_get_otherend_id(np->xbdev),
-			    pfn);
-		} else {
-			gnttab_grant_foreign_access_ref(ref,
-			    xenbus_get_otherend_id(np->xbdev),
-			    pfn, 0);
-		}
+		gnttab_grant_foreign_access_ref(ref,
+		    xenbus_get_otherend_id(np->xbdev),
+		    pfn, 0);
+
 		req->gref = ref;
 		req->id   = requeue_idx;
 
