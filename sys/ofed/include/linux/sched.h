@@ -107,4 +107,15 @@ do {									\
 
 #define	sched_yield()	sched_relinquish(curthread)
 
+static inline long
+schedule_timeout(signed long timeout)
+{
+	if (timeout < 0)
+		return 0;
+
+	pause("lstim", timeout);
+
+	return 0;
+}
+
 #endif	/* _LINUX_SCHED_H_ */
