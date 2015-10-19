@@ -39,15 +39,18 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 
-struct __wait_queue_head {
-	unsigned int	wchan;
-};
-typedef struct __wait_queue_head wait_queue_head_t;
+typedef struct {
+} wait_queue_t;
 
-#define	init_waitqueue_head(x)
+typedef struct {
+	unsigned int	wchan;
+} wait_queue_head_t;
+
+#define	init_waitqueue_head(x) \
+    do { } while (0)
 
 static inline void
-__wake_up(struct __wait_queue_head *q, int all)
+__wake_up(wait_queue_head_t *q, int all)
 {
 	int wakeup_swapper;
 	void *c;
@@ -108,6 +111,23 @@ do {									\
 	-_error;							\
 })
 
-#define	DEFINE_WAIT(x)
+static inline int
+waitqueue_active(wait_queue_head_t *q)
+{
+	return 0;	/* XXX: not really implemented */
+}
+
+#define DEFINE_WAIT(name)	\
+	wait_queue_t name = {}
+
+static inline void
+prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state)
+{
+}
+
+static inline void
+finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
+{
+}
 
 #endif	/* _LINUX_WAIT_H_ */
