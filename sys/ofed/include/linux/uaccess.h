@@ -30,17 +30,26 @@
 #ifndef	_LINUX_UACCESS_H_
 #define	_LINUX_UACCESS_H_
 
+#include <linux/compiler.h>
+
 #define	get_user(_x, _p)	-copyin((_p), &(_x), sizeof(*(_p)))
 #define	put_user(_x, _p)	-copyout(&(_x), (_p), sizeof(*(_p)))
 
-static inline void pagefault_disable(void)
+/*
+ * NOTE: The returned value from pagefault_disable() must be stored
+ * and passed to pagefault_enable(). Else possible recursion on the
+ * state can be lost.
+ */
+static inline int __must_check
+pagefault_disable(void)
 {
-	curthread_pflags_set(TDP_NOFAULTING | TDP_RESETSPUR);
+	return (vm_fault_disable_pagefaults());
 }
 
-static inline void pagefault_enable(void)
+static inline void
+pagefault_enable(int save)
 {
-	curthread_pflags_restore(~(TDP_NOFAULTING | TDP_RESETSPUR));
+	vm_fault_enable_pagefaults(save);
 }
 
 #endif	/* _LINUX_UACCESS_H_ */
