@@ -1906,7 +1906,6 @@ create_netdev(device_t dev)
     	if_initname(ifp, "xn",  device_get_unit(dev));
     	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
     	ifp->if_ioctl = xn_ioctl;
-    	ifp->if_output = ether_output;
     	ifp->if_start = xn_start;
 #ifdef notyet
     	ifp->if_watchdog = xn_watchdog;
