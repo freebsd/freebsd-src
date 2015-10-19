@@ -32,6 +32,8 @@
 
 #include <sys/errno.h>
 
+#define	ECHRNG		EDOM
+#define	ETIME		ETIMEDOUT
 #define	ECOMM           ESTALE
 #define	ENODATA         ECONNREFUSED
 #define	ENOIOCTLCMD     ENOIOCTL
