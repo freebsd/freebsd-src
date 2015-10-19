@@ -102,7 +102,7 @@ __deps=
 .for __dep in ${SUBDIR_DEPEND_${__dir}}
 __deps+= ${__target}_subdir_${__dep}
 .endfor
-${__target}_subdir_${__dir}: .MAKE ${__deps}
+${__target}_subdir_${__dir}: .PHONY .MAKE ${__deps}
 .if !defined(NO_SUBDIR)
 	@${_+_}if test -d ${.CURDIR}/${__dir}.${MACHINE_ARCH}; then \
 			${ECHODIR} "===> ${DIRPRFX}${__dir}.${MACHINE_ARCH} (${__target:realinstall=install})"; \
