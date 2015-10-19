@@ -2,7 +2,8 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2014-2015 François Tigeot
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,7 +70,8 @@
 #define	ALIGN(x, y)		roundup2((x), (y))
 #undef PTR_ALIGN
 #define	PTR_ALIGN(p, a)		((__typeof(p))ALIGN((uintptr_t)(p), (a)))
-#define	DIV_ROUND_UP		howmany
+#define	DIV_ROUND_UP(x, n)	howmany(x, n)
+#define	DIV_ROUND_UP_ULL(x, n)	DIV_ROUND_UP((unsigned long long)(x), (n))
 #define	FIELD_SIZEOF(t, f)	sizeof(((t *)0)->f)
 
 #define	printk(X...)		printf(X)
@@ -89,9 +91,6 @@
 #define pr_devel(fmt, ...) \
 	({ if (0) log(LOG_DEBUG, pr_fmt(fmt), ##__VA_ARGS__); 0; })
 #endif
-
-#define udelay(t)       	DELAY(t)
-#define usleep_range(min,max)	DELAY(min)
 
 #ifndef pr_fmt
 #define pr_fmt(fmt) fmt
@@ -164,8 +163,15 @@
 
 #define min(x, y)	((x) < (y) ? (x) : (y))
 #define max(x, y)	((x) > (y) ? (x) : (y))
+
+#define min3(a, b, c)	min(a, min(b,c))
+#define max3(a, b, c)	max(a, max(b,c))
+
 #define min_t(type, _x, _y)	((type)(_x) < (type)(_y) ? (type)(_x) : (type)(_y))
 #define max_t(type, _x, _y)	((type)(_x) > (type)(_y) ? (type)(_x) : (type)(_y))
+
+#define clamp_t(type, _x, min, max)	min_t(type, max_t(type, _x, min), max)
+#define clamp(x, lo, hi)		min( max(x,lo), hi)
 
 /*
  * This looks more complex than it should be. But we need to
@@ -183,5 +189,29 @@
 typedef struct pm_message {
         int event;
 } pm_message_t;
+
+/* Swap values of a and b */
+#define swap(a, b) do {			\
+	typeof(a) _swap_tmp = a;	\
+	a = b;				\
+	b = _swap_tmp;			\
+} while (0)
+
+#define	DIV_ROUND_CLOSEST(x, divisor)	(((x) + ((divisor) / 2)) / (divisor))
+
+static inline uintmax_t
+mult_frac(uintmax_t x, uintmax_t multiplier, uintmax_t divisor)
+{
+	uintmax_t q = (x / divisor);
+	uintmax_t r = (x % divisor);
+
+	return ((q * multiplier) + ((r * multiplier) / divisor));
+}
+
+static inline int64_t
+abs64(int64_t x)
+{
+	return (x < 0 ? -x : x);
+}
 
 #endif	/* _LINUX_KERNEL_H_ */
