@@ -2,7 +2,8 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2015 François Tigeot
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,5 +32,15 @@
 
 #define	get_user(_x, _p)	-copyin((_p), &(_x), sizeof(*(_p)))
 #define	put_user(_x, _p)	-copyout(&(_x), (_p), sizeof(*(_p)))
+
+static inline void pagefault_disable(void)
+{
+	curthread_pflags_set(TDP_NOFAULTING | TDP_RESETSPUR);
+}
+
+static inline void pagefault_enable(void)
+{
+	curthread_pflags_restore(~(TDP_NOFAULTING | TDP_RESETSPUR));
+}
 
 #endif	/* _LINUX_UACCESS_H_ */
