@@ -3,6 +3,7 @@
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
  * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2015 Matthew Dillon <dillon@backplane.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,6 +65,12 @@ struct sg_table {
 	unsigned int orig_nents;        /* original size of list */
 };
 
+struct sg_page_iter {
+	struct scatterlist	*sg;
+	unsigned int		sg_pgoffset;	/* page index */
+	unsigned int		maxents;
+};
+
 /*
  * Maximum number of entries that will be allocated in one piece, if
  * a list larger than this is required then chaining will be utilized.
@@ -93,7 +100,7 @@ static inline void
 sg_set_buf(struct scatterlist *sg, const void *buf, unsigned int buflen)
 {
 	sg_set_page(sg, virt_to_page(buf), buflen,
-	    ((uintptr_t)buf) & ~PAGE_MASK);
+	    ((uintptr_t)buf) & (PAGE_SIZE - 1));
 }
 
 static inline void
@@ -325,6 +332,66 @@ sg_alloc_table(struct sg_table *table, unsigned int nents, gfp_t gfp_mask)
 
 	return ret;
 }
+
+/*
+ * Iterate pages in sg list.
+ */
+static inline void
+_sg_iter_next(struct sg_page_iter *iter)
+{
+	struct scatterlist *sg;
+	unsigned int pgcount;
+
+	sg = iter->sg;
+	pgcount = (sg->offset + sg->length + PAGE_SIZE - 1) >> PAGE_SHIFT;
+
+	++iter->sg_pgoffset;
+	while (iter->sg_pgoffset >= pgcount) {
+		iter->sg_pgoffset -= pgcount;
+		sg = sg_next(sg);
+		--iter->maxents;
+		if (sg == NULL || iter->maxents == 0)
+			break;
+		pgcount = (sg->offset + sg->length + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	}
+	iter->sg = sg;
+}
+
+/*
+ * NOTE: pgoffset is really a page index, not a byte offset.
+ */
+static inline void
+_sg_iter_init(struct scatterlist *sgl, struct sg_page_iter *iter,
+	      unsigned int nents, unsigned long pgoffset)
+{
+	if (nents) {
+		/*
+		 * Nominal case.  Note subtract 1 from starting page index
+		 * for initial _sg_iter_next() call.
+		 */
+		iter->sg = sgl;
+		iter->sg_pgoffset = pgoffset - 1;
+		iter->maxents = nents;
+		_sg_iter_next(iter);
+	} else {
+		/*
+		 * Degenerate case
+		 */
+		iter->sg = NULL;
+		iter->sg_pgoffset = 0;
+		iter->maxents = 0;
+	}
+}
+
+static inline dma_addr_t
+sg_page_iter_dma_address(struct sg_page_iter *spi)
+{
+	return spi->sg->address + (spi->sg_pgoffset << PAGE_SHIFT);
+}
+
+#define	for_each_sg_page(sgl, iter, nents, pgoffset)			\
+	for (_sg_iter_init(sgl, iter, nents, pgoffset);			\
+	     (iter)->sg; _sg_iter_next(iter))
 
 #define	for_each_sg(sglist, sg, sgmax, _itr)				\
 	for (_itr = 0, sg = (sglist); _itr < (sgmax); _itr++, sg = sg_next(sg))
