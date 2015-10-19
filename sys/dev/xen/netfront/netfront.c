@@ -59,10 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
-#if __FreeBSD_version >= 700000
 #include <netinet/tcp.h>
 #include <netinet/tcp_lro.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -94,7 +92,6 @@ __FBSDID("$FreeBSD$");
 #define NET_TX_RING_SIZE __RING_SIZE((netif_tx_sring_t *)0, PAGE_SIZE)
 #define NET_RX_RING_SIZE __RING_SIZE((netif_rx_sring_t *)0, PAGE_SIZE)
 
-#if __FreeBSD_version >= 700000
 /*
  * Should the driver do LRO on the RX end
  *  this can be toggled on the fly, but the
@@ -103,12 +100,6 @@ __FBSDID("$FreeBSD$");
  */
 static int xn_enable_lro = 1;
 TUNABLE_INT("hw.xn.enable_lro", &xn_enable_lro);
-#else
-
-#define IFCAP_TSO4	0
-#define CSUM_TSO	0
-
-#endif
 
 /**
  * \brief The maximum allowed data fragments in a single transmit
@@ -203,9 +194,7 @@ struct netfront_stats
 
 struct netfront_info {
 	struct ifnet *xn_ifp;
-#if __FreeBSD_version >= 700000
 	struct lro_ctrl xn_lro;
-#endif
 
 	struct netfront_stats stats;
 	u_int tx_full;
@@ -423,12 +412,10 @@ netfront_attach(device_t dev)
 		return (err);
 	}
 
-#if __FreeBSD_version >= 700000
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "enable_lro", CTLFLAG_RW,
 	    &xn_enable_lro, 0, "Large Receive Offload");
-#endif
 
 	return (0);
 }
@@ -522,13 +509,11 @@ talk_to_backend(device_t dev, struct netfront_info *info)
 		message = "writing feature-sg";
 		goto abort_transaction;
 	}
-#if __FreeBSD_version >= 700000
 	err = xs_printf(xst, node, "feature-gso-tcpv4", "%d", 1);
 	if (err) {
 		message = "writing feature-gso-tcpv4";
 		goto abort_transaction;
 	}
-#endif
 
 	err = xs_transaction_end(xst, 0);
 	if (err) {
@@ -857,10 +842,8 @@ static void
 xn_rxeof(struct netfront_info *np)
 {
 	struct ifnet *ifp;
-#if __FreeBSD_version >= 700000 && (defined(INET) || defined(INET6))
 	struct lro_ctrl *lro = &np->xn_lro;
 	struct lro_entry *queued;
-#endif
 	struct netfront_rx_info rinfo;
 	struct netif_rx_response *rx = &rinfo.rx;
 	struct netif_extra_info *extras = rinfo.extras;
@@ -932,7 +915,7 @@ xn_rxeof(struct netfront_info *np)
 			 * Do we really need to drop the rx lock?
 			 */
 			XN_RX_UNLOCK(np);
-#if __FreeBSD_version >= 700000 && (defined(INET) || defined(INET6))
+#if (defined(INET) || defined(INET6))
 			/* Use LRO if possible */
 			if ((ifp->if_capenable & IFCAP_LRO) == 0 ||
 			    lro->lro_cnt == 0 || tcp_lro_rx(lro, m, 0)) {
@@ -950,7 +933,7 @@ xn_rxeof(struct netfront_info *np)
 
 		np->rx.rsp_cons = i;
 
-#if __FreeBSD_version >= 700000 && (defined(INET) || defined(INET6))
+#if (defined(INET) || defined(INET6))
 		/*
 		 * Flush any outstanding LRO work
 		 */
@@ -1441,7 +1424,6 @@ xn_assemble_tx_request(struct netfront_info *sc, struct mbuf *m_head)
 				tx->flags |= (NETTXF_csum_blank
 				    | NETTXF_data_validated);
 			}
-#if __FreeBSD_version >= 700000
 			if (m->m_pkthdr.csum_flags & CSUM_TSO) {
 				struct netif_extra_info *gso =
 					(struct netif_extra_info *)
@@ -1459,7 +1441,6 @@ xn_assemble_tx_request(struct netfront_info *sc, struct mbuf *m_head)
 				gso->type = XEN_NETIF_EXTRA_TYPE_GSO;
 				gso->flags = 0;
 			}
-#endif
 		} else {
 			tx->size = m->m_len;
 		}
@@ -1651,7 +1632,6 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (mask & IFCAP_RXCSUM) {
 			ifp->if_capenable ^= IFCAP_RXCSUM;
 		}
-#if __FreeBSD_version >= 700000
 		if (mask & IFCAP_TSO4) {
 			if (IFCAP_TSO4 & ifp->if_capenable) {
 				ifp->if_capenable &= ~IFCAP_TSO4;
@@ -1669,7 +1649,6 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ifp->if_capenable ^= IFCAP_LRO;
 
 		}
-#endif
 		error = 0;
 		break;
 	case SIOCADDMULTI:
@@ -1831,14 +1810,14 @@ xn_configure_features(struct netfront_info *np)
 	else
 		cap_enabled = UINT_MAX;
 
-#if __FreeBSD_version >= 700000 && (defined(INET) || defined(INET6))
+#if (defined(INET) || defined(INET6))
 	if ((np->xn_ifp->if_capenable & IFCAP_LRO) == (cap_enabled & IFCAP_LRO))
 		tcp_lro_free(&np->xn_lro);
 #endif
     	np->xn_ifp->if_capenable =
 	    np->xn_ifp->if_capabilities & ~(IFCAP_LRO|IFCAP_TSO4) & cap_enabled;
 	np->xn_ifp->if_hwassist &= ~CSUM_TSO;
-#if __FreeBSD_version >= 700000 && (defined(INET) || defined(INET6))
+#if (defined(INET) || defined(INET6))
 	if (xn_enable_lro && (np->xn_ifp->if_capabilities & IFCAP_LRO) ==
 	    (cap_enabled & IFCAP_LRO)) {
 		err = tcp_lro_init(&np->xn_lro);
