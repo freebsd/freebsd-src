@@ -31,9 +31,11 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/time.h>
 
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 
 static inline int
 msecs_to_jiffies(int msec)
@@ -46,13 +48,49 @@ msecs_to_jiffies(int msec)
 }
 
 #define jiffies                 ticks
+#define	jiffies_64		ticks
 #define jiffies_to_msecs(x)     (((int64_t)(x)) * 1000 / hz)
+
+#define	MAX_JIFFY_OFFSET	((INT_MAX >> 1) - 1)
 
 #define	time_after(a, b)	((int)((b) - (a)) < 0)
 #define	time_before(a, b)	time_after(b,a)
 #define	time_after_eq(a, b)	((int)((a) - (b)) >= 0)
 #define	time_before_eq(a, b)	time_after_eq(b, a)
+#define	time_in_range(a,b,c)	\
+	(time_after_eq(a,b) && time_before_eq(a,c))
 
 #define	HZ	hz
+
+static inline int
+timespec_to_jiffies(const struct timespec *ts)
+{
+	u64 result;
+
+	result = ((u64)hz * ts->tv_sec) +
+	    (((u64)hz * ts->tv_nsec + NSEC_PER_SEC - 1) / NSEC_PER_SEC);
+	if (result > MAX_JIFFY_OFFSET)
+		result = MAX_JIFFY_OFFSET;
+
+	return ((int)result);
+}
+
+static inline int
+usecs_to_jiffies(const unsigned int u)
+{
+	u64 result;
+
+	result = ((u64)u * hz + 1000000 - 1) / 1000000;
+	if (result > MAX_JIFFY_OFFSET)
+		result = MAX_JIFFY_OFFSET;
+
+	return ((int)result);
+}
+
+static inline u64
+get_jiffies_64(void)
+{
+	return ((u64)(unsigned)ticks);
+}
 
 #endif	/* _LINUX_JIFFIES_H_ */
