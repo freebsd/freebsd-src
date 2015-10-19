@@ -444,6 +444,8 @@ OLD_DIRS+=usr/share/doc/legal/intel_wpi
 OLD_FILES+=usr/share/doc/legal/intel_wpi/LICENSE
 # 20151006: new libc++ import
 OLD_FILES+=usr/include/c++/__tuple_03
+OLD_FILES+=usr/include/c++/v1/__tuple_03
+OLD_FILES+=usr/include/c++/v1/tr1/__tuple_03
 # 20151006: new clang import which bumps version from 3.6.1 to 3.7.0.
 OLD_FILES+=usr/lib/clang/3.6.1/include/__stddef_max_align_t.h
 OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_aes.h
@@ -530,11 +532,16 @@ OLD_FILES+=usr/share/man/man4/dtrace-proc.4.gz
 OLD_FILES+=usr/share/man/man4/dtrace-sched.4.gz
 OLD_FILES+=usr/share/man/man4/dtrace-tcp.4.gz
 OLD_FILES+=usr/share/man/man4/dtrace-udp.4.gz
+# 20150704: nvlist private headers no longer installed
+OLD_FILES+=usr/include/sys/nv_impl.h
+OLD_FILES+=usr/include/sys/nvlist_impl.h
+OLD_FILES+=usr/include/sys/nvpair_impl.h
 # 20150624
 OLD_LIBS+=usr/lib/libugidfw.so.4
 OLD_LIBS+=usr/lib32/libugidfw.so.4
 # 20150604: Move nvlist man pages to section 9.
 OLD_FILES+=usr/share/man/man3/libnv.3.gz
+OLD_FILES+=usr/share/man/man3/nv.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_add_binary.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_add_bool.3.gz
