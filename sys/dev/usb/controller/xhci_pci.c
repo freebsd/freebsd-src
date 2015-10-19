@@ -115,6 +115,8 @@ xhci_pci_match(device_t self)
 		return ("Intel Lynx Point USB 3.0 controller");
 	case 0x8cb18086:
 		return ("Intel Wildcat Point USB 3.0 controller");
+	case 0x9cb18086:
+		return ("Broadwell Integrated PCH-LP chipset USB 3.0 controller");
 
 	case 0xa01b177d:
 		return ("Cavium ThunderX USB 3.0 controller");
@@ -216,6 +218,7 @@ xhci_pci_attach(device_t self)
 	case 0x1e318086:	/* Panther Point */
 	case 0x8c318086:	/* Lynx Point */
 	case 0x8cb18086:	/* Wildcat Point */
+	case 0x9cb18086:	/* Broadwell Mobile Integrated */
 		/*
 		 * On Intel chipsets, reroute ports from EHCI to XHCI
 		 * controller and use a different IMOD value.
