@@ -383,7 +383,7 @@ void wpa_supplicant_dbus_notify_scan_results(struct wpa_supplicant *wpa_s)
 	DBusMessage *_signal;
 
 	/* Do nothing if the control interface is not turned on */
-	if (iface == NULL)
+	if (iface == NULL || !wpa_s->dbus_path)
 		return;
 
 	_signal = dbus_message_new_signal(wpa_s->dbus_path,
@@ -474,7 +474,7 @@ void wpa_supplicant_dbus_notify_scanning(struct wpa_supplicant *wpa_s)
 	dbus_bool_t scanning = wpa_s->scanning ? TRUE : FALSE;
 
 	/* Do nothing if the control interface is not turned on */
-	if (iface == NULL)
+	if (iface == NULL || !wpa_s->dbus_path)
 		return;
 
 	_signal = dbus_message_new_signal(wpa_s->dbus_path,
@@ -509,7 +509,7 @@ void wpa_supplicant_dbus_notify_wps_cred(struct wpa_supplicant *wpa_s,
 	if (wpa_s->global == NULL)
 		return;
 	iface = wpa_s->global->dbus;
-	if (iface == NULL)
+	if (iface == NULL || !wpa_s->dbus_path)
 		return;
 
 	_signal = dbus_message_new_signal(wpa_s->dbus_path,
@@ -559,7 +559,7 @@ void wpa_supplicant_dbus_notify_certification(struct wpa_supplicant *wpa_s,
 	if (wpa_s->global == NULL)
 		return;
 	iface = wpa_s->global->dbus;
-	if (iface == NULL)
+	if (iface == NULL || !wpa_s->dbus_path)
 		return;
 
 	_signal = dbus_message_new_signal(wpa_s->dbus_path,
@@ -738,7 +738,7 @@ struct wpa_supplicant * wpa_supplicant_get_iface_by_dbus_path(
 	struct wpa_supplicant *wpa_s;
 
 	for (wpa_s = global->ifaces; wpa_s; wpa_s = wpa_s->next) {
-		if (strcmp(wpa_s->dbus_path, path) == 0)
+		if (wpa_s->dbus_path && strcmp(wpa_s->dbus_path, path) == 0)
 			return wpa_s;
 	}
 	return NULL;

@@ -4,5 +4,6 @@
 .include <bsd.own.mk>
 
 SUBDIR=	csmapper esdb
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

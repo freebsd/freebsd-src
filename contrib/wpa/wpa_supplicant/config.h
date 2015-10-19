@@ -18,6 +18,11 @@
 #define DEFAULT_USER_MPM 1
 #define DEFAULT_MAX_PEER_LINKS 99
 #define DEFAULT_MESH_MAX_INACTIVITY 300
+/*
+ * The default dot11RSNASAERetransPeriod is defined as 40 ms in the standard,
+ * but use 1000 ms in practice to avoid issues on low power CPUs.
+ */
+#define DEFAULT_DOT11_RSNA_SAE_RETRANS_PERIOD 1000
 #define DEFAULT_FAST_REAUTH 1
 #define DEFAULT_P2P_GO_INTENT 7
 #define DEFAULT_P2P_INTRA_BSS 1
@@ -37,6 +42,7 @@
 
 #include "config_ssid.h"
 #include "wps/wps.h"
+#include "common/ieee802_11_defs.h"
 #include "common/ieee802_11_common.h"
 
 
@@ -241,7 +247,7 @@ struct wpa_cred {
 	char *phase2;
 
 	struct excluded_ssid {
-		u8 ssid[MAX_SSID_LEN];
+		u8 ssid[SSID_MAX_LEN];
 		size_t ssid_len;
 	} *excluded_ssid;
 	size_t num_excluded_ssid;
@@ -400,6 +406,11 @@ struct wpa_config {
 	 * one by one until the driver reports successful association; each
 	 * network block should have explicit security policy (i.e., only one
 	 * option in the lists) for key_mgmt, pairwise, group, proto variables.
+	 *
+	 * Note: ap_scan=2 should not be used with the nl80211 driver interface
+	 * (the current Linux interface). ap_scan=1 is optimized work working
+	 * with nl80211. For finding networks using hidden SSID, scan_ssid=1 in
+	 * the network block can be used with nl80211.
 	 */
 	int ap_scan;
 
@@ -733,6 +744,34 @@ struct wpa_config {
 	int p2p_group_idle;
 
 	/**
+	 * p2p_go_freq_change_policy - The GO frequency change policy
+	 *
+	 * This controls the behavior of the GO when there is a change in the
+	 * map of the currently used frequencies in case more than one channel
+	 * is supported.
+	 *
+	 * @P2P_GO_FREQ_MOVE_SCM: Prefer working in a single channel mode if
+	 * possible. In case the GO is the only interface using its frequency
+	 * and there are other station interfaces on other frequencies, the GO
+	 * will migrate to one of these frequencies.
+	 *
+	 * @P2P_GO_FREQ_MOVE_SCM_PEER_SUPPORTS: Same as P2P_GO_FREQ_MOVE_SCM,
+	 * but a transition is possible only in case one of the other used
+	 * frequencies is one of the frequencies in the intersection of the
+	 * frequency list of the local device and the peer device.
+	 *
+	 * @P2P_GO_FREQ_MOVE_STAY: Prefer to stay on the current frequency.
+	 */
+	enum {
+		P2P_GO_FREQ_MOVE_SCM = 0,
+		P2P_GO_FREQ_MOVE_SCM_PEER_SUPPORTS = 1,
+		P2P_GO_FREQ_MOVE_STAY = 2,
+		P2P_GO_FREQ_MOVE_MAX = P2P_GO_FREQ_MOVE_STAY,
+	} p2p_go_freq_change_policy;
+
+#define DEFAULT_P2P_GO_FREQ_MOVE P2P_GO_FREQ_MOVE_STAY
+
+	/**
 	 * p2p_passphrase_len - Passphrase length (8..63) for P2P GO
 	 *
 	 * This parameter controls the length of the random passphrase that is
@@ -967,6 +1006,18 @@ struct wpa_config {
 	int p2p_no_group_iface;
 
 	/**
+	 * p2p_cli_probe - Enable/disable P2P CLI probe request handling
+	 *
+	 * If this parameter is set to 1, a connected P2P Client will receive
+	 * and handle Probe Request frames. Setting this parameter to 0
+	 * disables this option. Default value: 0.
+	 *
+	 * Note: Setting this property at run time takes effect on the following
+	 * interface state transition to/from the WPA_COMPLETED state.
+	 */
+	int p2p_cli_probe;
+
+	/**
 	 * okc - Whether to enable opportunistic key caching by default
 	 *
 	 * By default, OKC is disabled unless enabled by the per-network
@@ -1148,6 +1199,15 @@ struct wpa_config {
 	int mesh_max_inactivity;
 
 	/**
+	 * dot11RSNASAERetransPeriod - Timeout to retransmit SAE Auth frame
+	 *
+	 * This timeout value is used in mesh STA to retransmit
+	 * SAE Authentication frame.
+	 * By default: 1000 milliseconds.
+	 */
+	int dot11RSNASAERetransPeriod;
+
+	/**
 	 * passive_scan - Whether to force passive scan for network connection
 	 *
 	 * This parameter can be used to force only passive scanning to be used
@@ -1163,6 +1223,30 @@ struct wpa_config {
 	 * reassoc_same_bss_optim - Whether to optimize reassoc-to-same-BSS
 	 */
 	int reassoc_same_bss_optim;
+
+	/**
+	 * wps_priority - Priority for the networks added through WPS
+	 *
+	 * This priority value will be set to each network profile that is added
+	 * by executing the WPS protocol.
+	 */
+	int wps_priority;
+
+	/**
+	 * fst_group_id - FST group ID
+	 */
+	char *fst_group_id;
+
+	/**
+	 * fst_priority - priority of the interface within the FST group
+	 */
+	int fst_priority;
+
+	/**
+	 * fst_llt - default FST LLT (Link-Lost Timeout) to be used for the
+	 * interface.
+	 */
+	int fst_llt;
 };
 
 

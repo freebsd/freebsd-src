@@ -93,4 +93,6 @@ void wpas_event_dfs_cac_aborted(struct wpa_supplicant *wpa_s,
 void wpas_event_dfs_cac_nop_finished(struct wpa_supplicant *wpa_s,
 				     struct dfs_event *radar);
 
+void ap_periodic(struct wpa_supplicant *wpa_s);
+
 #endif /* AP_H */

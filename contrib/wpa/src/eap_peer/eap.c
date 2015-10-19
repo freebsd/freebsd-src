@@ -584,7 +584,7 @@ static int eap_peer_erp_reauth_start(struct eap_sm *sm,
 	wpa_printf(MSG_DEBUG, "EAP: Valid ERP key found %s (SEQ=%u)",
 		   erp->keyname_nai, erp->next_seq);
 
-	msg = eap_msg_alloc(EAP_VENDOR_IETF, EAP_ERP_TYPE_REAUTH,
+	msg = eap_msg_alloc(EAP_VENDOR_IETF, (EapType) EAP_ERP_TYPE_REAUTH,
 			    1 + 2 + 2 + os_strlen(erp->keyname_nai) + 1 + 16,
 			    EAP_CODE_INITIATE, hdr->identifier);
 	if (msg == NULL)
@@ -708,7 +708,7 @@ SM_STATE(EAP, SEND_RESPONSE)
 	wpabuf_free(sm->lastRespData);
 	if (sm->eapRespData) {
 		if (sm->workaround)
-			os_memcpy(sm->last_md5, sm->req_md5, 16);
+			os_memcpy(sm->last_sha1, sm->req_sha1, 20);
 		sm->lastId = sm->reqId;
 		sm->lastRespData = wpabuf_dup(sm->eapRespData);
 		eapol_set_bool(sm, EAPOL_eapResp, TRUE);
@@ -914,12 +914,12 @@ static int eap_peer_req_is_duplicate(struct eap_sm *sm)
 
 	duplicate = (sm->reqId == sm->lastId) && sm->rxReq;
 	if (sm->workaround && duplicate &&
-	    os_memcmp(sm->req_md5, sm->last_md5, 16) != 0) {
+	    os_memcmp(sm->req_sha1, sm->last_sha1, 20) != 0) {
 		/*
 		 * RFC 4137 uses (reqId == lastId) as the only verification for
 		 * duplicate EAP requests. However, this misses cases where the
 		 * AS is incorrectly using the same id again; and
-		 * unfortunately, such implementations exist. Use MD5 hash as
+		 * unfortunately, such implementations exist. Use SHA1 hash as
 		 * an extra verification for the packets being duplicate to
 		 * workaround these issues.
 		 */
@@ -1765,7 +1765,7 @@ static void eap_sm_parseEapReq(struct eap_sm *sm, const struct wpabuf *req)
 	if (sm->workaround) {
 		const u8 *addr[1];
 		addr[0] = wpabuf_head(req);
-		md5_vector(1, addr, &plen, sm->req_md5);
+		sha1_vector(1, addr, &plen, sm->req_sha1);
 	}
 
 	switch (hdr->code) {
@@ -1911,7 +1911,7 @@ static void eap_peer_sm_tls_event(void *ctx, enum tls_event ev,
  * structure remains alive while the EAP state machine is active.
  */
 struct eap_sm * eap_peer_sm_init(void *eapol_ctx,
-				 struct eapol_callbacks *eapol_cb,
+				 const struct eapol_callbacks *eapol_cb,
 				 void *msg_ctx, struct eap_config *conf)
 {
 	struct eap_sm *sm;
@@ -2400,7 +2400,7 @@ static int eap_allowed_phase2_type(int vendor, int type)
 u32 eap_get_phase2_type(const char *name, int *vendor)
 {
 	int v;
-	u8 type = eap_peer_get_type(name, &v);
+	u32 type = eap_peer_get_type(name, &v);
 	if (eap_allowed_phase2_type(v, type)) {
 		*vendor = v;
 		return type;

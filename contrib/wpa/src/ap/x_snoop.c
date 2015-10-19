@@ -51,6 +51,14 @@ int x_snoop_init(struct hostapd_data *hapd)
 		return -1;
 	}
 
+#ifdef CONFIG_IPV6
+	if (hostapd_drv_br_set_net_param(hapd, DRV_BR_MULTICAST_SNOOPING, 1)) {
+		wpa_printf(MSG_DEBUG,
+			   "x_snoop: Failed to enable multicast snooping on the bridge");
+		return -1;
+	}
+#endif /* CONFIG_IPV6 */
+
 	return 0;
 }
 

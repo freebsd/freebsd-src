@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
  */
 ENTRY(copyio_fault)
 	SET_FAULT_HANDLER(xzr, x1) /* Clear the handler */
+copyio_fault_nopcb:
 	mov	x0, #EFAULT
 	ret
 END(copyio_fault)
@@ -51,6 +52,10 @@ END(copyio_fault)
  */
 ENTRY(copyout)
 	cbz	x2, 2f		/* If len == 0 then skip loop */
+	add	x3, x1, x2
+	ldr	x4, =VM_MAXUSER_ADDRESS
+	cmp	x3, x4
+	b.hi	copyio_fault_nopcb
 
 	adr	x6, copyio_fault /* Get the handler address */
 	SET_FAULT_HANDLER(x6, x7) /* Set the handler */
@@ -73,6 +78,10 @@ END(copyout)
  */
 ENTRY(copyin)
 	cbz	x2, 2f		/* If len == 0 then skip loop */
+	add	x3, x0, x2
+	ldr	x4, =VM_MAXUSER_ADDRESS
+	cmp	x3, x4
+	b.hi	copyio_fault_nopcb
 
 	adr	x6, copyio_fault /* Get the handler address */
 	SET_FAULT_HANDLER(x6, x7) /* Set the handler */
@@ -97,11 +106,14 @@ ENTRY(copyinstr)
 	mov	x5, xzr		/* count = 0 */
 	mov	w4, #1		/* If zero return faulure */
 	cbz	x2, 3f		/* If len == 0 then skip loop */
+	ldr	x7, =VM_MAXUSER_ADDRESS
 
 	adr	x6, copyio_fault /* Get the handler address */
 	SET_FAULT_HANDLER(x6, x7) /* Set the handler */
 
-1:	ldrb	w4, [x0], #1	/* Load from uaddr */
+1:	cmp	x0, x7
+	b.cs	copyio_fault
+	ldrb	w4, [x0], #1	/* Load from uaddr */
 	strb	w4, [x1], #1	/* Store in kaddr */
 	add	x5, x5, #1	/* count++ */
 	cbz	w4, 2f		/* Break when NUL-terminated */

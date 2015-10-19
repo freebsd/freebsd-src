@@ -391,8 +391,6 @@ void	 in_rtalloc(struct route *ro, u_int fibnum);
 struct rtentry *in_rtalloc1(struct sockaddr *, int, u_long, u_int);
 void	 in_rtredirect(struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct sockaddr *, u_int);
-int	 in_rtrequest(int, struct sockaddr *,
-	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
 #endif /* _KERNEL */
 
 /* INET6 stuff */

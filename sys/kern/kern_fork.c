@@ -848,7 +848,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	if (flags & RFPROCDESC) {
 		error = falloc_caps(td, &fp_procdesc, procdescp, 0, fcaps);
 		if (error != 0)
-			return (error);
+			goto fail2;
 	}
 
 	mem_charged = 0;

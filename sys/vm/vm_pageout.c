@@ -292,11 +292,21 @@ vm_pageout_fallback_object_lock(vm_page_t m, vm_page_t *next)
 	vm_page_lock(m);
 	vm_pagequeue_lock(pq);
 
-	/* Page queue might have changed. */
+	/*
+	 * The page's object might have changed, and/or the page might
+	 * have moved from its original position in the queue.  If the
+	 * page's object has changed, then the caller should abandon
+	 * processing the page because the wrong object lock was
+	 * acquired.  Use the marker's plinks.q, not the page's, to
+	 * determine if the page has been moved.  The state of the
+	 * page's plinks.q can be indeterminate; whereas, the marker's
+	 * plinks.q must be valid.
+	 */
 	*next = TAILQ_NEXT(&marker, plinks.q);
-	unchanged = (m->queue == queue &&
-		     m->object == object &&
-		     &marker == TAILQ_NEXT(m, plinks.q));
+	unchanged = m->object == object &&
+	    m == TAILQ_PREV(&marker, pglist, plinks.q);
+	KASSERT(!unchanged || m->queue == queue,
+	    ("page %p queue %d %d", m, queue, m->queue));
 	TAILQ_REMOVE(&pq->pq_pl, &marker, plinks.q);
 	return (unchanged);
 }
@@ -333,7 +343,9 @@ vm_pageout_page_lock(vm_page_t m, vm_page_t *next)
 
 	/* Page queue might have changed. */
 	*next = TAILQ_NEXT(&marker, plinks.q);
-	unchanged = (m->queue == queue && &marker == TAILQ_NEXT(m, plinks.q));
+	unchanged = m == TAILQ_PREV(&marker, pglist, plinks.q);
+	KASSERT(!unchanged || m->queue == queue,
+	    ("page %p queue %d %d", m, queue, m->queue));
 	TAILQ_REMOVE(&pq->pq_pl, &marker, plinks.q);
 	return (unchanged);
 }

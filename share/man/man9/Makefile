@@ -11,6 +11,7 @@ MAN=	accept_filter.9 \
 	altq.9 \
 	atomic.9 \
 	bios.9 \
+	bitset.9 \
 	boot.9 \
 	bpf.9 \
 	buf.9 \
@@ -429,6 +430,32 @@ MLINKS+=atomic.9 atomic_add.9 \
 	atomic.9 atomic_subtract.9 \
 	atomic.9 atomic_swap.9 \
 	atomic.9 atomic_testandset.9
+MLINKS+=bitset.9 BITSET_DEFINE.9 \
+	bitset.9 BITSET_T_INITIALIZER.9 \
+	bitset.9 BITSET_FSET.9 \
+	bitset.9 BIT_CLR.9 \
+	bitset.9 BIT_COPY.9 \
+	bitset.9 BIT_ISSET.9 \
+	bitset.9 BIT_SET.9 \
+	bitset.9 BIT_ZERO.9 \
+	bitset.9 BIT_FILL.9 \
+	bitset.9 BIT_SETOF.9 \
+	bitset.9 BIT_EMPTY.9 \
+	bitset.9 BIT_ISFULLSET.9 \
+	bitset.9 BIT_FFS.9 \
+	bitset.9 BIT_COUNT.9 \
+	bitset.9 BIT_SUBSET.9 \
+	bitset.9 BIT_OVERLAP.9 \
+	bitset.9 BIT_CMP.9 \
+	bitset.9 BIT_OR.9 \
+	bitset.9 BIT_AND.9 \
+	bitset.9 BIT_NAND.9 \
+	bitset.9 BIT_CLR_ATOMIC.9 \
+	bitset.9 BIT_SET_ATOMIC.9 \
+	bitset.9 BIT_SET_ATOMIC_ACQ.9 \
+	bitset.9 BIT_AND_ATOMIC.9 \
+	bitset.9 BIT_OR_ATOMIC.9 \
+	bitset.9 BIT_COPY_STORE_REL.9
 MLINKS+=bpf.9 bpfattach.9 \
 	bpf.9 bpfattach2.9 \
 	bpf.9 bpfdetach.9 \
