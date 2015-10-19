@@ -252,11 +252,6 @@ struct netfront_info {
 #define rx_mbufs xn_cdata.xn_rx_chain
 #define tx_mbufs xn_cdata.xn_tx_chain
 
-#define XN_LOCK_INIT(_sc, _name) \
-        mtx_init(&(_sc)->tx_lock, #_name"_tx", "network transmit lock", MTX_DEF); \
-        mtx_init(&(_sc)->rx_lock, #_name"_rx", "network receive lock", MTX_DEF);  \
-        mtx_init(&(_sc)->sc_lock, #_name"_sc", "netfront softc lock", MTX_DEF)
-
 #define XN_RX_LOCK(_sc)           mtx_lock(&(_sc)->rx_lock)
 #define XN_RX_UNLOCK(_sc)         mtx_unlock(&(_sc)->rx_lock)
 
@@ -269,9 +264,6 @@ struct netfront_info {
 #define XN_LOCK_ASSERT(_sc)    mtx_assert(&(_sc)->sc_lock, MA_OWNED);
 #define XN_RX_LOCK_ASSERT(_sc)    mtx_assert(&(_sc)->rx_lock, MA_OWNED);
 #define XN_TX_LOCK_ASSERT(_sc)    mtx_assert(&(_sc)->tx_lock, MA_OWNED);
-#define XN_LOCK_DESTROY(_sc)   mtx_destroy(&(_sc)->rx_lock); \
-                               mtx_destroy(&(_sc)->tx_lock); \
-                               mtx_destroy(&(_sc)->sc_lock);
 
 struct netfront_rx_info {
 	struct netif_rx_response rx;
@@ -1882,7 +1874,9 @@ create_netdev(device_t dev)
 
 	np->xbdev         = dev;
 
-	XN_LOCK_INIT(np, xennetif);
+	mtx_init(&np->tx_lock, "xntx", "network transmit lock", MTX_DEF);
+	mtx_init(&np->rx_lock, "xnrx", "network receive lock", MTX_DEF);
+	mtx_init(&np->sc_lock, "xnsc", "netfront softc lock", MTX_DEF);
 
 	ifmedia_init(&np->sc_media, 0, xn_ifmedia_upd, xn_ifmedia_sts);
 	ifmedia_add(&np->sc_media, IFM_ETHER|IFM_MANUAL, 0, NULL);
