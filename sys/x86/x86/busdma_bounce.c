@@ -1006,7 +1006,8 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 		bpage->busaddr |= addr & PAGE_MASK;
 	}
 	bpage->datavaddr = vaddr;
-	bpage->datapage = PHYS_TO_VM_PAGE(addr & ~PAGE_MASK);
+	/* PHYS_TO_VM_PAGE() will truncate unaligned addresses. */
+	bpage->datapage = PHYS_TO_VM_PAGE(addr);
 	bpage->dataoffs = addr & PAGE_MASK;
 	bpage->datacount = size;
 	STAILQ_INSERT_TAIL(&(map->bpages), bpage, links);

@@ -916,7 +916,8 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 		 * iflladdr_event.
 		 */
 		sc->sc_primary = lp0;
-		lagg_port_lladdr(lp0, lladdr);
+		if (lp0 != NULL)
+			lagg_port_lladdr(lp0, lladdr);
 	}
 
 	/* Remove any pending lladdr changes from the queue */

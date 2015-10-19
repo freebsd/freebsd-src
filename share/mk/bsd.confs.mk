@@ -69,7 +69,7 @@ _${group}INS: ${_${group}CONFS}
 	    ${.ALLSRC} ${DESTDIR}${${group}DIR}/${${group}NAME}
 .else
 	${INSTALL} -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
-	    ${.ALLSRC} ${DESTDIR}${${group}DIR}
+	    ${.ALLSRC} ${DESTDIR}${${group}DIR}/
 .endif
 .endif
 
@@ -84,4 +84,4 @@ STAGE_TARGETS+= stage_config
 .endif
 .endif
 
-.endif # ${MK_TOOLCHAIN} != "no"
+.endif # ${MK_INCLUDES} != "no"

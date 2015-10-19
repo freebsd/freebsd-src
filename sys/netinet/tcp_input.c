@@ -104,6 +104,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet6/tcp6_var.h>
 #include <netinet/tcpip.h>
+#ifdef TCPPCAP
+#include <netinet/tcp_pcap.h>
+#endif
 #include <netinet/tcp_syncache.h>
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
@@ -1523,6 +1526,11 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	    __func__));
 	KASSERT(tp->t_state != TCPS_TIME_WAIT, ("%s: TCPS_TIME_WAIT",
 	    __func__));
+
+#ifdef TCPPCAP
+	/* Save segment, if requested. */
+	tcp_pcap_add(th, m, &(tp->t_inpkts));
+#endif
 
 	/*
 	 * Segment received on connection.

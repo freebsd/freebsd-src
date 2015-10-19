@@ -94,9 +94,11 @@ device		virtio_blk
 device		vtnet
 
 # Bus drivers
+options 	PCI_IOV
 device		pci
 
 # Ethernet NICs
+device		vnic		# Cavium ThunderX NIC
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
 device		mii
 device		miibus		# MII bus support

@@ -33,6 +33,8 @@ int nt_challenge_response(const u8 *challenge, const u8 *password,
 
 void challenge_response(const u8 *challenge, const u8 *password_hash,
 			u8 *response);
+int challenge_hash(const u8 *peer_challenge, const u8 *auth_challenge,
+		   const u8 *username, size_t username_len, u8 *challenge);
 int nt_password_hash(const u8 *password, size_t password_len,
 		     u8 *password_hash);
 int hash_nt_password_hash(const u8 *password_hash, u8 *password_hash_hash);

@@ -14,7 +14,6 @@ SRCS=		enc_test.c
 
 CFLAGS+=	-I${LIBXOSRC}/libxo
 
-DPADD+=		${LIBXO}
-LDADD+=		-lxo
+LIBADD=		xo
 
 .include <bsd.lib.mk>

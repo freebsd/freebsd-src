@@ -41,7 +41,8 @@ arm/arm/gic.c			optional	gic
 arm/arm/identcpu.c		standard
 arm/arm/in_cksum.c		optional	inet | inet6
 arm/arm/in_cksum_arm.S		optional	inet | inet6
-arm/arm/intr.c			standard
+arm/arm/intr.c			optional	!arm_intrng
+arm/arm/intrng.c		optional	arm_intrng
 arm/arm/locore.S		standard	no-obj
 arm/arm/machdep.c		standard
 arm/arm/mem.c			optional	mem
@@ -49,6 +50,7 @@ arm/arm/minidump_machdep.c	optional	mem
 arm/arm/mp_machdep.c		optional	smp
 arm/arm/nexus.c			standard
 arm/arm/physmem.c		standard
+arm/arm/pic_if.m		optional	arm_intrng
 arm/arm/pl190.c			optional	pl190
 arm/arm/pl310.c			optional	pl310
 arm/arm/platform.c		optional	platform
@@ -56,7 +58,7 @@ arm/arm/platform_if.m		optional	platform
 arm/arm/pmap.c			optional	!armv6
 arm/arm/pmap-v6.c		optional	armv6 !arm_new_pmap
 arm/arm/pmap-v6-new.c		optional	armv6 arm_new_pmap
-arm/arm/pmu.c			optional	pmu
+arm/arm/pmu.c			optional	pmu | fdt hwpmc
 arm/arm/sc_machdep.c		optional	sc
 arm/arm/setcpsr.S		standard
 arm/arm/setstack.s		standard

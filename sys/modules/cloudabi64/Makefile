@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 .PATH: ${.CURDIR}/../../compat/cloudabi64
-.PATH: ${.CURDIR}/../../${MACHINE_CPUARCH}/cloudabi64
+.PATH: ${.CURDIR}/../../${MACHINE}/cloudabi64
 
 KMOD=	cloudabi64
 SRCS=	cloudabi64_fd.c cloudabi64_poll.c cloudabi64_sock.c \

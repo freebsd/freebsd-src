@@ -164,7 +164,8 @@ int		otus_cmd(struct otus_softc *, uint8_t, const void *, int,
 		    void *, int);
 void		otus_write(struct otus_softc *, uint32_t, uint32_t);
 int		otus_write_barrier(struct otus_softc *);
-struct		ieee80211_node *otus_node_alloc(struct ieee80211com *);
+static struct	ieee80211_node *otus_node_alloc(struct ieee80211vap *vap,
+		    const uint8_t mac[IEEE80211_ADDR_LEN]);
 int		otus_media_change(struct ifnet *);
 int		otus_read_eeprom(struct otus_softc *);
 void		otus_newassoc(struct ieee80211_node *, int);
@@ -759,6 +760,7 @@ otus_attachhook(struct otus_softc *sc)
 	    IEEE80211_C_WME |		/* WME/QoS */
 	    IEEE80211_C_SHSLOT |	/* Short slot time supported. */
 	    IEEE80211_C_FF |		/* Atheros fast-frames supported. */
+	    IEEE80211_C_MONITOR |
 	    IEEE80211_C_WPA;		/* WPA/RSN. */
 
 	/* XXX TODO: 11n */
@@ -813,6 +815,7 @@ otus_attachhook(struct otus_softc *sc)
 	ic->ic_ampdu_enable = otus_ampdu_enable;
 	ic->ic_wme.wme_update = otus_wme_update;
 	ic->ic_newassoc = otus_newassoc;
+	ic->ic_node_alloc = otus_node_alloc;
 
 #ifdef notyet
 	ic->ic_set_key = otus_set_key;
@@ -1386,10 +1389,12 @@ otus_write_barrier(struct otus_softc *sc)
 	return error;
 }
 
-struct ieee80211_node *
-otus_node_alloc(struct ieee80211com *ic)
+static struct ieee80211_node *
+otus_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 {
-	return malloc(sizeof (struct otus_node), M_DEVBUF, M_NOWAIT | M_ZERO);
+
+	return malloc(sizeof (struct otus_node), M_80211_NODE,
+	    M_NOWAIT | M_ZERO);
 }
 
 #if 0
@@ -2227,6 +2232,9 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 	/* Pickup a rate index. */
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
 	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_DATA) {
+		/* Get lowest rate */
+		rate = otus_rate_to_hw_rate(sc, 0);
+	} else if (m->m_flags & M_EAPOL) {
 		/* Get lowest rate */
 		rate = otus_rate_to_hw_rate(sc, 0);
 	} else {
@@ -3094,13 +3102,22 @@ otus_init(struct otus_softc *sc)
 	}
 #endif
 
-	/* Expect STA operation */
-	otus_write(sc, 0x1c3700, 0x0f000002);
-	otus_write(sc, 0x1c3c40, 0x1);
+	switch (ic->ic_opmode) {
+	case IEEE80211_M_STA:
+		otus_write(sc, 0x1c3700, 0x0f000002);
+		otus_write(sc, 0x1c3c40, 0x1);
+		break;
+	case IEEE80211_M_MONITOR:
+		otus_write(sc, 0x1c368c, 0xffffffff);
+		break;
+	default:
+		break;
+	}
 
 	/* XXX ic_opmode? */
 	otus_write(sc, AR_MAC_REG_SNIFFER,
 	    (ic->ic_opmode == IEEE80211_M_MONITOR) ? 0x2000001 : 0x2000000);
+
 	(void)otus_write_barrier(sc);
 
 	sc->bb_reset = 1;	/* Force cold reset. */

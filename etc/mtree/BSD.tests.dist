@@ -12,6 +12,8 @@
         ..
         date
         ..
+        dd
+        ..
         expr
         ..
         ls
@@ -360,6 +362,8 @@
         ..
     ..
     sys
+        acl
+        ..
         aio
         ..
         fifo
@@ -409,6 +413,10 @@
             ..
             unlink
             ..
+        ..
+        posixshm
+        ..
+        vfs
         ..
         vm
         ..

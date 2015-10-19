@@ -1,5 +1,68 @@
 ChangeLog for wpa_supplicant
 
+2015-09-27 - v2.5
+	* fixed P2P validation of SSID element length before copying it
+	  [http://w1.fi/security/2015-1/] (CVE-2015-1863)
+	* fixed WPS UPnP vulnerability with HTTP chunked transfer encoding
+	  [http://w1.fi/security/2015-2/] (CVE-2015-4141)
+	* fixed WMM Action frame parser (AP mode)
+	  [http://w1.fi/security/2015-3/] (CVE-2015-4142)
+	* fixed EAP-pwd peer missing payload length validation
+	  [http://w1.fi/security/2015-4/]
+	  (CVE-2015-4143, CVE-2015-4144, CVE-2015-4145, CVE-2015-4146)
+	* fixed validation of WPS and P2P NFC NDEF record payload length
+	  [http://w1.fi/security/2015-5/]
+	* nl80211:
+	  - added VHT configuration for IBSS
+	  - fixed vendor command handling to check OUI properly
+	  - allow driver-based roaming to change ESS
+	* added AVG_BEACON_RSSI to SIGNAL_POLL output
+	* wpa_cli: added tab completion for number of commands
+	* removed unmaintained and not yet completed SChannel/CryptoAPI support
+	* modified Extended Capabilities element use in Probe Request frames to
+	  include all cases if any of the values are non-zero
+	* added support for dynamically creating/removing a virtual interface
+	  with interface_add/interface_remove
+	* added support for hashed password (NtHash) in EAP-pwd peer
+	* added support for memory-only PSK/passphrase (mem_only_psk=1 and
+	  CTRL-REQ/RSP-PSK_PASSPHRASE)
+	* P2P
+	  - optimize scan frequencies list when re-joining a persistent group
+	  - fixed number of sequences with nl80211 P2P Device interface
+	  - added operating class 125 for P2P use cases (this allows 5 GHz
+	    channels 161 and 169 to be used if they are enabled in the current
+	    regulatory domain)
+	  - number of fixes to P2PS functionality
+	  - do not allow 40 MHz co-ex PRI/SEC switch to force MCC
+	  - extended support for preferred channel listing
+	* D-Bus:
+	  - fixed WPS property of fi.w1.wpa_supplicant1.BSS interface
+	  - fixed PresenceRequest to use group interface
+	  - added new signals: FindStopped, WPS pbc-overlap,
+	    GroupFormationFailure, WPS timeout, InvitationReceived
+	  - added new methods: WPS Cancel, P2P Cancel, Reconnect, RemoveClient
+	  - added manufacturer info
+	* added EAP-EKE peer support for deriving Session-Id
+	* added wps_priority configuration parameter to set the default priority
+	  for all network profiles added by WPS
+	* added support to request a scan with specific SSIDs with the SCAN
+	  command (optional "ssid <hexdump>" arguments)
+	* removed support for WEP40/WEP104 as a group cipher with WPA/WPA2
+	* fixed SAE group selection in an error case
+	* modified SAE routines to be more robust and PWE generation to be
+	  stronger against timing attacks
+	* added support for Brainpool Elliptic Curves with SAE
+	* added support for CCMP-256 and GCMP-256 as group ciphers with FT
+	* fixed BSS selection based on estimated throughput
+	* added option to disable TLSv1.0 with OpenSSL
+	  (phase1="tls_disable_tlsv1_0=1")
+	* added Fast Session Transfer (FST) module
+	* fixed OpenSSL PKCS#12 extra certificate handling
+	* fixed key derivation for Suite B 192-bit AKM (this breaks
+	  compatibility with the earlier version)
+	* added RSN IE to Mesh Peering Open/Confirm frames
+	* number of small fixes
+
 2015-03-15 - v2.4
 	* allow OpenSSL cipher configuration to be set for internal EAP server
 	  (openssl_ciphers parameter)
