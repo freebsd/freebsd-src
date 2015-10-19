@@ -2207,6 +2207,24 @@ ntb_db_valid_mask(struct ntb_softc *ntb)
 	return (ntb->db_valid_mask);
 }
 
+/*
+ * ntb_db_vector_mask() - get a mask of doorbell bits serviced by a vector
+ * @ntb:	NTB device context
+ * @vector:	Doorbell vector number
+ *
+ * Each interrupt vector may have a different number or arrangement of bits.
+ *
+ * Return: A mask of doorbell bits serviced by a vector.
+ */
+uint64_t
+ntb_db_vector_mask(struct ntb_softc *ntb, uint32_t vector)
+{
+
+	if (vector > ntb->db_vec_count)
+		return (0);
+	return (ntb->db_valid_mask & ntb_vec_mask(ntb, vector));
+}
+
 /**
  * ntb_link_is_up() - get the current ntb link state
  * @ntb:        NTB device context
