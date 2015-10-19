@@ -154,10 +154,12 @@ init_secondary(int cpu)
 #ifndef ARM_INTRNG
 	int start = 0, end = 0;
 #endif
-
 #ifdef ARM_NEW_PMAP
+	uint32_t actlr_mask, actlr_set;
+
 	pmap_set_tex();
-	reinit_mmu(pmap_kern_ttb, (1<<6) | (1<< 0), (1<<6) | (1<< 0));
+	cpuinfo_get_actlr_modifier(&actlr_mask, &actlr_set);
+	reinit_mmu(pmap_kern_ttb, actlr_mask, actlr_set);
 	cpu_setup();
 
 	/* Provide stack pointers for other processor modes. */

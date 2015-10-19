@@ -1294,7 +1294,7 @@ cortexa_setup(void)
 
 	/* And again. */
 	cpu_idcache_wbinv_all();
-#ifdef SMP
+#if defined(SMP) && !defined(ARM_NEW_PMAP)
 	armv7_auxctrl((1 << 6) | (1 << 0), (1 << 6) | (1 << 0)); /* Enable SMP + TLB broadcasting  */
 #endif
 
