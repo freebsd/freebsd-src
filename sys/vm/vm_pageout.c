@@ -1028,7 +1028,7 @@ vm_pageout_launder1(struct vm_domain *vmd)
 	launder = vm_cnt.v_inactive_target - vm_cnt.v_inactive_count +
 	    vm_paging_target() + vm_pageout_deficit;
 	if (launder < 0)
-		return;
+		launder = 5;
 	launder /= 5;
 
 	vnodes_skipped = 0;
