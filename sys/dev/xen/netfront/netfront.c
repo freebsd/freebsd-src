@@ -1885,7 +1885,7 @@ create_netdev(device_t dev)
 					  &np->gref_tx_head) != 0) {
 		IPRINTK("#### netfront can't alloc tx grant refs\n");
 		err = ENOMEM;
-		goto exit;
+		goto error;
 	}
 	/* A grant for every rx ring slot */
 	if (gnttab_alloc_grant_references(RX_MAX_TARGET,
@@ -1893,12 +1893,15 @@ create_netdev(device_t dev)
 		WPRINTK("#### netfront can't alloc rx grant refs\n");
 		gnttab_free_grant_references(np->gref_tx_head);
 		err = ENOMEM;
-		goto exit;
+		goto error;
 	}
 
 	err = xen_net_read_mac(dev, np->mac);
-	if (err)
-		goto out;
+	if (err) {
+		gnttab_free_grant_references(np->gref_rx_head);
+		gnttab_free_grant_references(np->gref_tx_head);
+		goto error;
+	}
 
 	/* Set up ifnet structure */
 	ifp = np->xn_ifp = if_alloc(IFT_ETHER);
@@ -1925,9 +1928,8 @@ create_netdev(device_t dev)
 
 	return (0);
 
-exit:
-	gnttab_free_grant_references(np->gref_tx_head);
-out:
+error:
+	KASSERT(err != 0, ("Error path with no error code specified"));
 	return (err);
 }
 
