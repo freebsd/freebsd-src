@@ -1257,8 +1257,7 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 	case C4IW_QP_STATE_RTS:
 		switch (attrs->next_state) {
 		case C4IW_QP_STATE_CLOSING:
-			//Fixme: Use atomic_read as same as Linux
-			BUG_ON(qhp->ep->com.kref.count < 2);
+			BUG_ON(atomic_read(&qhp->ep->com.kref.refcount) < 2);
 			set_state(qhp, C4IW_QP_STATE_CLOSING);
 			ep = qhp->ep;
 			if (!internal) {
