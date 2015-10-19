@@ -2192,6 +2192,21 @@ ntb_get_peer_db_addr(struct ntb_softc *ntb, vm_size_t *sz_out)
 	return ((uint64_t)bar->pci_bus_handle + regoff);
 }
 
+/*
+ * ntb_db_valid_mask() - get a mask of doorbell bits supported by the ntb
+ * @ntb:	NTB device context
+ *
+ * Hardware may support different number or arrangement of doorbell bits.
+ *
+ * Return: A mask of doorbell bits supported by the ntb.
+ */
+uint64_t
+ntb_db_valid_mask(struct ntb_softc *ntb)
+{
+
+	return (ntb->db_valid_mask);
+}
+
 /**
  * ntb_link_is_up() - get the current ntb link state
  * @ntb:        NTB device context
