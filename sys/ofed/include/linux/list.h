@@ -96,6 +96,15 @@ list_del(struct list_head *entry)
 }
 
 static inline void
+list_replace(struct list_head *old, struct list_head *new)
+{
+	new->next = old->next;
+	new->next->prev = new;
+	new->prev = old->prev;
+	new->prev->next = new;
+}
+
+static inline void
 _list_add(struct list_head *new, struct list_head *prev,
     struct list_head *next)
 {
@@ -119,6 +128,9 @@ list_del_init(struct list_head *entry)
 #define list_first_entry(ptr, type, member) \
         list_entry((ptr)->next, type, member)
 
+#define	list_next_entry(ptr, member)					\
+	list_entry(((ptr)->member.next), typeof(*(ptr)), member)
+
 #define	list_for_each(p, head)						\
 	for (p = (head)->next; p != (head); p = p->next)
 
@@ -133,6 +145,15 @@ list_del_init(struct list_head *entry)
 	for (p = list_entry((h)->next, typeof(*p), field), 		\
 	    n = list_entry(p->field.next, typeof(*p), field); &p->field != (h);\
 	    p = n, n = list_entry(n->field.next, typeof(*n), field))
+
+#define	list_for_each_entry_continue(p, h, field)			\
+	for (p = list_next_entry((p), field); &p->field != (h);		\
+	    p = list_next_entry((p), field))
+
+#define	list_for_each_entry_safe_from(pos, n, head, member) 			\
+	for (n = list_entry(pos->member.next, typeof(*pos), member);		\
+	     &pos->member != (head);						\
+	     pos = n, n = list_entry(n->member.next, typeof(*n), member))
 
 #define	list_for_each_entry_reverse(p, h, field)			\
 	for (p = list_entry((h)->prev, typeof(*p), field); &p->field != (h); \
@@ -381,10 +402,14 @@ static inline int list_is_last(const struct list_head *list,
 #define	hlist_for_each_safe(p, n, head)					\
 	for (p = (head)->first; p && ({ n = p->next; 1; }); p = n)
 
-#define	hlist_for_each_entry(tp, p, head, field)			\
-	for (p = (head)->first;						\
-	    p ? (tp = hlist_entry(p, typeof(*tp), field)): NULL; p = p->next)
- 
+#define	hlist_entry_safe(ptr, type, member) \
+	((ptr) ? hlist_entry(ptr, type, member) : NULL)
+
+#define	hlist_for_each_entry(pos, head, member)				\
+	for (pos = hlist_entry_safe((head)->first, typeof(*(pos)), member);\
+	     pos;							\
+	     pos = hlist_entry_safe((pos)->member.next, typeof(*(pos)), member))
+
 #define hlist_for_each_entry_continue(tp, p, field)			\
 	for (p = (p)->next;						\
 	    p ? (tp = hlist_entry(p, typeof(*tp), field)): NULL; p = p->next)
@@ -397,5 +422,9 @@ static inline int list_is_last(const struct list_head *list,
 	     (pos) != 0 && ({ n = (pos)->next; \
 		 tpos = hlist_entry((pos), typeof(*(tpos)), member); 1;}); \
 	     pos = (n))
+
+#define	hlist_add_head_rcu(n, h)	hlist_add_head(n, h)
+
+#define	hlist_del_init_rcu(n)		hlist_del_init(n)
 
 #endif /* _LINUX_LIST_H_ */
