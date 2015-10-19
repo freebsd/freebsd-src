@@ -191,7 +191,7 @@ struct xn_chain_data {
 	struct mbuf    *xn_rx_chain[NET_RX_RING_SIZE+1];
 };
 
-struct net_device_stats
+struct netfront_stats
 {
 	u_long	rx_packets;		/* total packets received	*/
 	u_long	tx_packets;		/* total packets transmitted	*/
@@ -199,29 +199,6 @@ struct net_device_stats
 	u_long	tx_bytes;		/* total bytes transmitted	*/
 	u_long	rx_errors;		/* bad packets received		*/
 	u_long	tx_errors;		/* packet transmit problems	*/
-	u_long	rx_dropped;		/* no space in linux buffers	*/
-	u_long	tx_dropped;		/* no space available in linux	*/
-	u_long	multicast;		/* multicast packets received	*/
-	u_long	collisions;
-
-	/* detailed rx_errors: */
-	u_long	rx_length_errors;
-	u_long	rx_over_errors;		/* receiver ring buff overflow	*/
-	u_long	rx_crc_errors;		/* recved pkt with crc error	*/
-	u_long	rx_frame_errors;	/* recv'd frame alignment error */
-	u_long	rx_fifo_errors;		/* recv'r fifo overrun		*/
-	u_long	rx_missed_errors;	/* receiver missed packet	*/
-
-	/* detailed tx_errors */
-	u_long	tx_aborted_errors;
-	u_long	tx_carrier_errors;
-	u_long	tx_fifo_errors;
-	u_long	tx_heartbeat_errors;
-	u_long	tx_window_errors;
-
-	/* for cslip etc */
-	u_long	rx_compressed;
-	u_long	tx_compressed;
 };
 
 struct netfront_info {
@@ -230,7 +207,7 @@ struct netfront_info {
 	struct lro_ctrl xn_lro;
 #endif
 
-	struct net_device_stats stats;
+	struct netfront_stats stats;
 	u_int tx_full;
 
 	netif_tx_front_ring_t tx;
