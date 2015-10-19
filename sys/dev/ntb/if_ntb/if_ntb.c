@@ -290,7 +290,7 @@ static int ntb_process_rxc(struct ntb_transport_qp *qp);
 static void ntb_rx_copy_task(struct ntb_transport_qp *qp,
     struct ntb_queue_entry *entry, void *offset);
 static void ntb_complete_rxc(void *arg, int pending);
-static void ntb_transport_doorbell_callback(void *data, int vector);
+static void ntb_transport_doorbell_callback(void *data, uint32_t vector);
 static void ntb_transport_event_callback(void *data);
 static void ntb_transport_link_work(void *arg);
 static int ntb_set_mw(struct ntb_transport_ctx *, int num_mw, unsigned size);
@@ -1122,7 +1122,7 @@ ntb_complete_rxc(void *arg, int pending)
 }
 
 static void
-ntb_transport_doorbell_callback(void *data, int vector)
+ntb_transport_doorbell_callback(void *data, uint32_t vector)
 {
 	struct ntb_transport_ctx *nt = data;
 	struct ntb_transport_qp *qp;
