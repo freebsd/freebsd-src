@@ -44,9 +44,6 @@ device	arswitch
 # redboot stuff.
 options	AR71XX_ENV_UBOOT
 
-# uzip - to boot natively from flash
-device	geom_uncompress
-
 # Used for the static uboot partition map
 device	geom_map
 

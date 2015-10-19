@@ -1,7 +1,9 @@
 /*-
- * Copyright (c) 2008 Yahoo!, Inc.
+ * Copyright (c) 2015 The FreeBSD Foundation
  * All rights reserved.
- * Written by: John Baldwin <jhb@FreeBSD.org>
+ *
+ * This software was developed by Semihalf under
+ * the sponsorship of the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -11,14 +13,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -28,32 +27,37 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
+ *
  */
 
-#ifndef __TEST_H__
-#define	__TEST_H__
+#ifndef __THUNDER_MDIO_VAR_H__
+#define	__THUNDER_MDIO_VAR_H__
 
-#include <sys/linker_set.h>
+#define	THUNDER_MDIO_DEVSTR	"Cavium ThunderX SMI/MDIO driver"
+DECLARE_CLASS(thunder_mdio_driver);
 
-struct regression_test {
-	void	(*rt_function)(void);
-	const char *rt_name;
+enum thunder_mdio_mode {
+	MODE_NONE = 0,
+	MODE_IEEE_C22,
+	MODE_IEEE_C45
 };
 
-#define	TEST(function, name)						\
-	static struct regression_test _regtest_##function = {		\
-		(function),						\
-		(name)							\
-	};								\
-	DATA_SET(regression_tests_set, _regtest_##function)
+struct phy_desc {
+	device_t		miibus; /* One miibus per LMAC */
+	struct ifnet *		ifp;	/* Fake ifp to satisfy miibus */
+	int			lmacid;	/* ID number of LMAC connected */
+	TAILQ_ENTRY(phy_desc)	phy_desc_list;
+};
 
-void	fail(void);
-void	fail_err(const char *fmt, ...);
-void	pass(void);
-void	run_tests(void);
-void	skip(const char *reason);
-void	todo(const char *reason);
+struct thunder_mdio_softc {
+	device_t		dev;
+	struct mtx		mtx;
+	struct resource *	reg_base;
 
-#define	fail_errno(tag)		fail_err("%s: %s", (tag), strerror(errno))
+	enum thunder_mdio_mode	mode;
 
-#endif /* !__TEST_H__ */
+	TAILQ_HEAD(,phy_desc)	phy_desc_head;
+};
+
+int thunder_mdio_attach(device_t);
+#endif

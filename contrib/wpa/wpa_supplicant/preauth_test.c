@@ -27,7 +27,7 @@
 #include "drivers/driver.h"
 
 
-struct wpa_driver_ops *wpa_drivers[] = { NULL };
+const struct wpa_driver_ops *const wpa_drivers[] = { NULL };
 
 
 struct preauth_test_data {

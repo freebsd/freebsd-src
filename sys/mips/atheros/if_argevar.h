@@ -37,7 +37,10 @@
 #define	ARGE_TX_DMA_SIZE	ARGE_TX_RING_COUNT * sizeof(struct arge_desc)
 #define	ARGE_MAXFRAGS		8
 #define ARGE_RING_ALIGN		sizeof(struct arge_desc)
-#define ARGE_RX_ALIGN		sizeof(uint32_t)
+#define ARGE_RX_ALIGN_4BYTE	sizeof(uint32_t)
+#define ARGE_RX_ALIGN_1BYTE	sizeof(char)
+#define ARGE_TX_ALIGN_4BYTE	sizeof(uint32_t)
+#define ARGE_TX_ALIGN_1BYTE	sizeof(char)
 #define ARGE_MAXFRAGS		8
 #define	ARGE_TX_RING_ADDR(sc, i)	\
     ((sc)->arge_rdata.arge_tx_ring_paddr + sizeof(struct arge_desc) * (i))
@@ -149,6 +152,22 @@ struct arge_pll_data {
 	uint32_t pll_1000;
 };
 
+/*
+ * Hardware specific behaviours.
+ */
+
+/*
+ * Older chips support 4 byte only transmit and receive
+ * addresses.
+ *
+ * Later chips support arbitrary TX and later later,
+ * arbitrary RX addresses.
+ */
+#define	ARGE_HW_FLG_TX_DESC_ALIGN_4BYTE	0x00000001
+#define	ARGE_HW_FLG_RX_DESC_ALIGN_4BYTE	0x00000002
+#define	ARGE_HW_FLG_TX_DESC_ALIGN_1BYTE	0x00000004
+#define	ARGE_HW_FLG_RX_DESC_ALIGN_1BYTE	0x00000008
+
 struct arge_softc {
 	struct ifnet		*arge_ifp;	/* interface info */
 	device_t		arge_dev;
@@ -180,13 +199,20 @@ struct arge_softc {
 	uint32_t		arge_intr_status;
 	int			arge_mac_unit;
 	int			arge_if_flags;
+	uint32_t		arge_hw_flags;
 	uint32_t		arge_debug;
 	uint32_t		arge_mdiofreq;
 	struct {
 		uint32_t	tx_pkts_unaligned;
+		uint32_t	tx_pkts_unaligned_start;
+		uint32_t	tx_pkts_unaligned_len;
+		uint32_t	tx_pkts_nosegs;
 		uint32_t	tx_pkts_aligned;
 		uint32_t	rx_overflow;
 		uint32_t	tx_underflow;
+		uint32_t	intr_stray;
+		uint32_t	intr_stray2;
+		uint32_t	intr_ok;
 	} stats;
 };
 

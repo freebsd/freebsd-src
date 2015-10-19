@@ -1,5 +1,6 @@
 /*-
  * Copyright (C) 2013 Intel Corporation
+ * Copyright (C) 2015 EMC Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,18 +33,17 @@
 #define NTB_LINK_STATUS_ACTIVE	0x2000
 #define NTB_LINK_SPEED_MASK	0x000f
 #define NTB_LINK_WIDTH_MASK	0x03f0
+#define NTB_LNK_STA_WIDTH(sta)	(((sta) & NTB_LINK_WIDTH_MASK) >> 4)
 
-#define XEON_MSIX_CNT		4
-#define XEON_SNB_MAX_MW		2
-#define XEON_HSXSPLIT_MAX_MW	3
-#define XEON_MAX_SPADS		16
-#define XEON_MAX_COMPAT_SPADS	16
+#define XEON_SNB_MW_COUNT	2
+#define XEON_HSX_SPLIT_MW_COUNT	3
 /* Reserve the uppermost bit for link interrupt */
-#define XEON_MAX_DB_BITS	15
-#define XEON_LINK_DB		15
-#define XEON_DB_BITS_PER_VEC	5
-
-#define XEON_DB_HW_LINK		0x8000
+#define XEON_DB_COUNT		15
+#define XEON_DB_LINK		15
+#define XEON_DB_MSIX_VECTOR_COUNT	4
+#define XEON_DB_MSIX_VECTOR_SHIFT	5
+#define XEON_DB_LINK_BIT	(1 << XEON_DB_LINK)
+#define XEON_SPAD_COUNT		16
 
 #define XEON_PCICMD_OFFSET	0x0504
 #define XEON_DEVCTRL_OFFSET	0x0598
@@ -81,11 +81,11 @@
 #define XEON_B2B_XLAT_OFFSETL	0x0144
 #define XEON_B2B_XLAT_OFFSETU	0x0148
 
-#define SOC_MSIX_CNT		34
-#define SOC_MAX_MW		2
-#define SOC_MAX_SPADS		16
-#define SOC_MAX_DB_BITS		34
-#define SOC_DB_BITS_PER_VEC	1
+#define SOC_MW_COUNT		2
+#define SOC_DB_COUNT		34
+#define SOC_DB_MSIX_VECTOR_COUNT	34
+#define SOC_DB_MSIX_VECTOR_SHIFT	1
+#define SOC_SPAD_COUNT		16
 
 #define SOC_PCICMD_OFFSET	0xb004
 #define SOC_MBAR23_OFFSET	0xb018
@@ -136,6 +136,11 @@
 
 #define XEON_PBAR23SZ_OFFSET	0x00d0
 #define XEON_PBAR45SZ_OFFSET	0x00d1
+#define XEON_PBAR4SZ_OFFSET	0x00d1
+#define XEON_PBAR5SZ_OFFSET	0x00d5
+#define XEON_SBAR23SZ_OFFSET	0x00d2
+#define XEON_SBAR4SZ_OFFSET	0x00d3
+#define XEON_SBAR5SZ_OFFSET	0x00d6
 #define NTB_PPD_OFFSET		0x00d4
 #define XEON_PPD_CONN_TYPE	0x0003
 #define XEON_PPD_DEV_TYPE	0x0010
@@ -152,14 +157,19 @@
 #define NTB_DEV_USD	0
 
 /* All addresses are in low 32-bit space so 32-bit BARs can function */
-#define MBAR01_USD_ADDR		0x2100000cull
-#define MBAR23_USD_ADDR		0x4100000cull
-#define MBAR4_USD_ADDR		0x8100000cull
-#define MBAR5_USD_ADDR		0xa100000cull
-#define MBAR01_DSD_ADDR		0x2000000cull
-#define MBAR23_DSD_ADDR		0x4000000cull
-#define MBAR4_DSD_ADDR		0x8000000cull
-#define MBAR5_DSD_ADDR		0xa000000cull
+#define XEON_B2B_BAR0_USD_ADDR		0x1000000000000000ull
+#define XEON_B2B_BAR2_USD_ADDR64	0x2000000000000000ull
+#define XEON_B2B_BAR4_USD_ADDR64	0x4000000000000000ull
+#define XEON_B2B_BAR4_USD_ADDR32	0x20000000ull
+#define XEON_B2B_BAR5_USD_ADDR32	0x40000000ull
+#define XEON_B2B_BAR0_DSD_ADDR		0x9000000000000000ull
+#define XEON_B2B_BAR2_DSD_ADDR64	0xa000000000000000ull
+#define XEON_B2B_BAR4_DSD_ADDR64	0xc000000000000000ull
+#define XEON_B2B_BAR4_DSD_ADDR32	0xa0000000ull
+#define XEON_B2B_BAR5_DSD_ADDR32	0xc0000000ull
+
+/* The peer ntb secondary config space is 32KB fixed size */
+#define XEON_B2B_MIN_SIZE		0x8000
 
 /* XEON Shadowed MMIO Space */
 #define XEON_SHADOW_PDOORBELL_OFFSET	0x60

@@ -84,6 +84,7 @@ zfs_cmd_compat_get(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 		ZCMD_COPY(zc_share);
 		ZCMD_COPY(zc_jailid);
 		ZCMD_COPY(zc_objset_stats);
+		zc->zc_begin_record.drr_u.drr_begin = edbp_c->zc_begin_record;
 		ZCMD_COPY(zc_inject_record);
 		ZCMD_COPY(zc_defer_destroy);
 		ZCMD_COPY(zc_flags);
@@ -126,6 +127,7 @@ zfs_cmd_compat_get(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 		ZCMD_COPY(zc_share);
 		ZCMD_COPY(zc_jailid);
 		ZCMD_COPY(zc_objset_stats);
+		zc->zc_begin_record.drr_u.drr_begin = zcmd_c->zc_begin_record;
 		ZCMD_COPY(zc_inject_record);
 
 		/* boolean_t -> uint32_t */
@@ -168,6 +170,7 @@ zfs_cmd_compat_get(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 		zc->zc_share = zcdm_c->zc_share;
 		zc->zc_jailid = zcdm_c->zc_jailid;
 		zc->zc_objset_stats = zcdm_c->zc_objset_stats;
+		zc->zc_begin_record.drr_u.drr_begin = zcdm_c->zc_begin_record;
 		zc->zc_defer_destroy = zcdm_c->zc_defer_destroy;
 		(void)zcdm_c->zc_temphold;
 		zc->zc_action_handle = zcdm_c->zc_action_handle;
@@ -211,6 +214,7 @@ zfs_cmd_compat_get(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 		zc->zc_share = zc28_c->zc_share;
 		zc->zc_jailid = zc28_c->zc_jailid;
 		zc->zc_objset_stats = zc28_c->zc_objset_stats;
+		zc->zc_begin_record.drr_u.drr_begin = zc28_c->zc_begin_record;
 		zc->zc_defer_destroy = zc28_c->zc_defer_destroy;
 		(void)zc28_c->zc_temphold;
 		zc->zc_action_handle = zc28_c->zc_action_handle;
@@ -279,6 +283,7 @@ zfs_cmd_compat_get(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 		zc->zc_share = zc_c->zc_share;
 		zc->zc_jailid = zc_c->zc_jailid;
 		zc->zc_objset_stats = zc_c->zc_objset_stats;
+		zc->zc_begin_record.drr_u.drr_begin = zc_c->zc_begin_record;
 
 		/* zc->zc_inject_record */
 		zc->zc_inject_record.zi_objset =
@@ -343,6 +348,7 @@ zfs_cmd_compat_put(zfs_cmd_t *zc, caddr_t addr, const int request,
 		ZCMD_COPY(zc_share);
 		ZCMD_COPY(zc_jailid);
 		ZCMD_COPY(zc_objset_stats);
+		edbp_c->zc_begin_record = zc->zc_begin_record.drr_u.drr_begin;
 		ZCMD_COPY(zc_inject_record);
 		ZCMD_COPY(zc_defer_destroy);
 		ZCMD_COPY(zc_flags);
@@ -384,6 +390,7 @@ zfs_cmd_compat_put(zfs_cmd_t *zc, caddr_t addr, const int request,
 		ZCMD_COPY(zc_share);
 		ZCMD_COPY(zc_jailid);
 		ZCMD_COPY(zc_objset_stats);
+		zcmd_c->zc_begin_record = zc->zc_begin_record.drr_u.drr_begin;
 		ZCMD_COPY(zc_inject_record);
 
 		/* boolean_t -> uint32_t */
@@ -425,6 +432,7 @@ zfs_cmd_compat_put(zfs_cmd_t *zc, caddr_t addr, const int request,
 		zcdm_c->zc_share = zc->zc_share;
 		zcdm_c->zc_jailid = zc->zc_jailid;
 		zcdm_c->zc_objset_stats = zc->zc_objset_stats;
+		zcdm_c->zc_begin_record = zc->zc_begin_record.drr_u.drr_begin;
 		zcdm_c->zc_defer_destroy = zc->zc_defer_destroy;
 		zcdm_c->zc_temphold = 0;
 		zcdm_c->zc_action_handle = zc->zc_action_handle;
@@ -469,6 +477,7 @@ zfs_cmd_compat_put(zfs_cmd_t *zc, caddr_t addr, const int request,
 		zc28_c->zc_share = zc->zc_share;
 		zc28_c->zc_jailid = zc->zc_jailid;
 		zc28_c->zc_objset_stats = zc->zc_objset_stats;
+		zc28_c->zc_begin_record = zc->zc_begin_record.drr_u.drr_begin;
 		zc28_c->zc_defer_destroy = zc->zc_defer_destroy;
 		zc28_c->zc_temphold = 0;
 		zc28_c->zc_action_handle = zc->zc_action_handle;
@@ -539,6 +548,7 @@ zfs_cmd_compat_put(zfs_cmd_t *zc, caddr_t addr, const int request,
 		zc_c->zc_share = zc->zc_share;
 		zc_c->zc_jailid = zc->zc_jailid;
 		zc_c->zc_objset_stats = zc->zc_objset_stats;
+		zc_c->zc_begin_record = zc->zc_begin_record.drr_u.drr_begin;
 
 		/* zc_inject_record */
 		zc_c->zc_inject_record.zi_objset =
