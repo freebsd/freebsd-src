@@ -68,10 +68,10 @@ cw${_CW:tl}-install:
 	mkdir -p ${DESTDIR}/${_CW:tl}
 	cp -p ${${_CW}IMAGE} \
 		${DESTDIR}/${_CW:tl}/${${_CW}_DISK}
+	cd ${DESTDIR}/${_CW:tl} && sha512 ${${_CW}_DISK}* > \
+		${DESTDIR}/${_CW:tl}/CHECKSUM.SHA512
 	cd ${DESTDIR}/${_CW:tl} && sha256 ${${_CW}_DISK}* > \
 		${DESTDIR}/${_CW:tl}/CHECKSUM.SHA256
-	cd ${DESTDIR}/${_CW:tl} && md5 ${${_CW}_DISK}* > \
-		${DESTDIR}/${_CW:tl}/CHECKSUM.MD5
 
 cw${_CW:tl}-package:
 	@# Special target to handle packaging cloud images in the formats
@@ -140,10 +140,10 @@ vm-install:
 	${XZCMD} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
 .  endfor
 . endif
+	cd ${DESTDIR}/vmimages && sha512 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.SHA512
 	cd ${DESTDIR}/vmimages && sha256 ${OSRELEASE}* > \
 		${DESTDIR}/vmimages/CHECKSUM.SHA256
-	cd ${DESTDIR}/vmimages && md5 ${OSRELEASE}* > \
-		${DESTDIR}/vmimages/CHECKSUM.MD5
 .endif
 
 vm-release:
