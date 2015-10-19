@@ -56,7 +56,7 @@ enum ntb_width {
 
 SYSCTL_DECL(_hw_ntb);
 
-typedef void (*ntb_db_callback)(void *data, int vector);
+typedef void (*ntb_db_callback)(void *data, uint32_t vector);
 typedef void (*ntb_event_callback)(void *data);
 
 struct ntb_ctx_ops {
@@ -90,13 +90,13 @@ int ntb_peer_spad_read(struct ntb_softc *ntb, unsigned int idx,
     uint32_t *val);
 
 uint64_t ntb_db_valid_mask(struct ntb_softc *);
+uint64_t ntb_db_vector_mask(struct ntb_softc *, uint32_t vector);
 bus_addr_t ntb_get_peer_db_addr(struct ntb_softc *, vm_size_t *sz_out);
 
 void ntb_db_clear(struct ntb_softc *, uint64_t bits);
 void ntb_db_clear_mask(struct ntb_softc *, uint64_t bits);
 uint64_t ntb_db_read(struct ntb_softc *);
 void ntb_db_set_mask(struct ntb_softc *, uint64_t bits);
-uint64_t ntb_db_vector_mask(struct ntb_softc *, int vector);
 void ntb_peer_db_set(struct ntb_softc *, uint64_t bits);
 
 /* Hardware owns the low 32 bits of features. */
