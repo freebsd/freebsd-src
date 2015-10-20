@@ -27,7 +27,7 @@ _CHERI_CC+=	--sysroot=${SYSROOT}
 .endif
 
 .if ${WANT_CHERI} == "pure" || ${WANT_CHERI} == "sandbox"
-_CHERI_CC+=    -mabi=sandbox
+_CHERI_CC+=    -mabi=sandbox -cheri-linker
 LIBDIR:=	/usr/libcheri
 .endif
 
