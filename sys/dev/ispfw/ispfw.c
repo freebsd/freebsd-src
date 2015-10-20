@@ -51,9 +51,7 @@ __FBSDID("$FreeBSD$");
 #define	ISP_2300	1
 #define	ISP_2322	1
 #define	ISP_2400	1
-#define	ISP_2400_MULTI	1
 #define	ISP_2500	1
-#define	ISP_2500_MULTI	1
 #endif
 
 #ifndef MODULE_NAME
@@ -88,10 +86,10 @@ __FBSDID("$FreeBSD$");
 #if	defined(ISP_2322)
 #include <dev/ispfw/asm_2322.h>
 #endif
-#if	defined(ISP_2400) || defined(ISP_2400_MULTI)
+#if	defined(ISP_2400)
 #include <dev/ispfw/asm_2400.h>
 #endif
-#if	defined(ISP_2500) || defined(ISP_2500_MULTI)
+#if	defined(ISP_2500)
 #include <dev/ispfw/asm_2500.h>
 #endif
 
@@ -131,14 +129,8 @@ static int	isp_2322_loaded;
 #if	defined(ISP_2400)
 static int	isp_2400_loaded;
 #endif
-#if	defined(ISP_2400_MULTI)
-static int	isp_2400_multi_loaded;
-#endif
 #if	defined(ISP_2500)
 static int	isp_2500_loaded;
-#endif
-#if	defined(ISP_2500_MULTI)
-static int	isp_2500_multi_loaded;
 #endif
 
 #define	ISPFW_VERSION	1
@@ -219,14 +211,8 @@ do_load_fw(void)
 #if	defined(ISP_2400)
 	RMACRO(isp_2400);
 #endif
-#if	defined(ISP_2400_MULTI)
-	RMACRO(isp_2400_multi);
-#endif
 #if	defined(ISP_2500)
 	RMACRO(isp_2500);
-#endif
-#if	defined(ISP_2500_MULTI)
-	RMACRO(isp_2500_multi);
 #endif
 }
 
@@ -270,14 +256,8 @@ do_unload_fw(void)
 #if	defined(ISP_2400)
 	UMACRO(isp_2400);
 #endif
-#if	defined(ISP_2400_MULTI)
-	UMACRO(isp_2400_multi);
-#endif
 #if	defined(ISP_2500)
 	UMACRO(isp_2500);
-#endif
-#if	defined(ISP_2500_MULTI)
-	UMACRO(isp_2500_multi);
 #endif
 }
 
@@ -328,12 +308,8 @@ DECLARE_MODULE(isp_2300, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 DECLARE_MODULE(isp_2322, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_2400)
 DECLARE_MODULE(isp_2400, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_2400_MULTI)
-DECLARE_MODULE(isp_2400_multi, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_2500)
 DECLARE_MODULE(isp_2500, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_2500_MULTI)
-DECLARE_MODULE(isp_2500_multi, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #else
 #error	"firmware not specified"
 #endif
