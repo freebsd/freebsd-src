@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/intr_machdep.h>
 #include <machine/smp.h>
 #include <machine/stdarg.h>
 
@@ -63,13 +62,11 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/xen/xenpci/xenpcivar.h>
 #include <dev/pci/pcivar.h>
+#include <machine/xen/arch-intr.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
-
-/* The code below is the implementation of 2L event channels. */
-#define NR_EVENT_CHANNELS EVTCHN_2L_NR_CHANNELS
 
 static MALLOC_DEFINE(M_XENINTR, "xen_intr", "Xen Interrupt Services");
 
@@ -122,19 +119,6 @@ DPCPU_DECLARE(struct vcpu_info *, vcpu_info);
 
 #define	INVALID_EVTCHN		(~(evtchn_port_t)0) /* Invalid event channel */
 #define	is_valid_evtchn(x)	((uintmax_t)(x) < NR_EVENT_CHANNELS)
-
-struct xenisrc {
-	struct intsrc	xi_intsrc;
-	enum evtchn_type xi_type;
-	u_int		xi_cpu;		/* VCPU for delivery. */
-	u_int		xi_vector;	/* Global isrc vector number. */
-	evtchn_port_t	xi_port;
-	u_int		xi_virq;
-	void		*xi_cookie;
-	bool		xi_close:1;	/* close on unbind? */
-	bool		xi_masked:1;
-	volatile u_int	xi_refcount;
-};
 
 static void	xen_intr_suspend(struct pic *);
 static void	xen_intr_resume(struct pic *, bool suspend_cancelled);
@@ -288,9 +272,10 @@ xen_intr_find_unused_isrc(enum evtchn_type type)
 		 * into Xen's interrupt range could be examined by this test.
 		 */
 		if (__predict_true(isrc != NULL) &&
-		    __predict_true(isrc->xi_intsrc.is_pic == &xen_intr_pic) &&
+		    __predict_true(isrc->xi_arch.intsrc.is_pic ==
+		    &xen_intr_pic) &&
 		    isrc->xi_type == EVTCHN_TYPE_UNBOUND) {
-			KASSERT(isrc->xi_intsrc.is_handlers == 0,
+			KASSERT(isrc->xi_arch.intsrc.is_handlers == 0,
 			    ("Free evtchn still has handlers"));
 			isrc->xi_type = type;
 			return (isrc);
@@ -339,10 +324,10 @@ xen_intr_alloc_isrc(enum evtchn_type type)
 
 	mtx_unlock(&xen_intr_x86_lock);
 	isrc = malloc(sizeof(*isrc), M_XENINTR, M_WAITOK | M_ZERO);
-	isrc->xi_intsrc.is_pic = &xen_intr_pic;
-	isrc->xi_vector = vector;
+	isrc->xi_arch.intsrc.is_pic = &xen_intr_pic;
+	isrc->xi_arch.vector = vector;
 	isrc->xi_type = type;
-	error = intr_register_source(&isrc->xi_intsrc);
+	error = intr_register_source(&isrc->xi_arch.intsrc);
 	if (error != 0)
 		panic("%s(): failed registering interrupt %u, error=%d\n",
 		    __func__, vector, error);
@@ -361,7 +346,7 @@ static int
 xen_intr_release_isrc(struct xenisrc *isrc)
 {
 
-	KASSERT(isrc->xi_intsrc.is_handlers == 0,
+	KASSERT(isrc->xi_arch.intsrc.is_handlers == 0,
 	    ("Release called, but xenisrc still in use"));
 	mtx_lock(&xen_intr_isrc_lock);
 	if (is_valid_evtchn(isrc->xi_port)) {
@@ -447,7 +432,7 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 		 * unless specified otherwise, so shuffle them to balance
 		 * the interrupt load.
 		 */
-		xen_intr_assign_cpu(&isrc->xi_intsrc,
+		xen_intr_assign_cpu(&isrc->xi_arch.intsrc,
 		    apic_cpuid(intr_next_cpu(0)));
 	}
 #endif
@@ -578,7 +563,8 @@ xen_intr_handle_upcall(void *unused __unused)
 				("Received unexpected event on vCPU#%u, event bound to vCPU#%u",
 				PCPU_GET(cpuid), isrc->xi_cpu));
 
-			intr_execute_handlers(&isrc->xi_intsrc, trap_frame);
+			intr_execute_handlers(&isrc->xi_arch.intsrc,
+			    trap_frame);
 
 			/*
 			 * If this is the final port processed,
@@ -732,7 +718,7 @@ xen_intr_rebind_isrc(struct xenisrc *isrc)
 
 #ifdef SMP
 	isrc->xi_cpu = 0;
-	error = xen_intr_assign_cpu(&isrc->xi_intsrc, cpu);
+	error = xen_intr_assign_cpu(&isrc->xi_arch.intsrc, cpu);
 	if (error)
 		panic("%s(): unable to rebind Xen channel %u to vCPU%u: %d",
 		    __func__, isrc->xi_port, cpu, error);
@@ -821,7 +807,7 @@ xen_intr_vector(struct intsrc *base_isrc)
 {
 	struct xenisrc *isrc = (struct xenisrc *)base_isrc;
 
-	return (isrc->xi_vector);
+	return (isrc->xi_arch.vector);
 }
 
 /**
@@ -1124,7 +1110,7 @@ xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
 
 #ifdef SMP
 	if (error == 0)
-		error = intr_event_bind(isrc->xi_intsrc.is_event, cpu);
+		error = intr_event_bind(isrc->xi_arch.intsrc.is_event, cpu);
 #endif
 
 	if (error != 0) {
@@ -1144,7 +1130,7 @@ xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
 		 * masks manually so events can't fire on the wrong cpu
 		 * during AP startup.
 		 */
-		xen_intr_assign_cpu(&isrc->xi_intsrc, cpu);
+		xen_intr_assign_cpu(&isrc->xi_arch.intsrc, cpu);
 	}
 #endif
 
@@ -1200,7 +1186,7 @@ xen_intr_alloc_and_bind_ipi(u_int cpu, driver_filter_t filter,
 		 * masks manually so events can't fire on the wrong cpu
 		 * during AP startup.
 		 */
-		xen_intr_assign_cpu(&isrc->xi_intsrc, cpu);
+		xen_intr_assign_cpu(&isrc->xi_arch.intsrc, cpu);
 	}
 
 	/*
@@ -1228,7 +1214,7 @@ xen_intr_describe(xen_intr_handle_t port_handle, const char *fmt, ...)
 	va_start(ap, fmt);
 	vsnprintf(descr, sizeof(descr), fmt, ap);
 	va_end(ap);
-	return (intr_describe(isrc->xi_vector, isrc->xi_cookie, descr));
+	return (intr_describe(isrc->xi_arch.vector, isrc->xi_cookie, descr));
 }
 
 void
@@ -1295,8 +1281,8 @@ xen_intr_add_handler(const char *name, driver_filter_t filter,
 	if (isrc == NULL || isrc->xi_cookie != NULL)
 		return (EINVAL);
 
-	error = intr_add_handler(name, isrc->xi_vector,filter, handler, arg,
-	    flags|INTR_EXCL, &isrc->xi_cookie, 0);
+	error = intr_add_handler(name, isrc->xi_arch.vector, filter, handler,
+	    arg, flags|INTR_EXCL, &isrc->xi_cookie, 0);
 	if (error != 0)
 		printf("%s: %s: add handler failed: %d\n", name, __func__,
 		    error);
