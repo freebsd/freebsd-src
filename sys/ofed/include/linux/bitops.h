@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,15 +29,21 @@
 #ifndef	_LINUX_BITOPS_H_
 #define	_LINUX_BITOPS_H_
 
+#include <sys/types.h>
+#include <sys/systm.h>
+
+#define	BIT(nr)			(1UL << (nr))
 #ifdef __LP64__
 #define	BITS_PER_LONG		64
 #else
 #define	BITS_PER_LONG		32
 #endif
-#define	BIT_MASK(n)		(~0UL >> (BITS_PER_LONG - (n)))
+#define	BITMAP_FIRST_WORD_MASK(start)	(~0UL << ((start) % BITS_PER_LONG))
+#define	BITMAP_LAST_WORD_MASK(n)	(~0UL >> (BITS_PER_LONG - (n)))
 #define	BITS_TO_LONGS(n)	howmany((n), BITS_PER_LONG)
+#define	BIT_MASK(nr)		(1UL << ((nr) & (BITS_PER_LONG - 1)))
 #define BIT_WORD(nr)		((nr) / BITS_PER_LONG)
-
+#define	GENMASK(lo, hi)		(((2UL << ((hi) - (lo))) - 1UL) << (lo))
 #define BITS_PER_BYTE           8
 
 static inline int
@@ -90,7 +96,7 @@ find_first_bit(unsigned long *addr, unsigned long size)
 		return (bit + __ffsl(*addr));
 	}
 	if (size) {
-		mask = (*addr) & BIT_MASK(size);
+		mask = (*addr) & BITMAP_LAST_WORD_MASK(size);
 		if (mask)
 			bit += __ffsl(mask);
 		else
@@ -112,7 +118,7 @@ find_first_zero_bit(unsigned long *addr, unsigned long size)
 		return (bit + __ffsl(~(*addr)));
 	}
 	if (size) {
-		mask = ~(*addr) & BIT_MASK(size);
+		mask = ~(*addr) & BITMAP_LAST_WORD_MASK(size);
 		if (mask)
 			bit += __ffsl(mask);
 		else
@@ -134,7 +140,7 @@ find_last_bit(unsigned long *addr, unsigned long size)
 	bit = BITS_PER_LONG * pos;
 	addr += pos;
 	if (offs) {
-		mask = (*addr) & BIT_MASK(offs);
+		mask = (*addr) & BITMAP_LAST_WORD_MASK(offs);
 		if (mask)
 			return (bit + __flsl(mask));
 	}
@@ -162,7 +168,7 @@ find_next_bit(unsigned long *addr, unsigned long size, unsigned long offset)
 	bit = BITS_PER_LONG * pos;
 	addr += pos;
 	if (offs) {
-		mask = (*addr) & ~BIT_MASK(offs);
+		mask = (*addr) & ~BITMAP_LAST_WORD_MASK(offs);
 		if (mask)
 			return (bit + __ffsl(mask));
 		if (size - bit <= BITS_PER_LONG)
@@ -177,7 +183,7 @@ find_next_bit(unsigned long *addr, unsigned long size, unsigned long offset)
 		return (bit + __ffsl(*addr));
 	}
 	if (size) {
-		mask = (*addr) & BIT_MASK(size);
+		mask = (*addr) & BITMAP_LAST_WORD_MASK(size);
 		if (mask)
 			bit += __ffsl(mask);
 		else
@@ -202,7 +208,7 @@ find_next_zero_bit(unsigned long *addr, unsigned long size,
 	bit = BITS_PER_LONG * pos;
 	addr += pos;
 	if (offs) {
-		mask = ~(*addr) & ~BIT_MASK(offs);
+		mask = ~(*addr) & ~BITMAP_LAST_WORD_MASK(offs);
 		if (mask)
 			return (bit + __ffsl(mask));
 		if (size - bit <= BITS_PER_LONG)
@@ -217,7 +223,7 @@ find_next_zero_bit(unsigned long *addr, unsigned long size,
 		return (bit + __ffsl(~(*addr)));
 	}
 	if (size) {
-		mask = ~(*addr) & BIT_MASK(size);
+		mask = ~(*addr) & BITMAP_LAST_WORD_MASK(size);
 		if (mask)
 			bit += __ffsl(mask);
 		else
@@ -245,13 +251,13 @@ bitmap_fill(unsigned long *addr, int size)
 	memset(addr, 0xff, len);
 	tail = size & (BITS_PER_LONG - 1);
 	if (tail) 
-		addr[size / BITS_PER_LONG] = BIT_MASK(tail);
+		addr[size / BITS_PER_LONG] = BITMAP_LAST_WORD_MASK(tail);
 }
 
 static inline int
 bitmap_full(unsigned long *addr, int size)
 {
-	long mask;
+	unsigned long mask;
 	int tail;
 	int len;
 	int i;
@@ -262,7 +268,7 @@ bitmap_full(unsigned long *addr, int size)
 			return (0);
 	tail = size & (BITS_PER_LONG - 1);
 	if (tail) {
-		mask = BIT_MASK(tail);
+		mask = BITMAP_LAST_WORD_MASK(tail);
 		if ((addr[i] & mask) != mask)
 			return (0);
 	}
@@ -272,7 +278,7 @@ bitmap_full(unsigned long *addr, int size)
 static inline int
 bitmap_empty(unsigned long *addr, int size)
 {
-	long mask;
+	unsigned long mask;
 	int tail;
 	int len;
 	int i;
@@ -283,38 +289,36 @@ bitmap_empty(unsigned long *addr, int size)
 			return (0);
 	tail = size & (BITS_PER_LONG - 1);
 	if (tail) {
-		mask = BIT_MASK(tail);
+		mask = BITMAP_LAST_WORD_MASK(tail);
 		if ((addr[i] & mask) != 0)
 			return (0);
 	}
 	return (1);
 }
 
-#define	NBLONG	(NBBY * sizeof(long))
-
 #define	__set_bit(i, a)							\
-    atomic_set_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << ((i) % NBLONG))
+    atomic_set_long(&((volatile long *)(a))[BIT_WORD(i)], BIT_MASK(i))
 
 #define	set_bit(i, a)							\
-    atomic_set_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << ((i) % NBLONG))
+    atomic_set_long(&((volatile long *)(a))[BIT_WORD(i)], BIT_MASK(i))
 
 #define	__clear_bit(i, a)						\
-    atomic_clear_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << ((i) % NBLONG))
+    atomic_clear_long(&((volatile long *)(a))[BIT_WORD(i)], BIT_MASK(i))
 
 #define	clear_bit(i, a)							\
-    atomic_clear_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << ((i) % NBLONG))
+    atomic_clear_long(&((volatile long *)(a))[BIT_WORD(i)], BIT_MASK(i))
 
 #define	test_bit(i, a)							\
-    !!(atomic_load_acq_long(&((volatile long *)(a))[(i)/NBLONG]) &	\
-    (1UL << ((i) % NBLONG)))
+    !!(atomic_load_acq_long(&((volatile long *)(a))[BIT_WORD(i)]) &	\
+    BIT_MASK(i))
 
 static inline long
 test_and_clear_bit(long bit, long *var)
 {
 	long val;
 
-	var += bit / (sizeof(long) * NBBY);
-	bit %= sizeof(long) * NBBY;
+	var += BIT_WORD(bit);
+	bit %= BITS_PER_LONG;
 	bit = (1UL << bit);
 	do {
 		val = *(volatile long *)var;
@@ -328,8 +332,8 @@ test_and_set_bit(long bit, long *var)
 {
 	long val;
 
-	var += bit / (sizeof(long) * NBBY);
-	bit %= sizeof(long) * NBBY;
+	var += BIT_WORD(bit);
+	bit %= BITS_PER_LONG;
 	bit = (1UL << bit);
 	do {
 		val = *(volatile long *)var;
@@ -337,15 +341,6 @@ test_and_set_bit(long bit, long *var)
 
 	return !!(val & bit);
 }
-
-
-#define BITMAP_FIRST_WORD_MASK(start) (~0UL << ((start) % BITS_PER_LONG))
-#define BITMAP_LAST_WORD_MASK(nbits)                                    \
-(                                                                       \
-        ((nbits) % BITS_PER_LONG) ?                                     \
-                (1UL<<((nbits) % BITS_PER_LONG))-1 : ~0UL               \
-)
-
 
 static inline void
 bitmap_set(unsigned long *map, int start, int nr)
@@ -390,36 +385,28 @@ bitmap_clear(unsigned long *map, int start, int nr)
 }
 
 enum {
-        REG_OP_ISFREE,          /* true if region is all zero bits */
-        REG_OP_ALLOC,           /* set all bits in region */
-        REG_OP_RELEASE,         /* clear all bits in region */
+        REG_OP_ISFREE,
+        REG_OP_ALLOC,
+        REG_OP_RELEASE,
 };
 
 static int __reg_op(unsigned long *bitmap, int pos, int order, int reg_op)
 {
-        int nbits_reg;          /* number of bits in region */
-        int index;              /* index first long of region in bitmap */
-        int offset;             /* bit offset region in bitmap[index] */
-        int nlongs_reg;         /* num longs spanned by region in bitmap */
-        int nbitsinlong;        /* num bits of region in each spanned long */
-        unsigned long mask;     /* bitmask for one long of region */
-        int i;                  /* scans bitmap by longs */
-        int ret = 0;            /* return value */
+        int nbits_reg;
+        int index;
+        int offset;
+        int nlongs_reg;
+        int nbitsinlong;
+        unsigned long mask;
+        int i;
+        int ret = 0;
 
-        /*
-         * Either nlongs_reg == 1 (for small orders that fit in one long)
-         * or (offset == 0 && mask == ~0UL) (for larger multiword orders.)
-         */
         nbits_reg = 1 << order;
         index = pos / BITS_PER_LONG;
         offset = pos - (index * BITS_PER_LONG);
         nlongs_reg = BITS_TO_LONGS(nbits_reg);
         nbitsinlong = min(nbits_reg,  BITS_PER_LONG);
 
-        /*
-         * Can't do "mask = (1UL << nbitsinlong) - 1", as that
-         * overflows if nbitsinlong == BITS_PER_LONG.
-         */
         mask = (1UL << (nbitsinlong - 1));
         mask += mask - 1;
         mask <<= offset;
@@ -430,7 +417,7 @@ static int __reg_op(unsigned long *bitmap, int pos, int order, int reg_op)
                         if (bitmap[index + i] & mask)
                                 goto done;
                 }
-                ret = 1;        /* all bits in region free (zero) */
+                ret = 1;
                 break;
 
         case REG_OP_ALLOC:
@@ -447,24 +434,11 @@ done:
         return ret;
 }
 
-/**
- * bitmap_find_free_region - find a contiguous aligned mem region
- *      @bitmap: array of unsigned longs corresponding to the bitmap
- *      @bits: number of bits in the bitmap
- *      @order: region size (log base 2 of number of bits) to find
- *
- * Find a region of free (zero) bits in a @bitmap of @bits bits and
- * allocate them (set them to one).  Only consider regions of length
- * a power (@order) of two, aligned to that power of two, which
- * makes the search algorithm much faster.
- *
- * Return the bit offset in bitmap of the allocated region,
- * or -errno on failure.
- */
 static inline int 
 bitmap_find_free_region(unsigned long *bitmap, int bits, int order)
 {
-        int pos, end;           /* scans bitmap by regions of size order */
+        int pos;
+        int end;
 
         for (pos = 0 ; (end = pos + (1 << order)) <= bits; pos = end) {
                 if (!__reg_op(bitmap, pos, order, REG_OP_ISFREE))
@@ -475,18 +449,6 @@ bitmap_find_free_region(unsigned long *bitmap, int bits, int order)
         return -ENOMEM;
 }
 
-/**
- * bitmap_allocate_region - allocate bitmap region
- *      @bitmap: array of unsigned longs corresponding to the bitmap
- *      @pos: beginning of bit region to allocate
- *      @order: region size (log base 2 of number of bits) to allocate
- *
- * Allocate (set bits in) a specified region of a bitmap.
- *
- * Return 0 on success, or %-EBUSY if specified region wasn't
- * free (not all bits were zero).
- */
-
 static inline int
 bitmap_allocate_region(unsigned long *bitmap, int pos, int order)
 {
@@ -496,17 +458,6 @@ bitmap_allocate_region(unsigned long *bitmap, int pos, int order)
         return 0;
 }
 
-/**
- * bitmap_release_region - release allocated bitmap region
- *      @bitmap: array of unsigned longs corresponding to the bitmap
- *      @pos: beginning of bit region to release
- *      @order: region size (log base 2 of number of bits) to release
- *
- * This is the complement to __bitmap_find_free_region() and releases
- * the found region (by clearing it in the bitmap).
- *
- * No return value.
- */
 static inline void 
 bitmap_release_region(unsigned long *bitmap, int pos, int order)
 {
