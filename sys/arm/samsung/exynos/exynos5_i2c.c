@@ -265,8 +265,8 @@ i2c_start(device_t dev, u_char slave, int timeout)
 	error = wait_for_nibb(sc);
 	if (error) {
 		mtx_unlock(&sc->mutex);
-		DPRINTF("cant i2c start: IIC_EBUSBSY\n");
-		return (IIC_EBUSBSY);
+		DPRINTF("cant i2c start: IIC_EBUSERR\n");
+		return (IIC_EBUSERR);
 	}
 
 	reg = READ1(sc, I2CCON);
