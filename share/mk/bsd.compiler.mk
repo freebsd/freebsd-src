@@ -25,6 +25,18 @@
 .if !target(__<bsd.compiler.mk>__)
 __<bsd.compiler.mk>__:
 
+# Try to import COMPILER_TYPE and COMPILER_VERSION from parent make.
+# The value is only used/exported for the same environment that impacts
+# CC and COMPILER_* settings here.
+_exported_vars=	COMPILER_TYPE COMPILER_VERSION
+_cc_hash=	${CC}${MACHINE}${PATH}
+_cc_hash:=	${_cc_hash:hash}
+.for var in ${_exported_vars}
+.if defined(${var}.${_cc_hash})
+${var}=	${${var}.${_cc_hash}}
+.endif
+.endfor
+
 .if ${MACHINE} == "common"
 # common is a pseudo machine for architecture independent
 # generated files - thus there is no compiler.
@@ -53,6 +65,14 @@ COMPILER_VERSION!=echo ${_v:M[1-9].[0-9]*} | awk -F. '{print $$1 * 10000 + $$2 *
 .endif
 .undef _v
 .endif
+
+# Export the values so sub-makes don't have to look them up again, using the
+# hash key computed above.
+.for var in ${_exported_vars}
+${var}.${_cc_hash}:=	${${var}}
+.export-env ${var}.${_cc_hash}
+.undef ${var}.${_cc_hash}
+.endfor
 
 .if ${COMPILER_TYPE} == "clang" || \
 	(${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40800)
