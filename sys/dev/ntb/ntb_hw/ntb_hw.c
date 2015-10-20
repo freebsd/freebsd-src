@@ -60,16 +60,16 @@ __FBSDID("$FreeBSD$");
  * be picked up and redistributed in Linux with a dual GPL/BSD license.
  */
 
-#define MAX_MSIX_INTERRUPTS MAX(XEON_DB_COUNT, SOC_DB_COUNT)
+#define MAX_MSIX_INTERRUPTS MAX(XEON_DB_COUNT, ATOM_DB_COUNT)
 
 #define NTB_HB_TIMEOUT		1 /* second */
-#define SOC_LINK_RECOVERY_TIME	500 /* ms */
+#define ATOM_LINK_RECOVERY_TIME	500 /* ms */
 
 #define DEVICE2SOFTC(dev) ((struct ntb_softc *) device_get_softc(dev))
 
 enum ntb_device_type {
 	NTB_XEON,
-	NTB_SOC
+	NTB_ATOM
 };
 
 /* ntb_conn_type are hardware numbers, cannot change. */
@@ -287,11 +287,11 @@ static void ntb_free_msix_vec(struct ntb_softc *ntb);
 static struct ntb_hw_info *ntb_get_device_info(uint32_t device_id);
 static void ntb_detect_max_mw(struct ntb_softc *ntb);
 static int ntb_detect_xeon(struct ntb_softc *ntb);
-static int ntb_detect_soc(struct ntb_softc *ntb);
+static int ntb_detect_atom(struct ntb_softc *ntb);
 static int ntb_xeon_init_dev(struct ntb_softc *ntb);
-static int ntb_soc_init_dev(struct ntb_softc *ntb);
+static int ntb_atom_init_dev(struct ntb_softc *ntb);
 static void ntb_teardown_xeon(struct ntb_softc *ntb);
-static void configure_soc_secondary_side_bars(struct ntb_softc *ntb);
+static void configure_atom_secondary_side_bars(struct ntb_softc *ntb);
 static void xeon_reset_sbar_size(struct ntb_softc *, enum ntb_bar idx,
     enum ntb_bar regbar);
 static void xeon_set_sbar_base_and_limit(struct ntb_softc *,
@@ -301,19 +301,19 @@ static void xeon_set_pbar_xlat(struct ntb_softc *, uint64_t base_addr,
 static int xeon_setup_b2b_mw(struct ntb_softc *,
     const struct ntb_b2b_addr *addr, const struct ntb_b2b_addr *peer_addr);
 static inline bool link_is_up(struct ntb_softc *ntb);
-static inline bool soc_link_is_err(struct ntb_softc *ntb);
+static inline bool atom_link_is_err(struct ntb_softc *ntb);
 static inline enum ntb_speed ntb_link_sta_speed(struct ntb_softc *);
 static inline enum ntb_width ntb_link_sta_width(struct ntb_softc *);
-static void soc_link_hb(void *arg);
+static void atom_link_hb(void *arg);
 static void ntb_db_event(struct ntb_softc *ntb, uint32_t vec);
-static void recover_soc_link(void *arg);
+static void recover_atom_link(void *arg);
 static bool ntb_poll_link(struct ntb_softc *ntb);
 static void save_bar_parameters(struct ntb_pci_bar_info *bar);
 
 static struct ntb_hw_info pci_ids[] = {
 	/* XXX: PS/SS IDs left out until they are supported. */
 	{ 0x0C4E8086, "BWD Atom Processor S1200 Non-Transparent Bridge B2B",
-		NTB_SOC, 0 },
+		NTB_ATOM, 0 },
 
 	{ 0x37258086, "JSF Xeon C35xx/C55xx Non-Transparent Bridge B2B",
 		NTB_XEON, NTB_SDOORBELL_LOCKUP | NTB_B2BDOORBELL_BIT14 },
@@ -329,40 +329,40 @@ static struct ntb_hw_info pci_ids[] = {
 		NTB_SDOORBELL_LOCKUP | NTB_B2BDOORBELL_BIT14 |
 		    NTB_SB01BASE_LOCKUP },
 
-	{ 0x00000000, NULL, NTB_SOC, 0 }
+	{ 0x00000000, NULL, NTB_ATOM, 0 }
 };
 
-static const struct ntb_reg soc_reg = {
-	.ntb_ctl = SOC_NTBCNTL_OFFSET,
-	.lnk_sta = SOC_LINK_STATUS_OFFSET,
+static const struct ntb_reg atom_reg = {
+	.ntb_ctl = ATOM_NTBCNTL_OFFSET,
+	.lnk_sta = ATOM_LINK_STATUS_OFFSET,
 	.db_size = sizeof(uint64_t),
 	.mw_bar = { NTB_B2B_BAR_1, NTB_B2B_BAR_2 },
 };
 
-static const struct ntb_alt_reg soc_pri_reg = {
-	.db_bell = SOC_PDOORBELL_OFFSET,
-	.db_mask = SOC_PDBMSK_OFFSET,
-	.spad = SOC_SPAD_OFFSET,
+static const struct ntb_alt_reg atom_pri_reg = {
+	.db_bell = ATOM_PDOORBELL_OFFSET,
+	.db_mask = ATOM_PDBMSK_OFFSET,
+	.spad = ATOM_SPAD_OFFSET,
 };
 
-static const struct ntb_alt_reg soc_b2b_reg = {
-	.db_bell = SOC_B2B_DOORBELL_OFFSET,
-	.spad = SOC_B2B_SPAD_OFFSET,
+static const struct ntb_alt_reg atom_b2b_reg = {
+	.db_bell = ATOM_B2B_DOORBELL_OFFSET,
+	.spad = ATOM_B2B_SPAD_OFFSET,
 };
 
-static const struct ntb_xlat_reg soc_sec_xlat = {
+static const struct ntb_xlat_reg atom_sec_xlat = {
 #if 0
 	/* "FIXME" says the Linux driver. */
-	.bar0_base = SOC_SBAR0BASE_OFFSET,
-	.bar2_base = SOC_SBAR2BASE_OFFSET,
-	.bar4_base = SOC_SBAR4BASE_OFFSET,
+	.bar0_base = ATOM_SBAR0BASE_OFFSET,
+	.bar2_base = ATOM_SBAR2BASE_OFFSET,
+	.bar4_base = ATOM_SBAR4BASE_OFFSET,
 
-	.bar2_limit = SOC_SBAR2LMT_OFFSET,
-	.bar4_limit = SOC_SBAR4LMT_OFFSET,
+	.bar2_limit = ATOM_SBAR2LMT_OFFSET,
+	.bar4_limit = ATOM_SBAR4LMT_OFFSET,
 #endif
 
-	.bar2_xlat = SOC_SBAR2XLAT_OFFSET,
-	.bar4_xlat = SOC_SBAR4XLAT_OFFSET,
+	.bar2_xlat = ATOM_SBAR2XLAT_OFFSET,
+	.bar4_xlat = ATOM_SBAR4XLAT_OFFSET,
 };
 
 static const struct ntb_reg xeon_reg = {
@@ -501,14 +501,14 @@ ntb_attach(device_t device)
 	ntb->features = p->features;
 	ntb->b2b_mw_idx = B2B_MW_DISABLED;
 
-	/* Heartbeat timer for NTB_SOC since there is no link interrupt */
+	/* Heartbeat timer for NTB_ATOM since there is no link interrupt */
 	callout_init(&ntb->heartbeat_timer, 1);
 	callout_init(&ntb->lr_timer, 1);
 	mtx_init(&ntb->db_mask_lock, "ntb hw bits", NULL, MTX_SPIN);
 	mtx_init(&ntb->ctx_lock, "ntb ctx", NULL, MTX_SPIN);
 
-	if (ntb->type == NTB_SOC)
-		error = ntb_detect_soc(ntb);
+	if (ntb->type == NTB_ATOM)
+		error = ntb_detect_atom(ntb);
 	else
 		error = ntb_detect_xeon(ntb);
 	if (error)
@@ -519,8 +519,8 @@ ntb_attach(device_t device)
 	error = ntb_map_pci_bars(ntb);
 	if (error)
 		goto out;
-	if (ntb->type == NTB_SOC)
-		error = ntb_soc_init_dev(ntb);
+	if (ntb->type == NTB_ATOM)
+		error = ntb_atom_init_dev(ntb);
 	else
 		error = ntb_xeon_init_dev(ntb);
 	if (error)
@@ -965,14 +965,14 @@ ntb_teardown_interrupts(struct ntb_softc *ntb)
 }
 
 /*
- * Doorbell register and mask are 64-bit on SoC, 16-bit on Xeon.  Abstract it
+ * Doorbell register and mask are 64-bit on Atom, 16-bit on Xeon.  Abstract it
  * out to make code clearer.
  */
 static inline uint64_t
 db_ioread(struct ntb_softc *ntb, uint64_t regoff)
 {
 
-	if (ntb->type == NTB_SOC)
+	if (ntb->type == NTB_ATOM)
 		return (ntb_reg_read(8, regoff));
 
 	KASSERT(ntb->type == NTB_XEON, ("bad ntb type"));
@@ -992,7 +992,7 @@ db_iowrite(struct ntb_softc *ntb, uint64_t regoff, uint64_t val)
 	if (regoff == ntb->self_reg->db_mask)
 		DB_MASK_ASSERT(ntb, MA_OWNED);
 
-	if (ntb->type == NTB_SOC) {
+	if (ntb->type == NTB_ATOM) {
 		ntb_reg_write(8, regoff, val);
 		return;
 	}
@@ -1138,8 +1138,8 @@ static void
 ntb_detect_max_mw(struct ntb_softc *ntb)
 {
 
-	if (ntb->type == NTB_SOC) {
-		ntb->mw_count = SOC_MW_COUNT;
+	if (ntb->type == NTB_ATOM) {
+		ntb->mw_count = ATOM_MW_COUNT;
 		return;
 	}
 
@@ -1185,19 +1185,19 @@ ntb_detect_xeon(struct ntb_softc *ntb)
 }
 
 static int
-ntb_detect_soc(struct ntb_softc *ntb)
+ntb_detect_atom(struct ntb_softc *ntb)
 {
 	uint32_t ppd, conn_type;
 
 	ppd = pci_read_config(ntb->device, NTB_PPD_OFFSET, 4);
 	ntb->ppd = ppd;
 
-	if ((ppd & SOC_PPD_DEV_TYPE) != 0)
+	if ((ppd & ATOM_PPD_DEV_TYPE) != 0)
 		ntb->dev_type = NTB_DEV_DSD;
 	else
 		ntb->dev_type = NTB_DEV_USD;
 
-	conn_type = (ppd & SOC_PPD_CONN_TYPE) >> 8;
+	conn_type = (ppd & ATOM_PPD_CONN_TYPE) >> 8;
 	switch (conn_type) {
 	case NTB_CONN_B2B:
 		ntb->conn_type = conn_type;
@@ -1274,62 +1274,62 @@ ntb_xeon_init_dev(struct ntb_softc *ntb)
 }
 
 static int
-ntb_soc_init_dev(struct ntb_softc *ntb)
+ntb_atom_init_dev(struct ntb_softc *ntb)
 {
 
 	KASSERT(ntb->conn_type == NTB_CONN_B2B,
 	    ("Unsupported NTB configuration (%d)\n", ntb->conn_type));
 
-	ntb->spad_count		 = SOC_SPAD_COUNT;
-	ntb->db_count		 = SOC_DB_COUNT;
-	ntb->db_vec_count	 = SOC_DB_MSIX_VECTOR_COUNT;
-	ntb->db_vec_shift	 = SOC_DB_MSIX_VECTOR_SHIFT;
+	ntb->spad_count		 = ATOM_SPAD_COUNT;
+	ntb->db_count		 = ATOM_DB_COUNT;
+	ntb->db_vec_count	 = ATOM_DB_MSIX_VECTOR_COUNT;
+	ntb->db_vec_shift	 = ATOM_DB_MSIX_VECTOR_SHIFT;
 	ntb->db_valid_mask	 = (1ull << ntb->db_count) - 1;
 
-	ntb->reg = &soc_reg;
-	ntb->self_reg = &soc_pri_reg;
-	ntb->peer_reg = &soc_b2b_reg;
-	ntb->xlat_reg = &soc_sec_xlat;
+	ntb->reg = &atom_reg;
+	ntb->self_reg = &atom_pri_reg;
+	ntb->peer_reg = &atom_b2b_reg;
+	ntb->xlat_reg = &atom_sec_xlat;
 
 	/*
-	 * FIXME - MSI-X bug on early SOC HW, remove once internal issue is
+	 * FIXME - MSI-X bug on early Atom HW, remove once internal issue is
 	 * resolved.  Mask transaction layer internal parity errors.
 	 */
 	pci_write_config(ntb->device, 0xFC, 0x4, 4);
 
-	configure_soc_secondary_side_bars(ntb);
+	configure_atom_secondary_side_bars(ntb);
 
 	/* Enable Bus Master and Memory Space on the secondary side */
-	ntb_reg_write(2, SOC_PCICMD_OFFSET,
+	ntb_reg_write(2, ATOM_PCICMD_OFFSET,
 	    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
 
 	/* Initiate PCI-E link training */
 	ntb_link_enable(ntb, NTB_SPEED_AUTO, NTB_WIDTH_AUTO);
 
-	callout_reset(&ntb->heartbeat_timer, 0, soc_link_hb, ntb);
+	callout_reset(&ntb->heartbeat_timer, 0, atom_link_hb, ntb);
 
 	return (0);
 }
 
-/* XXX: Linux driver doesn't seem to do any of this for SoC. */
+/* XXX: Linux driver doesn't seem to do any of this for Atom. */
 static void
-configure_soc_secondary_side_bars(struct ntb_softc *ntb)
+configure_atom_secondary_side_bars(struct ntb_softc *ntb)
 {
 
 	if (ntb->dev_type == NTB_DEV_USD) {
-		ntb_reg_write(8, SOC_PBAR2XLAT_OFFSET,
+		ntb_reg_write(8, ATOM_PBAR2XLAT_OFFSET,
 		    XEON_B2B_BAR2_DSD_ADDR64);
-		ntb_reg_write(8, SOC_PBAR4XLAT_OFFSET,
+		ntb_reg_write(8, ATOM_PBAR4XLAT_OFFSET,
 		    XEON_B2B_BAR4_DSD_ADDR64);
-		ntb_reg_write(8, SOC_MBAR23_OFFSET, XEON_B2B_BAR2_USD_ADDR64);
-		ntb_reg_write(8, SOC_MBAR45_OFFSET, XEON_B2B_BAR4_USD_ADDR64);
+		ntb_reg_write(8, ATOM_MBAR23_OFFSET, XEON_B2B_BAR2_USD_ADDR64);
+		ntb_reg_write(8, ATOM_MBAR45_OFFSET, XEON_B2B_BAR4_USD_ADDR64);
 	} else {
-		ntb_reg_write(8, SOC_PBAR2XLAT_OFFSET,
+		ntb_reg_write(8, ATOM_PBAR2XLAT_OFFSET,
 		    XEON_B2B_BAR2_USD_ADDR64);
-		ntb_reg_write(8, SOC_PBAR4XLAT_OFFSET,
+		ntb_reg_write(8, ATOM_PBAR4XLAT_OFFSET,
 		    XEON_B2B_BAR4_USD_ADDR64);
-		ntb_reg_write(8, SOC_MBAR23_OFFSET, XEON_B2B_BAR2_DSD_ADDR64);
-		ntb_reg_write(8, SOC_MBAR45_OFFSET, XEON_B2B_BAR4_DSD_ADDR64);
+		ntb_reg_write(8, ATOM_MBAR23_OFFSET, XEON_B2B_BAR2_DSD_ADDR64);
+		ntb_reg_write(8, ATOM_MBAR45_OFFSET, XEON_B2B_BAR4_DSD_ADDR64);
 	}
 }
 
@@ -1542,28 +1542,28 @@ link_is_up(struct ntb_softc *ntb)
 		return ((ntb->lnk_sta & NTB_LINK_STATUS_ACTIVE) != 0);
 	}
 
-	KASSERT(ntb->type == NTB_SOC, ("ntb type"));
-	return ((ntb->ntb_ctl & SOC_CNTL_LINK_DOWN) == 0);
+	KASSERT(ntb->type == NTB_ATOM, ("ntb type"));
+	return ((ntb->ntb_ctl & ATOM_CNTL_LINK_DOWN) == 0);
 }
 
 static inline bool
-soc_link_is_err(struct ntb_softc *ntb)
+atom_link_is_err(struct ntb_softc *ntb)
 {
 	uint32_t status;
 
-	KASSERT(ntb->type == NTB_SOC, ("ntb type"));
+	KASSERT(ntb->type == NTB_ATOM, ("ntb type"));
 
-	status = ntb_reg_read(4, SOC_LTSSMSTATEJMP_OFFSET);
-	if ((status & SOC_LTSSMSTATEJMP_FORCEDETECT) != 0)
+	status = ntb_reg_read(4, ATOM_LTSSMSTATEJMP_OFFSET);
+	if ((status & ATOM_LTSSMSTATEJMP_FORCEDETECT) != 0)
 		return (true);
 
-	status = ntb_reg_read(4, SOC_IBSTERRRCRVSTS0_OFFSET);
-	return ((status & SOC_IBIST_ERR_OFLOW) != 0);
+	status = ntb_reg_read(4, ATOM_IBSTERRRCRVSTS0_OFFSET);
+	return ((status & ATOM_IBIST_ERR_OFLOW) != 0);
 }
 
-/* SOC does not have link status interrupt, poll on that platform */
+/* Atom does not have link status interrupt, poll on that platform */
 static void
-soc_link_hb(void *arg)
+atom_link_hb(void *arg)
 {
 	struct ntb_softc *ntb = arg;
 	sbintime_t timo, poll_ts;
@@ -1583,53 +1583,53 @@ soc_link_hb(void *arg)
 	if (ntb_poll_link(ntb))
 		ntb_link_event(ntb);
 
-	if (!link_is_up(ntb) && soc_link_is_err(ntb)) {
+	if (!link_is_up(ntb) && atom_link_is_err(ntb)) {
 		/* Link is down with error, proceed with recovery */
-		callout_reset(&ntb->lr_timer, 0, recover_soc_link, ntb);
+		callout_reset(&ntb->lr_timer, 0, recover_atom_link, ntb);
 		return;
 	}
 
 out:
-	callout_reset(&ntb->heartbeat_timer, timo, soc_link_hb, ntb);
+	callout_reset(&ntb->heartbeat_timer, timo, atom_link_hb, ntb);
 }
 
 static void
-soc_perform_link_restart(struct ntb_softc *ntb)
+atom_perform_link_restart(struct ntb_softc *ntb)
 {
 	uint32_t status;
 
 	/* Driver resets the NTB ModPhy lanes - magic! */
-	ntb_reg_write(1, SOC_MODPHY_PCSREG6, 0xe0);
-	ntb_reg_write(1, SOC_MODPHY_PCSREG4, 0x40);
-	ntb_reg_write(1, SOC_MODPHY_PCSREG4, 0x60);
-	ntb_reg_write(1, SOC_MODPHY_PCSREG6, 0x60);
+	ntb_reg_write(1, ATOM_MODPHY_PCSREG6, 0xe0);
+	ntb_reg_write(1, ATOM_MODPHY_PCSREG4, 0x40);
+	ntb_reg_write(1, ATOM_MODPHY_PCSREG4, 0x60);
+	ntb_reg_write(1, ATOM_MODPHY_PCSREG6, 0x60);
 
 	/* Driver waits 100ms to allow the NTB ModPhy to settle */
 	pause("ModPhy", hz / 10);
 
 	/* Clear AER Errors, write to clear */
-	status = ntb_reg_read(4, SOC_ERRCORSTS_OFFSET);
+	status = ntb_reg_read(4, ATOM_ERRCORSTS_OFFSET);
 	status &= PCIM_AER_COR_REPLAY_ROLLOVER;
-	ntb_reg_write(4, SOC_ERRCORSTS_OFFSET, status);
+	ntb_reg_write(4, ATOM_ERRCORSTS_OFFSET, status);
 
 	/* Clear unexpected electrical idle event in LTSSM, write to clear */
-	status = ntb_reg_read(4, SOC_LTSSMERRSTS0_OFFSET);
-	status |= SOC_LTSSMERRSTS0_UNEXPECTEDEI;
-	ntb_reg_write(4, SOC_LTSSMERRSTS0_OFFSET, status);
+	status = ntb_reg_read(4, ATOM_LTSSMERRSTS0_OFFSET);
+	status |= ATOM_LTSSMERRSTS0_UNEXPECTEDEI;
+	ntb_reg_write(4, ATOM_LTSSMERRSTS0_OFFSET, status);
 
 	/* Clear DeSkew Buffer error, write to clear */
-	status = ntb_reg_read(4, SOC_DESKEWSTS_OFFSET);
-	status |= SOC_DESKEWSTS_DBERR;
-	ntb_reg_write(4, SOC_DESKEWSTS_OFFSET, status);
+	status = ntb_reg_read(4, ATOM_DESKEWSTS_OFFSET);
+	status |= ATOM_DESKEWSTS_DBERR;
+	ntb_reg_write(4, ATOM_DESKEWSTS_OFFSET, status);
 
-	status = ntb_reg_read(4, SOC_IBSTERRRCRVSTS0_OFFSET);
-	status &= SOC_IBIST_ERR_OFLOW;
-	ntb_reg_write(4, SOC_IBSTERRRCRVSTS0_OFFSET, status);
+	status = ntb_reg_read(4, ATOM_IBSTERRRCRVSTS0_OFFSET);
+	status &= ATOM_IBIST_ERR_OFLOW;
+	ntb_reg_write(4, ATOM_IBSTERRRCRVSTS0_OFFSET, status);
 
 	/* Releases the NTB state machine to allow the link to retrain */
-	status = ntb_reg_read(4, SOC_LTSSMSTATEJMP_OFFSET);
-	status &= ~SOC_LTSSMSTATEJMP_FORCEDETECT;
-	ntb_reg_write(4, SOC_LTSSMSTATEJMP_OFFSET, status);
+	status = ntb_reg_read(4, ATOM_LTSSMSTATEJMP_OFFSET);
+	status &= ~ATOM_LTSSMSTATEJMP_FORCEDETECT;
+	ntb_reg_write(4, ATOM_LTSSMSTATEJMP_OFFSET, status);
 }
 
 /*
@@ -1758,9 +1758,9 @@ ntb_link_enable(struct ntb_softc *ntb, enum ntb_speed s __unused,
 {
 	uint32_t cntl;
 
-	if (ntb->type == NTB_SOC) {
+	if (ntb->type == NTB_ATOM) {
 		pci_write_config(ntb->device, NTB_PPD_OFFSET,
-		    ntb->ppd | SOC_PPD_INIT_LINK, 4);
+		    ntb->ppd | ATOM_PPD_INIT_LINK, 4);
 		return (0);
 	}
 
@@ -1812,13 +1812,13 @@ ntb_link_disable(struct ntb_softc *ntb)
 }
 
 static void
-recover_soc_link(void *arg)
+recover_atom_link(void *arg)
 {
 	struct ntb_softc *ntb = arg;
 	unsigned speed, width, oldspeed, oldwidth;
 	uint32_t status32;
 
-	soc_perform_link_restart(ntb);
+	atom_perform_link_restart(ntb);
 
 	/*
 	 * There is a potential race between the 2 NTB devices recovering at
@@ -1826,14 +1826,14 @@ recover_soc_link(void *arg)
 	 * and the driver will be stuck in this loop forever.  Add a random
 	 * interval to the recovery time to prevent this race.
 	 */
-	status32 = arc4random() % SOC_LINK_RECOVERY_TIME;
-	pause("Link", (SOC_LINK_RECOVERY_TIME + status32) * hz / 1000);
+	status32 = arc4random() % ATOM_LINK_RECOVERY_TIME;
+	pause("Link", (ATOM_LINK_RECOVERY_TIME + status32) * hz / 1000);
 
-	if (soc_link_is_err(ntb))
+	if (atom_link_is_err(ntb))
 		goto retry;
 
 	status32 = ntb_reg_read(4, ntb->reg->ntb_ctl);
-	if ((status32 & SOC_CNTL_LINK_DOWN) != 0)
+	if ((status32 & ATOM_CNTL_LINK_DOWN) != 0)
 		goto out;
 
 	status32 = ntb_reg_read(4, ntb->reg->lnk_sta);
@@ -1846,12 +1846,12 @@ recover_soc_link(void *arg)
 		goto retry;
 
 out:
-	callout_reset(&ntb->heartbeat_timer, NTB_HB_TIMEOUT * hz, soc_link_hb,
+	callout_reset(&ntb->heartbeat_timer, NTB_HB_TIMEOUT * hz, atom_link_hb,
 	    ntb);
 	return;
 
 retry:
-	callout_reset(&ntb->lr_timer, NTB_HB_TIMEOUT * hz, recover_soc_link,
+	callout_reset(&ntb->lr_timer, NTB_HB_TIMEOUT * hz, recover_atom_link,
 	    ntb);
 }
 
@@ -1864,7 +1864,7 @@ ntb_poll_link(struct ntb_softc *ntb)
 	uint32_t ntb_cntl;
 	uint16_t reg_val;
 
-	if (ntb->type == NTB_SOC) {
+	if (ntb->type == NTB_ATOM) {
 		ntb_cntl = ntb_reg_read(4, ntb->reg->ntb_ctl);
 		if (ntb_cntl == ntb->ntb_ctl)
 			return (false);
