@@ -744,7 +744,18 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	 */
 	switch (req) {
 	case PT_TRACE_ME:
-		/* Always legal. */
+		/*
+		 * Always legal, when there is a parent process which
+		 * could trace us.  Otherwise, reject.
+		 */
+		if ((p->p_flag & P_TRACED) != 0) {
+			error = EBUSY;
+			goto fail;
+		}
+		if (p->p_pptr == initproc) {
+			error = EPERM;
+			goto fail;
+		}
 		break;
 
 	case PT_ATTACH:
