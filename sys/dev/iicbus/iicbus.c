@@ -135,6 +135,7 @@ iicbus_detach(device_t dev)
 
 	iicbus_reset(dev, IIC_FASTEST, 0, NULL);
 	bus_generic_detach(dev);
+	device_delete_children(dev);
 	mtx_destroy(&sc->lock);
 	return (0);
 }
