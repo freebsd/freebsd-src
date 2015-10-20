@@ -72,6 +72,18 @@ enum ntb_device_type {
 	NTB_SOC
 };
 
+/* ntb_conn_type are hardware numbers, cannot change. */
+enum ntb_conn_type {
+	NTB_CONN_TRANSPARENT = 0,
+	NTB_CONN_B2B = 1,
+	NTB_CONN_RP = 2,
+};
+
+enum ntb_b2b_direction {
+	NTB_DEV_USD = 0,
+	NTB_DEV_DSD = 1,
+};
+
 enum ntb_bar {
 	NTB_CONFIG_BAR = 0,
 	NTB_B2B_BAR_1,
@@ -173,9 +185,9 @@ struct ntb_softc {
 #define CTX_ASSERT(sc,f)	mtx_assert(&(sc)->ctx_lock, (f))
 	struct mtx		ctx_lock;
 
-	uint32_t ppd;
-	uint8_t conn_type;
-	uint8_t dev_type;
+	uint32_t		ppd;
+	enum ntb_conn_type	conn_type;
+	enum ntb_b2b_direction	dev_type;
 
 	/* Offset of peer bar0 in B2B BAR */
 	uint64_t			b2b_off;
