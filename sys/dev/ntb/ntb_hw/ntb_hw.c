@@ -1759,12 +1759,7 @@ recover_soc_link(void *arg)
 	status32 = arc4random() % SOC_LINK_RECOVERY_TIME;
 	pause("Link", (SOC_LINK_RECOVERY_TIME + status32) * hz / 1000);
 
-	status32 = ntb_reg_read(4, SOC_LTSSMSTATEJMP_OFFSET);
-	if ((status32 & SOC_LTSSMSTATEJMP_FORCEDETECT) != 0)
-		goto retry;
-
-	status32 = ntb_reg_read(4, SOC_IBSTERRRCRVSTS0_OFFSET);
-	if ((status32 & SOC_IBIST_ERR_OFLOW) != 0)
+	if (soc_link_is_err(ntb))
 		goto retry;
 
 	status32 = ntb_reg_read(4, ntb->reg->ntb_ctl);
