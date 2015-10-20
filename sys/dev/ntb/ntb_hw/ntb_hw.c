@@ -1481,8 +1481,11 @@ static inline bool
 link_is_up(struct ntb_softc *ntb)
 {
 
-	if (ntb->type == NTB_XEON)
+	if (ntb->type == NTB_XEON) {
+		if (ntb->conn_type == NTB_CONN_TRANSPARENT)
+			return (true);
 		return ((ntb->lnk_sta & NTB_LINK_STATUS_ACTIVE) != 0);
+	}
 
 	KASSERT(ntb->type == NTB_SOC, ("ntb type"));
 	return ((ntb->ntb_ctl & SOC_CNTL_LINK_DOWN) == 0);
