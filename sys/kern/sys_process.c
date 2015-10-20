@@ -96,7 +96,7 @@ struct ptrace_lwpinfo32 {
 	sigset_t	pl_siglist;	/* LWP pending signal */
 	struct siginfo32 pl_siginfo;	/* siginfo for signal */
 	char	pl_tdname[MAXCOMLEN + 1];	/* LWP name. */
-	int	pl_child_pid;		/* New child pid */
+	pid_t	pl_child_pid;		/* New child pid */
 	u_int		pl_syscall_code;
 	u_int		pl_syscall_narg;
 };
