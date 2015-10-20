@@ -221,11 +221,9 @@ detach:
 				info->pr_why = S_SCX;
 				info->curthread->in_syscall = 0;
 				break;
-			} else {
-				errx(1,
-		   "pl_flags %x contains neither PL_FLAG_SCE nor PL_FLAG_SCX",
-				    lwpinfo.pl_flags);
 			}
+			/* We didn't send the SIGTRAP, just forward it. */
+			/* FALLTHROUGH */
 		default:
 			info->pr_why = S_SIG;
 			info->pr_data = WSTOPSIG(waitval);
