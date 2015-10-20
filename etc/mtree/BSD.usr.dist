@@ -45,12 +45,6 @@
             ..
         ..
     ..
-    lib32
-        dtrace
-        ..
-        i18n
-        ..
-    ..
     libcheri
     ..
     libdata

@@ -3964,9 +3964,34 @@ OLD_FILES+=usr/share/man/man5/keymap.5.gz
 OLD_FILES+=usr/share/man/man8/moused.8.gz
 .endif
 
-#.if ${MK_LIB32} == no
-# to be filled in
-#.endif
+.if ${MK_LIB32} == no
+OLD_FILES+=etc/mtree/BSD.lib32.dist
+OLD_FILES+=libexec/ld-elf32.so.1
+.  if exists(${DESTDIR}/usr/lib32)
+LIB32_DIRS!=find ${DESTDIR}/usr/lib32 -type d \
+    | sed -e 's,^${DESTDIR}/,,'; echo
+LIB32_FILES!=find ${DESTDIR}/usr/lib32 \! -type d \
+    \! -name "lib*.so*" | sed -e 's,^${DESTDIR}/,,'; echo
+LIB32_LIBS!=find ${DESTDIR}/usr/lib32 \! -type d \
+    -name "lib*.so*" | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_DIRS+=${LIB32_DIRS}
+OLD_FILES+=${LIB32_FILES}
+OLD_LIBS+=${LIB32_LIBS}
+.  endif
+.  if ${MK_DEBUG_FILES} == no
+.    if exists(${DESTDIR}/usr/lib/debug/usr/lib32)
+DEBUG_LIB32_DIRS!=find ${DESTDIR}/usr/lib/debug/usr/lib32 -type d \
+    | sed -e 's,^${DESTDIR}/,,'; echo
+DEBUG_LIB32_FILES!=find ${DESTDIR}/usr/lib/debug/usr/lib32 \! -type d \
+    \! -name "lib*.so*" | sed -e 's,^${DESTDIR}/,,'; echo
+DEBUG_LIB32_LIBS!=find ${DESTDIR}/usr/lib/debug/usr/lib32 \! -type d \
+    -name "lib*.so*" | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_DIRS+=${DEBUG_LIB32_DIRS}
+OLD_FILES+=${DEBUG_LIB32_FILES}
+OLD_LIBS+=${DEBUG_LIB32_LIBS}
+.    endif
+.  endif
+.endif
 
 .if ${MK_LIBCPLUSPLUS} == no
 OLD_LIBS+=lib/libcxxrt.so.1
