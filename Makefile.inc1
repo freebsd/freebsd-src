@@ -560,6 +560,16 @@ _worldtmp:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${WORLDTMP}/usr/lib >/dev/null
 .endif
+.if ${MK_LIB32} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+	    -p ${WORLDTMP}/usr >/dev/null
+.if ${MK_DEBUG_FILES} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+	    -p ${WORLDTMP}/legacy/usr/lib/debug/usr >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+	    -p ${WORLDTMP}/usr/lib/debug/usr >/dev/null
+.endif
+.endif
 .if ${MK_TESTS} != "no"
 	mkdir -p ${WORLDTMP}${TESTSBASE}
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
@@ -653,9 +663,13 @@ build32:
 	    -p ${LIB32TMP}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${LIB32TMP}/usr/include >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+	    -p ${LIB32TMP}/usr >/dev/null
 .if ${MK_DEBUG_FILES} != "no"
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${LIB32TMP}/usr/lib >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+	    -p ${LIB32TMP}/usr/lib/debug/usr >/dev/null
 .endif
 	mkdir -p ${WORLDTMP}
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
@@ -901,6 +915,14 @@ distributeworld installworld: _installcheck_world
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib >/dev/null
 .endif
+.if ${MK_LIB32} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
+.if ${MK_DEBUG_FILES} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib/debug/usr >/dev/null
+.endif
+.endif
 .if ${MK_TESTS} != "no" && ${dist} == "tests"
 	-mkdir -p ${DESTDIR}/${DISTDIR}/${dist}${TESTSBASE}
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
@@ -917,6 +939,10 @@ distributeworld installworld: _installcheck_world
 	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
 	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.include.dist | \
 	    sed -e 's#^\./#./${dist}/usr/include/#' >> ${METALOG}
+.if ${MK_LIB32} != "no"
+	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.lib32.dist | \
+	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
+.endif
 .endif
 .endfor
 	-mkdir ${DESTDIR}/${DISTDIR}/base
@@ -2241,6 +2267,10 @@ _xi-mtree:
 	    -p ${XDDESTDIR}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${XDDESTDIR}/usr/include >/dev/null
+.if ${MK_LIB32} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.lib32.dist \
+	    -p ${XDDESTDIR}/usr >/dev/null
+.endif
 .if ${MK_TESTS} != "no"
 	mkdir -p ${XDDESTDIR}${TESTSBASE}
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
