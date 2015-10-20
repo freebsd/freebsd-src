@@ -105,6 +105,8 @@ SYSCTL_UINT(_hw_ntb, OID_AUTO, max_num_clients, CTLFLAG_RDTUN,
 
 STAILQ_HEAD(ntb_queue_list, ntb_queue_entry);
 
+typedef unsigned ntb_q_idx_t;
+
 struct ntb_queue_entry {
 	/* ntb_queue list reference */
 	STAILQ_ENTRY(ntb_queue_entry) entry;
@@ -117,11 +119,11 @@ struct ntb_queue_entry {
 
 	struct ntb_transport_qp		*qp;
 	struct ntb_payload_header	*x_hdr;
-	unsigned	index;
+	ntb_q_idx_t	index;
 };
 
 struct ntb_rx_info {
-	unsigned int entry;
+	ntb_q_idx_t	entry;
 };
 
 struct ntb_transport_qp {
@@ -143,8 +145,8 @@ struct ntb_transport_qp {
 	struct mtx		ntb_tx_free_q_lock;
 	void			*tx_mw;
 	bus_addr_t		tx_mw_phys;
-	uint64_t		tx_index;
-	uint64_t		tx_max_entry;
+	ntb_q_idx_t		tx_index;
+	ntb_q_idx_t		tx_max_entry;
 	uint64_t		tx_max_frame;
 
 	void (*rx_handler)(struct ntb_transport_qp *qp, void *qp_data,
@@ -157,8 +159,8 @@ struct ntb_transport_qp {
 	struct task		rx_completion_task;
 	struct task		rxc_db_work;
 	void			*rx_buff;
-	uint64_t		rx_index;
-	uint64_t		rx_max_entry;
+	ntb_q_idx_t		rx_index;
+	ntb_q_idx_t		rx_max_entry;
 	uint64_t		rx_max_frame;
 
 	void (*event_handler)(void *data, enum ntb_link_event status);
@@ -178,6 +180,7 @@ struct ntb_transport_qp {
 	uint64_t		tx_bytes;
 	uint64_t		tx_pkts;
 	uint64_t		tx_ring_full;
+	uint64_t		tx_err_no_buf;
 };
 
 struct ntb_queue_handlers {
@@ -842,7 +845,8 @@ ntb_transport_tx_enqueue(struct ntb_transport_qp *qp, void *cb, void *data,
 	entry = ntb_list_rm(&qp->ntb_tx_free_q_lock, &qp->tx_free_q);
 	if (entry == NULL) {
 		CTR0(KTR_NTB, "TX: could not get entry from tx_free_q");
-		return (ENOMEM);
+		qp->tx_err_no_buf++;
+		return (EBUSY);
 	}
 	CTR1(KTR_NTB, "TX: got entry %p from tx_free_q", entry);
 
@@ -961,7 +965,7 @@ static void
 ntb_transport_rxc_db(void *arg, int pending __unused)
 {
 	struct ntb_transport_qp *qp = arg;
-	uint64_t i;
+	ntb_q_idx_t i;
 	int rc;
 
 	/*
@@ -1346,7 +1350,7 @@ ntb_transport_setup_qp_mw(struct ntb_transport_ctx *nt, unsigned int qp_num)
 	struct ntb_transport_qp *qp = &nt->qp_vec[qp_num];
 	struct ntb_transport_mw *mw;
 	void *offset;
-	uint64_t i;
+	ntb_q_idx_t i;
 	size_t rx_size;
 	unsigned num_qps_mw, mw_num, mw_count;
 
@@ -1473,7 +1477,8 @@ ntb_qp_link_down_reset(struct ntb_transport_qp *qp)
 	qp->rx_ring_empty = 0;
 	qp->tx_ring_full = 0;
 
-	qp->rx_err_no_buf = qp->rx_err_oflow = qp->rx_err_ver = 0;
+	qp->rx_err_no_buf = qp->tx_err_no_buf = 0;
+	qp->rx_err_oflow = qp->rx_err_ver = 0;
 }
 
 static void
