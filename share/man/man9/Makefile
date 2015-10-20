@@ -57,6 +57,7 @@ MAN=	accept_filter.9 \
 	contigmalloc.9 \
 	copy.9 \
 	counter.9 \
+	cpuset.9 \
 	cr_cansee.9 \
 	critical_enter.9 \
 	cr_seeothergids.9 \
@@ -636,6 +637,31 @@ MLINKS+=counter.9 counter_u64_alloc.9 \
 	counter.9 counter_u64_add_protected.9 \
 	counter.9 counter_u64_fetch.9 \
 	counter.9 counter_u64_zero.9
+MLINKS+=cpuset.9 CPUSET_T_INITIALIZER.9 \
+	cpuset.9 CPUSET_FSET.9 \
+	cpuset.9 CPU_CLR.9 \
+	cpuset.9 CPU_COPY.9 \
+	cpuset.9 CPU_ISSET.9 \
+	cpuset.9 CPU_SET.9 \
+	cpuset.9 CPU_ZERO.9 \
+	cpuset.9 CPU_FILL.9 \
+	cpuset.9 CPU_SETOF.9 \
+	cpuset.9 CPU_EMPTY.9 \
+	cpuset.9 CPU_ISFULLSET.9 \
+	cpuset.9 CPU_FFS.9 \
+	cpuset.9 CPU_COUNT.9 \
+	cpuset.9 CPU_SUBSET.9 \
+	cpuset.9 CPU_OVERLAP.9 \
+	cpuset.9 CPU_CMP.9 \
+	cpuset.9 CPU_OR.9 \
+	cpuset.9 CPU_AND.9 \
+	cpuset.9 CPU_NAND.9 \
+	cpuset.9 CPU_CLR_ATOMIC.9 \
+	cpuset.9 CPU_SET_ATOMIC.9 \
+	cpuset.9 CPU_SET_ATOMIC_ACQ.9 \
+	cpuset.9 CPU_AND_ATOMIC.9 \
+	cpuset.9 CPU_OR_ATOMIC.9 \
+	cpuset.9 CPU_COPY_STORE_REL.9
 MLINKS+=critical_enter.9 critical.9 \
 	critical_enter.9 critical_exit.9
 MLINKS+=crypto.9 crypto_dispatch.9 \
