@@ -554,10 +554,10 @@ dispatch_irq:
 	arm_irq_dispatch(isrc, tf);
 
 next_irq:
-//      arm_irq_memory_barrier(irq); /* XXX */
-//      irq_active_reg = gic_c_read_4(sc, GICC_IAR);
-//      irq = irq_active_reg & 0x3FF;
-	if (0 && irq < sc->nirqs)
+	arm_irq_memory_barrier(irq);
+	irq_active_reg = gic_c_read_4(sc, GICC_IAR);
+	irq = irq_active_reg & 0x3FF;
+	if (irq < sc->nirqs)
 		goto dispatch_irq;
 
 	return (FILTER_HANDLED);
