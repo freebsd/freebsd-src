@@ -797,7 +797,7 @@ ntb_transport_link_up(struct ntb_transport_qp *qp)
 
 	qp->client_ready = true;
 	if (bootverbose)
-		device_printf(ntb_get_device(qp->ntb), "qp client ready\n");
+		if_printf(qp->transport->ifp, "qp client ready\n");
 
 	if (qp->transport->link_is_up)
 		callout_reset(&qp->link_work, 0, ntb_qp_link_work, qp);
@@ -1166,11 +1166,11 @@ ntb_transport_event_callback(void *data)
 
 	if (ntb_link_is_up(nt->ntb, NULL, NULL)) {
 		if (bootverbose)
-			device_printf(ntb_get_device(nt->ntb), "HW link up\n");
+			if_printf(nt->ifp, "HW link up\n");
 		callout_reset(&nt->link_work, 0, ntb_transport_link_work, nt);
 	} else {
 		if (bootverbose)
-			device_printf(ntb_get_device(nt->ntb), "HW link down\n");
+			if_printf(nt->ifp, "HW link down\n");
 		ntb_transport_link_cleanup(nt);
 	}
 }
@@ -1233,7 +1233,7 @@ ntb_transport_link_work(void *arg)
 
 	nt->link_is_up = true;
 	if (bootverbose)
-		device_printf(ntb_get_device(ntb), "transport link up\n");
+		if_printf(nt->ifp, "transport link up\n");
 
 	for (i = 0; i < nt->qp_count; i++) {
 		qp = &nt->qp_vec[i];
@@ -1294,7 +1294,7 @@ ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw, unsigned size)
 	 * with the Linux driver.
 	 */
 	if (mw->dma_addr % mw->xlat_align != 0) {
-		device_printf(ntb_get_device(nt->ntb),
+		if_printf(nt->ifp,
 		    "DMA memory 0x%jx not aligned to BAR size 0x%x\n",
 		    (uintmax_t)mw->dma_addr, size);
 		ntb_free_mw(nt, num_mw);
@@ -1304,8 +1304,7 @@ ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw, unsigned size)
 	/* Notify HW the memory location of the receive buffer */
 	rc = ntb_mw_set_trans(nt->ntb, num_mw, mw->dma_addr, mw->xlat_size);
 	if (rc) {
-		device_printf(ntb_get_device(nt->ntb),
-		    "Unable to set mw%d translation", num_mw);
+		if_printf(nt->ifp, "Unable to set mw%d translation", num_mw);
 		ntb_free_mw(nt, num_mw);
 		return (rc);
 	}
@@ -1397,7 +1396,7 @@ ntb_qp_link_work(void *arg)
 	/* See if the remote side is up */
 	if ((val & (1ull << qp->qp_num)) != 0) {
 		if (bootverbose)
-			device_printf(ntb_get_device(ntb), "qp link up\n");
+			if_printf(nt->ifp, "qp link up\n");
 		qp->link_is_up = true;
 
 		if (qp->event_handler != NULL)
