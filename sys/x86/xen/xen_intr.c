@@ -52,8 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/intr_machdep.h>
-#include <x86/apicvar.h>
-#include <x86/apicreg.h>
 #include <machine/smp.h>
 #include <machine/stdarg.h>
 
