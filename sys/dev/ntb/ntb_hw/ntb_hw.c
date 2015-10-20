@@ -427,7 +427,7 @@ SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, usd_bar4_addr32, CTLFLAG_RDTUN,
     &xeon_b2b_usd_addr.bar4_addr32, 0, "See usd_bar2_addr64, but BAR4 "
     "(split-BAR mode).");
 SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, usd_bar5_addr32, CTLFLAG_RDTUN,
-    &xeon_b2b_usd_addr.bar4_addr32, 0, "See usd_bar2_addr64, but BAR5 "
+    &xeon_b2b_usd_addr.bar5_addr32, 0, "See usd_bar2_addr64, but BAR5 "
     "(split-BAR mode).");
 
 SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, dsd_bar2_addr64, CTLFLAG_RDTUN,
@@ -441,7 +441,7 @@ SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, dsd_bar4_addr32, CTLFLAG_RDTUN,
     &xeon_b2b_dsd_addr.bar4_addr32, 0, "See dsd_bar2_addr64, but BAR4 "
     "(split-BAR mode).");
 SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, dsd_bar5_addr32, CTLFLAG_RDTUN,
-    &xeon_b2b_dsd_addr.bar4_addr32, 0, "See dsd_bar2_addr64, but BAR5 "
+    &xeon_b2b_dsd_addr.bar5_addr32, 0, "See dsd_bar2_addr64, but BAR5 "
     "(split-BAR mode).");
 
 /*
