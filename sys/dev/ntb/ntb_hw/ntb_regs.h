@@ -149,13 +149,6 @@
 #define SOC_PPD_CONN_TYPE	0x0300
 #define SOC_PPD_DEV_TYPE	0x1000
 
-#define NTB_CONN_TRANSPARENT 	0
-#define NTB_CONN_B2B 		1
-#define NTB_CONN_RP 		2
-
-#define NTB_DEV_DSD	1
-#define NTB_DEV_USD	0
-
 /* All addresses are in low 32-bit space so 32-bit BARs can function */
 #define XEON_B2B_BAR0_USD_ADDR		0x1000000000000000ull
 #define XEON_B2B_BAR2_USD_ADDR64	0x2000000000000000ull
