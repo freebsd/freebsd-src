@@ -443,7 +443,7 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 }
 
 #ifdef COMPAT_FREEBSD32
-static int      
+static int
 ptrace_vm_entry32(struct thread *td, struct proc *p,
     struct ptrace_vm_entry32 *pve32)
 {
