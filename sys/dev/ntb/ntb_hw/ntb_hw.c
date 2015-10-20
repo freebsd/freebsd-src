@@ -265,7 +265,8 @@ static inline bool bar_is_64bit(struct ntb_softc *, enum ntb_bar);
 static inline void bar_get_xlat_params(struct ntb_softc *, enum ntb_bar,
     uint32_t *base, uint32_t *xlat, uint32_t *lmt);
 static int ntb_map_pci_bars(struct ntb_softc *ntb);
-static void print_map_success(struct ntb_softc *, struct ntb_pci_bar_info *);
+static void print_map_success(struct ntb_softc *, struct ntb_pci_bar_info *,
+    const char *);
 static int map_mmr_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar);
 static int map_memory_window_bar(struct ntb_softc *ntb,
     struct ntb_pci_bar_info *bar);
@@ -676,11 +677,16 @@ out:
 }
 
 static void
-print_map_success(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
+print_map_success(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar,
+    const char *kind)
 {
 
-	device_printf(ntb->device, "Bar size = %lx, v %p, p %p\n",
-	    bar->size, bar->vbase, (void *)(bar->pbase));
+	device_printf(ntb->device,
+	    "Mapped BAR%d v:[%p-%p] p:[%p-%p] (0x%jx bytes) (%s)\n",
+	    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
+	    (char *)bar->vbase + bar->size - 1,
+	    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1),
+	    (uintmax_t)bar->size, kind);
 }
 
 static int
@@ -693,7 +699,7 @@ map_mmr_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 		return (ENXIO);
 
 	save_bar_parameters(bar);
-	print_map_success(ntb, bar);
+	print_map_success(ntb, bar, "mmr");
 	return (0);
 }
 
@@ -749,12 +755,23 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 	/* Mark bar region as write combining to improve performance. */
 	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size,
 	    VM_MEMATTR_WRITE_COMBINING);
-	if (rc != 0) {
+	print_map_success(ntb, bar, "mw");
+	if (rc == 0)
 		device_printf(ntb->device,
-		    "unable to mark bar as WRITE_COMBINING\n");
-		return (rc);
-	}
-	print_map_success(ntb, bar);
+		    "Marked BAR%d v:[%p-%p] p:[%p-%p] as "
+		    "WRITE_COMBINING.\n",
+		    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
+		    (char *)bar->vbase + bar->size - 1,
+		    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1));
+	else
+		device_printf(ntb->device,
+		    "Unable to mark BAR%d v:[%p-%p] p:[%p-%p] as "
+		    "WRITE_COMBINING: %d\n",
+		    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
+		    (char *)bar->vbase + bar->size - 1,
+		    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1),
+		    rc);
+		/* Proceed anyway */
 	return (0);
 }
 
