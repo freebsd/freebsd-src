@@ -530,6 +530,8 @@ ntb_attach(device_t device)
 
 	pci_enable_busmaster(ntb->device);
 
+	device_printf(ntb->device, "NTB device registered\n");
+
 out:
 	if (error != 0)
 		ntb_detach(device);
@@ -560,6 +562,8 @@ ntb_detach(device_t device)
 	 */
 	ntb_detect_max_mw(ntb);
 	ntb_unmap_pci_bar(ntb);
+
+	device_printf(ntb->device, "NTB device unregistered\n");
 
 	return (0);
 }
