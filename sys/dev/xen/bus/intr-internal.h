@@ -60,4 +60,34 @@ struct xenisrc {
 	volatile u_int		xi_refcount;
 };
 
+/***************** Functions called by the architecture code *****************/
+
+extern void	xen_intr_resume(void);
+extern void	xen_intr_enable_source(struct xenisrc *isrc);
+extern void	xen_intr_disable_source(struct xenisrc *isrc);
+extern void	xen_intr_enable_intr(struct xenisrc *isrc);
+extern void	xen_intr_disable_intr(struct xenisrc *isrc);
+extern int	xen_intr_assign_cpu(struct xenisrc *isrc, u_int to_cpu);
+
+/******************* Functions implemented by each architecture **************/
+
+#if 0
+/*
+ * These are sample prototypes, the architecture should include its own in
+ * <machine/xen/arch-intr.h>.  The architecture may implement these as inline.
+ */
+void	xen_arch_intr_init(void);
+u_long	xen_arch_intr_execute_handlers(struct xenisrc *isrc,
+	    struct trapframe *frame);
+int	xen_arch_intr_add_handler(const char *name,
+	    driver_filter_t filter, driver_intr_t handler, void *arg,
+	    enum intr_type flags, struct xenisrc *isrc,
+	    void **cookiep);
+int	xen_arch_intr_describe(struct xenisrc *isrc, void *cookie,
+	    const char *descr);
+int	xen_arch_intr_remove_handler(struct xenisrc *isrc,
+	    void *cookie);
+int	xen_arch_intr_event_bind(struct xenisrc *isrc, u_int cpu);
+#endif
+
 #endif	/* _XEN_INTR_INTERNAL_H_ */

@@ -1,6 +1,7 @@
 /*-
  * SPDX-License-Identifier: MIT OR GPL-2.0-only
  *
+ * Copyright © 2015 Julien Grall
  * Copyright © 2013 Spectra Logic Corporation
  * Copyright © 2018 John Baldwin/The FreeBSD Foundation
  * Copyright © 2019 Roger Pau Monné/Citrix Systems R&D
@@ -32,8 +33,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/interrupt.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
@@ -41,8 +48,8 @@ __FBSDID("$FreeBSD$");
 
 #include <xen/xen-os.h>
 #include <xen/xen_intr.h>
+#include <machine/xen/arch-intr.h>
 
-#include <x86/intr_machdep.h>
 #include <x86/apicvar.h>
 
 /************************ Xen x86 interrupt interface ************************/
@@ -100,4 +107,166 @@ xen_arch_intr_handle_upcall(struct trapframe *trap_frame)
 		lapic_eoi();
 
 	critical_exit();
+}
+
+/******************************** EVTCHN PIC *********************************/
+
+static void
+xen_intr_pic_enable_source(struct intsrc *isrc)
+{
+
+	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
+	    "xi_arch MUST be at top of xenisrc for x86");
+	xen_intr_enable_source((struct xenisrc *)isrc);
+}
+
+/*
+ * Perform any necessary end-of-interrupt acknowledgements.
+ *
+ * \param isrc  The interrupt source to EOI.
+ */
+static void
+xen_intr_pic_disable_source(struct intsrc *isrc, int eoi)
+{
+
+	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
+	    "xi_arch MUST be at top of xenisrc for x86");
+	xen_intr_disable_source((struct xenisrc *)isrc);
+}
+
+static void
+xen_intr_pic_eoi_source(struct intsrc *isrc)
+{
+
+	/* Nothing to do on end-of-interrupt */
+}
+
+static void
+xen_intr_pic_enable_intr(struct intsrc *isrc)
+{
+
+	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
+	    "xi_arch MUST be at top of xenisrc for x86");
+	xen_intr_enable_intr((struct xenisrc *)isrc);
+}
+
+static void
+xen_intr_pic_disable_intr(struct intsrc *isrc)
+{
+
+	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
+	    "xi_arch MUST be at top of xenisrc for x86");
+	xen_intr_disable_intr((struct xenisrc *)isrc);
+}
+
+/**
+ * Determine the global interrupt vector number for
+ * a Xen interrupt source.
+ *
+ * \param isrc  The interrupt source to query.
+ *
+ * \return  The vector number corresponding to the given interrupt source.
+ */
+static int
+xen_intr_pic_vector(struct intsrc *isrc)
+{
+
+	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
+	    "xi_arch MUST be at top of xenisrc for x86");
+
+	return (((struct xenisrc *)isrc)->xi_arch.vector);
+}
+
+/**
+ * Determine whether or not interrupt events are pending on the
+ * the given interrupt source.
+ *
+ * \param isrc  The interrupt source to query.
+ *
+ * \returns  0 if no events are pending, otherwise non-zero.
+ */
+static int
+xen_intr_pic_source_pending(struct intsrc *isrc)
+{
+	/*
+	 * EventChannels are edge triggered and never masked.
+	 * There can be no pending events.
+	 */
+	return (0);
+}
+
+/**
+ * Prepare this PIC for system suspension.
+ */
+static void
+xen_intr_pic_suspend(struct pic *pic)
+{
+
+	/* Nothing to do on suspend */
+}
+
+static void
+xen_intr_pic_resume(struct pic *pic, bool suspend_cancelled)
+{
+
+	if (!suspend_cancelled)
+		xen_intr_resume();
+}
+
+/**
+ * Perform configuration of an interrupt source.
+ *
+ * \param isrc  The interrupt source to configure.
+ * \param trig  Edge or level.
+ * \param pol   Active high or low.
+ *
+ * \returns  0 if no events are pending, otherwise non-zero.
+ */
+static int
+xen_intr_pic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+	/* Configuration is only possible via the evtchn apis. */
+	return (ENODEV);
+}
+
+
+static int
+xen_intr_pic_assign_cpu(struct intsrc *isrc, u_int apic_id)
+{
+
+	_Static_assert(offsetof(struct xenisrc, xi_arch.intsrc) == 0,
+	    "xi_arch MUST be at top of xenisrc for x86");
+	return (xen_intr_assign_cpu((struct xenisrc *)isrc,
+	    apic_cpuid(apic_id)));
+}
+
+/**
+ * PIC interface for all event channel port types except physical IRQs.
+ */
+struct pic xen_intr_pic = {
+	.pic_enable_source  = xen_intr_pic_enable_source,
+	.pic_disable_source = xen_intr_pic_disable_source,
+	.pic_eoi_source     = xen_intr_pic_eoi_source,
+	.pic_enable_intr    = xen_intr_pic_enable_intr,
+	.pic_disable_intr   = xen_intr_pic_disable_intr,
+	.pic_vector         = xen_intr_pic_vector,
+	.pic_source_pending = xen_intr_pic_source_pending,
+	.pic_suspend        = xen_intr_pic_suspend,
+	.pic_resume         = xen_intr_pic_resume,
+	.pic_config_intr    = xen_intr_pic_config_intr,
+	.pic_assign_cpu     = xen_intr_pic_assign_cpu,
+};
+
+/******************************* ARCH wrappers *******************************/
+
+void
+xen_arch_intr_init(void)
+{
+	int error;
+
+	error = intr_register_pic(&xen_intr_pic);
+	if (error != 0)
+		panic("%s(): failed registering Xen/x86 PIC, error=%d\n",
+		    __func__, error);
 }

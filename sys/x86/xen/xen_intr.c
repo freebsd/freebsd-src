@@ -117,37 +117,6 @@ DPCPU_DECLARE(struct vcpu_info *, vcpu_info);
 #define	INVALID_EVTCHN		(~(evtchn_port_t)0) /* Invalid event channel */
 #define	is_valid_evtchn(x)	((uintmax_t)(x) < NR_EVENT_CHANNELS)
 
-static void	xen_intr_suspend(struct pic *);
-static void	xen_intr_resume(struct pic *, bool suspend_cancelled);
-static void	xen_intr_enable_source(struct intsrc *isrc);
-static void	xen_intr_disable_source(struct intsrc *isrc, int eoi);
-static void	xen_intr_eoi_source(struct intsrc *isrc);
-static void	xen_intr_enable_intr(struct intsrc *isrc);
-static void	xen_intr_disable_intr(struct intsrc *isrc);
-static int	xen_intr_vector(struct intsrc *isrc);
-static int	xen_intr_source_pending(struct intsrc *isrc);
-static int	xen_intr_config_intr(struct intsrc *isrc,
-		     enum intr_trigger trig, enum intr_polarity pol);
-static int	xen_intr_assign_cpu(struct intsrc *isrc, u_int to_cpu);
-static int	xen_intr_pic_assign_cpu(struct intsrc *isrc, u_int apic_id);
-
-/**
- * PIC interface for all event channel port types except physical IRQs.
- */
-struct pic xen_intr_pic = {
-	.pic_enable_source  = xen_intr_enable_source,
-	.pic_disable_source = xen_intr_disable_source,
-	.pic_eoi_source     = xen_intr_eoi_source,
-	.pic_enable_intr    = xen_intr_enable_intr,
-	.pic_disable_intr   = xen_intr_disable_intr,
-	.pic_vector         = xen_intr_vector,
-	.pic_source_pending = xen_intr_source_pending,
-	.pic_suspend        = xen_intr_suspend,
-	.pic_resume         = xen_intr_resume,
-	.pic_config_intr    = xen_intr_config_intr,
-	.pic_assign_cpu     = xen_intr_pic_assign_cpu,
-};
-
 /*
  * Lock for interrupt core data.
  *
@@ -413,8 +382,7 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 		 * unless specified otherwise, so shuffle them to balance
 		 * the interrupt load.
 		 */
-		xen_intr_assign_cpu(&isrc->xi_arch.intsrc,
-		    apic_cpuid(intr_next_cpu(0)));
+		xen_intr_assign_cpu(isrc, apic_cpuid(intr_next_cpu(0)));
 	}
 #endif
 
@@ -544,8 +512,7 @@ xen_intr_handle_upcall(void *unused __unused)
 				("Received unexpected event on vCPU#%u, event bound to vCPU#%u",
 				PCPU_GET(cpuid), isrc->xi_cpu));
 
-			intr_execute_handlers(&isrc->xi_arch.intsrc,
-			    trap_frame);
+			xen_arch_intr_execute_handlers(isrc, trap_frame);
 
 			/*
 			 * If this is the final port processed,
@@ -609,7 +576,7 @@ xen_intr_init(void *dummy __unused)
 	for (i = 0; i < nitems(s->evtchn_mask); i++)
 		atomic_store_rel_long(&s->evtchn_mask[i], ~0);
 
-	intr_register_pic(&xen_intr_pic);
+	xen_arch_intr_init();
 
 	if (bootverbose)
 		printf("Xen interrupt system initialized\n");
@@ -629,13 +596,6 @@ xen_intr_alloc_irqs(void)
 }
 
 /*--------------------------- Common PIC Functions ---------------------------*/
-/**
- * Prepare this PIC for system suspension.
- */
-static void
-xen_intr_suspend(struct pic *unused)
-{
-}
 
 static void
 xen_rebind_ipi(struct xenisrc *isrc)
@@ -699,7 +659,7 @@ xen_intr_rebind_isrc(struct xenisrc *isrc)
 
 #ifdef SMP
 	isrc->xi_cpu = 0;
-	error = xen_intr_assign_cpu(&isrc->xi_arch.intsrc, cpu);
+	error = xen_intr_assign_cpu(isrc, cpu);
 	if (error)
 		panic("%s(): unable to rebind Xen channel %u to vCPU%u: %d",
 		    __func__, isrc->xi_port, cpu, error);
@@ -713,15 +673,12 @@ xen_intr_rebind_isrc(struct xenisrc *isrc)
 /**
  * Return this PIC to service after being suspended.
  */
-static void
-xen_intr_resume(struct pic *unused, bool suspend_cancelled)
+void
+xen_intr_resume(void)
 {
 	shared_info_t *s = HYPERVISOR_shared_info;
 	u_int isrc_idx;
 	int i;
-
-	if (suspend_cancelled)
-		return;
 
 	/* Reset the per-CPU masks */
 	CPU_FOREACH(i) {
@@ -767,63 +724,11 @@ xen_intr_resume(struct pic *unused, bool suspend_cancelled)
  *
  * \param isrc  The interrupt source to disable.
  */
-static void
-xen_intr_disable_intr(struct intsrc *base_isrc)
+void
+xen_intr_disable_intr(struct xenisrc *isrc)
 {
-	struct xenisrc *isrc = (struct xenisrc *)base_isrc;
 
 	evtchn_mask_port(isrc->xi_port);
-}
-
-/**
- * Determine the global interrupt vector number for
- * a Xen interrupt source.
- *
- * \param isrc  The interrupt source to query.
- *
- * \return  The vector number corresponding to the given interrupt source.
- */
-static int
-xen_intr_vector(struct intsrc *base_isrc)
-{
-	struct xenisrc *isrc = (struct xenisrc *)base_isrc;
-
-	return (isrc->xi_arch.vector);
-}
-
-/**
- * Determine whether or not interrupt events are pending on the
- * the given interrupt source.
- *
- * \param isrc  The interrupt source to query.
- *
- * \returns  0 if no events are pending, otherwise non-zero.
- */
-static int
-xen_intr_source_pending(struct intsrc *isrc)
-{
-	/*
-	 * EventChannels are edge triggered and never masked.
-	 * There can be no pending events.
-	 */
-	return (0);
-}
-
-/**
- * Perform configuration of an interrupt source.
- *
- * \param isrc  The interrupt source to configure.
- * \param trig  Edge or level.
- * \param pol   Active high or low.
- *
- * \returns  0 if no events are pending, otherwise non-zero.
- */
-static int
-xen_intr_config_intr(struct intsrc *isrc, enum intr_trigger trig,
-    enum intr_polarity pol)
-{
-	/* Configuration is only possible via the evtchn apis. */
-	return (ENODEV);
 }
 
 /**
@@ -834,12 +739,11 @@ xen_intr_config_intr(struct intsrc *isrc, enum intr_trigger trig,
  *
  * \returns  0 if successful, otherwise an errno.
  */
-static int
-xen_intr_assign_cpu(struct intsrc *base_isrc, u_int to_cpu)
+int
+xen_intr_assign_cpu(struct xenisrc *isrc, u_int to_cpu)
 {
 #ifdef SMP
 	struct evtchn_bind_vcpu bind_vcpu;
-	struct xenisrc *isrc;
 	u_int vcpu_id = XEN_CPUID_TO_VCPUID(to_cpu);
 	int error, masked;
 
@@ -847,7 +751,6 @@ xen_intr_assign_cpu(struct intsrc *base_isrc, u_int to_cpu)
 		return (EOPNOTSUPP);
 
 	mtx_lock(&xen_intr_isrc_lock);
-	isrc = (struct xenisrc *)base_isrc;
 	if (!is_valid_evtchn(isrc->xi_port)) {
 		mtx_unlock(&xen_intr_isrc_lock);
 		return (EINVAL);
@@ -894,28 +797,15 @@ out:
 #endif
 }
 
-/* Wrapper of xen_intr_assign_cpu to use as pic callbacks */
-static int
-xen_intr_pic_assign_cpu(struct intsrc *isrc, u_int apic_id)
-{
-
-	return (xen_intr_assign_cpu(isrc, apic_cpuid(apic_id)));
-}
-
 /*------------------- Virtual Interrupt Source PIC Functions -----------------*/
 /*
  * Mask a level triggered interrupt source.
  *
  * \param isrc  The interrupt source to mask (if necessary).
- * \param eoi   If non-zero, perform any necessary end-of-interrupt
- *              acknowledgements.
  */
-static void
-xen_intr_disable_source(struct intsrc *base_isrc, int eoi)
+void
+xen_intr_disable_source(struct xenisrc *isrc)
 {
-	struct xenisrc *isrc;
-
-	isrc = (struct xenisrc *)base_isrc;
 
 	/*
 	 * NB: checking if the event channel is already masked is
@@ -933,25 +823,12 @@ xen_intr_disable_source(struct intsrc *base_isrc, int eoi)
  *
  * \param isrc  The interrupt source to unmask (if necessary).
  */
-static void
-xen_intr_enable_source(struct intsrc *base_isrc)
+void
+xen_intr_enable_source(struct xenisrc *isrc)
 {
-	struct xenisrc *isrc;
-
-	isrc = (struct xenisrc *)base_isrc;
 
 	if (isrc->xi_masked == 0)
 		evtchn_unmask_port(isrc->xi_port);
-}
-
-/*
- * Perform any necessary end-of-interrupt acknowledgements.
- *
- * \param isrc  The interrupt source to EOI.
- */
-static void
-xen_intr_eoi_source(struct intsrc *base_isrc)
-{
 }
 
 /*
@@ -959,10 +836,9 @@ xen_intr_eoi_source(struct intsrc *base_isrc)
  *
  * \param isrc  The interrupt source to enable.
  */
-static void
-xen_intr_enable_intr(struct intsrc *base_isrc)
+void
+xen_intr_enable_intr(struct xenisrc *isrc)
 {
-	struct xenisrc *isrc = (struct xenisrc *)base_isrc;
 
 	evtchn_unmask_port(isrc->xi_port);
 }
@@ -1091,7 +967,7 @@ xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
 
 #ifdef SMP
 	if (error == 0)
-		error = intr_event_bind(isrc->xi_arch.intsrc.is_event, cpu);
+		error = xen_arch_intr_event_bind(isrc, cpu);
 #endif
 
 	if (error != 0) {
@@ -1111,7 +987,7 @@ xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
 		 * masks manually so events can't fire on the wrong cpu
 		 * during AP startup.
 		 */
-		xen_intr_assign_cpu(&isrc->xi_arch.intsrc, cpu);
+		xen_intr_assign_cpu(isrc, cpu);
 	}
 #endif
 
@@ -1167,7 +1043,7 @@ xen_intr_alloc_and_bind_ipi(u_int cpu, driver_filter_t filter,
 		 * masks manually so events can't fire on the wrong cpu
 		 * during AP startup.
 		 */
-		xen_intr_assign_cpu(&isrc->xi_arch.intsrc, cpu);
+		xen_intr_assign_cpu(isrc, cpu);
 	}
 
 	/*
@@ -1195,7 +1071,7 @@ xen_intr_describe(xen_intr_handle_t port_handle, const char *fmt, ...)
 	va_start(ap, fmt);
 	vsnprintf(descr, sizeof(descr), fmt, ap);
 	va_end(ap);
-	return (intr_describe(isrc->xi_arch.vector, isrc->xi_cookie, descr));
+	return (xen_arch_intr_describe(isrc, isrc->xi_cookie, descr));
 }
 
 void
@@ -1219,7 +1095,7 @@ xen_intr_unbind(xen_intr_handle_t *port_handlep)
 	mtx_unlock(&xen_intr_isrc_lock);
 
 	if (isrc->xi_cookie != NULL)
-		intr_remove_handler(isrc->xi_cookie);
+		xen_arch_intr_remove_handler(isrc, isrc->xi_cookie);
 	xen_intr_release_isrc(isrc);
 }
 
@@ -1262,8 +1138,8 @@ xen_intr_add_handler(const char *name, driver_filter_t filter,
 	if (isrc == NULL || isrc->xi_cookie != NULL)
 		return (EINVAL);
 
-	error = intr_add_handler(name, isrc->xi_arch.vector, filter, handler,
-	    arg, flags|INTR_EXCL, &isrc->xi_cookie, 0);
+	error = xen_arch_intr_add_handler(name, filter, handler, arg,
+	    flags | INTR_EXCL, isrc, &isrc->xi_cookie);
 	if (error != 0)
 		printf("%s: %s: add handler failed: %d\n", name, __func__,
 		    error);

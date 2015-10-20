@@ -36,6 +36,51 @@ typedef struct {
 	u_int			vector;		/* Global isrc vector number */
 } xen_arch_isrc_t;
 
+extern struct pic xen_intr_pic;
+
 #include <dev/xen/bus/intr-internal.h>
+
+/******************************* ARCH wrappers *******************************/
+
+extern void xen_arch_intr_init(void);
+
+static inline u_long
+xen_arch_intr_execute_handlers(struct xenisrc *isrc, struct trapframe *frame)
+{
+
+	intr_execute_handlers(&isrc->xi_arch.intsrc, frame);
+	return (0);
+}
+
+static inline int
+xen_arch_intr_add_handler(const char *name, driver_filter_t filter,
+    driver_intr_t handler, void *arg, enum intr_type flags,
+    struct xenisrc *isrc, void **cookiep)
+{
+
+	return (intr_add_handler(name, isrc->xi_arch.vector, filter, handler,
+	    arg, flags, cookiep, 0));
+}
+
+static inline int
+xen_arch_intr_describe(struct xenisrc *isrc, void *cookie, const char *descr)
+{
+
+	return (intr_describe(isrc->xi_arch.vector, cookie, descr));
+}
+
+static inline int
+xen_arch_intr_remove_handler(struct xenisrc *isrc, void *cookie)
+{
+
+	return (intr_remove_handler(cookie));
+}
+
+static inline int
+xen_arch_intr_event_bind(struct xenisrc *isrc, u_int cpu)
+{
+
+	return (intr_event_bind(isrc->xi_arch.intsrc.is_event, cpu));
+}
 
 #endif	/* _MACHINE__XEN_ARCH_INTR_H_ */
