@@ -25,15 +25,19 @@ CLEANFILES+=	ipnat.tab.c ipnat.tab.h
 CLEANFILES+=	ippool_y.c ippool_l.c
 CLEANFILES+=	ippool.tab.c ippool.tab.h
 
-ipnat_y.c: ipnat_y.y
+ipnat.tab.c ipnat.tab.h: ipnat_y.y
 	${YACC} -b ipnat -d ${.ALLSRC}
+
+ipnat_y.c: ipnat.tab.c
 	sed -e 's/yy/ipnat_yy/g' \
 	    -e 's/y.tab.c/ipnat_y.c/' \
 	    -e s/\"ipnat_y.y\"/\"..\\/tools\\/ipnat_y.y\"/ \
 	    ipnat.tab.c > ${.TARGET}
+
+ipnat_y.h: ipnat.tab.h
 	sed -e 's/yy/ipnat_yy/g' \
 	    -e 's/y.tab.h/ipnat_y.h/' \
-	    ipnat.tab.h > ${.TARGET:.c=.h}
+	    ipnat.tab.h > ${.TARGET}
 
 ipnat_y.h: ipnat_y.c
 
@@ -47,13 +51,17 @@ ipnat_l.h: lexer.h
 	sed -e 's/yy/ipnat_yy/g' \
 	    ${.ALLSRC} > ${.TARGET}
 
-ippool_y.c: ippool_y.y
+ippool.tab.c ippool.tab.h: ippool_y.y
 	${YACC} -b ippool -d ${.ALLSRC}
+
+ippool_y.c: ippool.tab.c
 	sed -e 's/yy/ippool_yy/g' \
 	    -e 's/"ippool_y.y"/"..\/tools\/ippool_y.y"/' \
 	    ippool.tab.c > ${.TARGET}
+
+ippool_y.h: ippool.tab.h
 	sed -e 's/yy/ippool_yy/g' \
-	    ippool.tab.h > ${.TARGET:.c=.h}
+	    ippool.tab.h > ${.TARGET}
 
 ippool_y.h: ippool_y.c
 
@@ -67,13 +75,17 @@ ippool_l.h: lexer.h
 	sed -e 's/yy/ippool_yy/g' \
 	    ${.ALLSRC} > ${.TARGET}
 
-ipf_y.c: ipf_y.y
+ipf.tab.c ipf.tab.h: ipf_y.y
 	${YACC} -b ipf -d ${.ALLSRC}
+
+ipf_y.c: ipf.tab.c
 	sed -e 's/yy/ipf_yy/g' \
 	    -e 's/"ipf_y.y"/"..\/tools\/ipf_y.y"/' \
 		ipf.tab.c > ${.TARGET}
+
+ipf_y.h: ipf.tab.h
 	sed -e 's/yy/ipf_yy/g' \
-		ipf.tab.h > ${.TARGET:.c=.h}
+		ipf.tab.h > ${.TARGET}
 
 ipf_y.h: ipf_y.c
 
