@@ -176,8 +176,6 @@ struct ntb_softc {
 	uint32_t ppd;
 	uint8_t conn_type;
 	uint8_t dev_type;
-	uint8_t link_width;
-	uint8_t link_speed;
 
 	/* Offset of peer bar0 in B2B BAR */
 	uint64_t			b2b_off;
@@ -1747,7 +1745,7 @@ static void
 recover_soc_link(void *arg)
 {
 	struct ntb_softc *ntb = arg;
-	uint8_t speed, width;
+	unsigned speed, width, oldspeed, oldwidth;
 	uint32_t status32;
 
 	soc_perform_link_restart(ntb);
@@ -1774,9 +1772,12 @@ recover_soc_link(void *arg)
 		goto out;
 
 	status32 = ntb_reg_read(4, ntb->reg->lnk_sta);
-	width = (status32 & NTB_LINK_WIDTH_MASK) >> 4;
-	speed = (status32 & NTB_LINK_SPEED_MASK);
-	if (ntb->link_width != width || ntb->link_speed != speed)
+	width = NTB_LNK_STA_WIDTH(status32);
+	speed = status32 & NTB_LINK_SPEED_MASK;
+
+	oldwidth = NTB_LNK_STA_WIDTH(ntb->lnk_sta);
+	oldspeed = ntb->lnk_sta & NTB_LINK_SPEED_MASK;
+	if (oldwidth != width || oldspeed != speed)
 		goto retry;
 
 out:
