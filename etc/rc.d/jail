@@ -243,6 +243,8 @@ parse_options()
 
 		extract_var $_j set_hostname_allow allow.set_hostname YN NO
 		extract_var $_j sysvipc_allow allow.sysvipc YN NO
+		extract_var $_j osreldate osreldate
+		extract_var $_j osrelease osrelease
 		for _p in $_parameters; do
 			echo "	${_p%\;};"
 		done
