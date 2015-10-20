@@ -320,17 +320,21 @@ FreeBSD 5.2           |      |                 |                       |
  |     |              |      |            OpenBSD 5.6                  |
  |  FreeBSD           |      |                 |                       |
  |   10.1             |      |                 |               DragonFly 4.0.1
- |                    |      |                 |                       |
- |                    |      |                 |               DragonFly 4.0.2
- |                    |      |                 |                       |
- |                    |      |                 |               DragonFly 4.0.3
- |                    |      |                 |                       |
- |                    |      |                 |               DragonFly 4.0.4
- |                    |      |                 |                       |
- |                    |      |                 |               DragonFly 4.0.5
- |                    |      |                 |                       |
- |                    |      |            OpenBSD 5.7                  |
- |                    |      |                 |               DragonFly 4.2.0
+ |     |              |      |                 |                       |
+ |     |              |      |                 |               DragonFly 4.0.2
+ |     |              |      |                 |                       |
+ |     |              |      |                 |               DragonFly 4.0.3
+ |     |              |      |                 |                       |
+ |     |              |      |                 |               DragonFly 4.0.4
+ |     |              |      |                 |                       |
+ |     |              |      |                 |               DragonFly 4.0.5
+ |     |              |      |                 |                       |
+ |     |              |      |            OpenBSD 5.7                  |
+ |     |              |      |                 |               DragonFly 4.2.0
+ |  FreeBSD           |      |                 |                       |
+ |   10.2             |      |                 |                       |
+ |                  OS X  NetBSD 7.0           |                       |
+ |                  10.11    |            OpenBSD 5.8                  |
  |                    |      |                 |                       |
 FreeBSD 11 -current   |  NetBSD -current  OpenBSD -current     DragonFly -current
  |                    |      |                 |                       |
@@ -673,6 +677,10 @@ DragonFly 4.0.4		2015-03-09 [DFB]
 DragonFly 4.0.5		2015-03-23 [DFB]
 OpenBSD 5.7		2015-05-01 [OBD]
 DragonFly 4.2.0		2015-06-29 [DFB]
+FreeBSD 10.2            2015-08-13 [FBD]
+NetBSD 7.0		2015-09-25 [NBD]
+OS X 10.11		2015-09-30 [APL]
+OpenBSD 5.8		2015-10-18 [OBD]
 
 Bibliography
 ------------------------
