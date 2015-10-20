@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*
+/*-
  * Copyright (c) 2014-2015 François Tigeot
  * All rights reserved.
  *
