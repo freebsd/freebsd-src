@@ -55,7 +55,7 @@ f_include $BSDCFG_SHARE/variable.subr
 : ${ZFSBOOT_BEROOT_NAME:=ROOT}
 
 #
-# Default name for the primany boot environment
+# Default name for the primary boot environment
 #
 : ${ZFSBOOT_BOOTFS_NAME:=default}
 
