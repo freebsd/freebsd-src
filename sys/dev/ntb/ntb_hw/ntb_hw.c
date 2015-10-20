@@ -543,7 +543,8 @@ ntb_detach(device_t device)
 
 	ntb = DEVICE2SOFTC(device);
 
-	ntb_db_set_mask(ntb, ntb->db_valid_mask);
+	if (ntb->self_reg != NULL)
+		ntb_db_set_mask(ntb, ntb->db_valid_mask);
 	callout_drain(&ntb->heartbeat_timer);
 	callout_drain(&ntb->lr_timer);
 	if (ntb->type == NTB_XEON)
@@ -1108,7 +1109,8 @@ static void
 ntb_teardown_xeon(struct ntb_softc *ntb)
 {
 
-	ntb_link_disable(ntb);
+	if (ntb->reg != NULL)
+		ntb_link_disable(ntb);
 }
 
 static void
