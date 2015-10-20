@@ -397,7 +397,7 @@ static const struct ntb_xlat_reg xeon_sec_xlat = {
 	.bar5_xlat = XEON_SBAR5XLAT_OFFSET,
 };
 
-static const struct ntb_b2b_addr xeon_b2b_usd_addr = {
+static struct ntb_b2b_addr xeon_b2b_usd_addr = {
 	.bar0_addr = XEON_B2B_BAR0_USD_ADDR,
 	.bar2_addr64 = XEON_B2B_BAR2_USD_ADDR64,
 	.bar4_addr64 = XEON_B2B_BAR4_USD_ADDR64,
@@ -405,13 +405,44 @@ static const struct ntb_b2b_addr xeon_b2b_usd_addr = {
 	.bar5_addr32 = XEON_B2B_BAR5_USD_ADDR32,
 };
 
-static const struct ntb_b2b_addr xeon_b2b_dsd_addr = {
+static struct ntb_b2b_addr xeon_b2b_dsd_addr = {
 	.bar0_addr = XEON_B2B_BAR0_DSD_ADDR,
 	.bar2_addr64 = XEON_B2B_BAR2_DSD_ADDR64,
 	.bar4_addr64 = XEON_B2B_BAR4_DSD_ADDR64,
 	.bar4_addr32 = XEON_B2B_BAR4_DSD_ADDR32,
 	.bar5_addr32 = XEON_B2B_BAR5_DSD_ADDR32,
 };
+
+SYSCTL_NODE(_hw_ntb, OID_AUTO, xeon_b2b, CTLFLAG_RW, 0,
+    "B2B MW segment overrides -- MUST be the same on both sides");
+
+SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, usd_bar2_addr64, CTLFLAG_RDTUN,
+    &xeon_b2b_usd_addr.bar2_addr64, 0, "If using B2B topology on Xeon "
+    "hardware, use this 64-bit address on the bus between the NTB devices for "
+    "the window at BAR2, on the upstream side of the link.  MUST be the same "
+    "address on both sides.");
+SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, usd_bar4_addr64, CTLFLAG_RDTUN,
+    &xeon_b2b_usd_addr.bar4_addr64, 0, "See usd_bar2_addr64, but BAR4.");
+SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, usd_bar4_addr32, CTLFLAG_RDTUN,
+    &xeon_b2b_usd_addr.bar4_addr32, 0, "See usd_bar2_addr64, but BAR4 "
+    "(split-BAR mode).");
+SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, usd_bar5_addr32, CTLFLAG_RDTUN,
+    &xeon_b2b_usd_addr.bar4_addr32, 0, "See usd_bar2_addr64, but BAR5 "
+    "(split-BAR mode).");
+
+SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, dsd_bar2_addr64, CTLFLAG_RDTUN,
+    &xeon_b2b_dsd_addr.bar2_addr64, 0, "If using B2B topology on Xeon "
+    "hardware, use this 64-bit address on the bus between the NTB devices for "
+    "the window at BAR2, on the downstream side of the link.  MUST be the same"
+    " address on both sides.");
+SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, dsd_bar4_addr64, CTLFLAG_RDTUN,
+    &xeon_b2b_dsd_addr.bar4_addr64, 0, "See dsd_bar2_addr64, but BAR4.");
+SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, dsd_bar4_addr32, CTLFLAG_RDTUN,
+    &xeon_b2b_dsd_addr.bar4_addr32, 0, "See dsd_bar2_addr64, but BAR4 "
+    "(split-BAR mode).");
+SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, dsd_bar5_addr32, CTLFLAG_RDTUN,
+    &xeon_b2b_dsd_addr.bar4_addr32, 0, "See dsd_bar2_addr64, but BAR5 "
+    "(split-BAR mode).");
 
 /*
  * OS <-> Driver interface structures
