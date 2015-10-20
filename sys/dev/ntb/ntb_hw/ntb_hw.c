@@ -310,9 +310,10 @@ static bool ntb_poll_link(struct ntb_softc *ntb);
 static void save_bar_parameters(struct ntb_pci_bar_info *bar);
 
 static struct ntb_hw_info pci_ids[] = {
-	{ 0x0C4E8086, "Atom Processor S1200 NTB Primary B2B", NTB_SOC, 0 },
-
 	/* XXX: PS/SS IDs left out until they are supported. */
+	{ 0x0C4E8086, "BWD Atom Processor S1200 Non-Transparent Bridge B2B",
+		NTB_SOC, 0 },
+
 	{ 0x37258086, "JSF Xeon C35xx/C55xx Non-Transparent Bridge B2B",
 		NTB_XEON, NTB_SDOORBELL_LOCKUP | NTB_B2BDOORBELL_BIT14 },
 	{ 0x3C0D8086, "SNB Xeon E5/Core i7 Non-Transparent Bridge B2B",
