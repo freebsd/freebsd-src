@@ -173,14 +173,6 @@ struct ntb_softc {
 #define CTX_ASSERT(sc,f)	mtx_assert(&(sc)->ctx_lock, (f))
 	struct mtx		ctx_lock;
 
-	struct {
-		uint32_t ldb;
-		uint32_t ldb_mask;
-		uint32_t bar4_xlat;
-		uint32_t bar5_xlat;
-		uint32_t spad_local;
-		uint32_t spci_cmd;
-	} reg_ofs;
 	uint32_t ppd;
 	uint8_t conn_type;
 	uint8_t dev_type;
@@ -335,6 +327,12 @@ static const struct ntb_reg soc_reg = {
 	.mw_bar = { NTB_B2B_BAR_1, NTB_B2B_BAR_2 },
 };
 
+static const struct ntb_alt_reg soc_pri_reg = {
+	.db_bell = SOC_PDOORBELL_OFFSET,
+	.db_mask = SOC_PDBMSK_OFFSET,
+	.spad = SOC_SPAD_OFFSET,
+};
+
 static const struct ntb_alt_reg soc_b2b_reg = {
 	.db_bell = SOC_B2B_DOORBELL_OFFSET,
 	.spad = SOC_B2B_SPAD_OFFSET,
@@ -360,6 +358,12 @@ static const struct ntb_reg xeon_reg = {
 	.lnk_sta = XEON_LINK_STATUS_OFFSET,
 	.db_size = sizeof(uint16_t),
 	.mw_bar = { NTB_B2B_BAR_1, NTB_B2B_BAR_2, NTB_B2B_BAR_3 },
+};
+
+static const struct ntb_alt_reg xeon_pri_reg = {
+	.db_bell = XEON_PDOORBELL_OFFSET,
+	.db_mask = XEON_PDBMSK_OFFSET,
+	.spad = XEON_SPAD_OFFSET,
 };
 
 static const struct ntb_alt_reg xeon_b2b_reg = {
@@ -921,7 +925,7 @@ db_iowrite(struct ntb_softc *ntb, uint64_t regoff, uint64_t val)
 	     (uintmax_t)(val & ~ntb->db_valid_mask),
 	     (uintmax_t)ntb->db_valid_mask));
 
-	if (regoff == ntb->reg_ofs.ldb_mask)
+	if (regoff == ntb->self_reg->db_mask)
 		DB_MASK_ASSERT(ntb, MA_OWNED);
 
 	if (ntb->type == NTB_SOC) {
@@ -939,7 +943,7 @@ ntb_db_set_mask(struct ntb_softc *ntb, uint64_t bits)
 
 	DB_MASK_LOCK(ntb);
 	ntb->db_mask |= bits;
-	db_iowrite(ntb, ntb->reg_ofs.ldb_mask, ntb->db_mask);
+	db_iowrite(ntb, ntb->self_reg->db_mask, ntb->db_mask);
 	DB_MASK_UNLOCK(ntb);
 }
 
@@ -954,7 +958,7 @@ ntb_db_clear_mask(struct ntb_softc *ntb, uint64_t bits)
 
 	DB_MASK_LOCK(ntb);
 	ntb->db_mask &= ~bits;
-	db_iowrite(ntb, ntb->reg_ofs.ldb_mask, ntb->db_mask);
+	db_iowrite(ntb, ntb->self_reg->db_mask, ntb->db_mask);
 	DB_MASK_UNLOCK(ntb);
 }
 
@@ -962,7 +966,7 @@ uint64_t
 ntb_db_read(struct ntb_softc *ntb)
 {
 
-	return (db_ioread(ntb, ntb->reg_ofs.ldb));
+	return (db_ioread(ntb, ntb->self_reg->db_bell));
 }
 
 void
@@ -974,7 +978,7 @@ ntb_db_clear(struct ntb_softc *ntb, uint64_t bits)
 	     (uintmax_t)(bits & ~ntb->db_valid_mask),
 	     (uintmax_t)ntb->db_valid_mask));
 
-	db_iowrite(ntb, ntb->reg_ofs.ldb, bits);
+	db_iowrite(ntb, ntb->self_reg->db_bell, bits);
 }
 
 static inline uint64_t
@@ -1145,14 +1149,6 @@ ntb_xeon_init_dev(struct ntb_softc *ntb)
 {
 	int rc;
 
-	ntb->reg_ofs.ldb	= XEON_PDOORBELL_OFFSET;
-	ntb->reg_ofs.ldb_mask	= XEON_PDBMSK_OFFSET;
-	ntb->reg_ofs.spad_local	= XEON_SPAD_OFFSET;
-	ntb->reg_ofs.bar4_xlat	= XEON_SBAR4XLAT_OFFSET;
-	if (HAS_FEATURE(NTB_SPLIT_BAR))
-		ntb->reg_ofs.bar5_xlat = XEON_SBAR5XLAT_OFFSET;
-	ntb->reg_ofs.spci_cmd	= XEON_PCICMD_OFFSET;
-
 	ntb->spad_count		= XEON_SPAD_COUNT;
 	ntb->db_count		= XEON_DB_COUNT;
 	ntb->db_link_mask	= XEON_DB_LINK_BIT;
@@ -1166,6 +1162,7 @@ ntb_xeon_init_dev(struct ntb_softc *ntb)
 	}
 
 	ntb->reg = &xeon_reg;
+	ntb->self_reg = &xeon_pri_reg;
 	ntb->peer_reg = &xeon_b2b_reg;
 	ntb->xlat_reg = &xeon_sec_xlat;
 
@@ -1202,7 +1199,7 @@ ntb_xeon_init_dev(struct ntb_softc *ntb)
 		return (rc);
 
 	/* Enable Bus Master and Memory Space on the secondary side */
-	ntb_reg_write(2, ntb->reg_ofs.spci_cmd,
+	ntb_reg_write(2, XEON_PCICMD_OFFSET,
 	    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
 
 	/* Enable link training */
@@ -1218,12 +1215,6 @@ ntb_soc_init_dev(struct ntb_softc *ntb)
 	KASSERT(ntb->conn_type == NTB_CONN_B2B,
 	    ("Unsupported NTB configuration (%d)\n", ntb->conn_type));
 
-	ntb->reg_ofs.ldb	 = SOC_PDOORBELL_OFFSET;
-	ntb->reg_ofs.ldb_mask	 = SOC_PDBMSK_OFFSET;
-	ntb->reg_ofs.bar4_xlat	 = SOC_SBAR4XLAT_OFFSET;
-	ntb->reg_ofs.spad_local	 = SOC_SPAD_OFFSET;
-	ntb->reg_ofs.spci_cmd	 = SOC_PCICMD_OFFSET;
-
 	ntb->spad_count		 = SOC_SPAD_COUNT;
 	ntb->db_count		 = SOC_DB_COUNT;
 	ntb->db_vec_count	 = SOC_DB_MSIX_VECTOR_COUNT;
@@ -1231,6 +1222,7 @@ ntb_soc_init_dev(struct ntb_softc *ntb)
 	ntb->db_valid_mask	 = (1ull << ntb->db_count) - 1;
 
 	ntb->reg = &soc_reg;
+	ntb->self_reg = &soc_pri_reg;
 	ntb->peer_reg = &soc_b2b_reg;
 	ntb->xlat_reg = &soc_sec_xlat;
 
@@ -1243,7 +1235,7 @@ ntb_soc_init_dev(struct ntb_softc *ntb)
 	configure_soc_secondary_side_bars(ntb);
 
 	/* Enable Bus Master and Memory Space on the secondary side */
-	ntb_reg_write(2, ntb->reg_ofs.spci_cmd,
+	ntb_reg_write(2, SOC_PCICMD_OFFSET,
 	    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
 
 	/* Initiate PCI-E link training */
@@ -1814,7 +1806,7 @@ ntb_poll_link(struct ntb_softc *ntb)
 		ntb->ntb_ctl = ntb_cntl;
 		ntb->lnk_sta = ntb_reg_read(4, ntb->reg->lnk_sta);
 	} else {
-		db_iowrite(ntb, ntb->reg_ofs.ldb, ntb->db_link_mask);
+		db_iowrite(ntb, ntb->self_reg->db_bell, ntb->db_link_mask);
 
 		reg_val = pci_read_config(ntb->device, ntb->reg->lnk_sta, 2);
 		if (reg_val == ntb->lnk_sta)
@@ -1888,7 +1880,7 @@ ntb_spad_write(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
 	if (idx >= ntb->spad_count)
 		return (EINVAL);
 
-	ntb_reg_write(4, ntb->reg_ofs.spad_local + idx * 4, val);
+	ntb_reg_write(4, ntb->self_reg->spad + idx * 4, val);
 
 	return (0);
 }
@@ -1911,7 +1903,7 @@ ntb_spad_read(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
 	if (idx >= ntb->spad_count)
 		return (EINVAL);
 
-	*val = ntb_reg_read(4, ntb->reg_ofs.spad_local + idx * 4);
+	*val = ntb_reg_read(4, ntb->self_reg->spad + idx * 4);
 
 	return (0);
 }
