@@ -31,11 +31,20 @@ __<bsd.compiler.mk>__:
 _exported_vars=	COMPILER_TYPE COMPILER_VERSION
 _cc_hash=	${CC}${MACHINE}${PATH}
 _cc_hash:=	${_cc_hash:hash}
+# Only import if none of the vars are set somehow else.
+_can_export=	yes
+.for var in ${_exported_vars}
+.if defined(${var})
+_can_export=	no
+.endif
+.endfor
+.if ${_can_export} == yes
 .for var in ${_exported_vars}
 .if defined(${var}.${_cc_hash})
 ${var}=	${${var}.${_cc_hash}}
 .endif
 .endfor
+.endif
 
 .if ${MACHINE} == "common"
 # common is a pseudo machine for architecture independent
