@@ -749,7 +749,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 	case PT_ATTACH:
 		/* Self */
-		if (p->p_pid == td->td_proc->p_pid) {
+		if (p == td->td_proc) {
 			error = EINVAL;
 			goto fail;
 		}
