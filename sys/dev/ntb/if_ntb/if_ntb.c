@@ -1381,14 +1381,14 @@ ntb_qp_link_work(void *arg)
 	struct ntb_transport_qp *qp = arg;
 	struct ntb_softc *ntb = qp->ntb;
 	struct ntb_transport_ctx *nt = qp->transport;
-	int val;
+	uint32_t val, dummy;
 
 	ntb_spad_read(ntb, IF_NTB_QP_LINKS, &val);
 
 	ntb_peer_spad_write(ntb, IF_NTB_QP_LINKS, val | (1ull << qp->qp_num));
 
 	/* query remote spad for qp ready bits */
-	ntb_peer_spad_read(ntb, IF_NTB_QP_LINKS, &val);
+	ntb_peer_spad_read(ntb, IF_NTB_QP_LINKS, &dummy);
 
 	/* See if the remote side is up */
 	if ((val & (1ull << qp->qp_num)) != 0) {
