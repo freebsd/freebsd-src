@@ -848,6 +848,24 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			if (phdr[i].p_memsz == 0)
 				break;
 			prot = __elfN(trans_prot)(phdr[i].p_flags);
+#ifdef COMPAT_CHERIABI
+			/*
+			 * XXX-BD: we need to be able to write to .rodata
+			 * to initalize capabilities.  For now, just make
+			 * all sections writiable.  We will want to add a
+			 * a new .rocapdata or the like which starts RW
+			 * and gets mapped RO by the appropriate startup
+			 * code after initalization.
+			 */
+			if (brand_info->machine == EM_MIPS_CHERI &&
+			    !(prot & PF_W)) {
+				prot |= PF_W;
+				/*
+				 * XXX-BD: how to tell the process we did
+				 * this?
+				 */
+			}
+#endif
 			error = __elfN(load_section)(imgp, phdr[i].p_offset,
 			    (caddr_t)(uintptr_t)phdr[i].p_vaddr + et_dyn_addr,
 			    phdr[i].p_memsz, phdr[i].p_filesz, prot,
