@@ -400,9 +400,6 @@ ntb_setup_interface(void)
 	ntb_transport_link_up(net_softc.qp);
 	net_softc.bufsize = ntb_transport_max_size(net_softc.qp) +
 	    sizeof(struct ether_header);
-
-	if_printf(ifp, "if_ntb device setup\n");
-
 	return (0);
 }
 
@@ -414,7 +411,6 @@ ntb_teardown_interface(void)
 		ntb_transport_link_down(net_softc.qp);
 
 	if (net_softc.ifp != NULL) {
-		if_printf(net_softc.ifp, "if_ntb device destroyed\n");
 		ether_ifdetach(net_softc.ifp);
 		if_free(net_softc.ifp);
 	}
