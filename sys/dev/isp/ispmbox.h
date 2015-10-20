@@ -1055,8 +1055,10 @@ typedef struct {
 	uint16_t	icb_prqstqlen;
 	uint16_t	icb_rqstaddr[4];
 	uint16_t	icb_respaddr[4];
-	uint16_t	icb_priaddr[4];	
-	uint16_t	icb_reserved1[4];
+	uint16_t	icb_priaddr[4];
+	uint16_t	icb_msixresp;
+	uint16_t	icb_msixatio;
+	uint16_t	icb_reserved1[2];
 	uint16_t	icb_atio_in;
 	uint16_t	icb_atioqlen;
 	uint16_t	icb_atioqaddr[4];
@@ -1065,7 +1067,11 @@ typedef struct {
 	uint32_t	icb_fwoptions1;
 	uint32_t	icb_fwoptions2;
 	uint32_t	icb_fwoptions3;
-	uint16_t	icb_reserved2[12];
+	uint16_t	icb_qos;
+	uint16_t	icb_reserved2[3];
+	uint16_t	icb_enodemac[3];
+	uint16_t	icb_disctime;
+	uint16_t	icb_reserved3[4];
 } isp_icb_2400_t;
 
 #define	RQRSP_ADDR0015	0

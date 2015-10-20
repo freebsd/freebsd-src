@@ -1954,6 +1954,7 @@ isp_fibre_init(ispsoftc_t *isp)
 	 * Init the firmware
 	 */
 	MBSINIT(&mbs, MBOX_INIT_FIRMWARE, MBLOGALL, 30000000);
+	mbs.param[1] = 0;
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
@@ -2253,6 +2254,7 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	} else {
 		mbs.param[0] = MBOX_INIT_FIRMWARE;
 	}
+	mbs.param[1] = 0;
 	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
@@ -7108,7 +7110,7 @@ static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x45: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x46: */
 	ISP_FC_OPMAP(0xcf, 0x03),	/* 0x47: GET PORT_DATABASE ENHANCED */
-	ISP_FC_OPMAP(0xcd, 0x01),	/* 0x48: MBOX_INIT_FIRMWARE_MULTI_ID */
+	ISP_FC_OPMAP(0xcf, 0x0f),	/* 0x48: MBOX_INIT_FIRMWARE_MULTI_ID */
 	ISP_FC_OPMAP(0xcd, 0x01),	/* 0x49: MBOX_GET_VP_DATABASE */
 	ISP_FC_OPMAP_HALF(0x2, 0xcd, 0x0, 0x01),	/* 0x4a: MBOX_GET_VP_DATABASE_ENTRY */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x4b: */
@@ -7132,7 +7134,7 @@ static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x07, 0x03),	/* 0x5d: MBOX_GET_SET_DATA_RATE */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x5e: */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x5f: */
-	ISP_FC_OPMAP(0xcd, 0x01),	/* 0x60: MBOX_INIT_FIRMWARE */
+	ISP_FC_OPMAP(0xcf, 0x0f),	/* 0x60: MBOX_INIT_FIRMWARE */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x61: */
 	ISP_FC_OPMAP(0x01, 0x01),	/* 0x62: MBOX_INIT_LIP */
 	ISP_FC_OPMAP(0xcd, 0x03),	/* 0x63: MBOX_GET_FC_AL_POSITION_MAP */
