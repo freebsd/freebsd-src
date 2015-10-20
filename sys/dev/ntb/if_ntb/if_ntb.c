@@ -295,7 +295,7 @@ static void ntb_complete_rxc(void *arg, int pending);
 static void ntb_transport_doorbell_callback(void *data, uint32_t vector);
 static void ntb_transport_event_callback(void *data);
 static void ntb_transport_link_work(void *arg);
-static int ntb_set_mw(struct ntb_transport_ctx *, int num_mw, unsigned size);
+static int ntb_set_mw(struct ntb_transport_ctx *, int num_mw, size_t size);
 static void ntb_free_mw(struct ntb_transport_ctx *nt, int num_mw);
 static int ntb_transport_setup_qp_mw(struct ntb_transport_ctx *nt,
     unsigned int qp_num);
@@ -1266,11 +1266,14 @@ out:
 }
 
 static int
-ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw, unsigned size)
+ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw, size_t size)
 {
 	struct ntb_transport_mw *mw = &nt->mw_vec[num_mw];
-	unsigned xlat_size, buff_size;
+	size_t xlat_size, buff_size;
 	int rc;
+
+	if (size == 0)
+		return (EINVAL);
 
 	xlat_size = roundup(size, mw->xlat_align_size);
 	buff_size = roundup(size, mw->xlat_align);
@@ -1305,7 +1308,7 @@ ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw, unsigned size)
 	 */
 	if (mw->dma_addr % mw->xlat_align != 0) {
 		if_printf(nt->ifp,
-		    "DMA memory 0x%jx not aligned to BAR size 0x%x\n",
+		    "DMA memory 0x%jx not aligned to BAR size 0x%zx\n",
 		    (uintmax_t)mw->dma_addr, size);
 		ntb_free_mw(nt, num_mw);
 		return (ENOMEM);
