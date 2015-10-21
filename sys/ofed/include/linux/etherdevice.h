@@ -1,97 +1,62 @@
 /*-
- * Copyright (c) 2007 Cisco Systems, Inc.  All rights reserved.
- * Copyright (c) 2014 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2015 Mellanox Technologies, Ltd. All rights reserved.
  *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice unmodified, this list of conditions, and the following
+ *    disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer.
- *
- *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer in the documentation and/or other materials
- *	  provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $FreeBSD$
  */
 #ifndef _LINUX_ETHERDEVICE
-#define _LINUX_ETHERDEVICE
+#define	_LINUX_ETHERDEVICE
 
 #include <linux/types.h>
 
-/**
- * is_zero_ether_addr - Determine if give Ethernet address is all zeros.
- * @addr: Pointer to a six-byte array containing the Ethernet address
- *
- * Return true if the address is all zeroes.
- */
-static inline bool is_zero_ether_addr(const u8 *addr)
+static inline bool 
+is_zero_ether_addr(const u8 * addr)
 {
-        return !(addr[0] | addr[1] | addr[2] | addr[3] | addr[4] | addr[5]);
+	return ((addr[0] + addr[1] + addr[2] + addr[3] + addr[4] + addr[5]) == 0x00);
 }
 
-
-
-/**
- * is_multicast_ether_addr - Determine if the Ethernet address is a multicast.
- * @addr: Pointer to a six-byte array containing the Ethernet address
- *
- * Return true if the address is a multicast address.
- * By definition the broadcast address is also a multicast address.
- */
-static inline bool is_multicast_ether_addr(const u8 *addr)
+static inline bool 
+is_multicast_ether_addr(const u8 * addr)
 {
-        return (0x01 & addr[0]);
+	return (0x01 & addr[0]);
 }
 
-/**
- * is_broadcast_ether_addr - Determine if the Ethernet address is broadcast
- * @addr: Pointer to a six-byte array containing the Ethernet address
- *
- * Return true if the address is the broadcast address.
- */
-static inline bool is_broadcast_ether_addr(const u8 *addr)
+static inline bool 
+is_broadcast_ether_addr(const u8 * addr)
 {
-        return (addr[0] & addr[1] & addr[2] & addr[3] & addr[4] & addr[5]) == 0xff;
+	return ((addr[0] + addr[1] + addr[2] + addr[3] + addr[4] + addr[5]) == (6 * 0xff));
 }
 
-/**
- * is_valid_ether_addr - Determine if the given Ethernet address is valid
- * @addr: Pointer to a six-byte array containing the Ethernet address
- *
- * Check that the Ethernet address (MAC) is not 00:00:00:00:00:00, is not
- * a multicast address, and is not FF:FF:FF:FF:FF:FF.
- *
- * Return true if the address is valid.
- **/
-static inline bool is_valid_ether_addr(const u8 *addr)
+static inline bool 
+is_valid_ether_addr(const u8 * addr)
 {
-        /* FF:FF:FF:FF:FF:FF is a multicast address so we don't need to
-        ** explicitly check for it here. */
-        return !is_multicast_ether_addr(addr) && !is_zero_ether_addr(addr);
+	return !is_multicast_ether_addr(addr) && !is_zero_ether_addr(addr);
 }
 
-static inline void ether_addr_copy(u8 *dst, const u8 *src)
+static inline void 
+ether_addr_copy(u8 * dst, const u8 * src)
 {
 	memcpy(dst, src, 6);
 }
 
-#endif /* _LINUX_ETHERDEVICE */
+#endif					/* _LINUX_ETHERDEVICE */
