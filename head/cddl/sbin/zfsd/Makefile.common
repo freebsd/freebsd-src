@@ -34,9 +34,9 @@ INCFLAGS+= -I${SRCDIR}/sys/cddl/contrib/opensolaris/uts/common/sys
 
 CFLAGS= -g -DNEED_SOLARIS_BOOLEAN ${INCFLAGS}
 
-DPADD=  ${LIBDEVCTL} ${LIBZFS} ${LIBZFS_CORE} ${LIBUTIL} ${LIBGEOM} \
+DPADD=  ${LIBDEVDCTL} ${LIBZFS} ${LIBZFS_CORE} ${LIBUTIL} ${LIBGEOM} \
 	${LIBBSDXML} ${LIBSBUF} ${LIBNVPAIR} ${LIBUUTIL}
-LDADD=  -ldevctl -lzfs -lzfs_core -lutil -lgeom -lbsdxml -lsbuf -lnvpair -luutil
+LDADD=  -ldevdctl -lzfs -lzfs_core -lutil -lgeom -lbsdxml -lsbuf -lnvpair -luutil
 
 cscope:
 	find ${.CURDIR} -type f -a \( -name "*.[ch]" -o -name "*.cc" \) \
