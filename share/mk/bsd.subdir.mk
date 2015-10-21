@@ -72,9 +72,9 @@ _SUBDIR_SH=	\
 		cd ${.CURDIR}/$${dir}; \
 		${MAKE} $${target} DIRPRFX=${DIRPRFX}$${dir}/
 
-_SUBDIR: .USE .MAKE
+_SUBDIR: .USEBEFORE
 .if defined(SUBDIR) && !empty(SUBDIR) && !defined(NO_SUBDIR)
-	@${_+_}target=${.TARGET:S,realinstall,install,:S,^_sub.,,}; \
+	@${_+_}target=${.TARGET:S,realinstall,install,}; \
 	    for dir in ${SUBDIR:N.WAIT}; do ${_SUBDIR_SH}; done
 .endif
 
@@ -107,8 +107,7 @@ ${__target}_subdir_${__dir}: .PHONY .MAKE ${__deps}
 .endfor
 ${__target}: ${__subdir_targets}
 .else
-${__target}: _sub.${__target}
-_sub.${__target}: _SUBDIR
+${__target}: _SUBDIR
 .endif
 .endfor
 
@@ -119,8 +118,7 @@ _sub.${__target}: _SUBDIR
 .for __stage in build install
 ${__stage}${__target}:
 .if make(${__stage}${__target})
-${__stage}${__target}: _sub.${__stage}${__target}
-_sub.${__stage}${__target}: _SUBDIR
+${__stage}${__target}: _SUBDIR
 .endif
 .endfor
 .if !target(${__target})
