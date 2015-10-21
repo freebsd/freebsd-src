@@ -513,7 +513,7 @@ KMAKE=		${KMAKEENV} ${MAKE} ${.MAKEFLAGS} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
 # Attempt to rebuild the entire system, with reasonable chance of
 # success, regardless of how old your existing system is.
 #
-_worldtmp:
+_worldtmp: .PHONY
 .if ${.CURDIR:C/[^,]//g} != ""
 #	The m4 build of sendmail files doesn't like it if ',' is used
 #	anywhere in the path of it's files.
@@ -653,7 +653,7 @@ everything:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${WMAKE} par-all
 .if defined(LIB32TMP)
-build32:
+build32: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 5.1: building 32 bit shim libraries"
@@ -674,54 +674,55 @@ build32:
 	mkdir -p ${WORLDTMP}
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 .for _t in obj includes
-	cd ${.CURDIR}/include; ${LIB32WMAKE} DIRPRFX=include/ ${_t}
-	cd ${.CURDIR}/lib; ${LIB32WMAKE} DIRPRFX=lib/ ${_t}
+	${_+_}cd ${.CURDIR}/include; ${LIB32WMAKE} DIRPRFX=include/ ${_t}
+	${_+_}cd ${.CURDIR}/lib; ${LIB32WMAKE} DIRPRFX=lib/ ${_t}
 .if ${MK_CDDL} != "no"
-	cd ${.CURDIR}/cddl/lib; ${LIB32WMAKE} DIRPRFX=cddl/lib/ ${_t}
+	${_+_}cd ${.CURDIR}/cddl/lib; ${LIB32WMAKE} DIRPRFX=cddl/lib/ ${_t}
 .endif
-	cd ${.CURDIR}/gnu/lib; ${LIB32WMAKE} DIRPRFX=gnu/lib/ ${_t}
+	${_+_}cd ${.CURDIR}/gnu/lib; ${LIB32WMAKE} DIRPRFX=gnu/lib/ ${_t}
 .if ${MK_CRYPT} != "no"
-	cd ${.CURDIR}/secure/lib; ${LIB32WMAKE} DIRPRFX=secure/lib/ ${_t}
+	${_+_}cd ${.CURDIR}/secure/lib; ${LIB32WMAKE} DIRPRFX=secure/lib/ ${_t}
 .endif
 .if ${MK_KERBEROS} != "no"
-	cd ${.CURDIR}/kerberos5/lib; ${LIB32WMAKE} DIRPRFX=kerberos5/lib ${_t}
+	${_+_}cd ${.CURDIR}/kerberos5/lib; ${LIB32WMAKE} DIRPRFX=kerberos5/lib ${_t}
 .endif
 .endfor
 .for _dir in usr.bin/lex/lib
-	cd ${.CURDIR}/${_dir}; ${LIB32WMAKE} DIRPRFX=${_dir}/ obj
+	${_+_}cd ${.CURDIR}/${_dir}; ${LIB32WMAKE} DIRPRFX=${_dir}/ obj
 .endfor
 .for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic
-	cd ${.CURDIR}/${_dir}; \
+	${_+_}cd ${.CURDIR}/${_dir}; \
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
 	    MAKEOBJDIRPREFIX=${LIB32_OBJTREE} ${MAKE} SSP_CFLAGS= DESTDIR= \
 	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 	    build-tools
 .endfor
-	cd ${.CURDIR}; \
+	${_+_}cd ${.CURDIR}; \
 	    ${LIB32WMAKE} -f Makefile.inc1 libraries
 .for _t in obj depend all
-	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32WMAKE} \
+	${_+_}cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32WMAKE} \
 	    DIRPRFX=libexec/rtld-elf/ ${_t}
-	cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32WMAKE} \
+	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32WMAKE} \
 	    DIRPRFX=usr.bin/ldd ${_t}
 .endfor
 
-distribute32 install32:
-	cd ${.CURDIR}/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
+distribute32 install32: .MAKE .PHONY
+	${_+_}cd ${.CURDIR}/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 .if ${MK_CDDL} != "no"
-	cd ${.CURDIR}/cddl/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
+	${_+_}cd ${.CURDIR}/cddl/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 .endif
-	cd ${.CURDIR}/gnu/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
+	${_+_}cd ${.CURDIR}/gnu/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 .if ${MK_CRYPT} != "no"
-	cd ${.CURDIR}/secure/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
+	${_+_}cd ${.CURDIR}/secure/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 .endif
 .if ${MK_KERBEROS} != "no"
-	cd ${.CURDIR}/kerberos5/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
+	${_+_}cd ${.CURDIR}/kerberos5/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 .endif
-	cd ${.CURDIR}/libexec/rtld-elf; \
+	${_+_}cd ${.CURDIR}/libexec/rtld-elf; \
 	    PROG=ld-elf32.so.1 ${LIB32IMAKE} ${.TARGET:S/32$//}
-	cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32IMAKE} ${.TARGET:S/32$//}
+	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32IMAKE} \
+	    ${.TARGET:S/32$//}
 .endif
 
 WMAKE_TGTS=
@@ -946,7 +947,7 @@ distributeworld installworld: _installcheck_world
 .endif
 .endfor
 	-mkdir ${DESTDIR}/${DISTDIR}/base
-	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
+	${_+_}cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
 	    METALOG=${METALOG} ${IMAKE_INSTALL} ${IMAKE_MTREE} \
 	    DISTBASE=/base DESTDIR=${DESTDIR}/${DISTDIR}/base \
 	    LOCAL_MTREE=${LOCAL_MTREE:Q} distrib-dirs
@@ -1014,7 +1015,7 @@ packageworld:
 # and do a 'make reinstall' on the *client* to install new binaries from the
 # most recent server build.
 #
-reinstall: .MAKE
+reinstall: .MAKE .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
@@ -1029,7 +1030,7 @@ reinstall: .MAKE
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install32
 .endif
 
-redistribute: .MAKE
+redistribute: .MAKE .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Distributing everything"
 	@echo "--------------------------------------------------------------"
@@ -1039,12 +1040,12 @@ redistribute: .MAKE
 	    DISTRIBUTION=lib32
 .endif
 
-distrib-dirs: .MAKE
-	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
+distrib-dirs: .MAKE .PHONY
+	${_+_}cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
 	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
 
-distribution: .MAKE
-	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
+distribution: .MAKE .PHONY
+	${_+_}cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
 	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
 	${_+_}cd ${.CURDIR}; ${CROSSENV} PATH=${TMPPATH} \
 		${MAKE} -f Makefile.inc1 ${IMAKE_INSTALL} \
@@ -1097,14 +1098,14 @@ INSTALLKERNEL= ${_kernel}
 .endif
 .endfor
 
-buildkernel ${WMAKE_TGTS:N_worldtmp:Nbuild32} ${.ALLTARGETS:M_*:N_worldtmp}: .MAKE .PHONY
+${WMAKE_TGTS:N_worldtmp:Nbuild32} ${.ALLTARGETS:M_*:N_worldtmp}: .MAKE .PHONY
 
 #
 # buildkernel
 #
 # Builds all kernels defined by BUILDKERNELS.
 #
-buildkernel:
+buildkernel: .MAKE .PHONY
 .if empty(BUILDKERNELS)
 	@echo "ERROR: Missing kernel configuration file(s) (${KERNCONF})."; \
 	false
@@ -1131,14 +1132,14 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.1: cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
-	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} ${CLEANDIR}
+	${_+_}cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} ${CLEANDIR}
 .endif
 .if !defined(NO_KERNELOBJ)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.2: rebuilding the object tree"
 	@echo "--------------------------------------------------------------"
-	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} obj
+	${_+_}cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} obj
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -1150,13 +1151,13 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 3.1: making dependencies"
 	@echo "--------------------------------------------------------------"
-	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} depend -DNO_MODULES_OBJ
+	${_+_}cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} depend -DNO_MODULES_OBJ
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 3.2: building everything"
 	@echo "--------------------------------------------------------------"
-	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} all -DNO_MODULES_OBJ
+	${_+_}cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} all -DNO_MODULES_OBJ
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Kernel build for ${_kernel} completed on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
@@ -1257,12 +1258,12 @@ packagekernel:
 #
 # Build the API documentation with doxygen
 #
-doxygen:
+doxygen: .PHONY
 	@if [ ! -x `/usr/bin/which doxygen` ]; then \
 		echo "You need doxygen (devel/doxygen) to generate the API documentation of the kernel." | /usr/bin/fmt; \
 		exit 1; \
 	fi
-	cd ${.CURDIR}/tools/kerneldoc/subsys && ${MAKE} obj all
+	${_+_}cd ${.CURDIR}/tools/kerneldoc/subsys && ${MAKE} obj all
 
 #
 # update
@@ -1587,7 +1588,7 @@ _cc=		gnu/usr.bin/cc
 _usb_tools=	sys/boot/usb/tools
 .endif
 
-cross-tools: .MAKE
+cross-tools: .MAKE .PHONY
 .for _tool in \
     ${_clang_libs} \
     ${_clang} \
@@ -1626,7 +1627,7 @@ NXBMAKE=	${NXBENV} ${MAKE} \
 # For non-clang enabled targets that are still using the in tree gcc
 # we must build a gperf binary for one instance of its Makefiles.  On
 # clang-enabled systems, the gperf binary is obsolete.
-native-xtools:
+native-xtools: .PHONY
 .if ${MK_GCC_BOOTSTRAP} != "no"
 	mkdir -p ${OBJTREE}/gperf_for_gcc/usr/bin
 	${_+_}@${ECHODIR} "===> ${_gperf} (obj,depend,all,install)"; \
@@ -1713,8 +1714,8 @@ native-xtools:
 #
 # hierarchy - ensure that all the needed directories are present
 #
-hierarchy hier: .MAKE
-	cd ${.CURDIR}/etc && ${HMAKE} distrib-dirs
+hierarchy hier: .MAKE .PHONY
+	${_+_}cd ${.CURDIR}/etc && ${HMAKE} distrib-dirs
 
 #
 # libraries - build all libraries, and install them under ${DESTDIR}.
@@ -1723,8 +1724,8 @@ hierarchy hier: .MAKE
 # interdependencies (__L) are built automatically by the
 # ${.CURDIR}/tools/make_libdeps.sh script.
 #
-libraries: .MAKE
-	cd ${.CURDIR} && \
+libraries: .MAKE .PHONY
+	${_+_}cd ${.CURDIR} && \
 	    ${MAKE} -f Makefile.inc1 _prereq_libs && \
 	    ${MAKE} -f Makefile.inc1 _startup_libs && \
 	    ${MAKE} -f Makefile.inc1 _prebuild_libs && \
@@ -2222,12 +2223,12 @@ xdev: xdev-build xdev-install
 .ORDER: _xb-worldtmp _xb-bootstrap-tools _xb-build-tools _xb-cross-tools
 xdev-build: _xb-worldtmp _xb-bootstrap-tools _xb-build-tools _xb-cross-tools
 
-_xb-worldtmp:
+_xb-worldtmp: .PHONY
 	mkdir -p ${CDTMP}/usr
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${CDTMP}/usr >/dev/null
 
-_xb-bootstrap-tools:
+_xb-bootstrap-tools: .PHONY
 .for _tool in \
     ${_clang_tblgen} \
     ${_gperf}
@@ -2239,11 +2240,11 @@ _xb-bootstrap-tools:
 	${CDMAKE} DIRPRFX=${_tool}/ DESTDIR=${CDTMP} install
 .endfor
 
-_xb-build-tools:
+_xb-build-tools: .PHONY
 	${_+_}@cd ${.CURDIR}; \
 	${CDBENV} ${MAKE} -f Makefile.inc1 ${NOFUN} build-tools
 
-_xb-cross-tools:
+_xb-cross-tools: .PHONY
 .for _tool in \
     ${_binutils} \
     ${_elftctools} \
@@ -2258,7 +2259,7 @@ _xb-cross-tools:
 	${CDMAKE} DIRPRFX=${_tool}/ all
 .endfor
 
-_xi-mtree:
+_xi-mtree: .PHONY
 	${_+_}@${ECHODIR} "mtree populating ${XDDESTDIR}"
 	mkdir -p ${XDDESTDIR}
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.root.dist \
@@ -2280,7 +2281,7 @@ _xi-mtree:
 .ORDER: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries
 xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries
 
-_xi-cross-tools:
+_xi-cross-tools: .PHONY
 	@echo "_xi-cross-tools"
 .for _tool in \
     ${_binutils} \
@@ -2294,17 +2295,17 @@ _xi-cross-tools:
 	${CDMAKE} DIRPRFX=${_tool}/ install DESTDIR=${XDDESTDIR}
 .endfor
 
-_xi-includes:
+_xi-includes: .PHONY
 	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 buildincludes \
 		DESTDIR=${XDDESTDIR}
 	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 installincludes \
 		DESTDIR=${XDDESTDIR}
 
-_xi-libraries:
+_xi-libraries: .PHONY
 	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 libraries \
 		DESTDIR=${XDDESTDIR}
 
-xdev-links:
+xdev-links: .PHONY
 	${_+_}cd ${XDDESTDIR}/usr/bin; \
 	mkdir -p ../../../../usr/bin; \
 		for i in *; do \
