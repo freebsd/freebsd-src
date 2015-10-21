@@ -313,10 +313,11 @@ struct mips_opcode
 	Requires that "+A" or "+E" occur first to set position.
 	Enforces: 32 < (pos+size) <= 64.
    "+O" 8 bit signed offset (OP_*_CDELTA2)
-   "+w" 5 bit source or destination capability register (OP_*_RT)
    "+b" 5 bit source or target capability register (OP_*_RD)
-   "+v" 5 bit target capability register (OP_*_FD)
    "+o" 11 bit signed offset (OP_*_CDELTA)
+   "+v" 5 bit target capability register (OP_*_FD)
+   "+w" 5 bit source or destination capability register (OP_*_RT)
+   "+x" 5 bit source or destination capability register (OP_*_RS)
 
    Floating point instructions:
    "D" 5 bit destination register (OP_*_FD)
