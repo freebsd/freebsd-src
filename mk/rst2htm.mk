@@ -1,4 +1,4 @@
-# $Id: rst2htm.mk,v 1.9 2014/02/22 01:52:41 sjg Exp $
+# $Id: rst2htm.mk,v 1.10 2015/09/08 22:17:46 sjg Exp $
 #
 #	@(#) Copyright (c) 2009, Simon J. Gerraty
 #
@@ -26,7 +26,12 @@ RST2PDF ?= rst2pdf
 RST2S5 ?= rst2s5.py
 # the following will run RST2S5 if the target name contains the word 'slides'
 # otherwise it uses RST2HTML
-RST2HTM = ${"${.TARGET:T:M*slides*}":?${RST2S5} ${RST2S5_FLAGS}:${RST2HTML} ${RST2HTML_FLAGS}}
+RST2HTM = ${"${.TARGET:T:M*slides*}":?${RST2S5}:${RST2HTML}}
+RST2HTM_SLIDES_FLAGS ?= ${RST2S5_FLAGS}
+RST2HTM_DOC_FLAGS ?= ${RST2HTML_FLAGS}
+RST2HTM_FLAGS ?= ${"${.TARGET:T:M*slides*}":?${RST2HTM_SLIDES_FLAGS}:${RST2HTM_DOC_FLAGS}}
+
+RST2PDF_FLAGS ?= ${"${.TARGET:T:M*slides*}":?${RST2PDF_SLIDES_FLAGS}:${RST2PDF_DOC_FLAGS}}
 
 RST_SUFFIXES ?= .rst .txt
 
@@ -37,10 +42,10 @@ html:	${HTMFILES}
 .SUFFIXES: ${RST_SUFFIXES} .htm .pdf
 
 ${RST_SUFFIXES:@s@$s.htm@}:
-	${RST2HTM} ${.IMPSRC} ${.TARGET}
+	${RST2HTM} ${RST2HTM_FLAGS} ${FLAGS.${.TARGET}} ${.IMPSRC} ${.TARGET}
 
 ${RST_SUFFIXES:@s@$s.pdf@}:
-	${RST2PDF} ${.IMPSRC} ${.TARGET}
+	${RST2PDF} ${RST2PDF_FLAGS} ${FLAGS.${.TARGET}} ${.IMPSRC} ${.TARGET}
 
 .for s in ${RSTSRCS:O:u}
 ${s:R:T}.htm: $s
