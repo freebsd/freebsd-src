@@ -119,6 +119,7 @@ art [label="Artem Belevich\nart@FreeBSD.org\n2011/03/29"]
 arybchik [label="Andrew Rybchenko\narybchik@FreeBSD.org\n2014/10/12"]
 asomers [label="Alan Somers\nasomers@FreeBSD.org\n2013/04/24"]
 avg [label="Andriy Gapon\navg@FreeBSD.org\n2009/02/18"]
+avos [label="Andriy Voskoboinyk\navos@FreeBSD.org\n2015/09/24"]
 bapt [label="Baptiste Daroussin\nbapt@FreeBSD.org\n2011/12/23"]
 bdrewery [label="Bryan Drewery\nbdrewery@FreeBSD.org\n2013/12/14"]
 benl [label="Ben Laurie\nbenl@FreeBSD.org\n2011/05/18"]
@@ -332,6 +333,7 @@ day1 -> rgrimes
 day1 -> alm
 day1 -> dg
 
+adrian -> avos
 adrian -> loos
 adrian -> monthadar
 adrian -> ray
