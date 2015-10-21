@@ -215,7 +215,7 @@ cd9660_write_path_table(FILE *fd, off_t sector, int mode)
 
 	ret = cd9660_write_filedata(fd, sector, buffer_head,
 	    path_table_sectors);
-	free(buffer);
+	free(buffer_head);
 	return ret;
 }
 
