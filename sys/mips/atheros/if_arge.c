@@ -2195,11 +2195,6 @@ arge_newbuf(struct arge_softc *sc, int idx)
 	rxd = &sc->arge_cdata.arge_rxdesc[idx];
 	if (rxd->rx_m != NULL) {
 		bus_dmamap_unload(sc->arge_cdata.arge_rx_tag, rxd->rx_dmamap);
-		/* XXX TODO: free rx_m? */
-		device_printf(sc->arge_dev,
-		    "%s: ring[%d] rx_m wasn't free?\n",
-		    __func__,
-		    idx);
 	}
 	map = rxd->rx_dmamap;
 	rxd->rx_dmamap = sc->arge_cdata.arge_rx_sparemap;
