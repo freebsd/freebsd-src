@@ -131,7 +131,7 @@ usage()
 	# determine if we can use more than one column to display commands.
 	#
 	local x=$longest_cmd ncols=1
-	x=$(( $x + 8 )) # Accomodate leading tab character
+	x=$(( $x + 8 )) # Accommodate leading tab character
 	x=$(( $x + 3 + $longest_cmd )) # Preload end of next column
 	while [ $x -lt $max_width ]; do
 		ncols=$(( $ncols + 1 ))

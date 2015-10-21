@@ -1915,7 +1915,7 @@ do_sigwork(struct sigwork_entry *swork)
 	/*
 	 * Compute the pause between consecutive signals.  Use a longer
 	 * sleep time if we will be sending two signals to the same
-	 * deamon or process-group.
+	 * daemon or process-group.
 	 */
 	secs = 0;
 	nextsig = SLIST_NEXT(swork, sw_nextp);

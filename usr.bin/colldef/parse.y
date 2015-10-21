@@ -134,17 +134,17 @@ order : ORDER order_list {
 	strcpy(__collate_version, COLLATE_VERSION1_2);
 	if (fwrite(__collate_version, sizeof(__collate_version), 1, fp) != 1)
 		err(EX_IOERR,
-		"IO error writting collate version to destination file %s",
+		"I/O error writing collate version to destination file %s",
 		    out_file);
 	u32 = htonl(chain_index);
 	if (fwrite(&u32, sizeof(u32), 1, fp) != 1)
 		err(EX_IOERR,
-		"IO error writting chains number to destination file %s",
+		"I/O error writing chains number to destination file %s",
 		    out_file);
 	if (fwrite(__collate_substitute_table,
 		   sizeof(__collate_substitute_table), 1, fp) != 1)
 		err(EX_IOERR,
-		"IO error writting substitute table to destination file %s",
+		"I/O error writing substitution table to destination file %s",
 		    out_file);
 	for (ch = 0; ch < UCHAR_MAX + 1; ch++) {
 		__collate_char_pri_table[ch].prim =
@@ -155,7 +155,7 @@ order : ORDER order_list {
 	if (fwrite(__collate_char_pri_table,
 		   sizeof(__collate_char_pri_table), 1, fp) != 1)
 		err(EX_IOERR,
-		"IO error writting char table to destination file %s",
+		"I/O error writing char table to destination file %s",
 		    out_file);
 	for (ch = 0; ch < chain_index; ch++) {
 		__collate_chain_pri_table[ch].prim =
@@ -167,10 +167,10 @@ order : ORDER order_list {
 		   sizeof(*__collate_chain_pri_table), chain_index, fp) !=
 		   (size_t)chain_index)
 		err(EX_IOERR,
-		"IO error writting chain table to destination file %s",
+		"I/O error writing chain table to destination file %s",
 		    out_file);
 	if (fclose(fp) != 0)
-		err(EX_IOERR, "IO error closing destination file %s",
+		err(EX_IOERR, "I/O error closing destination file %s",
 		    out_file);
 	exit(EX_OK);
 }
