@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
+#include <sys/busdma_bufalloc.h>
 #include <sys/interrupt.h>
 #include <sys/lock.h>
 #include <sys/proc.h>
@@ -47,7 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 
+#include <vm/uma.h>
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 
@@ -129,9 +133,8 @@ static SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
 SYSCTL_INT(_hw_busdma, OID_AUTO, total_bpages, CTLFLAG_RD, &total_bpages, 0,
 	   "Total bounce pages");
 
-#define DMAMAP_UNCACHEABLE	0x8
-#define DMAMAP_ALLOCATED	0x10
-#define DMAMAP_MALLOCUSED	0x20
+#define DMAMAP_UNCACHEABLE	0x08
+#define DMAMAP_CACHE_ALIGNED	0x10
 
 struct bus_dmamap {
 	struct bp_list	bpages;
@@ -153,16 +156,6 @@ struct bus_dmamap {
 static STAILQ_HEAD(, bus_dmamap) bounce_map_waitinglist;
 static STAILQ_HEAD(, bus_dmamap) bounce_map_callbacklist;
 
-static TAILQ_HEAD(,bus_dmamap) dmamap_freelist = 
-	TAILQ_HEAD_INITIALIZER(dmamap_freelist);
-
-#define BUSDMA_STATIC_MAPS	128
-static struct bus_dmamap map_pool[BUSDMA_STATIC_MAPS];
-
-static struct mtx busdma_mtx;
-
-MTX_SYSINIT(busdma_mtx, &busdma_mtx, "busdma lock", MTX_DEF);
-
 static void init_bounce_pages(void *dummy);
 static int alloc_bounce_zone(bus_dma_tag_t dmat);
 static int alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages);
@@ -175,6 +168,80 @@ static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 
 /* Default tag, as most drivers provide no parent tag. */
 bus_dma_tag_t mips_root_dma_tag;
+
+static uma_zone_t dmamap_zone;	/* Cache of struct bus_dmamap items */
+
+static busdma_bufalloc_t coherent_allocator;	/* Cache of coherent buffers */
+static busdma_bufalloc_t standard_allocator;	/* Cache of standard buffers */
+
+MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
+MALLOC_DEFINE(M_BOUNCE, "bounce", "busdma bounce pages");
+
+/*
+ * This is the ctor function passed to uma_zcreate() for the pool of dma maps.
+ * It'll need platform-specific changes if this code is copied.
+ */
+static int
+dmamap_ctor(void *mem, int size, void *arg, int flags)
+{
+	bus_dmamap_t map;
+	bus_dma_tag_t dmat;
+
+	map = (bus_dmamap_t)mem;
+	dmat = (bus_dma_tag_t)arg;
+
+	dmat->map_count++;
+
+	map->dmat = dmat;
+	map->flags = 0;
+	map->slist = NULL;
+	map->allocbuffer = NULL;
+	map->sync_count = 0;
+	STAILQ_INIT(&map->bpages);
+
+	return (0);
+}
+
+/*
+ * This is the dtor function passed to uma_zcreate() for the pool of dma maps.
+ * It may need platform-specific changes if this code is copied              .
+ */
+static void
+dmamap_dtor(void *mem, int size, void *arg)
+{
+	bus_dmamap_t map;
+
+	map = (bus_dmamap_t)mem;
+
+	map->dmat->map_count--;
+}
+
+static void
+busdma_init(void *dummy)
+{
+
+	/* Create a cache of maps for bus_dmamap_create(). */
+	dmamap_zone = uma_zcreate("dma maps", sizeof(struct bus_dmamap),
+	    dmamap_ctor, dmamap_dtor, NULL, NULL, UMA_ALIGN_PTR, 0);
+
+	/* Create a cache of buffers in standard (cacheable) memory. */
+	standard_allocator = busdma_bufalloc_create("buffer",
+	    mips_pdcache_linesize,	/* minimum_alignment */
+	    NULL,			/* uma_alloc func */
+	    NULL,			/* uma_free func */
+	    0);				/* uma_zcreate_flags */
+
+	/*
+	 * Create a cache of buffers in uncacheable memory, to implement the
+	 * BUS_DMA_COHERENT flag.
+	 */
+	coherent_allocator = busdma_bufalloc_create("coherent",
+	    mips_pdcache_linesize,	/* minimum_alignment */
+	    busdma_bufalloc_alloc_uncacheable,
+	    busdma_bufalloc_free_uncacheable,
+	    0);				/* uma_zcreate_flags */
+}
+SYSINIT(busdma, SI_SUB_KMEM, SI_ORDER_FOURTH, busdma_init, NULL);
 
 /*
  * Return true if a match is made.
@@ -202,17 +269,6 @@ run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
 	} while (retval == 0 && dmat != NULL);
 	return (retval);
 }
-
-static void
-mips_dmamap_freelist_init(void *dummy)
-{
-	int i;
-
-	for (i = 0; i < BUSDMA_STATIC_MAPS; i++) 
-		TAILQ_INSERT_HEAD(&dmamap_freelist, &map_pool[i], freelist);
-}
-
-SYSINIT(busdma, SI_SUB_VM, SI_ORDER_ANY, mips_dmamap_freelist_init, NULL);
 
 /*
  * Check to see if the specified page is in an allowed DMA range.
@@ -277,24 +333,13 @@ _busdma_alloc_dmamap(bus_dma_tag_t dmat)
 	struct sync_list *slist;
 	bus_dmamap_t map;
 
-	slist = malloc(sizeof(*slist) * dmat->nsegments, M_DEVBUF, M_NOWAIT);
+	slist = malloc(sizeof(*slist) * dmat->nsegments, M_BUSDMA, M_NOWAIT);
 	if (slist == NULL)
 		return (NULL);
-	mtx_lock(&busdma_mtx);
-	map = TAILQ_FIRST(&dmamap_freelist);
-	if (map)
-		TAILQ_REMOVE(&dmamap_freelist, map, freelist);
-	mtx_unlock(&busdma_mtx);
-	if (!map) {
-		map = malloc(sizeof(*map), M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (map)
-			map->flags = DMAMAP_ALLOCATED;
-	} else
-		map->flags = 0;
-	if (map != NULL) {
-		STAILQ_INIT(&map->bpages);
+	map = uma_zalloc_arg(dmamap_zone, dmat, M_NOWAIT);
+	if (map != NULL)
 		map->slist = slist;
-	} else
+	else
 		free(slist, M_DEVBUF);
 	return (map);
 }
@@ -303,13 +348,7 @@ static __inline void
 _busdma_free_dmamap(bus_dmamap_t map)
 {
 	free(map->slist, M_DEVBUF);
-	if (map->flags & DMAMAP_ALLOCATED)
-		free(map, M_DEVBUF);
-	else {
-		mtx_lock(&busdma_mtx);
-		TAILQ_INSERT_HEAD(&dmamap_freelist, map, freelist);
-		mtx_unlock(&busdma_mtx);
-	}
+	uma_zfree(dmamap_zone, map);
 }
 
 /*
@@ -332,7 +371,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	if (!parent)
 		parent = mips_root_dma_tag;
 
-	newtag = (bus_dma_tag_t)malloc(sizeof(*newtag), M_DEVBUF, M_NOWAIT);
+	newtag = (bus_dma_tag_t)malloc(sizeof(*newtag), M_BUSDMA, M_NOWAIT);
 	if (newtag == NULL) {
 		CTR4(KTR_BUSDMA, "%s returned tag %p tag flags 0x%x error %d",
 		    __func__, newtag, 0, error);
@@ -476,7 +515,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 
 	if (dmat->segments == NULL) {
 		dmat->segments = (bus_dma_segment_t *)malloc(
-		    sizeof(bus_dma_segment_t) * dmat->nsegments, M_DEVBUF,
+		    sizeof(bus_dma_segment_t) * dmat->nsegments, M_BUSDMA,
 		    M_NOWAIT);
 		if (dmat->segments == NULL) {
 			CTR3(KTR_BUSDMA, "%s: tag %p error %d",
@@ -491,10 +530,6 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		return (ENOMEM);
 	}
 	*mapp = newmap;
-	newmap->dmat = dmat;
-	newmap->allocbuffer = NULL;
-	newmap->sync_count = 0;
-	dmat->map_count++;
 
 	/*
 	 * Bouncing might be required if the driver asks for an active
@@ -565,7 +600,6 @@ bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 	}
 	if (dmat->bounce_zone)
 		dmat->bounce_zone->map_count--;
-        dmat->map_count--;
 	_busdma_free_dmamap(map);
 	CTR2(KTR_BUSDMA, "%s: tag %p error 0", __func__, dmat);
         return (0);
@@ -577,10 +611,14 @@ bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
  * A dmamap to for use with dmamap_load is also allocated.
  */
 int
-bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
+bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddrp, int flags,
     bus_dmamap_t *mapp)
 {
 	bus_dmamap_t newmap = NULL;
+	busdma_bufalloc_t ba;
+	struct busdma_bufzone *bufzone;
+	vm_memattr_t memattr;
+	void *vaddr;
 
 	int mflags;
 
@@ -590,7 +628,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		mflags = M_WAITOK;
 	if (dmat->segments == NULL) {
 		dmat->segments = (bus_dma_segment_t *)malloc(
-		    sizeof(bus_dma_segment_t) * dmat->nsegments, M_DEVBUF,
+		    sizeof(bus_dma_segment_t) * dmat->nsegments, M_BUSDMA,
 		    mflags);
 		if (dmat->segments == NULL) {
 			CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
@@ -598,8 +636,6 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 			return (ENOMEM);
 		}
 	}
-	if (flags & BUS_DMA_ZERO)
-		mflags |= M_ZERO;
 
 	newmap = _busdma_alloc_dmamap(dmat);
 	if (newmap == NULL) {
@@ -607,10 +643,6 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		    __func__, dmat, dmat->flags, ENOMEM);
 		return (ENOMEM);
 	}
-	dmat->map_count++;
-	*mapp = newmap;
-	newmap->dmat = dmat;
-	newmap->sync_count = 0;
 
 	/*
 	 * If all the memory is coherent with DMA then we don't need to
@@ -619,54 +651,62 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	if (dmat->flags & BUS_DMA_COHERENT)
 	    flags &= ~BUS_DMA_COHERENT;
 
-	/*
-	 * Allocate uncacheable memory if all else fails.
-	 */
-	if (flags & BUS_DMA_COHERENT)
-	    newmap->flags |= DMAMAP_UNCACHEABLE;
-
-	if (dmat->maxsize <= PAGE_SIZE &&
-	   (dmat->alignment < dmat->maxsize) &&
-	   !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr) && 
-	   !(newmap->flags & DMAMAP_UNCACHEABLE)) {
-                *vaddr = malloc(dmat->maxsize, M_DEVBUF, mflags);
-		newmap->flags |= DMAMAP_MALLOCUSED;
+	if (flags & BUS_DMA_COHERENT) {
+		memattr = VM_MEMATTR_UNCACHEABLE;
+		ba = coherent_allocator;
+		newmap->flags |= DMAMAP_UNCACHEABLE;
 	} else {
-		/*
-		 * XXX Use Contigmalloc until it is merged into this facility
-		 *     and handles multi-seg allocations.  Nobody is doing
-		 *     multi-seg allocations yet though.
-		 */
-		*vaddr = contigmalloc(dmat->maxsize, M_DEVBUF, mflags,
-		    0ul, dmat->lowaddr, dmat->alignment? dmat->alignment : 1ul,
-		    dmat->boundary);
+		memattr = VM_MEMATTR_DEFAULT;
+		ba = standard_allocator;
 	}
-	if (*vaddr == NULL) {
-		if (newmap != NULL) {
-			_busdma_free_dmamap(newmap);
-			dmat->map_count--;
-		}
-		*mapp = NULL;
-		return (ENOMEM);
+	/* All buffers we allocate are cache-aligned. */
+	newmap->flags |= DMAMAP_CACHE_ALIGNED;
+
+	if (flags & BUS_DMA_ZERO)
+		mflags |= M_ZERO;
+
+	/*
+	 * Try to find a bufzone in the allocator that holds a cache of buffers
+	 * of the right size for this request.  If the buffer is too big to be
+	 * held in the allocator cache, this returns NULL.
+	 */
+	bufzone = busdma_bufalloc_findzone(ba, dmat->maxsize);
+
+	/*
+	 * Allocate the buffer from the uma(9) allocator if...
+	 *  - It's small enough to be in the allocator (bufzone not NULL).
+	 *  - The alignment constraint isn't larger than the allocation size
+	 *    (the allocator aligns buffers to their size boundaries).
+	 *  - There's no need to handle lowaddr/highaddr exclusion zones.
+	 * else allocate non-contiguous pages if...
+	 *  - The page count that could get allocated doesn't exceed nsegments.
+	 *  - The alignment constraint isn't larger than a page boundary.
+	 *  - There are no boundary-crossing constraints.
+	 * else allocate a block of contiguous pages because one or more of the
+	 * constraints is something that only the contig allocator can fulfill.
+	 */
+	if (bufzone != NULL && dmat->alignment <= bufzone->size &&
+	    !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr)) {
+		vaddr = uma_zalloc(bufzone->umazone, mflags);
+	} else if (dmat->nsegments >= btoc(dmat->maxsize) &&
+	    dmat->alignment <= PAGE_SIZE && dmat->boundary == 0) {
+		vaddr = (void *)kmem_alloc_attr(kernel_arena, dmat->maxsize,
+		    mflags, 0, dmat->lowaddr, memattr);
+	} else {
+		vaddr = (void *)kmem_alloc_contig(kernel_arena, dmat->maxsize,
+		    mflags, 0, dmat->lowaddr, dmat->alignment, dmat->boundary,
+		    memattr);
 	}
+	if (vaddr == NULL) {
+		_busdma_free_dmamap(newmap);
+		newmap = NULL;
+	} else {
+		newmap->sync_count = 0;
+	}
+	*vaddrp = vaddr;
+	*mapp = newmap;
 
-	if (newmap->flags & DMAMAP_UNCACHEABLE) {
-		void *tmpaddr = (void *)*vaddr;
-
-		if (tmpaddr) {
-			tmpaddr = (void *)pmap_mapdev(vtophys(tmpaddr),
-			    dmat->maxsize);
-			newmap->origbuffer = *vaddr;
-			newmap->allocbuffer = tmpaddr;
-			mips_dcache_wbinv_range((vm_offset_t)*vaddr,
-			    dmat->maxsize);
-			*vaddr = tmpaddr;
-		} else
-			newmap->origbuffer = newmap->allocbuffer = NULL;
-	} else
-		newmap->origbuffer = newmap->allocbuffer = NULL;
-
-	return (0);
+	return (vaddr == NULL ? ENOMEM : 0);
 }
 
 /*
@@ -676,21 +716,24 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 void
 bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 {
-	if (map->allocbuffer) {
-		KASSERT(map->allocbuffer == vaddr,
-		    ("Trying to freeing the wrong DMA buffer"));
-		vaddr = map->origbuffer;
-	}
+	struct busdma_bufzone *bufzone;
+	busdma_bufalloc_t ba;
 
 	if (map->flags & DMAMAP_UNCACHEABLE)
-		pmap_unmapdev((vm_offset_t)map->allocbuffer, dmat->maxsize);
-	if (map->flags & DMAMAP_MALLOCUSED)
-		free(vaddr, M_DEVBUF);
+		ba = coherent_allocator;
 	else
-		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
+		ba = standard_allocator;
 
-	dmat->map_count--;
-	_busdma_free_dmamap(map);
+	free(map->slist, M_DEVBUF);
+	uma_zfree(dmamap_zone, map);
+
+	bufzone = busdma_bufalloc_findzone(ba, dmat->maxsize);
+
+	if (bufzone != NULL && dmat->alignment <= bufzone->size &&
+	    !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr))
+		uma_zfree(bufzone->umazone, vaddr);
+	else
+		kmem_free(kernel_arena, (vm_offset_t)vaddr, dmat->maxsize);
 	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat, dmat->flags);
 }
 
@@ -1013,7 +1056,7 @@ _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 }
 
 static void
-bus_dmamap_sync_buf(vm_offset_t buf, int len, bus_dmasync_op_t op)
+bus_dmamap_sync_buf(vm_offset_t buf, int len, bus_dmasync_op_t op, int aligned)
 {
 	char tmp_cl[mips_pdcache_linesize], tmp_clend[mips_pdcache_linesize];
 	vm_offset_t buf_cl, buf_clend;
@@ -1025,13 +1068,23 @@ bus_dmamap_sync_buf(vm_offset_t buf, int len, bus_dmasync_op_t op)
 	 * and could modify areas of memory that share the same cache line
 	 * at the beginning and the ending of the buffer. In order to 
 	 * prevent a data loss we save these chunks in temporary buffer
-	 * before invalidation and restore them afer it
+	 * before invalidation and restore them afer it.
+	 *
+	 * If the aligned flag is set the buffer came from our allocator caches
+	 * which are always sized and aligned to cacheline boundaries, so we can
+	 * skip preserving nearby data if a transfer is unaligned (especially
+	 * it's likely to not end on a boundary).
 	 */
-	buf_cl = buf & ~cache_linesize_mask;
-	size_cl = buf & cache_linesize_mask;
-	buf_clend = buf + len;
-	size_clend = (mips_pdcache_linesize - 
-	    (buf_clend & cache_linesize_mask)) & cache_linesize_mask;
+	if (aligned) {
+		size_cl = 0;
+		size_clend = 0;
+	} else {
+		buf_cl = buf & ~cache_linesize_mask;
+		size_cl = buf & cache_linesize_mask;
+		buf_clend = buf + len;
+		size_clend = (mips_pdcache_linesize - 
+		    (buf_clend & cache_linesize_mask)) & cache_linesize_mask;
+	}
 
 	switch (op) {
 	case BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE:
@@ -1151,6 +1204,7 @@ void
 _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 {
 	struct sync_list *sl, *end;
+	int aligned;
 	
 	if (op == BUS_DMASYNC_POSTWRITE)
 		return;
@@ -1163,11 +1217,14 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	if (map->flags & DMAMAP_UNCACHEABLE)
 		return;
 
+	aligned = (map->flags & DMAMAP_CACHE_ALIGNED) ? 1 : 0;
+
 	CTR3(KTR_BUSDMA, "%s: op %x flags %x", __func__, op, map->flags);
 	if (map->sync_count) {
 		end = &map->slist[map->sync_count];
 		for (sl = &map->slist[0]; sl != end; sl++)
-			bus_dmamap_sync_buf(sl->vaddr, sl->datacount, op);
+			bus_dmamap_sync_buf(sl->vaddr, sl->datacount, op, 
+			    aligned);
 	}
 }
 
@@ -1209,7 +1266,7 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 		}
 	}
 
-	if ((bz = (struct bounce_zone *)malloc(sizeof(*bz), M_DEVBUF,
+	if ((bz = (struct bounce_zone *)malloc(sizeof(*bz), M_BUSDMA,
 	    M_NOWAIT | M_ZERO)) == NULL)
 		return (ENOMEM);
 
@@ -1280,12 +1337,12 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 	while (numpages > 0) {
 		struct bounce_page *bpage;
 
-		bpage = (struct bounce_page *)malloc(sizeof(*bpage), M_DEVBUF,
+		bpage = (struct bounce_page *)malloc(sizeof(*bpage), M_BUSDMA,
 						     M_NOWAIT | M_ZERO);
 
 		if (bpage == NULL)
 			break;
-		bpage->vaddr = (vm_offset_t)contigmalloc(PAGE_SIZE, M_DEVBUF,
+		bpage->vaddr = (vm_offset_t)contigmalloc(PAGE_SIZE, M_BOUNCE,
 							 M_NOWAIT, 0ul,
 							 bz->lowaddr,
 							 PAGE_SIZE,
