@@ -110,9 +110,8 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 		printf(ARGS(vfork, ""));
 #endif
 
-	/* Exclude RFPPWAIT */
-	if ((error = fork1(td, RFFDG | RFPROC | RFMEM | RFSTOPPED, 0, &p2,
-	    NULL, 0)) != 0)
+	if ((error = fork1(td, RFFDG | RFPROC | RFMEM | RFPPWAIT | RFSTOPPED,
+	    0, &p2, NULL, 0)) != 0)
 		return (error);
 
    	td->td_retval[0] = p2->p_pid;
@@ -120,10 +119,6 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	error = linux_proc_init(td, td->td_retval[0], 0);
 	if (error)
 		return (error);
-
-	PROC_LOCK(p2);
-	p2->p_flag |= P_PPWAIT;
-	PROC_UNLOCK(p2);
 
 	td2 = FIRST_THREAD_IN_PROC(p2);
 
@@ -134,12 +129,6 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	TD_SET_CAN_RUN(td2);
 	sched_add(td2, SRQ_BORING);
 	thread_unlock(td2);
-
-	/* wait for the children to exit, ie. emulate vfork */
-	PROC_LOCK(p2);
-	while (p2->p_flag & P_PPWAIT)
-		cv_wait(&p2->p_pwait, &p2->p_mtx);
-	PROC_UNLOCK(p2);
 
 	return (0);
 }
@@ -201,6 +190,9 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (args->flags & LINUX_CLONE_PARENT_SETTID)
 		if (args->parent_tidptr == NULL)
 			return (EINVAL);
+
+	if (args->flags & LINUX_CLONE_VFORK)
+		ff |= RFPPWAIT;
 
 	error = fork1(td, ff, 0, &p2, NULL, 0);
 	if (error)
@@ -270,12 +262,6 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		    "stack %p sig = %d"), (int)p2->p_pid, args->stack,
 		    exit_signal);
 #endif
-	if (args->flags & LINUX_CLONE_VFORK) {
-	   	PROC_LOCK(p2);
-	   	p2->p_flag |= P_PPWAIT;
-	   	PROC_UNLOCK(p2);
-	}
-
 	/*
 	 * Make this runnable after we are finished with it.
 	 */
@@ -286,14 +272,6 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 
 	td->td_retval[0] = p2->p_pid;
 	td->td_retval[1] = 0;
-
-	if (args->flags & LINUX_CLONE_VFORK) {
-		/* wait for the children to exit, ie. emulate vfork */
-		PROC_LOCK(p2);
-		while (p2->p_flag & P_PPWAIT)
-			cv_wait(&p2->p_pwait, &p2->p_mtx);
-		PROC_UNLOCK(p2);
-	}
 
 	return (0);
 }
