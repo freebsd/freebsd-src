@@ -124,14 +124,16 @@ struct bounce_page {
 	vm_offset_t	vaddr;		/* kva of bounce buffer */
 	bus_addr_t	busaddr;	/* Physical address */
 	vm_offset_t	datavaddr;	/* kva of client data */
-	bus_addr_t	dataaddr;	/* client physical address */
+	vm_page_t	datapage;	/* physical page of client data */
+	vm_offset_t	dataoffs;	/* page offset of client data */
 	bus_size_t	datacount;	/* client data count */
 	STAILQ_ENTRY(bounce_page) links;
 };
 
 struct sync_list {
-	vm_offset_t	vaddr;		/* kva of bounce buffer */
-	bus_addr_t	busaddr;	/* Physical address */
+	vm_offset_t	vaddr;		/* kva of client data */
+	vm_page_t	pages;		/* starting page of client data */
+	vm_offset_t	dataoffs;	/* page offset of client data */
 	bus_size_t	datacount;	/* client data count */
 };
 
@@ -197,6 +199,8 @@ static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
 				  vm_offset_t vaddr, bus_addr_t addr,
 				  bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
+static void bus_dmamap_sync_sl(struct sync_list *sl, bus_dmasync_op_t op,
+			       int bufaligned);
 
 /* Default tag, as most drivers provide no parent tag. */
 bus_dma_tag_t arm_root_dma_tag;
@@ -819,7 +823,8 @@ _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
 		while (buflen != 0) {
 			sgsize = MIN(buflen, dmat->maxsegsz);
 			if (run_filter(dmat, curaddr) != 0) {
-				sgsize = MIN(sgsize, PAGE_SIZE);
+				sgsize = MIN(sgsize,
+				    PAGE_SIZE - (curaddr & PAGE_MASK));
 				map->pagesneeded++;
 			}
 			curaddr += sgsize;
@@ -949,8 +954,10 @@ int
 _bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
     bus_size_t buflen, int flags, bus_dma_segment_t *segs, int *segp)
 {
+	struct sync_list *sl;
 	bus_size_t sgsize;
 	bus_addr_t curaddr;
+	bus_addr_t sl_end = 0;
 	int error;
 
 	if (segs == NULL)
@@ -965,14 +972,35 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
 		}
 	}
 
+	sl = map->slist + map->sync_count - 1;
+
 	while (buflen > 0) {
 		curaddr = buf;
 		sgsize = MIN(buflen, dmat->maxsegsz);
 		if (((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
 		    map->pagesneeded != 0 && run_filter(dmat, curaddr)) {
-			sgsize = MIN(sgsize, PAGE_SIZE);
+			sgsize = MIN(sgsize, PAGE_SIZE - (curaddr & PAGE_MASK));
 			curaddr = add_bounce_page(dmat, map, 0, curaddr,
 			    sgsize);
+		} else {
+			if (map->sync_count > 0)
+				sl_end = VM_PAGE_TO_PHYS(sl->pages) +
+				    sl->dataoffs + sl->datacount;
+
+			if (map->sync_count == 0 || curaddr != sl_end) {
+				if (++map->sync_count > dmat->nsegments)
+					break;
+				sl++;
+				sl->vaddr = 0;
+				sl->datacount = sgsize;
+				/*
+				 * PHYS_TO_VM_PAGE() will truncate
+				 * unaligned addresses.
+				 */
+				sl->pages = PHYS_TO_VM_PAGE(curaddr);
+				sl->dataoffs = curaddr & PAGE_MASK;
+			} else
+				sl->datacount += sgsize;
 		}
 		sgsize = _bus_dmamap_addseg(dmat, map, curaddr, sgsize, segs,
 		    segp);
@@ -1013,8 +1041,11 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 {
 	bus_size_t sgsize;
 	bus_addr_t curaddr;
+	bus_addr_t sl_pend = 0;
 	struct sync_list *sl;
+	vm_offset_t kvaddr;
 	vm_offset_t vaddr = (vm_offset_t)buf;
+	vm_offset_t sl_vend = 0;
 	int error = 0;
 
 	if (segs == NULL)
@@ -1033,21 +1064,25 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	CTR3(KTR_BUSDMA, "lowaddr= %d boundary= %d, "
 	    "alignment= %d", dmat->lowaddr, dmat->boundary, dmat->alignment);
 
+	sl = map->slist + map->sync_count - 1;
+
 	while (buflen > 0) {
 		/*
 		 * Get the physical address for this segment.
 		 */
 		if (__predict_true(pmap == kernel_pmap)) {
 			curaddr = pmap_kextract(vaddr);
+			kvaddr = vaddr;
 		} else {
 			curaddr = pmap_extract(pmap, vaddr);
 			map->flags &= ~DMAMAP_COHERENT;
+			kvaddr = 0;
 		}
 
 		/*
 		 * Compute the segment size, and adjust counts.
 		 */
-		sgsize = PAGE_SIZE - ((u_long)curaddr & PAGE_MASK);
+		sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
 		if (sgsize > dmat->maxsegsz)
 			sgsize = dmat->maxsegsz;
 		if (buflen < sgsize)
@@ -1055,18 +1090,30 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 
 		if (((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
 		    map->pagesneeded != 0 && run_filter(dmat, curaddr)) {
-			curaddr = add_bounce_page(dmat, map, vaddr, curaddr,
+			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr,
 			    sgsize);
 		} else {
-			sl = &map->slist[map->sync_count - 1];
+			if (map->sync_count > 0) {
+				sl_pend = VM_PAGE_TO_PHYS(sl->pages) +
+				    sl->dataoffs + sl->datacount;
+				sl_vend = sl->vaddr + sl->datacount;
+			}
+
 			if (map->sync_count == 0 ||
-			    vaddr != sl->vaddr + sl->datacount) {
+			    (kvaddr != 0 && kvaddr != sl_vend) ||
+			    (kvaddr == 0 && curaddr != sl_pend)) {
+
 				if (++map->sync_count > dmat->nsegments)
 					goto cleanup;
 				sl++;
-				sl->vaddr = vaddr;
+				sl->vaddr = kvaddr;
 				sl->datacount = sgsize;
-				sl->busaddr = curaddr;
+				/*
+				 * PHYS_TO_VM_PAGE() will truncate
+				 * unaligned addresses.
+				 */
+				sl->pages = PHYS_TO_VM_PAGE(curaddr);
+				sl->dataoffs = curaddr & PAGE_MASK;
 			} else
 				sl->datacount += sgsize;
 		}
@@ -1198,18 +1245,66 @@ bus_dmamap_sync_buf(vm_offset_t buf, int len, bus_dmasync_op_t op,
 }
 
 static void
+bus_dmamap_sync_sl(struct sync_list *sl, bus_dmasync_op_t op,
+    int bufaligned)
+{
+	vm_offset_t tempvaddr;
+	vm_page_t curpage;
+	size_t npages;
+
+	if (sl->vaddr != 0) {
+		bus_dmamap_sync_buf(sl->vaddr, sl->datacount, op, bufaligned);
+		return;
+	}
+
+	tempvaddr = 0;
+	npages = atop(round_page(sl->dataoffs + sl->datacount));
+
+	for (curpage = sl->pages; curpage != sl->pages + npages; ++curpage) {
+		/*
+		 * If the page is mapped to some other VA that hasn't
+		 * been supplied to busdma, then pmap_quick_enter_page()
+		 * will find all duplicate mappings and mark them
+		 * uncacheable.
+		 * That will also do any necessary wb/inv.  Otherwise,
+		 * if the page is truly unmapped, then we don't actually
+		 * need to do cache maintenance.
+		 * XXX: May overwrite DMA'ed data in the POSTREAD
+		 * case where the CPU has written to a cacheline not
+		 * completely covered by the DMA region.
+		 */
+		KASSERT(VM_PAGE_TO_PHYS(curpage) == VM_PAGE_TO_PHYS(sl->pages) +
+		    ptoa(curpage - sl->pages),
+		    ("unexpected vm_page_t phys: 0x%08x != 0x%08x",
+		    VM_PAGE_TO_PHYS(curpage), VM_PAGE_TO_PHYS(sl->pages) +
+		    ptoa(curpage - sl->pages)));
+		tempvaddr = pmap_quick_enter_page(curpage);
+		pmap_quick_remove_page(tempvaddr);
+	}
+}
+
+static void
 _bus_dmamap_sync_bp(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 {
 	struct bounce_page *bpage;
+	vm_offset_t datavaddr, tempvaddr;
+
+	if ((op & (BUS_DMASYNC_PREWRITE | BUS_DMASYNC_POSTREAD)) == 0)
+		return;
 
 	STAILQ_FOREACH(bpage, &map->bpages, links) {
+		tempvaddr = 0;
+		datavaddr = bpage->datavaddr;
 		if (op & BUS_DMASYNC_PREWRITE) {
-			if (bpage->datavaddr != 0)
-				bcopy((void *)bpage->datavaddr,
-				    (void *)bpage->vaddr, bpage->datacount);
-			else
-				physcopyout(bpage->dataaddr,
-				    (void *)bpage->vaddr,bpage->datacount);
+			if (datavaddr == 0) {
+				tempvaddr =
+				    pmap_quick_enter_page(bpage->datapage);
+				datavaddr = tempvaddr | bpage->dataoffs;
+			}
+			bcopy((void *)datavaddr,
+			    (void *)bpage->vaddr, bpage->datacount);
+			if (tempvaddr != 0)
+				pmap_quick_remove_page(tempvaddr);
 			cpu_dcache_wb_range(bpage->vaddr, bpage->datacount);
 			cpu_l2cache_wb_range(bpage->vaddr, bpage->datacount);
 			dmat->bounce_zone->total_bounced++;
@@ -1217,12 +1312,15 @@ _bus_dmamap_sync_bp(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		if (op & BUS_DMASYNC_POSTREAD) {
 			cpu_dcache_inv_range(bpage->vaddr, bpage->datacount);
 			cpu_l2cache_inv_range(bpage->vaddr, bpage->datacount);
-			if (bpage->datavaddr != 0)
-				bcopy((void *)bpage->vaddr,
-				    (void *)bpage->datavaddr, bpage->datacount);
-			else
-				physcopyin((void *)bpage->vaddr,
-				    bpage->dataaddr, bpage->datacount);
+			if (datavaddr == 0) {
+				tempvaddr =
+				    pmap_quick_enter_page(bpage->datapage);
+				datavaddr = tempvaddr | bpage->dataoffs;
+			}
+			bcopy((void *)bpage->vaddr,
+			    (void *)datavaddr, bpage->datacount);
+			if (tempvaddr != 0)
+				pmap_quick_remove_page(tempvaddr);
 			dmat->bounce_zone->total_bounced++;
 		}
 	}
@@ -1245,8 +1343,7 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	if (map->sync_count) {
 		end = &map->slist[map->sync_count];
 		for (sl = &map->slist[0]; sl != end; sl++)
-			bus_dmamap_sync_buf(sl->vaddr, sl->datacount, op,
-			    bufaligned);
+			bus_dmamap_sync_sl(sl, op, bufaligned);
 	}
 
 drain:
@@ -1444,7 +1541,9 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 		bpage->busaddr |= addr & PAGE_MASK;
 	}
 	bpage->datavaddr = vaddr;
-	bpage->dataaddr = addr;
+	/* PHYS_TO_VM_PAGE() will truncate unaligned addresses. */
+	bpage->datapage = PHYS_TO_VM_PAGE(addr);
+	bpage->dataoffs = addr & PAGE_MASK;
 	bpage->datacount = size;
 	STAILQ_INSERT_TAIL(&(map->bpages), bpage, links);
 	return (bpage->busaddr);
