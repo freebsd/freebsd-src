@@ -16,10 +16,6 @@ SUBDIR:=
 .if ${MK_LIBCHERI_BROKEN} == "no"
 # __DECONT-like thing in roken.h is broken
 SUBDIR:=	${SUBDIR:Nlibgssapi_krb5:Nlibgssapi_ntlm:Nlibgssapi_spnego:Nlibhx509}
-# CHERI-clang #31
-SUBDIR:=	${SUBDIR:Nlibhdb}
-# CHERI-clang #32 (might be #31)
-SUBDIR:=	${SUBDIR:Nlibkrb5}
 # missing krb_err.h
 SUBDIR:=	${SUBDIR:Nlibkafs5}
 .endif
