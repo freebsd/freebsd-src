@@ -842,8 +842,10 @@ static void
 xn_rxeof(struct netfront_info *np)
 {
 	struct ifnet *ifp;
+#if (defined(INET) || defined(INET6))
 	struct lro_ctrl *lro = &np->xn_lro;
 	struct lro_entry *queued;
+#endif
 	struct netfront_rx_info rinfo;
 	struct netif_rx_response *rx = &rinfo.rx;
 	struct netif_extra_info *extras = rinfo.extras;
