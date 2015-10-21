@@ -1,6 +1,6 @@
 # $FreeBSD: stable/9/lib/libdevinfo/Makefile 201381 2010-01-02 09:58:07Z ed $
 
-LIB=	devdctl
+LIB_CXX=	devdctl
 INCS=	consumer.h		\
 	event.h			\
 	event_factory.h		\
