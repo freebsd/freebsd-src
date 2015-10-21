@@ -2165,6 +2165,7 @@ arge_newbuf(struct arge_softc *sc, int idx)
 	bus_dmamap_t		map;
 	int			nsegs;
 
+	/* XXX TODO: should just allocate an explicit 2KiB buffer */
 	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
@@ -2174,7 +2175,15 @@ arge_newbuf(struct arge_softc *sc, int idx)
 	 * Add extra space to "adjust" (copy) the packet back to be aligned
 	 * for purposes of IPv4/IPv6 header contents.
 	 */
-	m_adj(m, sizeof(uint64_t));
+	if (sc->arge_hw_flags & ARGE_HW_FLG_RX_DESC_ALIGN_4BYTE)
+		m_adj(m, sizeof(uint64_t));
+	/*
+	 * If it's a 1-byte aligned buffer, then just offset it two bytes
+	 * and that will give us a hopefully correctly DWORD aligned
+	 * L3 payload - and we won't have to undo it afterwards.
+	 */
+	else if (sc->arge_hw_flags & ARGE_HW_FLG_RX_DESC_ALIGN_1BYTE)
+		m_adj(m, sizeof(uint16_t));
 
 	if (bus_dmamap_load_mbuf_sg(sc->arge_cdata.arge_rx_tag,
 	    sc->arge_cdata.arge_rx_sparemap, m, segs, &nsegs, 0) != 0) {
@@ -2186,6 +2195,11 @@ arge_newbuf(struct arge_softc *sc, int idx)
 	rxd = &sc->arge_cdata.arge_rxdesc[idx];
 	if (rxd->rx_m != NULL) {
 		bus_dmamap_unload(sc->arge_cdata.arge_rx_tag, rxd->rx_dmamap);
+		/* XXX TODO: free rx_m? */
+		device_printf(sc->arge_dev,
+		    "%s: ring[%d] rx_m wasn't free?\n",
+		    __func__,
+		    idx);
 	}
 	map = rxd->rx_dmamap;
 	rxd->rx_dmamap = sc->arge_cdata.arge_rx_sparemap;
@@ -2205,6 +2219,13 @@ arge_newbuf(struct arge_softc *sc, int idx)
 	return (0);
 }
 
+/*
+ * Move the data backwards 16 bits to (hopefully!) ensure the
+ * IPv4/IPv6 payload is aligned.
+ *
+ * This is required for earlier hardware where the RX path
+ * requires DWORD aligned buffers.
+ */
 static __inline void
 arge_fixup_rx(struct mbuf *m)
 {
@@ -2344,7 +2365,13 @@ arge_rx_locked(struct arge_softc *sc)
 		    BUS_DMASYNC_POSTREAD);
 		m = rxd->rx_m;
 
-		arge_fixup_rx(m);
+		/*
+		 * If the MAC requires 4 byte alignment then the RX setup
+		 * routine will have pre-offset things; so un-offset it here.
+		 */
+		if (sc->arge_hw_flags & ARGE_HW_FLG_RX_DESC_ALIGN_4BYTE)
+			arge_fixup_rx(m);
+
 		m->m_pkthdr.rcvif = ifp;
 		/* Skip 4 bytes of CRC */
 		m->m_pkthdr.len = m->m_len = packet_len - ETHER_CRC_LEN;
