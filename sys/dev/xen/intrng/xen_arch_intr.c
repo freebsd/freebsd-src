@@ -1,8 +1,8 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright © 2014 Julien Grall
- * Copyright © 2021 Elliott Mitchell
+ * Copyright © 2014,2015 Julien Grall
+ * Copyright © 2021,2022 Elliott Mitchell
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,10 +30,15 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/interrupt.h>
+#include <sys/intr.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/pcpu.h>
 #include <sys/rman.h>
-#include <sys/module.h>
+#include <sys/smp.h>
+#include <sys/syslog.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -51,6 +56,9 @@
 #include <contrib/xen/vcpu.h>
 #include <xen/features.h>
 
+#include <machine/bus.h>
+#include <machine/intr.h>
+#include <machine/xen/arch-intr.h>
 
 DPCPU_DEFINE(struct vcpu_info, vcpu_local_info);
 DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
@@ -170,3 +178,94 @@ static driver_t xen_driver = {
 
 DRIVER_MODULE(xen, simplebus, xen_driver, 0, 0);
 DRIVER_MODULE(xen, ofwbus, xen_driver, 0, 0);
+
+
+
+
+
+
+
+
+static void
+xen_intr_arch_disable_source(void *arg)
+{
+	struct xenisrc *isrc;
+
+	isrc = arg;
+	xen_intr_disable_source(isrc);
+}
+
+static void
+xen_intr_arch_enable_source(void *arg)
+{
+	struct xenisrc *isrc;
+
+	isrc = arg;
+	xen_intr_enable_source(isrc);
+}
+
+static void
+xen_intr_arch_eoi_source(void *arg)
+{
+	/* Nothing to do */
+}
+
+static int
+xen_intr_arch_assign_cpu(void *arg, int cpuid)
+{
+	struct xenisrc *isrc;
+
+	isrc = arg;
+	return (xen_intr_assign_cpu(isrc, cpuid));
+}
+
+int
+xen_arch_intr_setup(struct xenisrc *isrc)
+{
+
+	return (intr_event_create(&isrc->xi_arch, isrc, 0,
+	    isrc->xi_vector /* IRQ */,
+	    xen_intr_arch_disable_source /* mask */,
+	    xen_intr_arch_enable_source /* unmask */,
+	    xen_intr_arch_eoi_source /* EOI */,
+	    xen_intr_arch_assign_cpu /* cpu assign */,
+	    "xen%d", isrc->xi_port));
+}
+
+u_long
+xen_arch_intr_execute_handlers(struct xenisrc *isrc, struct trapframe *frame)
+{
+	u_long strays;
+
+	strays = intr_event_handle(isrc->xi_arch, frame);
+	if (strays != 0) {
+		xen_intr_disable_source(isrc);
+		if (strays < INTR_STRAY_LOG_MAX)
+			log(LOG_ERR, "stray evtchn %u: (%lu seen)\n",
+			    isrc->xi_port, strays);
+		else if (strays == INTR_STRAY_LOG_MAX)
+			log(LOG_CRIT,
+			    "too many stray evtchn %u: not logging anymore\n",
+			   isrc->xi_port);
+	}
+	return (strays);
+}
+
+int
+xen_arch_intr_add_handler(const char *name, driver_filter_t filter,
+    driver_intr_t handler, void *arg, enum intr_type flags,
+    struct xenisrc *isrc, void **cookiep)
+{
+	int error;
+
+	error = intr_event_add_handler(isrc->xi_arch, name,
+	    filter, handler, arg, intr_priority(flags), flags, cookiep);
+	if (error != 0)
+		return (error);
+
+	/* Enable the event channel */
+	xen_intr_enable_intr(isrc);
+	xen_intr_enable_source(isrc);
+
+	return (0);
+}
