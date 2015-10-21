@@ -596,8 +596,6 @@
         ..
         fstyp
         ..
-        makefs
-        ..
         newsyslog
         ..
         nmtree

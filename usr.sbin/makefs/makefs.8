@@ -53,7 +53,7 @@
 .Op Fl m Ar maximum-size
 .Op Fl N Ar userdb-dir
 .Op Fl o Ar fs-options
-.Op Fl R Ar roundup-size
+.Op Fl r Ar roundup
 .Op Fl S Ar sector-size
 .Op Fl s Ar image-size
 .Op Fl t Ar fs-type
@@ -196,12 +196,9 @@ Deprecated.
 See the
 .Fl Z
 flag.
-.It Fl R Ar roundup-size
-Round the image up to
-.Ar roundup-size .
-.Ar roundup-size
-should be a multiple of the file system block size specified by
-.Ar bsize .
+.It Fl r Ar roundup
+Round the image up to specified block size that should be multiple
+of block size.
 .It Fl S Ar sector-size
 Set the file system sector size to
 .Ar sector-size .
@@ -280,11 +277,6 @@ or
 .Ql time .
 .It Sy extent
 Maximum extent size.
-.It Sy roundup
-Round the image up to
-.Ar roundup-size .
-should be a multiple of
-.Ar bsize .
 .It Sy maxbpcg
 Maximum total number of blocks in a cylinder group.
 .It Sy version
