@@ -165,7 +165,7 @@ cd9660_write_path_table(FILE *fd, off_t sector, int mode)
 	    diskStructure.pathTableLength);
 	unsigned char *buffer;
 	unsigned char *buffer_head;
-	int len;
+	int len, ret;
 	path_table_entry temp_entry;
 	cd9660node *ptcur;
 
@@ -213,8 +213,10 @@ cd9660_write_path_table(FILE *fd, off_t sector, int mode)
 		ptcur = ptcur->ptnext;
 	}
 
-	return cd9660_write_filedata(fd, sector, buffer_head,
+	ret = cd9660_write_filedata(fd, sector, buffer_head,
 	    path_table_sectors);
+	free(buffer);
+	return ret;
 }
 
 
