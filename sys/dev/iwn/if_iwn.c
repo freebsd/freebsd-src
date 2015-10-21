@@ -6280,8 +6280,8 @@ iwn_set_pslevel(struct iwn_softc *sc, int dtim, int level, int async)
 	if (level == 5)
 		cmd.flags |= htole16(IWN_PS_FAST_PD);
 	/* Retrieve PCIe Active State Power Management (ASPM). */
-	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
-	if (!(reg & 0x1))	/* L0s Entry disabled. */
+	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + PCIER_LINK_CTL, 4);
+	if (!(reg & PCIEM_LINK_CTL_ASPMC_L0S))	/* L0s Entry disabled. */
 		cmd.flags |= htole16(IWN_PS_PCI_PMGT);
 	cmd.rxtimeout = htole32(pmgt->rxtimeout * 1024);
 	cmd.txtimeout = htole32(pmgt->txtimeout * 1024);
@@ -8280,9 +8280,9 @@ iwn_apm_init(struct iwn_softc *sc)
 	IWN_SETBITS(sc, IWN_HW_IF_CONFIG, IWN_HW_IF_CONFIG_HAP_WAKE_L1A);
 
 	/* Retrieve PCIe Active State Power Management (ASPM). */
-	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
+	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + PCIER_LINK_CTL, 4);
 	/* Workaround for HW instability in PCIe L0->L0s->L1 transition. */
-	if (reg & 0x02)	/* L1 Entry enabled. */
+	if (reg & PCIEM_LINK_CTL_ASPMC_L1)	/* L1 Entry enabled. */
 		IWN_SETBITS(sc, IWN_GIO, IWN_GIO_L0S_ENA);
 	else
 		IWN_CLRBITS(sc, IWN_GIO, IWN_GIO_L0S_ENA);
