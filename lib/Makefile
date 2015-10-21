@@ -353,12 +353,10 @@ SUBDIR_PARALLEL=
 .endif
 
 .if defined(LIBCHERI)
-SUBDIR+=	libmalloc_simple
 .if ${MK_LIBCHERI_ALL} == "no"
 SUBDIR:=	csu \
 		libcompiler_rt \
 		libc \
-		libmalloc_simple \
 		libmd	\
 		libpng	\
 		libstand \
@@ -368,6 +366,7 @@ SUBDIR:=	csu \
 # No C++ support in cheri clang
 SUBDIR:=	${SUBDIR:Nlibc++:Nlibcxxrt}
 .endif
+SUBDIR+=	libmalloc_simple
 .endif
 
 .include <bsd.subdir.mk>
