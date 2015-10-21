@@ -82,7 +82,7 @@ static int wr_trail = 1;		/* trailer was rewritten in append */
 static int can_unlnk = 0;		/* do we unlink null archives?  */
 const char *arcname;		  	/* printable name of archive */
 const char *gzip_program;		/* name of gzip program */
-static pid_t zpid = -1;			/* pid of child process */
+static pid_t zpid = -1; 		/* pid of child process */
 
 static int get_phys(void);
 static void ar_start_gzip(int, const char *, int);
@@ -1123,7 +1123,7 @@ ar_next(void)
 	if (sigprocmask(SIG_SETMASK, &o_mask, NULL) < 0)
 		syswarn(0, errno, "Unable to restore signal mask");
 
-	if (done || !wr_trail || strcmp(NM_TAR, argv0) == 0)
+	if (done || !wr_trail || Oflag || strcmp(NM_TAR, argv0) == 0)
 		return(-1);
 
 	tty_prnt("\nATTENTION! %s archive volume change required.\n", argv0);

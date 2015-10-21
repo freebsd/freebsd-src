@@ -1,4 +1,82 @@
 <div class="line">
+  <div class="text">We are </div>
+  <div class="text">{emit}</div>
+  <div class="text">{ting}</div>
+  <div class="text"> some </div>
+  <div class="data" data-tag="what" data-xpath="/top/data/what">braces</div>
+</div>
+<div class="line">
+  <div class="message">abcdef
+</div>
+</div>
+<div class="line">
+  <div class="message">abcdef: Bad file descriptor
+</div>
+</div>
+<div class="line">
+  <div class="message">improper use of profanity; ten yard penalty; first down
+</div>
+</div>
+<div class="line">
+  <div class="text">length </div>
+  <div class="data" data-tag="length" data-xpath="/top/data/length">abcdef</div>
+</div>
+<div class="line">
+  <div class="text">close </div>
+  <div class="data" data-tag="fd" data-xpath="/top/data/fd">-1</div>
+  <div class="text"> returned </div>
+  <div class="data" data-tag="error" data-xpath="/top/data/error">Bad file descriptor</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="test" data-xpath="/top/data/test">good</div>
+</div>
+<div class="line">
+  <div class="text">close </div>
+  <div class="data" data-tag="fd" data-xpath="/top/data/fd">-1</div>
+  <div class="text"> returned </div>
+  <div class="data" data-tag="error" data-xpath="/top/data/error">Bad fi</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="test" data-xpath="/top/data/test">good</div>
+</div>
+<div class="line">
+  <div class="message">improper use of profanity; ten yard penalty; first down
+</div>
+</div>
+<div class="line">
+  <div class="text"> </div>
+  <div class="data" data-tag="lines" data-xpath="/top/data/lines">     20</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="words" data-xpath="/top/data/words">     30</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="characters" data-xpath="/top/data/characters">     40</div>
+  <div class="text"> </div>
+  <div class="data" data-tag="filename" data-xpath="/top/data/filename">file</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="bytes" data-xpath="/top/data/bytes">0</div>
+  <div class="padding"> </div>
+  <div class="note">bytes</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="bytes" data-xpath="/top/data/bytes">1</div>
+  <div class="padding"> </div>
+  <div class="note">byte</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="bytes" data-xpath="/top/data/bytes">2</div>
+  <div class="padding"> </div>
+  <div class="note">bytes</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="bytes" data-xpath="/top/data/bytes">3</div>
+  <div class="padding"> </div>
+  <div class="note">bytes</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="bytes" data-xpath="/top/data/bytes">4</div>
+  <div class="padding"> </div>
+  <div class="note">bytes</div>
+</div>
+<div class="line">
   <div class="data" data-tag="mbuf-current" data-xpath="/top/data/mbuf-current">10</div>
   <div class="text">/</div>
   <div class="data" data-tag="mbuf-cache" data-xpath="/top/data/mbuf-cache">20</div>
@@ -28,8 +106,15 @@
 </div>
 <div class="line">
   <div class="data" data-tag="some" data-xpath="/top/data/some">string</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
   <div class="data" data-tag="ten" data-xpath="/top/data/ten">10</div>
   <div class="data" data-tag="eleven" data-xpath="/top/data/eleven">11</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="unknown" data-xpath="/top/data/unknown">1010</div>
+  <div class="text"> </div>
+  <div class="note">packets here/there/everywhere</div>
 </div>
 <div class="line">
   <div class="data" data-tag="unknown" data-xpath="/top/data/unknown">1010</div>
@@ -77,11 +162,26 @@
   <div class="text">)</div>
 </div>
 <div class="line">
+  <div class="text">Humanize: </div>
+  <div class="data" data-tag="val1" data-xpath="/top/data/val1" data-number="21">21</div>
+  <div class="text">, </div>
+  <div class="data" data-tag="val2" data-xpath="/top/data/val2" data-number="58368">57 K</div>
+  <div class="text">, </div>
+  <div class="data" data-tag="val3" data-xpath="/top/data/val3" data-number="100663296">96M</div>
+  <div class="text">, </div>
+  <div class="data" data-tag="val4" data-xpath="/top/data/val4" data-number="44470272">44M</div>
+  <div class="text">, </div>
+  <div class="data" data-tag="val5" data-xpath="/top/data/val5" data-number="1342172800">1.2G</div>
+</div>
+<div class="line">
   <div class="data" data-tag="flag" data-xpath="/top/data/flag">one</div>
   <div class="text"> </div>
   <div class="data" data-tag="flag" data-xpath="/top/data/flag">two</div>
   <div class="text"> </div>
   <div class="data" data-tag="flag" data-xpath="/top/data/flag">three</div>
+</div>
+<div class="line">
+  <div class="data" data-tag="works" data-xpath="/top/data/works">(null)</div>
 </div>
 <div class="line">
   <div class="text">1:</div>

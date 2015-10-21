@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 26, 2009
+.Dd March 18, 2015
 .Dt EPAIR 4
 .Os
 .Sh NAME
@@ -89,14 +89,16 @@ that is only guaranteed to be unique within one network stack.
 To change the default addresses one may use the SIOCSIFADDR ioctl(2) or
 ifconfig(8) utility.
 .Pp
-The basic intend is to provide connectivity between two virtual
+The basic intent is to provide connectivity between two virtual
 network stack instances.
-When connected to a
-.Xr if_bridge 4
+When connected to an
+.Xr if_bridge 4 ,
 one end of the interface pair can also be part of another (virtual) LAN.
-As with any other Ethernet interface one can configure
+As with any other Ethernet interface,
+.Nm epair
+can have a
 .Xr vlan 4
-support on top of it.
+configured on top of it.
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr altq 4 ,

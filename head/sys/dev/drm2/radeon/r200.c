@@ -548,5 +548,5 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 void r200_set_safe_registers(struct radeon_device *rdev)
 {
 	rdev->config.r100.reg_safe_bm = r200_reg_safe_bm;
-	rdev->config.r100.reg_safe_bm_size = DRM_ARRAY_SIZE(r200_reg_safe_bm);
+	rdev->config.r100.reg_safe_bm_size = ARRAY_SIZE(r200_reg_safe_bm);
 }

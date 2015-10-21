@@ -15,8 +15,8 @@
 // FIXME: Most of this is copy-and-paste from BumpVector.h and SmallVector.h.
 // We can refactor this core logic into something common.
 
-#ifndef LLVM_CLANG_AST_VECTOR
-#define LLVM_CLANG_AST_VECTOR
+#ifndef LLVM_CLANG_AST_ASTVECTOR_H
+#define LLVM_CLANG_AST_ASTVECTOR_H
 
 #include "clang/AST/AttrIterator.h"
 #include "llvm/ADT/PointerIntPair.h"
@@ -236,13 +236,13 @@ public:
 
   iterator insert(const ASTContext &C, iterator I, size_type NumToInsert,
                   const T &Elt) {
-    if (I == this->end()) {  // Important special case for empty vector.
-      append(C, NumToInsert, Elt);
-      return this->end()-1;
-    }
-
     // Convert iterator to elt# to avoid invalidating iterator when we reserve()
     size_t InsertElt = I - this->begin();
+
+    if (I == this->end()) { // Important special case for empty vector.
+      append(C, NumToInsert, Elt);
+      return this->begin() + InsertElt;
+    }
 
     // Ensure there is enough space.
     reserve(C, static_cast<unsigned>(this->size() + NumToInsert));
@@ -284,14 +284,15 @@ public:
 
   template<typename ItTy>
   iterator insert(const ASTContext &C, iterator I, ItTy From, ItTy To) {
-    if (I == this->end()) {  // Important special case for empty vector.
+    // Convert iterator to elt# to avoid invalidating iterator when we reserve()
+    size_t InsertElt = I - this->begin();
+
+    if (I == this->end()) { // Important special case for empty vector.
       append(C, From, To);
-      return this->end()-1;
+      return this->begin() + InsertElt;
     }
 
     size_t NumToInsert = std::distance(From, To);
-    // Convert iterator to elt# to avoid invalidating iterator when we reserve()
-    size_t InsertElt = I - this->begin();
 
     // Ensure there is enough space.
     reserve(C, static_cast<unsigned>(this->size() + NumToInsert));
@@ -383,14 +384,15 @@ void ASTVector<T>::grow(const ASTContext &C, size_t MinSize) {
   T *NewElts = new (C, llvm::alignOf<T>()) T[NewCapacity];
 
   // Copy the elements over.
-  if (std::is_class<T>::value) {
-    std::uninitialized_copy(Begin, End, NewElts);
-    // Destroy the original elements.
-    destroy_range(Begin, End);
-  }
-  else {
-    // Use memcpy for PODs (std::uninitialized_copy optimizes to memmove).
-    memcpy(NewElts, Begin, CurSize * sizeof(T));
+  if (Begin != End) {
+    if (std::is_class<T>::value) {
+      std::uninitialized_copy(Begin, End, NewElts);
+      // Destroy the original elements.
+      destroy_range(Begin, End);
+    } else {
+      // Use memcpy for PODs (std::uninitialized_copy optimizes to memmove).
+      memcpy(NewElts, Begin, CurSize * sizeof(T));
+    }
   }
 
   // ASTContext never frees any memory.

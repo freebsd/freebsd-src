@@ -31,10 +31,13 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #if SHA == 1
+#undef SHA_Data
 #define SHA_Data SHA1_Data
 #elif SHA == 256
+#undef SHA_Data
 #define SHA_Data SHA256_Data
 #elif SHA == 512
+#undef SHA_Data
 #define SHA_Data SHA512_Data
 #endif
 

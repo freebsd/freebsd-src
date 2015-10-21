@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SERIALIZATION_CONTINUOUS_RANGE_MAP_H
-#define LLVM_CLANG_SERIALIZATION_CONTINUOUS_RANGE_MAP_H
+#ifndef LLVM_CLANG_SERIALIZATION_CONTINUOUSRANGEMAP_H
+#define LLVM_CLANG_SERIALIZATION_CONTINUOUSRANGEMAP_H
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/SmallVector.h"
@@ -109,14 +109,22 @@ public:
   class Builder {
     ContinuousRangeMap &Self;
     
-    Builder(const Builder&) LLVM_DELETED_FUNCTION;
-    Builder &operator=(const Builder&) LLVM_DELETED_FUNCTION;
+    Builder(const Builder&) = delete;
+    Builder &operator=(const Builder&) = delete;
     
   public:
     explicit Builder(ContinuousRangeMap &Self) : Self(Self) { }
     
     ~Builder() {
       std::sort(Self.Rep.begin(), Self.Rep.end(), Compare());
+      std::unique(Self.Rep.begin(), Self.Rep.end(),
+                  [](const_reference A, const_reference B) {
+        // FIXME: we should not allow any duplicate keys, but there are a lot of
+        // duplicate 0 -> 0 mappings to remove first.
+        assert((A == B || A.first != B.first) &&
+               "ContinuousRangeMap::Builder given non-unique keys");
+        return A == B;
+      });
     }
     
     void insert(const value_type &Val) {

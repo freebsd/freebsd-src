@@ -102,7 +102,9 @@ public:
   void print(raw_ostream &OS) const;
 
   /// dump - Dump the dominance frontier to dbgs().
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   void dump() const;
+#endif
 };
 
 //===-------------------------------------
@@ -200,8 +202,8 @@ public:
   void dump() const;
 };
 
-EXTERN_TEMPLATE_INSTANTIATION(class DominanceFrontierBase<BasicBlock>);
-EXTERN_TEMPLATE_INSTANTIATION(class ForwardDominanceFrontierBase<BasicBlock>);
+extern template class DominanceFrontierBase<BasicBlock>;
+extern template class ForwardDominanceFrontierBase<BasicBlock>;
 
 } // End llvm namespace
 

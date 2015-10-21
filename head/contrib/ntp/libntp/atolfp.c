@@ -1,11 +1,13 @@
 /*
  * atolfp - convert an ascii string to an l_fp number
  */
+#include <config.h>
 #include <stdio.h>
 #include <ctype.h>
 
 #include "ntp_fp.h"
 #include "ntp_string.h"
+#include "ntp_assert.h"
 
 /*
  * Powers of 10
@@ -38,6 +40,8 @@ atolfp(
 	int isneg;
 	static const char *digits = "0123456789";
 
+	NTP_REQUIRE(str != NULL);
+
 	isneg = 0;
 	dec_i = dec_f = 0;
 	ndec = 0;
@@ -48,7 +52,7 @@ atolfp(
 	 *
 	 * [spaces][-|+][digits][.][digits][spaces|\n|\0]
 	 */
-	while (isspace((int)*cp))
+	while (isspace((unsigned char)*cp))
 	    cp++;
 	
 	if (*cp == '-') {
@@ -59,7 +63,7 @@ atolfp(
 	if (*cp == '+')
 	    cp++;
 
-	if (*cp != '.' && !isdigit((int)*cp))
+	if (*cp != '.' && !isdigit((unsigned char)*cp))
 	    return 0;
 
 	while (*cp != '\0' && (ind = strchr(digits, *cp)) != NULL) {
@@ -68,7 +72,7 @@ atolfp(
 		cp++;
 	}
 
-	if (*cp != '\0' && !isspace((int)*cp)) {
+	if (*cp != '\0' && !isspace((unsigned char)*cp)) {
 		if (*cp++ != '.')
 		    return 0;
 	
@@ -80,10 +84,10 @@ atolfp(
 			cp++;
 		}
 
-		while (isdigit((int)*cp))
+		while (isdigit((unsigned char)*cp))
 		    cp++;
 		
-		if (*cp != '\0' && !isspace((int)*cp))
+		if (*cp != '\0' && !isspace((unsigned char)*cp))
 		    return 0;
 	}
 

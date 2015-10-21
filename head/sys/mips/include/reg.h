@@ -70,7 +70,7 @@ struct dbreg {
 	unsigned long junk;
 };
 
-#ifdef COMPAT_FREEBSD32
+#ifdef __LP64__
 /* Must match struct trapframe */
 struct reg32 {
 	uint32_t r_regs[NUMSAVEREGS];
@@ -83,6 +83,8 @@ struct fpreg32 {
 struct dbreg32 {
 	uint32_t junk;
 };
+
+#define __HAVE_REG32
 #endif
 
 #ifdef _KERNEL

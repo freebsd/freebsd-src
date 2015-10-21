@@ -149,7 +149,8 @@ void
 fdt_clock_register_provider(device_t provider)
 {
 
-	OF_device_register_xref(OF_xref_from_device(provider), provider);
+	OF_device_register_xref(
+	    OF_xref_from_node(ofw_bus_get_node(provider)), provider);
 }
 
 void

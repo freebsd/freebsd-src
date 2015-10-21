@@ -235,7 +235,7 @@ parse_dns_reply(data, len)
 			if (LogLevel > 5)
 				sm_syslog(LOG_WARNING, NOQID,
 					  "ERROR: DNS RDLENGTH=%d > data len=%d",
-					  size, len - (p - data));
+					  size, len - (int)(p - data));
 			dns_free_data(r);
 			return NULL;
 		}

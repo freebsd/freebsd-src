@@ -8,14 +8,17 @@
 	${WPA_DISTDIR}/src/drivers
 
 PROG=	wpa_supplicant
-SRCS=	aes-unwrap.c base64.c blacklist.c bss.c common.c config.c \
+SRCS=	ap_drv_ops.c base64.c blacklist.c bss.c common.c config.c \
 	config_file.c ctrl_iface.c ctrl_iface_unix.c driver_bsd.c \
 	driver_common.c driver_ndis.c driver_wired.c drivers.c \
 	eap_register.c eloop.c events.c gas.c gas_query.c hs20.c \
 	hs20_supplicant.c http_client.c http_server.c httpread.c \
-	ieee802_11_common.c interworking.c l2_packet_freebsd.c main.c \
-	md5.c notify.c offchannel.c os_unix.c peerkey.c pmksa_cache.c \
-	preauth.c scan.c upnp_xml.c uuid.c wpa.c wpa_common.c wpa_debug.c \
+	hw_features_common.c \
+	ieee802_11_common.c ieee802_11_shared.c \
+	interworking.c l2_packet_freebsd.c main.c \
+	notify.c offchannel.c os_unix.c peerkey.c pmksa_cache.c \
+	preauth.c scan.c upnp_xml.c uuid.c wmm_ac.c \
+	wpa.c wpa_common.c wpa_debug.c \
 	wpa_ft.c wpa_ie.c wpa_supplicant.c wpabuf.c wpas_glue.c wps.c \
 	wps_attr_build.c wps_attr_parse.c wps_attr_process.c \
 	wps_common.c wps_dev_attr.c wps_enrollee.c wps_registrar.c \
@@ -35,18 +38,18 @@ CFLAGS+=-DCONFIG_BACKEND_FILE \
 	-DCONFIG_DRIVER_BSD \
 	-DCONFIG_DRIVER_NDIS \
 	-DCONFIG_DRIVER_WIRED \
+	-DCONFIG_GAS \
+	-DCONFIG_HS20 \
+	-DCONFIG_IEEE80211R \
+	-DCONFIG_INTERWORKING \
 	-DCONFIG_PEERKEY \
+	-DCONFIG_PRIVSEP \
 	-DCONFIG_SMARTCARD \
 	-DCONFIG_TERMINATE_ONLASTIF \
+	-DCONFIG_TLS=openssl \
 	-DCONFIG_WPS \
 	-DCONFIG_WPS2 \
 	-DCONFIG_WPS_UPNP \
-	-DCONFIG_TLS=openssl \
-	-DCONFIG_IEEE80211R \
-	-DCONFIG_INTERWORKING \
-	-DCONFIG_PRIVSEP \
-	-DCONFIG_HS20 \
-	-DCONFIG_GAS \
 	-DPKCS12_FUNCS
 #CFLAGS+= -g
 LIBADD=	pcap util
@@ -67,9 +70,6 @@ CFLAGS+=-DEAP_GTC \
 	-DEAP_PSK \
 	-DEAP_TLS \
 	-DEAP_TTLS \
-	-DEAP_GTC \
-	-DEAP_OTP \
-	-DEAP_LEAP \
 	-DIEEE8021X_EAPOL
 SRCS+=	chap.c \
 	eap.c \
@@ -94,10 +94,6 @@ TLS_FUNCS=y
 NEED_AES_EAX=y
 NEED_AES_ENCBLOCK=y
 NEED_AES_OMAC1=y
-.endif
-
-.if !empty(CFLAGS:M-DCONFIG_WPS)
-NEED_AES_CBC=y
 .endif
 
 .if !empty(CFLAGS:M*-DEAP_AKA)

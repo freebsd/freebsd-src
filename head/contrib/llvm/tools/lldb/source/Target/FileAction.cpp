@@ -13,6 +13,7 @@
 #include "lldb/Host/Windows/win32.h" // For O_NOCTTY
 #endif
 
+#include "lldb/Core/Stream.h"
 #include "lldb/Target/FileAction.h"
 
 using namespace lldb_private;
@@ -21,11 +22,11 @@ using namespace lldb_private;
 // FileAction member functions
 //----------------------------------------------------------------------------
 
-FileAction::FileAction()
-    : m_action(eFileActionNone)
-    , m_fd(-1)
-    , m_arg(-1)
-    , m_path()
+FileAction::FileAction() : 
+    m_action(eFileActionNone),
+    m_fd(-1),
+    m_arg(-1),
+    m_file_spec()
 {
 }
 
@@ -35,21 +36,25 @@ FileAction::Clear()
     m_action = eFileActionNone;
     m_fd = -1;
     m_arg = -1;
-    m_path.clear();
+    m_file_spec.Clear();
 }
 
 const char *
 FileAction::GetPath() const
 {
-    if (m_path.empty())
-        return NULL;
-    return m_path.c_str();
+    return m_file_spec.GetCString();
+}
+
+const FileSpec &
+FileAction::GetFileSpec() const
+{
+    return m_file_spec;
 }
 
 bool
-FileAction::Open(int fd, const char *path, bool read, bool write)
+FileAction::Open(int fd, const FileSpec &file_spec, bool read, bool write)
 {
-    if ((read || write) && fd >= 0 && path && path[0])
+    if ((read || write) && fd >= 0 && file_spec)
     {
         m_action = eFileActionOpen;
         m_fd = fd;
@@ -59,7 +64,7 @@ FileAction::Open(int fd, const char *path, bool read, bool write)
             m_arg = O_NOCTTY | O_RDONLY;
         else
             m_arg = O_NOCTTY | O_CREAT | O_WRONLY;
-        m_path.assign(path);
+        m_file_spec = file_spec;
         return true;
     }
     else
@@ -92,4 +97,26 @@ FileAction::Duplicate(int fd, int dup_fd)
         m_arg = dup_fd;
     }
     return m_fd >= 0;
+}
+
+void
+FileAction::Dump(Stream &stream) const
+{
+    stream.PutCString("file action: ");
+    switch (m_action)
+    {
+        case eFileActionClose:
+            stream.Printf("close fd %d", m_fd);
+            break;
+        case eFileActionDuplicate:
+            stream.Printf("duplicate fd %d to %d", m_fd, m_arg);
+            break;
+        case eFileActionNone:
+            stream.PutCString("no action");
+            break;
+        case eFileActionOpen:
+            stream.Printf("open fd %d with '%s', OFLAGS = 0x%x",
+                    m_fd, m_file_spec.GetCString(), m_arg);
+            break;
+    }
 }

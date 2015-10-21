@@ -173,8 +173,14 @@ ELFHeader::GetRelocationJumpSlotType() const
     default:
         assert(false && "architecture not supported");
         break;
+    case EM_PPC:
+        slot = R_PPC_JMP_SLOT;
+        break;
+    case EM_PPC64:
+        slot = R_PPC64_JMP_SLOT;
+        break;
     case EM_386:
-    case EM_486:
+    case EM_IAMCU: // FIXME: is this correct?
         slot = R_386_JUMP_SLOT;
         break;
     case EM_X86_64:
@@ -188,6 +194,9 @@ ELFHeader::GetRelocationJumpSlotType() const
         break;
     case EM_AARCH64:
         slot = R_AARCH64_JUMP_SLOT;
+        break;
+    case EM_MIPS:
+        slot = R_MIPS_JUMP_SLOT;
         break;
     }
 
@@ -269,9 +278,8 @@ ELFSymbol::typeToCString(unsigned char type)
     ENUM_TO_CSTR(STT_FILE);
     ENUM_TO_CSTR(STT_COMMON);
     ENUM_TO_CSTR(STT_TLS);
-    ENUM_TO_CSTR(STT_LOOS);
-    ENUM_TO_CSTR(STT_HIOS);
     ENUM_TO_CSTR(STT_GNU_IFUNC);
+    ENUM_TO_CSTR(STT_HIOS);
     ENUM_TO_CSTR(STT_LOPROC);
     ENUM_TO_CSTR(STT_HIPROC);
     }

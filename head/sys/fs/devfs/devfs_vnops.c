@@ -51,12 +51,14 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/ttycom.h>
 #include <sys/unistd.h>
@@ -71,6 +73,10 @@ static struct fileops devfs_ops_f;
 
 #include <security/mac/mac_framework.h>
 
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_object.h>
+
 static MALLOC_DEFINE(M_CDEVPDATA, "DEVFSP", "Metainfo for cdev-fp data");
 
 struct mtx	devfs_de_interlock;
@@ -79,6 +85,32 @@ struct sx	clone_drain_lock;
 SX_SYSINIT(clone_drain_lock, &clone_drain_lock, "clone events drain lock");
 struct mtx	cdevpriv_mtx;
 MTX_SYSINIT(cdevpriv_mtx, &cdevpriv_mtx, "cdevpriv lock", MTX_DEF);
+
+SYSCTL_DECL(_vfs_devfs);
+
+static int devfs_dotimes;
+SYSCTL_INT(_vfs_devfs, OID_AUTO, dotimes, CTLFLAG_RW,
+    &devfs_dotimes, 0, "Update timestamps on DEVFS with default precision");
+
+/*
+ * Update devfs node timestamp.  Note that updates are unlocked and
+ * stat(2) could see partially updated times.
+ */
+static void
+devfs_timestamp(struct timespec *tsp)
+{
+	time_t ts;
+
+	if (devfs_dotimes) {
+		vfs_timestamp(tsp);
+	} else {
+		ts = time_second;
+		if (tsp->tv_sec != ts) {
+			tsp->tv_sec = ts;
+			tsp->tv_nsec = 0;
+		}
+	}
+}
 
 static int
 devfs_fp_check(struct file *fp, struct cdev **devp, struct cdevsw **dswp,
@@ -1223,7 +1255,7 @@ devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred,
 	foffset_lock_uio(fp, uio, flags | FOF_NOLOCK);
 	error = dsw->d_read(dev, uio, ioflag);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0))
-		vfs_timestamp(&dev->si_atime);
+		devfs_timestamp(&dev->si_atime);
 	td->td_fpop = fpop;
 	dev_relthread(dev, ref);
 
@@ -1747,13 +1779,83 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred,
 
 	error = dsw->d_write(dev, uio, ioflag);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0)) {
-		vfs_timestamp(&dev->si_ctime);
+		devfs_timestamp(&dev->si_ctime);
 		dev->si_mtime = dev->si_ctime;
 	}
 	td->td_fpop = fpop;
 	dev_relthread(dev, ref);
 
 	foffset_unlock_uio(fp, uio, flags | FOF_NOLOCK | FOF_NEXTOFF);
+	return (error);
+}
+
+static int
+devfs_mmap_f(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
+    vm_prot_t prot, vm_prot_t cap_maxprot, int flags, vm_ooffset_t foff,
+    struct thread *td)
+{
+	struct cdev *dev;
+	struct cdevsw *dsw;
+	struct mount *mp;
+	struct vnode *vp;
+	struct file *fpop;
+	vm_object_t object;
+	vm_prot_t maxprot;
+	int error, ref;
+
+	vp = fp->f_vnode;
+
+	/*
+	 * Ensure that file and memory protections are
+	 * compatible.
+	 */
+	mp = vp->v_mount;
+	if (mp != NULL && (mp->mnt_flag & MNT_NOEXEC) != 0)
+		maxprot = VM_PROT_NONE;
+	else
+		maxprot = VM_PROT_EXECUTE;
+	if ((fp->f_flag & FREAD) != 0)
+		maxprot |= VM_PROT_READ;
+	else if ((prot & VM_PROT_READ) != 0)
+		return (EACCES);
+
+	/*
+	 * If we are sharing potential changes via MAP_SHARED and we
+	 * are trying to get write permission although we opened it
+	 * without asking for it, bail out.
+	 *
+	 * Note that most character devices always share mappings.
+	 * The one exception is that D_MMAP_ANON devices
+	 * (i.e. /dev/zero) permit private writable mappings.
+	 *
+	 * Rely on vm_mmap_cdev() to fail invalid MAP_PRIVATE requests
+	 * as well as updating maxprot to permit writing for
+	 * D_MMAP_ANON devices rather than doing that here.
+	 */
+	if ((flags & MAP_SHARED) != 0) {
+		if ((fp->f_flag & FWRITE) != 0)
+			maxprot |= VM_PROT_WRITE;
+		else if ((prot & VM_PROT_WRITE) != 0)
+			return (EACCES);
+	}
+	maxprot &= cap_maxprot;
+
+	fpop = td->td_fpop;
+	error = devfs_fp_check(fp, &dev, &dsw, &ref);
+	if (error != 0)
+		return (error);
+
+	error = vm_mmap_cdev(td, size, prot, &maxprot, &flags, dev, dsw, &foff,
+	    &object);
+	td->td_fpop = fpop;
+	dev_relthread(dev, ref);
+	if (error != 0)
+		return (error);
+
+	error = vm_mmap_object(map, addr, size, prot, maxprot, flags, object,
+	    foff, FALSE, td);
+	if (error != 0)
+		vm_object_deallocate(object);
 	return (error);
 }
 
@@ -1779,6 +1881,7 @@ static struct fileops devfs_ops_f = {
 	.fo_sendfile =	vn_sendfile,
 	.fo_seek =	vn_seek,
 	.fo_fill_kinfo = vn_fill_kinfo,
+	.fo_mmap =	devfs_mmap_f,
 	.fo_flags =	DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 

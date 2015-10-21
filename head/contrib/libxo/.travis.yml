@@ -1,6 +1,6 @@
 language: c
 
-script: printenv && uname -a && /bin/sh ./bin/setup.sh && cd build && ../configure --enable-warnings && make && sudo make install && make test
+script: printenv && uname -a && ls -l && /bin/sh -x ./bin/setup.sh && cd build && ../configure --enable-warnings && make && sudo make install && make test
 
 notifications:
   recipients:

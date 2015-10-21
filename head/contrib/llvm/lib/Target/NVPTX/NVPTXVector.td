@@ -661,7 +661,7 @@ class ShuffleAsmStr4<string type>
   string s  = !strconcat(t6, ShuffleOneLine<"4", "3", type>.s);
 }
 
-let neverHasSideEffects=1, VecInstType=isVecShuffle.Value in {
+let hasSideEffects=0, VecInstType=isVecShuffle.Value in {
 def VecShuffle_v4f32 : NVPTXVecInst<(outs V4F32Regs:$dst),
                        (ins  V4F32Regs:$src1, V4F32Regs:$src2,
                              i8imm:$c0, i8imm:$c1, i8imm:$c2, i8imm:$c3),
@@ -735,19 +735,19 @@ def VecShuffle_v2i64 : NVPTXVecInst<(outs V2I64Regs:$dst),
 
 def ShuffleMask0 : SDNodeXForm<vector_shuffle, [{
   ShuffleVectorSDNode *SVOp = cast<ShuffleVectorSDNode>(N);
-  return CurDAG->getTargetConstant(SVOp->getMaskElt(0), MVT::i32);
+  return CurDAG->getTargetConstant(SVOp->getMaskElt(0), SDLoc(N), MVT::i32);
 }]>;
 def ShuffleMask1 : SDNodeXForm<vector_shuffle, [{
   ShuffleVectorSDNode *SVOp = cast<ShuffleVectorSDNode>(N);
-  return CurDAG->getTargetConstant(SVOp->getMaskElt(1), MVT::i32);
+  return CurDAG->getTargetConstant(SVOp->getMaskElt(1), SDLoc(N), MVT::i32);
 }]>;
 def ShuffleMask2 : SDNodeXForm<vector_shuffle, [{
   ShuffleVectorSDNode *SVOp = cast<ShuffleVectorSDNode>(N);
-  return CurDAG->getTargetConstant(SVOp->getMaskElt(2), MVT::i32);
+  return CurDAG->getTargetConstant(SVOp->getMaskElt(2), SDLoc(N), MVT::i32);
 }]>;
 def ShuffleMask3 : SDNodeXForm<vector_shuffle, [{
   ShuffleVectorSDNode *SVOp = cast<ShuffleVectorSDNode>(N);
-  return CurDAG->getTargetConstant(SVOp->getMaskElt(3), MVT::i32);
+  return CurDAG->getTargetConstant(SVOp->getMaskElt(3), SDLoc(N), MVT::i32);
 }]>;
 
 // The spurious call is here to silence a compiler warning about N being
@@ -847,7 +847,7 @@ class Vec_Move<string asmstr, NVPTXRegClass vclass, NVPTXInst sop=NOP>
                    !strconcat(asmstr, "\t${dst:vecfull}, ${src:vecfull};"),
                    [], sop>;
 
-let isAsCheapAsAMove=1, neverHasSideEffects=1, IsSimpleMove=1,
+let isAsCheapAsAMove=1, hasSideEffects=0, IsSimpleMove=1,
   VecInstType=isVecOther.Value in {
 def V4f32Mov : Vec_Move<"mov.v4.f32", V4F32Regs, FMOV32rr>;
 def V2f32Mov : Vec_Move<"mov.v2.f32", V2F32Regs, FMOV32rr>;

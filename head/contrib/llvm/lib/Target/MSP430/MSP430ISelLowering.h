@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_MSP430_ISELLOWERING_H
-#define LLVM_TARGET_MSP430_ISELLOWERING_H
+#ifndef LLVM_LIB_TARGET_MSP430_MSP430ISELLOWERING_H
+#define LLVM_LIB_TARGET_MSP430_MSP430ISELLOWERING_H
 
 #include "MSP430.h"
 #include "llvm/CodeGen/SelectionDAG.h"
@@ -21,7 +21,7 @@
 
 namespace llvm {
   namespace MSP430ISD {
-    enum {
+    enum NodeType : unsigned {
       FIRST_NUMBER = ISD::BUILTIN_OP_END,
 
       /// Return with a flag operand. Operand 0 is the chain operand.
@@ -66,11 +66,15 @@ namespace llvm {
     };
   }
 
+  class MSP430Subtarget;
   class MSP430TargetLowering : public TargetLowering {
   public:
-    explicit MSP430TargetLowering(const TargetMachine &TM);
+    explicit MSP430TargetLowering(const TargetMachine &TM,
+                                  const MSP430Subtarget &STI);
 
-    MVT getScalarShiftAmountTy(EVT LHSTy) const override { return MVT::i8; }
+    MVT getScalarShiftAmountTy(const DataLayout &, EVT) const override {
+      return MVT::i8;
+    }
 
     /// LowerOperation - Provide custom lowering hooks for some operations.
     SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
@@ -94,10 +98,10 @@ namespace llvm {
     SDValue getReturnAddressFrameIndex(SelectionDAG &DAG) const;
 
     TargetLowering::ConstraintType
-    getConstraintType(const std::string &Constraint) const override;
-    std::pair<unsigned, const TargetRegisterClass*>
-    getRegForInlineAsmConstraint(const std::string &Constraint,
-                                 MVT VT) const override;
+    getConstraintType(StringRef Constraint) const override;
+    std::pair<unsigned, const TargetRegisterClass *>
+    getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
+                                 StringRef Constraint, MVT VT) const override;
 
     /// isTruncateFree - Return true if it's free to truncate a value of type
     /// Ty1 to type Ty2. e.g. On msp430 it's free to truncate a i16 value in
@@ -170,4 +174,4 @@ namespace llvm {
   };
 } // namespace llvm
 
-#endif // LLVM_TARGET_MSP430_ISELLOWERING_H
+#endif

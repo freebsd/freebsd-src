@@ -15,109 +15,112 @@
 #ifndef LLVM_IR_DEBUGLOC_H
 #define LLVM_IR_DEBUGLOC_H
 
+#include "llvm/IR/TrackingMDRef.h"
 #include "llvm/Support/DataTypes.h"
 
 namespace llvm {
-  template <typename T> struct DenseMapInfo;
-  class MDNode;
+
   class LLVMContext;
   class raw_ostream;
+  class DILocation;
 
-  /// DebugLoc - Debug location id.  This is carried by Instruction, SDNode,
-  /// and MachineInstr to compactly encode file/line/scope information for an
-  /// operation.
+  /// \brief A debug info location.
+  ///
+  /// This class is a wrapper around a tracking reference to an \a DILocation
+  /// pointer.
+  ///
+  /// To avoid extra includes, \a DebugLoc doubles the \a DILocation API with a
+  /// one based on relatively opaque \a MDNode pointers.
   class DebugLoc {
-    friend struct DenseMapInfo<DebugLoc>;
+    TrackingMDNodeRef Loc;
 
-    /// getEmptyKey() - A private constructor that returns an unknown that is
-    /// not equal to the tombstone key or DebugLoc().
-    static DebugLoc getEmptyKey() {
-      DebugLoc DL;
-      DL.LineCol = 1;
-      return DL;
-    }
-
-    /// getTombstoneKey() - A private constructor that returns an unknown that
-    /// is not equal to the empty key or DebugLoc().
-    static DebugLoc getTombstoneKey() {
-      DebugLoc DL;
-      DL.LineCol = 2;
-      return DL;
-    }
-
-    /// LineCol - This 32-bit value encodes the line and column number for the
-    /// location, encoded as 24-bits for line and 8 bits for col.  A value of 0
-    /// for either means unknown.
-    uint32_t LineCol;
-
-    /// ScopeIdx - This is an opaque ID# for Scope/InlinedAt information,
-    /// decoded by LLVMContext.  0 is unknown.
-    int ScopeIdx;
   public:
-    DebugLoc() : LineCol(0), ScopeIdx(0) {}  // Defaults to unknown.
-
-    /// get - Get a new DebugLoc that corresponds to the specified line/col
-    /// scope/inline location.
-    static DebugLoc get(unsigned Line, unsigned Col,
-                        MDNode *Scope, MDNode *InlinedAt = nullptr);
-
-    /// getFromDILocation - Translate the DILocation quad into a DebugLoc.
-    static DebugLoc getFromDILocation(MDNode *N);
-
-    /// getFromDILexicalBlock - Translate the DILexicalBlock into a DebugLoc.
-    static DebugLoc getFromDILexicalBlock(MDNode *N);
-
-    /// isUnknown - Return true if this is an unknown location.
-    bool isUnknown() const { return ScopeIdx == 0; }
-
-    unsigned getLine() const {
-      return (LineCol << 8) >> 8;  // Mask out column.
+    DebugLoc() {}
+    DebugLoc(DebugLoc &&X) : Loc(std::move(X.Loc)) {}
+    DebugLoc(const DebugLoc &X) : Loc(X.Loc) {}
+    DebugLoc &operator=(DebugLoc &&X) {
+      Loc = std::move(X.Loc);
+      return *this;
+    }
+    DebugLoc &operator=(const DebugLoc &X) {
+      Loc = X.Loc;
+      return *this;
     }
 
-    unsigned getCol() const {
-      return LineCol >> 24;
-    }
+    /// \brief Construct from an \a DILocation.
+    DebugLoc(const DILocation *L);
 
-    /// getScope - This returns the scope pointer for this DebugLoc, or null if
-    /// invalid.
-    MDNode *getScope(const LLVMContext &Ctx) const;
+    /// \brief Construct from an \a MDNode.
+    ///
+    /// Note: if \c N is not an \a DILocation, a verifier check will fail, and
+    /// accessors will crash.  However, construction from other nodes is
+    /// supported in order to handle forward references when reading textual
+    /// IR.
+    explicit DebugLoc(const MDNode *N);
 
-    /// getInlinedAt - This returns the InlinedAt pointer for this DebugLoc, or
-    /// null if invalid or not present.
-    MDNode *getInlinedAt(const LLVMContext &Ctx) const;
+    /// \brief Get the underlying \a DILocation.
+    ///
+    /// \pre !*this or \c isa<DILocation>(getAsMDNode()).
+    /// @{
+    DILocation *get() const;
+    operator DILocation *() const { return get(); }
+    DILocation *operator->() const { return get(); }
+    DILocation &operator*() const { return *get(); }
+    /// @}
 
-    /// getScopeAndInlinedAt - Return both the Scope and the InlinedAt values.
-    void getScopeAndInlinedAt(MDNode *&Scope, MDNode *&IA,
-                              const LLVMContext &Ctx) const;
+    /// \brief Check for null.
+    ///
+    /// Check for null in a way that is safe with broken debug info.  Unlike
+    /// the conversion to \c DILocation, this doesn't require that \c Loc is of
+    /// the right type.  Important for cases like \a llvm::StripDebugInfo() and
+    /// \a Instruction::hasMetadata().
+    explicit operator bool() const { return Loc; }
 
-    /// getScopeNode - Get MDNode for DebugLoc's scope, or null if invalid.
-    MDNode *getScopeNode(const LLVMContext &Ctx) const;
+    /// \brief Check whether this has a trivial destructor.
+    bool hasTrivialDestructor() const { return Loc.hasTrivialDestructor(); }
 
-    // getFnDebugLoc - Walk up the scope chain of given debug loc and find line
-    // number info for the function.
-    DebugLoc getFnDebugLoc(const LLVMContext &Ctx) const;
+    /// \brief Create a new DebugLoc.
+    ///
+    /// Create a new DebugLoc at the specified line/col and scope/inline.  This
+    /// forwards to \a DILocation::get().
+    ///
+    /// If \c !Scope, returns a default-constructed \a DebugLoc.
+    ///
+    /// FIXME: Remove this.  Users should use DILocation::get().
+    static DebugLoc get(unsigned Line, unsigned Col, const MDNode *Scope,
+                        const MDNode *InlinedAt = nullptr);
 
-    /// getAsMDNode - This method converts the compressed DebugLoc node into a
-    /// DILocation compatible MDNode.
-    MDNode *getAsMDNode(const LLVMContext &Ctx) const;
+    unsigned getLine() const;
+    unsigned getCol() const;
+    MDNode *getScope() const;
+    DILocation *getInlinedAt() const;
 
-    bool operator==(const DebugLoc &DL) const {
-      return LineCol == DL.LineCol && ScopeIdx == DL.ScopeIdx;
-    }
-    bool operator!=(const DebugLoc &DL) const { return !(*this == DL); }
+    /// \brief Get the fully inlined-at scope for a DebugLoc.
+    ///
+    /// Gets the inlined-at scope for a DebugLoc.
+    MDNode *getInlinedAtScope() const;
 
-    void dump(const LLVMContext &Ctx) const;
+    /// \brief Find the debug info location for the start of the function.
+    ///
+    /// Walk up the scope chain of given debug loc and find line number info
+    /// for the function.
+    ///
+    /// FIXME: Remove this.  Users should use DILocation/DILocalScope API to
+    /// find the subprogram, and then DILocation::get().
+    DebugLoc getFnDebugLoc() const;
+
+    /// \brief Return \c this as a bar \a MDNode.
+    MDNode *getAsMDNode() const { return Loc; }
+
+    bool operator==(const DebugLoc &DL) const { return Loc == DL.Loc; }
+    bool operator!=(const DebugLoc &DL) const { return Loc != DL.Loc; }
+
+    void dump() const;
+
     /// \brief prints source location /path/to/file.exe:line:col @[inlined at]
-    void print(const LLVMContext &Ctx, raw_ostream &OS) const;
+    void print(raw_ostream &OS) const;
   };
 
-  template <>
-  struct DenseMapInfo<DebugLoc> {
-    static DebugLoc getEmptyKey() { return DebugLoc::getEmptyKey(); }
-    static DebugLoc getTombstoneKey() { return DebugLoc::getTombstoneKey(); }
-    static unsigned getHashValue(const DebugLoc &Key);
-    static bool isEqual(DebugLoc LHS, DebugLoc RHS) { return LHS == RHS; }
-  };
 } // end namespace llvm
 
 #endif /* LLVM_SUPPORT_DEBUGLOC_H */

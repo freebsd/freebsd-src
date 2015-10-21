@@ -17,9 +17,11 @@
  */
 
 #include "includes.h"
+#include <time.h>
+#include <sys/wait.h>
 
 #undef OS_REJECT_C_LIB_FUNCTIONS
-#include "os.h"
+#include "common.h"
 
 void os_sleep(os_time_t sec, os_time_t usec)
 {
@@ -31,6 +33,17 @@ void os_sleep(os_time_t sec, os_time_t usec)
 
 
 int os_get_time(struct os_time *t)
+{
+	int res;
+	struct timeval tv;
+	res = gettimeofday(&tv, NULL);
+	t->sec = tv.tv_sec;
+	t->usec = tv.tv_usec;
+	return res;
+}
+
+
+int os_get_reltime(struct os_reltime *t)
 {
 	int res;
 	struct timeval tv;
@@ -85,7 +98,7 @@ int os_gmtime(os_time_t t, struct os_tm *tm)
 int os_daemonize(const char *pid_file)
 {
 	if (daemon(0, 0)) {
-		perror("daemon");
+		wpa_printf(MSG_ERROR, "daemon: %s", strerror(errno));
 		return -1;
 	}
 
@@ -156,8 +169,8 @@ char * os_rel2abs_path(const char *rel_path)
 		}
 	}
 
-	cwd_len = strlen(cwd);
-	rel_len = strlen(rel_path);
+	cwd_len = os_strlen(cwd);
+	rel_len = os_strlen(rel_path);
 	ret_len = cwd_len + 1 + rel_len + 1;
 	ret = os_malloc(ret_len);
 	if (ret) {
@@ -227,6 +240,12 @@ char * os_readfile(const char *name, size_t *len)
 	fclose(f);
 
 	return buf;
+}
+
+
+int os_fdatasync(FILE *stream)
+{
+	return 0;
 }
 
 
@@ -452,6 +471,20 @@ size_t os_strlcpy(char *dest, const char *src, size_t siz)
 }
 
 
+int os_memcmp_const(const void *a, const void *b, size_t len)
+{
+	const u8 *aa = a;
+	const u8 *bb = b;
+	size_t i;
+	u8 res;
+
+	for (res = 0, i = 0; i < len; i++)
+		res |= aa[i] ^ bb[i];
+
+	return res;
+}
+
+
 char * os_strstr(const char *haystack, const char *needle)
 {
 	size_t len = os_strlen(needle);
@@ -480,4 +513,58 @@ int os_snprintf(char *str, size_t size, const char *format, ...)
 	if (size > 0)
 		str[size - 1] = '\0';
 	return ret;
+}
+
+
+int os_exec(const char *program, const char *arg, int wait_completion)
+{
+	pid_t pid;
+	int pid_status;
+
+	pid = fork();
+	if (pid < 0) {
+		wpa_printf(MSG_ERROR, "fork: %s", strerror(errno));
+		return -1;
+	}
+
+	if (pid == 0) {
+		/* run the external command in the child process */
+		const int MAX_ARG = 30;
+		char *_program, *_arg, *pos;
+		char *argv[MAX_ARG + 1];
+		int i;
+
+		_program = os_strdup(program);
+		_arg = os_strdup(arg);
+
+		argv[0] = _program;
+
+		i = 1;
+		pos = _arg;
+		while (i < MAX_ARG && pos && *pos) {
+			while (*pos == ' ')
+				pos++;
+			if (*pos == '\0')
+				break;
+			argv[i++] = pos;
+			pos = os_strchr(pos, ' ');
+			if (pos)
+				*pos++ = '\0';
+		}
+		argv[i] = NULL;
+
+		execv(program, argv);
+		wpa_printf(MSG_ERROR, "execv: %s", strerror(errno));
+		os_free(_program);
+		os_free(_arg);
+		exit(0);
+		return -1;
+	}
+
+	if (wait_completion) {
+		/* wait for the child process to complete in the parent */
+		waitpid(pid, &pid_status, 0);
+	}
+
+	return 0;
 }

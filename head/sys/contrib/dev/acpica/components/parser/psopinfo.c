@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,9 +51,6 @@
 #define _COMPONENT          ACPI_PARSER
         ACPI_MODULE_NAME    ("psopinfo")
 
-
-extern const UINT8      AcpiGbl_ShortOpIndex[];
-extern const UINT8      AcpiGbl_LongOpIndex[];
 
 static const UINT8      AcpiGbl_ArgumentCount[] = {0,1,1,1,1,2,2,2,2,3,3,6};
 
@@ -226,7 +223,7 @@ const UINT8 AcpiGbl_ShortOpIndex[256] =
 /*              8     9     A     B     C     D     E     F  */
 /* 0x00 */    0x00, 0x01, _UNK, _UNK, _UNK, _UNK, 0x02, _UNK,
 /* 0x08 */    0x03, _UNK, 0x04, 0x05, 0x06, 0x07, 0x6E, _UNK,
-/* 0x10 */    0x08, 0x09, 0x0a, 0x6F, 0x0b, _UNK, _UNK, _UNK,
+/* 0x10 */    0x08, 0x09, 0x0a, 0x6F, 0x0b, 0x81, _UNK, _UNK,
 /* 0x18 */    _UNK, _UNK, _UNK, _UNK, _UNK, _UNK, _UNK, _UNK,
 /* 0x20 */    _UNK, _UNK, _UNK, _UNK, _UNK, _UNK, _UNK, _UNK,
 /* 0x28 */    _UNK, _UNK, _UNK, _UNK, _UNK, 0x63, _PFX, _PFX,

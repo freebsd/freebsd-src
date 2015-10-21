@@ -11,10 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SERIALIZATION_LIB_AST_COMMON_H
-#define LLVM_CLANG_SERIALIZATION_LIB_AST_COMMON_H
+#ifndef LLVM_CLANG_LIB_SERIALIZATION_ASTCOMMON_H
+#define LLVM_CLANG_LIB_SERIALIZATION_ASTCOMMON_H
 
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/DeclFriend.h"
 #include "clang/Serialization/ASTBitCodes.h"
 
 namespace clang {
@@ -25,14 +26,18 @@ enum DeclUpdateKind {
   UPD_CXX_ADDED_IMPLICIT_MEMBER,
   UPD_CXX_ADDED_TEMPLATE_SPECIALIZATION,
   UPD_CXX_ADDED_ANONYMOUS_NAMESPACE,
+  UPD_CXX_ADDED_FUNCTION_DEFINITION,
   UPD_CXX_INSTANTIATED_STATIC_DATA_MEMBER,
-  UPD_CXX_INSTANTIATED_FUNCTION_DEFINITION,
   UPD_CXX_INSTANTIATED_CLASS_DEFINITION,
+  UPD_CXX_RESOLVED_DTOR_DELETE,
   UPD_CXX_RESOLVED_EXCEPTION_SPEC,
   UPD_CXX_DEDUCED_RETURN_TYPE,
   UPD_DECL_MARKED_USED,
   UPD_MANGLING_NUMBER,
-  UPD_STATIC_LOCAL_NUMBER
+  UPD_STATIC_LOCAL_NUMBER,
+  UPD_DECL_MARKED_OPENMP_THREADPRIVATE,
+  UPD_DECL_EXPORTED,
+  UPD_ADDED_ATTR_TO_RECORD
 };
 
 TypeIdx TypeIdxFromBuiltin(const BuiltinType *BT);
@@ -79,6 +84,28 @@ const DeclContext *getDefinitiveDeclContext(const DeclContext *DC);
 
 /// \brief Determine whether the given declaration kind is redeclarable.
 bool isRedeclarableDeclKind(unsigned Kind);
+
+/// \brief Determine whether the given declaration needs an anonymous
+/// declaration number.
+bool needsAnonymousDeclarationNumber(const NamedDecl *D);
+
+/// \brief Visit each declaration within \c DC that needs an anonymous
+/// declaration number and call \p Visit with the declaration and its number.
+template<typename Fn> void numberAnonymousDeclsWithin(const DeclContext *DC,
+                                                      Fn Visit) {
+  unsigned Index = 0;
+  for (Decl *LexicalD : DC->decls()) {
+    // For a friend decl, we care about the declaration within it, if any.
+    if (auto *FD = dyn_cast<FriendDecl>(LexicalD))
+      LexicalD = FD->getFriendDecl();
+
+    auto *ND = dyn_cast_or_null<NamedDecl>(LexicalD);
+    if (!ND || !needsAnonymousDeclarationNumber(ND))
+      continue;
+
+    Visit(ND, Index++);
+  }
+}
 
 } // namespace serialization
 

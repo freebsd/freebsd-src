@@ -12,11 +12,11 @@
 #ifndef LLVM_ANALYSIS_REGIONINFOIMPL_H
 #define LLVM_ANALYSIS_REGIONINFOIMPL_H
 
-#include "llvm/Analysis/RegionInfo.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/Analysis/DominanceFrontier.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/PostDominators.h"
+#include "llvm/Analysis/RegionInfo.h"
 #include "llvm/Analysis/RegionIterator.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -25,7 +25,7 @@
 #include <iterator>
 #include <set>
 
-using namespace llvm;
+namespace llvm {
 
 #define DEBUG_TYPE "region"
 
@@ -487,7 +487,7 @@ void RegionBase<Tr>::print(raw_ostream &OS, bool print_tree, unsigned level,
     OS.indent(level * 2 + 2);
 
     if (Style == PrintBB) {
-      for (const auto &BB : blocks())
+      for (const auto *BB : blocks())
         OS << BB->getName() << ", "; // TODO: remove the last ","
     } else if (Style == PrintRN) {
       for (const_element_iterator I = element_begin(), E = element_end();
@@ -714,10 +714,8 @@ void RegionInfoBase<Tr>::scanForRegions(FuncT &F, BBtoBBMap *ShortCut) {
   // regions from the bottom of the dominance tree.  If the small regions are
   // detected first, detection of bigger regions is faster, as we can jump
   // over the small regions.
-  for (po_iterator<DomTreeNodeT *> FI = po_begin(N), FE = po_end(N); FI != FE;
-       ++FI) {
-    findRegionsWithEntry(FI->getBlock(), ShortCut);
-  }
+  for (auto DomNode : post_order(N))
+    findRegionsWithEntry(DomNode->getBlock(), ShortCut);
 }
 
 template <class Tr>
@@ -915,5 +913,9 @@ void RegionInfoBase<Tr>::calculate(FuncT &F) {
   BlockT *BB = GraphTraits<FuncPtrT>::getEntryNode(&F);
   buildRegionsTree(DT->getNode(BB), TopLevelRegion);
 }
+
+#undef DEBUG_TYPE
+
+} // end namespace llvm
 
 #endif

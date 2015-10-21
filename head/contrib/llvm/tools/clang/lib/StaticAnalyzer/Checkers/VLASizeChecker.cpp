@@ -30,7 +30,7 @@ using namespace ento;
 namespace {
 class VLASizeChecker : public Checker< check::PreStmt<DeclStmt> > {
   mutable std::unique_ptr<BugType> BT;
-  enum VLASize_Kind { VLA_Garbage, VLA_Zero, VLA_Tainted };
+  enum VLASize_Kind { VLA_Garbage, VLA_Zero, VLA_Tainted, VLA_Negative };
 
   void reportBug(VLASize_Kind Kind,
                  const Expr *SizeE,
@@ -67,12 +67,15 @@ void VLASizeChecker::reportBug(VLASize_Kind Kind,
   case VLA_Tainted:
     os << "has tainted size";
     break;
+  case VLA_Negative:
+    os << "has negative size";
+    break;
   }
 
-  BugReport *report = new BugReport(*BT, os.str(), N);
+  auto report = llvm::make_unique<BugReport>(*BT, os.str(), N);
   report->addRange(SizeE->getSourceRange());
   bugreporter::trackNullOrUndefValue(N, SizeE, *report);
-  C.emitReport(report);
+  C.emitReport(std::move(report));
   return;
 }
 
@@ -128,8 +131,27 @@ void VLASizeChecker::checkPreStmt(const DeclStmt *DS, CheckerContext &C) const {
   // declared. We do this by multiplying the array length by the element size,
   // then matching that with the array region's extent symbol.
 
-  // Convert the array length to size_t.
+  // Check if the size is negative.
   SValBuilder &svalBuilder = C.getSValBuilder();
+
+  QualType Ty = SE->getType();
+  DefinedOrUnknownSVal Zero = svalBuilder.makeZeroVal(Ty);
+
+  SVal LessThanZeroVal = svalBuilder.evalBinOp(state, BO_LT, sizeD, Zero, Ty);
+  if (Optional<DefinedSVal> LessThanZeroDVal =
+        LessThanZeroVal.getAs<DefinedSVal>()) {
+    ConstraintManager &CM = C.getConstraintManager();
+    ProgramStateRef StatePos, StateNeg;
+
+    std::tie(StateNeg, StatePos) = CM.assumeDual(state, *LessThanZeroDVal);
+    if (StateNeg && !StatePos) {
+      reportBug(VLA_Negative, SE, state, C);
+      return;
+    }
+    state = StatePos;
+  }
+
+  // Convert the array length to size_t.
   QualType SizeTy = Ctx.getSizeType();
   NonLoc ArrayLength =
       svalBuilder.evalCast(sizeD, SizeTy, SE->getType()).castAs<NonLoc>();

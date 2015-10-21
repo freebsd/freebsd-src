@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_DRIVER_TYPES_H_
-#define CLANG_DRIVER_TYPES_H_
+#ifndef LLVM_CLANG_DRIVER_TYPES_H
+#define LLVM_CLANG_DRIVER_TYPES_H
 
 #include "clang/Driver/Phases.h"
 #include "llvm/ADT/SmallVector.h"
@@ -62,6 +62,9 @@ namespace types {
 
   /// isCXX - Is this a "C++" input (C++ and Obj-C++ sources and headers).
   bool isCXX(ID Id);
+
+  /// isCuda - Is this a CUDA input.
+  bool isCuda(ID Id);
 
   /// isObjC - Is this an "ObjC" input (Obj-C and Obj-C++ sources and headers).
   bool isObjC(ID Id);

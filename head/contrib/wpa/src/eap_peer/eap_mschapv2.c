@@ -140,7 +140,7 @@ static void eap_mschapv2_deinit(struct eap_sm *sm, void *priv)
 	os_free(data->peer_challenge);
 	os_free(data->auth_challenge);
 	wpabuf_free(data->prev_challenge);
-	os_free(data);
+	bin_clear_free(data, sizeof(*data));
 }
 
 
@@ -303,18 +303,23 @@ static void eap_mschapv2_password_changed(struct eap_sm *sm,
 			WPA_EVENT_PASSWORD_CHANGED
 			"EAP-MSCHAPV2: Password changed successfully");
 		data->prev_error = 0;
-		os_free(config->password);
+		bin_clear_free(config->password, config->password_len);
 		if (config->flags & EAP_CONFIG_FLAGS_EXT_PASSWORD) {
 			/* TODO: update external storage */
 		} else if (config->flags & EAP_CONFIG_FLAGS_PASSWORD_NTHASH) {
 			config->password = os_malloc(16);
 			config->password_len = 16;
-			if (config->password) {
-				nt_password_hash(config->new_password,
-						 config->new_password_len,
-						 config->password);
+			if (config->password &&
+			    nt_password_hash(config->new_password,
+					     config->new_password_len,
+					     config->password)) {
+				bin_clear_free(config->password,
+					       config->password_len);
+				config->password = NULL;
+				config->password_len = 0;
 			}
-			os_free(config->new_password);
+			bin_clear_free(config->new_password,
+				       config->new_password_len);
 		} else {
 			config->password = config->new_password;
 			config->password_len = config->new_password_len;
@@ -467,6 +472,13 @@ static int eap_mschapv2_failure_txt(struct eap_sm *sm,
 		pos += 2;
 		msg = pos;
 	}
+	if (data->prev_error == ERROR_AUTHENTICATION_FAILURE && retry &&
+	    config && config->phase2 &&
+	    os_strstr(config->phase2, "mschapv2_retry=0")) {
+		wpa_printf(MSG_DEBUG,
+			   "EAP-MSCHAPV2: mark password retry disabled based on local configuration");
+		retry = 0;
+	}
 	wpa_msg(sm->msg_ctx, MSG_WARNING,
 		"EAP-MSCHAPV2: failure message: '%s' (retry %sallowed, error "
 		"%d)",
@@ -499,6 +511,11 @@ static struct wpabuf * eap_mschapv2_change_password(
 	struct eap_sm *sm, struct eap_mschapv2_data *data,
 	struct eap_method_ret *ret, const struct eap_mschapv2_hdr *req, u8 id)
 {
+#ifdef CONFIG_NO_RC4
+	wpa_printf(MSG_ERROR,
+		"EAP-MSCHAPV2: RC4 not support in the build - cannot change password");
+	return NULL;
+#else /* CONFIG_NO_RC4 */
 	struct wpabuf *resp;
 	int ms_len;
 	const u8 *username, *password, *new_password;
@@ -549,15 +566,17 @@ static struct wpabuf * eap_mschapv2_change_password(
 	/* Encrypted-Hash */
 	if (pwhash) {
 		u8 new_password_hash[16];
-		nt_password_hash(new_password, new_password_len,
-				 new_password_hash);
+		if (nt_password_hash(new_password, new_password_len,
+				     new_password_hash))
+			goto fail;
 		nt_password_hash_encrypted_with_block(password,
 						      new_password_hash,
 						      cp->encr_hash);
 	} else {
-		old_nt_password_hash_encrypted_with_new_nt_password_hash(
-			new_password, new_password_len,
-			password, password_len, cp->encr_hash);
+		if (old_nt_password_hash_encrypted_with_new_nt_password_hash(
+			    new_password, new_password_len,
+			    password, password_len, cp->encr_hash))
+			goto fail;
 	}
 
 	/* Peer-Challenge */
@@ -594,9 +613,13 @@ static struct wpabuf * eap_mschapv2_change_password(
 
 	/* Likewise, generate master_key here since we have the needed data
 	 * available. */
-	nt_password_hash(new_password, new_password_len, password_hash);
-	hash_nt_password_hash(password_hash, password_hash_hash);
-	get_master_key(password_hash_hash, cp->nt_response, data->master_key);
+	if (nt_password_hash(new_password, new_password_len, password_hash) ||
+	    hash_nt_password_hash(password_hash, password_hash_hash) ||
+	    get_master_key(password_hash_hash, cp->nt_response,
+			   data->master_key)) {
+		data->auth_response_valid = 0;
+		goto fail;
+	}
 	data->master_key_valid = 1;
 
 	/* Flags */
@@ -610,6 +633,7 @@ static struct wpabuf * eap_mschapv2_change_password(
 fail:
 	wpabuf_free(resp);
 	return NULL;
+#endif /* CONFIG_NO_RC4 */
 }
 
 
@@ -644,10 +668,8 @@ static struct wpabuf * eap_mschapv2_failure(struct eap_sm *sm,
 	 * must allocate a large enough temporary buffer to create that since
 	 * the received message does not include nul termination.
 	 */
-	buf = os_malloc(len + 1);
+	buf = dup_binstr(msdata, len);
 	if (buf) {
-		os_memcpy(buf, msdata, len);
-		buf[len] = '\0';
 		retry = eap_mschapv2_failure_txt(sm, data, buf);
 		os_free(buf);
 	}

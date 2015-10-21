@@ -88,8 +88,7 @@ PrintAfterAll("print-after-all",
 
 static bool ShouldPrintBeforeOrAfterPass(const PassInfo *PI,
                                          PassOptionList &PassesToPrint) {
-  for (unsigned i = 0, ie = PassesToPrint.size(); i < ie; ++i) {
-    const llvm::PassInfo *PassInf = PassesToPrint[i];
+  for (auto *PassInf : PassesToPrint) {
     if (PassInf)
       if (PassInf->getPassArgument() == PI->getPassArgument()) {
         return true;
@@ -227,10 +226,7 @@ public:
     Pass(PT_PassManager, ID), PMDataManager(),
     PMTopLevelManager(new FPPassManager()), wasRun(false) {}
 
-  /// add - Add a pass to the queue of passes to run.  This passes ownership of
-  /// the Pass to the PassManager.  When the PassManager is destroyed, the pass
-  /// will be destroyed as well, so there is no need to delete the pass.  This
-  /// implies that all passes MUST be allocated with 'new'.
+  /// \copydoc FunctionPassManager::add()
   void add(Pass *P) {
     schedulePass(P);
   }
@@ -296,11 +292,9 @@ public:
     Pass(PT_PassManager, ID), PMDataManager() { }
 
   // Delete on the fly managers.
-  virtual ~MPPassManager() {
-    for (std::map<Pass *, FunctionPassManagerImpl *>::iterator
-           I = OnTheFlyManagers.begin(), E = OnTheFlyManagers.end();
-         I != E; ++I) {
-      FunctionPassManagerImpl *FPP = I->second;
+  ~MPPassManager() override {
+    for (auto &OnTheFlyManager : OnTheFlyManagers) {
+      FunctionPassManagerImpl *FPP = OnTheFlyManager.second;
       delete FPP;
     }
   }
@@ -398,10 +392,7 @@ public:
     Pass(PT_PassManager, ID), PMDataManager(),
                               PMTopLevelManager(new MPPassManager()) {}
 
-  /// add - Add a pass to the queue of passes to run.  This passes ownership of
-  /// the Pass to the PassManager.  When the PassManager is destroyed, the pass
-  /// will be destroyed as well, so there is no need to delete the pass.  This
-  /// implies that all passes MUST be allocated with 'new'.
+  /// \copydoc PassManager::add()
   void add(Pass *P) {
     schedulePass(P);
   }
@@ -472,9 +463,8 @@ public:
   ~TimingInfo() {
     // Delete all of the timers, which accumulate their info into the
     // TimerGroup.
-    for (DenseMap<Pass*, Timer*>::iterator I = TimingData.begin(),
-         E = TimingData.end(); I != E; ++I)
-      delete I->second;
+    for (auto &I : TimingData)
+      delete I.second;
     // TimerGroup is deleted next, printing the report.
   }
 
@@ -517,9 +507,7 @@ PMTopLevelManager::setLastUser(ArrayRef<Pass*> AnalysisPasses, Pass *P) {
   if (P->getResolver())
     PDepth = P->getResolver()->getPMDataManager().getDepth();
 
-  for (SmallVectorImpl<Pass *>::const_iterator I = AnalysisPasses.begin(),
-         E = AnalysisPasses.end(); I != E; ++I) {
-    Pass *AP = *I;
+  for (Pass *AP : AnalysisPasses) {
     LastUser[AP] = P;
 
     if (P == AP)
@@ -573,9 +561,8 @@ void PMTopLevelManager::collectLastUses(SmallVectorImpl<Pass *> &LastUses,
     return;
 
   SmallPtrSet<Pass *, 8> &LU = DMI->second;
-  for (SmallPtrSet<Pass *, 8>::iterator I = LU.begin(),
-         E = LU.end(); I != E; ++I) {
-    LastUses.push_back(*I);
+  for (Pass *LUP : LU) {
+    LastUses.push_back(LUP);
   }
 
 }
@@ -607,8 +594,7 @@ void PMTopLevelManager::schedulePass(Pass *P) {
   // If P is an analysis pass and it is available then do not
   // generate the analysis again. Stale analysis info should not be
   // available at this point.
-  const PassInfo *PI =
-    PassRegistry::getPassRegistry()->getPassInfo(P->getPassID());
+  const PassInfo *PI = findAnalysisPassInfo(P->getPassID());
   if (PI && PI->isAnalysis() && findAnalysisPass(P->getPassID())) {
     delete P;
     return;
@@ -626,7 +612,7 @@ void PMTopLevelManager::schedulePass(Pass *P) {
 
       Pass *AnalysisPass = findAnalysisPass(*I);
       if (!AnalysisPass) {
-        const PassInfo *PI = PassRegistry::getPassRegistry()->getPassInfo(*I);
+        const PassInfo *PI = findAnalysisPassInfo(*I);
 
         if (!PI) {
           // Pass P is not in the global PassRegistry
@@ -660,7 +646,7 @@ void PMTopLevelManager::schedulePass(Pass *P) {
           // are already checked are still available.
           checkAnalysis = true;
         } else
-          // Do not schedule this analysis. Lower level analsyis
+          // Do not schedule this analysis. Lower level analysis
           // passes are run on the fly.
           delete AnalysisPass;
       }
@@ -702,40 +688,45 @@ void PMTopLevelManager::schedulePass(Pass *P) {
 Pass *PMTopLevelManager::findAnalysisPass(AnalysisID AID) {
 
   // Check pass managers
-  for (SmallVectorImpl<PMDataManager *>::iterator I = PassManagers.begin(),
-         E = PassManagers.end(); I != E; ++I)
-    if (Pass *P = (*I)->findAnalysisPass(AID, false))
+  for (PMDataManager *PassManager : PassManagers)
+    if (Pass *P = PassManager->findAnalysisPass(AID, false))
       return P;
 
   // Check other pass managers
-  for (SmallVectorImpl<PMDataManager *>::iterator
-         I = IndirectPassManagers.begin(),
-         E = IndirectPassManagers.end(); I != E; ++I)
-    if (Pass *P = (*I)->findAnalysisPass(AID, false))
+  for (PMDataManager *IndirectPassManager : IndirectPassManagers)
+    if (Pass *P = IndirectPassManager->findAnalysisPass(AID, false))
       return P;
 
   // Check the immutable passes. Iterate in reverse order so that we find
   // the most recently registered passes first.
-  for (SmallVectorImpl<ImmutablePass *>::reverse_iterator I =
-       ImmutablePasses.rbegin(), E = ImmutablePasses.rend(); I != E; ++I) {
+  for (auto I = ImmutablePasses.rbegin(), E = ImmutablePasses.rend(); I != E;
+       ++I) {
     AnalysisID PI = (*I)->getPassID();
     if (PI == AID)
       return *I;
 
     // If Pass not found then check the interfaces implemented by Immutable Pass
-    const PassInfo *PassInf =
-      PassRegistry::getPassRegistry()->getPassInfo(PI);
+    const PassInfo *PassInf = findAnalysisPassInfo(PI);
     assert(PassInf && "Expected all immutable passes to be initialized");
     const std::vector<const PassInfo*> &ImmPI =
       PassInf->getInterfacesImplemented();
-    for (std::vector<const PassInfo*>::const_iterator II = ImmPI.begin(),
-         EE = ImmPI.end(); II != EE; ++II) {
-      if ((*II)->getTypeInfo() == AID)
+    for (const PassInfo *PI : ImmPI)
+      if (PI->getTypeInfo() == AID)
         return *I;
-    }
   }
 
   return nullptr;
+}
+
+const PassInfo *PMTopLevelManager::findAnalysisPassInfo(AnalysisID AID) const {
+  const PassInfo *&PI = AnalysisPassInfos[AID];
+  if (!PI)
+    PI = PassRegistry::getPassRegistry()->getPassInfo(AID);
+  else
+    assert(PI == PassRegistry::getPassRegistry()->getPassInfo(AID) &&
+           "The pass info pointer changed for an analysis ID!");
+
+  return PI;
 }
 
 // Print passes managed by this top level manager.
@@ -753,9 +744,8 @@ void PMTopLevelManager::dumpPasses() const {
   // (sometimes indirectly), but there's no inheritance relationship
   // between PMDataManager and Pass, so we have to getAsPass to get
   // from a PMDataManager* to a Pass*.
-  for (SmallVectorImpl<PMDataManager *>::const_iterator I =
-       PassManagers.begin(), E = PassManagers.end(); I != E; ++I)
-    (*I)->getAsPass()->dumpPassStructure(1);
+  for (PMDataManager *Manager : PassManagers)
+    Manager->getAsPass()->dumpPassStructure(1);
 }
 
 void PMTopLevelManager::dumpArguments() const {
@@ -766,8 +756,7 @@ void PMTopLevelManager::dumpArguments() const {
   dbgs() << "Pass Arguments: ";
   for (SmallVectorImpl<ImmutablePass *>::const_iterator I =
        ImmutablePasses.begin(), E = ImmutablePasses.end(); I != E; ++I)
-    if (const PassInfo *PI =
-        PassRegistry::getPassRegistry()->getPassInfo((*I)->getPassID())) {
+    if (const PassInfo *PI = findAnalysisPassInfo((*I)->getPassID())) {
       assert(PI && "Expected all immutable passes to be initialized");
       if (!PI->isAnalysisGroup())
         dbgs() << " -" << PI->getPassArgument();
@@ -831,7 +820,7 @@ void PMDataManager::recordAvailableAnalysis(Pass *P) {
 
   // This pass is the current implementation of all of the interfaces it
   // implements as well.
-  const PassInfo *PInf = PassRegistry::getPassRegistry()->getPassInfo(PI);
+  const PassInfo *PInf = TPM->findAnalysisPassInfo(PI);
   if (!PInf) return;
   const std::vector<const PassInfo*> &II = PInf->getInterfacesImplemented();
   for (unsigned i = 0, e = II.size(); i != e; ++i)
@@ -964,7 +953,7 @@ void PMDataManager::freePass(Pass *P, StringRef Msg,
   }
 
   AnalysisID PI = P->getPassID();
-  if (const PassInfo *PInf = PassRegistry::getPassRegistry()->getPassInfo(PI)) {
+  if (const PassInfo *PInf = TPM->findAnalysisPassInfo(PI)) {
     // Remove the pass itself (if it is not already removed).
     AvailableAnalysis.erase(PI);
 
@@ -1044,7 +1033,7 @@ void PMDataManager::add(Pass *P, bool ProcessAnalysis) {
   for (SmallVectorImpl<AnalysisID>::iterator
          I = ReqAnalysisNotAvailable.begin(),
          E = ReqAnalysisNotAvailable.end() ;I != E; ++I) {
-    const PassInfo *PI = PassRegistry::getPassRegistry()->getPassInfo(*I);
+    const PassInfo *PI = TPM->findAnalysisPassInfo(*I);
     Pass *AnalysisPass = PI->createPass();
     this->addLowerLevelRequiredPass(P, AnalysisPass);
   }
@@ -1149,7 +1138,7 @@ void PMDataManager::dumpPassArguments() const {
       PMD->dumpPassArguments();
     else
       if (const PassInfo *PI =
-            PassRegistry::getPassRegistry()->getPassInfo((*I)->getPassID()))
+            TPM->findAnalysisPassInfo((*I)->getPassID()))
         if (!PI->isAnalysisGroup())
           dbgs() << " -" << PI->getPassArgument();
   }
@@ -1225,7 +1214,7 @@ void PMDataManager::dumpAnalysisUsage(StringRef Msg, const Pass *P,
   dbgs() << (const void*)P << std::string(getDepth()*2+3, ' ') << Msg << " Analyses:";
   for (unsigned i = 0; i != Set.size(); ++i) {
     if (i) dbgs() << ',';
-    const PassInfo *PInf = PassRegistry::getPassRegistry()->getPassInfo(Set[i]);
+    const PassInfo *PInf = TPM->findAnalysisPassInfo(Set[i]);
     if (!PInf) {
       // Some preserved passes, such as AliasAnalysis, may not be initialized by
       // all drivers.
@@ -1390,11 +1379,6 @@ FunctionPassManager::~FunctionPassManager() {
   delete FPM;
 }
 
-/// add - Add a pass to the queue of passes to run.  This passes
-/// ownership of the Pass to the PassManager.  When the
-/// PassManager_X is destroyed, the pass will be destroyed as well, so
-/// there is no need to delete the pass. (TODO delete passes.)
-/// This implies that all passes MUST be allocated with 'new'.
 void FunctionPassManager::add(Pass *P) {
   FPM->add(P);
 }
@@ -1404,11 +1388,8 @@ void FunctionPassManager::add(Pass *P) {
 /// so, return true.
 ///
 bool FunctionPassManager::run(Function &F) {
-  if (F.isMaterializable()) {
-    std::string errstr;
-    if (F.Materialize(&errstr))
-      report_fatal_error("Error reading bitcode file: " + Twine(errstr));
-  }
+  if (std::error_code EC = F.materialize())
+    report_fatal_error("Error reading bitcode file: " + EC.message());
   return FPM->run(F);
 }
 
@@ -1434,11 +1415,8 @@ bool FunctionPassManagerImpl::doInitialization(Module &M) {
   dumpArguments();
   dumpPasses();
 
-  SmallVectorImpl<ImmutablePass *>& IPV = getImmutablePasses();
-  for (SmallVectorImpl<ImmutablePass *>::const_iterator I = IPV.begin(),
-       E = IPV.end(); I != E; ++I) {
-    Changed |= (*I)->doInitialization(M);
-  }
+  for (ImmutablePass *ImPass : getImmutablePasses())
+    Changed |= ImPass->doInitialization(M);
 
   for (unsigned Index = 0; Index < getNumContainedManagers(); ++Index)
     Changed |= getContainedManager(Index)->doInitialization(M);
@@ -1452,11 +1430,8 @@ bool FunctionPassManagerImpl::doFinalization(Module &M) {
   for (int Index = getNumContainedManagers() - 1; Index >= 0; --Index)
     Changed |= getContainedManager(Index)->doFinalization(M);
 
-  SmallVectorImpl<ImmutablePass *>& IPV = getImmutablePasses();
-  for (SmallVectorImpl<ImmutablePass *>::const_iterator I = IPV.begin(),
-       E = IPV.end(); I != E; ++I) {
-    Changed |= (*I)->doFinalization(M);
-  }
+  for (ImmutablePass *ImPass : getImmutablePasses())
+    Changed |= ImPass->doFinalization(M);
 
   return Changed;
 }
@@ -1561,8 +1536,8 @@ bool FPPassManager::runOnFunction(Function &F) {
 bool FPPassManager::runOnModule(Module &M) {
   bool Changed = false;
 
-  for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
-    Changed |= runOnFunction(*I);
+  for (Function &F : M)
+    Changed |= runOnFunction(F);
 
   return Changed;
 }
@@ -1596,10 +1571,8 @@ MPPassManager::runOnModule(Module &M) {
   bool Changed = false;
 
   // Initialize on-the-fly passes
-  for (std::map<Pass *, FunctionPassManagerImpl *>::iterator
-       I = OnTheFlyManagers.begin(), E = OnTheFlyManagers.end();
-       I != E; ++I) {
-    FunctionPassManagerImpl *FPP = I->second;
+  for (auto &OnTheFlyManager : OnTheFlyManagers) {
+    FunctionPassManagerImpl *FPP = OnTheFlyManager.second;
     Changed |= FPP->doInitialization(M);
   }
 
@@ -1640,10 +1613,8 @@ MPPassManager::runOnModule(Module &M) {
     Changed |= getContainedPass(Index)->doFinalization(M);
 
   // Finalize on-the-fly passes
-  for (std::map<Pass *, FunctionPassManagerImpl *>::iterator
-       I = OnTheFlyManagers.begin(), E = OnTheFlyManagers.end();
-       I != E; ++I) {
-    FunctionPassManagerImpl *FPP = I->second;
+  for (auto &OnTheFlyManager : OnTheFlyManagers) {
+    FunctionPassManagerImpl *FPP = OnTheFlyManager.second;
     // We don't know when is the last time an on-the-fly pass is run,
     // so we need to releaseMemory / finalize here
     FPP->releaseMemoryOnTheFly();
@@ -1673,8 +1644,8 @@ void MPPassManager::addLowerLevelRequiredPass(Pass *P, Pass *RequiredPass) {
 
     OnTheFlyManagers[P] = FPP;
   }
-  const PassInfo * RequiredPassPI =
-    PassRegistry::getPassRegistry()->getPassInfo(RequiredPass->getPassID());
+  const PassInfo *RequiredPassPI =
+      TPM->findAnalysisPassInfo(RequiredPass->getPassID());
 
   Pass *FoundPass = nullptr;
   if (RequiredPassPI && RequiredPassPI->isAnalysis()) {
@@ -1684,7 +1655,7 @@ void MPPassManager::addLowerLevelRequiredPass(Pass *P, Pass *RequiredPass) {
   if (!FoundPass) {
     FoundPass = RequiredPass;
     // This should be guaranteed to add RequiredPass to the passmanager given
-    // that we checked for an avaiable analysis above.
+    // that we checked for an available analysis above.
     FPP->add(RequiredPass);
   }
   // Register P as the last user of FoundPass or RequiredPass.
@@ -1719,11 +1690,8 @@ bool PassManagerImpl::run(Module &M) {
   dumpArguments();
   dumpPasses();
 
-  SmallVectorImpl<ImmutablePass *>& IPV = getImmutablePasses();
-  for (SmallVectorImpl<ImmutablePass *>::const_iterator I = IPV.begin(),
-       E = IPV.end(); I != E; ++I) {
-    Changed |= (*I)->doInitialization(M);
-  }
+  for (ImmutablePass *ImPass : getImmutablePasses())
+    Changed |= ImPass->doInitialization(M);
 
   initializeAllAnalysisInfo();
   for (unsigned Index = 0; Index < getNumContainedManagers(); ++Index) {
@@ -1731,10 +1699,8 @@ bool PassManagerImpl::run(Module &M) {
     M.getContext().yield();
   }
 
-  for (SmallVectorImpl<ImmutablePass *>::const_iterator I = IPV.begin(),
-       E = IPV.end(); I != E; ++I) {
-    Changed |= (*I)->doFinalization(M);
-  }
+  for (ImmutablePass *ImPass : getImmutablePasses())
+    Changed |= ImPass->doFinalization(M);
 
   return Changed;
 }
@@ -1753,10 +1719,6 @@ PassManager::~PassManager() {
   delete PM;
 }
 
-/// add - Add a pass to the queue of passes to run.  This passes ownership of
-/// the Pass to the PassManager.  When the PassManager is destroyed, the pass
-/// will be destroyed as well, so there is no need to delete the pass.  This
-/// implies that all passes MUST be allocated with 'new'.
 void PassManager::add(Pass *P) {
   PM->add(P);
 }
@@ -1834,9 +1796,8 @@ void PMStack::push(PMDataManager *PM) {
 
 // Dump content of the pass manager stack.
 void PMStack::dump() const {
-  for (std::vector<PMDataManager *>::const_iterator I = S.begin(),
-         E = S.end(); I != E; ++I)
-    dbgs() << (*I)->getAsPass()->getPassName() << ' ';
+  for (PMDataManager *Manager : S)
+    dbgs() << Manager->getAsPass()->getPassName() << ' ';
 
   if (!S.empty())
     dbgs() << '\n';

@@ -58,8 +58,8 @@
 #include "util/regional.h"
 #include "util/config_file.h"
 #include "util/fptr_wlist.h"
-#include "ldns/rrdef.h"
-#include "ldns/wire2str.h"
+#include "sldns/rrdef.h"
+#include "sldns/wire2str.h"
 
 /* forward decl for cache response and normal super inform calls of a DS */
 static void process_ds_response(struct module_qstate* qstate, 
@@ -226,6 +226,8 @@ val_new_getmsg(struct module_qstate* qstate, struct val_qstate* vq)
 		sizeof(struct reply_info) - sizeof(struct rrset_ref));
 	if(!vq->chase_reply)
 		return NULL;
+	if(vq->orig_msg->rep->rrset_count > RR_COUNT_MAX)
+		return NULL; /* protect against integer overflow */
 	vq->chase_reply->rrsets = regional_alloc_init(qstate->region,
 		vq->orig_msg->rep->rrsets, sizeof(struct ub_packed_rrset_key*)
 			* vq->orig_msg->rep->rrset_count);
@@ -517,8 +519,8 @@ validate_msg_signatures(struct module_qstate* qstate, struct module_env* env,
 				"has failed AUTHORITY rrset:", s->rk.dname,
 				ntohs(s->rk.type), ntohs(s->rk.rrset_class));
 			errinf(qstate, reason);
-			errinf_rrset(qstate, s);
 			errinf_origin(qstate, qstate->reply_origin);
+			errinf_rrset(qstate, s);
 			chase_reply->security = sec_status_bogus;
 			return 0;
 		}
@@ -574,6 +576,61 @@ detect_wrongly_truncated(struct reply_info* rep)
 	return 1;
 }
 
+/**
+ * For messages that are not referrals, if the chase reply contains an
+ * unsigned NS record in the authority section it could have been
+ * inserted by a (BIND) forwarder that thinks the zone is insecure, and
+ * that has an NS record without signatures in cache.  Remove the NS
+ * record since the reply does not hinge on that record (in the authority
+ * section), but do not remove it if it removes the last record from the
+ * answer+authority sections.
+ * @param chase_reply: the chased reply, we have a key for this contents,
+ * 	so we should have signatures for these rrsets and not having
+ * 	signatures means it will be bogus.
+ * @param orig_reply: original reply, remove NS from there as well because
+ * 	we cannot mark the NS record as DNSSEC valid because it is not
+ * 	validated by signatures.
+ */
+static void
+remove_spurious_authority(struct reply_info* chase_reply,
+	struct reply_info* orig_reply)
+{
+	size_t i, found = 0;
+	int remove = 0;
+	/* if no answer and only 1 auth RRset, do not remove that one */
+	if(chase_reply->an_numrrsets == 0 && chase_reply->ns_numrrsets == 1)
+		return;
+	/* search authority section for unsigned NS records */
+	for(i = chase_reply->an_numrrsets;
+		i < chase_reply->an_numrrsets+chase_reply->ns_numrrsets; i++) {
+		struct packed_rrset_data* d = (struct packed_rrset_data*)
+			chase_reply->rrsets[i]->entry.data;
+		if(ntohs(chase_reply->rrsets[i]->rk.type) == LDNS_RR_TYPE_NS
+			&& d->rrsig_count == 0) {
+			found = i;
+			remove = 1;
+			break;
+		}
+	}
+	/* see if we found the entry */
+	if(!remove) return;
+	log_rrset_key(VERB_ALGO, "Removing spurious unsigned NS record "
+		"(likely inserted by forwarder)", chase_reply->rrsets[found]);
+
+	/* find rrset in orig_reply */
+	for(i = orig_reply->an_numrrsets;
+		i < orig_reply->an_numrrsets+orig_reply->ns_numrrsets; i++) {
+		if(ntohs(orig_reply->rrsets[i]->rk.type) == LDNS_RR_TYPE_NS
+			&& query_dname_compare(orig_reply->rrsets[i]->rk.dname,
+				chase_reply->rrsets[found]->rk.dname) == 0) {
+			/* remove from orig_msg */
+			val_reply_remove_auth(orig_reply, i);
+			break;
+		}
+	}
+	/* remove rrset from chase_reply */
+	val_reply_remove_auth(chase_reply, found);
+}
 
 /**
  * Given a "positive" response -- a response that contains an answer to the
@@ -1642,6 +1699,8 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 	}
 	subtype = val_classify_response(qstate->query_flags, &qstate->qinfo,
 		&vq->qchase, vq->orig_msg->rep, vq->rrset_skip);
+	if(subtype != VAL_CLASS_REFERRAL)
+		remove_spurious_authority(vq->chase_reply, vq->orig_msg->rep);
 
 	/* check signatures in the message; 
 	 * answer and authority must be valid, additional is only checked. */
@@ -1756,6 +1815,8 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 
 /**
  * Init DLV check.
+ * DLV is going to be decommissioned, but the code is still here for some time.
+ *
  * Called when a query is determined by other trust anchors to be insecure
  * (or indeterminate).  Then we look if there is a key in the DLV.
  * Performs aggressive negative cache check to see if there is no key.
@@ -2295,7 +2356,7 @@ primeResponseToKE(struct ub_packed_rrset_key* dnskey_rrset,
 	struct key_entry_key* kkey = NULL;
 	enum sec_status sec = sec_status_unchecked;
 	char* reason = NULL;
-	int downprot = 1;
+	int downprot = qstate->env->cfg->harden_algo_downgrade;
 
 	if(!dnskey_rrset) {
 		log_nametypeclass(VERB_OPS, "failed to prime trust anchor -- "
@@ -2708,7 +2769,7 @@ process_dnskey_response(struct module_qstate* qstate, struct val_qstate* vq,
 		vq->state = VAL_VALIDATE_STATE;
 		return;
 	}
-	downprot = 1;
+	downprot = qstate->env->cfg->harden_algo_downgrade;
 	vq->key_entry = val_verify_new_DNSKEYs(qstate->region, qstate->env,
 		ve, dnskey, vq->ds_rrset, downprot, &reason);
 

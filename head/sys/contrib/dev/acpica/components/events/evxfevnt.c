@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __EVXFEVNT_C__
 #define EXPORT_ACPI_INTERFACES
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -402,7 +401,8 @@ AcpiGetEventStatus (
 
     if (InByte)
     {
-        LocalEventStatus |= ACPI_EVENT_FLAG_ENABLED;
+        LocalEventStatus |=
+            (ACPI_EVENT_FLAG_ENABLED | ACPI_EVENT_FLAG_ENABLE_SET);
     }
 
     /* Fixed event currently active? */
@@ -416,7 +416,7 @@ AcpiGetEventStatus (
 
     if (InByte)
     {
-        LocalEventStatus |= ACPI_EVENT_FLAG_SET;
+        LocalEventStatus |= ACPI_EVENT_FLAG_STATUS_SET;
     }
 
     (*EventStatus) = LocalEventStatus;

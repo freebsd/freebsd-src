@@ -86,7 +86,7 @@ enum midi_states {
 };
 
 /*
- * The MPU interface current has init() uninit() inqsize(( outqsize()
+ * The MPU interface current has init() uninit() inqsize() outqsize()
  * callback() : fiddle with the tx|rx status.
  */
 
@@ -160,10 +160,15 @@ DEFINE_CLASS(midisynth, midisynth_methods, 0);
 /*
  * Module Exports & Interface
  *
- * struct midi_chan *midi_init(MPU_CLASS cls, int unit, int chan) int
- * midi_uninit(struct snd_midi *) 0 == no error EBUSY or other error int
- * Midi_in(struct midi_chan *, char *buf, int count) int Midi_out(struct
- * midi_chan *, char *buf, int count)
+ * struct midi_chan *midi_init(MPU_CLASS cls, int unit, int chan,
+ *     void *cookie)
+ * int midi_uninit(struct snd_midi *)
+ *
+ * 0 == no error
+ * EBUSY or other error
+ *
+ * int midi_in(struct snd_midi *, char *buf, int count)
+ * int midi_out(struct snd_midi *, char *buf, int count)
  *
  * midi_{in,out} return actual size transfered
  *
@@ -388,7 +393,7 @@ err0:	mtx_unlock(&midistat_lock);
 
 /*
  * midi_uninit does not call MIDI_UNINIT, as since this is the implementors
- * entry point. midi_unint if fact, does not send any methods. A call to
+ * entry point. midi_uninit if fact, does not send any methods. A call to
  * midi_uninit is a defacto promise that you won't manipulate ch anymore
  *
  */
@@ -398,7 +403,7 @@ midi_uninit(struct snd_midi *m)
 {
 	int err;
 
-	err = ENXIO;
+	err = EBUSY;
 	mtx_lock(&midistat_lock);
 	mtx_lock(&m->lock);
 	if (m->busy) {

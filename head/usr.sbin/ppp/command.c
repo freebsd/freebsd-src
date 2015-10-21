@@ -2051,7 +2051,7 @@ SetVariable(struct cmdargs const *arg)
       res = 1;
     } else {
       arg->bundle->radius.alive.interval = atoi(argp);
-      if (arg->bundle->radius.alive.interval && !arg->bundle->radius.cfg.file) {
+      if (arg->bundle->radius.alive.interval && !*arg->bundle->radius.cfg.file) {
         log_Printf(LogWARN, "rad_alive requires radius to be configured\n");
 	res = 1;
       } else if (arg->bundle->ncp.ipcp.fsm.state == ST_OPENED) {
@@ -2335,7 +2335,7 @@ SetVariable(struct cmdargs const *arg)
 	   res = 1;
     }
 
-    if (arg->bundle->radius.port_id_type && !arg->bundle->radius.cfg.file) {
+    if (arg->bundle->radius.port_id_type && !*arg->bundle->radius.cfg.file) {
 	    log_Printf(LogWARN, "rad_port_id requires radius to be configured\n");
 	    res = 1;
     }

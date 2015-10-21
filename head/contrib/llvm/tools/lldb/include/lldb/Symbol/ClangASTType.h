@@ -30,32 +30,6 @@ namespace lldb_private {
 class ClangASTType
 {
 public:
-    enum {
-        eTypeHasChildren        = (1u <<  0),
-        eTypeHasValue           = (1u <<  1),
-        eTypeIsArray            = (1u <<  2),
-        eTypeIsBlock            = (1u <<  3),
-        eTypeIsBuiltIn          = (1u <<  4),
-        eTypeIsClass            = (1u <<  5),
-        eTypeIsCPlusPlus        = (1u <<  6),
-        eTypeIsEnumeration      = (1u <<  7),
-        eTypeIsFuncPrototype    = (1u <<  8),
-        eTypeIsMember           = (1u <<  9),
-        eTypeIsObjC             = (1u << 10),
-        eTypeIsPointer          = (1u << 11),
-        eTypeIsReference        = (1u << 12),
-        eTypeIsStructUnion      = (1u << 13),
-        eTypeIsTemplate         = (1u << 14),
-        eTypeIsTypedef          = (1u << 15),
-        eTypeIsVector           = (1u << 16),
-        eTypeIsScalar           = (1u << 17),
-        eTypeIsInteger          = (1u << 18),
-        eTypeIsFloat            = (1u << 19),
-        eTypeIsComplex          = (1u << 20),
-        eTypeIsSigned           = (1u << 21)
-    };
-    
-
     //----------------------------------------------------------------------
     // Constructors and Destructors
     //----------------------------------------------------------------------
@@ -123,6 +97,10 @@ public:
                  bool *is_incomplete) const;
 
     bool
+    IsVectorType (ClangASTType *element_type,
+                  uint64_t *size) const;
+    
+    bool
     IsArrayOfScalarType () const;
 
     bool
@@ -162,7 +140,7 @@ public:
     GetNumberOfFunctionArguments () const;
     
     ClangASTType
-    GetFunctionArgumentAtIndex (const size_t index);
+    GetFunctionArgumentAtIndex (const size_t index) const;
     
     bool
     IsVariadicFunctionType () const;
@@ -329,10 +307,16 @@ public:
     GetFunctionArgumentCount () const;
 
     ClangASTType
-    GetFunctionArgumentTypeAtIndex (size_t idx);
+    GetFunctionArgumentTypeAtIndex (size_t idx) const;
 
     ClangASTType
     GetFunctionReturnType () const;
+    
+    size_t
+    GetNumMemberFunctions () const;
+    
+    TypeMemberFunctionImpl
+    GetMemberFunctionAtIndex (size_t idx);
     
     ClangASTType
     GetLValueReferenceType () const;
@@ -367,10 +351,10 @@ public:
     //----------------------------------------------------------------------
 
     uint64_t
-    GetByteSize () const;
+    GetByteSize (ExecutionContextScope *exe_scope) const;
 
     uint64_t
-    GetBitSize () const;
+    GetBitSize (ExecutionContextScope *exe_scope) const;
 
     lldb::Encoding
     GetEncoding (uint64_t &count) const;
@@ -474,6 +458,9 @@ public:
     
     void
     BuildIndirectFields ();
+    
+    void
+    SetIsPacked ();
     
     clang::VarDecl *
     AddVariableToRecordType (const char *name,

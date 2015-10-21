@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ASTReaderInternals.h"
+#include "clang/Frontend/PCHContainerOperations.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Serialization/ASTBitCodes.h"
@@ -122,11 +123,10 @@ typedef llvm::OnDiskIterableChainedHashTable<IdentifierIndexReaderTrait>
 
 }
 
-GlobalModuleIndex::GlobalModuleIndex(llvm::MemoryBuffer *Buffer,
+GlobalModuleIndex::GlobalModuleIndex(std::unique_ptr<llvm::MemoryBuffer> Buffer,
                                      llvm::BitstreamCursor Cursor)
-  : Buffer(Buffer), IdentifierIndex(),
-    NumIdentifierLookups(), NumIdentifierLookupHits()
-{
+    : Buffer(std::move(Buffer)), IdentifierIndex(), NumIdentifierLookups(),
+      NumIdentifierLookupHits() {
   // Read the global index.
   bool InGlobalIndexBlock = false;
   bool Done = false;
@@ -260,7 +260,7 @@ GlobalModuleIndex::readIndex(StringRef Path) {
     return std::make_pair(nullptr, EC_IOError);
   }
 
-  return std::make_pair(new GlobalModuleIndex(Buffer.release(), Cursor),
+  return std::make_pair(new GlobalModuleIndex(std::move(Buffer), Cursor),
                         EC_None);
 }
 
@@ -385,6 +385,7 @@ namespace {
   /// \brief Builder that generates the global module index file.
   class GlobalModuleIndexBuilder {
     FileManager &FileMgr;
+    const PCHContainerReader &PCHContainerRdr;
 
     /// \brief Mapping from files to module file information.
     typedef llvm::MapVector<const FileEntry *, ModuleFileInfo> ModuleFilesMap;
@@ -417,7 +418,9 @@ namespace {
     }
 
   public:
-    explicit GlobalModuleIndexBuilder(FileManager &FileMgr) : FileMgr(FileMgr){}
+    explicit GlobalModuleIndexBuilder(
+        FileManager &FileMgr, const PCHContainerReader &PCHContainerRdr)
+        : FileMgr(FileMgr), PCHContainerRdr(PCHContainerRdr) {}
 
     /// \brief Load the contents of the given module file into the builder.
     ///
@@ -494,19 +497,16 @@ namespace {
 
 bool GlobalModuleIndexBuilder::loadModuleFile(const FileEntry *File) {
   // Open the module file.
-  std::unique_ptr<llvm::MemoryBuffer> Buffer;
-  std::string ErrorStr;
-  Buffer.reset(FileMgr.getBufferForFile(File, &ErrorStr, /*isVolatile=*/true));
+
+  auto Buffer = FileMgr.getBufferForFile(File, /*isVolatile=*/true);
   if (!Buffer) {
     return true;
   }
 
   // Initialize the input stream
   llvm::BitstreamReader InStreamFile;
-  llvm::BitstreamCursor InStream;
-  InStreamFile.init((const unsigned char *)Buffer->getBufferStart(),
-                  (const unsigned char *)Buffer->getBufferEnd());
-  InStream.init(InStreamFile);
+  PCHContainerRdr.ExtractPCH((*Buffer)->getMemBufferRef(), InStreamFile);
+  llvm::BitstreamCursor InStream(InStreamFile);
 
   // Sniff for the signature.
   if (InStream.Read(8) != 'C' ||
@@ -590,6 +590,10 @@ bool GlobalModuleIndexBuilder::loadModuleFile(const FileEntry *File) {
         // Load stored size/modification time. 
         off_t StoredSize = (off_t)Record[Idx++];
         time_t StoredModTime = (time_t)Record[Idx++];
+
+        // Skip the stored signature.
+        // FIXME: we could read the signature out of the import and validate it.
+        Idx++;
 
         // Retrieve the imported file name.
         unsigned Length = Record[Idx++];
@@ -756,14 +760,16 @@ void GlobalModuleIndexBuilder::writeIndex(llvm::BitstreamWriter &Stream) {
     Record.clear();
     Record.push_back(IDENTIFIER_INDEX);
     Record.push_back(BucketOffset);
-    Stream.EmitRecordWithBlob(IDTableAbbrev, Record, IdentifierTable.str());
+    Stream.EmitRecordWithBlob(IDTableAbbrev, Record, IdentifierTable);
   }
 
   Stream.ExitBlock();
 }
 
 GlobalModuleIndex::ErrorCode
-GlobalModuleIndex::writeIndex(FileManager &FileMgr, StringRef Path) {
+GlobalModuleIndex::writeIndex(FileManager &FileMgr,
+                              const PCHContainerReader &PCHContainerRdr,
+                              StringRef Path) {
   llvm::SmallString<128> IndexPath;
   IndexPath += Path;
   llvm::sys::path::append(IndexPath, IndexFileName);
@@ -786,8 +792,8 @@ GlobalModuleIndex::writeIndex(FileManager &FileMgr, StringRef Path) {
   }
 
   // The module index builder.
-  GlobalModuleIndexBuilder Builder(FileMgr);
-  
+  GlobalModuleIndexBuilder Builder(FileMgr, PCHContainerRdr);
+
   // Load each of the module files.
   std::error_code EC;
   for (llvm::sys::fs::directory_iterator D(Path, EC), DEnd;
@@ -840,12 +846,12 @@ GlobalModuleIndex::writeIndex(FileManager &FileMgr, StringRef Path) {
     return EC_IOError;
 
   // Remove the old index file. It isn't relevant any more.
-  llvm::sys::fs::remove(IndexPath.str());
+  llvm::sys::fs::remove(IndexPath);
 
   // Rename the newly-written index file to the proper name.
-  if (llvm::sys::fs::rename(IndexTmpPath.str(), IndexPath.str())) {
+  if (llvm::sys::fs::rename(IndexTmpPath, IndexPath)) {
     // Rename failed; just remove the 
-    llvm::sys::fs::remove(IndexTmpPath.str());
+    llvm::sys::fs::remove(IndexTmpPath);
     return EC_IOError;
   }
 

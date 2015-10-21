@@ -53,6 +53,7 @@ extern enum vtype nv34tov_type[8];
 extern struct timeval nfsboottime;
 extern int nfs_rootfhset;
 extern int nfsrv_enable_crossmntpt;
+extern int nfsrv_statehashsize;
 #endif	/* !APPLEKEXT */
 
 static int	nfs_async = 0;
@@ -881,7 +882,7 @@ nfsrvd_write(struct nfsrv_descript *nd, __unused int isdgram,
 			i = mbuf_len(mp);
 	}
 
-	if (retlen > NFS_MAXDATA || retlen < 0)
+	if (retlen > NFS_SRVMAXIO || retlen < 0)
 		nd->nd_repstat = EIO;
 	if (vnode_vtype(vp) != VREG && !nd->nd_repstat) {
 		if (nd->nd_flag & ND_NFSV3)
@@ -3468,9 +3469,10 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 	idlen = i;
 	if (nd->nd_flag & ND_GSS)
 		i += nd->nd_princlen;
-	MALLOC(clp, struct nfsclient *, sizeof (struct nfsclient) + i,
-	    M_NFSDCLIENT, M_WAITOK);
-	NFSBZERO((caddr_t)clp, sizeof (struct nfsclient) + i);
+	clp = malloc(sizeof(struct nfsclient) + i, M_NFSDCLIENT, M_WAITOK |
+	    M_ZERO);
+	clp->lc_stateid = malloc(sizeof(struct nfsstatehead) *
+	    nfsrv_statehashsize, M_NFSDCLIENT, M_WAITOK);
 	NFSINITSOCKMUTEX(&clp->lc_req.nr_mtx);
 	NFSSOCKADDRALLOC(clp->lc_req.nr_nam);
 	NFSSOCKADDRSIZE(clp->lc_req.nr_nam, sizeof (struct sockaddr_in));
@@ -3530,7 +3532,8 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 	if (clp) {
 		NFSSOCKADDRFREE(clp->lc_req.nr_nam);
 		NFSFREEMUTEX(&clp->lc_req.nr_mtx);
-		free((caddr_t)clp, M_NFSDCLIENT);
+		free(clp->lc_stateid, M_NFSDCLIENT);
+		free(clp, M_NFSDCLIENT);
 	}
 	if (!nd->nd_repstat) {
 		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_HYPER);
@@ -3547,7 +3550,8 @@ nfsmout:
 	if (clp) {
 		NFSSOCKADDRFREE(clp->lc_req.nr_nam);
 		NFSFREEMUTEX(&clp->lc_req.nr_mtx);
-		free((caddr_t)clp, M_NFSDCLIENT);
+		free(clp->lc_stateid, M_NFSDCLIENT);
+		free(clp, M_NFSDCLIENT);
 	}
 	NFSEXITCODE2(error, nd);
 	return (error);
@@ -3738,8 +3742,10 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 	idlen = i;
 	if (nd->nd_flag & ND_GSS)
 		i += nd->nd_princlen;
-	clp = (struct nfsclient *)malloc(sizeof(struct nfsclient) + i,
-	    M_NFSDCLIENT, M_WAITOK | M_ZERO);
+	clp = malloc(sizeof(struct nfsclient) + i, M_NFSDCLIENT, M_WAITOK |
+	    M_ZERO);
+	clp->lc_stateid = malloc(sizeof(struct nfsstatehead) *
+	    nfsrv_statehashsize, M_NFSDCLIENT, M_WAITOK);
 	NFSINITSOCKMUTEX(&clp->lc_req.nr_mtx);
 	NFSSOCKADDRALLOC(clp->lc_req.nr_nam);
 	NFSSOCKADDRSIZE(clp->lc_req.nr_nam, sizeof (struct sockaddr_in));
@@ -3796,6 +3802,7 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 	if (clp != NULL) {
 		NFSSOCKADDRFREE(clp->lc_req.nr_nam);
 		NFSFREEMUTEX(&clp->lc_req.nr_mtx);
+		free(clp->lc_stateid, M_NFSDCLIENT);
 		free(clp, M_NFSDCLIENT);
 	}
 	if (nd->nd_repstat == 0) {
@@ -3828,6 +3835,7 @@ nfsmout:
 	if (clp != NULL) {
 		NFSSOCKADDRFREE(clp->lc_req.nr_nam);
 		NFSFREEMUTEX(&clp->lc_req.nr_mtx);
+		free(clp->lc_stateid, M_NFSDCLIENT);
 		free(clp, M_NFSDCLIENT);
 	}
 	NFSEXITCODE2(error, nd);

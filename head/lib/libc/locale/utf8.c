@@ -145,14 +145,6 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 			mask = 0x07;
 			want = 4;
 			lbound = 0x10000;
-		} else if ((ch & 0xfc) == 0xf8) {
-			mask = 0x03;
-			want = 5;
-			lbound = 0x200000;
-		} else if ((ch & 0xfe) == 0xfc) {
-			mask = 0x01;
-			want = 6;
-			lbound = 0x4000000;
 		} else {
 			/*
 			 * Malformed input; input is not UTF-8.
@@ -199,7 +191,7 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		errno = EILSEQ;
 		return ((size_t)-1);
 	}
-	if (wch >= 0xd800 && wch <= 0xdfff) {
+	if ((wch >= 0xd800 && wch <= 0xdfff) || wch > 0x10ffff) {
 		/*
 		 * Malformed input; invalid code points.
 		 */
@@ -326,17 +318,15 @@ _UTF8_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 		lead = 0xc0;
 		len = 2;
 	} else if ((wc & ~0xffff) == 0) {
+		if (wc >= 0xd800 && wc <= 0xdfff) {
+			errno = EILSEQ;
+			return ((size_t)-1);
+		}
 		lead = 0xe0;
 		len = 3;
-	} else if ((wc & ~0x1fffff) == 0) {
+	} else if (wc >= 0 && wc <= 0x10ffff) {
 		lead = 0xf0;
 		len = 4;
-	} else if ((wc & ~0x3ffffff) == 0) {
-		lead = 0xf8;
-		len = 5;
-	} else if ((wc & ~0x7fffffff) == 0) {
-		lead = 0xfc;
-		len = 6;
 	} else {
 		errno = EILSEQ;
 		return ((size_t)-1);

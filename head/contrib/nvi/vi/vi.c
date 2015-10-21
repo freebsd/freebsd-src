@@ -34,16 +34,16 @@ typedef enum {
 } gcret_t;
 
 static VIKEYS const
-	       *v_alias __P((SCR *, VICMD *, VIKEYS const *));
-static gcret_t	v_cmd __P((SCR *, VICMD *, VICMD *, VICMD *, int *, int *));
-static int	v_count __P((SCR *, ARG_CHAR_T, u_long *));
-static void	v_dtoh __P((SCR *));
-static int	v_init __P((SCR *));
-static gcret_t	v_key __P((SCR *, int, EVENT *, u_int32_t));
-static int	v_motion __P((SCR *, VICMD *, VICMD *, int *));
+	       *v_alias(SCR *, VICMD *, VIKEYS const *);
+static gcret_t	v_cmd(SCR *, VICMD *, VICMD *, VICMD *, int *, int *);
+static int	v_count(SCR *, ARG_CHAR_T, u_long *);
+static void	v_dtoh(SCR *);
+static int	v_init(SCR *);
+static gcret_t	v_key(SCR *, int, EVENT *, u_int32_t);
+static int	v_motion(SCR *, VICMD *, VICMD *, int *);
 
 #if defined(DEBUG) && defined(COMLOG)
-static void	v_comlog __P((SCR *, VICMD *));
+static void	v_comlog(SCR *, VICMD *);
 #endif
 
 /*
@@ -58,7 +58,7 @@ static void	v_comlog __P((SCR *, VICMD *));
  * vi --
  * 	Main vi command loop.
  *
- * PUBLIC: int vi __P((SCR **));
+ * PUBLIC: int vi(SCR **);
  */
 int
 vi(SCR **spp)
@@ -1031,7 +1031,7 @@ v_dtoh(SCR *sp)
  * v_curword --
  *	Get the word (tagstring, actually) the cursor is on.
  *
- * PUBLIC: int v_curword __P((SCR *));
+ * PUBLIC: int v_curword(SCR *);
  */
 int
 v_curword(SCR *sp)
@@ -1216,7 +1216,6 @@ v_key(
 			break;
 		case E_WRESIZE:
 			return (GC_ERR);
-			/* FALLTHROUGH */
 		default:
 			v_event_err(sp, evp);
 			return (GC_ERR);

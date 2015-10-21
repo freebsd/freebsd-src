@@ -423,9 +423,11 @@ StopInfoMachException::CreateStopReasonWithMachException
                                 wp_sp->SetHardwareIndex((uint32_t)exc_sub_sub_code);
                             return StopInfo::CreateStopReasonWithWatchpointID(thread, wp_sp->GetID());
                         }
-                        // EXC_ARM_DA_DEBUG seems to be reused for EXC_BREAKPOINT as well as EXC_BAD_ACCESS
-                        if (thread.GetTemporaryResumeState() == eStateStepping)
-                            return StopInfo::CreateStopReasonToTrace(thread);
+                        else
+                        {
+                            is_actual_breakpoint = true;
+                            is_trace_if_actual_breakpoint_missing = true;
+                        }
                     }
                     else if (exc_code == 1) // EXC_ARM_BREAKPOINT
                     {
@@ -496,12 +498,15 @@ StopInfoMachException::CreateStopReasonWithMachException
                         // If the breakpoint is for this thread, then we'll report the hit, but if it is for another thread,
                         // we can just report no reason.  We don't need to worry about stepping over the breakpoint here, that
                         // will be taken care of when the thread resumes and notices that there's a breakpoint under the pc.
-                        if (bp_site_sp->ValidForThisThread (&thread))
+                        // If we have an operating system plug-in, we might have set a thread specific breakpoint using the
+                        // operating system thread ID, so we can't make any assumptions about the thread ID so we must always
+                        // report the breakpoint regardless of the thread.
+                        if (bp_site_sp->ValidForThisThread (&thread) || thread.GetProcess()->GetOperatingSystem () != NULL)
                             return StopInfo::CreateStopReasonWithBreakpointSiteID (thread, bp_site_sp->GetID());
                         else
                             return StopInfoSP();
                     }
-                    
+
                     // Don't call this a trace if we weren't single stepping this thread.
                     if (is_trace_if_actual_breakpoint_missing && thread.GetTemporaryResumeState() == eStateStepping)
                     {

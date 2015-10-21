@@ -230,7 +230,7 @@ usage:
 		err(1, "reading word file %s", wordfile);
 	if (nrandwords < 1)
 		errx(1, "word file %s did not have >0 words", wordfile);
-	printf("Read %u random words from %s.\n", nrandwords, wordfile);
+	printf("Read %zu random words from %s.\n", nrandwords, wordfile);
 	workers = calloc(nworkers, sizeof(*workers));
 	if (workers == NULL)
 		err(1, "allocating workers");
@@ -242,8 +242,8 @@ usage:
 	for (i = 0; i < nworkers; i++) {
 		if (pthread_create(&workers[i].w_thread, NULL, work,
 		    &workers[i]) != 0)
-			err(1, "creating worker %u", i);
-		printf("%u%s", i, i == nworkers - 1 ? ".\n" : ", ");
+			err(1, "creating worker %zu", i);
+		printf("%zu%s", i, i == nworkers - 1 ? ".\n" : ", ");
 		fflush(stdout);
 	}
 
@@ -255,7 +255,7 @@ usage:
 	fflush(stdout);
 	for (i = 0; i < nworkers; i++) {
 		pthread_join(workers[i].w_thread, NULL);
-		printf("%u%s", i, i == nworkers - 1 ? ".\n" : ", ");
+		printf("%zu%s", i, i == nworkers - 1 ? ".\n" : ", ");
 		fflush(stdout);
 	}
 
@@ -264,7 +264,7 @@ usage:
 	printf("%-10s%-20s%-20s%-29s\n", "------", "--------------",
 	    "----------", "---------------------------");
 	for (i = 0; i < nworkers; i++) {
-		printf("%-10u%-20ju%-20ju%u:%s%.2f\n", i,
+		printf("%-10zu%-20ju%-20ju%ld:%s%.2f\n", i,
 		    workers[i].w_lookup_success, workers[i].w_lookup_failure,
 		    workers[i].w_max_lookup_time.tv_sec / 60,
 		    workers[i].w_max_lookup_time.tv_sec % 60 < 10 ? "0" : "",

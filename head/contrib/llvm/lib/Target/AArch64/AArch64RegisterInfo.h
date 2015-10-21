@@ -11,34 +11,32 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_AArch64REGISTERINFO_H
-#define LLVM_TARGET_AArch64REGISTERINFO_H
+#ifndef LLVM_LIB_TARGET_AARCH64_AARCH64REGISTERINFO_H
+#define LLVM_LIB_TARGET_AARCH64_AARCH64REGISTERINFO_H
 
 #define GET_REGINFO_HEADER
 #include "AArch64GenRegisterInfo.inc"
 
 namespace llvm {
 
-class AArch64InstrInfo;
-class AArch64Subtarget;
 class MachineFunction;
 class RegScavenger;
 class TargetRegisterClass;
+class Triple;
 
 struct AArch64RegisterInfo : public AArch64GenRegisterInfo {
 private:
-  const AArch64InstrInfo *TII;
-  const AArch64Subtarget *STI;
+  const Triple &TT;
 
 public:
-  AArch64RegisterInfo(const AArch64InstrInfo *tii, const AArch64Subtarget *sti);
+  AArch64RegisterInfo(const Triple &TT);
 
   bool isReservedReg(const MachineFunction &MF, unsigned Reg) const;
 
   /// Code Generation virtual methods...
-  const MCPhysReg *
-  getCalleeSavedRegs(const MachineFunction *MF = nullptr) const override;
-  const uint32_t *getCallPreservedMask(CallingConv::ID) const override;
+  const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
+  const uint32_t *getCallPreservedMask(const MachineFunction &MF,
+                                       CallingConv::ID) const override;
 
   unsigned getCSRFirstUseCost() const override {
     // The cost will be compared against BlockFrequency where entry has the
@@ -59,7 +57,8 @@ public:
   ///
   /// Should return NULL in the case that the calling convention does not have
   /// this property
-  const uint32_t *getThisReturnPreservedMask(CallingConv::ID) const;
+  const uint32_t *getThisReturnPreservedMask(const MachineFunction &MF,
+                                             CallingConv::ID) const;
 
   BitVector getReservedRegs(const MachineFunction &MF) const override;
   const TargetRegisterClass *
@@ -73,7 +72,7 @@ public:
   bool requiresFrameIndexScavenging(const MachineFunction &MF) const override;
 
   bool needsFrameBaseReg(MachineInstr *MI, int64_t Offset) const override;
-  bool isFrameOffsetLegal(const MachineInstr *MI,
+  bool isFrameOffsetLegal(const MachineInstr *MI, unsigned BaseReg,
                           int64_t Offset) const override;
   void materializeFrameBaseRegister(MachineBasicBlock *MBB, unsigned BaseReg,
                                     int FrameIdx,
@@ -94,8 +93,11 @@ public:
 
   unsigned getRegPressureLimit(const TargetRegisterClass *RC,
                                MachineFunction &MF) const override;
+  // Base pointer (stack realignment) support.
+  bool canRealignStack(const MachineFunction &MF) const;
+  bool needsStackRealignment(const MachineFunction &MF) const override;
 };
 
 } // end namespace llvm
 
-#endif // LLVM_TARGET_AArch64REGISTERINFO_H
+#endif

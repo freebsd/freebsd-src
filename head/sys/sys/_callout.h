@@ -57,7 +57,8 @@ struct callout {
 	void	*c_arg;				/* function argument */
 	void	(*c_func)(void *);		/* function to call */
 	struct lock_object *c_lock;		/* lock to handle */
-	int	c_flags;			/* state of this entry */
+	short	c_flags;			/* User State */
+	short	c_iflags;			/* Internal State */
 	volatile int c_cpu;			/* CPU we're scheduled on */
 };
 

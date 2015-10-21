@@ -355,6 +355,7 @@ vop_inactive {
 
 
 %% reclaim	vp	E E E
+%! reclaim	post	vop_reclaim_post
 
 vop_reclaim {
 	IN struct vnode *vp;
@@ -483,7 +484,6 @@ vop_getpages_async {
 	IN vm_page_t *m;
 	IN int count;
 	IN int reqpage;
-	IN vm_ooffset_t offset;
 	IN vop_getpages_iodone_t *iodone;
 	IN void *arg;
 };

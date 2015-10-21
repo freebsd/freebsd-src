@@ -29,6 +29,7 @@
 #include "lldb/API/SBDeclaration.h"
 #include "lldb/API/SBError.h"
 #include "lldb/API/SBEvent.h"
+#include "lldb/API/SBExecutionContext.h"
 #include "lldb/API/SBFileSpec.h"
 #include "lldb/API/SBFrame.h"
 #include "lldb/API/SBFunction.h"
@@ -51,5 +52,6 @@
 #include "lldb/API/SBType.h"
 #include "lldb/API/SBValue.h"
 #include "lldb/API/SBValueList.h"
+#include "lldb/API/SBVariablesOptions.h"
 
 #endif  // LLDB_LLDB_h_

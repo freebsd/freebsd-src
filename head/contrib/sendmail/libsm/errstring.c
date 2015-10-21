@@ -264,10 +264,12 @@ sm_errstring(errnum)
 #if LDAPMAP
 
 	/*
-	**  LDAP error messages.
+	**  LDAP error messages.  Handle small negative errors from
+	**  libldap (in the range -E_LDAP_SHIM to zero, offset by E_LDAPBASE)
+	**  as well.
 	*/
 
-	if (errnum >= E_LDAPBASE)
+	if (errnum >= E_LDAPBASE - E_LDAP_SHIM)
 		return ldap_err2string(errnum - E_LDAPBASE);
 #endif /* LDAPMAP */
 

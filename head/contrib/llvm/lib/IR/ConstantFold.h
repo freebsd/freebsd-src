@@ -16,8 +16,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CONSTANTFOLDING_H
-#define CONSTANTFOLDING_H
+#ifndef LLVM_LIB_IR_CONSTANTFOLD_H
+#define LLVM_LIB_IR_CONSTANTFOLD_H
 
 #include "llvm/ADT/ArrayRef.h"
 
@@ -50,6 +50,10 @@ namespace llvm {
   Constant *ConstantFoldGetElementPtr(Constant *C, bool inBounds,
                                       ArrayRef<Constant *> Idxs);
   Constant *ConstantFoldGetElementPtr(Constant *C, bool inBounds,
+                                      ArrayRef<Value *> Idxs);
+  Constant *ConstantFoldGetElementPtr(Type *Ty, Constant *C, bool inBounds,
+                                      ArrayRef<Constant *> Idxs);
+  Constant *ConstantFoldGetElementPtr(Type *Ty, Constant *C, bool inBounds,
                                       ArrayRef<Value *> Idxs);
 } // End llvm namespace
 

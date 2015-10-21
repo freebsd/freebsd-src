@@ -227,7 +227,10 @@ prepare_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf32_t *dep)
 		s = &dofs[dofrh->dofr_tgtsec];
 
 		for (j = 0; j < nrel; j++) {
-#if defined(__arm__)
+#if defined(__aarch64__)
+/* XXX */
+printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+#elif defined(__arm__)
 /* XXX */
 printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 #elif defined(__i386) || defined(__amd64)
@@ -281,7 +284,11 @@ printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 	sym->st_value = 0;
 	sym->st_size = dof->dofh_filesz;
 	sym->st_info = ELF32_ST_INFO(STB_GLOBAL, STT_OBJECT);
+#ifdef illumos
 	sym->st_other = 0;
+#else
+	sym->st_other = ELF32_ST_VISIBILITY(STV_HIDDEN);
+#endif
 	sym->st_shndx = ESHDR_DOF;
 	sym++;
 
@@ -422,7 +429,9 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 		s = &dofs[dofrh->dofr_tgtsec];
 
 		for (j = 0; j < nrel; j++) {
-#if defined(__arm__)
+#if defined(__aarch64__)
+/* XXX */
+#elif defined(__arm__)
 /* XXX */
 #elif defined(__mips__)
 /* XXX */
@@ -471,7 +480,11 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 	sym->st_value = 0;
 	sym->st_size = dof->dofh_filesz;
 	sym->st_info = GELF_ST_INFO(STB_GLOBAL, STT_OBJECT);
+#ifdef illumos
 	sym->st_other = 0;
+#else
+	sym->st_other = ELF64_ST_VISIBILITY(STV_HIDDEN);
+#endif
 	sym->st_shndx = ESHDR_DOF;
 	sym++;
 
@@ -711,11 +724,7 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 
 	shp = &elf_file.shdr[ESHDR_DOF];
 	shp->sh_name = 11; /* DTRACE_SHSTRTAB64[11] = ".SUNW_dof" */
-#ifdef illumos
 	shp->sh_flags = SHF_ALLOC;
-#else
-	shp->sh_flags = SHF_WRITE | SHF_ALLOC;
-#endif
 	shp->sh_type = SHT_SUNW_dof;
 	shp->sh_offset = off;
 	shp->sh_size = dof->dofh_filesz;
@@ -818,7 +827,16 @@ dt_symtab_lookup(Elf_Data *data_sym, int nsym, uintptr_t addr, uint_t shn,
 	return (ret);
 }
 
-#if defined(__arm__)
+#if defined(__aarch64__)
+/* XXX */
+static int
+dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
+    uint32_t *off)
+{
+printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
+	return (0);
+}
+#elif defined(__arm__)
 /* XXX */
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
@@ -1782,7 +1800,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 	}
 #else
 	snprintf(tfile, sizeof(tfile), "%s.XXXXXX", file);
-	if ((fd = mkstemp(tfile)) == -1)
+	if ((fd = mkostemp(tfile, O_CLOEXEC)) == -1)
 		return (dt_link_error(dtp, NULL, -1, NULL,
 		    "failed to create temporary file %s: %s",
 		    tfile, strerror(errno)));
@@ -1858,23 +1876,9 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		(void) snprintf(cmd, len, fmt, dtp->dt_ld_path, file, fd, drti);
 #else
 		const char *fmt = "%s -o %s -r %s %s";
+		dt_dirpath_t *dp = dt_list_next(&dtp->dt_lib_path);
 
-#if defined(__amd64__)
-		/*
-		 * Arches which default to 64-bit need to explicitly use
-		 * the 32-bit library path.
-		 */
-		int use_32 = (dtp->dt_oflags & DTRACE_O_ILP32);
-#else
-		/*
-		 * Arches which are 32-bit only just use the normal
-		 * library path.
-		 */
-		int use_32 = 0;
-#endif
-
-		(void) snprintf(drti, sizeof (drti), "/usr/lib%s/dtrace/drti.o",
-		    use_32 ? "32":"");
+		(void) snprintf(drti, sizeof (drti), "%s/drti.o", dp->dir_path);
 
 		len = snprintf(&tmp, 1, fmt, dtp->dt_ld_path, file, tfile,
 		    drti) + 1;
@@ -1885,35 +1889,79 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		    drti);
 #endif
 		if ((status = system(cmd)) == -1) {
-			ret = dt_link_error(dtp, NULL, -1, NULL,
+			ret = dt_link_error(dtp, NULL, fd, NULL,
 			    "failed to run %s: %s", dtp->dt_ld_path,
 			    strerror(errno));
 			goto done;
 		}
 
 		if (WIFSIGNALED(status)) {
-			ret = dt_link_error(dtp, NULL, -1, NULL,
+			ret = dt_link_error(dtp, NULL, fd, NULL,
 			    "failed to link %s: %s failed due to signal %d",
 			    file, dtp->dt_ld_path, WTERMSIG(status));
 			goto done;
 		}
 
 		if (WEXITSTATUS(status) != 0) {
-			ret = dt_link_error(dtp, NULL, -1, NULL,
+			ret = dt_link_error(dtp, NULL, fd, NULL,
 			    "failed to link %s: %s exited with status %d\n",
 			    file, dtp->dt_ld_path, WEXITSTATUS(status));
 			goto done;
 		}
 		(void) close(fd); /* release temporary file */
+
+#ifdef __FreeBSD__
+		/*
+		 * Now that we've linked drti.o, reduce the global __SUNW_dof
+		 * symbol to a local symbol. This is needed to so that multiple
+		 * generated object files (for different providers, for
+		 * instance) can be linked together. This is accomplished using
+		 * the -Blocal flag with Sun's linker, but GNU ld doesn't appear
+		 * to have an equivalent option.
+		 */
+		asprintf(&cmd, "%s --localize-hidden %s", dtp->dt_objcopy_path,
+		    file);
+		if ((status = system(cmd)) == -1) {
+			ret = dt_link_error(dtp, NULL, -1, NULL,
+			    "failed to run %s: %s", dtp->dt_objcopy_path,
+			    strerror(errno));
+			free(cmd);
+			goto done;
+		}
+		free(cmd);
+
+		if (WIFSIGNALED(status)) {
+			ret = dt_link_error(dtp, NULL, -1, NULL,
+			    "failed to link %s: %s failed due to signal %d",
+			    file, dtp->dt_objcopy_path, WTERMSIG(status));
+			goto done;
+		}
+
+		if (WEXITSTATUS(status) != 0) {
+			ret = dt_link_error(dtp, NULL, -1, NULL,
+			    "failed to link %s: %s exited with status %d\n",
+			    file, dtp->dt_objcopy_path, WEXITSTATUS(status));
+			goto done;
+		}
+#endif
 	} else {
+#ifdef __FreeBSD__
+		if (rename(tfile, file) != 0) {
+			ret = dt_link_error(dtp, NULL, fd, NULL,
+			    "failed to rename %s to %s: %s", tfile, file,
+			    strerror(errno));
+			goto done;
+		}
+#endif
 		(void) close(fd);
 	}
 
 done:
 	dtrace_dof_destroy(dtp, dof);
 
-#ifndef illumos
-	unlink(tfile);
+#ifdef __FreeBSD__
+	if (!dtp->dt_lazyload)
+		(void) unlink(tfile);
 #endif
 	return (ret);
 }

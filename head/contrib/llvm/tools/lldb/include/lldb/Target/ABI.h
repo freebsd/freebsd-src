@@ -39,10 +39,9 @@ public:
         };
         eType  type;                /* value of eType */
         size_t size;                /* size in bytes of this argument */
-        union {
-            lldb::addr_t  value;    /* literal value */
-            uint8_t      *data;     /* host data pointer */
-        };
+
+        lldb::addr_t  value;                    /* literal value */
+        std::unique_ptr<uint8_t[]> data_ap;     /* host data pointer */
     };
 
     virtual
@@ -58,7 +57,7 @@ public:
                          lldb::addr_t returnAddress, 
                          llvm::ArrayRef<lldb::addr_t> args) const = 0;
 
-    // Prepare trivial call used from ThreadPlanFunctionCallGDB
+    // Prepare trivial call used from ThreadPlanFunctionCallUsingABI
     // AD:
     //  . Because i don't want to change other ABI's this is not declared pure virtual.
     //    The dummy implementation will simply fail.  Only HexagonABI will currently
@@ -112,12 +111,6 @@ public:
     virtual bool
     RegisterIsVolatile (const RegisterInfo *reg_info) = 0;
 
-    // Should return true if your ABI uses frames when doing stack backtraces. This
-    // means a frame pointer is used that points to the previous stack frame in some
-    // way or another.
-    virtual bool
-    StackUsesFrames () = 0;
-
     // Should take a look at a call frame address (CFA) which is just the stack
     // pointer value upon entry to a function. ABIs usually impose alignment
     // restrictions (4, 8 or 16 byte aligned), and zero is usually not allowed.
@@ -142,15 +135,6 @@ public:
 
     virtual const RegisterInfo *
     GetRegisterInfoArray (uint32_t &count) = 0;
-
-    // Some architectures (e.g. x86) will push the return address on the stack and decrement
-    // the stack pointer when making a function call.  This means that every stack frame will
-    // have a unique CFA.
-    // Other architectures (e.g. arm) pass the return address in a register so it is possible
-    // to have a frame on a backtrace that does not push anything on the stack or change the 
-    // CFA.
-    virtual bool
-    FunctionCallsChangeCFA () = 0;
 
     bool
     GetRegisterInfoByName (const ConstString &name, RegisterInfo &info);

@@ -39,4 +39,22 @@
 #define FR_RSP	(-2)
 #define FR_RFP	(-3)
 
+/* The state of the unwind process */
+struct unwind_state {
+	uint32_t registers[16];
+	uint32_t start_pc;
+	uint32_t *insn;
+	u_int entries;
+	u_int byte;
+	uint16_t update_mask;
+};
+
+/* The register names */
+#define	FP	11
+#define	SP	13
+#define	LR	14
+#define	PC	15
+
+int unwind_stack_one(struct unwind_state *, int);
+
 #endif /* !_MACHINE_STACK_H_ */

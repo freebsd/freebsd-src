@@ -1,6 +1,6 @@
 if [ ! "$_DIALOG_SUBR" ]; then _DIALOG_SUBR=1
 #
-# Copyright (c) 2006-2014 Devin Teske
+# Copyright (c) 2006-2015 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -1580,6 +1580,56 @@ f_xdialog_info()
 		-1 # timeout of -1 means abort when EOF on stdin
 }
 
+############################################################ PAUSE FUNCTIONS
+
+# f_dialog_pause $msg_text $duration [$hline]
+#
+# Display a message in a widget with a progress bar that runs backward for
+# $duration seconds.
+#
+f_dialog_pause()
+{
+	local pause_text="$1" duration="$2" hline="$3" height width
+	f_isinteger "$duration" || return $FAILURE
+	f_dialog_buttonbox_size height width \
+		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$pause_text" "$hline"
+	if [ "$USE_XDIALOG" ]; then
+		$DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--ok-label "$msg_skip"          \
+			--cancel-label "$msg_cancel"    \
+			${noCancel:+--no-cancel}        \
+			--timeout "$duration"           \
+			--yesno "$pause_text"           \
+			$height $width
+	else
+		[ $duration -gt 0 ] && duration=$(( $duration - 1 ))
+		[ $duration -gt 1 ] && duration=$(( $duration - 1 ))
+		height=$(( $height + 3 )) # Add height for progress bar
+		$DIALOG \
+			--title "$DIALOG_TITLE"         \
+			--backtitle "$DIALOG_BACKTITLE" \
+			--hline "$hline"                \
+			--ok-label "$msg_skip"          \
+			--cancel-label "$msg_cancel"    \
+			${noCancel:+--no-cancel}        \
+			--pause "$pause_text"           \
+			$height $width "$duration"
+	fi
+}
+
+# f_dialog_pause_no_cancel $msg_text $duration [$hline]
+#
+# Display a message in a widget with a progress bar that runs backward for
+# $duration seconds. No cancel button is provided. Always returns success.
+#
+f_dialog_pause_no_cancel()
+{
+	noCancel=1 f_dialog_pause "$@"
+	return $SUCCESS
+}
+
 ############################################################ MSGBOX FUNCTIONS
 
 # f_dialog_msgbox $msg_text [$hline]
@@ -2062,6 +2112,39 @@ f_dialog_menutag2index_with_help()
 			return $SUCCESS
 		fi
 		n=$(( $n + 1 ))
+	done
+	return $FAILURE
+}
+
+# f_dialog_menutag2help $tag_chosen $tag1 $item1 $help1 $tag2 $item2 $help2 ...
+#
+# To use the `--menu' option of dialog(1) with the `--item-help' option, you
+# must pass an ordered list of tag/item/help triplets on the command-line. When
+# the user selects a menu option the tag for that item is printed to stderr.
+#
+# This function allows you to dereference the tag chosen by the user back into
+# the help associated with said tag (item is discarded/ignored).
+#
+# Pass the tag chosen by the user as the first argument, followed by the
+# ordered list of tag/item/help triplets (HINT: use the same tag/item/help list
+# as was passed to dialog(1) for consistency).
+#
+# If the tag cannot be found, NULL is returned.
+#
+f_dialog_menutag2help()
+{
+	local tag="$1" tagn help
+	shift 1 # tag
+
+	while [ $# -gt 0 ]; do
+		tagn="$1"
+		help="$3"
+		shift 3 # tagn/item/help
+
+		if [ "$tag" = "$tagn" ]; then
+			echo "$help"
+			return $SUCCESS
+		fi
 	done
 	return $FAILURE
 }

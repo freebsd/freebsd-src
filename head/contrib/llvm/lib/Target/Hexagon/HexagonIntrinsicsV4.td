@@ -12,358 +12,307 @@
 // 80-V9418-12 Rev. A
 // June 15, 2010
 
+// Vector reduce multiply word by signed half (32x16)
+//Rdd=vrmpyweh(Rss,Rtt)[:<<1]
+def : T_PP_pat <M4_vrmpyeh_s0, int_hexagon_M4_vrmpyeh_s0>;
+def : T_PP_pat <M4_vrmpyeh_s1, int_hexagon_M4_vrmpyeh_s1>;
 
-//
-// ALU 32 types.
-//
+//Rdd=vrmpywoh(Rss,Rtt)[:<<1]
+def : T_PP_pat <M4_vrmpyoh_s0, int_hexagon_M4_vrmpyoh_s0>;
+def : T_PP_pat <M4_vrmpyoh_s1, int_hexagon_M4_vrmpyoh_s1>;
 
-class si_ALU32_sisi_not<string opc, Intrinsic IntID>
-  : ALU32_rr<(outs IntRegs:$dst), (ins IntRegs:$src1, IntRegs:$src2),
-             !strconcat("$dst = ", !strconcat(opc , "($src1, ~$src2)")),
-             [(set IntRegs:$dst, (IntID IntRegs:$src1, IntRegs:$src2))]>;
+//Rdd+=vrmpyweh(Rss,Rtt)[:<<1]
+def : T_PPP_pat <M4_vrmpyeh_acc_s0, int_hexagon_M4_vrmpyeh_acc_s0>;
+def : T_PPP_pat <M4_vrmpyeh_acc_s1, int_hexagon_M4_vrmpyeh_acc_s1>;
 
-class di_ALU32_s8si<string opc, Intrinsic IntID>
-  : ALU32_rr<(outs DoubleRegs:$dst), (ins s8Imm:$src1, IntRegs:$src2),
-             !strconcat("$dst = ", !strconcat(opc , "(#$src1, $src2)")),
-             [(set DoubleRegs:$dst, (IntID imm:$src1, IntRegs:$src2))]>;
+//Rdd=vrmpywoh(Rss,Rtt)[:<<1]
+def : T_PPP_pat <M4_vrmpyoh_acc_s0, int_hexagon_M4_vrmpyoh_acc_s0>;
+def : T_PPP_pat <M4_vrmpyoh_acc_s1, int_hexagon_M4_vrmpyoh_acc_s1>;
 
-class di_ALU32_sis8<string opc, Intrinsic IntID>
-  : ALU32_rr<(outs DoubleRegs:$dst), (ins IntRegs:$src1, s8Imm:$src2),
-             !strconcat("$dst = ", !strconcat(opc , "($src1, #$src2)")),
-             [(set DoubleRegs:$dst, (IntID IntRegs:$src1, imm:$src2))]>;
+// Vector multiply halfwords, signed by unsigned
+// Rdd=vmpyhsu(Rs,Rt)[:<<1]:sat
+def : T_RR_pat <M2_vmpy2su_s0, int_hexagon_M2_vmpy2su_s0>;
+def : T_RR_pat <M2_vmpy2su_s1, int_hexagon_M2_vmpy2su_s1>;
 
-class qi_neg_ALU32_sisi<string opc, Intrinsic IntID>
-  : ALU32_rr<(outs PredRegs:$dst), (ins IntRegs:$src1, IntRegs:$src2),
-             !strconcat("$dst = !", !strconcat(opc , "($src1, $src2)")),
-             [(set PredRegs:$dst, (IntID IntRegs:$src1, IntRegs:$src2))]>;
+// Rxx+=vmpyhsu(Rs,Rt)[:<<1]:sat
+def : T_PRR_pat <M2_vmac2su_s0, int_hexagon_M2_vmac2su_s0>;
+def : T_PRR_pat <M2_vmac2su_s1, int_hexagon_M2_vmac2su_s1>;
 
-class qi_neg_ALU32_sis10<string opc, Intrinsic IntID>
-  : ALU32_rr<(outs PredRegs:$dst), (ins IntRegs:$src1, s10Imm:$src2),
-             !strconcat("$dst = !", !strconcat(opc , "($src1, #$src2)")),
-             [(set PredRegs:$dst, (IntID IntRegs:$src1, imm:$src2))]>;
+// Vector polynomial multiply halfwords
+// Rdd=vpmpyh(Rs,Rt)
+def : T_RR_pat <M4_vpmpyh, int_hexagon_M4_vpmpyh>;
+// Rxx[^]=vpmpyh(Rs,Rt)
+def : T_PRR_pat <M4_vpmpyh_acc, int_hexagon_M4_vpmpyh_acc>;
 
-class qi_neg_ALU32_siu9<string opc, Intrinsic IntID>
-  : ALU32_rr<(outs PredRegs:$dst), (ins IntRegs:$src1, u9Imm:$src2),
-             !strconcat("$dst = !", !strconcat(opc , "($src1, #$src2)")),
-             [(set PredRegs:$dst, (IntID IntRegs:$src1, imm:$src2))]>;
+// Polynomial multiply words
+// Rdd=pmpyw(Rs,Rt)
+def : T_RR_pat <M4_pmpyw, int_hexagon_M4_pmpyw>;
+// Rxx^=pmpyw(Rs,Rt)
+def : T_PRR_pat <M4_pmpyw_acc, int_hexagon_M4_pmpyw_acc>;
 
-class si_neg_ALU32_sisi<string opc, Intrinsic IntID>
-  : ALU32_rr<(outs IntRegs:$dst), (ins IntRegs:$src1, IntRegs:$src2),
-             !strconcat("$dst = !", !strconcat(opc , "($src1, $src2)")),
-             [(set IntRegs:$dst, (IntID IntRegs:$src1, IntRegs:$src2))]>;
+//Rxx^=asr(Rss,Rt)
+def : T_PPR_pat <S2_asr_r_p_xor, int_hexagon_S2_asr_r_p_xor>;
+//Rxx^=asl(Rss,Rt)
+def : T_PPR_pat <S2_asl_r_p_xor, int_hexagon_S2_asl_r_p_xor>;
+//Rxx^=lsr(Rss,Rt)
+def : T_PPR_pat <S2_lsr_r_p_xor, int_hexagon_S2_lsr_r_p_xor>;
+//Rxx^=lsl(Rss,Rt)
+def : T_PPR_pat <S2_lsl_r_p_xor, int_hexagon_S2_lsl_r_p_xor>;
 
-class si_neg_ALU32_sis8<string opc, Intrinsic IntID>
-  : ALU32_rr<(outs IntRegs:$dst), (ins IntRegs:$src1, s8Imm:$src2),
-             !strconcat("$dst = !", !strconcat(opc , "($src1, #$src2)")),
-             [(set IntRegs:$dst, (IntID IntRegs:$src1, imm:$src2))]>;
+// Multiply and use upper result
+def : MType_R32_pat <int_hexagon_M2_mpysu_up, M2_mpysu_up>;
+def : MType_R32_pat <int_hexagon_M2_mpy_up_s1, M2_mpy_up_s1>;
+def : MType_R32_pat <int_hexagon_M2_hmmpyh_s1, M2_hmmpyh_s1>;
+def : MType_R32_pat <int_hexagon_M2_hmmpyl_s1, M2_hmmpyl_s1>;
+def : MType_R32_pat <int_hexagon_M2_mpy_up_s1_sat, M2_mpy_up_s1_sat>;
 
-class si_ALU32_sis8<string opc, Intrinsic IntID>
-  : ALU32_rr<(outs IntRegs:$dst), (ins IntRegs:$src1, s8Imm:$src2),
-             !strconcat("$dst = ", !strconcat(opc , "($src1, #$src2)")),
-             [(set IntRegs:$dst, (IntID IntRegs:$src1, imm:$src2))]>;
+// Vector reduce add unsigned halfwords
+def : Pat <(int_hexagon_M2_vraddh DoubleRegs:$src1, DoubleRegs:$src2),
+           (M2_vraddh DoubleRegs:$src1, DoubleRegs:$src2)>;
+
+def : T_P_pat <S2_brevp, int_hexagon_S2_brevp>;
+
+def: T_P_pat  <S2_ct0p,      int_hexagon_S2_ct0p>;
+def: T_P_pat  <S2_ct1p,      int_hexagon_S2_ct1p>;
+def: T_RR_pat<C4_nbitsset,  int_hexagon_C4_nbitsset>;
+def: T_RR_pat<C4_nbitsclr,  int_hexagon_C4_nbitsclr>;
+def: T_RI_pat<C4_nbitsclri, int_hexagon_C4_nbitsclri>;
 
 
-//
-// SInst Classes.
-//
-class qi_neg_SInst_qiqi<string opc, Intrinsic IntID>
-  : SInst<(outs PredRegs:$dst), (ins IntRegs:$src1, IntRegs:$src2),
-             !strconcat("$dst = !", !strconcat(opc , "($src1, $src2)")),
-             [(set PredRegs:$dst, (IntID IntRegs:$src1, IntRegs:$src2))]>;
+class vcmpImm_pat <InstHexagon MI, Intrinsic IntID, PatLeaf immPred> :
+      Pat <(IntID  (i64 DoubleRegs:$src1), immPred:$src2),
+           (MI (i64 DoubleRegs:$src1), immPred:$src2)>;
 
-class qi_SInst_qi_andqiqi_neg<string opc, Intrinsic IntID>
-  : SInst<(outs PredRegs:$dst), (ins IntRegs:$src1, IntRegs:$src2,
-                                     IntRegs:$src3),
-             !strconcat("$dst = ", !strconcat(opc ,
-                                              "($src1, and($src2, !$src3)")),
-             [(set PredRegs:$dst, (IntID IntRegs:$src1, IntRegs:$src2,
-                                         IntRegs:$src3))]>;
+def : vcmpImm_pat <A4_vcmpbeqi, int_hexagon_A4_vcmpbeqi, u8ImmPred>;
+def : vcmpImm_pat <A4_vcmpbgti, int_hexagon_A4_vcmpbgti, s8ImmPred>;
+def : vcmpImm_pat <A4_vcmpbgtui, int_hexagon_A4_vcmpbgtui, u7ImmPred>;
 
-class qi_SInst_qi_andqiqi<string opc, Intrinsic IntID>
-  : SInst<(outs PredRegs:$dst), (ins IntRegs:$src1, IntRegs:$src2,
-                                     IntRegs:$src3),
-             !strconcat("$dst = ", !strconcat(opc ,
-                                              "($src1, and($src2, $src3)")),
-             [(set PredRegs:$dst, (IntID IntRegs:$src1, IntRegs:$src2,
-                                         IntRegs:$src3))]>;
+def : vcmpImm_pat <A4_vcmpheqi, int_hexagon_A4_vcmpheqi, s8ImmPred>;
+def : vcmpImm_pat <A4_vcmphgti, int_hexagon_A4_vcmphgti, s8ImmPred>;
+def : vcmpImm_pat <A4_vcmphgtui, int_hexagon_A4_vcmphgtui, u7ImmPred>;
 
-class qi_SInst_qi_orqiqi_neg<string opc, Intrinsic IntID>
-  : SInst<(outs PredRegs:$dst), (ins IntRegs:$src1, IntRegs:$src2,
-                                     IntRegs:$src3),
-             !strconcat("$dst = ", !strconcat(opc ,
-                                              "($src1, or($src2, !$src3)")),
-             [(set PredRegs:$dst, (IntID IntRegs:$src1, IntRegs:$src2,
-                                         IntRegs:$src3))]>;
+def : vcmpImm_pat <A4_vcmpweqi, int_hexagon_A4_vcmpweqi, s8ImmPred>;
+def : vcmpImm_pat <A4_vcmpwgti, int_hexagon_A4_vcmpwgti, s8ImmPred>;
+def : vcmpImm_pat <A4_vcmpwgtui, int_hexagon_A4_vcmpwgtui, u7ImmPred>;
 
-class qi_SInst_qi_orqiqi<string opc, Intrinsic IntID>
-  : SInst<(outs PredRegs:$dst), (ins IntRegs:$src1, IntRegs:$src2,
-                                     IntRegs:$src3),
-             !strconcat("$dst = ", !strconcat(opc ,
-                                              "($src1, or($src2, $src3)")),
-             [(set PredRegs:$dst, (IntID IntRegs:$src1, IntRegs:$src2,
-                                         IntRegs:$src3))]>;
+def : T_PP_pat<A4_vcmpbeq_any, int_hexagon_A4_vcmpbeq_any>;
 
-class si_SInst_si_addsis6<string opc, Intrinsic IntID>
-  : SInst<(outs IntRegs:$dst), (ins IntRegs:$src1, IntRegs:$src2, s6Imm:$src3),
-             !strconcat("$dst = ", !strconcat(opc ,
-                                              "($src1, add($src2, #$src3)")),
-             [(set IntRegs:$dst, (IntID IntRegs:$src1, IntRegs:$src2,
-                                        imm:$src3))]>;
+def : T_RR_pat<A4_cmpbeq,   int_hexagon_A4_cmpbeq>;
+def : T_RR_pat<A4_cmpbgt,   int_hexagon_A4_cmpbgt>;
+def : T_RR_pat<A4_cmpbgtu,  int_hexagon_A4_cmpbgtu>;
+def : T_RR_pat<A4_cmpheq,   int_hexagon_A4_cmpheq>;
+def : T_RR_pat<A4_cmphgt,   int_hexagon_A4_cmphgt>;
+def : T_RR_pat<A4_cmphgtu,  int_hexagon_A4_cmphgtu>;
 
-class si_SInst_si_subs6si<string opc, Intrinsic IntID>
-  : SInst<(outs IntRegs:$dst), (ins IntRegs:$src1, s6Imm:$src2, IntRegs:$src3),
-             !strconcat("$dst = ", !strconcat(opc ,
-                                              "($src1, sub(#$src2, $src3)")),
-             [(set IntRegs:$dst, (IntID IntRegs:$src1, imm:$src2,
-                                        IntRegs:$src3))]>;
+def : T_RI_pat<A4_cmpbeqi,  int_hexagon_A4_cmpbeqi>;
+def : T_RI_pat<A4_cmpbgti,  int_hexagon_A4_cmpbgti>;
+def : T_RI_pat<A4_cmpbgtui, int_hexagon_A4_cmpbgtui>;
 
-class di_ALU64_didi_neg<string opc, Intrinsic IntID>
-  : ALU64_rr<(outs DoubleRegs:$dst), (ins DoubleRegs:$src1, DoubleRegs:$src2),
-          !strconcat("$dst = ", !strconcat(opc , "($src1, ~$src2)")),
-          [(set DoubleRegs:$dst, (IntID DoubleRegs:$src1, DoubleRegs:$src2))]>;
+def : T_RI_pat<A4_cmpheqi,  int_hexagon_A4_cmpheqi>;
+def : T_RI_pat<A4_cmphgti,  int_hexagon_A4_cmphgti>;
+def : T_RI_pat<A4_cmphgtui, int_hexagon_A4_cmphgtui>;
 
-class di_MInst_dididi_xacc<string opc, Intrinsic IntID>
-  : MInst_acc<(outs DoubleRegs:$dst), (ins DoubleRegs:$dst2, DoubleRegs:$src1,
-                                           DoubleRegs:$src2),
-               !strconcat("$dst ^= ", !strconcat(opc , "($src1, $src2)")),
-               [(set DoubleRegs:$dst, (IntID DoubleRegs:$dst2, DoubleRegs:$src1,
-                                             DoubleRegs:$src2))],
-               "$dst2 = $dst">;
+def : T_RP_pat <A4_boundscheck, int_hexagon_A4_boundscheck>;
 
-class si_MInst_sisisi_and<string opc, Intrinsic IntID>
-  : MInst<(outs IntRegs:$dst), (ins IntRegs:$dst1, IntRegs:$src2,
-                                    IntRegs:$src3),
-             !strconcat("$dst &= ", !strconcat(opc , "($src2, $src3)")),
-             [(set IntRegs:$dst, (IntID IntRegs:$dst1, IntRegs:$src2,
-                                        IntRegs:$src3))]>;
+def : T_PR_pat<A4_tlbmatch, int_hexagon_A4_tlbmatch>;
 
-class si_MInst_sisisi_andn<string opc, Intrinsic IntID>
-  : MInst<(outs IntRegs:$dst), (ins IntRegs:$dst1, IntRegs:$src2,
-                                    IntRegs:$src3),
-             !strconcat("$dst &= ", !strconcat(opc , "($src2, ~$src3)")),
-             [(set IntRegs:$dst, (IntID IntRegs:$dst1, IntRegs:$src2,
-                                        IntRegs:$src3))]>;
+def : Pat <(int_hexagon_M4_mpyrr_addr IntRegs:$src1, IntRegs:$src2,
+                                      IntRegs:$src3),
+           (M4_mpyrr_addr IntRegs:$src1, IntRegs:$src2, IntRegs:$src3)>;
 
-class si_SInst_sisis10_andi<string opc, Intrinsic IntID>
-  : SInst<(outs IntRegs:$dst), (ins IntRegs:$src1, IntRegs:$src2, s10Imm:$src3),
-             !strconcat("$dst = ", !strconcat(opc ,
-                                              "($src1, and($src2, #$src3))")),
-             [(set IntRegs:$dst, (IntID IntRegs:$src1, IntRegs:$src2,
-                                        imm:$src3))]>;
+def : T_IRR_pat <M4_mpyrr_addi, int_hexagon_M4_mpyrr_addi>;
+def : T_IRI_pat <M4_mpyri_addi, int_hexagon_M4_mpyri_addi>;
+def : T_RIR_pat <M4_mpyri_addr_u2, int_hexagon_M4_mpyri_addr_u2>;
+def : T_RRI_pat <M4_mpyri_addr, int_hexagon_M4_mpyri_addr>;
+// Multiply 32x32 and use upper result
+def : T_RRR_pat <M4_mac_up_s1_sat, int_hexagon_M4_mac_up_s1_sat>;
+def : T_RRR_pat <M4_nac_up_s1_sat, int_hexagon_M4_nac_up_s1_sat>;
 
-class si_MInst_sisisi_xor<string opc, Intrinsic IntID>
-  : MInst<(outs IntRegs:$dst), (ins IntRegs:$dst1, IntRegs:$src2,
-                                    IntRegs:$src3),
-             !strconcat("$dst ^= ", !strconcat(opc , "($src2, $src3)")),
-             [(set IntRegs:$dst, (IntID IntRegs:$dst1, IntRegs:$src2,
-                                        IntRegs:$src3))]>;
+// Complex multiply 32x16
+def : T_PR_pat <M4_cmpyi_wh, int_hexagon_M4_cmpyi_wh>;
+def : T_PR_pat <M4_cmpyr_wh, int_hexagon_M4_cmpyr_wh>;
 
-class si_MInst_sisisi_xorn<string opc, Intrinsic IntID>
-  : MInst<(outs IntRegs:$dst), (ins IntRegs:$dst1, IntRegs:$src2,
-                                    IntRegs:$src3),
-             !strconcat("$dst ^= ", !strconcat(opc , "($src2, ~$src3)")),
-             [(set IntRegs:$dst, (IntID IntRegs:$dst1, IntRegs:$src2,
-                                        IntRegs:$src3))]>;
+def : T_PR_pat <M4_cmpyi_whc, int_hexagon_M4_cmpyi_whc>;
+def : T_PR_pat <M4_cmpyr_whc, int_hexagon_M4_cmpyr_whc>;
 
-class si_SInst_sisis10_or<string opc, Intrinsic IntID>
-  : SInst<(outs IntRegs:$dst), (ins IntRegs:$dst1, IntRegs:$src2, s10Imm:$src3),
-             !strconcat("$dst |= ", !strconcat(opc , "($src2, #$src3)")),
-             [(set IntRegs:$dst, (IntID IntRegs:$dst1, IntRegs:$src2,
-                                        imm:$src3))]>;
+def : T_PP_pat<A4_andnp, int_hexagon_A4_andnp>;
+def : T_PP_pat<A4_ornp,  int_hexagon_A4_ornp>;
 
-class si_MInst_sisisi_or<string opc, Intrinsic IntID>
-  : MInst<(outs IntRegs:$dst), (ins IntRegs:$dst1, IntRegs:$src2,
-                                    IntRegs:$src3),
-             !strconcat("$dst |= ", !strconcat(opc , "($src2, $src3)")),
-             [(set IntRegs:$dst, (IntID IntRegs:$dst1, IntRegs:$src2,
-                                        IntRegs:$src3))]>;
+// Complex add/sub halfwords/words
+def : T_PP_pat <S4_vxaddsubw, int_hexagon_S4_vxaddsubw>;
+def : T_PP_pat <S4_vxsubaddw, int_hexagon_S4_vxsubaddw>;
+def : T_PP_pat <S4_vxaddsubh, int_hexagon_S4_vxaddsubh>;
+def : T_PP_pat <S4_vxsubaddh, int_hexagon_S4_vxsubaddh>;
 
-class si_MInst_sisisi_orn<string opc, Intrinsic IntID>
-  : MInst<(outs IntRegs:$dst), (ins IntRegs:$dst1, IntRegs:$src2,
-                                    IntRegs:$src3),
-             !strconcat("$dst |= ", !strconcat(opc , "($src2, ~$src3)")),
-             [(set IntRegs:$dst, (IntID IntRegs:$dst1, IntRegs:$src2,
-                                        IntRegs:$src3))]>;
+def : T_PP_pat <S4_vxaddsubhr, int_hexagon_S4_vxaddsubhr>;
+def : T_PP_pat <S4_vxsubaddhr, int_hexagon_S4_vxsubaddhr>;
 
-class si_SInst_siu5_sat<string opc, Intrinsic IntID>
-  : SInst<(outs IntRegs:$dst), (ins IntRegs:$src1, u5Imm:$src2),
-          !strconcat("$dst = ", !strconcat(opc , "($src1, #$src2):sat")),
-          [(set IntRegs:$dst, (IntID IntRegs:$src1, imm:$src2))]>;
+// Extract bitfield
+def : T_PP_pat  <S4_extractp_rp, int_hexagon_S4_extractp_rp>;
+def : T_RP_pat  <S4_extract_rp, int_hexagon_S4_extract_rp>;
+def : T_PII_pat <S4_extractp, int_hexagon_S4_extractp>;
+def : T_RII_pat <S4_extract, int_hexagon_S4_extract>;
 
+// Vector conditional negate
+// Rdd=vcnegh(Rss,Rt)
+def : T_PR_pat <S2_vcnegh, int_hexagon_S2_vcnegh>;
+
+// Shift an immediate left by register amount
+def : T_IR_pat<S4_lsli, int_hexagon_S4_lsli>;
+
+// Vector reduce maximum halfwords
+def : T_PPR_pat <A4_vrmaxh, int_hexagon_A4_vrmaxh>;
+def : T_PPR_pat <A4_vrmaxuh, int_hexagon_A4_vrmaxuh>;
+
+// Vector reduce maximum words
+def : T_PPR_pat <A4_vrmaxw, int_hexagon_A4_vrmaxw>;
+def : T_PPR_pat <A4_vrmaxuw, int_hexagon_A4_vrmaxuw>;
+
+// Vector reduce minimum halfwords
+def : T_PPR_pat <A4_vrminh, int_hexagon_A4_vrminh>;
+def : T_PPR_pat <A4_vrminuh, int_hexagon_A4_vrminuh>;
+
+// Vector reduce minimum words
+def : T_PPR_pat <A4_vrminw, int_hexagon_A4_vrminw>;
+def : T_PPR_pat <A4_vrminuw, int_hexagon_A4_vrminuw>;
+
+// Rotate and reduce bytes
+def : Pat <(int_hexagon_S4_vrcrotate DoubleRegs:$src1, IntRegs:$src2,
+                                     u2ImmPred:$src3),
+           (S4_vrcrotate DoubleRegs:$src1, IntRegs:$src2, u2ImmPred:$src3)>;
+
+// Rotate and reduce bytes with accumulation
+// Rxx+=vrcrotate(Rss,Rt,#u2)
+def : Pat <(int_hexagon_S4_vrcrotate_acc DoubleRegs:$src1, DoubleRegs:$src2,
+                                         IntRegs:$src3, u2ImmPred:$src4),
+           (S4_vrcrotate_acc DoubleRegs:$src1, DoubleRegs:$src2,
+                             IntRegs:$src3, u2ImmPred:$src4)>;
+
+// Vector conditional negate
+def : T_PPR_pat<S2_vrcnegh, int_hexagon_S2_vrcnegh>;
+
+// Logical xor with xor accumulation
+def : T_PPP_pat<M4_xor_xacc, int_hexagon_M4_xor_xacc>;
+
+// ALU64 - Vector min/max byte
+def : T_PP_pat <A2_vminb, int_hexagon_A2_vminb>;
+def : T_PP_pat <A2_vmaxb, int_hexagon_A2_vmaxb>;
+
+// Shift and add/sub/and/or
+def : T_IRI_pat <S4_andi_asl_ri, int_hexagon_S4_andi_asl_ri>;
+def : T_IRI_pat <S4_ori_asl_ri,  int_hexagon_S4_ori_asl_ri>;
+def : T_IRI_pat <S4_addi_asl_ri, int_hexagon_S4_addi_asl_ri>;
+def : T_IRI_pat <S4_subi_asl_ri, int_hexagon_S4_subi_asl_ri>;
+def : T_IRI_pat <S4_andi_lsr_ri, int_hexagon_S4_andi_lsr_ri>;
+def : T_IRI_pat <S4_ori_lsr_ri,  int_hexagon_S4_ori_lsr_ri>;
+def : T_IRI_pat <S4_addi_lsr_ri, int_hexagon_S4_addi_lsr_ri>;
+def : T_IRI_pat <S4_subi_lsr_ri, int_hexagon_S4_subi_lsr_ri>;
+
+// Split bitfield
+def : T_RI_pat <A4_bitspliti, int_hexagon_A4_bitspliti>;
+def : T_RR_pat <A4_bitsplit, int_hexagon_A4_bitsplit>;
+
+def: T_RR_pat<S4_parity,   int_hexagon_S4_parity>;
+
+def: T_RI_pat<S4_ntstbit_i,  int_hexagon_S4_ntstbit_i>;
+def: T_RR_pat<S4_ntstbit_r,  int_hexagon_S4_ntstbit_r>;
+
+def: T_RI_pat<S4_clbaddi,  int_hexagon_S4_clbaddi>;
+def: T_PI_pat<S4_clbpaddi, int_hexagon_S4_clbpaddi>;
+def: T_P_pat <S4_clbpnorm, int_hexagon_S4_clbpnorm>;
 
 /********************************************************************
 *            ALU32/ALU                                              *
 *********************************************************************/
 
 // ALU32 / ALU / Logical Operations.
-def Hexagon_A4_orn  : si_ALU32_sisi_not <"or",  int_hexagon_A4_orn>;
-def Hexagon_A4_andn : si_ALU32_sisi_not <"and", int_hexagon_A4_andn>;
-
+def: T_RR_pat<A4_andn, int_hexagon_A4_andn>;
+def: T_RR_pat<A4_orn,  int_hexagon_A4_orn>;
 
 /********************************************************************
 *            ALU32/PERM                                             *
 *********************************************************************/
 
-// ALU32 / PERM / Combine Words Into Doublewords.
-def Hexagon_A4_combineir : di_ALU32_s8si  <"combine", int_hexagon_A4_combineir>;
-def Hexagon_A4_combineri : di_ALU32_sis8  <"combine", int_hexagon_A4_combineri>;
-
+// Combine Words Into Doublewords.
+def: T_RI_pat<A4_combineri, int_hexagon_A4_combineri, s32ImmPred>;
+def: T_IR_pat<A4_combineir, int_hexagon_A4_combineir, s32ImmPred>;
 
 /********************************************************************
 *            ALU32/PRED                                             *
 *********************************************************************/
 
-// ALU32 / PRED / Conditional Shift Halfword.
-// ALU32 / PRED / Conditional Sign Extend.
-// ALU32 / PRED / Conditional Zero Extend.
-// ALU32 / PRED / Compare.
-def Hexagon_C4_cmpneq  : qi_neg_ALU32_sisi  <"cmp.eq", int_hexagon_C4_cmpneq>;
-def Hexagon_C4_cmpneqi : qi_neg_ALU32_sis10 <"cmp.eq", int_hexagon_C4_cmpneqi>;
-def Hexagon_C4_cmplte  : qi_neg_ALU32_sisi  <"cmp.gt", int_hexagon_C4_cmplte>;
-def Hexagon_C4_cmpltei : qi_neg_ALU32_sis10 <"cmp.gt", int_hexagon_C4_cmpltei>;
-def Hexagon_C4_cmplteu : qi_neg_ALU32_sisi  <"cmp.gtu",int_hexagon_C4_cmplteu>;
-def Hexagon_C4_cmplteui: qi_neg_ALU32_siu9  <"cmp.gtu",int_hexagon_C4_cmplteui>;
+// Compare
+def : T_RI_pat<C4_cmpneqi, int_hexagon_C4_cmpneqi, s32ImmPred>;
+def : T_RI_pat<C4_cmpltei, int_hexagon_C4_cmpltei, s32ImmPred>;
+def : T_RI_pat<C4_cmplteui, int_hexagon_C4_cmplteui, u32ImmPred>;
 
-// ALU32 / PRED / cmpare To General Register.
-def Hexagon_A4_rcmpneq : si_neg_ALU32_sisi <"cmp.eq", int_hexagon_A4_rcmpneq>;
-def Hexagon_A4_rcmpneqi: si_neg_ALU32_sis8 <"cmp.eq", int_hexagon_A4_rcmpneqi>;
-def Hexagon_A4_rcmpeq  : si_ALU32_sisi     <"cmp.eq", int_hexagon_A4_rcmpeq>;
-def Hexagon_A4_rcmpeqi : si_ALU32_sis8     <"cmp.eq", int_hexagon_A4_rcmpeqi>;
+def: T_RR_pat<A4_rcmpeq,  int_hexagon_A4_rcmpeq>;
+def: T_RR_pat<A4_rcmpneq, int_hexagon_A4_rcmpneq>;
 
+def: T_RI_pat<A4_rcmpeqi,  int_hexagon_A4_rcmpeqi>;
+def: T_RI_pat<A4_rcmpneqi, int_hexagon_A4_rcmpneqi>;
 
 /********************************************************************
 *            CR                                                     *
 *********************************************************************/
 
-// CR / Corner Detection Acceleration.
-def Hexagon_C4_fastcorner9:
-  qi_SInst_qiqi<"fastcorner9", int_hexagon_C4_fastcorner9>;
-def Hexagon_C4_fastcorner9_not:
-  qi_neg_SInst_qiqi<"fastcorner9",int_hexagon_C4_fastcorner9_not>;
-
 // CR / Logical Operations On Predicates.
-def Hexagon_C4_and_andn:
-  qi_SInst_qi_andqiqi_neg         <"and",      int_hexagon_C4_and_andn>;
-def Hexagon_C4_and_and:
-  qi_SInst_qi_andqiqi             <"and",      int_hexagon_C4_and_and>;
-def Hexagon_C4_and_orn:
-  qi_SInst_qi_orqiqi_neg          <"and",      int_hexagon_C4_and_orn>;
-def Hexagon_C4_and_or:
-  qi_SInst_qi_orqiqi              <"and",      int_hexagon_C4_and_or>;
-def Hexagon_C4_or_andn:
-  qi_SInst_qi_andqiqi_neg         <"or",       int_hexagon_C4_or_andn>;
-def Hexagon_C4_or_and:
-  qi_SInst_qi_andqiqi             <"or",       int_hexagon_C4_or_and>;
-def Hexagon_C4_or_orn:
-  qi_SInst_qi_orqiqi_neg          <"or",       int_hexagon_C4_or_orn>;
-def Hexagon_C4_or_or:
-  qi_SInst_qi_orqiqi              <"or",       int_hexagon_C4_or_or>;
 
+class qi_CRInst_qiqiqi_pat<Intrinsic IntID, InstHexagon Inst> :
+  Pat<(i32 (IntID IntRegs:$Rs, IntRegs:$Rt, IntRegs:$Ru)),
+      (i32 (C2_tfrpr (Inst (C2_tfrrp IntRegs:$Rs),
+                           (C2_tfrrp IntRegs:$Rt),
+                           (C2_tfrrp IntRegs:$Ru))))>;
+
+def: qi_CRInst_qiqiqi_pat<int_hexagon_C4_and_and,   C4_and_and>;
+def: qi_CRInst_qiqiqi_pat<int_hexagon_C4_and_andn,  C4_and_andn>;
+def: qi_CRInst_qiqiqi_pat<int_hexagon_C4_and_or,    C4_and_or>;
+def: qi_CRInst_qiqiqi_pat<int_hexagon_C4_and_orn,   C4_and_orn>;
+def: qi_CRInst_qiqiqi_pat<int_hexagon_C4_or_and,    C4_or_and>;
+def: qi_CRInst_qiqiqi_pat<int_hexagon_C4_or_andn,   C4_or_andn>;
+def: qi_CRInst_qiqiqi_pat<int_hexagon_C4_or_or,     C4_or_or>;
+def: qi_CRInst_qiqiqi_pat<int_hexagon_C4_or_orn,    C4_or_orn>;
 
 /********************************************************************
 *            XTYPE/ALU                                              *
 *********************************************************************/
 
-// XTYPE / ALU / Add And Accumulate.
-def Hexagon_S4_addaddi:
-  si_SInst_si_addsis6             <"add",      int_hexagon_S4_addaddi>;
-def Hexagon_S4_subaddi:
-  si_SInst_si_subs6si             <"add",      int_hexagon_S4_subaddi>;
+// Add And Accumulate.
 
-// XTYPE / ALU / Logical Doublewords.
-def Hexagon_S4_andnp:
-  di_ALU64_didi_neg               <"and",      int_hexagon_A4_andnp>;
-def Hexagon_S4_ornp:
-  di_ALU64_didi_neg               <"or",       int_hexagon_A4_ornp>;
+def : T_RRI_pat <S4_addaddi, int_hexagon_S4_addaddi>;
+def : T_RIR_pat <S4_subaddi, int_hexagon_S4_subaddi>;
 
-// XTYPE / ALU / Logical-logical Doublewords.
-def Hexagon_M4_xor_xacc:
-  di_MInst_dididi_xacc            <"xor",      int_hexagon_M4_xor_xacc>;
 
 // XTYPE / ALU / Logical-logical Words.
-def HEXAGON_M4_and_and:
-  si_MInst_sisisi_and             <"and",      int_hexagon_M4_and_and>;
-def HEXAGON_M4_and_or:
-  si_MInst_sisisi_and             <"or",       int_hexagon_M4_and_or>;
-def HEXAGON_M4_and_xor:
-  si_MInst_sisisi_and             <"xor",      int_hexagon_M4_and_xor>;
-def HEXAGON_M4_and_andn:
-  si_MInst_sisisi_andn            <"and",      int_hexagon_M4_and_andn>;
-def HEXAGON_M4_xor_and:
-  si_MInst_sisisi_xor             <"and",      int_hexagon_M4_xor_and>;
-def HEXAGON_M4_xor_or:
-  si_MInst_sisisi_xor             <"or",       int_hexagon_M4_xor_or>;
-def HEXAGON_M4_xor_andn:
-  si_MInst_sisisi_xorn            <"and",      int_hexagon_M4_xor_andn>;
-def HEXAGON_M4_or_and:
-  si_MInst_sisisi_or              <"and",      int_hexagon_M4_or_and>;
-def HEXAGON_M4_or_or:
-  si_MInst_sisisi_or              <"or",       int_hexagon_M4_or_or>;
-def HEXAGON_M4_or_xor:
-  si_MInst_sisisi_or              <"xor",      int_hexagon_M4_or_xor>;
-def HEXAGON_M4_or_andn:
-  si_MInst_sisisi_orn             <"and",      int_hexagon_M4_or_andn>;
-def HEXAGON_S4_or_andix:
-  si_SInst_sisis10_andi           <"or",       int_hexagon_S4_or_andix>;
-def HEXAGON_S4_or_andi:
-  si_SInst_sisis10_or             <"and",      int_hexagon_S4_or_andi>;
-def HEXAGON_S4_or_ori:
-  si_SInst_sisis10_or             <"or",       int_hexagon_S4_or_ori>;
+def : T_RRR_pat <M4_or_xor,   int_hexagon_M4_or_xor>;
+def : T_RRR_pat <M4_and_xor,  int_hexagon_M4_and_xor>;
+def : T_RRR_pat <M4_or_and,   int_hexagon_M4_or_and>;
+def : T_RRR_pat <M4_and_and,  int_hexagon_M4_and_and>;
+def : T_RRR_pat <M4_xor_and,  int_hexagon_M4_xor_and>;
+def : T_RRR_pat <M4_or_or,    int_hexagon_M4_or_or>;
+def : T_RRR_pat <M4_and_or,   int_hexagon_M4_and_or>;
+def : T_RRR_pat <M4_xor_or,   int_hexagon_M4_xor_or>;
+def : T_RRR_pat <M4_or_andn,  int_hexagon_M4_or_andn>;
+def : T_RRR_pat <M4_and_andn, int_hexagon_M4_and_andn>;
+def : T_RRR_pat <M4_xor_andn, int_hexagon_M4_xor_andn>;
 
-// XTYPE / ALU / Modulo wrap.
-def HEXAGON_A4_modwrapu:
-  si_ALU64_sisi                   <"modwrap",  int_hexagon_A4_modwrapu>;
+def : T_RRI_pat <S4_or_andi, int_hexagon_S4_or_andi>;
+def : T_RRI_pat <S4_or_andix,  int_hexagon_S4_or_andix>;
+def : T_RRI_pat <S4_or_ori, int_hexagon_S4_or_ori>;
 
-// XTYPE / ALU / Round.
-def HEXAGON_A4_cround_ri:
-  si_SInst_siu5                   <"cround",   int_hexagon_A4_cround_ri>;
-def HEXAGON_A4_cround_rr:
-  si_SInst_sisi                   <"cround",   int_hexagon_A4_cround_rr>;
-def HEXAGON_A4_round_ri:
-  si_SInst_siu5                   <"round",    int_hexagon_A4_round_ri>;
-def HEXAGON_A4_round_rr:
-  si_SInst_sisi                   <"round",    int_hexagon_A4_round_rr>;
-def HEXAGON_A4_round_ri_sat:
-  si_SInst_siu5_sat               <"round",    int_hexagon_A4_round_ri_sat>;
-def HEXAGON_A4_round_rr_sat:
-  si_SInst_sisi_sat               <"round",    int_hexagon_A4_round_rr_sat>;
+// Modulo wrap.
+def : T_RR_pat <A4_modwrapu, int_hexagon_A4_modwrapu>;
 
-// XTYPE / ALU / Vector reduce add unsigned halfwords.
-// XTYPE / ALU / Vector add bytes.
-// XTYPE / ALU / Vector conditional negate.
-// XTYPE / ALU / Vector maximum bytes.
-// XTYPE / ALU / Vector reduce maximum halfwords.
-// XTYPE / ALU / Vector reduce maximum words.
-// XTYPE / ALU / Vector minimum bytes.
-// XTYPE / ALU / Vector reduce minimum halfwords.
-// XTYPE / ALU / Vector reduce minimum words.
-// XTYPE / ALU / Vector subtract bytes.
+// Arithmetic/Convergent round
+// Rd=[cround|round](Rs,Rt)[:sat]
+// Rd=[cround|round](Rs,#u5)[:sat]
+def : T_RI_pat <A4_cround_ri, int_hexagon_A4_cround_ri>;
+def : T_RR_pat <A4_cround_rr, int_hexagon_A4_cround_rr>;
 
+def : T_RI_pat <A4_round_ri, int_hexagon_A4_round_ri>;
+def : T_RR_pat <A4_round_rr, int_hexagon_A4_round_rr>;
 
-/********************************************************************
-*            XTYPE/BIT                                              *
-*********************************************************************/
+def : T_RI_pat <A4_round_ri_sat, int_hexagon_A4_round_ri_sat>;
+def : T_RR_pat <A4_round_rr_sat, int_hexagon_A4_round_rr_sat>;
 
-// XTYPE / BIT / Count leading.
-// XTYPE / BIT / Count trailing.
-// XTYPE / BIT / Extract bitfield.
-// XTYPE / BIT / Masked parity.
-// XTYPE / BIT / Bit reverse.
-// XTYPE / BIT / Split bitfield.
-
-
-/********************************************************************
-*            XTYPE/COMPLEX                                          *
-*********************************************************************/
-
-// XTYPE / COMPLEX / Complex add/sub halfwords.
-// XTYPE / COMPLEX / Complex add/sub words.
-// XTYPE / COMPLEX / Complex multiply 32x16.
-// XTYPE / COMPLEX / Vector reduce complex rotate.
-
-
-/********************************************************************
-*            XTYPE/MPY                                              *
-*********************************************************************/
-
-// XTYPE / COMPLEX / Complex add/sub halfwords.
+def : T_P_pat <A2_roundsat, int_hexagon_A2_roundsat>;

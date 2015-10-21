@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Marcel Moolenaar
+ * Copyright (c) 2014, 2015 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,6 +62,12 @@ __FBSDID("$FreeBSD$");
 #define	VHD_SECTOR_SIZE	512
 #define	VHD_BLOCK_SIZE	(4096 * VHD_SECTOR_SIZE)	/* 2MB blocks */
 
+struct vhd_geom {
+	uint16_t	cylinders;
+	uint8_t		heads;
+	uint8_t		sectors;
+};
+
 struct vhd_footer {
 	uint64_t	cookie;
 #define	VHD_FOOTER_COOKIE	0x636f6e6563746978ULL
@@ -75,14 +81,12 @@ struct vhd_footer {
 	uint32_t	creator_tool;
 #define	VHD_CREATOR_TOOL	0x2a696d67	/* FreeBSD mkimg */
 	uint32_t	creator_version;
-#define	VHD_CREATOR_VERSION	0x00010000
+#define	VHD_CREATOR_VERSION	0x00020000
 	uint32_t	creator_os;
-#define	VHD_CREATOR_OS		0x46425344
+#define	VHD_CREATOR_OS		0x5769326b	/* Wi2k */
 	uint64_t	original_size;
 	uint64_t	current_size;
-	uint16_t	cylinders;
-	uint8_t		heads;
-	uint8_t		sectors;
+	struct vhd_geom	geometry;
 	uint32_t	disk_type;
 #define	VHD_DISK_TYPE_FIXED	2
 #define	VHD_DISK_TYPE_DYNAMIC	3
@@ -111,46 +115,76 @@ vhd_checksum(void *buf, size_t sz)
 }
 
 static void
-vhd_geometry(struct vhd_footer *footer, uint64_t image_size)
+vhd_geometry(uint64_t image_size, struct vhd_geom *geom)
 {
 	lba_t imgsz;
 	long cth;
+
+	imgsz = image_size / VHD_SECTOR_SIZE;
 
 	/* Respect command line options if possible. */
 	if (nheads > 1 && nheads < 256 &&
 	    nsecs > 1 && nsecs < 256 &&
 	    ncyls < 65536) {
-		be16enc(&footer->cylinders, ncyls);
-		footer->heads = nheads;
-		footer->sectors = nsecs;
+		geom->cylinders = (ncyls != 0) ? ncyls :
+		    imgsz / (nheads * nsecs);
+		geom->heads = nheads;
+		geom->sectors = nsecs;
 		return;
 	}
 
-	imgsz = image_size / VHD_SECTOR_SIZE;
 	if (imgsz > 65536 * 16 * 255)
 		imgsz = 65536 * 16 * 255;
 	if (imgsz >= 65535 * 16 * 63) {
-		be16enc(&footer->cylinders, imgsz / (16 * 255));
-		footer->heads = 16;
-		footer->sectors = 255;
+		geom->cylinders = imgsz / (16 * 255);
+		geom->heads = 16;
+		geom->sectors = 255;
 		return;
 	}
-	footer->sectors = 17;
+	geom->sectors = 17;
 	cth = imgsz / 17;
-	footer->heads = (cth + 1023) / 1024;
-	if (footer->heads < 4)
-		footer->heads = 4;
-	if (cth >= (footer->heads * 1024) || footer->heads > 16) {
-		footer->heads = 16;
-		footer->sectors = 31;
+	geom->heads = (cth + 1023) / 1024;
+	if (geom->heads < 4)
+		geom->heads = 4;
+	if (cth >= (geom->heads * 1024) || geom->heads > 16) {
+		geom->heads = 16;
+		geom->sectors = 31;
 		cth = imgsz / 31;
 	}
-	if (cth >= (footer->heads * 1024)) {
-		footer->heads = 16;
-		footer->sectors = 63;
+	if (cth >= (geom->heads * 1024)) {
+		geom->heads = 16;
+		geom->sectors = 63;
 		cth = imgsz / 63;
 	}
-	be16enc(&footer->cylinders, cth / footer->heads);
+	geom->cylinders = cth / geom->heads;
+}
+
+static uint64_t
+vhd_resize(uint64_t origsz)
+{
+	struct vhd_geom geom;
+	uint64_t newsz;
+
+	/*
+	 * Round the image size to the pre-determined geometry that
+	 * matches the image size. This circular dependency implies
+	 * that we need to loop to handle boundary conditions.
+	 * The first time, newsz equals origsz and the geometry will
+	 * typically yield a new size that's smaller. We keep adding
+	 * cylinder's worth of sectors to the new size until its
+	 * larger or equal or origsz. But during those iterations,
+	 * the geometry can change, so we need to account for that.
+	 */
+	newsz = origsz;
+	while (1) {
+		vhd_geometry(newsz, &geom);
+		newsz = (int64_t)geom.cylinders * geom.heads *
+		    geom.sectors * VHD_SECTOR_SIZE;
+		if (newsz >= origsz)
+			break;
+		newsz += geom.heads * geom.sectors * VHD_SECTOR_SIZE;
+	}
+	return (newsz);
 }
 
 static uint32_t
@@ -198,28 +232,12 @@ vhd_make_footer(struct vhd_footer *footer, uint64_t image_size,
 	be32enc(&footer->creator_os, VHD_CREATOR_OS);
 	be64enc(&footer->original_size, image_size);
 	be64enc(&footer->current_size, image_size);
-	vhd_geometry(footer, image_size);
+	vhd_geometry(image_size, &footer->geometry);
+	be16enc(&footer->geometry.cylinders, footer->geometry.cylinders);
 	be32enc(&footer->disk_type, disk_type);
 	mkimg_uuid(&id);
 	vhd_uuid_enc(&footer->id, &id);
 	be32enc(&footer->checksum, vhd_checksum(footer, sizeof(*footer)));
-}
-
-/*
- * We round the image size to 2MB for both the dynamic and
- * fixed VHD formats. For dynamic VHD, this is needed to
- * have the image size be a multiple of the grain size. For
- * fixed VHD this is not really needed, but makes sure that
- * it's easy to convert from fixed VHD to dynamic VHD.
- */
-static int
-vhd_resize(lba_t imgsz)
-{
-	uint64_t imagesz;
-
-	imagesz = imgsz * secsz;
-	imagesz = (imagesz + VHD_BLOCK_SIZE - 1) & ~(VHD_BLOCK_SIZE - 1);
-	return (image_set_size(imagesz / secsz));
 }
 
 /*
@@ -262,11 +280,20 @@ _Static_assert(sizeof(struct vhd_dyn_header) == VHD_SECTOR_SIZE * 2,
 #endif
 
 static int
+vhd_dyn_resize(lba_t imgsz)
+{
+	uint64_t imagesz;
+
+	imagesz = vhd_resize(imgsz * secsz);
+	return (image_set_size(imagesz / secsz));
+}
+
+static int
 vhd_dyn_write(int fd)
 {
 	struct vhd_footer footer;
 	struct vhd_dyn_header header;
-	uint64_t imgsz;
+	uint64_t imgsz, rawsz;
 	lba_t blk, blkcnt, nblks;
 	uint32_t *bat;
 	void *bitmap;
@@ -274,13 +301,14 @@ vhd_dyn_write(int fd)
 	uint32_t sector;
 	int bat_entries, error, entry;
 
-	imgsz = image_get_size() * secsz;
-	bat_entries = imgsz / VHD_BLOCK_SIZE;
+	rawsz = image_get_size() * secsz;
+	imgsz = (rawsz + VHD_BLOCK_SIZE - 1) & ~(VHD_BLOCK_SIZE - 1);
 
-	vhd_make_footer(&footer, imgsz, VHD_DISK_TYPE_DYNAMIC, sizeof(footer));
+	vhd_make_footer(&footer, rawsz, VHD_DISK_TYPE_DYNAMIC, sizeof(footer));
 	if (sparse_write(fd, &footer, sizeof(footer)) < 0)
 		return (errno);
 
+	bat_entries = imgsz / VHD_BLOCK_SIZE;
 	memset(&header, 0, sizeof(header));
 	be64enc(&header.cookie, VHD_HEADER_COOKIE);
 	be64enc(&header.data_offset, ~0ULL);
@@ -321,7 +349,7 @@ vhd_dyn_write(int fd)
 	blk = 0;
 	blkcnt = VHD_BLOCK_SIZE / secsz;
 	error = 0;
-	nblks = image_get_size();
+	nblks = rawsz / secsz;
 	while (blk < nblks) {
 		if (!image_data(blk, blkcnt)) {
 			blk += blkcnt;
@@ -331,15 +359,20 @@ vhd_dyn_write(int fd)
 			error = errno;
 			break;
 		}
+		/* Handle partial last block */
+		if (blk + blkcnt > nblks)
+			blkcnt = nblks - blk;
 		error = image_copyout_region(fd, blk, blkcnt);
 		if (error)
 			break;
 		blk += blkcnt;
 	}
 	free(bitmap);
-	if (blk != nblks)
+	if (error)
 		return (error);
-
+	error = image_copyout_zeroes(fd, imgsz - rawsz);
+	if (error)
+		return (error);
 	if (sparse_write(fd, &footer, sizeof(footer)) < 0)
 		return (errno);
 
@@ -349,38 +382,51 @@ vhd_dyn_write(int fd)
 static struct mkimg_format vhd_dyn_format = {
 	.name = "vhd",
 	.description = "Virtual Hard Disk",
-	.resize = vhd_resize,
+	.resize = vhd_dyn_resize,
 	.write = vhd_dyn_write,
 };
 
 FORMAT_DEFINE(vhd_dyn_format);
 
 /*
- * PART 2: Fixed VHD
+ * PART 3: Fixed VHD
  */
+
+static int
+vhd_fix_resize(lba_t imgsz)
+{
+	uint64_t imagesz;
+
+	imagesz = vhd_resize(imgsz * secsz);
+	/*
+	 * Azure demands that images are a whole number of megabytes.
+	 */
+	imagesz = (imagesz + 0xfffffULL) & ~0xfffffULL;
+	return (image_set_size(imagesz / secsz));
+}
 
 static int
 vhd_fix_write(int fd)
 {
 	struct vhd_footer footer;
-	uint64_t imgsz;
+	uint64_t imagesz;
 	int error;
 
 	error = image_copyout(fd);
-	if (!error) {
-		imgsz = image_get_size() * secsz;
-		vhd_make_footer(&footer, imgsz, VHD_DISK_TYPE_FIXED, ~0ULL);
-		if (sparse_write(fd, &footer, sizeof(footer)) < 0)
-			error = errno;
-	}
+	if (error)
+		return (error);
+
+	imagesz = image_get_size() * secsz;
+	vhd_make_footer(&footer, imagesz, VHD_DISK_TYPE_FIXED, ~0ULL);
+	error = (sparse_write(fd, &footer, sizeof(footer)) < 0) ? errno : 0;
 	return (error);
 }
 
 static struct mkimg_format vhd_fix_format = {
-        .name = "vhdf",
-        .description = "Fixed Virtual Hard Disk",
-        .resize = vhd_resize,
-        .write = vhd_fix_write,
+	.name = "vhdf",
+	.description = "Fixed Virtual Hard Disk",
+	.resize = vhd_fix_resize,
+	.write = vhd_fix_write,
 };
 
 FORMAT_DEFINE(vhd_fix_format);

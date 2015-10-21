@@ -55,10 +55,11 @@ static int hostapd_radius_get_eap_user(void *ctx, const u8 *identity,
 {
 	const struct hostapd_eap_user *eap_user;
 	int i;
+	int rv = -1;
 
 	eap_user = hostapd_get_eap_user(ctx, identity, identity_len, phase2);
 	if (eap_user == NULL)
-		return -1;
+		goto out;
 
 	if (user == NULL)
 		return 0;
@@ -72,16 +73,24 @@ static int hostapd_radius_get_eap_user(void *ctx, const u8 *identity,
 	if (eap_user->password) {
 		user->password = os_malloc(eap_user->password_len);
 		if (user->password == NULL)
-			return -1;
+			goto out;
 		os_memcpy(user->password, eap_user->password,
 			  eap_user->password_len);
 		user->password_len = eap_user->password_len;
 		user->password_hash = eap_user->password_hash;
 	}
 	user->force_version = eap_user->force_version;
+	user->macacl = eap_user->macacl;
 	user->ttls_auth = eap_user->ttls_auth;
+	user->remediation = eap_user->remediation;
+	user->accept_attr = eap_user->accept_attr;
+	rv = 0;
 
-	return 0;
+out:
+	if (rv)
+		wpa_printf(MSG_DEBUG, "%s: Failed to find user", __func__);
+
+	return rv;
 }
 
 
@@ -92,6 +101,7 @@ static int hostapd_setup_radius_srv(struct hostapd_data *hapd)
 	os_memset(&srv, 0, sizeof(srv));
 	srv.client_file = conf->radius_server_clients;
 	srv.auth_port = conf->radius_server_auth_port;
+	srv.acct_port = conf->radius_server_acct_port;
 	srv.conf_ctx = hapd;
 	srv.eap_sim_db_priv = hapd->eap_sim_db_priv;
 	srv.ssl_ctx = hapd->ssl_ctx;
@@ -111,9 +121,18 @@ static int hostapd_setup_radius_srv(struct hostapd_data *hapd)
 	srv.eap_req_id_text = conf->eap_req_id_text;
 	srv.eap_req_id_text_len = conf->eap_req_id_text_len;
 	srv.pwd_group = conf->pwd_group;
+	srv.server_id = conf->server_id ? conf->server_id : "hostapd";
+	srv.sqlite_file = conf->eap_user_sqlite;
 #ifdef CONFIG_RADIUS_TEST
 	srv.dump_msk_file = conf->dump_msk_file;
 #endif /* CONFIG_RADIUS_TEST */
+#ifdef CONFIG_HS20
+	srv.subscr_remediation_url = conf->subscr_remediation_url;
+	srv.subscr_remediation_method = conf->subscr_remediation_method;
+#endif /* CONFIG_HS20 */
+	srv.erp = conf->eap_server_erp;
+	srv.erp_domain = conf->erp_domain;
+	srv.tls_session_lifetime = conf->tls_session_lifetime;
 
 	hapd->radius_srv = radius_server_init(&srv);
 	if (hapd->radius_srv == NULL) {
@@ -132,10 +151,13 @@ int authsrv_init(struct hostapd_data *hapd)
 #ifdef EAP_TLS_FUNCS
 	if (hapd->conf->eap_server &&
 	    (hapd->conf->ca_cert || hapd->conf->server_cert ||
-	     hapd->conf->dh_file)) {
+	     hapd->conf->private_key || hapd->conf->dh_file)) {
+		struct tls_config conf;
 		struct tls_connection_params params;
 
-		hapd->ssl_ctx = tls_init(NULL);
+		os_memset(&conf, 0, sizeof(conf));
+		conf.tls_session_lifetime = hapd->conf->tls_session_lifetime;
+		hapd->ssl_ctx = tls_init(&conf);
 		if (hapd->ssl_ctx == NULL) {
 			wpa_printf(MSG_ERROR, "Failed to initialize TLS");
 			authsrv_deinit(hapd);
@@ -148,6 +170,9 @@ int authsrv_init(struct hostapd_data *hapd)
 		params.private_key = hapd->conf->private_key;
 		params.private_key_passwd = hapd->conf->private_key_passwd;
 		params.dh_file = hapd->conf->dh_file;
+		params.openssl_ciphers = hapd->conf->openssl_ciphers;
+		params.ocsp_stapling_response =
+			hapd->conf->ocsp_stapling_response;
 
 		if (tls_global_set_params(hapd->ssl_ctx, &params)) {
 			wpa_printf(MSG_ERROR, "Failed to set TLS parameters");

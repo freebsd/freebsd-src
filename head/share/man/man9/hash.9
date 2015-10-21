@@ -26,7 +26,7 @@
 .\"     $OpenBSD: hash.9,v 1.5 2003/04/17 05:08:39 jmc Exp $
 .\" $FreeBSD$
 .\"
-.Dd October 18, 2014
+.Dd June 30, 2015
 .Dt HASH 9
 .Os
 .Sh NAME
@@ -72,6 +72,13 @@ These functions can be used to hash
 .Dv NUL
 terminated strings, as well as blocks of memory.
 .Pp
+A
+.Fa len
+argument is the length of the buffer in bytes.
+A
+.Fa count
+argument is the length of the buffer in 32-bit words.
+.Pp
 The
 .Fn hash32_buf
 function is used as a general buffer hashing function.
@@ -79,7 +86,7 @@ The argument
 .Fa buf
 is used to pass in the location, and
 .Fa len
-is the length of the buffer.
+is the length of the buffer in bytes.
 The argument
 .Fa hash
 is used to extend an existing hash, or is passed the initial value

@@ -37,17 +37,17 @@
 #define	MODINFOMD_MODULEP	0x1006
 
 struct efi_map_header {
-	size_t		memory_size;
-	size_t		descriptor_size;
+	uint64_t	memory_size;
+	uint64_t	descriptor_size;
 	uint32_t	descriptor_version;
 };
 
 struct efi_fb {
 	uint64_t	fb_addr;
 	uint64_t	fb_size;
-	int		fb_height;
-	int		fb_width;
-	int		fb_stride;
+	uint32_t	fb_height;
+	uint32_t	fb_width;
+	uint32_t	fb_stride;
 	uint32_t	fb_mask_red;
 	uint32_t	fb_mask_green;
 	uint32_t	fb_mask_blue;

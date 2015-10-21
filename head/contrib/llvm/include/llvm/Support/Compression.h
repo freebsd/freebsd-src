@@ -15,11 +15,9 @@
 #define LLVM_SUPPORT_COMPRESSION_H
 
 #include "llvm/Support/DataTypes.h"
-#include <memory>
-#include "llvm/ADT/SmallVector.h"
 
 namespace llvm {
-
+template <typename T> class SmallVectorImpl;
 class StringRef;
 
 namespace zlib {

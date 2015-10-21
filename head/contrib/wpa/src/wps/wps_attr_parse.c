@@ -59,6 +59,14 @@ static int wps_set_vendor_ext_wfa_subelem(struct wps_parse_attr *attr,
 		}
 		attr->settings_delay_time = pos;
 		break;
+	case WFA_ELEM_REGISTRAR_CONFIGURATION_METHODS:
+		if (len != 2) {
+			wpa_printf(MSG_DEBUG, "WPS: Invalid Registrar Configuration Methods length %u",
+				   len);
+			return -1;
+		}
+		attr->registrar_configuration_methods = pos;
+		break;
 	default:
 		wpa_printf(MSG_MSGDUMP, "WPS: Skipped unknown WFA Vendor "
 			   "Extension subelement %u", id);
@@ -75,7 +83,7 @@ static int wps_parse_vendor_ext_wfa(struct wps_parse_attr *attr, const u8 *pos,
 	const u8 *end = pos + len;
 	u8 id, elen;
 
-	while (pos + 2 < end) {
+	while (pos + 2 <= end) {
 		id = *pos++;
 		elen = *pos++;
 		if (pos + elen > end)
@@ -263,10 +271,13 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 		attr->dev_password_id = pos;
 		break;
 	case ATTR_OOB_DEVICE_PASSWORD:
-		if (len < WPS_OOB_PUBKEY_HASH_LEN + 2 +
-		    WPS_OOB_DEVICE_PASSWORD_MIN_LEN ||
+		if (len < WPS_OOB_PUBKEY_HASH_LEN + 2 ||
 		    len > WPS_OOB_PUBKEY_HASH_LEN + 2 +
-		    WPS_OOB_DEVICE_PASSWORD_LEN) {
+		    WPS_OOB_DEVICE_PASSWORD_LEN ||
+		    (len < WPS_OOB_PUBKEY_HASH_LEN + 2 +
+		     WPS_OOB_DEVICE_PASSWORD_MIN_LEN &&
+		     WPA_GET_BE16(pos + WPS_OOB_PUBKEY_HASH_LEN) !=
+		     DEV_PW_NFC_CONNECTION_HANDOVER)) {
 			wpa_printf(MSG_DEBUG, "WPS: Invalid OOB Device "
 				   "Password length %u", len);
 			return -1;
@@ -410,22 +421,6 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 		}
 		attr->mac_addr = pos;
 		break;
-	case ATTR_KEY_PROVIDED_AUTO:
-		if (len != 1) {
-			wpa_printf(MSG_DEBUG, "WPS: Invalid Key Provided "
-				   "Automatically length %u", len);
-			return -1;
-		}
-		attr->key_prov_auto = pos;
-		break;
-	case ATTR_802_1X_ENABLED:
-		if (len != 1) {
-			wpa_printf(MSG_DEBUG, "WPS: Invalid 802.1X Enabled "
-				   "length %u", len);
-			return -1;
-		}
-		attr->dot1x_enabled = pos;
-		break;
 	case ATTR_SELECTED_REGISTRAR:
 		if (len != 1) {
 			wpa_printf(MSG_DEBUG, "WPS: Invalid Selected Registrar"
@@ -452,25 +447,55 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 		break;
 	case ATTR_MANUFACTURER:
 		attr->manufacturer = pos;
-		attr->manufacturer_len = len;
+		if (len > WPS_MANUFACTURER_MAX_LEN)
+			attr->manufacturer_len = WPS_MANUFACTURER_MAX_LEN;
+		else
+			attr->manufacturer_len = len;
 		break;
 	case ATTR_MODEL_NAME:
 		attr->model_name = pos;
-		attr->model_name_len = len;
+		if (len > WPS_MODEL_NAME_MAX_LEN)
+			attr->model_name_len = WPS_MODEL_NAME_MAX_LEN;
+		else
+			attr->model_name_len = len;
 		break;
 	case ATTR_MODEL_NUMBER:
 		attr->model_number = pos;
-		attr->model_number_len = len;
+		if (len > WPS_MODEL_NUMBER_MAX_LEN)
+			attr->model_number_len = WPS_MODEL_NUMBER_MAX_LEN;
+		else
+			attr->model_number_len = len;
 		break;
 	case ATTR_SERIAL_NUMBER:
 		attr->serial_number = pos;
-		attr->serial_number_len = len;
+		if (len > WPS_SERIAL_NUMBER_MAX_LEN)
+			attr->serial_number_len = WPS_SERIAL_NUMBER_MAX_LEN;
+		else
+			attr->serial_number_len = len;
 		break;
 	case ATTR_DEV_NAME:
+		if (len > WPS_DEV_NAME_MAX_LEN) {
+			wpa_printf(MSG_DEBUG,
+				   "WPS: Ignore too long Device Name (len=%u)",
+				   len);
+			break;
+		}
 		attr->dev_name = pos;
 		attr->dev_name_len = len;
 		break;
 	case ATTR_PUBLIC_KEY:
+		/*
+		 * The Public Key attribute is supposed to be exactly 192 bytes
+		 * in length. Allow couple of bytes shorter one to try to
+		 * interoperate with implementations that do not use proper
+		 * zero-padding.
+		 */
+		if (len < 190 || len > 192) {
+			wpa_printf(MSG_DEBUG,
+				   "WPS: Ignore Public Key with unexpected length %u",
+				   len);
+			break;
+		}
 		attr->public_key = pos;
 		attr->public_key_len = len;
 		break;
@@ -490,20 +515,17 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 		attr->num_cred++;
 		break;
 	case ATTR_SSID:
+		if (len > SSID_MAX_LEN) {
+			wpa_printf(MSG_DEBUG,
+				   "WPS: Ignore too long SSID (len=%u)", len);
+			break;
+		}
 		attr->ssid = pos;
 		attr->ssid_len = len;
 		break;
 	case ATTR_NETWORK_KEY:
 		attr->network_key = pos;
 		attr->network_key_len = len;
-		break;
-	case ATTR_EAP_TYPE:
-		attr->eap_type = pos;
-		attr->eap_type_len = len;
-		break;
-	case ATTR_EAP_IDENTITY:
-		attr->eap_identity = pos;
-		attr->eap_identity_len = len;
 		break;
 	case ATTR_AP_SETUP_LOCKED:
 		if (len != 1) {

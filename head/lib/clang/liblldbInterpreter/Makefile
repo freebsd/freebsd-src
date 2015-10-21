@@ -28,11 +28,14 @@ SRCS=	Args.cpp \
 	OptionValueArgs.cpp \
 	OptionValueArray.cpp \
 	OptionValueBoolean.cpp \
+	OptionValueChar.cpp \
 	OptionValueDictionary.cpp \
 	OptionValueEnumeration.cpp \
 	OptionValueFileSpec.cpp \
 	OptionValueFileSpecLIst.cpp \
 	OptionValueFormat.cpp \
+	OptionValueFormatEntity.cpp \
+	OptionValueLanguage.cpp \
 	OptionValuePathMappings.cpp \
 	OptionValueProperties.cpp \
 	OptionValueRegex.cpp \

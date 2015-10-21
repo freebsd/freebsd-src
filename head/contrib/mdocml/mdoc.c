@@ -1,7 +1,7 @@
-/*	$Id: mdoc.c,v 1.233 2014/11/28 06:27:05 schwarze Exp $ */
+/*	$Id: mdoc.c,v 1.238 2015/02/12 13:00:52 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010, 2012, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2010, 2012-2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -190,12 +190,11 @@ mdoc_alloc(struct roff *roff, struct mparse *parse,
 	return(p);
 }
 
-int
+void
 mdoc_endparse(struct mdoc *mdoc)
 {
 
 	mdoc_macroend(mdoc);
-	return(1);
 }
 
 void
@@ -364,7 +363,6 @@ node_alloc(struct mdoc *mdoc, int line, int pos,
 	p->sec = mdoc->lastsec;
 	p->line = line;
 	p->pos = pos;
-	p->lastline = line;
 	p->tok = tok;
 	p->type = type;
 
@@ -415,18 +413,21 @@ mdoc_body_alloc(struct mdoc *mdoc, int line, int pos, enum mdoct tok)
 	return(p);
 }
 
-void
+struct mdoc_node *
 mdoc_endbody_alloc(struct mdoc *mdoc, int line, int pos, enum mdoct tok,
 		struct mdoc_node *body, enum mdoc_endbody end)
 {
 	struct mdoc_node *p;
 
+	body->flags |= MDOC_ENDED;
+	body->parent->flags |= MDOC_ENDED;
 	p = node_alloc(mdoc, line, pos, tok, MDOC_BODY);
-	p->pending = body;
+	p->body = body;
 	p->norm = body->norm;
 	p->end = end;
 	node_append(mdoc, p);
 	mdoc->next = MDOC_NEXT_SIBLING;
+	return(p);
 }
 
 struct mdoc_node *
@@ -600,8 +601,8 @@ mdoc_ptext(struct mdoc *mdoc, int line, char *buf, int offs)
 	 * process within its context in the normal way).
 	 */
 
-	if (MDOC_Bl == n->tok && MDOC_BODY == n->type &&
-	    LIST_column == n->norm->Bl.type) {
+	if (n->tok == MDOC_Bl && n->type == MDOC_BODY &&
+	    n->end == ENDBODY_NOT && n->norm->Bl.type == LIST_column) {
 		/* `Bl' is open without any children. */
 		mdoc->flags |= MDOC_FREECOL;
 		mdoc_macro(mdoc, MDOC_It, line, offs, &offs, buf);
@@ -777,8 +778,8 @@ mdoc_pmacro(struct mdoc *mdoc, int ln, char *buf, int offs)
 	 * context around the parsed macro.
 	 */
 
-	if (MDOC_Bl == n->tok && MDOC_BODY == n->type &&
-	    LIST_column == n->norm->Bl.type) {
+	if (n->tok == MDOC_Bl && n->type == MDOC_BODY &&
+	    n->end == ENDBODY_NOT && n->norm->Bl.type == LIST_column) {
 		mdoc->flags |= MDOC_FREECOL;
 		mdoc_macro(mdoc, MDOC_It, ln, sv, &sv, buf);
 		return(1);

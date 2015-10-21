@@ -52,4 +52,21 @@ FBSDprivate_1.0 {
 
 	__aeabi_i2d;
 	__aeabi_i2f;
+
+
+	__aeabi_memclr;
+	__aeabi_memclr4;
+	__aeabi_memclr8;
+	__aeabi_memcmp;
+	__aeabi_memcmp4;
+	__aeabi_memcmp8;
+	__aeabi_memcpy;
+	__aeabi_memcpy4;
+	__aeabi_memcpy8;
+	__aeabi_memmove;
+	__aeabi_memmove4;
+	__aeabi_memmove8;
+	__aeabi_memset;
+	__aeabi_memset4;
+	__aeabi_memset8;
 };

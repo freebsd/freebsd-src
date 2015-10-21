@@ -20,6 +20,7 @@
 #include "clang/Serialization/ContinuousRangeMap.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/Bitcode/BitstreamReader.h"
+#include "llvm/Support/Endian.h"
 #include <memory>
 #include <string>
 
@@ -42,10 +43,11 @@ namespace reader {
 
 /// \brief Specifies the kind of module that has been loaded.
 enum ModuleKind {
-  MK_Module,   ///< File is a module proper.
-  MK_PCH,      ///< File is a PCH file treated as such.
-  MK_Preamble, ///< File is a PCH file treated as the preamble.
-  MK_MainFile  ///< File is a PCH file treated as the actual main file.
+  MK_ImplicitModule, ///< File is an implicitly-loaded module.
+  MK_ExplicitModule, ///< File is an explicitly-loaded module.
+  MK_PCH,            ///< File is a PCH file treated as such.
+  MK_Preamble,       ///< File is a PCH file treated as the preamble.
+  MK_MainFile        ///< File is a PCH file treated as the actual main file.
 };
 
 /// \brief Information about the contents of a DeclContext.
@@ -96,6 +98,8 @@ public:
   bool isNotFound() const { return Val.getInt() == NotFound; }
 };
 
+typedef unsigned ASTFileSignature;
+
 /// \brief Information about a module that has been loaded by the ASTReader.
 ///
 /// Each instance of the Module class corresponds to a single AST file, which
@@ -121,6 +125,9 @@ public:
 
   /// \brief The name of the module.
   std::string ModuleName;
+
+  /// \brief The base directory of the module.
+  std::string BaseDirectory;
 
   std::string getTimestampFilename() const {
     return FileName + ".timestamp";
@@ -150,6 +157,10 @@ public:
 
   /// \brief The file entry for the module file.
   const FileEntry *File;
+
+  /// \brief The signature of the module file, which may be used along with size
+  /// and modification time to identify this particular file.
+  ASTFileSignature Signature;
 
   /// \brief Whether this module has been directly imported by the
   /// user.
@@ -196,7 +207,7 @@ public:
   llvm::BitstreamCursor InputFilesCursor;
 
   /// \brief Offsets for all of the input file entries in the AST file.
-  const uint32_t *InputFileOffsets;
+  const llvm::support::unaligned_uint64_t *InputFileOffsets;
 
   /// \brief The input files that have been loaded from this AST file.
   std::vector<InputFile> InputFilesLoaded;
@@ -393,6 +404,13 @@ public:
   /// \brief Offset of each C++ base specifier set within the bitstream,
   /// indexed by the C++ base specifier set ID (-1).
   const uint32_t *CXXBaseSpecifiersOffsets;
+
+  /// \brief The number of C++ ctor initializer lists in this AST file.
+  unsigned LocalNumCXXCtorInitializers;
+
+  /// \brief Offset of each C++ ctor initializer list within the bitstream,
+  /// indexed by the C++ ctor initializer list ID minus 1.
+  const uint32_t *CXXCtorInitializersOffsets;
 
   typedef llvm::DenseMap<const DeclContext *, DeclContextInfo>
   DeclContextInfosMap;

@@ -1,7 +1,7 @@
 WPA Supplicant
 ==============
 
-Copyright (c) 2003-2012, Jouni Malinen <j@w1.fi> and contributors
+Copyright (c) 2003-2015, Jouni Malinen <j@w1.fi> and contributors
 All Rights Reserved.
 
 This program is licensed under the BSD license (the one with
@@ -115,13 +115,15 @@ Current hardware/software requirements:
 - NetBSD-current
 - Microsoft Windows with WinPcap (at least WinXP, may work with other versions)
 - drivers:
-	Linux drivers that support WPA/WPA2 configuration with the generic
-	Linux wireless extensions (WE-18 or newer). Even though there are
+	Linux drivers that support cfg80211/nl80211. Even though there are
 	number of driver specific interface included in wpa_supplicant, please
-	note that Linux drivers are moving to use generic wireless extensions
-	and driver_wext (-Dwext on wpa_supplicant command line) should be the
-	default option to start with before falling back to driver specific
-	interface.
+	note that Linux drivers are moving to use generic wireless configuration
+	interface driver_nl80211 (-Dnl80211 on wpa_supplicant command line)
+	should be the default option to start with before falling back to driver
+	specific interface.
+
+	Linux drivers that support WPA/WPA2 configuration with the generic
+	Linux wireless extensions (WE-18 or newer). Obsoleted by nl80211.
 
 	In theory, any driver that supports Linux wireless extensions can be
 	used with IEEE 802.1X (i.e., not WPA) when using ap_scan=0 option in
@@ -408,9 +410,10 @@ Command line options
 
 usage:
   wpa_supplicant [-BddfhKLqqtuvwW] [-P<pid file>] [-g<global ctrl>] \
+        [-G<group>] \
         -i<ifname> -c<config file> [-C<ctrl>] [-D<driver>] [-p<driver_param>] \
         [-b<br_ifname> [-N -i<ifname> -c<conf> [-C<ctrl>] [-D<driver>] \
-        [-p<driver_param>] [-b<br_ifname>] ...]
+        [-p<driver_param>] [-b<br_ifname>] [-m<P2P Device config file>] ...
 
 options:
   -b = optional bridge interface name
@@ -422,6 +425,7 @@ options:
   -D = driver name (can be multiple drivers: nl80211,wext)
   -f = Log output to default log location (normally /tmp)
   -g = global ctrl_interface
+  -G = global ctrl_interface group
   -K = include keys (passwords, etc.) in debug output
   -t = include timestamp in debug messages
   -h = show this help text
@@ -434,8 +438,10 @@ options:
   -w = wait for interface to be added, if needed
   -W = wait for a control interface monitor before starting
   -N = start describing new interface
+  -m = Configuration file for the P2P Device
 
 drivers:
+  nl80211 = Linux nl80211/cfg80211
   wext = Linux wireless extensions (generic)
   wired = wpa_supplicant wired Ethernet driver
   roboswitch = wpa_supplicant Broadcom switch driver
@@ -477,7 +483,7 @@ If the interface is added in a Linux bridge (e.g., br0), the bridge
 interface needs to be configured to wpa_supplicant in addition to the
 main interface:
 
-wpa_supplicant -cw.conf -Dwext -iwlan0 -bbr0
+wpa_supplicant -cw.conf -Dnl80211 -iwlan0 -bbr0
 
 
 Configuration file
@@ -869,10 +875,10 @@ network (SSID):
 # Start wpa_supplicant in the background
 wpa_supplicant -g/var/run/wpa_supplicant-global -B
 
-# Add a new interface (wlan0, no configuration file, driver=wext, and
+# Add a new interface (wlan0, no configuration file, driver=nl80211, and
 # enable control interface)
 wpa_cli -g/var/run/wpa_supplicant-global interface_add wlan0 \
-	"" wext /var/run/wpa_supplicant
+	"" nl80211 /var/run/wpa_supplicant
 
 # Configure a network using the newly added network interface:
 wpa_cli -iwlan0 add_network
@@ -933,7 +939,7 @@ Example configuration:
   chmod 0750 /var/run/wpa_priv
 - start wpa_priv as root (e.g., from system startup scripts) with the
   enabled interfaces configured on the command line:
-  wpa_priv -B -P /var/run/wpa_priv.pid wext:ath0
+  wpa_priv -B -P /var/run/wpa_priv.pid nl80211:wlan0
 - run wpa_supplicant as non-root with a user that is in wpapriv group:
   wpa_supplicant -i ath0 -c wpa_supplicant.conf
 
@@ -944,3 +950,105 @@ can be started when an interface is added (hotplug/udev/etc. scripts).
 wpa_priv can control multiple interface with one process, but it is
 also possible to run multiple wpa_priv processes at the same time, if
 desired.
+
+
+Linux capabilities instead of privileged process
+------------------------------------------------
+
+wpa_supplicant performs operations that need special permissions, e.g.,
+to control the network connection. Traditionally this has been achieved
+by running wpa_supplicant as a privileged process with effective user id
+0 (root). Linux capabilities can be used to provide restricted set of
+capabilities to match the functions needed by wpa_supplicant. The
+minimum set of capabilities needed for the operations is CAP_NET_ADMIN
+and CAP_NET_RAW.
+
+setcap(8) can be used to set file capabilities. For example:
+
+sudo setcap cap_net_raw,cap_net_admin+ep wpa_supplicant
+
+Please note that this would give anyone being able to run that
+wpa_supplicant binary access to the additional capabilities. This can
+further be limited by file owner/group and mode bits. For example:
+
+sudo chown wpas wpa_supplicant
+sudo chmod 0100 wpa_supplicant
+
+This combination of setcap, chown, and chmod commands would allow wpas
+user to execute wpa_supplicant with additional network admin/raw
+capabilities.
+
+Common way style of creating a control interface socket in
+/var/run/wpa_supplicant could not be done by this user, but this
+directory could be created before starting the wpa_supplicant and set to
+suitable mode to allow wpa_supplicant to create sockets
+there. Alternatively, other directory or abstract socket namespace could
+be used for the control interface.
+
+
+External requests for radio control
+-----------------------------------
+
+External programs can request wpa_supplicant to not start offchannel
+operations during other tasks that may need exclusive control of the
+radio. The RADIO_WORK control interface command can be used for this.
+
+"RADIO_WORK add <name> [freq=<MHz>] [timeout=<seconds>]" command can be
+used to reserve a slot for radio access. If freq is specified, other
+radio work items on the same channel may be completed in
+parallel. Otherwise, all other radio work items are blocked during
+execution. Timeout is set to 10 seconds by default to avoid blocking
+wpa_supplicant operations for excessive time. If a longer (or shorter)
+safety timeout is needed, that can be specified with the optional
+timeout parameter. This command returns an identifier for the radio work
+item.
+
+Once the radio work item has been started, "EXT-RADIO-WORK-START <id>"
+event message is indicated that the external processing can start. Once
+the operation has been completed, "RADIO_WORK done <id>" is used to
+indicate that to wpa_supplicant. This allows other radio works to be
+performed. If this command is forgotten (e.g., due to the external
+program terminating), wpa_supplicant will time out the radio owrk item
+and send "EXT-RADIO-WORK-TIMEOUT <id>" event ot indicate that this has
+happened. "RADIO_WORK done <id>" can also be used to cancel items that
+have not yet been started.
+
+For example, in wpa_cli interactive mode:
+
+> radio_work add test
+1
+<3>EXT-RADIO-WORK-START 1
+> radio_work show
+ext:test@wlan0:0:1:2.487797
+> radio_work done 1
+OK
+> radio_work show
+
+
+> radio_work done 3
+OK
+> radio_work show
+ext:test freq=2412 timeout=30@wlan0:2412:1:28.583483
+<3>EXT-RADIO-WORK-TIMEOUT 2
+
+
+> radio_work add test2 freq=2412 timeout=60
+5
+<3>EXT-RADIO-WORK-START 5
+> radio_work add test3
+6
+> radio_work add test4
+7
+> radio_work show
+ext:test2 freq=2412 timeout=60@wlan0:2412:1:9.751844
+ext:test3@wlan0:0:0:5.071812
+ext:test4@wlan0:0:0:3.143870
+> radio_work done 6
+OK
+> radio_work show
+ext:test2 freq=2412 timeout=60@wlan0:2412:1:16.287869
+ext:test4@wlan0:0:0:9.679895
+> radio_work done 5
+OK
+<3>EXT-RADIO-WORK-START 7
+<3>EXT-RADIO-WORK-TIMEOUT 7

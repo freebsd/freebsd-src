@@ -46,6 +46,7 @@
 #include <sys/stdint.h>		/* for people using printf mainly */
 
 extern int cold;		/* nonzero if we are doing a cold boot */
+extern int suspend_blocked;	/* block suspend due to pending shutdown */
 extern int rebooting;		/* kern_reboot() has been called. */
 extern const char *panicstr;	/* panic message */
 extern char version[];		/* system version */
@@ -82,12 +83,12 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #ifdef	INVARIANTS		/* The option is always available */
 #define	KASSERT(exp,msg) do {						\
 	if (__predict_false(!(exp)))					\
-		kassert_panic msg;						\
+		kassert_panic msg;					\
 } while (0)
 #define	VNASSERT(exp, vp, msg) do {					\
 	if (__predict_false(!(exp))) {					\
 		vn_printf(vp, "VNASSERT failed\n");			\
-		kassert_panic msg;						\
+		kassert_panic msg;					\
 	}								\
 } while (0)
 #else
@@ -187,6 +188,7 @@ void	*phashinit(int count, struct malloc_type *type, u_long *nentries);
 void	g_waitidle(void);
 
 void	panic(const char *, ...) __dead2 __printflike(1, 2);
+void	vpanic(const char *, __va_list) __dead2 __printflike(1, 0);
 
 void	cpu_boot(int);
 void	cpu_flush_dcache(void *, size_t);
@@ -205,11 +207,15 @@ int	kvprintf(char const *, void (*)(int, void*), void *, int,
 	    __va_list) __printflike(1, 0);
 void	log(int, const char *, ...) __printflike(2, 3);
 void	log_console(struct uio *);
+int	asprintf(char **ret, struct malloc_type *mtp, const char *format, 
+	    ...) __printflike(3, 4);
 int	printf(const char *, ...) __printflike(1, 2);
 int	snprintf(char *, size_t, const char *, ...) __printflike(3, 4);
 int	sprintf(char *buf, const char *, ...) __printflike(2, 3);
 int	uprintf(const char *, ...) __printflike(1, 2);
 int	vprintf(const char *, __va_list) __printflike(1, 0);
+int	vasprintf(char **ret, struct malloc_type *mtp, const char *format,
+	    __va_list ap) __printflike(3, 0);
 int	vsnprintf(char *, size_t, const char *, __va_list) __printflike(3, 0);
 int	vsnrprintf(char *, size_t, int, const char *, __va_list) __printflike(4, 0);
 int	vsprintf(char *buf, const char *, __va_list) __printflike(2, 0);
@@ -232,7 +238,7 @@ void	hexdump(const void *ptr, int length, const char *hdr, int flags);
 #define ovbcopy(f, t, l) bcopy((f), (t), (l))
 void	bcopy(const void *from, void *to, size_t len) __nonnull(1) __nonnull(2);
 void	bzero(void *buf, size_t len) __nonnull(1);
-void	explicit_bzero(void *, size_t) __nonnull(1);;
+void	explicit_bzero(void *, size_t) __nonnull(1);
 
 void	*memcpy(void *to, const void *from, size_t len) __nonnull(1) __nonnull(2);
 void	*memmove(void *dest, const void *src, size_t n) __nonnull(1) __nonnull(2);
@@ -357,7 +363,6 @@ static __inline intrmask_t	splhigh(void)		{ return 0; }
 static __inline intrmask_t	splimp(void)		{ return 0; }
 static __inline intrmask_t	splnet(void)		{ return 0; }
 static __inline intrmask_t	spltty(void)		{ return 0; }
-static __inline intrmask_t	splvm(void)		{ return 0; }
 static __inline void		splx(intrmask_t ipl __unused)	{ return; }
 
 /*
@@ -407,7 +412,6 @@ struct root_hold_token;
 
 struct root_hold_token *root_mount_hold(const char *identifier);
 void root_mount_rel(struct root_hold_token *h);
-void root_mount_wait(void);
 int root_mounted(void);
 
 
@@ -425,33 +429,8 @@ int alloc_unr_specific(struct unrhdr *uh, u_int item);
 int alloc_unrl(struct unrhdr *uh);
 void free_unr(struct unrhdr *uh, u_int item);
 
-/*
- * Population count algorithm using SWAR approach
- * - "SIMD Within A Register".
- */
-static __inline uint32_t
-bitcount32(uint32_t x)
-{
-
-	x = (x & 0x55555555) + ((x & 0xaaaaaaaa) >> 1);
-	x = (x & 0x33333333) + ((x & 0xcccccccc) >> 2);
-	x = (x + (x >> 4)) & 0x0f0f0f0f;
-	x = (x + (x >> 8));
-	x = (x + (x >> 16)) & 0x000000ff;
-	return (x);
-}
-
-static __inline uint16_t
-bitcount16(uint32_t x)
-{
-
-	x = (x & 0x5555) + ((x & 0xaaaa) >> 1);
-	x = (x & 0x3333) + ((x & 0xcccc) >> 2);
-	x = (x + (x >> 4)) & 0x0f0f;
-	x = (x + (x >> 8)) & 0x00ff;
-	return (x);
-}
-
 void	intr_prof_stack_use(struct thread *td, struct trapframe *frame);
+
+extern void (*softdep_ast_cleanup)(void);
 
 #endif /* !_SYS_SYSTM_H_ */

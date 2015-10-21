@@ -117,9 +117,7 @@ extern bool	filechanged __P((char *, int, struct stat *));
 #define DBS_WORLDWRITABLEFORWARDFILE			39
 #define DBS_WORLDWRITABLEINCLUDEFILE			40
 #define DBS_GROUPREADABLEKEYFILE			41
-#if _FFR_GROUPREADABLEAUTHINFOFILE
-# define DBS_GROUPREADABLEAUTHINFOFILE			42
-#endif /* _FFR_GROUPREADABLEAUTHINFOFILE */
+#define DBS_GROUPREADABLEAUTHINFOFILE			42
 
 /* struct defining such things */
 struct dbsval

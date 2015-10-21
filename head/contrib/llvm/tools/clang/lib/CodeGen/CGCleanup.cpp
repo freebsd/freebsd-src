@@ -52,8 +52,10 @@ DominatingValue<RValue>::saved_type::save(CodeGenFunction &CGF, RValue rv) {
       llvm::StructType::get(V.first->getType(), V.second->getType(),
                             (void*) nullptr);
     llvm::Value *addr = CGF.CreateTempAlloca(ComplexTy, "saved-complex");
-    CGF.Builder.CreateStore(V.first, CGF.Builder.CreateStructGEP(addr, 0));
-    CGF.Builder.CreateStore(V.second, CGF.Builder.CreateStructGEP(addr, 1));
+    CGF.Builder.CreateStore(V.first,
+                            CGF.Builder.CreateStructGEP(ComplexTy, addr, 0));
+    CGF.Builder.CreateStore(V.second,
+                            CGF.Builder.CreateStructGEP(ComplexTy, addr, 1));
     return saved_type(addr, ComplexAddress);
   }
 
@@ -82,9 +84,9 @@ RValue DominatingValue<RValue>::saved_type::restore(CodeGenFunction &CGF) {
     return RValue::getAggregate(CGF.Builder.CreateLoad(Value));
   case ComplexAddress: {
     llvm::Value *real =
-      CGF.Builder.CreateLoad(CGF.Builder.CreateStructGEP(Value, 0));
+        CGF.Builder.CreateLoad(CGF.Builder.CreateStructGEP(nullptr, Value, 0));
     llvm::Value *imag =
-      CGF.Builder.CreateLoad(CGF.Builder.CreateStructGEP(Value, 1));
+        CGF.Builder.CreateLoad(CGF.Builder.CreateStructGEP(nullptr, Value, 1));
     return RValue::getComplex(real, imag);
   }
   }
@@ -121,6 +123,17 @@ char *EHScopeStack::allocate(size_t Size) {
   assert(StartOfBuffer + Size <= StartOfData);
   StartOfData -= Size;
   return StartOfData;
+}
+
+bool EHScopeStack::containsOnlyLifetimeMarkers(
+    EHScopeStack::stable_iterator Old) const {
+  for (EHScopeStack::iterator it = begin(); stabilize(it) != Old; it++) {
+    EHCleanupScope *cleanup = dyn_cast<EHCleanupScope>(&*it);
+    if (!cleanup || !cleanup->isLifetimeMarker())
+      return false;
+  }
+
+  return true;
 }
 
 EHScopeStack::stable_iterator
@@ -184,7 +197,7 @@ void EHScopeStack::popCleanup() {
   StartOfData += Cleanup.getAllocatedSize();
 
   // Destroy the cleanup.
-  Cleanup.~EHCleanupScope();
+  Cleanup.Destroy();
 
   // Check whether we can shrink the branch-fixups stack.
   if (!BranchFixups.empty()) {
@@ -301,7 +314,8 @@ static void ResolveAllBranchFixups(CodeGenFunction &CGF,
     }
 
     // Don't add this case to the switch statement twice.
-    if (!CasesAdded.insert(Fixup.Destination)) continue;
+    if (!CasesAdded.insert(Fixup.Destination).second)
+      continue;
 
     Switch->addCase(CGF.Builder.getInt32(Fixup.DestinationIndex),
                     Fixup.Destination);
@@ -357,7 +371,7 @@ void CodeGenFunction::ResolveBranchFixups(llvm::BasicBlock *Block) {
       continue;
 
     // Don't process the same optimistic branch block twice.
-    if (!ModifiedOptimisticBlocks.insert(BranchBB))
+    if (!ModifiedOptimisticBlocks.insert(BranchBB).second)
       continue;
 
     llvm::SwitchInst *Switch = TransitionToCleanupSwitch(*this, BranchBB);
@@ -468,8 +482,14 @@ static void EmitCleanup(CodeGenFunction &CGF,
                         EHScopeStack::Cleanup *Fn,
                         EHScopeStack::Cleanup::Flags flags,
                         llvm::Value *ActiveFlag) {
-  // EH cleanups always occur within a terminate scope.
-  if (flags.isForEHCleanup()) CGF.EHStack.pushTerminate();
+  // Itanium EH cleanups occur within a terminate scope. Microsoft SEH doesn't
+  // have this behavior, and the Microsoft C++ runtime will call terminate for
+  // us if the cleanup throws.
+  bool PushedTerminate = false;
+  if (flags.isForEHCleanup() && !CGF.getTarget().getCXXABI().isMicrosoft()) {
+    CGF.EHStack.pushTerminate();
+    PushedTerminate = true;
+  }
 
   // If there's an active flag, load it and skip the cleanup if it's
   // false.
@@ -492,7 +512,8 @@ static void EmitCleanup(CodeGenFunction &CGF,
     CGF.EmitBlock(ContBB);
 
   // Leave the terminate scope.
-  if (flags.isForEHCleanup()) CGF.EHStack.popTerminate();
+  if (PushedTerminate)
+    CGF.EHStack.popTerminate();
 }
 
 static void ForwardPrebranchedFallthrough(llvm::BasicBlock *Exit,
@@ -738,7 +759,15 @@ void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
           Scope.getNumBranchAfters() == 1) {
         assert(!BranchThroughDest || !IsActive);
 
-        // TODO: clean up the possibly dead stores to the cleanup dest slot.
+        // Clean up the possibly dead store to the cleanup dest slot.
+        llvm::Instruction *NormalCleanupDestSlot =
+            cast<llvm::Instruction>(getNormalCleanupDestSlot());
+        if (NormalCleanupDestSlot->hasOneUse()) {
+          NormalCleanupDestSlot->user_back()->eraseFromParent();
+          NormalCleanupDestSlot->eraseFromParent();
+          NormalCleanupDest = nullptr;
+        }
+
         llvm::BasicBlock *BranchAfter = Scope.getBranchAfterBlock(0);
         InstsToAppend.push_back(llvm::BranchInst::Create(BranchAfter));
 
@@ -860,11 +889,6 @@ void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
 
   // Emit the EH cleanup if required.
   if (RequiresEHCleanup) {
-    CGDebugInfo *DI = getDebugInfo();
-    SaveAndRestoreLocation AutoRestoreLocation(*this, Builder);
-    if (DI)
-      DI->EmitLocation(Builder, CurEHLocation);
-
     CGBuilderTy::InsertPoint SavedIP = Builder.saveAndClearIP();
 
     EmitBlock(EHEntry);

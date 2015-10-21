@@ -12,8 +12,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_TYPETRAITS_H
-#define LLVM_CLANG_TYPETRAITS_H
+#ifndef LLVM_CLANG_BASIC_TYPETRAITS_H
+#define LLVM_CLANG_BASIC_TYPETRAITS_H
 
 namespace clang {
 
@@ -92,7 +92,8 @@ namespace clang {
   enum UnaryExprOrTypeTrait {
     UETT_SizeOf,
     UETT_AlignOf,
-    UETT_VecStep
+    UETT_VecStep,
+    UETT_OpenMPRequiredSimdAlign,
   };
 }
 

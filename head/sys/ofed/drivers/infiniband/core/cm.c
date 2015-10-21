@@ -36,16 +36,19 @@
 #include <linux/completion.h>
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
+#include <linux/module.h>
 #include <linux/err.h>
 #include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/random.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
 #include <linux/kdev_t.h>
 #include <linux/string.h>
+#include <linux/etherdevice.h>
 
 #include <asm/atomic-long.h>
 
@@ -57,16 +60,10 @@ MODULE_AUTHOR("Sean Hefty");
 MODULE_DESCRIPTION("InfiniBand CM");
 MODULE_LICENSE("Dual BSD/GPL");
 
-#define PFX    "ib_cm: "
-
-/*
- * Limit CM message timeouts to something reasonable:
- * 8 seconds per message, with up to 15 retries
- */
-static int max_timeout = 21;
-module_param(max_timeout, int, 0644);
-MODULE_PARM_DESC(max_timeout, "Maximum IB CM per message timeout "
-                             "(default=21, or ~8 seconds)");
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) "%s:%s: " fmt, KBUILD_MODNAME, __func__
 
 static void cm_add_one(struct ib_device *device);
 static void cm_remove_one(struct ib_device *device);
@@ -189,6 +186,8 @@ struct cm_av {
 	struct ib_ah_attr ah_attr;
 	u16 pkey_index;
 	u8 timeout;
+	u8  valid;
+	u8  smac[ETH_ALEN];
 };
 
 struct cm_work {
@@ -358,6 +357,23 @@ static void cm_init_av_for_response(struct cm_port *port, struct ib_wc *wc,
 			   grh, &av->ah_attr);
 }
 
+int ib_update_cm_av(struct ib_cm_id *id, const u8 *smac, const u8 *alt_smac)
+{
+	struct cm_id_private *cm_id_priv;
+
+	cm_id_priv = container_of(id, struct cm_id_private, id);
+
+	if (smac != NULL)
+		memcpy(cm_id_priv->av.smac, smac, sizeof(cm_id_priv->av.smac));
+
+	if (alt_smac != NULL)
+		memcpy(cm_id_priv->alt_av.smac, alt_smac,
+		       sizeof(cm_id_priv->alt_av.smac));
+
+	return 0;
+}
+EXPORT_SYMBOL(ib_update_cm_av);
+
 static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 {
 	struct cm_device *cm_dev;
@@ -388,6 +404,9 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 	ib_init_ah_from_path(cm_dev->ib_device, port->port_num, path,
 			     &av->ah_attr);
 	av->timeout = path->packet_life_time + 1;
+	memcpy(av->smac, path->smac, sizeof(av->smac));
+
+	av->valid = 1;
 	return 0;
 }
 
@@ -402,7 +421,7 @@ static int cm_alloc_id(struct cm_id_private *cm_id_priv)
 		ret = idr_get_new_above(&cm.local_id_table, cm_id_priv,
 					next_id, &id);
 		if (!ret)
-			next_id = ((unsigned) id + 1) & MAX_ID_MASK;
+			next_id = ((unsigned) id + 1) & MAX_IDR_MASK;
 		spin_unlock_irqrestore(&cm.lock, flags);
 	} while( (ret == -EAGAIN) && idr_pre_get(&cm.local_id_table, GFP_KERNEL) );
 
@@ -794,11 +813,11 @@ static void cm_cleanup_timewait(struct cm_timewait_info *timewait_info)
 	}
 }
 
-static struct cm_timewait_info * cm_create_timewait_info(__be32 local_id)
+static struct cm_timewait_info * cm_create_timewait_info(__be32 local_id, gfp_t flags)
 {
 	struct cm_timewait_info *timewait_info;
 
-	timewait_info = kzalloc(sizeof *timewait_info, GFP_KERNEL);
+	timewait_info = kzalloc(sizeof *timewait_info, flags);
 	if (!timewait_info)
 		return ERR_PTR(-ENOMEM);
 
@@ -902,6 +921,8 @@ retest:
 		break;
 	case IB_CM_ESTABLISHED:
 		spin_unlock_irq(&cm_id_priv->lock);
+		if (cm_id_priv->qp_type == IB_QPT_XRC_TGT)
+			break;
 		ib_send_cm_dreq(cm_id, NULL, 0);
 		goto retest;
 	case IB_CM_DREQ_SENT:
@@ -1021,33 +1042,24 @@ static void cm_format_req(struct cm_req_msg *req_msg,
 	req_msg->service_id = param->service_id;
 	req_msg->local_ca_guid = cm_id_priv->id.device->node_guid;
 	cm_req_set_local_qpn(req_msg, cpu_to_be32(param->qp_num));
-	cm_req_set_resp_res(req_msg, param->responder_resources);
 	cm_req_set_init_depth(req_msg, param->initiator_depth);
 	cm_req_set_remote_resp_timeout(req_msg,
 				       param->remote_cm_response_timeout);
-       if (param->remote_cm_response_timeout > (u8) max_timeout) {
-               printk(KERN_WARNING PFX "req remote_cm_response_timeout %d > "
-                      "%d, decreasing\n", param->remote_cm_response_timeout,
-                      max_timeout);
-               cm_req_set_remote_resp_timeout(req_msg, (u8) max_timeout);
-       }
 	cm_req_set_qp_type(req_msg, param->qp_type);
 	cm_req_set_flow_ctrl(req_msg, param->flow_control);
 	cm_req_set_starting_psn(req_msg, cpu_to_be32(param->starting_psn));
 	cm_req_set_local_resp_timeout(req_msg,
 				      param->local_cm_response_timeout);
-       if (param->local_cm_response_timeout > (u8) max_timeout) {
-               printk(KERN_WARNING PFX "req local_cm_response_timeout %d > "
-                      "%d, decreasing\n", param->local_cm_response_timeout,
-                      max_timeout);
-               cm_req_set_local_resp_timeout(req_msg, (u8) max_timeout);
-       }
-	cm_req_set_retry_count(req_msg, param->retry_count);
 	req_msg->pkey = param->primary_path->pkey;
 	cm_req_set_path_mtu(req_msg, param->primary_path->mtu);
-	cm_req_set_rnr_retry_count(req_msg, param->rnr_retry_count);
 	cm_req_set_max_cm_retries(req_msg, param->max_cm_retries);
+
+	if (param->qp_type != IB_QPT_XRC_INI) {
+		cm_req_set_resp_res(req_msg, param->responder_resources);
+		cm_req_set_retry_count(req_msg, param->retry_count);
+		cm_req_set_rnr_retry_count(req_msg, param->rnr_retry_count);
 	cm_req_set_srq(req_msg, param->srq);
+	}
 
 	if (pri_path->hop_limit <= 1) {
 		req_msg->primary_local_lid = pri_path->slid;
@@ -1105,7 +1117,8 @@ static int cm_validate_req_param(struct ib_cm_req_param *param)
 	if (!param->primary_path)
 		return -EINVAL;
 
-	if (param->qp_type != IB_QPT_RC && param->qp_type != IB_QPT_UC)
+	if (param->qp_type != IB_QPT_RC && param->qp_type != IB_QPT_UC &&
+	    param->qp_type != IB_QPT_XRC_INI)
 		return -EINVAL;
 
 	if (param->private_data &&
@@ -1137,38 +1150,34 @@ int ib_send_cm_req(struct ib_cm_id *cm_id,
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	if (cm_id->state != IB_CM_IDLE) {
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
-	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 
 	cm_id_priv->timewait_info = cm_create_timewait_info(cm_id_priv->
-							    id.local_id);
+							    id.local_id,
+							    GFP_ATOMIC);
 	if (IS_ERR(cm_id_priv->timewait_info)) {
-		ret = PTR_ERR(cm_id_priv->timewait_info);
-		goto out;
+		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
+		return (PTR_ERR(cm_id_priv->timewait_info));
 	}
 
 	ret = cm_init_av_by_path(param->primary_path, &cm_id_priv->av);
-	if (ret)
-		goto error1;
-	if (param->alternate_path) {
+	if (!ret && param->alternate_path) {
 		ret = cm_init_av_by_path(param->alternate_path,
 					 &cm_id_priv->alt_av);
-		if (ret)
+	}
+	if (ret) {
+		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 			goto error1;
 	}
+	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
+
 	cm_id->service_id = param->service_id;
 	cm_id->service_mask = ~cpu_to_be64(0);
 	cm_id_priv->timeout_ms = cm_convert_to_ms(
 				    param->primary_path->packet_life_time) * 2 +
 				 cm_convert_to_ms(
 				    param->remote_cm_response_timeout);
-       if (cm_id_priv->timeout_ms > cm_convert_to_ms(max_timeout)) {
-               printk(KERN_WARNING PFX "req timeout_ms %d > %d, decreasing\n",
-                      cm_id_priv->timeout_ms, cm_convert_to_ms(max_timeout));
-               cm_id_priv->timeout_ms = cm_convert_to_ms(max_timeout);
-       }
 	cm_id_priv->max_cm_retries = param->max_cm_retries;
 	cm_id_priv->initiator_depth = param->initiator_depth;
 	cm_id_priv->responder_resources = param->responder_resources;
@@ -1201,9 +1210,11 @@ int ib_send_cm_req(struct ib_cm_id *cm_id,
 	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 	return 0;
 
-error2:	cm_free_msg(cm_id_priv->msg);
-error1:	kfree(cm_id_priv->timewait_info);
-out:	return ret;
+error2:
+	cm_free_msg(cm_id_priv->msg);
+error1:
+	kfree(cm_id_priv->timewait_info);
+	return ret;
 }
 EXPORT_SYMBOL(ib_send_cm_req);
 
@@ -1556,7 +1567,8 @@ static int cm_req_handler(struct cm_work *work)
 				work->mad_recv_wc->recv_buf.grh,
 				&cm_id_priv->av);
 	cm_id_priv->timewait_info = cm_create_timewait_info(cm_id_priv->
-							    id.local_id);
+							    id.local_id,
+							    GFP_KERNEL);
 	if (IS_ERR(cm_id_priv->timewait_info)) {
 		ret = PTR_ERR(cm_id_priv->timewait_info);
 		goto destroy;
@@ -1579,6 +1591,10 @@ static int cm_req_handler(struct cm_work *work)
 
 	cm_process_routed_req(req_msg, work->mad_recv_wc->wc);
 	cm_format_paths_from_req(req_msg, &work->path[0], &work->path[1]);
+
+	/* Workarround: path in req_msg doesn't contain MAC, take it from wc */
+	memcpy(work->path[0].dmac, cm_id_priv->av.ah_attr.dmac, 6);
+	work->path[0].vlan_id = cm_id_priv->av.ah_attr.vlan_id;
 	ret = cm_init_av_by_path(&work->path[0], &cm_id_priv->av);
 	if (ret) {
 		ib_get_cached_gid(work->port->cm_dev->ib_device,
@@ -1600,13 +1616,6 @@ static int cm_req_handler(struct cm_work *work)
 	cm_id_priv->tid = req_msg->hdr.tid;
 	cm_id_priv->timeout_ms = cm_convert_to_ms(
 					cm_req_get_local_resp_timeout(req_msg));
-       if (cm_req_get_local_resp_timeout(req_msg) > (u8) max_timeout) {
-               printk(KERN_WARNING PFX "rcvd cm_local_resp_timeout %d > %d, "
-                      "decreasing used timeout_ms\n",
-                      cm_req_get_local_resp_timeout(req_msg), max_timeout);
-               cm_id_priv->timeout_ms = cm_convert_to_ms(max_timeout);
-       }
-
 	cm_id_priv->max_cm_retries = cm_req_get_max_cm_retries(req_msg);
 	cm_id_priv->remote_qpn = cm_req_get_local_qpn(req_msg);
 	cm_id_priv->initiator_depth = cm_req_get_resp_res(req_msg);
@@ -1638,17 +1647,23 @@ static void cm_format_rep(struct cm_rep_msg *rep_msg,
 	cm_format_mad_hdr(&rep_msg->hdr, CM_REP_ATTR_ID, cm_id_priv->tid);
 	rep_msg->local_comm_id = cm_id_priv->id.local_id;
 	rep_msg->remote_comm_id = cm_id_priv->id.remote_id;
-	cm_rep_set_local_qpn(rep_msg, cpu_to_be32(param->qp_num));
 	cm_rep_set_starting_psn(rep_msg, cpu_to_be32(param->starting_psn));
 	rep_msg->resp_resources = param->responder_resources;
-	rep_msg->initiator_depth = param->initiator_depth;
 	cm_rep_set_target_ack_delay(rep_msg,
 				    cm_id_priv->av.port->cm_dev->ack_delay);
 	cm_rep_set_failover(rep_msg, param->failover_accepted);
-	cm_rep_set_flow_ctrl(rep_msg, param->flow_control);
 	cm_rep_set_rnr_retry_count(rep_msg, param->rnr_retry_count);
-	cm_rep_set_srq(rep_msg, param->srq);
 	rep_msg->local_ca_guid = cm_id_priv->id.device->node_guid;
+
+	if (cm_id_priv->qp_type != IB_QPT_XRC_TGT) {
+		rep_msg->initiator_depth = param->initiator_depth;
+		cm_rep_set_flow_ctrl(rep_msg, param->flow_control);
+		cm_rep_set_srq(rep_msg, param->srq);
+		cm_rep_set_local_qpn(rep_msg, cpu_to_be32(param->qp_num));
+	} else {
+		cm_rep_set_srq(rep_msg, 1);
+		cm_rep_set_local_eecn(rep_msg, cpu_to_be32(param->qp_num));
+	}
 
 	if (param->private_data && param->private_data_len)
 		memcpy(rep_msg->private_data, param->private_data,
@@ -1672,6 +1687,7 @@ int ib_send_cm_rep(struct ib_cm_id *cm_id,
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	if (cm_id->state != IB_CM_REQ_RCVD &&
 	    cm_id->state != IB_CM_MRA_REQ_SENT) {
+		pr_debug("cm_id->state: %d\n", cm_id->state);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1697,7 +1713,7 @@ int ib_send_cm_rep(struct ib_cm_id *cm_id,
 	cm_id_priv->initiator_depth = param->initiator_depth;
 	cm_id_priv->responder_resources = param->responder_resources;
 	cm_id_priv->rq_psn = cm_rep_get_starting_psn(rep_msg);
-	cm_id_priv->local_qpn = cm_rep_get_local_qpn(rep_msg);
+	cm_id_priv->local_qpn = cpu_to_be32(param->qp_num & 0xFFFFFF);
 
 out:	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 	return ret;
@@ -1738,6 +1754,7 @@ int ib_send_cm_rtu(struct ib_cm_id *cm_id,
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	if (cm_id->state != IB_CM_REP_RCVD &&
 	    cm_id->state != IB_CM_MRA_REP_SENT) {
+		pr_debug("cm_id->state: %d\n", cm_id->state);
 		ret = -EINVAL;
 		goto error;
 	}
@@ -1768,7 +1785,7 @@ error:	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 }
 EXPORT_SYMBOL(ib_send_cm_rtu);
 
-static void cm_format_rep_event(struct cm_work *work)
+static void cm_format_rep_event(struct cm_work *work, enum ib_qp_type qp_type)
 {
 	struct cm_rep_msg *rep_msg;
 	struct ib_cm_rep_event_param *param;
@@ -1777,7 +1794,7 @@ static void cm_format_rep_event(struct cm_work *work)
 	param = &work->cm_event.param.rep_rcvd;
 	param->remote_ca_guid = rep_msg->local_ca_guid;
 	param->remote_qkey = be32_to_cpu(rep_msg->local_qkey);
-	param->remote_qpn = be32_to_cpu(cm_rep_get_local_qpn(rep_msg));
+	param->remote_qpn = be32_to_cpu(cm_rep_get_qpn(rep_msg, qp_type));
 	param->starting_psn = be32_to_cpu(cm_rep_get_starting_psn(rep_msg));
 	param->responder_resources = rep_msg->initiator_depth;
 	param->initiator_depth = rep_msg->resp_resources;
@@ -1842,10 +1859,11 @@ static int cm_rep_handler(struct cm_work *work)
 	cm_id_priv = cm_acquire_id(rep_msg->remote_comm_id, 0);
 	if (!cm_id_priv) {
 		cm_dup_rep_handler(work);
+		pr_debug("no cm_id_priv\n");
 		return -EINVAL;
 	}
 
-	cm_format_rep_event(work);
+	cm_format_rep_event(work, cm_id_priv->qp_type);
 
 	spin_lock_irq(&cm_id_priv->lock);
 	switch (cm_id_priv->id.state) {
@@ -1855,12 +1873,13 @@ static int cm_rep_handler(struct cm_work *work)
 	default:
 		spin_unlock_irq(&cm_id_priv->lock);
 		ret = -EINVAL;
+		pr_debug("cm_id_priv->id.state: %d\n", cm_id_priv->id.state);
 		goto error;
 	}
 
 	cm_id_priv->timewait_info->work.remote_id = rep_msg->local_comm_id;
 	cm_id_priv->timewait_info->remote_ca_guid = rep_msg->local_ca_guid;
-	cm_id_priv->timewait_info->remote_qpn = cm_rep_get_local_qpn(rep_msg);
+	cm_id_priv->timewait_info->remote_qpn = cm_rep_get_qpn(rep_msg, cm_id_priv->qp_type);
 
 	spin_lock(&cm.lock);
 	/* Check for duplicate REP. */
@@ -1868,6 +1887,7 @@ static int cm_rep_handler(struct cm_work *work)
 		spin_unlock(&cm.lock);
 		spin_unlock_irq(&cm_id_priv->lock);
 		ret = -EINVAL;
+		pr_debug("Failed to insert remote id\n");
 		goto error;
 	}
 	/* Check for a stale connection. */
@@ -1881,13 +1901,14 @@ static int cm_rep_handler(struct cm_work *work)
 			     IB_CM_REJ_STALE_CONN, CM_MSG_RESPONSE_REP,
 			     NULL, 0);
 		ret = -EINVAL;
+		pr_debug("Stale connection.\n");
 		goto error;
 	}
 	spin_unlock(&cm.lock);
 
 	cm_id_priv->id.state = IB_CM_REP_RCVD;
 	cm_id_priv->id.remote_id = rep_msg->local_comm_id;
-	cm_id_priv->remote_qpn = cm_rep_get_local_qpn(rep_msg);
+	cm_id_priv->remote_qpn = cm_rep_get_qpn(rep_msg, cm_id_priv->qp_type);
 	cm_id_priv->initiator_depth = rep_msg->resp_resources;
 	cm_id_priv->responder_resources = rep_msg->initiator_depth;
 	cm_id_priv->sq_psn = cm_rep_get_starting_psn(rep_msg);
@@ -2021,9 +2042,14 @@ int ib_send_cm_dreq(struct ib_cm_id *cm_id,
 	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	if (cm_id->state != IB_CM_ESTABLISHED) {
+		pr_debug("cm_id->state: %d\n", cm_id->state);
 		ret = -EINVAL;
 		goto out;
 	}
+
+	if (cm_id->lap_state == IB_CM_LAP_SENT ||
+	    cm_id->lap_state == IB_CM_MRA_LAP_RCVD)
+		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 
 	ret = cm_alloc_msg(cm_id_priv, &msg);
 	if (ret) {
@@ -2086,6 +2112,7 @@ int ib_send_cm_drep(struct ib_cm_id *cm_id,
 	if (cm_id->state != IB_CM_DREQ_RCVD) {
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		kfree(data);
+		pr_debug("cm_id->state(%d) != IB_CM_DREQ_RCVD\n", cm_id->state);
 		return -EINVAL;
 	}
 
@@ -2151,6 +2178,7 @@ static int cm_dreq_handler(struct cm_work *work)
 		atomic_long_inc(&work->port->counter_group[CM_RECV_DUPLICATES].
 				counter[CM_DREQ_COUNTER]);
 		cm_issue_drep(work->port, work->mad_recv_wc);
+		pr_debug("no cm_id_priv\n");
 		return -EINVAL;
 	}
 
@@ -2166,6 +2194,10 @@ static int cm_dreq_handler(struct cm_work *work)
 		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 		break;
 	case IB_CM_ESTABLISHED:
+		if (cm_id_priv->id.lap_state == IB_CM_LAP_SENT ||
+		    cm_id_priv->id.lap_state == IB_CM_MRA_LAP_RCVD)
+			ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
+		break;
 	case IB_CM_MRA_REP_RCVD:
 		break;
 	case IB_CM_TIMEWAIT:
@@ -2187,6 +2219,7 @@ static int cm_dreq_handler(struct cm_work *work)
 				counter[CM_DREQ_COUNTER]);
 		goto unlock;
 	default:
+		pr_debug("cm_id_priv->id.state: %d\n", cm_id_priv->id.state);
 		goto unlock;
 	}
 	cm_id_priv->id.state = IB_CM_DREQ_RCVD;
@@ -2290,6 +2323,7 @@ int ib_send_cm_rej(struct ib_cm_id *cm_id,
 		cm_enter_timewait(cm_id_priv);
 		break;
 	default:
+		pr_debug("cm_id->state: 0x%x\n", cm_id->state);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2386,11 +2420,21 @@ static int cm_rej_handler(struct cm_work *work)
 		/* fall through */
 	case IB_CM_REP_RCVD:
 	case IB_CM_MRA_REP_SENT:
-	case IB_CM_ESTABLISHED:
 		cm_enter_timewait(cm_id_priv);
 		break;
+	case IB_CM_ESTABLISHED:
+		if (cm_id_priv->id.lap_state == IB_CM_LAP_UNINIT ||
+		    cm_id_priv->id.lap_state == IB_CM_LAP_SENT) {
+			if (cm_id_priv->id.lap_state == IB_CM_LAP_SENT)
+				ib_cancel_mad(cm_id_priv->av.port->mad_agent,
+					      cm_id_priv->msg);
+		cm_enter_timewait(cm_id_priv);
+		break;
+		}
+		/* fall through */
 	default:
 		spin_unlock_irq(&cm_id_priv->lock);
+		pr_debug("cm_id_priv->id.state: 0x%x\n", cm_id_priv->id.state);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2453,6 +2497,7 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
 			break;
 		}
 	default:
+		pr_debug("cm_id_priv->id.state: 0x%x\n", cm_id_priv->id.state);
 		ret = -EINVAL;
 		goto error1;
 	}
@@ -2518,12 +2563,6 @@ static int cm_mra_handler(struct cm_work *work)
 					cm_mra_get_service_timeout(mra_msg);
 	timeout = cm_convert_to_ms(cm_mra_get_service_timeout(mra_msg)) +
 		  cm_convert_to_ms(cm_id_priv->av.timeout);
-       if (timeout > cm_convert_to_ms(max_timeout)) {
-               printk(KERN_WARNING PFX "calculated mra timeout %d > %d, "
-                      "decreasing used timeout_ms\n", timeout,
-                      cm_convert_to_ms(max_timeout));
-               timeout = cm_convert_to_ms(max_timeout);
-       }
 
 	spin_lock_irq(&cm_id_priv->lock);
 	switch (cm_id_priv->id.state) {
@@ -2560,6 +2599,7 @@ static int cm_mra_handler(struct cm_work *work)
 				counter[CM_MRA_COUNTER]);
 		/* fall through */
 	default:
+		pr_debug("cm_id_priv->id.state: 0x%x\n", cm_id_priv->id.state);
 		goto out;
 	}
 
@@ -2746,7 +2786,8 @@ static int cm_lap_handler(struct cm_work *work)
 	cm_init_av_for_response(work->port, work->mad_recv_wc->wc,
 				work->mad_recv_wc->recv_buf.grh,
 				&cm_id_priv->av);
-	cm_init_av_by_path(param->alternate_path, &cm_id_priv->alt_av);
+	if (cm_init_av_by_path(param->alternate_path, &cm_id_priv->alt_av))
+		goto unlock;
 	ret = atomic_inc_and_test(&cm_id_priv->work_count);
 	if (!ret)
 		list_add_tail(&work->list, &cm_id_priv->work_list);
@@ -2938,6 +2979,9 @@ int ib_send_cm_sidr_req(struct ib_cm_id *cm_id,
 		return -EINVAL;
 
 	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
+
+	spin_lock_irqsave(&cm_id_priv->lock, flags);
+
 	ret = cm_init_av_by_path(param->path, &cm_id_priv->av);
 	if (ret)
 		goto out;
@@ -2945,12 +2989,6 @@ int ib_send_cm_sidr_req(struct ib_cm_id *cm_id,
 	cm_id->service_id = param->service_id;
 	cm_id->service_mask = ~cpu_to_be64(0);
 	cm_id_priv->timeout_ms = param->timeout_ms;
-       if (cm_id_priv->timeout_ms > cm_convert_to_ms(max_timeout)) {
-               printk(KERN_WARNING PFX "sidr req timeout_ms %d > %d, "
-                      "decreasing used timeout_ms\n", param->timeout_ms,
-                      cm_convert_to_ms(max_timeout));
-               cm_id_priv->timeout_ms = cm_convert_to_ms(max_timeout);
-       }
 	cm_id_priv->max_cm_retries = param->max_cm_retries;
 	ret = cm_alloc_msg(cm_id_priv, &msg);
 	if (ret)
@@ -2961,21 +2999,19 @@ int ib_send_cm_sidr_req(struct ib_cm_id *cm_id,
 	msg->timeout_ms = cm_id_priv->timeout_ms;
 	msg->context[1] = (void *) (unsigned long) IB_CM_SIDR_REQ_SENT;
 
-	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	if (cm_id->state == IB_CM_IDLE)
 		ret = ib_post_send_mad(msg, NULL);
 	else
 		ret = -EINVAL;
 
 	if (ret) {
-		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		cm_free_msg(msg);
 		goto out;
 	}
 	cm_id->state = IB_CM_SIDR_REQ_SENT;
 	cm_id_priv->msg = msg;
-	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 out:
+	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 	return ret;
 }
 EXPORT_SYMBOL(ib_send_cm_sidr_req);
@@ -3038,6 +3074,7 @@ static int cm_sidr_req_handler(struct cm_work *work)
 		goto out; /* No match. */
 	}
 	atomic_inc(&cur_cm_id_priv->refcount);
+	atomic_inc(&cm_id_priv->refcount);
 	spin_unlock_irq(&cm.lock);
 
 	cm_id_priv->id.cm_handler = cur_cm_id_priv->id.cm_handler;
@@ -3302,6 +3339,7 @@ static void cm_work_handler(struct work_struct *_work)
 		ret = cm_timewait_handler(work);
 		break;
 	default:
+		pr_debug("work->cm_event.event: 0x%x\n", work->cm_event.event);
 		ret = -EINVAL;
 		break;
 	}
@@ -3332,6 +3370,7 @@ static int cm_establish(struct ib_cm_id *cm_id)
 		ret = -EISCONN;
 		break;
 	default:
+		pr_debug("cm_id->state: 0x%x\n", cm_id->state);
 		ret = -EINVAL;
 		break;
 	}
@@ -3494,6 +3533,7 @@ static int cm_init_qp_init_attr(struct cm_id_private *cm_id_priv,
 		ret = 0;
 		break;
 	default:
+		pr_debug("cm_id_priv->id.state: 0x%x\n", cm_id_priv->id.state);
 		ret = -EINVAL;
 		break;
 	}
@@ -3520,10 +3560,36 @@ static int cm_init_qp_rtr_attr(struct cm_id_private *cm_id_priv,
 		*qp_attr_mask = IB_QP_STATE | IB_QP_AV | IB_QP_PATH_MTU |
 				IB_QP_DEST_QPN | IB_QP_RQ_PSN;
 		qp_attr->ah_attr = cm_id_priv->av.ah_attr;
+		if (!cm_id_priv->av.valid)
+			return -EINVAL;
+		if (cm_id_priv->av.ah_attr.vlan_id != 0xffff) {
+			qp_attr->vlan_id = cm_id_priv->av.ah_attr.vlan_id;
+			*qp_attr_mask |= IB_QP_VID;
+		}
+		if (!is_zero_ether_addr(cm_id_priv->av.smac)) {
+			memcpy(qp_attr->smac, cm_id_priv->av.smac,
+			       sizeof(qp_attr->smac));
+			*qp_attr_mask |= IB_QP_SMAC;
+		}
+		if (cm_id_priv->alt_av.valid) {
+			if (cm_id_priv->alt_av.ah_attr.vlan_id != 0xffff) {
+				qp_attr->alt_vlan_id =
+					cm_id_priv->alt_av.ah_attr.vlan_id;
+				*qp_attr_mask |= IB_QP_ALT_VID;
+			}
+			if (!is_zero_ether_addr(cm_id_priv->alt_av.smac)) {
+				memcpy(qp_attr->alt_smac,
+				       cm_id_priv->alt_av.smac,
+				       sizeof(qp_attr->alt_smac));
+				*qp_attr_mask |= IB_QP_ALT_SMAC;
+			}
+		}
+
 		qp_attr->path_mtu = cm_id_priv->path_mtu;
 		qp_attr->dest_qp_num = be32_to_cpu(cm_id_priv->remote_qpn);
 		qp_attr->rq_psn = be32_to_cpu(cm_id_priv->rq_psn);
-		if (cm_id_priv->qp_type == IB_QPT_RC) {
+		if (cm_id_priv->qp_type == IB_QPT_RC ||
+		    cm_id_priv->qp_type == IB_QPT_XRC_TGT) {
 			*qp_attr_mask |= IB_QP_MAX_DEST_RD_ATOMIC |
 					 IB_QP_MIN_RNR_TIMER;
 			qp_attr->max_dest_rd_atomic =
@@ -3540,6 +3606,7 @@ static int cm_init_qp_rtr_attr(struct cm_id_private *cm_id_priv,
 		ret = 0;
 		break;
 	default:
+		pr_debug("cm_id_priv->id.state: 0x%x\n", cm_id_priv->id.state);
 		ret = -EINVAL;
 		break;
 	}
@@ -3568,15 +3635,21 @@ static int cm_init_qp_rts_attr(struct cm_id_private *cm_id_priv,
 		if (cm_id_priv->id.lap_state == IB_CM_LAP_UNINIT) {
 			*qp_attr_mask = IB_QP_STATE | IB_QP_SQ_PSN;
 			qp_attr->sq_psn = be32_to_cpu(cm_id_priv->sq_psn);
-			if (cm_id_priv->qp_type == IB_QPT_RC) {
-				*qp_attr_mask |= IB_QP_TIMEOUT | IB_QP_RETRY_CNT |
-						 IB_QP_RNR_RETRY |
+			switch (cm_id_priv->qp_type) {
+			case IB_QPT_RC:
+			case IB_QPT_XRC_INI:
+				*qp_attr_mask |= IB_QP_RETRY_CNT | IB_QP_RNR_RETRY |
 						 IB_QP_MAX_QP_RD_ATOMIC;
-				qp_attr->timeout = cm_id_priv->av.timeout;
 				qp_attr->retry_cnt = cm_id_priv->retry_count;
 				qp_attr->rnr_retry = cm_id_priv->rnr_retry_count;
-				qp_attr->max_rd_atomic =
-					cm_id_priv->initiator_depth;
+				qp_attr->max_rd_atomic = cm_id_priv->initiator_depth;
+				/* fall through */
+			case IB_QPT_XRC_TGT:
+				*qp_attr_mask |= IB_QP_TIMEOUT;
+				qp_attr->timeout = cm_id_priv->av.timeout;
+				break;
+			default:
+				break;
 			}
 			if (cm_id_priv->alt_av.ah_attr.dlid) {
 				*qp_attr_mask |= IB_QP_PATH_MIG_STATE;
@@ -3593,6 +3666,7 @@ static int cm_init_qp_rts_attr(struct cm_id_private *cm_id_priv,
 		ret = 0;
 		break;
 	default:
+		pr_debug("cm_id_priv->id.state: 0x%x\n", cm_id_priv->id.state);
 		ret = -EINVAL;
 		break;
 	}
@@ -3619,6 +3693,7 @@ int ib_cm_init_qp_attr(struct ib_cm_id *cm_id,
 		ret = cm_init_qp_rts_attr(cm_id_priv, qp_attr, qp_attr_mask);
 		break;
 	default:
+		pr_debug("qp_attr->qp_state: 0x%x\n", qp_attr->qp_state);
 		ret = -EINVAL;
 		break;
 	}
@@ -3649,7 +3724,7 @@ static ssize_t cm_show_counter(struct kobject *obj, struct attribute *attr,
 		       atomic_long_read(&group->counter[cm_attr->index]));
 }
 
-static struct sysfs_ops cm_counter_ops = {
+static const struct sysfs_ops cm_counter_ops = {
 	.show = cm_show_counter
 };
 
@@ -3670,8 +3745,17 @@ static struct kobj_type cm_port_obj_type = {
 	.release = cm_release_port_obj
 };
 
+static char *cm_devnode(struct device *dev, umode_t *mode)
+{
+	if (mode)
+		*mode = 0666;
+	return kasprintf(GFP_KERNEL, "infiniband/%s", dev_name(dev));
+}
+
 struct class cm_class = {
+	.owner   = THIS_MODULE,
 	.name    = "infiniband_cm",
+	.devnode = cm_devnode,
 };
 EXPORT_SYMBOL(cm_class);
 
@@ -3745,7 +3829,7 @@ static void cm_add_one(struct ib_device *ib_device)
 	cm_dev->device = device_create(&cm_class, &ib_device->dev,
 				       MKDEV(0, 0), NULL,
 				       "%s", ib_device->name);
-	if (!cm_dev->device) {
+	if (IS_ERR(cm_dev->device)) {
 		kfree(cm_dev);
 		return;
 	}
@@ -3846,28 +3930,33 @@ static int __init ib_cm_init(void)
 	cm.remote_sidr_table = RB_ROOT;
 	idr_init(&cm.local_id_table);
 	get_random_bytes(&cm.random_id_operand, sizeof cm.random_id_operand);
-	idr_pre_get(&cm.local_id_table, GFP_KERNEL);
+	if (!idr_pre_get(&cm.local_id_table, GFP_KERNEL))
+		return -ENOMEM;
 	INIT_LIST_HEAD(&cm.timewait_list);
 
 	ret = class_register(&cm_class);
-	if (ret)
-		return -ENOMEM;
-
-	cm.wq = create_workqueue("ib_cm");
-	if (!cm.wq) {
+	if (ret) {
 		ret = -ENOMEM;
 		goto error1;
 	}
 
+	cm.wq = create_workqueue("ib_cm");
+	if (!cm.wq) {
+		ret = -ENOMEM;
+		goto error2;
+	}
+
 	ret = ib_register_client(&cm_client);
 	if (ret)
-		goto error2;
+		goto error3;
 
 	return 0;
-error2:
+error3:
 	destroy_workqueue(cm.wq);
-error1:
+error2:
 	class_unregister(&cm_class);
+error1:
+	idr_destroy(&cm.local_id_table);
 	return ret;
 }
 

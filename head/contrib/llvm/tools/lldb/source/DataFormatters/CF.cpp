@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/DataFormatters/CXXFormatterFunctions.h"
 
 #include "lldb/Core/DataBufferHeap.h"
@@ -26,7 +24,7 @@ using namespace lldb_private;
 using namespace lldb_private::formatters;
 
 bool
-lldb_private::formatters::CFAbsoluteTimeSummaryProvider (ValueObject& valobj, Stream& stream)
+lldb_private::formatters::CFAbsoluteTimeSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options)
 {
     time_t epoch = GetOSXEpoch();
     epoch = epoch + (time_t)valobj.GetValueAsUnsigned(0);
@@ -41,7 +39,7 @@ lldb_private::formatters::CFAbsoluteTimeSummaryProvider (ValueObject& valobj, St
 }
 
 bool
-lldb_private::formatters::CFBagSummaryProvider (ValueObject& valobj, Stream& stream)
+lldb_private::formatters::CFBagSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options)
 {
     ProcessSP process_sp = valobj.GetProcessSP();
     if (!process_sp)
@@ -105,7 +103,7 @@ lldb_private::formatters::CFBagSummaryProvider (ValueObject& valobj, Stream& str
 }
 
 bool
-lldb_private::formatters::CFBitVectorSummaryProvider (ValueObject& valobj, Stream& stream)
+lldb_private::formatters::CFBitVectorSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options)
 {
     ProcessSP process_sp = valobj.GetProcessSP();
     if (!process_sp)
@@ -235,7 +233,7 @@ lldb_private::formatters::CFBitVectorSummaryProvider (ValueObject& valobj, Strea
 }
 
 bool
-lldb_private::formatters::CFBinaryHeapSummaryProvider (ValueObject& valobj, Stream& stream)
+lldb_private::formatters::CFBinaryHeapSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options)
 {
     ProcessSP process_sp = valobj.GetProcessSP();
     if (!process_sp)

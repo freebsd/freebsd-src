@@ -495,11 +495,15 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	struct nameidata nd;
 
 	error = priv_check(td, PRIV_UFS_QUOTAON);
-	if (error)
+	if (error != 0) {
+		vfs_unbusy(mp);
 		return (error);
+	}
 
-	if (mp->mnt_flag & MNT_RDONLY)
+	if ((mp->mnt_flag & MNT_RDONLY) != 0) {
+		vfs_unbusy(mp);
 		return (EROFS);
+	}
 
 	ump = VFSTOUFS(mp);
 	dq = NODQUOT;

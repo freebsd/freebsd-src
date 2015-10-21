@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SELECTIONDAG_LEGALIZETYPES_H
-#define SELECTIONDAG_LEGALIZETYPES_H
+#ifndef LLVM_LIB_CODEGEN_SELECTIONDAG_LEGALIZETYPES_H
+#define LLVM_LIB_CODEGEN_SELECTIONDAG_LEGALIZETYPES_H
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
@@ -73,7 +73,7 @@ private:
   }
 
   EVT getSetCCResultType(EVT VT) const {
-    return TLI.getSetCCResultType(*DAG.getContext(), VT);
+    return TLI.getSetCCResultType(DAG.getDataLayout(), *DAG.getContext(), VT);
   }
 
   /// IgnoreNodeResults - Pretend all of this node's results are legal.
@@ -92,6 +92,11 @@ private:
   /// SoftenedFloats - For floating point nodes converted to integers of
   /// the same size, this map indicates the converted value to use.
   SmallDenseMap<SDValue, SDValue, 8> SoftenedFloats;
+
+  /// PromotedFloats - For floating point nodes that have a smaller precision
+  /// than the smallest supported precision, this map indicates what promoted
+  /// value to use.
+  SmallDenseMap<SDValue, SDValue, 8> PromotedFloats;
 
   /// ExpandedFloats - For float nodes that need to be expanded this map
   /// indicates which operands are the expanded version of the input.
@@ -122,8 +127,8 @@ public:
   explicit DAGTypeLegalizer(SelectionDAG &dag)
     : TLI(dag.getTargetLoweringInfo()), DAG(dag),
     ValueTypeActions(TLI.getValueTypeActions()) {
-    assert(MVT::LAST_VALUETYPE <= MVT::MAX_ALLOWED_VALUETYPE &&
-           "Too many value types for ValueTypeActions to hold!");
+    static_assert(MVT::LAST_VALUETYPE <= MVT::MAX_ALLOWED_VALUETYPE,
+                  "Too many value types for ValueTypeActions to hold!");
   }
 
   /// run - This is the main entry point for the type legalizer.  This does a
@@ -162,7 +167,7 @@ private:
   SDValue GetVectorElementPointer(SDValue VecPtr, EVT EltVT, SDValue Index);
   SDValue JoinIntegers(SDValue Lo, SDValue Hi);
   SDValue LibCallify(RTLIB::Libcall LC, SDNode *N, bool isSigned);
-  
+
   std::pair<SDValue, SDValue> ExpandChainLibCall(RTLIB::Libcall LC,
                                                  SDNode *Node, bool isSigned);
   std::pair<SDValue, SDValue> ExpandAtomic(SDNode *Node);
@@ -240,6 +245,7 @@ private:
   SDValue PromoteIntRes_FP_TO_FP16(SDNode *N);
   SDValue PromoteIntRes_INT_EXTEND(SDNode *N);
   SDValue PromoteIntRes_LOAD(LoadSDNode *N);
+  SDValue PromoteIntRes_MLOAD(MaskedLoadSDNode *N);
   SDValue PromoteIntRes_Overflow(SDNode *N);
   SDValue PromoteIntRes_SADDSUBO(SDNode *N, unsigned ResNo);
   SDValue PromoteIntRes_SDIV(SDNode *N);
@@ -272,6 +278,7 @@ private:
   SDValue PromoteIntOp_INSERT_VECTOR_ELT(SDNode *N, unsigned OpNo);
   SDValue PromoteIntOp_EXTRACT_ELEMENT(SDNode *N);
   SDValue PromoteIntOp_EXTRACT_VECTOR_ELT(SDNode *N);
+  SDValue PromoteIntOp_EXTRACT_SUBVECTOR(SDNode *N);
   SDValue PromoteIntOp_CONCAT_VECTORS(SDNode *N);
   SDValue PromoteIntOp_SCALAR_TO_VECTOR(SDNode *N);
   SDValue PromoteIntOp_SELECT(SDNode *N, unsigned OpNo);
@@ -285,6 +292,8 @@ private:
   SDValue PromoteIntOp_TRUNCATE(SDNode *N);
   SDValue PromoteIntOp_UINT_TO_FP(SDNode *N);
   SDValue PromoteIntOp_ZERO_EXTEND(SDNode *N);
+  SDValue PromoteIntOp_MSTORE(MaskedStoreSDNode *N, unsigned OpNo);
+  SDValue PromoteIntOp_MLOAD(MaskedLoadSDNode *N, unsigned OpNo);
 
   void PromoteSetCCOperands(SDValue &LHS,SDValue &RHS, ISD::CondCode Code);
 
@@ -338,7 +347,7 @@ private:
 
   void ExpandIntRes_ATOMIC_LOAD       (SDNode *N, SDValue &Lo, SDValue &Hi);
 
-  void ExpandShiftByConstant(SDNode *N, unsigned Amt,
+  void ExpandShiftByConstant(SDNode *N, const APInt &Amt,
                              SDValue &Lo, SDValue &Hi);
   bool ExpandShiftWithKnownAmountBit(SDNode *N, SDValue &Lo, SDValue &Hi);
   bool ExpandShiftWithUnknownAmountBit(SDNode *N, SDValue &Lo, SDValue &Hi);
@@ -387,6 +396,8 @@ private:
   SDValue SoftenFloatRes_ConstantFP(ConstantFPSDNode *N);
   SDValue SoftenFloatRes_EXTRACT_VECTOR_ELT(SDNode *N);
   SDValue SoftenFloatRes_FABS(SDNode *N);
+  SDValue SoftenFloatRes_FMINNUM(SDNode *N);
+  SDValue SoftenFloatRes_FMAXNUM(SDNode *N);
   SDValue SoftenFloatRes_FADD(SDNode *N);
   SDValue SoftenFloatRes_FCEIL(SDNode *N);
   SDValue SoftenFloatRes_FCOPYSIGN(SDNode *N);
@@ -450,6 +461,8 @@ private:
   void ExpandFloatResult(SDNode *N, unsigned ResNo);
   void ExpandFloatRes_ConstantFP(SDNode *N, SDValue &Lo, SDValue &Hi);
   void ExpandFloatRes_FABS      (SDNode *N, SDValue &Lo, SDValue &Hi);
+  void ExpandFloatRes_FMINNUM   (SDNode *N, SDValue &Lo, SDValue &Hi);
+  void ExpandFloatRes_FMAXNUM   (SDNode *N, SDValue &Lo, SDValue &Hi);
   void ExpandFloatRes_FADD      (SDNode *N, SDValue &Lo, SDValue &Hi);
   void ExpandFloatRes_FCEIL     (SDNode *N, SDValue &Lo, SDValue &Hi);
   void ExpandFloatRes_FCOPYSIGN (SDNode *N, SDValue &Lo, SDValue &Hi);
@@ -491,6 +504,44 @@ private:
 
   void FloatExpandSetCCOperands(SDValue &NewLHS, SDValue &NewRHS,
                                 ISD::CondCode &CCCode, SDLoc dl);
+
+
+  //===--------------------------------------------------------------------===//
+  // Float promotion support: LegalizeFloatTypes.cpp
+  //===--------------------------------------------------------------------===//
+
+  SDValue GetPromotedFloat(SDValue Op) {
+    SDValue &PromotedOp = PromotedFloats[Op];
+    RemapValue(PromotedOp);
+    assert(PromotedOp.getNode() && "Operand wasn't promoted?");
+    return PromotedOp;
+  }
+  void SetPromotedFloat(SDValue Op, SDValue Result);
+
+  void PromoteFloatResult(SDNode *N, unsigned ResNo);
+  SDValue PromoteFloatRes_BITCAST(SDNode *N);
+  SDValue PromoteFloatRes_BinOp(SDNode *N);
+  SDValue PromoteFloatRes_ConstantFP(SDNode *N);
+  SDValue PromoteFloatRes_EXTRACT_VECTOR_ELT(SDNode *N);
+  SDValue PromoteFloatRes_FCOPYSIGN(SDNode *N);
+  SDValue PromoteFloatRes_FMAD(SDNode *N);
+  SDValue PromoteFloatRes_FPOWI(SDNode *N);
+  SDValue PromoteFloatRes_FP_ROUND(SDNode *N);
+  SDValue PromoteFloatRes_LOAD(SDNode *N);
+  SDValue PromoteFloatRes_SELECT(SDNode *N);
+  SDValue PromoteFloatRes_SELECT_CC(SDNode *N);
+  SDValue PromoteFloatRes_UnaryOp(SDNode *N);
+  SDValue PromoteFloatRes_UNDEF(SDNode *N);
+  SDValue PromoteFloatRes_XINT_TO_FP(SDNode *N);
+
+  bool PromoteFloatOperand(SDNode *N, unsigned ResNo);
+  SDValue PromoteFloatOp_BITCAST(SDNode *N, unsigned OpNo);
+  SDValue PromoteFloatOp_FCOPYSIGN(SDNode *N, unsigned OpNo);
+  SDValue PromoteFloatOp_FP_EXTEND(SDNode *N, unsigned OpNo);
+  SDValue PromoteFloatOp_FP_TO_XINT(SDNode *N, unsigned OpNo);
+  SDValue PromoteFloatOp_STORE(SDNode *N, unsigned OpNo);
+  SDValue PromoteFloatOp_SELECT_CC(SDNode *N, unsigned OpNo);
+  SDValue PromoteFloatOp_SETCC(SDNode *N, unsigned OpNo);
 
   //===--------------------------------------------------------------------===//
   // Scalarization Support: LegalizeVectorTypes.cpp
@@ -574,6 +625,8 @@ private:
   void SplitVecRes_FPOWI(SDNode *N, SDValue &Lo, SDValue &Hi);
   void SplitVecRes_INSERT_VECTOR_ELT(SDNode *N, SDValue &Lo, SDValue &Hi);
   void SplitVecRes_LOAD(LoadSDNode *N, SDValue &Lo, SDValue &Hi);
+  void SplitVecRes_MLOAD(MaskedLoadSDNode *N, SDValue &Lo, SDValue &Hi);
+  void SplitVecRes_MGATHER(MaskedGatherSDNode *N, SDValue &Lo, SDValue &Hi);
   void SplitVecRes_SCALAR_TO_VECTOR(SDNode *N, SDValue &Lo, SDValue &Hi);
   void SplitVecRes_SIGN_EXTEND_INREG(SDNode *N, SDValue &Lo, SDValue &Hi);
   void SplitVecRes_SETCC(SDNode *N, SDValue &Lo, SDValue &Hi);
@@ -585,13 +638,16 @@ private:
   bool SplitVectorOperand(SDNode *N, unsigned OpNo);
   SDValue SplitVecOp_VSELECT(SDNode *N, unsigned OpNo);
   SDValue SplitVecOp_UnaryOp(SDNode *N);
+  SDValue SplitVecOp_TruncateHelper(SDNode *N);
 
   SDValue SplitVecOp_BITCAST(SDNode *N);
   SDValue SplitVecOp_EXTRACT_SUBVECTOR(SDNode *N);
   SDValue SplitVecOp_EXTRACT_VECTOR_ELT(SDNode *N);
   SDValue SplitVecOp_STORE(StoreSDNode *N, unsigned OpNo);
+  SDValue SplitVecOp_MSTORE(MaskedStoreSDNode *N, unsigned OpNo);
+  SDValue SplitVecOp_MSCATTER(MaskedScatterSDNode *N, unsigned OpNo);
+  SDValue SplitVecOp_MGATHER(MaskedGatherSDNode *N, unsigned OpNo);
   SDValue SplitVecOp_CONCAT_VECTORS(SDNode *N);
-  SDValue SplitVecOp_TRUNCATE(SDNode *N);
   SDValue SplitVecOp_VSETCC(SDNode *N);
   SDValue SplitVecOp_FP_ROUND(SDNode *N);
 
@@ -623,6 +679,7 @@ private:
   SDValue WidenVecRes_EXTRACT_SUBVECTOR(SDNode* N);
   SDValue WidenVecRes_INSERT_VECTOR_ELT(SDNode* N);
   SDValue WidenVecRes_LOAD(SDNode* N);
+  SDValue WidenVecRes_MLOAD(MaskedLoadSDNode* N);
   SDValue WidenVecRes_SCALAR_TO_VECTOR(SDNode* N);
   SDValue WidenVecRes_SIGN_EXTEND_INREG(SDNode* N);
   SDValue WidenVecRes_SELECT(SDNode* N);
@@ -649,6 +706,7 @@ private:
   SDValue WidenVecOp_EXTRACT_VECTOR_ELT(SDNode *N);
   SDValue WidenVecOp_EXTRACT_SUBVECTOR(SDNode *N);
   SDValue WidenVecOp_STORE(SDNode* N);
+  SDValue WidenVecOp_MSTORE(SDNode* N, unsigned OpNo);
   SDValue WidenVecOp_SETCC(SDNode* N);
 
   SDValue WidenVecOp_Convert(SDNode *N);

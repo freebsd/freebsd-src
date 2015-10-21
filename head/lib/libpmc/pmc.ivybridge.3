@@ -449,80 +449,60 @@ Stalls caused by changing prefix length of the instruction.
 .It Li ILD_STALL.IQ_FULL
 .Pq Event 87H , Umask 04H
 Stall cycles due to IQ is full.
-.It Li BR_INST_EXEC.COND
-.Pq Event 88H , Umask 01H
-Qualify conditional near branch instructions executed, but not necessarily
-retired.
-Must combine with umask 40H, 80H.
+.It Li BR_INST_EXEC.NONTAKEN_COND
+.Pq Event 88H , Umask 41H
+Count conditional near branch instructions that were executed (but not
+necessarily retired) and not taken.
+.It Li BR_INST_EXEC.TAKEN_COND
+.Pq Event 88H , Umask 81H
+Count conditional near branch instructions that were executed (but not
+necessarily retired) and taken.
 .It Li BR_INST_EXEC.DIRECT_JMP
-.Pq Event 88H , Umask 02H
-Qualify all unconditional near branch instructions excluding calls and
+.Pq Event 88H , Umask 82H
+Count all unconditional near branch instructions excluding calls and
 indirect branches.
-Must combine with umask 80H.
 .It Li BR_INST_EXEC.INDIRECT_JMP_NON_CALL_RET
-.Pq Event 88H , Umask 04H
-Qualify executed indirect near branch instructions that are not calls nor
+.Pq Event 88H , Umask 84H
+Count executed indirect near branch instructions that are not calls nor
 returns.
-Must combine with umask 80H.
 .It Li BR_INST_EXEC.RETURN_NEAR
-.Pq Event 88H , Umask 08H
-Qualify indirect near branches that have a return mnemonic.
-Must combine with umask 80H.
+.Pq Event 88H , Umask 88H
+Count indirect near branches that have a return mnemonic.
 .It Li BR_INST_EXEC.DIRECT_NEAR_CALL
-.Pq Event 88H , Umask 10H
-Qualify unconditional near call branch instructions, excluding non call
+.Pq Event 88H , Umask 90H
+Count unconditional near call branch instructions, excluding non call
 branch, executed.
-Must combine with umask 80H.
 .It Li BR_INST_EXEC.INDIRECT_NEAR_CALL
-.Pq Event 88H , Umask 20H
-Qualify indirect near calls, including both register and memory indirect,
+.Pq Event 88H , Umask A0H
+Count indirect near calls, including both register and memory indirect,
 executed.
-Must combine with umask 80H.
-.It Li BR_INST_EXEC.NONTAKEN
-.Pq Event 88H , Umask 40H
-Qualify non-taken near branches executed.
-Applicable to umask 01H only.
-.It Li BR_INST_EXEC.TAKEN
-.Pq Event 88H , Umask 80H
-Qualify taken near branches executed. Must combine with 01H,02H, 04H, 08H,
-10H, 20H.
 .It Li BR_INST_EXEC.ALL_BRANCHES
 .Pq Event 88H , Umask FFH
 Counts all near executed branches (not necessarily retired).
-.It Li BR_MISP_EXEC.COND
-.Pq Event 89H , Umask 01H
-Qualify conditional near branch instructions mispredicted.
-Must combine with umask 40H, 80H.
+.It Li BR_MISP_EXEC.NONTAKEN_COND
+.Pq Event 89H , Umask 41H
+Count conditional near branch instructions mispredicted as nontaken.
+.It Li BR_MISP_EXEC.TAKEN_COND
+.Pq Event 89H , Umask 81H
+Count conditional near branch instructions mispredicted as taken.
 .It Li BR_MISP_EXEC.INDIRECT_JMP_NON_CALL_RET
-.Pq Event 89H , Umask 04H
-Qualify mispredicted indirect near branch instructions that are not calls
+.Pq Event 89H , Umask 84H
+Count mispredicted indirect near branch instructions that are not calls
 nor returns.
-Must combine with umask 80H.
 .It Li BR_MISP_EXEC.RETURN_NEAR
-.Pq Event 89H , Umask 08H
-Qualify mispredicted indirect near branches that have a return mnemonic.
-Must combine with umask 80H.
+.Pq Event 89H , Umask 88H
+Count mispredicted indirect near branches that have a return mnemonic.
 .It Li BR_MISP_EXEC.DIRECT_NEAR_CALL
-.Pq Event 89H , Umask 10H
-Qualify mispredicted unconditional near call branch instructions, excluding
+.Pq Event 89H , Umask 90H
+Count mispredicted unconditional near call branch instructions, excluding
 non call branch, executed.
-Must combine with umask 80H.
 .It Li BR_MISP_EXEC.INDIRECT_NEAR_CALL
-.Pq Event 89H , Umask 20H
-Qualify mispredicted indirect near calls, including both register and memory
+.Pq Event 89H , Umask A0H
+Count mispredicted indirect near calls, including both register and memory
 indirect, executed.
-Must combine with umask 80H.
-.It Li BR_MISP_EXEC.NONTAKEN
-.Pq Event 89H , Umask 40H
-Qualify mispredicted non-taken near branches executed.
-Applicable to umask 01H only.
-.It Li BR_MISP_EXEC.TAKEN
-.Pq Event 89H , Umask 80H
-Qualify mispredicted taken near branches executed. Must combine with
-01H,02H, 04H, 08H, 10H, 20H.
 .It Li BR_MISP_EXEC.ALL_BRANCHES
 .Pq Event 89H , Umask FFH
-Counts all near executed branches (not necessarily retired).
+Counts all mispredicted near executed branches (not necessarily retired).
 .It Li IDQ_UOPS_NOT_DELIVERED.CORE
 .Pq Event 9CH , Umask 01H
 Count number of non-delivered uops to RAT per thread.
@@ -726,31 +706,24 @@ Specify threshold in MSR 0x3F6.
 .Pq Event CDH , Umask 02H
 Sample stores and collect precise store operation via PEBS record.
 PMC3 only.
-.It Li MEM_UOP_RETIRED.LOADS
-.Pq Event D0H , Umask 01H
-Qualify retired memory uops that are loads. Combine with umask 10H, 20H,
-40H, 80H.
-Supports PEBS.
-.It Li MEM_UOP_RETIRED.STORES
-.Pq Event D0H , Umask 02H
-Qualify retired memory uops that are stores. Combine with umask 10H, 20H,
-40H, 80H.
-.It Li MEM_UOP_RETIRED.STLB_MISS
-.Pq Event D0H , Umask 10H
-Qualify retired memory uops with STLB miss. Must combine with umask 01H,
-02H, to produce counts.
-.It Li MEM_UOP_RETIRED.LOCK
-.Pq Event D0H , Umask 20H
-Qualify retired memory uops with lock. Must combine with umask 01H, 02H, to
-produce counts.
-.It Li MEM_UOP_RETIRED.SPLIT
-.Pq Event D0H , Umask 40H
-Qualify retired memory uops with line split. Must combine with umask 01H,
-02H, to produce counts.
-.It Li MEM_UOP_RETIRED.ALL
-.Pq Event D0H , Umask 80H
-Qualify any retired memory uops. Must combine with umask 01H, 02H, to
-produce counts.
+.It Li MEM_UOPS_RETIRED.STLB_MISS_LOADS
+.Pq Event D0H , Umask 11H
+Count retired load uops that missed the STLB.
+.It Li MEM_UOPS_RETIRED.STLB_MISS_STORES
+.Pq Event D0H , Umask 12H
+Count retired store uops that missed the STLB.
+.It Li MEM_UOPS_RETIRED.SPLIT_LOADS
+.Pq Event D0H , Umask 41H
+Count retired load uops that were split across a cache line.
+.It Li MEM_UOPS_RETIRED.SPLIT_STORES
+.Pq Event D0H , Umask 42H
+Count retired store uops that were split across a cache line.
+.It Li MEM_UOPS_RETIRED.ALL_LOADS
+.Pq Event D0H , Umask 81H
+Count all retired load uops.
+.It Li MEM_UOPS_RETIRED.ALL_STORES
+.Pq Event D0H , Umask 82H
+Count all retired store uops.
 .It Li MEM_LOAD_UOPS_RETIRED.L1_HIT
 .Pq Event D1H , Umask 01H
 Retired load uops with L1 cache hits as data sources.

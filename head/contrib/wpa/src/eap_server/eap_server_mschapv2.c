@@ -91,7 +91,7 @@ static void eap_mschapv2_reset(struct eap_sm *sm, void *priv)
 		return;
 
 	os_free(data->peer_challenge);
-	os_free(data);
+	bin_clear_free(data, sizeof(*data));
 }
 
 
@@ -100,7 +100,6 @@ static struct wpabuf * eap_mschapv2_build_challenge(
 {
 	struct wpabuf *req;
 	struct eap_mschapv2_hdr *ms;
-	char *name = "hostapd"; /* TODO: make this configurable */
 	size_t ms_len;
 
 	if (!data->auth_challenge_from_tls &&
@@ -111,7 +110,7 @@ static struct wpabuf * eap_mschapv2_build_challenge(
 		return NULL;
 	}
 
-	ms_len = sizeof(*ms) + 1 + CHALLENGE_LEN + os_strlen(name);
+	ms_len = sizeof(*ms) + 1 + CHALLENGE_LEN + sm->server_id_len;
 	req = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_MSCHAPV2, ms_len,
 			    EAP_CODE_REQUEST, id);
 	if (req == NULL) {
@@ -133,7 +132,7 @@ static struct wpabuf * eap_mschapv2_build_challenge(
 		wpabuf_put(req, CHALLENGE_LEN);
 	wpa_hexdump(MSG_MSGDUMP, "EAP-MSCHAPV2: Challenge",
 		    data->auth_challenge, CHALLENGE_LEN);
-	wpabuf_put_data(req, name, os_strlen(name));
+	wpabuf_put_data(req, sm->server_id, sm->server_id_len);
 
 	return req;
 }
@@ -291,6 +290,7 @@ static void eap_mschapv2_process_response(struct eap_sm *sm,
 	const u8 *username, *user;
 	size_t username_len, user_len;
 	int res;
+	char *buf;
 
 	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_MSCHAPV2, respData,
 			       &len);
@@ -330,6 +330,13 @@ static void eap_mschapv2_process_response(struct eap_sm *sm,
 	wpa_printf(MSG_MSGDUMP, "EAP-MSCHAPV2: Flags 0x%x", flags);
 	wpa_hexdump_ascii(MSG_MSGDUMP, "EAP-MSCHAPV2: Name", name, name_len);
 
+	buf = os_malloc(name_len * 4 + 1);
+	if (buf) {
+		printf_encode(buf, name_len * 4 + 1, name, name_len);
+		eap_log_msg(sm, "EAP-MSCHAPV2 Name '%s'", buf);
+		os_free(buf);
+	}
+
 	/* MSCHAPv2 does not include optional domain name in the
 	 * challenge-response calculation, so remove domain prefix
 	 * (if present). */
@@ -352,6 +359,19 @@ static void eap_mschapv2_process_response(struct eap_sm *sm,
 			break;
 		}
 	}
+
+#ifdef CONFIG_TESTING_OPTIONS
+	{
+		u8 challenge[8];
+
+		if (challenge_hash(peer_challenge, data->auth_challenge,
+				   username, username_len, challenge) == 0) {
+			eap_server_mschap_rx_callback(sm, "EAP-MSCHAPV2",
+						      username, username_len,
+						      challenge, nt_response);
+		}
+	}
+#endif /* CONFIG_TESTING_OPTIONS */
 
 	if (username_len != user_len ||
 	    os_memcmp(username, user, username_len) != 0) {
@@ -386,7 +406,7 @@ static void eap_mschapv2_process_response(struct eap_sm *sm,
 		return;
 	}
 
-	if (os_memcmp(nt_response, expected, 24) == 0) {
+	if (os_memcmp_const(nt_response, expected, 24) == 0) {
 		const u8 *pw_hash;
 		u8 pw_hash_buf[16], pw_hash_hash[16];
 
@@ -407,13 +427,16 @@ static void eap_mschapv2_process_response(struct eap_sm *sm,
 			}
 			pw_hash = pw_hash_buf;
 		}
-		generate_authenticator_response_pwhash(
-			pw_hash, peer_challenge, data->auth_challenge,
-			username, username_len, nt_response,
-			data->auth_response);
-
-		hash_nt_password_hash(pw_hash, pw_hash_hash);
-		get_master_key(pw_hash_hash, nt_response, data->master_key);
+		if (generate_authenticator_response_pwhash(
+			    pw_hash, peer_challenge, data->auth_challenge,
+			    username, username_len, nt_response,
+			    data->auth_response) < 0 ||
+		    hash_nt_password_hash(pw_hash, pw_hash_hash) < 0 ||
+		    get_master_key(pw_hash_hash, nt_response,
+				   data->master_key)) {
+			data->state = FAILURE;
+			return;
+		}
 		data->master_key_valid = 1;
 		wpa_hexdump_key(MSG_DEBUG, "EAP-MSCHAPV2: Derived Master Key",
 				data->master_key, MSCHAPV2_KEY_LEN);

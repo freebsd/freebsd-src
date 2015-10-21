@@ -342,7 +342,7 @@ tmpfs_getattr(struct vop_getattr_args *v)
 {
 	struct vnode *vp = v->a_vp;
 	struct vattr *vap = v->a_vap;
-
+	vm_object_t obj;
 	struct tmpfs_node *node;
 
 	node = VP_TO_TMPFS_NODE(vp);
@@ -366,7 +366,11 @@ tmpfs_getattr(struct vop_getattr_args *v)
 	vap->va_flags = node->tn_flags;
 	vap->va_rdev = (vp->v_type == VBLK || vp->v_type == VCHR) ?
 		node->tn_rdev : NODEV;
-	vap->va_bytes = round_page(node->tn_size);
+	if (vp->v_type == VREG) {
+		obj = node->tn_reg.tn_aobj;
+		vap->va_bytes = (u_quad_t)obj->resident_page_count * PAGE_SIZE;
+	} else
+		vap->va_bytes = node->tn_size;
 	vap->va_filerev = 0;
 
 	return 0;
@@ -453,7 +457,6 @@ tmpfs_write(struct vop_write_args *v)
 	struct tmpfs_node *node;
 	off_t oldsize;
 	int error, ioflag;
-	boolean_t extended;
 
 	vp = v->a_vp;
 	uio = v->a_uio;
@@ -473,8 +476,7 @@ tmpfs_write(struct vop_write_args *v)
 		return (EFBIG);
 	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
 		return (EFBIG);
-	extended = uio->uio_offset + uio->uio_resid > node->tn_size;
-	if (extended) {
+	if (uio->uio_offset + uio->uio_resid > node->tn_size) {
 		error = tmpfs_reg_resize(vp, uio->uio_offset + uio->uio_resid,
 		    FALSE);
 		if (error != 0)
@@ -483,7 +485,7 @@ tmpfs_write(struct vop_write_args *v)
 
 	error = uiomove_object(node->tn_reg.tn_aobj, node->tn_size, uio);
 	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_MODIFIED |
-	    (extended ? TMPFS_NODE_CHANGED : 0);
+	    TMPFS_NODE_CHANGED;
 	if (node->tn_mode & (S_ISUID | S_ISGID)) {
 		if (priv_check_cred(v->a_cred, PRIV_VFS_RETAINSUGID, 0))
 			node->tn_mode &= ~(S_ISUID | S_ISGID);
@@ -505,6 +507,7 @@ tmpfs_fsync(struct vop_fsync_args *v)
 
 	MPASS(VOP_ISLOCKED(vp));
 
+	tmpfs_check_mtime(vp);
 	tmpfs_update(vp);
 
 	return 0;
@@ -1222,16 +1225,16 @@ tmpfs_readlink(struct vop_readlink_args *v)
 static int
 tmpfs_inactive(struct vop_inactive_args *v)
 {
-	struct vnode *vp = v->a_vp;
-
+	struct vnode *vp;
 	struct tmpfs_node *node;
 
+	vp = v->a_vp;
 	node = VP_TO_TMPFS_NODE(vp);
-
 	if (node->tn_links == 0)
 		vrecycle(vp);
-
-	return 0;
+	else
+		tmpfs_check_mtime(vp);
+	return (0);
 }
 
 int

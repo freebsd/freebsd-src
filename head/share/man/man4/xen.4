@@ -28,24 +28,16 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2010
+.Dd April 30, 2015
 .Dt XEN 4
 .Os
 .Sh NAME
 .Nm xen
 .Nd Xen Hypervisor Guest (DomU) Support
 .Sh SYNOPSIS
-To compile para-virtualized (PV) Xen guest support into an i386 kernel, place
-the following lines in your kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "options PAE"
-.Cd "options XEN"
-.Cd "nooptions NATIVE"
-.Ed
-.Pp
 To compile hardware-assisted virtualization (HVM) Xen guest support with
-para-virtualized drivers into an amd64 kernel, place the following lines in
-your kernel configuration file:
+para-virtualized drivers into an amd64 or i386 kernel,
+place the following lines in your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options XENHVM"
 .Cd "device xenpci"
@@ -69,34 +61,14 @@ and hence able to optimize certain behaviors to improve performance or
 semantics.
 .Pp
 .Fx
-supports a fully para-virtualized (PV) kernel on the i386 architecture using
-.Cd "options XEN"
-and
-.Cd "nooptions NATIVE" ;
-currently, this requires use of a PAE kernel, enabled via
-.Cd "options PAE" .
-.Pp
-.Fx
-supports hardware-assisted virtualization (HVM) on both the i386 and amd64
-kernels; however, PV device drivers with an HVM kernel are only supported on
-the amd64 architecture, and require
-.Cd "options XENHVM"
-and
-.Cd "device xenpci" .
+supports hardware-assisted virtualization (HVM) on both i386 and amd64
+kernels.
 .Pp
 Para-virtualized device drivers are required in order to support certain
 functionality, such as processing management requests, returning idle
 physical memory pages to the hypervisor, etc.
 .Ss Xen DomU device drivers
-Xen para-virtualized drivers are automatically added to the kernel if a PV
-kernel is compiled using
-.Cd "options XEN" ;
-for HVM environments,
-.Cd "options XENHVM"
-and
-.Cd "device xenpci"
-are required.
-The follow drivers are supported:
+These para-virtualized drivers are supported:
 .Bl -hang -offset indent -width blkfront
 .It Nm balloon
 Allow physical memory pages to be returned to the hypervisor as a result of
@@ -148,8 +120,6 @@ It is recommended that adaptive locking be disabled when using Xen:
 .Cd "options NO_ADAPTIVE_RWLOCKS"
 .Cd "options NO_ADAPTIVE_SX"
 .Ed
-.Sh SEE ALSO
-.Xr pae 4
 .Sh HISTORY
 Support for
 .Nm
@@ -172,12 +142,6 @@ This manual page was written by
 .Sh BUGS
 .Fx
 is only able to run as a Xen guest (DomU) and not as a Xen host (Dom0).
-.Pp
-A fully para-virtualized (PV) kernel is only supported on i386, and not
-amd64.
-.Pp
-Para-virtualized drivers under hardware-assisted virtualization (HVM) kernel
-are only supported on amd64, not i386.
 .Pp
 As of this release, Xen PV DomU support is not heavily tested; instability
 has been reported during VM migration of PV kernels.

@@ -12,8 +12,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SOURCEMANAGER_INTERNALS_H
-#define LLVM_CLANG_SOURCEMANAGER_INTERNALS_H
+#ifndef LLVM_CLANG_BASIC_SOURCEMANAGERINTERNALS_H
+#define LLVM_CLANG_BASIC_SOURCEMANAGERINTERNALS_H
 
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
@@ -88,16 +88,11 @@ class LineTableInfo {
   /// at which they occur in the file).
   std::map<FileID, std::vector<LineEntry> > LineEntries;
 public:
-  LineTableInfo() {
-  }
-
   void clear() {
     FilenameIDs.clear();
     FilenamesByID.clear();
     LineEntries.clear();
   }
-
-  ~LineTableInfo() {}
 
   unsigned getLineTableFilenameID(StringRef Str);
   const char *getFilename(unsigned ID) const {

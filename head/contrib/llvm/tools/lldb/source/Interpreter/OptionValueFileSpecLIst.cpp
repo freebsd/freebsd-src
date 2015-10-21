@@ -14,6 +14,7 @@
 // Other libraries and framework includes
 // Project includes
 #include "lldb/Core/Stream.h"
+#include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/Args.h"
 
 using namespace lldb;
@@ -41,22 +42,23 @@ OptionValueFileSpecList::DumpValue (const ExecutionContext *exe_ctx, Stream &str
 }
 
 Error
-OptionValueFileSpecList::SetValueFromCString (const char *value, VarSetOperationType op)
+OptionValueFileSpecList::SetValueFromString (llvm::StringRef value, VarSetOperationType op)
 {
     Error error;
-    Args args(value);
+    Args args(value.str().c_str());
     const size_t argc = args.GetArgumentCount();
 
     switch (op)
     {
         case eVarSetOperationClear:
             Clear ();
+            NotifyValueChanged();
             break;
             
         case eVarSetOperationReplace:
             if (argc > 1)
             {
-                uint32_t idx = Args::StringToUInt32(args.GetArgumentAtIndex(0), UINT32_MAX);
+                uint32_t idx = StringConvert::ToUInt32(args.GetArgumentAtIndex(0), UINT32_MAX);
                 const uint32_t count = m_current_value.GetSize();
                 if (idx > count)
                 {
@@ -72,6 +74,7 @@ OptionValueFileSpecList::SetValueFromCString (const char *value, VarSetOperation
                         else
                             m_current_value.Append(file);
                     }
+                    NotifyValueChanged();
                 }
             }
             else
@@ -94,6 +97,7 @@ OptionValueFileSpecList::SetValueFromCString (const char *value, VarSetOperation
                     FileSpec file (args.GetArgumentAtIndex(i), false);
                     m_current_value.Append(file);
                 }
+                NotifyValueChanged();
             }
             else
             {
@@ -105,7 +109,7 @@ OptionValueFileSpecList::SetValueFromCString (const char *value, VarSetOperation
         case eVarSetOperationInsertAfter:
             if (argc > 1)
             {
-                uint32_t idx = Args::StringToUInt32(args.GetArgumentAtIndex(0), UINT32_MAX);
+                uint32_t idx = StringConvert::ToUInt32(args.GetArgumentAtIndex(0), UINT32_MAX);
                 const uint32_t count = m_current_value.GetSize();
                 if (idx > count)
                 {
@@ -120,6 +124,7 @@ OptionValueFileSpecList::SetValueFromCString (const char *value, VarSetOperation
                         FileSpec file (args.GetArgumentAtIndex(i), false);
                         m_current_value.Insert (idx, file);
                     }
+                    NotifyValueChanged();
                 }
             }
             else
@@ -136,7 +141,7 @@ OptionValueFileSpecList::SetValueFromCString (const char *value, VarSetOperation
                 size_t i;
                 for (i=0; all_indexes_valid && i<argc; ++i)
                 {
-                    const int idx = Args::StringToSInt32(args.GetArgumentAtIndex(i), INT32_MAX);
+                    const int idx = StringConvert::ToSInt32(args.GetArgumentAtIndex(i), INT32_MAX);
                     if (idx == INT32_MAX)
                         all_indexes_valid = false;
                     else
@@ -155,6 +160,7 @@ OptionValueFileSpecList::SetValueFromCString (const char *value, VarSetOperation
                             m_current_value.Remove (j);
                         }
                     }
+                    NotifyValueChanged();
                 }
                 else
                 {
@@ -168,13 +174,10 @@ OptionValueFileSpecList::SetValueFromCString (const char *value, VarSetOperation
             break;
 
         case eVarSetOperationInvalid:
-            error = OptionValue::SetValueFromCString (value, op);
+            error = OptionValue::SetValueFromString (value, op);
             break;
     }
     return error;
-
-    m_value_was_set = true;
-    return Error();
 }
 
 lldb::OptionValueSP

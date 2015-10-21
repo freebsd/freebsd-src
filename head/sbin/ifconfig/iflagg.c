@@ -115,6 +115,8 @@ setlaggsetopt(const char *val, int d, int s, const struct afswtch *afp)
 	case -LAGG_OPT_LACP_TXTEST:
 	case LAGG_OPT_LACP_RXTEST:
 	case -LAGG_OPT_LACP_RXTEST:
+	case LAGG_OPT_LACP_TIMEOUT:
+	case -LAGG_OPT_LACP_TIMEOUT:
 		break;
 	default:
 		err(1, "Invalid lagg option");
@@ -293,6 +295,8 @@ static struct cmd lagg_cmds[] = {
 	DEF_CMD("-lacp_txtest",	-LAGG_OPT_LACP_TXTEST,	setlaggsetopt),
 	DEF_CMD("lacp_rxtest",	LAGG_OPT_LACP_RXTEST,	setlaggsetopt),
 	DEF_CMD("-lacp_rxtest",	-LAGG_OPT_LACP_RXTEST,	setlaggsetopt),
+	DEF_CMD("lacp_fast_timeout",	LAGG_OPT_LACP_TIMEOUT,	setlaggsetopt),
+	DEF_CMD("-lacp_fast_timeout",	-LAGG_OPT_LACP_TIMEOUT,	setlaggsetopt),
 	DEF_CMD_ARG("flowid_shift",	setlaggflowidshift),
 };
 static struct afswtch af_lagg = {
@@ -304,11 +308,9 @@ static struct afswtch af_lagg = {
 static __constructor void
 lagg_ctor(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	int i;
 
-	for (i = 0; i < N(lagg_cmds);  i++)
+	for (i = 0; i < nitems(lagg_cmds);  i++)
 		cmd_register(&lagg_cmds[i]);
 	af_register(&af_lagg);
-#undef N
 }

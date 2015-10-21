@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_FRONTEND_MULTIPLEXCONSUMER_H
-#define CLANG_FRONTEND_MULTIPLEXCONSUMER_H
+#ifndef LLVM_CLANG_FRONTEND_MULTIPLEXCONSUMER_H
+#define LLVM_CLANG_FRONTEND_MULTIPLEXCONSUMER_H
 
 #include "clang/Basic/LLVM.h"
 #include "clang/Sema/SemaConsumer.h"
@@ -29,8 +29,8 @@ class MultiplexASTDeserializationListener;
 class MultiplexConsumer : public SemaConsumer {
 public:
   // Takes ownership of the pointers in C.
-  MultiplexConsumer(ArrayRef<ASTConsumer*> C);
-  ~MultiplexConsumer();
+  MultiplexConsumer(std::vector<std::unique_ptr<ASTConsumer>> C);
+  ~MultiplexConsumer() override;
 
   // ASTConsumer
   void Initialize(ASTContext &Context) override;
@@ -49,7 +49,7 @@ public:
                             llvm::StringRef Value) override;
   void HandleDependentLibrary(llvm::StringRef Lib) override;
   void CompleteTentativeDefinition(VarDecl *D) override;
-  void HandleVTable(CXXRecordDecl *RD, bool DefinitionRequired) override;
+  void HandleVTable(CXXRecordDecl *RD) override;
   ASTMutationListener *GetASTMutationListener() override;
   ASTDeserializationListener *GetASTDeserializationListener() override;
   void PrintStats() override;
@@ -59,7 +59,7 @@ public:
   void ForgetSema() override;
 
 private:
-  std::vector<ASTConsumer*> Consumers;  // Owns these.
+  std::vector<std::unique_ptr<ASTConsumer>> Consumers; // Owns these.
   std::unique_ptr<MultiplexASTMutationListener> MutationListener;
   std::unique_ptr<MultiplexASTDeserializationListener> DeserializationListener;
 };

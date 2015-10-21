@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 
 #define INVALID_GRANT_REF (0)
 #define INVALID_EVTCHN    (-1)
-#define virt_to_mfn(x) (vtomach(x) >> PAGE_SHIFT)
+#define virt_to_mfn(x) (vtophys(x) >> PAGE_SHIFT)
 
 struct pcifront_device {
 	STAILQ_ENTRY(pcifront_device) next;
@@ -559,7 +559,7 @@ xpcib_attach(device_t dev)
 
 	DPRINTF("xpcib attach (bus=%d)\n", sc->bus);
 
-	device_add_child(dev, "pci", sc->bus);
+	device_add_child(dev, "pci", -1);
 	return bus_generic_attach(dev);
 }
 

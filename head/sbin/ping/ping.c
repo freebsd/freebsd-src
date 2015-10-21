@@ -737,9 +737,6 @@ main(int argc, char *const *argv)
 	if (cansandbox && cap_enter() < 0 && errno != ENOSYS)
 		err(1, "cap_enter");
 
-	if (cap_sandboxed())
-		fprintf(stderr, "capability mode sandbox enabled\n");
-
 	cap_rights_init(&rights, CAP_RECV, CAP_EVENT, CAP_SETSOCKOPT);
 	if (cap_rights_limit(srecv, &rights) < 0 && errno != ENOSYS)
 		err(1, "cap_rights_limit srecv");

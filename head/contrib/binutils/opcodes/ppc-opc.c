@@ -4268,6 +4268,11 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 { "stvx",    X(31, 231), X_MASK,	PPCVEC,		{ VS, RA, RB } },
 { "stvxl",   X(31, 487), X_MASK,	PPCVEC,		{ VS, RA, RB } },
 
+/* New VSX opcodes in POWER ISA 2.06 */
+/* XXX: only enough opcodes for FreeBSD kernel, remove and replace with real info */
+{ "stxvw4x", X(31, 908), X_MASK,	PPCVEC,		{ FRS, RA0, RB } },
+{ "lxvw4x",  X(31, 780), X_MASK,	PPCVEC,		{ FRT, RA0, RB } },
+
 /* New load/store left/right index vector instructions that are in the Cell only.  */
 { "lvlx",    X(31, 519), X_MASK,	CELL,		{ VD, RA0, RB } },
 { "lvlxl",   X(31, 775), X_MASK,	CELL,		{ VD, RA0, RB } },

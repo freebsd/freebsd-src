@@ -38,4 +38,4 @@
  *
  */
 
-inline vfs_t *invalid = xlate<psinfo_t>(curthread->t_procp);
+inline struct vnode *invalid = xlate<psinfo_t>(curthread->td_proc);

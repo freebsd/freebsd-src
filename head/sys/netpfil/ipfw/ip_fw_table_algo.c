@@ -97,7 +97,7 @@ __FBSDID("$FreeBSD$");
  *
  * -destroy: request to destroy table instance.
  * typedef void (ta_destroy)(void *ta_state, struct table_info *ti);
- * MANDATORY, may be locked (UH+WLOCK). (M_NOWAIT).
+ * MANDATORY, unlocked. (M_WAITOK).
  *
  * Frees all table entries and all tables structures allocated by -init.
  *
@@ -2134,6 +2134,7 @@ destroy_ifidx_locked(struct namedobj_instance *ii, struct named_object *no,
 	ife = (struct ifentry *)no;
 
 	ipfw_iface_del_notify(ch, &ife->ic);
+	ipfw_iface_unref(ch, &ife->ic);
 	free(ife, M_IPFW_TBL);
 }
 
@@ -2153,7 +2154,9 @@ ta_destroy_ifidx(void *ta_state, struct table_info *ti)
 	if (icfg->main_ptr != NULL)
 		free(icfg->main_ptr, M_IPFW);
 
+	IPFW_UH_WLOCK(ch);
 	ipfw_objhash_foreach(icfg->ii, destroy_ifidx_locked, ch);
+	IPFW_UH_WUNLOCK(ch);
 
 	ipfw_objhash_destroy(icfg->ii);
 
@@ -2333,8 +2336,9 @@ ta_del_ifidx(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 
 	/* Unlink from local list */
 	ipfw_objhash_del(icfg->ii, &ife->no);
-	/* Unlink notifier */
+	/* Unlink notifier and deref */
 	ipfw_iface_del_notify(icfg->ch, &ife->ic);
+	ipfw_iface_unref(icfg->ch, &ife->ic);
 
 	icfg->count--;
 	tei->value = ife->value;
@@ -2357,11 +2361,8 @@ ta_flush_ifidx_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
 
 	tb = (struct ta_buf_ifidx *)ta_buf;
 
-	if (tb->ife != NULL) {
-		/* Unlink first */
-		ipfw_iface_unref(ch, &tb->ife->ic);
+	if (tb->ife != NULL)
 		free(tb->ife, M_IPFW_TBL);
-	}
 }
 
 

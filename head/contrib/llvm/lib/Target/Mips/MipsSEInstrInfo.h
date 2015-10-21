@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSSEINSTRUCTIONINFO_H
-#define MIPSSEINSTRUCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPSSEINSTRINFO_H
+#define LLVM_LIB_TARGET_MIPS_MIPSSEINSTRINFO_H
 
 #include "MipsInstrInfo.h"
 #include "MipsSERegisterInfo.h"
@@ -21,7 +21,6 @@ namespace llvm {
 
 class MipsSEInstrInfo : public MipsInstrInfo {
   const MipsSERegisterInfo RI;
-  bool IsN64;
 
 public:
   explicit MipsSEInstrInfo(const MipsSubtarget &STI);
@@ -69,7 +68,7 @@ public:
 
   /// Adjust SP by Amount bytes.
   void adjustStackPtr(unsigned SP, int64_t Amount, MachineBasicBlock &MBB,
-                      MachineBasicBlock::iterator I) const;
+                      MachineBasicBlock::iterator I) const override;
 
   /// Emit a series of instructions to load an immediate. If NewImm is a
   /// non-NULL parameter, the last instruction is not emitted, but instead

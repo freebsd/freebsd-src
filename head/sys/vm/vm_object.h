@@ -187,6 +187,7 @@ struct vm_object {
 #define OBJ_PIPWNT	0x0040		/* paging in progress wanted */
 #define OBJ_MIGHTBEDIRTY 0x0100		/* object might be dirty, only for vnode */
 #define	OBJ_TMPFS_NODE	0x0200		/* object belongs to tmpfs VREG node */
+#define	OBJ_TMPFS_DIRTY	0x0400		/* dirty tmpfs obj */
 #define	OBJ_COLORED	0x1000		/* pg_color is defined */
 #define	OBJ_ONEMAPPING	0x2000		/* One USE (a single, non-forked) mapping flag */
 #define	OBJ_DISCONNECTWNT 0x4000	/* disconnect from vnode wanted */
@@ -206,7 +207,6 @@ struct vm_object {
  */
 #define	OBJPR_CLEANONLY	0x1		/* Don't remove dirty pages. */
 #define	OBJPR_NOTMAPPED	0x2		/* Don't unmap pages. */
-#define	OBJPR_NOTWIRED	0x4		/* Don't remove wired pages. */
 
 TAILQ_HEAD(object_q, vm_object);
 
@@ -256,6 +256,30 @@ vm_object_set_flag(vm_object_t object, u_short bits)
 	object->flags |= bits;
 }
 
+/*
+ *	Conditionally set the object's color, which (1) enables the allocation
+ *	of physical memory reservations for anonymous objects and larger-than-
+ *	superpage-sized named objects and (2) determines the first page offset
+ *	within the object at which a reservation may be allocated.  In other
+ *	words, the color determines the alignment of the object with respect
+ *	to the largest superpage boundary.  When mapping named objects, like
+ *	files or POSIX shared memory objects, the color should be set to zero
+ *	before a virtual address is selected for the mapping.  In contrast,
+ *	for anonymous objects, the color may be set after the virtual address
+ *	is selected.
+ *
+ *	The object must be locked.
+ */
+static __inline void
+vm_object_color(vm_object_t object, u_short color)
+{
+
+	if ((object->flags & OBJ_COLORED) == 0) {
+		object->pg_color = color;
+		object->flags |= OBJ_COLORED;
+	}
+}
+
 void vm_object_clear_flag(vm_object_t object, u_short bits);
 void vm_object_pip_add(vm_object_t object, short i);
 void vm_object_pip_subtract(vm_object_t object, short i);
@@ -280,10 +304,10 @@ void vm_object_terminate (vm_object_t);
 void vm_object_set_writeable_dirty (vm_object_t);
 void vm_object_init (void);
 void vm_object_madvise(vm_object_t, vm_pindex_t, vm_pindex_t, int);
-void vm_object_page_cache(vm_object_t object, vm_pindex_t start,
-    vm_pindex_t end);
 boolean_t vm_object_page_clean(vm_object_t object, vm_ooffset_t start,
     vm_ooffset_t end, int flags);
+void vm_object_page_noreuse(vm_object_t object, vm_pindex_t start,
+    vm_pindex_t end);
 void vm_object_page_remove(vm_object_t object, vm_pindex_t start,
     vm_pindex_t end, int options);
 boolean_t vm_object_populate(vm_object_t, vm_pindex_t, vm_pindex_t);
@@ -297,6 +321,7 @@ boolean_t vm_object_sync(vm_object_t, vm_ooffset_t, vm_size_t, boolean_t,
     boolean_t);
 void vm_object_unwire(vm_object_t object, vm_ooffset_t offset,
     vm_size_t length, uint8_t queue);
+struct vnode *vm_object_vnode(vm_object_t object);
 #endif				/* _KERNEL */
 
 #endif				/* _VM_OBJECT_ */

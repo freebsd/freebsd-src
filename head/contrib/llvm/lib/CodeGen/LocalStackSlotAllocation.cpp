@@ -36,6 +36,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
 
@@ -102,7 +103,7 @@ INITIALIZE_PASS_END(LocalStackSlotPass, "localstackalloc",
 
 bool LocalStackSlotPass::runOnMachineFunction(MachineFunction &MF) {
   MachineFrameInfo *MFI = MF.getFrameInfo();
-  const TargetRegisterInfo *TRI = MF.getTarget().getRegisterInfo();
+  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
   unsigned LocalObjectCount = MFI->getObjectIndexEnd();
 
   // If the target doesn't want/need this pass, or if there are no locals
@@ -183,7 +184,7 @@ void LocalStackSlotPass::AssignProtectedObjSet(const StackObjSet &UnassignedObjs
 void LocalStackSlotPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
   // Loop over all of the stack objects, assigning sequential addresses...
   MachineFrameInfo *MFI = Fn.getFrameInfo();
-  const TargetFrameLowering &TFI = *Fn.getTarget().getFrameLowering();
+  const TargetFrameLowering &TFI = *Fn.getSubtarget().getFrameLowering();
   bool StackGrowsDown =
     TFI.getStackGrowthDirection() == TargetFrameLowering::StackGrowsDown;
   int64_t Offset = 0;
@@ -251,7 +252,8 @@ void LocalStackSlotPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
 }
 
 static inline bool
-lookupCandidateBaseReg(int64_t BaseOffset,
+lookupCandidateBaseReg(unsigned BaseReg,
+                       int64_t BaseOffset,
                        int64_t FrameSizeAdjust,
                        int64_t LocalFrameOffset,
                        const MachineInstr *MI,
@@ -259,7 +261,7 @@ lookupCandidateBaseReg(int64_t BaseOffset,
   // Check if the relative offset from the where the base register references
   // to the target address is in range for the instruction.
   int64_t Offset = FrameSizeAdjust + LocalFrameOffset - BaseOffset;
-  return TRI->isFrameOffsetLegal(MI, Offset);
+  return TRI->isFrameOffsetLegal(MI, BaseReg, Offset);
 }
 
 bool LocalStackSlotPass::insertFrameReferenceRegisters(MachineFunction &Fn) {
@@ -272,8 +274,8 @@ bool LocalStackSlotPass::insertFrameReferenceRegisters(MachineFunction &Fn) {
   bool UsedBaseReg = false;
 
   MachineFrameInfo *MFI = Fn.getFrameInfo();
-  const TargetRegisterInfo *TRI = Fn.getTarget().getRegisterInfo();
-  const TargetFrameLowering &TFI = *Fn.getTarget().getFrameLowering();
+  const TargetRegisterInfo *TRI = Fn.getSubtarget().getRegisterInfo();
+  const TargetFrameLowering &TFI = *Fn.getSubtarget().getFrameLowering();
   bool StackGrowsDown =
     TFI.getStackGrowthDirection() == TargetFrameLowering::StackGrowsDown;
 
@@ -290,6 +292,7 @@ bool LocalStackSlotPass::insertFrameReferenceRegisters(MachineFunction &Fn) {
       // Debug value, stackmap and patchpoint instructions can't be out of
       // range, so they don't need any updates.
       if (MI->isDebugValue() ||
+          MI->getOpcode() == TargetOpcode::STATEPOINT ||
           MI->getOpcode() == TargetOpcode::STACKMAP ||
           MI->getOpcode() == TargetOpcode::PATCHPOINT)
         continue;
@@ -360,8 +363,9 @@ bool LocalStackSlotPass::insertFrameReferenceRegisters(MachineFunction &Fn) {
     // instruction itself will be taken into account by the target,
     // so we don't have to adjust for it here when reusing a base
     // register.
-    if (UsedBaseReg && lookupCandidateBaseReg(BaseOffset, FrameSizeAdjust,
-                                              LocalOffset, MI, TRI)) {
+    if (UsedBaseReg && lookupCandidateBaseReg(BaseReg, BaseOffset,
+                                              FrameSizeAdjust, LocalOffset, MI,
+                                              TRI)) {
       DEBUG(dbgs() << "  Reusing base register " << BaseReg << "\n");
       // We found a register to reuse.
       Offset = FrameSizeAdjust + LocalOffset - BaseOffset;
@@ -380,7 +384,7 @@ bool LocalStackSlotPass::insertFrameReferenceRegisters(MachineFunction &Fn) {
       // then don't bother creating it.
       if (ref + 1 >= e ||
           !lookupCandidateBaseReg(
-              BaseOffset, FrameSizeAdjust,
+              BaseReg, BaseOffset, FrameSizeAdjust,
               FrameReferenceInsns[ref + 1].getLocalOffset(),
               FrameReferenceInsns[ref + 1].getMachineInstr(), TRI)) {
         BaseOffset = PrevBaseOffset;

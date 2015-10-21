@@ -167,51 +167,58 @@ bool AddDiscriminators::runOnFunction(Function &F) {
   bool Changed = false;
   Module *M = F.getParent();
   LLVMContext &Ctx = M->getContext();
-  DIBuilder Builder(*M);
+  DIBuilder Builder(*M, /*AllowUnresolved*/ false);
 
   // Traverse all the blocks looking for instructions in different
   // blocks that are at the same file:line location.
   for (Function::iterator I = F.begin(), E = F.end(); I != E; ++I) {
     BasicBlock *B = I;
     TerminatorInst *Last = B->getTerminator();
-    DebugLoc LastLoc = Last->getDebugLoc();
-    if (LastLoc.isUnknown()) continue;
-    DILocation LastDIL(LastLoc.getAsMDNode(Ctx));
+    const DILocation *LastDIL = Last->getDebugLoc();
+    if (!LastDIL)
+      continue;
 
     for (unsigned I = 0; I < Last->getNumSuccessors(); ++I) {
       BasicBlock *Succ = Last->getSuccessor(I);
       Instruction *First = Succ->getFirstNonPHIOrDbgOrLifetime();
-      DebugLoc FirstLoc = First->getDebugLoc();
-      if (FirstLoc.isUnknown()) continue;
-      DILocation FirstDIL(FirstLoc.getAsMDNode(Ctx));
+      const DILocation *FirstDIL = First->getDebugLoc();
+      if (!FirstDIL)
+        continue;
 
       // If the first instruction (First) of Succ is at the same file
       // location as B's last instruction (Last), add a new
       // discriminator for First's location and all the instructions
       // in Succ that share the same location with First.
-      if (FirstDIL.atSameLineAs(LastDIL)) {
+      if (!FirstDIL->canDiscriminate(*LastDIL)) {
         // Create a new lexical scope and compute a new discriminator
         // number for it.
-        StringRef Filename = FirstDIL.getFilename();
-        unsigned LineNumber = FirstDIL.getLineNumber();
-        unsigned ColumnNumber = FirstDIL.getColumnNumber();
-        DIScope Scope = FirstDIL.getScope();
-        DIFile File = Builder.createFile(Filename, Scope.getDirectory());
-        unsigned Discriminator = FirstDIL.computeNewDiscriminator(Ctx);
-        DILexicalBlock NewScope = Builder.createLexicalBlock(
-            Scope, File, LineNumber, ColumnNumber, Discriminator);
-        DILocation NewDIL = FirstDIL.copyWithNewScope(Ctx, NewScope);
-        DebugLoc newDebugLoc = DebugLoc::getFromDILocation(NewDIL);
+        StringRef Filename = FirstDIL->getFilename();
+        auto *Scope = FirstDIL->getScope();
+        auto *File = Builder.createFile(Filename, Scope->getDirectory());
+
+        // FIXME: Calculate the discriminator here, based on local information,
+        // and delete DILocation::computeNewDiscriminator().  The current
+        // solution gives different results depending on other modules in the
+        // same context.  All we really need is to discriminate between
+        // FirstDIL and LastDIL -- a local map would suffice.
+        unsigned Discriminator = FirstDIL->computeNewDiscriminator();
+        auto *NewScope =
+            Builder.createLexicalBlockFile(Scope, File, Discriminator);
+        auto *NewDIL =
+            DILocation::get(Ctx, FirstDIL->getLine(), FirstDIL->getColumn(),
+                            NewScope, FirstDIL->getInlinedAt());
+        DebugLoc newDebugLoc = NewDIL;
 
         // Attach this new debug location to First and every
         // instruction following First that shares the same location.
         for (BasicBlock::iterator I1(*First), E1 = Succ->end(); I1 != E1;
              ++I1) {
-          if (I1->getDebugLoc() != FirstLoc) break;
+          if (I1->getDebugLoc().get() != FirstDIL)
+            break;
           I1->setDebugLoc(newDebugLoc);
-          DEBUG(dbgs() << NewDIL.getFilename() << ":" << NewDIL.getLineNumber()
-                       << ":" << NewDIL.getColumnNumber() << ":"
-                       << NewDIL.getDiscriminator() << *I1 << "\n");
+          DEBUG(dbgs() << NewDIL->getFilename() << ":" << NewDIL->getLine()
+                       << ":" << NewDIL->getColumn() << ":"
+                       << NewDIL->getDiscriminator() << *I1 << "\n");
         }
         DEBUG(dbgs() << "\n");
         Changed = true;

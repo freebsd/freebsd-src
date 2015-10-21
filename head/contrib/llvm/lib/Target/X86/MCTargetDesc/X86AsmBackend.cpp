@@ -11,12 +11,13 @@
 #include "MCTargetDesc/X86FixupKinds.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/MC/MCAsmBackend.h"
-#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCELFObjectWriter.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCFixupKindInfo.h"
+#include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCMachObjectWriter.h"
 #include "llvm/MC/MCObjectWriter.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCSectionMachO.h"
@@ -27,13 +28,6 @@
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
-
-// Option to allow disabling arithmetic relaxation to workaround PR9807, which
-// is useful when running bitwise comparison experiments on Darwin. We should be
-// able to remove this once PR9807 is resolved.
-static cl::opt<bool>
-MCDisableArithRelaxation("mc-x86-disable-arith-relaxation",
-         cl::desc("Disable relaxation of arithmetic instruction for X86"));
 
 static unsigned getFixupKindLog2Size(unsigned Kind) {
   switch (Kind) {
@@ -77,8 +71,8 @@ class X86AsmBackend : public MCAsmBackend {
   bool HasNopl;
   const uint64_t MaxNopLength;
 public:
-  X86AsmBackend(const Target &T, StringRef _CPU)
-    : MCAsmBackend(), CPU(_CPU), MaxNopLength(_CPU == "slm" ? 7 : 15) {
+  X86AsmBackend(const Target &T, StringRef CPU)
+      : MCAsmBackend(), CPU(CPU), MaxNopLength(CPU == "slm" ? 7 : 15) {
     HasNopl = CPU != "generic" && CPU != "i386" && CPU != "i486" &&
               CPU != "i586" && CPU != "pentium" && CPU != "pentium-mmx" &&
               CPU != "i686" && CPU != "k6" && CPU != "k6-2" && CPU != "k6-3" &&
@@ -226,7 +220,6 @@ static unsigned getRelaxedOpcodeArith(unsigned Op) {
   case X86::PUSH32i8:  return X86::PUSHi32;
   case X86::PUSH16i8:  return X86::PUSHi16;
   case X86::PUSH64i8:  return X86::PUSH64i32;
-  case X86::PUSH64i16: return X86::PUSH64i32;
   }
 }
 
@@ -242,29 +235,18 @@ bool X86AsmBackend::mayNeedRelaxation(const MCInst &Inst) const {
   if (getRelaxedOpcodeBranch(Inst.getOpcode()) != Inst.getOpcode())
     return true;
 
-  if (MCDisableArithRelaxation)
-    return false;
-
   // Check if this instruction is ever relaxable.
   if (getRelaxedOpcodeArith(Inst.getOpcode()) == Inst.getOpcode())
     return false;
 
 
-  // Check if it has an expression and is not RIP relative.
-  bool hasExp = false;
-  bool hasRIP = false;
-  for (unsigned i = 0; i < Inst.getNumOperands(); ++i) {
-    const MCOperand &Op = Inst.getOperand(i);
-    if (Op.isExpr())
-      hasExp = true;
+  // Check if the relaxable operand has an expression. For the current set of
+  // relaxable instructions, the relaxable operand is always the last operand.
+  unsigned RelaxableOp = Inst.getNumOperands() - 1;
+  if (Inst.getOperand(RelaxableOp).isExpr())
+    return true;
 
-    if (Op.isReg() && Op.getReg() == X86::RIP)
-      hasRIP = true;
-  }
-
-  // FIXME: Why exactly do we need the !hasRIP? Is it just a limitation on
-  // how we do relaxations?
-  return hasExp && !hasRIP;
+  return false;
 }
 
 bool X86AsmBackend::fixupNeedsRelaxation(const MCFixup &Fixup,
@@ -325,7 +307,7 @@ bool X86AsmBackend::writeNopData(uint64_t Count, MCObjectWriter *OW) const {
   // FIXME: We could generated something better than plain 0x90.
   if (!HasNopl) {
     for (uint64_t i = 0; i < Count; ++i)
-      OW->Write8(0x90);
+      OW->write8(0x90);
     return true;
   }
 
@@ -335,10 +317,10 @@ bool X86AsmBackend::writeNopData(uint64_t Count, MCObjectWriter *OW) const {
     const uint8_t ThisNopLength = (uint8_t) std::min(Count, MaxNopLength);
     const uint8_t Prefixes = ThisNopLength <= 10 ? 0 : ThisNopLength - 10;
     for (uint8_t i = 0; i < Prefixes; i++)
-      OW->Write8(0x66);
+      OW->write8(0x66);
     const uint8_t Rest = ThisNopLength - Prefixes;
     for (uint8_t i = 0; i < Rest; i++)
-      OW->Write8(Nops[Rest - 1][i]);
+      OW->write8(Nops[Rest - 1][i]);
     Count -= ThisNopLength;
   } while (Count != 0);
 
@@ -352,8 +334,8 @@ namespace {
 class ELFX86AsmBackend : public X86AsmBackend {
 public:
   uint8_t OSABI;
-  ELFX86AsmBackend(const Target &T, uint8_t _OSABI, StringRef CPU)
-      : X86AsmBackend(T, CPU), OSABI(_OSABI) {}
+  ELFX86AsmBackend(const Target &T, uint8_t OSABI, StringRef CPU)
+      : X86AsmBackend(T, CPU), OSABI(OSABI) {}
 };
 
 class ELFX86_32AsmBackend : public ELFX86AsmBackend {
@@ -361,7 +343,7 @@ public:
   ELFX86_32AsmBackend(const Target &T, uint8_t OSABI, StringRef CPU)
     : ELFX86AsmBackend(T, OSABI, CPU) {}
 
-  MCObjectWriter *createObjectWriter(raw_ostream &OS) const override {
+  MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override {
     return createX86ELFObjectWriter(OS, /*IsELF64*/ false, OSABI, ELF::EM_386);
   }
 };
@@ -371,7 +353,7 @@ public:
   ELFX86_X32AsmBackend(const Target &T, uint8_t OSABI, StringRef CPU)
       : ELFX86AsmBackend(T, OSABI, CPU) {}
 
-  MCObjectWriter *createObjectWriter(raw_ostream &OS) const override {
+  MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override {
     return createX86ELFObjectWriter(OS, /*IsELF64*/ false, OSABI,
                                     ELF::EM_X86_64);
   }
@@ -382,7 +364,7 @@ public:
   ELFX86_64AsmBackend(const Target &T, uint8_t OSABI, StringRef CPU)
     : ELFX86AsmBackend(T, OSABI, CPU) {}
 
-  MCObjectWriter *createObjectWriter(raw_ostream &OS) const override {
+  MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override {
     return createX86ELFObjectWriter(OS, /*IsELF64*/ true, OSABI, ELF::EM_X86_64);
   }
 };
@@ -396,7 +378,7 @@ public:
     , Is64Bit(is64Bit) {
   }
 
-  MCObjectWriter *createObjectWriter(raw_ostream &OS) const override {
+  MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override {
     return createX86WinCOFFObjectWriter(OS, Is64Bit);
   }
 };
@@ -437,10 +419,30 @@ class DarwinX86AsmBackend : public X86AsmBackend {
   bool Is64Bit;
 
   unsigned OffsetSize;                   ///< Offset of a "push" instruction.
-  unsigned PushInstrSize;                ///< Size of a "push" instruction.
   unsigned MoveInstrSize;                ///< Size of a "move" instruction.
-  unsigned StackDivide;                  ///< Amount to adjust stack stize by.
+  unsigned StackDivide;                  ///< Amount to adjust stack size by.
 protected:
+  /// \brief Size of a "push" instruction for the given register.
+  unsigned PushInstrSize(unsigned Reg) const {
+    switch (Reg) {
+      case X86::EBX:
+      case X86::ECX:
+      case X86::EDX:
+      case X86::EDI:
+      case X86::ESI:
+      case X86::EBP:
+      case X86::RBX:
+      case X86::RBP:
+        return 1;
+      case X86::R12:
+      case X86::R13:
+      case X86::R14:
+      case X86::R15:
+        return 2;
+    }
+    return 1;
+  }
+
   /// \brief Implementation of algorithm to generate the compact unwind encoding
   /// for the CFI instructions.
   uint32_t
@@ -493,7 +495,7 @@ protected:
         // Defines a new offset for the CFA. E.g.
         //
         //  With frame:
-        //  
+        //
         //     pushq %rbp
         //  L0:
         //     .cfi_def_cfa_offset 16
@@ -530,7 +532,7 @@ protected:
         unsigned Reg = MRI.getLLVMRegNum(Inst.getRegister(), true);
         SavedRegs[SavedRegIdx++] = Reg;
         StackAdjust += OffsetSize;
-        InstrOffset += PushInstrSize;
+        InstrOffset += PushInstrSize(Reg);
         break;
       }
       }
@@ -663,7 +665,7 @@ private:
     //     4       3
     //     5       3
     //
-    for (unsigned i = 0; i != CU_NUM_SAVED_REGS; ++i) {
+    for (unsigned i = 0; i < RegCount; ++i) {
       int CUReg = getCompactUnwindRegNum(SavedRegs[i]);
       if (CUReg == -1) return ~0U;
       SavedRegs[i] = CUReg;
@@ -724,7 +726,6 @@ public:
     OffsetSize = Is64Bit ? 8 : 4;
     MoveInstrSize = Is64Bit ? 3 : 2;
     StackDivide = Is64Bit ? 8 : 4;
-    PushInstrSize = 1;
   }
 };
 
@@ -734,7 +735,7 @@ public:
                          StringRef CPU)
       : DarwinX86AsmBackend(T, MRI, CPU, false) {}
 
-  MCObjectWriter *createObjectWriter(raw_ostream &OS) const override {
+  MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override {
     return createX86MachObjectWriter(OS, /*Is64Bit=*/false,
                                      MachO::CPU_TYPE_I386,
                                      MachO::CPU_SUBTYPE_I386_ALL);
@@ -754,42 +755,9 @@ public:
                          StringRef CPU, MachO::CPUSubTypeX86 st)
       : DarwinX86AsmBackend(T, MRI, CPU, true), Subtype(st) {}
 
-  MCObjectWriter *createObjectWriter(raw_ostream &OS) const override {
+  MCObjectWriter *createObjectWriter(raw_pwrite_stream &OS) const override {
     return createX86MachObjectWriter(OS, /*Is64Bit=*/true,
                                      MachO::CPU_TYPE_X86_64, Subtype);
-  }
-
-  bool doesSectionRequireSymbols(const MCSection &Section) const override {
-    // Temporary labels in the string literals sections require symbols. The
-    // issue is that the x86_64 relocation format does not allow symbol +
-    // offset, and so the linker does not have enough information to resolve the
-    // access to the appropriate atom unless an external relocation is used. For
-    // non-cstring sections, we expect the compiler to use a non-temporary label
-    // for anything that could have an addend pointing outside the symbol.
-    //
-    // See <rdar://problem/4765733>.
-    const MCSectionMachO &SMO = static_cast<const MCSectionMachO&>(Section);
-    return SMO.getType() == MachO::S_CSTRING_LITERALS;
-  }
-
-  bool isSectionAtomizable(const MCSection &Section) const override {
-    const MCSectionMachO &SMO = static_cast<const MCSectionMachO&>(Section);
-    // Fixed sized data sections are uniqued, they cannot be diced into atoms.
-    switch (SMO.getType()) {
-    default:
-      return true;
-
-    case MachO::S_4BYTE_LITERALS:
-    case MachO::S_8BYTE_LITERALS:
-    case MachO::S_16BYTE_LITERALS:
-    case MachO::S_LITERAL_POINTERS:
-    case MachO::S_NON_LAZY_SYMBOL_POINTERS:
-    case MachO::S_LAZY_SYMBOL_POINTERS:
-    case MachO::S_MOD_INIT_FUNC_POINTERS:
-    case MachO::S_MOD_TERM_FUNC_POINTERS:
-    case MachO::S_INTERPOSING:
-      return false;
-    }
   }
 
   /// \brief Generate the compact unwind encoding for the CFI instructions.
@@ -803,10 +771,8 @@ public:
 
 MCAsmBackend *llvm::createX86_32AsmBackend(const Target &T,
                                            const MCRegisterInfo &MRI,
-                                           StringRef TT,
+                                           const Triple &TheTriple,
                                            StringRef CPU) {
-  Triple TheTriple(TT);
-
   if (TheTriple.isOSBinFormatMachO())
     return new DarwinX86_32AsmBackend(T, MRI, CPU);
 
@@ -819,10 +785,8 @@ MCAsmBackend *llvm::createX86_32AsmBackend(const Target &T,
 
 MCAsmBackend *llvm::createX86_64AsmBackend(const Target &T,
                                            const MCRegisterInfo &MRI,
-                                           StringRef TT,
+                                           const Triple &TheTriple,
                                            StringRef CPU) {
-  Triple TheTriple(TT);
-
   if (TheTriple.isOSBinFormatMachO()) {
     MachO::CPUSubTypeX86 CS =
         StringSwitch<MachO::CPUSubTypeX86>(TheTriple.getArchName())

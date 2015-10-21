@@ -11,12 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ARM_THUMB1FRAMELOWERING_H
-#define LLVM_ARM_THUMB1FRAMELOWERING_H
+#ifndef LLVM_LIB_TARGET_ARM_THUMB1FRAMELOWERING_H
+#define LLVM_LIB_TARGET_ARM_THUMB1FRAMELOWERING_H
 
 #include "ARMFrameLowering.h"
 #include "Thumb1InstrInfo.h"
-#include "Thumb1RegisterInfo.h"
+#include "ThumbRegisterInfo.h"
 #include "llvm/Target/TargetFrameLowering.h"
 
 namespace llvm {
@@ -27,7 +27,7 @@ public:
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
-  void emitPrologue(MachineFunction &MF) const override;
+  void emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
 
   bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,

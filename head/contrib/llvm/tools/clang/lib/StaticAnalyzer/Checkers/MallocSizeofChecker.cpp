@@ -65,10 +65,9 @@ public:
   }
 
   void VisitChildren(const Stmt *S) {
-    for (Stmt::const_child_iterator I = S->child_begin(), E = S->child_end();
-         I!=E; ++I)
-      if (const Stmt *child = *I)
-        VisitChild(S, child);
+    for (const Stmt *Child : S->children())
+      if (Child)
+        VisitChild(S, Child);
   }
 
   TypeCallPair VisitCastExpr(const CastExpr *E) {
@@ -137,6 +136,10 @@ public:
 // Determine if the pointee and sizeof types are compatible.  Here
 // we ignore constness of pointer types.
 static bool typesCompatible(ASTContext &C, QualType A, QualType B) {
+  // sizeof(void*) is compatible with any other pointer.
+  if (B->isVoidPointerType() && A->getAs<PointerType>())
+    return true;
+
   while (true) {
     A = A.getCanonicalType();
     B = B.getCanonicalType();

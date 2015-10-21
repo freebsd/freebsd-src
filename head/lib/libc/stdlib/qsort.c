@@ -41,47 +41,53 @@ typedef int		 cmp_t(void *, const void *, const void *);
 typedef int		 cmp_t(const void *, const void *);
 #endif
 static inline char	*med3(char *, char *, char *, cmp_t *, void *);
-static inline void	 swapfunc(char *, char *, int, int);
+static inline void	 swapfunc(char *, char *, int, int, int);
 
-#define min(a, b)	(a) < (b) ? a : b
+#define	MIN(a, b)	((a) < (b) ? a : b)
 
 /*
  * Qsort routine from Bentley & McIlroy's "Engineering a Sort Function".
  */
-#define swapcode(TYPE, parmi, parmj, n) { 		\
-	long i = (n) / sizeof (TYPE); 			\
-	TYPE *pi = (TYPE *) (parmi); 		\
-	TYPE *pj = (TYPE *) (parmj); 		\
+#define	swapcode(TYPE, parmi, parmj, n) {		\
+	long i = (n) / sizeof (TYPE);			\
+	TYPE *pi = (TYPE *) (parmi);		\
+	TYPE *pj = (TYPE *) (parmj);		\
 	do { 						\
 		TYPE	t = *pi;		\
 		*pi++ = *pj;				\
 		*pj++ = t;				\
-        } while (--i > 0);				\
+	} while (--i > 0);				\
 }
 
-#define SWAPINIT(a, es) swaptype = ((char *)a - (char *)0) % sizeof(long) || \
-	es % sizeof(long) ? 2 : es == sizeof(long)? 0 : 1;
+#define	SWAPINIT(TYPE, a, es) swaptype_ ## TYPE =	\
+	((char *)a - (char *)0) % sizeof(TYPE) ||	\
+	es % sizeof(TYPE) ? 2 : es == sizeof(TYPE) ? 0 : 1;
 
 static inline void
-swapfunc(a, b, n, swaptype)
-	char *a, *b;
-	int n, swaptype;
+swapfunc( char *a, char *b, int n, int swaptype_long, int swaptype_int)
 {
-	if(swaptype <= 1)
+	if (swaptype_long <= 1)
 		swapcode(long, a, b, n)
+	else if (swaptype_int <= 1)
+		swapcode(int, a, b, n)
 	else
 		swapcode(char, a, b, n)
 }
 
-#define swap(a, b)					\
-	if (swaptype == 0) {				\
+#define	swap(a, b)					\
+	if (swaptype_long == 0) {			\
 		long t = *(long *)(a);			\
 		*(long *)(a) = *(long *)(b);		\
 		*(long *)(b) = t;			\
+	} else if (swaptype_int == 0) {			\
+		int t = *(int *)(a);			\
+		*(int *)(a) = *(int *)(b);		\
+		*(int *)(b) = t;			\
 	} else						\
-		swapfunc(a, b, es, swaptype)
+		swapfunc(a, b, es, swaptype_long, swaptype_int)
 
-#define vecswap(a, b, n) 	if ((n) > 0) swapfunc(a, b, n, swaptype)
+#define	vecswap(a, b, n)				\
+	if ((n) > 0) swapfunc(a, b, n, swaptype_long, swaptype_int)
 
 #ifdef I_AM_QSORT_R
 #define	CMP(t, x, y) (cmp((t), (x), (y)))
@@ -98,14 +104,14 @@ __unused
 {
 	return CMP(thunk, a, b) < 0 ?
 	       (CMP(thunk, b, c) < 0 ? b : (CMP(thunk, a, c) < 0 ? c : a ))
-              :(CMP(thunk, b, c) > 0 ? b : (CMP(thunk, a, c) < 0 ? a : c ));
+	      :(CMP(thunk, b, c) > 0 ? b : (CMP(thunk, a, c) < 0 ? a : c ));
 }
 
 #ifdef I_AM_QSORT_R
 void
 qsort_r(void *a, size_t n, size_t es, void *thunk, cmp_t *cmp)
 #else
-#define thunk NULL
+#define	thunk NULL
 void
 qsort(void *a, size_t n, size_t es, cmp_t *cmp)
 #endif
@@ -113,9 +119,10 @@ qsort(void *a, size_t n, size_t es, cmp_t *cmp)
 	char *pa, *pb, *pc, *pd, *pl, *pm, *pn;
 	size_t d, r;
 	int cmp_result;
-	int swaptype, swap_cnt;
+	int swaptype_long, swaptype_int, swap_cnt;
 
-loop:	SWAPINIT(a, es);
+loop:	SWAPINIT(long, a, es);
+	SWAPINIT(int, a, es);
 	swap_cnt = 0;
 	if (n < 7) {
 		for (pm = (char *)a + es; pm < (char *)a + n * es; pm += es)
@@ -175,9 +182,9 @@ loop:	SWAPINIT(a, es);
 	}
 
 	pn = (char *)a + n * es;
-	r = min(pa - (char *)a, pb - pa);
+	r = MIN(pa - (char *)a, pb - pa);
 	vecswap(a, pb - r, r);
-	r = min(pd - pc, pn - pd - es);
+	r = MIN(pd - pc, pn - pd - es);
 	vecswap(pb, pn - r, r);
 	if ((r = pb - pa) > es)
 #ifdef I_AM_QSORT_R

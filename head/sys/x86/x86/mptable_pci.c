@@ -69,7 +69,7 @@ mptable_hostb_attach(device_t dev)
 #ifdef NEW_PCIB
 	mptable_pci_host_res_init(dev);
 #endif
-	device_add_child(dev, "pci", pcib_get_bus(dev));
+	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
 

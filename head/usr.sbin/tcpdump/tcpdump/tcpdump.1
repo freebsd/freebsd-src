@@ -129,6 +129,10 @@ tcpdump \- dump traffic on a network
 [
 .BI \-\-time\-stamp\-precision= tstamp_precision
 ]
+.ti +8
+[
+.B \-\-immediate\-mode
+]
 [
 .B \-\-version
 ]
@@ -141,7 +145,9 @@ tcpdump \- dump traffic on a network
 .SH DESCRIPTION
 .LP
 \fITcpdump\fP prints out a description of the contents of packets on a
-network interface that match the boolean \fIexpression\fP.  It can also
+network interface that match the boolean \fIexpression\fP; the
+description is preceded by a time stamp, printed, by default, as hours,
+minutes, seconds, and fractions of a second since midnight.  It can also
 be run with the
 .B \-w
 flag, which causes it to save the packet data to a file for later
@@ -205,7 +211,9 @@ your ``status'' character, typically control-T, although on some
 platforms, such as Mac OS X, the ``status'' character is not set by
 default, so you must set it with
 .BR stty (1)
-in order to use it) and will continue capturing packets.
+in order to use it) and will continue capturing packets. On platforms that
+do not support the SIGINFO signal, the same can be achieved by using the
+SIGUSR1 signal.
 .LP
 Reading packets from a network interface may require that you have
 special privileges; see the
@@ -419,6 +427,13 @@ monitor mode will be shown; if
 .B \-I
 is specified, only those link-layer types available when in monitor mode
 will be shown.
+.TP
+.BI \-\-immediate\-mode
+Capture in "immediate mode".  In this mode, packets are delivered to
+tcpdump as soon as they arrive, rather than being buffered for
+efficiency.  This is the default when printing packets rather than
+saving packets to a ``savefile'' if the packets are being printed to a
+terminal rather than to a file or pipe.
 .TP
 .BI \-j " tstamp_type"
 .PD 0
@@ -656,14 +671,16 @@ an encapsulated PGM packet.
 \fIDon't\fP print a timestamp on each dump line.
 .TP
 .B \-tt
-Print an unformatted timestamp on each dump line.
+Print the timestamp, as seconds since January 1, 1970, 00:00:00, UTC, and
+fractions of a second since that time, on each dump line.
 .TP
 .B \-ttt
 Print a delta (micro-second resolution) between current and previous line
 on each dump line.
 .TP
 .B \-tttt
-Print a timestamp in default format proceeded by date on each dump line.
+Print a timestamp, as hours, minutes, seconds, and fractions of a second
+since midnight, preceded by the date, on each dump line.
 .TP
 .B \-ttttt
 Print a delta (micro-second resolution) between current and first line

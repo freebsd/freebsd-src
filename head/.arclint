@@ -1,9 +1,25 @@
 {
+  "exclude": "(contrib|crypto)",
   "linters": {
     "python": {
       "type": "pep8",
-      "exclude": "(contrib)",
       "include": "(\\.py$)"
+    },
+    "spelling": {
+      "type": "spelling"
+    },
+    "chmod": {
+      "type": "chmod"
+    },
+    "merge-conflict": {
+      "type": "merge-conflict"
+    },
+    "filename": {
+      "type": "filename"
+    },
+    "json": {
+      "type": "json",
+      "include": "(\\.arclint|\\.json$)"
     }
   }
 }

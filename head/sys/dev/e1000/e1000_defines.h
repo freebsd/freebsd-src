@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2014, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -158,10 +158,12 @@
 	E1000_RXDEXT_STATERR_CXE |	\
 	E1000_RXDEXT_STATERR_RXE)
 
+#define E1000_MRQC_RSS_ENABLE_2Q		0x00000001
 #define E1000_MRQC_RSS_FIELD_MASK		0xFFFF0000
 #define E1000_MRQC_RSS_FIELD_IPV4_TCP		0x00010000
 #define E1000_MRQC_RSS_FIELD_IPV4		0x00020000
 #define E1000_MRQC_RSS_FIELD_IPV6_TCP_EX	0x00040000
+#define E1000_MRQC_RSS_FIELD_IPV6_EX		0x00080000
 #define E1000_MRQC_RSS_FIELD_IPV6		0x00100000
 #define E1000_MRQC_RSS_FIELD_IPV6_TCP		0x00200000
 

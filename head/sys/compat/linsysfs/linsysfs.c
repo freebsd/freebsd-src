@@ -62,12 +62,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include "opt_compat.h"
-#ifdef COMPAT_LINUX32				/* XXX */
-#include <machine/../linux32/linux.h>
-#else
-#include <machine/../linux/linux.h>
-#endif
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
@@ -281,5 +275,9 @@ linsysfs_uninit(PFS_INIT_ARGS)
 	return (0);
 }
 
-PSEUDOFS(linsysfs, 1, 0);
+PSEUDOFS(linsysfs, 1, PR_ALLOW_MOUNT_LINSYSFS);
+#if defined(__amd64__)
+MODULE_DEPEND(linsysfs, linux_common, 1, 1, 1);
+#else
 MODULE_DEPEND(linsysfs, linux, 1, 1, 1);
+#endif

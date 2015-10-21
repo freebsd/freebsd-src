@@ -1,8 +1,8 @@
 /*
  * AES-based functions
  *
- * - AES Key Wrap Algorithm (128-bit KEK) (RFC3394)
- * - One-Key CBC MAC (OMAC1) hash with AES-128
+ * - AES Key Wrap Algorithm (RFC3394)
+ * - One-Key CBC MAC (OMAC1) hash with AES-128 and AES-256
  * - AES-128 CTR mode encryption
  * - AES-128 EAX mode encryption/decryption
  * - AES-128 CBC
@@ -18,12 +18,19 @@
 #ifndef AES_WRAP_H
 #define AES_WRAP_H
 
-int __must_check aes_wrap(const u8 *kek, int n, const u8 *plain, u8 *cipher);
-int __must_check aes_unwrap(const u8 *kek, int n, const u8 *cipher, u8 *plain);
+int __must_check aes_wrap(const u8 *kek, size_t kek_len, int n, const u8 *plain,
+			  u8 *cipher);
+int __must_check aes_unwrap(const u8 *kek, size_t kek_len, int n,
+			    const u8 *cipher, u8 *plain);
+int __must_check omac1_aes_vector(const u8 *key, size_t key_len,
+				  size_t num_elem, const u8 *addr[],
+				  const size_t *len, u8 *mac);
 int __must_check omac1_aes_128_vector(const u8 *key, size_t num_elem,
 				      const u8 *addr[], const size_t *len,
 				      u8 *mac);
 int __must_check omac1_aes_128(const u8 *key, const u8 *data, size_t data_len,
+			       u8 *mac);
+int __must_check omac1_aes_256(const u8 *key, const u8 *data, size_t data_len,
 			       u8 *mac);
 int __must_check aes_128_encrypt_block(const u8 *key, const u8 *in, u8 *out);
 int __must_check aes_128_ctr_encrypt(const u8 *key, const u8 *nonce,

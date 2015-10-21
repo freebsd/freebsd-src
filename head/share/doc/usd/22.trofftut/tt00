@@ -46,6 +46,7 @@
 .OH 'A TROFF Tutorial''USD:22-%'
 .\".RP
 .\" .....TM 76-1273-7 39199 39199-11
+.ND
 .TL
 A TROFF Tutorial
 .AU "MH 2C-518" 6021

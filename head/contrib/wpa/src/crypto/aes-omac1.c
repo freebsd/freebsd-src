@@ -1,5 +1,5 @@
 /*
- * One-key CBC MAC (OMAC1) hash with AES-128
+ * One-key CBC MAC (OMAC1) hash with AES
  *
  * Copyright (c) 2003-2007, Jouni Malinen <j@w1.fi>
  *
@@ -27,8 +27,9 @@ static void gf_mulx(u8 *pad)
 
 
 /**
- * omac1_aes_128_vector - One-Key CBC MAC (OMAC1) hash with AES-128
- * @key: 128-bit key for the hash operation
+ * omac1_aes_vector - One-Key CBC MAC (OMAC1) hash with AES
+ * @key: Key for the hash operation
+ * @key_len: Key length in octets
  * @num_elem: Number of elements in the data vector
  * @addr: Pointers to the data areas
  * @len: Lengths of the data blocks
@@ -39,15 +40,15 @@ static void gf_mulx(u8 *pad)
  * OMAC1 was standardized with the name CMAC by NIST in a Special Publication
  * (SP) 800-38B.
  */
-int omac1_aes_128_vector(const u8 *key, size_t num_elem,
-			 const u8 *addr[], const size_t *len, u8 *mac)
+int omac1_aes_vector(const u8 *key, size_t key_len, size_t num_elem,
+		     const u8 *addr[], const size_t *len, u8 *mac)
 {
 	void *ctx;
 	u8 cbc[AES_BLOCK_SIZE], pad[AES_BLOCK_SIZE];
 	const u8 *pos, *end;
 	size_t i, e, left, total_len;
 
-	ctx = aes_encrypt_init(key, 16);
+	ctx = aes_encrypt_init(key, key_len);
 	if (ctx == NULL)
 		return -1;
 	os_memset(cbc, 0, AES_BLOCK_SIZE);
@@ -65,6 +66,13 @@ int omac1_aes_128_vector(const u8 *key, size_t num_elem,
 		for (i = 0; i < AES_BLOCK_SIZE; i++) {
 			cbc[i] ^= *pos++;
 			if (pos >= end) {
+				/*
+				 * Stop if there are no more bytes to process
+				 * since there are no more entries in the array.
+				 */
+				if (i + 1 == AES_BLOCK_SIZE &&
+				    left == AES_BLOCK_SIZE)
+					break;
 				e++;
 				pos = addr[e];
 				end = pos + len[e];
@@ -83,6 +91,12 @@ int omac1_aes_128_vector(const u8 *key, size_t num_elem,
 		for (i = 0; i < left; i++) {
 			cbc[i] ^= *pos++;
 			if (pos >= end) {
+				/*
+				 * Stop if there are no more bytes to process
+				 * since there are no more entries in the array.
+				 */
+				if (i + 1 == left)
+					break;
 				e++;
 				pos = addr[e];
 				end = pos + len[e];
@@ -101,6 +115,26 @@ int omac1_aes_128_vector(const u8 *key, size_t num_elem,
 
 
 /**
+ * omac1_aes_128_vector - One-Key CBC MAC (OMAC1) hash with AES-128
+ * @key: 128-bit key for the hash operation
+ * @num_elem: Number of elements in the data vector
+ * @addr: Pointers to the data areas
+ * @len: Lengths of the data blocks
+ * @mac: Buffer for MAC (128 bits, i.e., 16 bytes)
+ * Returns: 0 on success, -1 on failure
+ *
+ * This is a mode for using block cipher (AES in this case) for authentication.
+ * OMAC1 was standardized with the name CMAC by NIST in a Special Publication
+ * (SP) 800-38B.
+ */
+int omac1_aes_128_vector(const u8 *key, size_t num_elem,
+			 const u8 *addr[], const size_t *len, u8 *mac)
+{
+	return omac1_aes_vector(key, 16, num_elem, addr, len, mac);
+}
+
+
+/**
  * omac1_aes_128 - One-Key CBC MAC (OMAC1) hash with AES-128 (aka AES-CMAC)
  * @key: 128-bit key for the hash operation
  * @data: Data buffer for which a MAC is determined
@@ -115,4 +149,22 @@ int omac1_aes_128_vector(const u8 *key, size_t num_elem,
 int omac1_aes_128(const u8 *key, const u8 *data, size_t data_len, u8 *mac)
 {
 	return omac1_aes_128_vector(key, 1, &data, &data_len, mac);
+}
+
+
+/**
+ * omac1_aes_256 - One-Key CBC MAC (OMAC1) hash with AES-256 (aka AES-CMAC)
+ * @key: 256-bit key for the hash operation
+ * @data: Data buffer for which a MAC is determined
+ * @data_len: Length of data buffer in bytes
+ * @mac: Buffer for MAC (128 bits, i.e., 16 bytes)
+ * Returns: 0 on success, -1 on failure
+ *
+ * This is a mode for using block cipher (AES in this case) for authentication.
+ * OMAC1 was standardized with the name CMAC by NIST in a Special Publication
+ * (SP) 800-38B.
+ */
+int omac1_aes_256(const u8 *key, const u8 *data, size_t data_len, u8 *mac)
+{
+	return omac1_aes_vector(key, 32, 1, &data, &data_len, mac);
 }

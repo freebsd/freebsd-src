@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
+#include <sys/vmem.h>
 #include <machine/bus.h>
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>

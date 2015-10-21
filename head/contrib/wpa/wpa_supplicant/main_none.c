@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
 	memset(&iface, 0, sizeof(iface));
 	/* TODO: set interface parameters */
 
-	if (wpa_supplicant_add_iface(global, &iface) == NULL)
+	if (wpa_supplicant_add_iface(global, &iface, NULL) == NULL)
 		exitcode = -1;
 
 	if (exitcode == 0)

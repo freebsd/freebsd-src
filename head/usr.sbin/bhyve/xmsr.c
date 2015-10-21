@@ -185,6 +185,15 @@ emulate_rdmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t *val)
 			*val = 0;
 			break;
 
+		/*
+		 * OpenBSD guests test bit 0 of this MSR to detect if the
+		 * workaround for erratum 721 is already applied.
+		 * http://support.amd.com/TechDocs/41322_10h_Rev_Gd.pdf
+		 */
+		case 0xC0011029:
+			*val = 1;
+			break;
+
 		default:
 			error = -1;
 			break;

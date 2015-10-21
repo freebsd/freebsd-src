@@ -229,7 +229,7 @@ looutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 
 	/* BPF writes need to be handled specially. */
-	if (dst->sa_family == AF_UNSPEC)
+	if (dst->sa_family == AF_UNSPEC || dst->sa_family == pseudo_AF_HDRCMPLT)
 		bcopy(dst->sa_data, &af, sizeof(af));
 	else
 		af = dst->sa_family;

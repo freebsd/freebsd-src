@@ -264,11 +264,10 @@ static inline struct mlx4_en_filter *
 mlx4_en_filter_find(struct mlx4_en_priv *priv, __be32 src_ip, __be32 dst_ip,
 		    u8 ip_proto, __be16 src_port, __be16 dst_port)
 {
-	struct hlist_node *elem;
 	struct mlx4_en_filter *filter;
 	struct mlx4_en_filter *ret = NULL;
 
-	hlist_for_each_entry(filter, elem,
+	hlist_for_each_entry(filter,
 			     filter_hash_bucket(priv, src_ip, dst_ip,
 						src_port, dst_port),
 			     filter_chain) {
@@ -650,6 +649,7 @@ static void mlx4_en_cache_mclist(struct net_device *dev)
 	struct mlx4_en_mc_list *tmp;
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 
+        if_maddr_rlock(dev);
         TAILQ_FOREACH(ifma, &dev->if_multiaddrs, ifma_link) {
                 if (ifma->ifma_addr->sa_family != AF_LINK)
                         continue;
@@ -658,10 +658,13 @@ static void mlx4_en_cache_mclist(struct net_device *dev)
                         continue;
                 /* Make sure the list didn't grow. */
 		tmp = kzalloc(sizeof(struct mlx4_en_mc_list), GFP_ATOMIC);
+		if (tmp == NULL)
+			break;
 		memcpy(tmp->addr,
 			LLADDR((struct sockaddr_dl *)ifma->ifma_addr), ETH_ALEN);
 		list_add_tail(&tmp->list, &priv->mc_list);
         }
+        if_maddr_runlock(dev);
 }
 
 static void update_mclist_flags(struct mlx4_en_priv *priv,
@@ -1305,7 +1308,7 @@ int mlx4_en_start_port(struct net_device *dev)
 		cq = priv->tx_cq[i];
 		err = mlx4_en_activate_cq(priv, cq, i);
 		if (err) {
-			en_err(priv, "Failed allocating Tx CQ\n");
+			en_err(priv, "Failed activating Tx CQ\n");
 			goto tx_err;
 		}
 		err = mlx4_en_set_cq_moder(priv, cq);
@@ -1323,7 +1326,7 @@ int mlx4_en_start_port(struct net_device *dev)
 		err = mlx4_en_activate_tx_ring(priv, tx_ring, cq->mcq.cqn,
 					       i / priv->num_tx_rings_p_up);
 		if (err) {
-			en_err(priv, "Failed allocating Tx ring\n");
+			en_err(priv, "Failed activating Tx ring %d\n", i);
 			mlx4_en_deactivate_cq(priv, cq);
 			goto tx_err;
 		}
@@ -1916,19 +1919,22 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 		error = -mlx4_en_change_mtu(dev, ifr->ifr_mtu);
 		break;
 	case SIOCSIFFLAGS:
-		mutex_lock(&mdev->state_lock);
 		if (dev->if_flags & IFF_UP) {
-			if ((dev->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			if ((dev->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+				mutex_lock(&mdev->state_lock);
 				mlx4_en_start_port(dev);
-			else
+				mutex_unlock(&mdev->state_lock);
+			} else {
 				mlx4_en_set_rx_mode(dev);
+			}
 		} else {
+			mutex_lock(&mdev->state_lock);
 			if (dev->if_drv_flags & IFF_DRV_RUNNING) {
 				mlx4_en_stop_port(dev);
-                                if_link_state_change(dev, LINK_STATE_DOWN);
+				if_link_state_change(dev, LINK_STATE_DOWN);
 			}
+			mutex_unlock(&mdev->state_lock);
 		}
-		mutex_unlock(&mdev->state_lock);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -1960,6 +1966,29 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 		mutex_unlock(&mdev->state_lock);
 		VLAN_CAPABILITIES(dev);
 		break;
+	case SIOCGI2C: {
+		struct ifi2creq i2c;
+
+		error = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
+		if (error)
+			break;
+		if (i2c.len > sizeof(i2c.data)) {
+			error = EINVAL;
+			break;
+		}
+		/*
+		 * Note that we ignore i2c.addr here. The driver hardcodes
+		 * the address to 0x50, while standard expects it to be 0xA0.
+		 */
+		error = mlx4_get_module_info(mdev->dev, priv->port,
+		    i2c.offset, i2c.len, i2c.data);
+		if (error < 0) {
+			error = -error;
+			break;
+		}
+		error = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
+		break;
+	}
 	default:
 		error = ether_ioctl(dev, command, data);
 		break;
@@ -2189,6 +2218,7 @@ out:
 	mlx4_en_destroy_netdev(dev);
 	return err;
 }
+
 static int mlx4_en_set_ring_size(struct net_device *dev,
     int rx_size, int tx_size)
 {
@@ -2408,7 +2438,6 @@ static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv)
             CTLFLAG_RW, &priv->adaptive_rx_coal, 0,
             "Enable adaptive rx coalescing");
 }
-
 
 static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv)
 {

@@ -87,14 +87,16 @@ typedef enum {
 	CD_Q_NONE		= 0x00,
 	CD_Q_NO_TOUCH		= 0x01,
 	CD_Q_BCD_TRACKS		= 0x02,
-	CD_Q_10_BYTE_ONLY	= 0x10
+	CD_Q_10_BYTE_ONLY	= 0x10,
+	CD_Q_RETRY_BUSY		= 0x40
 } cd_quirks;
 
 #define CD_Q_BIT_STRING		\
 	"\020"			\
 	"\001NO_TOUCH"		\
 	"\002BCD_TRACKS"	\
-	"\00510_BYTE_ONLY"
+	"\00510_BYTE_ONLY"	\
+	"\007RETRY_BUSY"
 
 typedef enum {
 	CD_FLAG_INVALID		= 0x0001,
@@ -189,6 +191,14 @@ static struct cd_quirk_entry cd_quirk_table[] =
 	{
 		{ T_CDROM, SIP_MEDIA_REMOVABLE, "CHINON", "CD-ROM CDS-535","*"},
 		/* quirks */ CD_Q_BCD_TRACKS
+	},
+	{
+		/*
+		 * VMware returns BUSY status when storage has transient
+		 * connectivity problems, so better wait.
+		 */
+		{T_CDROM, SIP_MEDIA_REMOVABLE, "NECVMWar", "VMware IDE CDR10", "*"},
+		/*quirks*/ CD_Q_RETRY_BUSY
 	}
 };
 
@@ -379,7 +389,8 @@ cdasync(void *callback_arg, u_int32_t code,
 
 		if (cgd->protocol != PROTO_SCSI)
 			break;
-
+		if (SID_QUAL(&cgd->inq_data) != SID_QUAL_LU_CONNECTED)
+			break;
 		if (SID_TYPE(&cgd->inq_data) != T_CDROM
 		    && SID_TYPE(&cgd->inq_data) != T_WORM)
 			break;
@@ -1070,11 +1081,11 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP ||
 		    (error = cderror(done_ccb, CAM_RETRY_SELTO,
 				SF_RETRY_UA | SF_NO_PRINT)) == 0) {
-
 			snprintf(announce_buf, sizeof(announce_buf),
-				"cd present [%lu x %lu byte records]",
-				cdp->disksize, (u_long)cdp->blksize);
-
+			    "%juMB (%ju %u byte sectors)",
+			    ((uintmax_t)cdp->disksize * cdp->blksize) /
+			     (1024 * 1024),
+			    (uintmax_t)cdp->disksize, cdp->blksize);
 		} else {
 			if (error == ERESTART) {
 				/*
@@ -2581,6 +2592,9 @@ cderror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	 * don't treat UAs as errors.
 	 */
 	sense_flags |= SF_RETRY_UA;
+
+	if (softc->quirks & CD_Q_RETRY_BUSY)
+		sense_flags |= SF_RETRY_BUSY;
 	return (cam_periph_error(ccb, cam_flags, sense_flags, 
 				 &softc->saved_ccb));
 }

@@ -252,6 +252,19 @@ and
 If set to
 .Dq NO ,
 the beastie boot menu will be displayed without ANSI coloring.
+.It Va entropy_cache_load
+.Pq Dq YES
+If set to
+.Dq NO ,
+the very early
+boot-time entropy file
+will not be loaded.
+See the entropy entries in
+.Xr rc.conf 5 .
+.It Va entropy_cache_name
+.Pq Dq /boot/entropy
+The name of the very early
+boot-time entropy cache file.
 .El
 .Sh FILES
 .Bl -tag -width /boot/defaults/loader.conf -compact
@@ -269,6 +282,7 @@ contains the instructions to automatically process
 .Nm .
 .El
 .Sh SEE ALSO
+.Xr rc.conf 5 ,
 .Xr boot 8 ,
 .Xr loader 8 ,
 .Xr loader.4th 8

@@ -57,7 +57,7 @@ dotest(int domain, int type, int protocol)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 
 	dotest(PF_INET, SOCK_DGRAM, 0);

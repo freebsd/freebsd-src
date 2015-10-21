@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/Interpreter/OptionGroupValueObjectDisplay.h"
 
 // C Includes
@@ -16,6 +14,7 @@
 // Other libraries and framework includes
 // Project includes
 #include "lldb/DataFormatters/ValueObjectPrinter.h"
+#include "lldb/Host/StringConvert.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Utility/Utils.h"
@@ -45,6 +44,7 @@ g_option_table[] =
     { LLDB_OPT_SET_1, false, "no-summary-depth",   'Y', OptionParser::eOptionalArgument, nullptr, nullptr, 0, eArgTypeCount,     "Set the depth at which omitting summary information stops (default is 1)."},
     { LLDB_OPT_SET_1, false, "raw-output",         'R', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,      "Don't use formatting options."},
     { LLDB_OPT_SET_1, false, "show-all-children",  'A', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,      "Ignore the upper bound on the number of children to show."},
+    { LLDB_OPT_SET_1, false, "validate",           'V',  OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean,   "Show results of type validators."},
     { 0, false, nullptr, 0, 0, nullptr, nullptr, 0, eArgTypeNone, nullptr }
 };
 
@@ -88,13 +88,13 @@ OptionGroupValueObjectDisplay::SetOptionValue (CommandInterpreter &interpreter,
         case 'A':   ignore_cap   = true;  break;
             
         case 'D':
-            max_depth = Args::StringToUInt32 (option_arg, UINT32_MAX, 0, &success);
+            max_depth = StringConvert::ToUInt32 (option_arg, UINT32_MAX, 0, &success);
             if (!success)
                 error.SetErrorStringWithFormat("invalid max depth '%s'", option_arg);
             break;
             
         case 'P':
-            ptr_depth = Args::StringToUInt32 (option_arg, 0, 0, &success);
+            ptr_depth = StringConvert::ToUInt32 (option_arg, 0, 0, &success);
             if (!success)
                 error.SetErrorStringWithFormat("invalid pointer depth '%s'", option_arg);
             break;
@@ -102,7 +102,7 @@ OptionGroupValueObjectDisplay::SetOptionValue (CommandInterpreter &interpreter,
         case 'Y':
             if (option_arg)
             {
-                no_summary_depth = Args::StringToUInt32 (option_arg, 0, 0, &success);
+                no_summary_depth = StringConvert::ToUInt32 (option_arg, 0, 0, &success);
                 if (!success)
                     error.SetErrorStringWithFormat("invalid pointer depth '%s'", option_arg);
             }
@@ -115,6 +115,13 @@ OptionGroupValueObjectDisplay::SetOptionValue (CommandInterpreter &interpreter,
             if (!success)
                 error.SetErrorStringWithFormat("invalid synthetic-type '%s'", option_arg);
             break;
+            
+        case 'V':
+            run_validator = Args::StringToBoolean(option_arg, true, &success);
+            if (!success)
+                error.SetErrorStringWithFormat("invalid validate '%s'", option_arg);
+            break;
+            
         default:
             error.SetErrorStringWithFormat ("unrecognized option '%c'", short_option);
             break;
@@ -137,6 +144,7 @@ OptionGroupValueObjectDisplay::OptionParsingStarting (CommandInterpreter &interp
     use_synth         = true;
     be_raw            = false;
     ignore_cap        = false;
+    run_validator     = false;
     
     Target *target = interpreter.GetExecutionContext().GetTargetPtr();
     if (target != nullptr)
@@ -176,7 +184,9 @@ OptionGroupValueObjectDisplay::GetAsDumpOptions (LanguageRuntimeDescriptionDispl
         .SetHideValue(use_objc);
     
     if (be_raw)
-        options.SetRawDisplay(true);
+        options.SetRawDisplay();
+    
+    options.SetRunValidator(run_validator);
 
     return options;
 }

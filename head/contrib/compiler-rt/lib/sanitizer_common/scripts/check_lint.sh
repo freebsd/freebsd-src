@@ -17,7 +17,6 @@ fi
 
 # Filters
 # TODO: remove some of these filters
-LLVM_LINT_FILTER=-,+whitespace
 COMMON_LINT_FILTER=-build/include,-build/header_guard,-legal/copyright,-whitespace/comments,-readability/casting,\
 -build/namespaces
 ASAN_RTL_LINT_FILTER=${COMMON_LINT_FILTER},-runtime/int
@@ -32,7 +31,14 @@ LSAN_LIT_TEST_LINT_FILTER=${LSAN_RTL_LINT_FILTER},-whitespace/line_length
 DFSAN_RTL_LINT_FILTER=${COMMON_LINT_FILTER},-runtime/int,-runtime/printf,-runtime/references,-readability/function
 COMMON_RTL_INC_LINT_FILTER=${COMMON_LINT_FILTER},-runtime/int,-runtime/sizeof,-runtime/printf,-readability/fn_size
 SANITIZER_INCLUDES_LINT_FILTER=${COMMON_LINT_FILTER},-runtime/int
-MKTEMP="mktemp -q /tmp/tmp.XXXXXXXXXX"
+
+MKTEMP_DIR=$(mktemp -qd /tmp/check_lint.XXXXXXXXXX)
+MKTEMP="mktemp -q ${MKTEMP_DIR}/tmp.XXXXXXXXXX"
+cleanup() {
+  rm -rf $MKTEMP_DIR
+}
+trap cleanup EXIT
+
 cd ${LLVM_CHECKOUT}
 
 EXITSTATUS=0
@@ -52,9 +58,6 @@ run_lint() {
   fi
   ${LITLINT} "$@" 2>>$ERROR_LOG
 }
-
-run_lint ${LLVM_LINT_FILTER} --filter=${LLVM_LINT_FILTER} \
-  lib/Transforms/Instrumentation/*Sanitizer.cpp &
 
 if [ "${COMPILER_RT}" = "" ]; then
   COMPILER_RT=projects/compiler-rt

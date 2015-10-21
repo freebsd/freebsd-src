@@ -43,10 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 int
-_des_crypt_call(buf, len, dparms)
-	char *buf;
-	int len;
-	struct desparams *dparms;
+_des_crypt_call(char *buf, int len, struct desparams *dparms)
 {
 	CLIENT *clnt;
 	desresp  *result_1;
@@ -64,6 +61,7 @@ _des_crypt_call(buf, len, dparms)
 	}
 	if (nconf == NULL) {
 		warnx("getnetconfig: %s", nc_sperror());
+		endnetconfig(localhandle);
 		return(DESERR_HWERROR);
 	}
 	clnt = clnt_tp_create(NULL, CRYPT_PROG, CRYPT_VERS, nconf);

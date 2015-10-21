@@ -13,7 +13,7 @@
 #include "edit.h"
 
 
-#define CMD_BUF_LEN 256
+#define CMD_BUF_LEN 4096
 static char cmdbuf[CMD_BUF_LEN];
 static int cmdbuf_pos = 0;
 static const char *ps2 = NULL;

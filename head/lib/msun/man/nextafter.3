@@ -78,11 +78,11 @@ routines conform to
 They implement the Nextafter function recommended by
 .St -ieee754 ,
 with the extension that
-.Fn nextafter +0.0, -0.0
+.Fn nextafter "+0.0" "-0.0"
 returns
 .Li -0.0 ,
 and
-.Fn nextafter -0.0, +0.0
+.Fn nextafter "-0.0" "+0.0"
 returns
 .Li +0.0 .
 .Sh HISTORY

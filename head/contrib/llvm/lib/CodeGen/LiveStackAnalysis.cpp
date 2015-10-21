@@ -20,6 +20,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <limits>
 using namespace llvm;
 
@@ -49,7 +50,7 @@ void LiveStacks::releaseMemory() {
 }
 
 bool LiveStacks::runOnMachineFunction(MachineFunction &MF) {
-  TRI = MF.getTarget().getRegisterInfo();
+  TRI = MF.getSubtarget().getRegisterInfo();
   // FIXME: No analysis is being done right now. We are relying on the
   // register allocators to provide the information.
   return false;
@@ -60,8 +61,10 @@ LiveStacks::getOrCreateInterval(int Slot, const TargetRegisterClass *RC) {
   assert(Slot >= 0 && "Spill slot indice must be >= 0");
   SS2IntervalMap::iterator I = S2IMap.find(Slot);
   if (I == S2IMap.end()) {
-    I = S2IMap.insert(I, std::make_pair(Slot,
-            LiveInterval(TargetRegisterInfo::index2StackSlot(Slot), 0.0F)));
+    I = S2IMap.emplace(std::piecewise_construct, std::forward_as_tuple(Slot),
+                       std::forward_as_tuple(
+                           TargetRegisterInfo::index2StackSlot(Slot), 0.0F))
+            .first;
     S2RCMap.insert(std::make_pair(Slot, RC));
   } else {
     // Use the largest common subclass register class.
@@ -80,7 +83,7 @@ void LiveStacks::print(raw_ostream &OS, const Module*) const {
     int Slot = I->first;
     const TargetRegisterClass *RC = getIntervalRegClass(Slot);
     if (RC)
-      OS << " [" << RC->getName() << "]\n";
+      OS << " [" << TRI->getRegClassName(RC) << "]\n";
     else
       OS << " [Unknown]\n";
   }

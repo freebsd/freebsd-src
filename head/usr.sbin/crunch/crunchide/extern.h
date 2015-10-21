@@ -31,14 +31,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef NLIST_AOUT
-int	check_aout(int, const char *);
-int	hide_aout(int, const char *);
-#endif
-#ifdef NLIST_ECOFF
-int	check_ecoff(int, const char *);
-int	hide_ecoff(int, const char *);
-#endif
 #ifdef NLIST_ELF32
 int	check_elf32(int, const char *);
 int	hide_elf32(int, const char *);

@@ -9,6 +9,8 @@
 #ifndef PRIVSEP_COMMANDS_H
 #define PRIVSEP_COMMANDS_H
 
+#include "common/ieee802_11_defs.h"
+
 enum privsep_cmd {
 	PRIVSEP_CMD_REGISTER,
 	PRIVSEP_CMD_UNREGISTER,
@@ -24,14 +26,35 @@ enum privsep_cmd {
 	PRIVSEP_CMD_L2_NOTIFY_AUTH_START,
 	PRIVSEP_CMD_L2_SEND,
 	PRIVSEP_CMD_SET_COUNTRY,
+	PRIVSEP_CMD_AUTHENTICATE,
+};
+
+struct privsep_cmd_authenticate
+{
+	int freq;
+	u8 bssid[ETH_ALEN];
+	u8 ssid[SSID_MAX_LEN];
+	size_t ssid_len;
+	int auth_alg;
+	size_t ie_len;
+	u8 wep_key[4][16];
+	size_t wep_key_len[4];
+	int wep_tx_keyidx;
+	int local_state_change;
+	int p2p;
+	size_t sae_data_len;
+	/* followed by ie_len bytes of ie */
+	/* followed by sae_data_len bytes of sae_data */
 };
 
 struct privsep_cmd_associate
 {
 	u8 bssid[ETH_ALEN];
-	u8 ssid[32];
+	u8 ssid[SSID_MAX_LEN];
 	size_t ssid_len;
+	int hwmode;
 	int freq;
+	int channel;
 	int pairwise_suite;
 	int group_suite;
 	int key_mgmt_suite;
@@ -64,6 +87,18 @@ enum privsep_event {
 	PRIVSEP_EVENT_STKSTART,
 	PRIVSEP_EVENT_FT_RESPONSE,
 	PRIVSEP_EVENT_RX_EAPOL,
+	PRIVSEP_EVENT_SCAN_STARTED,
+	PRIVSEP_EVENT_AUTH,
+};
+
+struct privsep_event_auth {
+	u8 peer[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
+	u16 auth_type;
+	u16 auth_transaction;
+	u16 status_code;
+	size_t ies_len;
+	/* followed by ies_len bytes of ies */
 };
 
 #endif /* PRIVSEP_COMMANDS_H */

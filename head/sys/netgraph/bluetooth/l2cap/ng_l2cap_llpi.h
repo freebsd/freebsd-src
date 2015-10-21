@@ -34,7 +34,7 @@
 #ifndef _NETGRAPH_L2CAP_LLPI_H_
 #define _NETGRAPH_L2CAP_LLPI_H_
 
-int  ng_l2cap_lp_con_req             (ng_l2cap_p, bdaddr_p);
+int  ng_l2cap_lp_con_req             (ng_l2cap_p, bdaddr_p, int);
 int  ng_l2cap_lp_con_cfm             (ng_l2cap_p, struct ng_mesg *);
 int  ng_l2cap_lp_con_ind             (ng_l2cap_p, struct ng_mesg *);
 int  ng_l2cap_lp_discon_ind          (ng_l2cap_p, struct ng_mesg *);

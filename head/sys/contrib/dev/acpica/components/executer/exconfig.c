@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __EXCONFIG_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -179,15 +177,6 @@ AcpiExLoadTableOp (
 
     ACPI_FUNCTION_TRACE (ExLoadTableOp);
 
-
-    /* Validate lengths for the Signature, OemId, and OemTableId strings */
-
-    if ((Operand[0]->String.Length > ACPI_NAME_SIZE) ||
-        (Operand[1]->String.Length > ACPI_OEM_ID_SIZE) ||
-        (Operand[2]->String.Length > ACPI_OEM_TABLE_ID_SIZE))
-    {
-        return_ACPI_STATUS (AE_AML_STRING_LIMIT);
-    }
 
     /* Find the ACPI table in the RSDT/XSDT */
 
@@ -517,7 +506,7 @@ AcpiExLoadOp (
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
 
-        ACPI_MEMCPY (Table, TableHeader, Length);
+        memcpy (Table, TableHeader, Length);
         break;
 
     default:

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -119,7 +119,9 @@ typedef struct acpi_pld_info
 {
     UINT8               Revision;
     UINT8               IgnoreColor;
-    UINT32              Color;
+    UINT8               Red;
+    UINT8               Green;
+    UINT8               Blue;
     UINT16              Width;
     UINT16              Height;
     UINT8               UserVisible;
@@ -155,6 +157,7 @@ typedef struct acpi_pld_info
  *        (Intended for BIOS use only)
  */
 #define ACPI_PLD_REV1_BUFFER_SIZE               16 /* For Revision 1 of the buffer (From ACPI spec) */
+#define ACPI_PLD_REV2_BUFFER_SIZE               20 /* For Revision 2 of the buffer (From ACPI spec) */
 #define ACPI_PLD_BUFFER_SIZE                    20 /* For Revision 2 of the buffer (From ACPI spec) */
 
 /* First 32-bit dword, bits 0:32 */
@@ -165,8 +168,14 @@ typedef struct acpi_pld_info
 #define ACPI_PLD_GET_IGNORE_COLOR(dword)        ACPI_GET_BITS (dword, 7, ACPI_1BIT_MASK)
 #define ACPI_PLD_SET_IGNORE_COLOR(dword,value)  ACPI_SET_BITS (dword, 7, ACPI_1BIT_MASK, value)     /* Offset 7, Len 1 */
 
-#define ACPI_PLD_GET_COLOR(dword)               ACPI_GET_BITS (dword, 8, ACPI_24BIT_MASK)
-#define ACPI_PLD_SET_COLOR(dword,value)         ACPI_SET_BITS (dword, 8, ACPI_24BIT_MASK, value)    /* Offset 8, Len 24 */
+#define ACPI_PLD_GET_RED(dword)                 ACPI_GET_BITS (dword, 8, ACPI_8BIT_MASK)
+#define ACPI_PLD_SET_RED(dword,value)           ACPI_SET_BITS (dword, 8, ACPI_8BIT_MASK, value)    /* Offset 8, Len 8 */
+
+#define ACPI_PLD_GET_GREEN(dword)               ACPI_GET_BITS (dword, 16, ACPI_8BIT_MASK)
+#define ACPI_PLD_SET_GREEN(dword,value)         ACPI_SET_BITS (dword, 16, ACPI_8BIT_MASK, value)    /* Offset 16, Len 8 */
+
+#define ACPI_PLD_GET_BLUE(dword)                ACPI_GET_BITS (dword, 24, ACPI_8BIT_MASK)
+#define ACPI_PLD_SET_BLUE(dword,value)          ACPI_SET_BITS (dword, 24, ACPI_8BIT_MASK, value)    /* Offset 24, Len 8 */
 
 /* Second 32-bit dword, bits 33:63 */
 

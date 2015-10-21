@@ -32,6 +32,23 @@
 
 #include <sys/types.h>
 
+#define CPU_IMPLEMENTER_ARM		0x41
+#define CPU_IMPLEMENTER_QCOM		0x51
+#define CPU_IMPLEMENTER_MRVL		0x56
+
+/* ARM */
+#define CPU_ARCH_ARM1176		0xB76
+#define CPU_ARCH_CORTEX_A5		0xC05
+#define CPU_ARCH_CORTEX_A7		0xC07
+#define CPU_ARCH_CORTEX_A8		0xC08
+#define CPU_ARCH_CORTEX_A9		0xC09
+#define CPU_ARCH_CORTEX_A12		0xC0D
+#define CPU_ARCH_CORTEX_A15		0xC0F
+#define CPU_ARCH_CORTEX_A17		0xC11
+
+/* QCOM */
+#define CPU_ARCH_KRAIT_300		0x06F
+
 struct cpuinfo {
 	/* raw id registers */
 	uint32_t midr;
@@ -82,10 +99,16 @@ struct cpuinfo {
 	int generic_timer_ext;
 	int virtualization_ext;
 	int security_ext;
+
+	/* L1 cache info */
+	int dcache_line_size;
+	int dcache_line_mask;
+	int icache_line_size;
+	int icache_line_mask;
 };
 
 extern struct cpuinfo cpuinfo;
 
 void cpuinfo_init(void);
-
+void cpuinfo_get_actlr_modifier(uint32_t *actlr_mask, uint32_t *actlr_set);
 #endif	/* _MACHINE_CPUINFO_H_ */

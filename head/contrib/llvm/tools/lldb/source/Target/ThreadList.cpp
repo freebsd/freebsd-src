@@ -17,22 +17,23 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlan.h"
 #include "lldb/Target/Process.h"
+#include "lldb/Utility/ConvertEnum.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
 ThreadList::ThreadList (Process *process) :
+    ThreadCollection(),
     m_process (process),
     m_stop_id (0),
-    m_threads(),
     m_selected_tid (LLDB_INVALID_THREAD_ID)
 {
 }
 
 ThreadList::ThreadList (const ThreadList &rhs) :
+    ThreadCollection(),
     m_process (rhs.m_process),
     m_stop_id (rhs.m_stop_id),
-    m_threads (),
     m_selected_tid ()
 {
     // Use the assignment operator since it uses the mutex
@@ -76,25 +77,6 @@ ThreadList::SetStopID (uint32_t stop_id)
 {
     m_stop_id = stop_id;
 }
-
-
-void
-ThreadList::AddThread (const ThreadSP &thread_sp)
-{
-    Mutex::Locker locker(GetMutex());
-    m_threads.push_back(thread_sp);
-}
-
-void
-ThreadList::InsertThread (const lldb::ThreadSP &thread_sp, uint32_t idx)
-{
-    Mutex::Locker locker(GetMutex());
-    if (idx < m_threads.size())
-        m_threads.insert(m_threads.begin() + idx, thread_sp);
-    else
-        m_threads.push_back (thread_sp);
-}
-
 
 uint32_t
 ThreadList::GetSize (bool can_update)
@@ -265,8 +247,8 @@ ThreadList::ShouldStop (Event *event_ptr)
     // figuring out whether the thread plan conditions are met.  So we don't want
     // to keep the ThreadList locked the whole time we are doing this.
     // FIXME: It is possible that running code could cause new threads
-    // to be created.  If that happens we will miss asking them whether
-    // then should stop.  This is not a big deal, since we haven't had
+    // to be created.  If that happens, we will miss asking them whether
+    // they should stop.  This is not a big deal since we haven't had
     // a chance to hang any interesting operations on those threads yet.
     
     collection threads_copy;
@@ -600,6 +582,7 @@ ThreadList::WillResume ()
 
             if (thread_sp == GetSelectedThread())
             {
+                // If the currently selected thread wants to run on its own, always let it.
                 run_only_current_thread = true;
                 run_me_only_list.Clear();
                 run_me_only_list.AddThread (thread_sp);

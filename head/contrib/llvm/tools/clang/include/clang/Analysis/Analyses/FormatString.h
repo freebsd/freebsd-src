@@ -16,8 +16,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FORMAT_H
-#define LLVM_CLANG_FORMAT_H
+#ifndef LLVM_CLANG_ANALYSIS_ANALYSES_FORMATSTRING_H
+#define LLVM_CLANG_ANALYSIS_ANALYSES_FORMATSTRING_H
 
 #include "clang/AST/CanonicalType.h"
 
@@ -40,6 +40,7 @@ public:
   void clear() { flag = false; }
   void setPosition(const char *position) {
     assert(position);
+    flag = true;
     this->position = position;
   }
   const char *getPosition() const {
@@ -49,7 +50,7 @@ public:
   const char *toString() const { return representation; }
 
   // Overloaded operators for bool like qualities
-  LLVM_EXPLICIT operator bool() const { return flag; }
+  explicit operator bool() const { return flag; }
   OptionalFlag& operator=(const bool &rhs) {
     flag = rhs;
     return *this;  // Return a reference to myself.
@@ -79,6 +80,7 @@ public:
     AsLongDouble, // 'L'
     AsAllocate,   // for '%as', GNU extension to C90 scanf
     AsMAllocate,  // for '%ms', GNU extension to scanf
+    AsWide,       // 'w' (MSVCRT, like l but only for c, C, s, S, or Z
     AsWideChar = AsLong // for '%ls', only makes sense for printf
   };
 
@@ -154,14 +156,17 @@ public:
 
     // ** Printf-specific **
 
+    ZArg, // MS extension
+
     // Objective-C specific specifiers.
     ObjCObjArg,  // '@'
     ObjCBeg = ObjCObjArg, ObjCEnd = ObjCObjArg,
 
-    // FreeBSD specific specifiers
+    // FreeBSD kernel specific specifiers.
     FreeBSDbArg,
     FreeBSDDArg,
     FreeBSDrArg,
+    FreeBSDyArg,
 
     // GlibC specific specifiers.
     PrintErrno,   // 'm'
@@ -206,7 +211,8 @@ public:
     return EndScanList ? EndScanList - Position : 1;
   }
 
-  bool isIntArg() const { return kind >= IntArgBeg && kind <= IntArgEnd; }
+  bool isIntArg() const { return (kind >= IntArgBeg && kind <= IntArgEnd) ||
+    kind == FreeBSDrArg || kind == FreeBSDyArg; }
   bool isUIntArg() const { return kind >= UIntArgBeg && kind <= UIntArgEnd; }
   bool isAnyIntArg() const { return kind >= IntArgBeg && kind <= UIntArgEnd; }
   const char *toString() const;
@@ -226,6 +232,9 @@ class ArgType {
 public:
   enum Kind { UnknownTy, InvalidTy, SpecificTy, ObjCPointerTy, CPointerTy,
               AnyCharTy, CStrTy, WCStrTy, WIntTy };
+
+  enum MatchKind { NoMatch = 0, Match = 1, NoMatchPedantic };
+
 private:
   const Kind K;
   QualType T;
@@ -249,7 +258,7 @@ public:
     return Res;
   }
 
-  bool matchesType(ASTContext &C, QualType argTy) const;
+  MatchKind matchesType(ASTContext &C, QualType argTy) const;
 
   QualType getRepresentativeType(ASTContext &C) const;
 
@@ -427,12 +436,14 @@ class PrintfSpecifier : public analyze_format_string::FormatSpecifier {
   OptionalFlag HasSpacePrefix; // ' '
   OptionalFlag HasAlternativeForm; // '#'
   OptionalFlag HasLeadingZeroes; // '0'
+  OptionalFlag HasObjCTechnicalTerm; // '[tt]'
   OptionalAmount Precision;
 public:
   PrintfSpecifier() :
     FormatSpecifier(/* isPrintf = */ true),
     HasThousandsGrouping("'"), IsLeftJustified("-"), HasPlusPrefix("+"),
-    HasSpacePrefix(" "), HasAlternativeForm("#"), HasLeadingZeroes("0") {}
+    HasSpacePrefix(" "), HasAlternativeForm("#"), HasLeadingZeroes("0"),
+    HasObjCTechnicalTerm("tt") {}
 
   static PrintfSpecifier Parse(const char *beg, const char *end);
 
@@ -441,28 +452,25 @@ public:
     CS = cs;
   }
   void setHasThousandsGrouping(const char *position) {
-    HasThousandsGrouping = true;
     HasThousandsGrouping.setPosition(position);
   }
   void setIsLeftJustified(const char *position) {
-    IsLeftJustified = true;
     IsLeftJustified.setPosition(position);
   }
   void setHasPlusPrefix(const char *position) {
-    HasPlusPrefix = true;
     HasPlusPrefix.setPosition(position);
   }
   void setHasSpacePrefix(const char *position) {
-    HasSpacePrefix = true;
     HasSpacePrefix.setPosition(position);
   }
   void setHasAlternativeForm(const char *position) {
-    HasAlternativeForm = true;
     HasAlternativeForm.setPosition(position);
   }
   void setHasLeadingZeros(const char *position) {
-    HasLeadingZeroes = true;
     HasLeadingZeroes.setPosition(position);
+  }
+  void setHasObjCTechnicalTerm(const char *position) {
+    HasObjCTechnicalTerm.setPosition(position);
   }
   void setUsesPositionalArg() { UsesPositionalArg = true; }
 
@@ -500,6 +508,7 @@ public:
   const OptionalFlag &hasAlternativeForm() const { return HasAlternativeForm; }
   const OptionalFlag &hasLeadingZeros() const { return HasLeadingZeroes; }
   const OptionalFlag &hasSpacePrefix() const { return HasSpacePrefix; }
+  const OptionalFlag &hasObjCTechnicalTerm() const { return HasObjCTechnicalTerm; }
   bool usesPositionalArg() const { return UsesPositionalArg; }
 
   /// Changes the specifier and length according to a QualType, retaining any
@@ -557,7 +566,6 @@ public:
     SuppressAssignment("*") {}
 
   void setSuppressAssignment(const char *position) {
-    SuppressAssignment = true;
     SuppressAssignment.setPosition(position);
   }
 
@@ -613,6 +621,15 @@ public:
   virtual void HandleIncompleteSpecifier(const char *startSpecifier,
                                          unsigned specifierLen) {}
 
+  virtual void HandleEmptyObjCModifierFlag(const char *startFlags,
+                                           unsigned flagsLen) {}
+
+  virtual void HandleInvalidObjCModifierFlag(const char *startFlag,
+                                             unsigned flagLen) {}
+
+  virtual void HandleObjCFlagsWithNonObjCConversion(const char *flagsStart,
+                                            const char *flagsEnd,
+                                            const char *conversionPosition) {}
   // Printf-specific handlers.
 
   virtual bool HandleInvalidPrintfConversionSpecifier(
@@ -648,7 +665,10 @@ public:
 
 bool ParsePrintfString(FormatStringHandler &H,
                        const char *beg, const char *end, const LangOptions &LO,
-                       const TargetInfo &Target);
+                       const TargetInfo &Target, bool isFreeBSDKPrintf);
+
+bool ParseFormatStringHasSArg(const char *beg, const char *end,
+                              const LangOptions &LO, const TargetInfo &Target);
 
 bool ParseScanfString(FormatStringHandler &H,
                       const char *beg, const char *end, const LangOptions &LO,

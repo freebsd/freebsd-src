@@ -37,7 +37,9 @@
 #define	DWC_OTG_TT_SLOT_MAX 8
 #define	DWC_OTG_SLOT_IDLE_MAX 3
 #define	DWC_OTG_SLOT_IDLE_MIN 2
-#define	DWC_OTG_NAK_MAX 8	/* 1 ms */
+#ifndef DWC_OTG_TX_MAX_FIFO_SIZE
+#define	DWC_OTG_TX_MAX_FIFO_SIZE DWC_OTG_MAX_TXN
+#endif
 
 #define	DWC_OTG_READ_4(sc, reg) \
   bus_space_read_4((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
@@ -65,10 +67,9 @@ struct dwc_otg_td {
 	uint8_t errcnt;
 	uint8_t tmr_res;
 	uint8_t tmr_val;
-	uint8_t did_nak;		/* NAK counter */
 	uint8_t	ep_no;
 	uint8_t ep_type;
-	uint8_t channel;
+	uint8_t channel[3];
 	uint8_t tt_index;		/* TT data */
 	uint8_t tt_start_slot;		/* TT data */
 	uint8_t tt_complete_slot;	/* TT data */
@@ -79,8 +80,7 @@ struct dwc_otg_td {
 #define	DWC_CHAN_ST_WAIT_S_ANE 2
 #define	DWC_CHAN_ST_WAIT_C_ANE 3
 #define	DWC_CHAN_ST_WAIT_C_PKT 4
-#define	DWC_CHAN_ST_TX_PKT_ISOC 5
-#define	DWC_CHAN_ST_TX_WAIT_ISOC 6
+#define	DWC_CHAN_ST_TX_WAIT_ISOC 5
 	uint8_t	error_any:1;
 	uint8_t	error_stall:1;
 	uint8_t	alt_next:1;
@@ -90,6 +90,7 @@ struct dwc_otg_td {
 	uint8_t set_toggle:1;
 	uint8_t got_short:1;
 	uint8_t tt_scheduled:1;
+	uint8_t did_nak:1;
 };
 
 struct dwc_otg_tt_info {
@@ -153,10 +154,8 @@ struct dwc_otg_profile {
 
 struct dwc_otg_chan_state {
 	uint16_t allocated;
-	uint16_t wait_sof;
+	uint16_t wait_halted;
 	uint32_t hcint;
-	uint16_t tx_p_size;	/* periodic */
-	uint16_t tx_np_size;	/* non-periodic */
 };
 
 struct dwc_otg_softc {
@@ -178,9 +177,6 @@ struct dwc_otg_softc {
 	uint32_t sc_tx_bounce_buffer[MAX(512 * DWC_OTG_MAX_TXP, 1024) / 4];
 
 	uint32_t sc_fifo_size;
-	uint32_t sc_tx_max_size;
-	uint32_t sc_tx_cur_p_level;	/* periodic */
-	uint32_t sc_tx_cur_np_level;	/* non-periodic */
 	uint32_t sc_irq_mask;
 	uint32_t sc_last_rx_status;
 	uint32_t sc_out_ctl[DWC_OTG_MAX_ENDPOINTS];

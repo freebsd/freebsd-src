@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef XCOREFRAMEINFO_H
-#define XCOREFRAMEINFO_H
+#ifndef LLVM_LIB_TARGET_XCORE_XCOREFRAMELOWERING_H
+#define LLVM_LIB_TARGET_XCORE_XCOREFRAMELOWERING_H
 
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
@@ -27,7 +27,8 @@ namespace llvm {
 
     /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
     /// the function.
-    void emitPrologue(MachineFunction &MF) const override;
+    void emitPrologue(MachineFunction &MF,
+                      MachineBasicBlock &MBB) const override;
     void emitEpilogue(MachineFunction &MF,
                       MachineBasicBlock &MBB) const override;
 
@@ -46,8 +47,8 @@ namespace llvm {
 
     bool hasFP(const MachineFunction &MF) const override;
 
-    void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
-                                     RegScavenger *RS = nullptr) const override;
+    void determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs,
+                              RegScavenger *RS = nullptr) const override;
 
     void processFunctionBeforeFrameFinalized(MachineFunction &MF,
                                      RegScavenger *RS = nullptr) const override;
@@ -59,4 +60,4 @@ namespace llvm {
   };
 }
 
-#endif // XCOREFRAMEINFO_H
+#endif

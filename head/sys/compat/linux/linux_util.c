@@ -52,47 +52,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <compat/linux/linux_util.h>
-#ifdef COMPAT_LINUX32
-#include <machine/../linux32/linux.h>
-#else
-#include <machine/../linux/linux.h>
-#endif
 
-#include <compat/linux/linux_dtrace.h>
+MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
+MALLOC_DEFINE(M_EPOLL, "lepoll", "Linux events structures");
+MALLOC_DEFINE(M_FUTEX, "futex", "Linux futexes");
+MALLOC_DEFINE(M_FUTEX_WP, "futex wp", "Linux futex waiting proc");
 
 const char      linux_emul_path[] = "/compat/linux";
-
-/* DTrace init */
-LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
-
-/**
- * DTrace probes in this module.
- */
-LIN_SDT_PROBE_DEFINE5(util, linux_emul_convpath, entry, "const char *",
-    "enum uio_seg", "char **", "int", "int");
-LIN_SDT_PROBE_DEFINE1(util, linux_emul_convpath, return, "int");
-LIN_SDT_PROBE_DEFINE1(util, linux_msg, entry, "const char *");
-LIN_SDT_PROBE_DEFINE0(util, linux_msg, return);
-LIN_SDT_PROBE_DEFINE2(util, linux_driver_get_name_dev, entry, "device_t",
-    "const char *");
-LIN_SDT_PROBE_DEFINE0(util, linux_driver_get_name_dev, nullcall);
-LIN_SDT_PROBE_DEFINE1(util, linux_driver_get_name_dev, return, "char *");
-LIN_SDT_PROBE_DEFINE3(util, linux_driver_get_major_minor, entry, "char *",
-    "int *", "int *");
-LIN_SDT_PROBE_DEFINE0(util, linux_driver_get_major_minor, nullcall);
-LIN_SDT_PROBE_DEFINE1(util, linux_driver_get_major_minor, notfound, "char *");
-LIN_SDT_PROBE_DEFINE3(util, linux_driver_get_major_minor, return, "int",
-    "int", "int");
-LIN_SDT_PROBE_DEFINE0(util, linux_get_char_devices, entry);
-LIN_SDT_PROBE_DEFINE1(util, linux_get_char_devices, return, "char *");
-LIN_SDT_PROBE_DEFINE1(util, linux_free_get_char_devices, entry, "char *");
-LIN_SDT_PROBE_DEFINE0(util, linux_free_get_char_devices, return);
-LIN_SDT_PROBE_DEFINE1(util, linux_device_register_handler, entry,
-    "struct linux_device_handler *");
-LIN_SDT_PROBE_DEFINE1(util, linux_device_register_handler, return, "int");
-LIN_SDT_PROBE_DEFINE1(util, linux_device_unregister_handler, entry,
-    "struct linux_device_handler *");
-LIN_SDT_PROBE_DEFINE1(util, linux_device_unregister_handler, return, "int");
 
 /*
  * Search an alternate path before passing pathname arguments on to
@@ -107,13 +73,9 @@ linux_emul_convpath(struct thread *td, const char *path, enum uio_seg pathseg,
 {
 	int retval;
 
-	LIN_SDT_PROBE5(util, linux_emul_convpath, entry, path, pathseg, pbuf,
-	    cflag, dfd);
-
 	retval = kern_alternate_path(td, linux_emul_path, path, pathseg, pbuf,
 	    cflag, dfd);
 
-	LIN_SDT_PROBE1(util, linux_emul_convpath, return, retval);
 	return (retval);
 }
 
@@ -123,16 +85,12 @@ linux_msg(const struct thread *td, const char *fmt, ...)
 	va_list ap;
 	struct proc *p;
 
-	LIN_SDT_PROBE1(util, linux_msg, entry, fmt);
-
 	p = td->td_proc;
 	printf("linux: pid %d (%s): ", (int)p->p_pid, p->p_comm);
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
 	va_end(ap);
 	printf("\n");
-
-	LIN_SDT_PROBE0(util, linux_msg, return);
 }
 
 struct device_element
@@ -155,24 +113,14 @@ linux_driver_get_name_dev(device_t dev)
 	struct device_element *de;
 	const char *device_name = device_get_name(dev);
 
-	LIN_SDT_PROBE2(util, linux_driver_get_name_dev, entry, dev,
-	    device_name);
-
-	if (device_name == NULL) {
-		LIN_SDT_PROBE0(util, linux_driver_get_name_dev, nullcall);
-		LIN_SDT_PROBE1(util, linux_driver_get_name_dev, return, NULL);
+	if (device_name == NULL)
 		return NULL;
-	}
 	TAILQ_FOREACH(de, &devices, list) {
-		if (strcmp(device_name, de->entry.bsd_driver_name) == 0) {
-			LIN_SDT_PROBE1(util, linux_driver_get_name_dev, return,
-			    de->entry.linux_driver_name);
+		if (strcmp(device_name, de->entry.bsd_driver_name) == 0)
 			return (de->entry.linux_driver_name);
-		}
 	}
 
-	LIN_SDT_PROBE1(util, linux_driver_get_name_dev, return, NULL);
-	return NULL;
+	return (NULL);
 }
 
 int
@@ -180,15 +128,8 @@ linux_driver_get_major_minor(const char *node, int *major, int *minor)
 {
 	struct device_element *de;
 
-	LIN_SDT_PROBE3(util, linux_driver_get_major_minor, entry, node, major,
-	    minor);
-
-	if (node == NULL || major == NULL || minor == NULL) {
-		LIN_SDT_PROBE0(util, linux_driver_get_major_minor, nullcall);
-		LIN_SDT_PROBE3(util, linux_driver_get_major_minor, return, 1,
-		   0, 0);
+	if (node == NULL || major == NULL || minor == NULL)
 		return 1;
-	}
 
 	if (strlen(node) > strlen("pts/") &&
 	    strncmp(node, "pts/", strlen("pts/")) == 0) {
@@ -203,25 +144,18 @@ linux_driver_get_major_minor(const char *node, int *major, int *minor)
 		*major = 136 + (devno / 256);
 		*minor = devno % 256;
 
-		LIN_SDT_PROBE3(util, linux_driver_get_major_minor, return, 0,
-		    *major, *minor);
-		return 0;
+		return (0);
 	}
 
 	TAILQ_FOREACH(de, &devices, list) {
 		if (strcmp(node, de->entry.bsd_device_name) == 0) {
 			*major = de->entry.linux_major;
 			*minor = de->entry.linux_minor;
-
-			LIN_SDT_PROBE3(util, linux_driver_get_major_minor,
-			    return, 0, *major, *minor);
-			return 0;
+			return (0);
 		}
 	}
 
-	LIN_SDT_PROBE1(util, linux_driver_get_major_minor, notfound, node);
-	LIN_SDT_PROBE3(util, linux_driver_get_major_minor, return, 1, 0, 0);
-	return 1;
+	return (1);
 }
 
 char *
@@ -231,8 +165,6 @@ linux_get_char_devices()
 	char *temp, *string, *last;
 	char formated[256];
 	int current_size = 0, string_size = 1024;
-
-	LIN_SDT_PROBE0(util, linux_get_char_devices, entry);
 
 	string = malloc(string_size, M_LINUX, M_WAITOK);
 	string[0] = '\000';
@@ -260,19 +192,14 @@ linux_get_char_devices()
 		}
 	}
 
-	LIN_SDT_PROBE1(util, linux_get_char_devices, return, string);
-	return string;
+	return (string);
 }
 
 void
 linux_free_get_char_devices(char *string)
 {
 
-	LIN_SDT_PROBE1(util, linux_get_char_devices, entry, string);
-
 	free(string, M_LINUX);
-
-	LIN_SDT_PROBE0(util, linux_get_char_devices, return);
 }
 
 static int linux_major_starting = 200;
@@ -282,13 +209,8 @@ linux_device_register_handler(struct linux_device_handler *d)
 {
 	struct device_element *de;
 
-	LIN_SDT_PROBE1(util, linux_device_register_handler, entry, d);
-
-	if (d == NULL) {
-		LIN_SDT_PROBE1(util, linux_device_register_handler, return,
-		    EINVAL);
+	if (d == NULL)
 		return (EINVAL);
-	}
 
 	de = malloc(sizeof(*de), M_LINUX, M_WAITOK);
 	if (d->linux_major < 0) {
@@ -299,7 +221,6 @@ linux_device_register_handler(struct linux_device_handler *d)
 	/* Add the element to the list, sorted on span. */
 	TAILQ_INSERT_TAIL(&devices, de, list);
 
-	LIN_SDT_PROBE1(util, linux_device_register_handler, return, 0);
 	return (0);
 }
 
@@ -308,25 +229,17 @@ linux_device_unregister_handler(struct linux_device_handler *d)
 {
 	struct device_element *de;
 
-	LIN_SDT_PROBE1(util, linux_device_unregister_handler, entry, d);
-
-	if (d == NULL) {
-		LIN_SDT_PROBE1(util, linux_device_unregister_handler, return,
-		    EINVAL);
+	if (d == NULL)
 		return (EINVAL);
-	}
 
 	TAILQ_FOREACH(de, &devices, list) {
 		if (bcmp(d, &de->entry, sizeof(*d)) == 0) {
 			TAILQ_REMOVE(&devices, de, list);
 			free(de, M_LINUX);
 
-			LIN_SDT_PROBE1(util, linux_device_unregister_handler,
-			    return, 0);
 			return (0);
 		}
 	}
 
-	LIN_SDT_PROBE1(util, linux_device_unregister_handler, return, EINVAL);
 	return (EINVAL);
 }

@@ -18,8 +18,10 @@
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IndexedMap.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Instructions.h"
@@ -50,10 +52,10 @@ class Value;
 /// function that is used when lowering a region of the function.
 ///
 class FunctionLoweringInfo {
-  const TargetMachine &TM;
 public:
   const Function *Fn;
   MachineFunction *MF;
+  const TargetLowering *TLI;
   MachineRegisterInfo *RegInfo;
   BranchProbabilityInfo *BPI;
   /// CanLowerReturn - true iff the function's return value can be lowered to
@@ -72,6 +74,16 @@ public:
   /// cross-basic-block values.
   DenseMap<const Value*, unsigned> ValueMap;
 
+  // Keep track of frame indices allocated for statepoints as they could be used
+  // across basic block boundaries.
+  // Key of the map is statepoint instruction, value is a map from spilled
+  // llvm Value to the optional stack stack slot index.
+  // If optional is unspecified it means that we have visited this value
+  // but didn't spill it.
+  typedef DenseMap<const Value*, Optional<int>> StatepointSpilledValueMapTy;
+  DenseMap<const Instruction*, StatepointSpilledValueMapTy>
+    StatepointRelocatedValues;
+
   /// StaticAllocaMap - Keep track of frame indices for fixed sized allocas in
   /// the entry block.  This allows the allocas to be efficiently referenced
   /// anywhere in the function.
@@ -86,6 +98,12 @@ public:
 
   /// RegFixups - Registers which need to be replaced after isel is done.
   DenseMap<unsigned, unsigned> RegFixups;
+
+  /// StatepointStackSlots - A list of temporary stack slots (frame indices) 
+  /// used to spill values at a statepoint.  We store them here to enable
+  /// reuse of the same stack slots across different statepoints in different
+  /// basic blocks.
+  SmallVector<unsigned, 50> StatepointStackSlots;
 
   /// MBB - The current block.
   MachineBasicBlock *MBB;
@@ -106,6 +124,10 @@ public:
                     KnownZero(1, 0) {}
   };
 
+  /// Record the preferred extend type (ISD::SIGN_EXTEND or ISD::ZERO_EXTEND)
+  /// for a value.
+  DenseMap<const Value *, ISD::NodeType> PreferredExtendType;
+
   /// VisitedBBs - The set of basic blocks visited thus far by instruction
   /// selection.
   SmallPtrSet<const BasicBlock*, 4> VisitedBBs;
@@ -115,13 +137,12 @@ public:
   /// TODO: This isn't per-function state, it's per-basic-block state. But
   /// there's no other convenient place for it to live right now.
   std::vector<std::pair<MachineInstr*, unsigned> > PHINodesToUpdate;
+  unsigned OrigNumPHINodesToUpdate;
 
   /// If the current MBB is a landing pad, the exception pointer and exception
   /// selector registers are copied into these virtual registers by
   /// SelectionDAGISel::PrepareEHLandingPad().
   unsigned ExceptionPointerVirtReg, ExceptionSelectorVirtReg;
-
-  explicit FunctionLoweringInfo(const TargetMachine &TM) : TM(TM) {}
 
   /// set - Initialize this FunctionLoweringInfo with the given Function
   /// and its associated MachineFunction.
@@ -196,6 +217,9 @@ public:
       return;
 
     unsigned Reg = It->second;
+    if (Reg == 0)
+      return;
+
     LiveOutRegInfo.grow(Reg);
     LiveOutRegInfo[Reg].IsValid = false;
   }
@@ -208,6 +232,8 @@ public:
   int getArgumentFrameIndex(const Argument *A);
 
 private:
+  void addSEHHandlersForLPads(ArrayRef<const LandingPadInst *> LPads);
+
   /// LiveOutRegInfo - Information about live out vregs.
   IndexedMap<LiveOutInfo, VirtReg2IndexFunctor> LiveOutRegInfo;
 };
@@ -218,11 +244,6 @@ private:
 /// reference to _fltused on Windows, which will link in MSVCRT's
 /// floating-point support.
 void ComputeUsesVAFloatArgument(const CallInst &I, MachineModuleInfo *MMI);
-
-/// AddCatchInfo - Extract the personality and type infos from an eh.selector
-/// call, and add them to the specified machine basic block.
-void AddCatchInfo(const CallInst &I,
-                  MachineModuleInfo *MMI, MachineBasicBlock *MBB);
 
 /// AddLandingPadInfo - Extract the exception handling information from the
 /// landingpad instruction and add them to the specified machine module info.

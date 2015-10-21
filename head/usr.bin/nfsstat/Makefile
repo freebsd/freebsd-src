@@ -6,6 +6,4 @@ CFLAGS+=-DNFS
 
 LIBADD=	kvm
 
-WARNS?=	3
-
 .include <bsd.prog.mk>

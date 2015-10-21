@@ -99,7 +99,7 @@ NON_GPROF_ENTRY(MPentry)
 	movl	%eax,%cr4
 
 	/* Now enable paging mode */
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	movl	R(IdlePDPT), %eax
 	movl	%eax, %cr3
 	movl	%cr4, %eax

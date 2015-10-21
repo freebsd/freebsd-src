@@ -19,7 +19,7 @@
 namespace llvm {
 
 /// PostDominatorTree Class - Concrete subclass of DominatorTree that is used to
-/// compute the a post-dominator tree.
+/// compute the post-dominator tree.
 ///
 struct PostDominatorTree : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
@@ -30,7 +30,7 @@ struct PostDominatorTree : public FunctionPass {
     DT = new DominatorTreeBase<BasicBlock>(true);
   }
 
-  ~PostDominatorTree();
+  ~PostDominatorTree() override;
 
   bool runOnFunction(Function &F) override;
 

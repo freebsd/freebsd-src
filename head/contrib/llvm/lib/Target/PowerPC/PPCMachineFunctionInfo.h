@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef PPC_MACHINE_FUNCTION_INFO_H
-#define PPC_MACHINE_FUNCTION_INFO_H
+#ifndef LLVM_LIB_TARGET_POWERPC_PPCMACHINEFUNCTIONINFO_H
+#define LLVM_LIB_TARGET_POWERPC_PPCMACHINEFUNCTIONINFO_H
 
 #include "llvm/CodeGen/MachineFunction.h"
 
@@ -34,6 +34,9 @@ class PPCFunctionInfo : public MachineFunctionInfo {
 
   /// Frame index where the old base pointer is stored.
   int BasePointerSaveIndex;
+
+  /// Frame index where the old PIC base pointer is stored.
+  int PICBasePointerSaveIndex;
 
   /// MustSaveLR - Indicates whether LR is defined (or clobbered) in the current
   /// function.  This is only valid after the initial scan of the function by
@@ -58,6 +61,9 @@ class PPCFunctionInfo : public MachineFunctionInfo {
   /// requires that the code generator produce a store of LR to the stack on
   /// entry, even though LR may otherwise apparently not be used.
   bool LRStoreRequired;
+
+  /// This function makes use of the PPC64 ELF TOC base pointer (register r2).
+  bool UsesTOCBasePtr;
 
   /// MinReservedArea - This is the frame size that is at least reserved in a
   /// potential caller (parameter+linkage area).
@@ -103,11 +109,13 @@ public:
     : FramePointerSaveIndex(0),
       ReturnAddrSaveIndex(0),
       BasePointerSaveIndex(0),
+      PICBasePointerSaveIndex(0),
       HasSpills(false),
       HasNonRISpills(false),
       SpillsCR(false),
       SpillsVRSAVE(false),
       LRStoreRequired(false),
+      UsesTOCBasePtr(false),
       MinReservedArea(0),
       TailCallSPDelta(0),
       HasFastCall(false),
@@ -127,6 +135,9 @@ public:
 
   int getBasePointerSaveIndex() const { return BasePointerSaveIndex; }
   void setBasePointerSaveIndex(int Idx) { BasePointerSaveIndex = Idx; }
+
+  int getPICBasePointerSaveIndex() const { return PICBasePointerSaveIndex; }
+  void setPICBasePointerSaveIndex(int Idx) { PICBasePointerSaveIndex = Idx; }
 
   unsigned getMinReservedArea() const { return MinReservedArea; }
   void setMinReservedArea(unsigned size) { MinReservedArea = size; }
@@ -156,6 +167,9 @@ public:
 
   void setLRStoreRequired() { LRStoreRequired = true; }
   bool isLRStoreRequired() const { return LRStoreRequired; }
+
+  void setUsesTOCBasePtr()    { UsesTOCBasePtr = true; }
+  bool usesTOCBasePtr() const { return UsesTOCBasePtr; }
 
   void setHasFastCall() { HasFastCall = true; }
   bool hasFastCall() const { return HasFastCall;}

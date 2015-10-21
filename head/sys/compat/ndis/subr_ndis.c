@@ -2817,10 +2817,7 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 
 	/* Some threads don't have a current working directory. */
 
-	if (td->td_proc->p_fd->fd_rdir == NULL)
-		td->td_proc->p_fd->fd_rdir = rootvnode;
-	if (td->td_proc->p_fd->fd_cdir == NULL)
-		td->td_proc->p_fd->fd_cdir = rootvnode;
+	pwd_ensure_dirs();
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, path, td);
 

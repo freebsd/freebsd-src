@@ -37,6 +37,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <stdio.h>
+#include <strings.h>
 #include <sys/agpio.h>
 #include <sys/pciio.h>
 
@@ -636,7 +637,7 @@ ecap_aer(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 	printf(" %d fatal", bitcount32(sta & mask));
 	printf(" %d non-fatal", bitcount32(sta & ~mask));
 	sta = read_config(fd, &p->pc_sel, ptr + PCIR_AER_COR_STATUS, 4);
-	printf(" %d corrected", bitcount32(sta));
+	printf(" %d corrected\n", bitcount32(sta));
 }
 
 static void
@@ -652,6 +653,7 @@ ecap_vc(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 	if ((cap1 & PCIM_VC_CAP1_LOWPRI_EXT_COUNT) != 0)
 		printf(" lowpri VC0-VC%d",
 		    (cap1 & PCIM_VC_CAP1_LOWPRI_EXT_COUNT) >> 4);
+	printf("\n");
 }
 
 static void
@@ -664,7 +666,7 @@ ecap_sernum(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 		return;
 	low = read_config(fd, &p->pc_sel, ptr + PCIR_SERIAL_LOW, 4);
 	high = read_config(fd, &p->pc_sel, ptr + PCIR_SERIAL_HIGH, 4);
-	printf(" %08x%08x", high, low);
+	printf(" %08x%08x\n", high, low);
 }
 
 static void
@@ -676,7 +678,7 @@ ecap_vendor(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 	if (ver < 1)
 		return;
 	val = read_config(fd, &p->pc_sel, ptr + 4, 4);
-	printf(" ID %d", val & 0xffff);
+	printf(" ID %d\n", val & 0xffff);
 }
 
 static void
@@ -688,7 +690,69 @@ ecap_sec_pcie(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 	if (ver < 1)
 		return;
 	val = read_config(fd, &p->pc_sel, ptr + 8, 4);
-	printf(" lane errors %#x", val);
+	printf(" lane errors %#x\n", val);
+}
+
+static const char *
+check_enabled(int value)
+{
+
+	return (value ? "enabled" : "disabled");
+}
+
+static void
+ecap_sriov(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
+{
+	const char *comma, *enabled;
+	uint16_t iov_ctl, total_vfs, num_vfs, vf_offset, vf_stride, vf_did;
+	uint32_t page_caps, page_size, page_shift, size;
+	int i;
+
+	printf("SR-IOV %d ", ver);
+
+	iov_ctl = read_config(fd, &p->pc_sel, ptr + PCIR_SRIOV_CTL, 2);
+	printf("IOV %s, Memory Space %s, ARI %s\n",
+	    check_enabled(iov_ctl & PCIM_SRIOV_VF_EN),
+	    check_enabled(iov_ctl & PCIM_SRIOV_VF_MSE),
+	    check_enabled(iov_ctl & PCIM_SRIOV_ARI_EN));
+
+	total_vfs = read_config(fd, &p->pc_sel, ptr + PCIR_SRIOV_TOTAL_VFS, 2);
+	num_vfs = read_config(fd, &p->pc_sel, ptr + PCIR_SRIOV_NUM_VFS, 2);
+	printf("                     ");
+	printf("%d VFs configured out of %d supported\n", num_vfs, total_vfs);
+
+	vf_offset = read_config(fd, &p->pc_sel, ptr + PCIR_SRIOV_VF_OFF, 2);
+	vf_stride = read_config(fd, &p->pc_sel, ptr + PCIR_SRIOV_VF_STRIDE, 2);
+	printf("                     ");
+	printf("First VF RID Offset 0x%04x, VF RID Stride 0x%04x\n", vf_offset,
+	    vf_stride);
+
+	vf_did = read_config(fd, &p->pc_sel, ptr + PCIR_SRIOV_VF_DID, 2);
+	printf("                     VF Device ID 0x%04x\n", vf_did);
+
+	page_caps = read_config(fd, &p->pc_sel, ptr + PCIR_SRIOV_PAGE_CAP, 4);
+	page_size = read_config(fd, &p->pc_sel, ptr + PCIR_SRIOV_PAGE_SIZE, 4);
+	printf("                     ");
+	printf("Page Sizes: ");
+	comma = "";
+	while (page_caps != 0) {
+		page_shift = ffs(page_caps) - 1;
+
+		if (page_caps & page_size)
+			enabled = " (enabled)";
+		else
+			enabled = "";
+
+		size = (1 << (page_shift + PCI_SRIOV_BASE_PAGE_SHIFT));
+		printf("%s%d%s", comma, size, enabled);
+		comma = ", ";
+
+		page_caps &= ~(1 << page_shift);
+	}
+	printf("\n");
+
+	for (i = 0; i <= PCIR_MAX_BAR_0; i++)
+		print_bar(fd, p, "iov bar  ", ptr + PCIR_SRIOV_BAR(i));
 }
 
 struct {
@@ -704,7 +768,6 @@ struct {
 	{ PCIZ_ACS, "ACS" },
 	{ PCIZ_ARI, "ARI" },
 	{ PCIZ_ATS, "ATS" },
-	{ PCIZ_SRIOV, "SRIOV" },
 	{ PCIZ_MULTICAST, "Multicast" },
 	{ PCIZ_RESIZE_BAR, "Resizable BAR" },
 	{ PCIZ_DPA, "DPA" },
@@ -743,6 +806,9 @@ list_ecaps(int fd, struct pci_conf *p)
 		case PCIZ_SEC_PCIE:
 			ecap_sec_pcie(fd, p, ptr, PCI_EXTCAP_VER(ecap));
 			break;
+		case PCIZ_SRIOV:
+			ecap_sriov(fd, p, ptr, PCI_EXTCAP_VER(ecap));
+			break;
 		default:
 			name = "unknown";
 			for (i = 0; ecap_names[i].name != NULL; i++)
@@ -750,10 +816,9 @@ list_ecaps(int fd, struct pci_conf *p)
 					name = ecap_names[i].name;
 					break;
 				}
-			printf("%s %d", name, PCI_EXTCAP_VER(ecap));
+			printf("%s %d\n", name, PCI_EXTCAP_VER(ecap));
 			break;
 		}
-		printf("\n");
 		ptr = PCI_EXTCAP_NEXTPTR(ecap);
 		if (ptr == 0)
 			break;

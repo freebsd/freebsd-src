@@ -1131,7 +1131,7 @@ ti_sdma_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "ti,sdma"))
+	if (!ofw_bus_is_compatible(dev, "ti,omap4430-sdma"))
 		return (ENXIO);
 
 	device_set_desc(dev, "TI sDMA Controller");

@@ -18,6 +18,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/PHITransAddr.h"
@@ -48,19 +49,23 @@ STATISTIC(NumCacheCompleteNonLocalPtr,
           "Number of block queries that were completely cached");
 
 // Limit for the number of instructions to scan in a block.
-static const int BlockScanLimit = 100;
+static const unsigned int BlockScanLimit = 100;
+
+// Limit on the number of memdep results to process.
+static const unsigned int NumResultsLimit = 100;
 
 char MemoryDependenceAnalysis::ID = 0;
 
 // Register this pass...
 INITIALIZE_PASS_BEGIN(MemoryDependenceAnalysis, "memdep",
                 "Memory Dependence Analysis", false, true)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
 INITIALIZE_PASS_END(MemoryDependenceAnalysis, "memdep",
                       "Memory Dependence Analysis", false, true)
 
 MemoryDependenceAnalysis::MemoryDependenceAnalysis()
-    : FunctionPass(ID), PredCache() {
+    : FunctionPass(ID) {
   initializeMemoryDependenceAnalysisPass(*PassRegistry::getPassRegistry());
 }
 MemoryDependenceAnalysis::~MemoryDependenceAnalysis() {
@@ -74,27 +79,23 @@ void MemoryDependenceAnalysis::releaseMemory() {
   ReverseLocalDeps.clear();
   ReverseNonLocalDeps.clear();
   ReverseNonLocalPtrDeps.clear();
-  PredCache->clear();
+  PredCache.clear();
 }
-
-
 
 /// getAnalysisUsage - Does not modify anything.  It uses Alias Analysis.
 ///
 void MemoryDependenceAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
+  AU.addRequired<AssumptionCacheTracker>();
   AU.addRequiredTransitive<AliasAnalysis>();
 }
 
-bool MemoryDependenceAnalysis::runOnFunction(Function &) {
+bool MemoryDependenceAnalysis::runOnFunction(Function &F) {
   AA = &getAnalysis<AliasAnalysis>();
-  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
-  DL = DLP ? &DLP->getDataLayout() : nullptr;
+  AC = &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
   DominatorTreeWrapperPass *DTWP =
       getAnalysisIfAvailable<DominatorTreeWrapperPass>();
   DT = DTWP ? &DTWP->getDomTree() : nullptr;
-  if (!PredCache)
-    PredCache.reset(new PredIteratorCache());
   return false;
 }
 
@@ -117,70 +118,71 @@ static void RemoveFromReverseMap(DenseMap<Instruction*,
 /// location, fill in Loc with the details, otherwise set Loc.Ptr to null.
 /// Return a ModRefInfo value describing the general behavior of the
 /// instruction.
-static
-AliasAnalysis::ModRefResult GetLocation(const Instruction *Inst,
-                                        AliasAnalysis::Location &Loc,
-                                        AliasAnalysis *AA) {
+static AliasAnalysis::ModRefResult
+GetLocation(const Instruction *Inst, MemoryLocation &Loc, AliasAnalysis *AA) {
   if (const LoadInst *LI = dyn_cast<LoadInst>(Inst)) {
     if (LI->isUnordered()) {
-      Loc = AA->getLocation(LI);
+      Loc = MemoryLocation::get(LI);
       return AliasAnalysis::Ref;
     }
     if (LI->getOrdering() == Monotonic) {
-      Loc = AA->getLocation(LI);
+      Loc = MemoryLocation::get(LI);
       return AliasAnalysis::ModRef;
     }
-    Loc = AliasAnalysis::Location();
+    Loc = MemoryLocation();
     return AliasAnalysis::ModRef;
   }
 
   if (const StoreInst *SI = dyn_cast<StoreInst>(Inst)) {
     if (SI->isUnordered()) {
-      Loc = AA->getLocation(SI);
+      Loc = MemoryLocation::get(SI);
       return AliasAnalysis::Mod;
     }
     if (SI->getOrdering() == Monotonic) {
-      Loc = AA->getLocation(SI);
+      Loc = MemoryLocation::get(SI);
       return AliasAnalysis::ModRef;
     }
-    Loc = AliasAnalysis::Location();
+    Loc = MemoryLocation();
     return AliasAnalysis::ModRef;
   }
 
   if (const VAArgInst *V = dyn_cast<VAArgInst>(Inst)) {
-    Loc = AA->getLocation(V);
+    Loc = MemoryLocation::get(V);
     return AliasAnalysis::ModRef;
   }
 
   if (const CallInst *CI = isFreeCall(Inst, AA->getTargetLibraryInfo())) {
     // calls to free() deallocate the entire structure
-    Loc = AliasAnalysis::Location(CI->getArgOperand(0));
+    Loc = MemoryLocation(CI->getArgOperand(0));
     return AliasAnalysis::Mod;
   }
 
-  if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(Inst))
+  if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(Inst)) {
+    AAMDNodes AAInfo;
+
     switch (II->getIntrinsicID()) {
     case Intrinsic::lifetime_start:
     case Intrinsic::lifetime_end:
     case Intrinsic::invariant_start:
-      Loc = AliasAnalysis::Location(II->getArgOperand(1),
-                                    cast<ConstantInt>(II->getArgOperand(0))
-                                      ->getZExtValue(),
-                                    II->getMetadata(LLVMContext::MD_tbaa));
+      II->getAAMetadata(AAInfo);
+      Loc = MemoryLocation(
+          II->getArgOperand(1),
+          cast<ConstantInt>(II->getArgOperand(0))->getZExtValue(), AAInfo);
       // These intrinsics don't really modify the memory, but returning Mod
       // will allow them to be handled conservatively.
       return AliasAnalysis::Mod;
     case Intrinsic::invariant_end:
-      Loc = AliasAnalysis::Location(II->getArgOperand(2),
-                                    cast<ConstantInt>(II->getArgOperand(1))
-                                      ->getZExtValue(),
-                                    II->getMetadata(LLVMContext::MD_tbaa));
+      II->getAAMetadata(AAInfo);
+      Loc = MemoryLocation(
+          II->getArgOperand(2),
+          cast<ConstantInt>(II->getArgOperand(1))->getZExtValue(), AAInfo);
       // These intrinsics don't really modify the memory, but returning Mod
       // will allow them to be handled conservatively.
       return AliasAnalysis::Mod;
     default:
       break;
     }
+  }
 
   // Otherwise, just do the coarse-grained thing that always works.
   if (Inst->mayWriteToMemory())
@@ -208,7 +210,7 @@ getCallSiteDependencyFrom(CallSite CS, bool isReadOnlyCall,
     Instruction *Inst = --ScanIt;
 
     // If this inst is a memory op, get the pointer it accessed
-    AliasAnalysis::Location Loc;
+    MemoryLocation Loc;
     AliasAnalysis::ModRefResult MR = GetLocation(Inst, Loc, AA);
     if (Loc.Ptr) {
       // A simple instruction.
@@ -217,7 +219,7 @@ getCallSiteDependencyFrom(CallSite CS, bool isReadOnlyCall,
       continue;
     }
 
-    if (CallSite InstCS = cast<Value>(Inst)) {
+    if (auto InstCS = CallSite(Inst)) {
       // Debug intrinsics don't cause dependences.
       if (isa<DbgInfoIntrinsic>(Inst)) continue;
       // If these two calls do not interfere, look past it.
@@ -255,22 +257,18 @@ getCallSiteDependencyFrom(CallSite CS, bool isReadOnlyCall,
 ///
 /// MemLocBase, MemLocOffset are lazily computed here the first time the
 /// base/offs of memloc is needed.
-static bool
-isLoadLoadClobberIfExtendedToFullWidth(const AliasAnalysis::Location &MemLoc,
-                                       const Value *&MemLocBase,
-                                       int64_t &MemLocOffs,
-                                       const LoadInst *LI,
-                                       const DataLayout *DL) {
-  // If we have no target data, we can't do this.
-  if (!DL) return false;
+static bool isLoadLoadClobberIfExtendedToFullWidth(const MemoryLocation &MemLoc,
+                                                   const Value *&MemLocBase,
+                                                   int64_t &MemLocOffs,
+                                                   const LoadInst *LI) {
+  const DataLayout &DL = LI->getModule()->getDataLayout();
 
   // If we haven't already computed the base/offset of MemLoc, do so now.
   if (!MemLocBase)
     MemLocBase = GetPointerBaseWithConstantOffset(MemLoc.Ptr, MemLocOffs, DL);
 
-  unsigned Size = MemoryDependenceAnalysis::
-    getLoadLoadClobberFullWidthSize(MemLocBase, MemLocOffs, MemLoc.Size,
-                                    LI, *DL);
+  unsigned Size = MemoryDependenceAnalysis::getLoadLoadClobberFullWidthSize(
+      MemLocBase, MemLocOffs, MemLoc.Size, LI);
   return Size != 0;
 }
 
@@ -281,23 +279,23 @@ isLoadLoadClobberIfExtendedToFullWidth(const AliasAnalysis::Location &MemLoc,
 /// 2) safe for the target, and 3) would provide the specified memory
 /// location value, then this function returns the size in bytes of the
 /// load width to use.  If not, this returns zero.
-unsigned MemoryDependenceAnalysis::
-getLoadLoadClobberFullWidthSize(const Value *MemLocBase, int64_t MemLocOffs,
-                                unsigned MemLocSize, const LoadInst *LI,
-                                const DataLayout &DL) {
+unsigned MemoryDependenceAnalysis::getLoadLoadClobberFullWidthSize(
+    const Value *MemLocBase, int64_t MemLocOffs, unsigned MemLocSize,
+    const LoadInst *LI) {
   // We can only extend simple integer loads.
   if (!isa<IntegerType>(LI->getType()) || !LI->isSimple()) return 0;
 
   // Load widening is hostile to ThreadSanitizer: it may cause false positives
   // or make the reports more cryptic (access sizes are wrong).
-  if (LI->getParent()->getParent()->getAttributes().
-      hasAttribute(AttributeSet::FunctionIndex, Attribute::SanitizeThread))
+  if (LI->getParent()->getParent()->hasFnAttribute(Attribute::SanitizeThread))
     return 0;
+
+  const DataLayout &DL = LI->getModule()->getDataLayout();
 
   // Get the base of this load.
   int64_t LIOffs = 0;
   const Value *LIBase =
-    GetPointerBaseWithConstantOffset(LI->getPointerOperand(), LIOffs, &DL);
+      GetPointerBaseWithConstantOffset(LI->getPointerOperand(), LIOffs, DL);
 
   // If the two pointers are not based on the same pointer, we can't tell that
   // they are related.
@@ -336,9 +334,9 @@ getLoadLoadClobberFullWidthSize(const Value *MemLocBase, int64_t MemLocOffs,
         !DL.fitsInLegalInteger(NewLoadByteSize*8))
       return 0;
 
-    if (LIOffs+NewLoadByteSize > MemLocEnd &&
-        LI->getParent()->getParent()->getAttributes().
-          hasAttribute(AttributeSet::FunctionIndex, Attribute::SanitizeAddress))
+    if (LIOffs + NewLoadByteSize > MemLocEnd &&
+        LI->getParent()->getParent()->hasFnAttribute(
+            Attribute::SanitizeAddress))
       // We will be reading past the location accessed by the original program.
       // While this is safe in a regular build, Address Safety analysis tools
       // may start reporting false warnings. So, don't do widening.
@@ -352,26 +350,71 @@ getLoadLoadClobberFullWidthSize(const Value *MemLocBase, int64_t MemLocOffs,
   }
 }
 
+static bool isVolatile(Instruction *Inst) {
+  if (LoadInst *LI = dyn_cast<LoadInst>(Inst))
+    return LI->isVolatile();
+  else if (StoreInst *SI = dyn_cast<StoreInst>(Inst))
+    return SI->isVolatile();
+  else if (AtomicCmpXchgInst *AI = dyn_cast<AtomicCmpXchgInst>(Inst))
+    return AI->isVolatile();
+  return false;
+}
+
+
 /// getPointerDependencyFrom - Return the instruction on which a memory
 /// location depends.  If isLoad is true, this routine ignores may-aliases with
 /// read-only operations.  If isLoad is false, this routine ignores may-aliases
 /// with reads from read-only locations.  If possible, pass the query
 /// instruction as well; this function may take advantage of the metadata
 /// annotated to the query instruction to refine the result.
-MemDepResult MemoryDependenceAnalysis::
-getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
-                         BasicBlock::iterator ScanIt, BasicBlock *BB,
-                         Instruction *QueryInst) {
+MemDepResult MemoryDependenceAnalysis::getPointerDependencyFrom(
+    const MemoryLocation &MemLoc, bool isLoad, BasicBlock::iterator ScanIt,
+    BasicBlock *BB, Instruction *QueryInst) {
 
   const Value *MemLocBase = nullptr;
   int64_t MemLocOffset = 0;
   unsigned Limit = BlockScanLimit;
   bool isInvariantLoad = false;
+
+  // We must be careful with atomic accesses, as they may allow another thread
+  //   to touch this location, cloberring it. We are conservative: if the
+  //   QueryInst is not a simple (non-atomic) memory access, we automatically
+  //   return getClobber.
+  // If it is simple, we know based on the results of
+  // "Compiler testing via a theory of sound optimisations in the C11/C++11
+  //   memory model" in PLDI 2013, that a non-atomic location can only be
+  //   clobbered between a pair of a release and an acquire action, with no
+  //   access to the location in between.
+  // Here is an example for giving the general intuition behind this rule.
+  // In the following code:
+  //   store x 0;
+  //   release action; [1]
+  //   acquire action; [4]
+  //   %val = load x;
+  // It is unsafe to replace %val by 0 because another thread may be running:
+  //   acquire action; [2]
+  //   store x 42;
+  //   release action; [3]
+  // with synchronization from 1 to 2 and from 3 to 4, resulting in %val
+  // being 42. A key property of this program however is that if either
+  // 1 or 4 were missing, there would be a race between the store of 42
+  // either the store of 0 or the load (making the whole progam racy).
+  // The paper mentionned above shows that the same property is respected
+  // by every program that can detect any optimisation of that kind: either
+  // it is racy (undefined) or there is a release followed by an acquire
+  // between the pair of accesses under consideration.
+
+  // If the load is invariant, we "know" that it doesn't alias *any* write. We
+  // do want to respect mustalias results since defs are useful for value
+  // forwarding, but any mayalias write can be assumed to be noalias.
+  // Arguably, this logic should be pushed inside AliasAnalysis itself.
   if (isLoad && QueryInst) {
     LoadInst *LI = dyn_cast<LoadInst>(QueryInst);
     if (LI && LI->getMetadata(LLVMContext::MD_invariant_load) != nullptr)
       isInvariantLoad = true;
   }
+
+  const DataLayout &DL = BB->getModule()->getDataLayout();
 
   // Walk backwards through the basic block, looking for dependencies.
   while (ScanIt != BB->begin()) {
@@ -395,8 +438,7 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
         // pointer, not on query pointers that are indexed off of them.  It'd
         // be nice to handle that at some point (the right approach is to use
         // GetPointerBaseWithConstantOffset).
-        if (AA->isMustAlias(AliasAnalysis::Location(II->getArgOperand(1)),
-                            MemLoc))
+        if (AA->isMustAlias(MemoryLocation(II->getArgOperand(1)), MemLoc))
           return MemDepResult::getDef(II);
         continue;
       }
@@ -404,36 +446,67 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
 
     // Values depend on loads if the pointers are must aliased.  This means that
     // a load depends on another must aliased load from the same value.
+    // One exception is atomic loads: a value can depend on an atomic load that it
+    // does not alias with when this atomic load indicates that another thread may
+    // be accessing the location.
     if (LoadInst *LI = dyn_cast<LoadInst>(Inst)) {
-      // Atomic loads have complications involved.
-      // FIXME: This is overly conservative.
-      if (!LI->isUnordered())
-        return MemDepResult::getClobber(LI);
 
-      AliasAnalysis::Location LoadLoc = AA->getLocation(LI);
+      // While volatile access cannot be eliminated, they do not have to clobber
+      // non-aliasing locations, as normal accesses, for example, can be safely
+      // reordered with volatile accesses.
+      if (LI->isVolatile()) {
+        if (!QueryInst)
+          // Original QueryInst *may* be volatile
+          return MemDepResult::getClobber(LI);
+        if (isVolatile(QueryInst))
+          // Ordering required if QueryInst is itself volatile
+          return MemDepResult::getClobber(LI);
+        // Otherwise, volatile doesn't imply any special ordering
+      }
+      
+      // Atomic loads have complications involved.
+      // A Monotonic (or higher) load is OK if the query inst is itself not atomic.
+      // FIXME: This is overly conservative.
+      if (LI->isAtomic() && LI->getOrdering() > Unordered) {
+        if (!QueryInst)
+          return MemDepResult::getClobber(LI);
+        if (LI->getOrdering() != Monotonic)
+          return MemDepResult::getClobber(LI);
+        if (auto *QueryLI = dyn_cast<LoadInst>(QueryInst)) {
+          if (!QueryLI->isSimple())
+            return MemDepResult::getClobber(LI);
+        } else if (auto *QuerySI = dyn_cast<StoreInst>(QueryInst)) {
+          if (!QuerySI->isSimple())
+            return MemDepResult::getClobber(LI);
+        } else if (QueryInst->mayReadOrWriteMemory()) {
+          return MemDepResult::getClobber(LI);
+        }
+      }
+
+      MemoryLocation LoadLoc = MemoryLocation::get(LI);
 
       // If we found a pointer, check if it could be the same as our pointer.
-      AliasAnalysis::AliasResult R = AA->alias(LoadLoc, MemLoc);
+      AliasResult R = AA->alias(LoadLoc, MemLoc);
 
       if (isLoad) {
-        if (R == AliasAnalysis::NoAlias) {
+        if (R == NoAlias) {
           // If this is an over-aligned integer load (for example,
           // "load i8* %P, align 4") see if it would obviously overlap with the
           // queried location if widened to a larger load (e.g. if the queried
           // location is 1 byte at P+1).  If so, return it as a load/load
           // clobber result, allowing the client to decide to widen the load if
           // it wants to.
-          if (IntegerType *ITy = dyn_cast<IntegerType>(LI->getType()))
-            if (LI->getAlignment()*8 > ITy->getPrimitiveSizeInBits() &&
+          if (IntegerType *ITy = dyn_cast<IntegerType>(LI->getType())) {
+            if (LI->getAlignment() * 8 > ITy->getPrimitiveSizeInBits() &&
                 isLoadLoadClobberIfExtendedToFullWidth(MemLoc, MemLocBase,
-                                                       MemLocOffset, LI, DL))
+                                                       MemLocOffset, LI))
               return MemDepResult::getClobber(Inst);
-
+          }
           continue;
         }
 
         // Must aliased loads are defs of each other.
-        if (R == AliasAnalysis::MustAlias)
+        if (R == MustAlias)
           return MemDepResult::getDef(Inst);
 
 #if 0 // FIXME: Temporarily disabled. GVN is cleverly rewriting loads
@@ -443,7 +516,7 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
 
         // If we have a partial alias, then return this as a clobber for the
         // client to handle.
-        if (R == AliasAnalysis::PartialAlias)
+        if (R == PartialAlias)
           return MemDepResult::getClobber(Inst);
 #endif
 
@@ -453,7 +526,7 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
       }
 
       // Stores don't depend on other no-aliased accesses.
-      if (R == AliasAnalysis::NoAlias)
+      if (R == NoAlias)
         continue;
 
       // Stores don't alias loads from read-only memory.
@@ -466,8 +539,29 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
 
     if (StoreInst *SI = dyn_cast<StoreInst>(Inst)) {
       // Atomic stores have complications involved.
+      // A Monotonic store is OK if the query inst is itself not atomic.
       // FIXME: This is overly conservative.
-      if (!SI->isUnordered())
+      if (!SI->isUnordered()) {
+        if (!QueryInst)
+          return MemDepResult::getClobber(SI);
+        if (SI->getOrdering() != Monotonic)
+          return MemDepResult::getClobber(SI);
+        if (auto *QueryLI = dyn_cast<LoadInst>(QueryInst)) {
+          if (!QueryLI->isSimple())
+            return MemDepResult::getClobber(SI);
+        } else if (auto *QuerySI = dyn_cast<StoreInst>(QueryInst)) {
+          if (!QuerySI->isSimple())
+            return MemDepResult::getClobber(SI);
+        } else if (QueryInst->mayReadOrWriteMemory()) {
+          return MemDepResult::getClobber(SI);
+        }
+      }
+
+      // FIXME: this is overly conservative.
+      // While volatile access cannot be eliminated, they do not have to clobber
+      // non-aliasing locations, as normal accesses can for example be reordered
+      // with volatile accesses.
+      if (SI->isVolatile())
         return MemDepResult::getClobber(SI);
 
       // If alias analysis can tell that this store is guaranteed to not modify
@@ -478,14 +572,14 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
 
       // Ok, this store might clobber the query pointer.  Check to see if it is
       // a must alias: in this case, we want to return this as a def.
-      AliasAnalysis::Location StoreLoc = AA->getLocation(SI);
+      MemoryLocation StoreLoc = MemoryLocation::get(SI);
 
       // If we found a pointer, check if it could be the same as our pointer.
-      AliasAnalysis::AliasResult R = AA->alias(StoreLoc, MemLoc);
+      AliasResult R = AA->alias(StoreLoc, MemLoc);
 
-      if (R == AliasAnalysis::NoAlias)
+      if (R == NoAlias)
         continue;
-      if (R == AliasAnalysis::MustAlias)
+      if (R == MustAlias)
         return MemDepResult::getDef(Inst);
       if (isInvariantLoad)
        continue;
@@ -506,8 +600,10 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
 
       if (AccessPtr == Inst || AA->isMustAlias(Inst, AccessPtr))
         return MemDepResult::getDef(Inst);
+      if (isInvariantLoad)
+        continue;
       // Be conservative if the accessed pointer may alias the allocation.
-      if (AA->alias(Inst, AccessPtr) != AliasAnalysis::NoAlias)
+      if (AA->alias(Inst, AccessPtr) != NoAlias)
         return MemDepResult::getClobber(Inst);
       // If the allocation is not aliased and does not read memory (like
       // strdup), it is safe to ignore.
@@ -515,6 +611,9 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
           isMallocLikeFn(Inst, TLI) || isCallocLikeFn(Inst, TLI))
         continue;
     }
+
+    if (isInvariantLoad)
+       continue;
 
     // See if this instruction (e.g. a call or vaarg) mod/ref's the pointer.
     AliasAnalysis::ModRefResult MR = AA->getModRefInfo(Inst, MemLoc);
@@ -577,7 +676,7 @@ MemDepResult MemoryDependenceAnalysis::getDependency(Instruction *QueryInst) {
     else
       LocalCache = MemDepResult::getNonFuncLocal();
   } else {
-    AliasAnalysis::Location MemLoc;
+    MemoryLocation MemLoc;
     AliasAnalysis::ModRefResult MR = GetLocation(QueryInst, MemLoc, AA);
     if (MemLoc.Ptr) {
       // If we can do a pointer scan, make it happen.
@@ -666,8 +765,8 @@ MemoryDependenceAnalysis::getNonLocalCallDependency(CallSite QueryCS) {
   } else {
     // Seed DirtyBlocks with each of the preds of QueryInst's block.
     BasicBlock *QueryBB = QueryCS.getInstruction()->getParent();
-    for (BasicBlock **PI = PredCache->GetPreds(QueryBB); *PI; ++PI)
-      DirtyBlocks.push_back(*PI);
+    for (BasicBlock *Pred : PredCache.get(QueryBB))
+      DirtyBlocks.push_back(Pred);
     ++NumUncacheNonLocal;
   }
 
@@ -685,7 +784,7 @@ MemoryDependenceAnalysis::getNonLocalCallDependency(CallSite QueryCS) {
     DirtyBlocks.pop_back();
 
     // Already processed this block?
-    if (!Visited.insert(DirtyBB))
+    if (!Visited.insert(DirtyBB).second)
       continue;
 
     // Do a binary search to see if we already have an entry for this block in
@@ -752,8 +851,8 @@ MemoryDependenceAnalysis::getNonLocalCallDependency(CallSite QueryCS) {
 
       // If the block *is* completely transparent to the load, we need to check
       // the predecessors of this block.  Add them to our worklist.
-      for (BasicBlock **PI = PredCache->GetPreds(DirtyBB); *PI; ++PI)
-        DirtyBlocks.push_back(*PI);
+      for (BasicBlock *Pred : PredCache.get(DirtyBB))
+        DirtyBlocks.push_back(Pred);
     }
   }
 
@@ -768,21 +867,48 @@ MemoryDependenceAnalysis::getNonLocalCallDependency(CallSite QueryCS) {
 /// own block.
 ///
 void MemoryDependenceAnalysis::
-getNonLocalPointerDependency(const AliasAnalysis::Location &Loc, bool isLoad,
-                             BasicBlock *FromBB,
+getNonLocalPointerDependency(Instruction *QueryInst,
                              SmallVectorImpl<NonLocalDepResult> &Result) {
+  const MemoryLocation Loc = MemoryLocation::get(QueryInst);
+  bool isLoad = isa<LoadInst>(QueryInst);
+  BasicBlock *FromBB = QueryInst->getParent();
+  assert(FromBB);
+
   assert(Loc.Ptr->getType()->isPointerTy() &&
          "Can't get pointer deps of a non-pointer!");
   Result.clear();
+  
+  // This routine does not expect to deal with volatile instructions.
+  // Doing so would require piping through the QueryInst all the way through.
+  // TODO: volatiles can't be elided, but they can be reordered with other
+  // non-volatile accesses.
 
-  PHITransAddr Address(const_cast<Value *>(Loc.Ptr), DL);
+  // We currently give up on any instruction which is ordered, but we do handle
+  // atomic instructions which are unordered.
+  // TODO: Handle ordered instructions
+  auto isOrdered = [](Instruction *Inst) {
+    if (LoadInst *LI = dyn_cast<LoadInst>(Inst)) {
+      return !LI->isUnordered();
+    } else if (StoreInst *SI = dyn_cast<StoreInst>(Inst)) {
+      return !SI->isUnordered();
+    }
+    return false;
+  };
+  if (isVolatile(QueryInst) || isOrdered(QueryInst)) {
+    Result.push_back(NonLocalDepResult(FromBB,
+                                       MemDepResult::getUnknown(),
+                                       const_cast<Value *>(Loc.Ptr)));
+    return;
+  }
+  const DataLayout &DL = FromBB->getModule()->getDataLayout();
+  PHITransAddr Address(const_cast<Value *>(Loc.Ptr), DL, AC);
 
   // This is the set of blocks we've inspected, and the pointer we consider in
   // each block.  Because of critical edges, we currently bail out if querying
   // a block with multiple different pointers.  This can happen during PHI
   // translation.
   DenseMap<BasicBlock*, Value*> Visited;
-  if (!getNonLocalPointerDepFromBB(Address, Loc, isLoad, FromBB,
+  if (!getNonLocalPointerDepFromBB(QueryInst, Address, Loc, isLoad, FromBB,
                                    Result, Visited, true))
     return;
   Result.clear();
@@ -795,10 +921,9 @@ getNonLocalPointerDependency(const AliasAnalysis::Location &Loc, bool isLoad,
 /// Pointer/PointeeSize using either cached information in Cache or by doing a
 /// lookup (which may use dirty cache info if available).  If we do a lookup,
 /// add the result to the cache.
-MemDepResult MemoryDependenceAnalysis::
-GetNonLocalInfoForBlock(const AliasAnalysis::Location &Loc,
-                        bool isLoad, BasicBlock *BB,
-                        NonLocalDepInfo *Cache, unsigned NumSortedEntries) {
+MemDepResult MemoryDependenceAnalysis::GetNonLocalInfoForBlock(
+    Instruction *QueryInst, const MemoryLocation &Loc, bool isLoad,
+    BasicBlock *BB, NonLocalDepInfo *Cache, unsigned NumSortedEntries) {
 
   // Do a binary search to see if we already have an entry for this block in
   // the cache set.  If so, find it.
@@ -837,7 +962,8 @@ GetNonLocalInfoForBlock(const AliasAnalysis::Location &Loc,
   }
 
   // Scan the block for the dependency.
-  MemDepResult Dep = getPointerDependencyFrom(Loc, isLoad, ScanPos, BB);
+  MemDepResult Dep = getPointerDependencyFrom(Loc, isLoad, ScanPos, BB,
+                                              QueryInst);
 
   // If we had a dirty entry for the block, update it.  Otherwise, just add
   // a new entry.
@@ -861,7 +987,7 @@ GetNonLocalInfoForBlock(const AliasAnalysis::Location &Loc,
   return Dep;
 }
 
-/// SortNonLocalDepInfoCache - Sort the a NonLocalDepInfo cache, given a certain
+/// SortNonLocalDepInfoCache - Sort the NonLocalDepInfo cache, given a certain
 /// number of elements in the array that are already properly ordered.  This is
 /// optimized for the case when only a few entries are added.
 static void
@@ -909,23 +1035,21 @@ SortNonLocalDepInfoCache(MemoryDependenceAnalysis::NonLocalDepInfo &Cache,
 /// This function returns false on success, or true to indicate that it could
 /// not compute dependence information for some reason.  This should be treated
 /// as a clobber dependence on the first instruction in the predecessor block.
-bool MemoryDependenceAnalysis::
-getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
-                            const AliasAnalysis::Location &Loc,
-                            bool isLoad, BasicBlock *StartBB,
-                            SmallVectorImpl<NonLocalDepResult> &Result,
-                            DenseMap<BasicBlock*, Value*> &Visited,
-                            bool SkipFirstBlock) {
+bool MemoryDependenceAnalysis::getNonLocalPointerDepFromBB(
+    Instruction *QueryInst, const PHITransAddr &Pointer,
+    const MemoryLocation &Loc, bool isLoad, BasicBlock *StartBB,
+    SmallVectorImpl<NonLocalDepResult> &Result,
+    DenseMap<BasicBlock *, Value *> &Visited, bool SkipFirstBlock) {
   // Look up the cached info for Pointer.
   ValueIsLoadPair CacheKey(Pointer.getAddr(), isLoad);
 
   // Set up a temporary NLPI value. If the map doesn't yet have an entry for
   // CacheKey, this value will be inserted as the associated value. Otherwise,
   // it'll be ignored, and we'll have to check to see if the cached size and
-  // tbaa tag are consistent with the current query.
+  // aa tags are consistent with the current query.
   NonLocalPointerInfo InitialNLPI;
   InitialNLPI.Size = Loc.Size;
-  InitialNLPI.TBAATag = Loc.TBAATag;
+  InitialNLPI.AATags = Loc.AATags;
 
   // Get the NLPI for CacheKey, inserting one into the map if it doesn't
   // already have one.
@@ -949,27 +1073,28 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
     } else if (CacheInfo->Size > Loc.Size) {
       // This query's Size is less than the cached one. Conservatively restart
       // the query using the greater size.
-      return getNonLocalPointerDepFromBB(Pointer,
+      return getNonLocalPointerDepFromBB(QueryInst, Pointer,
                                          Loc.getWithNewSize(CacheInfo->Size),
                                          isLoad, StartBB, Result, Visited,
                                          SkipFirstBlock);
     }
 
-    // If the query's TBAATag is inconsistent with the cached one,
+    // If the query's AATags are inconsistent with the cached one,
     // conservatively throw out the cached data and restart the query with
     // no tag if needed.
-    if (CacheInfo->TBAATag != Loc.TBAATag) {
-      if (CacheInfo->TBAATag) {
+    if (CacheInfo->AATags != Loc.AATags) {
+      if (CacheInfo->AATags) {
         CacheInfo->Pair = BBSkipFirstBlockPair();
-        CacheInfo->TBAATag = nullptr;
+        CacheInfo->AATags = AAMDNodes();
         for (NonLocalDepInfo::iterator DI = CacheInfo->NonLocalDeps.begin(),
              DE = CacheInfo->NonLocalDeps.end(); DI != DE; ++DI)
           if (Instruction *Inst = DI->getResult().getInst())
             RemoveFromReverseMap(ReverseNonLocalPtrDeps, Inst, CacheKey);
         CacheInfo->NonLocalDeps.clear();
       }
-      if (Loc.TBAATag)
-        return getNonLocalPointerDepFromBB(Pointer, Loc.getWithoutTBAATag(),
+      if (Loc.AATags)
+        return getNonLocalPointerDepFromBB(QueryInst,
+                                           Pointer, Loc.getWithoutAATags(),
                                            isLoad, StartBB, Result, Visited,
                                            SkipFirstBlock);
     }
@@ -1045,6 +1170,24 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
   while (!Worklist.empty()) {
     BasicBlock *BB = Worklist.pop_back_val();
 
+    // If we do process a large number of blocks it becomes very expensive and
+    // likely it isn't worth worrying about
+    if (Result.size() > NumResultsLimit) {
+      Worklist.clear();
+      // Sort it now (if needed) so that recursive invocations of
+      // getNonLocalPointerDepFromBB and other routines that could reuse the
+      // cache value will only see properly sorted cache arrays.
+      if (Cache && NumSortedEntries != Cache->size()) {
+        SortNonLocalDepInfoCache(*Cache, NumSortedEntries);
+      }
+      // Since we bail out, the "Cache" set won't contain all of the
+      // results for the query.  This is ok (we can still use it to accelerate
+      // specific block queries) but we can't do the fastpath "return all
+      // results from the set".  Clear out the indicator for this.
+      CacheInfo->Pair = BBSkipFirstBlockPair();
+      return true;
+    }
+
     // Skip the first block if we have it.
     if (!SkipFirstBlock) {
       // Analyze the dependency of *Pointer in FromBB.  See if we already have
@@ -1054,7 +1197,8 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
       // Get the dependency info for Pointer in BB.  If we have cached
       // information, we will use it, otherwise we compute it.
       DEBUG(AssertSorted(*Cache, NumSortedEntries));
-      MemDepResult Dep = GetNonLocalInfoForBlock(Loc, isLoad, BB, Cache,
+      MemDepResult Dep = GetNonLocalInfoForBlock(QueryInst,
+                                                 Loc, isLoad, BB, Cache,
                                                  NumSortedEntries);
 
       // If we got a Def or Clobber, add this to the list of results.
@@ -1078,13 +1222,13 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
     if (!Pointer.NeedsPHITranslationFromBlock(BB)) {
       SkipFirstBlock = false;
       SmallVector<BasicBlock*, 16> NewBlocks;
-      for (BasicBlock **PI = PredCache->GetPreds(BB); *PI; ++PI) {
+      for (BasicBlock *Pred : PredCache.get(BB)) {
         // Verify that we haven't looked at this block yet.
         std::pair<DenseMap<BasicBlock*,Value*>::iterator, bool>
-          InsertRes = Visited.insert(std::make_pair(*PI, Pointer.getAddr()));
+          InsertRes = Visited.insert(std::make_pair(Pred, Pointer.getAddr()));
         if (InsertRes.second) {
           // First time we've looked at *PI.
-          NewBlocks.push_back(*PI);
+          NewBlocks.push_back(Pred);
           continue;
         }
 
@@ -1120,15 +1264,13 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
     Cache = nullptr;
 
     PredList.clear();
-    for (BasicBlock **PI = PredCache->GetPreds(BB); *PI; ++PI) {
-      BasicBlock *Pred = *PI;
+    for (BasicBlock *Pred : PredCache.get(BB)) {
       PredList.push_back(std::make_pair(Pred, Pointer));
 
       // Get the PHI translated pointer in this predecessor.  This can fail if
       // not translatable, in which case the getAddr() returns null.
       PHITransAddr &PredPointer = PredList.back().second;
-      PredPointer.PHITranslateValue(BB, Pred, nullptr);
-
+      PredPointer.PHITranslateValue(BB, Pred, DT, /*MustDominate=*/false);
       Value *PredPtrVal = PredPointer.getAddr();
 
       // Check to see if we have already visited this pred block with another
@@ -1188,7 +1330,7 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
       // result conflicted with the Visited list; we have to conservatively
       // assume it is unknown, but this also does not block PRE of the load.
       if (!CanTranslate ||
-          getNonLocalPointerDepFromBB(PredPointer,
+          getNonLocalPointerDepFromBB(QueryInst, PredPointer,
                                       Loc.getWithNewPtr(PredPtrVal),
                                       isLoad, Pred,
                                       Result, Visited)) {
@@ -1251,7 +1393,7 @@ getNonLocalPointerDepFromBB(const PHITransAddr &Pointer,
       if (I->getBB() != BB)
         continue;
 
-      assert(I->getResult().isNonLocal() &&
+      assert((I->getResult().isNonLocal() || !DT->isReachableFromEntry(BB)) &&
              "Should only be here with transparent block");
       I->setResult(MemDepResult::getUnknown());
       Result.push_back(NonLocalDepResult(I->getBB(), I->getResult(),
@@ -1311,7 +1453,7 @@ void MemoryDependenceAnalysis::invalidateCachedPointerInfo(Value *Ptr) {
 /// This needs to be done when the CFG changes, e.g., due to splitting
 /// critical edges.
 void MemoryDependenceAnalysis::invalidateCachedPredecessors() {
-  PredCache->clear();
+  PredCache.clear();
 }
 
 /// removeInstruction - Remove an instruction from the dependence analysis,
@@ -1369,14 +1511,11 @@ void MemoryDependenceAnalysis::removeInstruction(Instruction *RemInst) {
 
   ReverseDepMapType::iterator ReverseDepIt = ReverseLocalDeps.find(RemInst);
   if (ReverseDepIt != ReverseLocalDeps.end()) {
-    SmallPtrSet<Instruction*, 4> &ReverseDeps = ReverseDepIt->second;
     // RemInst can't be the terminator if it has local stuff depending on it.
-    assert(!ReverseDeps.empty() && !isa<TerminatorInst>(RemInst) &&
+    assert(!ReverseDepIt->second.empty() && !isa<TerminatorInst>(RemInst) &&
            "Nothing can locally depend on a terminator");
 
-    for (SmallPtrSet<Instruction*, 4>::iterator I = ReverseDeps.begin(),
-         E = ReverseDeps.end(); I != E; ++I) {
-      Instruction *InstDependingOnRemInst = *I;
+    for (Instruction *InstDependingOnRemInst : ReverseDepIt->second) {
       assert(InstDependingOnRemInst != RemInst &&
              "Already removed our local dep info");
 
@@ -1402,12 +1541,10 @@ void MemoryDependenceAnalysis::removeInstruction(Instruction *RemInst) {
 
   ReverseDepIt = ReverseNonLocalDeps.find(RemInst);
   if (ReverseDepIt != ReverseNonLocalDeps.end()) {
-    SmallPtrSet<Instruction*, 4> &Set = ReverseDepIt->second;
-    for (SmallPtrSet<Instruction*, 4>::iterator I = Set.begin(), E = Set.end();
-         I != E; ++I) {
-      assert(*I != RemInst && "Already removed NonLocalDep info for RemInst");
+    for (Instruction *I : ReverseDepIt->second) {
+      assert(I != RemInst && "Already removed NonLocalDep info for RemInst");
 
-      PerInstNLInfo &INLD = NonLocalDeps[*I];
+      PerInstNLInfo &INLD = NonLocalDeps[I];
       // The information is now dirty!
       INLD.second = true;
 
@@ -1419,7 +1556,7 @@ void MemoryDependenceAnalysis::removeInstruction(Instruction *RemInst) {
         DI->setResult(NewDirtyVal);
 
         if (Instruction *NextI = NewDirtyVal.getInst())
-          ReverseDepsToAdd.push_back(std::make_pair(NextI, *I));
+          ReverseDepsToAdd.push_back(std::make_pair(NextI, I));
       }
     }
 
@@ -1438,12 +1575,9 @@ void MemoryDependenceAnalysis::removeInstruction(Instruction *RemInst) {
   ReverseNonLocalPtrDepTy::iterator ReversePtrDepIt =
     ReverseNonLocalPtrDeps.find(RemInst);
   if (ReversePtrDepIt != ReverseNonLocalPtrDeps.end()) {
-    SmallPtrSet<ValueIsLoadPair, 4> &Set = ReversePtrDepIt->second;
     SmallVector<std::pair<Instruction*, ValueIsLoadPair>,8> ReversePtrDepsToAdd;
 
-    for (SmallPtrSet<ValueIsLoadPair, 4>::iterator I = Set.begin(),
-         E = Set.end(); I != E; ++I) {
-      ValueIsLoadPair P = *I;
+    for (ValueIsLoadPair P : ReversePtrDepIt->second) {
       assert(P.getPointer() != RemInst &&
              "Already removed NonLocalPointerDeps info for RemInst");
 
@@ -1484,8 +1618,10 @@ void MemoryDependenceAnalysis::removeInstruction(Instruction *RemInst) {
   DEBUG(verifyRemoved(RemInst));
 }
 /// verifyRemoved - Verify that the specified instruction does not occur
-/// in our internal data structures.
+/// in our internal data structures. This function verifies by asserting in
+/// debug builds.
 void MemoryDependenceAnalysis::verifyRemoved(Instruction *D) const {
+#ifndef NDEBUG
   for (LocalDepMapType::const_iterator I = LocalDeps.begin(),
        E = LocalDeps.end(); I != E; ++I) {
     assert(I->first != D && "Inst occurs in data structures");
@@ -1514,18 +1650,16 @@ void MemoryDependenceAnalysis::verifyRemoved(Instruction *D) const {
   for (ReverseDepMapType::const_iterator I = ReverseLocalDeps.begin(),
        E = ReverseLocalDeps.end(); I != E; ++I) {
     assert(I->first != D && "Inst occurs in data structures");
-    for (SmallPtrSet<Instruction*, 4>::const_iterator II = I->second.begin(),
-         EE = I->second.end(); II != EE; ++II)
-      assert(*II != D && "Inst occurs in data structures");
+    for (Instruction *Inst : I->second)
+      assert(Inst != D && "Inst occurs in data structures");
   }
 
   for (ReverseDepMapType::const_iterator I = ReverseNonLocalDeps.begin(),
        E = ReverseNonLocalDeps.end();
        I != E; ++I) {
     assert(I->first != D && "Inst occurs in data structures");
-    for (SmallPtrSet<Instruction*, 4>::const_iterator II = I->second.begin(),
-         EE = I->second.end(); II != EE; ++II)
-      assert(*II != D && "Inst occurs in data structures");
+    for (Instruction *Inst : I->second)
+      assert(Inst != D && "Inst occurs in data structures");
   }
 
   for (ReverseNonLocalPtrDepTy::const_iterator
@@ -1533,11 +1667,10 @@ void MemoryDependenceAnalysis::verifyRemoved(Instruction *D) const {
        E = ReverseNonLocalPtrDeps.end(); I != E; ++I) {
     assert(I->first != D && "Inst occurs in rev NLPD map");
 
-    for (SmallPtrSet<ValueIsLoadPair, 4>::const_iterator II = I->second.begin(),
-         E = I->second.end(); II != E; ++II)
-      assert(*II != ValueIsLoadPair(D, false) &&
-             *II != ValueIsLoadPair(D, true) &&
+    for (ValueIsLoadPair P : I->second)
+      assert(P != ValueIsLoadPair(D, false) &&
+             P != ValueIsLoadPair(D, true) &&
              "Inst occurs in ReverseNonLocalPtrDeps map");
   }
-
+#endif
 }

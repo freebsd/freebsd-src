@@ -48,11 +48,17 @@ __FBSDID("$FreeBSD$");
 #define R6XX_MAX_PIPES_MASK			0xff
 
 /* PTE flags */
+/*
+ * FIXME Linux<->FreeBSD: PTE_VALID is already defined on PowerPC on FreeBSD.
+ * Fortunately, it's never used in the Radeon driver.
+ */
+/*
 #define PTE_VALID				(1 << 0)
 #define PTE_SYSTEM				(1 << 1)
 #define PTE_SNOOPED				(1 << 2)
 #define PTE_READABLE				(1 << 5)
 #define PTE_WRITEABLE				(1 << 6)
+*/
 
 /* tiling bits */
 #define     ARRAY_LINEAR_GENERAL              0x00000000

@@ -16,7 +16,7 @@
 <!-- The previous stable release, useful for pointing user's at the
      release they SHOULD be running if they don't want the bleeding
      edge. -->
-<!ENTITY release.prev.stable "9.2-RELEASE">
+<!ENTITY release.prev.stable "9.3-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
 <!ENTITY release.next "11.0-RELEASE">
@@ -25,7 +25,10 @@
 <!ENTITY release.branch "11-CURRENT">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
-<!ENTITY release.url "http://www.FreeBSD.org/snapshots/">
+<!ENTITY release.url "https://www.FreeBSD.org/snapshots/">
+
+<!-- The URL for Security Advisories and Errata Notices. -->
+<!ENTITY security.url "https://www.FreeBSD.org/security/advisories">
 
 <!-- The recommended mailing list to track. -->
 <!ENTITY release.maillist "current">
@@ -51,7 +54,7 @@
 <!ENTITY release ''>
 
 <!-- The manpaths for man page references -->
-<!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
+<!ENTITY release.man.url "https://www.FreeBSD.org/cgi/man.cgi">
 <!ENTITY release.manpath.xorg          "7.5.1">
 <!ENTITY release.manpath.netbsd        "5.1">
 <!ENTITY release.manpath.freebsd-ports "Ports">
@@ -67,6 +70,7 @@
 <!-- Architecture names -->
 <!ENTITY arch.amd64 "amd64">
 <!ENTITY arch.arm "arm">
+<!ENTITY arch.arm64 "aarch64">
 <!ENTITY arch.i386 "i386">
 <!ENTITY arch.mips "mips">
 <!ENTITY arch.pc98 "pc98">

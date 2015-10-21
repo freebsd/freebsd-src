@@ -41,7 +41,7 @@
 
 #define DF_SEEN		0x01	/* Dependency has been followed */
 #define DF_LIGHT	0x02	/* Implied dependency on jail existence only */
-#define DF_NOFAIL	0x04	/* Don't propigate failed jails */
+#define DF_NOFAIL	0x04	/* Don't propagate failed jails */
 
 #define PF_VAR		0x01	/* This is a variable, not a true parameter */
 #define PF_APPEND	0x02	/* Append to existing parameter list */
@@ -51,6 +51,7 @@
 #define PF_INT		0x20	/* Integer parameter */
 #define PF_CONV		0x40	/* Parameter duplicated in converted form */
 #define PF_REV		0x80	/* Run commands in reverse order on stopping */
+#define	PF_IMMUTABLE	0x100	/* Immutable parameter */
 
 #define JF_START	0x0001	/* -c */
 #define JF_SET		0x0002	/* -m */
@@ -96,6 +97,7 @@ enum intparam {
 	IP_MOUNT,		/* Mount points in fstab(5) form */
 	IP_MOUNT_DEVFS,		/* Mount /dev under prison root */
 	IP_MOUNT_FDESCFS,	/* Mount /dev/fd under prison root */
+	IP_MOUNT_PROCFS,	/* Mount /proc under prison root */
 	IP_MOUNT_FSTAB,		/* A standard fstab(5) file */
 	IP_STOP_TIMEOUT,	/* Time to wait after sending SIGTERM */
 	IP_VNET_INTERFACE,	/* Assign interface(s) to vnet jail */

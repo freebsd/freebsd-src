@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -117,7 +117,11 @@ struct ixlv_sc {
 	struct ifmedia		media;
 	struct callout		timer;
 	int			msix;
+	int			pf_version;
 	int			if_flags;
+
+	bool			link_up;
+	u32			link_speed;
 
 	struct mtx		mtx;
 

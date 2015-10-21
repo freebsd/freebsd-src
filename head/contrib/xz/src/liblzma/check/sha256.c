@@ -21,22 +21,22 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-// Avoid bogus warnings in transform().
-#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 2) || __GNUC__ > 4
-#	pragma GCC diagnostic ignored "-Wuninitialized"
-#endif
-
 #include "check.h"
 
-// At least on x86, GCC is able to optimize this to a rotate instruction.
-#define rotr_32(num, amount) ((num) >> (amount) | (num) << (32 - (amount)))
+// Rotate a uint32_t. GCC can optimize this to a rotate instruction
+// at least on x86.
+static inline uint32_t
+rotr_32(uint32_t num, unsigned amount)
+{
+        return (num >> amount) | (num << (32 - amount));
+}
 
-#define blk0(i) (W[i] = data[i])
+#define blk0(i) (W[i] = conv32be(data[i]))
 #define blk2(i) (W[i & 15] += s1(W[(i - 2) & 15]) + W[(i - 7) & 15] \
 		+ s0(W[(i - 15) & 15]))
 
 #define Ch(x, y, z) (z ^ (x & (y ^ z)))
-#define Maj(x, y, z) ((x & y) | (z & (x | y)))
+#define Maj(x, y, z) ((x & (y ^ z)) + (y & z))
 
 #define a(i) T[(0 - i) & 7]
 #define b(i) T[(1 - i) & 7]
@@ -47,16 +47,17 @@
 #define g(i) T[(6 - i) & 7]
 #define h(i) T[(7 - i) & 7]
 
-#define R(i) \
-	h(i) += S1(e(i)) + Ch(e(i), f(i), g(i)) + SHA256_K[i + j] \
-		+ (j ? blk2(i) : blk0(i)); \
+#define R(i, j, blk) \
+	h(i) += S1(e(i)) + Ch(e(i), f(i), g(i)) + SHA256_K[i + j] + blk; \
 	d(i) += h(i); \
 	h(i) += S0(a(i)) + Maj(a(i), b(i), c(i))
+#define R0(i) R(i, 0, blk0(i))
+#define R2(i) R(i, j, blk2(i))
 
-#define S0(x) (rotr_32(x, 2) ^ rotr_32(x, 13) ^ rotr_32(x, 22))
-#define S1(x) (rotr_32(x, 6) ^ rotr_32(x, 11) ^ rotr_32(x, 25))
-#define s0(x) (rotr_32(x, 7) ^ rotr_32(x, 18) ^ (x >> 3))
-#define s1(x) (rotr_32(x, 17) ^ rotr_32(x, 19) ^ (x >> 10))
+#define S0(x) rotr_32(x ^ rotr_32(x ^ rotr_32(x, 9), 11), 2)
+#define S1(x) rotr_32(x ^ rotr_32(x ^ rotr_32(x, 14), 5), 6)
+#define s0(x) (rotr_32(x ^ rotr_32(x, 11), 7) ^ (x >> 3))
+#define s1(x) (rotr_32(x ^ rotr_32(x, 2), 17) ^ (x >> 10))
 
 
 static const uint32_t SHA256_K[64] = {
@@ -88,12 +89,18 @@ transform(uint32_t state[8], const uint32_t data[16])
 	// Copy state[] to working vars.
 	memcpy(T, state, sizeof(T));
 
-	// 64 operations, partially loop unrolled
-	for (unsigned int j = 0; j < 64; j += 16) {
-		R( 0); R( 1); R( 2); R( 3);
-		R( 4); R( 5); R( 6); R( 7);
-		R( 8); R( 9); R(10); R(11);
-		R(12); R(13); R(14); R(15);
+	// The first 16 operations unrolled
+	R0( 0); R0( 1); R0( 2); R0( 3);
+	R0( 4); R0( 5); R0( 6); R0( 7);
+	R0( 8); R0( 9); R0(10); R0(11);
+	R0(12); R0(13); R0(14); R0(15);
+
+	// The remaining 48 operations partially unrolled
+	for (unsigned int j = 16; j < 64; j += 16) {
+		R2( 0); R2( 1); R2( 2); R2( 3);
+		R2( 4); R2( 5); R2( 6); R2( 7);
+		R2( 8); R2( 9); R2(10); R2(11);
+		R2(12); R2(13); R2(14); R2(15);
 	}
 
 	// Add the working vars back into state[].
@@ -111,18 +118,7 @@ transform(uint32_t state[8], const uint32_t data[16])
 static void
 process(lzma_check_state *check)
 {
-#ifdef WORDS_BIGENDIAN
 	transform(check->state.sha256.state, check->buffer.u32);
-
-#else
-	uint32_t data[16];
-
-	for (size_t i = 0; i < 16; ++i)
-		data[i] = bswap32(check->buffer.u32[i]);
-
-	transform(check->state.sha256.state, data);
-#endif
-
 	return;
 }
 

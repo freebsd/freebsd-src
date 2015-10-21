@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2011
+.Dd September 29, 2015
 .Dt MERGEMASTER 8
 .Os
 .Sh NAME
@@ -257,14 +257,13 @@ Specify the path to the directory where you want to do the
 .Xr make 1 .
 (In other words, where your sources are, but -s was already
 taken.)
-In previous versions of
+In older versions of
 .Nm
-you needed to specify the path all the way to
-.Pa src/etc .
-Starting with r186678 you only need to specify the path to
-.Pa src .
+the path to
+.Pa src/etc
+was required.
 .Nm
-will convert the path for you if you use the old method.
+will convert the path if this older method is used.
 .It Fl t Ar /path/to/temp/root
 Create the temporary root environment in
 .Pa /path/to/temp/root

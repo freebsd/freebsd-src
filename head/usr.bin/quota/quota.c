@@ -570,7 +570,7 @@ getnfsquota(struct statfs *fst, struct quotause *qup, long id, int quotatype)
 	struct getquota_rslt gq_rslt;
 	struct dqblk *dqp = &qup->dqblk;
 	struct timeval tv;
-	char *cp;
+	char *cp, host[NI_MAXHOST];
 
 	if (fst->f_flags & MNT_LOCAL)
 		return (0);
@@ -584,33 +584,29 @@ getnfsquota(struct statfs *fst, struct quotause *qup, long id, int quotatype)
 	/*
 	 * must be some form of "hostname:/path"
 	 */
-	cp = strchr(fst->f_mntfromname, ':');
+	cp = fst->f_mntfromname;
+	do {
+		cp = strrchr(cp, ':');
+	} while (cp != NULL && *(cp + 1) != '/');
 	if (cp == NULL) {
 		warnx("cannot find hostname for %s", fst->f_mntfromname);
 		return (0);
 	}
+	memset(host, 0, sizeof(host));
+	memcpy(host, fst->f_mntfromname, cp - fst->f_mntfromname);
+	host[sizeof(host) - 1] = '\0';
  
-	*cp = '\0';
-	if (*(cp+1) != '/') {
-		*cp = ':';
-		return (0);
-	}
-
 	/* Avoid attempting the RPC for special amd(8) filesystems. */
 	if (strncmp(fst->f_mntfromname, "pid", 3) == 0 &&
-	    strchr(fst->f_mntfromname, '@') != NULL) {
-		*cp = ':';
+	    strchr(fst->f_mntfromname, '@') != NULL)
 		return (0);
-	}
 
 	gq_args.gqa_pathp = cp + 1;
 	gq_args.gqa_uid = id;
-	if (callaurpc(fst->f_mntfromname, RQUOTAPROG, RQUOTAVERS,
+	if (callaurpc(host, RQUOTAPROG, RQUOTAVERS,
 	    RQUOTAPROC_GETQUOTA, (xdrproc_t)xdr_getquota_args, (char *)&gq_args,
-	    (xdrproc_t)xdr_getquota_rslt, (char *)&gq_rslt) != 0) {
-		*cp = ':';
+	    (xdrproc_t)xdr_getquota_rslt, (char *)&gq_rslt) != 0)
 		return (0);
-	}
 
 	switch (gq_rslt.status) {
 	case Q_NOQUOTA:
@@ -643,13 +639,12 @@ getnfsquota(struct statfs *fst, struct quotause *qup, long id, int quotatype)
 		    tv.tv_sec + gq_rslt.getquota_rslt_u.gqr_rquota.rq_btimeleft;
 		dqp->dqb_itime =
 		    tv.tv_sec + gq_rslt.getquota_rslt_u.gqr_rquota.rq_ftimeleft;
-		*cp = ':';
 		return (1);
 	default:
 		warnx("bad rpc result, host: %s", fst->f_mntfromname);
 		break;
 	}
-	*cp = ':';
+
 	return (0);
 }
  
@@ -657,26 +652,17 @@ static int
 callaurpc(char *host, int prognum, int versnum, int procnum,
     xdrproc_t inproc, char *in, xdrproc_t outproc, char *out)
 {
-	struct sockaddr_in server_addr;
 	enum clnt_stat clnt_stat;
-	struct hostent *hp;
 	struct timeval timeout, tottimeout;
  
 	CLIENT *client = NULL;
-	int sock = RPC_ANYSOCK;
- 
-	if ((hp = gethostbyname(host)) == NULL)
-		return ((int) RPC_UNKNOWNHOST);
+
+ 	client = clnt_create(host, prognum, versnum, "udp");
+	if (client == NULL)
+		return ((int)rpc_createerr.cf_stat);
 	timeout.tv_usec = 0;
 	timeout.tv_sec = 6;
-	bcopy(hp->h_addr, &server_addr.sin_addr,
-			MIN(hp->h_length,(int)sizeof(server_addr.sin_addr)));
-	server_addr.sin_family = AF_INET;
-	server_addr.sin_port =  0;
-
-	if ((client = clntudp_create(&server_addr, prognum,
-	    versnum, timeout, &sock)) == NULL)
-		return ((int) rpc_createerr.cf_stat);
+	CLNT_CONTROL(client, CLSET_RETRY_TIMEOUT, (char *)(void *)&timeout);
 
 	client->cl_auth = authunix_create_default();
 	tottimeout.tv_sec = 25;

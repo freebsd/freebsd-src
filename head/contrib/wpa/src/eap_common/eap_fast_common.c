@@ -96,49 +96,18 @@ void eap_fast_derive_master_secret(const u8 *pac_key, const u8 *server_random,
 u8 * eap_fast_derive_key(void *ssl_ctx, struct tls_connection *conn,
 			 const char *label, size_t len)
 {
-	struct tls_keys keys;
-	u8 *rnd = NULL, *out;
-	int block_size;
+	u8 *out;
 
-	block_size = tls_connection_get_keyblock_size(ssl_ctx, conn);
-	if (block_size < 0)
-		return NULL;
-
-	out = os_malloc(block_size + len);
+	out = os_malloc(len);
 	if (out == NULL)
 		return NULL;
 
-	if (tls_connection_prf(ssl_ctx, conn, label, 1, out, block_size + len)
-	    == 0) {
-		os_memmove(out, out + block_size, len);
-		return out;
+	if (tls_connection_prf(ssl_ctx, conn, label, 1, 1, out, len)) {
+		os_free(out);
+		return NULL;
 	}
 
-	if (tls_connection_get_keys(ssl_ctx, conn, &keys))
-		goto fail;
-
-	rnd = os_malloc(keys.client_random_len + keys.server_random_len);
-	if (rnd == NULL)
-		goto fail;
-
-	os_memcpy(rnd, keys.server_random, keys.server_random_len);
-	os_memcpy(rnd + keys.server_random_len, keys.client_random,
-		  keys.client_random_len);
-
-	wpa_hexdump_key(MSG_MSGDUMP, "EAP-FAST: master_secret for key "
-			"expansion", keys.master_key, keys.master_key_len);
-	if (tls_prf_sha1_md5(keys.master_key, keys.master_key_len,
-			     label, rnd, keys.client_random_len +
-			     keys.server_random_len, out, block_size + len))
-		goto fail;
-	os_free(rnd);
-	os_memmove(out, out + block_size, len);
 	return out;
-
-fail:
-	os_free(rnd);
-	os_free(out);
-	return NULL;
 }
 
 
@@ -174,7 +143,7 @@ void eap_fast_derive_eap_emsk(const u8 *simck, u8 *emsk)
 
 
 int eap_fast_parse_tlv(struct eap_fast_tlv_parse *tlv,
-		       int tlv_type, u8 *pos, int len)
+		       int tlv_type, u8 *pos, size_t len)
 {
 	switch (tlv_type) {
 	case EAP_TLV_EAP_PAYLOAD_TLV:

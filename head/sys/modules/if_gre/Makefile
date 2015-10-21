@@ -6,13 +6,7 @@ SYSDIR?=${.CURDIR}/../..
 
 KMOD=	if_gre
 SRCS=	if_gre.c opt_inet.h opt_inet6.h
-
-.if ${MK_INET_SUPPORT} != "no"
-SRCS+=	ip_gre.c
-.endif
-
-.if ${MK_INET6_SUPPORT} != "no"
-SRCS+=	ip6_gre.c
-.endif
+SRCS.INET=	ip_gre.c
+SRCS.INET6=	ip6_gre.c
 
 .include <bsd.kmod.mk>

@@ -14,7 +14,7 @@ MsanThread *MsanThread::Create(thread_callback_t start_routine,
   MsanThread *thread = (MsanThread*)MmapOrDie(size, __func__);
   thread->start_routine_ = start_routine;
   thread->arg_ = arg;
-  thread->destructor_iterations_ = kPthreadDestructorIterations;
+  thread->destructor_iterations_ = GetPthreadDestructorIterations();
 
   return thread;
 }
@@ -77,17 +77,6 @@ thread_return_t MsanThread::ThreadStart() {
   thread_return_t res = start_routine_(arg_);
 
   return res;
-}
-
-MsanThread *GetCurrentThread() {
-  return reinterpret_cast<MsanThread *>(MsanTSDGet());
-}
-
-void SetCurrentThread(MsanThread *t) {
-  // Make sure we do not reset the current MsanThread.
-  CHECK_EQ(0, MsanTSDGet());
-  MsanTSDSet(t);
-  CHECK_EQ(t, MsanTSDGet());
 }
 
 } // namespace __msan

@@ -208,8 +208,9 @@ void CXXNewExpr::AllocateArgsArray(const ASTContext &C, bool isArray,
 }
 
 bool CXXNewExpr::shouldNullCheckAllocation(const ASTContext &Ctx) const {
-  return getOperatorNew()->getType()->
-    castAs<FunctionProtoType>()->isNothrow(Ctx);
+  return getOperatorNew()->getType()->castAs<FunctionProtoType>()->isNothrow(
+             Ctx) &&
+         !getOperatorNew()->isReservedGlobalPlacementOperator();
 }
 
 // CXXDeleteExpr
@@ -237,10 +238,7 @@ CXXPseudoDestructorExpr::CXXPseudoDestructorExpr(const ASTContext &Context,
                 SourceLocation ColonColonLoc, SourceLocation TildeLoc, 
                 PseudoDestructorTypeStorage DestroyedType)
   : Expr(CXXPseudoDestructorExprClass,
-         Context.getPointerType(Context.getFunctionType(
-             Context.VoidTy, None,
-             FunctionProtoType::ExtProtoInfo(
-                 Context.getDefaultCallingConvention(false, true)))),
+         Context.BoundMemberTy,
          VK_RValue, OK_Ordinary,
          /*isTypeDependent=*/(Base->isTypeDependent() ||
            (DestroyedType.getTypeSourceInfo() &&
@@ -359,8 +357,7 @@ OverloadExpr::OverloadExpr(StmtClass K, const ASTContext &C,
     Results = static_cast<DeclAccessPair *>(
                                 C.Allocate(sizeof(DeclAccessPair) * NumResults, 
                                            llvm::alignOf<DeclAccessPair>()));
-    memcpy(Results, &*Begin.getIterator(), 
-           NumResults * sizeof(DeclAccessPair));
+    memcpy(Results, Begin.I, NumResults * sizeof(DeclAccessPair));
   }
 
   // If we have explicit template arguments, check for dependent
@@ -401,8 +398,7 @@ void OverloadExpr::initializeResults(const ASTContext &C,
                                C.Allocate(sizeof(DeclAccessPair) * NumResults,
  
                                           llvm::alignOf<DeclAccessPair>()));
-     memcpy(Results, &*Begin.getIterator(), 
-            NumResults * sizeof(DeclAccessPair));
+     memcpy(Results, Begin.I, NumResults * sizeof(DeclAccessPair));
   }
 }
 
@@ -909,16 +905,21 @@ LambdaCapture::LambdaCapture(SourceLocation Loc, bool Implicit,
   case LCK_ByRef:
     assert(Var && "capture must have a variable!");
     break;
+  case LCK_VLAType:
+    assert(!Var && "VLA type capture cannot have a variable!");
+    Bits |= Capture_ByCopy;
+    break;
   }
   DeclAndBits.setInt(Bits);
 }
 
 LambdaCaptureKind LambdaCapture::getCaptureKind() const {
   Decl *D = DeclAndBits.getPointer();
+  bool CapByCopy = DeclAndBits.getInt() & Capture_ByCopy;
   if (!D)
-    return LCK_This;
+    return CapByCopy ? LCK_VLAType : LCK_This;
 
-  return (DeclAndBits.getInt() & Capture_ByCopy) ? LCK_ByCopy : LCK_ByRef;
+  return CapByCopy ? LCK_ByCopy : LCK_ByRef;
 }
 
 LambdaExpr::LambdaExpr(QualType T,
@@ -1026,6 +1027,11 @@ LambdaExpr *LambdaExpr::CreateDeserialized(const ASTContext &C,
   return new (Mem) LambdaExpr(EmptyShell(), NumCaptures, NumArrayIndexVars > 0);
 }
 
+bool LambdaExpr::isInitCapture(const LambdaCapture *C) const {
+  return (C->capturesVariable() && C->getCapturedVar()->isInitCapture() &&
+          (getCallOperator() == C->getCapturedVar()->getDeclContext()));
+}
+
 LambdaExpr::capture_iterator LambdaExpr::capture_begin() const {
   return getLambdaClass()->getLambdaData().Captures;
 }
@@ -1073,8 +1079,8 @@ LambdaExpr::getCaptureInitIndexVars(capture_init_iterator Iter) const {
          "Capture index out-of-range");
   VarDecl **IndexVars = getArrayIndexVars();
   unsigned *IndexStarts = getArrayIndexStarts();
-  return ArrayRef<VarDecl *>(IndexVars + IndexStarts[Index],
-                             IndexVars + IndexStarts[Index + 1]);
+  return llvm::makeArrayRef(IndexVars + IndexStarts[Index],
+                            IndexVars + IndexStarts[Index + 1]);
 }
 
 CXXRecordDecl *LambdaExpr::getLambdaClass() const {
@@ -1399,7 +1405,8 @@ CXXRecordDecl *UnresolvedMemberExpr::getNamingClass() const {
   // It can't be dependent: after all, we were actually able to do the
   // lookup.
   CXXRecordDecl *Record = nullptr;
-  if (getQualifier()) {
+  auto *NNS = getQualifier();
+  if (NNS && NNS->getKind() != NestedNameSpecifier::Super) {
     const Type *T = getQualifier()->getAsType();
     assert(T && "qualifier in member expression does not name type");
     Record = T->getAsCXXRecordDecl();

@@ -31,7 +31,7 @@
  * $Id: lexer.l,v 1.3 2006/09/07 21:06:53 max Exp $
  * $FreeBSD$
  */
-
+#define L2CAP_SOCKET_CHECKED
 #include <bluetooth.h>
 #include <stdlib.h>
 #include "parser.h"

@@ -237,14 +237,14 @@ public:
 // These are to catch errors when people try to use them as random access
 // iterators.
 template<typename T>
-void operator-(int, ilist_iterator<T>) LLVM_DELETED_FUNCTION;
+void operator-(int, ilist_iterator<T>) = delete;
 template<typename T>
-void operator-(ilist_iterator<T>,int) LLVM_DELETED_FUNCTION;
+void operator-(ilist_iterator<T>,int) = delete;
 
 template<typename T>
-void operator+(int, ilist_iterator<T>) LLVM_DELETED_FUNCTION;
+void operator+(int, ilist_iterator<T>) = delete;
 template<typename T>
-void operator+(ilist_iterator<T>,int) LLVM_DELETED_FUNCTION;
+void operator+(ilist_iterator<T>,int) = delete;
 
 // operator!=/operator== - Allow mixed comparisons without dereferencing
 // the iterator, which could very likely be pointing to end().
@@ -332,8 +332,8 @@ class iplist : public Traits {
 
   // No fundamental reason why iplist can't be copyable, but the default
   // copy/copy-assign won't do.
-  iplist(const iplist &) LLVM_DELETED_FUNCTION;
-  void operator=(const iplist &) LLVM_DELETED_FUNCTION;
+  iplist(const iplist &) = delete;
+  void operator=(const iplist &) = delete;
 
 public:
   typedef NodeTy *pointer;
@@ -579,60 +579,6 @@ public:
   void splice(iterator where, iplist &L2, iterator first, iterator last) {
     if (first != last) transfer(where, L2, first, last);
   }
-
-
-
-  //===----------------------------------------------------------------------===
-  // High-Level Functionality that shouldn't really be here, but is part of list
-  //
-
-  // These two functions are actually called remove/remove_if in list<>, but
-  // they actually do the job of erase, rename them accordingly.
-  //
-  void erase(const NodeTy &val) {
-    for (iterator I = begin(), E = end(); I != E; ) {
-      iterator next = I; ++next;
-      if (*I == val) erase(I);
-      I = next;
-    }
-  }
-  template<class Pr1> void erase_if(Pr1 pred) {
-    for (iterator I = begin(), E = end(); I != E; ) {
-      iterator next = I; ++next;
-      if (pred(*I)) erase(I);
-      I = next;
-    }
-  }
-
-  template<class Pr2> void unique(Pr2 pred) {
-    if (empty()) return;
-    for (iterator I = begin(), E = end(), Next = begin(); ++Next != E;) {
-      if (pred(*I))
-        erase(Next);
-      else
-        I = Next;
-      Next = I;
-    }
-  }
-  void unique() { unique(op_equal); }
-
-  template<class Pr3> void merge(iplist &right, Pr3 pred) {
-    iterator first1 = begin(), last1 = end();
-    iterator first2 = right.begin(), last2 = right.end();
-    while (first1 != last1 && first2 != last2)
-      if (pred(*first2, *first1)) {
-        iterator next = first2;
-        transfer(first1, right, first2, ++next);
-        first2 = next;
-      } else {
-        ++first1;
-      }
-    if (first2 != last2) transfer(last1, right, first2, last2);
-  }
-  void merge(iplist &right) { return merge(right, op_less); }
-
-  template<class Pr3> void sort(Pr3 pred);
-  void sort() { sort(op_less); }
 };
 
 

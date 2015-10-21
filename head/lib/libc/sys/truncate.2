@@ -28,7 +28,7 @@
 .\"     @(#)truncate.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2006
+.Dd May 4, 2015
 .Dt TRUNCATE 2
 .Os
 .Sh NAME
@@ -60,9 +60,18 @@ is lost.
 If the file was smaller than this size,
 it will be extended as if by writing bytes
 with the value zero.
-With
-.Fn ftruncate ,
-the file must be open for writing.
+.Pp
+The
+.Fn ftruncate
+system call causes the file or shared memory object backing the file descriptor
+.Fa fd
+to be truncated or extended to
+.Fa length
+bytes in size.
+The file descriptor must be a valid file descriptor open for writing.
+The file position pointer associated with the file descriptor
+.Fa fd
+will not be modified.
 .Sh RETURN VALUES
 .Rv -std
 If the file to be modified is not a directory or
@@ -129,7 +138,7 @@ is not a valid descriptor.
 The
 .Fa fd
 argument
-references a socket, not a file.
+references a file descriptor that is not a regular file or shared memory object.
 .It Bq Er EINVAL
 The
 .Fa fd
@@ -138,11 +147,14 @@ is not open for writing.
 .El
 .Sh SEE ALSO
 .Xr chflags 2 ,
-.Xr open 2
+.Xr open 2 ,
+.Xr shm_open 2
 .Sh HISTORY
 The
 .Fn truncate
-system call appeared in
+and
+.Fn ftruncate
+system calls appeared in
 .Bx 4.2 .
 .Sh BUGS
 These calls should be generalized to allow ranges

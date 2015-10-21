@@ -41,6 +41,7 @@
 .Op Fl e Ar extras-manifest
 .Op Fl f Ar filelist
 .Op Fl k Ar keydir Op Fl K Ar user
+.Op Fl l Ar label
 .Op Fl p Ar master.passwd Op Fl g Ar group
 .Op Fl s Ar size
 .Ar image-file
@@ -94,6 +95,8 @@ If no
 .Fl K
 argument is supplied then the files will be installed in the root user's
 directory.
+.It Fl l Ar label
+Set the file system volume label.
 .It Fl p Ar master.passwd Op Fl g Ar group
 Install an alternate
 .Ar master.passwd

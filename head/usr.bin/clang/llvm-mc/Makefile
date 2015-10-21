@@ -6,11 +6,10 @@ MAN=
 PROG_CXX=llvm-mc
 
 SRCDIR=	tools/llvm-mc
-SRCS=	llvm-mc.cpp \
-	Disassembler.cpp
+SRCS=	Disassembler.cpp \
+	llvm-mc.cpp
 
-LIBDEPS=llvmmcdisassembler \
-	llvmaarch64disassembler \
+LIBDEPS=llvmaarch64disassembler \
 	llvmaarch64codegen \
 	llvmaarch64asmparser \
 	llvmaarch64desc \
@@ -47,21 +46,24 @@ LIBDEPS=llvmmcdisassembler \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmcodegen \
+	llvmtarget \
 	llvmscalaropts \
+	llvmprofiledata \
 	llvminstcombine \
+	llvminstrumentation \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmtarget \
 	llvmx86desc \
 	llvmobject \
 	llvmmcparser \
 	llvmbitreader \
-	llvmcore \
+	llvmmcdisassembler \
 	llvmx86info \
 	llvmx86instprinter \
 	llvmmc \
 	llvmx86utils \
+	llvmcore \
 	llvmsupport
 
 .include "../clang.prog.mk"

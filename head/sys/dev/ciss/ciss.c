@@ -833,7 +833,7 @@ setup:
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
-			   CISS_MAX_SG_ELEMENTS,	/* nsegments */
+			   BUS_SPACE_UNRESTRICTED,	/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
 			   NULL, NULL,			/* lockfunc, lockarg */
@@ -851,7 +851,8 @@ setup:
 			   BUS_SPACE_MAXADDR,		/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   MAXBSIZE, CISS_MAX_SG_ELEMENTS,	/* maxsize, nsegments */
+			   (CISS_MAX_SG_ELEMENTS - 1) * PAGE_SIZE, /* maxsize */
+			   CISS_MAX_SG_ELEMENTS,	/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   BUS_DMA_ALLOCNOW,		/* flags */
 			   busdma_lock_mutex, &sc->ciss_mtx,	/* lockfunc, lockarg */
@@ -3437,11 +3438,9 @@ ciss_name_device(struct ciss_softc *sc, int bus, int target)
 			     target, 0);
 
     if (status == CAM_REQ_CMP) {
-	mtx_lock(&sc->ciss_mtx);
 	xpt_path_lock(path);
 	periph = cam_periph_find(path, NULL);
 	xpt_path_unlock(path);
-	mtx_unlock(&sc->ciss_mtx);
 	xpt_free_path(path);
 	if (periph != NULL) {
 		sprintf(sc->ciss_logical[bus][target].cl_name, "%s%d",
@@ -4017,8 +4016,7 @@ static void
 ciss_notify_logical(struct ciss_softc *sc, struct ciss_notify *cn)
 {
     struct ciss_ldrive	*ld;
-    int			bus, target;
-    int			rescan_ld;
+    int			ostatus, bus, target;
 
     debug_called(2);
 
@@ -4041,6 +4039,7 @@ ciss_notify_logical(struct ciss_softc *sc, struct ciss_notify *cn)
 	    /*
 	     * Update our idea of the drive's status.
 	     */
+	    ostatus = ciss_decode_ldrive_status(cn->data.logical_status.previous_state);
 	    ld->cl_status = ciss_decode_ldrive_status(cn->data.logical_status.new_state);
 	    if (ld->cl_lstatus != NULL)
 		ld->cl_lstatus->status = cn->data.logical_status.new_state;
@@ -4048,9 +4047,7 @@ ciss_notify_logical(struct ciss_softc *sc, struct ciss_notify *cn)
 	    /*
 	     * Have CAM rescan the drive if its status has changed.
 	     */
-            rescan_ld = (cn->data.logical_status.previous_state !=
-                         cn->data.logical_status.new_state) ? 1 : 0;
-	    if (rescan_ld) {
+	    if (ostatus != ld->cl_status) {
 		ld->cl_update = 1;
 		ciss_notify_rescan_logical(sc);
 	    }

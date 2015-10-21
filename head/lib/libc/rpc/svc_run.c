@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "mt_misc.h"
 
 void
-svc_run()
+svc_run(void)
 {
 	fd_set readfds, cleanfds;
 	struct timeval timeout;
@@ -89,7 +89,7 @@ svc_run()
  *      more work to do.
  */
 void
-svc_exit()
+svc_exit(void)
 {
 	rwlock_wrlock(&svc_fd_lock);
 	FD_ZERO(&svc_fdset);

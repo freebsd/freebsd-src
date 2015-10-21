@@ -1,30 +1,34 @@
 /*-
- * Copyright (c) 2010-2011 Solarflare Communications, Inc.
+ * Copyright (c) 2010-2015 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
  * Solarflare Communications, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  *
  * $FreeBSD$
  */
@@ -32,22 +36,29 @@
 #ifndef _SFXGE_RX_H
 #define	_SFXGE_RX_H
 
-#define	SFXGE_MAGIC_RESERVED	0x8000
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
+#if defined(INET) || defined(INET6)
+#define	SFXGE_LRO	1
+#endif
+
+#define	SFXGE_MAGIC_RESERVED		0x8000
 
 #define	SFXGE_MAGIC_DMAQ_LABEL_WIDTH	6
-#define	SFXGE_MAGIC_DMAQ_LABEL_MASK					\
+#define	SFXGE_MAGIC_DMAQ_LABEL_MASK \
 	((1 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH) - 1)
 
-#define	SFXGE_MAGIC_RX_QFLUSH_DONE					\
+#define	SFXGE_MAGIC_RX_QFLUSH_DONE \
 	(SFXGE_MAGIC_RESERVED | (1 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
 
-#define	SFXGE_MAGIC_RX_QFLUSH_FAILED					\
+#define	SFXGE_MAGIC_RX_QFLUSH_FAILED \
 	(SFXGE_MAGIC_RESERVED | (2 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
 
-#define	SFXGE_MAGIC_RX_QREFILL						\
+#define	SFXGE_MAGIC_RX_QREFILL \
 	(SFXGE_MAGIC_RESERVED | (3 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
 
-#define	SFXGE_MAGIC_TX_QFLUSH_DONE					\
+#define	SFXGE_MAGIC_TX_QFLUSH_DONE \
 	(SFXGE_MAGIC_RESERVED | (4 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
 
 #define	SFXGE_RX_SCALE_MAX	EFX_MAXRSS
@@ -58,6 +69,8 @@ struct sfxge_rx_sw_desc {
 	int		flags;
 	int		size;
 };
+
+#ifdef SFXGE_LRO
 
 /**
  * struct sfxge_lro_conn - Connection state for software LRO
@@ -139,8 +152,11 @@ struct sfxge_lro_state {
 	unsigned n_drop_closed;
 };
 
+#endif	/* SFXGE_LRO */
+
 enum sfxge_flush_state {
 	SFXGE_FLUSH_DONE = 0,
+	SFXGE_FLUSH_REQUIRED,
 	SFXGE_FLUSH_PENDING,
 	SFXGE_FLUSH_FAILED
 };
@@ -164,10 +180,13 @@ struct sfxge_rxq {
 
 	struct sfxge_rx_sw_desc		*queue __aligned(CACHE_LINE_SIZE);
 	unsigned int			added;
+	unsigned int			pushed;
 	unsigned int			pending;
 	unsigned int			completed;
 	unsigned int			loopback;
+#ifdef SFXGE_LRO
 	struct sfxge_lro_state		lro;
+#endif
 	unsigned int			refill_threshold;
 	struct callout			refill_callout;
 	unsigned int			refill_delay;

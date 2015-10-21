@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TARGET_X86_H
-#define TARGET_X86_H
+#ifndef LLVM_LIB_TARGET_X86_X86_H
+#define LLVM_LIB_TARGET_X86_X86_H
 
 #include "llvm/Support/CodeGen.h"
 
@@ -21,12 +21,7 @@ namespace llvm {
 
 class FunctionPass;
 class ImmutablePass;
-class JITCodeEmitter;
 class X86TargetMachine;
-
-/// createX86AtomicExpandPass - This pass expands atomic operations that cannot
-/// be handled natively in terms of a loop using cmpxchg.
-FunctionPass *createX86AtomicExpandPass(const X86TargetMachine *TM);
 
 /// createX86ISelDag - This pass converts a legalized DAG into a
 /// X86-specific DAG, ready for instruction scheduling.
@@ -54,19 +49,11 @@ FunctionPass *createX86FloatingPointStackifierPass();
 /// AVX and SSE.
 FunctionPass *createX86IssueVZeroUpperPass();
 
-/// createX86CodeEmitterPass - Return a pass that emits the collected X86 code
-/// to the specified MCE object.
-FunctionPass *createX86JITCodeEmitterPass(X86TargetMachine &TM,
-                                          JITCodeEmitter &JCE);
-
 /// createX86EmitCodeToMemory - Returns a pass that converts a register
 /// allocated function into raw machine code in a dynamically
 /// allocated chunk of memory.
 ///
 FunctionPass *createEmitX86CodeToMemory();
-
-/// \brief Creates an X86-specific Target Transformation Info pass.
-ImmutablePass *createX86TargetTransformInfoPass(const X86TargetMachine *TM);
 
 /// createX86PadShortFunctions - Return a pass that pads short functions
 /// with NOOPs. This will prevent a stall when returning on the Atom.
@@ -77,6 +64,22 @@ FunctionPass *createX86PadShortFunctions();
 /// to eliminate execution delays in some Atom processors.
 FunctionPass *createX86FixupLEAs();
 
+/// createX86CallFrameOptimization - Return a pass that optimizes
+/// the code-size of x86 call sequences. This is done by replacing
+/// esp-relative movs with pushes.
+FunctionPass *createX86CallFrameOptimization();
+
+/// createX86WinEHStatePass - Return an IR pass that inserts EH registration
+/// stack objects and explicit EH state updates. This pass must run after EH
+/// preparation, which does Windows-specific but architecture-neutral
+/// preparation.
+FunctionPass *createX86WinEHStatePass();
+
+/// Return a Machine IR pass that expands X86-specific pseudo
+/// instructions into a sequence of actual instructions. This pass
+/// must run after prologue/epilogue insertion and before lowering
+/// the MachineInstr to MC.
+FunctionPass *createX86ExpandPseudoPass();
 } // End llvm namespace
 
 #endif

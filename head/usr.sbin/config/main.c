@@ -116,7 +116,7 @@ main(int argc, char **argv)
 	printmachine = 0;
 	kernfile = NULL;
 	SLIST_INIT(&includepath);
-	while ((ch = getopt(argc, argv, "CI:d:gmpVx:")) != -1)
+	while ((ch = getopt(argc, argv, "CI:d:gmpsVx:")) != -1)
 		switch (ch) {
 		case 'C':
 			filebased = 1;
@@ -143,6 +143,12 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			profiling++;
+			break;
+		case 's':
+			if (*srcdir == '\0')
+				strlcpy(srcdir, optarg, sizeof(srcdir));
+			else
+				errx(EXIT_FAILURE, "src directory already set");
 			break;
 		case 'V':
 			printf("%d\n", CONFIGVERS);
@@ -180,7 +186,8 @@ main(int argc, char **argv)
 		len = strlen(destdir);
 		while (len > 1 && destdir[len - 1] == '/')
 			destdir[--len] = '\0';
-		get_srcdir();
+		if (*srcdir == '\0')
+			get_srcdir();
 	} else {
 		strlcpy(destdir, CDIR, sizeof(destdir));
 		strlcat(destdir, PREFIX, sizeof(destdir));
@@ -275,7 +282,8 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: config [-CgmpV] [-d destdir] sysname\n");
+	fprintf(stderr,
+	    "usage: config [-CgmpV] [-d destdir] [-s srcdir] sysname\n");
 	fprintf(stderr, "       config -x kernel\n");
 	exit(EX_USAGE);
 }
@@ -678,7 +686,7 @@ kernconfdump(const char *file)
 {
 	struct stat st;
 	FILE *fp, *pp;
-	int error, len, osz, r;
+	int error, osz, r;
 	unsigned int i, off, size, t1, t2, align;
 	char *cmd, *o;
 
@@ -706,7 +714,7 @@ kernconfdump(const char *file)
 	if (pp == NULL)
 		errx(EXIT_FAILURE, "popen() failed");
 	free(cmd);
-	len = fread(o, osz, 1, pp);
+	(void)fread(o, osz, 1, pp);
 	pclose(pp);
 	r = sscanf(o, "%d%d%d%d%d", &off, &size, &t1, &t2, &align);
 	free(o);

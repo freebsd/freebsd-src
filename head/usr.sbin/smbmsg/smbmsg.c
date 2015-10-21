@@ -163,7 +163,8 @@ do_io(void)
 	}
 	if (iflag == 1 && oflag == -1) {
 		/* command + 1 byte input: read byte op. */
-		c.data.byte_ptr = ibuf;
+		c.rbuf = ibuf;
+		c.rcount = iflag;
 		if (ioctl(fd, SMB_READB, &c) == -1)
 			return (-1);
 		printf(fmt, (int)(unsigned char)ibuf[0]);
@@ -171,11 +172,12 @@ do_io(void)
 		return (0);
 	} else if (iflag == -1 && oflag == 1) {
 		/* command + 1 byte output: write byte op. */
-		c.data.byte = obuf[0];
+		c.wdata.byte = obuf[0];
 		return (ioctl(fd, SMB_WRITEB, &c));
 	} else if (wflag && iflag == 2 && oflag == -1) {
 		/* command + 2 bytes input: read word op. */
-		c.data.word_ptr = &iword;
+		c.rbuf = (char*) &iword;
+		c.rcount = iflag;
 		if (ioctl(fd, SMB_READW, &c) == -1)
 			return (-1);
 		printf(fmt, (int)(unsigned short)iword);
@@ -183,15 +185,16 @@ do_io(void)
 		return (0);
 	} else if (wflag && iflag == -1 && oflag == 2) {
 		/* command + 2 bytes output: write word op. */
-		c.data.word = oword;
+		c.wdata.word = oword;
 		return (ioctl(fd, SMB_WRITEW, &c));
 	} else if (wflag && iflag == 2 && oflag == 2) {
 		/*
 		 * command + 2 bytes output + 2 bytes input:
 		 * "process call" op.
 		 */
-		c.data.process.sdata = oword;
-		c.data.process.rdata = &iword;
+		c.wdata.word = oword;
+		c.rbuf = (char*) &iword;
+		c.rcount = iflag;
 		if (ioctl(fd, SMB_PCALL, &c) == -1)
 			return (-1);
 		printf(fmt, (int)(unsigned short)iword);
@@ -199,8 +202,8 @@ do_io(void)
 		return (0);
 	} else if (iflag > 1 && oflag == -1) {
 		/* command + > 1 bytes of input: block read */
-		c.data.byte_ptr = ibuf;
-		c.count = iflag;
+		c.rbuf = ibuf;
+		c.rcount = iflag;
 		if (ioctl(fd, SMB_BREAD, &c) == -1)
 			return (-1);
 		for (i = 0; i < iflag; i++) {
@@ -212,8 +215,8 @@ do_io(void)
 		return (0);
 	} else if (iflag == -1 && oflag > 1) {
 		/* command + > 1 bytes of output: block write */
-		c.data.byte_ptr = obuf;
-		c.count = oflag;
+		c.wbuf = obuf;
+		c.wcount = oflag;
 		return (ioctl(fd, SMB_BWRITE, &c));
 	}
 

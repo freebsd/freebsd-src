@@ -184,6 +184,10 @@ def NewDeleteChecker : Checker<"NewDelete">,
   HelpText<"Check for double-free and use-after-free problems. Traces memory managed by new/delete.">, 
   DescFile<"MallocChecker.cpp">;
 
+def NewDeleteLeaksChecker : Checker<"NewDeleteLeaks">,
+  HelpText<"Check for memory leaks. Traces memory managed by new/delete.">, 
+  DescFile<"MallocChecker.cpp">;
+
 } // end: "cplusplus"
 
 let ParentPackage = CplusplusAlpha in {
@@ -191,10 +195,6 @@ let ParentPackage = CplusplusAlpha in {
 def VirtualCallChecker : Checker<"VirtualCall">,
   HelpText<"Check virtual function calls during construction or destruction">, 
   DescFile<"VirtualCallChecker.cpp">;
-
-def NewDeleteLeaksChecker : Checker<"NewDeleteLeaks">,
-  HelpText<"Check for memory leaks. Traces memory managed by new/delete.">, 
-  DescFile<"MallocChecker.cpp">;
 
 } // end: "alpha.cplusplus"
 
@@ -295,7 +295,7 @@ def UnixAPIChecker : Checker<"API">,
   HelpText<"Check calls to various UNIX/Posix functions">,
   DescFile<"UnixAPIChecker.cpp">;
 
-def MallocPessimistic : Checker<"Malloc">,
+def MallocChecker: Checker<"Malloc">,
   HelpText<"Check for memory leaks, double free, and use-after-free problems. Traces memory managed by malloc()/free().">,
   DescFile<"MallocChecker.cpp">;
   
@@ -314,10 +314,6 @@ let ParentPackage = UnixAlpha in {
 def ChrootChecker : Checker<"Chroot">,
   HelpText<"Check improper use of chroot">,
   DescFile<"ChrootChecker.cpp">;
-
-def MallocOptimistic : Checker<"MallocWithAnnotations">,
-  HelpText<"Check for memory leaks, double free, and use-after-free problems. Traces memory managed by malloc()/free(). Assumes that all user-defined functions which might free a pointer are annotated.">,
-  DescFile<"MallocChecker.cpp">;
 
 def PthreadLockChecker : Checker<"PthreadLock">,
   HelpText<"Simple lock -> unlock checker">,

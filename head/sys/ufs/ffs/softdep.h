@@ -1063,6 +1063,8 @@ struct mount_softdeps {
  */
 #define FLUSH_EXIT	0x0001	/* time to exit */
 #define FLUSH_CLEANUP	0x0002	/* need to clear out softdep structures */
+#define	FLUSH_STARTING	0x0004	/* flush thread not yet started */
+
 /*
  * Keep the old names from when these were in the ufsmount structure.
  */

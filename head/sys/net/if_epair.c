@@ -809,6 +809,14 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	    netisr_get_cpuid(sca->ifp->if_index % netisr_get_cpucount());
 	scb->cpuid =
 	    netisr_get_cpuid(scb->ifp->if_index % netisr_get_cpucount());
+
+	/* Initialise pseudo media types. */
+	ifmedia_init(&sca->media, 0, epair_media_change, epair_media_status);
+	ifmedia_add(&sca->media, IFM_ETHER | IFM_10G_T, 0, NULL);
+	ifmedia_set(&sca->media, IFM_ETHER | IFM_10G_T);
+	ifmedia_init(&scb->media, 0, epair_media_change, epair_media_status);
+	ifmedia_add(&scb->media, IFM_ETHER | IFM_10G_T, 0, NULL);
+	ifmedia_set(&scb->media, IFM_ETHER | IFM_10G_T);
 	
 	/* Finish initialization of interface <n>a. */
 	ifp = sca->ifp;
@@ -866,14 +874,6 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	 */
 	strlcpy(name, sca->ifp->if_xname, len);
 	DPRINTF("name='%s/%db' created sca=%p scb=%p\n", name, unit, sca, scb);
-
-	/* Initialise pseudo media types. */
-	ifmedia_init(&sca->media, 0, epair_media_change, epair_media_status);
-	ifmedia_add(&sca->media, IFM_ETHER | IFM_10G_T, 0, NULL);
-	ifmedia_set(&sca->media, IFM_ETHER | IFM_10G_T);
-	ifmedia_init(&scb->media, 0, epair_media_change, epair_media_status);
-	ifmedia_add(&scb->media, IFM_ETHER | IFM_10G_T, 0, NULL);
-	ifmedia_set(&scb->media, IFM_ETHER | IFM_10G_T);
 
 	/* Tell the world, that we are ready to rock. */
 	sca->ifp->if_drv_flags |= IFF_DRV_RUNNING;

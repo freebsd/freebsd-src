@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/vnet.h>
+#include <net/route.h>
 
 #include <netinet/in.h>
 #ifdef INET
@@ -178,6 +179,8 @@ gre_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	GRE2IFP(sc)->if_ioctl = gre_ioctl;
 	GRE2IFP(sc)->if_transmit = gre_transmit;
 	GRE2IFP(sc)->if_qflush = gre_qflush;
+	GRE2IFP(sc)->if_capabilities |= IFCAP_LINKSTATE;
+	GRE2IFP(sc)->if_capenable |= IFCAP_LINKSTATE;
 	if_attach(GRE2IFP(sc));
 	bpfattach(GRE2IFP(sc), DLT_NULL, sizeof(u_int32_t));
 	GRE_LIST_LOCK();
@@ -441,6 +444,17 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 		}
 		break;
+	case SIOCGTUNFIB:
+		ifr->ifr_fib = sc->gre_fibnum;
+		break;
+	case SIOCSTUNFIB:
+		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
+			break;
+		if (ifr->ifr_fib >= rt_numfibs)
+			error = EINVAL;
+		else
+			sc->gre_fibnum = ifr->ifr_fib;
+		break;
 	case GRESKEY:
 		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
 			break;
@@ -454,7 +468,8 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		break;
 	case GREGKEY:
-		error = copyout(&sc->gre_key, ifr->ifr_data, sizeof(sc->gre_key));
+		error = copyout(&sc->gre_key, ifr->ifr_data,
+		    sizeof(sc->gre_key));
 		break;
 	case GRESOPTS:
 		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
@@ -610,7 +625,7 @@ gre_set_tunnel(struct ifnet *ifp, struct sockaddr *src,
 	default:
 		return (EAFNOSUPPORT);
 	}
-	if (sc->gre_family != src->sa_family)
+	if (sc->gre_family != 0)
 		gre_detach(sc);
 	GRE_WLOCK(sc);
 	if (sc->gre_family != 0)
@@ -635,8 +650,10 @@ gre_set_tunnel(struct ifnet *ifp, struct sockaddr *src,
 		break;
 #endif
 	}
-	if (error == 0)
+	if (error == 0) {
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
+		if_link_state_change(ifp, LINK_STATE_UP);
+	}
 	return (error);
 }
 
@@ -655,6 +672,7 @@ gre_delete_tunnel(struct ifnet *ifp)
 		free(sc->gre_hdr, M_GRE);
 	}
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_link_state_change(ifp, LINK_STATE_DOWN);
 }
 
 int
@@ -725,7 +743,7 @@ gre_input(struct mbuf **mp, int *offp, int proto)
 	m_adj(m, *offp + hlen);
 	m_clrprotoflags(m);
 	m->m_pkthdr.rcvif = ifp;
-	M_SETFIB(m, sc->gre_fibnum);
+	M_SETFIB(m, ifp->if_fib);
 #ifdef MAC
 	mac_ifnet_create_mbuf(ifp, m);
 #endif

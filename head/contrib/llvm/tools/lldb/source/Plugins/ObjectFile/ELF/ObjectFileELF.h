@@ -104,11 +104,11 @@ public:
     //------------------------------------------------------------------
     // PluginInterface protocol
     //------------------------------------------------------------------
-    virtual lldb_private::ConstString
-    GetPluginName();
+    lldb_private::ConstString
+    GetPluginName() override;
 
-    virtual uint32_t
-    GetPluginVersion();
+    uint32_t
+    GetPluginVersion() override;
 
     //------------------------------------------------------------------
     // ObjectFile Protocol.
@@ -116,61 +116,64 @@ public:
     virtual
     ~ObjectFileELF();
 
-    virtual bool
-    ParseHeader();
+    bool
+    ParseHeader() override;
 
-    virtual bool
+    bool
     SetLoadAddress (lldb_private::Target &target,
                     lldb::addr_t value,
-                    bool value_is_offset);
+                    bool value_is_offset) override;
 
-    virtual lldb::ByteOrder
-    GetByteOrder() const;
+    lldb::ByteOrder
+    GetByteOrder() const override;
 
-    virtual bool
-    IsExecutable () const;
+    bool
+    IsExecutable () const override;
 
-    virtual uint32_t
-    GetAddressByteSize() const;
+    uint32_t
+    GetAddressByteSize() const override;
 
-    virtual lldb_private::Symtab *
-    GetSymtab();
+    lldb::AddressClass
+    GetAddressClass (lldb::addr_t file_addr) override;
 
-    virtual lldb_private::Symbol *
-    ResolveSymbolForAddress(const lldb_private::Address& so_addr, bool verify_unique);
+    lldb_private::Symtab *
+    GetSymtab() override;
 
-    virtual bool
-    IsStripped ();
+    lldb_private::Symbol *
+    ResolveSymbolForAddress(const lldb_private::Address& so_addr, bool verify_unique) override;
 
-    virtual void
-    CreateSections (lldb_private::SectionList &unified_section_list);
+    bool
+    IsStripped () override;
 
-    virtual void
-    Dump(lldb_private::Stream *s);
+    void
+    CreateSections (lldb_private::SectionList &unified_section_list) override;
 
-    virtual bool
-    GetArchitecture (lldb_private::ArchSpec &arch);
+    void
+    Dump(lldb_private::Stream *s) override;
 
-    virtual bool
-    GetUUID(lldb_private::UUID* uuid);
+    bool
+    GetArchitecture (lldb_private::ArchSpec &arch) override;
 
-    virtual lldb_private::FileSpecList
-    GetDebugSymbolFilePaths();
+    bool
+    GetUUID(lldb_private::UUID* uuid) override;
 
-    virtual uint32_t
-    GetDependentModules(lldb_private::FileSpecList& files);
+    lldb_private::FileSpecList
+    GetDebugSymbolFilePaths() override;
 
-    virtual lldb_private::Address
-    GetImageInfoAddress(lldb_private::Target *target);
+    uint32_t
+    GetDependentModules(lldb_private::FileSpecList& files) override;
+
+    lldb_private::Address
+    GetImageInfoAddress(lldb_private::Target *target) override;
     
-    virtual lldb_private::Address
-    GetEntryPointAddress ();
+    lldb_private::Address
+    GetEntryPointAddress () override;
     
-    virtual ObjectFile::Type
-    CalculateType();
+    ObjectFile::Type
+    CalculateType() override;
     
-    virtual ObjectFile::Strata
-    CalculateStrata();
+    ObjectFile::Strata
+    CalculateStrata() override;
 
     // Returns number of program headers found in the ELF file.
     size_t
@@ -184,6 +187,9 @@ public:
     lldb_private::DataExtractor
     GetSegmentDataByIndex(lldb::user_id_t id);
 
+    std::string
+    StripLinkerSymbolAnnotations(llvm::StringRef symbol_name) const override;
+
 private:
     ObjectFileELF(const lldb::ModuleSP &module_sp,
                   lldb::DataBufferSP& data_sp,
@@ -193,7 +199,7 @@ private:
                   lldb::offset_t length);
 
     ObjectFileELF (const lldb::ModuleSP &module_sp,
-                   lldb::DataBufferSP& data_sp,
+                   lldb::DataBufferSP& header_data_sp,
                    const lldb::ProcessSP &process_sp,
                    lldb::addr_t header_addr);
 
@@ -212,6 +218,8 @@ private:
     typedef std::vector<elf::ELFDynamic>        DynamicSymbolColl;
     typedef DynamicSymbolColl::iterator         DynamicSymbolCollIter;
     typedef DynamicSymbolColl::const_iterator   DynamicSymbolCollConstIter;
+
+    typedef std::map<lldb::addr_t, lldb::AddressClass> FileAddressToAddressClassMap;
 
     /// Version of this reader common to all plugins based on this class.
     static const uint32_t m_plugin_version = 1;
@@ -245,6 +253,9 @@ private:
 
     /// The architecture detected from parsing elf file contents.
     lldb_private::ArchSpec m_arch_spec;
+
+    /// The address class for each symbol in the elf file
+    FileAddressToAddressClassMap m_address_class_map;
 
     /// Returns a 1 based index of the given section header.
     size_t

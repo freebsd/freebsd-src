@@ -10,6 +10,7 @@ SRCS=	Attributes.cpp \
 	CharInfo.cpp \
 	Diagnostic.cpp \
 	DiagnosticIDs.cpp \
+	DiagnosticOptions.cpp \
 	FileManager.cpp \
 	FileSystemStatCache.cpp \
 	IdentifierTable.cpp \
@@ -18,6 +19,8 @@ SRCS=	Attributes.cpp \
 	ObjCRuntime.cpp \
 	OpenMPKinds.cpp \
 	OperatorPrecedence.cpp \
+	SanitizerBlacklist.cpp \
+	Sanitizers.cpp \
 	SourceLocation.cpp \
 	SourceManager.cpp \
 	TargetInfo.cpp \
@@ -44,3 +47,6 @@ TGHDRS=	AttrHasAttributeImpl \
 	arm_neon
 
 .include "../clang.lib.mk"
+
+# XX: work around GCC bug 67888
+CFLAGS.gcc += -fpermissive

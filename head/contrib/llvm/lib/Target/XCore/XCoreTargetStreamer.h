@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef XCORETARGETSTREAMER_H
-#define XCORETARGETSTREAMER_H
+#ifndef LLVM_LIB_TARGET_XCORE_XCORETARGETSTREAMER_H
+#define LLVM_LIB_TARGET_XCORE_XCORETARGETSTREAMER_H
 
 #include "llvm/MC/MCStreamer.h"
 
@@ -16,7 +16,7 @@ namespace llvm {
 class XCoreTargetStreamer : public MCTargetStreamer {
 public:
   XCoreTargetStreamer(MCStreamer &S);
-  virtual ~XCoreTargetStreamer();
+  ~XCoreTargetStreamer() override;
   virtual void emitCCTopData(StringRef Name) = 0;
   virtual void emitCCTopFunction(StringRef Name) = 0;
   virtual void emitCCBottomData(StringRef Name) = 0;

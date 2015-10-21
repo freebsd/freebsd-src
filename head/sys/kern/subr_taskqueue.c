@@ -323,17 +323,16 @@ taskqueue_drain_tq_queue(struct taskqueue *queue)
 		return;
 
 	/*
-	 * Enqueue our barrier with the lowest possible priority
-	 * so we are inserted after all current tasks.
+	 * Enqueue our barrier after all current tasks, but with
+	 * the highest priority so that newly queued tasks cannot
+	 * pass it.  Because of the high priority, we can not use
+	 * taskqueue_enqueue_locked directly (which drops the lock
+	 * anyway) so just insert it at tail while we have the
+	 * queue lock.
 	 */
-	TASK_INIT(&t_barrier, 0, taskqueue_task_nop_fn, &t_barrier);
-	taskqueue_enqueue_locked(queue, &t_barrier);
-
-	/*
- 	 * Raise the barrier's priority so newly queued tasks cannot
- 	 * pass it.
- 	 */
-	t_barrier.ta_priority = USHRT_MAX;
+	TASK_INIT(&t_barrier, USHRT_MAX, taskqueue_task_nop_fn, &t_barrier);
+	STAILQ_INSERT_TAIL(&queue->tq_queue, &t_barrier, ta_link);
+	t_barrier.ta_pending = 1;
 
 	/*
 	 * Once the barrier has executed, all previously queued tasks
@@ -571,8 +570,9 @@ taskqueue_swi_giant_run(void *dummy)
 
 static int
 _taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
-    cpuset_t *mask, const char *ktname)
+    cpuset_t *mask, const char *name, va_list ap)
 {
+	char ktname[MAXCOMLEN + 1];
 	struct thread *td;
 	struct taskqueue *tq;
 	int i, error;
@@ -580,6 +580,7 @@ _taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 	if (count <= 0)
 		return (EINVAL);
 
+	vsnprintf(ktname, sizeof(ktname), name, ap);
 	tq = *tqp;
 
 	tq->tq_threads = malloc(sizeof(struct thread *) * count, M_TASKQUEUE,
@@ -635,39 +636,26 @@ int
 taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
     const char *name, ...)
 {
-	char ktname[MAXCOMLEN + 1];
 	va_list ap;
+	int error;
 
 	va_start(ap, name);
-	vsnprintf(ktname, sizeof(ktname), name, ap);
+	error = _taskqueue_start_threads(tqp, count, pri, NULL, name, ap);
 	va_end(ap);
-
-	return (_taskqueue_start_threads(tqp, count, pri, NULL, ktname));
+	return (error);
 }
 
 int
-taskqueue_start_threads_pinned(struct taskqueue **tqp, int count, int pri,
-    int cpu_id, const char *name, ...)
+taskqueue_start_threads_cpuset(struct taskqueue **tqp, int count, int pri,
+    cpuset_t *mask, const char *name, ...)
 {
-	char ktname[MAXCOMLEN + 1];
 	va_list ap;
-	cpuset_t mask;
+	int error;
 
 	va_start(ap, name);
-	vsnprintf(ktname, sizeof(ktname), name, ap);
+	error = _taskqueue_start_threads(tqp, count, pri, mask, name, ap);
 	va_end(ap);
-
-	/*
-	 * In case someone passes in NOCPU, just fall back to the
-	 * default behaviour of "don't pin".
-	 */
-	if (cpu_id != NOCPU) {
-		CPU_ZERO(&mask);
-		CPU_SET(cpu_id, &mask);
-	}
-
-	return (_taskqueue_start_threads(tqp, count, pri,
-	    cpu_id == NOCPU ? NULL : &mask, ktname));
+	return (error);
 }
 
 static inline void

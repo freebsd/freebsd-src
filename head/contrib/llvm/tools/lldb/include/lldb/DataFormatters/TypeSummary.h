@@ -23,11 +23,39 @@
 #include "lldb/lldb-public.h"
 #include "lldb/lldb-enumerations.h"
 
+#include "lldb/Core/Error.h"
+#include "lldb/Core/FormatEntity.h"
+#include "lldb/Core/StructuredData.h"
 #include "lldb/Core/ValueObject.h"
-#include "lldb/Interpreter/ScriptInterpreterPython.h"
 #include "lldb/Symbol/Type.h"
 
 namespace lldb_private {
+    class TypeSummaryOptions
+    {
+    public:
+        TypeSummaryOptions ();
+        TypeSummaryOptions (const TypeSummaryOptions& rhs);
+        
+        TypeSummaryOptions&
+        operator = (const TypeSummaryOptions& rhs);
+        
+        lldb::LanguageType
+        GetLanguage () const;
+        
+        lldb::TypeSummaryCapping
+        GetCapping () const;
+        
+        TypeSummaryOptions&
+        SetLanguage (lldb::LanguageType);
+        
+        TypeSummaryOptions&
+        SetCapping (lldb::TypeSummaryCapping);
+        
+        ~TypeSummaryOptions() = default;
+    private:
+        lldb::LanguageType m_lang;
+        lldb::TypeSummaryCapping m_capping;
+    };
     
     class TypeSummaryImpl
     {
@@ -183,6 +211,22 @@ namespace lldb_private {
                 return *this;
             }
             
+            bool
+            GetNonCacheable () const
+            {
+                return (m_flags & lldb::eTypeOptionNonCacheable) == lldb::eTypeOptionNonCacheable;
+            }
+            
+            Flags&
+            SetNonCacheable (bool value = true)
+            {
+                if (value)
+                    m_flags |= lldb::eTypeOptionNonCacheable;
+                else
+                    m_flags &= ~lldb::eTypeOptionNonCacheable;
+                return *this;
+            }
+            
             uint32_t
             GetValue ()
             {
@@ -223,6 +267,11 @@ namespace lldb_private {
         SkipsReferences () const
         {
             return m_flags.GetSkipReferences();
+        }
+        bool
+        NonCacheable () const
+        {
+            return m_flags.GetNonCacheable();
         }
         
         virtual bool
@@ -291,6 +340,12 @@ namespace lldb_private {
             m_flags.SetHideItemNames(value);
         }
         
+        virtual void
+        SetNonCacheable (bool value)
+        {
+            m_flags.SetNonCacheable(value);
+        }
+        
         uint32_t
         GetOptions ()
         {
@@ -313,7 +368,8 @@ namespace lldb_private {
         // for us to generate its summary
         virtual bool
         FormatObject (ValueObject *valobj,
-                      std::string& dest) = 0;
+                      std::string& dest,
+                      const TypeSummaryOptions& options) = 0;
         
         virtual std::string
         GetDescription () = 0;
@@ -345,34 +401,31 @@ namespace lldb_private {
     // simple string-based summaries, using ${var to show data
     struct StringSummaryFormat : public TypeSummaryImpl
     {
-        std::string m_format;
+        std::string m_format_str;
+        FormatEntity::Entry m_format;
+        Error m_error;
         
         StringSummaryFormat(const TypeSummaryImpl::Flags& flags,
                             const char* f);
-        
-        const char*
-        GetSummaryString () const
-        {
-            return m_format.c_str();
-        }
-        
-        void
-        SetSummaryString (const char* data)
-        {
-            if (data)
-                m_format.assign(data);
-            else
-                m_format.clear();
-        }
         
         virtual
         ~StringSummaryFormat()
         {
         }
+
+        const char*
+        GetSummaryString () const
+        {
+            return m_format_str.c_str();
+        }
         
+        void
+        SetSummaryString (const char* f);
+
         virtual bool
         FormatObject(ValueObject *valobj,
-                     std::string& dest);
+                     std::string& dest,
+                     const TypeSummaryOptions& options);
         
         virtual std::string
         GetDescription();
@@ -397,10 +450,11 @@ namespace lldb_private {
     // summaries implemented via a C++ function
     struct CXXFunctionSummaryFormat : public TypeSummaryImpl
     {
-        
         // we should convert these to SBValue and SBStream if we ever cross
         // the boundary towards the external world
-        typedef bool (*Callback)(ValueObject& valobj, Stream& dest);
+        typedef bool (*Callback)(ValueObject&,
+                                 Stream&,
+                                 const TypeSummaryOptions&);
         
         Callback m_impl;
         std::string m_description;
@@ -443,7 +497,8 @@ namespace lldb_private {
         
         virtual bool
         FormatObject (ValueObject *valobj,
-                      std::string& dest);
+                      std::string& dest,
+                      const TypeSummaryOptions& options);
         
         virtual std::string
         GetDescription ();
@@ -473,8 +528,8 @@ namespace lldb_private {
     {
         std::string m_function_name;
         std::string m_python_script;
-        lldb::ScriptInterpreterObjectSP m_script_function_sp;
-        
+        StructuredData::ObjectSP m_script_function_sp;
+
         ScriptSummaryFormat(const TypeSummaryImpl::Flags& flags,
                             const char *function_name,
                             const char* python_script = NULL);
@@ -517,7 +572,8 @@ namespace lldb_private {
         
         virtual bool
         FormatObject (ValueObject *valobj,
-                      std::string& dest);
+                      std::string& dest,
+                      const TypeSummaryOptions& options);
         
         virtual std::string
         GetDescription ();

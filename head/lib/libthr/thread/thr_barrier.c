@@ -86,16 +86,13 @@ _pthread_barrier_init(pthread_barrier_t *barrier,
 	if (barrier == NULL || count <= 0)
 		return (EINVAL);
 
-	bar = malloc(sizeof(struct pthread_barrier));
+	bar = calloc(1, sizeof(struct pthread_barrier));
 	if (bar == NULL)
 		return (ENOMEM);
 
 	_thr_umutex_init(&bar->b_lock);
 	_thr_ucond_init(&bar->b_cv);
-	bar->b_cycle	= 0;
-	bar->b_waiters	= 0;
 	bar->b_count	= count;
-	bar->b_refcount = 0;
 	*barrier	= bar;
 
 	return (0);

@@ -5,15 +5,17 @@
 LIB=	llvmobjcarcopts
 
 SRCDIR=	lib/Transforms/ObjCARC
-SRCS=	ObjCARC.cpp \
-	ObjCARCOpts.cpp \
-	ObjCARCExpand.cpp \
+SRCS=	ARCInstKind.cpp \
+	DependencyAnalysis.cpp \
+	ObjCARC.cpp \
 	ObjCARCAPElim.cpp \
 	ObjCARCAliasAnalysis.cpp \
-	ObjCARCUtil.cpp \
 	ObjCARCContract.cpp \
-	DependencyAnalysis.cpp \
-	ProvenanceAnalysis.cpp
+	ObjCARCExpand.cpp \
+	ObjCARCOpts.cpp \
+	ProvenanceAnalysis.cpp \
+	ProvenanceAnalysisEvaluator.cpp \
+	PtrState.cpp
 
 TGHDRS=	Intrinsics
 

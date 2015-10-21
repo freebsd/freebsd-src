@@ -48,7 +48,8 @@ protected:
             eRegisterSavedAtMemoryLocation,     // register is saved at a specific word of target mem (target_memory_location)
             eRegisterInRegister,                // register is available in a (possible other) register (register_number)
             eRegisterSavedAtHostMemoryLocation, // register is saved at a word in lldb's address space
-            eRegisterValueInferred              // register val was computed (and is in inferred_value)
+            eRegisterValueInferred,             // register val was computed (and is in inferred_value)
+            eRegisterInLiveRegisterContext      // register value is in a live (stack frame #0) register
         };
         int type;
         union
@@ -64,6 +65,7 @@ protected:
     DoClear()
     {
         m_frames.clear();
+        m_candidate_frame.reset();
         m_unwind_complete = false;
     }
 
@@ -125,14 +127,21 @@ private:
 
     typedef std::shared_ptr<Cursor> CursorSP;
     std::vector<CursorSP> m_frames;
+    CursorSP m_candidate_frame;
     bool m_unwind_complete; // If this is true, we've enumerated all the frames in the stack, and m_frames.size() is the 
                             // number of frames, etc.  Otherwise we've only gone as far as directly asked, and m_frames.size()
                             // is how far we've currently gone.
  
     std::vector<ConstString> m_user_supplied_trap_handler_functions;
 
-    bool AddOneMoreFrame (ABI *abi);
-    bool AddFirstFrame ();
+    CursorSP
+    GetOneMoreFrame (ABI* abi);
+
+    bool
+    AddOneMoreFrame (ABI *abi);
+
+    bool
+    AddFirstFrame ();
 
     //------------------------------------------------------------------
     // For UnwindLLDB only

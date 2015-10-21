@@ -11,16 +11,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Support/Errc.h"
-#include "llvm/Support/Path.h"
+#include "llvm/Support/COFF.h"
 #include "llvm/Support/Endian.h"
+#include "llvm/Support/Errc.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include <cctype>
-#include <cstdio>
 #include <cstring>
-#include <fcntl.h>
 
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <unistd.h>
@@ -29,6 +28,7 @@
 #endif
 
 using namespace llvm;
+using namespace llvm::support::endian;
 
 namespace {
   using llvm::StringRef;
@@ -47,7 +47,6 @@ namespace {
     // * empty (in this case we return an empty string)
     // * either C: or {//,\\}net.
     // * {/,\}
-    // * {.,..}
     // * {file,directory}name
 
     if (path.empty())
@@ -72,12 +71,6 @@ namespace {
 
     // {/,\}
     if (is_separator(path[0]))
-      return path.substr(0, 1);
-
-    if (path.startswith(".."))
-      return path.substr(0, 2);
-
-    if (path[0] == '.')
       return path.substr(0, 1);
 
     // * {file,directory}name
@@ -164,9 +157,6 @@ enum FSEntity {
   FS_Name
 };
 
-// Implemented in Unix/Path.inc and Windows/Path.inc.
-static std::error_code TempDir(SmallVectorImpl<char> &result);
-
 static std::error_code createUniqueEntity(const Twine &Model, int &ResultFD,
                                           SmallVectorImpl<char> &ResultPath,
                                           bool MakeAbsolute, unsigned Mode,
@@ -178,8 +168,7 @@ static std::error_code createUniqueEntity(const Twine &Model, int &ResultFD,
     // Make model absolute by prepending a temp directory if it's not already.
     if (!sys::path::is_absolute(Twine(ModelStorage))) {
       SmallString<128> TDir;
-      if (std::error_code EC = TempDir(TDir))
-        return EC;
+      sys::path::system_temp_directory(true, TDir);
       sys::path::append(TDir, Twine(ModelStorage));
       ModelStorage.swap(TDir);
     }
@@ -214,13 +203,13 @@ retry_random_path:
   }
 
   case FS_Name: {
-    bool Exists;
-    std::error_code EC = sys::fs::exists(ResultPath.begin(), Exists);
+    std::error_code EC =
+        sys::fs::access(ResultPath.begin(), sys::fs::AccessMode::Exist);
+    if (EC == errc::no_such_file_or_directory)
+      return std::error_code();
     if (EC)
       return EC;
-    if (Exists)
-      goto retry_random_path;
-    return std::error_code();
+    goto retry_random_path;
   }
 
   case FS_Dir: {
@@ -308,7 +297,30 @@ const_iterator &const_iterator::operator++() {
   return *this;
 }
 
-const_iterator &const_iterator::operator--() {
+bool const_iterator::operator==(const const_iterator &RHS) const {
+  return Path.begin() == RHS.Path.begin() && Position == RHS.Position;
+}
+
+ptrdiff_t const_iterator::operator-(const const_iterator &RHS) const {
+  return Position - RHS.Position;
+}
+
+reverse_iterator rbegin(StringRef Path) {
+  reverse_iterator I;
+  I.Path = Path;
+  I.Position = Path.size();
+  return ++I;
+}
+
+reverse_iterator rend(StringRef Path) {
+  reverse_iterator I;
+  I.Path = Path;
+  I.Component = Path.substr(0, 0);
+  I.Position = 0;
+  return I;
+}
+
+reverse_iterator &reverse_iterator::operator++() {
   // If we're at the end and the previous char was a '/', return '.' unless
   // we are the root path.
   size_t root_dir_pos = root_dir_start(Path);
@@ -335,20 +347,12 @@ const_iterator &const_iterator::operator--() {
   return *this;
 }
 
-bool const_iterator::operator==(const const_iterator &RHS) const {
-  return Path.begin() == RHS.Path.begin() &&
+bool reverse_iterator::operator==(const reverse_iterator &RHS) const {
+  return Path.begin() == RHS.Path.begin() && Component == RHS.Component &&
          Position == RHS.Position;
 }
 
-bool const_iterator::operator!=(const const_iterator &RHS) const {
-  return !(*this == RHS);
-}
-
-ptrdiff_t const_iterator::operator-(const const_iterator &RHS) const {
-  return Position - RHS.Position;
-}
-
-const StringRef root_path(StringRef path) {
+StringRef root_path(StringRef path) {
   const_iterator b = begin(path),
                  pos = b,
                  e = end(path);
@@ -380,7 +384,7 @@ const StringRef root_path(StringRef path) {
   return StringRef();
 }
 
-const StringRef root_name(StringRef path) {
+StringRef root_name(StringRef path) {
   const_iterator b = begin(path),
                  e = end(path);
   if (b != e) {
@@ -402,7 +406,7 @@ const StringRef root_name(StringRef path) {
   return StringRef();
 }
 
-const StringRef root_directory(StringRef path) {
+StringRef root_directory(StringRef path) {
   const_iterator b = begin(path),
                  pos = b,
                  e = end(path);
@@ -431,7 +435,7 @@ const StringRef root_directory(StringRef path) {
   return StringRef();
 }
 
-const StringRef relative_path(StringRef path) {
+StringRef relative_path(StringRef path) {
   StringRef root = root_path(path);
   return path.substr(root.size());
 }
@@ -483,7 +487,7 @@ void append(SmallVectorImpl<char> &path,
     path::append(path, *begin);
 }
 
-const StringRef parent_path(StringRef path) {
+StringRef parent_path(StringRef path) {
   size_t end_pos = parent_path_end(path);
   if (end_pos == StringRef::npos)
     return StringRef();
@@ -525,17 +529,27 @@ void native(const Twine &path, SmallVectorImpl<char> &result) {
   native(result);
 }
 
-void native(SmallVectorImpl<char> &path) {
+void native(SmallVectorImpl<char> &Path) {
 #ifdef LLVM_ON_WIN32
-  std::replace(path.begin(), path.end(), '/', '\\');
+  std::replace(Path.begin(), Path.end(), '/', '\\');
+#else
+  for (auto PI = Path.begin(), PE = Path.end(); PI < PE; ++PI) {
+    if (*PI == '\\') {
+      auto PN = PI + 1;
+      if (PN < PE && *PN == '\\')
+        ++PI; // increment once, the for loop will move over the escaped slash
+      else
+        *PI = '/';
+    }
+  }
 #endif
 }
 
-const StringRef filename(StringRef path) {
-  return *(--end(path));
+StringRef filename(StringRef path) {
+  return *rbegin(path);
 }
 
-const StringRef stem(StringRef path) {
+StringRef stem(StringRef path) {
   StringRef fname = filename(path);
   size_t pos = fname.find_last_of('.');
   if (pos == StringRef::npos)
@@ -548,7 +562,7 @@ const StringRef stem(StringRef path) {
       return fname.substr(0, pos);
 }
 
-const StringRef extension(StringRef path) {
+StringRef extension(StringRef path) {
   StringRef fname = filename(path);
   size_t pos = fname.find_last_of('.');
   if (pos == StringRef::npos)
@@ -573,60 +587,8 @@ bool is_separator(char value) {
 
 static const char preferred_separator_string[] = { preferred_separator, '\0' };
 
-const StringRef get_separator() {
+StringRef get_separator() {
   return preferred_separator_string;
-}
-
-void system_temp_directory(bool erasedOnReboot, SmallVectorImpl<char> &result) {
-  result.clear();
-
-#if defined(_CS_DARWIN_USER_TEMP_DIR) && defined(_CS_DARWIN_USER_CACHE_DIR)
-  // On Darwin, use DARWIN_USER_TEMP_DIR or DARWIN_USER_CACHE_DIR.
-  // macros defined in <unistd.h> on darwin >= 9
-  int ConfName = erasedOnReboot? _CS_DARWIN_USER_TEMP_DIR
-                               : _CS_DARWIN_USER_CACHE_DIR;
-  size_t ConfLen = confstr(ConfName, nullptr, 0);
-  if (ConfLen > 0) {
-    do {
-      result.resize(ConfLen);
-      ConfLen = confstr(ConfName, result.data(), result.size());
-    } while (ConfLen > 0 && ConfLen != result.size());
-
-    if (ConfLen > 0) {
-      assert(result.back() == 0);
-      result.pop_back();
-      return;
-    }
-
-    result.clear();
-  }
-#endif
-
-  // Check whether the temporary directory is specified by an environment
-  // variable.
-  const char *EnvironmentVariable;
-#ifdef LLVM_ON_WIN32
-  EnvironmentVariable = "TEMP";
-#else
-  EnvironmentVariable = "TMPDIR";
-#endif
-  if (char *RequestedDir = getenv(EnvironmentVariable)) {
-    result.append(RequestedDir, RequestedDir + strlen(RequestedDir));
-    return;
-  }
-
-  // Fall back to a system default.
-  const char *DefaultResult;
-#ifdef LLVM_ON_WIN32
-  (void)erasedOnReboot;
-  DefaultResult = "C:\\TEMP";
-#else
-  if (erasedOnReboot)
-    DefaultResult = "/tmp";
-  else
-    DefaultResult = "/var/tmp";
-#endif
-  result.append(DefaultResult, DefaultResult + strlen(DefaultResult));
 }
 
 bool has_root_name(const Twine &path) {
@@ -918,6 +880,14 @@ bool is_other(file_status status) {
          !is_directory(status);
 }
 
+std::error_code is_other(const Twine &Path, bool &Result) {
+  file_status FileStatus;
+  if (std::error_code EC = status(Path, FileStatus))
+    return EC;
+  Result = is_other(FileStatus);
+  return std::error_code();
+}
+
 void directory_entry::replace_filename(const Twine &filename, file_status st) {
   SmallString<128> path(Path.begin(), Path.end());
   path::remove_filename(path);
@@ -932,10 +902,23 @@ file_magic identify_magic(StringRef Magic) {
     return file_magic::unknown;
   switch ((unsigned char)Magic[0]) {
     case 0x00: {
-      // COFF short import library file
+      // COFF bigobj or short import library file
       if (Magic[1] == (char)0x00 && Magic[2] == (char)0xff &&
-          Magic[3] == (char)0xff)
-        return file_magic::coff_import_library;
+          Magic[3] == (char)0xff) {
+        size_t MinSize = offsetof(COFF::BigObjHeader, UUID) + sizeof(COFF::BigObjMagic);
+        if (Magic.size() < MinSize)
+          return file_magic::coff_import_library;
+
+        int BigObjVersion = read16le(
+            Magic.data() + offsetof(COFF::BigObjHeader, Version));
+        if (BigObjVersion < COFF::BigObjHeader::MinBigObjectVersion)
+          return file_magic::coff_import_library;
+
+        const char *Start = Magic.data() + offsetof(COFF::BigObjHeader, UUID);
+        if (memcmp(Start, COFF::BigObjMagic, sizeof(COFF::BigObjMagic)) != 0)
+          return file_magic::coff_import_library;
+        return file_magic::coff_object;
+      }
       // Windows resource file
       const char Expected[] = { 0, 0, 0, 0, '\x20', 0, 0, 0, '\xff' };
       if (Magic.size() >= sizeof(Expected) &&
@@ -969,12 +952,15 @@ file_magic identify_magic(StringRef Magic) {
         unsigned low  = Data2MSB ? 17 : 16;
         if (Magic[high] == 0)
           switch (Magic[low]) {
-            default: break;
+            default: return file_magic::elf;
             case 1: return file_magic::elf_relocatable;
             case 2: return file_magic::elf_executable;
             case 3: return file_magic::elf_shared_object;
             case 4: return file_magic::elf_core;
           }
+        else
+          // It's still some type of ELF file.
+          return file_magic::elf;
       }
       break;
 
@@ -1016,8 +1002,9 @@ file_magic identify_magic(StringRef Magic) {
         case 6: return file_magic::macho_dynamically_linked_shared_lib;
         case 7: return file_magic::macho_dynamic_linker;
         case 8: return file_magic::macho_bundle;
-        case 9: return file_magic::macho_dynamic_linker;
+        case 9: return file_magic::macho_dynamically_linked_shared_lib_stub;
         case 10: return file_magic::macho_dsym_companion;
+        case 11: return file_magic::macho_kext_bundle;
       }
       break;
     }
@@ -1037,12 +1024,12 @@ file_magic identify_magic(StringRef Magic) {
         return file_magic::coff_object;
       break;
 
-    case 0x4d: // Possible MS-DOS stub on Windows PE file
-      if (Magic[1] == 0x5a) {
-        uint32_t off =
-          *reinterpret_cast<const support::ulittle32_t*>(Magic.data() + 0x3c);
+    case 'M': // Possible MS-DOS stub on Windows PE file
+      if (Magic[1] == 'Z') {
+        uint32_t off = read32le(Magic.data() + 0x3c);
         // PE/COFF file, either EXE or DLL.
-        if (off < Magic.size() && memcmp(Magic.data() + off, "PE\0\0",4) == 0)
+        if (off < Magic.size() &&
+            memcmp(Magic.data()+off, COFF::PEMagic, sizeof(COFF::PEMagic)) == 0)
           return file_magic::pecoff_executable;
       }
       break;

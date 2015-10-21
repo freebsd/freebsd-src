@@ -54,8 +54,10 @@ static const char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/ioctl.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/tty.h>
+#include <sys/types.h>
 
 #include <machine/cpu.h>
 #include <netinet/in.h>
@@ -118,7 +120,7 @@ static struct entry {
 
 #define	W_DISPUSERSIZE	10
 #define	W_DISPLINESIZE	8
-#define	W_DISPHOSTSIZE	24
+#define	W_DISPHOSTSIZE	40
 
 static void		 pr_header(time_t *, int);
 static struct stat	*ttystat(char *);
@@ -133,7 +135,7 @@ main(int argc, char *argv[])
 	struct kinfo_proc *dkp;
 	struct stat *stp;
 	time_t touched;
-	int ch, i, nentries, nusers, wcmd, longidle, longattime, dropgid;
+	int ch, i, nentries, nusers, wcmd, longidle, longattime;
 	const char *memf, *nlistf, *p, *save_p;
 	char *x_suffix;
 	char buf[MAXHOSTNAMELEN], errbuf[_POSIX2_LINE_MAX];
@@ -157,7 +159,6 @@ main(int argc, char *argv[])
 		p = "dhiflM:N:nsuw";
 	}
 
-	dropgid = 0;
 	memf = _PATH_DEVNULL;
 	nlistf = NULL;
 	while ((ch = getopt(argc, argv, p)) != -1)
@@ -174,11 +175,9 @@ main(int argc, char *argv[])
 		case 'M':
 			header = 0;
 			memf = optarg;
-			dropgid = 1;
 			break;
 		case 'N':
 			nlistf = optarg;
-			dropgid = 1;
 			break;
 		case 'n':
 			nflag = 1;
@@ -197,13 +196,6 @@ main(int argc, char *argv[])
 		res_init();
 	_res.retrans = 2;	/* resolver timeout to 2 seconds per try */
 	_res.retry = 1;		/* only try once.. */
-
-	/*
-	 * Discard setgid privileges if not the running kernel so that bad
-	 * guys can't print interesting stuff from kernel memory.
-	 */
-	if (dropgid)
-		setgid(getgid());
 
 	if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf)) == NULL)
 		errx(1, "%s", errbuf);
@@ -264,7 +256,9 @@ main(int argc, char *argv[])
 	if (header || wcmd == 0) {
 		pr_header(&now, nusers);
 		if (wcmd == 0) {
-		        xo_close_container("uptime-information");
+			xo_close_container("uptime-information");
+			xo_finish();
+
 			(void)kvm_close(kd);
 			exit(0);
 		}
@@ -470,7 +464,9 @@ pr_header(time_t *nowp, int nusers)
 	struct timespec tp;
 	int days, hrs, i, mins, secs;
 	char buf[256];
+	struct sbuf *upbuf;
 
+	upbuf = sbuf_new_auto();
 	/*
 	 * Print time of day.
 	 */
@@ -491,21 +487,27 @@ pr_header(time_t *nowp, int nusers)
 		mins = uptime / 60;
 		secs = uptime % 60;
 		xo_emit(" up");
-		xo_attr("seconds", "%lu", (unsigned long) tp.tv_sec);
+		xo_emit("{e:uptime/%lu}", (unsigned long) tp.tv_sec);
+		xo_emit("{e:days/%d}{e:hours/%d}{e:minutes/%d}{e:seconds/%d}", days, hrs, mins, secs);
+
 		if (days > 0)
-			xo_emit(" {:uptime/%d day%s},",
+			sbuf_printf(upbuf, " %d day%s,",
 				days, days > 1 ? "s" : "");
 		if (hrs > 0 && mins > 0)
-			xo_emit(" {:uptime/%2d:%02d},", hrs, mins);
+			sbuf_printf(upbuf, " %2d:%02d,", hrs, mins);
 		else if (hrs > 0)
-			xo_emit(" {:uptime/%d hr%s},",
+			sbuf_printf(upbuf, " %d hr%s,",
 				hrs, hrs > 1 ? "s" : "");
 		else if (mins > 0)
-			xo_emit(" {:uptime/%d min%s},",
+			sbuf_printf(upbuf, " %d min%s,",
 				mins, mins > 1 ? "s" : "");
-		else
-			xo_emit(" {:uptime/%d sec%s},",
+		else 
+			sbuf_printf(upbuf, " %d sec%s,",
 				secs, secs > 1 ? "s" : "");
+		if (sbuf_finish(upbuf) != 0)
+			xo_err(1, "Could not generate output");
+		xo_emit("{:uptime-human/%s}", sbuf_data(upbuf));
+		sbuf_delete(upbuf);
 	}
 
 	/* Print number of users logged in to system */
@@ -552,5 +554,6 @@ usage(int wcmd)
 		xo_error("usage: w [-dhin] [-M core] [-N system] [user ...]\n");
 	else
 		xo_error("usage: uptime\n");
+	xo_finish();
 	exit(1);
 }

@@ -39,6 +39,11 @@ struct l2_ethhdr {
 #pragma pack(pop)
 #endif /* _MSC_VER */
 
+enum l2_packet_filter_type {
+	L2_PACKET_FILTER_DHCP,
+	L2_PACKET_FILTER_NDISC,
+};
+
 /**
  * l2_packet_init - Initialize l2_packet interface
  * @ifname: Interface name
@@ -58,6 +63,19 @@ struct l2_ethhdr {
  */
 struct l2_packet_data * l2_packet_init(
 	const char *ifname, const u8 *own_addr, unsigned short protocol,
+	void (*rx_callback)(void *ctx, const u8 *src_addr,
+			    const u8 *buf, size_t len),
+	void *rx_callback_ctx, int l2_hdr);
+
+/**
+ * l2_packet_init_bridge - Like l2_packet_init() but with bridge workaround
+ *
+ * This version of l2_packet_init() can be used to enable a workaround for Linux
+ * packet socket in case of a station interface in a bridge.
+ */
+struct l2_packet_data * l2_packet_init_bridge(
+	const char *br_ifname, const char *ifname, const u8 *own_addr,
+	unsigned short protocol,
 	void (*rx_callback)(void *ctx, const u8 *src_addr,
 			    const u8 *buf, size_t len),
 	void *rx_callback_ctx, int l2_hdr);
@@ -120,5 +138,17 @@ int l2_packet_get_ip_addr(struct l2_packet_data *l2, char *buf, size_t len);
  * from knowing about the starting authentication.
  */
 void l2_packet_notify_auth_start(struct l2_packet_data *l2);
+
+/**
+ * l2_packet_set_packet_filter - Set socket filter for l2_packet
+ * @l2: Pointer to internal l2_packet data from l2_packet_init()
+ * @type: enum l2_packet_filter_type, type of filter
+ * Returns: 0 on success, -1 on failure
+ *
+ * This function is used to set the socket filter for l2_packet socket.
+ *
+ */
+int l2_packet_set_packet_filter(struct l2_packet_data *l2,
+				enum l2_packet_filter_type type);
 
 #endif /* L2_PACKET_H */

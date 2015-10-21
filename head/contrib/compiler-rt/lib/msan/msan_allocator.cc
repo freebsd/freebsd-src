@@ -18,6 +18,7 @@
 #include "msan_allocator.h"
 #include "msan_origin.h"
 #include "msan_thread.h"
+#include "msan_poisoning.h"
 
 namespace __msan {
 
@@ -57,6 +58,15 @@ struct MsanMapUnmapCallback {
   typedef SizeClassAllocator64<kAllocatorSpace, kAllocatorSize, kMetadataSize,
                              DefaultSizeClassMap,
                              MsanMapUnmapCallback> PrimaryAllocator;
+#elif defined(__powerpc64__)
+  static const uptr kAllocatorSpace = 0x300000000000;
+  static const uptr kAllocatorSize  = 0x020000000000;  // 2T
+  static const uptr kMetadataSize  = sizeof(Metadata);
+  static const uptr kMaxAllowedMallocSize = 2UL << 30;  // 2G
+
+  typedef SizeClassAllocator64<kAllocatorSpace, kAllocatorSize, kMetadataSize,
+                             DefaultSizeClassMap,
+                             MsanMapUnmapCallback> PrimaryAllocator;
 #endif
 typedef SizeClassAllocatorLocalCache<PrimaryAllocator> AllocatorCache;
 typedef LargeMmapAllocator<MsanMapUnmapCallback> SecondaryAllocator;
@@ -73,7 +83,7 @@ static inline void Init() {
   if (inited) return;
   __msan_init();
   inited = true;  // this must happen before any threads are created.
-  allocator.Init();
+  allocator.Init(common_flags()->allocator_may_return_null);
 }
 
 AllocatorCache *GetAllocatorCache(MsanThreadLocalMallocStorage *ms) {
@@ -92,7 +102,7 @@ static void *MsanAllocate(StackTrace *stack, uptr size, uptr alignment,
   if (size > kMaxAllowedMallocSize) {
     Report("WARNING: MemorySanitizer failed to allocate %p bytes\n",
            (void *)size);
-    return AllocatorReturnNull();
+    return allocator.ReturnNullOrDie();
   }
   MsanThread *t = GetCurrentThread();
   void *allocated;
@@ -112,6 +122,7 @@ static void *MsanAllocate(StackTrace *stack, uptr size, uptr alignment,
   } else if (flags()->poison_in_malloc) {
     __msan_poison(allocated, size);
     if (__msan_get_track_origins()) {
+      stack->tag = StackTrace::TAG_ALLOC;
       Origin o = Origin::CreateHeapOrigin(stack);
       __msan_set_origin(allocated, size, o.raw_id());
     }
@@ -132,6 +143,7 @@ void MsanDeallocate(StackTrace *stack, void *p) {
   if (flags()->poison_in_free) {
     __msan_poison(p, size);
     if (__msan_get_track_origins()) {
+      stack->tag = StackTrace::TAG_DEALLOC;
       Origin o = Origin::CreateHeapOrigin(stack);
       __msan_set_origin(p, size, o.raw_id());
     }
@@ -145,6 +157,13 @@ void MsanDeallocate(StackTrace *stack, void *p) {
     AllocatorCache *cache = &fallback_allocator_cache;
     allocator.Deallocate(cache, p);
   }
+}
+
+void *MsanCalloc(StackTrace *stack, uptr nmemb, uptr size) {
+  Init();
+  if (CallocShouldReturnNullDueToOverflow(size, nmemb))
+    return allocator.ReturnNullOrDie();
+  return MsanReallocate(stack, 0, nmemb * size, sizeof(u64), true);
 }
 
 void *MsanReallocate(StackTrace *stack, void *old_p, uptr new_size,
@@ -161,15 +180,22 @@ void *MsanReallocate(StackTrace *stack, void *old_p, uptr new_size,
   if (new_size <= actually_allocated_size) {
     // We are not reallocating here.
     meta->requested_size = new_size;
-    if (new_size > old_size)
-      __msan_poison((char*)old_p + old_size, new_size - old_size);
+    if (new_size > old_size) {
+      if (zeroise) {
+        __msan_clear_and_unpoison((char *)old_p + old_size,
+                                  new_size - old_size);
+      } else if (flags()->poison_in_malloc) {
+        stack->tag = StackTrace::TAG_ALLOC;
+        PoisonMemory((char *)old_p + old_size, new_size - old_size, stack);
+      }
+    }
     return old_p;
   }
   uptr memcpy_size = Min(new_size, old_size);
   void *new_p = MsanAllocate(stack, new_size, alignment, zeroise);
   // Printf("realloc: old_size %zd new_size %zd\n", old_size, new_size);
   if (new_p) {
-    __msan_memcpy(new_p, old_p, memcpy_size);
+    CopyMemory(new_p, old_p, memcpy_size, stack);
     MsanDeallocate(stack, old_p);
   }
   return new_p;

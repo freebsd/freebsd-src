@@ -163,8 +163,9 @@ struct msqid_kernel {
 	struct	ucred *cred;	/* creator's credentials */
 };
 
-#else /* !_KERNEL */
+#endif /* _KERNEL */
 
+#if !defined(_KERNEL) || defined(_WANT_MSG_PROTOTYPES)
 __BEGIN_DECLS
 int msgctl(int, int, struct msqid_ds *);
 int msgget(key_t, int);
@@ -176,6 +177,6 @@ int msgsys(int, ...);
 #endif
 __END_DECLS
 
-#endif /* _KERNEL */
+#endif /* !_KERNEL || _WANT_MSG_PROTOTYPES  */
 
 #endif /* !_SYS_MSG_H_ */

@@ -25,9 +25,12 @@ void llvm::initializeInstrumentation(PassRegistry &Registry) {
   initializeAddressSanitizerModulePass(Registry);
   initializeBoundsCheckingPass(Registry);
   initializeGCOVProfilerPass(Registry);
+  initializeInstrProfilingPass(Registry);
   initializeMemorySanitizerPass(Registry);
   initializeThreadSanitizerPass(Registry);
+  initializeSanitizerCoverageModulePass(Registry);
   initializeDataFlowSanitizerPass(Registry);
+  initializeSafeStackPass(Registry);
 }
 
 /// LLVMInitializeInstrumentation - C binding for

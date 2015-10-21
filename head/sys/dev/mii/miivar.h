@@ -180,27 +180,6 @@ struct mii_phydesc {
 	MII_STR_ ## a ## _ ## b }
 #define MII_PHY_END	{ 0, 0, NULL }
 
-/*
- * An array of these structures map MII media types to BMCR/ANAR settings.
- */
-struct mii_media {
-	u_int	mm_bmcr;		/* BMCR settings for this media */
-	u_int	mm_anar;		/* ANAR settings for this media */
-	u_int	mm_gtcr;		/* 100base-T2 or 1000base-T CR */
-};
-
-#define	MII_MEDIA_NONE		0
-#define	MII_MEDIA_10_T		1
-#define	MII_MEDIA_10_T_FDX	2
-#define	MII_MEDIA_100_T4	3
-#define	MII_MEDIA_100_TX	4
-#define	MII_MEDIA_100_TX_FDX	5
-#define	MII_MEDIA_1000_X	6
-#define	MII_MEDIA_1000_X_FDX	7
-#define	MII_MEDIA_1000_T	8
-#define	MII_MEDIA_1000_T_FDX	9
-#define	MII_NMEDIA		10
-
 #ifdef _KERNEL
 
 #define PHY_READ(p, r) \

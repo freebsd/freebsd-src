@@ -377,7 +377,6 @@ ar71xx_pci_probe(device_t dev)
 static int
 ar71xx_pci_attach(device_t dev)
 {
-	int busno = 0;
 	int rid = 0;
 	struct ar71xx_pci_softc *sc = device_get_softc(dev);
 
@@ -462,7 +461,7 @@ ar71xx_pci_attach(device_t dev)
 	ar71xx_pci_slot_fixup(dev, 0, 18, 0);
 #endif	/* AR71XX_ATH_EEPROM */
 
-	device_add_child(dev, "pci", busno);
+	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
 
@@ -637,8 +636,8 @@ ar71xx_pci_intr(void *arg)
 				continue;
 			}
 
-			/* Flush DDR FIFO for IP2 */
-			ar71xx_device_ddr_flush_ip2();
+			/* Flush DDR FIFO for PCI/PCIe */
+			ar71xx_device_flush_ddr(AR71XX_CPU_DDR_FLUSH_PCIE);
 
 			/* TODO: frame instead of NULL? */
 			intr_event_handle(event, NULL);

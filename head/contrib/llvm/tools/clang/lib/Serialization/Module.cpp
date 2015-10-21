@@ -21,7 +21,7 @@ using namespace serialization;
 using namespace reader;
 
 ModuleFile::ModuleFile(ModuleKind Kind, unsigned Generation)
-  : Kind(Kind), File(nullptr), DirectlyImported(false),
+  : Kind(Kind), File(nullptr), Signature(0), DirectlyImported(false),
     Generation(Generation), SizeInBits(0),
     LocalNumSLocEntries(0), SLocEntryBaseID(0),
     SLocEntryBaseOffset(0), SLocEntryOffsets(nullptr),
@@ -38,6 +38,7 @@ ModuleFile::ModuleFile(ModuleKind Kind, unsigned Generation)
     SelectorLookupTableData(nullptr), SelectorLookupTable(nullptr),
     LocalNumDecls(0), DeclOffsets(nullptr), BaseDeclID(0),
     LocalNumCXXBaseSpecifiers(0), CXXBaseSpecifiersOffsets(nullptr),
+    LocalNumCXXCtorInitializers(0), CXXCtorInitializersOffsets(nullptr),
     FileSortedDecls(nullptr), NumFileSortedDecls(0),
     RedeclarationsMap(nullptr), LocalNumRedeclarationsInMap(0),
     ObjCCategoriesMap(nullptr), LocalNumObjCCategoriesInMap(0),

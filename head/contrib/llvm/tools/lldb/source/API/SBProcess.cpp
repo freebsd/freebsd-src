@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/API/SBProcess.h"
 
 // C Includes
@@ -38,6 +36,7 @@
 #include "lldb/API/SBEvent.h"
 #include "lldb/API/SBFileSpec.h"
 #include "lldb/API/SBThread.h"
+#include "lldb/API/SBThreadCollection.h"
 #include "lldb/API/SBStream.h"
 #include "lldb/API/SBStringList.h"
 #include "lldb/API/SBUnixSignals.h"
@@ -168,11 +167,11 @@ SBProcess::RemoteLaunch (char const **argv,
         {
             if (stop_at_entry)
                 launch_flags |= eLaunchFlagStopAtEntry;
-            ProcessLaunchInfo launch_info (stdin_path,
-                                           stdout_path,
-                                           stderr_path,
-                                           working_directory,
-                                           launch_flags);
+            ProcessLaunchInfo launch_info(FileSpec{stdin_path, false},
+                                          FileSpec{stdout_path, false},
+                                          FileSpec{stderr_path, false},
+                                          FileSpec{working_directory, false},
+                                          launch_flags);
             Module *exe_module = process_sp->GetTarget().GetExecutableModulePointer();
             if (exe_module)
                 launch_info.SetExecutableFile(exe_module->GetPlatformFileSpec(), true);
@@ -602,6 +601,30 @@ SBProcess::GetStopID(bool include_expression_stops)
     return 0;
 }
 
+SBEvent
+SBProcess::GetStopEventForStopID(uint32_t stop_id)
+{
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
+
+    SBEvent sb_event;
+    EventSP event_sp;
+    ProcessSP process_sp(GetSP());
+    if (process_sp)
+    {
+        Mutex::Locker api_locker (process_sp->GetTarget().GetAPIMutex());
+        event_sp = process_sp->GetStopEventForStopID(stop_id);
+        sb_event.reset(event_sp);
+    }
+
+    if (log)
+        log->Printf ("SBProcess(%p)::GetStopEventForStopID (stop_id=%" PRIu32 ") => SBEvent(%p)",
+                     static_cast<void*>(process_sp.get()),
+                     stop_id,
+                     static_cast<void*>(event_sp.get()));
+
+    return sb_event;
+}
+
 StateType
 SBProcess::GetState ()
 {
@@ -738,18 +761,10 @@ SBProcess::Continue ()
     {
         Mutex::Locker api_locker (process_sp->GetTarget().GetAPIMutex());
 
-        Error error (process_sp->Resume());
-        if (error.Success())
-        {
-            if (process_sp->GetTarget().GetDebugger().GetAsyncExecution () == false)
-            {
-                if (log)
-                    log->Printf ("SBProcess(%p)::Continue () waiting for process to stop...",
-                                 static_cast<void*>(process_sp.get()));
-                process_sp->WaitForProcessToStop (NULL);
-            }
-        }
-        sb_error.SetError(error);
+        if (process_sp->GetTarget().GetDebugger().GetAsyncExecution ())
+            sb_error.ref() = process_sp->Resume ();
+        else
+            sb_error.ref() = process_sp->ResumeSynchronous (NULL);
     }
     else
         sb_error.SetErrorString ("SBProcess is invalid");
@@ -775,7 +790,7 @@ SBProcess::Destroy ()
     if (process_sp)
     {
         Mutex::Locker api_locker (process_sp->GetTarget().GetAPIMutex());
-        sb_error.SetError(process_sp->Destroy());
+        sb_error.SetError(process_sp->Destroy(false));
     }
     else
         sb_error.SetErrorString ("SBProcess is invalid");
@@ -828,7 +843,7 @@ SBProcess::Kill ()
     if (process_sp)
     {
         Mutex::Locker api_locker (process_sp->GetTarget().GetAPIMutex());
-        sb_error.SetError (process_sp->Destroy());
+        sb_error.SetError (process_sp->Destroy(true));
     }
     else
         sb_error.SetErrorString ("SBProcess is invalid");
@@ -897,14 +912,10 @@ SBProcess::Signal (int signo)
 SBUnixSignals
 SBProcess::GetUnixSignals()
 {
-    SBUnixSignals sb_unix_signals;
-    ProcessSP process_sp(GetSP());
-    if (process_sp)
-    {
-        sb_unix_signals.SetSP(process_sp);
-    }
+    if (auto process_sp = GetSP())
+        return SBUnixSignals{process_sp};
 
-    return sb_unix_signals;
+    return {};
 }
 
 void
@@ -925,9 +936,9 @@ SBProcess::GetThreadByID (tid_t tid)
     ProcessSP process_sp(GetSP());
     if (process_sp)
     {
-        Mutex::Locker api_locker (process_sp->GetTarget().GetAPIMutex());
         Process::StopLocker stop_locker;
         const bool can_update = stop_locker.TryLock(&process_sp->GetRunLock());
+        Mutex::Locker api_locker (process_sp->GetTarget().GetAPIMutex());
         thread_sp = process_sp->GetThreadList().FindThreadByID (tid, can_update);
         sb_thread.SetThread (thread_sp);
     }
@@ -949,9 +960,9 @@ SBProcess::GetThreadByIndexID (uint32_t index_id)
     ProcessSP process_sp(GetSP());
     if (process_sp)
     {
-        Mutex::Locker api_locker (process_sp->GetTarget().GetAPIMutex());
         Process::StopLocker stop_locker;
         const bool can_update = stop_locker.TryLock(&process_sp->GetRunLock());
+        Mutex::Locker api_locker (process_sp->GetTarget().GetAPIMutex());
         thread_sp = process_sp->GetThreadList().FindThreadByIndexID (index_id, can_update);
         sb_thread.SetThread (thread_sp);
     }
@@ -1006,9 +1017,15 @@ SBProcess::GetProcessFromEvent (const SBEvent &event)
 }
 
 bool
+SBProcess::GetInterruptedFromEvent (const SBEvent &event)
+{
+    return Process::ProcessEventData::GetInterruptedFromEvent(event.get());
+}
+
+bool
 SBProcess::EventIsProcessEvent (const SBEvent &event)
 {
-    return strcmp (event.GetBroadcasterClass(), SBProcess::GetBroadcasterClass()) == 0;
+    return event.GetBroadcasterClass() == SBProcess::GetBroadcasterClass();
 }
 
 SBBroadcaster
@@ -1380,4 +1397,31 @@ SBProcess::GetExtendedBacktraceTypeAtIndex (uint32_t idx)
         }
     }
     return NULL;
+}
+
+SBThreadCollection
+SBProcess::GetHistoryThreads (addr_t addr)
+{
+    ProcessSP process_sp(GetSP());
+    SBThreadCollection threads;
+    if (process_sp)
+    {
+        threads = SBThreadCollection(process_sp->GetHistoryThreads(addr));
+    }
+    return threads;
+}
+
+bool
+SBProcess::IsInstrumentationRuntimePresent(InstrumentationRuntimeType type)
+{
+    ProcessSP process_sp(GetSP());
+    if (! process_sp)
+        return false;
+    
+    InstrumentationRuntimeSP runtime_sp = process_sp->GetInstrumentationRuntime(type);
+    
+    if (! runtime_sp.get())
+        return false;
+    
+    return runtime_sp->IsActive();
 }

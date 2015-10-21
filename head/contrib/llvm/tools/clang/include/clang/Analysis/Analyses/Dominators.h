@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_DOMINATORS_H
-#define LLVM_CLANG_DOMINATORS_H
+#ifndef LLVM_CLANG_ANALYSIS_ANALYSES_DOMINATORS_H
+#define LLVM_CLANG_ANALYSIS_ANALYSES_DOMINATORS_H
 
 #include "clang/Analysis/AnalysisContext.h"
 #include "clang/Analysis/CFG.h"
@@ -44,9 +44,7 @@ public:
     DT = new llvm::DominatorTreeBase<CFGBlock>(false);
   }
 
-  ~DominatorTree() {
-    delete DT;
-  }
+  ~DominatorTree() override { delete DT; }
 
   llvm::DominatorTreeBase<CFGBlock>& getBase() { return *DT; }
 

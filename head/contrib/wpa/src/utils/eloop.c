@@ -7,17 +7,28 @@
  */
 
 #include "includes.h"
+#include <assert.h>
 
 #include "common.h"
 #include "trace.h"
 #include "list.h"
 #include "eloop.h"
 
+#if defined(CONFIG_ELOOP_POLL) && defined(CONFIG_ELOOP_EPOLL)
+#error Do not define both of poll and epoll
+#endif
+
+#if !defined(CONFIG_ELOOP_POLL) && !defined(CONFIG_ELOOP_EPOLL)
+#define CONFIG_ELOOP_SELECT
+#endif
+
 #ifdef CONFIG_ELOOP_POLL
-#include <assert.h>
 #include <poll.h>
 #endif /* CONFIG_ELOOP_POLL */
 
+#ifdef CONFIG_ELOOP_EPOLL
+#include <sys/epoll.h>
+#endif /* CONFIG_ELOOP_EPOLL */
 
 struct eloop_sock {
 	int sock;
@@ -31,7 +42,7 @@ struct eloop_sock {
 
 struct eloop_timeout {
 	struct dl_list list;
-	struct os_time time;
+	struct os_reltime time;
 	void *eloop_data;
 	void *user_data;
 	eloop_timeout_handler handler;
@@ -50,6 +61,7 @@ struct eloop_signal {
 struct eloop_sock_table {
 	int count;
 	struct eloop_sock *table;
+	eloop_event_type type;
 	int changed;
 };
 
@@ -63,6 +75,13 @@ struct eloop_data {
 	struct pollfd *pollfds;
 	struct pollfd **pollfds_map;
 #endif /* CONFIG_ELOOP_POLL */
+#ifdef CONFIG_ELOOP_EPOLL
+	int epollfd;
+	int epoll_max_event_num;
+	int epoll_max_fd;
+	struct eloop_sock *epoll_table;
+	struct epoll_event *epoll_events;
+#endif /* CONFIG_ELOOP_EPOLL */
 	struct eloop_sock_table readers;
 	struct eloop_sock_table writers;
 	struct eloop_sock_table exceptions;
@@ -75,7 +94,6 @@ struct eloop_data {
 	int pending_terminate;
 
 	int terminate;
-	int reader_table_changed;
 };
 
 static struct eloop_data eloop;
@@ -128,6 +146,17 @@ int eloop_init(void)
 {
 	os_memset(&eloop, 0, sizeof(eloop));
 	dl_list_init(&eloop.timeout);
+#ifdef CONFIG_ELOOP_EPOLL
+	eloop.epollfd = epoll_create1(0);
+	if (eloop.epollfd < 0) {
+		wpa_printf(MSG_ERROR, "%s: epoll_create1 failed. %s\n",
+			   __func__, strerror(errno));
+		return -1;
+	}
+	eloop.readers.type = EVENT_TYPE_READ;
+	eloop.writers.type = EVENT_TYPE_WRITE;
+	eloop.exceptions.type = EVENT_TYPE_EXCEPTION;
+#endif /* CONFIG_ELOOP_EPOLL */
 #ifdef WPA_TRACE
 	signal(SIGSEGV, eloop_sigsegv_handler);
 #endif /* WPA_TRACE */
@@ -139,6 +168,11 @@ static int eloop_sock_table_add_sock(struct eloop_sock_table *table,
                                      int sock, eloop_sock_handler handler,
                                      void *eloop_data, void *user_data)
 {
+#ifdef CONFIG_ELOOP_EPOLL
+	struct eloop_sock *temp_table;
+	struct epoll_event ev, *temp_events;
+	int next;
+#endif /* CONFIG_ELOOP_EPOLL */
 	struct eloop_sock *tmp;
 	int new_max_sock;
 
@@ -174,12 +208,41 @@ static int eloop_sock_table_add_sock(struct eloop_sock_table *table,
 		eloop.pollfds = n;
 	}
 #endif /* CONFIG_ELOOP_POLL */
+#ifdef CONFIG_ELOOP_EPOLL
+	if (new_max_sock >= eloop.epoll_max_fd) {
+		next = eloop.epoll_max_fd == 0 ? 16 : eloop.epoll_max_fd * 2;
+		temp_table = os_realloc_array(eloop.epoll_table, next,
+					      sizeof(struct eloop_sock));
+		if (temp_table == NULL)
+			return -1;
+
+		eloop.epoll_max_fd = next;
+		eloop.epoll_table = temp_table;
+	}
+
+	if (eloop.count + 1 > eloop.epoll_max_event_num) {
+		next = eloop.epoll_max_event_num == 0 ? 8 :
+			eloop.epoll_max_event_num * 2;
+		temp_events = os_realloc_array(eloop.epoll_events, next,
+					       sizeof(struct epoll_event));
+		if (temp_events == NULL) {
+			wpa_printf(MSG_ERROR, "%s: malloc for epoll failed. "
+				   "%s\n", __func__, strerror(errno));
+			return -1;
+		}
+
+		eloop.epoll_max_event_num = next;
+		eloop.epoll_events = temp_events;
+	}
+#endif /* CONFIG_ELOOP_EPOLL */
 
 	eloop_trace_sock_remove_ref(table);
 	tmp = os_realloc_array(table->table, table->count + 1,
 			       sizeof(struct eloop_sock));
-	if (tmp == NULL)
+	if (tmp == NULL) {
+		eloop_trace_sock_add_ref(table);
 		return -1;
+	}
 
 	tmp[table->count].sock = sock;
 	tmp[table->count].eloop_data = eloop_data;
@@ -193,6 +256,33 @@ static int eloop_sock_table_add_sock(struct eloop_sock_table *table,
 	table->changed = 1;
 	eloop_trace_sock_add_ref(table);
 
+#ifdef CONFIG_ELOOP_EPOLL
+	os_memset(&ev, 0, sizeof(ev));
+	switch (table->type) {
+	case EVENT_TYPE_READ:
+		ev.events = EPOLLIN;
+		break;
+	case EVENT_TYPE_WRITE:
+		ev.events = EPOLLOUT;
+		break;
+	/*
+	 * Exceptions are always checked when using epoll, but I suppose it's
+	 * possible that someone registered a socket *only* for exception
+	 * handling.
+	 */
+	case EVENT_TYPE_EXCEPTION:
+		ev.events = EPOLLERR | EPOLLHUP;
+		break;
+	}
+	ev.data.fd = sock;
+	if (epoll_ctl(eloop.epollfd, EPOLL_CTL_ADD, sock, &ev) < 0) {
+		wpa_printf(MSG_ERROR, "%s: epoll_ctl(ADD) for fd=%d "
+			   "failed. %s\n", __func__, sock, strerror(errno));
+		return -1;
+	}
+	os_memcpy(&eloop.epoll_table[sock], &table->table[table->count - 1],
+		  sizeof(struct eloop_sock));
+#endif /* CONFIG_ELOOP_EPOLL */
 	return 0;
 }
 
@@ -221,6 +311,14 @@ static void eloop_sock_table_remove_sock(struct eloop_sock_table *table,
 	eloop.count--;
 	table->changed = 1;
 	eloop_trace_sock_add_ref(table);
+#ifdef CONFIG_ELOOP_EPOLL
+	if (epoll_ctl(eloop.epollfd, EPOLL_CTL_DEL, sock, NULL) < 0) {
+		wpa_printf(MSG_ERROR, "%s: epoll_ctl(DEL) for fd=%d "
+			   "failed. %s\n", __func__, sock, strerror(errno));
+		return;
+	}
+	os_memset(&eloop.epoll_table[sock], 0, sizeof(struct eloop_sock));
+#endif /* CONFIG_ELOOP_EPOLL */
 }
 
 
@@ -362,7 +460,9 @@ static void eloop_sock_table_dispatch(struct eloop_sock_table *readers,
 					max_pollfd_map, POLLERR | POLLHUP);
 }
 
-#else /* CONFIG_ELOOP_POLL */
+#endif /* CONFIG_ELOOP_POLL */
+
+#ifdef CONFIG_ELOOP_SELECT
 
 static void eloop_sock_table_set_fds(struct eloop_sock_table *table,
 				     fd_set *fds)
@@ -374,8 +474,10 @@ static void eloop_sock_table_set_fds(struct eloop_sock_table *table,
 	if (table->table == NULL)
 		return;
 
-	for (i = 0; i < table->count; i++)
+	for (i = 0; i < table->count; i++) {
+		assert(table->table[i].sock >= 0);
 		FD_SET(table->table[i].sock, fds);
+	}
 }
 
 
@@ -399,7 +501,28 @@ static void eloop_sock_table_dispatch(struct eloop_sock_table *table,
 	}
 }
 
-#endif /* CONFIG_ELOOP_POLL */
+#endif /* CONFIG_ELOOP_SELECT */
+
+
+#ifdef CONFIG_ELOOP_EPOLL
+static void eloop_sock_table_dispatch(struct epoll_event *events, int nfds)
+{
+	struct eloop_sock *table;
+	int i;
+
+	for (i = 0; i < nfds; i++) {
+		table = &eloop.epoll_table[events[i].data.fd];
+		if (table->handler == NULL)
+			continue;
+		table->handler(table->sock, table->eloop_data,
+			       table->user_data);
+		if (eloop.readers.changed ||
+		    eloop.writers.changed ||
+		    eloop.exceptions.changed)
+			break;
+	}
+}
+#endif /* CONFIG_ELOOP_EPOLL */
 
 
 static void eloop_sock_table_destroy(struct eloop_sock_table *table)
@@ -459,6 +582,7 @@ int eloop_register_sock(int sock, eloop_event_type type,
 {
 	struct eloop_sock_table *table;
 
+	assert(sock >= 0);
 	table = eloop_get_sock_table(type);
 	return eloop_sock_table_add_sock(table, sock, handler,
 					 eloop_data, user_data);
@@ -484,7 +608,7 @@ int eloop_register_timeout(unsigned int secs, unsigned int usecs,
 	timeout = os_zalloc(sizeof(*timeout));
 	if (timeout == NULL)
 		return -1;
-	if (os_get_time(&timeout->time) < 0) {
+	if (os_get_reltime(&timeout->time) < 0) {
 		os_free(timeout);
 		return -1;
 	}
@@ -514,7 +638,7 @@ int eloop_register_timeout(unsigned int secs, unsigned int usecs,
 
 	/* Maintain timeouts in order of increasing time */
 	dl_list_for_each(tmp, &eloop.timeout, struct eloop_timeout, list) {
-		if (os_time_before(&timeout->time, &tmp->time)) {
+		if (os_reltime_before(&timeout->time, &tmp->time)) {
 			dl_list_add(tmp->list.prev, &timeout->list);
 			return 0;
 		}
@@ -556,6 +680,33 @@ int eloop_cancel_timeout(eloop_timeout_handler handler,
 }
 
 
+int eloop_cancel_timeout_one(eloop_timeout_handler handler,
+			     void *eloop_data, void *user_data,
+			     struct os_reltime *remaining)
+{
+	struct eloop_timeout *timeout, *prev;
+	int removed = 0;
+	struct os_reltime now;
+
+	os_get_reltime(&now);
+	remaining->sec = remaining->usec = 0;
+
+	dl_list_for_each_safe(timeout, prev, &eloop.timeout,
+			      struct eloop_timeout, list) {
+		if (timeout->handler == handler &&
+		    (timeout->eloop_data == eloop_data) &&
+		    (timeout->user_data == user_data)) {
+			removed = 1;
+			if (os_reltime_before(&now, &timeout->time))
+				os_reltime_sub(&timeout->time, &now, remaining);
+			eloop_remove_timeout(timeout);
+			break;
+		}
+	}
+	return removed;
+}
+
+
 int eloop_is_timeout_registered(eloop_timeout_handler handler,
 				void *eloop_data, void *user_data)
 {
@@ -569,6 +720,70 @@ int eloop_is_timeout_registered(eloop_timeout_handler handler,
 	}
 
 	return 0;
+}
+
+
+int eloop_deplete_timeout(unsigned int req_secs, unsigned int req_usecs,
+			  eloop_timeout_handler handler, void *eloop_data,
+			  void *user_data)
+{
+	struct os_reltime now, requested, remaining;
+	struct eloop_timeout *tmp;
+
+	dl_list_for_each(tmp, &eloop.timeout, struct eloop_timeout, list) {
+		if (tmp->handler == handler &&
+		    tmp->eloop_data == eloop_data &&
+		    tmp->user_data == user_data) {
+			requested.sec = req_secs;
+			requested.usec = req_usecs;
+			os_get_reltime(&now);
+			os_reltime_sub(&tmp->time, &now, &remaining);
+			if (os_reltime_before(&requested, &remaining)) {
+				eloop_cancel_timeout(handler, eloop_data,
+						     user_data);
+				eloop_register_timeout(requested.sec,
+						       requested.usec,
+						       handler, eloop_data,
+						       user_data);
+				return 1;
+			}
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+
+int eloop_replenish_timeout(unsigned int req_secs, unsigned int req_usecs,
+			    eloop_timeout_handler handler, void *eloop_data,
+			    void *user_data)
+{
+	struct os_reltime now, requested, remaining;
+	struct eloop_timeout *tmp;
+
+	dl_list_for_each(tmp, &eloop.timeout, struct eloop_timeout, list) {
+		if (tmp->handler == handler &&
+		    tmp->eloop_data == eloop_data &&
+		    tmp->user_data == user_data) {
+			requested.sec = req_secs;
+			requested.usec = req_usecs;
+			os_get_reltime(&now);
+			os_reltime_sub(&tmp->time, &now, &remaining);
+			if (os_reltime_before(&remaining, &requested)) {
+				eloop_cancel_timeout(handler, eloop_data,
+						     user_data);
+				eloop_register_timeout(requested.sec,
+						       requested.usec,
+						       handler, eloop_data,
+						       user_data);
+				return 1;
+			}
+			return 0;
+		}
+	}
+
+	return -1;
 }
 
 
@@ -682,39 +897,58 @@ void eloop_run(void)
 #ifdef CONFIG_ELOOP_POLL
 	int num_poll_fds;
 	int timeout_ms = 0;
-#else /* CONFIG_ELOOP_POLL */
+#endif /* CONFIG_ELOOP_POLL */
+#ifdef CONFIG_ELOOP_SELECT
 	fd_set *rfds, *wfds, *efds;
 	struct timeval _tv;
-#endif /* CONFIG_ELOOP_POLL */
+#endif /* CONFIG_ELOOP_SELECT */
+#ifdef CONFIG_ELOOP_EPOLL
+	int timeout_ms = -1;
+#endif /* CONFIG_ELOOP_EPOLL */
 	int res;
-	struct os_time tv, now;
+	struct os_reltime tv, now;
 
-#ifndef CONFIG_ELOOP_POLL
+#ifdef CONFIG_ELOOP_SELECT
 	rfds = os_malloc(sizeof(*rfds));
 	wfds = os_malloc(sizeof(*wfds));
 	efds = os_malloc(sizeof(*efds));
 	if (rfds == NULL || wfds == NULL || efds == NULL)
 		goto out;
-#endif /* CONFIG_ELOOP_POLL */
+#endif /* CONFIG_ELOOP_SELECT */
 
 	while (!eloop.terminate &&
 	       (!dl_list_empty(&eloop.timeout) || eloop.readers.count > 0 ||
 		eloop.writers.count > 0 || eloop.exceptions.count > 0)) {
 		struct eloop_timeout *timeout;
+
+		if (eloop.pending_terminate) {
+			/*
+			 * This may happen in some corner cases where a signal
+			 * is received during a blocking operation. We need to
+			 * process the pending signals and exit if requested to
+			 * avoid hitting the SIGALRM limit if the blocking
+			 * operation took more than two seconds.
+			 */
+			eloop_process_pending_signals();
+			if (eloop.terminate)
+				break;
+		}
+
 		timeout = dl_list_first(&eloop.timeout, struct eloop_timeout,
 					list);
 		if (timeout) {
-			os_get_time(&now);
-			if (os_time_before(&now, &timeout->time))
-				os_time_sub(&timeout->time, &now, &tv);
+			os_get_reltime(&now);
+			if (os_reltime_before(&now, &timeout->time))
+				os_reltime_sub(&timeout->time, &now, &tv);
 			else
 				tv.sec = tv.usec = 0;
-#ifdef CONFIG_ELOOP_POLL
+#if defined(CONFIG_ELOOP_POLL) || defined(CONFIG_ELOOP_EPOLL)
 			timeout_ms = tv.sec * 1000 + tv.usec / 1000;
-#else /* CONFIG_ELOOP_POLL */
+#endif /* defined(CONFIG_ELOOP_POLL) || defined(CONFIG_ELOOP_EPOLL) */
+#ifdef CONFIG_ELOOP_SELECT
 			_tv.tv_sec = tv.sec;
 			_tv.tv_usec = tv.usec;
-#endif /* CONFIG_ELOOP_POLL */
+#endif /* CONFIG_ELOOP_SELECT */
 		}
 
 #ifdef CONFIG_ELOOP_POLL
@@ -724,30 +958,49 @@ void eloop_run(void)
 			eloop.max_pollfd_map);
 		res = poll(eloop.pollfds, num_poll_fds,
 			   timeout ? timeout_ms : -1);
-
-		if (res < 0 && errno != EINTR && errno != 0) {
-			perror("poll");
-			goto out;
-		}
-#else /* CONFIG_ELOOP_POLL */
+#endif /* CONFIG_ELOOP_POLL */
+#ifdef CONFIG_ELOOP_SELECT
 		eloop_sock_table_set_fds(&eloop.readers, rfds);
 		eloop_sock_table_set_fds(&eloop.writers, wfds);
 		eloop_sock_table_set_fds(&eloop.exceptions, efds);
 		res = select(eloop.max_sock + 1, rfds, wfds, efds,
 			     timeout ? &_tv : NULL);
+#endif /* CONFIG_ELOOP_SELECT */
+#ifdef CONFIG_ELOOP_EPOLL
+		if (eloop.count == 0) {
+			res = 0;
+		} else {
+			res = epoll_wait(eloop.epollfd, eloop.epoll_events,
+					 eloop.count, timeout_ms);
+		}
+#endif /* CONFIG_ELOOP_EPOLL */
 		if (res < 0 && errno != EINTR && errno != 0) {
-			perror("select");
+			wpa_printf(MSG_ERROR, "eloop: %s: %s",
+#ifdef CONFIG_ELOOP_POLL
+				   "poll"
+#endif /* CONFIG_ELOOP_POLL */
+#ifdef CONFIG_ELOOP_SELECT
+				   "select"
+#endif /* CONFIG_ELOOP_SELECT */
+#ifdef CONFIG_ELOOP_EPOLL
+				   "epoll"
+#endif /* CONFIG_ELOOP_EPOLL */
+				   , strerror(errno));
 			goto out;
 		}
-#endif /* CONFIG_ELOOP_POLL */
+
+		eloop.readers.changed = 0;
+		eloop.writers.changed = 0;
+		eloop.exceptions.changed = 0;
+
 		eloop_process_pending_signals();
 
 		/* check if some registered timeouts have occurred */
 		timeout = dl_list_first(&eloop.timeout, struct eloop_timeout,
 					list);
 		if (timeout) {
-			os_get_time(&now);
-			if (!os_time_before(&now, &timeout->time)) {
+			os_get_reltime(&now);
+			if (!os_reltime_before(&now, &timeout->time)) {
 				void *eloop_data = timeout->eloop_data;
 				void *user_data = timeout->user_data;
 				eloop_timeout_handler handler =
@@ -761,23 +1014,41 @@ void eloop_run(void)
 		if (res <= 0)
 			continue;
 
+		if (eloop.readers.changed ||
+		    eloop.writers.changed ||
+		    eloop.exceptions.changed) {
+			 /*
+			  * Sockets may have been closed and reopened with the
+			  * same FD in the signal or timeout handlers, so we
+			  * must skip the previous results and check again
+			  * whether any of the currently registered sockets have
+			  * events.
+			  */
+			continue;
+		}
+
 #ifdef CONFIG_ELOOP_POLL
 		eloop_sock_table_dispatch(&eloop.readers, &eloop.writers,
 					  &eloop.exceptions, eloop.pollfds_map,
 					  eloop.max_pollfd_map);
-#else /* CONFIG_ELOOP_POLL */
+#endif /* CONFIG_ELOOP_POLL */
+#ifdef CONFIG_ELOOP_SELECT
 		eloop_sock_table_dispatch(&eloop.readers, rfds);
 		eloop_sock_table_dispatch(&eloop.writers, wfds);
 		eloop_sock_table_dispatch(&eloop.exceptions, efds);
-#endif /* CONFIG_ELOOP_POLL */
+#endif /* CONFIG_ELOOP_SELECT */
+#ifdef CONFIG_ELOOP_EPOLL
+		eloop_sock_table_dispatch(eloop.epoll_events, res);
+#endif /* CONFIG_ELOOP_EPOLL */
 	}
 
+	eloop.terminate = 0;
 out:
-#ifndef CONFIG_ELOOP_POLL
+#ifdef CONFIG_ELOOP_SELECT
 	os_free(rfds);
 	os_free(wfds);
 	os_free(efds);
-#endif /* CONFIG_ELOOP_POLL */
+#endif /* CONFIG_ELOOP_SELECT */
 	return;
 }
 
@@ -791,9 +1062,9 @@ void eloop_terminate(void)
 void eloop_destroy(void)
 {
 	struct eloop_timeout *timeout, *prev;
-	struct os_time now;
+	struct os_reltime now;
 
-	os_get_time(&now);
+	os_get_reltime(&now);
 	dl_list_for_each_safe(timeout, prev, &eloop.timeout,
 			      struct eloop_timeout, list) {
 		int sec, usec;
@@ -821,12 +1092,17 @@ void eloop_destroy(void)
 	os_free(eloop.pollfds);
 	os_free(eloop.pollfds_map);
 #endif /* CONFIG_ELOOP_POLL */
+#ifdef CONFIG_ELOOP_EPOLL
+	os_free(eloop.epoll_table);
+	os_free(eloop.epoll_events);
+	close(eloop.epollfd);
+#endif /* CONFIG_ELOOP_EPOLL */
 }
 
 
 int eloop_terminated(void)
 {
-	return eloop.terminate;
+	return eloop.terminate || eloop.pending_terminate;
 }
 
 
@@ -843,7 +1119,13 @@ void eloop_wait_for_read_sock(int sock)
 	pfd.events = POLLIN;
 
 	poll(&pfd, 1, -1);
-#else /* CONFIG_ELOOP_POLL */
+#endif /* CONFIG_ELOOP_POLL */
+#if defined(CONFIG_ELOOP_SELECT) || defined(CONFIG_ELOOP_EPOLL)
+	/*
+	 * We can use epoll() here. But epoll() requres 4 system calls.
+	 * epoll_create1(), epoll_ctl() for ADD, epoll_wait, and close() for
+	 * epoll fd. So select() is better for performance here.
+	 */
 	fd_set rfds;
 
 	if (sock < 0)
@@ -852,5 +1134,9 @@ void eloop_wait_for_read_sock(int sock)
 	FD_ZERO(&rfds);
 	FD_SET(sock, &rfds);
 	select(sock + 1, &rfds, NULL, NULL, NULL);
-#endif /* CONFIG_ELOOP_POLL */
+#endif /* defined(CONFIG_ELOOP_SELECT) || defined(CONFIG_ELOOP_EPOLL) */
 }
+
+#ifdef CONFIG_ELOOP_SELECT
+#undef CONFIG_ELOOP_SELECT
+#endif /* CONFIG_ELOOP_SELECT */

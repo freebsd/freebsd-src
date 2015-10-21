@@ -62,6 +62,14 @@ enum OpenMPScheduleClauseKind {
   OMPC_SCHEDULE_unknown
 };
 
+/// \brief OpenMP attributes for 'depend' clause.
+enum OpenMPDependClauseKind {
+#define OPENMP_DEPEND_KIND(Name) \
+  OMPC_DEPEND_##Name,
+#include "clang/Basic/OpenMPKinds.def"
+  OMPC_DEPEND_unknown
+};
+
 OpenMPDirectiveKind getOpenMPDirectiveKind(llvm::StringRef Str);
 const char *getOpenMPDirectiveName(OpenMPDirectiveKind Kind);
 
@@ -92,6 +100,12 @@ bool isOpenMPWorksharingDirective(OpenMPDirectiveKind DKind);
 /// \return true - the directive is a parallel-like directive like 'omp
 /// parallel', otherwise - false.
 bool isOpenMPParallelDirective(OpenMPDirectiveKind DKind);
+
+/// \brief Checks if the specified directive is a teams-kind directive.
+/// \param DKind Specified directive.
+/// \return true - the directive is a teams-like directive like 'omp teams',
+/// otherwise - false.
+bool isOpenMPTeamsDirective(OpenMPDirectiveKind DKind);
 
 /// \brief Checks if the specified directive is a simd directive.
 /// \param DKind Specified directive.

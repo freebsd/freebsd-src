@@ -15,7 +15,7 @@
 #include "InstPrinter/MipsInstPrinter.h"
 #include "MipsAnalyzeImmediate.h"
 #include "MipsMachineFunction.h"
-#include "MipsTargetMachine.h"
+#include "MipsSubtarget.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -96,8 +96,7 @@ bool MipsInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
 
 void
 MipsInstrInfo::BuildCondBr(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
-                           DebugLoc DL,
-                           const SmallVectorImpl<MachineOperand> &Cond) const {
+                           DebugLoc DL, ArrayRef<MachineOperand> Cond) const {
   unsigned Opc = Cond[0].getImm();
   const MCInstrDesc &MCID = get(Opc);
   MachineInstrBuilder MIB = BuildMI(&MBB, DL, MCID);
@@ -115,7 +114,7 @@ MipsInstrInfo::BuildCondBr(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
 
 unsigned MipsInstrInfo::InsertBranch(
     MachineBasicBlock &MBB, MachineBasicBlock *TBB, MachineBasicBlock *FBB,
-    const SmallVectorImpl<MachineOperand> &Cond, DebugLoc DL) const {
+    ArrayRef<MachineOperand> Cond, DebugLoc DL) const {
   // Shouldn't be a fall through.
   assert(TBB && "InsertBranch must not be told to insert a fallthrough");
 

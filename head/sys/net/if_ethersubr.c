@@ -225,10 +225,10 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		if (lle != NULL && (pflags & LLE_VALID))
 			memcpy(edst, &lle->ll_addr.mac16, sizeof(edst));
 		else
-			error = nd6_storelladdr(ifp, m, dst, (u_char *)edst,
+			error = nd6_resolve(ifp, is_gw, m, dst, (u_char *)edst,
 			    &pflags);
 		if (error)
-			return error;
+			return (error == EWOULDBLOCK ? 0 : error);
 		type = htons(ETHERTYPE_IPV6);
 		break;
 #endif
@@ -392,16 +392,6 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 		return;
 	}
 #endif
-	/*
-	 * Do consistency checks to verify assumptions
-	 * made by code past this point.
-	 */
-	if ((m->m_flags & M_PKTHDR) == 0) {
-		if_printf(ifp, "discard frame w/o packet header\n");
-		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
-		m_freem(m);
-		return;
-	}
 	if (m->m_len < ETHER_HDR_LEN) {
 		/* XXX maybe should pullup? */
 		if_printf(ifp, "discard frame w/o leading ethernet "
@@ -413,18 +403,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	}
 	eh = mtod(m, struct ether_header *);
 	etype = ntohs(eh->ether_type);
-	if (m->m_pkthdr.rcvif == NULL) {
-		if_printf(ifp, "discard frame w/o interface pointer\n");
-		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
-		m_freem(m);
-		return;
-	}
-#ifdef DIAGNOSTIC
-	if (m->m_pkthdr.rcvif != ifp) {
-		if_printf(ifp, "Warning, frame marked as received on %s\n",
-			m->m_pkthdr.rcvif->if_xname);
-	}
-#endif
+	random_harvest_queue(m, sizeof(*m), 2, RANDOM_NET_ETHER);
 
 	CURVNET_SET_QUIET(ifp->if_vnet);
 
@@ -497,7 +476,6 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 			if_printf(ifp, "cannot pullup VLAN header\n");
 #endif
 			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
-			m_freem(m);
 			CURVNET_RESTORE();
 			return;
 		}
@@ -570,8 +548,6 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 			m->m_flags |= M_PROMISC;
 	}
 
-	random_harvest(&(m->m_data), 12, 2, RANDOM_NET_ETHER);
-
 	ether_demux(ifp, m);
 	CURVNET_RESTORE();
 }
@@ -599,6 +575,9 @@ static void
 ether_nh_input(struct mbuf *m)
 {
 
+	M_ASSERTPKTHDR(m);
+	KASSERT(m->m_pkthdr.rcvif != NULL,
+	    ("%s: NULL interface pointer", __func__));
 	ether_input_internal(m->m_pkthdr.rcvif, m);
 }
 

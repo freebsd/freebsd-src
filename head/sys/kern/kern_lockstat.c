@@ -21,42 +21,61 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-/*
- * Backend for the lock tracing (lockstat) kernel support. This is required 
- * to allow a module to load even though DTrace kernel support may not be 
- * present. 
- *
- */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#ifdef KDTRACE_HOOKS
-
-#include <sys/time.h>
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/lock.h>
 #include <sys/lockstat.h>
+#include <sys/sdt.h>
+#include <sys/time.h>
 
-/*
- * The following must match the type definition of dtrace_probe.  It is  
- * defined this way to avoid having to rely on CDDL code.
- */
-uint32_t lockstat_probemap[LS_NPROBES];
-void (*lockstat_probe_func)(uint32_t, uintptr_t, uintptr_t,
-    uintptr_t, uintptr_t, uintptr_t);
+SDT_PROVIDER_DEFINE(lockstat);
 
+SDT_PROBE_DEFINE1(lockstat, , , adaptive__acquire, "struct mtx *");
+SDT_PROBE_DEFINE1(lockstat, , , adaptive__release, "struct mtx *");
+SDT_PROBE_DEFINE2(lockstat, , , adaptive__spin, "struct mtx *", "uint64_t");
+SDT_PROBE_DEFINE2(lockstat, , , adaptive__block, "struct mtx *", "uint64_t");
+
+SDT_PROBE_DEFINE1(lockstat, , , spin__acquire, "struct mtx *");
+SDT_PROBE_DEFINE1(lockstat, , , spin__release, "struct mtx *");
+SDT_PROBE_DEFINE2(lockstat, , , spin__spin, "struct mtx *", "uint64_t");
+
+SDT_PROBE_DEFINE2(lockstat, , , rw__acquire, "struct rwlock *", "int");
+SDT_PROBE_DEFINE2(lockstat, , , rw__release, "struct rwlock *", "int");
+SDT_PROBE_DEFINE5(lockstat, , , rw__block, "struct rwlock *", "uint64_t", "int",
+    "int", "int");
+SDT_PROBE_DEFINE2(lockstat, , , rw__spin, "struct rwlock *", "uint64_t");
+SDT_PROBE_DEFINE1(lockstat, , , rw__upgrade, "struct rwlock *");
+SDT_PROBE_DEFINE1(lockstat, , , rw__downgrade, "struct rwlock *");
+
+SDT_PROBE_DEFINE2(lockstat, , , sx__acquire, "struct sx *", "int");
+SDT_PROBE_DEFINE2(lockstat, , , sx__release, "struct sx *", "int");
+SDT_PROBE_DEFINE5(lockstat, , , sx__block, "struct sx *", "uint64_t", "int",
+    "int", "int");
+SDT_PROBE_DEFINE2(lockstat, , , sx__spin, "struct sx *", "uint64_t");
+SDT_PROBE_DEFINE1(lockstat, , , sx__upgrade, "struct sx *");
+SDT_PROBE_DEFINE1(lockstat, , , sx__downgrade, "struct sx *");
+
+SDT_PROBE_DEFINE2(lockstat, , , thread__spin, "struct mtx *", "uint64_t");
+
+int lockstat_enabled = 0;
 
 uint64_t 
-lockstat_nsecs(void)
+lockstat_nsecs(struct lock_object *lo)
 {
 	struct bintime bt;
 	uint64_t ns;
+
+	if (!lockstat_enabled)
+		return (0);
+	if ((lo->lo_flags & LO_NOPROFILE) != 0)
+		return (0);
 
 	binuptime(&bt);
 	ns = bt.sec * (uint64_t)1000000000;
 	ns += ((uint64_t)1000000000 * (uint32_t)(bt.frac >> 32)) >> 32;
 	return (ns);
 }
-
-#endif /* KDTRACE_HOOKS */

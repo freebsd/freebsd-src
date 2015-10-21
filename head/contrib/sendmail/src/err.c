@@ -94,7 +94,7 @@ fatal_error(exc)
 **	reply code defaults to 451 or 554, depending on errno.
 **
 **	Parameters:
-**		fmt -- the format string.  An optional '!' or '@',
+**		fmt -- the format string.  An optional '!', '@', or '+',
 **			followed by an optional three-digit SMTP
 **			reply code, followed by message text.
 **		(others) -- parameters
@@ -127,8 +127,7 @@ syserr(fmt, va_alist)
 {
 	register char *p;
 	int save_errno = errno;
-	bool panic;
-	bool exiting;
+	bool panic, exiting, keep;
 	char *user;
 	char *enhsc;
 	char *errtxt;
@@ -136,21 +135,22 @@ syserr(fmt, va_alist)
 	char ubuf[80];
 	SM_VA_LOCAL_DECL
 
+	panic = exiting = keep = false;
 	switch (*fmt)
 	{
 	  case '!':
 		++fmt;
-		panic = true;
-		exiting = true;
+		panic = exiting = true;
 		break;
 	  case '@':
 		++fmt;
-		panic = false;
 		exiting = true;
 		break;
+	  case '+':
+		++fmt;
+		keep = true;
+		break;
 	  default:
-		panic = false;
-		exiting = false;
 		break;
 	}
 
@@ -182,7 +182,7 @@ syserr(fmt, va_alist)
 	puterrmsg(MsgBuf);
 
 	/* save this message for mailq printing */
-	if (!panic && CurEnv != NULL)
+	if (!panic && CurEnv != NULL && (!keep || CurEnv->e_message == NULL))
 	{
 		char *nmsg = sm_rpool_strdup_x(CurEnv->e_rpool, errtxt);
 
@@ -479,6 +479,108 @@ message(msg, va_alist)
 	}
 }
 
+#if _FFR_PROXY
+/*
+**  EMESSAGE -- print message (not necessarily an error)
+**	(same as message() but requires reply code and enhanced status code)
+**
+**	Parameters:
+**		replycode -- SMTP reply code.
+**		enhsc -- enhanced status code.
+**		msg -- the message (sm_io_printf fmt) -- it can begin with
+**			an SMTP reply code.  If not, 050 is assumed.
+**		(others) -- sm_io_printf arguments
+**
+**	Returns:
+**		none
+**
+**	Side Effects:
+**		none.
+*/
+
+/*VARARGS3*/
+void
+# ifdef __STDC__
+emessage(const char *replycode, const char *enhsc, const char *msg, ...)
+# else /* __STDC__ */
+emessage(replycode, enhsc, msg, va_alist)
+	const char *replycode;
+	const char *enhsc;
+	const char *msg;
+	va_dcl
+# endif /* __STDC__ */
+{
+	char *errtxt;
+	SM_VA_LOCAL_DECL
+
+	errno = 0;
+	SM_VA_START(ap, msg);
+	errtxt = fmtmsg(MsgBuf, CurEnv->e_to, replycode, enhsc, 0, msg, ap);
+	SM_VA_END(ap);
+	putoutmsg(MsgBuf, false, false);
+
+	/* save this message for mailq printing */
+	switch (MsgBuf[0])
+	{
+	  case '4':
+	  case '8':
+		if (CurEnv->e_message != NULL)
+			break;
+		/* FALLTHROUGH */
+
+	  case '5':
+		if (CurEnv->e_rpool == NULL && CurEnv->e_message != NULL)
+			sm_free(CurEnv->e_message);
+		CurEnv->e_message = sm_rpool_strdup_x(CurEnv->e_rpool, errtxt);
+		break;
+	}
+}
+
+/*
+**  EXTSC -- check and extract a status codes
+**
+**	Parameters:
+**		msg -- string with possible enhanced status code.
+**		delim -- delim for enhanced status code.
+**		replycode -- pointer to storage for SMTP reply code;
+**			must be != NULL and have space for at least
+**			4 characters.
+**		enhsc -- pointer to storage for enhanced status code;
+**			must be != NULL and have space for at least
+**			10 characters ([245].[0-9]{1,3}.[0-9]{1,3})
+**
+**	Returns:
+**		-1  -- no SMTP reply code.
+**		>=3 -- offset of error text in msg.
+**		(<=4  -- no enhanced status code)
+*/
+
+int
+extsc(msg, delim, replycode, enhsc)
+	const char *msg;
+	int delim;
+	char *replycode;
+	char *enhsc;
+{
+	int offset;
+
+	SM_REQUIRE(replycode != NULL);
+	SM_REQUIRE(enhsc != NULL);
+	replycode[0] = '\0';
+	enhsc[0] = '\0';
+	if (msg == NULL)
+		return -1;
+	if (!ISSMTPREPLY(msg))
+		return -1;
+	sm_strlcpy(replycode, msg, 4);
+	if (msg[3] == '\0')
+		return 3;
+	offset = 4;
+	if (isenhsc(msg + 4, delim))
+		offset = extenhsc(msg + 4, delim, enhsc) + 4;
+	return offset;
+}
+#endif /* _FFR_PROXY */
 
 /*
 **  NMESSAGE -- print message (not necessarily an error)
@@ -1138,7 +1240,7 @@ sm_errstring(errnum)
 	}
 
 #if LDAPMAP
-	if (errnum >= E_LDAPBASE)
+	if (errnum >= E_LDAPBASE - E_LDAP_SHIM)
 		return ldap_err2string(errnum - E_LDAPBASE);
 #endif /* LDAPMAP */
 

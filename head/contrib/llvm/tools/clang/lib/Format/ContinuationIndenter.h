@@ -13,10 +13,11 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FORMAT_CONTINUATION_INDENTER_H
-#define LLVM_CLANG_FORMAT_CONTINUATION_INDENTER_H
+#ifndef LLVM_CLANG_LIB_FORMAT_CONTINUATIONINDENTER_H
+#define LLVM_CLANG_LIB_FORMAT_CONTINUATIONINDENTER_H
 
 #include "Encoding.h"
+#include "FormatToken.h"
 #include "clang/Format/Format.h"
 #include "llvm/Support/Regex.h"
 
@@ -35,8 +36,9 @@ class ContinuationIndenter {
 public:
   /// \brief Constructs a \c ContinuationIndenter to format \p Line starting in
   /// column \p FirstIndent.
-  ContinuationIndenter(const FormatStyle &Style, SourceManager &SourceMgr,
-                       WhitespaceManager &Whitespaces,
+  ContinuationIndenter(const FormatStyle &Style,
+                       const AdditionalKeywords &Keywords,
+                       SourceManager &SourceMgr, WhitespaceManager &Whitespaces,
                        encoding::Encoding Encoding,
                        bool BinPackInconclusiveFunctions);
 
@@ -134,6 +136,7 @@ private:
   bool nextIsMultilineString(const LineState &State);
 
   FormatStyle Style;
+  const AdditionalKeywords &Keywords;
   SourceManager &SourceMgr;
   WhitespaceManager &Whitespaces;
   encoding::Encoding Encoding;
@@ -145,14 +148,12 @@ struct ParenState {
   ParenState(unsigned Indent, unsigned IndentLevel, unsigned LastSpace,
              bool AvoidBinPacking, bool NoLineBreak)
       : Indent(Indent), IndentLevel(IndentLevel), LastSpace(LastSpace),
-        FirstLessLess(0), BreakBeforeClosingBrace(false), QuestionColumn(0),
+        NestedBlockIndent(Indent), BreakBeforeClosingBrace(false),
         AvoidBinPacking(AvoidBinPacking), BreakBeforeParameter(false),
-        NoLineBreak(NoLineBreak), LastOperatorWrapped(true), ColonPos(0),
-        StartOfFunctionCall(0), StartOfArraySubscripts(0),
-        NestedNameSpecifierContinuation(0), CallContinuation(0), VariablePos(0),
-        ContainsLineBreak(false), ContainsUnwrappedBuilder(0),
+        NoLineBreak(NoLineBreak), LastOperatorWrapped(true),
+        ContainsLineBreak(false), ContainsUnwrappedBuilder(false),
         AlignColons(true), ObjCSelectorNameFound(false),
-        HasMultipleNestedBlocks(false), JSFunctionInlined(false) {}
+        HasMultipleNestedBlocks(false), NestedBlockInlined(false) {}
 
   /// \brief The position to which a specific parenthesis level needs to be
   /// indented.
@@ -168,100 +169,106 @@ struct ParenState {
   ///                             OtherParameter));
   unsigned LastSpace;
 
+  /// \brief If a block relative to this parenthesis level gets wrapped, indent
+  /// it this much.
+  unsigned NestedBlockIndent;
+
   /// \brief The position the first "<<" operator encountered on each level.
   ///
   /// Used to align "<<" operators. 0 if no such operator has been encountered
   /// on a level.
-  unsigned FirstLessLess;
+  unsigned FirstLessLess = 0;
+
+  /// \brief The column of a \c ? in a conditional expression;
+  unsigned QuestionColumn = 0;
+
+  /// \brief The position of the colon in an ObjC method declaration/call.
+  unsigned ColonPos = 0;
+
+  /// \brief The start of the most recent function in a builder-type call.
+  unsigned StartOfFunctionCall = 0;
+
+  /// \brief Contains the start of array subscript expressions, so that they
+  /// can be aligned.
+  unsigned StartOfArraySubscripts = 0;
+
+  /// \brief If a nested name specifier was broken over multiple lines, this
+  /// contains the start column of the second line. Otherwise 0.
+  unsigned NestedNameSpecifierContinuation = 0;
+
+  /// \brief If a call expression was broken over multiple lines, this
+  /// contains the start column of the second line. Otherwise 0.
+  unsigned CallContinuation = 0;
+
+  /// \brief The column of the first variable name in a variable declaration.
+  ///
+  /// Used to align further variables if necessary.
+  unsigned VariablePos = 0;
 
   /// \brief Whether a newline needs to be inserted before the block's closing
   /// brace.
   ///
   /// We only want to insert a newline before the closing brace if there also
   /// was a newline after the beginning left brace.
-  bool BreakBeforeClosingBrace;
-
-  /// \brief The column of a \c ? in a conditional expression;
-  unsigned QuestionColumn;
+  bool BreakBeforeClosingBrace : 1;
 
   /// \brief Avoid bin packing, i.e. multiple parameters/elements on multiple
   /// lines, in this context.
-  bool AvoidBinPacking;
+  bool AvoidBinPacking : 1;
 
   /// \brief Break after the next comma (or all the commas in this context if
   /// \c AvoidBinPacking is \c true).
-  bool BreakBeforeParameter;
+  bool BreakBeforeParameter : 1;
 
   /// \brief Line breaking in this context would break a formatting rule.
-  bool NoLineBreak;
+  bool NoLineBreak : 1;
 
   /// \brief True if the last binary operator on this level was wrapped to the
   /// next line.
-  bool LastOperatorWrapped;
-
-  /// \brief The position of the colon in an ObjC method declaration/call.
-  unsigned ColonPos;
-
-  /// \brief The start of the most recent function in a builder-type call.
-  unsigned StartOfFunctionCall;
-
-  /// \brief Contains the start of array subscript expressions, so that they
-  /// can be aligned.
-  unsigned StartOfArraySubscripts;
-
-  /// \brief If a nested name specifier was broken over multiple lines, this
-  /// contains the start column of the second line. Otherwise 0.
-  unsigned NestedNameSpecifierContinuation;
-
-  /// \brief If a call expression was broken over multiple lines, this
-  /// contains the start column of the second line. Otherwise 0.
-  unsigned CallContinuation;
-
-  /// \brief The column of the first variable name in a variable declaration.
-  ///
-  /// Used to align further variables if necessary.
-  unsigned VariablePos;
+  bool LastOperatorWrapped : 1;
 
   /// \brief \c true if this \c ParenState already contains a line-break.
   ///
   /// The first line break in a certain \c ParenState causes extra penalty so
   /// that clang-format prefers similar breaks, i.e. breaks in the same
   /// parenthesis.
-  bool ContainsLineBreak;
+  bool ContainsLineBreak : 1;
 
   /// \brief \c true if this \c ParenState contains multiple segments of a
   /// builder-type call on one line.
-  bool ContainsUnwrappedBuilder;
+  bool ContainsUnwrappedBuilder : 1;
 
   /// \brief \c true if the colons of the curren ObjC method expression should
   /// be aligned.
   ///
   /// Not considered for memoization as it will always have the same value at
   /// the same token.
-  bool AlignColons;
+  bool AlignColons : 1;
 
   /// \brief \c true if at least one selector name was found in the current
   /// ObjC method expression.
   ///
   /// Not considered for memoization as it will always have the same value at
   /// the same token.
-  bool ObjCSelectorNameFound;
+  bool ObjCSelectorNameFound : 1;
 
   /// \brief \c true if there are multiple nested blocks inside these parens.
   ///
   /// Not considered for memoization as it will always have the same value at
   /// the same token.
-  bool HasMultipleNestedBlocks;
+  bool HasMultipleNestedBlocks : 1;
 
-  // \brief The previous JavaScript 'function' keyword is not wrapped to a new
-  // line.
-  bool JSFunctionInlined;
+  // \brief The start of a nested block (e.g. lambda introducer in C++ or
+  // "function" in JavaScript) is not wrapped to a new line.
+  bool NestedBlockInlined : 1;
 
   bool operator<(const ParenState &Other) const {
     if (Indent != Other.Indent)
       return Indent < Other.Indent;
     if (LastSpace != Other.LastSpace)
       return LastSpace < Other.LastSpace;
+    if (NestedBlockIndent != Other.NestedBlockIndent)
+      return NestedBlockIndent < Other.NestedBlockIndent;
     if (FirstLessLess != Other.FirstLessLess)
       return FirstLessLess < Other.FirstLessLess;
     if (BreakBeforeClosingBrace != Other.BreakBeforeClosingBrace)
@@ -287,11 +294,11 @@ struct ParenState {
     if (VariablePos != Other.VariablePos)
       return VariablePos < Other.VariablePos;
     if (ContainsLineBreak != Other.ContainsLineBreak)
-      return ContainsLineBreak < Other.ContainsLineBreak;
+      return ContainsLineBreak;
     if (ContainsUnwrappedBuilder != Other.ContainsUnwrappedBuilder)
-      return ContainsUnwrappedBuilder < Other.ContainsUnwrappedBuilder;
-    if (JSFunctionInlined != Other.JSFunctionInlined)
-      return JSFunctionInlined < Other.JSFunctionInlined;
+      return ContainsUnwrappedBuilder;
+    if (NestedBlockInlined != Other.NestedBlockInlined)
+      return NestedBlockInlined;
     return false;
   }
 };
@@ -370,4 +377,4 @@ struct LineState {
 } // end namespace format
 } // end namespace clang
 
-#endif // LLVM_CLANG_FORMAT_CONTINUATION_INDENTER_H
+#endif

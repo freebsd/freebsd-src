@@ -171,20 +171,14 @@ apb_attach(device_t dev)
 	 * Get current bridge configuration.
 	 */
 	sc->sc_bsc.ops_pcib_sc.domain = pci_get_domain(dev);
-	sc->sc_bsc.ops_pcib_sc.secstat =
-	    pci_read_config(dev, PCIR_SECSTAT_1, 2);
-	sc->sc_bsc.ops_pcib_sc.command =
-	    pci_read_config(dev, PCIR_COMMAND, 2);
-	sc->sc_bsc.ops_pcib_sc.pribus =
-	    pci_read_config(dev, PCIR_PRIBUS_1, 1);
+	sc->sc_bsc.ops_pcib_sc.pribus = pci_get_bus(dev);
+	pci_write_config(dev, PCIR_PRIBUS_1, sc->sc_bsc.ops_pcib_sc.pribus, 1);
 	sc->sc_bsc.ops_pcib_sc.bus.sec =
 	    pci_read_config(dev, PCIR_SECBUS_1, 1);
 	sc->sc_bsc.ops_pcib_sc.bus.sub =
 	    pci_read_config(dev, PCIR_SUBBUS_1, 1);
 	sc->sc_bsc.ops_pcib_sc.bridgectl =
 	    pci_read_config(dev, PCIR_BRIDGECTL_1, 2);
-	sc->sc_bsc.ops_pcib_sc.seclat =
-	    pci_read_config(dev, PCIR_SECLAT_1, 1);
 	sc->sc_iomap = pci_read_config(dev, APBR_IOMAP, 1);
 	sc->sc_memmap = pci_read_config(dev, APBR_MEMMAP, 1);
 

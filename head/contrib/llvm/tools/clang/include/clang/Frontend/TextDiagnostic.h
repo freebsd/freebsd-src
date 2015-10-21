@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FRONTEND_TEXT_DIAGNOSTIC_H_
-#define LLVM_CLANG_FRONTEND_TEXT_DIAGNOSTIC_H_
+#ifndef LLVM_CLANG_FRONTEND_TEXTDIAGNOSTIC_H
+#define LLVM_CLANG_FRONTEND_TEXTDIAGNOSTIC_H
 
 #include "clang/Frontend/DiagnosticRenderer.h"
 
@@ -40,8 +40,8 @@ public:
                  const LangOptions &LangOpts,
                  DiagnosticOptions *DiagOpts);
 
-  virtual ~TextDiagnostic();
-  
+  ~TextDiagnostic() override;
+
   /// \brief Print the diagonstic level to a raw_ostream.
   ///
   /// This is a static helper that handles colorizing the level and formatting

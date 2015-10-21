@@ -146,6 +146,18 @@ ahci_ctlr_reset(device_t dev)
 	}
 	/* Reenable AHCI mode */
 	ATA_OUTL(ctlr->r_mem, AHCI_GHC, AHCI_GHC_AE);
+
+	if (ctlr->quirks & AHCI_Q_RESTORE_CAP) {
+		/*
+		 * Restore capability field.
+		 * This is write to a read-only register to restore its state.
+		 * On fully standard-compliant hardware this is not needed and
+		 * this operation shall not take place. See ahci_pci.c for
+		 * platforms using this quirk.
+		 */
+		ATA_OUTL(ctlr->r_mem, AHCI_CAP, ctlr->caps);
+	}
+
 	return (0);
 }
 
@@ -169,12 +181,12 @@ ahci_attach(device_t dev)
 	ctlr->sc_iomem.rm_type = RMAN_ARRAY;
 	ctlr->sc_iomem.rm_descr = "I/O memory addresses";
 	if ((error = rman_init(&ctlr->sc_iomem)) != 0) {
-		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
+		ahci_free_mem(dev);
 		return (error);
 	}
 	if ((error = rman_manage_region(&ctlr->sc_iomem,
 	    rman_get_start(ctlr->r_mem), rman_get_end(ctlr->r_mem))) != 0) {
-		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
+		ahci_free_mem(dev);
 		rman_fini(&ctlr->sc_iomem);
 		return (error);
 	}
@@ -185,6 +197,22 @@ ahci_attach(device_t dev)
 		ctlr->caps2 = ATA_INL(ctlr->r_mem, AHCI_CAP2);
 	if (ctlr->caps & AHCI_CAP_EMS)
 		ctlr->capsem = ATA_INL(ctlr->r_mem, AHCI_EM_CTL);
+
+	if (ctlr->quirks & AHCI_Q_FORCE_PI) {
+		/*
+		 * Enable ports. 
+		 * The spec says that BIOS sets up bits corresponding to
+		 * available ports. On platforms where this information
+		 * is missing, the driver can define available ports on its own.
+		 */
+		int nports = (ctlr->caps & AHCI_CAP_NPMASK) + 1;
+		int nmask = (1 << nports) - 1;
+
+		ATA_OUTL(ctlr->r_mem, AHCI_PI, nmask);
+		device_printf(dev, "Forcing PI to %d ports (mask = %x)\n",
+		    nports, nmask);
+	}
+
 	ctlr->ichannels = ATA_INL(ctlr->r_mem, AHCI_PI);
 
 	/* Identify and set separate quirks for HBA and RAID f/w Marvells. */
@@ -222,8 +250,7 @@ ahci_attach(device_t dev)
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    BUS_SPACE_MAXSIZE, BUS_SPACE_UNRESTRICTED, BUS_SPACE_MAXSIZE,
 	    0, NULL, NULL, &ctlr->dma_tag)) {
-		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid,
-		    ctlr->r_mem);
+		ahci_free_mem(dev);
 		rman_fini(&ctlr->sc_iomem);
 		return (ENXIO);
 	}
@@ -233,8 +260,7 @@ ahci_attach(device_t dev)
 	/* Setup interrupts. */
 	if ((error = ahci_setup_interrupt(dev)) != 0) {
 		bus_dma_tag_destroy(ctlr->dma_tag);
-		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid,
-		    ctlr->r_mem);
+		ahci_free_mem(dev);
 		rman_fini(&ctlr->sc_iomem);
 		return (error);
 	}
@@ -339,9 +365,26 @@ ahci_detach(device_t dev)
 	bus_dma_tag_destroy(ctlr->dma_tag);
 	/* Free memory. */
 	rman_fini(&ctlr->sc_iomem);
+	ahci_free_mem(dev);
+	return (0);
+}
+
+void
+ahci_free_mem(device_t dev)
+{
+	struct ahci_controller *ctlr = device_get_softc(dev);
+
+	/* Release memory resources */
 	if (ctlr->r_mem)
 		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
-	return (0);
+	if (ctlr->r_msix_table)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    ctlr->r_msix_tab_rid, ctlr->r_msix_table);
+	if (ctlr->r_msix_pba)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    ctlr->r_msix_pba_rid, ctlr->r_msix_pba);
+
+	ctlr->r_msix_pba = ctlr->r_mem = ctlr->r_msix_table = NULL;
 }
 
 int
@@ -610,7 +653,7 @@ ahci_ch_probe(device_t dev)
 {
 
 	device_set_desc_copy(dev, "AHCI channel");
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -626,6 +669,7 @@ ahci_ch_attach(device_t dev)
 	ch->unit = (intptr_t)device_get_ivars(dev);
 	ch->caps = ctlr->caps;
 	ch->caps2 = ctlr->caps2;
+	ch->start = ctlr->ch_start;
 	ch->quirks = ctlr->quirks;
 	ch->vendorid = ctlr->vendorid;
 	ch->deviceid = ctlr->deviceid;
@@ -668,8 +712,8 @@ ahci_ch_attach(device_t dev)
 		return (ENXIO);
 	ahci_dmainit(dev);
 	ahci_slotsalloc(dev);
-	ahci_ch_init(dev);
 	mtx_lock(&ch->mtx);
+	ahci_ch_init(dev);
 	rid = ATA_IRQ_RID;
 	if (!(ch->r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 	    &rid, RF_SHAREABLE | RF_ACTIVE))) {
@@ -2085,6 +2129,10 @@ static void
 ahci_start(struct ahci_channel *ch, int fbs)
 {
 	u_int32_t cmd;
+
+	/* Run the channel start callback, if any. */
+	if (ch->start)
+		ch->start(ch);
 
 	/* Clear SATA error register */
 	ATA_OUTL(ch->r_mem, AHCI_P_SERR, 0xFFFFFFFF);

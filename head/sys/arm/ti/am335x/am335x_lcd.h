@@ -29,6 +29,7 @@
 #define __AM335X_LCD_H__
 
 struct panel_info {
+	/* Timing part */
 	uint32_t panel_width;
 	uint32_t panel_height;
 	uint32_t panel_hfp;
@@ -37,17 +38,18 @@ struct panel_info {
 	uint32_t panel_vfp;
 	uint32_t panel_vbp;
 	uint32_t panel_vsw;
+	uint32_t hsync_active;
+	uint32_t vsync_active;
+	uint32_t panel_pxl_clk;
+
 	uint32_t ac_bias;
 	uint32_t ac_bias_intrpt;
 	uint32_t dma_burst_sz;
 	uint32_t bpp;
 	uint32_t fdd;
-	uint32_t invert_line_clock;
-	uint32_t invert_frm_clock;
 	uint32_t sync_edge;
 	uint32_t sync_ctrl;
-	uint32_t panel_pxl_clk;
-	uint32_t panel_invert_pxl_clk;	
+	uint32_t pixelclk_active;
 };
 
 int am335x_lcd_syscons_setup(vm_offset_t vaddr, vm_paddr_t paddr,

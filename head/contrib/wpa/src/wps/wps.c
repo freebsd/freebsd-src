@@ -18,6 +18,7 @@
 #ifdef CONFIG_WPS_TESTING
 int wps_version_number = 0x20;
 int wps_testing_dummy_cred = 0;
+int wps_corrupt_pkhash = 0;
 #endif /* CONFIG_WPS_TESTING */
 
 
@@ -53,12 +54,22 @@ struct wps_data * wps_init(const struct wps_config *cfg)
 		}
 		os_memcpy(data->dev_password, cfg->pin, cfg->pin_len);
 		data->dev_password_len = cfg->pin_len;
+		wpa_hexdump_key(MSG_DEBUG, "WPS: AP PIN dev_password",
+				data->dev_password, data->dev_password_len);
 	}
 
 #ifdef CONFIG_WPS_NFC
+	if (cfg->pin == NULL &&
+	    cfg->dev_pw_id == DEV_PW_NFC_CONNECTION_HANDOVER)
+		data->dev_pw_id = cfg->dev_pw_id;
+
 	if (cfg->wps->ap && !cfg->registrar && cfg->wps->ap_nfc_dev_pw_id) {
+		/* Keep AP PIN as alternative Device Password */
+		data->alt_dev_pw_id = data->dev_pw_id;
+		data->alt_dev_password = data->dev_password;
+		data->alt_dev_password_len = data->dev_password_len;
+
 		data->dev_pw_id = cfg->wps->ap_nfc_dev_pw_id;
-		os_free(data->dev_password);
 		data->dev_password =
 			os_malloc(wpabuf_len(cfg->wps->ap_nfc_dev_pw));
 		if (data->dev_password == NULL) {
@@ -69,6 +80,8 @@ struct wps_data * wps_init(const struct wps_config *cfg)
 			  wpabuf_head(cfg->wps->ap_nfc_dev_pw),
 			  wpabuf_len(cfg->wps->ap_nfc_dev_pw));
 		data->dev_password_len = wpabuf_len(cfg->wps->ap_nfc_dev_pw);
+		wpa_hexdump_key(MSG_DEBUG, "WPS: NFC dev_password",
+			    data->dev_password, data->dev_password_len);
 	}
 #endif /* CONFIG_WPS_NFC */
 
@@ -76,7 +89,7 @@ struct wps_data * wps_init(const struct wps_config *cfg)
 	if (cfg->pbc) {
 		/* Use special PIN '00000000' for PBC */
 		data->dev_pw_id = DEV_PW_PUSHBUTTON;
-		os_free(data->dev_password);
+		bin_clear_free(data->dev_password, data->dev_password_len);
 		data->dev_password = (u8 *) os_strdup("00000000");
 		if (data->dev_password == NULL) {
 			os_free(data);
@@ -109,7 +122,8 @@ struct wps_data * wps_init(const struct wps_config *cfg)
 		data->new_ap_settings =
 			os_malloc(sizeof(*data->new_ap_settings));
 		if (data->new_ap_settings == NULL) {
-			os_free(data->dev_password);
+			bin_clear_free(data->dev_password,
+				       data->dev_password_len);
 			os_free(data);
 			return NULL;
 		}
@@ -124,6 +138,12 @@ struct wps_data * wps_init(const struct wps_config *cfg)
 
 	data->use_psk_key = cfg->use_psk_key;
 	data->pbc_in_m1 = cfg->pbc_in_m1;
+
+	if (cfg->peer_pubkey_hash) {
+		os_memcpy(data->peer_pubkey_hash, cfg->peer_pubkey_hash,
+			  WPS_OOB_PUBKEY_HASH_LEN);
+		data->peer_pubkey_hash_set = 1;
+	}
 
 	return data;
 }
@@ -154,12 +174,12 @@ void wps_deinit(struct wps_data *data)
 	wpabuf_free(data->dh_pubkey_e);
 	wpabuf_free(data->dh_pubkey_r);
 	wpabuf_free(data->last_msg);
-	os_free(data->dev_password);
-	os_free(data->new_psk);
+	bin_clear_free(data->dev_password, data->dev_password_len);
+	bin_clear_free(data->alt_dev_password, data->alt_dev_password_len);
+	bin_clear_free(data->new_psk, data->new_psk_len);
 	wps_device_data_free(&data->peer_dev);
-	os_free(data->new_ap_settings);
+	bin_clear_free(data->new_ap_settings, sizeof(*data->new_ap_settings));
 	dh5_free(data->dh_ctx);
-	os_free(data->nfc_pw_token);
 	os_free(data);
 }
 
@@ -335,16 +355,16 @@ int wps_is_addr_authorized(const struct wpabuf *msg, const u8 *addr,
 int wps_ap_priority_compar(const struct wpabuf *wps_a,
 			   const struct wpabuf *wps_b)
 {
-	struct wps_parse_attr attr_a, attr_b;
+	struct wps_parse_attr attr;
 	int sel_a, sel_b;
 
-	if (wps_a == NULL || wps_parse_msg(wps_a, &attr_a) < 0)
+	if (wps_a == NULL || wps_parse_msg(wps_a, &attr) < 0)
 		return 1;
-	if (wps_b == NULL || wps_parse_msg(wps_b, &attr_b) < 0)
-		return -1;
+	sel_a = attr.selected_registrar && *attr.selected_registrar != 0;
 
-	sel_a = attr_a.selected_registrar && *attr_a.selected_registrar != 0;
-	sel_b = attr_b.selected_registrar && *attr_b.selected_registrar != 0;
+	if (wps_b == NULL || wps_parse_msg(wps_b, &attr) < 0)
+		return -1;
+	sel_b = attr.selected_registrar && *attr.selected_registrar != 0;
 
 	if (sel_a && !sel_b)
 		return -1;
@@ -488,17 +508,15 @@ struct wpabuf * wps_build_probe_req_ie(u16 pw_id, struct wps_device_data *dev,
 	    wps_build_config_methods(ie, dev->config_methods) ||
 	    wps_build_uuid_e(ie, uuid) ||
 	    wps_build_primary_dev_type(dev, ie) ||
-	    wps_build_rf_bands(dev, ie) ||
+	    wps_build_rf_bands(dev, ie, 0) ||
 	    wps_build_assoc_state(NULL, ie) ||
 	    wps_build_config_error(ie, WPS_CFG_NO_ERROR) ||
 	    wps_build_dev_password_id(ie, pw_id) ||
-#ifdef CONFIG_WPS2
 	    wps_build_manufacturer(dev, ie) ||
 	    wps_build_model_name(dev, ie) ||
 	    wps_build_model_number(dev, ie) ||
 	    wps_build_dev_name(dev, ie) ||
 	    wps_build_wfa_ext(ie, req_type == WPS_REQ_ENROLLEE, NULL, 0) ||
-#endif /* CONFIG_WPS2 */
 	    wps_build_req_dev_type(dev, ie, num_req_dev_types, req_dev_types)
 	    ||
 	    wps_build_secondary_dev_type(dev, ie)
@@ -506,13 +524,6 @@ struct wpabuf * wps_build_probe_req_ie(u16 pw_id, struct wps_device_data *dev,
 		wpabuf_free(ie);
 		return NULL;
 	}
-
-#ifndef CONFIG_WPS2
-	if (dev->p2p && wps_build_dev_name(dev, ie)) {
-		wpabuf_free(ie);
-		return NULL;
-	}
-#endif /* CONFIG_WPS2 */
 
 	return wps_ie_encapsulate(ie);
 }
@@ -549,7 +560,7 @@ int wps_attr_text(struct wpabuf *data, char *buf, char *end)
 					  "wps_state=configured\n");
 		else
 			ret = 0;
-		if (ret < 0 || ret >= end - pos)
+		if (os_snprintf_error(end - pos, ret))
 			return pos - buf;
 		pos += ret;
 	}
@@ -557,7 +568,7 @@ int wps_attr_text(struct wpabuf *data, char *buf, char *end)
 	if (attr.ap_setup_locked && *attr.ap_setup_locked) {
 		ret = os_snprintf(pos, end - pos,
 				  "wps_ap_setup_locked=1\n");
-		if (ret < 0 || ret >= end - pos)
+		if (os_snprintf_error(end - pos, ret))
 			return pos - buf;
 		pos += ret;
 	}
@@ -565,7 +576,7 @@ int wps_attr_text(struct wpabuf *data, char *buf, char *end)
 	if (attr.selected_registrar && *attr.selected_registrar) {
 		ret = os_snprintf(pos, end - pos,
 				  "wps_selected_registrar=1\n");
-		if (ret < 0 || ret >= end - pos)
+		if (os_snprintf_error(end - pos, ret))
 			return pos - buf;
 		pos += ret;
 	}
@@ -574,7 +585,7 @@ int wps_attr_text(struct wpabuf *data, char *buf, char *end)
 		ret = os_snprintf(pos, end - pos,
 				  "wps_device_password_id=%u\n",
 				  WPA_GET_BE16(attr.dev_password_id));
-		if (ret < 0 || ret >= end - pos)
+		if (os_snprintf_error(end - pos, ret))
 			return pos - buf;
 		pos += ret;
 	}
@@ -584,7 +595,7 @@ int wps_attr_text(struct wpabuf *data, char *buf, char *end)
 				  "wps_selected_registrar_config_methods="
 				  "0x%04x\n",
 				  WPA_GET_BE16(attr.sel_reg_config_methods));
-		if (ret < 0 || ret >= end - pos)
+		if (os_snprintf_error(end - pos, ret))
 			return pos - buf;
 		pos += ret;
 	}
@@ -596,7 +607,7 @@ int wps_attr_text(struct wpabuf *data, char *buf, char *end)
 				  wps_dev_type_bin2str(attr.primary_dev_type,
 						       devtype,
 						       sizeof(devtype)));
-		if (ret < 0 || ret >= end - pos)
+		if (os_snprintf_error(end - pos, ret))
 			return pos - buf;
 		pos += ret;
 	}
@@ -607,7 +618,8 @@ int wps_attr_text(struct wpabuf *data, char *buf, char *end)
 		if (str == NULL)
 			return pos - buf;
 		for (i = 0; i < attr.dev_name_len; i++) {
-			if (attr.dev_name[i] < 32)
+			if (attr.dev_name[i] == 0 ||
+			    is_ctrl_char(attr.dev_name[i]))
 				str[i] = '_';
 			else
 				str[i] = attr.dev_name[i];
@@ -615,7 +627,7 @@ int wps_attr_text(struct wpabuf *data, char *buf, char *end)
 		str[i] = '\0';
 		ret = os_snprintf(pos, end - pos, "wps_device_name=%s\n", str);
 		os_free(str);
-		if (ret < 0 || ret >= end - pos)
+		if (os_snprintf_error(end - pos, ret))
 			return pos - buf;
 		pos += ret;
 	}
@@ -624,10 +636,27 @@ int wps_attr_text(struct wpabuf *data, char *buf, char *end)
 		ret = os_snprintf(pos, end - pos,
 				  "wps_config_methods=0x%04x\n",
 				  WPA_GET_BE16(attr.config_methods));
-		if (ret < 0 || ret >= end - pos)
+		if (os_snprintf_error(end - pos, ret))
 			return pos - buf;
 		pos += ret;
 	}
 
 	return pos - buf;
+}
+
+
+const char * wps_ei_str(enum wps_error_indication ei)
+{
+	switch (ei) {
+	case WPS_EI_NO_ERROR:
+		return "No Error";
+	case WPS_EI_SECURITY_TKIP_ONLY_PROHIBITED:
+		return "TKIP Only Prohibited";
+	case WPS_EI_SECURITY_WEP_PROHIBITED:
+		return "WEP Prohibited";
+	case WPS_EI_AUTH_FAILURE:
+		return "Authentication Failure";
+	default:
+		return "Unknown";
+	}
 }

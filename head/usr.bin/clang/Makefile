@@ -12,13 +12,19 @@ SUBDIR+=bugpoint \
 	llvm-ar \
 	llvm-as \
 	llvm-bcanalyzer \
+	llvm-cov \
+	llvm-cxxdump \
 	llvm-diff \
 	llvm-dis \
+	llvm-dwarfdump \
 	llvm-extract \
 	llvm-link \
+	llvm-lto \
 	llvm-mc \
 	llvm-nm \
 	llvm-objdump \
+	llvm-pdbdump \
+	llvm-profdata \
 	llvm-rtdyld \
 	llvm-symbolizer \
 	macho-dump \

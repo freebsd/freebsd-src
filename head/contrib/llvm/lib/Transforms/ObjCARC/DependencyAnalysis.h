@@ -20,8 +20,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TRANSFORMS_OBJCARC_DEPEDENCYANALYSIS_H
-#define LLVM_TRANSFORMS_OBJCARC_DEPEDENCYANALYSIS_H
+#ifndef LLVM_LIB_TRANSFORMS_OBJCARC_DEPENDENCYANALYSIS_H
+#define LLVM_LIB_TRANSFORMS_OBJCARC_DEPENDENCYANALYSIS_H
 
 #include "llvm/ADT/SmallPtrSet.h"
 
@@ -53,8 +53,8 @@ enum DependenceKind {
 void FindDependencies(DependenceKind Flavor,
                       const Value *Arg,
                       BasicBlock *StartBB, Instruction *StartInst,
-                      SmallPtrSet<Instruction *, 4> &DependingInstructions,
-                      SmallPtrSet<const BasicBlock *, 4> &Visited,
+                      SmallPtrSetImpl<Instruction *> &DependingInstructions,
+                      SmallPtrSetImpl<const BasicBlock *> &Visited,
                       ProvenanceAnalysis &PA);
 
 bool
@@ -63,17 +63,26 @@ Depends(DependenceKind Flavor, Instruction *Inst, const Value *Arg,
 
 /// Test whether the given instruction can "use" the given pointer's object in a
 /// way that requires the reference count to be positive.
-bool
-CanUse(const Instruction *Inst, const Value *Ptr, ProvenanceAnalysis &PA,
-       InstructionClass Class);
+bool CanUse(const Instruction *Inst, const Value *Ptr, ProvenanceAnalysis &PA,
+            ARCInstKind Class);
 
 /// Test whether the given instruction can result in a reference count
 /// modification (positive or negative) for the pointer's object.
-bool
-CanAlterRefCount(const Instruction *Inst, const Value *Ptr,
-                 ProvenanceAnalysis &PA, InstructionClass Class);
+bool CanAlterRefCount(const Instruction *Inst, const Value *Ptr,
+                      ProvenanceAnalysis &PA, ARCInstKind Class);
+
+/// Returns true if we can not conservatively prove that Inst can not decrement
+/// the reference count of Ptr. Returns false if we can.
+bool CanDecrementRefCount(const Instruction *Inst, const Value *Ptr,
+                          ProvenanceAnalysis &PA, ARCInstKind Class);
+
+static inline bool CanDecrementRefCount(const Instruction *Inst,
+                                        const Value *Ptr,
+                                        ProvenanceAnalysis &PA) {
+  return CanDecrementRefCount(Inst, Ptr, PA, GetARCInstKind(Inst));
+}
 
 } // namespace objcarc
 } // namespace llvm
 
-#endif // LLVM_TRANSFORMS_OBJCARC_DEPEDENCYANALYSIS_H
+#endif

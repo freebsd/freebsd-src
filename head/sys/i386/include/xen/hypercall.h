@@ -246,14 +246,8 @@ HYPERVISOR_memory_op(
 	return _hypercall2(int, memory_op, cmd, arg);
 }
 
-#if defined(XEN)
-int HYPERVISOR_multicall(multicall_entry_t *, int);
-static inline int
-_HYPERVISOR_multicall(
-#else /* XENHVM */
 static inline int
 HYPERVISOR_multicall(
-#endif
 	void *call_list, int nr_calls)
 {
 	return _hypercall2(int, multicall, call_list, nr_calls);
@@ -299,7 +293,7 @@ HYPERVISOR_xen_version(
 
 static inline int
 HYPERVISOR_console_io(
-	int cmd, int count, char *str)
+	int cmd, int count, const char *str)
 {
 	return _hypercall3(int, console_io, cmd, count, str);
 }

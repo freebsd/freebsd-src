@@ -20,9 +20,8 @@
 #include <vector>
 
 namespace llvm {
-  class StringRef;
-  class MCStreamer;
-  class MCSymbol;
+class MCStreamer;
+class MCSymbol;
 
 namespace Win64EH {
 struct Instruction {
@@ -52,36 +51,13 @@ struct Instruction {
     return WinEH::Instruction(UOP_SetFPReg, L, Reg, Off);
   }
 };
+
+class UnwindEmitter : public WinEH::UnwindEmitter {
+public:
+  void Emit(MCStreamer &Streamer) const override;
+  void EmitUnwindInfo(MCStreamer &Streamer, WinEH::FrameInfo *FI) const override;
+};
 }
-
-  struct MCWinFrameInfo {
-    MCWinFrameInfo()
-      : Begin(nullptr), End(nullptr),ExceptionHandler(nullptr),
-        Function(nullptr), PrologEnd(nullptr), Symbol(nullptr),
-        HandlesUnwind(false), HandlesExceptions(false), LastFrameInst(-1),
-        ChainedParent(nullptr), Instructions() {}
-    MCSymbol *Begin;
-    MCSymbol *End;
-    const MCSymbol *ExceptionHandler;
-    const MCSymbol *Function;
-    MCSymbol *PrologEnd;
-    MCSymbol *Symbol;
-    bool HandlesUnwind;
-    bool HandlesExceptions;
-    int LastFrameInst;
-    MCWinFrameInfo *ChainedParent;
-    std::vector<WinEH::Instruction> Instructions;
-  };
-
-  class MCWin64EHUnwindEmitter {
-  public:
-    static StringRef GetSectionSuffix(const MCSymbol *func);
-    //
-    // This emits the unwind info sections (.pdata and .xdata in PE/COFF).
-    //
-    static void Emit(MCStreamer &streamer);
-    static void EmitUnwindInfo(MCStreamer &streamer, MCWinFrameInfo *info);
-  };
 } // end namespace llvm
 
 #endif

@@ -495,7 +495,8 @@ fetch_ssl_get_numeric_addrinfo(const char *hostname, size_t len)
 	hints.ai_protocol = 0;
 	hints.ai_flags = AI_NUMERICHOST;
 	/* port is not relevant for this purpose */
-	getaddrinfo(host, "443", &hints, &res);
+	if (getaddrinfo(host, "443", &hints, &res) != 0)
+		res = NULL;
 	free(host);
 	return res;
 }
@@ -672,9 +673,7 @@ fetch_ssl_setup_transport_layer(SSL_CTX *ctx, int verbose)
 {
 	long ssl_ctx_options;
 
-	ssl_ctx_options = SSL_OP_ALL | SSL_OP_NO_TICKET;
-	if (getenv("SSL_ALLOW_SSL2") == NULL)
-		ssl_ctx_options |= SSL_OP_NO_SSLv2;
+	ssl_ctx_options = SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_TICKET;
 	if (getenv("SSL_ALLOW_SSL3") == NULL)
 		ssl_ctx_options |= SSL_OP_NO_SSLv3;
 	if (getenv("SSL_NO_TLS1") != NULL)

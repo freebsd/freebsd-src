@@ -16,11 +16,13 @@ INSTALLED_HEADERS= readline.h chardefs.h keymaps.h history.h tilde.h \
 CFLAGS+=	-I${.OBJDIR}/..
 SRCDIR=	${.CURDIR}/../../../../contrib/libreadline
 
+beforebuild: ${INSTALLED_HEADERS}
+CLEANFILES+= ${INSTALLED_HEADERS}
+DPSRCS+= ${INSTALLED_HEADERS}
+
 .for _h in ${INSTALLED_HEADERS}
-CLEANFILES+=	${_h}
-DPSRCS+=	${.OBJDIR}/${_h}
-${.OBJDIR}/${_h}:	${SRCDIR}/${_h}
-	${INSTALL} ${.ALLSRC} ${.TARGET}
+${_h}:	${SRCDIR}/${_h}
+	ln -sf ${.ALLSRC} ${.TARGET}
 .endfor
 
 LIBADD=	ncursesw

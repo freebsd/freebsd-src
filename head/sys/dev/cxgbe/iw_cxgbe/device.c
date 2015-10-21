@@ -213,7 +213,7 @@ c4iw_activate(struct adapter *sc)
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
-	if (isset(&sc->offload_map, MAX_NPORTS)) {
+	if (uld_active(sc, ULD_IWARP)) {
 		KASSERT(0, ("%s: RDMA already eanbled on sc %p", __func__, sc));
 		return (0);
 	}
@@ -265,9 +265,9 @@ c4iw_activate_all(struct adapter *sc, void *arg __unused)
 	if (begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4iwact") != 0)
 		return;
 
-	if (!isset(&sc->offload_map, MAX_NPORTS) &&
-	    t4_activate_uld(sc, ULD_IWARP) == 0)
-		setbit(&sc->offload_map, MAX_NPORTS);
+	/* Activate iWARP if any port on this adapter has IFCAP_TOE enabled. */
+	if (sc->offload_map && !uld_active(sc, ULD_IWARP))
+		(void) t4_activate_uld(sc, ULD_IWARP);
 
 	end_synchronized_op(sc, 0);
 }
@@ -279,9 +279,8 @@ c4iw_deactivate_all(struct adapter *sc, void *arg __unused)
 	if (begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4iwdea") != 0)
 		return;
 
-	if (isset(&sc->offload_map, MAX_NPORTS) &&
-	    t4_deactivate_uld(sc, ULD_IWARP) == 0)
-		clrbit(&sc->offload_map, MAX_NPORTS);
+	if (uld_active(sc, ULD_IWARP))
+	    (void) t4_deactivate_uld(sc, ULD_IWARP);
 
 	end_synchronized_op(sc, 0);
 }

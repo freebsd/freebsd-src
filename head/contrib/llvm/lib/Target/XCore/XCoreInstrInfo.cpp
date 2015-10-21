@@ -196,15 +196,10 @@ XCoreInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
                               SmallVectorImpl<MachineOperand> &Cond,
                               bool AllowModify) const {
   // If the block has no terminators, it just falls into the block after it.
-  MachineBasicBlock::iterator I = MBB.end();
-  if (I == MBB.begin())
+  MachineBasicBlock::iterator I = MBB.getLastNonDebugInstr();
+  if (I == MBB.end())
     return false;
-  --I;
-  while (I->isDebugValue()) {
-    if (I == MBB.begin())
-      return false;
-    --I;
-  }
+
   if (!isUnpredicatedTerminator(I))
     return false;
 
@@ -281,7 +276,7 @@ XCoreInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
 unsigned
 XCoreInstrInfo::InsertBranch(MachineBasicBlock &MBB,MachineBasicBlock *TBB,
                              MachineBasicBlock *FBB,
-                             const SmallVectorImpl<MachineOperand> &Cond,
+                             ArrayRef<MachineOperand> Cond,
                              DebugLoc DL)const{
   // Shouldn't be a fall through.
   assert(TBB && "InsertBranch must not be told to insert a fallthrough");
@@ -312,14 +307,10 @@ XCoreInstrInfo::InsertBranch(MachineBasicBlock &MBB,MachineBasicBlock *TBB,
 
 unsigned
 XCoreInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
-  MachineBasicBlock::iterator I = MBB.end();
-  if (I == MBB.begin()) return 0;
-  --I;
-  while (I->isDebugValue()) {
-    if (I == MBB.begin())
-      return 0;
-    --I;
-  }
+  MachineBasicBlock::iterator I = MBB.getLastNonDebugInstr();
+  if (I == MBB.end())
+    return 0;
+
   if (!IsBRU(I->getOpcode()) && !IsCondBranch(I->getOpcode()))
     return 0;
   
@@ -446,16 +437,19 @@ MachineBasicBlock::iterator XCoreInstrInfo::loadImmediate(
     dl = MI->getDebugLoc();
   if (isImmMskBitp(Value)) {
     int N = Log2_32(Value) + 1;
-    return BuildMI(MBB, MI, dl, get(XCore::MKMSK_rus), Reg).addImm(N);
+    return BuildMI(MBB, MI, dl, get(XCore::MKMSK_rus), Reg)
+        .addImm(N)
+        .getInstr();
   }
   if (isImmU16(Value)) {
     int Opcode = isImmU6(Value) ? XCore::LDC_ru6 : XCore::LDC_lru6;
-    return BuildMI(MBB, MI, dl, get(Opcode), Reg).addImm(Value);
+    return BuildMI(MBB, MI, dl, get(Opcode), Reg).addImm(Value).getInstr();
   }
   MachineConstantPool *ConstantPool = MBB.getParent()->getConstantPool();
   const Constant *C = ConstantInt::get(
         Type::getInt32Ty(MBB.getParent()->getFunction()->getContext()), Value);
   unsigned Idx = ConstantPool->getConstantPoolIndex(C, 4);
   return BuildMI(MBB, MI, dl, get(XCore::LDWCP_lru6), Reg)
-            .addConstantPoolIndex(Idx);
+      .addConstantPoolIndex(Idx)
+      .getInstr();
 }

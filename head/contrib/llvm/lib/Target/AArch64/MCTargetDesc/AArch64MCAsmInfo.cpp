@@ -13,8 +13,8 @@
 
 #include "AArch64MCAsmInfo.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/Support/CommandLine.h"
 using namespace llvm;
@@ -37,6 +37,7 @@ AArch64MCAsmInfoDarwin::AArch64MCAsmInfoDarwin() {
   AssemblerDialect = AsmWriterVariant == Default ? 1 : AsmWriterVariant;
 
   PrivateGlobalPrefix = "L";
+  PrivateLabelPrefix = "L";
   SeparatorString = "%%";
   CommentString = ";";
   PointerSize = CalleeSaveStackSlotSize = 8;
@@ -47,6 +48,10 @@ AArch64MCAsmInfoDarwin::AArch64MCAsmInfoDarwin() {
   UseDataRegionDirectives = true;
 
   ExceptionsType = ExceptionHandling::DwarfCFI;
+
+  // AArch64 Darwin doesn't have the baggage of X86/ARM, so it's fine to use
+  // LShr instead of AShr.
+  UseLogicalShr = true;
 }
 
 const MCExpr *AArch64MCAsmInfoDarwin::getExprForPersonalitySymbol(
@@ -57,16 +62,15 @@ const MCExpr *AArch64MCAsmInfoDarwin::getExprForPersonalitySymbol(
   // version.
   MCContext &Context = Streamer.getContext();
   const MCExpr *Res =
-      MCSymbolRefExpr::Create(Sym, MCSymbolRefExpr::VK_GOT, Context);
-  MCSymbol *PCSym = Context.CreateTempSymbol();
+      MCSymbolRefExpr::create(Sym, MCSymbolRefExpr::VK_GOT, Context);
+  MCSymbol *PCSym = Context.createTempSymbol();
   Streamer.EmitLabel(PCSym);
-  const MCExpr *PC = MCSymbolRefExpr::Create(PCSym, Context);
-  return MCBinaryExpr::CreateSub(Res, PC, Context);
+  const MCExpr *PC = MCSymbolRefExpr::create(PCSym, Context);
+  return MCBinaryExpr::createSub(Res, PC, Context);
 }
 
-AArch64MCAsmInfoELF::AArch64MCAsmInfoELF(StringRef TT) {
-  Triple T(TT);
-  if (T.getArch() == Triple::arm64_be || T.getArch() == Triple::aarch64_be)
+AArch64MCAsmInfoELF::AArch64MCAsmInfoELF(const Triple &T) {
+  if (T.getArch() == Triple::aarch64_be)
     IsLittleEndian = false;
 
   // We prefer NEON instructions to be printed in the short form.
@@ -79,6 +83,7 @@ AArch64MCAsmInfoELF::AArch64MCAsmInfoELF(StringRef TT) {
 
   CommentString = "//";
   PrivateGlobalPrefix = ".L";
+  PrivateLabelPrefix = ".L";
   Code32Directive = ".code\t32";
 
   Data16bitsDirective = "\t.hword\t";
@@ -89,7 +94,6 @@ AArch64MCAsmInfoELF::AArch64MCAsmInfoELF(StringRef TT) {
 
   WeakRefDirective = "\t.weak\t";
 
-  HasLEB128 = true;
   SupportsDebugInformation = true;
 
   // Exceptions handling

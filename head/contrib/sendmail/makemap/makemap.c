@@ -234,71 +234,67 @@ main(argc, argv)
 	}
 
 #if HASFCHOWN
-	if (!unmake && geteuid() == 0)
+	/* Find TrustedUser value in sendmail.cf */
+	if ((cfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, cfile, SM_IO_RDONLY,
+			      NULL)) == NULL)
 	{
-		/* Find TrustedUser value in sendmail.cf */
-		if ((cfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, cfile,
-				      SM_IO_RDONLY, NULL)) == NULL)
-		{
-			sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
-				      "makemap: %s: %s\n",
-				      cfile, sm_errstring(errno));
-			exit(EX_NOINPUT);
-		}
-		while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
-		{
-			register char *b;
+		sm_io_fprintf(smioerr, SM_TIME_DEFAULT, "makemap: %s: %s\n",
+			      cfile, sm_errstring(errno));
+		exit(EX_NOINPUT);
+	}
+	while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
+	{
+		register char *b;
 
-			if ((b = strchr(buf, '\n')) != NULL)
-				*b = '\0';
+		if ((b = strchr(buf, '\n')) != NULL)
+			*b = '\0';
 
-			b = buf;
-			switch (*b++)
+		b = buf;
+		switch (*b++)
+		{
+		  case 'O':		/* option */
+			if (strncasecmp(b, " TrustedUser", 12) == 0 &&
+			    !(isascii(b[12]) && isalnum(b[12])))
 			{
-			  case 'O':		/* option */
-				if (strncasecmp(b, " TrustedUser", 12) == 0 &&
-				    !(isascii(b[12]) && isalnum(b[12])))
+				b = strchr(b, '=');
+				if (b == NULL)
+					continue;
+				while (isascii(*++b) && isspace(*b))
+					continue;
+				if (isascii(*b) && isdigit(*b))
+					TrustedUid = atoi(b);
+				else
 				{
-					b = strchr(b, '=');
-					if (b == NULL)
-						continue;
-					while (isascii(*++b) && isspace(*b))
-						continue;
-					if (isascii(*b) && isdigit(*b))
-						TrustedUid = atoi(b);
-					else
-					{
-						TrustedUid = 0;
-						pw = getpwnam(b);
-						if (pw == NULL)
-							(void) sm_io_fprintf(smioerr,
-									     SM_TIME_DEFAULT,
-									     "TrustedUser: unknown user %s\n", b);
-						else
-							TrustedUid = pw->pw_uid;
-					}
-
-# ifdef UID_MAX
-					if (TrustedUid > UID_MAX)
-					{
+					TrustedUid = 0;
+					pw = getpwnam(b);
+					if (pw == NULL)
 						(void) sm_io_fprintf(smioerr,
 								     SM_TIME_DEFAULT,
-								     "TrustedUser: uid value (%ld) > UID_MAX (%ld)",
-							(long) TrustedUid,
-							(long) UID_MAX);
-						TrustedUid = 0;
-					}
-# endif /* UID_MAX */
-					break;
+								     "TrustedUser: unknown user %s\n", b);
+					else
+						TrustedUid = pw->pw_uid;
 				}
 
-
-			  default:
-				continue;
+# ifdef UID_MAX
+				if (TrustedUid > UID_MAX)
+				{
+					(void) sm_io_fprintf(smioerr,
+							     SM_TIME_DEFAULT,
+							     "TrustedUser: uid value (%ld) > UID_MAX (%ld)",
+						(long) TrustedUid,
+						(long) UID_MAX);
+					TrustedUid = 0;
+				}
+# endif /* UID_MAX */
+				break;
 			}
+
+
+		  default:
+			continue;
 		}
-		(void) sm_io_close(cfp, SM_TIME_DEFAULT);
 	}
+	(void) sm_io_close(cfp, SM_TIME_DEFAULT);
 #endif /* HASFCHOWN */
 
 	if (!params.smdbp_allow_dup && !allowreplace)

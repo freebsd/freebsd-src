@@ -193,7 +193,8 @@ main(int argc, char **argv)
 	gssd_load_mech();
 
 	if (!debug_level) {
-		daemon(0, 0);
+		if (daemon(0, 0) != 0)
+			err(1, "Can't daemonize");
 		signal(SIGINT, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);
 		signal(SIGHUP, SIG_IGN);
@@ -206,7 +207,7 @@ main(int argc, char **argv)
 	strcpy(sun.sun_path, _PATH_GSSDSOCK);
 	sun.sun_len = SUN_LEN(&sun);
 	fd = socket(AF_LOCAL, SOCK_STREAM, 0);
-	if (!fd) {
+	if (fd < 0) {
 		if (debug_level == 0) {
 			syslog(LOG_ERR, "Can't create local gssd socket");
 			exit(1);
@@ -750,8 +751,8 @@ gssd_pname_to_uid_1_svc(pname_to_uid_args *argp, pname_to_uid_res *result, struc
 					buflen_hint = buflen;
 			}
 			if (pw) {
-				int len = NGRPS;
-				int groups[NGRPS];
+				int len = NGROUPS;
+				int groups[NGROUPS];
 				result->gid = pw->pw_gid;
 				getgrouplist(pw->pw_name, pw->pw_gid,
 				    groups, &len);

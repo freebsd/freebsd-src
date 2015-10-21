@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-NO_OBJ=
 FILES=		${.CURDIR}/../../../../sys/contrib/dev/iwi/LICENSE
-FILESDIR=	${SHAREDIR}/doc/legal/intel_iwi
+FILESDIR=	${SHAREDIR}/doc/legal
+FILESNAME=	intel_iwi.LICENSE
 
 .include <bsd.prog.mk>

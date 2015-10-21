@@ -8,7 +8,8 @@ SRCDIR=	tools/llvm-symbolizer
 SRCS=	llvm-symbolizer.cpp \
 	LLVMSymbolize.cpp
 
-LIBDEPS=llvmdebuginfo \
+LIBDEPS=llvmdebuginfopdb \
+	llvmdebuginfodwarf \
 	llvmobject \
 	llvmmcparser \
 	llvmmc \

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_PATHSENSITIVE_CHECKERHELPERS
-#define LLVM_CLANG_GR_PATHSENSITIVE_CHECKERHELPERS
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_CHECKERHELPERS_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_CHECKERHELPERS_H
 
 #include "clang/AST/Stmt.h"
 
@@ -28,10 +28,9 @@ template <class T> bool containsStmt(const Stmt *S) {
   if (isa<T>(S))
       return true;
 
-  for (Stmt::const_child_range I = S->children(); I; ++I)
-    if (const Stmt *child = *I)
-      if (containsStmt<T>(child))
-        return true;
+  for (const Stmt *Child : S->children())
+    if (Child && containsStmt<T>(Child))
+      return true;
 
   return false;
 }

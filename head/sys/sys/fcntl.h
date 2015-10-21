@@ -129,6 +129,10 @@ typedef	__pid_t		pid_t;
 #define	O_CLOEXEC	0x00100000
 #endif
 
+#if __BSD_VISIBLE
+#define	O_VERIFY	0x00200000	/* open only after verification */
+#endif
+
 /*
  * XXX missing O_DSYNC, O_RSYNC.
  */

@@ -605,6 +605,24 @@ tdq_setlowpri(struct tdq *tdq, struct thread *ctd)
 }
 
 #ifdef SMP
+/*
+ * We need some randomness. Implement a classic Linear Congruential
+ * Generator X_{n+1}=(aX_n+c) mod m. These values are optimized for
+ * m = 2^32, a = 69069 and c = 5. We only return the upper 16 bits
+ * of the random state (in the low bits of our answer) to keep
+ * the maximum randomness.
+ */
+static uint32_t
+sched_random(void)
+{
+	uint32_t *rndptr;
+
+	rndptr = DPCPU_PTR(randomval);
+	*rndptr = *rndptr * 69069 + 5;
+
+	return (*rndptr >> 16);
+}
+
 struct cpu_search {
 	cpuset_t cs_mask;
 	u_int	cs_prefer;
@@ -651,7 +669,7 @@ cpu_search(const struct cpu_group *cg, struct cpu_search *low,
 	cpuset_t cpumask;
 	struct cpu_group *child;
 	struct tdq *tdq;
-	int cpu, i, hload, lload, load, total, rnd, *rndptr;
+	int cpu, i, hload, lload, load, total, rnd;
 
 	total = 0;
 	cpumask = cg->cg_mask;
@@ -700,8 +718,7 @@ cpu_search(const struct cpu_group *cg, struct cpu_search *low,
 			CPU_CLR(cpu, &cpumask);
 			tdq = TDQ_CPU(cpu);
 			load = tdq->tdq_load * 256;
-			rndptr = DPCPU_PTR(randomval);
-			rnd = (*rndptr = *rndptr * 69069 + 5) >> 26;
+			rnd = sched_random() % 32;
 			if (match & CPU_SEARCH_LOWEST) {
 				if (cpu == low->cs_prefer)
 					load -= 64;
@@ -861,14 +878,11 @@ sched_balance(void)
 {
 	struct tdq *tdq;
 
-	/*
-	 * Select a random time between .5 * balance_interval and
-	 * 1.5 * balance_interval.
-	 */
-	balance_ticks = max(balance_interval / 2, 1);
-	balance_ticks += random() % balance_interval;
 	if (smp_started == 0 || rebalance == 0)
 		return;
+
+	balance_ticks = max(balance_interval / 2, 1) +
+	    (sched_random() % balance_interval);
 	tdq = TDQ_SELF();
 	TDQ_UNLOCK(tdq);
 	sched_balance_group(cpu_top);
@@ -1043,7 +1057,7 @@ tdq_notify(struct tdq *tdq, struct thread *td)
 	 * globally visible before we read tdq_cpu_idle.  Idle thread
 	 * accesses both of them without locks, and the order is important.
 	 */
-	mb();
+	atomic_thread_fence_seq_cst();
 
 	if (TD_IS_IDLETHREAD(ctd)) {
 		/*
@@ -1436,6 +1450,21 @@ sched_initticks(void *dummy)
  * a [0, 100] integer.  This is the voluntary sleep time of a process, which
  * differs from the cpu usage because it does not account for time spent
  * waiting on a run-queue.  Would be prettier if we had floating point.
+ *
+ * When a thread's sleep time is greater than its run time the
+ * calculation is:
+ *
+ *                           scaling factor 
+ * interactivity score =  ---------------------
+ *                        sleep time / run time
+ *
+ *
+ * When a thread's run time is greater than its sleep time the
+ * calculation is:
+ *
+ *                           scaling factor 
+ * interactivity score =  ---------------------    + scaling factor
+ *                        run time / sleep time
  */
 static int
 sched_interact_score(struct thread *td)
@@ -2066,6 +2095,8 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	 */
 	ts = td->td_sched;
 	ts2 = child->td_sched;
+	child->td_oncpu = NOCPU;
+	child->td_lastcpu = NOCPU;
 	child->td_lock = TDQ_LOCKPTR(tdq);
 	child->td_cpuset = cpuset_ref(td->td_cpuset);
 	ts2->ts_cpu = ts->ts_cpu;
@@ -2653,7 +2684,7 @@ sched_idletd(void *dummy)
 		 * before cpu_idle() read tdq_load.  The order is important
 		 * to avoid race with tdq_notify.
 		 */
-		mb();
+		atomic_thread_fence_seq_cst();
 		cpu_idle(switchcnt * 4 > sched_idlespinthresh);
 		tdq->tdq_cpu_idle = 0;
 
@@ -2689,6 +2720,8 @@ sched_throw(struct thread *td)
 		MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
 		tdq_load_rem(tdq, td);
 		lock_profile_release_lock(&TDQ_LOCKPTR(tdq)->lock_object);
+		td->td_lastcpu = td->td_oncpu;
+		td->td_oncpu = NOCPU;
 	}
 	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
 	newtd = choosethread();
@@ -2814,7 +2847,7 @@ sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
 
 	KASSERT(cpu_top != NULL, ("cpu_top isn't initialized"));
 
-	topo = sbuf_new(NULL, NULL, 500, SBUF_AUTOEXTEND);
+	topo = sbuf_new_for_sysctl(NULL, NULL, 512, req);
 	if (topo == NULL)
 		return (ENOMEM);
 
@@ -2823,8 +2856,7 @@ sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(topo, "</groups>\n");
 
 	if (err == 0) {
-		sbuf_finish(topo);
-		err = SYSCTL_OUT(req, sbuf_data(topo), sbuf_len(topo));
+		err = sbuf_finish(topo);
 	}
 	sbuf_delete(topo);
 	return (err);

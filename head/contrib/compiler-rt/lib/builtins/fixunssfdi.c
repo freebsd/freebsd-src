@@ -6,39 +6,40 @@
  * Source Licenses. See LICENSE.TXT for details.
  *
  * ===----------------------------------------------------------------------===
- *
- * This file implements __fixunssfdi for the compiler_rt library.
- *
- * ===----------------------------------------------------------------------===
  */
 
-#include "int_lib.h"
-/* Returns: convert a to a unsigned long long, rounding toward zero.
- *          Negative values all become zero.
- */
-
-/* Assumption: float is a IEEE 32 bit floating point type 
- *             du_int is a 64 bit integral type
- *             value in float is representable in du_int or is negative 
- *                 (no range checking performed)
- */
-
-/* seee eeee emmm mmmm mmmm mmmm mmmm mmmm */
+#define SINGLE_PRECISION
+#include "fp_lib.h"
 
 ARM_EABI_FNALIAS(f2ulz, fixunssfdi)
+
+#ifndef __SOFT_FP__
+/* Support for systems that have hardware floating-point; can set the invalid
+ * flag as a side-effect of computation.
+ */
 
 COMPILER_RT_ABI du_int
 __fixunssfdi(float a)
 {
-    float_bits fb;
-    fb.f = a;
-    int e = ((fb.u & 0x7F800000) >> 23) - 127;
-    if (e < 0 || (fb.u & 0x80000000))
-        return 0;
-    du_int r = (fb.u & 0x007FFFFF) | 0x00800000;
-    if (e > 23)
-        r <<= (e - 23);
-    else
-        r >>= (23 - e);
-    return r;
+    if (a <= 0.0f) return 0;
+    double da = a;
+    su_int high = da/0x1p32f;
+    su_int low = da - (double)high*0x1p32f;
+    return ((du_int)high << 32) | low;
 }
+
+#else
+/* Support for systems that don't have hardware floating-point; there are no
+ * flags to set, and we don't want to code-gen to an unknown soft-float
+ * implementation.
+ */
+
+typedef du_int fixuint_t;
+#include "fp_fixuint_impl.inc"
+
+COMPILER_RT_ABI du_int
+__fixunssfdi(fp_t a) {
+    return __fixuint(a);
+}
+
+#endif

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
  */
 
@@ -45,7 +45,9 @@
  * Emulation of kernel services in userland.
  */
 
+#ifndef __FreeBSD__
 int aok;
+#endif
 uint64_t physmem;
 vnode_t *rootdir = (vnode_t *)0xabcd1234;
 char hw_serial[HW_HOSTID_LEN];
@@ -521,7 +523,7 @@ vn_openat(char *path, int x1, int flags, int mode, vnode_t **vpp, int x2,
 /*ARGSUSED*/
 int
 vn_rdwr(int uio, vnode_t *vp, void *addr, ssize_t len, offset_t offset,
-	int x1, int x2, rlim64_t x3, void *x4, ssize_t *residp)
+    int x1, int x2, rlim64_t x3, void *x4, ssize_t *residp)
 {
 	ssize_t iolen, split;
 

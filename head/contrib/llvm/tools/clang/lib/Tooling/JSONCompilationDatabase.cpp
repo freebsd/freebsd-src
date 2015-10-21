@@ -118,15 +118,15 @@ std::vector<std::string> unescapeCommandLine(
 }
 
 class JSONCompilationDatabasePlugin : public CompilationDatabasePlugin {
-  CompilationDatabase *loadFromDirectory(StringRef Directory,
-                                         std::string &ErrorMessage) override {
+  std::unique_ptr<CompilationDatabase>
+  loadFromDirectory(StringRef Directory, std::string &ErrorMessage) override {
     SmallString<1024> JSONDatabasePath(Directory);
     llvm::sys::path::append(JSONDatabasePath, "compile_commands.json");
     std::unique_ptr<CompilationDatabase> Database(
         JSONCompilationDatabase::loadFromFile(JSONDatabasePath, ErrorMessage));
     if (!Database)
       return nullptr;
-    return Database.release();
+    return Database;
   }
 };
 
@@ -141,7 +141,7 @@ X("json-compilation-database", "Reads JSON formatted compilation databases");
 // and thus register the JSONCompilationDatabasePlugin.
 volatile int JSONAnchorSource = 0;
 
-JSONCompilationDatabase *
+std::unique_ptr<JSONCompilationDatabase>
 JSONCompilationDatabase::loadFromFile(StringRef FilePath,
                                       std::string &ErrorMessage) {
   llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> DatabaseBuffer =
@@ -151,22 +151,22 @@ JSONCompilationDatabase::loadFromFile(StringRef FilePath,
     return nullptr;
   }
   std::unique_ptr<JSONCompilationDatabase> Database(
-      new JSONCompilationDatabase(DatabaseBuffer->release()));
+      new JSONCompilationDatabase(std::move(*DatabaseBuffer)));
   if (!Database->parse(ErrorMessage))
     return nullptr;
-  return Database.release();
+  return Database;
 }
 
-JSONCompilationDatabase *
+std::unique_ptr<JSONCompilationDatabase>
 JSONCompilationDatabase::loadFromBuffer(StringRef DatabaseString,
                                         std::string &ErrorMessage) {
   std::unique_ptr<llvm::MemoryBuffer> DatabaseBuffer(
       llvm::MemoryBuffer::getMemBuffer(DatabaseString));
   std::unique_ptr<JSONCompilationDatabase> Database(
-      new JSONCompilationDatabase(DatabaseBuffer.release()));
+      new JSONCompilationDatabase(std::move(DatabaseBuffer)));
   if (!Database->parse(ErrorMessage))
     return nullptr;
-  return Database.release();
+  return Database;
 }
 
 std::vector<CompileCommand>
@@ -176,7 +176,7 @@ JSONCompilationDatabase::getCompileCommands(StringRef FilePath) const {
 
   std::string Error;
   llvm::raw_string_ostream ES(Error);
-  StringRef Match = MatchTrie.findEquivalent(NativeFilePath.str(), ES);
+  StringRef Match = MatchTrie.findEquivalent(NativeFilePath, ES);
   if (Match.empty())
     return std::vector<CompileCommand>();
   llvm::StringMap< std::vector<CompileCommandRef> >::const_iterator
@@ -220,10 +220,10 @@ void JSONCompilationDatabase::getCommands(
   for (int I = 0, E = CommandsRef.size(); I != E; ++I) {
     SmallString<8> DirectoryStorage;
     SmallString<1024> CommandStorage;
-    Commands.push_back(CompileCommand(
-      // FIXME: Escape correctly:
-      CommandsRef[I].first->getValue(DirectoryStorage),
-      unescapeCommandLine(CommandsRef[I].second->getValue(CommandStorage))));
+    Commands.emplace_back(
+        // FIXME: Escape correctly:
+        CommandsRef[I].first->getValue(DirectoryStorage),
+        unescapeCommandLine(CommandsRef[I].second->getValue(CommandStorage)));
   }
 }
 
@@ -307,13 +307,13 @@ bool JSONCompilationDatabase::parse(std::string &ErrorMessage) {
       SmallString<128> AbsolutePath(
           Directory->getValue(DirectoryStorage));
       llvm::sys::path::append(AbsolutePath, FileName);
-      llvm::sys::path::native(AbsolutePath.str(), NativeFilePath);
+      llvm::sys::path::native(AbsolutePath, NativeFilePath);
     } else {
       llvm::sys::path::native(FileName, NativeFilePath);
     }
     IndexByFile[NativeFilePath].push_back(
         CompileCommandRef(Directory, Command));
-    MatchTrie.insert(NativeFilePath.str());
+    MatchTrie.insert(NativeFilePath);
   }
   return true;
 }

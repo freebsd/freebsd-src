@@ -15,6 +15,7 @@
 #ifndef LLVM_SUPPORT_SWAPBYTEORDER_H
 #define LLVM_SUPPORT_SWAPBYTEORDER_H
 
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
 #include <cstddef>
 #include <limits>
@@ -39,8 +40,7 @@ inline uint16_t SwapByteOrder_16(uint16_t value) {
 /// SwapByteOrder_32 - This function returns a byte-swapped representation of
 /// the 32-bit argument.
 inline uint32_t SwapByteOrder_32(uint32_t value) {
-#if defined(__llvm__) || \
-(__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)) && !defined(__ICC)
+#if defined(__llvm__) || (LLVM_GNUC_PREREQ(4, 3, 0) && !defined(__ICC))
   return __builtin_bswap32(value);
 #elif defined(_MSC_VER) && !defined(_DEBUG)
   return _byteswap_ulong(value);
@@ -56,8 +56,7 @@ inline uint32_t SwapByteOrder_32(uint32_t value) {
 /// SwapByteOrder_64 - This function returns a byte-swapped representation of
 /// the 64-bit argument.
 inline uint64_t SwapByteOrder_64(uint64_t value) {
-#if defined(__llvm__) || \
-(__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)) && !defined(__ICC)
+#if defined(__llvm__) || (LLVM_GNUC_PREREQ(4, 3, 0) && !defined(__ICC))
   return __builtin_bswap64(value);
 #elif defined(_MSC_VER) && !defined(_DEBUG)
   return _byteswap_uint64(value);
@@ -93,6 +92,26 @@ inline unsigned long long getSwappedBytes(unsigned long long C) {
 }
 inline signed long long getSwappedBytes(signed long long C) {
   return SwapByteOrder_64(C);
+}
+
+inline float getSwappedBytes(float C) {
+  union {
+    uint32_t i;
+    float f;
+  } in, out;
+  in.f = C;
+  out.i = SwapByteOrder_32(in.i);
+  return out.f;
+}
+
+inline double getSwappedBytes(double C) {
+  union {
+    uint64_t i;
+    double d;
+  } in, out;
+  in.d = C;
+  out.i = SwapByteOrder_64(in.i);
+  return out.d;
 }
 
 template<typename T>

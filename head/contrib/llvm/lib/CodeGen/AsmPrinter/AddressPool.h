@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CODEGEN_ASMPRINTER_ADDRESSPOOL_H__
-#define CODEGEN_ASMPRINTER_ADDRESSPOOL_H__
+#ifndef LLVM_LIB_CODEGEN_ASMPRINTER_ADDRESSPOOL_H
+#define LLVM_LIB_CODEGEN_ASMPRINTER_ADDRESSPOOL_H
 
 #include "llvm/ADT/DenseMap.h"
 
@@ -40,7 +40,7 @@ public:
   /// label/symbol.
   unsigned getIndex(const MCSymbol *Sym, bool TLS = false);
 
-  void emit(AsmPrinter &Asm, const MCSection *AddrSection);
+  void emit(AsmPrinter &Asm, MCSection *AddrSection);
 
   bool isEmpty() { return Pool.empty(); }
 

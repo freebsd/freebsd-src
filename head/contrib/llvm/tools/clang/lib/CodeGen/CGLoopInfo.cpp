@@ -8,13 +8,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "CGLoopInfo.h"
+#include "clang/AST/Attr.h"
+#include "clang/Sema/LoopHint.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Metadata.h"
-using namespace clang;
-using namespace CodeGen;
+using namespace clang::CodeGen;
 using namespace llvm;
 
 static MDNode *createMetadata(LLVMContext &Ctx, const LoopAttributes &Attrs) {
@@ -24,42 +25,40 @@ static MDNode *createMetadata(LLVMContext &Ctx, const LoopAttributes &Attrs) {
       Attrs.VectorizerEnable == LoopAttributes::VecUnspecified)
     return nullptr;
 
-  SmallVector<Value *, 4> Args;
+  SmallVector<Metadata *, 4> Args;
   // Reserve operand 0 for loop id self reference.
-  MDNode *TempNode = MDNode::getTemporary(Ctx, None);
-  Args.push_back(TempNode);
+  auto TempNode = MDNode::getTemporary(Ctx, None);
+  Args.push_back(TempNode.get());
 
   // Setting vectorizer.width
   if (Attrs.VectorizerWidth > 0) {
-    Value *Vals[] = { MDString::get(Ctx, "llvm.loop.vectorize.width"),
-                      ConstantInt::get(Type::getInt32Ty(Ctx),
-                                       Attrs.VectorizerWidth) };
+    Metadata *Vals[] = {MDString::get(Ctx, "llvm.loop.vectorize.width"),
+                        ConstantAsMetadata::get(ConstantInt::get(
+                            Type::getInt32Ty(Ctx), Attrs.VectorizerWidth))};
     Args.push_back(MDNode::get(Ctx, Vals));
   }
 
   // Setting vectorizer.unroll
   if (Attrs.VectorizerUnroll > 0) {
-    Value *Vals[] = { MDString::get(Ctx, "llvm.loop.interleave.count"),
-                      ConstantInt::get(Type::getInt32Ty(Ctx),
-                                       Attrs.VectorizerUnroll) };
+    Metadata *Vals[] = {MDString::get(Ctx, "llvm.loop.interleave.count"),
+                        ConstantAsMetadata::get(ConstantInt::get(
+                            Type::getInt32Ty(Ctx), Attrs.VectorizerUnroll))};
     Args.push_back(MDNode::get(Ctx, Vals));
   }
 
   // Setting vectorizer.enable
   if (Attrs.VectorizerEnable != LoopAttributes::VecUnspecified) {
-    Value *Vals[] = { MDString::get(Ctx, "llvm.loop.vectorize.enable"),
-                      ConstantInt::get(Type::getInt1Ty(Ctx),
-                                       (Attrs.VectorizerEnable ==
-                                        LoopAttributes::VecEnable)) };
+    Metadata *Vals[] = {
+        MDString::get(Ctx, "llvm.loop.vectorize.enable"),
+        ConstantAsMetadata::get(ConstantInt::get(
+            Type::getInt1Ty(Ctx),
+            (Attrs.VectorizerEnable == LoopAttributes::VecEnable)))};
     Args.push_back(MDNode::get(Ctx, Vals));
   }
 
-  MDNode *LoopID = MDNode::get(Ctx, Args);
-  assert(LoopID->use_empty() && "LoopID should not be used");
-
   // Set the first operand to itself.
+  MDNode *LoopID = MDNode::get(Ctx, Args);
   LoopID->replaceOperandWith(0, LoopID);
-  MDNode::deleteTemporary(TempNode);
   return LoopID;
 }
 
@@ -79,7 +78,34 @@ LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs)
   LoopID = createMetadata(Header->getContext(), Attrs);
 }
 
-void LoopInfoStack::push(BasicBlock *Header) {
+void LoopInfoStack::push(BasicBlock *Header,
+                         ArrayRef<const clang::Attr *> Attrs) {
+  for (const auto *Attr : Attrs) {
+    const LoopHintAttr *LH = dyn_cast<LoopHintAttr>(Attr);
+
+    // Skip non loop hint attributes
+    if (!LH)
+      continue;
+
+    LoopHintAttr::OptionType Option = LH->getOption();
+    LoopHintAttr::LoopHintState State = LH->getState();
+    switch (Option) {
+    case LoopHintAttr::Vectorize:
+    case LoopHintAttr::Interleave:
+      if (State == LoopHintAttr::AssumeSafety) {
+        // Apply "llvm.mem.parallel_loop_access" metadata to load/stores.
+        setParallel(true);
+      }
+      break;
+    case LoopHintAttr::VectorizeWidth:
+    case LoopHintAttr::InterleaveCount:
+    case LoopHintAttr::Unroll:
+    case LoopHintAttr::UnrollCount:
+      // Nothing to do here for these loop hints.
+      break;
+    }
+  }
+
   Active.push_back(LoopInfo(Header, StagedAttrs));
   // Clear the attributes so nested loops do not inherit them.
   StagedAttrs.clear();

@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+#include <sys/nv.h>
 
 #include <assert.h>
 #include <dirent.h>
@@ -56,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <libcasper.h>
 #include <libcasper_impl.h>
 #include <msgio.h>
-#include <nv.h>
 #include <pjdlog.h>
 
 #include "msgio.h"
@@ -253,7 +253,7 @@ casper_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 		return (error);
 	}
 
-	if (zygote_clone(service_external_execute, 0, &chanfd, &procfd) == -1) {
+	if (zygote_clone(service_external_execute, &chanfd, &procfd) == -1) {
 		error = errno;
 		close(execfd);
 		return (error);
@@ -357,7 +357,7 @@ service_external_execute(int chanfd)
 	int stderrfd, execfd, procfd;
 	nvlist_t *nvl;
 
-	nvl = nvlist_recv(chanfd);
+	nvl = nvlist_recv(chanfd, 0);
 	if (nvl == NULL)
 		pjdlog_exit(1, "Unable to receive nvlist");
 	service = nvlist_take_string(nvl, "service");
@@ -534,7 +534,7 @@ casper_accept(int lsock)
 }
 
 static void
-main_loop(const char *sockpath, struct pidfh *pfh)
+main_loop(int lqlen, const char *sockpath, struct pidfh *pfh)
 {
 	fd_set fds;
 	struct sockaddr_un sun;
@@ -559,7 +559,7 @@ main_loop(const char *sockpath, struct pidfh *pfh)
 	if (bind(lsock, (struct sockaddr *)&sun, sizeof(sun)) == -1)
 		pjdlog_exit(1, "Unable to bind to %s", sockpath);
 	(void)umask(oldumask);
-	if (listen(lsock, 8) == -1)
+	if (listen(lsock, lqlen) == -1)
 		pjdlog_exit(1, "Unable to listen on %s", sockpath);
 
 	for (;;) {
@@ -627,24 +627,30 @@ main(int argc, char *argv[])
 	struct pidfh *pfh;
 	const char *pidfile, *servconfdir, *sockpath;
 	pid_t otherpid;
-	int ch, debug;
+	int ch, debug, lqlen;
 	bool foreground;
 
 	pjdlog_init(PJDLOG_MODE_STD);
 
 	debug = 0;
 	foreground = false;
+	lqlen = SOMAXCONN;
 	pidfile = CASPERD_PIDFILE;
 	servconfdir = CASPERD_SERVCONFDIR;
 	sockpath = CASPERD_SOCKPATH;
 
-	while ((ch = getopt(argc, argv, "D:FhP:S:v")) != -1) {
+	while ((ch = getopt(argc, argv, "D:Fhl:P:S:v")) != -1) {
 		switch (ch) {
 		case 'D':
 			servconfdir = optarg;
 			break;
 		case 'F':
 			foreground = true;
+			break;
+		case 'l':
+			lqlen = strtol(optarg, NULL, 0);
+			if (lqlen < 1)
+				lqlen = SOMAXCONN;
 			break;
 		case 'P':
 			pidfile = optarg;
@@ -711,5 +717,5 @@ main(int argc, char *argv[])
 	/*
 	 * Wait for connections.
 	 */
-	main_loop(sockpath, pfh);
+	main_loop(lqlen, sockpath, pfh);
 }

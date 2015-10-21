@@ -29,7 +29,8 @@ struct ndef_record {
 	u32 total_length;
 };
 
-static char wifi_handover_type[] = "application/vnd.wfa.wsc";
+static const char wifi_handover_type[] = "application/vnd.wfa.wsc";
+static const char p2p_handover_type[] = "application/vnd.wfa.p2p";
 
 static int ndef_parse_record(const u8 *data, u32 size,
 			     struct ndef_record *record)
@@ -44,9 +45,14 @@ static int ndef_parse_record(const u8 *data, u32 size,
 			return -1;
 		record->payload_length = *pos++;
 	} else {
+		u32 len;
+
 		if (size < 6)
 			return -1;
-		record->payload_length = ntohl(*(u32 *)pos);
+		len = WPA_GET_BE32(pos);
+		if (len > size - 6 || len > 20000)
+			return -1;
+		record->payload_length = len;
 		pos += sizeof(u32);
 	}
 
@@ -67,7 +73,8 @@ static int ndef_parse_record(const u8 *data, u32 size,
 	pos += record->payload_length;
 
 	record->total_length = pos - data;
-	if (record->total_length > size)
+	if (record->total_length > size ||
+	    record->total_length < record->payload_length)
 		return -1;
 	return 0;
 }
@@ -96,7 +103,7 @@ static struct wpabuf * ndef_parse_records(const struct wpabuf *buf,
 }
 
 
-static struct wpabuf * ndef_build_record(u8 flags, void *type,
+static struct wpabuf * ndef_build_record(u8 flags, const void *type,
 					 u8 type_length, void *id,
 					 u8 id_length,
 					 const struct wpabuf *payload)
@@ -147,7 +154,8 @@ static struct wpabuf * ndef_build_record(u8 flags, void *type,
 
 static int wifi_filter(struct ndef_record *record)
 {
-	if (record->type_length != os_strlen(wifi_handover_type))
+	if (record->type == NULL ||
+	    record->type_length != os_strlen(wifi_handover_type))
 		return 0;
 	if (os_memcmp(record->type, wifi_handover_type,
 		      os_strlen(wifi_handover_type)) != 0)
@@ -170,76 +178,27 @@ struct wpabuf * ndef_build_wifi(const struct wpabuf *buf)
 }
 
 
-struct wpabuf * ndef_build_wifi_hr(void)
+static int p2p_filter(struct ndef_record *record)
 {
-	struct wpabuf *rn, *cr, *ac_payload, *ac, *hr_payload, *hr;
-	struct wpabuf *carrier, *hc;
+	if (record->type == NULL ||
+	    record->type_length != os_strlen(p2p_handover_type))
+		return 0;
+	if (os_memcmp(record->type, p2p_handover_type,
+		      os_strlen(p2p_handover_type)) != 0)
+		return 0;
+	return 1;
+}
 
-	rn = wpabuf_alloc(2);
-	if (rn == NULL)
-		return NULL;
-	wpabuf_put_be16(rn, os_random() & 0xffff);
 
-	cr = ndef_build_record(FLAG_MESSAGE_BEGIN | FLAG_TNF_NFC_FORUM, "cr", 2,
-			       NULL, 0, rn);
-	wpabuf_free(rn);
+struct wpabuf * ndef_parse_p2p(const struct wpabuf *buf)
+{
+	return ndef_parse_records(buf, p2p_filter);
+}
 
-	if (cr == NULL)
-		return NULL;
 
-	ac_payload = wpabuf_alloc(4);
-	if (ac_payload == NULL) {
-		wpabuf_free(cr);
-		return NULL;
-	}
-	wpabuf_put_u8(ac_payload, 0x01); /* Carrier Flags: CRS=1 "active" */
-	wpabuf_put_u8(ac_payload, 0x01); /* Carrier Data Reference Length */
-	wpabuf_put_u8(ac_payload, '0'); /* Carrier Data Reference: "0" */
-	wpabuf_put_u8(ac_payload, 0); /* Aux Data Reference Count */
-
-	ac = ndef_build_record(FLAG_MESSAGE_END | FLAG_TNF_NFC_FORUM, "ac", 2,
-			       NULL, 0, ac_payload);
-	wpabuf_free(ac_payload);
-	if (ac == NULL) {
-		wpabuf_free(cr);
-		return NULL;
-	}
-
-	hr_payload = wpabuf_alloc(1 + wpabuf_len(cr) + wpabuf_len(ac));
-	if (hr_payload == NULL) {
-		wpabuf_free(cr);
-		wpabuf_free(ac);
-		return NULL;
-	}
-
-	wpabuf_put_u8(hr_payload, 0x12); /* Connection Handover Version 1.2 */
-	wpabuf_put_buf(hr_payload, cr);
-	wpabuf_put_buf(hr_payload, ac);
-	wpabuf_free(cr);
-	wpabuf_free(ac);
-
-	hr = ndef_build_record(FLAG_MESSAGE_BEGIN | FLAG_TNF_NFC_FORUM, "Hr", 2,
-			       NULL, 0, hr_payload);
-	wpabuf_free(hr_payload);
-	if (hr == NULL)
-		return NULL;
-
-	carrier = wpabuf_alloc(2 + os_strlen(wifi_handover_type));
-	if (carrier == NULL) {
-		wpabuf_free(hr);
-		return NULL;
-	}
-	wpabuf_put_u8(carrier, 0x02); /* Carrier Type Format */
-	wpabuf_put_u8(carrier, os_strlen(wifi_handover_type));
-	wpabuf_put_str(carrier, wifi_handover_type);
-
-	hc = ndef_build_record(FLAG_MESSAGE_END | FLAG_TNF_NFC_FORUM, "Hc", 2,
-			       "0", 1, carrier);
-	wpabuf_free(carrier);
-	if (hc == NULL) {
-		wpabuf_free(hr);
-		return NULL;
-	}
-
-	return wpabuf_concat(hr, hc);
+struct wpabuf * ndef_build_p2p(const struct wpabuf *buf)
+{
+	return ndef_build_record(FLAG_MESSAGE_BEGIN | FLAG_MESSAGE_END |
+				 FLAG_TNF_RFC2046, p2p_handover_type,
+				 os_strlen(p2p_handover_type), NULL, 0, buf);
 }

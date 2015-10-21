@@ -5,10 +5,11 @@
 PROG_CXX=lli
 
 SRCDIR=	tools/lli
-SRCS=	lli.cpp \
+SRCS=	OrcLazyJIT.cpp \
 	RemoteMemoryManager.cpp \
 	RemoteTarget.cpp \
-	RemoteTargetExternal.cpp
+	RemoteTargetExternal.cpp \
+	lli.cpp
 
 LIBDEPS=llvmx86disassembler \
 	llvmx86asmparser \
@@ -17,26 +18,28 @@ LIBDEPS=llvmx86disassembler \
 	llvmx86codegen \
 	llvmx86desc \
 	llvmx86info \
+	llvmmcdisassembler \
 	llvmx86instprinter \
 	llvmx86utils \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvminterpreter \
-	llvminstrumentation \
-	llvmjit \
 	llvmcodegen \
 	llvmscalaropts \
+	llvmprofiledata \
 	llvminstcombine \
+	llvminstrumentation \
+	llvmorcjit \
 	llvmtransformutils \
 	llvmipa \
-	llvmanalysis \
 	llvmmcjit \
+	llvmexecutionengine \
 	llvmtarget \
+	llvmanalysis \
 	llvmruntimedyld \
 	llvmobject \
 	llvmmcparser \
 	llvmbitreader \
-	llvmexecutionengine \
 	llvmmc \
 	llvmcore \
 	llvmsupport

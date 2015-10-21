@@ -9,6 +9,7 @@
  * to the absolute address 0x60. Here we implement a loop waiting on the release
  * of a lock by the kernel at 0x40.
  * 
+ * $FreeBSD$
  */
 
 #include <machine/asm.h>
@@ -39,7 +40,6 @@ CNAME(kerneltramp):
 	mflr	%r8
 	mtlr	%r9
 	lwz	%r3,0(%r8)
-	ld	%r3,0(%r3)	/* Resolve function descriptor */
 	mtctr	%r3
 	lwz	%r3,4(%r8)
 	lwz	%r4,8(%r8)

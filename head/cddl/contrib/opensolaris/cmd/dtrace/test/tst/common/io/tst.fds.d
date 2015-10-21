@@ -36,7 +36,7 @@ syscall::ioctl:entry
 }
 
 syscall::ioctl:entry
-/pid == $1 && arg0 != -1u && arg1 == -1u && arg2 == NULL/
+/pid == $1 && arg0 != -1u && arg1 == 0 && arg2 == NULL/
 {
 	printf("fds[%d] fi_name = %s\n", arg0, fds[arg0].fi_name);
 	printf("fds[%d] fi_dirname = %s\n", arg0, fds[arg0].fi_dirname);

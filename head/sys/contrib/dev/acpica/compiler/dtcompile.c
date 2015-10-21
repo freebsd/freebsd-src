@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __DTCOMPILE_C__
 #define _DECLARE_DT_GLOBALS
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
@@ -103,13 +102,18 @@ DtDoCompile (
 
     /* Preprocessor */
 
-    Event = UtBeginEvent ("Preprocess input file");
-    PrDoPreprocess ();
-    UtEndEvent (Event);
-
-    if (Gbl_PreprocessOnly)
+    if (Gbl_PreprocessFlag)
     {
-        return (AE_OK);
+        /* Preprocessor */
+
+        Event = UtBeginEvent ("Preprocess input file");
+        PrDoPreprocess ();
+        UtEndEvent (Event);
+
+        if (Gbl_PreprocessOnly)
+        {
+            return (AE_OK);
+        }
     }
 
     /*
@@ -279,7 +283,7 @@ static ACPI_STATUS
 DtCompileDataTable (
     DT_FIELD                **FieldList)
 {
-    ACPI_DMTABLE_DATA       *TableData;
+    const ACPI_DMTABLE_DATA *TableData;
     DT_SUBTABLE             *Subtable;
     char                    *Signature;
     ACPI_TABLE_HEADER       *AcpiTableHeader;
@@ -298,7 +302,7 @@ DtCompileDataTable (
         return (AE_ERROR);
     }
 
-    Gbl_Signature = UtStringCacheCalloc (ACPI_STRLEN (Signature) + 1);
+    Gbl_Signature = UtStringCacheCalloc (strlen (Signature) + 1);
     strcpy (Gbl_Signature, Signature);
 
     /*
@@ -354,7 +358,9 @@ DtCompileDataTable (
     TableData = AcpiDmGetTableData (Signature);
     if (!TableData || Gbl_CompileGeneric)
     {
-        DtCompileGeneric ((void **) FieldList);
+        /* Unknown table signature and/or force generic compile */
+
+        DtCompileGeneric ((void **) FieldList, NULL, NULL);
         goto FinishHeader;
     }
 
@@ -432,14 +438,14 @@ DtCompileTable (
     DT_FIELD                *LocalField;
     UINT32                  Length;
     DT_SUBTABLE             *Subtable;
-    DT_SUBTABLE             *InlineSubtable;
+    DT_SUBTABLE             *InlineSubtable = NULL;
     UINT32                  FieldLength = 0;
     UINT8                   FieldType;
     UINT8                   *Buffer;
     UINT8                   *FlagBuffer = NULL;
     char                    *String;
     UINT32                  CurrentFlagByteOffset = 0;
-    ACPI_STATUS             Status;
+    ACPI_STATUS             Status = AE_OK;
 
 
     if (!Field || !*Field)
@@ -450,7 +456,7 @@ DtCompileTable (
     /* Ignore optional subtable if name does not match */
 
     if ((Info->Flags & DT_OPTIONAL) &&
-        ACPI_STRCMP ((*Field)->Name, Info->Name))
+        strcmp ((*Field)->Name, Info->Name))
     {
         *RetSubtable = NULL;
         return (AE_OK);
@@ -475,6 +481,7 @@ DtCompileTable (
     Buffer = Subtable->Buffer;
 
     LocalField = *Field;
+    Subtable->Name = LocalField->Name;
 
     /*
      * Main loop walks the info table for this ACPI table or subtable
@@ -551,15 +558,32 @@ DtCompileTable (
              */
             *Field = LocalField;
 
-            if (Info->Opcode == ACPI_DMT_GAS)
+            switch (Info->Opcode)
             {
+            case ACPI_DMT_GAS:
+
                 Status = DtCompileTable (Field, AcpiDmTableInfoGas,
                     &InlineSubtable, TRUE);
-            }
-            else
-            {
+                break;
+
+            case ACPI_DMT_HESTNTFY:
+
                 Status = DtCompileTable (Field, AcpiDmTableInfoHestNotify,
                     &InlineSubtable, TRUE);
+                break;
+
+            case ACPI_DMT_IORTMEM:
+
+                Status = DtCompileTable (Field, AcpiDmTableInfoIortAcc,
+                    &InlineSubtable, TRUE);
+                break;
+
+            default:
+                sprintf (MsgBuffer, "Invalid DMT opcode: 0x%.2X",
+                    Info->Opcode);
+                DtFatal (ASL_MSG_COMPILER_INTERNAL, NULL, MsgBuffer);
+                Status = AE_BAD_DATA;
+                break;
             }
 
             if (ACPI_FAILURE (Status))
@@ -569,7 +593,7 @@ DtCompileTable (
 
             DtSetSubtableLength (InlineSubtable);
 
-            ACPI_MEMCPY (Buffer, InlineSubtable->Buffer, FieldLength);
+            memcpy (Buffer, InlineSubtable->Buffer, FieldLength);
             LocalField = *Field;
             break;
 
@@ -596,7 +620,6 @@ DtCompileTable (
                 Subtable->LengthField = Buffer;
                 Subtable->SizeOfLengthField = FieldLength;
             }
-
             break;
         }
 
@@ -611,4 +634,44 @@ Error:
     ACPI_FREE (Subtable->Buffer);
     ACPI_FREE (Subtable);
     return (Status);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtCompilePadding
+ *
+ * PARAMETERS:  Length              - Padding field size
+ *              RetSubtable         - Compile result of table
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile a subtable for padding purpose
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompilePadding (
+    UINT32                  Length,
+    DT_SUBTABLE             **RetSubtable)
+{
+    DT_SUBTABLE             *Subtable;
+    /* UINT8                   *Buffer; */
+    char                    *String;
+
+
+    Subtable = UtSubtableCacheCalloc ();
+
+    if (Length > 0)
+    {
+        String = UtStringCacheCalloc (Length);
+        Subtable->Buffer = ACPI_CAST_PTR (UINT8, String);
+    }
+
+    Subtable->Length = Length;
+    Subtable->TotalLength = Length;
+    /* Buffer = Subtable->Buffer; */
+
+    *RetSubtable = Subtable;
+    return (AE_OK);
 }

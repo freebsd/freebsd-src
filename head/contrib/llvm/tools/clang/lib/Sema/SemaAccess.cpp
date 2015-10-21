@@ -1462,7 +1462,7 @@ static Sema::AccessResult CheckAccess(Sema &S, SourceLocation Loc,
   case AR_inaccessible: return Sema::AR_inaccessible;
   case AR_dependent: return Sema::AR_dependent;
   }
-  llvm_unreachable("falling off end");
+  llvm_unreachable("invalid access result");
 }
 
 void Sema::HandleDelayedAccessCheck(DelayedDiagnostic &DD, Decl *D) {
@@ -1749,14 +1749,14 @@ Sema::AccessResult Sema::CheckFriendAccess(NamedDecl *target) {
     return AR_accessible;
 
   CXXMethodDecl *method = cast<CXXMethodDecl>(target->getAsFunction());
-  assert(method->getQualifier());
 
   AccessTarget entity(Context, AccessTarget::Member,
                       cast<CXXRecordDecl>(target->getDeclContext()),
                       DeclAccessPair::make(target, access),
                       /*no instance context*/ QualType());
   entity.setDiag(diag::err_access_friend_function)
-    << method->getQualifierLoc().getSourceRange();
+      << (method->getQualifier() ? method->getQualifierLoc().getSourceRange()
+                                 : method->getNameInfo().getSourceRange());
 
   // We need to bypass delayed-diagnostics because we might be called
   // while the ParsingDeclarator is active.

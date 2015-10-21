@@ -186,11 +186,7 @@ mpls_print(netdissect_options *ndo, const u_char *bp, u_int length)
 		break;
 
 	case PT_IPV6:
-#ifdef INET6
 		ip6_print(ndo, p, length - (p - bp));
-#else
-		ND_PRINT((ndo, "IPv6, length: %u", length));
-#endif
 		break;
 
 	case PT_OSI:

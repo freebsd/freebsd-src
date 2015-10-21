@@ -311,8 +311,15 @@ man_display_page() {
 		return
 	fi
 
-	testline="mandoc -Tlint -Wfatal 2>/dev/null"
-	pipeline="mandoc | $MANPAGER"
+	if [ -n "$use_width" ]; then
+		mandoc_args="-O width=${use_width}"
+	fi
+	testline="mandoc -Tlint -Wunsupp 2>/dev/null"
+	if [ -n "$tflag" ]; then
+		pipeline="mandoc -Tps $mandoc_args"
+	else
+		pipeline="mandoc $mandoc_args | $MANPAGER"
+	fi
 
 	if ! eval "$cattool $manpage | $testline" ;then
 		if which -s groff; then
@@ -922,6 +929,8 @@ whatis_usage() {
 
 # Supported commands
 do_apropos() {
+	[ $(stat -f %i /usr/bin/man) -ne $(stat -f %i /usr/bin/apropos) ] && \
+		exec apropos "$@"
 	search_whatis apropos "$@"
 }
 
@@ -957,6 +966,8 @@ do_manpath() {
 }
 
 do_whatis() {
+	[ $(stat -f %i /usr/bin/man) -ne $(stat -f %i /usr/bin/whatis) ] && \
+		exec whatis "$@"
 	search_whatis whatis "$@"
 }
 

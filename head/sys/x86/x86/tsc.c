@@ -522,17 +522,22 @@ init_TSC_tc(void)
 	}
 
 	/*
-	 * We cannot use the TSC if it stops incrementing while idle.
 	 * Intel CPUs without a C-state invariant TSC can stop the TSC
-	 * in either C2 or C3.
+	 * in either C2 or C3.  Disable use of C2 and C3 while using
+	 * the TSC as the timecounter.  The timecounter can be changed
+	 * to enable C2 and C3.
+	 *
+	 * Note that the TSC is used as the cputicker for computing
+	 * thread runtime regardless of the timecounter setting, so
+	 * using an alternate timecounter and enabling C2 or C3 can
+	 * result incorrect runtimes for kernel idle threads (but not
+	 * for any non-idle threads).
 	 */
 	if (cpu_deepest_sleep >= 2 && cpu_vendor_id == CPU_VENDOR_INTEL &&
 	    (amd_pminfo & AMDPM_TSC_INVARIANT) == 0) {
-		tsc_timecounter.tc_quality = -1000;
 		tsc_timecounter.tc_flags |= TC_FLAGS_C2STOP;
 		if (bootverbose)
-			printf("TSC timecounter disabled: C2/C3 may halt it.\n");
-		goto init;
+			printf("TSC timecounter disables C2 and C3.\n");
 	}
 
 	/*

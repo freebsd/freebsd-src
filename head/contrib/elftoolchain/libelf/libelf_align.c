@@ -24,15 +24,13 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <sys/types.h>
 
 #include <libelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_align.c 3006 2014-03-22 08:10:07Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_align.c 3174 2015-03-27 17:13:41Z emaste $");
 
 struct align {
 	unsigned int a32;

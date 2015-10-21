@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Mark Johnston <markj@FreeBSD.org>
+ * Copyright (c) 2014, 2015 Mark Johnston <markj@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -295,6 +295,43 @@ ATF_TC_BODY(symbol_lookup, tc)
 	proc_free(phdl);
 }
 
+ATF_TC(symbol_lookup_fail);
+ATF_TC_HEAD(symbol_lookup_fail, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Verify that proc_addr2sym() returns an error when given an offset "
+	    "that it cannot resolve.");
+}
+ATF_TC_BODY(symbol_lookup_fail, tc)
+{
+	char symname[32];
+	GElf_Sym sym;
+	struct proc_handle *phdl;
+	prmap_t *map;
+	int error;
+
+	phdl = start_prog(tc, false);
+
+	/* Initialize the rtld_db handle. */
+	(void)proc_rdagent(phdl);
+
+	map = proc_obj2map(phdl, target_prog_file);
+	ATF_REQUIRE_MSG(map != NULL, "failed to look up map for '%s'",
+	    target_prog_file);
+
+	/*
+	 * We shouldn't be able to find symbols at the beginning of a mapped
+	 * file.
+	 */
+	error = proc_addr2sym(phdl, map->pr_vaddr, symname, sizeof(symname),
+	    &sym);
+	ATF_REQUIRE_MSG(error != 0, "unexpectedly found a symbol");
+
+	ATF_CHECK_EQ_MSG(proc_continue(phdl), 0, "failed to resume execution");
+
+	proc_free(phdl);
+}
+
 ATF_TC(signal_forward);
 ATF_TC_HEAD(signal_forward, tc)
 {
@@ -343,6 +380,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, map_alias_name2map);
 	ATF_TP_ADD_TC(tp, map_alias_name2sym);
 	ATF_TP_ADD_TC(tp, symbol_lookup);
+	ATF_TP_ADD_TC(tp, symbol_lookup_fail);
 	ATF_TP_ADD_TC(tp, signal_forward);
 
 	return (atf_no_error());

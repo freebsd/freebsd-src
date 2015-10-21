@@ -11,6 +11,25 @@
 //
 //===----------------------------------------------------------------------===//
 
+class R6MMR6Rel;
+
+def MipsR62MicroMipsR6 : InstrMapping {
+  let FilterClass = "R6MMR6Rel";
+  // Instructions with the same BaseOpcode and isNVStore values form a row.
+  let RowFields = ["BaseOpcode"];
+  // Instructions with the same predicate sense form a column.
+  let ColFields = ["Arch"];
+  // The key column is the unpredicated instructions.
+  let KeyCol = ["mipsr6"];
+  // Value columns are PredSense=true and PredSense=false
+  let ValueCols = [["mipsr6"], ["micromipsr6"]];
+}
+
+class MipsR6Arch<string opstr> {
+  string Arch = "mipsr6";
+  string BaseOpcode = opstr;
+}
+
 class MipsR6Inst : MipsInst<(outs), (ins), "", [], NoItinerary, FrmOther>,
                    PredicateControl {
   let DecoderNamespace = "Mips32r6_64r6";
@@ -403,7 +422,7 @@ class JMP_IDX_COMPACT_FM<bits<6> funct> : MipsR6Inst {
   bits<32> Inst;
 
   let Inst{31-26} = funct;
-  let Inst{25-21} = 0b000000;
+  let Inst{25-21} = 0b00000;
   let Inst{20-16} = rt;
   let Inst{15-0} = offset;
 }

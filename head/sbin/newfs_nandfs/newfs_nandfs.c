@@ -897,7 +897,7 @@ check_parameters(void)
 		    NANDFS_SEG_MIN_BLOCKS);
 
 	/* check reserved segment percentage */
-	if ((rsv_segment_percent < 1) && (rsv_segment_percent > 99))
+	if ((rsv_segment_percent < 1) || (rsv_segment_percent > 99))
 		errx(1, "Bad reserved segment percentage. "
 		    "Must in range 1..99.");
 
@@ -1088,7 +1088,7 @@ static void
 print_summary(void)
 {
 
-	printf("filesystem created succesfully\n");
+	printf("filesystem was created successfully\n");
 	printf("total segments: %#jx valid segments: %#jx\n", nsegments,
 	    nsegments - bad_segments_count);
 	printf("total space: %ju MB free: %ju MB\n",

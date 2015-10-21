@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_EXPRENGINE
-#define LLVM_CLANG_GR_EXPRENGINE
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_EXPRENGINE_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_EXPRENGINE_H
 
 #include "clang/AST/Expr.h"
 #include "clang/AST/Type.h"
@@ -102,7 +102,7 @@ public:
              FunctionSummariesTy *FS,
              InliningModes HowToInlineIn);
 
-  ~ExprEngine();
+  ~ExprEngine() override;
 
   /// Returns true if there is still simulation state on the worklist.
   bool ExecuteWorkList(const LocationContext *L, unsigned Steps = 150000) {
@@ -226,6 +226,15 @@ public:
                      ExplodedNodeSet &Dst,
                      const CFGBlock *DstT,
                      const CFGBlock *DstF) override;
+
+  /// Called by CoreEngine.
+  /// Used to generate successor nodes for temporary destructors depending
+  /// on whether the corresponding constructor was visited.
+  void processCleanupTemporaryBranch(const CXXBindTemporaryExpr *BTE,
+                                     NodeBuilderContext &BldCtx,
+                                     ExplodedNode *Pred, ExplodedNodeSet &Dst,
+                                     const CFGBlock *DstT,
+                                     const CFGBlock *DstF) override;
 
   /// Called by CoreEngine.  Used to processing branching behavior
   /// at static initalizers.
@@ -408,7 +417,11 @@ public:
   void VisitIncrementDecrementOperator(const UnaryOperator* U,
                                        ExplodedNode *Pred,
                                        ExplodedNodeSet &Dst);
-  
+
+  void VisitCXXBindTemporaryExpr(const CXXBindTemporaryExpr *BTE,
+                                 ExplodedNodeSet &PreVisit,
+                                 ExplodedNodeSet &Dst);
+
   void VisitCXXCatchStmt(const CXXCatchStmt *CS, ExplodedNode *Pred,
                          ExplodedNodeSet &Dst);
 

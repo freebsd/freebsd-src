@@ -133,10 +133,7 @@ struct MCSchedClassDesc {
 /// provides a detailed reservation table describing each cycle of instruction
 /// execution. Subtargets may define any or all of the above categories of data
 /// depending on the type of CPU and selected scheduler.
-class MCSchedModel {
-public:
-  static MCSchedModel DefaultSchedModel; // For unknown processors.
-
+struct MCSchedModel {
   // IssueWidth is the maximum number of instructions that may be scheduled in
   // the same per-cycle group.
   unsigned IssueWidth;
@@ -191,7 +188,6 @@ public:
 
   bool CompleteModel;
 
-private:
   unsigned ProcID;
   const MCProcResourceDesc *ProcResourceTable;
   const MCSchedClassDesc *SchedClassTable;
@@ -200,37 +196,6 @@ private:
   // Instruction itinerary tables used by InstrItineraryData.
   friend class InstrItineraryData;
   const InstrItinerary *InstrItineraries;
-
-public:
-  // Default's must be specified as static const literals so that tablegenerated
-  // target code can use it in static initializers. The defaults need to be
-  // initialized in this default ctor because some clients directly instantiate
-  // MCSchedModel instead of using a generated itinerary.
-  MCSchedModel(): IssueWidth(DefaultIssueWidth),
-                  MicroOpBufferSize(DefaultMicroOpBufferSize),
-                  LoopMicroOpBufferSize(DefaultLoopMicroOpBufferSize),
-                  LoadLatency(DefaultLoadLatency),
-                  HighLatency(DefaultHighLatency),
-                  MispredictPenalty(DefaultMispredictPenalty),
-                  PostRAScheduler(false), CompleteModel(true),
-                  ProcID(0), ProcResourceTable(nullptr),
-                  SchedClassTable(nullptr), NumProcResourceKinds(0),
-                  NumSchedClasses(0), InstrItineraries(nullptr) {
-    (void)NumProcResourceKinds;
-    (void)NumSchedClasses;
-  }
-
-  // Table-gen driven ctor.
-  MCSchedModel(unsigned iw, int mbs, int lmbs, unsigned ll, unsigned hl,
-               unsigned mp, bool postRASched, bool cm, unsigned pi,
-               const MCProcResourceDesc *pr, const MCSchedClassDesc *sc,
-               unsigned npr, unsigned nsc, const InstrItinerary *ii):
-    IssueWidth(iw), MicroOpBufferSize(mbs), LoopMicroOpBufferSize(lmbs),
-    LoadLatency(ll), HighLatency(hl),
-    MispredictPenalty(mp), PostRAScheduler(postRASched),
-    CompleteModel(cm), ProcID(pi),
-    ProcResourceTable(pr), SchedClassTable(sc), NumProcResourceKinds(npr),
-    NumSchedClasses(nsc), InstrItineraries(ii) {}
 
   unsigned getProcessorID() const { return ProcID; }
 
@@ -258,6 +223,10 @@ public:
     assert(SchedClassIdx < NumSchedClasses && "bad scheduling class idx");
     return &SchedClassTable[SchedClassIdx];
   }
+
+  /// Returns the default initialized model.
+  static const MCSchedModel &GetDefaultSchedModel() { return Default; }
+  static const MCSchedModel Default;
 };
 
 } // End llvm namespace

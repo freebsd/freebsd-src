@@ -409,7 +409,7 @@ f_geom_parent()
 ############################################################ MAIN
 
 #
-# Parse GEOM configuration unless requeted otherwise
+# Parse GEOM configuration unless requested otherwise
 #
 f_dprintf "%s: GEOM_SELF_SCAN_ALL=[%s]" geom.subr "$GEOM_SELF_SCAN_ALL"
 case "$GEOM_SELF_SCAN_ALL" in

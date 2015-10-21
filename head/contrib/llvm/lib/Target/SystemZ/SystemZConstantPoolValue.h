@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SYSTEMZCONSTANTPOOLVALUE_H
-#define SYSTEMZCONSTANTPOOLVALUE_H
+#ifndef LLVM_LIB_TARGET_SYSTEMZ_SYSTEMZCONSTANTPOOLVALUE_H
+#define LLVM_LIB_TARGET_SYSTEMZ_SYSTEMZCONSTANTPOOLVALUE_H
 
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -19,13 +19,17 @@ class GlobalValue;
 
 namespace SystemZCP {
 enum SystemZCPModifier {
+  TLSGD,
+  TLSLDM,
+  DTPOFF,
   NTPOFF
 };
 } // end namespace SystemZCP
 
 /// A SystemZ-specific constant pool value.  At present, the only
-/// defined constant pool values are offsets of thread-local variables
-/// (written x@NTPOFF).
+/// defined constant pool values are module IDs or offsets of
+/// thread-local variables (written x@TLSGD, x@TLSLDM, x@DTPOFF,
+/// or x@NTPOFF).
 class SystemZConstantPoolValue : public MachineConstantPoolValue {
   const GlobalValue *GV;
   SystemZCP::SystemZCPModifier Modifier;

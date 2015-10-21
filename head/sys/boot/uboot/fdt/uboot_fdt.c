@@ -69,10 +69,11 @@ fdt_platform_load_dtb(void)
 	}
 
 	/*
-	 * If the U-boot environment contains a variable giving the name of a
-	 * file, use it if we can load and validate it.
+	 * Try to get FDT filename first from loader env and then from u-boot env
 	 */
-	s = ub_env_get("fdtfile");
+	s = getenv("fdt_file");
+	if (s == NULL)
+		s = ub_env_get("fdtfile");
 	if (s == NULL)
 		s = ub_env_get("fdt_file");
 	if (s != NULL && *s != '\0') {
@@ -88,7 +89,7 @@ fdt_platform_load_dtb(void)
 void
 fdt_platform_fixups(void)
 {
-	struct fdt_mem_region regions[3];
+	static struct fdt_mem_region regions[UB_MAX_MR];
 	const char *env, *str;
 	char *end, *ethstr;
 	int eth_no, i, len, n;
@@ -165,17 +166,15 @@ fdt_platform_fixups(void)
 	/* Modify cpu(s) and bus clock frequenties in /cpus node [Hz] */
 	fdt_fixup_cpubusfreqs(si->clk_cpu, si->clk_bus);
 
-	/* Copy the data into a useful form */
-	for (i = 0; i < si->mr_no; i++) {
-		if (i > nitems(regions)) {
-			i = nitems(regions);
-			break;
+	/* Extract the DRAM regions into fdt_mem_region format. */
+	for (i = 0, n = 0; i < si->mr_no && n < nitems(regions); i++) {
+		if (si->mr[i].flags == MR_ATTR_DRAM) {
+			regions[n].start = si->mr[i].start;
+			regions[n].size = si->mr[i].size;
+			n++;
 		}
-
-		regions[i].start = si->mr[i].start;
-		regions[i].size = si->mr[i].size;
 	}
 
 	/* Fixup memory regions */
-	fdt_fixup_memory(regions, i);
+	fdt_fixup_memory(regions, n);
 }

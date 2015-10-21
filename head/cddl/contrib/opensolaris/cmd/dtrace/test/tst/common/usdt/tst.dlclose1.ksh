@@ -53,7 +53,7 @@ main.o: main.c
 
 
 livelib.so: livelib.o prov.o
-	cc -z defs -G -o livelib.so livelib.o prov.o -lc
+	cc -shared -o livelib.so livelib.o prov.o -lc
 
 livelib.o: livelib.c prov.h
 	cc -c livelib.c
@@ -66,7 +66,7 @@ prov.h: prov.d
 
 
 deadlib.so: deadlib.o
-	cc -z defs -G -o deadlib.so deadlib.o -lc
+	cc -shared -o deadlib.so deadlib.o -lc
 
 deadlib.o: deadlib.c
 	cc -c deadlib.c
@@ -106,11 +106,13 @@ cat > main.c <<EOF
 #include <dlfcn.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <signal.h>
 
 int
 main(int argc, char **argv)
 {
 	void *live;
+	sigset_t mask;
 
 	if ((live = dlopen("./livelib.so", RTLD_LAZY | RTLD_LOCAL)) == NULL) {
 		printf("dlopen of livelib.so failed: %s\n", dlerror());
@@ -119,7 +121,8 @@ main(int argc, char **argv)
 
 	(void) dlclose(live);
 
-	pause();
+	(void) sigemptyset(&mask);
+	(void) sigsuspend(&mask);
 
 	return (0);
 }
@@ -133,7 +136,7 @@ fi
 
 script() {
 	$dtrace -w -x bufsize=1k -c ./main -qs /dev/stdin <<EOF
-	syscall::pause:entry
+	syscall::sigsuspend:entry
 	/pid == \$target/
 	{
 		system("$dtrace -l -P test_prov*");

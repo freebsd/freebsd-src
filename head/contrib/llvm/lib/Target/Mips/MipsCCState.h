@@ -10,9 +10,9 @@
 #ifndef MIPSCCSTATE_H
 #define MIPSCCSTATE_H
 
+#include "MipsISelLowering.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/CallingConvLower.h"
-#include "MipsISelLowering.h"
 
 namespace llvm {
 class SDNode;
@@ -65,10 +65,9 @@ private:
 
 public:
   MipsCCState(CallingConv::ID CC, bool isVarArg, MachineFunction &MF,
-              const TargetMachine &TM, SmallVectorImpl<CCValAssign> &locs,
-              LLVMContext &C,
+              SmallVectorImpl<CCValAssign> &locs, LLVMContext &C,
               SpecialCallingConvType SpecialCC = NoSpecialCallingConv)
-      : CCState(CC, isVarArg, MF, TM, locs, C), SpecialCallingConv(SpecialCC) {}
+      : CCState(CC, isVarArg, MF, locs, C), SpecialCallingConv(SpecialCC) {}
 
   void
   AnalyzeCallOperands(const SmallVectorImpl<ISD::OutputArg> &Outs,
@@ -86,10 +85,10 @@ public:
   // provide a means of accessing ArgListEntry::IsFixed. Delete them from this
   // class. This doesn't stop them being used via the base class though.
   void AnalyzeCallOperands(const SmallVectorImpl<ISD::OutputArg> &Outs,
-                           CCAssignFn Fn) LLVM_DELETED_FUNCTION;
+                           CCAssignFn Fn) = delete;
   void AnalyzeCallOperands(const SmallVectorImpl<MVT> &Outs,
                            SmallVectorImpl<ISD::ArgFlagsTy> &Flags,
-                           CCAssignFn Fn) LLVM_DELETED_FUNCTION;
+                           CCAssignFn Fn) = delete;
 
   void AnalyzeFormalArguments(const SmallVectorImpl<ISD::InputArg> &Ins,
                               CCAssignFn Fn) {

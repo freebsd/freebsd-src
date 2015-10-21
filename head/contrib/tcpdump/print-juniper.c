@@ -480,11 +480,9 @@ juniper_ggsn_print(netdissect_options *ndo,
         case JUNIPER_PROTO_IPV4:
             ip_print(ndo, p, l2info.length);
             break;
-#ifdef INET6
         case JUNIPER_PROTO_IPV6:
             ip6_print(ndo, p, l2info.length);
             break;
-#endif /* INET6 */
         default:
             if (!ndo->ndo_eflag)
                 ND_PRINT((ndo, "unknown GGSN proto (%u)", gh->proto));
@@ -784,11 +782,9 @@ juniper_mlppp_print(netdissect_options *ndo,
             else
                 ip_print(ndo, p, l2info.length);
             return l2info.header_len;
-#ifdef INET6
         case JUNIPER_LSQ_L3_PROTO_IPV6:
             ip6_print(ndo, p,l2info.length);
             return l2info.header_len;
-#endif
         case JUNIPER_LSQ_L3_PROTO_MPLS:
             mpls_print(ndo, p, l2info.length);
             return l2info.header_len;
@@ -840,11 +836,9 @@ juniper_mfr_print(netdissect_options *ndo,
             case JUNIPER_LSQ_L3_PROTO_IPV4:
                 ip_print(ndo, p, l2info.length);
                 return l2info.header_len;
-#ifdef INET6
             case JUNIPER_LSQ_L3_PROTO_IPV6:
                 ip6_print(ndo, p,l2info.length);
                 return l2info.header_len;
-#endif
             case JUNIPER_LSQ_L3_PROTO_MPLS:
                 mpls_print(ndo, p, l2info.length);
                 return l2info.header_len;
@@ -1025,8 +1019,8 @@ juniper_atm2_print(netdissect_options *ndo,
  * a juniper router if the payload data is encapsulated using PPP */
 static int
 juniper_ppp_heuristic_guess(netdissect_options *ndo,
-                            register const u_char *p, u_int length) {
-
+                            register const u_char *p, u_int length)
+{
     switch(EXTRACT_16BITS(p)) {
     case PPP_IP :
     case PPP_OSI :
@@ -1055,8 +1049,8 @@ juniper_ppp_heuristic_guess(netdissect_options *ndo,
 
 static int
 ip_heuristic_guess(netdissect_options *ndo,
-                   register const u_char *p, u_int length) {
-
+                   register const u_char *p, u_int length)
+{
     switch(p[0]) {
     case 0x45:
     case 0x46:
@@ -1071,7 +1065,6 @@ ip_heuristic_guess(netdissect_options *ndo,
     case 0x4f:
 	    ip_print(ndo, p, length);
 	    break;
-#ifdef INET6
     case 0x60:
     case 0x61:
     case 0x62:
@@ -1090,7 +1083,6 @@ ip_heuristic_guess(netdissect_options *ndo,
     case 0x6f:
         ip6_print(ndo, p, length);
         break;
-#endif
     default:
         return 0; /* did not find a ip header */
         break;
@@ -1099,8 +1091,8 @@ ip_heuristic_guess(netdissect_options *ndo,
 }
 
 static int
-juniper_read_tlv_value(const u_char *p, u_int tlv_type, u_int tlv_len) {
-
+juniper_read_tlv_value(const u_char *p, u_int tlv_type, u_int tlv_len)
+{
    int tlv_value;
 
    /* TLVs < 128 are little endian encoded */
@@ -1147,8 +1139,8 @@ juniper_read_tlv_value(const u_char *p, u_int tlv_type, u_int tlv_len) {
 
 static int
 juniper_parse_header(netdissect_options *ndo,
-                     const u_char *p, const struct pcap_pkthdr *h, struct juniper_l2info_t *l2info) {
-
+                     const u_char *p, const struct pcap_pkthdr *h, struct juniper_l2info_t *l2info)
+{
     const struct juniper_cookie_table_t *lp = juniper_cookie_table;
     u_int idx, jnx_ext_len, jnx_header_len = 0;
     uint8_t tlv_type,tlv_len;

@@ -64,6 +64,11 @@ is undefined.
 The
 .Fn pthread_getspecific
 function may be called from a thread-specific data destructor function.
+A call to
+.Fn pthread_getspecific
+for the thread-specific data key being destroyed returns the value NULL,
+unless the value is changed (after the destructor starts) by a call to
+.Fn pthread_setspecific .
 .Sh RETURN VALUES
 The
 .Fn pthread_getspecific

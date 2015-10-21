@@ -16,10 +16,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_OBJCRETAINCOUNT_H
-#define LLVM_CLANG_OBJCRETAINCOUNT_H
+#ifndef LLVM_CLANG_STATICANALYZER_CHECKERS_OBJCRETAINCOUNT_H
+#define LLVM_CLANG_STATICANALYZER_CHECKERS_OBJCRETAINCOUNT_H
 
-namespace clang { namespace ento { namespace objc_retain {
+#include "clang/Basic/LLVM.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
+
+namespace clang {
+class FunctionDecl;
+class ObjCMethodDecl;
+
+namespace ento { namespace objc_retain {
 
 /// An ArgEffect summarizes the retain count behavior on an argument or receiver
 /// to a function or method.
@@ -60,6 +68,14 @@ enum ArgEffect {
   /// The argument acts as if has been passed to CFMakeCollectable, which
   /// transfers the object to the Garbage Collector under GC.
   MakeCollectable,
+
+  /// The argument is a pointer to a retain-counted object; on exit, the new
+  /// value of the pointer is a +0 value or NULL.
+  UnretainedOutParameter,
+
+  /// The argument is a pointer to a retain-counted object; on exit, the new
+  /// value of the pointer is a +1 value or NULL.
+  RetainedOutParameter,
 
   /// The argument is treated as potentially escaping, meaning that
   /// even when its reference count hits 0 it should be treated as still

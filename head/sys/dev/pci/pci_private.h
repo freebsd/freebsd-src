@@ -51,6 +51,8 @@ extern int 	pci_do_power_suspend;
 void		pci_add_children(device_t dev, int domain, int busno,
 		    size_t dinfo_size);
 void		pci_add_child(device_t bus, struct pci_devinfo *dinfo);
+device_t	pci_add_iov_child(device_t bus, device_t pf, size_t dinfo_size,
+		    uint16_t rid, uint16_t vid, uint16_t did);
 void		pci_add_resources(device_t bus, device_t dev, int force,
 		    uint32_t prefetchmask);
 int		pci_attach_common(device_t dev);
@@ -140,4 +142,26 @@ void		pci_cfg_restore(device_t, struct pci_devinfo *);
  */
 void		pci_cfg_save(device_t, struct pci_devinfo *, int);
 
+int		pci_mapsize(uint64_t testval);
+void		pci_read_bar(device_t dev, int reg, pci_addr_t *mapp,
+		    pci_addr_t *testvalp, int *bar64);
+struct pci_map *pci_add_bar(device_t dev, int reg, pci_addr_t value,
+		    pci_addr_t size);
+
+struct resource *pci_alloc_multi_resource(device_t dev, device_t child,
+		    int type, int *rid, u_long start, u_long end, u_long count,
+		    u_long num, u_int flags);
+
+int		pci_iov_attach_method(device_t bus, device_t dev,
+		    struct nvlist *pf_schema, struct nvlist *vf_schema);
+int		pci_iov_detach_method(device_t bus, device_t dev);
+
+device_t	pci_create_iov_child_method(device_t bus, device_t pf,
+		    uint16_t rid, uint16_t vid, uint16_t did);
+
+struct resource *pci_vf_alloc_mem_resource(device_t dev, device_t child,
+		    int *rid, u_long start, u_long end, u_long count,
+		    u_int flags);
+int		pci_vf_release_mem_resource(device_t dev, device_t child,
+		    int rid, struct resource *r);
 #endif /* _PCI_PRIVATE_H_ */

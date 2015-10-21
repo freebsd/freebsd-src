@@ -94,6 +94,7 @@ struct var vps4;
 static struct var voptind;
 struct var vdisvfork;
 
+struct localvar *localvars;
 int forcelocal;
 
 static const struct varinit varinit[] = {
@@ -141,6 +142,7 @@ static const int locale_categories[7] = {
 static int varequal(const char *, const char *);
 static struct var *find_var(const char *, struct var ***, int *);
 static int localevar(const char *);
+static void setvareq_const(const char *s, int flags);
 
 extern char **environ;
 
@@ -183,7 +185,7 @@ initvar(void)
 			setvareq(*envp, VEXPORT|VTEXTFIXED);
 		}
 	}
-	setvareq("OPTIND=1", VTEXTFIXED);
+	setvareq_const("OPTIND=1", 0);
 }
 
 /*
@@ -389,20 +391,25 @@ setvareq(char *s, int flags)
 }
 
 
+static void
+setvareq_const(const char *s, int flags)
+{
+	setvareq(__DECONST(char *, s), flags | VTEXTFIXED);
+}
+
 
 /*
  * Process a linked list of variable assignments.
  */
 
 void
-listsetvar(struct strlist *list, int flags)
+listsetvar(struct arglist *list, int flags)
 {
-	struct strlist *lp;
+	int i;
 
 	INTOFF;
-	for (lp = list ; lp ; lp = lp->next) {
-		setvareq(savestr(lp->text), flags);
-	}
+	for (i = 0; i < list->count; i++)
+		setvareq(savestr(list->args[i]), flags);
 	INTON;
 }
 
@@ -434,14 +441,14 @@ lookupvar(const char *name)
 char *
 bltinlookup(const char *name, int doall)
 {
-	struct strlist *sp;
 	struct var *v;
 	char *result;
+	int i;
 
 	result = NULL;
-	for (sp = cmdenviron ; sp ; sp = sp->next) {
-		if (varequal(sp->text, name))
-			result = strchr(sp->text, '=') + 1;
+	if (cmdenviron) for (i = 0; i < cmdenviron->count; i++) {
+		if (varequal(cmdenviron->args[i], name))
+			result = strchr(cmdenviron->args[i], '=') + 1;
 	}
 	if (result != NULL)
 		return result;
@@ -460,13 +467,12 @@ bltinlookup(const char *name, int doall)
 void
 bltinsetlocale(void)
 {
-	struct strlist *lp;
 	int act = 0;
 	char *loc, *locdef;
 	int i;
 
-	for (lp = cmdenviron ; lp ; lp = lp->next) {
-		if (localevar(lp->text)) {
+	if (cmdenviron) for (i = 0; i < cmdenviron->count; i++) {
+		if (localevar(cmdenviron->args[i])) {
 			act = 1;
 			break;
 		}
@@ -499,11 +505,11 @@ bltinsetlocale(void)
 void
 bltinunsetlocale(void)
 {
-	struct strlist *lp;
+	int i;
 
 	INTOFF;
-	for (lp = cmdenviron ; lp ; lp = lp->next) {
-		if (localevar(lp->text)) {
+	if (cmdenviron) for (i = 0; i < cmdenviron->count; i++) {
+		if (localevar(cmdenviron->args[i])) {
 			setlocale(LC_ALL, "");
 			updatecharset();
 			return;
@@ -872,7 +878,7 @@ unsetvar(const char *s)
 	if (vp->flags & VREADONLY)
 		return (1);
 	if (vp->text[vp->name_len + 1] != '\0')
-		setvar(s, nullstr, 0);
+		setvar(s, "", 0);
 	if ((vp->flags & VEXPORT) && localevar(vp->text)) {
 		change_env(s, 0);
 		setlocale(LC_ALL, "");

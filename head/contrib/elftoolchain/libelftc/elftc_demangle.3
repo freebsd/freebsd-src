@@ -21,7 +21,7 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elftc_demangle.3 2065 2011-10-26 15:24:47Z jkoshy $
+.\" $Id: elftc_demangle.3 3182 2015-04-10 16:08:10Z emaste $
 .\"
 .Dd August 24, 2011
 .Os
@@ -88,7 +88,7 @@ To decode a name that uses an unknown encoding style use:
 .Bd -literal -offset indent
 char buffer[1024];
 const char *funcname;
-	
+
 funcname = ...; /* points to string to be demangled */
 if (elftc_demangle(funcname, buffer, sizeof(buffer), 0) == 0)
 	printf("Demangled name: %\\n", buffer);

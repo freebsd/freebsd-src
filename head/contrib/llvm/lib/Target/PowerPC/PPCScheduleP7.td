@@ -89,6 +89,10 @@ def P7Itineraries : ProcessorItineraries<
                                                   P7_DU3, P7_DU4], 0>,
                                    InstrStage<1, [P7_FX1, P7_FX2]>],
                                   [1, 1, 1]>,
+  InstrItinData<IIC_IntISEL,      [InstrStage<1, [P7_DU1], 0>,
+                                   InstrStage<1, [P7_FX1, P7_FX2], 0>,
+                                   InstrStage<1, [P7_BRU]>],
+                                  [1, 1, 1, 1]>,
   InstrItinData<IIC_IntCompare  , [InstrStage<1, [P7_DU1, P7_DU2,
                                                   P7_DU3, P7_DU4], 0>,
                                    InstrStage<1, [P7_FX1, P7_FX2]>],
@@ -311,6 +315,10 @@ def P7Itineraries : ProcessorItineraries<
                                                   P7_DU3, P7_DU4], 0>,
                                    InstrStage<1, [P7_VS1, P7_VS2]>],
                                   [5, 1, 1]>,
+  InstrItinData<IIC_FPAddSub    , [InstrStage<1, [P7_DU1, P7_DU2,
+                                                  P7_DU3, P7_DU4], 0>,
+                                   InstrStage<1, [P7_VS1, P7_VS2]>],
+                                  [5, 1, 1]>,
   InstrItinData<IIC_FPCompare   , [InstrStage<1, [P7_DU1, P7_DU2,
                                                   P7_DU3, P7_DU4], 0>,
                                    InstrStage<1, [P7_VS1, P7_VS2]>],
@@ -379,6 +387,9 @@ def P7Model : SchedMachineModel {
                        // This is overriden by OperandCycles if the
                        // Itineraries are queried instead.
   let MispredictPenalty = 16;
+
+  // Try to make sure we have at least 10 dispatch groups in a loop.
+  let LoopMicroOpBufferSize = 40;
 
   let Itineraries = P7Itineraries;
 }

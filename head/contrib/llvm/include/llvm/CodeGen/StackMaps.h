@@ -1,5 +1,4 @@
 //===------------------- StackMaps.h - StackMaps ----------------*- C++ -*-===//
-
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -8,12 +7,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_STACKMAPS
-#define LLVM_STACKMAPS
+#ifndef LLVM_CODEGEN_STACKMAPS_H
+#define LLVM_CODEGEN_STACKMAPS_H
 
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/Support/Debug.h"
 #include <map>
 #include <vector>
 
@@ -41,10 +41,12 @@ class PatchPointOpers {
 public:
   /// Enumerate the meta operands.
   enum { IDPos, NBytesPos, TargetPos, NArgPos, CCPos, MetaEnd };
+
 private:
   const MachineInstr *MI;
   bool HasDef;
   bool IsAnyReg;
+
 public:
   explicit PatchPointOpers(const MachineInstr *MI);
 
@@ -65,8 +67,8 @@ public:
   /// Get the operand index of the variable list of non-argument operands.
   /// These hold the "live state".
   unsigned getVarIdx() const {
-    return getMetaIdx() + MetaEnd
-      + MI->getOperand(getMetaIdx(NArgPos)).getImm();
+    return getMetaIdx() + MetaEnd +
+           MI->getOperand(getMetaIdx(NArgPos)).getImm();
   }
 
   /// Get the index at which stack map locations will be recorded.
@@ -81,34 +83,79 @@ public:
   unsigned getNextScratchIdx(unsigned StartIdx = 0) const;
 };
 
+/// MI-level Statepoint operands
+///
+/// Statepoint operands take the form:
+///   <id>, <num patch bytes >, <num call arguments>, <call target>,
+///   [call arguments], <StackMaps::ConstantOp>, <calling convention>,
+///   <StackMaps::ConstantOp>, <statepoint flags>,
+///   <StackMaps::ConstantOp>, <num other args>, [other args],
+///   [gc values]
+class StatepointOpers {
+private:
+  // These values are aboolute offsets into the operands of the statepoint
+  // instruction.
+  enum { IDPos, NBytesPos, NCallArgsPos, CallTargetPos, MetaEnd };
+
+  // These values are relative offests from the start of the statepoint meta
+  // arguments (i.e. the end of the call arguments).
+  enum { CCOffset = 1, FlagsOffset = 3, NumVMSArgsOffset = 5 };
+
+public:
+  explicit StatepointOpers(const MachineInstr *MI) : MI(MI) {}
+
+  /// Get starting index of non call related arguments
+  /// (calling convention, statepoint flags, vm state and gc state).
+  unsigned getVarIdx() const {
+    return MI->getOperand(NCallArgsPos).getImm() + MetaEnd;
+  }
+
+  /// Return the ID for the given statepoint.
+  uint64_t getID() const { return MI->getOperand(IDPos).getImm(); }
+
+  /// Return the number of patchable bytes the given statepoint should emit.
+  uint32_t getNumPatchBytes() const {
+    return MI->getOperand(NBytesPos).getImm();
+  }
+
+  /// Returns the target of the underlying call.
+  const MachineOperand &getCallTarget() const {
+    return MI->getOperand(CallTargetPos);
+  }
+
+private:
+  const MachineInstr *MI;
+};
+
 class StackMaps {
 public:
   struct Location {
-    enum LocationType { Unprocessed, Register, Direct, Indirect, Constant,
-                        ConstantIndex };
-    LocationType LocType;
+    enum LocationType {
+      Unprocessed,
+      Register,
+      Direct,
+      Indirect,
+      Constant,
+      ConstantIndex
+    };
+    LocationType Type;
     unsigned Size;
     unsigned Reg;
     int64_t Offset;
-    Location() : LocType(Unprocessed), Size(0), Reg(0), Offset(0) {}
-    Location(LocationType LocType, unsigned Size, unsigned Reg, int64_t Offset)
-      : LocType(LocType), Size(Size), Reg(Reg), Offset(Offset) {}
+    Location() : Type(Unprocessed), Size(0), Reg(0), Offset(0) {}
+    Location(LocationType Type, unsigned Size, unsigned Reg, int64_t Offset)
+        : Type(Type), Size(Size), Reg(Reg), Offset(Offset) {}
   };
 
   struct LiveOutReg {
     unsigned short Reg;
-    unsigned short RegNo;
+    unsigned short DwarfRegNum;
     unsigned short Size;
 
-    LiveOutReg() : Reg(0), RegNo(0), Size(0) {}
-    LiveOutReg(unsigned short Reg, unsigned short RegNo, unsigned short Size)
-      : Reg(Reg), RegNo(RegNo), Size(Size) {}
-
-    void MarkInvalid() { Reg = 0; }
-
-    // Only sort by the dwarf register number.
-    bool operator< (const LiveOutReg &LO) const { return RegNo < LO.RegNo; }
-    static bool IsInvalid(const LiveOutReg &LO) { return LO.Reg == 0; }
+    LiveOutReg() : Reg(0), DwarfRegNum(0), Size(0) {}
+    LiveOutReg(unsigned short Reg, unsigned short DwarfRegNum,
+               unsigned short Size)
+        : Reg(Reg), DwarfRegNum(DwarfRegNum), Size(Size) {}
   };
 
   // OpTypes are used to encode information about the following logical
@@ -118,6 +165,12 @@ public:
 
   StackMaps(AsmPrinter &AP);
 
+  void reset() {
+    CSInfos.clear();
+    ConstPool.clear();
+    FnStackSize.clear();
+  }
+
   /// \brief Generate a stackmap record for a stackmap instruction.
   ///
   /// MI must be a raw STACKMAP, not a PATCHPOINT.
@@ -126,6 +179,9 @@ public:
   /// \brief Generate a stackmap record for a patchpoint instruction.
   void recordPatchPoint(const MachineInstr &MI);
 
+  /// \brief Generate a stackmap record for a statepoint instruction.
+  void recordStatepoint(const MachineInstr &MI);
+
   /// If there is any stack map data, create a stack map section and serialize
   /// the map info into it. This clears the stack map data structures
   /// afterwards.
@@ -133,10 +189,9 @@ public:
 
 private:
   static const char *WSMP;
-
   typedef SmallVector<Location, 8> LocationVec;
   typedef SmallVector<LiveOutReg, 8> LiveOutVec;
-  typedef MapVector<int64_t, int64_t> ConstantPool;
+  typedef MapVector<uint64_t, uint64_t> ConstantPool;
   typedef MapVector<const MCSymbol *, uint64_t> FnStackSizeMap;
 
   struct CallsiteInfo {
@@ -146,9 +201,9 @@ private:
     LiveOutVec LiveOuts;
     CallsiteInfo() : CSOffsetExpr(nullptr), ID(0) {}
     CallsiteInfo(const MCExpr *CSOffsetExpr, uint64_t ID,
-                 LocationVec &Locations, LiveOutVec &LiveOuts)
-      : CSOffsetExpr(CSOffsetExpr), ID(ID), Locations(Locations),
-        LiveOuts(LiveOuts) {}
+                 LocationVec &&Locations, LiveOutVec &&LiveOuts)
+        : CSOffsetExpr(CSOffsetExpr), ID(ID), Locations(std::move(Locations)),
+          LiveOuts(std::move(LiveOuts)) {}
   };
 
   typedef std::vector<CallsiteInfo> CallsiteInfoList;
@@ -160,8 +215,8 @@ private:
 
   MachineInstr::const_mop_iterator
   parseOperand(MachineInstr::const_mop_iterator MOI,
-               MachineInstr::const_mop_iterator MOE,
-               LocationVec &Locs, LiveOutVec &LiveOuts) const;
+               MachineInstr::const_mop_iterator MOE, LocationVec &Locs,
+               LiveOutVec &LiveOuts) const;
 
   /// \brief Create a live-out register record for the given register @p Reg.
   LiveOutReg createLiveOutReg(unsigned Reg,
@@ -191,9 +246,11 @@ private:
   void emitConstantPoolEntries(MCStreamer &OS);
 
   /// \brief Emit the callsite info for each stackmap/patchpoint intrinsic call.
-  void emitCallsiteEntries(MCStreamer &OS, const TargetRegisterInfo *TRI);
-};
+  void emitCallsiteEntries(MCStreamer &OS);
 
+  void print(raw_ostream &OS);
+  void debug() { print(dbgs()); }
+};
 }
 
-#endif // LLVM_STACKMAPS
+#endif

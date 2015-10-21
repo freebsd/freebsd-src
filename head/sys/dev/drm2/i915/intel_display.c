@@ -974,9 +974,9 @@ static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 
 	if (IS_HASWELL(dev_priv->dev)) {
 		/* On Haswell, DDI is used instead of FDI_TX_CTL */
-		reg = DDI_FUNC_CTL(pipe);
+		reg = TRANS_DDI_FUNC_CTL(pipe);
 		val = I915_READ(reg);
-		cur_state = !!(val & PIPE_DDI_FUNC_ENABLE);
+		cur_state = !!(val & TRANS_DDI_FUNC_ENABLE);
 	} else {
 		reg = FDI_TX_CTL(pipe);
 		val = I915_READ(reg);
@@ -1878,13 +1878,13 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		break;
 	case 16:
 		if (fb->depth == 15)
-			dspcntr |= DISPPLANE_15_16BPP;
+			dspcntr |= DISPPLANE_BGRX555;
 		else
-			dspcntr |= DISPPLANE_16BPP;
+			dspcntr |= DISPPLANE_BGRX565;
 		break;
 	case 24:
 	case 32:
-		dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
+		dspcntr |= DISPPLANE_BGRX888;
 		break;
 	default:
 		DRM_ERROR("Unknown color depth %d\n", fb->bits_per_pixel);
@@ -1956,14 +1956,14 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 			return -EINVAL;
 		}
 
-		dspcntr |= DISPPLANE_16BPP;
+		dspcntr |= DISPPLANE_BGRX565;
 		break;
 	case 24:
 	case 32:
 		if (fb->depth == 24)
-			dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
+			dspcntr |= DISPPLANE_BGRX888;
 		else if (fb->depth == 30)
-			dspcntr |= DISPPLANE_32BPP_30BIT_NO_ALPHA;
+			dspcntr |= DISPPLANE_BGRX101010;
 		else {
 			DRM_ERROR("bpp %d depth %d\n", fb->bits_per_pixel,
 			    fb->depth);
@@ -2051,9 +2051,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-#if 0
 	struct drm_i915_master_private *master_priv;
-#endif
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int ret;
 
@@ -2099,7 +2097,6 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	intel_update_fbc(dev);
 	DRM_UNLOCK(dev);
 
-#if 0
 	if (!dev->primary->master)
 		return 0;
 
@@ -2114,19 +2111,6 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		master_priv->sarea_priv->pipeA_x = x;
 		master_priv->sarea_priv->pipeA_y = y;
 	}
-#else
-
-	if (!dev_priv->sarea_priv)
-		return 0;
-
-	if (intel_crtc->pipe) {
-		dev_priv->sarea_priv->planeB_x = x;
-		dev_priv->sarea_priv->planeB_y = y;
-	} else {
-		dev_priv->sarea_priv->planeA_x = x;
-		dev_priv->sarea_priv->planeA_y = y;
-	}
-#endif
 
 	return 0;
 }
@@ -3329,9 +3313,7 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-#if 0
 	struct drm_i915_master_private *master_priv;
-#endif
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	bool enabled;
@@ -3343,38 +3325,23 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	dev_priv->display.dpms(crtc, mode);
 
-#if 0
 	if (!dev->primary->master)
 		return;
 
 	master_priv = dev->primary->master->driver_priv;
 	if (!master_priv->sarea_priv)
 		return;
-#else
-	if (!dev_priv->sarea_priv)
-		return;
-#endif
 
 	enabled = crtc->enabled && mode != DRM_MODE_DPMS_OFF;
 
 	switch (pipe) {
 	case 0:
-#if 0
 		master_priv->sarea_priv->pipeA_w = enabled ? crtc->mode.hdisplay : 0;
 		master_priv->sarea_priv->pipeA_h = enabled ? crtc->mode.vdisplay : 0;
-#else
-		dev_priv->sarea_priv->planeA_w = enabled ? crtc->mode.hdisplay : 0;
-		dev_priv->sarea_priv->planeA_h = enabled ? crtc->mode.vdisplay : 0;
-#endif
 		break;
 	case 1:
-#if 0
 		master_priv->sarea_priv->pipeB_w = enabled ? crtc->mode.hdisplay : 0;
 		master_priv->sarea_priv->pipeB_h = enabled ? crtc->mode.vdisplay : 0;
-#else
-		dev_priv->sarea_priv->planeB_w = enabled ? crtc->mode.hdisplay : 0;
-		dev_priv->sarea_priv->planeB_h = enabled ? crtc->mode.vdisplay : 0;
-#endif
 		break;
 	default:
 		DRM_ERROR("Can't update pipe %c in SAREA\n", pipe_name(pipe));
@@ -3502,7 +3469,7 @@ static int i915gm_get_display_clock_speed(struct drm_device *dev)
 {
 	u16 gcfgc = 0;
 
-	gcfgc = pci_read_config(dev->device, GCFGC, 2);
+	gcfgc = pci_read_config(dev->dev, GCFGC, 2);
 
 	if (gcfgc & GC_LOW_FREQUENCY_ENABLE)
 		return 133000;
@@ -6482,7 +6449,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 
 	intel_crtc->busy = false;
 
-	callout_init(&intel_crtc->idle_callout, CALLOUT_MPSAFE);
+	callout_init(&intel_crtc->idle_callout, 1);
 }
 
 int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
@@ -6946,8 +6913,8 @@ static void intel_init_quirks(struct drm_device *dev)
 	device_t d;
 	int i;
 
-	d = dev->device;
-	for (i = 0; i < DRM_ARRAY_SIZE(intel_quirks); i++) {
+	d = dev->dev;
+	for (i = 0; i < ARRAY_SIZE(intel_quirks); i++) {
 		q = &intel_quirks[i];
 		if (pci_get_device(d) == q->device &&
 		    (pci_get_subvendor(d) == q->subsystem_vendor ||
@@ -6995,7 +6962,7 @@ static void ivb_pch_pwm_override(struct drm_device *dev)
 	 */
 	I915_WRITE(BLC_PWM_CPU_CTL2, PWM_ENABLE);
 	I915_WRITE(BLC_PWM_CPU_CTL, 0);
-	I915_WRITE(BLC_PWM_PCH_CTL1, PWM_ENABLE | (1<<30));
+	I915_WRITE(BLC_PWM_PCH_CTL1, PWM_ENABLE);
 }
 
 void intel_modeset_init_hw(struct drm_device *dev)
@@ -7071,7 +7038,7 @@ void intel_modeset_init(struct drm_device *dev)
 	intel_setup_outputs(dev);
 
 	TASK_INIT(&dev_priv->idle_task, 0, intel_idle_update, dev_priv);
-	callout_init(&dev_priv->idle_callout, CALLOUT_MPSAFE);
+	callout_init(&dev_priv->idle_callout, 1);
 }
 
 void intel_modeset_gem_init(struct drm_device *dev)
@@ -7116,10 +7083,11 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	if (IS_VALLEYVIEW(dev))
 		vlv_init_dpio(dev);
 
+	DRM_UNLOCK(dev);
+
 	/* Disable the irq before mode object teardown, for the irq might
 	 * enqueue unpin/hotplug work. */
 	drm_irq_uninstall(dev);
-	DRM_UNLOCK(dev);
 
 	if (taskqueue_cancel(dev_priv->tq, &dev_priv->hotplug_task, NULL))
 		taskqueue_drain(dev_priv->tq, &dev_priv->hotplug_task);

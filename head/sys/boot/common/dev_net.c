@@ -111,6 +111,8 @@ net_init(void)
 static int
 net_open(struct open_file *f, ...)
 {
+	char temp[FNAME_SIZE];
+	struct iodesc *d;
 	va_list args;
 	char *devname;		/* Device part of file name (or NULL). */
 	int error = 0;
@@ -140,6 +142,10 @@ net_open(struct open_file *f, ...)
 				printf("net_open: netif_open() succeeded\n");
 #endif
 		}
+		/*
+		 * If network params were not set by netif_open(), try to get
+		 * them via bootp, rarp, etc.
+		 */
 		if (rootip.s_addr == 0) {
 			/* Get root IP address, and path, etc. */
 			error = net_getparams(netdev_sock);
@@ -151,6 +157,20 @@ net_open(struct open_file *f, ...)
 				return (error);
 			}
 		}
+		/*
+		 * Set the variables required by the kernel's nfs_diskless
+		 * mechanism.  This is the minimum set of variables required to
+		 * mount a root filesystem without needing to obtain additional
+		 * info from bootp or other sources.
+		 */
+		d = socktodesc(netdev_sock);
+		sprintf(temp, "%6D", d->myea, ":");
+		setenv("boot.netif.hwaddr", temp, 1);
+		setenv("boot.netif.ip", inet_ntoa(myip), 1);
+		setenv("boot.netif.netmask", intoa(netmask), 1);
+		setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
+		setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
+		setenv("boot.nfsroot.path", rootpath, 1);
 	}
 	netdev_opens++;
 	f->f_devdata = &netdev_sock;
@@ -232,10 +252,7 @@ static int
 net_getparams(int sock)
 {
 	char buf[MAXHOSTNAMELEN];
-	char temp[FNAME_SIZE];
-	struct iodesc *d;
-	int i;
-	n_long smask;
+	n_long rootaddr, smask;
 
 #ifdef	SUPPORT_BOOTP
 	/*
@@ -302,36 +319,15 @@ net_getparams(int sock)
 		return (EIO);
 	}
 exit:
-	/*
-	 * If present, strip the server's address off of the rootpath
-	 * before passing it along.  This allows us to be compatible with
-	 * the kernel's diskless (BOOTP_NFSROOT) booting conventions
-	 */
-	for (i = 0; rootpath[i] != '\0' && i < FNAME_SIZE; i++)
-		if (rootpath[i] == ':')
-			break;
-	if (i && i != FNAME_SIZE && rootpath[i] == ':') {
-		rootpath[i++] = '\0';
-		if (inet_addr(&rootpath[0]) != INADDR_NONE)
-			rootip.s_addr = inet_addr(&rootpath[0]);
-		bcopy(&rootpath[i], &temp[0], strlen(&rootpath[i])+1);
-		bcopy(&temp[0], &rootpath[0], strlen(&rootpath[i])+1);
-	}
+	if ((rootaddr = net_parse_rootpath()) != INADDR_NONE)
+		rootip.s_addr = rootaddr;
+
 #ifdef	NETIF_DEBUG
 	if (debug) {
 		printf("net_open: server addr: %s\n", inet_ntoa(rootip));
 		printf("net_open: server path: %s\n", rootpath);
 	}
 #endif
-
-	d = socktodesc(sock);
-	sprintf(temp, "%6D", d->myea, ":");
-	setenv("boot.netif.ip", inet_ntoa(myip), 1);
-	setenv("boot.netif.netmask", intoa(netmask), 1);
-	setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
-	setenv("boot.netif.hwaddr", temp, 1);
-	setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
-	setenv("boot.nfsroot.path", rootpath, 1);
 
 	return (0);
 }
@@ -353,4 +349,25 @@ net_print(int verbose)
 		}
 	}
 	printf("\n");
+}
+
+/*
+ * Strip the server's address off of the rootpath if present and return it in
+ * network byte order, leaving just the pathname part in the global rootpath.
+ */
+uint32_t
+net_parse_rootpath()
+{
+	int i;
+	n_long addr = INADDR_NONE;
+
+	for (i = 0; rootpath[i] != '\0' && i < FNAME_SIZE; i++)
+		if (rootpath[i] == ':')
+			break;
+	if (i && i != FNAME_SIZE && rootpath[i] == ':') {
+		rootpath[i++] = '\0';
+		addr = inet_addr(&rootpath[0]);
+		bcopy(&rootpath[i], rootpath, strlen(&rootpath[i])+1);
+	}
+	return (addr);
 }

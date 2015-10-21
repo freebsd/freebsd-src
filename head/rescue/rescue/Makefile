@@ -120,15 +120,18 @@ CRUNCH_PROGS_usr.sbin+= zdb
 # crunchgen does not like C++ programs; this should be fixed someday
 # CRUNCH_PROGS+= devd
 
-CRUNCH_LIBS+= -lalias -lcam -lncursesw -ldevstat -lipsec
+CRUNCH_LIBS+= -lalias -lcam -lncursesw -ldevstat -lipsec -llzma
 .if ${MK_ZFS} != "no"
 CRUNCH_LIBS+= -lavl -lzpool -lzfs_core -lzfs -lnvpair -lpthread -luutil -lumem
+.else
+# liblzma needs pthread
+CRUNCH_LIBS+= -lpthread
 .endif
 CRUNCH_LIBS+= -lgeom -lbsdxml -lkiconv
 .if ${MK_OPENSSL} == "no"
 CRUNCH_LIBS+= -lmd
 .endif
-CRUNCH_LIBS+= -lsbuf -lufs -lz
+CRUNCH_LIBS+= -lmt -lsbuf -lufs -lz
 
 .if ${MACHINE_CPUARCH} == "i386"
 CRUNCH_PROGS_sbin+= bsdlabel sconfig fdisk
@@ -190,7 +193,6 @@ CRUNCH_ALIAS_less= more
 
 CRUNCH_PROGS_usr.bin+= xz
 CRUNCH_ALIAS_xz= unxz lzma unlzma xzcat lzcat
-CRUNCH_LIBS+= -llzma
 
 CRUNCH_PROGS_usr.bin+= tar
 CRUNCH_LIBS+= -larchive
@@ -199,8 +201,10 @@ CRUNCH_LIBS+= -lcrypto
 .endif
 CRUNCH_LIBS+= -lmd
 
+.if ${MK_VI} != "no"
 CRUNCH_PROGS_usr.bin+= vi
 CRUNCH_ALIAS_vi= ex
+.endif
 
 CRUNCH_PROGS_usr.bin+= id
 CRUNCH_ALIAS_id= groups whoami
@@ -216,6 +220,11 @@ CRUNCH_PROGS_usr.sbin+= chown
 CRUNCH_ALIAS_chown= chgrp
 ##################################################################
 CRUNCH_LIBS+= -lm
+
+.if ${MK_ISCSI} != "no"
+CRUNCH_PROGS_usr.bin+=	iscsictl
+CRUNCH_PROGS_usr.sbin+=	iscsid
+.endif
 
 .include <bsd.crunchgen.mk>
 .include <bsd.prog.mk>

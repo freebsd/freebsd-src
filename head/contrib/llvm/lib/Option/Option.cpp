@@ -35,9 +35,6 @@ Option::Option(const OptTable::Info *info, const OptTable *owner)
   }
 }
 
-Option::~Option() {
-}
-
 void Option::dump() const {
   llvm::errs() << "<";
   switch (getKind()) {
@@ -128,6 +125,11 @@ Arg *Option::accept(const ArgList &Args,
         Val += strlen(Val) + 1;
       }
     }
+
+    if (UnaliasedOption.getKind() == JoinedClass && !getAliasArgs())
+      // A Flag alias for a Joined option must provide an argument.
+      A->getValues().push_back("");
+
     return A;
   }
   case JoinedClass: {
@@ -169,7 +171,8 @@ Arg *Option::accept(const ArgList &Args,
       return nullptr;
 
     Index += 2;
-    if (Index > Args.getNumInputArgStrings())
+    if (Index > Args.getNumInputArgStrings() ||
+        Args.getArgString(Index - 1) == nullptr)
       return nullptr;
 
     return new Arg(UnaliasedOption, Spelling,
@@ -200,7 +203,8 @@ Arg *Option::accept(const ArgList &Args,
 
     // Otherwise it must be separate.
     Index += 2;
-    if (Index > Args.getNumInputArgStrings())
+    if (Index > Args.getNumInputArgStrings() ||
+        Args.getArgString(Index - 1) == nullptr)
       return nullptr;
 
     return new Arg(UnaliasedOption, Spelling,
@@ -209,7 +213,8 @@ Arg *Option::accept(const ArgList &Args,
   case JoinedAndSeparateClass:
     // Always matches.
     Index += 2;
-    if (Index > Args.getNumInputArgStrings())
+    if (Index > Args.getNumInputArgStrings() ||
+        Args.getArgString(Index - 1) == nullptr)
       return nullptr;
 
     return new Arg(UnaliasedOption, Spelling, Index - 2,
@@ -221,7 +226,8 @@ Arg *Option::accept(const ArgList &Args,
     if (ArgSize != strlen(Args.getArgString(Index)))
       return nullptr;
     Arg *A = new Arg(UnaliasedOption, Spelling, Index++);
-    while (Index < Args.getNumInputArgStrings())
+    while (Index < Args.getNumInputArgStrings() &&
+           Args.getArgString(Index) != nullptr)
       A->getValues().push_back(Args.getArgString(Index++));
     return A;
   }

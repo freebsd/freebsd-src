@@ -83,6 +83,9 @@ public:
 protected:
     virtual bool
     UpdateValue ();
+    
+    virtual bool
+    CanUpdateWithInvalidExecutionContext ();
 
     virtual ClangASTType
     GetClangTypeImpl ()
@@ -106,6 +109,7 @@ protected:
 protected:
     friend class ValueObject;
     friend class ValueObjectConstResult;
+    friend class ValueObjectConstResultImpl;
     ValueObjectChild (ValueObject &parent,
                       const ClangASTType &clang_type,
                       const ConstString &name,

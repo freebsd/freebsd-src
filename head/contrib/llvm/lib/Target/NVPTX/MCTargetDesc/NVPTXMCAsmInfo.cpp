@@ -25,15 +25,12 @@ static cl::opt<bool> CompileForDebugging("debug-compile",
 
 void NVPTXMCAsmInfo::anchor() {}
 
-NVPTXMCAsmInfo::NVPTXMCAsmInfo(const StringRef &TT) {
-  Triple TheTriple(TT);
+NVPTXMCAsmInfo::NVPTXMCAsmInfo(const Triple &TheTriple) {
   if (TheTriple.getArch() == Triple::nvptx64) {
     PointerSize = CalleeSaveStackSlotSize = 8;
   }
 
   CommentString = "//";
-
-  HasSetDirective = false;
 
   HasSingleParameterDotFile = false;
 
@@ -41,6 +38,8 @@ NVPTXMCAsmInfo::NVPTXMCAsmInfo(const StringRef &TT) {
   InlineAsmEnd = " inline asm";
 
   SupportsDebugInformation = CompileForDebugging;
+  // PTX does not allow .align on functions.
+  HasFunctionAlignment = false;
   HasDotTypeDotSizeDirective = false;
 
   Data8bitsDirective = " .b8 ";
@@ -52,5 +51,6 @@ NVPTXMCAsmInfo::NVPTXMCAsmInfo(const StringRef &TT) {
   AscizDirective = " .b8";
 
   // @TODO: Can we just disable this?
+  WeakDirective = "\t// .weak\t";
   GlobalDirective = "\t// .globl\t";
 }

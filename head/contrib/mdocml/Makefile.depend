@@ -11,6 +11,7 @@ compat_strcasestr.o: compat_strcasestr.c config.h
 compat_strlcat.o: compat_strlcat.c config.h
 compat_strlcpy.o: compat_strlcpy.c config.h
 compat_strsep.o: compat_strsep.c config.h
+compat_strtonum.o: compat_strtonum.c config.h
 demandoc.o: demandoc.c config.h man.h mdoc.h mandoc.h
 eqn.o: eqn.c config.h mandoc.h mandoc_aux.h libmandoc.h libroff.h
 eqn_html.o: eqn_html.c config.h mandoc.h out.h html.h
@@ -39,7 +40,7 @@ mdoc_macro.o: mdoc_macro.c config.h mdoc.h mandoc.h libmdoc.h libmandoc.h
 mdoc_man.o: mdoc_man.c config.h mandoc.h mandoc_aux.h out.h man.h mdoc.h main.h
 mdoc_term.o: mdoc_term.c config.h mandoc.h mandoc_aux.h out.h term.h mdoc.h main.h
 mdoc_validate.o: mdoc_validate.c config.h mdoc.h mandoc.h mandoc_aux.h libmdoc.h libmandoc.h
-msec.o: msec.c config.h libmandoc.h msec.in
+msec.o: msec.c config.h mandoc.h libmandoc.h msec.in
 out.o: out.c config.h mandoc_aux.h mandoc.h out.h
 preconv.o: preconv.c config.h mandoc.h libmandoc.h
 read.o: read.c config.h mandoc.h mandoc_aux.h libmandoc.h mdoc.h man.h
@@ -69,4 +70,5 @@ test-strlcat.o: test-strlcat.c
 test-strlcpy.o: test-strlcpy.c
 test-strptime.o: test-strptime.c
 test-strsep.o: test-strsep.c
+test-strtonum.o: test-strtonum.c
 test-wchar.o: test-wchar.c

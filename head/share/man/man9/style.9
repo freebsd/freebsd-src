@@ -26,7 +26,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2010
+.Dd July 6, 2015
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -503,13 +503,14 @@ Code which is unreachable for non-obvious reasons may be marked /*
 .Pp
 Space after keywords
 .Pq Ic if , while , for , return , switch .
-No braces
+Two styles of braces
 .Ql ( \&{
 and
 .Ql \&} )
-are
-used for control statements with zero or only a single statement unless that
-statement is more than a single line in which case they are permitted.
+are allowed for single line statements.
+Either they are used for all single statements, or
+they are used only where needed for clarity.
+Usage within a function should be consistent.
 Forever loops are done with
 .Ic for Ns 's ,
 not

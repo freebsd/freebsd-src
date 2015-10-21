@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: softmagic.c,v 1.206 2015/01/01 17:07:34 christos Exp $")
+FILE_RCSID("@(#)$File: softmagic.c,v 1.218 2015/09/11 17:24:09 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -63,6 +63,22 @@ private void cvt_32(union VALUETYPE *, const struct magic *);
 private void cvt_64(union VALUETYPE *, const struct magic *);
 
 #define OFFSET_OOB(n, o, i)	((n) < (o) || (i) > ((n) - (o)))
+#define BE64(p) (((uint64_t)(p)->hq[0]<<56)|((uint64_t)(p)->hq[1]<<48)| \
+    ((uint64_t)(p)->hq[2]<<40)|((uint64_t)(p)->hq[3]<<32)| \
+    ((uint64_t)(p)->hq[4]<<24)|((uint64_t)(p)->hq[5]<<16)| \
+    ((uint64_t)(p)->hq[6]<<8)|((uint64_t)(p)->hq[7]))
+#define LE64(p) (((uint64_t)(p)->hq[7]<<56)|((uint64_t)(p)->hq[6]<<48)| \
+    ((uint64_t)(p)->hq[5]<<40)|((uint64_t)(p)->hq[4]<<32)| \
+    ((uint64_t)(p)->hq[3]<<24)|((uint64_t)(p)->hq[2]<<16)| \
+    ((uint64_t)(p)->hq[1]<<8)|((uint64_t)(p)->hq[0]))
+#define LE32(p) (((uint32_t)(p)->hl[3]<<24)|((uint32_t)(p)->hl[2]<<16)| \
+     ((uint32_t)(p)->hl[1]<<8)|((uint32_t)(p)->hl[0]))
+#define BE32(p) (((uint32_t)(p)->hl[0]<<24)|((uint32_t)(p)->hl[1]<<16)| \
+     ((uint32_t)(p)->hl[2]<<8)|((uint32_t)(p)->hl[3]))
+#define ME32(p) (((uint32_t)(p)->hl[1]<<24)|((uint32_t)(p)->hl[0]<<16)| \
+     ((uint32_t)(p)->hl[3]<<8)|((uint32_t)(p)->hl[2]))
+#define BE16(p) (((uint16_t)(p)->hs[0]<<8)|((uint16_t)(p)->hs[1]))
+#define LE16(p) (((uint16_t)(p)->hs[1]<<8)|((uint16_t)(p)->hs[0]))
 
 /*
  * softmagic - lookup one file in parsed, in-memory copy of database
@@ -147,7 +163,7 @@ match(struct magic_set *ms, struct magic *magic, uint32_t nmagic,
 	unsigned int cont_level = 0;
 	int returnvalv = 0, e; /* if a match is found it is set to 1*/
 	int firstline = 1; /* a flag to print X\n  X\n- X */
-	int print = (ms->flags & (MAGIC_MIME|MAGIC_APPLE)) == 0;
+	int print = (ms->flags & MAGIC_NODESC) == 0;
 
 	if (returnval == NULL)
 		returnval = &returnvalv;
@@ -361,6 +377,7 @@ match(struct magic_set *ms, struct magic *magic, uint32_t nmagic,
 		if ((ms->flags & MAGIC_CONTINUE) == 0 && *printed_something) {
 			return *returnval; /* don't keep searching */
 		}
+		cont_level = 0;
 	}
 	return *returnval;  /* This is hit if -k is set or there is no match */
 }
@@ -518,7 +535,7 @@ mprint(struct magic_set *ms, struct magic *m)
 			t = ms->offset + strlen(str);
 
 			if (*m->value.s == '\0')
-				str[strcspn(str, "\n")] = '\0';
+				str[strcspn(str, "\r\n")] = '\0';
 
 			if (m->str_flags & STRING_TRIM) {
 				char *last;
@@ -547,7 +564,7 @@ mprint(struct magic_set *ms, struct magic *m)
 	case FILE_LEDATE:
 	case FILE_MEDATE:
 		if (file_printf(ms, F(ms, m, "%s"),
-		    file_fmttime(p->l + m->num_mask, FILE_T_LOCAL, tbuf)) == -1)
+		    file_fmttime(p->l, 0, tbuf)) == -1)
 			return -1;
 		t = ms->offset + sizeof(uint32_t);
 		break;
@@ -557,7 +574,7 @@ mprint(struct magic_set *ms, struct magic *m)
 	case FILE_LELDATE:
 	case FILE_MELDATE:
 		if (file_printf(ms, F(ms, m, "%s"),
-		    file_fmttime(p->l + m->num_mask, 0, tbuf)) == -1)
+		    file_fmttime(p->l, FILE_T_LOCAL, tbuf)) == -1)
 			return -1;
 		t = ms->offset + sizeof(uint32_t);
 		break;
@@ -566,7 +583,7 @@ mprint(struct magic_set *ms, struct magic *m)
 	case FILE_BEQDATE:
 	case FILE_LEQDATE:
 		if (file_printf(ms, F(ms, m, "%s"),
-		    file_fmttime(p->q + m->num_mask, FILE_T_LOCAL, tbuf)) == -1)
+		    file_fmttime(p->q, 0, tbuf)) == -1)
 			return -1;
 		t = ms->offset + sizeof(uint64_t);
 		break;
@@ -575,7 +592,7 @@ mprint(struct magic_set *ms, struct magic *m)
 	case FILE_BEQLDATE:
 	case FILE_LEQLDATE:
 		if (file_printf(ms, F(ms, m, "%s"),
-		    file_fmttime(p->q + m->num_mask, 0, tbuf)) == -1)
+		    file_fmttime(p->q, FILE_T_LOCAL, tbuf)) == -1)
 			return -1;
 		t = ms->offset + sizeof(uint64_t);
 		break;
@@ -584,14 +601,14 @@ mprint(struct magic_set *ms, struct magic *m)
 	case FILE_BEQWDATE:
 	case FILE_LEQWDATE:
 		if (file_printf(ms, F(ms, m, "%s"),
-		    file_fmttime(p->q + m->num_mask, FILE_T_WINDOWS, tbuf)) == -1)
+		    file_fmttime(p->q, FILE_T_WINDOWS, tbuf)) == -1)
 			return -1;
 		t = ms->offset + sizeof(uint64_t);
 		break;
 
-  	case FILE_FLOAT:
-  	case FILE_BEFLOAT:
-  	case FILE_LEFLOAT:
+	case FILE_FLOAT:
+	case FILE_BEFLOAT:
+	case FILE_LEFLOAT:
 		vf = p->f;
 		switch (check_fmt(ms, m)) {
 		case -1:
@@ -609,9 +626,9 @@ mprint(struct magic_set *ms, struct magic *m)
 		t = ms->offset + sizeof(float);
   		break;
 
-  	case FILE_DOUBLE:
-  	case FILE_BEDOUBLE:
-  	case FILE_LEDOUBLE:
+	case FILE_DOUBLE:
+	case FILE_BEDOUBLE:
+	case FILE_LEDOUBLE:
 		vd = p->d;
 		switch (check_fmt(ms, m)) {
 		case -1:
@@ -629,6 +646,7 @@ mprint(struct magic_set *ms, struct magic *m)
 		t = ms->offset + sizeof(double);
   		break;
 
+	case FILE_SEARCH:
 	case FILE_REGEX: {
 		char *cp;
 		int rval;
@@ -651,16 +669,6 @@ mprint(struct magic_set *ms, struct magic *m)
 			t = ms->search.offset + ms->search.rm_len;
 		break;
 	}
-
-	case FILE_SEARCH:
-	  	if (file_printf(ms, F(ms, m, "%s"),
-		    file_printable(sbuf, sizeof(sbuf), m->value.s)) == -1)
-			return -1;
-		if ((m->str_flags & REGEX_OFFSET_START))
-			t = ms->search.offset;
-		else
-			t = ms->search.offset + m->vallen;
-		break;
 
 	case FILE_DEFAULT:
 	case FILE_CLEAR:
@@ -716,7 +724,7 @@ moffset(struct magic_set *ms, struct magic *m)
 			uint32_t t;
 
 			if (*m->value.s == '\0')
-				p->s[strcspn(p->s, "\n")] = '\0';
+				p->s[strcspn(p->s, "\r\n")] = '\0';
 			t = CAST(uint32_t, (ms->offset + strlen(p->s)));
 			if (m->type == FILE_PSTRING)
 				t += (uint32_t)file_pstring_length_size(m);
@@ -970,89 +978,65 @@ mconvert(struct magic_set *ms, struct magic *m, int flip)
 		return 1;
 	}
 	case FILE_BESHORT:
-		p->h = (short)((p->hs[0]<<8)|(p->hs[1]));
+		p->h = (short)BE16(p);
 		cvt_16(p, m);
 		return 1;
 	case FILE_BELONG:
 	case FILE_BEDATE:
 	case FILE_BELDATE:
-		p->l = (int32_t)
-		    ((p->hl[0]<<24)|(p->hl[1]<<16)|(p->hl[2]<<8)|(p->hl[3]));
-		if (type == FILE_BELONG)
-			cvt_32(p, m);
+		p->l = (int32_t)BE32(p);
+		cvt_32(p, m);
 		return 1;
 	case FILE_BEQUAD:
 	case FILE_BEQDATE:
 	case FILE_BEQLDATE:
 	case FILE_BEQWDATE:
-		p->q = (uint64_t)
-		    (((uint64_t)p->hq[0]<<56)|((uint64_t)p->hq[1]<<48)|
-		     ((uint64_t)p->hq[2]<<40)|((uint64_t)p->hq[3]<<32)|
-		     ((uint64_t)p->hq[4]<<24)|((uint64_t)p->hq[5]<<16)|
-		     ((uint64_t)p->hq[6]<<8)|((uint64_t)p->hq[7]));
-		if (type == FILE_BEQUAD)
-			cvt_64(p, m);
+		p->q = (uint64_t)BE64(p);
+		cvt_64(p, m);
 		return 1;
 	case FILE_LESHORT:
-		p->h = (short)((p->hs[1]<<8)|(p->hs[0]));
+		p->h = (short)LE16(p);
 		cvt_16(p, m);
 		return 1;
 	case FILE_LELONG:
 	case FILE_LEDATE:
 	case FILE_LELDATE:
-		p->l = (int32_t)
-		    ((p->hl[3]<<24)|(p->hl[2]<<16)|(p->hl[1]<<8)|(p->hl[0]));
-		if (type == FILE_LELONG)
-			cvt_32(p, m);
+		p->l = (int32_t)LE32(p);
+		cvt_32(p, m);
 		return 1;
 	case FILE_LEQUAD:
 	case FILE_LEQDATE:
 	case FILE_LEQLDATE:
 	case FILE_LEQWDATE:
-		p->q = (uint64_t)
-		    (((uint64_t)p->hq[7]<<56)|((uint64_t)p->hq[6]<<48)|
-		     ((uint64_t)p->hq[5]<<40)|((uint64_t)p->hq[4]<<32)|
-		     ((uint64_t)p->hq[3]<<24)|((uint64_t)p->hq[2]<<16)|
-		     ((uint64_t)p->hq[1]<<8)|((uint64_t)p->hq[0]));
-		if (type == FILE_LEQUAD)
-			cvt_64(p, m);
+		p->q = (uint64_t)LE64(p);
+		cvt_64(p, m);
 		return 1;
 	case FILE_MELONG:
 	case FILE_MEDATE:
 	case FILE_MELDATE:
-		p->l = (int32_t)
-		    ((p->hl[1]<<24)|(p->hl[0]<<16)|(p->hl[3]<<8)|(p->hl[2]));
-		if (type == FILE_MELONG)
-			cvt_32(p, m);
+		p->l = (int32_t)ME32(p);
+		cvt_32(p, m);
 		return 1;
 	case FILE_FLOAT:
 		cvt_float(p, m);
 		return 1;
 	case FILE_BEFLOAT:
-		p->l =  ((uint32_t)p->hl[0]<<24)|((uint32_t)p->hl[1]<<16)|
-			((uint32_t)p->hl[2]<<8) |((uint32_t)p->hl[3]);
+		p->l = BE32(p);
 		cvt_float(p, m);
 		return 1;
 	case FILE_LEFLOAT:
-		p->l =  ((uint32_t)p->hl[3]<<24)|((uint32_t)p->hl[2]<<16)|
-			((uint32_t)p->hl[1]<<8) |((uint32_t)p->hl[0]);
+		p->l = LE32(p);
 		cvt_float(p, m);
 		return 1;
 	case FILE_DOUBLE:
 		cvt_double(p, m);
 		return 1;
 	case FILE_BEDOUBLE:
-		p->q =  ((uint64_t)p->hq[0]<<56)|((uint64_t)p->hq[1]<<48)|
-			((uint64_t)p->hq[2]<<40)|((uint64_t)p->hq[3]<<32)|
-			((uint64_t)p->hq[4]<<24)|((uint64_t)p->hq[5]<<16)|
-			((uint64_t)p->hq[6]<<8) |((uint64_t)p->hq[7]);
+		p->q = BE64(p); 
 		cvt_double(p, m);
 		return 1;
 	case FILE_LEDOUBLE:
-		p->q =  ((uint64_t)p->hq[7]<<56)|((uint64_t)p->hq[6]<<48)|
-			((uint64_t)p->hq[5]<<40)|((uint64_t)p->hq[4]<<32)|
-			((uint64_t)p->hq[3]<<24)|((uint64_t)p->hq[2]<<16)|
-			((uint64_t)p->hq[1]<<8) |((uint64_t)p->hq[0]);
+		p->q = LE64(p);
 		cvt_double(p, m);
 		return 1;
 	case FILE_REGEX:
@@ -1116,13 +1100,13 @@ mcopy(struct magic_set *ms, union VALUETYPE *p, int type, int indir,
 				bytecnt = m->str_range;
 			}
 
-			if (bytecnt == 0)
-				bytecnt = 8192;
-			if (bytecnt > nbytes)
-				bytecnt = nbytes;
+			if (bytecnt == 0 || bytecnt > nbytes - offset)
+				bytecnt = nbytes - offset;
+			if (bytecnt > ms->regex_max)
+				bytecnt = ms->regex_max;
 
 			buf = RCAST(const char *, s) + offset;
-			end = last = RCAST(const char *, s) + bytecnt;
+			end = last = RCAST(const char *, s) + bytecnt + offset;
 			/* mget() guarantees buf <= last */
 			for (lines = linecnt, b = buf; lines && b < end &&
 			     ((b = CAST(const char *,
@@ -1254,27 +1238,24 @@ mget(struct magic_set *ms, const unsigned char *s, struct magic *m,
 				off = q->h;
 				break;
 			case FILE_BESHORT:
-				off = (short)((q->hs[0]<<8)|(q->hs[1]));
+				off = (short)BE16(q);
 				break;
 			case FILE_LESHORT:
-				off = (short)((q->hs[1]<<8)|(q->hs[0]));
+				off = (short)LE16(q);
 				break;
 			case FILE_LONG:
 				off = q->l;
 				break;
 			case FILE_BELONG:
 			case FILE_BEID3:
-				off = (int32_t)((q->hl[0]<<24)|(q->hl[1]<<16)|
-						 (q->hl[2]<<8)|(q->hl[3]));
+				off = (int32_t)BE32(q);
 				break;
 			case FILE_LEID3:
 			case FILE_LELONG:
-				off = (int32_t)((q->hl[3]<<24)|(q->hl[2]<<16)|
-						 (q->hl[1]<<8)|(q->hl[0]));
+				off = (int32_t)LE32(q);
 				break;
 			case FILE_MELONG:
-				off = (int32_t)((q->hl[1]<<24)|(q->hl[0]<<16)|
-						 (q->hl[3]<<8)|(q->hl[2]));
+				off = (int32_t)ME32(q);
 				break;
 			}
 			if ((ms->flags & MAGIC_DEBUG) != 0)
@@ -1428,8 +1409,7 @@ mget(struct magic_set *ms, const unsigned char *s, struct magic *m,
 		case FILE_BEID3:
 			if (OFFSET_OOB(nbytes, offset, 4))
 				return 0;
-			lhs = (p->hl[0] << 24) | (p->hl[1] << 16) |
-			    (p->hl[2] << 8) | p->hl[3];
+			lhs = BE32(p);
 			if (off) {
 				switch (m->in_op & FILE_OPS_MASK) {
 				case FILE_OPAND:
@@ -1466,8 +1446,7 @@ mget(struct magic_set *ms, const unsigned char *s, struct magic *m,
 		case FILE_LEID3:
 			if (OFFSET_OOB(nbytes, offset, 4))
 				return 0;
-			lhs = (p->hl[3] << 24) | (p->hl[2] << 16) |
-			    (p->hl[1] << 8) | p->hl[0];
+			lhs = LE32(p);
 			if (off) {
 				switch (m->in_op & FILE_OPS_MASK) {
 				case FILE_OPAND:
@@ -1503,8 +1482,7 @@ mget(struct magic_set *ms, const unsigned char *s, struct magic *m,
 		case FILE_MELONG:
 			if (OFFSET_OOB(nbytes, offset, 4))
 				return 0;
-			lhs = (p->hl[1] << 24) | (p->hl[0] << 16) |
-			    (p->hl[3] << 8) | p->hl[2];
+			lhs = ME32(p);
 			if (off) {
 				switch (m->in_op & FILE_OPS_MASK) {
 				case FILE_OPAND:
@@ -1580,9 +1558,11 @@ mget(struct magic_set *ms, const unsigned char *s, struct magic *m,
 		case FILE_LEID3:
 		case FILE_BEID3:
 			offset = ((((offset >>  0) & 0x7f) <<  0) |
-				 (((offset >>  8) & 0x7f) <<  7) |
-				 (((offset >> 16) & 0x7f) << 14) |
-				 (((offset >> 24) & 0x7f) << 21)) + 10;
+				  (((offset >>  8) & 0x7f) <<  7) |
+				  (((offset >> 16) & 0x7f) << 14) |
+				  (((offset >> 24) & 0x7f) << 21));
+			if ((ms->flags & MAGIC_DEBUG) != 0)
+				fprintf(stderr, "id3 offs=%u\n", offset);
 			break;
 		default:
 			break;
@@ -1666,7 +1646,7 @@ mget(struct magic_set *ms, const unsigned char *s, struct magic *m,
 
 	case FILE_INDIRECT:
 		if (m->str_flags & INDIRECT_RELATIVE)
-			offset += o;
+			offset += CAST(uint32_t, o);
 		if (offset == 0)
 			return 0;
 
@@ -1687,7 +1667,7 @@ mget(struct magic_set *ms, const unsigned char *s, struct magic *m,
 			return -1;
 
 		if (rv == 1) {
-			if ((ms->flags & (MAGIC_MIME|MAGIC_APPLE)) == 0 &&
+			if ((ms->flags & MAGIC_NODESC) == 0 &&
 			    file_printf(ms, F(ms, m, "%u"), offset) == -1) {
 				free(rbuf);
 				return -1;
@@ -1721,9 +1701,11 @@ mget(struct magic_set *ms, const unsigned char *s, struct magic *m,
 		    printed_something, need_separator, returnval);
 		if (rv != 1)
 		    *need_separator = oneed_separator;
-		return rv;
+		return 1;
 
 	case FILE_NAME:
+		if (ms->flags & MAGIC_NODESC)
+			return 1;
 		if (file_printf(ms, "%s", m->desc) == -1)
 			return -1;
 		return 1;
@@ -1965,6 +1947,7 @@ magiccheck(struct magic_set *ms, struct magic *m)
 			    m->str_flags);
 			if (v == 0) {	/* found match */
 				ms->search.offset += idx;
+				ms->search.rm_len = m->str_range - idx;
 				break;
 			}
 		}
@@ -2148,6 +2131,11 @@ handle_annotation(struct magic_set *ms, struct magic *m)
 			return -1;
 		return 1;
 	}
+	if (ms->flags & MAGIC_EXTENSION) {
+		if (file_printf(ms, "%s", m->ext) == -1)
+			return -1;
+		return 1;
+	}
 	if ((ms->flags & MAGIC_MIME_TYPE) && m->mimetype[0]) {
 		if (file_printf(ms, "%s", m->mimetype) == -1)
 			return -1;
@@ -2159,7 +2147,7 @@ handle_annotation(struct magic_set *ms, struct magic *m)
 private int
 print_sep(struct magic_set *ms, int firstline)
 {
-	if (ms->flags & MAGIC_MIME)
+	if (ms->flags & MAGIC_NODESC)
 		return 0;
 	if (firstline)
 		return 0;

@@ -6,7 +6,6 @@ SUBDIR=	beyond4.3 \
 	devfs \
 	diskperf \
 	fsinterface \
-	hwpmc \
 	jail \
 	kernmalloc \
 	kerntune \
@@ -15,5 +14,7 @@ SUBDIR=	beyond4.3 \
 	relengr \
 	sysperf \
 	timecounter
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

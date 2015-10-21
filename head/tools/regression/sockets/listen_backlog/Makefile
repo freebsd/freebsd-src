@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	listen_backlog
-WARNS?=	3
 MAN=
+WARNS?=	6
 
 .include <bsd.prog.mk>

@@ -1796,6 +1796,10 @@ process_file(char *filename)
 
 	if (filename ==  NULL) {
 		io = my_popen(command, "r", &pid_of_command);
+		if (io == NULL) {
+			printf("Can't popen the command %s\n", command);
+			return;
+		}
 	} else {
 		io = fopen(filename, "r");
 		if (io == NULL) {
@@ -1808,8 +1812,10 @@ process_file(char *filename)
 	if (cnts == NULL) {
 		/* Nothing we can do */
 		printf("Nothing to do -- no counters built\n");
-		if (io) {
-			fclose(io);
+		if (filename) {
+			fclose(io); 
+		} else {
+			my_pclose(io, pid_of_command);
 		}
 		return;
 	}
@@ -2133,7 +2139,11 @@ test_for_a_pmc(const char *pmc, int out_so_far)
 					printf(" ");
 				}
 			}
-			printf("%s", &line[j]);
+			if (len) {
+				printf("%s", &line[j]);
+			} else {
+				printf("\n");
+			}
 			goto out;
 		}
 	}

@@ -140,7 +140,7 @@ reserve:
 		case 0:
 			break;
 		case -EBUSY:
-		case -ERESTART:
+		case -ERESTARTSYS:
 		case -EINTR:
 			kern_yield(0);
 			goto reserve;
@@ -339,22 +339,22 @@ ttm_bo_mmap_single(struct ttm_bo_device *bdev, vm_ooffset_t *offset, vm_size_t s
 
 	if (unlikely(bo == NULL)) {
 		printf("[TTM] Could not find buffer object to map\n");
-		return (EINVAL);
+		return (-EINVAL);
 	}
 
 	driver = bo->bdev->driver;
 	if (unlikely(!driver->verify_access)) {
-		ret = EPERM;
+		ret = -EPERM;
 		goto out_unref;
 	}
-	ret = -driver->verify_access(bo);
+	ret = driver->verify_access(bo);
 	if (unlikely(ret != 0))
 		goto out_unref;
 
 	vm_obj = cdev_pager_allocate(bo, OBJT_MGTDEVICE, &ttm_pager_ops,
 	    size, nprot, 0, curthread->td_ucred);
 	if (vm_obj == NULL) {
-		ret = EINVAL;
+		ret = -EINVAL;
 		goto out_unref;
 	}
 	/*

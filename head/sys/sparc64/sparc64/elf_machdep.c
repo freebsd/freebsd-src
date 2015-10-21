@@ -87,6 +87,7 @@ static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
 	.sv_schedtail	= NULL,
+	.sv_thread_detach = NULL,
 };
 
 static Elf64_Brandinfo freebsd_brand_info = {
@@ -343,6 +344,7 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
 	Elf_Addr value;
 	Elf_Addr mask;
 	Elf_Addr addr;
+	int error;
 
 	if (type != ELF_RELOC_RELA)
 		return (-1);
@@ -371,8 +373,8 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
 	value = rela->r_addend;
 
 	if (RELOC_RESOLVE_SYMBOL(rtype)) {
-		addr = lookup(lf, symidx, 1);
-		if (addr == 0)
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
 			return (-1);
 		value += addr;
 		if (RELOC_BARE_SYMBOL(rtype))

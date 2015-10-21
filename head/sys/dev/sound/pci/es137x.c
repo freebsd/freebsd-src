@@ -1741,7 +1741,7 @@ es_pci_attach(device_t dev)
 
 	es->st = rman_get_bustag(es->reg);
 	es->sh = rman_get_bushandle(es->reg);
-	callout_init(&es->poll_timer, CALLOUT_MPSAFE);
+	callout_init(&es->poll_timer, 1);
 	es->poll_ticks = 1;
 
 	if (resource_int_value(device_get_name(dev),

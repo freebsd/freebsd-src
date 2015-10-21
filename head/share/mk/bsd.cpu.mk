@@ -6,59 +6,70 @@
 
 .if !defined(CPUTYPE) || empty(CPUTYPE)
 _CPUCFLAGS =
-. if ${MACHINE_CPUARCH} == "i386"
-MACHINE_CPU = i486
+. if ${MACHINE_CPUARCH} == "aarch64"
+MACHINE_CPU = arm64
 . elif ${MACHINE_CPUARCH} == "amd64"
 MACHINE_CPU = amd64 sse2 sse mmx
+. elif ${MACHINE_CPUARCH} == "arm"
+MACHINE_CPU = arm
+. elif ${MACHINE_CPUARCH} == "i386"
+MACHINE_CPU = i486
+. elif ${MACHINE_CPUARCH} == "mips"
+MACHINE_CPU = mips
 . elif ${MACHINE_CPUARCH} == "powerpc"
 MACHINE_CPU = aim
 . elif ${MACHINE_CPUARCH} == "sparc64"
 MACHINE_CPU = ultrasparc
-. elif ${MACHINE_CPUARCH} == "arm"
-MACHINE_CPU = arm
-. elif ${MACHINE_CPUARCH} == "mips"
-MACHINE_CPU = mips
 . endif
 .else
 
 # Handle aliases (not documented in make.conf to avoid user confusion
 # between e.g. i586 and pentium)
 
-. if ${MACHINE_CPUARCH} == "i386"
+. if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 .  if ${CPUTYPE} == "barcelona"
 CPUTYPE = amdfam10
-.  elif ${CPUTYPE} == "k7"
-CPUTYPE = athlon
-.  elif ${CPUTYPE} == "westmere" || ${CPUTYPE} == "nehalem"
-CPUTYPE = corei7
+.  elif ${CPUTYPE} == "core-avx2"
+CPUTYPE = haswell
+.  elif ${CPUTYPE} == "core-avx-i"
+CPUTYPE = ivybridge
+.  elif ${CPUTYPE} == "corei7-avx"
+CPUTYPE = sandybridge
+.  elif ${CPUTYPE} == "corei7"
+CPUTYPE = nehalem
+.  elif ${CPUTYPE} == "slm"
+CPUTYPE = silvermont
+.  elif ${CPUTYPE} == "atom"
+CPUTYPE = bonnell
 .  elif ${CPUTYPE} == "core"
 CPUTYPE = prescott
-.  elif ${CPUTYPE} == "p4"
-CPUTYPE = pentium4
-.  elif ${CPUTYPE} == "p4m"
-CPUTYPE = pentium4m
-.  elif ${CPUTYPE} == "p3"
-CPUTYPE = pentium3
-.  elif ${CPUTYPE} == "p3m"
-CPUTYPE = pentium3m
-.  elif ${CPUTYPE} == "p-m"
-CPUTYPE = pentium-m
-.  elif ${CPUTYPE} == "p2"
-CPUTYPE = pentium2
-.  elif ${CPUTYPE} == "i686"
-CPUTYPE = pentiumpro
-.  elif ${CPUTYPE} == "i586/mmx"
-CPUTYPE = pentium-mmx
-.  elif ${CPUTYPE} == "i586"
-CPUTYPE = pentium
 .  endif
-. elif ${MACHINE_CPUARCH} == "amd64"
-.  if ${CPUTYPE} == "barcelona"
-CPUTYPE = amdfam10
-.  elif ${CPUTYPE} == "westmere" || ${CPUTYPE} == "nehalem"
-CPUTYPE = corei7
-.  elif ${CPUTYPE} == "prescott"
+.  if ${MACHINE_CPUARCH} == "amd64"
+.   if ${CPUTYPE} == "prescott"
 CPUTYPE = nocona
+.   endif
+.  else
+.   if ${CPUTYPE} == "k7"
+CPUTYPE = athlon
+.   elif ${CPUTYPE} == "p4"
+CPUTYPE = pentium4
+.   elif ${CPUTYPE} == "p4m"
+CPUTYPE = pentium4m
+.   elif ${CPUTYPE} == "p3"
+CPUTYPE = pentium3
+.   elif ${CPUTYPE} == "p3m"
+CPUTYPE = pentium3m
+.   elif ${CPUTYPE} == "p-m"
+CPUTYPE = pentium-m
+.   elif ${CPUTYPE} == "p2"
+CPUTYPE = pentium2
+.   elif ${CPUTYPE} == "i686"
+CPUTYPE = pentiumpro
+.   elif ${CPUTYPE} == "i586/mmx"
+CPUTYPE = pentium-mmx
+.   elif ${CPUTYPE} == "i586"
+CPUTYPE = pentium
+.   endif
 .  endif
 . elif ${MACHINE_ARCH} == "sparc64"
 .  if ${CPUTYPE} == "us"
@@ -139,8 +150,11 @@ _CPUCFLAGS = -mcpu=ultrasparc3
 # unordered list to make it easy for client makefiles to test for the
 # presence of a CPU feature.
 
+########## i386
 . if ${MACHINE_CPUARCH} == "i386"
-.  if ${CPUTYPE} == "bdver3" || ${CPUTYPE} == "bdver2" || \
+.  if ${CPUTYPE} == "bdver4"
+MACHINE_CPU = xop avx2 avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
+.  elif ${CPUTYPE} == "bdver3" || ${CPUTYPE} == "bdver2" || \
     ${CPUTYPE} == "bdver1"
 MACHINE_CPU = xop avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
 .  elif ${CPUTYPE} == "btver2"
@@ -165,15 +179,18 @@ MACHINE_CPU = 3dnow mmx k6 k5 i586
 MACHINE_CPU = mmx k6 k5 i586
 .  elif ${CPUTYPE} == "k5"
 MACHINE_CPU = k5 i586
-.  elif ${CPUTYPE} == "core-avx2"
+.  elif ${CPUTYPE} == "skylake" || ${CPUTYPE} == "knl"
+MACHINE_CPU = avx512 avx2 avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
+.  elif ${CPUTYPE} == "broadwell" || ${CPUTYPE} == "haswell"
 MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
-.  elif ${CPUTYPE} == "core-avx-i" || ${CPUTYPE} == "corei7-avx"
+.  elif ${CPUTYPE} == "ivybridge" || ${CPUTYPE} == "sandybridge"
 MACHINE_CPU = avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
-.  elif ${CPUTYPE} == "slm" || ${CPUTYPE} == "corei7"
+.  elif ${CPUTYPE} == "westmere" || ${CPUTYPE} == "nehalem" || \
+    ${CPUTYPE} == "silvermont"
 MACHINE_CPU = sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
 .  elif ${CPUTYPE} == "penryn"
 MACHINE_CPU = sse41 ssse3 sse3 sse2 sse i686 mmx i586
-.  elif ${CPUTYPE} == "atom" || ${CPUTYPE} == "core2"
+.  elif ${CPUTYPE} == "core2" || ${CPUTYPE} == "bonnell"
 MACHINE_CPU = ssse3 sse3 sse2 sse i686 mmx i586
 .  elif ${CPUTYPE} == "yonah" || ${CPUTYPE} == "prescott"
 MACHINE_CPU = sse3 sse2 sse i686 mmx i586
@@ -202,8 +219,11 @@ MACHINE_CPU = 3dnow mmx
 MACHINE_CPU = mmx
 .  endif
 MACHINE_CPU += i486
+########## amd64
 . elif ${MACHINE_CPUARCH} == "amd64"
-.  if ${CPUTYPE} == "bdver3" || ${CPUTYPE} == "bdver2" || \
+.  if ${CPUTYPE} == "bdver4"
+MACHINE_CPU = xop avx2 avx sse42 sse41 ssse3 sse4a sse3
+.  elif ${CPUTYPE} == "bdver3" || ${CPUTYPE} == "bdver2" || \
     ${CPUTYPE} == "bdver1"
 MACHINE_CPU = xop avx sse42 sse41 ssse3 sse4a sse3
 .  elif ${CPUTYPE} == "btver2"
@@ -218,24 +238,29 @@ MACHINE_CPU = k8 3dnow sse3
 .  elif ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64" || \
     ${CPUTYPE} == "athlon-fx" || ${CPUTYPE} == "k8"
 MACHINE_CPU = k8 3dnow
-.  elif ${CPUTYPE} == "core-avx2"
+.  elif ${CPUTYPE} == "skylake" || ${CPUTYPE} == "knl"
+MACHINE_CPU = avx512 avx2 avx sse42 sse41 ssse3 sse3
+.  elif ${CPUTYPE} == "broadwell" || ${CPUTYPE} == "haswell"
 MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse3
-.  elif ${CPUTYPE} == "core-avx-i" || ${CPUTYPE} == "corei7-avx"
+.  elif ${CPUTYPE} == "ivybridge" || ${CPUTYPE} == "sandybridge"
 MACHINE_CPU = avx sse42 sse41 ssse3 sse3
-.  elif ${CPUTYPE} == "slm" || ${CPUTYPE} == "corei7"
+.  elif ${CPUTYPE} == "westmere" || ${CPUTYPE} == "nehalem" || \
+    ${CPUTYPE} == "silvermont"
 MACHINE_CPU = sse42 sse41 ssse3 sse3
 .  elif ${CPUTYPE} == "penryn"
 MACHINE_CPU = sse41 ssse3 sse3
-.  elif ${CPUTYPE} == "atom" || ${CPUTYPE} == "core2"
+.  elif ${CPUTYPE} == "core2" || ${CPUTYPE} == "bonnell"
 MACHINE_CPU = ssse3 sse3
 .  elif ${CPUTYPE} == "nocona"
 MACHINE_CPU = sse3
 .  endif
 MACHINE_CPU += amd64 sse2 sse mmx
+########## powerpc
 . elif ${MACHINE_ARCH} == "powerpc"
 .  if ${CPUTYPE} == "e500"
-MACHINE_CPU = booke
+MACHINE_CPU = booke softfp
 .  endif
+########## sparc64
 . elif ${MACHINE_ARCH} == "sparc64"
 .  if ${CPUTYPE} == "v9"
 MACHINE_CPU = v9
@@ -251,8 +276,24 @@ MACHINE_CPU = v9 ultrasparc ultrasparc3
 CFLAGS += -G0
 .endif
 
+########## arm
+.if ${MACHINE_CPUARCH} == "arm"
+MACHINE_CPU += arm
+. if ${MACHINE_ARCH:Marmv6*} != ""
+MACHINE_CPU += armv6
+. endif
+# armv6 is a hybrid. It uses the softfp ABI, but doesn't emulate
+# floating point in the general case, so don't define softfp for
+# it at this time. arm and armeb are pure softfp, so define it
+# for them.
+. if ${MACHINE_ARCH:Marmv6*} == ""
+MACHINE_CPU += softfp
+. endif
 .if ${MACHINE_ARCH} == "armv6"
-_CPUCFLAGS += -mfloat-abi=softfp
+# Needs to be CFLAGS not _CPUCFLAGS because it's needed for the ABI
+# not a nice optimization.
+CFLAGS += -mfloat-abi=softfp
+.endif
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk
@@ -260,6 +301,27 @@ _CPUCFLAGS += -mfloat-abi=softfp
 .if !defined(NO_CPU_CFLAGS)
 CFLAGS += ${_CPUCFLAGS}
 .endif
+
+#
+# Prohibit the compiler from emitting SIMD instructions.
+# These flags are added to CFLAGS in areas where the extra context-switch
+# cost outweighs the advantages of SIMD instructions.
+#
+# gcc:
+# Setting -mno-mmx implies -mno-3dnow
+# Setting -mno-sse implies -mno-sse2, -mno-sse3, -mno-ssse3 and -mfpmath=387
+#
+# clang:
+# Setting -mno-mmx implies -mno-3dnow and -mno-3dnowa
+# Setting -mno-sse implies -mno-sse2, -mno-sse3, -mno-ssse3, -mno-sse41 and
+# -mno-sse42
+# (-mfpmath= is not supported)
+#
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+CFLAGS_NO_SIMD.clang= -mno-avx
+CFLAGS_NO_SIMD= -mno-mmx -mno-sse
+.endif
+CFLAGS_NO_SIMD += ${CFLAGS_NO_SIMD.${COMPILER_TYPE}}
 
 # Add in any architecture-specific CFLAGS.  
 # These come from make.conf or the command line or the environment.

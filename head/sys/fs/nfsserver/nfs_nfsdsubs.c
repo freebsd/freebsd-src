@@ -44,9 +44,12 @@ __FBSDID("$FreeBSD$");
 
 extern u_int32_t newnfs_true, newnfs_false;
 extern int nfs_pubfhset;
-extern struct nfsclienthashhead nfsclienthash[NFSCLIENTHASHSIZE];
-extern struct nfslockhashhead nfslockhash[NFSLOCKHASHSIZE];
-extern struct nfssessionhash nfssessionhash[NFSSESSIONHASHSIZE];
+extern struct nfsclienthashhead *nfsclienthash;
+extern int nfsrv_clienthashsize;
+extern struct nfslockhashhead *nfslockhash;
+extern int nfsrv_lockhashsize;
+extern struct nfssessionhash *nfssessionhash;
+extern int nfsrv_sessionhashsize;
 extern int nfsrv_useacl;
 extern uid_t nfsrv_defaultuid;
 extern gid_t nfsrv_defaultgid;
@@ -2036,12 +2039,20 @@ nfsd_init(void)
 	 * Initialize client queues. Don't free/reinitialize
 	 * them when nfsds are restarted.
 	 */
-	for (i = 0; i < NFSCLIENTHASHSIZE; i++)
+	nfsclienthash = malloc(sizeof(struct nfsclienthashhead) *
+	    nfsrv_clienthashsize, M_NFSDCLIENT, M_WAITOK | M_ZERO);
+	for (i = 0; i < nfsrv_clienthashsize; i++)
 		LIST_INIT(&nfsclienthash[i]);
-	for (i = 0; i < NFSLOCKHASHSIZE; i++)
+	nfslockhash = malloc(sizeof(struct nfslockhashhead) *
+	    nfsrv_lockhashsize, M_NFSDLOCKFILE, M_WAITOK | M_ZERO);
+	for (i = 0; i < nfsrv_lockhashsize; i++)
 		LIST_INIT(&nfslockhash[i]);
-	for (i = 0; i < NFSSESSIONHASHSIZE; i++)
+	nfssessionhash = malloc(sizeof(struct nfssessionhash) *
+	    nfsrv_sessionhashsize, M_NFSDSESSION, M_WAITOK | M_ZERO);
+	for (i = 0; i < nfsrv_sessionhashsize; i++) {
+		mtx_init(&nfssessionhash[i].mtx, "nfssm", NULL, MTX_DEF);
 		LIST_INIT(&nfssessionhash[i].list);
+	}
 
 	/* and the v2 pubfh should be all zeros */
 	NFSBZERO(nfs_v2pubfh, NFSX_V2FH);

@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_STATICANALYZER_PATHSENSITIVE_CALL
-#define LLVM_CLANG_STATICANALYZER_PATHSENSITIVE_CALL
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_CALLEVENT_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_CALLEVENT_H
 
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/ExprCXX.h"
@@ -119,7 +119,7 @@ private:
   const LocationContext *LCtx;
   llvm::PointerUnion<const Expr *, const Decl *> Origin;
 
-  void operator=(const CallEvent &) LLVM_DELETED_FUNCTION;
+  void operator=(const CallEvent &) = delete;
 
 protected:
   // This is user data for subclasses.

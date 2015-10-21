@@ -146,6 +146,8 @@ static struct g_part_scheme g_part_gpt_scheme = {
 G_PART_SCHEME_DECLARE(g_part_gpt);
 
 static struct uuid gpt_uuid_apple_boot = GPT_ENT_TYPE_APPLE_BOOT;
+static struct uuid gpt_uuid_apple_core_storage =
+    GPT_ENT_TYPE_APPLE_CORE_STORAGE;
 static struct uuid gpt_uuid_apple_hfs = GPT_ENT_TYPE_APPLE_HFS;
 static struct uuid gpt_uuid_apple_label = GPT_ENT_TYPE_APPLE_LABEL;
 static struct uuid gpt_uuid_apple_raid = GPT_ENT_TYPE_APPLE_RAID;
@@ -198,6 +200,7 @@ static struct g_part_uuid_alias {
 	int mbrtype;
 } gpt_uuid_alias_match[] = {
 	{ &gpt_uuid_apple_boot,		G_PART_ALIAS_APPLE_BOOT,	 0xab },
+	{ &gpt_uuid_apple_core_storage,	G_PART_ALIAS_APPLE_CORE_STORAGE, 0 },
 	{ &gpt_uuid_apple_hfs,		G_PART_ALIAS_APPLE_HFS,		 0xaf },
 	{ &gpt_uuid_apple_label,	G_PART_ALIAS_APPLE_LABEL,	 0 },
 	{ &gpt_uuid_apple_raid,		G_PART_ALIAS_APPLE_RAID,	 0 },
@@ -757,7 +760,7 @@ g_part_gpt_resize(struct g_part_table *basetable,
 	struct g_part_gpt_entry *entry;
 
 	if (baseentry == NULL)
-		return (EOPNOTSUPP);
+		return (g_part_gpt_recover(basetable));
 
 	entry = (struct g_part_gpt_entry *)baseentry;
 	baseentry->gpe_end = baseentry->gpe_start + gpp->gpp_size - 1;
@@ -1004,6 +1007,7 @@ g_part_gpt_setunset(struct g_part_table *basetable,
 {
 	struct g_part_gpt_entry *entry;
 	struct g_part_gpt_table *table;
+	struct g_provider *pp;
 	uint8_t *p;
 	uint64_t attr;
 	int i;
@@ -1032,6 +1036,21 @@ g_part_gpt_setunset(struct g_part_table *basetable,
 				p[0] = (p[4] == 0xee) ? ((set) ? 0x80 : 0) : 0;
 			}
 		}
+		return (0);
+	} else if (strcasecmp(attrib, "lenovofix") == 0) {
+		/*
+		 * Write the 0xee GPT entry to slot #1 (2nd slot) in the pMBR.
+		 * This workaround allows Lenovo X220, T420, T520, etc to boot
+		 * from GPT Partitions in BIOS mode.
+		 */
+
+		if (entry != NULL)
+			return (ENXIO);
+
+		pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
+		bzero(table->mbr + DOSPARTOFF, DOSPARTSIZE * NDOSPART);
+		gpt_write_mbr_entry(table->mbr, ((set) ? 1 : 0), 0xee, 1,
+		    MIN(pp->mediasize / pp->sectorsize - 1, UINT32_MAX));
 		return (0);
 	}
 

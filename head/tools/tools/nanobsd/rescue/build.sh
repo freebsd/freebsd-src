@@ -23,20 +23,23 @@ fi
 
 sh ../nanobsd.sh $* -c ${CFG}
 
+if [ \! -d /usr/obj/Rescue ]; then
+  mkdir -p /usr/obj/Rescue
+fi
 F32="/usr/obj/Rescue/rescue_${today}_x32"
 D32="/usr/obj/nanobsd.rescue_i386"
 if [ -f "${D32}/_.disk.full" ]; then
-  mv "${D32}/_.disk.full" "${F32}.img"
+  cp "${D32}/_.disk.full" "${F32}.img"
 fi
 if [ -f "${D32}/_.disk.iso" ]; then
-  mv "${D32}/_.disk.iso" "${F32}.iso"
+  cp "${D32}/_.disk.iso" "${F32}.iso"
 fi
 
 F64="/usr/obj/Rescue/rescue_${today}_x64"
 D64="/usr/obj/nanobsd.rescue_amd64"
 if [ -f "${D64}/_.disk.full" ]; then
-  mv "${D64}/_.disk.full" "${F64}.img"
+  cp "${D64}/_.disk.full" "${F64}.img"
 fi
 if [ -f "${D64}/_.disk.iso" ]; then
-  mv "${D64}/_.disk.iso" "${F64}.iso"
+  cp "${D64}/_.disk.iso" "${F64}.iso"
 fi

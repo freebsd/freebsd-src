@@ -13,8 +13,6 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-
-#include "lldb/lldb-private-log.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Stream.h"
@@ -105,7 +103,6 @@ ThreadPlanStepInRange::SetupAvoidNoDebug(LazyBool step_in_avoids_code_without_de
     else
         GetFlags().Clear (ThreadPlanShouldStopHere::eStepInAvoidNoDebug);
     
-    avoid_nodebug = true;
     switch (step_out_avoids_code_without_debug_info)
     {
         case eLazyBoolYes:
@@ -128,17 +125,31 @@ void
 ThreadPlanStepInRange::GetDescription (Stream *s, lldb::DescriptionLevel level)
 {
     if (level == lldb::eDescriptionLevelBrief)
-        s->Printf("step in");
-    else
     {
-        s->Printf ("Stepping through range (stepping into functions): ");
-        DumpRanges(s);
-        const char *step_into_target = m_step_into_target.AsCString();
-        if (step_into_target && step_into_target[0] != '\0')
-            s->Printf (" targeting %s.", m_step_into_target.AsCString());
-        else
-            s->PutChar('.');
+        s->Printf("step in");
+        return;
     }
+
+    s->Printf ("Stepping in");
+    bool printed_line_info = false;
+    if (m_addr_context.line_entry.IsValid())
+    {
+        s->Printf (" through line ");
+        m_addr_context.line_entry.DumpStopContext (s, false);
+        printed_line_info = true;
+    }
+
+    const char *step_into_target = m_step_into_target.AsCString();
+    if (step_into_target && step_into_target[0] != '\0')
+        s->Printf (" targeting %s", m_step_into_target.AsCString());
+
+    if (!printed_line_info || level == eDescriptionLevelVerbose)
+    {
+        s->Printf (" using ranges:");
+        DumpRanges(s);
+    }
+
+    s->PutChar('.');
 }
 
 bool
@@ -303,6 +314,7 @@ ThreadPlanStepInRange::ShouldStop (Event *event_ptr)
     else
     {
         m_no_more_plans = false;
+        m_sub_plan_sp->SetPrivate(true);
         return false;
     }
 }
@@ -512,6 +524,7 @@ ThreadPlanStepInRange::DoPlanExplainsStop (Event *event_ptr)
 bool
 ThreadPlanStepInRange::DoWillResume (lldb::StateType resume_state, bool current_plan)
 {
+    m_virtual_step = false;
     if (resume_state == eStateStepping && current_plan)
     {
         // See if we are about to step over a virtual inlined call.

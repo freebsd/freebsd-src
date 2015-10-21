@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -55,6 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/if_vlan_var.h>
+#ifdef RSS
+#include <net/rss_config.h>
+#endif
 #if defined(__i386__) || defined(__amd64__)
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -582,10 +586,10 @@ t4_attach(device_t dev)
 #ifdef DEV_NETMAP
 	int nm_rqidx, nm_tqidx;
 #endif
-	const char *pcie_ts;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+	TUNABLE_INT_FETCH("hw.cxgbe.debug_flags", &sc->debug_flags);
 
 	pci_enable_busmaster(dev);
 	if (pci_find_cap(dev, PCIY_EXPRESS, &i) == 0) {
@@ -613,7 +617,7 @@ t4_attach(device_t dev)
 
 	mtx_init(&sc->sfl_lock, "starving freelists", 0, MTX_DEF);
 	TAILQ_INIT(&sc->sfl);
-	callout_init(&sc->sfl_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->sfl_callout, 1);
 
 	mtx_init(&sc->regwin_lock, "register and memory window", 0, MTX_DEF);
 
@@ -905,25 +909,10 @@ t4_attach(device_t dev)
 		goto done;
 	}
 
-	switch (sc->params.pci.speed) {
-		case 0x1:
-			pcie_ts = "2.5";
-			break;
-		case 0x2:
-			pcie_ts = "5.0";
-			break;
-		case 0x3:
-			pcie_ts = "8.0";
-			break;
-		default:
-			pcie_ts = "??";
-			break;
-	}
 	device_printf(dev,
-	    "PCIe x%d (%s GTS/s) (%d), %d ports, %d %s interrupt%s, %d eq, %d iq\n",
-	    sc->params.pci.width, pcie_ts, sc->params.pci.speed,
-	    sc->params.nports, sc->intr_count,
-	    sc->intr_type == INTR_MSIX ? "MSI-X" :
+	    "PCIe gen%d x%d, %d ports, %d %s interrupt%s, %d eq, %d iq\n",
+	    sc->params.pci.speed, sc->params.pci.width, sc->params.nports,
+	    sc->intr_count, sc->intr_type == INTR_MSIX ? "MSI-X" :
 	    (sc->intr_type == INTR_MSI ? "MSI" : "INTx"),
 	    sc->intr_count > 1 ? "s" : "", sc->sge.neq, sc->sge.niq);
 
@@ -1082,7 +1071,7 @@ cxgbe_attach(device_t dev)
 	pi->ifp = ifp;
 	ifp->if_softc = pi;
 
-	callout_init(&pi->tick, CALLOUT_MPSAFE);
+	callout_init(&pi->tick, 1);
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -1164,6 +1153,7 @@ cxgbe_detach(device_t dev)
 #ifdef INVARIANTS
 	sc->last_op = "t4detach";
 	sc->last_op_thr = curthread;
+	sc->last_op_flags = 0;
 #endif
 	ADAPTER_UNLOCK(sc);
 
@@ -1571,9 +1561,6 @@ cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct ifmedia *media = NULL;
 	struct ifmedia_entry *cur;
 	int speed = pi->link_cfg.speed;
-#ifdef INVARIANTS
-	int data = (pi->port_type << 8) | pi->mod_type;
-#endif
 
 	if (ifp == pi->ifp)
 		media = &pi->media;
@@ -1584,7 +1571,6 @@ cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	MPASS(media != NULL);
 
 	cur = media->ifm_cur;
-	MPASS(cur->ifm_data == data);
 
 	ifmr->ifm_status = IFM_AVALID;
 	if (!pi->link_cfg.link_ok)
@@ -2884,33 +2870,29 @@ t4_set_desc(struct adapter *sc)
 static void
 build_medialist(struct port_info *pi, struct ifmedia *media)
 {
-	int data, m;
+	int m;
 
 	PORT_LOCK(pi);
 
 	ifmedia_removeall(media);
 
 	m = IFM_ETHER | IFM_FDX;
-	data = (pi->port_type << 8) | pi->mod_type;
 
 	switch(pi->port_type) {
 	case FW_PORT_TYPE_BT_XFI:
-		ifmedia_add(media, m | IFM_10G_T, data, NULL);
-		break;
-
 	case FW_PORT_TYPE_BT_XAUI:
-		ifmedia_add(media, m | IFM_10G_T, data, NULL);
+		ifmedia_add(media, m | IFM_10G_T, 0, NULL);
 		/* fall through */
 
 	case FW_PORT_TYPE_BT_SGMII:
-		ifmedia_add(media, m | IFM_1000_T, data, NULL);
-		ifmedia_add(media, m | IFM_100_TX, data, NULL);
-		ifmedia_add(media, IFM_ETHER | IFM_AUTO, data, NULL);
+		ifmedia_add(media, m | IFM_1000_T, 0, NULL);
+		ifmedia_add(media, m | IFM_100_TX, 0, NULL);
+		ifmedia_add(media, IFM_ETHER | IFM_AUTO, 0, NULL);
 		ifmedia_set(media, IFM_ETHER | IFM_AUTO);
 		break;
 
 	case FW_PORT_TYPE_CX4:
-		ifmedia_add(media, m | IFM_10G_CX4, data, NULL);
+		ifmedia_add(media, m | IFM_10G_CX4, 0, NULL);
 		ifmedia_set(media, m | IFM_10G_CX4);
 		break;
 
@@ -2921,29 +2903,29 @@ build_medialist(struct port_info *pi, struct ifmedia *media)
 		switch (pi->mod_type) {
 
 		case FW_PORT_MOD_TYPE_LR:
-			ifmedia_add(media, m | IFM_10G_LR, data, NULL);
+			ifmedia_add(media, m | IFM_10G_LR, 0, NULL);
 			ifmedia_set(media, m | IFM_10G_LR);
 			break;
 
 		case FW_PORT_MOD_TYPE_SR:
-			ifmedia_add(media, m | IFM_10G_SR, data, NULL);
+			ifmedia_add(media, m | IFM_10G_SR, 0, NULL);
 			ifmedia_set(media, m | IFM_10G_SR);
 			break;
 
 		case FW_PORT_MOD_TYPE_LRM:
-			ifmedia_add(media, m | IFM_10G_LRM, data, NULL);
+			ifmedia_add(media, m | IFM_10G_LRM, 0, NULL);
 			ifmedia_set(media, m | IFM_10G_LRM);
 			break;
 
 		case FW_PORT_MOD_TYPE_TWINAX_PASSIVE:
 		case FW_PORT_MOD_TYPE_TWINAX_ACTIVE:
-			ifmedia_add(media, m | IFM_10G_TWINAX, data, NULL);
+			ifmedia_add(media, m | IFM_10G_TWINAX, 0, NULL);
 			ifmedia_set(media, m | IFM_10G_TWINAX);
 			break;
 
 		case FW_PORT_MOD_TYPE_NONE:
 			m &= ~IFM_FDX;
-			ifmedia_add(media, m | IFM_NONE, data, NULL);
+			ifmedia_add(media, m | IFM_NONE, 0, NULL);
 			ifmedia_set(media, m | IFM_NONE);
 			break;
 
@@ -2953,7 +2935,7 @@ build_medialist(struct port_info *pi, struct ifmedia *media)
 			device_printf(pi->dev,
 			    "unknown port_type (%d), mod_type (%d)\n",
 			    pi->port_type, pi->mod_type);
-			ifmedia_add(media, m | IFM_UNKNOWN, data, NULL);
+			ifmedia_add(media, m | IFM_UNKNOWN, 0, NULL);
 			ifmedia_set(media, m | IFM_UNKNOWN);
 			break;
 		}
@@ -2963,24 +2945,24 @@ build_medialist(struct port_info *pi, struct ifmedia *media)
 		switch (pi->mod_type) {
 
 		case FW_PORT_MOD_TYPE_LR:
-			ifmedia_add(media, m | IFM_40G_LR4, data, NULL);
+			ifmedia_add(media, m | IFM_40G_LR4, 0, NULL);
 			ifmedia_set(media, m | IFM_40G_LR4);
 			break;
 
 		case FW_PORT_MOD_TYPE_SR:
-			ifmedia_add(media, m | IFM_40G_SR4, data, NULL);
+			ifmedia_add(media, m | IFM_40G_SR4, 0, NULL);
 			ifmedia_set(media, m | IFM_40G_SR4);
 			break;
 
 		case FW_PORT_MOD_TYPE_TWINAX_PASSIVE:
 		case FW_PORT_MOD_TYPE_TWINAX_ACTIVE:
-			ifmedia_add(media, m | IFM_40G_CR4, data, NULL);
+			ifmedia_add(media, m | IFM_40G_CR4, 0, NULL);
 			ifmedia_set(media, m | IFM_40G_CR4);
 			break;
 
 		case FW_PORT_MOD_TYPE_NONE:
 			m &= ~IFM_FDX;
-			ifmedia_add(media, m | IFM_NONE, data, NULL);
+			ifmedia_add(media, m | IFM_NONE, 0, NULL);
 			ifmedia_set(media, m | IFM_NONE);
 			break;
 
@@ -2988,7 +2970,7 @@ build_medialist(struct port_info *pi, struct ifmedia *media)
 			device_printf(pi->dev,
 			    "unknown port_type (%d), mod_type (%d)\n",
 			    pi->port_type, pi->mod_type);
-			ifmedia_add(media, m | IFM_UNKNOWN, data, NULL);
+			ifmedia_add(media, m | IFM_UNKNOWN, 0, NULL);
 			ifmedia_set(media, m | IFM_UNKNOWN);
 			break;
 		}
@@ -2998,7 +2980,7 @@ build_medialist(struct port_info *pi, struct ifmedia *media)
 		device_printf(pi->dev,
 		    "unknown port_type (%d), mod_type (%d)\n", pi->port_type,
 		    pi->mod_type);
-		ifmedia_add(media, m | IFM_UNKNOWN, data, NULL);
+		ifmedia_add(media, m | IFM_UNKNOWN, 0, NULL);
 		ifmedia_set(media, m | IFM_UNKNOWN);
 		break;
 	}
@@ -3139,6 +3121,9 @@ mcfail:
 	return (rc);
 }
 
+/*
+ * {begin|end}_synchronized_op must be called from the same thread.
+ */
 int
 begin_synchronized_op(struct adapter *sc, struct port_info *pi, int flags,
     char *wmesg)
@@ -3185,6 +3170,7 @@ begin_synchronized_op(struct adapter *sc, struct port_info *pi, int flags,
 #ifdef INVARIANTS
 	sc->last_op = wmesg;
 	sc->last_op_thr = curthread;
+	sc->last_op_flags = flags;
 #endif
 
 done:
@@ -3194,6 +3180,9 @@ done:
 	return (rc);
 }
 
+/*
+ * {begin|end}_synchronized_op must be called from the same thread.
+ */
 void
 end_synchronized_op(struct adapter *sc, int flags)
 {
@@ -3291,6 +3280,12 @@ cxgbe_uninit_synchronized(struct port_info *pi)
 	struct sge_txq *txq;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
+
+	if (!(pi->flags & PORT_INIT_DONE)) {
+		KASSERT(!(ifp->if_drv_flags & IFF_DRV_RUNNING),
+		    ("uninited port is running"));
+		return (0);
+	}
 
 	/*
 	 * Disable the VI so that all its data in either direction is discarded
@@ -3420,6 +3415,7 @@ adapter_full_init(struct adapter *sc)
 {
 	int rc, i;
 
+	ASSERT_SYNCHRONIZED_OP(sc);
 	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 	KASSERT((sc->flags & FULL_INIT_DONE) == 0,
 	    ("%s: FULL_INIT_DONE already", __func__));
@@ -3472,6 +3468,71 @@ adapter_full_uninit(struct adapter *sc)
 	return (0);
 }
 
+#ifdef RSS
+#define SUPPORTED_RSS_HASHTYPES (RSS_HASHTYPE_RSS_IPV4 | \
+    RSS_HASHTYPE_RSS_TCP_IPV4 | RSS_HASHTYPE_RSS_IPV6 | \
+    RSS_HASHTYPE_RSS_TCP_IPV6 | RSS_HASHTYPE_RSS_UDP_IPV4 | \
+    RSS_HASHTYPE_RSS_UDP_IPV6)
+
+/* Translates kernel hash types to hardware. */
+static int
+hashconfig_to_hashen(int hashconfig)
+{
+	int hashen = 0;
+
+	if (hashconfig & RSS_HASHTYPE_RSS_IPV4)
+		hashen |= F_FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN;
+	if (hashconfig & RSS_HASHTYPE_RSS_IPV6)
+		hashen |= F_FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN;
+	if (hashconfig & RSS_HASHTYPE_RSS_UDP_IPV4) {
+		hashen |= F_FW_RSS_VI_CONFIG_CMD_UDPEN |
+		    F_FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN;
+	}
+	if (hashconfig & RSS_HASHTYPE_RSS_UDP_IPV6) {
+		hashen |= F_FW_RSS_VI_CONFIG_CMD_UDPEN |
+		    F_FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN;
+	}
+	if (hashconfig & RSS_HASHTYPE_RSS_TCP_IPV4)
+		hashen |= F_FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN;
+	if (hashconfig & RSS_HASHTYPE_RSS_TCP_IPV6)
+		hashen |= F_FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN;
+
+	return (hashen);
+}
+
+/* Translates hardware hash types to kernel. */
+static int
+hashen_to_hashconfig(int hashen)
+{
+	int hashconfig = 0;
+
+	if (hashen & F_FW_RSS_VI_CONFIG_CMD_UDPEN) {
+		/*
+		 * If UDP hashing was enabled it must have been enabled for
+		 * either IPv4 or IPv6 (inclusive or).  Enabling UDP without
+		 * enabling any 4-tuple hash is nonsense configuration.
+		 */
+		MPASS(hashen & (F_FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN |
+		    F_FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN));
+
+		if (hashen & F_FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN)
+			hashconfig |= RSS_HASHTYPE_RSS_UDP_IPV4;
+		if (hashen & F_FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN)
+			hashconfig |= RSS_HASHTYPE_RSS_UDP_IPV6;
+	}
+	if (hashen & F_FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN)
+		hashconfig |= RSS_HASHTYPE_RSS_TCP_IPV4;
+	if (hashen & F_FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN)
+		hashconfig |= RSS_HASHTYPE_RSS_TCP_IPV6;
+	if (hashen & F_FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN)
+		hashconfig |= RSS_HASHTYPE_RSS_IPV4;
+	if (hashen & F_FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN)
+		hashconfig |= RSS_HASHTYPE_RSS_IPV6;
+
+	return (hashconfig);
+}
+#endif
+
 int
 port_full_init(struct port_info *pi)
 {
@@ -3479,7 +3540,14 @@ port_full_init(struct port_info *pi)
 	struct ifnet *ifp = pi->ifp;
 	uint16_t *rss;
 	struct sge_rxq *rxq;
-	int rc, i, j;
+	int rc, i, j, hashen;
+#ifdef RSS
+	int nbuckets = rss_getnumbuckets();
+	int hashconfig = rss_gethashconfig();
+	int extra;
+	uint32_t raw_rss_key[RSS_KEYSIZE / sizeof(uint32_t)];
+	uint32_t rss_key[RSS_KEYSIZE / sizeof(uint32_t)];
+#endif
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 	KASSERT((pi->flags & PORT_INIT_DONE) == 0,
@@ -3498,19 +3566,96 @@ port_full_init(struct port_info *pi)
 	/*
 	 * Setup RSS for this port.  Save a copy of the RSS table for later use.
 	 */
+	if (pi->nrxq > pi->rss_size) {
+		if_printf(ifp, "nrxq (%d) > hw RSS table size (%d); "
+		    "some queues will never receive traffic.\n", pi->nrxq,
+		    pi->rss_size);
+	} else if (pi->rss_size % pi->nrxq) {
+		if_printf(ifp, "nrxq (%d), hw RSS table size (%d); "
+		    "expect uneven traffic distribution.\n", pi->nrxq,
+		    pi->rss_size);
+	}
+#ifdef RSS
+	MPASS(RSS_KEYSIZE == 40);
+	if (pi->nrxq != nbuckets) {
+		if_printf(ifp, "nrxq (%d) != kernel RSS buckets (%d);"
+		    "performance will be impacted.\n", pi->nrxq, nbuckets);
+	}
+
+	rss_getkey((void *)&raw_rss_key[0]);
+	for (i = 0; i < nitems(rss_key); i++) {
+		rss_key[i] = htobe32(raw_rss_key[nitems(rss_key) - 1 - i]);
+	}
+	t4_write_rss_key(sc, (void *)&rss_key[0], -1);
+#endif
 	rss = malloc(pi->rss_size * sizeof (*rss), M_CXGBE, M_ZERO | M_WAITOK);
 	for (i = 0; i < pi->rss_size;) {
+#ifdef RSS
+		j = rss_get_indirection_to_bucket(i);
+		j %= pi->nrxq;
+		rxq = &sc->sge.rxq[pi->first_rxq + j];
+		rss[i++] = rxq->iq.abs_id;
+#else
 		for_each_rxq(pi, j, rxq) {
 			rss[i++] = rxq->iq.abs_id;
 			if (i == pi->rss_size)
 				break;
 		}
+#endif
 	}
 
 	rc = -t4_config_rss_range(sc, sc->mbox, pi->viid, 0, pi->rss_size, rss,
 	    pi->rss_size);
 	if (rc != 0) {
 		if_printf(ifp, "rss_config failed: %d\n", rc);
+		goto done;
+	}
+
+#ifdef RSS
+	hashen = hashconfig_to_hashen(hashconfig);
+
+	/*
+	 * We may have had to enable some hashes even though the global config
+	 * wants them disabled.  This is a potential problem that must be
+	 * reported to the user.
+	 */
+	extra = hashen_to_hashconfig(hashen) ^ hashconfig;
+
+	/*
+	 * If we consider only the supported hash types, then the enabled hashes
+	 * are a superset of the requested hashes.  In other words, there cannot
+	 * be any supported hash that was requested but not enabled, but there
+	 * can be hashes that were not requested but had to be enabled.
+	 */
+	extra &= SUPPORTED_RSS_HASHTYPES;
+	MPASS((extra & hashconfig) == 0);
+
+	if (extra) {
+		if_printf(ifp,
+		    "global RSS config (0x%x) cannot be accomodated.\n",
+		    hashconfig);
+	}
+	if (extra & RSS_HASHTYPE_RSS_IPV4)
+		if_printf(ifp, "IPv4 2-tuple hashing forced on.\n");
+	if (extra & RSS_HASHTYPE_RSS_TCP_IPV4)
+		if_printf(ifp, "TCP/IPv4 4-tuple hashing forced on.\n");
+	if (extra & RSS_HASHTYPE_RSS_IPV6)
+		if_printf(ifp, "IPv6 2-tuple hashing forced on.\n");
+	if (extra & RSS_HASHTYPE_RSS_TCP_IPV6)
+		if_printf(ifp, "TCP/IPv6 4-tuple hashing forced on.\n");
+	if (extra & RSS_HASHTYPE_RSS_UDP_IPV4)
+		if_printf(ifp, "UDP/IPv4 4-tuple hashing forced on.\n");
+	if (extra & RSS_HASHTYPE_RSS_UDP_IPV6)
+		if_printf(ifp, "UDP/IPv6 4-tuple hashing forced on.\n");
+#else
+	hashen = F_FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN |
+	    F_FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN |
+	    F_FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN |
+	    F_FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN | F_FW_RSS_VI_CONFIG_CMD_UDPEN;
+#endif
+	rc = -t4_config_vi_rss(sc, sc->mbox, pi->viid, hashen, rss[0]);
+	if (rc != 0) {
+		if_printf(ifp, "rss hash/defaultq config failed: %d\n", rc);
 		goto done;
 	}
 
@@ -4614,6 +4759,9 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "lro_timeout", CTLFLAG_RW,
 	    &sc->lro_timeout, 0, "lro inactive-flush timeout (in us)");
 
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "debug_flags", CTLFLAG_RW,
+	    &sc->debug_flags, 0, "flags to enable runtime debugging");
+
 #ifdef SBUF_DRAIN
 	/*
 	 * dev.t4nex.X.misc.  Marked CTLFLAG_SKIP to avoid information overload.
@@ -5070,15 +5218,17 @@ cxgbe_sysctls(struct port_info *pi)
 static int
 sysctl_int_array(SYSCTL_HANDLER_ARGS)
 {
-	int rc, *i;
+	int rc, *i, space = 0;
 	struct sbuf sb;
 
-	sbuf_new(&sb, NULL, 32, SBUF_AUTOEXTEND);
-	for (i = arg1; arg2; arg2 -= sizeof(int), i++)
-		sbuf_printf(&sb, "%d ", *i);
-	sbuf_trim(&sb);
-	sbuf_finish(&sb);
-	rc = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
+	sbuf_new_for_sysctl(&sb, NULL, 64, req);
+	for (i = arg1; arg2; arg2 -= sizeof(int), i++) {
+		if (space)
+			sbuf_printf(&sb, " ");
+		sbuf_printf(&sb, "%d", *i);
+		space = 1;
+	}
+	rc = sbuf_finish(&sb);
 	sbuf_delete(&sb);
 	return (rc);
 }
@@ -6345,9 +6495,9 @@ sysctl_mps_tcam(SYSCTL_HANDLER_ARGS)
 				F_FW_CMD_REQUEST | F_FW_CMD_READ |
 				V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_MPS));
 			ldst_cmd.cycles_to_len16 = htobe32(FW_LEN16(ldst_cmd));
-			ldst_cmd.u.mps.fid_ctl =
+			ldst_cmd.u.mps.rplc.fid_idx =
 			    htobe16(V_FW_LDST_CMD_FID(FW_LDST_MPS_RPLC) |
-				V_FW_LDST_CMD_CTL(i));
+				V_FW_LDST_CMD_IDX(i));
 
 			rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK,
 			    "t4mps");
@@ -6363,10 +6513,10 @@ sysctl_mps_tcam(SYSCTL_HANDLER_ARGS)
 				rc = 0;
 			} else {
 				sbuf_printf(sb, " %08x %08x %08x %08x",
-				    be32toh(ldst_cmd.u.mps.rplc127_96),
-				    be32toh(ldst_cmd.u.mps.rplc95_64),
-				    be32toh(ldst_cmd.u.mps.rplc63_32),
-				    be32toh(ldst_cmd.u.mps.rplc31_0));
+				    be32toh(ldst_cmd.u.mps.rplc.rplc127_96),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc95_64),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc63_32),
+				    be32toh(ldst_cmd.u.mps.rplc.rplc31_0));
 			}
 		} else
 			sbuf_printf(sb, "%36s", "");
@@ -7103,10 +7253,9 @@ get_filter_mode(struct adapter *sc, uint32_t *mode)
 		log(LOG_WARNING, "%s: cached filter mode out of sync %x %x.\n",
 		    device_get_nameunit(sc->dev), sc->params.tp.vlan_pri_map,
 		    fconf);
-		sc->params.tp.vlan_pri_map = fconf;
 	}
 
-	*mode = fconf_to_mode(sc->params.tp.vlan_pri_map);
+	*mode = fconf_to_mode(fconf);
 
 	end_synchronized_op(sc, LOCK_HELD);
 	return (0);
@@ -7131,20 +7280,13 @@ set_filter_mode(struct adapter *sc, uint32_t mode)
 	}
 
 #ifdef TCP_OFFLOAD
-	if (sc->offload_map) {
+	if (uld_active(sc, ULD_TOM)) {
 		rc = EBUSY;
 		goto done;
 	}
 #endif
 
-#ifdef notyet
 	rc = -t4_set_filter_mode(sc, fconf);
-	if (rc == 0)
-		sc->filter_mode = fconf;
-#else
-	rc = ENOTSUP;
-#endif
-
 done:
 	end_synchronized_op(sc, LOCK_HELD);
 	return (rc);
@@ -8209,7 +8351,12 @@ toe_capability(struct port_info *pi, int enable)
 		return (ENODEV);
 
 	if (enable) {
-		if (!(sc->flags & FULL_INIT_DONE)) {
+		/*
+		 * We need the port's queues around so that we're able to send
+		 * and receive CPLs to/from the TOE even if the ifnet for this
+		 * port has never been UP'd administratively.
+		 */
+		if (!(pi->flags & PORT_INIT_DONE)) {
 			rc = cxgbe_init_synchronized(pi);
 			if (rc)
 				return (rc);
@@ -8218,7 +8365,7 @@ toe_capability(struct port_info *pi, int enable)
 		if (isset(&sc->offload_map, pi->port_id))
 			return (0);
 
-		if (!(sc->flags & TOM_INIT_DONE)) {
+		if (!uld_active(sc, ULD_TOM)) {
 			rc = t4_activate_uld(sc, ULD_TOM);
 			if (rc == EAGAIN) {
 				log(LOG_WARNING,
@@ -8229,16 +8376,22 @@ toe_capability(struct port_info *pi, int enable)
 				return (rc);
 			KASSERT(sc->tom_softc != NULL,
 			    ("%s: TOM activated but softc NULL", __func__));
-			KASSERT(sc->flags & TOM_INIT_DONE,
+			KASSERT(uld_active(sc, ULD_TOM),
 			    ("%s: TOM activated but flag not set", __func__));
 		}
+
+		/* Activate iWARP and iSCSI too, if the modules are loaded. */
+		if (!uld_active(sc, ULD_IWARP))
+			(void) t4_activate_uld(sc, ULD_IWARP);
+		if (!uld_active(sc, ULD_ISCSI))
+			(void) t4_activate_uld(sc, ULD_ISCSI);
 
 		setbit(&sc->offload_map, pi->port_id);
 	} else {
 		if (!isset(&sc->offload_map, pi->port_id))
 			return (0);
 
-		KASSERT(sc->flags & TOM_INIT_DONE,
+		KASSERT(uld_active(sc, ULD_TOM),
 		    ("%s: TOM never initialized?", __func__));
 		clrbit(&sc->offload_map, pi->port_id);
 	}
@@ -8298,10 +8451,14 @@ done:
 int
 t4_activate_uld(struct adapter *sc, int id)
 {
-	int rc = EAGAIN;
+	int rc;
 	struct uld_info *ui;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
+
+	if (id < 0 || id > ULD_MAX)
+		return (EINVAL);
+	rc = EAGAIN;	/* kldoad the module with this ULD and try again. */
 
 	sx_slock(&t4_uld_list_lock);
 
@@ -8310,16 +8467,18 @@ t4_activate_uld(struct adapter *sc, int id)
 			if (!(sc->flags & FULL_INIT_DONE)) {
 				rc = adapter_full_init(sc);
 				if (rc != 0)
-					goto done;
+					break;
 			}
 
 			rc = ui->activate(sc);
-			if (rc == 0)
+			if (rc == 0) {
+				setbit(&sc->active_ulds, id);
 				ui->refcount++;
-			goto done;
+			}
+			break;
 		}
 	}
-done:
+
 	sx_sunlock(&t4_uld_list_lock);
 
 	return (rc);
@@ -8328,25 +8487,40 @@ done:
 int
 t4_deactivate_uld(struct adapter *sc, int id)
 {
-	int rc = EINVAL;
+	int rc;
 	struct uld_info *ui;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
+
+	if (id < 0 || id > ULD_MAX)
+		return (EINVAL);
+	rc = ENXIO;
 
 	sx_slock(&t4_uld_list_lock);
 
 	SLIST_FOREACH(ui, &t4_uld_list, link) {
 		if (ui->uld_id == id) {
 			rc = ui->deactivate(sc);
-			if (rc == 0)
+			if (rc == 0) {
+				clrbit(&sc->active_ulds, id);
 				ui->refcount--;
-			goto done;
+			}
+			break;
 		}
 	}
-done:
+
 	sx_sunlock(&t4_uld_list_lock);
 
 	return (rc);
+}
+
+int
+uld_active(struct adapter *sc, int uld_id)
+{
+
+	MPASS(uld_id >= 0 && uld_id <= ULD_MAX);
+
+	return (isset(&sc->active_ulds, uld_id));
 }
 #endif
 
@@ -8359,17 +8533,39 @@ tweak_tunables(void)
 {
 	int nc = mp_ncpus;	/* our snapshot of the number of CPUs */
 
-	if (t4_ntxq10g < 1)
+	if (t4_ntxq10g < 1) {
+#ifdef RSS
+		t4_ntxq10g = rss_getnumbuckets();
+#else
 		t4_ntxq10g = min(nc, NTXQ_10G);
+#endif
+	}
 
-	if (t4_ntxq1g < 1)
+	if (t4_ntxq1g < 1) {
+#ifdef RSS
+		/* XXX: way too many for 1GbE? */
+		t4_ntxq1g = rss_getnumbuckets();
+#else
 		t4_ntxq1g = min(nc, NTXQ_1G);
+#endif
+	}
 
-	if (t4_nrxq10g < 1)
+	if (t4_nrxq10g < 1) {
+#ifdef RSS
+		t4_nrxq10g = rss_getnumbuckets();
+#else
 		t4_nrxq10g = min(nc, NRXQ_10G);
+#endif
+	}
 
-	if (t4_nrxq1g < 1)
+	if (t4_nrxq1g < 1) {
+#ifdef RSS
+		/* XXX: way too many for 1GbE? */
+		t4_nrxq1g = rss_getnumbuckets();
+#else
 		t4_nrxq1g = min(nc, NRXQ_1G);
+#endif
+	}
 
 #ifdef TCP_OFFLOAD
 	if (t4_nofldtxq10g < 1)
@@ -8512,10 +8708,17 @@ static devclass_t cxgbe_devclass, cxl_devclass;
 DRIVER_MODULE(t4nex, pci, t4_driver, t4_devclass, mod_event, 0);
 MODULE_VERSION(t4nex, 1);
 MODULE_DEPEND(t4nex, firmware, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(t4nex, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
+
 
 DRIVER_MODULE(t5nex, pci, t5_driver, t5_devclass, mod_event, 0);
 MODULE_VERSION(t5nex, 1);
 MODULE_DEPEND(t5nex, firmware, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(t5nex, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
 
 DRIVER_MODULE(cxgbe, t4nex, cxgbe_driver, cxgbe_devclass, 0, 0);
 MODULE_VERSION(cxgbe, 1);

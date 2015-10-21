@@ -1,7 +1,7 @@
-/*	$Id: libroff.h,v 1.33 2014/12/01 08:05:52 schwarze Exp $ */
+/*	$Id: libroff.h,v 1.38 2015/01/30 04:11:50 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -34,8 +34,6 @@ struct	tbl_node {
 	struct tbl_span	 *first_span;
 	struct tbl_span	 *current_span;
 	struct tbl_span	 *last_span;
-	struct tbl_head	 *first_head;
-	struct tbl_head	 *last_head;
 	struct tbl_node	 *next;
 };
 
@@ -69,12 +67,12 @@ void		 tbl_restart(int, int, struct tbl_node *);
 void		 tbl_free(struct tbl_node *);
 void		 tbl_reset(struct tbl_node *);
 enum rofferr	 tbl_read(struct tbl_node *, int, const char *, int);
-int		 tbl_option(struct tbl_node *, int, const char *);
-int		 tbl_layout(struct tbl_node *, int, const char *);
-int		 tbl_data(struct tbl_node *, int, const char *);
-int		 tbl_cdata(struct tbl_node *, int, const char *);
+void		 tbl_option(struct tbl_node *, int, const char *, int *);
+void		 tbl_layout(struct tbl_node *, int, const char *, int);
+void		 tbl_data(struct tbl_node *, int, const char *, int);
+int		 tbl_cdata(struct tbl_node *, int, const char *, int);
 const struct tbl_span	*tbl_span(struct tbl_node *);
-void		 tbl_end(struct tbl_node **);
+int		 tbl_end(struct tbl_node **);
 struct eqn_node	*eqn_alloc(int, int, struct mparse *);
 enum rofferr	 eqn_end(struct eqn_node **);
 void		 eqn_free(struct eqn_node *);

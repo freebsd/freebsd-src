@@ -80,7 +80,6 @@ intel_ddc_get_modes(struct drm_connector *connector, device_t adapter)
 		drm_mode_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
 		drm_edid_to_eld(connector, edid);
-		connector->display_info.raw_edid = NULL;
 		free(edid, DRM_MEM_KMS);
 	}
 
@@ -106,13 +105,13 @@ intel_attach_force_audio_property(struct drm_connector *connector)
 		prop = drm_property_create_enum(dev, 0,
 					   "audio",
 					   force_audio_names,
-					   DRM_ARRAY_SIZE(force_audio_names));
+					   ARRAY_SIZE(force_audio_names));
 		if (prop == NULL)
 			return;
 
 		dev_priv->force_audio_property = prop;
 	}
-	drm_connector_attach_property(connector, prop, 0);
+	drm_object_attach_property(&connector->base, prop, 0);
 }
 
 static const struct drm_prop_enum_list broadcast_rgb_names[] = {
@@ -132,12 +131,12 @@ intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 		prop = drm_property_create_enum(dev, DRM_MODE_PROP_ENUM,
 		    "Broadcast RGB",
 		    broadcast_rgb_names,
-		    DRM_ARRAY_SIZE(broadcast_rgb_names));
+		    ARRAY_SIZE(broadcast_rgb_names));
 		if (prop == NULL)
 			return;
 
 		dev_priv->broadcast_rgb_property = prop;
 	}
 
-	drm_connector_attach_property(connector, prop, 0);
+	drm_object_attach_property(&connector->base, prop, 0);
 }

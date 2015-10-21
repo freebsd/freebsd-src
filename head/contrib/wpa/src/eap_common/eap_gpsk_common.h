@@ -53,6 +53,12 @@ int eap_gpsk_derive_keys(const u8 *psk, size_t psk_len, int vendor,
 			 const u8 *id_server, size_t id_server_len,
 			 u8 *msk, u8 *emsk, u8 *sk, size_t *sk_len,
 			 u8 *pk, size_t *pk_len);
+int eap_gpsk_derive_session_id(const u8 *psk, size_t psk_len, int vendor,
+			       int specifier,
+			       const u8 *rand_peer, const u8 *rand_server,
+			       const u8 *id_peer, size_t id_peer_len,
+			       const u8 *id_server, size_t id_server_len,
+			       u8 method_type, u8 *sid, size_t *sid_len);
 size_t eap_gpsk_mic_len(int vendor, int specifier);
 int eap_gpsk_compute_mic(const u8 *sk, size_t sk_len, int vendor,
 			 int specifier, const u8 *data, size_t len, u8 *mic);

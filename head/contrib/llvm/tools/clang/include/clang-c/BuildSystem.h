@@ -11,8 +11,8 @@
 |*                                                                            *|
 \*===----------------------------------------------------------------------===*/
 
-#ifndef CLANG_C_BUILD_SYSTEM_H
-#define CLANG_C_BUILD_SYSTEM_H
+#ifndef LLVM_CLANG_C_BUILDSYSTEM_H
+#define LLVM_CLANG_C_BUILDSYSTEM_H
 
 #include "clang-c/Platform.h"
 #include "clang-c/CXErrorCode.h"
@@ -73,7 +73,7 @@ clang_VirtualFileOverlay_setCaseSensitivity(CXVirtualFileOverlay,
  *
  * \param options is reserved, always pass 0.
  * \param out_buffer_ptr pointer to receive the buffer pointer, which should be
- * disposed using \c free().
+ * disposed using \c clang_free().
  * \param out_buffer_size pointer to receive the buffer size.
  * \returns 0 for success, non-zero to indicate an error.
  */
@@ -81,6 +81,14 @@ CINDEX_LINKAGE enum CXErrorCode
 clang_VirtualFileOverlay_writeToBuffer(CXVirtualFileOverlay, unsigned options,
                                        char **out_buffer_ptr,
                                        unsigned *out_buffer_size);
+
+/**
+ * \brief free memory allocated by libclang, such as the buffer returned by
+ * \c CXVirtualFileOverlay() or \c clang_ModuleMapDescriptor_writeToBuffer().
+ *
+ * \param buffer memory pointer to free.
+ */
+CINDEX_LINKAGE void clang_free(void *buffer);
 
 /**
  * \brief Dispose a \c CXVirtualFileOverlay object.
@@ -122,7 +130,7 @@ clang_ModuleMapDescriptor_setUmbrellaHeader(CXModuleMapDescriptor,
  *
  * \param options is reserved, always pass 0.
  * \param out_buffer_ptr pointer to receive the buffer pointer, which should be
- * disposed using \c free().
+ * disposed using \c clang_free().
  * \param out_buffer_size pointer to receive the buffer size.
  * \returns 0 for success, non-zero to indicate an error.
  */

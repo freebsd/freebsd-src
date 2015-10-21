@@ -108,7 +108,6 @@ device		pci
 # ATA controllers
 device		ahci		# AHCI-compatible SATA controllers
 device		ata		# Legacy ATA/SATA controllers
-options 	ATA_STATIC_ID	# Static device numbering
 device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
 device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
 
@@ -196,7 +195,8 @@ device		octm
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
 device		igb		# Intel PRO/1000 PCIE Server Gigabit Family
-device		ixgbe		# Intel PRO/10GbE PCIE Ethernet Family
+device		ix		# Intel PRO/10GbE PF PCIE Ethernet Family
+device		ixv		# Intel PRO/10GbE VF PCIE Ethernet Family
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
 device		txp		# 3Com 3cR990 (``Typhoon'')

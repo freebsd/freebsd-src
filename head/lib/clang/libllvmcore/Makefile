@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	llvmcore
 
@@ -17,6 +17,7 @@ SRCS=	AsmWriter.cpp \
 	DIBuilder.cpp \
 	DataLayout.cpp \
 	DebugInfo.cpp \
+	DebugInfoMetadata.cpp \
 	DebugLoc.cpp \
 	DiagnosticInfo.cpp \
 	DiagnosticPrinter.cpp \
@@ -33,15 +34,16 @@ SRCS=	AsmWriter.cpp \
 	IntrinsicInst.cpp \
 	LLVMContext.cpp \
 	LLVMContextImpl.cpp \
-	LeakDetector.cpp \
 	LegacyPassManager.cpp \
 	MDBuilder.cpp \
 	Mangler.cpp \
 	Metadata.cpp \
+	MetadataTracking.cpp \
 	Module.cpp \
+	Operator.cpp \
 	Pass.cpp \
-	PassManager.cpp \
 	PassRegistry.cpp \
+	Statepoint.cpp \
 	Type.cpp \
 	TypeFinder.cpp \
 	Use.cpp \
@@ -50,6 +52,10 @@ SRCS=	AsmWriter.cpp \
 	ValueSymbolTable.cpp \
 	ValueTypes.cpp \
 	Verifier.cpp
+
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	PassManager.cpp
+.endif
 
 TGHDRS=	Intrinsics
 

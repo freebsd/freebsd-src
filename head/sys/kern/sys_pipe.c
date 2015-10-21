@@ -377,15 +377,16 @@ pipe_named_ctor(struct pipe **ppipe, struct thread *td)
 void
 pipe_dtor(struct pipe *dpipe)
 {
+	struct pipe *peer;
 	ino_t ino;
 
 	ino = dpipe->pipe_ino;
+	peer = (dpipe->pipe_state & PIPE_NAMED) != 0 ? dpipe->pipe_peer : NULL;
 	funsetown(&dpipe->pipe_sigio);
 	pipeclose(dpipe);
-	if (dpipe->pipe_state & PIPE_NAMED) {
-		dpipe = dpipe->pipe_peer;
-		funsetown(&dpipe->pipe_sigio);
-		pipeclose(dpipe);
+	if (peer != NULL) {
+		funsetown(&peer->pipe_sigio);
+		pipeclose(peer);
 	}
 	if (ino != 0 && ino != (ino_t)-1)
 		free_unr(pipeino_unr, ino);
@@ -396,32 +397,24 @@ pipe_dtor(struct pipe *dpipe)
  * the zone pick up the pieces via pipeclose().
  */
 int
-kern_pipe(struct thread *td, int fildes[2])
+kern_pipe(struct thread *td, int fildes[2], int flags, struct filecaps *fcaps1,
+    struct filecaps *fcaps2)
 {
-
-	return (kern_pipe2(td, fildes, 0));
-}
-
-int
-kern_pipe2(struct thread *td, int fildes[2], int flags)
-{
-	struct filedesc *fdp; 
 	struct file *rf, *wf;
 	struct pipe *rpipe, *wpipe;
 	struct pipepair *pp;
 	int fd, fflags, error;
 
-	fdp = td->td_proc->p_fd;
 	pipe_paircreate(td, &pp);
 	rpipe = &pp->pp_rpipe;
 	wpipe = &pp->pp_wpipe;
-	error = falloc(td, &rf, &fd, flags);
+	error = falloc_caps(td, &rf, &fd, flags, fcaps1);
 	if (error) {
 		pipeclose(rpipe);
 		pipeclose(wpipe);
 		return (error);
 	}
-	/* An extra reference on `rf' has been held for us by falloc(). */
+	/* An extra reference on `rf' has been held for us by falloc_caps(). */
 	fildes[0] = fd;
 
 	fflags = FREAD | FWRITE;
@@ -435,15 +428,15 @@ kern_pipe2(struct thread *td, int fildes[2], int flags)
 	 * side while we are blocked trying to allocate the write side.
 	 */
 	finit(rf, fflags, DTYPE_PIPE, rpipe, &pipeops);
-	error = falloc(td, &wf, &fd, flags);
+	error = falloc_caps(td, &wf, &fd, flags, fcaps2);
 	if (error) {
-		fdclose(fdp, rf, fildes[0], td);
+		fdclose(td, rf, fildes[0]);
 		fdrop(rf, td);
 		/* rpipe has been closed by fdrop(). */
 		pipeclose(wpipe);
 		return (error);
 	}
-	/* An extra reference on `wf' has been held for us by falloc(). */
+	/* An extra reference on `wf' has been held for us by falloc_caps(). */
 	finit(wf, fflags, DTYPE_PIPE, wpipe, &pipeops);
 	fdrop(wf, td);
 	fildes[1] = fd;
@@ -459,7 +452,7 @@ sys_pipe(struct thread *td, struct pipe_args *uap)
 	int error;
 	int fildes[2];
 
-	error = kern_pipe(td, fildes);
+	error = kern_pipe(td, fildes, 0, NULL, NULL);
 	if (error)
 		return (error);
 
@@ -476,7 +469,7 @@ sys_pipe2(struct thread *td, struct pipe2_args *uap)
 
 	if (uap->flags & ~(O_CLOEXEC | O_NONBLOCK))
 		return (EINVAL);
-	error = kern_pipe2(td, fildes, uap->flags);
+	error = kern_pipe(td, fildes, uap->flags, NULL, NULL);
 	if (error)
 		return (error);
 	error = copyout(fildes, uap->fildes, 2 * sizeof(int));
@@ -947,9 +940,10 @@ pipe_direct_write(wpipe, uio)
 retry:
 	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
 	error = pipelock(wpipe, 1);
-	if (wpipe->pipe_state & PIPE_EOF)
+	if (error != 0)
+		goto error1;
+	if ((wpipe->pipe_state & PIPE_EOF) != 0) {
 		error = EPIPE;
-	if (error) {
 		pipeunlock(wpipe);
 		goto error1;
 	}

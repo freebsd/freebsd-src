@@ -227,6 +227,7 @@ struct vm_domain {
 	long vmd_segs;	/* bitmask of the segments */
 	boolean_t vmd_oom;
 	int vmd_pass;	/* local pagedaemon pass */
+	int vmd_last_active_scan;
 	struct vm_page vmd_marker; /* marker for pagedaemon private use */
 };
 
@@ -450,6 +451,7 @@ void vm_page_cache_transfer(vm_object_t, vm_pindex_t, vm_object_t);
 int vm_page_try_to_cache (vm_page_t);
 int vm_page_try_to_free (vm_page_t);
 void vm_page_deactivate (vm_page_t);
+void vm_page_deactivate_noreuse(vm_page_t);
 void vm_page_dequeue(vm_page_t m);
 void vm_page_dequeue_locked(vm_page_t m);
 vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
@@ -479,7 +481,7 @@ vm_offset_t vm_page_startup(vm_offset_t vaddr);
 void vm_page_sunbusy(vm_page_t m);
 int vm_page_trysbusy(vm_page_t m);
 void vm_page_unhold_pages(vm_page_t *ma, int count);
-void vm_page_unwire (vm_page_t m, uint8_t queue);
+boolean_t vm_page_unwire(vm_page_t m, uint8_t queue);
 void vm_page_updatefake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_wire (vm_page_t);
 void vm_page_xunbusy_hard(vm_page_t m);

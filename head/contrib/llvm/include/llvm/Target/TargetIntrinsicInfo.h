@@ -28,8 +28,8 @@ class Type;
 /// TargetIntrinsicInfo - Interface to description of machine instruction set
 ///
 class TargetIntrinsicInfo {
-  TargetIntrinsicInfo(const TargetIntrinsicInfo &) LLVM_DELETED_FUNCTION;
-  void operator=(const TargetIntrinsicInfo &) LLVM_DELETED_FUNCTION;
+  TargetIntrinsicInfo(const TargetIntrinsicInfo &) = delete;
+  void operator=(const TargetIntrinsicInfo &) = delete;
 public:
   TargetIntrinsicInfo();
   virtual ~TargetIntrinsicInfo();
@@ -52,7 +52,7 @@ public:
 
   /// Returns true if the intrinsic can be overloaded.
   virtual bool isOverloaded(unsigned IID) const = 0;
-  
+
   /// Create or insert an LLVM Function declaration for an intrinsic,
   /// and return it. The Tys and numTys are for intrinsics with overloaded
   /// types. See above for more information.

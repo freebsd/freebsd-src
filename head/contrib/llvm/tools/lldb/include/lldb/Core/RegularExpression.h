@@ -39,6 +39,9 @@ inline void regfree(llvm_regex_t * a)
 }
 
 #else
+#if __ANDROID_NDK__
+#include <regex>
+#endif
 #include <regex.h>
 #endif
 #include <stdint.h>
@@ -118,23 +121,6 @@ public:
     //------------------------------------------------------------------
     RegularExpression ();
 
-    //------------------------------------------------------------------
-    /// Constructor that takes a regular expression with flags.
-    ///
-    /// Constructor that compiles \a re using \a flags and stores the
-    /// resulting compiled regular expression into this object.
-    ///
-    /// @param[in] re
-    ///     A c string that represents the regular expression to
-    ///     compile.
-    ///
-    /// @param[in] flags
-    ///     Flags that are passed to the \c regcomp() function.
-    //------------------------------------------------------------------
-    explicit
-    RegularExpression (const char* re, int flags);
-
-    // This one uses flags = REG_EXTENDED.
     explicit
     RegularExpression (const char* re);
 
@@ -154,7 +140,7 @@ public:
     /// Compile a regular expression.
     ///
     /// Compile a regular expression using the supplied regular
-    /// expression text and flags. The compiled regular expression lives
+    /// expression text. The compiled regular expression lives
     /// in this object so that it can be readily used for regular
     /// expression matches. Execute() can be called after the regular
     /// expression is compiled. Any previously compiled regular
@@ -164,18 +150,12 @@ public:
     ///     A NULL terminated C string that represents the regular
     ///     expression to compile.
     ///
-    /// @param[in] flags
-    ///     Flags that are passed to the \c regcomp() function.
-    ///
     /// @return
     ///     \b true if the regular expression compiles successfully,
     ///     \b false otherwise.
     //------------------------------------------------------------------
     bool
     Compile (const char* re);
-
-    bool
-    Compile (const char* re, int flags);
 
     //------------------------------------------------------------------
     /// Executes a regular expression.
@@ -184,8 +164,7 @@ public:
     /// expression that is already in this object against the match
     /// string \a s. If any parens are used for regular expression
     /// matches \a match_count should indicate the number of regmatch_t
-    /// values that are present in \a match_ptr. The regular expression
-    /// will be executed using the \a execute_flags
+    /// values that are present in \a match_ptr.
     ///
     /// @param[in] string
     ///     The string to match against the compile regular expression.
@@ -195,15 +174,12 @@ public:
     ///     properly initialized with the desired number of maximum
     ///     matches, or NULL if no parenthesized matching is needed.
     ///
-    /// @param[in] execute_flags
-    ///     Flags to pass to the \c regexec() function.
-    ///
     /// @return
     ///     \b true if \a string matches the compiled regular
     ///     expression, \b false otherwise.
     //------------------------------------------------------------------
     bool
-    Execute (const char* string, Match *match = NULL, int execute_flags = 0) const;
+    Execute (const char* string, Match *match = NULL) const;
 
     size_t
     GetErrorAsCString (char *err_str, size_t err_str_max_len) const;
@@ -230,12 +206,6 @@ public:
     const char*
     GetText () const;
     
-    int
-    GetCompileFlags () const
-    {
-        return m_compile_flags;
-    }
-
     //------------------------------------------------------------------
     /// Test if valid.
     ///
@@ -253,7 +223,6 @@ public:
     {
         Free();
         m_re.clear();
-        m_compile_flags = 0;
         m_comp_err = 1;
     }
     
@@ -273,7 +242,6 @@ private:
     std::string m_re;   ///< A copy of the original regular expression text
     int m_comp_err;     ///< Error code for the regular expression compilation
     regex_t m_preg;     ///< The compiled regular expression
-    int     m_compile_flags; ///< Stores the flags from the last compile.
 };
 
 } // namespace lldb_private

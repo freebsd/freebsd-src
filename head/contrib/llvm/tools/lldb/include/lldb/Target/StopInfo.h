@@ -18,6 +18,7 @@
 // Project includes
 #include "lldb/lldb-public.h"
 #include "lldb/Target/Process.h"
+#include "lldb/Core/StructuredData.h"
 
 namespace lldb_private {
 
@@ -115,6 +116,12 @@ public:
         else
             m_description.clear();
     }
+
+    virtual bool
+    IsValidForOperatingSystemThread (Thread &thread)
+    {
+        return true;
+    }
     
     // Sometimes the thread plan logic will know that it wants a given stop to stop or not,
     // regardless of what the ordinary logic for that StopInfo would dictate.  The main example
@@ -140,6 +147,12 @@ public:
         return m_override_should_stop == eLazyBoolYes;
     }
     
+    StructuredData::ObjectSP
+    GetExtendedInfo ()
+    {
+        return m_extended_info;
+    }
+    
     static lldb::StopInfoSP
     CreateStopReasonWithBreakpointSiteID (Thread &thread, lldb::break_id_t break_id);
 
@@ -148,10 +161,10 @@ public:
     CreateStopReasonWithBreakpointSiteID (Thread &thread, lldb::break_id_t break_id, bool should_stop);
 
     static lldb::StopInfoSP
-    CreateStopReasonWithWatchpointID (Thread &thread, lldb::break_id_t watch_id);
+    CreateStopReasonWithWatchpointID (Thread &thread, lldb::break_id_t watch_id, lldb::addr_t watch_hit_addr = LLDB_INVALID_ADDRESS);
 
     static lldb::StopInfoSP
-    CreateStopReasonWithSignal (Thread &thread, int signo);
+    CreateStopReasonWithSignal (Thread &thread, int signo, const char *description = nullptr);
 
     static lldb::StopInfoSP
     CreateStopReasonToTrace (Thread &thread);
@@ -210,6 +223,8 @@ protected:
     std::string     m_description; // A textual description describing this stop.
     LazyBool        m_override_should_notify;
     LazyBool        m_override_should_stop;
+    
+    StructuredData::ObjectSP m_extended_info; // The extended info for this stop info
     
     // This determines whether the target has run since this stop info.
     // N.B. running to evaluate a user expression does not count. 

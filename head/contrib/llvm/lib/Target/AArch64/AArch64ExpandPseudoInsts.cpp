@@ -16,6 +16,7 @@
 
 #include "MCTargetDesc/AArch64AddressingModes.h"
 #include "AArch64InstrInfo.h"
+#include "AArch64Subtarget.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/Support/MathExtras.h"
@@ -228,7 +229,7 @@ static bool isStartChunk(uint64_t Chunk) {
   if (Chunk == 0 || Chunk == UINT64_MAX)
     return false;
 
-  return (CountLeadingOnes_64(Chunk) + countTrailingZeros(Chunk)) == 64;
+  return isMask_64(~Chunk);
 }
 
 /// \brief Check whether this chunk matches the pattern '0...1...' This pattern
@@ -238,7 +239,7 @@ static bool isEndChunk(uint64_t Chunk) {
   if (Chunk == 0 || Chunk == UINT64_MAX)
     return false;
 
-  return (countLeadingZeros(Chunk) + CountTrailingOnes_64(Chunk)) == 64;
+  return isMask_64(Chunk);
 }
 
 /// \brief Clear or set all bits in the chunk at the given index.
@@ -697,11 +698,14 @@ bool AArch64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
     return expandMOVImm(MBB, MBBI, 32);
   case AArch64::MOVi64imm:
     return expandMOVImm(MBB, MBBI, 64);
-  case AArch64::RET_ReallyLR:
-    BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::RET))
-        .addReg(AArch64::LR);
+  case AArch64::RET_ReallyLR: {
+    MachineInstrBuilder MIB =
+        BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::RET))
+          .addReg(AArch64::LR);
+    transferImpOps(MI, MIB, MIB);
     MI.eraseFromParent();
     return true;
+  }
   }
   return false;
 }
@@ -722,7 +726,7 @@ bool AArch64ExpandPseudo::expandMBB(MachineBasicBlock &MBB) {
 }
 
 bool AArch64ExpandPseudo::runOnMachineFunction(MachineFunction &MF) {
-  TII = static_cast<const AArch64InstrInfo *>(MF.getTarget().getInstrInfo());
+  TII = static_cast<const AArch64InstrInfo *>(MF.getSubtarget().getInstrInfo());
 
   bool Modified = false;
   for (auto &MBB : MF)

@@ -380,7 +380,7 @@ static void eap_wsc_process(struct eap_sm *sm, void *priv,
 		message_length = WPA_GET_BE16(pos);
 		pos += 2;
 
-		if (message_length < end - pos) {
+		if (message_length < end - pos || message_length > 50000) {
 			wpa_printf(MSG_DEBUG, "EAP-WSC: Invalid Message "
 				   "Length");
 			return;

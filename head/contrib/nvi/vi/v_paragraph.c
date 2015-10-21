@@ -61,7 +61,7 @@ static const char sccsid[] = "$Id: v_paragraph.c,v 10.10 2001/06/25 15:19:32 ski
  * Paragraphs are empty lines after text, formfeed characters, or values
  * from the paragraph or section options.
  *
- * PUBLIC: int v_paragraphf __P((SCR *, VICMD *));
+ * PUBLIC: int v_paragraphf(SCR *, VICMD *);
  */
 int
 v_paragraphf(SCR *sp, VICMD *vp)
@@ -199,7 +199,7 @@ eof:	if (vp->m_start.lno == lno || vp->m_start.lno == lno - 1) {
  * v_paragraphb -- [count]{
  *	Move backward count paragraphs.
  *
- * PUBLIC: int v_paragraphb __P((SCR *, VICMD *));
+ * PUBLIC: int v_paragraphb(SCR *, VICMD *);
  */
 int
 v_paragraphb(SCR *sp, VICMD *vp)
@@ -306,7 +306,7 @@ found:	vp->m_stop.lno = lno;
  * v_buildps --
  *	Build the paragraph command search pattern.
  *
- * PUBLIC: int v_buildps __P((SCR *, char *, char *));
+ * PUBLIC: int v_buildps(SCR *, char *, char *);
  */
 int
 v_buildps(SCR *sp, char *p_p, char *s_p)

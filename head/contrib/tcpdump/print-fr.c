@@ -34,6 +34,7 @@
 #include "interface.h"
 #include "addrtoname.h"
 #include "ethertype.h"
+#include "llc.h"
 #include "nlpid.h"
 #include "extract.h"
 #include "oui.h"
@@ -94,15 +95,21 @@ static const struct tok frf_flag_values[] = {
     { 0, NULL }
 };
 
-/* Finds out Q.922 address length, DLCI and flags. Returns 0 on success
+/* Finds out Q.922 address length, DLCI and flags. Returns 1 on success,
+ * 0 on invalid address, -1 on truncated packet
  * save the flags dep. on address length
  */
-static int parse_q922_addr(const u_char *p, u_int *dlci,
-                           u_int *addr_len, uint8_t *flags)
+static int parse_q922_addr(netdissect_options *ndo,
+                           const u_char *p, u_int *dlci,
+                           u_int *addr_len, uint8_t *flags, u_int length)
 {
-	if ((p[0] & FR_EA_BIT))
+	if (!ND_TTEST(p[0]) || length < 1)
 		return -1;
+	if ((p[0] & FR_EA_BIT))
+		return 0;
 
+	if (!ND_TTEST(p[1]) || length < 2)
+		return -1;
 	*addr_len = 2;
 	*dlci = ((p[0] & 0xFC) << 2) | ((p[1] & 0xF0) >> 4);
 
@@ -112,34 +119,42 @@ static int parse_q922_addr(const u_char *p, u_int *dlci,
         flags[3] = 0;
 
 	if (p[1] & FR_EA_BIT)
-		return 0;	/* 2-byte Q.922 address */
+		return 1;	/* 2-byte Q.922 address */
 
 	p += 2;
+	length -= 2;
+	if (!ND_TTEST(p[0]) || length < 1)
+		return -1;
 	(*addr_len)++;		/* 3- or 4-byte Q.922 address */
 	if ((p[0] & FR_EA_BIT) == 0) {
 		*dlci = (*dlci << 7) | (p[0] >> 1);
 		(*addr_len)++;	/* 4-byte Q.922 address */
 		p++;
+		length--;
 	}
 
+	if (!ND_TTEST(p[0]) || length < 1)
+		return -1;
 	if ((p[0] & FR_EA_BIT) == 0)
-		return -1; /* more than 4 bytes of Q.922 address? */
+		return 0; /* more than 4 bytes of Q.922 address? */
 
         flags[3] = p[0] & 0x02;
 
         *dlci = (*dlci << 6) | (p[0] >> 2);
 
-	return 0;
+	return 1;
 }
 
-char *q922_string(const u_char *p) {
+char *
+q922_string(netdissect_options *ndo, const u_char *p, u_int length)
+{
 
     static u_int dlci, addr_len;
     static uint8_t flags[4];
     static char buffer[sizeof("DLCI xxxxxxxxxx")];
     memset(buffer, 0, sizeof(buffer));
 
-    if (parse_q922_addr(p, &dlci, &addr_len, flags) == 0){
+    if (parse_q922_addr(ndo, p, &dlci, &addr_len, flags, length) == 1){
         snprintf(buffer, sizeof(buffer), "DLCI %u", dlci);
     }
 
@@ -172,15 +187,6 @@ char *q922_string(const u_char *p) {
              contain a 10-bit DLCI.  In some networks Q.922 addresses
              may optionally be increased to three or four octets.
 */
-
-static u_int
-fr_hdrlen(const u_char *p, u_int addr_len)
-{
-	if (!p[addr_len + 1] /* pad exist */)
-		return addr_len + 1 /* UI */ + 1 /* pad */ + 1 /* NLPID */;
-	else
-		return addr_len + 1 /* UI */ + 1 /* NLPID */;
-}
 
 static void
 fr_hdr_print(netdissect_options *ndo,
@@ -232,6 +238,7 @@ u_int
 fr_print(netdissect_options *ndo,
          register const u_char *p, u_int length)
 {
+	int ret;
 	uint16_t extracted_ethertype;
 	u_int dlci;
 	u_int addr_len;
@@ -239,39 +246,70 @@ fr_print(netdissect_options *ndo,
 	u_int hdr_len;
 	uint8_t flags[4];
 
-	if (parse_q922_addr(p, &dlci, &addr_len, flags)) {
+	ret = parse_q922_addr(ndo, p, &dlci, &addr_len, flags, length);
+	if (ret == -1)
+		goto trunc;
+	if (ret == 0) {
 		ND_PRINT((ndo, "Q.922, invalid address"));
 		return 0;
 	}
 
-        ND_TCHECK2(*p, addr_len+1+1);
-	hdr_len = fr_hdrlen(p, addr_len);
-        ND_TCHECK2(*p, hdr_len);
+	ND_TCHECK(p[addr_len]);
+	if (length < addr_len + 1)
+		goto trunc;
 
-	if (p[addr_len] != 0x03 && dlci != 0) {
+	if (p[addr_len] != LLC_UI && dlci != 0) {
+                /*
+                 * Let's figure out if we have Cisco-style encapsulation,
+                 * with an Ethernet type (Cisco HDLC type?) following the
+                 * address.
+                 */
+		if (!ND_TTEST2(p[addr_len], 2) || length < addr_len + 2) {
+                        /* no Ethertype */
+                        ND_PRINT((ndo, "UI %02x! ", p[addr_len]));
+                } else {
+                        extracted_ethertype = EXTRACT_16BITS(p+addr_len);
 
-                /* lets figure out if we have cisco style encapsulation: */
-                extracted_ethertype = EXTRACT_16BITS(p+addr_len);
+                        if (ndo->ndo_eflag)
+                                fr_hdr_print(ndo, length, addr_len, dlci,
+                                    flags, extracted_ethertype);
 
-                if (ndo->ndo_eflag)
-                    fr_hdr_print(ndo, length, addr_len, dlci, flags, extracted_ethertype);
-
-                if (ethertype_print(ndo, extracted_ethertype,
-                                      p+addr_len+ETHERTYPE_LEN,
-                                      length-addr_len-ETHERTYPE_LEN,
-                                      length-addr_len-ETHERTYPE_LEN) == 0)
-                    /* ether_type not known, probably it wasn't one */
-                    ND_PRINT((ndo, "UI %02x! ", p[addr_len]));
-                else
-                    return hdr_len;
+                        if (ethertype_print(ndo, extracted_ethertype,
+                                            p+addr_len+ETHERTYPE_LEN,
+                                            length-addr_len-ETHERTYPE_LEN,
+                                            length-addr_len-ETHERTYPE_LEN) == 0)
+                                /* ether_type not known, probably it wasn't one */
+                                ND_PRINT((ndo, "UI %02x! ", p[addr_len]));
+                        else
+                                return addr_len + 2;
+                }
         }
 
-	if (!p[addr_len + 1]) {	/* pad byte should be used with 3-byte Q.922 */
+	ND_TCHECK(p[addr_len+1]);
+	if (length < addr_len + 2)
+		goto trunc;
+
+	if (p[addr_len + 1] == 0) {
+		/*
+		 * Assume a pad byte after the control (UI) byte.
+		 * A pad byte should only be used with 3-byte Q.922.
+		 */
 		if (addr_len != 3)
 			ND_PRINT((ndo, "Pad! "));
-	} else if (addr_len == 3)
-		ND_PRINT((ndo, "No pad! "));
+		hdr_len = addr_len + 1 /* UI */ + 1 /* pad */ + 1 /* NLPID */;
+	} else {
+		/*
+		 * Not a pad byte.
+		 * A pad byte should be used with 3-byte Q.922.
+		 */
+		if (addr_len == 3)
+			ND_PRINT((ndo, "No pad! "));
+		hdr_len = addr_len + 1 /* UI */ + 1 /* NLPID */;
+	}
 
+        ND_TCHECK(p[hdr_len - 1]);
+	if (length < hdr_len)
+		goto trunc;
 	nlpid = p[hdr_len - 1];
 
 	if (ndo->ndo_eflag)
@@ -284,11 +322,10 @@ fr_print(netdissect_options *ndo,
 	        ip_print(ndo, p, length);
 		break;
 
-#ifdef INET6
 	case NLPID_IP6:
 		ip6_print(ndo, p, length);
 		break;
-#endif
+
 	case NLPID_CLNP:
 	case NLPID_ESIS:
 	case NLPID_ISIS:
@@ -558,8 +595,8 @@ mfr_print(netdissect_options *ndo,
 
 static void
 frf15_print(netdissect_options *ndo,
-            const u_char *p, u_int length) {
-
+            const u_char *p, u_int length)
+{
     uint16_t sequence_num, flags;
 
     flags = p[0]&MFR_BEC_MASK;

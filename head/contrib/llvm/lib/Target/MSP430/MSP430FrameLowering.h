@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MSP430_FRAMEINFO_H
-#define MSP430_FRAMEINFO_H
+#ifndef LLVM_LIB_TARGET_MSP430_MSP430FRAMELOWERING_H
+#define LLVM_LIB_TARGET_MSP430_MSP430FRAMELOWERING_H
 
 #include "MSP430.h"
 #include "llvm/Target/TargetFrameLowering.h"
@@ -27,7 +27,7 @@ public:
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
-  void emitPrologue(MachineFunction &MF) const override;
+  void emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
 
   void eliminateCallFramePseudoInstr(MachineFunction &MF,

@@ -16,6 +16,7 @@
 #include "Mips.h"
 #include "MCTargetDesc/MipsBaseInfo.h"
 #include "MCTargetDesc/MipsMCNaCl.h"
+#include "MipsMachineFunction.h"
 #include "MipsTargetMachine.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -62,11 +63,9 @@ namespace {
   public:
     static char ID;
     MipsLongBranch(TargetMachine &tm)
-      : MachineFunctionPass(ID), TM(tm),
-        IsPIC(TM.getRelocationModel() == Reloc::PIC_),
-        ABI(TM.getSubtarget<MipsSubtarget>().getABI()),
-        LongBranchSeqSize(!IsPIC ? 2 : (ABI.IsN64() ? 10 :
-            (!TM.getSubtarget<MipsSubtarget>().isTargetNaCl() ? 9 : 10))) {}
+        : MachineFunctionPass(ID), TM(tm),
+          IsPIC(TM.getRelocationModel() == Reloc::PIC_),
+          ABI(static_cast<const MipsTargetMachine &>(TM).getABI()) {}
 
     const char *getPassName() const override {
       return "Mips Long Branch";
@@ -109,8 +108,7 @@ static MachineBasicBlock *getTargetMBB(const MachineInstr &Br) {
       return MO.getMBB();
   }
 
-  assert(false && "This instruction does not have an MBB operand.");
-  return nullptr;
+  llvm_unreachable("This instruction does not have an MBB operand.");
 }
 
 // Traverse the list of instructions backwards until a non-debug instruction is
@@ -170,7 +168,7 @@ void MipsLongBranch::initMBBInfo() {
   MBBInfos.resize(MF->size());
 
   const MipsInstrInfo *TII =
-    static_cast<const MipsInstrInfo*>(TM.getInstrInfo());
+      static_cast<const MipsInstrInfo *>(MF->getSubtarget().getInstrInfo());
   for (unsigned I = 0, E = MBBInfos.size(); I < E; ++I) {
     MachineBasicBlock *MBB = MF->getBlockNumbered(I);
 
@@ -216,8 +214,8 @@ int64_t MipsLongBranch::computeOffset(const MachineInstr *Br) {
 // MachineBasicBlock operand MBBOpnd.
 void MipsLongBranch::replaceBranch(MachineBasicBlock &MBB, Iter Br,
                                    DebugLoc DL, MachineBasicBlock *MBBOpnd) {
-  const MipsInstrInfo *TII =
-    static_cast<const MipsInstrInfo*>(TM.getInstrInfo());
+  const MipsInstrInfo *TII = static_cast<const MipsInstrInfo *>(
+      MBB.getParent()->getSubtarget().getInstrInfo());
   unsigned NewOpc = TII->getOppositeBranchOpc(Br->getOpcode());
   const MCInstrDesc &NewDesc = TII->get(NewOpc);
 
@@ -236,15 +234,21 @@ void MipsLongBranch::replaceBranch(MachineBasicBlock &MBB, Iter Br,
 
   MIB.addMBB(MBBOpnd);
 
-  // Bundle the instruction in the delay slot to the newly created branch
-  // and erase the original branch.
-  assert(Br->isBundledWithSucc());
-  MachineBasicBlock::instr_iterator II(Br);
-  MIBundleBuilder(&*MIB).append((++II)->removeFromBundle());
+  if (Br->hasDelaySlot()) {
+    // Bundle the instruction in the delay slot to the newly created branch
+    // and erase the original branch.
+    assert(Br->isBundledWithSucc());
+    MachineBasicBlock::instr_iterator II(Br);
+    MIBundleBuilder(&*MIB).append((++II)->removeFromBundle());
+  }
   Br->eraseFromParent();
 }
 
 // Expand branch instructions to long branches.
+// TODO: This function has to be fixed for beqz16 and bnez16, because it
+// currently assumes that all branches have 16-bit offsets, and will produce
+// wrong code if branches whose allowed offsets are [-128, -126, ..., 126]
+// are present.
 void MipsLongBranch::expandToLongBranch(MBBInfo &I) {
   MachineBasicBlock::iterator Pos;
   MachineBasicBlock *MBB = I.Br->getParent(), *TgtMBB = getTargetMBB(*I.Br);
@@ -252,9 +256,10 @@ void MipsLongBranch::expandToLongBranch(MBBInfo &I) {
   const BasicBlock *BB = MBB->getBasicBlock();
   MachineFunction::iterator FallThroughMBB = ++MachineFunction::iterator(MBB);
   MachineBasicBlock *LongBrMBB = MF->CreateMachineBasicBlock(BB);
-
+  const MipsSubtarget &Subtarget =
+      static_cast<const MipsSubtarget &>(MF->getSubtarget());
   const MipsInstrInfo *TII =
-    static_cast<const MipsInstrInfo*>(TM.getInstrInfo());
+      static_cast<const MipsInstrInfo *>(Subtarget.getInstrInfo());
 
   MF->insert(FallThroughMBB, LongBrMBB);
   MBB->removeSuccessor(TgtMBB);
@@ -269,8 +274,6 @@ void MipsLongBranch::expandToLongBranch(MBBInfo &I) {
     // We must select between the MIPS32r6/MIPS64r6 BAL (which is a normal
     // instruction) and the pre-MIPS32r6/MIPS64r6 definition (which is an
     // pseudo-instruction wrapping BGEZAL).
-
-    const MipsSubtarget &Subtarget = TM.getSubtarget<MipsSubtarget>();
     unsigned BalOp = Subtarget.hasMips32r6() ? Mips::BAL : Mips::BAL_BR;
 
     if (!ABI.IsN64()) {
@@ -327,7 +330,7 @@ void MipsLongBranch::expandToLongBranch(MBBInfo &I) {
       BuildMI(*BalTgtMBB, Pos, DL, TII->get(Mips::LW), Mips::RA)
         .addReg(Mips::SP).addImm(0);
 
-      if (!TM.getSubtarget<MipsSubtarget>().isTargetNaCl()) {
+      if (!Subtarget.isTargetNaCl()) {
         MIBundleBuilder(*BalTgtMBB, Pos)
           .append(BuildMI(*MF, DL, TII->get(Mips::JR)).addReg(Mips::AT))
           .append(BuildMI(*MF, DL, TII->get(Mips::ADDiu), Mips::SP)
@@ -446,14 +449,17 @@ static void emitGPDisp(MachineFunction &F, const MipsInstrInfo *TII) {
 }
 
 bool MipsLongBranch::runOnMachineFunction(MachineFunction &F) {
+  const MipsSubtarget &STI =
+      static_cast<const MipsSubtarget &>(F.getSubtarget());
   const MipsInstrInfo *TII =
-    static_cast<const MipsInstrInfo*>(TM.getInstrInfo());
+      static_cast<const MipsInstrInfo *>(STI.getInstrInfo());
+  LongBranchSeqSize =
+      !IsPIC ? 2 : (ABI.IsN64() ? 10 : (!STI.isTargetNaCl() ? 9 : 10));
 
-  const MipsSubtarget &STI = TM.getSubtarget<MipsSubtarget>();
   if (STI.inMips16Mode() || !STI.enableLongBranchPass())
     return false;
   if ((TM.getRelocationModel() == Reloc::PIC_) &&
-      TM.getSubtarget<MipsSubtarget>().isABI_O32() &&
+      static_cast<const MipsTargetMachine &>(TM).getABI().IsO32() &&
       F.getInfo<MipsFunctionInfo>()->globalBaseRegSet())
     emitGPDisp(F, TII);
 
@@ -475,10 +481,10 @@ bool MipsLongBranch::runOnMachineFunction(MachineFunction &F) {
       if (!I->Br || I->HasLongBranch)
         continue;
 
-      int ShVal = TM.getSubtarget<MipsSubtarget>().inMicroMipsMode() ? 2 : 4;
+      int ShVal = STI.inMicroMipsMode() ? 2 : 4;
       int64_t Offset = computeOffset(I->Br) / ShVal;
 
-      if (TM.getSubtarget<MipsSubtarget>().isTargetNaCl()) {
+      if (STI.isTargetNaCl()) {
         // The offset calculation does not include sandboxing instructions
         // that will be added later in the MC layer.  Since at this point we
         // don't know the exact amount of code that "sandboxing" will add, we

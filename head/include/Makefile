@@ -7,6 +7,7 @@
 
 CLEANFILES= osreldate.h version vers.c
 SUBDIR= arpa protocols rpcsvc rpc xlocale
+SUBDIR_PARALLEL=
 INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	db.h \
 	dirent.h dlfcn.h elf.h elf-hints.h err.h fmtmsg.h fnmatch.h fstab.h \
@@ -44,13 +45,13 @@ LSUBDIRS=	cam/ata cam/scsi \
 	dev/hwpmc \
 	dev/ic dev/iicbus dev/io dev/lmc dev/mfi dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/smbus \
-	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
-	fs/cuse \
+	dev/speaker dev/utopia dev/vkbd dev/wi \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/nullfs \
 	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/mountver geom/multipath geom/nop \
 	geom/raid geom/raid3 geom/shsec geom/stripe geom/virstor \
+	net/altq \
 	netgraph/atm netgraph/netflow \
 	security/audit \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
@@ -59,8 +60,12 @@ LSUBDIRS=	cam/ata cam/scsi \
 
 LSUBSUBDIRS=	dev/mpt/mpilib
 
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
-_dev_powermac_nvram=	dev/powermac_nvram
+.if ${MK_BLUETOOTH} != "no"
+LSUBSUBDIRS+=	netgraph/bluetooth/include
+.endif
+
+.if ${MK_CUSE} != "no"
+LSUBDIRS+=	fs/cuse
 .endif
 
 .if ${MK_GSSAPI} != "no"
@@ -72,15 +77,18 @@ INCS+=		gssapi.h
 INCS+=	hesiod.h
 .endif
 
-.if ${MK_BLUETOOTH} != "no"
-LSUBSUBDIRS+=	netgraph/bluetooth/include
-.endif
-
 # Handle the #define aliases for libiconv
 .if ${MK_ICONV} == "yes"
 INCS+=		iconv.h
 .endif
-	
+
+.if ${MK_USB} != "no"
+LSUBDIRS+=	dev/usb
+.endif
+
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
+_dev_powermac_nvram=	dev/powermac_nvram
+.endif
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
@@ -121,7 +129,29 @@ _MARCHS=	${MACHINE_CPUARCH}
 _MARCHS+=	x86
 .endif
 
+.if ${MK_STAGING} == "yes"
+# tell bsd.incs.mk that we have it covered
+NO_STAGE_INCLUDES=
+.endif
+
 .include <bsd.prog.mk>
+
+.if ${MK_STAGING} != "no" && !defined(_SKIP_BUILD)
+.if make(all)
+DESTDIR= ${STAGE_OBJTOP}
+
+all:	stage_include
+installincludes: buildincludes
+buildincludes: stage_prep
+
+stage_prep:
+	@mkdir -p ${DESTDIR}${INCLUDEDIR}
+	@touch $@
+
+stage_include: .dirdep installincludes
+	@touch $@
+.endif
+.endif
 
 installincludes: ${SHARED}
 ${SHARED}: compat
@@ -135,17 +165,20 @@ compat:
 .endfor
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
-	    -p ${DESTDIR}${INCLUDEDIR}
+	    -p ${DESTDIR}${INCLUDEDIR} > /dev/null
+.if ${MK_META_MODE} == "yes"
+	@touch ${.TARGET}
+.endif
 
 copies:
-.for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} altq crypto machine machine/pc \
+.for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto machine machine/pc \
 	${_MARCHS}
-.if exists(${DESTDIR}${INCLUDEDIR}/$i)
-	cd ${DESTDIR}${INCLUDEDIR}/$i; \
-	for h in *.h; do \
-		if [ -L $$h ]; then rm -f $$h; fi; \
-	done
-.endif
+	if [ -d ${DESTDIR}${INCLUDEDIR}/$i ]; then \
+		cd ${DESTDIR}${INCLUDEDIR}/$i; \
+		for h in *.h; do \
+			if [ -L $$h ]; then rm -f $$h; fi; \
+		done; \
+	fi
 .endfor
 .for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/nand:Ndev/pci} ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys; \
@@ -173,9 +206,6 @@ copies:
 	cd ${.CURDIR}/../sys/dev/pci; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 pcireg.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/pci
-	cd ${.CURDIR}/../sys/contrib/altq/altq; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-	    ${DESTDIR}${INCLUDEDIR}/altq
 	cd ${.CURDIR}/../sys/fs/cd9660/; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/isofs/cd9660
@@ -225,6 +255,9 @@ copies:
 	cd ${.CURDIR}/../sys/teken; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
 	    ${DESTDIR}${INCLUDEDIR}/teken
+.if ${MK_META_MODE} == "yes"
+	@touch ${.OBJDIR}/${.TARGET}
+.endif
 
 symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."
@@ -273,11 +306,6 @@ symlinks:
 		ln -fs ../../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
-	cd ${.CURDIR}/../sys/contrib/altq/altq; \
-	for h in *.h; do \
-		ln -fs ../../../sys/contrib/altq/altq/$$h \
-		    ${DESTDIR}${INCLUDEDIR}/altq; \
-	done
 .if ${MK_IPFILTER} != "no"
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 	for h in *.h; do \
@@ -344,3 +372,15 @@ symlinks:
 		ln -fs ../../../sys/rpc/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/rpc; \
 	done
+.if ${MK_META_MODE} == "yes"
+	@touch ${.OBJDIR}/${.TARGET}
+.endif
+
+.if ${MACHINE} == "host"
+# we're here because we are building a sysroot...
+# we need MACHINE et al set correctly
+HOST_MACHINE!= uname -m
+HOST_MACHINE_ARCH!= uname -p
+MACHINE:= ${HOST_MACHINE}
+MACHINE_ARCH:= ${HOST_MACHINE_ARCH}
+.endif

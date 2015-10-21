@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_CONSTRAINT_MANAGER_H
-#define LLVM_CLANG_GR_CONSTRAINT_MANAGER_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_CONSTRAINTMANAGER_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_CONSTRAINTMANAGER_H
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SymbolManager.h"
@@ -148,8 +148,9 @@ protected:
   virtual ConditionTruthVal checkNull(ProgramStateRef State, SymbolRef Sym);
 };
 
-ConstraintManager* CreateRangeConstraintManager(ProgramStateManager& statemgr,
-                                                SubEngine *subengine);
+std::unique_ptr<ConstraintManager>
+CreateRangeConstraintManager(ProgramStateManager &statemgr,
+                             SubEngine *subengine);
 
 } // end GR namespace
 

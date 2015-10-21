@@ -129,7 +129,7 @@ have_sort_left(void)
  * Push sort level to the stack
  */
 static inline void
-push_ls(struct sort_level* sl)
+push_ls(struct sort_level *sl)
 {
 	struct level_stack *new_ls;
 
@@ -308,7 +308,7 @@ run_sort_level_next(struct sort_level *sl)
 		sl->sublevels = NULL;
 	}
 
-	switch (sl->tosort_num){
+	switch (sl->tosort_num) {
 	case 0:
 		goto end;
 	case (1):

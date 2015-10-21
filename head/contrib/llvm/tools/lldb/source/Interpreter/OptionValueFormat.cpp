@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/Interpreter/OptionValueFormat.h"
 
 // C Includes
@@ -36,24 +34,26 @@ OptionValueFormat::DumpValue (const ExecutionContext *exe_ctx, Stream &strm, uin
 }
 
 Error
-OptionValueFormat::SetValueFromCString (const char *value_cstr, VarSetOperationType op)
+OptionValueFormat::SetValueFromString (llvm::StringRef value, VarSetOperationType op)
 {
     Error error;
     switch (op)
     {
     case eVarSetOperationClear:
         Clear();
+        NotifyValueChanged();
         break;
         
     case eVarSetOperationReplace:
     case eVarSetOperationAssign:
         {
             Format new_format;
-            error = Args::StringToFormat (value_cstr, new_format, nullptr);
+            error = Args::StringToFormat (value.str().c_str(), new_format, nullptr);
             if (error.Success())
             {
                 m_value_was_set = true;
                 m_current_value = new_format;
+                NotifyValueChanged();
             }
         }
         break;
@@ -63,7 +63,7 @@ OptionValueFormat::SetValueFromCString (const char *value_cstr, VarSetOperationT
     case eVarSetOperationRemove:
     case eVarSetOperationAppend:
     case eVarSetOperationInvalid:
-        error = OptionValue::SetValueFromCString (value_cstr, op);
+        error = OptionValue::SetValueFromString (value, op);
         break;
     }
     return error;

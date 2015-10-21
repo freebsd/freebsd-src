@@ -7,6 +7,6 @@ SYM_MAPS += ${.CURDIR}/arm/Symbol.map
 ARCH_SRCS = fenv-softfp.c fenv-vfp.c
 .endif
 
-CFLAGS.fenv-vfp.c=	-mfloat-abi=softfp
+CFLAGS.fenv-vfp.c=	-mfpu=vfp -mfloat-abi=softfp
 CFLAGS+=		${CFLAGS.${.IMPSRC:T}}
 

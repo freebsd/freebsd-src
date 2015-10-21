@@ -272,6 +272,37 @@ uart_opentty(struct uart_softc *sc)
 	assert(sc->mev != NULL);
 }
 
+static uint8_t
+modem_status(uint8_t mcr)
+{
+	uint8_t msr;
+
+	if (mcr & MCR_LOOPBACK) {
+		/*
+		 * In the loopback mode certain bits from the MCR are
+		 * reflected back into MSR.
+		 */
+		msr = 0;
+		if (mcr & MCR_RTS)
+			msr |= MSR_CTS;
+		if (mcr & MCR_DTR)
+			msr |= MSR_DSR;
+		if (mcr & MCR_OUT1)
+			msr |= MSR_RI;
+		if (mcr & MCR_OUT2)
+			msr |= MSR_DCD;
+	} else {
+		/*
+		 * Always assert DCD and DSR so tty open doesn't block
+		 * even if CLOCAL is turned off.
+		 */
+		msr = MSR_DCD | MSR_DSR;
+	}
+	assert((msr & MSR_DELTA_MASK) == 0);
+
+	return (msr);
+}
+
 /*
  * The IIR returns a prioritized interrupt reason:
  * - receive data available
@@ -304,6 +335,7 @@ uart_reset(struct uart_softc *sc)
 	divisor = DEFAULT_RCLK / DEFAULT_BAUD / 16;
 	sc->dll = divisor;
 	sc->dlh = divisor >> 16;
+	sc->msr = modem_status(sc->mcr);
 
 	rxfifo_reset(sc, 1);	/* no fifo until enabled by software */
 }
@@ -363,7 +395,7 @@ uart_write(struct uart_softc *sc, int offset, uint8_t value)
 	uint8_t msr;
 
 	pthread_mutex_lock(&sc->mtx);
-	
+
 	/*
 	 * Take care of the special case DLAB accesses first
 	 */
@@ -426,22 +458,7 @@ uart_write(struct uart_softc *sc, int offset, uint8_t value)
 		case REG_MCR:
 			/* Apply mask so that bits 5-7 are 0 */
 			sc->mcr = value & 0x1F;
-
-			msr = 0;
-			if (sc->mcr & MCR_LOOPBACK) {
-				/*
-				 * In the loopback mode certain bits from the
-				 * MCR are reflected back into MSR
-				 */
-				if (sc->mcr & MCR_RTS)
-					msr |= MSR_CTS;
-				if (sc->mcr & MCR_DTR)
-					msr |= MSR_DSR;
-				if (sc->mcr & MCR_OUT1)
-					msr |= MSR_RI;
-				if (sc->mcr & MCR_OUT2)
-					msr |= MSR_DCD;
-			}
+			msr = modem_status(sc->mcr);
 
 			/*
 			 * Detect if there has been any change between the

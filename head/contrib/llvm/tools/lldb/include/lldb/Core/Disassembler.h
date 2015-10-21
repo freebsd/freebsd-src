@@ -77,12 +77,67 @@ public:
         m_address = addr;
     }
 
+    //------------------------------------------------------------------
+    /// Dump the text representation of this Instruction to a Stream
+    ///
+    /// Print the (optional) address, (optional) bytes, opcode, 
+    /// operands, and instruction comments to a stream.
+    ///
+    /// @param[in] s
+    ///     The Stream to add the text to.
+    ///
+    /// @param[in] show_address
+    ///     Whether the address (using disassembly_addr_format_spec formatting)
+    ///     should be printed.
+    ///
+    /// @param[in] show_bytes
+    ///     Whether the bytes of the assembly instruction should be printed.
+    ///
+    /// @param[in] max_opcode_byte_size
+    ///     The size (in bytes) of the largest instruction in the list that
+    ///     we are printing (for text justification/alignment purposes)
+    ///     Only needed if show_bytes is true.
+    ///
+    /// @param[in] exe_ctx
+    ///     The current execution context, if available.  May be used in
+    ///     the assembling of the operands+comments for this instruction.
+    ///     Pass NULL if not applicable.
+    ///
+    /// @param[in] sym_ctx
+    ///     The SymbolContext for this instruction.
+    ///     Pass NULL if not available/computed.
+    ///     Only needed if show_address is true.
+    ///
+    /// @param[in] prev_sym_ctx
+    ///     The SymbolContext for the previous instruction.  Depending on
+    ///     the disassembly address format specification, a change in 
+    ///     Symbol / Function may mean that a line is printed with the new
+    ///     symbol/function name.
+    ///     Pass NULL if unavailable, or if this is the first instruction of
+    ///     the InstructionList.
+    ///     Only needed if show_address is true.
+    ///
+    /// @param[in] disassembly_addr_format
+    ///     The format specification for how addresses are printed.
+    ///     Only needed if show_address is true.
+    ///
+    /// @param[in] max_address_text_size
+    ///     The length of the longest address string at the start of the
+    ///     disassembly line that will be printed (the Debugger::FormatDisassemblerAddress() string)
+    ///     so this method can properly align the instruction opcodes.
+    ///     May be 0 to indicate no indentation/alignment of the opcodes.
+    //------------------------------------------------------------------
+
     virtual void
     Dump (Stream *s,
           uint32_t max_opcode_byte_size,
           bool show_address,
           bool show_bytes,
-          const ExecutionContext* exe_ctx);
+          const ExecutionContext* exe_ctx,
+          const SymbolContext *sym_ctx,
+          const SymbolContext *prev_sym_ctx,
+          const FormatEntity::Entry *disassembly_addr_format,
+          size_t max_address_text_size);
     
     virtual bool
     DoesBranch () = 0;
@@ -170,7 +225,7 @@ public:
     GetInstructionAtIndex (size_t idx) const;
     
     uint32_t
-    GetIndexOfNextBranchInstruction(uint32_t start) const;
+    GetIndexOfNextBranchInstruction(uint32_t start, Target &target) const;
     
     uint32_t
     GetIndexOfInstructionAtLoadAddress (lldb::addr_t load_addr, Target &target);
@@ -409,7 +464,7 @@ protected:
     //------------------------------------------------------------------
     // Classes that inherit from Disassembler can see and modify these
     //------------------------------------------------------------------
-    const ArchSpec m_arch;
+    ArchSpec m_arch;
     InstructionList m_instruction_list;
     lldb::addr_t m_base_addr;
     std::string m_flavor;

@@ -63,8 +63,7 @@ class SimpleStreamChecker : public Checker<check::PostCall,
                          const CallEvent &Call,
                          CheckerContext &C) const;
 
-  void reportLeaks(SymbolVector LeakedStreams,
-                   CheckerContext &C,
+  void reportLeaks(ArrayRef<SymbolRef> LeakedStreams, CheckerContext &C,
                    ExplodedNode *ErrNode) const;
 
   bool guaranteedNotToCloseFile(const CallEvent &Call) const;
@@ -215,24 +214,23 @@ void SimpleStreamChecker::reportDoubleClose(SymbolRef FileDescSym,
     return;
 
   // Generate the report.
-  BugReport *R = new BugReport(*DoubleCloseBugType,
+  auto R = llvm::make_unique<BugReport>(*DoubleCloseBugType,
       "Closing a previously closed file stream", ErrNode);
   R->addRange(Call.getSourceRange());
   R->markInteresting(FileDescSym);
-  C.emitReport(R);
+  C.emitReport(std::move(R));
 }
 
-void SimpleStreamChecker::reportLeaks(SymbolVector LeakedStreams,
-                                               CheckerContext &C,
-                                               ExplodedNode *ErrNode) const {
+void SimpleStreamChecker::reportLeaks(ArrayRef<SymbolRef> LeakedStreams,
+                                      CheckerContext &C,
+                                      ExplodedNode *ErrNode) const {
   // Attach bug reports to the leak node.
   // TODO: Identify the leaked file descriptor.
-  for (SmallVectorImpl<SymbolRef>::iterator
-         I = LeakedStreams.begin(), E = LeakedStreams.end(); I != E; ++I) {
-    BugReport *R = new BugReport(*LeakBugType,
+  for (SymbolRef LeakedStream : LeakedStreams) {
+    auto R = llvm::make_unique<BugReport>(*LeakBugType,
         "Opened file is never closed; potential resource leak", ErrNode);
-    R->markInteresting(*I);
-    C.emitReport(R);
+    R->markInteresting(LeakedStream);
+    C.emitReport(std::move(R));
   }
 }
 

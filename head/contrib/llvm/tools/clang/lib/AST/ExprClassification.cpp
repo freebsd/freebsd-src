@@ -124,10 +124,11 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
   case Expr::ObjCPropertyRefExprClass:
     // C++ [expr.typeid]p1: The result of a typeid expression is an lvalue of...
   case Expr::CXXTypeidExprClass:
-    // Unresolved lookups get classified as lvalues.
+    // Unresolved lookups and uncorrected typos get classified as lvalues.
     // FIXME: Is this wise? Should they get their own kind?
   case Expr::UnresolvedLookupExprClass:
   case Expr::UnresolvedMemberExprClass:
+  case Expr::TypoExprClass:
   case Expr::CXXDependentScopeMemberExprClass:
   case Expr::DependentScopeDeclRefExprClass:
     // ObjC instance variables are lvalues
@@ -181,6 +182,9 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
   case Expr::AsTypeExprClass:
   case Expr::ObjCIndirectCopyRestoreExprClass:
   case Expr::AtomicExprClass:
+  case Expr::CXXFoldExprClass:
+  case Expr::NoInitExprClass:
+  case Expr::DesignatedInitUpdateExprClass:
     return Cl::CL_PRValue;
 
     // Next come the complicated cases.
@@ -281,7 +285,7 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
   case Expr::CXXMemberCallExprClass:
   case Expr::UserDefinedLiteralClass:
   case Expr::CUDAKernelCallExprClass:
-    return ClassifyUnnamed(Ctx, cast<CallExpr>(E)->getCallReturnType());
+    return ClassifyUnnamed(Ctx, cast<CallExpr>(E)->getCallReturnType(Ctx));
 
     // __builtin_choose_expr is equivalent to the chosen expression.
   case Expr::ChooseExprClass:
@@ -416,9 +420,10 @@ static Cl::Kinds ClassifyDecl(ASTContext &Ctx, const Decl *D) {
     islvalue = NTTParm->getType()->isReferenceType();
   else
     islvalue = isa<VarDecl>(D) || isa<FieldDecl>(D) ||
-	  isa<IndirectFieldDecl>(D) ||
-      (Ctx.getLangOpts().CPlusPlus &&
-        (isa<FunctionDecl>(D) || isa<FunctionTemplateDecl>(D)));
+               isa<IndirectFieldDecl>(D) ||
+               (Ctx.getLangOpts().CPlusPlus &&
+                (isa<FunctionDecl>(D) || isa<MSPropertyDecl>(D) ||
+                 isa<FunctionTemplateDecl>(D)));
 
   return islvalue ? Cl::CL_LValue : Cl::CL_PRValue;
 }
@@ -603,7 +608,7 @@ static Cl::ModifiableType IsModifiable(ASTContext &Ctx, const Expr *E,
   if (CT.isConstQualified())
     return Cl::CM_ConstQualified;
   if (CT.getQualifiers().getAddressSpace() == LangAS::opencl_constant)
-    return Cl::CM_ConstQualified;
+    return Cl::CM_ConstAddrSpace;
 
   // Arrays are not modifiable, only their elements are.
   if (CT->isArrayType())
@@ -613,14 +618,9 @@ static Cl::ModifiableType IsModifiable(ASTContext &Ctx, const Expr *E,
     return Cl::CM_IncompleteType;
 
   // Records with any const fields (recursively) are not modifiable.
-  if (const RecordType *R = CT->getAs<RecordType>()) {
-    assert((E->getObjectKind() == OK_ObjCProperty ||
-            !Ctx.getLangOpts().CPlusPlus) &&
-           "C++ struct assignment should be resolved by the "
-           "copy assignment operator.");
+  if (const RecordType *R = CT->getAs<RecordType>())
     if (R->hasConstFields())
       return Cl::CM_ConstQualified;
-  }
 
   return Cl::CM_Modifiable;
 }
@@ -674,6 +674,7 @@ Expr::isModifiableLvalue(ASTContext &Ctx, SourceLocation *Loc) const {
     llvm_unreachable("CM_LValueCast and CL_LValue don't match");
   case Cl::CM_NoSetterProperty: return MLV_NoSetterProperty;
   case Cl::CM_ConstQualified: return MLV_ConstQualified;
+  case Cl::CM_ConstAddrSpace: return MLV_ConstAddrSpace;
   case Cl::CM_ArrayType: return MLV_ArrayType;
   case Cl::CM_IncompleteType: return MLV_IncompleteType;
   }

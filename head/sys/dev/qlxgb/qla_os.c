@@ -378,7 +378,7 @@ qla_pci_attach(device_t dev)
 	ha->flags.qla_watchdog_active = 1;
 	ha->flags.qla_watchdog_pause = 1;
 	
-	callout_init(&ha->tx_callout, TRUE);
+	callout_init(&ha->tx_callout, 1);
 
 	/* create ioctl device interface */
 	if (qla_make_cdev(ha)) {

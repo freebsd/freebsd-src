@@ -40,10 +40,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kdb.h>
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
+#include <dev/uart/uart_cpu_fdt.h>
 #include <dev/uart/uart_bus.h>
 
 #include "uart_if.h"
@@ -270,14 +270,21 @@ static kobj_method_t vf_uart_methods[] = {
 	{ 0, 0 }
 };
 
-struct uart_class uart_vybrid_class = {
+static struct uart_class uart_vybrid_class = {
 	"vybrid",
 	vf_uart_methods,
 	sizeof(struct vf_uart_softc),
 	.uc_ops = &uart_vybrid_ops,
 	.uc_range = 0x100,
-	.uc_rclk = 24000000 /* TODO: get value from CCM */
+	.uc_rclk = 24000000, /* TODO: get value from CCM */
+	.uc_rshift = 0
 };
+
+static struct ofw_compat_data compat_data[] = {
+	{"fsl,mvf600-uart",	(uintptr_t)&uart_vybrid_class},
+	{NULL,			(uintptr_t)NULL},
+};
+UART_FDT_CLASS_AND_DEVICE(compat_data);
 
 static int
 vf_uart_bus_attach(struct uart_softc *sc)

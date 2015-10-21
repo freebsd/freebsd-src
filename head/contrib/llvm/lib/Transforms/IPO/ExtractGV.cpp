@@ -91,10 +91,13 @@ namespace {
             continue;
         }
 
-	makeVisible(*I, Delete);
+        makeVisible(*I, Delete);
 
-        if (Delete)
+        if (Delete) {
+          // Make this a declaration and drop it's comdat.
           I->setInitializer(nullptr);
+          I->setComdat(nullptr);
+        }
       }
 
       // Visit the Functions.
@@ -106,10 +109,13 @@ namespace {
             continue;
         }
 
-	makeVisible(*I, Delete);
+        makeVisible(*I, Delete);
 
-        if (Delete)
+        if (Delete) {
+          // Make this a declaration and drop it's comdat.
           I->deleteBody();
+          I->setComdat(nullptr);
+        }
       }
 
       // Visit the Aliases.
@@ -118,8 +124,8 @@ namespace {
         Module::alias_iterator CurI = I;
         ++I;
 
-	bool Delete = deleteStuff == (bool)Named.count(CurI);
-	makeVisible(*CurI, Delete);
+        bool Delete = deleteStuff == (bool)Named.count(CurI);
+        makeVisible(*CurI, Delete);
 
         if (Delete) {
           Type *Ty =  CurI->getType()->getElementType();
@@ -148,7 +154,7 @@ namespace {
   char GVExtractorPass::ID = 0;
 }
 
-ModulePass *llvm::createGVExtractionPass(std::vector<GlobalValue*>& GVs, 
+ModulePass *llvm::createGVExtractionPass(std::vector<GlobalValue *> &GVs,
                                          bool deleteFn) {
   return new GVExtractorPass(GVs, deleteFn);
 }

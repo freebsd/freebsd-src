@@ -46,7 +46,8 @@ static void babel_print_v2(netdissect_options *, const u_char *cp, u_int length)
 
 void
 babel_print(netdissect_options *ndo,
-            const u_char *cp, u_int length) {
+            const u_char *cp, u_int length)
+{
     ND_PRINT((ndo, "babel"));
 
     ND_TCHECK2(*cp, 4);
@@ -270,7 +271,8 @@ network_address(int ae, const unsigned char *a, unsigned int len,
  */
 static void
 subtlvs_print(netdissect_options *ndo,
-              const u_char *cp, const u_char *ep, const uint8_t tlv_type) {
+              const u_char *cp, const u_char *ep, const uint8_t tlv_type)
+{
     uint8_t subtype, sublen;
     const char *sep;
     uint32_t t1, t2;
@@ -340,7 +342,8 @@ subtlvs_print(netdissect_options *ndo,
 
 static void
 babel_print_v2(netdissect_options *ndo,
-               const u_char *cp, u_int length) {
+               const u_char *cp, u_int length)
+{
     u_int i;
     u_short bodylen;
     u_char v4_prefix[16] =

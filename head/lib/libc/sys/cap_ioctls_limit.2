@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2014
+.Dd March 6, 2015
 .Dt CAP_IOCTLS_LIMIT 2
 .Os
 .Sh NAME
@@ -61,6 +61,8 @@ argument specifies the number of elements in the array.
 There can be up to
 .Va 256
 elements in the array.
+Including an element that has been previously revoked will generate an error.
+After a successful call only those listed in the array may be used.
 .Pp
 The list of allowed ioctl commands for a given file descriptor can be obtained
 with the
@@ -92,7 +94,7 @@ system call was never called for this file descriptor), the
 .Fn cap_ioctls_get
 system call will return
 .Dv CAP_IOCTLS_ALL
-and won't modify the buffer pointed to by the
+and will not modify the buffer pointed to by the
 .Fa cmds
 argument.
 .Sh RETURN VALUES

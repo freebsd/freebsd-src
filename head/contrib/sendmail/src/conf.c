@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.1191 2014-01-08 17:03:14 ca Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.1192 2014-01-27 18:23:21 ca Exp $")
 
 #include <sm/sendmail.h>
 #include <sendmail/pathnames.h>
@@ -229,10 +229,8 @@ struct dbsval DontBlameSendmailValues[] =
 	{ "worldwritableforwardfile",	DBS_WORLDWRITABLEFORWARDFILE	},
 	{ "worldwritableincludefile",	DBS_WORLDWRITABLEINCLUDEFILE	},
 	{ "groupreadablekeyfile",	DBS_GROUPREADABLEKEYFILE	},
-#if _FFR_GROUPREADABLEAUTHINFOFILE
-	{ "groupreadableadefaultauthinfofile",
+	{ "groupreadabledefaultauthinfofile",
 					DBS_GROUPREADABLEAUTHINFOFILE	},
-#endif /* _FFR_GROUPREADABLEAUTHINFOFILE */
 	{ NULL,				0				}
 };
 
@@ -304,9 +302,9 @@ setdefaults(e)
 	}
 	TrustedUid = 0;
 	if (tTd(37, 4))
-		sm_dprintf("setdefaults: DefUser=%s, DefUid=%d, DefGid=%d\n",
+		sm_dprintf("setdefaults: DefUser=%s, DefUid=%ld, DefGid=%ld\n",
 			DefUser != NULL ? DefUser : "<1:1>",
-			(int) DefUid, (int) DefGid);
+			(long) DefUid, (long) DefGid);
 	CheckpointInterval = 10;		/* option C */
 	MaxHopCount = 25;			/* option h */
 	set_delivery_mode(SM_FORK, e);		/* option d */
@@ -365,6 +363,8 @@ setdefaults(e)
 #endif /* SASL */
 #if STARTTLS
 	TLS_Srv_Opts = TLS_I_SRV;
+	if (NULL == EVP_digest)
+		EVP_digest = EVP_md5();
 #endif /* STARTTLS */
 #ifdef HESIOD_INIT
 	HesiodContext = NULL;
@@ -379,6 +379,9 @@ setdefaults(e)
 	}
 	else
 		InetMode = AF_INET;
+#if !IPV6_FULL
+	UseCompressedIPv6Addresses = true;
+#endif
 #else /* NETINET6 */
 	InetMode = AF_INET;
 #endif /* NETINET6 */
@@ -399,6 +402,9 @@ setdefaults(e)
 	BadRcptThrottleDelay = 1;
 #endif /* _FFR_RCPTTHROTDELAY */
 	ConnectionRateWindowSize = 60;
+#if _FFR_BOUNCE_QUEUE
+	BounceQueue = NOQGRP;
+#endif /* _FFR_BOUNCE_QUEUE */
 	setupmaps();
 	setupqueues();
 	setupmailers();
@@ -423,8 +429,8 @@ setdefuser()
 			   ? "nobody" : defpwent->pw_name,
 			  sizeof(defuserbuf));
 	if (tTd(37, 4))
-		sm_dprintf("setdefuser: DefUid=%d, DefUser=%s\n",
-			   (int) DefUid, DefUser);
+		sm_dprintf("setdefuser: DefUid=%ld, DefUser=%s\n",
+			   (long) DefUid, DefUser);
 }
 /*
 **  SETUPQUEUES -- initialize default queues
@@ -665,12 +671,10 @@ setupmaps()
 		dequote_init, null_map_open, null_map_close,
 		arith_map_lookup, null_map_store);
 
-#if _FFR_ARPA_MAP
 	/* "arpa" map -- IP -> arpa */
 	MAPDEF("arpa", NULL, 0,
 		dequote_init, null_map_open, null_map_close,
 		arpa_map_lookup, null_map_store);
-#endif /* _FFR_ARPA_MAP */
 
 #if SOCKETMAP
 	/* arbitrary daemons */
@@ -2299,7 +2303,7 @@ refuseconnections(e, dn, active)
 # define D_MSG_LA "delaying connections on daemon %s: load average=%d >= %d"
 		/* sleep to flatten out connection load */
 		sm_setproctitle(true, e, D_MSG_LA, Daemons[dn].d_name,
-			        CurrentLA, limit);
+				CurrentLA, limit);
 		if (LogLevel > 8 && (now = curtime()) > log_delay)
 		{
 			sm_syslog(LOG_INFO, NOQID, D_MSG_LA,
@@ -2780,7 +2784,7 @@ reapchild(sig)
 	return SIGFUNC_RETURN;
 }
 /*
-**  GETDTABLESIZE -- return number of file descriptors
+**  GETDTSIZE -- return number of file descriptors
 **
 **	Only on non-BSD systems
 **
@@ -3601,8 +3605,8 @@ lockfile(fd, filename, ext, type)
 		uid_t euid = geteuid();
 
 		errno = save_errno;
-		syserr("cannot lockf(%s%s, fd=%d, type=%o, omode=%o, euid=%d)",
-		       filename, ext, fd, type, omode, euid);
+		syserr("cannot lockf(%s%s, fd=%d, type=%o, omode=%o, euid=%ld)",
+		       filename, ext, fd, type, omode, (long) euid);
 		dumpfd(fd, true, true);
 	}
 # else /* !HASFLOCK */
@@ -3631,8 +3635,8 @@ lockfile(fd, filename, ext, type)
 		uid_t euid = geteuid();
 
 		errno = save_errno;
-		syserr("cannot flock(%s%s, fd=%d, type=%o, omode=%o, euid=%d)",
-			filename, ext, fd, type, omode, euid);
+		syserr("cannot flock(%s%s, fd=%d, type=%o, omode=%o, euid=%ld)",
+			filename, ext, fd, type, omode, (long) euid);
 		dumpfd(fd, true, true);
 	}
 # endif /* !HASFLOCK */
@@ -4009,8 +4013,8 @@ validate_connection(sap, hostname, e)
 			hostname, anynet_ntoa(sap));
 
 	connection_rate_check(sap, e);
-	if (rscheck("check_relay", hostname, anynet_ntoa(sap),
-		    e, RSF_RMCOMM|RSF_COUNT, 3, NULL, NOQID, NULL) != EX_OK)
+	if (rscheck("check_relay", hostname, anynet_ntoa(sap), e,
+		    RSF_RMCOMM|RSF_COUNT, 3, NULL, NOQID, NULL, NULL) != EX_OK)
 	{
 		static char reject[BUFSIZ*2];
 		extern char MsgBuf[];
@@ -5406,7 +5410,7 @@ sm_syslog(level, id, fmt, va_alist)
 		SM_VA_START(ap, fmt);
 		n = sm_vsnprintf(buf, bufsize, fmt, ap);
 		SM_VA_END(ap);
-		SM_ASSERT(n > 0);
+		SM_ASSERT(n >= 0);
 		if (n < bufsize)
 			break;
 
@@ -5736,148 +5740,155 @@ char	*CompileOptions[] =
 {
 #if ALLOW_255
 	"ALLOW_255",
-#endif /* ALLOW_255 */
+#endif
 #if NAMED_BIND
 # if DNSMAP
 	"DNSMAP",
-# endif /* DNSMAP */
-#endif /* NAMED_BIND */
+# endif
+#endif
 #if EGD
 	"EGD",
-#endif /* EGD */
+#endif
 #if HESIOD
 	"HESIOD",
-#endif /* HESIOD */
+#endif
+#if HESIOD_ALLOW_NUMERIC_LOGIN
+	"HESIOD_ALLOW_NUMERIC_LOGIN",
+#endif
 #if HES_GETMAILHOST
 	"HES_GETMAILHOST",
-#endif /* HES_GETMAILHOST */
+#endif
+#if IPV6_FULL
+	/* Use uncompressed IPv6 address format (no "::") by default */
+	"IPV6_FULL",
+#endif
 #if LDAPMAP
 	"LDAPMAP",
-#endif /* LDAPMAP */
+#endif
 #if LDAP_REFERRALS
 	"LDAP_REFERRALS",
-#endif /* LDAP_REFERRALS */
+#endif
 #if LOG
 	"LOG",
-#endif /* LOG */
+#endif
 #if MAP_NSD
 	"MAP_NSD",
-#endif /* MAP_NSD */
+#endif
 #if MAP_REGEX
 	"MAP_REGEX",
-#endif /* MAP_REGEX */
+#endif
 #if MATCHGECOS
 	"MATCHGECOS",
-#endif /* MATCHGECOS */
+#endif
 #if MILTER
 	"MILTER",
-#endif /* MILTER */
+#endif
 #if MIME7TO8
 	"MIME7TO8",
-#endif /* MIME7TO8 */
+#endif
 #if MIME7TO8_OLD
 	"MIME7TO8_OLD",
-#endif /* MIME7TO8_OLD */
+#endif
 #if MIME8TO7
 	"MIME8TO7",
-#endif /* MIME8TO7 */
+#endif
 #if NAMED_BIND
 	"NAMED_BIND",
-#endif /* NAMED_BIND */
+#endif
 #if NDBM
 	"NDBM",
-#endif /* NDBM */
+#endif
 #if NETINET
 	"NETINET",
-#endif /* NETINET */
+#endif
 #if NETINET6
 	"NETINET6",
-#endif /* NETINET6 */
+#endif
 #if NETINFO
 	"NETINFO",
-#endif /* NETINFO */
+#endif
 #if NETISO
 	"NETISO",
-#endif /* NETISO */
+#endif
 #if NETNS
 	"NETNS",
-#endif /* NETNS */
+#endif
 #if NETUNIX
 	"NETUNIX",
-#endif /* NETUNIX */
+#endif
 #if NETX25
 	"NETX25",
-#endif /* NETX25 */
+#endif
 #if NEWDB
 	"NEWDB",
-#endif /* NEWDB */
+#endif
 #if NIS
 	"NIS",
-#endif /* NIS */
+#endif
 #if NISPLUS
 	"NISPLUS",
-#endif /* NISPLUS */
+#endif
 #if NO_DH
 	"NO_DH",
-#endif /* NO_DH */
+#endif
 #if PH_MAP
 	"PH_MAP",
-#endif /* PH_MAP */
+#endif
 #ifdef PICKY_HELO_CHECK
 	"PICKY_HELO_CHECK",
-#endif /* PICKY_HELO_CHECK */
+#endif
 #if PIPELINING
 	"PIPELINING",
-#endif /* PIPELINING */
+#endif
 #if SASL
 # if SASL >= 20000
 	"SASLv2",
 # else /* SASL >= 20000 */
 	"SASL",
-# endif /* SASL >= 20000 */
-#endif /* SASL */
+# endif
+#endif
 #if SCANF
 	"SCANF",
-#endif /* SCANF */
+#endif
 #if SM_LDAP_ERROR_ON_MISSING_ARGS
 	"SM_LDAP_ERROR_ON_MISSING_ARGS",
-#endif /* SM_LDAP_ERROR_ON_MISSING_ARGS */
+#endif
 #if SMTPDEBUG
 	"SMTPDEBUG",
-#endif /* SMTPDEBUG */
+#endif
 #if SOCKETMAP
 	"SOCKETMAP",
-#endif /* SOCKETMAP */
+#endif
 #if STARTTLS
 	"STARTTLS",
-#endif /* STARTTLS */
+#endif
 #if SUID_ROOT_FILES_OK
 	"SUID_ROOT_FILES_OK",
-#endif /* SUID_ROOT_FILES_OK */
+#endif
 #if TCPWRAPPERS
 	"TCPWRAPPERS",
-#endif /* TCPWRAPPERS */
+#endif
 #if TLS_NO_RSA
 	"TLS_NO_RSA",
-#endif /* TLS_NO_RSA */
+#endif
 #if TLS_VRFY_PER_CTX
 	"TLS_VRFY_PER_CTX",
-#endif /* TLS_VRFY_PER_CTX */
+#endif
 #if USERDB
 	"USERDB",
-#endif /* USERDB */
+#endif
 #if USE_LDAP_INIT
 	"USE_LDAP_INIT",
-#endif /* USE_LDAP_INIT */
+#endif
 #if USE_TTYPATH
 	"USE_TTYPATH",
-#endif /* USE_TTYPATH */
+#endif
 #if XDEBUG
 	"XDEBUG",
-#endif /* XDEBUG */
+#endif
 #if XLA
 	"XLA",
-#endif /* XLA */
+#endif
 	NULL
 };
 
@@ -5890,169 +5901,169 @@ char	*OsCompileOptions[] =
 {
 #if ADDRCONFIG_IS_BROKEN
 	"ADDRCONFIG_IS_BROKEN",
-#endif /* ADDRCONFIG_IS_BROKEN */
+#endif
 #ifdef AUTO_NETINFO_HOSTS
 	"AUTO_NETINFO_HOSTS",
-#endif /* AUTO_NETINFO_HOSTS */
+#endif
 #ifdef AUTO_NIS_ALIASES
 	"AUTO_NIS_ALIASES",
-#endif /* AUTO_NIS_ALIASES */
+#endif
 #if BROKEN_RES_SEARCH
 	"BROKEN_RES_SEARCH",
-#endif /* BROKEN_RES_SEARCH */
+#endif
 #ifdef BSD4_4_SOCKADDR
 	"BSD4_4_SOCKADDR",
-#endif /* BSD4_4_SOCKADDR */
+#endif
 #if BOGUS_O_EXCL
 	"BOGUS_O_EXCL",
-#endif /* BOGUS_O_EXCL */
+#endif
 #if DEC_OSF_BROKEN_GETPWENT
 	"DEC_OSF_BROKEN_GETPWENT",
-#endif /* DEC_OSF_BROKEN_GETPWENT */
+#endif
 #if FAST_PID_RECYCLE
 	"FAST_PID_RECYCLE",
-#endif /* FAST_PID_RECYCLE */
+#endif
 #if HASCLOSEFROM
 	"HASCLOSEFROM",
-#endif /* HASCLOSEFROM */
+#endif
 #if HASFCHOWN
 	"HASFCHOWN",
-#endif /* HASFCHOWN */
+#endif
 #if HASFCHMOD
 	"HASFCHMOD",
-#endif /* HASFCHMOD */
+#endif
 #if HASFDWALK
 	"HASFDWALK",
-#endif /* HASFDWALK */
+#endif
 #if HASFLOCK
 	"HASFLOCK",
-#endif /* HASFLOCK */
+#endif
 #if HASGETDTABLESIZE
 	"HASGETDTABLESIZE",
-#endif /* HASGETDTABLESIZE */
+#endif
 #if HASGETUSERSHELL
 	"HASGETUSERSHELL",
-#endif /* HASGETUSERSHELL */
+#endif
 #if HASINITGROUPS
 	"HASINITGROUPS",
-#endif /* HASINITGROUPS */
+#endif
 #if HASLDAPGETALIASBYNAME
 	"HASLDAPGETALIASBYNAME",
-#endif /* HASLDAPGETALIASBYNAME */
+#endif
 #if HASLSTAT
 	"HASLSTAT",
-#endif /* HASLSTAT */
+#endif
 #if HASNICE
 	"HASNICE",
-#endif /* HASNICE */
+#endif
 #if HASRANDOM
 	"HASRANDOM",
-#endif /* HASRANDOM */
+#endif
 #if HASRRESVPORT
 	"HASRRESVPORT",
-#endif /* HASRRESVPORT */
+#endif
 #if HASSETEGID
 	"HASSETEGID",
-#endif /* HASSETEGID */
+#endif
 #if HASSETLOGIN
 	"HASSETLOGIN",
-#endif /* HASSETLOGIN */
+#endif
 #if HASSETREGID
 	"HASSETREGID",
-#endif /* HASSETREGID */
+#endif
 #if HASSETRESGID
 	"HASSETRESGID",
-#endif /* HASSETRESGID */
+#endif
 #if HASSETREUID
 	"HASSETREUID",
-#endif /* HASSETREUID */
+#endif
 #if HASSETRLIMIT
 	"HASSETRLIMIT",
-#endif /* HASSETRLIMIT */
+#endif
 #if HASSETSID
 	"HASSETSID",
-#endif /* HASSETSID */
+#endif
 #if HASSETUSERCONTEXT
 	"HASSETUSERCONTEXT",
-#endif /* HASSETUSERCONTEXT */
+#endif
 #if HASSETVBUF
 	"HASSETVBUF",
-#endif /* HASSETVBUF */
+#endif
 #if HAS_ST_GEN
 	"HAS_ST_GEN",
-#endif /* HAS_ST_GEN */
+#endif
 #if HASSRANDOMDEV
 	"HASSRANDOMDEV",
-#endif /* HASSRANDOMDEV */
+#endif
 #if HASURANDOMDEV
 	"HASURANDOMDEV",
-#endif /* HASURANDOMDEV */
+#endif
 #if HASSTRERROR
 	"HASSTRERROR",
-#endif /* HASSTRERROR */
+#endif
 #if HASULIMIT
 	"HASULIMIT",
-#endif /* HASULIMIT */
+#endif
 #if HASUNAME
 	"HASUNAME",
-#endif /* HASUNAME */
+#endif
 #if HASUNSETENV
 	"HASUNSETENV",
-#endif /* HASUNSETENV */
+#endif
 #if HASWAITPID
 	"HASWAITPID",
-#endif /* HASWAITPID */
+#endif
 #if HAVE_NANOSLEEP
 	"HAVE_NANOSLEEP",
-#endif /* HAVE_NANOSLEEP */
+#endif
 #if IDENTPROTO
 	"IDENTPROTO",
-#endif /* IDENTPROTO */
+#endif
 #if IP_SRCROUTE
 	"IP_SRCROUTE",
-#endif /* IP_SRCROUTE */
+#endif
 #if O_EXLOCK && HASFLOCK && !BOGUS_O_EXCL
 	"LOCK_ON_OPEN",
-#endif /* O_EXLOCK && HASFLOCK && !BOGUS_O_EXCL */
+#endif
 #if MILTER_NO_NAGLE
 	"MILTER_NO_NAGLE ",
-#endif /* MILTER_NO_NAGLE */
+#endif
 #if NEEDFSYNC
 	"NEEDFSYNC",
-#endif /* NEEDFSYNC */
+#endif
 #if NEEDLINK
 	"NEEDLINK",
-#endif /* NEEDLINK */
+#endif
 #if NEEDLOCAL_HOSTNAME_LENGTH
 	"NEEDLOCAL_HOSTNAME_LENGTH",
-#endif /* NEEDLOCAL_HOSTNAME_LENGTH */
+#endif
 #if NEEDSGETIPNODE
 	"NEEDSGETIPNODE",
-#endif /* NEEDSGETIPNODE */
+#endif
 #if NEEDSTRSTR
 	"NEEDSTRSTR",
-#endif /* NEEDSTRSTR */
+#endif
 #if NEEDSTRTOL
 	"NEEDSTRTOL",
-#endif /* NEEDSTRTOL */
+#endif
 #ifdef NO_GETSERVBYNAME
 	"NO_GETSERVBYNAME",
-#endif /* NO_GETSERVBYNAME */
+#endif
 #if NOFTRUNCATE
 	"NOFTRUNCATE",
-#endif /* NOFTRUNCATE */
+#endif
 #if REQUIRES_DIR_FSYNC
 	"REQUIRES_DIR_FSYNC",
-#endif /* REQUIRES_DIR_FSYNC */
+#endif
 #if RLIMIT_NEEDS_SYS_TIME_H
 	"RLIMIT_NEEDS_SYS_TIME_H",
-#endif /* RLIMIT_NEEDS_SYS_TIME_H */
+#endif
 #if SAFENFSPATHCONF
 	"SAFENFSPATHCONF",
-#endif /* SAFENFSPATHCONF */
+#endif
 #if SECUREWARE
 	"SECUREWARE",
-#endif /* SECUREWARE */
+#endif
 #if SFS_TYPE == SFS_4ARGS
 	"SFS_4ARGS",
 #elif SFS_TYPE == SFS_MOUNT
@@ -6072,55 +6083,55 @@ char	*OsCompileOptions[] =
 #endif
 #if SHARE_V1
 	"SHARE_V1",
-#endif /* SHARE_V1 */
+#endif
 #if SIOCGIFCONF_IS_BROKEN
 	"SIOCGIFCONF_IS_BROKEN",
-#endif /* SIOCGIFCONF_IS_BROKEN */
+#endif
 #if SIOCGIFNUM_IS_BROKEN
 	"SIOCGIFNUM_IS_BROKEN",
-#endif /* SIOCGIFNUM_IS_BROKEN */
+#endif
 #if SNPRINTF_IS_BROKEN
 	"SNPRINTF_IS_BROKEN",
-#endif /* SNPRINTF_IS_BROKEN */
+#endif
 #if SO_REUSEADDR_IS_BROKEN
 	"SO_REUSEADDR_IS_BROKEN",
-#endif /* SO_REUSEADDR_IS_BROKEN */
+#endif
 #if SYS5SETPGRP
 	"SYS5SETPGRP",
-#endif /* SYS5SETPGRP */
+#endif
 #if SYSTEM5
 	"SYSTEM5",
-#endif /* SYSTEM5 */
+#endif
 #if USE_DOUBLE_FORK
 	"USE_DOUBLE_FORK",
-#endif /* USE_DOUBLE_FORK */
+#endif
 #if USE_ENVIRON
 	"USE_ENVIRON",
-#endif /* USE_ENVIRON */
+#endif
 #if USE_SA_SIGACTION
 	"USE_SA_SIGACTION",
-#endif /* USE_SA_SIGACTION */
+#endif
 #if USE_SIGLONGJMP
 	"USE_SIGLONGJMP",
-#endif /* USE_SIGLONGJMP */
+#endif
 #if USEGETCONFATTR
 	"USEGETCONFATTR",
-#endif /* USEGETCONFATTR */
+#endif
 #if USESETEUID
 	"USESETEUID",
-#endif /* USESETEUID */
+#endif
 #ifdef USESYSCTL
 	"USESYSCTL",
-#endif /* USESYSCTL */
+#endif
 #if USE_OPENSSL_ENGINE
 	"USE_OPENSSL_ENGINE",
-#endif /* USE_OPENSSL_ENGINE */
+#endif
 #if USING_NETSCAPE_LDAP
 	"USING_NETSCAPE_LDAP",
-#endif /* USING_NETSCAPE_LDAP */
+#endif
 #ifdef WAITUNION
 	"WAITUNION",
-#endif /* WAITUNION */
+#endif
 	NULL
 };
 
@@ -6130,77 +6141,73 @@ char	*OsCompileOptions[] =
 
 char	*FFRCompileOptions[] =
 {
+#if _FFR_ADD_BCC
+	"_FFR_ADD_BCC",
+#endif
 #if _FFR_ADDR_TYPE_MODES
 	/* more info in {addr_type}, requires m4 changes! */
 	"_FFR_ADDR_TYPE_MODES",
-#endif /* _FFR_ADDR_TYPE_MODES */
+#endif
+#if _FFR_ALIAS_DETAIL
+	/* try to handle +detail for aliases */
+	"_FFR_ALIAS_DETAIL",
+#endif
 #if _FFR_ALLOW_SASLINFO
 	/* DefaultAuthInfo can be specified by user. */
 	/* DefaultAuthInfo doesn't really work in 8.13 anymore. */
 	"_FFR_ALLOW_SASLINFO",
-#endif /* _FFR_ALLOW_SASLINFO */
-#if _FFR_ARPA_MAP
-	/* arpa map to reverse an IPv(4,6) address */
-	"_FFR_ARPA_MAP",
-#endif /* _FFR_ARPA_MAP */
+#endif
 #if _FFR_BADRCPT_SHUTDOWN
 	/* shut down connection (421) if there are too many bad RCPTs */
 	"_FFR_BADRCPT_SHUTDOWN",
-#endif /* _FFR_BADRCPT_SHUTDOWN */
+#endif
 #if _FFR_BESTMX_BETTER_TRUNCATION
 	/* Better truncation of list of MX records for dns map. */
 	"_FFR_BESTMX_BETTER_TRUNCATION",
-#endif /* _FFR_BESTMX_BETTER_TRUNCATION */
+#endif
+#if _FFR_BOUNCE_QUEUE
+	/* Separate, unprocessed queue for DSNs */
+	/* John Gardiner Myers of Proofpoint */
+	"_FFR_BOUNCE_QUEUE",
+#endif
 #if _FFR_CATCH_BROKEN_MTAS
 	/* Deal with MTAs that send a reply during the DATA phase. */
 	"_FFR_CATCH_BROKEN_MTAS",
-#endif /* _FFR_CATCH_BROKEN_MTAS */
-#if _FFR_CHECKCONFIG
-	/* New OpMode to check the configuration file */
-	"_FFR_CHECKCONFIG",
-#endif /* _FFR_CHECKCONFIG */
+#endif
 #if _FFR_CHK_QUEUE
 	/* Stricter checks about queue directory permissions. */
 	"_FFR_CHK_QUEUE",
-#endif /* _FFR_CHK_QUEUE */
+#endif
 #if _FFR_CLIENT_SIZE
 	/* Don't try to send mail if its size exceeds SIZE= of server. */
 	"_FFR_CLIENT_SIZE",
-#endif /* _FFR_CLIENT_SIZE */
+#endif
 #if _FFR_CRLPATH
 	/* CRLPath; needs documentation; Al Smith */
 	"_FFR_CRLPATH",
-#endif /* _FFR_CRLPATH */
-#if _FFR_DAEMON_NETUNIX
-	/* Allow local (not just TCP) socket connection to server. */
-	"_FFR_DAEMON_NETUNIX",
-#endif /* _FFR_DAEMON_NETUNIX */
-#if _FFR_DEPRECATE_MAILER_FLAG_I
-	/* What it says :-) */
-	"_FFR_DEPRECATE_MAILER_FLAG_I",
-#endif /* _FFR_DEPRECATE_MAILER_FLAG_I */
+#endif
 #if _FFR_DM_ONE
 	/* deliver first TA in background, then queue */
 	"_FFR_DM_ONE",
-#endif /* _FFR_DM_ONE */
+#endif
 #if _FFR_DIGUNIX_SAFECHOWN
 	/* Properly set SAFECHOWN (include/sm/conf.h) for Digital UNIX */
 /* Problem noted by Anne Bennett of Concordia University */
 	"_FFR_DIGUNIX_SAFECHOWN",
-#endif /* _FFR_DIGUNIX_SAFECHOWN */
+#endif
 #if _FFR_DNSMAP_ALIASABLE
 	/* Allow dns map type to be used for aliases. */
 /* Don Lewis of TDK */
 	"_FFR_DNSMAP_ALIASABLE",
-#endif /* _FFR_DNSMAP_ALIASABLE */
+#endif
 #if _FFR_DONTLOCKFILESFORREAD_OPTION
 	/* Enable DontLockFilesForRead option. */
 	"_FFR_DONTLOCKFILESFORREAD_OPTION",
-#endif /* _FFR_DONTLOCKFILESFORREAD_OPTION */
+#endif
 #if _FFR_DOTTED_USERNAMES
 	/* Allow usernames with '.' */
 	"_FFR_DOTTED_USERNAMES",
-#endif /* _FFR_DOTTED_USERNAMES */
+#endif
 #if _FFR_DPO_CS
 	/*
 	**  Make DaemonPortOptions case sensitive.
@@ -6215,11 +6222,11 @@ char	*FFRCompileOptions[] =
 	*/
 
 	"_FFR_DPO_CS",
-#endif /* _FFR_DPO_CS */
+#endif
 #if _FFR_DPRINTF_MAP
 	/* dprintf map for logging */
 	"_FFR_DPRINTF_MAP",
-#endif /* _FFR_DPRINTF_MAP */
+#endif
 #if _FFR_DROP_TRUSTUSER_WARNING
 	/*
 	**  Don't issue this warning:
@@ -6228,24 +6235,20 @@ char	*FFRCompileOptions[] =
 	*/
 
 	"_FFR_DROP_TRUSTUSER_WARNING",
-#endif /* _FFR_DROP_TRUSTUSER_WARNING */
+#endif
 #if _FFR_EIGHT_BIT_ADDR_OK
 	/* EightBitAddrOK: allow 8-bit e-mail addresses */
 	"_FFR_EIGHT_BIT_ADDR_OK",
-#endif /* _FFR_EIGHT_BIT_ADDR_OK */
-#if _FFR_EXPDELAY
-	/* exponential queue delay */
-	"_FFR_EXPDELAY",
-#endif /* _FFR_EXPDELAY */
+#endif
 #if _FFR_EXTRA_MAP_CHECK
 	/* perform extra checks on $( $) in R lines */
 	"_FFR_EXTRA_MAP_CHECK",
-#endif /* _FFR_EXTRA_MAP_CHECK */
+#endif
 #if _FFR_GETHBN_ExFILE
 	/*
 	**  According to Motonori Nakamura some gethostbyname()
 	**  implementations (TurboLinux?) may (temporarily) fail
-	**  due to a lack of file discriptors. Enabling this FFR
+	**  due to a lack of file descriptors. Enabling this FFR
 	**  will check errno for EMFILE and ENFILE and in case of a match
 	**  cause a temporary error instead of a permanent error.
 	**  The right solution is of course to file a bug against those
@@ -6253,11 +6256,11 @@ char	*FFRCompileOptions[] =
 	*/
 
 	"_FFR_GETHBN_ExFILE",
-#endif /* _FFR_GETHBN_ExFILE */
+#endif
 #if _FFR_FIPSMODE
 	/* FIPSMode (if supported by OpenSSL library) */
 	"_FFR_FIPSMODE",
-#endif /* _FFR_FIPSMODE */
+#endif
 #if _FFR_FIX_DASHT
 	/*
 	**  If using -t, force not sending to argv recipients, even
@@ -6265,55 +6268,66 @@ char	*FFRCompileOptions[] =
 	*/
 
 	"_FFR_FIX_DASHT",
-#endif /* _FFR_FIX_DASHT */
+#endif
 #if _FFR_FORWARD_SYSERR
 	/* Cause a "syserr" if forward file isn't "safe". */
 	"_FFR_FORWARD_SYSERR",
-#endif /* _FFR_FORWARD_SYSERR */
+#endif
 #if _FFR_GEN_ORCPT
 	/* Generate a ORCPT DSN arg if not already provided */
 	"_FFR_GEN_ORCPT",
-#endif /* _FFR_GEN_ORCPT */
-#if _FFR_GROUPREADABLEAUTHINFOFILE
-	/* Allow group readable DefaultAuthInfo file. */
-	"_FFR_GROUPREADABLEAUTHINFOFILE",
-#endif /* _FFR_GROUPREADABLEAUTHINFOFILE */
+#endif
 #if _FFR_HANDLE_ISO8859_GECOS
 	/*
 	**  Allow ISO 8859 characters in GECOS field: replace them
-	**  ith ASCII "equivalent".
+	**  with ASCII "equivalent".
 	*/
 
 /* Peter Eriksson of Linkopings universitet */
 	"_FFR_HANDLE_ISO8859_GECOS",
-#endif /* _FFR_HANDLE_ISO8859_GECOS */
+#endif
+#if _FFR_HANDLE_HDR_RW_TEMPFAIL
+	/*
+	**  Temporary header rewriting problems from remotename() etc
+	**  are not "sticky" for mci (e.g., during queue runs).
+	*/
+
+	"_FFR_HANDLE_HDR_RW_TEMPFAIL",
+#endif
 #if _FFR_HPUX_NSSWITCH
 	/* Use nsswitch on HP-UX */
 	"_FFR_HPUX_NSSWITCH",
-#endif /* _FFR_HPUX_NSSWITCH */
+#endif
 #if _FFR_IGNORE_BOGUS_ADDR
 	/* Ignore addresses for which prescan() failed */
 	"_FFR_IGNORE_BOGUS_ADDR",
-#endif /* _FFR_IGNORE_BOGUS_ADDR */
+#endif
 #if _FFR_IGNORE_EXT_ON_HELO
 	/* Ignore extensions offered in response to HELO */
 	"_FFR_IGNORE_EXT_ON_HELO",
-#endif /* _FFR_IGNORE_EXT_ON_HELO */
-#if _FFR_IPV6_FULL
-	/* Use uncompressed IPv6 address format (no "::") */
-	"_FFR_IPV6_FULL",
-#endif /* _FFR_IPV6_FULL */
+#endif
 #if _FFR_LINUX_MHNL
 	/* Set MAXHOSTNAMELEN to 256 (Linux) */
 	"_FFR_LINUX_MHNL",
-#endif /* _FFR_LINUX_MHNL */
+#endif
 #if _FFR_LOCAL_DAEMON
 	/* Local daemon mode (-bl) which only accepts loopback connections */
 	"_FFR_LOCAL_DAEMON",
-#endif /* _FFR_LOCAL_DAEMON */
+#endif
+#if _FFR_LOG_MORE1
+	/* log some TLS/AUTH info in from= too */
+	"_FFR_LOG_MORE1",
+#endif
+#if _FFR_LOG_MORE2
+	/* log some TLS info in to= too */
+	"_FFR_LOG_MORE2",
+#endif
+#if _FFR_LOGREPLY
+	"_FFR_LOGREPLY",
+#endif
 #if _FFR_MAIL_MACRO
 	"_FFR_MAIL_MACRO",
-#endif /* _FFR_MAIL_MACRO */
+#endif
 #if _FFR_MAXDATASIZE
 	/*
 	**  It is possible that a header is larger than MILTER_CHUNK_SIZE,
@@ -6323,28 +6337,33 @@ char	*FFRCompileOptions[] =
 	*/
 
 	"_FFR_MAXDATASIZE",
-#endif /* _FFR_MAXDATASIZE */
+#endif
 #if _FFR_MAX_FORWARD_ENTRIES
 	/* Try to limit number of .forward entries */
 	/* (doesn't work) */
 /* Randall S. Winchester of the University of Maryland */
 	"_FFR_MAX_FORWARD_ENTRIES",
-#endif /* _FFR_MAX_FORWARD_ENTRIES */
+#endif
 #if _FFR_MAX_SLEEP_TIME
 	/* Limit sleep(2) time in libsm/clock.c */
 	"_FFR_MAX_SLEEP_TIME",
-#endif /* _FFR_MAX_SLEEP_TIME */
+#endif
 #if _FFR_MDS_NEGOTIATE
 	/* MaxDataSize negotation with libmilter */
 	"_FFR_MDS_NEGOTIATE",
-#endif /* _FFR_MDS_NEGOTIATE */
+#endif
 #if _FFR_MEMSTAT
 	/* Check free memory */
 	"_FFR_MEMSTAT",
-#endif /* _FFR_MEMSTAT */
+#endif
 #if _FFR_MILTER_CHECK
 	"_FFR_MILTER_CHECK",
-#endif /* _FFR_MILTER_CHECK */
+#endif
+#if _FFR_MILTER_CONNECT_REPLYCODE
+	/* milter: propagate replycode returned by connect commands */
+	/* John Gardiner Myers of Proofpoint */
+	"_FFR_MILTER_CONNECT_REPLYCODE ",
+#endif
 #if _FFR_MILTER_CONVERT_ALL_LF_TO_CRLF
 	/*
 	**  milter_body() uses the same conversion algorithm as putbody()
@@ -6362,7 +6381,7 @@ char	*FFRCompileOptions[] =
 	*/
 
 	"_FFR_MILTER_CONVERT_ALL_LF_TO_CRLF",
-#endif /* _FFR_MILTER_CONVERT_ALL_LF_TO_CRLF */
+#endif
 #if _FFR_MILTER_CHECK_REJECTIONS_TOO
 	/*
 	**  Also send RCPTs that are rejected by check_rcpt to a milter
@@ -6370,68 +6389,71 @@ char	*FFRCompileOptions[] =
 	*/
 
 	"_FFR_MILTER_CHECK_REJECTIONS_TOO",
-#endif /* _FFR_MILTER_CHECK_REJECTIONS_TOO */
+#endif
 #if _FFR_MILTER_ENHSC
 	/* extract enhanced status code from milter replies for dsn= logging */
 	"_FFR_MILTER_ENHSC",
-#endif /* _FFR_MILTER_ENHSC */
+#endif
 #if _FFR_MIME7TO8_OLD
 	/* Old mime7to8 code, the new is broken for at least one example. */
 	"_FFR_MIME7TO8_OLD",
-#endif /* _FFR_MAX_SLEEP_TIME */
+#endif
 #if _FFR_MORE_MACROS
 	/* allow more long macro names ("unprintable" characters). */
 	"_FFR_MORE_MACROS",
-#endif /* _FFR_MORE_MACROS */
+#endif
 #if _FFR_MSG_ACCEPT
 	/* allow to override "Message accepted for delivery" */
 	"_FFR_MSG_ACCEPT",
-#endif /* _FFR_MSG_ACCEPT */
+#endif
 #if _FFR_NODELAYDSN_ON_HOLD
 	/* Do not issue a DELAY DSN for mailers that use the hold flag. */
 /* Steven Pitzl */
 	"_FFR_NODELAYDSN_ON_HOLD",
-#endif /* _FFR_NODELAYDSN_ON_HOLD */
+#endif
 #if _FFR_NO_PIPE
 	/* Disable PIPELINING, delay client if used. */
 	"_FFR_NO_PIPE",
-#endif /* _FFR_NO_PIPE */
+#endif
 #if _FFR_LDAP_NETWORK_TIMEOUT
 	/* set LDAP_OPT_NETWORK_TIMEOUT if available (-c) */
 	"_FFR_LDAP_NETWORK_TIMEOUT",
-#endif /* _FFR_LDAP_NETWORK_TIMEOUT */
+#endif
 #if _FFR_LOG_NTRIES
 	/* log ntries=, from Nik Clayton of FreeBSD */
 	"_FFR_LOG_NTRIES",
-#endif /* _FFR_LOG_NTRIES */
+#endif
+#if _FFR_PROXY
+	/* "proxy" (synchronous) delivery mode */
+	"_FFR_PROXY",
+#endif
 #if _FFR_QF_PARANOIA
 	"_FFR_QF_PARANOIA",
-#endif /* _FFR_QF_PARANOIA */
-#if _FFR_QUEUEDELAY
-	/* Exponential queue delay; disabled in 8.13 since it isn't used. */
-	"_FFR_QUEUEDELAY",
-#endif /* _FFR_QUEUEDELAY */
+#endif
 #if _FFR_QUEUE_GROUP_SORTORDER
 	/* Allow QueueSortOrder per queue group. */
 /* XXX: Still need to actually use qgrp->qg_sortorder */
 	"_FFR_QUEUE_GROUP_SORTORDER",
-#endif /* _FFR_QUEUE_GROUP_SORTORDER */
+#endif
 #if _FFR_QUEUE_MACRO
 	/* Define {queue} macro. */
 	"_FFR_QUEUE_MACRO",
-#endif /* _FFR_QUEUE_MACRO */
+#endif
 #if _FFR_QUEUE_RUN_PARANOIA
 	/* Additional checks when doing queue runs; interval of checks */
 	"_FFR_QUEUE_RUN_PARANOIA",
-#endif /* _FFR_QUEUE_RUN_PARANOIA */
+#endif
 #if _FFR_QUEUE_SCHED_DBG
 	/* Debug output for the queue scheduler. */
 	"_FFR_QUEUE_SCHED_DBG",
-#endif /* _FFR_QUEUE_SCHED_DBG */
+#endif
+#if _FFR_RCPTFLAGS
+	"_FFR_RCPTFLAGS",
+#endif
 #if _FFR_RCPTTHROTDELAY
 	/* configurable delay for BadRcptThrottle */
 	"_FFR_RCPTTHROTDELAY",
-#endif /* _FFR_RCPTTHROTDELAY */
+#endif
 #if _FFR_REDIRECTEMPTY
 	/*
 	**  envelope <> can't be sent to mailing lists, only owner-
@@ -6440,19 +6462,19 @@ char	*FFRCompileOptions[] =
 	*/
 
 	"_FFR_REDIRECTEMPTY",
-#endif /* _FFR_REDIRECTEMPTY */
+#endif
 #if _FFR_REJECT_NUL_BYTE
 	/* reject NUL bytes in body */
 	"_FFR_REJECT_NUL_BYTE",
-#endif /* _FFR_REJECT_NUL_BYTE */
+#endif
 #if _FFR_RESET_MACRO_GLOBALS
 	/* Allow macro 'j' to be set dynamically via rulesets. */
 	"_FFR_RESET_MACRO_GLOBALS",
-#endif /* _FFR_RESET_MACRO_GLOBALS */
+#endif
 #if _FFR_RHS
 	/* Random shuffle for queue sorting. */
 	"_FFR_RHS",
-#endif /* _FFR_RHS */
+#endif
 #if _FFR_RUNPQG
 	/*
 	**  allow -qGqueue_group -qp to work, i.e.,
@@ -6460,15 +6482,15 @@ char	*FFRCompileOptions[] =
 	*/
 
 	"_FFR_RUNPQG",
-#endif /* _FFR_RUNPQG */
+#endif
 #if _FFR_SESSID
 	/* session id (for logging) */
 	"_FFR_SESSID",
-#endif /* _FFR_SESSID */
+#endif
 #if _FFR_SHM_STATUS
 	/* Donated code (unused). */
 	"_FFR_SHM_STATUS",
-#endif /* _FFR_SHM_STATUS */
+#endif
 #if _FFR_LDAP_SINGLEDN
 	/*
 	**  The LDAP database map code in Sendmail 8.12.10, when
@@ -6487,15 +6509,15 @@ char	*FFRCompileOptions[] =
 	*/
 
 	"_FFR_LDAP_SINGLEDN",
-#endif /* _FFR_LDAP_SINGLEDN */
+#endif
 #if _FFR_SKIP_DOMAINS
 	/* process every N'th domain instead of every N'th message */
 	"_FFR_SKIP_DOMAINS",
-#endif /* _FFR_SKIP_DOMAINS */
+#endif
 #if _FFR_SLEEP_USE_SELECT
 	/* Use select(2) in libsm/clock.c to emulate sleep(2) */
 	"_FFR_SLEEP_USE_SELECT ",
-#endif /* _FFR_SLEEP_USE_SELECT */
+#endif
 #if _FFR_SPT_ALIGN
 	/*
 	**  It looks like the Compaq Tru64 5.1A now aligns argv and envp to 64
@@ -6507,26 +6529,34 @@ char	*FFRCompileOptions[] =
 
 /* Chris Adams of HiWAAY Informations Services */
 	"_FFR_SPT_ALIGN",
-#endif /* _FFR_SPT_ALIGN */
+#endif
 #if _FFR_SS_PER_DAEMON
 	/* SuperSafe per DaemonPortOptions: 'T' (better letter?) */
 	"_FFR_SS_PER_DAEMON",
-#endif /* _FFR_SS_PER_DAEMON */
+#endif
 #if _FFR_TESTS
 	/* enable some test code */
 	"_FFR_TESTS",
-#endif /* _FFR_TESTS */
+#endif
 #if _FFR_TIMERS
 	/* Donated code (unused). */
 	"_FFR_TIMERS",
-#endif /* _FFR_TIMERS */
-#if _FFR_TLS_1
-	/* More STARTTLS options, e.g., secondary certs. */
-	"_FFR_TLS_1",
-#endif /* _FFR_TLS_1 */
+#endif
 #if _FFR_TLS_EC
 	"_FFR_TLS_EC",
-#endif /* _FFR_TLS_EC */
+#endif
+#if _FFR_TLS_USE_CERTIFICATE_CHAIN_FILE
+	/*
+	**  Use SSL_CTX_use_certificate_chain_file()
+	**  instead of SSL_CTX_use_certificate_file()
+	*/
+
+	"_FFR_TLS_USE_CERTIFICATE_CHAIN_FILE",
+#endif
+#if _FFR_TLS_SE_OPTS
+	/* TLS session options */
+	"_FFR_TLS_SE_OPTS",
+#endif
 #if _FFR_TRUSTED_QF
 	/*
 	**  If we don't own the file mark it as unsafe.
@@ -6535,7 +6565,7 @@ char	*FFRCompileOptions[] =
 	*/
 
 	"_FFR_TRUSTED_QF",
-#endif /* _FFR_TRUSTED_QF */
+#endif
 #if _FFR_USE_GETPWNAM_ERRNO
 	/*
 	**  See libsm/mbdb.c: only enable this on OSs
@@ -6545,15 +6575,18 @@ char	*FFRCompileOptions[] =
 	*/
 
 	"_FFR_USE_GETPWNAM_ERRNO",
-#endif /* _FFR_USE_GETPWNAM_ERRNO */
+#endif
 #if _FFR_USE_SEM_LOCKING
 	"_FFR_USE_SEM_LOCKING",
-#endif /* _FFR_USE_SEM_LOCKING */
+#endif
 #if _FFR_USE_SETLOGIN
 	/* Use setlogin() */
 /* Peter Philipp */
 	"_FFR_USE_SETLOGIN",
-#endif /* _FFR_USE_SETLOGIN */
+#endif
+#if _FFR_XCNCT
+	"_FFR_XCNCT",
+#endif
 	NULL
 };
 

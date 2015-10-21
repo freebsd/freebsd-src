@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "PlatformFreeBSD.h"
 #include "lldb/Host/Config.h"
 
@@ -21,6 +19,8 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
+#include "lldb/Breakpoint/BreakpointLocation.h"
+#include "lldb/Breakpoint/BreakpointSite.h"
 #include "lldb/Core/Error.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Module.h"
@@ -28,12 +28,14 @@
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
+#include "lldb/Target/Process.h"
 
 using namespace lldb;
 using namespace lldb_private;
+using namespace lldb_private::platform_freebsd;
 
-Platform *
-PlatformFreeBSD::CreateInstance (bool force, const lldb_private::ArchSpec *arch)
+PlatformSP
+PlatformFreeBSD::CreateInstance(bool force, const ArchSpec *arch)
 {
     // The only time we create an instance is when we are creating a remote
     // freebsd platform
@@ -43,54 +45,32 @@ PlatformFreeBSD::CreateInstance (bool force, const lldb_private::ArchSpec *arch)
     if (create == false && arch && arch->IsValid())
     {
         const llvm::Triple &triple = arch->GetTriple();
-        switch (triple.getVendor())
+        switch (triple.getOS())
         {
-            case llvm::Triple::PC:
+            case llvm::Triple::FreeBSD:
                 create = true;
                 break;
 
 #if defined(__FreeBSD__) || defined(__OpenBSD__)
-            // Only accept "unknown" for the vendor if the host is BSD and
+            // Only accept "unknown" for the OS if the host is BSD and
             // it "unknown" wasn't specified (it was just returned because it
             // was NOT specified)
-            case llvm::Triple::UnknownArch:
-                create = !arch->TripleVendorWasSpecified();
+            case llvm::Triple::OSType::UnknownOS:
+                create = !arch->TripleOSWasSpecified();
                 break;
 #endif
             default:
                 break;
         }
-
-        if (create)
-        {
-            switch (triple.getOS())
-            {
-                case llvm::Triple::FreeBSD:
-                case llvm::Triple::KFreeBSD:
-                    break;
-
-#if defined(__FreeBSD__) || defined(__OpenBSD__)
-                // Only accept "unknown" for the OS if the host is BSD and
-                // it "unknown" wasn't specified (it was just returned because it
-                // was NOT specified)
-                case llvm::Triple::UnknownOS:
-                    create = arch->TripleOSWasSpecified();
-                    break;
-#endif
-                default:
-                    create = false;
-                    break;
-            }
-        }
     }
     if (create)
-        return new PlatformFreeBSD (is_host);
-    return NULL;
+        return PlatformSP(new PlatformFreeBSD (is_host));
+    return PlatformSP();
 
 }
 
-lldb_private::ConstString
-PlatformFreeBSD::GetPluginNameStatic (bool is_host)
+ConstString
+PlatformFreeBSD::GetPluginNameStatic(bool is_host)
 {
     if (is_host)
     {
@@ -118,13 +98,15 @@ static uint32_t g_initialize_count = 0;
 void
 PlatformFreeBSD::Initialize ()
 {
+    Platform::Initialize ();
+
     if (g_initialize_count++ == 0)
     {
 #if defined (__FreeBSD__)
     	// Force a host flag to true for the default platform object.
         PlatformSP default_platform_sp (new PlatformFreeBSD(true));
         default_platform_sp->SetSystemArchitecture(HostInfo::GetArchitecture());
-        Platform::SetDefaultPlatform (default_platform_sp);
+        Platform::SetHostPlatform (default_platform_sp);
 #endif
         PluginManager::RegisterPlugin(PlatformFreeBSD::GetPluginNameStatic(false),
                                       PlatformFreeBSD::GetDescriptionStatic(false),
@@ -137,35 +119,28 @@ PlatformFreeBSD::Terminate ()
 {
     if (g_initialize_count > 0 && --g_initialize_count == 0)
     	PluginManager::UnregisterPlugin (PlatformFreeBSD::CreateInstance);
+
+    Platform::Terminate ();
 }
 
-//------------------------------------------------------------------
-/// Default Constructor
-//------------------------------------------------------------------
-PlatformFreeBSD::PlatformFreeBSD (bool is_host) :
-Platform(is_host),
-m_remote_platform_sp()
+bool
+PlatformFreeBSD::GetModuleSpec (const FileSpec& module_file_spec,
+                                const ArchSpec& arch,
+                                ModuleSpec &module_spec)
 {
+    if (m_remote_platform_sp)
+        return m_remote_platform_sp->GetModuleSpec (module_file_spec, arch, module_spec);
+
+    return Platform::GetModuleSpec (module_file_spec, arch, module_spec);
 }
 
-//------------------------------------------------------------------
-/// Destructor.
-///
-/// The destructor is virtual since this class is designed to be
-/// inherited from by the plug-in instance.
-//------------------------------------------------------------------
-PlatformFreeBSD::~PlatformFreeBSD()
-{
-}
-
-//TODO:VK: inherit PlatformPOSIX
-lldb_private::Error
-PlatformFreeBSD::RunShellCommand (const char *command,
-                                  const char *working_dir,
-                                  int *status_ptr,
-                                  int *signo_ptr,
-                                  std::string *command_output,
-                                  uint32_t timeout_sec)
+Error
+PlatformFreeBSD::RunShellCommand(const char *command,
+                                 const FileSpec &working_dir,
+                                 int *status_ptr,
+                                 int *signo_ptr,
+                                 std::string *command_output,
+                                 uint32_t timeout_sec)
 {
     if (IsHost())
         return Host::RunShellCommand(command, working_dir, status_ptr, signo_ptr, command_output, timeout_sec);
@@ -178,10 +153,8 @@ PlatformFreeBSD::RunShellCommand (const char *command,
     }
 }
 
-
 Error
-PlatformFreeBSD::ResolveExecutable (const FileSpec &exe_file,
-                                    const ArchSpec &exe_arch,
+PlatformFreeBSD::ResolveExecutable (const ModuleSpec &module_spec,
                                     lldb::ModuleSP &exe_module_sp,
                                     const FileSpecList *module_search_paths_ptr)
 {
@@ -189,62 +162,57 @@ PlatformFreeBSD::ResolveExecutable (const FileSpec &exe_file,
     // Nothing special to do here, just use the actual file and architecture
 
     char exe_path[PATH_MAX];
-    FileSpec resolved_exe_file (exe_file);
+    ModuleSpec resolved_module_spec(module_spec);
 
     if (IsHost())
     {
-        // If we have "ls" as the exe_file, resolve the executable location based on
+        // If we have "ls" as the module_spec's file, resolve the executable location based on
         // the current path variables
-        if (!resolved_exe_file.Exists())
+        if (!resolved_module_spec.GetFileSpec().Exists())
         {
-            exe_file.GetPath(exe_path, sizeof(exe_path));
-            resolved_exe_file.SetFile(exe_path, true);
+            module_spec.GetFileSpec().GetPath(exe_path, sizeof(exe_path));
+            resolved_module_spec.GetFileSpec().SetFile(exe_path, true);
         }
 
-        if (!resolved_exe_file.Exists())
-            resolved_exe_file.ResolveExecutableLocation ();
+        if (!resolved_module_spec.GetFileSpec().Exists())
+            resolved_module_spec.GetFileSpec().ResolveExecutableLocation ();
 
-        if (resolved_exe_file.Exists())
+        if (resolved_module_spec.GetFileSpec().Exists())
             error.Clear();
         else
         {
-            exe_file.GetPath(exe_path, sizeof(exe_path));
-            error.SetErrorStringWithFormat("unable to find executable for '%s'", exe_path);
+            error.SetErrorStringWithFormat("unable to find executable for '%s'", resolved_module_spec.GetFileSpec().GetPath().c_str());
         }
     }
     else
     {
         if (m_remote_platform_sp)
         {
-            error = m_remote_platform_sp->ResolveExecutable (exe_file,
-                                                             exe_arch,
-                                                             exe_module_sp,
-                                                             module_search_paths_ptr);
+            error = GetCachedExecutable (resolved_module_spec, exe_module_sp, module_search_paths_ptr, *m_remote_platform_sp);
         }
         else
         {
             // We may connect to a process and use the provided executable (Don't use local $PATH).
 
             // Resolve any executable within a bundle on MacOSX
-            Host::ResolveExecutableInBundle (resolved_exe_file);
+            Host::ResolveExecutableInBundle (resolved_module_spec.GetFileSpec());
 
-            if (resolved_exe_file.Exists()) {
+            if (resolved_module_spec.GetFileSpec().Exists())
+            {
                 error.Clear();
             }
             else
             {
-                exe_file.GetPath(exe_path, sizeof(exe_path));
-                error.SetErrorStringWithFormat("the platform is not currently connected, and '%s' doesn't exist in the system root.", exe_path);
+                error.SetErrorStringWithFormat("the platform is not currently connected, and '%s' doesn't exist in the system root.", resolved_module_spec.GetFileSpec().GetPath().c_str());
             }
         }
     }
 
     if (error.Success())
     {
-        ModuleSpec module_spec (resolved_exe_file, exe_arch);
-        if (module_spec.GetArchitecture().IsValid())
+        if (resolved_module_spec.GetArchitecture().IsValid())
         {
-            error = ModuleList::GetSharedModule (module_spec,
+            error = ModuleList::GetSharedModule (resolved_module_spec,
                                                  exe_module_sp,
                                                  module_search_paths_ptr,
                                                  NULL,
@@ -254,8 +222,8 @@ PlatformFreeBSD::ResolveExecutable (const FileSpec &exe_file,
             {
                 exe_module_sp.reset();
                 error.SetErrorStringWithFormat ("'%s' doesn't contain the architecture %s",
-                                                exe_file.GetPath().c_str(),
-                                                exe_arch.GetArchitectureName());
+                                                resolved_module_spec.GetFileSpec().GetPath().c_str(),
+                                                resolved_module_spec.GetArchitecture().GetArchitectureName());
             }
         }
         else
@@ -264,10 +232,9 @@ PlatformFreeBSD::ResolveExecutable (const FileSpec &exe_file,
             // the architectures that we should be using (in the correct order)
             // and see if we can find a match that way
             StreamString arch_names;
-            ArchSpec platform_arch;
-            for (uint32_t idx = 0; GetSupportedArchitectureAtIndex (idx, platform_arch); ++idx)
+            for (uint32_t idx = 0; GetSupportedArchitectureAtIndex (idx, resolved_module_spec.GetArchitecture()); ++idx)
             {
-                error = ModuleList::GetSharedModule (module_spec,
+                error = ModuleList::GetSharedModule (resolved_module_spec,
                                                      exe_module_sp,
                                                      module_search_paths_ptr,
                                                      NULL,
@@ -283,21 +250,21 @@ PlatformFreeBSD::ResolveExecutable (const FileSpec &exe_file,
 
                 if (idx > 0)
                     arch_names.PutCString (", ");
-                arch_names.PutCString (platform_arch.GetArchitectureName());
+                arch_names.PutCString (resolved_module_spec.GetArchitecture().GetArchitectureName());
             }
 
             if (error.Fail() || !exe_module_sp)
             {
-                if (exe_file.Readable())
+                if (resolved_module_spec.GetFileSpec().Readable())
                 {
                     error.SetErrorStringWithFormat ("'%s' doesn't contain any '%s' platform architectures: %s",
-                                                    exe_file.GetPath().c_str(),
+                                                    resolved_module_spec.GetFileSpec().GetPath().c_str(),
                                                     GetPluginName().GetCString(),
                                                     arch_names.GetString().c_str());
                 }
                 else
                 {
-                    error.SetErrorStringWithFormat("'%s' is not readable", exe_file.GetPath().c_str());
+                    error.SetErrorStringWithFormat("'%s' is not readable", resolved_module_spec.GetFileSpec().GetPath().c_str());
                 }
             }
         }
@@ -306,33 +273,45 @@ PlatformFreeBSD::ResolveExecutable (const FileSpec &exe_file,
     return error;
 }
 
-size_t
-PlatformFreeBSD::GetSoftwareBreakpointTrapOpcode (Target &target, BreakpointSite *bp_site)
+// From PlatformMacOSX only
+Error
+PlatformFreeBSD::GetFileWithUUID (const FileSpec &platform_file,
+                                  const UUID *uuid_ptr,
+                                  FileSpec &local_file)
 {
-    ArchSpec arch = target.GetArchitecture();
-    const uint8_t *trap_opcode = NULL;
-    size_t trap_opcode_size = 0;
-
-    switch (arch.GetMachine())
+    if (IsRemote())
     {
-    default:
-        assert(false && "Unhandled architecture in PlatformFreeBSD::GetSoftwareBreakpointTrapOpcode()");
-        break;
-    case llvm::Triple::x86:
-    case llvm::Triple::x86_64:
-        {
-            static const uint8_t g_i386_opcode[] = { 0xCC };
-            trap_opcode = g_i386_opcode;
-            trap_opcode_size = sizeof(g_i386_opcode);
-        }
-        break;
+        if (m_remote_platform_sp)
+            return m_remote_platform_sp->GetFileWithUUID (platform_file, uuid_ptr, local_file);
     }
 
-    if (bp_site->SetTrapOpcode(trap_opcode, trap_opcode_size))
-        return trap_opcode_size;
-
-    return 0;
+    // Default to the local case
+    local_file = platform_file;
+    return Error();
 }
+
+
+//------------------------------------------------------------------
+/// Default Constructor
+//------------------------------------------------------------------
+PlatformFreeBSD::PlatformFreeBSD (bool is_host) :
+    Platform(is_host),
+    m_remote_platform_sp()
+{
+}
+
+//------------------------------------------------------------------
+/// Destructor.
+///
+/// The destructor is virtual since this class is designed to be
+/// inherited from by the plug-in instance.
+//------------------------------------------------------------------
+PlatformFreeBSD::~PlatformFreeBSD()
+{
+}
+
+//TODO:VK: inherit PlatformPOSIX
+
 
 bool
 PlatformFreeBSD::GetRemoteOSVersion ()
@@ -404,7 +383,7 @@ PlatformFreeBSD::ConnectRemote (Args& args)
     else
     {
         if (!m_remote_platform_sp)
-            m_remote_platform_sp = Platform::Create ("remote-gdb-server", error);
+            m_remote_platform_sp = Platform::Create (ConstString("remote-gdb-server"), error);
 
         if (m_remote_platform_sp)
         {
@@ -464,8 +443,6 @@ PlatformFreeBSD::GetProcessInfo (lldb::pid_t pid, ProcessInstanceInfo &process_i
     return success;
 }
 
-
-
 uint32_t
 PlatformFreeBSD::FindProcesses (const ProcessInstanceInfoMatch &match_info,
                                ProcessInstanceInfoList &process_infos)
@@ -483,72 +460,6 @@ PlatformFreeBSD::FindProcesses (const ProcessInstanceInfoMatch &match_info,
             match_count = m_remote_platform_sp->FindProcesses (match_info, process_infos);
     }
     return match_count;
-}
-
-Error
-PlatformFreeBSD::LaunchProcess (ProcessLaunchInfo &launch_info)
-{
-    Error error;
-    if (IsHost())
-    {
-        error = Platform::LaunchProcess (launch_info);
-    }
-    else
-    {
-        if (m_remote_platform_sp)
-            error = m_remote_platform_sp->LaunchProcess (launch_info);
-        else
-            error.SetErrorString ("the platform is not currently connected");
-    }
-    return error;
-}
-
-lldb::ProcessSP
-PlatformFreeBSD::Attach(ProcessAttachInfo &attach_info,
-                        Debugger &debugger,
-                        Target *target,
-                        Listener &listener,
-                        Error &error)
-{
-    lldb::ProcessSP process_sp;
-    if (IsHost())
-    {
-        if (target == NULL)
-        {
-            TargetSP new_target_sp;
-            ArchSpec emptyArchSpec;
-
-            error = debugger.GetTargetList().CreateTarget (debugger,
-                                                           NULL,
-                                                           emptyArchSpec,
-                                                           false,
-                                                           m_remote_platform_sp,
-                                                           new_target_sp);
-            target = new_target_sp.get();
-        }
-        else
-            error.Clear();
-
-        if (target && error.Success())
-        {
-            debugger.GetTargetList().SetSelectedTarget(target);
-            // The freebsd always currently uses the GDB remote debugger plug-in
-            // so even when debugging locally we are debugging remotely!
-            // Just like the darwin plugin.
-            process_sp = target->CreateProcess (listener, "gdb-remote", NULL);
-
-            if (process_sp)
-                error = process_sp->Attach (attach_info);
-        }
-    }
-    else
-    {
-        if (m_remote_platform_sp)
-            process_sp = m_remote_platform_sp->Attach (attach_info, debugger, target, listener, error);
-        else
-            error.SetErrorString ("the platform is not currently connected");
-    }
-    return process_sp;
 }
 
 const char *
@@ -577,25 +488,9 @@ PlatformFreeBSD::GetGroupName (uint32_t gid)
 }
 
 
-// From PlatformMacOSX only
-Error
-PlatformFreeBSD::GetFileWithUUID (const FileSpec &platform_file,
-                                  const UUID *uuid_ptr,
-                                  FileSpec &local_file)
-{
-    if (IsRemote())
-    {
-        if (m_remote_platform_sp)
-            return m_remote_platform_sp->GetFileWithUUID (platform_file, uuid_ptr, local_file);
-    }
-
-    // Default to the local case
-    local_file = platform_file;
-    return Error();
-}
-
 Error
 PlatformFreeBSD::GetSharedModule (const ModuleSpec &module_spec,
+                                  Process* process,
                                   ModuleSP &module_sp,
                                   const FileSpecList *module_search_paths_ptr,
                                   ModuleSP *old_module_sp_ptr,
@@ -611,6 +506,7 @@ PlatformFreeBSD::GetSharedModule (const ModuleSpec &module_spec,
         if (m_remote_platform_sp)
         {
             error = m_remote_platform_sp->GetSharedModule (module_spec,
+                                                           process,
                                                            module_sp,
                                                            module_search_paths_ptr,
                                                            old_module_sp_ptr,
@@ -622,6 +518,7 @@ PlatformFreeBSD::GetSharedModule (const ModuleSpec &module_spec,
     {
         // Fall back to the local platform and find the file locally
         error = Platform::GetSharedModule (module_spec,
+                                           process,
                                            module_sp,
                                            module_search_paths_ptr,
                                            old_module_sp_ptr,
@@ -636,24 +533,56 @@ PlatformFreeBSD::GetSharedModule (const ModuleSpec &module_spec,
 bool
 PlatformFreeBSD::GetSupportedArchitectureAtIndex (uint32_t idx, ArchSpec &arch)
 {
-    // From macosx;s plugin code. For FreeBSD we may want to support more archs.
-    if (idx == 0)
+    if (IsHost())
     {
-        arch = HostInfo::GetArchitecture(HostInfo::eArchKindDefault);
-        return arch.IsValid();
-    }
-    else if (idx == 1)
-    {
-        ArchSpec platform_arch(HostInfo::GetArchitecture(HostInfo::eArchKindDefault));
-        ArchSpec platform_arch64(HostInfo::GetArchitecture(HostInfo::eArchKind64));
-        if (platform_arch.IsExactMatch(platform_arch64))
+        ArchSpec hostArch = HostInfo::GetArchitecture(HostInfo::eArchKindDefault);
+        if (hostArch.GetTriple().isOSFreeBSD())
         {
-            // This freebsd platform supports both 32 and 64 bit. Since we already
-            // returned the 64 bit arch for idx == 0, return the 32 bit arch
-            // for idx == 1
-            arch = HostInfo::GetArchitecture(HostInfo::eArchKind32);
-            return arch.IsValid();
+            if (idx == 0)
+            {
+                arch = hostArch;
+                return arch.IsValid();
+            }
+            else if (idx == 1)
+            {
+                // If the default host architecture is 64-bit, look for a 32-bit variant
+                if (hostArch.IsValid() && hostArch.GetTriple().isArch64Bit())
+                {
+                    arch = HostInfo::GetArchitecture(HostInfo::eArchKind32);
+                    return arch.IsValid();
+                }
+            }
         }
+    }
+    else
+    {
+        if (m_remote_platform_sp)
+            return m_remote_platform_sp->GetSupportedArchitectureAtIndex(idx, arch);
+
+        llvm::Triple triple;
+        // Set the OS to FreeBSD
+        triple.setOS(llvm::Triple::FreeBSD);
+        // Set the architecture
+        switch (idx)
+        {
+            case 0: triple.setArchName("x86_64"); break;
+            case 1: triple.setArchName("i386"); break;
+            case 2: triple.setArchName("aarch64"); break;
+            case 3: triple.setArchName("arm"); break;
+            case 4: triple.setArchName("mips64"); break;
+            case 5: triple.setArchName("mips"); break;
+            case 6: triple.setArchName("ppc64"); break;
+            case 7: triple.setArchName("ppc"); break;
+            default: return false;
+        }
+        // Leave the vendor as "llvm::Triple:UnknownVendor" and don't specify the vendor by
+        // calling triple.SetVendorName("unknown") so that it is a "unspecified unknown".
+        // This means when someone calls triple.GetVendorName() it will return an empty string
+        // which indicates that the vendor can be set when two architectures are merged
+
+        // Now set the triple into "arch" and return true
+        arch.SetTriple(triple);
+        return true;
     }
     return false;
 }
@@ -682,8 +611,157 @@ PlatformFreeBSD::GetStatus (Stream &strm)
     Platform::GetStatus(strm);
 }
 
+size_t
+PlatformFreeBSD::GetSoftwareBreakpointTrapOpcode (Target &target, BreakpointSite *bp_site)
+{
+    ArchSpec arch = target.GetArchitecture();
+    const uint8_t *trap_opcode = NULL;
+    size_t trap_opcode_size = 0;
+
+    switch (arch.GetMachine())
+    {
+    default:
+        assert(false && "Unhandled architecture in PlatformFreeBSD::GetSoftwareBreakpointTrapOpcode()");
+        break;
+    case llvm::Triple::aarch64:
+        {
+            static const uint8_t g_aarch64_opcode[] = { 0x00, 0x00, 0x20, 0xd4 };
+            trap_opcode = g_aarch64_opcode;
+            trap_opcode_size = sizeof(g_aarch64_opcode);
+        }
+        break;
+    // TODO: support big-endian arm and thumb trap codes.
+    case llvm::Triple::arm:
+        {
+            static const uint8_t g_arm_breakpoint_opcode[] = { 0xfe, 0xde, 0xff, 0xe7 };
+            static const uint8_t g_thumb_breakpoint_opcode[] = { 0x01, 0xde };
+
+            lldb::BreakpointLocationSP bp_loc_sp (bp_site->GetOwnerAtIndex (0));
+            AddressClass addr_class = eAddressClassUnknown;
+
+            if (bp_loc_sp)
+                addr_class = bp_loc_sp->GetAddress ().GetAddressClass ();
+
+            if (addr_class == eAddressClassCodeAlternateISA
+                || (addr_class == eAddressClassUnknown && (bp_site->GetLoadAddress() & 1)))
+            {
+                // TODO: Enable when FreeBSD supports thumb breakpoints.
+                // FreeBSD kernel as of 10.x, does not support thumb breakpoints
+                trap_opcode = g_thumb_breakpoint_opcode;
+                trap_opcode_size = 0;
+            }
+            else
+            {
+                trap_opcode = g_arm_breakpoint_opcode;
+                trap_opcode_size = sizeof(g_arm_breakpoint_opcode);
+            }
+        }
+        break;
+    case llvm::Triple::mips64:
+        {
+            static const uint8_t g_hex_opcode[] = { 0x00, 0x00, 0x00, 0x0d };
+            trap_opcode = g_hex_opcode;
+            trap_opcode_size = sizeof(g_hex_opcode);
+        }
+        break;
+    case llvm::Triple::mips64el:
+        {
+            static const uint8_t g_hex_opcode[] = { 0x0d, 0x00, 0x00, 0x00 };
+            trap_opcode = g_hex_opcode;
+            trap_opcode_size = sizeof(g_hex_opcode);
+        }
+        break;
+    case llvm::Triple::ppc:
+    case llvm::Triple::ppc64:
+        {
+            static const uint8_t g_ppc_opcode[] = { 0x7f, 0xe0, 0x00, 0x08 };
+            trap_opcode = g_ppc_opcode;
+            trap_opcode_size = sizeof(g_ppc_opcode);
+        }
+        break;
+    case llvm::Triple::x86:
+    case llvm::Triple::x86_64:
+        {
+            static const uint8_t g_i386_opcode[] = { 0xCC };
+            trap_opcode = g_i386_opcode;
+            trap_opcode_size = sizeof(g_i386_opcode);
+        }
+        break;
+    }
+
+    if (bp_site->SetTrapOpcode(trap_opcode, trap_opcode_size))
+        return trap_opcode_size;
+    return 0;
+}
+
+
 void
 PlatformFreeBSD::CalculateTrapHandlerSymbolNames ()
 {
     m_trap_handlers.push_back (ConstString ("_sigtramp"));
+}
+
+Error
+PlatformFreeBSD::LaunchProcess (ProcessLaunchInfo &launch_info)
+{
+    Error error;
+    if (IsHost())
+    {
+        error = Platform::LaunchProcess (launch_info);
+    }
+    else
+    {
+        if (m_remote_platform_sp)
+            error = m_remote_platform_sp->LaunchProcess (launch_info);
+        else
+            error.SetErrorString ("the platform is not currently connected");
+    }
+    return error;
+}
+
+lldb::ProcessSP
+PlatformFreeBSD::Attach(ProcessAttachInfo &attach_info,
+                        Debugger &debugger,
+                        Target *target,
+                        Error &error)
+{
+    lldb::ProcessSP process_sp;
+    if (IsHost())
+    {
+        if (target == NULL)
+        {
+            TargetSP new_target_sp;
+            ArchSpec emptyArchSpec;
+
+            error = debugger.GetTargetList().CreateTarget (debugger,
+                                                           NULL,
+                                                           emptyArchSpec,
+                                                           false,
+                                                           m_remote_platform_sp,
+                                                           new_target_sp);
+            target = new_target_sp.get();
+        }
+        else
+            error.Clear();
+
+        if (target && error.Success())
+        {
+            debugger.GetTargetList().SetSelectedTarget(target);
+            // The freebsd always currently uses the GDB remote debugger plug-in
+            // so even when debugging locally we are debugging remotely!
+            // Just like the darwin plugin.
+            process_sp = target->CreateProcess (attach_info.GetListenerForProcess(debugger), "gdb-remote", NULL);
+
+            if (process_sp)
+                error = process_sp->Attach (attach_info);
+        }
+    }
+    else
+    {
+        if (m_remote_platform_sp)
+            process_sp = m_remote_platform_sp->Attach (attach_info, debugger, target, error);
+        else
+            error.SetErrorString ("the platform is not currently connected");
+    }
+    return process_sp;
 }

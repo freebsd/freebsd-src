@@ -26,7 +26,7 @@ class AArch64ELFObjectWriter : public MCELFObjectTargetWriter {
 public:
   AArch64ELFObjectWriter(uint8_t OSABI, bool IsLittleEndian);
 
-  virtual ~AArch64ELFObjectWriter();
+  ~AArch64ELFObjectWriter() override;
 
 protected:
   unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
@@ -78,7 +78,7 @@ unsigned AArch64ELFObjectWriter::GetRelocType(const MCValue &Target,
       if (SymLoc == AArch64MCExpr::VK_GOTTPREL && !IsNC)
         return ELF::R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21;
       if (SymLoc == AArch64MCExpr::VK_TLSDESC && !IsNC)
-        return ELF::R_AARCH64_TLSDESC_ADR_PAGE;
+        return ELF::R_AARCH64_TLSDESC_ADR_PAGE21;
       llvm_unreachable("invalid symbol kind for ADRP relocation");
     case AArch64::fixup_aarch64_pcrel_branch26:
       return ELF::R_AARCH64_JUMP26;
@@ -248,9 +248,9 @@ unsigned AArch64ELFObjectWriter::GetRelocType(const MCValue &Target,
   llvm_unreachable("Unimplemented fixup -> relocation");
 }
 
-MCObjectWriter *llvm::createAArch64ELFObjectWriter(raw_ostream &OS,
-                                                 uint8_t OSABI,
-                                                 bool IsLittleEndian) {
+MCObjectWriter *llvm::createAArch64ELFObjectWriter(raw_pwrite_stream &OS,
+                                                   uint8_t OSABI,
+                                                   bool IsLittleEndian) {
   MCELFObjectTargetWriter *MOTW =
       new AArch64ELFObjectWriter(OSABI, IsLittleEndian);
   return createELFObjectWriter(MOTW, OS, IsLittleEndian);

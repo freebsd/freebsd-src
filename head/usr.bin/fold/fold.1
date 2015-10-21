@@ -28,7 +28,7 @@
 .\"	@(#)fold.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2006
+.Dd June 6, 2015
 .Dt FOLD 1
 .Os
 .Sh NAME
@@ -84,6 +84,33 @@ The
 .Nm
 utility conforms to
 .St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 1 .
+It was rewritten for
+.Bx 4.3 Reno
+to improve speed and modernize style.
+The
+.Fl b
+and
+.Fl s
+options were added to
+.Nx 1.0
+for
+.St -p1003.2
+compliance.
+.Sh AUTHORS
+.An -nosplit
+.An Bill Joy
+wrote the original version of
+.Nm
+on June 28, 1977.
+.An Kevin Ruddy
+rewrote the command in 1990, and
+.An J. T. Conklin
+added the missing options in 1993.
 .Sh BUGS
 If underlining (see
 .Xr ul 1 )

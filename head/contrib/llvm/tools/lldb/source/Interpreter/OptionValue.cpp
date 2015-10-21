@@ -71,6 +71,21 @@ OptionValue::GetAsBoolean () const
     return nullptr;
 }
 
+const OptionValueChar *
+OptionValue::GetAsChar () const
+{
+    if (GetType () == OptionValue::eTypeChar)
+        return static_cast<const OptionValueChar *>(this);
+    return nullptr;
+}
+
+OptionValueChar *
+OptionValue::GetAsChar ()
+{
+    if (GetType () == OptionValue::eTypeChar)
+        return static_cast<OptionValueChar *>(this);
+    return nullptr;
+}
 
 OptionValueFileSpec *
 OptionValue::GetAsFileSpec ()
@@ -204,6 +219,38 @@ OptionValue::GetAsFormat () const
 {
     if (GetType () == OptionValue::eTypeFormat)
         return static_cast<const OptionValueFormat *>(this);
+    return nullptr;
+}
+
+OptionValueLanguage *
+OptionValue::GetAsLanguage ()
+{
+    if (GetType () == OptionValue::eTypeLanguage)
+        return static_cast<OptionValueLanguage *>(this);
+    return NULL;
+}
+
+const OptionValueLanguage *
+OptionValue::GetAsLanguage () const
+{
+    if (GetType () == OptionValue::eTypeLanguage)
+        return static_cast<const OptionValueLanguage *>(this);
+    return NULL;
+}
+
+OptionValueFormatEntity *
+OptionValue::GetAsFormatEntity ()
+{
+    if (GetType () == OptionValue::eTypeFormatEntity)
+        return static_cast<OptionValueFormatEntity *>(this);
+    return nullptr;
+}
+
+const OptionValueFormatEntity *
+OptionValue::GetAsFormatEntity () const
+{
+    if (GetType () == OptionValue::eTypeFormatEntity)
+        return static_cast<const OptionValueFormatEntity *>(this);
     return nullptr;
 }
 
@@ -342,6 +389,27 @@ OptionValue::SetBooleanValue (bool new_value)
     return false;
 }
 
+char
+OptionValue::GetCharValue(char fail_value) const
+{
+    const OptionValueChar *option_value = GetAsChar();
+    if (option_value)
+        return option_value->GetCurrentValue();
+    return fail_value;
+}
+
+char
+OptionValue::SetCharValue(char new_value)
+{
+    OptionValueChar *option_value = GetAsChar();
+    if (option_value)
+    {
+        option_value->SetCurrentValue(new_value);
+        return true;
+    }
+    return false;
+}
+
 int64_t
 OptionValue::GetEnumerationValue (int64_t fail_value) const
 {
@@ -414,6 +482,36 @@ OptionValue::SetFormatValue (lldb::Format new_value)
         return true;
     }
     return false;
+}
+
+lldb::LanguageType
+OptionValue::GetLanguageValue (lldb::LanguageType fail_value) const
+{
+    const OptionValueLanguage *option_value = GetAsLanguage ();
+    if (option_value)
+        return option_value->GetCurrentValue();
+    return fail_value;
+}
+
+bool
+OptionValue::SetLanguageValue (lldb::LanguageType new_language)
+{
+    OptionValueLanguage *option_value = GetAsLanguage ();
+    if (option_value)
+    {
+        option_value->SetCurrentValue(new_language);
+        return true;
+    }
+    return false;
+}
+
+const FormatEntity::Entry *
+OptionValue::GetFormatEntity () const
+{
+    const OptionValueFormatEntity *option_value = GetAsFormatEntity();
+    if (option_value)
+        return &option_value->GetCurrentValue();
+    return nullptr;
 }
 
 const RegularExpression *
@@ -520,11 +618,15 @@ OptionValue::GetBuiltinTypeAsCString (Type t)
         case eTypeArgs:         return "arguments";
         case eTypeArray:        return "array";
         case eTypeBoolean:      return "boolean";
+        case eTypeChar:
+            return "char";
         case eTypeDictionary:   return "dictionary";
         case eTypeEnum:         return "enum";
         case eTypeFileSpec:     return "file";
         case eTypeFileSpecList: return "file-list";
         case eTypeFormat:       return "format";
+        case eTypeFormatEntity: return "format-string";
+        case eTypeLanguage:     return "language";
         case eTypePathMap:      return "path-map";
         case eTypeProperties:   return "properties";
         case eTypeRegex:        return "regex";
@@ -545,18 +647,21 @@ OptionValue::CreateValueFromCStringForTypeMask (const char *value_cstr, uint32_t
     lldb::OptionValueSP value_sp;
     switch (type_mask)
     {
-    case 1u << eTypeArch:       value_sp.reset(new OptionValueArch()); break;
-    case 1u << eTypeBoolean:    value_sp.reset(new OptionValueBoolean(false)); break;
-    case 1u << eTypeFileSpec:   value_sp.reset(new OptionValueFileSpec()); break;
-    case 1u << eTypeFormat:     value_sp.reset(new OptionValueFormat(eFormatInvalid));    break;
-    case 1u << eTypeSInt64:     value_sp.reset(new OptionValueSInt64()); break;
-    case 1u << eTypeString:     value_sp.reset(new OptionValueString()); break;
-    case 1u << eTypeUInt64:     value_sp.reset(new OptionValueUInt64()); break;
-    case 1u << eTypeUUID:       value_sp.reset(new OptionValueUUID()); break;
+    case 1u << eTypeArch:           value_sp.reset(new OptionValueArch()); break;
+    case 1u << eTypeBoolean:        value_sp.reset(new OptionValueBoolean(false)); break;
+    case 1u << eTypeChar:           value_sp.reset(new OptionValueChar('\0')); break;
+    case 1u << eTypeFileSpec:       value_sp.reset(new OptionValueFileSpec()); break;
+    case 1u << eTypeFormat:         value_sp.reset(new OptionValueFormat(eFormatInvalid));    break;
+    case 1u << eTypeFormatEntity:   value_sp.reset(new OptionValueFormatEntity(NULL));    break;
+    case 1u << eTypeLanguage:       value_sp.reset(new OptionValueLanguage(eLanguageTypeUnknown));    break;
+    case 1u << eTypeSInt64:         value_sp.reset(new OptionValueSInt64()); break;
+    case 1u << eTypeString:         value_sp.reset(new OptionValueString()); break;
+    case 1u << eTypeUInt64:         value_sp.reset(new OptionValueUInt64()); break;
+    case 1u << eTypeUUID:           value_sp.reset(new OptionValueUUID()); break;
     }
 
     if (value_sp)
-        error = value_sp->SetValueFromCString (value_cstr, eVarSetOperationAssign);
+        error = value_sp->SetValueFromString (value_cstr, eVarSetOperationAssign);
     else
         error.SetErrorString("unsupported type mask");
     return value_sp;
@@ -598,7 +703,7 @@ OptionValue::AutoComplete (CommandInterpreter &interpreter,
 }
 
 Error
-OptionValue::SetValueFromCString (const char *value, VarSetOperationType op)
+OptionValue::SetValueFromString (llvm::StringRef value, VarSetOperationType op)
 {
     Error error;
     switch (op)

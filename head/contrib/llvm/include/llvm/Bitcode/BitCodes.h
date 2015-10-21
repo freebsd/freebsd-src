@@ -18,6 +18,7 @@
 #ifndef LLVM_BITCODE_BITCODES_H
 #define LLVM_BITCODE_BITCODES_H
 
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -124,7 +125,7 @@ public:
     case Blob:
       return false;
     }
-    llvm_unreachable("Invalid encoding");
+    report_fatal_error("Invalid encoding");
   }
 
   /// isChar6 - Return true if this character is legal in the Char6 encoding.
@@ -161,16 +162,13 @@ template <> struct isPodLike<BitCodeAbbrevOp> { static const bool value=true; };
 /// BitCodeAbbrev - This class represents an abbreviation record.  An
 /// abbreviation allows a complex record that has redundancy to be stored in a
 /// specialized format instead of the fully-general, fully-vbr, format.
-class BitCodeAbbrev {
+class BitCodeAbbrev : public RefCountedBase<BitCodeAbbrev> {
   SmallVector<BitCodeAbbrevOp, 32> OperandList;
-  unsigned char RefCount; // Number of things using this.
-  ~BitCodeAbbrev() {}
+  // Only RefCountedBase is allowed to delete.
+  ~BitCodeAbbrev() = default;
+  friend class RefCountedBase<BitCodeAbbrev>;
+
 public:
-  BitCodeAbbrev() : RefCount(1) {}
-
-  void addRef() { ++RefCount; }
-  void dropRef() { if (--RefCount == 0) delete this; }
-
   unsigned getNumOperandInfos() const {
     return static_cast<unsigned>(OperandList.size());
   }

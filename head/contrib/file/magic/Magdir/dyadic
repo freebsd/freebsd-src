@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: dyadic,v 1.6 2014/06/01 19:14:42 christos Exp $
+# $File: dyadic,v 1.7 2015/05/27 18:02:48 christos Exp $
 # Dyadic: file(1) magic for Dyalog APL.
 #
 # updated by Joerg Jenderek at Oct 2013
@@ -46,6 +46,11 @@
 >>>1	byte		0x12		component file 64-bit level 3 journaled checksummed
 >>>1	byte		0x13		component file 32-bit non-journaled checksummed
 >>>1	byte		0x14		component file 64-bit non-journaled checksummed
+>>>1	byte		0x15		component file under construction
+>>>1	byte		0x16		DFS component file 64-bit level 1 journaled checksummed
+>>>1	byte		0x17		DFS component file 64-bit level 2 journaled checksummed
+>>>1	byte		0x18		DFS component file 64-bit level 3 journaled checksummed
+>>>1	byte		0x19		external workspace
 >>>1	byte		0x80		DDB
 >>>2	byte		x		version %d
 >>>3	byte		x		\b.%d

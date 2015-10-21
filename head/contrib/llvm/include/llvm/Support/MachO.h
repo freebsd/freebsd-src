@@ -73,7 +73,10 @@ namespace llvm {
       MH_SETUID_SAFE             = 0x00080000u,
       MH_NO_REEXPORTED_DYLIBS    = 0x00100000u,
       MH_PIE                     = 0x00200000u,
-      MH_DEAD_STRIPPABLE_DYLIB   = 0x00400000u
+      MH_DEAD_STRIPPABLE_DYLIB   = 0x00400000u,
+      MH_HAS_TLV_DESCRIPTORS     = 0x00800000u,
+      MH_NO_HEAP_EXECUTION       = 0x01000000u,
+      MH_APP_EXTENSION_SAFE      = 0x02000000u
     };
 
     enum : uint32_t {
@@ -127,8 +130,8 @@ namespace llvm {
       LC_DATA_IN_CODE         = 0x00000029u,
       LC_SOURCE_VERSION       = 0x0000002Au,
       LC_DYLIB_CODE_SIGN_DRS  = 0x0000002Bu,
-      //                        0x0000002Cu,
-      LC_LINKER_OPTIONS       = 0x0000002Du,
+      LC_ENCRYPTION_INFO_64   = 0x0000002Cu,
+      LC_LINKER_OPTION        = 0x0000002Du,
       LC_LINKER_OPTIMIZATION_HINT = 0x0000002Eu
     };
 
@@ -327,7 +330,8 @@ namespace llvm {
 
     enum ExportSymbolKind {
       EXPORT_SYMBOL_FLAGS_KIND_REGULAR        = 0x00u,
-      EXPORT_SYMBOL_FLAGS_KIND_THREAD_LOCAL   = 0x01u
+      EXPORT_SYMBOL_FLAGS_KIND_THREAD_LOCAL   = 0x01u,
+      EXPORT_SYMBOL_FLAGS_KIND_ABSOLUTE       = 0x02u
     };
 
 
@@ -838,12 +842,21 @@ namespace llvm {
       uint32_t cryptid;
     };
 
+    struct encryption_info_command_64 {
+      uint32_t cmd;
+      uint32_t cmdsize;
+      uint32_t cryptoff;
+      uint32_t cryptsize;
+      uint32_t cryptid;
+      uint32_t pad;
+    };
+
     struct version_min_command {
       uint32_t cmd;       // LC_VERSION_MIN_MACOSX or
                           // LC_VERSION_MIN_IPHONEOS
       uint32_t cmdsize;   // sizeof(struct version_min_command)
       uint32_t version;   // X.Y.Z is encoded in nibbles xxxx.yy.zz
-      uint32_t reserved;
+      uint32_t sdk;       // X.Y.Z is encoded in nibbles xxxx.yy.zz
     };
 
     struct dyld_info_command {
@@ -861,7 +874,7 @@ namespace llvm {
       uint32_t export_size;
     };
 
-    struct linker_options_command {
+    struct linker_option_command {
       uint32_t cmd;
       uint32_t cmdsize;
       uint32_t count;
@@ -1094,10 +1107,82 @@ namespace llvm {
       sys::swapByteOrder(d.dylib.compatibility_version);
     }
 
+    inline void swapStruct(sub_framework_command &s) {
+      sys::swapByteOrder(s.cmd);
+      sys::swapByteOrder(s.cmdsize);
+      sys::swapByteOrder(s.umbrella);
+    }
+
+    inline void swapStruct(sub_umbrella_command &s) {
+      sys::swapByteOrder(s.cmd);
+      sys::swapByteOrder(s.cmdsize);
+      sys::swapByteOrder(s.sub_umbrella);
+    }
+
+    inline void swapStruct(sub_library_command &s) {
+      sys::swapByteOrder(s.cmd);
+      sys::swapByteOrder(s.cmdsize);
+      sys::swapByteOrder(s.sub_library);
+    }
+
+    inline void swapStruct(sub_client_command &s) {
+      sys::swapByteOrder(s.cmd);
+      sys::swapByteOrder(s.cmdsize);
+      sys::swapByteOrder(s.client);
+    }
+
+    inline void swapStruct(routines_command &r) {
+      sys::swapByteOrder(r.cmd);
+      sys::swapByteOrder(r.cmdsize);
+      sys::swapByteOrder(r.init_address);
+      sys::swapByteOrder(r.init_module);
+      sys::swapByteOrder(r.reserved1);
+      sys::swapByteOrder(r.reserved2);
+      sys::swapByteOrder(r.reserved3);
+      sys::swapByteOrder(r.reserved4);
+      sys::swapByteOrder(r.reserved5);
+      sys::swapByteOrder(r.reserved6);
+    }
+
+    inline void swapStruct(routines_command_64 &r) {
+      sys::swapByteOrder(r.cmd);
+      sys::swapByteOrder(r.cmdsize);
+      sys::swapByteOrder(r.init_address);
+      sys::swapByteOrder(r.init_module);
+      sys::swapByteOrder(r.reserved1);
+      sys::swapByteOrder(r.reserved2);
+      sys::swapByteOrder(r.reserved3);
+      sys::swapByteOrder(r.reserved4);
+      sys::swapByteOrder(r.reserved5);
+      sys::swapByteOrder(r.reserved6);
+    }
+
+    inline void swapStruct(thread_command &t) {
+      sys::swapByteOrder(t.cmd);
+      sys::swapByteOrder(t.cmdsize);
+    }
+
     inline void swapStruct(dylinker_command &d) {
       sys::swapByteOrder(d.cmd);
       sys::swapByteOrder(d.cmdsize);
       sys::swapByteOrder(d.name);
+    }
+
+    inline void swapStruct(uuid_command &u) {
+      sys::swapByteOrder(u.cmd);
+      sys::swapByteOrder(u.cmdsize);
+    }
+
+    inline void swapStruct(rpath_command &r) {
+      sys::swapByteOrder(r.cmd);
+      sys::swapByteOrder(r.cmdsize);
+      sys::swapByteOrder(r.path);
+    }
+
+    inline void swapStruct(source_version_command &s) {
+      sys::swapByteOrder(s.cmd);
+      sys::swapByteOrder(s.cmdsize);
+      sys::swapByteOrder(s.version);
     }
 
     inline void swapStruct(entry_point_command &e) {
@@ -1105,6 +1190,23 @@ namespace llvm {
       sys::swapByteOrder(e.cmdsize);
       sys::swapByteOrder(e.entryoff);
       sys::swapByteOrder(e.stacksize);
+    }
+
+    inline void swapStruct(encryption_info_command &e) {
+      sys::swapByteOrder(e.cmd);
+      sys::swapByteOrder(e.cmdsize);
+      sys::swapByteOrder(e.cryptoff);
+      sys::swapByteOrder(e.cryptsize);
+      sys::swapByteOrder(e.cryptid);
+    }
+
+    inline void swapStruct(encryption_info_command_64 &e) {
+      sys::swapByteOrder(e.cmd);
+      sys::swapByteOrder(e.cmdsize);
+      sys::swapByteOrder(e.cryptoff);
+      sys::swapByteOrder(e.cryptsize);
+      sys::swapByteOrder(e.cryptid);
+      sys::swapByteOrder(e.pad);
     }
 
     inline void swapStruct(dysymtab_command &dst) {
@@ -1159,7 +1261,7 @@ namespace llvm {
       sys::swapByteOrder(C.datasize);
     }
 
-    inline void swapStruct(linker_options_command &C) {
+    inline void swapStruct(linker_option_command &C) {
       sys::swapByteOrder(C.cmd);
       sys::swapByteOrder(C.cmdsize);
       sys::swapByteOrder(C.count);
@@ -1169,7 +1271,7 @@ namespace llvm {
       sys::swapByteOrder(C.cmd);
       sys::swapByteOrder(C.cmdsize);
       sys::swapByteOrder(C.version);
-      sys::swapByteOrder(C.reserved);
+      sys::swapByteOrder(C.sdk);
     }
 
     inline void swapStruct(data_in_code_entry &C) {
@@ -1316,6 +1418,262 @@ namespace llvm {
       CPU_SUBTYPE_MC980000_ALL  = CPU_SUBTYPE_POWERPC_ALL,
       CPU_SUBTYPE_MC98601       = CPU_SUBTYPE_POWERPC_601
     };
+
+    struct x86_thread_state64_t {
+      uint64_t rax;
+      uint64_t rbx;
+      uint64_t rcx;
+      uint64_t rdx;
+      uint64_t rdi;
+      uint64_t rsi;
+      uint64_t rbp;
+      uint64_t rsp;
+      uint64_t r8;
+      uint64_t r9;
+      uint64_t r10;
+      uint64_t r11;
+      uint64_t r12;
+      uint64_t r13;
+      uint64_t r14;
+      uint64_t r15;
+      uint64_t rip;
+      uint64_t rflags;
+      uint64_t cs;
+      uint64_t fs;
+      uint64_t gs;
+    };
+
+    enum x86_fp_control_precis {
+      x86_FP_PREC_24B = 0,
+      x86_FP_PREC_53B = 2,
+      x86_FP_PREC_64B = 3
+    };
+
+    enum x86_fp_control_rc {
+      x86_FP_RND_NEAR = 0,
+      x86_FP_RND_DOWN = 1,
+      x86_FP_RND_UP = 2,
+      x86_FP_CHOP = 3
+    };
+
+    struct fp_control_t {
+      unsigned short
+       invalid :1,
+       denorm  :1,
+       zdiv    :1,
+       ovrfl   :1,
+       undfl   :1,
+       precis  :1,
+               :2,
+       pc      :2,
+       rc      :2,
+               :1,
+               :3;
+    };
+
+    struct fp_status_t {
+      unsigned short
+        invalid :1,
+        denorm  :1,
+        zdiv    :1,
+        ovrfl   :1,
+        undfl   :1,
+        precis  :1,
+        stkflt  :1,
+        errsumm :1,
+        c0      :1,
+        c1      :1,
+        c2      :1,
+        tos     :3,
+        c3      :1,
+        busy    :1;
+    };
+
+    struct mmst_reg_t {
+      char mmst_reg[10];
+      char mmst_rsrv[6];
+    };
+
+    struct xmm_reg_t {
+      char xmm_reg[16];
+    };
+
+    struct x86_float_state64_t {
+      int32_t fpu_reserved[2];
+      fp_control_t fpu_fcw;
+      fp_status_t fpu_fsw;
+      uint8_t fpu_ftw;
+      uint8_t fpu_rsrv1;
+      uint16_t fpu_fop;
+      uint32_t fpu_ip;
+      uint16_t fpu_cs;
+      uint16_t fpu_rsrv2;
+      uint32_t fpu_dp;
+      uint16_t fpu_ds;
+      uint16_t fpu_rsrv3;
+      uint32_t fpu_mxcsr;
+      uint32_t fpu_mxcsrmask;
+      mmst_reg_t fpu_stmm0;
+      mmst_reg_t fpu_stmm1;
+      mmst_reg_t fpu_stmm2;
+      mmst_reg_t fpu_stmm3;
+      mmst_reg_t fpu_stmm4;
+      mmst_reg_t fpu_stmm5;
+      mmst_reg_t fpu_stmm6;
+      mmst_reg_t fpu_stmm7;
+      xmm_reg_t fpu_xmm0;
+      xmm_reg_t fpu_xmm1;
+      xmm_reg_t fpu_xmm2;
+      xmm_reg_t fpu_xmm3;
+      xmm_reg_t fpu_xmm4;
+      xmm_reg_t fpu_xmm5;
+      xmm_reg_t fpu_xmm6;
+      xmm_reg_t fpu_xmm7;
+      xmm_reg_t fpu_xmm8;
+      xmm_reg_t fpu_xmm9;
+      xmm_reg_t fpu_xmm10;
+      xmm_reg_t fpu_xmm11;
+      xmm_reg_t fpu_xmm12;
+      xmm_reg_t fpu_xmm13;
+      xmm_reg_t fpu_xmm14;
+      xmm_reg_t fpu_xmm15;
+      char fpu_rsrv4[6*16];
+      uint32_t fpu_reserved1;
+    };
+
+    struct x86_exception_state64_t {
+      uint16_t trapno;
+      uint16_t cpu;
+      uint32_t err;
+      uint64_t faultvaddr;
+    };
+
+    inline void swapStruct(x86_thread_state64_t &x) {
+      sys::swapByteOrder(x.rax);
+      sys::swapByteOrder(x.rbx);
+      sys::swapByteOrder(x.rcx);
+      sys::swapByteOrder(x.rdx);
+      sys::swapByteOrder(x.rdi);
+      sys::swapByteOrder(x.rsi);
+      sys::swapByteOrder(x.rbp);
+      sys::swapByteOrder(x.rsp);
+      sys::swapByteOrder(x.r8);
+      sys::swapByteOrder(x.r9);
+      sys::swapByteOrder(x.r10);
+      sys::swapByteOrder(x.r11);
+      sys::swapByteOrder(x.r12);
+      sys::swapByteOrder(x.r13);
+      sys::swapByteOrder(x.r14);
+      sys::swapByteOrder(x.r15);
+      sys::swapByteOrder(x.rip);
+      sys::swapByteOrder(x.rflags);
+      sys::swapByteOrder(x.cs);
+      sys::swapByteOrder(x.fs);
+      sys::swapByteOrder(x.gs);
+    }
+
+    inline void swapStruct(x86_float_state64_t &x) {
+      sys::swapByteOrder(x.fpu_reserved[0]);
+      sys::swapByteOrder(x.fpu_reserved[1]);
+      // TODO swap: fp_control_t fpu_fcw;
+      // TODO swap: fp_status_t fpu_fsw;
+      sys::swapByteOrder(x.fpu_fop);
+      sys::swapByteOrder(x.fpu_ip);
+      sys::swapByteOrder(x.fpu_cs);
+      sys::swapByteOrder(x.fpu_rsrv2);
+      sys::swapByteOrder(x.fpu_dp);
+      sys::swapByteOrder(x.fpu_ds);
+      sys::swapByteOrder(x.fpu_rsrv3);
+      sys::swapByteOrder(x.fpu_mxcsr);
+      sys::swapByteOrder(x.fpu_mxcsrmask);
+      sys::swapByteOrder(x.fpu_reserved1);
+    }
+
+    inline void swapStruct(x86_exception_state64_t &x) {
+      sys::swapByteOrder(x.trapno);
+      sys::swapByteOrder(x.cpu);
+      sys::swapByteOrder(x.err);
+      sys::swapByteOrder(x.faultvaddr);
+    }
+
+    struct x86_state_hdr_t {
+      uint32_t flavor;
+      uint32_t count;
+    };
+
+    struct x86_thread_state_t {
+      x86_state_hdr_t tsh;
+      union {
+        x86_thread_state64_t ts64;
+      } uts;
+    };
+
+    struct x86_float_state_t {
+      x86_state_hdr_t fsh;
+      union {
+        x86_float_state64_t fs64;
+      } ufs;
+    };
+
+    struct x86_exception_state_t {
+      x86_state_hdr_t esh;
+      union {
+        x86_exception_state64_t es64;
+      } ues;
+    };
+
+    inline void swapStruct(x86_state_hdr_t &x) {
+      sys::swapByteOrder(x.flavor);
+      sys::swapByteOrder(x.count);
+    }
+
+    enum X86ThreadFlavors {
+      x86_THREAD_STATE32    = 1,
+      x86_FLOAT_STATE32     = 2,
+      x86_EXCEPTION_STATE32 = 3,
+      x86_THREAD_STATE64    = 4,
+      x86_FLOAT_STATE64     = 5,
+      x86_EXCEPTION_STATE64 = 6,
+      x86_THREAD_STATE      = 7,
+      x86_FLOAT_STATE       = 8,
+      x86_EXCEPTION_STATE   = 9,
+      x86_DEBUG_STATE32     = 10,
+      x86_DEBUG_STATE64     = 11,
+      x86_DEBUG_STATE       = 12
+    };
+
+    inline void swapStruct(x86_thread_state_t &x) {
+      swapStruct(x.tsh);
+      if (x.tsh.flavor == x86_THREAD_STATE64)
+        swapStruct(x.uts.ts64);
+    }
+
+    inline void swapStruct(x86_float_state_t &x) {
+      swapStruct(x.fsh);
+      if (x.fsh.flavor == x86_FLOAT_STATE64)
+        swapStruct(x.ufs.fs64);
+    }
+
+    inline void swapStruct(x86_exception_state_t &x) {
+      swapStruct(x.esh);
+      if (x.esh.flavor == x86_EXCEPTION_STATE64)
+        swapStruct(x.ues.es64);
+    }
+
+    const uint32_t x86_THREAD_STATE64_COUNT =
+      sizeof(x86_thread_state64_t) / sizeof(uint32_t);
+    const uint32_t x86_FLOAT_STATE64_COUNT =
+      sizeof(x86_float_state64_t) / sizeof(uint32_t);
+    const uint32_t x86_EXCEPTION_STATE64_COUNT =
+      sizeof(x86_exception_state64_t) / sizeof(uint32_t);
+
+    const uint32_t x86_THREAD_STATE_COUNT =
+      sizeof(x86_thread_state_t) / sizeof(uint32_t);
+    const uint32_t x86_FLOAT_STATE_COUNT =
+      sizeof(x86_float_state_t) / sizeof(uint32_t);
+    const uint32_t x86_EXCEPTION_STATE_COUNT =
+      sizeof(x86_exception_state_t) / sizeof(uint32_t);
+
   } // end namespace MachO
 } // end namespace llvm
 

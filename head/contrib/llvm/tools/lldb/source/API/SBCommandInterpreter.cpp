@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/lldb-types.h"
 #include "lldb/Core/SourceManager.h"
 #include "lldb/Core/Listener.h"
@@ -20,6 +18,8 @@
 #include "lldb/API/SBBroadcaster.h"
 #include "lldb/API/SBCommandReturnObject.h"
 #include "lldb/API/SBCommandInterpreter.h"
+#include "lldb/API/SBEvent.h"
+#include "lldb/API/SBExecutionContext.h"
 #include "lldb/API/SBProcess.h"
 #include "lldb/API/SBTarget.h"
 #include "lldb/API/SBListener.h"
@@ -28,6 +28,100 @@
 
 using namespace lldb;
 using namespace lldb_private;
+
+SBCommandInterpreterRunOptions::SBCommandInterpreterRunOptions()
+{
+    m_opaque_up.reset(new CommandInterpreterRunOptions());
+}
+
+SBCommandInterpreterRunOptions::~SBCommandInterpreterRunOptions()
+{
+
+}
+
+bool
+SBCommandInterpreterRunOptions::GetStopOnContinue () const
+{
+    return m_opaque_up->GetStopOnContinue();
+}
+
+void
+SBCommandInterpreterRunOptions::SetStopOnContinue (bool stop_on_continue)
+{
+    m_opaque_up->SetStopOnContinue(stop_on_continue);
+}
+
+bool
+SBCommandInterpreterRunOptions::GetStopOnError () const
+{
+    return m_opaque_up->GetStopOnError();
+}
+
+void
+SBCommandInterpreterRunOptions::SetStopOnError (bool stop_on_error)
+{
+    m_opaque_up->SetStopOnError(stop_on_error);
+}
+
+bool
+SBCommandInterpreterRunOptions::GetStopOnCrash () const
+{
+    return m_opaque_up->GetStopOnCrash();
+}
+
+void
+SBCommandInterpreterRunOptions::SetStopOnCrash (bool stop_on_crash)
+{
+    m_opaque_up->SetStopOnCrash(stop_on_crash);
+}
+
+bool
+SBCommandInterpreterRunOptions::GetEchoCommands () const
+{
+    return m_opaque_up->GetEchoCommands();
+}
+
+void
+SBCommandInterpreterRunOptions::SetEchoCommands (bool echo_commands)
+{
+    m_opaque_up->SetEchoCommands(echo_commands);
+}
+
+bool
+SBCommandInterpreterRunOptions::GetPrintResults () const
+{
+    return m_opaque_up->GetPrintResults();
+}
+
+void
+SBCommandInterpreterRunOptions::SetPrintResults (bool print_results)
+{
+    m_opaque_up->SetPrintResults(print_results);
+}
+
+bool
+SBCommandInterpreterRunOptions::GetAddToHistory () const
+{
+    return m_opaque_up->GetAddToHistory();
+}
+
+void
+SBCommandInterpreterRunOptions::SetAddToHistory (bool add_to_history)
+{
+    m_opaque_up->SetAddToHistory(add_to_history);
+}
+
+lldb_private::CommandInterpreterRunOptions *
+SBCommandInterpreterRunOptions::get () const
+{
+    return m_opaque_up.get();
+}
+
+lldb_private::CommandInterpreterRunOptions &
+SBCommandInterpreterRunOptions::ref () const
+{
+    return *m_opaque_up.get();
+}
 
 class CommandPluginInterfaceImplementation : public CommandObjectParsed
 {
@@ -128,6 +222,13 @@ SBCommandInterpreter::GetIOHandlerControlSequence(char ch)
 lldb::ReturnStatus
 SBCommandInterpreter::HandleCommand (const char *command_line, SBCommandReturnObject &result, bool add_to_history)
 {
+    SBExecutionContext sb_exe_ctx;
+    return HandleCommand (command_line, sb_exe_ctx, result, add_to_history);
+}
+
+lldb::ReturnStatus
+SBCommandInterpreter::HandleCommand (const char *command_line, SBExecutionContext &override_context, SBCommandReturnObject &result, bool add_to_history)
+{
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
 
     if (log)
@@ -135,11 +236,21 @@ SBCommandInterpreter::HandleCommand (const char *command_line, SBCommandReturnOb
                      static_cast<void*>(m_opaque_ptr), command_line,
                      static_cast<void*>(result.get()), add_to_history);
 
+    ExecutionContext ctx, *ctx_ptr;
+    if (override_context.get())
+    {
+        ctx = override_context.get()->Lock(true);
+        ctx_ptr = &ctx;
+    }
+    else
+       ctx_ptr = nullptr;
+
+
     result.Clear();
     if (command_line && m_opaque_ptr)
     {
         result.ref().SetInteractive(false);
-        m_opaque_ptr->HandleCommand (command_line, add_to_history ? eLazyBoolYes : eLazyBoolNo, result.ref());
+        m_opaque_ptr->HandleCommand (command_line, add_to_history ? eLazyBoolYes : eLazyBoolNo, result.ref(), ctx_ptr);
     }
     else
     {
@@ -161,6 +272,54 @@ SBCommandInterpreter::HandleCommand (const char *command_line, SBCommandReturnOb
 
     return result.GetStatus();
 }
+
+void
+SBCommandInterpreter::HandleCommandsFromFile (lldb::SBFileSpec &file,
+                                              lldb::SBExecutionContext &override_context,
+                                              lldb::SBCommandInterpreterRunOptions &options,
+                                              lldb::SBCommandReturnObject result)
+{
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
+
+    if (log)
+    {
+        SBStream s;
+        file.GetDescription (s);
+        log->Printf ("SBCommandInterpreter(%p)::HandleCommandsFromFile (file=\"%s\", SBCommandReturnObject(%p))",
+                     static_cast<void*>(m_opaque_ptr), s.GetData(),
+                     static_cast<void*>(result.get()));
+    }
+
+    if (!m_opaque_ptr)
+    {
+        result->AppendError ("SBCommandInterpreter is not valid.");
+        result->SetStatus (eReturnStatusFailed);
+        return;
+    }
+
+    if (!file.IsValid())
+    {
+        SBStream s;
+        file.GetDescription (s);
+        result->AppendErrorWithFormat ("File is not valid: %s.", s.GetData());
+        result->SetStatus (eReturnStatusFailed);
+    }
+
+    FileSpec tmp_spec = file.ref();
+    ExecutionContext ctx, *ctx_ptr;
+    if (override_context.get())
+    {
+        ctx = override_context.get()->Lock(true);
+        ctx_ptr = &ctx;
+    }
+    else
+       ctx_ptr = nullptr;
+
+
+    m_opaque_ptr->HandleCommandsFromFile (tmp_spec, ctx_ptr, options.ref(), result.ref());
+
+}
+
 
 int
 SBCommandInterpreter::HandleCompletion (const char *current_line,
@@ -286,6 +445,37 @@ SBCommandInterpreter::GetDebugger ()
     return sb_debugger;
 }
 
+bool
+SBCommandInterpreter::GetPromptOnQuit()
+{
+    if (m_opaque_ptr)
+        return m_opaque_ptr->GetPromptOnQuit();
+    return false;
+}
+
+void
+SBCommandInterpreter::SetPromptOnQuit (bool b)
+{
+    if (m_opaque_ptr)
+        m_opaque_ptr->SetPromptOnQuit(b);
+}
+
+void
+SBCommandInterpreter::ResolveCommand(const char *command_line, SBCommandReturnObject &result)
+{
+    result.Clear();
+    if (command_line && m_opaque_ptr)
+    {
+        m_opaque_ptr->ResolveCommand(command_line, result.ref());
+    }
+    else
+    {
+        result->AppendError("SBCommandInterpreter or the command line is not valid");
+        result->SetStatus(eReturnStatusFailed);
+    }
+}
+
+
 CommandInterpreter *
 SBCommandInterpreter::get ()
 {
@@ -372,7 +562,7 @@ SBCommandInterpreter::GetBroadcaster ()
 const char *
 SBCommandInterpreter::GetBroadcasterClass ()
 {
-    return Communication::GetStaticBroadcasterClass().AsCString();
+    return CommandInterpreter::GetStaticBroadcasterClass().AsCString();
 }
 
 const char * 
@@ -385,6 +575,12 @@ const char *
 SBCommandInterpreter::GetArgumentDescriptionAsCString (const lldb::CommandArgumentType arg_type)
 {
     return CommandObject::GetArgumentDescriptionAsCString (arg_type);
+}
+
+bool
+SBCommandInterpreter::EventIsCommandInterpreterEvent (const lldb::SBEvent &event)
+{
+    return event.GetBroadcasterClass() == SBCommandInterpreter::GetBroadcasterClass();
 }
 
 bool
@@ -404,144 +600,6 @@ SBCommandInterpreter::SetCommandOverrideCallback (const char *command_name,
         }
     }
     return false;
-}
-
-#ifndef LLDB_DISABLE_PYTHON
-
-// Defined in the SWIG source file
-extern "C" void 
-init_lldb(void);
-
-// these are the Pythonic implementations of the required callbacks
-// these are scripting-language specific, which is why they belong here
-// we still need to use function pointers to them instead of relying
-// on linkage-time resolution because the SWIG stuff and this file
-// get built at different times
-extern "C" bool
-LLDBSwigPythonBreakpointCallbackFunction (const char *python_function_name,
-                                          const char *session_dictionary_name,
-                                          const lldb::StackFrameSP& sb_frame,
-                                          const lldb::BreakpointLocationSP& sb_bp_loc);
-
-extern "C" bool
-LLDBSwigPythonWatchpointCallbackFunction (const char *python_function_name,
-                                          const char *session_dictionary_name,
-                                          const lldb::StackFrameSP& sb_frame,
-                                          const lldb::WatchpointSP& sb_wp);
-
-extern "C" bool
-LLDBSwigPythonCallTypeScript (const char *python_function_name,
-                              void *session_dictionary,
-                              const lldb::ValueObjectSP& valobj_sp,
-                              void** pyfunct_wrapper,
-                              std::string& retval);
-
-extern "C" void*
-LLDBSwigPythonCreateSyntheticProvider (const char *python_class_name,
-                                       const char *session_dictionary_name,
-                                       const lldb::ValueObjectSP& valobj_sp);
-
-
-extern "C" uint32_t
-LLDBSwigPython_CalculateNumChildren (void *implementor);
-
-extern "C" void *
-LLDBSwigPython_GetChildAtIndex (void *implementor, uint32_t idx);
-
-extern "C" int
-LLDBSwigPython_GetIndexOfChildWithName (void *implementor, const char* child_name);
-
-extern "C" void *
-LLDBSWIGPython_CastPyObjectToSBValue (void* data);
-
-extern lldb::ValueObjectSP
-LLDBSWIGPython_GetValueObjectSPFromSBValue (void* data);
-
-extern "C" bool
-LLDBSwigPython_UpdateSynthProviderInstance (void* implementor);
-
-extern "C" bool
-LLDBSwigPython_MightHaveChildrenSynthProviderInstance (void* implementor);
-
-extern "C" bool
-LLDBSwigPythonCallCommand (const char *python_function_name,
-                           const char *session_dictionary_name,
-                           lldb::DebuggerSP& debugger,
-                           const char* args,
-                           lldb_private::CommandReturnObject &cmd_retobj);
-
-extern "C" bool
-LLDBSwigPythonCallModuleInit (const char *python_module_name,
-                              const char *session_dictionary_name,
-                              lldb::DebuggerSP& debugger);
-
-extern "C" void*
-LLDBSWIGPythonCreateOSPlugin (const char *python_class_name,
-                              const char *session_dictionary_name,
-                              const lldb::ProcessSP& process_sp);
-
-extern "C" bool
-LLDBSWIGPythonRunScriptKeywordProcess (const char* python_function_name,
-                                       const char* session_dictionary_name,
-                                       lldb::ProcessSP& process,
-                                       std::string& output);
-
-extern "C" bool
-LLDBSWIGPythonRunScriptKeywordThread (const char* python_function_name,
-                                      const char* session_dictionary_name,
-                                      lldb::ThreadSP& thread,
-                                      std::string& output);
-
-extern "C" bool
-LLDBSWIGPythonRunScriptKeywordTarget (const char* python_function_name,
-                                      const char* session_dictionary_name,
-                                      lldb::TargetSP& target,
-                                      std::string& output);
-
-extern "C" bool
-LLDBSWIGPythonRunScriptKeywordFrame (const char* python_function_name,
-                                     const char* session_dictionary_name,
-                                     lldb::StackFrameSP& frame,
-                                     std::string& output);
-
-extern "C" void*
-LLDBSWIGPython_GetDynamicSetting (void* module,
-                                  const char* setting,
-                                  const lldb::TargetSP& target_sp);
-
-
-#endif
-
-void
-SBCommandInterpreter::InitializeSWIG ()
-{
-    static bool g_initialized = false;
-    if (!g_initialized)
-    {
-        g_initialized = true;
-#ifndef LLDB_DISABLE_PYTHON
-        ScriptInterpreter::InitializeInterpreter (init_lldb,
-                                                  LLDBSwigPythonBreakpointCallbackFunction,
-                                                  LLDBSwigPythonWatchpointCallbackFunction,
-                                                  LLDBSwigPythonCallTypeScript,
-                                                  LLDBSwigPythonCreateSyntheticProvider,
-                                                  LLDBSwigPython_CalculateNumChildren,
-                                                  LLDBSwigPython_GetChildAtIndex,
-                                                  LLDBSwigPython_GetIndexOfChildWithName,
-                                                  LLDBSWIGPython_CastPyObjectToSBValue,
-                                                  LLDBSWIGPython_GetValueObjectSPFromSBValue,
-                                                  LLDBSwigPython_UpdateSynthProviderInstance,
-                                                  LLDBSwigPython_MightHaveChildrenSynthProviderInstance,
-                                                  LLDBSwigPythonCallCommand,
-                                                  LLDBSwigPythonCallModuleInit,
-                                                  LLDBSWIGPythonCreateOSPlugin,
-                                                  LLDBSWIGPythonRunScriptKeywordProcess,
-                                                  LLDBSWIGPythonRunScriptKeywordThread,
-                                                  LLDBSWIGPythonRunScriptKeywordTarget,
-                                                  LLDBSWIGPythonRunScriptKeywordFrame,
-                                                  LLDBSWIGPython_GetDynamicSetting);
-#endif
-    }
 }
 
 lldb::SBCommand
@@ -594,6 +652,28 @@ SBCommand::GetHelp ()
     return NULL;
 }
 
+const char*
+SBCommand::GetHelpLong ()
+{
+    if (IsValid ())
+        return m_opaque_sp->GetHelpLong ();
+    return NULL;
+}
+
+void
+SBCommand::SetHelp (const char* help)
+{
+    if (IsValid())
+        m_opaque_sp->SetHelp(help);
+}
+
+void
+SBCommand::SetHelpLong (const char* help)
+{
+    if (IsValid())
+        m_opaque_sp->SetHelpLong(help);
+}
+
 lldb::SBCommand
 SBCommand::AddMultiwordCommand (const char* name, const char* help)
 {
@@ -623,3 +703,17 @@ SBCommand::AddCommand (const char* name, lldb::SBCommandPluginInterface *impl, c
     return lldb::SBCommand();
 }
 
+uint32_t
+SBCommand::GetFlags ()
+{
+    if (!IsValid())
+        return 0;
+    return m_opaque_sp->GetFlags().Get();
+}
+
+void
+SBCommand::SetFlags (uint32_t flags)
+{
+    if (IsValid())
+        m_opaque_sp->GetFlags().Set(flags);
+}

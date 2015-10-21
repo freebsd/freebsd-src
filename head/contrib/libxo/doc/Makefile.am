@@ -8,6 +8,7 @@
 # using the SOFTWARE, you agree to be bound by the terms of that
 # LICENSE.
 
+if HAVE_OXTRADOC
 OXTRADOC_DIR = ${SLAX_OXTRADOCDIR}
 OXTRADOC_PREFIX = ${OXTRADOC_DIR}
 OXTRADOC = ${OXTRADOC_DIR}/oxtradoc
@@ -38,28 +39,32 @@ OX_ARGS += -S ${SLAXPROC} -p doc
 OX_CMD = ${PERL} ${PERLOPTS} ${OXTRADOC} ${OX_ARGS}
 OXTRADOC_CMD = ${OX_CMD}
 
-
 OUTPUT = libxo-manual
-INPUT = libxo.txt
+INPUT = libxo
 
 EXTRA_DIST = \
-    ${INPUT} \
+    ${INPUT}.txt \
     ${OUTPUT}.html \
     ${OUTPUT}.txt
 
 doc docs: ${OUTPUT}.txt ${OUTPUT}.html
 
-${OUTPUT}.txt: ${INPUT} ${OXTRADOC} xolint.txt
+${OUTPUT}.txt: ${INPUT}.txt ${OXTRADOC} xolint.txt
 	${OXTRADOC_CMD} -m text -o $@ $<
 
-${OUTPUT}.html: ${INPUT} ${OXTRADOC} ${XML2HTMLBIN} xolint.txt
+${OUTPUT}.html: ${INPUT}.txt ${OXTRADOC} ${XML2HTMLBIN} xolint.txt
 	${OXTRADOC_CMD} -m html -o $@ $<
 
 xolint.txt: ${top_srcdir}/xolint/xolint.pl
 	perl ${top_srcdir}/xolint/xolint.pl -D > xolint.txt
 
 CLEANFILES = \
-${OUTPUT}.xml \
-${OUTPUT}.txt \
-${OUTPUT}.fxml \
-${OUTPUT}.html
+xolint.txt \
+${INPUT}.xml \
+${INPUT}.txt \
+${INPUT}.fxml \
+${INPUT}.html
+else
+doc docs:
+	@${ECHO} "The 'oxtradoc' tool is not installed; see libslax.org"
+endif

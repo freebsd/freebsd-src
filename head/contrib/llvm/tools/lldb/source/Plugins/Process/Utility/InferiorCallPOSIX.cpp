@@ -14,6 +14,7 @@
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Target/ExecutionContext.h"
+#include "lldb/Target/Platform.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/ThreadPlanCallFunction.h"
@@ -27,8 +28,6 @@
 #define PROT_READ 1
 #define PROT_WRITE 2
 #define PROT_EXEC 4
-#define MAP_PRIVATE 2
-#define MAP_ANON 0x1000
 #endif
 
 using namespace lldb;
@@ -87,10 +86,8 @@ lldb_private::InferiorCallMmap (Process *process,
                 prot_arg |= PROT_WRITE;
             }
 
-            if (flags & eMmapFlagsPrivate)
-              flags_arg |= MAP_PRIVATE;
-            if (flags & eMmapFlagsAnon)
-              flags_arg |= MAP_ANON;
+            const ArchSpec arch =  process->GetTarget().GetArchitecture();
+            flags_arg = process->GetTarget().GetPlatform()->ConvertMmapFlagsToPlatform(arch,flags);
 
             AddressRange mmap_range;
             if (sc.GetAddressRange(range_scope, 0, use_inline_block_range, mmap_range))
@@ -98,13 +95,11 @@ lldb_private::InferiorCallMmap (Process *process,
                 ClangASTContext *clang_ast_context = process->GetTarget().GetScratchClangASTContext();
                 ClangASTType clang_void_ptr_type = clang_ast_context->GetBasicType(eBasicTypeVoid).GetPointerType();
                 lldb::addr_t args[] = { addr, length, prot_arg, flags_arg, fd, offset };
-                ThreadPlanCallFunction *call_function_thread_plan
-                  = new ThreadPlanCallFunction (*thread,
-                                                mmap_range.GetBaseAddress(),
-                                                clang_void_ptr_type,
-                                                args,
-                                                options);
-                lldb::ThreadPlanSP call_plan_sp (call_function_thread_plan);
+                lldb::ThreadPlanSP call_plan_sp (new ThreadPlanCallFunction (*thread,
+                                                                             mmap_range.GetBaseAddress(),
+                                                                             clang_void_ptr_type,
+                                                                             args,
+                                                                             options));
                 if (call_plan_sp)
                 {
                     StreamFile error_strm;
@@ -241,13 +236,11 @@ lldb_private::InferiorCall (Process *process,
 
     ClangASTContext *clang_ast_context = process->GetTarget().GetScratchClangASTContext();
     ClangASTType clang_void_ptr_type = clang_ast_context->GetBasicType(eBasicTypeVoid).GetPointerType();
-    ThreadPlanCallFunction *call_function_thread_plan
-        = new ThreadPlanCallFunction (*thread,
-                                      *address,
-                                      clang_void_ptr_type,
-                                      llvm::ArrayRef<addr_t>(),
-                                      options);
-    lldb::ThreadPlanSP call_plan_sp (call_function_thread_plan);
+    lldb::ThreadPlanSP call_plan_sp (new ThreadPlanCallFunction (*thread,
+                                                                 *address,
+                                                                 clang_void_ptr_type,
+                                                                 llvm::ArrayRef<addr_t>(),
+                                                                 options));
     if (call_plan_sp)
     {
         StreamString error_strm;

@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2014 The FreeBSD Foundation
+# Copyright (c) 2014, 2015 The FreeBSD Foundation
 # All rights reserved.
 #
 # This software was developed by Glen Barber under sponsorship
@@ -40,6 +40,7 @@ usage() {
 
 main() {
 	local arg
+	VMCONFIG="/dev/null"
 	while getopts "C:c:d:f:i:o:s:S:" arg; do
 		case "${arg}" in
 			C)
@@ -76,10 +77,9 @@ main() {
 		-z "${WORLDDIR}" -o \
 		-z "${DESTDIR}" -o \
 		-z "${VMSIZE}" -o \
-		-z "${VMIMAGE}" -o \
-		-z "${VMCONFIG}" ];
+		-z "${VMIMAGE}" ];
 	then
-		usage
+		usage || exit 0
 	fi
 
 	if [ -z "${VMBUILDCONF}" ] || [ ! -e "${VMBUILDCONF}" ]; then
@@ -89,9 +89,19 @@ main() {
 
 	. "${VMBUILDCONF}"
 
-	if [ ! -z "${VMCONFIG}" ] && [ -e "${VMCONFIG}" ]; then
+	if [ ! -z "${VMCONFIG}" ] && [ ! -c "${VMCONFIG}" ]; then
 		. "${VMCONFIG}"
 	fi
+
+	case ${TARGET}:${TARGET_ARCH} in
+		arm64:aarch64)
+			ROOTLABEL="ufs"
+			NOSWAP=1
+			;;
+		*)
+			ROOTLABEL="gpt"
+			;;
+	esac
 
 	vm_create_base
 	vm_install_base
@@ -102,6 +112,7 @@ main() {
 	vm_extra_pre_umount
 	vm_extra_pkg_rmcache
 	cleanup
+	vm_copy_base
 	vm_create_disk || return 0
 	vm_extra_create_disk
 

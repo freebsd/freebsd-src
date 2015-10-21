@@ -1,4 +1,4 @@
-/*	$OpenBSD: x86emu.c,v 1.5 2010/02/17 15:09:47 pirofti Exp $	*/
+/*	$OpenBSD: x86emu.c,v 1.9 2014/06/15 11:04:49 pirofti Exp $	*/
 /*	$NetBSD: x86emu.c,v 1.7 2009/02/03 19:26:29 joerg Exp $	*/
 
 /*
@@ -5250,7 +5250,7 @@ x86emuOp2_pop_FS(struct x86emu *emu)
 static void
 hw_cpuid(uint32_t *a, uint32_t *b, uint32_t *c, uint32_t *d)
 {
-	__asm__ __volatile__("cpuid"
+	__asm__ volatile("cpuid"
 			     : "=a" (*a), "=b" (*b),
 			       "=c" (*c), "=d" (*d)
 			     : "a" (*a), "c" (*c)

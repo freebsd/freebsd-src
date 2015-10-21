@@ -6,6 +6,7 @@ LIB=	llvmmipsdesc
 
 SRCDIR=	lib/Target/Mips/MCTargetDesc
 SRCS=	MipsABIFlagsSection.cpp \
+	MipsABIInfo.cpp \
 	MipsAsmBackend.cpp \
 	MipsELFObjectWriter.cpp \
 	MipsELFStreamer.cpp \

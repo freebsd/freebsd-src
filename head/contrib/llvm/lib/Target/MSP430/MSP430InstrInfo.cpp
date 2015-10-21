@@ -262,7 +262,7 @@ bool MSP430InstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
 unsigned
 MSP430InstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
                               MachineBasicBlock *FBB,
-                              const SmallVectorImpl<MachineOperand> &Cond,
+                              ArrayRef<MachineOperand> Cond,
                               DebugLoc DL) const {
   // Shouldn't be a fall through.
   assert(TBB && "InsertBranch must not be told to insert a fallthrough");
@@ -307,7 +307,7 @@ unsigned MSP430InstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
       return 0;
     case TargetOpcode::INLINEASM: {
       const MachineFunction *MF = MI->getParent()->getParent();
-      const TargetInstrInfo &TII = *MF->getTarget().getInstrInfo();
+      const TargetInstrInfo &TII = *MF->getSubtarget().getInstrInfo();
       return TII.getInlineAsmLength(MI->getOperand(0).getSymbolName(),
                                     *MF->getTarget().getMCAsmInfo());
     }

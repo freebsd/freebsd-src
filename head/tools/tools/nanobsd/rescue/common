@@ -31,8 +31,18 @@ CONF_INSTALL='
 CONF_WORLD='                                                                    
 #TARGET_ARCH=i386
 CFLAGS=-O -pipe                                                                
+WITHOUT_TESTS=YES
 ALL_MODULES=YES
 '
+
+# Functions
+toLower() {
+  echo $1 | tr "[:upper:]" "[:lower:]"
+}
+
+toUpper() {
+  echo $1 | tr "[:lower:]" "[:upper:]"
+}
 
 #customize_cmd cust_comconsole
 customize_cmd cust_allow_ssh_root
@@ -55,7 +65,7 @@ customize_cmd cust_ld32_cfg
 #)
 #customize_cmd cust_boot_cfg
 
-customize_cmd cust_pkg
+customize_cmd cust_pkgng
 
 cust_etc_cfg () (
   cd ${NANO_WORLDDIR}
@@ -93,16 +103,22 @@ last_orders () (
 	pprint 2 "last orders"
 	(
 	cd ${NANO_WORLDDIR}
-	echo "/dev/iso9660/${NANO_LABEL} / cd9660 ro,noatime 0 0" > etc/fstab
+	#makefs converts labels to uppercase anyways
+	BIGLABEL=`toUpper "${NANO_LABEL}"`
+	echo "/dev/iso9660/${BIGLABEL} / cd9660 ro,noatime 0 0" > etc/fstab
 	echo "tmpfs /boot/zfs tmpfs rw,size=1048576,mode=777 0 0" >> etc/fstab
 	echo "ports:/usr/ports /usr/ports nfs rw,noauto,noatime,bg,soft,intr,nfsv3 0 0" >> etc/fstab
 #	echo "/dev/ad1s1a /scratch ufs rw,noauto,noatime 0 0" >> etc/fstab
 	rm -f conf/default/etc/remount
 	touch conf/default/etc/.keepme
 	touch conf/default/var/.keepme
+	mkdir bootpool
+	mkdir mnt/a
+	mkdir mnt/b
+	mkdir mnt/c
 	cd ..
 	makefs -t cd9660 -o rockridge \
-	-o label="${NANO_LABEL}" -o publisher="RMX" \
+	-o label="${BIGLABEL}" -o publisher="RMX" \
 	-o bootimage="i386;_.w/boot/cdboot" -o no-emul-boot _.disk.iso _.w/
 	)
 )

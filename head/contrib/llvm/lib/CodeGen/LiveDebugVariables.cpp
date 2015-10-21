@@ -36,10 +36,11 @@
 #include "llvm/IR/Value.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <memory>
 
 using namespace llvm;
@@ -109,7 +110,8 @@ public:
 namespace {
 class LDVImpl;
 class UserValue {
-  const MDNode *variable; ///< The debug info variable we are part of.
+  const MDNode *Variable;   ///< The debug info variable we are part of.
+  const MDNode *Expression; ///< Any complex address expression.
   unsigned offset;        ///< Byte offset into variable.
   bool IsIndirect;        ///< true if this is a register-indirect+offset value.
   DebugLoc dl;            ///< The debug location for the variable. This is
@@ -139,11 +141,10 @@ class UserValue {
 
 public:
   /// UserValue - Create a new UserValue.
-  UserValue(const MDNode *var, unsigned o, bool i, DebugLoc L,
-            LocMap::Allocator &alloc)
-    : variable(var), offset(o), IsIndirect(i), dl(L), leader(this),
-      next(nullptr), locInts(alloc)
-  {}
+  UserValue(const MDNode *var, const MDNode *expr, unsigned o, bool i,
+            DebugLoc L, LocMap::Allocator &alloc)
+      : Variable(var), Expression(expr), offset(o), IsIndirect(i), dl(L),
+        leader(this), next(nullptr), locInts(alloc) {}
 
   /// getLeader - Get the leader of this value's equivalence class.
   UserValue *getLeader() {
@@ -157,8 +158,10 @@ public:
   UserValue *getNext() const { return next; }
 
   /// match - Does this UserValue match the parameters?
-  bool match(const MDNode *Var, unsigned Offset, bool indirect) const {
-    return Var == variable && Offset == offset && indirect == IsIndirect;
+  bool match(const MDNode *Var, const MDNode *Expr, const DILocation *IA,
+             unsigned Offset, bool indirect) const {
+    return Var == Variable && Expr == Expression && dl->getInlinedAt() == IA &&
+           Offset == offset && indirect == IsIndirect;
   }
 
   /// merge - Merge equivalence classes.
@@ -266,15 +269,9 @@ public:
   void emitDebugValues(VirtRegMap *VRM,
                        LiveIntervals &LIS, const TargetInstrInfo &TRI);
 
-  /// findDebugLoc - Return DebugLoc used for this DBG_VALUE instruction. A
-  /// variable may have more than one corresponding DBG_VALUE instructions. 
-  /// Only first one needs DebugLoc to identify variable's lexical scope
-  /// in source file.
-  DebugLoc findDebugLoc();
-
   /// getDebugLoc - Return DebugLoc of this UserValue.
   DebugLoc getDebugLoc() { return dl;}
-  void print(raw_ostream&, const TargetMachine*);
+  void print(raw_ostream &, const TargetRegisterInfo *);
 };
 } // namespace
 
@@ -306,8 +303,8 @@ class LDVImpl {
   UVMap userVarMap;
 
   /// getUserValue - Find or create a UserValue.
-  UserValue *getUserValue(const MDNode *Var, unsigned Offset,
-                          bool IsIndirect, DebugLoc DL);
+  UserValue *getUserValue(const MDNode *Var, const MDNode *Expr,
+                          unsigned Offset, bool IsIndirect, DebugLoc DL);
 
   /// lookupVirtReg - Find the EC leader for VirtReg or null.
   UserValue *lookupVirtReg(unsigned VirtReg);
@@ -329,12 +326,13 @@ class LDVImpl {
   void computeIntervals();
 
 public:
-  LDVImpl(LiveDebugVariables *ps) : pass(*ps), EmitDone(false),
-                                    ModifiedMF(false) {}
+  LDVImpl(LiveDebugVariables *ps)
+      : pass(*ps), MF(nullptr), EmitDone(false), ModifiedMF(false) {}
   bool runOnMachineFunction(MachineFunction &mf);
 
   /// clear - Release all memory.
   void clear() {
+    MF = nullptr;
     userValues.clear();
     virtRegToEqClass.clear();
     userVarMap.clear();
@@ -343,6 +341,7 @@ public:
            "Dbg values are not emitted in LDV");
     EmitDone = false;
     ModifiedMF = false;
+    LS.reset();
   }
 
   /// mapVirtReg - Map virtual register to an equivalence class.
@@ -358,10 +357,47 @@ public:
 };
 } // namespace
 
-void UserValue::print(raw_ostream &OS, const TargetMachine *TM) {
-  DIVariable DV(variable);
-  OS << "!\""; 
-  DV.printExtendedName(OS);
+static void printDebugLoc(DebugLoc DL, raw_ostream &CommentOS,
+                          const LLVMContext &Ctx) {
+  if (!DL)
+    return;
+
+  auto *Scope = cast<DIScope>(DL.getScope());
+  // Omit the directory, because it's likely to be long and uninteresting.
+  CommentOS << Scope->getFilename();
+  CommentOS << ':' << DL.getLine();
+  if (DL.getCol() != 0)
+    CommentOS << ':' << DL.getCol();
+
+  DebugLoc InlinedAtDL = DL.getInlinedAt();
+  if (!InlinedAtDL)
+    return;
+
+  CommentOS << " @[ ";
+  printDebugLoc(InlinedAtDL, CommentOS, Ctx);
+  CommentOS << " ]";
+}
+
+static void printExtendedName(raw_ostream &OS, const DILocalVariable *V,
+                              const DILocation *DL) {
+  const LLVMContext &Ctx = V->getContext();
+  StringRef Res = V->getName();
+  if (!Res.empty())
+    OS << Res << "," << V->getLine();
+  if (auto *InlinedAt = DL->getInlinedAt()) {
+    if (DebugLoc InlinedAtDL = InlinedAt) {
+      OS << " @[";
+      printDebugLoc(InlinedAtDL, OS, Ctx);
+      OS << "]";
+    }
+  }
+}
+
+void UserValue::print(raw_ostream &OS, const TargetRegisterInfo *TRI) {
+  auto *DV = cast<DILocalVariable>(Variable);
+  OS << "!\"";
+  printExtendedName(OS, DV, dl);
+
   OS << "\"\t";
   if (offset)
     OS << '+' << offset;
@@ -374,7 +410,7 @@ void UserValue::print(raw_ostream &OS, const TargetMachine *TM) {
   }
   for (unsigned i = 0, e = locations.size(); i != e; ++i) {
     OS << " Loc" << i << '=';
-    locations[i].print(OS, TM);
+    locations[i].print(OS, TRI);
   }
   OS << '\n';
 }
@@ -382,7 +418,7 @@ void UserValue::print(raw_ostream &OS, const TargetMachine *TM) {
 void LDVImpl::print(raw_ostream &OS) {
   OS << "********** DEBUG VARIABLES **********\n";
   for (unsigned i = 0, e = userValues.size(); i != e; ++i)
-    userValues[i]->print(OS, &MF->getTarget());
+    userValues[i]->print(OS, TRI);
 }
 
 void UserValue::coalesceLocation(unsigned LocNo) {
@@ -420,19 +456,20 @@ void UserValue::mapVirtRegs(LDVImpl *LDV) {
       LDV->mapVirtReg(locations[i].getReg(), this);
 }
 
-UserValue *LDVImpl::getUserValue(const MDNode *Var, unsigned Offset,
-                                 bool IsIndirect, DebugLoc DL) {
+UserValue *LDVImpl::getUserValue(const MDNode *Var, const MDNode *Expr,
+                                 unsigned Offset, bool IsIndirect,
+                                 DebugLoc DL) {
   UserValue *&Leader = userVarMap[Var];
   if (Leader) {
     UserValue *UV = Leader->getLeader();
     Leader = UV;
     for (; UV; UV = UV->getNext())
-      if (UV->match(Var, Offset, IsIndirect))
+      if (UV->match(Var, Expr, DL->getInlinedAt(), Offset, IsIndirect))
         return UV;
   }
 
   userValues.push_back(
-      make_unique<UserValue>(Var, Offset, IsIndirect, DL, allocator));
+      make_unique<UserValue>(Var, Expr, Offset, IsIndirect, DL, allocator));
   UserValue *UV = userValues.back().get();
   Leader = UserValue::merge(Leader, UV);
   return UV;
@@ -452,7 +489,7 @@ UserValue *LDVImpl::lookupVirtReg(unsigned VirtReg) {
 
 bool LDVImpl::handleDebugValue(MachineInstr *MI, SlotIndex Idx) {
   // DBG_VALUE loc, offset, variable
-  if (MI->getNumOperands() != 3 ||
+  if (MI->getNumOperands() != 4 ||
       !(MI->getOperand(1).isReg() || MI->getOperand(1).isImm()) ||
       !MI->getOperand(2).isMetadata()) {
     DEBUG(dbgs() << "Can't handle " << *MI);
@@ -462,9 +499,11 @@ bool LDVImpl::handleDebugValue(MachineInstr *MI, SlotIndex Idx) {
   // Get or create the UserValue for (variable,offset).
   bool IsIndirect = MI->isIndirectDebugValue();
   unsigned Offset = IsIndirect ? MI->getOperand(1).getImm() : 0;
-  const MDNode *Var = MI->getOperand(2).getMetadata();
+  const MDNode *Var = MI->getDebugVariable();
+  const MDNode *Expr = MI->getDebugExpression();
   //here.
-  UserValue *UV = getUserValue(Var, Offset, IsIndirect, MI->getDebugLoc());
+  UserValue *UV =
+      getUserValue(Var, Expr, Offset, IsIndirect, MI->getDebugLoc());
   UV->addDef(Idx, MI->getOperand(0));
   return true;
 }
@@ -693,11 +732,11 @@ void LDVImpl::computeIntervals() {
 }
 
 bool LDVImpl::runOnMachineFunction(MachineFunction &mf) {
+  clear();
   MF = &mf;
   LIS = &pass.getAnalysis<LiveIntervals>();
   MDT = &pass.getAnalysis<MachineDominatorTree>();
-  TRI = mf.getTarget().getRegisterInfo();
-  clear();
+  TRI = mf.getSubtarget().getRegisterInfo();
   LS.initialize(mf);
   DEBUG(dbgs() << "********** COMPUTING LIVE DEBUG VARIABLES: "
                << mf.getName() << " **********\n");
@@ -709,9 +748,25 @@ bool LDVImpl::runOnMachineFunction(MachineFunction &mf) {
   return Changed;
 }
 
+static void removeDebugValues(MachineFunction &mf) {
+  for (MachineBasicBlock &MBB : mf) {
+    for (auto MBBI = MBB.begin(), MBBE = MBB.end(); MBBI != MBBE; ) {
+      if (!MBBI->isDebugValue()) {
+        ++MBBI;
+        continue;
+      }
+      MBBI = MBB.erase(MBBI);
+    }
+  }
+}
+
 bool LiveDebugVariables::runOnMachineFunction(MachineFunction &mf) {
   if (!EnableLDV)
     return false;
+  if (!FunctionDIs.count(mf.getFunction())) {
+    removeDebugValues(mf);
+    return false;
+  }
   if (!pImpl)
     pImpl = new LDVImpl(this);
   return static_cast<LDVImpl*>(pImpl)->runOnMachineFunction(mf);
@@ -918,11 +973,6 @@ findInsertLocation(MachineBasicBlock *MBB, SlotIndex Idx,
                               std::next(MachineBasicBlock::iterator(MI));
 }
 
-DebugLoc UserValue::findDebugLoc() {
-  DebugLoc D = dl;
-  dl = DebugLoc();
-  return D;
-}
 void UserValue::insertDebugValue(MachineBasicBlock *MBB, SlotIndex Idx,
                                  unsigned LocNo,
                                  LiveIntervals &LIS,
@@ -931,12 +981,18 @@ void UserValue::insertDebugValue(MachineBasicBlock *MBB, SlotIndex Idx,
   MachineOperand &Loc = locations[LocNo];
   ++NumInsertedDebugValues;
 
+  assert(cast<DILocalVariable>(Variable)
+             ->isValidLocationForIntrinsic(getDebugLoc()) &&
+         "Expected inlined-at fields to agree");
   if (Loc.isReg())
-    BuildMI(*MBB, I, findDebugLoc(), TII.get(TargetOpcode::DBG_VALUE),
-            IsIndirect, Loc.getReg(), offset, variable);
+    BuildMI(*MBB, I, getDebugLoc(), TII.get(TargetOpcode::DBG_VALUE),
+            IsIndirect, Loc.getReg(), offset, Variable, Expression);
   else
-    BuildMI(*MBB, I, findDebugLoc(), TII.get(TargetOpcode::DBG_VALUE))
-      .addOperand(Loc).addImm(offset).addMetadata(variable);
+    BuildMI(*MBB, I, getDebugLoc(), TII.get(TargetOpcode::DBG_VALUE))
+        .addOperand(Loc)
+        .addImm(offset)
+        .addMetadata(Variable)
+        .addMetadata(Expression);
 }
 
 void UserValue::emitDebugValues(VirtRegMap *VRM, LiveIntervals &LIS,
@@ -974,9 +1030,11 @@ void UserValue::emitDebugValues(VirtRegMap *VRM, LiveIntervals &LIS,
 
 void LDVImpl::emitDebugValues(VirtRegMap *VRM) {
   DEBUG(dbgs() << "********** EMITTING LIVE DEBUG VARIABLES **********\n");
-  const TargetInstrInfo *TII = MF->getTarget().getInstrInfo();
+  if (!MF)
+    return;
+  const TargetInstrInfo *TII = MF->getSubtarget().getInstrInfo();
   for (unsigned i = 0, e = userValues.size(); i != e; ++i) {
-    DEBUG(userValues[i]->print(dbgs(), &MF->getTarget()));
+    DEBUG(userValues[i]->print(dbgs(), TRI));
     userValues[i]->rewriteLocations(*VRM, *TRI);
     userValues[i]->emitDebugValues(VRM, *LIS, *TII);
   }
@@ -988,6 +1046,10 @@ void LiveDebugVariables::emitDebugValues(VirtRegMap *VRM) {
     static_cast<LDVImpl*>(pImpl)->emitDebugValues(VRM);
 }
 
+bool LiveDebugVariables::doInitialization(Module &M) {
+  FunctionDIs = makeSubprogramMap(M);
+  return Pass::doInitialization(M);
+}
 
 #ifndef NDEBUG
 void LiveDebugVariables::dump() {

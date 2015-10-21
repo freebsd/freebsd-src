@@ -32,13 +32,9 @@
 #ifndef _MACHINE_FDT_H_
 #define _MACHINE_FDT_H_
 
-#include <dev/ofw/openfirm.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
 #include <machine/bus.h>
-#include <machine/intr.h>
+
+#ifndef INTRNG
 
 /* Max interrupt number */
 #define FDT_INTR_MAX	NIRQ
@@ -46,13 +42,11 @@
 /* Map phandle/intpin pair to global IRQ number */
 #define	FDT_MAP_IRQ(node, pin)	(pin)
 
+#endif
+
 /*
  * Bus space tag. XXX endianess info needs to be derived from the blob.
  */
 extern bus_space_tag_t fdtbus_bs_tag;
-
-struct arm_devmap_entry;
-
-int fdt_localbus_devmap(phandle_t, struct arm_devmap_entry *, int, int *);
 
 #endif /* _MACHINE_FDT_H_ */

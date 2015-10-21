@@ -6,40 +6,41 @@
  * Source Licenses. See LICENSE.TXT for details.
  *
  * ===----------------------------------------------------------------------===
- *
- * This file implements __fixdfdi for the compiler_rt library.
- *
- * ===----------------------------------------------------------------------===
  */
 
-#include "int_lib.h"
-
-/* Returns: convert a to a signed long long, rounding toward zero. */
-
-/* Assumption: double is a IEEE 64 bit floating point type 
- *            su_int is a 32 bit integral type
- *            value in double is representable in di_int (no range checking performed)
- */
-
-/* seee eeee eeee mmmm mmmm mmmm mmmm mmmm | mmmm mmmm mmmm mmmm mmmm mmmm mmmm mmmm */
-
+#define DOUBLE_PRECISION
+#include "fp_lib.h"
 ARM_EABI_FNALIAS(d2lz, fixdfdi)
+
+#ifndef __SOFT_FP__
+/* Support for systems that have hardware floating-point; can set the invalid
+ * flag as a side-effect of computation.
+ */
+
+COMPILER_RT_ABI du_int __fixunsdfdi(double a);
 
 COMPILER_RT_ABI di_int
 __fixdfdi(double a)
 {
-    double_bits fb;
-    fb.f = a;
-    int e = ((fb.u.s.high & 0x7FF00000) >> 20) - 1023;
-    if (e < 0)
-        return 0;
-    di_int s = (si_int)(fb.u.s.high & 0x80000000) >> 31;
-    dwords r;
-    r.s.high = (fb.u.s.high & 0x000FFFFF) | 0x00100000;
-    r.s.low = fb.u.s.low;
-    if (e > 52)
-        r.all <<= (e - 52);
-    else
-        r.all >>= (52 - e);
-    return (r.all ^ s) - s;
-} 
+    if (a < 0.0) {
+        return -__fixunsdfdi(-a);
+    }
+    return __fixunsdfdi(a);
+}
+
+#else
+/* Support for systems that don't have hardware floating-point; there are no
+ * flags to set, and we don't want to code-gen to an unknown soft-float
+ * implementation.
+ */
+
+typedef di_int fixint_t;
+typedef du_int fixuint_t;
+#include "fp_fixint_impl.inc"
+
+COMPILER_RT_ABI di_int
+__fixdfdi(fp_t a) {
+    return __fixint(a);
+}
+
+#endif

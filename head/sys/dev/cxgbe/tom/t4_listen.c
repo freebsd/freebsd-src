@@ -523,7 +523,7 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 		goto done;
 	}
 
-	KASSERT(sc->flags & TOM_INIT_DONE,
+	KASSERT(uld_active(sc, ULD_TOM),
 	    ("%s: TOM not initialized", __func__));
 #endif
 
@@ -930,7 +930,7 @@ t4_offload_socket(struct toedev *tod, void *arg, struct socket *so)
 	struct cpl_pass_establish *cpl = mtod(synqe->syn, void *);
 	struct toepcb *toep = *(struct toepcb **)(cpl + 1);
 
-	INP_INFO_LOCK_ASSERT(&V_tcbinfo); /* prevents bad race with accept() */
+	INP_INFO_RLOCK_ASSERT(&V_tcbinfo); /* prevents bad race with accept() */
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(synqe->flags & TPF_SYNQE,
 	    ("%s: %p not a synq_entry?", __func__, arg));
@@ -1090,35 +1090,6 @@ pass_accept_req_to_protohdrs(const struct mbuf *m, struct in_conninfo *inc,
 	}
 }
 
-static int
-ifnet_has_ip6(struct ifnet *ifp, struct in6_addr *ip6)
-{
-	struct ifaddr *ifa;
-	struct sockaddr_in6 *sin6;
-	int found = 0;
-	struct in6_addr in6 = *ip6;
-
-	/* Just as in ip6_input */
-	if (in6_clearscope(&in6) || in6_clearscope(&in6))
-		return (0);
-	in6_setscope(&in6, ifp, NULL);
-
-	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		sin6 = (void *)ifa->ifa_addr;
-		if (sin6->sin6_family != AF_INET6)
-			continue;
-
-		if (IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr, &in6)) {
-			found = 1;
-			break;
-		}
-	}
-	if_addr_runlock(ifp);
-
-	return (found);
-}
-
 static struct l2t_entry *
 get_l2te_for_nexthop(struct port_info *pi, struct ifnet *ifp,
     struct in_conninfo *inc)
@@ -1164,29 +1135,6 @@ get_l2te_for_nexthop(struct port_info *pi, struct ifnet *ifp,
 	}
 
 	return (e);
-}
-
-static int
-ifnet_has_ip(struct ifnet *ifp, struct in_addr in)
-{
-	struct ifaddr *ifa;
-	struct sockaddr_in *sin;
-	int found = 0;
-
-	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		sin = (void *)ifa->ifa_addr;
-		if (sin->sin_family != AF_INET)
-			continue;
-
-		if (sin->sin_addr.s_addr == in.s_addr) {
-			found = 1;
-			break;
-		}
-	}
-	if_addr_runlock(ifp);
-
-	return (found);
 }
 
 #define REJECT_PASS_ACCEPT()	do { \
@@ -1281,7 +1229,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		 * SYN must be directed to an IP6 address on this ifnet.  This
 		 * is more restrictive than in6_localip.
 		 */
-		if (!ifnet_has_ip6(ifp, &inc.inc6_laddr))
+		if (!in6_ifhasaddr(ifp, &inc.inc6_laddr))
 			REJECT_PASS_ACCEPT();
 	} else {
 
@@ -1293,7 +1241,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		 * SYN must be directed to an IP address on this ifnet.  This
 		 * is more restrictive than in_localip.
 		 */
-		if (!ifnet_has_ip(ifp, inc.inc_laddr))
+		if (!in_ifhasaddr(ifp, inc.inc_laddr))
 			REJECT_PASS_ACCEPT();
 	}
 
@@ -1311,15 +1259,15 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		REJECT_PASS_ACCEPT();
 	rpl = wrtod(wr);
 
-	INP_INFO_WLOCK(&V_tcbinfo);	/* for 4-tuple check */
+	INP_INFO_RLOCK(&V_tcbinfo);	/* for 4-tuple check */
 
 	/* Don't offload if the 4-tuple is already in use */
 	if (toe_4tuple_check(&inc, &th, ifp) != 0) {
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 		free(wr, M_CXGBE);
 		REJECT_PASS_ACCEPT();
 	}
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 
 	inp = lctx->inp;		/* listening socket, not owned by TOE */
 	INP_WLOCK(inp);
@@ -1493,7 +1441,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	unsigned int tid = GET_TID(cpl);
 	struct synq_entry *synqe = lookup_tid(sc, tid);
 	struct listen_ctx *lctx = synqe->lctx;
-	struct inpcb *inp = lctx->inp;
+	struct inpcb *inp = lctx->inp, *new_inp;
 	struct socket *so;
 	struct tcphdr th;
 	struct tcpopt to;
@@ -1511,7 +1459,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	KASSERT(synqe->flags & TPF_SYNQE,
 	    ("%s: tid %u (ctx %p) not a synqe", __func__, tid, synqe));
 
-	INP_INFO_WLOCK(&V_tcbinfo);	/* for syncache_expand */
+	INP_INFO_RLOCK(&V_tcbinfo);	/* for syncache_expand */
 	INP_WLOCK(inp);
 
 	CTR6(KTR_CXGBE,
@@ -1527,7 +1475,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 		}
 
 		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 		return (0);
 	}
 
@@ -1552,7 +1500,7 @@ reset:
 		 */
 		send_reset_synqe(TOEDEV(ifp), synqe);
 		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 		return (0);
 	}
 	toep->tid = tid;
@@ -1586,6 +1534,10 @@ reset:
 		goto reset;
 	}
 
+	/* New connection inpcb is already locked by syncache_expand(). */
+	new_inp = sotoinpcb(so);
+	INP_WLOCK_ASSERT(new_inp);
+
 	/*
 	 * This is for the unlikely case where the syncache entry that we added
 	 * has been evicted from the syncache, but the syncache_expand above
@@ -1596,20 +1548,18 @@ reset:
 	 * this somewhat defeats the purpose of having a tod_offload_socket :-(
 	 */
 	if (__predict_false(!(synqe->flags & TPF_SYNQE_EXPANDED))) {
-		struct inpcb *new_inp = sotoinpcb(so);
-
-		INP_WLOCK(new_inp);
 		tcp_timer_activate(intotcpcb(new_inp), TT_KEEP, 0);
 		t4_offload_socket(TOEDEV(ifp), synqe, so);
-		INP_WUNLOCK(new_inp);
 	}
+
+	INP_WUNLOCK(new_inp);
 
 	/* Done with the synqe */
 	TAILQ_REMOVE(&lctx->synq, synqe, link);
 	inp = release_lctx(sc, lctx);
 	if (inp != NULL)
 		INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 	release_synqe(synqe);
 
 	return (0);

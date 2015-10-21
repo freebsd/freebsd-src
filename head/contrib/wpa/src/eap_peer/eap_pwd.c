@@ -10,13 +10,15 @@
 
 #include "common.h"
 #include "crypto/sha256.h"
+#include "crypto/ms_funcs.h"
 #include "eap_peer/eap_i.h"
 #include "eap_common/eap_pwd_common.h"
 
 
 struct eap_pwd_data {
 	enum {
-		PWD_ID_Req, PWD_Commit_Req, PWD_Confirm_Req, SUCCESS, FAILURE
+		PWD_ID_Req, PWD_Commit_Req, PWD_Confirm_Req,
+		SUCCESS_ON_FRAG_COMPLETION, SUCCESS, FAILURE
 	} state;
 	u8 *id_peer;
 	size_t id_peer_len;
@@ -24,6 +26,7 @@ struct eap_pwd_data {
 	size_t id_server_len;
 	u8 *password;
 	size_t password_len;
+	int password_hash;
 	u16 group_num;
 	EAP_PWD_group *grp;
 
@@ -42,6 +45,7 @@ struct eap_pwd_data {
 
 	u8 msk[EAP_MSK_LEN];
 	u8 emsk[EAP_EMSK_LEN];
+	u8 session_id[1 + SHA256_MAC_LEN];
 
 	BN_CTX *bnctx;
 };
@@ -57,6 +61,8 @@ static const char * eap_pwd_state_txt(int state)
 		return "PWD-Commit-Req";
         case PWD_Confirm_Req:
 		return "PWD-Confirm-Req";
+	case SUCCESS_ON_FRAG_COMPLETION:
+		return "SUCCESS_ON_FRAG_COMPLETION";
         case SUCCESS:
 		return "SUCCESS";
         case FAILURE:
@@ -81,8 +87,10 @@ static void * eap_pwd_init(struct eap_sm *sm)
 	struct eap_pwd_data *data;
 	const u8 *identity, *password;
 	size_t identity_len, password_len;
+	int fragment_size;
+	int pwhash;
 
-	password = eap_get_config_password(sm, &password_len);
+	password = eap_get_config_password2(sm, &password_len, &pwhash);
 	if (password == NULL) {
 		wpa_printf(MSG_INFO, "EAP-PWD: No password configured!");
 		return NULL;
@@ -118,16 +126,21 @@ static void * eap_pwd_init(struct eap_sm *sm)
 	if ((data->password = os_malloc(password_len)) == NULL) {
 		wpa_printf(MSG_INFO, "EAP-PWD: memory allocation psk fail");
 		BN_CTX_free(data->bnctx);
-		os_free(data->id_peer);
+		bin_clear_free(data->id_peer, data->id_peer_len);
 		os_free(data);
 		return NULL;
 	}
 	os_memcpy(data->password, password, password_len);
 	data->password_len = password_len;
+	data->password_hash = pwhash;
 
 	data->out_frag_pos = data->in_frag_pos = 0;
 	data->inbuf = data->outbuf = NULL;
-	data->mtu = 1020; /* default from RFC 5931, make it configurable! */
+	fragment_size = eap_get_config_fragment_size(sm);
+	if (fragment_size <= 0)
+		data->mtu = 1020; /* default from RFC 5931 */
+	else
+		data->mtu = fragment_size;
 
 	data->state = PWD_ID_Req;
 
@@ -139,24 +152,26 @@ static void eap_pwd_deinit(struct eap_sm *sm, void *priv)
 {
 	struct eap_pwd_data *data = priv;
 
-	BN_free(data->private_value);
-	BN_free(data->server_scalar);
-	BN_free(data->my_scalar);
-	BN_free(data->k);
+	BN_clear_free(data->private_value);
+	BN_clear_free(data->server_scalar);
+	BN_clear_free(data->my_scalar);
+	BN_clear_free(data->k);
 	BN_CTX_free(data->bnctx);
-	EC_POINT_free(data->my_element);
-	EC_POINT_free(data->server_element);
-	os_free(data->id_peer);
-	os_free(data->id_server);
-	os_free(data->password);
+	EC_POINT_clear_free(data->my_element);
+	EC_POINT_clear_free(data->server_element);
+	bin_clear_free(data->id_peer, data->id_peer_len);
+	bin_clear_free(data->id_server, data->id_server_len);
+	bin_clear_free(data->password, data->password_len);
 	if (data->grp) {
 		EC_GROUP_free(data->grp->group);
-		EC_POINT_free(data->grp->pwe);
-		BN_free(data->grp->order);
-		BN_free(data->grp->prime);
+		EC_POINT_clear_free(data->grp->pwe);
+		BN_clear_free(data->grp->order);
+		BN_clear_free(data->grp->prime);
 		os_free(data->grp);
 	}
-	os_free(data);
+	wpabuf_free(data->inbuf);
+	wpabuf_free(data->outbuf);
+	bin_clear_free(data, sizeof(*data));
 }
 
 
@@ -179,6 +194,25 @@ static u8 * eap_pwd_getkey(struct eap_sm *sm, void *priv, size_t *len)
 }
 
 
+static u8 * eap_pwd_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
+{
+	struct eap_pwd_data *data = priv;
+	u8 *id;
+
+	if (data->state != SUCCESS)
+		return NULL;
+
+	id = os_malloc(1 + SHA256_MAC_LEN);
+	if (id == NULL)
+		return NULL;
+
+	os_memcpy(id, data->session_id, 1 + SHA256_MAC_LEN);
+	*len = 1 + SHA256_MAC_LEN;
+
+	return id;
+}
+
+
 static void
 eap_pwd_perform_id_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 			    struct eap_method_ret *ret,
@@ -186,6 +220,10 @@ eap_pwd_perform_id_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 			    const u8 *payload, size_t payload_len)
 {
 	struct eap_pwd_id *id;
+	const u8 *password;
+	size_t password_len;
+	u8 pwhashhash[16];
+	int res;
 
 	if (data->state != PWD_ID_Req) {
 		ret->ignore = TRUE;
@@ -201,9 +239,28 @@ eap_pwd_perform_id_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 
 	id = (struct eap_pwd_id *) payload;
 	data->group_num = be_to_host16(id->group_num);
+	wpa_printf(MSG_DEBUG,
+		   "EAP-PWD: Server EAP-pwd-ID proposal: group=%u random=%u prf=%u prep=%u",
+		   data->group_num, id->random_function, id->prf, id->prep);
 	if ((id->random_function != EAP_PWD_DEFAULT_RAND_FUNC) ||
 	    (id->prf != EAP_PWD_DEFAULT_PRF)) {
 		ret->ignore = TRUE;
+		eap_pwd_state(data, FAILURE);
+		return;
+	}
+
+	if (id->prep != EAP_PWD_PREP_NONE &&
+	    id->prep != EAP_PWD_PREP_MS) {
+		wpa_printf(MSG_DEBUG,
+			   "EAP-PWD: Unsupported password pre-processing technique (Prep=%u)",
+			   id->prep);
+		eap_pwd_state(data, FAILURE);
+		return;
+	}
+
+	if (id->prep == EAP_PWD_PREP_NONE && data->password_hash) {
+		wpa_printf(MSG_DEBUG,
+			   "EAP-PWD: Unhashed password not available");
 		eap_pwd_state(data, FAILURE);
 		return;
 	}
@@ -222,20 +279,54 @@ eap_pwd_perform_id_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 	wpa_hexdump_ascii(MSG_INFO, "EAP-PWD (peer): server sent id of",
 			  data->id_server, data->id_server_len);
 
-	if ((data->grp = (EAP_PWD_group *) os_malloc(sizeof(EAP_PWD_group))) ==
-	    NULL) {
+	data->grp = os_zalloc(sizeof(EAP_PWD_group));
+	if (data->grp == NULL) {
 		wpa_printf(MSG_INFO, "EAP-PWD: failed to allocate memory for "
 			   "group");
 		eap_pwd_state(data, FAILURE);
 		return;
 	}
 
+	if (id->prep == EAP_PWD_PREP_MS) {
+#ifdef CONFIG_FIPS
+		wpa_printf(MSG_ERROR,
+			   "EAP-PWD (peer): MS password hash not supported in FIPS mode");
+		eap_pwd_state(data, FAILURE);
+		return;
+#else /* CONFIG_FIPS */
+		if (data->password_hash) {
+			res = hash_nt_password_hash(data->password, pwhashhash);
+		} else {
+			u8 pwhash[16];
+
+			res = nt_password_hash(data->password,
+					       data->password_len, pwhash);
+			if (res == 0)
+				res = hash_nt_password_hash(pwhash, pwhashhash);
+			os_memset(pwhash, 0, sizeof(pwhash));
+		}
+
+		if (res) {
+			eap_pwd_state(data, FAILURE);
+			return;
+		}
+
+		password = pwhashhash;
+		password_len = sizeof(pwhashhash);
+#endif /* CONFIG_FIPS */
+	} else {
+		password = data->password;
+		password_len = data->password_len;
+	}
+
 	/* compute PWE */
-	if (compute_password_element(data->grp, data->group_num,
-				     data->password, data->password_len,
-				     data->id_server, data->id_server_len,
-				     data->id_peer, data->id_peer_len,
-				     id->token)) {
+	res = compute_password_element(data->grp, data->group_num,
+				       password, password_len,
+				       data->id_server, data->id_server_len,
+				       data->id_peer, data->id_peer_len,
+				       id->token);
+	os_memset(pwhashhash, 0, sizeof(pwhashhash));
+	if (res) {
 		wpa_printf(MSG_INFO, "EAP-PWD (peer): unable to compute PWE");
 		eap_pwd_state(data, FAILURE);
 		return;
@@ -271,6 +362,23 @@ eap_pwd_perform_commit_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 	BIGNUM *mask = NULL, *x = NULL, *y = NULL, *cofactor = NULL;
 	u16 offset;
 	u8 *ptr, *scalar = NULL, *element = NULL;
+	size_t prime_len, order_len;
+
+	if (data->state != PWD_Commit_Req) {
+		ret->ignore = TRUE;
+		goto fin;
+	}
+
+	prime_len = BN_num_bytes(data->grp->prime);
+	order_len = BN_num_bytes(data->grp->order);
+
+	if (payload_len != 2 * prime_len + order_len) {
+		wpa_printf(MSG_INFO,
+			   "EAP-pwd: Unexpected Commit payload length %u (expected %u)",
+			   (unsigned int) payload_len,
+			   (unsigned int) (2 * prime_len + order_len));
+		goto fin;
+	}
 
 	if (((data->private_value = BN_new()) == NULL) ||
 	    ((data->my_element = EC_POINT_new(data->grp->group)) == NULL) ||
@@ -287,11 +395,15 @@ eap_pwd_perform_commit_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 		goto fin;
 	}
 
-	BN_rand_range(data->private_value, data->grp->order);
-	BN_rand_range(mask, data->grp->order);
-	BN_add(data->my_scalar, data->private_value, mask);
-	BN_mod(data->my_scalar, data->my_scalar, data->grp->order,
-	       data->bnctx);
+	if (BN_rand_range(data->private_value, data->grp->order) != 1 ||
+	    BN_rand_range(mask, data->grp->order) != 1 ||
+	    BN_add(data->my_scalar, data->private_value, mask) != 1 ||
+	    BN_mod(data->my_scalar, data->my_scalar, data->grp->order,
+		   data->bnctx) != 1) {
+		wpa_printf(MSG_INFO,
+			   "EAP-pwd (peer): unable to get randomness");
+		goto fin;
+	}
 
 	if (!EC_POINT_mul(data->grp->group, data->my_element, NULL,
 			  data->grp->pwe, mask, data->bnctx)) {
@@ -306,7 +418,7 @@ eap_pwd_perform_commit_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 		wpa_printf(MSG_INFO, "EAP-PWD (peer): element inversion fail");
 		goto fin;
 	}
-	BN_free(mask);
+	BN_clear_free(mask);
 
 	if (((x = BN_new()) == NULL) ||
 	    ((y = BN_new()) == NULL)) {
@@ -441,11 +553,11 @@ eap_pwd_perform_commit_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 fin:
 	os_free(scalar);
 	os_free(element);
-	BN_free(x);
-	BN_free(y);
-	BN_free(cofactor);
-	EC_POINT_free(K);
-	EC_POINT_free(point);
+	BN_clear_free(x);
+	BN_clear_free(y);
+	BN_clear_free(cofactor);
+	EC_POINT_clear_free(K);
+	EC_POINT_clear_free(point);
 	if (data->outbuf == NULL)
 		eap_pwd_state(data, FAILURE);
 	else
@@ -465,6 +577,18 @@ eap_pwd_perform_confirm_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 	u16 grp;
 	u8 conf[SHA256_MAC_LEN], *cruft = NULL, *ptr;
 	int offset;
+
+	if (data->state != PWD_Confirm_Req) {
+		ret->ignore = TRUE;
+		goto fin;
+	}
+
+	if (payload_len != SHA256_MAC_LEN) {
+		wpa_printf(MSG_INFO,
+			   "EAP-pwd: Unexpected Confirm payload length %u (expected %u)",
+			   (unsigned int) payload_len, SHA256_MAC_LEN);
+		goto fin;
+	}
 
 	/*
 	 * first build up the ciphersuite which is group | random_function |
@@ -559,7 +683,7 @@ eap_pwd_perform_confirm_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 	eap_pwd_h_final(hash, conf);
 
 	ptr = (u8 *) payload;
-	if (os_memcmp(conf, ptr, SHA256_MAC_LEN)) {
+	if (os_memcmp_const(conf, ptr, SHA256_MAC_LEN)) {
 		wpa_printf(MSG_INFO, "EAP-PWD (peer): confirm did not verify");
 		goto fin;
 	}
@@ -637,7 +761,7 @@ eap_pwd_perform_confirm_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 
 	if (compute_keys(data->grp, data->bnctx, data->k,
 			 data->my_scalar, data->server_scalar, conf, ptr,
-			 &cs, data->msk, data->emsk) < 0) {
+			 &cs, data->msk, data->emsk, data->session_id) < 0) {
 		wpa_printf(MSG_INFO, "EAP-PWD (peer): unable to compute MSK | "
 			   "EMSK");
 		goto fin;
@@ -650,16 +774,15 @@ eap_pwd_perform_confirm_exchange(struct eap_sm *sm, struct eap_pwd_data *data,
 	wpabuf_put_data(data->outbuf, conf, SHA256_MAC_LEN);
 
 fin:
-	os_free(cruft);
-	BN_free(x);
-	BN_free(y);
-	ret->methodState = METHOD_DONE;
+	bin_clear_free(cruft, BN_num_bytes(data->grp->prime));
+	BN_clear_free(x);
+	BN_clear_free(y);
 	if (data->outbuf == NULL) {
+		ret->methodState = METHOD_DONE;
 		ret->decision = DECISION_FAIL;
 		eap_pwd_state(data, FAILURE);
 	} else {
-		ret->decision = DECISION_UNCOND_SUCC;
-		eap_pwd_state(data, SUCCESS);
+		eap_pwd_state(data, SUCCESS_ON_FRAG_COMPLETION);
 	}
 }
 
@@ -736,6 +859,11 @@ eap_pwd_process(struct eap_sm *sm, void *priv, struct eap_method_ret *ret,
 		wpa_printf(MSG_DEBUG, "EAP-pwd: Send %s fragment of %d bytes",
 			   data->out_frag_pos == 0 ? "last" : "next",
 			   (int) len);
+		if (data->state == SUCCESS_ON_FRAG_COMPLETION) {
+			ret->methodState = METHOD_DONE;
+			ret->decision = DECISION_UNCOND_SUCC;
+			eap_pwd_state(data, SUCCESS);
+		}
 		return resp;
 	}
 
@@ -745,15 +873,30 @@ eap_pwd_process(struct eap_sm *sm, void *priv, struct eap_method_ret *ret,
 	 * if it's the first fragment there'll be a length field
 	 */
 	if (EAP_PWD_GET_LENGTH_BIT(lm_exch)) {
+		if (len < 2) {
+			wpa_printf(MSG_DEBUG,
+				   "EAP-pwd: Frame too short to contain Total-Length field");
+			ret->ignore = TRUE;
+			return NULL;
+		}
 		tot_len = WPA_GET_BE16(pos);
 		wpa_printf(MSG_DEBUG, "EAP-pwd: Incoming fragments whose "
 			   "total length = %d", tot_len);
+		if (tot_len > 15000)
+			return NULL;
+		if (data->inbuf) {
+			wpa_printf(MSG_DEBUG,
+				   "EAP-pwd: Unexpected new fragment start when previous fragment is still in use");
+			ret->ignore = TRUE;
+			return NULL;
+		}
 		data->inbuf = wpabuf_alloc(tot_len);
 		if (data->inbuf == NULL) {
 			wpa_printf(MSG_INFO, "Out of memory to buffer "
 				   "fragments!");
 			return NULL;
 		}
+		data->in_frag_pos = 0;
 		pos += sizeof(u16);
 		len -= sizeof(u16);
 	}
@@ -768,6 +911,7 @@ eap_pwd_process(struct eap_sm *sm, void *priv, struct eap_method_ret *ret,
 				   (int) data->in_frag_pos,
 				   (int) wpabuf_len(data->inbuf));
 			wpabuf_free(data->inbuf);
+			data->inbuf = NULL;
 			data->in_frag_pos = 0;
 			return NULL;
 		}
@@ -819,15 +963,20 @@ eap_pwd_process(struct eap_sm *sm, void *priv, struct eap_method_ret *ret,
 	 */
 	if (data->in_frag_pos) {
 		wpabuf_free(data->inbuf);
+		data->inbuf = NULL;
 		data->in_frag_pos = 0;
 	}
 
-	if (data->outbuf == NULL)
+	if (data->outbuf == NULL) {
+		ret->methodState = METHOD_DONE;
+		ret->decision = DECISION_FAIL;
 		return NULL;        /* generic failure */
+	}
 
 	/*
 	 * we have output! Do we need to fragment it?
 	 */
+	lm_exch = EAP_PWD_GET_EXCHANGE(lm_exch);
 	len = wpabuf_len(data->outbuf);
 	if ((len + EAP_PWD_HDR_SIZE) > data->mtu) {
 		resp = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_PWD, data->mtu,
@@ -866,6 +1015,11 @@ eap_pwd_process(struct eap_sm *sm, void *priv, struct eap_method_ret *ret,
 		wpabuf_free(data->outbuf);
 		data->outbuf = NULL;
 		data->out_frag_pos = 0;
+		if (data->state == SUCCESS_ON_FRAG_COMPLETION) {
+			ret->methodState = METHOD_DONE;
+			ret->decision = DECISION_UNCOND_SUCC;
+			eap_pwd_state(data, SUCCESS);
+		}
 	}
 
 	return resp;
@@ -902,7 +1056,6 @@ int eap_peer_pwd_register(void)
 	struct eap_method *eap;
 	int ret;
 
-	EVP_add_digest(EVP_sha256());
 	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
 				    EAP_VENDOR_IETF, EAP_TYPE_PWD, "PWD");
 	if (eap == NULL)
@@ -913,6 +1066,7 @@ int eap_peer_pwd_register(void)
 	eap->process = eap_pwd_process;
 	eap->isKeyAvailable = eap_pwd_key_available;
 	eap->getKey = eap_pwd_getkey;
+	eap->getSessionId = eap_pwd_get_session_id;
 	eap->get_emsk = eap_pwd_get_emsk;
 
 	ret = eap_peer_method_register(eap);

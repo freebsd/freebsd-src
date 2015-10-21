@@ -47,6 +47,9 @@ public:
 
   void getAnalysisUsage(AnalysisUsage &AU) const override;
   bool runOnFunction(Function &F) override;
+
+  void releaseMemory() override;
+
   void print(raw_ostream &OS, const Module *M = nullptr) const override;
 
   /// \brief Get an edge's probability, relative to other out-edges of the Src.
@@ -110,6 +113,10 @@ public:
   /// weights are calculated carefully before using!
   void setEdgeWeight(const BasicBlock *Src, unsigned IndexInSuccessors,
                      uint32_t Weight);
+
+  static uint32_t getBranchWeightStackProtector(bool IsLikely) {
+    return IsLikely ? (1u << 20) - 1 : 1;
+  }
 
 private:
   // Since we allow duplicate edges from one basic block to another, we use

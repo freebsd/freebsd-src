@@ -13,9 +13,13 @@
 
 
 #include "lldb/lldb-private.h"
+
+#include "llvm/ADT/SmallVector.h"
+
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
+#include <vector>
 
 namespace lldb_private {
 
@@ -85,8 +89,11 @@ public:
     ///
     /// @param[in] addr_size
     ///     A new address byte size value.
+    ///
+    /// @param[in] target_byte_size
+    ///     A size of a target byte in 8-bit host bytes
     //------------------------------------------------------------------
-    DataExtractor (const void* data, lldb::offset_t data_length, lldb::ByteOrder byte_order, uint32_t addr_size);
+    DataExtractor (const void* data, lldb::offset_t data_length, lldb::ByteOrder byte_order, uint32_t addr_size, uint32_t target_byte_size = 1);
 
     //------------------------------------------------------------------
     /// Construct with shared data.
@@ -104,8 +111,11 @@ public:
     ///
     /// @param[in] addr_size
     ///     A new address byte size value.
+    ///
+    /// @param[in] target_byte_size
+    ///     A size of a target byte in 8-bit host bytes
     //------------------------------------------------------------------
-    DataExtractor (const lldb::DataBufferSP& data_sp, lldb::ByteOrder byte_order, uint32_t addr_size);
+    DataExtractor (const lldb::DataBufferSP& data_sp, lldb::ByteOrder byte_order, uint32_t addr_size, uint32_t target_byte_size = 1);
 
     //------------------------------------------------------------------
     /// Construct with a subset of \a data.
@@ -129,8 +139,11 @@ public:
     ///
     /// @param[in] length
     ///     The length in bytes of the subset of data.
+    ///
+    /// @param[in] target_byte_size
+    ///     A size of a target byte in 8-bit host bytes
     //------------------------------------------------------------------
-    DataExtractor (const DataExtractor& data, lldb::offset_t offset, lldb::offset_t length);
+    DataExtractor (const DataExtractor& data, lldb::offset_t offset, lldb::offset_t length, uint32_t target_byte_size = 1);
 
     DataExtractor (const DataExtractor& rhs);
     //------------------------------------------------------------------
@@ -221,7 +234,7 @@ public:
     /// bytes into the contained data, into the stream \a s. \a
     /// num_per_line objects will be dumped on each line before a new
     /// line will be output. If \a base_addr is a valid address, then
-    /// each new line of output will be prededed by the address value
+    /// each new line of output will be preceded by the address value
     /// plus appropriate offset, and a colon and space. Bitfield values
     /// can be dumped by calling this function multiple times with the
     /// same start offset, format and size, yet differing \a
@@ -561,7 +574,7 @@ public:
     GetSharedDataOffset () const;
 
     //------------------------------------------------------------------
-    /// Get a the data start pointer.
+    /// Get the data start pointer.
     ///
     /// @return
     ///     Returns a pointer to the first byte contained in this
@@ -863,7 +876,7 @@ public:
         *offset_ptr += 1;
         return val;
     }
-    
+
     uint16_t
     GetU16_unchecked (lldb::offset_t *offset_ptr) const;
 
@@ -895,7 +908,7 @@ public:
     ///
     /// @return
     ///     \a dst if all values were properly extracted and copied,
-    ///     NULL otherise.
+    ///     NULL otherwise.
     //------------------------------------------------------------------
     void *
     GetU8 (lldb::offset_t *offset_ptr, void *dst, uint32_t count) const;
@@ -942,7 +955,7 @@ public:
     ///
     /// @return
     ///     \a dst if all values were properly extracted and copied,
-    ///     NULL otherise.
+    ///     NULL otherwise.
     //------------------------------------------------------------------
     void *
     GetU16 (lldb::offset_t *offset_ptr, void *dst, uint32_t count) const;
@@ -989,7 +1002,7 @@ public:
     ///
     /// @return
     ///     \a dst if all values were properly extracted and copied,
-    ///     NULL otherise.
+    ///     NULL otherwise.
     //------------------------------------------------------------------
     void *
     GetU32 (lldb::offset_t *offset_ptr, void *dst, uint32_t count) const;
@@ -1036,7 +1049,7 @@ public:
     ///
     /// @return
     ///     \a dst if all values were properly extracted and copied,
-    ///     NULL otherise.
+    ///     NULL otherwise.
     //------------------------------------------------------------------
     void *
     GetU64 ( lldb::offset_t *offset_ptr, void *dst, uint32_t count) const;
@@ -1300,6 +1313,11 @@ public:
             return size - offset;
         return 0;
     }
+    
+    void
+    Checksum (llvm::SmallVectorImpl<uint8_t> &dest,
+              uint64_t max_data = 0);
+    
 
 protected:
     
@@ -1310,7 +1328,8 @@ protected:
     const uint8_t * m_end;          ///< A pointer to the byte that is past the end of the data.
     lldb::ByteOrder m_byte_order;   ///< The byte order of the data we are extracting from.
     uint32_t m_addr_size;           ///< The address size to use when extracting pointers or addresses
-    mutable lldb::DataBufferSP m_data_sp; ///< The shared pointer to data that can be shared among multilple instances
+    mutable lldb::DataBufferSP m_data_sp; ///< The shared pointer to data that can be shared among multiple instances
+    const uint32_t m_target_byte_size;
 };
 
 } // namespace lldb_private

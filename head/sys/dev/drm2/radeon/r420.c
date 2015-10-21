@@ -80,7 +80,7 @@ void r420_pm_init_profile(struct radeon_device *rdev)
 static void r420_set_reg_safe(struct radeon_device *rdev)
 {
 	rdev->config.r300.reg_safe_bm = r420_reg_safe_bm;
-	rdev->config.r300.reg_safe_bm_size = DRM_ARRAY_SIZE(r420_reg_safe_bm);
+	rdev->config.r300.reg_safe_bm_size = ARRAY_SIZE(r420_reg_safe_bm);
 }
 
 void r420_pipes_init(struct radeon_device *rdev)

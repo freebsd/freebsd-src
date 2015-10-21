@@ -16,8 +16,8 @@
 // refactor this core logic into something common that is shared between
 // the two.  The main thing that is different is the allocation strategy.
 
-#ifndef LLVM_CLANG_BUMP_VECTOR
-#define LLVM_CLANG_BUMP_VECTOR
+#ifndef LLVM_CLANG_ANALYSIS_SUPPORT_BUMPVECTOR_H
+#define LLVM_CLANG_ANALYSIS_SUPPORT_BUMPVECTOR_H
 
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/Support/Allocator.h"
@@ -223,14 +223,15 @@ void BumpVector<T>::grow(BumpVectorContext &C, size_t MinSize) {
   T *NewElts = C.getAllocator().template Allocate<T>(NewCapacity);
   
   // Copy the elements over.
-  if (std::is_class<T>::value) {
-    std::uninitialized_copy(Begin, End, NewElts);
-    // Destroy the original elements.
-    destroy_range(Begin, End);
-  }
-  else {
-    // Use memcpy for PODs (std::uninitialized_copy optimizes to memmove).
-    memcpy(NewElts, Begin, CurSize * sizeof(T));
+  if (Begin != End) {
+    if (std::is_class<T>::value) {
+      std::uninitialized_copy(Begin, End, NewElts);
+      // Destroy the original elements.
+      destroy_range(Begin, End);
+    } else {
+      // Use memcpy for PODs (std::uninitialized_copy optimizes to memmove).
+      memcpy(NewElts, Begin, CurSize * sizeof(T));
+    }
   }
 
   // For now, leak 'Begin'.  We can add it back to a freelist in
@@ -241,4 +242,4 @@ void BumpVector<T>::grow(BumpVectorContext &C, size_t MinSize) {
 }
 
 } // end: clang namespace
-#endif // end: LLVM_CLANG_BUMP_VECTOR
+#endif

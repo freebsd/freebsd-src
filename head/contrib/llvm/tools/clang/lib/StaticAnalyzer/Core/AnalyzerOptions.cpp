@@ -13,17 +13,20 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
+using namespace ento;
 using namespace llvm;
 
 AnalyzerOptions::UserModeKind AnalyzerOptions::getUserMode() {
   if (UserMode == UMK_NotSet) {
-    StringRef ModeStr(Config.GetOrCreateValue("mode", "deep").getValue());
+    StringRef ModeStr =
+        Config.insert(std::make_pair("mode", "deep")).first->second;
     UserMode = llvm::StringSwitch<UserModeKind>(ModeStr)
       .Case("shallow", UMK_Shallow)
       .Case("deep", UMK_Deep)
@@ -48,7 +51,8 @@ IPAKind AnalyzerOptions::getIPAMode() {
     assert(DefaultIPA);
 
     // Lookup the ipa configuration option, use the default from User Mode.
-    StringRef ModeStr(Config.GetOrCreateValue("ipa", DefaultIPA).getValue());
+    StringRef ModeStr =
+        Config.insert(std::make_pair("ipa", DefaultIPA)).first->second;
     IPAKind IPAConfig = llvm::StringSwitch<IPAKind>(ModeStr)
             .Case("none", IPAK_None)
             .Case("basic-inlining", IPAK_BasicInlining)
@@ -72,9 +76,9 @@ AnalyzerOptions::mayInlineCXXMemberFunction(CXXInlineableMemberKind K) {
 
   if (!CXXMemberInliningMode) {
     static const char *ModeKey = "c++-inlining";
-    
-    StringRef ModeStr(Config.GetOrCreateValue(ModeKey,
-                                              "destructors").getValue());
+
+    StringRef ModeStr =
+        Config.insert(std::make_pair(ModeKey, "destructors")).first->second;
 
     CXXInlineableMemberKind &MutableMode =
       const_cast<CXXInlineableMemberKind &>(CXXMemberInliningMode);
@@ -98,11 +102,37 @@ AnalyzerOptions::mayInlineCXXMemberFunction(CXXInlineableMemberKind K) {
 
 static StringRef toString(bool b) { return b ? "true" : "false"; }
 
-bool AnalyzerOptions::getBooleanOption(StringRef Name, bool DefaultVal) {
+StringRef AnalyzerOptions::getCheckerOption(StringRef CheckerName,
+                                            StringRef OptionName,
+                                            StringRef Default,
+                                            bool SearchInParents) {
+  // Search for a package option if the option for the checker is not specified
+  // and search in parents is enabled.
+  ConfigTable::const_iterator E = Config.end();
+  do {
+    ConfigTable::const_iterator I =
+        Config.find((Twine(CheckerName) + ":" + OptionName).str());
+    if (I != E)
+      return StringRef(I->getValue());
+    size_t Pos = CheckerName.rfind('.');
+    if (Pos == StringRef::npos)
+      return Default;
+    CheckerName = CheckerName.substr(0, Pos);
+  } while (!CheckerName.empty() && SearchInParents);
+  return Default;
+}
+
+bool AnalyzerOptions::getBooleanOption(StringRef Name, bool DefaultVal,
+                                       const CheckerBase *C,
+                                       bool SearchInParents) {
   // FIXME: We should emit a warning here if the value is something other than
   // "true", "false", or the empty string (meaning the default value),
   // but the AnalyzerOptions doesn't have access to a diagnostic engine.
-  StringRef V(Config.GetOrCreateValue(Name, toString(DefaultVal)).getValue());
+  StringRef Default = toString(DefaultVal);
+  StringRef V =
+      C ? getCheckerOption(C->getTagDescription(), Name, Default,
+                           SearchInParents)
+        : StringRef(Config.insert(std::make_pair(Name, Default)).first->second);
   return llvm::StringSwitch<bool>(V)
       .Case("true", true)
       .Case("false", false)
@@ -110,9 +140,10 @@ bool AnalyzerOptions::getBooleanOption(StringRef Name, bool DefaultVal) {
 }
 
 bool AnalyzerOptions::getBooleanOption(Optional<bool> &V, StringRef Name,
-                                       bool DefaultVal) {
+                                       bool DefaultVal, const CheckerBase *C,
+                                       bool SearchInParents) {
   if (!V.hasValue())
-    V = getBooleanOption(Name, DefaultVal);
+    V = getBooleanOption(Name, DefaultVal, C, SearchInParents);
   return V.getValue();
 }
 
@@ -196,17 +227,33 @@ bool AnalyzerOptions::shouldWriteStableReportFilename() {
                           /* Default = */ false);
 }
 
-int AnalyzerOptions::getOptionAsInteger(StringRef Name, int DefaultVal) {
+int AnalyzerOptions::getOptionAsInteger(StringRef Name, int DefaultVal,
+                                        const CheckerBase *C,
+                                        bool SearchInParents) {
   SmallString<10> StrBuf;
   llvm::raw_svector_ostream OS(StrBuf);
   OS << DefaultVal;
-  
-  StringRef V(Config.GetOrCreateValue(Name, OS.str()).getValue());
+
+  StringRef V = C ? getCheckerOption(C->getTagDescription(), Name, OS.str(),
+                                     SearchInParents)
+                  : StringRef(Config.insert(std::make_pair(Name, OS.str()))
+                                  .first->second);
+
   int Res = DefaultVal;
   bool b = V.getAsInteger(10, Res);
   assert(!b && "analyzer-config option should be numeric");
-  (void) b;
+  (void)b;
   return Res;
+}
+
+StringRef AnalyzerOptions::getOptionAsString(StringRef Name,
+                                             StringRef DefaultVal,
+                                             const CheckerBase *C,
+                                             bool SearchInParents) {
+  return C ? getCheckerOption(C->getTagDescription(), Name, DefaultVal,
+                              SearchInParents)
+           : StringRef(
+                 Config.insert(std::make_pair(Name, DefaultVal)).first->second);
 }
 
 unsigned AnalyzerOptions::getAlwaysInlineSize() {
@@ -278,4 +325,3 @@ bool AnalyzerOptions::shouldPrunePaths() {
 bool AnalyzerOptions::shouldConditionalizeStaticInitializers() {
   return getBooleanOption("cfg-conditional-static-initializers", true);
 }
-

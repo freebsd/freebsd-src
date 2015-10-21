@@ -1,7 +1,7 @@
 all: libwpadbus.a
 
 clean:
-	rm -f *~ *.o *.d
+	rm -f *~ *.o *.d *.gcno *.gcda *.gcov
 	rm -f libwpadbus.a
 
 install:

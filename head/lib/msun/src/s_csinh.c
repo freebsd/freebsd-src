@@ -32,6 +32,8 @@
  *
  * Exceptional values are noted in the comments within the source code.
  * These values and the return value were taken from n1124.pdf.
+ * The sign of the result for some exceptional values is unspecified but
+ * must satisfy both sinh(conj(z)) == conj(sinh(z)) and sinh(-z) == -sinh(z).
  */
 
 #include <sys/cdefs.h>
@@ -63,7 +65,7 @@ csinh(double complex z)
 	if (ix < 0x7ff00000 && iy < 0x7ff00000) {
 		if ((iy | ly) == 0)
 			return (CMPLX(sinh(x), y));
-		if (ix < 0x40360000)	/* small x: normal case */
+		if (ix < 0x40360000)	/* |x| < 22: normal case */
 			return (CMPLX(sinh(x) * cos(y), cosh(x) * sin(y)));
 
 		/* |x| >= 22, so cosh(x) ~= exp(|x|) */
@@ -83,27 +85,24 @@ csinh(double complex z)
 	}
 
 	/*
-	 * sinh(+-0 +- I Inf) = sign(d(+-0, dNaN))0 + I dNaN.
-	 * The sign of 0 in the result is unspecified.  Choice = normally
-	 * the same as dNaN.  Raise the invalid floating-point exception.
+	 * sinh(+-0 +- I Inf) = +-0 + I dNaN.
+	 * The sign of 0 in the result is unspecified.  Choice = same sign
+	 * as the argument.  Raise the invalid floating-point exception.
 	 *
-	 * sinh(+-0 +- I NaN) = sign(d(+-0, NaN))0 + I d(NaN).
-	 * The sign of 0 in the result is unspecified.  Choice = normally
-	 * the same as d(NaN).
+	 * sinh(+-0 +- I NaN) = +-0 + I d(NaN).
+	 * The sign of 0 in the result is unspecified.  Choice = same sign
+	 * as the argument.
 	 */
-	if ((ix | lx) == 0 && iy >= 0x7ff00000)
-		return (CMPLX(copysign(0, x * (y - y)), y - y));
+	if ((ix | lx) == 0)		/* && iy >= 0x7ff00000 */
+		return (CMPLX(x, y - y));
 
 	/*
 	 * sinh(+-Inf +- I 0) = +-Inf + I +-0.
 	 *
 	 * sinh(NaN +- I 0)   = d(NaN) + I +-0.
 	 */
-	if ((iy | ly) == 0 && ix >= 0x7ff00000) {
-		if (((hx & 0xfffff) | lx) == 0)
-			return (CMPLX(x, y));
-		return (CMPLX(x, copysign(0, y)));
-	}
+	if ((iy | ly) == 0)		/* && ix >= 0x7ff00000 */
+		return (CMPLX(x + x, y));
 
 	/*
 	 * sinh(x +- I Inf) = dNaN + I dNaN.
@@ -113,45 +112,45 @@ csinh(double complex z)
 	 * Optionally raises the invalid floating-point exception for finite
 	 * nonzero x.  Choice = don't raise (except for signaling NaNs).
 	 */
-	if (ix < 0x7ff00000 && iy >= 0x7ff00000)
-		return (CMPLX(y - y, x * (y - y)));
+	if (ix < 0x7ff00000)		/* && iy >= 0x7ff00000 */
+		return (CMPLX(y - y, y - y));
 
 	/*
 	 * sinh(+-Inf + I NaN)  = +-Inf + I d(NaN).
-	 * The sign of Inf in the result is unspecified.  Choice = normally
-	 * the same as d(NaN).
+	 * The sign of Inf in the result is unspecified.  Choice = same sign
+	 * as the argument.
 	 *
-	 * sinh(+-Inf +- I Inf) = +Inf + I dNaN.
-	 * The sign of Inf in the result is unspecified.  Choice = always +.
-	 * Raise the invalid floating-point exception.
+	 * sinh(+-Inf +- I Inf) = +-Inf + I dNaN.
+	 * The sign of Inf in the result is unspecified.  Choice = same sign
+	 * as the argument.  Raise the invalid floating-point exception.
 	 *
 	 * sinh(+-Inf + I y)   = +-Inf cos(y) + I Inf sin(y)
 	 */
-	if (ix >= 0x7ff00000 && ((hx & 0xfffff) | lx) == 0) {
+	if (ix == 0x7ff00000 && lx == 0) {
 		if (iy >= 0x7ff00000)
-			return (CMPLX(x * x, x * (y - y)));
+			return (CMPLX(x, y - y));
 		return (CMPLX(x * cos(y), INFINITY * sin(y)));
 	}
 
 	/*
-	 * sinh(NaN + I NaN)  = d(NaN) + I d(NaN).
+	 * sinh(NaN1 + I NaN2) = d(NaN1, NaN2) + I d(NaN1, NaN2).
 	 *
-	 * sinh(NaN +- I Inf) = d(NaN) + I d(NaN).
+	 * sinh(NaN +- I Inf)  = d(NaN, dNaN) + I d(NaN, dNaN).
 	 * Optionally raises the invalid floating-point exception.
 	 * Choice = raise.
 	 *
-	 * sinh(NaN + I y)    = d(NaN) + I d(NaN).
+	 * sinh(NaN + I y)     = d(NaN) + I d(NaN).
 	 * Optionally raises the invalid floating-point exception for finite
 	 * nonzero y.  Choice = don't raise (except for signaling NaNs).
 	 */
-	return (CMPLX((x * x) * (y - y), (x + x) * (y - y)));
+	return (CMPLX((x + x) * (y - y), (x * x) * (y - y)));
 }
 
 double complex
 csin(double complex z)
 {
 
-	/* csin(z) = -I * csinh(I * z) */
-	z = csinh(CMPLX(-cimag(z), creal(z)));
-	return (CMPLX(cimag(z), -creal(z)));
+	/* csin(z) = -I * csinh(I * z) = I * conj(csinh(I * conj(z))). */
+	z = csinh(CMPLX(cimag(z), creal(z)));
+	return (CMPLX(cimag(z), creal(z)));
 }

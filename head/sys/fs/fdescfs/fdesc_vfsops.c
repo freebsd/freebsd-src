@@ -42,6 +42,7 @@
 #include <sys/systm.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
+#include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
@@ -78,7 +79,11 @@ fdesc_mount(struct mount *mp)
 {
 	int error = 0;
 	struct fdescmount *fmp;
+	struct thread *td = curthread;
 	struct vnode *rvp;
+
+	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_FDESCFS))
+		return (EPERM);
 
 	/*
 	 * Update is a no-op
@@ -194,9 +199,7 @@ fdesc_statfs(mp, sbp)
 	 * limit is ever reduced below the current number
 	 * of open files... ]
 	 */
-	PROC_LOCK(td->td_proc);
-	lim = lim_cur(td->td_proc, RLIMIT_NOFILE);
-	PROC_UNLOCK(td->td_proc);
+	lim = lim_cur(td, RLIMIT_NOFILE);
 	fdp = td->td_proc->p_fd;
 	FILEDESC_SLOCK(fdp);
 	limit = racct_get_limit(td->td_proc, RACCT_NOFILE);
@@ -237,4 +240,4 @@ static struct vfsops fdesc_vfsops = {
 	.vfs_unmount =		fdesc_unmount,
 };
 
-VFS_SET(fdesc_vfsops, fdescfs, VFCF_SYNTHETIC);
+VFS_SET(fdesc_vfsops, fdescfs, VFCF_SYNTHETIC | VFCF_JAIL);

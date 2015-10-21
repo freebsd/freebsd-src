@@ -194,27 +194,27 @@ acpi_pcib_producer_handler(ACPI_RESOURCE *res, void *context)
 			break;
 		switch (res->Type) {
 		case ACPI_RESOURCE_TYPE_ADDRESS16:
-			min = res->Data.Address16.Minimum;
-			max = res->Data.Address16.Maximum;
-			length = res->Data.Address16.AddressLength;
+			min = res->Data.Address16.Address.Minimum;
+			max = res->Data.Address16.Address.Maximum;
+			length = res->Data.Address16.Address.AddressLength;
 			break;
 		case ACPI_RESOURCE_TYPE_ADDRESS32:
-			min = res->Data.Address32.Minimum;
-			max = res->Data.Address32.Maximum;
-			length = res->Data.Address32.AddressLength;
+			min = res->Data.Address32.Address.Minimum;
+			max = res->Data.Address32.Address.Maximum;
+			length = res->Data.Address32.Address.AddressLength;
 			break;
 		case ACPI_RESOURCE_TYPE_ADDRESS64:
-			min = res->Data.Address64.Minimum;
-			max = res->Data.Address64.Maximum;
-			length = res->Data.Address64.AddressLength;
+			min = res->Data.Address64.Address.Minimum;
+			max = res->Data.Address64.Address.Maximum;
+			length = res->Data.Address64.Address.AddressLength;
 			break;
 		default:
 			KASSERT(res->Type ==
 			    ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64,
 			    ("should never happen"));
-			min = res->Data.ExtAddress64.Minimum;
-			max = res->Data.ExtAddress64.Maximum;
-			length = res->Data.ExtAddress64.AddressLength;
+			min = res->Data.ExtAddress64.Address.Minimum;
+			max = res->Data.ExtAddress64.Address.Maximum;
+			length = res->Data.ExtAddress64.Address.AddressLength;
 			break;
 		}
 		if (length == 0)

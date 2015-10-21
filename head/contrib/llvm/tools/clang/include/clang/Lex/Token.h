@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_TOKEN_H
-#define LLVM_CLANG_TOKEN_H
+#ifndef LLVM_CLANG_LEX_TOKEN_H
+#define LLVM_CLANG_LEX_TOKEN_H
 
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/SourceLocation.h"
@@ -35,8 +35,8 @@ class IdentifierInfo;
 /// can be represented by a single typename annotation token that carries
 /// information about the SourceRange of the tokens and the type object.
 class Token {
-  /// The location of the token.
-  SourceLocation Loc;
+  /// The location of the token. This is actually a SourceLocation.
+  unsigned Loc;
 
   // Conceptually these next two fields could be in a union.  However, this
   // causes gcc 4.2 to pessimize LexTokenInternal, a very performance critical
@@ -58,6 +58,8 @@ class Token {
   ///    may be dirty (have trigraphs / escaped newlines).
   ///  Annotations (resolved type names, C++ scopes, etc): isAnnotation().
   ///    This is a pointer to sema-specific data for the annotation token.
+  ///  Eof:
+  //     This is a pointer to a Decl.
   ///  Other:
   ///    This is null.
   void *PtrData;
@@ -66,7 +68,7 @@ class Token {
   tok::TokenKind Kind;
 
   /// Flags - Bits we track about this token, members of the TokenFlags enum.
-  unsigned char Flags;
+  unsigned short Flags;
 public:
 
   // Various flags set per token:
@@ -80,7 +82,9 @@ public:
     LeadingEmptyMacro = 0x10, // Empty macro exists before this token.
     HasUDSuffix = 0x20,    // This string or character literal has a ud-suffix.
     HasUCN = 0x40,         // This identifier contains a UCN.
-    IgnoredComma = 0x80    // This comma is not a macro argument separator (MS).
+    IgnoredComma = 0x80,   // This comma is not a macro argument separator (MS).
+    StringifiedInMacro = 0x100, // This string or character literal is formed by
+                                // macro stringizing or charizing operator.
   };
 
   tok::TokenKind getKind() const { return Kind; }
@@ -90,6 +94,13 @@ public:
   /// "if (Tok.is(tok::l_brace)) {...}".
   bool is(tok::TokenKind K) const { return Kind == K; }
   bool isNot(tok::TokenKind K) const { return Kind != K; }
+  bool isOneOf(tok::TokenKind K1, tok::TokenKind K2) const {
+    return is(K1) || is(K2);
+  }
+  template <typename... Ts>
+  bool isOneOf(tok::TokenKind K1, tok::TokenKind K2, Ts... Ks) const {
+    return is(K1) || isOneOf(K2, Ks...);
+  }
 
   /// \brief Return true if this is a raw identifier (when lexing
   /// in raw mode) or a non-keyword identifier (when lexing in non-raw mode).
@@ -110,13 +121,15 @@ public:
 
   /// \brief Return a source location identifier for the specified
   /// offset in the current file.
-  SourceLocation getLocation() const { return Loc; }
+  SourceLocation getLocation() const {
+    return SourceLocation::getFromRawEncoding(Loc);
+  }
   unsigned getLength() const {
     assert(!isAnnotation() && "Annotation tokens have no length field");
     return UintData;
   }
 
-  void setLocation(SourceLocation L) { Loc = L; }
+  void setLocation(SourceLocation L) { Loc = L.getRawEncoding(); }
   void setLength(unsigned Len) {
     assert(!isAnnotation() && "Annotation tokens have no length field");
     UintData = Len;
@@ -124,7 +137,7 @@ public:
 
   SourceLocation getAnnotationEndLoc() const {
     assert(isAnnotation() && "Used AnnotEndLocID on non-annotation token");
-    return SourceLocation::getFromRawEncoding(UintData);
+    return SourceLocation::getFromRawEncoding(UintData ? UintData : Loc);
   }
   void setAnnotationEndLoc(SourceLocation L) {
     assert(isAnnotation() && "Used AnnotEndLocID on non-annotation token");
@@ -133,6 +146,11 @@ public:
 
   SourceLocation getLastLoc() const {
     return isAnnotation() ? getAnnotationEndLoc() : getLocation();
+  }
+
+  SourceLocation getEndLoc() const {
+    return isAnnotation() ? getAnnotationEndLoc()
+                          : getLocation().getLocWithOffset(getLength());
   }
 
   /// \brief SourceRange of the group of tokens that this annotation token
@@ -153,7 +171,7 @@ public:
     Flags = 0;
     PtrData = nullptr;
     UintData = 0;
-    Loc = SourceLocation();
+    Loc = SourceLocation().getRawEncoding();
   }
 
   IdentifierInfo *getIdentifierInfo() const {
@@ -162,10 +180,21 @@ public:
     assert(!isAnnotation() &&
            "getIdentifierInfo() on an annotation token!");
     if (isLiteral()) return nullptr;
+    if (is(tok::eof)) return nullptr;
     return (IdentifierInfo*) PtrData;
   }
   void setIdentifierInfo(IdentifierInfo *II) {
     PtrData = (void*) II;
+  }
+
+  const void *getEofData() const {
+    assert(is(tok::eof));
+    return reinterpret_cast<const void *>(PtrData);
+  }
+  void setEofData(const void *D) {
+    assert(is(tok::eof));
+    assert(!PtrData);
+    PtrData = const_cast<void *>(D);
   }
 
   /// getRawIdentifier - For a raw identifier token (i.e., an identifier
@@ -262,6 +291,12 @@ public:
 
   /// Returns true if this token contains a universal character name.
   bool hasUCN() const { return (Flags & HasUCN) ? true : false; }
+
+  /// Returns true if this token is formed by macro by stringizing or charizing
+  /// operator.
+  bool stringifiedInMacro() const {
+    return (Flags & StringifiedInMacro) ? true : false;
+  }
 };
 
 /// \brief Information about the conditional stack (\#if directives)

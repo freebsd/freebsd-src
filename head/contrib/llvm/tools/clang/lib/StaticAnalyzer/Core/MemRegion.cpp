@@ -824,9 +824,12 @@ const VarRegion* MemRegionManager::getVarRegion(const VarDecl *D,
           QualType T;
           if (const TypeSourceInfo *TSI = BD->getSignatureAsWritten())
             T = TSI->getType();
-          else
-            T = getContext().getFunctionNoProtoType(getContext().VoidTy);
-          
+          if (T.isNull())
+            T = getContext().VoidTy;
+          if (!T->getAs<FunctionType>())
+            T = getContext().getFunctionNoProtoType(T);
+          T = getContext().getBlockPointerType(T);
+
           const BlockTextRegion *BTR =
             getBlockTextRegion(BD, C.getCanonicalType(T),
                                STC->getAnalysisDeclContext());
@@ -1116,17 +1119,6 @@ const SymbolicRegion *MemRegion::getSymbolicBase() const {
   return nullptr;
 }
 
-// FIXME: Merge with the implementation of the same method in Store.cpp
-static bool IsCompleteType(ASTContext &Ctx, QualType Ty) {
-  if (const RecordType *RT = Ty->getAs<RecordType>()) {
-    const RecordDecl *D = RT->getDecl();
-    if (!D->getDefinition())
-      return false;
-  }
-
-  return true;
-}
-
 RegionRawOffset ElementRegion::getAsArrayOffset() const {
   CharUnits offset = CharUnits::Zero();
   const ElementRegion *ER = this;
@@ -1148,7 +1140,7 @@ RegionRawOffset ElementRegion::getAsArrayOffset() const {
         QualType elemType = ER->getElementType();
 
         // If we are pointing to an incomplete type, go no further.
-        if (!IsCompleteType(C, elemType)) {
+        if (elemType->isIncompleteType()) {
           superR = ER;
           break;
         }
@@ -1288,7 +1280,7 @@ RegionOffset MemRegion::getAsOffset() const {
       R = ER->getSuperRegion();
 
       QualType EleTy = ER->getValueType();
-      if (!IsCompleteType(getContext(), EleTy)) {
+      if (EleTy->isIncompleteType()) {
         // We cannot compute the offset of the base class.
         SymbolicOffsetBase = R;
         continue;
@@ -1383,10 +1375,11 @@ void BlockDataRegion::LazyInitializeReferencedVars() {
     return;
 
   AnalysisDeclContext *AC = getCodeRegion()->getAnalysisDeclContext();
-  AnalysisDeclContext::referenced_decls_iterator I, E;
-  std::tie(I, E) = AC->getReferencedBlockVars(BC->getDecl());
+  const auto &ReferencedBlockVars = AC->getReferencedBlockVars(BC->getDecl());
+  auto NumBlockVars =
+      std::distance(ReferencedBlockVars.begin(), ReferencedBlockVars.end());
 
-  if (I == E) {
+  if (NumBlockVars == 0) {
     ReferencedVars = (void*) 0x1;
     return;
   }
@@ -1397,14 +1390,14 @@ void BlockDataRegion::LazyInitializeReferencedVars() {
 
   typedef BumpVector<const MemRegion*> VarVec;
   VarVec *BV = (VarVec*) A.Allocate<VarVec>();
-  new (BV) VarVec(BC, E - I);
+  new (BV) VarVec(BC, NumBlockVars);
   VarVec *BVOriginal = (VarVec*) A.Allocate<VarVec>();
-  new (BVOriginal) VarVec(BC, E - I);
+  new (BVOriginal) VarVec(BC, NumBlockVars);
 
-  for ( ; I != E; ++I) {
+  for (const VarDecl *VD : ReferencedBlockVars) {
     const VarRegion *VR = nullptr;
     const VarRegion *OriginalVR = nullptr;
-    std::tie(VR, OriginalVR) = getCaptureRegions(*I);
+    std::tie(VR, OriginalVR) = getCaptureRegions(VD);
     assert(VR);
     assert(OriginalVR);
     BV->push_back(VR, BC);

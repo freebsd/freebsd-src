@@ -74,7 +74,7 @@ It is intended to be used with
 .Fl X
 flag of
 .Xr lint 1 .
-.Bl -column -offset indent "Id#" "Message"
+.Bl -column -offset indent "XXXX"
 __EOF
 "$@" | sed -e 's/\\/\\e/g' -e "s/'/\\'/"
 echo ".El"

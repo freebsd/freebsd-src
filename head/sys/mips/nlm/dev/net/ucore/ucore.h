@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -118,10 +118,10 @@ NLM_DEFINE_UCORE(pktdistr,		UCORE_PKT_DISTR);
  * fsv - 0 : use interface-id for selecting the free fifo pool
  *       1 : use free fifo pool selected by FFS field
  * ffs - selects which free fifo pool to use to take a free fifo
- * prepad_en - If this field is set to 1, part or all of the 
+ * prepad_en - If this field is set to 1, part or all of the
  *             64 byte prepad seen by micro engines, is written
  *             infront of every packet.
- * prepad_ovride - If this field is 1, the ucore system uses 
+ * prepad_ovride - If this field is 1, the ucore system uses
  *                 prepad configuration defined in this register,
  *                 0 means that it uses the configuration defined
  *                 in NAE RX_CONFIG register
@@ -167,7 +167,7 @@ nlm_ucore_pkt_done(int l3cachelines, int fsv, int ffs, int prepad_en,
 	nlm_write_ucore_obufdone(val);
 }
 
-/* Get the class full vector field from POE. 
+/* Get the class full vector field from POE.
  * The POE maintains a threshold for each class.
  * A bit in this field will be set corresponding to the class approaching
  * class full status.
@@ -188,7 +188,7 @@ nlm_ucore_get_rxpkt_hwparsererr(unsigned int pktrdy)
 }
 
 /* This function returns the context number assigned to incoming
- * packet 
+ * packet
  */
 static __inline__ int
 nlm_ucore_get_rxpkt_context(unsigned int pktrdy)
@@ -214,8 +214,8 @@ nlm_ucore_get_rxpkt_interface(unsigned int pktrdy)
 	return (pktrdy & 0x1f);
 }
 
-/* This function returns 1 if end of packet (EOP) is set in 
- * packet data. 
+/* This function returns 1 if end of packet (EOP) is set in
+ * packet data.
  */
 static __inline__ int
 nlm_ucore_get_rxpkt_eop(unsigned int rxpkt_info)
@@ -256,7 +256,7 @@ nlm_ucore_get_cam_result(unsigned int cam_result)
 /* This function sets up the csum in ucore.
  * iphdr_start - defines the start of ip header (to check - is this byte
  * position???)
- * iphdr_len - This field is auto filled by h/w parser if zero, else 
+ * iphdr_len - This field is auto filled by h/w parser if zero, else
  * the value defined will be used.
  */
 static __inline__ void
@@ -270,7 +270,7 @@ nlm_ucore_csum_setup(int iphdr_start, int iphdr_len)
 }
 
 /* crcpos - position of crc in pkt. If crc position is within startcrc and
- * endcrc, zero out these bytes in the packet before computing crc. This 
+ * endcrc, zero out these bytes in the packet before computing crc. This
  * field is not needed for FCoE.
  * cps - If 1, uses the polynomial in RX_CRC_POLY1 of NAE register.
  *       if 0, uses the polynomial in RX_CRC_POLY0 of NAE register.
@@ -281,7 +281,7 @@ nlm_ucore_csum_setup(int iphdr_start, int iphdr_len)
  * cfi - If 1, performs a final inversion of crc before comarison is done during
  * pkt reception.
  * startcrc - This field is always required for both FCoE and SCTP crc.
- * endcrc - This information needs to be setup only for SCTP. For FCoE this 
+ * endcrc - This information needs to be setup only for SCTP. For FCoE this
  * information is provided by hardware.
  * valid - if set to 1, CRC status is placed into bit 2 of rx descriptor
  *         if set to 0, TCP checksum status is placed into bit 2 of rx descriptor
@@ -310,7 +310,7 @@ nlm_ucore_crc_setup(int crcpos, int cps, int cfi, int cbm, int fcoe,
 	nlm_write_ucore_crcinfo(val);
 }
 
-/* This function returns a fifo empty vector, where each bit provides 
+/* This function returns a fifo empty vector, where each bit provides
  * the status of a fifo pool, where if the pool is empty the bit gets
  * set to 1.
  */
@@ -333,7 +333,7 @@ nlm_ucore_get_fifoempty(unsigned int fifoempty)
  * from context->class_table
  * pdl - poe distribution list
  * dest - fixed destination setup
- * hash - if 1, use hash based destination 
+ * hash - if 1, use hash based destination
  */
 static __inline__ void
 nlm_ucore_setup_poepktdistr(int pdm, int mc3, int pdl, int dest, int hash)

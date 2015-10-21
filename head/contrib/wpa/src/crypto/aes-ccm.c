@@ -203,7 +203,7 @@ int aes_ccm_ad(const u8 *key, size_t key_len, const u8 *nonce,
 
 	aes_encrypt_deinit(aes);
 
-	if (os_memcmp(x, t, M) != 0) {
+	if (os_memcmp_const(x, t, M) != 0) {
 		wpa_printf(MSG_EXCESSIVE, "CCM: Auth mismatch");
 		return -1;
 	}

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 8, 2005
+.Dd February 6, 2015
 .Dt KTRDUMP 8
 .Os
 .Sh NAME
@@ -34,9 +34,9 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl cfqrtH
-.Op Fl e Ar execfile
 .Op Fl i Ar ktrfile
-.Op Fl m Ar corefile
+.Op Fl M Ar core
+.Op Fl N Ar system
 .Op Fl o Ar outfile
 .Sh DESCRIPTION
 The
@@ -44,7 +44,7 @@ The
 utility is used to dump the contents of the kernel ktr trace buffer.
 .Pp
 The following options are available:
-.Bl -tag -width ".Fl e Ar execfile"
+.Bl -tag -width ".Fl i Ar ktrfile"
 .It Fl c
 Print the CPU number that each entry was logged from.
 .It Fl f
@@ -61,11 +61,11 @@ Print the thread ID for each entry.
 File containing saved ktr trace events; for more information see the
 .Xr ktr 4
 manual page.
-.It Fl e Ar execfile
+.It Fl N Ar system
 The kernel image to resolve symbols from.
 The default is the value returned via
 .Xr getbootfile 3 .
-.It Fl m Ar corefile
+.It Fl M Ar core
 The core file or memory image to read from.
 The default is
 .Pa /dev/mem .

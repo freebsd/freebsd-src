@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SystemZREGISTERINFO_H
-#define SystemZREGISTERINFO_H
+#ifndef LLVM_LIB_TARGET_SYSTEMZ_SYSTEMZREGISTERINFO_H
+#define LLVM_LIB_TARGET_SYSTEMZ_SYSTEMZREGISTERINFO_H
 
 #include "SystemZ.h"
 #include "llvm/Target/TargetRegisterInfo.h"
@@ -43,9 +43,9 @@ public:
   bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const override {
     return true;
   }
-  const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF = nullptr) const
-    override;
-  const uint32_t *getCallPreservedMask(CallingConv::ID CC) const override;
+  const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
+  const uint32_t *getCallPreservedMask(const MachineFunction &MF,
+                                       CallingConv::ID CC) const override;
   BitVector getReservedRegs(const MachineFunction &MF) const override;
   void eliminateFrameIndex(MachineBasicBlock::iterator MI,
                            int SPAdj, unsigned FIOperandNum,

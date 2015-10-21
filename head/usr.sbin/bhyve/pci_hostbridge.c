@@ -38,7 +38,7 @@ pci_hostbridge_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	/* config space */
 	pci_set_cfgdata16(pi, PCIR_VENDOR, 0x1275);	/* NetApp */
 	pci_set_cfgdata16(pi, PCIR_DEVICE, 0x1275);	/* NetApp */
-	pci_set_cfgdata8(pi, PCIR_HDRTYPE, PCIM_HDRTYPE_BRIDGE);
+	pci_set_cfgdata8(pi, PCIR_HDRTYPE, PCIM_HDRTYPE_NORMAL);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_BRIDGE);
 	pci_set_cfgdata8(pi, PCIR_SUBCLASS, PCIS_BRIDGE_HOST);
 

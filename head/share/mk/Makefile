@@ -1,12 +1,19 @@
 # $FreeBSD$
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
 
+# Only parse this if executing make in this directory, not in other places
+# in src that lack a Makefile, such as sys/dev/*.  Otherwise the MAKESYSPATH
+# will read this Makefile since it auto includes it into -I.
+.if ${.CURDIR} == ${.PARSEDIR}
+
 .include <src.opts.mk>
 
 FILES=	\
+	auto.obj.mk \
 	bsd.README \
 	bsd.arch.inc.mk \
 	bsd.compiler.mk \
+	bsd.confs.mk \
 	bsd.cpu.mk \
 	bsd.crunchgen.mk \
 	bsd.dep.mk \
@@ -39,7 +46,16 @@ FILES=	\
 	bsd.symver.mk \
 	bsd.sys.mk \
 	bsd.test.mk \
+	dirdeps.mk \
+	gendirdeps.mk \
+	install-new.mk \
+	meta.autodep.mk \
+	meta.stage.mk \
+	meta.subdir.mk \
+	meta.sys.mk \
+	stage-install.sh \
 	sys.mk \
+	sys.dependfile.mk \
 	version_gen.awk
 
 NO_OBJ=
@@ -53,3 +69,4 @@ FILES+=	tap.test.mk
 .endif
 
 .include <bsd.prog.mk>
+.endif	# CURDIR == PARSEDIR

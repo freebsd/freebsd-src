@@ -203,6 +203,16 @@ namespace RTLIB {
     COPYSIGN_F80,
     COPYSIGN_F128,
     COPYSIGN_PPCF128,
+    FMIN_F32,
+    FMIN_F64,
+    FMIN_F80,
+    FMIN_F128,
+    FMIN_PPCF128,
+    FMAX_F32,
+    FMAX_F64,
+    FMAX_F80,
+    FMAX_F128,
+    FMAX_PPCF128,
 
     // CONVERSION
     FPEXT_F64_F128,
@@ -415,6 +425,10 @@ namespace RTLIB {
   /// getUINTTOFP - Return the UINTTOFP_*_* value for the given types, or
   /// UNKNOWN_LIBCALL if there is none.
   Libcall getUINTTOFP(EVT OpVT, EVT RetVT);
+
+  /// Return the SYNC_FETCH_AND_* value for the given opcode and type, or
+  /// UNKNOWN_LIBCALL if there is none.
+  Libcall getATOMIC(unsigned Opc, MVT VT);
 }
 }
 

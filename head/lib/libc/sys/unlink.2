@@ -28,7 +28,7 @@
 .\"     @(#)unlink.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2010
+.Dd July 28, 2015
 .Dt UNLINK 2
 .Os
 .Sh NAME
@@ -151,6 +151,9 @@ The
 .Fa path
 argument
 points outside the process's allocated address space.
+.It Bq Er ENOSPC
+On file systems supporting copy-on-write or snapshots, there was not enough
+free space to record metadata for the delete operation of the file.
 .El
 .Pp
 In addition to the errors returned by the

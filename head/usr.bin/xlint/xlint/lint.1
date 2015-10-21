@@ -1,4 +1,4 @@
-.\" $NetBSD: lint.1,v 1.21 2002/01/03 04:25:18 thorpej Exp $
+.\" $NetBSD: lint.1,v 1.29 2004/01/26 21:59:42 wiz Exp $
 .\"
 .\" Copyright (c) 1996 Christopher G. Demetriou.  All Rights Reserved.
 .\" Copyright (c) 1994, 1995 Jochen Pohl
@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2001
+.Dd Mar 23, 2015
 .Dt LINT 1
 .Os
 .Sh NAME
@@ -49,6 +49,7 @@
 .Op Fl I Ar directory
 .Op Fl d Ar directory
 .Op Fl L Ar directory
+.Op Fl MD
 .Op Fl l Ar library
 .Op Fl o Ar outputfile
 .Op Fl B Ar directory
@@ -269,6 +270,8 @@ With the
 flag,
 .Dv __STRICT_ANSI__
 is a predefined preprocessor macro.
+.It Fl S
+C9X mode. Currently not fully implemented.
 .It Fl t
 Traditional C mode.
 .Dv __STDC__
@@ -369,6 +372,13 @@ If a complaint stems from an included file
 .Nm
 prints the name of the included file instead of the source file name
 followed by a question mark.
+.It Fl MD
+Pass
+.Fl MD
+to
+.Xr cpp 1
+causing cpp to create files containing dependency information for
+each source file.
 .It Fl o Ar outputfile
 Name the output file
 .Ar outputfile .
@@ -415,7 +425,7 @@ The
 utility recognizes the following C comments as commands.
 .Bl -tag -width indent
 .It Li /* ARGSUSED Ns Ar n Li */
-makes
+Makes
 .Nm
 check only the first
 .Ar n

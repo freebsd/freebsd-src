@@ -83,12 +83,37 @@ namespace llvm {
     /*implicit*/ LLVM_CONSTEXPR ArrayRef(const T (&Arr)[N])
       : Data(Arr), Length(N) {}
 
-#if LLVM_HAS_INITIALIZER_LISTS
     /// Construct an ArrayRef from a std::initializer_list.
     /*implicit*/ ArrayRef(const std::initializer_list<T> &Vec)
     : Data(Vec.begin() == Vec.end() ? (T*)0 : Vec.begin()),
       Length(Vec.size()) {}
-#endif
+
+    /// Construct an ArrayRef<const T*> from ArrayRef<T*>. This uses SFINAE to
+    /// ensure that only ArrayRefs of pointers can be converted.
+    template <typename U>
+    ArrayRef(const ArrayRef<U *> &A,
+             typename std::enable_if<
+                 std::is_convertible<U *const *, T const *>::value>::type* = 0)
+      : Data(A.data()), Length(A.size()) {}
+
+    /// Construct an ArrayRef<const T*> from a SmallVector<T*>. This is
+    /// templated in order to avoid instantiating SmallVectorTemplateCommon<T>
+    /// whenever we copy-construct an ArrayRef.
+    template<typename U, typename DummyT>
+    /*implicit*/ ArrayRef(const SmallVectorTemplateCommon<U*, DummyT> &Vec,
+                          typename std::enable_if<
+                              std::is_convertible<U *const *,
+                                                  T const *>::value>::type* = 0)
+      : Data(Vec.data()), Length(Vec.size()) {
+    }
+
+    /// Construct an ArrayRef<const T*> from std::vector<T*>. This uses SFINAE
+    /// to ensure that only vectors of pointers can be converted.
+    template<typename U, typename A>
+    ArrayRef(const std::vector<U *, A> &Vec,
+             typename std::enable_if<
+                 std::is_convertible<U *const *, T const *>::value>::type* = 0)
+      : Data(Vec.data()), Length(Vec.size()) {}
 
     /// @}
     /// @name Simple Operations
@@ -131,6 +156,8 @@ namespace llvm {
     bool equals(ArrayRef RHS) const {
       if (Length != RHS.Length)
         return false;
+      if (Length == 0)
+        return true;
       return std::equal(begin(), end(), RHS.begin());
     }
 
@@ -257,6 +284,11 @@ namespace llvm {
     MutableArrayRef<T> slice(unsigned N, unsigned M) const {
       assert(N+M <= this->size() && "Invalid specifier");
       return MutableArrayRef<T>(data()+N, M);
+    }
+
+    MutableArrayRef<T> drop_back(unsigned N) const {
+      assert(this->size() >= N && "Dropping more elements than exist");
+      return slice(0, this->size() - N);
     }
 
     /// @}

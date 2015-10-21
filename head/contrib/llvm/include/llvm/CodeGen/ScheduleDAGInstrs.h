@@ -75,8 +75,7 @@ namespace llvm {
   /// MachineInstrs.
   class ScheduleDAGInstrs : public ScheduleDAG {
   protected:
-    const MachineLoopInfo &MLI;
-    const MachineDominatorTree &MDT;
+    const MachineLoopInfo *MLI;
     const MachineFrameInfo *MFI;
 
     /// Live Intervals provides reaching defs in preRA scheduling.
@@ -154,13 +153,12 @@ namespace llvm {
 
   public:
     explicit ScheduleDAGInstrs(MachineFunction &mf,
-                               const MachineLoopInfo &mli,
-                               const MachineDominatorTree &mdt,
+                               const MachineLoopInfo *mli,
                                bool IsPostRAFlag,
                                bool RemoveKillFlags = false,
                                LiveIntervals *LIS = nullptr);
 
-    virtual ~ScheduleDAGInstrs() {}
+    ~ScheduleDAGInstrs() override {}
 
     bool isPostRA() const { return IsPostRA; }
 
@@ -262,7 +260,7 @@ namespace llvm {
 #ifndef NDEBUG
     const SUnit *Addr = SUnits.empty() ? nullptr : &SUnits[0];
 #endif
-    SUnits.push_back(SUnit(MI, (unsigned)SUnits.size()));
+    SUnits.emplace_back(MI, (unsigned)SUnits.size());
     assert((Addr == nullptr || Addr == &SUnits[0]) &&
            "SUnits std::vector reallocated on the fly!");
     SUnits.back().OrigNode = &SUnits.back();

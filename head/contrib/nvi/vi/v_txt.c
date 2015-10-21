@@ -29,25 +29,25 @@ static const char sccsid[] = "$Id: v_txt.c,v 11.5 2013/05/19 20:37:45 bentley Ex
 #include "../common/common.h"
 #include "vi.h"
 
-static int	 txt_abbrev __P((SCR *, TEXT *, CHAR_T *, int, int *, int *));
-static void	 txt_ai_resolve __P((SCR *, TEXT *, int *));
-static TEXT	*txt_backup __P((SCR *, TEXTH *, TEXT *, u_int32_t *));
-static int	 txt_dent __P((SCR *, TEXT *, int));
-static int	 txt_emark __P((SCR *, TEXT *, size_t));
-static void	 txt_err __P((SCR *, TEXTH *));
-static int	 txt_fc __P((SCR *, TEXT *, int *));
-static int	 txt_fc_col __P((SCR *, int, ARGS **));
-static int	 txt_hex __P((SCR *, TEXT *));
-static int	 txt_insch __P((SCR *, TEXT *, CHAR_T *, u_int));
-static int	 txt_isrch __P((SCR *, VICMD *, TEXT *, u_int8_t *));
-static int	 txt_map_end __P((SCR *));
-static int	 txt_map_init __P((SCR *));
-static int	 txt_margin __P((SCR *, TEXT *, TEXT *, int *, u_int32_t));
-static void	 txt_nomorech __P((SCR *));
-static void	 txt_Rresolve __P((SCR *, TEXTH *, TEXT *, const size_t));
-static int	 txt_resolve __P((SCR *, TEXTH *, u_int32_t));
-static int	 txt_showmatch __P((SCR *, TEXT *));
-static void	 txt_unmap __P((SCR *, TEXT *, u_int32_t *));
+static int	 txt_abbrev(SCR *, TEXT *, CHAR_T *, int, int *, int *);
+static void	 txt_ai_resolve(SCR *, TEXT *, int *);
+static TEXT	*txt_backup(SCR *, TEXTH *, TEXT *, u_int32_t *);
+static int	 txt_dent(SCR *, TEXT *, int);
+static int	 txt_emark(SCR *, TEXT *, size_t);
+static void	 txt_err(SCR *, TEXTH *);
+static int	 txt_fc(SCR *, TEXT *, int *);
+static int	 txt_fc_col(SCR *, int, ARGS **);
+static int	 txt_hex(SCR *, TEXT *);
+static int	 txt_insch(SCR *, TEXT *, CHAR_T *, u_int);
+static int	 txt_isrch(SCR *, VICMD *, TEXT *, u_int8_t *);
+static int	 txt_map_end(SCR *);
+static int	 txt_map_init(SCR *);
+static int	 txt_margin(SCR *, TEXT *, TEXT *, int *, u_int32_t);
+static void	 txt_nomorech(SCR *);
+static void	 txt_Rresolve(SCR *, TEXTH *, TEXT *, const size_t);
+static int	 txt_resolve(SCR *, TEXTH *, u_int32_t);
+static int	 txt_showmatch(SCR *, TEXT *);
+static void	 txt_unmap(SCR *, TEXT *, u_int32_t *);
 
 /* Cursor character (space is hard to track on the screen). */
 #if defined(DEBUG) && 0
@@ -59,7 +59,7 @@ static void	 txt_unmap __P((SCR *, TEXT *, u_int32_t *));
  * v_tcmd --
  *	Fill a buffer from the terminal for vi.
  *
- * PUBLIC: int v_tcmd __P((SCR *, VICMD *, ARG_CHAR_T, u_int));
+ * PUBLIC: int v_tcmd(SCR *, VICMD *, ARG_CHAR_T, u_int);
  */
 int
 v_tcmd(SCR *sp, VICMD *vp, ARG_CHAR_T prompt, u_int flags)
@@ -234,8 +234,8 @@ txt_map_end(SCR *sp)
  * v_txt --
  *	Vi text input.
  *
- * PUBLIC: int v_txt __P((SCR *, VICMD *, MARK *,
- * PUBLIC:    const CHAR_T *, size_t, ARG_CHAR_T, recno_t, u_long, u_int32_t));
+ * PUBLIC: int v_txt(SCR *, VICMD *, MARK *,
+ * PUBLIC:    const CHAR_T *, size_t, ARG_CHAR_T, recno_t, u_long, u_int32_t);
  */
 int
 v_txt(
@@ -1760,7 +1760,7 @@ txt_ai_resolve(SCR *sp, TEXT *tp, int *changedp)
  *	Handle autoindent.  If aitp isn't NULL, use it, otherwise,
  *	retrieve the line.
  *
- * PUBLIC: int v_txt_auto __P((SCR *, recno_t, TEXT *, size_t, TEXT *));
+ * PUBLIC: int v_txt_auto(SCR *, recno_t, TEXT *, size_t, TEXT *);
  */
 int
 v_txt_auto(SCR *sp, recno_t lno, TEXT *aitp, size_t len, TEXT *tp)

@@ -736,7 +736,7 @@ sdp_rx_ring_create(struct sdp_sock *ssk, struct ib_device *device)
 	}
 
 	rx_cq = ib_create_cq(device, sdp_rx_irq, sdp_rx_cq_event_handler,
-			  ssk->socket, SDP_RX_SIZE, IB_CQ_VECTOR_LEAST_ATTACHED);
+			  ssk->socket, SDP_RX_SIZE, 0);
 
 	if (IS_ERR(rx_cq)) {
 		rc = PTR_ERR(rx_cq);

@@ -15,19 +15,24 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDiagnostic.h"
 #include "clang/AST/CharUnits.h"
+#include "clang/AST/CXXInheritance.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/EvaluatedExprVisitor.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
+#include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/AST/TypeLoc.h"
+#include "clang/AST/TypeOrdering.h"
+#include "clang/Basic/TargetInfo.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/Initialization.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/ScopeInfo.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallString.h"
@@ -184,6 +189,12 @@ void Sema::DiagnoseUnusedExprResult(const Stmt *S) {
   const Expr *E = dyn_cast_or_null<Expr>(S);
   if (!E)
     return;
+
+  // If we are in an unevaluated expression context, then there can be no unused
+  // results because the results aren't expected to be used in the first place.
+  if (isUnevaluatedContext())
+    return;
+
   SourceLocation ExprLoc = E->IgnoreParens()->getExprLoc();
   // In most cases, we don't want to warn if the expression is written in a
   // macro body, or if the macro comes from a system header. If the offending
@@ -229,7 +240,9 @@ void Sema::DiagnoseUnusedExprResult(const Stmt *S) {
     // is written in a macro body, only warn if it has the warn_unused_result
     // attribute.
     if (const Decl *FD = CE->getCalleeDecl()) {
-      if (FD->hasAttr<WarnUnusedResultAttr>()) {
+      const FunctionDecl *Func = dyn_cast<FunctionDecl>(FD);
+      if (Func ? Func->hasUnusedResultAttr()
+               : FD->hasAttr<WarnUnusedResultAttr>()) {
         Diag(Loc, diag::warn_unused_result) << R1 << R2;
         return;
       }
@@ -256,10 +269,6 @@ void Sema::DiagnoseUnusedExprResult(const Stmt *S) {
     if (MD) {
       if (MD->hasAttr<WarnUnusedResultAttr>()) {
         Diag(Loc, diag::warn_unused_result) << R1 << R2;
-        return;
-      }
-      if (MD->isPropertyAccessor()) {
-        Diag(Loc, diag::warn_unused_property_expr);
         return;
       }
     }
@@ -364,6 +373,23 @@ Sema::ActOnCaseStmt(SourceLocation CaseLoc, Expr *LHSVal,
     return StmtError();
   }
 
+  ExprResult LHS =
+      CorrectDelayedTyposInExpr(LHSVal, [this](class Expr *E) {
+        if (!getLangOpts().CPlusPlus11)
+          return VerifyIntegerConstantExpression(E);
+        if (Expr *CondExpr =
+                getCurFunction()->SwitchStack.back()->getCond()) {
+          QualType CondType = CondExpr->getType();
+          llvm::APSInt TempVal;
+          return CheckConvertedConstantExpression(E, CondType, TempVal,
+                                                        CCEK_CaseValue);
+        }
+        return ExprError();
+      });
+  if (LHS.isInvalid())
+    return StmtError();
+  LHSVal = LHS.get();
+
   if (!getLangOpts().CPlusPlus11) {
     // C99 6.8.4.2p3: The expression shall be an integer constant.
     // However, GCC allows any evaluatable integer expression.
@@ -381,14 +407,19 @@ Sema::ActOnCaseStmt(SourceLocation CaseLoc, Expr *LHSVal,
     }
   }
 
-  LHSVal = ActOnFinishFullExpr(LHSVal, LHSVal->getExprLoc(), false,
-                               getLangOpts().CPlusPlus11).get();
-  if (RHSVal)
-    RHSVal = ActOnFinishFullExpr(RHSVal, RHSVal->getExprLoc(), false,
-                                 getLangOpts().CPlusPlus11).get();
+  LHS = ActOnFinishFullExpr(LHSVal, LHSVal->getExprLoc(), false,
+                                 getLangOpts().CPlusPlus11);
+  if (LHS.isInvalid())
+    return StmtError();
 
-  CaseStmt *CS = new (Context) CaseStmt(LHSVal, RHSVal, CaseLoc, DotDotDotLoc,
-                                        ColonLoc);
+  auto RHS = RHSVal ? ActOnFinishFullExpr(RHSVal, RHSVal->getExprLoc(), false,
+                                          getLangOpts().CPlusPlus11)
+                    : ExprResult();
+  if (RHS.isInvalid())
+    return StmtError();
+
+  CaseStmt *CS = new (Context)
+      CaseStmt(LHS.get(), RHS.get(), CaseLoc, DotDotDotLoc, ColonLoc);
   getCurFunction()->SwitchStack.back()->addSwitchCase(CS);
   return CS;
 }
@@ -431,7 +462,11 @@ Sema::ActOnLabelStmt(SourceLocation IdentLoc, LabelDecl *TheDecl,
   TheDecl->setStmt(LS);
   if (!TheDecl->isGnuLocal()) {
     TheDecl->setLocStart(IdentLoc);
-    TheDecl->setLocation(IdentLoc);
+    if (!TheDecl->isMSAsmLabel()) {
+      // Don't update the location of MS ASM labels.  These will result in
+      // a diagnostic, and changing the location here will mess that up.
+      TheDecl->setLocation(IdentLoc);
+    }
   }
   return LS;
 }
@@ -461,6 +496,7 @@ Sema::ActOnIfStmt(SourceLocation IfLoc, FullExprArg CondVal, Decl *CondVar,
   if (CondVar) {
     ConditionVar = cast<VarDecl>(CondVar);
     CondResult = CheckConditionVariable(ConditionVar, IfLoc, true);
+    CondResult = ActOnFinishFullExpr(CondResult.get(), IfLoc);
     if (CondResult.isInvalid())
       return StmtError();
   }
@@ -479,47 +515,6 @@ Sema::ActOnIfStmt(SourceLocation IfLoc, FullExprArg CondVal, Decl *CondVar,
 
   return new (Context) IfStmt(Context, IfLoc, ConditionVar, ConditionExpr,
                               thenStmt, ElseLoc, elseStmt);
-}
-
-/// ConvertIntegerToTypeWarnOnOverflow - Convert the specified APInt to have
-/// the specified width and sign.  If an overflow occurs, detect it and emit
-/// the specified diagnostic.
-void Sema::ConvertIntegerToTypeWarnOnOverflow(llvm::APSInt &Val,
-                                              unsigned NewWidth, bool NewSign,
-                                              SourceLocation Loc,
-                                              unsigned DiagID) {
-  // Perform a conversion to the promoted condition type if needed.
-  if (NewWidth > Val.getBitWidth()) {
-    // If this is an extension, just do it.
-    Val = Val.extend(NewWidth);
-    Val.setIsSigned(NewSign);
-
-    // If the input was signed and negative and the output is
-    // unsigned, don't bother to warn: this is implementation-defined
-    // behavior.
-    // FIXME: Introduce a second, default-ignored warning for this case?
-  } else if (NewWidth < Val.getBitWidth()) {
-    // If this is a truncation, check for overflow.
-    llvm::APSInt ConvVal(Val);
-    ConvVal = ConvVal.trunc(NewWidth);
-    ConvVal.setIsSigned(NewSign);
-    ConvVal = ConvVal.extend(Val.getBitWidth());
-    ConvVal.setIsSigned(Val.isSigned());
-    if (ConvVal != Val)
-      Diag(Loc, DiagID) << Val.toString(10) << ConvVal.toString(10);
-
-    // Regardless of whether a diagnostic was emitted, really do the
-    // truncation.
-    Val = Val.trunc(NewWidth);
-    Val.setIsSigned(NewSign);
-  } else if (NewSign != Val.isSigned()) {
-    // Convert the sign to match the sign of the condition.  This can cause
-    // overflow as well: unsigned(INTMIN)
-    // We don't diagnose this overflow, because it is implementation-defined
-    // behavior.
-    // FIXME: Introduce a second, default-ignored warning for this case?
-    Val.setIsSigned(NewSign);
-  }
 }
 
 namespace {
@@ -656,12 +651,10 @@ Sema::ActOnStartOfSwitchStmt(SourceLocation SwitchLoc, Expr *Cond,
   if (CondResult.isInvalid()) return StmtError();
   Cond = CondResult.get();
 
-  if (!CondVar) {
-    CondResult = ActOnFinishFullExpr(Cond, SwitchLoc);
-    if (CondResult.isInvalid())
-      return StmtError();
-    Cond = CondResult.get();
-  }
+  CondResult = ActOnFinishFullExpr(Cond, SwitchLoc);
+  if (CondResult.isInvalid())
+    return StmtError();
+  Cond = CondResult.get();
 
   getCurFunction()->setHasBranchIntoScope();
 
@@ -671,33 +664,63 @@ Sema::ActOnStartOfSwitchStmt(SourceLocation SwitchLoc, Expr *Cond,
 }
 
 static void AdjustAPSInt(llvm::APSInt &Val, unsigned BitWidth, bool IsSigned) {
-  if (Val.getBitWidth() < BitWidth)
-    Val = Val.extend(BitWidth);
-  else if (Val.getBitWidth() > BitWidth)
-    Val = Val.trunc(BitWidth);
+  Val = Val.extOrTrunc(BitWidth);
   Val.setIsSigned(IsSigned);
 }
 
+/// Check the specified case value is in range for the given unpromoted switch
+/// type.
+static void checkCaseValue(Sema &S, SourceLocation Loc, const llvm::APSInt &Val,
+                           unsigned UnpromotedWidth, bool UnpromotedSign) {
+  // If the case value was signed and negative and the switch expression is
+  // unsigned, don't bother to warn: this is implementation-defined behavior.
+  // FIXME: Introduce a second, default-ignored warning for this case?
+  if (UnpromotedWidth < Val.getBitWidth()) {
+    llvm::APSInt ConvVal(Val);
+    AdjustAPSInt(ConvVal, UnpromotedWidth, UnpromotedSign);
+    AdjustAPSInt(ConvVal, Val.getBitWidth(), Val.isSigned());
+    // FIXME: Use different diagnostics for overflow  in conversion to promoted
+    // type versus "switch expression cannot have this value". Use proper
+    // IntRange checking rather than just looking at the unpromoted type here.
+    if (ConvVal != Val)
+      S.Diag(Loc, diag::warn_case_value_overflow) << Val.toString(10)
+                                                  << ConvVal.toString(10);
+  }
+}
+
+typedef SmallVector<std::pair<llvm::APSInt, EnumConstantDecl*>, 64> EnumValsTy;
+
 /// Returns true if we should emit a diagnostic about this case expression not
 /// being a part of the enum used in the switch controlling expression.
-static bool ShouldDiagnoseSwitchCaseNotInEnum(const ASTContext &Ctx,
+static bool ShouldDiagnoseSwitchCaseNotInEnum(const Sema &S,
                                               const EnumDecl *ED,
-                                              const Expr *CaseExpr) {
-  // Don't warn if the 'case' expression refers to a static const variable of
-  // the enum type.
-  CaseExpr = CaseExpr->IgnoreParenImpCasts();
-  if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CaseExpr)) {
+                                              const Expr *CaseExpr,
+                                              EnumValsTy::iterator &EI,
+                                              EnumValsTy::iterator &EIEnd,
+                                              const llvm::APSInt &Val) {
+  bool FlagType = ED->hasAttr<FlagEnumAttr>();
+
+  if (const DeclRefExpr *DRE =
+          dyn_cast<DeclRefExpr>(CaseExpr->IgnoreParenImpCasts())) {
     if (const VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl())) {
-      if (!VD->hasGlobalStorage())
-        return true;
       QualType VarType = VD->getType();
-      if (!VarType.isConstQualified())
-        return true;
-      QualType EnumType = Ctx.getTypeDeclType(ED);
-      if (Ctx.hasSameUnqualifiedType(EnumType, VarType))
+      QualType EnumType = S.Context.getTypeDeclType(ED);
+      if (VD->hasGlobalStorage() && VarType.isConstQualified() &&
+          S.Context.hasSameUnqualifiedType(EnumType, VarType))
         return false;
     }
   }
+
+  if (FlagType) {
+    return !S.IsValueInFlagEnum(ED, Val, false);
+  } else {
+    while (EI != EIEnd && EI->first < Val)
+      EI++;
+
+    if (EI != EIEnd && EI->first == Val)
+      return false;
+  }
+
   return true;
 }
 
@@ -708,9 +731,10 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
   assert(SS == getCurFunction()->SwitchStack.back() &&
          "switch stack missing push/pop!");
 
+  getCurFunction()->SwitchStack.pop_back();
+
   if (!BodyStmt) return StmtError();
   SS->setBody(BodyStmt, SwitchLoc);
-  getCurFunction()->SwitchStack.pop_back();
 
   Expr *CondExpr = SS->getCond();
   if (!CondExpr) return StmtError();
@@ -744,13 +768,20 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
     }
   }
 
-  // Get the bitwidth of the switched-on value before promotions.  We must
+  // Get the bitwidth of the switched-on value after promotions. We must
   // convert the integer case values to this width before comparison.
   bool HasDependentValue
     = CondExpr->isTypeDependent() || CondExpr->isValueDependent();
-  unsigned CondWidth
+  unsigned CondWidth = HasDependentValue ? 0 : Context.getIntWidth(CondType);
+  bool CondIsSigned = CondType->isSignedIntegerOrEnumerationType();
+
+  // Get the width and signedness that the condition might actually have, for
+  // warning purposes.
+  // FIXME: Grab an IntRange for the condition rather than using the unpromoted
+  // type.
+  unsigned CondWidthBeforePromotion
     = HasDependentValue ? 0 : Context.getIntWidth(CondTypeBeforePromotion);
-  bool CondIsSigned
+  bool CondIsSignedBeforePromotion
     = CondTypeBeforePromotion->isSignedIntegerOrEnumerationType();
 
   // Accumulate all of the case values in a vector so that we can sort them
@@ -816,15 +847,13 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
         Lo = ImpCastExprToType(Lo, CondType, CK_IntegralCast).get();
       }
 
-      // Convert the value to the same width/sign as the condition had prior to
-      // integral promotions.
-      //
-      // FIXME: This causes us to reject valid code:
-      //   switch ((char)c) { case 256: case 0: return 0; }
-      // Here we claim there is a duplicated condition value, but there is not.
-      ConvertIntegerToTypeWarnOnOverflow(LoVal, CondWidth, CondIsSigned,
-                                         Lo->getLocStart(),
-                                         diag::warn_case_value_overflow);
+      // Check the unconverted value is within the range of possible values of
+      // the switch expression.
+      checkCaseValue(*this, Lo->getLocStart(), LoVal,
+                     CondWidthBeforePromotion, CondIsSignedBeforePromotion);
+
+      // Convert the value to the same width/sign as the condition.
+      AdjustAPSInt(LoVal, CondWidth, CondIsSigned);
 
       CS->setLHS(Lo);
 
@@ -847,9 +876,8 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
     llvm::APSInt ConstantCondValue;
     bool HasConstantCond = false;
     if (!HasDependentValue && !TheDefaultStmt) {
-      HasConstantCond
-        = CondExprBeforePromotion->EvaluateAsInt(ConstantCondValue, Context,
-                                                 Expr::SE_AllowSideEffects);
+      HasConstantCond = CondExpr->EvaluateAsInt(ConstantCondValue, Context,
+                                                Expr::SE_AllowSideEffects);
       assert(!HasConstantCond ||
              (ConstantCondValue.getBitWidth() == CondWidth &&
               ConstantCondValue.isSigned() == CondIsSigned));
@@ -883,12 +911,12 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
           if (PrevString == CurrString)
             Diag(CaseVals[i].second->getLHS()->getLocStart(),
                  diag::err_duplicate_case) <<
-                 (PrevString.empty() ? CaseValStr.str() : PrevString);
+                 (PrevString.empty() ? StringRef(CaseValStr) : PrevString);
           else
             Diag(CaseVals[i].second->getLHS()->getLocStart(),
                  diag::err_duplicate_case_differing_expr) <<
-                 (PrevString.empty() ? CaseValStr.str() : PrevString) <<
-                 (CurrString.empty() ? CaseValStr.str() : CurrString) <<
+                 (PrevString.empty() ? StringRef(CaseValStr) : PrevString) <<
+                 (CurrString.empty() ? StringRef(CaseValStr) : CurrString) <<
                  CaseValStr;
 
           Diag(CaseVals[i-1].second->getLHS()->getLocStart(),
@@ -935,10 +963,13 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
           Hi = ImpCastExprToType(Hi, CondType, CK_IntegralCast).get();
         }
 
+        // Check the unconverted value is within the range of possible values of
+        // the switch expression.
+        checkCaseValue(*this, Hi->getLocStart(), HiVal,
+                       CondWidthBeforePromotion, CondIsSignedBeforePromotion);
+
         // Convert the value to the same width/sign as the condition.
-        ConvertIntegerToTypeWarnOnOverflow(HiVal, CondWidth, CondIsSigned,
-                                           Hi->getLocStart(),
-                                           diag::warn_case_value_overflow);
+        AdjustAPSInt(HiVal, CondWidth, CondIsSigned);
 
         CR->setRHS(Hi);
 
@@ -1029,8 +1060,6 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
     // If switch has default case, then ignore it.
     if (!CaseListIsErroneous  && !HasConstantCond && ET) {
       const EnumDecl *ED = ET->getDecl();
-      typedef SmallVector<std::pair<llvm::APSInt, EnumConstantDecl*>, 64>
-        EnumValsTy;
       EnumValsTy EnumVals;
 
       // Gather all enum values, set their type and sort them,
@@ -1041,57 +1070,48 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
         EnumVals.push_back(std::make_pair(Val, EDI));
       }
       std::stable_sort(EnumVals.begin(), EnumVals.end(), CmpEnumVals);
-      EnumValsTy::iterator EIend =
+      auto EI = EnumVals.begin(), EIEnd =
         std::unique(EnumVals.begin(), EnumVals.end(), EqEnumVals);
 
       // See which case values aren't in enum.
-      EnumValsTy::const_iterator EI = EnumVals.begin();
       for (CaseValsTy::const_iterator CI = CaseVals.begin();
-           CI != CaseVals.end(); CI++) {
-        while (EI != EIend && EI->first < CI->first)
-          EI++;
-        if (EI == EIend || EI->first > CI->first) {
-          Expr *CaseExpr = CI->second->getLHS();
-          if (ShouldDiagnoseSwitchCaseNotInEnum(Context, ED, CaseExpr))
-            Diag(CaseExpr->getExprLoc(), diag::warn_not_in_enum)
-              << CondTypeBeforePromotion;
-        }
+          CI != CaseVals.end(); CI++) {
+        Expr *CaseExpr = CI->second->getLHS();
+        if (ShouldDiagnoseSwitchCaseNotInEnum(*this, ED, CaseExpr, EI, EIEnd,
+                                              CI->first))
+          Diag(CaseExpr->getExprLoc(), diag::warn_not_in_enum)
+            << CondTypeBeforePromotion;
       }
+
       // See which of case ranges aren't in enum
       EI = EnumVals.begin();
       for (CaseRangesTy::const_iterator RI = CaseRanges.begin();
-           RI != CaseRanges.end() && EI != EIend; RI++) {
-        while (EI != EIend && EI->first < RI->first)
-          EI++;
-
-        if (EI == EIend || EI->first != RI->first) {
-          Expr *CaseExpr = RI->second->getLHS();
-          if (ShouldDiagnoseSwitchCaseNotInEnum(Context, ED, CaseExpr))
-            Diag(CaseExpr->getExprLoc(), diag::warn_not_in_enum)
-              << CondTypeBeforePromotion;
-        }
+          RI != CaseRanges.end(); RI++) {
+        Expr *CaseExpr = RI->second->getLHS();
+        if (ShouldDiagnoseSwitchCaseNotInEnum(*this, ED, CaseExpr, EI, EIEnd,
+                                              RI->first))
+          Diag(CaseExpr->getExprLoc(), diag::warn_not_in_enum)
+            << CondTypeBeforePromotion;
 
         llvm::APSInt Hi =
           RI->second->getRHS()->EvaluateKnownConstInt(Context);
         AdjustAPSInt(Hi, CondWidth, CondIsSigned);
-        while (EI != EIend && EI->first < Hi)
-          EI++;
-        if (EI == EIend || EI->first != Hi) {
-          Expr *CaseExpr = RI->second->getRHS();
-          if (ShouldDiagnoseSwitchCaseNotInEnum(Context, ED, CaseExpr))
-            Diag(CaseExpr->getExprLoc(), diag::warn_not_in_enum)
-              << CondTypeBeforePromotion;
-        }
+
+        CaseExpr = RI->second->getRHS();
+        if (ShouldDiagnoseSwitchCaseNotInEnum(*this, ED, CaseExpr, EI, EIEnd,
+                                              Hi))
+          Diag(CaseExpr->getExprLoc(), diag::warn_not_in_enum)
+            << CondTypeBeforePromotion;
       }
 
       // Check which enum vals aren't in switch
-      CaseValsTy::const_iterator CI = CaseVals.begin();
-      CaseRangesTy::const_iterator RI = CaseRanges.begin();
+      auto CI = CaseVals.begin();
+      auto RI = CaseRanges.begin();
       bool hasCasesNotInSwitch = false;
 
       SmallVector<DeclarationName,8> UnhandledNames;
 
-      for (EI = EnumVals.begin(); EI != EIend; EI++){
+      for (EI = EnumVals.begin(); EI != EIEnd; EI++){
         // Drop unneeded case values
         while (CI != CaseVals.end() && CI->first < EI->first)
           CI++;
@@ -1118,29 +1138,15 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
         Diag(TheDefaultStmt->getDefaultLoc(), diag::warn_unreachable_default);
 
       // Produce a nice diagnostic if multiple values aren't handled.
-      switch (UnhandledNames.size()) {
-      case 0: break;
-      case 1:
-        Diag(CondExpr->getExprLoc(), TheDefaultStmt
-          ? diag::warn_def_missing_case1 : diag::warn_missing_case1)
-          << UnhandledNames[0];
-        break;
-      case 2:
-        Diag(CondExpr->getExprLoc(), TheDefaultStmt
-          ? diag::warn_def_missing_case2 : diag::warn_missing_case2)
-          << UnhandledNames[0] << UnhandledNames[1];
-        break;
-      case 3:
-        Diag(CondExpr->getExprLoc(), TheDefaultStmt
-          ? diag::warn_def_missing_case3 : diag::warn_missing_case3)
-          << UnhandledNames[0] << UnhandledNames[1] << UnhandledNames[2];
-        break;
-      default:
-        Diag(CondExpr->getExprLoc(), TheDefaultStmt
-          ? diag::warn_def_missing_cases : diag::warn_missing_cases)
-          << (unsigned)UnhandledNames.size()
-          << UnhandledNames[0] << UnhandledNames[1] << UnhandledNames[2];
-        break;
+      if (!UnhandledNames.empty()) {
+        DiagnosticBuilder DB = Diag(CondExpr->getExprLoc(),
+                                    TheDefaultStmt ? diag::warn_def_missing_case
+                                                   : diag::warn_missing_case)
+                               << (int)UnhandledNames.size();
+
+        for (size_t I = 0, E = std::min(UnhandledNames.size(), (size_t)3);
+             I != E; ++I)
+          DB << UnhandledNames[I];
       }
 
       if (!hasCasesNotInSwitch)
@@ -1178,30 +1184,37 @@ Sema::DiagnoseAssignmentEnum(QualType DstType, QualType SrcType,
         llvm::APSInt RhsVal = SrcExpr->EvaluateKnownConstInt(Context);
         AdjustAPSInt(RhsVal, DstWidth, DstIsSigned);
         const EnumDecl *ED = ET->getDecl();
-        typedef SmallVector<std::pair<llvm::APSInt, EnumConstantDecl *>, 64>
-            EnumValsTy;
-        EnumValsTy EnumVals;
 
-        // Gather all enum values, set their type and sort them,
-        // allowing easier comparison with rhs constant.
-        for (auto *EDI : ED->enumerators()) {
-          llvm::APSInt Val = EDI->getInitVal();
-          AdjustAPSInt(Val, DstWidth, DstIsSigned);
-          EnumVals.push_back(std::make_pair(Val, EDI));
-        }
-        if (EnumVals.empty())
-          return;
-        std::stable_sort(EnumVals.begin(), EnumVals.end(), CmpEnumVals);
-        EnumValsTy::iterator EIend =
-            std::unique(EnumVals.begin(), EnumVals.end(), EqEnumVals);
-
-        // See which values aren't in the enum.
-        EnumValsTy::const_iterator EI = EnumVals.begin();
-        while (EI != EIend && EI->first < RhsVal)
-          EI++;
-        if (EI == EIend || EI->first != RhsVal) {
-          Diag(SrcExpr->getExprLoc(), diag::warn_not_in_enum_assignment)
+        if (ED->hasAttr<FlagEnumAttr>()) {
+          if (!IsValueInFlagEnum(ED, RhsVal, true))
+            Diag(SrcExpr->getExprLoc(), diag::warn_not_in_enum_assignment)
               << DstType.getUnqualifiedType();
+        } else {
+          typedef SmallVector<std::pair<llvm::APSInt, EnumConstantDecl *>, 64>
+              EnumValsTy;
+          EnumValsTy EnumVals;
+
+          // Gather all enum values, set their type and sort them,
+          // allowing easier comparison with rhs constant.
+          for (auto *EDI : ED->enumerators()) {
+            llvm::APSInt Val = EDI->getInitVal();
+            AdjustAPSInt(Val, DstWidth, DstIsSigned);
+            EnumVals.push_back(std::make_pair(Val, EDI));
+          }
+          if (EnumVals.empty())
+            return;
+          std::stable_sort(EnumVals.begin(), EnumVals.end(), CmpEnumVals);
+          EnumValsTy::iterator EIend =
+              std::unique(EnumVals.begin(), EnumVals.end(), EqEnumVals);
+
+          // See which values aren't in the enum.
+          EnumValsTy::const_iterator EI = EnumVals.begin();
+          while (EI != EIend && EI->first < RhsVal)
+            EI++;
+          if (EI == EIend || EI->first != RhsVal) {
+            Diag(SrcExpr->getExprLoc(), diag::warn_not_in_enum_assignment)
+                << DstType.getUnqualifiedType();
+          }
         }
       }
     }
@@ -1216,6 +1229,7 @@ Sema::ActOnWhileStmt(SourceLocation WhileLoc, FullExprArg Cond,
   if (CondVar) {
     ConditionVar = cast<VarDecl>(CondVar);
     CondResult = CheckConditionVariable(ConditionVar, WhileLoc, true);
+    CondResult = ActOnFinishFullExpr(CondResult.get(), WhileLoc);
     if (CondResult.isInvalid())
       return StmtError();
   }
@@ -1260,13 +1274,13 @@ namespace {
   // the evaluated decls into a vector.  Simple is set to true if none
   // of the excluded constructs are used.
   class DeclExtractor : public EvaluatedExprVisitor<DeclExtractor> {
-    llvm::SmallPtrSet<VarDecl*, 8> &Decls;
+    llvm::SmallPtrSetImpl<VarDecl*> &Decls;
     SmallVectorImpl<SourceRange> &Ranges;
     bool Simple;
   public:
     typedef EvaluatedExprVisitor<DeclExtractor> Inherited;
 
-    DeclExtractor(Sema &S, llvm::SmallPtrSet<VarDecl*, 8> &Decls,
+    DeclExtractor(Sema &S, llvm::SmallPtrSetImpl<VarDecl*> &Decls,
                   SmallVectorImpl<SourceRange> &Ranges) :
         Inherited(S.Context),
         Decls(Decls),
@@ -1338,13 +1352,13 @@ namespace {
   // DeclMatcher checks to see if the decls are used in a non-evauluated
   // context.
   class DeclMatcher : public EvaluatedExprVisitor<DeclMatcher> {
-    llvm::SmallPtrSet<VarDecl*, 8> &Decls;
+    llvm::SmallPtrSetImpl<VarDecl*> &Decls;
     bool FoundDecl;
 
   public:
     typedef EvaluatedExprVisitor<DeclMatcher> Inherited;
 
-    DeclMatcher(Sema &S, llvm::SmallPtrSet<VarDecl*, 8> &Decls,
+    DeclMatcher(Sema &S, llvm::SmallPtrSetImpl<VarDecl*> &Decls,
                 Stmt *Statement) :
         Inherited(S.Context), Decls(Decls), FoundDecl(false) {
       if (!Statement) return;
@@ -1427,8 +1441,8 @@ namespace {
     if (Decls.size() == 0) return;
 
     // Don't warn on volatile, static, or global variables.
-    for (llvm::SmallPtrSet<VarDecl*, 8>::iterator I = Decls.begin(),
-                                                  E = Decls.end();
+    for (llvm::SmallPtrSetImpl<VarDecl*>::iterator I = Decls.begin(),
+                                                   E = Decls.end();
          I != E; ++I)
       if ((*I)->getType().isVolatileQualified() ||
           (*I)->hasGlobalStorage()) return;
@@ -1443,8 +1457,8 @@ namespace {
       PDiag << 0;
     else {
       PDiag << Decls.size();
-      for (llvm::SmallPtrSet<VarDecl*, 8>::iterator I = Decls.begin(),
-                                                    E = Decls.end();
+      for (llvm::SmallPtrSetImpl<VarDecl*>::iterator I = Decls.begin(),
+                                                     E = Decls.end();
            I != E; ++I)
         PDiag << (*I)->getDeclName();
     }
@@ -1621,6 +1635,7 @@ Sema::ActOnForStmt(SourceLocation ForLoc, SourceLocation LParenLoc,
   if (secondVar) {
     ConditionVar = cast<VarDecl>(secondVar);
     SecondResult = CheckConditionVariable(ConditionVar, ForLoc, true);
+    SecondResult = ActOnFinishFullExpr(SecondResult.get(), ForLoc);
     if (SecondResult.isInvalid())
       return StmtError();
   }
@@ -1660,11 +1675,16 @@ Sema::CheckObjCForCollectionOperand(SourceLocation forLoc, Expr *collection) {
   if (!collection)
     return ExprError();
 
+  ExprResult result = CorrectDelayedTyposInExpr(collection);
+  if (!result.isUsable())
+    return ExprError();
+  collection = result.get();
+
   // Bail out early if we've got a type-dependent expression.
   if (collection->isTypeDependent()) return collection;
 
   // Perform normal l-value conversion.
-  ExprResult result = DefaultFunctionArrayLvalueConversion(collection);
+  result = DefaultFunctionArrayLvalueConversion(collection);
   if (result.isInvalid())
     return ExprError();
   collection = result.get();
@@ -1810,6 +1830,15 @@ Sema::ActOnObjCForCollectionStmt(SourceLocation ForLoc,
 /// \return true if an error occurs.
 static bool FinishForRangeVarDecl(Sema &SemaRef, VarDecl *Decl, Expr *Init,
                                   SourceLocation Loc, int DiagID) {
+  if (Decl->getType()->isUndeducedType()) {
+    ExprResult Res = SemaRef.CorrectDelayedTyposInExpr(Init);
+    if (!Res.isUsable()) {
+      Decl->setInvalidDecl();
+      return true;
+    }
+    Init = Res.get();
+  }
+
   // Deduce the type for the iterator variable now rather than leaving it to
   // AddInitializerToDecl, so we can produce a more suitable diagnostic.
   QualType InitType;
@@ -2346,6 +2375,156 @@ StmtResult Sema::FinishObjCForCollectionStmt(Stmt *S, Stmt *B) {
   return S;
 }
 
+// Warn when the loop variable is a const reference that creates a copy.
+// Suggest using the non-reference type for copies.  If a copy can be prevented
+// suggest the const reference type that would do so.
+// For instance, given "for (const &Foo : Range)", suggest
+// "for (const Foo : Range)" to denote a copy is made for the loop.  If
+// possible, also suggest "for (const &Bar : Range)" if this type prevents
+// the copy altogether.
+static void DiagnoseForRangeReferenceVariableCopies(Sema &SemaRef,
+                                                    const VarDecl *VD,
+                                                    QualType RangeInitType) {
+  const Expr *InitExpr = VD->getInit();
+  if (!InitExpr)
+    return;
+
+  QualType VariableType = VD->getType();
+
+  const MaterializeTemporaryExpr *MTE =
+      dyn_cast<MaterializeTemporaryExpr>(InitExpr);
+
+  // No copy made.
+  if (!MTE)
+    return;
+
+  const Expr *E = MTE->GetTemporaryExpr()->IgnoreImpCasts();
+
+  // Searching for either UnaryOperator for dereference of a pointer or
+  // CXXOperatorCallExpr for handling iterators.
+  while (!isa<CXXOperatorCallExpr>(E) && !isa<UnaryOperator>(E)) {
+    if (const CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(E)) {
+      E = CCE->getArg(0);
+    } else if (const CXXMemberCallExpr *Call = dyn_cast<CXXMemberCallExpr>(E)) {
+      const MemberExpr *ME = cast<MemberExpr>(Call->getCallee());
+      E = ME->getBase();
+    } else {
+      const MaterializeTemporaryExpr *MTE = cast<MaterializeTemporaryExpr>(E);
+      E = MTE->GetTemporaryExpr();
+    }
+    E = E->IgnoreImpCasts();
+  }
+
+  bool ReturnsReference = false;
+  if (isa<UnaryOperator>(E)) {
+    ReturnsReference = true;
+  } else {
+    const CXXOperatorCallExpr *Call = cast<CXXOperatorCallExpr>(E);
+    const FunctionDecl *FD = Call->getDirectCallee();
+    QualType ReturnType = FD->getReturnType();
+    ReturnsReference = ReturnType->isReferenceType();
+  }
+
+  if (ReturnsReference) {
+    // Loop variable creates a temporary.  Suggest either to go with
+    // non-reference loop variable to indiciate a copy is made, or
+    // the correct time to bind a const reference.
+    SemaRef.Diag(VD->getLocation(), diag::warn_for_range_const_reference_copy)
+        << VD << VariableType << E->getType();
+    QualType NonReferenceType = VariableType.getNonReferenceType();
+    NonReferenceType.removeLocalConst();
+    QualType NewReferenceType =
+        SemaRef.Context.getLValueReferenceType(E->getType().withConst());
+    SemaRef.Diag(VD->getLocStart(), diag::note_use_type_or_non_reference)
+        << NonReferenceType << NewReferenceType << VD->getSourceRange();
+  } else {
+    // The range always returns a copy, so a temporary is always created.
+    // Suggest removing the reference from the loop variable.
+    SemaRef.Diag(VD->getLocation(), diag::warn_for_range_variable_always_copy)
+        << VD << RangeInitType;
+    QualType NonReferenceType = VariableType.getNonReferenceType();
+    NonReferenceType.removeLocalConst();
+    SemaRef.Diag(VD->getLocStart(), diag::note_use_non_reference_type)
+        << NonReferenceType << VD->getSourceRange();
+  }
+}
+
+// Warns when the loop variable can be changed to a reference type to
+// prevent a copy.  For instance, if given "for (const Foo x : Range)" suggest
+// "for (const Foo &x : Range)" if this form does not make a copy.
+static void DiagnoseForRangeConstVariableCopies(Sema &SemaRef,
+                                                const VarDecl *VD) {
+  const Expr *InitExpr = VD->getInit();
+  if (!InitExpr)
+    return;
+
+  QualType VariableType = VD->getType();
+
+  if (const CXXConstructExpr *CE = dyn_cast<CXXConstructExpr>(InitExpr)) {
+    if (!CE->getConstructor()->isCopyConstructor())
+      return;
+  } else if (const CastExpr *CE = dyn_cast<CastExpr>(InitExpr)) {
+    if (CE->getCastKind() != CK_LValueToRValue)
+      return;
+  } else {
+    return;
+  }
+
+  // TODO: Determine a maximum size that a POD type can be before a diagnostic
+  // should be emitted.  Also, only ignore POD types with trivial copy
+  // constructors.
+  if (VariableType.isPODType(SemaRef.Context))
+    return;
+
+  // Suggest changing from a const variable to a const reference variable
+  // if doing so will prevent a copy.
+  SemaRef.Diag(VD->getLocation(), diag::warn_for_range_copy)
+      << VD << VariableType << InitExpr->getType();
+  SemaRef.Diag(VD->getLocStart(), diag::note_use_reference_type)
+      << SemaRef.Context.getLValueReferenceType(VariableType)
+      << VD->getSourceRange();
+}
+
+/// DiagnoseForRangeVariableCopies - Diagnose three cases and fixes for them.
+/// 1) for (const foo &x : foos) where foos only returns a copy.  Suggest
+///    using "const foo x" to show that a copy is made
+/// 2) for (const bar &x : foos) where bar is a temporary intialized by bar.
+///    Suggest either "const bar x" to keep the copying or "const foo& x" to
+///    prevent the copy.
+/// 3) for (const foo x : foos) where x is constructed from a reference foo.
+///    Suggest "const foo &x" to prevent the copy.
+static void DiagnoseForRangeVariableCopies(Sema &SemaRef,
+                                           const CXXForRangeStmt *ForStmt) {
+  if (SemaRef.Diags.isIgnored(diag::warn_for_range_const_reference_copy,
+                              ForStmt->getLocStart()) &&
+      SemaRef.Diags.isIgnored(diag::warn_for_range_variable_always_copy,
+                              ForStmt->getLocStart()) &&
+      SemaRef.Diags.isIgnored(diag::warn_for_range_copy,
+                              ForStmt->getLocStart())) {
+    return;
+  }
+
+  const VarDecl *VD = ForStmt->getLoopVariable();
+  if (!VD)
+    return;
+
+  QualType VariableType = VD->getType();
+
+  if (VariableType->isIncompleteType())
+    return;
+
+  const Expr *InitExpr = VD->getInit();
+  if (!InitExpr)
+    return;
+
+  if (VariableType->isReferenceType()) {
+    DiagnoseForRangeReferenceVariableCopies(SemaRef, VD,
+                                            ForStmt->getRangeInit()->getType());
+  } else if (VariableType.isConstQualified()) {
+    DiagnoseForRangeConstVariableCopies(SemaRef, VD);
+  }
+}
+
 /// FinishCXXForRangeStmt - Attach the body to a C++0x for-range statement.
 /// This is a separate step from ActOnCXXForRangeStmt because analysis of the
 /// body cannot be performed until after the type of the range variable is
@@ -2362,6 +2541,8 @@ StmtResult Sema::FinishCXXForRangeStmt(Stmt *S, Stmt *B) {
 
   DiagnoseEmptyStmtBody(ForStmt->getRParenLoc(), B,
                         diag::warn_empty_range_based_for_body);
+
+  DiagnoseForRangeVariableCopies(*this, ForStmt);
 
   return S;
 }
@@ -2401,6 +2582,14 @@ Sema::ActOnIndirectGotoStmt(SourceLocation GotoLoc, SourceLocation StarLoc,
   return new (Context) IndirectGotoStmt(GotoLoc, StarLoc, E);
 }
 
+static void CheckJumpOutOfSEHFinally(Sema &S, SourceLocation Loc,
+                                     const Scope &DestScope) {
+  if (!S.CurrentSEHFinally.empty() &&
+      DestScope.Contains(*S.CurrentSEHFinally.back())) {
+    S.Diag(Loc, diag::warn_jump_out_of_seh_finally);
+  }
+}
+
 StmtResult
 Sema::ActOnContinueStmt(SourceLocation ContinueLoc, Scope *CurScope) {
   Scope *S = CurScope->getContinueParent();
@@ -2408,6 +2597,7 @@ Sema::ActOnContinueStmt(SourceLocation ContinueLoc, Scope *CurScope) {
     // C99 6.8.6.2p1: A break shall appear only in or as a loop body.
     return StmtError(Diag(ContinueLoc, diag::err_continue_not_in_loop));
   }
+  CheckJumpOutOfSEHFinally(*this, ContinueLoc, *S);
 
   return new (Context) ContinueStmt(ContinueLoc);
 }
@@ -2422,6 +2612,7 @@ Sema::ActOnBreakStmt(SourceLocation BreakLoc, Scope *CurScope) {
   if (S->isOpenMPLoopScope())
     return StmtError(Diag(BreakLoc, diag::err_omp_loop_cannot_use_stmt)
                      << "break");
+  CheckJumpOutOfSEHFinally(*this, BreakLoc, *S);
 
   return new (Context) BreakStmt(BreakLoc);
 }
@@ -2453,7 +2644,7 @@ VarDecl *Sema::getCopyElisionCandidate(QualType ReturnType,
   // - in a return statement in a function [where] ...
   // ... the expression is the name of a non-volatile automatic object ...
   DeclRefExpr *DR = dyn_cast<DeclRefExpr>(E->IgnoreParens());
-  if (!DR || DR->refersToEnclosingLocal())
+  if (!DR || DR->refersToEnclosingVariableOrCapture())
     return nullptr;
   VarDecl *VD = dyn_cast<VarDecl>(DR->getDecl());
   if (!VD)
@@ -2621,8 +2812,12 @@ Sema::ActOnCapScopeReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
         return StmtError();
       RetValExp = Result.get();
 
+      // DR1048: even prior to C++14, we should use the 'auto' deduction rules
+      // when deducing a return type for a lambda-expression (or by extension
+      // for a block). These rules differ from the stated C++11 rules only in
+      // that they remove top-level cv-qualifiers.
       if (!CurContext->isDependentContext())
-        FnRetType = RetValExp->getType();
+        FnRetType = RetValExp->getType().getUnqualifiedType();
       else
         FnRetType = CurCap->ReturnType = Context.DependentTy;
     } else {
@@ -2727,14 +2922,54 @@ Sema::ActOnCapScopeReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
   return Result;
 }
 
+namespace {
+/// \brief Marks all typedefs in all local classes in a type referenced.
+///
+/// In a function like
+/// auto f() {
+///   struct S { typedef int a; };
+///   return S();
+/// }
+///
+/// the local type escapes and could be referenced in some TUs but not in
+/// others. Pretend that all local typedefs are always referenced, to not warn
+/// on this. This isn't necessary if f has internal linkage, or the typedef
+/// is private.
+class LocalTypedefNameReferencer
+    : public RecursiveASTVisitor<LocalTypedefNameReferencer> {
+public:
+  LocalTypedefNameReferencer(Sema &S) : S(S) {}
+  bool VisitRecordType(const RecordType *RT);
+private:
+  Sema &S;
+};
+bool LocalTypedefNameReferencer::VisitRecordType(const RecordType *RT) {
+  auto *R = dyn_cast<CXXRecordDecl>(RT->getDecl());
+  if (!R || !R->isLocalClass() || !R->isLocalClass()->isExternallyVisible() ||
+      R->isDependentType())
+    return true;
+  for (auto *TmpD : R->decls())
+    if (auto *T = dyn_cast<TypedefNameDecl>(TmpD))
+      if (T->getAccess() != AS_private || R->hasFriends())
+        S.MarkAnyDeclReferenced(T->getLocation(), T, /*OdrUse=*/false);
+  return true;
+}
+}
+
+TypeLoc Sema::getReturnTypeLoc(FunctionDecl *FD) const {
+  TypeLoc TL = FD->getTypeSourceInfo()->getTypeLoc().IgnoreParens();
+  while (auto ATL = TL.getAs<AttributedTypeLoc>())
+    TL = ATL.getModifiedLoc().IgnoreParens();
+  return TL.castAs<FunctionProtoTypeLoc>().getReturnLoc();
+}
+
 /// Deduce the return type for a function from a returned expression, per
 /// C++1y [dcl.spec.auto]p6.
 bool Sema::DeduceFunctionTypeFromReturnExpr(FunctionDecl *FD,
                                             SourceLocation ReturnLoc,
                                             Expr *&RetExpr,
                                             AutoType *AT) {
-  TypeLoc OrigResultType = FD->getTypeSourceInfo()->getTypeLoc().
-    IgnoreParens().castAs<FunctionProtoTypeLoc>().getReturnLoc();
+  TypeLoc OrigResultType = getReturnTypeLoc(FD);
   QualType Deduced;
 
   if (RetExpr && isa<InitListExpr>(RetExpr)) {
@@ -2772,6 +3007,11 @@ bool Sema::DeduceFunctionTypeFromReturnExpr(FunctionDecl *FD,
 
     if (DAR != DAR_Succeeded)
       return true;
+
+    // If a local type is part of the returned type, mark its fields as
+    // referenced.
+    LocalTypedefNameReferencer Referencer(*this);
+    Referencer.TraverseType(RetExpr->getType());
   } else {
     //  In the case of a return with no operand, the initializer is considered
     //  to be void().
@@ -2832,6 +3072,8 @@ Sema::ActOnReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp,
     CurScope->setNoNRVO();
   }
 
+  CheckJumpOutOfSEHFinally(*this, ReturnLoc, *CurScope->getFnParent());
+
   return R;
 }
 
@@ -2872,7 +3114,7 @@ StmtResult Sema::BuildReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
 
   // FIXME: Add a flag to the ScopeInfo to indicate whether we're performing
   // deduction.
-  if (getLangOpts().CPlusPlus1y) {
+  if (getLangOpts().CPlusPlus14) {
     if (AutoType *AT = FnRetType->getContainedAutoType()) {
       FunctionDecl *FD = cast<FunctionDecl>(CurContext);
       if (DeduceFunctionTypeFromReturnExpr(FD, ReturnLoc, RetValExp, AT)) {
@@ -2964,14 +3206,26 @@ StmtResult Sema::BuildReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
 
     Result = new (Context) ReturnStmt(ReturnLoc, RetValExp, nullptr);
   } else if (!RetValExp && !HasDependentReturnType) {
-    unsigned DiagID = diag::warn_return_missing_expr;  // C90 6.6.6.4p4
-    // C99 6.8.6.4p1 (ext_ since GCC warns)
-    if (getLangOpts().C99) DiagID = diag::ext_return_missing_expr;
+    FunctionDecl *FD = getCurFunctionDecl();
 
-    if (FunctionDecl *FD = getCurFunctionDecl())
+    unsigned DiagID;
+    if (getLangOpts().CPlusPlus11 && FD && FD->isConstexpr()) {
+      // C++11 [stmt.return]p2
+      DiagID = diag::err_constexpr_return_missing_expr;
+      FD->setInvalidDecl();
+    } else if (getLangOpts().C99) {
+      // C99 6.8.6.4p1 (ext_ since GCC warns)
+      DiagID = diag::ext_return_missing_expr;
+    } else {
+      // C90 6.6.6.4p4
+      DiagID = diag::warn_return_missing_expr;
+    }
+
+    if (FD)
       Diag(ReturnLoc, DiagID) << FD->getIdentifier() << 0/*fn*/;
     else
       Diag(ReturnLoc, DiagID) << getCurMethodDecl()->getDeclName() << 1/*meth*/;
+
     Result = new (Context) ReturnStmt(ReturnLoc);
   } else {
     assert(RetValExp || HasDependentReturnType);
@@ -3096,7 +3350,7 @@ Sema::ActOnObjCAtThrowStmt(SourceLocation AtLoc, Expr *Throw,
     Diag(AtLoc, diag::err_objc_exceptions_disabled) << "@throw";
 
   if (!Throw) {
-    // @throw without an expression designates a rethrow (which much occur
+    // @throw without an expression designates a rethrow (which must occur
     // in the context of an @catch clause).
     Scope *AtCatchParent = CurScope;
     while (AtCatchParent && !AtCatchParent->isAtCatchScope())
@@ -3119,9 +3373,24 @@ Sema::ActOnObjCAtSynchronizedOperand(SourceLocation atLoc, Expr *operand) {
   if (!type->isDependentType() &&
       !type->isObjCObjectPointerType()) {
     const PointerType *pointerType = type->getAs<PointerType>();
-    if (!pointerType || !pointerType->getPointeeType()->isVoidType())
-      return Diag(atLoc, diag::error_objc_synchronized_expects_object)
-               << type << operand->getSourceRange();
+    if (!pointerType || !pointerType->getPointeeType()->isVoidType()) {
+      if (getLangOpts().CPlusPlus) {
+        if (RequireCompleteType(atLoc, type,
+                                diag::err_incomplete_receiver_type))
+          return Diag(atLoc, diag::error_objc_synchronized_expects_object)
+                   << type << operand->getSourceRange();
+
+        ExprResult result = PerformContextuallyConvertToObjCPointer(operand);
+        if (!result.isUsable())
+          return Diag(atLoc, diag::error_objc_synchronized_expects_object)
+                   << type << operand->getSourceRange();
+
+        operand = result.get();
+      } else {
+          return Diag(atLoc, diag::error_objc_synchronized_expects_object)
+                   << type << operand->getSourceRange();
+      }
+    }
   }
 
   // The operand to @synchronized is a full-expression.
@@ -3153,35 +3422,112 @@ Sema::ActOnObjCAutoreleasePoolStmt(SourceLocation AtLoc, Stmt *Body) {
 }
 
 namespace {
+class CatchHandlerType {
+  QualType QT;
+  unsigned IsPointer : 1;
 
-class TypeWithHandler {
-  QualType t;
-  CXXCatchStmt *stmt;
+  // This is a special constructor to be used only with DenseMapInfo's
+  // getEmptyKey() and getTombstoneKey() functions.
+  friend struct llvm::DenseMapInfo<CatchHandlerType>;
+  enum Unique { ForDenseMap };
+  CatchHandlerType(QualType QT, Unique) : QT(QT), IsPointer(false) {}
+
 public:
-  TypeWithHandler(const QualType &type, CXXCatchStmt *statement)
-  : t(type), stmt(statement) {}
+  /// Used when creating a CatchHandlerType from a handler type; will determine
+  /// whether the type is a pointer or reference and will strip off the top
+  /// level pointer and cv-qualifiers.
+  CatchHandlerType(QualType Q) : QT(Q), IsPointer(false) {
+    if (QT->isPointerType())
+      IsPointer = true;
 
-  // An arbitrary order is fine as long as it places identical
-  // types next to each other.
-  bool operator<(const TypeWithHandler &y) const {
-    if (t.getAsOpaquePtr() < y.t.getAsOpaquePtr())
-      return true;
-    if (t.getAsOpaquePtr() > y.t.getAsOpaquePtr())
+    if (IsPointer || QT->isReferenceType())
+      QT = QT->getPointeeType();
+    QT = QT.getUnqualifiedType();
+  }
+
+  /// Used when creating a CatchHandlerType from a base class type; pretends the
+  /// type passed in had the pointer qualifier, does not need to get an
+  /// unqualified type.
+  CatchHandlerType(QualType QT, bool IsPointer)
+      : QT(QT), IsPointer(IsPointer) {}
+
+  QualType underlying() const { return QT; }
+  bool isPointer() const { return IsPointer; }
+
+  friend bool operator==(const CatchHandlerType &LHS,
+                         const CatchHandlerType &RHS) {
+    // If the pointer qualification does not match, we can return early.
+    if (LHS.IsPointer != RHS.IsPointer)
       return false;
-    else
-      return getTypeSpecStartLoc() < y.getTypeSpecStartLoc();
+    // Otherwise, check the underlying type without cv-qualifiers.
+    return LHS.QT == RHS.QT;
+  }
+};
+} // namespace
+
+namespace llvm {
+template <> struct DenseMapInfo<CatchHandlerType> {
+  static CatchHandlerType getEmptyKey() {
+    return CatchHandlerType(DenseMapInfo<QualType>::getEmptyKey(),
+                       CatchHandlerType::ForDenseMap);
   }
 
-  bool operator==(const TypeWithHandler& other) const {
-    return t == other.t;
+  static CatchHandlerType getTombstoneKey() {
+    return CatchHandlerType(DenseMapInfo<QualType>::getTombstoneKey(),
+                       CatchHandlerType::ForDenseMap);
   }
 
-  CXXCatchStmt *getCatchStmt() const { return stmt; }
-  SourceLocation getTypeSpecStartLoc() const {
-    return stmt->getExceptionDecl()->getTypeSpecStartLoc();
+  static unsigned getHashValue(const CatchHandlerType &Base) {
+    return DenseMapInfo<QualType>::getHashValue(Base.underlying());
+  }
+
+  static bool isEqual(const CatchHandlerType &LHS,
+                      const CatchHandlerType &RHS) {
+    return LHS == RHS;
   }
 };
 
+// It's OK to treat CatchHandlerType as a POD type.
+template <> struct isPodLike<CatchHandlerType> {
+  static const bool value = true;
+};
+}
+
+namespace {
+class CatchTypePublicBases {
+  ASTContext &Ctx;
+  const llvm::DenseMap<CatchHandlerType, CXXCatchStmt *> &TypesToCheck;
+  const bool CheckAgainstPointer;
+
+  CXXCatchStmt *FoundHandler;
+  CanQualType FoundHandlerType;
+
+public:
+  CatchTypePublicBases(
+      ASTContext &Ctx,
+      const llvm::DenseMap<CatchHandlerType, CXXCatchStmt *> &T, bool C)
+      : Ctx(Ctx), TypesToCheck(T), CheckAgainstPointer(C),
+        FoundHandler(nullptr) {}
+
+  CXXCatchStmt *getFoundHandler() const { return FoundHandler; }
+  CanQualType getFoundHandlerType() const { return FoundHandlerType; }
+
+  static bool FindPublicBasesOfType(const CXXBaseSpecifier *S, CXXBasePath &,
+                                    void *User) {
+    auto &PBOT = *reinterpret_cast<CatchTypePublicBases *>(User);
+    if (S->getAccessSpecifier() == AccessSpecifier::AS_public) {
+      CatchHandlerType Check(S->getType(), PBOT.CheckAgainstPointer);
+      auto M = PBOT.TypesToCheck;
+      auto I = M.find(Check);
+      if (I != M.end()) {
+        PBOT.FoundHandler = I->second;
+        PBOT.FoundHandlerType = PBOT.Ctx.getCanonicalType(S->getType());
+        return true;
+      }
+    }
+    return false;
+  }
+};
 }
 
 /// ActOnCXXTryBlock - Takes a try compound-statement and a number of
@@ -3191,73 +3537,124 @@ StmtResult Sema::ActOnCXXTryBlock(SourceLocation TryLoc, Stmt *TryBlock,
   // Don't report an error if 'try' is used in system headers.
   if (!getLangOpts().CXXExceptions &&
       !getSourceManager().isInSystemHeader(TryLoc))
-      Diag(TryLoc, diag::err_exceptions_disabled) << "try";
+    Diag(TryLoc, diag::err_exceptions_disabled) << "try";
 
   if (getCurScope() && getCurScope()->isOpenMPSimdDirectiveScope())
     Diag(TryLoc, diag::err_omp_simd_region_cannot_use_stmt) << "try";
 
+  sema::FunctionScopeInfo *FSI = getCurFunction();
+
+  // C++ try is incompatible with SEH __try.
+  if (!getLangOpts().Borland && FSI->FirstSEHTryLoc.isValid()) {
+    Diag(TryLoc, diag::err_mixing_cxx_try_seh_try);
+    Diag(FSI->FirstSEHTryLoc, diag::note_conflicting_try_here) << "'__try'";
+  }
+
   const unsigned NumHandlers = Handlers.size();
-  assert(NumHandlers > 0 &&
+  assert(!Handlers.empty() &&
          "The parser shouldn't call this if there are no handlers.");
 
-  SmallVector<TypeWithHandler, 8> TypesWithHandlers;
-
+  llvm::DenseMap<CatchHandlerType, CXXCatchStmt *> HandledTypes;
   for (unsigned i = 0; i < NumHandlers; ++i) {
-    CXXCatchStmt *Handler = cast<CXXCatchStmt>(Handlers[i]);
-    if (!Handler->getExceptionDecl()) {
+    CXXCatchStmt *H = cast<CXXCatchStmt>(Handlers[i]);
+
+    // Diagnose when the handler is a catch-all handler, but it isn't the last
+    // handler for the try block. [except.handle]p5. Also, skip exception
+    // declarations that are invalid, since we can't usefully report on them.
+    if (!H->getExceptionDecl()) {
       if (i < NumHandlers - 1)
-        return StmtError(Diag(Handler->getLocStart(),
-                              diag::err_early_catch_all));
-
+        return StmtError(Diag(H->getLocStart(), diag::err_early_catch_all));
       continue;
-    }
+    } else if (H->getExceptionDecl()->isInvalidDecl())
+      continue;
 
-    const QualType CaughtType = Handler->getCaughtType();
-    const QualType CanonicalCaughtType = Context.getCanonicalType(CaughtType);
-    TypesWithHandlers.push_back(TypeWithHandler(CanonicalCaughtType, Handler));
-  }
+    // Walk the type hierarchy to diagnose when this type has already been
+    // handled (duplication), or cannot be handled (derivation inversion). We
+    // ignore top-level cv-qualifiers, per [except.handle]p3
+    CatchHandlerType HandlerCHT =
+        (QualType)Context.getCanonicalType(H->getCaughtType());
 
-  // Detect handlers for the same type as an earlier one.
-  if (NumHandlers > 1) {
-    llvm::array_pod_sort(TypesWithHandlers.begin(), TypesWithHandlers.end());
-
-    TypeWithHandler prev = TypesWithHandlers[0];
-    for (unsigned i = 1; i < TypesWithHandlers.size(); ++i) {
-      TypeWithHandler curr = TypesWithHandlers[i];
-
-      if (curr == prev) {
-        Diag(curr.getTypeSpecStartLoc(),
-             diag::warn_exception_caught_by_earlier_handler)
-          << curr.getCatchStmt()->getCaughtType().getAsString();
-        Diag(prev.getTypeSpecStartLoc(),
-             diag::note_previous_exception_handler)
-          << prev.getCatchStmt()->getCaughtType().getAsString();
+    // We can ignore whether the type is a reference or a pointer; we need the
+    // underlying declaration type in order to get at the underlying record
+    // decl, if there is one.
+    QualType Underlying = HandlerCHT.underlying();
+    if (auto *RD = Underlying->getAsCXXRecordDecl()) {
+      if (!RD->hasDefinition())
+        continue;
+      // Check that none of the public, unambiguous base classes are in the
+      // map ([except.handle]p1). Give the base classes the same pointer
+      // qualification as the original type we are basing off of. This allows
+      // comparison against the handler type using the same top-level pointer
+      // as the original type.
+      CXXBasePaths Paths;
+      Paths.setOrigin(RD);
+      CatchTypePublicBases CTPB(Context, HandledTypes, HandlerCHT.isPointer());
+      if (RD->lookupInBases(CatchTypePublicBases::FindPublicBasesOfType, &CTPB,
+                            Paths)) {
+        const CXXCatchStmt *Problem = CTPB.getFoundHandler();
+        if (!Paths.isAmbiguous(CTPB.getFoundHandlerType())) {
+          Diag(H->getExceptionDecl()->getTypeSpecStartLoc(),
+               diag::warn_exception_caught_by_earlier_handler)
+              << H->getCaughtType();
+          Diag(Problem->getExceptionDecl()->getTypeSpecStartLoc(),
+                diag::note_previous_exception_handler)
+              << Problem->getCaughtType();
+        }
       }
+    }
 
-      prev = curr;
+    // Add the type the list of ones we have handled; diagnose if we've already
+    // handled it.
+    auto R = HandledTypes.insert(std::make_pair(H->getCaughtType(), H));
+    if (!R.second) {
+      const CXXCatchStmt *Problem = R.first->second;
+      Diag(H->getExceptionDecl()->getTypeSpecStartLoc(),
+           diag::warn_exception_caught_by_earlier_handler)
+          << H->getCaughtType();
+      Diag(Problem->getExceptionDecl()->getTypeSpecStartLoc(),
+           diag::note_previous_exception_handler)
+          << Problem->getCaughtType();
     }
   }
 
-  getCurFunction()->setHasBranchProtectedScope();
-
-  // FIXME: We should detect handlers that cannot catch anything because an
-  // earlier handler catches a superclass. Need to find a method that is not
-  // quadratic for this.
-  // Neither of these are explicitly forbidden, but every compiler detects them
-  // and warns.
+  FSI->setHasCXXTry(TryLoc);
 
   return CXXTryStmt::Create(Context, TryLoc, TryBlock, Handlers);
 }
 
 StmtResult Sema::ActOnSEHTryBlock(bool IsCXXTry, SourceLocation TryLoc,
-                                  Stmt *TryBlock, Stmt *Handler,
-                                  int HandlerIndex, int HandlerParentIndex) {
+                                  Stmt *TryBlock, Stmt *Handler) {
   assert(TryBlock && Handler);
 
-  getCurFunction()->setHasBranchProtectedScope();
+  sema::FunctionScopeInfo *FSI = getCurFunction();
 
-  return SEHTryStmt::Create(Context, IsCXXTry, TryLoc, TryBlock, Handler,
-                            HandlerIndex, HandlerParentIndex);
+  // SEH __try is incompatible with C++ try. Borland appears to support this,
+  // however.
+  if (!getLangOpts().Borland) {
+    if (FSI->FirstCXXTryLoc.isValid()) {
+      Diag(TryLoc, diag::err_mixing_cxx_try_seh_try);
+      Diag(FSI->FirstCXXTryLoc, diag::note_conflicting_try_here) << "'try'";
+    }
+  }
+
+  FSI->setHasSEHTry(TryLoc);
+
+  // Reject __try in Obj-C methods, blocks, and captured decls, since we don't
+  // track if they use SEH.
+  DeclContext *DC = CurContext;
+  while (DC && !DC->isFunctionOrMethod())
+    DC = DC->getParent();
+  FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(DC);
+  if (FD)
+    FD->setUsesSEHTry(true);
+  else
+    Diag(TryLoc, diag::err_seh_try_outside_functions);
+
+  // Reject __try on unsupported targets.
+  if (!Context.getTargetInfo().isSEHTrySupported())
+    Diag(TryLoc, diag::err_seh_try_unsupported);
+
+  return SEHTryStmt::Create(Context, IsCXXTry, TryLoc, TryBlock, Handler);
 }
 
 StmtResult
@@ -3275,11 +3672,18 @@ Sema::ActOnSEHExceptBlock(SourceLocation Loc,
   return SEHExceptStmt::Create(Context,Loc,FilterExpr,Block);
 }
 
-StmtResult
-Sema::ActOnSEHFinallyBlock(SourceLocation Loc,
-                           Stmt *Block) {
+void Sema::ActOnStartSEHFinallyBlock() {
+  CurrentSEHFinally.push_back(CurScope);
+}
+
+void Sema::ActOnAbortSEHFinallyBlock() {
+  CurrentSEHFinally.pop_back();
+}
+
+StmtResult Sema::ActOnFinishSEHFinallyBlock(SourceLocation Loc, Stmt *Block) {
   assert(Block);
-  return SEHFinallyStmt::Create(Context,Loc,Block);
+  CurrentSEHFinally.pop_back();
+  return SEHFinallyStmt::Create(Context, Loc, Block);
 }
 
 StmtResult
@@ -3289,6 +3693,7 @@ Sema::ActOnSEHLeaveStmt(SourceLocation Loc, Scope *CurScope) {
     SEHTryParent = SEHTryParent->getParent();
   if (!SEHTryParent)
     return StmtError(Diag(Loc, diag::err_ms___leave_not_in___try));
+  CheckJumpOutOfSEHFinally(*this, Loc, *SEHTryParent);
 
   return new (Context) SEHLeaveStmt(Loc);
 }
@@ -3330,6 +3735,7 @@ Sema::CreateCapturedStmtRecordDecl(CapturedDecl *&CD, SourceLocation Loc,
   else
     RD = RecordDecl::Create(Context, TTK_Struct, DC, Loc, Loc, /*Id=*/nullptr);
 
+  RD->setCapturedRecord();
   DC->addDecl(RD);
   RD->setImplicit();
   RD->startDefinition();
@@ -3352,6 +3758,11 @@ static void buildCapturedStmtCaptureList(
       Captures.push_back(CapturedStmt::Capture(Cap->getLocation(),
                                                CapturedStmt::VCK_This));
       CaptureInits.push_back(Cap->getInitExpr());
+      continue;
+    } else if (Cap->isVLATypeCapture()) {
+      Captures.push_back(
+          CapturedStmt::Capture(Cap->getLocation(), CapturedStmt::VCK_VLAType));
+      CaptureInits.push_back(nullptr);
       continue;
     }
 

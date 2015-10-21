@@ -12,8 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 
-#ifndef SYSTEMZTARGETMACHINE_H
-#define SYSTEMZTARGETMACHINE_H
+#ifndef LLVM_LIB_TARGET_SYSTEMZ_SYSTEMZTARGETMACHINE_H
+#define LLVM_LIB_TARGET_SYSTEMZ_SYSTEMZTARGETMACHINE_H
 
 #include "SystemZSubtarget.h"
 #include "llvm/Target/TargetMachine.h"
@@ -23,39 +23,26 @@ namespace llvm {
 class TargetFrameLowering;
 
 class SystemZTargetMachine : public LLVMTargetMachine {
+  std::unique_ptr<TargetLoweringObjectFile> TLOF;
   SystemZSubtarget        Subtarget;
 
 public:
-  SystemZTargetMachine(const Target &T, StringRef TT, StringRef CPU,
+  SystemZTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                        StringRef FS, const TargetOptions &Options,
                        Reloc::Model RM, CodeModel::Model CM,
                        CodeGenOpt::Level OL);
+  ~SystemZTargetMachine() override;
 
-  // Override TargetMachine.
-  const TargetFrameLowering *getFrameLowering() const override {
-    return getSubtargetImpl()->getFrameLowering();
-  }
-  const SystemZInstrInfo *getInstrInfo() const override {
-    return getSubtargetImpl()->getInstrInfo();
-  }
-  const SystemZSubtarget *getSubtargetImpl() const override {
+  const SystemZSubtarget *getSubtargetImpl() const { return &Subtarget; }
+  const SystemZSubtarget *getSubtargetImpl(const Function &) const override {
     return &Subtarget;
   }
-  const DataLayout *getDataLayout() const override {
-    return getSubtargetImpl()->getDataLayout();
-  }
-  const SystemZRegisterInfo *getRegisterInfo() const override {
-    return getSubtargetImpl()->getRegisterInfo();
-  }
-  const SystemZTargetLowering *getTargetLowering() const override {
-    return getSubtargetImpl()->getTargetLowering();
-  }
-  const TargetSelectionDAGInfo *getSelectionDAGInfo() const override {
-    return getSubtargetImpl()->getSelectionDAGInfo();
-  }
-
   // Override LLVMTargetMachine
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
+  TargetIRAnalysis getTargetIRAnalysis() override;
+  TargetLoweringObjectFile *getObjFileLowering() const override {
+    return TLOF.get();
+  }
 };
 
 } // end namespace llvm

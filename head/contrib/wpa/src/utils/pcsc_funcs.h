@@ -9,15 +9,8 @@
 #ifndef PCSC_FUNCS_H
 #define PCSC_FUNCS_H
 
-typedef enum {
-	SCARD_GSM_SIM_ONLY,
-	SCARD_USIM_ONLY,
-	SCARD_TRY_BOTH
-} scard_sim_type;
-
-
 #ifdef PCSC_FUNCS
-struct scard_data * scard_init(scard_sim_type sim_type, const char *reader);
+struct scard_data * scard_init(const char *reader);
 void scard_deinit(struct scard_data *scard);
 
 int scard_set_pin(struct scard_data *scard, const char *pin);
@@ -34,7 +27,7 @@ int scard_supports_umts(struct scard_data *scard);
 
 #else /* PCSC_FUNCS */
 
-#define scard_init(s, r) NULL
+#define scard_init(r) NULL
 #define scard_deinit(s) do { } while (0)
 #define scard_set_pin(s, p) -1
 #define scard_get_imsi(s, i, l) -1

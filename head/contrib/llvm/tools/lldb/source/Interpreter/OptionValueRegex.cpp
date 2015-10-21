@@ -41,7 +41,7 @@ OptionValueRegex::DumpValue (const ExecutionContext *exe_ctx, Stream &strm, uint
 }
 
 Error
-OptionValueRegex::SetValueFromCString (const char *value_cstr,
+OptionValueRegex::SetValueFromString (llvm::StringRef value,
                                         VarSetOperationType op)
 {
     Error error;
@@ -52,18 +52,20 @@ OptionValueRegex::SetValueFromCString (const char *value_cstr,
     case eVarSetOperationInsertAfter:
     case eVarSetOperationRemove:
     case eVarSetOperationAppend:
-        error = OptionValue::SetValueFromCString (value_cstr, op);
+        error = OptionValue::SetValueFromString (value, op);
         break;
 
     case eVarSetOperationClear:
         Clear();
+        NotifyValueChanged();
         break;
 
     case eVarSetOperationReplace:
     case eVarSetOperationAssign:
-        if (m_regex.Compile (value_cstr, m_regex.GetCompileFlags()))
+        if (m_regex.Compile (value.str().c_str()))
         {
             m_value_was_set = true;
+            NotifyValueChanged();
         }
         else
         {
@@ -82,5 +84,5 @@ OptionValueRegex::SetValueFromCString (const char *value_cstr,
 lldb::OptionValueSP
 OptionValueRegex::DeepCopy () const
 {
-    return OptionValueSP(new OptionValueRegex(m_regex.GetText(), m_regex.GetCompileFlags()));
+    return OptionValueSP(new OptionValueRegex(m_regex.GetText()));
 }

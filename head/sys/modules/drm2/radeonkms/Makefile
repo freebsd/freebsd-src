@@ -15,11 +15,11 @@ SRCS	=								\
 	evergreen_reg_safe.h						\
 	cayman_reg_safe.h
 SRCS	+=								\
-	radeon_acpi.c							\
+	${radeon_acpi}							\
 	radeon_agp.c							\
 	radeon_asic.c							\
 	radeon_atombios.c						\
-	radeon_atpx_handler.c						\
+	${radeon_atpx_handler}						\
 	radeon_benchmark.c						\
 	radeon_bios.c							\
 	radeon_clocks.c							\
@@ -37,6 +37,7 @@ SRCS	+=								\
 	radeon_gart.c							\
 	radeon_gem.c							\
 	radeon_i2c.c							\
+	${radeon_ioc32}							\
 	radeon_irq.c							\
 	radeon_irq_kms.c						\
 	radeon_kms.c							\
@@ -86,8 +87,13 @@ SRCS	+=								\
 	si.c								\
 	si_blit_shaders.c
 
-.if ${MACHINE_CPUARCH} == "amd64"
-SRCS	+= radeon_ioc32.c
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+radeon_acpi=		radeon_acpi.c
+#radeon_atpx_handler=	radeon_atpx_handler.c
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
+radeon_ioc32=		radeon_ioc32.c
 .endif
 
 #radeon_prime.c
@@ -106,6 +112,10 @@ SRCS	+=								\
 	iicbus_if.h							\
 	pci_if.h
 
-CFLAGS  += -I${.CURDIR}/../../../dev/drm2/radeon ${GCC_MS_EXTENSIONS}
-
 .include <bsd.kmod.mk>
+
+CFLAGS+=			-I${.CURDIR}/../../../dev/drm2/radeon
+
+CWARNFLAGS.radeon_cp.c=		-Wno-unused-value
+CWARNFLAGS.r600_cp.c=		-Wno-unused-value
+CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}

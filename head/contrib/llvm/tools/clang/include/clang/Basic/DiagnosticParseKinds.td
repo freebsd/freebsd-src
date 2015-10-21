@@ -25,6 +25,8 @@ def err_msasm_unsupported_arch : Error<
   "Unsupported architecture '%0' for MS-style inline assembly">;
 def err_msasm_unable_to_create_target : Error<
   "MS-style inline assembly is not available: %0">;
+def err_gnu_inline_asm_disabled : Error<
+  "GNU-style inline assembly is disabled">;
 }
 
 let CategoryName = "Parse Issue" in {
@@ -62,6 +64,10 @@ def ext_keyword_as_ident : ExtWarn<
   "keyword '%0' will be made available as an identifier "
   "%select{here|for the remainder of the translation unit}1">,
   InGroup<KeywordCompat>;
+
+def ext_nullability : Extension<
+  "type nullability specifier %0 is a Clang extension">,
+  InGroup<DiagGroup<"nullability-extension">>;
 
 def error_empty_enum : Error<"use of empty enum">;
 def err_invalid_sign_spec : Error<"'%0' cannot be signed or unsigned">;
@@ -108,6 +114,9 @@ def ext_alignof_expr : ExtWarn<
 def warn_microsoft_dependent_exists : Warning<
   "dependent %select{__if_not_exists|__if_exists}0 declarations are ignored">, 
   InGroup<DiagGroup<"microsoft-exists">>;
+def warn_microsoft_qualifiers_ignored : Warning<
+  "qualifiers after comma in declarator list are ignored">,
+  InGroup<IgnoredAttributes>;
 
 def ext_c11_generic_selection : Extension<
   "generic selections are a C11-specific feature">, InGroup<C11>;
@@ -121,11 +130,15 @@ def ext_c11_alignment : Extension<
 
 def ext_c11_noreturn : Extension<
   "_Noreturn functions are a C11-specific feature">, InGroup<C11>;
+def err_c11_noreturn_misplaced : Error<
+  "'_Noreturn' keyword must precede function declarator">;
 
 def ext_gnu_indirect_goto : Extension<
   "use of GNU indirect-goto extension">, InGroup<GNULabelsAsValue>;
 def ext_gnu_address_of_label : Extension<
   "use of GNU address-of-label extension">, InGroup<GNULabelsAsValue>;
+def err_stmtexpr_file_scope : Error<
+  "statement expression not allowed at file scope">;
 def ext_gnu_statement_expr : Extension<
   "use of GNU statement expression extension">, InGroup<GNUStatementExpression>;
 def ext_gnu_conditional_expr : Extension<
@@ -161,16 +174,22 @@ def err_function_declared_typedef : Error<
   "function definition declared 'typedef'">;
 def err_at_defs_cxx : Error<"@defs is not supported in Objective-C++">;
 def err_at_in_class : Error<"unexpected '@' in member specification">;
+def err_unexpected_semi : Error<"unexpected ';' before %0">;
 
 def err_expected_fn_body : Error<
   "expected function body after function declarator">;
 def warn_attribute_on_function_definition : Warning<
   "GCC does not allow %0 attribute in this position on a function definition">, 
   InGroup<GccCompat>;
+def warn_gcc_attribute_location : Warning<
+  "GCC does not allow an attribute in this position on a function declaration">, 
+  InGroup<GccCompat>;
 def warn_attribute_no_decl : Warning<
   "attribute %0 ignored, because it is not attached to a declaration">, 
   InGroup<IgnoredAttributes>;
 def err_expected_method_body : Error<"expected method body">;
+def err_declspec_after_virtspec : Error<
+  "'%0' qualifier may not appear after the virtual specifier '%1'">;
 def err_invalid_token_after_toplevel_declarator : Error<
   "expected ';' after top level declarator">;
 def err_invalid_token_after_declarator_suggest_equal : Error<
@@ -194,11 +213,19 @@ def err_expected_semi_after_namespace_name : Error<
   "expected ';' after namespace name">;
 def err_unexpected_namespace_attributes_alias : Error<
   "attributes cannot be specified on namespace alias">;
+def err_unexpected_nested_namespace_attribute : Error<
+  "attributes cannot be specified on a nested namespace definition">;
 def err_inline_namespace_alias : Error<"namespace alias cannot be inline">;
 def err_namespace_nonnamespace_scope : Error<
   "namespaces can only be defined in global or namespace scope">;
-def err_nested_namespaces_with_double_colon : Error<
-  "nested namespace definition must define each namespace separately">;
+def ext_nested_namespace_definition : ExtWarn<
+  "nested namespace definition is a C++1z extension; "
+  "define each namespace separately">, InGroup<CXX1z>;
+def warn_cxx14_compat_nested_namespace_definition : Warning<
+  "nested namespace definition is incompatible with C++ standards before C++1z">,
+  InGroup<CXXPre1zCompat>, DefaultIgnore;
+def err_inline_nested_namespace_definition : Error<
+  "nested namespace definition cannot be 'inline'">;
 def err_expected_semi_after_attribute_list : Error<
   "expected ';' after attribute list">;
 def err_expected_semi_after_static_assert : Error<
@@ -268,22 +295,17 @@ def ext_auto_storage_class : ExtWarn<
   "'auto' storage class specifier is not permitted in C++11, and will not "
   "be supported in future releases">, InGroup<DiagGroup<"auto-storage-class">>;
 def ext_decltype_auto_type_specifier : ExtWarn<
-  "'decltype(auto)' type specifier is a C++1y extension">, InGroup<CXX1y>;
+  "'decltype(auto)' type specifier is a C++14 extension">, InGroup<CXX14>;
 def warn_cxx11_compat_decltype_auto_type_specifier : Warning<
   "'decltype(auto)' type specifier is incompatible with C++ standards before "
-  "C++1y">, InGroup<CXXPre1yCompat>, DefaultIgnore;
+  "C++14">, InGroup<CXXPre14Compat>, DefaultIgnore;
 def ext_for_range : ExtWarn<
   "range-based for loop is a C++11 extension">, InGroup<CXX11>;
 def warn_cxx98_compat_for_range : Warning<
   "range-based for loop is incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
-def ext_for_range_identifier : ExtWarn<
-  "range-based for loop with implicit deduced type is a C++1z extension">,
-  InGroup<CXX1z>;
-def warn_cxx1y_compat_for_range_identifier : Warning<
-  "range-based for loop with implicit deduced type is incompatible with "
-  "C++ standards before C++1z">,
-  InGroup<CXXPre1zCompat>, DefaultIgnore;
+def err_for_range_identifier : Error<
+  "range-based for loop requires type for loop variable">;
 def err_for_range_expected_decl : Error<
   "for range declaration must declare a variable">;
 def err_argument_required_after_attribute : Error<
@@ -303,6 +325,8 @@ def err_expected_class_name_not_template :
   Error<"'typename' is redundant; base classes are implicitly types">;
 def err_unspecified_vla_size_with_static : Error<
   "'static' may not be used with an unspecified variable length array size">;
+def err_unspecified_size_with_static : Error<
+  "'static' may not be used without an array size">;
 def warn_deprecated_register : Warning<
   "'register' storage class specifier is deprecated">,
   InGroup<DeprecatedRegister>;
@@ -332,10 +356,21 @@ def err_invalid_vector_decl_spec_combination : Error<
 def err_invalid_pixel_decl_spec_combination : Error<
   "'__pixel' must be preceded by '__vector'.  "
   "'%0' declaration specifier not allowed here">;
-def err_invalid_vector_decl_spec : Error<
-  "cannot use '%0' with '__vector'">;
 def err_invalid_vector_bool_decl_spec : Error<
   "cannot use '%0' with '__vector bool'">;
+def err_invalid_vector_long_decl_spec : Error<
+  "cannot use 'long' with '__vector'">;
+def err_invalid_vector_float_decl_spec : Error<
+  "cannot use 'float' with '__vector'">;
+def err_invalid_vector_double_decl_spec : Error <
+  "use of 'double' with '__vector' requires VSX support to be enabled "
+  "(available on POWER7 or later)">;
+def err_invalid_vector_long_long_decl_spec : Error <
+  "use of 'long long' with '__vector bool' requires VSX support (available on "
+  "POWER7 or later) or extended Altivec support (available on POWER8 or later) " 
+  "to be enabled">;
+def err_invalid_vector_long_double_decl_spec : Error<
+  "cannot use 'long double' with '__vector'">;
 def warn_vector_long_decl_spec_combination : Warning<
   "Use of 'long' with '__vector' is deprecated">, InGroup<Deprecated>;
 def err_friend_invalid_in_context : Error<
@@ -363,6 +398,8 @@ def err_function_definition_not_allowed : Error<
   "function definition is not allowed here">;
 def err_expected_end_of_enumerator : Error<
   "expected '= constant-expression' or end of enumerator definition">;
+def err_expected_coloncolon_after_super : Error<
+  "expected '::' after '__super'">;
 
 /// Objective-C parser diagnostics
 def err_expected_minus_or_plus : Error<
@@ -449,7 +486,8 @@ def err_invalid_operator_on_type : Error<
 def err_expected_unqualified_id : Error<
   "expected %select{identifier|unqualified-id}0">;
 def err_brackets_go_after_unqualified_id : Error<
-  "brackets go after the %select{identifier|unqualified-id}0">;
+  "brackets are not allowed here; to declare an array, "
+  "place the brackets after the %select{identifier|name}0">;
 def err_unexpected_unqualified_id : Error<"type-id cannot have a name">;
 def err_func_def_no_params : Error<
   "function definition does not declare parameters">;
@@ -477,6 +515,8 @@ def ext_ellipsis_exception_spec : Extension<
   InGroup<Microsoft>;
 def err_dynamic_and_noexcept_specification : Error<
   "cannot have both throw() and noexcept() clause on the same function">;
+def err_except_spec_unparsed : Error<
+  "unexpected end of exception specification">;
 def warn_cxx98_compat_noexcept_decl : Warning<
   "noexcept specifications are incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
@@ -487,6 +527,8 @@ def err_constructor_bad_name : Error<
   "missing return type for function %0; did you mean the constructor name %1?">;
 def err_destructor_tilde_identifier : Error<
   "expected a class name after '~' to name a destructor">;
+def err_destructor_tilde_scope : Error<
+  "'~' in destructor name should be after nested name specifier">;
 def err_destructor_template_id : Error<
   "destructor name %0 does not refer to a template">;
 def err_default_arg_unparsed : Error<
@@ -498,11 +540,24 @@ def note_bracket_depth : Note<
 def err_misplaced_ellipsis_in_declaration : Error<
   "'...' must %select{immediately precede declared identifier|"
   "be innermost component of anonymous pack declaration}0">;
+def warn_misplaced_ellipsis_vararg : Warning<
+  "'...' in this location creates a C-style varargs function"
+  "%select{, not a function parameter pack|}0">,
+  InGroup<DiagGroup<"ambiguous-ellipsis">>;
+def note_misplaced_ellipsis_vararg_existing_ellipsis : Note<
+  "preceding '...' declares a function parameter pack">;
+def note_misplaced_ellipsis_vararg_add_ellipsis : Note<
+  "place '...' %select{immediately before declared identifier|here}0 "
+  "to declare a function parameter pack">;
+def note_misplaced_ellipsis_vararg_add_comma : Note<
+  "insert ',' before '...' to silence this warning">;
 def ext_abstract_pack_declarator_parens : ExtWarn<
   "ISO C++11 requires a parenthesized pack declaration to have a name">,
   InGroup<DiagGroup<"anonymous-pack-parens">>;
 def err_function_is_not_record : Error<
   "unexpected %0 in function call; perhaps remove the %0?">;
+def err_super_in_using_declaration : Error<
+  "'__super' cannot be used with a using declaration">;
 
 // C++ derived classes
 def err_dup_virtual : Error<"duplicate 'virtual' in base specifier">;
@@ -529,6 +584,10 @@ def warn_cxx98_compat_noexcept_expr : Warning<
 def warn_cxx98_compat_nullptr : Warning<
   "'nullptr' is incompatible with C++98">, InGroup<CXX98Compat>, DefaultIgnore;
 
+def warn_cxx14_compat_attribute : Warning<
+  "attributes on %select{a namespace|an enumerator}0 declaration are "
+  "incompatible with C++ standards before C++1z">,
+  InGroup<CXXPre1zCompat>, DefaultIgnore;
 def warn_cxx98_compat_alignas : Warning<"'alignas' is incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
 def warn_cxx98_compat_attribute : Warning<
@@ -564,6 +623,8 @@ def err_ms_property_expected_accessor_name : Error<
   "expected name of accessor method">;
 def err_ms_property_expected_comma_or_rparen : Error<
   "expected ',' or ')' at end of property accessor list">;
+def err_ms_property_initializer : Error<
+  "property declaration cannot have an in-class initializer">;
 
 /// C++ Templates
 def err_expected_template : Error<"expected template">;
@@ -576,7 +637,7 @@ def err_class_on_template_template_param : Error<
 def ext_template_template_param_typename : ExtWarn<
   "template template parameter using 'typename' is a C++1z extension">,
   InGroup<CXX1z>;
-def warn_cxx1y_compat_template_template_param_typename : Warning<
+def warn_cxx14_compat_template_template_param_typename : Warning<
   "template template parameter using 'typename' is "
   "incompatible with C++ standards before C++1z">,
   InGroup<CXXPre1zCompat>, DefaultIgnore;
@@ -597,14 +658,16 @@ def warn_cxx11_right_shift_in_template_arg : Warning<
 def warn_cxx98_compat_two_right_angle_brackets : Warning<
   "consecutive right angle brackets are incompatible with C++98 (use '> >')">,
   InGroup<CXX98Compat>, DefaultIgnore;
+def err_templated_invalid_declaration : Error<
+  "a static_assert declaration cannot be a template">;
 def err_multiple_template_declarators : Error<
-    "%select{|a template declaration|an explicit template specialization|"
-    "an explicit template instantiation}0 can "
-    "only %select{|declare|declare|instantiate}0 a single entity">;
+  "%select{|a template declaration|an explicit template specialization|"
+  "an explicit template instantiation}0 can "
+  "only %select{|declare|declare|instantiate}0 a single entity">;
 def err_explicit_instantiation_with_definition : Error<
-    "explicit template instantiation cannot have a definition; if this "
-    "definition is meant to be an explicit specialization, add '<>' after the "
-    "'template' keyword">;
+  "explicit template instantiation cannot have a definition; if this "
+  "definition is meant to be an explicit specialization, add '<>' after the "
+  "'template' keyword">;
 def err_template_defn_explicit_instantiation : Error<
   "%select{function|class|variable}0 cannot be defined in an explicit instantiation; if this "
   "declaration is meant to be a %select{function|class|variable}0 definition, remove the 'template' keyword">;
@@ -612,7 +675,7 @@ def err_friend_explicit_instantiation : Error<
   "friend cannot be declared in an explicit instantiation; if this "
   "declaration is meant to be a friend declaration, remove the 'template' keyword">;
 def err_explicit_instantiation_enum : Error<
-    "enumerations cannot be explicitly instantiated">;
+  "enumerations cannot be explicitly instantiated">;
 def err_expected_template_parameter : Error<"expected template parameter">;
 
 def err_missing_dependent_template_keyword : Error<
@@ -654,7 +717,18 @@ def err_explicit_spec_non_template : Error<
 def err_default_template_template_parameter_not_template : Error<
   "default template argument for a template template parameter must be a class "
   "template">;
-  
+
+def ext_fold_expression : ExtWarn<
+  "pack fold expression is a C++1z extension">,
+  InGroup<CXX1z>;
+def warn_cxx14_compat_fold_expression : Warning<
+  "pack fold expression is incompatible with C++ standards before C++1z">,
+  InGroup<CXXPre1zCompat>, DefaultIgnore;
+def err_expected_fold_operator : Error<
+  "expected a foldable binary operator in fold expression">;
+def err_fold_operator_mismatch : Error<
+  "operators in fold expression must be the same">;
+
 def err_ctor_init_missing_comma : Error<
   "missing ',' between base or member initializers">;
 
@@ -699,7 +773,7 @@ def err_alias_declaration_not_identifier : Error<
   "name defined in alias declaration must be an identifier">;
 def err_alias_declaration_specialization : Error<
   "%select{partial specialization|explicit specialization|explicit instantiation}0 of alias templates is not permitted">;
-    
+
 // C++11 override control
 def ext_override_control_keyword : ExtWarn<
   "'%0' keyword is a C++11 extension">, InGroup<CXX11>;
@@ -747,10 +821,17 @@ def warn_cxx98_compat_lambda : Warning<
 def err_lambda_missing_parens : Error<
   "lambda requires '()' before %select{'mutable'|return type|"
   "attribute specifier}0">;
+def warn_init_capture_direct_list_init : Warning<
+  "direct list initialization of a lambda init-capture will change meaning in "
+  "a future version of Clang; insert an '=' to avoid a change in behavior">,
+  InGroup<FutureCompat>;
 
 // Availability attribute
 def err_expected_version : Error<
   "expected a version of the form 'major[.minor[.subminor]]'">;
+def warn_expected_consistent_version_separator : Warning<
+  "use same version number separators '_' or '.'; as in "
+  "'major[.minor[.subminor]]'">, InGroup<Availability>;
 def err_zero_version : Error<
   "version number must have non-zero major, minor, or sub-minor version">;
 def err_availability_expected_platform : Error<
@@ -818,7 +899,7 @@ def warn_pragma_expected_non_wide_string : Warning<
   "expected non-wide string literal in '#pragma %0'">, InGroup<IgnoredPragmas>;
 // - Generic errors
 def err_pragma_missing_argument : Error<
-  "missing argument to '#pragma %0'; expected %1">;
+  "missing argument to '#pragma %0'%select{|; expected %2}1">;
 // - #pragma options
 def warn_pragma_options_expected_align : Warning<
   "expected 'align' following '#pragma options' - ignored">,
@@ -862,6 +943,9 @@ def err_pragma_fp_contract_scope : Error<
 def err_pragma_comment_malformed : Error<
   "pragma comment requires parenthesized identifier and optional string">;
 def err_pragma_comment_unknown_kind : Error<"unknown kind of pragma comment">;
+// PS4 recognizes only #pragma comment(lib)
+def warn_pragma_comment_ignored : Warning<"'#pragma comment %0' ignored">,
+  InGroup<Microsoft>;
 // - #pragma detect_mismatch
 def err_pragma_detect_mismatch_malformed : Error<
   "pragma detect_mismatch is malformed; it requires two comma-separated "
@@ -878,8 +962,8 @@ def err_pragma_optimize_extra_argument : Error<
   "unexpected extra argument '%0' to '#pragma clang optimize'">;
 
 // OpenCL Section 6.8.g
-def err_not_opencl_storage_class_specifier : Error<
-  "OpenCL does not support the '%0' storage class specifier">;
+def err_opencl_unknown_type_specifier : Error<
+  "OpenCL does not support the '%0' %select{type qualifier|storage class specifier}1">;
 
 // OpenCL EXTENSION pragma (OpenCL 1.1 [9.1])
 def warn_pragma_expected_colon : Warning<
@@ -888,18 +972,6 @@ def warn_pragma_expected_enable_disable : Warning<
   "expected 'enable' or 'disable' - ignoring">, InGroup<IgnoredPragmas>;
 def warn_pragma_unknown_extension : Warning<
   "unknown OpenCL extension %0 - ignoring">, InGroup<IgnoredPragmas>;
-
-def err_seh_expected_handler : Error<
-  "expected '__except' or '__finally' block">;
-
-def err_seh___except_block : Error<
-  "%0 only allowed in __except block">;
-
-def err_seh___except_filter : Error<
-  "%0 only allowed in __except filter expression">;
-
-def err_seh___finally_block : Error<
-  "%0 only allowed in __finally block">;
 
 // OpenMP support.
 def warn_pragma_omp_ignored : Warning<
@@ -923,9 +995,14 @@ def err_omp_expected_identifier_for_critical : Error<
   "expected identifier specifying the name of the 'omp critical' directive">;
 
 // Pragma loop support.
+def err_pragma_loop_missing_argument : Error<
+  "missing argument; expected %select{an integer value|"
+  "%select{'enable', 'assume_safety'|'full'}1 or 'disable'}0">;
 def err_pragma_loop_invalid_option : Error<
   "%select{invalid|missing}0 option%select{ %1|}0; expected vectorize, "
   "vectorize_width, interleave, interleave_count, unroll, or unroll_count">;
+def err_pragma_invalid_keyword : Error<
+  "invalid argument; expected %select{'enable', 'assume_safety'|'full'}0 or 'disable'">;
 
 // Pragma unroll support.
 def warn_pragma_unroll_cuda_value_in_parens : Warning<
@@ -938,6 +1015,18 @@ def err_module_expected_ident : Error<
   "expected a module name after module import">;
 def err_module_expected_semi : Error<
   "expected ';' after module name">;
+}
+
+let CategoryName = "Generics Issue" in {
+
+def err_objc_expected_type_parameter : Error<
+  "expected type parameter name">;
+
+def err_objc_parameterized_implementation : Error<
+  "@implementation cannot have type parameters">;
+
+def err_objc_type_args_after_protocols : Error<
+  "protocol qualifiers must precede type arguments">;
 }
 
 } // end of Parser diagnostics

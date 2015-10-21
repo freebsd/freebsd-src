@@ -19,10 +19,8 @@ class ValueLocker;
 
 namespace lldb {
 
-class SBValue
+class LLDB_API SBValue
 {
-friend class ValueLocker;
-
 public:
     SBValue ();
 
@@ -84,6 +82,7 @@ public:
     ValueType
     GetValueType ();
 
+    // If you call this on a newly created ValueObject, it will always return false.
     bool
     GetValueDidChange ();
 
@@ -91,7 +90,14 @@ public:
     GetSummary ();
     
     const char *
+    GetSummary (lldb::SBStream& stream,
+                lldb::SBTypeSummaryOptions& options);
+    
+    const char *
     GetObjectDescription ();
+    
+    const char *
+    GetTypeValidatorResult ();
     
     lldb::SBValue
     GetDynamicValue (lldb::DynamicValueType use_dynamic);
@@ -152,6 +158,7 @@ public:
     lldb::SBValue
     CreateChildAtOffset (const char *name, uint32_t offset, lldb::SBType type);
     
+    // Deprecated - use the expression evaluator to perform type casting
     lldb::SBValue
     Cast (lldb::SBType type);
     
@@ -215,7 +222,7 @@ public:
     ///     and also if the target can be run to figure out the dynamic
     ///     type of the child value.
     ///
-    /// @param[in] synthetic_allowed
+    /// @param[in] can_create_synthetic
     ///     If \b true, then allow child values to be created by index
     ///     for pointers and arrays for indexes that normally wouldn't
     ///     be allowed.
@@ -318,6 +325,9 @@ public:
     //------------------------------------------------------------------
     bool
     MightHaveChildren ();
+    
+    bool
+    IsRuntimeSupportValue ();
 
     uint32_t
     GetNumChildren ();
@@ -345,6 +355,9 @@ public:
     
     lldb::SBType
     GetType();
+    
+    lldb::SBValue
+    Persist ();
 
     bool
     GetDescription (lldb::SBStream &description);
@@ -375,7 +388,7 @@ public:
     /// @param[in] write
     ///     Stop when this value is modified
     ///
-    /// @param[out]
+    /// @param[out] error
     ///     An error object. Contains the reason if there is some failure.
     ///
     /// @return
@@ -408,7 +421,7 @@ public:
     /// @param[in] write
     ///     Stop when this value is modified
     ///
-    /// @param[out]
+    /// @param[out] error
     ///     An error object. Contains the reason if there is some failure.
     ///
     /// @return

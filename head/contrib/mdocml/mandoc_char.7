@@ -1,4 +1,4 @@
-.\"	$Id: mandoc_char.7,v 1.56 2013/12/26 17:23:42 schwarze Exp $
+.\"	$Id: mandoc_char.7,v 1.59 2015/01/20 19:39:34 schwarze Exp $
 .\"
 .\" Copyright (c) 2003 Jason McIntyre <jmc@openbsd.org>
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
@@ -16,7 +16,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: December 26 2013 $
+.Dd $Mdocdate: January 20 2015 $
 .Dt MANDOC_CHAR 7
 .Os
 .Sh NAME
@@ -210,7 +210,7 @@ Lines:
 .It \e(ba    Ta \(ba        Ta bar
 .It \e(br    Ta \(br        Ta box rule
 .It \e(ul    Ta \(ul        Ta underscore
-.It \e(rl    Ta \(rl        Ta overline
+.It \e(rn    Ta \(rn        Ta overline
 .It \e(bb    Ta \(bb        Ta broken bar
 .It \e(sl    Ta \(sl        Ta forward slash
 .It \e(rs    Ta \(rs        Ta backward slash
@@ -273,7 +273,7 @@ Quotes:
 .El
 .Pp
 Brackets:
-.Bl -column "xxbracketrightbpx" Rendered Description -offset indent -compact
+.Bl -column "xxbracketrightbtx" Rendered Description -offset indent -compact
 .It Em Input Ta Em Rendered Ta Em Description
 .It \e(lB    Ta \(lB        Ta left bracket
 .It \e(rB    Ta \(rB        Ta right bracket
@@ -284,30 +284,30 @@ Brackets:
 .It \e(bv    Ta \(bv        Ta brace extension
 .It \e[braceex] Ta \[braceex] Ta brace extension
 .It \e[bracketlefttp] Ta \[bracketlefttp] Ta top-left hooked bracket
-.It \e[bracketleftbp] Ta \[bracketleftbp] Ta bottom-left hooked bracket
+.It \e[bracketleftbt] Ta \[bracketleftbt] Ta bottom-left hooked bracket
 .It \e[bracketleftex] Ta \[bracketleftex] Ta left hooked bracket extension
 .It \e[bracketrighttp] Ta \[bracketrighttp] Ta top-right hooked bracket
-.It \e[bracketrightbp] Ta \[bracketrightbp] Ta bottom-right hooked bracket
+.It \e[bracketrightbt] Ta \[bracketrightbt] Ta bottom-right hooked bracket
 .It \e[bracketrightex] Ta \[bracketrightex] Ta right hooked bracket extension
 .It \e(lt    Ta \(lt        Ta top-left hooked brace
 .It \e[bracelefttp] Ta \[bracelefttp] Ta top-left hooked brace
 .It \e(lk    Ta \(lk        Ta mid-left hooked brace
 .It \e[braceleftmid] Ta \[braceleftmid] Ta mid-left hooked brace
 .It \e(lb    Ta \(lb        Ta bottom-left hooked brace
-.It \e[braceleftbp] Ta \[braceleftbp] Ta bottom-left hooked brace
+.It \e[braceleftbt] Ta \[braceleftbt] Ta bottom-left hooked brace
 .It \e[braceleftex] Ta \[braceleftex] Ta left hooked brace extension
 .It \e(rt    Ta \(rt        Ta top-left hooked brace
 .It \e[bracerighttp] Ta \[bracerighttp] Ta top-right hooked brace
 .It \e(rk    Ta \(rk        Ta mid-right hooked brace
 .It \e[bracerightmid] Ta \[bracerightmid] Ta mid-right hooked brace
 .It \e(rb    Ta \(rb        Ta bottom-right hooked brace
-.It \e[bracerightbp] Ta \[bracerightbp] Ta bottom-right hooked brace
+.It \e[bracerightbt] Ta \[bracerightbt] Ta bottom-right hooked brace
 .It \e[bracerightex] Ta \[bracerightex] Ta right hooked brace extension
 .It \e[parenlefttp] Ta \[parenlefttp] Ta top-left hooked parenthesis
-.It \e[parenleftbp] Ta \[parenleftbp] Ta bottom-left hooked parenthesis
+.It \e[parenleftbt] Ta \[parenleftbt] Ta bottom-left hooked parenthesis
 .It \e[parenleftex] Ta \[parenleftex] Ta left hooked parenthesis extension
 .It \e[parenrighttp] Ta \[parenrighttp] Ta top-right hooked parenthesis
-.It \e[parenrightbp] Ta \[parenrightbp] Ta bottom-right hooked parenthesis
+.It \e[parenrightbt] Ta \[parenrightbt] Ta bottom-right hooked parenthesis
 .It \e[parenrightex] Ta \[parenrightex] Ta right hooked parenthesis extension
 .El
 .Pp
@@ -352,7 +352,7 @@ Mathematical:
 .It \e(-+    Ta \(-+        Ta minus-plus
 .It \e(+-    Ta \(+-        Ta plus-minus
 .It \e[t+-]  Ta \[t+-]      Ta plus-minus (text)
-.It \e(pc    Ta \(pc        Ta centre-dot
+.It \e(pc    Ta \(pc        Ta center-dot
 .It \e(mu    Ta \(mu        Ta multiply
 .It \e[tmu]  Ta \[tmu]      Ta multiply (text)
 .It \e(c*    Ta \(c*        Ta circle-multiply
@@ -369,11 +369,11 @@ Mathematical:
 .It \e(!=    Ta \(!=        Ta not equal
 .It \e(==    Ta \(==        Ta equivalent
 .It \e(ne    Ta \(ne        Ta not equivalent
-.It \e(=~    Ta \(=~        Ta congruent
-.It \e(-~    Ta \(-~        Ta asymptotically congruent
-.It \e(ap    Ta \(ap        Ta asymptotically similar
-.It \e(~~    Ta \(~~        Ta approximately similar
-.It \e(~=    Ta \(~=        Ta approximately equal
+.It \e(ap    Ta \(ap        Ta tilde operator
+.It \e(|=    Ta \(|=        Ta asymptotically equal
+.It \e(=~    Ta \(=~        Ta approximately equal
+.It \e(~~    Ta \(~~        Ta almost equal
+.It \e(~=    Ta \(~=        Ta almost equal
 .It \e(pt    Ta \(pt        Ta proportionate
 .It \e(es    Ta \(es        Ta empty set
 .It \e(mo    Ta \(mo        Ta element

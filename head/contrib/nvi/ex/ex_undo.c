@@ -28,7 +28,7 @@ static const char sccsid[] = "$Id: ex_undo.c,v 10.7 2001/06/25 15:19:21 skimo Ex
  * ex_undo -- u
  *	Undo the last change.
  *
- * PUBLIC: int ex_undo __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_undo(SCR *, EXCMD *);
  */
 int
 ex_undo(SCR *sp, EXCMD *cmdp)

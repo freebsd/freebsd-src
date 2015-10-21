@@ -78,7 +78,9 @@ struct cpsw_softc {
 	device_t	miibus;
 	struct mii_data	*mii;
 	/* We expect 1 memory resource and 4 interrupts from the device tree. */
-	struct resource	*res[1 + CPSW_INTR_COUNT];
+	struct resource	*mem_res;
+	int		mem_rid;
+	struct resource	*irq_res[CPSW_INTR_COUNT];
 
 	/* Interrupts get recorded here as we initialize them. */
 	/* Interrupt teardown just walks this list. */

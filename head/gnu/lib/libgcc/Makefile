@@ -55,7 +55,7 @@ LIB2FUNCS+= _fixuns${mode}si
 .endfor
 
 # Likewise double-word routines.
-.if ${TARGET_CPUARCH} != "arm"
+.if ${TARGET_CPUARCH} != "aarch64" && ${TARGET_CPUARCH} != "arm"
 # These are implemented in an ARM specific file but will not be filtered out
 .for mode in sf df xf tf
 LIB2FUNCS+= _fix${mode}di _fixuns${mode}di
@@ -338,7 +338,7 @@ libgcc_eh.a:	${EH_OBJS_T}
 	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_T} | tsort -q`
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 
-all:	libgcc_eh.a
+_LIBS+= libgcc_eh.a
 
 .if ${MK_PROFILE} != "no"
 libgcc_eh_p.a:	${EH_OBJS_P}
@@ -346,7 +346,8 @@ libgcc_eh_p.a:	${EH_OBJS_P}
 	@rm -f ${.TARGET}
 	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_P} | tsort -q`
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
-all:	libgcc_eh_p.a
+
+_LIBS+= libgcc_eh_p.a
 .endif
 
 _libinstall: _lib-eh-install

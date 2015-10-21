@@ -11,19 +11,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_THREAD_SAFETY_UTIL_H
-#define LLVM_CLANG_THREAD_SAFETY_UTIL_H
+#ifndef LLVM_CLANG_ANALYSIS_ANALYSES_THREADSAFETYUTIL_H
+#define LLVM_CLANG_ANALYSIS_ANALYSES_THREADSAFETYUTIL_H
 
+#include "clang/AST/ExprCXX.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/AlignOf.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Compiler.h"
-#include "clang/AST/ExprCXX.h"
-
 #include <cassert>
 #include <cstddef>
-#include <vector>
+#include <ostream>
 #include <utility>
+#include <vector>
 
 namespace clang {
 namespace threadSafety {
@@ -130,6 +130,8 @@ public:
 
   typedef T *iterator;
   typedef const T *const_iterator;
+  typedef std::reverse_iterator<iterator> reverse_iterator;
+  typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
   size_t size() const { return Size; }
   size_t capacity() const { return Capacity; }
@@ -142,16 +144,43 @@ public:
     assert(i < Size && "Array index out of bounds.");
     return Data[i];
   }
+  T &back() {
+    assert(Size && "No elements in the array.");
+    return Data[Size - 1];
+  }
+  const T &back() const {
+    assert(Size && "No elements in the array.");
+    return Data[Size - 1];
+  }
 
   iterator begin() { return Data; }
-  iterator end() { return Data + Size; }
+  iterator end()   { return Data + Size; }
+
+  const_iterator begin() const { return Data; }
+  const_iterator end()   const { return Data + Size; }
 
   const_iterator cbegin() const { return Data; }
-  const_iterator cend() const { return Data + Size; }
+  const_iterator cend()   const { return Data + Size; }
+
+  reverse_iterator rbegin() { return reverse_iterator(end()); }
+  reverse_iterator rend() { return reverse_iterator(begin()); }
+
+  const_reverse_iterator rbegin() const {
+    return const_reverse_iterator(end());
+  }
+  const_reverse_iterator rend() const {
+    return const_reverse_iterator(begin());
+  }
 
   void push_back(const T &Elem) {
     assert(Size < Capacity);
     Data[Size++] = Elem;
+  }
+
+  // drop last n elements from array
+  void drop(unsigned n = 0) {
+    assert(Size > n);
+    Size -= n;
   }
 
   void setValues(unsigned Sz, const T& C) {
@@ -171,6 +200,13 @@ public:
     return J - Osz;
   }
 
+  llvm::iterator_range<reverse_iterator> reverse() {
+    return llvm::make_range(rbegin(), rend());
+  }
+  llvm::iterator_range<const_reverse_iterator> reverse() const {
+    return llvm::make_range(rbegin(), rend());
+  }
+
 private:
   // std::max is annoying here, because it requires a reference,
   // thus forcing InitialCapacity to be initialized outside the .h file.
@@ -178,12 +214,13 @@ private:
 
   static const size_t InitialCapacity = 4;
 
-  SimpleArray(const SimpleArray<T> &A) LLVM_DELETED_FUNCTION;
+  SimpleArray(const SimpleArray<T> &A) = delete;
 
   T *Data;
   size_t Size;
   size_t Capacity;
 };
+
 
 }  // end namespace til
 
@@ -206,8 +243,8 @@ class CopyOnWriteVector {
   };
 
   // No copy constructor or copy assignment.  Use clone() with move assignment.
-  CopyOnWriteVector(const CopyOnWriteVector &V) LLVM_DELETED_FUNCTION;
-  void operator=(const CopyOnWriteVector &V) LLVM_DELETED_FUNCTION;
+  CopyOnWriteVector(const CopyOnWriteVector &V) = delete;
+  void operator=(const CopyOnWriteVector &V) = delete;
 
 public:
   CopyOnWriteVector() : Data(nullptr) {}
@@ -308,6 +345,11 @@ private:
 
   VectorData *Data;
 };
+
+
+inline std::ostream& operator<<(std::ostream& ss, const StringRef str) {
+  return ss.write(str.data(), str.size());
+}
 
 
 } // end namespace threadSafety

@@ -1,7 +1,7 @@
-/*	$Id: man_html.c,v 1.107 2014/12/04 02:05:42 schwarze Exp $ */
+/*	$Id: man_html.c,v 1.112 2015/03/03 21:11:34 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013, 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -100,7 +100,6 @@ static	const struct htmlman mans[MAN_MAX] = {
 	{ man_I_pre, NULL }, /* I */
 	{ man_alt_pre, NULL }, /* IR */
 	{ man_alt_pre, NULL }, /* RI */
-	{ man_ign_pre, NULL }, /* na */
 	{ man_br_pre, NULL }, /* sp */
 	{ man_literal_pre, NULL }, /* nf */
 	{ man_literal_pre, NULL }, /* fi */
@@ -193,9 +192,10 @@ static void
 print_man_nodelist(MAN_ARGS)
 {
 
-	print_man_node(man, n, mh, h);
-	if (n->next)
-		print_man_nodelist(man, n->next, mh, h);
+	while (n != NULL) {
+		print_man_node(man, n, mh, h);
+		n = n->next;
+	}
 }
 
 static void
@@ -216,13 +216,15 @@ print_man_node(MAN_ARGS)
 			print_paragraph(h);
 			return;
 		}
-		if (n->flags & MAN_LINE && (*n->string == ' ' || 
+		if (n->flags & MAN_LINE && (*n->string == ' ' ||
 		    (n->prev != NULL && mh->fl & MANH_LITERAL &&
 		     ! (h->flags & HTML_NONEWLINE))))
 			print_otag(h, TAG_BR, 0, NULL);
 		print_text(h, n->string);
 		return;
 	case MAN_EQN:
+		if (n->flags & MAN_LINE)
+			putchar('\n');
 		print_eqn(h, n->eqn);
 		break;
 	case MAN_TBL:
@@ -362,7 +364,7 @@ man_br_pre(MAN_ARGS)
 	if (MAN_sp == n->tok) {
 		if (NULL != (n = n->child))
 			if ( ! a2roffsu(n->string, &su, SCALE_VS))
-				SCALE_VS_INIT(&su, atoi(n->string));
+				su.scale = 1.0;
 	} else
 		su.scale = 0.0;
 

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_MACROARGS_H
-#define LLVM_CLANG_MACROARGS_H
+#ifndef LLVM_CLANG_LEX_MACROARGS_H
+#define LLVM_CLANG_LEX_MACROARGS_H
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -56,7 +56,8 @@ class MacroArgs {
   MacroArgs(unsigned NumToks, bool varargsElided)
     : NumUnexpArgTokens(NumToks), VarargsElided(varargsElided),
       ArgCache(nullptr) {}
-  ~MacroArgs() {}
+  ~MacroArgs() = default;
+
 public:
   /// MacroArgs ctor function - Create a new MacroArgs object with the specified
   /// macro and argument info.

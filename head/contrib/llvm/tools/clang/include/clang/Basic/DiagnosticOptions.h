@@ -13,6 +13,7 @@
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace clang {
@@ -24,16 +25,49 @@ enum OverloadsShown : unsigned {
   Ovl_Best  ///< Show just the "best" overload candidates.
 };
 
+/// \brief A bitmask representing the diagnostic levels used by
+/// VerifyDiagnosticConsumer.
+enum class DiagnosticLevelMask : unsigned {
+  None    = 0,
+  Note    = 1 << 0,
+  Remark  = 1 << 1,
+  Warning = 1 << 2,
+  Error   = 1 << 3,
+  All     = Note | Remark | Warning | Error
+};
+
+inline DiagnosticLevelMask operator~(DiagnosticLevelMask M) {
+  using UT = std::underlying_type<DiagnosticLevelMask>::type;
+  return static_cast<DiagnosticLevelMask>(~static_cast<UT>(M));
+}
+
+inline DiagnosticLevelMask operator|(DiagnosticLevelMask LHS,
+                                     DiagnosticLevelMask RHS) {
+  using UT = std::underlying_type<DiagnosticLevelMask>::type;
+  return static_cast<DiagnosticLevelMask>(
+    static_cast<UT>(LHS) | static_cast<UT>(RHS));
+}
+
+inline DiagnosticLevelMask operator&(DiagnosticLevelMask LHS,
+                                     DiagnosticLevelMask RHS) {
+  using UT = std::underlying_type<DiagnosticLevelMask>::type;
+  return static_cast<DiagnosticLevelMask>(
+    static_cast<UT>(LHS) & static_cast<UT>(RHS));
+}
+
+raw_ostream& operator<<(raw_ostream& Out, DiagnosticLevelMask M);
+
 /// \brief Options for controlling the compiler diagnostics engine.
 class DiagnosticOptions : public RefCountedBase<DiagnosticOptions>{
 public:
-  enum TextDiagnosticFormat { Clang, Msvc, Vi };
+  enum TextDiagnosticFormat { Clang, MSVC, Vi };
 
   // Default values.
   enum { DefaultTabStop = 8, MaxTabStop = 100,
     DefaultMacroBacktraceLimit = 6,
     DefaultTemplateBacktraceLimit = 10,
-    DefaultConstexprBacktraceLimit = 10 };
+    DefaultConstexprBacktraceLimit = 10,
+    DefaultSpellCheckingLimit = 50 };
 
   // Define simple diagnostic options (with no accessors).
 #define DIAGOPT(Name, Bits, Default) unsigned Name : Bits;

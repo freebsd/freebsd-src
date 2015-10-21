@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __EXCREATE_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -528,6 +526,7 @@ AcpiExCreateMethod (
 
     ObjDesc->Method.AmlStart = AmlStart;
     ObjDesc->Method.AmlLength = AmlLength;
+    ObjDesc->Method.Node = Operand[0];
 
     /*
      * Disassemble the method flags. Split off the ArgCount, Serialized

@@ -14,7 +14,7 @@
 
 namespace lldb {
 
-class SBFileSpec
+class LLDB_API SBFileSpec
 {
 public:
     SBFileSpec ();
@@ -63,6 +63,7 @@ public:
 private:
     friend class SBAttachInfo;
     friend class SBBlock;
+    friend class SBCommandInterpreter;
     friend class SBCompileUnit;
     friend class SBDeclaration;
     friend class SBFileSpecList;

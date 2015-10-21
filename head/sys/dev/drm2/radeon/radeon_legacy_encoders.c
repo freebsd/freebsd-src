@@ -89,7 +89,7 @@ static void radeon_legacy_lvds_update(struct drm_encoder *encoder, int mode)
 		lvds_pll_cntl = RREG32(RADEON_LVDS_PLL_CNTL);
 		lvds_pll_cntl |= RADEON_LVDS_PLL_EN;
 		WREG32(RADEON_LVDS_PLL_CNTL, lvds_pll_cntl);
-		DRM_MDELAY(1);
+		mdelay(1);
 
 		lvds_pll_cntl = RREG32(RADEON_LVDS_PLL_CNTL);
 		lvds_pll_cntl &= ~RADEON_LVDS_PLL_RESET;
@@ -102,7 +102,7 @@ static void radeon_legacy_lvds_update(struct drm_encoder *encoder, int mode)
 				  (backlight_level << RADEON_LVDS_BL_MOD_LEVEL_SHIFT));
 		if (is_mac)
 			lvds_gen_cntl |= RADEON_LVDS_BL_MOD_EN;
-		DRM_MDELAY(panel_pwr_delay);
+		mdelay(panel_pwr_delay);
 		WREG32(RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
@@ -119,10 +119,10 @@ static void radeon_legacy_lvds_update(struct drm_encoder *encoder, int mode)
 			WREG32(RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
 			lvds_gen_cntl &= ~(RADEON_LVDS_ON | RADEON_LVDS_BLON | RADEON_LVDS_EN | RADEON_LVDS_DIGON);
 		}
-		DRM_MDELAY(panel_pwr_delay);
+		mdelay(panel_pwr_delay);
 		WREG32(RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
 		WREG32_PLL(RADEON_PIXCLKS_CNTL, pixclks_cntl);
-		DRM_MDELAY(panel_pwr_delay);
+		mdelay(panel_pwr_delay);
 		break;
 	}
 
@@ -245,7 +245,7 @@ static void radeon_legacy_lvds_mode_set(struct drm_encoder *encoder,
 }
 
 static bool radeon_legacy_mode_fixup(struct drm_encoder *encoder,
-				     struct drm_display_mode *mode,
+				     const struct drm_display_mode *mode,
 				     struct drm_display_mode *adjusted_mode)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
@@ -383,7 +383,7 @@ void radeon_legacy_backlight_init(struct radeon_encoder *radeon_encoder,
 #endif
 
 	pdata = malloc(sizeof(struct radeon_backlight_privdata),
-	    DRM_MEM_DRIVER, M_WAITOK);
+	    DRM_MEM_DRIVER, M_NOWAIT);
 	if (!pdata) {
 		DRM_ERROR("Memory allocation failed\n");
 		goto error;
@@ -693,7 +693,7 @@ static enum drm_connector_status radeon_legacy_primary_dac_detect(struct drm_enc
 
 	WREG32(RADEON_DAC_MACRO_CNTL, tmp);
 
-	DRM_MDELAY(2);
+	mdelay(2);
 
 	if (RREG32(RADEON_DAC_CNTL) & RADEON_DAC_CMP_OUTPUT)
 		found = connector_status_connected;
@@ -1338,7 +1338,7 @@ static bool r300_legacy_tv_detect(struct drm_encoder *encoder,
 	       (6 << RADEON_TV_DAC_DACADJ_SHIFT));
 
 	RREG32(RADEON_TV_DAC_CNTL);
-	DRM_MDELAY(4);
+	mdelay(4);
 
 	WREG32(RADEON_TV_DAC_CNTL,
 	       RADEON_TV_DAC_NBLANK |
@@ -1349,7 +1349,7 @@ static bool r300_legacy_tv_detect(struct drm_encoder *encoder,
 	       (6 << RADEON_TV_DAC_DACADJ_SHIFT));
 
 	RREG32(RADEON_TV_DAC_CNTL);
-	DRM_MDELAY(6);
+	mdelay(6);
 
 	tmp = RREG32(RADEON_TV_DAC_CNTL);
 	if ((tmp & RADEON_TV_DAC_GDACDET) != 0) {
@@ -1416,7 +1416,7 @@ static bool radeon_legacy_tv_detect(struct drm_encoder *encoder,
 		(0x109 << RADEON_TV_FORCE_DAC_DATA_SHIFT);
 	WREG32(RADEON_TV_PRE_DAC_MUX_CNTL, tmp);
 
-	DRM_MDELAY(3);
+	mdelay(3);
 	tmp = RREG32(RADEON_TV_DAC_CNTL);
 	if (tmp & RADEON_TV_DAC_GDACDET) {
 		found = true;
@@ -1498,9 +1498,8 @@ static bool radeon_legacy_ext_dac_detect(struct drm_encoder *encoder,
 		if (found)
 			break;
 
-		DRM_MDELAY(1);
 		if (!drm_can_sleep())
-			DRM_MDELAY(1);
+			mdelay(1);
 		else
 			DRM_MSLEEP(1);
 	}
@@ -1642,7 +1641,7 @@ static enum drm_connector_status radeon_legacy_tv_dac_detect(struct drm_encoder 
 	tmp = dac_cntl2 | RADEON_DAC2_DAC2_CLK_SEL | RADEON_DAC2_CMP_EN;
 	WREG32(RADEON_DAC_CNTL2, tmp);
 
-	DRM_MDELAY(10);
+	mdelay(10);
 
 	if (ASIC_IS_R300(rdev)) {
 		if (RREG32(RADEON_DAC_CNTL2) & RADEON_DAC2_CMP_OUT_B)
@@ -1699,7 +1698,7 @@ static struct radeon_encoder_int_tmds *radeon_legacy_get_tmds_info(struct radeon
 	bool ret;
 
 	tmds = malloc(sizeof(struct radeon_encoder_int_tmds),
-	    DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 
 	if (!tmds)
 		return NULL;
@@ -1726,7 +1725,7 @@ static struct radeon_encoder_ext_tmds *radeon_legacy_get_ext_tmds_info(struct ra
 		return NULL;
 
 	tmds = malloc(sizeof(struct radeon_encoder_ext_tmds),
-	    DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 
 	if (!tmds)
 		return NULL;
@@ -1758,7 +1757,7 @@ radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_enum, uint32_
 
 	/* add a new one */
 	radeon_encoder = malloc(sizeof(struct radeon_encoder),
-	    DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (!radeon_encoder)
 		return;
 

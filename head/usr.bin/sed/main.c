@@ -409,6 +409,8 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 			if (len >= (ssize_t)sizeof(tmpfname))
 				errx(1, "%s: name too long", fname);
 			unlink(tmpfname);
+			if (outfile != NULL && outfile != stdout)
+				fclose(outfile);
 			if ((outfile = fopen(tmpfname, "w")) == NULL)
 				err(1, "%s", fname);
 			fchown(fileno(outfile), sb.st_uid, sb.st_gid);

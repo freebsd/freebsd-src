@@ -102,7 +102,6 @@ struct uath_wme_settings {
 	uint8_t				logcwmin;
 	uint8_t				logcwmax;
 	uint16_t			txop;
-#define	UATH_TXOP_TO_US(txop)		((txop) << 5)
 	uint8_t				acm;
 };
 
@@ -183,7 +182,8 @@ struct uath_vap {
 #define	UATH_VAP(vap)			((struct uath_vap *)(vap))
 
 struct uath_softc {
-	struct ifnet			*sc_ifp;
+	struct ieee80211com		sc_ic;
+	struct mbufq			sc_snd;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 	void				*sc_cmd_dma_buf;
@@ -230,9 +230,7 @@ struct uath_softc {
 #define	UATH_FLAG_INITDONE		(1 << 2)
 
 	struct	uath_rx_radiotap_header	sc_rxtap;
-	int				sc_rxtap_len;
 	struct	uath_tx_radiotap_header	sc_txtap;
-	int				sc_txtap_len;
 };
 
 #define	UATH_LOCK(sc)			mtx_lock(&(sc)->sc_mtx)

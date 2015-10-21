@@ -252,7 +252,7 @@ SYM (\name):
 
 #ifdef __thumb__
 #define THUMB_FUNC .thumb_func
-#define THUMB_CODE .force_thumb
+#define THUMB_CODE .thumb
 #else
 #define THUMB_FUNC
 #define THUMB_CODE
@@ -1305,3 +1305,5 @@ LSYM(Lchange_\register):
 #include "ieee754-sf.S"
 #include "bpabi.S"
 #endif /* __symbian__ */
+
+	.section .note.GNU-stack,"",%progbits

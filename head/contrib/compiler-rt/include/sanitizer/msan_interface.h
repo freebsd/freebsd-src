@@ -25,6 +25,11 @@ extern "C" {
   /* Get raw origin for an address. */
   uint32_t __msan_get_origin(const volatile void *a);
 
+  /* Test that this_id is a descendant of prev_id (or they are simply equal).
+   * "descendant" here means they are part of the same chain, created with
+   * __msan_chain_origin. */
+  int __msan_origin_is_descendant_or_same(uint32_t this_id, uint32_t prev_id);
+
   /* Returns non-zero if tracking origins. */
   int __msan_get_track_origins();
 
@@ -38,7 +43,9 @@ extern "C" {
      contents). */
   void __msan_unpoison_string(const volatile char *a);
 
-  /* Make memory region fully uninitialized (without changing its contents). */
+  /* Make memory region fully uninitialized (without changing its contents).
+     This is a legacy interface that does not update origin information. Use
+     __msan_allocated_memory() instead. */
   void __msan_poison(const volatile void *a, size_t size);
 
   /* Make memory region partially uninitialized (without changing its contents).

@@ -160,6 +160,9 @@ preload_search_info(caddr_t mod, int inf)
     uint32_t	type = 0;
     int		next;
 
+    if (mod == NULL)
+    	return (NULL);
+
     curp = mod;
     for (;;) {
 	hdr = (uint32_t *)curp;

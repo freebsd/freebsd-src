@@ -32,6 +32,7 @@ __RCSID("$NetBSD: sdp.c,v 1.2 2008/12/06 20:01:14 plunky Exp $");
 
 #include <string.h>
 
+#define L2CAP_SOCKET_CHECKED
 #include "sdp.h"
 
 /*

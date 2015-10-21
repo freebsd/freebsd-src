@@ -14,12 +14,15 @@
 #ifndef LLVM_BITCODE_READERWRITER_H
 #define LLVM_BITCODE_READERWRITER_H
 
+#include "llvm/IR/DiagnosticInfo.h"
+#include "llvm/Support/Endian.h"
 #include "llvm/Support/ErrorOr.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include <memory>
 #include <string>
 
 namespace llvm {
   class BitstreamWriter;
-  class MemoryBuffer;
   class DataStreamer;
   class LLVMContext;
   class Module;
@@ -27,36 +30,44 @@ namespace llvm {
   class raw_ostream;
 
   /// Read the header of the specified bitcode buffer and prepare for lazy
-  /// deserialization of function bodies.  If successful, this takes ownership
-  /// of 'buffer. On error, this *does not* take ownership of Buffer.
-  ErrorOr<Module *> getLazyBitcodeModule(MemoryBuffer *Buffer,
-                                         LLVMContext &Context);
+  /// deserialization of function bodies. If ShouldLazyLoadMetadata is true,
+  /// lazily load metadata as well. If successful, this moves Buffer. On
+  /// error, this *does not* move Buffer.
+  ErrorOr<std::unique_ptr<Module>>
+  getLazyBitcodeModule(std::unique_ptr<MemoryBuffer> &&Buffer,
+                       LLVMContext &Context,
+                       DiagnosticHandlerFunction DiagnosticHandler = nullptr,
+                       bool ShouldLazyLoadMetadata = false);
 
-  /// getStreamedBitcodeModule - Read the header of the specified stream
-  /// and prepare for lazy deserialization and streaming of function bodies.
-  /// On error, this returns null, and fills in *ErrMsg with an error
-  /// description if ErrMsg is non-null.
-  Module *getStreamedBitcodeModule(const std::string &name,
-                                   DataStreamer *streamer,
-                                   LLVMContext &Context,
-                                   std::string *ErrMsg = nullptr);
+  /// Read the header of the specified stream and prepare for lazy
+  /// deserialization and streaming of function bodies.
+  ErrorOr<std::unique_ptr<Module>> getStreamedBitcodeModule(
+      StringRef Name, std::unique_ptr<DataStreamer> Streamer,
+      LLVMContext &Context,
+      DiagnosticHandlerFunction DiagnosticHandler = nullptr);
 
   /// Read the header of the specified bitcode buffer and extract just the
-  /// triple information. If successful, this returns a string and *does not*
-  /// take ownership of 'buffer'. On error, this returns "".
-  std::string getBitcodeTargetTriple(MemoryBuffer *Buffer,
-                                     LLVMContext &Context);
+  /// triple information. If successful, this returns a string. On error, this
+  /// returns "".
+  std::string
+  getBitcodeTargetTriple(MemoryBufferRef Buffer, LLVMContext &Context,
+                         DiagnosticHandlerFunction DiagnosticHandler = nullptr);
 
   /// Read the specified bitcode file, returning the module.
-  /// This method *never* takes ownership of Buffer.
-  ErrorOr<Module *> parseBitcodeFile(MemoryBuffer *Buffer,
-                                     LLVMContext &Context);
+  ErrorOr<std::unique_ptr<Module>>
+  parseBitcodeFile(MemoryBufferRef Buffer, LLVMContext &Context,
+                   DiagnosticHandlerFunction DiagnosticHandler = nullptr);
 
-  /// WriteBitcodeToFile - Write the specified module to the specified
-  /// raw output stream.  For streams where it matters, the given stream
-  /// should be in "binary" mode.
-  void WriteBitcodeToFile(const Module *M, raw_ostream &Out);
-
+  /// \brief Write the specified module to the specified raw output stream.
+  ///
+  /// For streams where it matters, the given stream should be in "binary"
+  /// mode.
+  ///
+  /// If \c ShouldPreserveUseListOrder, encode the use-list order for each \a
+  /// Value in \c M.  These will be reconstructed exactly when \a M is
+  /// deserialized.
+  void WriteBitcodeToFile(const Module *M, raw_ostream &Out,
+                          bool ShouldPreserveUseListOrder = false);
 
   /// isBitcodeWrapper - Return true if the given bytes are the magic bytes
   /// for an LLVM IR bitcode wrapper.
@@ -123,14 +134,8 @@ namespace llvm {
     // Must contain the header!
     if (BufEnd-BufPtr < KnownHeaderSize) return true;
 
-    unsigned Offset = ( BufPtr[OffsetField  ]        |
-                       (BufPtr[OffsetField+1] << 8)  |
-                       (BufPtr[OffsetField+2] << 16) |
-                       (BufPtr[OffsetField+3] << 24));
-    unsigned Size   = ( BufPtr[SizeField    ]        |
-                       (BufPtr[SizeField  +1] << 8)  |
-                       (BufPtr[SizeField  +2] << 16) |
-                       (BufPtr[SizeField  +3] << 24));
+    unsigned Offset = support::endian::read32le(&BufPtr[OffsetField]);
+    unsigned Size = support::endian::read32le(&BufPtr[SizeField]);
 
     // Verify that Offset+Size fits in the file.
     if (VerifyBufferSize && Offset+Size > unsigned(BufEnd-BufPtr))
@@ -139,6 +144,32 @@ namespace llvm {
     BufEnd = BufPtr+Size;
     return false;
   }
+
+  const std::error_category &BitcodeErrorCategory();
+  enum class BitcodeError { InvalidBitcodeSignature = 1, CorruptedBitcode };
+  inline std::error_code make_error_code(BitcodeError E) {
+    return std::error_code(static_cast<int>(E), BitcodeErrorCategory());
+  }
+
+  class BitcodeDiagnosticInfo : public DiagnosticInfo {
+    const Twine &Msg;
+    std::error_code EC;
+
+  public:
+    BitcodeDiagnosticInfo(std::error_code EC, DiagnosticSeverity Severity,
+                          const Twine &Msg);
+    void print(DiagnosticPrinter &DP) const override;
+    std::error_code getError() const { return EC; };
+
+    static bool classof(const DiagnosticInfo *DI) {
+      return DI->getKind() == DK_Bitcode;
+    }
+  };
+
 } // End llvm namespace
+
+namespace std {
+template <> struct is_error_code_enum<llvm::BitcodeError> : std::true_type {};
+}
 
 #endif

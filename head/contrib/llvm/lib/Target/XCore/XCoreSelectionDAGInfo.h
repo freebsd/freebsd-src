@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef XCORESELECTIONDAGINFO_H
-#define XCORESELECTIONDAGINFO_H
+#ifndef LLVM_LIB_TARGET_XCORE_XCORESELECTIONDAGINFO_H
+#define LLVM_LIB_TARGET_XCORE_XCORESELECTIONDAGINFO_H
 
 #include "llvm/Target/TargetSelectionDAGInfo.h"
 
@@ -22,8 +22,6 @@ class XCoreTargetMachine;
 
 class XCoreSelectionDAGInfo : public TargetSelectionDAGInfo {
 public:
-  explicit XCoreSelectionDAGInfo(const DataLayout &DL);
-  ~XCoreSelectionDAGInfo();
 
   SDValue
   EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl,

@@ -551,26 +551,27 @@ typedef enum memory_order
 
 #if _GNUC_VER >= 407
 namespace __gcc_atomic {
-template <typename T>
+template <typename _Tp>
 struct __gcc_atomic_t {
   __gcc_atomic_t() _NOEXCEPT {}
-  explicit __gcc_atomic_t(T value) _NOEXCEPT : __a_value(value) {}
-  T __a_value;
+  _LIBCPP_CONSTEXPR explicit __gcc_atomic_t(_Tp value) _NOEXCEPT
+    : __a_value(value) {}
+  _Tp __a_value;
 };
 #define _Atomic(x) __gcc_atomic::__gcc_atomic_t<x>
 
-template <typename T> T __create();
+template <typename _Tp> _Tp __create();
 
-template <typename __Tp, typename __Td>
-typename enable_if<sizeof(__Tp()->__a_value = __create<__Td>()), char>::type
+template <typename _Tp, typename _Td>
+typename enable_if<sizeof(_Tp()->__a_value = __create<_Td>()), char>::type
     __test_atomic_assignable(int);
-template <typename T, typename U>
+template <typename _Tp, typename _Up>
 __two __test_atomic_assignable(...);
 
-template <typename __Tp, typename __Td>
+template <typename _Tp, typename _Td>
 struct __can_assign {
   static const bool value =
-      sizeof(__test_atomic_assignable<__Tp, __Td>(1)) == sizeof(char);
+      sizeof(__test_atomic_assignable<_Tp, _Td>(1)) == sizeof(char);
 };
 
 static inline constexpr int __to_gcc_order(memory_order __order) {
@@ -580,6 +581,16 @@ static inline constexpr int __to_gcc_order(memory_order __order) {
           (__order == memory_order_release ? __ATOMIC_RELEASE:
            (__order == memory_order_seq_cst ? __ATOMIC_SEQ_CST:
             (__order == memory_order_acq_rel ? __ATOMIC_ACQ_REL:
+              __ATOMIC_CONSUME))));
+}
+
+static inline constexpr int __to_gcc_failure_order(memory_order __order) {
+  // Avoid switch statement to make this a constexpr.
+  return __order == memory_order_relaxed ? __ATOMIC_RELAXED:
+         (__order == memory_order_acquire ? __ATOMIC_ACQUIRE:
+          (__order == memory_order_release ? __ATOMIC_RELAXED:
+           (__order == memory_order_seq_cst ? __ATOMIC_SEQ_CST:
+            (__order == memory_order_acq_rel ? __ATOMIC_ACQUIRE:
               __ATOMIC_CONSUME))));
 }
 
@@ -623,10 +634,6 @@ static inline void __c11_atomic_signal_fence(memory_order __order) {
   __atomic_signal_fence(__gcc_atomic::__to_gcc_order(__order));
 }
 
-static inline bool __c11_atomic_is_lock_free(size_t __size) {
-  return __atomic_is_lock_free(__size, 0);
-}
-
 template <typename _Tp>
 static inline void __c11_atomic_store(volatile _Atomic(_Tp)* __a,  _Tp __val,
                                       memory_order __order) {
@@ -637,8 +644,8 @@ static inline void __c11_atomic_store(volatile _Atomic(_Tp)* __a,  _Tp __val,
 template <typename _Tp>
 static inline void __c11_atomic_store(_Atomic(_Tp)* __a,  _Tp __val,
                                       memory_order __order) {
-  return __atomic_store(&__a->__a_value, &__val,
-                        __gcc_atomic::__to_gcc_order(__order));
+  __atomic_store(&__a->__a_value, &__val,
+                 __gcc_atomic::__to_gcc_order(__order));
 }
 
 template <typename _Tp>
@@ -683,7 +690,7 @@ static inline bool __c11_atomic_compare_exchange_strong(
   return __atomic_compare_exchange(&__a->__a_value, __expected, &__value,
                                    false,
                                    __gcc_atomic::__to_gcc_order(__success),
-                                   __gcc_atomic::__to_gcc_order(__failure));
+                                   __gcc_atomic::__to_gcc_failure_order(__failure));
 }
 
 template <typename _Tp>
@@ -693,7 +700,7 @@ static inline bool __c11_atomic_compare_exchange_strong(
   return __atomic_compare_exchange(&__a->__a_value, __expected, &__value,
                                    false,
                                    __gcc_atomic::__to_gcc_order(__success),
-                                   __gcc_atomic::__to_gcc_order(__failure));
+                                   __gcc_atomic::__to_gcc_failure_order(__failure));
 }
 
 template <typename _Tp>
@@ -703,7 +710,7 @@ static inline bool __c11_atomic_compare_exchange_weak(
   return __atomic_compare_exchange(&__a->__a_value, __expected, &__value,
                                    true,
                                    __gcc_atomic::__to_gcc_order(__success),
-                                   __gcc_atomic::__to_gcc_order(__failure));
+                                   __gcc_atomic::__to_gcc_failure_order(__failure));
 }
 
 template <typename _Tp>
@@ -713,7 +720,7 @@ static inline bool __c11_atomic_compare_exchange_weak(
   return __atomic_compare_exchange(&__a->__a_value, __expected, &__value,
                                    true,
                                    __gcc_atomic::__to_gcc_order(__success),
-                                   __gcc_atomic::__to_gcc_order(__failure));
+                                   __gcc_atomic::__to_gcc_failure_order(__failure));
 }
 
 template <typename _Tp>
@@ -817,10 +824,16 @@ struct __atomic_base  // false
 
     _LIBCPP_INLINE_VISIBILITY
     bool is_lock_free() const volatile _NOEXCEPT
-        {return __c11_atomic_is_lock_free(sizeof(_Tp));}
+    {
+#if __has_feature(cxx_atomic)
+    return __c11_atomic_is_lock_free(sizeof(_Tp));
+#else
+    return __atomic_is_lock_free(sizeof(_Tp), 0);
+#endif
+    }
     _LIBCPP_INLINE_VISIBILITY
     bool is_lock_free() const _NOEXCEPT
-        {return __c11_atomic_is_lock_free(sizeof(_Tp));}
+        {return static_cast<__atomic_base const volatile*>(this)->is_lock_free();}
     _LIBCPP_INLINE_VISIBILITY
     void store(_Tp __d, memory_order __m = memory_order_seq_cst) volatile _NOEXCEPT
         {__c11_atomic_store(&__a_, __d, __m);}

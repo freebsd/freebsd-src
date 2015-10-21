@@ -9,7 +9,6 @@ SRCS=	APFloat.cpp \
 	APInt.cpp \
 	APSInt.cpp \
 	ARMBuildAttrs.cpp \
-	ARMWinEH.cpp \
 	Allocator.cpp \
 	Atomic.cpp \
 	BlockFrequency.cpp \
@@ -27,28 +26,25 @@ SRCS=	APFloat.cpp \
 	DynamicLibrary.cpp \
 	Errno.cpp \
 	ErrorHandling.cpp \
-	FileOutputBuffer.cpp \
 	FoldingSet.cpp \
 	FormattedStream.cpp \
 	GraphWriter.cpp \
 	Hashing.cpp \
 	Host.cpp \
-	IncludeFile.cpp \
 	IntEqClasses.cpp \
 	IntervalMap.cpp \
 	IntrusiveRefCntPtr.cpp \
-	IsInf.cpp \
-	IsNAN.cpp \
 	LEB128.cpp \
 	LineIterator.cpp \
 	Locale.cpp \
 	LockFileManager.cpp \
 	MD5.cpp \
 	ManagedStatic.cpp \
-	Memory.cpp \
+	MathExtras.cpp \
 	MemoryBuffer.cpp \
 	MemoryObject.cpp \
 	Mutex.cpp \
+	Options.cpp \
 	Path.cpp \
 	PluginLoader.cpp \
 	PrettyStackTrace.cpp \
@@ -65,12 +61,13 @@ SRCS=	APFloat.cpp \
 	SourceMgr.cpp \
 	SpecialCaseList.cpp \
 	Statistic.cpp \
-	StreamableMemoryObject.cpp \
+	StreamingMemoryObject.cpp \
 	StringExtras.cpp \
 	StringMap.cpp \
 	StringPool.cpp \
 	StringRef.cpp \
-	StringRefMemoryObject.cpp \
+	StringSaver.cpp \
+	TargetParser.cpp \
 	TargetRegistry.cpp \
 	ThreadLocal.cpp \
 	Threading.cpp \
@@ -81,7 +78,6 @@ SRCS=	APFloat.cpp \
 	Twine.cpp \
 	Unicode.cpp \
 	Valgrind.cpp \
-	Watchdog.cpp \
 	YAMLParser.cpp \
 	YAMLTraits.cpp \
 	circular_raw_ostream.cpp \
@@ -94,9 +90,17 @@ SRCS=	APFloat.cpp \
 	regstrlcpy.c
 
 .if ${MK_CLANG_EXTRAS} != "no"
-SRCS+=	DataStream.cpp \
+SRCS+=	ARMWinEH.cpp \
+	COM.cpp \
+	DataStream.cpp \
+	FileOutputBuffer.cpp \
 	FileUtilities.cpp \
-	SystemUtils.cpp
+	SystemUtils.cpp \
+	Watchdog.cpp
+.endif
+
+.if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
+SRCS+=	Memory.cpp
 .endif
 
 .include "../clang.lib.mk"

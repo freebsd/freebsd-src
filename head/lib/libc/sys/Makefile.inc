@@ -21,22 +21,8 @@ PSEUDO+= _clock_gettime.o _gettimeofday.o
 
 # Sources common to both syscall interfaces:
 SRCS+=	\
-	stack_protector.c \
-	stack_protector_compat.c \
 	__error.c \
 	interposing_table.c
-
-.if ${MK_SYSCALL_COMPAT} != "no"
-SYSCALL_COMPAT_SRCS= \
-	ftruncate.c \
-	lseek.c \
-	mmap.c \
-	pread.c \
-	pwrite.c \
-	truncate.c
-SRCS+=	${SYSCALL_COMPAT_SRCS}
-NOASM+=	${SYSCALL_COMPAT_SRCS:S/.c/.o/}
-.endif
 
 SRCS+= futimens.c utimensat.c
 NOASM+= futimens.o utimensat.o
@@ -51,11 +37,13 @@ INTERPOSED = \
 	fcntl \
 	fsync \
 	fork \
+	kevent \
 	msync \
 	nanosleep \
 	open \
 	openat \
 	poll \
+	ppoll \
 	pselect \
 	read \
 	readv \
@@ -65,7 +53,6 @@ INTERPOSED = \
 	sendmsg \
 	sendto \
 	setcontext \
-	sigaction \
 	sigprocmask \
 	sigsuspend \
 	sigtimedwait \
@@ -73,8 +60,16 @@ INTERPOSED = \
 	sigwaitinfo \
 	swapcontext \
 	wait4 \
+	wait6 \
 	write \
 	writev
+
+.if ${MACHINE_CPUARCH} == "sparc64"
+SRCS+=	sigaction.c
+NOASM+=	sigaction.o
+.else
+INTERPOSED+= sigaction
+.endif
 
 SRCS+=	${INTERPOSED:S/$/.c/}
 NOASM+=	${INTERPOSED:S/$/.o/}
@@ -95,8 +90,6 @@ ASM+=$(_asm)
 .endif
 .endfor
 
-OBJS+=	${ASM} ${PSEUDO}
-
 SASM=	${ASM:S/.o/.S/}
 
 SPSEUDO= ${PSEUDO:S/.o/.S/}
@@ -109,7 +102,7 @@ SYM_MAPS+=	${LIBC_SRCTOP}/sys/Symbol.map
 CLEANFILES+=	${SASM} ${SPSEUDO}
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
-    ${MACHINE_CPUARCH} == "powerpc"
+    ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_ARCH:Marmv6*}
 NOTE_GNU_STACK='\t.section .note.GNU-stack,"",%%progbits\n'
 .else
 NOTE_GNU_STACK=''
@@ -238,6 +231,7 @@ MAN+=	abort2.2 \
 	nanosleep.2 \
 	nfssvc.2 \
 	ntp_adjtime.2 \
+	numa_getaffinity.2 \
 	open.2 \
 	pathconf.2 \
 	pdfork.2 \
@@ -398,6 +392,7 @@ MLINKS+=mount.2 nmount.2 \
 MLINKS+=mq_receive.2 mq_timedreceive.2
 MLINKS+=mq_send.2 mq_timedsend.2
 MLINKS+=ntp_adjtime.2 ntp_gettime.2
+MLINKS+=numa_getaffinity.2 numa_setaffinity.2
 MLINKS+=open.2 openat.2
 MLINKS+=pathconf.2 fpathconf.2
 MLINKS+=pathconf.2 lpathconf.2

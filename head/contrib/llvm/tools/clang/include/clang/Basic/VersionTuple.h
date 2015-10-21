@@ -22,35 +22,48 @@
 
 namespace clang {
 
-/// \brief Represents a version number in the form major[.minor[.subminor]].
+/// \brief Represents a version number in the form major[.minor[.subminor[.build]]].
 class VersionTuple {
-  unsigned Major;
+  unsigned Major : 31;
   unsigned Minor : 31;
   unsigned Subminor : 31;
+  unsigned Build : 31;
   unsigned HasMinor : 1;
   unsigned HasSubminor : 1;
+  unsigned HasBuild : 1;
+  unsigned UsesUnderscores : 1;
 
 public:
-  VersionTuple() 
-    : Major(0), Minor(0), Subminor(0), HasMinor(false), HasSubminor(false) { }
+  VersionTuple()
+      : Major(0), Minor(0), Subminor(0), Build(0), HasMinor(false),
+        HasSubminor(false), HasBuild(false), UsesUnderscores(false) {}
 
   explicit VersionTuple(unsigned Major)
-    : Major(Major), Minor(0), Subminor(0), HasMinor(false), HasSubminor(false)
-  { }
+      : Major(Major), Minor(0), Subminor(0), Build(0), HasMinor(false),
+        HasSubminor(false), HasBuild(false), UsesUnderscores(false) {}
 
-  explicit VersionTuple(unsigned Major, unsigned Minor)
-    : Major(Major), Minor(Minor), Subminor(0), HasMinor(true), 
-      HasSubminor(false)
-  { }
+  explicit VersionTuple(unsigned Major, unsigned Minor,
+                        bool UsesUnderscores = false)
+      : Major(Major), Minor(Minor), Subminor(0), Build(0), HasMinor(true),
+        HasSubminor(false), HasBuild(false), UsesUnderscores(UsesUnderscores) {}
 
-  explicit VersionTuple(unsigned Major, unsigned Minor, unsigned Subminor)
-    : Major(Major), Minor(Minor), Subminor(Subminor), HasMinor(true), 
-      HasSubminor(true)
-  { }
+  explicit VersionTuple(unsigned Major, unsigned Minor, unsigned Subminor,
+                        bool UsesUnderscores = false)
+      : Major(Major), Minor(Minor), Subminor(Subminor), Build(0),
+        HasMinor(true), HasSubminor(true), HasBuild(false),
+        UsesUnderscores(UsesUnderscores) {}
+
+  explicit VersionTuple(unsigned Major, unsigned Minor, unsigned Subminor,
+                        unsigned Build, bool UsesUnderscores = false)
+      : Major(Major), Minor(Minor), Subminor(Subminor), Build(Build),
+        HasMinor(true), HasSubminor(true), HasBuild(true),
+        UsesUnderscores(UsesUnderscores) {}
 
   /// \brief Determine whether this version information is empty
   /// (e.g., all version components are zero).
-  bool empty() const { return Major == 0 && Minor == 0 && Subminor == 0; }
+  bool empty() const {
+    return Major == 0 && Minor == 0 && Subminor == 0 && Build == 0;
+  }
 
   /// \brief Retrieve the major version number.
   unsigned getMajor() const { return Major; }
@@ -69,10 +82,26 @@ public:
     return Subminor;
   }
 
+  /// \brief Retrieve the build version number, if provided.
+  Optional<unsigned> getBuild() const {
+    if (!HasBuild)
+      return None;
+    return Build;
+  }
+
+  bool usesUnderscores() const {
+    return UsesUnderscores;
+  }
+
+  void UseDotAsSeparator() {
+    UsesUnderscores = false;
+  }
+  
   /// \brief Determine if two version numbers are equivalent. If not
   /// provided, minor and subminor version numbers are considered to be zero.
   friend bool operator==(const VersionTuple& X, const VersionTuple &Y) {
-    return X.Major == Y.Major && X.Minor == Y.Minor && X.Subminor == Y.Subminor;
+    return X.Major == Y.Major && X.Minor == Y.Minor &&
+           X.Subminor == Y.Subminor && X.Build == Y.Build;
   }
 
   /// \brief Determine if two version numbers are not equivalent.
@@ -88,8 +117,8 @@ public:
   /// If not provided, minor and subminor version numbers are considered to be
   /// zero.
   friend bool operator<(const VersionTuple &X, const VersionTuple &Y) {
-    return std::tie(X.Major, X.Minor, X.Subminor) <
-           std::tie(Y.Major, Y.Minor, Y.Subminor);
+    return std::tie(X.Major, X.Minor, X.Subminor, X.Build) <
+           std::tie(Y.Major, Y.Minor, Y.Subminor, Y.Build);
   }
 
   /// \brief Determine whether one version number follows another.
@@ -123,7 +152,7 @@ public:
 
   /// \brief Try to parse the given string as a version number.
   /// \returns \c true if the string does not match the regular expression
-  ///   [0-9]+(\.[0-9]+(\.[0-9]+))
+  ///   [0-9]+(\.[0-9]+){0,3}
   bool tryParse(StringRef string);
 };
 

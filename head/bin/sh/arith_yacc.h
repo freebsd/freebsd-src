@@ -81,6 +81,8 @@
 #define ARITH_QMARK 37
 #define ARITH_COLON 38
 
+extern const char *arith_buf;
+
 union yystype {
 	arith_t val;
 	char *name;

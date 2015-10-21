@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,22 +64,11 @@
 #define ACPI_SET64(ptr, val)            (*ACPI_CAST64 (ptr) = (UINT64) (val))
 
 /*
- * printf() format helpers. These macros are workarounds for the difficulties
+ * printf() format helper. This macros is a workaround for the difficulties
  * with emitting 64-bit integers and 64-bit pointers with the same code
  * for both 32-bit and 64-bit hosts.
  */
 #define ACPI_FORMAT_UINT64(i)           ACPI_HIDWORD(i), ACPI_LODWORD(i)
-
-#if ACPI_MACHINE_WIDTH == 64
-#define ACPI_FORMAT_NATIVE_UINT(i)      ACPI_FORMAT_UINT64(i)
-#define ACPI_FORMAT_TO_UINT(i)          ACPI_FORMAT_UINT64(i)
-#define ACPI_PRINTF_UINT                 "0x%8.8X%8.8X"
-
-#else
-#define ACPI_FORMAT_NATIVE_UINT(i)      0, (UINT32) (i)
-#define ACPI_FORMAT_TO_UINT(i)          (UINT32) (i)
-#define ACPI_PRINTF_UINT                 "0x%8.8X"
-#endif
 
 
 /*
@@ -233,6 +222,16 @@
 #define ACPI_DIV_32(a)                  _ACPI_DIV(a, 5)
 #define ACPI_MUL_32(a)                  _ACPI_MUL(a, 5)
 #define ACPI_MOD_32(a)                  _ACPI_MOD(a, 32)
+
+/* Test for ASCII character */
+
+#define ACPI_IS_ASCII(c)                ((c) < 0x80)
+
+/* Signed integers */
+
+#define ACPI_SIGN_POSITIVE              0
+#define ACPI_SIGN_NEGATIVE              1
+
 
 /*
  * Rounding macros (Power of two boundaries only)

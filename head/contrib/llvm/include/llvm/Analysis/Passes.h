@@ -66,6 +66,13 @@ namespace llvm {
 
   //===--------------------------------------------------------------------===//
   //
+  // createCFLAliasAnalysisPass - This pass implements a set-based approach to
+  // alias analysis.
+  //
+  ImmutablePass *createCFLAliasAnalysisPass();
+
+  //===--------------------------------------------------------------------===//
+  //
   /// createLibCallAliasAnalysisPass - Create an alias analysis pass that knows
   /// about the semantics of a set of libcalls specified by LCI.  The newly
   /// constructed pass takes ownership of the pointer that is provided.
@@ -88,10 +95,19 @@ namespace llvm {
 
   //===--------------------------------------------------------------------===//
   //
+  // createScopedNoAliasAAPass - This pass implements metadata-based
+  // scoped noalias analysis.
+  //
+  ImmutablePass *createScopedNoAliasAAPass();
+
+  //===--------------------------------------------------------------------===//
+  //
   // createObjCARCAliasAnalysisPass - This pass implements ObjC-ARC-based
   // alias analysis.
   //
   ImmutablePass *createObjCARCAliasAnalysisPass();
+
+  FunctionPass *createPAEvalPass();
 
   //===--------------------------------------------------------------------===//
   //
@@ -122,6 +138,13 @@ namespace llvm {
 
   //===--------------------------------------------------------------------===//
   //
+  // createDivergenceAnalysisPass - This pass determines which branches in a GPU
+  // program are divergent.
+  //
+  FunctionPass *createDivergenceAnalysisPass();
+
+  //===--------------------------------------------------------------------===//
+  //
   // Minor pass prototypes, allowing us to expose them through bugpoint and
   // analyze.
   FunctionPass *createInstCountPass();
@@ -143,9 +166,13 @@ namespace llvm {
   //
   FunctionPass *createMemDepPrinter();
 
-  // createJumpInstrTableInfoPass - This creates a pass that stores information
-  // about the jump tables created by JumpInstrTables
-  ImmutablePass *createJumpInstrTableInfoPass();
+  //===--------------------------------------------------------------------===//
+  //
+  // createMemDerefPrinter - This pass collects memory dereferenceability
+  // information and prints it with -analyze.
+  //
+  FunctionPass *createMemDerefPrinter();
+
 }
 
 #endif

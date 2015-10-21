@@ -32,8 +32,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SOURCEMANAGER_H
-#define LLVM_CLANG_SOURCEMANAGER_H
+#ifndef LLVM_CLANG_BASIC_SOURCEMANAGER_H
+#define LLVM_CLANG_BASIC_SOURCEMANAGER_H
 
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/LLVM.h"
@@ -82,22 +82,13 @@ namespace SrcMgr {
   /// \brief One instance of this struct is kept for every file loaded or used.
   ///
   /// This object owns the MemoryBuffer object.
-  class ContentCache {
+  class LLVM_ALIGNAS(8) ContentCache {
     enum CCFlags {
       /// \brief Whether the buffer is invalid.
       InvalidFlag = 0x01,
       /// \brief Whether the buffer should not be freed on destruction.
       DoNotFreeFlag = 0x02
     };
-
-    // Note that the first member of this class is an aligned character buffer
-    // to ensure that this class has an alignment of 8 bytes. This wastes
-    // 8 bytes for every ContentCache object, but each of these corresponds to
-    // a file loaded into memory, so the 8 bytes doesn't seem terribly
-    // important. It is quite awkward to fit this aligner into any other part
-    // of the class due to the lack of portable ways to combine it with other
-    // members.
-    llvm::AlignedCharArray<8, 1> NonceAligner;
 
     /// \brief The actual buffer containing the characters from the input
     /// file.
@@ -142,14 +133,9 @@ namespace SrcMgr {
     /// \brief True if this content cache was initially created for a source
     /// file considered as a system one.
     unsigned IsSystemFile : 1;
-    
-    ContentCache(const FileEntry *Ent = nullptr)
-      : Buffer(nullptr, false), OrigEntry(Ent), ContentsEntry(Ent),
-        SourceLineCache(nullptr), NumLines(0), BufferOverridden(false),
-        IsSystemFile(false) {
-      (void)NonceAligner; // Silence warnings about unused member.
-    }
-    
+
+    ContentCache(const FileEntry *Ent = nullptr) : ContentCache(Ent, Ent) {}
+
     ContentCache(const FileEntry *Ent, const FileEntry *contentEnt)
       : Buffer(nullptr, false), OrigEntry(Ent), ContentsEntry(contentEnt),
         SourceLineCache(nullptr), NumLines(0), BufferOverridden(false),
@@ -205,10 +191,10 @@ namespace SrcMgr {
     /// this content cache.  This is used for performance analysis.
     llvm::MemoryBuffer::BufferKind getMemoryBufferKind() const;
 
-    void setBuffer(llvm::MemoryBuffer *B) {
+    void setBuffer(std::unique_ptr<llvm::MemoryBuffer> B) {
       assert(!Buffer.getPointer() && "MemoryBuffer already set.");
-      Buffer.setPointer(B);
-      Buffer.setInt(false);
+      Buffer.setPointer(B.release());
+      Buffer.setInt(0);
     }
 
     /// \brief Get the underlying buffer, returning NULL if the buffer is not
@@ -231,7 +217,7 @@ namespace SrcMgr {
 
   private:
     // Disable assignments.
-    ContentCache &operator=(const ContentCache& RHS) LLVM_DELETED_FUNCTION;
+    ContentCache &operator=(const ContentCache& RHS) = delete;
   };
 
   // Assert that the \c ContentCache objects will always be 8-byte aligned so
@@ -685,9 +671,9 @@ class SourceManager : public RefCountedBase<SourceManager> {
   InBeforeInTUCacheEntry &getInBeforeInTUCache(FileID LFID, FileID RFID) const;
 
   // Cache for the "fake" buffer used for error-recovery purposes.
-  mutable llvm::MemoryBuffer *FakeBufferForRecovery;
+  mutable std::unique_ptr<llvm::MemoryBuffer> FakeBufferForRecovery;
 
-  mutable SrcMgr::ContentCache *FakeContentCacheForRecovery;
+  mutable std::unique_ptr<SrcMgr::ContentCache> FakeContentCacheForRecovery;
 
   /// \brief Lazily computed map of macro argument chunks to their expanded
   /// source location.
@@ -705,8 +691,8 @@ class SourceManager : public RefCountedBase<SourceManager> {
   SmallVector<std::pair<std::string, FullSourceLoc>, 2> StoredModuleBuildStack;
 
   // SourceManager doesn't support copy construction.
-  explicit SourceManager(const SourceManager&) LLVM_DELETED_FUNCTION;
-  void operator=(const SourceManager&) LLVM_DELETED_FUNCTION;
+  explicit SourceManager(const SourceManager&) = delete;
+  void operator=(const SourceManager&) = delete;
 public:
   SourceManager(DiagnosticsEngine &Diag, FileManager &FileMgr,
                 bool UserFilesAreVolatile = false);
@@ -754,7 +740,6 @@ public:
 
   /// \brief Set the file ID for the main source file.
   void setMainFileID(FileID FID) {
-    assert(MainFileID.isInvalid() && "MainFileID already set!");
     MainFileID = FID;
   }
 
@@ -789,12 +774,12 @@ public:
   ///
   /// This does no caching of the buffer and takes ownership of the
   /// MemoryBuffer, so only pass a MemoryBuffer to this once.
-  FileID createFileID(llvm::MemoryBuffer *Buffer,
+  FileID createFileID(std::unique_ptr<llvm::MemoryBuffer> Buffer,
                       SrcMgr::CharacteristicKind FileCharacter = SrcMgr::C_User,
                       int LoadedID = 0, unsigned LoadedOffset = 0,
                       SourceLocation IncludeLoc = SourceLocation()) {
-    return createFileID(createMemBufferContentCache(Buffer), IncludeLoc,
-                        FileCharacter, LoadedID, LoadedOffset);
+    return createFileID(createMemBufferContentCache(std::move(Buffer)),
+                        IncludeLoc, FileCharacter, LoadedID, LoadedOffset);
   }
 
   /// \brief Return a new SourceLocation that encodes the
@@ -833,7 +818,11 @@ public:
   /// \param DoNotFree If true, then the buffer will not be freed when the
   /// source manager is destroyed.
   void overrideFileContents(const FileEntry *SourceFile,
-                            llvm::MemoryBuffer *Buffer, bool DoNotFree = false);
+                            llvm::MemoryBuffer *Buffer, bool DoNotFree);
+  void overrideFileContents(const FileEntry *SourceFile,
+                            std::unique_ptr<llvm::MemoryBuffer> Buffer) {
+    overrideFileContents(SourceFile, Buffer.release(), /*DoNotFree*/ false);
+  }
 
   /// \brief Override the given source file with another one.
   ///
@@ -1054,10 +1043,16 @@ public:
   getImmediateExpansionRange(SourceLocation Loc) const;
 
   /// \brief Given a SourceLocation object, return the range of
-  /// tokens covered by the expansion the ultimate file.
+  /// tokens covered by the expansion in the ultimate file.
   std::pair<SourceLocation,SourceLocation>
   getExpansionRange(SourceLocation Loc) const;
 
+  /// \brief Given a SourceRange object, return the range of
+  /// tokens covered by the expansion in the ultimate file.
+  SourceRange getExpansionRange(SourceRange Range) const {
+    return SourceRange(getExpansionRange(Range.getBegin()).first,
+                       getExpansionRange(Range.getEnd()).second);
+  }
 
   /// \brief Given a SourceLocation object, return the spelling
   /// location referenced by the ID.
@@ -1624,7 +1619,7 @@ private:
 
   /// \brief Create a new ContentCache for the specified  memory buffer.
   const SrcMgr::ContentCache *
-  createMemBufferContentCache(llvm::MemoryBuffer *Buf);
+  createMemBufferContentCache(std::unique_ptr<llvm::MemoryBuffer> Buf);
 
   FileID getFileIDSlow(unsigned SLocOffset) const;
   FileID getFileIDLocal(unsigned SLocOffset) const;
@@ -1674,7 +1669,7 @@ class BeforeThanCompare<SourceRange> {
 public:
   explicit BeforeThanCompare(SourceManager &SM) : SM(SM) { }
 
-  bool operator()(SourceRange LHS, SourceRange RHS) {
+  bool operator()(SourceRange LHS, SourceRange RHS) const {
     return SM.isBeforeInTranslationUnit(LHS.getBegin(), RHS.getBegin());
   }
 };

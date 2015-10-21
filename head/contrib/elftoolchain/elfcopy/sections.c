@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <err.h>
@@ -35,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: sections.c 3134 2014-12-23 10:43:59Z kaiwang27 $");
+ELFTC_VCSID("$Id: sections.c 3225 2015-06-06 02:35:23Z kaiwang27 $");
 
 static void	add_gnu_debuglink(struct elfcopy *ecp);
 static uint32_t calc_crc32(const char *p, size_t len, uint32_t crc);
@@ -47,6 +46,7 @@ static void	insert_to_strtab(struct section *t, const char *s);
 static int	is_append_section(struct elfcopy *ecp, const char *name);
 static int	is_compress_section(struct elfcopy *ecp, const char *name);
 static int	is_debug_section(const char *name);
+static int	is_dwo_section(const char *name);
 static int	is_modify_section(struct elfcopy *ecp, const char *name);
 static int	is_print_section(struct elfcopy *ecp, const char *name);
 static int	lookup_string(struct section *t, const char *s);
@@ -56,6 +56,7 @@ static void	print_data(const char *d, size_t sz);
 static void	print_section(struct section *s);
 static void	*read_section(struct section *s, size_t *size);
 static void	update_reloc(struct elfcopy *ecp, struct section *s);
+static void	update_section_group(struct elfcopy *ecp, struct section *s);
 
 int
 is_remove_section(struct elfcopy *ecp, const char *name)
@@ -72,6 +73,11 @@ is_remove_section(struct elfcopy *ecp, const char *name)
 		else
 			return (0);
 	}
+
+	if (ecp->strip == STRIP_DWO && is_dwo_section(name))
+		return (1);
+	if (ecp->strip == STRIP_NONDWO && !is_dwo_section(name))
+		return (1);
 
 	if (is_debug_section(name)) {
 		if (ecp->strip == STRIP_ALL ||
@@ -230,6 +236,16 @@ is_debug_section(const char *name)
 			return (1);
 	}
 
+	return (0);
+}
+
+static int
+is_dwo_section(const char *name)
+{
+	size_t len;
+
+	if ((len = strlen(name)) > 4 && strcmp(name + len - 4, ".dwo") == 0)
+		return (1);
 	return (0);
 }
 
@@ -537,6 +553,14 @@ copy_content(struct elfcopy *ecp)
 		    (s->type == SHT_REL || s->type == SHT_RELA))
 			filter_reloc(ecp, s);
 
+		/*
+		 * The section indices in the SHT_GROUP section needs
+		 * to be updated since we might have stripped some
+		 * sections and changed section numbering.
+		 */
+		if (s->type == SHT_GROUP)
+			update_section_group(ecp, s);
+
 		if (is_modify_section(ecp, s->name))
 			modify_section(ecp, s);
 
@@ -554,6 +578,71 @@ copy_content(struct elfcopy *ecp)
 		if (is_print_section(ecp, s->name))
 			print_section(s);
 	}
+}
+
+
+/*
+ * Update section group section. The section indices in the SHT_GROUP
+ * section need update after section numbering changed.
+ */
+static void
+update_section_group(struct elfcopy *ecp, struct section *s)
+{
+	GElf_Shdr	 ish;
+	Elf_Data	*id;
+	uint32_t	*ws, *wd;
+	uint64_t	 n;
+	size_t		 ishnum;
+	int		 i, j;
+
+	if (!elf_getshnum(ecp->ein, &ishnum))
+		errx(EXIT_FAILURE, "elf_getshnum failed: %s",
+		    elf_errmsg(-1));
+
+	if (gelf_getshdr(s->is, &ish) == NULL)
+		errx(EXIT_FAILURE, "gelf_getehdr() failed: %s",
+		    elf_errmsg(-1));
+
+	if ((id = elf_getdata(s->is, NULL)) == NULL)
+		errx(EXIT_FAILURE, "elf_getdata() failed: %s",
+		    elf_errmsg(-1));
+
+	if (ish.sh_size == 0)
+		return;
+
+	if (ish.sh_entsize == 0)
+		ish.sh_entsize = 4;
+
+	ws = id->d_buf;
+
+	/* We only support COMDAT section. */
+#ifndef GRP_COMDAT
+#define	GRP_COMDAT 0x1
+#endif
+	if ((*ws & GRP_COMDAT) == 0)
+		return;
+
+	if ((s->buf = malloc(ish.sh_size)) == NULL)
+		err(EXIT_FAILURE, "malloc failed");
+
+	s->sz = ish.sh_size;
+
+	wd = s->buf;
+
+	/* Copy the flag word as-is. */
+	*wd = *ws;
+
+	/* Update the section indices. */
+	n = ish.sh_size / ish.sh_entsize;
+	for(i = 1, j = 1; (uint64_t)i < n; i++) {
+		if (ws[i] != SHN_UNDEF && ws[i] < ishnum &&
+		    ecp->secndx[ws[i]] != 0)
+			wd[j++] = ecp->secndx[ws[i]];
+		else
+			s->sz -= 4;
+	}
+
+	s->nocopy = 1;
 }
 
 /*
@@ -1013,8 +1102,11 @@ copy_shdr(struct elfcopy *ecp, struct section *s, const char *name, int copy,
 				osh.sh_flags |= SHF_WRITE;
 			if (sec_flags & SF_CODE)
 				osh.sh_flags |= SHF_EXECINSTR;
-		} else
+		} else {
 			osh.sh_flags = ish.sh_flags;
+			if (ish.sh_type == SHT_REL || ish.sh_type == SHT_RELA)
+				osh.sh_flags |= SHF_INFO_LINK;
+		}
 	}
 
 	if (name == NULL)
@@ -1208,6 +1300,14 @@ update_shdr(struct elfcopy *ecp, int update_link)
 		    osh.sh_info != 0)
 			osh.sh_info = ecp->secndx[osh.sh_info];
 
+		/*
+		 * sh_info of SHT_GROUP section needs to point to the correct
+		 * string in the symbol table.
+		 */
+		if (s->type == SHT_GROUP && (ecp->flags & SYMTAB_EXIST) &&
+		    (ecp->flags & SYMTAB_INTACT) == 0)
+			osh.sh_info = ecp->symndx[osh.sh_info];
+
 		if (!gelf_update_shdr(s->os, &osh))
 			errx(EXIT_FAILURE, "gelf_update_shdr() failed: %s",
 			    elf_errmsg(-1));
@@ -1248,6 +1348,14 @@ set_shstrtab(struct elfcopy *ecp)
 	GElf_Shdr	 sh;
 
 	s = ecp->shstrtab;
+
+	if (s->os == NULL) {
+		/* Input object does not contain .shstrtab section */
+		if ((s->os = elf_newscn(ecp->eout)) == NULL)
+			errx(EXIT_FAILURE, "elf_newscn failed: %s",
+			    elf_errmsg(-1));
+		insert_to_sec_list(ecp, s, 1);
+	}
 
 	if (gelf_getshdr(s->os, &sh) == NULL)
 		errx(EXIT_FAILURE, "692 gelf_getshdr() failed: %s",

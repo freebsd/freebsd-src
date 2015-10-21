@@ -52,16 +52,10 @@ CURBRK:
  * Change the data segment size
  */
 ENTRY(_sbrk)
-#ifdef PIC
 	/* Setup the GOT */
-	ldr	r3, .Lgot
-	add	r3, pc, r3
-.L1:
-	ldr	r2, .Lcurbrk
-	ldr	r2, [r3, r2]
-#else
-	ldr	r2, .Lcurbrk
-#endif
+	GOT_INIT(r3, .Lgot, .L1)
+	GOT_GET(r2, r3, .Lcurbrk)
+
 	/* Get the current brk address */
 	ldr	r1, [r2]
 
@@ -80,10 +74,9 @@ ENTRY(_sbrk)
 	RET
 
 	.align	0
-#ifdef PIC
-.Lgot:
-	.word	_GLOBAL_OFFSET_TABLE_ - (.L1+4)
-#endif
+	GOT_INITSYM(.Lgot, .L1)
 .Lcurbrk:
 	.word	PIC_SYM(CURBRK, GOT)
 END(_sbrk)
+
+	.section .note.GNU-stack,"",%progbits

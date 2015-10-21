@@ -2022,7 +2022,7 @@ kern_kmq_open(struct thread *td, const char *upath, int flags, mode_t mode,
 
 	if (error) {
 		sx_xunlock(&mqfs_data.mi_lock);
-		fdclose(fdp, fp, fd, td);
+		fdclose(td, fp, fd);
 		fdrop(fp, td);
 		return (error);
 	}

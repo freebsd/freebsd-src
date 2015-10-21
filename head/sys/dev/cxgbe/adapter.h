@@ -192,7 +192,7 @@ enum {
 	/* INTR_DIRECT	= (1 << 2),	No longer used. */
 	MASTER_PF	= (1 << 3),
 	ADAP_SYSCTL_CTX	= (1 << 4),
-	TOM_INIT_DONE	= (1 << 5),
+	/* TOM_INIT_DONE= (1 << 5),	No longer used */
 	BUF_PACKING_OK	= (1 << 6),
 
 	CXGBE_BUSY	= (1 << 9),
@@ -206,6 +206,9 @@ enum {
 	INTR_OFLD_RXQ	= (1 << 5),	/* All TOE rxq's take interrupts */
 	INTR_NM_RXQ	= (1 << 6),	/* All netmap rxq's take interrupts */
 	INTR_ALL	= (INTR_RXQ | INTR_OFLD_RXQ | INTR_NM_RXQ),
+
+	/* adapter debug_flags */
+	DF_DUMP_MBOX	= (1 << 0),
 };
 
 #define IS_DOOMED(pi)	((pi)->flags & DOOMED)
@@ -230,6 +233,7 @@ struct port_info {
 	uint16_t viid;
 	int16_t  xact_addr_filt;/* index of exact MAC address filter */
 	uint16_t rss_size;	/* size of VI's RSS table slice */
+	uint16_t rss_base;	/* start of VI's RSS table slice */
 	uint8_t  lport;		/* associated offload logical port */
 	int8_t   mdio_addr;
 	uint8_t  port_type;
@@ -758,9 +762,11 @@ struct adapter {
 	uint16_t doorbells;
 	int open_device_map;
 #ifdef TCP_OFFLOAD
-	int offload_map;
+	int offload_map;	/* ports with IFCAP_TOE enabled */
+	int active_ulds;	/* ULDs activated on this adapter */
 #endif
 	int flags;
+	int debug_flags;
 
 	char ifp_lockname[16];
 	struct mtx ifp_lock;
@@ -802,6 +808,7 @@ struct adapter {
 #ifdef INVARIANTS
 	const char *last_op;
 	const void *last_op_thr;
+	int last_op_flags;
 #endif
 
 	int sc_do_rxcopy;
@@ -812,7 +819,6 @@ struct adapter {
 #define ADAPTER_LOCK_ASSERT_OWNED(sc)	mtx_assert(&(sc)->sc_lock, MA_OWNED)
 #define ADAPTER_LOCK_ASSERT_NOTOWNED(sc) mtx_assert(&(sc)->sc_lock, MA_NOTOWNED)
 
-/* XXX: not bulletproof, but much better than nothing */
 #define ASSERT_SYNCHRONIZED_OP(sc)	\
     KASSERT(IS_BUSY(sc) && \
 	(mtx_owned(&(sc)->sc_lock) || sc->last_op_thr == curthread), \
@@ -845,6 +851,24 @@ struct adapter {
 #define TXQ_UNLOCK(txq)			EQ_UNLOCK(&(txq)->eq)
 #define TXQ_LOCK_ASSERT_OWNED(txq)	EQ_LOCK_ASSERT_OWNED(&(txq)->eq)
 #define TXQ_LOCK_ASSERT_NOTOWNED(txq)	EQ_LOCK_ASSERT_NOTOWNED(&(txq)->eq)
+
+#define CH_DUMP_MBOX(sc, mbox, data_reg) \
+	do { \
+		if (sc->debug_flags & DF_DUMP_MBOX) { \
+			log(LOG_NOTICE, \
+			    "%s mbox %u: %016llx %016llx %016llx %016llx " \
+			    "%016llx %016llx %016llx %016llx\n", \
+			    device_get_nameunit(sc->dev), mbox, \
+			    (unsigned long long)t4_read_reg64(sc, data_reg), \
+			    (unsigned long long)t4_read_reg64(sc, data_reg + 8), \
+			    (unsigned long long)t4_read_reg64(sc, data_reg + 16), \
+			    (unsigned long long)t4_read_reg64(sc, data_reg + 24), \
+			    (unsigned long long)t4_read_reg64(sc, data_reg + 32), \
+			    (unsigned long long)t4_read_reg64(sc, data_reg + 40), \
+			    (unsigned long long)t4_read_reg64(sc, data_reg + 48), \
+			    (unsigned long long)t4_read_reg64(sc, data_reg + 56)); \
+		} \
+	} while (0)
 
 #define for_each_txq(pi, iter, q) \
 	for (q = &pi->adapter->sge.txq[pi->first_txq], iter = 0; \
@@ -1030,6 +1054,7 @@ void t4_update_fl_bufsize(struct ifnet *);
 int parse_pkt(struct mbuf **);
 void *start_wrq_wr(struct sge_wrq *, int, struct wrq_cookie *);
 void commit_wrq_wr(struct sge_wrq *, void *, struct wrq_cookie *);
+int tnl_cong(struct port_info *, int);
 
 /* t4_tracer.c */
 struct t4_tracer;

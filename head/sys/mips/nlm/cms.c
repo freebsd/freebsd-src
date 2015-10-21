@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/limits.h>
 #include <sys/bus.h>
+#include <sys/sbuf.h>
 
 #include <sys/ktr.h>
 #include <sys/kernel.h>
@@ -107,7 +108,7 @@ static int fmn_loops[XLP_MAX_CORES * XLP_MAX_THREADS];
 static int polled = 0;
 
 /* We do only i/o device credit setup here. CPU credit setup is now
- * moved to xlp_msgring_cpu_init() so that the credits get setup 
+ * moved to xlp_msgring_cpu_init() so that the credits get setup
  * only if the CPU exists. xlp_msgring_cpu_init() gets called from
  * platform_init_ap; and this makes it easy for us to setup CMS
  * credits for various types of XLP chips, with varying number of
@@ -198,9 +199,9 @@ xlp_handle_msg_vc(u_int vcmask, int max_msgs)
 
 			mflags = nlm_save_flags_cop2();
 			status = nlm_fmn_msgrcv(vc, &srcid, &size, &code,
-		 	    &msg);
+			    &msg);
 			nlm_restore_flags(mflags);
-			if (status != 0) 	/*  no msg or error */
+			if (status != 0)	/*  no msg or error */
 				continue;
 			if (srcid < 0 && srcid >= 1024) {
 				printf("[%s]: bad src id %d\n", __func__,
@@ -473,27 +474,22 @@ SYSINIT(start_msgring_threads, SI_SUB_SMP, SI_ORDER_MIDDLE,
 static int
 sys_print_debug(SYSCTL_HANDLER_ARGS)
 {
-	int error, nb, i, fs;
-	static char xprintb[4096], *buf;
+	struct sbuf sb;
+	int error, i;
 
-	buf = xprintb;
-	fs = sizeof(xprintb);
-	nb = snprintf(buf, fs,
+	sbuf_new_for_sysctl(&sb, NULL, 64, req);
+	sbuf_printf(&sb, 
 	    "\nID     vc0       vc1       vc2     vc3     loops\n");
-	buf += nb;
-	fs -= nb;
 	for (i = 0; i < 32; i++) {
 		if ((xlp_hw_thread_mask & (1 << i)) == 0)
 			continue;
-		nb = snprintf(buf, fs,
-		    "%2d: %8d %8d %8d %8d %8d\n", i,
+		sbuf_printf(&sb, "%2d: %8d %8d %8d %8d %8d\n", i,
 		    fmn_msgcount[i][0], fmn_msgcount[i][1],
 		    fmn_msgcount[i][2], fmn_msgcount[i][3],
 		    fmn_loops[i]);
-		buf += nb;
-		fs -= nb;
 	}
-	error = SYSCTL_OUT(req, xprintb, buf - xprintb);
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
 	return (error);
 }
 

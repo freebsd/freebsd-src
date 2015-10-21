@@ -25,7 +25,7 @@
 
 BEGIN
 {
-	print((void)`p0);
+	print((void)`proc0);
 }
 
 BEGIN

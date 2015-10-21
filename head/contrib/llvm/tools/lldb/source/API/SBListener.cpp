@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/API/SBListener.h"
 #include "lldb/API/SBBroadcaster.h"
 #include "lldb/API/SBDebugger.h"
@@ -66,6 +64,12 @@ SBListener::operator = (const lldb::SBListener &rhs)
 SBListener::SBListener (Listener &listener) :
     m_opaque_sp (),
     m_opaque_ptr (&listener)
+{
+}
+
+SBListener::SBListener (const lldb::ListenerSP &listener_sp) :
+    m_opaque_sp (listener_sp),
+    m_opaque_ptr (listener_sp.get())
 {
 }
 

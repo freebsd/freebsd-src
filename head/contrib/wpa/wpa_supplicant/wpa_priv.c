@@ -29,8 +29,9 @@ struct wpa_priv_interface {
 	char *sock_name;
 	int fd;
 
-	struct wpa_driver_ops *driver;
+	const struct wpa_driver_ops *driver;
 	void *drv_priv;
+	void *drv_global_priv;
 	struct sockaddr_un drv_addr;
 	int wpas_registered;
 
@@ -48,6 +49,10 @@ static void wpa_priv_cmd_register(struct wpa_priv_interface *iface,
 		if (iface->driver->deinit)
 			iface->driver->deinit(iface->drv_priv);
 		iface->drv_priv = NULL;
+		if (iface->drv_global_priv) {
+			iface->driver->global_deinit(iface->drv_global_priv);
+			iface->drv_global_priv = NULL;
+		}
 		iface->wpas_registered = 0;
 	}
 
@@ -58,10 +63,24 @@ static void wpa_priv_cmd_register(struct wpa_priv_interface *iface,
 		iface->l2 = NULL;
 	}
 
-	if (iface->driver->init == NULL)
+	if (iface->driver->init2) {
+		if (iface->driver->global_init) {
+			iface->drv_global_priv = iface->driver->global_init();
+			if (!iface->drv_global_priv) {
+				wpa_printf(MSG_INFO,
+					   "Failed to initialize driver global context");
+				return;
+			}
+		} else {
+			iface->drv_global_priv = NULL;
+		}
+		iface->drv_priv = iface->driver->init2(iface, iface->ifname,
+						       iface->drv_global_priv);
+	} else if (iface->driver->init) {
+		iface->drv_priv = iface->driver->init(iface, iface->ifname);
+	} else {
 		return;
-
-	iface->drv_priv = iface->driver->init(iface, iface->ifname);
+	}
 	if (iface->drv_priv == NULL) {
 		wpa_printf(MSG_DEBUG, "Failed to initialize driver wrapper");
 		return;
@@ -87,6 +106,10 @@ static void wpa_priv_cmd_unregister(struct wpa_priv_interface *iface,
 		if (iface->driver->deinit)
 			iface->driver->deinit(iface->drv_priv);
 		iface->drv_priv = NULL;
+		if (iface->drv_global_priv) {
+			iface->driver->global_deinit(iface->drv_global_priv);
+			iface->drv_global_priv = NULL;
+		}
 		iface->wpas_registered = 0;
 	}
 }
@@ -172,6 +195,58 @@ static void wpa_priv_cmd_get_scan_results(struct wpa_priv_interface *iface,
 }
 
 
+static void wpa_priv_cmd_authenticate(struct wpa_priv_interface *iface,
+				      void *buf, size_t len)
+{
+	struct wpa_driver_auth_params params;
+	struct privsep_cmd_authenticate *auth;
+	int res, i;
+
+	if (iface->drv_priv == NULL || iface->driver->authenticate == NULL)
+		return;
+
+	if (len < sizeof(*auth)) {
+		wpa_printf(MSG_DEBUG, "Invalid authentication request");
+		return;
+	}
+
+	auth = buf;
+	if (sizeof(*auth) + auth->ie_len + auth->sae_data_len > len) {
+		wpa_printf(MSG_DEBUG, "Authentication request overflow");
+		return;
+	}
+
+	os_memset(&params, 0, sizeof(params));
+	params.freq = auth->freq;
+	params.bssid = auth->bssid;
+	params.ssid = auth->ssid;
+	if (auth->ssid_len > SSID_MAX_LEN)
+		return;
+	params.ssid_len = auth->ssid_len;
+	params.auth_alg = auth->auth_alg;
+	for (i = 0; i < 4; i++) {
+		if (auth->wep_key_len[i]) {
+			params.wep_key[i] = auth->wep_key[i];
+			params.wep_key_len[i] = auth->wep_key_len[i];
+		}
+	}
+	params.wep_tx_keyidx = auth->wep_tx_keyidx;
+	params.local_state_change = auth->local_state_change;
+	params.p2p = auth->p2p;
+	if (auth->ie_len) {
+		params.ie = (u8 *) (auth + 1);
+		params.ie_len = auth->ie_len;
+	}
+	if (auth->sae_data_len) {
+		params.sae_data = ((u8 *) (auth + 1)) + auth->ie_len;
+		params.sae_data_len = auth->sae_data_len;
+	}
+
+	res = iface->driver->authenticate(iface->drv_priv, &params);
+	wpa_printf(MSG_DEBUG, "drv->authenticate: res=%d", res);
+}
+
+
 static void wpa_priv_cmd_associate(struct wpa_priv_interface *iface,
 				   void *buf, size_t len)
 {
@@ -199,10 +274,12 @@ static void wpa_priv_cmd_associate(struct wpa_priv_interface *iface,
 	if (bssid[0] | bssid[1] | bssid[2] | bssid[3] | bssid[4] | bssid[5])
 		params.bssid = bssid;
 	params.ssid = assoc->ssid;
-	if (assoc->ssid_len > 32)
+	if (assoc->ssid_len > SSID_MAX_LEN)
 		return;
 	params.ssid_len = assoc->ssid_len;
-	params.freq = assoc->freq;
+	params.freq.mode = assoc->hwmode;
+	params.freq.freq = assoc->freq;
+	params.freq.channel = assoc->channel;
 	if (assoc->wpa_ie_len) {
 		params.wpa_ie = (u8 *) (assoc + 1);
 		params.wpa_ie_len = assoc->wpa_ie_len;
@@ -242,7 +319,7 @@ fail:
 static void wpa_priv_cmd_get_ssid(struct wpa_priv_interface *iface,
 				  struct sockaddr_un *from)
 {
-	u8 ssid[sizeof(int) + 32];
+	u8 ssid[sizeof(int) + SSID_MAX_LEN];
 	int res;
 
 	if (iface->drv_priv == NULL)
@@ -252,7 +329,7 @@ static void wpa_priv_cmd_get_ssid(struct wpa_priv_interface *iface,
 		goto fail;
 
 	res = iface->driver->get_ssid(iface->drv_priv, &ssid[sizeof(int)]);
-	if (res < 0 || res > 32)
+	if (res < 0 || res > SSID_MAX_LEN)
 		goto fail;
 	os_memcpy(ssid, &res, sizeof(int));
 
@@ -305,6 +382,10 @@ static void wpa_priv_cmd_get_capa(struct wpa_priv_interface *iface,
 	    iface->driver->get_capa(iface->drv_priv, &capa) < 0)
 		goto fail;
 
+	/* For now, no support for passing extended_capa pointers */
+	capa.extended_capa = NULL;
+	capa.extended_capa_mask = NULL;
+	capa.extended_capa_len = 0;
 	sendto(iface->fd, &capa, sizeof(capa), 0, (struct sockaddr *) from,
 	       sizeof(*from));
 	return;
@@ -333,7 +414,7 @@ static void wpa_priv_l2_rx(void *ctx, const u8 *src_addr, const u8 *buf,
 	msg.msg_namelen = sizeof(iface->l2_addr);
 
 	if (sendmsg(iface->fd, &msg, 0) < 0) {
-		perror("sendmsg(l2 rx)");
+		wpa_printf(MSG_ERROR, "sendmsg(l2 rx): %s", strerror(errno));
 	}
 }
 
@@ -354,7 +435,8 @@ static void wpa_priv_cmd_l2_register(struct wpa_priv_interface *iface,
 	}
 
 	proto = reg_cmd[0];
-	if (proto != ETH_P_EAPOL && proto != ETH_P_RSN_PREAUTH) {
+	if (proto != ETH_P_EAPOL && proto != ETH_P_RSN_PREAUTH &&
+	    proto != ETH_P_80211_ENCAP) {
 		wpa_printf(MSG_DEBUG, "Refused l2_packet connection for "
 			   "ethertype 0x%x", proto);
 		return;
@@ -465,7 +547,7 @@ static void wpa_priv_receive(int sock, void *eloop_ctx, void *sock_ctx)
 	res = recvfrom(sock, buf, sizeof(buf), 0, (struct sockaddr *) &from,
 		       &fromlen);
 	if (res < 0) {
-		perror("recvfrom");
+		wpa_printf(MSG_ERROR, "recvfrom: %s", strerror(errno));
 		return;
 	}
 
@@ -527,6 +609,9 @@ static void wpa_priv_receive(int sock, void *eloop_ctx, void *sock_ctx)
 		pos[cmd_len] = '\0';
 		wpa_priv_cmd_set_country(iface, pos);
 		break;
+	case PRIVSEP_CMD_AUTHENTICATE:
+		wpa_priv_cmd_authenticate(iface, cmd_buf, cmd_len);
+		break;
 	}
 }
 
@@ -552,8 +637,6 @@ static void wpa_priv_interface_deinit(struct wpa_priv_interface *iface)
 }
 
 
-extern struct wpa_driver_ops *wpa_drivers[];
-
 static struct wpa_priv_interface *
 wpa_priv_interface_init(const char *dir, const char *params)
 {
@@ -573,13 +656,11 @@ wpa_priv_interface_init(const char *dir, const char *params)
 	iface->fd = -1;
 
 	len = pos - params;
-	iface->driver_name = os_malloc(len + 1);
+	iface->driver_name = dup_binstr(params, len);
 	if (iface->driver_name == NULL) {
 		wpa_priv_interface_deinit(iface);
 		return NULL;
 	}
-	os_memcpy(iface->driver_name, params, len);
-	iface->driver_name[len] = '\0';
 
 	for (i = 0; wpa_drivers[i]; i++) {
 		if (os_strcmp(iface->driver_name,
@@ -617,7 +698,7 @@ wpa_priv_interface_init(const char *dir, const char *params)
 
 	iface->fd = socket(PF_UNIX, SOCK_DGRAM, 0);
 	if (iface->fd < 0) {
-		perror("socket(PF_UNIX)");
+		wpa_printf(MSG_ERROR, "socket(PF_UNIX): %s", strerror(errno));
 		wpa_priv_interface_deinit(iface);
 		return NULL;
 	}
@@ -635,15 +716,16 @@ wpa_priv_interface_init(const char *dir, const char *params)
 				   "allow connections - assuming it was "
 				   "leftover from forced program termination");
 			if (unlink(iface->sock_name) < 0) {
-				perror("unlink[ctrl_iface]");
-				wpa_printf(MSG_ERROR, "Could not unlink "
-					   "existing ctrl_iface socket '%s'",
-					   iface->sock_name);
+				wpa_printf(MSG_ERROR,
+					   "Could not unlink existing ctrl_iface socket '%s': %s",
+					   iface->sock_name, strerror(errno));
 				goto fail;
 			}
 			if (bind(iface->fd, (struct sockaddr *) &addr,
 				 sizeof(addr)) < 0) {
-				perror("wpa-priv-iface-init: bind(PF_UNIX)");
+				wpa_printf(MSG_ERROR,
+					   "wpa-priv-iface-init: bind(PF_UNIX): %s",
+					   strerror(errno));
 				goto fail;
 			}
 			wpa_printf(MSG_DEBUG, "Successfully replaced leftover "
@@ -658,7 +740,7 @@ wpa_priv_interface_init(const char *dir, const char *params)
 	}
 
 	if (chmod(iface->sock_name, S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
-		perror("chmod");
+		wpa_printf(MSG_ERROR, "chmod: %s", strerror(errno));
 		goto fail;
 	}
 
@@ -690,11 +772,42 @@ static int wpa_priv_send_event(struct wpa_priv_interface *iface, int event,
 	msg.msg_namelen = sizeof(iface->drv_addr);
 
 	if (sendmsg(iface->fd, &msg, 0) < 0) {
-		perror("sendmsg(wpas_socket)");
+		wpa_printf(MSG_ERROR, "sendmsg(wpas_socket): %s",
+			   strerror(errno));
 		return -1;
 	}
 
 	return 0;
+}
+
+
+static void wpa_priv_send_auth(struct wpa_priv_interface *iface,
+			       union wpa_event_data *data)
+{
+	size_t buflen = sizeof(struct privsep_event_auth) + data->auth.ies_len;
+	struct privsep_event_auth *auth;
+	u8 *buf, *pos;
+
+	buf = os_malloc(buflen);
+	if (buf == NULL)
+		return;
+
+	auth = (struct privsep_event_auth *) buf;
+	pos = (u8 *) (auth + 1);
+
+	os_memcpy(auth->peer, data->auth.peer, ETH_ALEN);
+	os_memcpy(auth->bssid, data->auth.bssid, ETH_ALEN);
+	auth->auth_type = data->auth.auth_type;
+	auth->auth_transaction = data->auth.auth_transaction;
+	auth->status_code = data->auth.status_code;
+	if (data->auth.ies) {
+		os_memcpy(pos, data->auth.ies, data->auth.ies_len);
+		auth->ies_len = data->auth.ies_len;
+	}
+
+	wpa_priv_send_event(iface, PRIVSEP_EVENT_AUTH, buf, buflen);
+
+	os_free(buf);
 }
 
 
@@ -851,6 +964,10 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 				    &data->michael_mic_failure.unicast,
 				    sizeof(int));
 		break;
+	case EVENT_SCAN_STARTED:
+		wpa_priv_send_event(iface, PRIVSEP_EVENT_SCAN_STARTED, NULL,
+				    0);
+		break;
 	case EVENT_SCAN_RESULTS:
 		wpa_priv_send_event(iface, PRIVSEP_EVENT_SCAN_RESULTS, NULL,
 				    0);
@@ -874,9 +991,12 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
 	case EVENT_FT_RESPONSE:
 		wpa_priv_send_ft_response(iface, data);
 		break;
+	case EVENT_AUTH:
+		wpa_priv_send_auth(iface, data);
+		break;
 	default:
-		wpa_printf(MSG_DEBUG, "Unsupported driver event %d - TODO",
-			   event);
+		wpa_printf(MSG_DEBUG, "Unsupported driver event %d (%s) - TODO",
+			   event, event_to_string(event));
 		break;
 	}
 }
@@ -905,7 +1025,8 @@ void wpa_supplicant_rx_eapol(void *ctx, const u8 *src_addr,
 	msg.msg_namelen = sizeof(iface->drv_addr);
 
 	if (sendmsg(iface->fd, &msg, 0) < 0)
-		perror("sendmsg(wpas_socket)");
+		wpa_printf(MSG_ERROR, "sendmsg(wpas_socket): %s",
+			   strerror(errno));
 }
 
 
@@ -943,12 +1064,11 @@ static void usage(void)
 	       "contributors\n"
 	       "\n"
 	       "usage:\n"
-	       "  wpa_priv [-Bdd] [-P<pid file>] <driver:ifname> "
-	       "[driver:ifname ...]\n");
+	       "  wpa_priv [-Bdd] [-c<ctrl dir>] [-P<pid file>] "
+	       "<driver:ifname> \\\n"
+	       "           [driver:ifname ...]\n");
 }
 
-
-extern int wpa_debug_level;
 
 int main(int argc, char *argv[])
 {
@@ -983,20 +1103,20 @@ int main(int argc, char *argv[])
 			break;
 		default:
 			usage();
-			goto out;
+			goto out2;
 		}
 	}
 
 	if (optind >= argc) {
 		usage();
-		goto out;
+		goto out2;
 	}
 
 	wpa_printf(MSG_DEBUG, "wpa_priv control directory: '%s'", ctrl_dir);
 
 	if (eloop_init()) {
 		wpa_printf(MSG_ERROR, "Failed to initialize event loop");
-		goto out;
+		goto out2;
 	}
 
 	for (i = optind; i < argc; i++) {
@@ -1026,7 +1146,9 @@ out:
 
 	eloop_destroy();
 
-	os_daemonize_terminate(pid_file);
+out2:
+	if (daemonize)
+		os_daemonize_terminate(pid_file);
 	os_free(pid_file);
 	os_program_deinit();
 

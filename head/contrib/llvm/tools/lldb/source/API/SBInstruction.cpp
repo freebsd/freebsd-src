@@ -20,6 +20,7 @@
 #include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/Disassembler.h"
 #include "lldb/Core/EmulateInstruction.h"
+#include "lldb/Core/Module.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/StackFrame.h"
@@ -170,9 +171,16 @@ SBInstruction::GetDescription (lldb::SBStream &s)
 {
     if (m_opaque_sp)
     {
+        SymbolContext sc;
+        const Address &addr = m_opaque_sp->GetAddress();
+        ModuleSP module_sp (addr.GetModule());
+        if (module_sp)
+            module_sp->ResolveSymbolContextForAddress(addr, eSymbolContextEverything, sc);
         // Use the "ref()" instead of the "get()" accessor in case the SBStream 
         // didn't have a stream already created, one will get created...
-        m_opaque_sp->Dump (&s.ref(), 0, true, false, NULL);
+        FormatEntity::Entry format;
+        FormatEntity::Parse("${addr}: ", format);
+        m_opaque_sp->Dump (&s.ref(), 0, true, false, NULL, &sc, NULL, &format, 0);
         return true;
     }
     return false;
@@ -186,8 +194,15 @@ SBInstruction::Print (FILE *out)
 
     if (m_opaque_sp)
     {
+        SymbolContext sc;
+        const Address &addr = m_opaque_sp->GetAddress();
+        ModuleSP module_sp (addr.GetModule());
+        if (module_sp)
+            module_sp->ResolveSymbolContextForAddress(addr, eSymbolContextEverything, sc);
         StreamFile out_stream (out, false);
-        m_opaque_sp->Dump (&out_stream, 0, true, false, NULL);
+        FormatEntity::Entry format;
+        FormatEntity::Parse("${addr}: ", format);
+        m_opaque_sp->Dump (&out_stream, 0, true, false, NULL, &sc, NULL, &format, 0);
     }
 }
 

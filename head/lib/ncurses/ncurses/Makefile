@@ -282,6 +282,7 @@ CFLAGS+=	-DFREEBSD_NATIVE -DTERMIOS
 # Installed
 HEADERS=	curses.h term.h termcap.h unctrl.h
 SRCHDRS=	ncurses_dll.h
+CLEANFILES+=	ncurses_dll.h
 
 .if defined(ENABLE_WIDEC)
 INCS=		${HEADERS} ${SRCHDRS}
@@ -308,6 +309,7 @@ SYMLINKS+=	libncurses${LIB_SUFFIX}_p.a ${LIBDIR}/libtermlib${LIB_SUFFIX}_p.a
 SYMLINKS+=	libncurses${LIB_SUFFIX}_p.a ${LIBDIR}/libtinfo${LIB_SUFFIX}_p.a
 .endif
 
+.if ${.CURDIR:T} == "ncursesw"
 .if defined(ENABLE_WIDEC)
 DOCSDIR=	${SHAREDIR}/doc/ncurses
 DOCS=		ncurses-intro.html hackguide.html
@@ -316,6 +318,7 @@ DOCS=		ncurses-intro.html hackguide.html
 .if ${MK_HTML} != "no"
 .PATH: ${NCURSES_DIR}/doc/html
 FILESGROUPS=	DOCS
+.endif
 .endif
 
 # Generated source

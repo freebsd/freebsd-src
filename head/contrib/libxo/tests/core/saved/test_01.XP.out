@@ -1,4 +1,6 @@
 <top>
+  <host>my-box</host>
+  <domain>example.com</domain>
   <data test="value">
     <item test2="value2">
       <sku test3="value3" key="key">GRO-000-415</sku>
@@ -36,7 +38,7 @@
       <on-order>2</on-order>
     </item>
   </data>
-  <data>
+  <data2>
     <item>
       <sku key="key">GRO-000-415</sku>
       <name key="key">gum</name>
@@ -72,8 +74,8 @@
       <in-stock>14</in-stock>
       <on-order>2</on-order>
     </item>
-  </data>
-  <data>
+  </data2>
+  <data3>
     <item>
       <sku key="key">GRO-000-533</sku>
       <name key="key">fish</name>
@@ -81,14 +83,14 @@
       <in-stock>45</in-stock>
       <on-order>1</on-order>
     </item>
-  </data>
-  <data>
+  </data3>
+  <data4>
     <item test4="value4">gum</item>
     <item test4="value4">rope</item>
     <item test4="value4">ladder</item>
     <item test4="value4">bolt</item>
     <item test4="value4">water</item>
-  </data>
+  </data4>
   <cost>425</cost>
   <cost>455</cost>
 </top>

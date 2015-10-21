@@ -130,10 +130,9 @@ CGCXXABI::EmitNullMemberPointer(const MemberPointerType *MPT) {
   return GetBogusMemberPointer(QualType(MPT, 0));
 }
 
-llvm::Constant *CGCXXABI::EmitMemberPointer(const CXXMethodDecl *MD) {
-  return GetBogusMemberPointer(
-                         CGM.getContext().getMemberPointerType(MD->getType(),
-                                         MD->getParent()->getTypeForDecl()));
+llvm::Constant *CGCXXABI::EmitMemberFunctionPointer(const CXXMethodDecl *MD) {
+  return GetBogusMemberPointer(CGM.getContext().getMemberPointerType(
+      MD->getType(), MD->getParent()->getTypeForDecl()));
 }
 
 llvm::Constant *CGCXXABI::EmitMemberDataPointer(const MemberPointerType *MPT,
@@ -246,17 +245,6 @@ llvm::Value *CGCXXABI::readArrayCookieImpl(CodeGenFunction &CGF,
   return llvm::ConstantInt::get(CGF.SizeTy, 0);
 }
 
-void CGCXXABI::registerGlobalDtor(CodeGenFunction &CGF,
-                                  const VarDecl &D,
-                                  llvm::Constant *dtor,
-                                  llvm::Constant *addr) {
-  if (D.getTLSKind())
-    CGM.ErrorUnsupported(&D, "non-trivial TLS destruction");
-
-  // The default behavior is to use atexit.
-  CGF.registerGlobalDtorWithAtExit(D, dtor, addr);
-}
-
 /// Returns the adjustment, in bytes, required for the given
 /// member-pointer operation.  Returns null if no adjustment is
 /// required.
@@ -310,18 +298,13 @@ CGCXXABI::EmitCtorCompleteObjectHandler(CodeGenFunction &CGF,
   return nullptr;
 }
 
-void CGCXXABI::EmitThreadLocalInitFuncs(
-    ArrayRef<std::pair<const VarDecl *, llvm::GlobalVariable *> > Decls,
-    llvm::Function *InitFunc) {
-}
-
-LValue CGCXXABI::EmitThreadLocalVarDeclLValue(CodeGenFunction &CGF,
-                                              const VarDecl *VD,
-                                              QualType LValType) {
-  ErrorUnsupportedABI(CGF, "odr-use of thread_local global");
-  return LValue();
-}
-
 bool CGCXXABI::NeedsVTTParameter(GlobalDecl GD) {
   return false;
+}
+
+llvm::CallInst *
+CGCXXABI::emitTerminateForUnexpectedException(CodeGenFunction &CGF,
+                                              llvm::Value *Exn) {
+  // Just call std::terminate and ignore the violating exception.
+  return CGF.EmitNounwindRuntimeCall(CGF.CGM.getTerminateFn());
 }

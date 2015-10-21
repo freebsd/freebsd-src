@@ -60,17 +60,14 @@ LIBDEPS=clangfrontendtool \
 	clangast \
 	clanglex \
 	clangbasic \
-	llvmprofiledata \
 	llvmoption \
 	llvmobjcarcopts \
 	llvmlinker \
 	llvmirreader \
 	llvmipo \
 	llvmvectorize \
-	llvminstrumentation \
 	llvmbitwriter \
 	llvmasmparser \
-	llvmaarch64disassembler \
 	llvmaarch64codegen \
 	llvmaarch64asmparser \
 	llvmaarch64desc \
@@ -83,7 +80,6 @@ LIBDEPS=clangfrontendtool \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
-	llvmmipsdisassembler \
 	llvmmipscodegen \
 	llvmmipsasmparser \
 	llvmmipsdesc \
@@ -95,33 +91,34 @@ LIBDEPS=clangfrontendtool \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
 	llvmpowerpcinstprinter \
-	llvmsparcdisassembler \
 	llvmsparccodegen \
 	llvmsparcasmparser \
 	llvmsparcdesc \
 	llvmsparcinfo \
 	llvmsparcinstprinter \
-	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmcodegen \
+	llvmtarget \
 	llvmscalaropts \
+	llvmprofiledata \
 	llvminstcombine \
+	llvminstrumentation \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmtarget \
 	llvmx86desc \
 	llvmobject \
 	llvmmcparser \
 	llvmbitreader \
-	llvmcore \
+	llvmmcdisassembler \
 	llvmx86info \
 	llvmx86instprinter \
 	llvmmc \
 	llvmx86utils \
+	llvmcore \
 	llvmsupport
 
 .include "../clang.prog.mk"

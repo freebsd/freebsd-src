@@ -31,6 +31,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "tailduplication"
@@ -135,8 +136,8 @@ bool TailDuplicatePass::runOnMachineFunction(MachineFunction &MF) {
   if (skipOptnoneFunction(*MF.getFunction()))
     return false;
 
-  TII = MF.getTarget().getInstrInfo();
-  TRI = MF.getTarget().getRegisterInfo();
+  TII = MF.getSubtarget().getInstrInfo();
+  TRI = MF.getSubtarget().getRegisterInfo();
   MRI = &MF.getRegInfo();
   MMI = getAnalysisIfAvailable<MachineModuleInfo>();
   MBPI = &getAnalysis<MachineBranchProbabilityInfo>();
@@ -448,6 +449,9 @@ void TailDuplicatePass::DuplicateInstruction(MachineInstr *MI,
       DenseMap<unsigned, unsigned>::iterator VI = LocalVRMap.find(Reg);
       if (VI != LocalVRMap.end()) {
         MO.setReg(VI->second);
+        // Clear any kill flags from this operand.  The new register could have
+        // uses after this one, so kills are not valid here.
+        MO.setIsKill(false);
         MRI->constrainRegClass(VI->second, MRI->getRegClass(Reg));
       }
     }
@@ -559,8 +563,7 @@ TailDuplicatePass::shouldTailDuplicate(const MachineFunction &MF,
   // compensate for the duplication.
   unsigned MaxDuplicateCount;
   if (TailDuplicateSize.getNumOccurrences() == 0 &&
-      MF.getFunction()->getAttributes().
-        hasAttribute(AttributeSet::FunctionIndex, Attribute::OptimizeForSize))
+      MF.getFunction()->hasFnAttribute(Attribute::OptimizeForSize))
     MaxDuplicateCount = 1;
   else
     MaxDuplicateCount = TailDuplicateSize;
@@ -624,11 +627,8 @@ TailDuplicatePass::isSimpleBB(MachineBasicBlock *TailBB) {
     return false;
   if (TailBB->pred_empty())
     return false;
-  MachineBasicBlock::iterator I = TailBB->begin();
-  MachineBasicBlock::iterator E = TailBB->end();
-  while (I != E && I->isDebugValue())
-    ++I;
-  if (I == E)
+  MachineBasicBlock::iterator I = TailBB->getFirstNonDebugInstr();
+  if (I == TailBB->end())
     return true;
   return I->isUnconditionalBranch();
 }
@@ -798,11 +798,9 @@ TailDuplicatePass::TailDuplicate(MachineBasicBlock *TailBB,
       RS->enterBasicBlock(PredBB);
       if (!PredBB->empty())
         RS->forward(std::prev(PredBB->end()));
-      BitVector RegsLiveAtExit(TRI->getNumRegs());
-      RS->getRegsUsed(RegsLiveAtExit, false);
       for (MachineBasicBlock::livein_iterator I = TailBB->livein_begin(),
              E = TailBB->livein_end(); I != E; ++I) {
-        if (!RegsLiveAtExit[*I])
+        if (!RS->isRegUsed(*I, false))
           // If a register is previously livein to the tail but it's not live
           // at the end of predecessor BB, then it should be added to its
           // livein list.

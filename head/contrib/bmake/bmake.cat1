@@ -122,9 +122,6 @@ DDEESSCCRRIIPPTTIIOONN
 
              _v       Print debugging information about variable assignment.
 
-             _w       Print entering and leaving directory messages, pre and
-                     post processing.
-
              _x       Run shell commands with --xx so the actual commands are
                      printed as they are executed.
 
@@ -221,6 +218,9 @@ DDEESSCCRRIIPPTTIIOONN
 
      --WW      Treat any warnings during makefile parsing as errors.
 
+     --ww      Print entering and leaving directory messages, pre and post pro-
+             cessing.
+
      --XX      Don't export variables passed on the command line to the environ-
              ment individually.  Variables passed on the command line are
              still exported via the _M_A_K_E_F_L_A_G_S environment variable.  This
@@ -273,45 +273,54 @@ FFIILLEE DDEEPPEENNDDEENNCCYY SSPPEECCIIFFIICCAATTIIOO
      done in the shell.
 
 SSHHEELLLL CCOOMMMMAANNDDSS
-     Each target may have associated with it a series of shell commands, nor-
-     mally used to create the target.  Each of the commands in this script
-     _m_u_s_t be preceded by a tab.  While any target may appear on a dependency
-     line, only one of these dependencies may be followed by a creation
-     script, unless the `::::' operator is used.
+     Each target may have associated with it one or more lines of shell com-
+     mands, normally used to create the target.  Each of the lines in this
+     script _m_u_s_t be preceded by a tab.  (For historical reasons, spaces are
+     not accepted.)  While targets can appear in many dependency lines if
+     desired, by default only one of these rules may be followed by a creation
+     script.  If the `::::' operator is used, however, all rules may include
+     scripts and the scripts are executed in the order found.
 
-     If the first characters of the command line are any combination of `@@',
-     `++', or `--', the command is treated specially.  A `@@' causes the command
-     not to be echoed before it is executed.  A `++' causes the command to be
-     executed even when --nn is given.  This is similar to the effect of the
-     .MAKE special source, except that the effect can be limited to a single
-     line of a script.  A `--' causes any non-zero exit status of the command
-     line to be ignored.
+     Each line is treated as a separate shell command, unless the end of line
+     is escaped with a backslash (`\') in which case that line and the next
+     are combined.  If the first characters of the command are any combination
+     of `@@', `++', or `--', the command is treated specially.  A `@@' causes the
+     command not to be echoed before it is executed.  A `++' causes the command
+     to be executed even when --nn is given.  This is similar to the effect of
+     the .MAKE special source, except that the effect can be limited to a sin-
+     gle line of a script.  A `--' in compatibility mode causes any non-zero
+     exit status of the command line to be ignored.
 
      When bbmmaakkee is run in jobs mode with --jj _m_a_x___j_o_b_s, the entire script for
-     the target is fed to a single instance of the shell.
-
-     In compatibility (non-jobs) mode, each command is run in a separate
-     process.  If the command contains any shell meta characters
-     (`#=|^(){};&<>*?[]:$`\\n') it will be passed to the shell, otherwise
-     bbmmaakkee will attempt direct execution.
-
-     Since bbmmaakkee will chdir(2) to `_._O_B_J_D_I_R' before executing any targets, each
-     child process starts with that as its current working directory.
+     the target is fed to a single instance of the shell.  In compatibility
+     (non-jobs) mode, each command is run in a separate process.  If the com-
+     mand contains any shell meta characters (`#=|^(){};&<>*?[]:$`\\n') it
+     will be passed to the shell; otherwise bbmmaakkee will attempt direct execu-
+     tion.  If a line starts with `--' and the shell has ErrCtl enabled then
+     failure of the command line will be ignored as in compatibility mode.
+     Otherwise `--' affects the entire job; the script will stop at the first
+     command line that fails, but the target will not be deemed to have
+     failed.
 
      Makefiles should be written so that the mode of bbmmaakkee operation does not
      change their behavior.  For example, any command which needs to use
-     ``cd'' or ``chdir'', without side-effect should be put in parenthesis:
-
+     ``cd'' or ``chdir'' without potentially changing the directory for subse-
+     quent commands should be put in parentheses so it executes in a subshell.
+     To force the use of one shell, escape the line breaks so as to make the
+     whole script one command.  For example:
 
            avoid-chdir-side-effects:
                    @echo Building $@ in `pwd`
-                   @(cd ${.CURDIR} && ${.MAKE} $@)
+                   @(cd ${.CURDIR} && ${MAKE} $@)
                    @echo Back in `pwd`
 
            ensure-one-shell-regardless-of-mode:
                    @echo Building $@ in `pwd`; \
-                   (cd ${.CURDIR} && ${.MAKE} $@); \
+                   (cd ${.CURDIR} && ${MAKE} $@); \
                    echo Back in `pwd`
+
+     Since bbmmaakkee will chdir(2) to `_._O_B_J_D_I_R' before executing any targets, each
+     child process starts with that as its current working directory.
 
 VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
      Variables in make are much like variables in the shell, and, by tradi-
@@ -402,40 +411,47 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
              Variables defined as part of the command line.
 
      Local variables
-             Variables that are defined specific to a certain target.  The
-             seven local variables are as follows:
+             Variables that are defined specific to a certain target.
 
-             _._A_L_L_S_R_C   The list of all sources for this target; also known as
-                       `_>'.
+     Local variables are all built in and their values vary magically from
+     target to target.  It is not currently possible to define new local vari-
+     ables.  The seven local variables are as follows:
 
-             _._A_R_C_H_I_V_E  The name of the archive file.
+           _._A_L_L_S_R_C   The list of all sources for this target; also known as
+                     `_>'.
 
-             _._I_M_P_S_R_C   In suffix-transformation rules, the name/path of the
-                       source from which the target is to be transformed (the
-                       ``implied'' source); also known as `_<'.  It is not
-                       defined in explicit rules.
+           _._A_R_C_H_I_V_E  The name of the archive file; also known as `_!'.
 
-             _._M_E_M_B_E_R   The name of the archive member.
+           _._I_M_P_S_R_C   In suffix-transformation rules, the name/path of the
+                     source from which the target is to be transformed (the
+                     ``implied'' source); also known as `_<'.  It is not
+                     defined in explicit rules.
 
-             _._O_O_D_A_T_E   The list of sources for this target that were deemed
-                       out-of-date; also known as `_?'.
+           _._M_E_M_B_E_R   The name of the archive member; also known as `_%'.
 
-             _._P_R_E_F_I_X   The file prefix of the target, containing only the file
-                       portion, no suffix or preceding directory components;
-                       also known as `_*'.
+           _._O_O_D_A_T_E   The list of sources for this target that were deemed out-
+                     of-date; also known as `_?'.
 
-             _._T_A_R_G_E_T   The name of the target; also known as `_@'.
+           _._P_R_E_F_I_X   The file prefix of the target, containing only the file
+                     portion, no suffix or preceding directory components;
+                     also known as `_*'.  The suffix must be one of the known
+                     suffixes declared with ..SSUUFFFFIIXXEESS or it will not be recog-
+                     nized.
 
-             The shorter forms `_@', `_?', `_<', `_>', and `_*' are permitted for
-             backward compatibility with historical makefiles and are not rec-
-             ommended.  The six variables `_@_F', `_@_D', `_<_F', `_<_D', `_*_F', and
-             `_*_D' are permitted for compatibility with AT&T System V UNIX
-             makefiles and are not recommended.
+           _._T_A_R_G_E_T   The name of the target; also known as `_@'.
 
-             Four of the local variables may be used in sources on dependency
-             lines because they expand to the proper value for each target on
-             the line.  These variables are `_._T_A_R_G_E_T', `_._P_R_E_F_I_X', `_._A_R_C_H_I_V_E',
-             and `_._M_E_M_B_E_R'.
+     The shorter forms (`_>', `_!', `_<', `_%', `_?', `_*', and `_@') are permitted
+     for backward compatibility with historical makefiles and legacy POSIX
+     make and are not recommended.
+
+     Variants of these variables with the punctuation followed immediately by
+     `D' or `F', e.g.  `_$_(_@_D_)', are legacy forms equivalent to using the `:H'
+     and `:T' modifiers.  These forms are accepted for compatibility with AT&T
+     System V UNIX makefiles and POSIX but are not recommended.
+
+     Four of the local variables may be used in sources on dependency lines
+     because they expand to the proper value for each target on the line.
+     These variables are `_._T_A_R_G_E_T', `_._P_R_E_F_I_X', `_._A_R_C_H_I_V_E', and `_._M_E_M_B_E_R'.
 
    AAddddiittiioonnaall bbuuiilltt--iinn vvaarriiaabblleess
      In addition, bbmmaakkee sets or knows about the following variables:
@@ -631,10 +647,10 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      may be used.  This is especially useful with
                      `MAKEOBJDIR'.
 
-                     `_._O_B_J_D_I_R' may be modified in the makefile as a global
-                     variable.  In all cases, bbmmaakkee will chdir(2) to `_._O_B_J_D_I_R'
-                     and set `PWD' to that directory before executing any tar-
-                     gets.
+                     `_._O_B_J_D_I_R' may be modified in the makefile via the special
+                     target `..OOBBJJDDIIRR'.  In all cases, bbmmaakkee will chdir(2) to
+                     the specified directory if it exists, and set `_._O_B_J_D_I_R'
+                     and `PWD' to that directory before executing any targets.
 
      _._P_A_R_S_E_D_I_R       A path to the directory of the current `_M_a_k_e_f_i_l_e' being
                      parsed.
@@ -1255,6 +1271,9 @@ SSPPEECCIIAALL TTAARRGGEETTSS
               Synonym for ..NNOOTTPPAARRAALLLLEELL, for compatibility with other pmake
               variants.
 
+     ..OOBBJJDDIIRR  The source is a new value for `_._O_B_J_D_I_R'.  If it exists, bbmmaakkee
+              will chdir(2) to it and update the value of `_._O_B_J_D_I_R'.
+
      ..OORRDDEERR   The named targets are made in sequence.  This ordering does not
               add targets to the list of targets to be made.  Since the depen-
               dents of a target do not get built until the target itself could
@@ -1356,18 +1375,57 @@ FFIILLEESS
      /usr/share/mk  system makefile directory
 
 CCOOMMPPAATTIIBBIILLIITTYY
-     The basic make syntax is compatible between different versions of make,
+     The basic make syntax is compatible between different versions of make;
      however the special variables, variable modifiers and conditionals are
      not.
 
-     The way that parallel makes are scheduled changed in NetBSD 4.0 so that
-     .ORDER and .WAIT apply recursively to the dependent nodes.  The algo-
-     rithms used may change again in the future.
+   OOllddeerr vveerrssiioonnss
+     An incomplete list of changes in older versions of bbmmaakkee:
 
      The way that .for loop variables are substituted changed after NetBSD 5.0
      so that they still appear to be variable expansions.  In particular this
      stops them being treated as syntax, and removes some obscure problems
      using them in .if statements.
+
+     The way that parallel makes are scheduled changed in NetBSD 4.0 so that
+     .ORDER and .WAIT apply recursively to the dependent nodes.  The algo-
+     rithms used may change again in the future.
+
+   OOtthheerr mmaakkee ddiiaalleeccttss
+     Other make dialects (GNU make, SVR4 make, POSIX make, etc.) do not sup-
+     port most of the features of bbmmaakkee as described in this manual.  Most
+     notably:
+
+           ++oo   The ..WWAAIITT and ..OORRDDEERR declarations and most functionality per-
+               taining to parallelization.  (GNU make supports parallelization
+               but lacks these features needed to control it effectively.)
+
+           ++oo   Directives, including for loops and conditionals and most of
+               the forms of include files.  (GNU make has its own incompatible
+               and less powerful syntax for conditionals.)
+
+           ++oo   All built-in variables that begin with a dot.
+
+           ++oo   Most of the special sources and targets that begin with a dot,
+               with the notable exception of ..PPHHOONNYY, ..PPRREECCIIOOUUSS, and ..SSUUFFFFIIXXEESS.
+
+           ++oo   Variable modifiers, except for the
+                     :old=new
+               string substitution, which does not portably support globbing
+               with `%' and historically only works on declared suffixes.
+
+           ++oo   The $$>> variable even in its short form; most makes support this
+               functionality but its name varies.
+
+     Some features are somewhat more portable, such as assignment with ++==, ??==,
+     and !!==.  The ..PPAATTHH functionality is based on an older feature VVPPAATTHH found
+     in GNU make and many versions of SVR4 make; however, historically its
+     behavior is too ill-defined (and too buggy) to rely upon.
+
+     The $$@@ and $$<< variables are more or less universally portable, as is the
+     $$((MMAAKKEE)) variable.  Basic use of suffix rules (for files only in the cur-
+     rent directory, not trying to chain transformations together, etc.) is
+     also reasonably portable.
 
 SSEEEE AALLSSOO
      mkdep(1)
@@ -1394,4 +1452,4 @@ BBUUGGSS
 
      There is no way of escaping a space character in a filename.
 
-NetBSD 5.1                     February 14, 2014                    NetBSD 5.1
+NetBSD 5.1                       June 4, 2015                       NetBSD 5.1

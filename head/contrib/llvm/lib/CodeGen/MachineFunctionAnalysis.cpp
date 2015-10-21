@@ -15,12 +15,14 @@
 #include "llvm/CodeGen/GCMetadata.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/CodeGen/MachineFunctionInitializer.h"
 using namespace llvm;
 
 char MachineFunctionAnalysis::ID = 0;
 
-MachineFunctionAnalysis::MachineFunctionAnalysis(const TargetMachine &tm) :
-  FunctionPass(ID), TM(tm), MF(nullptr) {
+MachineFunctionAnalysis::MachineFunctionAnalysis(
+    const TargetMachine &tm, MachineFunctionInitializer *MFInitializer)
+    : FunctionPass(ID), TM(tm), MF(nullptr), MFInitializer(MFInitializer) {
   initializeMachineModuleInfoPass(*PassRegistry::getPassRegistry());
 }
 
@@ -46,8 +48,9 @@ bool MachineFunctionAnalysis::doInitialization(Module &M) {
 bool MachineFunctionAnalysis::runOnFunction(Function &F) {
   assert(!MF && "MachineFunctionAnalysis already initialized!");
   MF = new MachineFunction(&F, TM, NextFnNum++,
-                           getAnalysis<MachineModuleInfo>(),
-                           getAnalysisIfAvailable<GCModuleInfo>());
+                           getAnalysis<MachineModuleInfo>());
+  if (MFInitializer)
+    MFInitializer->initializeMachineFunction(*MF);
   return false;
 }
 

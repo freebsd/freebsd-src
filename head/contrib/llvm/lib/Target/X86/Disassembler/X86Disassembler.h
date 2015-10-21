@@ -71,8 +71,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86DISASSEMBLER_H
-#define X86DISASSEMBLER_H
+#ifndef LLVM_LIB_TARGET_X86_DISASSEMBLER_X86DISASSEMBLER_H
+#define LLVM_LIB_TARGET_X86_DISASSEMBLER_X86DISASSEMBLER_H
 
 #include "X86DisassemblerDecoderCommon.h"
 #include "llvm/MC/MCDisassembler.h"
@@ -87,21 +87,17 @@ class raw_ostream;
 
 namespace X86Disassembler {
 
-/// X86GenericDisassembler - Generic disassembler for all X86 platforms.
-///   All each platform class should have to do is subclass the constructor, and
-///   provide a different disassemblerMode value.
+/// Generic disassembler for all X86 platforms. All each platform class should
+/// have to do is subclass the constructor, and provide a different
+/// disassemblerMode value.
 class X86GenericDisassembler : public MCDisassembler {
   std::unique_ptr<const MCInstrInfo> MII;
 public:
-  /// Constructor     - Initializes the disassembler.
-  ///
   X86GenericDisassembler(const MCSubtargetInfo &STI, MCContext &Ctx,
                          std::unique_ptr<const MCInstrInfo> MII);
 public:
-
-  /// getInstruction - See MCDisassembler.
   DecodeStatus getInstruction(MCInst &instr, uint64_t &size,
-                              const MemoryObject &region, uint64_t address,
+                              ArrayRef<uint8_t> Bytes, uint64_t Address,
                               raw_ostream &vStream,
                               raw_ostream &cStream) const override;
 

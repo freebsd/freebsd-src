@@ -3,7 +3,7 @@
 PROG=	smbutil
 SRCS=	smbutil.c dumptree.c login.c lookup.c view.c print.c
 
-LIBADD=	smb kiconv
+LIBADD=	smb
 
 CONTRIBDIR=	${.CURDIR}/../../contrib/smbfs
 CFLAGS+=	-I${CONTRIBDIR}/include

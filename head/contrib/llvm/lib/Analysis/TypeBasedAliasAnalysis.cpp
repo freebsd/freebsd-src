@@ -129,6 +129,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/ADT/SetVector.h"
 using namespace llvm;
 
 // A handy option for disabling TBAA functionality. The same effect can also be
@@ -167,7 +168,7 @@ namespace {
     bool TypeIsImmutable() const {
       if (Node->getNumOperands() < 3)
         return false;
-      ConstantInt *CI = dyn_cast<ConstantInt>(Node->getOperand(2));
+      ConstantInt *CI = mdconst::dyn_extract<ConstantInt>(Node->getOperand(2));
       if (!CI)
         return false;
       return CI->getValue()[0];
@@ -194,7 +195,7 @@ namespace {
       return dyn_cast_or_null<MDNode>(Node->getOperand(1));
     }
     uint64_t getOffset() const {
-      return cast<ConstantInt>(Node->getOperand(2))->getZExtValue();
+      return mdconst::extract<ConstantInt>(Node->getOperand(2))->getZExtValue();
     }
     /// TypeIsImmutable - Test if this TBAAStructTagNode represents a type for
     /// objects which are not modified (by any means) in the context where this
@@ -202,7 +203,7 @@ namespace {
     bool TypeIsImmutable() const {
       if (Node->getNumOperands() < 4)
         return false;
-      ConstantInt *CI = dyn_cast<ConstantInt>(Node->getOperand(3));
+      ConstantInt *CI = mdconst::dyn_extract<ConstantInt>(Node->getOperand(3));
       if (!CI)
         return false;
       return CI->getValue()[0];
@@ -233,8 +234,10 @@ namespace {
       // Fast path for a scalar type node and a struct type node with a single
       // field.
       if (Node->getNumOperands() <= 3) {
-        uint64_t Cur = Node->getNumOperands() == 2 ? 0 :
-                       cast<ConstantInt>(Node->getOperand(2))->getZExtValue();
+        uint64_t Cur = Node->getNumOperands() == 2
+                           ? 0
+                           : mdconst::extract<ConstantInt>(Node->getOperand(2))
+                                 ->getZExtValue();
         Offset -= Cur;
         MDNode *P = dyn_cast_or_null<MDNode>(Node->getOperand(1));
         if (!P)
@@ -246,8 +249,8 @@ namespace {
       // the current offset is bigger than the given offset.
       unsigned TheIdx = 0;
       for (unsigned Idx = 1; Idx < Node->getNumOperands(); Idx += 2) {
-        uint64_t Cur = cast<ConstantInt>(Node->getOperand(Idx + 1))->
-                         getZExtValue();
+        uint64_t Cur = mdconst::extract<ConstantInt>(Node->getOperand(Idx + 1))
+                           ->getZExtValue();
         if (Cur > Offset) {
           assert(Idx >= 3 &&
                  "TBAAStructTypeNode::getParent should have an offset match!");
@@ -258,8 +261,8 @@ namespace {
       // Move along the last field.
       if (TheIdx == 0)
         TheIdx = Node->getNumOperands() - 2;
-      uint64_t Cur = cast<ConstantInt>(Node->getOperand(TheIdx + 1))->
-                       getZExtValue();
+      uint64_t Cur = mdconst::extract<ConstantInt>(Node->getOperand(TheIdx + 1))
+                         ->getZExtValue();
       Offset -= Cur;
       MDNode *P = dyn_cast_or_null<MDNode>(Node->getOperand(TheIdx));
       if (!P)
@@ -280,9 +283,7 @@ namespace {
       initializeTypeBasedAliasAnalysisPass(*PassRegistry::getPassRegistry());
     }
 
-    void initializePass() override {
-      InitializeAliasAnalysis(this);
-    }
+    bool doInitialization(Module &M) override;
 
     /// getAdjustedAnalysisPointer - This method is used when a pass implements
     /// an analysis interface through multiple inheritance.  If needed, it
@@ -299,12 +300,14 @@ namespace {
 
   private:
     void getAnalysisUsage(AnalysisUsage &AU) const override;
-    AliasResult alias(const Location &LocA, const Location &LocB) override;
-    bool pointsToConstantMemory(const Location &Loc, bool OrLocal) override;
+    AliasResult alias(const MemoryLocation &LocA,
+                      const MemoryLocation &LocB) override;
+    bool pointsToConstantMemory(const MemoryLocation &Loc,
+                                bool OrLocal) override;
     ModRefBehavior getModRefBehavior(ImmutableCallSite CS) override;
     ModRefBehavior getModRefBehavior(const Function *F) override;
     ModRefResult getModRefInfo(ImmutableCallSite CS,
-                               const Location &Loc) override;
+                               const MemoryLocation &Loc) override;
     ModRefResult getModRefInfo(ImmutableCallSite CS1,
                                ImmutableCallSite CS2) override;
   };
@@ -317,6 +320,11 @@ INITIALIZE_AG_PASS(TypeBasedAliasAnalysis, AliasAnalysis, "tbaa",
 
 ImmutablePass *llvm::createTypeBasedAliasAnalysisPass() {
   return new TypeBasedAliasAnalysis();
+}
+
+bool TypeBasedAliasAnalysis::doInitialization(Module &M) {
+  InitializeAliasAnalysis(this, &M.getDataLayout());
+  return true;
 }
 
 void
@@ -446,17 +454,16 @@ TypeBasedAliasAnalysis::PathAliases(const MDNode *A,
   return false;
 }
 
-AliasAnalysis::AliasResult
-TypeBasedAliasAnalysis::alias(const Location &LocA,
-                              const Location &LocB) {
+AliasResult TypeBasedAliasAnalysis::alias(const MemoryLocation &LocA,
+                                          const MemoryLocation &LocB) {
   if (!EnableTBAA)
     return AliasAnalysis::alias(LocA, LocB);
 
   // Get the attached MDNodes. If either value lacks a tbaa MDNode, we must
   // be conservative.
-  const MDNode *AM = LocA.TBAATag;
+  const MDNode *AM = LocA.AATags.TBAA;
   if (!AM) return AliasAnalysis::alias(LocA, LocB);
-  const MDNode *BM = LocB.TBAATag;
+  const MDNode *BM = LocB.AATags.TBAA;
   if (!BM) return AliasAnalysis::alias(LocA, LocB);
 
   // If they may alias, chain to the next AliasAnalysis.
@@ -467,12 +474,12 @@ TypeBasedAliasAnalysis::alias(const Location &LocA,
   return NoAlias;
 }
 
-bool TypeBasedAliasAnalysis::pointsToConstantMemory(const Location &Loc,
+bool TypeBasedAliasAnalysis::pointsToConstantMemory(const MemoryLocation &Loc,
                                                     bool OrLocal) {
   if (!EnableTBAA)
     return AliasAnalysis::pointsToConstantMemory(Loc, OrLocal);
 
-  const MDNode *M = Loc.TBAATag;
+  const MDNode *M = Loc.AATags.TBAA;
   if (!M) return AliasAnalysis::pointsToConstantMemory(Loc, OrLocal);
 
   // If this is an "immutable" type, we can assume the pointer is pointing
@@ -509,13 +516,13 @@ TypeBasedAliasAnalysis::getModRefBehavior(const Function *F) {
 
 AliasAnalysis::ModRefResult
 TypeBasedAliasAnalysis::getModRefInfo(ImmutableCallSite CS,
-                                      const Location &Loc) {
+                                      const MemoryLocation &Loc) {
   if (!EnableTBAA)
     return AliasAnalysis::getModRefInfo(CS, Loc);
 
-  if (const MDNode *L = Loc.TBAATag)
+  if (const MDNode *L = Loc.AATags.TBAA)
     if (const MDNode *M =
-          CS.getInstruction()->getMetadata(LLVMContext::MD_tbaa))
+            CS.getInstruction()->getMetadata(LLVMContext::MD_tbaa))
       if (!Aliases(L, M))
         return NoModRef;
 
@@ -529,9 +536,9 @@ TypeBasedAliasAnalysis::getModRefInfo(ImmutableCallSite CS1,
     return AliasAnalysis::getModRefInfo(CS1, CS2);
 
   if (const MDNode *M1 =
-        CS1.getInstruction()->getMetadata(LLVMContext::MD_tbaa))
+          CS1.getInstruction()->getMetadata(LLVMContext::MD_tbaa))
     if (const MDNode *M2 =
-          CS2.getInstruction()->getMetadata(LLVMContext::MD_tbaa))
+            CS2.getInstruction()->getMetadata(LLVMContext::MD_tbaa))
       if (!Aliases(M1, M2))
         return NoModRef;
 
@@ -573,18 +580,22 @@ MDNode *MDNode::getMostGenericTBAA(MDNode *A, MDNode *B) {
     if (!B) return nullptr;
   }
 
-  SmallVector<MDNode *, 4> PathA;
+  SmallSetVector<MDNode *, 4> PathA;
   MDNode *T = A;
   while (T) {
-    PathA.push_back(T);
+    if (PathA.count(T))
+      report_fatal_error("Cycle found in TBAA metadata.");
+    PathA.insert(T);
     T = T->getNumOperands() >= 2 ? cast_or_null<MDNode>(T->getOperand(1))
                                  : nullptr;
   }
 
-  SmallVector<MDNode *, 4> PathB;
+  SmallSetVector<MDNode *, 4> PathB;
   T = B;
   while (T) {
-    PathB.push_back(T);
+    if (PathB.count(T))
+      report_fatal_error("Cycle found in TBAA metadata.");
+    PathB.insert(T);
     T = T->getNumOperands() >= 2 ? cast_or_null<MDNode>(T->getOperand(1))
                                  : nullptr;
   }
@@ -608,6 +619,28 @@ MDNode *MDNode::getMostGenericTBAA(MDNode *A, MDNode *B) {
     return nullptr;
   // We need to convert from a type node to a tag node.
   Type *Int64 = IntegerType::get(A->getContext(), 64);
-  Value *Ops[3] = { Ret, Ret, ConstantInt::get(Int64, 0) };
+  Metadata *Ops[3] = {Ret, Ret,
+                      ConstantAsMetadata::get(ConstantInt::get(Int64, 0))};
   return MDNode::get(A->getContext(), Ops);
 }
+
+void Instruction::getAAMetadata(AAMDNodes &N, bool Merge) const {
+  if (Merge)
+    N.TBAA =
+        MDNode::getMostGenericTBAA(N.TBAA, getMetadata(LLVMContext::MD_tbaa));
+  else
+    N.TBAA = getMetadata(LLVMContext::MD_tbaa);
+
+  if (Merge)
+    N.Scope = MDNode::getMostGenericAliasScope(
+        N.Scope, getMetadata(LLVMContext::MD_alias_scope));
+  else
+    N.Scope = getMetadata(LLVMContext::MD_alias_scope);
+
+  if (Merge)
+    N.NoAlias =
+        MDNode::intersect(N.NoAlias, getMetadata(LLVMContext::MD_noalias));
+  else
+    N.NoAlias = getMetadata(LLVMContext::MD_noalias);
+}
+

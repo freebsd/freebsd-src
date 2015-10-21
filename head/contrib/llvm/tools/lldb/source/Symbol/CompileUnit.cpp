@@ -149,9 +149,9 @@ CompileUnit::GetFunctionAtIndex (size_t idx)
 }
 
 //----------------------------------------------------------------------
-// Find functions using the a Mangled::Tokens token list. This
-// function currently implements an interative approach designed to find
-// all instances of certain functions. It isn't designed to the the
+// Find functions using the Mangled::Tokens token list. This
+// function currently implements an interactive approach designed to find
+// all instances of certain functions. It isn't designed to the
 // quickest way to lookup functions as it will need to iterate through
 // all functions and see if they match, though it does provide a powerful
 // and context sensitive way to search for all functions with a certain
@@ -292,7 +292,7 @@ CompileUnit::FindLineEntry (uint32_t start_idx, uint32_t line, const FileSpec* f
     else
     {
         // All the line table entries actually point to the version of the Compile
-        // Unit that is in the support files (the one at 0 was artifically added.)
+        // Unit that is in the support files (the one at 0 was artificially added.)
         // So prefer the one further on in the support files if it exists...
         FileSpecList &support_files = GetSupportFiles();
         const bool full = true;
@@ -325,18 +325,19 @@ CompileUnit::ResolveSymbolContext
     // when finding file indexes
     std::vector<uint32_t> file_indexes;
     const bool full_match = (bool)file_spec.GetDirectory();
-    bool file_spec_matches_cu_file_spec = FileSpec::Equal(file_spec, *this, full_match);
+    const bool remove_backup_dots = true;
+    bool file_spec_matches_cu_file_spec = FileSpec::Equal(file_spec, *this, full_match, remove_backup_dots);
 
     // If we are not looking for inlined functions and our file spec doesn't
     // match then we are done...
     if (file_spec_matches_cu_file_spec == false && check_inlines == false)
         return 0;
 
-    uint32_t file_idx = GetSupportFiles().FindFileIndex (1, file_spec, true);
+    uint32_t file_idx = GetSupportFiles().FindFileIndex (1, file_spec, true, remove_backup_dots);
     while (file_idx != UINT32_MAX)
     {
         file_indexes.push_back (file_idx);
-        file_idx = GetSupportFiles().FindFileIndex (file_idx + 1, file_spec, true);
+        file_idx = GetSupportFiles().FindFileIndex (file_idx + 1, file_spec, true, remove_backup_dots);
     }
     
     const size_t num_file_indexes = file_indexes.size();
@@ -433,6 +434,23 @@ void
 CompileUnit::SetVariableList(VariableListSP &variables)
 {
     m_variables = variables;
+}
+
+const std::vector<ConstString> &
+CompileUnit::GetImportedModules ()
+{
+    if (m_imported_modules.empty() &&
+        m_flags.IsClear(flagsParsedImportedModules))
+    {
+        m_flags.Set(flagsParsedImportedModules);
+        if (SymbolVendor *symbol_vendor = GetModule()->GetSymbolVendor())
+        {
+            SymbolContext sc;
+            CalculateSymbolContext(&sc);
+            symbol_vendor->ParseImportedModules(sc, m_imported_modules);
+        }
+    }
+    return m_imported_modules;
 }
 
 FileSpecList&

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 The FreeBSD Foundation
+ * Copyright (c) 2013-2015 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
+#include <sys/vmem.h>
 #include <machine/bus.h>
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -65,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/iommu/intel_reg.h>
 #include <x86/iommu/busdma_dmar.h>
 #include <x86/iommu/intel_dmar.h>
+#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
 #ifdef DEV_APIC
@@ -243,6 +245,7 @@ dmar_release_resources(device_t dev, struct dmar_unit *unit)
 	int i;
 
 	dmar_fini_busdma(unit);
+	dmar_fini_irt(unit);
 	dmar_fini_qi(unit);
 	dmar_fini_fault_log(unit);
 	for (i = 0; i < DMAR_INTR_TOTAL; i++)
@@ -375,7 +378,7 @@ dmar_print_caps(device_t dev, struct dmar_unit *unit,
 	caphi = unit->hw_cap >> 32;
 	device_printf(dev, "cap=%b,", (u_int)unit->hw_cap,
 	    "\020\004AFL\005WBF\006PLMR\007PHMR\010CM\027ZLR\030ISOCH");
-	printf("%b, ", caphi, "\020\010PSI\027DWD\030DRD");
+	printf("%b, ", caphi, "\020\010PSI\027DWD\030DRD\031FL1GP\034PSI");
 	printf("ndoms=%d, sagaw=%d, mgaw=%d, fro=%d, nfr=%d, superp=%d",
 	    DMAR_CAP_ND(unit->hw_cap), DMAR_CAP_SAGAW(unit->hw_cap),
 	    DMAR_CAP_MGAW(unit->hw_cap), DMAR_CAP_FRO(unit->hw_cap),
@@ -385,8 +388,9 @@ dmar_print_caps(device_t dev, struct dmar_unit *unit,
 	printf("\n");
 	ecaphi = unit->hw_ecap >> 32;
 	device_printf(dev, "ecap=%b,", (u_int)unit->hw_ecap,
-	    "\020\001C\002QI\003DI\004IR\005EIM\007PT\010SC");
-	printf("%b, ", ecaphi, "\020");
+	    "\020\001C\002QI\003DI\004IR\005EIM\007PT\010SC\031ECS\032MTS"
+	    "\033NEST\034DIS\035PASID\036PRS\037ERS\040SRS");
+	printf("%b, ", ecaphi, "\020\002NWFS\003EAFS");
 	printf("mhmw=%d, iro=%d\n", DMAR_ECAP_MHMV(unit->hw_ecap),
 	    DMAR_ECAP_IRO(unit->hw_ecap));
 }
@@ -455,6 +459,7 @@ dmar_attach(device_t dev)
 	mtx_init(&unit->lock, "dmarhw", NULL, MTX_DEF);
 	unit->domids = new_unrhdr(0, dmar_nd2mask(DMAR_CAP_ND(unit->hw_cap)),
 	    &unit->lock);
+	LIST_INIT(&unit->domains);
 
 	/*
 	 * 9.2 "Context Entry":
@@ -504,6 +509,11 @@ dmar_attach(device_t dev)
 		return (error);
 	}
 	error = dmar_init_qi(unit);
+	if (error != 0) {
+		dmar_release_resources(dev, unit);
+		return (error);
+	}
+	error = dmar_init_irt(unit);
 	if (error != 0) {
 		dmar_release_resources(dev, unit);
 		return (error);
@@ -762,8 +772,78 @@ found:
 	return (device_get_softc(dmar_dev));
 }
 
+static struct dmar_unit *
+dmar_find_nonpci(u_int id, u_int entry_type, uint16_t *rid)
+{
+	device_t dmar_dev;
+	struct dmar_unit *unit;
+	ACPI_DMAR_HARDWARE_UNIT *dmarh;
+	ACPI_DMAR_DEVICE_SCOPE *devscope;
+	ACPI_DMAR_PCI_PATH *path;
+	char *ptr, *ptrend;
+	int i;
+
+	for (i = 0; i < dmar_devcnt; i++) {
+		dmar_dev = dmar_devs[i];
+		if (dmar_dev == NULL)
+			continue;
+		unit = (struct dmar_unit *)device_get_softc(dmar_dev);
+		dmarh = dmar_find_by_index(i);
+		if (dmarh == NULL)
+			continue;
+		ptr = (char *)dmarh + sizeof(*dmarh);
+		ptrend = (char *)dmarh + dmarh->Header.Length;
+		for (;;) {
+			if (ptr >= ptrend)
+				break;
+			devscope = (ACPI_DMAR_DEVICE_SCOPE *)ptr;
+			ptr += devscope->Length;
+			if (devscope->EntryType != entry_type)
+				continue;
+			if (devscope->EnumerationId != id)
+				continue;
+			if (devscope->Length - sizeof(ACPI_DMAR_DEVICE_SCOPE)
+			    == 2) {
+				if (rid != NULL) {
+					path = (ACPI_DMAR_PCI_PATH *)
+					    (devscope + 1);
+					*rid = PCI_RID(devscope->Bus,
+					    path->Device, path->Function);
+				}
+				return (unit);
+			} else {
+				/* XXXKIB */
+				printf(
+		       "dmar_find_nonpci: id %d type %d path length != 2\n",
+				    id, entry_type);
+			}
+		}
+	}
+	return (NULL);
+}
+
+
+struct dmar_unit *
+dmar_find_hpet(device_t dev, uint16_t *rid)
+{
+	ACPI_HANDLE handle;
+	uint32_t hpet_id;
+
+	handle = acpi_get_handle(dev);
+	if (ACPI_FAILURE(acpi_GetInteger(handle, "_UID", &hpet_id)))
+		return (NULL);
+	return (dmar_find_nonpci(hpet_id, ACPI_DMAR_SCOPE_TYPE_HPET, rid));
+}
+
+struct dmar_unit *
+dmar_find_ioapic(u_int apic_id, uint16_t *rid)
+{
+
+	return (dmar_find_nonpci(apic_id, ACPI_DMAR_SCOPE_TYPE_IOAPIC, rid));
+}
+
 struct rmrr_iter_args {
-	struct dmar_ctx *ctx;
+	struct dmar_domain *domain;
 	device_t dev;
 	int dev_domain;
 	int dev_busno;
@@ -808,7 +888,8 @@ dmar_rmrr_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
 		if (match == 1) {
 			if (dmar_match_verbose)
 				printf("matched\n");
-			entry = dmar_gas_alloc_entry(ria->ctx, DMAR_PGF_WAITOK);
+			entry = dmar_gas_alloc_entry(ria->domain,
+			    DMAR_PGF_WAITOK);
 			entry->start = resmem->BaseAddress;
 			/* The RMRR entry end address is inclusive. */
 			entry->end = resmem->EndAddress;
@@ -823,7 +904,7 @@ dmar_rmrr_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
 }
 
 void
-dmar_ctx_parse_rmrr(struct dmar_ctx *ctx, device_t dev,
+dmar_dev_parse_rmrr(struct dmar_domain *domain, device_t dev,
     struct dmar_map_entries_tailq *rmrr_entries)
 {
 	struct rmrr_iter_args ria;
@@ -839,7 +920,7 @@ dmar_ctx_parse_rmrr(struct dmar_ctx *ctx, device_t dev,
 		    dev_path);
 	}
 
-	ria.ctx = ctx;
+	ria.domain = domain;
 	ria.dev = dev;
 	ria.dev_path = dev_path;
 	ria.rmrr_entries = rmrr_entries;
@@ -959,7 +1040,7 @@ dmar_instantiate_rmrr_ctxs(struct dmar_unit *dmar)
 		printf("dmar%d: instantiating RMRR contexts\n", dmar->unit);
 	dmar_iterate_tbl(dmar_inst_rmrr_iter, &iria);
 	DMAR_LOCK(dmar);
-	if (!LIST_EMPTY(&dmar->contexts)) {
+	if (!LIST_EMPTY(&dmar->domains)) {
 		KASSERT((dmar->hw_gcmd & DMAR_GCMD_TE) == 0,
 	    ("dmar%d: RMRR not handled but translation is already enabled",
 		    dmar->unit));
@@ -974,7 +1055,7 @@ dmar_instantiate_rmrr_ctxs(struct dmar_unit *dmar)
 #include <ddb/db_lex.h>
 
 static void
-dmar_print_ctx_entry(const struct dmar_map_entry *entry)
+dmar_print_domain_entry(const struct dmar_map_entry *entry)
 {
 	struct dmar_map_entry *l, *r;
 
@@ -998,43 +1079,59 @@ dmar_print_ctx_entry(const struct dmar_map_entry *entry)
 }
 
 static void
-dmar_print_ctx(struct dmar_ctx *ctx, bool show_mappings)
+dmar_print_ctx(struct dmar_ctx *ctx)
 {
-	struct dmar_map_entry *entry;
 
 	db_printf(
-	    "  @%p pci%d:%d:%d dom %d mgaw %d agaw %d pglvl %d end %jx\n"
-	    "    refs %d flags %x pgobj %p map_ents %u loads %lu unloads %lu\n",
+	    "    @%p pci%d:%d:%d refs %d flags %x loads %lu unloads %lu\n",
 	    ctx, pci_get_bus(ctx->ctx_tag.owner),
 	    pci_get_slot(ctx->ctx_tag.owner),
-	    pci_get_function(ctx->ctx_tag.owner), ctx->domain, ctx->mgaw,
-	    ctx->agaw, ctx->pglvl, (uintmax_t)ctx->end, ctx->refs,
-	    ctx->flags, ctx->pgtbl_obj, ctx->entries_cnt, ctx->loads,
-	    ctx->unloads);
+	    pci_get_function(ctx->ctx_tag.owner), ctx->refs, ctx->flags,
+	    ctx->loads, ctx->unloads);
+}
+
+static void
+dmar_print_domain(struct dmar_domain *domain, bool show_mappings)
+{
+	struct dmar_map_entry *entry;
+	struct dmar_ctx *ctx;
+
+	db_printf(
+	    "  @%p dom %d mgaw %d agaw %d pglvl %d end %jx refs %d\n"
+	    "   ctx_cnt %d flags %x pgobj %p map_ents %u\n",
+	    domain, domain->domain, domain->mgaw, domain->agaw, domain->pglvl,
+	    (uintmax_t)domain->end, domain->refs, domain->ctx_cnt,
+	    domain->flags, domain->pgtbl_obj, domain->entries_cnt);
+	if (!LIST_EMPTY(&domain->contexts)) {
+		db_printf("  Contexts:\n");
+		LIST_FOREACH(ctx, &domain->contexts, link)
+			dmar_print_ctx(ctx);
+	}
 	if (!show_mappings)
 		return;
 	db_printf("    mapped:\n");
-	RB_FOREACH(entry, dmar_gas_entries_tree, &ctx->rb_root) {
-		dmar_print_ctx_entry(entry);
+	RB_FOREACH(entry, dmar_gas_entries_tree, &domain->rb_root) {
+		dmar_print_domain_entry(entry);
 		if (db_pager_quit)
 			break;
 	}
 	if (db_pager_quit)
 		return;
 	db_printf("    unloading:\n");
-	TAILQ_FOREACH(entry, &ctx->unload_entries, dmamap_link) {
-		dmar_print_ctx_entry(entry);
+	TAILQ_FOREACH(entry, &domain->unload_entries, dmamap_link) {
+		dmar_print_domain_entry(entry);
 		if (db_pager_quit)
 			break;
 	}
 }
 
-DB_FUNC(dmar_ctx, db_dmar_print_ctx, db_show_table, CS_OWN, NULL)
+DB_FUNC(dmar_domain, db_dmar_print_domain, db_show_table, CS_OWN, NULL)
 {
 	struct dmar_unit *unit;
+	struct dmar_domain *domain;
 	struct dmar_ctx *ctx;
 	bool show_mappings, valid;
-	int domain, bus, device, function, i, t;
+	int pci_domain, bus, device, function, i, t;
 	db_expr_t radix;
 
 	valid = false;
@@ -1055,7 +1152,7 @@ DB_FUNC(dmar_ctx, db_dmar_print_ctx, db_show_table, CS_OWN, NULL)
 		show_mappings = false;
 	}
 	if (t == tNUMBER) {
-		domain = db_tok_number;
+		pci_domain = db_tok_number;
 		t = db_read_token();
 		if (t == tNUMBER) {
 			bus = db_tok_number;
@@ -1073,19 +1170,24 @@ DB_FUNC(dmar_ctx, db_dmar_print_ctx, db_show_table, CS_OWN, NULL)
 			db_radix = radix;
 	db_skip_to_eol();
 	if (!valid) {
-		db_printf("usage: show dmar_ctx [/m] "
+		db_printf("usage: show dmar_domain [/m] "
 		    "<domain> <bus> <device> <func>\n");
 		return;
 	}
 	for (i = 0; i < dmar_devcnt; i++) {
 		unit = device_get_softc(dmar_devs[i]);
-		LIST_FOREACH(ctx, &unit->contexts, link) {
-			if (domain == unit->segment && 
-			    bus == pci_get_bus(ctx->ctx_tag.owner) &&
-			    device == pci_get_slot(ctx->ctx_tag.owner) && 
-			    function == pci_get_function(ctx->ctx_tag.owner)) {
-				dmar_print_ctx(ctx, show_mappings);
-				goto out;
+		LIST_FOREACH(domain, &unit->domains, link) {
+			LIST_FOREACH(ctx, &domain->contexts, link) {
+				if (pci_domain == unit->segment && 
+				    bus == pci_get_bus(ctx->ctx_tag.owner) &&
+				    device ==
+				    pci_get_slot(ctx->ctx_tag.owner) &&
+				    function ==
+				    pci_get_function(ctx->ctx_tag.owner)) {
+					dmar_print_domain(domain,
+					    show_mappings);
+					goto out;
+				}
 			}
 		}
 	}
@@ -1093,10 +1195,10 @@ out:;
 }
 
 static void
-dmar_print_one(int idx, bool show_ctxs, bool show_mappings)
+dmar_print_one(int idx, bool show_domains, bool show_mappings)
 {
 	struct dmar_unit *unit;
-	struct dmar_ctx *ctx;
+	struct dmar_domain *domain;
 	int i, frir;
 
 	unit = device_get_softc(dmar_devs[idx]);
@@ -1108,6 +1210,10 @@ dmar_print_one(int idx, bool show_ctxs, bool show_mappings)
 	    dmar_read4(unit, DMAR_GSTS_REG),
 	    dmar_read4(unit, DMAR_FSTS_REG),
 	    dmar_read4(unit, DMAR_FECTL_REG));
+	if (unit->ir_enabled) {
+		db_printf("ir is enabled; IRT @%p phys 0x%jx maxcnt %d\n",
+		    unit->irt, (uintmax_t)unit->irt_phys, unit->irte_cnt);
+	}
 	db_printf("fed 0x%x fea 0x%x feua 0x%x\n",
 	    dmar_read4(unit, DMAR_FEDATA_REG),
 	    dmar_read4(unit, DMAR_FEADDR_REG),
@@ -1146,10 +1252,10 @@ dmar_print_one(int idx, bool show_ctxs, bool show_mappings)
 			db_printf("qi is disabled\n");
 		}
 	}
-	if (show_ctxs) {
-		db_printf("contexts:\n");
-		LIST_FOREACH(ctx, &unit->contexts, link) {
-			dmar_print_ctx(ctx, show_mappings);
+	if (show_domains) {
+		db_printf("domains:\n");
+		LIST_FOREACH(domain, &unit->domains, link) {
+			dmar_print_domain(domain, show_mappings);
 			if (db_pager_quit)
 				break;
 		}
@@ -1158,27 +1264,27 @@ dmar_print_one(int idx, bool show_ctxs, bool show_mappings)
 
 DB_SHOW_COMMAND(dmar, db_dmar_print)
 {
-	bool show_ctxs, show_mappings;
+	bool show_domains, show_mappings;
 
-	show_ctxs = strchr(modif, 'c') != NULL;
+	show_domains = strchr(modif, 'd') != NULL;
 	show_mappings = strchr(modif, 'm') != NULL;
 	if (!have_addr) {
-		db_printf("usage: show dmar [/c] [/m] index\n");
+		db_printf("usage: show dmar [/d] [/m] index\n");
 		return;
 	}
-	dmar_print_one((int)addr, show_ctxs, show_mappings);
+	dmar_print_one((int)addr, show_domains, show_mappings);
 }
 
 DB_SHOW_ALL_COMMAND(dmars, db_show_all_dmars)
 {
 	int i;
-	bool show_ctxs, show_mappings;
+	bool show_domains, show_mappings;
 
-	show_ctxs = strchr(modif, 'c') != NULL;
+	show_domains = strchr(modif, 'd') != NULL;
 	show_mappings = strchr(modif, 'm') != NULL;
 
 	for (i = 0; i < dmar_devcnt; i++) {
-		dmar_print_one(i, show_ctxs, show_mappings);
+		dmar_print_one(i, show_domains, show_mappings);
 		if (db_pager_quit)
 			break;
 	}

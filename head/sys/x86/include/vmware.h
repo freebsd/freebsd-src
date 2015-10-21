@@ -31,8 +31,13 @@
 
 #define	VMW_HVMAGIC		0x564d5868
 #define	VMW_HVPORT		0x5658
+
 #define	VMW_HVCMD_GETVERSION	10
 #define	VMW_HVCMD_GETHZ		45
+#define	VMW_HVCMD_GETVCPU_INFO	68
+
+#define	VMW_VCPUINFO_LEGACY_X2APIC	(1 << 3)
+#define	VMW_VCPUINFO_VCPU_RESERVED	(1 << 31)
 
 static __inline void
 vmware_hvcall(u_int cmd, u_int *p)

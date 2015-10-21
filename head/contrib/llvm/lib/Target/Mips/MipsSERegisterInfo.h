@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSSEREGISTERINFO_H
-#define MIPSSEREGISTERINFO_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPSSEREGISTERINFO_H
+#define LLVM_LIB_TARGET_MIPS_MIPSSEREGISTERINFO_H
 
 #include "MipsRegisterInfo.h"
 
@@ -22,7 +22,7 @@ class MipsSEInstrInfo;
 
 class MipsSERegisterInfo : public MipsRegisterInfo {
 public:
-  MipsSERegisterInfo(const MipsSubtarget &Subtarget);
+  MipsSERegisterInfo();
 
   bool requiresRegisterScavenging(const MachineFunction &MF) const override;
 

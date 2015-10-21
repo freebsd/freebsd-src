@@ -179,8 +179,8 @@ Parser::TPResult Parser::TryConsumeDeclarationSpecifier() {
     ConsumeToken();
 
     // Skip attributes.
-    while (Tok.is(tok::l_square) || Tok.is(tok::kw___attribute) ||
-           Tok.is(tok::kw___declspec) || Tok.is(tok::kw_alignas)) {
+    while (Tok.isOneOf(tok::l_square, tok::kw___attribute, tok::kw___declspec,
+                       tok::kw_alignas)) {
       if (Tok.is(tok::l_square)) {
         ConsumeBracket();
         if (!SkipUntil(tok::r_square))
@@ -195,7 +195,9 @@ Parser::TPResult Parser::TryConsumeDeclarationSpecifier() {
       }
     }
 
-    if (TryAnnotateCXXScopeToken())
+    if (Tok.isOneOf(tok::identifier, tok::coloncolon, tok::kw_decltype,
+                    tok::annot_template_id) &&
+        TryAnnotateCXXScopeToken())
       return TPResult::Error;
     if (Tok.is(tok::annot_cxxscope))
       ConsumeToken();
@@ -287,7 +289,7 @@ Parser::TPResult Parser::TryParseInitDeclaratorList() {
       return TPR;
 
     // [GNU] simple-asm-expr[opt] attributes[opt]
-    if (Tok.is(tok::kw_asm) || Tok.is(tok::kw___attribute))
+    if (Tok.isOneOf(tok::kw_asm, tok::kw___attribute))
       return TPResult::True;
 
     // initializer[opt]
@@ -368,8 +370,7 @@ bool Parser::isCXXConditionDeclaration() {
   if (TPR == TPResult::Ambiguous) {
     // '='
     // [GNU] simple-asm-expr[opt] attributes[opt]
-    if (Tok.is(tok::equal)  ||
-        Tok.is(tok::kw_asm) || Tok.is(tok::kw___attribute))
+    if (Tok.isOneOf(tok::equal, tok::kw_asm, tok::kw___attribute))
       TPR = TPResult::True;
     else if (getLangOpts().CPlusPlus11 && Tok.is(tok::l_brace))
       TPR = TPResult::True;
@@ -446,7 +447,7 @@ bool Parser::isCXXTypeId(TentativeCXXTypeIdContext Context, bool &isAmbiguous) {
     // the abstract declarator we encounter a '>', '>>' (in C++0x), or
     // ',', this is a type-id. Otherwise, it's an expression.
     } else if (Context == TypeIdAsTemplateArgument &&
-               (Tok.is(tok::greater) || Tok.is(tok::comma) ||
+               (Tok.isOneOf(tok::greater, tok::comma) ||
                 (getLangOpts().CPlusPlus11 && Tok.is(tok::greatergreater)))) {
       TPR = TPResult::True;
       isAmbiguous = true;
@@ -622,18 +623,17 @@ Parser::isCXX11AttributeSpecifier(bool Disambiguate,
 
 Parser::TPResult Parser::TryParsePtrOperatorSeq() {
   while (true) {
-    if (Tok.is(tok::coloncolon) || Tok.is(tok::identifier))
+    if (Tok.isOneOf(tok::coloncolon, tok::identifier))
       if (TryAnnotateCXXScopeToken(true))
         return TPResult::Error;
 
-    if (Tok.is(tok::star) || Tok.is(tok::amp) || Tok.is(tok::caret) ||
-        Tok.is(tok::ampamp) ||
+    if (Tok.isOneOf(tok::star, tok::amp, tok::caret, tok::ampamp) ||
         (Tok.is(tok::annot_cxxscope) && NextToken().is(tok::star))) {
       // ptr-operator
       ConsumeToken();
-      while (Tok.is(tok::kw_const)    ||
-             Tok.is(tok::kw_volatile) ||
-             Tok.is(tok::kw_restrict))
+      while (Tok.isOneOf(tok::kw_const, tok::kw_volatile, tok::kw_restrict,
+                         tok::kw__Nonnull, tok::kw__Nullable,
+                         tok::kw__Null_unspecified))
         ConsumeToken();
     } else {
       return TPResult::True;
@@ -801,7 +801,7 @@ Parser::TPResult Parser::TryParseDeclarator(bool mayBeAbstract,
   if (Tok.is(tok::ellipsis))
     ConsumeToken();
 
-  if ((Tok.is(tok::identifier) || Tok.is(tok::kw_operator) ||
+  if ((Tok.isOneOf(tok::identifier, tok::kw_operator) ||
        (Tok.is(tok::annot_cxxscope) && (NextToken().is(tok::identifier) ||
                                         NextToken().is(tok::kw_operator)))) &&
       mayHaveIdentifier) {
@@ -831,13 +831,9 @@ Parser::TPResult Parser::TryParseDeclarator(bool mayBeAbstract,
       // '(' declarator ')'
       // '(' attributes declarator ')'
       // '(' abstract-declarator ')'
-      if (Tok.is(tok::kw___attribute) ||
-          Tok.is(tok::kw___declspec) ||
-          Tok.is(tok::kw___cdecl) ||
-          Tok.is(tok::kw___stdcall) ||
-          Tok.is(tok::kw___fastcall) ||
-          Tok.is(tok::kw___thiscall) ||
-          Tok.is(tok::kw___unaligned))
+      if (Tok.isOneOf(tok::kw___attribute, tok::kw___declspec, tok::kw___cdecl,
+                      tok::kw___stdcall, tok::kw___fastcall, tok::kw___thiscall,
+                      tok::kw___vectorcall, tok::kw___unaligned))
         return TPResult::True; // attributes indicate declaration
       TPResult TPR = TryParseDeclarator(mayBeAbstract, mayHaveIdentifier);
       if (TPR != TPResult::Ambiguous)
@@ -891,6 +887,7 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
   case tok::numeric_constant:
   case tok::char_constant:
   case tok::wide_char_constant:
+  case tok::utf8_char_constant:
   case tok::utf16_char_constant:
   case tok::utf32_char_constant:
   case tok::string_literal:
@@ -984,9 +981,11 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
   case tok::kw___stdcall:
   case tok::kw___fastcall:
   case tok::kw___thiscall:
+  case tok::kw___vectorcall:
   case tok::kw___unaligned:
   case tok::kw___vector:
   case tok::kw___pixel:
+  case tok::kw___bool:
   case tok::kw__Atomic:
   case tok::kw___unknown_anytype:
     return TPResult::False;
@@ -1004,6 +1003,27 @@ bool Parser::isTentativelyDeclared(IdentifierInfo *II) {
       != TentativelyDeclaredIdentifiers.end();
 }
 
+namespace {
+class TentativeParseCCC : public CorrectionCandidateCallback {
+public:
+  TentativeParseCCC(const Token &Next) {
+    WantRemainingKeywords = false;
+    WantTypeSpecifiers = Next.isOneOf(tok::l_paren, tok::r_paren, tok::greater,
+                                      tok::l_brace, tok::identifier);
+  }
+
+  bool ValidateCandidate(const TypoCorrection &Candidate) override {
+    // Reject any candidate that only resolves to instance members since they
+    // aren't viable as standalone identifiers instead of member references.
+    if (Candidate.isResolved() && !Candidate.isKeyword() &&
+        std::all_of(Candidate.begin(), Candidate.end(),
+                    [](NamedDecl *ND) { return ND->isCXXInstanceMember(); }))
+      return false;
+
+    return CorrectionCandidateCallback::ValidateCandidate(Candidate);
+  }
+};
+}
 /// isCXXDeclarationSpecifier - Returns TPResult::True if it is a declaration
 /// specifier, TPResult::False if it is not, TPResult::Ambiguous if it could
 /// be either a decl-specifier or a function-style cast, and TPResult::Error
@@ -1129,11 +1149,8 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
       // a parse error one way or another. In that case, tell the caller that
       // this is ambiguous. Typo-correct to type and expression keywords and
       // to types and identifiers, in order to try to recover from errors.
-      CorrectionCandidateCallback TypoCorrection;
-      TypoCorrection.WantRemainingKeywords = false;
-      TypoCorrection.WantTypeSpecifiers = Next.isNot(tok::arrow);
       switch (TryAnnotateName(false /* no nested name specifier */,
-                              &TypoCorrection)) {
+                              llvm::make_unique<TentativeParseCCC>(Next))) {
       case ANK_Error:
         return TPResult::Error;
       case ANK_TentativeDecl:
@@ -1176,11 +1193,12 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
 
   case tok::coloncolon: {    // ::foo::bar
     const Token &Next = NextToken();
-    if (Next.is(tok::kw_new) ||    // ::new
-        Next.is(tok::kw_delete))   // ::delete
+    if (Next.isOneOf(tok::kw_new,       // ::new
+                     tok::kw_delete))   // ::delete
       return TPResult::False;
   }
     // Fall through.
+  case tok::kw___super:
   case tok::kw_decltype:
     // Annotate typenames and C++ scope specifiers.  If we get one, just
     // recurse to handle whatever we get.
@@ -1195,9 +1213,11 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
     //   'friend'
     //   'typedef'
     //   'constexpr'
+    //   'concept'
   case tok::kw_friend:
   case tok::kw_typedef:
   case tok::kw_constexpr:
+  case tok::kw_concept:
     // storage-class-specifier
   case tok::kw_register:
   case tok::kw_static:
@@ -1250,6 +1270,7 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
   case tok::kw___stdcall:
   case tok::kw___fastcall:
   case tok::kw___thiscall:
+  case tok::kw___vectorcall:
   case tok::kw___w64:
   case tok::kw___sptr:
   case tok::kw___uptr:
@@ -1257,6 +1278,10 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
   case tok::kw___ptr32:
   case tok::kw___forceinline:
   case tok::kw___unaligned:
+  case tok::kw__Nonnull:
+  case tok::kw__Nullable:
+  case tok::kw__Null_unspecified:
+  case tok::kw___kindof:
     return TPResult::True;
 
     // Borland
@@ -1360,7 +1385,7 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
   case_typename:
     // In Objective-C, we might have a protocol-qualified type.
     if (getLangOpts().ObjC1 && NextToken().is(tok::less)) {
-      // Tentatively parse the 
+      // Tentatively parse the protocol qualifiers.
       TentativeParsingAction PA(*this);
       ConsumeToken(); // The type token
       
@@ -1576,12 +1601,10 @@ bool Parser::isCXXFunctionDeclarator(bool *IsAmbiguous) {
       TPR = TPResult::False;
     else {
       const Token &Next = NextToken();
-      if (Next.is(tok::amp) || Next.is(tok::ampamp) ||
-          Next.is(tok::kw_const) || Next.is(tok::kw_volatile) ||
-          Next.is(tok::kw_throw) || Next.is(tok::kw_noexcept) ||
-          Next.is(tok::l_square) || isCXX11VirtSpecifier(Next) ||
-          Next.is(tok::l_brace) || Next.is(tok::kw_try) ||
-          Next.is(tok::equal) || Next.is(tok::arrow))
+      if (Next.isOneOf(tok::amp, tok::ampamp, tok::kw_const, tok::kw_volatile,
+                       tok::kw_throw, tok::kw_noexcept, tok::l_square,
+                       tok::l_brace, tok::kw_try, tok::equal, tok::arrow) ||
+          isCXX11VirtSpecifier(Next))
         // The next token cannot appear after a constructor-style initializer,
         // and can appear next in a function definition. This must be a function
         // declarator.
@@ -1702,8 +1725,8 @@ Parser::TryParseParameterDeclarationClause(bool *InvalidAsDeclaration,
     // parameter-declaration-clause, and the last param is missing its default
     // argument.
     if (VersusTemplateArgument)
-      return (Tok.is(tok::equal) || Tok.is(tok::r_paren)) ? TPResult::True
-                                                          : TPResult::False;
+      return Tok.isOneOf(tok::equal, tok::r_paren) ? TPResult::True
+                                                   : TPResult::False;
 
     if (Tok.is(tok::equal)) {
       // '=' assignment-expression
@@ -1756,13 +1779,11 @@ Parser::TPResult Parser::TryParseFunctionDeclarator() {
     return TPResult::Error;
 
   // cv-qualifier-seq
-  while (Tok.is(tok::kw_const)    ||
-         Tok.is(tok::kw_volatile) ||
-         Tok.is(tok::kw_restrict)   )
+  while (Tok.isOneOf(tok::kw_const, tok::kw_volatile, tok::kw_restrict))
     ConsumeToken();
 
   // ref-qualifier[opt]
-  if (Tok.is(tok::amp) || Tok.is(tok::ampamp))
+  if (Tok.isOneOf(tok::amp, tok::ampamp))
     ConsumeToken();
   
   // exception-specification

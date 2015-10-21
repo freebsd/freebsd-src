@@ -14,8 +14,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef BUGPOINT_TOOLRUNNER_H
-#define BUGPOINT_TOOLRUNNER_H
+#ifndef LLVM_TOOLS_BUGPOINT_TOOLRUNNER_H
+#define LLVM_TOOLS_BUGPOINT_TOOLRUNNER_H
 
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/CommandLine.h"
@@ -165,7 +165,7 @@ public:
     ToolArgs.clear();
     if (Args) ToolArgs = *Args;
   }
-  ~LLC() { delete gcc; }
+  ~LLC() override { delete gcc; }
 
   /// compileProgram - Compile the specified program from bitcode to executable
   /// code.  This does not produce any output, it is only used when debugging

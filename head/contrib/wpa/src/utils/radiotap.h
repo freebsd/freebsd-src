@@ -1,6 +1,3 @@
-/* $FreeBSD: src/sys/net80211/ieee80211_radiotap.h,v 1.5 2005/01/22 20:12:05 sam Exp $ */
-/* $NetBSD: ieee80211_radiotap.h,v 1.11 2005/06/22 06:16:02 dyoung Exp $ */
-
 /*-
  * Copyright (c) 2003, 2004 David Young.  All rights reserved.
  *
@@ -178,6 +175,14 @@ struct ieee80211_radiotap_header {
  *
  *     Number of unicast retries a transmitted frame used.
  *
+ * IEEE80211_RADIOTAP_MCS	u8, u8, u8		unitless
+ *
+ *     Contains a bitmap of known fields/flags, the flags, and
+ *     the MCS index.
+ *
+ * IEEE80211_RADIOTAP_AMPDU_STATUS	u32, u16, u8, u8	unitlesss
+ *
+ *	Contains the AMPDU information for the subframe.
  */
 enum ieee80211_radiotap_type {
 	IEEE80211_RADIOTAP_TSFT = 0,
@@ -198,6 +203,13 @@ enum ieee80211_radiotap_type {
 	IEEE80211_RADIOTAP_TX_FLAGS = 15,
 	IEEE80211_RADIOTAP_RTS_RETRIES = 16,
 	IEEE80211_RADIOTAP_DATA_RETRIES = 17,
+
+	IEEE80211_RADIOTAP_MCS = 19,
+	IEEE80211_RADIOTAP_AMPDU_STATUS = 20,
+
+	/* valid in every it_present bitmap, even vendor namespaces */
+	IEEE80211_RADIOTAP_RADIOTAP_NAMESPACE = 29,
+	IEEE80211_RADIOTAP_VENDOR_NAMESPACE = 30,
 	IEEE80211_RADIOTAP_EXT = 31
 };
 
@@ -230,8 +242,10 @@ enum ieee80211_radiotap_type {
 						 * 802.11 header and payload
 						 * (to 32-bit boundary)
 						 */
+#define IEEE80211_RADIOTAP_F_BADFCS	0x40	/* frame failed FCS check */
+
 /* For IEEE80211_RADIOTAP_RX_FLAGS */
-#define IEEE80211_RADIOTAP_F_RX_BADFCS	0x0001	/* frame failed crc check */
+#define IEEE80211_RADIOTAP_F_RX_BADPLCP	0x0002 /* bad PLCP */
 
 /* For IEEE80211_RADIOTAP_TX_FLAGS */
 #define IEEE80211_RADIOTAP_F_TX_FAIL	0x0001	/* failed due to excessive
@@ -239,5 +253,39 @@ enum ieee80211_radiotap_type {
 #define IEEE80211_RADIOTAP_F_TX_CTS	0x0002	/* used cts 'protection' */
 #define IEEE80211_RADIOTAP_F_TX_RTS	0x0004	/* used rts/cts handshake */
 #define IEEE80211_RADIOTAP_F_TX_NOACK	0x0008	/* don't expect an ACK */
+
+/* For IEEE80211_RADIOTAP_AMPDU_STATUS */
+#define IEEE80211_RADIOTAP_AMPDU_REPORT_ZEROLEN		0x0001
+#define IEEE80211_RADIOTAP_AMPDU_IS_ZEROLEN		0x0002
+#define IEEE80211_RADIOTAP_AMPDU_LAST_KNOWN		0x0004
+#define IEEE80211_RADIOTAP_AMPDU_IS_LAST		0x0008
+#define IEEE80211_RADIOTAP_AMPDU_DELIM_CRC_ERR		0x0010
+#define IEEE80211_RADIOTAP_AMPDU_DELIM_CRC_KNOWN	0x0020
+
+/* For IEEE80211_RADIOTAP_MCS */
+#define IEEE80211_RADIOTAP_MCS_HAVE_BW		0x01
+#define IEEE80211_RADIOTAP_MCS_HAVE_MCS		0x02
+#define IEEE80211_RADIOTAP_MCS_HAVE_GI		0x04
+#define IEEE80211_RADIOTAP_MCS_HAVE_FMT		0x08
+#define IEEE80211_RADIOTAP_MCS_HAVE_FEC		0x10
+#define IEEE80211_RADIOTAP_MCS_HAVE_STBC	0x20
+#define IEEE80211_RADIOTAP_MCS_HAVE_NESS	0x40
+#define IEEE80211_RADIOTAP_MCS_NESS_BIT1	0x80
+
+
+#define IEEE80211_RADIOTAP_MCS_BW_MASK		0x03
+#define		IEEE80211_RADIOTAP_MCS_BW_20	0
+#define		IEEE80211_RADIOTAP_MCS_BW_40	1
+#define		IEEE80211_RADIOTAP_MCS_BW_20L	2
+#define		IEEE80211_RADIOTAP_MCS_BW_20U	3
+#define IEEE80211_RADIOTAP_MCS_SGI		0x04
+#define IEEE80211_RADIOTAP_MCS_FMT_GF		0x08
+#define IEEE80211_RADIOTAP_MCS_FEC_LDPC		0x10
+#define IEEE80211_RADIOTAP_MCS_STBC_MASK	0x60
+#define IEEE80211_RADIOTAP_MCS_STBC_SHIFT	5
+#define		IEEE80211_RADIOTAP_MCS_STBC_1	1
+#define		IEEE80211_RADIOTAP_MCS_STBC_2	2
+#define		IEEE80211_RADIOTAP_MCS_STBC_3	3
+#define IEEE80211_RADIOTAP_MCS_NESS_BIT0	0x80
 
 #endif				/* IEEE80211_RADIOTAP_H */

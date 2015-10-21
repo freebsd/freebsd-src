@@ -383,19 +383,8 @@ firmware_put(const struct firmware *p, int flags)
 static void
 set_rootvnode(void *arg, int npending)
 {
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
 
-	FILEDESC_XLOCK(p->p_fd);
-	if (p->p_fd->fd_cdir == NULL) {
-		p->p_fd->fd_cdir = rootvnode;
-		VREF(rootvnode);
-	}
-	if (p->p_fd->fd_rdir == NULL) {
-		p->p_fd->fd_rdir = rootvnode;
-		VREF(rootvnode);
-	}
-	FILEDESC_XUNLOCK(p->p_fd);
+	pwd_ensure_dirs();
 
 	free(arg, M_TEMP);
 }

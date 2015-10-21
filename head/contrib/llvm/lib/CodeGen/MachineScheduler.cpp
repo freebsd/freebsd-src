@@ -40,6 +40,9 @@ cl::opt<bool> ForceTopDown("misched-topdown", cl::Hidden,
                            cl::desc("Force top-down list scheduling"));
 cl::opt<bool> ForceBottomUp("misched-bottomup", cl::Hidden,
                             cl::desc("Force bottom-up list scheduling"));
+cl::opt<bool>
+DumpCriticalPathLength("misched-dcpl", cl::Hidden,
+                       cl::desc("Print critical path length to stdout"));
 }
 
 #ifndef NDEBUG
@@ -141,12 +144,12 @@ char MachineScheduler::ID = 0;
 
 char &llvm::MachineSchedulerID = MachineScheduler::ID;
 
-INITIALIZE_PASS_BEGIN(MachineScheduler, "misched",
+INITIALIZE_PASS_BEGIN(MachineScheduler, "machine-scheduler",
                       "Machine Instruction Scheduler", false, false)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
 INITIALIZE_PASS_DEPENDENCY(SlotIndexes)
 INITIALIZE_PASS_DEPENDENCY(LiveIntervals)
-INITIALIZE_PASS_END(MachineScheduler, "misched",
+INITIALIZE_PASS_END(MachineScheduler, "machine-scheduler",
                     "Machine Instruction Scheduler", false, false)
 
 MachineScheduler::MachineScheduler()
@@ -205,6 +208,11 @@ MachineSchedOpt("misched",
 static MachineSchedRegistry
 DefaultSchedRegistry("default", "Use the target's default scheduler choice.",
                      useDefaultMachineSched);
+
+static cl::opt<bool> EnableMachineSched(
+    "enable-misched",
+    cl::desc("Enable the machine instruction scheduling pass."), cl::init(true),
+    cl::Hidden);
 
 /// Forward declare the standard machine scheduler. This will be used as the
 /// default scheduler if the target does not set a default.
@@ -301,6 +309,12 @@ ScheduleDAGInstrs *PostMachineScheduler::createPostMachineScheduler() {
 /// design would be to split blocks at scheduling boundaries, but LLVM has a
 /// general bias against block splitting purely for implementation simplicity.
 bool MachineScheduler::runOnMachineFunction(MachineFunction &mf) {
+  if (EnableMachineSched.getNumOccurrences()) {
+    if (!EnableMachineSched)
+      return false;
+  } else if (!mf.getSubtarget().enableMachineScheduler())
+    return false;
+
   DEBUG(dbgs() << "Before MISsched:\n"; mf.print(dbgs()));
 
   // Initialize the context of the pass.
@@ -333,9 +347,7 @@ bool PostMachineScheduler::runOnMachineFunction(MachineFunction &mf) {
   if (skipOptnoneFunction(*mf.getFunction()))
     return false;
 
-  const TargetSubtargetInfo &ST =
-    mf.getTarget().getSubtarget<TargetSubtargetInfo>();
-  if (!ST.enablePostMachineScheduler()) {
+  if (!mf.getSubtarget().enablePostRAScheduler()) {
     DEBUG(dbgs() << "Subtarget disables post-MI-sched.\n");
     return false;
   }
@@ -378,7 +390,7 @@ static bool isSchedBoundary(MachineBasicBlock::iterator MI,
 
 /// Main driver for both MachineScheduler and PostMachineScheduler.
 void MachineSchedulerBase::scheduleRegions(ScheduleDAGInstrs &Scheduler) {
-  const TargetInstrInfo *TII = MF->getTarget().getInstrInfo();
+  const TargetInstrInfo *TII = MF->getSubtarget().getInstrInfo();
   bool IsPostRA = Scheduler.isPostRA();
 
   // Visit all machine basic blocks.
@@ -427,9 +439,11 @@ void MachineSchedulerBase::scheduleRegions(ScheduleDAGInstrs &Scheduler) {
       // instruction stream until we find the nearest boundary.
       unsigned NumRegionInstrs = 0;
       MachineBasicBlock::iterator I = RegionEnd;
-      for(;I != MBB->begin(); --I, --RemainingInstrs, ++NumRegionInstrs) {
+      for(;I != MBB->begin(); --I, --RemainingInstrs) {
         if (isSchedBoundary(std::prev(I), MBB, MF, TII, IsPostRA))
           break;
+        if (!I->isDebugValue())
+          ++NumRegionInstrs;
       }
       // Notify the scheduler of the region, even if we may skip scheduling
       // it. Perhaps it still needs to be bundled.
@@ -451,6 +465,11 @@ void MachineSchedulerBase::scheduleRegions(ScheduleDAGInstrs &Scheduler) {
             else dbgs() << "End";
             dbgs() << " RegionInstrs: " << NumRegionInstrs
             << " Remaining: " << RemainingInstrs << "\n");
+      if (DumpCriticalPathLength) {
+        errs() << MF->getName();
+        errs() << ":BB# " << MBB->getNumber();
+        errs() << " " << MBB->getName() << " \n";
+      }
 
       // Schedule a region: possibly reorder instructions.
       // This invalidates 'RegionEnd' and 'I'.
@@ -924,8 +943,9 @@ updateScheduledPressure(const SUnit *SU,
     unsigned Limit = RegClassInfo->getRegPressureSetLimit(ID);
     if (NewMaxPressure[ID] >= Limit - 2) {
       DEBUG(dbgs() << "  " << TRI->getRegPressureSetName(ID) << ": "
-            << NewMaxPressure[ID] << " > " << Limit << "(+ "
-            << BotRPTracker.getLiveThru()[ID] << " livethru)\n");
+            << NewMaxPressure[ID]
+            << ((NewMaxPressure[ID] > Limit) ? " > " : " <= ") << Limit
+            << "(+ " << BotRPTracker.getLiveThru()[ID] << " livethru)\n");
     }
   }
 }
@@ -1017,8 +1037,6 @@ void ScheduleDAGMILive::schedule() {
 
     scheduleMI(SU, IsTopNode);
 
-    updateQueues(SU, IsTopNode);
-
     if (DFSResult) {
       unsigned SubtreeID = DFSResult->getSubtreeID(SU);
       if (!ScheduledTrees.test(SubtreeID)) {
@@ -1030,6 +1048,8 @@ void ScheduleDAGMILive::schedule() {
 
     // Notify the scheduling strategy after updating the DAG.
     SchedImpl->schedNode(SU, IsTopNode);
+
+    updateQueues(SU, IsTopNode);
   }
   assert(CurrentTop == CurrentBottom && "Nonempty unscheduled zone.");
 
@@ -1251,7 +1271,7 @@ void LoadClusterMutation::clusterNeighboringLoads(ArrayRef<SUnit*> Loads,
     SUnit *SU = Loads[Idx];
     unsigned BaseReg;
     unsigned Offset;
-    if (TII->getLdStBaseRegImmOfs(SU->getInstr(), BaseReg, Offset, TRI))
+    if (TII->getMemOpBaseRegImmOfs(SU->getInstr(), BaseReg, Offset, TRI))
       LoadRecords.push_back(LoadInfo(SU, BaseReg, Offset));
   }
   if (LoadRecords.size() < 2)
@@ -1424,12 +1444,15 @@ void CopyConstrain::constrainLocalCopy(SUnit *CopySU, ScheduleDAGMILive *DAG) {
   // Check if either the dest or source is local. If it's live across a back
   // edge, it's not local. Note that if both vregs are live across the back
   // edge, we cannot successfully contrain the copy without cyclic scheduling.
-  unsigned LocalReg = DstReg;
-  unsigned GlobalReg = SrcReg;
+  // If both the copy's source and dest are local live intervals, then we
+  // should treat the dest as the global for the purpose of adding
+  // constraints. This adds edges from source's other uses to the copy.
+  unsigned LocalReg = SrcReg;
+  unsigned GlobalReg = DstReg;
   LiveInterval *LocalLI = &LIS->getInterval(LocalReg);
   if (!LocalLI->isLocal(RegionBeginIdx, RegionEndIdx)) {
-    LocalReg = SrcReg;
-    GlobalReg = DstReg;
+    LocalReg = DstReg;
+    GlobalReg = SrcReg;
     LocalLI = &LIS->getInterval(LocalReg);
     if (!LocalLI->isLocal(RegionBeginIdx, RegionEndIdx))
       return;
@@ -2127,7 +2150,7 @@ void GenericSchedulerBase::setPolicy(CandPolicy &Policy,
                                      bool IsPostRA,
                                      SchedBoundary &CurrZone,
                                      SchedBoundary *OtherZone) {
-  // Apply preemptive heuristics based on the the total latency and resources
+  // Apply preemptive heuristics based on the total latency and resources
   // inside and outside this zone. Potential stalls should be considered before
   // following this policy.
 
@@ -2355,14 +2378,15 @@ void GenericScheduler::initialize(ScheduleDAGMI *dag) {
   // Initialize the HazardRecognizers. If itineraries don't exist, are empty, or
   // are disabled, then these HazardRecs will be disabled.
   const InstrItineraryData *Itin = SchedModel->getInstrItineraries();
-  const TargetMachine &TM = DAG->MF.getTarget();
   if (!Top.HazardRec) {
     Top.HazardRec =
-      TM.getInstrInfo()->CreateTargetMIHazardRecognizer(Itin, DAG);
+        DAG->MF.getSubtarget().getInstrInfo()->CreateTargetMIHazardRecognizer(
+            Itin, DAG);
   }
   if (!Bot.HazardRec) {
     Bot.HazardRec =
-      TM.getInstrInfo()->CreateTargetMIHazardRecognizer(Itin, DAG);
+        DAG->MF.getSubtarget().getInstrInfo()->CreateTargetMIHazardRecognizer(
+            Itin, DAG);
   }
 }
 
@@ -2370,8 +2394,8 @@ void GenericScheduler::initialize(ScheduleDAGMI *dag) {
 void GenericScheduler::initPolicy(MachineBasicBlock::iterator Begin,
                                   MachineBasicBlock::iterator End,
                                   unsigned NumRegionInstrs) {
-  const TargetMachine &TM = Context->MF->getTarget();
-  const TargetLowering *TLI = TM.getTargetLowering();
+  const MachineFunction &MF = *Begin->getParent()->getParent();
+  const TargetLowering *TLI = MF.getSubtarget().getTargetLowering();
 
   // Avoid setting up the register pressure tracker for small regions to save
   // compile time. As a rough heuristic, only track pressure when the number of
@@ -2391,8 +2415,8 @@ void GenericScheduler::initPolicy(MachineBasicBlock::iterator Begin,
   RegionPolicy.OnlyBottomUp = true;
 
   // Allow the subtarget to override default policy.
-  const TargetSubtargetInfo &ST = TM.getSubtarget<TargetSubtargetInfo>();
-  ST.overrideSchedPolicy(RegionPolicy, Begin, End, NumRegionInstrs);
+  MF.getSubtarget().overrideSchedPolicy(RegionPolicy, Begin, End,
+                                        NumRegionInstrs);
 
   // After subtarget overrides, apply command line options.
   if (!EnableRegPressure)
@@ -2460,7 +2484,10 @@ void GenericScheduler::registerRoots() {
     if ((*I)->getDepth() > Rem.CriticalPath)
       Rem.CriticalPath = (*I)->getDepth();
   }
-  DEBUG(dbgs() << "Critical Path: " << Rem.CriticalPath << '\n');
+  DEBUG(dbgs() << "Critical Path(GS-RR ): " << Rem.CriticalPath << '\n');
+  if (DumpCriticalPathLength) {
+    errs() << "Critical Path(GS-RR ): " << Rem.CriticalPath << " \n";
+  }
 
   if (EnableCyclicPath) {
     Rem.CyclicCritPath = DAG->computeCyclicCriticalPath();
@@ -2482,8 +2509,8 @@ static bool tryPressure(const PressureChange &TryP,
   }
   // If one candidate decreases and the other increases, go with it.
   // Invalid candidates have UnitInc==0.
-  if (tryLess(TryP.getUnitInc() < 0, CandP.getUnitInc() < 0, TryCand, Cand,
-              Reason)) {
+  if (tryGreater(TryP.getUnitInc() < 0, CandP.getUnitInc() < 0, TryCand, Cand,
+                 Reason)) {
     return true;
   }
   // If the candidates are decreasing pressure, reverse priority.
@@ -2585,8 +2612,7 @@ void GenericScheduler::tryCandidate(SchedCandidate &Cand,
                  TryCand, Cand, PhysRegCopy))
     return;
 
-  // Avoid exceeding the target's limit. If signed PSetID is negative, it is
-  // invalid; convert it to INT_MAX to give it lowest priority.
+  // Avoid exceeding the target's limit.
   if (DAG->isTrackingPressure() && tryPressure(TryCand.RPDelta.Excess,
                                                Cand.RPDelta.Excess,
                                                TryCand, Cand, RegExcess))
@@ -2885,10 +2911,10 @@ void PostGenericScheduler::initialize(ScheduleDAGMI *Dag) {
   // Initialize the HazardRecognizers. If itineraries don't exist, are empty,
   // or are disabled, then these HazardRecs will be disabled.
   const InstrItineraryData *Itin = SchedModel->getInstrItineraries();
-  const TargetMachine &TM = DAG->MF.getTarget();
   if (!Top.HazardRec) {
     Top.HazardRec =
-      TM.getInstrInfo()->CreateTargetMIHazardRecognizer(Itin, DAG);
+        DAG->MF.getSubtarget().getInstrInfo()->CreateTargetMIHazardRecognizer(
+            Itin, DAG);
   }
 }
 
@@ -2902,7 +2928,10 @@ void PostGenericScheduler::registerRoots() {
     if ((*I)->getDepth() > Rem.CriticalPath)
       Rem.CriticalPath = (*I)->getDepth();
   }
-  DEBUG(dbgs() << "Critical Path: " << Rem.CriticalPath << '\n');
+  DEBUG(dbgs() << "Critical Path: (PGS-RR) " << Rem.CriticalPath << '\n');
+  if (DumpCriticalPathLength) {
+    errs() << "Critical Path(PGS-RR ): " << Rem.CriticalPath << " \n";
+  }
 }
 
 /// Apply a set of heursitics to a new candidate for PostRA scheduling.

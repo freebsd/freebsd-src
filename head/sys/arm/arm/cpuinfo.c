@@ -34,14 +34,21 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuinfo.h>
 #include <machine/cpu-v6.h>
 
-struct cpuinfo cpuinfo;
+struct cpuinfo cpuinfo =
+{
+	/* Use safe defaults for start */
+	.dcache_line_size = 32,
+	.dcache_line_mask = 31,
+	.icache_line_size = 32,
+	.icache_line_mask = 31,
+};
 
 /* Read and parse CPU id scheme */
 void
 cpuinfo_init(void)
 {
 
-	cpuinfo.midr = cp15_midr_get();	
+	cpuinfo.midr = cp15_midr_get();
 	/* Test old version id schemes first */
 	if ((cpuinfo.midr & CPU_ID_IMPLEMENTOR_MASK) == CPU_ID_ARM_LTD) {
 		if (CPU_ID_ISOLD(cpuinfo.midr)) {
@@ -58,12 +65,16 @@ cpuinfo_init(void)
 			/* ARMv4T CPU */
 			cpuinfo.architecture = 1;
 			cpuinfo.revision = (cpuinfo.midr >> 16) & 0x7F;
-		} 
+		} else {
+			/* ARM new id scheme */
+			cpuinfo.architecture = (cpuinfo.midr >> 16) & 0x0F;
+			cpuinfo.revision = (cpuinfo.midr >> 20) & 0x0F;
+		}
 	} else {
-		/* must be new id scheme */
+		/* non ARM -> must be new id scheme */
 		cpuinfo.architecture = (cpuinfo.midr >> 16) & 0x0F;
 		cpuinfo.revision = (cpuinfo.midr >> 20) & 0x0F;
-	}	
+	}
 	/* Parse rest of MIDR  */
 	cpuinfo.implementer = (cpuinfo.midr >> 24) & 0xFF;
 	cpuinfo.part_number = (cpuinfo.midr >> 4) & 0xFFF;
@@ -75,11 +86,11 @@ cpuinfo_init(void)
 	cpuinfo.tlbtr = cp15_tlbtr_get();
 	cpuinfo.mpidr = cp15_mpidr_get();
 	cpuinfo.revidr = cp15_revidr_get();
-		
+
 	/* if CPU is not v7 cpu id scheme */
 	if (cpuinfo.architecture != 0xF)
 		return;
-		
+
 	cpuinfo.id_pfr0 = cp15_id_pfr0_get();
 	cpuinfo.id_pfr1 = cp15_id_pfr1_get();
 	cpuinfo.id_dfr0 = cp15_id_dfr0_get();
@@ -118,4 +129,98 @@ cpuinfo_init(void)
 	cpuinfo.generic_timer_ext = (cpuinfo.id_pfr1 >> 16) & 0xF;
 	cpuinfo.virtualization_ext = (cpuinfo.id_pfr1 >> 12) & 0xF;
 	cpuinfo.security_ext = (cpuinfo.id_pfr1 >> 4) & 0xF;
+
+	/* L1 Cache sizes */
+	if (CPU_CT_FORMAT(cpuinfo.ctr) == CPU_CT_ARMV7) {
+		cpuinfo.dcache_line_size =
+		    1 << (CPU_CT_DMINLINE(cpuinfo.ctr) + 2);
+		cpuinfo.icache_line_size =
+		    1 << (CPU_CT_IMINLINE(cpuinfo.ctr) + 2);
+	} else {
+		cpuinfo.dcache_line_size =
+		    1 << (CPU_CT_xSIZE_LEN(CPU_CT_DSIZE(cpuinfo.ctr)) + 3);
+		cpuinfo.icache_line_size =
+		    1 << (CPU_CT_xSIZE_LEN(CPU_CT_ISIZE(cpuinfo.ctr)) + 3);
+	}
+	cpuinfo.dcache_line_mask = cpuinfo.dcache_line_size - 1;
+	cpuinfo.icache_line_mask = cpuinfo.icache_line_size - 1;
+}
+
+/*
+ * Get bits that must be set or cleared in ACLR register.
+ * Note: Bits in ACLR register are IMPLEMENTATION DEFINED.
+ * Its expected that SCU is in operational state before this
+ * function is called.
+ */
+void
+cpuinfo_get_actlr_modifier(uint32_t *actlr_mask, uint32_t *actlr_set)
+{
+	*actlr_mask = 0;
+	*actlr_set = 0;
+
+	if (cpuinfo.implementer == CPU_IMPLEMENTER_ARM) {
+		switch (cpuinfo.part_number) {
+
+		case CPU_ARCH_CORTEX_A17:
+		case CPU_ARCH_CORTEX_A12: /* A12 is merged to A17 */
+			/*
+			 * Enable SMP mode
+			 */
+			*actlr_mask = (1 << 6);
+			*actlr_set = (1 << 6);
+			break;
+		case CPU_ARCH_CORTEX_A15:
+			/*
+			 * Enable snoop-delayed exclusive handling
+			 * Enable SMP mode
+			 */
+			*actlr_mask = (1U << 31) |(1 << 6);
+			*actlr_set = (1U << 31) |(1 << 6);
+			break;
+		case CPU_ARCH_CORTEX_A9:
+			/*
+			 * Disable exclusive L1/L2 cache control
+			 * Enable SMP mode
+			 * Enable Cache and TLB maintenance broadcast
+			 */
+			*actlr_mask = (1 << 7) | (1 << 6) | (1 << 0);
+			*actlr_set = (1 << 6) | (1 << 0);
+			break;
+		case CPU_ARCH_CORTEX_A8:
+			/*
+			 * Enable L2 cache
+			 * Enable L1 data cache hardware alias checks
+			 */
+			*actlr_mask = (1 << 1) | (1 << 0);
+			*actlr_set = (1 << 1);
+			break;
+		case CPU_ARCH_CORTEX_A7:
+			/*
+			 * Enable SMP mode
+			 */
+			*actlr_mask = (1 << 6);
+			*actlr_set = (1 << 6);
+			break;
+		case CPU_ARCH_CORTEX_A5:
+			/*
+			 * Disable exclusive L1/L2 cache control
+			 * Enable SMP mode
+			 * Enable Cache and TLB maintenance broadcast
+			 */
+			*actlr_mask = (1 << 7) | (1 << 6) | (1 << 0);
+			*actlr_set = (1 << 6) | (1 << 0);
+			break;
+		case CPU_ARCH_ARM1176:
+			/*
+			 * Restrict cache size to 16KB
+			 * Enable the return stack
+			 * Enable dynamic branch prediction
+			 * Enable static branch prediction
+			 */
+			*actlr_mask = (1 << 6) | (1 << 2) | (1 << 1) | (1 << 0);
+			*actlr_set = (1 << 6) | (1 << 2) | (1 << 1) | (1 << 0);
+			break;
+		}
+		return;
+	}
 }

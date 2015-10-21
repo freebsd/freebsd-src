@@ -1052,6 +1052,7 @@ ar5212GetDiagState(struct ath_hal *ah, int request,
 	void **result, uint32_t *resultsize)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
+	HAL_ANI_STATS *astats;
 
 	(void) ahp;
 	if (ath_hal_getdiagstate(ah, request, args, argsize, result, resultsize))
@@ -1083,9 +1084,16 @@ ar5212GetDiagState(struct ath_hal *ah, int request,
 			0 : sizeof(struct ar5212AniState);
 		return AH_TRUE;
 	case HAL_DIAG_ANI_STATS:
-		*result = ar5212AniGetCurrentStats(ah);
-		*resultsize = (*result == AH_NULL) ?
-			0 : sizeof(struct ar5212Stats);
+		OS_MEMZERO(&ahp->ext_ani_stats, sizeof(ahp->ext_ani_stats));
+		astats = ar5212AniGetCurrentStats(ah);
+		if (astats == NULL) {
+			*result = NULL;
+			*resultsize = 0;
+		} else {
+			OS_MEMCPY(&ahp->ext_ani_stats, astats, sizeof(HAL_ANI_STATS));
+			*result = &ahp->ext_ani_stats;
+			*resultsize = sizeof(ahp->ext_ani_stats);
+		}
 		return AH_TRUE;
 	case HAL_DIAG_ANI_CMD:
 		if (argsize != 2*sizeof(uint32_t))
@@ -1113,10 +1121,6 @@ ar5212GetDiagState(struct ath_hal *ah, int request,
 			return ar5212AniSetParams(ah, args, args);
 		}
 		break;
-	case HAL_DIAG_CHANSURVEY:
-		*result = &ahp->ah_chansurvey;
-		*resultsize = sizeof(HAL_CHANNEL_SURVEY);
-		return AH_TRUE;
 	}
 	return AH_FALSE;
 }

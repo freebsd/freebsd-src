@@ -169,18 +169,16 @@ public:
     ClangExternalASTSourceCommon();
     ~ClangExternalASTSourceCommon();
 
-    virtual ClangASTMetadata *GetMetadata(const void *object);
-    virtual void SetMetadata(const void *object, ClangASTMetadata &metadata);
-    virtual bool HasMetadata(const void *object);
-private:
+    ClangASTMetadata *GetMetadata(const void *object);
+    void SetMetadata(const void *object, ClangASTMetadata &metadata);
+    bool HasMetadata(const void *object);
+    
+    static ClangExternalASTSourceCommon *
+    Lookup(clang::ExternalASTSource *source);
+private:    
     typedef llvm::DenseMap<const void *, ClangASTMetadata> MetadataMap;
     
     MetadataMap m_metadata;
-    uint64_t    m_magic;        ///< Because we don't have RTTI, we must take it
-                                ///< on faith that any valid ExternalASTSource that
-                                ///< we try to use the *Metadata APIs on inherits
-                                ///< from ClangExternalASTSourceCommon.  This magic
-                                ///< number exists to enforce that.
 };
 
 }

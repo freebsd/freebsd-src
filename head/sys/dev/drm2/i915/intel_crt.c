@@ -129,7 +129,7 @@ static int intel_crt_mode_valid(struct drm_connector *connector,
 }
 
 static bool intel_crt_mode_fixup(struct drm_encoder *encoder,
-				 struct drm_display_mode *mode,
+				 const struct drm_display_mode *mode,
 				 struct drm_display_mode *adjusted_mode)
 {
 	return true;
@@ -310,7 +310,6 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 		 */
 		if (edid != NULL) {
 			is_digital = edid->input & DRM_EDID_INPUT_DIGITAL;
-			connector->display_info.raw_edid = NULL;
 			free(edid, DRM_MEM_KMS);
 		}
 

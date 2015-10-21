@@ -31,7 +31,7 @@
 .\"	@(#)bzero.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 6, 2014
+.Dd August 24, 2015
 .Dt BZERO 3
 .Os
 .Sh NAME
@@ -88,3 +88,11 @@ function first appeared in
 .Ox 5.5
 and
 .Fx 11.0 .
+.Pp
+.St -p1003.1-2008
+removes the specification of
+.Fn bzero
+and it is marked as LEGACY in
+.St -p1003.1-2004 .
+For portability with other systems new programs should use
+.Xr memset 3 .

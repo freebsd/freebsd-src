@@ -1,0 +1,75 @@
+.\" Copyright (c) 2015 EMC / Isilon Storage Division
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 24, 2015
+.Dt IOATCONTROL 8
+.Os
+.Sh NAME
+.Nm ioatcontrol
+.Nd Userspace tool to test
+.Xr ioat 4
+.Sh SYNOPSIS
+.Nm
+.Ar channel_number
+.Ar num_loops
+.Sh DESCRIPTION
+.Nm
+allows one to issue some number of test operations to the
+.Xr ioat 4
+driver on a specific hardware channel.
+.Pp
+Each loop will allocate two chunks of memory, write data patterns to them,
+submit a DMA request to copy one buffer to the other, and compare the contents
+in the callback.
+If the contents are not as expected, an error is reported.
+.Sh FILES
+.Pa /dev/ioat_test
+.Pp
+The interface between
+.Nm
+and
+.Xr ioat 4 .
+.Nm
+exposes it with
+.Cd hw.ioat.enable_ioat_test=1 .
+.Sh SEE ALSO
+.Xr ioat 4
+.Sh HISTORY
+The
+.Xr ioat 4
+driver first appeared in
+.Fx 11.0 .
+.Sh AUTHORS
+The
+.Xr ioat 4
+driver and
+.Nm
+tool were developed by
+.An \&Jim Harris Aq Mt jimharris@FreeBSD.org ,
+and
+.An \&Carl Delsey Aq Mt carl.r.delsey@intel.com .
+This manual page was written by
+.An \&Conrad Meyer Aq Mt cem@FreeBSD.org .

@@ -423,8 +423,8 @@ twa_attach(device_t dev)
 	}
 
 	sc->watchdog_index = 0;
-	callout_init(&(sc->watchdog_callout[0]), CALLOUT_MPSAFE);
-	callout_init(&(sc->watchdog_callout[1]), CALLOUT_MPSAFE);
+	callout_init(&(sc->watchdog_callout[0]), 1);
+	callout_init(&(sc->watchdog_callout[1]), 1);
 	callout_reset(&(sc->watchdog_callout[0]), 5*hz, twa_watchdog, &sc->ctlr_handle);
 
 	return(0);

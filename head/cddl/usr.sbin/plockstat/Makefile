@@ -18,9 +18,6 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${.CURDIR}/../../../cddl/lib/libdtrace \
 		-I${.CURDIR}/../../../sys
 
-DPADD=		${LIBPTHREAD} ${LIBDTRACE} ${LIBY} ${LIBL} ${LIBPROC} ${LIBCTF}\
-		${LIBELF} ${LIBZ} ${LIBRT} ${LIBRTLD_DB} ${LIBUTIL}
-LDADD=		-lpthread -ldtrace -ly -ll -lproc -lctf -lelf -lz -lrt \
-		-lrtld_db -lutil
+LIBADD=	dtrace proc
 
 .include <bsd.prog.mk>

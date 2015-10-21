@@ -11,6 +11,7 @@ SRCS+=	device_if.h
 SRCS+=	opt_inet.h
 SRCS+=	opt_inet6.h
 SRCS+=	opt_ofed.h
+SRCS+=	opt_rss.h
 SRCS+=	pci_if.h
 SRCS+=	t4_hw.c
 SRCS+=	t4_l2t.c
@@ -23,6 +24,6 @@ SRCS+=	t4_tracer.c
 # Provide the timestamp of a packet in its header mbuf.
 #CFLAGS+= -DT4_PKT_TIMESTAMP
 
-CFLAGS+= -I${CXGBE} -fms-extensions
+CFLAGS+= -I${CXGBE}
 
 .include <bsd.kmod.mk>

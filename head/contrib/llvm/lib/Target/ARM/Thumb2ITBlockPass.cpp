@@ -90,6 +90,19 @@ static void TrackDefUses(MachineInstr *MI,
   }
 }
 
+/// Clear kill flags for any uses in the given set.  This will likely
+/// conservatively remove more kill flags than are necessary, but removing them
+/// is safer than incorrect kill flags remaining on instructions.
+static void ClearKillFlags(MachineInstr *MI, SmallSet<unsigned, 4> &Uses) {
+  for (MachineOperand &MO : MI->operands()) {
+    if (!MO.isReg() || MO.isDef() || !MO.isKill())
+      continue;
+    if (!Uses.count(MO.getReg()))
+      continue;
+    MO.setIsKill(false);
+  }
+}
+
 static bool isCopy(MachineInstr *MI) {
   switch (MI->getOpcode()) {
   default:
@@ -188,7 +201,7 @@ bool Thumb2ITBlockPass::InsertITInstructions(MachineBasicBlock &MBB) {
                                              true/*isImp*/, false/*isKill*/));
 
     MachineInstr *LastITMI = MI;
-    MachineBasicBlock::iterator InsertPos = MIB;
+    MachineBasicBlock::iterator InsertPos = MIB.getInstr();
     ++MBBI;
 
     // Form IT block.
@@ -222,6 +235,7 @@ bool Thumb2ITBlockPass::InsertITInstructions(MachineBasicBlock &MBB) {
             --MBBI;
             MBB.remove(NMI);
             MBB.insert(InsertPos, NMI);
+            ClearKillFlags(MI, Uses);
             ++NumMovedInsts;
             continue;
           }
@@ -253,11 +267,14 @@ bool Thumb2ITBlockPass::InsertITInstructions(MachineBasicBlock &MBB) {
 }
 
 bool Thumb2ITBlockPass::runOnMachineFunction(MachineFunction &Fn) {
-  const TargetMachine &TM = Fn.getTarget();
+  const ARMSubtarget &STI =
+      static_cast<const ARMSubtarget &>(Fn.getSubtarget());
+  if (!STI.isThumb2())
+    return false;
   AFI = Fn.getInfo<ARMFunctionInfo>();
-  TII = static_cast<const Thumb2InstrInfo*>(TM.getInstrInfo());
-  TRI = TM.getRegisterInfo();
-  restrictIT = TM.getSubtarget<ARMSubtarget>().restrictIT();
+  TII = static_cast<const Thumb2InstrInfo *>(STI.getInstrInfo());
+  TRI = STI.getRegisterInfo();
+  restrictIT = STI.restrictIT();
 
   if (!AFI->isThumbFunction())
     return false;

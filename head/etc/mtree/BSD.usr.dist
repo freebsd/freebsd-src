@@ -7,15 +7,21 @@
 .
     bin
     ..
-    games
-    ..
     include
+        private
+            bsdstat
+            ..
+            ucl
+            ..
+        ..
     ..
     lib
         aout
         ..
         clang
-            3.5.1
+            3.7.0
+                include
+                ..
                 lib
                     freebsd
                     ..
@@ -32,15 +38,9 @@
         ..
         i18n
         ..
-        private
-        ..
-    ..
-    lib32
-        dtrace
-        ..
-        i18n
-        ..
-        private
+        libxo
+            encoder
+            ..
         ..
     ..
     libdata
@@ -183,15 +183,7 @@
             ..
             atm
             ..
-            binutils
-            ..
             legal
-                intel_ipw
-                ..
-                intel_iwi
-                ..
-                intel_wpi
-                ..
             ..
             llvm
                 clang
@@ -200,6 +192,20 @@
             ncurses
             ..
             ntp
+                drivers
+                    icons
+                    ..
+                    scripts
+                    ..
+                ..
+                hints
+                ..
+                icons
+                ..
+                pic
+                ..
+                scripts
+                ..
             ..
             papers
             ..
@@ -279,14 +285,6 @@
                 06.bc
                 ..
                 07.mail
-                ..
-                10.exref
-                ..
-                11.edit
-                ..
-                12.vi
-                ..
-                13.viref
                 ..
                 18.msdiffs
                 ..
@@ -416,6 +414,8 @@
                 ..
             ..
             tcsh
+            ..
+            uefisign
             ..
         ..
         games
@@ -710,6 +710,8 @@
             ja_JP.UTF-8
             ..
             ja_JP.eucJP
+            ..
+            kk_Cyrl_KZ.UTF-8
             ..
             kk_KZ.PT154
             ..

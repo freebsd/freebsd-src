@@ -30,7 +30,7 @@
 #define _ICONV_H_
 
 typedef void *iconv_t;
-typedef size_t dl_iconv_t(iconv_t, const char **, size_t *, char **, size_t *);
+typedef size_t dl_iconv_t(iconv_t, char **, size_t *, char **, size_t *);
 typedef int dl_iconv_close_t(iconv_t);
 
 extern iconv_t dl_iconv_open(const char *, const char *);

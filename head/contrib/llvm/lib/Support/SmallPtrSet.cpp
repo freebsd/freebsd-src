@@ -34,26 +34,28 @@ void SmallPtrSetImplBase::shrink_and_clear() {
   memset(CurArray, -1, CurArraySize*sizeof(void*));
 }
 
-bool SmallPtrSetImplBase::insert_imp(const void * Ptr) {
+std::pair<const void *const *, bool>
+SmallPtrSetImplBase::insert_imp(const void *Ptr) {
   if (isSmall()) {
     // Check to see if it is already in the set.
     for (const void **APtr = SmallArray, **E = SmallArray+NumElements;
          APtr != E; ++APtr)
       if (*APtr == Ptr)
-        return false;
-    
+        return std::make_pair(APtr, false);
+
     // Nope, there isn't.  If we stay small, just 'pushback' now.
-    if (NumElements < CurArraySize-1) {
+    if (NumElements < CurArraySize) {
       SmallArray[NumElements++] = Ptr;
-      return true;
+      return std::make_pair(SmallArray + (NumElements - 1), true);
     }
     // Otherwise, hit the big set case, which will call grow.
   }
-  
-  if (NumElements*4 >= CurArraySize*3) {
+
+  if (LLVM_UNLIKELY(NumElements * 4 >= CurArraySize * 3)) {
     // If more than 3/4 of the array is full, grow.
     Grow(CurArraySize < 64 ? 128 : CurArraySize*2);
-  } else if (CurArraySize-(NumElements+NumTombstones) < CurArraySize/8) {
+  } else if (LLVM_UNLIKELY(CurArraySize - (NumElements + NumTombstones) <
+                           CurArraySize / 8)) {
     // If fewer of 1/8 of the array is empty (meaning that many are filled with
     // tombstones), rehash.
     Grow(CurArraySize);
@@ -61,14 +63,15 @@ bool SmallPtrSetImplBase::insert_imp(const void * Ptr) {
   
   // Okay, we know we have space.  Find a hash bucket.
   const void **Bucket = const_cast<const void**>(FindBucketFor(Ptr));
-  if (*Bucket == Ptr) return false; // Already inserted, good.
-  
+  if (*Bucket == Ptr)
+    return std::make_pair(Bucket, false); // Already inserted, good.
+
   // Otherwise, insert it!
   if (*Bucket == getTombstoneMarker())
     --NumTombstones;
   *Bucket = Ptr;
   ++NumElements;  // Track density.
-  return true;
+  return std::make_pair(Bucket, true);
 }
 
 bool SmallPtrSetImplBase::erase_imp(const void * Ptr) {
@@ -105,16 +108,16 @@ const void * const *SmallPtrSetImplBase::FindBucketFor(const void *Ptr) const {
   const void *const *Array = CurArray;
   const void *const *Tombstone = nullptr;
   while (1) {
-    // Found Ptr's bucket?
-    if (Array[Bucket] == Ptr)
-      return Array+Bucket;
-    
     // If we found an empty bucket, the pointer doesn't exist in the set.
     // Return a tombstone if we've seen one so far, or the empty bucket if
     // not.
-    if (Array[Bucket] == getEmptyMarker())
+    if (LLVM_LIKELY(Array[Bucket] == getEmptyMarker()))
       return Tombstone ? Tombstone : Array+Bucket;
-    
+
+    // Found Ptr's bucket?
+    if (LLVM_LIKELY(Array[Bucket] == Ptr))
+      return Array+Bucket;
+
     // If this is a tombstone, remember it.  If Ptr ends up not in the set, we
     // prefer to return it than something that would require more probing.
     if (Array[Bucket] == getTombstoneMarker() && !Tombstone)
@@ -200,12 +203,11 @@ SmallPtrSetImplBase::SmallPtrSetImplBase(const void **SmallStorage,
   if (that.isSmall()) {
     CurArray = SmallArray;
     memcpy(CurArray, that.CurArray, sizeof(void *) * CurArraySize);
-    return;
+  } else {
+    // Otherwise, we steal the large memory allocation and no copy is needed.
+    CurArray = that.CurArray;
+    that.CurArray = that.SmallArray;
   }
-
-  // Otherwise, we steal the large memory allocation and no copy is needed.
-  CurArray = that.CurArray;
-  that.CurArray = that.SmallArray;
 
   // Make the "that" object small and empty.
   that.CurArraySize = SmallSize;

@@ -10,7 +10,6 @@
 #ifndef LLVM_SUPPORT_DATAEXTRACTOR_H
 #define LLVM_SUPPORT_DATAEXTRACTOR_H
 
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataTypes.h"
 
@@ -347,6 +346,17 @@ public:
   ///     length bytes available at that offset, \b false otherwise.
   bool isValidOffsetForDataOfSize(uint32_t offset, uint32_t length) const {
     return offset + length >= offset && isValidOffset(offset + length - 1);
+  }
+
+  /// Test the availability of enough bytes of data for a pointer from
+  /// \a offset. The size of a pointer is \a getAddressSize().
+  ///
+  /// @return
+  ///     \b true if \a offset is a valid offset and there are enough
+  ///     bytes for a pointer available at that offset, \b false
+  ///     otherwise.
+  bool isValidOffsetForAddress(uint32_t offset) const {
+    return isValidOffsetForDataOfSize(offset, AddressSize);
   }
 };
 

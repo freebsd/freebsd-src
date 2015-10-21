@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2015
+.Dd February 20, 2015
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -256,6 +256,15 @@ Set to a non-empty value to compress the release images with
 The original
 .Pq uncompressed
 images are not removed.
+.It Va XZ_THREADS Pq Vt int
+Set to the number of threads
+.Xr xz 1
+should use when compressing images.
+By default,
+.Va XZ_THREADS
+is set to
+.Va 0 ,
+which uses all available cores on the system.
 .It Va VCSCMD
 The command run to obtain the source trees.
 Defaults to
@@ -426,7 +435,6 @@ include support for each hosting provider by default.
 The following
 .Xr make 1
 environment variables are supported:
-.Pp
 .Bl -tag -width Ev
 .It Va CLOUDWARE
 Set to a list of one or more cloud hosting providers, enclosed in quotes.
@@ -546,7 +554,7 @@ Major subtargets called by targets above:
 Generates all the distribution archives
 .Pq base, kernel, ports, doc
 applicable on this platform.
-.It Cm system
+.It Cm disc1
 Builds a bootable installation system containing all the distribution files
 packaged by the
 .Cm packagesystem

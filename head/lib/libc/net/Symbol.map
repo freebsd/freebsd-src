@@ -124,6 +124,7 @@ FBSD_1.0 {
 	in6addr_nodelocal_allnodes;
 	in6addr_linklocal_allnodes;
 	sctp_getaddrlen;
+	sctp_getassocid;
 	sctp_bindx;
 	sctp_connectx;
 	sctp_peeloff;

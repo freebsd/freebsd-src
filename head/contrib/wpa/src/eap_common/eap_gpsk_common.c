@@ -284,7 +284,6 @@ int eap_gpsk_derive_keys(const u8 *psk, size_t psk_len, int vendor,
 			 u8 *pk, size_t *pk_len)
 {
 	u8 *seed, *pos;
-	size_t seed_len;
 	int ret;
 
 	wpa_printf(MSG_DEBUG, "EAP-GPSK: Deriving keys (%d:%d)",
@@ -296,8 +295,7 @@ int eap_gpsk_derive_keys(const u8 *psk, size_t psk_len, int vendor,
 	wpa_hexdump_key(MSG_DEBUG, "EAP-GPSK: PSK", psk, psk_len);
 
 	/* Seed = RAND_Peer || ID_Peer || RAND_Server || ID_Server */
-	seed_len = 2 * EAP_GPSK_RAND_LEN + id_server_len + id_peer_len;
-	seed = os_malloc(seed_len);
+	seed = os_malloc(2 * EAP_GPSK_RAND_LEN + id_server_len + id_peer_len);
 	if (seed == NULL) {
 		wpa_printf(MSG_DEBUG, "EAP-GPSK: Failed to allocate memory "
 			   "for key derivation");
@@ -313,17 +311,18 @@ int eap_gpsk_derive_keys(const u8 *psk, size_t psk_len, int vendor,
 	pos += EAP_GPSK_RAND_LEN;
 	os_memcpy(pos, id_server, id_server_len);
 	pos += id_server_len;
-	wpa_hexdump(MSG_DEBUG, "EAP-GPSK: Seed", seed, seed_len);
+	wpa_hexdump(MSG_DEBUG, "EAP-GPSK: Seed", seed, pos - seed);
 
 	switch (specifier) {
 	case EAP_GPSK_CIPHER_AES:
-		ret = eap_gpsk_derive_keys_aes(psk, psk_len, seed, seed_len,
+		ret = eap_gpsk_derive_keys_aes(psk, psk_len, seed, pos - seed,
 					       msk, emsk, sk, sk_len,
 					       pk, pk_len);
 		break;
 #ifdef EAP_GPSK_SHA256
 	case EAP_GPSK_CIPHER_SHA256:
-		ret = eap_gpsk_derive_keys_sha256(psk, psk_len, seed, seed_len,
+		ret = eap_gpsk_derive_keys_sha256(psk, psk_len, seed,
+						  pos - seed,
 						  msk, emsk, sk, sk_len);
 		break;
 #endif /* EAP_GPSK_SHA256 */
@@ -333,6 +332,139 @@ int eap_gpsk_derive_keys(const u8 *psk, size_t psk_len, int vendor,
 		ret = -1;
 		break;
 	}
+
+	os_free(seed);
+
+	return ret;
+}
+
+
+static int eap_gpsk_derive_mid_helper(u32 csuite_specifier,
+				      u8 *kdf_out, size_t kdf_out_len,
+				      const u8 *psk, const u8 *seed,
+				      size_t seed_len, u8 method_type)
+{
+	u8 *pos, *data;
+	size_t data_len;
+	int (*gkdf)(const u8 *_psk, const u8 *_data, size_t _data_len,
+		    u8 *buf, size_t len);
+
+	gkdf = NULL;
+	switch (csuite_specifier) {
+	case EAP_GPSK_CIPHER_AES:
+		gkdf = eap_gpsk_gkdf_cmac;
+		break;
+#ifdef EAP_GPSK_SHA256
+	case EAP_GPSK_CIPHER_SHA256:
+		gkdf = eap_gpsk_gkdf_sha256;
+		break;
+#endif /* EAP_GPSK_SHA256 */
+	default:
+		wpa_printf(MSG_DEBUG, "EAP-GPSK: Unknown cipher %d used in "
+			   "Session-Id derivation", csuite_specifier);
+		return -1;
+	}
+
+#define SID_LABEL "Method ID"
+	/* "Method ID" || EAP_Method_Type || CSuite_Sel || inputString */
+	data_len = strlen(SID_LABEL) + 1 + 6 + seed_len;
+	data = os_malloc(data_len);
+	if (data == NULL)
+		return -1;
+	pos = data;
+	os_memcpy(pos, SID_LABEL, strlen(SID_LABEL));
+	pos += strlen(SID_LABEL);
+#undef SID_LABEL
+	os_memcpy(pos, &method_type, 1);
+	pos += 1;
+	WPA_PUT_BE32(pos, EAP_GPSK_VENDOR_IETF); /* CSuite/Vendor = IETF */
+	pos += 4;
+	WPA_PUT_BE16(pos, csuite_specifier); /* CSuite/Specifier */
+	pos += 2;
+	os_memcpy(pos, seed, seed_len); /* inputString */
+	wpa_hexdump(MSG_DEBUG, "EAP-GPSK: Data to Method ID derivation",
+		    data, data_len);
+
+	if (gkdf(psk, data, data_len, kdf_out, kdf_out_len) < 0) {
+		os_free(data);
+		return -1;
+	}
+	os_free(data);
+	wpa_hexdump(MSG_DEBUG, "EAP-GPSK: Method ID", kdf_out, kdf_out_len);
+
+	return 0;
+}
+
+
+/**
+ * eap_gpsk_session_id - Derive EAP-GPSK Session ID
+ * @psk: Pre-shared key
+ * @psk_len: Length of psk in bytes
+ * @vendor: CSuite/Vendor
+ * @specifier: CSuite/Specifier
+ * @rand_peer: 32-byte RAND_Peer
+ * @rand_server: 32-byte RAND_Server
+ * @id_peer: ID_Peer
+ * @id_peer_len: Length of ID_Peer
+ * @id_server: ID_Server
+ * @id_server_len: Length of ID_Server
+ * @method_type: EAP Authentication Method Type
+ * @sid: Buffer for 17-byte Session ID
+ * @sid_len: Buffer for returning length of Session ID
+ * Returns: 0 on success, -1 on failure
+ */
+int eap_gpsk_derive_session_id(const u8 *psk, size_t psk_len, int vendor,
+			       int specifier,
+			       const u8 *rand_peer, const u8 *rand_server,
+			       const u8 *id_peer, size_t id_peer_len,
+			       const u8 *id_server, size_t id_server_len,
+			       u8 method_type, u8 *sid, size_t *sid_len)
+{
+	u8 *seed, *pos;
+	u8 kdf_out[16];
+	int ret;
+
+	wpa_printf(MSG_DEBUG, "EAP-GPSK: Deriving Session ID(%d:%d)",
+		   vendor, specifier);
+
+	if (vendor != EAP_GPSK_VENDOR_IETF)
+		return -1;
+
+	wpa_hexdump_key(MSG_DEBUG, "EAP-GPSK: PSK", psk, psk_len);
+
+	/*
+	 * inputString = RAND_Peer || ID_Peer || RAND_Server || ID_Server
+	 *            (= seed)
+	 * KS = 16, CSuite_Sel = 0x00000000 0x0001
+	 * Method-ID = GKDF-16 (zero, "Method ID" || EAP_Method_Type ||
+	 *                      CSuite_Sel || inputString)
+	 */
+	seed = os_malloc(2 * EAP_GPSK_RAND_LEN + id_server_len + id_peer_len);
+	if (seed == NULL) {
+		wpa_printf(MSG_DEBUG, "EAP-GPSK: Failed to allocate memory "
+			   "for Session-Id derivation");
+		return -1;
+	}
+
+	pos = seed;
+	os_memcpy(pos, rand_peer, EAP_GPSK_RAND_LEN);
+	pos += EAP_GPSK_RAND_LEN;
+	os_memcpy(pos, id_peer, id_peer_len);
+	pos += id_peer_len;
+	os_memcpy(pos, rand_server, EAP_GPSK_RAND_LEN);
+	pos += EAP_GPSK_RAND_LEN;
+	os_memcpy(pos, id_server, id_server_len);
+	pos += id_server_len;
+	wpa_hexdump(MSG_DEBUG, "EAP-GPSK: Seed", seed, pos - seed);
+
+	ret = eap_gpsk_derive_mid_helper(specifier,
+					 kdf_out, sizeof(kdf_out),
+					 psk, seed, pos - seed,
+					 method_type);
+
+	sid[0] = method_type;
+	os_memcpy(sid + 1, kdf_out, sizeof(kdf_out));
+	*sid_len = 1 + sizeof(kdf_out);
 
 	os_free(seed);
 

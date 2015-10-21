@@ -97,12 +97,12 @@ struct rt2661_vap {
 #define	RT2661_VAP(vap)		((struct rt2661_vap *)(vap))
 
 struct rt2661_softc {
-	struct ifnet			*sc_ifp;
+	struct ieee80211com		sc_ic;
+	struct mtx			sc_mtx;
+	struct mbufq			sc_snd;
 	device_t			sc_dev;
 	bus_space_tag_t			sc_st;
 	bus_space_handle_t		sc_sh;
-
-	struct mtx			sc_mtx;
 
 	struct callout			watchdog_ch;
 
@@ -117,6 +117,7 @@ struct rt2661_softc {
 	int                             sc_flags;
 #define	RAL_FW_LOADED		0x1
 #define	RAL_INPUT_RUNNING	0x2
+#define	RAL_RUNNING		0x4
 	int				sc_id;
 	struct ieee80211_channel	*sc_curchan;
 
@@ -156,9 +157,7 @@ struct rt2661_softc {
 	int				dwelltime;
 
 	struct rt2661_rx_radiotap_header sc_rxtap;
-	int				sc_rxtap_len;
 	struct rt2661_tx_radiotap_header sc_txtap;
-	int				sc_txtap_len;
 };
 
 int	rt2661_attach(device_t, int);

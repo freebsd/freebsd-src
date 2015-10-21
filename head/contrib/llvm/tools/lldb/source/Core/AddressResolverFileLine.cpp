@@ -14,7 +14,6 @@
 #include "lldb/Core/StreamString.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/SymbolContext.h"
-#include "lldb/lldb-private-log.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -96,7 +95,7 @@ AddressResolverFileLine::GetDepth()
 void
 AddressResolverFileLine::GetDescription (Stream *s)
 {
-    s->Printf ("File and line address - file: \"%s\" line: %u", m_file_spec.GetFilename().AsCString(), m_line_number);
+    s->Printf ("File and line address - file: \"%s\" line: %u", m_file_spec.GetFilename().AsCString("<Unknown>"), m_line_number);
 }
 
 

@@ -43,7 +43,7 @@ if [ $# != 1 ]; then
 fi
 
 dtrace=$1
-bname=`/usr/bin/basename $0`
+bname=`basename $0`
 dfilename=/var/tmp/$bname.$$.d
 
 ## Create .d file
@@ -77,7 +77,7 @@ fi
 
 #Get the groupid of the calling process using ps
 
-groupid=`ps -o pid,pgid | grep "$$ " | awk '{print $2}' 2>/dev/null`
+groupid=`ps -x -o pid,egid | grep "$$ " | awk '{print $2}' 2>/dev/null`
 if [ $? -ne 0 ]; then
 	print -u2 "unable to get uid of the current process with pid = $$"
 	exit 1
@@ -93,5 +93,5 @@ fi
 
 #Cleanup leftovers
 
-/bin/rm -f $dfilename
+rm -f $dfilename
 exit 0

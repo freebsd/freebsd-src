@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_PATH_DIAGNOSTIC_H
-#define LLVM_CLANG_PATH_DIAGNOSTIC_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_BUGREPORTER_PATHDIAGNOSTIC_H
+#define LLVM_CLANG_STATICANALYZER_CORE_BUGREPORTER_PATHDIAGNOSTIC_H
 
 #include "clang/Analysis/ProgramPoint.h"
 #include "clang/Basic/SourceLocation.h"
@@ -70,10 +70,14 @@ public:
     void Profile(llvm::FoldingSetNodeID &ID) { ID = NodeID; }
   };
   
-  struct FilesMade : public llvm::FoldingSet<PDFileEntry> {
+  class FilesMade {
     llvm::BumpPtrAllocator Alloc;
+    llvm::FoldingSet<PDFileEntry> Set;
 
+  public:
     ~FilesMade();
+
+    bool empty() const { return Set.empty(); }
 
     void addDiagnostic(const PathDiagnostic &PD,
                        StringRef ConsumerName,
@@ -94,8 +98,8 @@ public:
                                     FilesMade *filesMade) = 0;
 
   virtual StringRef getName() const = 0;
-  
-  void HandlePathDiagnostic(PathDiagnostic *D);
+
+  void HandlePathDiagnostic(std::unique_ptr<PathDiagnostic> D);
 
   enum PathGenerationScheme { None, Minimal, Extensive, AlternateExtensive };
   virtual PathGenerationScheme getGenerationScheme() const { return Minimal; }
@@ -352,9 +356,9 @@ private:
 
   std::vector<SourceRange> ranges;
 
-  PathDiagnosticPiece() LLVM_DELETED_FUNCTION;
-  PathDiagnosticPiece(const PathDiagnosticPiece &P) LLVM_DELETED_FUNCTION;
-  void operator=(const PathDiagnosticPiece &P) LLVM_DELETED_FUNCTION;
+  PathDiagnosticPiece() = delete;
+  PathDiagnosticPiece(const PathDiagnosticPiece &P) = delete;
+  void operator=(const PathDiagnosticPiece &P) = delete;
 
 protected:
   PathDiagnosticPiece(StringRef s, Kind k, DisplayHint hint = Below);
@@ -362,7 +366,7 @@ protected:
   PathDiagnosticPiece(Kind k, DisplayHint hint = Below);
 
 public:
-  virtual ~PathDiagnosticPiece();
+  ~PathDiagnosticPiece() override;
 
   StringRef getString() const { return str; }
 
@@ -478,7 +482,7 @@ private:
 
 public:
   StackHintGeneratorForSymbol(SymbolRef S, StringRef M) : Sym(S), Msg(M) {}
-  virtual ~StackHintGeneratorForSymbol() {}
+  ~StackHintGeneratorForSymbol() override {}
 
   /// \brief Search the call expression for the symbol Sym and dispatch the
   /// 'getMessageForX()' methods to construct a specific message.
@@ -511,7 +515,7 @@ public:
     : PathDiagnosticSpotPiece(pos, s, Event, addPosRange),
       CallStackHint(stackHint) {}
 
-  ~PathDiagnosticEventPiece();
+  ~PathDiagnosticEventPiece() override;
 
   /// Mark the diagnostic piece as being potentially prunable.  This
   /// flag may have been previously set, at which point it will not
@@ -570,9 +574,9 @@ public:
   PathDiagnosticLocation callEnterWithin;
   PathDiagnosticLocation callReturn;  
   PathPieces path;
-  
-  virtual ~PathDiagnosticCallPiece();
-  
+
+  ~PathDiagnosticCallPiece() override;
+
   const Decl *getCaller() const { return Caller; }
   
   const Decl *getCallee() const { return Callee; }
@@ -631,7 +635,7 @@ public:
       LPairs.push_back(PathDiagnosticLocationPair(startPos, endPos));
     }
 
-  ~PathDiagnosticControlFlowPiece();
+    ~PathDiagnosticControlFlowPiece() override;
 
   PathDiagnosticLocation getStartLocation() const {
     assert(!LPairs.empty() &&
@@ -686,7 +690,7 @@ public:
   PathDiagnosticMacroPiece(const PathDiagnosticLocation &pos)
     : PathDiagnosticSpotPiece(pos, "", Macro) {}
 
-  ~PathDiagnosticMacroPiece();
+  ~PathDiagnosticMacroPiece() override;
 
   PathPieces subPieces;
   
@@ -730,7 +734,7 @@ class PathDiagnostic : public llvm::FoldingSetNode {
   PathDiagnosticLocation UniqueingLoc;
   const Decl *UniqueingDecl;
 
-  PathDiagnostic() LLVM_DELETED_FUNCTION;
+  PathDiagnostic() = delete;
 public:
   PathDiagnostic(StringRef CheckName, const Decl *DeclWithIssue,
                  StringRef bugtype, StringRef verboseDesc, StringRef shortDesc,
@@ -762,11 +766,11 @@ public:
 
   bool isWithinCall() const { return !pathStack.empty(); }
 
-  void setEndOfPath(PathDiagnosticPiece *EndPiece) {
+  void setEndOfPath(std::unique_ptr<PathDiagnosticPiece> EndPiece) {
     assert(!Loc.isValid() && "End location already set!");
     Loc = EndPiece->getLocation();
     assert(Loc.isValid() && "Invalid location for end-of-path piece");
-    getActivePath().push_back(EndPiece);
+    getActivePath().push_back(EndPiece.release());
   }
 
   void appendToDesc(StringRef S) {

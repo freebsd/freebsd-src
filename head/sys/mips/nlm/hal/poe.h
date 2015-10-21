@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -277,7 +277,7 @@ nlm_poe_max_flows(uint64_t poe_pcibase)
  * thr_vcmask: destination VCs for a thread
  */
 static __inline void
-nlm_calc_poe_distvec(uint32_t cm0, uint32_t cm1, uint32_t cm2, uint32_t cm3, 
+nlm_calc_poe_distvec(uint32_t cm0, uint32_t cm1, uint32_t cm2, uint32_t cm3,
     uint32_t thr_vcmask, uint32_t *distvec)
 {
 	uint32_t cpumask = 0, val;

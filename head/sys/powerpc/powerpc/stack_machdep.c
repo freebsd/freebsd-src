@@ -98,6 +98,13 @@ stack_save_td(struct stack *st, struct thread *td)
 	stack_capture(st, frame);
 }
 
+int
+stack_save_td_running(struct stack *st, struct thread *td)
+{
+
+	return (EOPNOTSUPP);
+}
+
 void
 stack_save(struct stack *st)
 {

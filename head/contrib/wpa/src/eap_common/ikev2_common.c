@@ -16,28 +16,28 @@
 #include "ikev2_common.h"
 
 
-static struct ikev2_integ_alg ikev2_integ_algs[] = {
+static const struct ikev2_integ_alg ikev2_integ_algs[] = {
 	{ AUTH_HMAC_SHA1_96, 20, 12 },
 	{ AUTH_HMAC_MD5_96, 16, 12 }
 };
 
-#define NUM_INTEG_ALGS (sizeof(ikev2_integ_algs) / sizeof(ikev2_integ_algs[0]))
+#define NUM_INTEG_ALGS ARRAY_SIZE(ikev2_integ_algs)
 
 
-static struct ikev2_prf_alg ikev2_prf_algs[] = {
+static const struct ikev2_prf_alg ikev2_prf_algs[] = {
 	{ PRF_HMAC_SHA1, 20, 20 },
 	{ PRF_HMAC_MD5, 16, 16 }
 };
 
-#define NUM_PRF_ALGS (sizeof(ikev2_prf_algs) / sizeof(ikev2_prf_algs[0]))
+#define NUM_PRF_ALGS ARRAY_SIZE(ikev2_prf_algs)
 
 
-static struct ikev2_encr_alg ikev2_encr_algs[] = {
+static const struct ikev2_encr_alg ikev2_encr_algs[] = {
 	{ ENCR_AES_CBC, 16, 16 }, /* only 128-bit keys supported for now */
 	{ ENCR_3DES, 24, 8 }
 };
 
-#define NUM_ENCR_ALGS (sizeof(ikev2_encr_algs) / sizeof(ikev2_encr_algs[0]))
+#define NUM_ENCR_ALGS ARRAY_SIZE(ikev2_encr_algs)
 
 
 const struct ikev2_integ_alg * ikev2_get_integ(int id)
@@ -173,46 +173,12 @@ const struct ikev2_encr_alg * ikev2_get_encr(int id)
 }
 
 
-#ifdef CCNS_PL
-/* from des.c */
-struct des3_key_s {
-	u32 ek[3][32];
-	u32 dk[3][32];
-};
-
-void des3_key_setup(const u8 *key, struct des3_key_s *dkey);
-void des3_encrypt(const u8 *plain, const struct des3_key_s *key, u8 *crypt);
-void des3_decrypt(const u8 *crypt, const struct des3_key_s *key, u8 *plain);
-#endif /* CCNS_PL */
-
-
 int ikev2_encr_encrypt(int alg, const u8 *key, size_t key_len, const u8 *iv,
 		       const u8 *plain, u8 *crypt, size_t len)
 {
 	struct crypto_cipher *cipher;
 	int encr_alg;
 
-#ifdef CCNS_PL
-	if (alg == ENCR_3DES) {
-		struct des3_key_s des3key;
-		size_t i, blocks;
-		u8 *pos;
-
-		/* ECB mode is used incorrectly for 3DES!? */
-		if (key_len != 24) {
-			wpa_printf(MSG_INFO, "IKEV2: Invalid encr key length");
-			return -1;
-		}
-		des3_key_setup(key, &des3key);
-
-		blocks = len / 8;
-		pos = crypt;
-		for (i = 0; i < blocks; i++) {
-			des3_encrypt(pos, &des3key, pos);
-			pos += 8;
-		}
-	} else {
-#endif /* CCNS_PL */
 	switch (alg) {
 	case ENCR_3DES:
 		encr_alg = CRYPTO_CIPHER_ALG_3DES;
@@ -237,9 +203,6 @@ int ikev2_encr_encrypt(int alg, const u8 *key, size_t key_len, const u8 *iv,
 		return -1;
 	}
 	crypto_cipher_deinit(cipher);
-#ifdef CCNS_PL
-	}
-#endif /* CCNS_PL */
 
 	return 0;
 }
@@ -251,31 +214,6 @@ int ikev2_encr_decrypt(int alg, const u8 *key, size_t key_len, const u8 *iv,
 	struct crypto_cipher *cipher;
 	int encr_alg;
 
-#ifdef CCNS_PL
-	if (alg == ENCR_3DES) {
-		struct des3_key_s des3key;
-		size_t i, blocks;
-
-		/* ECB mode is used incorrectly for 3DES!? */
-		if (key_len != 24) {
-			wpa_printf(MSG_INFO, "IKEV2: Invalid encr key length");
-			return -1;
-		}
-		des3_key_setup(key, &des3key);
-
-		if (len % 8) {
-			wpa_printf(MSG_INFO, "IKEV2: Invalid encrypted "
-				   "length");
-			return -1;
-		}
-		blocks = len / 8;
-		for (i = 0; i < blocks; i++) {
-			des3_decrypt(crypt, &des3key, plain);
-			plain += 8;
-			crypt += 8;
-		}
-	} else {
-#endif /* CCNS_PL */
 	switch (alg) {
 	case ENCR_3DES:
 		encr_alg = CRYPTO_CIPHER_ALG_3DES;
@@ -300,9 +238,6 @@ int ikev2_encr_decrypt(int alg, const u8 *key, size_t key_len, const u8 *iv,
 		return -1;
 	}
 	crypto_cipher_deinit(cipher);
-#ifdef CCNS_PL
-	}
-#endif /* CCNS_PL */
 
 	return 0;
 }
@@ -316,25 +251,29 @@ int ikev2_parse_payloads(struct ikev2_payloads *payloads,
 	os_memset(payloads, 0, sizeof(*payloads));
 
 	while (next_payload != IKEV2_PAYLOAD_NO_NEXT_PAYLOAD) {
-		int plen, pdatalen;
+		unsigned int plen, pdatalen, left;
 		const u8 *pdata;
 		wpa_printf(MSG_DEBUG, "IKEV2: Processing payload %u",
 			   next_payload);
-		if (end - pos < (int) sizeof(*phdr)) {
+		if (end < pos)
+			return -1;
+		left = end - pos;
+		if (left < sizeof(*phdr)) {
 			wpa_printf(MSG_INFO, "IKEV2:   Too short message for "
 				   "payload header (left=%ld)",
 				   (long) (end - pos));
+			return -1;
 		}
 		phdr = (const struct ikev2_payload_hdr *) pos;
 		plen = WPA_GET_BE16(phdr->payload_length);
-		if (plen < (int) sizeof(*phdr) || pos + plen > end) {
+		if (plen < sizeof(*phdr) || plen > left) {
 			wpa_printf(MSG_INFO, "IKEV2:   Invalid payload header "
 				   "length %d", plen);
 			return -1;
 		}
 
 		wpa_printf(MSG_DEBUG, "IKEV2:   Next Payload: %u  Flags: 0x%x"
-			   "  Payload Length: %d",
+			   "  Payload Length: %u",
 			   phdr->next_payload, phdr->flags, plen);
 
 		pdata = (const u8 *) (phdr + 1);
@@ -542,7 +481,7 @@ u8 * ikev2_decrypt_payload(int encr_id, int integ_id,
 			   "hash");
 		return NULL;
 	}
-	if (os_memcmp(integ, hash, integ_alg->hash_len) != 0) {
+	if (os_memcmp_const(integ, hash, integ_alg->hash_len) != 0) {
 		wpa_printf(MSG_INFO, "IKEV2: Incorrect Integrity Checksum "
 			   "Data");
 		return NULL;
@@ -706,10 +645,6 @@ int ikev2_derive_sk_keys(const struct ikev2_prf_alg *prf,
 	keys->SK_integ_len = integ->key_len;
 	keys->SK_encr_len = encr->key_len;
 	keys->SK_prf_len = prf->key_len;
-#ifdef CCNS_PL
-	/* Uses encryption key length for SK_d; should be PRF length */
-	keys->SK_d_len = keys->SK_encr_len;
-#endif /* CCNS_PL */
 
 	keybuf_len = keys->SK_d_len + 2 * keys->SK_integ_len +
 		2 * keys->SK_encr_len + 2 * keys->SK_prf_len;

@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 /* Key used to store the version of the database data elements. */
-#define VERSION_KEY "\0VERSION"
+static char VERSION_KEY[] = "\0VERSION";
 
 /*
  * Create the in-memory database, *mdb.

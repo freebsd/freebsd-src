@@ -1,4 +1,4 @@
-//===- AArch64TargetStreamer.cpp - AArch64TargetStreamer class --*- C++ -*---------===//
+//===- AArch64TargetStreamer.cpp - AArch64TargetStreamer class ------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -10,12 +10,9 @@
 // This file implements the AArch64TargetStreamer class.
 //
 //===----------------------------------------------------------------------===//
-#include "llvm/ADT/MapVector.h"
-#include "llvm/MC/ConstantPools.h"
-#include "llvm/MC/MCContext.h"
-#include "llvm/MC/MCExpr.h"
-#include "llvm/MC/MCStreamer.h"
 
+#include "AArch64TargetStreamer.h"
+#include "llvm/MC/ConstantPools.h"
 using namespace llvm;
 
 //
@@ -39,3 +36,5 @@ void AArch64TargetStreamer::emitCurrentConstantPool() {
 
 // finish() - write out any non-empty assembler constant pools.
 void AArch64TargetStreamer::finish() { ConstantPools->emitAll(Streamer); }
+
+void AArch64TargetStreamer::emitInst(uint32_t Inst) {}

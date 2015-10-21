@@ -19,7 +19,6 @@
 #include "lldb/Core/StreamString.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/Function.h"
-#include "lldb/lldb-private-log.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -33,13 +32,15 @@ BreakpointResolverFileLine::BreakpointResolverFileLine
     const FileSpec &file_spec,
     uint32_t line_no,
     bool check_inlines,
-    bool skip_prologue
+    bool skip_prologue,
+    bool exact_match
 ) :
     BreakpointResolver (bkpt, BreakpointResolver::FileLineResolver),
     m_file_spec (file_spec),
     m_line_number (line_no),
     m_inlines (check_inlines),
-    m_skip_prologue(skip_prologue)
+    m_skip_prologue(skip_prologue),
+    m_exact_match(exact_match)
 {
 }
 
@@ -79,7 +80,7 @@ BreakpointResolverFileLine::SearchCallback
         if (cu_sp)
         {
             if (filter.CompUnitPasses(*cu_sp))
-                cu_sp->ResolveSymbolContext (m_file_spec, m_line_number, m_inlines, false, eSymbolContextEverything, sc_list);
+                cu_sp->ResolveSymbolContext (m_file_spec, m_line_number, m_inlines, m_exact_match, eSymbolContextEverything, sc_list);
         }
     }
     StreamString s;
@@ -101,7 +102,7 @@ BreakpointResolverFileLine::GetDepth()
 void
 BreakpointResolverFileLine::GetDescription (Stream *s)
 {
-    s->Printf ("file = '%s', line = %u", m_file_spec.GetPath().c_str(), m_line_number);
+    s->Printf ("file = '%s', line = %u, exact_match = %d", m_file_spec.GetPath().c_str(), m_line_number, m_exact_match);
 }
 
 void
@@ -110,3 +111,15 @@ BreakpointResolverFileLine::Dump (Stream *s) const
 
 }
 
+lldb::BreakpointResolverSP
+BreakpointResolverFileLine::CopyForBreakpoint (Breakpoint &breakpoint)
+{
+    lldb::BreakpointResolverSP ret_sp(new BreakpointResolverFileLine(&breakpoint,
+                                                                     m_file_spec,
+                                                                     m_line_number,
+                                                                     m_inlines,
+                                                                     m_skip_prologue,
+                                                                     m_exact_match));
+
+    return ret_sp;
+}

@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_backend.h>
 #include <cam/ctl/ctl_ioctl.h>
@@ -67,10 +66,6 @@ static struct tpcl_softc tpcl_softc;
 
 static int tpcl_init(void);
 static void tpcl_shutdown(void);
-static void tpcl_online(void *arg);
-static void tpcl_offline(void *arg);
-static int tpcl_lun_enable(void *arg, struct ctl_id target_id, int lun_id);
-static int tpcl_lun_disable(void *arg, struct ctl_id target_id, int lun_id);
 static void tpcl_datamove(union ctl_io *io);
 static void tpcl_done(union ctl_io *io);
 
@@ -98,21 +93,15 @@ tpcl_init(void)
 	port->port_type = CTL_PORT_INTERNAL;
 	port->num_requested_ctl_io = 100;
 	port->port_name = "tpc";
-	port->port_online = tpcl_online;
-	port->port_offline = tpcl_offline;
-	port->onoff_arg = tsoftc;
-	port->lun_enable = tpcl_lun_enable;
-	port->lun_disable = tpcl_lun_disable;
-	port->targ_lun_arg = tsoftc;
 	port->fe_datamove = tpcl_datamove;
 	port->fe_done = tpcl_done;
 	port->max_targets = 1;
 	port->max_target_id = 0;
+	port->targ_port = -1;
 	port->max_initiators = 1;
 
-	if (ctl_port_register(port) != 0)
-	{
-		printf("%s: tpc frontend registration failed\n", __func__);
+	if (ctl_port_register(port) != 0) {
+		printf("%s: ctl_port_register() failed with error\n", __func__);
 		return (0);
 	}
 
@@ -142,30 +131,6 @@ tpcl_shutdown(void)
 }
 
 static void
-tpcl_online(void *arg)
-{
-}
-
-static void
-tpcl_offline(void *arg)
-{
-}
-
-static int
-tpcl_lun_enable(void *arg, struct ctl_id target_id, int lun_id)
-{
-
-	return (0);
-}
-
-static int
-tpcl_lun_disable(void *arg, struct ctl_id target_id, int lun_id)
-{
-
-	return (0);
-}
-
-static void
 tpcl_datamove(union ctl_io *io)
 {
 	struct ctl_sg_entry *ext_sglist, *kern_sglist;
@@ -176,10 +141,6 @@ tpcl_datamove(union ctl_io *io)
 	int kern_watermark, ext_watermark;
 	struct ctl_scsiio *ctsio;
 	int i, j;
-
-	ext_sg_start = 0;
-	ext_offset = 0;
-	ext_sglist = NULL;
 
 	CTL_DEBUG_PRINT(("%s\n", __func__));
 
@@ -197,7 +158,7 @@ tpcl_datamove(union ctl_io *io)
 	 * To simplify things here, if we have a single buffer, stick it in
 	 * a S/G entry and just make it a single entry S/G list.
 	 */
-	if (ctsio->io_hdr.flags & CTL_FLAG_EDPTR_SGLIST) {
+	if (ctsio->ext_sg_entries > 0) {
 		int len_seen;
 
 		ext_sglist = (struct ctl_sg_entry *)ctsio->ext_data_ptr;
@@ -309,53 +270,43 @@ tpcl_done(union ctl_io *io)
 
 uint64_t
 tpcl_resolve(struct ctl_softc *softc, int init_port,
-    struct scsi_ec_cscd *cscd, uint32_t *ss)
+    struct scsi_ec_cscd *cscd, uint32_t *ss, uint32_t *ps, uint32_t *pso)
 {
 	struct scsi_ec_cscd_id *cscdid;
 	struct ctl_port *port;
 	struct ctl_lun *lun;
-	uint64_t lunid = UINT64_MAX, l;
-	int i;
+	uint64_t lunid = UINT64_MAX;
 
-	if (cscd->type_code != EC_CSCD_ID)
+	if (cscd->type_code != EC_CSCD_ID ||
+	    (cscd->luidt_pdt & EC_LUIDT_MASK) != EC_LUIDT_LUN ||
+	    (cscd->luidt_pdt & EC_NUL) != 0)
 		return (lunid);
 
 	cscdid = (struct scsi_ec_cscd_id *)cscd;
 	mtx_lock(&softc->ctl_lock);
-	if (init_port >= 0) {
-		port = softc->ctl_ports[ctl_port_idx(init_port)];
-		if (port == NULL || port->lun_map == NULL)
-			init_port = -1;
-	}
-	if (init_port < 0) {
-		STAILQ_FOREACH(lun, &softc->lun_list, links) {
-			if (lun->lun_devid == NULL)
-				continue;
-			if (scsi_devid_match(lun->lun_devid->data,
-			    lun->lun_devid->len, &cscdid->codeset,
-			    cscdid->length + 4) == 0) {
-				lunid = lun->lun;
-				if (ss && lun->be_lun)
-					*ss = lun->be_lun->blocksize;
-				break;
-			}
-		}
-	} else {
-		for (i = 0; i < CTL_MAX_LUNS; i++) {
-			l = port->lun_map(port->targ_lun_arg, i);
-			if (l >= CTL_MAX_LUNS)
-				continue;
-			lun = softc->ctl_luns[l];
-			if (lun == NULL || lun->lun_devid == NULL)
-				continue;
-			if (scsi_devid_match(lun->lun_devid->data,
-			    lun->lun_devid->len, &cscdid->codeset,
-			    cscdid->length + 4) == 0) {
-				lunid = lun->lun;
-				if (ss && lun->be_lun)
-					*ss = lun->be_lun->blocksize;
-				break;
-			}
+	if (init_port >= 0)
+		port = softc->ctl_ports[init_port];
+	else
+		port = NULL;
+	STAILQ_FOREACH(lun, &softc->lun_list, links) {
+		if (port != NULL &&
+		    ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
+			continue;
+		if (lun->lun_devid == NULL)
+			continue;
+		if (scsi_devid_match(lun->lun_devid->data,
+		    lun->lun_devid->len, &cscdid->codeset,
+		    cscdid->length + 4) == 0) {
+			lunid = lun->lun;
+			if (ss && lun->be_lun)
+				*ss = lun->be_lun->blocksize;
+			if (ps && lun->be_lun)
+				*ps = lun->be_lun->blocksize <<
+				    lun->be_lun->pblockexp;
+			if (pso && lun->be_lun)
+				*pso = lun->be_lun->blocksize *
+				    lun->be_lun->pblockoff;
+			break;
 		}
 	}
 	mtx_unlock(&softc->ctl_lock);
@@ -375,9 +326,8 @@ tpcl_queue(union ctl_io *io, uint64_t lun)
 {
 	struct tpcl_softc *tsoftc = &tpcl_softc;
 
-	io->io_hdr.nexus.initid.id = 0;
+	io->io_hdr.nexus.initid = 0;
 	io->io_hdr.nexus.targ_port = tsoftc->port.targ_port;
-	io->io_hdr.nexus.targ_target.id = 0;
 	io->io_hdr.nexus.targ_lun = lun;
 	io->scsiio.tag_num = atomic_fetchadd_int(&tsoftc->cur_tag_num, 1);
 	io->scsiio.ext_data_filled = 0;

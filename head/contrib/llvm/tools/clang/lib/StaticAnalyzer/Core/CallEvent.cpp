@@ -607,7 +607,7 @@ RuntimeDefinition CXXDestructorCall::getRuntimeDefinition() const {
 ArrayRef<ParmVarDecl*> ObjCMethodCall::parameters() const {
   const ObjCMethodDecl *D = getDecl();
   if (!D)
-    return ArrayRef<ParmVarDecl*>();
+    return None;
   return D->parameters();
 }
 
@@ -785,7 +785,7 @@ RuntimeDefinition ObjCMethodCall::getRuntimeDefinition() const {
 
   if (E->isInstanceMessage()) {
 
-    // Find the the receiver type.
+    // Find the receiver type.
     const ObjCObjectPointerType *ReceiverT = nullptr;
     bool CanBeSubClassed = false;
     QualType SupersType = E->getSuperType();

@@ -11,12 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CODEGEN_INSTRUCTION_H
-#define CODEGEN_INSTRUCTION_H
+#ifndef LLVM_UTILS_TABLEGEN_CODEGENINSTRUCTION_H
+#define LLVM_UTILS_TABLEGEN_CODEGENINSTRUCTION_H
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/CodeGen/MachineValueType.h"
-#include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/SMLoc.h"
 #include <string>
 #include <utility>
 #include <vector>
@@ -247,12 +248,15 @@ namespace llvm {
     bool isNotDuplicable : 1;
     bool hasSideEffects : 1;
     bool hasSideEffects_Unset : 1;
-    bool neverHasSideEffects : 1;
     bool isAsCheapAsAMove : 1;
     bool hasExtraSrcRegAllocReq : 1;
     bool hasExtraDefRegAllocReq : 1;
     bool isCodeGenOnly : 1;
     bool isPseudo : 1;
+    bool isRegSequence : 1;
+    bool isExtractSubreg : 1;
+    bool isInsertSubreg : 1;
+    bool isConvergent : 1;
 
     std::string DeprecatedReason;
     bool HasComplexDeprecationPredicate;

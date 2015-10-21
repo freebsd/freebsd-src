@@ -149,8 +149,6 @@ key_sendup0(struct rawcb *rp, struct mbuf *m, int promisc)
 			PFKEYSTAT_INC(in_nomem);
 			return (ENOBUFS);
 		}
-		m->m_pkthdr.len += sizeof(*pmsg); /* XXX: is this correct? */
-
 		pmsg = mtod(m, struct sadb_msg *);
 		bzero(pmsg, sizeof(*pmsg));
 		pmsg->sadb_msg_version = PF_KEY_V2;

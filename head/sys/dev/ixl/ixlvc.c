@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -249,9 +249,12 @@ ixlv_verify_api_ver(struct ixlv_sc *sc)
 	}
 
 	pf_vvi = (struct i40e_virtchnl_version_info *)event.msg_buf;
-	if ((pf_vvi->major != I40E_VIRTCHNL_VERSION_MAJOR) ||
-	    (pf_vvi->minor != I40E_VIRTCHNL_VERSION_MINOR))
+	if ((pf_vvi->major > I40E_VIRTCHNL_VERSION_MAJOR) ||
+	    ((pf_vvi->major == I40E_VIRTCHNL_VERSION_MAJOR) &&
+	    (pf_vvi->minor > I40E_VIRTCHNL_VERSION_MINOR)))
 		err = EIO;
+	else
+		sc->pf_version = pf_vvi->minor;
 
 out_alloc:
 	free(event.msg_buf, M_DEVBUF);
@@ -269,7 +272,18 @@ out:
 int
 ixlv_send_vf_config_msg(struct ixlv_sc *sc)
 {
-	return ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_GET_VF_RESOURCES,
+	u32	caps;
+
+	caps = I40E_VIRTCHNL_VF_OFFLOAD_L2 |
+	    I40E_VIRTCHNL_VF_OFFLOAD_RSS_AQ |
+	    I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG |
+	    I40E_VIRTCHNL_VF_OFFLOAD_VLAN;
+
+	if (sc->pf_version)
+		return ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_GET_VF_RESOURCES,
+				  (u8 *)&caps, sizeof(caps));
+	else
+		return ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_GET_VF_RESOURCES,
 				  NULL, 0);
 }
 
@@ -362,7 +376,7 @@ ixlv_configure_queues(struct ixlv_sc *sc)
 
 	struct i40e_virtchnl_vsi_queue_config_info *vqci;
 	struct i40e_virtchnl_queue_pair_info *vqpi;
-	
+
 	pairs = vsi->num_queues;
 	len = sizeof(struct i40e_virtchnl_vsi_queue_config_info) +
 		       (sizeof(struct i40e_virtchnl_queue_pair_info) * pairs);
@@ -770,11 +784,16 @@ void
 ixlv_request_stats(struct ixlv_sc *sc)
 {
 	struct i40e_virtchnl_queue_select vqs;
+	int error = 0;
 
 	vqs.vsi_id = sc->vsi_res->vsi_id;
 	/* Low priority, we don't need to error check */
-	ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_GET_STATS,
+	error = ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_GET_STATS,
 	    (u8 *)&vqs, sizeof(vqs));
+#ifdef IXL_DEBUG
+	if (error)
+		device_printf(sc->dev, "Error sending stats request to PF: %d\n", error);
+#endif
 }
 
 /*
@@ -783,14 +802,11 @@ ixlv_request_stats(struct ixlv_sc *sc)
 void
 ixlv_update_stats_counters(struct ixlv_sc *sc, struct i40e_eth_stats *es)
 {
-	struct ixl_vsi *vsi;
+	struct ixl_vsi *vsi = &sc->vsi;
 	uint64_t tx_discards;
-	int i;
-
-	vsi = &sc->vsi;
 
 	tx_discards = es->tx_discards;
-	for (i = 0; i < sc->vsi.num_queues; i++)
+	for (int i = 0; i < vsi->num_queues; i++)
 		tx_discards += sc->vsi.queues[i].txr.br->br_drops;
 
 	/* Update ifnet stats */
@@ -811,7 +827,7 @@ ixlv_update_stats_counters(struct ixlv_sc *sc, struct i40e_eth_stats *es)
 	IXL_SET_NOPROTO(vsi, es->rx_unknown_protocol);
 	IXL_SET_COLLISIONS(vsi, 0);
 
-	sc->vsi.eth_stats = *es;
+	vsi->eth_stats = *es;
 }
 
 /*
@@ -840,9 +856,9 @@ ixlv_vc_completion(struct ixlv_sc *sc,
 			    vpe->event_data.link_event.link_status,
 			    vpe->event_data.link_event.link_speed);
 #endif
-			vsi->link_up =
+			sc->link_up =
 				vpe->event_data.link_event.link_status;
-			vsi->link_speed =
+			sc->link_speed =
 				vpe->event_data.link_event.link_speed;
 			ixlv_update_link_status(sc);
 			break;

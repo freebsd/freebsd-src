@@ -38,6 +38,7 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Constants.h"
@@ -52,7 +53,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
@@ -71,6 +71,33 @@ static cl::opt<bool>
 DisablePromotion("disable-licm-promotion", cl::Hidden,
                  cl::desc("Disable memory promotion in LICM pass"));
 
+static bool inSubLoop(BasicBlock *BB, Loop *CurLoop, LoopInfo *LI);
+static bool isNotUsedInLoop(const Instruction &I, const Loop *CurLoop);
+static bool hoist(Instruction &I, BasicBlock *Preheader);
+static bool sink(Instruction &I, const LoopInfo *LI, const DominatorTree *DT,
+                 const Loop *CurLoop, AliasSetTracker *CurAST );
+static bool isGuaranteedToExecute(const Instruction &Inst,
+                                  const DominatorTree *DT,
+                                  const Loop *CurLoop,
+                                  const LICMSafetyInfo *SafetyInfo);
+static bool isSafeToExecuteUnconditionally(const Instruction &Inst,
+                                           const DominatorTree *DT,
+                                           const TargetLibraryInfo *TLI,
+                                           const Loop *CurLoop,
+                                           const LICMSafetyInfo *SafetyInfo,
+                                           const Instruction *CtxI = nullptr);
+static bool pointerInvalidatedByLoop(Value *V, uint64_t Size,
+                                     const AAMDNodes &AAInfo, 
+                                     AliasSetTracker *CurAST);
+static Instruction *CloneInstructionInExitBlock(const Instruction &I,
+                                                BasicBlock &ExitBlock,
+                                                PHINode &PN,
+                                                const LoopInfo *LI);
+static bool canSinkOrHoistInst(Instruction &I, AliasAnalysis *AA,
+                               DominatorTree *DT, TargetLibraryInfo *TLI,
+                               Loop *CurLoop, AliasSetTracker *CurAST,
+                               LICMSafetyInfo *SafetyInfo);
+
 namespace {
   struct LICM : public LoopPass {
     static char ID; // Pass identification, replacement for typeid
@@ -86,7 +113,7 @@ namespace {
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesCFG();
       AU.addRequired<DominatorTreeWrapperPass>();
-      AU.addRequired<LoopInfo>();
+      AU.addRequired<LoopInfoWrapperPass>();
       AU.addRequiredID(LoopSimplifyID);
       AU.addPreservedID(LoopSimplifyID);
       AU.addRequiredID(LCSSAID);
@@ -94,7 +121,7 @@ namespace {
       AU.addRequired<AliasAnalysis>();
       AU.addPreserved<AliasAnalysis>();
       AU.addPreserved<ScalarEvolution>();
-      AU.addRequired<TargetLibraryInfo>();
+      AU.addRequired<TargetLibraryInfoWrapperPass>();
     }
 
     using llvm::Pass::doFinalization;
@@ -109,7 +136,6 @@ namespace {
     LoopInfo      *LI;       // Current LoopInfo
     DominatorTree *DT;       // Dominator Tree for the current Loop.
 
-    const DataLayout *DL;    // DataLayout for constant folding.
     TargetLibraryInfo *TLI;  // TargetLibraryInfo for constant folding.
 
     // State that is updated as we process loops.
@@ -117,9 +143,6 @@ namespace {
     BasicBlock *Preheader;   // The preheader block of the current loop...
     Loop *CurLoop;           // The current loop we are working on...
     AliasSetTracker *CurAST; // AliasSet information for the current loop...
-    bool MayThrow;           // The current loop contains an instruction which
-                             // may throw, thus preventing code motion of
-                             // instructions with side effects.
     DenseMap<Loop*, AliasSetTracker*> LoopToAliasSetMap;
 
     /// cloneBasicBlockAnalysis - Simple Analysis hook. Clone alias set info.
@@ -130,87 +153,19 @@ namespace {
     /// set.
     void deleteAnalysisValue(Value *V, Loop *L) override;
 
-    /// SinkRegion - Walk the specified region of the CFG (defined by all blocks
-    /// dominated by the specified block, and that are in the current loop) in
-    /// reverse depth first order w.r.t the DominatorTree.  This allows us to
-    /// visit uses before definitions, allowing us to sink a loop body in one
-    /// pass without iteration.
-    ///
-    void SinkRegion(DomTreeNode *N);
-
-    /// HoistRegion - Walk the specified region of the CFG (defined by all
-    /// blocks dominated by the specified block, and that are in the current
-    /// loop) in depth first order w.r.t the DominatorTree.  This allows us to
-    /// visit definitions before uses, allowing us to hoist a loop body in one
-    /// pass without iteration.
-    ///
-    void HoistRegion(DomTreeNode *N);
-
-    /// inSubLoop - Little predicate that returns true if the specified basic
-    /// block is in a subloop of the current one, not the current one itself.
-    ///
-    bool inSubLoop(BasicBlock *BB) {
-      assert(CurLoop->contains(BB) && "Only valid if BB is IN the loop");
-      return LI->getLoopFor(BB) != CurLoop;
-    }
-
-    /// sink - When an instruction is found to only be used outside of the loop,
-    /// this function moves it to the exit blocks and patches up SSA form as
-    /// needed.
-    ///
-    void sink(Instruction &I);
-
-    /// hoist - When an instruction is found to only use loop invariant operands
-    /// that is safe to hoist, this instruction is called to do the dirty work.
-    ///
-    void hoist(Instruction &I);
-
-    /// isSafeToExecuteUnconditionally - Only sink or hoist an instruction if it
-    /// is not a trapping instruction or if it is a trapping instruction and is
-    /// guaranteed to execute.
-    ///
-    bool isSafeToExecuteUnconditionally(Instruction &I);
-
-    /// isGuaranteedToExecute - Check that the instruction is guaranteed to
-    /// execute.
-    ///
-    bool isGuaranteedToExecute(Instruction &I);
-
-    /// pointerInvalidatedByLoop - Return true if the body of this loop may
-    /// store into the memory location pointed to by V.
-    ///
-    bool pointerInvalidatedByLoop(Value *V, uint64_t Size,
-                                  const MDNode *TBAAInfo) {
-      // Check to see if any of the basic blocks in CurLoop invalidate *V.
-      return CurAST->getAliasSetForPointer(V, Size, TBAAInfo).isMod();
-    }
-
-    bool canSinkOrHoistInst(Instruction &I);
-    bool isNotUsedInLoop(Instruction &I);
-
-    void PromoteAliasSet(AliasSet &AS,
-                         SmallVectorImpl<BasicBlock*> &ExitBlocks,
-                         SmallVectorImpl<Instruction*> &InsertPts,
-                         PredIteratorCache &PIC);
-
-    /// \brief Create a copy of the instruction in the exit block and patch up
-    /// SSA.
-    /// PN is a user of I in ExitBlock that can be used to get the number and
-    /// list of predecessors fast.
-    Instruction *CloneInstructionInExitBlock(Instruction &I,
-                                             BasicBlock &ExitBlock,
-                                             PHINode &PN);
+    /// Simple Analysis hook. Delete loop L from alias set map.
+    void deleteAnalysisLoop(Loop *L) override;
   };
 }
 
 char LICM::ID = 0;
 INITIALIZE_PASS_BEGIN(LICM, "licm", "Loop Invariant Code Motion", false, false)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(LoopInfo)
+INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(LoopSimplify)
 INITIALIZE_PASS_DEPENDENCY(LCSSA)
 INITIALIZE_PASS_DEPENDENCY(ScalarEvolution)
-INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
+INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
 INITIALIZE_PASS_END(LICM, "licm", "Loop Invariant Code Motion", false, false)
 
@@ -227,13 +182,11 @@ bool LICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   Changed = false;
 
   // Get our Loop and Alias Analysis information...
-  LI = &getAnalysis<LoopInfo>();
+  LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
   AA = &getAnalysis<AliasAnalysis>();
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
 
-  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
-  DL = DLP ? &DLP->getDataLayout() : nullptr;
-  TLI = &getAnalysis<TargetLibraryInfo>();
+  TLI = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
 
   assert(L->isLCSSAForm(*DT) && "Loop is not in LCSSA form.");
 
@@ -270,14 +223,9 @@ bool LICM::runOnLoop(Loop *L, LPPassManager &LPM) {
       CurAST->add(*BB);                 // Incorporate the specified basic block
   }
 
-  MayThrow = false;
-  // TODO: We've already searched for instructions which may throw in subloops.
-  // We may want to reuse this information.
-  for (Loop::block_iterator BB = L->block_begin(), BBE = L->block_end();
-       (BB != BBE) && !MayThrow ; ++BB)
-    for (BasicBlock::iterator I = (*BB)->begin(), E = (*BB)->end();
-         (I != E) && !MayThrow; ++I)
-      MayThrow |= I->mayThrow();
+  // Compute loop safety information.
+  LICMSafetyInfo SafetyInfo;
+  computeLICMSafetyInfo(&SafetyInfo, CurLoop);
 
   // We want to visit all of the instructions in this loop... that are not parts
   // of our subloops (they have already had their invariants hoisted out of
@@ -290,9 +238,11 @@ bool LICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   // instructions, we perform another pass to hoist them out of the loop.
   //
   if (L->hasDedicatedExits())
-    SinkRegion(DT->getNode(L->getHeader()));
+    Changed |= sinkRegion(DT->getNode(L->getHeader()), AA, LI, DT, TLI, CurLoop,
+                          CurAST, &SafetyInfo);
   if (Preheader)
-    HoistRegion(DT->getNode(L->getHeader()));
+    Changed |= hoistRegion(DT->getNode(L->getHeader()), AA, LI, DT, TLI,
+                           CurLoop, CurAST, &SafetyInfo);
 
   // Now that all loop invariants have been removed from the loop, promote any
   // memory references to scalars that we can.
@@ -304,7 +254,9 @@ bool LICM::runOnLoop(Loop *L, LPPassManager &LPM) {
     // Loop over all of the alias sets in the tracker object.
     for (AliasSetTracker::iterator I = CurAST->begin(), E = CurAST->end();
          I != E; ++I)
-      PromoteAliasSet(*I, ExitBlocks, InsertPts, PIC);
+      Changed |= promoteLoopAccessesToScalars(*I, ExitBlocks, InsertPts, 
+                                              PIC, LI, DT, CurLoop, 
+                                              CurAST, &SafetyInfo);
 
     // Once we have promoted values across the loop body we have to recursively
     // reform LCSSA as any nested loop may now have values defined within the
@@ -313,7 +265,8 @@ bool LICM::runOnLoop(Loop *L, LPPassManager &LPM) {
     // SSAUpdater strategy during promotion that was LCSSA aware and reformed
     // it as it went.
     if (Changed)
-      formLCSSARecursively(*L, *DT, getAnalysisIfAvailable<ScalarEvolution>());
+      formLCSSARecursively(*L, *DT, LI,
+                           getAnalysisIfAvailable<ScalarEvolution>());
   }
 
   // Check that neither this loop nor its parent have had LCSSA broken. LICM is
@@ -336,27 +289,35 @@ bool LICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   return Changed;
 }
 
-/// SinkRegion - Walk the specified region of the CFG (defined by all blocks
-/// dominated by the specified block, and that are in the current loop) in
-/// reverse depth first order w.r.t the DominatorTree.  This allows us to visit
-/// uses before definitions, allowing us to sink a loop body in one pass without
-/// iteration.
+/// Walk the specified region of the CFG (defined by all blocks dominated by
+/// the specified block, and that are in the current loop) in reverse depth 
+/// first order w.r.t the DominatorTree.  This allows us to visit uses before
+/// definitions, allowing us to sink a loop body in one pass without iteration.
 ///
-void LICM::SinkRegion(DomTreeNode *N) {
-  assert(N != nullptr && "Null dominator tree node?");
-  BasicBlock *BB = N->getBlock();
+bool llvm::sinkRegion(DomTreeNode *N, AliasAnalysis *AA, LoopInfo *LI,
+                      DominatorTree *DT, TargetLibraryInfo *TLI, Loop *CurLoop,
+                      AliasSetTracker *CurAST, LICMSafetyInfo *SafetyInfo) {
 
+  // Verify inputs.
+  assert(N != nullptr && AA != nullptr && LI != nullptr && 
+         DT != nullptr && CurLoop != nullptr && CurAST != nullptr && 
+         SafetyInfo != nullptr && "Unexpected input to sinkRegion");
+
+  // Set changed as false.
+  bool Changed = false;
+  // Get basic block
+  BasicBlock *BB = N->getBlock();
   // If this subregion is not in the top level loop at all, exit.
-  if (!CurLoop->contains(BB)) return;
+  if (!CurLoop->contains(BB)) return Changed;
 
   // We are processing blocks in reverse dfo, so process children first.
   const std::vector<DomTreeNode*> &Children = N->getChildren();
   for (unsigned i = 0, e = Children.size(); i != e; ++i)
-    SinkRegion(Children[i]);
-
+    Changed |=
+        sinkRegion(Children[i], AA, LI, DT, TLI, CurLoop, CurAST, SafetyInfo);
   // Only need to process the contents of this block if it is not part of a
   // subloop (which would already have been processed).
-  if (inSubLoop(BB)) return;
+  if (inSubLoop(BB,CurLoop,LI)) return Changed;
 
   for (BasicBlock::iterator II = BB->end(); II != BB->begin(); ) {
     Instruction &I = *--II;
@@ -377,35 +338,43 @@ void LICM::SinkRegion(DomTreeNode *N) {
     // outside of the loop.  In this case, it doesn't even matter if the
     // operands of the instruction are loop invariant.
     //
-    if (isNotUsedInLoop(I) && canSinkOrHoistInst(I)) {
+    if (isNotUsedInLoop(I, CurLoop) &&
+        canSinkOrHoistInst(I, AA, DT, TLI, CurLoop, CurAST, SafetyInfo)) {
       ++II;
-      sink(I);
+      Changed |= sink(I, LI, DT, CurLoop, CurAST);
     }
   }
+  return Changed;
 }
 
-/// HoistRegion - Walk the specified region of the CFG (defined by all blocks
-/// dominated by the specified block, and that are in the current loop) in depth
-/// first order w.r.t the DominatorTree.  This allows us to visit definitions
-/// before uses, allowing us to hoist a loop body in one pass without iteration.
+/// Walk the specified region of the CFG (defined by all blocks dominated by
+/// the specified block, and that are in the current loop) in depth first
+/// order w.r.t the DominatorTree.  This allows us to visit definitions before
+/// uses, allowing us to hoist a loop body in one pass without iteration.
 ///
-void LICM::HoistRegion(DomTreeNode *N) {
-  assert(N != nullptr && "Null dominator tree node?");
+bool llvm::hoistRegion(DomTreeNode *N, AliasAnalysis *AA, LoopInfo *LI,
+                       DominatorTree *DT, TargetLibraryInfo *TLI, Loop *CurLoop,
+                       AliasSetTracker *CurAST, LICMSafetyInfo *SafetyInfo) {
+  // Verify inputs.
+  assert(N != nullptr && AA != nullptr && LI != nullptr && 
+         DT != nullptr && CurLoop != nullptr && CurAST != nullptr && 
+         SafetyInfo != nullptr && "Unexpected input to hoistRegion");
+  // Set changed as false.
+  bool Changed = false;
+  // Get basic block
   BasicBlock *BB = N->getBlock();
-
   // If this subregion is not in the top level loop at all, exit.
-  if (!CurLoop->contains(BB)) return;
-
+  if (!CurLoop->contains(BB)) return Changed;
   // Only need to process the contents of this block if it is not part of a
   // subloop (which would already have been processed).
-  if (!inSubLoop(BB))
+  if (!inSubLoop(BB, CurLoop, LI))
     for (BasicBlock::iterator II = BB->begin(), E = BB->end(); II != E; ) {
       Instruction &I = *II++;
-
       // Try constant folding this instruction.  If all the operands are
       // constants, it is technically hoistable, but it would be better to just
       // fold it.
-      if (Constant *C = ConstantFoldInstruction(&I, DL, TLI)) {
+      if (Constant *C = ConstantFoldInstruction(
+              &I, I.getModule()->getDataLayout(), TLI)) {
         DEBUG(dbgs() << "LICM folding inst: " << I << "  --> " << *C << '\n');
         CurAST->copyValue(&I, C);
         CurAST->deleteValue(&I);
@@ -418,20 +387,49 @@ void LICM::HoistRegion(DomTreeNode *N) {
       // if all of the operands of the instruction are loop invariant and if it
       // is safe to hoist the instruction.
       //
-      if (CurLoop->hasLoopInvariantOperands(&I) && canSinkOrHoistInst(I) &&
-          isSafeToExecuteUnconditionally(I))
-        hoist(I);
+      if (CurLoop->hasLoopInvariantOperands(&I) &&
+          canSinkOrHoistInst(I, AA, DT, TLI, CurLoop, CurAST, SafetyInfo) &&
+          isSafeToExecuteUnconditionally(I, DT, TLI, CurLoop, SafetyInfo,
+                                 CurLoop->getLoopPreheader()->getTerminator()))
+        Changed |= hoist(I, CurLoop->getLoopPreheader());
     }
 
   const std::vector<DomTreeNode*> &Children = N->getChildren();
   for (unsigned i = 0, e = Children.size(); i != e; ++i)
-    HoistRegion(Children[i]);
+    Changed |=
+        hoistRegion(Children[i], AA, LI, DT, TLI, CurLoop, CurAST, SafetyInfo);
+  return Changed;
+}
+
+/// Computes loop safety information, checks loop body & header
+/// for the possiblity of may throw exception.
+///
+void llvm::computeLICMSafetyInfo(LICMSafetyInfo * SafetyInfo, Loop * CurLoop) {
+  assert(CurLoop != nullptr && "CurLoop cant be null");
+  BasicBlock *Header = CurLoop->getHeader();
+  // Setting default safety values.
+  SafetyInfo->MayThrow = false;
+  SafetyInfo->HeaderMayThrow = false;
+  // Iterate over header and compute dafety info.
+  for (BasicBlock::iterator I = Header->begin(), E = Header->end();
+       (I != E) && !SafetyInfo->HeaderMayThrow; ++I)
+    SafetyInfo->HeaderMayThrow |= I->mayThrow();
+  
+  SafetyInfo->MayThrow = SafetyInfo->HeaderMayThrow;
+  // Iterate over loop instructions and compute safety info. 
+  for (Loop::block_iterator BB = CurLoop->block_begin(), 
+       BBE = CurLoop->block_end(); (BB != BBE) && !SafetyInfo->MayThrow ; ++BB)
+    for (BasicBlock::iterator I = (*BB)->begin(), E = (*BB)->end();
+         (I != E) && !SafetyInfo->MayThrow; ++I)
+      SafetyInfo->MayThrow |= I->mayThrow();
 }
 
 /// canSinkOrHoistInst - Return true if the hoister and sinker can handle this
 /// instruction.
 ///
-bool LICM::canSinkOrHoistInst(Instruction &I) {
+bool canSinkOrHoistInst(Instruction &I, AliasAnalysis *AA, DominatorTree *DT,
+                        TargetLibraryInfo *TLI, Loop *CurLoop,
+                        AliasSetTracker *CurAST, LICMSafetyInfo *SafetyInfo) {
   // Loads have extra constraints we have to verify before we can hoist them.
   if (LoadInst *LI = dyn_cast<LoadInst>(&I)) {
     if (!LI->isUnordered())
@@ -441,15 +439,18 @@ bool LICM::canSinkOrHoistInst(Instruction &I) {
     // in the same alias set as something that ends up being modified.
     if (AA->pointsToConstantMemory(LI->getOperand(0)))
       return true;
-    if (LI->getMetadata("invariant.load"))
+    if (LI->getMetadata(LLVMContext::MD_invariant_load))
       return true;
 
     // Don't hoist loads which have may-aliased stores in loop.
     uint64_t Size = 0;
     if (LI->getType()->isSized())
       Size = AA->getTypeStoreSize(LI->getType());
-    return !pointerInvalidatedByLoop(LI->getOperand(0), Size,
-                                     LI->getMetadata(LLVMContext::MD_tbaa));
+
+    AAMDNodes AAInfo;
+    LI->getAAMetadata(AAInfo);
+
+    return !pointerInvalidatedByLoop(LI->getOperand(0), Size, AAInfo, CurAST);
   } else if (CallInst *CI = dyn_cast<CallInst>(&I)) {
     // Don't sink or hoist dbg info; it's legal, but not useful.
     if (isa<DbgInfoIntrinsic>(I))
@@ -488,30 +489,34 @@ bool LICM::canSinkOrHoistInst(Instruction &I) {
       !isa<InsertValueInst>(I))
     return false;
 
-  return isSafeToExecuteUnconditionally(I);
+  // TODO: Plumb the context instruction through to make hoisting and sinking
+  // more powerful. Hoisting of loads already works due to the special casing
+  // above. 
+  return isSafeToExecuteUnconditionally(I, DT, TLI, CurLoop, SafetyInfo,
+                                        nullptr);
 }
 
-/// \brief Returns true if a PHINode is a trivially replaceable with an
+/// Returns true if a PHINode is a trivially replaceable with an
 /// Instruction.
+/// This is true when all incoming values are that instruction.
+/// This pattern occurs most often with LCSSA PHI nodes.
 ///
-/// This is true when all incoming values are that instruction. This pattern
-/// occurs most often with LCSSA PHI nodes.
-static bool isTriviallyReplacablePHI(PHINode &PN, Instruction &I) {
-  for (unsigned i = 0, e = PN.getNumIncomingValues(); i != e; ++i)
-    if (PN.getIncomingValue(i) != &I)
+static bool isTriviallyReplacablePHI(const PHINode &PN, const Instruction &I) {
+  for (const Value *IncValue : PN.incoming_values())
+    if (IncValue != &I)
       return false;
 
   return true;
 }
 
-/// isNotUsedInLoop - Return true if the only users of this instruction are
-/// outside of the loop.  If this is true, we can sink the instruction to the
-/// exit blocks of the loop.
+/// Return true if the only users of this instruction are outside of
+/// the loop. If this is true, we can sink the instruction to the exit
+/// blocks of the loop.
 ///
-bool LICM::isNotUsedInLoop(Instruction &I) {
-  for (User *U : I.users()) {
-    Instruction *UI = cast<Instruction>(U);
-    if (PHINode *PN = dyn_cast<PHINode>(UI)) {
+static bool isNotUsedInLoop(const Instruction &I, const Loop *CurLoop) {
+  for (const User *U : I.users()) {
+    const Instruction *UI = cast<Instruction>(U);
+    if (const PHINode *PN = dyn_cast<PHINode>(UI)) {
       // A PHI node where all of the incoming values are this instruction are
       // special -- they can just be RAUW'ed with the instruction and thus
       // don't require a use in the predecessor. This is a particular important
@@ -539,9 +544,10 @@ bool LICM::isNotUsedInLoop(Instruction &I) {
   return true;
 }
 
-Instruction *LICM::CloneInstructionInExitBlock(Instruction &I,
-                                               BasicBlock &ExitBlock,
-                                               PHINode &PN) {
+static Instruction *CloneInstructionInExitBlock(const Instruction &I,
+                                                BasicBlock &ExitBlock,
+                                                PHINode &PN,
+                                                const LoopInfo *LI) {
   Instruction *New = I.clone();
   ExitBlock.getInstList().insert(ExitBlock.getFirstInsertionPt(), New);
   if (!I.getName().empty()) New->setName(I.getName() + ".le");
@@ -568,14 +574,15 @@ Instruction *LICM::CloneInstructionInExitBlock(Instruction &I,
   return New;
 }
 
-/// sink - When an instruction is found to only be used outside of the loop,
-/// this function moves it to the exit blocks and patches up SSA form as needed.
+/// When an instruction is found to only be used outside of the loop, this
+/// function moves it to the exit blocks and patches up SSA form as needed.
 /// This method is guaranteed to remove the original instruction from its
 /// position, and may either delete it or move it to outside of the loop.
 ///
-void LICM::sink(Instruction &I) {
+static bool sink(Instruction &I, const LoopInfo *LI, const DominatorTree *DT,
+                 const Loop *CurLoop, AliasSetTracker *CurAST ) {
   DEBUG(dbgs() << "LICM sinking instruction: " << I << "\n");
-
+  bool Changed = false;
   if (isa<LoadInst>(I)) ++NumMovedLoads;
   else if (isa<CallInst>(I)) ++NumMovedCalls;
   ++NumSunk;
@@ -584,7 +591,8 @@ void LICM::sink(Instruction &I) {
 #ifndef NDEBUG
   SmallVector<BasicBlock *, 32> ExitBlocks;
   CurLoop->getUniqueExitBlocks(ExitBlocks);
-  SmallPtrSet<BasicBlock *, 32> ExitBlockSet(ExitBlocks.begin(), ExitBlocks.end());
+  SmallPtrSet<BasicBlock *, 32> ExitBlockSet(ExitBlocks.begin(), 
+                                             ExitBlocks.end());
 #endif
 
   // Clones of this instruction. Don't create more than one per exit block!
@@ -594,8 +602,24 @@ void LICM::sink(Instruction &I) {
   // PHI nodes in exit blocks due to LCSSA form. Just RAUW them with clones of
   // the instruction.
   while (!I.use_empty()) {
+    Value::user_iterator UI = I.user_begin();
+    auto *User = cast<Instruction>(*UI);
+    if (!DT->isReachableFromEntry(User->getParent())) {
+      User->replaceUsesOfWith(&I, UndefValue::get(I.getType()));
+      continue;
+    }
     // The user must be a PHI node.
-    PHINode *PN = cast<PHINode>(I.user_back());
+    PHINode *PN = cast<PHINode>(User);
+
+    // Surprisingly, instructions can be used outside of loops without any
+    // exits.  This can only happen in PHI nodes if the incoming block is
+    // unreachable.
+    Use &U = UI.getUse();
+    BasicBlock *BB = PN->getIncomingBlock(U);
+    if (!DT->isReachableFromEntry(BB)) {
+      U = UndefValue::get(I.getType());
+      continue;
+    }
 
     BasicBlock *ExitBlock = PN->getParent();
     assert(ExitBlockSet.count(ExitBlock) &&
@@ -607,7 +631,7 @@ void LICM::sink(Instruction &I) {
       New = It->second;
     else
       New = SunkCopies[ExitBlock] =
-          CloneInstructionInExitBlock(I, *ExitBlock, *PN);
+            CloneInstructionInExitBlock(I, *ExitBlock, *PN, LI);
 
     PN->replaceAllUsesWith(New);
     PN->eraseFromParent();
@@ -615,44 +639,45 @@ void LICM::sink(Instruction &I) {
 
   CurAST->deleteValue(&I);
   I.eraseFromParent();
+  return Changed;
 }
 
-/// hoist - When an instruction is found to only use loop invariant operands
-/// that is safe to hoist, this instruction is called to do the dirty work.
+/// When an instruction is found to only use loop invariant operands that
+/// is safe to hoist, this instruction is called to do the dirty work.
 ///
-void LICM::hoist(Instruction &I) {
+static bool hoist(Instruction &I, BasicBlock *Preheader) {
   DEBUG(dbgs() << "LICM hoisting to " << Preheader->getName() << ": "
         << I << "\n");
-
   // Move the new node to the Preheader, before its terminator.
   I.moveBefore(Preheader->getTerminator());
 
   if (isa<LoadInst>(I)) ++NumMovedLoads;
   else if (isa<CallInst>(I)) ++NumMovedCalls;
   ++NumHoisted;
-  Changed = true;
+  return true;
 }
 
-/// isSafeToExecuteUnconditionally - Only sink or hoist an instruction if it is
-/// not a trapping instruction or if it is a trapping instruction and is
-/// guaranteed to execute.
-///
-bool LICM::isSafeToExecuteUnconditionally(Instruction &Inst) {
-  // If it is not a trapping instruction, it is always safe to hoist.
-  if (isSafeToSpeculativelyExecute(&Inst, DL))
+/// Only sink or hoist an instruction if it is not a trapping instruction,
+/// or if the instruction is known not to trap when moved to the preheader.
+/// or if it is a trapping instruction and is guaranteed to execute.
+static bool isSafeToExecuteUnconditionally(const Instruction &Inst, 
+                                           const DominatorTree *DT,
+                                           const TargetLibraryInfo *TLI,
+                                           const Loop *CurLoop,
+                                           const LICMSafetyInfo *SafetyInfo,
+                                           const Instruction *CtxI) {
+  if (isSafeToSpeculativelyExecute(&Inst, CtxI, DT, TLI))
     return true;
 
-  return isGuaranteedToExecute(Inst);
+  return isGuaranteedToExecute(Inst, DT, CurLoop, SafetyInfo);
 }
 
-bool LICM::isGuaranteedToExecute(Instruction &Inst) {
+static bool isGuaranteedToExecute(const Instruction &Inst,
+                                  const DominatorTree *DT,
+                                  const Loop *CurLoop,
+                                  const LICMSafetyInfo * SafetyInfo) {
 
-  // Somewhere in this loop there is an instruction which may throw and make us
-  // exit the loop.
-  if (MayThrow)
-    return false;
-
-  // Otherwise we have to check to make sure that the instruction dominates all
+  // We have to check to make sure that the instruction dominates all
   // of the exit blocks.  If it doesn't, then there is a path out of the loop
   // which does not execute this instruction, so we can't hoist it.
 
@@ -660,7 +685,14 @@ bool LICM::isGuaranteedToExecute(Instruction &Inst) {
   // common), it is always guaranteed to dominate the exit blocks.  Since this
   // is a common case, and can save some work, check it now.
   if (Inst.getParent() == CurLoop->getHeader())
-    return true;
+    // If there's a throw in the header block, we can't guarantee we'll reach
+    // Inst.
+    return !SafetyInfo->HeaderMayThrow;
+
+  // Somewhere in this loop there is an instruction which may throw and make us
+  // exit the loop.
+  if (SafetyInfo->MayThrow)
+    return false;
 
   // Get the exit blocks for the current loop.
   SmallVector<BasicBlock*, 8> ExitBlocks;
@@ -682,7 +714,7 @@ bool LICM::isGuaranteedToExecute(Instruction &Inst) {
 namespace {
   class LoopPromoter : public LoadAndStorePromoter {
     Value *SomePtr;  // Designated pointer to store to.
-    SmallPtrSet<Value*, 4> &PointerMustAliases;
+    SmallPtrSetImpl<Value*> &PointerMustAliases;
     SmallVectorImpl<BasicBlock*> &LoopExitBlocks;
     SmallVectorImpl<Instruction*> &LoopInsertPts;
     PredIteratorCache &PredCache;
@@ -690,7 +722,7 @@ namespace {
     LoopInfo &LI;
     DebugLoc DL;
     int Alignment;
-    MDNode *TBAATag;
+    AAMDNodes AATags;
 
     Value *maybeInsertLCSSAPHI(Value *V, BasicBlock *BB) const {
       if (Instruction *I = dyn_cast<Instruction>(V))
@@ -699,25 +731,26 @@ namespace {
             // We need to create an LCSSA PHI node for the incoming value and
             // store that.
             PHINode *PN = PHINode::Create(
-                I->getType(), PredCache.GetNumPreds(BB),
+                I->getType(), PredCache.size(BB),
                 I->getName() + ".lcssa", BB->begin());
-            for (BasicBlock **PI = PredCache.GetPreds(BB); *PI; ++PI)
-              PN->addIncoming(I, *PI);
+            for (BasicBlock *Pred : PredCache.get(BB))
+              PN->addIncoming(I, Pred);
             return PN;
           }
       return V;
     }
 
   public:
-    LoopPromoter(Value *SP, const SmallVectorImpl<Instruction *> &Insts,
-                 SSAUpdater &S, SmallPtrSet<Value *, 4> &PMA,
+    LoopPromoter(Value *SP,
+                 ArrayRef<const Instruction *> Insts,
+                 SSAUpdater &S, SmallPtrSetImpl<Value *> &PMA,
                  SmallVectorImpl<BasicBlock *> &LEB,
                  SmallVectorImpl<Instruction *> &LIP, PredIteratorCache &PIC,
                  AliasSetTracker &ast, LoopInfo &li, DebugLoc dl, int alignment,
-                 MDNode *TBAATag)
+                 const AAMDNodes &AATags)
         : LoadAndStorePromoter(Insts, S), SomePtr(SP), PointerMustAliases(PMA),
           LoopExitBlocks(LEB), LoopInsertPts(LIP), PredCache(PIC), AST(ast),
-          LI(li), DL(dl), Alignment(alignment), TBAATag(TBAATag) {}
+          LI(li), DL(dl), Alignment(alignment), AATags(AATags) {}
 
     bool isInstInList(Instruction *I,
                       const SmallVectorImpl<Instruction*> &) const override {
@@ -743,7 +776,7 @@ namespace {
         StoreInst *NewSI = new StoreInst(LiveInValue, Ptr, InsertPos);
         NewSI->setAlignment(Alignment);
         NewSI->setDebugLoc(DL);
-        if (TBAATag) NewSI->setMetadata(LLVMContext::MD_tbaa, TBAATag);
+        if (AATags) NewSI->setAAMetadata(AATags);
       }
     }
 
@@ -757,25 +790,37 @@ namespace {
   };
 } // end anon namespace
 
-/// PromoteAliasSet - Try to promote memory values to scalars by sinking
-/// stores out of the loop and moving loads to before the loop.  We do this by
-/// looping over the stores in the loop, looking for stores to Must pointers
-/// which are loop invariant.
+/// Try to promote memory values to scalars by sinking stores out of the
+/// loop and moving loads to before the loop.  We do this by looping over
+/// the stores in the loop, looking for stores to Must pointers which are
+/// loop invariant.
 ///
-void LICM::PromoteAliasSet(AliasSet &AS,
-                           SmallVectorImpl<BasicBlock*> &ExitBlocks,
-                           SmallVectorImpl<Instruction*> &InsertPts,
-                           PredIteratorCache &PIC) {
+bool llvm::promoteLoopAccessesToScalars(AliasSet &AS,
+                                        SmallVectorImpl<BasicBlock*>&ExitBlocks,
+                                        SmallVectorImpl<Instruction*>&InsertPts,
+                                        PredIteratorCache &PIC, LoopInfo *LI, 
+                                        DominatorTree *DT, Loop *CurLoop, 
+                                        AliasSetTracker *CurAST, 
+                                        LICMSafetyInfo * SafetyInfo) { 
+  // Verify inputs.
+  assert(LI != nullptr && DT != nullptr && 
+         CurLoop != nullptr && CurAST != nullptr && 
+         SafetyInfo != nullptr && 
+         "Unexpected Input to promoteLoopAccessesToScalars");
+  // Initially set Changed status to false.
+  bool Changed = false;
   // We can promote this alias set if it has a store, if it is a "Must" alias
   // set, if the pointer is loop invariant, and if we are not eliminating any
   // volatile loads or stores.
   if (AS.isForwardingAliasSet() || !AS.isMod() || !AS.isMustAlias() ||
       AS.isVolatile() || !CurLoop->isLoopInvariant(AS.begin()->getValue()))
-    return;
+    return Changed;
 
   assert(!AS.empty() &&
          "Must alias set should have at least one pointer element in it!");
+
   Value *SomePtr = AS.begin()->getValue();
+  BasicBlock * Preheader = CurLoop->getLoopPreheader();
 
   // It isn't safe to promote a load/store from the loop if the load/store is
   // conditional.  For example, turning:
@@ -798,11 +843,12 @@ void LICM::PromoteAliasSet(AliasSet &AS,
   // We start with an alignment of one and try to find instructions that allow
   // us to prove better alignment.
   unsigned Alignment = 1;
-  MDNode *TBAATag = nullptr;
+  AAMDNodes AATags;
+  bool HasDedicatedExits = CurLoop->hasDedicatedExits();
 
   // Check that all of the pointers in the alias set have the same type.  We
   // cannot (yet) promote a memory location that is loaded and stored in
-  // different sizes.  While we are at it, collect alignment and TBAA info.
+  // different sizes.  While we are at it, collect alignment and AA info.
   for (AliasSet::iterator ASI = AS.begin(), E = AS.end(); ASI != E; ++ASI) {
     Value *ASIV = ASI->getValue();
     PointerMustAliases.insert(ASIV);
@@ -811,7 +857,7 @@ void LICM::PromoteAliasSet(AliasSet &AS,
     // cannot (yet) promote a memory location that is loaded and stored in
     // different sizes.
     if (SomePtr->getType() != ASIV->getType())
-      return;
+      return Changed;
 
     for (User *U : ASIV->users()) {
       // Ignore instructions that are outside the loop.
@@ -821,18 +867,25 @@ void LICM::PromoteAliasSet(AliasSet &AS,
 
       // If there is an non-load/store instruction in the loop, we can't promote
       // it.
-      if (LoadInst *load = dyn_cast<LoadInst>(UI)) {
+      if (const LoadInst *load = dyn_cast<LoadInst>(UI)) {
         assert(!load->isVolatile() && "AST broken");
         if (!load->isSimple())
-          return;
-      } else if (StoreInst *store = dyn_cast<StoreInst>(UI)) {
+          return Changed;
+      } else if (const StoreInst *store = dyn_cast<StoreInst>(UI)) {
         // Stores *of* the pointer are not interesting, only stores *to* the
         // pointer.
         if (UI->getOperand(1) != ASIV)
           continue;
         assert(!store->isVolatile() && "AST broken");
         if (!store->isSimple())
-          return;
+          return Changed;
+        // Don't sink stores from loops without dedicated block exits. Exits
+        // containing indirect branches are not transformed by loop simplify,
+        // make sure we catch that. An additional load may be generated in the
+        // preheader for SSA updater, so also avoid sinking when no preheader
+        // is available.
+        if (!HasDedicatedExits || !Preheader)
+          return Changed;
 
         // Note that we only check GuaranteedToExecute inside the store case
         // so that we do not introduce stores where they did not exist before
@@ -844,24 +897,24 @@ void LICM::PromoteAliasSet(AliasSet &AS,
         // Larger is better, with the exception of 0 being the best alignment.
         unsigned InstAlignment = store->getAlignment();
         if ((InstAlignment > Alignment || InstAlignment == 0) && Alignment != 0)
-          if (isGuaranteedToExecute(*UI)) {
+          if (isGuaranteedToExecute(*UI, DT, CurLoop, SafetyInfo)) {
             GuaranteedToExecute = true;
             Alignment = InstAlignment;
           }
 
         if (!GuaranteedToExecute)
-          GuaranteedToExecute = isGuaranteedToExecute(*UI);
+          GuaranteedToExecute = isGuaranteedToExecute(*UI, DT, 
+                                                      CurLoop, SafetyInfo);
 
       } else
-        return; // Not a load or store.
+        return Changed; // Not a load or store.
 
-      // Merge the TBAA tags.
+      // Merge the AA tags.
       if (LoopUses.empty()) {
-        // On the first load/store, just take its TBAA tag.
-        TBAATag = UI->getMetadata(LLVMContext::MD_tbaa);
-      } else if (TBAATag) {
-        TBAATag = MDNode::getMostGenericTBAA(TBAATag,
-                                       UI->getMetadata(LLVMContext::MD_tbaa));
+        // On the first load/store, just take its AA tags.
+        UI->getAAMetadata(AATags);
+      } else if (AATags) {
+        UI->getAAMetadata(AATags, /* Merge = */ true);
       }
 
       LoopUses.push_back(UI);
@@ -870,7 +923,7 @@ void LICM::PromoteAliasSet(AliasSet &AS,
 
   // If there isn't a guaranteed-to-execute instruction, we can't promote.
   if (!GuaranteedToExecute)
-    return;
+    return Changed;
 
   // Otherwise, this is safe to promote, lets do it!
   DEBUG(dbgs() << "LICM: Promoting value stored to in loop: " <<*SomePtr<<'\n');
@@ -895,8 +948,9 @@ void LICM::PromoteAliasSet(AliasSet &AS,
   // We use the SSAUpdater interface to insert phi nodes as required.
   SmallVector<PHINode*, 16> NewPHIs;
   SSAUpdater SSA(&NewPHIs);
-  LoopPromoter Promoter(SomePtr, LoopUses, SSA, PointerMustAliases, ExitBlocks,
-                        InsertPts, PIC, *CurAST, *LI, DL, Alignment, TBAATag);
+  LoopPromoter Promoter(SomePtr, LoopUses, SSA,
+                        PointerMustAliases, ExitBlocks,
+                        InsertPts, PIC, *CurAST, *LI, DL, Alignment, AATags);
 
   // Set up the preheader to have a definition of the value.  It is the live-out
   // value from the preheader that uses in the loop will use.
@@ -905,7 +959,7 @@ void LICM::PromoteAliasSet(AliasSet &AS,
                  Preheader->getTerminator());
   PreheaderLoad->setAlignment(Alignment);
   PreheaderLoad->setDebugLoc(DL);
-  if (TBAATag) PreheaderLoad->setMetadata(LLVMContext::MD_tbaa, TBAATag);
+  if (AATags) PreheaderLoad->setAAMetadata(AATags);
   SSA.AddAvailableValue(Preheader, PreheaderLoad);
 
   // Rewrite all the loads in the loop and remember all the definitions from
@@ -915,10 +969,12 @@ void LICM::PromoteAliasSet(AliasSet &AS,
   // If the SSAUpdater didn't use the load in the preheader, just zap it now.
   if (PreheaderLoad->use_empty())
     PreheaderLoad->eraseFromParent();
+
+  return Changed;
 }
 
-
-/// cloneBasicBlockAnalysis - Simple Analysis hook. Clone alias set info.
+/// Simple Analysis hook. Clone alias set info.
+///
 void LICM::cloneBasicBlockAnalysis(BasicBlock *From, BasicBlock *To, Loop *L) {
   AliasSetTracker *AST = LoopToAliasSetMap.lookup(L);
   if (!AST)
@@ -927,8 +983,8 @@ void LICM::cloneBasicBlockAnalysis(BasicBlock *From, BasicBlock *To, Loop *L) {
   AST->copyValue(From, To);
 }
 
-/// deleteAnalysisValue - Simple Analysis hook. Delete value V from alias
-/// set.
+/// Simple Analysis hook. Delete value V from alias set
+///
 void LICM::deleteAnalysisValue(Value *V, Loop *L) {
   AliasSetTracker *AST = LoopToAliasSetMap.lookup(L);
   if (!AST)
@@ -936,3 +992,34 @@ void LICM::deleteAnalysisValue(Value *V, Loop *L) {
 
   AST->deleteValue(V);
 }
+
+/// Simple Analysis hook. Delete value L from alias set map.
+///
+void LICM::deleteAnalysisLoop(Loop *L) {
+  AliasSetTracker *AST = LoopToAliasSetMap.lookup(L);
+  if (!AST)
+    return;
+
+  delete AST;
+  LoopToAliasSetMap.erase(L);
+}
+
+
+/// Return true if the body of this loop may store into the memory
+/// location pointed to by V.
+///
+static bool pointerInvalidatedByLoop(Value *V, uint64_t Size,
+                                     const AAMDNodes &AAInfo, 
+                                     AliasSetTracker *CurAST) {
+  // Check to see if any of the basic blocks in CurLoop invalidate *V.
+  return CurAST->getAliasSetForPointer(V, Size, AAInfo).isMod();
+}
+
+/// Little predicate that returns true if the specified basic block is in
+/// a subloop of the current one, not the current one itself.
+///
+static bool inSubLoop(BasicBlock *BB, Loop *CurLoop, LoopInfo *LI) {
+  assert(CurLoop->contains(BB) && "Only valid if BB is IN the loop");
+  return LI->getLoopFor(BB) != CurLoop;
+}
+

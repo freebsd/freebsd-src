@@ -29,7 +29,7 @@ namespace clang {
   class ASTContext;
   class QualType;
   class LangOptions;
-  
+
   enum LanguageID {
     GNU_LANG = 0x1,  // builtin requires GNU mode.
     C_LANG = 0x2,    // builtin for c only.
@@ -40,7 +40,7 @@ namespace clang {
     ALL_GNU_LANGUAGES = ALL_LANGUAGES | GNU_LANG,  // builtin requires GNU mode.
     ALL_MS_LANGUAGES = ALL_LANGUAGES | MS_LANG     // builtin requires MS mode.
   };
-  
+
 namespace Builtin {
 enum ID {
   NotBuiltin  = 0,      // This is not a builtin function.
@@ -141,6 +141,12 @@ public:
   /// \brief Determines whether this builtin has custom typechecking.
   bool hasCustomTypechecking(unsigned ID) const {
     return strchr(GetRecord(ID).Attributes, 't') != nullptr;
+  }
+
+  /// \brief Determines whether this builtin has a result or any arguments which
+  /// are pointer types.
+  bool hasPtrArgsOrResult(unsigned ID) const {
+    return strchr(GetRecord(ID).Type, '*') != nullptr;
   }
 
   /// \brief Completely forget that the given ID was ever considered a builtin,

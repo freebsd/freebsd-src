@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef PPCMCEXPR_H
-#define PPCMCEXPR_H
+#ifndef LLVM_LIB_TARGET_POWERPC_MCTARGETDESC_PPCMCEXPR_H
+#define LLVM_LIB_TARGET_POWERPC_MCTARGETDESC_PPCMCEXPR_H
 
 #include "llvm/MC/MCAsmLayout.h"
 #include "llvm/MC/MCExpr.h"
@@ -34,30 +34,31 @@ private:
   const MCExpr *Expr;
   bool IsDarwin;
 
-  explicit PPCMCExpr(VariantKind _Kind, const MCExpr *_Expr,
-                     bool _IsDarwin)
-    : Kind(_Kind), Expr(_Expr), IsDarwin(_IsDarwin) {}
+  int64_t evaluateAsInt64(int64_t Value) const;
+
+  explicit PPCMCExpr(VariantKind Kind, const MCExpr *Expr, bool IsDarwin)
+      : Kind(Kind), Expr(Expr), IsDarwin(IsDarwin) {}
 
 public:
   /// @name Construction
   /// @{
 
-  static const PPCMCExpr *Create(VariantKind Kind, const MCExpr *Expr,
+  static const PPCMCExpr *create(VariantKind Kind, const MCExpr *Expr,
                                  bool isDarwin, MCContext &Ctx);
 
-  static const PPCMCExpr *CreateLo(const MCExpr *Expr,
+  static const PPCMCExpr *createLo(const MCExpr *Expr,
                                    bool isDarwin, MCContext &Ctx) {
-    return Create(VK_PPC_LO, Expr, isDarwin, Ctx);
+    return create(VK_PPC_LO, Expr, isDarwin, Ctx);
   }
 
-  static const PPCMCExpr *CreateHi(const MCExpr *Expr,
+  static const PPCMCExpr *createHi(const MCExpr *Expr,
                                    bool isDarwin, MCContext &Ctx) {
-    return Create(VK_PPC_HI, Expr, isDarwin, Ctx);
+    return create(VK_PPC_HI, Expr, isDarwin, Ctx);
   }
 
-  static const PPCMCExpr *CreateHa(const MCExpr *Expr,
+  static const PPCMCExpr *createHa(const MCExpr *Expr,
                                    bool isDarwin, MCContext &Ctx) {
-    return Create(VK_PPC_HA, Expr, isDarwin, Ctx);
+    return create(VK_PPC_HA, Expr, isDarwin, Ctx);
   }
 
   /// @}
@@ -76,16 +77,19 @@ public:
 
   /// @}
 
-  void PrintImpl(raw_ostream &OS) const override;
-  bool EvaluateAsRelocatableImpl(MCValue &Res,
-                                 const MCAsmLayout *Layout) const override;
+  void printImpl(raw_ostream &OS, const MCAsmInfo *MAI) const override;
+  bool evaluateAsRelocatableImpl(MCValue &Res,
+                                 const MCAsmLayout *Layout,
+                                 const MCFixup *Fixup) const override;
   void visitUsedExpr(MCStreamer &Streamer) const override;
-  const MCSection *FindAssociatedSection() const override {
-    return getSubExpr()->FindAssociatedSection();
+  MCSection *findAssociatedSection() const override {
+    return getSubExpr()->findAssociatedSection();
   }
 
   // There are no TLS PPCMCExprs at the moment.
   void fixELFSymbolsInTLSFixups(MCAssembler &Asm) const override {}
+
+  bool evaluateAsConstant(int64_t &Res) const;
 
   static bool classof(const MCExpr *E) {
     return E->getKind() == MCExpr::Target;

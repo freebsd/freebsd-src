@@ -39,7 +39,7 @@ static const char sccsid[] = "$Id: v_yank.c,v 10.10 2001/06/25 15:19:36 skimo Ex
  * to the line and column marked by a.  Hopefully, the motion component code
  * got it right...   Unlike delete, we make no adjustments here.
  *
- * PUBLIC: int v_yank __P((SCR *, VICMD *));
+ * PUBLIC: int v_yank(SCR *, VICMD *);
  */
 int
 v_yank(SCR *sp, VICMD *vp)

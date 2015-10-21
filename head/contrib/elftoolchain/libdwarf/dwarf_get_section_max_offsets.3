@@ -22,9 +22,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_get_section_max_offsets.3 3098 2014-09-02 22:18:29Z kaiwang27 $
+.\" $Id: dwarf_get_section_max_offsets.3 3141 2015-01-29 23:11:10Z jkoshy $
 .\"
-.Dd July 27, 2014
+.Dd December 21, 2014
 .Os
 .Dt DWARF_GET_SECTION_MAX_OFFSETS
 .Sh NAME
@@ -101,7 +101,7 @@ is identical to function
 .Fn dwarf_get_section_max_offsets_b
 except that it does not provide argument
 .Ar debug_types ,
-thus it can not retrieve the size of the
+and thus cannot return the size of the
 .Dq \&.debug_types
 section.
 .Sh RETURN VALUES

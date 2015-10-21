@@ -51,6 +51,10 @@
 #include "rtld.h"
 #include "rtld_machdep.h"
 
+void _rtld_thread_init(struct RtldLockInfo *) __exported;
+void _rtld_atfork_pre(int *) __exported;
+void _rtld_atfork_post(int *) __exported;
+
 #define WAFLAG		0x1	/* A writer holds the lock */
 #define RC_INCR		0x2	/* Adjusts count of readers desiring lock */
 

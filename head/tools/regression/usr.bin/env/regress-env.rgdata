@@ -235,9 +235,9 @@ gblenv=OUTSIDEVAR=OutsideValue
    script:/bin/echo "=== set ==="
    script:# drop some environment variables that 'sh' itself sets, and
    script:# then have 'set' print out all remaining environment variables.
-   script:# (can't unset OPTIND, so we use grep to get rid of that)
-   script:unset -v IFS PS1 PS2 PPID
-   script:set | grep -v '^OPTIND=' | sort
+   script:# (can't unset OPTIND/PWD, so we use grep to get rid of those)
+   script:unset -v IFS PS1 PS2 PS4 PPID
+   script:set | grep -Ev '^(OPTIND|PWD)=' | sort
    stdout:=== set ===
    stdout:PATH=/bin:/usr/bin:/Not
    stdout:TESTVAR=SbValue
@@ -381,4 +381,37 @@ gblenv=OUTSIDEVAR=OutsideValue
    setenv:C=C_ThisisAlongstring_C1
    setenv:D=D_ThisisAlongstring_D1
    stdout:A_ThisisAlongstring_A1 B_ThisisAlongstring_B1 C_ThisisAlongstring_C1 D_ThisisAlongstring_D1 ScriptName: [%-script.pathname-%]
+[run]
+
+[test]
+   sb_args:sh
+   script:[%-testpgm.pathname-%] -S '\c' >/dev/null
+[run]
+[test]
+   sb_args:sh
+   script:[%-testpgm.pathname-%] -S'\c' >/dev/null
+[run]
+[test]
+   sb_args:sh
+   script:[%-testpgm.pathname-%] -u foo -S '\c' >/dev/null
+[run]
+[test]
+   sb_args:sh
+   script:[%-testpgm.pathname-%] -u foo -S'\c' >/dev/null
+[run]
+[test]
+   sb_args:sh
+   script:[%-testpgm.pathname-%] -S '-u bar \c' >/dev/null
+[run]
+[test]
+   sb_args:sh
+   script:[%-testpgm.pathname-%] -S'-u bar \c' >/dev/null
+[run]
+[test]
+   sb_args:sh
+   script:[%-testpgm.pathname-%] -u foo -S '-u bar \c' >/dev/null
+[run]
+[test]
+   sb_args:sh
+   script:[%-testpgm.pathname-%] -u foo -S'-u bar \c' >/dev/null
 [run]

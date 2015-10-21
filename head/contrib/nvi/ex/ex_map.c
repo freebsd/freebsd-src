@@ -40,7 +40,7 @@ static const char sccsid[] = "$Id: ex_map.c,v 10.11 2001/06/25 15:19:17 skimo Ex
  *	put the map in a .exrc file, things would often work much better.
  *	No clue why.
  *
- * PUBLIC: int ex_map __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_map(SCR *, EXCMD *);
  */
 int
 ex_map(SCR *sp, EXCMD *cmdp)
@@ -103,7 +103,7 @@ nofunc:	if (stype == SEQ_COMMAND && input[1] == '\0')
  * ex_unmap -- (:unmap[!] key)
  *	Unmap a key.
  *
- * PUBLIC: int ex_unmap __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_unmap(SCR *, EXCMD *);
  */
 int
 ex_unmap(SCR *sp, EXCMD *cmdp)

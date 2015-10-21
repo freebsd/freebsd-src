@@ -374,7 +374,7 @@ dcons_attach(void)
 
 	dcons_attach_port(DCONS_CON, "dcons", 0);
 	dcons_attach_port(DCONS_GDB, "dgdb", DC_GDB);
-	callout_init(&dcons_callout, CALLOUT_MPSAFE);
+	callout_init(&dcons_callout, 1);
 	polltime = hz / poll_hz;
 	callout_reset(&dcons_callout, polltime, dcons_timeout, NULL);
 	return(0);

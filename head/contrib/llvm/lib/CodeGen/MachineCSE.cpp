@@ -24,7 +24,9 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/RecyclingAllocator.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "machine-cse"
@@ -46,7 +48,7 @@ namespace {
     MachineRegisterInfo *MRI;
   public:
     static char ID; // Pass identification
-    MachineCSE() : MachineFunctionPass(ID), LookAheadLimit(5), CurrVN(0) {
+    MachineCSE() : MachineFunctionPass(ID), LookAheadLimit(0), CurrVN(0) {
       initializeMachineCSEPass(*PassRegistry::getPassRegistry());
     }
 
@@ -67,7 +69,7 @@ namespace {
     }
 
   private:
-    const unsigned LookAheadLimit;
+    unsigned LookAheadLimit;
     typedef RecyclingAllocator<BumpPtrAllocator,
         ScopedHashTableVal<MachineInstr*, unsigned> > AllocatorTy;
     typedef ScopedHashTable<MachineInstr*, unsigned,
@@ -78,7 +80,8 @@ namespace {
     SmallVector<MachineInstr*, 64> Exps;
     unsigned CurrVN;
 
-    bool PerformTrivialCoalescing(MachineInstr *MI, MachineBasicBlock *MBB);
+    bool PerformTrivialCopyPropagation(MachineInstr *MI,
+                                       MachineBasicBlock *MBB);
     bool isPhysDefTriviallyDead(unsigned Reg,
                                 MachineBasicBlock::const_iterator I,
                                 MachineBasicBlock::const_iterator E) const;
@@ -112,8 +115,12 @@ INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
 INITIALIZE_PASS_END(MachineCSE, "machine-cse",
                 "Machine Common Subexpression Elimination", false, false)
 
-bool MachineCSE::PerformTrivialCoalescing(MachineInstr *MI,
-                                          MachineBasicBlock *MBB) {
+/// The source register of a COPY machine instruction can be propagated to all
+/// its users, and this propagation could increase the probability of finding
+/// common subexpressions. If the COPY has only one user, the COPY itself can
+/// be removed.
+bool MachineCSE::PerformTrivialCopyPropagation(MachineInstr *MI,
+                                               MachineBasicBlock *MBB) {
   bool Changed = false;
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
     MachineOperand &MO = MI->getOperand(i);
@@ -122,10 +129,7 @@ bool MachineCSE::PerformTrivialCoalescing(MachineInstr *MI,
     unsigned Reg = MO.getReg();
     if (!TargetRegisterInfo::isVirtualRegister(Reg))
       continue;
-    if (!MRI->hasOneNonDBGUse(Reg))
-      // Only coalesce single use copies. This ensure the copy will be
-      // deleted.
-      continue;
+    bool OnlyOneUse = MRI->hasOneNonDBGUse(Reg);
     MachineInstr *DefMI = MRI->getVRegDef(Reg);
     if (!DefMI->isCopy())
       continue;
@@ -153,10 +157,14 @@ bool MachineCSE::PerformTrivialCoalescing(MachineInstr *MI,
       continue;
     DEBUG(dbgs() << "Coalescing: " << *DefMI);
     DEBUG(dbgs() << "***     to: " << *MI);
+    // Propagate SrcReg of copies to MI.
     MO.setReg(SrcReg);
     MRI->clearKillFlags(SrcReg);
-    DefMI->eraseFromParent();
-    ++NumCoalesces;
+    // Coalesce single use copies.
+    if (OnlyOneUse) {
+      DefMI->eraseFromParent();
+      ++NumCoalesces;
+    }
     Changed = true;
   }
 
@@ -380,7 +388,7 @@ bool MachineCSE::isProfitableToCSE(unsigned CSReg, unsigned Reg,
   // Heuristics #1: Don't CSE "cheap" computation if the def is not local or in
   // an immediate predecessor. We don't want to increase register pressure and
   // end up causing other computation to be spilled.
-  if (MI->isAsCheapAsAMove()) {
+  if (TII->isAsCheapAsAMove(MI)) {
     MachineBasicBlock *CSBB = CSMI->getParent();
     MachineBasicBlock *BB = MI->getParent();
     if (CSBB != BB && !CSBB->isSuccessor(BB))
@@ -444,6 +452,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
 
   SmallVector<std::pair<unsigned, unsigned>, 8> CSEPairs;
   SmallVector<unsigned, 2> ImplicitDefsToUpdate;
+  SmallVector<unsigned, 2> ImplicitDefs;
   for (MachineBasicBlock::iterator I = MBB->begin(), E = MBB->end(); I != E; ) {
     MachineInstr *MI = &*I;
     ++I;
@@ -453,13 +462,15 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
 
     bool FoundCSE = VNT.count(MI);
     if (!FoundCSE) {
-      // Look for trivial copy coalescing opportunities.
-      if (PerformTrivialCoalescing(MI, MBB)) {
+      // Using trivial copy propagation to find more CSE opportunities.
+      if (PerformTrivialCopyPropagation(MI, MBB)) {
         Changed = true;
 
         // After coalescing MI itself may become a copy.
         if (MI->isCopyLike())
           continue;
+
+        // Try again to see if CSE is possible.
         FoundCSE = VNT.count(MI);
       }
     }
@@ -533,6 +544,12 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
       // we should make sure it is not dead at CSMI.
       if (MO.isImplicit() && !MO.isDead() && CSMI->getOperand(i).isDead())
         ImplicitDefsToUpdate.push_back(i);
+
+      // Keep track of implicit defs of CSMI and MI, to clear possibly
+      // made-redundant kill flags.
+      if (MO.isImplicit() && !MO.isDead() && OldReg == NewReg)
+        ImplicitDefs.push_back(OldReg);
+
       if (OldReg == NewReg) {
         --NumDefs;
         continue;
@@ -564,14 +581,44 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
     // Actually perform the elimination.
     if (DoCSE) {
       for (unsigned i = 0, e = CSEPairs.size(); i != e; ++i) {
-        MRI->replaceRegWith(CSEPairs[i].first, CSEPairs[i].second);
-        MRI->clearKillFlags(CSEPairs[i].second);
+        unsigned OldReg = CSEPairs[i].first;
+        unsigned NewReg = CSEPairs[i].second;
+        // OldReg may have been unused but is used now, clear the Dead flag
+        MachineInstr *Def = MRI->getUniqueVRegDef(NewReg);
+        assert(Def != nullptr && "CSEd register has no unique definition?");
+        Def->clearRegisterDeads(NewReg);
+        // Replace with NewReg and clear kill flags which may be wrong now.
+        MRI->replaceRegWith(OldReg, NewReg);
+        MRI->clearKillFlags(NewReg);
       }
 
       // Go through implicit defs of CSMI and MI, if a def is not dead at MI,
       // we should make sure it is not dead at CSMI.
       for (unsigned i = 0, e = ImplicitDefsToUpdate.size(); i != e; ++i)
         CSMI->getOperand(ImplicitDefsToUpdate[i]).setIsDead(false);
+
+      // Go through implicit defs of CSMI and MI, and clear the kill flags on
+      // their uses in all the instructions between CSMI and MI.
+      // We might have made some of the kill flags redundant, consider:
+      //   subs  ... %NZCV<imp-def>        <- CSMI
+      //   csinc ... %NZCV<imp-use,kill>   <- this kill flag isn't valid anymore
+      //   subs  ... %NZCV<imp-def>        <- MI, to be eliminated
+      //   csinc ... %NZCV<imp-use,kill>
+      // Since we eliminated MI, and reused a register imp-def'd by CSMI
+      // (here %NZCV), that register, if it was killed before MI, should have
+      // that kill flag removed, because it's lifetime was extended.
+      if (CSMI->getParent() == MI->getParent()) {
+        for (MachineBasicBlock::iterator II = CSMI, IE = MI; II != IE; ++II)
+          for (auto ImplicitDef : ImplicitDefs)
+            if (MachineOperand *MO = II->findRegisterUseOperand(
+                    ImplicitDef, /*isKill=*/true, TRI))
+              MO->setIsKill(false);
+      } else {
+        // If the instructions aren't in the same BB, bail out and clear the
+        // kill flag on all uses of the imp-def'd register.
+        for (auto ImplicitDef : ImplicitDefs)
+          MRI->clearKillFlags(ImplicitDef);
+      }
 
       if (CrossMBBPhysDef) {
         // Add physical register defs now coming in from a predecessor to MBB
@@ -597,6 +644,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
     }
     CSEPairs.clear();
     ImplicitDefsToUpdate.clear();
+    ImplicitDefs.clear();
   }
 
   return Changed;
@@ -663,10 +711,11 @@ bool MachineCSE::runOnMachineFunction(MachineFunction &MF) {
   if (skipOptnoneFunction(*MF.getFunction()))
     return false;
 
-  TII = MF.getTarget().getInstrInfo();
-  TRI = MF.getTarget().getRegisterInfo();
+  TII = MF.getSubtarget().getInstrInfo();
+  TRI = MF.getSubtarget().getRegisterInfo();
   MRI = &MF.getRegInfo();
   AA = &getAnalysis<AliasAnalysis>();
   DT = &getAnalysis<MachineDominatorTree>();
+  LookAheadLimit = TII->getMachineCSELookAheadLimit();
   return PerformCSE(DT->getRootNode());
 }

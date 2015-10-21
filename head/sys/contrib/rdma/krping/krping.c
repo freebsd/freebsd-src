@@ -525,7 +525,7 @@ static void krping_setup_wr(struct krping_cb *cb)
 	case MW:
 		cb->bind_attr.wr_id = 0xabbaabba;
 		cb->bind_attr.send_flags = 0; /* unsignaled */
-		cb->bind_attr.length = cb->size;
+		cb->bind_attr.bind_info.length = cb->size;
 		break;
 	default:
 		break;
@@ -627,7 +627,7 @@ static int krping_setup_buffers(struct krping_cb *cb)
 				cb->page_list, cb->page_list_len);
 			break;
 		case MW:
-			cb->mw = ib_alloc_mw(cb->pd);
+			cb->mw = ib_alloc_mw(cb->pd,IB_MW_TYPE_1);
 			if (IS_ERR(cb->mw)) {
 				DEBUG_LOG(cb, "recv_buf alloc_mw failed\n");
 				ret = PTR_ERR(cb->mw);
@@ -898,15 +898,15 @@ static u32 krping_rdma_rkey(struct krping_cb *cb, u64 buf, int post_inv)
 		 * Update the MW with new buf info.
 		 */
 		if (buf == (u64)cb->start_dma_addr) {
-			cb->bind_attr.mw_access_flags = IB_ACCESS_REMOTE_READ;
-			cb->bind_attr.mr = cb->start_mr;
+			cb->bind_attr.bind_info.mw_access_flags = IB_ACCESS_REMOTE_READ;
+			cb->bind_attr.bind_info.mr = cb->start_mr;
 		} else {
-			cb->bind_attr.mw_access_flags = IB_ACCESS_REMOTE_WRITE;
-			cb->bind_attr.mr = cb->rdma_mr;
+			cb->bind_attr.bind_info.mw_access_flags = IB_ACCESS_REMOTE_WRITE;
+			cb->bind_attr.bind_info.mr = cb->rdma_mr;
 		}
-		cb->bind_attr.addr = buf;
+		cb->bind_attr.bind_info.addr = buf;
 		DEBUG_LOG(cb, "binding mw rkey 0x%x to buf %llx mr rkey 0x%x\n",
-			cb->mw->rkey, buf, cb->bind_attr.mr->rkey);
+			cb->mw->rkey, buf, cb->bind_attr.bind_info.mr->rkey);
 		ret = ib_bind_mw(cb->qp, cb->mw, &cb->bind_attr);
 		if (ret) {
 			PRINTF(cb, "bind mw error %d\n", ret);
@@ -2304,7 +2304,7 @@ int krping_doit(char *cmd, void *cookie)
 		goto out;
 	}
 
-	cb->cm_id = rdma_create_id(krping_cma_event_handler, cb, RDMA_PS_TCP);
+	cb->cm_id = rdma_create_id(krping_cma_event_handler, cb, RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(cb->cm_id)) {
 		ret = PTR_ERR(cb->cm_id);
 		PRINTF(cb, "rdma_create_id error %d\n", ret);

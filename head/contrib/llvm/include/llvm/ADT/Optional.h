@@ -20,6 +20,7 @@
 #include "llvm/Support/AlignOf.h"
 #include "llvm/Support/Compiler.h"
 #include <cassert>
+#include <new>
 #include <utility>
 
 namespace llvm {
@@ -29,6 +30,8 @@ class Optional {
   AlignedCharArrayUnion<T> storage;
   bool hasVal;
 public:
+  typedef T value_type;
+
   Optional(NoneType) : hasVal(false) {}
   explicit Optional() : hasVal(false) {}
   Optional(const T &y) : hasVal(true) {
@@ -65,6 +68,14 @@ public:
       O.reset();
     }
     return *this;
+  }
+
+  /// Create a new object by constructing it in place with the given arguments.
+  template<typename ...ArgTypes>
+  void emplace(ArgTypes &&...Args) {
+    reset();
+    hasVal = true;
+    new (storage.buffer) T(std::forward<ArgTypes>(Args)...);
   }
 
   static inline Optional create(const T* y) {
@@ -110,16 +121,26 @@ public:
   const T& getValue() const LLVM_LVALUE_FUNCTION { assert(hasVal); return *getPointer(); }
   T& getValue() LLVM_LVALUE_FUNCTION { assert(hasVal); return *getPointer(); }
 
-  LLVM_EXPLICIT operator bool() const { return hasVal; }
+  explicit operator bool() const { return hasVal; }
   bool hasValue() const { return hasVal; }
   const T* operator->() const { return getPointer(); }
   T* operator->() { return getPointer(); }
   const T& operator*() const LLVM_LVALUE_FUNCTION { assert(hasVal); return *getPointer(); }
   T& operator*() LLVM_LVALUE_FUNCTION { assert(hasVal); return *getPointer(); }
 
+  template <typename U>
+  LLVM_CONSTEXPR T getValueOr(U &&value) const LLVM_LVALUE_FUNCTION {
+    return hasValue() ? getValue() : std::forward<U>(value);
+  }
+
 #if LLVM_HAS_RVALUE_REFERENCE_THIS
   T&& getValue() && { assert(hasVal); return std::move(*getPointer()); }
   T&& operator*() && { assert(hasVal); return std::move(*getPointer()); }
+
+  template <typename U>
+  T getValueOr(U &&value) && {
+    return hasValue() ? std::move(getValue()) : std::forward<U>(value);
+  }
 #endif
 };
 

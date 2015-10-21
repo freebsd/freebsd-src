@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FRONTEND_VERIFYDIAGNOSTICSCLIENT_H
-#define LLVM_CLANG_FRONTEND_VERIFYDIAGNOSTICSCLIENT_H
+#ifndef LLVM_CLANG_FRONTEND_VERIFYDIAGNOSTICCONSUMER_H
+#define LLVM_CLANG_FRONTEND_VERIFYDIAGNOSTICCONSUMER_H
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Lex/Preprocessor.h"
@@ -145,9 +145,12 @@ public:
   ///
   class Directive {
   public:
-    static Directive *create(bool RegexKind, SourceLocation DirectiveLoc,
-                             SourceLocation DiagnosticLoc, bool MatchAnyLine,
-                             StringRef Text, unsigned Min, unsigned Max);
+    static std::unique_ptr<Directive> create(bool RegexKind,
+                                             SourceLocation DirectiveLoc,
+                                             SourceLocation DiagnosticLoc,
+                                             bool MatchAnyLine, StringRef Text,
+                                             unsigned Min, unsigned Max);
+
   public:
     /// Constant representing n or more matches.
     static const unsigned MaxCount = UINT_MAX;
@@ -177,11 +180,11 @@ public:
     }
 
   private:
-    Directive(const Directive &) LLVM_DELETED_FUNCTION;
-    void operator=(const Directive &) LLVM_DELETED_FUNCTION;
+    Directive(const Directive &) = delete;
+    void operator=(const Directive &) = delete;
   };
 
-  typedef std::vector<Directive*> DirectiveList;
+  typedef std::vector<std::unique_ptr<Directive>> DirectiveList;
 
   /// ExpectedData - owns directive objects and deletes on destructor.
   ///
@@ -192,13 +195,11 @@ public:
     DirectiveList Notes;
 
     void Reset() {
-      llvm::DeleteContainerPointers(Errors);
-      llvm::DeleteContainerPointers(Warnings);
-      llvm::DeleteContainerPointers(Remarks);
-      llvm::DeleteContainerPointers(Notes);
+      Errors.clear();
+      Warnings.clear();
+      Remarks.clear();
+      Notes.clear();
     }
-
-    ~ExpectedData() { Reset(); }
   };
 
   enum DirectiveStatus {
@@ -211,7 +212,7 @@ public:
 private:
   DiagnosticsEngine &Diags;
   DiagnosticConsumer *PrimaryClient;
-  bool OwnsPrimaryClient;
+  std::unique_ptr<DiagnosticConsumer> PrimaryClientOwner;
   std::unique_ptr<TextDiagnosticBuffer> Buffer;
   const Preprocessor *CurrentPreprocessor;
   const LangOptions *LangOpts;
@@ -245,7 +246,7 @@ public:
   /// the currently-attached diagnostic client when a diagnostic does not match 
   /// what is expected (as indicated in the source file).
   VerifyDiagnosticConsumer(DiagnosticsEngine &Diags);
-  ~VerifyDiagnosticConsumer();
+  ~VerifyDiagnosticConsumer() override;
 
   void BeginSourceFile(const LangOptions &LangOpts,
                        const Preprocessor *PP) override;

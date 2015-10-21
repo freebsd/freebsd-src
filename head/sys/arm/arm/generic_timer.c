@@ -31,8 +31,11 @@
  */
 
 /**
- *      Cortex-A15 (and probably A7) Generic Timer
+ *      Cortex-A7, Cortex-A15, ARMv8 and later Generic Timer
  */
+
+#include "opt_acpi.h"
+#include "opt_platform.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -51,13 +54,17 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#ifdef FDT
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#endif
 
-#include <machine/bus.h>
-#include <machine/fdt.h>
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
+#endif
 
 #define	GT_CTRL_ENABLE		(1 << 0)
 #define	GT_CTRL_INT_MASK	(1 << 1)
@@ -102,15 +109,22 @@ static struct timecounter arm_tmr_timecount = {
 	.tc_quality        = 1000,
 };
 
+#ifdef __arm__
+#define	get_el0(x)	cp15_## x ##_get()
+#define	get_el1(x)	cp15_## x ##_get()
+#define	set_el0(x, val)	cp15_## x ##_set(val)
+#define	set_el1(x, val)	cp15_## x ##_set(val)
+#else /* __aarch64__ */
+#define	get_el0(x)	READ_SPECIALREG(x ##_el0)
+#define	get_el1(x)	READ_SPECIALREG(x ##_el1)
+#define	set_el0(x, val)	WRITE_SPECIALREG(x ##_el0, val)
+#define	set_el1(x, val)	WRITE_SPECIALREG(x ##_el1, val)
+#endif
+
 static int
 get_freq(void)
 {
-	uint32_t val;
-
-	/* cntfrq */
-	__asm volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (val));
-
-	return (val);
+	return (get_el0(cntfrq));
 }
 
 static long
@@ -120,11 +134,9 @@ get_cntxct(bool physical)
 
 	isb();
 	if (physical)
-		/* cntpct */
-		__asm volatile("mrrc p15, 0, %Q0, %R0, c14" : "=r" (val));
+		val = get_el0(cntpct);
 	else
-		/* cntvct */
-		__asm volatile("mrrc p15, 1, %Q0, %R0, c14" : "=r" (val));
+		val = get_el0(cntvct);
 
 	return (val);
 }
@@ -134,13 +146,9 @@ set_ctrl(uint32_t val, bool physical)
 {
 
 	if (physical)
-		/* cntp_ctl */
-		__asm volatile("mcr p15, 0, %[val], c14, c2, 1" : :
-		    [val] "r" (val));
+		set_el0(cntp_ctl, val);
 	else
-		/* cntv_ctl */
-		__asm volatile("mcr p15, 0, %[val], c14, c3, 1" : :
-		    [val] "r" (val));
+		set_el0(cntv_ctl, val);
 	isb();
 
 	return (0);
@@ -151,13 +159,9 @@ set_tval(uint32_t val, bool physical)
 {
 
 	if (physical)
-		/* cntp_tval */
-		__asm volatile("mcr p15, 0, %[val], c14, c2, 0" : :
-		    [val] "r" (val));
+		set_el0(cntp_tval, val);
 	else
-		/* cntv_tval */
-		__asm volatile("mcr p15, 0, %[val], c14, c3, 0" : :
-		    [val] "r" (val));
+		set_el0(cntv_tval, val);
 	isb();
 
 	return (0);
@@ -169,11 +173,9 @@ get_ctrl(bool physical)
 	uint32_t val;
 
 	if (physical)
-		/* cntp_ctl */
-		__asm volatile("mrc p15, 0, %0, c14, c2, 1" : "=r" (val));
+		val = get_el0(cntp_ctl);
 	else
-		/* cntv_ctl */
-		__asm volatile("mrc p15, 0, %0, c14, c3, 1" : "=r" (val));
+		val = get_el0(cntv_ctl);
 
 	return (val);
 }
@@ -183,10 +185,10 @@ disable_user_access(void)
 {
 	uint32_t cntkctl;
 
-	__asm volatile("mrc p15, 0, %0, c14, c1, 0" : "=r" (cntkctl));
+	cntkctl = get_el1(cntkctl);
 	cntkctl &= ~(GT_CNTKCTL_PL0PTEN | GT_CNTKCTL_PL0VTEN |
 	    GT_CNTKCTL_EVNTEN | GT_CNTKCTL_PL0VCTEN | GT_CNTKCTL_PL0PCTEN);
-	__asm volatile("mcr p15, 0, %0, c14, c1, 0" : : "r" (cntkctl));
+	set_el1(cntkctl, cntkctl);
 	isb();
 }
 
@@ -253,27 +255,80 @@ arm_tmr_intr(void *arg)
 	return (FILTER_HANDLED);
 }
 
+#ifdef FDT
 static int
-arm_tmr_probe(device_t dev)
+arm_tmr_fdt_probe(device_t dev)
 {
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "arm,armv7-timer"))
-		return (ENXIO);
+	if (ofw_bus_is_compatible(dev, "arm,armv7-timer")) {
+		device_set_desc(dev, "ARMv7 Generic Timer");
+		return (BUS_PROBE_DEFAULT);
+	} else if (ofw_bus_is_compatible(dev, "arm,armv8-timer")) {
+		device_set_desc(dev, "ARMv8 Generic Timer");
+		return (BUS_PROBE_DEFAULT);
+	}
 
-	device_set_desc(dev, "ARMv7 Generic Timer");
-	return (BUS_PROBE_DEFAULT);
+	return (ENXIO);
 }
+#endif
+
+#ifdef DEV_ACPI
+static void
+arm_tmr_acpi_identify(driver_t *driver, device_t parent)
+{
+	ACPI_TABLE_GTDT *gtdt;
+	vm_paddr_t physaddr;
+	device_t dev;
+
+	physaddr = acpi_find_table(ACPI_SIG_GTDT);
+	if (physaddr == 0)
+		return;
+
+	gtdt = acpi_map_table(physaddr, ACPI_SIG_GTDT);
+	if (gtdt == NULL) {
+		device_printf(parent, "gic: Unable to map the GTDT\n");
+		return;
+	}
+
+	dev = BUS_ADD_CHILD(parent, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE,
+	    "generic_timer", -1);
+	if (dev == NULL) {
+		device_printf(parent, "add gic child failed\n");
+		goto out;
+	}
+
+	BUS_SET_RESOURCE(parent, dev, SYS_RES_IRQ, 0,
+	    gtdt->SecureEl1Interrupt, 1);
+	BUS_SET_RESOURCE(parent, dev, SYS_RES_IRQ, 1,
+	    gtdt->NonSecureEl1Interrupt, 1);
+	BUS_SET_RESOURCE(parent, dev, SYS_RES_IRQ, 2,
+	    gtdt->VirtualTimerInterrupt, 1);
+
+out:
+	acpi_unmap_table(gtdt);
+}
+
+static int
+arm_tmr_acpi_probe(device_t dev)
+{
+
+	device_set_desc(dev, "ARM Generic Timer");
+	return (BUS_PROBE_NOWILDCARD);
+}
+#endif
 
 
 static int
 arm_tmr_attach(device_t dev)
 {
 	struct arm_tmr_softc *sc;
+#ifdef FDT
 	phandle_t node;
 	pcell_t clock;
+#endif
 	int error;
 	int i;
 
@@ -281,12 +336,17 @@ arm_tmr_attach(device_t dev)
 	if (arm_tmr_sc)
 		return (ENXIO);
 
+#ifdef FDT
 	/* Get the base clock frequency */
 	node = ofw_bus_get_node(dev);
-	error = OF_getprop(node, "clock-frequency", &clock, sizeof(clock));
-	if (error > 0) {
-		sc->clkfreq = fdt32_to_cpu(clock);
+	if (node > 0) {
+		error = OF_getprop(node, "clock-frequency", &clock,
+		    sizeof(clock));
+		if (error > 0) {
+			sc->clkfreq = fdt32_to_cpu(clock);
+		}
 	}
+#endif
 
 	if (sc->clkfreq == 0) {
 		/* Try to get clock frequency from timer */
@@ -303,7 +363,11 @@ arm_tmr_attach(device_t dev)
 		return (ENXIO);
 	}
 
+#ifdef __arm__
 	sc->physical = true;
+#else /* __aarch64__ */
+	sc->physical = false;
+#endif
 
 	arm_tmr_sc = sc;
 
@@ -337,24 +401,46 @@ arm_tmr_attach(device_t dev)
 	return (0);
 }
 
-static device_method_t arm_tmr_methods[] = {
-	DEVMETHOD(device_probe,		arm_tmr_probe),
+#ifdef FDT
+static device_method_t arm_tmr_fdt_methods[] = {
+	DEVMETHOD(device_probe,		arm_tmr_fdt_probe),
 	DEVMETHOD(device_attach,	arm_tmr_attach),
 	{ 0, 0 }
 };
 
-static driver_t arm_tmr_driver = {
+static driver_t arm_tmr_fdt_driver = {
 	"generic_timer",
-	arm_tmr_methods,
+	arm_tmr_fdt_methods,
 	sizeof(struct arm_tmr_softc),
 };
 
-static devclass_t arm_tmr_devclass;
+static devclass_t arm_tmr_fdt_devclass;
 
-EARLY_DRIVER_MODULE(timer, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0,
-    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(timer, ofwbus, arm_tmr_driver, arm_tmr_devclass, 0, 0,
-    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(timer, simplebus, arm_tmr_fdt_driver, arm_tmr_fdt_devclass,
+    0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(timer, ofwbus, arm_tmr_fdt_driver, arm_tmr_fdt_devclass,
+    0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+#endif
+
+#ifdef DEV_ACPI
+static device_method_t arm_tmr_acpi_methods[] = {
+	DEVMETHOD(device_identify,	arm_tmr_acpi_identify),
+	DEVMETHOD(device_probe,		arm_tmr_acpi_probe),
+	DEVMETHOD(device_attach,	arm_tmr_attach),
+	{ 0, 0 }
+};
+
+static driver_t arm_tmr_acpi_driver = {
+	"generic_timer",
+	arm_tmr_acpi_methods,
+	sizeof(struct arm_tmr_softc),
+};
+
+static devclass_t arm_tmr_acpi_devclass;
+
+EARLY_DRIVER_MODULE(timer, acpi, arm_tmr_acpi_driver, arm_tmr_acpi_devclass,
+    0, 0, BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+#endif
 
 void
 DELAY(int usec)
@@ -370,7 +456,7 @@ DELAY(int usec)
 		for (; usec > 0; usec--)
 			for (counts = 200; counts > 0; counts--)
 				/*
-				 * Prevent gcc from optimizing
+				 * Prevent the compiler from optimizing
 				 * out the loop
 				 */
 				cpufunc_nullop();

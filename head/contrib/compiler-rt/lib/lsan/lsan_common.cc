@@ -16,11 +16,11 @@
 
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_flags.h"
+#include "sanitizer_common/sanitizer_flag_parser.h"
 #include "sanitizer_common/sanitizer_placement_new.h"
 #include "sanitizer_common/sanitizer_procmaps.h"
 #include "sanitizer_common/sanitizer_stackdepot.h"
 #include "sanitizer_common/sanitizer_stacktrace.h"
-#include "sanitizer_common/sanitizer_stoptheworld.h"
 #include "sanitizer_common/sanitizer_suppressions.h"
 #include "sanitizer_common/sanitizer_report_decorator.h"
 
@@ -36,52 +36,17 @@ bool DisabledInThisThread() { return disable_counter > 0; }
 
 Flags lsan_flags;
 
-static void InitializeFlags(bool standalone) {
-  Flags *f = flags();
-  // Default values.
-  f->report_objects = false;
-  f->resolution = 0;
-  f->max_leaks = 0;
-  f->exitcode = 23;
-  f->use_registers = true;
-  f->use_globals = true;
-  f->use_stacks = true;
-  f->use_tls = true;
-  f->use_root_regions = true;
-  f->use_unaligned = false;
-  f->use_poisoned = false;
-  f->log_pointers = false;
-  f->log_threads = false;
+void Flags::SetDefaults() {
+#define LSAN_FLAG(Type, Name, DefaultValue, Description) Name = DefaultValue;
+#include "lsan_flags.inc"
+#undef LSAN_FLAG
+}
 
-  const char *options = GetEnv("LSAN_OPTIONS");
-  if (options) {
-    ParseFlag(options, &f->use_registers, "use_registers", "");
-    ParseFlag(options, &f->use_globals, "use_globals", "");
-    ParseFlag(options, &f->use_stacks, "use_stacks", "");
-    ParseFlag(options, &f->use_tls, "use_tls", "");
-    ParseFlag(options, &f->use_root_regions, "use_root_regions", "");
-    ParseFlag(options, &f->use_unaligned, "use_unaligned", "");
-    ParseFlag(options, &f->use_poisoned, "use_poisoned", "");
-    ParseFlag(options, &f->report_objects, "report_objects", "");
-    ParseFlag(options, &f->resolution, "resolution", "");
-    CHECK_GE(&f->resolution, 0);
-    ParseFlag(options, &f->max_leaks, "max_leaks", "");
-    CHECK_GE(&f->max_leaks, 0);
-    ParseFlag(options, &f->log_pointers, "log_pointers", "");
-    ParseFlag(options, &f->log_threads, "log_threads", "");
-    ParseFlag(options, &f->exitcode, "exitcode", "");
-  }
-
-  // Set defaults for common flags (only in standalone mode) and parse
-  // them from LSAN_OPTIONS.
-  CommonFlags *cf = common_flags();
-  if (standalone) {
-    SetCommonFlagsDefaults(cf);
-    cf->external_symbolizer_path = GetEnv("LSAN_SYMBOLIZER_PATH");
-    cf->malloc_context_size = 30;
-    cf->detect_leaks = true;
-  }
-  ParseCommonFlagsFromString(cf, options);
+void RegisterLsanFlags(FlagParser *parser, Flags *f) {
+#define LSAN_FLAG(Type, Name, DefaultValue, Description) \
+  RegisterFlag(parser, #Name, Description, &f->Name);
+#include "lsan_flags.inc"
+#undef LSAN_FLAG
 }
 
 #define LOG_POINTERS(...)                           \
@@ -94,14 +59,23 @@ static void InitializeFlags(bool standalone) {
     if (flags()->log_threads) Report(__VA_ARGS__); \
   } while (0);
 
-static bool suppressions_inited = false;
+ALIGNED(64) static char suppression_placeholder[sizeof(SuppressionContext)];
+static SuppressionContext *suppression_ctx = nullptr;
+static const char kSuppressionLeak[] = "leak";
+static const char *kSuppressionTypes[] = { kSuppressionLeak };
 
 void InitializeSuppressions() {
-  CHECK(!suppressions_inited);
-  SuppressionContext::InitIfNecessary();
+  CHECK_EQ(nullptr, suppression_ctx);
+  suppression_ctx = new (suppression_placeholder) // NOLINT
+      SuppressionContext(kSuppressionTypes, ARRAY_SIZE(kSuppressionTypes));
+  suppression_ctx->ParseFromFile(flags()->suppressions);
   if (&__lsan_default_suppressions)
-    SuppressionContext::Get()->Parse(__lsan_default_suppressions());
-  suppressions_inited = true;
+    suppression_ctx->Parse(__lsan_default_suppressions());
+}
+
+static SuppressionContext *GetSuppressionContext() {
+  CHECK(suppression_ctx);
+  return suppression_ctx;
 }
 
 struct RootRegion {
@@ -117,8 +91,7 @@ void InitializeRootRegions() {
   root_regions = new(placeholder) InternalMmapVector<RootRegion>(1);
 }
 
-void InitCommonLsan(bool standalone) {
-  InitializeFlags(standalone);
+void InitCommonLsan() {
   InitializeRootRegions();
   if (common_flags()->detect_leaks) {
     // Initialization which can fail or print warnings should only be done if
@@ -141,9 +114,11 @@ static inline bool CanBeAHeapPointer(uptr p) {
   // bound on heap addresses.
   const uptr kMinAddress = 4 * 4096;
   if (p < kMinAddress) return false;
-#ifdef __x86_64__
+#if defined(__x86_64__)
   // Accept only canonical form user-space addresses.
   return ((p >> 47) == 0);
+#elif defined(__mips64)
+  return ((p >> 40) == 0);
 #else
   return true;
 #endif
@@ -151,13 +126,14 @@ static inline bool CanBeAHeapPointer(uptr p) {
 
 // Scans the memory range, looking for byte patterns that point into allocator
 // chunks. Marks those chunks with |tag| and adds them to |frontier|.
-// There are two usage modes for this function: finding reachable or ignored
-// chunks (|tag| = kReachable or kIgnored) and finding indirectly leaked chunks
+// There are two usage modes for this function: finding reachable chunks
+// (|tag| = kReachable) and finding indirectly leaked chunks
 // (|tag| = kIndirectlyLeaked). In the second case, there's no flood fill,
 // so |frontier| = 0.
 void ScanRangeForPointers(uptr begin, uptr end,
                           Frontier *frontier,
                           const char *region_type, ChunkTag tag) {
+  CHECK(tag == kReachable || tag == kIndirectlyLeaked);
   const uptr alignment = flags()->pointer_alignment();
   LOG_POINTERS("Scanning %s range %p-%p.\n", region_type, begin, end);
   uptr pp = begin;
@@ -171,9 +147,7 @@ void ScanRangeForPointers(uptr begin, uptr end,
     // Pointers to self don't count. This matters when tag == kIndirectlyLeaked.
     if (chunk == begin) continue;
     LsanMetadata m(chunk);
-    // Reachable beats ignored beats leaked.
-    if (m.tag() == kReachable) continue;
-    if (m.tag() == kIgnored && tag != kReachable) continue;
+    if (m.tag() == kReachable || m.tag() == kIgnored) continue;
 
     // Do this check relatively late so we can log only the interesting cases.
     if (!flags()->use_poisoned && WordIsPoisoned(pp)) {
@@ -312,7 +286,7 @@ static void MarkIndirectlyLeakedCb(uptr chunk, void *arg) {
   LsanMetadata m(chunk);
   if (m.allocated() && m.tag() != kReachable) {
     ScanRangeForPointers(chunk, chunk + m.requested_size(),
-                         /* frontier */ 0, "HEAP", kIndirectlyLeaked);
+                         /* frontier */ nullptr, "HEAP", kIndirectlyLeaked);
   }
 }
 
@@ -322,8 +296,11 @@ static void CollectIgnoredCb(uptr chunk, void *arg) {
   CHECK(arg);
   chunk = GetUserBegin(chunk);
   LsanMetadata m(chunk);
-  if (m.allocated() && m.tag() == kIgnored)
+  if (m.allocated() && m.tag() == kIgnored) {
+    LOG_POINTERS("Ignored: chunk %p-%p of size %zu.\n",
+                 chunk, chunk + m.requested_size(), m.requested_size());
     reinterpret_cast<Frontier *>(arg)->push_back(chunk);
+  }
 }
 
 // Sets the appropriate tag on each chunk.
@@ -331,26 +308,33 @@ static void ClassifyAllChunks(SuspendedThreadsList const &suspended_threads) {
   // Holds the flood fill frontier.
   Frontier frontier(1);
 
+  ForEachChunk(CollectIgnoredCb, &frontier);
   ProcessGlobalRegions(&frontier);
   ProcessThreads(suspended_threads, &frontier);
   ProcessRootRegions(&frontier);
   FloodFillTag(&frontier, kReachable);
+
   // The check here is relatively expensive, so we do this in a separate flood
   // fill. That way we can skip the check for chunks that are reachable
   // otherwise.
   LOG_POINTERS("Processing platform-specific allocations.\n");
+  CHECK_EQ(0, frontier.size());
   ProcessPlatformSpecificAllocations(&frontier);
   FloodFillTag(&frontier, kReachable);
-
-  LOG_POINTERS("Scanning ignored chunks.\n");
-  CHECK_EQ(0, frontier.size());
-  ForEachChunk(CollectIgnoredCb, &frontier);
-  FloodFillTag(&frontier, kIgnored);
 
   // Iterate over leaked chunks and mark those that are reachable from other
   // leaked chunks.
   LOG_POINTERS("Scanning leaked chunks.\n");
-  ForEachChunk(MarkIndirectlyLeakedCb, 0 /* arg */);
+  ForEachChunk(MarkIndirectlyLeakedCb, nullptr);
+}
+
+// ForEachChunk callback. Resets the tags to pre-leak-check state.
+static void ResetTagsCb(uptr chunk, void *arg) {
+  (void)arg;
+  chunk = GetUserBegin(chunk);
+  LsanMetadata m(chunk);
+  if (m.allocated() && m.tag() != kIgnored)
+    m.set_tag(kDirectlyLeaked);
 }
 
 static void PrintStackTraceById(u32 stack_trace_id) {
@@ -367,7 +351,7 @@ static void CollectLeaksCb(uptr chunk, void *arg) {
   LsanMetadata m(chunk);
   if (!m.allocated()) return;
   if (m.tag() == kDirectlyLeaked || m.tag() == kIndirectlyLeaked) {
-    uptr resolution = flags()->resolution;
+    u32 resolution = flags()->resolution;
     u32 stack_trace_id = 0;
     if (resolution > 0) {
       StackTrace stack = StackDepotGet(m.stack_trace_id());
@@ -383,7 +367,7 @@ static void CollectLeaksCb(uptr chunk, void *arg) {
 
 static void PrintMatchedSuppressions() {
   InternalMmapVector<Suppression *> matched(1);
-  SuppressionContext::Get()->GetMatched(&matched);
+  GetSuppressionContext()->GetMatched(&matched);
   if (!matched.size())
     return;
   const char *line = "-----------------------------------------------------";
@@ -396,35 +380,33 @@ static void PrintMatchedSuppressions() {
   Printf("%s\n\n", line);
 }
 
-struct DoLeakCheckParam {
+struct CheckForLeaksParam {
   bool success;
   LeakReport leak_report;
 };
 
-static void DoLeakCheckCallback(const SuspendedThreadsList &suspended_threads,
-                                void *arg) {
-  DoLeakCheckParam *param = reinterpret_cast<DoLeakCheckParam *>(arg);
+static void CheckForLeaksCallback(const SuspendedThreadsList &suspended_threads,
+                                  void *arg) {
+  CheckForLeaksParam *param = reinterpret_cast<CheckForLeaksParam *>(arg);
   CHECK(param);
   CHECK(!param->success);
   ClassifyAllChunks(suspended_threads);
   ForEachChunk(CollectLeaksCb, &param->leak_report);
+  // Clean up for subsequent leak checks. This assumes we did not overwrite any
+  // kIgnored tags.
+  ForEachChunk(ResetTagsCb, nullptr);
   param->success = true;
 }
 
-void DoLeakCheck() {
-  EnsureMainThreadIDIsCorrect();
-  BlockingMutexLock l(&global_mutex);
-  static bool already_done;
-  if (already_done) return;
-  already_done = true;
+static bool CheckForLeaks() {
   if (&__lsan_is_turned_off && __lsan_is_turned_off())
-      return;
-
-  DoLeakCheckParam param;
+      return false;
+  EnsureMainThreadIDIsCorrect();
+  CheckForLeaksParam param;
   param.success = false;
   LockThreadRegistry();
   LockAllocator();
-  StopTheWorld(DoLeakCheckCallback, &param);
+  DoStopTheWorld(CheckForLeaksCallback, &param);
   UnlockAllocator();
   UnlockThreadRegistry();
 
@@ -448,31 +430,48 @@ void DoLeakCheck() {
     PrintMatchedSuppressions();
   if (unsuppressed_count > 0) {
     param.leak_report.PrintSummary();
-    if (flags()->exitcode) {
-      if (common_flags()->coverage)
-        __sanitizer_cov_dump();
-      internal__exit(flags()->exitcode);
-    }
+    return true;
   }
+  return false;
+}
+
+void DoLeakCheck() {
+  BlockingMutexLock l(&global_mutex);
+  static bool already_done;
+  if (already_done) return;
+  already_done = true;
+  bool have_leaks = CheckForLeaks();
+  if (!have_leaks) {
+    return;
+  }
+  if (flags()->exitcode) {
+    if (common_flags()->coverage)
+      __sanitizer_cov_dump();
+    internal__exit(flags()->exitcode);
+  }
+}
+
+static int DoRecoverableLeakCheck() {
+  BlockingMutexLock l(&global_mutex);
+  bool have_leaks = CheckForLeaks();
+  return have_leaks ? 1 : 0;
 }
 
 static Suppression *GetSuppressionForAddr(uptr addr) {
   Suppression *s = nullptr;
 
   // Suppress by module name.
-  const char *module_name;
-  uptr module_offset;
-  if (Symbolizer::GetOrInit()->GetModuleNameAndOffsetForPC(addr, &module_name,
-                                                           &module_offset) &&
-      SuppressionContext::Get()->Match(module_name, SuppressionLeak, &s))
-    return s;
+  SuppressionContext *suppressions = GetSuppressionContext();
+  if (const char *module_name =
+          Symbolizer::GetOrInit()->GetModuleNameForPc(addr))
+    if (suppressions->Match(module_name, kSuppressionLeak, &s))
+      return s;
 
   // Suppress by file or function name.
   SymbolizedStack *frames = Symbolizer::GetOrInit()->SymbolizePC(addr);
   for (SymbolizedStack *cur = frames; cur; cur = cur->next) {
-    if (SuppressionContext::Get()->Match(cur->info.function, SuppressionLeak,
-                                         &s) ||
-        SuppressionContext::Get()->Match(cur->info.file, SuppressionLeak, &s)) {
+    if (suppressions->Match(cur->info.function, kSuppressionLeak, &s) ||
+        suppressions->Match(cur->info.file, kSuppressionLeak, &s)) {
       break;
     }
   }
@@ -701,6 +700,15 @@ void __lsan_do_leak_check() {
   if (common_flags()->detect_leaks)
     __lsan::DoLeakCheck();
 #endif  // CAN_SANITIZE_LEAKS
+}
+
+SANITIZER_INTERFACE_ATTRIBUTE
+int __lsan_do_recoverable_leak_check() {
+#if CAN_SANITIZE_LEAKS
+  if (common_flags()->detect_leaks)
+    return __lsan::DoRecoverableLeakCheck();
+#endif  // CAN_SANITIZE_LEAKS
+  return 0;
 }
 
 #if !SANITIZER_SUPPORTS_WEAK_HOOKS

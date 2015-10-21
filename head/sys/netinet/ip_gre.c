@@ -145,7 +145,7 @@ in_gre_output(struct mbuf *m, int af, int hlen)
 #ifdef INET6
 	case AF_INET6:
 		gi->gi_ip.ip_tos = 0; /* XXX */
-		gi->gi_ip.ip_id = ip_newid();
+		ip_fillid(&gi->gi_ip);
 		break;
 #endif
 	}

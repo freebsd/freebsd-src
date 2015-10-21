@@ -6,6 +6,7 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
+#ifndef __ANDROID_NDK__
 
 #include "lldb/Core/ConnectionSharedMemory.h"
 
@@ -25,7 +26,6 @@
 // Other libraries and framework includes
 // Project includes
 #include "llvm/Support/MathExtras.h"
-#include "lldb/lldb-private-log.h"
 #include "lldb/Core/Communication.h"
 #include "lldb/Core/Log.h"
 
@@ -106,6 +106,13 @@ ConnectionSharedMemory::Write (const void *src, size_t src_len, ConnectionStatus
     return 0;
 }
 
+std::string
+ConnectionSharedMemory::GetURI()
+{
+    // TODO: fix when Connect is fixed?
+    return "";
+}
+
 ConnectionStatus
 ConnectionSharedMemory::BytesAvailable (uint32_t timeout_usec, Error *error_ptr)
 {
@@ -156,3 +163,4 @@ ConnectionSharedMemory::Open (bool create, const char *name, size_t size, Error 
     return eConnectionStatusError;
 }
 
+#endif // __ANDROID_NDK__

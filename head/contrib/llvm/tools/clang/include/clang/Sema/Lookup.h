@@ -132,7 +132,7 @@ public:
     : ResultKind(NotFound),
       Paths(nullptr),
       NamingClass(nullptr),
-      SemaRef(SemaRef),
+      SemaPtr(&SemaRef),
       NameInfo(NameInfo),
       LookupKind(LookupKind),
       IDNS(0),
@@ -154,7 +154,7 @@ public:
     : ResultKind(NotFound),
       Paths(nullptr),
       NamingClass(nullptr),
-      SemaRef(SemaRef),
+      SemaPtr(&SemaRef),
       NameInfo(Name, NameLoc),
       LookupKind(LookupKind),
       IDNS(0),
@@ -174,7 +174,7 @@ public:
     : ResultKind(NotFound),
       Paths(nullptr),
       NamingClass(nullptr),
-      SemaRef(Other.SemaRef),
+      SemaPtr(Other.SemaPtr),
       NameInfo(Other.NameInfo),
       LookupKind(Other.LookupKind),
       IDNS(Other.IDNS),
@@ -291,9 +291,6 @@ public:
     if (!D->isHidden())
       return true;
 
-    if (SemaRef.ActiveTemplateInstantiations.empty())
-      return false;
-
     // During template instantiation, we can refer to hidden declarations, if
     // they were visible in any module along the path of instantiation.
     return isVisibleSlow(SemaRef, D);
@@ -305,7 +302,7 @@ public:
     if (!D->isInIdentifierNamespace(IDNS))
       return nullptr;
 
-    if (isHiddenDeclarationVisible() || isVisible(SemaRef, D))
+    if (isHiddenDeclarationVisible() || isVisible(getSema(), D))
       return D;
 
     return getAcceptableDeclSlow(D);
@@ -424,13 +421,20 @@ public:
         Paths = nullptr;
       }
     } else {
-      AmbiguityKind SavedAK = Ambiguity;
+      AmbiguityKind SavedAK;
+      bool WasAmbiguous = false;
+      if (ResultKind == Ambiguous) {
+        SavedAK = Ambiguity;
+        WasAmbiguous = true;
+      }
       ResultKind = Found;
       resolveKind();
 
       // If we didn't make the lookup unambiguous, restore the old
       // ambiguity kind.
       if (ResultKind == Ambiguous) {
+        (void)WasAmbiguous;
+        assert(WasAmbiguous);
         Ambiguity = SavedAK;
       } else if (Paths) {
         deletePaths(Paths);
@@ -544,7 +548,7 @@ public:
 
   /// \brief Get the Sema object that this lookup result is searching
   /// with.
-  Sema &getSema() const { return SemaRef; }
+  Sema &getSema() const { return *SemaPtr; }
 
   /// A class for iterating through a result set and possibly
   /// filtering out results.  The results returned are possibly
@@ -623,9 +627,9 @@ public:
 private:
   void diagnose() {
     if (isAmbiguous())
-      SemaRef.DiagnoseAmbiguousLookup(*this);
-    else if (isClassLookup() && SemaRef.getLangOpts().AccessControl)
-      SemaRef.CheckLookupAccess(*this);
+      getSema().DiagnoseAmbiguousLookup(*this);
+    else if (isClassLookup() && getSema().getLangOpts().AccessControl)
+      getSema().CheckLookupAccess(*this);
   }
 
   void setAmbiguous(AmbiguityKind AK) {
@@ -657,7 +661,7 @@ private:
   QualType BaseObjectType;
 
   // Parameters.
-  Sema &SemaRef;
+  Sema *SemaPtr;
   DeclarationNameInfo NameInfo;
   SourceRange NameContextRange;
   Sema::LookupNameKind LookupKind;
@@ -728,22 +732,18 @@ public:
   }
 
   class iterator
-      : public std::iterator<std::forward_iterator_tag, NamedDecl *> {
-    typedef llvm::DenseMap<NamedDecl*,NamedDecl*>::iterator inner_iterator;
-    inner_iterator iter;
-
+      : public llvm::iterator_adaptor_base<
+            iterator, llvm::DenseMap<NamedDecl *, NamedDecl *>::iterator,
+            std::forward_iterator_tag, NamedDecl *> {
     friend class ADLResult;
-    iterator(const inner_iterator &iter) : iter(iter) {}
+
+    iterator(llvm::DenseMap<NamedDecl *, NamedDecl *>::iterator Iter)
+        : iterator_adaptor_base(std::move(Iter)) {}
+
   public:
     iterator() {}
 
-    iterator &operator++() { ++iter; return *this; }
-    iterator operator++(int) { return iterator(iter++); }
-
-    value_type operator*() const { return iter->second; }
-
-    bool operator==(const iterator &other) const { return iter == other.iter; }
-    bool operator!=(const iterator &other) const { return iter != other.iter; }
+    value_type operator*() const { return I->second; }
   };
 
   iterator begin() { return iterator(Decls.begin()); }

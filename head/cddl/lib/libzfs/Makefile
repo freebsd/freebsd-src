@@ -8,10 +8,10 @@
 LIB=	zfs
 DPADD=	${LIBMD} ${LIBPTHREAD} ${LIBUMEM} ${LIBUTIL} ${LIBM} ${LIBNVPAIR} \
 	${LIBAVL} ${LIBZFS_CORE} ${LIBUUTIL} ${LIBBSDXML} ${LIBGEOM} \
-	${LIBNVPAIR}
+	${LIBNVPAIR} ${LIBZ}
 
 LDADD=	-lmd -lpthread -lumem -lutil -luutil -lm -lnvpair -lavl \
-	-lbsdxml -lgeom -lnvpair -lzfs_core
+	-lbsdxml -lgeom -lnvpair -lz -lzfs_core
 
 SRCS=	deviceid.c \
 	fsshare.c \
@@ -37,7 +37,6 @@ SRCS+=	libzfs_changelist.c \
 	zfs_comutil.c \
 	zfs_deleg.c \
 	zfs_fletcher.c \
-	zfs_ioctl_compat.c \
 	zfs_namecheck.c \
 	zfs_prop.c \
 	zpool_prop.c \

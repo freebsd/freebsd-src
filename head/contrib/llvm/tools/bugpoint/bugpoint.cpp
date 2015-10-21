@@ -16,10 +16,10 @@
 #include "BugDriver.h"
 #include "ToolRunner.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/LegacyPassNameParser.h"
 #include "llvm/LinkAllIR.h"
 #include "llvm/LinkAllPasses.h"
-#include "llvm/PassManager.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/PluginLoader.h"
@@ -50,7 +50,7 @@ TimeoutValue("timeout", cl::init(300), cl::value_desc("seconds"),
 static cl::opt<int>
 MemoryLimit("mlimit", cl::init(-1), cl::value_desc("MBytes"),
             cl::desc("Maximum amount of memory to use. 0 disables check."
-                     " Defaults to 300MB (800MB under valgrind)."));
+                     " Defaults to 400MB (800MB under valgrind)."));
 
 static cl::opt<bool>
 UseValgrind("enable-valgrind",
@@ -61,10 +61,6 @@ UseValgrind("enable-valgrind",
 //
 static cl::list<const PassInfo*, bool, PassNameParser>
 PassList(cl::desc("Passes available:"), cl::ZeroOrMore);
-
-static cl::opt<bool>
-StandardCompileOpts("std-compile-opts",
-                   cl::desc("Include the standard compile time optimizations"));
 
 static cl::opt<bool>
 StandardLinkOpts("std-link-opts",
@@ -96,7 +92,7 @@ static void BugpointInterruptFunction() {
 
 // Hack to capture a pass list.
 namespace {
-  class AddToDriver : public FunctionPassManager {
+  class AddToDriver : public legacy::FunctionPassManager {
     BugDriver &D;
   public:
     AddToDriver(BugDriver &_D) : FunctionPassManager(nullptr), D(_D) {}
@@ -162,7 +158,7 @@ int main(int argc, char **argv) {
     if (sys::RunningOnValgrind() || UseValgrind)
       MemoryLimit = 800;
     else
-      MemoryLimit = 300;
+      MemoryLimit = 400;
   }
 
   BugDriver D(argv[0], FindBugs, TimeoutValue, MemoryLimit,
@@ -170,17 +166,11 @@ int main(int argc, char **argv) {
   if (D.addSources(InputFilenames)) return 1;
 
   AddToDriver PM(D);
-  if (StandardCompileOpts) {
-    PassManagerBuilder Builder;
-    Builder.OptLevel = 3;
-    Builder.Inliner = createFunctionInliningPass();
-    Builder.populateModulePassManager(PM);
-  }
 
   if (StandardLinkOpts) {
     PassManagerBuilder Builder;
-    Builder.populateLTOPassManager(PM, /*Internalize=*/true,
-                                   /*RunInliner=*/true);
+    Builder.Inliner = createFunctionInliningPass();
+    Builder.populateLTOPassManager(PM);
   }
 
   if (OptLevelO1 || OptLevelO2 || OptLevelO3) {

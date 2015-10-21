@@ -42,6 +42,9 @@ CFLAGS+=	-fPIC
 CFLAGS+=	-fpic
 .endif
 CFLAGS+=	-DPIC $(DEBUG)
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+CFLAGS+=	-fvisibility=hidden
+.endif
 LDFLAGS+=	-shared -Wl,-Bsymbolic
 LIBADD=		c_pic
 
@@ -74,7 +77,7 @@ SYMBOL_MAPS+=	${.CURDIR}/${RTLD_ARCH}/Symbol.map
 # Since moving rtld-elf to /libexec, we need to create a symlink.
 # Fixup the existing binary that's there so we can symlink over it.
 beforeinstall:
-.if exists(${DESTDIR}/usr/libexec/${PROG})
+.if exists(${DESTDIR}/usr/libexec/${PROG}) && ${MK_STAGING} == "no"
 	-chflags -h noschg ${DESTDIR}/usr/libexec/${PROG}
 .endif
 

@@ -1,10 +1,6 @@
 # $FreeBSD$
 
-OBJTOP=		${.OBJDIR:H:H:H}
-SRCTOP=		${.CURDIR:H:H:H}
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libpthread
-
-TESTSDIR=	${TESTSBASE}/lib/libthr
 
 # TODO: t_name (missing pthread_getname_np support in FreeBSD)
 NETBSD_ATF_TESTS_C=	barrier_test
@@ -25,7 +21,9 @@ NETBSD_ATF_TESTS_C+=	sigmask_test
 NETBSD_ATF_TESTS_C+=	sigsuspend_test
 NETBSD_ATF_TESTS_C+=	siglongjmp_test
 NETBSD_ATF_TESTS_C+=	sleep_test
+.if ${MACHINE} != "arm64" # ARM64TODO: Missing makecontext
 NETBSD_ATF_TESTS_C+=	swapcontext_test
+.endif
 
 NETBSD_ATF_TESTS_SH=	atexit_test
 NETBSD_ATF_TESTS_SH+=	cancel_test

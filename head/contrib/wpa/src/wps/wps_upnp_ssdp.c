@@ -3,7 +3,7 @@
  * Copyright (c) 2000-2003 Intel Corporation
  * Copyright (c) 2006-2007 Sony Corporation
  * Copyright (c) 2008-2009 Atheros Communications
- * Copyright (c) 2009, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2009-2013, Jouni Malinen <j@w1.fi>
  *
  * See wps_upnp.c for more details on licensing and code history.
  */
@@ -13,6 +13,9 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <net/route.h>
+#ifdef __linux__
+#include <net/if.h>
+#endif /* __linux__ */
 
 #include "common.h"
 #include "uuid.h"
@@ -131,10 +134,12 @@ next_advertisement(struct upnp_wps_device_sm *sm,
 	*islast = 0;
 	iface = dl_list_first(&sm->interfaces,
 			      struct upnp_wps_device_interface, list);
+	if (!iface)
+		return NULL;
 	uuid_bin2str(iface->wps->uuid, uuid_string, sizeof(uuid_string));
 	msg = wpabuf_alloc(800); /* more than big enough */
 	if (msg == NULL)
-		goto fail;
+		return NULL;
 	switch (a->type) {
 	case ADVERTISE_UP:
 	case ADVERTISE_DOWN:
@@ -208,10 +213,6 @@ next_advertisement(struct upnp_wps_device_sm *sm,
 		*islast = 1;
 
 	return msg;
-
-fail:
-	wpabuf_free(msg);
-	return NULL;
 }
 
 
@@ -312,7 +313,8 @@ static void advertisement_state_machine_handler(void *eloop_data,
 			 * (see notes above)
 			 */
 			next_timeout_msec = 0;
-			os_get_random((void *) &r, sizeof(r));
+			if (os_get_random((void *) &r, sizeof(r)) < 0)
+				r = 32768;
 			next_timeout_sec = UPNP_CACHE_SEC / 4 +
 				(((UPNP_CACHE_SEC / 4) * r) >> 16);
 			sm->advertise_count++;
@@ -584,6 +586,8 @@ static void ssdp_parse_msearch(struct upnp_wps_device_sm *sm,
 					&sm->interfaces,
 					struct upnp_wps_device_interface,
 					list);
+				if (!iface)
+					continue;
 				data += os_strlen("uuid:");
 				uuid_bin2str(iface->wps->uuid, uuid_string,
 					     sizeof(uuid_string));
@@ -736,11 +740,9 @@ int ssdp_listener_open(void)
 	int sd;
 
 	sd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sd < 0)
-		goto fail;
-	if (fcntl(sd, F_SETFL, O_NONBLOCK) != 0)
-		goto fail;
-	if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)))
+	if (sd < 0 ||
+	    fcntl(sd, F_SETFL, O_NONBLOCK) != 0 ||
+	    setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)))
 		goto fail;
 	os_memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
@@ -752,9 +754,8 @@ int ssdp_listener_open(void)
 	mcast_addr.imr_interface.s_addr = htonl(INADDR_ANY);
 	mcast_addr.imr_multiaddr.s_addr = inet_addr(UPNP_MULTICAST_ADDRESS);
 	if (setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-		       (char *) &mcast_addr, sizeof(mcast_addr)))
-		goto fail;
-	if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL,
+		       (char *) &mcast_addr, sizeof(mcast_addr)) ||
+	    setsockopt(sd, IPPROTO_IP, IP_MULTICAST_TTL,
 		       &ttl, sizeof(ttl)))
 		goto fail;
 
@@ -854,7 +855,7 @@ fail:
 }
 
 
-int ssdp_open_multicast_sock(u32 ip_addr)
+int ssdp_open_multicast_sock(u32 ip_addr, const char *forced_ifname)
 {
 	int sd;
 	 /* per UPnP-arch-DeviceArchitecture, 1. Discovery, keep IP packet
@@ -864,6 +865,22 @@ int ssdp_open_multicast_sock(u32 ip_addr)
 	sd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sd < 0)
 		return -1;
+
+	if (forced_ifname) {
+#ifdef __linux__
+		struct ifreq req;
+		os_memset(&req, 0, sizeof(req));
+		os_strlcpy(req.ifr_name, forced_ifname, sizeof(req.ifr_name));
+		if (setsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, &req,
+			       sizeof(req)) < 0) {
+			wpa_printf(MSG_INFO, "WPS UPnP: Failed to bind "
+				   "multicast socket to ifname %s: %s",
+				   forced_ifname, strerror(errno));
+			close(sd);
+			return -1;
+		}
+#endif /* __linux__ */
+	}
 
 #if 0   /* maybe ok if we sometimes block on writes */
 	if (fcntl(sd, F_SETFL, O_NONBLOCK) != 0) {
@@ -924,7 +941,7 @@ int ssdp_open_multicast_sock(u32 ip_addr)
  */
 int ssdp_open_multicast(struct upnp_wps_device_sm *sm)
 {
-	sm->multicast_sd = ssdp_open_multicast_sock(sm->ip_addr);
+	sm->multicast_sd = ssdp_open_multicast_sock(sm->ip_addr, NULL);
 	if (sm->multicast_sd < 0)
 		return -1;
 	return 0;

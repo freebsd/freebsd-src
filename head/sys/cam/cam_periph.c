@@ -108,9 +108,19 @@ periphdriver_register(void *data)
 	struct periph_driver **newdrivers, **old;
 	int ndrivers;
 
+again:
 	ndrivers = nperiph_drivers + 2;
 	newdrivers = malloc(sizeof(*newdrivers) * ndrivers, M_CAMPERIPH,
 			    M_WAITOK);
+	xpt_lock_buses();
+	if (ndrivers != nperiph_drivers + 2) {
+		/*
+		 * Lost race against itself; go around.
+		 */
+		xpt_unlock_buses();
+		free(newdrivers, M_CAMPERIPH);
+		goto again;
+	}
 	if (periph_drivers)
 		bcopy(periph_drivers, newdrivers,
 		      sizeof(*newdrivers) * nperiph_drivers);
@@ -118,9 +128,10 @@ periphdriver_register(void *data)
 	newdrivers[nperiph_drivers + 1] = NULL;
 	old = periph_drivers;
 	periph_drivers = newdrivers;
+	nperiph_drivers++;
+	xpt_unlock_buses();
 	if (old)
 		free(old, M_CAMPERIPH);
-	nperiph_drivers++;
 	/* If driver marked as early or it is late now, initialize it. */
 	if (((drv->flags & CAM_PERIPH_DRV_EARLY) != 0 && initialized > 0) ||
 	    initialized > 1)
@@ -705,16 +716,19 @@ camperiphfree(struct cam_periph *periph)
  * buffers to map stuff in and out, we're limited to the buffer size.
  */
 int
-cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
+cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
+    u_int maxmap)
 {
 	int numbufs, i, j;
 	int flags[CAM_PERIPH_MAXMAPS];
 	u_int8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
 	u_int32_t lengths[CAM_PERIPH_MAXMAPS];
 	u_int32_t dirs[CAM_PERIPH_MAXMAPS];
-	/* Some controllers may not be able to handle more data. */
-	size_t maxmap = DFLTPHYS;
 
+	if (maxmap == 0)
+		maxmap = DFLTPHYS;	/* traditional default */
+	else if (maxmap > MAXPHYS)
+		maxmap = MAXPHYS;	/* for safety */
 	switch(ccb->ccb_h.func_code) {
 	case XPT_DEV_MATCH:
 		if (ccb->cdm.match_buf_len == 0) {
@@ -844,11 +858,11 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		 */
 		mapinfo->bp[i] = getpbuf(NULL);
 
-		/* save the buffer's data address */
-		mapinfo->bp[i]->b_saveaddr = mapinfo->bp[i]->b_data;
-
 		/* put our pointer in the data slot */
 		mapinfo->bp[i]->b_data = *data_ptrs[i];
+
+		/* save the user's data address */
+		mapinfo->bp[i]->b_caller1 = *data_ptrs[i];
 
 		/* set the transfer length, we know it's < MAXPHYS */
 		mapinfo->bp[i]->b_bufsize = lengths[i];
@@ -866,7 +880,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		 */
 		if (vmapbuf(mapinfo->bp[i], 1) < 0) {
 			for (j = 0; j < i; ++j) {
-				*data_ptrs[j] = mapinfo->bp[j]->b_saveaddr;
+				*data_ptrs[j] = mapinfo->bp[j]->b_caller1;
 				vunmapbuf(mapinfo->bp[j]);
 				relpbuf(mapinfo->bp[j], NULL);
 			}
@@ -947,7 +961,7 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 
 	for (i = 0; i < numbufs; i++) {
 		/* Set the user's pointer back to the original value */
-		*data_ptrs[i] = mapinfo->bp[i]->b_saveaddr;
+		*data_ptrs[i] = mapinfo->bp[i]->b_caller1;
 
 		/* unmap the buffer */
 		vunmapbuf(mapinfo->bp[i]);
@@ -1048,8 +1062,11 @@ cam_periph_runccb(union ccb *ccb,
 		  cam_flags camflags, u_int32_t sense_flags,
 		  struct devstat *ds)
 {
+	struct bintime *starttime;
+	struct bintime ltime;
 	int error;
  
+	starttime = NULL;
 	xpt_path_assert(ccb->ccb_h.path, MA_OWNED);
 
 	/*
@@ -1057,8 +1074,11 @@ cam_periph_runccb(union ccb *ccb,
 	 * this particular type of ccb, record the transaction start.
 	 */
 	if ((ds != NULL) && (ccb->ccb_h.func_code == XPT_SCSI_IO ||
-	    ccb->ccb_h.func_code == XPT_ATA_IO))
-		devstat_start_transaction(ds, NULL);
+	    ccb->ccb_h.func_code == XPT_ATA_IO)) {
+		starttime = &ltime;
+		binuptime(starttime);
+		devstat_start_transaction(ds, starttime);
+	}
 
 	ccb->ccb_h.cbfcnp = cam_periph_done;
 	xpt_action(ccb);
@@ -1086,22 +1106,22 @@ cam_periph_runccb(union ccb *ccb,
 	if (ds != NULL) {
 		if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
 			devstat_end_transaction(ds,
-					ccb->csio.dxfer_len,
+					ccb->csio.dxfer_len - ccb->csio.resid,
 					ccb->csio.tag_action & 0x3,
 					((ccb->ccb_h.flags & CAM_DIR_MASK) ==
 					CAM_DIR_NONE) ?  DEVSTAT_NO_DATA : 
 					(ccb->ccb_h.flags & CAM_DIR_OUT) ?
 					DEVSTAT_WRITE : 
-					DEVSTAT_READ, NULL, NULL);
+					DEVSTAT_READ, NULL, starttime);
 		} else if (ccb->ccb_h.func_code == XPT_ATA_IO) {
 			devstat_end_transaction(ds,
-					ccb->ataio.dxfer_len,
+					ccb->ataio.dxfer_len - ccb->ataio.resid,
 					ccb->ataio.tag_action & 0x3,
 					((ccb->ccb_h.flags & CAM_DIR_MASK) ==
 					CAM_DIR_NONE) ?  DEVSTAT_NO_DATA : 
 					(ccb->ccb_h.flags & CAM_DIR_OUT) ?
 					DEVSTAT_WRITE : 
-					DEVSTAT_READ, NULL, NULL);
+					DEVSTAT_READ, NULL, starttime);
 		}
 	}
 
@@ -1359,8 +1379,8 @@ camperiphscsistatuserror(union ccb *ccb, union ccb **orig_ccb,
 		 * Restart the queue after either another
 		 * command completes or a 1 second timeout.
 		 */
-	 	if (ccb->ccb_h.retry_count > 0) {
-	 		ccb->ccb_h.retry_count--;
+		if ((sense_flags & SF_RETRY_BUSY) != 0 ||
+		    (ccb->ccb_h.retry_count--) > 0) {
 			error = ERESTART;
 			*relsim_flags = RELSIM_RELEASE_AFTER_TIMEOUT
 				      | RELSIM_RELEASE_AFTER_CMDCMPLT;

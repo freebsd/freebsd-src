@@ -11,11 +11,11 @@
 /// \brief Defines facilities for reading and writing on-disk hash tables.
 ///
 //===----------------------------------------------------------------------===//
-#ifndef LLVM_SUPPORT_ON_DISK_HASH_TABLE_H
-#define LLVM_SUPPORT_ON_DISK_HASH_TABLE_H
+#ifndef LLVM_SUPPORT_ONDISKHASHTABLE_H
+#define LLVM_SUPPORT_ONDISKHASHTABLE_H
 
-#include "llvm/Support/Allocator.h"
 #include "llvm/Support/AlignOf.h"
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/EndianStream.h"
 #include "llvm/Support/Host.h"
@@ -75,13 +75,10 @@ template <typename Info> class OnDiskChainedHashTableGenerator {
   llvm::SpecificBumpPtrAllocator<Item> BA;
 
   /// \brief A linked list of values in a particular hash bucket.
-  class Bucket {
-  public:
+  struct Bucket {
     offset_type Off;
-    Item *Head;
     unsigned Length;
-
-    Bucket() {}
+    Item *Head;
   };
 
   Bucket *Buckets;
@@ -283,13 +280,19 @@ public:
   };
 
   /// \brief Look up the stored data for a particular key.
-  iterator find(const external_key_type &EKey, Info *InfoPtr = 0) {
-    if (!InfoPtr)
-      InfoPtr = &InfoObj;
-
-    using namespace llvm::support;
+  iterator find(const external_key_type &EKey, Info *InfoPtr = nullptr) {
     const internal_key_type &IKey = InfoObj.GetInternalKey(EKey);
     hash_value_type KeyHash = InfoObj.ComputeHash(IKey);
+    return find_hashed(IKey, KeyHash, InfoPtr);
+  }
+
+  /// \brief Look up the stored data for a particular key with a known hash.
+  iterator find_hashed(const internal_key_type &IKey, hash_value_type KeyHash,
+                       Info *InfoPtr = nullptr) {
+    using namespace llvm::support;
+
+    if (!InfoPtr)
+      InfoPtr = &InfoObj;
 
     // Each bucket is just an offset into the hash table file.
     offset_type Idx = KeyHash & (NumBuckets - 1);
@@ -568,4 +571,4 @@ public:
 
 } // end namespace llvm
 
-#endif // LLVM_SUPPORT_ON_DISK_HASH_TABLE_H
+#endif

@@ -6,7 +6,6 @@ SUBDIR= \
 	ctfconvert \
 	ctfdump \
 	ctfmerge \
-	sgsmsg \
 	${_tests} \
 	${_zinject} \
 	${_zlook} \
@@ -25,5 +24,7 @@ _ztest=	ztest
 _zstreamdump = zstreamdump
 .endif
 .endif
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

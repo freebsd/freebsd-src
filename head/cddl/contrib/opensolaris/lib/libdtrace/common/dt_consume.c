@@ -382,6 +382,9 @@ dt_stddev(uint64_t *data, uint64_t normal)
 	int64_t norm_avg;
 	uint64_t diff[2];
 
+	if (data[0] == 0)
+		return (0);
+
 	/*
 	 * The standard approximation for standard deviation is
 	 * sqrt(average(x**2) - average(x)**2), i.e. the square root
@@ -724,8 +727,8 @@ dt_print_packed(dtrace_hdl_t *dtp, FILE *fp,
 			utf8 = B_TRUE;
 		} else if ((term = getenv("TERM")) != NULL &&
 		    (strcmp(term, "sun") == 0 ||
-		    strcmp(term, "sun-color") == 0) ||
-		    strcmp(term, "dumb") == 0) {
+		    strcmp(term, "sun-color") == 0 ||
+		    strcmp(term, "dumb") == 0)) {
 			utf8 = B_FALSE;
 		} else {
 			utf8 = B_TRUE;

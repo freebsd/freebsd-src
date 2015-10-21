@@ -18,6 +18,7 @@
 #include "llvm/IR/Instruction.h"
 
 namespace llvm {
+  class AssumptionCache;
   class DominatorTree;
   class DataLayout;
   class TargetLibraryInfo;
@@ -35,18 +36,21 @@ namespace llvm {
 class PHITransAddr {
   /// Addr - The actual address we're analyzing.
   Value *Addr;
-  
-  /// The DataLayout we are playing with if known, otherwise null.
-  const DataLayout *DL;
+
+  /// The DataLayout we are playing with.
+  const DataLayout &DL;
 
   /// TLI - The target library info if known, otherwise null.
   const TargetLibraryInfo *TLI;
-  
+
+  /// A cache of @llvm.assume calls used by SimplifyInstruction.
+  AssumptionCache *AC;
+
   /// InstInputs - The inputs for our symbolic address.
   SmallVector<Instruction*, 4> InstInputs;
 public:
-  PHITransAddr(Value *addr, const DataLayout *DL)
-      : Addr(addr), DL(DL), TLI(nullptr) {
+  PHITransAddr(Value *addr, const DataLayout &DL, AssumptionCache *AC)
+      : Addr(addr), DL(DL), TLI(nullptr), AC(AC) {
     // If the address is an instruction, the whole thing is considered an input.
     if (Instruction *I = dyn_cast<Instruction>(Addr))
       InstInputs.push_back(I);
@@ -71,12 +75,12 @@ public:
   bool IsPotentiallyPHITranslatable() const;
   
   /// PHITranslateValue - PHI translate the current address up the CFG from
-  /// CurBB to Pred, updating our state to reflect any needed changes.  If the
-  /// dominator tree DT is non-null, the translated value must dominate
+  /// CurBB to Pred, updating our state to reflect any needed changes.  If
+  /// 'MustDominate' is true, the translated value must dominate
   /// PredBB.  This returns true on failure and sets Addr to null.
   bool PHITranslateValue(BasicBlock *CurBB, BasicBlock *PredBB,
-                         const DominatorTree *DT);
-  
+                         const DominatorTree *DT, bool MustDominate);
+
   /// PHITranslateWithInsertion - PHI translate this value into the specified
   /// predecessor block, inserting a computation of the value if it is
   /// unavailable.

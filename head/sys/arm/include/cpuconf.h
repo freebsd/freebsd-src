@@ -52,14 +52,10 @@
  */
 #define	CPU_NTYPES	(defined(CPU_ARM9) +				\
 			 defined(CPU_ARM9E) +				\
-			 defined(CPU_ARM10) +				\
-			 defined(CPU_ARM1136) +				\
 			 defined(CPU_ARM1176) +				\
-			 defined(CPU_XSCALE_80200) +			\
 			 defined(CPU_XSCALE_80321) +			\
 			 defined(CPU_XSCALE_PXA2X0) +			\
 			 defined(CPU_FA526) +				\
-			 defined(CPU_FA626TE) +				\
 			 defined(CPU_XSCALE_IXP425)) +			\
 			 defined(CPU_CORTEXA) +				\
 			 defined(CPU_KRAIT) +				\
@@ -74,18 +70,17 @@
 #define	ARM_ARCH_4	0
 #endif
 
-#if (defined(CPU_ARM9E) || defined(CPU_ARM10) ||			\
-     defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
+#if (defined(CPU_ARM9E) ||						\
+     defined(CPU_XSCALE_80321) ||					\
      defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) ||		\
-     defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
-     defined(CPU_FA626TE))
+     defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425))
 #define	ARM_ARCH_5	1
 #else
 #define	ARM_ARCH_5	0
 #endif
 
 #if !defined(ARM_ARCH_6)
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176)
+#if defined(CPU_ARM1176)
 #define ARM_ARCH_6	1
 #else
 #define ARM_ARCH_6	0
@@ -150,15 +145,13 @@
  *				MMU, but also has several extensions which
  *				require different PTE layout to use.
  */
-#if (defined(CPU_ARM9) || defined(CPU_ARM9E) ||	\
-     defined(CPU_ARM10) || defined(CPU_FA526) ||	\
-     defined(CPU_FA626TE))
+#if (defined(CPU_ARM9) || defined(CPU_ARM9E) ||	defined(CPU_FA526))
 #define	ARM_MMU_GENERIC		1
 #else
 #define	ARM_MMU_GENERIC		0
 #endif
 
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176)
+#if defined(CPU_ARM1176)
 #define ARM_MMU_V6		1
 #else
 #define ARM_MMU_V6		0
@@ -170,7 +163,7 @@
 #define ARM_MMU_V7		0
 #endif
 
-#if (defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
+#if (defined(CPU_XSCALE_80321) ||					\
      defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
      defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342))
 #define	ARM_MMU_XSCALE		1
@@ -190,7 +183,7 @@
  *	ARM_XSCALE_PMU		Performance Monitoring Unit on 80200 and 80321
  */
 
-#if (defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
+#if (defined(CPU_XSCALE_80321) || \
      defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342))
 #define ARM_XSCALE_PMU	1
 #else

@@ -81,6 +81,7 @@ madt_parse_interrupt_override(ACPI_MADT_INTERRUPT_OVERRIDE *intr)
 {
 	enum intr_trigger trig;
 	enum intr_polarity pol;
+	int ret;
 
 	if (acpi_quirks & ACPI_Q_MADT_IRQ0 && intr->SourceIrq == 0 &&
 	    intr->GlobalIrq == 2) {
@@ -101,7 +102,9 @@ madt_parse_interrupt_override(ACPI_MADT_INTERRUPT_OVERRIDE *intr)
 		acpi_OverrideInterruptLevel(intr->GlobalIrq);
 
 	/* Register the IRQ with the polarity and trigger mode found. */
-	xen_register_pirq(intr->GlobalIrq, trig, pol);
+	ret = xen_register_pirq(intr->GlobalIrq, trig, pol);
+	if (ret != 0)
+		panic("Unable to register interrupt override");
 }
 
 /*
@@ -175,7 +178,7 @@ xenpv_setup_io(void)
 {
 
 	if (xen_initial_domain()) {
-		int i;
+		int i, ret;
 
 		/* Map MADT */
 		madt_physaddr = acpi_find_table(ACPI_SIG_MADT);
@@ -201,8 +204,21 @@ xenpv_setup_io(void)
 		if (!madt_found_sci_override) {
 			printf(
 	"MADT: Forcing active-low polarity and level trigger for SCI\n");
-			xen_register_pirq(AcpiGbl_FADT.SciInterrupt,
+			ret = xen_register_pirq(AcpiGbl_FADT.SciInterrupt,
 			    INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
+			if (ret != 0)
+				panic("Unable to register SCI IRQ");
+		}
+
+		/* Register legacy ISA IRQs */
+		for (i = 1; i < 16; i++) {
+			if (intr_lookup_source(i) != NULL)
+				continue;
+			ret = xen_register_pirq(i, INTR_TRIGGER_EDGE,
+			    INTR_POLARITY_LOW);
+			if (ret != 0 && bootverbose)
+				printf("Unable to register legacy IRQ#%d: %d\n",
+				    i, ret);
 		}
 
 		acpi_SetDefaultIntrModel(ACPI_INTR_APIC);

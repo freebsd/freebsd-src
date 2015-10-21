@@ -34,8 +34,9 @@
 #define PULLTYPESEL	(0x01 << 4) /* Pad pullup/pulldown type selection */
 #define PULLUDEN	(0x01 << 3) /* Pullup/pulldown disabled */
 
-#define PADCONF_OUTPUT			(0)
+#define PADCONF_OUTPUT			(PULLUDEN)
 #define PADCONF_OUTPUT_PULLUP		(PULLTYPESEL)
+#define PADCONF_OUTPUT_PULLDOWN		(0)
 #define PADCONF_INPUT			(RXACTIVE | PULLUDEN)
 #define PADCONF_INPUT_PULLUP		(RXACTIVE | PULLTYPESEL)
 #define PADCONF_INPUT_PULLDOWN		(RXACTIVE)

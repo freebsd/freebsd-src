@@ -87,6 +87,7 @@ struct eap_ssl_data {
 
 /* dummy type used as a flag for UNAUTH-TLS */
 #define EAP_UNAUTH_TLS_TYPE 255
+#define EAP_WFA_UNAUTH_TLS_TYPE 254
 
 
 int eap_peer_tls_ssl_init(struct eap_sm *sm, struct eap_ssl_data *data,
@@ -94,9 +95,12 @@ int eap_peer_tls_ssl_init(struct eap_sm *sm, struct eap_ssl_data *data,
 void eap_peer_tls_ssl_deinit(struct eap_sm *sm, struct eap_ssl_data *data);
 u8 * eap_peer_tls_derive_key(struct eap_sm *sm, struct eap_ssl_data *data,
 			     const char *label, size_t len);
+u8 * eap_peer_tls_derive_session_id(struct eap_sm *sm,
+				    struct eap_ssl_data *data, u8 eap_type,
+				    size_t *len);
 int eap_peer_tls_process_helper(struct eap_sm *sm, struct eap_ssl_data *data,
 				EapType eap_type, int peap_version,
-				u8 id, const u8 *in_data, size_t in_len,
+				u8 id, const struct wpabuf *in_data,
 				struct wpabuf **out_data);
 struct wpabuf * eap_peer_tls_build_ack(u8 id, EapType eap_type,
 				       int peap_version);

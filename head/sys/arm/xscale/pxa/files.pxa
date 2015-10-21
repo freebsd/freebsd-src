@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 arm/arm/bus_space_generic.c		standard
-arm/arm/cpufunc_asm_xscale.S		standard
 
 arm/xscale/pxa/pxa_gpio.c		standard
 arm/xscale/pxa/pxa_icu.c		standard

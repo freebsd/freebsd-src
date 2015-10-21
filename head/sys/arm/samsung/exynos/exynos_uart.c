@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
+#include <dev/uart/uart_cpu_fdt.h>
 #include <dev/uart/uart_bus.h>
 
 #include <arm/samsung/exynos/exynos_uart.h>
@@ -372,11 +373,18 @@ exynos4210_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 	return (EINVAL);
 }
 
-struct uart_class uart_exynos4210_class = {
+static struct uart_class uart_exynos4210_class = {
 	"exynos4210 class",
 	exynos4210_methods,
 	1,
 	.uc_ops = &uart_exynos4210_ops,
 	.uc_range = 8,
 	.uc_rclk = 0,
+	.uc_rshift = 0
 };
+
+static struct ofw_compat_data compat_data[] = {
+	{"exynos",		(uintptr_t)&uart_exynos4210_class},
+	{NULL,			(uintptr_t)NULL},
+};
+UART_FDT_CLASS_AND_DEVICE(compat_data);

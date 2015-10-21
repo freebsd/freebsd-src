@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/Target/StackFrame.h"
 
 // C Includes
@@ -18,6 +16,7 @@
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Disassembler.h"
+#include "lldb/Core/FormatEntity.h"
 #include "lldb/Core/Value.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/Core/ValueObjectConstResult.h"
@@ -70,7 +69,8 @@ StackFrame::StackFrame (const ThreadSP &thread_sp,
     m_is_history_frame (is_history_frame),
     m_variable_list_sp (),
     m_variable_list_value_objects (),
-    m_disassembly ()
+    m_disassembly (),
+    m_mutex (Mutex::eMutexTypeRecursive)
 {
     // If we don't have a CFA value, use the frame index for our StackID so that recursive
     // functions properly aren't confused with one another on a history stack.
@@ -109,7 +109,8 @@ StackFrame::StackFrame (const ThreadSP &thread_sp,
     m_is_history_frame (false),
     m_variable_list_sp (),
     m_variable_list_value_objects (),
-    m_disassembly ()
+    m_disassembly (),
+    m_mutex (Mutex::eMutexTypeRecursive)
 {
     if (sc_ptr != NULL)
     {
@@ -148,7 +149,8 @@ StackFrame::StackFrame (const ThreadSP &thread_sp,
     m_is_history_frame (false),
     m_variable_list_sp (),
     m_variable_list_value_objects (),
-    m_disassembly ()
+    m_disassembly (),
+    m_mutex (Mutex::eMutexTypeRecursive)
 {
     if (sc_ptr != NULL)
     {
@@ -189,6 +191,7 @@ StackFrame::~StackFrame()
 StackID&
 StackFrame::GetStackID()
 {
+    Mutex::Locker locker(m_mutex);
     // Make sure we have resolved the StackID object's symbol context scope if
     // we already haven't looked it up.
 
@@ -235,6 +238,7 @@ StackFrame::GetFrameIndex () const
 void
 StackFrame::SetSymbolContextScope (SymbolContextScope *symbol_scope)
 {
+    Mutex::Locker locker(m_mutex);
     m_flags.Set (RESOLVED_FRAME_ID_SYMBOL_SCOPE);
     m_id.SetSymbolContextScope (symbol_scope);
 }
@@ -242,6 +246,7 @@ StackFrame::SetSymbolContextScope (SymbolContextScope *symbol_scope)
 const Address&
 StackFrame::GetFrameCodeAddress()
 {
+    Mutex::Locker locker(m_mutex);
     if (m_flags.IsClear(RESOLVED_FRAME_CODE_ADDR) && !m_frame_code_addr.IsSectionOffset())
     {
         m_flags.Set (RESOLVED_FRAME_CODE_ADDR);
@@ -272,6 +277,7 @@ StackFrame::GetFrameCodeAddress()
 bool
 StackFrame::ChangePC (addr_t pc)
 {
+    Mutex::Locker locker(m_mutex);
     // We can't change the pc value of a history stack frame - it is immutable.
     if (m_is_history_frame)
         return false;
@@ -287,6 +293,7 @@ StackFrame::ChangePC (addr_t pc)
 const char *
 StackFrame::Disassemble ()
 {
+    Mutex::Locker locker(m_mutex);
     if (m_disassembly.GetSize() == 0)
     {
         ExecutionContext exe_ctx (shared_from_this());
@@ -346,6 +353,7 @@ StackFrame::GetFrameBlock ()
 const SymbolContext&
 StackFrame::GetSymbolContext (uint32_t resolve_scope)
 {
+    Mutex::Locker locker(m_mutex);
     // Copy our internal symbol context into "sc".
     if ((m_flags.Get() & resolve_scope) != resolve_scope)
     {
@@ -375,7 +383,31 @@ StackFrame::GetSymbolContext (uint32_t resolve_scope)
         {
             addr_t offset = lookup_addr.GetOffset();
             if (offset > 0)
+            {
                 lookup_addr.SetOffset(offset - 1);
+
+            }
+            else
+            {
+                // lookup_addr is the start of a section.  We need
+                // do the math on the actual load address and re-compute
+                // the section.  We're working with a 'noreturn' function
+                // at the end of a section.
+                ThreadSP thread_sp (GetThread());
+                if (thread_sp)
+                {
+                    TargetSP target_sp (thread_sp->CalculateTarget());
+                    if (target_sp)
+                    {
+                        addr_t addr_minus_one = lookup_addr.GetLoadAddress(target_sp.get()) - 1;
+                        lookup_addr.SetLoadAddress (addr_minus_one, target_sp.get());
+                    }
+                    else
+                    {
+                    lookup_addr.SetOffset(offset - 1);
+                    }
+                }
+            }
         }
 
 
@@ -504,6 +536,7 @@ StackFrame::GetSymbolContext (uint32_t resolve_scope)
 VariableList *
 StackFrame::GetVariableList (bool get_file_globals)
 {
+    Mutex::Locker locker(m_mutex);
     if (m_flags.IsClear(RESOLVED_VARIABLES))
     {
         m_flags.Set(RESOLVED_VARIABLES);
@@ -544,6 +577,7 @@ StackFrame::GetVariableList (bool get_file_globals)
 VariableListSP
 StackFrame::GetInScopeVariableList (bool get_file_globals)
 {
+    Mutex::Locker locker(m_mutex);
     // We can't fetch variable information for a history stack frame.
     if (m_is_history_frame)
         return VariableListSP();
@@ -680,8 +714,8 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
                             // Make sure we aren't trying to deref an objective
                             // C ivar if this is not allowed
                             const uint32_t pointer_type_flags = valobj_sp->GetClangType().GetTypeInfo (NULL);
-                            if ((pointer_type_flags & ClangASTType::eTypeIsObjC) &&
-                                (pointer_type_flags & ClangASTType::eTypeIsPointer))
+                            if ((pointer_type_flags & eTypeIsObjC) &&
+                                (pointer_type_flags & eTypeIsPointer))
                             {
                                 // This was an objective C object pointer and 
                                 // it was requested we skip any fragile ivars
@@ -884,7 +918,7 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
                                     }
                                     else
                                     {
-                                        child_valobj_sp = valobj_sp->GetSyntheticArrayMemberFromPointer (child_index, true);
+                                        child_valobj_sp = valobj_sp->GetSyntheticArrayMember (child_index, true);
                                         if (!child_valobj_sp)
                                         {
                                             valobj_sp->GetExpressionPath (var_expr_path_strm, false);
@@ -1142,6 +1176,7 @@ StackFrame::GetValueForVariableExpressionPath (const char *var_expr_cstr,
 bool
 StackFrame::GetFrameBaseValue (Scalar &frame_base, Error *error_ptr)
 {
+    Mutex::Locker locker(m_mutex);
     if (m_cfa_is_valid == false)
     {
         m_frame_base_error.SetErrorString("No frame base available for this historical stack frame.");
@@ -1191,6 +1226,7 @@ StackFrame::GetFrameBaseValue (Scalar &frame_base, Error *error_ptr)
 RegisterContextSP
 StackFrame::GetRegisterContext ()
 {
+    Mutex::Locker locker(m_mutex);
     if (!m_reg_context_sp)
     {
         ThreadSP thread_sp (GetThread());
@@ -1211,6 +1247,7 @@ StackFrame::HasDebugInformation ()
 ValueObjectSP
 StackFrame::GetValueObjectForFrameVariable (const VariableSP &variable_sp, DynamicValueType use_dynamic)
 {
+    Mutex::Locker locker(m_mutex);
     ValueObjectSP valobj_sp;
     if (m_is_history_frame)
     {
@@ -1246,6 +1283,7 @@ StackFrame::GetValueObjectForFrameVariable (const VariableSP &variable_sp, Dynam
 ValueObjectSP
 StackFrame::TrackGlobalVariable (const VariableSP &variable_sp, DynamicValueType use_dynamic)
 {
+    Mutex::Locker locker(m_mutex);
     if (m_is_history_frame)
         return ValueObjectSP();
 
@@ -1334,11 +1372,11 @@ StackFrame::DumpUsingSettingsFormat (Stream *strm, const char *frame_marker)
     if (frame_marker)
         s.PutCString(frame_marker);
 
-    const char *frame_format = NULL;
+    const FormatEntity::Entry *frame_format = NULL;
     Target *target = exe_ctx.GetTargetPtr();
     if (target)
         frame_format = target->GetDebugger().GetFrameFormat();
-    if (frame_format && Debugger::FormatPrompt (frame_format, &m_sc, &exe_ctx, NULL, s))
+    if (frame_format && FormatEntity::Format(*frame_format, s, &m_sc, &exe_ctx, NULL, NULL, false, false))
     {
         strm->Write(s.GetData(), s.GetSize());
     }
@@ -1365,17 +1403,22 @@ StackFrame::Dump (Stream *strm, bool show_frame_index, bool show_fullpaths)
     GetSymbolContext(eSymbolContextEverything);
     const bool show_module = true;
     const bool show_inline = true;
+    const bool show_function_arguments = true;
+    const bool show_function_name = true;
     m_sc.DumpStopContext (strm, 
                           exe_ctx.GetBestExecutionContextScope(), 
                           GetFrameCodeAddress(), 
                           show_fullpaths, 
                           show_module, 
-                          show_inline);
+                          show_inline,
+                          show_function_arguments,
+                          show_function_name);
 }
 
 void
 StackFrame::UpdateCurrentFrameFromPreviousFrame (StackFrame &prev_frame)
 {
+    Mutex::Locker locker(m_mutex);
     assert (GetStackID() == prev_frame.GetStackID());    // TODO: remove this after some testing
     m_variable_list_sp = prev_frame.m_variable_list_sp;
     m_variable_list_value_objects.Swap (prev_frame.m_variable_list_value_objects);
@@ -1387,6 +1430,7 @@ StackFrame::UpdateCurrentFrameFromPreviousFrame (StackFrame &prev_frame)
 void
 StackFrame::UpdatePreviousFrameFromCurrentFrame (StackFrame &curr_frame)
 {
+    Mutex::Locker locker(m_mutex);
     assert (GetStackID() == curr_frame.GetStackID());        // TODO: remove this after some testing
     m_id.SetPC (curr_frame.m_id.GetPC());       // Update the Stack ID PC value
     assert (GetThread() == curr_frame.GetThread());

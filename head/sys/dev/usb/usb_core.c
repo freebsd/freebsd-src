@@ -63,6 +63,5 @@ const struct usb_string_lang usb_string_lang_en = {
 
 MALLOC_DEFINE(M_USB, "USB", "USB");
 MALLOC_DEFINE(M_USBDEV, "USBdev", "USB device");
-MALLOC_DEFINE(M_USBHC, "USBHC", "USB host controller");
 
 MODULE_VERSION(usb, 1);

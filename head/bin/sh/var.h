@@ -68,7 +68,7 @@ struct localvar {
 };
 
 
-struct localvar *localvars;
+extern struct localvar *localvars;
 extern int forcelocal;
 
 extern struct var vifs;
@@ -114,8 +114,8 @@ extern int initial_localeisutf8;
 void initvar(void);
 void setvar(const char *, const char *, int);
 void setvareq(char *, int);
-struct strlist;
-void listsetvar(struct strlist *, int);
+struct arglist;
+void listsetvar(struct arglist *, int);
 char *lookupvar(const char *);
 char *bltinlookup(const char *, int);
 void bltinsetlocale(void);

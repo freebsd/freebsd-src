@@ -188,7 +188,7 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
             << " children in Scope";
       }
 
-      OS << '\n' << TmpBuf.str();
+      OS << '\n' << TmpBuf;
       CurrentIdx += ChildSize;
     }
 
@@ -342,7 +342,7 @@ EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,
       if (!OmitComments)
         OS << "// ->" << CurrentIdx+ChildSize;
       OS << '\n';
-      OS << TmpBuf.str();
+      OS << TmpBuf;
       CurrentIdx += ChildSize;
     }
 
@@ -630,7 +630,7 @@ void MatcherTableEmitter::EmitPredicateFunctions(formatted_raw_ostream &OS) {
 
   for (CodeGenDAGPatterns::pf_iterator I = CGP.pf_begin(), E = CGP.pf_end();
        I != E; ++I)
-    PFsByName[I->first->getName()] = I->second;
+    PFsByName[I->first->getName()] = I->second.get();
 
   if (!NodePredicates.empty()) {
     OS << "bool CheckNodePredicate(SDNode *Node,\n";

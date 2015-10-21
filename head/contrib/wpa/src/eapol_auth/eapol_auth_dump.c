@@ -1,6 +1,6 @@
 /*
  * IEEE 802.1X-2004 Authenticator - State dump
- * Copyright (c) 2002-2009, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2013, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -118,108 +118,172 @@ static inline const char * ctrl_dir_state_txt(int s)
 }
 
 
-void eapol_auth_dump_state(FILE *f, const char *prefix,
-			   struct eapol_state_machine *sm)
+int eapol_auth_dump_state(struct eapol_state_machine *sm, char *buf,
+			  size_t buflen)
 {
-	fprintf(f, "%sEAPOL state machine:\n", prefix);
-	fprintf(f, "%s  aWhile=%d quietWhile=%d reAuthWhen=%d\n", prefix,
-		sm->aWhile, sm->quietWhile, sm->reAuthWhen);
+	char *pos, *end;
+	int ret;
+
+	pos = buf;
+	end = pos + buflen;
+
+	ret = os_snprintf(pos, end - pos, "aWhile=%d\nquietWhile=%d\n"
+			  "reAuthWhen=%d\n",
+			  sm->aWhile, sm->quietWhile, sm->reAuthWhen);
+	if (os_snprintf_error(end - pos, ret))
+		return pos - buf;
+	pos += ret;
+
 #define _SB(b) ((b) ? "TRUE" : "FALSE")
-	fprintf(f,
-		"%s  authAbort=%s authFail=%s authPortStatus=%s authStart=%s\n"
-		"%s  authTimeout=%s authSuccess=%s eapFail=%s eapolEap=%s\n"
-		"%s  eapSuccess=%s eapTimeout=%s initialize=%s "
-		"keyAvailable=%s\n"
-		"%s  keyDone=%s keyRun=%s keyTxEnabled=%s portControl=%s\n"
-		"%s  portEnabled=%s portValid=%s reAuthenticate=%s\n",
-		prefix, _SB(sm->authAbort), _SB(sm->authFail),
-		port_state_txt(sm->authPortStatus), _SB(sm->authStart),
-		prefix, _SB(sm->authTimeout), _SB(sm->authSuccess),
-		_SB(sm->eap_if->eapFail), _SB(sm->eapolEap),
-		prefix, _SB(sm->eap_if->eapSuccess),
-		_SB(sm->eap_if->eapTimeout),
-		_SB(sm->initialize), _SB(sm->eap_if->eapKeyAvailable),
-		prefix, _SB(sm->keyDone), _SB(sm->keyRun),
-		_SB(sm->keyTxEnabled), port_type_txt(sm->portControl),
-		prefix, _SB(sm->eap_if->portEnabled), _SB(sm->portValid),
-		_SB(sm->reAuthenticate));
+	ret = os_snprintf(pos, end - pos,
+			  "authAbort=%s\n"
+			  "authFail=%s\n"
+			  "authPortStatus=%s\n"
+			  "authStart=%s\n"
+			  "authTimeout=%s\n"
+			  "authSuccess=%s\n"
+			  "eapFail=%s\n"
+			  "eapolEap=%s\n"
+			  "eapSuccess=%s\n"
+			  "eapTimeout=%s\n"
+			  "initialize=%s\n"
+			  "keyAvailable=%s\n"
+			  "keyDone=%s\n"
+			  "keyRun=%s\n"
+			  "keyTxEnabled=%s\n"
+			  "portControl=%s\n"
+			  "portEnabled=%s\n"
+			  "portValid=%s\n"
+			  "reAuthenticate=%s\n",
+			  _SB(sm->authAbort),
+			  _SB(sm->authFail),
+			  port_state_txt(sm->authPortStatus),
+			  _SB(sm->authStart),
+			  _SB(sm->authTimeout),
+			  _SB(sm->authSuccess),
+			  _SB(sm->eap_if->eapFail),
+			  _SB(sm->eapolEap),
+			  _SB(sm->eap_if->eapSuccess),
+			  _SB(sm->eap_if->eapTimeout),
+			  _SB(sm->initialize),
+			  _SB(sm->eap_if->eapKeyAvailable),
+			  _SB(sm->keyDone), _SB(sm->keyRun),
+			  _SB(sm->keyTxEnabled),
+			  port_type_txt(sm->portControl),
+			  _SB(sm->eap_if->portEnabled),
+			  _SB(sm->portValid),
+			  _SB(sm->reAuthenticate));
+	if (os_snprintf_error(end - pos, ret))
+		return pos - buf;
+	pos += ret;
 
-	fprintf(f, "%s  Authenticator PAE:\n"
-		"%s    state=%s\n"
-		"%s    eapolLogoff=%s eapolStart=%s eapRestart=%s\n"
-		"%s    portMode=%s reAuthCount=%d\n"
-		"%s    quietPeriod=%d reAuthMax=%d\n"
-		"%s    authEntersConnecting=%d\n"
-		"%s    authEapLogoffsWhileConnecting=%d\n"
-		"%s    authEntersAuthenticating=%d\n"
-		"%s    authAuthSuccessesWhileAuthenticating=%d\n"
-		"%s    authAuthTimeoutsWhileAuthenticating=%d\n"
-		"%s    authAuthFailWhileAuthenticating=%d\n"
-		"%s    authAuthEapStartsWhileAuthenticating=%d\n"
-		"%s    authAuthEapLogoffWhileAuthenticating=%d\n"
-		"%s    authAuthReauthsWhileAuthenticated=%d\n"
-		"%s    authAuthEapStartsWhileAuthenticated=%d\n"
-		"%s    authAuthEapLogoffWhileAuthenticated=%d\n",
-		prefix, prefix, auth_pae_state_txt(sm->auth_pae_state), prefix,
-		_SB(sm->eapolLogoff), _SB(sm->eapolStart),
-		_SB(sm->eap_if->eapRestart),
-		prefix, port_type_txt(sm->portMode), sm->reAuthCount,
-		prefix, sm->quietPeriod, sm->reAuthMax,
-		prefix, sm->authEntersConnecting,
-		prefix, sm->authEapLogoffsWhileConnecting,
-		prefix, sm->authEntersAuthenticating,
-		prefix, sm->authAuthSuccessesWhileAuthenticating,
-		prefix, sm->authAuthTimeoutsWhileAuthenticating,
-		prefix, sm->authAuthFailWhileAuthenticating,
-		prefix, sm->authAuthEapStartsWhileAuthenticating,
-		prefix, sm->authAuthEapLogoffWhileAuthenticating,
-		prefix, sm->authAuthReauthsWhileAuthenticated,
-		prefix, sm->authAuthEapStartsWhileAuthenticated,
-		prefix, sm->authAuthEapLogoffWhileAuthenticated);
+	ret = os_snprintf(pos, end - pos,
+			  "auth_pae_state=%s\n"
+			  "eapolLogoff=%s\n"
+			  "eapolStart=%s\n"
+			  "eapRestart=%s\n"
+			  "portMode=%s\n"
+			  "reAuthCount=%d\n"
+			  "quietPeriod=%d\n"
+			  "reAuthMax=%d\n"
+			  "authEntersConnecting=%d\n"
+			  "authEapLogoffsWhileConnecting=%d\n"
+			  "authEntersAuthenticating=%d\n"
+			  "authAuthSuccessesWhileAuthenticating=%d\n"
+			  "authAuthTimeoutsWhileAuthenticating=%d\n"
+			  "authAuthFailWhileAuthenticating=%d\n"
+			  "authAuthEapStartsWhileAuthenticating=%d\n"
+			  "authAuthEapLogoffWhileAuthenticating=%d\n"
+			  "authAuthReauthsWhileAuthenticated=%d\n"
+			  "authAuthEapStartsWhileAuthenticated=%d\n"
+			  "authAuthEapLogoffWhileAuthenticated=%d\n",
+			  auth_pae_state_txt(sm->auth_pae_state),
+			  _SB(sm->eapolLogoff),
+			  _SB(sm->eapolStart),
+			  _SB(sm->eap_if->eapRestart),
+			  port_type_txt(sm->portMode),
+			  sm->reAuthCount,
+			  sm->quietPeriod, sm->reAuthMax,
+			  sm->authEntersConnecting,
+			  sm->authEapLogoffsWhileConnecting,
+			  sm->authEntersAuthenticating,
+			  sm->authAuthSuccessesWhileAuthenticating,
+			  sm->authAuthTimeoutsWhileAuthenticating,
+			  sm->authAuthFailWhileAuthenticating,
+			  sm->authAuthEapStartsWhileAuthenticating,
+			  sm->authAuthEapLogoffWhileAuthenticating,
+			  sm->authAuthReauthsWhileAuthenticated,
+			  sm->authAuthEapStartsWhileAuthenticated,
+			  sm->authAuthEapLogoffWhileAuthenticated);
+	if (os_snprintf_error(end - pos, ret))
+		return pos - buf;
+	pos += ret;
 
-	fprintf(f, "%s  Backend Authentication:\n"
-		"%s    state=%s\n"
-		"%s    eapNoReq=%s eapReq=%s eapResp=%s\n"
-		"%s    serverTimeout=%d\n"
-		"%s    backendResponses=%d\n"
-		"%s    backendAccessChallenges=%d\n"
-		"%s    backendOtherRequestsToSupplicant=%d\n"
-		"%s    backendAuthSuccesses=%d\n"
-		"%s    backendAuthFails=%d\n",
-		prefix, prefix,
-		be_auth_state_txt(sm->be_auth_state),
-		prefix, _SB(sm->eap_if->eapNoReq), _SB(sm->eap_if->eapReq),
-		_SB(sm->eap_if->eapResp),
-		prefix, sm->serverTimeout,
-		prefix, sm->backendResponses,
-		prefix, sm->backendAccessChallenges,
-		prefix, sm->backendOtherRequestsToSupplicant,
-		prefix, sm->backendAuthSuccesses,
-		prefix, sm->backendAuthFails);
+	ret = os_snprintf(pos, end - pos,
+			  "be_auth_state=%s\n"
+			  "eapNoReq=%s\n"
+			  "eapReq=%s\n"
+			  "eapResp=%s\n"
+			  "serverTimeout=%d\n"
+			  "backendResponses=%d\n"
+			  "backendAccessChallenges=%d\n"
+			  "backendOtherRequestsToSupplicant=%d\n"
+			  "backendAuthSuccesses=%d\n"
+			  "backendAuthFails=%d\n",
+			  be_auth_state_txt(sm->be_auth_state),
+			  _SB(sm->eap_if->eapNoReq),
+			  _SB(sm->eap_if->eapReq),
+			  _SB(sm->eap_if->eapResp),
+			  sm->serverTimeout,
+			  sm->backendResponses,
+			  sm->backendAccessChallenges,
+			  sm->backendOtherRequestsToSupplicant,
+			  sm->backendAuthSuccesses,
+			  sm->backendAuthFails);
+	if (os_snprintf_error(end - pos, ret))
+		return pos - buf;
+	pos += ret;
 
-	fprintf(f, "%s  Reauthentication Timer:\n"
-		"%s    state=%s\n"
-		"%s    reAuthPeriod=%d reAuthEnabled=%s\n", prefix, prefix,
-		reauth_timer_state_txt(sm->reauth_timer_state), prefix,
-		sm->reAuthPeriod, _SB(sm->reAuthEnabled));
+	ret = os_snprintf(pos, end - pos,
+			  "reauth_timer_state=%s\n"
+			  "reAuthPeriod=%d\n"
+			  "reAuthEnabled=%s\n",
+			  reauth_timer_state_txt(sm->reauth_timer_state),
+			  sm->reAuthPeriod,
+			  _SB(sm->reAuthEnabled));
+	if (os_snprintf_error(end - pos, ret))
+		return pos - buf;
+	pos += ret;
 
-	fprintf(f, "%s  Authenticator Key Transmit:\n"
-		"%s    state=%s\n", prefix, prefix,
-		auth_key_tx_state_txt(sm->auth_key_tx_state));
+	ret = os_snprintf(pos, end - pos,
+			  "auth_key_tx_state=%s\n",
+			  auth_key_tx_state_txt(sm->auth_key_tx_state));
+	if (os_snprintf_error(end - pos, ret))
+		return pos - buf;
+	pos += ret;
 
-	fprintf(f, "%s  Key Receive:\n"
-		"%s    state=%s\n"
-		"%s    rxKey=%s\n", prefix, prefix,
-		key_rx_state_txt(sm->key_rx_state), prefix, _SB(sm->rxKey));
+	ret = os_snprintf(pos, end - pos,
+			  "key_rx_state=%s\n"
+			  "rxKey=%s\n",
+			  key_rx_state_txt(sm->key_rx_state),
+			  _SB(sm->rxKey));
+	if (os_snprintf_error(end - pos, ret))
+		return pos - buf;
+	pos += ret;
 
-	fprintf(f, "%s  Controlled Directions:\n"
-		"%s    state=%s\n"
-		"%s    adminControlledDirections=%s "
-		"operControlledDirections=%s\n"
-		"%s    operEdge=%s\n", prefix, prefix,
-		ctrl_dir_state_txt(sm->ctrl_dir_state),
-		prefix, ctrl_dir_txt(sm->adminControlledDirections),
-		ctrl_dir_txt(sm->operControlledDirections),
-		prefix, _SB(sm->operEdge));
+	ret = os_snprintf(pos, end - pos,
+			  "ctrl_dir_state=%s\n"
+			  "adminControlledDirections=%s\n"
+			  "operControlledDirections=%s\n"
+			  "operEdge=%s\n",
+			  ctrl_dir_state_txt(sm->ctrl_dir_state),
+			  ctrl_dir_txt(sm->adminControlledDirections),
+			  ctrl_dir_txt(sm->operControlledDirections),
+			  _SB(sm->operEdge));
+	if (os_snprintf_error(end - pos, ret))
+		return pos - buf;
+	pos += ret;
 #undef _SB
+
+	return pos - buf;
 }

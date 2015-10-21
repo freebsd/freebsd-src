@@ -103,6 +103,16 @@ CNAME(x):
 #define	END(x)		.size x, . - x
 
 /*
+ * WEAK_REFERENCE(): create a weak reference alias from sym.
+ * The macro is not a general asm macro that takes arbitrary names,
+ * but one that takes only C names.  It does the non-null name
+ * translation inside the macro.
+ */
+#define	WEAK_REFERENCE(sym, alias) \
+	.weak	CNAME(alias); \
+	.equ	CNAME(alias),CNAME(sym)
+
+/*
  * Kernel RCS ID tag and copyright macros
  */
 

@@ -137,8 +137,9 @@ struct semid_kernel {
  */
 void	semexit(struct proc *p);
 
-#else /* ! _KERNEL */
+#endif /* _KERNEL */
 
+#if !defined(_KERNEL) || defined(_WANT_SEM_PROTOTYPES)
 __BEGIN_DECLS
 #if __BSD_VISIBLE
 int semsys(int, ...);
@@ -148,6 +149,6 @@ int semget(key_t, int, int);
 int semop(int, struct sembuf *, size_t);
 __END_DECLS
 
-#endif /* !_KERNEL */
+#endif /* !_KERNEL || _WANT_SEM_PROTOTYPES */
 
 #endif /* !_SYS_SEM_H_ */

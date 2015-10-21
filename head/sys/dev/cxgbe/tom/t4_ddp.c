@@ -65,6 +65,15 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_tcb.h"
 #include "tom/t4_tom.h"
 
+VNET_DECLARE(int, tcp_do_autorcvbuf);
+#define V_tcp_do_autorcvbuf VNET(tcp_do_autorcvbuf)
+VNET_DECLARE(int, tcp_autorcvbuf_inc);
+#define V_tcp_autorcvbuf_inc VNET(tcp_autorcvbuf_inc)
+VNET_DECLARE(int, tcp_autorcvbuf_max);
+#define V_tcp_autorcvbuf_max VNET(tcp_autorcvbuf_max)
+
+static struct mbuf *get_ddp_mbuf(int len);
+
 #define PPOD_SZ(n)	((n) * sizeof(struct pagepod))
 #define PPOD_SIZE	(PPOD_SZ(1))
 
@@ -396,6 +405,19 @@ handle_ddp_data(struct toepcb *toep, __be32 ddp_report, __be32 rcv_nxt, int len)
 	}
 
 	tp = intotcpcb(inp);
+
+	/*
+	 * For RX_DDP_COMPLETE, len will be zero and rcv_nxt is the
+	 * sequence number of the next byte to receive.  The length of
+	 * the data received for this message must be computed by
+	 * comparing the new and old values of rcv_nxt.
+	 * 
+	 * For RX_DATA_DDP, len might be non-zero, but it is only the
+	 * length of the most recent DMA.  It does not include the
+	 * total length of the data received since the previous update
+	 * for this DDP buffer.  rcv_nxt is the sequence number of the
+	 * first received byte from the most recent DMA.
+	 */
 	len += be32toh(rcv_nxt) - tp->rcv_nxt;
 	tp->rcv_nxt += len;
 	tp->t_rcvtime = ticks;
@@ -410,6 +432,21 @@ handle_ddp_data(struct toepcb *toep, __be32 ddp_report, __be32 rcv_nxt, int len)
 		toep->ddp_score = DDP_HIGH_SCORE;
 	else
 		discourage_ddp(toep);
+
+	/* receive buffer autosize */
+	if (sb->sb_flags & SB_AUTOSIZE &&
+	    V_tcp_do_autorcvbuf &&
+	    sb->sb_hiwat < V_tcp_autorcvbuf_max &&
+	    len > (sbspace(sb) / 8 * 7)) {
+		unsigned int hiwat = sb->sb_hiwat;
+		unsigned int newsize = min(hiwat + V_tcp_autorcvbuf_inc,
+		    V_tcp_autorcvbuf_max);
+
+		if (!sbreserve_locked(sb, newsize, so, NULL))
+			sb->sb_flags &= ~SB_AUTOSIZE;
+		else
+			toep->rx_credits += newsize - hiwat;
+	}
 
 	KASSERT(toep->sb_cc >= sbused(sb),
 	    ("%s: sb %p has more data (%d) than last time (%d).",
@@ -430,6 +467,37 @@ wakeup:
 
 	INP_WUNLOCK(inp);
 	return (0);
+}
+
+void
+handle_ddp_close(struct toepcb *toep, struct tcpcb *tp, struct sockbuf *sb,
+    __be32 rcv_nxt)
+{
+	struct mbuf *m;
+	int len;
+
+	SOCKBUF_LOCK_ASSERT(sb);
+	INP_WLOCK_ASSERT(toep->inp);
+	len = be32toh(rcv_nxt) - tp->rcv_nxt;
+
+	/* Signal handle_ddp() to break out of its sleep loop. */
+	toep->ddp_flags &= ~(DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE);
+	if (len == 0)
+		return;
+
+	tp->rcv_nxt += len;
+	KASSERT(toep->sb_cc >= sbused(sb),
+	    ("%s: sb %p has more data (%d) than last time (%d).",
+	    __func__, sb, sbused(sb), toep->sb_cc));
+	toep->rx_credits += toep->sb_cc - sbused(sb);
+#ifdef USE_DDP_RX_FLOW_CONTROL
+	toep->rx_credits -= len;	/* adjust for F_RX_FC_DDP */
+#endif
+
+	m = get_ddp_mbuf(len);
+
+	sbappendstream_locked(sb, m, 0);
+	toep->sb_cc = sbused(sb);
 }
 
 #define DDP_ERR (F_DDP_PPOD_MISMATCH | F_DDP_LLIMIT_ERR | F_DDP_ULIMIT_ERR |\
@@ -852,9 +920,9 @@ handle_ddp(struct socket *so, struct uio *uio, int flags, int error)
 	SOCKBUF_LOCK_ASSERT(sb);
 
 #if 0
-	if (sb->sb_cc + sc->tt.ddp_thres > uio->uio_resid) {
+	if (sbused(sb) + sc->tt.ddp_thres > uio->uio_resid) {
 		CTR4(KTR_CXGBE, "%s: sb_cc %d, threshold %d, resid %d",
-		    __func__, sb->sb_cc, sc->tt.ddp_thres, uio->uio_resid);
+		    __func__, sbused(sb), sc->tt.ddp_thres, uio->uio_resid);
 	}
 #endif
 
@@ -970,7 +1038,7 @@ soreceive_rcvoob(struct socket *so, struct uio *uio, int flags)
 
 static char ddp_magic_str[] = "nothing to see here";
 
-struct mbuf *
+static struct mbuf *
 get_ddp_mbuf(int len)
 {
 	struct mbuf *m;
@@ -1057,9 +1125,9 @@ t4_soreceive_ddp(struct socket *so, struct sockaddr **psa, struct uio *uio,
 
 	/* Prevent other readers from entering the socket. */
 	error = sblock(sb, SBLOCKWAIT(flags));
+	SOCKBUF_LOCK(sb);
 	if (error)
 		goto out;
-	SOCKBUF_LOCK(sb);
 
 	/* Easy one, no space to copyout anything. */
 	if (uio->uio_resid == 0) {
@@ -1081,8 +1149,8 @@ restart:
 
 		/* uio should be just as it was at entry */
 		KASSERT(oresid == uio->uio_resid,
-		    ("%s: oresid = %d, uio_resid = %zd, sbused = %d",
-		    __func__, oresid, uio->uio_resid, sbused(sb)));
+		    ("%s: oresid = %d, uio_resid = %zd, sbavail = %d",
+		    __func__, oresid, uio->uio_resid, sbavail(sb)));
 
 		error = handle_ddp(so, uio, flags, 0);
 		ddp_handled = 1;
@@ -1092,7 +1160,7 @@ restart:
 
 	/* Abort if socket has reported problems. */
 	if (so->so_error) {
-		if (sbused(sb))
+		if (sbavail(sb))
 			goto deliver;
 		if (oresid > uio->uio_resid)
 			goto out;
@@ -1104,32 +1172,32 @@ restart:
 
 	/* Door is closed.  Deliver what is left, if any. */
 	if (sb->sb_state & SBS_CANTRCVMORE) {
-		if (sbused(sb))
+		if (sbavail(sb))
 			goto deliver;
 		else
 			goto out;
 	}
 
 	/* Socket buffer is empty and we shall not block. */
-	if (sbused(sb) == 0 &&
+	if (sbavail(sb) == 0 &&
 	    ((so->so_state & SS_NBIO) || (flags & (MSG_DONTWAIT|MSG_NBIO)))) {
 		error = EAGAIN;
 		goto out;
 	}
 
 	/* Socket buffer got some data that we shall deliver now. */
-	if (sbused(sb) && !(flags & MSG_WAITALL) &&
+	if (sbavail(sb) > 0 && !(flags & MSG_WAITALL) &&
 	    ((so->so_state & SS_NBIO) ||
 	     (flags & (MSG_DONTWAIT|MSG_NBIO)) ||
-	     sbused(sb) >= sb->sb_lowat ||
-	     sbused(sb) >= uio->uio_resid ||
-	     sbused(sb) >= sb->sb_hiwat) ) {
+	     sbavail(sb) >= sb->sb_lowat ||
+	     sbavail(sb) >= uio->uio_resid ||
+	     sbavail(sb) >= sb->sb_hiwat) ) {
 		goto deliver;
 	}
 
 	/* On MSG_WAITALL we must wait until all data or error arrives. */
 	if ((flags & MSG_WAITALL) &&
-	    (sbused(sb) >= uio->uio_resid || sbused(sb) >= sb->sb_lowat))
+	    (sbavail(sb) >= uio->uio_resid || sbavail(sb) >= sb->sb_lowat))
 		goto deliver;
 
 	/*
@@ -1148,7 +1216,7 @@ restart:
 
 deliver:
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
-	KASSERT(sbused(sb) > 0, ("%s: sockbuf empty", __func__));
+	KASSERT(sbavail(sb) > 0, ("%s: sockbuf empty", __func__));
 	KASSERT(sb->sb_mb != NULL, ("%s: sb_mb == NULL", __func__));
 
 	if (sb->sb_flags & SB_DDP_INDICATE && !ddp_handled)
@@ -1159,7 +1227,7 @@ deliver:
 		uio->uio_td->td_ru.ru_msgrcv++;
 
 	/* Fill uio until full or current end of socket buffer is reached. */
-	len = min(uio->uio_resid, sbused(sb));
+	len = min(uio->uio_resid, sbavail(sb));
 	if (mp0 != NULL) {
 		/* Dequeue as many mbufs as possible. */
 		if (!(flags & MSG_PEEK) && len >= sb->sb_mb->m_len) {

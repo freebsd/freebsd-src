@@ -87,9 +87,7 @@ struct nd_ifinfo {
 #define ND6_IFF_AUTO_LINKLOCAL	0x20
 #define	ND6_IFF_NO_RADR		0x40
 #define ND6_IFF_NO_PREFER_IFACE	0x80 /* XXX: not related to ND. */
-
-#define	ND6_CREATE		LLE_CREATE
-#define	ND6_EXCLUSIVE		LLE_EXCLUSIVE
+#define ND6_IFF_NO_DAD		0x100
 
 #ifdef _KERNEL
 #define ND_IFINFO(ifp) \
@@ -359,7 +357,7 @@ VNET_DECLARE(int, ip6_temp_regen_advance); /* seconds */
 #define	V_ip6_temp_regen_advance	VNET(ip6_temp_regen_advance)
 
 union nd_opts {
-	struct nd_opt_hdr *nd_opt_array[8];	/* max = target address list */
+	struct nd_opt_hdr *nd_opt_array[16];	/* max = ND_OPT_NONCE */
 	struct {
 		struct nd_opt_hdr *zero;
 		struct nd_opt_hdr *src_lladdr;
@@ -367,6 +365,16 @@ union nd_opts {
 		struct nd_opt_prefix_info *pi_beg; /* multiple opts, start */
 		struct nd_opt_rd_hdr *rh;
 		struct nd_opt_mtu *mtu;
+		struct nd_opt_hdr *__res6;
+		struct nd_opt_hdr *__res7;
+		struct nd_opt_hdr *__res8;
+		struct nd_opt_hdr *__res9;
+		struct nd_opt_hdr *__res10;
+		struct nd_opt_hdr *__res11;
+		struct nd_opt_hdr *__res12;
+		struct nd_opt_hdr *__res13;
+		struct nd_opt_nonce *nonce;
+		struct nd_opt_hdr *__res15;
 		struct nd_opt_hdr *search;	/* multiple opts */
 		struct nd_opt_hdr *last;	/* multiple opts */
 		int done;
@@ -379,6 +387,7 @@ union nd_opts {
 #define nd_opts_pi_end		nd_opt_each.pi_end
 #define nd_opts_rh		nd_opt_each.rh
 #define nd_opts_mtu		nd_opt_each.mtu
+#define nd_opts_nonce		nd_opt_each.nonce
 #define nd_opts_search		nd_opt_each.search
 #define nd_opts_last		nd_opt_each.last
 #define nd_opts_done		nd_opt_each.done
@@ -391,33 +400,29 @@ void nd6_destroy(void);
 #endif
 struct nd_ifinfo *nd6_ifattach(struct ifnet *);
 void nd6_ifdetach(struct nd_ifinfo *);
-int nd6_is_addr_neighbor(struct sockaddr_in6 *, struct ifnet *);
+int nd6_is_addr_neighbor(const struct sockaddr_in6 *, struct ifnet *);
 void nd6_option_init(void *, int, union nd_opts *);
 struct nd_opt_hdr *nd6_option(union nd_opts *);
 int nd6_options(union nd_opts *);
-struct	llentry *nd6_lookup(struct in6_addr *, int, struct ifnet *);
+struct llentry *nd6_lookup(const struct in6_addr *, int, struct ifnet *);
+struct llentry *nd6_alloc(const struct in6_addr *, int, struct ifnet *);
 void nd6_setmtu(struct ifnet *);
-void nd6_llinfo_settimer(struct llentry *, long);
-void nd6_llinfo_settimer_locked(struct llentry *, long);
+void nd6_llinfo_setstate(struct llentry *lle, int newstate);
 void nd6_timer(void *);
 void nd6_purge(struct ifnet *);
-void nd6_nud_hint(struct rtentry *, struct in6_addr *, int);
-int nd6_resolve(struct ifnet *, struct rtentry *, struct mbuf *,
-	struct sockaddr *, u_char *);
+int nd6_resolve(struct ifnet *, int, struct mbuf *,
+    const struct sockaddr *, u_char *, uint32_t *);
 int nd6_ioctl(u_long, caddr_t, struct ifnet *);
-struct llentry *nd6_cache_lladdr(struct ifnet *, struct in6_addr *,
+void nd6_cache_lladdr(struct ifnet *, struct in6_addr *,
 	char *, int, int, int);
-int nd6_output(struct ifnet *, struct ifnet *, struct mbuf *,
-	struct sockaddr_in6 *, struct rtentry *);
 void nd6_grab_holdchain(struct llentry *, struct mbuf **,
     struct sockaddr_in6 *);
 int nd6_flush_holdchain(struct ifnet *, struct ifnet *, struct mbuf *,
     struct sockaddr_in6 *);
-int nd6_need_cache(struct ifnet *);
 int nd6_add_ifa_lle(struct in6_ifaddr *);
-void nd6_rem_ifa_lle(struct in6_ifaddr *);
-int nd6_storelladdr(struct ifnet *, struct mbuf *,
-	const struct sockaddr *, u_char *, uint32_t *); 
+void nd6_rem_ifa_lle(struct in6_ifaddr *, int);
+int nd6_output_ifp(struct ifnet *, struct ifnet *, struct mbuf *,
+    struct sockaddr_in6 *);
 
 /* nd6_nbr.c */
 void nd6_na_input(struct mbuf *, int, int);
@@ -425,7 +430,7 @@ void nd6_na_output(struct ifnet *, const struct in6_addr *,
 	const struct in6_addr *, u_long, int, struct sockaddr *);
 void nd6_ns_input(struct mbuf *, int, int);
 void nd6_ns_output(struct ifnet *, const struct in6_addr *,
-	const struct in6_addr *, struct llentry *, int);
+	const struct in6_addr *, const struct in6_addr *, uint8_t *);
 caddr_t nd6_ifptomac(struct ifnet *);
 void nd6_dad_init(void);
 void nd6_dad_start(struct ifaddr *, int);

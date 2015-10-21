@@ -4,10 +4,7 @@
 PROG=	rsh
 CFLAGS+=-I${.CURDIR}/../../libexec/rlogind
 
-WARNS?=	2
-
 BINOWN=	root
 BINMODE=4555
-PRECIOUSPROG=
 
 .include <bsd.prog.mk>

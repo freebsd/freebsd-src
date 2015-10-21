@@ -186,6 +186,7 @@ struct sysctl_oid {
 
 #define	SYSCTL_IN(r, p, l)	(r->newfunc)(r, p, l)
 #define	SYSCTL_OUT(r, p, l)	(r->oldfunc)(r, p, l)
+#define	SYSCTL_OUT_STR(r, p)	(r->oldfunc)(r, p, strlen(p) + 1)
 
 int sysctl_handle_int(SYSCTL_HANDLER_ARGS);
 int sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS);
@@ -806,8 +807,8 @@ int	userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	    size_t *retval, int flags);
 int	sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 	    int *nindx, struct sysctl_req *req);
-void	sysctl_xlock(void);
-void	sysctl_xunlock(void);
+void	sysctl_wlock(void);
+void	sysctl_wunlock(void);
 int	sysctl_wire_old_buffer(struct sysctl_req *req, size_t len);
 
 struct sbuf;

@@ -1423,8 +1423,9 @@ typedef struct dof_helper {
 	char dofhp_mod[DTRACE_MODNAMELEN];	/* executable or library name */
 	uint64_t dofhp_addr;			/* base address of object */
 	uint64_t dofhp_dof;			/* address of helper DOF */
-#ifndef illumos
-	int gen;
+#ifdef __FreeBSD__
+	pid_t dofhp_pid;			/* target process ID */
+	int dofhp_gen;
 #endif
 } dof_helper_t;
 
@@ -2433,6 +2434,45 @@ extern void dtrace_helpers_destroy(proc_t *);
 #define DTRACE_INVOP_JUMP	4
 #define DTRACE_INVOP_MFLR_R0	5
 #define DTRACE_INVOP_NOP	6
+
+#elif defined(__arm__)
+
+#define	DTRACE_INVOP_SHIFT	4
+#define	DTRACE_INVOP_MASK	((1 << DTRACE_INVOP_SHIFT) - 1)
+#define	DTRACE_INVOP_DATA(x)	((x) >> DTRACE_INVOP_SHIFT)
+
+#define DTRACE_INVOP_PUSHM	1
+#define DTRACE_INVOP_POPM	2
+#define DTRACE_INVOP_B		3
+
+#elif defined(__aarch64__)
+
+#define	INSN_SIZE	4
+
+#define	B_MASK		0xff000000
+#define	B_DATA_MASK	0x00ffffff
+#define	B_INSTR		0x14000000
+
+#define	RET_INSTR	0xd65f03c0
+
+#define	LDP_STP_MASK	0xffc00000
+#define	STP_32		0x29800000
+#define	STP_64		0xa9800000
+#define	LDP_32		0x28c00000
+#define	LDP_64		0xa8c00000
+#define	LDP_STP_PREIND	(1 << 24)
+#define	LDP_STP_DIR	(1 << 22) /* Load instruction */
+#define	ARG1_SHIFT	0
+#define	ARG1_MASK	0x1f
+#define	ARG2_SHIFT	10
+#define	ARG2_MASK	0x1f
+#define	OFFSET_SHIFT	15
+#define	OFFSET_SIZE	7
+#define	OFFSET_MASK	((1 << OFFSET_SIZE) - 1)
+
+#define	DTRACE_INVOP_PUSHM	1
+#define	DTRACE_INVOP_RET	2
+#define	DTRACE_INVOP_B		3
 
 #endif
 

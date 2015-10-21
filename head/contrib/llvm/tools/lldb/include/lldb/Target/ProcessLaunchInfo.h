@@ -15,6 +15,7 @@
 
 // LLDB Headers
 #include "lldb/Core/Flags.h"
+#include "lldb/Host/FileSpec.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Target/FileAction.h"
 #include "lldb/Target/ProcessInfo.h"
@@ -35,11 +36,11 @@ namespace lldb_private
 
         ProcessLaunchInfo ();
 
-        ProcessLaunchInfo (const char *stdin_path,
-                           const char *stdout_path,
-                           const char *stderr_path,
-                           const char *working_directory,
-                           uint32_t launch_flags);
+        ProcessLaunchInfo(const FileSpec &stdin_file_spec,
+                          const FileSpec &stdout_file_spec,
+                          const FileSpec &stderr_file_spec,
+                          const FileSpec &working_dir,
+                          uint32_t launch_flags);
 
         void
         AppendFileAction (const FileAction &info)
@@ -54,7 +55,8 @@ namespace lldb_private
         AppendDuplicateFileAction (int fd, int dup_fd);
 
         bool
-        AppendOpenFileAction (int fd, const char *path, bool read, bool write);
+        AppendOpenFileAction(int fd, const FileSpec &file_spec,
+                             bool read, bool write);
 
         bool
         AppendSuppressFileAction (int fd, bool read, bool write);
@@ -87,17 +89,11 @@ namespace lldb_private
             return m_flags;
         }
 
-        const char *
-        GetWorkingDirectory () const;
+        const FileSpec &
+        GetWorkingDirectory() const;
 
         void
-        SetWorkingDirectory (const char *working_dir);
-
-        void
-        SwapWorkingDirectory (std::string &working_dir)
-        {
-            m_working_dir.swap (working_dir);
-        }
+        SetWorkingDirectory(const FileSpec &working_dir);
 
         const char *
         GetProcessPluginName () const;
@@ -105,11 +101,11 @@ namespace lldb_private
         void
         SetProcessPluginName (const char *plugin);
 
-        const char *
+        const FileSpec &
         GetShell () const;
 
         void
-        SetShell (const char * path);
+        SetShell (const FileSpec &shell);
 
         uint32_t
         GetResumeCount () const
@@ -124,13 +120,22 @@ namespace lldb_private
         }
 
         bool
-        GetLaunchInSeparateProcessGroup ()
+        GetLaunchInSeparateProcessGroup() const
         {
             return m_flags.Test(lldb::eLaunchFlagLaunchInSeparateProcessGroup);
         }
 
         void
         SetLaunchInSeparateProcessGroup (bool separate);
+        
+        bool
+        GetShellExpandArguments () const
+        {
+            return m_flags.Test(lldb::eLaunchFlagShellExpandArguments);
+        }
+        
+        void
+        SetShellExpandArguments (bool expand);
 
         void
         Clear ();
@@ -148,15 +153,21 @@ namespace lldb_private
                                    bool monitor_signals);
 
         Host::MonitorChildProcessCallback
-        GetMonitorProcessCallback ()
+        GetMonitorProcessCallback() const
         {
             return m_monitor_callback;
         }
 
-        const void*
-        GetMonitorProcessBaton () const
+        void *
+        GetMonitorProcessBaton() const
         {
             return m_monitor_callback_baton;
+        }
+
+        bool
+        GetMonitorSignals() const
+        {
+            return m_monitor_signals;
         }
 
         // If the LaunchInfo has a monitor callback, then arrange to monitor the process.
@@ -169,8 +180,24 @@ namespace lldb_private
         lldb_utility::PseudoTerminal &
         GetPTY ()
         {
-            return m_pty;
+            return *m_pty;
         }
+
+        // Get and set the actual listener that will be used for the process events
+        lldb::ListenerSP
+        GetListener () const
+        {
+            return m_listener_sp;
+        }
+
+        void
+        SetListener (const lldb::ListenerSP &listener_sp)
+        {
+            m_listener_sp = listener_sp;
+        }
+
+        Listener &
+        GetListenerForProcess (Debugger &debugger);
 
         lldb::ListenerSP
         GetHijackListener () const
@@ -183,7 +210,6 @@ namespace lldb_private
         {
             m_hijack_listener_sp = listener_sp;
         }
-
 
         void
         SetLaunchEventData (const char *data)
@@ -207,17 +233,18 @@ namespace lldb_private
         }
 
     protected:
-        std::string m_working_dir;
+        FileSpec m_working_dir;
         std::string m_plugin_name;
-        std::string m_shell;
+        FileSpec m_shell;
         Flags m_flags;       // Bitwise OR of bits from lldb::LaunchFlags
         std::vector<FileAction> m_file_actions; // File actions for any other files
-        lldb_utility::PseudoTerminal m_pty;
+        std::shared_ptr<lldb_utility::PseudoTerminal> m_pty;
         uint32_t m_resume_count; // How many times do we resume after launching
         Host::MonitorChildProcessCallback m_monitor_callback;
         void *m_monitor_callback_baton;
         bool m_monitor_signals;
         std::string m_event_data; // A string passed to the plugin launch, having no meaning to the upper levels of lldb.
+        lldb::ListenerSP m_listener_sp;
         lldb::ListenerSP m_hijack_listener_sp;
     };
 }

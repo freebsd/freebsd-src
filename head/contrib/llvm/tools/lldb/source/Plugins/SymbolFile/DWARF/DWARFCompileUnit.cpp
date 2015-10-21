@@ -13,6 +13,7 @@
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Stream.h"
 #include "lldb/Core/Timer.h"
+#include "lldb/Host/StringConvert.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/LineTable.h"
 #include "lldb/Symbol/ObjectFile.h"
@@ -49,7 +50,9 @@ DWARFCompileUnit::DWARFCompileUnit(SymbolFileDWARF* dwarf2Data) :
     m_producer      (eProducerInvalid),
     m_producer_version_major (0),
     m_producer_version_minor (0),
-    m_producer_version_update (0)
+    m_producer_version_update (0),
+    m_language_type (eLanguageTypeUnknown),
+    m_is_dwarf64    (false)
 {
 }
 
@@ -66,6 +69,8 @@ DWARFCompileUnit::Clear()
     m_func_aranges_ap.reset();
     m_user_data     = NULL;
     m_producer      = eProducerInvalid;
+    m_language_type = eLanguageTypeUnknown;
+    m_is_dwarf64    = false;
 }
 
 bool
@@ -79,9 +84,10 @@ DWARFCompileUnit::Extract(const DWARFDataExtractor &debug_info, lldb::offset_t *
     {
         dw_offset_t abbr_offset;
         const DWARFDebugAbbrev *abbr = m_dwarf2Data->DebugAbbrev();
-        m_length        = debug_info.GetU32(offset_ptr);
+        m_length        = debug_info.GetDWARFInitialLength(offset_ptr);
+        m_is_dwarf64    = debug_info.IsDWARF64();
         m_version       = debug_info.GetU16(offset_ptr);
-        abbr_offset     = debug_info.GetU32(offset_ptr);
+        abbr_offset     = debug_info.GetDWARFOffset(offset_ptr);
         m_addr_size     = debug_info.GetU8 (offset_ptr);
 
         bool length_OK = debug_info.ValidOffset(GetNextCompileUnitOffset()-1);
@@ -168,7 +174,7 @@ DWARFCompileUnit::ExtractDIEsIfNeeded (bool cu_die_only)
     die_index_stack.reserve(32);
     die_index_stack.push_back(0);
     bool prev_die_had_children = false;
-    const uint8_t *fixed_form_sizes = DWARFFormValue::GetFixedFormSizesForAddressSize (GetAddressByteSize());
+    const uint8_t *fixed_form_sizes = DWARFFormValue::GetFixedFormSizesForAddressSize (GetAddressByteSize(), m_is_dwarf64);
     while (offset < next_cu_offset &&
            die.FastExtract (debug_info_data, this, fixed_form_sizes, &offset))
     {
@@ -347,6 +353,14 @@ DWARFCompileUnit::GetAddressByteSize(const DWARFCompileUnit* cu)
     return DWARFCompileUnit::GetDefaultAddressSize();
 }
 
+bool
+DWARFCompileUnit::IsDWARF64(const DWARFCompileUnit* cu)
+{
+    if (cu)
+        return cu->IsDWARF64();
+    return false;
+}
+
 uint8_t
 DWARFCompileUnit::GetDefaultAddressSize()
 {
@@ -429,6 +443,31 @@ DWARFCompileUnit::BuildAddressRangeTable (SymbolFileDWARF* dwarf2Data,
             }
             else
                 debug_map_sym_file->AddOSOARanges(dwarf2Data,debug_aranges);
+        }
+    }
+    
+    if (debug_aranges->IsEmpty())
+    {
+        // We got nothing from the functions, maybe we have a line tables only
+        // situation. Check the line tables and build the arange table from this.
+        SymbolContext sc;
+        sc.comp_unit = dwarf2Data->GetCompUnitForDWARFCompUnit(this);
+        if (sc.comp_unit)
+        {
+            LineTable *line_table = sc.comp_unit->GetLineTable();
+
+            if (line_table)
+            {
+                LineTable::FileAddressRanges file_ranges;
+                const bool append = true;
+                const size_t num_ranges = line_table->GetContiguousFileAddressRanges (file_ranges, append);
+                for (uint32_t idx=0; idx<num_ranges; ++idx)
+                {
+                    const LineTable::FileAddressRanges::Entry &range = file_ranges.GetEntryRef(idx);
+                    debug_aranges->AppendRange(GetOffset(), range.GetRangeBase(), range.GetRangeEnd());
+                    printf ("0x%8.8x: [0x%16.16" PRIx64 " - 0x%16.16" PRIx64 ")\n", GetOffset(), range.GetRangeBase(), range.GetRangeEnd());
+                }
+            }
         }
     }
     
@@ -619,7 +658,7 @@ DWARFCompileUnit::Index (const uint32_t cu_idx,
 {
     const DWARFDataExtractor* debug_str = &m_dwarf2Data->get_debug_str_data();
 
-    const uint8_t *fixed_form_sizes = DWARFFormValue::GetFixedFormSizesForAddressSize (GetAddressByteSize());
+    const uint8_t *fixed_form_sizes = DWARFFormValue::GetFixedFormSizesForAddressSize (GetAddressByteSize(), m_is_dwarf64);
 
     Log *log (LogChannelDWARF::GetLogIfAll (DWARF_LOG_LOOKUPS));
     
@@ -630,6 +669,7 @@ DWARFCompileUnit::Index (const uint32_t cu_idx,
                                                                 GetOffset());
     }
 
+    const LanguageType cu_language = GetLanguageType();
     DWARFDebugInfoEntry::const_iterator pos;
     DWARFDebugInfoEntry::const_iterator begin = m_die_array.begin();
     DWARFDebugInfoEntry::const_iterator end = m_die_array.end();
@@ -761,7 +801,7 @@ DWARFCompileUnit::Index (const uint32_t cu_idx,
                     
                 case DW_AT_specification:
                     if (attributes.ExtractFormValueAtIndex(m_dwarf2Data, i, form_value))
-                        specification_die_offset = form_value.Reference(this);
+                        specification_die_offset = form_value.Reference();
                     break;
                 }
             }
@@ -843,8 +883,9 @@ DWARFCompileUnit::Index (const uint32_t cu_idx,
                     {
                         Mangled mangled (ConstString(mangled_cstr), true);
                         func_fullnames.Insert (mangled.GetMangledName(), die.GetOffset());
-                        if (mangled.GetDemangledName())
-                            func_fullnames.Insert (mangled.GetDemangledName(), die.GetOffset());
+                        ConstString demangled = mangled.GetDemangledName(cu_language);
+                        if (demangled)
+                            func_fullnames.Insert (demangled, die.GetOffset());
                     }
                 }
             }
@@ -865,8 +906,9 @@ DWARFCompileUnit::Index (const uint32_t cu_idx,
                     {
                         Mangled mangled (ConstString(mangled_cstr), true);
                         func_fullnames.Insert (mangled.GetMangledName(), die.GetOffset());
-                        if (mangled.GetDemangledName())
-                            func_fullnames.Insert (mangled.GetDemangledName(), die.GetOffset());
+                        ConstString demangled = mangled.GetDemangledName(cu_language);
+                        if (demangled)
+                            func_fullnames.Insert (demangled, die.GetOffset());
                     }
                 }
                 else
@@ -912,8 +954,9 @@ DWARFCompileUnit::Index (const uint32_t cu_idx,
                 {
                     Mangled mangled (ConstString(mangled_cstr), true);
                     globals.Insert (mangled.GetMangledName(), die.GetOffset());
-                    if (mangled.GetDemangledName())
-                        globals.Insert (mangled.GetDemangledName(), die.GetOffset());
+                    ConstString demangled = mangled.GetDemangledName(cu_language);
+                    if (demangled)
+                        globals.Insert (demangled, die.GetOffset());
                 }
             }
             break;
@@ -981,11 +1024,11 @@ DWARFCompileUnit::ParseProducerInfo ()
                 {
                     std::string str;
                     if (regex_match.GetMatchAtIndex (producer_cstr, 1, str))
-                        m_producer_version_major = Args::StringToUInt32(str.c_str(), UINT32_MAX, 10);
+                        m_producer_version_major = StringConvert::ToUInt32(str.c_str(), UINT32_MAX, 10);
                     if (regex_match.GetMatchAtIndex (producer_cstr, 2, str))
-                        m_producer_version_minor = Args::StringToUInt32(str.c_str(), UINT32_MAX, 10);
+                        m_producer_version_minor = StringConvert::ToUInt32(str.c_str(), UINT32_MAX, 10);
                     if (regex_match.GetMatchAtIndex (producer_cstr, 3, str))
-                        m_producer_version_update = Args::StringToUInt32(str.c_str(), UINT32_MAX, 10);
+                        m_producer_version_update = StringConvert::ToUInt32(str.c_str(), UINT32_MAX, 10);
                 }
                 m_producer = eProducerClang;
             }
@@ -1028,5 +1071,40 @@ DWARFCompileUnit::GetProducerVersionUpdate()
     if (m_producer_version_update == 0)
         ParseProducerInfo ();
     return m_producer_version_update;
+}
+
+LanguageType
+DWARFCompileUnit::LanguageTypeFromDWARF(uint64_t val) 
+{
+    // Note: user languages between lo_user and hi_user
+    // must be handled explicitly here.
+    switch (val)
+    {
+    case DW_LANG_Mips_Assembler:
+        return eLanguageTypeMipsAssembler;
+    case 0x8e57: // FIXME: needs to be added to llvm
+        return eLanguageTypeExtRenderScript;
+    default:
+        return static_cast<LanguageType>(val);
+    }
+}
+
+LanguageType
+DWARFCompileUnit::GetLanguageType()
+{
+    if (m_language_type != eLanguageTypeUnknown)
+        return m_language_type;
+
+    const DWARFDebugInfoEntry *die = GetCompileUnitDIEOnly();
+    if (die)
+        m_language_type = LanguageTypeFromDWARF(
+            die->GetAttributeValueAsUnsigned(m_dwarf2Data, this, DW_AT_language, 0));
+    return m_language_type;
+}
+
+bool
+DWARFCompileUnit::IsDWARF64() const
+{
+    return m_is_dwarf64;
 }
 

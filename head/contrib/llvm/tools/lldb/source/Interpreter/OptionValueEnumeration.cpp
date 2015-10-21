@@ -55,29 +55,30 @@ OptionValueEnumeration::DumpValue (const ExecutionContext *exe_ctx, Stream &strm
 }
 
 Error
-OptionValueEnumeration::SetValueFromCString (const char *value, VarSetOperationType op)
+OptionValueEnumeration::SetValueFromString (llvm::StringRef value, VarSetOperationType op)
 {
     Error error;
     switch (op)
     {
         case eVarSetOperationClear:
             Clear ();
+            NotifyValueChanged();
             break;
             
         case eVarSetOperationReplace:
         case eVarSetOperationAssign:
-            if (value && value[0])
             {
-                ConstString const_enumerator_name(value);
+                ConstString const_enumerator_name(value.trim());
                 const EnumerationMapEntry *enumerator_entry = m_enumerations.FindFirstValueForName (const_enumerator_name.GetCString());
                 if (enumerator_entry)
                 {
                     m_current_value = enumerator_entry->value.value;
+                    NotifyValueChanged();
                 }
                 else
                 {
                     StreamString error_strm;
-                    error_strm.Printf("invalid enumeration value '%s'", value);
+                    error_strm.Printf("invalid enumeration value '%s'", value.str().c_str());
                     const size_t count = m_enumerations.GetSize ();
                     if (count)
                     {
@@ -89,19 +90,15 @@ OptionValueEnumeration::SetValueFromCString (const char *value, VarSetOperationT
                     }
                     error.SetErrorString(error_strm.GetData());
                 }
+                break;
             }
-            else
-            {
-                error.SetErrorString("invalid enumeration value");
-            }
-            break;
             
         case eVarSetOperationInsertBefore:
         case eVarSetOperationInsertAfter:
         case eVarSetOperationRemove:
         case eVarSetOperationAppend:
         case eVarSetOperationInvalid:
-            error = OptionValue::SetValueFromCString (value, op);
+            error = OptionValue::SetValueFromString (value, op);
             break;
     }
     return error;

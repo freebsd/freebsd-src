@@ -169,93 +169,49 @@ struct ata_pci_controller {
 #define ATA_I6300ESB_R1         0x25b08086
 #define ATA_I63XXESB2           0x269e8086
 #define ATA_I63XXESB2_S1        0x26808086
-#define ATA_I63XXESB2_S2        0x26818086
-#define ATA_I63XXESB2_R1        0x26828086
-#define ATA_I63XXESB2_R2        0x26838086
 #define ATA_I82801FB            0x266f8086
 #define ATA_I82801FB_S1         0x26518086
 #define ATA_I82801FB_R1         0x26528086
 #define ATA_I82801FBM           0x26538086
 #define ATA_I82801GB            0x27df8086
 #define ATA_I82801GB_S1         0x27c08086
-#define ATA_I82801GB_AH         0x27c18086
-#define ATA_I82801GB_R1         0x27c38086
 #define ATA_I82801GBM_S1        0x27c48086
-#define ATA_I82801GBM_AH        0x27c58086
-#define ATA_I82801GBM_R1        0x27c68086
 #define ATA_I82801HB_S1         0x28208086
-#define ATA_I82801HB_AH6        0x28218086
-#define ATA_I82801HB_R1         0x28228086
-#define ATA_I82801HB_AH4        0x28248086
 #define ATA_I82801HB_S2         0x28258086
 #define ATA_I82801HBM           0x28508086
 #define ATA_I82801HBM_S1        0x28288086
-#define ATA_I82801HBM_S2        0x28298086
-#define ATA_I82801HBM_S3        0x282a8086
 #define ATA_I82801IB_S1         0x29208086
 #define ATA_I82801IB_S3         0x29218086
-#define ATA_I82801IB_AH6        0x29228086
-#define ATA_I82801IB_AH4        0x29238086
 #define ATA_I82801IB_R1         0x29258086
 #define ATA_I82801IB_S2         0x29268086
 #define ATA_I82801IBM_S1        0x29288086
-#define ATA_I82801IBM_AH        0x29298086
-#define ATA_I82801IBM_R1        0x292a8086
 #define ATA_I82801IBM_S2        0x292d8086
 #define ATA_I82801JIB_S1        0x3a208086
-#define ATA_I82801JIB_AH        0x3a228086
-#define ATA_I82801JIB_R1        0x3a258086
 #define ATA_I82801JIB_S2        0x3a268086
 #define ATA_I82801JD_S1         0x3a008086
-#define ATA_I82801JD_AH         0x3a028086
-#define ATA_I82801JD_R1         0x3a058086
 #define ATA_I82801JD_S2         0x3a068086
 #define ATA_I82801JI_S1         0x3a208086
-#define ATA_I82801JI_AH         0x3a228086
-#define ATA_I82801JI_R1         0x3a258086
 #define ATA_I82801JI_S2         0x3a268086
 
 #define ATA_5Series_S1          0x3b208086
 #define ATA_5Series_S2          0x3b218086
-#define ATA_5Series_AH1         0x3b228086
-#define ATA_5Series_AH2         0x3b238086
-#define ATA_5Series_R1          0x3b258086
 #define ATA_5Series_S3          0x3b268086
 #define ATA_5Series_S4          0x3b288086
-#define ATA_5Series_AH3         0x3b298086
-#define ATA_5Series_R2          0x3b2c8086
 #define ATA_5Series_S5          0x3b2d8086
 #define ATA_5Series_S6          0x3b2e8086
-#define ATA_5Series_AH4         0x3b2f8086
 
 #define ATA_CPT_S1              0x1c008086
 #define ATA_CPT_S2              0x1c018086
-#define ATA_CPT_AH1             0x1c028086
-#define ATA_CPT_AH2             0x1c038086
-#define ATA_CPT_R1              0x1c048086
-#define ATA_CPT_R2              0x1c058086
 #define ATA_CPT_S3              0x1c088086
 #define ATA_CPT_S4              0x1c098086
 
 #define ATA_PBG_S1		0x1d008086
-#define ATA_PBG_AH1		0x1d028086
-#define ATA_PBG_R1		0x1d048086
-#define ATA_PBG_R2		0x1d068086
-#define ATA_PBG_R3		0x28268086
 #define ATA_PBG_S2		0x1d088086
 
 #define ATA_PPT_S1		0x1e008086
 #define ATA_PPT_S2		0x1e018086
-#define ATA_PPT_AH1		0x1e028086
-#define ATA_PPT_AH2		0x1e038086
-#define ATA_PPT_R1		0x1e048086
-#define ATA_PPT_R2		0x1e058086
-#define ATA_PPT_R3		0x1e068086
-#define ATA_PPT_R4		0x1e078086
 #define ATA_PPT_S3		0x1e088086
 #define ATA_PPT_S4		0x1e098086
-#define ATA_PPT_R5		0x1e0e8086
-#define ATA_PPT_R6		0x1e0f8086
 
 #define ATA_AVOTON_S1		0x1f208086
 #define ATA_AVOTON_S2		0x1f218086
@@ -264,29 +220,13 @@ struct ata_pci_controller {
 
 #define ATA_LPT_S1		0x8c008086
 #define ATA_LPT_S2		0x8c018086
-#define ATA_LPT_AH1		0x8c028086
-#define ATA_LPT_AH2		0x8c038086
-#define ATA_LPT_R1		0x8c048086
-#define ATA_LPT_R2		0x8c058086
-#define ATA_LPT_R3		0x8c068086
-#define ATA_LPT_R4		0x8c078086
 #define ATA_LPT_S3		0x8c088086
 #define ATA_LPT_S4		0x8c098086
-#define ATA_LPT_R5		0x8c0e8086
-#define ATA_LPT_R6		0x8c0f8086
 
 #define ATA_WCPT_S1		0x8c808086
 #define ATA_WCPT_S2		0x8c818086
-#define ATA_WCPT_AH1		0x8c828086
-#define ATA_WCPT_AH2		0x8c838086
-#define ATA_WCPT_R1		0x8c848086
-#define ATA_WCPT_R2		0x8c858086
-#define ATA_WCPT_R3		0x8c868086
-#define ATA_WCPT_R4		0x8c878086
 #define ATA_WCPT_S3		0x8c888086
 #define ATA_WCPT_S4		0x8c898086
-#define ATA_WCPT_R5		0x8c8e8086
-#define ATA_WCPT_R6		0x8c8f8086
 
 #define ATA_WELLS_S1		0x8d008086
 #define ATA_WELLS_S2		0x8d088086
@@ -300,9 +240,7 @@ struct ata_pci_controller {
 
 #define ATA_I31244              0x32008086
 #define ATA_ISCH                0x811a8086
-#define ATA_DH89XXCC            0x23238086
 
-#define ATA_COLETOCRK_AH1       0x23a38086
 #define ATA_COLETOCRK_S1        0x23a18086
 #define ATA_COLETOCRK_S2        0x23a68086
 
@@ -322,14 +260,6 @@ struct ata_pci_controller {
 #define ATA_JMB368_2            0x0368197b
 
 #define ATA_MARVELL_ID          0x11ab
-#define ATA_M88SX5040           0x504011ab
-#define ATA_M88SX5041           0x504111ab
-#define ATA_M88SX5080           0x508011ab
-#define ATA_M88SX5081           0x508111ab
-#define ATA_M88SX6041           0x604111ab
-#define ATA_M88SX6042           0x604211ab
-#define ATA_M88SX6081           0x608111ab
-#define ATA_M88SX7042           0x704211ab
 #define ATA_M88SE6101           0x610111ab
 #define ATA_M88SE6102           0x610211ab
 #define ATA_M88SE6111           0x611111ab
@@ -505,10 +435,6 @@ struct ata_pci_controller {
 #define ATA_SII3512             0x35121095
 #define ATA_SII3112             0x31121095
 #define ATA_SII3112_1           0x02401095
-#define ATA_SII3124		0x31241095
-#define ATA_SII3132		0x31321095
-#define ATA_SII3132_1		0x02421095
-#define ATA_SII3132_2		0x02441095
 #define ATA_SII0680             0x06801095
 #define ATA_CMD646              0x06461095
 #define ATA_CMD648              0x06481095
@@ -631,8 +557,6 @@ const struct ata_chip_id *ata_find_chip(device_t dev, const struct ata_chip_id *
 int ata_mode2idx(int mode);
 
 /* global prototypes from chipsets/ata-*.c */
-int ata_ahci_chipinit(device_t);
-int ata_marvell_edma_chipinit(device_t);
 int ata_sii_chipinit(device_t);
 
 /* externs */

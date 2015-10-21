@@ -54,9 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 bool_t
-xdr_rpcb(xdrs, objp)
-	XDR *xdrs;
-	RPCB *objp;
+xdr_rpcb(XDR *xdrs, RPCB *objp)
 {
 	if (!xdr_u_int32_t(xdrs, &objp->r_prog)) {
 		return (FALSE);
@@ -100,9 +98,7 @@ xdr_rpcb(xdrs, objp)
  */
 
 bool_t
-xdr_rpcblist_ptr(xdrs, rp)
-	XDR *xdrs;
-	rpcblist_ptr *rp;
+xdr_rpcblist_ptr(XDR *xdrs, rpcblist_ptr *rp)
 {
 	/*
 	 * more_elements is pre-computed in case the direction is
@@ -154,9 +150,7 @@ xdr_rpcblist_ptr(xdrs, rp)
  * functionality to xdr_rpcblist_ptr().
  */
 bool_t
-xdr_rpcblist(xdrs, rp)
-	XDR *xdrs;
-	RPCBLIST **rp;
+xdr_rpcblist(XDR *xdrs, RPCBLIST **rp)
 {
 	bool_t	dummy;
 
@@ -166,9 +160,7 @@ xdr_rpcblist(xdrs, rp)
 
 
 bool_t
-xdr_rpcb_entry(xdrs, objp)
-	XDR *xdrs;
-	rpcb_entry *objp;
+xdr_rpcb_entry(XDR *xdrs, rpcb_entry *objp)
 {
 	if (!xdr_string(xdrs, &objp->r_maddr, (u_int)~0)) {
 		return (FALSE);
@@ -189,9 +181,7 @@ xdr_rpcb_entry(xdrs, objp)
 }
 
 bool_t
-xdr_rpcb_entry_list_ptr(xdrs, rp)
-	XDR *xdrs;
-	rpcb_entry_list_ptr *rp;
+xdr_rpcb_entry_list_ptr(XDR *xdrs, rpcb_entry_list_ptr *rp)
 {
 	/*
 	 * more_elements is pre-computed in case the direction is
@@ -244,9 +234,7 @@ xdr_rpcb_entry_list_ptr(xdrs, rp)
  * written for XDR_ENCODE direction only
  */
 bool_t
-xdr_rpcb_rmtcallargs(xdrs, p)
-	XDR *xdrs;
-	struct rpcb_rmtcallargs *p;
+xdr_rpcb_rmtcallargs(XDR *xdrs, struct rpcb_rmtcallargs *p)
 {
 	struct r_rpcb_rmtcallargs *objp =
 	    (struct r_rpcb_rmtcallargs *)(void *)p;
@@ -296,9 +284,7 @@ xdr_rpcb_rmtcallargs(xdrs, p)
  * written for XDR_DECODE direction only
  */
 bool_t
-xdr_rpcb_rmtcallres(xdrs, p)
-	XDR *xdrs;
-	struct rpcb_rmtcallres *p;
+xdr_rpcb_rmtcallres(XDR *xdrs, struct rpcb_rmtcallres *p)
 {
 	bool_t dummy;
 	struct r_rpcb_rmtcallres *objp = (struct r_rpcb_rmtcallres *)(void *)p;
@@ -314,9 +300,7 @@ xdr_rpcb_rmtcallres(xdrs, p)
 }
 
 bool_t
-xdr_netbuf(xdrs, objp)
-	XDR *xdrs;
-	struct netbuf *objp;
+xdr_netbuf(XDR *xdrs, struct netbuf *objp)
 {
 	bool_t dummy;
 	void **pp;

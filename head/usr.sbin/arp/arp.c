@@ -282,6 +282,7 @@ valid_type(int type)
 	switch (type) {
 	case IFT_ETHER:
 	case IFT_FDDI:
+	case IFT_INFINIBAND:
 	case IFT_ISO88023:
 	case IFT_ISO88024:
 	case IFT_ISO88025:
@@ -656,6 +657,9 @@ print_entry(struct sockaddr_dl *sdl,
 	case IFT_BRIDGE:
 		printf(" [bridge]");
 		break;
+	case IFT_INFINIBAND:
+		printf(" [infiniband]");
+		break;
 	default:
 		break;
         }
@@ -669,9 +673,12 @@ print_entry(struct sockaddr_dl *sdl,
  */
 static void
 nuke_entry(struct sockaddr_dl *sdl __unused,
-	struct sockaddr_in *addr, struct rt_msghdr *rtm __unused)
+	struct sockaddr_in *addr, struct rt_msghdr *rtm)
 {
 	char ip[20];
+
+	if (rtm->rtm_flags & RTF_PINNED)
+		return;
 
 	snprintf(ip, sizeof(ip), "%s", inet_ntoa(addr->sin_addr));
 	delete(ip);

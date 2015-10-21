@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -32,11 +32,6 @@
 
 int main(void)
 {
-#if 0
-	volatile unsigned int *pkt = 
-	    (volatile unsigned int *) (PACKET_MEMORY + PACKET_DATA_OFFSET);
-	int intf, hw_parser_error, context;
-#endif
 	unsigned int pktrdy;
 	int num_cachelines = 1518 / 64 ; /* pktsize / L3 cacheline size */
 
@@ -44,11 +39,6 @@ int main(void)
 	/* Spray packets to using distribution vector */
 	while (1) {
 		pktrdy = nlm_read_ucore_rxpktrdy();
-#if 0
-		intf = pktrdy & 0x1f;
-		context = (pktrdy >> 13) & 0x3ff;
-		hw_parser_error = (pktrdy >> 23) & 0x1;
-#endif
 		nlm_ucore_setup_poepktdistr(FWD_DIST_VEC, 0, 0, 0, 0);
 		nlm_ucore_pkt_done(num_cachelines, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		    0, 0);

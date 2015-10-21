@@ -154,16 +154,16 @@ xrefinfo_init(void *unsed)
 SYSINIT(xrefinfo, SI_SUB_KMEM, SI_ORDER_ANY, xrefinfo_init, NULL);
 
 static struct xrefinfo *
-xrefinfo_find(phandle_t phandle, int find_by)
+xrefinfo_find(uintptr_t key, int find_by)
 {
 	struct xrefinfo *rv, *xi;
 
 	rv = NULL;
 	mtx_lock(&xreflist_lock);
 	SLIST_FOREACH(xi, &xreflist, next_entry) {
-		if ((find_by == FIND_BY_XREF && phandle == xi->xref) ||
-		    (find_by == FIND_BY_NODE && phandle == xi->node) ||
-		    (find_by == FIND_BY_DEV && phandle == (uintptr_t)xi->dev)) {
+		if ((find_by == FIND_BY_XREF && (phandle_t)key == xi->xref) ||
+		    (find_by == FIND_BY_NODE && (phandle_t)key == xi->node) ||
+		    (find_by == FIND_BY_DEV && key == (uintptr_t)xi->dev)) {
 			rv = xi;
 			break;
 		}
@@ -459,11 +459,16 @@ OF_getencprop_alloc(phandle_t package, const char *name, int elsz, void **buf)
 	int i;
 
 	retval = OF_getprop_alloc(package, name, elsz, buf);
-	if (retval == -1 || retval*elsz % 4 != 0)
+	if (retval == -1)
 		return (-1);
+ 	if (retval * elsz % 4 != 0) {
+		free(*buf, M_OFWPROP);
+		*buf = NULL;
+		return (-1);
+	}
 
 	cell = *buf;
-	for (i = 0; i < retval*elsz/4; i++)
+	for (i = 0; i < retval * elsz / 4; i++)
 		cell[i] = be32toh(cell[i]);
 
 	return (retval);

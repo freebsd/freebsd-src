@@ -695,7 +695,8 @@ sm_bfcommit(fp)
 			sm_dprintf("bfcommit(%s): to disk\n", bfp->bf_filename);
 			if (tTd(58, 32))
 				sm_dprintf("bfcommit(): filemode %o flags %ld\n",
-					   bfp->bf_filemode, bfp->bf_flags);
+					   (unsigned int) bfp->bf_filemode,
+					   bfp->bf_flags);
 		}
 
 		if (stat(bfp->bf_filename, &st) == 0)

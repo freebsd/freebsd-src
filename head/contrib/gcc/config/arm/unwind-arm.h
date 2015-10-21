@@ -34,6 +34,10 @@
 
 #define __ARM_EABI_UNWINDER__ 1
 
+#ifndef __ARM_STATIC_INLINE
+#define __ARM_STATIC_INLINE static inline
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -245,12 +249,18 @@ extern "C" {
       return tmp;
     }
 
-  static inline _Unwind_Word
+  __ARM_STATIC_INLINE _Unwind_Word
   _Unwind_GetGR (_Unwind_Context *context, int regno)
     {
       _uw val;
       _Unwind_VRS_Get (context, _UVRSC_CORE, regno, _UVRSD_UINT32, &val);
       return val;
+    }
+
+  __ARM_STATIC_INLINE void
+  _Unwind_SetGR (_Unwind_Context *context, int regno, _Unwind_Word val)
+    {
+      _Unwind_VRS_Set (context, _UVRSC_CORE, regno, _UVRSD_UINT32, &val);
     }
 
 #ifndef __FreeBSD__
@@ -260,21 +270,16 @@ extern "C" {
 
 #define _Unwind_GetIPInfo(context, ip_before_insn) \
   (*ip_before_insn = 0, _Unwind_GetGR (context, 15) & ~(_Unwind_Word)1)
-#else
-  _Unwind_Ptr _Unwind_GetIP (struct _Unwind_Context *);
-  _Unwind_Ptr _Unwind_GetIPInfo (struct _Unwind_Context *, int *);
-#endif
-
-  static inline void
-  _Unwind_SetGR (_Unwind_Context *context, int regno, _Unwind_Word val)
-    {
-      _Unwind_VRS_Set (context, _UVRSC_CORE, regno, _UVRSD_UINT32, &val);
-    }
 
   /* The dwarf unwinder doesn't understand arm/thumb state.  We assume the
      landing pad uses the same instruction set as the call site.  */
 #define _Unwind_SetIP(context, val) \
   _Unwind_SetGR (context, 15, val | (_Unwind_GetGR (context, 15) & 1))
+#else
+  _Unwind_Ptr _Unwind_GetIP (struct _Unwind_Context *);
+  _Unwind_Ptr _Unwind_GetIPInfo (struct _Unwind_Context *, int *);
+  void _Unwind_SetIP (struct _Unwind_Context *, _Unwind_Ptr);
+#endif
 
 #ifdef __cplusplus
 }   /* extern "C" */

@@ -124,6 +124,15 @@ const char	ctty[] = _PATH_CONSOLE;
 #define	MAXUNAMES	20	/* maximum number of user names */
 
 /*
+ * List of hosts for binding.
+ */
+static STAILQ_HEAD(, host) hqueue;
+struct host {
+	char			*name;
+	STAILQ_ENTRY(host)	next;
+};
+
+/*
  * Unix sockets.
  * We have two default sockets, one with 666 permissions,
  * and one for privileged programs.
@@ -271,10 +280,11 @@ static struct filed *Files;	/* Log files that we write to */
 static struct filed consfile;	/* Console */
 
 static int	Debug;		/* debug flag */
+static int	Foreground = 0;	/* Run in foreground, instead of daemonizing */
 static int	resolve = 1;	/* resolve hostname */
 static char	LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
 static const char *LocalDomain;	/* our local domain name */
-static int	*finet;		/* Internet datagram socket */
+static int	*finet;		/* Internet datagram sockets */
 static int	fklog = -1;	/* /dev/klog */
 static int	Initialized;	/* set when we have initialized ourselves */
 static int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
@@ -314,7 +324,7 @@ static const char *cvthname(struct sockaddr *);
 static void	deadq_enter(pid_t, const char *);
 static int	deadq_remove(pid_t);
 static int	decode(const char *, const CODE *);
-static void	die(int);
+static void	die(int) __dead2;
 static void	dodie(int);
 static void	dofsync(void);
 static void	domark(int);
@@ -339,6 +349,18 @@ static int	waitdaemon(int, int, int);
 static void	timedout(int);
 static void	increase_rcvbuf(int);
 
+static void
+close_filed(struct filed *f)
+{
+
+	if (f == NULL || f->f_file == -1)
+		return;
+
+	(void)close(f->f_file);
+	f->f_file = -1;
+	f->f_type = F_UNUSED;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -347,10 +369,10 @@ main(int argc, char *argv[])
 	struct sockaddr_storage frominet;
 	fd_set *fdsr = NULL;
 	char line[MAXLINE + 1];
-	char *bindhostname;
 	const char *hname;
 	struct timeval tv, *tvp;
 	struct sigaction sact;
+	struct host *host;
 	struct funix *fx, *fx1;
 	sigset_t mask;
 	pid_t ppid = 1, spid;
@@ -359,8 +381,9 @@ main(int argc, char *argv[])
 	if (madvise(NULL, 0, MADV_PROTECT) != 0)
 		dprintf("madvise() failed: %s\n", strerror(errno));
 
-	bindhostname = NULL;
-	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:kl:m:nNop:P:sS:Tuv"))
+	STAILQ_INIT(&hqueue);
+
+	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:Fkl:m:nNop:P:sS:Tuv"))
 	    != -1)
 		switch (ch) {
 		case '4':
@@ -382,8 +405,13 @@ main(int argc, char *argv[])
 				usage();
 			break;
 		case 'b':
-			bindhostname = optarg;
+		   {
+			if ((host = malloc(sizeof(struct host))) == NULL)
+				err(1, "malloc failed");
+			host->name = optarg;
+			STAILQ_INSERT_TAIL(&hqueue, host, next);
 			break;
+		   }
 		case 'c':
 			no_compress++;
 			break;
@@ -395,6 +423,9 @@ main(int argc, char *argv[])
 			break;
 		case 'f':		/* configuration file */
 			ConfFile = optarg;
+			break;
+		case 'F':		/* run in foreground instead of daemon */
+			Foreground++;
 			break;
 		case 'k':		/* keep remote kern fac */
 			KeepKernFac = 1;
@@ -429,7 +460,7 @@ main(int argc, char *argv[])
 			if (strlen(name) >= sizeof(sunx.sun_path))
 				errx(1, "%s path too long, exiting", name);
 			if ((fx = malloc(sizeof(struct funix))) == NULL)
-				errx(1, "malloc failed");
+				err(1, "malloc failed");
 			fx->s = -1;
 			fx->name = name;
 			fx->mode = mode;
@@ -487,14 +518,14 @@ main(int argc, char *argv[])
 		warn("cannot open pid file");
 	}
 
-	if (!Debug) {
+	if ((!Foreground) && (!Debug)) {
 		ppid = waitdaemon(0, 0, 30);
 		if (ppid < 0) {
 			warn("could not become daemon");
 			pidfile_remove(pfh);
 			exit(1);
 		}
-	} else {
+	} else if (Debug) {
 		setlinebuf(stdout);
 	}
 
@@ -551,13 +582,33 @@ main(int argc, char *argv[])
 		}
 		increase_rcvbuf(fx->s);
 	}
-	if (SecureMode <= 1)
-		finet = socksetup(family, bindhostname);
+	if (SecureMode <= 1) {
+		if (STAILQ_EMPTY(&hqueue))
+			finet = socksetup(family, NULL);
+		STAILQ_FOREACH(host, &hqueue, next) {
+			int *finet0, total;
+			finet0 = socksetup(family, host->name);
+			if (finet0 && !finet) {
+				finet = finet0;
+			} else if (finet0 && finet) {
+				total = *finet0 + *finet + 1;
+				finet = realloc(finet, total * sizeof(int));
+				if (finet == NULL)
+					err(1, "realloc failed");
+				for (i = 1; i <= *finet0; i++) {
+					finet[(*finet)+i] = finet0[i];
+				}
+				*finet = total - 1;
+				free(finet0);
+			}
+		}
+	}
 
 	if (finet) {
 		if (SecureMode) {
 			for (i = 0; i < *finet; i++) {
-				if (shutdown(finet[i+1], SHUT_RD) < 0) {
+				if (shutdown(finet[i+1], SHUT_RD) < 0 &&
+				    errno != ENOTCONN) {
 					logerror("shutdown");
 					if (!Debug)
 						die(0);
@@ -713,7 +764,7 @@ usage(void)
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: syslogd [-468ACcdknosTuv] [-a allowed_peer]",
+		"usage: syslogd [-468ACcdFknosTuv] [-a allowed_peer]",
 		"               [-b bind_address] [-f config_file]",
 		"               [-l [mode:]path] [-m mark_interval]",
 		"               [-P pid_file] [-p log_socket]");
@@ -985,7 +1036,8 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 			(void)strlcpy(f->f_lasttime, timestamp,
 				sizeof(f->f_lasttime));
 			fprintlog(f, flags, msg);
-			(void)close(f->f_file);
+			close(f->f_file);
+			f->f_file = -1;
 		}
 		(void)sigsetmask(omask);
 		return;
@@ -1020,7 +1072,7 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 		 */
 		if (no_compress - (f->f_type != F_PIPE) < 1 &&
 		    (flags & MARK) == 0 && msglen == f->f_prevlen &&
-		    f->f_prevline && !strcmp(msg, f->f_prevline) &&
+		    !strcmp(msg, f->f_prevline) &&
 		    !strcasecmp(from, f->f_prevhost)) {
 			(void)strlcpy(f->f_lasttime, timestamp,
 				sizeof(f->f_lasttime));
@@ -1175,11 +1227,9 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		v->iov_base = repbuf;
 		v->iov_len = snprintf(repbuf, sizeof repbuf,
 		    "last message repeated %d times", f->f_prevcount);
-	} else if (f->f_prevline) {
+	} else {
 		v->iov_base = f->f_prevline;
 		v->iov_len = f->f_prevlen;
-	} else {
-		return;
 	}
 	v++;
 
@@ -1276,8 +1326,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 			 */
 			if (errno != ENOSPC) {
 				int e = errno;
-				(void)close(f->f_file);
-				f->f_type = F_UNUSED;
+				close_filed(f);
 				errno = e;
 				logerror(f->f_un.f_fname);
 			}
@@ -1301,7 +1350,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		}
 		if (writev(f->f_file, iov, IOV_SIZE) < 0) {
 			int e = errno;
-			(void)close(f->f_file);
+			close_filed(f);
 			if (f->f_un.f_pipe.f_pid > 0)
 				deadq_enter(f->f_un.f_pipe.f_pid,
 					    f->f_un.f_pipe.f_pname);
@@ -1409,7 +1458,7 @@ reapchild(int signo __unused)
 		for (f = Files; f; f = f->f_next)
 			if (f->f_type == F_PIPE &&
 			    f->f_un.f_pipe.f_pid == pid) {
-				(void)close(f->f_file);
+				close_filed(f);
 				f->f_un.f_pipe.f_pid = 0;
 				log_deadchild(pid, status,
 					      f->f_un.f_pipe.f_pname);
@@ -1513,7 +1562,7 @@ die(int signo)
 		if (f->f_prevcount)
 			fprintlog(f, 0, (char *)NULL);
 		if (f->f_type == F_PIPE && f->f_un.f_pipe.f_pid > 0) {
-			(void)close(f->f_file);
+			close_filed(f);
 			f->f_un.f_pipe.f_pid = 0;
 		}
 	}
@@ -1566,6 +1615,24 @@ init(int signo)
 	}
 
 	/*
+	 * Load / reload timezone data (in case it changed).
+	 *
+	 * Just calling tzset() again does not work, the timezone code
+	 * caches the result.  However, by setting the TZ variable, one
+	 * can defeat the caching and have the timezone code really
+	 * reload the timezone data.  Respect any initial setting of
+	 * TZ, in case the system is configured specially.
+	 */
+	dprintf("loading timezone data via tzset()\n");
+	if (getenv("TZ")) {
+		tzset();
+	} else {
+		setenv("TZ", ":/etc/localtime", 1);
+		tzset();
+		unsetenv("TZ");
+	}
+
+	/*
 	 *  Close all open log files.
 	 */
 	Initialized = 0;
@@ -1579,11 +1646,11 @@ init(int signo)
 		case F_FORW:
 		case F_CONSOLE:
 		case F_TTY:
-			(void)close(f->f_file);
+			close_filed(f);
 			break;
 		case F_PIPE:
 			if (f->f_un.f_pipe.f_pid > 0) {
-				(void)close(f->f_file);
+				close_filed(f);
 				deadq_enter(f->f_un.f_pipe.f_pid,
 					    f->f_un.f_pipe.f_pname);
 			}
@@ -2727,6 +2794,7 @@ socksetup(int af, char *bindhostname)
 		}
 
 		(*socks)++;
+		dprintf("socksetup: new socket fd is %d\n", *s);
 		s++;
 	}
 

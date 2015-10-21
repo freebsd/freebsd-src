@@ -1,4 +1,11 @@
 <div class="line">
+  <div class="text">Connecting to </div>
+  <div class="data" data-tag="host">my-box</div>
+  <div class="text">.</div>
+  <div class="data" data-tag="domain">example.com</div>
+  <div class="text">...</div>
+</div>
+<div class="line">
   <div class="title">Item      </div>
   <div class="title">  Total Sold</div>
   <div class="title">    In Stock</div>

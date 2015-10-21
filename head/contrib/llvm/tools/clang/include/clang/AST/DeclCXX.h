@@ -538,6 +538,12 @@ class CXXRecordDecl : public RecordDecl {
         ManglingNumber(0), ContextDecl(nullptr), Captures(nullptr),
         MethodTyInfo(Info) {
       IsLambda = true;
+
+      // C++11 [expr.prim.lambda]p3:
+      //   This class type is neither an aggregate nor a literal type.
+      Aggregate = false;
+      PlainOldData = false;
+      HasNonLiteralTypeFieldsOrBases = true;
     }
 
     /// \brief Whether this lambda is known to be dependent, even if its
@@ -645,8 +651,8 @@ public:
   CXXRecordDecl *getCanonicalDecl() override {
     return cast<CXXRecordDecl>(RecordDecl::getCanonicalDecl());
   }
-  virtual const CXXRecordDecl *getCanonicalDecl() const {
-    return cast<CXXRecordDecl>(RecordDecl::getCanonicalDecl());
+  const CXXRecordDecl *getCanonicalDecl() const {
+    return const_cast<CXXRecordDecl*>(this)->getCanonicalDecl();
   }
 
   CXXRecordDecl *getPreviousDecl() {
@@ -820,7 +826,11 @@ public:
   /// This value is used for lazy creation of default constructors.
   bool needsImplicitDefaultConstructor() const {
     return !data().UserDeclaredConstructor &&
-           !(data().DeclaredSpecialMembers & SMF_DefaultConstructor);
+           !(data().DeclaredSpecialMembers & SMF_DefaultConstructor) &&
+           // C++14 [expr.prim.lambda]p20:
+           //   The closure type associated with a lambda-expression has no
+           //   default constructor.
+           !isLambda();
   }
 
   /// \brief Determine whether this class has any user-declared constructors.
@@ -1083,8 +1093,7 @@ public:
 
   /// \brief Get all conversion functions visible in current class,
   /// including conversion function templates.
-  std::pair<conversion_iterator, conversion_iterator>
-    getVisibleConversionFunctions();
+  llvm::iterator_range<conversion_iterator> getVisibleConversionFunctions();
 
   /// Determine whether this class is an aggregate (C++ [dcl.init.aggr]),
   /// which is a class with no user-declared constructors, no private
@@ -1371,8 +1380,21 @@ public:
   /// \brief Set the kind of specialization or template instantiation this is.
   void setTemplateSpecializationKind(TemplateSpecializationKind TSK);
 
+  /// \brief Retrieve the record declaration from which this record could be
+  /// instantiated. Returns null if this class is not a template instantiation.
+  const CXXRecordDecl *getTemplateInstantiationPattern() const;
+
+  CXXRecordDecl *getTemplateInstantiationPattern() {
+    return const_cast<CXXRecordDecl *>(const_cast<const CXXRecordDecl *>(this)
+                                           ->getTemplateInstantiationPattern());
+  }
+
   /// \brief Returns the destructor decl for this class.
   CXXDestructorDecl *getDestructor() const;
+
+  /// \brief Returns true if the class destructor, or any implicitly invoked
+  /// destructors are marked noreturn.
+  bool isAnyDestructorNoReturn() const;
 
   /// \brief If the class is a local class [class.local], returns
   /// the enclosing function declaration.
@@ -1418,7 +1440,7 @@ public:
   ///
   /// \returns true if this class is derived from \p Base, false otherwise.
   ///
-  /// \todo add a separate paramaeter to configure IsDerivedFrom, rather than
+  /// \todo add a separate parameter to configure IsDerivedFrom, rather than
   /// tangling input and output in \p Paths
   bool isDerivedFrom(const CXXRecordDecl *Base, CXXBasePaths &Paths) const;
 
@@ -1763,7 +1785,7 @@ public:
   CXXMethodDecl *getCanonicalDecl() override {
     return cast<CXXMethodDecl>(FunctionDecl::getCanonicalDecl());
   }
-  const CXXMethodDecl *getCanonicalDecl() const override {
+  const CXXMethodDecl *getCanonicalDecl() const {
     return const_cast<CXXMethodDecl*>(this)->getCanonicalDecl();
   }
 
@@ -2066,7 +2088,7 @@ public:
   /// This can only be called once for each initializer; it cannot be called
   /// on an initializer having a positive number of (implicit) array indices.
   ///
-  /// This assumes that the initialzier was written in the source code, and
+  /// This assumes that the initializer was written in the source code, and
   /// ensures that isWritten() returns true.
   void setSourceOrder(int pos) {
     assert(!IsWritten &&
@@ -2104,8 +2126,8 @@ public:
   }
   ArrayRef<VarDecl *> getArrayIndexes() {
     assert(getNumArrayIndices() != 0 && "Getting indexes for non-array init");
-    return ArrayRef<VarDecl *>(reinterpret_cast<VarDecl **>(this + 1),
-                               getNumArrayIndices());
+    return llvm::makeArrayRef(reinterpret_cast<VarDecl **>(this + 1),
+                              getNumArrayIndices());
   }
 
   /// \brief Get the initializer.
@@ -2131,7 +2153,7 @@ class CXXConstructorDecl : public CXXMethodDecl {
   /// \name Support for base and member initializers.
   /// \{
   /// \brief The arguments used to initialize the base or member.
-  CXXCtorInitializer **CtorInitializers;
+  LazyCXXCtorInitializersPtr CtorInitializers;
   unsigned NumCtorInitializers;
   /// \}
 
@@ -2170,7 +2192,7 @@ public:
   typedef CXXCtorInitializer **init_iterator;
 
   /// \brief Iterates through the member/base initializer list.
-  typedef CXXCtorInitializer * const * init_const_iterator;
+  typedef CXXCtorInitializer *const *init_const_iterator;
 
   typedef llvm::iterator_range<init_iterator> init_range;
   typedef llvm::iterator_range<init_const_iterator> init_const_range;
@@ -2181,17 +2203,20 @@ public:
   }
 
   /// \brief Retrieve an iterator to the first initializer.
-  init_iterator       init_begin()       { return CtorInitializers; }
+  init_iterator init_begin() {
+    const auto *ConstThis = this;
+    return const_cast<init_iterator>(ConstThis->init_begin());
+  }
   /// \brief Retrieve an iterator to the first initializer.
-  init_const_iterator init_begin() const { return CtorInitializers; }
+  init_const_iterator init_begin() const;
 
   /// \brief Retrieve an iterator past the last initializer.
   init_iterator       init_end()       {
-    return CtorInitializers + NumCtorInitializers;
+    return init_begin() + NumCtorInitializers;
   }
   /// \brief Retrieve an iterator past the last initializer.
   init_const_iterator init_end() const {
-    return CtorInitializers + NumCtorInitializers;
+    return init_begin() + NumCtorInitializers;
   }
 
   typedef std::reverse_iterator<init_iterator> init_reverse_iterator;
@@ -2222,14 +2247,14 @@ public:
     NumCtorInitializers = numCtorInitializers;
   }
 
-  void setCtorInitializers(CXXCtorInitializer ** initializers) {
-    CtorInitializers = initializers;
+  void setCtorInitializers(CXXCtorInitializer **Initializers) {
+    CtorInitializers = Initializers;
   }
 
   /// \brief Determine whether this constructor is a delegating constructor.
   bool isDelegatingConstructor() const {
     return (getNumCtorInitializers() == 1) &&
-      CtorInitializers[0]->isDelegatingInitializer();
+           init_begin()[0]->isDelegatingInitializer();
   }
 
   /// \brief When this constructor delegates to another, retrieve the target.
@@ -2305,11 +2330,11 @@ public:
   /// \brief Set the constructor that this inheriting constructor is based on.
   void setInheritedConstructor(const CXXConstructorDecl *BaseCtor);
 
-  const CXXConstructorDecl *getCanonicalDecl() const override {
-    return cast<CXXConstructorDecl>(FunctionDecl::getCanonicalDecl());
-  }
   CXXConstructorDecl *getCanonicalDecl() override {
     return cast<CXXConstructorDecl>(FunctionDecl::getCanonicalDecl());
+  }
+  const CXXConstructorDecl *getCanonicalDecl() const {
+    return const_cast<CXXConstructorDecl*>(this)->getCanonicalDecl();
   }
 
   // Implement isa/cast/dyncast/etc.
@@ -2354,9 +2379,7 @@ public:
                                    bool isImplicitlyDeclared);
   static CXXDestructorDecl *CreateDeserialized(ASTContext & C, unsigned ID);
 
-  void setOperatorDelete(FunctionDecl *OD) {
-    cast<CXXDestructorDecl>(getFirstDecl())->OperatorDelete = OD;
-  }
+  void setOperatorDelete(FunctionDecl *OD);
   const FunctionDecl *getOperatorDelete() const {
     return cast<CXXDestructorDecl>(getFirstDecl())->OperatorDelete;
   }
@@ -2636,7 +2659,8 @@ public:
 /// \code
 /// namespace Foo = Bar;
 /// \endcode
-class NamespaceAliasDecl : public NamedDecl {
+class NamespaceAliasDecl : public NamedDecl,
+                           public Redeclarable<NamespaceAliasDecl> {
   void anchor() override;
 
   /// \brief The location of the \c namespace keyword.
@@ -2654,17 +2678,47 @@ class NamespaceAliasDecl : public NamedDecl {
   /// a NamespaceAliasDecl.
   NamedDecl *Namespace;
 
-  NamespaceAliasDecl(DeclContext *DC, SourceLocation NamespaceLoc,
-                     SourceLocation AliasLoc, IdentifierInfo *Alias,
-                     NestedNameSpecifierLoc QualifierLoc,
+  NamespaceAliasDecl(ASTContext &C, DeclContext *DC,
+                     SourceLocation NamespaceLoc, SourceLocation AliasLoc,
+                     IdentifierInfo *Alias, NestedNameSpecifierLoc QualifierLoc,
                      SourceLocation IdentLoc, NamedDecl *Namespace)
-    : NamedDecl(NamespaceAlias, DC, AliasLoc, Alias),
-      NamespaceLoc(NamespaceLoc), IdentLoc(IdentLoc),
-      QualifierLoc(QualifierLoc), Namespace(Namespace) { }
+      : NamedDecl(NamespaceAlias, DC, AliasLoc, Alias), redeclarable_base(C),
+        NamespaceLoc(NamespaceLoc), IdentLoc(IdentLoc),
+        QualifierLoc(QualifierLoc), Namespace(Namespace) {}
+
+  typedef Redeclarable<NamespaceAliasDecl> redeclarable_base;
+  NamespaceAliasDecl *getNextRedeclarationImpl() override;
+  NamespaceAliasDecl *getPreviousDeclImpl() override;
+  NamespaceAliasDecl *getMostRecentDeclImpl() override;
 
   friend class ASTDeclReader;
 
 public:
+  static NamespaceAliasDecl *Create(ASTContext &C, DeclContext *DC,
+                                    SourceLocation NamespaceLoc,
+                                    SourceLocation AliasLoc,
+                                    IdentifierInfo *Alias,
+                                    NestedNameSpecifierLoc QualifierLoc,
+                                    SourceLocation IdentLoc,
+                                    NamedDecl *Namespace);
+
+  static NamespaceAliasDecl *CreateDeserialized(ASTContext &C, unsigned ID);
+
+  typedef redeclarable_base::redecl_range redecl_range;
+  typedef redeclarable_base::redecl_iterator redecl_iterator;
+  using redeclarable_base::redecls_begin;
+  using redeclarable_base::redecls_end;
+  using redeclarable_base::redecls;
+  using redeclarable_base::getPreviousDecl;
+  using redeclarable_base::getMostRecentDecl;
+
+  NamespaceAliasDecl *getCanonicalDecl() override {
+    return getFirstDecl();
+  }
+  const NamespaceAliasDecl *getCanonicalDecl() const {
+    return getFirstDecl();
+  }
+
   /// \brief Retrieve the nested-name-specifier that qualifies the
   /// name of the namespace, with source-location information.
   NestedNameSpecifierLoc getQualifierLoc() const { return QualifierLoc; }
@@ -2700,16 +2754,6 @@ public:
   /// \brief Retrieve the namespace that this alias refers to, which
   /// may either be a NamespaceDecl or a NamespaceAliasDecl.
   NamedDecl *getAliasedNamespace() const { return Namespace; }
-
-  static NamespaceAliasDecl *Create(ASTContext &C, DeclContext *DC,
-                                    SourceLocation NamespaceLoc,
-                                    SourceLocation AliasLoc,
-                                    IdentifierInfo *Alias,
-                                    NestedNameSpecifierLoc QualifierLoc,
-                                    SourceLocation IdentLoc,
-                                    NamedDecl *Namespace);
-
-  static NamespaceAliasDecl *CreateDeserialized(ASTContext &C, unsigned ID);
 
   SourceRange getSourceRange() const override LLVM_READONLY {
     return SourceRange(NamespaceLoc, IdentLoc);
@@ -2824,7 +2868,7 @@ public:
 /// \code
 ///    using someNameSpace::someIdentifier;
 /// \endcode
-class UsingDecl : public NamedDecl {
+class UsingDecl : public NamedDecl, public Mergeable<UsingDecl> {
   void anchor() override;
 
   /// \brief The source location of the 'using' keyword itself.
@@ -2948,6 +2992,10 @@ public:
 
   SourceRange getSourceRange() const override LLVM_READONLY;
 
+  /// Retrieves the canonical declaration of this declaration.
+  UsingDecl *getCanonicalDecl() override { return getFirstDecl(); }
+  const UsingDecl *getCanonicalDecl() const { return getFirstDecl(); }
+
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classofKind(Kind K) { return K == Using; }
 
@@ -2966,7 +3014,8 @@ public:
 ///   using Base<T>::foo;
 /// };
 /// \endcode
-class UnresolvedUsingValueDecl : public ValueDecl {
+class UnresolvedUsingValueDecl : public ValueDecl,
+                                 public Mergeable<UnresolvedUsingValueDecl> {
   void anchor() override;
 
   /// \brief The source location of the 'using' keyword
@@ -3022,6 +3071,14 @@ public:
 
   SourceRange getSourceRange() const override LLVM_READONLY;
 
+  /// Retrieves the canonical declaration of this declaration.
+  UnresolvedUsingValueDecl *getCanonicalDecl() override {
+    return getFirstDecl();
+  }
+  const UnresolvedUsingValueDecl *getCanonicalDecl() const {
+    return getFirstDecl();
+  }
+
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classofKind(Kind K) { return K == UnresolvedUsingValue; }
 
@@ -3040,7 +3097,9 @@ public:
 ///
 /// The type associated with an unresolved using typename decl is
 /// currently always a typename type.
-class UnresolvedUsingTypenameDecl : public TypeDecl {
+class UnresolvedUsingTypenameDecl
+    : public TypeDecl,
+      public Mergeable<UnresolvedUsingTypenameDecl> {
   void anchor() override;
 
   /// \brief The source location of the 'typename' keyword
@@ -3083,6 +3142,14 @@ public:
 
   static UnresolvedUsingTypenameDecl *
   CreateDeserialized(ASTContext &C, unsigned ID);
+
+  /// Retrieves the canonical declaration of this declaration.
+  UnresolvedUsingTypenameDecl *getCanonicalDecl() override {
+    return getFirstDecl();
+  }
+  const UnresolvedUsingTypenameDecl *getCanonicalDecl() const {
+    return getFirstDecl();
+  }
 
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classofKind(Kind K) { return K == UnresolvedUsingTypename; }

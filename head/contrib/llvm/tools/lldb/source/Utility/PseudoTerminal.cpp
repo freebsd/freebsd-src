@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "lldb/Host/Config.h"
 #include "lldb/Utility/PseudoTerminal.h"
 
 #include <errno.h>
@@ -31,6 +32,9 @@ char *ptsname(int fd) { return 0; }
 
 pid_t fork(void) { return 0; }
 pid_t setsid(void) { return 0; }
+#elif defined(__ANDROID_NDK__)
+#include "lldb/Host/android/Android.h"
+int posix_openpt(int flags);
 #endif
 
 using namespace lldb_utility;
@@ -66,7 +70,11 @@ PseudoTerminal::CloseMasterFileDescriptor ()
 {
     if (m_master_fd >= 0)
     {
+    // Don't call 'close' on m_master_fd for Windows as a dummy implementation of
+    // posix_openpt above always gives it a 0 value.
+#ifndef _WIN32
         ::close (m_master_fd);
+#endif
         m_master_fd = invalid_fd;
     }
 }
@@ -231,9 +239,11 @@ PseudoTerminal::Fork (char *error_str, size_t error_len)
 {
     if (error_str)
         error_str[0] = '\0';
-
     pid_t pid = LLDB_INVALID_PROCESS_ID;
-    if (OpenFirstAvailableMaster (O_RDWR, error_str, error_len))
+#if !defined(LLDB_DISABLE_POSIX)
+    int flags = O_RDWR;
+    flags |= O_CLOEXEC;
+    if (OpenFirstAvailableMaster (flags, error_str, error_len))
     {
         // Successfully opened our master pseudo terminal
 
@@ -252,7 +262,8 @@ PseudoTerminal::Fork (char *error_str, size_t error_len)
             if (OpenSlave (O_RDWR, error_str, error_len))
             {
                 // Successfully opened slave
-                // We are done with the master in the child process so lets close it
+
+                // Master FD should have O_CLOEXEC set, but let's close it just in case...
                 CloseMasterFileDescriptor ();
 
 #if defined(TIOCSCTTY)
@@ -289,6 +300,7 @@ PseudoTerminal::Fork (char *error_str, size_t error_len)
             // Do nothing and let the pid get returned!
         }
     }
+#endif
     return pid;
 }
 

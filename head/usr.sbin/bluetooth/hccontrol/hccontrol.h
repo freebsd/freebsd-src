@@ -53,6 +53,7 @@ extern struct hci_command	 host_controller_baseband_commands[];
 extern struct hci_command	 info_commands[];
 extern struct hci_command	 status_commands[];
 extern struct hci_command	 node_commands[];
+extern struct hci_command	 le_commands[];
  
 int                hci_request         (int, int, char const *, int, char *, int *);
 int                hci_simple_request  (int, int, char *, int *);

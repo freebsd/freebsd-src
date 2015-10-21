@@ -27,7 +27,8 @@ class CMov_I_I_FT<string opstr, RegisterOperand CRC, RegisterOperand DRC,
 class CMov_I_F_FT<string opstr, RegisterOperand CRC, RegisterOperand DRC,
                   InstrItinClass Itin> :
   InstSE<(outs DRC:$fd), (ins DRC:$fs, CRC:$rt, DRC:$F),
-         !strconcat(opstr, "\t$fd, $fs, $rt"), [], Itin, FrmFR, opstr> {
+         !strconcat(opstr, "\t$fd, $fs, $rt"), [], Itin, FrmFR, opstr>,
+  HARDFLOAT {
   let Constraints = "$F = $fd";
 }
 
@@ -37,7 +38,7 @@ class CMov_F_I_FT<string opstr, RegisterOperand RC, InstrItinClass Itin,
   InstSE<(outs RC:$rd), (ins RC:$rs, FCCRegsOpnd:$fcc, RC:$F),
          !strconcat(opstr, "\t$rd, $rs, $fcc"),
          [(set RC:$rd, (OpNode RC:$rs, FCCRegsOpnd:$fcc, RC:$F))],
-         Itin, FrmFR, opstr> {
+         Itin, FrmFR, opstr>, HARDFLOAT {
   let Constraints = "$F = $rd";
 }
 
@@ -47,7 +48,7 @@ class CMov_F_F_FT<string opstr, RegisterOperand RC, InstrItinClass Itin,
   InstSE<(outs RC:$fd), (ins RC:$fs, FCCRegsOpnd:$fcc, RC:$F),
          !strconcat(opstr, "\t$fd, $fs, $fcc"),
          [(set RC:$fd, (OpNode RC:$fs, FCCRegsOpnd:$fcc, RC:$F))],
-         Itin, FrmFR, opstr> {
+         Itin, FrmFR, opstr>, HARDFLOAT {
   let Constraints = "$F = $fd";
 }
 
@@ -263,3 +264,40 @@ defm : MovnPats<GPR32, FGR64, MOVN_I_D64, XOR>, INSN_MIPS4_32_NOT_32R6_64R6,
        FGR_64;
 defm : MovnPats<GPR64, FGR64, MOVN_I64_D64, XOR64>, INSN_MIPS4_32_NOT_32R6_64R6,
        FGR_64;
+
+// For targets that don't have conditional-move instructions
+// we have to match SELECT nodes with pseudo instructions.
+let usesCustomInserter = 1 in {
+  class Select_Pseudo<RegisterOperand RC> :
+    PseudoSE<(outs RC:$dst), (ins GPR32Opnd:$cond, RC:$T, RC:$F),
+            [(set RC:$dst, (select GPR32Opnd:$cond, RC:$T, RC:$F))]>,
+    ISA_MIPS1_NOT_4_32;
+
+  class SelectFP_Pseudo_T<RegisterOperand RC> :
+    PseudoSE<(outs RC:$dst), (ins GPR32Opnd:$cond, RC:$T, RC:$F),
+             [(set RC:$dst, (MipsCMovFP_T RC:$T, GPR32Opnd:$cond, RC:$F))]>,
+    ISA_MIPS1_NOT_4_32;
+
+  class SelectFP_Pseudo_F<RegisterOperand RC> :
+    PseudoSE<(outs RC:$dst), (ins GPR32Opnd:$cond, RC:$T, RC:$F),
+             [(set RC:$dst, (MipsCMovFP_F RC:$T, GPR32Opnd:$cond, RC:$F))]>,
+    ISA_MIPS1_NOT_4_32;
+}
+
+def PseudoSELECT_I : Select_Pseudo<GPR32Opnd>;
+def PseudoSELECT_I64 : Select_Pseudo<GPR64Opnd>;
+def PseudoSELECT_S : Select_Pseudo<FGR32Opnd>;
+def PseudoSELECT_D32 : Select_Pseudo<AFGR64Opnd>, FGR_32;
+def PseudoSELECT_D64 : Select_Pseudo<FGR64Opnd>, FGR_64;
+
+def PseudoSELECTFP_T_I : SelectFP_Pseudo_T<GPR32Opnd>;
+def PseudoSELECTFP_T_I64 : SelectFP_Pseudo_T<GPR64Opnd>;
+def PseudoSELECTFP_T_S : SelectFP_Pseudo_T<FGR32Opnd>;
+def PseudoSELECTFP_T_D32 : SelectFP_Pseudo_T<AFGR64Opnd>, FGR_32;
+def PseudoSELECTFP_T_D64 : SelectFP_Pseudo_T<FGR64Opnd>, FGR_64;
+
+def PseudoSELECTFP_F_I : SelectFP_Pseudo_F<GPR32Opnd>;
+def PseudoSELECTFP_F_I64 : SelectFP_Pseudo_F<GPR64Opnd>;
+def PseudoSELECTFP_F_S : SelectFP_Pseudo_F<FGR32Opnd>;
+def PseudoSELECTFP_F_D32 : SelectFP_Pseudo_F<AFGR64Opnd>, FGR_32;
+def PseudoSELECTFP_F_D64 : SelectFP_Pseudo_F<FGR64Opnd>, FGR_64;

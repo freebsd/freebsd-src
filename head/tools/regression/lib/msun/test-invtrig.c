@@ -41,8 +41,6 @@ __FBSDID("$FreeBSD$");
 
 #include "test-utils.h"
 
-#define	LEN(a)		(sizeof(a) / sizeof((a)[0]))
-
 #pragma STDC FENV_ACCESS ON
 
 /*

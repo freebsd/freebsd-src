@@ -46,12 +46,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/gpio.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 /*
  * GPIO interface
  */
+static device_t vf_gpio_get_bus(device_t);
 static int vf_gpio_pin_max(device_t, int *);
 static int vf_gpio_pin_getcaps(device_t, uint32_t, uint32_t *);
 static int vf_gpio_pin_getname(device_t, uint32_t, char *);
@@ -88,6 +89,7 @@ struct vf_gpio_softc {
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
 
+	device_t		sc_busdev;
 	struct mtx		sc_mtx;
 	int			gpio_npins;
 	struct gpio_pin		gpio_pins[NGPIO];
@@ -125,6 +127,7 @@ vf_gpio_attach(device_t dev)
 
 	if (bus_alloc_resources(dev, vf_gpio_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
+		mtx_destroy(&sc->sc_mtx);
 		return (ENXIO);
 	}
 
@@ -146,10 +149,24 @@ vf_gpio_attach(device_t dev)
 		    "vf_gpio%d.%d", device_get_unit(dev), i);
 	}
 
-	device_add_child(dev, "gpioc", -1);
-	device_add_child(dev, "gpiobus", -1);
+	sc->sc_busdev = gpiobus_attach_bus(dev);
+	if (sc->sc_busdev == NULL) {
+		bus_release_resources(dev, vf_gpio_spec, sc->res);
+		mtx_destroy(&sc->sc_mtx);
+		return (ENXIO);
+	}
 
-	return (bus_generic_attach(dev));
+	return (0);
+}
+
+static device_t
+vf_gpio_get_bus(device_t dev)
+{
+	struct vf_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->sc_busdev);
 }
 
 static int
@@ -347,6 +364,7 @@ static device_method_t vf_gpio_methods[] = {
 	DEVMETHOD(device_attach,	vf_gpio_attach),
 
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus,		vf_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max,		vf_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname,	vf_gpio_pin_getname),
 	DEVMETHOD(gpio_pin_getcaps,	vf_gpio_pin_getcaps),

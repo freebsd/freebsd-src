@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 #include <machine/frame.h>
 #include <machine/fp.h>
+#include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
 #include <machine/vfp.h>
@@ -107,7 +108,7 @@ vfp_init(void)
 	coproc = get_coprocessorACR();
 	coproc |= COPROC10 | COPROC11;
 	set_coprocessorACR(coproc);
-	
+
 	fpsid = fmrx(fpsid);		/* read the vfp system id */
 	fpexc = fmrx(fpexc);		/* read the vfp exception reg */
 
@@ -128,6 +129,15 @@ vfp_init(void)
 
 			tmp = fmrx(mvfr1);
 			PCPU_SET(vfpmvfr1, tmp);
+
+			if (PCPU_GET(cpuid) == 0) {
+				if ((tmp & VMVFR1_FZ_MASK) == 0x1) {
+					/* Denormals arithmetic support */
+					initial_fpscr &= ~VFPSCR_FZ;
+					thread0.td_pcb->pcb_vfpstate.fpscr =
+					    initial_fpscr;
+				}
+			}
 		}
 
 		/* initialize the coprocess 10 and 11 calls
@@ -199,7 +209,7 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 	 */
 	fmxr(fpexc, fpexc | VFPEXC_EN);
 	curpcb = curthread->td_pcb;
-	cpu = PCPU_GET(cpu);
+	cpu = PCPU_GET(cpuid);
 	if (curpcb->pcb_vfpcpu != cpu || curthread != PCPU_GET(fpcurthread)) {
 		vfp_restore(&curpcb->pcb_vfpstate);
 		curpcb->pcb_vfpcpu = cpu;

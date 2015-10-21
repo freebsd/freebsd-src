@@ -242,6 +242,8 @@ add_redir_spool_cfg(char *buf, struct cfg_nat *ptr)
 		}
 		if (r->alink[0] == NULL) {
 			printf("LibAliasRedirect* returned NULL\n");
+			free(r->alink, M_IPFW);
+			free(r, M_IPFW);
 			return (EINVAL);
 		}
 		/* LSNAT handling. */
@@ -262,6 +264,16 @@ add_redir_spool_cfg(char *buf, struct cfg_nat *ptr)
 
 	return (0);
 }
+
+static void
+free_nat_instance(struct cfg_nat *ptr)
+{
+
+	del_redir_spool_cfg(ptr, &ptr->redir_chain);
+	LibAliasUninit(ptr->lib);
+	free(ptr, M_IPFW);
+}
+
 
 /*
  * ipfw_nat - perform mbuf header translation.
@@ -536,7 +548,7 @@ nat44_config(struct ip_fw_chain *chain, struct nat44_cfg_nat *ucfg)
 	IPFW_UH_WUNLOCK(chain);
 
 	if (tcfg != NULL)
-		free(tcfg, M_IPFW);
+		free_nat_instance(ptr);
 }
 
 /*
@@ -626,9 +638,7 @@ nat44_destroy(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	IPFW_WUNLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);
 
-	del_redir_spool_cfg(ptr, &ptr->redir_chain);
-	LibAliasUninit(ptr->lib);
-	free(ptr, M_IPFW);
+	free_nat_instance(ptr);
 
 	return (0);
 }
@@ -691,7 +701,7 @@ nat44_get_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	export_nat_cfg(ptr, ucfg);
 	
 	/* Estimate memory amount */
-	sz = sizeof(struct nat44_cfg_nat);
+	sz = sizeof(ipfw_obj_header) + sizeof(struct nat44_cfg_nat);
 	LIST_FOREACH(r, &ptr->redir_chain, _next) {
 		sz += sizeof(struct nat44_cfg_redir);
 		LIST_FOREACH(s, &r->spool_chain, _next)
@@ -699,7 +709,7 @@ nat44_get_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	}
 
 	ucfg->size = sz;
-	if (sd->valsize < sz + sizeof(*oh)) {
+	if (sd->valsize < sz) {
 
 		/*
 		 * Submitted buffer size is not enough.
@@ -994,9 +1004,7 @@ ipfw_nat_del(struct sockopt *sopt)
 	flush_nat_ptrs(chain, i);
 	IPFW_WUNLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);
-	del_redir_spool_cfg(ptr, &ptr->redir_chain);
-	LibAliasUninit(ptr->lib);
-	free(ptr, M_IPFW);
+	free_nat_instance(ptr);
 	return (0);
 }
 
@@ -1139,9 +1147,7 @@ vnet_ipfw_nat_uninit(const void *arg __unused)
 	IPFW_WLOCK(chain);
 	LIST_FOREACH_SAFE(ptr, &chain->nat, _next, ptr_temp) {
 		LIST_REMOVE(ptr, _next);
-		del_redir_spool_cfg(ptr, &ptr->redir_chain);
-		LibAliasUninit(ptr->lib);
-		free(ptr, M_IPFW);
+		free_nat_instance(ptr);
 	}
 	flush_nat_ptrs(chain, -1 /* flush all */);
 	V_ipfw_nat_ready = 0;

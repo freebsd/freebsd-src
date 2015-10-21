@@ -25,8 +25,9 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
-
 #ifndef	_LINUX_MODULEPARAM_H_
 #define	_LINUX_MODULEPARAM_H_
 
@@ -48,7 +49,7 @@ struct kernel_param {
 	u16		flags;
 	param_set_fn	set;
 	param_get_fn	get;
-	union { 
+	union {
 		void	*arg;
 		struct kparam_string	*str;
 		struct kparam_array	*arr;
@@ -83,8 +84,8 @@ param_sysinit(struct kernel_param *param)
 	SYSINIT(name##_param_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
 	    param_sysinit, &__param_##name);
 
-#define module_param_string(name, string, len, perm)                    
-         
+#define	module_param_string(name, string, len, perm)
+
 #define	module_param_named(name, var, type, mode)			\
 	module_param_call(name, param_set_##type, param_get_##type, &var, mode)
 
@@ -118,7 +119,7 @@ param_set_short(const char *val, struct kernel_param *kp)
 	return 0;
 }
 
-static inline int 
+static inline int
 param_get_short(char *buffer, struct kernel_param *kp)
 {
 
@@ -126,14 +127,14 @@ param_get_short(char *buffer, struct kernel_param *kp)
 }
 
 
-static inline int 
+static inline int
 param_set_ushort(const char *val, struct kernel_param *kp)
 {
 
 	return 0;
 }
 
-static inline int 
+static inline int
 param_get_ushort(char *buffer, struct kernel_param *kp)
 {
 
@@ -141,14 +142,14 @@ param_get_ushort(char *buffer, struct kernel_param *kp)
 }
 
 
-static inline int 
+static inline int
 param_set_int(const char *val, struct kernel_param *kp)
 {
 
 	return 0;
 }
 
-static inline int 
+static inline int
 param_get_int(char *buffer, struct kernel_param *kp)
 {
 
@@ -156,14 +157,14 @@ param_get_int(char *buffer, struct kernel_param *kp)
 }
 
 
-static inline int 
+static inline int
 param_set_uint(const char *val, struct kernel_param *kp)
 {
 
 	return 0;
 }
 
-static inline int 
+static inline int
 param_get_uint(char *buffer, struct kernel_param *kp)
 {
 
@@ -171,14 +172,14 @@ param_get_uint(char *buffer, struct kernel_param *kp)
 }
 
 
-static inline int 
+static inline int
 param_set_long(const char *val, struct kernel_param *kp)
 {
 
 	return 0;
 }
 
-static inline int 
+static inline int
 param_get_long(char *buffer, struct kernel_param *kp)
 {
 
@@ -186,14 +187,14 @@ param_get_long(char *buffer, struct kernel_param *kp)
 }
 
 
-static inline int 
+static inline int
 param_set_ulong(const char *val, struct kernel_param *kp)
 {
 
 	return 0;
 }
 
-static inline int 
+static inline int
 param_get_ulong(char *buffer, struct kernel_param *kp)
 {
 
@@ -201,14 +202,14 @@ param_get_ulong(char *buffer, struct kernel_param *kp)
 }
 
 
-static inline int 
+static inline int
 param_set_charp(const char *val, struct kernel_param *kp)
 {
 
 	return 0;
 }
 
-static inline int 
+static inline int
 param_get_charp(char *buffer, struct kernel_param *kp)
 {
 
@@ -216,14 +217,14 @@ param_get_charp(char *buffer, struct kernel_param *kp)
 }
 
 
-static inline int 
+static inline int
 param_set_bool(const char *val, struct kernel_param *kp)
 {
 
 	return 0;
 }
 
-static inline int 
+static inline int
 param_get_bool(char *buffer, struct kernel_param *kp)
 {
 

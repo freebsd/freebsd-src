@@ -14,7 +14,7 @@
 #include "list.h"
 #include "edit.h"
 
-#define CMD_BUF_LEN 256
+#define CMD_BUF_LEN 4096
 static char cmdbuf[CMD_BUF_LEN];
 static int cmdbuf_pos = 0;
 static int cmdbuf_len = 0;
@@ -345,7 +345,7 @@ static void insert_char(int c)
 
 static void process_cmd(void)
 {
-
+	currbuf_valid = 0;
 	if (cmdbuf_len == 0) {
 		printf("\n%s> ", ps2 ? ps2 : "");
 		fflush(stdout);

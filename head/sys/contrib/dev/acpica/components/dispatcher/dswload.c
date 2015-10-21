@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __DSWLOAD_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -327,9 +325,18 @@ AcpiDsLoad1BeginOp (
         if ((WalkState->Opcode != AML_SCOPE_OP) &&
             (!(WalkState->ParseFlags & ACPI_PARSE_DEFERRED_OP)))
         {
-            Flags |= ACPI_NS_ERROR_IF_FOUND;
-            ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "[%s] Cannot already exist\n",
-                    AcpiUtGetTypeName (ObjectType)));
+            if (WalkState->NamespaceOverride)
+            {
+                Flags |= ACPI_NS_OVERRIDE_IF_FOUND;
+                ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "[%s] Override allowed\n",
+                        AcpiUtGetTypeName (ObjectType)));
+            }
+            else
+            {
+                Flags |= ACPI_NS_ERROR_IF_FOUND;
+                ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "[%s] Cannot already exist\n",
+                        AcpiUtGetTypeName (ObjectType)));
+            }
         }
         else
         {
@@ -391,7 +398,7 @@ AcpiDsLoad1BeginOp (
     {
         /* Create a new op */
 
-        Op = AcpiPsAllocOp (WalkState->Opcode);
+        Op = AcpiPsAllocOp (WalkState->Opcode, WalkState->Aml);
         if (!Op)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);

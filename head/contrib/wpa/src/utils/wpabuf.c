@@ -17,7 +17,7 @@
 
 struct wpabuf_trace {
 	unsigned int magic;
-};
+} __attribute__((aligned(8)));
 
 static struct wpabuf_trace * wpabuf_get_trace(const struct wpabuf *buf)
 {
@@ -202,6 +202,15 @@ void wpabuf_free(struct wpabuf *buf)
 		os_free(buf->buf);
 	os_free(buf);
 #endif /* WPA_TRACE */
+}
+
+
+void wpabuf_clear_free(struct wpabuf *buf)
+{
+	if (buf) {
+		os_memset(wpabuf_mhead(buf), 0, wpabuf_len(buf));
+		wpabuf_free(buf);
+	}
 }
 
 

@@ -82,7 +82,6 @@ namespace {
 class LiveVariablesImpl {
 public:  
   AnalysisDeclContext &analysisContext;
-  std::vector<LiveVariables::LivenessValues> cfgBlockValues;
   llvm::ImmutableSet<const Stmt *>::Factory SSetFact;
   llvm::ImmutableSet<const VarDecl *>::Factory DSetFact;
   llvm::DenseMap<const CFGBlock *, LiveVariables::LivenessValues> blocksEndToLiveness;
@@ -323,11 +322,10 @@ void TransferFunctions::Visit(Stmt *S) {
       return;
     }
   }
-  
-  for (Stmt::child_iterator it = S->child_begin(), ei = S->child_end();
-       it != ei; ++it) {
-    if (Stmt *child = *it)
-      AddLiveStmt(val.liveStmts, LV.SSetFact, child);
+
+  for (Stmt *Child : S->children()) {
+    if (Child)
+      AddLiveStmt(val.liveStmts, LV.SSetFact, Child);
   }
 }
 
@@ -357,11 +355,8 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *B) {
 }
 
 void TransferFunctions::VisitBlockExpr(BlockExpr *BE) {
-  AnalysisDeclContext::referenced_decls_iterator I, E;
-  std::tie(I, E) =
-    LV.analysisContext.getReferencedBlockVars(BE->getBlockDecl());
-  for ( ; I != E ; ++I) {
-    const VarDecl *VD = *I;
+  for (const VarDecl *VD :
+       LV.analysisContext.getReferencedBlockVars(BE->getBlockDecl())) {
     if (isAlwaysAlive(VD))
       continue;
     val.liveDecls = LV.DSetFact.add(val.liveDecls, VD);

@@ -80,7 +80,6 @@
 #include "llvm/CodeGen/MachinePassRegistry.h"
 #include "llvm/CodeGen/RegisterPressure.h"
 #include "llvm/CodeGen/ScheduleDAGInstrs.h"
-
 #include <memory>
 
 namespace llvm {
@@ -250,7 +249,7 @@ protected:
 public:
   ScheduleDAGMI(MachineSchedContext *C, std::unique_ptr<MachineSchedStrategy> S,
                 bool IsPostRA)
-      : ScheduleDAGInstrs(*C->MF, *C->MLI, *C->MDT, IsPostRA,
+      : ScheduleDAGInstrs(*C->MF, C->MLI, IsPostRA,
                           /*RemoveKillFlags=*/IsPostRA, C->LIS),
         AA(C->AA), SchedImpl(std::move(S)), Topo(SUnits, &ExitSU), CurrentTop(),
         CurrentBottom(), NextClusterPred(nullptr), NextClusterSucc(nullptr) {
@@ -386,7 +385,7 @@ public:
         ShouldTrackPressure(false), RPTracker(RegPressure),
         TopRPTracker(TopPressure), BotRPTracker(BotPressure) {}
 
-  virtual ~ScheduleDAGMILive();
+  ~ScheduleDAGMILive() override;
 
   /// Return true if this DAG supports VReg liveness and RegPressure.
   bool hasVRegLiveness() const override { return true; }
@@ -910,7 +909,7 @@ public:
   PostGenericScheduler(const MachineSchedContext *C):
     GenericSchedulerBase(C), Top(SchedBoundary::TopQID, "TopQ") {}
 
-  virtual ~PostGenericScheduler() {}
+  ~PostGenericScheduler() override {}
 
   void initPolicy(MachineBasicBlock::iterator Begin,
                   MachineBasicBlock::iterator End,

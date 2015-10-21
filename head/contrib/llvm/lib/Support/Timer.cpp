@@ -14,12 +14,10 @@
 #include "llvm/Support/Timer.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Mutex.h"
-#include "llvm/Support/MutexGuard.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -66,10 +64,10 @@ raw_ostream *llvm::CreateInfoOutputFile() {
   // each time -stats or -time-passes wants to print output to it. To
   // compensate for this, the test-suite Makefiles have code to delete the
   // info output file before running commands which write to it.
-  std::string Error;
-  raw_ostream *Result = new raw_fd_ostream(
-      OutputFilename.c_str(), Error, sys::fs::F_Append | sys::fs::F_Text);
-  if (Error.empty())
+  std::error_code EC;
+  raw_ostream *Result = new raw_fd_ostream(OutputFilename, EC,
+                                           sys::fs::F_Append | sys::fs::F_Text);
+  if (!EC)
     return Result;
   
   errs() << "Error opening info-output-file '"

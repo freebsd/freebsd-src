@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2014
+.Dd March 16, 2015
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -618,6 +618,13 @@ for more details.
 .Pp
 .It Ic show Cm cyrixreg
 Show registers specific to the Cyrix processor.
+.\"
+.Pp
+.It Ic show Cm devmap
+Prints the contents of the static device mapping table.
+Currently only available on the
+ARM
+architecture.
 .\"
 .Pp
 .It Ic show Cm domain Ar addr

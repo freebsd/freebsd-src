@@ -11,18 +11,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "InstCombine.h"
+#include "InstCombineInternal.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/InstructionSimplify.h"
-#include "llvm/IR/DataLayout.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "instcombine"
 
-/// FoldPHIArgBinOpIntoPHI - If we have something like phi [add (a,b), add(a,c)]
-/// and if a/b/c and the add's all have a single use, turn this into a phi
-/// and a single binop.
+/// If we have something like phi [add (a,b), add(a,c)] and if a/b/c and the
+/// adds all have a single use, turn this into a phi and a single binop.
 Instruction *InstCombiner::FoldPHIArgBinOpIntoPHI(PHINode &PN) {
   Instruction *FirstInst = cast<Instruction>(PN.getIncomingValue(0));
   assert(isa<BinaryOperator>(FirstInst) || isa<CmpInst>(FirstInst));
@@ -231,17 +229,17 @@ Instruction *InstCombiner::FoldPHIArgGEPIntoPHI(PHINode &PN) {
 
   Value *Base = FixedOperands[0];
   GetElementPtrInst *NewGEP =
-    GetElementPtrInst::Create(Base, makeArrayRef(FixedOperands).slice(1));
+      GetElementPtrInst::Create(FirstInst->getSourceElementType(), Base,
+                                makeArrayRef(FixedOperands).slice(1));
   if (AllInBounds) NewGEP->setIsInBounds();
   NewGEP->setDebugLoc(FirstInst->getDebugLoc());
   return NewGEP;
 }
 
 
-/// isSafeAndProfitableToSinkLoad - Return true if we know that it is safe to
-/// sink the load out of the block that defines it.  This means that it must be
-/// obvious the value of the load is not changed from the point of the load to
-/// the end of the block it is in.
+/// Return true if we know that it is safe to sink the load out of the block
+/// that defines it. This means that it must be obvious the value of the load is
+/// not changed from the point of the load to the end of the block it is in.
 ///
 /// Finally, it is safe, but not profitable, to sink a load targeting a
 /// non-address-taken alloca.  Doing so will cause us to not promote the alloca
@@ -375,8 +373,8 @@ Instruction *InstCombiner::FoldPHIArgLoadIntoPHI(PHINode &PN) {
   // and mark all the input loads as non-volatile.  If we don't do this, we will
   // insert a new volatile load and the old ones will not be deletable.
   if (isVolatile)
-    for (unsigned i = 0, e = PN.getNumIncomingValues(); i != e; ++i)
-      cast<LoadInst>(PN.getIncomingValue(i))->setVolatile(false);
+    for (Value *IncValue : PN.incoming_values())
+      cast<LoadInst>(IncValue)->setVolatile(false);
 
   LoadInst *NewLI = new LoadInst(PhiVal, "", isVolatile, LoadAlignment);
   NewLI->setDebugLoc(FirstLI->getDebugLoc());
@@ -385,9 +383,9 @@ Instruction *InstCombiner::FoldPHIArgLoadIntoPHI(PHINode &PN) {
 
 
 
-/// FoldPHIArgOpIntoPHI - If all operands to a PHI node are the same "unary"
-/// operator and they all are only used by the PHI, PHI together their
-/// inputs, and do the operation once, to the result of the PHI.
+/// If all operands to a PHI node are the same "unary" operator and they all are
+/// only used by the PHI, PHI together their inputs, and do the operation once,
+/// to the result of the PHI.
 Instruction *InstCombiner::FoldPHIArgOpIntoPHI(PHINode &PN) {
   Instruction *FirstInst = cast<Instruction>(PN.getIncomingValue(0));
 
@@ -503,15 +501,14 @@ Instruction *InstCombiner::FoldPHIArgOpIntoPHI(PHINode &PN) {
   return NewCI;
 }
 
-/// DeadPHICycle - Return true if this PHI node is only used by a PHI node cycle
-/// that is dead.
+/// Return true if this PHI node is only used by a PHI node cycle that is dead.
 static bool DeadPHICycle(PHINode *PN,
-                         SmallPtrSet<PHINode*, 16> &PotentiallyDeadPHIs) {
+                         SmallPtrSetImpl<PHINode*> &PotentiallyDeadPHIs) {
   if (PN->use_empty()) return true;
   if (!PN->hasOneUse()) return false;
 
   // Remember this node, and if we find the cycle, return.
-  if (!PotentiallyDeadPHIs.insert(PN))
+  if (!PotentiallyDeadPHIs.insert(PN).second)
     return true;
 
   // Don't scan crazily complex things.
@@ -524,13 +521,13 @@ static bool DeadPHICycle(PHINode *PN,
   return false;
 }
 
-/// PHIsEqualValue - Return true if this phi node is always equal to
-/// NonPhiInVal.  This happens with mutually cyclic phi nodes like:
+/// Return true if this phi node is always equal to NonPhiInVal.
+/// This happens with mutually cyclic phi nodes like:
 ///   z = some value; x = phi (y, z); y = phi (x, z)
 static bool PHIsEqualValue(PHINode *PN, Value *NonPhiInVal,
-                           SmallPtrSet<PHINode*, 16> &ValueEqualPHIs) {
+                           SmallPtrSetImpl<PHINode*> &ValueEqualPHIs) {
   // See if we already saw this PHI node.
-  if (!ValueEqualPHIs.insert(PN))
+  if (!ValueEqualPHIs.insert(PN).second)
     return true;
 
   // Don't scan crazily complex things.
@@ -539,8 +536,7 @@ static bool PHIsEqualValue(PHINode *PN, Value *NonPhiInVal,
 
   // Scan the operands to see if they are either phi nodes or are equal to
   // the value.
-  for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i) {
-    Value *Op = PN->getIncomingValue(i);
+  for (Value *Op : PN->incoming_values()) {
     if (PHINode *OpPN = dyn_cast<PHINode>(Op)) {
       if (!PHIsEqualValue(OpPN, NonPhiInVal, ValueEqualPHIs))
         return false;
@@ -607,10 +603,10 @@ namespace llvm {
 }
 
 
-/// SliceUpIllegalIntegerPHI - This is an integer PHI and we know that it has an
-/// illegal type: see if it is only used by trunc or trunc(lshr) operations.  If
-/// so, we split the PHI into the various pieces being extracted.  This sort of
-/// thing is introduced when SROA promotes an aggregate to large integer values.
+/// This is an integer PHI and we know that it has an illegal type: see if it is
+/// only used by trunc or trunc(lshr) operations. If so, we split the PHI into
+/// the various pieces being extracted. This sort of thing is introduced when
+/// SROA promotes an aggregate to large integer values.
 ///
 /// TODO: The user of the trunc may be an bitcast to float/double/vector or an
 /// inttoptr.  We should produce new PHIs in the right type.
@@ -654,7 +650,7 @@ Instruction *InstCombiner::SliceUpIllegalIntegerPHI(PHINode &FirstPhi) {
 
       // If the user is a PHI, inspect its uses recursively.
       if (PHINode *UserPN = dyn_cast<PHINode>(UserI)) {
-        if (PHIsInspected.insert(UserPN))
+        if (PHIsInspected.insert(UserPN).second)
           PHIsToSlice.push_back(UserPN);
         continue;
       }
@@ -788,7 +784,7 @@ Instruction *InstCombiner::SliceUpIllegalIntegerPHI(PHINode &FirstPhi) {
 // PHINode simplification
 //
 Instruction *InstCombiner::visitPHINode(PHINode &PN) {
-  if (Value *V = SimplifyInstruction(&PN, DL, TLI))
+  if (Value *V = SimplifyInstruction(&PN, DL, TLI, DT, AC))
     return ReplaceInstUsesWith(PN, V);
 
   // If all PHI operands are the same operation, pull them through the PHI,
@@ -891,8 +887,8 @@ Instruction *InstCombiner::visitPHINode(PHINode &PN) {
   // it is only used by trunc or trunc(lshr) operations.  If so, we split the
   // PHI into the various pieces being extracted.  This sort of thing is
   // introduced when SROA promotes an aggregate to a single large integer type.
-  if (PN.getType()->isIntegerTy() && DL &&
-      !DL->isLegalInteger(PN.getType()->getPrimitiveSizeInBits()))
+  if (PN.getType()->isIntegerTy() &&
+      !DL.isLegalInteger(PN.getType()->getPrimitiveSizeInBits()))
     if (Instruction *Res = SliceUpIllegalIntegerPHI(PN))
       return Res;
 

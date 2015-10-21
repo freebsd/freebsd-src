@@ -15,6 +15,7 @@
 #ifndef LLVM_CODEGEN_MACHINEVALUETYPE_H
 #define LLVM_CODEGEN_MACHINEVALUETYPE_H
 
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 
@@ -25,7 +26,7 @@ namespace llvm {
   /// MVT - Machine Value Type. Every type that is supported natively by some
   /// processor targeted by LLVM occurs here. This means that any legal value
   /// type can be represented by an MVT.
-  class MVT {
+class MVT {
   public:
     enum SimpleValueType {
       // INVALID_SIMPLE_VALUE_TYPE - Simple value types less than zero are
@@ -85,22 +86,23 @@ namespace llvm {
       v4i64          =  39,   //  4 x i64
       v8i64          =  40,   //  8 x i64
       v16i64         =  41,   // 16 x i64
-
+      v1i128         =  42,   //  1 x i128
+      
       FIRST_INTEGER_VECTOR_VALUETYPE = v2i1,
-      LAST_INTEGER_VECTOR_VALUETYPE = v16i64,
+      LAST_INTEGER_VECTOR_VALUETYPE = v1i128,
 
-      v2f16          =  42,   //  2 x f16
-      v4f16          =  43,   //  4 x f16
-      v8f16          =  44,   //  8 x f16
-      v1f32          =  45,   //  1 x f32
-      v2f32          =  46,   //  2 x f32
-      v4f32          =  47,   //  4 x f32
-      v8f32          =  48,   //  8 x f32
-      v16f32         =  49,   // 16 x f32
-      v1f64          =  50,   //  1 x f64
-      v2f64          =  51,   //  2 x f64
-      v4f64          =  52,   //  4 x f64
-      v8f64          =  53,   //  8 x f64
+      v2f16          =  43,   //  2 x f16
+      v4f16          =  44,   //  4 x f16
+      v8f16          =  45,   //  8 x f16
+      v1f32          =  46,   //  1 x f32
+      v2f32          =  47,   //  2 x f32
+      v4f32          =  48,   //  4 x f32
+      v8f32          =  49,   //  8 x f32
+      v16f32         =  50,   // 16 x f32
+      v1f64          =  51,   //  1 x f64
+      v2f64          =  52,   //  2 x f64
+      v4f64          =  53,   //  4 x f64
+      v8f64          =  54,   //  8 x f64
 
       FIRST_FP_VECTOR_VALUETYPE = v2f16,
       LAST_FP_VECTOR_VALUETYPE = v8f64,
@@ -108,17 +110,18 @@ namespace llvm {
       FIRST_VECTOR_VALUETYPE = v2i1,
       LAST_VECTOR_VALUETYPE  = v8f64,
 
-      x86mmx         =  54,   // This is an X86 MMX value
+      x86mmx         =  55,   // This is an X86 MMX value
 
-      Glue           =  55,   // This glues nodes together during pre-RA sched
+      Glue           =  56,   // This glues nodes together during pre-RA sched
 
-      isVoid         =  56,   // This has no value
+      isVoid         =  57,   // This has no value
 
-      Untyped        =  57,   // This value takes a register, but has
+      Untyped        =  58,   // This value takes a register, but has
                               // unspecified type.  The register class
                               // will be determined by the opcode.
 
-      LAST_VALUETYPE =  58,   // This always remains at the end of the list.
+      FIRST_VALUETYPE = 0,    // This is always the beginning of the list.
+      LAST_VALUETYPE =  59,   // This always remains at the end of the list.
 
       // This is the current maximum for LAST_VALUETYPE.
       // MVT::MAX_ALLOWED_VALUETYPE is used for asserts and to size bit vectors
@@ -150,13 +153,17 @@ namespace llvm {
 
       // iPTR - An int value the size of the pointer of the current
       // target.  This should only be used internal to tblgen!
-      iPTR           = 255
+      iPTR           = 255,
+
+      // Any - Any type. This is used for intrinsics that have overloadings.
+      // This is only for tblgen's consumption!
+      Any            = 256
     };
 
     SimpleValueType SimpleTy;
 
-    MVT() : SimpleTy((SimpleValueType)(INVALID_SIMPLE_VALUE_TYPE)) {}
-    MVT(SimpleValueType SVT) : SimpleTy(SVT) { }
+    LLVM_CONSTEXPR MVT() : SimpleTy(INVALID_SIMPLE_VALUE_TYPE) {}
+    LLVM_CONSTEXPR MVT(SimpleValueType SVT) : SimpleTy(SVT) { }
 
     bool operator>(const MVT& S)  const { return SimpleTy >  S.SimpleTy; }
     bool operator<(const MVT& S)  const { return SimpleTy <  S.SimpleTy; }
@@ -164,6 +171,12 @@ namespace llvm {
     bool operator!=(const MVT& S) const { return SimpleTy != S.SimpleTy; }
     bool operator>=(const MVT& S) const { return SimpleTy >= S.SimpleTy; }
     bool operator<=(const MVT& S) const { return SimpleTy <= S.SimpleTy; }
+
+    /// isValid - Return true if this is a valid simple valuetype.
+    bool isValid() const {
+      return (SimpleTy >= MVT::FIRST_VALUETYPE &&
+              SimpleTy < MVT::LAST_VALUETYPE);
+    }
 
     /// isFloatingPoint - Return true if this is a FP, or a vector FP type.
     bool isFloatingPoint() const {
@@ -196,21 +209,24 @@ namespace llvm {
     /// is32BitVector - Return true if this is a 32-bit vector type.
     bool is32BitVector() const {
       return (SimpleTy == MVT::v4i8  || SimpleTy == MVT::v2i16 ||
-              SimpleTy == MVT::v1i32);
+              SimpleTy == MVT::v1i32 || SimpleTy == MVT::v2f16 ||
+              SimpleTy == MVT::v1f32);
     }
 
     /// is64BitVector - Return true if this is a 64-bit vector type.
     bool is64BitVector() const {
       return (SimpleTy == MVT::v8i8  || SimpleTy == MVT::v4i16 ||
               SimpleTy == MVT::v2i32 || SimpleTy == MVT::v1i64 ||
-              SimpleTy == MVT::v1f64 || SimpleTy == MVT::v2f32);
+              SimpleTy == MVT::v4f16 || SimpleTy == MVT::v2f32 ||
+              SimpleTy == MVT::v1f64);
     }
 
     /// is128BitVector - Return true if this is a 128-bit vector type.
     bool is128BitVector() const {
-      return (SimpleTy == MVT::v16i8 || SimpleTy == MVT::v8i16 ||
-              SimpleTy == MVT::v4i32 || SimpleTy == MVT::v2i64 ||
-              SimpleTy == MVT::v4f32 || SimpleTy == MVT::v2f64);
+      return (SimpleTy == MVT::v16i8  || SimpleTy == MVT::v8i16 ||
+              SimpleTy == MVT::v4i32  || SimpleTy == MVT::v2i64 ||
+              SimpleTy == MVT::v1i128 || SimpleTy == MVT::v8f16 ||
+              SimpleTy == MVT::v4f32  || SimpleTy == MVT::v2f64);
     }
 
     /// is256BitVector - Return true if this is a 256-bit vector type.
@@ -234,7 +250,8 @@ namespace llvm {
 
     /// isOverloaded - Return true if this is an overloaded type for TableGen.
     bool isOverloaded() const {
-      return (SimpleTy==MVT::iAny || SimpleTy==MVT::fAny ||
+      return (SimpleTy==MVT::Any  ||
+              SimpleTy==MVT::iAny || SimpleTy==MVT::fAny ||
               SimpleTy==MVT::vAny || SimpleTy==MVT::iPTRAny);
     }
 
@@ -294,6 +311,7 @@ namespace llvm {
       case v4i64:
       case v8i64:
       case v16i64: return i64;
+      case v1i128: return i128;
       case v2f16:
       case v4f16:
       case v8f16: return f16;
@@ -352,6 +370,7 @@ namespace llvm {
       case v1i16:
       case v1i32:
       case v1i64:
+      case v1i128:
       case v1f32:
       case v1f64: return 1;
       }
@@ -369,6 +388,7 @@ namespace llvm {
       case iAny:
       case fAny:
       case vAny:
+      case Any:
         llvm_unreachable("Value type is overloaded.");
       case Metadata:
         llvm_unreachable("Value type is metadata.");
@@ -410,6 +430,7 @@ namespace llvm {
       case v8i16:
       case v4i32:
       case v2i64:
+      case v1i128:
       case v8f16:
       case v4f32:
       case v2f64: return 128;
@@ -545,6 +566,9 @@ namespace llvm {
         if (NumElements == 8)  return MVT::v8i64;
         if (NumElements == 16) return MVT::v16i64;
         break;
+      case MVT::i128:
+        if (NumElements == 1)  return MVT::v1i128;
+        break;
       case MVT::f16:
         if (NumElements == 2)  return MVT::v2f16;
         if (NumElements == 4)  return MVT::v4f16;
@@ -572,6 +596,52 @@ namespace llvm {
     /// returned as Other, otherwise they are invalid.
     static MVT getVT(Type *Ty, bool HandleUnknown = false);
 
+  private:
+    /// A simple iterator over the MVT::SimpleValueType enum.
+    struct mvt_iterator {
+      SimpleValueType VT;
+      mvt_iterator(SimpleValueType VT) : VT(VT) {}
+      MVT operator*() const { return VT; }
+      bool operator!=(const mvt_iterator &LHS) const { return VT != LHS.VT; }
+      mvt_iterator& operator++() {
+        VT = (MVT::SimpleValueType)((int)VT + 1);
+        assert((int)VT <= MVT::MAX_ALLOWED_VALUETYPE &&
+               "MVT iterator overflowed.");
+        return *this;
+      }
+    };
+    /// A range of the MVT::SimpleValueType enum.
+    typedef iterator_range<mvt_iterator> mvt_range;
+
+  public:
+    /// SimpleValueType Iteration
+    /// @{
+    static mvt_range all_valuetypes() {
+      return mvt_range(MVT::FIRST_VALUETYPE, MVT::LAST_VALUETYPE);
+    }
+    static mvt_range integer_valuetypes() {
+      return mvt_range(MVT::FIRST_INTEGER_VALUETYPE,
+                       (MVT::SimpleValueType)(MVT::LAST_INTEGER_VALUETYPE + 1));
+    }
+    static mvt_range fp_valuetypes() {
+      return mvt_range(MVT::FIRST_FP_VALUETYPE,
+                       (MVT::SimpleValueType)(MVT::LAST_FP_VALUETYPE + 1));
+    }
+    static mvt_range vector_valuetypes() {
+      return mvt_range(MVT::FIRST_VECTOR_VALUETYPE,
+                       (MVT::SimpleValueType)(MVT::LAST_VECTOR_VALUETYPE + 1));
+    }
+    static mvt_range integer_vector_valuetypes() {
+      return mvt_range(
+          MVT::FIRST_INTEGER_VECTOR_VALUETYPE,
+          (MVT::SimpleValueType)(MVT::LAST_INTEGER_VECTOR_VALUETYPE + 1));
+    }
+    static mvt_range fp_vector_valuetypes() {
+      return mvt_range(
+          MVT::FIRST_FP_VECTOR_VALUETYPE,
+          (MVT::SimpleValueType)(MVT::LAST_FP_VECTOR_VALUETYPE + 1));
+    }
+    /// @}
   };
 
 } // End llvm namespace

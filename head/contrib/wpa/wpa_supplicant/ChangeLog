@@ -1,5 +1,440 @@
 ChangeLog for wpa_supplicant
 
+2015-09-27 - v2.5
+	* fixed P2P validation of SSID element length before copying it
+	  [http://w1.fi/security/2015-1/] (CVE-2015-1863)
+	* fixed WPS UPnP vulnerability with HTTP chunked transfer encoding
+	  [http://w1.fi/security/2015-2/] (CVE-2015-4141)
+	* fixed WMM Action frame parser (AP mode)
+	  [http://w1.fi/security/2015-3/] (CVE-2015-4142)
+	* fixed EAP-pwd peer missing payload length validation
+	  [http://w1.fi/security/2015-4/]
+	  (CVE-2015-4143, CVE-2015-4144, CVE-2015-4145, CVE-2015-4146)
+	* fixed validation of WPS and P2P NFC NDEF record payload length
+	  [http://w1.fi/security/2015-5/]
+	* nl80211:
+	  - added VHT configuration for IBSS
+	  - fixed vendor command handling to check OUI properly
+	  - allow driver-based roaming to change ESS
+	* added AVG_BEACON_RSSI to SIGNAL_POLL output
+	* wpa_cli: added tab completion for number of commands
+	* removed unmaintained and not yet completed SChannel/CryptoAPI support
+	* modified Extended Capabilities element use in Probe Request frames to
+	  include all cases if any of the values are non-zero
+	* added support for dynamically creating/removing a virtual interface
+	  with interface_add/interface_remove
+	* added support for hashed password (NtHash) in EAP-pwd peer
+	* added support for memory-only PSK/passphrase (mem_only_psk=1 and
+	  CTRL-REQ/RSP-PSK_PASSPHRASE)
+	* P2P
+	  - optimize scan frequencies list when re-joining a persistent group
+	  - fixed number of sequences with nl80211 P2P Device interface
+	  - added operating class 125 for P2P use cases (this allows 5 GHz
+	    channels 161 and 169 to be used if they are enabled in the current
+	    regulatory domain)
+	  - number of fixes to P2PS functionality
+	  - do not allow 40 MHz co-ex PRI/SEC switch to force MCC
+	  - extended support for preferred channel listing
+	* D-Bus:
+	  - fixed WPS property of fi.w1.wpa_supplicant1.BSS interface
+	  - fixed PresenceRequest to use group interface
+	  - added new signals: FindStopped, WPS pbc-overlap,
+	    GroupFormationFailure, WPS timeout, InvitationReceived
+	  - added new methods: WPS Cancel, P2P Cancel, Reconnect, RemoveClient
+	  - added manufacturer info
+	* added EAP-EKE peer support for deriving Session-Id
+	* added wps_priority configuration parameter to set the default priority
+	  for all network profiles added by WPS
+	* added support to request a scan with specific SSIDs with the SCAN
+	  command (optional "ssid <hexdump>" arguments)
+	* removed support for WEP40/WEP104 as a group cipher with WPA/WPA2
+	* fixed SAE group selection in an error case
+	* modified SAE routines to be more robust and PWE generation to be
+	  stronger against timing attacks
+	* added support for Brainpool Elliptic Curves with SAE
+	* added support for CCMP-256 and GCMP-256 as group ciphers with FT
+	* fixed BSS selection based on estimated throughput
+	* added option to disable TLSv1.0 with OpenSSL
+	  (phase1="tls_disable_tlsv1_0=1")
+	* added Fast Session Transfer (FST) module
+	* fixed OpenSSL PKCS#12 extra certificate handling
+	* fixed key derivation for Suite B 192-bit AKM (this breaks
+	  compatibility with the earlier version)
+	* added RSN IE to Mesh Peering Open/Confirm frames
+	* number of small fixes
+
+2015-03-15 - v2.4
+	* allow OpenSSL cipher configuration to be set for internal EAP server
+	  (openssl_ciphers parameter)
+	* fixed number of small issues based on hwsim test case failures and
+	  static analyzer reports
+	* P2P:
+	  - add new=<0/1> flag to P2P-DEVICE-FOUND events
+	  - add passive channels in invitation response from P2P Client
+	  - enable nl80211 P2P_DEVICE support by default
+	  - fix regresssion in disallow_freq preventing search on social
+	    channels
+	  - fix regressions in P2P SD query processing
+	  - try to re-invite with social operating channel if no common channels
+	    in invitation
+	  - allow cross connection on parent interface (this fixes number of
+	    use cases with nl80211)
+	  - add support for P2P services (P2PS)
+	  - add p2p_go_ctwindow configuration parameter to allow GO CTWindow to
+	    be configured
+	* increase postponing of EAPOL-Start by one second with AP/GO that
+	  supports WPS 2.0 (this makes it less likely to trigger extra roundtrip
+	  of identity frames)
+	* add support for PMKSA caching with SAE
+	* add support for control mesh BSS (IEEE 802.11s) operations
+	* fixed number of issues with D-Bus P2P commands
+	* fixed regression in ap_scan=2 special case for WPS
+	* fixed macsec_validate configuration
+	* add a workaround for incorrectly behaving APs that try to use
+	  EAPOL-Key descriptor version 3 when the station supports PMF even if
+	  PMF is not enabled on the AP
+	* allow TLS v1.1 and v1.2 to be negotiated by default; previous behavior
+	  of disabling these can be configured to work around issues with broken
+	  servers with phase1="tls_disable_tlsv1_1=1 tls_disable_tlsv1_2=1"
+	* add support for Suite B (128-bit and 192-bit level) key management and
+	  cipher suites
+	* add WMM-AC support (WMM_AC_ADDTS/WMM_AC_DELTS)
+	* improved BSS Transition Management processing
+	* add support for neighbor report
+	* add support for link measurement
+	* fixed expiration of BSS entry with all-zeros BSSID
+	* add optional LAST_ID=x argument to LIST_NETWORK to allow all
+	  configured networks to be listed even with huge number of network
+	  profiles
+	* add support for EAP Re-Authentication Protocol (ERP)
+	* fixed EAP-IKEv2 fragmentation reassembly
+	* improved PKCS#11 configuration for OpenSSL
+	* set stdout to be line-buffered
+	* add TDLS channel switch configuration
+	* add support for MAC address randomization in scans with nl80211
+	* enable HT for IBSS if supported by the driver
+	* add BSSID black and white lists (bssid_blacklist, bssid_whitelist)
+	* add support for domain_suffix_match with GnuTLS
+	* add OCSP stapling client support with GnuTLS
+	* include peer certificate in EAP events even without a separate probe
+	  operation; old behavior can be restored with cert_in_cb=0
+	* add peer ceritficate alt subject name to EAP events
+	  (CTRL-EVENT-EAP-PEER-ALT)
+	* add domain_match network profile parameter (similar to
+	  domain_suffix_match, but full match is required)
+	* enable AP/GO mode HT Tx STBC automatically based on driver support
+	* add ANQP-QUERY-DONE event to provide information on ANQP parsing
+	  status
+	* allow passive scanning to be forced with passive_scan=1
+	* add a workaround for Linux packet socket behavior when interface is in
+	  bridge
+	* increase 5 GHz band preference in BSS selection (estimate SNR, if info
+	  not available from driver; estimate maximum throughput based on common
+	  HT/VHT/specific TX rate support)
+	* add INTERWORKING_ADD_NETWORK ctrl_iface command; this can be used to
+	  implement Interworking network selection behavior in upper layers
+	  software components
+	* add optional reassoc_same_bss_optim=1 (disabled by default)
+	  optimization to avoid unnecessary Authentication frame exchange
+	* extend TDLS frame padding workaround to cover all packets
+	* allow wpa_supplicant to recover nl80211 functionality if the cfg80211
+	  module gets removed and reloaded without restarting wpa_supplicant
+	* allow hostapd DFS implementation to be used in wpa_supplicant AP mode
+
+2014-10-09 - v2.3
+	* fixed number of minor issues identified in static analyzer warnings
+	* fixed wfd_dev_info to be more careful and not read beyond the buffer
+	  when parsing invalid information for P2P-DEVICE-FOUND
+	* extended P2P and GAS query operations to support drivers that have
+	  maximum remain-on-channel time below 1000 ms (500 ms is the current
+	  minimum supported value)
+	* added p2p_search_delay parameter to make the default p2p_find delay
+	  configurable
+	* improved P2P operating channel selection for various multi-channel
+	  concurrency cases
+	* fixed some TDLS failure cases to clean up driver state
+	* fixed dynamic interface addition cases with nl80211 to avoid adding
+	  ifindex values to incorrect interface to skip foreign interface events
+	  properly
+	* added TDLS workaround for some APs that may add extra data to the
+	  end of a short frame
+	* fixed EAP-AKA' message parser with multiple AT_KDF attributes
+	* added configuration option (p2p_passphrase_len) to allow longer
+	  passphrases to be generated for P2P groups
+	* fixed IBSS channel configuration in some corner cases
+	* improved HT/VHT/QoS parameter setup for TDLS
+	* modified D-Bus interface for P2P peers/groups
+	* started to use constant time comparison for various password and hash
+	  values to reduce possibility of any externally measurable timing
+	  differences
+	* extended explicit clearing of freed memory and expired keys to avoid
+	  keeping private data in memory longer than necessary
+	* added optional scan_id parameter to the SCAN command to allow manual
+	  scan requests for active scans for specific configured SSIDs
+	* fixed CTRL-EVENT-REGDOM-CHANGE event init parameter value
+	* added option to set Hotspot 2.0 Rel 2 update_identifier in network
+	  configuration to support external configuration
+	* modified Android PNO functionality to send Probe Request frames only
+	  for hidden SSIDs (based on scan_ssid=1)
+	* added generic mechanism for adding vendor elements into frames at
+	  runtime (VENDOR_ELEM_ADD, VENDOR_ELEM_GET, VENDOR_ELEM_REMOVE)
+	* added fields to show unrecognized vendor elements in P2P_PEER
+	* removed EAP-TTLS/MSCHAPv2 interoperability workaround so that
+	  MS-CHAP2-Success is required to be present regardless of
+	  eap_workaround configuration
+	* modified EAP fast session resumption to allow results to be used only
+	  with the same network block that generated them
+	* extended freq_list configuration to apply for sched_scan as well as
+	  normal scan
+	* modified WPS to merge mixed-WPA/WPA2 credentials from a single session
+	* fixed nl80211/RTM_DELLINK processing when a P2P GO interface is
+	  removed from a bridge
+	* fixed number of small P2P issues to make negotiations more robust in
+	  corner cases
+	* added experimental support for using temporary, random local MAC
+	  address (mac_addr and preassoc_mac_addr parameters); this is disabled
+	  by default (i.e., previous behavior of using permanent address is
+	  maintained if configuration is not changed)
+	* added D-Bus interface for setting/clearing WFD IEs
+	* fixed TDLS AID configuration for VHT
+	* modified -m<conf> configuration file to be used only for the P2P
+	  non-netdev management device and do not load this for the default
+	  station interface or load the station interface configuration for
+	  the P2P management interface
+	* fixed external MAC address changes while wpa_supplicant is running
+	* started to enable HT (if supported by the driver) for IBSS
+	* fixed wpa_cli action script execution to use more robust mechanism
+	  (CVE-2014-3686)
+
+2014-06-04 - v2.2
+	* added DFS indicator to get_capability freq
+	* added/fixed nl80211 functionality
+	  - BSSID/frequency hint for driver-based BSS selection
+	  - fix tearing down WDS STA interfaces
+	  - support vendor specific driver command
+	    (VENDOR <vendor id> <sub command id> [<hex formatted data>])
+	  - GO interface teardown optimization
+	  - allow beacon interval to be configured for IBSS
+	  - add SHA256-based AKM suites to CONNECT/ASSOCIATE commands
+	* removed unused NFC_RX_HANDOVER_REQ and NFC_RX_HANDOVER_SEL control
+	  interface commands (the more generic NFC_REPORT_HANDOVER is now used)
+	* fixed MSCHAP UTF-8 to UCS-2 conversion for three-byte encoding;
+	  this fixes password with include UTF-8 characters that use
+	  three-byte encoding EAP methods that use NtPasswordHash
+	* fixed couple of sequencies where radio work items could get stuck,
+	  e.g., when rfkill blocking happens during scanning or when
+	  scan-for-auth workaround is used
+	* P2P enhancements/fixes
+	  - enable enable U-APSD on GO automatically if the driver indicates
+	    support for this
+	  - fixed some service discovery cases with broadcast queries not being
+	    sent to all stations
+	  - fixed Probe Request frame triggering invitation to trigger only a
+	    single invitation instance even if multiple Probe Request frames are
+	    received
+	  - fixed a potential NULL pointer dereference crash when processing an
+	    invalid Invitation Request frame
+	  - add optional configuration file for the P2P_DEVICE parameters
+	  - optimize scan for GO during persistent group invocation
+	  - fix possible segmentation fault when PBC overlap is detected while
+	    using a separate P2P group interface
+	  - improve GO Negotiation robustness by allowing GO Negotiation
+	    Confirmation to be retransmitted
+	  - do use freed memory on device found event when P2P NFC
+	* added phase1 network parameter options for disabling TLS v1.1 and v1.2
+	  to allow workarounds with misbehaving AAA servers
+	  (tls_disable_tlsv1_1=1 and tls_disable_tlsv1_2=1)
+	* added support for OCSP stapling to validate AAA server certificate
+	  during TLS exchange
+	* Interworking/Hotspot 2.0 enhancements
+	  - prefer the last added network in Interworking connection to make the
+	    behavior more consistent with likely user expectation
+	  - roaming partner configuration (roaming_partner within a cred block)
+	  - support Hotspot 2.0 Release 2
+	    * "hs20_anqp_get <BSSID> 8" to request OSU Providers list
+	    * "hs20_icon_request <BSSID> <icon filename>" to request icon files
+	    * "fetch_osu" and "cancel_osu_fetch" to start/stop full OSU provider
+	      search (all suitable APs in scan results)
+	    * OSEN network for online signup connection
+	    * min_{dl,ul}_bandwidth_{home,roaming} cred parameters
+	    * max_bss_load cred parameter
+	    * req_conn_capab cred parameter
+	    * sp_priority cred parameter
+	    * ocsp cred parameter
+	    * slow down automatic connection attempts on EAP failure to meet
+	      required behavior (no more than 10 retries within a 10-minute
+	      interval)
+	    * sample implementation of online signup client (both SPP and
+	      OMA-DM protocols) (hs20/client/*)
+	  - fixed GAS indication for additional comeback delay with status
+	    code 95
+	  - extend ANQP_GET to accept Hotspot 2.0 subtypes
+	    ANQP_GET <addr> <info id>[,<info id>]...
+	    [,hs20:<subtype>][...,hs20:<subtype>]
+	  - add control interface events CRED-ADDED <id>,
+	    CRED-MODIFIED <id> <field>, CRED-REMOVED <id>
+	  - add "GET_CRED <id> <field>" command
+	  - enable FT for the connection automatically if the AP advertises
+	    support for this
+	  - fix a case where auto_interworking=1 could end up stopping scanning
+	* fixed TDLS interoperability issues with supported operating class in
+	  some deployed stations
+	* internal TLS implementation enhancements/fixes
+	  - add SHA256-based cipher suites
+	  - add DHE-RSA cipher suites
+	  - fix X.509 validation of PKCS#1 signature to check for extra data
+	* fixed PTK derivation for CCMP-256 and GCMP-256
+	* added "reattach" command for fast reassociate-back-to-same-BSS
+	* allow PMF to be enabled for AP mode operation with the ieee80211w
+	  parameter
+	* added "get_capability tdls" command
+	* added option to set config blobs through control interface with
+	  "SET blob <name> <hexdump>"
+	* D-Bus interface extensions/fixes
+	  - make p2p_no_group_iface configurable
+	  - declare ServiceDiscoveryRequest method properly
+	  - export peer's device address as a property
+	  - make reassociate command behave like the control interface one,
+	    i.e., to allow connection from disconnected state
+	* added optional "freq=<channel ranges>" parameter to SET pno
+	* added optional "freq=<channel ranges>" parameter to SELECT_NETWORK
+	* fixed OBSS scan result processing for 20/40 MHz co-ex report
+	* remove WPS 1.0 only support, i.e., WSC 2.0 support is now enabled
+	  whenever CONFIG_WPS=y is set
+	* fixed regression in parsing of WNM Sleep Mode exit key data
+	* fixed potential segmentation fault and memory leaks in WNM neighbor
+	  report processing
+	* EAP-pwd fixes
+	  - fragmentation of PWD-Confirm-Resp
+	  - fix memory leak when fragmentation is used
+	  - fix possible segmentation fault on EAP method deinit if an invalid
+	    group is negotiated
+	* added MACsec/IEEE Std 802.1X-2010 PAE implementation (currently
+	  available only with the macsec_qca driver wrapper)
+	* fixed EAP-SIM counter-too-small message
+	* added 'dup_network <id_s> <id_d> <name>' command; this can be used to
+	  clone the psk field without having toextract it from wpa_supplicant
+	* fixed GSM authentication on USIM
+	* added support for usin epoll in eloop (CONFIG_ELOOP_EPOLL=y)
+	* fixed some concurrent virtual interface cases with dedicated P2P
+	  management interface to not catch events from removed interface (this
+	  could result in the management interface getting disabled)
+	* fixed a memory leak in SAE random number generation
+	* fixed off-by-one bounds checking in printf_encode()
+	  - this could result in some control interface ATTACH command cases
+	    terminating wpa_supplicant
+	* fixed EAPOL-Key exchange when GCMP is used with SHA256-based AKM
+	* various bug fixes
+
+2014-02-04 - v2.1
+	* added support for simultaneous authentication of equals (SAE) for
+	  stronger password-based authentication with WPA2-Personal
+	* improved P2P negotiation and group formation robustness
+	  - avoid unnecessary Dialog Token value changes during retries
+	  - avoid more concurrent scanning cases during full group formation
+	    sequence
+	  - do not use potentially obsolete scan result data from driver
+	    cache for peer discovery/updates
+	  - avoid undesired re-starting of GO negotiation based on Probe
+	    Request frames
+	  - increase GO Negotiation and Invitation timeouts to address busy
+	    environments and peers that take long time to react to messages,
+	    e.g., due to power saving
+	  - P2P Device interface type
+	* improved P2P channel selection (use more peer information and allow
+	  more local options)
+	* added support for optional per-device PSK assignment by P2P GO
+	  (wpa_cli p2p_set per_sta_psk <0/1>)
+	* added P2P_REMOVE_CLIENT for removing a client from P2P groups
+	  (including persistent groups); this can be used to securely remove
+	  a client from a group if per-device PSKs are used
+	* added more configuration flexibility for allowed P2P GO/client
+	  channels (p2p_no_go_freq list and p2p_add_cli_chan=0/1)
+	* added nl80211 functionality
+	  - VHT configuration for nl80211
+	  - MFP (IEEE 802.11w) information for nl80211 command API
+	  - support split wiphy dump
+	  - FT (IEEE 802.11r) with driver-based SME
+	  - use advertised number of supported concurrent channels
+	  - QoS Mapping configuration
+	* improved TDLS negotiation robustness
+	* added more TDLS peer parameters to be configured to the driver
+	* optimized connection time by allowing recently received scan results
+	  to be used instead of having to run through a new scan
+	* fixed ctrl_iface BSS command iteration with RANGE argument and no
+	  exact matches; also fixed argument parsing for some cases with
+	  multiple arguments
+	* added 'SCAN TYPE=ONLY' ctrl_iface command to request manual scan
+	  without executing roaming/network re-selection on scan results
+	* added Session-Id derivation for EAP peer methods
+	* added fully automated regression testing with mac80211_hwsim
+	* changed configuration parser to reject invalid integer values
+	* allow AP/Enrollee to be specified with BSSID instead of UUID for
+	  WPS ER operations
+	* disable network block temporarily on repeated connection failures
+	* changed the default driver interface from wext to nl80211 if both are
+	  included in the build
+	* remove duplicate networks if WPS provisioning is run multiple times
+	* remove duplicate networks when Interworking network selection uses the
+	  same network
+	* added global freq_list configuration to allow scan frequencies to be
+	  limited for all cases instead of just for a specific network block
+	* added support for BSS Transition Management
+	* added option to use "IFNAME=<ifname> " prefix to use the global
+	  control interface connection to perform per-interface commands;
+	  similarly, allow global control interface to be used as a monitor
+	  interface to receive events from all interfaces
+	* fixed OKC-based PMKSA cache entry clearing
+	* fixed TKIP group key configuration with FT
+	* added support for using OCSP stapling to validate server certificate
+	  (ocsp=1 as optional and ocsp=2 as mandatory)
+	* added EAP-EKE peer
+	* added peer restart detection for IBSS RSN
+	* added domain_suffix_match (and domain_suffix_match2 for Phase 2
+	  EAP-TLS) to specify additional constraint for the server certificate
+	  domain name
+	* added support for external SIM/USIM processing in EAP-SIM, EAP-AKA,
+	  and EAP-AKA' (CTRL-REQ-SIM and CTRL-RSP-SIM commands over control
+	  interface)
+	* added global bgscan configuration option as a default for all network
+	  blocks that do not specify their own bgscan parameters
+	* added D-Bus methods for TDLS
+	* added more control to scan requests
+	  - "SCAN freq=<freq list>" can be used to specify which channels are
+	    scanned (comma-separated frequency ranges in MHz)
+	  - "SCAN passive=1" can be used to request a passive scan (no Probe
+	    Request frames are sent)
+	  - "SCAN use_id" can be used to request a scan id to be returned and
+	    included in event messages related to this specific scan operation
+	  - "SCAN only_new=1" can be used to request the driver/cfg80211 to
+	    report only BSS entries that have been updated during this scan
+	    round
+	  - these optional arguments to the SCAN command can be combined with
+	    each other
+	* modified behavior on externally triggered scans
+	  - avoid concurrent operations requiring full control of the radio when
+	    an externally triggered scan is detected
+	  - do not use results for internal roaming decision
+	* added a new cred block parameter 'temporary' to allow credential
+	  blocks to be stored separately even if wpa_supplicant configuration
+	  file is used to maintain other network information
+	* added "radio work" framework to schedule exclusive radio operations
+	  for off-channel functionality
+	  - reduce issues with concurrent operations that try to control which
+	    channel is used
+	  - allow external programs to request exclusive radio control in a way
+	    that avoids conflicts with wpa_supplicant
+	* added support for using Protected Dual of Public Action frames for
+	  GAS/ANQP exchanges when associated with PMF
+	* added support for WPS+NFC updates and P2P+NFC
+	  - improved protocol for WPS
+	  - P2P group formation/join based on NFC connection handover
+	  - new IPv4 address assignment for P2P groups (ip_addr_* configuration
+	    parameters on the GO) to replace DHCP
+	  - option to fetch and report alternative carrier records for external
+	    NFC operations
+	* various bug fixes
+
 2013-01-12 - v2.0
 	* removed Qt3-based wpa_gui (obsoleted by wpa_qui-qt4)
 	* removed unmaintained driver wrappers broadcom, iphone, osx, ralink,

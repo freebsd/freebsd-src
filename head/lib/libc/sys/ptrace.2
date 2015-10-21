@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd July 22, 2013
+.Dd October 20, 2015
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -306,7 +306,9 @@ struct ptrace_lwpinfo {
 	sigset_t pl_siglist;
 	siginfo_t pl_siginfo;
 	char	pl_tdname[MAXCOMLEN + 1];
-	int	pl_child_pid;
+	pid_t	pl_child_pid;
+	u_int	pl_syscall_code;
+	u_int	pl_syscall_narg;
 };
 .Ed
 .Pp
@@ -395,6 +397,27 @@ stop when
 .Dv PL_FLAG_FORKED
 is set in
 .Va pl_flags .
+.It pl_syscall_code
+The ABI-specific identifier of the current system call.
+Note that for indirect system calls this field reports the indirected
+system call.
+Only valid when
+.Dv PL_FLAG_SCE
+or
+.Dv PL_FLAG_SCX
+is set in
+.Va pl_flags.
+.It pl_syscall_narg
+The number of arguments passed to the current system call not counting
+the system call identifier.
+Note that for indirect system calls this field reports the arguments
+passed to the indirected system call.
+Only valid when
+.Dv PL_FLAG_SCE
+or
+.Dv PL_FLAG_SCX
+is set in
+.Va pl_flags.
 .El
 .It PT_GETNUMLWPS
 This request returns the number of kernel threads associated with the
@@ -503,8 +526,163 @@ The
 .Fa data
 argument is ignored.
 .El
+.Sh x86 MACHINE-SPECIFIC REQUESTS
+.Bl -tag -width "Dv PT_GETXSTATE_INFO"
+.It Dv PT_GETXMMREGS
+Copy the XMM FPU state into the buffer pointed to by the
+argument
+.Fa addr .
+The buffer has the same layout as the 32-bit save buffer for the
+machine instruction
+.Dv FXSAVE .
 .Pp
-Additionally, machine-specific requests can exist.
+This request is only valid for i386 programs, both on native 32-bit
+systems and on amd64 kernels.
+For 64-bit amd64 programs, the XMM state is reported as part of
+the FPU state returned by the
+.Dv PT_GETFPREGS
+request.
+.Pp
+The
+.Fa data
+argument is ignored.
+.It Dv PT_SETXMMREGS
+Load the XMM FPU state for the thread from the buffer pointed to
+by the argument
+.Fa addr .
+The buffer has the same layout as the 32-bit load buffer for the
+machine instruction
+.Dv FXRSTOR .
+.Pp
+As with
+.Dv PT_GETXMMREGS,
+this request is only valid for i386 programs.
+.Pp
+The
+.Fa data
+argument is ignored.
+.It Dv PT_GETXSTATE_INFO
+Report which XSAVE FPU extensions are supported by the CPU
+and allowed in userspace programs.
+The
+.Fa addr
+argument must point to a variable of type
+.Vt struct ptrace_xstate_info ,
+which contains the information on the request return.
+.Vt struct ptrace_xstate_info
+is defined as follows:
+.Bd -literal
+struct ptrace_xstate_info {
+	uint64_t	xsave_mask;
+	uint32_t	xsave_len;
+};
+.Ed
+The
+.Dv xsave_mask
+field is a bitmask of the currently enabled extensions.
+The meaning of the bits is defined in the Intel and AMD
+processor documentation.
+The
+.Dv xsave_len
+field reports the length of the XSAVE area for storing the hardware
+state for currently enabled extensions in the format defined by the x86
+.Dv XSAVE
+machine instruction.
+.Pp
+The
+.Fa data
+argument value must be equal to the size of the
+.Vt struct ptrace_xstate_info .
+.It Dv PT_GETXSTATE
+Return the content of the XSAVE area for the thread.
+The
+.Fa addr
+argument points to the buffer where the content is copied, and the
+.Fa data
+argument specifies the size of the buffer.
+The kernel copies out as much content as allowed by the buffer size.
+The buffer layout is specified by the layout of the save area for the
+.Dv XSAVE
+machine instruction.
+.It Dv PT_SETXSTATE
+Load the XSAVE state for the thread from the buffer specified by the
+.Fa addr
+pointer.
+The buffer size is passed in the
+.Fa data
+argument.
+The buffer must be at least as large as the
+.Vt struct savefpu
+(defined in
+.Pa x86/fpu.h )
+to allow the complete x87 FPU and XMM state load.
+It must not be larger than the XSAVE state length, as reported by the
+.Dv xsave_len
+field from the
+.Vt struct ptrace_xstate_info
+of the
+.Dv PT_GETXSTATE_INFO
+request.
+Layout of the buffer is identical to the layout of the load area for the
+.Dv XRSTOR
+machine instruction.
+.It Dv PT_GETFSBASE
+Return the value of the base used when doing segmented
+memory addressing using the %fs segment register.
+The
+.Fa addr
+argument points to an
+.Vt unsigned long
+variable where the base value is stored.
+.Pp
+The
+.Fa data
+argument is ignored.
+.It Dv PT_GETGSBASE
+Like the
+.Dv PT_GETFSBASE
+request, but returns the base for the %gs segment register.
+.It Dv PT_SETFSBASE
+Set the base for the %fs segment register to the value pointed to
+by the
+.Fa addr
+argument.
+.Fa addr
+must point to the
+.Vt unsigned long
+variable containing the new base.
+.Pp
+The
+.Fa data
+argument is ignored.
+.It Dv PT_SETGSBASE
+Like the
+.Dv PT_SETFSBASE
+request, but sets the base for the %gs segment register.
+.El
+.Sh PowerPC MACHINE-SPECIFIC REQUESTS
+.Bl -tag -width "Dv PT_SETVRREGS"
+.It Dv PT_GETVRREGS
+Return the thread's
+.Dv ALTIVEC
+machine state in the buffer pointed to by
+.Fa addr .
+.Pp
+The
+.Fa data
+argument is ignored.
+.It Dv PT_SETVRREGS
+Set the thread's
+.Dv ALTIVEC
+machine state from the buffer pointed to by
+.Fa addr .
+.Pp
+The
+.Fa data
+argument is ignored.
+.El
+.Pp
+Additionally, other machine-specific requests can exist.
 .Sh RETURN VALUES
 Some requests can cause
 .Fn ptrace
@@ -564,6 +742,38 @@ provided to
 was less than or equal to zero, or larger than the
 .Vt ptrace_lwpinfo
 structure known to the kernel.
+.It
+The size (in
+.Fa data )
+provided to the x86-specific
+.Dv PT_GETXSTATE_INFO
+request was not equal to the size of the
+.Vt struct ptrace_xstate_info .
+.It
+The size (in
+.Fa data )
+provided to the x86-specific
+.Dv PT_SETXSTATE
+request was less than the size of the x87 plus the XMM save area.
+.It
+The size (in
+.Fa data )
+provided to the x86-specific
+.Dv PT_SETXSTATE
+request was larger than returned in the
+.Dv xsave_len
+member of the
+.Vt struct ptrace_xstate_info
+from the
+.Dv PT_GETXSTATE_INFO
+request.
+.It
+The base value, provided to the amd64-specific requests
+.Dv PT_SETFSBASE
+or
+.Dv PT_SETGSBASE ,
+pointed outside of the valid user address space.
+This error will not occur in 32-bit programs.
 .El
 .It Bq Er EBUSY
 .Bl -bullet -compact

@@ -193,32 +193,21 @@ namespace {
                 DiagnosticsEngine &D, const LangOptions &LOpts,
                 bool silenceMacroWarn);
 
-    ~RewriteObjC() {}
+    ~RewriteObjC() override {}
 
     void HandleTranslationUnit(ASTContext &C) override;
 
     void ReplaceStmt(Stmt *Old, Stmt *New) {
-      Stmt *ReplacingStmt = ReplacedNodes[Old];
-
-      if (ReplacingStmt)
-        return; // We can't rewrite the same node twice.
-
-      if (DisableReplaceStmt)
-        return;
-
-      // If replacement succeeded or warning disabled return with no warning.
-      if (!Rewrite.ReplaceStmt(Old, New)) {
-        ReplacedNodes[Old] = New;
-        return;
-      }
-      if (SilenceRewriteMacroWarning)
-        return;
-      Diags.Report(Context->getFullLoc(Old->getLocStart()), RewriteFailedDiag)
-                   << Old->getSourceRange();
+      ReplaceStmtWithRange(Old, New, Old->getSourceRange());
     }
 
     void ReplaceStmtWithRange(Stmt *Old, Stmt *New, SourceRange SrcRange) {
       assert(Old != nullptr && New != nullptr && "Expected non-null Stmt's");
+
+      Stmt *ReplacingStmt = ReplacedNodes[Old];
+      if (ReplacingStmt)
+        return; // We can't rewrite the same node twice.
+
       if (DisableReplaceStmt)
         return;
 
@@ -332,7 +321,7 @@ namespace {
     void RewriteObjCInternalStruct(ObjCInterfaceDecl *CDecl,
                                       std::string &Result);
 
-    virtual void Initialize(ASTContext &context) override = 0;
+    void Initialize(ASTContext &context) override = 0;
 
     // Metadata Rewriting.
     virtual void RewriteMetaDataIntoBuffer(std::string &Result) = 0;
@@ -413,7 +402,7 @@ namespace {
     void GetBlockDeclRefExprs(Stmt *S);
     void GetInnerBlockDeclRefExprs(Stmt *S,
                 SmallVectorImpl<DeclRefExpr *> &InnerBlockDeclRefs,
-                llvm::SmallPtrSet<const DeclContext *, 8> &InnerContexts);
+                llvm::SmallPtrSetImpl<const DeclContext *> &InnerContexts);
 
     // We avoid calling Type::isBlockPointerType(), since it operates on the
     // canonical type. We only care if the top-level type is a closure pointer.
@@ -522,9 +511,9 @@ namespace {
                 bool silenceMacroWarn) : RewriteObjC(inFile, OS,
                                                      D, LOpts,
                                                      silenceMacroWarn) {}
-    
-    ~RewriteObjCFragileABI() {}
-    virtual void Initialize(ASTContext &context) override;
+
+    ~RewriteObjCFragileABI() override {}
+    void Initialize(ASTContext &context) override;
 
     // Rewriting metadata
     template<typename MethodIterator>
@@ -600,12 +589,12 @@ RewriteObjC::RewriteObjC(std::string inFile, raw_ostream* OS,
                "for @try/@finally (code may not execute properly)");
 }
 
-ASTConsumer *clang::CreateObjCRewriter(const std::string& InFile,
-                                       raw_ostream* OS,
-                                       DiagnosticsEngine &Diags,
-                                       const LangOptions &LOpts,
-                                       bool SilenceRewriteMacroWarning) {
-  return new RewriteObjCFragileABI(InFile, OS, Diags, LOpts, SilenceRewriteMacroWarning);
+std::unique_ptr<ASTConsumer>
+clang::CreateObjCRewriter(const std::string &InFile, raw_ostream *OS,
+                          DiagnosticsEngine &Diags, const LangOptions &LOpts,
+                          bool SilenceRewriteMacroWarning) {
+  return llvm::make_unique<RewriteObjCFragileABI>(InFile, OS, Diags, LOpts,
+                                                  SilenceRewriteMacroWarning);
 }
 
 void RewriteObjC::InitializeCommon(ASTContext &context) {
@@ -1723,9 +1712,9 @@ Stmt *RewriteObjC::RewriteObjCSynchronizedStmt(ObjCAtSynchronizedStmt *S) {
 void RewriteObjC::WarnAboutReturnGotoStmts(Stmt *S)
 {
   // Perform a bottom up traversal of all children.
-  for (Stmt::child_range CI = S->children(); CI; ++CI)
-    if (*CI)
-      WarnAboutReturnGotoStmts(*CI);
+  for (Stmt *SubStmt : S->children())
+    if (SubStmt)
+      WarnAboutReturnGotoStmts(SubStmt);
 
   if (isa<ReturnStmt>(S) || isa<GotoStmt>(S)) {
     Diags.Report(Context->getFullLoc(S->getLocStart()),
@@ -1737,9 +1726,9 @@ void RewriteObjC::WarnAboutReturnGotoStmts(Stmt *S)
 void RewriteObjC::HasReturnStmts(Stmt *S, bool &hasReturns) 
 {  
   // Perform a bottom up traversal of all children.
-  for (Stmt::child_range CI = S->children(); CI; ++CI)
-   if (*CI)
-     HasReturnStmts(*CI, hasReturns);
+  for (Stmt *SubStmt : S->children())
+    if (SubStmt)
+      HasReturnStmts(SubStmt, hasReturns);
 
  if (isa<ReturnStmt>(S))
    hasReturns = true;
@@ -1748,9 +1737,9 @@ void RewriteObjC::HasReturnStmts(Stmt *S, bool &hasReturns)
 
 void RewriteObjC::RewriteTryReturnStmts(Stmt *S) {
  // Perform a bottom up traversal of all children.
- for (Stmt::child_range CI = S->children(); CI; ++CI)
-   if (*CI) {
-     RewriteTryReturnStmts(*CI);
+ for (Stmt *SubStmt : S->children())
+   if (SubStmt) {
+     RewriteTryReturnStmts(SubStmt);
    }
  if (isa<ReturnStmt>(S)) {
    SourceLocation startLoc = S->getLocStart();
@@ -1771,9 +1760,9 @@ void RewriteObjC::RewriteTryReturnStmts(Stmt *S) {
 
 void RewriteObjC::RewriteSyncReturnStmts(Stmt *S, std::string syncExitBuf) {
   // Perform a bottom up traversal of all children.
-  for (Stmt::child_range CI = S->children(); CI; ++CI)
-    if (*CI) {
-      RewriteSyncReturnStmts(*CI, syncExitBuf);
+  for (Stmt *SubStmt : S->children())
+    if (SubStmt) {
+      RewriteSyncReturnStmts(SubStmt, syncExitBuf);
     }
   if (isa<ReturnStmt>(S)) {
     SourceLocation startLoc = S->getLocStart();
@@ -3238,7 +3227,7 @@ void RewriteObjC::RewriteObjCInternalStruct(ObjCInterfaceDecl *CDecl,
     ReplaceText(LocStart, endBuf-startBuf, Result);
   }
   // Mark this struct as having been generated.
-  if (!ObjCSynthesizedStructs.insert(CDecl))
+  if (!ObjCSynthesizedStructs.insert(CDecl).second)
     llvm_unreachable("struct already synthesize- SynthesizeObjCInternalStruct");
 }
 
@@ -3382,14 +3371,12 @@ std::string RewriteObjC::SynthesizeBlockHelperFuncs(BlockExpr *CE, int i,
   S += "(" + StructRef;
   S += "*dst, " + StructRef;
   S += "*src) {";
-  for (llvm::SmallPtrSet<ValueDecl*,8>::iterator I = ImportedBlockDecls.begin(),
-      E = ImportedBlockDecls.end(); I != E; ++I) {
-    ValueDecl *VD = (*I);
+  for (ValueDecl *VD : ImportedBlockDecls) {
     S += "_Block_object_assign((void*)&dst->";
-    S += (*I)->getNameAsString();
+    S += VD->getNameAsString();
     S += ", (void*)src->";
-    S += (*I)->getNameAsString();
-    if (BlockByRefDeclsPtrSet.count((*I)))
+    S += VD->getNameAsString();
+    if (BlockByRefDeclsPtrSet.count(VD))
       S += ", " + utostr(BLOCK_FIELD_IS_BYREF) + "/*BLOCK_FIELD_IS_BYREF*/);";
     else if (VD->getType()->isBlockPointerType())
       S += ", " + utostr(BLOCK_FIELD_IS_BLOCK) + "/*BLOCK_FIELD_IS_BLOCK*/);";
@@ -3403,12 +3390,10 @@ std::string RewriteObjC::SynthesizeBlockHelperFuncs(BlockExpr *CE, int i,
   S += "_block_dispose_" + utostr(i);
   S += "(" + StructRef;
   S += "*src) {";
-  for (llvm::SmallPtrSet<ValueDecl*,8>::iterator I = ImportedBlockDecls.begin(),
-      E = ImportedBlockDecls.end(); I != E; ++I) {
-    ValueDecl *VD = (*I);
+  for (ValueDecl *VD : ImportedBlockDecls) {
     S += "_Block_object_dispose((void*)src->";
-    S += (*I)->getNameAsString();
-    if (BlockByRefDeclsPtrSet.count((*I)))
+    S += VD->getNameAsString();
+    if (BlockByRefDeclsPtrSet.count(VD))
       S += ", " + utostr(BLOCK_FIELD_IS_BYREF) + "/*BLOCK_FIELD_IS_BYREF*/);";
     else if (VD->getType()->isBlockPointerType())
       S += ", " + utostr(BLOCK_FIELD_IS_BLOCK) + "/*BLOCK_FIELD_IS_BLOCK*/);";
@@ -3678,51 +3663,44 @@ void RewriteObjC::InsertBlockLiteralsWithinMethod(ObjCMethodDecl *MD) {
 }
 
 void RewriteObjC::GetBlockDeclRefExprs(Stmt *S) {
-  for (Stmt::child_range CI = S->children(); CI; ++CI)
-    if (*CI) {
-      if (BlockExpr *CBE = dyn_cast<BlockExpr>(*CI))
+  for (Stmt *SubStmt : S->children())
+    if (SubStmt) {
+      if (BlockExpr *CBE = dyn_cast<BlockExpr>(SubStmt))
         GetBlockDeclRefExprs(CBE->getBody());
       else
-        GetBlockDeclRefExprs(*CI);
+        GetBlockDeclRefExprs(SubStmt);
     }
   // Handle specific things.
-  if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(S)) {
-    if (DRE->refersToEnclosingLocal()) {
+  if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(S))
+    if (DRE->refersToEnclosingVariableOrCapture() ||
+        HasLocalVariableExternalStorage(DRE->getDecl()))
       // FIXME: Handle enums.
-      if (!isa<FunctionDecl>(DRE->getDecl()))
-        BlockDeclRefs.push_back(DRE);
-      if (HasLocalVariableExternalStorage(DRE->getDecl()))
-        BlockDeclRefs.push_back(DRE);
-    }
-  }
-  
+      BlockDeclRefs.push_back(DRE);
+
   return;
 }
 
 void RewriteObjC::GetInnerBlockDeclRefExprs(Stmt *S,
                 SmallVectorImpl<DeclRefExpr *> &InnerBlockDeclRefs,
-                llvm::SmallPtrSet<const DeclContext *, 8> &InnerContexts) {
-  for (Stmt::child_range CI = S->children(); CI; ++CI)
-    if (*CI) {
-      if (BlockExpr *CBE = dyn_cast<BlockExpr>(*CI)) {
+                llvm::SmallPtrSetImpl<const DeclContext *> &InnerContexts) {
+  for (Stmt *SubStmt : S->children())
+    if (SubStmt) {
+      if (BlockExpr *CBE = dyn_cast<BlockExpr>(SubStmt)) {
         InnerContexts.insert(cast<DeclContext>(CBE->getBlockDecl()));
         GetInnerBlockDeclRefExprs(CBE->getBody(),
                                   InnerBlockDeclRefs,
                                   InnerContexts);
       }
       else
-        GetInnerBlockDeclRefExprs(*CI,
-                                  InnerBlockDeclRefs,
-                                  InnerContexts);
-
+        GetInnerBlockDeclRefExprs(SubStmt, InnerBlockDeclRefs, InnerContexts);
     }
   // Handle specific things.
   if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(S)) {
-    if (DRE->refersToEnclosingLocal()) {
-      if (!isa<FunctionDecl>(DRE->getDecl()) &&
-          !InnerContexts.count(DRE->getDecl()->getDeclContext()))
+    if (DRE->refersToEnclosingVariableOrCapture() ||
+        HasLocalVariableExternalStorage(DRE->getDecl())) {
+      if (!InnerContexts.count(DRE->getDecl()->getDeclContext()))
         InnerBlockDeclRefs.push_back(DRE);
-      if (VarDecl *Var = dyn_cast<VarDecl>(DRE->getDecl()))
+      if (VarDecl *Var = cast<VarDecl>(DRE->getDecl()))
         if (Var->isFunctionOrMethodVarDecl())
           ImportedLocalExternalDecls.insert(Var);
     }
@@ -3840,11 +3818,10 @@ Stmt *RewriteObjC::SynthesizeBlockCall(CallExpr *Exp, const Expr *BlockExp) {
                                     Context->VoidPtrTy, nullptr,
                                     /*BitWidth=*/nullptr, /*Mutable=*/true,
                                     ICIS_NoInit);
-  MemberExpr *ME = new (Context) MemberExpr(PE, true, FD, SourceLocation(),
-                                            FD->getType(), VK_LValue,
-                                            OK_Ordinary);
+  MemberExpr *ME =
+      new (Context) MemberExpr(PE, true, SourceLocation(), FD, SourceLocation(),
+                               FD->getType(), VK_LValue, OK_Ordinary);
 
-  
   CastExpr *FunkCast = NoTypeInfoCStyleCastExpr(Context, PtrToFuncCastType,
                                                 CK_BitCast, ME);
   PE = new (Context) ParenExpr(SourceLocation(), SourceLocation(), FunkCast);
@@ -3880,7 +3857,8 @@ Stmt *RewriteObjC::RewriteBlockDeclRefExpr(DeclRefExpr *DeclRefExp) {
   // Rewrite the byref variable into BYREFVAR->__forwarding->BYREFVAR 
   // for each DeclRefExp where BYREFVAR is name of the variable.
   ValueDecl *VD = DeclRefExp->getDecl();
-  bool isArrow = DeclRefExp->refersToEnclosingLocal();
+  bool isArrow = DeclRefExp->refersToEnclosingVariableOrCapture() ||
+                 HasLocalVariableExternalStorage(DeclRefExp->getDecl());
 
   FieldDecl *FD = FieldDecl::Create(*Context, nullptr, SourceLocation(),
                                     SourceLocation(),
@@ -3888,10 +3866,9 @@ Stmt *RewriteObjC::RewriteBlockDeclRefExpr(DeclRefExpr *DeclRefExp) {
                                     Context->VoidPtrTy, nullptr,
                                     /*BitWidth=*/nullptr, /*Mutable=*/true,
                                     ICIS_NoInit);
-  MemberExpr *ME = new (Context) MemberExpr(DeclRefExp, isArrow,
-                                            FD, SourceLocation(),
-                                            FD->getType(), VK_LValue,
-                                            OK_Ordinary);
+  MemberExpr *ME = new (Context)
+      MemberExpr(DeclRefExp, isArrow, SourceLocation(), FD, SourceLocation(),
+                 FD->getType(), VK_LValue, OK_Ordinary);
 
   StringRef Name = VD->getName();
   FD = FieldDecl::Create(*Context, nullptr, SourceLocation(), SourceLocation(),
@@ -3899,11 +3876,10 @@ Stmt *RewriteObjC::RewriteBlockDeclRefExpr(DeclRefExpr *DeclRefExp) {
                          Context->VoidPtrTy, nullptr,
                          /*BitWidth=*/nullptr, /*Mutable=*/true,
                          ICIS_NoInit);
-  ME = new (Context) MemberExpr(ME, true, FD, SourceLocation(),
-                                DeclRefExp->getType(), VK_LValue, OK_Ordinary);
-  
-  
-  
+  ME =
+      new (Context) MemberExpr(ME, true, SourceLocation(), FD, SourceLocation(),
+                               DeclRefExp->getType(), VK_LValue, OK_Ordinary);
+
   // Need parens to enforce precedence.
   ParenExpr *PE = new (Context) ParenExpr(DeclRefExp->getExprLoc(), 
                                           DeclRefExp->getExprLoc(), 
@@ -4632,12 +4608,11 @@ Stmt *RewriteObjC::RewriteFunctionBodyOrGlobalInitializer(Stmt *S) {
   SourceRange OrigStmtRange = S->getSourceRange();
 
   // Perform a bottom up rewrite of all children.
-  for (Stmt::child_range CI = S->children(); CI; ++CI)
-    if (*CI) {
-      Stmt *childStmt = (*CI);
+  for (Stmt *&childStmt : S->children())
+    if (childStmt) {
       Stmt *newStmt = RewriteFunctionBodyOrGlobalInitializer(childStmt);
       if (newStmt) {
-        *CI = newStmt;
+        childStmt = newStmt;
       }
     }
 
@@ -4967,9 +4942,8 @@ void RewriteObjC::HandleTranslationUnit(ASTContext &C) {
 
   // Here's a great place to add any extra declarations that may be needed.
   // Write out meta data for each @protocol(<expr>).
-  for (llvm::SmallPtrSet<ObjCProtocolDecl *,8>::iterator I = ProtocolExprDecls.begin(),
-       E = ProtocolExprDecls.end(); I != E; ++I)
-    RewriteObjCProtocolMetaData(*I, "", "", Preamble);
+  for (ObjCProtocolDecl *ProtDecl : ProtocolExprDecls)
+    RewriteObjCProtocolMetaData(ProtDecl, "", "", Preamble);
 
   InsertText(SM->getLocForStartOfFile(MainFileID), Preamble, false);
   if (ClassImplementation.size() || CategoryImplementation.size())
@@ -5276,7 +5250,7 @@ void RewriteObjCFragileABI::RewriteObjCProtocolMetaData(
   Result += "};\n";
   
   // Mark this protocol as having been generated.
-  if (!ObjCSynthesizedProtocols.insert(PDecl->getCanonicalDecl()))
+  if (!ObjCSynthesizedProtocols.insert(PDecl->getCanonicalDecl()).second)
     llvm_unreachable("protocol already synthesized");
   
 }
@@ -5657,12 +5631,11 @@ void RewriteObjCFragileABI::RewriteMetaDataIntoBuffer(std::string &Result) {
     if (ProtocolExprDecls.size()) {
       Result += "#pragma section(\".objc_protocol$B\",long,read,write)\n";
       Result += "#pragma data_seg(push, \".objc_protocol$B\")\n";
-      for (llvm::SmallPtrSet<ObjCProtocolDecl *,8>::iterator I = ProtocolExprDecls.begin(),
-           E = ProtocolExprDecls.end(); I != E; ++I) {
+      for (ObjCProtocolDecl *ProtDecl : ProtocolExprDecls) {
         Result += "static struct _objc_protocol *_POINTER_OBJC_PROTOCOL_";
-        Result += (*I)->getNameAsString();
+        Result += ProtDecl->getNameAsString();
         Result += " = &_OBJC_PROTOCOL_";
-        Result += (*I)->getNameAsString();
+        Result += ProtDecl->getNameAsString();
         Result += ";\n";
       }
       Result += "#pragma data_seg(pop)\n\n";
@@ -5900,10 +5873,9 @@ Stmt *RewriteObjCFragileABI::RewriteObjCIvarRefExpr(ObjCIvarRefExpr *IV) {
                                               castExpr);
       if (IV->isFreeIvar() &&
           declaresSameEntity(CurMethodDef->getClassInterface(), iFaceDecl->getDecl())) {
-        MemberExpr *ME = new (Context) MemberExpr(PE, true, D,
-                                                  IV->getLocation(),
-                                                  D->getType(),
-                                                  VK_LValue, OK_Ordinary);
+        MemberExpr *ME = new (Context)
+            MemberExpr(PE, true, SourceLocation(), D, IV->getLocation(),
+                       D->getType(), VK_LValue, OK_Ordinary);
         Replacement = ME;
       } else {
         IV->setBase(PE);

@@ -7,10 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SA_FRONTEND_CHECKERREGISTRATION_H
-#define LLVM_CLANG_SA_FRONTEND_CHECKERREGISTRATION_H
+#ifndef LLVM_CLANG_STATICANALYZER_FRONTEND_CHECKERREGISTRATION_H
+#define LLVM_CLANG_STATICANALYZER_FRONTEND_CHECKERREGISTRATION_H
 
 #include "clang/Basic/LLVM.h"
+#include <memory>
 #include <string>
 
 namespace clang {
@@ -21,10 +22,9 @@ namespace clang {
 namespace ento {
   class CheckerManager;
 
-CheckerManager *createCheckerManager(AnalyzerOptions &opts,
-                                     const LangOptions &langOpts,
-                                     ArrayRef<std::string> plugins,
-                                     DiagnosticsEngine &diags);
+  std::unique_ptr<CheckerManager>
+  createCheckerManager(AnalyzerOptions &opts, const LangOptions &langOpts,
+                       ArrayRef<std::string> plugins, DiagnosticsEngine &diags);
 
 } // end ento namespace
 

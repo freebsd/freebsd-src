@@ -485,6 +485,8 @@ struct route_in6 {
 #define	IPV6_FLOWID		67 /* int; flowid of given socket */
 #define	IPV6_FLOWTYPE		68 /* int; flowtype of given socket */
 #define	IPV6_RSSBUCKETID	69 /* int; RSS bucket ID of given socket */
+#define	IPV6_RECVFLOWID		70 /* bool; receive IP6 flowid/flowtype w/ datagram */
+#define	IPV6_RECVRSSBUCKETID	71 /* bool; receive IP6 RSS bucket id w/ datagram */
 
 /*
  * The following option is private; do not use it from user applications.
@@ -650,7 +652,9 @@ int	in6_cksum_partial(struct mbuf *, u_int8_t, u_int32_t, u_int32_t,
 			  u_int32_t);
 int	in6_localaddr(struct in6_addr *);
 int	in6_localip(struct in6_addr *);
+int	in6_ifhasaddr(struct ifnet *, struct in6_addr *);
 int	in6_addrscope(const struct in6_addr *);
+char	*ip6_sprintf(char *, const struct in6_addr *);
 struct	in6_ifaddr *in6_ifawithifp(struct ifnet *, struct in6_addr *);
 extern void in6_if_up(struct ifnet *);
 struct sockaddr;

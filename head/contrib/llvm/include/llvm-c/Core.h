@@ -161,14 +161,15 @@ typedef enum {
     /* FIXME: These attributes are currently not included in the C API as
        a temporary measure until the API/ABI impact to the C API is understood
        and the path forward agreed upon.
-    LLVMAddressSafety = 1ULL << 32,
-    LLVMStackProtectStrongAttribute = 1ULL<<33,
-    LLVMCold = 1ULL << 34,
-    LLVMOptimizeNone = 1ULL << 35,
-    LLVMInAllocaAttribute = 1ULL << 36,
-    LLVMNonNullAttribute = 1ULL << 37,
-    LLVMJumpTableAttribute = 1ULL << 38,
-    LLVMDereferenceableAttribute = 1ULL << 39,
+    LLVMSanitizeAddressAttribute = 1ULL << 32,
+    LLVMStackProtectStrongAttribute = 1ULL<<35,
+    LLVMColdAttribute = 1ULL << 40,
+    LLVMOptimizeNoneAttribute = 1ULL << 42,
+    LLVMInAllocaAttribute = 1ULL << 43,
+    LLVMNonNullAttribute = 1ULL << 44,
+    LLVMJumpTableAttribute = 1ULL << 45,
+    LLVMConvergentAttribute = 1ULL << 46,
+    LLVMSafeStackAttribute = 1ULL << 47,
     */
 } LLVMAttribute;
 
@@ -560,6 +561,10 @@ LLVMModuleRef LLVMModuleCreateWithName(const char *ModuleID);
  */
 LLVMModuleRef LLVMModuleCreateWithNameInContext(const char *ModuleID,
                                                 LLVMContextRef C);
+/**
+ * Return an exact copy of the specified module.
+ */
+LLVMModuleRef LLVMCloneModule(LLVMModuleRef M);
 
 /**
  * Destroy a module instance.
@@ -993,6 +998,13 @@ unsigned LLVMCountStructElementTypes(LLVMTypeRef StructTy);
 void LLVMGetStructElementTypes(LLVMTypeRef StructTy, LLVMTypeRef *Dest);
 
 /**
+ * Get the type of the element at a given index in the structure.
+ *
+ * @see llvm::StructType::getTypeAtIndex()
+ */
+LLVMTypeRef LLVMStructGetTypeAtIndex(LLVMTypeRef StructTy, unsigned i);
+
+/**
  * Determine whether a structure is packed.
  *
  * @see llvm::StructType::isPacked()
@@ -1153,8 +1165,6 @@ LLVMTypeRef LLVMX86MMXType(void);
   macro(Argument)                           \
   macro(BasicBlock)                         \
   macro(InlineAsm)                          \
-  macro(MDNode)                             \
-  macro(MDString)                           \
   macro(User)                               \
     macro(Constant)                         \
       macro(BlockAddress)                   \
@@ -1303,6 +1313,9 @@ LLVMBool LLVMIsUndef(LLVMValueRef Val);
   LLVMValueRef LLVMIsA##name(LLVMValueRef Val);
 LLVM_FOR_EACH_VALUE_SUBCLASS(LLVM_DECLARE_VALUE_CAST)
 
+LLVMValueRef LLVMIsAMDNode(LLVMValueRef Val);
+LLVMValueRef LLVMIsAMDString(LLVMValueRef Val);
+
 /**
  * @}
  */
@@ -1376,6 +1389,13 @@ LLVMValueRef LLVMGetUsedValue(LLVMUseRef U);
  * @see llvm::User::getOperand()
  */
 LLVMValueRef LLVMGetOperand(LLVMValueRef Val, unsigned Index);
+
+/**
+ * Obtain the use of an operand at a specific index in a llvm::User value.
+ *
+ * @see llvm::User::getOperandUse()
+ */
+LLVMUseRef LLVMGetOperandUse(LLVMValueRef Val, unsigned Index);
 
 /**
  * Set an operand at a specific index in a llvm::User value.
@@ -1538,6 +1558,14 @@ unsigned long long LLVMConstIntGetZExtValue(LLVMValueRef ConstantVal);
 long long LLVMConstIntGetSExtValue(LLVMValueRef ConstantVal);
 
 /**
+ * Obtain the double value for an floating point constant value.
+ * losesInfo indicates if some precision was lost in the conversion.
+ *
+ * @see llvm::ConstantFP::getDoubleValue
+ */
+double LLVMConstRealGetDouble(LLVMValueRef ConstantVal, LLVMBool *losesInfo);
+
+/**
  * @}
  */
 
@@ -1568,6 +1596,20 @@ LLVMValueRef LLVMConstStringInContext(LLVMContextRef C, const char *Str,
  */
 LLVMValueRef LLVMConstString(const char *Str, unsigned Length,
                              LLVMBool DontNullTerminate);
+
+/**
+ * Returns true if the specified constant is an array of i8.
+ *
+ * @see ConstantDataSequential::getAsString()
+ */
+LLVMBool LLVMIsConstantString(LLVMValueRef c);
+
+/**
+ * Get the given constant data sequential as a string.
+ *
+ * @see ConstantDataSequential::getAsString()
+ */
+const char *LLVMGetAsString(LLVMValueRef c, size_t* out);
 
 /**
  * Create an anonymous ConstantStruct with the specified values.
@@ -1605,6 +1647,13 @@ LLVMValueRef LLVMConstArray(LLVMTypeRef ElementTy,
 LLVMValueRef LLVMConstNamedStruct(LLVMTypeRef StructTy,
                                   LLVMValueRef *ConstantVals,
                                   unsigned Count);
+
+/**
+ * Get an element at specified index as a constant.
+ *
+ * @see ConstantDataSequential::getElementAsConstant()
+ */
+LLVMValueRef LLVMGetElementAsConstant(LLVMValueRef c, unsigned idx);
 
 /**
  * Create a ConstantVector from values.
@@ -1837,6 +1886,20 @@ LLVMValueRef LLVMAddAlias(LLVMModuleRef M, LLVMTypeRef Ty, LLVMValueRef Aliasee,
  * @see llvm::Function::eraseFromParent()
  */
 void LLVMDeleteFunction(LLVMValueRef Fn);
+
+/**
+ * Obtain the personality function attached to the function.
+ *
+ * @see llvm::Function::getPersonalityFn()
+ */
+LLVMValueRef LLVMGetPersonalityFn(LLVMValueRef Fn);
+
+/**
+ * Set the personality function attached to the function.
+ *
+ * @see llvm::Function::setPersonalityFn()
+ */
+void LLVMSetPersonalityFn(LLVMValueRef Fn, LLVMValueRef PersonalityFn);
 
 /**
  * Obtain the ID number from a function instance.
@@ -2377,6 +2440,26 @@ LLVMOpcode   LLVMGetInstructionOpcode(LLVMValueRef Inst);
 LLVMIntPredicate LLVMGetICmpPredicate(LLVMValueRef Inst);
 
 /**
+ * Obtain the float predicate of an instruction.
+ *
+ * This is only valid for instructions that correspond to llvm::FCmpInst
+ * or llvm::ConstantExpr whose opcode is llvm::Instruction::FCmp.
+ *
+ * @see llvm::FCmpInst::getPredicate()
+ */
+LLVMRealPredicate LLVMGetFCmpPredicate(LLVMValueRef Inst);
+
+/**
+ * Create a copy of 'this' instruction that is identical in all ways
+ * except the following:
+ *   * The instruction has no parent
+ *   * The instruction has no name
+ *
+ * @see llvm::Instruction::clone()
+ */
+LLVMValueRef LLVMInstructionClone(LLVMValueRef Inst);
+
+/**
  * @defgroup LLVMCCoreValueInstructionCall Call Sites and Invocations
  *
  * Functions in this group apply to instructions that refer to call
@@ -2437,6 +2520,63 @@ void LLVMSetTailCall(LLVMValueRef CallInst, LLVMBool IsTailCall);
  */
 
 /**
+ * @defgroup LLVMCCoreValueInstructionTerminator Terminators
+ *
+ * Functions in this group only apply to instructions that map to
+ * llvm::TerminatorInst instances.
+ *
+ * @{
+ */
+
+/**
+ * Return the number of successors that this terminator has.
+ *
+ * @see llvm::TerminatorInst::getNumSuccessors
+ */
+unsigned LLVMGetNumSuccessors(LLVMValueRef Term);
+
+/**
+ * Return the specified successor.
+ *
+ * @see llvm::TerminatorInst::getSuccessor
+ */
+LLVMBasicBlockRef LLVMGetSuccessor(LLVMValueRef Term, unsigned i);
+
+/**
+ * Update the specified successor to point at the provided block.
+ *
+ * @see llvm::TerminatorInst::setSuccessor
+ */
+void LLVMSetSuccessor(LLVMValueRef Term, unsigned i, LLVMBasicBlockRef block);
+
+/**
+ * Return if a branch is conditional.
+ *
+ * This only works on llvm::BranchInst instructions.
+ *
+ * @see llvm::BranchInst::isConditional
+ */
+LLVMBool LLVMIsConditional(LLVMValueRef Branch);
+
+/**
+ * Return the condition of a branch instruction.
+ *
+ * This only works on llvm::BranchInst instructions.
+ *
+ * @see llvm::BranchInst::getCondition
+ */
+LLVMValueRef LLVMGetCondition(LLVMValueRef Branch);
+
+/**
+ * Set the condition of a branch instruction.
+ *
+ * This only works on llvm::BranchInst instructions.
+ *
+ * @see llvm::BranchInst::setCondition
+ */
+void LLVMSetCondition(LLVMValueRef Branch, LLVMValueRef Cond);
+
+/**
  * Obtain the default destination basic block of a switch instruction.
  *
  * This only works on llvm::SwitchInst instructions.
@@ -2444,6 +2584,10 @@ void LLVMSetTailCall(LLVMValueRef CallInst, LLVMBool IsTailCall);
  * @see llvm::SwitchInst::getDefaultDest()
  */
 LLVMBasicBlockRef LLVMGetSwitchDefaultDest(LLVMValueRef SwitchInstr);
+
+/**
+ * @}
+ */
 
 /**
  * @defgroup LLVMCCoreValueInstructionPHINode PHI Nodes
@@ -2531,8 +2675,7 @@ LLVMValueRef LLVMBuildInvoke(LLVMBuilderRef, LLVMValueRef Fn,
                              LLVMBasicBlockRef Then, LLVMBasicBlockRef Catch,
                              const char *Name);
 LLVMValueRef LLVMBuildLandingPad(LLVMBuilderRef B, LLVMTypeRef Ty,
-                                 LLVMValueRef PersFn, unsigned NumClauses,
-                                 const char *Name);
+                                 unsigned NumClauses, const char *Name);
 LLVMValueRef LLVMBuildResume(LLVMBuilderRef B, LLVMValueRef Exn);
 LLVMValueRef LLVMBuildUnreachable(LLVMBuilderRef);
 

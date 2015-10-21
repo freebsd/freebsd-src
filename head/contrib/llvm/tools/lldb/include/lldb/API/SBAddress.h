@@ -15,7 +15,7 @@
 
 namespace lldb {
 
-class SBAddress
+class LLDB_API SBAddress
 {
 public:
 
@@ -117,6 +117,7 @@ protected:
     friend class SBSymbolContext;
     friend class SBTarget;
     friend class SBThread;
+    friend class SBThreadPlan;
     friend class SBValue;
     friend class SBQueueItem;
 

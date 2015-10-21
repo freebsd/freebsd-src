@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CODEGEN_ASMPRINTER_ASMPRINTERHANDLER_H__
-#define CODEGEN_ASMPRINTER_ASMPRINTERHANDLER_H__
+#ifndef LLVM_LIB_CODEGEN_ASMPRINTER_ASMPRINTERHANDLER_H
+#define LLVM_LIB_CODEGEN_ASMPRINTER_ASMPRINTERHANDLER_H
 
 #include "llvm/Support/DataTypes.h"
 
@@ -40,6 +40,10 @@ public:
   /// Every beginFunction(MF) call should be followed by an endFunction(MF)
   /// call.
   virtual void beginFunction(const MachineFunction *MF) = 0;
+
+  // \brief Emit any of function marker (like .cfi_endproc). This is called
+  // before endFunction and cannot switch sections.
+  virtual void markFunctionEnd();
 
   /// \brief Gather post-function debug information.
   /// Please note that some AsmPrinter implementations may not call

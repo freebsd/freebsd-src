@@ -13,8 +13,6 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-
-#include "lldb/lldb-private-log.h"
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Breakpoint/BreakpointSite.h"
 #include "lldb/Core/Disassembler.h"
@@ -44,7 +42,8 @@ ThreadPlanStepRange::ThreadPlanStepRange (ThreadPlanKind kind,
                                           Thread &thread, 
                                           const AddressRange &range, 
                                           const SymbolContext &addr_context, 
-                                          lldb::RunMode stop_others) :
+                                          lldb::RunMode stop_others,
+                                          bool given_ranges_only) :
     ThreadPlan (kind, name, thread, eVoteNoOpinion, eVoteNoOpinion),
     m_addr_context (addr_context),
     m_address_ranges (),
@@ -53,7 +52,8 @@ ThreadPlanStepRange::ThreadPlanStepRange (ThreadPlanKind kind,
     m_parent_stack_id(),
     m_no_more_plans (false),
     m_first_run_event (true),
-    m_use_fast_step(false)
+    m_use_fast_step(false),
+    m_given_ranges_only (given_ranges_only)
 {
     m_use_fast_step = GetTarget().GetUseFastStepping();
     AddRange(range);
@@ -149,7 +149,7 @@ ThreadPlanStepRange::InRange ()
             break;
     }
     
-    if (!ret_value)
+    if (!ret_value && !m_given_ranges_only)
     {
         // See if we've just stepped to another part of the same line number...
         StackFrame *frame = m_thread.GetStackFrameAtIndex(0).get();
@@ -243,9 +243,9 @@ ThreadPlanStepRange::InSymbol()
     {
         return m_addr_context.function->GetAddressRange().ContainsLoadAddress (cur_pc, m_thread.CalculateTarget().get());
     }
-    else if (m_addr_context.symbol)
+    else if (m_addr_context.symbol && m_addr_context.symbol->ValueIsAddress())
     {
-        AddressRange range(m_addr_context.symbol->GetAddress(), m_addr_context.symbol->GetByteSize());
+        AddressRange range(m_addr_context.symbol->GetAddressRef(), m_addr_context.symbol->GetByteSize());
         return range.ContainsLoadAddress (cur_pc, m_thread.CalculateTarget().get());
     }
     return false;
@@ -380,8 +380,9 @@ ThreadPlanStepRange::SetNextBranchBreakpoint ()
         return false;
     else
     {
+        Target &target = GetThread().GetProcess()->GetTarget();
         uint32_t branch_index;
-        branch_index = instructions->GetIndexOfNextBranchInstruction (pc_index);
+        branch_index = instructions->GetIndexOfNextBranchInstruction (pc_index, target);
         
         Address run_to_address;
         

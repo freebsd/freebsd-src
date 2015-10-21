@@ -22,7 +22,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/MathExtras.h"
-
+#include "llvm/Support/MD5.h"
 
 #include "lldb/Core/DataBufferHeap.h"
 #include "lldb/Core/DataExtractor.h"
@@ -132,7 +132,8 @@ DataExtractor::DataExtractor () :
     m_end       (NULL),
     m_byte_order(lldb::endian::InlHostByteOrder()),
     m_addr_size (4),
-    m_data_sp   ()
+    m_data_sp   (),
+    m_target_byte_size(1)
 {
 }
 
@@ -140,12 +141,13 @@ DataExtractor::DataExtractor () :
 // This constructor allows us to use data that is owned by someone else.
 // The data must stay around as long as this object is valid.
 //----------------------------------------------------------------------
-DataExtractor::DataExtractor (const void* data, offset_t length, ByteOrder endian, uint32_t addr_size) :
+DataExtractor::DataExtractor (const void* data, offset_t length, ByteOrder endian, uint32_t addr_size, uint32_t target_byte_size/*=1*/) :
     m_start     ((uint8_t*)data),
     m_end       ((uint8_t*)data + length),
     m_byte_order(endian),
     m_addr_size (addr_size),
-    m_data_sp   ()
+    m_data_sp   (),
+    m_target_byte_size(target_byte_size)
 {
 }
 
@@ -156,12 +158,13 @@ DataExtractor::DataExtractor (const void* data, offset_t length, ByteOrder endia
 // as long as any DataExtractor objects exist that have a reference to
 // this data.
 //----------------------------------------------------------------------
-DataExtractor::DataExtractor (const DataBufferSP& data_sp, ByteOrder endian, uint32_t addr_size) :
+DataExtractor::DataExtractor (const DataBufferSP& data_sp, ByteOrder endian, uint32_t addr_size, uint32_t target_byte_size/*=1*/) :
     m_start     (NULL),
     m_end       (NULL),
     m_byte_order(endian),
     m_addr_size (addr_size),
-    m_data_sp   ()
+    m_data_sp   (),
+    m_target_byte_size(target_byte_size)
 {
     SetData (data_sp);
 }
@@ -173,12 +176,13 @@ DataExtractor::DataExtractor (const DataBufferSP& data_sp, ByteOrder endian, uin
 // as any object contains a reference to that data. The endian
 // swap and address size settings are copied from "data".
 //----------------------------------------------------------------------
-DataExtractor::DataExtractor (const DataExtractor& data, offset_t offset, offset_t length) :
+DataExtractor::DataExtractor (const DataExtractor& data, offset_t offset, offset_t length, uint32_t target_byte_size/*=1*/) :
     m_start(NULL),
     m_end(NULL),
     m_byte_order(data.m_byte_order),
     m_addr_size(data.m_addr_size),
-    m_data_sp()
+    m_data_sp(),
+    m_target_byte_size(target_byte_size)
 {
     if (data.ValidOffset(offset))
     {
@@ -194,7 +198,8 @@ DataExtractor::DataExtractor (const DataExtractor& rhs) :
     m_end (rhs.m_end),
     m_byte_order (rhs.m_byte_order),
     m_addr_size (rhs.m_addr_size),
-    m_data_sp (rhs.m_data_sp)
+    m_data_sp (rhs.m_data_sp),
+    m_target_byte_size(rhs.m_target_byte_size)
 {
 }
 
@@ -1480,7 +1485,9 @@ DataExtractor::Dump (Stream *s,
                 s->EOL();
             }
             if (base_addr != LLDB_INVALID_ADDRESS)
-                s->Printf ("0x%8.8" PRIx64 ": ", (uint64_t)(base_addr + (offset - start_offset)));
+                s->Printf ("0x%8.8" PRIx64 ": ",
+                    (uint64_t)(base_addr + (offset - start_offset)/m_target_byte_size  ));
+
             line_start_offset = offset;
         }
         else
@@ -1535,6 +1542,7 @@ DataExtractor::Dump (Stream *s,
             {
                 s->Printf ("%2.2x", GetU8(&offset));
             }
+
             // Put an extra space between the groups of bytes if more than one
             // is being dumped in a group (item_byte_size is more than 1).
             if (item_byte_size > 1)
@@ -1702,7 +1710,7 @@ DataExtractor::Dump (Stream *s,
             {
                 size_t complex_int_byte_size = item_byte_size / 2;
                 
-                if (complex_int_byte_size <= 8)
+                if (complex_int_byte_size > 0 && complex_int_byte_size <= 8)
                 {
                     s->Printf("%" PRIu64, GetMaxU64Bitfield(&offset, complex_int_byte_size, 0, 0));
                     s->Printf(" + %" PRIu64 "i", GetMaxU64Bitfield(&offset, complex_int_byte_size, 0, 0));
@@ -1822,26 +1830,14 @@ DataExtractor::Dump (Stream *s,
                             }
                             else if (item_bit_size == ast->getTypeSize(ast->LongDoubleTy))
                             {
+                                const auto &semantics = ast->getFloatTypeSemantics(ast->LongDoubleTy);
+                                const auto byte_size = (llvm::APFloat::getSizeInBits(semantics) + 7) / 8;
+
                                 llvm::APInt apint;
-                                switch (target_sp->GetArchitecture().GetMachine())
+                                if (GetAPInt(*this, &offset, byte_size, apint))
                                 {
-                                    case llvm::Triple::x86:
-                                    case llvm::Triple::x86_64:
-                                        // clang will assert when constructing the apfloat if we use a 16 byte integer value
-                                        if (GetAPInt (*this, &offset, 10, apint))
-                                        {
-                                            llvm::APFloat apfloat (ast->getFloatTypeSemantics(ast->LongDoubleTy), apint);
-                                            apfloat.toString(sv, format_precision, format_max_padding);
-                                        }
-                                        break;
-                                        
-                                    default:
-                                        if (GetAPInt (*this, &offset, item_byte_size, apint))
-                                        {
-                                            llvm::APFloat apfloat (ast->getFloatTypeSemantics(ast->LongDoubleTy), apint);
-                                            apfloat.toString(sv, format_precision, format_max_padding);
-                                        }
-                                        break;
+                                    llvm::APFloat apfloat(semantics, apint);
+                                    apfloat.toString(sv, format_precision, format_max_padding);
                                 }
                             }
                             else if (item_bit_size == ast->getTypeSize(ast->HalfTy))
@@ -2230,3 +2226,27 @@ DataExtractor::Append(void* buf, offset_t length)
     
     return true;
 }
+
+void
+DataExtractor::Checksum (llvm::SmallVectorImpl<uint8_t> &dest,
+                         uint64_t max_data)
+{
+    if (max_data == 0)
+        max_data = GetByteSize();
+    else
+        max_data = std::min(max_data, GetByteSize());
+
+    llvm::MD5 md5;
+
+    const llvm::ArrayRef<uint8_t> data(GetDataStart(),max_data);
+    md5.update(data);
+
+    llvm::MD5::MD5Result result;
+    md5.final(result);
+
+    dest.resize(16);
+    std::copy(result,
+              result+16,
+              dest.begin());
+}
+

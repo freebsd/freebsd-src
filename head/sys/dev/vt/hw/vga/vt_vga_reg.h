@@ -49,6 +49,8 @@
 
 #define	VGA_MEM_BASE	0xA0000
 #define	VGA_MEM_SIZE	0x10000
+#define	VGA_TXT_BASE	0xB8000
+#define	VGA_TXT_SIZE	0x08000
 #define	VGA_REG_BASE	0x3c0
 #define	VGA_REG_SIZE	0x10+0x0c
 

@@ -239,8 +239,8 @@ struct msdosfs_args {
 	gid_t	gid;		/* gid that owns msdosfs files */
 	mode_t	mask;		/* file mask to be applied for msdosfs perms */
 	int	flags;		/* see below */
-	int magic;		/* version number */
-	u_int16_t u2w[128];     /* Local->Unicode table */
+	int	unused1;	/* unused, was version number */
+	u_int16_t unused2[128];	/* no longer used, was Local->Unicode table */
 	char	*cs_win;	/* Windows(Unicode) Charset */
 	char	*cs_dos;	/* DOS Charset */
 	char	*cs_local;	/* Local Charset */
@@ -263,7 +263,5 @@ struct msdosfs_args {
 #define	MSDOSFS_FATMIRROR	0x20000000	/* FAT is mirrored */
 #define	MSDOSFS_LARGEFS		0x10000000	/* perform fileno mapping */
 #define	MSDOSFS_FSIMOD		0x01000000
-
-#define MSDOSFS_ARGSMAGIC	0xe4eff300
 
 #endif /* !_MSDOSFS_MSDOSFSMOUNT_H_ */

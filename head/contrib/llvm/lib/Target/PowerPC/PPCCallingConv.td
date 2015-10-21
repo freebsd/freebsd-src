@@ -14,16 +14,35 @@
 
 /// CCIfSubtarget - Match if the current subtarget has a feature F.
 class CCIfSubtarget<string F, CCAction A>
- : CCIf<!strconcat("State.getTarget().getSubtarget<PPCSubtarget>().", F), A>;
+    : CCIf<!strconcat("static_cast<const PPCSubtarget&>"
+                       "(State.getMachineFunction().getSubtarget()).",
+                     F),
+          A>;
 class CCIfNotSubtarget<string F, CCAction A>
- : CCIf<!strconcat("!State.getTarget().getSubtarget<PPCSubtarget>().", F), A>;
+    : CCIf<!strconcat("!static_cast<const PPCSubtarget&>"
+                       "(State.getMachineFunction().getSubtarget()).",
+                     F),
+          A>;
 
 //===----------------------------------------------------------------------===//
 // Return Value Calling Convention
 //===----------------------------------------------------------------------===//
 
+// PPC64 AnyReg return-value convention. No explicit register is specified for
+// the return-value. The register allocator is allowed and expected to choose
+// any free register.
+//
+// This calling convention is currently only supported by the stackmap and
+// patchpoint intrinsics. All other uses will result in an assert on Debug
+// builds. On Release builds we fallback to the PPC C calling convention.
+def RetCC_PPC64_AnyReg : CallingConv<[
+  CCCustom<"CC_PPC_AnyReg_Error">
+]>;
+
 // Return-value convention for PowerPC
 def RetCC_PPC : CallingConv<[
+  CCIfCC<"CallingConv::AnyReg", CCDelegateTo<RetCC_PPC64_AnyReg>>,
+
   // On PPC64, integer return values are always promoted to i64
   CCIfType<[i32, i1], CCIfSubtarget<"isPPC64()", CCPromoteToType<i64>>>,
   CCIfType<[i1], CCIfNotSubtarget<"isPPC64()", CCPromoteToType<i32>>>,
@@ -36,15 +55,29 @@ def RetCC_PPC : CallingConv<[
   // only the ELFv2 ABI fully utilizes all these registers.
   CCIfType<[f32], CCAssignToReg<[F1, F2, F3, F4, F5, F6, F7, F8]>>,
   CCIfType<[f64], CCAssignToReg<[F1, F2, F3, F4, F5, F6, F7, F8]>>,
-  
+
+  // QPX vectors are returned in QF1 and QF2. 
+  CCIfType<[v4f64, v4f32, v4i1],
+           CCIfSubtarget<"hasQPX()", CCAssignToReg<[QF1, QF2]>>>,
+ 
   // Vector types returned as "direct" go into V2 .. V9; note that only the
   // ELFv2 ABI fully utilizes all these registers.
-  CCIfType<[v16i8, v8i16, v4i32, v4f32],
-           CCAssignToReg<[V2, V3, V4, V5, V6, V7, V8, V9]>>,
-  CCIfType<[v2f64, v2i64],
-           CCAssignToReg<[VSH2, VSH3, VSH4, VSH5, VSH6, VSH7, VSH8, VSH9]>>
+  CCIfType<[v16i8, v8i16, v4i32, v2i64, v1i128, v4f32], 
+           CCIfSubtarget<"hasAltivec()",
+           CCAssignToReg<[V2, V3, V4, V5, V6, V7, V8, V9]>>>,
+  CCIfType<[v2f64, v2i64], CCIfSubtarget<"hasVSX()",
+           CCAssignToReg<[VSH2, VSH3, VSH4, VSH5, VSH6, VSH7, VSH8, VSH9]>>>
 ]>;
 
+// No explicit register is specified for the AnyReg calling convention. The
+// register allocator may assign the arguments to any free register.
+//
+// This calling convention is currently only supported by the stackmap and
+// patchpoint intrinsics. All other uses will result in an assert on Debug
+// builds. On Release builds we fallback to the PPC C calling convention.
+def CC_PPC64_AnyReg : CallingConv<[
+  CCCustom<"CC_PPC_AnyReg_Error">
+]>;
 
 // Note that we don't currently have calling conventions for 64-bit
 // PowerPC, but handle all the complexities of the ABI in the lowering
@@ -55,6 +88,8 @@ def RetCC_PPC : CallingConv<[
 // Only handle ints and floats.  All ints are promoted to i64.
 // Vector types and quadword ints are not handled.
 def CC_PPC64_ELF_FIS : CallingConv<[
+  CCIfCC<"CallingConv::AnyReg", CCDelegateTo<CC_PPC64_AnyReg>>,
+
   CCIfType<[i1],  CCPromoteToType<i64>>,
   CCIfType<[i8],  CCPromoteToType<i64>>,
   CCIfType<[i16], CCPromoteToType<i64>>,
@@ -68,6 +103,8 @@ def CC_PPC64_ELF_FIS : CallingConv<[
 // and multiple register returns are "supported" to avoid compile
 // errors, but none are handled by the fast selector.
 def RetCC_PPC64_ELF_FIS : CallingConv<[
+  CCIfCC<"CallingConv::AnyReg", CCDelegateTo<RetCC_PPC64_AnyReg>>,
+
   CCIfType<[i1],   CCPromoteToType<i64>>,
   CCIfType<[i8],   CCPromoteToType<i64>>,
   CCIfType<[i16],  CCPromoteToType<i64>>,
@@ -76,10 +113,13 @@ def RetCC_PPC64_ELF_FIS : CallingConv<[
   CCIfType<[i128], CCAssignToReg<[X3, X4, X5, X6]>>,
   CCIfType<[f32],  CCAssignToReg<[F1, F2, F3, F4, F5, F6, F7, F8]>>,
   CCIfType<[f64],  CCAssignToReg<[F1, F2, F3, F4, F5, F6, F7, F8]>>,
-  CCIfType<[v16i8, v8i16, v4i32, v4f32],
-           CCAssignToReg<[V2, V3, V4, V5, V6, V7, V8, V9]>>,
-  CCIfType<[v2f64, v2i64],
-           CCAssignToReg<[VSH2, VSH3, VSH4, VSH5, VSH6, VSH7, VSH8, VSH9]>>
+  CCIfType<[v4f64, v4f32, v4i1],
+           CCIfSubtarget<"hasQPX()", CCAssignToReg<[QF1, QF2]>>>,
+  CCIfType<[v16i8, v8i16, v4i32, v2i64, v1i128, v4f32], 
+           CCIfSubtarget<"hasAltivec()",
+           CCAssignToReg<[V2, V3, V4, V5, V6, V7, V8, V9]>>>,
+  CCIfType<[v2f64, v2i64], CCIfSubtarget<"hasVSX()",
+           CCAssignToReg<[VSH2, VSH3, VSH4, VSH5, VSH6, VSH7, VSH8, VSH9]>>>
 ]>;
 
 //===----------------------------------------------------------------------===//
@@ -92,6 +132,9 @@ def CC_PPC32_SVR4_Common : CallingConv<[
   // The ABI requires i64 to be passed in two adjacent registers with the first
   // register having an odd register number.
   CCIfType<[i32], CCIfSplit<CCCustom<"CC_PPC32_SVR4_Custom_AlignArgRegs">>>,
+
+  // The 'nest' parameter, if any, is passed in R11.
+  CCIfNest<CCAssignToReg<[R11]>>,
 
   // The first 8 integer arguments are passed in integer registers.
   CCIfType<[i32], CCAssignToReg<[R3, R4, R5, R6, R7, R8, R9, R10]>>,
@@ -112,6 +155,9 @@ def CC_PPC32_SVR4_Common : CallingConv<[
   // alignment and size as doubles.
   CCIfType<[f32,f64], CCAssignToStack<8, 8>>,  
 
+  // QPX vectors that are stored in double precision need 32-byte alignment.
+  CCIfType<[v4f64, v4i1], CCAssignToStack<32, 32>>,
+
   // Vectors get 16-byte stack slots that are 16-byte aligned.
   CCIfType<[v16i8, v8i16, v4i32, v4f32, v2f64, v2i64], CCAssignToStack<16, 16>>
 ]>;
@@ -126,12 +172,17 @@ def CC_PPC32_SVR4_VarArg : CallingConv<[
 // In contrast to CC_PPC32_SVR4_VarArg, this calling convention first tries to
 // put vector arguments in vector registers before putting them on the stack.
 def CC_PPC32_SVR4 : CallingConv<[
+  // QPX vectors mirror the scalar FP convention.
+  CCIfType<[v4f64, v4f32, v4i1], CCIfSubtarget<"hasQPX()",
+    CCAssignToReg<[QF1, QF2, QF3, QF4, QF5, QF6, QF7, QF8]>>>,
+
   // The first 12 Vector arguments are passed in AltiVec registers.
-  CCIfType<[v16i8, v8i16, v4i32, v4f32],
-           CCAssignToReg<[V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13]>>,
-  CCIfType<[v2f64, v2i64],
+  CCIfType<[v16i8, v8i16, v4i32, v2i64, v1i128, v4f32], 
+           CCIfSubtarget<"hasAltivec()", CCAssignToReg<[V2, V3, V4, V5, V6, V7,
+                          V8, V9, V10, V11, V12, V13]>>>,
+  CCIfType<[v2f64, v2i64], CCIfSubtarget<"hasVSX()",
            CCAssignToReg<[VSH2, VSH3, VSH4, VSH5, VSH6, VSH7, VSH8, VSH9,
-                          VSH10, VSH11, VSH12, VSH13]>>,
+                          VSH10, VSH11, VSH12, VSH13]>>>,
            
   CCDelegateTo<CC_PPC32_SVR4_Common>
 ]>;  
@@ -192,8 +243,23 @@ def CSR_SVR464   : CalleeSavedRegs<(add X14, X15, X16, X17, X18, X19, X20,
                                         F27, F28, F29, F30, F31, CR2, CR3, CR4
                                    )>;
 
-
 def CSR_SVR464_Altivec : CalleeSavedRegs<(add CSR_SVR464, CSR_Altivec)>;
 
+def CSR_SVR464_R2 : CalleeSavedRegs<(add CSR_SVR464, X2)>;
+
+def CSR_SVR464_R2_Altivec : CalleeSavedRegs<(add CSR_SVR464_Altivec, X2)>;
+
 def CSR_NoRegs : CalleeSavedRegs<(add)>;
+
+def CSR_64_AllRegs: CalleeSavedRegs<(add X0, (sequence "X%u", 3, 10),
+                                             (sequence "X%u", 14, 31),
+                                             (sequence "F%u", 0, 31),
+                                             (sequence "CR%u", 0, 7))>;
+
+def CSR_64_AllRegs_Altivec : CalleeSavedRegs<(add CSR_64_AllRegs,
+                                             (sequence "V%u", 0, 31))>;
+
+def CSR_64_AllRegs_VSX : CalleeSavedRegs<(add CSR_64_AllRegs_Altivec,
+                                         (sequence "VSL%u", 0, 31),
+                                         (sequence "VSH%u", 0, 31))>;
 

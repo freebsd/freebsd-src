@@ -99,8 +99,7 @@ mbrtocXX_l(charXX_t * __restrict pc, const char * __restrict s, size_t n,
 
 	/* Convert as few characters to the dst buffer as possible. */
 	for (i = 0; ; i++) {
-		const char *src;
-		char *dst;
+		char *src, *dst;
 		size_t srcleft, dstleft, invlen;
 		int err;
 

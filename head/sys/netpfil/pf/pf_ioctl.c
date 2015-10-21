@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 #endif /* INET6 */
 
 #ifdef ALTQ
-#include <altq/altq.h>
+#include <net/altq/altq.h>
 #endif
 
 static int		 pfattach(void);
@@ -1665,13 +1665,13 @@ relock_DIOCKILLSTATES:
 				if (s->direction == PF_OUT) {
 					srcaddr = &sk->addr[1];
 					dstaddr = &sk->addr[0];
-					srcport = sk->port[0];
+					srcport = sk->port[1];
 					dstport = sk->port[0];
 				} else {
 					srcaddr = &sk->addr[0];
 					dstaddr = &sk->addr[1];
 					srcport = sk->port[0];
-					dstport = sk->port[0];
+					dstport = sk->port[1];
 				}
 
 				if ((!psk->psk_af || sk->af == psk->psk_af)
@@ -2724,8 +2724,7 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			break;
 		}
-		totlen = (io->pfrio_size + io->pfrio_size2) *
-		    sizeof(struct pfr_addr);
+		totlen = io->pfrio_size * sizeof(struct pfr_addr);
 		pfras = malloc(totlen, M_TEMP, M_WAITOK);
 		error = copyin(io->pfrio_buffer, pfras, totlen);
 		if (error) {
@@ -3436,7 +3435,7 @@ pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 			      &psnk->psnk_dst.addr.v.a.addr,
 			      &psnk->psnk_dst.addr.v.a.mask,
 			      &sn->raddr, sn->af)) {
-				pf_unlink_src_node_locked(sn);
+				pf_unlink_src_node(sn);
 				LIST_INSERT_HEAD(&kill, sn, entry);
 				sn->expire = 1;
 			}
@@ -3449,18 +3448,10 @@ pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
-			if (s->src_node && s->src_node->expire == 1) {
-#ifdef INVARIANTS
-				s->src_node->states--;
-#endif
+			if (s->src_node && s->src_node->expire == 1)
 				s->src_node = NULL;
-			}
-			if (s->nat_src_node && s->nat_src_node->expire == 1) {
-#ifdef INVARIANTS
-				s->nat_src_node->states--;
-#endif
+			if (s->nat_src_node && s->nat_src_node->expire == 1)
 				s->nat_src_node = NULL;
-			}
 		}
 		PF_HASHROW_UNLOCK(ih);
 	}
@@ -3575,12 +3566,6 @@ pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 {
 	int chk;
 
-	/* We need a proper CSUM befor we start (s. OpenBSD ip_output) */
-	if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-		in_delayed_cksum(*m);
-		(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-	}
-
 	chk = pf_test(PF_OUT, ifp, m, inp);
 	if (chk && *m) {
 		m_freem(*m);
@@ -3619,13 +3604,6 @@ pf_check6_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 {
 	int chk;
 
-	/* We need a proper CSUM before we start (s. OpenBSD ip_output) */
-	if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
-		in6_delayed_cksum(*m,
-		    (*m)->m_pkthdr.len - sizeof(struct ip6_hdr),
-		    sizeof(struct ip6_hdr));
-		(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
-	}
 	CURVNET_SET(ifp->if_vnet);
 	chk = pf_test6(PF_OUT, ifp, m, inp);
 	CURVNET_RESTORE();
@@ -3764,6 +3742,7 @@ pf_unload(void)
 		wakeup_one(pf_purge_thread);
 		rw_sleep(pf_purge_thread, &pf_rules_lock, 0, "pftmo", 0);
 	}
+	PF_RULES_WUNLOCK();
 	pf_normalize_cleanup();
 	pfi_cleanup();
 	pfr_cleanup();
@@ -3771,7 +3750,6 @@ pf_unload(void)
 	pf_cleanup();
 	if (IS_DEFAULT_VNET(curvnet))
 		pf_mtag_cleanup();
-	PF_RULES_WUNLOCK();
 	destroy_dev(pf_dev);
 	rw_destroy(&pf_rules_lock);
 	sx_destroy(&pf_ioctl_lock);

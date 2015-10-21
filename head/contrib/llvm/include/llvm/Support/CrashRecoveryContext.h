@@ -10,13 +10,10 @@
 #ifndef LLVM_SUPPORT_CRASHRECOVERYCONTEXT_H
 #define LLVM_SUPPORT_CRASHRECOVERYCONTEXT_H
 
+#include "llvm/ADT/STLExtras.h"
 #include <string>
 
-#include "llvm/ADT/STLExtras.h"
-
 namespace llvm {
-class StringRef;
-
 class CrashRecoveryContextCleanup;
 
 /// \brief Crash recovery helper object.
@@ -166,9 +163,7 @@ public:
     : CrashRecoveryContextCleanupBase<
         CrashRecoveryContextDeleteCleanup<T>, T>(context, resource) {}
 
-  virtual void recoverResources() {
-    delete this->resource;
-  }  
+  void recoverResources() override { delete this->resource; }
 };
 
 template <typename T>
@@ -181,9 +176,7 @@ public:
     : CrashRecoveryContextCleanupBase<CrashRecoveryContextReleaseRefCleanup<T>,
           T>(context, resource) {}
 
-  virtual void recoverResources() {
-    this->resource->Release();
-  }
+  void recoverResources() override { this->resource->Release(); }
 };
 
 template <typename T, typename Cleanup = CrashRecoveryContextDeleteCleanup<T> >

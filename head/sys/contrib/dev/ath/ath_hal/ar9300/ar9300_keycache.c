@@ -436,3 +436,156 @@ void ar9300_dump_keycache(struct ath_hal *ah, int n, u_int32_t *entry)
     }
 #undef AH_KEY_REG_SIZE
 }
+
+#if ATH_SUPPORT_KEYPLUMB_WAR
+/*
+ * Check the contents of the specified key cache entry
+ * and any associated MIC entry.
+ */
+    HAL_BOOL
+ar9300_check_key_cache_entry(struct ath_hal *ah, u_int16_t entry,
+        const HAL_KEYVAL *k, int xorKey)
+{
+    const HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
+    u_int32_t key0, key1, key2, key3, key4;
+    u_int32_t keyType;
+    u_int32_t xorMask = xorKey ?
+        (KEY_XOR << 24 | KEY_XOR << 16 | KEY_XOR << 8 | KEY_XOR) : 0;
+    struct ath_hal_9300 *ahp = AH9300(ah);
+
+
+    if (entry >= pCap->hal_key_cache_size) {
+        HALDEBUG(ah, HAL_DEBUG_KEYCACHE,
+                "%s: entry %u out of range\n", __func__, entry);
+        return AH_FALSE;
+    }
+    switch (k->kv_type) {
+        case HAL_CIPHER_AES_OCB:
+            keyType = AR_KEYTABLE_TYPE_AES;
+            break;
+        case HAL_CIPHER_AES_CCM:
+            if (!pCap->hal_cipher_aes_ccm_support) {
+                HALDEBUG(ah, HAL_DEBUG_KEYCACHE, "%s: AES-CCM not supported by "
+                        "mac rev 0x%x\n",
+                        __func__, AH_PRIVATE(ah)->ah_macRev);
+                return AH_FALSE;
+            }
+            keyType = AR_KEYTABLE_TYPE_CCM;
+            break;
+        case HAL_CIPHER_TKIP:
+            keyType = AR_KEYTABLE_TYPE_TKIP;
+            if (IS_MIC_ENABLED(ah) && entry + 64 >= pCap->hal_key_cache_size) {
+                HALDEBUG(ah, HAL_DEBUG_KEYCACHE,
+                        "%s: entry %u inappropriate for TKIP\n",
+                        __func__, entry);
+                return AH_FALSE;
+            }
+            break;
+        case HAL_CIPHER_WEP:
+            if (k->kv_len < 40 / NBBY) {
+                HALDEBUG(ah, HAL_DEBUG_KEYCACHE, "%s: WEP key length %u too small\n",
+                        __func__, k->kv_len);
+                return AH_FALSE;
+            }
+            if (k->kv_len <= 40 / NBBY) {
+                keyType = AR_KEYTABLE_TYPE_40;
+            } else if (k->kv_len <= 104 / NBBY) {
+                keyType = AR_KEYTABLE_TYPE_104;
+            } else {
+                keyType = AR_KEYTABLE_TYPE_128;
+            }
+            break;
+        case HAL_CIPHER_CLR:
+            keyType = AR_KEYTABLE_TYPE_CLR;
+            return AH_TRUE;
+        default:
+            HALDEBUG(ah, HAL_DEBUG_KEYCACHE, "%s: cipher %u not supported\n",
+                    __func__, k->kv_type);
+            return AH_TRUE;
+    }
+
+    key0 =  LE_READ_4(k->kv_val +  0) ^ xorMask;
+    key1 = (LE_READ_2(k->kv_val +  4) ^ xorMask) & 0xffff;
+    key2 =  LE_READ_4(k->kv_val +  6) ^ xorMask;
+    key3 = (LE_READ_2(k->kv_val + 10) ^ xorMask) & 0xffff;
+    key4 =  LE_READ_4(k->kv_val + 12) ^ xorMask;
+    if (k->kv_len <= 104 / NBBY) {
+        key4 &= 0xff;
+    }
+
+    /*
+     * Note: key cache hardware requires that each double-word
+     * pair be written in even/odd order (since the destination is
+     * a 64-bit register).  Don't reorder these writes w/o
+     * considering this!
+     */
+    if (keyType == AR_KEYTABLE_TYPE_TKIP && IS_MIC_ENABLED(ah)) {
+        u_int16_t micentry = entry + 64;  /* MIC goes at slot+64 */
+
+
+        /*
+         * Invalidate the encrypt/decrypt key until the MIC
+         * key is installed so pending rx frames will fail
+         * with decrypt errors rather than a MIC error.
+         */
+        if ((OS_REG_READ(ah, AR_KEYTABLE_KEY0(entry)) == key0) && 
+                (OS_REG_READ(ah, AR_KEYTABLE_KEY1(entry)) == key1) &&
+                (OS_REG_READ(ah, AR_KEYTABLE_KEY2(entry)) == key2) &&
+                (OS_REG_READ(ah, AR_KEYTABLE_KEY3(entry)) == key3) &&
+                (OS_REG_READ(ah, AR_KEYTABLE_KEY4(entry)) == key4) &&
+                ((OS_REG_READ(ah, AR_KEYTABLE_TYPE(entry)) & AR_KEY_TYPE) == (keyType & AR_KEY_TYPE))) 
+        {
+
+            /*
+             * since the AR_MISC_MODE register was written with the contents of
+             * ah_miscMode (if any) in ar9300Attach, just check ah_miscMode and
+             * save a pci read per key set.
+             */
+            if (ahp->ah_misc_mode & AR_PCU_MIC_NEW_LOC_ENA) {
+                u_int32_t mic0,mic1,mic2,mic3,mic4;
+                /*
+                 * both RX and TX mic values can be combined into
+                 * one cache slot entry.
+                 * 8*N + 800         31:0    RX Michael key 0
+                 * 8*N + 804         15:0    TX Michael key 0 [31:16]
+                 * 8*N + 808         31:0    RX Michael key 1
+                 * 8*N + 80C         15:0    TX Michael key 0 [15:0]
+                 * 8*N + 810         31:0    TX Michael key 1
+                 * 8*N + 814         15:0    reserved
+                 * 8*N + 818         31:0    reserved
+                 * 8*N + 81C         14:0    reserved
+                 *                   15      key valid == 0
+                 */
+                /* RX mic */
+                mic0 = LE_READ_4(k->kv_mic + 0);
+                mic2 = LE_READ_4(k->kv_mic + 4);
+                /* TX mic */
+                mic1 = LE_READ_2(k->kv_txmic + 2) & 0xffff;
+                mic3 = LE_READ_2(k->kv_txmic + 0) & 0xffff;
+                mic4 = LE_READ_4(k->kv_txmic + 4);
+                if ((OS_REG_READ(ah, AR_KEYTABLE_KEY0(micentry)) == mic0) &&
+                        (OS_REG_READ(ah, AR_KEYTABLE_KEY1(micentry)) == mic1) &&
+                        (OS_REG_READ(ah, AR_KEYTABLE_KEY2(micentry)) == mic2) &&
+                        (OS_REG_READ(ah, AR_KEYTABLE_KEY3(micentry)) == mic3) &&
+                        (OS_REG_READ(ah, AR_KEYTABLE_KEY4(micentry)) == mic4) &&
+                        ((OS_REG_READ(ah, AR_KEYTABLE_TYPE(micentry)) & AR_KEY_TYPE) == (AR_KEYTABLE_TYPE_CLR & AR_KEY_TYPE))) {
+                    return AH_TRUE;
+                }
+
+            } else {
+                return AH_TRUE;
+            }
+        }
+    } else {
+        if ((OS_REG_READ(ah, AR_KEYTABLE_KEY0(entry)) == key0) &&
+                (OS_REG_READ(ah, AR_KEYTABLE_KEY1(entry)) == key1) &&
+                (OS_REG_READ(ah, AR_KEYTABLE_KEY2(entry)) == key2) &&
+                (OS_REG_READ(ah, AR_KEYTABLE_KEY3(entry)) == key3) &&
+                (OS_REG_READ(ah, AR_KEYTABLE_KEY4(entry)) == key4) &&
+                ((OS_REG_READ(ah, AR_KEYTABLE_TYPE(entry)) & AR_KEY_TYPE) == (keyType & AR_KEY_TYPE))) {
+            return AH_TRUE;
+        }
+    }
+    return AH_FALSE;
+}
+#endif

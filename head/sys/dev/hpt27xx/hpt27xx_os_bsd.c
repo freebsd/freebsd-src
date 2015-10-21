@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2011 HighPoint Technologies, Inc.
+ * HighPoint RAID Driver for FreeBSD
+ *
+ * Copyright (C) 2005-2011 HighPoint Technologies, Inc. All Rights Reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +31,8 @@
 #include <dev/hpt27xx/hpt27xx_config.h>
 
 #include <dev/hpt27xx/os_bsd.h>
+
+BUS_ADDRESS get_dmapool_phy_addr(void *osext, void * dmapool_virt_addr);
 
 /* hardware access */
 HPT_U8   os_inb  (void *port) { return inb((unsigned)(HPT_UPTR)port); }
@@ -76,6 +80,11 @@ void os_pci_writew (void *osext, HPT_U8 offset, HPT_U16 value)
 void os_pci_writel (void *osext, HPT_U8 offset, HPT_U32 value)
 {
     pci_write_config(((PHBA)osext)->pcidev, offset, value, 4);
+}
+
+BUS_ADDRESS get_dmapool_phy_addr(void *osext, void * dmapool_virt_addr)
+{
+	return (BUS_ADDRESS)vtophys(dmapool_virt_addr);
 }
 
 /* PCI space access */
@@ -240,8 +249,13 @@ void  os_request_timer(void * osext, HPT_U32 interval)
 
 	HPT_ASSERT(vbus_ext->ext_type==EXT_TYPE_VBUS);
 
+#if (__FreeBSD_version >= 1000510)
 	callout_reset_sbt(&vbus_ext->timer, SBT_1US * interval, 0,
 	    os_timer_for_ldm, vbus_ext, 0);
+#else 
+	untimeout(os_timer_for_ldm, vbus_ext, vbus_ext->timer);
+	vbus_ext->timer = timeout(os_timer_for_ldm, vbus_ext, interval * hz / 1000000);
+#endif
 }
 
 HPT_TIME os_query_time(void)

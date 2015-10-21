@@ -642,18 +642,12 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
 		/*
 		 * If the error designates a new path MTU for a destination
 		 * and the application (associated with this socket) wanted to
-		 * know the value, notify. Note that we notify for all
-		 * disconnected sockets if the corresponding application
-		 * wanted. This is because some UDP applications keep sending
-		 * sockets disconnected.
+		 * know the value, notify.
 		 * XXX: should we avoid to notify the value to TCP sockets?
 		 */
-		if (cmd == PRC_MSGSIZE && (inp->inp_flags & IN6P_MTU) != 0 &&
-		    (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) ||
-		     IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, &sa6_dst->sin6_addr))) {
+		if (cmd == PRC_MSGSIZE && cmdarg != NULL)
 			ip6_notify_pmtu(inp, (struct sockaddr_in6 *)dst,
-					(u_int32_t *)cmdarg);
-		}
+					*(u_int32_t *)cmdarg);
 
 		/*
 		 * Detect if we should notify the error. If no source and
@@ -795,7 +789,7 @@ in6_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 	struct ip6_moptions *im6o;
 	int i, gap;
 
-	INP_INFO_RLOCK(pcbinfo);
+	INP_INFO_WLOCK(pcbinfo);
 	LIST_FOREACH(in6p, pcbinfo->ipi_listhead, inp_list) {
 		INP_WLOCK(in6p);
 		im6o = in6p->in6p_moptions;
@@ -826,7 +820,7 @@ in6_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 		}
 		INP_WUNLOCK(in6p);
 	}
-	INP_INFO_RUNLOCK(pcbinfo);
+	INP_INFO_WUNLOCK(pcbinfo);
 }
 
 /*

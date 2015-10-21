@@ -18,6 +18,7 @@
 
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
+#include "llvm/IR/Metadata.h"
 #include "llvm/IR/Value.h"  // PointerLikeTypeTraits<Value*>
 #include "llvm/Support/DataTypes.h"
 
@@ -26,6 +27,7 @@ namespace llvm {
 class FoldingSetNodeID;
 class MDNode;
 class raw_ostream;
+class ModuleSlotTracker;
 
 /// MachinePointerInfo - This class contains a discriminated union of
 /// information about pointers in memory operands, relating them back to LLVM IR
@@ -91,7 +93,7 @@ class MachineMemOperand {
   MachinePointerInfo PtrInfo;
   uint64_t Size;
   unsigned Flags;
-  const MDNode *TBAAInfo;
+  AAMDNodes AAInfo;
   const MDNode *Ranges;
 
 public:
@@ -117,7 +119,8 @@ public:
   /// MachineMemOperand - Construct an MachineMemOperand object with the
   /// specified PtrInfo, flags, size, and base alignment.
   MachineMemOperand(MachinePointerInfo PtrInfo, unsigned flags, uint64_t s,
-                    unsigned base_alignment, const MDNode *TBAAInfo = nullptr,
+                    unsigned base_alignment,
+                    const AAMDNodes &AAInfo = AAMDNodes(),
                     const MDNode *Ranges = nullptr);
 
   const MachinePointerInfo &getPointerInfo() const { return PtrInfo; }
@@ -161,8 +164,8 @@ public:
   /// base address, without the offset.
   uint64_t getBaseAlignment() const { return (1u << (Flags >> MOMaxBits)) >> 1; }
 
-  /// getTBAAInfo - Return the TBAA tag for the memory reference.
-  const MDNode *getTBAAInfo() const { return TBAAInfo; }
+  /// getAAInfo - Return the AA tags for the memory reference.
+  AAMDNodes getAAInfo() const { return AAInfo; }
 
   /// getRanges - Return the range tag for the memory reference.
   const MDNode *getRanges() const { return Ranges; }
@@ -197,9 +200,36 @@ public:
   /// Profile - Gather unique data for the object.
   ///
   void Profile(FoldingSetNodeID &ID) const;
+
+  /// Support for operator<<.
+  /// @{
+  void print(raw_ostream &OS) const;
+  void print(raw_ostream &OS, ModuleSlotTracker &MST) const;
+  /// @}
+
+  friend bool operator==(const MachineMemOperand &LHS,
+                         const MachineMemOperand &RHS) {
+    return LHS.getValue() == RHS.getValue() &&
+           LHS.getPseudoValue() == RHS.getPseudoValue() &&
+           LHS.getSize() == RHS.getSize() &&
+           LHS.getOffset() == RHS.getOffset() &&
+           LHS.getFlags() == RHS.getFlags() &&
+           LHS.getAAInfo() == RHS.getAAInfo() &&
+           LHS.getRanges() == RHS.getRanges() &&
+           LHS.getAlignment() == RHS.getAlignment() &&
+           LHS.getAddrSpace() == RHS.getAddrSpace();
+  }
+
+  friend bool operator!=(const MachineMemOperand &LHS,
+                         const MachineMemOperand &RHS) {
+    return !(LHS == RHS);
+  }
 };
 
-raw_ostream &operator<<(raw_ostream &OS, const MachineMemOperand &MRO);
+inline raw_ostream &operator<<(raw_ostream &OS, const MachineMemOperand &MRO) {
+  MRO.print(OS);
+  return OS;
+}
 
 } // End llvm namespace
 

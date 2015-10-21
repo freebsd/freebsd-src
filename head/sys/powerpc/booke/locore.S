@@ -28,6 +28,8 @@
 
 #include "assym.s"
 
+#include "opt_hwpmc_hooks.h"
+
 #include <machine/asm.h>
 #include <machine/hid.h>
 #include <machine/param.h>
@@ -59,11 +61,11 @@ __start:
 
 /*
  * Assumptions on the boot loader:
- *  - system memory starts from physical address 0
- *  - it's mapped by a single TBL1 entry
+ *  - System memory starts from physical address 0
+ *  - It's mapped by a single TLB1 entry
  *  - TLB1 mapping is 1:1 pa to va
- *  - kernel is loaded at 16MB boundary
- *  - all PID registers are set to the same value
+ *  - Kernel is loaded at 64MB boundary
+ *  - All PID registers are set to the same value
  *  - CPU is running in AS=0
  *
  * Registers contents provided by the loader(8):
@@ -71,14 +73,14 @@ __start:
  *	r3	: metadata pointer
  *
  * We rearrange the TLB1 layout as follows:
- *  - find TLB1 entry we started in
- *  - make sure it's protected, ivalidate other entries
- *  - create temp entry in the second AS (make sure it's not TLB[1])
- *  - switch to temp mapping
- *  - map 16MB of RAM in TLB1[1]
- *  - use AS=1, set EPN to KERNBASE and RPN to kernel load address
- *  - switch to to TLB1[1] mapping
- *  - invalidate temp mapping
+ *  - Find TLB1 entry we started in
+ *  - Make sure it's protected, invalidate other entries
+ *  - Create temp entry in the second AS (make sure it's not TLB[1])
+ *  - Switch to temp mapping
+ *  - Map 64MB of RAM in TLB1[1]
+ *  - Use AS=1, set EPN to KERNBASE and RPN to kernel load address
+ *  - Switch to to TLB1[1] mapping
+ *  - Invalidate temp mapping
  *
  * locore registers use:
  *	r1	: stack pointer
@@ -102,15 +104,44 @@ __start:
 	mtmsr	%r3
 	isync
 
-	lis	%r3, HID0_E500_DEFAULT_SET@h
-	ori	%r3, %r3, HID0_E500_DEFAULT_SET@l
-	mtspr	SPR_HID0, %r3
+	mfpvr	%r3
+	rlwinm	%r3, %r3, 16, 16, 31
+
+	lis	%r4, HID0_E500_DEFAULT_SET@h
+	ori	%r4, %r4, HID0_E500_DEFAULT_SET@l
+
+	/* Check for e500mc and e5500 */
+	cmpli	0, 0, %r3, FSL_E500mc
+	bne	2f
+
+	lis	%r4, HID0_E500MC_DEFAULT_SET@h
+	ori	%r4, %r4, HID0_E500MC_DEFAULT_SET@l
+	b	3f
+2:
+	cmpli	0, 0, %r3, FSL_E5500
+	bne	3f
+
+	lis	%r4, HID0_E5500_DEFAULT_SET@h
+	ori	%r4, %r4, HID0_E5500_DEFAULT_SET@l
+
+3:
+	mtspr	SPR_HID0, %r4
 	isync
+
+/*
+ * E500mc and E5500 do not have HID1 register, so skip HID1 setup on
+ * this core.
+ */
+	cmpli	0, 0, %r3, FSL_E500mc
+	beq	1f
+	cmpli	0, 0, %r3, FSL_E5500
+	beq	1f
+
 	lis	%r3, HID1_E500_DEFAULT_SET@h
 	ori	%r3, %r3, HID1_E500_DEFAULT_SET@l
 	mtspr	SPR_HID1, %r3
 	isync
-
+1:
 	/* Invalidate all entries in TLB0 */
 	li	%r3, 0
 	bl	tlb_inval_all
@@ -151,10 +182,10 @@ __start:
 /*
  * Setup final mapping in TLB1[1] and switch to it
  */
-	/* Final kernel mapping, map in 16 MB of RAM */
+	/* Final kernel mapping, map in 64 MB of RAM */
 	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
 	li	%r4, 0			/* Entry 0 */
-	rlwimi	%r3, %r4, 16, 12, 15
+	rlwimi	%r3, %r4, 16, 10, 15
 	mtspr	SPR_MAS0, %r3
 	isync
 
@@ -174,10 +205,12 @@ __start:
 	/* Discover phys load address */
 	bl	3f
 3:	mflr	%r4			/* Use current address */
-	rlwinm	%r4, %r4, 0, 0, 7	/* 16MB alignment mask */
+	rlwinm	%r4, %r4, 0, 0, 5	/* 64MB alignment mask */
 	ori	%r4, %r4, (MAS3_SX | MAS3_SW | MAS3_SR)@l
 	mtspr	SPR_MAS3, %r4		/* Set RPN and protection */
 	isync
+	bl	zero_mas7
+	bl	zero_mas8
 	tlbwe
 	isync
 	msync
@@ -205,9 +238,27 @@ done_mapping:
 /*
  * Setup a temporary stack
  */
-	lis	%r1, tmpstack@ha
-	addi	%r1, %r1, tmpstack@l
+	bl	1f
+	.long tmpstack-.
+1:	mflr	%r1
+	lwz	%r2,0(%r1)
+	add	%r1,%r1,%r2
 	addi	%r1, %r1, (TMPSTACKSZ - 16)
+
+/*
+ * Relocate kernel
+ */
+	bl      1f
+	.long   _DYNAMIC-.
+	.long   _GLOBAL_OFFSET_TABLE_-.
+1:	mflr    %r5
+	lwz	%r3,0(%r5)	/* _DYNAMIC in %r3 */
+	add	%r3,%r3,%r5
+	lwz	%r4,4(%r5)	/* GOT pointer */
+	add	%r4,%r4,%r5
+	lwz	%r4,4(%r4)	/* got[0] is _DYNAMIC link addr */
+	subf	%r4,%r4,%r3	/* subtract to calculate relocbase */
+	bl	elf_reloc_self
 
 /*
  * Initialise exception vector offsets
@@ -261,15 +312,40 @@ bp_tlb1_end:
 1:	mflr	%r31		/* r31 hold the address of bp_ntlb1s */
 
 	/* Set HIDs */
-	lis	%r3, HID0_E500_DEFAULT_SET@h
-	ori	%r3, %r3, HID0_E500_DEFAULT_SET@l
-	mtspr	SPR_HID0, %r3
+	mfpvr	%r3
+	rlwinm	%r3, %r3, 16, 16, 31
+
+	/* HID0 for E500 is default */
+	lis	%r4, HID0_E500_DEFAULT_SET@h
+	ori	%r4, %r4, HID0_E500_DEFAULT_SET@l
+
+	cmpli	0, 0, %r3, FSL_E500mc
+	bne	2f
+	lis	%r4, HID0_E500MC_DEFAULT_SET@h
+	ori	%r4, %r4, HID0_E500MC_DEFAULT_SET@l
+	b	3f
+2:
+	cmpli	0, 0, %r3, FSL_E5500
+	bne	3f
+	lis	%r4, HID0_E5500_DEFAULT_SET@h
+	ori	%r4, %r4, HID0_E5500_DEFAULT_SET@l
+3:
+	mtspr	SPR_HID0, %r4
 	isync
+/*
+ * E500mc and E5500 do not have HID1 register, so skip HID1 setup on
+ * this core.
+ */
+	cmpli	0, 0, %r3, FSL_E500mc
+	beq	1f
+	cmpli	0, 0, %r3, FSL_E5500
+	beq	1f
+
 	lis	%r3, HID1_E500_DEFAULT_SET@h
 	ori	%r3, %r3, HID1_E500_DEFAULT_SET@l
 	mtspr	SPR_HID1, %r3
 	isync
-
+1:
 	/* Enable branch prediction */
 	li	%r3, BUCSR_BPEN
 	mtspr	SPR_BUCSR, %r3
@@ -338,10 +414,13 @@ bp_tlb1_end:
 	blt	4b
 
 	/* Switch to the final mapping */
-	lis	%r5, __boot_page@ha
-	ori	%r5, %r5, __boot_page@l
 	bl	5f
-5:	mflr	%r3
+	.long __boot_page-.
+5:	mflr	%r5
+	lwz	%r3,0(%r3)
+	add	%r5,%r5,%r3		/* __boot_page in r5 */
+	bl	6f
+6:	mflr	%r3
 	rlwinm	%r3, %r3, 0, 0xfff	/* Offset from boot page start */
 	add	%r3, %r3, %r5		/* Make this virtual address */
 	addi	%r3, %r3, 32
@@ -365,8 +444,11 @@ bp_tlb1_end:
 /*
  * Setup a temporary stack
  */
-	lis	%r1, tmpstack@ha
-	addi	%r1, %r1, tmpstack@l
+	bl	1f
+	.long tmpstack-.
+1:	mflr	%r1
+	lwz	%r2,0(%r1)
+	add	%r1,%r1,%r2
 	addi	%r1, %r1, (TMPSTACKSZ - 16)
 
 /*
@@ -377,8 +459,11 @@ bp_tlb1_end:
 	/*
 	 * Assign our pcpu instance
 	 */
-	lis	%r3, ap_pcpu@h
-	ori	%r3, %r3, ap_pcpu@l
+	bl	1f
+	.long ap_pcpu-.
+1:	mflr	%r4
+	lwz	%r3, 0(%r4)
+	add	%r3, %r3, %r4
 	lwz	%r3, 0(%r3)
 	mtsprg0	%r3
 
@@ -400,8 +485,8 @@ bp_tlb1_end:
  * r3	TLBSEL
  */
 tlb_inval_all:
-	rlwinm	%r3, %r3, 3, 0x18	/* TLBSEL */
-	ori	%r3, %r3, 0x4		/* INVALL */
+	rlwinm	%r3, %r3, 3, (1 << 3)	/* TLBSEL */
+	ori	%r3, %r3, (1 << 2)	/* INVALL */
 	tlbivax	0, %r3
 	isync
 	msync
@@ -443,7 +528,7 @@ tlb1_find_current:
  */
 tlb1_inval_entry:
 	lis	%r4, MAS0_TLBSEL1@h	/* Select TLB1 */
-	rlwimi	%r4, %r3, 16, 12, 15	/* Select our entry */
+	rlwimi	%r4, %r3, 16, 10, 15	/* Select our entry */
 	mtspr	SPR_MAS0, %r4
 	isync
 	tlbre
@@ -466,14 +551,14 @@ tlb1_temp_mapping_as1:
 
 	/* Read our current translation */
 	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
-	rlwimi	%r3, %r29, 16, 12, 15	/* Select our current entry */
+	rlwimi	%r3, %r29, 16, 10, 15	/* Select our current entry */
 	mtspr	SPR_MAS0, %r3
 	isync
 	tlbre
 
 	/* Prepare and write temp entry */
 	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
-	rlwimi	%r3, %r28, 16, 12, 15	/* Select temp entry */
+	rlwimi	%r3, %r28, 16, 10, 15	/* Select temp entry */
 	mtspr	SPR_MAS0, %r3
 	isync
 	mfspr	%r5, SPR_MAS1
@@ -484,6 +569,10 @@ tlb1_temp_mapping_as1:
 	oris	%r5, %r5, (MAS1_VALID | MAS1_IPROT)@h
 	mtspr	SPR_MAS1, %r5
 	isync
+	mflr	%r3
+	bl	zero_mas7
+	bl	zero_mas8
+	mtlr	%r3
 	tlbwe
 	isync
 	msync
@@ -502,7 +591,7 @@ tlb1_inval_all_but_current:
 	andi.	%r3, %r3, TLBCFG_NENTRY_MASK@l
 	li	%r4, 0			/* Start from Entry 0 */
 1:	lis	%r5, MAS0_TLBSEL1@h
-	rlwimi	%r5, %r4, 16, 12, 15
+	rlwimi	%r5, %r4, 16, 10, 15
 	mtspr	SPR_MAS0, %r5
 	isync
 	tlbre
@@ -518,6 +607,38 @@ tlb1_inval_all_but_current:
 2:	addi	%r4, %r4, 1
 	cmpw	%r4, %r3		/* Check if this is the last entry */
 	bne	1b
+	blr
+
+/*
+ * MAS7 and MAS8 conditional zeroing.
+ */
+.globl zero_mas7
+zero_mas7:
+	mfpvr	%r20
+	rlwinm	%r20, %r20, 16, 16, 31
+	cmpli	0, 0, %r20, FSL_E500v1
+	beq	1f
+
+	li	%r20, 0
+	mtspr	SPR_MAS7, %r20
+	isync
+1:
+	blr
+
+.globl zero_mas8
+zero_mas8:
+	mfpvr	%r20
+	rlwinm	%r20, %r20, 16, 16, 31
+	cmpli	0, 0, %r20, FSL_E500mc
+	beq	1f
+	cmpli	0, 0, %r20, FSL_E5500
+	beq	1f
+
+	blr
+1:
+	li	%r20, 0
+	mtspr	SPR_MAS8, %r20
+	isync
 	blr
 
 #ifdef SMP
@@ -536,42 +657,6 @@ __boot_page_padding:
 /* locore subroutines */
 /************************************************************************/
 
-ivor_setup:
-	/* Set base address of interrupt handler routines */
-	lis	%r3, interrupt_vector_base@h
-	mtspr	SPR_IVPR, %r3
-
-	/* Assign interrupt handler routines offsets */
-	li	%r3, int_critical_input@l
-	mtspr	SPR_IVOR0, %r3
-	li	%r3, int_machine_check@l
-	mtspr	SPR_IVOR1, %r3
-	li	%r3, int_data_storage@l
-	mtspr	SPR_IVOR2, %r3
-	li	%r3, int_instr_storage@l
-	mtspr	SPR_IVOR3, %r3
-	li	%r3, int_external_input@l
-	mtspr	SPR_IVOR4, %r3
-	li	%r3, int_alignment@l
-	mtspr	SPR_IVOR5, %r3
-	li	%r3, int_program@l
-	mtspr	SPR_IVOR6, %r3
-	li	%r3, int_syscall@l
-	mtspr	SPR_IVOR8, %r3
-	li	%r3, int_decrementer@l
-	mtspr	SPR_IVOR10, %r3
-	li	%r3, int_fixed_interval_timer@l
-	mtspr	SPR_IVOR11, %r3
-	li	%r3, int_watchdog@l
-	mtspr	SPR_IVOR12, %r3
-	li	%r3, int_data_tlb_error@l
-	mtspr	SPR_IVOR13, %r3
-	li	%r3, int_inst_tlb_error@l
-	mtspr	SPR_IVOR14, %r3
-	li	%r3, int_debug@l
-	mtspr	SPR_IVOR15, %r3
-	blr
-
 /*
  * void tid_flush(tlbtid_t tid);
  *
@@ -579,23 +664,13 @@ ivor_setup:
  * dedicated for cases when invalidation(s) should NOT be propagated to other
  * CPUs.
  *
- * Global vars tlb0_ways, tlb0_entries_per_way are assumed to have been set up
- * correctly (by tlb0_get_tlbconf()).
+ * void tid_flush(tlbtid_t tid, int tlb0_ways, int tlb0_entries_per_way);
  *
+ * XXX: why isn't this in C?
  */
 ENTRY(tid_flush)
 	cmpwi	%r3, TID_KERNEL
 	beq	tid_flush_end	/* don't evict kernel translations */
-
-	/* Number of TLB0 ways */
-	lis	%r4, tlb0_ways@h
-	ori	%r4, %r4, tlb0_ways@l
-	lwz	%r4, 0(%r4)
-
-	/* Number of entries / way */
-	lis	%r5, tlb0_entries_per_way@h
-	ori	%r5, %r5, tlb0_entries_per_way@l
-	lwz	%r5, 0(%r5)
 
 	/* Disable interrupts */
 	mfmsr	%r10
@@ -740,13 +815,12 @@ setfault:
 	mfsprg0	%r4
 	lwz	%r4, TD_PCB(%r2)
 	stw	%r3, PCB_ONFAULT(%r4)
-	mfcr	%r10
-	mfctr	%r11
-	mfxer	%r12
+	mfcr	%r4
 	stw	%r0, 0(%r3)
 	stw	%r1, 4(%r3)
 	stw	%r2, 8(%r3)
-	stmw	%r10, 12(%r3)		/* store CR, CTR, XER, [r13 .. r31] */
+	stw	%r4, 12(%r3)
+	stmw	%r13, 16(%r3)		/* store CR, CTR, XER, [r13 .. r31] */
 	li	%r3, 0			/* return FALSE */
 	blr
 
@@ -754,6 +828,11 @@ setfault:
 /* Data section								*/
 /************************************************************************/
 	.data
+	.align 3
+GLOBAL(__startkernel)
+	.long   begin
+GLOBAL(__endkernel)
+	.long   end
 	.align	4
 tmpstack:
 	.space	TMPSTACKSZ

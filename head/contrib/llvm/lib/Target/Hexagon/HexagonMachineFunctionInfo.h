@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef HexagonMACHINEFUNCTIONINFO_H
-#define HexagonMACHINEFUNCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_HEXAGON_HEXAGONMACHINEFUNCTIONINFO_H
+#define LLVM_LIB_TARGET_HEXAGON_HEXAGONMACHINEFUNCTIONINFO_H
 
 #include "llvm/CodeGen/MachineFunction.h"
 #include <map>
@@ -27,6 +27,7 @@ class HexagonMachineFunctionInfo : public MachineFunctionInfo {
   // returning the value of the returned struct in a register. This field
   // holds the virtual register into which the sret argument is passed.
   unsigned SRetReturnReg;
+  unsigned StackAlignBaseReg;
   std::vector<MachineInstr*> AllocaAdjustInsts;
   int VarArgsFrameIndex;
   bool HasClobberLR;
@@ -35,10 +36,11 @@ class HexagonMachineFunctionInfo : public MachineFunctionInfo {
   virtual void anchor();
 
 public:
-  HexagonMachineFunctionInfo() : SRetReturnReg(0), HasClobberLR(0),
-    HasEHReturn(false) {}
+  HexagonMachineFunctionInfo() : SRetReturnReg(0), StackAlignBaseReg(0),
+    HasClobberLR(0), HasEHReturn(false) {}
 
   HexagonMachineFunctionInfo(MachineFunction &MF) : SRetReturnReg(0),
+                                                    StackAlignBaseReg(0),
                                                     HasClobberLR(0),
                                                     HasEHReturn(false) {}
 
@@ -74,6 +76,9 @@ public:
 
   bool hasEHReturn() const { return HasEHReturn; };
   void setHasEHReturn(bool H = true) { HasEHReturn = H; };
+
+  void setStackAlignBaseVReg(unsigned R) { StackAlignBaseReg = R; }
+  unsigned getStackAlignBaseVReg() const { return StackAlignBaseReg; }
 };
 } // End llvm namespace
 

@@ -12,9 +12,11 @@
 
 #include "lldb/API/SBDefines.h"
 #include "lldb/API/SBAddress.h"
+#include "lldb/API/SBAttachInfo.h"
 #include "lldb/API/SBBroadcaster.h"
 #include "lldb/API/SBFileSpec.h"
 #include "lldb/API/SBFileSpecList.h"
+#include "lldb/API/SBLaunchInfo.h"
 #include "lldb/API/SBSymbolContextList.h"
 #include "lldb/API/SBType.h"
 #include "lldb/API/SBValue.h"
@@ -22,252 +24,9 @@
 
 namespace lldb {
 
-class SBLaunchInfo
-{
-public:
-    SBLaunchInfo (const char **argv);
-    
-    ~SBLaunchInfo();
+class SBPlatform;
 
-    uint32_t
-    GetUserID();
-    
-    uint32_t
-    GetGroupID();
-    
-    bool
-    UserIDIsValid ();
-    
-    bool
-    GroupIDIsValid ();
-    
-    void
-    SetUserID (uint32_t uid);
-    
-    void
-    SetGroupID (uint32_t gid);
-    
-    SBFileSpec
-    GetExecutableFile ();
-    
-    //----------------------------------------------------------------------
-    /// Set the executable file that will be used to launch the process and
-    /// optionally set it as the first argument in the argument vector.
-    ///
-    /// This only needs to be specified if clients wish to carefully control
-    /// the exact path will be used to launch a binary. If you create a
-    /// target with a symlink, that symlink will get resolved in the target
-    /// and the resolved path will get used to launch the process. Calling
-    /// this function can help you still launch your process using the
-    /// path of your choice.
-    ///
-    /// If this function is not called prior to launching with
-    /// SBTarget::Launch(...), the target will use the resolved executable
-    /// path that was used to create the target.
-    ///
-    /// @param[in] exe_file
-    ///     The override path to use when launching the executable.
-    ///
-    /// @param[in] add_as_first_arg
-    ///     If true, then the path will be inserted into the argument vector
-    ///     prior to launching. Otherwise the argument vector will be left
-    ///     alone.
-    //----------------------------------------------------------------------
-    void
-    SetExecutableFile (SBFileSpec exe_file, bool add_as_first_arg);
-    
-    uint32_t
-    GetNumArguments ();
-    
-    const char *
-    GetArgumentAtIndex (uint32_t idx);
-    
-    void
-    SetArguments (const char **argv, bool append);
-    
-    uint32_t
-    GetNumEnvironmentEntries ();
-    
-    const char *
-    GetEnvironmentEntryAtIndex (uint32_t idx);
-    
-    void
-    SetEnvironmentEntries (const char **envp, bool append);
-    
-    void
-    Clear ();
-    
-    const char *
-    GetWorkingDirectory () const;
-    
-    void
-    SetWorkingDirectory (const char *working_dir);
-    
-    uint32_t
-    GetLaunchFlags ();
-    
-    void
-    SetLaunchFlags (uint32_t flags);
-    
-    const char *
-    GetProcessPluginName ();
-    
-    void
-    SetProcessPluginName (const char *plugin_name);
-    
-    const char *
-    GetShell ();
-    
-    void
-    SetShell (const char * path);
-    
-    uint32_t
-    GetResumeCount ();
-    
-    void
-    SetResumeCount (uint32_t c);
-    
-    bool
-    AddCloseFileAction (int fd);
-    
-    bool
-    AddDuplicateFileAction (int fd, int dup_fd);
-    
-    bool
-    AddOpenFileAction (int fd, const char *path, bool read, bool write);
-    
-    bool
-    AddSuppressFileAction (int fd, bool read, bool write);
-    
-    void
-    SetLaunchEventData (const char *data);
-    
-    const char *
-    GetLaunchEventData () const;
-    
-    bool
-    GetDetachOnError() const;
-    
-    void
-    SetDetachOnError(bool enable);
-    
-protected:
-    friend class SBTarget;
-    
-    lldb_private::ProcessLaunchInfo &
-    ref ();
-
-    ProcessLaunchInfoSP m_opaque_sp;
-};
-
-class SBAttachInfo
-{
-public:
-    SBAttachInfo ();
-    
-    SBAttachInfo (lldb::pid_t pid);
-    
-    SBAttachInfo (const char *path, bool wait_for);
-    
-    SBAttachInfo (const SBAttachInfo &rhs);
-    
-    ~SBAttachInfo();
-
-    SBAttachInfo &
-    operator = (const SBAttachInfo &rhs);
-    
-    lldb::pid_t
-    GetProcessID ();
-    
-    void
-    SetProcessID (lldb::pid_t pid);
-    
-    void
-    SetExecutable (const char *path);
-    
-    void
-    SetExecutable (lldb::SBFileSpec exe_file);
-    
-    bool
-    GetWaitForLaunch ();
-    
-    void
-    SetWaitForLaunch (bool b);
-    
-    bool
-    GetIgnoreExisting ();
-    
-    void
-    SetIgnoreExisting (bool b);
-    
-    uint32_t
-    GetResumeCount ();
-    
-    void
-    SetResumeCount (uint32_t c);
-    
-    const char *
-    GetProcessPluginName ();
-    
-    void
-    SetProcessPluginName (const char *plugin_name);
-    
-    uint32_t
-    GetUserID();
-    
-    uint32_t
-    GetGroupID();
-    
-    bool
-    UserIDIsValid ();
-    
-    bool
-    GroupIDIsValid ();
-    
-    void
-    SetUserID (uint32_t uid);
-    
-    void
-    SetGroupID (uint32_t gid);
-    
-    uint32_t
-    GetEffectiveUserID();
-    
-    uint32_t
-    GetEffectiveGroupID();
-    
-    bool
-    EffectiveUserIDIsValid ();
-    
-    bool
-    EffectiveGroupIDIsValid ();
-    
-    void
-    SetEffectiveUserID (uint32_t uid);
-    
-    void
-    SetEffectiveGroupID (uint32_t gid);
-    
-    lldb::pid_t
-    GetParentProcessID ();
-    
-    void
-    SetParentProcessID (lldb::pid_t pid);
-    
-    bool
-    ParentProcessIDIsValid();
-    
-    
-protected:
-    friend class SBTarget;
-
-    lldb_private::ProcessAttachInfo &
-    ref ();
-    
-    ProcessAttachInfoSP m_opaque_sp;
-};
-
-class SBTarget
+class LLDB_API SBTarget
 {
 public:
     //------------------------------------------------------------------
@@ -301,12 +60,36 @@ public:
 
     bool
     IsValid() const;
+
+    static bool
+    EventIsTargetEvent (const lldb::SBEvent &event);
+
+    static lldb::SBTarget
+    GetTargetFromEvent (const lldb::SBEvent &event);
     
+    static uint32_t
+    GetNumModulesFromEvent (const lldb::SBEvent &event);
+
+    static lldb::SBModule
+    GetModuleAtIndexFromEvent (const uint32_t idx, const lldb::SBEvent &event);
+
     static const char *
     GetBroadcasterClassName ();
 
     lldb::SBProcess
     GetProcess ();
+
+    //------------------------------------------------------------------
+    /// Return the platform object associated with the target.
+    ///
+    /// After return, the platform object should be checked for
+    /// validity.
+    ///
+    /// @return
+    ///     A platform object.
+    //------------------------------------------------------------------
+    lldb::SBPlatform
+    GetPlatform ();
 
     //------------------------------------------------------------------
     /// Install any binaries that need to be installed.
@@ -375,7 +158,7 @@ public:
     /// @param[in] stop_at_entry
     ///     If false do not stop the inferior at the entry point.
     ///
-    /// @param[out]
+    /// @param[out] error
     ///     An error object. Contains the reason if there is some failure.
     ///
     /// @return
@@ -446,7 +229,7 @@ public:
     /// @param[in] pid
     ///     The process ID to attach to.
     ///
-    /// @param[out]
+    /// @param[out] error
     ///     An error explaining what went wrong if attach fails.
     ///
     /// @return
@@ -480,7 +263,7 @@ public:
     /// @param[in] wait_for
     ///     If true wait for a new instance of 'name' to be launched.
     ///
-    /// @param[out]
+    /// @param[out] error
     ///     An error explaining what went wrong if attach fails.
     ///
     /// @return
@@ -507,7 +290,7 @@ public:
     /// @param[in] plugin_name
     ///     The plugin name to be used; can be NULL.
     ///
-    /// @param[out]
+    /// @param[out] error
     ///     An error explaining what went wrong if the connect fails.
     ///
     /// @return
@@ -562,6 +345,26 @@ public:
 
     const char *
     GetTriple ();
+
+    //------------------------------------------------------------------
+    /// Architecture data byte width accessor
+    ///
+    /// @return
+    /// The size in 8-bit (host) bytes of a minimum addressable
+    /// unit from the Architecture's data bus
+    //------------------------------------------------------------------
+    uint32_t
+    GetDataByteSize ();
+
+    //------------------------------------------------------------------
+    /// Architecture code byte width accessor
+    ///
+    /// @return
+    /// The size in 8-bit (host) bytes of a minimum addressable
+    /// unit from the Architecture's code bus
+    //------------------------------------------------------------------
+    uint32_t
+    GetCodeByteSize ();
 
     //------------------------------------------------------------------
     /// Set the base load address for a module section.
@@ -683,9 +486,60 @@ public:
     //------------------------------------------------------------------
     lldb::SBValue
     FindFirstGlobalVariable (const char* name);
+
+    //------------------------------------------------------------------
+    /// Find global and static variables by pattern.
+    ///
+    /// @param[in] name
+    ///     The pattern to search for global or static variables
+    ///
+    /// @param[in] max_matches
+    ///     Allow the number of matches to be limited to \a max_matches.
+    /// 
+    /// @param[in] matchtype
+    ///     The match type to use.    
+    ///
+    /// @return
+    ///     A list of matched variables in an SBValueList.
+    //------------------------------------------------------------------
+    lldb::SBValueList
+        FindGlobalVariables(const char *name,
+                            uint32_t max_matches,
+                            MatchType matchtype);
     
+    //------------------------------------------------------------------
+    /// Find global functions by their name with pattern matching.
+    ///
+    /// @param[in] name
+    ///     The pattern to search for global or static variables
+    ///
+    /// @param[in] max_matches
+    ///     Allow the number of matches to be limited to \a max_matches.
+    /// 
+    /// @param[in] matchtype
+    ///     The match type to use.    
+    ///
+    /// @return
+    ///     A list of matched variables in an SBValueList.
+    //------------------------------------------------------------------
+    lldb::SBSymbolContextList
+        FindGlobalFunctions(const char *name,
+                           uint32_t max_matches,
+                           MatchType matchtype);
+
     void
     Clear ();
+
+    //------------------------------------------------------------------
+    /// Resolve a current file address into a section offset address.
+    ///
+    /// @param[in] file_addr
+    ///
+    /// @return
+    ///     An SBAddress which will be valid if...
+    //------------------------------------------------------------------
+    lldb::SBAddress
+    ResolveFileAddress (lldb::addr_t file_addr);
 
     //------------------------------------------------------------------
     /// Resolve a current load address into a section offset address.
@@ -732,6 +586,31 @@ public:
     ResolveSymbolContextForAddress (const SBAddress& addr, 
                                     uint32_t resolve_scope);
 
+    //------------------------------------------------------------------
+    /// Read target memory. If a target process is running then memory  
+    /// is read from here. Otherwise the memory is read from the object
+    /// files. For a target whose bytes are sized as a multiple of host
+    /// bytes, the data read back will preserve the target's byte order.
+    ///
+    /// @param[in] addr
+    ///     A target address to read from. 
+    ///
+    /// @param[out] buf
+    ///     The buffer to read memory into. 
+    ///
+    /// @param[in] size
+    ///     The maximum number of host bytes to read in the buffer passed
+    ///     into this call
+    ///
+    /// @param[out] error
+    ///     Error information is written here if the memory read fails.
+    ///
+    /// @return
+    ///     The amount of data read in host bytes.
+    //------------------------------------------------------------------
+    size_t
+    ReadMemory (const SBAddress addr, void *buf, size_t size, lldb::SBError &error);
+
     lldb::SBBreakpoint
     BreakpointCreateByLocation (const char *file, uint32_t line);
 
@@ -770,13 +649,13 @@ public:
     
     lldb::SBBreakpoint
     BreakpointCreateBySourceRegex (const char *source_regex, 
-                                   const lldb::SBFileSpec &source_file, 
+                                   const SBFileSpec &source_file,
                                    const char *module_name = NULL);
 
     lldb::SBBreakpoint
-    BreakpointCreateBySourceRegex (const char *source_regex, 
-                                   const SBFileSpecList &module_list, 
-                                   const lldb::SBFileSpecList &source_file);
+    BreakpointCreateBySourceRegex (const char *source_regex,
+                                   const SBFileSpecList &module_list,
+                                   const SBFileSpecList &source_file);
     
     lldb::SBBreakpoint
     BreakpointCreateForException  (lldb::LanguageType language,
@@ -845,6 +724,12 @@ public:
     
     lldb::SBValue
     CreateValueFromAddress (const char *name, lldb::SBAddress addr, lldb::SBType type);
+
+    lldb::SBValue
+    CreateValueFromData (const char *name, lldb::SBData data, lldb::SBType type);
+
+    lldb::SBValue
+    CreateValueFromExpression (const char *name, const char* expr);
     
     SBSourceManager
     GetSourceManager();
@@ -884,15 +769,25 @@ public:
     GetDescription (lldb::SBStream &description, lldb::DescriptionLevel description_level);
 
     lldb::SBValue
+    EvaluateExpression (const char *expr);
+
+    lldb::SBValue
     EvaluateExpression (const char *expr, const SBExpressionOptions &options);
 
     lldb::addr_t
     GetStackRedZoneSize();
+
+    lldb::SBLaunchInfo
+    GetLaunchInfo () const;
+
+    void
+    SetLaunchInfo (const lldb::SBLaunchInfo &launch_info);
     
 protected:
     friend class SBAddress;
     friend class SBBlock;
     friend class SBDebugger;
+    friend class SBExecutionContext;
     friend class SBFunction;
     friend class SBInstruction;
     friend class SBModule;

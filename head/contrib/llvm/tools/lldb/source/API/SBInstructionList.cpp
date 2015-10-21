@@ -11,7 +11,9 @@
 #include "lldb/API/SBInstruction.h"
 #include "lldb/API/SBStream.h"
 #include "lldb/Core/Disassembler.h"
+#include "lldb/Core/Module.h"
 #include "lldb/Core/Stream.h"
+#include "lldb/Symbol/SymbolContext.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -100,12 +102,25 @@ SBInstructionList::GetDescription (lldb::SBStream &description)
             // exist already inside description...
             Stream &sref = description.ref();
             const uint32_t max_opcode_byte_size = m_opaque_sp->GetInstructionList().GetMaxOpcocdeByteSize();
+            FormatEntity::Entry format;
+            FormatEntity::Parse("${addr}: ", format);
+            SymbolContext sc;
+            SymbolContext prev_sc;
             for (size_t i=0; i<num_instructions; ++i)
             {
                 Instruction *inst = m_opaque_sp->GetInstructionList().GetInstructionAtIndex (i).get();
                 if (inst == NULL)
                     break;
-                inst->Dump (&sref, max_opcode_byte_size, true, false, NULL);
+
+                const Address &addr = inst->GetAddress();
+                prev_sc = sc;
+                ModuleSP module_sp (addr.GetModule());
+                if (module_sp)
+                {
+                    module_sp->ResolveSymbolContextForAddress(addr, eSymbolContextEverything, sc);
+                }
+
+                inst->Dump (&sref, max_opcode_byte_size, true, false, NULL, &sc, &prev_sc, &format, 0);
                 sref.EOL();
             }
             return true;

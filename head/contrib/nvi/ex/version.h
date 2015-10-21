@@ -1,1 +1,1 @@
-#define VI_VERSION "2.1.2 (2012-11-02)"
+#define VI_VERSION "2.1.3 (2015-04-08)"

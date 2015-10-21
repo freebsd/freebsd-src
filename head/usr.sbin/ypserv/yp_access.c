@@ -57,8 +57,8 @@ __FBSDID("$FreeBSD$");
 
 extern int debug;
 
-			/* NIS v1 */
-const char *yp_procs[] = {
+static const char *yp_procs[] = {
+	/* NIS v1 */
 	"ypoldproc_null",
 	"ypoldproc_domain",
 	"ypoldproc_domain_nonack",
@@ -71,7 +71,7 @@ const char *yp_procs[] = {
 	"badproc1", /* placeholder */
 	"badproc2", /* placeholder */
 	"badproc3", /* placeholder */
-	
+
 	/* NIS v2 */
 	"ypproc_null",
 	"ypproc_domain",
@@ -93,7 +93,7 @@ struct securenet {
 	struct securenet *next;
 };
 
-struct securenet *securenets;
+static struct securenet *securenets;
 
 #define LINEBUFSZ 1024
 

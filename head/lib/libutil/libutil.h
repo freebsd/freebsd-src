@@ -102,6 +102,8 @@ struct kinfo_file *
 	kinfo_getfile(pid_t _pid, int *_cntp);
 struct kinfo_vmentry *
 	kinfo_getvmmap(pid_t _pid, int *_cntp);
+struct kinfo_vmobject *
+	kinfo_getvmobject(int *_cntp);
 struct kinfo_proc *
 	kinfo_getallproc(int *_cntp);
 struct kinfo_proc *

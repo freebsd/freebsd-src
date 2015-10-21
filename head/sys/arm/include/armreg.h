@@ -133,6 +133,7 @@
 #define CPU_ID_CORTEXA9R1	0x411fc090
 #define CPU_ID_CORTEXA9R2	0x412fc090
 #define CPU_ID_CORTEXA9R3	0x413fc090
+#define CPU_ID_CORTEXA9R4	0x414fc090
 #define CPU_ID_CORTEXA12R0	0x410fc0d0
 #define CPU_ID_CORTEXA15R0	0x410fc0f0
 #define CPU_ID_CORTEXA15R1	0x411fc0f0
@@ -320,6 +321,9 @@
 #define	CPU_CT_S		(1U << 24)		/* split cache */
 #define	CPU_CT_CTYPE(x)		(((x) >> 25) & 0xf)	/* cache type */
 #define	CPU_CT_FORMAT(x)	((x) >> 29)
+/* Cache type register definitions for ARM v7 */
+#define	CPU_CT_IMINLINE(x)	((x) & 0xf)		/* I$ min line size */
+#define	CPU_CT_DMINLINE(x)	(((x) >> 16) & 0xf)	/* D$ min line size */
 
 #define	CPU_CT_CTYPE_WT		0	/* write-through */
 #define	CPU_CT_CTYPE_WB1	1	/* write-back, clean w/ read */
@@ -342,6 +346,9 @@
 #define	CPUV7_CT_xSIZE_LEN(x)	((x) & 0x7)		/* line size */
 #define	CPUV7_CT_xSIZE_ASSOC(x)	(((x) >> 3) & 0x3ff)	/* associativity */
 #define	CPUV7_CT_xSIZE_SET(x)	(((x) >> 13) & 0x7fff)	/* num sets */
+
+#define	CPUV7_L2CTLR_NPROC_SHIFT	24
+#define	CPUV7_L2CTLR_NPROC(r)	((((r) >> CPUV7_L2CTLR_NPROC_SHIFT) & 3) + 1)
 
 #define	CPU_CLIDR_CTYPE(reg,x)	(((reg) >> ((x) * 3)) & 0x7)
 #define	CPU_CLIDR_LOUIS(reg)	(((reg) >> 21) & 0x7)

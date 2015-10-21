@@ -16,4 +16,6 @@ _zfsd=	zfsd
 . endif
 .endif
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>

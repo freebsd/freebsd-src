@@ -22,6 +22,7 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Serialization/ASTReader.h"
 #include "llvm/ADT/StringSet.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
@@ -108,23 +109,32 @@ struct DepCollectorASTListener : public ASTReaderListener {
 void DependencyCollector::maybeAddDependency(StringRef Filename, bool FromModule,
                                             bool IsSystem, bool IsModuleFile,
                                             bool IsMissing) {
-  if (Seen.insert(Filename) &&
+  if (Seen.insert(Filename).second &&
       sawDependency(Filename, FromModule, IsSystem, IsModuleFile, IsMissing))
     Dependencies.push_back(Filename);
+}
+
+static bool isSpecialFilename(StringRef Filename) {
+  return llvm::StringSwitch<bool>(Filename)
+      .Case("<built-in>", true)
+      .Case("<stdin>", true)
+      .Default(false);
 }
 
 bool DependencyCollector::sawDependency(StringRef Filename, bool FromModule,
                                        bool IsSystem, bool IsModuleFile,
                                        bool IsMissing) {
-  return Filename != "<built-in>" && (needSystemDependencies() || !IsSystem);
+  return !isSpecialFilename(Filename) &&
+         (needSystemDependencies() || !IsSystem);
 }
 
 DependencyCollector::~DependencyCollector() { }
 void DependencyCollector::attachToPreprocessor(Preprocessor &PP) {
-  PP.addPPCallbacks(new DepCollectorPPCallbacks(*this, PP.getSourceManager()));
+  PP.addPPCallbacks(
+      llvm::make_unique<DepCollectorPPCallbacks>(*this, PP.getSourceManager()));
 }
 void DependencyCollector::attachToASTReader(ASTReader &R) {
-  R.addListener(new DepCollectorASTListener(*this));
+  R.addListener(llvm::make_unique<DepCollectorASTListener>(*this));
 }
 
 namespace {
@@ -140,6 +150,8 @@ class DFGImpl : public PPCallbacks {
   bool AddMissingHeaderDeps;
   bool SeenMissingHeader;
   bool IncludeModuleFiles;
+  DependencyOutputFormat OutputFormat;
+
 private:
   bool FileMatchesDepCriteria(const char *Filename,
                               SrcMgr::CharacteristicKind FileType);
@@ -152,7 +164,8 @@ public:
       PhonyTarget(Opts.UsePhonyTargets),
       AddMissingHeaderDeps(Opts.AddMissingHeaderDeps),
       SeenMissingHeader(false),
-      IncludeModuleFiles(Opts.IncludeModuleFiles) {}
+      IncludeModuleFiles(Opts.IncludeModuleFiles),
+      OutputFormat(Opts.OutputFormat) {}
 
   void FileChanged(SourceLocation Loc, FileChangeReason Reason,
                    SrcMgr::CharacteristicKind FileType,
@@ -203,21 +216,21 @@ DependencyFileGenerator *DependencyFileGenerator::CreateAndAttachToPreprocessor(
     PP.SetSuppressIncludeNotFoundError(true);
 
   DFGImpl *Callback = new DFGImpl(&PP, Opts);
-  PP.addPPCallbacks(Callback); // PP owns the Callback
+  PP.addPPCallbacks(std::unique_ptr<PPCallbacks>(Callback));
   return new DependencyFileGenerator(Callback);
 }
 
 void DependencyFileGenerator::AttachToASTReader(ASTReader &R) {
   DFGImpl *I = reinterpret_cast<DFGImpl *>(Impl);
   assert(I && "missing implementation");
-  R.addListener(new DFGASTReaderListener(*I));
+  R.addListener(llvm::make_unique<DFGASTReaderListener>(*I));
 }
 
 /// FileMatchesDepCriteria - Determine whether the given Filename should be
 /// considered as a dependency.
 bool DFGImpl::FileMatchesDepCriteria(const char *Filename,
                                      SrcMgr::CharacteristicKind FileType) {
-  if (strcmp("<built-in>", Filename) == 0)
+  if (isSpecialFilename(Filename))
     return false;
 
   if (IncludeSystemHeaders)
@@ -275,17 +288,80 @@ void DFGImpl::InclusionDirective(SourceLocation HashLoc,
 }
 
 void DFGImpl::AddFilename(StringRef Filename) {
-  if (FilesSet.insert(Filename))
+  if (FilesSet.insert(Filename).second)
     Files.push_back(Filename);
 }
 
-/// PrintFilename - GCC escapes spaces, # and $, but apparently not ' or " or
-/// other scary characters.
-static void PrintFilename(raw_ostream &OS, StringRef Filename) {
+/// Print the filename, with escaping or quoting that accommodates the three
+/// most likely tools that use dependency files: GNU Make, BSD Make, and
+/// NMake/Jom.
+///
+/// BSD Make is the simplest case: It does no escaping at all.  This means
+/// characters that are normally delimiters, i.e. space and # (the comment
+/// character) simply aren't supported in filenames.
+///
+/// GNU Make does allow space and # in filenames, but to avoid being treated
+/// as a delimiter or comment, these must be escaped with a backslash. Because
+/// backslash is itself the escape character, if a backslash appears in a
+/// filename, it should be escaped as well.  (As a special case, $ is escaped
+/// as $$, which is the normal Make way to handle the $ character.)
+/// For compatibility with BSD Make and historical practice, if GNU Make
+/// un-escapes characters in a filename but doesn't find a match, it will
+/// retry with the unmodified original string.
+///
+/// GCC tries to accommodate both Make formats by escaping any space or #
+/// characters in the original filename, but not escaping backslashes.  The
+/// apparent intent is so that filenames with backslashes will be handled
+/// correctly by BSD Make, and by GNU Make in its fallback mode of using the
+/// unmodified original string; filenames with # or space characters aren't
+/// supported by BSD Make at all, but will be handled correctly by GNU Make
+/// due to the escaping.
+///
+/// A corner case that GCC gets only partly right is when the original filename
+/// has a backslash immediately followed by space or #.  GNU Make would expect
+/// this backslash to be escaped; however GCC escapes the original backslash
+/// only when followed by space, not #.  It will therefore take a dependency
+/// from a directive such as
+///     #include "a\ b\#c.h"
+/// and emit it as
+///     a\\\ b\\#c.h
+/// which GNU Make will interpret as
+///     a\ b\
+/// followed by a comment. Failing to find this file, it will fall back to the
+/// original string, which probably doesn't exist either; in any case it won't
+/// find
+///     a\ b\#c.h
+/// which is the actual filename specified by the include directive.
+///
+/// Clang does what GCC does, rather than what GNU Make expects.
+///
+/// NMake/Jom has a different set of scary characters, but wraps filespecs in
+/// double-quotes to avoid misinterpreting them; see
+/// https://msdn.microsoft.com/en-us/library/dd9y37ha.aspx for NMake info,
+/// https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
+/// for Windows file-naming info.
+static void PrintFilename(raw_ostream &OS, StringRef Filename,
+                          DependencyOutputFormat OutputFormat) {
+  if (OutputFormat == DependencyOutputFormat::NMake) {
+    // Add quotes if needed. These are the characters listed as "special" to
+    // NMake, that are legal in a Windows filespec, and that could cause
+    // misinterpretation of the dependency string.
+    if (Filename.find_first_of(" #${}^!") != StringRef::npos)
+      OS << '\"' << Filename << '\"';
+    else
+      OS << Filename;
+    return;
+  }
+  assert(OutputFormat == DependencyOutputFormat::Make);
   for (unsigned i = 0, e = Filename.size(); i != e; ++i) {
-    if (Filename[i] == ' ' || Filename[i] == '#')
+    if (Filename[i] == '#') // Handle '#' the broken gcc way.
       OS << '\\';
-    else if (Filename[i] == '$') // $ is escaped by $$.
+    else if (Filename[i] == ' ') { // Handle space correctly.
+      OS << '\\';
+      unsigned j = i;
+      while (j > 0 && Filename[--j] == '\\')
+        OS << '\\';
+    } else if (Filename[i] == '$') // $ is escaped by $$.
       OS << '$';
     OS << Filename[i];
   }
@@ -297,11 +373,11 @@ void DFGImpl::OutputDependencyFile() {
     return;
   }
 
-  std::string Err;
-  llvm::raw_fd_ostream OS(OutputFile.c_str(), Err, llvm::sys::fs::F_Text);
-  if (!Err.empty()) {
-    PP->getDiagnostics().Report(diag::err_fe_error_opening)
-      << OutputFile << Err;
+  std::error_code EC;
+  llvm::raw_fd_ostream OS(OutputFile, EC, llvm::sys::fs::F_Text);
+  if (EC) {
+    PP->getDiagnostics().Report(diag::err_fe_error_opening) << OutputFile
+                                                            << EC.message();
     return;
   }
 
@@ -344,7 +420,7 @@ void DFGImpl::OutputDependencyFile() {
       Columns = 2;
     }
     OS << ' ';
-    PrintFilename(OS, *I);
+    PrintFilename(OS, *I, OutputFormat);
     Columns += N + 1;
   }
   OS << '\n';
@@ -355,7 +431,7 @@ void DFGImpl::OutputDependencyFile() {
     for (std::vector<std::string>::iterator I = Files.begin() + 1,
            E = Files.end(); I != E; ++I) {
       OS << '\n';
-      PrintFilename(OS, *I);
+      PrintFilename(OS, *I, OutputFormat);
       OS << ":\n";
     }
   }

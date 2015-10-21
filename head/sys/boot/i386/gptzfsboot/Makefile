@@ -53,7 +53,7 @@ gptzfsboot: gptldr.bin gptzfsboot.bin ${BTXKERN}
 CLEANFILES+=	gptldr.bin gptldr.out gptldr.o
 
 gptldr.bin: gptldr.out
-	objcopy -S -O binary gptldr.out ${.TARGET}
+	${OBJCOPY} -S -O binary gptldr.out ${.TARGET}
 
 gptldr.out: gptldr.o
 	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} gptldr.o
@@ -62,7 +62,7 @@ CLEANFILES+=	gptzfsboot.bin gptzfsboot.out zfsboot.o sio.o cons.o \
 		drv.o gpt.o util.o
 
 gptzfsboot.bin: gptzfsboot.out
-	objcopy -S -O binary gptzfsboot.out ${.TARGET}
+	${OBJCOPY} -S -O binary gptzfsboot.out ${.TARGET}
 
 gptzfsboot.out: ${BTXCRT} zfsboot.o sio.o gpt.o drv.o cons.o util.o
 	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSTAND}

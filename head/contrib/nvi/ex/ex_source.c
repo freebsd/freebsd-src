@@ -32,7 +32,7 @@ static const char sccsid[] = "$Id: ex_source.c,v 10.17 2011/12/19 16:17:06 zy Ex
  * ex_source -- :source file
  *	Execute ex commands from a file.
  *
- * PUBLIC: int ex_source __P((SCR *, EXCMD *));
+ * PUBLIC: int ex_source(SCR *, EXCMD *);
  */
 int
 ex_source(SCR *sp, EXCMD *cmdp)

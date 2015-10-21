@@ -42,6 +42,9 @@
 /* Include faster sqr at the cost of about 0.5 kB in code */
 #define BN_FAST_S_MP_SQR_C
 
+/* About 0.25 kB of code, but ~1.7kB of stack space! */
+#define BN_FAST_S_MP_MUL_DIGS_C
+
 #else /* LTM_FAST */
 
 #define BN_MP_DIV_SMALL
@@ -139,7 +142,9 @@ static int s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs);
 static int s_mp_sqr(mp_int * a, mp_int * b);
 static int s_mp_mul_high_digs(mp_int * a, mp_int * b, mp_int * c, int digs);
 
+#ifdef BN_FAST_S_MP_MUL_DIGS_C
 static int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs);
+#endif
 
 #ifdef BN_MP_INIT_MULTI_C
 static int mp_init_multi(mp_int *mp, ...);
@@ -671,6 +676,9 @@ static int mp_exptmod (mp_int * G, mp_int * X, mp_int * P, mp_int * Y)
 #ifdef BN_MP_EXPTMOD_FAST_C
   }
 #endif
+  if (dr == 0) {
+    /* avoid compiler warnings about possibly unused variable */
+  }
 }
 
 
@@ -1464,8 +1472,7 @@ static int mp_init_multi(mp_int *mp, ...)
                 cur_arg = va_arg(clean_args, mp_int*);
             }
             va_end(clean_args);
-            res = MP_MEM;
-            break;
+            return MP_MEM;
         }
         n++;
         cur_arg = va_arg(args, mp_int*);
@@ -1623,7 +1630,7 @@ static int mp_div(mp_int * a, mp_int * b, mp_int * c, mp_int * d)
   }
 	
   /* init our temps */
-  if ((res = mp_init_multi(&ta, &tb, &tq, &q, NULL) != MP_OKAY)) {
+  if ((res = mp_init_multi(&ta, &tb, &tq, &q, NULL)) != MP_OKAY) {
      return res;
   }
 
@@ -2339,12 +2346,14 @@ static int s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   mp_word r;
   mp_digit tmpx, *tmpt, *tmpy;
 
+#ifdef BN_FAST_S_MP_MUL_DIGS_C
   /* can we use the fast multiplier? */
   if (((digs) < MP_WARRAY) &&
       MIN (a->used, b->used) < 
           (1 << ((CHAR_BIT * sizeof (mp_word)) - (2 * DIGIT_BIT)))) {
     return fast_s_mp_mul_digs (a, b, c, digs);
   }
+#endif
 
   if ((res = mp_init_size (&t, digs)) != MP_OKAY) {
     return res;
@@ -2397,6 +2406,7 @@ static int s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 }
 
 
+#ifdef BN_FAST_S_MP_MUL_DIGS_C
 /* Fast (comba) multiplier
  *
  * This is the fast column-array [comba] multiplier.  It is 
@@ -2482,6 +2492,7 @@ static int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   mp_clamp (c);
   return MP_OKAY;
 }
+#endif /* BN_FAST_S_MP_MUL_DIGS_C */
 
 
 /* init an mp_init for a given size */

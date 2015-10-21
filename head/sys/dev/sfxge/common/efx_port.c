@@ -1,26 +1,31 @@
 /*-
- * Copyright 2009 Solarflare Communications Inc.  All rights reserved.
+ * Copyright (c) 2009-2015 Solarflare Communications Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
@@ -61,6 +66,9 @@ efx_port_init(
 
 	epp->ep_emop->emo_reconfigure(enp);
 
+	/* Pick up current phy capababilities */
+	efx_port_poll(enp, NULL);
+
 	/*
 	 * Turn on the PHY if available, otherwise reset it, and
 	 * reconfigure it with the current configuration.
@@ -96,7 +104,7 @@ fail1:
 	__checkReturn	int
 efx_port_poll(
 	__in		efx_nic_t *enp,
-	__out		efx_link_mode_t	*link_modep)
+	__out_opt	efx_link_mode_t	*link_modep)
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_mac_ops_t *emop = epp->ep_emop;
@@ -141,7 +149,9 @@ efx_port_loopback_set(
 	EFSYS_ASSERT(emop != NULL);
 
 	EFSYS_ASSERT(link_mode < EFX_LINK_NMODES);
-	if ((1 << loopback_type) & ~encp->enc_loopback_types[link_mode]) {
+
+	if (EFX_TEST_QWORD_BIT(encp->enc_loopback_types[link_mode],
+		loopback_type) == 0) {
 		rc = ENOTSUP;
 		goto fail1;
 	}
@@ -165,7 +175,7 @@ fail1:
 
 #if EFSYS_OPT_NAMES
 
-static const char 	__cs * __cs __efx_loopback_type_name[] = {
+static const char 	*__efx_loopback_type_name[] = {
 	"OFF",
 	"DATA",
 	"GMAC",
@@ -184,13 +194,33 @@ static const char 	__cs * __cs __efx_loopback_type_name[] = {
 	"PHY_XS",
 	"PCS",
 	"PMA_PMD",
+	"XPORT",
+	"XGMII_WS",
+	"XAUI_WS",
+	"XAUI_WS_FAR",
+	"XAUI_WS_NEAR",
+	"GMII_WS",
+	"XFI_WS",
+	"XFI_WS_FAR",
+	"PHYXS_WS",
+	"PMA_INT",
+	"SD_NEAR",
+	"SD_FAR",
+	"PMA_INT_WS",
+	"SD_FEP2_WS",
+	"SD_FEP1_5_WS",
+	"SD_FEP_WS",
+	"SD_FES_WS",
 };
 
-	__checkReturn	const char __cs *
+	__checkReturn	const char *
 efx_loopback_type_name(
 	__in		efx_nic_t *enp,
 	__in		efx_loopback_type_t type)
 {
+	EFX_STATIC_ASSERT(EFX_ARRAY_SIZE(__efx_loopback_type_name) ==
+	    EFX_LOOPBACK_NTYPES);
+
 	_NOTE(ARGUNUSED(enp))
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(type, <, EFX_LOOPBACK_NTYPES);

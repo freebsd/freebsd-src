@@ -59,7 +59,7 @@ provmain.o: prov.d main.o
 	$dtrace -G -32 -o provmain.o -s prov.d main.o
 
 altlib.so: altlib.o provalt.o
-	cc -z defs -G -o altlib.so altlib.o provalt.o -lc
+	cc -shared -o altlib.so altlib.o provalt.o -lc
 
 altlib.o: altlib.c prov.h
 	cc -c altlib.c

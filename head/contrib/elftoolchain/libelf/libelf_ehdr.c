@@ -24,8 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <assert.h>
 #include <gelf.h>
 #include <libelf.h>
@@ -33,7 +31,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_ehdr.c 3009 2014-03-23 01:49:59Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_ehdr.c 3174 2015-03-27 17:13:41Z emaste $");
 
 /*
  * Retrieve counts for sections, phdrs and the section string table index

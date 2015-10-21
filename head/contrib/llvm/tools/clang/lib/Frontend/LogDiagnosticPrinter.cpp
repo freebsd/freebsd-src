@@ -18,17 +18,11 @@
 using namespace clang;
 using namespace markup;
 
-LogDiagnosticPrinter::LogDiagnosticPrinter(raw_ostream &os,
-                                           DiagnosticOptions *diags,
-                                           bool _OwnsOutputStream)
-  : OS(os), LangOpts(nullptr), DiagOpts(diags),
-    OwnsOutputStream(_OwnsOutputStream) {
-}
-
-LogDiagnosticPrinter::~LogDiagnosticPrinter() {
-  if (OwnsOutputStream)
-    delete &OS;
-}
+LogDiagnosticPrinter::LogDiagnosticPrinter(
+    raw_ostream &os, DiagnosticOptions *diags,
+    std::unique_ptr<raw_ostream> StreamOwner)
+    : OS(os), StreamOwner(std::move(StreamOwner)), LangOpts(nullptr),
+      DiagOpts(diags) {}
 
 static StringRef getLevelName(DiagnosticsEngine::Level Level) {
   switch (Level) {
@@ -68,6 +62,14 @@ LogDiagnosticPrinter::EmitDiagEntry(llvm::raw_ostream &OS,
     OS << "      <key>message</key>\n"
        << "      ";
     EmitString(OS, DE.Message) << '\n';
+  }
+  OS << "      <key>ID</key>\n"
+     << "      ";
+  EmitInteger(OS, DE.DiagnosticID) << '\n';
+  if (!DE.WarningOption.empty()) {
+    OS << "      <key>WarningOption</key>\n"
+       << "      ";
+    EmitString(OS, DE.WarningOption) << '\n';
   }
   OS << "    </dict>\n";
 }
@@ -127,6 +129,8 @@ void LogDiagnosticPrinter::HandleDiagnostic(DiagnosticsEngine::Level Level,
   DiagEntry DE;
   DE.DiagnosticID = Info.getID();
   DE.DiagnosticLevel = Level;
+
+  DE.WarningOption = DiagnosticIDs::getWarningOptionForDiag(DE.DiagnosticID);
 
   // Format the message.
   SmallString<100> MessageStr;

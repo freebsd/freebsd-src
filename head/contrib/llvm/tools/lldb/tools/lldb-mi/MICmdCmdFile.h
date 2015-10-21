@@ -7,26 +7,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:		MICmdCmdFile.h
+// Overview:    CMICmdCmdFileExecAndSymbols     interface.
 //
-// Overview:	CMICmdCmdFileExecAndSymbols		interface.
-//
-//				To implement new MI commands derive a new command class from the command base 
-//				class. To enable the new command for interpretation add the new command class
-//				to the command factory. The files of relevance are:
-//					MICmdCommands.cpp
-//					MICmdBase.h / .cpp
-//					MICmdCmd.h / .cpp
-//				For an introduction to adding a new command see CMICmdCmdSupportInfoMiCmdQuery
-//				command class as an example.
-//
-// Environment:	Compilers:	Visual C++ 12.
-//							gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//				Libraries:	See MIReadmetxt. 
-//
-// Copyright:	None.
-//--
+//              To implement new MI commands derive a new command class from the command base
+//              class. To enable the new command for interpretation add the new command class
+//              to the command factory. The files of relevance are:
+//                  MICmdCommands.cpp
+//                  MICmdBase.h / .cpp
+//                  MICmdCmd.h / .cpp
+//              For an introduction to adding a new command see CMICmdCmdSupportInfoMiCmdQuery
+//              command class as an example.
 
 #pragma once
 
@@ -36,36 +26,40 @@
 #include "MICmnMIValueList.h"
 
 //++ ============================================================================
-// Details:	MI command class. MI commands derived from the command base class.
-//			*this class implements MI command "file-exec-and-symbols".
-//			This command does not follow the MI documentation exactly.
-// Gotchas:	None.
-// Authors:	Illya Rudkin 25/02/2014.
-// Changes:	None.
+// Details: MI command class. MI commands derived from the command base class.
+//          *this class implements MI command "file-exec-and-symbols".
+//          This command does not follow the MI documentation exactly.
+// Gotchas: This command has additional flags that were not available in GDB MI.
+//          See MIextensions.txt for details.
+// Authors: Illya Rudkin 25/02/2014.
+// Changes: None.
 //--
 class CMICmdCmdFileExecAndSymbols : public CMICmdBase
 {
-// Statics:
-public:
-	// Required by the CMICmdFactory when registering *this command
-	static CMICmdBase *	CreateSelf( void );
+    // Statics:
+  public:
+    // Required by the CMICmdFactory when registering *this command
+    static CMICmdBase *CreateSelf(void);
 
-// Methods:
-public:
-	/* ctor */	CMICmdCmdFileExecAndSymbols( void );
+    // Methods:
+  public:
+    /* ctor */ CMICmdCmdFileExecAndSymbols(void);
 
-// Overridden:
-public:
-	// From CMICmdInvoker::ICmd
-	virtual bool	Execute( void );
-	virtual bool	Acknowledge( void );
-	virtual bool	ParseArgs( void );
-	// From CMICmnBase
-	/* dtor */ virtual ~CMICmdCmdFileExecAndSymbols( void );
-	virtual bool	GetExitAppOnCommandFailure( void ) const;
+    // Overridden:
+  public:
+    // From CMICmdInvoker::ICmd
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
+    bool ParseArgs(void) override;
+    // From CMICmnBase
+    /* dtor */ ~CMICmdCmdFileExecAndSymbols(void) override;
+    bool GetExitAppOnCommandFailure(void) const override;
 
-// Attributes:
-private:
-	const CMIUtilString	m_constStrArgNameFile;
-	const CMIUtilString	m_constStrArgThreadGrp;	// Not handled by *this command. Not specified in MI spec but Eclipse gives this option sometimes
+    // Attributes:
+  private:
+    const CMIUtilString m_constStrArgNameFile;
+    const CMIUtilString
+        m_constStrArgThreadGrp; // Not handled by *this command. Not specified in MI spec but Eclipse gives this option sometimes
+    const CMIUtilString m_constStrArgNamedPlatformName; // Added to support iOS platform selection
+    const CMIUtilString m_constStrArgNamedRemotePath; // Added to support iOS device remote file location
 };

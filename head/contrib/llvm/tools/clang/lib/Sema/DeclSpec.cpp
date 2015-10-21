@@ -18,6 +18,7 @@
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/TargetInfo.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Parse/ParseDiagnostic.h" // FIXME: remove this back-dependency!
 #include "clang/Sema/LocInfoType.h"
@@ -113,6 +114,18 @@ void CXXScopeSpec::MakeGlobal(ASTContext &Context,
          "NestedNameSpecifierLoc range computation incorrect");
 }
 
+void CXXScopeSpec::MakeSuper(ASTContext &Context, CXXRecordDecl *RD,
+                             SourceLocation SuperLoc,
+                             SourceLocation ColonColonLoc) {
+  Builder.MakeSuper(Context, RD, SuperLoc, ColonColonLoc);
+
+  Range.setBegin(SuperLoc);
+  Range.setEnd(ColonColonLoc);
+
+  assert(Range == Builder.getSourceRange() &&
+  "NestedNameSpecifierLoc range computation incorrect");
+}
+
 void CXXScopeSpec::MakeTrivial(ASTContext &Context, 
                                NestedNameSpecifier *Qualifier, SourceRange R) {
   Builder.MakeTrivial(Context, Qualifier, R);
@@ -159,6 +172,8 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto,
                                              SourceLocation ConstQualifierLoc,
                                              SourceLocation
                                                  VolatileQualifierLoc,
+                                             SourceLocation
+                                                 RestrictQualifierLoc,
                                              SourceLocation MutableLoc,
                                              ExceptionSpecificationType
                                                  ESpecType,
@@ -167,6 +182,7 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto,
                                              SourceRange *ExceptionRanges,
                                              unsigned NumExceptions,
                                              Expr *NoexceptExpr,
+                                             CachedTokens *ExceptionSpecTokens,
                                              SourceLocation LocalRangeBegin,
                                              SourceLocation LocalRangeEnd,
                                              Declarator &TheDeclarator,
@@ -193,6 +209,7 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto,
   I.Fun.RefQualifierLoc         = RefQualifierLoc.getRawEncoding();
   I.Fun.ConstQualifierLoc       = ConstQualifierLoc.getRawEncoding();
   I.Fun.VolatileQualifierLoc    = VolatileQualifierLoc.getRawEncoding();
+  I.Fun.RestrictQualifierLoc    = RestrictQualifierLoc.getRawEncoding();
   I.Fun.MutableLoc              = MutableLoc.getRawEncoding();
   I.Fun.ExceptionSpecType       = ESpecType;
   I.Fun.ExceptionSpecLoc        = ESpecLoc.getRawEncoding();
@@ -202,6 +219,9 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto,
   I.Fun.HasTrailingReturnType   = TrailingReturnType.isUsable() ||
                                   TrailingReturnType.isInvalid();
   I.Fun.TrailingReturnType      = TrailingReturnType.get();
+
+  assert(I.Fun.TypeQuals == TypeQuals && "bitfield overflow");
+  assert(I.Fun.ExceptionSpecType == ESpecType && "bitfield overflow");
 
   // new[] a parameter array if needed.
   if (NumParams) {
@@ -238,6 +258,10 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto,
 
   case EST_ComputedNoexcept:
     I.Fun.NoexceptExpr = NoexceptExpr;
+    break;
+
+  case EST_Unparsed:
+    I.Fun.ExceptionSpecTokens = ExceptionSpecTokens;
     break;
   }
   return I;
@@ -321,8 +345,9 @@ bool Declarator::isDeclarationOfFunction() const {
 bool Declarator::isStaticMember() {
   assert(getContext() == MemberContext);
   return getDeclSpec().getStorageClassSpec() == DeclSpec::SCS_static ||
-         CXXMethodDecl::isStaticOverloadedOperator(
-             getName().OperatorFunctionId.Operator);
+         (getName().Kind == UnqualifiedId::IK_OperatorFunctionId &&
+          CXXMethodDecl::isStaticOverloadedOperator(
+              getName().OperatorFunctionId.Operator));
 }
 
 bool DeclSpec::hasTagDefinition() const {
@@ -484,14 +509,14 @@ bool DeclSpec::SetStorageClassSpec(Sema &S, SCS SC, SourceLocation Loc,
     case SCS_private_extern:
     case SCS_static:
         if (S.getLangOpts().OpenCLVersion < 120) {
-          DiagID   = diag::err_not_opencl_storage_class_specifier;
+          DiagID   = diag::err_opencl_unknown_type_specifier;
           PrevSpec = getSpecifierName(SC);
           return true;
         }
         break;
     case SCS_auto:
     case SCS_register:
-      DiagID   = diag::err_not_opencl_storage_class_specifier;
+      DiagID   = diag::err_opencl_unknown_type_specifier;
       PrevSpec = getSpecifierName(SC);
       return true;
     default:
@@ -553,12 +578,6 @@ bool DeclSpec::SetTypeSpecWidth(TSW W, SourceLocation Loc,
   else if (W != TSW_longlong || TypeSpecWidth != TSW_long)
     return BadSpecifier(W, (TSW)TypeSpecWidth, PrevSpec, DiagID);
   TypeSpecWidth = W;
-  if (TypeAltiVecVector && !TypeAltiVecBool &&
-      ((TypeSpecWidth == TSW_long) || (TypeSpecWidth == TSW_longlong))) {
-    PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
-    DiagID = diag::warn_vector_long_decl_spec_combination;
-    return true;
-  }
   return false;
 }
 
@@ -680,11 +699,6 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation Loc,
   }
   TypeSpecType = T;
   TypeSpecOwned = false;
-  if (TypeAltiVecVector && !TypeAltiVecBool && (TypeSpecType == TST_double)) {
-    PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
-    DiagID = diag::err_invalid_vector_decl_spec;
-    return true;
-  }
   return false;
 }
 
@@ -879,18 +893,16 @@ bool DeclSpec::SetConstexprSpec(SourceLocation Loc, const char *&PrevSpec,
   return false;
 }
 
-void DeclSpec::setProtocolQualifiers(Decl * const *Protos,
-                                     unsigned NP,
-                                     SourceLocation *ProtoLocs,
-                                     SourceLocation LAngleLoc) {
-  if (NP == 0) return;
-  Decl **ProtoQuals = new Decl*[NP];
-  memcpy(ProtoQuals, Protos, sizeof(Decl*)*NP);
-  ProtocolQualifiers = ProtoQuals;
-  ProtocolLocs = new SourceLocation[NP];
-  memcpy(ProtocolLocs, ProtoLocs, sizeof(SourceLocation)*NP);
-  NumProtocolQualifiers = NP;
-  ProtocolLAngleLoc = LAngleLoc;
+bool DeclSpec::SetConceptSpec(SourceLocation Loc, const char *&PrevSpec,
+                              unsigned &DiagID) {
+  if (Concept_specified) {
+    DiagID = diag::ext_duplicate_declspec;
+    PrevSpec = "concept";
+    return true;
+  }
+  Concept_specified = true;
+  ConceptLoc = Loc;
+  return false;
 }
 
 void DeclSpec::SaveWrittenBuiltinSpecs() {
@@ -969,15 +981,42 @@ void DeclSpec::Finish(DiagnosticsEngine &D, Preprocessor &PP, const PrintingPoli
                                  getSpecifierName((TST)TypeSpecType, Policy));
       }
 
-      // Only 'short' is valid with vector bool. (PIM 2.1)
-      if ((TypeSpecWidth != TSW_unspecified) && (TypeSpecWidth != TSW_short))
+      // Only 'short' and 'long long' are valid with vector bool. (PIM 2.1)
+      if ((TypeSpecWidth != TSW_unspecified) && (TypeSpecWidth != TSW_short) &&
+          (TypeSpecWidth != TSW_longlong))
         Diag(D, TSWLoc, diag::err_invalid_vector_bool_decl_spec)
           << getSpecifierName((TSW)TypeSpecWidth);
+
+      // vector bool long long requires VSX support or ZVector.
+      if ((TypeSpecWidth == TSW_longlong) &&
+          (!PP.getTargetInfo().hasFeature("vsx")) &&
+          (!PP.getTargetInfo().hasFeature("power8-vector")) &&
+          !PP.getLangOpts().ZVector)
+        Diag(D, TSTLoc, diag::err_invalid_vector_long_long_decl_spec);
 
       // Elements of vector bool are interpreted as unsigned. (PIM 2.1)
       if ((TypeSpecType == TST_char) || (TypeSpecType == TST_int) ||
           (TypeSpecWidth != TSW_unspecified))
         TypeSpecSign = TSS_unsigned;
+    } else if (TypeSpecType == TST_double) {
+      // vector long double and vector long long double are never allowed.
+      // vector double is OK for Power7 and later, and ZVector.
+      if (TypeSpecWidth == TSW_long || TypeSpecWidth == TSW_longlong)
+        Diag(D, TSWLoc, diag::err_invalid_vector_long_double_decl_spec);
+      else if (!PP.getTargetInfo().hasFeature("vsx") &&
+               !PP.getLangOpts().ZVector)
+        Diag(D, TSTLoc, diag::err_invalid_vector_double_decl_spec);
+    } else if (TypeSpecType == TST_float) {
+      // vector float is unsupported for ZVector.
+      if (PP.getLangOpts().ZVector)
+        Diag(D, TSTLoc, diag::err_invalid_vector_float_decl_spec);
+    } else if (TypeSpecWidth == TSW_long) {
+      // vector long is unsupported for ZVector and deprecated for AltiVec.
+      if (PP.getLangOpts().ZVector)
+        Diag(D, TSWLoc, diag::err_invalid_vector_long_decl_spec);
+      else
+        Diag(D, TSWLoc, diag::warn_vector_long_decl_spec_combination)
+          << getSpecifierName((TST)TypeSpecType, Policy);
     }
 
     if (TypeAltiVecPixel) {
@@ -1190,7 +1229,10 @@ void UnqualifiedId::setOperatorFunctionId(SourceLocation OperatorLoc,
 
 bool VirtSpecifiers::SetSpecifier(Specifier VS, SourceLocation Loc,
                                   const char *&PrevSpec) {
+  if (!FirstLocation.isValid())
+    FirstLocation = Loc;
   LastLocation = Loc;
+  LastSpecifier = VS;
   
   if (Specifiers & VS) {
     PrevSpec = getSpecifierName(VS);

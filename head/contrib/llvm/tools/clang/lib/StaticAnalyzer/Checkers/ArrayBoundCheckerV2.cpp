@@ -207,7 +207,8 @@ void ArrayBoundCheckerV2::reportOOB(CheckerContext &checkerContext,
     break;
   }
 
-  checkerContext.emitReport(new BugReport(*BT, os.str(), errorNode));
+  checkerContext.emitReport(
+      llvm::make_unique<BugReport>(*BT, os.str(), errorNode));
 }
 
 void RegionRawOffsetV2::dump() const {
@@ -216,17 +217,6 @@ void RegionRawOffsetV2::dump() const {
 
 void RegionRawOffsetV2::dumpToStream(raw_ostream &os) const {
   os << "raw_offset_v2{" << getRegion() << ',' << getByteOffset() << '}';
-}
-
-// FIXME: Merge with the implementation of the same method in Store.cpp
-static bool IsCompleteType(ASTContext &Ctx, QualType Ty) {
-  if (const RecordType *RT = Ty->getAs<RecordType>()) {
-    const RecordDecl *D = RT->getDecl();
-    if (!D->getDefinition())
-      return false;
-  }
-
-  return true;
 }
 
 
@@ -288,7 +278,7 @@ RegionRawOffsetV2 RegionRawOffsetV2::computeOffset(ProgramStateRef state,
         QualType elemType = elemReg->getElementType();
         // If the element is an incomplete type, go no further.
         ASTContext &astContext = svalBuilder.getContext();
-        if (!IsCompleteType(astContext, elemType))
+        if (elemType->isIncompleteType())
           return RegionRawOffsetV2();
         
         // Update the offset.

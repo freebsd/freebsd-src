@@ -27,24 +27,23 @@ using namespace object;
 
 Binary::~Binary() {}
 
-Binary::Binary(unsigned int Type, std::unique_ptr<MemoryBuffer> Source)
-    : TypeID(Type), Data(std::move(Source)) {}
+Binary::Binary(unsigned int Type, MemoryBufferRef Source)
+    : TypeID(Type), Data(Source) {}
 
-StringRef Binary::getData() const {
-  return Data->getBuffer();
-}
+StringRef Binary::getData() const { return Data.getBuffer(); }
 
-StringRef Binary::getFileName() const {
-  return Data->getBufferIdentifier();
-}
+StringRef Binary::getFileName() const { return Data.getBufferIdentifier(); }
 
-ErrorOr<Binary *> object::createBinary(std::unique_ptr<MemoryBuffer> Buffer,
-                                       LLVMContext *Context) {
-  sys::fs::file_magic Type = sys::fs::identify_magic(Buffer->getBuffer());
+MemoryBufferRef Binary::getMemoryBufferRef() const { return Data; }
+
+ErrorOr<std::unique_ptr<Binary>> object::createBinary(MemoryBufferRef Buffer,
+                                                      LLVMContext *Context) {
+  sys::fs::file_magic Type = sys::fs::identify_magic(Buffer.getBuffer());
 
   switch (Type) {
     case sys::fs::file_magic::archive:
-      return Archive::create(std::move(Buffer));
+      return Archive::create(Buffer);
+    case sys::fs::file_magic::elf:
     case sys::fs::file_magic::elf_relocatable:
     case sys::fs::file_magic::elf_executable:
     case sys::fs::file_magic::elf_shared_object:
@@ -59,13 +58,14 @@ ErrorOr<Binary *> object::createBinary(std::unique_ptr<MemoryBuffer> Buffer,
     case sys::fs::file_magic::macho_bundle:
     case sys::fs::file_magic::macho_dynamically_linked_shared_lib_stub:
     case sys::fs::file_magic::macho_dsym_companion:
+    case sys::fs::file_magic::macho_kext_bundle:
     case sys::fs::file_magic::coff_object:
     case sys::fs::file_magic::coff_import_library:
     case sys::fs::file_magic::pecoff_executable:
     case sys::fs::file_magic::bitcode:
       return ObjectFile::createSymbolicFile(Buffer, Type, Context);
     case sys::fs::file_magic::macho_universal_binary:
-      return MachOUniversalBinary::create(std::move(Buffer));
+      return MachOUniversalBinary::create(Buffer);
     case sys::fs::file_magic::unknown:
     case sys::fs::file_magic::windows_resource:
       // Unrecognized object file format.
@@ -74,10 +74,18 @@ ErrorOr<Binary *> object::createBinary(std::unique_ptr<MemoryBuffer> Buffer,
   llvm_unreachable("Unexpected Binary File Type");
 }
 
-ErrorOr<Binary *> object::createBinary(StringRef Path) {
+ErrorOr<OwningBinary<Binary>> object::createBinary(StringRef Path) {
   ErrorOr<std::unique_ptr<MemoryBuffer>> FileOrErr =
       MemoryBuffer::getFileOrSTDIN(Path);
   if (std::error_code EC = FileOrErr.getError())
     return EC;
-  return createBinary(std::move(*FileOrErr));
+  std::unique_ptr<MemoryBuffer> &Buffer = FileOrErr.get();
+
+  ErrorOr<std::unique_ptr<Binary>> BinOrErr =
+      createBinary(Buffer->getMemBufferRef());
+  if (std::error_code EC = BinOrErr.getError())
+    return EC;
+  std::unique_ptr<Binary> &Bin = BinOrErr.get();
+
+  return OwningBinary<Binary>(std::move(Bin), std::move(Buffer));
 }

@@ -20,7 +20,7 @@ namespace lldb {
 
 class SBBroadcaster;
 
-class SBEvent
+class LLDB_API SBEvent
 {
 public:
     SBEvent();
@@ -29,6 +29,10 @@ public:
     
     // Make an event that contains a C string.
     SBEvent (uint32_t event, const char *cstr, uint32_t cstr_len);
+
+    SBEvent (lldb::EventSP &event_sp);
+
+    SBEvent (lldb_private::Event *event_sp);
 
     ~SBEvent();
 
@@ -74,10 +78,9 @@ protected:
     friend class SBBreakpoint;
     friend class SBDebugger;
     friend class SBProcess;
+    friend class SBTarget;
     friend class SBThread;
     friend class SBWatchpoint;
-
-    SBEvent (lldb::EventSP &event_sp);
 
     lldb::EventSP &
     GetSP () const;

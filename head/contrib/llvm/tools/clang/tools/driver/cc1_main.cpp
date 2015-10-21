@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Option/Arg.h"
+#include "clang/CodeGen/ObjectFilePCHContainerOperations.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Options.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -63,10 +64,14 @@ void initializePollyPasses(llvm::PassRegistry &Registry);
 }
 #endif
 
-int cc1_main(const char **ArgBegin, const char **ArgEnd,
-             const char *Argv0, void *MainAddr) {
+int cc1_main(ArrayRef<const char *> Argv, const char *Argv0, void *MainAddr) {
   std::unique_ptr<CompilerInstance> Clang(new CompilerInstance());
   IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
+
+  // Register the support for object-file-wrapped Clang modules.
+  auto PCHOps = Clang->getPCHContainerOperations();
+  PCHOps->registerWriter(llvm::make_unique<ObjectFilePCHContainerWriter>());
+  PCHOps->registerReader(llvm::make_unique<ObjectFilePCHContainerReader>());
 
   // Initialize targets first, so that --version shows registered targets.
   llvm::InitializeAllTargets();
@@ -84,9 +89,8 @@ int cc1_main(const char **ArgBegin, const char **ArgEnd,
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
   TextDiagnosticBuffer *DiagsBuffer = new TextDiagnosticBuffer;
   DiagnosticsEngine Diags(DiagID, &*DiagOpts, DiagsBuffer);
-  bool Success;
-  Success = CompilerInvocation::CreateFromArgs(Clang->getInvocation(),
-                                               ArgBegin, ArgEnd, Diags);
+  bool Success = CompilerInvocation::CreateFromArgs(
+      Clang->getInvocation(), Argv.begin(), Argv.end(), Diags);
 
   // Infer the builtin include path if unspecified.
   if (Clang->getHeaderSearchOpts().UseBuiltinIncludes &&
@@ -124,7 +128,7 @@ int cc1_main(const char **ArgBegin, const char **ArgEnd,
   if (Clang->getFrontendOpts().DisableFree) {
     if (llvm::AreStatisticsEnabled() || Clang->getFrontendOpts().ShowStats)
       llvm::PrintStatistics();
-    BuryPointer(Clang.release());
+    BuryPointer(std::move(Clang));
     return !Success;
   }
 

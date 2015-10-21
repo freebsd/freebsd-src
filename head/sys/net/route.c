@@ -43,7 +43,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -140,6 +139,7 @@ static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
 static int rtrequest1_fib_change(struct radix_node_head *, struct rt_addrinfo *,
     struct rtentry **, u_int);
 static void rt_setmetrics(const struct rt_addrinfo *, struct rtentry *);
+static int rt_ifdelroute(struct rtentry *rt, void *arg);
 
 struct if_mtuinfo
 {
@@ -520,7 +520,7 @@ rtfree(struct rtentry *rt)
 		 * This also frees the gateway, as they are always malloc'd
 		 * together.
 		 */
-		Free(rt_key(rt));
+		R_Free(rt_key(rt));
 
 		/*
 		 * and the rtentry itself of course
@@ -584,13 +584,20 @@ rtredirect_fib(struct sockaddr *dst,
 	 * we have a routing loop, perhaps as a result of an interface
 	 * going down recently.
 	 */
-	if (!(flags & RTF_DONE) && rt &&
-	     (!sa_equal(src, rt->rt_gateway) || rt->rt_ifa != ifa))
-		error = EINVAL;
-	else if (ifa_ifwithaddr_check(gateway))
+	if (!(flags & RTF_DONE) && rt) {
+		if (!sa_equal(src, rt->rt_gateway)) {
+			error = EINVAL;
+			goto done;
+		}
+		if (rt->rt_ifa != ifa && ifa->ifa_addr->sa_family != AF_LINK) {
+			error = EINVAL;
+			goto done;
+		}
+	}
+	if ((flags & RTF_GATEWAY) && ifa_ifwithaddr_check(gateway)) {
 		error = EHOSTUNREACH;
-	if (error)
 		goto done;
+	}
 	/*
 	 * Create a new entry if we just got back a wildcard entry
 	 * or the lookup failed.  This is necessary for hosts
@@ -613,7 +620,7 @@ rtredirect_fib(struct sockaddr *dst,
 			rt0 = rt;
 			rt = NULL;
 		
-			flags |=  RTF_GATEWAY | RTF_DYNAMIC;
+			flags |= RTF_DYNAMIC;
 			bzero((caddr_t)&info, sizeof(info));
 			info.rti_info[RTAX_DST] = dst;
 			info.rti_info[RTAX_GATEWAY] = gateway;
@@ -640,6 +647,8 @@ rtredirect_fib(struct sockaddr *dst,
 			 * Smash the current notion of the gateway to
 			 * this destination.  Should check about netmask!!!
 			 */
+			if ((flags & RTF_GATEWAY) == 0)
+				rt->rt_flags &= ~RTF_GATEWAY;
 			rt->rt_flags |= RTF_MODIFIED;
 			flags |= RTF_MODIFIED;
 			stat = &V_rtstat.rts_newgateway;
@@ -653,7 +662,8 @@ rtredirect_fib(struct sockaddr *dst,
 			gwrt = rtalloc1(gateway, 1, RTF_RNH_LOCKED);
 			RADIX_NODE_HEAD_UNLOCK(rnh);
 			EVENTHANDLER_INVOKE(route_redirect_event, rt, gwrt, dst);
-			RTFREE_LOCKED(gwrt);
+			if (gwrt)
+				RTFREE_LOCKED(gwrt);
 		}
 	} else
 		error = EHOSTUNREACH;
@@ -704,7 +714,7 @@ rtioctl_fib(u_long req, caddr_t data, u_int fibnum)
 }
 
 struct ifaddr *
-ifa_ifwithroute(int flags, struct sockaddr *dst, struct sockaddr *gateway,
+ifa_ifwithroute(int flags, const struct sockaddr *dst, struct sockaddr *gateway,
 				u_int fibnum)
 {
 	struct ifaddr *ifa;
@@ -812,6 +822,104 @@ rtrequest_fib(int req,
 	return rtrequest1_fib(req, &info, ret_nrt, fibnum);
 }
 
+
+/*
+ * Iterates over all existing fibs in system calling
+ *  @setwa_f function prior to traversing each fib.
+ *  Calls @wa_f function for each element in current fib.
+ * If af is not AF_UNSPEC, iterates over fibs in particular
+ * address family.
+ */
+void
+rt_foreach_fib_walk(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f,
+    void *arg)
+{
+	struct radix_node_head *rnh;
+	uint32_t fibnum;
+	int i;
+
+	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+		/* Do we want some specific family? */
+		if (af != AF_UNSPEC) {
+			rnh = rt_tables_get_rnh(fibnum, af);
+			if (rnh == NULL)
+				continue;
+			if (setwa_f != NULL)
+				setwa_f(rnh, fibnum, i, arg);
+
+			RADIX_NODE_HEAD_LOCK(rnh);
+			rnh->rnh_walktree(rnh, (walktree_f_t *)wa_f, arg);
+			RADIX_NODE_HEAD_UNLOCK(rnh);
+			continue;
+		}
+
+		for (i = 1; i <= AF_MAX; i++) {
+			rnh = rt_tables_get_rnh(fibnum, i);
+			if (rnh == NULL)
+				continue;
+			if (setwa_f != NULL)
+				setwa_f(rnh, fibnum, i, arg);
+
+			RADIX_NODE_HEAD_LOCK(rnh);
+			rnh->rnh_walktree(rnh, (walktree_f_t *)wa_f, arg);
+			RADIX_NODE_HEAD_UNLOCK(rnh);
+		}
+	}
+}
+
+/*
+ * Delete Routes for a Network Interface
+ *
+ * Called for each routing entry via the rnh->rnh_walktree() call above
+ * to delete all route entries referencing a detaching network interface.
+ *
+ * Arguments:
+ *	rt	pointer to rtentry
+ *	arg	argument passed to rnh->rnh_walktree() - detaching interface
+ *
+ * Returns:
+ *	0	successful
+ *	errno	failed - reason indicated
+ */
+static int
+rt_ifdelroute(struct rtentry *rt, void *arg)
+{
+	struct ifnet	*ifp = arg;
+	int		err;
+
+	if (rt->rt_ifp != ifp)
+		return (0);
+
+	/*
+	 * Protect (sorta) against walktree recursion problems
+	 * with cloned routes
+	 */
+	if ((rt->rt_flags & RTF_UP) == 0)
+		return (0);
+
+	err = rtrequest_fib(RTM_DELETE, rt_key(rt), rt->rt_gateway,
+			rt_mask(rt),
+			rt->rt_flags | RTF_RNH_LOCKED | RTF_PINNED,
+			(struct rtentry **) NULL, rt->rt_fibnum);
+	if (err != 0)
+		log(LOG_WARNING, "rt_ifdelroute: error %d\n", err);
+
+	return (0);
+}
+
+/*
+ * Delete all remaining routes using this interface
+ * Unfortuneatly the only way to do this is to slog through
+ * the entire routing table looking for routes which point
+ * to this interface...oh well...
+ */
+void
+rt_flushifroutes(struct ifnet *ifp)
+{
+
+	rt_foreach_fib_walk(AF_UNSPEC, NULL, rt_ifdelroute, ifp);
+}
+
 /*
  * These (questionable) definitions of apparent local variables apply
  * to the next two functions.  XXXXXX!!!
@@ -822,13 +930,6 @@ rtrequest_fib(int req,
 #define	ifaaddr	info->rti_info[RTAX_IFA]
 #define	ifpaddr	info->rti_info[RTAX_IFP]
 #define	flags	info->rti_flags
-
-int
-rt_getifa(struct rt_addrinfo *info)
-{
-
-	return (rt_getifa_fib(info, RT_DEFAULT_FIB));
-}
 
 /*
  * Look up rt_addrinfo for a specific fib.  Note that if rti_ifa is defined,
@@ -1353,7 +1454,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		if (rn_mpath_capable(rnh) &&
 			rt_mpath_conflict(rnh, rt, netmask)) {
 			ifa_free(rt->rt_ifa);
-			Free(rt_key(rt));
+			R_Free(rt_key(rt));
 			uma_zfree(V_rtzone, rt);
 			senderr(EEXIST);
 		}
@@ -1420,7 +1521,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		 */
 		if (rn == NULL) {
 			ifa_free(rt->rt_ifa);
-			Free(rt_key(rt));
+			R_Free(rt_key(rt));
 			uma_zfree(V_rtzone, rt);
 #ifdef FLOWTABLE
 			if (rt0 != NULL)
@@ -1642,7 +1743,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 		 * Free()/free() handle a NULL argument just fine.
 		 */
 		bcopy(dst, new, dlen);
-		Free(rt_key(rt));	/* free old block, if any */
+		R_Free(rt_key(rt));	/* free old block, if any */
 		rt_key(rt) = (struct sockaddr *)new;
 		rt->rt_gateway = (struct sockaddr *)(new + dlen);
 	}

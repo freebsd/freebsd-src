@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #include <pthread_np.h>
 #include <sysexits.h>
+#include <stdbool.h>
 
 #include <machine/vmm.h>
 #include <vmmapi.h>
@@ -55,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include "inout.h"
 #include "dbgport.h"
+#include "fwctl.h"
 #include "ioapic.h"
 #include "mem.h"
 #include "mevent.h"
@@ -100,7 +102,7 @@ static struct vm_exit vmexit[VM_MAXCPU];
 
 struct bhyvestats {
         uint64_t        vmexit_bogus;
-        uint64_t        vmexit_bogus_switch;
+	uint64_t	vmexit_reqidle;
         uint64_t        vmexit_hlt;
         uint64_t        vmexit_pause;
         uint64_t        vmexit_mtrap;
@@ -122,7 +124,7 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-abehwxACHPWY] [-c vcpus] [-g <gdb port>] [-l <lpc>]\n"
+                "Usage: %s [-abehuwxACHPSWY] [-c vcpus] [-g <gdb port>] [-l <lpc>]\n"
 		"       %*s [-m mem] [-p vcpu:hostcpu] [-s <pci>] [-U uuid] <vm>\n"
 		"       -a: local apic is in xAPIC mode (deprecated)\n"
 		"       -A: create ACPI tables\n"
@@ -137,6 +139,8 @@ usage(int code)
 		"       -p: pin 'vcpu' to 'hostcpu'\n"
 		"       -P: vmexit from the guest on pause\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
+		"       -S: guest memory cannot be swapped\n"
+		"       -u: RTC keeps UTC time\n"
 		"       -U: uuid\n"
 		"       -w: ignore unimplemented MSRs\n"
 		"       -W: force virtio to use single-vector MSI\n"
@@ -324,8 +328,10 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 
 	error = emulate_inout(ctx, vcpu, vme, strictio);
 	if (error) {
-		fprintf(stderr, "Unhandled %s%c 0x%04x\n", in ? "in" : "out",
-		    bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'), port);
+		fprintf(stderr, "Unhandled %s%c 0x%04x at 0x%lx\n",
+		    in ? "in" : "out",
+		    bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'),
+		    port, vmexit->rip);
 		return (VMEXIT_ABORT);
 	} else {
 		return (VMEXIT_CONTINUE);
@@ -458,6 +464,17 @@ vmexit_bogus(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 }
 
 static int
+vmexit_reqidle(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
+{
+
+	assert(vmexit->inst_length == 0);
+
+	stats.vmexit_reqidle++;
+
+	return (VMEXIT_CONTINUE);
+}
+
+static int
 vmexit_hlt(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
 
@@ -494,22 +511,27 @@ vmexit_mtrap(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 static int
 vmexit_inst_emul(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
-	int err;
+	int err, i;
+	struct vie *vie;
+
 	stats.vmexit_inst_emul++;
 
+	vie = &vmexit->u.inst_emul.vie;
 	err = emulate_mem(ctx, *pvcpu, vmexit->u.inst_emul.gpa,
-	    &vmexit->u.inst_emul.vie, &vmexit->u.inst_emul.paging);
+	    vie, &vmexit->u.inst_emul.paging);
 
 	if (err) {
-		if (err == EINVAL) {
-			fprintf(stderr,
-			    "Failed to emulate instruction at 0x%lx\n", 
-			    vmexit->rip);
-		} else if (err == ESRCH) {
+		if (err == ESRCH) {
 			fprintf(stderr, "Unhandled memory access to 0x%lx\n",
 			    vmexit->u.inst_emul.gpa);
 		}
 
+		fprintf(stderr, "Failed to emulate instruction [");
+		for (i = 0; i < vie->num_valid; i++) {
+			fprintf(stderr, "0x%02x%s", vie->inst[i],
+			    i != (vie->num_valid - 1) ? " " : "");
+		}
+		fprintf(stderr, "] at 0x%lx\n", vmexit->rip);
 		return (VMEXIT_ABORT);
 	}
 
@@ -563,6 +585,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_VMX]    = vmexit_vmx,
 	[VM_EXITCODE_SVM]    = vmexit_svm,
 	[VM_EXITCODE_BOGUS]  = vmexit_bogus,
+	[VM_EXITCODE_REQIDLE] = vmexit_reqidle,
 	[VM_EXITCODE_RDMSR]  = vmexit_rdmsr,
 	[VM_EXITCODE_WRMSR]  = vmexit_wrmsr,
 	[VM_EXITCODE_MTRAP]  = vmexit_mtrap,
@@ -680,24 +703,82 @@ fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 	vm_set_capability(ctx, cpu, VM_CAP_ENABLE_INVPCID, 1);
 }
 
+static struct vmctx *
+do_open(const char *vmname)
+{
+	struct vmctx *ctx;
+	int error;
+	bool reinit, romboot;
+
+	reinit = romboot = false;
+
+	if (lpc_bootrom())
+		romboot = true;
+
+	error = vm_create(vmname);
+	if (error) {
+		if (errno == EEXIST) {
+			if (romboot) {
+				reinit = true;
+			} else {
+				/*
+				 * The virtual machine has been setup by the
+				 * userspace bootloader.
+				 */
+			}
+		} else {
+			perror("vm_create");
+			exit(1);
+		}
+	} else {
+		if (!romboot) {
+			/*
+			 * If the virtual machine was just created then a
+			 * bootrom must be configured to boot it.
+			 */
+			fprintf(stderr, "virtual machine cannot be booted\n");
+			exit(1);
+		}
+	}
+
+	ctx = vm_open(vmname);
+	if (ctx == NULL) {
+		perror("vm_open");
+		exit(1);
+	}
+
+	if (reinit) {
+		error = vm_reinit(ctx);
+		if (error) {
+			perror("vm_reinit");
+			exit(1);
+		}
+	}
+	return (ctx);
+}
+
 int
 main(int argc, char *argv[])
 {
 	int c, error, gdb_port, err, bvmcons;
-	int dump_guest_memory, max_vcpus, mptgen;
+	int max_vcpus, mptgen, memflags;
+	int rtc_localtime;
 	struct vmctx *ctx;
 	uint64_t rip;
 	size_t memsize;
+	char *optstr;
 
 	bvmcons = 0;
-	dump_guest_memory = 0;
 	progname = basename(argv[0]);
 	gdb_port = 0;
 	guest_ncpus = 1;
 	memsize = 256 * MB;
 	mptgen = 1;
+	rtc_localtime = 1;
+	memflags = 0;
 
-	while ((c = getopt(argc, argv, "abehwxACHIPWYp:g:c:s:m:l:U:")) != -1) {
+	optstr = "abehuwxACHIPSWYp:g:c:s:m:l:U:";
+	while ((c = getopt(argc, argv, optstr)) != -1) {
 		switch (c) {
 		case 'a':
 			x2apic_mode = 0;
@@ -718,7 +799,7 @@ main(int argc, char *argv[])
 			guest_ncpus = atoi(optarg);
 			break;
 		case 'C':
-			dump_guest_memory = 1;
+			memflags |= VM_MEM_F_INCORE;
 			break;
 		case 'g':
 			gdb_port = atoi(optarg);
@@ -734,6 +815,9 @@ main(int argc, char *argv[])
 				exit(1);
 			else
 				break;
+		case 'S':
+			memflags |= VM_MEM_F_WIRED;
+			break;
                 case 'm':
 			error = vm_parse_memsize(optarg, &memsize);
 			if (error)
@@ -756,6 +840,9 @@ main(int argc, char *argv[])
 			break;
 		case 'e':
 			strictio = 1;
+			break;
+		case 'u':
+			rtc_localtime = 0;
 			break;
 		case 'U':
 			guest_uuid_str = optarg;
@@ -785,10 +872,10 @@ main(int argc, char *argv[])
 		usage(1);
 
 	vmname = argv[0];
+	ctx = do_open(vmname);
 
-	ctx = vm_open(vmname);
-	if (ctx == NULL) {
-		perror("vm_open");
+	if (guest_ncpus < 1) {
+		fprintf(stderr, "Invalid guest vCPUs (%d)\n", guest_ncpus);
 		exit(1);
 	}
 
@@ -801,11 +888,10 @@ main(int argc, char *argv[])
 
 	fbsdrun_set_capabilities(ctx, BSP);
 
-	if (dump_guest_memory)
-		vm_set_memflags(ctx, VM_MEM_F_INCORE);
+	vm_set_memflags(ctx, memflags);
 	err = vm_setup_memory(ctx, memsize, VM_MMAP_ALL);
 	if (err) {
-		fprintf(stderr, "Unable to setup memory (%d)\n", err);
+		fprintf(stderr, "Unable to setup memory (%d)\n", errno);
 		exit(1);
 	}
 
@@ -820,7 +906,7 @@ main(int argc, char *argv[])
 	pci_irq_init(ctx);
 	ioapic_init(ctx);
 
-	rtc_init(ctx);
+	rtc_init(ctx, rtc_localtime);
 	sci_init(ctx);
 
 	/*
@@ -834,6 +920,16 @@ main(int argc, char *argv[])
 
 	if (bvmcons)
 		init_bvmcons();
+
+	if (lpc_bootrom()) {
+		if (vm_set_capability(ctx, BSP, VM_CAP_UNRESTRICTED_GUEST, 1)) {
+			fprintf(stderr, "ROM boot failed: unrestricted guest "
+			    "capability not available\n");
+			exit(1);
+		}
+		error = vcpu_reset(ctx, BSP);
+		assert(error == 0);
+	}
 
 	error = vm_get_register(ctx, BSP, VM_REG_GUEST_RIP, &rip);
 	assert(error == 0);
@@ -854,6 +950,9 @@ main(int argc, char *argv[])
 		error = acpi_build(ctx, guest_ncpus);
 		assert(error == 0);
 	}
+
+	if (lpc_bootrom())
+		fwctl_init();
 
 	/*
 	 * Change the proc title to include the VM name.

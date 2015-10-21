@@ -52,7 +52,6 @@ appletalk.h	- AppleTalk definitions
 atime.awk	- TCP ack awk script
 atm.h		- ATM traffic type definitions
 atmuni31.h	- ATM Q.2931 definitions
-bootp.h		- BOOTP definitions
 bpf_dump.c	- BPF program printing routines, in case libpcap doesn't
 		  have them
 chdlc.h		- Cisco HDLC definitions

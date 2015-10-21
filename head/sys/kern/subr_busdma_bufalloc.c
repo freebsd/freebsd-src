@@ -94,8 +94,8 @@ busdma_bufalloc_create(const char *name, bus_size_t minimum_alignment,
 	for (i = 0, bz = ba->buf_zones, cursize = ba->min_size;
 	    i < nitems(ba->buf_zones) && cursize <= MAX_ZONE_BUFSIZE;
 	    ++i, ++bz, cursize <<= 1) {
-		snprintf(bz->name, sizeof(bz->name), "dma %.10s %lu",
-		    name, cursize);
+		snprintf(bz->name, sizeof(bz->name), "dma %.10s %ju",
+		    name, (uintmax_t)cursize);
 		bz->size = cursize;
 		bz->umazone = uma_zcreate(bz->name, bz->size,
 		    NULL, NULL, NULL, NULL, bz->size - 1, zcreate_flags);
@@ -147,8 +147,8 @@ busdma_bufalloc_findzone(busdma_bufalloc_t ba, bus_size_t size)
 }
 
 void *
-busdma_bufalloc_alloc_uncacheable(uma_zone_t zone, int size, u_int8_t *pflag,
-    int wait)
+busdma_bufalloc_alloc_uncacheable(uma_zone_t zone, vm_size_t size,
+    uint8_t *pflag, int wait)
 {
 #ifdef VM_MEMATTR_UNCACHEABLE
 
@@ -166,7 +166,7 @@ busdma_bufalloc_alloc_uncacheable(uma_zone_t zone, int size, u_int8_t *pflag,
 }
 
 void 
-busdma_bufalloc_free_uncacheable(void *item, int size, u_int8_t pflag)
+busdma_bufalloc_free_uncacheable(void *item, vm_size_t size, uint8_t pflag)
 {
 
 	kmem_free(kernel_arena, (vm_offset_t)item, size);

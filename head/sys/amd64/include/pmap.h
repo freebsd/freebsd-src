@@ -219,6 +219,10 @@
 #define ISA_HOLE_START    0xa0000
 #define ISA_HOLE_LENGTH (0x100000-ISA_HOLE_START)
 
+#define	PMAP_PCID_NONE		0xffffffff
+#define	PMAP_PCID_KERN		0
+#define	PMAP_PCID_OVERMAX	0x1000
+
 #ifndef LOCORE
 
 #include <sys/queue.h>
@@ -292,6 +296,11 @@ enum pmap_type {
 	PT_RVI,			/* AMD's nested page tables */
 };
 
+struct pmap_pcids {
+	uint32_t	pm_pcid;
+	uint32_t	pm_gen;
+};
+
 /*
  * The kernel virtual address (KVA) of the level 4 page table page is always
  * within the direct map (DMAP) region.
@@ -302,13 +311,12 @@ struct pmap {
 	uint64_t		pm_cr3;
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	cpuset_t		pm_active;	/* active on cpus */
-	cpuset_t		pm_save;	/* Context valid on cpus mask */
-	int			pm_pcid;	/* context id */
 	enum pmap_type		pm_type;	/* regular or nested tables */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct vm_radix		pm_root;	/* spare page table pages */
 	long			pm_eptgen;	/* EPT pmap generation id */
 	int			pm_flags;
+	struct pmap_pcids	pm_pcids[MAXCPU];
 };
 
 /* flags */
@@ -375,6 +383,9 @@ extern vm_paddr_t dmaplimit;
 #define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
 #define	pmap_unmapbios(va, sz)	pmap_unmapdev((va), (sz))
 
+struct thread;
+
+void	pmap_activate_sw(struct thread *);
 void	pmap_bootstrap(vm_paddr_t *);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
 void	pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate);

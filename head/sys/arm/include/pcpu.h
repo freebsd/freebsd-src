@@ -32,6 +32,7 @@
 
 #ifdef _KERNEL
 
+#include <machine/acle-compat.h>
 #include <machine/cpuconf.h>
 
 #define	ALT_STACK_SIZE	128
@@ -40,17 +41,20 @@ struct vmspace;
 
 #endif	/* _KERNEL */
 
-#ifdef VFP
+#if __ARM_ARCH >= 6
 #define PCPU_MD_FIELDS							\
-	unsigned int pc_cpu;						\
 	unsigned int pc_vfpsid;						\
 	unsigned int pc_vfpmvfr0;					\
 	unsigned int pc_vfpmvfr1;					\
 	struct pmap *pc_curpmap;					\
-	char __pad[137]
+	vm_offset_t pc_qmap_addr;					\
+	void *pc_qmap_pte;						\
+	char __pad[133]
 #else
 #define PCPU_MD_FIELDS							\
-	char __pad[157]
+	vm_offset_t qmap_addr;						\
+	void *pc_qmap_pte;						\
+	char __pad[149]
 #endif
 
 #ifdef _KERNEL
@@ -59,9 +63,8 @@ struct pcb;
 struct pcpu;
 
 extern struct pcpu *pcpup;
-#if ARM_ARCH_6 || ARM_ARCH_7A
-/* or ARM_TP_ADDRESS 	mark REMOVE ME NOTE */
 
+#if __ARM_ARCH >= 6
 #define CPU_MASK (0xf)
 
 #ifndef SMP

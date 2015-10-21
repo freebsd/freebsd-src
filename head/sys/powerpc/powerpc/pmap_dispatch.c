@@ -463,7 +463,7 @@ pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 }
 
 void *
-pmap_mapdev_attr(vm_offset_t pa, vm_size_t size, vm_memattr_t attr)
+pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t attr)
 {
 
 	CTR4(KTR_PMAP, "%s(%#x, %#x, %#x)", __func__, pa, size, attr);
@@ -548,6 +548,20 @@ dumpsys_pa_init(void)
 
 	CTR1(KTR_PMAP, "%s()", __func__);
 	return (MMU_SCAN_INIT(mmu_obj));
+}
+
+vm_offset_t
+pmap_quick_enter_page(vm_page_t m)
+{
+	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+	return (MMU_QUICK_ENTER_PAGE(mmu_obj, m));
+}
+
+void
+pmap_quick_remove_page(vm_offset_t addr)
+{
+	CTR2(KTR_PMAP, "%s(%#x)", __func__, addr);
+	MMU_QUICK_REMOVE_PAGE(mmu_obj, addr);
 }
 
 /*

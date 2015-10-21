@@ -64,20 +64,25 @@ private:
   /// \brief The top-level modules that are known.
   llvm::StringMap<Module *> Modules;
 
+  /// \brief The number of modules we have created in total.
+  unsigned NumCreatedModules;
+
 public:
-  /// \brief Describes the role of a module header.
+  /// \brief Flags describing the role of a module header.
   enum ModuleHeaderRole {
     /// \brief This header is normally included in the module.
-    NormalHeader,
+    NormalHeader  = 0x0,
     /// \brief This header is included but private.
-    PrivateHeader,
-    /// \brief This header is explicitly excluded from the module.
-    ExcludedHeader
+    PrivateHeader = 0x1,
+    /// \brief This header is part of the module (for layering purposes) but
+    /// should be textually included.
+    TextualHeader = 0x2,
     // Caution: Adding an enumerator needs other changes.
     // Adjust the number of bits for KnownHeader::Storage.
     // Adjust the bitfield HeaderFileInfo::HeaderRole size.
     // Adjust the HeaderFileInfoTrait::ReadData streaming.
     // Adjust the HeaderFileInfoTrait::EmitData streaming.
+    // Adjust ModuleMap::addHeader.
   };
 
   /// \brief A header that is known to reside within a given module,
@@ -96,16 +101,18 @@ public:
     ModuleHeaderRole getRole() const { return Storage.getInt(); }
 
     /// \brief Whether this header is available in the module.
-    bool isAvailable() const { 
-      return getRole() != ExcludedHeader && getModule()->isAvailable(); 
+    bool isAvailable() const {
+      return getModule()->isAvailable();
     }
 
     // \brief Whether this known header is valid (i.e., it has an
     // associated module).
-    LLVM_EXPLICIT operator bool() const {
+    explicit operator bool() const {
       return Storage.getPointer() != nullptr;
     }
   };
+
+  typedef llvm::SmallPtrSet<const FileEntry *, 1> AdditionalModMapsSet;
 
 private:
   typedef llvm::DenseMap<const FileEntry *, SmallVector<KnownHeader, 1> >
@@ -123,15 +130,29 @@ private:
   /// header.
   llvm::DenseMap<const DirectoryEntry *, Module *> UmbrellaDirs;
 
+  /// \brief The set of attributes that can be attached to a module.
+  struct Attributes {
+    Attributes() : IsSystem(), IsExternC(), IsExhaustive() {}
+
+    /// \brief Whether this is a system module.
+    unsigned IsSystem : 1;
+
+    /// \brief Whether this is an extern "C" module.
+    unsigned IsExternC : 1;
+
+    /// \brief Whether this is an exhaustive set of configuration macros.
+    unsigned IsExhaustive : 1;
+  };
+
   /// \brief A directory for which framework modules can be inferred.
   struct InferredDirectory {
-    InferredDirectory() : InferModules(), InferSystemModules() { }
+    InferredDirectory() : InferModules() {}
 
     /// \brief Whether to infer modules from this directory.
     unsigned InferModules : 1;
 
-    /// \brief Whether the modules we infer are [system] modules.
-    unsigned InferSystemModules : 1;
+    /// \brief The attributes to use for inferred modules.
+    Attributes Attrs;
 
     /// \brief If \c InferModules is non-zero, the module map file that allowed
     /// inferred modules.  Otherwise, nullptr.
@@ -145,6 +166,12 @@ private:
   /// \brief A mapping from directories to information about inferring
   /// framework modules from within those directories.
   llvm::DenseMap<const DirectoryEntry *, InferredDirectory> InferredDirectories;
+
+  /// A mapping from an inferred module to the module map that allowed the
+  /// inference.
+  llvm::DenseMap<const Module *, const FileEntry *> InferredModuleAllowedBy;
+
+  llvm::DenseMap<const Module *, AdditionalModMapsSet> AdditionalModMaps;
 
   /// \brief Describes whether we haved parsed a particular file as a module
   /// map.
@@ -204,6 +231,9 @@ private:
     return static_cast<bool>(findHeaderInUmbrellaDirs(File, IntermediateDirs));
   }
 
+  Module *inferFrameworkModule(const DirectoryEntry *FrameworkDir,
+                               Attributes Attrs, Module *Parent);
+
 public:
   /// \brief Construct a new module map.
   ///
@@ -237,15 +267,10 @@ public:
   ///
   /// \param File The header file that is likely to be included.
   ///
-  /// \param RequestingModule Specifies the module the header is intended to be
-  /// used from.  Used to disambiguate if a header is present in multiple
-  /// modules.
-  ///
   /// \returns The module KnownHeader, which provides the module that owns the
   /// given header file.  The KnownHeader is default constructed to indicate
   /// that no module owns this header file.
-  KnownHeader findModuleForHeader(const FileEntry *File,
-                                  Module *RequestingModule = nullptr);
+  KnownHeader findModuleForHeader(const FileEntry *File);
 
   /// \brief Reports errors if a module must not include a specific file.
   ///
@@ -306,9 +331,6 @@ public:
   /// \param Parent The module that will act as the parent of this submodule,
   /// or NULL to indicate that this is a top-level module.
   ///
-  /// \param ModuleMap The module map that defines or allows the inference of
-  /// this module.
-  ///
   /// \param IsFramework Whether this is a framework module.
   ///
   /// \param IsExplicit Whether this is an explicit submodule.
@@ -316,32 +338,14 @@ public:
   /// \returns The found or newly-created module, along with a boolean value
   /// that will be true if the module is newly-created.
   std::pair<Module *, bool> findOrCreateModule(StringRef Name, Module *Parent,
-                                               const FileEntry *ModuleMap,
                                                bool IsFramework,
                                                bool IsExplicit);
 
-  /// \brief Determine whether we can infer a framework module a framework
-  /// with the given name in the given
-  ///
-  /// \param ParentDir The directory that is the parent of the framework
-  /// directory.
-  ///
-  /// \param Name The name of the module.
-  ///
-  /// \param IsSystem Will be set to 'true' if the inferred module must be a
-  /// system module.
-  ///
-  /// \returns true if we are allowed to infer a framework module, and false
-  /// otherwise.
-  bool canInferFrameworkModule(const DirectoryEntry *ParentDir,
-                               StringRef Name, bool &IsSystem) const;
-
   /// \brief Infer the contents of a framework module map from the given
   /// framework directory.
-  Module *inferFrameworkModule(StringRef ModuleName, 
-                               const DirectoryEntry *FrameworkDir,
+  Module *inferFrameworkModule(const DirectoryEntry *FrameworkDir,
                                bool IsSystem, Module *Parent);
-  
+
   /// \brief Retrieve the module map file containing the definition of the given
   /// module.
   ///
@@ -349,7 +353,35 @@ public:
   ///
   /// \returns The file entry for the module map file containing the given
   /// module, or NULL if the module definition was inferred.
-  const FileEntry *getContainingModuleMapFile(Module *Module) const;
+  const FileEntry *getContainingModuleMapFile(const Module *Module) const;
+
+  /// \brief Get the module map file that (along with the module name) uniquely
+  /// identifies this module.
+  ///
+  /// The particular module that \c Name refers to may depend on how the module
+  /// was found in header search. However, the combination of \c Name and
+  /// this module map will be globally unique for top-level modules. In the case
+  /// of inferred modules, returns the module map that allowed the inference
+  /// (e.g. contained 'module *'). Otherwise, returns
+  /// getContainingModuleMapFile().
+  const FileEntry *getModuleMapFileForUniquing(const Module *M) const;
+
+  void setInferredModuleAllowedBy(Module *M, const FileEntry *ModuleMap);
+
+  /// \brief Get any module map files other than getModuleMapFileForUniquing(M)
+  /// that define submodules of a top-level module \p M. This is cheaper than
+  /// getting the module map file for each submodule individually, since the
+  /// expected number of results is very small.
+  AdditionalModMapsSet *getAdditionalModuleMapFiles(const Module *M) {
+    auto I = AdditionalModMaps.find(M);
+    if (I == AdditionalModMaps.end())
+      return nullptr;
+    return &I->second;
+  }
+
+  void addAdditionalModuleMapFile(const Module *M, const FileEntry *ModuleMap) {
+    AdditionalModMaps[M].insert(ModuleMap);
+  }
 
   /// \brief Resolve all of the unresolved exports in the given module.
   ///
@@ -393,16 +425,21 @@ public:
   
   /// \brief Sets the umbrella header of the given module to the given
   /// header.
-  void setUmbrellaHeader(Module *Mod, const FileEntry *UmbrellaHeader);
+  void setUmbrellaHeader(Module *Mod, const FileEntry *UmbrellaHeader,
+                         Twine NameAsWritten);
 
   /// \brief Sets the umbrella directory of the given module to the given
   /// directory.
-  void setUmbrellaDir(Module *Mod, const DirectoryEntry *UmbrellaDir);
+  void setUmbrellaDir(Module *Mod, const DirectoryEntry *UmbrellaDir,
+                      Twine NameAsWritten);
 
   /// \brief Adds this header to the given module.
   /// \param Role The role of the header wrt the module.
-  void addHeader(Module *Mod, const FileEntry *Header,
+  void addHeader(Module *Mod, Module::Header Header,
                  ModuleHeaderRole Role);
+
+  /// \brief Marks this header as being excluded from the given module.
+  void excludeHeader(Module *Mod, Module::Header Header);
 
   /// \brief Parse the given module map file, and record any modules we 
   /// encounter.
@@ -412,8 +449,16 @@ public:
   /// \param IsSystem Whether this module map file is in a system header
   /// directory, and therefore should be considered a system module.
   ///
+  /// \param HomeDir The directory in which relative paths within this module
+  ///        map file will be resolved.
+  ///
+  /// \param ExternModuleLoc The location of the "extern module" declaration
+  ///        that caused us to load this module map file, if any.
+  ///
   /// \returns true if an error occurred, false otherwise.
-  bool parseModuleMapFile(const FileEntry *File, bool IsSystem);
+  bool parseModuleMapFile(const FileEntry *File, bool IsSystem,
+                          const DirectoryEntry *HomeDir,
+                          SourceLocation ExternModuleLoc = SourceLocation());
     
   /// \brief Dump the contents of the module map, for debugging purposes.
   void dump();

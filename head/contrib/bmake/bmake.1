@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.229 2014/01/19 10:23:29 apb Exp $
+.\"	$NetBSD: make.1,v 1.249 2015/06/05 07:33:40 wiz Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd February 14, 2014
+.Dd June 4, 2015
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -209,8 +209,6 @@ Force the
 option to print raw values of variables.
 .It Ar v
 Print debugging information about variable assignment.
-.It Ar w
-Print entering and leaving directory messages, pre and post processing.
 .It Ar x
 Run shell commands with
 .Fl x
@@ -352,6 +350,8 @@ contains a
 then the value will be expanded before printing.
 .It Fl W
 Treat any warnings during makefile parsing as errors.
+.It Fl w
+Print entering and leaving directory messages, pre and post processing.
 .It Fl X
 Don't export variables passed on the command line to the environment
 individually.
@@ -441,17 +441,29 @@ The value
 need not necessarily be used to describe existing files.
 Expansion is in directory order, not alphabetically as done in the shell.
 .Sh SHELL COMMANDS
-Each target may have associated with it a series of shell commands, normally
+Each target may have associated with it one or more lines of shell
+commands, normally
 used to create the target.
-Each of the commands in this script
+Each of the lines in this script
 .Em must
 be preceded by a tab.
-While any target may appear on a dependency line, only one of these
-dependencies may be followed by a creation script, unless the
+(For historical reasons, spaces are not accepted.)
+While targets can appear in many dependency lines if desired, by
+default only one of these rules may be followed by a creation
+script.
+If the
 .Ql Ic \&::
-operator is used.
+operator is used, however, all rules may include scripts and the
+scripts are executed in the order found.
 .Pp
-If the first characters of the command line are any combination of
+Each line is treated as a separate shell command, unless the end of
+line is escaped with a backslash
+.Pq Ql \e
+in which case that line and the next are combined.
+.\" The escaped newline is retained and passed to the shell, which
+.\" normally ignores it.
+.\" However, the tab at the beginning of the following line is removed.
+If the first characters of the command are any combination of
 .Ql Ic @ ,
 .Ql Ic + ,
 or
@@ -469,6 +481,7 @@ This is similar to the effect of the .MAKE special source,
 except that the effect can be limited to a single line of a script.
 A
 .Ql Ic \-
+in compatibility mode
 causes any non-zero exit status of the command line to be ignored.
 .Pp
 When
@@ -477,13 +490,45 @@ is run in jobs mode with
 .Fl j Ar max_jobs ,
 the entire script for the target is fed to a
 single instance of the shell.
-.Pp
 In compatibility (non-jobs) mode, each command is run in a separate process.
 If the command contains any shell meta characters
 .Pq Ql #=|^(){};&<>*?[]:$`\e\en
-it will be passed to the shell, otherwise
+it will be passed to the shell; otherwise
 .Nm
 will attempt direct execution.
+If a line starts with
+.Ql Ic \-
+and the shell has ErrCtl enabled then failure of the command line
+will be ignored as in compatibility mode.
+Otherwise
+.Ql Ic \-
+affects the entire job;
+the script will stop at the first command line that fails,
+but the target will not be deemed to have failed.
+.Pp
+Makefiles should be written so that the mode of
+.Nm
+operation does not change their behavior.
+For example, any command which needs to use
+.Dq cd
+or
+.Dq chdir
+without potentially changing the directory for subsequent commands
+should be put in parentheses so it executes in a subshell.
+To force the use of one shell, escape the line breaks so as to make
+the whole script one command.
+For example:
+.Bd -literal -offset indent
+avoid-chdir-side-effects:
+	@echo Building $@ in `pwd`
+	@(cd ${.CURDIR} && ${MAKE} $@)
+	@echo Back in `pwd`
+
+ensure-one-shell-regardless-of-mode:
+	@echo Building $@ in `pwd`; \e
+	(cd ${.CURDIR} && ${MAKE} $@); \e
+	echo Back in `pwd`
+.Ed
 .Pp
 Since
 .Nm
@@ -493,27 +538,6 @@ to
 .Ql Va .OBJDIR
 before executing any targets, each child process
 starts with that as its current working directory.
-.Pp
-Makefiles should be written so that the mode of
-.Nm
-operation does not change their behavior.
-For example, any command which needs to use
-.Dq cd
-or
-.Dq chdir ,
-without side-effect should be put in parenthesis:
-.Bd -literal -offset indent
-
-avoid-chdir-side-effects:
-	@echo Building $@ in `pwd`
-	@(cd ${.CURDIR} && ${.MAKE} $@)
-	@echo Back in `pwd`
-
-ensure-one-shell-regardless-of-mode:
-	@echo Building $@ in `pwd`; \\
-	(cd ${.CURDIR} && ${.MAKE} $@); \\
-	echo Back in `pwd`
-.Ed
 .Sh VARIABLE ASSIGNMENTS
 Variables in make are much like variables in the shell, and, by tradition,
 consist of all upper-case letters.
@@ -624,13 +648,19 @@ Variables defined in the makefile or in included makefiles.
 Variables defined as part of the command line.
 .It Local variables
 Variables that are defined specific to a certain target.
+.El
+.Pp
+Local variables are all built in and their values vary magically from
+target to target.
+It is not currently possible to define new local variables.
 The seven local variables are as follows:
-.Bl -tag -width ".ARCHIVE"
+.Bl -tag -width ".ARCHIVE" -offset indent
 .It Va .ALLSRC
 The list of all sources for this target; also known as
 .Ql Va \&\*[Gt] .
 .It Va .ARCHIVE
-The name of the archive file.
+The name of the archive file; also known as
+.Ql Va \&! .
 .It Va .IMPSRC
 In suffix-transformation rules, the name/path of the source from which the
 target is to be transformed (the
@@ -639,7 +669,8 @@ source); also known as
 .Ql Va \&\*[Lt] .
 It is not defined in explicit rules.
 .It Va .MEMBER
-The name of the archive member.
+The name of the archive member; also known as
+.Ql Va % .
 .It Va .OODATE
 The list of sources for this target that were deemed out-of-date; also
 known as
@@ -648,31 +679,41 @@ known as
 The file prefix of the target, containing only the file portion, no suffix
 or preceding directory components; also known as
 .Ql Va * .
+The suffix must be one of the known suffixes declared with
+.Ic .SUFFIXES
+or it will not be recognized.
 .It Va .TARGET
 The name of the target; also known as
 .Ql Va @ .
 .El
 .Pp
 The shorter forms
-.Ql Va @ ,
+.Ql ( Va \*[Gt] ,
+.Ql Va \&! ,
+.Ql Va \*[Lt] ,
+.Ql Va % ,
 .Ql Va \&? ,
-.Ql Va \&\*[Lt] ,
-.Ql Va \&\*[Gt] ,
+.Ql Va * ,
 and
-.Ql Va *
+.Ql Va @ )
 are permitted for backward
-compatibility with historical makefiles and are not recommended.
-The six variables
-.Ql Va "@F" ,
-.Ql Va "@D" ,
-.Ql Va "\*[Lt]F" ,
-.Ql Va "\*[Lt]D" ,
-.Ql Va "*F" ,
+compatibility with historical makefiles and legacy POSIX make and are
+not recommended.
+.Pp
+Variants of these variables with the punctuation followed immediately by
+.Ql D
+or
+.Ql F ,
+e.g.
+.Ql Va $(@D) ,
+are legacy forms equivalent to using the
+.Ql :H
 and
-.Ql Va "*D"
-are permitted for compatibility with
+.Ql :T
+modifiers.
+These forms are accepted for compatibility with
 .At V
-makefiles and are not recommended.
+makefiles and POSIX but are not recommended.
 .Pp
 Four of the local variables may be used in sources on dependency lines
 because they expand to the proper value for each target on the line.
@@ -682,7 +723,6 @@ These variables are
 .Ql Va .ARCHIVE ,
 and
 .Ql Va .MEMBER .
-.El
 .Ss Additional built-in variables
 In addition,
 .Nm
@@ -953,14 +993,15 @@ This is especially useful with
 .Ql Ev MAKEOBJDIR .
 .Pp
 .Ql Va .OBJDIR
-may be modified in the makefile as a global variable.
+may be modified in the makefile via the special target
+.Ql Ic .OBJDIR .
 In all cases,
 .Nm
 will
 .Xr chdir 2
-to
+to the specified directory if it exists, and set
 .Ql Va .OBJDIR
-and set
+and
 .Ql Ev PWD
 to that directory before executing any targets.
 .
@@ -1961,6 +2002,15 @@ Disable parallel mode.
 Synonym for
 .Ic .NOTPARALLEL ,
 for compatibility with other pmake variants.
+.It Ic .OBJDIR
+The source is a new value for
+.Ql Va .OBJDIR .
+If it exists,
+.Nm
+will
+.Xr chdir 2
+to it and update the value of
+.Ql Va .OBJDIR .
 .It Ic .ORDER
 The named targets are made in sequence.
 This ordering does not add targets to the list of targets to be made.
@@ -2119,19 +2169,87 @@ system makefile
 system makefile directory
 .El
 .Sh COMPATIBILITY
-The basic make syntax is compatible between different versions of make,
+The basic make syntax is compatible between different versions of make;
 however the special variables, variable modifiers and conditionals are not.
-.Pp
-The way that parallel makes are scheduled changed in
-NetBSD 4.0
-so that .ORDER and .WAIT apply recursively to the dependent nodes.
-The algorithms used may change again in the future.
+.Ss Older versions
+An incomplete list of changes in older versions of
+.Nm :
 .Pp
 The way that .for loop variables are substituted changed after
 NetBSD 5.0
 so that they still appear to be variable expansions.
 In particular this stops them being treated as syntax, and removes some
 obscure problems using them in .if statements.
+.Pp
+The way that parallel makes are scheduled changed in
+NetBSD 4.0
+so that .ORDER and .WAIT apply recursively to the dependent nodes.
+The algorithms used may change again in the future.
+.Ss Other make dialects
+Other make dialects (GNU make, SVR4 make, POSIX make, etc.) do not
+support most of the features of
+.Nm
+as described in this manual.
+Most notably:
+.Bl -bullet -offset indent
+.It
+The
+.Ic .WAIT
+and
+.Ic .ORDER
+declarations and most functionality pertaining to parallelization.
+(GNU make supports parallelization but lacks these features needed to
+control it effectively.)
+.It
+Directives, including for loops and conditionals and most of the
+forms of include files.
+(GNU make has its own incompatible and less powerful syntax for
+conditionals.)
+.It
+All built-in variables that begin with a dot.
+.It
+Most of the special sources and targets that begin with a dot,
+with the notable exception of
+.Ic .PHONY ,
+.Ic .PRECIOUS ,
+and
+.Ic .SUFFIXES .
+.It
+Variable modifiers, except for the
+.Dl :old=new
+string substitution, which does not portably support globbing with
+.Ql %
+and historically only works on declared suffixes.
+.It
+The
+.Ic $>
+variable even in its short form; most makes support this functionality
+but its name varies.
+.El
+.Pp
+Some features are somewhat more portable, such as assignment with
+.Ic += ,
+.Ic ?= ,
+and
+.Ic != .
+The
+.Ic .PATH
+functionality is based on an older feature
+.Ic VPATH
+found in GNU make and many versions of SVR4 make; however,
+historically its behavior is too ill-defined (and too buggy) to rely
+upon.
+.Pp
+The
+.Ic $@
+and
+.Ic $<
+variables are more or less universally portable, as is the
+.Ic $(MAKE)
+variable.
+Basic use of suffix rules (for files only in the current directory,
+not trying to chain transformations together, etc.) is also reasonably
+portable.
 .Sh SEE ALSO
 .Xr mkdep 1
 .Sh HISTORY

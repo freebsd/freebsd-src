@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_READOBJ_STREAMWRITER_H
-#define LLVM_READOBJ_STREAMWRITER_H
+#ifndef LLVM_TOOLS_LLVM_READOBJ_STREAMWRITER_H
+#define LLVM_TOOLS_LLVM_READOBJ_STREAMWRITER_H
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
@@ -96,9 +96,10 @@ public:
     }
   }
 
-  template<typename T, typename TFlag>
-  void printFlags(StringRef Label, T Value, ArrayRef<EnumEntry<TFlag> > Flags,
-                  TFlag EnumMask = TFlag(0)) {
+  template <typename T, typename TFlag>
+  void printFlags(StringRef Label, T Value, ArrayRef<EnumEntry<TFlag>> Flags,
+                  TFlag EnumMask1 = {}, TFlag EnumMask2 = {},
+                  TFlag EnumMask3 = {}) {
     typedef EnumEntry<TFlag> FlagEntry;
     typedef SmallVector<FlagEntry, 10> FlagVector;
     FlagVector SetFlags;
@@ -107,6 +108,13 @@ public:
       if (Flag.Value == 0)
         continue;
 
+      TFlag EnumMask{};
+      if (Flag.Value & EnumMask1)
+        EnumMask = EnumMask1;
+      else if (Flag.Value & EnumMask2)
+        EnumMask = EnumMask2;
+      else if (Flag.Value & EnumMask3)
+        EnumMask = EnumMask3;
       bool IsEnum = (Flag.Value & EnumMask) != 0;
       if ((!IsEnum && (Value & Flag.Value) == Flag.Value) ||
           (IsEnum  && (Value & EnumMask) == Flag.Value)) {
@@ -173,8 +181,8 @@ public:
     startLine() << Label << ": " << (Value ? "Yes" : "No") << '\n';
   }
 
-  template <typename T_>
-  void printList(StringRef Label, const SmallVectorImpl<T_> &List) {
+  template <typename T>
+  void printList(StringRef Label, const T &List) {
     startLine() << Label << ": [";
     bool Comma = false;
     for (const auto &Item : List) {
@@ -214,8 +222,8 @@ public:
   }
 
   void printBinary(StringRef Label, StringRef Str, ArrayRef<char> Value) {
-    ArrayRef<uint8_t> V(reinterpret_cast<const uint8_t*>(Value.data()),
-                        Value.size());
+    auto V = makeArrayRef(reinterpret_cast<const uint8_t*>(Value.data()),
+                          Value.size());
     printBinaryImpl(Label, Str, V, false);
   }
 
@@ -224,20 +232,20 @@ public:
   }
 
   void printBinary(StringRef Label, ArrayRef<char> Value) {
-    ArrayRef<uint8_t> V(reinterpret_cast<const uint8_t*>(Value.data()),
-                        Value.size());
+    auto V = makeArrayRef(reinterpret_cast<const uint8_t*>(Value.data()),
+                          Value.size());
     printBinaryImpl(Label, StringRef(), V, false);
   }
 
   void printBinary(StringRef Label, StringRef Value) {
-    ArrayRef<uint8_t> V(reinterpret_cast<const uint8_t*>(Value.data()),
-                        Value.size());
+    auto V = makeArrayRef(reinterpret_cast<const uint8_t*>(Value.data()),
+                          Value.size());
     printBinaryImpl(Label, StringRef(), V, false);
   }
 
   void printBinaryBlock(StringRef Label, StringRef Value) {
-    ArrayRef<uint8_t> V(reinterpret_cast<const uint8_t*>(Value.data()),
-                        Value.size());
+    auto V = makeArrayRef(reinterpret_cast<const uint8_t*>(Value.data()),
+                          Value.size());
     printBinaryImpl(Label, StringRef(), V, true);
   }
 

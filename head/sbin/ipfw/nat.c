@@ -87,7 +87,7 @@ set_addr_dynamic(const char *ifn, struct nat44_cfg_nat *n)
 	struct ifa_msghdr *ifam;
 	struct sockaddr_dl *sdl;
 	struct sockaddr_in *sin;
-	int ifIndex, ifMTU;
+	int ifIndex;
 
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
@@ -126,7 +126,6 @@ set_addr_dynamic(const char *ifn, struct nat44_cfg_nat *n)
 			if (strlen(ifn) == sdl->sdl_nlen &&
 			    strncmp(ifn, sdl->sdl_data, sdl->sdl_nlen) == 0) {
 				ifIndex = ifm->ifm_index;
-				ifMTU = ifm->ifm_data.ifi_mtu;
 				break;
 			}
 		}
@@ -163,9 +162,9 @@ set_addr_dynamic(const char *ifn, struct nat44_cfg_nat *n)
 		}
 	}
 	if (sin == NULL)
-		errx(1, "%s: cannot get interface address", ifn);
-
-	n->ip = sin->sin_addr;
+		n->ip.s_addr = htonl(INADDR_ANY);
+	else
+		n->ip = sin->sin_addr;
 	strncpy(n->if_name, ifn, IF_NAMESIZE);
 
 	free(buf);
@@ -635,14 +634,13 @@ nat_show_log(struct nat44_cfg_nat *n, void *arg)
 static void
 nat_show_cfg(struct nat44_cfg_nat *n, void *arg)
 {
-	int i, cnt, flag, off;
+	int i, cnt, off;
 	struct nat44_cfg_redir *t;
 	struct nat44_cfg_spool *s;
 	caddr_t buf;
 	struct protoent *p;
 
 	buf = (caddr_t)n;
-	flag = 1;
 	off = sizeof(*n);
 	printf("ipfw nat %s config", n->name);
 	if (strlen(n->if_name) != 0)
@@ -1008,11 +1006,10 @@ nat_foreach(nat_cb_t *f, void *arg, int sort)
 
 		olh->size = sz;
 		if (do_get3(IP_FW_NAT44_LIST_NAT, &olh->opheader, &sz) != 0) {
+			sz = olh->size;
 			free(olh);
-			if (errno == ENOMEM) {
-				sz = olh->size;
+			if (errno == ENOMEM)
 				continue;
-			}
 			return (errno);
 		}
 

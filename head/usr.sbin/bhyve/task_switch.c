@@ -202,7 +202,8 @@ desc_table_limit_check(struct vmctx *ctx, int vcpu, uint16_t sel)
  */
 static int
 desc_table_rw(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
-    uint16_t sel, struct user_segment_descriptor *desc, bool doread)
+    uint16_t sel, struct user_segment_descriptor *desc, bool doread,
+    int *faultptr)
 {
 	struct iovec iov[2];
 	uint64_t base;
@@ -215,28 +216,30 @@ desc_table_rw(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 	assert(limit >= SEL_LIMIT(sel));
 
 	error = vm_copy_setup(ctx, vcpu, paging, base + SEL_START(sel),
-	    sizeof(*desc), doread ? PROT_READ : PROT_WRITE, iov, nitems(iov));
-	if (error == 0) {
-		if (doread)
-			vm_copyin(ctx, vcpu, iov, desc, sizeof(*desc));
-		else
-			vm_copyout(ctx, vcpu, desc, iov, sizeof(*desc));
-	}
-	return (error);
+	    sizeof(*desc), doread ? PROT_READ : PROT_WRITE, iov, nitems(iov),
+	    faultptr);
+	if (error || *faultptr)
+		return (error);
+
+	if (doread)
+		vm_copyin(ctx, vcpu, iov, desc, sizeof(*desc));
+	else
+		vm_copyout(ctx, vcpu, desc, iov, sizeof(*desc));
+	return (0);
 }
 
 static int
 desc_table_read(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
-    uint16_t sel, struct user_segment_descriptor *desc)
+    uint16_t sel, struct user_segment_descriptor *desc, int *faultptr)
 {
-	return (desc_table_rw(ctx, vcpu, paging, sel, desc, true));
+	return (desc_table_rw(ctx, vcpu, paging, sel, desc, true, faultptr));
 }
 
 static int
 desc_table_write(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
-    uint16_t sel, struct user_segment_descriptor *desc)
+    uint16_t sel, struct user_segment_descriptor *desc, int *faultptr)
 {
-	return (desc_table_rw(ctx, vcpu, paging, sel, desc, false));
+	return (desc_table_rw(ctx, vcpu, paging, sel, desc, false, faultptr));
 }
 
 /*
@@ -248,7 +251,7 @@ desc_table_write(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
  */
 static int
 read_tss_descriptor(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
-    uint16_t sel, struct user_segment_descriptor *desc)
+    uint16_t sel, struct user_segment_descriptor *desc, int *faultptr)
 {
 	struct vm_guest_paging sup_paging;
 	int error;
@@ -267,7 +270,7 @@ read_tss_descriptor(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 
 	sup_paging = ts->paging;
 	sup_paging.cpl = 0;		/* implicit supervisor mode */
-	error = desc_table_read(ctx, vcpu, &sup_paging, sel, desc);
+	error = desc_table_read(ctx, vcpu, &sup_paging, sel, desc, faultptr);
 	return (error);
 }
 
@@ -301,14 +304,10 @@ ldt_desc(int sd_type)
 
 /*
  * Validate the descriptor 'seg_desc' associated with 'segment'.
- *
- * Returns 0 on success.
- * Returns 1 if an exception was injected into the guest.
- * Returns -1 otherwise.
  */
 static int
 validate_seg_desc(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
-    int segment, struct seg_desc *seg_desc)
+    int segment, struct seg_desc *seg_desc, int *faultptr)
 {
 	struct vm_guest_paging sup_paging;
 	struct user_segment_descriptor usd;
@@ -369,8 +368,8 @@ validate_seg_desc(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 	/* Read the descriptor from the GDT/LDT */
 	sup_paging = ts->paging;
 	sup_paging.cpl = 0;	/* implicit supervisor mode */
-	error = desc_table_read(ctx, vcpu, &sup_paging, sel, &usd);
-	if (error)
+	error = desc_table_read(ctx, vcpu, &sup_paging, sel, &usd, faultptr);
+	if (error || *faultptr)
 		return (error);
 
 	/* Verify that the descriptor type is compatible with the segment */
@@ -476,14 +475,10 @@ update_seg_desc(struct vmctx *ctx, int vcpu, int reg, struct seg_desc *sd)
 
 /*
  * Update the vcpu registers to reflect the state of the new task.
- *
- * Returns 0 on success.
- * Returns 1 if an exception was injected into the guest.
- * Returns -1 otherwise.
  */
 static int
 tss32_restore(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
-    uint16_t ot_sel, struct tss32 *tss, struct iovec *iov)
+    uint16_t ot_sel, struct tss32 *tss, struct iovec *iov, int *faultptr)
 {
 	struct seg_desc seg_desc, seg_desc2;
 	uint64_t *pdpte, maxphyaddr, reserved;
@@ -565,8 +560,9 @@ tss32_restore(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 		vm_copyout(ctx, vcpu, tss, iov, sizeof(*tss));
 
 	/* Validate segment descriptors */
-	error = validate_seg_desc(ctx, vcpu, ts, VM_REG_GUEST_LDTR, &seg_desc);
-	if (error)
+	error = validate_seg_desc(ctx, vcpu, ts, VM_REG_GUEST_LDTR, &seg_desc,
+	    faultptr);
+	if (error || *faultptr)
 		return (error);
 	update_seg_desc(ctx, vcpu, VM_REG_GUEST_LDTR, &seg_desc);
 
@@ -579,33 +575,40 @@ tss32_restore(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 	 * VM-entry checks so the guest can handle any exception injected
 	 * during task switch emulation.
 	 */
-	error = validate_seg_desc(ctx, vcpu, ts, VM_REG_GUEST_CS, &seg_desc);
-	if (error)
+	error = validate_seg_desc(ctx, vcpu, ts, VM_REG_GUEST_CS, &seg_desc,
+	    faultptr);
+	if (error || *faultptr)
 		return (error);
-	error = validate_seg_desc(ctx, vcpu, ts, VM_REG_GUEST_SS, &seg_desc2);
-	if (error)
+
+	error = validate_seg_desc(ctx, vcpu, ts, VM_REG_GUEST_SS, &seg_desc2,
+	    faultptr);
+	if (error || *faultptr)
 		return (error);
 	update_seg_desc(ctx, vcpu, VM_REG_GUEST_CS, &seg_desc);
 	update_seg_desc(ctx, vcpu, VM_REG_GUEST_SS, &seg_desc2);
 	ts->paging.cpl = tss->tss_cs & SEL_RPL_MASK;
 
-	error = validate_seg_desc(ctx, vcpu, ts, VM_REG_GUEST_DS, &seg_desc);
-	if (error)
+	error = validate_seg_desc(ctx, vcpu, ts, VM_REG_GUEST_DS, &seg_desc,
+	    faultptr);
+	if (error || *faultptr)
 		return (error);
 	update_seg_desc(ctx, vcpu, VM_REG_GUEST_DS, &seg_desc);
 
-	error = validate_seg_desc(ctx, vcpu, ts, VM_REG_GUEST_ES, &seg_desc);
-	if (error)
+	error = validate_seg_desc(ctx, vcpu, ts, VM_REG_GUEST_ES, &seg_desc,
+	    faultptr);
+	if (error || *faultptr)
 		return (error);
 	update_seg_desc(ctx, vcpu, VM_REG_GUEST_ES, &seg_desc);
 
-	error = validate_seg_desc(ctx, vcpu, ts, VM_REG_GUEST_FS, &seg_desc);
-	if (error)
+	error = validate_seg_desc(ctx, vcpu, ts, VM_REG_GUEST_FS, &seg_desc,
+	    faultptr);
+	if (error || *faultptr)
 		return (error);
 	update_seg_desc(ctx, vcpu, VM_REG_GUEST_FS, &seg_desc);
 
-	error = validate_seg_desc(ctx, vcpu, ts, VM_REG_GUEST_GS, &seg_desc);
-	if (error)
+	error = validate_seg_desc(ctx, vcpu, ts, VM_REG_GUEST_GS, &seg_desc,
+	    faultptr);
+	if (error || *faultptr)
 		return (error);
 	update_seg_desc(ctx, vcpu, VM_REG_GUEST_GS, &seg_desc);
 
@@ -616,14 +619,10 @@ tss32_restore(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
  * Push an error code on the stack of the new task. This is needed if the
  * task switch was triggered by a hardware exception that causes an error
  * code to be saved (e.g. #PF).
- *
- * Returns 0 on success.
- * Returns 1 if an exception was injected into the guest.
- * Returns -1 otherwise.
  */
 static int
 push_errcode(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
-    int task_type, uint32_t errcode)
+    int task_type, uint32_t errcode, int *faultptr)
 {
 	struct iovec iov[2];
 	struct seg_desc seg_desc;
@@ -631,6 +630,8 @@ push_errcode(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 	uint64_t gla, cr0, rflags;
 	uint32_t esp;
 	uint16_t stacksel;
+
+	*faultptr = 0;
 
 	cr0 = GETREG(ctx, vcpu, VM_REG_GUEST_CR0);
 	rflags = GETREG(ctx, vcpu, VM_REG_GUEST_RFLAGS);
@@ -666,17 +667,19 @@ push_errcode(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 	if (vie_calculate_gla(paging->cpu_mode, VM_REG_GUEST_SS,
 	    &seg_desc, esp, bytes, stacksize, PROT_WRITE, &gla)) {
 		sel_exception(ctx, vcpu, IDT_SS, stacksel, 1);
-		return (1);
+		*faultptr = 1;
+		return (0);
 	}
 
 	if (vie_alignment_check(paging->cpl, bytes, cr0, rflags, gla)) {
 		vm_inject_ac(ctx, vcpu, 1);
-		return (1);
+		*faultptr = 1;
+		return (0);
 	}
 
 	error = vm_copy_setup(ctx, vcpu, paging, gla, bytes, PROT_WRITE,
-	    iov, nitems(iov));
-	if (error)
+	    iov, nitems(iov), faultptr);
+	if (error || *faultptr)
 		return (error);
 
 	vm_copyout(ctx, vcpu, &errcode, iov, bytes);
@@ -687,16 +690,13 @@ push_errcode(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 /*
  * Evaluate return value from helper functions and potentially return to
  * the VM run loop.
- *  0: success
- * +1: an exception was injected into the guest vcpu
- * -1: unrecoverable/programming error
  */
-#define	CHKERR(x)							\
+#define	CHKERR(error,fault)						\
 	do {								\
-		assert(((x) == 0) || ((x) == 1) || ((x) == -1));	\
-		if ((x) == -1)						\
+		assert((error == 0) || (error == EFAULT));		\
+		if (error)						\
 			return (VMEXIT_ABORT);				\
-		else if ((x) == 1)					\
+		else if (fault)						\
 			return (VMEXIT_CONTINUE);			\
 	} while (0)
 
@@ -711,7 +711,7 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	struct iovec nt_iov[2], ot_iov[2];
 	uint64_t cr0, ot_base;
 	uint32_t eip, ot_lim, access;
-	int error, ext, minlimit, nt_type, ot_type, vcpu;
+	int error, ext, fault, minlimit, nt_type, ot_type, vcpu;
 	enum task_switch_reason reason;
 	uint16_t nt_sel, ot_sel;
 
@@ -739,8 +739,9 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	sup_paging.cpl = 0;	/* implicit supervisor mode */
 
 	/* Fetch the new TSS descriptor */
-	error = read_tss_descriptor(ctx, vcpu, task_switch, nt_sel, &nt_desc);
-	CHKERR(error);
+	error = read_tss_descriptor(ctx, vcpu, task_switch, nt_sel, &nt_desc,
+	    &fault);
+	CHKERR(error, fault);
 
 	nt = usd_to_seg_desc(&nt_desc);
 
@@ -792,8 +793,8 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 
 	/* Fetch the new TSS */
 	error = vm_copy_setup(ctx, vcpu, &sup_paging, nt.base, minlimit + 1,
-	    PROT_READ | PROT_WRITE, nt_iov, nitems(nt_iov));
-	CHKERR(error);
+	    PROT_READ | PROT_WRITE, nt_iov, nitems(nt_iov), &fault);
+	CHKERR(error, fault);
 	vm_copyin(ctx, vcpu, nt_iov, &newtss, minlimit + 1);
 
 	/* Get the old TSS selector from the guest's task register */
@@ -818,13 +819,14 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	assert(ot_type == SDT_SYS386BSY || ot_type == SDT_SYS286BSY);
 
 	/* Fetch the old TSS descriptor */
-	error = read_tss_descriptor(ctx, vcpu, task_switch, ot_sel, &ot_desc);
-	CHKERR(error);
+	error = read_tss_descriptor(ctx, vcpu, task_switch, ot_sel, &ot_desc,
+	    &fault);
+	CHKERR(error, fault);
 
 	/* Get the old TSS */
 	error = vm_copy_setup(ctx, vcpu, &sup_paging, ot_base, minlimit + 1,
-	    PROT_READ | PROT_WRITE, ot_iov, nitems(ot_iov));
-	CHKERR(error);
+	    PROT_READ | PROT_WRITE, ot_iov, nitems(ot_iov), &fault);
+	CHKERR(error, fault);
 	vm_copyin(ctx, vcpu, ot_iov, &oldtss, minlimit + 1);
 
 	/*
@@ -834,8 +836,8 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	if (reason == TSR_IRET || reason == TSR_JMP) {
 		ot_desc.sd_type &= ~0x2;
 		error = desc_table_write(ctx, vcpu, &sup_paging, ot_sel,
-		    &ot_desc);
-		CHKERR(error);
+		    &ot_desc, &fault);
+		CHKERR(error, fault);
 	}
 
 	if (nt_type == SDT_SYS286BSY || nt_type == SDT_SYS286TSS) {
@@ -853,8 +855,8 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	if (reason != TSR_IRET) {
 		nt_desc.sd_type |= 0x2;
 		error = desc_table_write(ctx, vcpu, &sup_paging, nt_sel,
-		    &nt_desc);
-		CHKERR(error);
+		    &nt_desc, &fault);
+		CHKERR(error, fault);
 	}
 
 	/* Update task register to point at the new TSS */
@@ -877,8 +879,9 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	assert(error == 0);
 
 	/* Load processor state from new TSS */
-	error = tss32_restore(ctx, vcpu, task_switch, ot_sel, &newtss, nt_iov);
-	CHKERR(error);
+	error = tss32_restore(ctx, vcpu, task_switch, ot_sel, &newtss, nt_iov,
+	    &fault);
+	CHKERR(error, fault);
 
 	/*
 	 * Section "Interrupt Tasks" in Intel SDM, Vol 3: if an exception
@@ -889,8 +892,8 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 		assert(task_switch->ext);
 		assert(task_switch->reason == TSR_IDT_GATE);
 		error = push_errcode(ctx, vcpu, &task_switch->paging, nt_type,
-		    task_switch->errcode);
-		CHKERR(error);
+		    task_switch->errcode, &fault);
+		CHKERR(error, fault);
 	}
 
 	/*

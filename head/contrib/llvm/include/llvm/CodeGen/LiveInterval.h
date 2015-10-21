@@ -27,6 +27,7 @@
 #include "llvm/Support/Allocator.h"
 #include <cassert>
 #include <climits>
+#include <set>
 
 namespace llvm {
   class CoalescerPair;
@@ -119,6 +120,12 @@ namespace llvm {
       return isDeadDef() ? nullptr : LateVal;
     }
 
+    /// Returns the value alive at the end of the instruction, if any. This can
+    /// be a live-through value, a live def or a dead def.
+    VNInfo *valueOutOrDead() const {
+      return LateVal;
+    }
+
     /// Return the value defined by this instruction, if any. This includes
     /// dead defs, it is the value created by the instruction's def operands.
     VNInfo *valueDefined() const {
@@ -188,6 +195,12 @@ namespace llvm {
     Segments segments;   // the liveness segments
     VNInfoList valnos;   // value#'s
 
+    // The segment set is used temporarily to accelerate initial computation
+    // of live ranges of physical registers in computeRegUnitRange.
+    // After that the set is flushed to the segment vector and deleted.
+    typedef std::set<Segment> SegmentSet;
+    std::unique_ptr<SegmentSet> segmentSet;
+
     typedef Segments::iterator iterator;
     iterator begin() { return segments.begin(); }
     iterator end()   { return segments.end(); }
@@ -204,12 +217,41 @@ namespace llvm {
     const_vni_iterator vni_begin() const { return valnos.begin(); }
     const_vni_iterator vni_end() const   { return valnos.end(); }
 
+    /// Constructs a new LiveRange object.
+    LiveRange(bool UseSegmentSet = false)
+        : segmentSet(UseSegmentSet ? llvm::make_unique<SegmentSet>()
+                                   : nullptr) {}
+
+    /// Constructs a new LiveRange object by copying segments and valnos from
+    /// another LiveRange.
+    LiveRange(const LiveRange &Other, BumpPtrAllocator &Allocator) {
+      assert(Other.segmentSet == nullptr &&
+             "Copying of LiveRanges with active SegmentSets is not supported");
+
+      // Duplicate valnos.
+      for (const VNInfo *VNI : Other.valnos) {
+        createValueCopy(VNI, Allocator);
+      }
+      // Now we can copy segments and remap their valnos.
+      for (const Segment &S : Other.segments) {
+        segments.push_back(Segment(S.start, S.end, valnos[S.valno->id]));
+      }
+    }
+
     /// advanceTo - Advance the specified iterator to point to the Segment
     /// containing the specified position, or end() if the position is past the
     /// end of the range.  If no Segment contains this position, but the
     /// position is in a hole, this method returns an iterator pointing to the
     /// Segment immediately after the hole.
     iterator advanceTo(iterator I, SlotIndex Pos) {
+      assert(I != end());
+      if (Pos >= endIndex())
+        return end();
+      while (I->end <= Pos) ++I;
+      return I;
+    }
+
+    const_iterator advanceTo(const_iterator I, SlotIndex Pos) const {
       assert(I != end());
       if (Pos >= endIndex())
         return end();
@@ -397,17 +439,21 @@ namespace llvm {
     /// scanning the Other range starting at I.
     bool overlapsFrom(const LiveRange &Other, const_iterator I) const;
 
+    /// Returns true if all segments of the @p Other live range are completely
+    /// covered by this live range.
+    /// Adjacent live ranges do not affect the covering:the liverange
+    /// [1,5](5,10] covers (3,7].
+    bool covers(const LiveRange &Other) const;
+
     /// Add the specified Segment to this range, merging segments as
     /// appropriate.  This returns an iterator to the inserted segment (which
     /// may have grown since it was inserted).
-    iterator addSegment(Segment S) {
-      return addSegmentFrom(S, segments.begin());
-    }
+    iterator addSegment(Segment S);
 
-    /// extendInBlock - If this range is live before Kill in the basic block
-    /// that starts at StartIdx, extend it to be live up to Kill, and return
-    /// the value. If there is no segment before Kill, return NULL.
-    VNInfo *extendInBlock(SlotIndex StartIdx, SlotIndex Kill);
+    /// If this range is live before @p Use in the basic block that starts at
+    /// @p StartIdx, extend it to be live up to @p Use, and return the value. If
+    /// there is no segment before @p Use, return nullptr.
+    VNInfo *extendInBlock(SlotIndex StartIdx, SlotIndex Use);
 
     /// join - Join two live ranges (this, and other) together.  This applies
     /// mappings to the value numbers in the LHS/RHS ranges as specified.  If
@@ -433,6 +479,12 @@ namespace llvm {
 
     void removeSegment(Segment S, bool RemoveDeadValNo = false) {
       removeSegment(S.start, S.end, RemoveDeadValNo);
+    }
+
+    /// Remove segment pointed to by iterator @p I from this range.  This does
+    /// not remove dead value numbers.
+    iterator removeSegment(iterator I) {
+      return segments.erase(I);
     }
 
     /// Query Liveness at Idx.
@@ -484,9 +536,9 @@ namespace llvm {
     /// Returns true if the live range is zero length, i.e. no live segments
     /// span instructions. It doesn't pay to spill such a range.
     bool isZeroLength(SlotIndexes *Indexes) const {
-      for (const_iterator i = begin(), e = end(); i != e; ++i)
-        if (Indexes->getNextNonNullIndex(i->start).getBaseIndex() <
-            i->end.getBaseIndex())
+      for (const Segment &S : segments)
+        if (Indexes->getNextNonNullIndex(S.start).getBaseIndex() <
+            S.end.getBaseIndex())
           return false;
       return true;
     }
@@ -496,6 +548,12 @@ namespace llvm {
       const SlotIndex &otherIndex = other.beginIndex();
       return thisIndex < otherIndex;
     }
+
+    /// Flush segment set into the regular segment vector.
+    /// The method is to be called after the live range
+    /// has been created, if use of the segment set was
+    /// activated in the constructor of the live range.
+    void flushSegmentSet();
 
     void print(raw_ostream &OS) const;
     void dump() const;
@@ -509,11 +567,13 @@ namespace llvm {
     void verify() const;
 #endif
 
-  private:
+  protected:
+    /// Append a segment to the list of segments.
+    void append(const LiveRange::Segment S);
 
-    iterator addSegmentFrom(Segment S, iterator From);
-    void extendSegmentEndTo(iterator I, SlotIndex NewEnd);
-    iterator extendSegmentStartTo(iterator I, SlotIndex NewStr);
+  private:
+    friend class LiveRangeUpdater;
+    void addSegmentToSet(Segment S);
     void markValNoForDeletion(VNInfo *V);
 
   };
@@ -529,11 +589,124 @@ namespace llvm {
   public:
     typedef LiveRange super;
 
+    /// A live range for subregisters. The LaneMask specifies which parts of the
+    /// super register are covered by the interval.
+    /// (@sa TargetRegisterInfo::getSubRegIndexLaneMask()).
+    class SubRange : public LiveRange {
+    public:
+      SubRange *Next;
+      unsigned LaneMask;
+
+      /// Constructs a new SubRange object.
+      SubRange(unsigned LaneMask)
+        : Next(nullptr), LaneMask(LaneMask) {
+      }
+
+      /// Constructs a new SubRange object by copying liveness from @p Other.
+      SubRange(unsigned LaneMask, const LiveRange &Other,
+               BumpPtrAllocator &Allocator)
+        : LiveRange(Other, Allocator), Next(nullptr), LaneMask(LaneMask) {
+      }
+    };
+
+  private:
+    SubRange *SubRanges; ///< Single linked list of subregister live ranges.
+
+  public:
     const unsigned reg;  // the register or stack slot of this interval.
     float weight;        // weight of this interval
 
     LiveInterval(unsigned Reg, float Weight)
-      : reg(Reg), weight(Weight) {}
+      : SubRanges(nullptr), reg(Reg), weight(Weight) {}
+
+    ~LiveInterval() {
+      clearSubRanges();
+    }
+
+    template<typename T>
+    class SingleLinkedListIterator {
+      T *P;
+    public:
+      SingleLinkedListIterator<T>(T *P) : P(P) {}
+      SingleLinkedListIterator<T> &operator++() {
+        P = P->Next;
+        return *this;
+      }
+      SingleLinkedListIterator<T> &operator++(int) {
+        SingleLinkedListIterator res = *this;
+        ++*this;
+        return res;
+      }
+      bool operator!=(const SingleLinkedListIterator<T> &Other) {
+        return P != Other.operator->();
+      }
+      bool operator==(const SingleLinkedListIterator<T> &Other) {
+        return P == Other.operator->();
+      }
+      T &operator*() const {
+        return *P;
+      }
+      T *operator->() const {
+        return P;
+      }
+    };
+
+    typedef SingleLinkedListIterator<SubRange> subrange_iterator;
+    subrange_iterator subrange_begin() {
+      return subrange_iterator(SubRanges);
+    }
+    subrange_iterator subrange_end() {
+      return subrange_iterator(nullptr);
+    }
+
+    typedef SingleLinkedListIterator<const SubRange> const_subrange_iterator;
+    const_subrange_iterator subrange_begin() const {
+      return const_subrange_iterator(SubRanges);
+    }
+    const_subrange_iterator subrange_end() const {
+      return const_subrange_iterator(nullptr);
+    }
+
+    iterator_range<subrange_iterator> subranges() {
+      return make_range(subrange_begin(), subrange_end());
+    }
+
+    iterator_range<const_subrange_iterator> subranges() const {
+      return make_range(subrange_begin(), subrange_end());
+    }
+
+    /// Creates a new empty subregister live range. The range is added at the
+    /// beginning of the subrange list; subrange iterators stay valid.
+    SubRange *createSubRange(BumpPtrAllocator &Allocator, unsigned LaneMask) {
+      SubRange *Range = new (Allocator) SubRange(LaneMask);
+      appendSubRange(Range);
+      return Range;
+    }
+
+    /// Like createSubRange() but the new range is filled with a copy of the
+    /// liveness information in @p CopyFrom.
+    SubRange *createSubRangeFrom(BumpPtrAllocator &Allocator, unsigned LaneMask,
+                                 const LiveRange &CopyFrom) {
+      SubRange *Range = new (Allocator) SubRange(LaneMask, CopyFrom, Allocator);
+      appendSubRange(Range);
+      return Range;
+    }
+
+    /// Returns true if subregister liveness information is available.
+    bool hasSubRanges() const {
+      return SubRanges != nullptr;
+    }
+
+    /// Removes all subregister liveness information.
+    void clearSubRanges();
+
+    /// Removes all subranges without any segments (subranges without segments
+    /// are not considered valid and should only exist temporarily).
+    void removeEmptySubRanges();
+
+    /// Construct main live range by merging the SubRanges of @p LI.
+    void constructMainRangeFromSubranges(const SlotIndexes &Indexes,
+                                         VNInfo::Allocator &VNIAllocator);
 
     /// getSize - Returns the sum of sizes of all the LiveRange's.
     ///
@@ -558,9 +731,24 @@ namespace llvm {
     void print(raw_ostream &OS) const;
     void dump() const;
 
-  private:
-    LiveInterval& operator=(const LiveInterval& rhs) LLVM_DELETED_FUNCTION;
+    /// \brief Walks the interval and assert if any invariants fail to hold.
+    ///
+    /// Note that this is a no-op when asserts are disabled.
+#ifdef NDEBUG
+    void verify(const MachineRegisterInfo *MRI = nullptr) const {}
+#else
+    void verify(const MachineRegisterInfo *MRI = nullptr) const;
+#endif
 
+  private:
+    /// Appends @p Range to SubRanges list.
+    void appendSubRange(SubRange *Range) {
+      Range->Next = SubRanges;
+      SubRanges = Range;
+    }
+
+    /// Free memory held by SubRange.
+    void freeSubRange(SubRange *S);
   };
 
   inline raw_ostream &operator<<(raw_ostream &OS, const LiveInterval &LI) {

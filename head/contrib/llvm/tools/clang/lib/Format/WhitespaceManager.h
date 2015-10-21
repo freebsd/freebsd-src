@@ -13,8 +13,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FORMAT_WHITESPACEMANAGER_H
-#define LLVM_CLANG_FORMAT_WHITESPACEMANAGER_H
+#ifndef LLVM_CLANG_LIB_FORMAT_WHITESPACEMANAGER_H
+#define LLVM_CLANG_LIB_FORMAT_WHITESPACEMANAGER_H
 
 #include "TokenAnnotator.h"
 #include "clang/Basic/SourceManager.h"
@@ -164,6 +164,15 @@ private:
   /// \c EscapedNewlineColumn for the first tokens or token parts in a line.
   void calculateLineBreakInformation();
 
+  /// \brief Align consecutive assignments over all \c Changes.
+  void alignConsecutiveAssignments();
+
+  /// \brief Align consecutive assignments from change \p Start to change \p End
+  /// at
+  /// the specified \p Column.
+  void alignConsecutiveAssignments(unsigned Start, unsigned End,
+                                   unsigned Column);
+
   /// \brief Align trailing comments over all \c Changes.
   void alignTrailingComments();
 
@@ -200,4 +209,4 @@ private:
 } // namespace format
 } // namespace clang
 
-#endif // LLVM_CLANG_FORMAT_WHITESPACEMANAGER_H
+#endif

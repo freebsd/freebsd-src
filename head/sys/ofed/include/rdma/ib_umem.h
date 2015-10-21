@@ -37,9 +37,26 @@
 #include <linux/scatterlist.h>
 #include <linux/workqueue.h>
 #include <linux/dma-attrs.h>
+#include <linux/completion.h>
+#include <rdma/ib_peer_mem.h>
 
 struct ib_ucontext;
-struct vm_area_struct;
+struct ib_umem;
+
+typedef void (*umem_invalidate_func_t)(void *invalidation_cookie,
+					    struct ib_umem *umem,
+					    unsigned long addr, size_t size);
+
+struct invalidation_ctx {
+	struct ib_umem *umem;
+	umem_invalidate_func_t func;
+	void *cookie;
+	unsigned long context_ticket;
+	int peer_callback;
+	int inflight_invalidation;
+	int peer_invalidated;
+	struct completion comp;
+};
 
 struct ib_umem {
 	struct ib_ucontext     *context;
@@ -48,55 +65,29 @@ struct ib_umem {
 	int			page_size;
 	int                     writable;
 	int                     hugetlb;
-	struct list_head	chunk_list;
-#ifdef __linux__
 	struct work_struct	work;
-	struct mm_struct       *mm;
-#else
-	unsigned long		start;
-#endif
 	unsigned long		diff;
-};
-
-struct ib_cmem {
-
-        struct ib_ucontext     *context;
-        size_t                  length;
-        /* Link list of contiguous blocks being part of that cmem  */
-        struct list_head ib_cmem_block;
-
-        /* Order of cmem block,  2^ block_order will equal number
-             of physical pages per block
-        */
-        unsigned long    block_order;
-        /* Refernce counter for that memory area
-          - When value became 0 pages will be returned to the kernel.
-        */
-        struct kref refcount;
-};
-
-
-struct ib_umem_chunk {
-	struct list_head	list;
-	int                     nents;
+	unsigned long           start;
+	struct sg_table sg_head;
 	int                     nmap;
-	struct dma_attrs	attrs;
-	struct scatterlist      page_list[0];
+	int             npages;
+	/* peer memory that manages this umem*/
+	struct ib_peer_memory_client *ib_peer_mem;
+	struct invalidation_ctx *invalidation_ctx;
+	int peer_mem_srcu_key;
+	/* peer memory private context */
+	void *peer_mem_client_context;
 };
 
 struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 			    size_t size, int access, int dmasync);
+struct ib_umem *ib_umem_get_ex(struct ib_ucontext *context, unsigned long addr,
+			    size_t size, int access, int dmasync,
+			    int invalidation_supported);
+void  ib_umem_activate_invalidation_notifier(struct ib_umem *umem,
+					       umem_invalidate_func_t func,
+					       void *cookie);
 void ib_umem_release(struct ib_umem *umem);
 int ib_umem_page_count(struct ib_umem *umem);
-
-int ib_cmem_map_contiguous_pages_to_vma(struct ib_cmem *ib_cmem,
-        struct vm_area_struct *vma);
-struct ib_cmem *ib_cmem_alloc_contiguous_pages(struct ib_ucontext *context,
-                                unsigned long total_size,
-                                unsigned long page_size_order);
-void ib_cmem_release_contiguous_pages(struct ib_cmem *cmem);
-int ib_umem_map_to_vma(struct ib_umem *umem,
-                                struct vm_area_struct *vma);
-
 
 #endif /* IB_UMEM_H */

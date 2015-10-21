@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RAIIObjectsForParser.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Parse/ParseDiagnostic.h"
@@ -197,9 +198,12 @@ void Parser::initializePragmaHandlers() {
     OpenMPHandler.reset(new PragmaNoOpenMPHandler());
   PP.AddPragmaHandler(OpenMPHandler.get());
 
-  if (getLangOpts().MicrosoftExt) {
+  if (getLangOpts().MicrosoftExt || getTargetInfo().getTriple().isPS4()) {
     MSCommentHandler.reset(new PragmaCommentHandler(Actions));
     PP.AddPragmaHandler(MSCommentHandler.get());
+  }
+
+  if (getLangOpts().MicrosoftExt) {
     MSDetectMismatchHandler.reset(new PragmaDetectMismatchHandler(Actions));
     PP.AddPragmaHandler(MSDetectMismatchHandler.get());
     MSPointersToMembers.reset(new PragmaMSPointersToMembers());
@@ -228,6 +232,9 @@ void Parser::initializePragmaHandlers() {
 
   UnrollHintHandler.reset(new PragmaUnrollHintHandler("unroll"));
   PP.AddPragmaHandler(UnrollHintHandler.get());
+
+  NoUnrollHintHandler.reset(new PragmaUnrollHintHandler("nounroll"));
+  PP.AddPragmaHandler(NoUnrollHintHandler.get());
 }
 
 void Parser::resetPragmaHandlers() {
@@ -257,9 +264,12 @@ void Parser::resetPragmaHandlers() {
   PP.RemovePragmaHandler(OpenMPHandler.get());
   OpenMPHandler.reset();
 
-  if (getLangOpts().MicrosoftExt) {
+  if (getLangOpts().MicrosoftExt || getTargetInfo().getTriple().isPS4()) {
     PP.RemovePragmaHandler(MSCommentHandler.get());
     MSCommentHandler.reset();
+  }
+
+  if (getLangOpts().MicrosoftExt) {
     PP.RemovePragmaHandler(MSDetectMismatchHandler.get());
     MSDetectMismatchHandler.reset();
     PP.RemovePragmaHandler(MSPointersToMembers.get());
@@ -291,6 +301,9 @@ void Parser::resetPragmaHandlers() {
 
   PP.RemovePragmaHandler(UnrollHintHandler.get());
   UnrollHintHandler.reset();
+
+  PP.RemovePragmaHandler(NoUnrollHintHandler.get());
+  NoUnrollHintHandler.reset();
 }
 
 /// \brief Handle the annotation token produced for #pragma unused(...)
@@ -525,36 +538,50 @@ bool Parser::HandlePragmaMSSection(StringRef PragmaName,
         << PragmaName;
     return false;
   }
-  int SectionFlags = 0;
+  int SectionFlags = ASTContext::PSF_Read;
+  bool SectionFlagsAreDefault = true;
   while (Tok.is(tok::comma)) {
     PP.Lex(Tok); // ,
+    // Ignore "long" and "short".
+    // They are undocumented, but widely used, section attributes which appear
+    // to do nothing.
+    if (Tok.is(tok::kw_long) || Tok.is(tok::kw_short)) {
+      PP.Lex(Tok); // long/short
+      continue;
+    }
+
     if (!Tok.isAnyIdentifier()) {
       PP.Diag(PragmaLocation, diag::warn_pragma_expected_action_or_r_paren)
           << PragmaName;
       return false;
     }
-    Sema::PragmaSectionFlag Flag =
-      llvm::StringSwitch<Sema::PragmaSectionFlag>(
+    ASTContext::PragmaSectionFlag Flag =
+      llvm::StringSwitch<ASTContext::PragmaSectionFlag>(
       Tok.getIdentifierInfo()->getName())
-      .Case("read", Sema::PSF_Read)
-      .Case("write", Sema::PSF_Write)
-      .Case("execute", Sema::PSF_Execute)
-      .Case("shared", Sema::PSF_Invalid)
-      .Case("nopage", Sema::PSF_Invalid)
-      .Case("nocache", Sema::PSF_Invalid)
-      .Case("discard", Sema::PSF_Invalid)
-      .Case("remove", Sema::PSF_Invalid)
-      .Default(Sema::PSF_None);
-    if (Flag == Sema::PSF_None || Flag == Sema::PSF_Invalid) {
-      PP.Diag(PragmaLocation, Flag == Sema::PSF_None
+      .Case("read", ASTContext::PSF_Read)
+      .Case("write", ASTContext::PSF_Write)
+      .Case("execute", ASTContext::PSF_Execute)
+      .Case("shared", ASTContext::PSF_Invalid)
+      .Case("nopage", ASTContext::PSF_Invalid)
+      .Case("nocache", ASTContext::PSF_Invalid)
+      .Case("discard", ASTContext::PSF_Invalid)
+      .Case("remove", ASTContext::PSF_Invalid)
+      .Default(ASTContext::PSF_None);
+    if (Flag == ASTContext::PSF_None || Flag == ASTContext::PSF_Invalid) {
+      PP.Diag(PragmaLocation, Flag == ASTContext::PSF_None
                                   ? diag::warn_pragma_invalid_specific_action
                                   : diag::warn_pragma_unsupported_action)
           << PragmaName << Tok.getIdentifierInfo()->getName();
       return false;
     }
     SectionFlags |= Flag;
+    SectionFlagsAreDefault = false;
     PP.Lex(Tok); // Identifier
   }
+  // If no section attributes are specified, the section will be marked as
+  // read/write.
+  if (SectionFlagsAreDefault)
+    SectionFlags |= ASTContext::PSF_Write;
   if (Tok.isNot(tok::r_paren)) {
     PP.Diag(PragmaLocation, diag::warn_pragma_expected_rparen) << PragmaName;
     return false;
@@ -718,42 +745,127 @@ bool Parser::HandlePragmaMSInitSeg(StringRef PragmaName,
 struct PragmaLoopHintInfo {
   Token PragmaName;
   Token Option;
-  Token Value;
-  bool HasValue;
+  Token *Toks;
+  size_t TokSize;
+  PragmaLoopHintInfo() : Toks(nullptr), TokSize(0) {}
 };
 
-LoopHint Parser::HandlePragmaLoopHint() {
+static std::string PragmaLoopHintString(Token PragmaName, Token Option) {
+  std::string PragmaString;
+  if (PragmaName.getIdentifierInfo()->getName() == "loop") {
+    PragmaString = "clang loop ";
+    PragmaString += Option.getIdentifierInfo()->getName();
+  } else {
+    assert(PragmaName.getIdentifierInfo()->getName() == "unroll" &&
+           "Unexpected pragma name");
+    PragmaString = "unroll";
+  }
+  return PragmaString;
+}
+
+bool Parser::HandlePragmaLoopHint(LoopHint &Hint) {
   assert(Tok.is(tok::annot_pragma_loop_hint));
   PragmaLoopHintInfo *Info =
       static_cast<PragmaLoopHintInfo *>(Tok.getAnnotationValue());
 
-  LoopHint Hint;
-  Hint.PragmaNameLoc =
-      IdentifierLoc::create(Actions.Context, Info->PragmaName.getLocation(),
-                            Info->PragmaName.getIdentifierInfo());
-  Hint.OptionLoc =
-      IdentifierLoc::create(Actions.Context, Info->Option.getLocation(),
-                            Info->Option.getIdentifierInfo());
-  if (Info->HasValue) {
-    Hint.Range =
-        SourceRange(Info->Option.getLocation(), Info->Value.getLocation());
-    Hint.ValueLoc =
-        IdentifierLoc::create(Actions.Context, Info->Value.getLocation(),
-                              Info->Value.getIdentifierInfo());
+  IdentifierInfo *PragmaNameInfo = Info->PragmaName.getIdentifierInfo();
+  Hint.PragmaNameLoc = IdentifierLoc::create(
+      Actions.Context, Info->PragmaName.getLocation(), PragmaNameInfo);
 
-    // FIXME: We should allow non-type template parameters for the loop hint
-    // value. See bug report #19610
-    if (Info->Value.is(tok::numeric_constant))
-      Hint.ValueExpr = Actions.ActOnNumericConstant(Info->Value).get();
-    else
-      Hint.ValueExpr = nullptr;
-  } else {
-    Hint.Range = SourceRange(Info->PragmaName.getLocation());
-    Hint.ValueLoc = nullptr;
-    Hint.ValueExpr = nullptr;
+  // It is possible that the loop hint has no option identifier, such as
+  // #pragma unroll(4).
+  IdentifierInfo *OptionInfo = Info->Option.is(tok::identifier)
+                                   ? Info->Option.getIdentifierInfo()
+                                   : nullptr;
+  Hint.OptionLoc = IdentifierLoc::create(
+      Actions.Context, Info->Option.getLocation(), OptionInfo);
+
+  Token *Toks = Info->Toks;
+  size_t TokSize = Info->TokSize;
+
+  // Return a valid hint if pragma unroll or nounroll were specified
+  // without an argument.
+  bool PragmaUnroll = PragmaNameInfo->getName() == "unroll";
+  bool PragmaNoUnroll = PragmaNameInfo->getName() == "nounroll";
+  if (TokSize == 0 && (PragmaUnroll || PragmaNoUnroll)) {
+    ConsumeToken(); // The annotation token.
+    Hint.Range = Info->PragmaName.getLocation();
+    return true;
   }
 
-  return Hint;
+  // The constant expression is always followed by an eof token, which increases
+  // the TokSize by 1.
+  assert(TokSize > 0 &&
+         "PragmaLoopHintInfo::Toks must contain at least one token.");
+
+  // If no option is specified the argument is assumed to be a constant expr.
+  bool OptionUnroll = false;
+  bool StateOption = false;
+  if (OptionInfo) { // Pragma Unroll does not specify an option.
+    OptionUnroll = OptionInfo->isStr("unroll");
+    StateOption = llvm::StringSwitch<bool>(OptionInfo->getName())
+                      .Case("vectorize", true)
+                      .Case("interleave", true)
+                      .Case("unroll", true)
+                      .Default(false);
+  }
+
+  // Verify loop hint has an argument.
+  if (Toks[0].is(tok::eof)) {
+    ConsumeToken(); // The annotation token.
+    Diag(Toks[0].getLocation(), diag::err_pragma_loop_missing_argument)
+        << /*StateArgument=*/StateOption << /*FullKeyword=*/OptionUnroll;
+    return false;
+  }
+
+  // Validate the argument.
+  if (StateOption) {
+    ConsumeToken(); // The annotation token.
+    SourceLocation StateLoc = Toks[0].getLocation();
+    IdentifierInfo *StateInfo = Toks[0].getIdentifierInfo();
+    if (!StateInfo ||
+        ((OptionUnroll ? !StateInfo->isStr("full")
+                       : !StateInfo->isStr("enable") &&
+                             !StateInfo->isStr("assume_safety")) &&
+         !StateInfo->isStr("disable"))) {
+      Diag(Toks[0].getLocation(), diag::err_pragma_invalid_keyword)
+          << /*FullKeyword=*/OptionUnroll;
+      return false;
+    }
+    if (TokSize > 2)
+      Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
+          << PragmaLoopHintString(Info->PragmaName, Info->Option);
+    Hint.StateLoc = IdentifierLoc::create(Actions.Context, StateLoc, StateInfo);
+  } else {
+    // Enter constant expression including eof terminator into token stream.
+    PP.EnterTokenStream(Toks, TokSize, /*DisableMacroExpansion=*/false,
+                        /*OwnsTokens=*/false);
+    ConsumeToken(); // The annotation token.
+
+    ExprResult R = ParseConstantExpression();
+
+    // Tokens following an error in an ill-formed constant expression will
+    // remain in the token stream and must be removed.
+    if (Tok.isNot(tok::eof)) {
+      Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
+          << PragmaLoopHintString(Info->PragmaName, Info->Option);
+      while (Tok.isNot(tok::eof))
+        ConsumeAnyToken();
+    }
+
+    ConsumeToken(); // Consume the constant expression eof terminator.
+
+    if (R.isInvalid() ||
+        Actions.CheckLoopHintExpr(R.get(), Toks[0].getLocation()))
+      return false;
+
+    // Argument is a constant expression with an integer type.
+    Hint.ValueExpr = R.get();
+  }
+
+  Hint.Range = SourceRange(Info->PragmaName.getLocation(),
+                           Info->Toks[TokSize - 1].getLocation());
+  return true;
 }
 
 // #pragma GCC visibility comes in two variants:
@@ -797,6 +909,7 @@ void PragmaGCCVisibilityHandler::HandlePragma(Preprocessor &PP,
       << "visibility";
     return;
   }
+  SourceLocation EndLoc = Tok.getLocation();
   PP.LexUnexpandedToken(Tok);
   if (Tok.isNot(tok::eod)) {
     PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
@@ -808,6 +921,7 @@ void PragmaGCCVisibilityHandler::HandlePragma(Preprocessor &PP,
   Toks[0].startToken();
   Toks[0].setKind(tok::annot_pragma_vis);
   Toks[0].setLocation(VisLoc);
+  Toks[0].setAnnotationEndLoc(EndLoc);
   Toks[0].setAnnotationValue(
                           const_cast<void*>(static_cast<const void*>(VisType)));
   PP.EnterTokenStream(Toks, 1, /*DisableMacroExpansion=*/true,
@@ -927,6 +1041,7 @@ void PragmaPackHandler::HandlePragma(Preprocessor &PP,
   Toks[0].startToken();
   Toks[0].setKind(tok::annot_pragma_pack);
   Toks[0].setLocation(PackLoc);
+  Toks[0].setAnnotationEndLoc(RParenLoc);
   Toks[0].setAnnotationValue(static_cast<void*>(Info));
   PP.EnterTokenStream(Toks, 1, /*DisableMacroExpansion=*/true,
                       /*OwnsTokens=*/false);
@@ -945,6 +1060,7 @@ void PragmaMSStructHandler::HandlePragma(Preprocessor &PP,
     PP.Diag(Tok.getLocation(), diag::warn_pragma_ms_struct);
     return;
   }
+  SourceLocation EndLoc = Tok.getLocation();
   const IdentifierInfo *II = Tok.getIdentifierInfo();
   if (II->isStr("on")) {
     Kind = Sema::PMSST_ON;
@@ -970,6 +1086,7 @@ void PragmaMSStructHandler::HandlePragma(Preprocessor &PP,
   Toks[0].startToken();
   Toks[0].setKind(tok::annot_pragma_msstruct);
   Toks[0].setLocation(MSStructTok.getLocation());
+  Toks[0].setAnnotationEndLoc(EndLoc);
   Toks[0].setAnnotationValue(reinterpret_cast<void*>(
                              static_cast<uintptr_t>(Kind)));
   PP.EnterTokenStream(Toks, 1, /*DisableMacroExpansion=*/true,
@@ -1025,6 +1142,7 @@ static void ParseAlignPragma(Preprocessor &PP, Token &FirstTok,
     return;
   }
 
+  SourceLocation EndLoc = Tok.getLocation();
   PP.Lex(Tok);
   if (Tok.isNot(tok::eod)) {
     PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
@@ -1039,6 +1157,7 @@ static void ParseAlignPragma(Preprocessor &PP, Token &FirstTok,
   Toks[0].startToken();
   Toks[0].setKind(tok::annot_pragma_align);
   Toks[0].setLocation(FirstTok.getLocation());
+  Toks[0].setAnnotationEndLoc(EndLoc);
   Toks[0].setAnnotationValue(reinterpret_cast<void*>(
                              static_cast<uintptr_t>(Kind)));
   PP.EnterTokenStream(Toks, 1, /*DisableMacroExpansion=*/true,
@@ -1182,6 +1301,7 @@ void PragmaWeakHandler::HandlePragma(Preprocessor &PP,
     pragmaUnusedTok.startToken();
     pragmaUnusedTok.setKind(tok::annot_pragma_weakalias);
     pragmaUnusedTok.setLocation(WeakLoc);
+    pragmaUnusedTok.setAnnotationEndLoc(AliasName.getLocation());
     Toks[1] = WeakName;
     Toks[2] = AliasName;
     PP.EnterTokenStream(Toks, 3,
@@ -1194,6 +1314,7 @@ void PragmaWeakHandler::HandlePragma(Preprocessor &PP,
     pragmaUnusedTok.startToken();
     pragmaUnusedTok.setKind(tok::annot_pragma_weak);
     pragmaUnusedTok.setLocation(WeakLoc);
+    pragmaUnusedTok.setAnnotationEndLoc(WeakLoc);
     Toks[1] = WeakName;
     PP.EnterTokenStream(Toks, 2,
                         /*DisableMacroExpansion=*/true, /*OwnsTokens=*/false);
@@ -1239,6 +1360,7 @@ void PragmaRedefineExtnameHandler::HandlePragma(Preprocessor &PP,
   pragmaRedefTok.startToken();
   pragmaRedefTok.setKind(tok::annot_pragma_redefine_extname);
   pragmaRedefTok.setLocation(RedefLoc);
+  pragmaRedefTok.setAnnotationEndLoc(AliasName.getLocation());
   Toks[1] = RedefName;
   Toks[2] = AliasName;
   PP.EnterTokenStream(Toks, 3,
@@ -1261,6 +1383,7 @@ PragmaFPContractHandler::HandlePragma(Preprocessor &PP,
   Toks[0].startToken();
   Toks[0].setKind(tok::annot_pragma_fp_contract);
   Toks[0].setLocation(Tok.getLocation());
+  Toks[0].setAnnotationEndLoc(Tok.getLocation());
   Toks[0].setAnnotationValue(reinterpret_cast<void*>(
                              static_cast<uintptr_t>(OOS)));
   PP.EnterTokenStream(Toks, 1, /*DisableMacroExpansion=*/true,
@@ -1320,6 +1443,7 @@ PragmaOpenCLExtensionHandler::HandlePragma(Preprocessor &PP,
   Toks[0].setKind(tok::annot_pragma_opencl_extension);
   Toks[0].setLocation(NameLoc);
   Toks[0].setAnnotationValue(data.getOpaqueValue());
+  Toks[0].setAnnotationEndLoc(StateLoc);
   PP.EnterTokenStream(Toks, 1, /*DisableMacroExpansion=*/true,
                       /*OwnsTokens=*/false);
 
@@ -1368,7 +1492,7 @@ PragmaOpenMPHandler::HandlePragma(Preprocessor &PP,
   Token *Toks = new Token[Pragma.size()];
   std::copy(Pragma.begin(), Pragma.end(), Toks);
   PP.EnterTokenStream(Toks, Pragma.size(),
-                      /*DisableMacroExpansion=*/true, /*OwnsTokens=*/true);
+                      /*DisableMacroExpansion=*/false, /*OwnsTokens=*/true);
 }
 
 /// \brief Handle '#pragma pointers_to_members'
@@ -1451,6 +1575,7 @@ void PragmaMSPointersToMembers::HandlePragma(Preprocessor &PP,
     return;
   }
 
+  SourceLocation EndLoc = Tok.getLocation();
   PP.Lex(Tok);
   if (Tok.isNot(tok::eod)) {
     PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
@@ -1462,6 +1587,7 @@ void PragmaMSPointersToMembers::HandlePragma(Preprocessor &PP,
   AnnotTok.startToken();
   AnnotTok.setKind(tok::annot_pragma_ms_pointers_to_members);
   AnnotTok.setLocation(PointersToMembersLoc);
+  AnnotTok.setAnnotationEndLoc(EndLoc);
   AnnotTok.setAnnotationValue(
       reinterpret_cast<void *>(static_cast<uintptr_t>(RepresentationMethod)));
   PP.EnterToken(AnnotTok);
@@ -1541,6 +1667,7 @@ void PragmaMSVtorDisp::HandlePragma(Preprocessor &PP,
     PP.Diag(VtorDispLoc, diag::warn_pragma_expected_rparen) << "vtordisp";
     return;
   }
+  SourceLocation EndLoc = Tok.getLocation();
   PP.Lex(Tok);
   if (Tok.isNot(tok::eod)) {
     PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
@@ -1553,6 +1680,7 @@ void PragmaMSVtorDisp::HandlePragma(Preprocessor &PP,
   AnnotTok.startToken();
   AnnotTok.setKind(tok::annot_pragma_ms_vtordisp);
   AnnotTok.setLocation(VtorDispLoc);
+  AnnotTok.setAnnotationEndLoc(EndLoc);
   AnnotTok.setAnnotationValue(reinterpret_cast<void *>(
       static_cast<uintptr_t>((Kind << 16) | (Value & 0xFFFF))));
   PP.EnterToken(AnnotTok);
@@ -1569,10 +1697,13 @@ void PragmaMSPragma::HandlePragma(Preprocessor &PP,
   AnnotTok.startToken();
   AnnotTok.setKind(tok::annot_pragma_ms_pragma);
   AnnotTok.setLocation(Tok.getLocation());
+  AnnotTok.setAnnotationEndLoc(Tok.getLocation());
   SmallVector<Token, 8> TokenVector;
   // Suck up all of the tokens before the eod.
-  for (; Tok.isNot(tok::eod); PP.Lex(Tok))
+  for (; Tok.isNot(tok::eod); PP.Lex(Tok)) {
     TokenVector.push_back(Tok);
+    AnnotTok.setAnnotationEndLoc(Tok.getLocation());
+  }
   // Add a sentinal EoF token to the end of the list.
   TokenVector.push_back(EoF);
   // We must allocate this array with new because EnterTokenStream is going to
@@ -1683,6 +1814,14 @@ void PragmaCommentHandler::HandlePragma(Preprocessor &PP,
     return;
   }
 
+  // On PS4, issue a warning about any pragma comments other than
+  // #pragma comment lib.
+  if (PP.getTargetInfo().getTriple().isPS4() && Kind != Sema::PCK_Lib) {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_comment_ignored)
+      << II->getName();
+    return;
+  }
+
   // Read the optional string if present.
   PP.Lex(Tok);
   std::string ArgumentString;
@@ -1725,8 +1864,7 @@ void PragmaOptimizeHandler::HandlePragma(Preprocessor &PP,
   PP.Lex(Tok);
   if (Tok.is(tok::eod)) {
     PP.Diag(Tok.getLocation(), diag::err_pragma_missing_argument)
-        << "clang optimize"
-        << "'on' or 'off'";
+        << "clang optimize" << /*Expected=*/true << "'on' or 'off'";
     return;
   }
   if (Tok.isNot(tok::identifier)) {
@@ -1756,44 +1894,48 @@ void PragmaOptimizeHandler::HandlePragma(Preprocessor &PP,
 }
 
 /// \brief Parses loop or unroll pragma hint value and fills in Info.
-static bool ParseLoopHintValue(Preprocessor &PP, Token Tok, Token &PragmaName,
-                               Token &Option, bool &ValueInParens,
+static bool ParseLoopHintValue(Preprocessor &PP, Token &Tok, Token PragmaName,
+                               Token Option, bool ValueInParens,
                                PragmaLoopHintInfo &Info) {
-  ValueInParens = Tok.is(tok::l_paren);
-  if (ValueInParens) {
-    PP.Lex(Tok);
-    if (Tok.is(tok::r_paren)) {
-      // Nothing between the parentheses.
-      std::string PragmaString;
-      if (PragmaName.getIdentifierInfo()->getName() == "loop") {
-        PragmaString = "clang loop ";
-        PragmaString += Option.getIdentifierInfo()->getName();
-      } else {
-        assert(PragmaName.getIdentifierInfo()->getName() == "unroll" &&
-               "Unexpected pragma name");
-        PragmaString = "unroll";
-      }
-      PP.Diag(Tok.getLocation(), diag::err_pragma_missing_argument)
-          << PragmaString << "a positive integer value";
-      return true;
+  SmallVector<Token, 1> ValueList;
+  int OpenParens = ValueInParens ? 1 : 0;
+  // Read constant expression.
+  while (Tok.isNot(tok::eod)) {
+    if (Tok.is(tok::l_paren))
+      OpenParens++;
+    else if (Tok.is(tok::r_paren)) {
+      OpenParens--;
+      if (OpenParens == 0 && ValueInParens)
+        break;
     }
+
+    ValueList.push_back(Tok);
+    PP.Lex(Tok);
   }
 
-  // FIXME: Value should be stored and parsed as a constant expression.
-  Token Value = Tok;
-
   if (ValueInParens) {
-    PP.Lex(Tok);
+    // Read ')'
     if (Tok.isNot(tok::r_paren)) {
       PP.Diag(Tok.getLocation(), diag::err_expected) << tok::r_paren;
       return true;
     }
+    PP.Lex(Tok);
   }
+
+  Token EOFTok;
+  EOFTok.startToken();
+  EOFTok.setKind(tok::eof);
+  EOFTok.setLocation(Tok.getLocation());
+  ValueList.push_back(EOFTok); // Terminates expression for parsing.
+
+  Token *TokenArray = (Token *)PP.getPreprocessorAllocator().Allocate(
+      ValueList.size() * sizeof(Token), llvm::alignOf<Token>());
+  std::copy(ValueList.begin(), ValueList.end(), TokenArray);
+  Info.Toks = TokenArray;
+  Info.TokSize = ValueList.size();
 
   Info.PragmaName = PragmaName;
   Info.Option = Option;
-  Info.Value = Value;
-  Info.HasValue = true;
   return false;
 }
 
@@ -1806,13 +1948,18 @@ static bool ParseLoopHintValue(Preprocessor &PP, Token Tok, Token &PragmaName,
 ///  loop-hint:
 ///    'vectorize' '(' loop-hint-keyword ')'
 ///    'interleave' '(' loop-hint-keyword ')'
-///    'unroll' '(' loop-hint-keyword ')'
+///    'unroll' '(' unroll-hint-keyword ')'
 ///    'vectorize_width' '(' loop-hint-value ')'
 ///    'interleave_count' '(' loop-hint-value ')'
 ///    'unroll_count' '(' loop-hint-value ')'
 ///
 ///  loop-hint-keyword:
 ///    'enable'
+///    'disable'
+///    'assume_safety'
+///
+///  unroll-hint-keyword:
+///    'full'
 ///    'disable'
 ///
 ///  loop-hint-value:
@@ -1829,12 +1976,10 @@ static bool ParseLoopHintValue(Preprocessor &PP, Token Tok, Token &PragmaName,
 /// only works on inner loops.
 ///
 /// The unroll and unroll_count directives control the concatenation
-/// unroller. Specifying unroll(enable) instructs llvm to try to
+/// unroller. Specifying unroll(full) instructs llvm to try to
 /// unroll the loop completely, and unroll(disable) disables unrolling
 /// for the loop. Specifying unroll_count(_value_) instructs llvm to
 /// try to unroll the loop the number of times indicated by the value.
-/// If unroll(enable) and unroll_count are both specified only
-/// unroll_count takes effect.
 void PragmaLoopHintHandler::HandlePragma(Preprocessor &PP,
                                          PragmaIntroducerKind Introducer,
                                          Token &Tok) {
@@ -1867,28 +2012,28 @@ void PragmaLoopHintHandler::HandlePragma(Preprocessor &PP,
           << /*MissingOption=*/false << OptionInfo;
       return;
     }
-
-    auto *Info = new (PP.getPreprocessorAllocator()) PragmaLoopHintInfo;
     PP.Lex(Tok);
-    bool ValueInParens;
-    if (ParseLoopHintValue(PP, Tok, PragmaName, Option, ValueInParens, *Info))
-      return;
 
-    if (!ValueInParens) {
-      PP.Diag(Info->Value.getLocation(), diag::err_expected) << tok::l_paren;
+    // Read '('
+    if (Tok.isNot(tok::l_paren)) {
+      PP.Diag(Tok.getLocation(), diag::err_expected) << tok::l_paren;
       return;
     }
+    PP.Lex(Tok);
+
+    auto *Info = new (PP.getPreprocessorAllocator()) PragmaLoopHintInfo;
+    if (ParseLoopHintValue(PP, Tok, PragmaName, Option, /*ValueInParens=*/true,
+                           *Info))
+      return;
 
     // Generate the loop hint token.
     Token LoopHintTok;
     LoopHintTok.startToken();
     LoopHintTok.setKind(tok::annot_pragma_loop_hint);
     LoopHintTok.setLocation(PragmaName.getLocation());
+    LoopHintTok.setAnnotationEndLoc(PragmaName.getLocation());
     LoopHintTok.setAnnotationValue(static_cast<void *>(Info));
     TokenList.push_back(LoopHintTok);
-
-    // Get next optimization option.
-    PP.Lex(Tok);
   }
 
   if (Tok.isNot(tok::eod)) {
@@ -1909,44 +2054,54 @@ void PragmaLoopHintHandler::HandlePragma(Preprocessor &PP,
 ///  #pragma unroll
 ///  #pragma unroll unroll-hint-value
 ///  #pragma unroll '(' unroll-hint-value ')'
+///  #pragma nounroll
 ///
 ///  unroll-hint-value:
 ///    constant-expression
 ///
-/// Loop unrolling hints are specified with '#pragma unroll'. '#pragma unroll'
-/// can take a numeric argument optionally contained in parentheses. With no
-/// argument the directive instructs llvm to try to unroll the loop
-/// completely. A positive integer argument can be specified to indicate the
-/// number of times the loop should be unrolled.  To maximize compatibility with
-/// other compilers the unroll count argument can be specified with or without
-/// parentheses.
+/// Loop unrolling hints can be specified with '#pragma unroll' or
+/// '#pragma nounroll'. '#pragma unroll' can take a numeric argument optionally
+/// contained in parentheses. With no argument the directive instructs llvm to
+/// try to unroll the loop completely. A positive integer argument can be
+/// specified to indicate the number of times the loop should be unrolled.  To
+/// maximize compatibility with other compilers the unroll count argument can be
+/// specified with or without parentheses.  Specifying, '#pragma nounroll'
+/// disables unrolling of the loop.
 void PragmaUnrollHintHandler::HandlePragma(Preprocessor &PP,
                                            PragmaIntroducerKind Introducer,
                                            Token &Tok) {
-  // Incoming token is "unroll" of "#pragma unroll".
+  // Incoming token is "unroll" for "#pragma unroll", or "nounroll" for
+  // "#pragma nounroll".
   Token PragmaName = Tok;
   PP.Lex(Tok);
   auto *Info = new (PP.getPreprocessorAllocator()) PragmaLoopHintInfo;
   if (Tok.is(tok::eod)) {
-    // Unroll pragma without an argument.
+    // nounroll or unroll pragma without an argument.
     Info->PragmaName = PragmaName;
-    Info->Option = PragmaName;
-    Info->HasValue = false;
+    Info->Option.startToken();
+  } else if (PragmaName.getIdentifierInfo()->getName() == "nounroll") {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
+        << "nounroll";
+    return;
   } else {
     // Unroll pragma with an argument: "#pragma unroll N" or
     // "#pragma unroll(N)".
-    bool ValueInParens;
-    if (ParseLoopHintValue(PP, Tok, PragmaName, PragmaName, ValueInParens,
-                           *Info))
+    // Read '(' if it exists.
+    bool ValueInParens = Tok.is(tok::l_paren);
+    if (ValueInParens)
+      PP.Lex(Tok);
+
+    Token Option;
+    Option.startToken();
+    if (ParseLoopHintValue(PP, Tok, PragmaName, Option, ValueInParens, *Info))
       return;
 
     // In CUDA, the argument to '#pragma unroll' should not be contained in
     // parentheses.
     if (PP.getLangOpts().CUDA && ValueInParens)
-      PP.Diag(Info->Value.getLocation(),
+      PP.Diag(Info->Toks[0].getLocation(),
               diag::warn_pragma_unroll_cuda_value_in_parens);
 
-    PP.Lex(Tok);
     if (Tok.isNot(tok::eod)) {
       PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
           << "unroll";
@@ -1959,6 +2114,7 @@ void PragmaUnrollHintHandler::HandlePragma(Preprocessor &PP,
   TokenArray[0].startToken();
   TokenArray[0].setKind(tok::annot_pragma_loop_hint);
   TokenArray[0].setLocation(PragmaName.getLocation());
+  TokenArray[0].setAnnotationEndLoc(PragmaName.getLocation());
   TokenArray[0].setAnnotationValue(static_cast<void *>(Info));
   PP.EnterTokenStream(TokenArray, 1, /*DisableMacroExpansion=*/false,
                       /*OwnsTokens=*/true);

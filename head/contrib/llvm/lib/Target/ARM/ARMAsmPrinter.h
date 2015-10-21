@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ARMASMPRINTER_H
-#define ARMASMPRINTER_H
+#ifndef LLVM_LIB_TARGET_ARM_ARMASMPRINTER_H
+#define LLVM_LIB_TARGET_ARM_ARMASMPRINTER_H
 
 #include "ARMSubtarget.h"
 #include "llvm/CodeGen/AsmPrinter.h"
@@ -20,6 +20,7 @@ class ARMFunctionInfo;
 class MCOperand;
 class MachineConstantPool;
 class MachineOperand;
+class MCSymbol;
 
 namespace ARM {
   enum DW_ISA {
@@ -45,19 +46,20 @@ class LLVM_LIBRARY_VISIBILITY ARMAsmPrinter : public AsmPrinter {
   /// InConstantPool - Maintain state when emitting a sequence of constant
   /// pool entries so we can properly mark them as data regions.
   bool InConstantPool;
+
+  /// ThumbIndirectPads - These maintain a per-function list of jump pad
+  /// labels used for ARMv4t thumb code to make register indirect calls.
+  SmallVector<std::pair<unsigned, MCSymbol*>, 4> ThumbIndirectPads;
+
 public:
-  explicit ARMAsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
-    : AsmPrinter(TM, Streamer), AFI(nullptr), MCP(nullptr),
-      InConstantPool(false) {
-    Subtarget = &TM.getSubtarget<ARMSubtarget>();
-  }
+  explicit ARMAsmPrinter(TargetMachine &TM,
+                         std::unique_ptr<MCStreamer> Streamer);
 
   const char *getPassName() const override {
     return "ARM Assembly / Object Emitter";
   }
 
-  void printOperand(const MachineInstr *MI, int OpNum, raw_ostream &O,
-                    const char *Modifier = nullptr);
+  void printOperand(const MachineInstr *MI, int OpNum, raw_ostream &O);
 
   bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
                        unsigned AsmVariant, const char *ExtraCode,
@@ -69,8 +71,9 @@ public:
   void emitInlineAsmEnd(const MCSubtargetInfo &StartInfo,
                         const MCSubtargetInfo *EndInfo) const override;
 
-  void EmitJumpTable(const MachineInstr *MI);
-  void EmitJump2Table(const MachineInstr *MI);
+  void EmitJumpTableAddrs(const MachineInstr *MI);
+  void EmitJumpTableInsts(const MachineInstr *MI);
+  void EmitJumpTableTBInst(const MachineInstr *MI, unsigned OffsetWidth);
   void EmitInstruction(const MachineInstr *MI) override;
   bool runOnMachineFunction(MachineFunction &F) override;
 
@@ -102,15 +105,19 @@ private:
 public:
   unsigned getISAEncoding() override {
     // ARM/Darwin adds ISA to the DWARF info for each function.
-    if (!Subtarget->isTargetMachO())
+    const Triple &TT = TM.getTargetTriple();
+    if (!TT.isOSBinFormatMachO())
       return 0;
-    return Subtarget->isThumb() ?
-      ARM::DW_ISA_ARM_thumb : ARM::DW_ISA_ARM_arm;
+    bool isThumb = TT.getArch() == Triple::thumb ||
+                   TT.getArch() == Triple::thumbeb ||
+                   TT.getSubArch() == Triple::ARMSubArch_v7m ||
+                   TT.getSubArch() == Triple::ARMSubArch_v6m;
+    return isThumb ? ARM::DW_ISA_ARM_thumb : ARM::DW_ISA_ARM_arm;
   }
 
 private:
   MCOperand GetSymbolRef(const MachineOperand &MO, const MCSymbol *Symbol);
-  MCSymbol *GetARMJTIPICJumpTableLabel2(unsigned uid, unsigned uid2) const;
+  MCSymbol *GetARMJTIPICJumpTableLabel(unsigned uid) const;
 
   MCSymbol *GetARMSJLJEHLabel() const;
 

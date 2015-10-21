@@ -11,7 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -657,6 +657,14 @@ makelink(const char *from_name, const char *to_name,
 
 	if (dolink & LN_RELATIVE) {
 		char *cp, *d, *s;
+
+		if (*from_name != '/') {
+			/* this is already a relative link */
+			do_symlink(from_name, to_name, target_sb);
+			/* XXX: from_name may point outside of destdir. */
+			metadata_log(to_name, "link", NULL, from_name, NULL, 0);
+			return;
+		}
 
 		/* Resolve pathnames. */
 		if (realpath(from_name, src) == NULL)

@@ -28,7 +28,7 @@
 .\"     @(#)syslog.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 30, 2004
+.Dd July 21, 2015
 .Dt SYSLOG 3
 .Os
 .Sh NAME
@@ -292,4 +292,4 @@ for later interpolation by
 .Pp
 Always use the proper secure idiom:
 .Pp
-.Dl syslog("%s", string);
+.Dl syslog(priority, "%s", string);

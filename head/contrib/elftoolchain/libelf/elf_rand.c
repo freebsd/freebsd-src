@@ -24,14 +24,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <ar.h>
 #include <libelf.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_rand.c 2991 2014-03-17 09:57:04Z jkoshy $");
+ELFTC_VCSID("$Id: elf_rand.c 3174 2015-03-27 17:13:41Z emaste $");
 
 off_t
 elf_rand(Elf *ar, off_t offset)

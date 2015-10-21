@@ -120,7 +120,7 @@ class UniqueID {
   uint64_t File;
 
 public:
-  UniqueID() {}
+  UniqueID() = default;
   UniqueID(uint64_t Device, uint64_t File) : Device(Device), File(File) {}
   bool operator==(const UniqueID &Other) const {
     return Device == Other.Device && File == Other.File;
@@ -226,6 +226,7 @@ struct file_magic {
     unknown = 0,              ///< Unrecognized file
     bitcode,                  ///< Bitcode file
     archive,                  ///< ar style archive file
+    elf,                      ///< ELF Unknown type
     elf_relocatable,          ///< ELF Relocatable object file
     elf_executable,           ///< ELF Executable image
     elf_shared_object,        ///< ELF dynamically linked shared lib
@@ -240,6 +241,7 @@ struct file_magic {
     macho_bundle,             ///< Mach-O Bundle file
     macho_dynamically_linked_shared_lib_stub, ///< Mach-O Shared lib stub
     macho_dsym_companion,     ///< Mach-O dSYM companion file
+    macho_kext_bundle,        ///< Mach-O kext bundle file
     macho_universal_binary,   ///< Mach-O universal binary
     coff_object,              ///< COFF object file
     coff_import_library,      ///< COFF import library
@@ -275,14 +277,6 @@ private:
 /// @returns errc::success if \a path has been made absolute, otherwise a
 ///          platform-specific error_code.
 std::error_code make_absolute(SmallVectorImpl<char> &path);
-
-/// @brief Normalize path separators in \a Path
-///
-/// If the path contains any '\' separators, they are transformed into '/'.
-/// This is particularly useful when cross-compiling Windows on Linux, but is
-/// safe to invoke on Windows, which accepts both characters as a path
-/// separator.
-std::error_code normalize_separators(SmallVectorImpl<char> &Path);
 
 /// @brief Create all the non-existent directories in path.
 ///
@@ -343,11 +337,11 @@ std::error_code copy_file(const Twine &From, const Twine &To);
 
 /// @brief Resize path to size. File is resized as if by POSIX truncate().
 ///
-/// @param path Input path.
-/// @param size Size to resize to.
+/// @param FD Input file descriptor.
+/// @param Size Size to resize to.
 /// @returns errc::success if \a path has been resized to \a size, otherwise a
 ///          platform-specific error_code.
-std::error_code resize_file(const Twine &path, uint64_t size);
+std::error_code resize_file(int FD, uint64_t Size);
 
 /// @}
 /// @name Physical Observers
@@ -360,33 +354,38 @@ std::error_code resize_file(const Twine &path, uint64_t size);
 ///          not.
 bool exists(file_status status);
 
+enum class AccessMode { Exist, Write, Execute };
+
+/// @brief Can the file be accessed?
+///
+/// @param Path Input path.
+/// @returns errc::success if the path can be accessed, otherwise a
+///          platform-specific error_code.
+std::error_code access(const Twine &Path, AccessMode Mode);
+
 /// @brief Does file exist?
 ///
-/// @param path Input path.
-/// @param result Set to true if the file represented by status exists, false if
-///               it does not. Undefined otherwise.
-/// @returns errc::success if result has been successfully set, otherwise a
-///          platform-specific error_code.
-std::error_code exists(const Twine &path, bool &result);
-
-/// @brief Simpler version of exists for clients that don't need to
-///        differentiate between an error and false.
-inline bool exists(const Twine &path) {
-  bool result;
-  return !exists(path, result) && result;
+/// @param Path Input path.
+/// @returns True if it exists, false otherwise.
+inline bool exists(const Twine &Path) {
+  return !access(Path, AccessMode::Exist);
 }
 
 /// @brief Can we execute this file?
 ///
 /// @param Path Input path.
 /// @returns True if we can execute it, false otherwise.
-bool can_execute(const Twine &Path);
+inline bool can_execute(const Twine &Path) {
+  return !access(Path, AccessMode::Execute);
+}
 
 /// @brief Can we write this file?
 ///
 /// @param Path Input path.
 /// @returns True if we can write to it, false otherwise.
-bool can_write(const Twine &Path);
+inline bool can_write(const Twine &Path) {
+  return !access(Path, AccessMode::Write);
+}
 
 /// @brief Do file_status's represent the same thing?
 ///
@@ -626,9 +625,9 @@ std::error_code getUniqueID(const Twine Path, UniqueID &Result);
 /// This class represents a memory mapped file. It is based on
 /// boost::iostreams::mapped_file.
 class mapped_file_region {
-  mapped_file_region() LLVM_DELETED_FUNCTION;
-  mapped_file_region(mapped_file_region&) LLVM_DELETED_FUNCTION;
-  mapped_file_region &operator =(mapped_file_region&) LLVM_DELETED_FUNCTION;
+  mapped_file_region() = delete;
+  mapped_file_region(mapped_file_region&) = delete;
+  mapped_file_region &operator =(mapped_file_region&) = delete;
 
 public:
   enum mapmode {
@@ -639,49 +638,20 @@ public:
 
 private:
   /// Platform-specific mapping state.
-  mapmode Mode;
   uint64_t Size;
   void *Mapping;
-#ifdef LLVM_ON_WIN32
-  int FileDescriptor;
-  void *FileHandle;
-  void *FileMappingHandle;
-#endif
 
-  std::error_code init(int FD, bool CloseFD, uint64_t Offset);
+  std::error_code init(int FD, uint64_t Offset, mapmode Mode);
 
 public:
-  typedef char char_type;
-
-  mapped_file_region(mapped_file_region&&);
-  mapped_file_region &operator =(mapped_file_region&&);
-
-  /// Construct a mapped_file_region at \a path starting at \a offset of length
-  /// \a length and with access \a mode.
-  ///
-  /// \param path Path to the file to map. If it does not exist it will be
-  ///             created.
-  /// \param mode How to map the memory.
-  /// \param length Number of bytes to map in starting at \a offset. If the file
-  ///               is shorter than this, it will be extended. If \a length is
-  ///               0, the entire file will be mapped.
-  /// \param offset Byte offset from the beginning of the file where the map
-  ///               should begin. Must be a multiple of
-  ///               mapped_file_region::alignment().
-  /// \param ec This is set to errc::success if the map was constructed
-  ///           successfully. Otherwise it is set to a platform dependent error.
-  mapped_file_region(const Twine &path, mapmode mode, uint64_t length,
-                     uint64_t offset, std::error_code &ec);
-
   /// \param fd An open file descriptor to map. mapped_file_region takes
   ///   ownership if closefd is true. It must have been opended in the correct
   ///   mode.
-  mapped_file_region(int fd, bool closefd, mapmode mode, uint64_t length,
-                     uint64_t offset, std::error_code &ec);
+  mapped_file_region(int fd, mapmode mode, uint64_t length, uint64_t offset,
+                     std::error_code &ec);
 
   ~mapped_file_region();
 
-  mapmode flags() const;
   uint64_t size() const;
   char *data() const;
 

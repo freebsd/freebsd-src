@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+#include <sys/nv.h>
 
 #include <assert.h>
 #include <dirent.h>
@@ -52,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <libcapsicum.h>
 #include <libcasper.h>
 #include <libcasper_impl.h>
-#include <nv.h>
 #include <pjdlog.h>
 
 /*
@@ -279,7 +279,7 @@ casper_message(const cap_channel_t *capcas, struct service *service)
 	const char *cmd;
 	nvlist_t *nvl;
 
-	nvl = cap_recv_nvlist(capcas);
+	nvl = cap_recv_nvlist(capcas, 0);
 	if (nvl == NULL)
 		pjdlog_exit(1, "Unable to receive message from Casper");
 	cmd = nvlist_get_string(nvl, "cmd");
@@ -297,7 +297,7 @@ service_message(struct service *service, struct service_connection *sconn)
 	const char *cmd;
 	int error;
 
-	nvlin = cap_recv_nvlist(service_connection_get_chan(sconn));
+	nvlin = cap_recv_nvlist(service_connection_get_chan(sconn), 0);
 	if (nvlin == NULL) {
 		if (errno == ENOTCONN) {
 			pjdlog_debug(1, "Connection closed by the client.");

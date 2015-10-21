@@ -58,7 +58,7 @@
  *   make sure it is removed.
  */
 int
-main(int argc, char *argv[])
+main(void)
 {
 	struct accept_filter_arg afa;
 	struct sockaddr_in sin;

@@ -7,8 +7,11 @@ LIB=	clangfrontendtool
 SRCDIR=	tools/clang/lib/FrontendTool
 SRCS=	ExecuteCompilerInvocation.cpp
 
-TGHDRS=	DiagnosticCommonKinds \
+TGHDRS=	CommentCommandList \
+	DeclNodes \
+	DiagnosticCommonKinds \
 	DiagnosticFrontendKinds \
-	Options
+	Options \
+	StmtNodes
 
 .include "../clang.lib.mk"

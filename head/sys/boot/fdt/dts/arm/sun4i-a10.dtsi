@@ -103,11 +103,20 @@
 			interrupt-parent = <&AINTC>;
 		};
 
+		mmc0: mmc@01c0f000 {
+			compatible = "allwinner,sun4i-a10-mmc";
+			reg = <0x01c0f000 0x1000>;
+			interrupts = <32>;
+			interrupt-parent = <&AINTC>;
+			status = "disabled";
+		};
+
 		sata@01c18000 {
-			compatible = "allwinner,sun4i-ahci";
+			compatible = "allwinner,sun4i-a10-ahci";
 			reg = <0x01c18000 0x1000>;
 			interrupts = <56>;
 			interrupt-parent = <&AINTC>;
+			status = "disabled";
 		};
 
 		UART0: serial@01c28000 {
@@ -119,7 +128,6 @@
 			current-speed = <115200>;
 			clock-frequency = < 24000000 >;
 			busy-detect = <1>;
-			broken-txfifo = <1>;
 		};
 
 		emac@01c0b000 {

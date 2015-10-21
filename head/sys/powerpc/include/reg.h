@@ -20,7 +20,10 @@ struct reg {
 
 /* Must match pcb.pcb_fpu */
 struct fpreg {
-	double fpreg[32];
+	union {
+		double fpr;
+		uint64_t vsr[2];
+	} fpreg[32];
 	double fpscr;
 };
 
@@ -36,7 +39,7 @@ struct dbreg {
 	unsigned int	junk;
 };
 
-#ifdef COMPAT_FREEBSD32
+#ifdef __LP64__
 /* Must match struct trapframe */
 struct reg32 {
 	int32_t fixreg[32];
@@ -58,6 +61,8 @@ struct vmxreg32 {
 struct dbreg32 {
 	struct dbreg data;
 };
+
+#define __HAVE_REG32
 #endif
 
 #ifdef _KERNEL

@@ -219,6 +219,9 @@ struct ieee80211_node {
 	struct ieee80211_tx_ampdu ni_tx_ampdu[WME_NUM_TID];
 	struct ieee80211_rx_ampdu ni_rx_ampdu[WME_NUM_TID];
 
+	/* fast-frames state */
+	struct mbuf *		ni_tx_superg[WME_NUM_TID];
+
 	/* others */
 	short			ni_inact;	/* inactivity mark count */
 	short			ni_inact_reload;/* inactivity reload value */

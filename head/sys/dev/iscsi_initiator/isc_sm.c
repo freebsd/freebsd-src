@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/mbuf.h>
 #include <sys/bus.h>
+#include <sys/sbuf.h>
 #include <sys/sx.h>
 
 #include <cam/cam.h>
@@ -586,14 +587,15 @@ isc_dump_options(SYSCTL_HANDLER_ARGS)
 {
      int error;
      isc_session_t *sp;
-     char	buf[1024], *bp;
+     struct sbuf sb;
+     
+     sbuf_new_for_sysctl(&sb, NULL, 128, req);
 
      sp = (isc_session_t *)arg1;
-     bp = buf;
-     sprintf(bp, "targetname='%s'", sp->opt.targetName);
-     bp += strlen(bp);
-     sprintf(bp, " targetname='%s'", sp->opt.targetAddress);
-     error = SYSCTL_OUT(req, buf, strlen(buf));
+     sbuf_printf(&sb, "targetname='%s'", sp->opt.targetName);
+     sbuf_printf(&sb, " targetaddress='%s'", sp->opt.targetAddress);
+     error = sbuf_finish(&sb);
+     sbuf_delete(&sb);
      return error;
 }
 #endif
@@ -603,51 +605,24 @@ isc_dump_stats(SYSCTL_HANDLER_ARGS)
 {
      isc_session_t	*sp;
      struct isc_softc	*sc;
-     char	buf[1024], *bp;
-     int 	error, n;
-
+     int 	error;
+     struct sbuf sb;
+     
      sp = (isc_session_t *)arg1;
      sc = sp->isc;
 
-     bp = buf;
-     n = sizeof(buf);
-     snprintf(bp, n, "recv=%d sent=%d", sp->stats.nrecv, sp->stats.nsent);
-     bp += strlen(bp);
-     n -= strlen(bp);
-     snprintf(bp, n, " flags=0x%08x pdus-alloc=%d pdus-max=%d", 
-		  sp->flags, sc->npdu_alloc, sc->npdu_max);
-     bp += strlen(bp);
-     n -= strlen(bp);
-     snprintf(bp, n, " cws=%d cmd=%x exp=%x max=%x stat=%x itt=%x",
+     sbuf_new_for_sysctl(&sb, NULL, 128, req);
+
+     sbuf_printf(&sb, "recv=%d sent=%d", sp->stats.nrecv, sp->stats.nsent);
+     sbuf_printf(&sb, " flags=0x%08x pdus-alloc=%d pdus-max=%d", 
+		 sp->flags, sc->npdu_alloc, sc->npdu_max);
+     sbuf_printf(&sb, " cws=%d cmd=%x exp=%x max=%x stat=%x itt=%x",
 		  sp->cws, sp->sn.cmd, sp->sn.expCmd, sp->sn.maxCmd, sp->sn.stat, sp->sn.itt);
-     error = SYSCTL_OUT(req, buf, strlen(buf));
+     error = sbuf_finish(&sb);
+     sbuf_delete(&sb);
      return error;
 }
 
-static int
-isc_sysctl_targetName(SYSCTL_HANDLER_ARGS)
-{
-     char	buf[128], **cp;
-     int 	error;
-
-     cp = (char **)arg1;
-     snprintf(buf, sizeof(buf), "%s", *cp);
-     error = SYSCTL_OUT(req, buf, strlen(buf));
-     return error;
-}
-     
-static int
-isc_sysctl_targetAddress(SYSCTL_HANDLER_ARGS)
-{
-     char	buf[128], **cp;
-     int 	error;
-
-     cp = (char **)arg1;
-     snprintf(buf, sizeof(buf), "%s", *cp);
-     error = SYSCTL_OUT(req, buf, strlen(buf));
-     return error;
-}
-     
 static void
 isc_add_sysctls(isc_session_t *sp)
 {
@@ -668,7 +643,7 @@ isc_add_sysctls(isc_session_t *sp)
 		     "targetname",
 		     CTLTYPE_STRING | CTLFLAG_RD,
 		     (void *)&sp->opt.targetName, 0,
-		     isc_sysctl_targetName, "A", "target name");
+		     sysctl_handle_string, "A", "target name");
 
      SYSCTL_ADD_PROC(&sp->clist,
 		     SYSCTL_CHILDREN(sp->oid),
@@ -676,7 +651,7 @@ isc_add_sysctls(isc_session_t *sp)
 		     "targeaddress",
 		     CTLTYPE_STRING | CTLFLAG_RD,
 		     (void *)&sp->opt.targetAddress, 0,
-		     isc_sysctl_targetAddress, "A", "target address");
+		     sysctl_handle_string, "A", "target address");
 
      SYSCTL_ADD_PROC(&sp->clist,
 		     SYSCTL_CHILDREN(sp->oid),

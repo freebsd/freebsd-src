@@ -85,11 +85,19 @@ __FBSDID("$FreeBSD$");
 
 /*--------------------------- Compile-time Tunables --------------------------*/
 /**
+ * The maximum number of shared memory ring pages we will allow in a
+ * negotiated block-front/back communication channel.  Allow enough
+ * ring space for all requests to be XBB_MAX_REQUEST_SIZE'd.
+ */
+#define	XBB_MAX_RING_PAGES		32
+
+/**
  * The maximum number of outstanding request blocks (request headers plus
  * additional segment blocks) we will allow in a negotiated block-front/back
  * communication channel.
  */
-#define	XBB_MAX_REQUESTS	256
+#define	XBB_MAX_REQUESTS 					\
+	__CONST_RING_SIZE(blkif, PAGE_SIZE * XBB_MAX_RING_PAGES)
 
 /**
  * \brief Define to force all I/O to be performed on memory owned by the
@@ -147,14 +155,6 @@ static MALLOC_DEFINE(M_XENBLOCKBACK, "xbbd", "Xen Block Back Driver Data");
 	     MIN(BLKIF_MAX_SEGMENTS_PER_REQUEST,		\
 		 (XBB_MAX_REQUEST_SIZE / PAGE_SIZE) + 1)))
 
-/**
- * The maximum number of shared memory ring pages we will allow in a
- * negotiated block-front/back communication channel.  Allow enough
- * ring space for all requests to be XBB_MAX_REQUEST_SIZE'd.
- */
-#define	XBB_MAX_RING_PAGES						    \
-	BLKIF_RING_PAGES(BLKIF_SEGS_TO_BLOCKS(XBB_MAX_SEGMENTS_PER_REQUEST) \
-		       * XBB_MAX_REQUESTS)
 /**
  * The maximum number of ring pages that we can allow per request list.
  * We limit this to the maximum number of segments per request, because
@@ -742,7 +742,6 @@ struct xbb_softc {
 	/** Mutex protecting per-instance data. */
 	struct mtx		  lock;
 
-#ifdef XENHVM
 	/**
 	 * Resource representing allocated physical address space
 	 * associated with our per-instance kva region.
@@ -751,7 +750,6 @@ struct xbb_softc {
 
 	/** Resource id for allocated physical address space. */
 	int			  pseudo_phys_res_id;
-#endif
 
 	/**
 	 * I/O statistics from BlockBack dispatch down.  These are
@@ -1330,7 +1328,7 @@ xbb_queue_response(struct xbb_softc *xbb, struct xbb_xen_req *req, int status)
 	if (status != BLKIF_RSP_OKAY)
 		xbb->reqs_completed_with_error++;
 
-	xbb->rings.common.rsp_prod_pvt += BLKIF_SEGS_TO_BLOCKS(req->nr_pages);
+	xbb->rings.common.rsp_prod_pvt++;
 
 	xbb->reqs_queued_for_completion++;
 
@@ -1668,87 +1666,49 @@ xbb_dispatch_io(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist)
 			goto send_response;
 		}
 
-		block_segs    = MIN(nreq->nr_pages,
-				    BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK);
+		block_segs    = nseg;
 		sg            = ring_req->seg;
 		last_block_sg = sg + block_segs;
-		while (1) {
 
-			while (sg < last_block_sg) {
-				KASSERT(seg_idx <
-					XBB_MAX_SEGMENTS_PER_REQLIST,
-					("seg_idx %d is too large, max "
-					"segs %d\n", seg_idx,
-					XBB_MAX_SEGMENTS_PER_REQLIST));
-			
-				xbb_sg->first_sect = sg->first_sect;
-				xbb_sg->last_sect  = sg->last_sect;
-				xbb_sg->nsect =
-				    (int8_t)(sg->last_sect -
-				    sg->first_sect + 1);
+		while (sg < last_block_sg) {
+			KASSERT(seg_idx <
+				XBB_MAX_SEGMENTS_PER_REQLIST,
+				("seg_idx %d is too large, max "
+				"segs %d\n", seg_idx,
+				XBB_MAX_SEGMENTS_PER_REQLIST));
 
-				if ((sg->last_sect >= (PAGE_SIZE >> 9))
-				 || (xbb_sg->nsect <= 0)) {
-					reqlist->status = BLKIF_RSP_ERROR;
-					goto send_response;
-				}
+			xbb_sg->first_sect = sg->first_sect;
+			xbb_sg->last_sect  = sg->last_sect;
+			xbb_sg->nsect =
+			    (int8_t)(sg->last_sect -
+			    sg->first_sect + 1);
 
-				nr_sects += xbb_sg->nsect;
-				map->host_addr = xbb_get_gntaddr(reqlist,
-							seg_idx, /*sector*/0);
-				KASSERT(map->host_addr + PAGE_SIZE <=
-					xbb->ring_config.gnt_addr,
-					("Host address %#jx len %d overlaps "
-					 "ring address %#jx\n",
-					(uintmax_t)map->host_addr, PAGE_SIZE,
-					(uintmax_t)xbb->ring_config.gnt_addr));
-					
-				map->flags     = GNTMAP_host_map;
-				map->ref       = sg->gref;
-				map->dom       = xbb->otherend_id;
-				if (operation == BIO_WRITE)
-					map->flags |= GNTMAP_readonly;
-				sg++;
-				map++;
-				xbb_sg++;
-				seg_idx++;
-				req_seg_idx++;
+			if ((sg->last_sect >= (PAGE_SIZE >> 9))
+			 || (xbb_sg->nsect <= 0)) {
+				reqlist->status = BLKIF_RSP_ERROR;
+				goto send_response;
 			}
 
-			block_segs = MIN(nseg - req_seg_idx,
-					 BLKIF_MAX_SEGMENTS_PER_SEGMENT_BLOCK);
-			if (block_segs == 0)
-				break;
+			nr_sects += xbb_sg->nsect;
+			map->host_addr = xbb_get_gntaddr(reqlist,
+						seg_idx, /*sector*/0);
+			KASSERT(map->host_addr + PAGE_SIZE <=
+				xbb->ring_config.gnt_addr,
+				("Host address %#jx len %d overlaps "
+				 "ring address %#jx\n",
+				(uintmax_t)map->host_addr, PAGE_SIZE,
+				(uintmax_t)xbb->ring_config.gnt_addr));
 
-			/*
-			 * Fetch the next request block full of SG elements.
-			 * For now, only the spacing between entries is
-			 * different in the different ABIs, not the sg entry
-			 * layout.
-			 */
-			req_ring_idx++;
-			switch (xbb->abi) {
-			case BLKIF_PROTOCOL_NATIVE:
-				sg = BLKRING_GET_SEG_BLOCK(&xbb->rings.native,
-							   req_ring_idx);
-				break;
-			case BLKIF_PROTOCOL_X86_32:
-			{
-				sg = BLKRING_GET_SEG_BLOCK(&xbb->rings.x86_32,
-							   req_ring_idx);
-				break;
-			}
-			case BLKIF_PROTOCOL_X86_64:
-			{
-				sg = BLKRING_GET_SEG_BLOCK(&xbb->rings.x86_64,
-							   req_ring_idx);
-				break;
-			}
-			default:
-				panic("Unexpected blkif protocol ABI.");
-				/* NOTREACHED */
-			} 
-			last_block_sg = sg + block_segs;
+			map->flags     = GNTMAP_host_map;
+			map->ref       = sg->gref;
+			map->dom       = xbb->otherend_id;
+			if (operation == BIO_WRITE)
+				map->flags |= GNTMAP_readonly;
+			sg++;
+			map++;
+			xbb_sg++;
+			seg_idx++;
+			req_seg_idx++;
 		}
 
 		/* Convert to the disk's sector size */
@@ -2002,8 +1962,7 @@ xbb_run_queue(void *context, int pending)
 			 * response be generated before we make room in 
 			 * the queue for that response.
 			 */
-			xbb->rings.common.req_cons +=
-			    BLKIF_SEGS_TO_BLOCKS(ring_req->nr_segments);
+			xbb->rings.common.req_cons++;
 			xbb->reqs_received++;
 
 			cur_size = xbb_count_sects(ring_req);
@@ -2286,7 +2245,6 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 	struct xbb_file_data *file_data;
 	u_int                 seg_idx;
 	u_int		      nseg;
-	off_t		      sectors_sent;
 	struct uio            xuio;
 	struct xbb_sg        *xbb_sg;
 	struct iovec         *xiovec;
@@ -2297,7 +2255,6 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 	int                   error;
 
 	file_data = &xbb->backend.file;
-	sectors_sent = 0;
 	error = 0;
 	bzero(&xuio, sizeof(xuio));
 
@@ -2733,18 +2690,7 @@ xbb_open_backend(struct xbb_softc *xbb)
 	if ((xbb->flags & XBBF_READ_ONLY) == 0)
 		flags |= FWRITE;
 
-	if (!curthread->td_proc->p_fd->fd_cdir) {
-		curthread->td_proc->p_fd->fd_cdir = rootvnode;
-		VREF(rootvnode);
-	}
-	if (!curthread->td_proc->p_fd->fd_rdir) {
-		curthread->td_proc->p_fd->fd_rdir = rootvnode;
-		VREF(rootvnode);
-	}
-	if (!curthread->td_proc->p_fd->fd_jdir) {
-		curthread->td_proc->p_fd->fd_jdir = rootvnode;
-		VREF(rootvnode);
-	}
+	pwd_ensure_dirs();
 
  again:
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, xbb->dev_name, curthread);
@@ -2818,16 +2764,11 @@ static void
 xbb_free_communication_mem(struct xbb_softc *xbb)
 {
 	if (xbb->kva != 0) {
-#ifndef XENHVM
-		kva_free(xbb->kva, xbb->kva_size);
-#else
 		if (xbb->pseudo_phys_res != NULL) {
-			bus_release_resource(xbb->dev, SYS_RES_MEMORY,
-					     xbb->pseudo_phys_res_id,
-					     xbb->pseudo_phys_res);
+			xenmem_free(xbb->dev, xbb->pseudo_phys_res_id,
+			    xbb->pseudo_phys_res);
 			xbb->pseudo_phys_res = NULL;
 		}
-#endif
 	}
 	xbb->kva = 0;
 	xbb->gnt_base_addr = 0;
@@ -3055,12 +2996,6 @@ xbb_alloc_communication_mem(struct xbb_softc *xbb)
 	DPRINTF("%s: kva_size = %d, reqlist_kva_size = %d\n",
 		device_get_nameunit(xbb->dev), xbb->kva_size,
 		xbb->reqlist_kva_size);
-#ifndef XENHVM
-	xbb->kva = kva_alloc(xbb->kva_size);
-	if (xbb->kva == 0)
-		return (ENOMEM);
-	xbb->gnt_base_addr = xbb->kva;
-#else /* XENHVM */
 	/*
 	 * Reserve a range of pseudo physical memory that we can map
 	 * into kva.  These pages will only be backed by machine
@@ -3068,17 +3003,14 @@ xbb_alloc_communication_mem(struct xbb_softc *xbb)
 	 * via grant table operations.
 	 */
 	xbb->pseudo_phys_res_id = 0;
-	xbb->pseudo_phys_res = bus_alloc_resource(xbb->dev, SYS_RES_MEMORY,
-						  &xbb->pseudo_phys_res_id,
-						  0, ~0, xbb->kva_size,
-						  RF_ACTIVE);
+	xbb->pseudo_phys_res = xenmem_alloc(xbb->dev, &xbb->pseudo_phys_res_id,
+	    xbb->kva_size);
 	if (xbb->pseudo_phys_res == NULL) {
 		xbb->kva = 0;
 		return (ENOMEM);
 	}
 	xbb->kva = (vm_offset_t)rman_get_virtual(xbb->pseudo_phys_res);
 	xbb->gnt_base_addr = rman_get_start(xbb->pseudo_phys_res);
-#endif /* XENHVM */
 
 	DPRINTF("%s: kva: %#jx, gnt_base_addr: %#jx\n",
 		device_get_nameunit(xbb->dev), (uintmax_t)xbb->kva,
@@ -3107,7 +3039,7 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 	 * Protocol defaults valid even if all negotiation fails.
 	 */
 	xbb->ring_config.ring_pages = 1;
-	xbb->max_request_segments   = BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK;
+	xbb->max_request_segments   = BLKIF_MAX_SEGMENTS_PER_REQUEST;
 	xbb->max_request_size	    = xbb->max_request_segments * PAGE_SIZE;
 
 	/*
@@ -3138,59 +3070,22 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 	 *       fields.
 	 */
 	ring_page_order = 0;
+	xbb->max_requests = 32;
+
 	(void)xs_scanf(XST_NIL, otherend_path,
 		       "ring-page-order", NULL, "%u",
 		       &ring_page_order);
 	xbb->ring_config.ring_pages = 1 << ring_page_order;
-	(void)xs_scanf(XST_NIL, otherend_path,
-		       "num-ring-pages", NULL, "%u",
-		       &xbb->ring_config.ring_pages);
 	ring_size = PAGE_SIZE * xbb->ring_config.ring_pages;
 	xbb->max_requests = BLKIF_MAX_RING_REQUESTS(ring_size);
-
-	(void)xs_scanf(XST_NIL, otherend_path,
-		       "max-requests", NULL, "%u",
-		       &xbb->max_requests);
-
-	(void)xs_scanf(XST_NIL, otherend_path,
-		       "max-request-segments", NULL, "%u",
-		       &xbb->max_request_segments);
-
-	(void)xs_scanf(XST_NIL, otherend_path,
-		       "max-request-size", NULL, "%u",
-		       &xbb->max_request_size);
 
 	if (xbb->ring_config.ring_pages	> XBB_MAX_RING_PAGES) {
 		xenbus_dev_fatal(xbb->dev, EINVAL,
 				 "Front-end specified ring-pages of %u "
-				 "exceeds backend limit of %zu.  "
+				 "exceeds backend limit of %u.  "
 				 "Unable to connect.",
 				 xbb->ring_config.ring_pages,
 				 XBB_MAX_RING_PAGES);
-		return (EINVAL);
-	} else if (xbb->max_requests > XBB_MAX_REQUESTS) {
-		xenbus_dev_fatal(xbb->dev, EINVAL,
-				 "Front-end specified max_requests of %u "
-				 "exceeds backend limit of %u.  "
-				 "Unable to connect.",
-				 xbb->max_requests,
-				 XBB_MAX_REQUESTS);
-		return (EINVAL);
-	} else if (xbb->max_request_segments > XBB_MAX_SEGMENTS_PER_REQUEST) {
-		xenbus_dev_fatal(xbb->dev, EINVAL,
-				 "Front-end specified max_requests_segments "
-				 "of %u exceeds backend limit of %u.  "
-				 "Unable to connect.",
-				 xbb->max_request_segments,
-				 XBB_MAX_SEGMENTS_PER_REQUEST);
-		return (EINVAL);
-	} else if (xbb->max_request_size > XBB_MAX_REQUEST_SIZE) {
-		xenbus_dev_fatal(xbb->dev, EINVAL,
-				 "Front-end specified max_request_size "
-				 "of %u exceeds backend limit of %u.  "
-				 "Unable to connect.",
-				 xbb->max_request_size,
-				 XBB_MAX_REQUEST_SIZE);
 		return (EINVAL);
 	}
 
@@ -3739,49 +3634,11 @@ xbb_attach(device_t dev)
 		return (error);
 	}
 
-	/*
-	 * Amazon EC2 client compatility.  They refer to max-ring-pages
-	 * instead of to max-ring-page-order.
-	 */
-	error = xs_printf(XST_NIL, xenbus_get_node(xbb->dev),
-			  "max-ring-pages", "%zu", XBB_MAX_RING_PAGES);
-	if (error) {
-		xbb_attach_failed(xbb, error, "writing %s/max-ring-pages",
-				  xenbus_get_node(xbb->dev));
-		return (error);
-	}
-
 	max_ring_page_order = flsl(XBB_MAX_RING_PAGES) - 1;
 	error = xs_printf(XST_NIL, xenbus_get_node(xbb->dev),
 			  "max-ring-page-order", "%u", max_ring_page_order);
 	if (error) {
 		xbb_attach_failed(xbb, error, "writing %s/max-ring-page-order",
-				  xenbus_get_node(xbb->dev));
-		return (error);
-	}
-
-	error = xs_printf(XST_NIL, xenbus_get_node(xbb->dev),
-			  "max-requests", "%u", XBB_MAX_REQUESTS);
-	if (error) {
-		xbb_attach_failed(xbb, error, "writing %s/max-requests",
-				  xenbus_get_node(xbb->dev));
-		return (error);
-	}
-
-	error = xs_printf(XST_NIL, xenbus_get_node(xbb->dev),
-			  "max-request-segments", "%u",
-			  XBB_MAX_SEGMENTS_PER_REQUEST);
-	if (error) {
-		xbb_attach_failed(xbb, error, "writing %s/max-request-segments",
-				  xenbus_get_node(xbb->dev));
-		return (error);
-	}
-
-	error = xs_printf(XST_NIL, xenbus_get_node(xbb->dev),
-			  "max-request-size", "%u",
-			  XBB_MAX_REQUEST_SIZE);
-	if (error) {
-		xbb_attach_failed(xbb, error, "writing %s/max-request-size",
 				  xenbus_get_node(xbb->dev));
 		return (error);
 	}

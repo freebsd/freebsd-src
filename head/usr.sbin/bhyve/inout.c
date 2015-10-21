@@ -107,7 +107,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 	uint32_t eax, val;
 	inout_func_t handler;
 	void *arg;
-	int error, retval;
+	int error, fault, retval;
 	enum vm_reg_name idxreg;
 	uint64_t gla, index, iterations, count;
 	struct vm_inout_str *vis;
@@ -163,11 +163,11 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 			}
 
 			error = vm_copy_setup(ctx, vcpu, &vis->paging, gla,
-			    bytes, prot, iov, nitems(iov));
-			if (error == -1) {
+			    bytes, prot, iov, nitems(iov), &fault);
+			if (error) {
 				retval = -1;  /* Unrecoverable error */
 				break;
-			} else if (error == 1) {
+			} else if (fault) {
 				retval = 0;  /* Resume guest to handle fault */
 				break;
 			}

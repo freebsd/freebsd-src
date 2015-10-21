@@ -18,7 +18,6 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Type.h"
 
@@ -28,35 +27,32 @@ class GetElementPtrInst;
 class BinaryOperator;
 class ConstantExpr;
 
-/// Operator - This is a utility class that provides an abstraction for the
-/// common functionality between Instructions and ConstantExprs.
-///
+/// This is a utility class that provides an abstraction for the common
+/// functionality between Instructions and ConstantExprs.
 class Operator : public User {
 private:
   // The Operator class is intended to be used as a utility, and is never itself
   // instantiated.
-  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
-  void *operator new(size_t s) LLVM_DELETED_FUNCTION;
-  Operator() LLVM_DELETED_FUNCTION;
+  void *operator new(size_t, unsigned) = delete;
+  void *operator new(size_t s) = delete;
+  Operator() = delete;
 
 protected:
-  // NOTE: Cannot use LLVM_DELETED_FUNCTION because it's not legal to delete
+  // NOTE: Cannot use = delete because it's not legal to delete
   // an overridden method that's not deleted in the base class. Cannot leave
   // this unimplemented because that leads to an ODR-violation.
-  ~Operator();
+  ~Operator() override;
 
 public:
-  /// getOpcode - Return the opcode for this Instruction or ConstantExpr.
-  ///
+  /// Return the opcode for this Instruction or ConstantExpr.
   unsigned getOpcode() const {
     if (const Instruction *I = dyn_cast<Instruction>(this))
       return I->getOpcode();
     return cast<ConstantExpr>(this)->getOpcode();
   }
 
-  /// getOpcode - If V is an Instruction or ConstantExpr, return its
-  /// opcode. Otherwise return UserOp1.
-  ///
+  /// If V is an Instruction or ConstantExpr, return its opcode.
+  /// Otherwise return UserOp1.
   static unsigned getOpcode(const Value *V) {
     if (const Instruction *I = dyn_cast<Instruction>(V))
       return I->getOpcode();
@@ -72,10 +68,9 @@ public:
   }
 };
 
-/// OverflowingBinaryOperator - Utility class for integer arithmetic operators
-/// which may exhibit overflow - Add, Sub, and Mul. It does not include SDiv,
-/// despite that operator having the potential for overflow.
-///
+/// Utility class for integer arithmetic operators which may exhibit overflow -
+/// Add, Sub, and Mul. It does not include SDiv, despite that operator having
+/// the potential for overflow.
 class OverflowingBinaryOperator : public Operator {
 public:
   enum {
@@ -96,13 +91,13 @@ private:
   }
 
 public:
-  /// hasNoUnsignedWrap - Test whether this operation is known to never
+  /// Test whether this operation is known to never
   /// undergo unsigned overflow, aka the nuw property.
   bool hasNoUnsignedWrap() const {
     return SubclassOptionalData & NoUnsignedWrap;
   }
 
-  /// hasNoSignedWrap - Test whether this operation is known to never
+  /// Test whether this operation is known to never
   /// undergo signed overflow, aka the nsw property.
   bool hasNoSignedWrap() const {
     return (SubclassOptionalData & NoSignedWrap) != 0;
@@ -126,8 +121,8 @@ public:
   }
 };
 
-/// PossiblyExactOperator - A udiv or sdiv instruction, which can be marked as
-/// "exact", indicating that no bits are destroyed.
+/// A udiv or sdiv instruction, which can be marked as "exact",
+/// indicating that no bits are destroyed.
 class PossiblyExactOperator : public Operator {
 public:
   enum {
@@ -142,8 +137,7 @@ private:
   }
 
 public:
-  /// isExact - Test whether this division is known to be exact, with
-  /// zero remainder.
+  /// Test whether this division is known to be exact, with zero remainder.
   bool isExact() const {
     return SubclassOptionalData & IsExact;
   }
@@ -186,17 +180,17 @@ public:
   { }
 
   /// Whether any flag is set
-  bool any() { return Flags != 0; }
+  bool any() const { return Flags != 0; }
 
   /// Set all the flags to false
   void clear() { Flags = 0; }
 
   /// Flag queries
-  bool noNaNs()          { return 0 != (Flags & NoNaNs); }
-  bool noInfs()          { return 0 != (Flags & NoInfs); }
-  bool noSignedZeros()   { return 0 != (Flags & NoSignedZeros); }
-  bool allowReciprocal() { return 0 != (Flags & AllowReciprocal); }
-  bool unsafeAlgebra()   { return 0 != (Flags & UnsafeAlgebra); }
+  bool noNaNs() const          { return 0 != (Flags & NoNaNs); }
+  bool noInfs() const          { return 0 != (Flags & NoInfs); }
+  bool noSignedZeros() const   { return 0 != (Flags & NoSignedZeros); }
+  bool allowReciprocal() const { return 0 != (Flags & AllowReciprocal); }
+  bool unsafeAlgebra() const   { return 0 != (Flags & UnsafeAlgebra); }
 
   /// Flag setters
   void setNoNaNs()          { Flags |= NoNaNs; }
@@ -217,7 +211,7 @@ public:
 };
 
 
-/// FPMathOperator - Utility class for floating point operations which can have
+/// Utility class for floating point operations which can have
 /// information about relaxed accuracy requirements attached to them.
 class FPMathOperator : public Operator {
 private:
@@ -257,9 +251,16 @@ private:
       (B * FastMathFlags::AllowReciprocal);
   }
 
-  /// Convenience function for setting all the fast-math flags
+  /// Convenience function for setting multiple fast-math flags.
+  /// FMF is a mask of the bits to set.
   void setFastMathFlags(FastMathFlags FMF) {
     SubclassOptionalData |= FMF.Flags;
+  }
+
+  /// Convenience function for copying all fast-math flags.
+  /// All values in FMF are transferred to this operator.
+  void copyFastMathFlags(FastMathFlags FMF) {
+    SubclassOptionalData = FMF.Flags;
   }
 
 public:
@@ -304,7 +305,8 @@ public:
   float getFPAccuracy() const;
 
   static inline bool classof(const Instruction *I) {
-    return I->getType()->isFPOrFPVectorTy();
+    return I->getType()->isFPOrFPVectorTy() ||
+      I->getOpcode() == Instruction::FCmp;
   }
   static inline bool classof(const Value *V) {
     return isa<Instruction>(V) && classof(cast<Instruction>(V));
@@ -312,8 +314,7 @@ public:
 };
 
 
-/// ConcreteOperator - A helper template for defining operators for individual
-/// opcodes.
+/// A helper template for defining operators for individual opcodes.
 template<typename SuperClass, unsigned Opc>
 class ConcreteOperator : public SuperClass {
 public:
@@ -357,6 +358,8 @@ class LShrOperator
 };
 
 
+class ZExtOperator : public ConcreteOperator<Operator, Instruction::ZExt> {};
+
 
 class GEPOperator
   : public ConcreteOperator<Operator, Instruction::GetElementPtr> {
@@ -372,8 +375,7 @@ class GEPOperator
   }
 
 public:
-  /// isInBounds - Test whether this is an inbounds GEP, as defined
-  /// by LangRef.html.
+  /// Test whether this is an inbounds GEP, as defined by LangRef.html.
   bool isInBounds() const {
     return SubclassOptionalData & IsInBounds;
   }
@@ -393,16 +395,16 @@ public:
     return 0U;                      // get index for modifying correct operand
   }
 
-  /// getPointerOperandType - Method to return the pointer operand as a
-  /// PointerType.
+  /// Method to return the pointer operand as a PointerType.
   Type *getPointerOperandType() const {
     return getPointerOperand()->getType();
   }
 
-  /// getPointerAddressSpace - Method to return the address space of the
-  /// pointer operand.
+  Type *getSourceElementType() const;
+
+  /// Method to return the address space of the pointer operand.
   unsigned getPointerAddressSpace() const {
-    return cast<PointerType>(getPointerOperandType())->getAddressSpace();
+    return getPointerOperandType()->getPointerAddressSpace();
   }
 
   unsigned getNumIndices() const {  // Note: always non-negative
@@ -413,8 +415,8 @@ public:
     return getNumOperands() > 1;
   }
 
-  /// hasAllZeroIndices - Return true if all of the indices of this GEP are
-  /// zeros.  If so, the result pointer and the first operand have the same
+  /// Return true if all of the indices of this GEP are zeros.
+  /// If so, the result pointer and the first operand have the same
   /// value, just potentially different types.
   bool hasAllZeroIndices() const {
     for (const_op_iterator I = idx_begin(), E = idx_end(); I != E; ++I) {
@@ -426,8 +428,8 @@ public:
     return true;
   }
 
-  /// hasAllConstantIndices - Return true if all of the indices of this GEP are
-  /// constant integers.  If so, the result pointer and the first operand have
+  /// Return true if all of the indices of this GEP are constant integers.
+  /// If so, the result pointer and the first operand have
   /// a constant offset between them.
   bool hasAllConstantIndices() const {
     for (const_op_iterator I = idx_begin(), E = idx_end(); I != E; ++I) {
@@ -445,36 +447,7 @@ public:
   /// undefined (it is *not* preserved!). The APInt passed into this routine
   /// must be at exactly as wide as the IntPtr type for the address space of the
   /// base GEP pointer.
-  bool accumulateConstantOffset(const DataLayout &DL, APInt &Offset) const {
-    assert(Offset.getBitWidth() ==
-           DL.getPointerSizeInBits(getPointerAddressSpace()) &&
-           "The offset must have exactly as many bits as our pointer.");
-
-    for (gep_type_iterator GTI = gep_type_begin(this), GTE = gep_type_end(this);
-         GTI != GTE; ++GTI) {
-      ConstantInt *OpC = dyn_cast<ConstantInt>(GTI.getOperand());
-      if (!OpC)
-        return false;
-      if (OpC->isZero())
-        continue;
-
-      // Handle a struct index, which adds its field offset to the pointer.
-      if (StructType *STy = dyn_cast<StructType>(*GTI)) {
-        unsigned ElementIdx = OpC->getZExtValue();
-        const StructLayout *SL = DL.getStructLayout(STy);
-        Offset += APInt(Offset.getBitWidth(),
-                        SL->getElementOffset(ElementIdx));
-        continue;
-      }
-
-      // For array or vector indices, scale the index by the size of the type.
-      APInt Index = OpC->getValue().sextOrTrunc(Offset.getBitWidth());
-      Offset += Index * APInt(Offset.getBitWidth(),
-                              DL.getTypeAllocSize(GTI.getIndexedType()));
-    }
-    return true;
-  }
-
+  bool accumulateConstantOffset(const DataLayout &DL, APInt &Offset) const;
 };
 
 class PtrToIntOperator
@@ -493,19 +466,31 @@ public:
     return 0U;                      // get index for modifying correct operand
   }
 
-  /// getPointerOperandType - Method to return the pointer operand as a
-  /// PointerType.
+  /// Method to return the pointer operand as a PointerType.
   Type *getPointerOperandType() const {
     return getPointerOperand()->getType();
   }
 
-  /// getPointerAddressSpace - Method to return the address space of the
-  /// pointer operand.
+  /// Method to return the address space of the pointer operand.
   unsigned getPointerAddressSpace() const {
     return cast<PointerType>(getPointerOperandType())->getAddressSpace();
   }
 };
 
+class BitCastOperator
+    : public ConcreteOperator<Operator, Instruction::BitCast> {
+  friend class BitCastInst;
+  friend class ConstantExpr;
+
+public:
+  Type *getSrcTy() const {
+    return getOperand(0)->getType();
+  }
+
+  Type *getDestTy() const {
+    return getType();
+  }
+};
 
 } // End llvm namespace
 

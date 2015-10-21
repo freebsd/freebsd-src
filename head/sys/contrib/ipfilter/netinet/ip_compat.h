@@ -153,7 +153,8 @@ struct  ether_addr {
 #   include <sys/rwlock.h>
 #   define	KMUTEX_T		struct mtx
 #   define	KRWLOCK_T		struct rwlock
-#   ifdef _KERNEL
+
+#ifdef _KERNEL
 #    define	READ_ENTER(x)		rw_rlock(&(x)->ipf_lk)
 #    define	WRITE_ENTER(x)		rw_wlock(&(x)->ipf_lk)
 #    define	MUTEX_DOWNGRADE(x)	rw_downgrade(&(x)->ipf_lk)
@@ -165,16 +166,7 @@ struct  ether_addr {
 					    else \
 						rw_runlock(&(x)->ipf_lk); \
 					} while (0)
-#   endif
-
 #  include <net/if_var.h>
-#  define	IFNAME(x)	((struct ifnet *)x)->if_xname
-#  define	COPYIFNAME(v, x, b) \
-				(void) strncpy(b, \
-					       ((struct ifnet *)x)->if_xname, \
-					       LIFNAMSIZ)
-
-# ifdef _KERNEL
 #  define	GETKTIME(x)	microtime((struct timeval *)x)
 
 #   include <netinet/in_systm.h>
@@ -216,8 +208,28 @@ struct  ether_addr {
 #  define	M_DUP(m)	m_dup(m, M_NOWAIT)
 #  define	IPF_PANIC(x,y)	if (x) { printf y; panic("ipf_panic"); }
 typedef struct mbuf mb_t;
-# endif /* _KERNEL */
 
+#else	/* !_KERNEL */
+#ifndef _NET_IF_VAR_H_
+/*
+ * Userland emulation of struct ifnet.
+ */
+struct route;
+struct mbuf;
+struct ifnet {
+	char			if_xname[IFNAMSIZ];
+	TAILQ_HEAD(, ifaddr)	if_addrlist;
+	int	(*if_output)(struct ifnet *, struct mbuf *,
+	    const struct sockaddr *, struct route *);
+};
+#endif /* _NET_IF_VAR_H_ */
+#endif /* _KERNEL */
+
+#  define	IFNAME(x)	((struct ifnet *)x)->if_xname
+#  define	COPYIFNAME(v, x, b) \
+				(void) strncpy(b, \
+					       ((struct ifnet *)x)->if_xname, \
+					       LIFNAMSIZ)
 
 typedef	u_long		ioctlcmd_t;
 typedef	struct uio	uio_t;

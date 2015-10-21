@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	pmcstudy
+MAN=	pmcstudy.8
 SRCS= pmcstudy.c eval_expr.c
 CFLAGS+= -Wall -Werror
 

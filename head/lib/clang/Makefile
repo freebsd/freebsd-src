@@ -41,9 +41,12 @@ SUBDIR=	libclanganalysis \
 	libllvmipa \
 	libllvmipo \
 	libllvmirreader \
+	libllvmlibdriver \
 	libllvmlinker \
 	libllvmmc \
+	libllvmmcdisassembler \
 	libllvmmcparser \
+	libllvmmirparser \
 	libllvmobjcarcopts \
 	libllvmobject \
 	libllvmoption \
@@ -59,7 +62,6 @@ SUBDIR=	libclanganalysis \
 	libllvmaarch64asmparser \
 	libllvmaarch64codegen \
 	libllvmaarch64desc \
-	libllvmaarch64disassembler \
 	libllvmaarch64info \
 	libllvmaarch64instprinter \
 	libllvmaarch64utils \
@@ -72,7 +74,6 @@ SUBDIR=	libclanganalysis \
 	libllvmmipsasmparser \
 	libllvmmipscodegen \
 	libllvmmipsdesc \
-	libllvmmipsdisassembler \
 	libllvmmipsinfo \
 	libllvmmipsinstprinter \
 	libllvmpowerpcasmparser \
@@ -84,28 +85,31 @@ SUBDIR=	libclanganalysis \
 	libllvmsparcasmparser \
 	libllvmsparccodegen \
 	libllvmsparcdesc \
-	libllvmsparcdisassembler \
 	libllvmsparcinfo \
 	libllvmsparcinstprinter \
 	libllvmx86asmparser \
 	libllvmx86codegen \
 	libllvmx86desc \
-	libllvmx86disassembler \
 	libllvmx86info \
 	libllvmx86instprinter \
 	libllvmx86utils
 
 .if ${MK_CLANG_EXTRAS} != "no"
-SUBDIR+=libllvmdebuginfo \
-	libllvmmcanalysis
+SUBDIR+=libllvmdebuginfodwarf \
+	libllvmdebuginfopdb \
+	libllvmlto \
+	libllvmorcjit \
+	libllvmpasses
 .endif # MK_CLANG_EXTRAS
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
-SUBDIR+=libllvmexecutionengine \
+SUBDIR+=libllvmaarch64disassembler \
+	libllvmexecutionengine \
 	libllvminterpreter \
-	libllvmjit \
-	libllvmmcdisassembler \
 	libllvmmcjit \
-	libllvmruntimedyld
+	libllvmmipsdisassembler \
+	libllvmruntimedyld \
+	libllvmsparcdisassembler \
+	libllvmx86disassembler
 .endif # MK_CLANG_EXTRAS | LLDB
 
 .if ${MK_LLDB} != "no"
@@ -120,11 +124,19 @@ SUBDIR+=liblldb \
 	liblldbHostCommon \
 	liblldbHostFreeBSD \
 	liblldbHostPOSIX \
+	liblldbInitialization \
 	liblldbInterpreter \
 	liblldbSymbol \
 	liblldbTarget \
 	liblldbUtility \
 	\
+	liblldbPluginABISysV_arm \
+	liblldbPluginABISysV_arm64 \
+	liblldbPluginABISysV_i386 \
+	liblldbPluginABISysV_mips \
+	liblldbPluginABISysV_mips64 \
+	liblldbPluginABISysV_ppc \
+	liblldbPluginABISysV_ppc64 \
 	liblldbPluginABISysV_x86_64 \
 	liblldbPluginCXXItaniumABI \
 	liblldbPluginDisassemblerLLVM \
@@ -132,7 +144,11 @@ SUBDIR+=liblldb \
 	liblldbPluginDynamicLoaderPosixDYLD \
 	liblldbPluginInstructionARM \
 	liblldbPluginInstructionARM64 \
+	liblldbPluginInstructionMIPS \
+	liblldbPluginInstructionMIPS64 \
+	liblldbPluginInstrumentationRuntimeAddressSanitizer \
 	liblldbPluginJITLoaderGDB \
+	liblldbPluginMemoryHistoryASan \
 	liblldbPluginObjectContainerBSDArchive \
 	liblldbPluginObjectFileELF \
 	liblldbPluginObjectFileJIT \

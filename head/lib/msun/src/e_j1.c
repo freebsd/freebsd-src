@@ -62,7 +62,9 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
-static double pone(double), qone(double);
+static __inline double pone(double), qone(double);
+
+static const volatile double vone = 1, vzero = 0;
 
 static const double
 huge    = 1e300,
@@ -147,10 +149,16 @@ __ieee754_y1(double x)
 
 	EXTRACT_WORDS(hx,lx,x);
         ix = 0x7fffffff&hx;
-    /* if Y1(NaN) is NaN, Y1(-inf) is NaN, Y1(inf) is 0 */
-	if(ix>=0x7ff00000) return  one/(x+x*x); 
-        if((ix|lx)==0) return -one/zero;
-        if(hx<0) return zero/zero;
+	/*
+	 * y1(NaN) = NaN.
+	 * y1(Inf) = 0.
+	 * y1(-Inf) = NaN and raise invalid exception.
+	 */
+	if(ix>=0x7ff00000) return  vone/(x+x*x); 
+	/* y1(+-0) = -inf and raise divide-by-zero exception. */
+        if((ix|lx)==0) return -one/vzero;
+	/* y1(x<0) = NaN and raise invalid exception. */
+        if(hx<0) return vzero/vzero;
         if(ix >= 0x40000000) {  /* |x| >= 2.0 */
                 s = sin(x);
                 c = cos(x);
@@ -262,7 +270,8 @@ static const double ps2[5] = {
   8.36463893371618283368e+00, /* 0x4020BAB1, 0xF44E5192 */
 };
 
-	static double pone(double x)
+static __inline double
+pone(double x)
 {
 	const double *p,*q;
 	double z,r,s;
@@ -272,7 +281,7 @@ static const double ps2[5] = {
         if(ix>=0x40200000)     {p = pr8; q= ps8;}
         else if(ix>=0x40122E8B){p = pr5; q= ps5;}
         else if(ix>=0x4006DB6D){p = pr3; q= ps3;}
-        else if(ix>=0x40000000){p = pr2; q= ps2;}
+	else                   {p = pr2; q= ps2;}	/* ix>=0x40000000 */
         z = one/(x*x);
         r = p[0]+z*(p[1]+z*(p[2]+z*(p[3]+z*(p[4]+z*p[5]))));
         s = one+z*(q[0]+z*(q[1]+z*(q[2]+z*(q[3]+z*q[4]))));
@@ -358,7 +367,8 @@ static const double qs2[6] = {
  -4.95949898822628210127e+00, /* 0xC013D686, 0xE71BE86B */
 };
 
-	static double qone(double x)
+static __inline double
+qone(double x)
 {
 	const double *p,*q;
 	double  s,r,z;
@@ -368,7 +378,7 @@ static const double qs2[6] = {
 	if(ix>=0x40200000)     {p = qr8; q= qs8;}
 	else if(ix>=0x40122E8B){p = qr5; q= qs5;}
 	else if(ix>=0x4006DB6D){p = qr3; q= qs3;}
-	else if(ix>=0x40000000){p = qr2; q= qs2;}
+	else                   {p = qr2; q= qs2;}	/* ix>=0x40000000 */
 	z = one/(x*x);
 	r = p[0]+z*(p[1]+z*(p[2]+z*(p[3]+z*(p[4]+z*p[5]))));
 	s = one+z*(q[0]+z*(q[1]+z*(q[2]+z*(q[3]+z*(q[4]+z*q[5])))));

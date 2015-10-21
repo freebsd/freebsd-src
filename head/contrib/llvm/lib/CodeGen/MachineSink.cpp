@@ -17,18 +17,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SparseBitVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/CodeGen/MachinePostDominators.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "machine-sink"
@@ -38,6 +42,12 @@ SplitEdges("machine-sink-split",
            cl::desc("Split critical edges during machine sinking"),
            cl::init(true), cl::Hidden);
 
+static cl::opt<bool>
+UseBlockFreqInfo("machine-sink-bfi",
+           cl::desc("Use block frequency info to find successors to sink"),
+           cl::init(true), cl::Hidden);
+
+
 STATISTIC(NumSunk,      "Number of machine instructions sunk");
 STATISTIC(NumSplit,     "Number of critical edges split");
 STATISTIC(NumCoalesces, "Number of copies coalesced");
@@ -46,14 +56,25 @@ namespace {
   class MachineSinking : public MachineFunctionPass {
     const TargetInstrInfo *TII;
     const TargetRegisterInfo *TRI;
-    MachineRegisterInfo  *MRI;  // Machine register information
-    MachineDominatorTree *DT;   // Machine dominator tree
+    MachineRegisterInfo  *MRI;     // Machine register information
+    MachineDominatorTree *DT;      // Machine dominator tree
+    MachinePostDominatorTree *PDT; // Machine post dominator tree
     MachineLoopInfo *LI;
+    const MachineBlockFrequencyInfo *MBFI;
     AliasAnalysis *AA;
 
     // Remember which edges have been considered for breaking.
     SmallSet<std::pair<MachineBasicBlock*,MachineBasicBlock*>, 8>
     CEBCandidates;
+    // Remember which edges we are about to split.
+    // This is different from CEBCandidates since those edges
+    // will be split.
+    SetVector<std::pair<MachineBasicBlock*,MachineBasicBlock*> > ToSplit;
+
+    SparseBitVector<> RegsToClearKillFlags;
+
+    typedef std::map<MachineBasicBlock *, SmallVector<MachineBasicBlock *, 4>>
+        AllSuccsCache;
 
   public:
     static char ID; // Pass identification
@@ -68,9 +89,13 @@ namespace {
       MachineFunctionPass::getAnalysisUsage(AU);
       AU.addRequired<AliasAnalysis>();
       AU.addRequired<MachineDominatorTree>();
+      AU.addRequired<MachinePostDominatorTree>();
       AU.addRequired<MachineLoopInfo>();
       AU.addPreserved<MachineDominatorTree>();
+      AU.addPreserved<MachinePostDominatorTree>();
       AU.addPreserved<MachineLoopInfo>();
+      if (UseBlockFreqInfo)
+        AU.addRequired<MachineBlockFrequencyInfo>();
     }
 
     void releaseMemory() override {
@@ -82,22 +107,40 @@ namespace {
     bool isWorthBreakingCriticalEdge(MachineInstr *MI,
                                      MachineBasicBlock *From,
                                      MachineBasicBlock *To);
-    MachineBasicBlock *SplitCriticalEdge(MachineInstr *MI,
-                                         MachineBasicBlock *From,
-                                         MachineBasicBlock *To,
-                                         bool BreakPHIEdge);
-    bool SinkInstruction(MachineInstr *MI, bool &SawStore);
+    /// \brief Postpone the splitting of the given critical
+    /// edge (\p From, \p To).
+    ///
+    /// We do not split the edges on the fly. Indeed, this invalidates
+    /// the dominance information and thus triggers a lot of updates
+    /// of that information underneath.
+    /// Instead, we postpone all the splits after each iteration of
+    /// the main loop. That way, the information is at least valid
+    /// for the lifetime of an iteration.
+    ///
+    /// \return True if the edge is marked as toSplit, false otherwise.
+    /// False can be returned if, for instance, this is not profitable.
+    bool PostponeSplitCriticalEdge(MachineInstr *MI,
+                                   MachineBasicBlock *From,
+                                   MachineBasicBlock *To,
+                                   bool BreakPHIEdge);
+    bool SinkInstruction(MachineInstr *MI, bool &SawStore,
+                         AllSuccsCache &AllSuccessors);
     bool AllUsesDominatedByBlock(unsigned Reg, MachineBasicBlock *MBB,
                                  MachineBasicBlock *DefMBB,
                                  bool &BreakPHIEdge, bool &LocalUse) const;
     MachineBasicBlock *FindSuccToSinkTo(MachineInstr *MI, MachineBasicBlock *MBB,
-               bool &BreakPHIEdge);
+               bool &BreakPHIEdge, AllSuccsCache &AllSuccessors);
     bool isProfitableToSinkTo(unsigned Reg, MachineInstr *MI,
                               MachineBasicBlock *MBB,
-                              MachineBasicBlock *SuccToSinkTo);
+                              MachineBasicBlock *SuccToSinkTo,
+                              AllSuccsCache &AllSuccessors);
 
     bool PerformTrivialForwardCoalescing(MachineInstr *MI,
                                          MachineBasicBlock *MBB);
+
+    SmallVector<MachineBasicBlock *, 4> &
+    GetAllSortedSuccessors(MachineInstr *MI, MachineBasicBlock *MBB,
+                           AllSuccsCache &AllSuccessors) const;
   };
 } // end anonymous namespace
 
@@ -135,6 +178,11 @@ bool MachineSinking::PerformTrivialForwardCoalescing(MachineInstr *MI,
   DEBUG(dbgs() << "*** to: " << *MI);
   MRI->replaceRegWith(DstReg, SrcReg);
   MI->eraseFromParent();
+
+  // Conservatively, clear any kill flags, since it's possible that they are no
+  // longer correct.
+  MRI->clearKillFlags(SrcReg);
+
   ++NumCoalesces;
   return true;
 }
@@ -213,12 +261,13 @@ bool MachineSinking::runOnMachineFunction(MachineFunction &MF) {
 
   DEBUG(dbgs() << "******** Machine Sinking ********\n");
 
-  const TargetMachine &TM = MF.getTarget();
-  TII = TM.getInstrInfo();
-  TRI = TM.getRegisterInfo();
+  TII = MF.getSubtarget().getInstrInfo();
+  TRI = MF.getSubtarget().getRegisterInfo();
   MRI = &MF.getRegInfo();
   DT = &getAnalysis<MachineDominatorTree>();
+  PDT = &getAnalysis<MachinePostDominatorTree>();
   LI = &getAnalysis<MachineLoopInfo>();
+  MBFI = UseBlockFreqInfo ? &getAnalysis<MachineBlockFrequencyInfo>() : nullptr;
   AA = &getAnalysis<AliasAnalysis>();
 
   bool EverMadeChange = false;
@@ -228,14 +277,33 @@ bool MachineSinking::runOnMachineFunction(MachineFunction &MF) {
 
     // Process all basic blocks.
     CEBCandidates.clear();
-    for (MachineFunction::iterator I = MF.begin(), E = MF.end();
-         I != E; ++I)
-      MadeChange |= ProcessBlock(*I);
+    ToSplit.clear();
+    for (auto &MBB: MF)
+      MadeChange |= ProcessBlock(MBB);
 
+    // If we have anything we marked as toSplit, split it now.
+    for (auto &Pair : ToSplit) {
+      auto NewSucc = Pair.first->SplitCriticalEdge(Pair.second, this);
+      if (NewSucc != nullptr) {
+        DEBUG(dbgs() << " *** Splitting critical edge:"
+              " BB#" << Pair.first->getNumber()
+              << " -- BB#" << NewSucc->getNumber()
+              << " -- BB#" << Pair.second->getNumber() << '\n');
+        MadeChange = true;
+        ++NumSplit;
+      } else
+        DEBUG(dbgs() << " *** Not legal to break critical edge\n");
+    }
     // If this iteration over the code changed anything, keep iterating.
     if (!MadeChange) break;
     EverMadeChange = true;
   }
+
+  // Now clear any kill flags for recorded registers.
+  for (auto I : RegsToClearKillFlags)
+    MRI->clearKillFlags(I);
+  RegsToClearKillFlags.clear();
+
   return EverMadeChange;
 }
 
@@ -249,6 +317,9 @@ bool MachineSinking::ProcessBlock(MachineBasicBlock &MBB) {
   if (!DT->isReachableFromEntry(&MBB)) return false;
 
   bool MadeChange = false;
+
+  // Cache all successors, sorted by frequency info and loop depth.
+  AllSuccsCache AllSuccessors;
 
   // Walk the basic block bottom-up.  Remember if we saw a store.
   MachineBasicBlock::iterator I = MBB.end();
@@ -272,7 +343,7 @@ bool MachineSinking::ProcessBlock(MachineBasicBlock &MBB) {
       continue;
     }
 
-    if (SinkInstruction(MI, SawStore))
+    if (SinkInstruction(MI, SawStore, AllSuccessors))
       ++NumSunk, MadeChange = true;
 
     // If we just processed the first instruction in the block, we're done.
@@ -289,10 +360,10 @@ bool MachineSinking::isWorthBreakingCriticalEdge(MachineInstr *MI,
   // If the pass has already considered breaking this edge (during this pass
   // through the function), then let's go ahead and break it. This means
   // sinking multiple "cheap" instructions into the same block.
-  if (!CEBCandidates.insert(std::make_pair(From, To)))
+  if (!CEBCandidates.insert(std::make_pair(From, To)).second)
     return true;
 
-  if (!MI->isCopy() && !MI->isAsCheapAsAMove())
+  if (!MI->isCopy() && !TII->isAsCheapAsAMove(MI))
     return true;
 
   // MI is cheap, we probably don't want to break the critical edge for it.
@@ -328,21 +399,21 @@ bool MachineSinking::isWorthBreakingCriticalEdge(MachineInstr *MI,
   return false;
 }
 
-MachineBasicBlock *MachineSinking::SplitCriticalEdge(MachineInstr *MI,
-                                                     MachineBasicBlock *FromBB,
-                                                     MachineBasicBlock *ToBB,
-                                                     bool BreakPHIEdge) {
+bool MachineSinking::PostponeSplitCriticalEdge(MachineInstr *MI,
+                                               MachineBasicBlock *FromBB,
+                                               MachineBasicBlock *ToBB,
+                                               bool BreakPHIEdge) {
   if (!isWorthBreakingCriticalEdge(MI, FromBB, ToBB))
-    return nullptr;
+    return false;
 
   // Avoid breaking back edge. From == To means backedge for single BB loop.
   if (!SplitEdges || FromBB == ToBB)
-    return nullptr;
+    return false;
 
   // Check for backedges of more "complex" loops.
   if (LI->getLoopFor(FromBB) == LI->getLoopFor(ToBB) &&
       LI->isLoopHeader(ToBB))
-    return nullptr;
+    return false;
 
   // It's not always legal to break critical edges and sink the computation
   // to the edge.
@@ -389,11 +460,13 @@ MachineBasicBlock *MachineSinking::SplitCriticalEdge(MachineInstr *MI,
       if (*PI == FromBB)
         continue;
       if (!DT->dominates(ToBB, *PI))
-        return nullptr;
+        return false;
     }
   }
 
-  return FromBB->SplitCriticalEdge(ToBB, this);
+  ToSplit.insert(std::make_pair(FromBB, ToBB));
+  
+  return true;
 }
 
 static bool AvoidsSinking(MachineInstr *MI, MachineRegisterInfo *MRI) {
@@ -419,27 +492,11 @@ static void collectDebugValues(MachineInstr *MI,
   }
 }
 
-/// isPostDominatedBy - Return true if A is post dominated by B.
-static bool isPostDominatedBy(MachineBasicBlock *A, MachineBasicBlock *B) {
-
-  // FIXME - Use real post dominator.
-  if (A->succ_size() != 2)
-    return false;
-  MachineBasicBlock::succ_iterator I = A->succ_begin();
-  if (B == *I)
-    ++I;
-  MachineBasicBlock *OtherSuccBlock = *I;
-  if (OtherSuccBlock->succ_size() != 1 ||
-      *(OtherSuccBlock->succ_begin()) != B)
-    return false;
-
-  return true;
-}
-
 /// isProfitableToSinkTo - Return true if it is profitable to sink MI.
 bool MachineSinking::isProfitableToSinkTo(unsigned Reg, MachineInstr *MI,
                                           MachineBasicBlock *MBB,
-                                          MachineBasicBlock *SuccToSinkTo) {
+                                          MachineBasicBlock *SuccToSinkTo,
+                                          AllSuccsCache &AllSuccessors) {
   assert (MI && "Invalid MachineInstr!");
   assert (SuccToSinkTo && "Invalid SinkTo Candidate BB");
 
@@ -447,8 +504,13 @@ bool MachineSinking::isProfitableToSinkTo(unsigned Reg, MachineInstr *MI,
     return false;
 
   // It is profitable if SuccToSinkTo does not post dominate current block.
-  if (!isPostDominatedBy(MBB, SuccToSinkTo))
-      return true;
+  if (!PDT->dominates(SuccToSinkTo, MBB))
+    return true;
+
+  // It is profitable to sink an instruction from a deeper loop to a shallower
+  // loop, even if the latter post-dominates the former (PR21115).
+  if (LI->getLoopDepth(MBB) > LI->getLoopDepth(SuccToSinkTo))
+    return true;
 
   // Check if only use in post dominated block is PHI instruction.
   bool NonPHIUse = false;
@@ -463,19 +525,67 @@ bool MachineSinking::isProfitableToSinkTo(unsigned Reg, MachineInstr *MI,
   // If SuccToSinkTo post dominates then also it may be profitable if MI
   // can further profitably sinked into another block in next round.
   bool BreakPHIEdge = false;
-  // FIXME - If finding successor is compile time expensive then catch results.
-  if (MachineBasicBlock *MBB2 = FindSuccToSinkTo(MI, SuccToSinkTo, BreakPHIEdge))
-    return isProfitableToSinkTo(Reg, MI, SuccToSinkTo, MBB2);
+  // FIXME - If finding successor is compile time expensive then cache results.
+  if (MachineBasicBlock *MBB2 =
+          FindSuccToSinkTo(MI, SuccToSinkTo, BreakPHIEdge, AllSuccessors))
+    return isProfitableToSinkTo(Reg, MI, SuccToSinkTo, MBB2, AllSuccessors);
 
   // If SuccToSinkTo is final destination and it is a post dominator of current
   // block then it is not profitable to sink MI into SuccToSinkTo block.
   return false;
 }
 
+/// Get the sorted sequence of successors for this MachineBasicBlock, possibly
+/// computing it if it was not already cached.
+SmallVector<MachineBasicBlock *, 4> &
+MachineSinking::GetAllSortedSuccessors(MachineInstr *MI, MachineBasicBlock *MBB,
+                                       AllSuccsCache &AllSuccessors) const {
+
+  // Do we have the sorted successors in cache ?
+  auto Succs = AllSuccessors.find(MBB);
+  if (Succs != AllSuccessors.end())
+    return Succs->second;
+
+  SmallVector<MachineBasicBlock *, 4> AllSuccs(MBB->succ_begin(),
+                                               MBB->succ_end());
+
+  // Handle cases where sinking can happen but where the sink point isn't a
+  // successor. For example:
+  //
+  //   x = computation
+  //   if () {} else {}
+  //   use x
+  //
+  const std::vector<MachineDomTreeNode *> &Children =
+    DT->getNode(MBB)->getChildren();
+  for (const auto &DTChild : Children)
+    // DomTree children of MBB that have MBB as immediate dominator are added.
+    if (DTChild->getIDom()->getBlock() == MI->getParent() &&
+        // Skip MBBs already added to the AllSuccs vector above.
+        !MBB->isSuccessor(DTChild->getBlock()))
+      AllSuccs.push_back(DTChild->getBlock());
+
+  // Sort Successors according to their loop depth or block frequency info.
+  std::stable_sort(
+      AllSuccs.begin(), AllSuccs.end(),
+      [this](const MachineBasicBlock *L, const MachineBasicBlock *R) {
+        uint64_t LHSFreq = MBFI ? MBFI->getBlockFreq(L).getFrequency() : 0;
+        uint64_t RHSFreq = MBFI ? MBFI->getBlockFreq(R).getFrequency() : 0;
+        bool HasBlockFreq = LHSFreq != 0 && RHSFreq != 0;
+        return HasBlockFreq ? LHSFreq < RHSFreq
+                            : LI->getLoopDepth(L) < LI->getLoopDepth(R);
+      });
+
+  auto it = AllSuccessors.insert(std::make_pair(MBB, AllSuccs));
+
+  return it.first->second;
+}
+
 /// FindSuccToSinkTo - Find a successor to sink this instruction to.
 MachineBasicBlock *MachineSinking::FindSuccToSinkTo(MachineInstr *MI,
                                    MachineBasicBlock *MBB,
-                                   bool &BreakPHIEdge) {
+                                   bool &BreakPHIEdge,
+                                   AllSuccsCache &AllSuccessors) {
 
   assert (MI && "Invalid MachineInstr!");
   assert (MBB && "Invalid MachineBasicBlock!");
@@ -512,19 +622,6 @@ MachineBasicBlock *MachineSinking::FindSuccToSinkTo(MachineInstr *MI,
       if (!TII->isSafeToMoveRegClassDefs(MRI->getRegClass(Reg)))
         return nullptr;
 
-      // FIXME: This picks a successor to sink into based on having one
-      // successor that dominates all the uses.  However, there are cases where
-      // sinking can happen but where the sink point isn't a successor.  For
-      // example:
-      //
-      //   x = computation
-      //   if () {} else {}
-      //   use x
-      //
-      // the instruction could be sunk over the whole diamond for the
-      // if/then/else (or loop, etc), allowing it to be sunk into other blocks
-      // after that.
-
       // Virtual register defs can only be sunk if all their uses are in blocks
       // dominated by one of the successors.
       if (SuccToSinkTo) {
@@ -539,18 +636,11 @@ MachineBasicBlock *MachineSinking::FindSuccToSinkTo(MachineInstr *MI,
       }
 
       // Otherwise, we should look at all the successors and decide which one
-      // we should sink to.
-      // We give successors with smaller loop depth higher priority.
-      SmallVector<MachineBasicBlock*, 4> Succs(MBB->succ_begin(), MBB->succ_end());
-      // Sort Successors according to their loop depth.
-      std::stable_sort(
-          Succs.begin(), Succs.end(),
-          [this](const MachineBasicBlock *LHS, const MachineBasicBlock *RHS) {
-            return LI->getLoopDepth(LHS) < LI->getLoopDepth(RHS);
-          });
-      for (SmallVectorImpl<MachineBasicBlock *>::iterator SI = Succs.begin(),
-             E = Succs.end(); SI != E; ++SI) {
-        MachineBasicBlock *SuccBlock = *SI;
+      // we should sink to. If we have reliable block frequency information
+      // (frequency != 0) available, give successors with smaller frequencies
+      // higher priority, otherwise prioritize smaller loop depths.
+      for (MachineBasicBlock *SuccBlock :
+           GetAllSortedSuccessors(MI, MBB, AllSuccessors)) {
         bool LocalUse = false;
         if (AllUsesDominatedByBlock(Reg, SuccBlock, MBB,
                                     BreakPHIEdge, LocalUse)) {
@@ -565,7 +655,7 @@ MachineBasicBlock *MachineSinking::FindSuccToSinkTo(MachineInstr *MI,
       // If we couldn't find a block to sink to, ignore this instruction.
       if (!SuccToSinkTo)
         return nullptr;
-      if (!isProfitableToSinkTo(Reg, MI, MBB, SuccToSinkTo))
+      if (!isProfitableToSinkTo(Reg, MI, MBB, SuccToSinkTo, AllSuccessors))
         return nullptr;
     }
   }
@@ -585,14 +675,19 @@ MachineBasicBlock *MachineSinking::FindSuccToSinkTo(MachineInstr *MI,
 
 /// SinkInstruction - Determine whether it is safe to sink the specified machine
 /// instruction out of its current block into a successor.
-bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore) {
+bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore,
+                                     AllSuccsCache &AllSuccessors) {
   // Don't sink insert_subreg, subreg_to_reg, reg_sequence. These are meant to
   // be close to the source to make it easier to coalesce.
   if (AvoidsSinking(MI, MRI))
     return false;
 
   // Check if it's safe to move the instruction.
-  if (!MI->isSafeToMove(TII, AA, SawStore))
+  if (!MI->isSafeToMove(AA, SawStore))
+    return false;
+
+  // Convergent operations may only be moved to control equivalent locations.
+  if (MI->isConvergent())
     return false;
 
   // FIXME: This should include support for sinking instructions within the
@@ -605,7 +700,8 @@ bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore) {
 
   bool BreakPHIEdge = false;
   MachineBasicBlock *ParentBlock = MI->getParent();
-  MachineBasicBlock *SuccToSinkTo = FindSuccToSinkTo(MI, ParentBlock, BreakPHIEdge);
+  MachineBasicBlock *SuccToSinkTo =
+      FindSuccToSinkTo(MI, ParentBlock, BreakPHIEdge, AllSuccessors);
 
   // If there are no outputs, it must have side-effects.
   if (!SuccToSinkTo)
@@ -633,7 +729,7 @@ bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore) {
     // other code paths.
     bool TryBreak = false;
     bool store = true;
-    if (!MI->isSafeToMove(TII, AA, store)) {
+    if (!MI->isSafeToMove(AA, store)) {
       DEBUG(dbgs() << " *** NOTE: Won't sink load along critical edge.\n");
       TryBreak = true;
     }
@@ -655,21 +751,16 @@ bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore) {
     if (!TryBreak)
       DEBUG(dbgs() << "Sinking along critical edge.\n");
     else {
-      MachineBasicBlock *NewSucc =
-        SplitCriticalEdge(MI, ParentBlock, SuccToSinkTo, BreakPHIEdge);
-      if (!NewSucc) {
+      // Mark this edge as to be split.
+      // If the edge can actually be split, the next iteration of the main loop
+      // will sink MI in the newly created block.
+      bool Status =
+        PostponeSplitCriticalEdge(MI, ParentBlock, SuccToSinkTo, BreakPHIEdge);
+      if (!Status)
         DEBUG(dbgs() << " *** PUNTING: Not legal or profitable to "
-                        "break critical edge\n");
-        return false;
-      } else {
-        DEBUG(dbgs() << " *** Splitting critical edge:"
-              " BB#" << ParentBlock->getNumber()
-              << " -- BB#" << NewSucc->getNumber()
-              << " -- BB#" << SuccToSinkTo->getNumber() << '\n');
-        SuccToSinkTo = NewSucc;
-        ++NumSplit;
-        BreakPHIEdge = false;
-      }
+              "break critical edge\n");
+      // The instruction will not be sunk this time.
+      return false;
     }
   }
 
@@ -677,20 +768,13 @@ bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore) {
     // BreakPHIEdge is true if all the uses are in the successor MBB being
     // sunken into and they are all PHI nodes. In this case, machine-sink must
     // break the critical edge first.
-    MachineBasicBlock *NewSucc = SplitCriticalEdge(MI, ParentBlock,
-                                                   SuccToSinkTo, BreakPHIEdge);
-    if (!NewSucc) {
+    bool Status = PostponeSplitCriticalEdge(MI, ParentBlock,
+                                            SuccToSinkTo, BreakPHIEdge);
+    if (!Status)
       DEBUG(dbgs() << " *** PUNTING: Not legal or profitable to "
             "break critical edge\n");
-      return false;
-    }
-
-    DEBUG(dbgs() << " *** Splitting critical edge:"
-          " BB#" << ParentBlock->getNumber()
-          << " -- BB#" << NewSucc->getNumber()
-          << " -- BB#" << SuccToSinkTo->getNumber() << '\n');
-    SuccToSinkTo = NewSucc;
-    ++NumSplit;
+    // The instruction will not be sunk this time.
+    return false;
   }
 
   // Determine where to insert into. Skip phi nodes.
@@ -716,7 +800,13 @@ bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore) {
 
   // Conservatively, clear any kill flags, since it's possible that they are no
   // longer correct.
-  MI->clearKillInfo();
+  // Note that we have to clear the kill flags for any register this instruction
+  // uses as we may sink over another instruction which currently kills the
+  // used registers.
+  for (MachineOperand &MO : MI->operands()) {
+    if (MO.isReg() && MO.isUse())
+      RegsToClearKillFlags.set(MO.getReg()); // Remember to clear kill flags.
+  }
 
   return true;
 }

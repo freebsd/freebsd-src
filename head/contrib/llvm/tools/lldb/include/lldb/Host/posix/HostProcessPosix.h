@@ -12,34 +12,30 @@
 
 #include "lldb/lldb-types.h"
 #include "lldb/Core/Error.h"
-#include "lldb/Target/ProcessLaunchInfo.h"
+#include "lldb/Host/HostNativeProcessBase.h"
 
 namespace lldb_private
 {
 
 class FileSpec;
 
-class HostProcessPosix
+class HostProcessPosix : public HostNativeProcessBase
 {
   public:
-    static const lldb::pid_t kInvalidProcessId;
-
     HostProcessPosix();
-    ~HostProcessPosix();
+    HostProcessPosix(lldb::process_t process);
+    virtual ~HostProcessPosix();
 
-    Error Signal(int signo) const;
-    static Error Signal(lldb::pid_t pid, int signo);
+    virtual Error Signal(int signo) const;
+    static Error Signal(lldb::process_t process, int signo);
 
-    Error Create(lldb::pid_t pid);
-    Error Terminate(int signo);
-    Error GetMainModule(FileSpec &file_spec) const;
+    Error Terminate() override;
+    Error GetMainModule(FileSpec &file_spec) const override;
 
-    lldb::pid_t GetProcessId() const;
-    bool IsRunning() const;
+    lldb::pid_t GetProcessId() const override;
+    bool IsRunning() const override;
 
-  private:
-
-    lldb::pid_t m_pid;
+    HostThread StartMonitoring(HostProcess::MonitorCallback callback, void *callback_baton, bool monitor_signals) override;
 };
 }
 

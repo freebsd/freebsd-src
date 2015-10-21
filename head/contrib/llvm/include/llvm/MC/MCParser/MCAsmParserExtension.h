@@ -21,8 +21,8 @@ class Twine;
 /// which is implemented by target and object file assembly parser
 /// implementations.
 class MCAsmParserExtension {
-  MCAsmParserExtension(const MCAsmParserExtension &) LLVM_DELETED_FUNCTION;
-  void operator=(const MCAsmParserExtension &) LLVM_DELETED_FUNCTION;
+  MCAsmParserExtension(const MCAsmParserExtension &) = delete;
+  void operator=(const MCAsmParserExtension &) = delete;
 
   MCAsmParser *Parser;
 
@@ -48,12 +48,21 @@ public:
   /// parsing routines.
   virtual void Initialize(MCAsmParser &Parser);
 
-  /// @name MCAsmParser Proxy Interfaces
+  /// \name MCAsmParser Proxy Interfaces
   /// @{
 
   MCContext &getContext() { return getParser().getContext(); }
+
   MCAsmLexer &getLexer() { return getParser().getLexer(); }
+  const MCAsmLexer &getLexer() const {
+    return const_cast<MCAsmParserExtension *>(this)->getLexer();
+  }
+
   MCAsmParser &getParser() { return *Parser; }
+  const MCAsmParser &getParser() const {
+    return const_cast<MCAsmParserExtension*>(this)->getParser();
+  }
+
   SourceMgr &getSourceManager() { return getParser().getSourceManager(); }
   MCStreamer &getStreamer() { return getParser().getStreamer(); }
   bool Warning(SMLoc L, const Twine &Msg) {

@@ -12,6 +12,7 @@
 
 #include <vector>
 #include <list>
+#include <functional>
 
 #include "lldb/lldb-private.h"
 #include "lldb/Host/Mutex.h"
@@ -277,6 +278,16 @@ public:
     FindFunctionSymbols (const ConstString &name,
                          uint32_t name_type_mask,
                          SymbolContextList& sc_list);
+
+    //------------------------------------------------------------------
+    /// @see Module::FindFunctions ()
+    //------------------------------------------------------------------
+    size_t
+        FindFunctions(const RegularExpression &name,
+        bool include_symbols,
+        bool include_inlines,
+        bool append,
+        SymbolContextList& sc_list);
 
     //------------------------------------------------------------------
     /// Find global and static variables by name.
@@ -552,6 +563,9 @@ public:
     static bool
     RemoveSharedModuleIfOrphaned (const Module *module_ptr);
 
+    void
+    ForEach (std::function <bool (const lldb::ModuleSP &module_sp)> const &callback) const;
+
 protected:
     //------------------------------------------------------------------
     // Class typedefs.
@@ -584,6 +598,13 @@ public:
     Modules()
     {
         return ModuleIterable(m_modules, GetMutex());
+    }
+    
+    typedef AdaptedIterable<collection, lldb::ModuleSP, vector_adapter> ModuleIterableNoLocking;
+    ModuleIterableNoLocking
+    ModulesNoLocking ()
+    {
+        return ModuleIterableNoLocking(m_modules);
     }
     
 };

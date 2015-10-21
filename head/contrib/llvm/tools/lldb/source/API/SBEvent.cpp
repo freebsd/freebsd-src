@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/API/SBEvent.h"
 #include "lldb/API/SBBroadcaster.h"
 #include "lldb/API/SBStream.h"
@@ -40,6 +38,12 @@ SBEvent::SBEvent (uint32_t event_type, const char *cstr, uint32_t cstr_len) :
 SBEvent::SBEvent (EventSP &event_sp) :
     m_event_sp (event_sp),
     m_opaque_ptr (event_sp.get())
+{
+}
+
+SBEvent::SBEvent (Event *event_ptr) :
+    m_event_sp (),
+    m_opaque_ptr (event_ptr)
 {
 }
 

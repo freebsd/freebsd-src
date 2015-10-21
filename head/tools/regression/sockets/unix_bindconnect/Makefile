@@ -2,6 +2,6 @@
 
 PROG=	unix_bindconnect
 MAN=
-WARNS?=	2
+WARNS?=	6
 
 .include <bsd.prog.mk>

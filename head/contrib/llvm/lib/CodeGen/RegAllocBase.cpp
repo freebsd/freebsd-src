@@ -21,13 +21,13 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #ifndef NDEBUG
 #include "llvm/ADT/SparseBitVector.h"
 #endif
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Timer.h"
@@ -91,6 +91,7 @@ void RegAllocBase::allocatePhysRegs() {
     // Unused registers can appear when the spiller coalesces snippets.
     if (MRI->reg_nodbg_empty(VirtReg->reg)) {
       DEBUG(dbgs() << "Dropping unused " << *VirtReg << '\n');
+      aboutToRemoveInterval(*VirtReg);
       LIS->removeInterval(VirtReg->reg);
       continue;
     }
@@ -102,7 +103,7 @@ void RegAllocBase::allocatePhysRegs() {
     // register if possible and populate a list of new live intervals that
     // result from splitting.
     DEBUG(dbgs() << "\nselectOrSplit "
-          << MRI->getRegClass(VirtReg->reg)->getName()
+          << TRI->getRegClassName(MRI->getRegClass(VirtReg->reg))
           << ':' << *VirtReg << " w=" << VirtReg->weight << '\n');
     typedef SmallVector<unsigned, 4> VirtRegVec;
     VirtRegVec SplitVRegs;
@@ -140,6 +141,7 @@ void RegAllocBase::allocatePhysRegs() {
       assert(!VRM->hasPhys(SplitVirtReg->reg) && "Register already assigned");
       if (MRI->reg_nodbg_empty(SplitVirtReg->reg)) {
         DEBUG(dbgs() << "not queueing unused  " << *SplitVirtReg << '\n');
+        aboutToRemoveInterval(*SplitVirtReg);
         LIS->removeInterval(SplitVirtReg->reg);
         continue;
       }

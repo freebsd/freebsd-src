@@ -52,6 +52,7 @@ void ckfree(pointer);
 char *savestr(const char *);
 pointer stalloc(int);
 void stunalloc(pointer);
+char *stsavestr(const char *);
 void setstackmark(struct stackmark *);
 void popstackmark(struct stackmark *);
 char *growstackstr(void);

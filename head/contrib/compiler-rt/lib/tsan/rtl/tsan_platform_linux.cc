@@ -18,6 +18,7 @@
 
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_libc.h"
+#include "sanitizer_common/sanitizer_posix.h"
 #include "sanitizer_common/sanitizer_procmaps.h"
 #include "sanitizer_common/sanitizer_stoptheworld.h"
 #include "sanitizer_common/sanitizer_stackdepot.h"
@@ -65,8 +66,6 @@ namespace __tsan {
 
 static uptr g_data_start;
 static uptr g_data_end;
-
-const uptr kPageSize = 4096;
 
 enum {
   MemTotal  = 0,
@@ -137,7 +136,7 @@ static void ProtectRange(uptr beg, uptr end) {
   CHECK_LE(beg, end);
   if (beg == end)
     return;
-  if (beg != (uptr)Mprotect(beg, end - beg)) {
+  if (beg != (uptr)MmapNoAccess(beg, end - beg)) {
     Printf("FATAL: ThreadSanitizer can not protect [%zx,%zx]\n", beg, end);
     Printf("FATAL: Make sure you are not using unlimited stack\n");
     Die();
@@ -173,7 +172,7 @@ static void MapRodata() {
     *p = kShadowRodata;
   internal_write(fd, marker.data(), marker.size());
   // Map the file into memory.
-  uptr page = internal_mmap(0, kPageSize, PROT_READ | PROT_WRITE,
+  uptr page = internal_mmap(0, GetPageSizeCached(), PROT_READ | PROT_WRITE,
                             MAP_PRIVATE | MAP_ANONYMOUS, fd, 0);
   if (internal_iserror(page)) {
     internal_close(fd);
@@ -203,8 +202,8 @@ static void MapRodata() {
 
 void InitializeShadowMemory() {
   // Map memory shadow.
-  uptr shadow = (uptr)MmapFixedNoReserve(kShadowBeg,
-    kShadowEnd - kShadowBeg);
+  uptr shadow =
+      (uptr)MmapFixedNoReserve(kShadowBeg, kShadowEnd - kShadowBeg, "shadow");
   if (shadow != kShadowBeg) {
     Printf("FATAL: ThreadSanitizer can not mmap the shadow memory\n");
     Printf("FATAL: Make sure to compile with -fPIE and "
@@ -215,23 +214,38 @@ void InitializeShadowMemory() {
   // Frequently a thread uses only a small part of stack and similarly
   // a program uses a small part of large mmap. On some programs
   // we see 20% memory usage reduction without huge pages for this range.
-#ifdef MADV_NOHUGEPAGE
-  madvise((void*)MemToShadow(0x7f0000000000ULL),
-      0x10000000000ULL * kShadowMultiplier, MADV_NOHUGEPAGE);
+  // FIXME: don't use constants here.
+#if defined(__x86_64__)
+  const uptr kMadviseRangeBeg  = 0x7f0000000000ull;
+  const uptr kMadviseRangeSize = 0x010000000000ull;
+#elif defined(__mips64)
+  const uptr kMadviseRangeBeg  = 0xff00000000ull;
+  const uptr kMadviseRangeSize = 0x0100000000ull;
 #endif
+  NoHugePagesInRegion(MemToShadow(kMadviseRangeBeg),
+                      kMadviseRangeSize * kShadowMultiplier);
+  // Meta shadow is compressing and we don't flush it,
+  // so it makes sense to mark it as NOHUGEPAGE to not over-allocate memory.
+  // On one program it reduces memory consumption from 5GB to 2.5GB.
+  NoHugePagesInRegion(kMetaShadowBeg, kMetaShadowEnd - kMetaShadowBeg);
+  if (common_flags()->use_madv_dontdump)
+    DontDumpShadowMemory(kShadowBeg, kShadowEnd - kShadowBeg);
   DPrintf("memory shadow: %zx-%zx (%zuGB)\n",
       kShadowBeg, kShadowEnd,
       (kShadowEnd - kShadowBeg) >> 30);
 
   // Map meta shadow.
   uptr meta_size = kMetaShadowEnd - kMetaShadowBeg;
-  uptr meta = (uptr)MmapFixedNoReserve(kMetaShadowBeg, meta_size);
+  uptr meta =
+      (uptr)MmapFixedNoReserve(kMetaShadowBeg, meta_size, "meta shadow");
   if (meta != kMetaShadowBeg) {
     Printf("FATAL: ThreadSanitizer can not mmap the shadow memory\n");
     Printf("FATAL: Make sure to compile with -fPIE and "
                "to link with -pie (%p, %p).\n", meta, kMetaShadowBeg);
     Die();
   }
+  if (common_flags()->use_madv_dontdump)
+    DontDumpShadowMemory(meta, meta_size);
   DPrintf("meta shadow: %zx-%zx (%zuGB)\n",
       meta, meta + meta_size, meta_size >> 30);
 
@@ -286,9 +300,9 @@ static void CheckAndProtect() {
     if (IsAppMem(p))
       continue;
     if (p >= kHeapMemEnd &&
-        p < kHeapMemEnd + PrimaryAllocator::AdditionalSize())
+        p < HeapEnd())
       continue;
-    if (p >= 0xf000000000000000ull)  // vdso
+    if (p >= kVdsoBeg)  // vdso
       break;
     Printf("FATAL: ThreadSanitizer: unexpected memory mapping %p-%p\n", p, end);
     Die();
@@ -301,7 +315,7 @@ static void CheckAndProtect() {
   // Protect the whole range for now, so that user does not map something here.
   ProtectRange(kTraceMemBeg, kTraceMemEnd);
   ProtectRange(kTraceMemEnd, kHeapMemBeg);
-  ProtectRange(kHeapMemEnd + PrimaryAllocator::AdditionalSize(), kHiAppMemBeg);
+  ProtectRange(HeapEnd(), kHiAppMemBeg);
 }
 #endif  // #ifndef SANITIZER_GO
 
@@ -386,6 +400,8 @@ int ExtractRecvmsgFDs(void *msgp, int *fds, int nfd) {
   return res;
 }
 
+// Note: this function runs with async signals enabled,
+// so it must not touch any tsan state.
 int call_pthread_cancel_with_cleanup(int(*fn)(void *c, void *m,
     void *abstime), void *c, void *m, void *abstime,
     void(*cleanup)(void *arg), void *arg) {

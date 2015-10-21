@@ -88,6 +88,19 @@ struct eap_method {
 	 * private data or this function may derive the key.
 	 */
 	u8 * (*get_emsk)(struct eap_sm *sm, void *priv, size_t *len);
+
+	/**
+	 * getSessionId - Get EAP method specific Session-Id
+	 * @sm: Pointer to EAP state machine allocated with eap_server_sm_init()
+	 * @priv: Pointer to private EAP method data from eap_method::init()
+	 * @len: Pointer to a variable to store Session-Id length
+	 * Returns: Session-Id or %NULL if not available
+	 *
+	 * This function can be used to get the Session-Id from the EAP method.
+	 * The Session-Id may already be stored in the method-specific private
+	 * data or this function may derive the Session-Id.
+	 */
+	u8 * (*getSessionId)(struct eap_sm *sm, void *priv, size_t *len);
 };
 
 /**
@@ -103,7 +116,8 @@ struct eap_sm {
 		EAP_INITIALIZE_PASSTHROUGH, EAP_IDLE2, EAP_RETRANSMIT2,
 		EAP_RECEIVED2, EAP_DISCARD2, EAP_SEND_REQUEST2,
 		EAP_AAA_REQUEST, EAP_AAA_RESPONSE, EAP_AAA_IDLE,
-		EAP_TIMEOUT_FAILURE2, EAP_FAILURE2, EAP_SUCCESS2
+		EAP_TIMEOUT_FAILURE2, EAP_FAILURE2, EAP_SUCCESS2,
+		EAP_INITIATE_REAUTH_START, EAP_INITIATE_RECEIVED
 	} EAP_state;
 
 	/* Constants */
@@ -125,6 +139,7 @@ struct eap_sm {
 
 	/* Short-term (not maintained between packets) */
 	Boolean rxResp;
+	Boolean rxInitiate;
 	int respId;
 	EapType respMethod;
 	int respVendor;
@@ -132,7 +147,7 @@ struct eap_sm {
 	Boolean ignore;
 	enum {
 		DECISION_SUCCESS, DECISION_FAILURE, DECISION_CONTINUE,
-		DECISION_PASSTHROUGH
+		DECISION_PASSTHROUGH, DECISION_INITIATE_REAUTH_START
 	} decision;
 
 	/* Miscellaneous variables */
@@ -140,7 +155,7 @@ struct eap_sm {
 	/* not defined in RFC 4137 */
 	Boolean changed;
 	void *eapol_ctx, *msg_ctx;
-	struct eapol_callbacks *eapol_cb;
+	const struct eapol_callbacks *eapol_cb;
 	void *eap_method_priv;
 	u8 *identity;
 	size_t identity_len;
@@ -188,10 +203,24 @@ struct eap_sm {
 	int fragment_size;
 
 	int pbc_in_m1;
+
+	const u8 *server_id;
+	size_t server_id_len;
+
+	Boolean initiate_reauth_start_sent;
+	Boolean try_initiate_reauth;
+	int erp;
+	unsigned int tls_session_lifetime;
+
+#ifdef CONFIG_TESTING_OPTIONS
+	u32 tls_test_flags;
+#endif /* CONFIG_TESTING_OPTIONS */
 };
 
 int eap_user_get(struct eap_sm *sm, const u8 *identity, size_t identity_len,
 		 int phase2);
+void eap_log_msg(struct eap_sm *sm, const char *fmt, ...)
+PRINTF_FORMAT(2, 3);
 void eap_sm_process_nak(struct eap_sm *sm, const u8 *nak_list, size_t len);
 
 #endif /* EAP_I_H */

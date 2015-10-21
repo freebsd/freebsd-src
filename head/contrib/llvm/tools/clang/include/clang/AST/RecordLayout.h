@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_LAYOUTINFO_H
-#define LLVM_CLANG_AST_LAYOUTINFO_H
+#ifndef LLVM_CLANG_AST_RECORDLAYOUT_H
+#define LLVM_CLANG_AST_RECORDLAYOUT_H
 
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/DeclCXX.h"
@@ -159,12 +159,12 @@ private:
                   const BaseOffsetsMapTy& BaseOffsets,
                   const VBaseOffsetsMapTy& VBaseOffsets);
 
-  ~ASTRecordLayout() {}
+  ~ASTRecordLayout() = default;
 
   void Destroy(ASTContext &Ctx);
   
-  ASTRecordLayout(const ASTRecordLayout &) LLVM_DELETED_FUNCTION;
-  void operator=(const ASTRecordLayout &) LLVM_DELETED_FUNCTION;
+  ASTRecordLayout(const ASTRecordLayout &) = delete;
+  void operator=(const ASTRecordLayout &) = delete;
 public:
 
   /// getAlignment - Get the record alignment in characters.

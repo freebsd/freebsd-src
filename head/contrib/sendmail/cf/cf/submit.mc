@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 2001-2003 Proofpoint, Inc. and its suppliers.
+# Copyright (c) 2001-2003, 2014 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -22,5 +22,5 @@ define(`_USE_DECNET_SYNTAX_', `1')dnl support DECnet
 define(`confTIME_ZONE', `USE_TZ')dnl
 define(`confDONT_INIT_GROUPS', `True')dnl
 dnl
-dnl If you use IPv6 only, change [127.0.0.1] to [IPv6:::1]
+dnl If you use IPv6 only, change [127.0.0.1] to [IPv6:0:0:0:0:0:0:0:1]
 FEATURE(`msp', `[127.0.0.1]')dnl

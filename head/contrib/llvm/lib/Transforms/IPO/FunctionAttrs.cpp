@@ -31,7 +31,7 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "functionattrs"
@@ -124,7 +124,7 @@ namespace {
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesCFG();
       AU.addRequired<AliasAnalysis>();
-      AU.addRequired<TargetLibraryInfo>();
+      AU.addRequired<TargetLibraryInfoWrapperPass>();
       CallGraphSCCPass::getAnalysisUsage(AU);
     }
 
@@ -139,7 +139,7 @@ INITIALIZE_PASS_BEGIN(FunctionAttrs, "functionattrs",
                 "Deduce function attributes", false, false)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
 INITIALIZE_PASS_DEPENDENCY(CallGraphWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
+INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
 INITIALIZE_PASS_END(FunctionAttrs, "functionattrs",
                 "Deduce function attributes", false, false)
 
@@ -161,8 +161,9 @@ bool FunctionAttrs::AddReadAttrs(const CallGraphSCC &SCC) {
   for (CallGraphSCC::iterator I = SCC.begin(), E = SCC.end(); I != E; ++I) {
     Function *F = (*I)->getFunction();
 
-    if (!F)
-      // External node - may write memory.  Just give up.
+    if (!F || F->hasFnAttribute(Attribute::OptimizeNone))
+      // External node or node we don't want to optimize - assume it may write
+      // memory and give up.
       return false;
 
     AliasAnalysis::ModRefBehavior MRB = AA->getModRefBehavior(F);
@@ -204,9 +205,10 @@ bool FunctionAttrs::AddReadAttrs(const CallGraphSCC &SCC) {
                  CI != CE; ++CI) {
               Value *Arg = *CI;
               if (Arg->getType()->isPointerTy()) {
-                AliasAnalysis::Location Loc(Arg,
-                                            AliasAnalysis::UnknownSize,
-                                            I->getMetadata(LLVMContext::MD_tbaa));
+                AAMDNodes AAInfo;
+                I->getAAMetadata(AAInfo);
+
+                MemoryLocation Loc(Arg, MemoryLocation::UnknownSize, AAInfo);
                 if (!AA->pointsToConstantMemory(Loc, /*OrLocal=*/true)) {
                   if (MRB & AliasAnalysis::Mod)
                     // Writes non-local memory.  Give up.
@@ -229,20 +231,20 @@ bool FunctionAttrs::AddReadAttrs(const CallGraphSCC &SCC) {
       } else if (LoadInst *LI = dyn_cast<LoadInst>(I)) {
         // Ignore non-volatile loads from local memory. (Atomic is okay here.)
         if (!LI->isVolatile()) {
-          AliasAnalysis::Location Loc = AA->getLocation(LI);
+          MemoryLocation Loc = MemoryLocation::get(LI);
           if (AA->pointsToConstantMemory(Loc, /*OrLocal=*/true))
             continue;
         }
       } else if (StoreInst *SI = dyn_cast<StoreInst>(I)) {
         // Ignore non-volatile stores to local memory. (Atomic is okay here.)
         if (!SI->isVolatile()) {
-          AliasAnalysis::Location Loc = AA->getLocation(SI);
+          MemoryLocation Loc = MemoryLocation::get(SI);
           if (AA->pointsToConstantMemory(Loc, /*OrLocal=*/true))
             continue;
         }
       } else if (VAArgInst *VI = dyn_cast<VAArgInst>(I)) {
         // Ignore vaargs on local memory.
-        AliasAnalysis::Location Loc = AA->getLocation(VI);
+        MemoryLocation Loc = MemoryLocation::get(VI);
         if (AA->pointsToConstantMemory(Loc, /*OrLocal=*/true))
           continue;
       }
@@ -443,7 +445,7 @@ determinePointerReadAttrs(Argument *A,
     case Instruction::AddrSpaceCast:
       // The original value is not read/written via this if the new value isn't.
       for (Use &UU : I->uses())
-        if (Visited.insert(&UU))
+        if (Visited.insert(&UU).second)
           Worklist.push_back(&UU);
       break;
 
@@ -457,7 +459,7 @@ determinePointerReadAttrs(Argument *A,
       auto AddUsersToWorklistIfCapturing = [&] {
         if (Captures)
           for (Use &UU : I->uses())
-            if (Visited.insert(&UU))
+            if (Visited.insert(&UU).second)
               Worklist.push_back(&UU);
       };
 
@@ -525,7 +527,8 @@ bool FunctionAttrs::AddArgumentAttrs(const CallGraphSCC &SCC) {
   // looking up whether a given CallGraphNode is in this SCC.
   for (CallGraphSCC::iterator I = SCC.begin(), E = SCC.end(); I != E; ++I) {
     Function *F = (*I)->getFunction();
-    if (F && !F->isDeclaration() && !F->mayBeOverridden())
+    if (F && !F->isDeclaration() && !F->mayBeOverridden() &&
+        !F->hasFnAttribute(Attribute::OptimizeNone))
       SCCNodes.insert(F);
   }
 
@@ -539,8 +542,9 @@ bool FunctionAttrs::AddArgumentAttrs(const CallGraphSCC &SCC) {
   for (CallGraphSCC::iterator I = SCC.begin(), E = SCC.end(); I != E; ++I) {
     Function *F = (*I)->getFunction();
 
-    if (!F)
-      // External node - only a problem for arguments that we pass to it.
+    if (!F || F->hasFnAttribute(Attribute::OptimizeNone))
+      // External node or function we're trying not to optimize - only a problem
+      // for arguments that we pass to it.
       continue;
 
     // Definitions with weak linkage may be overridden at linktime with
@@ -698,10 +702,14 @@ bool FunctionAttrs::AddArgumentAttrs(const CallGraphSCC &SCC) {
     }
 
     if (ReadAttr != Attribute::None) {
-      AttrBuilder B;
+      AttrBuilder B, R;
       B.addAttribute(ReadAttr);
+      R.addAttribute(Attribute::ReadOnly)
+        .addAttribute(Attribute::ReadNone);
       for (unsigned i = 0, e = ArgumentSCC.size(); i != e; ++i) {
         Argument *A = ArgumentSCC[i]->Definition;
+        // Clear out existing readonly/readnone attributes
+        A->removeAttr(AttributeSet::get(A->getContext(), A->getArgNo() + 1, R));
         A->addAttr(AttributeSet::get(A->getContext(), A->getArgNo() + 1, B));
         ReadAttr == Attribute::ReadOnly ? ++NumReadOnlyArg : ++NumReadNoneArg;
         Changed = true;
@@ -750,8 +758,8 @@ bool FunctionAttrs::IsFunctionMallocLike(Function *F,
         }
         case Instruction::PHI: {
           PHINode *PN = cast<PHINode>(RVI);
-          for (int i = 0, e = PN->getNumIncomingValues(); i != e; ++i)
-            FlowsToReturn.insert(PN->getIncomingValue(i));
+          for (Value *IncValue : PN->incoming_values())
+            FlowsToReturn.insert(IncValue);
           continue;
         }
 
@@ -792,8 +800,8 @@ bool FunctionAttrs::AddNoAliasAttrs(const CallGraphSCC &SCC) {
   for (CallGraphSCC::iterator I = SCC.begin(), E = SCC.end(); I != E; ++I) {
     Function *F = (*I)->getFunction();
 
-    if (!F)
-      // External node - skip it;
+    if (!F || F->hasFnAttribute(Attribute::OptimizeNone))
+      // External node or node we don't want to optimize - skip it;
       return false;
 
     // Already noalias.
@@ -832,6 +840,9 @@ bool FunctionAttrs::AddNoAliasAttrs(const CallGraphSCC &SCC) {
 /// given function and set any applicable attributes.  Returns true
 /// if any attributes were set and false otherwise.
 bool FunctionAttrs::inferPrototypeAttributes(Function &F) {
+  if (F.hasFnAttribute(Attribute::OptimizeNone))
+    return false;
+
   FunctionType *FTy = F.getFunctionType();
   LibFunc::Func TheLibFunc;
   if (!(TLI->getLibFunc(F.getName(), TheLibFunc) && TLI->has(TheLibFunc)))
@@ -1694,7 +1705,7 @@ bool FunctionAttrs::annotateLibraryCalls(const CallGraphSCC &SCC) {
 
 bool FunctionAttrs::runOnSCC(CallGraphSCC &SCC) {
   AA = &getAnalysis<AliasAnalysis>();
-  TLI = &getAnalysis<TargetLibraryInfo>();
+  TLI = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
 
   bool Changed = annotateLibraryCalls(SCC);
   Changed |= AddReadAttrs(SCC);

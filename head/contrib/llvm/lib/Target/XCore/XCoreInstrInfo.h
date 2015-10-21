@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef XCOREINSTRUCTIONINFO_H
-#define XCOREINSTRUCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_XCORE_XCOREINSTRINFO_H
+#define LLVM_LIB_TARGET_XCORE_XCOREINSTRINFO_H
 
 #include "XCoreRegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
@@ -56,8 +56,7 @@ public:
                      bool AllowModify) const override;
 
   unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
-                        MachineBasicBlock *FBB,
-                        const SmallVectorImpl<MachineOperand> &Cond,
+                        MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
                         DebugLoc DL) const override;
 
   unsigned RemoveBranch(MachineBasicBlock &MBB) const override;

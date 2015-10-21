@@ -30,38 +30,38 @@ MCOperand ARMAsmPrinter::GetSymbolRef(const MachineOperand &MO,
   unsigned Option = MO.getTargetFlags() & ARMII::MO_OPTION_MASK;
   switch (Option) {
   default: {
-    Expr = MCSymbolRefExpr::Create(Symbol, MCSymbolRefExpr::VK_None,
+    Expr = MCSymbolRefExpr::create(Symbol, MCSymbolRefExpr::VK_None,
                                    OutContext);
     switch (Option) {
     default: llvm_unreachable("Unknown target flag on symbol operand");
     case ARMII::MO_NO_FLAG:
       break;
     case ARMII::MO_LO16:
-      Expr = MCSymbolRefExpr::Create(Symbol, MCSymbolRefExpr::VK_None,
+      Expr = MCSymbolRefExpr::create(Symbol, MCSymbolRefExpr::VK_None,
                                      OutContext);
-      Expr = ARMMCExpr::CreateLower16(Expr, OutContext);
+      Expr = ARMMCExpr::createLower16(Expr, OutContext);
       break;
     case ARMII::MO_HI16:
-      Expr = MCSymbolRefExpr::Create(Symbol, MCSymbolRefExpr::VK_None,
+      Expr = MCSymbolRefExpr::create(Symbol, MCSymbolRefExpr::VK_None,
                                      OutContext);
-      Expr = ARMMCExpr::CreateUpper16(Expr, OutContext);
+      Expr = ARMMCExpr::createUpper16(Expr, OutContext);
       break;
     }
     break;
   }
 
   case ARMII::MO_PLT:
-    Expr = MCSymbolRefExpr::Create(Symbol, MCSymbolRefExpr::VK_PLT,
+    Expr = MCSymbolRefExpr::create(Symbol, MCSymbolRefExpr::VK_PLT,
                                    OutContext);
     break;
   }
 
   if (!MO.isJTI() && MO.getOffset())
-    Expr = MCBinaryExpr::CreateAdd(Expr,
-                                   MCConstantExpr::Create(MO.getOffset(),
+    Expr = MCBinaryExpr::createAdd(Expr,
+                                   MCConstantExpr::create(MO.getOffset(),
                                                           OutContext),
                                    OutContext);
-  return MCOperand::CreateExpr(Expr);
+  return MCOperand::createExpr(Expr);
 
 }
 
@@ -74,13 +74,13 @@ bool ARMAsmPrinter::lowerOperand(const MachineOperand &MO,
     if (MO.isImplicit() && MO.getReg() != ARM::CPSR)
       return false;
     assert(!MO.getSubReg() && "Subregs should be eliminated!");
-    MCOp = MCOperand::CreateReg(MO.getReg());
+    MCOp = MCOperand::createReg(MO.getReg());
     break;
   case MachineOperand::MO_Immediate:
-    MCOp = MCOperand::CreateImm(MO.getImm());
+    MCOp = MCOperand::createImm(MO.getImm());
     break;
   case MachineOperand::MO_MachineBasicBlock:
-    MCOp = MCOperand::CreateExpr(MCSymbolRefExpr::Create(
+    MCOp = MCOperand::createExpr(MCSymbolRefExpr::create(
         MO.getMBB()->getSymbol(), OutContext));
     break;
   case MachineOperand::MO_GlobalAddress: {
@@ -105,7 +105,7 @@ bool ARMAsmPrinter::lowerOperand(const MachineOperand &MO,
     APFloat Val = MO.getFPImm()->getValueAPF();
     bool ignored;
     Val.convert(APFloat::IEEEdouble, APFloat::rmTowardZero, &ignored);
-    MCOp = MCOperand::CreateFPImm(Val.convertToDouble());
+    MCOp = MCOperand::createFPImm(Val.convertToDouble());
     break;
   }
   case MachineOperand::MO_RegisterMask:
@@ -119,11 +119,45 @@ void llvm::LowerARMMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI,
                                         ARMAsmPrinter &AP) {
   OutMI.setOpcode(MI->getOpcode());
 
+  // In the MC layer, we keep modified immediates in their encoded form
+  bool EncodeImms = false;
+  switch (MI->getOpcode()) {
+  default: break;
+  case ARM::MOVi:
+  case ARM::MVNi:
+  case ARM::CMPri:
+  case ARM::CMNri:
+  case ARM::TSTri:
+  case ARM::TEQri:
+  case ARM::MSRi:
+  case ARM::ADCri:
+  case ARM::ADDri:
+  case ARM::ADDSri:
+  case ARM::SBCri:
+  case ARM::SUBri:
+  case ARM::SUBSri:
+  case ARM::ANDri:
+  case ARM::ORRri:
+  case ARM::EORri:
+  case ARM::BICri:
+  case ARM::RSBri:
+  case ARM::RSBSri:
+  case ARM::RSCri:
+    EncodeImms = true;
+    break;
+  }
+
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = MI->getOperand(i);
 
     MCOperand MCOp;
-    if (AP.lowerOperand(MO, MCOp))
+    if (AP.lowerOperand(MO, MCOp)) {
+      if (MCOp.isImm() && EncodeImms) {
+        int32_t Enc = ARM_AM::getSOImmVal(MCOp.getImm());
+        if (Enc != -1)
+          MCOp.setImm(Enc);
+      }
       OutMI.addOperand(MCOp);
+    }
   }
 }

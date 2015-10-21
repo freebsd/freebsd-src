@@ -14,11 +14,6 @@ struct peer_handler_args {
 	u8 p2p_device_addr[ETH_ALEN];
 };
 
-struct groupmember_handler_args {
-	struct wpa_supplicant *wpa_s;
-	u8 member_addr[ETH_ALEN];
-};
-
 /*
  * P2P Device methods
  */
@@ -51,11 +46,17 @@ DBusMessage *wpas_dbus_handler_p2p_connect(
 		DBusMessage *message,
 		struct wpa_supplicant *wpa_s);
 
+DBusMessage * wpas_dbus_handler_p2p_cancel(DBusMessage *message,
+					   struct wpa_supplicant *wpa_s);
+
 DBusMessage *wpas_dbus_handler_p2p_invite(
 		DBusMessage *message,
 		struct wpa_supplicant *wpa_s);
 
 DBusMessage *wpas_dbus_handler_p2p_disconnect(
+	DBusMessage *message, struct wpa_supplicant *wpa_s);
+
+DBusMessage * wpas_dbus_handler_p2p_remove_client(
 	DBusMessage *message, struct wpa_supplicant *wpa_s);
 
 DBusMessage *wpas_dbus_handler_p2p_flush(
@@ -114,38 +115,62 @@ dbus_bool_t wpas_dbus_getter_p2p_peergo(DBusMessageIter *iter,
  */
 
 dbus_bool_t wpas_dbus_getter_p2p_peer_device_name(DBusMessageIter *iter,
-                                                  DBusError *error,
-                                                  void *user_data);
+						  DBusError *error,
+						  void *user_data);
+
+dbus_bool_t wpas_dbus_getter_p2p_peer_manufacturer(DBusMessageIter *iter,
+						   DBusError *error,
+						   void *user_data);
+
+dbus_bool_t wpas_dbus_getter_p2p_peer_modelname(DBusMessageIter *iter,
+						DBusError *error,
+						void *user_data);
+
+dbus_bool_t wpas_dbus_getter_p2p_peer_modelnumber(DBusMessageIter *iter,
+						  DBusError *error,
+						  void *user_data);
+
+dbus_bool_t wpas_dbus_getter_p2p_peer_serialnumber(DBusMessageIter *iter,
+						   DBusError *error,
+						   void *user_data);
 
 dbus_bool_t wpas_dbus_getter_p2p_peer_primary_device_type(
 	DBusMessageIter *iter, DBusError *error, void *user_data);
 
 dbus_bool_t wpas_dbus_getter_p2p_peer_config_method(DBusMessageIter *iter,
-                                                    DBusError *error,
-                                                    void *user_data);
+						    DBusError *error,
+						    void *user_data);
 
 dbus_bool_t wpas_dbus_getter_p2p_peer_level(DBusMessageIter *iter,
-                                            DBusError *error,
-                                            void *user_data);
+					    DBusError *error,
+					    void *user_data);
 
 dbus_bool_t wpas_dbus_getter_p2p_peer_device_capability(DBusMessageIter *iter,
-                                                        DBusError *error,
-                                                        void *user_data);
+							DBusError *error,
+							void *user_data);
 
 dbus_bool_t wpas_dbus_getter_p2p_peer_group_capability(DBusMessageIter *iter,
-                                                       DBusError *error,
-                                                       void *user_data);
+						       DBusError *error,
+						       void *user_data);
 
 dbus_bool_t wpas_dbus_getter_p2p_peer_secondary_device_types(
 	DBusMessageIter *iter, DBusError *error, void *user_data);
 
 dbus_bool_t wpas_dbus_getter_p2p_peer_vendor_extension(DBusMessageIter *iter,
-                                                       DBusError *error,
-                                                       void *user_data);
+						       DBusError *error,
+						       void *user_data);
 
 dbus_bool_t wpas_dbus_getter_p2p_peer_ies(DBusMessageIter *iter,
 					  DBusError *error,
 					  void *user_data);
+
+dbus_bool_t wpas_dbus_getter_p2p_peer_device_address(DBusMessageIter *iter,
+						     DBusError *error,
+						     void *user_data);
+
+dbus_bool_t wpas_dbus_getter_p2p_peer_groups(DBusMessageIter *iter,
+					     DBusError *error,
+					     void *user_data);
 
 /*
  * P2P Group properties
@@ -207,5 +232,16 @@ DBusMessage * wpas_dbus_handler_remove_persistent_group(
 DBusMessage * wpas_dbus_handler_remove_all_persistent_groups(
 	DBusMessage *message, struct wpa_supplicant *wpa_s);
 
+#ifdef CONFIG_WIFI_DISPLAY
+
+dbus_bool_t wpas_dbus_getter_global_wfd_ies(DBusMessageIter *iter,
+					    DBusError *error,
+					    void *user_data);
+
+dbus_bool_t wpas_dbus_setter_global_wfd_ies(DBusMessageIter *iter,
+					    DBusError *error,
+					    void *user_data);
+
+#endif /* CONFIG_WIFI_DISPLAY */
 
 #endif /* DBUS_NEW_HANDLERS_P2P_H */

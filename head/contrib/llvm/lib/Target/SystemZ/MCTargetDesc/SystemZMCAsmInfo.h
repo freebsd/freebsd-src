@@ -7,21 +7,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SystemZTARGETASMINFO_H
-#define SystemZTARGETASMINFO_H
+#ifndef LLVM_LIB_TARGET_SYSTEMZ_MCTARGETDESC_SYSTEMZMCASMINFO_H
+#define LLVM_LIB_TARGET_SYSTEMZ_MCTARGETDESC_SYSTEMZMCASMINFO_H
 
 #include "llvm/MC/MCAsmInfoELF.h"
 #include "llvm/Support/Compiler.h"
 
 namespace llvm {
-class StringRef;
+class Triple;
 
 class SystemZMCAsmInfo : public MCAsmInfoELF {
 public:
-  explicit SystemZMCAsmInfo(StringRef TT);
-
-  // Override MCAsmInfo;
-  const MCSection *getNonexecutableStackSection(MCContext &Ctx) const override;
+  explicit SystemZMCAsmInfo(const Triple &TT);
 };
 
 } // end namespace llvm

@@ -4,7 +4,7 @@ LIB=		lzma
 LZMADIR=	${.CURDIR}/../../contrib/xz/src/liblzma
 
 .PATH: ${LZMADIR}/../common
-SRCS+=	tuklib_physmem.c
+SRCS+=	tuklib_physmem.c tuklib_cpucores.c
 
 .PATH: ${LZMADIR}/api/lzma
 
@@ -21,7 +21,7 @@ LZMAINCS+=	base.h \
 		hardware.h \
 		index.h \
 		index_hash.h \
-		lzma.h \
+		lzma12.h \
 		stream_flags.h \
 		version.h \
 		vli.h
@@ -36,6 +36,7 @@ SRCS+=	common.c \
 	easy_preset.c \
 	filter_common.c \
 	hardware_physmem.c \
+	hardware_cputhreads.c \
 	index.c \
 	stream_flags_common.c \
 	vli_size.c \
@@ -68,7 +69,10 @@ SRCS+=	common.c \
 	stream_buffer_decoder.c \
 	stream_decoder.c \
 	stream_flags_decoder.c \
-	vli_decoder.c
+	stream_encoder_mt.c \
+	vli_decoder.c \
+	outqueue.c
+
 
 .PATH: ${LZMADIR}/check
 SRCS+=	check.c \
@@ -142,16 +146,19 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${LZMADIR}/simple \
 		-I${LZMADIR}/../common
 
+LIBADD+=	pthread
+
 VERSION_DEF=	${.CURDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 CFLAGS+=	-DSYMBOL_VERSIONING
 
 CLEANFILES+=	liblzma.pc
 
-.if !defined(LIBRARIES_ONLY)
-all: liblzma.pc
+FILES=		liblzma.pc
+FILESDIR=	${LIBDATADIR}/pkgconfig
+
 liblzma.pc: liblzma.pc.in
-	@sed -e 's,@prefix@,/usr,g ; \
+	sed -e 's,@prefix@,/usr,g ; \
 		s,@exec_prefix@,/usr,g  ; \
 		s,@libdir@,/usr/lib,g ; \
 		s,@includedir@,/usr/include,g ; \
@@ -159,10 +166,5 @@ liblzma.pc: liblzma.pc.in
 		s,@PACKAGE_VERSION@,${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH},g ; \
 		s,@PTHREAD_CFLAGS@,,g ; \
 		s,@PTHREAD_LIBS@,,g' ${.ALLSRC} > ${.TARGET}
-
-beforeinstall:
-	@${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-		liblzma.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
-.endif
 
 .include <bsd.lib.mk>

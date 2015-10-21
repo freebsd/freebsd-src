@@ -21,11 +21,8 @@
 #include "lldb/lldb-private.h"
 #include "lldb/Breakpoint/StoppointLocation.h"
 #include "lldb/Core/Address.h"
-#include "lldb/Core/StringList.h"
 #include "lldb/Core/UserID.h"
 #include "lldb/Host/Mutex.h"
-#include "lldb/Target/Process.h"
-#include "lldb/Expression/ClangUserExpression.h"
 
 namespace lldb_private {
 
@@ -52,7 +49,6 @@ class BreakpointLocation :
     public StoppointLocation
 {
 public:
-
     ~BreakpointLocation ();
 
     //------------------------------------------------------------------
@@ -374,9 +370,24 @@ public:
         m_is_reexported = is_reexported;
     }
     
+    //------------------------------------------------------------------
+    /// Returns whether the two breakpoint locations might represent "equivalent locations".
+    /// This is used when modules changed to determine if a Location in the old module might
+    /// be the "same as" the input location.
+    ///
+    /// @param[in] location
+    ///    The location to compare against.
+    ///
+    /// @return
+    ///     \b true or \b false as given in the description above.
+    //------------------------------------------------------------------
+    bool EquivalentToLocation(BreakpointLocation &location);
+    
 protected:
+    friend class BreakpointSite;
     friend class BreakpointLocationList;
     friend class Process;
+    friend class StopInfoBreakpoint;
 
     //------------------------------------------------------------------
     /// Set the breakpoint site for this location to \a bp_site_sp.
@@ -396,8 +407,17 @@ protected:
 
     bool
     IgnoreCountShouldStop();
-
+    
 private:
+    void
+    SwapLocation (lldb::BreakpointLocationSP swap_from);
+
+    void
+    BumpHitCount();
+
+    void
+    UndoBumpHitCount();
+
 
     //------------------------------------------------------------------
     // Constructors and Destructors
@@ -441,7 +461,7 @@ private:
     Breakpoint &m_owner; ///< The breakpoint that produced this object.
     std::unique_ptr<BreakpointOptions> m_options_ap; ///< Breakpoint options pointer, NULL if we're using our breakpoint's options.
     lldb::BreakpointSiteSP m_bp_site_sp; ///< Our breakpoint site (it may be shared by more than one location.)
-    ClangUserExpression::ClangUserExpressionSP m_user_expression_sp; ///< The compiled expression to use in testing our condition.
+    lldb::ClangUserExpressionSP m_user_expression_sp; ///< The compiled expression to use in testing our condition.
     Mutex m_condition_mutex; ///< Guards parsing and evaluation of the condition, which could be evaluated by multiple processes.
     size_t m_condition_hash; ///< For testing whether the condition source code changed.
 

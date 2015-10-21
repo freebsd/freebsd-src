@@ -18,6 +18,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Timer.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "loop-pass-manager"
@@ -75,6 +76,9 @@ LPPassManager::LPPassManager()
 void LPPassManager::deleteLoopFromQueue(Loop *L) {
 
   LI->updateUnloop(L);
+
+  // Notify passes that the loop is being deleted.
+  deleteSimpleAnalysisLoop(L);
 
   // If L is current loop then skip rest of the passes and let
   // runOnFunction remove L from LQ. Otherwise, remove L from LQ now
@@ -164,6 +168,14 @@ void LPPassManager::deleteSimpleAnalysisValue(Value *V, Loop *L) {
   }
 }
 
+/// Invoke deleteAnalysisLoop hook for all passes.
+void LPPassManager::deleteSimpleAnalysisLoop(Loop *L) {
+  for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {
+    LoopPass *LP = getContainedPass(Index);
+    LP->deleteAnalysisLoop(L);
+  }
+}
+
 
 // Recurse through all subloops and all loops  into LQ.
 static void addLoopIntoQueue(Loop *L, std::deque<Loop *> &LQ) {
@@ -176,14 +188,15 @@ static void addLoopIntoQueue(Loop *L, std::deque<Loop *> &LQ) {
 void LPPassManager::getAnalysisUsage(AnalysisUsage &Info) const {
   // LPPassManager needs LoopInfo. In the long term LoopInfo class will
   // become part of LPPassManager.
-  Info.addRequired<LoopInfo>();
+  Info.addRequired<LoopInfoWrapperPass>();
   Info.setPreservesAll();
 }
 
 /// run - Execute all of the passes scheduled for execution.  Keep track of
 /// whether any of the passes modifies the function, and if so, return true.
 bool LPPassManager::runOnFunction(Function &F) {
-  LI = &getAnalysis<LoopInfo>();
+  auto &LIWP = getAnalysis<LoopInfoWrapperPass>();
+  LI = &LIWP.getLoopInfo();
   bool Changed = false;
 
   // Collect inherited analysis from Module level pass manager.
@@ -251,7 +264,7 @@ bool LPPassManager::runOnFunction(Function &F) {
         // loop in the function every time. That level of checking can be
         // enabled with the -verify-loop-info option.
         {
-          TimeRegion PassTimer(getPassTimer(LI));
+          TimeRegion PassTimer(getPassTimer(&LIWP));
           CurrentLoop->verifyLoop();
         }
 

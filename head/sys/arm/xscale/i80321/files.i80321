@@ -1,7 +1,6 @@
 #$FreeBSD$
 arm/arm/bus_space_base.c		standard
 arm/arm/bus_space_generic.c		standard
-arm/arm/cpufunc_asm_xscale.S		standard
 arm/xscale/i80321/i80321.c		standard
 arm/xscale/i80321/i80321_aau.c		optional	aau
 arm/xscale/i80321/i80321_dma.c		optional	dma

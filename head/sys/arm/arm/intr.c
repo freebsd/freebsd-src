@@ -37,6 +37,7 @@
  */
 
 #include "opt_platform.h"
+#include "opt_hwpmc_hooks.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -50,8 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/conf.h>
+#include <sys/pmc.h>
+#include <sys/pmckern.h>
 
 #include <machine/atomic.h>
+#include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/cpu.h>
 
@@ -74,7 +78,7 @@ int (*arm_config_irq)(int irq, enum intr_trigger trig,
 
 /* Data for statistics reporting. */
 u_long intrcnt[NIRQ];
-char intrnames[NIRQ * INTRNAME_LEN];
+char intrnames[(NIRQ * INTRNAME_LEN) + 1];
 size_t sintrcnt = sizeof(intrcnt);
 size_t sintrnames = sizeof(intrnames);
 
@@ -145,7 +149,7 @@ arm_setup_irqhandler(const char *name, driver_filter_t *filt,
 		if (error)
 			return;
 		intr_events[irq] = event;
-		snprintf(&intrnames[irq * INTRNAME_LEN], INTRNAME_LEN, 
+		snprintf(&intrnames[irq * INTRNAME_LEN], INTRNAME_LEN,
 		    "irq%d: %-*s", irq, INTRNAME_LEN - 1, name);
 	}
 	intr_event_add_handler(event, name, filt, hand, arg,
@@ -160,7 +164,7 @@ arm_remove_irqhandler(int irq, void *cookie)
 
 	event = intr_events[irq];
 	arm_mask_irq(irq);
-	
+
 	error = intr_event_remove_handler(cookie);
 
 	if (!TAILQ_EMPTY(&event->ie_handlers))
@@ -190,6 +194,10 @@ arm_irq_handler(struct trapframe *frame)
 			arm_mask_irq(i);
 		}
 	}
+#ifdef HWPMC_HOOKS
+	if (pmc_hook && (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
+		pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, frame);
+#endif
 }
 
 /*

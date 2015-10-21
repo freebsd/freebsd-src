@@ -76,7 +76,8 @@ static const char tstr[] = " [|zmtp1]";
  */
 
 static const u_char *
-zmtp1_print_frame(netdissect_options *ndo, const u_char *cp, const u_char *ep) {
+zmtp1_print_frame(netdissect_options *ndo, const u_char *cp, const u_char *ep)
+{
 	uint64_t body_len_declared, body_len_captured, header_len;
 	uint8_t flags;
 
@@ -139,7 +140,8 @@ trunc:
 }
 
 void
-zmtp1_print(netdissect_options *ndo, const u_char *cp, u_int len) {
+zmtp1_print(netdissect_options *ndo, const u_char *cp, u_int len)
+{
 	const u_char *ep = min(ndo->ndo_snapend, cp + len);
 
 	ND_PRINT((ndo, ": ZMTP/1.0"));
@@ -164,7 +166,8 @@ zmtp1_print(netdissect_options *ndo, const u_char *cp, u_int len) {
  */
 
 static const u_char *
-zmtp1_print_intermediate_part(netdissect_options *ndo, const u_char *cp, const u_int len) {
+zmtp1_print_intermediate_part(netdissect_options *ndo, const u_char *cp, const u_int len)
+{
 	u_int frame_offset;
 	uint64_t remaining_len;
 
@@ -206,7 +209,8 @@ trunc:
 }
 
 void
-zmtp1_print_datagram(netdissect_options *ndo, const u_char *cp, const u_int len) {
+zmtp1_print_datagram(netdissect_options *ndo, const u_char *cp, const u_int len)
+{
 	const u_char *ep = min(ndo->ndo_snapend, cp + len);
 
 	cp = zmtp1_print_intermediate_part(ndo, cp, len);

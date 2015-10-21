@@ -81,6 +81,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
 	.sv_schedtail	= NULL,
+	.sv_thread_detach = NULL,
 };
 
 static Elf32_Brandinfo freebsd_brand_info = {
@@ -105,7 +106,6 @@ elf32_arm_abi_supported(struct image_params *imgp)
 {
 	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
 
-#ifdef __ARM_EABI__
 	/*
 	 * When configured for EABI, FreeBSD supports EABI vesions 4 and 5.
 	 */
@@ -115,17 +115,6 @@ elf32_arm_abi_supported(struct image_params *imgp)
 			    EF_ARM_EABI_VERSION(hdr->e_flags), imgp->args->fname);
 		return (FALSE);
 	}
-#else
-	/*
-	 * When configured for OABI, that's all we do, so reject EABI binaries.
-	 */
-	if (EF_ARM_EABI_VERSION(hdr->e_flags) != EF_ARM_EABI_VERSION_UNKNOWN) {
-		if (bootverbose)
-			uprintf("Attempting to execute EABI binary (rev %d) image %s",
-			    EF_ARM_EABI_VERSION(hdr->e_flags), imgp->args->fname);
-		return (FALSE);
-	}
-#endif
 	return (TRUE);
 }
 
@@ -175,6 +164,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	Elf_Word rtype, symidx;
 	const Elf_Rel *rel;
 	const Elf_Rela *rela;
+	int error;
 
 	switch (type) {
 	case ELF_RELOC_REL:
@@ -210,8 +200,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			break;
 
 		case R_ARM_ABS32:
-			addr = lookup(lf, symidx, 1);
-			if (addr == 0)
+			error = lookup(lf, symidx, 1, &addr);
+			if (error != 0)
 				return -1;
 			store_ptr(where, addr + load_ptr(where));
 			break;
@@ -226,8 +216,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			break;
 
 		case R_ARM_JUMP_SLOT:
-			addr = lookup(lf, symidx, 1);
-			if (addr) {
+			error = lookup(lf, symidx, 1, &addr);
+			if (error == 0) {
 				store_ptr(where, addr);
 				return (0);
 			}

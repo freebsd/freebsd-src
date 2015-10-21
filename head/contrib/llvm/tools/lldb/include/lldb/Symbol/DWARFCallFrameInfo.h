@@ -91,11 +91,17 @@ private:
         dw_offset_t inst_offset;        // offset of CIE instructions in mCFIData
         uint32_t    inst_length;        // length of CIE instructions in mCFIData
         uint8_t     ptr_encoding;
+        uint8_t     lsda_addr_encoding; // The encoding of the LSDA address in the FDE augmentation data
+        lldb::addr_t personality_loc;    // (file) address of the pointer to the personality routine
         lldb_private::UnwindPlan::Row initial_row;
 
         CIE(dw_offset_t offset) : cie_offset(offset), version (-1), code_align (0),
                                   data_align (0), return_addr_reg_num (LLDB_INVALID_REGNUM), inst_offset (0),
-                                  inst_length (0), ptr_encoding (0), initial_row() {}
+                                  inst_length (0), ptr_encoding (0), 
+                                  lsda_addr_encoding (DW_EH_PE_omit), personality_loc (LLDB_INVALID_ADDRESS),
+                                  initial_row ()
+        { 
+        }
     };
 
     typedef std::shared_ptr<CIE> CIESP;
@@ -124,6 +130,16 @@ private:
     
     void
     GetCFIData();
+
+    // Applies the specified DWARF opcode to the given row. This function handle the commands
+    // operates only on a single row (these are the ones what can appear both in CIE and in FDE).
+    // Returns true if the opcode is handled and false otherwise.
+    bool
+    HandleCommonDwarfOpcode(uint8_t primary_opcode,
+                            uint8_t extended_opcode,
+                            int32_t data_align,
+                            lldb::offset_t& offset,
+                            UnwindPlan::Row& row);
 
     ObjectFile&                 m_objfile;
     lldb::SectionSP             m_section_sp;

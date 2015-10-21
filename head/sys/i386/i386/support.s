@@ -33,7 +33,6 @@
 
 #include <machine/asmacros.h>
 #include <machine/cputypes.h>
-#include <machine/intr_machdep.h>
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
 
@@ -695,11 +694,9 @@ END(bcmp)
  */
 /* void lgdt(struct region_descriptor *rdp); */
 ENTRY(lgdt)
-#ifndef XEN
 	/* reload the descriptor table */
 	movl	4(%esp),%eax
 	lgdt	(%eax)
-#endif
 
 	/* flush the prefetch q */
 	jmp	1f

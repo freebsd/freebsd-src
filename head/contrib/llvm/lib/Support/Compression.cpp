@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/Compression.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/Compiler.h"
@@ -54,6 +55,9 @@ zlib::Status zlib::compress(StringRef InputBuffer,
   Status Res = encodeZlibReturnValue(::compress2(
       (Bytef *)CompressedBuffer.data(), &CompressedSize,
       (const Bytef *)InputBuffer.data(), InputBuffer.size(), CLevel));
+  // Tell MemorySanitizer that zlib output buffer is fully initialized.
+  // This avoids a false report when running LLVM with uninstrumented ZLib.
+  __msan_unpoison(CompressedBuffer.data(), CompressedSize);
   CompressedBuffer.resize(CompressedSize);
   return Res;
 }
@@ -65,6 +69,9 @@ zlib::Status zlib::uncompress(StringRef InputBuffer,
   Status Res = encodeZlibReturnValue(::uncompress(
       (Bytef *)UncompressedBuffer.data(), (uLongf *)&UncompressedSize,
       (const Bytef *)InputBuffer.data(), InputBuffer.size()));
+  // Tell MemorySanitizer that zlib output buffer is fully initialized.
+  // This avoids a false report when running LLVM with uninstrumented ZLib.
+  __msan_unpoison(UncompressedBuffer.data(), UncompressedSize);
   UncompressedBuffer.resize(UncompressedSize);
   return Res;
 }

@@ -18,10 +18,10 @@ using namespace llvm;
 /*===-- Operations on modules ---------------------------------------------===*/
 
 int LLVMWriteBitcodeToFile(LLVMModuleRef M, const char *Path) {
-  std::string ErrorInfo;
-  raw_fd_ostream OS(Path, ErrorInfo, sys::fs::F_None);
+  std::error_code EC;
+  raw_fd_ostream OS(Path, EC, sys::fs::F_None);
 
-  if (!ErrorInfo.empty())
+  if (EC)
     return -1;
 
   WriteBitcodeToFile(unwrap(M), OS);
@@ -38,4 +38,12 @@ int LLVMWriteBitcodeToFD(LLVMModuleRef M, int FD, int ShouldClose,
 
 int LLVMWriteBitcodeToFileHandle(LLVMModuleRef M, int FileHandle) {
   return LLVMWriteBitcodeToFD(M, FileHandle, true, false);
+}
+
+LLVMMemoryBufferRef LLVMWriteBitcodeToMemoryBuffer(LLVMModuleRef M) {
+  std::string Data;
+  raw_string_ostream OS(Data);
+
+  WriteBitcodeToFile(unwrap(M), OS);
+  return wrap(MemoryBuffer::getMemBufferCopy(OS.str()).release());
 }

@@ -1,4 +1,4 @@
-.\"	$OpenBSD: sort.1,v 1.31 2007/08/21 21:22:37 millert Exp $
+.\"	$OpenBSD: sort.1,v 1.45 2015/03/19 13:51:10 jmc Exp $
 .\"	$FreeBSD$
 .\"
 .\" Copyright (c) 1991, 1993
@@ -33,7 +33,7 @@
 .\"
 .\"     @(#)sort.1	8.1 (Berkeley) 6/6/93
 .\"
-.Dd July 3, 2012
+.Dd March 19 2015
 .Dt SORT 1
 .Os
 .Sh NAME
@@ -160,9 +160,10 @@ before comparison, that is, perform case-independent sorting.
 Sort by general numerical value.
 As opposed to
 .Fl n ,
-this option handles general floating points, which have a much
-permissive format than those allowed by
-. Fl n ,
+this option handles general floating points.
+It has a more
+permissive format than that allowed by
+.Fl n
 but it has a significant performance drawback.
 .It Fl h, Fl Fl human-numeric-sort, Fl Fl sort=human-numeric
 Sort by numerical value, but take into account the SI suffix,
@@ -247,9 +248,8 @@ can be attached independently to each
 argument of the key specifications.
 .Fl b .
 .It Xo
-.Sm off
-.Fl k\ \& Ar field1 Op , Ar field2 , Fl Fl key Ns = Ns Ar field1 Op , Ar field2
-.Sm on
+.Fl k Ar field1 Ns Op , Ns Ar field2 ,
+.Fl Fl key Ns = Ns Ar field1 Ns Op , Ns Ar field2
 .Xc
 Define a restricted sort key that has the starting position
 .Ar field1 ,
@@ -334,7 +334,7 @@ standard output.
 %%THREADS%%Default number equals to the number of CPUs.
 .It Fl Fl files0-from Ns = Ns Ar filename
 Take the input file list from the file
-.Ar filename.
+.Ar filename .
 The file names must be separated by NUL
 (like the output produced by the command "find ... -print0").
 .It Fl Fl radixsort

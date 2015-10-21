@@ -300,12 +300,12 @@ DumpDataInCodeDataCommand(const MachOObjectFile &Obj,
 static int
 DumpLinkerOptionsCommand(const MachOObjectFile &Obj,
                          const MachOObjectFile::LoadCommandInfo &LCI) {
-  MachO::linker_options_command LOLC = Obj.getLinkerOptionsLoadCommand(LCI);
+  MachO::linker_option_command LOLC = Obj.getLinkerOptionLoadCommand(LCI);
   outs() << "  ('count', " << LOLC.count << ")\n"
          << "  ('_strings', [\n";
 
-  uint64_t DataSize = LOLC.cmdsize - sizeof(MachO::linker_options_command);
-  const char *P = LCI.Ptr + sizeof(MachO::linker_options_command);
+  uint64_t DataSize = LOLC.cmdsize - sizeof(MachO::linker_option_command);
+  const char *P = LCI.Ptr + sizeof(MachO::linker_option_command);
   StringRef Data(P, DataSize);
   for (unsigned i = 0; i != LOLC.count; ++i) {
     std::pair<StringRef,StringRef> Split = Data.split('\0');
@@ -324,7 +324,7 @@ DumpVersionMin(const MachOObjectFile &Obj,
                const MachOObjectFile::LoadCommandInfo &LCI) {
   MachO::version_min_command VMLC = Obj.getVersionMinLoadCommand(LCI);
   outs() << "  ('version, " << VMLC.version << ")\n"
-         << "  ('reserved, " << VMLC.reserved << ")\n";
+         << "  ('sdk, " << VMLC.sdk << ")\n";
   return 0;
 }
 
@@ -340,7 +340,7 @@ DumpDylibID(const MachOObjectFile &Obj,
 }
 
 static int DumpLoadCommand(const MachOObjectFile &Obj,
-                           MachOObjectFile::LoadCommandInfo &LCI) {
+                           const MachOObjectFile::LoadCommandInfo &LCI) {
   switch (LCI.C.cmd) {
   case MachO::LC_SEGMENT:
     return DumpSegmentCommand(Obj, LCI);
@@ -356,7 +356,7 @@ static int DumpLoadCommand(const MachOObjectFile &Obj,
     return DumpLinkeditDataCommand(Obj, LCI);
   case MachO::LC_DATA_IN_CODE:
     return DumpDataInCodeDataCommand(Obj, LCI);
-  case MachO::LC_LINKER_OPTIONS:
+  case MachO::LC_LINKER_OPTION:
     return DumpLinkerOptionsCommand(Obj, LCI);
   case MachO::LC_VERSION_MIN_IPHONEOS:
   case MachO::LC_VERSION_MIN_MACOSX:
@@ -369,9 +369,8 @@ static int DumpLoadCommand(const MachOObjectFile &Obj,
   }
 }
 
-
 static int DumpLoadCommand(const MachOObjectFile &Obj, unsigned Index,
-                           MachOObjectFile::LoadCommandInfo &LCI) {
+                           const MachOObjectFile::LoadCommandInfo &LCI) {
   outs() << "  # Load Command " << Index << "\n"
          << " (('command', " << LCI.C.cmd << ")\n"
          << "  ('size', " << LCI.C.cmdsize << ")\n";
@@ -403,12 +402,12 @@ int main(int argc, char **argv) {
 
   cl::ParseCommandLineOptions(argc, argv, "llvm Mach-O dumping tool\n");
 
-  ErrorOr<Binary *> BinaryOrErr = createBinary(InputFile);
+  ErrorOr<OwningBinary<Binary>> BinaryOrErr = createBinary(InputFile);
   if (std::error_code EC = BinaryOrErr.getError())
     return Error("unable to read input: '" + EC.message() + "'");
-  std::unique_ptr<Binary> Binary(BinaryOrErr.get());
+  Binary &Binary = *BinaryOrErr.get().getBinary();
 
-  const MachOObjectFile *InputObject = dyn_cast<MachOObjectFile>(Binary.get());
+  const MachOObjectFile *InputObject = dyn_cast<MachOObjectFile>(&Binary);
   if (!InputObject)
     return Error("Not a MachO object");
 
@@ -423,16 +422,11 @@ int main(int argc, char **argv) {
 
   // Print the load commands.
   int Res = 0;
-  MachOObjectFile::LoadCommandInfo Command =
-    InputObject->getFirstLoadCommandInfo();
+  unsigned Index = 0;
   outs() << "('load_commands', [\n";
-  for (unsigned i = 0; ; ++i) {
-    if (DumpLoadCommand(*InputObject, i, Command))
+  for (const auto &Load : InputObject->load_commands()) {
+    if (DumpLoadCommand(*InputObject, Index++, Load))
       break;
-
-    if (i == Header->ncmds - 1)
-      break;
-    Command = InputObject->getNextLoadCommandInfo(Command);
   }
   outs() << "])\n";
 

@@ -116,22 +116,22 @@ EXTRACT_64BITS(const void *p)
  * assemble them.
  */
 #define EXTRACT_16BITS(p) \
-	((uint16_t)((uint16_t)*((const uint8_t *)(p) + 0) << 8 | \
-		     (uint16_t)*((const uint8_t *)(p) + 1)))
+	((uint16_t)(((uint16_t)(*((const uint8_t *)(p) + 0)) << 8) | \
+	            ((uint16_t)(*((const uint8_t *)(p) + 1)) << 0)))
 #define EXTRACT_32BITS(p) \
-	((uint32_t)((uint32_t)*((const uint8_t *)(p) + 0) << 24 | \
-		     (uint32_t)*((const uint8_t *)(p) + 1) << 16 | \
-		     (uint32_t)*((const uint8_t *)(p) + 2) << 8 | \
-		     (uint32_t)*((const uint8_t *)(p) + 3)))
+	((uint32_t)(((uint32_t)(*((const uint8_t *)(p) + 0)) << 24) | \
+	            ((uint32_t)(*((const uint8_t *)(p) + 1)) << 16) | \
+	            ((uint32_t)(*((const uint8_t *)(p) + 2)) << 8) | \
+	            ((uint32_t)(*((const uint8_t *)(p) + 3)) << 0)))
 #define EXTRACT_64BITS(p) \
-	((uint64_t)((uint64_t)*((const uint8_t *)(p) + 0) << 56 | \
-		     (uint64_t)*((const uint8_t *)(p) + 1) << 48 | \
-		     (uint64_t)*((const uint8_t *)(p) + 2) << 40 | \
-		     (uint64_t)*((const uint8_t *)(p) + 3) << 32 | \
-	             (uint64_t)*((const uint8_t *)(p) + 4) << 24 | \
-		     (uint64_t)*((const uint8_t *)(p) + 5) << 16 | \
-		     (uint64_t)*((const uint8_t *)(p) + 6) << 8 | \
-		     (uint64_t)*((const uint8_t *)(p) + 7)))
+	((uint64_t)(((uint64_t)(*((const uint8_t *)(p) + 0)) << 56) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 1)) << 48) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 2)) << 40) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 3)) << 32) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 4)) << 24) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 5)) << 16) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 6)) << 8) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 7)) << 0)))
 #endif /* must special-case unaligned accesses */
 #else /* LBL_ALIGN */
 /*
@@ -161,33 +161,33 @@ EXTRACT_64BITS(const void *p)
 #endif /* LBL_ALIGN */
 
 #define EXTRACT_24BITS(p) \
-	((uint32_t)((uint32_t)*((const uint8_t *)(p) + 0) << 16 | \
-		     (uint32_t)*((const uint8_t *)(p) + 1) << 8 | \
-		     (uint32_t)*((const uint8_t *)(p) + 2)))
+	((uint32_t)(((uint32_t)(*((const uint8_t *)(p) + 0)) << 16) | \
+	            ((uint32_t)(*((const uint8_t *)(p) + 1)) << 8) | \
+	            ((uint32_t)(*((const uint8_t *)(p) + 2)) << 0)))
 
 #define EXTRACT_40BITS(p) \
-	((uint64_t)((uint64_t)*((const uint8_t *)(p) + 0) << 32 | \
-		     (uint64_t)*((const uint8_t *)(p) + 1) << 24 | \
-		     (uint64_t)*((const uint8_t *)(p) + 2) << 16 | \
-		     (uint64_t)*((const uint8_t *)(p) + 3) << 8 | \
-		     (uint64_t)*((const uint8_t *)(p) + 4)))
+	((uint64_t)(((uint64_t)(*((const uint8_t *)(p) + 0)) << 32) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 1)) << 24) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 2)) << 16) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 3)) << 8) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 4)) << 0)))
 
 #define EXTRACT_48BITS(p) \
-	((uint64_t)((uint64_t)*((const uint8_t *)(p) + 0) << 40 | \
-		     (uint64_t)*((const uint8_t *)(p) + 1) << 32 | \
-		     (uint64_t)*((const uint8_t *)(p) + 2) << 24 | \
-		     (uint64_t)*((const uint8_t *)(p) + 3) << 16 | \
-		     (uint64_t)*((const uint8_t *)(p) + 4) << 8 | \
-		     (uint64_t)*((const uint8_t *)(p) + 5)))
+	((uint64_t)(((uint64_t)(*((const uint8_t *)(p) + 0)) << 40) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 1)) << 32) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 2)) << 24) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 3)) << 16) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 4)) << 8) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 5)) << 0)))
 
 #define EXTRACT_56BITS(p) \
-	((uint64_t)((uint64_t)*((const uint8_t *)(p) + 0) << 48 | \
-		     (uint64_t)*((const uint8_t *)(p) + 1) << 40 | \
-		     (uint64_t)*((const uint8_t *)(p) + 2) << 32 | \
-		     (uint64_t)*((const uint8_t *)(p) + 3) << 24 | \
-		     (uint64_t)*((const uint8_t *)(p) + 4) << 16 | \
-		     (uint64_t)*((const uint8_t *)(p) + 5) << 8 | \
-		     (uint64_t)*((const uint8_t *)(p) + 6)))
+	((uint64_t)(((uint64_t)(*((const uint8_t *)(p) + 0)) << 48) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 1)) << 40) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 2)) << 32) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 3)) << 24) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 4)) << 16) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 5)) << 8) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 6)) << 0)))
 
 /*
  * Macros to extract possibly-unaligned little-endian integral values.
@@ -195,23 +195,23 @@ EXTRACT_64BITS(const void *p)
  */
 #define EXTRACT_LE_8BITS(p) (*(p))
 #define EXTRACT_LE_16BITS(p) \
-	((uint16_t)((uint16_t)*((const uint8_t *)(p) + 1) << 8 | \
-		     (uint16_t)*((const uint8_t *)(p) + 0)))
+	((uint16_t)(((uint16_t)(*((const uint8_t *)(p) + 1)) << 8) | \
+	            ((uint16_t)(*((const uint8_t *)(p) + 0)) << 0)))
 #define EXTRACT_LE_32BITS(p) \
-	((uint32_t)((uint32_t)*((const uint8_t *)(p) + 3) << 24 | \
-		     (uint32_t)*((const uint8_t *)(p) + 2) << 16 | \
-		     (uint32_t)*((const uint8_t *)(p) + 1) << 8 | \
-		     (uint32_t)*((const uint8_t *)(p) + 0)))
+	((uint32_t)(((uint32_t)(*((const uint8_t *)(p) + 3)) << 24) | \
+	            ((uint32_t)(*((const uint8_t *)(p) + 2)) << 16) | \
+	            ((uint32_t)(*((const uint8_t *)(p) + 1)) << 8) | \
+	            ((uint32_t)(*((const uint8_t *)(p) + 0)) << 0)))
 #define EXTRACT_LE_24BITS(p) \
-	((uint32_t)((uint32_t)*((const uint8_t *)(p) + 2) << 16 | \
-		     (uint32_t)*((const uint8_t *)(p) + 1) << 8 | \
-		     (uint32_t)*((const uint8_t *)(p) + 0)))
+	((uint32_t)(((uint32_t)(*((const uint8_t *)(p) + 2)) << 16) | \
+	            ((uint32_t)(*((const uint8_t *)(p) + 1)) << 8) | \
+	            ((uint32_t)(*((const uint8_t *)(p) + 0)) << 0)))
 #define EXTRACT_LE_64BITS(p) \
-	((uint64_t)((uint64_t)*((const uint8_t *)(p) + 7) << 56 | \
-		     (uint64_t)*((const uint8_t *)(p) + 6) << 48 | \
-		     (uint64_t)*((const uint8_t *)(p) + 5) << 40 | \
-		     (uint64_t)*((const uint8_t *)(p) + 4) << 32 | \
-	             (uint64_t)*((const uint8_t *)(p) + 3) << 24 | \
-		     (uint64_t)*((const uint8_t *)(p) + 2) << 16 | \
-		     (uint64_t)*((const uint8_t *)(p) + 1) << 8 | \
-		     (uint64_t)*((const uint8_t *)(p) + 0)))
+	((uint64_t)(((uint64_t)(*((const uint8_t *)(p) + 7)) << 56) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 6)) << 48) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 5)) << 40) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 4)) << 32) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 3)) << 24) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 2)) << 16) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 1)) << 8) | \
+	            ((uint64_t)(*((const uint8_t *)(p) + 0)) << 0)))

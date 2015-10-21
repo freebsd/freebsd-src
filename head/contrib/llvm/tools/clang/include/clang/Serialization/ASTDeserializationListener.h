@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FRONTEND_AST_DESERIALIZATION_LISTENER_H
-#define LLVM_CLANG_FRONTEND_AST_DESERIALIZATION_LISTENER_H
+#ifndef LLVM_CLANG_SERIALIZATION_ASTDESERIALIZATIONLISTENER_H
+#define LLVM_CLANG_SERIALIZATION_ASTDESERIALIZATIONLISTENER_H
 
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Serialization/ASTBitCodes.h"
@@ -23,10 +23,10 @@ namespace clang {
 class Decl;
 class ASTReader;
 class QualType;
-class MacroDefinition;
+class MacroDefinitionRecord;
 class MacroInfo;
 class Module;
-  
+
 class ASTDeserializationListener {
 public:
   virtual ~ASTDeserializationListener();
@@ -46,14 +46,13 @@ public:
   /// \brief A decl was deserialized from the AST file.
   virtual void DeclRead(serialization::DeclID ID, const Decl *D) { }
   /// \brief A selector was read from the AST file.
-  virtual void SelectorRead(serialization::SelectorID iD, Selector Sel) { }
+  virtual void SelectorRead(serialization::SelectorID iD, Selector Sel) {}
   /// \brief A macro definition was read from the AST file.
-  virtual void MacroDefinitionRead(serialization::PreprocessedEntityID, 
-                                   MacroDefinition *MD) { }
+  virtual void MacroDefinitionRead(serialization::PreprocessedEntityID,
+                                   MacroDefinitionRecord *MD) {}
   /// \brief A module definition was read from the AST file.
-  virtual void ModuleRead(serialization::SubmoduleID ID, Module *Mod) { }
+  virtual void ModuleRead(serialization::SubmoduleID ID, Module *Mod) {}
 };
-
 }
 
 #endif

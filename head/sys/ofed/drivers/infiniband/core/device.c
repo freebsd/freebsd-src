@@ -37,7 +37,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
-#include <linux/workqueue.h>
 
 #include "core_priv.h"
 
@@ -45,17 +44,14 @@ MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("core kernel InfiniBand API");
 MODULE_LICENSE("Dual BSD/GPL");
 
-#ifdef __ia64__
-/* workaround for a bug in hp chipset that would cause kernel
-   panic when dma resources are exhaused */
-int dma_map_sg_hp_wa = 0;
-#endif
-
 struct ib_client_data {
 	struct list_head  list;
 	struct ib_client *client;
 	void *            data;
 };
+
+struct workqueue_struct *ib_wq;
+EXPORT_SYMBOL_GPL(ib_wq);
 
 static LIST_HEAD(device_list);
 static LIST_HEAD(client_list);
@@ -99,7 +95,7 @@ static int ib_device_check_mandatory(struct ib_device *device)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mandatory_table); ++i) {
-		if (!*(void **) ((u_char *) device + mandatory_table[i].offset)) {
+		if (!*(void **) ((void *) device + mandatory_table[i].offset)) {
 			printk(KERN_WARNING "Device %s is missing mandatory function %s\n",
 			       device->name, mandatory_table[i].name);
 			return -EINVAL;
@@ -177,9 +173,14 @@ static int end_port(struct ib_device *device)
  */
 struct ib_device *ib_alloc_device(size_t size)
 {
+	struct ib_device *dev;
+
 	BUG_ON(size < sizeof (struct ib_device));
 
-	return kzalloc(size, GFP_KERNEL);
+	dev = kzalloc(size, GFP_KERNEL);
+	spin_lock_init(&dev->cmd_perf_lock);
+
+	return dev;
 }
 EXPORT_SYMBOL(ib_alloc_device);
 
@@ -295,8 +296,6 @@ int ib_register_device(struct ib_device *device,
 	INIT_LIST_HEAD(&device->client_data_list);
 	spin_lock_init(&device->event_handler_lock);
 	spin_lock_init(&device->client_data_lock);
-	device->ib_uverbs_xrcd_table = RB_ROOT;
-	mutex_init(&device->xrcd_table_mutex);
 
 	ret = read_port_table_lengths(device);
 	if (ret) {
@@ -631,6 +630,9 @@ int ib_modify_device(struct ib_device *device,
 		     int device_modify_mask,
 		     struct ib_device_modify *device_modify)
 {
+	if (!device->modify_device)
+		return -ENOSYS;
+
 	return device->modify_device(device, device_modify_mask,
 				     device_modify);
 }
@@ -651,6 +653,9 @@ int ib_modify_port(struct ib_device *device,
 		   u8 port_num, int port_modify_mask,
 		   struct ib_port_modify *port_modify)
 {
+	if (!device->modify_port)
+		return -ENOSYS;
+
 	if (port_num < start_port(device) || port_num > end_port(device))
 		return -EINVAL;
 
@@ -705,18 +710,28 @@ int ib_find_pkey(struct ib_device *device,
 {
 	int ret, i;
 	u16 tmp_pkey;
+	int partial_ix = -1;
 
 	for (i = 0; i < device->pkey_tbl_len[port_num - start_port(device)]; ++i) {
 		ret = ib_query_pkey(device, port_num, i, &tmp_pkey);
 		if (ret)
 			return ret;
-
 		if ((pkey & 0x7fff) == (tmp_pkey & 0x7fff)) {
-			*index = i;
-			return 0;
+			/* if there is full-member pkey take it.*/
+			if (tmp_pkey & 0x8000) {
+				*index = i;
+				return 0;
+			}
+			if (partial_ix < 0)
+				partial_ix = i;
 		}
 	}
 
+	/*no full-member, if exists take the limited*/
+	if (partial_ix >= 0) {
+		*index = partial_ix;
+		return 0;
+	}
 	return -ENOENT;
 }
 EXPORT_SYMBOL(ib_find_pkey);
@@ -725,21 +740,29 @@ static int __init ib_core_init(void)
 {
 	int ret;
 
-#ifdef __ia64__
-	if (ia64_platform_is("hpzx1"))
-		dma_map_sg_hp_wa = 1;
-#endif
+	ib_wq = create_workqueue("infiniband");
+	if (!ib_wq)
+		return -ENOMEM;
 
 	ret = ib_sysfs_setup();
-	if (ret)
+	if (ret) {
 		printk(KERN_WARNING "Couldn't create InfiniBand device class\n");
+		goto err;
+	}
 
 	ret = ib_cache_setup();
 	if (ret) {
 		printk(KERN_WARNING "Couldn't set up InfiniBand P_Key/GID cache\n");
-		ib_sysfs_cleanup();
+		goto err_sysfs;
 	}
 
+	return 0;
+
+err_sysfs:
+	ib_sysfs_cleanup();
+
+err:
+	destroy_workqueue(ib_wq);
 	return ret;
 }
 
@@ -748,7 +771,7 @@ static void __exit ib_core_cleanup(void)
 	ib_cache_cleanup();
 	ib_sysfs_cleanup();
 	/* Make sure that any pending umem accounting work is done. */
-	flush_scheduled_work();
+	destroy_workqueue(ib_wq);
 }
 
 module_init(ib_core_init);

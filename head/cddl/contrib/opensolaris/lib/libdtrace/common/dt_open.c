@@ -785,12 +785,14 @@ const char *_dtrace_defld = "/usr/ccs/bin/ld";   /* default ld(1) to invoke */
 #else
 const char *_dtrace_defcpp = "cpp"; /* default cpp(1) to invoke */
 const char *_dtrace_defld = "ld";   /* default ld(1) to invoke */
+const char *_dtrace_defobjcopy = "objcopy"; /* default objcopy(1) to invoke */
 #endif
 
 const char *_dtrace_libdir = "/usr/lib/dtrace"; /* default library directory */
 #ifdef illumos
 const char *_dtrace_provdir = "/dev/dtrace/provider"; /* provider directory */
 #else
+const char *_dtrace_libdir32 = "/usr/lib32/dtrace";
 const char *_dtrace_provdir = "/dev/dtrace"; /* provider directory */
 #endif
 
@@ -1176,6 +1178,9 @@ alloc:
 #endif
 	dtp->dt_modbuckets = _dtrace_strbuckets;
 	dtp->dt_mods = calloc(dtp->dt_modbuckets, sizeof (dt_module_t *));
+#ifdef __FreeBSD__
+	dtp->dt_kmods = calloc(dtp->dt_modbuckets, sizeof (dt_module_t *));
+#endif
 	dtp->dt_provbuckets = _dtrace_strbuckets;
 	dtp->dt_provs = calloc(dtp->dt_provbuckets, sizeof (dt_provider_t *));
 	dt_proc_hash_create(dtp);
@@ -1185,6 +1190,9 @@ alloc:
 	dtp->dt_cpp_argc = 1;
 	dtp->dt_cpp_args = 1;
 	dtp->dt_ld_path = strdup(_dtrace_defld);
+#ifdef __FreeBSD__
+	dtp->dt_objcopy_path = strdup(_dtrace_defobjcopy);
+#endif
 	dtp->dt_provmod = provmod;
 	dtp->dt_vector = vector;
 	dtp->dt_varg = arg;
@@ -1193,6 +1201,10 @@ alloc:
 
 	if (dtp->dt_mods == NULL || dtp->dt_provs == NULL ||
 	    dtp->dt_procs == NULL || dtp->dt_ld_path == NULL ||
+#ifdef __FreeBSD__
+	    dtp->dt_kmods == NULL ||
+	    dtp->dt_objcopy_path == NULL ||
+#endif
 	    dtp->dt_cpp_path == NULL || dtp->dt_cpp_argv == NULL)
 		return (set_open_errno(dtp, errp, EDT_NOMEM));
 
@@ -1574,8 +1586,19 @@ alloc:
 	 * compile, and to provide better error reporting (because the full
 	 * reporting of compiler errors requires dtrace_open() to succeed).
 	 */
+#ifdef __FreeBSD__
+#ifdef __LP64__
+	if ((dtp->dt_oflags & DTRACE_O_ILP32) != 0) {
+		if (dtrace_setopt(dtp, "libdir", _dtrace_libdir32) != 0)
+			return (set_open_errno(dtp, errp, dtp->dt_errno));
+	}
+#endif
 	if (dtrace_setopt(dtp, "libdir", _dtrace_libdir) != 0)
 		return (set_open_errno(dtp, errp, dtp->dt_errno));
+#else
+	if (dtrace_setopt(dtp, "libdir", _dtrace_libdir) != 0)
+		return (set_open_errno(dtp, errp, dtp->dt_errno));
+#endif
 
 	return (dtp);
 }
@@ -1602,6 +1625,10 @@ dtrace_close(dtrace_hdl_t *dtp)
 	dtrace_prog_t *pgp;
 	dt_xlator_t *dxp;
 	dt_dirpath_t *dirp;
+#ifdef __FreeBSD__
+	dt_kmodule_t *dkm;
+	uint_t h;
+#endif
 	int i;
 
 	if (dtp->dt_procs != NULL)
@@ -1628,6 +1655,15 @@ dtrace_close(dtrace_hdl_t *dtp)
 		dt_idhash_destroy(dtp->dt_globals);
 	if (dtp->dt_tls != NULL)
 		dt_idhash_destroy(dtp->dt_tls);
+
+#ifdef __FreeBSD__
+	for (h = 0; h < dtp->dt_modbuckets; h++)
+		while ((dkm = dtp->dt_kmods[h]) != NULL) {
+			dtp->dt_kmods[h] = dkm->dkm_next;
+			free(dkm->dkm_name);
+			free(dkm);
+		}
+#endif
 
 	while ((dmp = dt_list_next(&dtp->dt_modlist)) != NULL)
 		dt_module_destroy(dtp, dmp);
@@ -1673,8 +1709,14 @@ dtrace_close(dtrace_hdl_t *dtp)
 	free(dtp->dt_cpp_argv);
 	free(dtp->dt_cpp_path);
 	free(dtp->dt_ld_path);
+#ifdef __FreeBSD__
+	free(dtp->dt_objcopy_path);
+#endif
 
 	free(dtp->dt_mods);
+#ifdef __FreeBSD__
+	free(dtp->dt_kmods);
+#endif
 	free(dtp->dt_provs);
 	free(dtp);
 }

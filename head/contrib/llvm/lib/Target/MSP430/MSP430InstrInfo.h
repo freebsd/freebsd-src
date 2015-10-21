@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_MSP430INSTRINFO_H
-#define LLVM_TARGET_MSP430INSTRINFO_H
+#ifndef LLVM_LIB_TARGET_MSP430_MSP430INSTRINFO_H
+#define LLVM_LIB_TARGET_MSP430_MSP430INSTRINFO_H
 
 #include "MSP430RegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
@@ -82,8 +82,7 @@ public:
 
   unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
   unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
-                        MachineBasicBlock *FBB,
-                        const SmallVectorImpl<MachineOperand> &Cond,
+                        MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
                         DebugLoc DL) const override;
 
 };

@@ -24,8 +24,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <err.h>
@@ -40,7 +38,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: archive.c 3102 2014-10-29 21:09:01Z jkoshy $");
+ELFTC_VCSID("$Id: archive.c 3174 2015-03-27 17:13:41Z emaste $");
 
 #define _ARMAG_LEN 8		/* length of ar magic string */
 #define _ARHDR_LEN 60		/* length of ar header */

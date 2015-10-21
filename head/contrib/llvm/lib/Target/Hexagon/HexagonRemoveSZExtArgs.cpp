@@ -15,6 +15,7 @@
 #include "Hexagon.h"
 #include "HexagonTargetMachine.h"
 #include "llvm/CodeGen/MachineFunctionAnalysis.h"
+#include "llvm/CodeGen/StackProtector.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Pass.h"
@@ -23,6 +24,7 @@
 using namespace llvm;
 
 namespace llvm {
+  FunctionPass *createHexagonRemoveExtendArgs(const HexagonTargetMachine &TM);
   void initializeHexagonRemoveExtendArgsPass(PassRegistry&);
 }
 
@@ -42,7 +44,7 @@ namespace {
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.addRequired<MachineFunctionAnalysis>();
       AU.addPreserved<MachineFunctionAnalysis>();
-      AU.addPreserved("stack-protector");
+      AU.addPreserved<StackProtector>();
       FunctionPass::getAnalysisUsage(AU);
     }
   };

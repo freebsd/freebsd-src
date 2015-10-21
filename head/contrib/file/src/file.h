@@ -27,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$File: file.h,v 1.164 2015/01/01 17:07:34 christos Exp $
+ * @(#)$File: file.h,v 1.172 2015/09/11 17:24:09 christos Exp $
  */
 
 #ifndef __file_h__
@@ -44,9 +44,11 @@
     #define SIZE_T_FORMAT ""
   #endif
   #define INT64_T_FORMAT "I64"
+  #define INTMAX_T_FORMAT "I64"
 #else
   #define SIZE_T_FORMAT "z"
   #define INT64_T_FORMAT "ll"
+  #define INTMAX_T_FORMAT "j"
 #endif
 
 #include <stdio.h>	/* Include that here, to make sure __P gets defined */
@@ -126,7 +128,7 @@
 #endif
 
 #ifndef HOWMANY
-# define HOWMANY (256 * 1024)	/* how much of the file to look at */
+# define HOWMANY (1024 * 1024)	/* how much of the file to look at */
 #endif
 #define MAXMAGIS 8192		/* max entries in any one magic file
 				   or directory */
@@ -135,8 +137,8 @@
 #define MAXstring 64		/* max len of "string" types */
 
 #define MAGICNO		0xF11E041C
-#define VERSIONNO	12
-#define FILE_MAGICSIZE	248
+#define VERSIONNO	13
+#define FILE_MAGICSIZE	312
 
 #define	FILE_LOAD	0
 #define FILE_CHECK	1
@@ -300,14 +302,16 @@ struct magic {
 #define num_mask _u._mask
 #define str_range _u._s._count
 #define str_flags _u._s._flags
-	/* Words 9-16 */
+	/* Words 9-24 */
 	union VALUETYPE value;	/* either number or string */
-	/* Words 17-32 */
+	/* Words 25-40 */
 	char desc[MAXDESC];	/* description */
-	/* Words 33-52 */
+	/* Words 41-60 */
 	char mimetype[MAXMIME]; /* MIME type */
-	/* Words 53-54 */
-	char apple[8];
+	/* Words 61-62 */
+	char apple[8];		/* APPLE CREATOR/TYPE */
+	/* Words 63-78 */
+	char ext[64];		/* Popular extensions */
 };
 
 #define BIT(A)   (1 << (A))
@@ -411,11 +415,13 @@ struct magic_set {
 	uint16_t elf_shnum_max;
 	uint16_t elf_phnum_max;
 	uint16_t elf_notes_max;
+	uint16_t regex_max;
 #define	FILE_INDIR_MAX			15
 #define	FILE_NAME_MAX			30
 #define	FILE_ELF_SHNUM_MAX		32768
-#define	FILE_ELF_PHNUM_MAX		128
+#define	FILE_ELF_PHNUM_MAX		2048
 #define	FILE_ELF_NOTES_MAX		256
+#define	FILE_REGEX_MAX			8192
 };
 
 /* Type for Unicode characters */
@@ -564,6 +570,12 @@ char   *ctime_r(const time_t *, char *);
 #ifndef HAVE_ASCTIME_R
 char   *asctime_r(const struct tm *, char *);
 #endif
+#ifndef HAVE_GMTIME_R
+struct tm *gmtime_r(const time_t *, struct tm *);
+#endif
+#ifndef HAVE_LOCALTIME_R
+struct tm *localtime_r(const time_t *, struct tm *);
+#endif
 #ifndef HAVE_FMTCHECK
 const char *fmtcheck(const char *, const char *) 
      __attribute__((__format_arg__(2)));
@@ -589,6 +601,9 @@ static const char *rcsid(const char *p) { \
 #endif
 #else
 #define FILE_RCSID(id)
+#endif
+#ifndef __RCSID
+#define __RCSID(a)
 #endif
 
 #endif /* __file_h__ */

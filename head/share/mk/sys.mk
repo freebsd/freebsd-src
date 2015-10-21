@@ -16,6 +16,54 @@ unix		?=	We run FreeBSD, not UNIX.
 MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/}
 .endif
 
+
+# Some options we need now
+__DEFAULT_NO_OPTIONS= \
+	DIRDEPS_CACHE \
+	META_MODE \
+	META_FILES \
+
+
+__DEFAULT_DEPENDENT_OPTIONS= \
+	AUTO_OBJ/META_MODE \
+	STAGING/META_MODE \
+	SYSROOT/META_MODE
+
+__ENV_ONLY_OPTIONS:= \
+	${__DEFAULT_NO_OPTIONS} \
+	${__DEFAULT_YES_OPTIONS} \
+	${__DEFAULT_DEPENDENT_OPTIONS:H}
+
+# early include for customization
+# see local.sys.mk below
+# Not included when building in fmake compatibility mode (still needed
+# for older system support)
+.if defined(.PARSEDIR)
+.sinclude <local.sys.env.mk>
+
+.include <bsd.mkopt.mk>
+
+.if ${MK_META_MODE} == "yes"
+.sinclude <meta.sys.mk>
+.elif ${MK_META_FILES} == "yes" && defined(.MAKEFLAGS)
+.if ${.MAKEFLAGS:M-B} == ""
+.MAKE.MODE= meta verbose
+.endif
+.endif
+.if ${MK_AUTO_OBJ} == "yes"
+# This needs to be done early - before .PATH is computed
+# Don't do this if just running 'make -V' (but do when inspecting .OBJDIR) or
+# 'make showconfig' (during makeman which enables all options when meta mode
+# is not expected)
+.if (${.MAKEFLAGS:M-V} == "" || ${.MAKEFLAGS:M.OBJDIR} != "") && \
+    !make(showconfig)
+.sinclude <auto.obj.mk>
+.endif
+.endif
+.else # bmake
+.include <bsd.mkopt.mk>
+.endif
+
 # If the special target .POSIX appears (without prerequisites or
 # commands) before the first noncomment line in the makefile, make shall
 # process the makefile as specified by the Posix 1003.2 specification.
@@ -62,17 +110,18 @@ CFLAGS		+=	-fno-strict-aliasing
 .endif
 PO_CFLAGS	?=	${CFLAGS}
 
+# cp(1) is used to copy source files to ${.OBJDIR}, make sure it can handle
+# read-only files as non-root by passing -f.
+CP		?=	cp -f
+
+CPP		?=	cpp
+
 # C Type Format data is required for DTrace
 CTFFLAGS	?=	-L VERSION
 
 CTFCONVERT	?=	ctfconvert
 CTFMERGE	?=	ctfmerge
 
-# cp(1) is used to copy source files to ${.OBJDIR}, make sure it can handle
-# read-only files as non-root by passing -f.
-CP		?=	cp -f
-
-DTRACE		?=	dtrace
 .if defined(CFLAGS) && (${CFLAGS:M-g} != "")
 CTFFLAGS	+=	-g
 .endif
@@ -81,7 +130,8 @@ CXX		?=	c++
 CXXFLAGS	?=	${CFLAGS:N-std=*:N-Wnested-externs:N-W*-prototypes:N-Wno-pointer-sign:N-Wold-style-definition}
 PO_CXXFLAGS	?=	${CXXFLAGS}
 
-CPP		?=	cpp
+DTRACE		?=	dtrace
+DTRACEFLAGS	?=	-C -x nolibs
 
 .if empty(.MAKEFLAGS:M-s)
 ECHO		?=	echo
@@ -95,13 +145,12 @@ ECHODIR		?=	true
 .endif
 .endif
 
-.if defined(.PARSEDIR)
-# _+_ appears to be a workaround for the special src .MAKE not working.
-# setting it to + interferes with -N
-_+_		?=
-.elif !empty(.MAKEFLAGS:M-n) && ${.MAKEFLAGS:M-n} == "-n"
-# the check above matches only a single -n, so -n -n will result
-# in _+_ = +
+.if ${.MAKEFLAGS:M-N}
+# bmake -N is supposed to skip executing anything but it does not skip
+# exeucting '+' commands.  The '+' feature is used where .MAKE
+# is not safe for the entire target.  -N is intended to skip building sub-makes
+# so it executing '+' commands is not right.  Work around the bug by not
+# setting '+' when -N is used.
 _+_		?=
 .else
 _+_		?=	+
@@ -136,6 +185,7 @@ MAKE		?=	make
 
 .if !defined(%POSIX)
 NM		?=	nm
+NMFLAGS		?=
 
 OBJC		?=	cc
 OBJCFLAGS	?=	${OBJCINCLUDES} ${CFLAGS} -Wno-import
@@ -242,21 +292,21 @@ YFLAGS		?=	-d
 	${CTFCONVERT_CMD}
 
 .c.o:
-	${CC} ${CFLAGS} -c ${.IMPSRC}
+	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .cc .cpp .cxx .C:
 	${CXX} ${CXXFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
 
 .cc.o .cpp.o .cxx.o .C.o:
-	${CXX} ${CXXFLAGS} -c ${.IMPSRC}
+	${CXX} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .m.o:
-	${OBJC} ${OBJCFLAGS} -c ${.IMPSRC}
+	${OBJC} ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .p.o:
-	${PC} ${PFLAGS} -c ${.IMPSRC}
+	${PC} ${PFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .e .r .F .f:
@@ -264,14 +314,15 @@ YFLAGS		?=	-d
 	    -o ${.TARGET}
 
 .e.o .r.o .F.o .f.o:
-	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} -c ${.IMPSRC}
+	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .S.o:
-	${CC} ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC}
+	${CC} ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .asm.o:
-	${CC} -x assembler-with-cpp ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC}
+	${CC} -x assembler-with-cpp ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
+	    -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .s.o:
@@ -328,13 +379,7 @@ __MAKE_CONF?=/etc/make.conf
 .include "${__MAKE_CONF}"
 .endif
 
-# Setup anything for the FreeBSD source build, if we're building
-# inside the source tree. Needs to be after make.conf, but before
-# local stuff.
-.sinclude <src.sys.mk>
-
-# Set any local definitions first. Place this early, but it needs
-# MACHINE_CPUARCH to be defined.
+# late include for customization
 .sinclude <local.sys.mk>
 
 .if defined(__MAKE_SHELL) && !empty(__MAKE_SHELL)
@@ -342,33 +387,27 @@ SHELL=	${__MAKE_SHELL}
 .SHELL: path=${__MAKE_SHELL}
 .endif
 
-.if !defined(.PARSEDIR)
-# We are not bmake, which is more aggressive about searching .PATH
-# It is sometime necessary to curb its enthusiasm with .NOPATH
-# The following allows us to quietly ignore .NOPATH when not using bmake.
-.NOTMAIN: .NOPATH
-.NOPATH:
-
-# Toggle on warnings
-.WARN: dirsyntax
-.else # is bmake
 # Tell bmake to expand -V VAR by default
 .MAKE.EXPAND_VARIABLES= yes
 
 # Tell bmake the makefile preference
 .MAKE.MAKEFILE_PREFERENCE= BSDmakefile makefile Makefile
 
+# Tell bmake to always pass job tokens, regardless of target depending on
+# .MAKE or looking like ${MAKE}/${.MAKE}/$(MAKE)/$(.MAKE)/make.
+.MAKE.ALWAYS_PASS_JOB_QUEUE= yes
+
 # By default bmake does *not* use set -e
 # when running target scripts, this is a problem for many makefiles here.
 # So define a shell that will do what FreeBSD expects.
 .ifndef WITHOUT_SHELL_ERRCTL
+__MAKE_SHELL?=/bin/sh
 .SHELL: name=sh \
 	quiet="set -" echo="set -v" filter="set -" \
 	hasErrCtl=yes check="set -e" ignore="set +e" \
 	echoFlag=v errFlag=e \
-	path=${__MAKE_SHELL:U/bin/sh}
+	path=${__MAKE_SHELL}
 .endif
-.endif # bmake
 
 .include <bsd.cpu.mk>
 

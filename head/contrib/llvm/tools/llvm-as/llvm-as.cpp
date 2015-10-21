@@ -51,34 +51,33 @@ static cl::opt<bool>
 DisableVerify("disable-verify", cl::Hidden,
               cl::desc("Do not run verifier on input LLVM (dangerous!)"));
 
+static cl::opt<bool> PreserveBitcodeUseListOrder(
+    "preserve-bc-uselistorder",
+    cl::desc("Preserve use-list order when writing LLVM bitcode."),
+    cl::init(true), cl::Hidden);
+
 static void WriteOutputFile(const Module *M) {
   // Infer the output filename if needed.
   if (OutputFilename.empty()) {
     if (InputFilename == "-") {
       OutputFilename = "-";
     } else {
-      std::string IFN = InputFilename;
-      int Len = IFN.length();
-      if (IFN[Len-3] == '.' && IFN[Len-2] == 'l' && IFN[Len-1] == 'l') {
-        // Source ends in .ll
-        OutputFilename = std::string(IFN.begin(), IFN.end()-3);
-      } else {
-        OutputFilename = IFN;   // Append a .bc to it
-      }
+      StringRef IFN = InputFilename;
+      OutputFilename = (IFN.endswith(".ll") ? IFN.drop_back(3) : IFN).str();
       OutputFilename += ".bc";
     }
   }
 
-  std::string ErrorInfo;
+  std::error_code EC;
   std::unique_ptr<tool_output_file> Out(
-      new tool_output_file(OutputFilename.c_str(), ErrorInfo, sys::fs::F_None));
-  if (!ErrorInfo.empty()) {
-    errs() << ErrorInfo << '\n';
+      new tool_output_file(OutputFilename, EC, sys::fs::F_None));
+  if (EC) {
+    errs() << EC.message() << '\n';
     exit(1);
   }
 
   if (Force || !CheckBitcodeOutputToConsole(Out->os(), true))
-    WriteBitcodeToFile(M, Out->os());
+    WriteBitcodeToFile(M, Out->os(), PreserveBitcodeUseListOrder);
 
   // Declare success.
   Out->keep();
@@ -94,7 +93,7 @@ int main(int argc, char **argv) {
 
   // Parse the file now...
   SMDiagnostic Err;
-  std::unique_ptr<Module> M(ParseAssemblyFile(InputFilename, Err, Context));
+  std::unique_ptr<Module> M = parseAssemblyFile(InputFilename, Err, Context);
   if (!M.get()) {
     Err.print(argv[0], errs());
     return 1;

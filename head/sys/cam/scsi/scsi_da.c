@@ -101,7 +101,8 @@ typedef enum {
 	DA_Q_NO_PREVENT		= 0x04,
 	DA_Q_4K			= 0x08,
 	DA_Q_NO_RC16		= 0x10,
-	DA_Q_NO_UNMAP		= 0x20
+	DA_Q_NO_UNMAP		= 0x20,
+	DA_Q_RETRY_BUSY		= 0x40
 } da_quirks;
 
 #define DA_Q_BIT_STRING		\
@@ -110,7 +111,9 @@ typedef enum {
 	"\002NO_6_BYTE"		\
 	"\003NO_PREVENT"	\
 	"\0044K"		\
-	"\005NO_RC16"
+	"\005NO_RC16"		\
+	"\006NO_UNMAP"		\
+	"\007RETRY_BUSY"
 
 typedef enum {
 	DA_CCB_PROBE_RC		= 0x01,
@@ -216,6 +219,7 @@ struct da_softc {
 	uint32_t		unmap_max_ranges;
 	uint32_t		unmap_max_lba; /* Max LBAs in UNMAP req */
 	uint64_t		ws_max_blks;
+	da_delete_methods	delete_method_pref;
 	da_delete_methods	delete_method;
 	da_delete_func_t	*delete_func;
 	struct	 disk_params params;
@@ -358,6 +362,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "STEC", "*", "*"},
 		/*quirks*/ DA_Q_NO_UNMAP
+	},
+	{
+		/*
+		 * VMware returns BUSY status when storage has transient
+		 * connectivity problems, so better wait.
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "VMware", "Virtual disk", "*"},
+		/*quirks*/ DA_Q_RETRY_BUSY
 	},
 	/* USB mass storage devices supported by umass(4) */
 	{
@@ -1164,6 +1176,20 @@ static struct da_quirk_entry da_quirk_table[] =
 		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "SG9XCS2D*", "*" },
 		/*quirks*/DA_Q_4K
 	},
+	{
+		/*
+		 * Hama Innostor USB-Stick 
+		 */
+		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "Innostor", "Innostor*", "*" }, 
+		/*quirks*/DA_Q_NO_RC16
+	},
+	{
+		/*
+		 * MX-ES USB Drive by Mach Xtreme
+		 */
+		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "MX", "MXUB3*", "*"},
+		/*quirks*/DA_Q_NO_RC16
+	},
 };
 
 static	disk_strategy_t	dastrategy;
@@ -1638,7 +1664,8 @@ daasync(void *callback_arg, u_int32_t code,
 
 		if (cgd->protocol != PROTO_SCSI)
 			break;
-
+		if (SID_QUAL(&cgd->inq_data) != SID_QUAL_LU_CONNECTED)
+			break;
 		if (SID_TYPE(&cgd->inq_data) != T_DIRECT
 		    && SID_TYPE(&cgd->inq_data) != T_RBC
 		    && SID_TYPE(&cgd->inq_data) != T_OPTICAL)
@@ -1775,7 +1802,7 @@ dasysctlinit(void *context, int pending)
 	 * the fly.
 	 */
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-		OID_AUTO, "delete_method", CTLTYPE_STRING | CTLFLAG_RW,
+		OID_AUTO, "delete_method", CTLTYPE_STRING | CTLFLAG_RWTUN,
 		softc, 0, dadeletemethodsysctl, "A",
 		"BIO_DELETE execution method");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
@@ -1886,7 +1913,6 @@ static void
 dadeletemethodset(struct da_softc *softc, da_delete_methods delete_method)
 {
 
-
 	softc->delete_method = delete_method;
 	softc->disk->d_delmaxsize = dadeletemaxsize(softc, delete_method);
 	softc->delete_func = da_delete_functions[delete_method];
@@ -1910,18 +1936,18 @@ dadeletemaxsize(struct da_softc *softc, da_delete_methods delete_method)
 		sectors = (off_t)ATA_DSM_RANGE_MAX * softc->trim_max_ranges;
 		break;
 	case DA_DELETE_WS16:
-		sectors = (off_t)min(softc->ws_max_blks, WS16_MAX_BLKS);
+		sectors = omin(softc->ws_max_blks, WS16_MAX_BLKS);
 		break;
 	case DA_DELETE_ZERO:
 	case DA_DELETE_WS10:
-		sectors = (off_t)min(softc->ws_max_blks, WS10_MAX_BLKS);
+		sectors = omin(softc->ws_max_blks, WS10_MAX_BLKS);
 		break;
 	default:
 		return 0;
 	}
 
 	return (off_t)softc->params.secsize *
-	    min(sectors, (off_t)softc->params.sectors);
+	    omin(sectors, softc->params.sectors);
 }
 
 static void
@@ -1939,25 +1965,17 @@ daprobedone(struct cam_periph *periph, union ccb *ccb)
 
 		snprintf(buf, sizeof(buf), "Delete methods: <");
 		sep = 0;
-		for (i = DA_DELETE_MIN; i <= DA_DELETE_MAX; i++) {
-			if (softc->delete_available & (1 << i)) {
-				if (sep) {
-					strlcat(buf, ",", sizeof(buf));
-				} else {
-				    sep = 1;
-				}
-				strlcat(buf, da_delete_method_names[i],
-				    sizeof(buf));
-				if (i == softc->delete_method) {
-					strlcat(buf, "(*)", sizeof(buf));
-				}
-			}
-		}
-		if (sep == 0) {
-			if (softc->delete_method == DA_DELETE_NONE) 
-				strlcat(buf, "NONE(*)", sizeof(buf));
-			else
-				strlcat(buf, "DISABLED(*)", sizeof(buf));
+		for (i = 0; i <= DA_DELETE_MAX; i++) {
+			if ((softc->delete_available & (1 << i)) == 0 &&
+			    i != softc->delete_method)
+				continue;
+			if (sep)
+				strlcat(buf, ",", sizeof(buf));
+			strlcat(buf, da_delete_method_names[i],
+			    sizeof(buf));
+			if (i == softc->delete_method)
+				strlcat(buf, "(*)", sizeof(buf));
+			sep = 1;
 		}
 		strlcat(buf, ">", sizeof(buf));
 		printf("%s%d: %s\n", periph->periph_name,
@@ -1987,21 +2005,28 @@ daprobedone(struct cam_periph *periph, union ccb *ccb)
 static void
 dadeletemethodchoose(struct da_softc *softc, da_delete_methods default_method)
 {
-	int i, delete_method;
+	int i, methods;
 
-	delete_method = default_method;
+	/* If available, prefer the method requested by user. */
+	i = softc->delete_method_pref;
+	methods = softc->delete_available | (1 << DA_DELETE_DISABLE);
+	if (methods & (1 << i)) {
+		dadeletemethodset(softc, i);
+		return;
+	}
 
-	/*
-	 * Use the pre-defined order to choose the best
-	 * performing delete.
-	 */
+	/* Use the pre-defined order to choose the best performing delete. */
 	for (i = DA_DELETE_MIN; i <= DA_DELETE_MAX; i++) {
+		if (i == DA_DELETE_ZERO)
+			continue;
 		if (softc->delete_available & (1 << i)) {
 			dadeletemethodset(softc, i);
 			return;
 		}
 	}
-	dadeletemethodset(softc, delete_method);
+
+	/* Fallback to default. */
+	dadeletemethodset(softc, default_method);
 }
 
 static int
@@ -2025,13 +2050,14 @@ dadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 		return (error);
 	methods = softc->delete_available | (1 << DA_DELETE_DISABLE);
 	for (i = 0; i <= DA_DELETE_MAX; i++) {
-		if (!(methods & (1 << i)) ||
-		    strcmp(buf, da_delete_method_names[i]) != 0)
-			continue;
-		dadeletemethodset(softc, i);
-		return (0);
+		if (strcmp(buf, da_delete_method_names[i]) == 0)
+			break;
 	}
-	return (EINVAL);
+	if (i > DA_DELETE_MAX)
+		return (EINVAL);
+	softc->delete_method_pref = i;
+	dadeletemethodchoose(softc, DA_DELETE_NONE);
+	return (0);
 }
 
 static cam_status
@@ -2684,7 +2710,7 @@ da_delete_trim(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 
 		/* Try to extend the previous range. */
 		if (lba == lastlba) {
-			c = min(count, ATA_DSM_RANGE_MAX - lastcount);
+			c = omin(count, ATA_DSM_RANGE_MAX - lastcount);
 			lastcount += c;
 			off = (ranges - 1) * 8;
 			buf[off + 6] = lastcount & 0xff;
@@ -2694,7 +2720,7 @@ da_delete_trim(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 		}
 
 		while (count > 0) {
-			c = min(count, ATA_DSM_RANGE_MAX);
+			c = omin(count, ATA_DSM_RANGE_MAX);
 			off = ranges * 8;
 
 			buf[off + 0] = lba & 0xff;
@@ -2770,7 +2796,7 @@ da_delete_ws(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 			    "%s issuing short delete %ld > %ld\n",
 			    da_delete_method_desc[softc->delete_method],
 			    count, ws_max_blks);
-			count = min(count, ws_max_blks);
+			count = omin(count, ws_max_blks);
 			break;
 		}
 		bp1 = bioq_first(&softc->delete_queue);
@@ -3123,13 +3149,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				lbp = (lalba & SRC16_LBPME_A);
 				dp = &softc->params;
 				snprintf(announce_buf, sizeof(announce_buf),
-				        "%juMB (%ju %u byte sectors: %dH %dS/T "
-                                        "%dC)", (uintmax_t)
-	                                (((uintmax_t)dp->secsize *
-				        dp->sectors) / (1024*1024)),
-			                (uintmax_t)dp->sectors,
-				        dp->secsize, dp->heads,
-                                        dp->secs_per_track, dp->cylinders);
+				    "%juMB (%ju %u byte sectors)",
+				    ((uintmax_t)dp->secsize * dp->sectors) /
+				     (1024 * 1024),
+				    (uintmax_t)dp->sectors, dp->secsize);
 			}
 		} else {
 			int	error;
@@ -3265,6 +3288,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 		/* Ensure re-probe doesn't see old delete. */
 		softc->delete_available = 0;
+		dadeleteflag(softc, DA_DELETE_ZERO, 1);
 		if (lbp && (softc->quirks & DA_Q_NO_UNMAP) == 0) {
 			/*
 			 * Based on older SBC-3 spec revisions
@@ -3281,7 +3305,6 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 */
 			dadeleteflag(softc, DA_DELETE_WS16, 1);
 			dadeleteflag(softc, DA_DELETE_WS10, 1);
-			dadeleteflag(softc, DA_DELETE_ZERO, 1);
 			dadeleteflag(softc, DA_DELETE_UNMAP, 1);
 
 			xpt_release_ccb(done_ccb);
@@ -3309,8 +3332,6 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			dadeleteflag(softc, DA_DELETE_WS16,
 				     (lbp->flags & SVPD_LBP_WS16));
 			dadeleteflag(softc, DA_DELETE_WS10,
-				     (lbp->flags & SVPD_LBP_WS10));
-			dadeleteflag(softc, DA_DELETE_ZERO,
 				     (lbp->flags & SVPD_LBP_WS10));
 			dadeleteflag(softc, DA_DELETE_UNMAP,
 				     (lbp->flags & SVPD_LBP_UNMAP));
@@ -3630,6 +3651,9 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	 * don't treat UAs as errors.
 	 */
 	sense_flags |= SF_RETRY_UA;
+
+	if (softc->quirks & DA_Q_RETRY_BUSY)
+		sense_flags |= SF_RETRY_BUSY;
 	return(cam_periph_error(ccb, cam_flags, sense_flags,
 				&softc->saved_ccb));
 }
@@ -3773,7 +3797,7 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector,
 		xpt_setup_ccb(&cdai.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
 		cdai.buftype = CDAI_TYPE_RCAPLONG;
-		cdai.flags |= CDAI_FLAG_STORE;
+		cdai.flags = CDAI_FLAG_STORE;
 		cdai.bufsiz = rcap_len;
 		cdai.buf = (uint8_t *)rcaplong;
 		xpt_action((union ccb *)&cdai);

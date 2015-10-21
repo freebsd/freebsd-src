@@ -35,6 +35,7 @@
 ..
 .OH '''USD Contents'
 .EH 'USD Contents'''
+.ND
 .TL
 UNIX User's Supplementary Documents (USD)
 .if !r.U .nr .U 0

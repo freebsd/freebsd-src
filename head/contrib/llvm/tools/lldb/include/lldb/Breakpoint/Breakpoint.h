@@ -12,8 +12,11 @@
 
 // C Includes
 // C++ Includes
+#include <unordered_set>
+
 // Other libraries and framework includes
 // Project includes
+#include "lldb/Breakpoint/BreakpointID.h"
 #include "lldb/Breakpoint/BreakpointLocationList.h"
 #include "lldb/Breakpoint/BreakpointOptions.h"
 #include "lldb/Breakpoint/BreakpointLocationCollection.h"
@@ -152,6 +155,23 @@ public:
     };
 
 
+    class BreakpointPrecondition
+    {
+    public:
+        virtual ~BreakpointPrecondition() {}
+
+        virtual bool
+        EvaluatePrecondition(StoppointCallbackContext &context);
+
+        virtual Error
+        ConfigurePrecondition(Args &options);
+
+        virtual void
+        DescribePrecondition(Stream &stream, lldb::DescriptionLevel level);
+    };
+
+    typedef std::shared_ptr<BreakpointPrecondition> BreakpointPreconditionSP;
+
     //------------------------------------------------------------------
     /// Destructor.
     ///
@@ -203,13 +223,28 @@ public:
     /// Tell this breakpoint to scan a given module list and resolve any
     /// new locations that match the breakpoint's specifications.
     ///
-    /// @param[in] changed_modules
+    /// @param[in] module_list
     ///    The list of modules to look in for new locations.
+    ///
+    /// @param[in]  send_event
+    ///     If \b true, send a breakpoint location added event for non-internal breakpoints.
     //------------------------------------------------------------------
     void
-    ResolveBreakpointInModules (ModuleList &changed_modules);
+    ResolveBreakpointInModules (ModuleList &module_list, bool send_event = true);
 
-
+    //------------------------------------------------------------------
+    /// Tell this breakpoint to scan a given module list and resolve any
+    /// new locations that match the breakpoint's specifications.
+    ///
+    /// @param[in] changed_modules
+    ///    The list of modules to look in for new locations.
+    ///
+    /// @param[in]  new_locations
+    ///     Fills new_locations with the new locations that were made.
+    //------------------------------------------------------------------
+    void
+    ResolveBreakpointInModules (ModuleList &module_list, BreakpointLocationCollection &new_locations);
+    
     //------------------------------------------------------------------
     /// Like ResolveBreakpointInModules, but allows for "unload" events, in
     /// which case we will remove any locations that are in modules that got
@@ -538,10 +573,19 @@ public:
     ///     This breakpoint's Target.
     //------------------------------------------------------------------
     Target &
-    GetTarget ();
+    GetTarget ()
+    {
+        return m_target;
+    }
 
     const Target &
-    GetTarget () const;
+    GetTarget () const
+    {
+        return m_target;
+    }
+
+    const lldb::TargetSP
+    GetTargetSP ();
 
     void
     GetResolverDescription (Stream *s);
@@ -600,6 +644,69 @@ public:
         return m_hardware;
     }
 
+    lldb::BreakpointResolverSP
+    GetResolver()
+    {
+        return m_resolver_sp;
+    }
+
+    lldb::SearchFilterSP
+    GetSearchFilter()
+    {
+        return m_filter_sp;
+    }
+
+    bool
+    AddName (const char *new_name, Error &error);
+
+    void
+    RemoveName (const char *name_to_remove)
+    {
+        if (name_to_remove)
+            m_name_list.erase(name_to_remove);
+    }
+
+    bool
+    MatchesName (const char *name)
+    {
+        return m_name_list.find(name) != m_name_list.end();
+    }
+
+    void
+    GetNames (std::vector<std::string> &names)
+    {
+        names.clear();
+        for (auto name : m_name_list)
+        {
+            names.push_back(name);
+        }
+    }
+
+    //------------------------------------------------------------------
+    /// Set a pre-condition filter that overrides all user provided filters/callbacks etc.
+    ///
+    /// Used to define fancy breakpoints that can do dynamic hit detection without taking up the condition slot -
+    /// which really belongs to the user anyway...
+    ///
+    /// The Precondition should not continue the target, it should return true if the condition says to stop and
+    /// false otherwise.
+    ///
+    //------------------------------------------------------------------
+    void
+    SetPrecondition(BreakpointPreconditionSP precondition_sp)
+    {
+        m_precondition_sp = precondition_sp;
+    }
+
+    bool
+    EvaluatePrecondition (StoppointCallbackContext &context);
+
+    BreakpointPreconditionSP
+    GetPrecondition()
+    {
+        return m_precondition_sp;
+    }
+
 protected:
     friend class Target;
     //------------------------------------------------------------------
@@ -649,20 +756,46 @@ protected:
     bool
     IgnoreCountShouldStop ();
 
+    void
+    IncrementHitCount()
+    {
+        m_hit_count++;
+    }
+
+    void
+    DecrementHitCount()
+    {
+        assert (m_hit_count > 0);
+        m_hit_count--;
+    }
+
 private:
+    // This one should only be used by Target to copy breakpoints from target to target - primarily from the dummy
+    // target to prime new targets.
+    Breakpoint (Target &new_target,
+                Breakpoint &bp_to_copy_from);
+
     //------------------------------------------------------------------
     // For Breakpoint only
     //------------------------------------------------------------------
     bool m_being_created;
-    bool m_hardware;                          // If this breakpoint is required to use a hardware breakpoint
-    Target &m_target;                         // The target that holds this breakpoint.
-    lldb::SearchFilterSP m_filter_sp;         // The filter that constrains the breakpoint's domain.
-    lldb::BreakpointResolverSP m_resolver_sp; // The resolver that defines this breakpoint.
-    BreakpointOptions m_options;              // Settable breakpoint options
-    BreakpointLocationList m_locations;       // The list of locations currently found for this breakpoint.
+    bool m_hardware;                             // If this breakpoint is required to use a hardware breakpoint
+    Target &m_target;                            // The target that holds this breakpoint.
+    std::unordered_set<std::string> m_name_list; // If not empty, this is the name of this breakpoint (many breakpoints can share the same name.)
+    lldb::SearchFilterSP m_filter_sp;            // The filter that constrains the breakpoint's domain.
+    lldb::BreakpointResolverSP m_resolver_sp;    // The resolver that defines this breakpoint.
+    BreakpointPreconditionSP m_precondition_sp;  // The precondition is a breakpoint-level hit filter that can be used
+                                                 // to skip certain breakpoint hits.  For instance, exception breakpoints
+                                                 // use this to limit the stop to certain exception classes, while leaving
+                                                 // the condition & callback free for user specification.
+    BreakpointOptions m_options;                 // Settable breakpoint options
+    BreakpointLocationList m_locations;          // The list of locations currently found for this breakpoint.
     std::string m_kind_description;
     bool m_resolve_indirect_symbols;
-    
+    uint32_t    m_hit_count;                   // Number of times this breakpoint/watchpoint has been hit.  This is kept
+                                               // separately from the locations hit counts, since locations can go away when
+                                               // their backing library gets unloaded, and we would lose hit counts.
+
     void
     SendBreakpointChangedEvent (lldb::BreakpointEventType eventKind);
     

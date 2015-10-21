@@ -108,6 +108,7 @@ enum {
 	UQ_BAD_MIDI,		/* device claims MIDI class, but isn't */
 	UQ_AU_VENDOR_CLASS,	/* audio device uses vendor and not audio class */
 	UQ_SINGLE_CMD_MIDI,	/* at most one command per USB packet */
+	UQ_MSC_DYMO_EJECT,	/* ejects Dymo MSC device */
 
 	USB_QUIRK_MAX
 };

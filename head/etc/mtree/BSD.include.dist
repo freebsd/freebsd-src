@@ -5,8 +5,6 @@
 
 /set type=dir uname=root gname=wheel mode=0755
 .
-    altq
-    ..
     arpa
     ..
     atf-c
@@ -93,10 +91,6 @@
         ata
         ..
         scsi
-        ..
-    ..
-    clang
-        3.5.1
         ..
     ..
     crypto
@@ -260,6 +254,8 @@
         ..
     ..
     net
+        altq
+        ..
     ..
     net80211
     ..

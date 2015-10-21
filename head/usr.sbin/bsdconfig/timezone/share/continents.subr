@@ -1,6 +1,6 @@
 if [ ! "$_TIMEZONE_CONTINENTS_SUBR" ]; then _TIMEZONE_CONTINENTS_SUBR=1
 #
-# Copyright (c) 2011-2012 Devin Teske
+# Copyright (c) 2011-2015 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -87,7 +87,7 @@ export continent_utc_title
 
 ############################################################ FUNCTIONS
 
-# f_continent $cont $property
+# f_continent $cont $property [$var_to_set]
 #
 # Returns a single property of a given continent. Available properties are:
 #
@@ -102,37 +102,60 @@ export continent_utc_title
 # 	            (which appears after continent selection).
 # 	menu_list   Menu-list of regions for this continent.
 #
+# If $var_to_set is missing or NULL, the value of $var_to_get is printed to
+# standard output for capturing in a sub-shell (which is less-recommended
+# because of performance degredation; for example, when called in a loop).
+#
 f_continent()
 {
-	local cont="$1" property="$2"
-	eval echo \"\${continent_${cont}_$property}\"
+	f_getvar "continent_${1}_$2" $3
 }
 
-# f_find_continent $title
+# f_find_continent $title [$var_to_set]
 #
 # Returns continent identifier given continent title.
 #
+# If $var_to_set is missing or NULL, the value of $var_to_get is printed to
+# standard output for capturing in a sub-shell (which is less-recommended
+# because of performance degredation; for example, when called in a loop).
+#
 f_find_continent()
 {
-	local cont
-	for cont in $CONTINENTS; do
-		if [ "$1" = "$( f_continent $cont title )" ]; then
-			echo "$cont"
+	local __cont __title
+	for __cont in $CONTINENTS; do
+		f_continent $__cont title __title
+		if [ "$1" = "$__title" ]; then
+			if [ "$2" ]; then
+				setvar "$2" $__cont
+			else
+				echo "$__cont"
+			fi
 			return $SUCCESS
 		fi
 	done
 	return $FAILURE
 }
 
-# f_OCEANP $cont
+# f_OCEANP $cont [$var_to_set]
 #
 # Returns "1" if the first argument is an ocean, otherwise NULL.
+#
+# If $var_to_set is missing or NULL, the value of $var_to_get is printed to
+# standard output for capturing in a sub-shell (which is less-recommended
+# because of performance degredation; for example, when called in a loop).
 #
 f_OCEANP()
 {
 	case "$1" in
 	arctic|atlantic|indian|pacific)
-		echo 1
+		if [ "$2" ]; then
+			setvar "$2" 1
+		else
+			echo 1
+		fi
+		;;
+	*)
+		[ "$2" ] && setvar "$2" ""
 	esac
 }
 

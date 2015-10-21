@@ -51,5 +51,10 @@ uint32_t imx_ccm_ahb_hz(void);
 
 void imx_ccm_usb_enable(device_t _usbdev);
 void imx_ccm_usbphy_enable(device_t _phydev);
+void imx_ccm_ssi_configure(device_t _ssidev);
+
+/* Routines to get and set the arm clock root divisor register. */
+uint32_t imx_ccm_get_cacrr(void);
+void     imx_ccm_set_cacrr(uint32_t _divisor);
 
 #endif

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2012
+.Dd July 02, 2015
 .Dt PW_UTIL 3
 .Os
 .Sh NAME
@@ -222,7 +222,7 @@ and it is the caller's responsibility to free it with
 The
 .Fn pw_mkdb
 function regenerates the password database by running
-.Xr pw_mkdb 8 .
+.Xr pwd_mkdb 8 .
 If
 .Fa user
 only the record corresponding to that user will be updated.
@@ -233,7 +233,8 @@ function returns 0 in case of success and -1 in case of failure.
 The
 .Fn pw_lock
 function locks the master password file.
-It returns 0 in case of success and -1 in case of failure.
+It returns a file descriptor to the master password file on success
+and -1 on failure.
 .Pp
 The
 .Fn pw_scan

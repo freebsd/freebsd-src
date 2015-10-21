@@ -26,20 +26,20 @@ static const char sccsid[] = "$Id: vs_smap.c,v 10.31 2011/02/26 13:56:21 skimo E
 #include "../common/common.h"
 #include "vi.h"
 
-static int	vs_deleteln __P((SCR *, int));
-static int	vs_insertln __P((SCR *, int));
-static int	vs_sm_delete __P((SCR *, recno_t));
-static int	vs_sm_down __P((SCR *, MARK *, recno_t, scroll_t, SMAP *));
-static int	vs_sm_erase __P((SCR *));
-static int	vs_sm_insert __P((SCR *, recno_t));
-static int	vs_sm_reset __P((SCR *, recno_t));
-static int	vs_sm_up __P((SCR *, MARK *, recno_t, scroll_t, SMAP *));
+static int	vs_deleteln(SCR *, int);
+static int	vs_insertln(SCR *, int);
+static int	vs_sm_delete(SCR *, recno_t);
+static int	vs_sm_down(SCR *, MARK *, recno_t, scroll_t, SMAP *);
+static int	vs_sm_erase(SCR *);
+static int	vs_sm_insert(SCR *, recno_t);
+static int	vs_sm_reset(SCR *, recno_t);
+static int	vs_sm_up(SCR *, MARK *, recno_t, scroll_t, SMAP *);
 
 /*
  * vs_change --
  *	Make a change to the screen.
  *
- * PUBLIC: int vs_change __P((SCR *, recno_t, lnop_t));
+ * PUBLIC: int vs_change(SCR *, recno_t, lnop_t);
  */
 int
 vs_change(SCR *sp, recno_t lno, lnop_t op)
@@ -171,7 +171,7 @@ vs_change(SCR *sp, recno_t lno, lnop_t op)
  * slot is already filled in, P_BOTTOM means that the TMAP slot is
  * already filled in, and we just finish up the job.
  *
- * PUBLIC: int vs_sm_fill __P((SCR *, recno_t, pos_t));
+ * PUBLIC: int vs_sm_fill(SCR *, recno_t, pos_t);
  */
 int
 vs_sm_fill(SCR *sp, recno_t lno, pos_t pos)
@@ -512,7 +512,7 @@ vs_sm_reset(SCR *sp, recno_t lno)
  *	Scroll the SMAP up/down count logical lines.  Different
  *	semantics based on the vi command, *sigh*.
  *
- * PUBLIC: int vs_sm_scroll __P((SCR *, MARK *, recno_t, scroll_t));
+ * PUBLIC: int vs_sm_scroll(SCR *, MARK *, recno_t, scroll_t);
  */
 int
 vs_sm_scroll(SCR *sp, MARK *rp, recno_t count, scroll_t scmd)
@@ -745,7 +745,7 @@ vs_sm_up(SCR *sp, MARK *rp, recno_t count, scroll_t scmd, SMAP *smp)
  * vs_sm_1up --
  *	Scroll the SMAP up one.
  *
- * PUBLIC: int vs_sm_1up __P((SCR *));
+ * PUBLIC: int vs_sm_1up(SCR *);
  */
 int
 vs_sm_1up(SCR *sp)
@@ -978,7 +978,7 @@ vs_sm_erase(SCR *sp)
  * vs_sm_1down --
  *	Scroll the SMAP down one.
  *
- * PUBLIC: int vs_sm_1down __P((SCR *));
+ * PUBLIC: int vs_sm_1down(SCR *);
  */
 int
 vs_sm_1down(SCR *sp)
@@ -1042,7 +1042,7 @@ vs_insertln(SCR *sp, int cnt)
  * vs_sm_next --
  *	Fill in the next entry in the SMAP.
  *
- * PUBLIC: int vs_sm_next __P((SCR *, SMAP *, SMAP *));
+ * PUBLIC: int vs_sm_next(SCR *, SMAP *, SMAP *);
  */
 int
 vs_sm_next(SCR *sp, SMAP *p, SMAP *t)
@@ -1070,7 +1070,7 @@ vs_sm_next(SCR *sp, SMAP *p, SMAP *t)
  * vs_sm_prev --
  *	Fill in the previous entry in the SMAP.
  *
- * PUBLIC: int vs_sm_prev __P((SCR *, SMAP *, SMAP *));
+ * PUBLIC: int vs_sm_prev(SCR *, SMAP *, SMAP *);
  */
 int
 vs_sm_prev(SCR *sp, SMAP *p, SMAP *t)
@@ -1095,7 +1095,7 @@ vs_sm_prev(SCR *sp, SMAP *p, SMAP *t)
  * vs_sm_cursor --
  *	Return the SMAP entry referenced by the cursor.
  *
- * PUBLIC: int vs_sm_cursor __P((SCR *, SMAP **));
+ * PUBLIC: int vs_sm_cursor(SCR *, SMAP **);
  */
 int
 vs_sm_cursor(SCR *sp, SMAP **smpp)
@@ -1134,7 +1134,7 @@ vs_sm_cursor(SCR *sp, SMAP **smpp)
  *	(The vi H, M and L commands.)  Here because only the screen routines
  *	know what's really out there.
  *
- * PUBLIC: int vs_sm_position __P((SCR *, MARK *, u_long, pos_t));
+ * PUBLIC: int vs_sm_position(SCR *, MARK *, u_long, pos_t);
  */
 int
 vs_sm_position(SCR *sp, MARK *rp, u_long cnt, pos_t pos)
@@ -1214,7 +1214,7 @@ eof:				msgq(sp, M_BERR,
  *	Return the number of screen lines from an SMAP entry to the
  *	start of some file line, less than a maximum value.
  *
- * PUBLIC: recno_t vs_sm_nlines __P((SCR *, SMAP *, recno_t, size_t));
+ * PUBLIC: recno_t vs_sm_nlines(SCR *, SMAP *, recno_t, size_t);
  */
 recno_t
 vs_sm_nlines(SCR *sp, SMAP *from_sp, recno_t to_lno, size_t max)

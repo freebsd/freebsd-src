@@ -2501,7 +2501,6 @@ pim_register_send_rp(struct ip *ip, struct vif *vifp, struct mbuf *mb_copy,
      */
     ip_outer = mtod(mb_first, struct ip *);
     *ip_outer = pim_encap_iphdr;
-    ip_outer->ip_id = ip_newid();
     ip_outer->ip_len = htons(len + sizeof(pim_encap_iphdr) +
 	sizeof(pim_encap_pimhdr));
     ip_outer->ip_src = V_viftable[vifi].v_lcl_addr;
@@ -2513,6 +2512,7 @@ pim_register_send_rp(struct ip *ip, struct vif *vifp, struct mbuf *mb_copy,
     ip_outer->ip_tos = ip->ip_tos;
     if (ip->ip_off & htons(IP_DF))
 	ip_outer->ip_off |= htons(IP_DF);
+    ip_fillid(ip_outer);
     pimhdr = (struct pim_encap_pimhdr *)((caddr_t)ip_outer
 					 + sizeof(pim_encap_iphdr));
     *pimhdr = pim_encap_pimhdr;
@@ -2816,9 +2816,9 @@ vnet_mroute_init(const void *unused __unused)
 
 	MALLOC(V_nexpire, u_char *, mfchashsize, M_MRTABLE, M_WAITOK|M_ZERO);
 	bzero(V_bw_meter_timers, sizeof(V_bw_meter_timers));
-	callout_init(&V_expire_upcalls_ch, CALLOUT_MPSAFE);
-	callout_init(&V_bw_upcalls_ch, CALLOUT_MPSAFE);
-	callout_init(&V_bw_meter_ch, CALLOUT_MPSAFE);
+	callout_init(&V_expire_upcalls_ch, 1);
+	callout_init(&V_bw_upcalls_ch, 1);
+	callout_init(&V_bw_meter_ch, 1);
 }
 
 VNET_SYSINIT(vnet_mroute_init, SI_SUB_PSEUDO, SI_ORDER_ANY, vnet_mroute_init,

@@ -20,63 +20,6 @@
 # used to fix build issues on such systems (krb5.h not found).
 #CFLAGS += -I/usr/include/kerberos
 
-# Example configuration for various cross-compilation platforms
-
-#### sveasoft (e.g., for Linksys WRT54G) ######################################
-#CC=mipsel-uclibc-gcc
-#CC=/opt/brcm/hndtools-mipsel-uclibc/bin/mipsel-uclibc-gcc
-#CFLAGS += -Os
-#CPPFLAGS += -I../src/include -I../../src/router/openssl/include
-#LIBS += -L/opt/brcm/hndtools-mipsel-uclibc-0.9.19/lib -lssl
-###############################################################################
-
-#### openwrt (e.g., for Linksys WRT54G) #######################################
-#CC=mipsel-uclibc-gcc
-#CC=/opt/brcm/hndtools-mipsel-uclibc/bin/mipsel-uclibc-gcc
-#CFLAGS += -Os
-#CPPFLAGS=-I../src/include -I../openssl-0.9.7d/include \
-#	-I../WRT54GS/release/src/include
-#LIBS = -lssl
-###############################################################################
-
-
-# Driver interface for Host AP driver
-CONFIG_DRIVER_HOSTAP=y
-
-# Driver interface for Agere driver
-#CONFIG_DRIVER_HERMES=y
-# Change include directories to match with the local setup
-#CFLAGS += -I../../hcf -I../../include -I../../include/hcf
-#CFLAGS += -I../../include/wireless
-
-# Driver interface for madwifi driver
-# Deprecated; use CONFIG_DRIVER_WEXT=y instead.
-#CONFIG_DRIVER_MADWIFI=y
-# Set include directory to the madwifi source tree
-#CFLAGS += -I../../madwifi
-
-# Driver interface for ndiswrapper
-# Deprecated; use CONFIG_DRIVER_WEXT=y instead.
-#CONFIG_DRIVER_NDISWRAPPER=y
-
-# Driver interface for Atmel driver
-CONFIG_DRIVER_ATMEL=y
-
-# Driver interface for old Broadcom driver
-# Please note that the newer Broadcom driver ("hybrid Linux driver") supports
-# Linux wireless extensions and does not need (or even work) with the old
-# driver wrapper. Use CONFIG_DRIVER_WEXT=y with that driver.
-#CONFIG_DRIVER_BROADCOM=y
-# Example path for wlioctl.h; change to match your configuration
-#CFLAGS += -I/opt/WRT54GS/release/src/include
-
-# Driver interface for Intel ipw2100/2200 driver
-# Deprecated; use CONFIG_DRIVER_WEXT=y instead.
-#CONFIG_DRIVER_IPW=y
-
-# Driver interface for Ralink driver
-#CONFIG_DRIVER_RALINK=y
-
 # Driver interface for generic Linux wireless extensions
 # Note: WEXT is deprecated in the current Linux kernel version and no new
 # functionality is added to it. nl80211-based interface is the new
@@ -87,6 +30,19 @@ CONFIG_DRIVER_WEXT=y
 
 # Driver interface for Linux drivers using the nl80211 kernel interface
 CONFIG_DRIVER_NL80211=y
+
+# driver_nl80211.c requires libnl. If you are compiling it yourself
+# you may need to point hostapd to your version of libnl.
+#
+#CFLAGS += -I$<path to libnl include files>
+#LIBS += -L$<path to libnl library files>
+
+# Use libnl v2.0 (or 3.0) libraries.
+#CONFIG_LIBNL20=y
+
+# Use libnl 3.2 libraries (if this is selected, CONFIG_LIBNL20 is ignored)
+#CONFIG_LIBNL32=y
+
 
 # Driver interface for FreeBSD net80211 layer (e.g., Atheros driver)
 #CONFIG_DRIVER_BSD=y
@@ -110,9 +66,6 @@ CONFIG_DRIVER_NL80211=y
 # However, this requires that WZC is disabled (net stop wzcsvc) before starting
 # wpa_supplicant.
 # CONFIG_USE_NDISUIO=y
-
-# Driver interface for development testing
-#CONFIG_DRIVER_TEST=y
 
 # Driver interface for wired Ethernet drivers
 CONFIG_DRIVER_WIRED=y
@@ -147,10 +100,9 @@ CONFIG_EAP_PEAP=y
 CONFIG_EAP_TTLS=y
 
 # EAP-FAST
-# Note: Default OpenSSL package does not include support for all the
-# functionality needed for EAP-FAST. If EAP-FAST is enabled with OpenSSL,
-# the OpenSSL library must be patched (openssl-0.9.8d-tls-extensions.patch)
-# to add the needed functions.
+# Note: If OpenSSL is used as the TLS library, OpenSSL 1.0 or newer is needed
+# for EAP-FAST support. Older OpenSSL releases would need to be patched, e.g.,
+# with openssl-0.9.8x-tls-extensions.patch, to add the needed functions.
 #CONFIG_EAP_FAST=y
 
 # EAP-GTC
@@ -197,8 +149,6 @@ CONFIG_EAP_LEAP=y
 
 # Wi-Fi Protected Setup (WPS)
 #CONFIG_WPS=y
-# Enable WSC 2.0 support
-#CONFIG_WPS2=y
 # Enable WPS external registrar functionality
 #CONFIG_WPS_ER=y
 # Disable credentials for an open network by default when acting as a WPS
@@ -209,6 +159,9 @@ CONFIG_EAP_LEAP=y
 
 # EAP-IKEv2
 #CONFIG_EAP_IKEV2=y
+
+# EAP-EKE
+#CONFIG_EAP_EKE=y
 
 # PKCS#12 (PFX) support (used to read private key and certificate file from
 # a file that usually has extension .p12 or .pfx)
@@ -225,14 +178,19 @@ CONFIG_SMARTCARD=y
 # Support HT overrides (disable HT/HT40, mask MCS rates, etc.)
 #CONFIG_HT_OVERRIDES=y
 
+# Support VHT overrides (disable VHT, mask MCS rates, etc.)
+#CONFIG_VHT_OVERRIDES=y
+
 # Development testing
 #CONFIG_EAPOL_TEST=y
 
 # Select control interface backend for external programs, e.g, wpa_cli:
 # unix = UNIX domain sockets (default for Linux/*BSD)
 # udp = UDP sockets using localhost (127.0.0.1)
+# udp6 = UDP IPv6 sockets using localhost (::1)
 # named_pipe = Windows Named Pipe (default for Windows)
 # udp-remote = UDP sockets with remote access (only for tests systems/purpose)
+# udp6-remote = UDP IPv6 sockets with remote access (only for tests purpose)
 # y = use default (backwards compatibility)
 # If this option is commented out, control interface is not included in the
 # build.
@@ -257,11 +215,6 @@ CONFIG_CTRL_IFACE=y
 # Remove WPA support, e.g., for wired-only IEEE 802.1X supplicant, to save
 # 35-50 kB in code size.
 #CONFIG_NO_WPA=y
-
-# Remove WPA2 support. This allows WPA to be used, but removes WPA2 code to
-# save about 1 kB in code size when building only WPA-Personal (no EAP support)
-# or 6 kB if building for WPA-Enterprise.
-#CONFIG_NO_WPA2=y
 
 # Remove IEEE 802.11i/WPA-Personal ASCII passphrase support
 # This option can be used to reduce code size by removing support for
@@ -297,7 +250,7 @@ CONFIG_BACKEND=file
 # main_none = Very basic example (development use only)
 #CONFIG_MAIN=main
 
-# Select wrapper for operatins system and C library specific functions
+# Select wrapper for operating system and C library specific functions
 # unix = UNIX/POSIX like systems (default)
 # win32 = Windows systems
 # none = Empty template
@@ -306,11 +259,13 @@ CONFIG_BACKEND=file
 # Select event loop implementation
 # eloop = select() loop (default)
 # eloop_win = Windows events and WaitForMultipleObject() loop
-# eloop_none = Empty template
 #CONFIG_ELOOP=eloop
 
 # Should we use poll instead of select? Select is used by default.
 #CONFIG_ELOOP_POLL=y
+
+# Should we use epoll instead of select? Select is used by default.
+#CONFIG_ELOOP_EPOLL=y
 
 # Select layer 2 packet implementation
 # linux = Linux packet socket (default)
@@ -420,6 +375,10 @@ CONFIG_PEERKEY=y
 # same file, e.g., using trace-cmd.
 #CONFIG_DEBUG_LINUX_TRACING=y
 
+# Add support for writing debug log to Android logcat instead of standard
+# output
+#CONFIG_ANDROID_LOG=y
+
 # Enable privilege separation (see README 'Privilege separation' for details)
 #CONFIG_PRIVSEP=y
 
@@ -479,6 +438,10 @@ CONFIG_PEERKEY=y
 # IEEE 802.11n (High Throughput) support (mainly for AP mode)
 #CONFIG_IEEE80211N=y
 
+# IEEE 802.11ac (Very High Throughput) support (mainly for AP mode)
+# (depends on CONFIG_IEEE80211N)
+#CONFIG_IEEE80211AC=y
+
 # Wireless Network Management (IEEE Std 802.11v-2011)
 # Note: This is experimental and not complete implementation.
 #CONFIG_WNM=y
@@ -492,6 +455,9 @@ CONFIG_PEERKEY=y
 # Hotspot 2.0
 #CONFIG_HS20=y
 
+# Disable roaming in wpa_supplicant
+#CONFIG_NO_ROAMING=y
+
 # AP mode operations with wpa_supplicant
 # This can be used for controlling AP mode operations with wpa_supplicant. It
 # should be noted that this is mainly aimed at simple cases like
@@ -504,9 +470,17 @@ CONFIG_PEERKEY=y
 # more information on P2P operations.
 #CONFIG_P2P=y
 
+# Enable TDLS support
+#CONFIG_TDLS=y
+
+# Wi-Fi Direct
+# This can be used to enable Wi-Fi Direct extensions for P2P using an external
+# program to control the additional information exchanges in the messages.
+#CONFIG_WIFI_DISPLAY=y
+
 # Autoscan
 # This can be used to enable automatic scan support in wpa_supplicant.
-# See wpa_supplicant.conf for more information on autoscan usage.
+# See wpa_supplicant.conf for more information on autoscan usage.
 #
 # Enabling directly a module will enable autoscan support.
 # For exponential module:
@@ -521,3 +495,12 @@ CONFIG_PEERKEY=y
 #
 # External password backend for testing purposes (developer use)
 #CONFIG_EXT_PASSWORD_TEST=y
+
+# Enable Fast Session Transfer (FST)
+#CONFIG_FST=y
+
+# Enable CLI commands for FST testing
+#CONFIG_FST_TEST=y
+
+# OS X builds. This is only for building eapol_test.
+#CONFIG_OSX=y

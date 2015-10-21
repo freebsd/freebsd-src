@@ -15,12 +15,21 @@ CONFIG_DRIVER_HOSTAP=y
 # Driver interface for wired authenticator
 #CONFIG_DRIVER_WIRED=y
 
-# Driver interface for madwifi driver
-#CONFIG_DRIVER_MADWIFI=y
-#CFLAGS += -I../../madwifi # change to the madwifi source directory
-
 # Driver interface for drivers using the nl80211 kernel interface
 CONFIG_DRIVER_NL80211=y
+
+# driver_nl80211.c requires libnl. If you are compiling it yourself
+# you may need to point hostapd to your version of libnl.
+#
+#CFLAGS += -I$<path to libnl include files>
+#LIBS += -L$<path to libnl library files>
+
+# Use libnl v2.0 (or 3.0) libraries.
+#CONFIG_LIBNL20=y
+
+# Use libnl 3.2 libraries (if this is selected, CONFIG_LIBNL20 is ignored)
+#CONFIG_LIBNL32=y
+
 
 # Driver interface for FreeBSD net80211 layer (e.g., Atheros driver)
 #CONFIG_DRIVER_BSD=y
@@ -42,13 +51,13 @@ CONFIG_RSN_PREAUTH=y
 CONFIG_PEERKEY=y
 
 # IEEE 802.11w (management frame protection)
-# This version is an experimental implementation based on IEEE 802.11w/D1.0
-# draft and is subject to change since the standard has not yet been finalized.
-# Driver support is also needed for IEEE 802.11w.
-#CONFIG_IEEE80211W=y
+CONFIG_IEEE80211W=y
 
 # Integrated EAP server
 CONFIG_EAP=y
+
+# EAP Re-authentication Protocol (ERP) in integrated EAP server
+CONFIG_ERP=y
 
 # EAP-MD5 for the integrated EAP server
 CONFIG_EAP_MD5=y
@@ -96,16 +105,13 @@ CONFIG_EAP_TTLS=y
 #CONFIG_EAP_GPSK_SHA256=y
 
 # EAP-FAST for the integrated EAP server
-# Note: Default OpenSSL package does not include support for all the
-# functionality needed for EAP-FAST. If EAP-FAST is enabled with OpenSSL,
-# the OpenSSL library must be patched (openssl-0.9.9-session-ticket.patch)
-# to add the needed functions.
+# Note: If OpenSSL is used as the TLS library, OpenSSL 1.0 or newer is needed
+# for EAP-FAST support. Older OpenSSL releases would need to be patched, e.g.,
+# with openssl-0.9.8x-tls-extensions.patch, to add the needed functions.
 #CONFIG_EAP_FAST=y
 
 # Wi-Fi Protected Setup (WPS)
 #CONFIG_WPS=y
-# Enable WSC 2.0 support
-#CONFIG_WPS2=y
 # Enable UPnP support for external WPS Registrars
 #CONFIG_WPS_UPNP=y
 # Enable WPS support with NFC config method
@@ -116,6 +122,9 @@ CONFIG_EAP_TTLS=y
 
 # Trusted Network Connect (EAP-TNC)
 #CONFIG_EAP_TNC=y
+
+# EAP-EKE for the integrated EAP server
+#CONFIG_EAP_EKE=y
 
 # PKCS#12 (PFX) support (used to read private key and certificate file from
 # a file that usually has extension .p12 or .pfx)
@@ -132,7 +141,7 @@ CONFIG_IPV6=y
 #CONFIG_IEEE80211R=y
 
 # Use the hostapd's IEEE 802.11 authentication (ACL), but without
-# the IEEE 802.11 Management capability (e.g., madwifi or FreeBSD/net80211)
+# the IEEE 802.11 Management capability (e.g., FreeBSD/net80211)
 #CONFIG_DRIVER_RADIUS_ACL=y
 
 # IEEE 802.11n (High Throughput) support
@@ -154,6 +163,12 @@ CONFIG_IPV6=y
 # Disabled by default.
 #CONFIG_DEBUG_FILE=y
 
+# Add support for sending all debug messages (regardless of debug verbosity)
+# to the Linux kernel tracing facility. This helps debug the entire stack by
+# making it easy to record everything happening from the driver up into the
+# same file, e.g., using trace-cmd.
+#CONFIG_DEBUG_LINUX_TRACING=y
+
 # Remove support for RADIUS accounting
 #CONFIG_NO_ACCOUNTING=y
 
@@ -171,7 +186,7 @@ CONFIG_IPV6=y
 # Note: This requires libnl 3.1 or newer.
 #CONFIG_VLAN_NETLINK=y
 
-# Remove support for dumping state into a file on SIGUSR1 signal
+# Remove support for dumping internal state through control interface commands
 # This can be used to reduce binary size at the cost of disabling a debugging
 # option.
 #CONFIG_NO_DUMP_STATE=y
@@ -225,6 +240,12 @@ CONFIG_IPV6=y
 # requirements described above.
 #CONFIG_NO_RANDOM_POOL=y
 
+# Should we use poll instead of select? Select is used by default.
+#CONFIG_ELOOP_POLL=y
+
+# Should we use epoll instead of select? Select is used by default.
+#CONFIG_ELOOP_EPOLL=y
+
 # Select TLS implementation
 # openssl = OpenSSL (default)
 # gnutls = GnuTLS
@@ -267,3 +288,41 @@ CONFIG_IPV6=y
 
 # Enable SQLite database support in hlr_auc_gw, EAP-SIM DB, and eap_user_file
 #CONFIG_SQLITE=y
+
+# Enable Fast Session Transfer (FST)
+#CONFIG_FST=y
+
+# Enable CLI commands for FST testing
+#CONFIG_FST_TEST=y
+
+# Testing options
+# This can be used to enable some testing options (see also the example
+# configuration file) that are really useful only for testing clients that
+# connect to this hostapd. These options allow, for example, to drop a
+# certain percentage of probe requests or auth/(re)assoc frames.
+#
+#CONFIG_TESTING_OPTIONS=y
+
+# Automatic Channel Selection
+# This will allow hostapd to pick the channel automatically when channel is set
+# to "acs_survey" or "0". Eventually, other ACS algorithms can be added in
+# similar way.
+#
+# Automatic selection is currently only done through initialization, later on
+# we hope to do background checks to keep us moving to more ideal channels as
+# time goes by. ACS is currently only supported through the nl80211 driver and
+# your driver must have survey dump capability that is filled by the driver
+# during scanning.
+#
+# You can customize the ACS survey algorithm with the hostapd.conf variable
+# acs_num_scans.
+#
+# Supported ACS drivers:
+# * ath9k
+# * ath5k
+# * ath10k
+#
+# For more details refer to:
+# http://wireless.kernel.org/en/users/Documentation/acs
+#
+#CONFIG_ACS=y

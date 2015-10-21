@@ -28,7 +28,7 @@ static const char sccsid[] = "$Id: v_xchar.c,v 10.10 2001/06/25 15:19:36 skimo E
  * v_xchar -- [buffer] [count]x
  *	Deletes the character(s) on which the cursor sits.
  *
- * PUBLIC: int v_xchar __P((SCR *, VICMD *));
+ * PUBLIC: int v_xchar(SCR *, VICMD *);
  */
 int
 v_xchar(SCR *sp, VICMD *vp)
@@ -75,7 +75,7 @@ nodel:		msgq(sp, M_BERR, "206|No characters to delete");
  *	Deletes the character(s) immediately before the current cursor
  *	position.
  *
- * PUBLIC: int v_Xchar __P((SCR *, VICMD *));
+ * PUBLIC: int v_Xchar(SCR *, VICMD *);
  */
 int
 v_Xchar(SCR *sp, VICMD *vp)

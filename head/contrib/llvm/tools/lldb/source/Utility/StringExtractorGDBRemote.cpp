@@ -64,6 +64,10 @@ StringExtractorGDBRemote::GetServerPacketType () const
     const char *packet_cstr = m_packet.c_str();
     switch (m_packet[0])
     {
+
+    case '%':
+        return eServerPacketType_notify;
+
     case '\x03':
         if (packet_size == 1) return eServerPacketType_interrupt;
         break;
@@ -78,7 +82,7 @@ StringExtractorGDBRemote::GetServerPacketType () const
 
     case 'A':
         return eServerPacketType_A;
-            
+
     case 'Q':
 
         switch (packet_cstr[1])
@@ -118,7 +122,7 @@ StringExtractorGDBRemote::GetServerPacketType () const
             break;
         }
         break;
-            
+
     case 'q':
         switch (packet_cstr[1])
         {
@@ -134,6 +138,14 @@ StringExtractorGDBRemote::GetServerPacketType () const
 
         case 'C':
             if (packet_size == 2)                               return eServerPacketType_qC;
+            break;
+
+        case 'E':
+            if (PACKET_STARTS_WITH ("qEcho:"))                  return eServerPacketType_qEcho;
+            break;
+
+        case 'F':
+            if (PACKET_STARTS_WITH ("qFileLoadAddress:"))       return eServerPacketType_qFileLoadAddress;
             break;
 
         case 'G':
@@ -160,6 +172,7 @@ StringExtractorGDBRemote::GetServerPacketType () const
         case 'M':
             if (PACKET_STARTS_WITH ("qMemoryRegionInfo:"))      return eServerPacketType_qMemoryRegionInfo;
             if (PACKET_MATCHES ("qMemoryRegionInfo"))           return eServerPacketType_qMemoryRegionInfoSupported;
+            if (PACKET_STARTS_WITH ("qModuleInfo:"))             return eServerPacketType_qModuleInfo;
             break;
 
         case 'P':
@@ -206,6 +219,10 @@ StringExtractorGDBRemote::GetServerPacketType () const
             break;
         }
         break;
+
+    case 'j':
+        if (PACKET_MATCHES("jSignalInfo")) return eServerPacketType_jSignalsInfo;
+
     case 'v':
             if (PACKET_STARTS_WITH("vFile:"))
             {
@@ -264,6 +281,9 @@ StringExtractorGDBRemote::GetServerPacketType () const
 
       case 'H':
         return eServerPacketType_H;
+
+      case 'I':
+        return eServerPacketType_I;
 
       case 'k':
         if (packet_size == 1) return eServerPacketType_k;
@@ -346,14 +366,15 @@ StringExtractorGDBRemote::GetError ()
 size_t
 StringExtractorGDBRemote::GetEscapedBinaryData (std::string &str)
 {
+    // Just get the data bytes in the string as GDBRemoteCommunication::CheckForPacket()
+    // already removes any 0x7d escaped characters. If any 0x7d characters are left in
+    // the packet, then they are supposed to be there...
     str.clear();
-    char ch;
-    while (GetBytesLeft())
+    const size_t bytes_left = GetBytesLeft();
+    if (bytes_left > 0)
     {
-        ch = GetChar();
-        if (ch == 0x7d)
-            ch = (GetChar() ^ 0x20);
-        str.append(1,ch);
+        str.assign(m_packet, m_index, bytes_left);
+        m_index += bytes_left;
     }
     return str.size();
 }

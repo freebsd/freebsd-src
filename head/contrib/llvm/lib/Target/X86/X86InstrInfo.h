@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86INSTRUCTIONINFO_H
-#define X86INSTRUCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_X86_X86INSTRINFO_H
+#define LLVM_LIB_TARGET_X86_X86INSTRINFO_H
 
 #include "MCTargetDesc/X86BaseInfo.h"
 #include "X86RegisterInfo.h"
@@ -25,6 +25,19 @@
 namespace llvm {
   class X86RegisterInfo;
   class X86Subtarget;
+
+  namespace MachineCombinerPattern {
+    enum MC_PATTERN : int {
+      // These are commutative variants for reassociating a computation chain
+      // of the form:
+      //   B = A op X (Prev)
+      //   C = B op Y (Root)
+      MC_REASSOC_AX_BY = 0,
+      MC_REASSOC_AX_YB = 1,
+      MC_REASSOC_XA_BY = 2,
+      MC_REASSOC_XA_YB = 3,
+    };
+  } // end namespace MachineCombinerPattern
 
 namespace X86 {
   // X86 specific condition code. These correspond to X86_*_COND in
@@ -152,6 +165,7 @@ class X86InstrInfo final : public X86GenInstrInfo {
   RegOp2MemOpTableType RegOp2MemOpTable1;
   RegOp2MemOpTableType RegOp2MemOpTable2;
   RegOp2MemOpTableType RegOp2MemOpTable3;
+  RegOp2MemOpTableType RegOp2MemOpTable4;
 
   /// MemOp2RegOpTable - Load / store unfolding opcode map.
   ///
@@ -165,6 +179,12 @@ class X86InstrInfo final : public X86GenInstrInfo {
 
   virtual void anchor();
 
+  bool AnalyzeBranchImpl(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
+                         MachineBasicBlock *&FBB,
+                         SmallVectorImpl<MachineOperand> &Cond,
+                         SmallVectorImpl<MachineInstr *> &CondBranches,
+                         bool AllowModify) const;
+
 public:
   explicit X86InstrInfo(X86Subtarget &STI);
 
@@ -173,6 +193,11 @@ public:
   /// always be able to get register info as well (through this method).
   ///
   const X86RegisterInfo &getRegisterInfo() const { return RI; }
+
+  /// getSPAdjust - This returns the stack pointer adjustment made by
+  /// this instruction. For x86, we need to handle more complex call
+  /// sequences involving PUSHes.
+  int getSPAdjust(const MachineInstr *MI) const override;
 
   /// isCoalescableExtInstr - Return true if the instruction is a "coalescable"
   /// extension instruction. That is, it's like a copy where it's legal for the
@@ -248,18 +273,23 @@ public:
                      MachineBasicBlock *&FBB,
                      SmallVectorImpl<MachineOperand> &Cond,
                      bool AllowModify) const override;
+
+  bool getMemOpBaseRegImmOfs(MachineInstr *LdSt, unsigned &BaseReg,
+                             unsigned &Offset,
+                             const TargetRegisterInfo *TRI) const override;
+  bool AnalyzeBranchPredicate(MachineBasicBlock &MBB,
+                              TargetInstrInfo::MachineBranchPredicate &MBP,
+                              bool AllowModify = false) const override;
+
   unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
   unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
-                        MachineBasicBlock *FBB,
-                        const SmallVectorImpl<MachineOperand> &Cond,
+                        MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
                         DebugLoc DL) const override;
-  bool canInsertSelect(const MachineBasicBlock&,
-                       const SmallVectorImpl<MachineOperand> &Cond,
+  bool canInsertSelect(const MachineBasicBlock&, ArrayRef<MachineOperand> Cond,
                        unsigned, unsigned, int&, int&, int&) const override;
   void insertSelect(MachineBasicBlock &MBB,
                     MachineBasicBlock::iterator MI, DebugLoc DL,
-                    unsigned DstReg,
-                    const SmallVectorImpl<MachineOperand> &Cond,
+                    unsigned DstReg, ArrayRef<MachineOperand> Cond,
                     unsigned TrueReg, unsigned FalseReg) const override;
   void copyPhysReg(MachineBasicBlock &MBB,
                    MachineBasicBlock::iterator MI, DebugLoc DL,
@@ -299,23 +329,23 @@ public:
   /// folding and return true, otherwise it should return false.  If it folds
   /// the instruction, it is likely that the MachineInstruction the iterator
   /// references has been changed.
-  MachineInstr* foldMemoryOperandImpl(MachineFunction &MF,
-                                      MachineInstr* MI,
-                                      const SmallVectorImpl<unsigned> &Ops,
+  MachineInstr *foldMemoryOperandImpl(MachineFunction &MF, MachineInstr *MI,
+                                      ArrayRef<unsigned> Ops,
+                                      MachineBasicBlock::iterator InsertPt,
                                       int FrameIndex) const override;
 
   /// foldMemoryOperand - Same as the previous version except it allows folding
   /// of any load and store from / to any address, not just from a specific
   /// stack slot.
-  MachineInstr* foldMemoryOperandImpl(MachineFunction &MF,
-                                      MachineInstr* MI,
-                                      const SmallVectorImpl<unsigned> &Ops,
-                                      MachineInstr* LoadMI) const override;
+  MachineInstr *foldMemoryOperandImpl(MachineFunction &MF, MachineInstr *MI,
+                                      ArrayRef<unsigned> Ops,
+                                      MachineBasicBlock::iterator InsertPt,
+                                      MachineInstr *LoadMI) const override;
 
   /// canFoldMemoryOperand - Returns true if the specified load / store is
   /// folding is possible.
-  bool canFoldMemoryOperand(const MachineInstr*,
-                            const SmallVectorImpl<unsigned> &) const override;
+  bool canFoldMemoryOperand(const MachineInstr *,
+                            ArrayRef<unsigned>) const override;
 
   /// unfoldMemoryOperand - Separate a single instruction which folded a load or
   /// a store or a load and a store into two or more instruction. If this is
@@ -400,11 +430,12 @@ public:
   void breakPartialRegDependency(MachineBasicBlock::iterator MI, unsigned OpNum,
                                  const TargetRegisterInfo *TRI) const override;
 
-  MachineInstr* foldMemoryOperandImpl(MachineFunction &MF,
-                                      MachineInstr* MI,
+  MachineInstr *foldMemoryOperandImpl(MachineFunction &MF, MachineInstr *MI,
                                       unsigned OpNum,
-                                      const SmallVectorImpl<MachineOperand> &MOs,
-                                      unsigned Size, unsigned Alignment) const;
+                                      ArrayRef<MachineOperand> MOs,
+                                      MachineBasicBlock::iterator InsertPt,
+                                      unsigned Size, unsigned Alignment,
+                                      bool AllowCommute) const;
 
   void
   getUnconditionalBranch(MCInst &Branch,
@@ -412,13 +443,35 @@ public:
 
   void getTrap(MCInst &MI) const override;
 
+  unsigned getJumpInstrTableEntryBound() const override;
+
   bool isHighLatencyDef(int opc) const override;
 
-  bool hasHighOperandLatency(const InstrItineraryData *ItinData,
+  bool hasHighOperandLatency(const TargetSchedModel &SchedModel,
                              const MachineRegisterInfo *MRI,
                              const MachineInstr *DefMI, unsigned DefIdx,
                              const MachineInstr *UseMI,
                              unsigned UseIdx) const override;
+
+  
+  bool useMachineCombiner() const override {
+    return true;
+  }
+  
+  /// Return true when there is potentially a faster code sequence
+  /// for an instruction chain ending in <Root>. All potential patterns are
+  /// output in the <Pattern> array.
+  bool getMachineCombinerPatterns(
+      MachineInstr &Root,
+      SmallVectorImpl<MachineCombinerPattern::MC_PATTERN> &P) const override;
+  
+  /// When getMachineCombinerPatterns() finds a pattern, this function generates
+  /// the instructions that could replace the original code sequence.
+  void genAlternativeCodeSequence(
+          MachineInstr &Root, MachineCombinerPattern::MC_PATTERN P,
+          SmallVectorImpl<MachineInstr *> &InsInstrs,
+          SmallVectorImpl<MachineInstr *> &DelInstrs,
+          DenseMap<unsigned, unsigned> &InstrIdxForVirtReg) const override;
 
   /// analyzeCompare - For a comparison instruction, return the source registers
   /// in SrcReg and SrcReg2 if having two register operands, and the value it

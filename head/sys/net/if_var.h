@@ -83,7 +83,7 @@ struct	netmap_adapter;
 
 #define	IF_DUNIT_NONE	-1
 
-#include <altq/if_altq.h>
+#include <net/altq/if_altq.h>
 
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
 TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
@@ -243,11 +243,12 @@ struct ifnet {
 	 * count limit does not apply. If all three fields are zero,
 	 * there is no TSO limit.
 	 *
-	 * NOTE: The TSO limits only apply to the data payload part of
-	 * a TCP/IP packet. That means there is no need to subtract
-	 * space for ethernet-, vlan-, IP- or TCP- headers from the
-	 * TSO limits unless the hardware driver in question requires
-	 * so.
+	 * NOTE: The TSO limits should reflect the values used in the
+	 * BUSDMA tag a network adapter is using to load a mbuf chain
+	 * for transmission. The TCP/IP network stack will subtract
+	 * space for all linklevel and protocol level headers and
+	 * ensure that the full mbuf chain passed to the network
+	 * adapter fits within the given limits.
 	 */
 	u_int	if_hw_tsomax;		/* TSO maximum size in bytes */
 	u_int	if_hw_tsomaxsegcount;	/* TSO maximum segment count */
@@ -365,8 +366,6 @@ EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 
 #define	TOEDEV(ifp)	((ifp)->if_llsoftc)
 
-#endif /* _KERNEL */
-
 /*
  * The ifaddr structure contains information about one address
  * of an interface.  They are maintained by the different address families,
@@ -377,7 +376,6 @@ EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
  * chunk of malloc'ed memory, where we store the three addresses
  * (ifa_addr, ifa_dstaddr and ifa_netmask) referenced here.
  */
-#if defined(_KERNEL) || defined(_WANT_IFADDR)
 struct ifaddr {
 	struct	sockaddr *ifa_addr;	/* address of interface */
 	struct	sockaddr *ifa_dstaddr;	/* other end of p-to-p link */
@@ -389,6 +387,8 @@ struct ifaddr {
 	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
 		(int, struct rtentry *, struct rt_addrinfo *);
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
+#define	IFA_ROUTE	RTF_UP		/* route installed */
+#define	IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 	u_int	ifa_refcnt;		/* references to this structure */
 
 	counter_u64_t	ifa_ipackets;
@@ -396,11 +396,6 @@ struct ifaddr {
 	counter_u64_t	ifa_ibytes;
 	counter_u64_t	ifa_obytes;
 };
-#endif
-
-#ifdef _KERNEL
-#define	IFA_ROUTE	RTF_UP		/* route installed */
-#define	IFA_RTSELF	RTF_HOST	/* loopback route to self installed */
 
 /* For compatibility with other BSDs. SCTP uses it. */
 #define	ifa_list	ifa_link
@@ -408,7 +403,6 @@ struct ifaddr {
 struct ifaddr *	ifa_alloc(size_t size, int flags);
 void	ifa_free(struct ifaddr *ifa);
 void	ifa_ref(struct ifaddr *ifa);
-#endif /* _KERNEL */
 
 /*
  * Multicast address structure.  This is analogous to the ifaddr
@@ -423,8 +417,6 @@ struct ifmultiaddr {
 	void	*ifma_protospec;	/* protocol-specific state, if any */
 	struct	ifmultiaddr *ifma_llifma; /* pointer to ifma for ifma_lladdr */
 };
-
-#ifdef _KERNEL
 
 extern	struct rwlock ifnet_rwlock;
 extern	struct sx ifnet_sxlock;
@@ -496,7 +488,7 @@ void	if_purgeaddrs(struct ifnet *);
 void	if_delallmulti(struct ifnet *);
 void	if_down(struct ifnet *);
 struct ifmultiaddr *
-	if_findmulti(struct ifnet *, struct sockaddr *);
+	if_findmulti(struct ifnet *, const struct sockaddr *);
 void	if_free(struct ifnet *);
 void	if_initname(struct ifnet *, const char *, int);
 void	if_link_state_change(struct ifnet *, int);
@@ -512,15 +504,16 @@ struct	ifnet *ifunit_ref(const char *);
 
 int	ifa_add_loopback_route(struct ifaddr *, struct sockaddr *);
 int	ifa_del_loopback_route(struct ifaddr *, struct sockaddr *);
-int	ifa_switch_loopback_route(struct ifaddr *, struct sockaddr *, int fib);
+int	ifa_switch_loopback_route(struct ifaddr *, struct sockaddr *);
 
-struct	ifaddr *ifa_ifwithaddr(struct sockaddr *);
-int		ifa_ifwithaddr_check(struct sockaddr *);
-struct	ifaddr *ifa_ifwithbroadaddr(struct sockaddr *, int);
-struct	ifaddr *ifa_ifwithdstaddr(struct sockaddr *, int);
-struct	ifaddr *ifa_ifwithnet(struct sockaddr *, int, int);
-struct	ifaddr *ifa_ifwithroute(int, struct sockaddr *, struct sockaddr *, u_int);
-struct	ifaddr *ifaof_ifpforaddr(struct sockaddr *, struct ifnet *);
+struct	ifaddr *ifa_ifwithaddr(const struct sockaddr *);
+int		ifa_ifwithaddr_check(const struct sockaddr *);
+struct	ifaddr *ifa_ifwithbroadaddr(const struct sockaddr *, int);
+struct	ifaddr *ifa_ifwithdstaddr(const struct sockaddr *, int);
+struct	ifaddr *ifa_ifwithnet(const struct sockaddr *, int, int);
+struct	ifaddr *ifa_ifwithroute(int, const struct sockaddr *, struct sockaddr *,
+    u_int);
+struct	ifaddr *ifaof_ifpforaddr(const struct sockaddr *, struct ifnet *);
 int	ifa_preferred(struct ifaddr *, struct ifaddr *);
 
 int	if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen);

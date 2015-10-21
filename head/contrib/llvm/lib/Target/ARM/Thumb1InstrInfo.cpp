@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "ARMSubtarget.h"
 #include "Thumb1InstrInfo.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -21,16 +22,15 @@
 using namespace llvm;
 
 Thumb1InstrInfo::Thumb1InstrInfo(const ARMSubtarget &STI)
-  : ARMBaseInstrInfo(STI), RI(STI) {
-}
+    : ARMBaseInstrInfo(STI), RI() {}
 
 /// getNoopForMachoTarget - Return the noop instruction to use for a noop.
 void Thumb1InstrInfo::getNoopForMachoTarget(MCInst &NopInst) const {
   NopInst.setOpcode(ARM::tMOVr);
-  NopInst.addOperand(MCOperand::CreateReg(ARM::R8));
-  NopInst.addOperand(MCOperand::CreateReg(ARM::R8));
-  NopInst.addOperand(MCOperand::CreateImm(ARMCC::AL));
-  NopInst.addOperand(MCOperand::CreateReg(0));
+  NopInst.addOperand(MCOperand::createReg(ARM::R8));
+  NopInst.addOperand(MCOperand::createReg(ARM::R8));
+  NopInst.addOperand(MCOperand::createImm(ARMCC::AL));
+  NopInst.addOperand(MCOperand::createReg(0));
 }
 
 unsigned Thumb1InstrInfo::getUnindexedOpcode(unsigned Opc) const {
@@ -41,10 +41,30 @@ void Thumb1InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                   MachineBasicBlock::iterator I, DebugLoc DL,
                                   unsigned DestReg, unsigned SrcReg,
                                   bool KillSrc) const {
-  AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::tMOVr), DestReg)
-    .addReg(SrcReg, getKillRegState(KillSrc)));
+  // Need to check the arch.
+  MachineFunction &MF = *MBB.getParent();
+  const ARMSubtarget &st = MF.getSubtarget<ARMSubtarget>();
+
   assert(ARM::GPRRegClass.contains(DestReg, SrcReg) &&
          "Thumb1 can only copy GPR registers");
+
+  if (st.hasV6Ops() || ARM::hGPRRegClass.contains(SrcReg)
+      || !ARM::tGPRRegClass.contains(DestReg))
+    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::tMOVr), DestReg)
+      .addReg(SrcReg, getKillRegState(KillSrc)));
+  else {
+    // FIXME: The performance consequences of this are going to be atrocious.
+    // Some things to try that should be better:
+    //   * 'mov hi, $src; mov $dst, hi', with hi as either r10 or r11
+    //   * 'movs $dst, $src' if cpsr isn't live
+    // See: http://lists.llvm.org/pipermail/llvm-dev/2014-August/075998.html
+
+    // 'MOV lo, lo' is unpredictable on < v6, so use the stack to do it
+    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::tPUSH)))
+      .addReg(SrcReg, getKillRegState(KillSrc));
+    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::tPOP)))
+      .addReg(DestReg, getDefRegState(true));
+  }
 }
 
 void Thumb1InstrInfo::
@@ -100,4 +120,13 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::tLDRspi), DestReg)
                    .addFrameIndex(FI).addImm(0).addMemOperand(MMO));
   }
+}
+
+void
+Thumb1InstrInfo::expandLoadStackGuard(MachineBasicBlock::iterator MI,
+                                      Reloc::Model RM) const {
+  if (RM == Reloc::PIC_)
+    expandLoadStackGuardBase(MI, ARM::tLDRLIT_ga_pcrel, ARM::tLDRi, RM);
+  else
+    expandLoadStackGuardBase(MI, ARM::tLDRLIT_ga_abs, ARM::tLDRi, RM);
 }

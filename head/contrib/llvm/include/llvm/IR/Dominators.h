@@ -31,18 +31,19 @@
 
 namespace llvm {
 
-EXTERN_TEMPLATE_INSTANTIATION(class DomTreeNodeBase<BasicBlock>);
-EXTERN_TEMPLATE_INSTANTIATION(class DominatorTreeBase<BasicBlock>);
+// FIXME: Replace this brittle forward declaration with the include of the new
+// PassManager.h when doing so doesn't break the PassManagerBuilder.
+template <typename IRUnitT> class AnalysisManager;
+class PreservedAnalyses;
 
-#define LLVM_COMMA ,
-EXTERN_TEMPLATE_INSTANTIATION(void Calculate<Function LLVM_COMMA BasicBlock *>(
-    DominatorTreeBase<GraphTraits<BasicBlock *>::NodeType> &DT LLVM_COMMA
-        Function &F));
-EXTERN_TEMPLATE_INSTANTIATION(
-    void Calculate<Function LLVM_COMMA Inverse<BasicBlock *> >(
-        DominatorTreeBase<GraphTraits<Inverse<BasicBlock *> >::NodeType> &DT
-            LLVM_COMMA Function &F));
-#undef LLVM_COMMA
+extern template class DomTreeNodeBase<BasicBlock>;
+extern template class DominatorTreeBase<BasicBlock>;
+
+extern template void Calculate<Function, BasicBlock *>(
+    DominatorTreeBase<GraphTraits<BasicBlock *>::NodeType> &DT, Function &F);
+extern template void Calculate<Function, Inverse<BasicBlock *>>(
+    DominatorTreeBase<GraphTraits<Inverse<BasicBlock *>>::NodeType> &DT,
+    Function &F);
 
 typedef DomTreeNodeBase<BasicBlock> DomTreeNode;
 
@@ -68,6 +69,13 @@ public:
   typedef DominatorTreeBase<BasicBlock> Base;
 
   DominatorTree() : DominatorTreeBase<BasicBlock>(false) {}
+
+  DominatorTree(DominatorTree &&Arg)
+      : Base(std::move(static_cast<Base &>(Arg))) {}
+  DominatorTree &operator=(DominatorTree &&RHS) {
+    Base::operator=(std::move(static_cast<Base &>(RHS)));
+    return *this;
+  }
 
   /// \brief Returns *false* if the other dominator tree matches this dominator
   /// tree.
@@ -155,6 +163,43 @@ template <> struct GraphTraits<DominatorTree*>
 };
 
 /// \brief Analysis pass which computes a \c DominatorTree.
+class DominatorTreeAnalysis {
+public:
+  /// \brief Provide the result typedef for this analysis pass.
+  typedef DominatorTree Result;
+
+  /// \brief Opaque, unique identifier for this analysis pass.
+  static void *ID() { return (void *)&PassID; }
+
+  /// \brief Run the analysis pass over a function and produce a dominator tree.
+  DominatorTree run(Function &F);
+
+  /// \brief Provide access to a name for this pass for debugging purposes.
+  static StringRef name() { return "DominatorTreeAnalysis"; }
+
+private:
+  static char PassID;
+};
+
+/// \brief Printer pass for the \c DominatorTree.
+class DominatorTreePrinterPass {
+  raw_ostream &OS;
+
+public:
+  explicit DominatorTreePrinterPass(raw_ostream &OS);
+  PreservedAnalyses run(Function &F, AnalysisManager<Function> *AM);
+
+  static StringRef name() { return "DominatorTreePrinterPass"; }
+};
+
+/// \brief Verifier pass for the \c DominatorTree.
+struct DominatorTreeVerifierPass {
+  PreservedAnalyses run(Function &F, AnalysisManager<Function> *AM);
+
+  static StringRef name() { return "DominatorTreeVerifierPass"; }
+};
+
+/// \brief Legacy analysis pass which computes a \c DominatorTree.
 class DominatorTreeWrapperPass : public FunctionPass {
   DominatorTree DT;
 

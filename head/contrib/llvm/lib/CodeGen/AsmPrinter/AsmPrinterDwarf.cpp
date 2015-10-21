@@ -12,21 +12,25 @@
 //===----------------------------------------------------------------------===//
 
 #include "ByteStreamer.h"
-#include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/ADT/SmallBitVector.h"
+#include "DwarfDebug.h"
+#include "DwarfExpression.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/CodeGen/AsmPrinter.h"
+#include "llvm/CodeGen/DIE.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MachineLocation.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "asm-printer"
@@ -38,30 +42,30 @@ using namespace llvm;
 /// EmitSLEB128 - emit the specified signed leb128 value.
 void AsmPrinter::EmitSLEB128(int64_t Value, const char *Desc) const {
   if (isVerbose() && Desc)
-    OutStreamer.AddComment(Desc);
+    OutStreamer->AddComment(Desc);
 
-  OutStreamer.EmitSLEB128IntValue(Value);
+  OutStreamer->EmitSLEB128IntValue(Value);
 }
 
 /// EmitULEB128 - emit the specified signed leb128 value.
 void AsmPrinter::EmitULEB128(uint64_t Value, const char *Desc,
                              unsigned PadTo) const {
   if (isVerbose() && Desc)
-    OutStreamer.AddComment(Desc);
+    OutStreamer->AddComment(Desc);
 
-  OutStreamer.EmitULEB128IntValue(Value, PadTo);
+  OutStreamer->EmitULEB128IntValue(Value, PadTo);
 }
 
 /// EmitCFAByte - Emit a .byte 42 directive for a DW_CFA_xxx value.
 void AsmPrinter::EmitCFAByte(unsigned Val) const {
   if (isVerbose()) {
     if (Val >= dwarf::DW_CFA_offset && Val < dwarf::DW_CFA_offset + 64)
-      OutStreamer.AddComment("DW_CFA_offset + Reg (" +
-                             Twine(Val - dwarf::DW_CFA_offset) + ")");
+      OutStreamer->AddComment("DW_CFA_offset + Reg (" +
+                              Twine(Val - dwarf::DW_CFA_offset) + ")");
     else
-      OutStreamer.AddComment(dwarf::CallFrameString(Val));
+      OutStreamer->AddComment(dwarf::CallFrameString(Val));
   }
-  OutStreamer.EmitIntValue(Val, 1);
+  OutStreamer->EmitIntValue(Val, 1);
 }
 
 static const char *DecodeDWARFEncoding(unsigned Encoding) {
@@ -112,13 +116,13 @@ static const char *DecodeDWARFEncoding(unsigned Encoding) {
 void AsmPrinter::EmitEncodingByte(unsigned Val, const char *Desc) const {
   if (isVerbose()) {
     if (Desc)
-      OutStreamer.AddComment(Twine(Desc) + " Encoding = " +
-                             Twine(DecodeDWARFEncoding(Val)));
+      OutStreamer->AddComment(Twine(Desc) + " Encoding = " +
+                              Twine(DecodeDWARFEncoding(Val)));
     else
-      OutStreamer.AddComment(Twine("Encoding = ") + DecodeDWARFEncoding(Val));
+      OutStreamer->AddComment(Twine("Encoding = ") + DecodeDWARFEncoding(Val));
   }
 
-  OutStreamer.EmitIntValue(Val, 1);
+  OutStreamer->EmitIntValue(Val, 1);
 }
 
 /// GetSizeOfEncodedValue - Return the size of the encoding in bytes.
@@ -146,215 +150,71 @@ void AsmPrinter::EmitTTypeReference(const GlobalValue *GV,
     const TargetLoweringObjectFile &TLOF = getObjFileLowering();
 
     const MCExpr *Exp =
-        TLOF.getTTypeGlobalReference(GV, Encoding, *Mang, TM, MMI, OutStreamer);
-    OutStreamer.EmitValue(Exp, GetSizeOfEncodedValue(Encoding));
+        TLOF.getTTypeGlobalReference(GV, Encoding, *Mang, TM, MMI,
+                                     *OutStreamer);
+    OutStreamer->EmitValue(Exp, GetSizeOfEncodedValue(Encoding));
   } else
-    OutStreamer.EmitIntValue(0, GetSizeOfEncodedValue(Encoding));
+    OutStreamer->EmitIntValue(0, GetSizeOfEncodedValue(Encoding));
 }
 
-/// EmitSectionOffset - Emit the 4-byte offset of Label from the start of its
-/// section.  This can be done with a special directive if the target supports
-/// it (e.g. cygwin) or by emitting it as an offset from a label at the start
-/// of the section.
-///
-/// SectionLabel is a temporary label emitted at the start of the section that
-/// Label lives in.
-void AsmPrinter::EmitSectionOffset(const MCSymbol *Label,
-                                   const MCSymbol *SectionLabel) const {
-  // On COFF targets, we have to emit the special .secrel32 directive.
-  if (MAI->needsDwarfSectionOffsetDirective()) {
-    OutStreamer.EmitCOFFSecRel32(Label);
-    return;
-  }
+void AsmPrinter::emitDwarfSymbolReference(const MCSymbol *Label,
+                                          bool ForceOffset) const {
+  if (!ForceOffset) {
+    // On COFF targets, we have to emit the special .secrel32 directive.
+    if (MAI->needsDwarfSectionOffsetDirective()) {
+      OutStreamer->EmitCOFFSecRel32(Label);
+      return;
+    }
 
-  // Get the section that we're referring to, based on SectionLabel.
-  const MCSection &Section = SectionLabel->getSection();
-
-  // If Label has already been emitted, verify that it is in the same section as
-  // section label for sanity.
-  assert((!Label->isInSection() || &Label->getSection() == &Section) &&
-         "Section offset using wrong section base for label");
-
-  // If the section in question will end up with an address of 0 anyway, we can
-  // just emit an absolute reference to save a relocation.
-  if (Section.isBaseAddressKnownZero()) {
-    OutStreamer.EmitSymbolValue(Label, 4);
-    return;
-  }
-
-  // Otherwise, emit it as a label difference from the start of the section.
-  EmitLabelDifference(Label, SectionLabel, 4);
-}
-
-/// Emit a dwarf register operation.
-static void emitDwarfRegOp(ByteStreamer &Streamer, int Reg) {
-  assert(Reg >= 0);
-  if (Reg < 32) {
-    Streamer.EmitInt8(dwarf::DW_OP_reg0 + Reg,
-                      dwarf::OperationEncodingString(dwarf::DW_OP_reg0 + Reg));
-  } else {
-    Streamer.EmitInt8(dwarf::DW_OP_regx, "DW_OP_regx");
-    Streamer.EmitULEB128(Reg, Twine(Reg));
-  }
-}
-
-/// Emit an (double-)indirect dwarf register operation.
-static void emitDwarfRegOpIndirect(ByteStreamer &Streamer, int Reg, int Offset,
-                                   bool Deref) {
-  assert(Reg >= 0);
-  if (Reg < 32) {
-    Streamer.EmitInt8(dwarf::DW_OP_breg0 + Reg,
-                      dwarf::OperationEncodingString(dwarf::DW_OP_breg0 + Reg));
-  } else {
-    Streamer.EmitInt8(dwarf::DW_OP_bregx, "DW_OP_bregx");
-    Streamer.EmitULEB128(Reg, Twine(Reg));
-  }
-  Streamer.EmitSLEB128(Offset);
-  if (Deref)
-    Streamer.EmitInt8(dwarf::DW_OP_deref, "DW_OP_deref");
-}
-
-/// Emit a dwarf register operation for describing
-/// - a small value occupying only part of a register or
-/// - a small register representing only part of a value.
-static void emitDwarfOpPiece(ByteStreamer &Streamer, unsigned SizeInBits,
-                             unsigned OffsetInBits) {
-  assert(SizeInBits > 0 && "zero-sized piece");
-  unsigned SizeOfByte = 8;
-  if (OffsetInBits > 0 || SizeInBits % SizeOfByte) {
-    Streamer.EmitInt8(dwarf::DW_OP_bit_piece, "DW_OP_bit_piece");
-    Streamer.EmitULEB128(SizeInBits, Twine(SizeInBits));
-    Streamer.EmitULEB128(OffsetInBits, Twine(OffsetInBits));
-  } else {
-    Streamer.EmitInt8(dwarf::DW_OP_piece, "DW_OP_piece");
-    unsigned ByteSize = SizeInBits / SizeOfByte;
-    Streamer.EmitULEB128(ByteSize, Twine(ByteSize));
-  }
-}
-
-/// Emit a shift-right dwarf expression.
-static void emitDwarfOpShr(ByteStreamer &Streamer,
-                           unsigned ShiftBy) {
-  Streamer.EmitInt8(dwarf::DW_OP_constu, "DW_OP_constu");
-  Streamer.EmitULEB128(ShiftBy);
-  Streamer.EmitInt8(dwarf::DW_OP_shr, "DW_OP_shr");
-}
-
-// Some targets do not provide a DWARF register number for every
-// register.  This function attempts to emit a DWARF register by
-// emitting a piece of a super-register or by piecing together
-// multiple subregisters that alias the register.
-void AsmPrinter::EmitDwarfRegOpPiece(ByteStreamer &Streamer,
-                                     const MachineLocation &MLoc,
-                                     unsigned PieceSizeInBits,
-                                     unsigned PieceOffsetInBits) const {
-  assert(MLoc.isReg() && "MLoc must be a register");
-  const TargetRegisterInfo *TRI = TM.getRegisterInfo();
-  int Reg = TRI->getDwarfRegNum(MLoc.getReg(), false);
-
-  // If this is a valid register number, emit it.
-  if (Reg >= 0) {
-    emitDwarfRegOp(Streamer, Reg);
-    emitDwarfOpPiece(Streamer, PieceSizeInBits, PieceOffsetInBits);
-    return;
-  }
-
-  // Walk up the super-register chain until we find a valid number.
-  // For example, EAX on x86_64 is a 32-bit piece of RAX with offset 0.
-  for (MCSuperRegIterator SR(MLoc.getReg(), TRI); SR.isValid(); ++SR) {
-    Reg = TRI->getDwarfRegNum(*SR, false);
-    if (Reg >= 0) {
-      unsigned Idx = TRI->getSubRegIndex(*SR, MLoc.getReg());
-      unsigned Size = TRI->getSubRegIdxSize(Idx);
-      unsigned Offset = TRI->getSubRegIdxOffset(Idx);
-      OutStreamer.AddComment("super-register");
-      emitDwarfRegOp(Streamer, Reg);
-      if (PieceOffsetInBits == Offset) {
-        emitDwarfOpPiece(Streamer, Size, Offset);
-      } else {
-        // If this is part of a variable in a sub-register at a
-        // non-zero offset, we need to manually shift the value into
-        // place, since the DW_OP_piece describes the part of the
-        // variable, not the position of the subregister.
-        emitDwarfOpPiece(Streamer, Size, PieceOffsetInBits);
-        if (Offset)
-          emitDwarfOpShr(Streamer, Offset);
-      }
+    // If the format uses relocations with dwarf, refer to the symbol directly.
+    if (MAI->doesDwarfUseRelocationsAcrossSections()) {
+      OutStreamer->EmitSymbolValue(Label, 4);
       return;
     }
   }
 
-  // Otherwise, attempt to find a covering set of sub-register numbers.
-  // For example, Q0 on ARM is a composition of D0+D1.
-  //
-  // Keep track of the current position so we can emit the more
-  // efficient DW_OP_piece.
-  unsigned CurPos = PieceOffsetInBits;
-  // The size of the register in bits, assuming 8 bits per byte.
-  unsigned RegSize = TRI->getMinimalPhysRegClass(MLoc.getReg())->getSize() * 8;
-  // Keep track of the bits in the register we already emitted, so we
-  // can avoid emitting redundant aliasing subregs.
-  SmallBitVector Coverage(RegSize, false);
-  for (MCSubRegIterator SR(MLoc.getReg(), TRI); SR.isValid(); ++SR) {
-    unsigned Idx = TRI->getSubRegIndex(MLoc.getReg(), *SR);
-    unsigned Size = TRI->getSubRegIdxSize(Idx);
-    unsigned Offset = TRI->getSubRegIdxOffset(Idx);
-    Reg = TRI->getDwarfRegNum(*SR, false);
+  // Otherwise, emit it as a label difference from the start of the section.
+  EmitLabelDifference(Label, Label->getSection().getBeginSymbol(), 4);
+}
 
-    // Intersection between the bits we already emitted and the bits
-    // covered by this subregister.
-    SmallBitVector Intersection(RegSize, false);
-    Intersection.set(Offset, Offset + Size);
-    Intersection ^= Coverage;
-
-    // If this sub-register has a DWARF number and we haven't covered
-    // its range, emit a DWARF piece for it.
-    if (Reg >= 0 && Intersection.any()) {
-      OutStreamer.AddComment("sub-register");
-      emitDwarfRegOp(Streamer, Reg);
-      emitDwarfOpPiece(Streamer, Size, Offset == CurPos ? 0 : Offset);
-      CurPos = Offset + Size;
-
-      // Mark it as emitted.
-      Coverage.set(Offset, Offset + Size);
-    }
+void AsmPrinter::emitDwarfStringOffset(DwarfStringPoolEntryRef S) const {
+  if (MAI->doesDwarfUseRelocationsAcrossSections()) {
+    emitDwarfSymbolReference(S.getSymbol());
+    return;
   }
 
-  if (CurPos == PieceOffsetInBits) {
-    // FIXME: We have no reasonable way of handling errors in here.
-    Streamer.EmitInt8(dwarf::DW_OP_nop,
-                      "nop (could not find a dwarf register number)");
-  }
+  // Just emit the offset directly; no need for symbol math.
+  EmitInt32(S.getOffset());
 }
 
 /// EmitDwarfRegOp - Emit dwarf register operation.
 void AsmPrinter::EmitDwarfRegOp(ByteStreamer &Streamer,
-                                const MachineLocation &MLoc,
-                                bool Indirect) const {
-  const TargetRegisterInfo *TRI = TM.getRegisterInfo();
-  int Reg = TRI->getDwarfRegNum(MLoc.getReg(), false);
+                                const MachineLocation &MLoc) const {
+  DebugLocDwarfExpression Expr(*MF->getSubtarget().getRegisterInfo(),
+                               getDwarfDebug()->getDwarfVersion(), Streamer);
+  const MCRegisterInfo *MRI = MMI->getContext().getRegisterInfo();
+  int Reg = MRI->getDwarfRegNum(MLoc.getReg(), false);
   if (Reg < 0) {
     // We assume that pointers are always in an addressable register.
-    if (Indirect || MLoc.isIndirect()) {
+    if (MLoc.isIndirect())
       // FIXME: We have no reasonable way of handling errors in here. The
       // caller might be in the middle of a dwarf expression. We should
       // probably assert that Reg >= 0 once debug info generation is more
       // mature.
-      Streamer.EmitInt8(dwarf::DW_OP_nop,
-                        "nop (invalid dwarf register number for indirect loc)");
-      return;
-    }
+      return Expr.EmitOp(dwarf::DW_OP_nop,
+                         "nop (could not find a dwarf register number)");
 
     // Attempt to find a valid super- or sub-register.
-    return EmitDwarfRegOpPiece(Streamer, MLoc);
+    if (!Expr.AddMachineRegPiece(MLoc.getReg()))
+      Expr.EmitOp(dwarf::DW_OP_nop,
+                  "nop (could not find a dwarf register number)");
+    return;
   }
 
   if (MLoc.isIndirect())
-    emitDwarfRegOpIndirect(Streamer, Reg, MLoc.getOffset(), Indirect);
-  else if (Indirect)
-    emitDwarfRegOpIndirect(Streamer, Reg, 0, false);
+    Expr.AddRegIndirect(Reg, MLoc.getOffset());
   else
-    emitDwarfRegOp(Streamer, Reg);
+    Expr.AddReg(Reg);
 }
 
 //===----------------------------------------------------------------------===//
@@ -366,25 +226,75 @@ void AsmPrinter::emitCFIInstruction(const MCCFIInstruction &Inst) const {
   default:
     llvm_unreachable("Unexpected instruction");
   case MCCFIInstruction::OpDefCfaOffset:
-    OutStreamer.EmitCFIDefCfaOffset(Inst.getOffset());
+    OutStreamer->EmitCFIDefCfaOffset(Inst.getOffset());
     break;
   case MCCFIInstruction::OpDefCfa:
-    OutStreamer.EmitCFIDefCfa(Inst.getRegister(), Inst.getOffset());
+    OutStreamer->EmitCFIDefCfa(Inst.getRegister(), Inst.getOffset());
     break;
   case MCCFIInstruction::OpDefCfaRegister:
-    OutStreamer.EmitCFIDefCfaRegister(Inst.getRegister());
+    OutStreamer->EmitCFIDefCfaRegister(Inst.getRegister());
     break;
   case MCCFIInstruction::OpOffset:
-    OutStreamer.EmitCFIOffset(Inst.getRegister(), Inst.getOffset());
+    OutStreamer->EmitCFIOffset(Inst.getRegister(), Inst.getOffset());
     break;
   case MCCFIInstruction::OpRegister:
-    OutStreamer.EmitCFIRegister(Inst.getRegister(), Inst.getRegister2());
+    OutStreamer->EmitCFIRegister(Inst.getRegister(), Inst.getRegister2());
     break;
   case MCCFIInstruction::OpWindowSave:
-    OutStreamer.EmitCFIWindowSave();
+    OutStreamer->EmitCFIWindowSave();
     break;
   case MCCFIInstruction::OpSameValue:
-    OutStreamer.EmitCFISameValue(Inst.getRegister());
+    OutStreamer->EmitCFISameValue(Inst.getRegister());
     break;
   }
+}
+
+void AsmPrinter::emitDwarfDIE(const DIE &Die) const {
+  // Emit the code (index) for the abbreviation.
+  if (isVerbose())
+    OutStreamer->AddComment("Abbrev [" + Twine(Die.getAbbrevNumber()) + "] 0x" +
+                            Twine::utohexstr(Die.getOffset()) + ":0x" +
+                            Twine::utohexstr(Die.getSize()) + " " +
+                            dwarf::TagString(Die.getTag()));
+  EmitULEB128(Die.getAbbrevNumber());
+
+  // Emit the DIE attribute values.
+  for (const auto &V : Die.values()) {
+    dwarf::Attribute Attr = V.getAttribute();
+    assert(V.getForm() && "Too many attributes for DIE (check abbreviation)");
+
+    if (isVerbose()) {
+      OutStreamer->AddComment(dwarf::AttributeString(Attr));
+      if (Attr == dwarf::DW_AT_accessibility)
+        OutStreamer->AddComment(
+            dwarf::AccessibilityString(V.getDIEInteger().getValue()));
+    }
+
+    // Emit an attribute using the defined form.
+    V.EmitValue(this);
+  }
+
+  // Emit the DIE children if any.
+  if (Die.hasChildren()) {
+    for (auto &Child : Die.children())
+      emitDwarfDIE(Child);
+
+    OutStreamer->AddComment("End Of Children Mark");
+    EmitInt8(0);
+  }
+}
+
+void
+AsmPrinter::emitDwarfAbbrevs(const std::vector<DIEAbbrev *>& Abbrevs) const {
+  // For each abbrevation.
+  for (const DIEAbbrev *Abbrev : Abbrevs) {
+    // Emit the abbrevations code (base 1 index.)
+    EmitULEB128(Abbrev->getNumber(), "Abbreviation Code");
+
+    // Emit the abbreviations data.
+    Abbrev->Emit(this);
+  }
+
+  // Mark end of abbreviations.
+  EmitULEB128(0, "EOM(3)");
 }

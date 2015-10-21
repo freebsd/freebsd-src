@@ -1052,7 +1052,7 @@ struct card
  */
 #define IOREF_CSR 1  /* access Tulip CSRs with IO cycles if 1 */
 
-#if (defined(__FreeBSD__) && defined(DEVICE_POLLING))
+#if defined(DEVICE_POLLING)
 # define DEV_POLL 1
 #else
 # define DEV_POLL 0
@@ -1076,15 +1076,10 @@ struct softc
   struct ifnet *ifp;
   struct ifmedia ifm;		/* hooks for ifconfig(8) */
 # if NSPPP
-#  if (__FreeBSD_version < 600000)
-  struct sppp spppcom;		/* must be first in sc for fbsd < 6 */
-#  endif
   struct sppp *sppp;
 # elif P2P
   struct p2pcom p2pcom;
   struct p2pcom *p2p;
-# elif (__FreeBSD_version < 600000)
-  struct ifnet ifnet;		/* must be first in sc for fbsd < 6 */
 # endif
 #endif
 
@@ -1092,13 +1087,8 @@ struct softc
 #if NETGRAPH
   node_p	ng_node;	/* pointer to our node struct              */
   hook_p	ng_hook;	/* non-zero means NETGRAPH owns device     */
-# if (__FreeBSD_version >= 503000)
   struct ifaltq	ng_sndq;
   struct ifaltq ng_fastq;
-# else
-  struct ifqueue ng_sndq;
-  struct ifqueue ng_fastq;
-# endif
 #endif
 
   struct callout callout;	/* watchdog needs this                  */
@@ -1115,13 +1105,8 @@ struct softc
 # ifdef DEVICE_POLLING
   int		quota;		/* used for incoming packet flow control   */
 # endif
-# if (__FreeBSD_version >= 500000)
   struct mtx	top_mtx;	/* lock card->watchdog vs core_ioctl       */
   struct mtx	bottom_mtx;	/* lock for buf queues & descriptor rings  */
-# else /* FreeBSD-4 */
-  int		top_spl;	/* lock card->watchdog vs core_ioctl       */
-  int		bottom_spl;	/* lock for buf queues & descriptor rings  */
-# endif
 
 
   /* Top-half state used by all card types; lock with top_lock,            */
@@ -1154,23 +1139,11 @@ struct softc
 # define WRITE_CSR(csr, val)	bus_space_write_4(sc->csr_tag, sc->csr_handle, csr, val)
 # define NAME_UNIT		device_get_nameunit(sc->dev)
 # define DRIVER_DEBUG		((sc->config.debug) || (sc->ifp->if_flags & IFF_DEBUG))
-# if (__FreeBSD_version >= 500000)
-#  define TOP_TRYLOCK		mtx_trylock(&sc->top_mtx)
-#  define TOP_UNLOCK		mtx_unlock (&sc->top_mtx)
-#  define BOTTOM_TRYLOCK	mtx_trylock(&sc->bottom_mtx)
-#  define BOTTOM_UNLOCK		mtx_unlock (&sc->bottom_mtx)
-#  if (__FreeBSD_version >= 700000)
-#   define CHECK_CAP		priv_check(curthread, PRIV_DRIVER)
-#  else
-#   define CHECK_CAP		suser(curthread)
-#  endif
-# else /* FreeBSD-4 */
-#  define TOP_TRYLOCK		(sc->top_spl = splimp())
-#  define TOP_UNLOCK		splx(sc->top_spl)
-#  define BOTTOM_TRYLOCK	1 /* giant_lock protects */
-#  define BOTTOM_UNLOCK		/* nothing */
-#  define CHECK_CAP		suser(curproc)
-# endif
+# define TOP_TRYLOCK		mtx_trylock(&sc->top_mtx)
+# define TOP_UNLOCK		mtx_unlock (&sc->top_mtx)
+# define BOTTOM_TRYLOCK		mtx_trylock(&sc->bottom_mtx)
+# define BOTTOM_UNLOCK		mtx_unlock (&sc->bottom_mtx)
+# define CHECK_CAP		priv_check(curthread, PRIV_DRIVER)
 # define DISABLE_INTR		/* nothing */
 # define ENABLE_INTR		/* nothing */
 # define IRQ_NONE		/* nothing */
@@ -1181,68 +1154,19 @@ struct softc
 # define DMA_SYNC(map, size, flags) bus_dmamap_sync(ring->tag, map, flags)
 # define DMA_LOAD(map, addr, size)  bus_dmamap_load(ring->tag, map, addr, size, fbsd_dmamap_load, ring, 0)
 # if (NBPFILTER != 0)
-#  if (__FreeBSD_version >= 500000)
-#   define LMC_BPF_MTAP(mbuf)	BPF_MTAP(sc->ifp, mbuf)
-#  else  /* FreeBSD-4 */
-#   define LMC_BPF_MTAP(mbuf)	if (sc->ifp->if_bpf) bpf_mtap(sc->ifp, mbuf)
-#  endif
+#  define LMC_BPF_MTAP(mbuf)	BPF_MTAP(sc->ifp, mbuf)
 #  define LMC_BPF_ATTACH(dlt, len) bpfattach(sc->ifp, dlt, len)
 #  define LMC_BPF_DETACH	   bpfdetach(sc->ifp)
 # endif
-# if (__FreeBSD_version >= 500000)
-#  define IF_DROP(ifq)		_IF_DROP(ifq)
-#  define IF_QFULL(ifq)		_IF_QFULL(ifq)
-# endif
-# if (__FreeBSD_version < 500000)
-#  define INTR_MPSAFE		0
-#  define BUS_DMA_COHERENT	0
-# endif
-# if (__FreeBSD_version >= 600000)
-#  define IFF_RUNNING		IFF_DRV_RUNNING
-# endif
-
-
-
+# define IF_DROP(ifq)		_IF_DROP(ifq)
+# define IF_QFULL(ifq)		_IF_QFULL(ifq)
+# define IFF_RUNNING		IFF_DRV_RUNNING
 
 
 #if (NBPFILTER == 0)
 # define LMC_BPF_MTAP(mbuf)		/* nothing */
 # define LMC_BPF_ATTACH(dlt, len)	/* nothing */
 # define LMC_BPF_DETACH			/* nothing */
-#endif
-
-#if (defined(__bsdi__) || /* unconditionally */ \
-    (defined(__FreeBSD__) && (__FreeBSD_version < 503000)) || \
-    (defined(__NetBSD__)  && (__NetBSD_Version__ < 106000000)) || \
-    (defined(__OpenBSD__) && (  OpenBSD < 200111)))
-# define IFQ_ENQUEUE(ifq, m, pa, err)   \
-do {					\
-  if (pa==0); /* suppress warning */	\
-  if (IF_QFULL(ifq))			\
-    {					\
-    IF_DROP(ifq);			\
-    m_freem(m);				\
-    err = ENOBUFS;			\
-    }					\
-  else					\
-    {					\
-    IF_ENQUEUE(ifq, m);			\
-    err = 0;				\
-    }					\
-   } while (0)
-# define IFQ_DEQUEUE(ifq, m)		do { IF_DEQUEUE((ifq), m) } while (0)
-# define IFQ_IS_EMPTY(ifq)		((ifq)->ifq_head == NULL)
-# define IFQ_SET_MAXLEN(ifq, len)	(ifq)->ifq_maxlen = len
-# define IFQ_SET_READY(ifq)		/* nothing */
-# define IFQ_PURGE(ifq)			\
-do {					\
-  while ((ifq)->ifq_head != NULL)	\
-    {					\
-    struct mbuf *m;			\
-    IF_DEQUEUE(ifq, m);			\
-    m_freem(m);				\
-    }					\
-   } while (0)
 #endif
 
 #define HSSI_DESC "SBE/LMC HSSI Card"
@@ -1315,10 +1239,6 @@ static void t1_send_bop(softc_t *, int);
 static int  t1_ioctl(softc_t *, struct ioctl *);
 
 #if IFNET
-# if ((defined(__FreeBSD__) && (__FreeBSD_version < 500000)) ||\
-        defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__))
-static void netisr_dispatch(int, struct mbuf *);
-# endif
 static void lmc_raw_input(struct ifnet *, struct mbuf *);
 #endif /* IFNET */
 
@@ -1372,25 +1292,12 @@ static void lmc_ifnet_detach(softc_t *);
 #endif /* IFNET */
 
 #if NETGRAPH
-# if (__FreeBSD_version >= 500000)
 static int ng_constructor(node_p);
-# else /* FreeBSD-4 */
-static int ng_constructor(node_p *);
-# endif
-# if (__FreeBSD_version >= 500000)
 static int ng_rcvmsg(node_p, item_p, hook_p);
-# else /* FreeBSD-4 */
-static int ng_rcvmsg(node_p, struct ng_mesg *,
- const char *,  struct ng_mesg **);
-# endif
 static int ng_shutdown(node_p);
 static int ng_newhook(node_p, hook_p, const char *);
 static int ng_connect(hook_p);
-# if (__FreeBSD_version >= 500000)
 static int ng_rcvdata(hook_p, item_p);
-# else /* FreeBSD-4 */
-static int ng_rcvdata(hook_p, struct mbuf *, meta_p);
-# endif
 static int ng_disconnect(hook_p);
 # if (IFNET == 0)
 static void ng_watchdog(void *);

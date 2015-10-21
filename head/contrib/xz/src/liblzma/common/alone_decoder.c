@@ -51,7 +51,7 @@ struct lzma_coder_s {
 
 static lzma_ret
 alone_decode(lzma_coder *coder,
-		lzma_allocator *allocator lzma_attribute((__unused__)),
+		const lzma_allocator *allocator lzma_attribute((__unused__)),
 		const uint8_t *restrict in, size_t *restrict in_pos,
 		size_t in_size, uint8_t *restrict out,
 		size_t *restrict out_pos, size_t out_size,
@@ -166,7 +166,7 @@ alone_decode(lzma_coder *coder,
 
 
 static void
-alone_decoder_end(lzma_coder *coder, lzma_allocator *allocator)
+alone_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
 {
 	lzma_next_end(&coder->next, allocator);
 	lzma_free(coder, allocator);
@@ -193,7 +193,7 @@ alone_decoder_memconfig(lzma_coder *coder, uint64_t *memusage,
 
 
 extern lzma_ret
-lzma_alone_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+lzma_alone_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		uint64_t memlimit, bool picky)
 {
 	lzma_next_coder_init(&lzma_alone_decoder_init, next, allocator);

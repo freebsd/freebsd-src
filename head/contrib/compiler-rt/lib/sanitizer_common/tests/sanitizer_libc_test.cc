@@ -17,6 +17,7 @@
 #if SANITIZER_LINUX || SANITIZER_MAC
 # define SANITIZER_TEST_HAS_STAT_H 1
 # include <sys/stat.h>
+# include "sanitizer_common/sanitizer_posix.h"
 #else
 # define SANITIZER_TEST_HAS_STAT_H 0
 #endif
@@ -55,6 +56,19 @@ struct stat_and_more {
   unsigned char z;
 };
 
+static void temp_file_name(char *buf, size_t bufsize, const char *prefix) {
+  const char *tmpdir = "/tmp";
+#if SANITIZER_ANDROID
+  // I don't know a way to query temp directory location on Android without
+  // going through Java interfaces. The code below is not ideal, but should
+  // work. May require "adb root", but it is needed for almost any use of ASan
+  // on Android already.
+  tmpdir = GetEnv("EXTERNAL_STORAGE");
+#endif
+  u32 uid = GetUid();
+  internal_snprintf(buf, bufsize, "%s/%s%d", tmpdir, prefix, uid);
+}
+
 // FIXME: File manipulations are not yet supported on Windows
 #if !defined(_WIN32)
 TEST(SanitizerCommon, FileOps) {
@@ -63,37 +77,23 @@ TEST(SanitizerCommon, FileOps) {
   const char *str2 = "zxcv";
   uptr len2 = internal_strlen(str2);
 
-  u32 uid = GetUid();
-  char temp_filename[128];
-#if SANITIZER_ANDROID
-  // I don't know a way to query temp directory location on Android without
-  // going through Java interfaces. The code below is not ideal, but should
-  // work. May require "adb root", but it is needed for almost any use of ASan
-  // on Android already.
-  internal_snprintf(temp_filename, sizeof(temp_filename),
-                    "%s/sanitizer_common.tmp.%d",
-                    GetEnv("EXTERNAL_STORAGE"), uid);
-#else
-  internal_snprintf(temp_filename, sizeof(temp_filename),
-                    "/tmp/sanitizer_common.tmp.%d", uid);
-#endif
-  uptr openrv = OpenFile(temp_filename, true);
-  EXPECT_FALSE(internal_iserror(openrv));
-  fd_t fd = openrv;
+  char tmpfile[128];
+  temp_file_name(tmpfile, sizeof(tmpfile), "sanitizer_common.fileops.tmp.");
+  fd_t fd = OpenFile(tmpfile, WrOnly);
+  ASSERT_NE(fd, kInvalidFd);
   EXPECT_EQ(len1, internal_write(fd, str1, len1));
   EXPECT_EQ(len2, internal_write(fd, str2, len2));
-  internal_close(fd);
+  CloseFile(fd);
 
-  openrv = OpenFile(temp_filename, false);
-  EXPECT_FALSE(internal_iserror(openrv));
-  fd = openrv;
+  fd = OpenFile(tmpfile, RdOnly);
+  ASSERT_NE(fd, kInvalidFd);
   uptr fsize = internal_filesize(fd);
   EXPECT_EQ(len1 + len2, fsize);
 
 #if SANITIZER_TEST_HAS_STAT_H
   struct stat st1, st2, st3;
-  EXPECT_EQ(0u, internal_stat(temp_filename, &st1));
-  EXPECT_EQ(0u, internal_lstat(temp_filename, &st2));
+  EXPECT_EQ(0u, internal_stat(tmpfile, &st1));
+  EXPECT_EQ(0u, internal_lstat(tmpfile, &st2));
   EXPECT_EQ(0u, internal_fstat(fd, &st3));
   EXPECT_EQ(fsize, (uptr)st3.st_size);
 
@@ -114,7 +114,8 @@ TEST(SanitizerCommon, FileOps) {
   internal_memset(buf, 0, len1);
   EXPECT_EQ(len2, internal_read(fd, buf, len2));
   EXPECT_EQ(0, internal_memcmp(buf, str2, len2));
-  internal_close(fd);
+  CloseFile(fd);
+  internal_unlink(tmpfile);
 }
 #endif
 
@@ -125,3 +126,34 @@ TEST(SanitizerCommon, InternalStrFunctions) {
   EXPECT_EQ(0, internal_strchr(haystack, 'z'));
   EXPECT_EQ(haystack + 8, internal_strchrnul(haystack, 'z'));
 }
+
+// FIXME: File manipulations are not yet supported on Windows
+#if !defined(_WIN32) && !SANITIZER_MAC
+TEST(SanitizerCommon, InternalMmapWithOffset) {
+  char tmpfile[128];
+  temp_file_name(tmpfile, sizeof(tmpfile),
+                 "sanitizer_common.internalmmapwithoffset.tmp.");
+  fd_t fd = OpenFile(tmpfile, RdWr);
+  ASSERT_NE(fd, kInvalidFd);
+
+  uptr page_size = GetPageSizeCached();
+  uptr res = internal_ftruncate(fd, page_size * 2);
+  ASSERT_FALSE(internal_iserror(res));
+
+  res = internal_lseek(fd, page_size, SEEK_SET);
+  ASSERT_FALSE(internal_iserror(res));
+
+  res = internal_write(fd, "AB", 2);
+  ASSERT_FALSE(internal_iserror(res));
+
+  char *p = (char *)MapWritableFileToMemory(nullptr, page_size, fd, page_size);
+  ASSERT_NE(nullptr, p);
+
+  ASSERT_EQ('A', p[0]);
+  ASSERT_EQ('B', p[1]);
+
+  CloseFile(fd);
+  UnmapOrDie(p, page_size);
+  internal_unlink(tmpfile);
+}
+#endif

@@ -11,12 +11,13 @@ SRCS=	ABI.cpp \
 	CPPLanguageRuntime.cpp \
 	ExecutionContext.cpp \
 	FileAction.cpp \
+	InstrumentationRuntime.cpp \
+	InstrumentationRuntimeStopInfo.cpp \
 	JITLoader.cpp \
 	JITLoaderList.cpp \
 	LanguageRuntime.cpp \
 	Memory.cpp \
-	NativeRegisterContext.cpp \
-	NativeRegisterContextRegisterInfo.cpp \
+	MemoryHistory.cpp \
 	ObjCLanguageRuntime.cpp \
 	OperatingSystem.cpp \
 	PathMappingList.cpp \
@@ -38,11 +39,14 @@ SRCS=	ABI.cpp \
 	Target.cpp \
 	TargetList.cpp \
 	Thread.cpp \
+	ThreadCollection.cpp \
 	ThreadList.cpp \
 	ThreadPlan.cpp \
 	ThreadPlanBase.cpp \
 	ThreadPlanCallFunction.cpp \
+	ThreadPlanCallFunctionUsingABI.cpp \
 	ThreadPlanCallUserExpression.cpp \
+	ThreadPlanPython.cpp \
 	ThreadPlanRunToAddress.cpp \
 	ThreadPlanShouldStopHere.cpp \
 	ThreadPlanStepInRange.cpp \

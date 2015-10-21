@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_LITERALSUPPORT_H
-#define CLANG_LITERALSUPPORT_H
+#ifndef LLVM_CLANG_LEX_LITERALSUPPORT_H
+#define LLVM_CLANG_LEX_LITERALSUPPORT_H
 
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/LLVM.h"
@@ -57,13 +57,13 @@ public:
   NumericLiteralParser(StringRef TokSpelling,
                        SourceLocation TokLoc,
                        Preprocessor &PP);
-  bool hadError;
-  bool isUnsigned;
-  bool isLong;        // This is *not* set for long long.
-  bool isLongLong;
-  bool isFloat;       // 1.0f
-  bool isImaginary;   // 1.0i
-  uint8_t MicrosoftInteger;  // Microsoft suffix extension i8, i16, i32, or i64.
+  bool hadError : 1;
+  bool isUnsigned : 1;
+  bool isLong : 1;          // This is *not* set for long long.
+  bool isLongLong : 1;
+  bool isFloat : 1;         // 1.0f
+  bool isImaginary : 1;     // 1.0i
+  uint8_t MicrosoftInteger; // Microsoft suffix extension i8, i16, i32, or i64.
 
   bool isIntegerLiteral() const {
     return !saw_period && !saw_exponent;

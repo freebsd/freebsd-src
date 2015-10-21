@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #define NBUF 0
 #endif
 #ifndef MAXFILES
-#define	MAXFILES (maxproc * 2)
+#define	MAXFILES (40 + 32 * maxusers)
 #endif
 
 static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS);
@@ -99,11 +99,7 @@ pid_t	pid_max = PID_MAX;
 long	maxswzone;			/* max swmeta KVA storage */
 long	maxbcache;			/* max buffer cache KVA storage */
 long	maxpipekva;			/* Limit on pipe KVA */
-#ifdef XEN
-int	vm_guest = VM_GUEST_XEN;
-#else
 int	vm_guest = VM_GUEST_NO;		/* Running as virtual machine guest? */
-#endif
 u_long	maxtsiz;			/* max text size */
 u_long	dfldsiz;			/* initial data size limit */
 u_long	maxdsiz;			/* max data size */
@@ -143,13 +139,6 @@ SYSCTL_PROC(_kern, OID_AUTO, vm_guest, CTLFLAG_RD | CTLTYPE_STRING,
     "Virtual machine guest detected?");
 
 /*
- * These have to be allocated somewhere; allocating
- * them here forces loader errors if this file is omitted
- * (if they've been externed everywhere else; hah!).
- */
-struct	buf *swbuf;
-
-/*
  * The elements of this array are ordered based upon the values of the
  * corresponding enum VM_GUEST members.
  */
@@ -170,6 +159,9 @@ void
 init_param1(void)
 {
 
+#if !defined(__mips__) && !defined(__arm64__) && !defined(__sparc64__)
+	TUNABLE_INT_FETCH("kern.kstack_pages", &kstack_pages);
+#endif
 	hz = -1;
 	TUNABLE_INT_FETCH("kern.hz", &hz);
 	if (hz == -1)
@@ -261,6 +253,8 @@ init_param2(long physpages)
 	TUNABLE_INT_FETCH("kern.maxproc", &maxproc);
 	if (maxproc > (physpages / 12))
 		maxproc = physpages / 12;
+	if (maxproc > pid_max)
+		maxproc = pid_max;
 	maxprocperuid = (maxproc * 9) / 10;
 
 	/*
@@ -273,7 +267,8 @@ init_param2(long physpages)
 	if (maxfiles > (physpages / 4))
 		maxfiles = physpages / 4;
 	maxfilesperproc = (maxfiles / 10) * 9;
-	
+	TUNABLE_INT_FETCH("kern.maxfilesperproc", &maxfilesperproc);
+
 	/*
 	 * Cannot be changed after boot.
 	 */
@@ -300,6 +295,5 @@ init_param2(long physpages)
 static int
 sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS)
 {
-	return (SYSCTL_OUT(req, vm_guest_sysctl_names[vm_guest], 
-	    strlen(vm_guest_sysctl_names[vm_guest])));
+	return (SYSCTL_OUT_STR(req, vm_guest_sysctl_names[vm_guest]));
 }

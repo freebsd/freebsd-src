@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_COMMENT_SEMA_H
-#define LLVM_CLANG_AST_COMMENT_SEMA_H
+#ifndef LLVM_CLANG_AST_COMMENTSEMA_H
+#define LLVM_CLANG_AST_COMMENTSEMA_H
 
 #include "clang/AST/Comment.h"
 #include "clang/Basic/Diagnostic.h"
@@ -31,8 +31,8 @@ namespace comments {
 class CommandTraits;
 
 class Sema {
-  Sema(const Sema &) LLVM_DELETED_FUNCTION;
-  void operator=(const Sema &) LLVM_DELETED_FUNCTION;
+  Sema(const Sema &) = delete;
+  void operator=(const Sema &) = delete;
 
   /// Allocator for AST nodes.
   llvm::BumpPtrAllocator &Allocator;
@@ -85,7 +85,7 @@ public:
       std::uninitialized_copy(Source.begin(), Source.end(), Mem);
       return llvm::makeArrayRef(Mem, Size);
     }
-    return ArrayRef<T>();
+    return None;
   }
 
   ParagraphComment *actOnParagraphComment(

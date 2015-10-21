@@ -7,10 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86DISASSEMBLERSHARED_H
-#define X86DISASSEMBLERSHARED_H
+#ifndef LLVM_UTILS_TABLEGEN_X86DISASSEMBLERSHARED_H
+#define LLVM_UTILS_TABLEGEN_X86DISASSEMBLERSHARED_H
 
-#include <string.h>
+#include <cstring>
 #include <string>
 
 #include "../../lib/Target/X86/Disassembler/X86DisassemblerDecoderCommon.h"

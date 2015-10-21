@@ -106,13 +106,13 @@ ttm_read_lock(struct ttm_lock *lock, bool interruptible)
 	}
 	mtx_lock(&lock->lock);
 	while (!__ttm_read_lock(lock)) {
-		ret = msleep(lock, &lock->lock, flags, wmsg, 0);
-		if (ret == EINTR)
-			ret = ERESTARTSYS;
+		ret = -msleep(lock, &lock->lock, flags, wmsg, 0);
+		if (ret == -EINTR || ret == -ERESTART)
+			ret = -ERESTARTSYS;
 		if (ret != 0)
 			break;
 	}
-	return (-ret);
+	return (ret);
 }
 
 static bool __ttm_read_trylock(struct ttm_lock *lock, bool *locked)
@@ -152,9 +152,9 @@ int ttm_read_trylock(struct ttm_lock *lock, bool interruptible)
 	}
 	mtx_lock(&lock->lock);
 	while (!__ttm_read_trylock(lock, &locked)) {
-		ret = msleep(lock, &lock->lock, flags, wmsg, 0);
-		if (ret == EINTR)
-			ret = ERESTARTSYS;
+		ret = -msleep(lock, &lock->lock, flags, wmsg, 0);
+		if (ret == -EINTR || ret == -ERESTART)
+			ret = -ERESTARTSYS;
 		if (ret != 0)
 			break;
 	}
@@ -207,9 +207,9 @@ ttm_write_lock(struct ttm_lock *lock, bool interruptible)
 	mtx_lock(&lock->lock);
 	/* XXXKIB: linux uses __ttm_read_lock for uninterruptible sleeps */
 	while (!__ttm_write_lock(lock)) {
-		ret = msleep(lock, &lock->lock, flags, wmsg, 0);
-		if (ret == EINTR)
-			ret = ERESTARTSYS;
+		ret = -msleep(lock, &lock->lock, flags, wmsg, 0);
+		if (ret == -EINTR || ret == -ERESTART)
+			ret = -ERESTARTSYS;
 		if (interruptible && ret != 0) {
 			lock->flags &= ~TTM_WRITE_LOCK_PENDING;
 			wakeup(lock);
@@ -218,7 +218,7 @@ ttm_write_lock(struct ttm_lock *lock, bool interruptible)
 	}
 	mtx_unlock(&lock->lock);
 
-	return (-ret);
+	return (ret);
 }
 
 void ttm_write_lock_downgrade(struct ttm_lock *lock)
@@ -285,9 +285,9 @@ int ttm_vt_lock(struct ttm_lock *lock,
 	}
 	mtx_lock(&lock->lock);
 	while (!__ttm_vt_lock(lock)) {
-		ret = msleep(lock, &lock->lock, flags, wmsg, 0);
-		if (ret == EINTR)
-			ret = ERESTARTSYS;
+		ret = -msleep(lock, &lock->lock, flags, wmsg, 0);
+		if (ret == -EINTR || ret == -ERESTART)
+			ret = -ERESTARTSYS;
 		if (interruptible && ret != 0) {
 			lock->flags &= ~TTM_VT_LOCK_PENDING;
 			wakeup(lock);
@@ -308,7 +308,7 @@ int ttm_vt_lock(struct ttm_lock *lock,
 	else
 		lock->vt_holder = tfile;
 
-	return (-ret);
+	return (ret);
 }
 
 int ttm_vt_unlock(struct ttm_lock *lock)

@@ -16,14 +16,44 @@
 #include "lldb/Expression/ASTDumper.h"
 #include "lldb/Expression/ClangASTSource.h"
 #include "lldb/Expression/ClangExpression.h"
+#include "lldb/Expression/ClangModulesDeclVendor.h"
+#include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/ClangNamespaceDecl.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/SymbolVendor.h"
+#include "lldb/Symbol/TaggedASTType.h"
 #include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/Target.h"
 
+#include <vector>
+
 using namespace clang;
 using namespace lldb_private;
+
+//------------------------------------------------------------------
+// Scoped class that will remove an active lexical decl from the set
+// when it goes out of scope.
+//------------------------------------------------------------------
+namespace {
+    class ScopedLexicalDeclEraser
+    {
+    public:
+        ScopedLexicalDeclEraser(std::set<const clang::Decl *> &decls,
+                                const clang::Decl *decl)
+            : m_active_lexical_decls(decls), m_decl(decl)
+        {
+        }
+
+        ~ScopedLexicalDeclEraser()
+        {
+            m_active_lexical_decls.erase(m_decl);
+        }
+
+    private:
+        std::set<const clang::Decl *> &m_active_lexical_decls;
+        const clang::Decl *m_decl;
+    };
+}
 
 ClangASTSource::~ClangASTSource()
 {
@@ -185,6 +215,12 @@ ClangASTSource::CompleteType (TagDecl *tag_decl)
         ASTDumper dumper((Decl*)tag_decl);
         dumper.ToLog(log, "      [CTD] ");
     }
+
+    auto iter = m_active_lexical_decls.find(tag_decl);
+    if (iter != m_active_lexical_decls.end())
+        return;
+    m_active_lexical_decls.insert(tag_decl);
+    ScopedLexicalDeclEraser eraser(m_active_lexical_decls, tag_decl);
 
     if (!m_ast_importer->CompleteTagDecl (tag_decl))
     {
@@ -396,6 +432,12 @@ ClangASTSource::FindExternalLexicalDecls (const DeclContext *decl_context,
 
     if (!context_decl)
         return ELR_Failure;
+
+    auto iter = m_active_lexical_decls.find(context_decl);
+    if (iter != m_active_lexical_decls.end())
+        return ELR_Failure;
+    m_active_lexical_decls.insert(context_decl);
+    ScopedLexicalDeclEraser eraser(m_active_lexical_decls, context_decl);
 
     static unsigned int invocation_id = 0;
     unsigned int current_id = invocation_id++;
@@ -708,6 +750,8 @@ ClangASTSource::FindExternalVisibleDecls (NameSearchContext &context,
         else
             m_target->GetImages().FindTypes(null_sc, name, exact_match, 1, types);
 
+        bool found_a_type = false;
+        
         if (types.GetSize())
         {
             lldb::TypeSP type_sp = types.GetTypeAtIndex(0);
@@ -736,8 +780,62 @@ ClangASTSource::FindExternalVisibleDecls (NameSearchContext &context,
             }
 
             context.AddTypeDecl(copied_clang_type);
+            
+            found_a_type = true;
         }
-        else
+        
+        if (!found_a_type)
+        {
+            // Try the modules next.
+            
+            do
+            {
+                if (ClangModulesDeclVendor *modules_decl_vendor = m_target->GetClangModulesDeclVendor())
+                {
+                    bool append = false;
+                    uint32_t max_matches = 1;
+                    std::vector <clang::NamedDecl *> decls;
+                    
+                    if (!modules_decl_vendor->FindDecls(name,
+                                                        append,
+                                                        max_matches,
+                                                        decls))
+                        break;
+
+                    if (log)
+                    {
+                        log->Printf("  CAS::FEVD[%u] Matching entity found for \"%s\" in the modules",
+                                    current_id,
+                                    name.GetCString());
+                    }
+                    
+                    clang::NamedDecl *const decl_from_modules = decls[0];
+                    
+                    if (llvm::isa<clang::TypeDecl>(decl_from_modules) ||
+                        llvm::isa<clang::ObjCContainerDecl>(decl_from_modules) ||
+                        llvm::isa<clang::EnumConstantDecl>(decl_from_modules))
+                    {
+                        clang::Decl *copied_decl = m_ast_importer->CopyDecl(m_ast_context, &decl_from_modules->getASTContext(), decl_from_modules);
+                        clang::NamedDecl *copied_named_decl = copied_decl ? dyn_cast<clang::NamedDecl>(copied_decl) : nullptr;
+                        
+                        if (!copied_named_decl)
+                        {
+                            if (log)
+                                log->Printf("  CAS::FEVD[%u] - Couldn't export a type from the modules",
+                                            current_id);
+                            
+                            break;
+                        }
+                        
+                        context.AddNamedDecl(copied_named_decl);
+                        
+                        found_a_type = true;
+                    }
+                }
+            } while (0);
+        }
+        
+        if (!found_a_type)
         {
             do
             {
@@ -753,19 +851,19 @@ ClangASTSource::FindExternalVisibleDecls (NameSearchContext &context,
                 if (!language_runtime)
                     break;
 
-                TypeVendor *type_vendor = language_runtime->GetTypeVendor();
+                DeclVendor *decl_vendor = language_runtime->GetDeclVendor();
 
-                if (!type_vendor)
+                if (!decl_vendor)
                     break;
 
                 bool append = false;
                 uint32_t max_matches = 1;
-                std::vector <ClangASTType> types;
+                std::vector <clang::NamedDecl *> decls;
 
-                if (!type_vendor->FindTypes(name,
+                if (!decl_vendor->FindDecls(name,
                                             append,
                                             max_matches,
-                                            types))
+                                            decls))
                     break;
 
                 if (log)
@@ -774,10 +872,11 @@ ClangASTSource::FindExternalVisibleDecls (NameSearchContext &context,
                                 current_id,
                                 name.GetCString());
                 }
-
-                ClangASTType copied_clang_type (GuardedCopyType(types[0]));
-
-                if (!copied_clang_type)
+                
+                clang::Decl *copied_decl = m_ast_importer->CopyDecl(m_ast_context, &decls[0]->getASTContext(), decls[0]);
+                clang::NamedDecl *copied_named_decl = copied_decl ? dyn_cast<clang::NamedDecl>(copied_decl) : nullptr;
+                
+                if (!copied_named_decl)
                 {
                     if (log)
                         log->Printf("  CAS::FEVD[%u] - Couldn't export a type from the runtime",
@@ -786,7 +885,7 @@ ClangASTSource::FindExternalVisibleDecls (NameSearchContext &context,
                     break;
                 }
 
-                context.AddTypeDecl(copied_clang_type);
+                context.AddNamedDecl(copied_named_decl);
             }
             while(0);
         }
@@ -895,31 +994,44 @@ FindObjCMethodDeclsWithOrigin (unsigned int current_id,
     }
 
     DeclarationName original_decl_name(original_selector);
-
-    ObjCInterfaceDecl::lookup_result result = original_interface_decl->lookup(original_decl_name);
-
-    if (result.empty())
-        return false;
-
-    if (!result[0])
-        return false;
-
-    for (NamedDecl *named_decl : result)
+    
+    llvm::SmallVector<NamedDecl *, 1> methods;
+    
+    ClangASTContext::GetCompleteDecl(original_ctx, original_interface_decl);
+    
+    if (ObjCMethodDecl *instance_method_decl = original_interface_decl->lookupInstanceMethod(original_selector))
     {
+        methods.push_back(instance_method_decl);
+    }
+    else if (ObjCMethodDecl *class_method_decl = original_interface_decl->lookupClassMethod(original_selector))
+    {
+        methods.push_back(class_method_decl);
+    }
+    
+    if (methods.empty())
+    {
+        return false;
+    }
+    
+    for (NamedDecl *named_decl : methods)
+    {
+        if (!named_decl)
+            continue;
+        
         ObjCMethodDecl *result_method = dyn_cast<ObjCMethodDecl>(named_decl);
 
         if (!result_method)
-            return false;
+            continue;
 
         Decl *copied_decl = ast_importer->CopyDecl(ast_context, &result_method->getASTContext(), result_method);
 
         if (!copied_decl)
-            return false;
+            continue;
 
         ObjCMethodDecl *copied_method_decl = dyn_cast<ObjCMethodDecl>(copied_decl);
 
         if (!copied_method_decl)
-            return false;
+            continue;
 
         Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_EXPRESSIONS));
 
@@ -1169,10 +1281,43 @@ ClangASTSource::FindObjCMethodDecls (NameSearchContext &context)
         return;
     }
     while (0);
+    
+    do
+    {
+        // Check the modules only if the debug information didn't have a complete interface.
+        
+        if (ClangModulesDeclVendor *modules_decl_vendor = m_target->GetClangModulesDeclVendor())
+        {
+            ConstString interface_name(interface_decl->getNameAsString().c_str());
+            bool append = false;
+            uint32_t max_matches = 1;
+            std::vector <clang::NamedDecl *> decls;
+            
+            if (!modules_decl_vendor->FindDecls(interface_name,
+                                                append,
+                                                max_matches,
+                                                decls))
+                break;
+
+            ObjCInterfaceDecl *interface_decl_from_modules = dyn_cast<ObjCInterfaceDecl>(decls[0]);
+            
+            if (!interface_decl_from_modules)
+                break;
+            
+            if (FindObjCMethodDeclsWithOrigin(current_id,
+                                              context,
+                                              interface_decl_from_modules,
+                                              m_ast_context,
+                                              m_ast_importer,
+                                              "in modules"))
+                return;
+        }
+    }
+    while (0);
 
     do
     {
-        // Check the runtime only if the debug information didn't have a complete interface.
+        // Check the runtime only if the debug information didn't have a complete interface and the modules don't get us anywhere.
 
         lldb::ProcessSP process(m_target->GetProcessSP());
 
@@ -1184,30 +1329,26 @@ ClangASTSource::FindObjCMethodDecls (NameSearchContext &context)
         if (!language_runtime)
             break;
 
-        TypeVendor *type_vendor = language_runtime->GetTypeVendor();
+        DeclVendor *decl_vendor = language_runtime->GetDeclVendor();
 
-        if (!type_vendor)
+        if (!decl_vendor)
             break;
 
         ConstString interface_name(interface_decl->getNameAsString().c_str());
         bool append = false;
         uint32_t max_matches = 1;
-        std::vector <ClangASTType> types;
+        std::vector <clang::NamedDecl *> decls;
 
-        if (!type_vendor->FindTypes(interface_name,
+        if (!decl_vendor->FindDecls(interface_name,
                                     append,
                                     max_matches,
-                                    types))
+                                    decls))
             break;
 
-        const clang::Type *runtime_clang_type = QualType::getFromOpaquePtr(types[0].GetOpaqueQualType()).getTypePtr();
-
-        const ObjCInterfaceType *runtime_interface_type = dyn_cast<ObjCInterfaceType>(runtime_clang_type);
-
-        if (!runtime_interface_type)
+        ObjCInterfaceDecl *runtime_interface_decl = dyn_cast<ObjCInterfaceDecl>(decls[0]);
+        
+        if (!runtime_interface_decl)
             break;
-
-        ObjCInterfaceDecl *runtime_interface_decl = runtime_interface_type->getDecl();
 
         FindObjCMethodDeclsWithOrigin(current_id,
                                       context,
@@ -1339,10 +1480,50 @@ ClangASTSource::FindObjCPropertyAndIvarDecls (NameSearchContext &context)
         return;
     }
     while(0);
+    
+    do
+    {
+        // Check the modules only if the debug information didn't have a complete interface.
+        
+        ClangModulesDeclVendor *modules_decl_vendor = m_target->GetClangModulesDeclVendor();
+        
+        if (!modules_decl_vendor)
+            break;
+        
+        bool append = false;
+        uint32_t max_matches = 1;
+        std::vector <clang::NamedDecl *> decls;
+        
+        if (!modules_decl_vendor->FindDecls(class_name,
+                                            append,
+                                            max_matches,
+                                            decls))
+            break;
+        
+        DeclFromUser<const ObjCInterfaceDecl> interface_decl_from_modules(dyn_cast<ObjCInterfaceDecl>(decls[0]));
+        
+        if (!interface_decl_from_modules.IsValid())
+            break;
+        
+        if (log)
+            log->Printf("CAS::FOPD[%d] trying module (ObjCInterfaceDecl*)%p/(ASTContext*)%p...",
+                        current_id,
+                        static_cast<const void*>(interface_decl_from_modules.decl),
+                        static_cast<void*>(&interface_decl_from_modules->getASTContext()));
+        
+        if (FindObjCPropertyAndIvarDeclsWithOrigin(current_id,
+                                                   context,
+                                                   *m_ast_context,
+                                                   m_ast_importer,
+                                                   interface_decl_from_modules))
+            return;
+    }
+    while(0);
 
     do
     {
-        // Check the runtime only if the debug information didn't have a complete interface.
+        // Check the runtime only if the debug information didn't have a complete interface
+        // and nothing was in the modules.
 
         lldb::ProcessSP process(m_target->GetProcessSP());
 
@@ -1354,81 +1535,86 @@ ClangASTSource::FindObjCPropertyAndIvarDecls (NameSearchContext &context)
         if (!language_runtime)
             return;
 
-        TypeVendor *type_vendor = language_runtime->GetTypeVendor();
+        DeclVendor *decl_vendor = language_runtime->GetDeclVendor();
 
-        if (!type_vendor)
+        if (!decl_vendor)
             break;
 
         bool append = false;
         uint32_t max_matches = 1;
-        std::vector <ClangASTType> types;
+        std::vector <clang::NamedDecl *> decls;
 
-        if (!type_vendor->FindTypes(class_name,
+        if (!decl_vendor->FindDecls(class_name,
                                     append,
                                     max_matches,
-                                    types))
+                                    decls))
             break;
 
-        const clang::Type *runtime_clang_type = QualType::getFromOpaquePtr(types[0].GetOpaqueQualType()).getTypePtr();
-
-        const ObjCInterfaceType *runtime_interface_type = dyn_cast<ObjCInterfaceType>(runtime_clang_type);
-
-        if (!runtime_interface_type)
+        DeclFromUser<const ObjCInterfaceDecl> interface_decl_from_runtime(dyn_cast<ObjCInterfaceDecl>(decls[0]));
+        
+        if (!interface_decl_from_runtime.IsValid())
             break;
-
-        DeclFromUser<const ObjCInterfaceDecl> runtime_iface_decl(runtime_interface_type->getDecl());
 
         if (log)
             log->Printf("CAS::FOPD[%d] trying runtime (ObjCInterfaceDecl*)%p/(ASTContext*)%p...",
                         current_id,
-                        static_cast<const void*>(runtime_iface_decl.decl),
-                        static_cast<void*>(&runtime_iface_decl->getASTContext()));
+                        static_cast<const void*>(interface_decl_from_runtime.decl),
+                        static_cast<void*>(&interface_decl_from_runtime->getASTContext()));
 
         if (FindObjCPropertyAndIvarDeclsWithOrigin(current_id,
                                                    context,
                                                    *m_ast_context,
                                                    m_ast_importer,
-                                                   runtime_iface_decl))
+                                                   interface_decl_from_runtime))
             return;
     }
     while(0);
 }
 
-typedef llvm::DenseMap <const FieldDecl *, uint64_t> FieldOffsetMap;
-typedef llvm::DenseMap <const CXXRecordDecl *, CharUnits> BaseOffsetMap;
+typedef llvm::DenseMap<const FieldDecl *, uint64_t> FieldOffsetMap;
+typedef llvm::DenseMap<const CXXRecordDecl *, CharUnits> BaseOffsetMap;
 
 template <class D, class O>
 static bool
-ImportOffsetMap (llvm::DenseMap <const D*, O> &destination_map,
-                 llvm::DenseMap <const D*, O> &source_map,
-                 ClangASTImporter *importer,
-                 ASTContext &dest_ctx)
+ImportOffsetMap(llvm::DenseMap<const D *, O> &destination_map, llvm::DenseMap<const D *, O> &source_map,
+                ClangASTImporter *importer, ASTContext &dest_ctx)
 {
-    typedef llvm::DenseMap <const D*, O> MapType;
+    // When importing fields into a new record, clang has a hard requirement that
+    // fields be imported in field offset order.  Since they are stored in a DenseMap
+    // with a pointer as the key type, this means we cannot simply iterate over the
+    // map, as the order will be non-deterministic.  Instead we have to sort by the offset
+    // and then insert in sorted order.
+    typedef llvm::DenseMap<const D *, O> MapType;
+    typedef typename MapType::value_type PairType;
+    std::vector<PairType> sorted_items;
+    sorted_items.reserve(source_map.size());
+    sorted_items.assign(source_map.begin(), source_map.end());
+    std::sort(sorted_items.begin(), sorted_items.end(),
+              [](const PairType &lhs, const PairType &rhs)
+              {
+                  return lhs.second < rhs.second;
+              });
 
-    for (typename MapType::iterator fi = source_map.begin(), fe = source_map.end();
-         fi != fe;
-         ++fi)
+    for (const auto &item : sorted_items)
     {
-        DeclFromUser <D> user_decl(const_cast<D*>(fi->first));
+        DeclFromUser<D> user_decl(const_cast<D *>(item.first));
         DeclFromParser <D> parser_decl(user_decl.Import(importer, dest_ctx));
         if (parser_decl.IsInvalid())
             return false;
-        destination_map.insert(std::pair<const D *, O>(parser_decl.decl, fi->second));
+        destination_map.insert(std::pair<const D *, O>(parser_decl.decl, item.second));
     }
 
     return true;
 }
 
-template <bool IsVirtual> bool ExtractBaseOffsets (const ASTRecordLayout &record_layout,
-                                                   DeclFromUser<const CXXRecordDecl> &record,
-                                                   BaseOffsetMap &base_offsets)
+template <bool IsVirtual>
+bool
+ExtractBaseOffsets(const ASTRecordLayout &record_layout, DeclFromUser<const CXXRecordDecl> &record,
+                   BaseOffsetMap &base_offsets)
 {
-    for (CXXRecordDecl::base_class_const_iterator
-            bi = (IsVirtual ? record->vbases_begin() : record->bases_begin()),
-            be = (IsVirtual ? record->vbases_end() : record->bases_end());
-         bi != be;
-         ++bi)
+    for (CXXRecordDecl::base_class_const_iterator bi = (IsVirtual ? record->vbases_begin() : record->bases_begin()),
+                                                  be = (IsVirtual ? record->vbases_end() : record->bases_end());
+         bi != be; ++bi)
     {
         if (!IsVirtual && bi->isVirtual())
             continue;
@@ -1463,11 +1649,8 @@ template <bool IsVirtual> bool ExtractBaseOffsets (const ASTRecordLayout &record
 }
 
 bool
-ClangASTSource::layoutRecordType(const RecordDecl *record,
-                                 uint64_t &size,
-                                 uint64_t &alignment,
-                                 FieldOffsetMap &field_offsets,
-                                 BaseOffsetMap &base_offsets,
+ClangASTSource::layoutRecordType(const RecordDecl *record, uint64_t &size, uint64_t &alignment,
+                                 FieldOffsetMap &field_offsets, BaseOffsetMap &base_offsets,
                                  BaseOffsetMap &virtual_base_offsets)
 {
     ClangASTMetrics::RegisterRecordLayout();
@@ -1502,9 +1685,7 @@ ClangASTSource::layoutRecordType(const RecordDecl *record,
 
     int field_idx = 0, field_count = record_layout.getFieldCount();
 
-    for (RecordDecl::field_iterator fi = origin_record->field_begin(), fe = origin_record->field_end();
-         fi != fe;
-         ++fi)
+    for (RecordDecl::field_iterator fi = origin_record->field_begin(), fe = origin_record->field_end(); fi != fe; ++fi)
     {
         if (field_idx >= field_count)
             return false; // Layout didn't go well.  Bail out.
@@ -1547,9 +1728,8 @@ ClangASTSource::layoutRecordType(const RecordDecl *record,
              fi != fe;
              ++fi)
         {
-            log->Printf("LRT[%u]     (FieldDecl*)%p, Name = '%s', Offset = %" PRId64 " bits",
-                        current_id, static_cast<void*>(*fi),
-                        fi->getNameAsString().c_str(), field_offsets[*fi]);
+            log->Printf("LRT[%u]     (FieldDecl*)%p, Name = '%s', Offset = %" PRId64 " bits", current_id,
+                        static_cast<void *>(*fi), fi->getNameAsString().c_str(), field_offsets[*fi]);
         }
         DeclFromParser <const CXXRecordDecl> parser_cxx_record = DynCast<const CXXRecordDecl>(parser_record);
         if (parser_cxx_record.IsValid())
@@ -1566,13 +1746,11 @@ ClangASTSource::layoutRecordType(const RecordDecl *record,
                 DeclFromParser <RecordDecl> base_record(base_record_type->getDecl());
                 DeclFromParser <CXXRecordDecl> base_cxx_record = DynCast<CXXRecordDecl>(base_record);
 
-                log->Printf("LRT[%u]     %s(CXXRecordDecl*)%p, Name = '%s', Offset = %" PRId64 " chars",
-                            current_id, (is_virtual ? "Virtual " : ""),
-                            static_cast<void*>(base_cxx_record.decl),
+                log->Printf("LRT[%u]     %s(CXXRecordDecl*)%p, Name = '%s', Offset = %" PRId64 " chars", current_id,
+                            (is_virtual ? "Virtual " : ""), static_cast<void *>(base_cxx_record.decl),
                             base_cxx_record.decl->getNameAsString().c_str(),
-                            (is_virtual
-                                ? virtual_base_offsets[base_cxx_record.decl].getQuantity()
-                                : base_offsets[base_cxx_record.decl].getQuantity()));
+                            (is_virtual ? virtual_base_offsets[base_cxx_record.decl].getQuantity()
+                                        : base_offsets[base_cxx_record.decl].getQuantity()));
             }
         }
         else
@@ -1748,7 +1926,7 @@ NameSearchContext::AddVarDecl(const ClangASTType &type)
 }
 
 clang::NamedDecl *
-NameSearchContext::AddFunDecl (const ClangASTType &type)
+NameSearchContext::AddFunDecl (const ClangASTType &type, bool extern_c)
 {
     assert (type && "Type for variable must be valid!");
 
@@ -1767,15 +1945,26 @@ NameSearchContext::AddFunDecl (const ClangASTType &type)
     const bool isInlineSpecified = false;
     const bool hasWrittenPrototype = true;
     const bool isConstexprSpecified = false;
+    
+    clang::DeclContext *context = const_cast<DeclContext*>(m_decl_context);
+    
+    if (extern_c) {
+        context = LinkageSpecDecl::Create(*ast,
+                                          context,
+                                          SourceLocation(),
+                                          SourceLocation(),
+                                          clang::LinkageSpecDecl::LanguageIDs::lang_c,
+                                          false);
+    }
 
     clang::FunctionDecl *func_decl = FunctionDecl::Create (*ast,
-                                                           const_cast<DeclContext*>(m_decl_context),
+                                                           context,
                                                            SourceLocation(),
                                                            SourceLocation(),
                                                            m_decl_name.getAsIdentifierInfo(),
                                                            qual_type,
                                                            NULL,
-                                                           SC_Static,
+                                                           SC_Extern,
                                                            isInlineSpecified,
                                                            hasWrittenPrototype,
                                                            isConstexprSpecified);
@@ -1798,7 +1987,7 @@ NameSearchContext::AddFunDecl (const ClangASTType &type)
             QualType arg_qual_type (func_proto_type->getParamType(ArgIndex));
 
             parm_var_decls.push_back(ParmVarDecl::Create (*ast,
-                                                          const_cast<DeclContext*>(m_decl_context),
+                                                          const_cast<DeclContext*>(context),
                                                           SourceLocation(),
                                                           SourceLocation(),
                                                           NULL,
@@ -1834,7 +2023,7 @@ NameSearchContext::AddGenericFunDecl()
                                                                                 ArrayRef<QualType>(),                                        // argument types
                                                                                 proto_info));
 
-    return AddFunDecl(ClangASTType (m_ast_source.m_ast_context, generic_function_type));
+    return AddFunDecl(ClangASTType (m_ast_source.m_ast_context, generic_function_type), true);
 }
 
 clang::NamedDecl *
@@ -1873,7 +2062,7 @@ NameSearchContext::AddTypeDecl(const ClangASTType &clang_type)
 }
 
 void
-NameSearchContext::AddLookupResult (clang::DeclContextLookupConstResult result)
+NameSearchContext::AddLookupResult (clang::DeclContextLookupResult result)
 {
     for (clang::NamedDecl *decl : result)
         m_decls.push_back (decl);

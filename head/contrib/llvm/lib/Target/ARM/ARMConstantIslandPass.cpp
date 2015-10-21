@@ -53,11 +53,6 @@ static cl::opt<bool>
 AdjustJumpTableBlocks("arm-adjust-jump-tables", cl::Hidden, cl::init(true),
           cl::desc("Adjust basic block layout to better use TB[BH]"));
 
-// FIXME: This option should be removed once it has received sufficient testing.
-static cl::opt<bool>
-AlignConstantIslands("arm-align-constant-islands", cl::Hidden, cl::init(true),
-          cl::desc("Align constant islands in code"));
-
 /// UnknownPadding - Return the worst case padding that could result from
 /// unknown offset bits.  This does not include alignment padding caused by
 /// known offset bits.
@@ -185,9 +180,7 @@ namespace {
       MachineInstr *MI;
       MachineInstr *CPEMI;
       MachineBasicBlock *HighWaterMark;
-    private:
       unsigned MaxDisp;
-    public:
       bool NegOk;
       bool IsSoImm;
       bool KnownAlignment;
@@ -221,11 +214,23 @@ namespace {
     };
 
     /// CPEntries - Keep track of all of the constant pool entry machine
-    /// instructions. For each original constpool index (i.e. those that
-    /// existed upon entry to this pass), it keeps a vector of entries.
-    /// Original elements are cloned as we go along; the clones are
-    /// put in the vector of the original element, but have distinct CPIs.
+    /// instructions. For each original constpool index (i.e. those that existed
+    /// upon entry to this pass), it keeps a vector of entries.  Original
+    /// elements are cloned as we go along; the clones are put in the vector of
+    /// the original element, but have distinct CPIs.
+    ///
+    /// The first half of CPEntries contains generic constants, the second half
+    /// contains jump tables. Use getCombinedIndex on a generic CPEMI to look up
+    /// which vector it will be in here.
     std::vector<std::vector<CPEntry> > CPEntries;
+
+    /// Maps a JT index to the offset in CPEntries containing copies of that
+    /// table. The equivalent map for a CONSTPOOL_ENTRY is the identity.
+    DenseMap<int, int> JumpTableEntryIndices;
+
+    /// Maps a JT index to the LEA that actually uses the index to calculate its
+    /// base address.
+    DenseMap<int, int> JumpTableUserIndices;
 
     /// ImmBranch - One per immediate branch, keeping the machine instruction
     /// pointer, conditional or unconditional, the max displacement,
@@ -235,8 +240,8 @@ namespace {
       MachineInstr *MI;
       unsigned MaxDisp : 31;
       bool isCond : 1;
-      int UncondBr;
-      ImmBranch(MachineInstr *mi, unsigned maxdisp, bool cond, int ubr)
+      unsigned UncondBr;
+      ImmBranch(MachineInstr *mi, unsigned maxdisp, bool cond, unsigned ubr)
         : MI(mi), MaxDisp(maxdisp), isCond(cond), UncondBr(ubr) {}
     };
 
@@ -274,7 +279,9 @@ namespace {
     }
 
   private:
-    void doInitialPlacement(std::vector<MachineInstr*> &CPEMIs);
+    void doInitialConstPlacement(std::vector<MachineInstr *> &CPEMIs);
+    void doInitialJumpTablePlacement(std::vector<MachineInstr *> &CPEMIs);
+    bool BBHasFallthrough(MachineBasicBlock *MBB);
     CPEntry *findConstPoolEntry(unsigned CPI, const MachineInstr *CPEMI);
     unsigned getCPELogAlign(const MachineInstr *CPEMI);
     void scanFunctionJumpTables();
@@ -283,6 +290,7 @@ namespace {
     void updateForInsertedWaterBlock(MachineBasicBlock *NewBB);
     void adjustBBOffsetsAfter(MachineBasicBlock *BB);
     bool decrementCPEReferenceCount(unsigned CPI, MachineInstr* CPEMI);
+    unsigned getCombinedIndex(const MachineInstr *CPEMI);
     int findInRangeCPEntry(CPUser& U, unsigned UserOffset);
     bool findAvailableWater(CPUser&U, unsigned UserOffset,
                             water_iterator &WaterIter);
@@ -305,6 +313,9 @@ namespace {
     bool optimizeThumb2Instructions();
     bool optimizeThumb2Branches();
     bool reorderThumb2JumpTables();
+    bool preserveBaseRegister(MachineInstr *JumpMI, MachineInstr *LEAMI,
+                              unsigned &DeadSize, bool &CanDeleteLEA,
+                              bool &BaseRegKill);
     bool optimizeThumb2JumpTables();
     MachineBasicBlock *adjustJTTargetBlockForward(MachineBasicBlock *BB,
                                                   MachineBasicBlock *JTBB);
@@ -382,9 +393,9 @@ bool ARMConstantIslands::runOnMachineFunction(MachineFunction &mf) {
                << MCP->getConstants().size() << " CP entries, aligned to "
                << MCP->getConstantPoolAlignment() << " bytes *****\n");
 
-  TII = (const ARMBaseInstrInfo*)MF->getTarget().getInstrInfo();
+  STI = &static_cast<const ARMSubtarget &>(MF->getSubtarget());
+  TII = STI->getInstrInfo();
   AFI = MF->getInfo<ARMFunctionInfo>();
-  STI = &MF->getTarget().getSubtarget<ARMSubtarget>();
 
   isThumb = AFI->isThumbFunction();
   isThumb1 = AFI->isThumb1OnlyFunction();
@@ -411,18 +422,14 @@ bool ARMConstantIslands::runOnMachineFunction(MachineFunction &mf) {
     MF->RenumberBlocks();
   }
 
-  // Thumb1 functions containing constant pools get 4-byte alignment.
-  // This is so we can keep exact track of where the alignment padding goes.
-
-  // ARM and Thumb2 functions need to be 4-byte aligned.
-  if (!isThumb1)
-    MF->ensureAlignment(2);  // 2 = log2(4)
-
   // Perform the initial placement of the constant pool entries.  To start with,
   // we put them all at the end of the function.
   std::vector<MachineInstr*> CPEMIs;
   if (!MCP->isEmpty())
-    doInitialPlacement(CPEMIs);
+    doInitialConstPlacement(CPEMIs);
+
+  if (MF->getJumpTableInfo())
+    doInitialJumpTablePlacement(CPEMIs);
 
   /// The next UID to take is the first unused one.
   AFI->initPICLabelUId(CPEMIs.size());
@@ -434,6 +441,10 @@ bool ARMConstantIslands::runOnMachineFunction(MachineFunction &mf) {
   CPEMIs.clear();
   DEBUG(dumpBBs());
 
+  // Functions with jump tables need an alignment of 4 because they use the ADR
+  // instruction, which aligns the PC to 4 bytes before adding an offset.
+  if (!T2JumpTables.empty())
+    MF->ensureAlignment(2);
 
   /// Remove dead constant pool entries.
   MadeChange |= removeUnusedCPEntries();
@@ -483,7 +494,8 @@ bool ARMConstantIslands::runOnMachineFunction(MachineFunction &mf) {
   for (unsigned i = 0, e = CPEntries.size(); i != e; ++i) {
     for (unsigned j = 0, je = CPEntries[i].size(); j != je; ++j) {
       const CPEntry & CPE = CPEntries[i][j];
-      AFI->recordCPEClone(i, CPE.CPI);
+      if (CPE.CPEMI && CPE.CPEMI->getOperand(1).isCPI())
+        AFI->recordCPEClone(i, CPE.CPI);
     }
   }
 
@@ -493,6 +505,8 @@ bool ARMConstantIslands::runOnMachineFunction(MachineFunction &mf) {
   WaterList.clear();
   CPUsers.clear();
   CPEntries.clear();
+  JumpTableEntryIndices.clear();
+  JumpTableUserIndices.clear();
   ImmBranches.clear();
   PushPopMIs.clear();
   T2JumpTables.clear();
@@ -500,10 +514,10 @@ bool ARMConstantIslands::runOnMachineFunction(MachineFunction &mf) {
   return MadeChange;
 }
 
-/// doInitialPlacement - Perform the initial placement of the constant pool
-/// entries.  To start with, we put them all at the end of the function.
+/// \brief Perform the initial placement of the regular constant pool entries.
+/// To start with, we put them all at the end of the function.
 void
-ARMConstantIslands::doInitialPlacement(std::vector<MachineInstr*> &CPEMIs) {
+ARMConstantIslands::doInitialConstPlacement(std::vector<MachineInstr*> &CPEMIs) {
   // Create the basic block to hold the CPE's.
   MachineBasicBlock *BB = MF->CreateMachineBasicBlock();
   MF->push_back(BB);
@@ -512,8 +526,7 @@ ARMConstantIslands::doInitialPlacement(std::vector<MachineInstr*> &CPEMIs) {
   unsigned MaxAlign = Log2_32(MCP->getConstantPoolAlignment());
 
   // Mark the basic block as required by the const-pool.
-  // If AlignConstantIslands isn't set, use 4-byte alignment for everything.
-  BB->setAlignment(AlignConstantIslands ? MaxAlign : 2);
+  BB->setAlignment(MaxAlign);
 
   // The function needs to be as aligned as the basic blocks. The linker may
   // move functions around based on their alignment.
@@ -554,9 +567,7 @@ ARMConstantIslands::doInitialPlacement(std::vector<MachineInstr*> &CPEMIs) {
         InsPoint[a] = CPEMI;
 
     // Add a new CPEntry, but no corresponding CPUser yet.
-    std::vector<CPEntry> CPEs;
-    CPEs.push_back(CPEntry(CPEMI, i));
-    CPEntries.push_back(CPEs);
+    CPEntries.emplace_back(1, CPEntry(CPEMI, i));
     ++NumCPEs;
     DEBUG(dbgs() << "Moved CPI#" << i << " to end of function, size = "
                  << Size << ", align = " << Align <<'\n');
@@ -564,9 +575,69 @@ ARMConstantIslands::doInitialPlacement(std::vector<MachineInstr*> &CPEMIs) {
   DEBUG(BB->dump());
 }
 
+/// \brief Do initial placement of the jump tables. Because Thumb2's TBB and TBH
+/// instructions can be made more efficient if the jump table immediately
+/// follows the instruction, it's best to place them immediately next to their
+/// jumps to begin with. In almost all cases they'll never be moved from that
+/// position.
+void ARMConstantIslands::doInitialJumpTablePlacement(
+    std::vector<MachineInstr *> &CPEMIs) {
+  unsigned i = CPEntries.size();
+  auto MJTI = MF->getJumpTableInfo();
+  const std::vector<MachineJumpTableEntry> &JT = MJTI->getJumpTables();
+
+  MachineBasicBlock *LastCorrectlyNumberedBB = nullptr;
+  for (MachineBasicBlock &MBB : *MF) {
+    auto MI = MBB.getLastNonDebugInstr();
+
+    unsigned JTOpcode;
+    switch (MI->getOpcode()) {
+    default:
+      continue;
+    case ARM::BR_JTadd:
+    case ARM::BR_JTr:
+    case ARM::tBR_JTr:
+    case ARM::BR_JTm:
+      JTOpcode = ARM::JUMPTABLE_ADDRS;
+      break;
+    case ARM::t2BR_JT:
+      JTOpcode = ARM::JUMPTABLE_INSTS;
+      break;
+    case ARM::t2TBB_JT:
+      JTOpcode = ARM::JUMPTABLE_TBB;
+      break;
+    case ARM::t2TBH_JT:
+      JTOpcode = ARM::JUMPTABLE_TBH;
+      break;
+    }
+
+    unsigned NumOps = MI->getDesc().getNumOperands();
+    MachineOperand JTOp =
+      MI->getOperand(NumOps - (MI->isPredicable() ? 2 : 1));
+    unsigned JTI = JTOp.getIndex();
+    unsigned Size = JT[JTI].MBBs.size() * sizeof(uint32_t);
+    MachineBasicBlock *JumpTableBB = MF->CreateMachineBasicBlock();
+    MF->insert(std::next(MachineFunction::iterator(MBB)), JumpTableBB);
+    MachineInstr *CPEMI = BuildMI(*JumpTableBB, JumpTableBB->begin(),
+                                  DebugLoc(), TII->get(JTOpcode))
+                              .addImm(i++)
+                              .addJumpTableIndex(JTI)
+                              .addImm(Size);
+    CPEMIs.push_back(CPEMI);
+    CPEntries.emplace_back(1, CPEntry(CPEMI, JTI));
+    JumpTableEntryIndices.insert(std::make_pair(JTI, CPEntries.size() - 1));
+    if (!LastCorrectlyNumberedBB)
+      LastCorrectlyNumberedBB = &MBB;
+  }
+
+  // If we did anything then we need to renumber the subsequent blocks.
+  if (LastCorrectlyNumberedBB)
+    MF->RenumberBlocks(LastCorrectlyNumberedBB);
+}
+
 /// BBHasFallthrough - Return true if the specified basic block can fallthrough
 /// into the block immediately after it.
-static bool BBHasFallthrough(MachineBasicBlock *MBB) {
+bool ARMConstantIslands::BBHasFallthrough(MachineBasicBlock *MBB) {
   // Get the next machine basic block in the function.
   MachineFunction::iterator MBBI = MBB;
   // Can't fall off end of function.
@@ -574,12 +645,15 @@ static bool BBHasFallthrough(MachineBasicBlock *MBB) {
     return false;
 
   MachineBasicBlock *NextBB = std::next(MBBI);
-  for (MachineBasicBlock::succ_iterator I = MBB->succ_begin(),
-       E = MBB->succ_end(); I != E; ++I)
-    if (*I == NextBB)
-      return true;
+  if (std::find(MBB->succ_begin(), MBB->succ_end(), NextBB) == MBB->succ_end())
+    return false;
 
-  return false;
+  // Try to analyze the end of the block. A potential fallthrough may already
+  // have an unconditional branch for whatever reason.
+  MachineBasicBlock *TBB, *FBB;
+  SmallVector<MachineOperand, 4> Cond;
+  bool TooDifficult = TII->AnalyzeBranch(*MBB, TBB, FBB, Cond);
+  return TooDifficult || FBB == nullptr;
 }
 
 /// findConstPoolEntry - Given the constpool index and CONSTPOOL_ENTRY MI,
@@ -600,13 +674,21 @@ ARMConstantIslands::CPEntry
 /// getCPELogAlign - Returns the required alignment of the constant pool entry
 /// represented by CPEMI.  Alignment is measured in log2(bytes) units.
 unsigned ARMConstantIslands::getCPELogAlign(const MachineInstr *CPEMI) {
-  assert(CPEMI && CPEMI->getOpcode() == ARM::CONSTPOOL_ENTRY);
-
-  // Everything is 4-byte aligned unless AlignConstantIslands is set.
-  if (!AlignConstantIslands)
+  switch (CPEMI->getOpcode()) {
+  case ARM::CONSTPOOL_ENTRY:
+    break;
+  case ARM::JUMPTABLE_TBB:
+    return 0;
+  case ARM::JUMPTABLE_TBH:
+  case ARM::JUMPTABLE_INSTS:
+    return 1;
+  case ARM::JUMPTABLE_ADDRS:
     return 2;
+  default:
+    llvm_unreachable("unknown constpool entry kind");
+  }
 
-  unsigned CPI = CPEMI->getOperand(1).getIndex();
+  unsigned CPI = getCombinedIndex(CPEMI);
   assert(CPI < MCP->getConstants().size() && "Invalid constant pool index.");
   unsigned Align = MCP->getConstants()[CPI].getAlignment();
   assert(isPowerOf2_32(Align) && "Invalid CPE alignment");
@@ -665,7 +747,7 @@ initializeFunctionInfo(const std::vector<MachineInstr*> &CPEMIs) {
       if (I->isDebugValue())
         continue;
 
-      int Opc = I->getOpcode();
+      unsigned Opc = I->getOpcode();
       if (I->isBranch()) {
         bool isCond = false;
         unsigned Bits = 0;
@@ -715,12 +797,14 @@ initializeFunctionInfo(const std::vector<MachineInstr*> &CPEMIs) {
       if (Opc == ARM::tPUSH || Opc == ARM::tPOP_RET)
         PushPopMIs.push_back(I);
 
-      if (Opc == ARM::CONSTPOOL_ENTRY)
+      if (Opc == ARM::CONSTPOOL_ENTRY || Opc == ARM::JUMPTABLE_ADDRS ||
+          Opc == ARM::JUMPTABLE_INSTS || Opc == ARM::JUMPTABLE_TBB ||
+          Opc == ARM::JUMPTABLE_TBH)
         continue;
 
       // Scan the instructions for constant pool operands.
       for (unsigned op = 0, e = I->getNumOperands(); op != e; ++op)
-        if (I->getOperand(op).isCPI()) {
+        if (I->getOperand(op).isCPI() || I->getOperand(op).isJTI()) {
           // We found one.  The addressing mode tells us the max displacement
           // from the PC that this instruction permits.
 
@@ -736,6 +820,7 @@ initializeFunctionInfo(const std::vector<MachineInstr*> &CPEMIs) {
 
           // Taking the address of a CP entry.
           case ARM::LEApcrel:
+          case ARM::LEApcrelJT:
             // This takes a SoImm, which is 8 bit immediate rotated. We'll
             // pretend the maximum offset is 255 * 4. Since each instruction
             // 4 byte wide, this is always correct. We'll check for other
@@ -746,10 +831,12 @@ initializeFunctionInfo(const std::vector<MachineInstr*> &CPEMIs) {
             IsSoImm = true;
             break;
           case ARM::t2LEApcrel:
+          case ARM::t2LEApcrelJT:
             Bits = 12;
             NegOk = true;
             break;
           case ARM::tLEApcrel:
+          case ARM::tLEApcrelJT:
             Bits = 8;
             Scale = 4;
             break;
@@ -777,6 +864,11 @@ initializeFunctionInfo(const std::vector<MachineInstr*> &CPEMIs) {
 
           // Remember that this is a user of a CP entry.
           unsigned CPI = I->getOperand(op).getIndex();
+          if (I->getOperand(op).isJTI()) {
+            JumpTableUserIndices.insert(std::make_pair(CPI, CPUsers.size()));
+            CPI = JumpTableEntryIndices[CPI];
+          }
+
           MachineInstr *CPEMI = CPEMIs[CPI];
           unsigned MaxOffs = ((1 << Bits)-1) * Scale;
           CPUsers.push_back(CPUser(I, CPEMI, MaxOffs, NegOk, IsSoImm));
@@ -1110,6 +1202,13 @@ bool ARMConstantIslands::decrementCPEReferenceCount(unsigned CPI,
   return false;
 }
 
+unsigned ARMConstantIslands::getCombinedIndex(const MachineInstr *CPEMI) {
+  if (CPEMI->getOperand(1).isCPI())
+    return CPEMI->getOperand(1).getIndex();
+
+  return JumpTableEntryIndices[CPEMI->getOperand(1).getIndex()];
+}
+
 /// LookForCPEntryInRange - see if the currently referenced CPE is in range;
 /// if not, see if an in-range clone of the CPE is in range, and if so,
 /// change the data structures so the user references the clone.  Returns:
@@ -1129,7 +1228,7 @@ int ARMConstantIslands::findInRangeCPEntry(CPUser& U, unsigned UserOffset)
   }
 
   // No.  Look for previously created clones of the CPE that are in range.
-  unsigned CPI = CPEMI->getOperand(1).getIndex();
+  unsigned CPI = getCombinedIndex(CPEMI);
   std::vector<CPEntry> &CPEs = CPEntries[CPI];
   for (unsigned i = 0, e = CPEs.size(); i != e; ++i) {
     // We already tried this one
@@ -1203,7 +1302,8 @@ bool ARMConstantIslands::findAvailableWater(CPUser &U, unsigned UserOffset,
     unsigned Growth;
     if (isWaterInRange(UserOffset, WaterBB, U, Growth) &&
         (WaterBB->getNumber() < U.HighWaterMark->getNumber() ||
-         NewWaterList.count(WaterBB)) && Growth < BestGrowth) {
+         NewWaterList.count(WaterBB) || WaterBB == U.MI->getParent()) &&
+        Growth < BestGrowth) {
       // This is the least amount of required padding seen so far.
       BestGrowth = Growth;
       WaterIter = IP;
@@ -1265,7 +1365,7 @@ void ARMConstantIslands::createNewWater(unsigned CPUserIndex,
       unsigned MaxDisp = getUnconditionalBrDisp(UncondBr);
       ImmBranches.push_back(ImmBranch(&UserMBB->back(),
                                       MaxDisp, false, UncondBr));
-      BBInfo[UserMBB->getNumber()].Size += Delta;
+      computeBlockSize(UserMBB);
       adjustBBOffsetsAfter(UserMBB);
       return;
     }
@@ -1309,7 +1409,12 @@ void ARMConstantIslands::createNewWater(unsigned CPUserIndex,
   // Back past any possible branches (allow for a conditional and a maximally
   // long unconditional).
   if (BaseInsertOffset + 8 >= UserBBI.postOffset()) {
-    BaseInsertOffset = UserBBI.postOffset() - UPad - 8;
+    // Ensure BaseInsertOffset is larger than the offset of the instruction
+    // following UserMI so that the loop which searches for the split point
+    // iterates at least once.
+    BaseInsertOffset =
+        std::max(UserBBI.postOffset() - UPad - 8,
+                 UserOffset + TII->GetInstSizeInBytes(UserMI) + 1);
     DEBUG(dbgs() << format("Move inside block: %#x\n", BaseInsertOffset));
   }
   unsigned EndInsertOffset = BaseInsertOffset + 4 + UPad +
@@ -1352,6 +1457,11 @@ void ARMConstantIslands::createNewWater(unsigned CPUserIndex,
     if (CC != ARMCC::AL)
       MI = LastIT;
   }
+
+  // We really must not split an IT block.
+  DEBUG(unsigned PredReg;
+        assert(!isThumb || getITInstrPredicate(MI, PredReg) == ARMCC::AL));
+
   NewMBB = splitBlockBeforeInstr(MI);
 }
 
@@ -1363,7 +1473,7 @@ bool ARMConstantIslands::handleConstantPoolUser(unsigned CPUserIndex) {
   CPUser &U = CPUsers[CPUserIndex];
   MachineInstr *UserMI = U.MI;
   MachineInstr *CPEMI  = U.CPEMI;
-  unsigned CPI = CPEMI->getOperand(1).getIndex();
+  unsigned CPI = getCombinedIndex(CPEMI);
   unsigned Size = CPEMI->getOperand(2).getImm();
   // Compute this only once, it's expensive.
   unsigned UserOffset = getUserOffset(U);
@@ -1427,16 +1537,16 @@ bool ARMConstantIslands::handleConstantPoolUser(unsigned CPUserIndex) {
   // Update internal data structures to account for the newly inserted MBB.
   updateForInsertedWaterBlock(NewIsland);
 
-  // Decrement the old entry, and remove it if refcount becomes 0.
-  decrementCPEReferenceCount(CPI, CPEMI);
-
   // Now that we have an island to add the CPE to, clone the original CPE and
   // add it to the island.
   U.HighWaterMark = NewIsland;
-  U.CPEMI = BuildMI(NewIsland, DebugLoc(), TII->get(ARM::CONSTPOOL_ENTRY))
-                .addImm(ID).addConstantPoolIndex(CPI).addImm(Size);
+  U.CPEMI = BuildMI(NewIsland, DebugLoc(), CPEMI->getDesc())
+                .addImm(ID).addOperand(CPEMI->getOperand(1)).addImm(Size);
   CPEntries[CPI].push_back(CPEntry(U.CPEMI, ID, 1));
   ++NumCPEs;
+
+  // Decrement the old entry, and remove it if refcount becomes 0.
+  decrementCPEReferenceCount(CPI, CPEMI);
 
   // Mark the basic block as aligned as required by the const-pool entry.
   NewIsland->setAlignment(getCPELogAlign(U.CPEMI));
@@ -1749,8 +1859,13 @@ bool ARMConstantIslands::optimizeThumb2Instructions() {
 bool ARMConstantIslands::optimizeThumb2Branches() {
   bool MadeChange = false;
 
-  for (unsigned i = 0, e = ImmBranches.size(); i != e; ++i) {
-    ImmBranch &Br = ImmBranches[i];
+  // The order in which branches appear in ImmBranches is approximately their
+  // order within the function body. By visiting later branches first, we reduce
+  // the distance between earlier forward branches and their targets, making it
+  // more likely that the cbn?z optimization, which can only apply to forward
+  // branches, will succeed.
+  for (unsigned i = ImmBranches.size(); i != 0; --i) {
+    ImmBranch &Br = ImmBranches[i-1];
     unsigned Opcode = Br.MI->getOpcode();
     unsigned NewOpc = 0;
     unsigned Scale = 1;
@@ -1837,6 +1952,122 @@ bool ARMConstantIslands::optimizeThumb2Branches() {
   return MadeChange;
 }
 
+static bool isSimpleIndexCalc(MachineInstr &I, unsigned EntryReg,
+                              unsigned BaseReg) {
+  if (I.getOpcode() != ARM::t2ADDrs)
+    return false;
+
+  if (I.getOperand(0).getReg() != EntryReg)
+    return false;
+
+  if (I.getOperand(1).getReg() != BaseReg)
+    return false;
+
+  // FIXME: what about CC and IdxReg?
+  return true;
+}
+
+/// \brief While trying to form a TBB/TBH instruction, we may (if the table
+/// doesn't immediately follow the BR_JT) need access to the start of the
+/// jump-table. We know one instruction that produces such a register; this
+/// function works out whether that definition can be preserved to the BR_JT,
+/// possibly by removing an intervening addition (which is usually needed to
+/// calculate the actual entry to jump to).
+bool ARMConstantIslands::preserveBaseRegister(MachineInstr *JumpMI,
+                                              MachineInstr *LEAMI,
+                                              unsigned &DeadSize,
+                                              bool &CanDeleteLEA,
+                                              bool &BaseRegKill) {
+  if (JumpMI->getParent() != LEAMI->getParent())
+    return false;
+
+  // Now we hope that we have at least these instructions in the basic block:
+  //     BaseReg = t2LEA ...
+  //     [...]
+  //     EntryReg = t2ADDrs BaseReg, ...
+  //     [...]
+  //     t2BR_JT EntryReg
+  //
+  // We have to be very conservative about what we recognise here though. The
+  // main perturbing factors to watch out for are:
+  //    + Spills at any point in the chain: not direct problems but we would
+  //      expect a blocking Def of the spilled register so in practice what we
+  //      can do is limited.
+  //    + EntryReg == BaseReg: this is the one situation we should allow a Def
+  //      of BaseReg, but only if the t2ADDrs can be removed.
+  //    + Some instruction other than t2ADDrs computing the entry. Not seen in
+  //      the wild, but we should be careful.
+  unsigned EntryReg = JumpMI->getOperand(0).getReg();
+  unsigned BaseReg = LEAMI->getOperand(0).getReg();
+
+  CanDeleteLEA = true;
+  BaseRegKill = false;
+  MachineInstr *RemovableAdd = nullptr;
+  MachineBasicBlock::iterator I(LEAMI);
+  for (++I; &*I != JumpMI; ++I) {
+    if (isSimpleIndexCalc(*I, EntryReg, BaseReg)) {
+      RemovableAdd = &*I;
+      break;
+    }
+
+    for (unsigned K = 0, E = I->getNumOperands(); K != E; ++K) {
+      const MachineOperand &MO = I->getOperand(K);
+      if (!MO.isReg() || !MO.getReg())
+        continue;
+      if (MO.isDef() && MO.getReg() == BaseReg)
+        return false;
+      if (MO.isUse() && MO.getReg() == BaseReg) {
+        BaseRegKill = BaseRegKill || MO.isKill();
+        CanDeleteLEA = false;
+      }
+    }
+  }
+
+  if (!RemovableAdd)
+    return true;
+
+  // Check the add really is removable, and that nothing else in the block
+  // clobbers BaseReg.
+  for (++I; &*I != JumpMI; ++I) {
+    for (unsigned K = 0, E = I->getNumOperands(); K != E; ++K) {
+      const MachineOperand &MO = I->getOperand(K);
+      if (!MO.isReg() || !MO.getReg())
+        continue;
+      if (MO.isDef() && MO.getReg() == BaseReg)
+        return false;
+      if (MO.isUse() && MO.getReg() == EntryReg)
+        RemovableAdd = nullptr;
+    }
+  }
+
+  if (RemovableAdd) {
+    RemovableAdd->eraseFromParent();
+    DeadSize += 4;
+  } else if (BaseReg == EntryReg) {
+    // The add wasn't removable, but clobbered the base for the TBB. So we can't
+    // preserve it.
+    return false;
+  }
+
+  // We reached the end of the block without seeing another definition of
+  // BaseReg (except, possibly the t2ADDrs, which was removed). BaseReg can be
+  // used in the TBB/TBH if necessary.
+  return true;
+}
+
+/// \brief Returns whether CPEMI is the first instruction in the block
+/// immediately following JTMI (assumed to be a TBB or TBH terminator). If so,
+/// we can switch the first register to PC and usually remove the address
+/// calculation that preceeded it.
+static bool jumpTableFollowsTB(MachineInstr *JTMI, MachineInstr *CPEMI) {
+  MachineFunction::iterator MBB = JTMI->getParent();
+  MachineFunction *MF = MBB->getParent();
+  ++MBB;
+
+  return MBB != MF->end() && MBB->begin() != MBB->end() &&
+         &*MBB->begin() == CPEMI;
+}
+
 /// optimizeThumb2JumpTables - Use tbb / tbh instructions to generate smaller
 /// jumptables when it's possible.
 bool ARMConstantIslands::optimizeThumb2JumpTables() {
@@ -1852,7 +2083,7 @@ bool ARMConstantIslands::optimizeThumb2JumpTables() {
     MachineInstr *MI = T2JumpTables[i];
     const MCInstrDesc &MCID = MI->getDesc();
     unsigned NumOps = MCID.getNumOperands();
-    unsigned JTOpIdx = NumOps - (MI->isPredicable() ? 3 : 2);
+    unsigned JTOpIdx = NumOps - (MI->isPredicable() ? 2 : 1);
     MachineOperand JTOP = MI->getOperand(JTOpIdx);
     unsigned JTI = JTOP.getIndex();
     assert(JTI < JT.size());
@@ -1875,91 +2106,79 @@ bool ARMConstantIslands::optimizeThumb2JumpTables() {
         break;
     }
 
-    if (ByteOk || HalfWordOk) {
-      MachineBasicBlock *MBB = MI->getParent();
-      unsigned BaseReg = MI->getOperand(0).getReg();
-      bool BaseRegKill = MI->getOperand(0).isKill();
-      if (!BaseRegKill)
-        continue;
-      unsigned IdxReg = MI->getOperand(1).getReg();
-      bool IdxRegKill = MI->getOperand(1).isKill();
+    if (!ByteOk && !HalfWordOk)
+      continue;
 
-      // Scan backwards to find the instruction that defines the base
-      // register. Due to post-RA scheduling, we can't count on it
-      // immediately preceding the branch instruction.
-      MachineBasicBlock::iterator PrevI = MI;
-      MachineBasicBlock::iterator B = MBB->begin();
-      while (PrevI != B && !PrevI->definesRegister(BaseReg))
-        --PrevI;
+    MachineBasicBlock *MBB = MI->getParent();
+    if (!MI->getOperand(0).isKill()) // FIXME: needed now?
+      continue;
+    unsigned IdxReg = MI->getOperand(1).getReg();
+    bool IdxRegKill = MI->getOperand(1).isKill();
 
-      // If for some reason we didn't find it, we can't do anything, so
-      // just skip this one.
-      if (!PrevI->definesRegister(BaseReg))
-        continue;
+    CPUser &User = CPUsers[JumpTableUserIndices[JTI]];
+    unsigned DeadSize = 0;
+    bool CanDeleteLEA = false;
+    bool BaseRegKill = false;
+    bool PreservedBaseReg =
+        preserveBaseRegister(MI, User.MI, DeadSize, CanDeleteLEA, BaseRegKill);
 
-      MachineInstr *AddrMI = PrevI;
-      bool OptOk = true;
-      // Examine the instruction that calculates the jumptable entry address.
-      // Make sure it only defines the base register and kills any uses
-      // other than the index register.
-      for (unsigned k = 0, eee = AddrMI->getNumOperands(); k != eee; ++k) {
-        const MachineOperand &MO = AddrMI->getOperand(k);
-        if (!MO.isReg() || !MO.getReg())
-          continue;
-        if (MO.isDef() && MO.getReg() != BaseReg) {
-          OptOk = false;
-          break;
-        }
-        if (MO.isUse() && !MO.isKill() && MO.getReg() != IdxReg) {
-          OptOk = false;
-          break;
-        }
+    if (!jumpTableFollowsTB(MI, User.CPEMI) && !PreservedBaseReg)
+      continue;
+
+    DEBUG(dbgs() << "Shrink JT: " << *MI);
+    MachineInstr *CPEMI = User.CPEMI;
+    unsigned Opc = ByteOk ? ARM::t2TBB_JT : ARM::t2TBH_JT;
+    MachineBasicBlock::iterator MI_JT = MI;
+    MachineInstr *NewJTMI =
+        BuildMI(*MBB, MI_JT, MI->getDebugLoc(), TII->get(Opc))
+            .addReg(User.MI->getOperand(0).getReg(),
+                    getKillRegState(BaseRegKill))
+            .addReg(IdxReg, getKillRegState(IdxRegKill))
+            .addJumpTableIndex(JTI, JTOP.getTargetFlags())
+            .addImm(CPEMI->getOperand(0).getImm());
+    DEBUG(dbgs() << "BB#" << MBB->getNumber() << ": " << *NewJTMI);
+
+    unsigned JTOpc = ByteOk ? ARM::JUMPTABLE_TBB : ARM::JUMPTABLE_TBH;
+    CPEMI->setDesc(TII->get(JTOpc));
+
+    if (jumpTableFollowsTB(MI, User.CPEMI)) {
+      NewJTMI->getOperand(0).setReg(ARM::PC);
+      NewJTMI->getOperand(0).setIsKill(false);
+
+      if (CanDeleteLEA)  {
+        User.MI->eraseFromParent();
+        DeadSize += 4;
+
+        // The LEA was eliminated, the TBB instruction becomes the only new user
+        // of the jump table.
+        User.MI = NewJTMI;
+        User.MaxDisp = 4;
+        User.NegOk = false;
+        User.IsSoImm = false;
+        User.KnownAlignment = false;
+      } else {
+        // The LEA couldn't be eliminated, so we must add another CPUser to
+        // record the TBB or TBH use.
+        int CPEntryIdx = JumpTableEntryIndices[JTI];
+        auto &CPEs = CPEntries[CPEntryIdx];
+        auto Entry = std::find_if(CPEs.begin(), CPEs.end(), [&](CPEntry &E) {
+          return E.CPEMI == User.CPEMI;
+        });
+        ++Entry->RefCount;
+        CPUsers.emplace_back(CPUser(NewJTMI, User.CPEMI, 4, false, false));
       }
-      if (!OptOk)
-        continue;
-
-      // Now scan back again to find the tLEApcrel or t2LEApcrelJT instruction
-      // that gave us the initial base register definition.
-      for (--PrevI; PrevI != B && !PrevI->definesRegister(BaseReg); --PrevI)
-        ;
-
-      // The instruction should be a tLEApcrel or t2LEApcrelJT; we want
-      // to delete it as well.
-      MachineInstr *LeaMI = PrevI;
-      if ((LeaMI->getOpcode() != ARM::tLEApcrelJT &&
-           LeaMI->getOpcode() != ARM::t2LEApcrelJT) ||
-          LeaMI->getOperand(0).getReg() != BaseReg)
-        OptOk = false;
-
-      if (!OptOk)
-        continue;
-
-      DEBUG(dbgs() << "Shrink JT: " << *MI << "     addr: " << *AddrMI
-                   << "      lea: " << *LeaMI);
-      unsigned Opc = ByteOk ? ARM::t2TBB_JT : ARM::t2TBH_JT;
-      MachineInstr *NewJTMI = BuildMI(MBB, MI->getDebugLoc(), TII->get(Opc))
-        .addReg(IdxReg, getKillRegState(IdxRegKill))
-        .addJumpTableIndex(JTI, JTOP.getTargetFlags())
-        .addImm(MI->getOperand(JTOpIdx+1).getImm());
-      DEBUG(dbgs() << "BB#" << MBB->getNumber() << ": " << *NewJTMI);
-      // FIXME: Insert an "ALIGN" instruction to ensure the next instruction
-      // is 2-byte aligned. For now, asm printer will fix it up.
-      unsigned NewSize = TII->GetInstSizeInBytes(NewJTMI);
-      unsigned OrigSize = TII->GetInstSizeInBytes(AddrMI);
-      OrigSize += TII->GetInstSizeInBytes(LeaMI);
-      OrigSize += TII->GetInstSizeInBytes(MI);
-
-      AddrMI->eraseFromParent();
-      LeaMI->eraseFromParent();
-      MI->eraseFromParent();
-
-      int delta = OrigSize - NewSize;
-      BBInfo[MBB->getNumber()].Size -= delta;
-      adjustBBOffsetsAfter(MBB);
-
-      ++NumTBs;
-      MadeChange = true;
     }
+
+    unsigned NewSize = TII->GetInstSizeInBytes(NewJTMI);
+    unsigned OrigSize = TII->GetInstSizeInBytes(MI);
+    MI->eraseFromParent();
+
+    int Delta = OrigSize - NewSize + DeadSize;
+    BBInfo[MBB->getNumber()].Size -= Delta;
+    adjustBBOffsetsAfter(MBB);
+
+    ++NumTBs;
+    MadeChange = true;
   }
 
   return MadeChange;
@@ -1978,7 +2197,7 @@ bool ARMConstantIslands::reorderThumb2JumpTables() {
     MachineInstr *MI = T2JumpTables[i];
     const MCInstrDesc &MCID = MI->getDesc();
     unsigned NumOps = MCID.getNumOperands();
-    unsigned JTOpIdx = NumOps - (MI->isPredicable() ? 3 : 2);
+    unsigned JTOpIdx = NumOps - (MI->isPredicable() ? 2 : 1);
     MachineOperand JTOP = MI->getOperand(JTOpIdx);
     unsigned JTI = JTOP.getIndex();
     assert(JTI < JT.size());

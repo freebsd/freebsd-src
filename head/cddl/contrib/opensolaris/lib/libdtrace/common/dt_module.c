@@ -37,6 +37,7 @@
 #else
 #include <sys/param.h>
 #include <sys/linker.h>
+#include <sys/module.h>
 #include <sys/stat.h>
 #endif
 
@@ -541,6 +542,22 @@ dt_module_lookup_by_ctf(dtrace_hdl_t *dtp, ctf_file_t *ctfp)
 {
 	return (ctfp ? ctf_getspecific(ctfp) : NULL);
 }
+
+#ifdef __FreeBSD__
+dt_kmodule_t *
+dt_kmodule_lookup(dtrace_hdl_t *dtp, const char *name)
+{
+	uint_t h = dt_strtab_hash(name, NULL) % dtp->dt_modbuckets;
+	dt_kmodule_t *dkmp;
+
+	for (dkmp = dtp->dt_kmods[h]; dkmp != NULL; dkmp = dkmp->dkm_next) {
+		if (strcmp(dkmp->dkm_name, name) == 0)
+			return (dkmp);
+	}
+
+	return (NULL);
+}
+#endif
 
 static int
 dt_module_load_sect(dtrace_hdl_t *dtp, dt_module_t *dmp, ctf_sect_t *ctsp)
@@ -1124,6 +1141,12 @@ dt_module_update(dtrace_hdl_t *dtp, struct kld_file_stat *k_stat)
 	char fname[MAXPATHLEN];
 	struct stat64 st;
 	int fd, err, bits;
+#ifdef __FreeBSD__
+	struct module_stat ms;
+	dt_kmodule_t *dkmp;
+	uint_t h;
+	int modid;
+#endif
 
 	dt_module_t *dmp;
 	const char *s;
@@ -1269,6 +1292,33 @@ dt_module_update(dtrace_hdl_t *dtp, struct kld_file_stat *k_stat)
 
 	if (dmp->dm_info.objfs_info_primary)
 		dmp->dm_flags |= DT_DM_PRIMARY;
+
+#ifdef __FreeBSD__
+	ms.version = sizeof(ms);
+	for (modid = kldfirstmod(k_stat->id); modid > 0;
+	    modid = modnext(modid)) {
+		if (modstat(modid, &ms) != 0) {
+			dt_dprintf("modstat failed for id %d in %s: %s\n",
+			    modid, k_stat->name, strerror(errno));
+			continue;
+		}
+		if (dt_kmodule_lookup(dtp, ms.name) != NULL)
+			continue;
+
+		dkmp = malloc(sizeof (*dkmp));
+		if (dkmp == NULL) {
+			dt_dprintf("failed to allocate memory\n");
+			dt_module_destroy(dtp, dmp);
+			return;
+		}
+
+		h = dt_strtab_hash(ms.name, NULL) % dtp->dt_modbuckets;
+		dkmp->dkm_next = dtp->dt_kmods[h];
+		dkmp->dkm_name = strdup(ms.name);
+		dkmp->dkm_module = dmp;
+		dtp->dt_kmods[h] = dkmp;
+	}
+#endif
 
 	dt_dprintf("opened %d-bit module %s (%s) [%d]\n",
 	    bits, dmp->dm_name, dmp->dm_file, dmp->dm_modid);

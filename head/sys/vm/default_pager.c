@@ -113,6 +113,7 @@ default_pager_dealloc(object)
 	/*
 	 * OBJT_DEFAULT objects have no special resources allocated to them.
 	 */
+	object->type = OBJT_DEAD;
 }
 
 /*

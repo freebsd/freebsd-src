@@ -109,11 +109,17 @@ media_status(int s)
 {
 	struct ifmediareq ifmr;
 	int *media_list, i;
+	int xmedia = 1;
 
 	(void) memset(&ifmr, 0, sizeof(ifmr));
 	(void) strncpy(ifmr.ifm_name, name, sizeof(ifmr.ifm_name));
 
-	if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
+	/*
+	 * Check if interface supports extended media types.
+	 */
+	if (ioctl(s, SIOCGIFXMEDIA, (caddr_t)&ifmr) < 0)
+		xmedia = 0;
+	if (xmedia == 0 && ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
 		/*
 		 * Interface doesn't support SIOC{G,S}IFMEDIA.
 		 */
@@ -130,8 +136,13 @@ media_status(int s)
 		err(1, "malloc");
 	ifmr.ifm_ulist = media_list;
 
-	if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0)
-		err(1, "SIOCGIFMEDIA");
+	if (xmedia) {
+		if (ioctl(s, SIOCGIFXMEDIA, (caddr_t)&ifmr) < 0)
+			err(1, "SIOCGIFXMEDIA");
+	} else {
+		if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0)
+			err(1, "SIOCGIFMEDIA");
+	}
 
 	printf("\tmedia: ");
 	print_media_word(ifmr.ifm_current, 1);
@@ -194,6 +205,7 @@ ifmedia_getstate(int s)
 {
 	static struct ifmediareq *ifmr = NULL;
 	int *mwords;
+	int xmedia = 1;
 
 	if (ifmr == NULL) {
 		ifmr = (struct ifmediareq *)malloc(sizeof(struct ifmediareq));
@@ -213,7 +225,10 @@ ifmedia_getstate(int s)
 		 * the current media type and the top-level type.
 		 */
 
-		if (ioctl(s, SIOCGIFMEDIA, (caddr_t)ifmr) < 0) {
+		if (ioctl(s, SIOCGIFXMEDIA, (caddr_t)ifmr) < 0) {
+			xmedia = 0;
+		}
+		if (xmedia == 0 && ioctl(s, SIOCGIFMEDIA, (caddr_t)ifmr) < 0) {
 			err(1, "SIOCGIFMEDIA");
 		}
 
@@ -225,8 +240,13 @@ ifmedia_getstate(int s)
 			err(1, "malloc");
   
 		ifmr->ifm_ulist = mwords;
-		if (ioctl(s, SIOCGIFMEDIA, (caddr_t)ifmr) < 0)
-			err(1, "SIOCGIFMEDIA");
+		if (xmedia) {
+			if (ioctl(s, SIOCGIFXMEDIA, (caddr_t)ifmr) < 0)
+				err(1, "SIOCGIFXMEDIA");
+		} else {
+			if (ioctl(s, SIOCGIFMEDIA, (caddr_t)ifmr) < 0)
+				err(1, "SIOCGIFMEDIA");
+		}
 	}
 
 	return ifmr;
@@ -825,11 +845,9 @@ static struct afswtch af_media = {
 static __constructor void
 ifmedia_ctor(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	size_t i;
 
-	for (i = 0; i < N(media_cmds);  i++)
+	for (i = 0; i < nitems(media_cmds);  i++)
 		cmd_register(&media_cmds[i]);
 	af_register(&af_media);
-#undef N
 }

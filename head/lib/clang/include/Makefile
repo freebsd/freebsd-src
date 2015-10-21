@@ -8,22 +8,36 @@ LLVM_SRCS= ${.CURDIR}/../../../contrib/llvm
 
 .PATH: ${LLVM_SRCS}/tools/clang/lib/Headers
 
-INCSDIR=${INCLUDEDIR}/clang/3.5.1
+INCSDIR=${LIBDIR}/clang/3.7.0/include
 
-INCS=	__wmmintrin_aes.h \
+INCS=	__stddef_max_align_t.h \
+	__wmmintrin_aes.h \
 	__wmmintrin_pclmul.h \
+	adxintrin.h \
 	altivec.h \
 	ammintrin.h \
 	arm_acle.h \
 	avx2intrin.h \
+	avx512bwintrin.h \
+	avx512cdintrin.h \
+	avx512dqintrin.h \
+	avx512erintrin.h \
+	avx512fintrin.h \
+	avx512vlbwintrin.h \
+	avx512vldqintrin.h \
+	avx512vlintrin.h \
 	avxintrin.h \
 	bmi2intrin.h \
 	bmiintrin.h \
 	cpuid.h \
+	cuda_builtin_vars.h \
 	emmintrin.h \
 	f16cintrin.h \
 	fma4intrin.h \
 	fmaintrin.h \
+	fxsrintrin.h \
+	htmintrin.h \
+	htmxlintrin.h \
 	ia32intrin.h \
 	immintrin.h \
 	lzcntintrin.h \
@@ -37,16 +51,23 @@ INCS=	__wmmintrin_aes.h \
 	prfchwintrin.h \
 	rdseedintrin.h \
 	rtmintrin.h \
+	s390intrin.h \
 	shaintrin.h \
 	smmintrin.h \
 	tbmintrin.h \
 	tmmintrin.h \
+	vadefs.h \
+	vecintrin.h \
 	wmmintrin.h \
 	x86intrin.h \
 	xmmintrin.h \
 	xopintrin.h \
+	xtestintrin.h \
 	${GENINCS}
 GENINCS= arm_neon.h
-CLEANFILES= ${GENINCS}
+CLEANFILES= ${GENINCS} ${GENINCS:C/\.h$/.d/}
+
+# avoid a circular dependency
+GENDIRDEPS_FILTER+= Nusr.bin/clang/clang-tblgen.host
 
 .include <bsd.prog.mk>

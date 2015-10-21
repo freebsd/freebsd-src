@@ -48,6 +48,7 @@
 
 #include "debug.h"
 #include "rtld.h"
+#include "rtld_tls.h"
 
 /*
  * Process the special R_386_COPY relocations in the main program.  These

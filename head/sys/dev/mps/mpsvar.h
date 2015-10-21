@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2009 Yahoo! Inc.
- * Copyright (c) 2011, 2012 LSI Corp.
+ * Copyright (c) 2011-2015 LSI Corp.
+ * Copyright (c) 2013-2015 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * LSI MPT-Fusion Host Adapter FreeBSD
+ * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
  *
  * $FreeBSD$
  */
@@ -32,7 +33,7 @@
 #ifndef _MPSVAR_H
 #define _MPSVAR_H
 
-#define MPS_DRIVER_VERSION	"19.00.00.00-fbsd"
+#define MPS_DRIVER_VERSION	"20.00.00.00-fbsd"
 
 #define MPS_DB_MAX_WAIT		2500
 
@@ -50,9 +51,12 @@
 #define  NO_SLEEP			0
 
 #define MPS_PERIODIC_DELAY	1	/* 1 second heartbeat/watchdog check */
+#define MPS_ATA_ID_TIMEOUT	5	/* 5 second timeout for SATA ID cmd */
 
 #define MPS_SCSI_RI_INVALID_FRAME	(0x00000002)
 #define MPS_STRING_LENGTH               64
+
+#define DEFAULT_SPINUP_WAIT	3	/* seconds to wait for spinup */
 
 #include <sys/endian.h>
 
@@ -232,6 +236,7 @@ struct mps_command {
 #define	MPS_CM_FLAGS_CHAIN_FAILED	(1 << 9)
 #define	MPS_CM_FLAGS_ERROR_MASK		MPS_CM_FLAGS_CHAIN_FAILED
 #define	MPS_CM_FLAGS_USE_CCB		(1 << 10)
+#define	MPS_CM_FLAGS_SATA_ID_TIMEOUT	(1 << 11)
 	u_int				cm_state;
 #define MPS_CM_STATE_FREE		0
 #define MPS_CM_STATE_BUSY		1
@@ -276,9 +281,9 @@ struct mps_softc {
 	int				chain_free;
 	int				max_chains;
 	int				chain_free_lowwater;
-#if __FreeBSD_version >= 900030
+	u_int				enable_ssu;
+	int				spinup_wait_time;
 	uint64_t			chain_alloc_fail;
-#endif
 	struct sysctl_ctx_list		sysctl_ctx;
 	struct sysctl_oid		*sysctl_tree;
 	char                            fw_version[16];
@@ -476,20 +481,14 @@ mps_alloc_chain(struct mps_softc *sc)
 		sc->chain_free--;
 		if (sc->chain_free < sc->chain_free_lowwater)
 			sc->chain_free_lowwater = sc->chain_free;
-	}
-#if __FreeBSD_version >= 900030
-	else
+	} else
 		sc->chain_alloc_fail++;
-#endif
 	return (chain);
 }
 
 static __inline void
 mps_free_chain(struct mps_softc *sc, struct mps_chain *chain)
 {
-#if 0
-	bzero(chain->chain, 128);
-#endif
 	sc->chain_free++;
 	TAILQ_INSERT_TAIL(&sc->chain_list, chain, chain_link);
 }
@@ -599,6 +598,11 @@ mps_unlock(struct mps_softc *sc)
 #define MPS_MAPPING	(1 << 9)	/* Trace device mappings */
 #define MPS_TRACE	(1 << 10)	/* Function-by-function trace */
 
+#define	MPS_SSU_DISABLE_SSD_DISABLE_HDD	0
+#define	MPS_SSU_ENABLE_SSD_DISABLE_HDD	1
+#define	MPS_SSU_DISABLE_SSD_ENABLE_HDD	2
+#define	MPS_SSU_ENABLE_SSD_ENABLE_HDD	3
+
 #define mps_printf(sc, args...)				\
 	device_printf((sc)->mps_dev, ##args)
 
@@ -703,7 +707,6 @@ void mpssas_record_event(struct mps_softc *sc,
 int mps_map_command(struct mps_softc *sc, struct mps_command *cm);
 int mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout,
     int sleep_flag);
-int mps_request_polled(struct mps_softc *sc, struct mps_command *cm);
 
 int mps_config_get_bios_pg3(struct mps_softc *sc, Mpi2ConfigReply_t
     *mpi_reply, Mpi2BiosPage3_t *config_page);
@@ -764,6 +767,8 @@ void mpssas_realloc_targets(struct mps_softc *sc, int maxtargets);
 struct mps_command * mpssas_alloc_tm(struct mps_softc *sc);
 void mpssas_free_tm(struct mps_softc *sc, struct mps_command *tm);
 void mpssas_release_simq_reinit(struct mpssas_softc *sassc);
+int mpssas_send_reset(struct mps_softc *sc, struct mps_command *tm,
+    uint8_t type);
 
 SYSCTL_DECL(_hw_mps);
 

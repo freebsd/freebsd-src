@@ -25,12 +25,14 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Target/TargetLowering.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
+#include "llvm/Transforms/Utils/GlobalStatus.h"
+
 using namespace llvm;
 
-/// ComputeLinearIndex - Given an LLVM IR aggregate type and a sequence
-/// of insertvalue or extractvalue indices that identify a member, return
-/// the linearized index of the start of the member.
-///
+/// Compute the linearized index of a member in a nested aggregate/struct/array
+/// by recursing and accumulating CurIndex as long as there are indices in the
+/// index list.
 unsigned llvm::ComputeLinearIndex(Type *Ty,
                                   const unsigned *Indices,
                                   const unsigned *IndicesEnd,
@@ -49,16 +51,23 @@ unsigned llvm::ComputeLinearIndex(Type *Ty,
         return ComputeLinearIndex(*EI, Indices+1, IndicesEnd, CurIndex);
       CurIndex = ComputeLinearIndex(*EI, nullptr, nullptr, CurIndex);
     }
+    assert(!Indices && "Unexpected out of bound");
     return CurIndex;
   }
   // Given an array type, recursively traverse the elements.
   else if (ArrayType *ATy = dyn_cast<ArrayType>(Ty)) {
     Type *EltTy = ATy->getElementType();
-    for (unsigned i = 0, e = ATy->getNumElements(); i != e; ++i) {
-      if (Indices && *Indices == i)
-        return ComputeLinearIndex(EltTy, Indices+1, IndicesEnd, CurIndex);
-      CurIndex = ComputeLinearIndex(EltTy, nullptr, nullptr, CurIndex);
+    unsigned NumElts = ATy->getNumElements();
+    // Compute the Linear offset when jumping one element of the array
+    unsigned EltLinearOffset = ComputeLinearIndex(EltTy, nullptr, nullptr, 0);
+    if (Indices) {
+      assert(*Indices < NumElts && "Unexpected out of bound");
+      // If the indice is inside the array, compute the index to the requested
+      // elt and recurse inside the element with the end of the indices list
+      CurIndex += EltLinearOffset* *Indices;
+      return ComputeLinearIndex(EltTy, Indices+1, IndicesEnd, CurIndex);
     }
+    CurIndex += EltLinearOffset*NumElts;
     return CurIndex;
   }
   // We haven't found the type we're looking for, so keep searching.
@@ -72,27 +81,27 @@ unsigned llvm::ComputeLinearIndex(Type *Ty,
 /// If Offsets is non-null, it points to a vector to be filled in
 /// with the in-memory offsets of each of the individual values.
 ///
-void llvm::ComputeValueVTs(const TargetLowering &TLI, Type *Ty,
-                           SmallVectorImpl<EVT> &ValueVTs,
+void llvm::ComputeValueVTs(const TargetLowering &TLI, const DataLayout &DL,
+                           Type *Ty, SmallVectorImpl<EVT> &ValueVTs,
                            SmallVectorImpl<uint64_t> *Offsets,
                            uint64_t StartingOffset) {
   // Given a struct type, recursively traverse the elements.
   if (StructType *STy = dyn_cast<StructType>(Ty)) {
-    const StructLayout *SL = TLI.getDataLayout()->getStructLayout(STy);
+    const StructLayout *SL = DL.getStructLayout(STy);
     for (StructType::element_iterator EB = STy->element_begin(),
                                       EI = EB,
                                       EE = STy->element_end();
          EI != EE; ++EI)
-      ComputeValueVTs(TLI, *EI, ValueVTs, Offsets,
+      ComputeValueVTs(TLI, DL, *EI, ValueVTs, Offsets,
                       StartingOffset + SL->getElementOffset(EI - EB));
     return;
   }
   // Given an array type, recursively traverse the elements.
   if (ArrayType *ATy = dyn_cast<ArrayType>(Ty)) {
     Type *EltTy = ATy->getElementType();
-    uint64_t EltSize = TLI.getDataLayout()->getTypeAllocSize(EltTy);
+    uint64_t EltSize = DL.getTypeAllocSize(EltTy);
     for (unsigned i = 0, e = ATy->getNumElements(); i != e; ++i)
-      ComputeValueVTs(TLI, EltTy, ValueVTs, Offsets,
+      ComputeValueVTs(TLI, DL, EltTy, ValueVTs, Offsets,
                       StartingOffset + i * EltSize);
     return;
   }
@@ -100,21 +109,22 @@ void llvm::ComputeValueVTs(const TargetLowering &TLI, Type *Ty,
   if (Ty->isVoidTy())
     return;
   // Base case: we can get an EVT for this LLVM IR type.
-  ValueVTs.push_back(TLI.getValueType(Ty));
+  ValueVTs.push_back(TLI.getValueType(DL, Ty));
   if (Offsets)
     Offsets->push_back(StartingOffset);
 }
 
 /// ExtractTypeInfo - Returns the type info, possibly bitcast, encoded in V.
-GlobalVariable *llvm::ExtractTypeInfo(Value *V) {
+GlobalValue *llvm::ExtractTypeInfo(Value *V) {
   V = V->stripPointerCasts();
-  GlobalVariable *GV = dyn_cast<GlobalVariable>(V);
+  GlobalValue *GV = dyn_cast<GlobalValue>(V);
+  GlobalVariable *Var = dyn_cast<GlobalVariable>(V);
 
-  if (GV && GV->getName() == "llvm.eh.catch.all.value") {
-    assert(GV->hasInitializer() &&
+  if (Var && Var->getName() == "llvm.eh.catch.all.value") {
+    assert(Var->hasInitializer() &&
            "The EH catch-all value must have an initializer");
-    Value *Init = GV->getInitializer();
-    GV = dyn_cast<GlobalVariable>(Init);
+    Value *Init = Var->getInitializer();
+    GV = dyn_cast<GlobalValue>(Init);
     if (!GV) V = cast<ConstantPointerNull>(Init);
   }
 
@@ -223,7 +233,8 @@ static bool isNoopBitcast(Type *T1, Type *T2,
 static const Value *getNoopInput(const Value *V,
                                  SmallVectorImpl<unsigned> &ValLoc,
                                  unsigned &DataBits,
-                                 const TargetLoweringBase &TLI) {
+                                 const TargetLoweringBase &TLI,
+                                 const DataLayout &DL) {
   while (true) {
     // Try to look through V1; if V1 is not an instruction, it can't be looked
     // through.
@@ -245,16 +256,16 @@ static const Value *getNoopInput(const Value *V,
       // Make sure this isn't a truncating or extending cast.  We could
       // support this eventually, but don't bother for now.
       if (!isa<VectorType>(I->getType()) &&
-          TLI.getPointerTy().getSizeInBits() ==
-          cast<IntegerType>(Op->getType())->getBitWidth())
+          DL.getPointerSizeInBits() ==
+              cast<IntegerType>(Op->getType())->getBitWidth())
         NoopInput = Op;
     } else if (isa<PtrToIntInst>(I)) {
       // Look through ptrtoint.
       // Make sure this isn't a truncating or extending cast.  We could
       // support this eventually, but don't bother for now.
       if (!isa<VectorType>(I->getType()) &&
-          TLI.getPointerTy().getSizeInBits() ==
-          cast<IntegerType>(I->getType())->getBitWidth())
+          DL.getPointerSizeInBits() ==
+              cast<IntegerType>(I->getType())->getBitWidth())
         NoopInput = Op;
     } else if (isa<TruncInst>(I) &&
                TLI.allowTruncateForTailCall(Op->getType(), I->getType())) {
@@ -285,8 +296,8 @@ static const Value *getNoopInput(const Value *V,
     } else if (const InsertValueInst *IVI = dyn_cast<InsertValueInst>(V)) {
       // Value may come from either the aggregate or the scalar
       ArrayRef<unsigned> InsertLoc = IVI->getIndices();
-      if (std::equal(InsertLoc.rbegin(), InsertLoc.rend(),
-                     ValLoc.rbegin())) {
+      if (ValLoc.size() >= InsertLoc.size() &&
+          std::equal(InsertLoc.begin(), InsertLoc.end(), ValLoc.rbegin())) {
         // The type being inserted is a nested sub-type of the aggregate; we
         // have to remove those initial indices to get the location we're
         // interested in for the operand.
@@ -302,8 +313,7 @@ static const Value *getNoopInput(const Value *V,
       // previous aggregate. Combine the two paths to obtain the true address of
       // our element.
       ArrayRef<unsigned> ExtractLoc = EVI->getIndices();
-      std::copy(ExtractLoc.rbegin(), ExtractLoc.rend(),
-                std::back_inserter(ValLoc));
+      ValLoc.append(ExtractLoc.rbegin(), ExtractLoc.rend());
       NoopInput = Op;
     }
     // Terminate if we couldn't find anything to look through.
@@ -322,14 +332,15 @@ static bool slotOnlyDiscardsData(const Value *RetVal, const Value *CallVal,
                                  SmallVectorImpl<unsigned> &RetIndices,
                                  SmallVectorImpl<unsigned> &CallIndices,
                                  bool AllowDifferingSizes,
-                                 const TargetLoweringBase &TLI) {
+                                 const TargetLoweringBase &TLI,
+                                 const DataLayout &DL) {
 
   // Trace the sub-value needed by the return value as far back up the graph as
   // possible, in the hope that it will intersect with the value produced by the
   // call. In the simple case with no "returned" attribute, the hope is actually
   // that we end up back at the tail call instruction itself.
   unsigned BitsRequired = UINT_MAX;
-  RetVal = getNoopInput(RetVal, RetIndices, BitsRequired, TLI);
+  RetVal = getNoopInput(RetVal, RetIndices, BitsRequired, TLI, DL);
 
   // If this slot in the value returned is undef, it doesn't matter what the
   // call puts there, it'll be fine.
@@ -341,7 +352,7 @@ static bool slotOnlyDiscardsData(const Value *RetVal, const Value *CallVal,
   // a "returned" attribute, the search will be blocked immediately and the loop
   // a Noop.
   unsigned BitsProvided = UINT_MAX;
-  CallVal = getNoopInput(CallVal, CallIndices, BitsProvided, TLI);
+  CallVal = getNoopInput(CallVal, CallIndices, BitsProvided, TLI, DL);
 
   // There's no hope if we can't actually trace them to (the same part of!) the
   // same value.
@@ -508,8 +519,9 @@ bool llvm::isInTailCallPosition(ImmutableCallSite CS, const TargetMachine &TM) {
         return false;
     }
 
-  return returnTypeIsEligibleForTailCall(ExitBB->getParent(), I, Ret,
-                                         *TM.getTargetLowering());
+  const Function *F = ExitBB->getParent();
+  return returnTypeIsEligibleForTailCall(
+      F, I, Ret, *TM.getSubtargetImpl(*F)->getTargetLowering());
 }
 
 bool llvm::returnTypeIsEligibleForTailCall(const Function *F,
@@ -590,19 +602,44 @@ bool llvm::returnTypeIsEligibleForTailCall(const Function *F,
     // The manipulations performed when we're looking through an insertvalue or
     // an extractvalue would happen at the front of the RetPath list, so since
     // we have to copy it anyway it's more efficient to create a reversed copy.
-    using std::copy;
-    SmallVector<unsigned, 4> TmpRetPath, TmpCallPath;
-    copy(RetPath.rbegin(), RetPath.rend(), std::back_inserter(TmpRetPath));
-    copy(CallPath.rbegin(), CallPath.rend(), std::back_inserter(TmpCallPath));
+    SmallVector<unsigned, 4> TmpRetPath(RetPath.rbegin(), RetPath.rend());
+    SmallVector<unsigned, 4> TmpCallPath(CallPath.rbegin(), CallPath.rend());
 
     // Finally, we can check whether the value produced by the tail call at this
     // index is compatible with the value we return.
     if (!slotOnlyDiscardsData(RetVal, CallVal, TmpRetPath, TmpCallPath,
-                              AllowDifferingSizes, TLI))
+                              AllowDifferingSizes, TLI,
+                              F->getParent()->getDataLayout()))
       return false;
 
     CallEmpty  = !nextRealType(CallSubTypes, CallPath);
   } while(nextRealType(RetSubTypes, RetPath));
 
   return true;
+}
+
+bool llvm::canBeOmittedFromSymbolTable(const GlobalValue *GV) {
+  if (!GV->hasLinkOnceODRLinkage())
+    return false;
+
+  if (GV->hasUnnamedAddr())
+    return true;
+
+  // If it is a non constant variable, it needs to be uniqued across shared
+  // objects.
+  if (const GlobalVariable *Var = dyn_cast<GlobalVariable>(GV)) {
+    if (!Var->isConstant())
+      return false;
+  }
+
+  // An alias can point to a variable. We could try to resolve the alias to
+  // decide, but for now just don't hide them.
+  if (isa<GlobalAlias>(GV))
+    return false;
+
+  GlobalStatus GS;
+  if (GlobalStatus::analyzeGlobal(GV, GS))
+    return false;
+
+  return !GS.IsCompared;
 }

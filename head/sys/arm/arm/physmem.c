@@ -62,7 +62,7 @@ static size_t hwcnt;
 static size_t excnt;
 
 /*
- * These "avail lists" are globals used to communicate physical memory layout to 
+ * These "avail lists" are globals used to communicate physical memory layout to
  * other parts of the kernel.  Within the arrays, each value is the starting
  * address of a contiguous area of physical address space.  The values at even
  * indexes are areas that contain usable memory and the values at odd indexes
@@ -153,7 +153,7 @@ arm_physmem_print_tables()
  * Walk the list of hardware regions, processing it against the list of
  * exclusions that contain the given exflags, and generating an "avail list".
  *
- * Updates the kernel global 'realmem' with the sum of all pages in hw regions.
+ * Updates the value at *pavail with the sum of all pages in all hw regions.
  *
  * Returns the number of pages of non-excluded memory added to the avail list.
  */

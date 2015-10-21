@@ -36,14 +36,13 @@ FixItRewriter::FixItRewriter(DiagnosticsEngine &Diags, SourceManager &SourceMgr,
     FixItOpts(FixItOpts),
     NumFailures(0),
     PrevDiagSilenced(false) {
-  OwnsClient = Diags.ownsClient();
-  Client = Diags.takeClient();
-  Diags.setClient(this);
+  Owner = Diags.takeClient();
+  Client = Diags.getClient();
+  Diags.setClient(this, false);
 }
 
 FixItRewriter::~FixItRewriter() {
-  Diags.takeClient();
-  Diags.setClient(Client, OwnsClient);
+  Diags.setClient(Client, Owner.release() != nullptr);
 }
 
 bool FixItRewriter::WriteFixedFile(FileID ID, raw_ostream &OS) {
@@ -82,21 +81,27 @@ bool FixItRewriter::WriteFixedFiles(
   RewritesReceiver Rec(Rewrite);
   Editor.applyRewrites(Rec);
 
+  if (FixItOpts->InPlace) {
+    // Overwriting open files on Windows is tricky, but the rewriter can do it
+    // for us.
+    Rewrite.overwriteChangedFiles();
+    return false;
+  }
+
   for (iterator I = buffer_begin(), E = buffer_end(); I != E; ++I) {
     const FileEntry *Entry = Rewrite.getSourceMgr().getFileEntryForID(I->first);
     int fd;
     std::string Filename = FixItOpts->RewriteFilename(Entry->getName(), fd);
-    std::string Err;
+    std::error_code EC;
     std::unique_ptr<llvm::raw_fd_ostream> OS;
     if (fd != -1) {
       OS.reset(new llvm::raw_fd_ostream(fd, /*shouldClose=*/true));
     } else {
-      OS.reset(new llvm::raw_fd_ostream(Filename.c_str(), Err,
-                                        llvm::sys::fs::F_None));
+      OS.reset(new llvm::raw_fd_ostream(Filename, EC, llvm::sys::fs::F_None));
     }
-    if (!Err.empty()) {
-      Diags.Report(clang::diag::err_fe_unable_to_open_output)
-          << Filename << Err;
+    if (EC) {
+      Diags.Report(clang::diag::err_fe_unable_to_open_output) << Filename
+                                                              << EC.message();
       continue;
     }
     RewriteBuffer &RewriteBuf = I->second;
@@ -189,12 +194,10 @@ void FixItRewriter::Diag(SourceLocation Loc, unsigned DiagID) {
   // When producing this diagnostic, we temporarily bypass ourselves,
   // clear out any current diagnostic, and let the downstream client
   // format the diagnostic.
-  Diags.takeClient();
-  Diags.setClient(Client);
+  Diags.setClient(Client, false);
   Diags.Clear();
   Diags.Report(Loc, DiagID);
-  Diags.takeClient();
-  Diags.setClient(this);
+  Diags.setClient(this, false);
 }
 
 FixItOptions::~FixItOptions() {}

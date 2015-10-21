@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2012
+.Dd January 7, 2014
 .Dt UNIFDEF 1 PRM
 .Os " "
 .Sh NAME
@@ -44,6 +44,7 @@
 .Op Fl [i]D Ns Ar sym Ns Op = Ns Ar val
 .Op Fl [i]U Ns Ar sym
 .Ar ...
+.Op Fl f Ar defile
 .Op Fl x Bro Ar 012 Brc
 .Op Fl M Ar backext
 .Op Fl o Ar outfile
@@ -70,11 +71,17 @@ utility acts on
 .Ic #elif , #else ,
 and
 .Ic #endif
-lines.
-A directive is only processed
-if the symbols specified on the command line are sufficient to allow
-.Nm
-to get a definite value for its control expression.
+lines,
+using macros specified in
+.Fl D
+and
+.Fl U
+command line options or in
+.Fl f
+definitions files.
+A directive is processed
+if the macro specifications are sufficient to provide
+a definite value for its control expression.
 If the result is false,
 the directive and the following lines under its control are removed.
 If the result is true,
@@ -84,7 +91,7 @@ An
 or
 .Ic #ifndef
 directive is passed through unchanged
-if its controlling symbol is not specified on the command line.
+if its controlling macro is not specified.
 Any
 .Ic #if
 or
@@ -110,7 +117,7 @@ and
 .Ic #elif
 lines:
 integer constants,
-integer values of symbols defined on the command line,
+integer values of macros defined on the command line,
 the
 .Fn defined
 operator,
@@ -131,16 +138,42 @@ if either operand of
 .Ic ||
 is definitely true then the result is true.
 .Pp
-In most cases, the
+When evaluating an expression,
 .Nm
-utility does not distinguish between object-like macros
-(without arguments) and function-like arguments (with arguments).
-If a macro is not explicitly defined, or is defined with the
+does not expand macros first.
+The value of a macro must be a simple number,
+not an expression.
+A limited form of indirection is allowed,
+where one macro's value is the name of another.
+.Pp
+In most cases,
+.Nm
+does not distinguish between object-like macros
+(without arguments) and function-like macros (with arguments).
+A function-like macro invocation can appear in
+.Ic #if
+and
+.Ic #elif
+control expressions.
+If the macro is not explicitly defined,
+or is defined with the
 .Fl D
-flag on the command-line, its arguments are ignored.
+flag on the command-line,
+or with
+.Ic #define
+in a
+.Fl f
+definitions file,
+its arguments are ignored.
 If a macro is explicitly undefined on the command line with the
 .Fl U
-flag, it may not have any arguments since this leads to a syntax error.
+flag,
+or with
+.Ic #undef
+in a
+.Fl f
+definitions file,
+it may not have any arguments since this leads to a syntax error.
 .Pp
 The
 .Nm
@@ -161,7 +194,7 @@ It uses
 .Nm Fl s
 and
 .Nm cpp Fl dM
-to get lists of all the controlling symbols
+to get lists of all the controlling macros
 and their definitions (or lack thereof),
 then invokes
 .Nm
@@ -169,19 +202,15 @@ with appropriate arguments to process the file.
 .Sh OPTIONS
 .Bl -tag -width indent -compact
 .It Fl D Ns Ar sym Ns = Ns Ar val
-Specify that a symbol is defined to a given value
-which is used when evaluating
-.Ic #if
-and
-.Ic #elif
-control expressions.
+Specify that a macro is defined to a given value.
 .Pp
 .It Fl D Ns Ar sym
-Specify that a symbol is defined to the value 1.
+Specify that a macro is defined to the value 1.
 .Pp
 .It Fl U Ns Ar sym
-Specify that a symbol is undefined.
-If the same symbol appears in more than one argument,
+Specify that a macro is undefined.
+.Pp
+If the same macro appears in more than one argument,
 the last occurrence dominates.
 .Pp
 .It Fl iD Ns Ar sym Ns Op = Ns Ar val
@@ -193,8 +222,36 @@ are ignored within
 and
 .Ic #ifndef
 blocks
-controlled by symbols
+controlled by macros
 specified with these options.
+.Pp
+.It Fl f Ar defile
+The file
+.Ar defile
+contains
+.Ic #define
+and
+.Ic #undef
+preprocessor directives,
+which have the same effect as the corresponding
+.Fl D
+and
+.Fl U
+command-line arguments.
+You can have multiple
+.Fl f
+arguments and mix them with
+.Fl D
+and
+.Fl U
+arguments;
+later options override earlier ones.
+.Pp
+Each directive must be on a single line.
+Object-like macro definitions (without arguments)
+are set to the given value.
+Function-like macro definitions (with arguments)
+are treated as if they are set to 1.
 .Pp
 .It Fl b
 Replace removed lines with blank lines
@@ -291,24 +348,15 @@ instead of the standard output when processing a single file.
 Instead of processing an input file as usual,
 this option causes
 .Nm
-to produce a list of symbols that appear in expressions
-that
-.Nm
-understands.
-It is useful in conjunction with the
-.Fl dM
-option of
-.Xr cpp 1
-for creating
-.Nm
-command lines.
+to produce a list of macros that are used in
+preprocessor directive controlling expressions.
 .Pp
 .It Fl S
 Like the
 .Fl s
-option, but the nesting depth of each symbol is also printed.
+option, but the nesting depth of each macro is also printed.
 This is useful for working out the number of possible combinations
-of interdependent defined/undefined symbols.
+of interdependent defined/undefined macros.
 .Pp
 .It Fl t
 Disables parsing for C strings, comments,
@@ -406,6 +454,9 @@ in comment.
 .Sh SEE ALSO
 .Xr cpp 1 ,
 .Xr diff 1
+.Pp
+The unifdef home page is
+.Pa http://dotat.at/prog/unifdef
 .Sh HISTORY
 The
 .Nm
@@ -431,7 +482,7 @@ cannot be handled in every situation.
 .Pp
 Trigraphs are not recognized.
 .Pp
-There is no support for symbols with different definitions at
+There is no support for macros with different definitions at
 different points in the source file.
 .Pp
 The text-mode and ignore functionality does not correspond to modern

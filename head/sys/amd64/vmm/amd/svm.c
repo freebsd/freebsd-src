@@ -102,8 +102,8 @@ static MALLOC_DEFINE(M_SVM_VLAPIC, "svm-vlapic", "svm-vlapic");
 /* Per-CPU context area. */
 extern struct pcpu __pcpu[];
 
-static uint32_t svm_feature;	/* AMD SVM features. */
-SYSCTL_UINT(_hw_vmm_svm, OID_AUTO, features, CTLFLAG_RD, &svm_feature, 0,
+static uint32_t svm_feature = ~0U;	/* AMD SVM features. */
+SYSCTL_UINT(_hw_vmm_svm, OID_AUTO, features, CTLFLAG_RDTUN, &svm_feature, 0,
     "SVM features advertised by CPUID.8000000AH:EDX");
 
 static int disable_npf_assist;
@@ -112,7 +112,7 @@ SYSCTL_INT(_hw_vmm_svm, OID_AUTO, disable_npf_assist, CTLFLAG_RWTUN,
 
 /* Maximum ASIDs supported by the processor */
 static uint32_t nasid;
-SYSCTL_UINT(_hw_vmm_svm, OID_AUTO, num_asids, CTLFLAG_RD, &nasid, 0,
+SYSCTL_UINT(_hw_vmm_svm, OID_AUTO, num_asids, CTLFLAG_RDTUN, &nasid, 0,
     "Number of ASIDs supported by this processor");
 
 /* Current ASID generation for each host cpu */
@@ -174,9 +174,14 @@ check_svm_features(void)
 
 	/* CPUID Fn8000_000A is for SVM */
 	do_cpuid(0x8000000A, regs);
-	svm_feature = regs[3];
+	svm_feature &= regs[3];
 
-	nasid = regs[1];
+	/*
+	 * The number of ASIDs can be configured to be less than what is
+	 * supported by the hardware but not more.
+	 */
+	if (nasid == 0 || nasid > regs[1])
+		nasid = regs[1];
 	KASSERT(nasid > 1, ("Insufficient ASIDs for guests: %#x", nasid));
 
 	/* bhyve requires the Nested Paging feature */
@@ -564,6 +569,19 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	return (svm_sc);
 }
 
+/*
+ * Collateral for a generic SVM VM-exit.
+ */
+static void
+vm_exit_svm(struct vm_exit *vme, uint64_t code, uint64_t info1, uint64_t info2)
+{
+
+	vme->exitcode = VM_EXITCODE_SVM;
+	vme->u.svm.exitcode = code;
+	vme->u.svm.exitinfo1 = info1;
+	vme->u.svm.exitinfo2 = info2;
+}
+
 static int
 svm_cpl(struct vmcb_state *state)
 {
@@ -799,8 +817,14 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 	KASSERT(error == 0, ("%s: vmcb_seg(CS) error %d", __func__, error));
 
 	switch(paging->cpu_mode) {
+	case CPU_MODE_REAL:
+		vmexit->u.inst_emul.cs_base = seg.base;
+		vmexit->u.inst_emul.cs_d = 0;
+		break;
 	case CPU_MODE_PROTECTED:
 	case CPU_MODE_COMPATIBILITY:
+		vmexit->u.inst_emul.cs_base = seg.base;
+
 		/*
 		 * Section 4.8.1 of APM2, Default Operand Size or D bit.
 		 */
@@ -808,6 +832,7 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 		    1 : 0;
 		break;
 	default:
+		vmexit->u.inst_emul.cs_base = 0;
 		vmexit->u.inst_emul.cs_d = 0;
 		break;	
 	}
@@ -1073,6 +1098,76 @@ clear_nmi_blocking(struct svm_softc *sc, int vcpu)
 	KASSERT(!error, ("%s: error %d setting intr_shadow", __func__, error));
 }
 
+#define	EFER_MBZ_BITS	0xFFFFFFFFFFFF0200UL
+
+static int
+svm_write_efer(struct svm_softc *sc, int vcpu, uint64_t newval, bool *retu)
+{
+	struct vm_exit *vme;
+	struct vmcb_state *state;
+	uint64_t changed, lma, oldval;
+	int error;
+
+	state = svm_get_vmcb_state(sc, vcpu);
+
+	oldval = state->efer;
+	VCPU_CTR2(sc->vm, vcpu, "wrmsr(efer) %#lx/%#lx", oldval, newval);
+
+	newval &= ~0xFE;		/* clear the Read-As-Zero (RAZ) bits */
+	changed = oldval ^ newval;
+
+	if (newval & EFER_MBZ_BITS)
+		goto gpf;
+
+	/* APMv2 Table 14-5 "Long-Mode Consistency Checks" */
+	if (changed & EFER_LME) {
+		if (state->cr0 & CR0_PG)
+			goto gpf;
+	}
+
+	/* EFER.LMA = EFER.LME & CR0.PG */
+	if ((newval & EFER_LME) != 0 && (state->cr0 & CR0_PG) != 0)
+		lma = EFER_LMA;
+	else
+		lma = 0;
+
+	if ((newval & EFER_LMA) != lma)
+		goto gpf;
+
+	if (newval & EFER_NXE) {
+		if (!vm_cpuid_capability(sc->vm, vcpu, VCC_NO_EXECUTE))
+			goto gpf;
+	}
+
+	/*
+	 * XXX bhyve does not enforce segment limits in 64-bit mode. Until
+	 * this is fixed flag guest attempt to set EFER_LMSLE as an error.
+	 */
+	if (newval & EFER_LMSLE) {
+		vme = vm_exitinfo(sc->vm, vcpu);
+		vm_exit_svm(vme, VMCB_EXIT_MSR, 1, 0);
+		*retu = true;
+		return (0);
+	}
+
+	if (newval & EFER_FFXSR) {
+		if (!vm_cpuid_capability(sc->vm, vcpu, VCC_FFXSR))
+			goto gpf;
+	}
+
+	if (newval & EFER_TCE) {
+		if (!vm_cpuid_capability(sc->vm, vcpu, VCC_TCE))
+			goto gpf;
+	}
+
+	error = svm_setreg(sc, vcpu, VM_REG_GUEST_EFER, newval);
+	KASSERT(error == 0, ("%s: error %d updating efer", __func__, error));
+	return (0);
+gpf:
+	vm_inject_gp(sc->vm, vcpu);
+	return (0);
+}
+
 static int
 emulate_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val,
     bool *retu)
@@ -1082,7 +1177,7 @@ emulate_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val,
 	if (lapic_msr(num))
 		error = lapic_wrmsr(sc->vm, vcpu, num, val, retu);
 	else if (num == MSR_EFER)
-		error = svm_setreg(sc, vcpu, VM_REG_GUEST_EFER, val);
+		error = svm_write_efer(sc, vcpu, val, retu);
 	else
 		error = svm_wrmsr(sc, vcpu, num, val, retu);
 
@@ -1180,19 +1275,6 @@ nrip_valid(uint64_t exitcode)
 	default:
 		return (0);
 	}
-}
-
-/*
- * Collateral for a generic SVM VM-exit.
- */
-static void
-vm_exit_svm(struct vm_exit *vme, uint64_t code, uint64_t info1, uint64_t info2)
-{
-
-	vme->exitcode = VM_EXITCODE_SVM;
-	vme->u.svm.exitcode = code;
-	vme->u.svm.exitinfo1 = info1;
-	vme->u.svm.exitinfo2 = info2;
 }
 
 static int
@@ -1395,7 +1477,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			VCPU_CTR2(svm_sc->vm, vcpu, "nested page fault with "
 			    "reserved bits set: info1(%#lx) info2(%#lx)",
 			    info1, info2);
-		} else if (vm_mem_allocated(svm_sc->vm, info2)) {
+		} else if (vm_mem_allocated(svm_sc->vm, vcpu, info2)) {
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.gpa = info2;
 			vmexit->u.paging.fault_type = npf_fault_type(info1);
@@ -1641,7 +1723,7 @@ done:
 	 * VMRUN.
 	 */
 	v_tpr = vlapic_get_cr8(vlapic);
-	KASSERT(v_tpr >= 0 && v_tpr <= 15, ("invalid v_tpr %#x", v_tpr));
+	KASSERT(v_tpr <= 15, ("invalid v_tpr %#x", v_tpr));
 	if (ctrl->v_tpr != v_tpr) {
 		VCPU_CTR2(sc->vm, vcpu, "VMCB V_TPR changed from %#x to %#x",
 		    ctrl->v_tpr, v_tpr);
@@ -1808,14 +1890,14 @@ static __inline void
 disable_gintr(void)
 {
 
-        __asm __volatile("clgi" : : :);
+	__asm __volatile("clgi");
 }
 
 static __inline void
 enable_gintr(void)
 {
 
-        __asm __volatile("stgi" : : :);
+        __asm __volatile("stgi");
 }
 
 /*
@@ -1823,7 +1905,7 @@ enable_gintr(void)
  */
 static int
 svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap, 
-	void *rend_cookie, void *suspended_cookie)
+	struct vm_eventinfo *evinfo)
 {
 	struct svm_regctx *gctx;
 	struct svm_softc *svm_sc;
@@ -1834,7 +1916,6 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	struct vlapic *vlapic;
 	struct vm *vm;
 	uint64_t vmcb_pa;
-	u_int thiscpu;
 	int handled;
 
 	svm_sc = arg;
@@ -1846,19 +1927,10 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	vmexit = vm_exitinfo(vm, vcpu);
 	vlapic = vm_lapic(vm, vcpu);
 
-	/*
-	 * Stash 'curcpu' on the stack as 'thiscpu'.
-	 *
-	 * The per-cpu data area is not accessible until MSR_GSBASE is restored
-	 * after the #VMEXIT. Since VMRUN is executed inside a critical section
-	 * 'curcpu' and 'thiscpu' are guaranteed to identical.
-	 */
-	thiscpu = curcpu;
-
 	gctx = svm_get_guest_regctx(svm_sc, vcpu);
 	vmcb_pa = svm_sc->vcpu[vcpu].vmcb_pa;
 
-	if (vcpustate->lastcpu != thiscpu) {
+	if (vcpustate->lastcpu != curcpu) {
 		/*
 		 * Force new ASID allocation by invalidating the generation.
 		 */
@@ -1879,7 +1951,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		 * This works for now but any new side-effects of vcpu
 		 * migration should take this case into account.
 		 */
-		vcpustate->lastcpu = thiscpu;
+		vcpustate->lastcpu = curcpu;
 		vmm_stat_incr(vm, vcpu, VCPU_MIGRATIONS, 1);
 	}
 
@@ -1898,20 +1970,26 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		 */
 		disable_gintr();
 
-		if (vcpu_suspended(suspended_cookie)) {
+		if (vcpu_suspended(evinfo)) {
 			enable_gintr();
 			vm_exit_suspended(vm, vcpu, state->rip);
 			break;
 		}
 
-		if (vcpu_rendezvous_pending(rend_cookie)) {
+		if (vcpu_rendezvous_pending(evinfo)) {
 			enable_gintr();
 			vm_exit_rendezvous(vm, vcpu, state->rip);
 			break;
 		}
 
+		if (vcpu_reqidle(evinfo)) {
+			enable_gintr();
+			vm_exit_reqidle(vm, vcpu, state->rip);
+			break;
+		}
+
 		/* We are asked to give the cpu by scheduler. */
-		if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED)) {
+		if (vcpu_should_yield(vm, vcpu)) {
 			enable_gintr();
 			vm_exit_astpending(vm, vcpu, state->rip);
 			break;
@@ -1919,14 +1997,14 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		svm_inj_interrupts(svm_sc, vcpu, vlapic);
 
-		/* Activate the nested pmap on 'thiscpu' */
-		CPU_SET_ATOMIC_ACQ(thiscpu, &pmap->pm_active);
+		/* Activate the nested pmap on 'curcpu' */
+		CPU_SET_ATOMIC_ACQ(curcpu, &pmap->pm_active);
 
 		/*
 		 * Check the pmap generation and the ASID generation to
 		 * ensure that the vcpu does not use stale TLB mappings.
 		 */
-		check_asid(svm_sc, vcpu, pmap, thiscpu);
+		check_asid(svm_sc, vcpu, pmap, curcpu);
 
 		ctrl->vmcb_clean = vmcb_clean & ~vcpustate->dirty;
 		vcpustate->dirty = 0;
@@ -1934,23 +2012,9 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		/* Launch Virtual Machine. */
 		VCPU_CTR1(vm, vcpu, "Resume execution at %#lx", state->rip);
-		svm_launch(vmcb_pa, gctx);
+		svm_launch(vmcb_pa, gctx, &__pcpu[curcpu]);
 
-		CPU_CLR_ATOMIC(thiscpu, &pmap->pm_active);
-
-		/*
-		 * Restore MSR_GSBASE to point to the pcpu data area.
-		 *
-		 * Note that accesses done via PCPU_GET/PCPU_SET will work
-		 * only after MSR_GSBASE is restored.
-		 *
-		 * Also note that we don't bother restoring MSR_KGSBASE
-		 * since it is not used in the kernel and will be restored
-		 * when the VMRUN ioctl returns to userspace.
-		 */
-		wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[thiscpu]);
-		KASSERT(curcpu == thiscpu, ("thiscpu/curcpu (%u/%u) mismatch",
-		    thiscpu, curcpu));
+		CPU_CLR_ATOMIC(curcpu, &pmap->pm_active);
 
 		/*
 		 * The host GDTR and IDTR is saved by VMRUN and restored

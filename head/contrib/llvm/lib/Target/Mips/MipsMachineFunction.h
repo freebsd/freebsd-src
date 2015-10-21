@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPS_MACHINE_FUNCTION_INFO_H
-#define MIPS_MACHINE_FUNCTION_INFO_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPSMACHINEFUNCTION_H
+#define LLVM_LIB_TARGET_MIPS_MIPSMACHINEFUNCTION_H
 
 #include "Mips16HardFloatInfo.h"
 #include "llvm/ADT/StringMap.h"
@@ -34,7 +34,7 @@ namespace llvm {
 /// resolved by lazy-binding.
 class MipsCallEntry : public PseudoSourceValue {
 public:
-  explicit MipsCallEntry(const StringRef &N);
+  explicit MipsCallEntry(StringRef N);
   explicit MipsCallEntry(const GlobalValue *V);
   bool isConstant(const MachineFrameInfo *) const override;
   bool isAliased(const MachineFrameInfo *) const override;
@@ -88,7 +88,7 @@ public:
 
   /// \brief Create a MachinePointerInfo that has a MipsCallEntr object
   /// representing a GOT entry for an external function.
-  MachinePointerInfo callPtrInfo(const StringRef &Name);
+  MachinePointerInfo callPtrInfo(StringRef Name);
 
   /// \brief Create a MachinePointerInfo that has a MipsCallEntr object
   /// representing a GOT entry for a global function.
@@ -144,10 +144,11 @@ private:
   int MoveF64ViaSpillFI;
 
   /// MipsCallEntry maps.
-  StringMap<const MipsCallEntry *> ExternalCallEntries;
-  ValueMap<const GlobalValue *, const MipsCallEntry *> GlobalCallEntries;
+  StringMap<std::unique_ptr<const MipsCallEntry>> ExternalCallEntries;
+  ValueMap<const GlobalValue *, std::unique_ptr<const MipsCallEntry>>
+      GlobalCallEntries;
 };
 
 } // end of namespace llvm
 
-#endif // MIPS_MACHINE_FUNCTION_INFO_H
+#endif

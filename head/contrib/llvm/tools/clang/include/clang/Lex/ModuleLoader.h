@@ -11,8 +11,8 @@
 //  loading named modules.
 //
 //===----------------------------------------------------------------------===//
-#ifndef LLVM_CLANG_LEX_MODULE_LOADER_H
-#define LLVM_CLANG_LEX_MODULE_LOADER_H
+#ifndef LLVM_CLANG_LEX_MODULELOADER_H
+#define LLVM_CLANG_LEX_MODULELOADER_H
 
 #include "clang/Basic/Module.h"
 #include "clang/Basic/SourceLocation.h"
@@ -99,8 +99,7 @@ public:
   /// \brief Make the given module visible.
   virtual void makeModuleVisible(Module *Mod,
                                  Module::NameVisibilityKind Visibility,
-                                 SourceLocation ImportLoc,
-                                 bool Complain) = 0;
+                                 SourceLocation ImportLoc) = 0;
 
   /// \brief Load, create, or return global module.
   /// This function returns an existing global module index, if one

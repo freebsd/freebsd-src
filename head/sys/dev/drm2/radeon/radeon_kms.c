@@ -52,9 +52,13 @@ int radeon_driver_unload_kms(struct drm_device *dev)
 
 	if (rdev == NULL)
 		return 0;
+	if (rdev->rmmio == NULL)
+		goto done_free;
 	radeon_acpi_fini(rdev);
 	radeon_modeset_fini(rdev);
 	radeon_device_fini(rdev);
+
+done_free:
 	free(rdev, DRM_MEM_DRIVER);
 	dev->dev_private = NULL;
 	return 0;
@@ -78,17 +82,17 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	struct radeon_device *rdev;
 	int r, acpi_status;
 
-	rdev = malloc(sizeof(struct radeon_device), DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+	rdev = malloc(sizeof(struct radeon_device), DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (rdev == NULL) {
 		return -ENOMEM;
 	}
 	dev->dev_private = (void *)rdev;
 
 	/* update BUS flag */
-	if (drm_device_is_agp(dev)) {
+	if (drm_pci_device_is_agp(dev)) {
 		DRM_INFO("RADEON_IS_AGP\n");
 		flags |= RADEON_IS_AGP;
-	} else if (drm_device_is_pcie(dev)) {
+	} else if (drm_pci_device_is_pcie(dev)) {
 		DRM_INFO("RADEON_IS_PCIE\n");
 		flags |= RADEON_IS_PCIE;
 	} else {
@@ -104,7 +108,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	 */
 	r = radeon_device_init(rdev, dev, flags);
 	if (r) {
-		dev_err(dev->device, "Fatal error during GPU init\n");
+		dev_err(dev->dev, "Fatal error during GPU init\n");
 		goto out;
 	}
 
@@ -114,7 +118,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	 */
 	r = radeon_modeset_init(rdev);
 	if (r)
-		dev_err(dev->device, "Fatal error during modeset init\n");
+		dev_err(dev->dev, "Fatal error during modeset init\n");
 
 	/* Call ACPI methods: require modeset init
 	 * but failure is not fatal
@@ -122,7 +126,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	if (!r) {
 		acpi_status = radeon_acpi_init(rdev);
 		if (acpi_status)
-		dev_dbg(dev->device,
+		dev_dbg(dev->dev,
 				"Error during ACPI methods call\n");
 	}
 
@@ -419,9 +423,9 @@ int radeon_driver_firstopen_kms(struct drm_device *dev)
  */
 void radeon_driver_lastclose_kms(struct drm_device *dev)
 {
-#ifdef DUMBBELL_WIP
+#ifdef FREEBSD_WIP
 	vga_switcheroo_process_delayed_switch();
-#endif /* DUMBBELL_WIP */
+#endif /* FREEBSD_WIP */
 }
 
 /**
@@ -445,7 +449,7 @@ int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		struct radeon_bo_va *bo_va;
 		int r;
 
-		fpriv = malloc(sizeof(*fpriv), DRM_MEM_DRIVER, M_ZERO | M_WAITOK);
+		fpriv = malloc(sizeof(*fpriv), DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 		if (unlikely(!fpriv)) {
 			return -ENOMEM;
 		}
@@ -724,4 +728,4 @@ struct drm_ioctl_desc radeon_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_BUSY, radeon_gem_busy_ioctl, DRM_AUTH|DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_VA, radeon_gem_va_ioctl, DRM_AUTH|DRM_UNLOCKED),
 };
-int radeon_max_kms_ioctl = DRM_ARRAY_SIZE(radeon_ioctls_kms);
+int radeon_max_kms_ioctl = ARRAY_SIZE(radeon_ioctls_kms);

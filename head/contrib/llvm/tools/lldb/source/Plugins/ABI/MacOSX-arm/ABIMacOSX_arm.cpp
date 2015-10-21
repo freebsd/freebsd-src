@@ -184,13 +184,19 @@ ABIMacOSX_arm::CreateInstance (const ArchSpec &arch)
 {
     static ABISP g_abi_sp;
     const llvm::Triple::ArchType arch_type = arch.GetTriple().getArch();
-    if ((arch_type == llvm::Triple::arm) ||
-        (arch_type == llvm::Triple::thumb))
+    const llvm::Triple::VendorType vendor_type = arch.GetTriple().getVendor();
+
+    if (vendor_type == llvm::Triple::Apple)
     {
-        if (!g_abi_sp)
-            g_abi_sp.reset (new ABIMacOSX_arm);
-        return g_abi_sp;
+        if ((arch_type == llvm::Triple::arm) ||
+            (arch_type == llvm::Triple::thumb))
+        {
+            if (!g_abi_sp)
+                g_abi_sp.reset (new ABIMacOSX_arm);
+            return g_abi_sp;
+        }
     }
+
     return ABISP();
 }
 
@@ -334,11 +340,11 @@ ABIMacOSX_arm::GetArgumentValues (Thread &thread,
             size_t bit_width = 0;
             if (clang_type.IsIntegerType (is_signed))
             {
-                bit_width = clang_type.GetBitSize();
+                bit_width = clang_type.GetBitSize(&thread);
             }
             else if (clang_type.IsPointerOrReferenceType ())
             {
-                bit_width = clang_type.GetBitSize();
+                bit_width = clang_type.GetBitSize(&thread);
             }
             else
             {
@@ -437,7 +443,7 @@ ABIMacOSX_arm::GetReturnValueObjectImpl (Thread &thread,
     const RegisterInfo *r0_reg_info = reg_ctx->GetRegisterInfoByName("r0", 0);
     if (clang_type.IsIntegerType (is_signed))
     {
-        size_t bit_width = clang_type.GetBitSize();
+        size_t bit_width = clang_type.GetBitSize(&thread);
         
         switch (bit_width)
         {
@@ -587,7 +593,7 @@ ABIMacOSX_arm::CreateFunctionEntryUnwindPlan (UnwindPlan &unwind_plan)
     UnwindPlan::RowSP row(new UnwindPlan::Row);
     
     // Our Call Frame Address is the stack pointer value
-    row->SetCFARegister (sp_reg_num);
+    row->GetCFAValue().SetIsRegisterPlusOffset (sp_reg_num, 0);
     
     // The previous PC is in the LR
     row->SetRegisterLocationToRegister(pc_reg_num, lr_reg_num, true);
@@ -613,8 +619,7 @@ ABIMacOSX_arm::CreateDefaultUnwindPlan (UnwindPlan &unwind_plan)
     UnwindPlan::RowSP row(new UnwindPlan::Row);
     const int32_t ptr_size = 4;
     
-    row->SetCFARegister (fp_reg_num);
-    row->SetCFAOffset (2 * ptr_size);
+    row->GetCFAValue().SetIsRegisterPlusOffset (fp_reg_num, 2 * ptr_size);
     row->SetOffset (0);
     
     row->SetRegisterLocationToAtCFAPlusOffset(fp_reg_num, ptr_size * -2, true);
@@ -797,6 +802,36 @@ ABIMacOSX_arm::RegisterIsVolatile (const RegisterInfo *reg_info)
                 case '9':
                     return name[2] == '\0'; // s4 - s9 are volatile
 
+                default:
+                    break;
+            }
+        }
+        else if (name[0] == 'q')
+        {
+            switch (name[1])
+            {
+                case '1':
+                    switch (name[2])
+                    {
+                        case '\0':
+                            return true;  // q1 is volatile
+                        case '0':
+                        case '1':
+                        case '2':
+                        case '3':
+                        case '4':
+                        case '5':
+                            return true; // q10-q15 are volatile
+                        default:
+                            break;
+                    };
+                case '0': 
+                case '2': 
+                case '3': 
+                    return name[2] == '\0'; // q0-q3 are volatile
+                case '8':
+                case '9':
+                    return name[2] == '\0'; // q8-q9 are volatile
                 default:
                     break;
             }

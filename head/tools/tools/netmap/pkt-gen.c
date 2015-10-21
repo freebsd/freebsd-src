@@ -183,6 +183,8 @@ struct glob_arg {
 #define OPT_DUMP	64	/* dump rx/tx traffic */
 #define OPT_MONITOR_TX  128
 #define OPT_MONITOR_RX  256
+#define OPT_RANDOM_SRC  512
+#define OPT_RANDOM_DST  1024
 	int dev_type;
 #ifndef NO_PCAP
 	pcap_t *p;
@@ -567,32 +569,44 @@ update_addresses(struct pkt *pkt, struct glob_arg *g)
 	struct udphdr *udp = &pkt->udp;
 
     do {
-	p = ntohs(udp->uh_sport);
-	if (p < g->src_ip.port1) { /* just inc, no wrap */
-		udp->uh_sport = htons(p + 1);
-		break;
-	}
-	udp->uh_sport = htons(g->src_ip.port0);
+    	/* XXX for now it doesn't handle non-random src, random dst */
+	if (g->options & OPT_RANDOM_SRC) {
+		udp->uh_sport = random();
+		ip->ip_src.s_addr = random();
+	} else {
+		p = ntohs(udp->uh_sport);
+		if (p < g->src_ip.port1) { /* just inc, no wrap */
+			udp->uh_sport = htons(p + 1);
+			break;
+		}
+		udp->uh_sport = htons(g->src_ip.port0);
 
-	a = ntohl(ip->ip_src.s_addr);
-	if (a < g->src_ip.end) { /* just inc, no wrap */
-		ip->ip_src.s_addr = htonl(a + 1);
-		break;
-	}
-	ip->ip_src.s_addr = htonl(g->src_ip.start);
+		a = ntohl(ip->ip_src.s_addr);
+		if (a < g->src_ip.end) { /* just inc, no wrap */
+			ip->ip_src.s_addr = htonl(a + 1);
+			break;
+		}
+		ip->ip_src.s_addr = htonl(g->src_ip.start);
 
-	udp->uh_sport = htons(g->src_ip.port0);
-	p = ntohs(udp->uh_dport);
-	if (p < g->dst_ip.port1) { /* just inc, no wrap */
-		udp->uh_dport = htons(p + 1);
-		break;
+		udp->uh_sport = htons(g->src_ip.port0);
 	}
-	udp->uh_dport = htons(g->dst_ip.port0);
 
-	a = ntohl(ip->ip_dst.s_addr);
-	if (a < g->dst_ip.end) { /* just inc, no wrap */
-		ip->ip_dst.s_addr = htonl(a + 1);
-		break;
+	if (g->options & OPT_RANDOM_DST) {
+		udp->uh_dport = random();
+		ip->ip_dst.s_addr = random();
+	} else {
+		p = ntohs(udp->uh_dport);
+		if (p < g->dst_ip.port1) { /* just inc, no wrap */
+			udp->uh_dport = htons(p + 1);
+			break;
+		}
+		udp->uh_dport = htons(g->dst_ip.port0);
+
+		a = ntohl(ip->ip_dst.s_addr);
+		if (a < g->dst_ip.end) { /* just inc, no wrap */
+			ip->ip_dst.s_addr = htonl(a + 1);
+			break;
+		}
 	}
 	ip->ip_dst.s_addr = htonl(g->dst_ip.start);
     } while (0);
@@ -1394,7 +1408,9 @@ usage(void)
 		"\t-R rate		in packets per second\n"
 		"\t-X			dump payload\n"
 		"\t-H len		add empty virtio-net-header with size 'len'\n"
-	        "\t-P file		load packet from pcap file"
+	        "\t-P file		load packet from pcap file\n"
+		"\t-z			use random IPv4 src address/port\n"
+		"\t-Z			use random IPv4 dst address/port\n"
 		"",
 		cmd);
 
@@ -1667,7 +1683,7 @@ main(int arc, char **argv)
 	g.virt_header = 0;
 
 	while ( (ch = getopt(arc, argv,
-			"a:f:F:n:i:Il:d:s:D:S:b:c:o:p:T:w:WvR:XC:H:e:m:P:")) != -1) {
+			"a:f:F:n:i:Il:d:s:D:S:b:c:o:p:T:w:WvR:XC:H:e:m:P:zZ")) != -1) {
 		struct sf *fn;
 
 		switch(ch) {
@@ -1813,11 +1829,16 @@ main(int arc, char **argv)
 		case 'P':
 			g.packet_file = strdup(optarg);
 			break;
+		case 'z':
+			g.options |= OPT_RANDOM_SRC;
+			break;
+		case 'Z':
+			g.options |= OPT_RANDOM_DST;
+			break;
 		}
-
 	}
 
-	if (g.ifname == NULL) {
+	if (strlen(g.ifname) <=0 ) {
 		D("missing ifname");
 		usage();
 	}

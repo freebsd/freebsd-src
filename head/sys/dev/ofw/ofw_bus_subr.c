@@ -170,10 +170,36 @@ ofw_bus_status_okay(device_t dev)
 	const char *status;
 
 	status = ofw_bus_get_status(dev);
-	if (status == NULL || strcmp(status, "okay") == 0)
+	if (status == NULL || strcmp(status, "okay") == 0 ||
+	    strcmp(status, "ok") == 0)
 		return (1);
 	
 	return (0);
+}
+
+static int
+ofw_bus_node_is_compatible(const char *compat, int len, const char *onecompat)
+{
+	int onelen, l, ret;
+
+	onelen = strlen(onecompat);
+
+	ret = 0;
+	while (len > 0) {
+		if (strlen(compat) == onelen &&
+		    strncasecmp(compat, onecompat, onelen) == 0) {
+			/* Found it. */
+			ret = 1;
+			break;
+		}
+
+		/* Slide to the next sub-string. */
+		l = strlen(compat) + 1;
+		compat += l;
+		len -= l;
+	}
+
+	return (ret);
 }
 
 int
@@ -181,7 +207,7 @@ ofw_bus_is_compatible(device_t dev, const char *onecompat)
 {
 	phandle_t node;
 	const char *compat;
-	int len, onelen, l;
+	int len;
 
 	if ((compat = ofw_bus_get_compat(dev)) == NULL)
 		return (0);
@@ -193,20 +219,7 @@ ofw_bus_is_compatible(device_t dev, const char *onecompat)
 	if ((len = OF_getproplen(node, "compatible")) <= 0)
 		return (0);
 
-	onelen = strlen(onecompat);
-
-	while (len > 0) {
-		if (strlen(compat) == onelen &&
-		    strncasecmp(compat, onecompat, onelen) == 0)
-			/* Found it. */
-			return (1);
-
-		/* Slide to the next sub-string. */
-		l = strlen(compat) + 1;
-		compat += l;
-		len -= l;
-	}
-	return (0);
+	return (ofw_bus_node_is_compatible(compat, len, onecompat));
 }
 
 int
@@ -382,7 +395,7 @@ ofw_bus_reg_to_rl(device_t dev, phandle_t node, pcell_t acells, pcell_t scells,
 	 * This may be just redundant when having ofw_bus_devinfo
 	 * but makes this routine independent of it.
 	 */
-	ret = OF_getencprop_alloc(node, "name", sizeof(*name), (void **)&name);
+	ret = OF_getprop_alloc(node, "name", sizeof(*name), (void **)&name);
 	if (ret == -1)
 		name = NULL;
 
@@ -418,7 +431,8 @@ ofw_bus_reg_to_rl(device_t dev, phandle_t node, pcell_t acells, pcell_t scells,
 }
 
 int
-ofw_bus_intr_to_rl(device_t dev, phandle_t node, struct resource_list *rl)
+ofw_bus_intr_to_rl(device_t dev, phandle_t node,
+    struct resource_list *rl, int *rlen)
 {
 	phandle_t iparent;
 	uint32_t icells, *intr;
@@ -431,7 +445,7 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node, struct resource_list *rl)
 		if (OF_searchencprop(node, "interrupt-parent", &iparent,
 		    sizeof(iparent)) == -1) {
 			for (iparent = node; iparent != 0;
-			    iparent = OF_parent(node)) {
+			    iparent = OF_parent(iparent)) {
 				if (OF_hasprop(iparent, "interrupt-controller"))
 					break;
 			}
@@ -483,7 +497,99 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node, struct resource_list *rl)
 		irqnum = ofw_bus_map_intr(dev, iparent, icells, &intr[i]);
 		resource_list_add(rl, SYS_RES_IRQ, rid++, irqnum, irqnum, 1);
 	}
+	if (rlen != NULL)
+		*rlen = rid;
 	free(intr, M_OFWPROP);
 	return (err);
 }
 
+phandle_t
+ofw_bus_find_child(phandle_t start, const char *child_name)
+{
+	char *name;
+	int ret;
+	phandle_t child;
+
+	for (child = OF_child(start); child != 0; child = OF_peer(child)) {
+		ret = OF_getprop_alloc(child, "name", sizeof(*name), (void **)&name);
+		if (ret == -1)
+			continue;
+		if (strcmp(name, child_name) == 0) {
+			free(name, M_OFWPROP);
+			return (child);
+		}
+
+		free(name, M_OFWPROP);
+	}
+
+	return (0);
+}
+
+phandle_t
+ofw_bus_find_compatible(phandle_t node, const char *onecompat)
+{
+	phandle_t child, ret;
+	void *compat;
+	int len;
+
+	/*
+	 * Traverse all children of 'start' node, and find first with
+	 * matching 'compatible' property.
+	 */
+	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
+		len = OF_getprop_alloc(child, "compatible", 1, &compat);
+		if (len >= 0) {
+			ret = ofw_bus_node_is_compatible(compat, len,
+			    onecompat);
+			free(compat, M_OFWPROP);
+			if (ret != 0)
+				return (child);
+		}
+
+		ret = ofw_bus_find_compatible(child, onecompat);
+		if (ret != 0)
+			return (ret);
+	}
+	return (0);
+}
+
+/**
+ * @brief Return child of bus whose phandle is node
+ *
+ * A direct child of @p will be returned if it its phandle in the
+ * OFW tree is @p node. Otherwise, NULL is returned.
+ *
+ * @param bus		The bus to examine
+ * @param node		The phandle_t to look for.
+ */
+device_t
+ofw_bus_find_child_device_by_phandle(device_t bus, phandle_t node)
+{
+	device_t *children, retval, child;
+	int nkid, i;
+
+	/*
+	 * Nothing can match the flag value for no node.
+	 */
+	if (node == -1)
+		return (NULL);
+
+	/*
+	 * Search the children for a match. We microoptimize
+	 * a bit by not using ofw_bus_get since we already know
+	 * the parent. We do not recurse.
+	 */
+	if (device_get_children(bus, &children, &nkid) != 0)
+		return (NULL);
+	retval = NULL;
+	for (i = 0; i < nkid; i++) {
+		child = children[i];
+		if (OFW_BUS_GET_NODE(bus, child) == node) {
+			retval = child;
+			break;
+		}
+	}
+	free(children, M_TEMP);
+
+	return (retval);
+}

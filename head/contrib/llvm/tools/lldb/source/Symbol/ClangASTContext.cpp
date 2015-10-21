@@ -11,6 +11,7 @@
 
 // C Includes
 // C++ Includes
+#include <mutex> // std::once
 #include <string>
 
 // Other libraries and framework includes
@@ -62,6 +63,7 @@
 #include "lldb/Core/Flags.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/RegularExpression.h"
+#include "lldb/Core/ThreadSafeDenseMap.h"
 #include "lldb/Core/UniqueCStringMap.h"
 #include "lldb/Expression/ASTDumper.h"
 #include "lldb/Symbol/ClangExternalASTSourceCommon.h"
@@ -79,13 +81,17 @@ using namespace lldb_private;
 using namespace llvm;
 using namespace clang;
 
-typedef llvm::DenseMap<clang::ASTContext *, ClangASTContext*> ClangASTMap;
+typedef lldb_private::ThreadSafeDenseMap<clang::ASTContext *, ClangASTContext*> ClangASTMap;
 
 static ClangASTMap &
 GetASTMap()
 {
-    static ClangASTMap g_map;
-    return g_map;
+    static ClangASTMap *g_map_ptr = nullptr;
+    static std::once_flag g_once_flag;
+    std::call_once(g_once_flag,  []() {
+        g_map_ptr = new ClangASTMap(); // leaked on purpose to avoid spins
+    });
+    return *g_map_ptr;
 }
 
 
@@ -103,13 +109,8 @@ ClangASTContext::ConvertAccessTypeToAccessSpecifier (AccessType access)
     return AS_none;
 }
 
-
 static void
-ParseLangArgs
-(
-    LangOptions &Opts,
-    InputKind IK
-)
+ParseLangArgs (LangOptions &Opts, InputKind IK, const char* triple)
 {
     // FIXME: Cleanup per-file based stuff.
 
@@ -138,6 +139,7 @@ ParseLangArgs
                 LangStd = LangStandard::lang_opencl;
                 break;
             case IK_CUDA:
+            case IK_PreprocessedCuda:
                 LangStd = LangStandard::lang_cuda;
                 break;
             case IK_Asm:
@@ -228,7 +230,7 @@ ParseLangArgs
 //    Opts.Exceptions = Args.hasArg(OPT_fexceptions);
 //    Opts.RTTI = !Args.hasArg(OPT_fno_rtti);
 //    Opts.Blocks = Args.hasArg(OPT_fblocks);
-//    Opts.CharIsSigned = !Args.hasArg(OPT_fno_signed_char);
+      Opts.CharIsSigned = ArchSpec(triple).CharIsSignedByDefault();
 //    Opts.ShortWChar = Args.hasArg(OPT_fshort_wchar);
 //    Opts.Freestanding = Args.hasArg(OPT_ffreestanding);
 //    Opts.NoBuiltin = Args.hasArg(OPT_fno_builtin) || Opts.Freestanding;
@@ -303,7 +305,7 @@ ClangASTContext::~ClangASTContext()
 {
     if (m_ast_ap.get())
     {
-        GetASTMap().erase(m_ast_ap.get());
+        GetASTMap().Erase(m_ast_ap.get());
     }
 
     m_builtins_ap.reset();
@@ -399,7 +401,14 @@ ClangASTContext::getASTContext()
                                        *getIdentifierTable(),
                                        *getSelectorTable(),
                                        *getBuiltinContext()));
-        m_ast_ap->InitBuiltinTypes(*getTargetInfo());
+        
+        m_ast_ap->getDiagnostics().setClient(getDiagnosticConsumer(), false);
+
+        // This can be NULL if we don't know anything about the architecture or if the
+        // target for an architecture isn't enabled in the llvm/clang that we built
+        TargetInfo *target_info = getTargetInfo();
+        if (target_info)
+            m_ast_ap->InitBuiltinTypes(*target_info);
         
         if ((m_callback_tag_decl || m_callback_objc_decl) && m_callback_baton)
         {
@@ -407,9 +416,7 @@ ClangASTContext::getASTContext()
             //m_ast_ap->getTranslationUnitDecl()->setHasExternalVisibleStorage();
         }
         
-        m_ast_ap->getDiagnostics().setClient(getDiagnosticConsumer(), false);
-        
-        GetASTMap().insert(std::make_pair(m_ast_ap.get(), this));
+        GetASTMap().Insert(m_ast_ap.get(), this);
     }
     return m_ast_ap.get();
 }
@@ -417,7 +424,7 @@ ClangASTContext::getASTContext()
 ClangASTContext*
 ClangASTContext::GetASTContext (clang::ASTContext* ast)
 {
-    ClangASTContext *clang_ast = GetASTMap().lookup(ast);
+    ClangASTContext *clang_ast = GetASTMap().Lookup(ast);
     return clang_ast;
 }
 
@@ -443,7 +450,7 @@ ClangASTContext::getLanguageOptions()
     if (m_language_options_ap.get() == nullptr)
     {
         m_language_options_ap.reset(new LangOptions());
-        ParseLangArgs(*m_language_options_ap, IK_ObjCXX);
+        ParseLangArgs(*m_language_options_ap, IK_ObjCXX, GetTargetTriple());
 //        InitializeLangOptions(*m_language_options_ap, IK_ObjCXX);
     }
     return m_language_options_ap.get();
@@ -702,7 +709,7 @@ uint32_t
 ClangASTContext::GetPointerByteSize ()
 {
     if (m_pointer_byte_size == 0)
-        m_pointer_byte_size = GetBasicType(lldb::eBasicTypeVoid).GetPointerType().GetByteSize();
+        m_pointer_byte_size = GetBasicType(lldb::eBasicTypeVoid).GetPointerType().GetByteSize(nullptr);
     return m_pointer_byte_size;
 }
 
@@ -883,6 +890,13 @@ ClangASTContext::GetBuiltinTypeForDWARFEncodingAndBitSize (const char *type_name
                 break;
                 
             case DW_ATE_float:
+                if (streq(type_name, "float") && QualTypeMatchesBitSize (bit_size, ast, ast->FloatTy))
+                    return ClangASTType (ast, ast->FloatTy.getAsOpaquePtr());
+                if (streq(type_name, "double") && QualTypeMatchesBitSize (bit_size, ast, ast->DoubleTy))
+                    return ClangASTType (ast, ast->DoubleTy.getAsOpaquePtr());
+                if (streq(type_name, "long double") && QualTypeMatchesBitSize (bit_size, ast, ast->LongDoubleTy))
+                    return ClangASTType (ast, ast->LongDoubleTy.getAsOpaquePtr());
+                // Fall back to not requring a name match
                 if (QualTypeMatchesBitSize (bit_size, ast, ast->FloatTy))
                     return ClangASTType (ast, ast->FloatTy.getAsOpaquePtr());
                 if (QualTypeMatchesBitSize (bit_size, ast, ast->DoubleTy))
@@ -895,7 +909,8 @@ ClangASTContext::GetBuiltinTypeForDWARFEncodingAndBitSize (const char *type_name
                 if (type_name)
                 {
                     if (streq(type_name, "wchar_t") &&
-                        QualTypeMatchesBitSize (bit_size, ast, ast->WCharTy))
+                        QualTypeMatchesBitSize (bit_size, ast, ast->WCharTy) &&
+                        (getTargetInfo() && TargetInfo::isTypeSigned (getTargetInfo()->getWCharType())))
                         return ClangASTType (ast, ast->WCharTy.getAsOpaquePtr());
                     if (streq(type_name, "void") &&
                         QualTypeMatchesBitSize (bit_size, ast, ast->VoidTy))
@@ -938,18 +953,13 @@ ClangASTContext::GetBuiltinTypeForDWARFEncodingAndBitSize (const char *type_name
                 if (QualTypeMatchesBitSize (bit_size, ast, ast->Int128Ty))
                     return ClangASTType (ast, ast->Int128Ty.getAsOpaquePtr());
                 break;
-                
+
             case DW_ATE_signed_char:
-                if (type_name)
+                if (ast->getLangOpts().CharIsSigned && type_name && streq(type_name, "char"))
                 {
-                    if (streq(type_name, "signed char"))
-                    {
-                        if (QualTypeMatchesBitSize (bit_size, ast, ast->SignedCharTy))
-                            return ClangASTType (ast, ast->SignedCharTy.getAsOpaquePtr());
-                    }
+                    if (QualTypeMatchesBitSize (bit_size, ast, ast->CharTy))
+                        return ClangASTType (ast, ast->CharTy.getAsOpaquePtr());
                 }
-                if (QualTypeMatchesBitSize (bit_size, ast, ast->CharTy))
-                    return ClangASTType (ast, ast->CharTy.getAsOpaquePtr());
                 if (QualTypeMatchesBitSize (bit_size, ast, ast->SignedCharTy))
                     return ClangASTType (ast, ast->SignedCharTy.getAsOpaquePtr());
                 break;
@@ -957,6 +967,14 @@ ClangASTContext::GetBuiltinTypeForDWARFEncodingAndBitSize (const char *type_name
             case DW_ATE_unsigned:
                 if (type_name)
                 {
+                    if (streq(type_name, "wchar_t"))
+                    {
+                        if (QualTypeMatchesBitSize (bit_size, ast, ast->WCharTy))
+                        {
+                            if (!(getTargetInfo() && TargetInfo::isTypeSigned (getTargetInfo()->getWCharType())))
+                                return ClangASTType (ast, ast->WCharTy.getAsOpaquePtr());
+                        }
+                    }
                     if (strstr(type_name, "long long"))
                     {
                         if (QualTypeMatchesBitSize (bit_size, ast, ast->UnsignedLongLongTy))
@@ -999,8 +1017,13 @@ ClangASTContext::GetBuiltinTypeForDWARFEncodingAndBitSize (const char *type_name
                 if (QualTypeMatchesBitSize (bit_size, ast, ast->UnsignedInt128Ty))
                     return ClangASTType (ast, ast->UnsignedInt128Ty.getAsOpaquePtr());
                 break;
-                
+
             case DW_ATE_unsigned_char:
+                if (!ast->getLangOpts().CharIsSigned && type_name && streq(type_name, "char"))
+                {
+                    if (QualTypeMatchesBitSize (bit_size, ast, ast->CharTy))
+                        return ClangASTType (ast, ast->CharTy.getAsOpaquePtr());
+                }
                 if (QualTypeMatchesBitSize (bit_size, ast, ast->UnsignedCharTy))
                     return ClangASTType (ast, ast->UnsignedCharTy.getAsOpaquePtr());
                 if (QualTypeMatchesBitSize (bit_size, ast, ast->UnsignedShortTy))
@@ -1119,6 +1142,16 @@ ClangASTContext::AreTypesSame (ClangASTType type1,
     return ast->hasSameType (type1_qual, type2_qual);
 }
 
+ClangASTType
+ClangASTContext::GetTypeForDecl (clang::NamedDecl *decl)
+{
+    if (clang::ObjCInterfaceDecl *interface_decl = llvm::dyn_cast<clang::ObjCInterfaceDecl>(decl))
+        return GetTypeForDecl(interface_decl);
+    if (clang::TagDecl *tag_decl = llvm::dyn_cast<clang::TagDecl>(decl))
+        return GetTypeForDecl(tag_decl);
+    return ClangASTType();
+}
+
 
 ClangASTType
 ClangASTContext::GetTypeForDecl (TagDecl *decl)
@@ -1126,7 +1159,7 @@ ClangASTContext::GetTypeForDecl (TagDecl *decl)
     // No need to call the getASTContext() accessor (which can create the AST
     // if it isn't created yet, because we can't have created a decl in this
     // AST if our AST didn't already exist...
-    ASTContext *ast = m_ast_ap.get();
+    ASTContext *ast = &decl->getASTContext();
     if (ast)
         return ClangASTType (ast, ast->getTagDeclType(decl).getAsOpaquePtr());
     return ClangASTType();
@@ -1138,7 +1171,7 @@ ClangASTContext::GetTypeForDecl (ObjCInterfaceDecl *decl)
     // No need to call the getASTContext() accessor (which can create the AST
     // if it isn't created yet, because we can't have created a decl in this
     // AST if our AST didn't already exist...
-    ASTContext *ast = m_ast_ap.get();
+    ASTContext *ast = &decl->getASTContext();
     if (ast)
         return ClangASTType (ast, ast->getObjCInterfaceType(decl).getAsOpaquePtr());
     return ClangASTType();
@@ -1559,6 +1592,7 @@ ClangASTContext::CreateObjCClass
                                                          SourceLocation(),
                                                          &ast->Idents.get(name),
                                                          nullptr,
+                                                         nullptr,
                                                          SourceLocation(),
                                                          /*isForwardDecl,*/
                                                          isInternal);
@@ -1733,7 +1767,7 @@ ClangASTContext::CreateFunctionDeclaration (DeclContext *decl_ctx,
                                           DeclarationName (&ast->Idents.get(name)),
                                           function_clang_type.GetQualType(),
                                           nullptr,
-                                          (FunctionDecl::StorageClass)storage,
+                                          (clang::StorageClass)storage,
                                           is_inline,
                                           hasWrittenPrototype,
                                           isConstexprSpecified);
@@ -1747,7 +1781,7 @@ ClangASTContext::CreateFunctionDeclaration (DeclContext *decl_ctx,
                                           DeclarationName (),
                                           function_clang_type.GetQualType(),
                                           nullptr,
-                                          (FunctionDecl::StorageClass)storage,
+                                          (clang::StorageClass)storage,
                                           is_inline,
                                           hasWrittenPrototype,
                                           isConstexprSpecified);
@@ -1778,12 +1812,10 @@ ClangASTContext::CreateFunctionType (ASTContext *ast,
     // TODO: Detect calling convention in DWARF?
     FunctionProtoType::ExtProtoInfo proto_info;
     proto_info.Variadic = is_variadic;
-    proto_info.ExceptionSpecType = EST_None;
+    proto_info.ExceptionSpec = EST_None;
     proto_info.TypeQuals = type_quals;
     proto_info.RefQualifier = RQ_None;
-    proto_info.NumExceptions = 0;
-    proto_info.Exceptions = nullptr;
-    
+
     return ClangASTType (ast, ast->getFunctionType (result_type.GetQualType(),
                                                     qual_type_args,
                                                     proto_info).getAsOpaquePtr());
@@ -1801,7 +1833,7 @@ ClangASTContext::CreateParameterDeclaration (const char *name, const ClangASTTyp
                                 name && name[0] ? &ast->Idents.get(name) : nullptr,
                                 param_type.GetQualType(),
                                 nullptr,
-                                (VarDecl::StorageClass)storage,
+                                (clang::StorageClass)storage,
                                 nullptr);
 }
 
@@ -1851,7 +1883,23 @@ ClangASTContext::CreateArrayType (const ClangASTType &element_type,
     return ClangASTType();
 }
 
-
+ClangASTType
+ClangASTContext::GetOrCreateStructForIdentifier (const ConstString &type_name,
+                                                 const std::initializer_list< std::pair < const char *, ClangASTType > >& type_fields,
+                                                 bool packed)
+{
+    ClangASTType type;
+    if ((type = GetTypeForIdentifier<clang::CXXRecordDecl>(type_name)).IsValid())
+        return type;
+    type = CreateRecordType(nullptr, lldb::eAccessPublic, type_name.GetCString(), clang::TTK_Struct, lldb::eLanguageTypeC);
+    type.StartTagDeclarationDefinition();
+    for (const auto& field : type_fields)
+        type.AddFieldToRecordType(field.first, field.second, lldb::eAccessPublic, 0);
+    if (packed)
+        type.SetIsPacked();
+    type.CompleteTagDeclarationDefinition();
+    return type;
+}
 
 #pragma mark Enumeration Types
 
@@ -2069,7 +2117,7 @@ ClangASTContext::SetMetadata (clang::ASTContext *ast,
                               ClangASTMetadata &metadata)
 {
     ClangExternalASTSourceCommon *external_source =
-        static_cast<ClangExternalASTSourceCommon*>(ast->getExternalSource());
+        ClangExternalASTSourceCommon::Lookup(ast->getExternalSource());
     
     if (external_source)
         external_source->SetMetadata(object, metadata);
@@ -2080,7 +2128,7 @@ ClangASTContext::GetMetadata (clang::ASTContext *ast,
                               const void *object)
 {
     ClangExternalASTSourceCommon *external_source =
-        static_cast<ClangExternalASTSourceCommon*>(ast->getExternalSource());
+        ClangExternalASTSourceCommon::Lookup(ast->getExternalSource());
     
     if (external_source && external_source->HasMetadata(object))
         return external_source->GetMetadata(object);

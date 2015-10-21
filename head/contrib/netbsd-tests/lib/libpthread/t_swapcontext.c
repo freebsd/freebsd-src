@@ -28,6 +28,9 @@
 #include <sys/cdefs.h>
 __RCSID("$NetBSD");
 
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#endif
 #include <pthread.h>
 #include <ucontext.h>
 #include <stdio.h>

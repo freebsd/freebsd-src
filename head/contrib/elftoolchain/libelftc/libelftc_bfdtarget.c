@@ -24,15 +24,13 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
 #include <sys/param.h>
 #include <libelf.h>
 #include <libelftc.h>
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: libelftc_bfdtarget.c 2251 2011-11-30 16:50:06Z jkoshy $");
+ELFTC_VCSID("$Id: libelftc_bfdtarget.c 3174 2015-03-27 17:13:41Z emaste $");
 
 struct _Elftc_Bfd_Target _libelftc_targets[] = {
 

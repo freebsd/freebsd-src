@@ -329,7 +329,6 @@ typedef struct mpt_config_params {
 } cfgparms_t;
 
 /**************************** MPI Target State Info ***************************/
-
 typedef struct {
 	uint32_t reply_desc;	/* current reply descriptor */
 	uint32_t resid;		/* current data residual */
@@ -784,6 +783,7 @@ mpt_assign_serno(struct mpt_softc *mpt, request_t *req)
 
 /******************************* Register Access ******************************/
 static __inline void mpt_write(struct mpt_softc *, size_t, uint32_t);
+static __inline void mpt_write_stream(struct mpt_softc *, size_t, uint32_t);
 static __inline uint32_t mpt_read(struct mpt_softc *, int);
 static __inline void mpt_pio_write(struct mpt_softc *, size_t, uint32_t);
 static __inline uint32_t mpt_pio_read(struct mpt_softc *, int);
@@ -792,6 +792,12 @@ static __inline void
 mpt_write(struct mpt_softc *mpt, size_t offset, uint32_t val)
 {
 	bus_space_write_4(mpt->pci_st, mpt->pci_sh, offset, val);
+}
+
+static __inline void
+mpt_write_stream(struct mpt_softc *mpt, size_t offset, uint32_t val)
+{
+	bus_space_write_stream_4(mpt->pci_st, mpt->pci_sh, offset, val);
 }
 
 static __inline uint32_t
@@ -818,6 +824,7 @@ mpt_pio_read(struct mpt_softc *mpt, int offset)
 	KASSERT(mpt->pci_pio_reg != NULL, ("no PIO resource"));
 	return (bus_space_read_4(mpt->pci_pio_st, mpt->pci_pio_sh, offset));
 }
+
 /*********************** Reply Frame/Request Management ***********************/
 /* Max MPT Reply we are willing to accept (must be power of 2) */
 #define MPT_REPLY_SIZE   	256
@@ -958,6 +965,7 @@ mpt_cdblen(uint8_t cdb0, int maxlen)
 		return (16);
 	}
 }
+
 #ifdef	INVARIANTS
 static __inline request_t * mpt_tag_2_req(struct mpt_softc *, uint32_t);
 static __inline request_t *
@@ -1136,6 +1144,7 @@ mpt_write_cur_cfg_page(struct mpt_softc *mpt, uint32_t PageAddress,
 				   PageAddress, hdr, len, sleep_ok,
 				   timeout_ms));
 }
+
 /* mpt_debug.c functions */
 void mpt_print_reply(void *vmsg);
 void mpt_print_db(uint32_t mb);
@@ -1145,4 +1154,5 @@ void mpt_req_state(mpt_req_state_t state);
 void mpt_print_config_request(void *vmsg);
 void mpt_print_request(void *vmsg);
 void mpt_dump_sgl(SGE_IO_UNION *se, int offset);
+
 #endif /* _MPT_H_ */

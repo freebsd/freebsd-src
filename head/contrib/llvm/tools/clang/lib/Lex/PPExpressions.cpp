@@ -103,20 +103,18 @@ static bool EvaluateDefined(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
   }
 
   // If we don't have a pp-identifier now, this is an error.
-  if (PP.CheckMacroName(PeekTok, 0))
+  if (PP.CheckMacroName(PeekTok, MU_Other))
     return true;
 
   // Otherwise, we got an identifier, is it defined to something?
   IdentifierInfo *II = PeekTok.getIdentifierInfo();
-  Result.Val = II->hasMacroDefinition();
-  Result.Val.setIsUnsigned(false);  // Result is signed intmax_t.
+  MacroDefinition Macro = PP.getMacroDefinition(II);
+  Result.Val = !!Macro;
+  Result.Val.setIsUnsigned(false); // Result is signed intmax_t.
 
-  MacroDirective *Macro = nullptr;
   // If there is a macro, mark it used.
-  if (Result.Val != 0 && ValueLive) {
-    Macro = PP.getMacroDirective(II);
-    PP.markMacroAsUsed(Macro->getMacroInfo());
-  }
+  if (Result.Val != 0 && ValueLive)
+    PP.markMacroAsUsed(Macro.getMacroInfo());
 
   // Save macro token for callback.
   Token macroToken(PeekTok);
@@ -144,11 +142,7 @@ static bool EvaluateDefined(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
 
   // Invoke the 'defined' callback.
   if (PPCallbacks *Callbacks = PP.getPPCallbacks()) {
-    MacroDirective *MD = Macro;
-    // Pass the MacroInfo for the macro name even if the value is dead.
-    if (!MD && Result.Val != 0)
-      MD = PP.getMacroDirective(II);
-    Callbacks->Defined(macroToken, MD,
+    Callbacks->Defined(macroToken, Macro,
                        SourceRange(beginLoc, PeekTok.getLocation()));
   }
 
@@ -244,7 +238,9 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     // Parse the integer literal into Result.
     if (Literal.GetIntegerValue(Result.Val)) {
       // Overflow parsing integer literal.
-      if (ValueLive) PP.Diag(PeekTok, diag::err_integer_too_large);
+      if (ValueLive)
+        PP.Diag(PeekTok, diag::err_integer_literal_too_large)
+            << /* Unsigned */ 1;
       Result.Val.setIsUnsigned(true);
     } else {
       // Set the signedness of the result to match whether there was a U suffix
@@ -259,7 +255,7 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
         // Octal, hexadecimal, and binary literals are implicitly unsigned if
         // the value does not fit into a signed integer type.
         if (ValueLive && Literal.getRadix() == 10)
-          PP.Diag(PeekTok, diag::ext_integer_too_large_for_signed);
+          PP.Diag(PeekTok, diag::ext_integer_literal_too_large_for_signed);
         Result.Val.setIsUnsigned(true);
       }
     }
@@ -271,6 +267,7 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
   }
   case tok::char_constant:          // 'x'
   case tok::wide_char_constant:     // L'x'
+  case tok::utf8_char_constant:     // u8'x'
   case tok::utf16_char_constant:    // u'x'
   case tok::utf32_char_constant: {  // U'x'
     // Complain about, and drop, any ud-suffix.
@@ -307,7 +304,9 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     // Set the value.
     Val = Literal.getValue();
     // Set the signedness. UTF-16 and UTF-32 are always unsigned
-    if (!Literal.isUTF16() && !Literal.isUTF32())
+    if (Literal.isWide())
+      Val.setIsUnsigned(!TargetInfo::isTypeSigned(TI.getWCharType()));
+    else if (!Literal.isUTF16() && !Literal.isUTF32())
       Val.setIsUnsigned(!PP.getLangOpts().CharIsSigned);
 
     if (Result.Val.getBitWidth() > Val.getBitWidth()) {
@@ -597,15 +596,10 @@ static bool EvaluateDirectiveSubExpr(PPValue &LHS, unsigned MinPrec,
       break;
     case tok::lessless: {
       // Determine whether overflow is about to happen.
-      unsigned ShAmt = static_cast<unsigned>(RHS.Val.getLimitedValue());
-      if (LHS.isUnsigned()) {
-        Overflow = ShAmt >= LHS.Val.getBitWidth();
-        if (Overflow)
-          ShAmt = LHS.Val.getBitWidth()-1;
-        Res = LHS.Val << ShAmt;
-      } else {
-        Res = llvm::APSInt(LHS.Val.sshl_ov(ShAmt, Overflow), false);
-      }
+      if (LHS.isUnsigned())
+        Res = LHS.Val.ushl_ov(RHS.Val, Overflow);
+      else
+        Res = llvm::APSInt(LHS.Val.sshl_ov(RHS.Val, Overflow), false);
       break;
     }
     case tok::greatergreater: {
@@ -734,8 +728,7 @@ static bool EvaluateDirectiveSubExpr(PPValue &LHS, unsigned MinPrec,
 /// EvaluateDirectiveExpression - Evaluate an integer constant expression that
 /// may occur after a #if or #elif directive.  If the expression is equivalent
 /// to "!defined(X)" return X in IfNDefMacro.
-bool Preprocessor::
-EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
+bool Preprocessor::EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
   SaveAndRestore<bool> PPDir(ParsingIfOrElifDirective, true);
   // Save the current state of 'DisableMacroExpansion' and reset it to false. If
   // 'DisableMacroExpansion' is true, then we must be in a macro argument list

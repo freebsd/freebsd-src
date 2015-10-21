@@ -12,6 +12,7 @@
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Utility/ConvertEnum.h"
 
 #include <limits>
 
@@ -28,7 +29,8 @@ Section::Section (const ModuleSP &module_sp,
                   lldb::offset_t file_offset,
                   lldb::offset_t file_size,
                   uint32_t log2align,
-                  uint32_t flags) :
+                  uint32_t flags,
+                  uint32_t target_byte_size/*=1*/) :
     ModuleChild     (module_sp),
     UserID          (sect_id),
     Flags           (flags),
@@ -44,7 +46,8 @@ Section::Section (const ModuleSP &module_sp,
     m_children      (),
     m_fake          (false),
     m_encrypted     (false),
-    m_thread_specific (false)
+    m_thread_specific (false),
+    m_target_byte_size(target_byte_size)
 {
 //    printf ("Section::Section(%p): module=%p, sect_id = 0x%16.16" PRIx64 ", addr=[0x%16.16" PRIx64 " - 0x%16.16" PRIx64 "), file [0x%16.16" PRIx64 " - 0x%16.16" PRIx64 "), flags = 0x%8.8x, name = %s\n",
 //            this, module_sp.get(), sect_id, file_addr, file_addr + byte_size, file_offset, file_offset + file_size, flags, name.GetCString());
@@ -61,7 +64,8 @@ Section::Section (const lldb::SectionSP &parent_section_sp,
                   lldb::offset_t file_offset,
                   lldb::offset_t file_size,
                   uint32_t log2align,
-                  uint32_t flags) :
+                  uint32_t flags,
+                  uint32_t target_byte_size/*=1*/) :
     ModuleChild     (module_sp),
     UserID          (sect_id),
     Flags           (flags),
@@ -77,7 +81,8 @@ Section::Section (const lldb::SectionSP &parent_section_sp,
     m_children      (),
     m_fake          (false),
     m_encrypted     (false),
-    m_thread_specific (false)
+    m_thread_specific (false),
+    m_target_byte_size(target_byte_size)
 {
 //    printf ("Section::Section(%p): module=%p, sect_id = 0x%16.16" PRIx64 ", addr=[0x%16.16" PRIx64 " - 0x%16.16" PRIx64 "), file [0x%16.16" PRIx64 " - 0x%16.16" PRIx64 "), flags = 0x%8.8x, name = %s.%s\n",
 //            this, module_sp.get(), sect_id, file_addr, file_addr + byte_size, file_offset, file_offset + file_size, flags, parent_section_sp->GetName().GetCString(), name.GetCString());
@@ -186,7 +191,7 @@ Section::ContainsFileAddress (addr_t vm_addr) const
     {
         if (file_addr <= vm_addr)
         {
-            const addr_t offset = vm_addr - file_addr;
+            const addr_t offset = (vm_addr - file_addr) *  m_target_byte_size;
             return offset < GetByteSize();
         }
     }

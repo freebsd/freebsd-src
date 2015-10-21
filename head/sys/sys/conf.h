@@ -106,24 +106,6 @@ struct clonedevs;
 struct vm_object;
 struct vnode;
 
-/*
- * Note: d_thread_t is provided as a transition aid for those drivers
- * that treat struct proc/struct thread as an opaque data type and
- * exist in substantially the same form in both 4.x and 5.x.  Writers
- * of drivers that dips into the d_thread_t structure should use
- * struct thread or struct proc as appropriate for the version of the
- * OS they are using.  It is provided in lieu of each device driver
- * inventing its own way of doing this.  While it does violate style(9)
- * in a number of ways, this violation is deemed to be less
- * important than the benefits that a uniform API between releases
- * gives.
- *
- * Users of struct thread/struct proc that aren't device drivers should
- * not use d_thread_t.
- */
-
-typedef struct thread d_thread_t;
-
 typedef int d_open_t(struct cdev *dev, int oflags, int devtype, struct thread *td);
 typedef int d_fdopen_t(struct cdev *dev, int oflags, struct thread *td, struct file *fp);
 typedef int d_close_t(struct cdev *dev, int fflag, int devtype, struct thread *td);
@@ -258,8 +240,6 @@ void	dev_depends(struct cdev *_pdev, struct cdev *_cdev);
 void	dev_ref(struct cdev *dev);
 void	dev_refl(struct cdev *dev);
 void	dev_rel(struct cdev *dev);
-void	dev_strategy(struct cdev *dev, struct buf *bp);
-void	dev_strategy_csw(struct cdev *dev, struct cdevsw *csw, struct buf *bp);
 struct cdev *make_dev(struct cdevsw *_devsw, int _unit, uid_t _uid, gid_t _gid,
 		int _perms, const char *_fmt, ...) __printflike(6, 7);
 struct cdev *make_dev_cred(struct cdevsw *_devsw, int _unit,
@@ -317,6 +297,7 @@ void	devfs_free_cdp_inode(ino_t ino);
 #define		GID_OPERATOR	5
 #define		GID_BIN		7
 #define		GID_GAMES	13
+#define		GID_VIDEO	44
 #define		GID_DIALER	68
 #define		GID_NOBODY	65534
 

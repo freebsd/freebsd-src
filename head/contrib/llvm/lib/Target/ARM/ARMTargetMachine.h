@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ARMTARGETMACHINE_H
-#define ARMTARGETMACHINE_H
+#ifndef LLVM_LIB_TARGET_ARM_ARMTARGETMACHINE_H
+#define LLVM_LIB_TARGET_ARM_ARMTARGETMACHINE_H
 
 #include "ARMInstrInfo.h"
 #include "ARMSubtarget.h"
@@ -22,47 +22,39 @@
 namespace llvm {
 
 class ARMBaseTargetMachine : public LLVMTargetMachine {
-protected:
-  ARMSubtarget        Subtarget;
 public:
-  ARMBaseTargetMachine(const Target &T, StringRef TT,
-                       StringRef CPU, StringRef FS,
-                       const TargetOptions &Options,
+  enum ARMABI {
+    ARM_ABI_UNKNOWN,
+    ARM_ABI_APCS,
+    ARM_ABI_AAPCS // ARM EABI
+  } TargetABI;
+
+protected:
+  std::unique_ptr<TargetLoweringObjectFile> TLOF;
+  ARMSubtarget        Subtarget;
+  bool isLittle;
+  mutable StringMap<std::unique_ptr<ARMSubtarget>> SubtargetMap;
+
+public:
+  ARMBaseTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+                       StringRef FS, const TargetOptions &Options,
                        Reloc::Model RM, CodeModel::Model CM,
-                       CodeGenOpt::Level OL,
-                       bool isLittle);
+                       CodeGenOpt::Level OL, bool isLittle);
+  ~ARMBaseTargetMachine() override;
 
-  const ARMSubtarget *getSubtargetImpl() const override { return &Subtarget; }
-  const ARMBaseRegisterInfo *getRegisterInfo() const override {
-    return getSubtargetImpl()->getRegisterInfo();
-  }
-  const ARMTargetLowering *getTargetLowering() const override {
-    return getSubtargetImpl()->getTargetLowering();
-  }
-  const ARMSelectionDAGInfo *getSelectionDAGInfo() const override {
-    return getSubtargetImpl()->getSelectionDAGInfo();
-  }
-  const ARMBaseInstrInfo *getInstrInfo() const override {
-    return getSubtargetImpl()->getInstrInfo();
-  }
-  const ARMFrameLowering *getFrameLowering() const override {
-    return getSubtargetImpl()->getFrameLowering();
-  }
-  const InstrItineraryData *getInstrItineraryData() const override {
-    return &getSubtargetImpl()->getInstrItineraryData();
-  }
-  const DataLayout *getDataLayout() const override {
-    return getSubtargetImpl()->getDataLayout();
-  }
-  ARMJITInfo *getJITInfo() override { return Subtarget.getJITInfo(); }
+  const ARMSubtarget *getSubtargetImpl() const { return &Subtarget; }
+  const ARMSubtarget *getSubtargetImpl(const Function &F) const override;
+  bool isLittleEndian() const { return isLittle; }
 
-  /// \brief Register ARM analysis passes with a pass manager.
-  void addAnalysisPasses(PassManagerBase &PM) override;
+  /// \brief Get the TargetIRAnalysis for this target.
+  TargetIRAnalysis getTargetIRAnalysis() override;
 
   // Pass Pipeline Configuration
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
 
-  bool addCodeEmitter(PassManagerBase &PM, JITCodeEmitter &MCE) override;
+  TargetLoweringObjectFile *getObjFileLowering() const override {
+    return TLOF.get();
+  }
 };
 
 /// ARMTargetMachine - ARM target machine.
@@ -70,8 +62,8 @@ public:
 class ARMTargetMachine : public ARMBaseTargetMachine {
   virtual void anchor();
  public:
-   ARMTargetMachine(const Target &T, StringRef TT, StringRef CPU, StringRef FS,
-                    const TargetOptions &Options, Reloc::Model RM,
+   ARMTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+                    StringRef FS, const TargetOptions &Options, Reloc::Model RM,
                     CodeModel::Model CM, CodeGenOpt::Level OL, bool isLittle);
 };
 
@@ -80,8 +72,8 @@ class ARMTargetMachine : public ARMBaseTargetMachine {
 class ARMLETargetMachine : public ARMTargetMachine {
   void anchor() override;
 public:
-  ARMLETargetMachine(const Target &T, StringRef TT,
-                     StringRef CPU, StringRef FS, const TargetOptions &Options,
+  ARMLETargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+                     StringRef FS, const TargetOptions &Options,
                      Reloc::Model RM, CodeModel::Model CM,
                      CodeGenOpt::Level OL);
 };
@@ -91,9 +83,10 @@ public:
 class ARMBETargetMachine : public ARMTargetMachine {
   void anchor() override;
 public:
-  ARMBETargetMachine(const Target &T, StringRef TT, StringRef CPU, StringRef FS,
-                     const TargetOptions &Options, Reloc::Model RM,
-                     CodeModel::Model CM, CodeGenOpt::Level OL);
+  ARMBETargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+                     StringRef FS, const TargetOptions &Options,
+                     Reloc::Model RM, CodeModel::Model CM,
+                     CodeGenOpt::Level OL);
 };
 
 /// ThumbTargetMachine - Thumb target machine.
@@ -103,9 +96,10 @@ public:
 class ThumbTargetMachine : public ARMBaseTargetMachine {
   virtual void anchor();
 public:
-  ThumbTargetMachine(const Target &T, StringRef TT, StringRef CPU, StringRef FS,
-                     const TargetOptions &Options, Reloc::Model RM,
-                     CodeModel::Model CM, CodeGenOpt::Level OL, bool isLittle);
+  ThumbTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+                     StringRef FS, const TargetOptions &Options,
+                     Reloc::Model RM, CodeModel::Model CM, CodeGenOpt::Level OL,
+                     bool isLittle);
 };
 
 /// ThumbLETargetMachine - Thumb little endian target machine.
@@ -113,7 +107,7 @@ public:
 class ThumbLETargetMachine : public ThumbTargetMachine {
   void anchor() override;
 public:
-  ThumbLETargetMachine(const Target &T, StringRef TT, StringRef CPU,
+  ThumbLETargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                        StringRef FS, const TargetOptions &Options,
                        Reloc::Model RM, CodeModel::Model CM,
                        CodeGenOpt::Level OL);
@@ -124,7 +118,7 @@ public:
 class ThumbBETargetMachine : public ThumbTargetMachine {
   void anchor() override;
 public:
-  ThumbBETargetMachine(const Target &T, StringRef TT, StringRef CPU,
+  ThumbBETargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                        StringRef FS, const TargetOptions &Options,
                        Reloc::Model RM, CodeModel::Model CM,
                        CodeGenOpt::Level OL);

@@ -99,7 +99,7 @@ physfree:	.long	0		/* phys addr of next free page */
 	.globl	IdlePTD
 IdlePTD:	.long	0		/* phys addr of kernel PTD */
 
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	.globl	IdlePDPT
 IdlePDPT:	.long	0		/* phys addr of kernel PDPT */
 #endif
@@ -281,7 +281,7 @@ NON_GPROF_ENTRY(btext)
 1:
 
 /* Now enable paging */
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	movl	R(IdlePDPT), %eax
 	movl	%eax, %cr3
 	movl	%cr4, %eax
@@ -722,7 +722,7 @@ no_kernend:
 	movl	%esi,R(KPTmap)
 
 /* Allocate Page Table Directory */
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	/* XXX only need 32 bytes (easier for now) */
 	ALLOCPAGES(1)
 	movl	%esi,R(IdlePDPT)
@@ -731,7 +731,7 @@ no_kernend:
 	movl	%esi,R(IdlePTD)
 
 /* Allocate KSTACK */
-	ALLOCPAGES(KSTACK_PAGES)
+	ALLOCPAGES(TD0_KSTACK_PAGES)
 	movl	%esi,R(p0kpa)
 	addl	$KERNBASE, %esi
 	movl	%esi, R(proc0kstack)
@@ -788,7 +788,7 @@ no_kernend:
 	fillkptphys($PG_RW)
 
 /* Map page directory. */
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	movl	R(IdlePDPT), %eax
 	movl	$1, %ecx
 	fillkptphys($PG_RW)
@@ -800,7 +800,7 @@ no_kernend:
 
 /* Map proc0's KSTACK in the physical way ... */
 	movl	R(p0kpa), %eax
-	movl	$(KSTACK_PAGES), %ecx
+	movl	$(TD0_KSTACK_PAGES), %ecx
 	fillkptphys($PG_RW)
 
 /* Map ISA hole */
@@ -890,7 +890,7 @@ done_pde:
 	movl	$NPGPTD,%ecx
 	fillkpt(R(IdlePTD), $PG_RW)
 
-#ifdef PAE
+#if defined(PAE) || defined(PAE_TABLES)
 	movl	R(IdlePTD), %eax
 	xorl	%ebx, %ebx
 	movl	$NPGPTD, %ecx

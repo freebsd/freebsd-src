@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_ANTIDEPBREAKER_H
-#define LLVM_CODEGEN_ANTIDEPBREAKER_H
+#ifndef LLVM_LIB_CODEGEN_ANTIDEPBREAKER_H
+#define LLVM_LIB_CODEGEN_ANTIDEPBREAKER_H
 
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -25,39 +25,35 @@
 
 namespace llvm {
 
-/// AntiDepBreaker - This class works into conjunction with the
-/// post-RA scheduler to rename registers to break register
-/// anti-dependencies.
-class AntiDepBreaker {
+/// This class works in conjunction with the post-RA scheduler to rename
+/// registers to break register anti-dependencies (WAR hazards).
+class LLVM_LIBRARY_VISIBILITY AntiDepBreaker {
 public:
   typedef std::vector<std::pair<MachineInstr *, MachineInstr *> > 
     DbgValueVector;
 
   virtual ~AntiDepBreaker();
 
-  /// Start - Initialize anti-dep breaking for a new basic block.
+  /// Initialize anti-dep breaking for a new basic block.
   virtual void StartBlock(MachineBasicBlock *BB) =0;
 
-  /// BreakAntiDependencies - Identifiy anti-dependencies within a
-  /// basic-block region and break them by renaming registers. Return
-  /// the number of anti-dependencies broken.
-  ///
+  /// Identifiy anti-dependencies within a basic-block region and break them by
+  /// renaming registers. Return the number of anti-dependencies broken.
   virtual unsigned BreakAntiDependencies(const std::vector<SUnit>& SUnits,
                                          MachineBasicBlock::iterator Begin,
                                          MachineBasicBlock::iterator End,
                                          unsigned InsertPosIndex,
                                          DbgValueVector &DbgValues) = 0;
   
-  /// Observe - Update liveness information to account for the current
+  /// Update liveness information to account for the current
   /// instruction, which will not be scheduled.
-  ///
   virtual void Observe(MachineInstr *MI, unsigned Count,
                        unsigned InsertPosIndex) =0;
   
-  /// Finish - Finish anti-dep breaking for a basic block.
+  /// Finish anti-dep breaking for a basic block.
   virtual void FinishBlock() =0;
 
-  /// UpdateDbgValue - Update DBG_VALUE if dependency breaker is updating
+  /// Update DBG_VALUE if dependency breaker is updating
   /// other machine instruction to use NewReg.
   void UpdateDbgValue(MachineInstr *MI, unsigned OldReg, unsigned NewReg) {
     assert (MI->isDebugValue() && "MI is not DBG_VALUE!");

@@ -53,7 +53,7 @@
 #include "util/data/dname.h"
 #include "util/data/msgreply.h"
 #include "util/alloc.h"
-#include "ldns/sbuffer.h"
+#include "sldns/sbuffer.h"
 
 /** RRset flag used during scrubbing. The RRset is OK. */
 #define RRSET_SCRUB_OK	0x80
@@ -372,7 +372,7 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 				/* check next cname */
 				uint8_t* t = NULL;
 				size_t tlen = 0;
-				if(!parse_get_cname_target(rrset, &t, &tlen))
+				if(!parse_get_cname_target(nx, &t, &tlen))
 					return 0;
 				if(dname_pkt_compare(pkt, alias, t) == 0) {
 					/* it's OK and better capitalized */
@@ -680,7 +680,9 @@ scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg,
 				 * (we dont want its glue that was approved
 				 * during the normalize action) */
 				del_addi = 1;
-			} else if(!env->cfg->harden_glue) {
+			} else if(!env->cfg->harden_glue && (
+				rrset->type == LDNS_RR_TYPE_A ||
+				rrset->type == LDNS_RR_TYPE_AAAA)) {
 				/* store in cache! Since it is relevant
 				 * (from normalize) it will be picked up 
 				 * from the cache to be used later */

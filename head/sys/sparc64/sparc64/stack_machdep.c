@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kstack_pages.h"
+
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/stack.h>
@@ -78,6 +80,13 @@ stack_save_td(struct stack *st, struct thread *td)
 		panic("stack_save_td: running");
 
 	stack_capture(st, (struct frame *)(td->td_pcb->pcb_sp + SPOFF));
+}
+
+int
+stack_save_td_running(struct stack *st, struct thread *td)
+{
+
+	return (EOPNOTSUPP);
 }
 
 void

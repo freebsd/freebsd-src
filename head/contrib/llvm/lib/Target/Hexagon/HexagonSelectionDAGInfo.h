@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef HexagonSELECTIONDAGINFO_H
-#define HexagonSELECTIONDAGINFO_H
+#ifndef LLVM_LIB_TARGET_HEXAGON_HEXAGONSELECTIONDAGINFO_H
+#define LLVM_LIB_TARGET_HEXAGON_HEXAGONSELECTIONDAGINFO_H
 
 #include "llvm/Target/TargetSelectionDAGInfo.h"
 
@@ -20,8 +20,6 @@ namespace llvm {
 
 class HexagonSelectionDAGInfo : public TargetSelectionDAGInfo {
 public:
-  explicit HexagonSelectionDAGInfo(const DataLayout &DL);
-  ~HexagonSelectionDAGInfo();
 
   SDValue EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl,
                                   SDValue Chain,

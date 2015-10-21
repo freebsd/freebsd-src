@@ -30,7 +30,7 @@ static const char sccsid[] = "$Id: delete.c,v 10.18 2012/02/11 15:52:33 zy Exp $
  * del --
  *	Delete a range of text.
  *
- * PUBLIC: int del __P((SCR *, MARK *, MARK *, int));
+ * PUBLIC: int del(SCR *, MARK *, MARK *, int);
  */
 int
 del(

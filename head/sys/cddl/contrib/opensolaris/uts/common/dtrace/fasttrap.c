@@ -29,7 +29,7 @@
  */
 
 /*
- * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2015, Joyent, Inc. All rights reserved.
  */
 
 #include <sys/atomic.h>
@@ -295,7 +295,7 @@ fasttrap_sigtrap(proc_t *p, kthread_t *t, uintptr_t pc)
 	ksi->ksi_code = TRAP_DTRACE;
 	ksi->ksi_addr = (caddr_t)pc;
 	PROC_LOCK(p);
-	(void) tdksignal(t, SIGTRAP, ksi);
+	(void) tdsendsignal(p, t, SIGTRAP, ksi);
 	PROC_UNLOCK(p);
 #endif
 }
@@ -1190,11 +1190,21 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 		mutex_enter(&pidlock);
 		p = prfind(probe->ftp_pid);
 
+		if (p == NULL) {
+			/*
+			 * So it's not that the target process is being born,
+			 * it's that it isn't there at all (and we simply
+			 * happen to be forking).  Anyway, we know that the
+			 * target is definitely gone, so bail out.
+			 */
+			mutex_exit(&pidlock);
+			return (0);
+		}
+
 		/*
 		 * Confirm that curproc is indeed forking the process in which
 		 * we're trying to enable probes.
 		 */
-		ASSERT(p != NULL);
 		ASSERT(p->p_parent == curproc);
 		ASSERT(p->p_stat == SIDL);
 
@@ -1296,8 +1306,13 @@ fasttrap_pid_disable(void *arg, dtrace_id_t id, void *parg)
 	 */
 	if ((p = pfind(probe->ftp_pid)) != NULL) {
 #ifdef __FreeBSD__
-		_PHOLD(p);
-		PROC_UNLOCK(p);
+		if (p->p_flag & P_WEXIT) {
+			PROC_UNLOCK(p);
+			p = NULL;
+		} else {
+			_PHOLD(p);
+			PROC_UNLOCK(p);
+		}
 #endif
 	}
 

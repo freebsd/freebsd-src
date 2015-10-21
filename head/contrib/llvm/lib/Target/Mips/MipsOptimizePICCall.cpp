@@ -130,7 +130,7 @@ static MVT::SimpleValueType getRegTy(unsigned Reg, MachineFunction &MF) {
 static void setCallTargetReg(MachineBasicBlock *MBB,
                              MachineBasicBlock::iterator I) {
   MachineFunction &MF = *MBB->getParent();
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   unsigned SrcReg = I->getOperand(0).getReg();
   unsigned DstReg = getRegTy(SrcReg, MF) == MVT::i32 ? Mips::T9 : Mips::T9_64;
   BuildMI(*MBB, I, I->getDebugLoc(), TII.get(TargetOpcode::COPY), DstReg)
@@ -174,7 +174,7 @@ void MBBInfo::postVisit() {
 
 // OptimizePICCall methods.
 bool OptimizePICCall::runOnMachineFunction(MachineFunction &F) {
-  if (F.getTarget().getSubtarget<MipsSubtarget>().inMips16Mode())
+  if (static_cast<const MipsSubtarget &>(F.getSubtarget()).inMips16Mode())
     return false;
 
   // Do a pre-order traversal of the dominator tree.

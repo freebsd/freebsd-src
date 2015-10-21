@@ -106,14 +106,17 @@ gpioled_identify(driver_t *driver, device_t bus)
 	root = OF_finddevice("/");
 	if (root == 0)
 		return;
-	leds = fdt_find_compatible(root, "gpio-leds", 1);
-	if (leds == 0)
-		return;
-
-	/* Traverse the 'gpio-leds' node and add its children. */
-	for (child = OF_child(leds); child != 0; child = OF_peer(child))
-		if (ofw_gpiobus_add_fdt_child(bus, child) == NULL)
+	for (leds = OF_child(root); leds != 0; leds = OF_peer(leds)) {
+		if (!fdt_is_compatible_strict(leds, "gpio-leds"))
 			continue;
+		/* Traverse the 'gpio-leds' node and add its children. */
+		for (child = OF_child(leds); child != 0; child = OF_peer(child)) {
+			if (!OF_hasprop(child, "gpios"))
+				continue;
+			if (ofw_gpiobus_add_fdt_child(bus, driver->name, child) == NULL)
+				continue;
+		}
+	}
 }
 #endif
 
@@ -163,8 +166,10 @@ static int
 gpioled_attach(device_t dev)
 {
 	struct gpioled_softc *sc;
+	int state;
 #ifdef FDT
 	phandle_t node;
+	char *default_state;
 	char *name;
 #else
 	const char *name;
@@ -174,10 +179,29 @@ gpioled_attach(device_t dev)
 	sc->sc_dev = dev;
 	sc->sc_busdev = device_get_parent(dev);
 	GPIOLED_LOCK_INIT(sc);
+
+	state = 0;
+
 #ifdef FDT
-	name = NULL;
 	if ((node = ofw_bus_get_node(dev)) == -1)
 		return (ENXIO);
+
+	if (OF_getprop_alloc(node, "default-state",
+	    sizeof(char), (void **)&default_state) != -1) {
+		if (strcasecmp(default_state, "on") == 0)
+			state = 1;
+		else if (strcasecmp(default_state, "off") == 0)
+			state = 0;
+		else if (strcasecmp(default_state, "keep") == 0)
+			state = -1;
+		else {
+			device_printf(dev,
+			    "unknown value for default-state in FDT\n");
+		}
+		free(default_state, M_OFWPROP);
+	}
+
+	name = NULL;
 	if (OF_getprop_alloc(node, "label", 1, (void **)&name) == -1)
 		OF_getprop_alloc(node, "name", 1, (void **)&name);
 #else
@@ -186,8 +210,8 @@ gpioled_attach(device_t dev)
 		name = NULL;
 #endif
 
-	sc->sc_leddev = led_create(gpioled_control, sc, name ? name :
-	    device_get_nameunit(dev));
+	sc->sc_leddev = led_create_state(gpioled_control, sc, name ? name :
+	    device_get_nameunit(dev), state);
 #ifdef FDT
 	if (name != NULL)
 		free(name, M_OFWPROP);
@@ -231,3 +255,4 @@ static driver_t gpioled_driver = {
 };
 
 DRIVER_MODULE(gpioled, gpiobus, gpioled_driver, gpioled_devclass, 0, 0);
+MODULE_DEPEND(gpioled, gpiobus, 1, 1, 1);

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -97,7 +97,7 @@
 /*********************************************************************
  *  Legacy Em Driver version:
  *********************************************************************/
-char lem_driver_version[] = "1.0.6";
+char lem_driver_version[] = "1.1.0";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -286,6 +286,9 @@ extern devclass_t em_devclass;
 DRIVER_MODULE(lem, pci, lem_driver, em_devclass, 0, 0);
 MODULE_DEPEND(lem, pci, 1, 1, 1);
 MODULE_DEPEND(lem, ether, 1, 1, 1);
+#ifdef DEV_NETMAP
+MODULE_DEPEND(lem, netmap, 1, 1, 1);
+#endif /* DEV_NETMAP */
 
 /*********************************************************************
  *  Tunable default values.
@@ -2910,10 +2913,6 @@ lem_free_transmit_structures(struct adapter *adapter)
 		bus_dma_tag_destroy(adapter->txtag);
 		adapter->txtag = NULL;
 	}
-#if __FreeBSD_version >= 800000
-	if (adapter->br != NULL)
-        	buf_ring_free(adapter->br, M_DEVBUF);
-#endif
 }
 
 /*********************************************************************

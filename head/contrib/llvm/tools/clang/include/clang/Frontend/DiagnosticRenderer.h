@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FRONTEND_DIAGNOSTIC_RENDERER_H_
-#define LLVM_CLANG_FRONTEND_DIAGNOSTIC_RENDERER_H_
+#ifndef LLVM_CLANG_FRONTEND_DIAGNOSTICRENDERER_H
+#define LLVM_CLANG_FRONTEND_DIAGNOSTICRENDERER_H
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LLVM.h"
@@ -155,8 +155,8 @@ public:
   DiagnosticNoteRenderer(const LangOptions &LangOpts,
                          DiagnosticOptions *DiagOpts)
     : DiagnosticRenderer(LangOpts, DiagOpts) {}
-  
-  virtual ~DiagnosticNoteRenderer();
+
+  ~DiagnosticNoteRenderer() override;
 
   void emitIncludeLocation(SourceLocation Loc, PresumedLoc PLoc,
                            const SourceManager &SM) override;

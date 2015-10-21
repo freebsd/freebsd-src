@@ -166,6 +166,7 @@ struct drm_i915_display_funcs {
 
 struct intel_device_info {
 	u8 gen;
+	u8 not_supported:1;
 	u8 is_mobile:1;
 	u8 is_i85x:1;
 	u8 is_i915g:1;
@@ -247,6 +248,10 @@ struct intel_opregion {
 };
 #define OPREGION_SIZE            (8*1024)
 
+struct drm_i915_master_private {
+	drm_local_map_t *sarea;
+	struct _drm_i915_sarea *sarea_priv;
+};
 #define I915_FENCE_REG_NONE -1
 #define I915_MAX_NUM_FENCES 16
 /* 16 fences + sign bit for FENCE_REG_NONE */
@@ -294,7 +299,6 @@ typedef struct drm_i915_private {
 
 	int relative_constants_mode;
 
-	drm_local_map_t *sarea;
 	drm_local_map_t *mmio_map;
 
 	/** gt_fifo_count and the subsequent register write are synchronized
@@ -305,7 +309,6 @@ typedef struct drm_i915_private {
 	/** gt_lock is also taken in irq contexts. */
 	struct mtx gt_lock;
 
-	drm_i915_sarea_t *sarea_priv;
 	/* drm_i915_ring_buffer_t ring; */
 	struct intel_ring_buffer rings[I915_NUM_RINGS];
 	uint32_t next_seqno;
@@ -1066,7 +1069,7 @@ struct drm_i915_error_state {
 
 extern int intel_iommu_enabled;
 extern struct drm_ioctl_desc i915_ioctls[];
-extern struct drm_driver_info i915_driver_info;
+extern struct drm_driver i915_driver_info;
 extern struct cdev_pager_ops i915_gem_pager_ops;
 extern unsigned int i915_fbpercrtc;
 extern int i915_panel_ignore_lid;
@@ -1093,6 +1096,9 @@ int i915_sysctl_init(struct drm_device *dev, struct sysctl_ctx_list *ctx,
     struct sysctl_oid *top);
 void i915_sysctl_cleanup(struct drm_device *dev);
 
+extern int i915_master_create(struct drm_device *dev, struct drm_master *master);
+extern void i915_master_destroy(struct drm_device *dev, struct drm_master *master);
+
 				/* i915_dma.c */
 int i915_batchbuffer(struct drm_device *dev, void *data,
     struct drm_file *file_priv);
@@ -1114,11 +1120,8 @@ extern int i915_driver_device_is_agp(struct drm_device * dev);
 extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
 extern int i915_emit_box(struct drm_device *dev,
-			 struct drm_clip_rect __user *boxes,
-			 int i, int DR1, int DR4);
-int i915_emit_box_p(struct drm_device *dev, struct drm_clip_rect *box,
-    int DR1, int DR4);
-
+			 struct drm_clip_rect *box,
+			 int DR1, int DR4);
 unsigned long i915_chipset_val(struct drm_i915_private *dev_priv);
 unsigned long i915_mch_val(struct drm_i915_private *dev_priv);
 void i915_update_gfx_val(struct drm_i915_private *dev_priv);
@@ -1145,8 +1148,6 @@ void i915_disable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
 void i915_destroy_error_state(struct drm_device *dev);
 
 /* i915_gem.c */
-int i915_gem_create(struct drm_file *file, struct drm_device *dev, uint64_t size,
-			uint32_t *handle_p);
 int i915_gem_init_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int i915_gem_create_ioctl(struct drm_device *dev, void *data,
@@ -1237,7 +1238,6 @@ int i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj);
 int i915_gem_flush_ring(struct intel_ring_buffer *ring,
     uint32_t invalidate_domains, uint32_t flush_domains);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
-int i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj);
 int i915_gem_object_sync(struct drm_i915_gem_object *obj,
     struct intel_ring_buffer *to);
 int i915_gem_object_put_fence(struct drm_i915_gem_object *obj);
@@ -1350,7 +1350,6 @@ extern void intel_modeset_init(struct drm_device *dev);
 extern void intel_modeset_gem_init(struct drm_device *dev);
 extern void intel_modeset_cleanup(struct drm_device *dev);
 extern int intel_modeset_vga_set_state(struct drm_device *dev, bool state);
-extern bool intel_fbc_enabled(struct drm_device *dev);
 extern void intel_disable_fbc(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
 extern void ironlake_init_pch_refclk(struct drm_device *dev);

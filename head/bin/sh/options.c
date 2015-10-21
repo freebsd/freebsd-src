@@ -73,6 +73,7 @@ char *minusc;			/* argument to -c option */
 static void options(int);
 static void minus_o(char *, int);
 static void setoption(int, int);
+static void setoptionbyindex(int, int);
 static int getopts(char *, char *, char **, char ***, char **);
 
 
@@ -269,7 +270,7 @@ minus_o(char *name, int val)
 	} else {
 		for (i = 0; i < NOPTS; i++)
 			if (equal(name, optlist[i].name)) {
-				setoption(optlist[i].letter, val);
+				setoptionbyindex(i, val);
 				return;
 			}
 		error("Illegal option -o %s", name);
@@ -278,26 +279,32 @@ minus_o(char *name, int val)
 
 
 static void
-setoption(int flag, int val)
+setoptionbyindex(int idx, int val)
 {
-	int i;
-
-	if (flag == 'p' && !val && privileged) {
+	if (optlist[idx].letter == 'p' && !val && privileged) {
 		if (setgid(getgid()) == -1)
 			error("setgid");
 		if (setuid(getuid()) == -1)
 			error("setuid");
 	}
-	for (i = 0; i < NOPTS; i++)
+	optlist[idx].val = val;
+	if (val) {
+		/* #%$ hack for ksh semantics */
+		if (optlist[idx].letter == 'V')
+			Eflag = 0;
+		else if (optlist[idx].letter == 'E')
+			Vflag = 0;
+	}
+}
+
+static void
+setoption(int flag, int val)
+{
+	int i;
+
+	for (i = 0; i < NSHORTOPTS; i++)
 		if (optlist[i].letter == flag) {
-			optlist[i].val = val;
-			if (val) {
-				/* #%$ hack for ksh semantics */
-				if (flag == 'V')
-					Eflag = 0;
-				else if (flag == 'E')
-					Vflag = 0;
-			}
+			setoptionbyindex(i, val);
 			return;
 		}
 	error("Illegal option -%c", flag);
@@ -465,7 +472,7 @@ getopts(char *optstr, char *optvar, char **optfirst, char ***optnext,
 	int ind = 0;
 	int err = 0;
 	char s[10];
-	const char *optarg = NULL;
+	const char *newoptarg = NULL;
 
 	if ((p = *optptr) == NULL || *p == '\0') {
 		/* Current word is done, advance */
@@ -491,7 +498,7 @@ atend:
 			if (optstr[0] == ':') {
 				s[0] = c;
 				s[1] = '\0';
-				optarg = s;
+				newoptarg = s;
 			}
 			else
 				out2fmt_flush("Illegal option -%c\n", c);
@@ -507,7 +514,7 @@ atend:
 			if (optstr[0] == ':') {
 				s[0] = c;
 				s[1] = '\0';
-				optarg = s;
+				newoptarg = s;
 				c = ':';
 			}
 			else {
@@ -519,7 +526,7 @@ atend:
 
 		if (p == **optnext)
 			(*optnext)++;
-		optarg = p;
+		newoptarg = p;
 		p = NULL;
 	}
 
@@ -527,8 +534,8 @@ out:
 	if (*optnext != NULL)
 		ind = *optnext - optfirst + 1;
 	*optptr = p;
-	if (optarg != NULL)
-		err |= setvarsafe("OPTARG", optarg, 0);
+	if (newoptarg != NULL)
+		err |= setvarsafe("OPTARG", newoptarg, 0);
 	else {
 		INTOFF;
 		err |= unsetvar("OPTARG");

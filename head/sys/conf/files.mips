@@ -61,6 +61,8 @@ libkern/flsll.c				standard
 libkern/memmove.c			standard
 libkern/cmpdi2.c			optional	mips | mipsel
 libkern/ucmpdi2.c			optional	mips | mipsel
+libkern/ashldi3.c			standard
+libkern/ashrdi3.c			standard
 
 # cfe support
 dev/cfe/cfe_api.c			optional	cfe
@@ -69,7 +71,6 @@ dev/cfe/cfe_env.c			optional	cfe_env
 
 # syscons support
 dev/fb/fb.c				optional	sc
-dev/kbd/kbd.c				optional	sc | vt
 dev/syscons/scgfbrndr.c			optional	sc
 dev/syscons/scterm-teken.c		optional	sc
 dev/syscons/scvtb.c			optional	sc
@@ -89,3 +90,4 @@ dev/nvram2env/nvram2env.c		optional	nvram2env
 # hwpmc support
 dev/hwpmc/hwpmc_mips.c			optional	hwpmc
 dev/hwpmc/hwpmc_mips24k.c		optional	hwpmc_mips24k
+dev/hwpmc/hwpmc_mips74k.c		optional	hwpmc_mips74k

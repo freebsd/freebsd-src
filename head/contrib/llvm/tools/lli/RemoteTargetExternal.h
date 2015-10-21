@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLI_REMOTETARGETEXTERNAL_H
-#define LLI_REMOTETARGETEXTERNAL_H
+#ifndef LLVM_TOOLS_LLI_REMOTETARGETEXTERNAL_H
+#define LLVM_TOOLS_LLI_REMOTETARGETEXTERNAL_H
 
 #include "RPCChannel.h"
 #include "RemoteTarget.h"
@@ -106,7 +106,7 @@ public:
   void stop() override;
 
   RemoteTargetExternal(std::string &Name) : RemoteTarget(), ChildName(Name) {}
-  virtual ~RemoteTargetExternal() {}
+  ~RemoteTargetExternal() override {}
 
 private:
   std::string ChildName;
@@ -140,4 +140,4 @@ private:
 
 } // end namespace llvm
 
-#endif // LLI_REMOTETARGETEXTERNAL_H
+#endif

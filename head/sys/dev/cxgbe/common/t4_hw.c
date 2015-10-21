@@ -262,6 +262,8 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 	for (i = 0; i < size; i += 8, p++)
 		t4_write_reg64(adap, data_reg + i, be64_to_cpu(*p));
 
+	CH_DUMP_MBOX(adap, mbox, data_reg);
+
 	t4_write_reg(adap, ctl_reg, F_MBMSGVALID | V_MBOWNER(X_MBOWNER_FW));
 	t4_read_reg(adap, ctl_reg);          /* flush write */
 
@@ -286,6 +288,8 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 					     V_MBOWNER(X_MBOWNER_NONE));
 				continue;
 			}
+
+			CH_DUMP_MBOX(adap, mbox, data_reg);
 
 			res = t4_read_reg64(adap, data_reg);
 			if (G_FW_CMD_OP(res >> 32) == FW_DEBUG_CMD) {
@@ -3111,6 +3115,31 @@ void t4_write_rss_pf_mask(struct adapter *adapter, u32 pfmask)
 			  &pfmask, 1, A_TP_RSS_PF_MSK);
 }
 
+static void refresh_vlan_pri_map(struct adapter *adap)
+{
+
+        t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+                         &adap->params.tp.vlan_pri_map, 1,
+                         A_TP_VLAN_PRI_MAP);
+
+	/*
+	 * Now that we have TP_VLAN_PRI_MAP cached, we can calculate the field
+	 * shift positions of several elements of the Compressed Filter Tuple
+	 * for this adapter which we need frequently ...
+	 */
+	adap->params.tp.vlan_shift = t4_filter_field_shift(adap, F_VLAN);
+	adap->params.tp.vnic_shift = t4_filter_field_shift(adap, F_VNIC_ID);
+	adap->params.tp.port_shift = t4_filter_field_shift(adap, F_PORT);
+	adap->params.tp.protocol_shift = t4_filter_field_shift(adap, F_PROTOCOL);
+
+	/*
+	 * If TP_INGRESS_CONFIG.VNID == 0, then TP_VLAN_PRI_MAP.VNIC_ID
+	 * represents the presense of an Outer VLAN instead of a VNIC ID.
+	 */
+	if ((adap->params.tp.ingress_config & F_VNIC) == 0)
+		adap->params.tp.vnic_shift = -1;
+}
+
 /**
  *	t4_set_filter_mode - configure the optional components of filter tuples
  *	@adap: the adapter
@@ -3134,6 +3163,8 @@ int t4_set_filter_mode(struct adapter *adap, unsigned int mode_map)
 		return -EINVAL;
 	t4_write_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA, &mode_map, 1,
 			  A_TP_VLAN_PRI_MAP);
+	refresh_vlan_pri_map(adap);
+
 	return 0;
 }
 
@@ -5618,33 +5649,10 @@ int __devinit t4_init_tp_params(struct adapter *adap)
 	for (chan = 0; chan < NCHAN; chan++)
 		adap->params.tp.tx_modq[chan] = chan;
 
-	/*
-	 * Cache the adapter's Compressed Filter Mode and global Incress
-	 * Configuration.
-	 */
-        t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA,
-                         &adap->params.tp.vlan_pri_map, 1,
-                         A_TP_VLAN_PRI_MAP);
 	t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA,
 			 &adap->params.tp.ingress_config, 1,
 			 A_TP_INGRESS_CONFIG);
-
-	/*
-	 * Now that we have TP_VLAN_PRI_MAP cached, we can calculate the field
-	 * shift positions of several elements of the Compressed Filter Tuple
-	 * for this adapter which we need frequently ...
-	 */
-	adap->params.tp.vlan_shift = t4_filter_field_shift(adap, F_VLAN);
-	adap->params.tp.vnic_shift = t4_filter_field_shift(adap, F_VNIC_ID);
-	adap->params.tp.port_shift = t4_filter_field_shift(adap, F_PORT);
-	adap->params.tp.protocol_shift = t4_filter_field_shift(adap, F_PROTOCOL);
-
-	/*
-	 * If TP_INGRESS_CONFIG.VNID == 0, then TP_VLAN_PRI_MAP.VNIC_ID
-	 * represents the presense of an Outer VLAN instead of a VNIC ID.
-	 */
-	if ((adap->params.tp.ingress_config & F_VNIC) == 0)
-		adap->params.tp.vnic_shift = -1;
+	refresh_vlan_pri_map(adap);
 
 	return 0;
 }
@@ -5691,6 +5699,7 @@ int __devinit t4_port_init(struct port_info *p, int mbox, int pf, int vf)
 	struct fw_port_cmd c;
 	u16 rss_size;
 	adapter_t *adap = p->adapter;
+	u32 param, val;
 
 	memset(&c, 0, sizeof(c));
 
@@ -5728,6 +5737,17 @@ int __devinit t4_port_init(struct port_info *p, int mbox, int pf, int vf)
 	p->mod_type = G_FW_PORT_CMD_MODTYPE(ret);
 
 	init_link_config(&p->link_cfg, ntohs(c.u.info.pcap));
+
+	param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_RSSINFO) |
+	    V_FW_PARAMS_PARAM_YZ(p->viid);
+	ret = t4_query_params(adap, mbox, pf, vf, 1, &param, &val);
+	if (ret)
+		p->rss_base = 0xffff;
+	else {
+		/* MPASS((val >> 16) == rss_size); */
+		p->rss_base = val & 0xffff;
+	}
 
 	return 0;
 }

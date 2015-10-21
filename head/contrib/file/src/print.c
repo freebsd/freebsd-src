@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: print.c,v 1.76 2013/02/26 18:25:00 christos Exp $")
+FILE_RCSID("@(#)$File: print.c,v 1.80 2015/07/16 14:28:57 christos Exp $")
 #endif  /* lint */
 
 #include <string.h>
@@ -156,25 +156,26 @@ file_mdump(struct magic *m)
 		case FILE_BEDATE:
 		case FILE_MEDATE:
 			(void)fprintf(stderr, "%s,",
-			    file_fmttime(m->value.l, FILE_T_LOCAL, tbuf));
+			    file_fmttime(m->value.l, 0, tbuf));
 			break;
 		case FILE_LDATE:
 		case FILE_LELDATE:
 		case FILE_BELDATE:
 		case FILE_MELDATE:
 			(void)fprintf(stderr, "%s,",
-			    file_fmttime(m->value.l, 0, tbuf));
+			    file_fmttime(m->value.l, FILE_T_LOCAL, tbuf));
+			break;
 		case FILE_QDATE:
 		case FILE_LEQDATE:
 		case FILE_BEQDATE:
 			(void)fprintf(stderr, "%s,",
-			    file_fmttime(m->value.q, FILE_T_LOCAL, tbuf));
+			    file_fmttime(m->value.q, 0, tbuf));
 			break;
 		case FILE_QLDATE:
 		case FILE_LEQLDATE:
 		case FILE_BEQLDATE:
 			(void)fprintf(stderr, "%s,",
-			    file_fmttime(m->value.q, 0, tbuf));
+			    file_fmttime(m->value.q, FILE_T_LOCAL, tbuf));
 			break;
 		case FILE_QWDATE:
 		case FILE_LEQWDATE:
@@ -231,40 +232,27 @@ protected const char *
 file_fmttime(uint64_t v, int flags, char *buf)
 {
 	char *pp;
-	time_t t = (time_t)v;
-	struct tm *tm;
+	time_t t;
+	struct tm *tm, tmz;
 
 	if (flags & FILE_T_WINDOWS) {
 		struct timespec ts;
-		cdf_timestamp_to_timespec(&ts, t);
+		cdf_timestamp_to_timespec(&ts, v);
 		t = ts.tv_sec;
+	} else {
+		// XXX: perhaps detect and print something if overflow
+		// on 32 bit time_t?
+		t = (time_t)v;
 	}
 
 	if (flags & FILE_T_LOCAL) {
-		pp = ctime_r(&t, buf);
+		tm = localtime_r(&t, &tmz);
 	} else {
-#ifndef HAVE_DAYLIGHT
-		private int daylight = 0;
-#ifdef HAVE_TM_ISDST
-		private time_t now = (time_t)0;
-
-		if (now == (time_t)0) {
-			struct tm *tm1;
-			(void)time(&now);
-			tm1 = localtime(&now);
-			if (tm1 == NULL)
-				goto out;
-			daylight = tm1->tm_isdst;
-		}
-#endif /* HAVE_TM_ISDST */
-#endif /* HAVE_DAYLIGHT */
-		if (daylight)
-			t += 3600;
-		tm = gmtime(&t);
-		if (tm == NULL)
-			goto out;
-		pp = asctime_r(tm, buf);
+		tm = gmtime_r(&t, &tmz);
 	}
+	if (tm == NULL)
+		goto out;
+	pp = asctime_r(tm, buf);
 
 	if (pp == NULL)
 		goto out;

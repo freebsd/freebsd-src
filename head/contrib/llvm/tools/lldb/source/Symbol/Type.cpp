@@ -31,6 +31,7 @@
 #include "llvm/ADT/StringRef.h"
 
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclObjC.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -335,7 +336,7 @@ Type::GetByteSize()
                 if (encoding_type)
                     m_byte_size = encoding_type->GetByteSize();
                 if (m_byte_size == 0)
-                    m_byte_size = GetClangLayoutType().GetByteSize();
+                    m_byte_size = GetClangLayoutType().GetByteSize(nullptr);
             }
             break;
 
@@ -588,16 +589,27 @@ Type::ResolveClangType (ResolveState clang_type_resolve_state)
                 break;
             }
         }
+
+        // When we have a EncodingUID, our "m_flags.clang_type_resolve_state" is set to eResolveStateUnresolved
+        // so we need to update it to say that we now have a forward declaration since that is what we created
+        // above.
+        if (m_clang_type.IsValid())
+            m_flags.clang_type_resolve_state = eResolveStateForward;
+
     }
-    
+
     // Check if we have a forward reference to a class/struct/union/enum?
-    if (m_clang_type.IsValid() && m_flags.clang_type_resolve_state < clang_type_resolve_state)
+    if (clang_type_resolve_state == eResolveStateLayout || clang_type_resolve_state == eResolveStateFull)
     {
-        m_flags.clang_type_resolve_state = eResolveStateFull;
-        if (!m_clang_type.IsDefined ())
+        // Check if we have a forward reference to a class/struct/union/enum?
+        if (m_clang_type.IsValid() && m_flags.clang_type_resolve_state < clang_type_resolve_state)
         {
-            // We have a forward declaration, we need to resolve it to a complete definition.
-            m_symbol_file->ResolveClangOpaqueTypeDefinition (m_clang_type);
+            m_flags.clang_type_resolve_state = eResolveStateFull;
+            if (!m_clang_type.IsDefined ())
+            {
+                // We have a forward declaration, we need to resolve it to a complete definition.
+                m_symbol_file->ResolveClangOpaqueTypeDefinition (m_clang_type);
+            }
         }
     }
     
@@ -1140,7 +1152,7 @@ TypeImpl::GetPointerType () const
     {
         if (m_dynamic_type.IsValid())
         {
-            return TypeImpl(m_static_type, m_dynamic_type.GetPointerType());
+            return TypeImpl(m_static_type.GetPointerType(), m_dynamic_type.GetPointerType());
         }
         return TypeImpl(m_static_type.GetPointerType());
     }
@@ -1155,7 +1167,7 @@ TypeImpl::GetPointeeType () const
     {
         if (m_dynamic_type.IsValid())
         {
-            return TypeImpl(m_static_type, m_dynamic_type.GetPointeeType());
+            return TypeImpl(m_static_type.GetPointeeType(), m_dynamic_type.GetPointeeType());
         }
         return TypeImpl(m_static_type.GetPointeeType());
     }
@@ -1170,7 +1182,7 @@ TypeImpl::GetReferenceType () const
     {
         if (m_dynamic_type.IsValid())
         {
-            return TypeImpl(m_static_type, m_dynamic_type.GetLValueReferenceType());
+            return TypeImpl(m_static_type.GetReferenceType(), m_dynamic_type.GetLValueReferenceType());
         }
         return TypeImpl(m_static_type.GetReferenceType());
     }
@@ -1185,7 +1197,7 @@ TypeImpl::GetTypedefedType () const
     {
         if (m_dynamic_type.IsValid())
         {
-            return TypeImpl(m_static_type, m_dynamic_type.GetTypedefedType());
+            return TypeImpl(m_static_type.GetTypedefedType(), m_dynamic_type.GetTypedefedType());
         }
         return TypeImpl(m_static_type.GetTypedefedType());
     }
@@ -1200,7 +1212,7 @@ TypeImpl::GetDereferencedType () const
     {
         if (m_dynamic_type.IsValid())
         {
-            return TypeImpl(m_static_type, m_dynamic_type.GetNonReferenceType());
+            return TypeImpl(m_static_type.GetDereferencedType(), m_dynamic_type.GetNonReferenceType());
         }
         return TypeImpl(m_static_type.GetDereferencedType());
     }
@@ -1215,7 +1227,7 @@ TypeImpl::GetUnqualifiedType() const
     {
         if (m_dynamic_type.IsValid())
         {
-            return TypeImpl(m_static_type, m_dynamic_type.GetFullyUnqualifiedType());
+            return TypeImpl(m_static_type.GetUnqualifiedType(), m_dynamic_type.GetFullyUnqualifiedType());
         }
         return TypeImpl(m_static_type.GetUnqualifiedType());
     }
@@ -1230,7 +1242,7 @@ TypeImpl::GetCanonicalType() const
     {
         if (m_dynamic_type.IsValid())
         {
-            return TypeImpl(m_static_type, m_dynamic_type.GetCanonicalType());
+            return TypeImpl(m_static_type.GetCanonicalType(), m_dynamic_type.GetCanonicalType());
         }
         return TypeImpl(m_static_type.GetCanonicalType());
     }
@@ -1289,6 +1301,117 @@ TypeImpl::GetDescription (lldb_private::Stream &strm,
         strm.PutCString("Invalid TypeImpl module for type has been deleted\n");
     }
     return true;
+}
+
+TypeMemberFunctionImpl&
+TypeMemberFunctionImpl::operator = (const TypeMemberFunctionImpl& rhs)
+{
+    if (this != &rhs)
+    {
+        m_type = rhs.m_type;
+        m_objc_method_decl = rhs.m_objc_method_decl;
+        m_name = rhs.m_name;
+        m_kind = rhs.m_kind;
+    }
+    return *this;
+}
+
+bool
+TypeMemberFunctionImpl::IsValid ()
+{
+    return m_type.IsValid() && m_kind != lldb::eMemberFunctionKindUnknown;
+}
+
+ConstString
+TypeMemberFunctionImpl::GetName () const
+{
+    return m_name;
+}
+
+ClangASTType
+TypeMemberFunctionImpl::GetType () const
+{
+    return m_type;
+}
+
+lldb::MemberFunctionKind
+TypeMemberFunctionImpl::GetKind () const
+{
+    return m_kind;
+}
+
+std::string
+TypeMemberFunctionImpl::GetPrintableTypeName ()
+{
+    if (m_type)
+        return m_type.GetTypeName().AsCString("<unknown>");
+    if (m_objc_method_decl)
+    {
+        if (m_objc_method_decl->getClassInterface())
+        {
+            return m_objc_method_decl->getClassInterface()->getName();
+        }
+    }
+    return "<unknown>";
+}
+
+bool
+TypeMemberFunctionImpl::GetDescription (Stream& stream)
+{
+    switch (m_kind) {
+        case lldb::eMemberFunctionKindUnknown:
+            return false;
+        case lldb::eMemberFunctionKindConstructor:
+            stream.Printf("constructor for %s", GetPrintableTypeName().c_str());
+            break;
+        case lldb::eMemberFunctionKindDestructor:
+            stream.Printf("destructor for %s",  GetPrintableTypeName().c_str());
+            break;
+        case lldb::eMemberFunctionKindInstanceMethod:
+            stream.Printf("instance method %s of type %s",
+                          m_name.AsCString(),
+                          GetPrintableTypeName().c_str());
+            break;
+        case lldb::eMemberFunctionKindStaticMethod:
+            stream.Printf("static method %s of type %s",
+                          m_name.AsCString(),
+                          GetPrintableTypeName().c_str());
+            break;
+    }
+    return true;
+}
+
+ClangASTType
+TypeMemberFunctionImpl::GetReturnType () const
+{
+    if (m_type)
+        return m_type.GetFunctionReturnType();
+    if (m_objc_method_decl)
+        return ClangASTType(&m_objc_method_decl->getASTContext(),m_objc_method_decl->getReturnType().getAsOpaquePtr());
+    return ClangASTType();
+}
+
+size_t
+TypeMemberFunctionImpl::GetNumArguments () const
+{
+    if (m_type)
+        return m_type.GetNumberOfFunctionArguments();
+    if (m_objc_method_decl)
+        return m_objc_method_decl->param_size();
+    return 0;
+}
+
+ClangASTType
+TypeMemberFunctionImpl::GetArgumentAtIndex (size_t idx) const
+{
+    if (m_type)
+        return m_type.GetFunctionArgumentAtIndex (idx);
+    if (m_objc_method_decl)
+    {
+        if (idx < m_objc_method_decl->param_size())
+            return ClangASTType(&m_objc_method_decl->getASTContext(), m_objc_method_decl->parameters()[idx]->getOriginalType().getAsOpaquePtr());
+    }
+    return ClangASTType();
 }
 
 TypeEnumMemberImpl::TypeEnumMemberImpl (const clang::EnumConstantDecl* enum_member_decl,

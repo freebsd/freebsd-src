@@ -1,3 +1,8 @@
+/*
+ * 
+ * $FreeBSD$
+ */
+
 #include <machine/asm.h>
 
 ENTRY(host_read)
@@ -16,7 +21,10 @@ ENTRY(host_write)
 	blr
 
 ENTRY(host_seek)
-	li %r0, 19 # SYS_lseek
+	mr %r4,%r5
+	mr %r5,%r6
+	mr %r6,%r7
+	li %r0, 140 # SYS_llseek
 	sc
 	blr
 

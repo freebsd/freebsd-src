@@ -15,37 +15,35 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/TableGen/Main.h"
 #include "TGParser.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/TableGen/Error.h"
-#include "llvm/TableGen/Main.h"
 #include "llvm/TableGen/Record.h"
 #include <algorithm>
 #include <cstdio>
 #include <system_error>
 using namespace llvm;
 
-namespace {
-  cl::opt<std::string>
-  OutputFilename("o", cl::desc("Output filename"), cl::value_desc("filename"),
-                 cl::init("-"));
+static cl::opt<std::string>
+OutputFilename("o", cl::desc("Output filename"), cl::value_desc("filename"),
+               cl::init("-"));
 
-  cl::opt<std::string>
-  DependFilename("d",
-                 cl::desc("Dependency filename"),
-                 cl::value_desc("filename"),
-                 cl::init(""));
+static cl::opt<std::string>
+DependFilename("d",
+               cl::desc("Dependency filename"),
+               cl::value_desc("filename"),
+               cl::init(""));
 
-  cl::opt<std::string>
-  InputFilename(cl::Positional, cl::desc("<input file>"), cl::init("-"));
+static cl::opt<std::string>
+InputFilename(cl::Positional, cl::desc("<input file>"), cl::init("-"));
 
-  cl::list<std::string>
-  IncludeDirs("I", cl::desc("Directory of include files"),
-              cl::value_desc("directory"), cl::Prefix);
-}
+static cl::list<std::string>
+IncludeDirs("I", cl::desc("Directory of include files"),
+            cl::value_desc("directory"), cl::Prefix);
 
 /// \brief Create a dependency file for `-d` option.
 ///
@@ -56,28 +54,23 @@ static int createDependencyFile(const TGParser &Parser, const char *argv0) {
     errs() << argv0 << ": the option -d must be used together with -o\n";
     return 1;
   }
-  std::string Error;
-  tool_output_file DepOut(DependFilename.c_str(), Error, sys::fs::F_Text);
-  if (!Error.empty()) {
-    errs() << argv0 << ": error opening " << DependFilename
-      << ":" << Error << "\n";
+  std::error_code EC;
+  tool_output_file DepOut(DependFilename, EC, sys::fs::F_Text);
+  if (EC) {
+    errs() << argv0 << ": error opening " << DependFilename << ":"
+           << EC.message() << "\n";
     return 1;
   }
   DepOut.os() << OutputFilename << ":";
-  const TGLexer::DependenciesMapTy &Dependencies = Parser.getDependencies();
-  for (TGLexer::DependenciesMapTy::const_iterator I = Dependencies.begin(),
-                                                  E = Dependencies.end();
-       I != E; ++I) {
-    DepOut.os() << " " << I->first;
+  for (const auto &Dep : Parser.getDependencies()) {
+    DepOut.os() << ' ' << Dep.first;
   }
   DepOut.os() << "\n";
   DepOut.keep();
   return 0;
 }
 
-namespace llvm {
-
-int TableGenMain(char *argv0, TableGenMainFn *MainFn) {
+int llvm::TableGenMain(char *argv0, TableGenMainFn *MainFn) {
   RecordKeeper Records;
 
   // Parse the input file.
@@ -88,10 +81,9 @@ int TableGenMain(char *argv0, TableGenMainFn *MainFn) {
            << "': " << EC.message() << "\n";
     return 1;
   }
-  MemoryBuffer *F = FileOrErr.get().release();
 
   // Tell SrcMgr about this buffer, which is what TGParser will pick up.
-  SrcMgr.AddNewSourceBuffer(F, SMLoc());
+  SrcMgr.AddNewSourceBuffer(std::move(*FileOrErr), SMLoc());
 
   // Record the location of the include directory so that the lexer can find
   // it later.
@@ -102,11 +94,11 @@ int TableGenMain(char *argv0, TableGenMainFn *MainFn) {
   if (Parser.ParseFile())
     return 1;
 
-  std::string Error;
-  tool_output_file Out(OutputFilename.c_str(), Error, sys::fs::F_Text);
-  if (!Error.empty()) {
-    errs() << argv0 << ": error opening " << OutputFilename
-      << ":" << Error << "\n";
+  std::error_code EC;
+  tool_output_file Out(OutputFilename, EC, sys::fs::F_Text);
+  if (EC) {
+    errs() << argv0 << ": error opening " << OutputFilename << ":"
+           << EC.message() << "\n";
     return 1;
   }
   if (!DependFilename.empty()) {
@@ -125,6 +117,4 @@ int TableGenMain(char *argv0, TableGenMainFn *MainFn) {
   // Declare success.
   Out.keep();
   return 0;
-}
-
 }

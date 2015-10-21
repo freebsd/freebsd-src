@@ -9,12 +9,13 @@
 //
 // This file is a part of AddressSanitizer, an address sanity checker.
 //
-// ASan-private header for asan_allocator2.cc.
+// ASan-private header for asan_allocator.cc.
 //===----------------------------------------------------------------------===//
 
 #ifndef ASAN_ALLOCATOR_H
 #define ASAN_ALLOCATOR_H
 
+#include "asan_flags.h"
 #include "asan_internal.h"
 #include "asan_interceptors.h"
 #include "sanitizer_common/sanitizer_allocator.h"
@@ -28,11 +29,22 @@ enum AllocType {
   FROM_NEW_BR = 3   // Memory block came from operator new [ ]
 };
 
-static const uptr kNumberOfSizeClasses = 255;
 struct AsanChunk;
 
-void InitializeAllocator();
-void ReInitializeAllocator();
+struct AllocatorOptions {
+  u32 quarantine_size_mb;
+  u16 min_redzone;
+  u16 max_redzone;
+  u8 may_return_null;
+  u8 alloc_dealloc_mismatch;
+
+  void SetFrom(const Flags *f, const CommonFlags *cf);
+  void CopyTo(Flags *f, CommonFlags *cf);
+};
+
+void InitializeAllocator(const AllocatorOptions &options);
+void ReInitializeAllocator(const AllocatorOptions &options);
+void GetAllocatorOptions(AllocatorOptions *options);
 
 class AsanChunkView {
  public:
@@ -124,15 +136,16 @@ typedef SizeClassAllocator32<0, SANITIZER_MMAP_RANGE_SIZE, 16,
   AsanMapUnmapCallback> PrimaryAllocator;
 #endif  // SANITIZER_CAN_USE_ALLOCATOR64
 
+static const uptr kNumberOfSizeClasses = SizeClassMap::kNumClasses;
 typedef SizeClassAllocatorLocalCache<PrimaryAllocator> AllocatorCache;
 typedef LargeMmapAllocator<AsanMapUnmapCallback> SecondaryAllocator;
 typedef CombinedAllocator<PrimaryAllocator, AllocatorCache,
-    SecondaryAllocator> Allocator;
+    SecondaryAllocator> AsanAllocator;
 
 
 struct AsanThreadLocalMallocStorage {
   uptr quarantine_cache[16];
-  AllocatorCache allocator2_cache;
+  AllocatorCache allocator_cache;
   void CommitBack();
  private:
   // These objects are allocated via mmap() and are zero-initialized.
@@ -160,6 +173,7 @@ void asan_mz_force_lock();
 void asan_mz_force_unlock();
 
 void PrintInternalAllocatorStats();
+void AsanSoftRssLimitExceededCallback(bool exceeded);
 
 }  // namespace __asan
 #endif  // ASAN_ALLOCATOR_H

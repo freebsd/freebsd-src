@@ -21,8 +21,8 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
@@ -272,14 +272,35 @@ vdev_lookup_by_guid(vdev_t *vd, uint64_t guid)
 	return (NULL);
 }
 
+static int
+vdev_count_leaves_impl(vdev_t *vd)
+{
+	int n = 0;
+
+	if (vd->vdev_ops->vdev_op_leaf)
+		return (1);
+
+	for (int c = 0; c < vd->vdev_children; c++)
+		n += vdev_count_leaves_impl(vd->vdev_child[c]);
+
+	return (n);
+}
+
+int
+vdev_count_leaves(spa_t *spa)
+{
+	return (vdev_count_leaves_impl(spa->spa_root_vdev));
+}
+
 void
 vdev_add_child(vdev_t *pvd, vdev_t *cvd)
 {
 	size_t oldsize, newsize;
 	uint64_t id = cvd->vdev_id;
 	vdev_t **newchild;
+	spa_t *spa = cvd->vdev_spa;
 
-	ASSERT(spa_config_held(cvd->vdev_spa, SCL_ALL, RW_WRITER) == SCL_ALL);
+	ASSERT(spa_config_held(spa, SCL_ALL, RW_WRITER) == SCL_ALL);
 	ASSERT(cvd->vdev_parent == NULL);
 
 	cvd->vdev_parent = pvd;
@@ -1398,6 +1419,17 @@ vdev_open(vdev_t *vd)
 	}
 
 	/*
+	 * Track the min and max ashift values for normal data devices.
+	 */
+	if (vd->vdev_top == vd && vd->vdev_ashift != 0 &&
+	    !vd->vdev_islog && vd->vdev_aux == NULL) {
+		if (vd->vdev_ashift > spa->spa_max_ashift)
+			spa->spa_max_ashift = vd->vdev_ashift;
+		if (vd->vdev_ashift < spa->spa_min_ashift)
+			spa->spa_min_ashift = vd->vdev_ashift;
+	}
+
+	/*
 	 * If a leaf vdev has a DTL, and seems healthy, then kick off a
 	 * resilver.  But don't do this if we are doing a reopen for a scrub,
 	 * since this would just restart the scrub we are already doing.
@@ -2471,6 +2503,7 @@ int
 vdev_online(spa_t *spa, uint64_t guid, uint64_t flags, vdev_state_t *newstate)
 {
 	vdev_t *vd, *tvd, *pvd, *rvd = spa->spa_root_vdev;
+	boolean_t postevent = B_FALSE;
 
 	spa_vdev_state_enter(spa, SCL_NONE);
 
@@ -2479,6 +2512,10 @@ vdev_online(spa_t *spa, uint64_t guid, uint64_t flags, vdev_state_t *newstate)
 
 	if (!vd->vdev_ops->vdev_op_leaf)
 		return (spa_vdev_state_exit(spa, NULL, ENOTSUP));
+
+	postevent =
+	    (vd->vdev_offline == B_TRUE || vd->vdev_tmpoffline == B_TRUE) ?
+	    B_TRUE : B_FALSE;
 
 	tvd = vd->vdev_top;
 	vd->vdev_offline = B_FALSE;
@@ -2515,6 +2552,10 @@ vdev_online(spa_t *spa, uint64_t guid, uint64_t flags, vdev_state_t *newstate)
 			return (spa_vdev_state_exit(spa, vd, ENOTSUP));
 		spa_async_request(spa, SPA_ASYNC_CONFIG_UPDATE);
 	}
+
+	if (postevent)
+		spa_event_notify(spa, vd, ESC_ZFS_VDEV_ONLINE);
+
 	return (spa_vdev_state_exit(spa, vd, 0));
 }
 
@@ -3371,8 +3412,6 @@ vdev_is_bootable(vdev_t *vd)
 		    strcmp(vdev_type, VDEV_TYPE_MISSING) == 0) {
 			return (B_FALSE);
 		}
-	} else if (vd->vdev_wholedisk == 1) {
-		return (B_FALSE);
 	}
 
 	for (int c = 0; c < vd->vdev_children; c++) {

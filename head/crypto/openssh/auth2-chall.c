@@ -82,6 +82,7 @@ struct KbdintAuthctxt
 	void *ctxt;
 	KbdintDevice *device;
 	u_int nreq;
+	u_int devices_done;
 };
 
 #ifdef USE_PAM
@@ -168,11 +169,15 @@ kbdint_next_device(Authctxt *authctxt, KbdintAuthctxt *kbdintctxt)
 		if (len == 0)
 			break;
 		for (i = 0; devices[i]; i++) {
-			if (!auth2_method_allowed(authctxt,
+			if ((kbdintctxt->devices_done & (1 << i)) != 0 ||
+			    !auth2_method_allowed(authctxt,
 			    "keyboard-interactive", devices[i]->name))
 				continue;
-			if (strncmp(kbdintctxt->devices, devices[i]->name, len) == 0)
+			if (strncmp(kbdintctxt->devices, devices[i]->name,
+			    len) == 0) {
 				kbdintctxt->device = devices[i];
+				kbdintctxt->devices_done |= 1 << i;
+			}
 		}
 		t = kbdintctxt->devices;
 		kbdintctxt->devices = t[len] ? xstrdup(t+len+1) : NULL;

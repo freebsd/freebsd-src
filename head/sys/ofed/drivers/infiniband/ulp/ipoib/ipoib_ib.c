@@ -383,6 +383,7 @@ ipoib_poll(struct ipoib_dev_priv *priv)
 	int n, i;
 
 poll_more:
+	spin_lock(&priv->drain_lock);
 	for (;;) {
 		n = ib_poll_cq(priv->recv_cq, IPOIB_NUM_WC, priv->ibwc);
 
@@ -401,6 +402,7 @@ poll_more:
 		if (n != IPOIB_NUM_WC)
 			break;
 	}
+	spin_unlock(&priv->drain_lock);
 
 	if (ib_req_notify_cq(priv->recv_cq,
 	    IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS))
@@ -707,6 +709,7 @@ void ipoib_drain_cq(struct ipoib_dev_priv *priv)
 {
 	int i, n;
 
+	spin_lock(&priv->drain_lock);
 	do {
 		n = ib_poll_cq(priv->recv_cq, IPOIB_NUM_WC, priv->ibwc);
 		for (i = 0; i < n; ++i) {
@@ -727,6 +730,7 @@ void ipoib_drain_cq(struct ipoib_dev_priv *priv)
 				ipoib_ib_handle_rx_wc(priv, priv->ibwc + i);
 		}
 	} while (n == IPOIB_NUM_WC);
+	spin_unlock(&priv->drain_lock);
 
 	spin_lock(&priv->lock);
 	while (ipoib_poll_tx(priv))

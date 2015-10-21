@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: c-lang,v 1.19 2014/06/03 19:17:27 christos Exp $
+# $File: c-lang,v 1.20 2015/07/27 14:33:10 christos Exp $
 # c-lang:  file(1) magic for C and related languages programs
 #
 
@@ -29,7 +29,7 @@
 
 # C++
 # The strength of these rules is increased so they beat the C rules above
-0	regex	\^template[\ \t\n]+	C++ source text
+0	regex	\^template[\ \t]+<.*>[\ \t\n]+	C++ source text
 !:strength + 5
 !:mime	text/x-c++
 0	regex	\^virtual[\ \t\n]+		C++ source text

@@ -16,17 +16,22 @@
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 namespace {
   class UnpackMachineBundles : public MachineFunctionPass {
   public:
     static char ID; // Pass identification
-    UnpackMachineBundles() : MachineFunctionPass(ID) {
+    UnpackMachineBundles(std::function<bool(const Function &)> Ftor = nullptr)
+        : MachineFunctionPass(ID), PredicateFtor(Ftor) {
       initializeUnpackMachineBundlesPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnMachineFunction(MachineFunction &MF) override;
+
+  private:
+    std::function<bool(const Function &)> PredicateFtor;
   };
 } // end anonymous namespace
 
@@ -36,6 +41,9 @@ INITIALIZE_PASS(UnpackMachineBundles, "unpack-mi-bundles",
                 "Unpack machine instruction bundles", false, false)
 
 bool UnpackMachineBundles::runOnMachineFunction(MachineFunction &MF) {
+  if (PredicateFtor && !PredicateFtor(*MF.getFunction()))
+    return false;
+
   bool Changed = false;
   for (MachineFunction::iterator I = MF.begin(), E = MF.end(); I != E; ++I) {
     MachineBasicBlock *MBB = &*I;
@@ -68,6 +76,10 @@ bool UnpackMachineBundles::runOnMachineFunction(MachineFunction &MF) {
   return Changed;
 }
 
+FunctionPass *
+llvm::createUnpackMachineBundles(std::function<bool(const Function &)> Ftor) {
+  return new UnpackMachineBundles(Ftor);
+}
 
 namespace {
   class FinalizeMachineBundles : public MachineFunctionPass {
@@ -103,12 +115,12 @@ void llvm::finalizeBundle(MachineBasicBlock &MBB,
   assert(FirstMI != LastMI && "Empty bundle?");
   MIBundleBuilder Bundle(MBB, FirstMI, LastMI);
 
-  const TargetMachine &TM = MBB.getParent()->getTarget();
-  const TargetInstrInfo *TII = TM.getInstrInfo();
-  const TargetRegisterInfo *TRI = TM.getRegisterInfo();
+  MachineFunction &MF = *MBB.getParent();
+  const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
+  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
 
-  MachineInstrBuilder MIB = BuildMI(*MBB.getParent(), FirstMI->getDebugLoc(),
-                                    TII->get(TargetOpcode::BUNDLE));
+  MachineInstrBuilder MIB =
+      BuildMI(MF, FirstMI->getDebugLoc(), TII->get(TargetOpcode::BUNDLE));
   Bundle.prepend(MIB);
 
   SmallVector<unsigned, 32> LocalDefs;
@@ -140,7 +152,7 @@ void llvm::finalizeBundle(MachineBasicBlock &MBB,
           // Internal def is now killed.
           KilledDefSet.insert(Reg);
       } else {
-        if (ExternUseSet.insert(Reg)) {
+        if (ExternUseSet.insert(Reg).second) {
           ExternUses.push_back(Reg);
           if (MO.isUndef())
             UndefUseSet.insert(Reg);
@@ -157,7 +169,7 @@ void llvm::finalizeBundle(MachineBasicBlock &MBB,
       if (!Reg)
         continue;
 
-      if (LocalDefSet.insert(Reg)) {
+      if (LocalDefSet.insert(Reg).second) {
         LocalDefs.push_back(Reg);
         if (MO.isDead()) {
           DeadDefSet.insert(Reg);
@@ -173,7 +185,7 @@ void llvm::finalizeBundle(MachineBasicBlock &MBB,
       if (!MO.isDead()) {
         for (MCSubRegIterator SubRegs(Reg, TRI); SubRegs.isValid(); ++SubRegs) {
           unsigned SubReg = *SubRegs;
-          if (LocalDefSet.insert(SubReg))
+          if (LocalDefSet.insert(SubReg).second)
             LocalDefs.push_back(SubReg);
         }
       }
@@ -185,7 +197,7 @@ void llvm::finalizeBundle(MachineBasicBlock &MBB,
   SmallSet<unsigned, 32> Added;
   for (unsigned i = 0, e = LocalDefs.size(); i != e; ++i) {
     unsigned Reg = LocalDefs[i];
-    if (Added.insert(Reg)) {
+    if (Added.insert(Reg).second) {
       // If it's not live beyond end of the bundle, mark it dead.
       bool isDead = DeadDefSet.count(Reg) || KilledDefSet.count(Reg);
       MIB.addReg(Reg, getDefRegState(true) | getDeadRegState(isDead) |

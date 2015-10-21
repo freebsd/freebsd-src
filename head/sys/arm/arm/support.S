@@ -430,7 +430,7 @@ EENTRY(memmove)
 
 	/* blat 32 bytes at a time */
 	/* XXX for really big copies perhaps we should use more registers */
-.Lmemmove_floop32:	
+.Lmemmove_floop32:
 	ldmia	r1!, {r3, r4, r12, lr}
 	stmia	r0!, {r3, r4, r12, lr}
 	ldmia	r1!, {r3, r4, r12, lr}
@@ -988,7 +988,7 @@ ENTRY(memcpy)
 
 	/* blat 32 bytes at a time */
 	/* XXX for really big copies perhaps we should use more registers */
-.Lmemcpy_loop32:	
+.Lmemcpy_loop32:
 	ldmia	r1!, {r3, r4, r12, lr}
 	stmia	r0!, {r3, r4, r12, lr}
 	ldmia	r1!, {r3, r4, r12, lr}

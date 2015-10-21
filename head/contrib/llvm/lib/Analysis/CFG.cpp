@@ -27,7 +27,7 @@ using namespace llvm;
 void llvm::FindFunctionBackedges(const Function &F,
      SmallVectorImpl<std::pair<const BasicBlock*,const BasicBlock*> > &Result) {
   const BasicBlock *BB = &F.getEntryBlock();
-  if (succ_begin(BB) == succ_end(BB))
+  if (succ_empty(BB))
     return;
 
   SmallPtrSet<const BasicBlock*, 8> Visited;
@@ -45,7 +45,7 @@ void llvm::FindFunctionBackedges(const Function &F,
     bool FoundNew = false;
     while (I != succ_end(ParentBB)) {
       BB = *I++;
-      if (Visited.insert(BB)) {
+      if (Visited.insert(BB).second) {
         FoundNew = true;
         break;
       }
@@ -126,10 +126,9 @@ static bool loopContainsBoth(const LoopInfo *LI,
   return L1 != nullptr && L1 == L2;
 }
 
-static bool isPotentiallyReachableInner(SmallVectorImpl<BasicBlock *> &Worklist,
-                                        BasicBlock *StopBB,
-                                        const DominatorTree *DT,
-                                        const LoopInfo *LI) {
+bool llvm::isPotentiallyReachableFromMany(
+    SmallVectorImpl<BasicBlock *> &Worklist, BasicBlock *StopBB,
+    const DominatorTree *DT, const LoopInfo *LI) {
   // When the stop block is unreachable, it's dominated from everywhere,
   // regardless of whether there's a path between the two blocks.
   if (DT && !DT->isReachableFromEntry(StopBB))
@@ -141,7 +140,7 @@ static bool isPotentiallyReachableInner(SmallVectorImpl<BasicBlock *> &Worklist,
   SmallSet<const BasicBlock*, 64> Visited;
   do {
     BasicBlock *BB = Worklist.pop_back_val();
-    if (!Visited.insert(BB))
+    if (!Visited.insert(BB).second)
       continue;
     if (BB == StopBB)
       return true;
@@ -179,8 +178,8 @@ bool llvm::isPotentiallyReachable(const BasicBlock *A, const BasicBlock *B,
   SmallVector<BasicBlock*, 32> Worklist;
   Worklist.push_back(const_cast<BasicBlock*>(A));
 
-  return isPotentiallyReachableInner(Worklist, const_cast<BasicBlock*>(B),
-                                     DT, LI);
+  return isPotentiallyReachableFromMany(Worklist, const_cast<BasicBlock *>(B),
+                                        DT, LI);
 }
 
 bool llvm::isPotentiallyReachable(const Instruction *A, const Instruction *B,
@@ -230,7 +229,6 @@ bool llvm::isPotentiallyReachable(const Instruction *A, const Instruction *B,
   if (B->getParent() == &A->getParent()->getParent()->getEntryBlock())
     return false;
 
-  return isPotentiallyReachableInner(Worklist,
-                                     const_cast<BasicBlock*>(B->getParent()),
-                                     DT, LI);
+  return isPotentiallyReachableFromMany(
+      Worklist, const_cast<BasicBlock *>(B->getParent()), DT, LI);
 }

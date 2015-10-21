@@ -67,6 +67,11 @@ void	npxsuspend(union savefpu *addr);
 int	npxtrap_x87(void);
 int	npxtrap_sse(void);
 void	npxuserinited(struct thread *);
+void	npx_get_fsave(void *);
+int	npx_set_fsave(void *);
+void	npx_fill_fpregs_xmm(struct savexmm *, struct save87 *);
+void	npx_set_fpregs_xmm(struct save87 *, struct savexmm *);
+
 struct fpu_kern_ctx *fpu_kern_alloc_ctx(u_int flags);
 void	fpu_kern_free_ctx(struct fpu_kern_ctx *ctx);
 int	fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx,

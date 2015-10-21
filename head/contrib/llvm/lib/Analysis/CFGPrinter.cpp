@@ -77,13 +77,13 @@ namespace {
     }
 
     bool runOnFunction(Function &F) override {
-      std::string Filename = "cfg." + F.getName().str() + ".dot";
+      std::string Filename = ("cfg." + F.getName() + ".dot").str();
       errs() << "Writing '" << Filename << "'...";
-      
-      std::string ErrorInfo;
-      raw_fd_ostream File(Filename.c_str(), ErrorInfo, sys::fs::F_Text);
 
-      if (ErrorInfo.empty())
+      std::error_code EC;
+      raw_fd_ostream File(Filename, EC, sys::fs::F_Text);
+
+      if (!EC)
         WriteGraph(File, (const Function*)&F);
       else
         errs() << "  error opening file for writing!";
@@ -111,13 +111,13 @@ namespace {
     }
 
     bool runOnFunction(Function &F) override {
-      std::string Filename = "cfg." + F.getName().str() + ".dot";
+      std::string Filename = ("cfg." + F.getName() + ".dot").str();
       errs() << "Writing '" << Filename << "'...";
 
-      std::string ErrorInfo;
-      raw_fd_ostream File(Filename.c_str(), ErrorInfo, sys::fs::F_Text);
-      
-      if (ErrorInfo.empty())
+      std::error_code EC;
+      raw_fd_ostream File(Filename, EC, sys::fs::F_Text);
+
+      if (!EC)
         WriteGraph(File, (const Function*)&F, true);
       else
         errs() << "  error opening file for writing!";

@@ -32,25 +32,26 @@ public:
                                 const FileSpec &resolver,
                                 uint32_t line_no,
                                 bool check_inlines,
-                                bool skip_prologue);
+                                bool skip_prologue,
+                                bool exact_match);
 
     virtual
     ~BreakpointResolverFileLine ();
 
-    virtual Searcher::CallbackReturn
+    Searcher::CallbackReturn
     SearchCallback (SearchFilter &filter,
                     SymbolContext &context,
                     Address *addr,
-                    bool containing);
+                    bool containing) override;
 
-    virtual Searcher::Depth
-    GetDepth ();
+    Searcher::Depth
+    GetDepth () override;
 
-    virtual void
-    GetDescription (Stream *s);
+    void
+    GetDescription (Stream *s) override;
 
-    virtual void
-    Dump (Stream *s) const;
+    void
+    Dump (Stream *s) const override;
 
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const BreakpointResolverFileLine *) { return true; }
@@ -58,12 +59,16 @@ public:
         return V->getResolverID() == BreakpointResolver::FileLineResolver;
     }
 
+    lldb::BreakpointResolverSP
+    CopyForBreakpoint (Breakpoint &breakpoint) override;
+
 protected:
     friend class Breakpoint;
     FileSpec m_file_spec; // This is the file spec we are looking for.
     uint32_t m_line_number; // This is the line number that we are looking for.
     bool m_inlines; // This determines whether the resolver looks for inlined functions or not.
     bool m_skip_prologue;
+    bool m_exact_match;
 
 private:
     DISALLOW_COPY_AND_ASSIGN(BreakpointResolverFileLine);

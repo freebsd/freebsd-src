@@ -8,8 +8,8 @@ PROG_CXX=llvm-rtdyld
 SRCDIR=	tools/llvm-rtdyld
 SRCS=	llvm-rtdyld.cpp
 
-LIBDEPS=llvmdebuginfo \
-	llvmjit \
+LIBDEPS=llvmdebuginfodwarf \
+	llvmmcjit \
 	llvmexecutionengine \
 	llvmruntimedyld \
 	llvmaarch64disassembler \
@@ -49,21 +49,24 @@ LIBDEPS=llvmdebuginfo \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmcodegen \
+	llvmtarget \
 	llvmscalaropts \
+	llvmprofiledata \
 	llvminstcombine \
+	llvminstrumentation \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmtarget \
 	llvmx86desc \
 	llvmobject \
 	llvmmcparser \
 	llvmbitreader \
-	llvmcore \
+	llvmmcdisassembler \
 	llvmx86info \
 	llvmx86instprinter \
 	llvmmc \
 	llvmx86utils \
+	llvmcore \
 	llvmsupport
 
 .include "../clang.prog.mk"

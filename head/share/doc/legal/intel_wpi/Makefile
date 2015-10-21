@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-NO_OBJ=
 FILES=          ${.CURDIR}/../../../../sys/contrib/dev/wpi/LICENSE
-FILESDIR=       ${SHAREDIR}/doc/legal/intel_wpi
+FILESDIR=       ${SHAREDIR}/doc/legal
+FILESNAME=	intel_wpi.LICENSE
 
 .include <bsd.prog.mk>
 

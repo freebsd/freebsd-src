@@ -107,6 +107,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_SSL_SERVICE_KEY VAR_SSL_SERVICE_PEM VAR_SSL_PORT VAR_FORWARD_FIRST
 %token VAR_STUB_FIRST VAR_MINIMAL_RESPONSES VAR_RRSET_ROUNDROBIN
 %token VAR_MAX_UDP_SIZE VAR_DELAY_CLOSE VAR_UNBLOCK_LAN_ZONES
+%token VAR_INFRA_CACHE_MIN_RTT
 %token VAR_DNS64_PREFIX VAR_DNS64_SYNTHALL
 %token VAR_DNSTAP VAR_DNSTAP_ENABLE VAR_DNSTAP_SOCKET_PATH
 %token VAR_DNSTAP_SEND_IDENTITY VAR_DNSTAP_SEND_VERSION
@@ -117,6 +118,10 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_DNSTAP_LOG_CLIENT_RESPONSE_MESSAGES
 %token VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES
 %token VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES
+%token VAR_HARDEN_ALGO_DOWNGRADE VAR_IP_TRANSPARENT
+%token VAR_RATELIMIT VAR_RATELIMIT_SLABS VAR_RATELIMIT_SIZE
+%token VAR_RATELIMIT_FOR_DOMAIN VAR_RATELIMIT_BELOW_DOMAIN VAR_RATELIMIT_FACTOR
+%token VAR_CAPS_WHITELIST VAR_CACHE_MAX_NEGATIVE_TTL VAR_PERMIT_SMALL_HOLDDOWN
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -175,7 +180,13 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_ssl_service_key | server_ssl_service_pem | server_ssl_port |
 	server_minimal_responses | server_rrset_roundrobin | server_max_udp_size |
 	server_so_reuseport | server_delay_close | server_unblock_lan_zones |
-	server_dns64_prefix | server_dns64_synthall
+	server_dns64_prefix | server_dns64_synthall |
+	server_infra_cache_min_rtt | server_harden_algo_downgrade |
+	server_ip_transparent | server_ratelimit | server_ratelimit_slabs |
+	server_ratelimit_size | server_ratelimit_for_domain |
+	server_ratelimit_below_domain | server_ratelimit_factor |
+	server_caps_whitelist | server_cache_max_negative_ttl |
+	server_permit_small_holddown
 	;
 stubstart: VAR_STUB_ZONE
 	{
@@ -618,6 +629,16 @@ server_so_reuseport: VAR_SO_REUSEPORT STRING_ARG
         free($2);
     }
     ;
+server_ip_transparent: VAR_IP_TRANSPARENT STRING_ARG
+    {
+        OUTYY(("P(server_ip_transparent:%s)\n", $2));
+        if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+            yyerror("expected yes or no.");
+        else cfg_parser->cfg->ip_transparent =
+            (strcmp($2, "yes")==0);
+        free($2);
+    }
+    ;
 server_edns_buffer_size: VAR_EDNS_BUFFER_SIZE STRING_ARG
 	{
 		OUTYY(("P(server_edns_buffer_size:%s)\n", $2));
@@ -768,6 +789,15 @@ server_infra_cache_slabs: VAR_INFRA_CACHE_SLABS STRING_ARG
 		free($2);
 	}
 	;
+server_infra_cache_min_rtt: VAR_INFRA_CACHE_MIN_RTT STRING_ARG
+	{
+		OUTYY(("P(server_infra_cache_min_rtt:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->infra_cache_min_rtt = atoi($2);
+		free($2);
+	}
+	;
 server_target_fetch_policy: VAR_TARGET_FETCH_POLICY STRING_ARG
 	{
 		OUTYY(("P(server_target_fetch_policy:%s)\n", $2));
@@ -835,6 +865,16 @@ server_harden_referral_path: VAR_HARDEN_REFERRAL_PATH STRING_ARG
 		free($2);
 	}
 	;
+server_harden_algo_downgrade: VAR_HARDEN_ALGO_DOWNGRADE STRING_ARG
+	{
+		OUTYY(("P(server_harden_algo_downgrade:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->harden_algo_downgrade = 
+			(strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
 server_use_caps_for_id: VAR_USE_CAPS_FOR_ID STRING_ARG
 	{
 		OUTYY(("P(server_use_caps_for_id:%s)\n", $2));
@@ -843,6 +883,13 @@ server_use_caps_for_id: VAR_USE_CAPS_FOR_ID STRING_ARG
 		else cfg_parser->cfg->use_caps_bits_for_id = 
 			(strcmp($2, "yes")==0);
 		free($2);
+	}
+	;
+server_caps_whitelist: VAR_CAPS_WHITELIST STRING_ARG
+	{
+		OUTYY(("P(server_caps_whitelist:%s)\n", $2));
+		if(!cfg_strlist_insert(&cfg_parser->cfg->caps_whitelist, $2))
+			yyerror("out of memory");
 	}
 	;
 server_private_address: VAR_PRIVATE_ADDRESS STRING_ARG
@@ -980,6 +1027,15 @@ server_cache_max_ttl: VAR_CACHE_MAX_TTL STRING_ARG
 		free($2);
 	}
 	;
+server_cache_max_negative_ttl: VAR_CACHE_MAX_NEGATIVE_TTL STRING_ARG
+	{
+		OUTYY(("P(server_cache_max_negative_ttl:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->max_negative_ttl = atoi($2);
+		free($2);
+	}
+	;
 server_cache_min_ttl: VAR_CACHE_MIN_TTL STRING_ARG
 	{
 		OUTYY(("P(server_cache_min_ttl:%s)\n", $2));
@@ -1070,6 +1126,15 @@ server_keep_missing: VAR_KEEP_MISSING STRING_ARG
 		free($2);
 	}
 	;
+server_permit_small_holddown: VAR_PERMIT_SMALL_HOLDDOWN STRING_ARG
+	{
+		OUTYY(("P(server_permit_small_holddown:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->permit_small_holddown =
+			(strcmp($2, "yes")==0);
+		free($2);
+	}
 server_key_cache_size: VAR_KEY_CACHE_SIZE STRING_ARG
 	{
 		OUTYY(("P(server_key_cache_size:%s)\n", $2));
@@ -1105,10 +1170,12 @@ server_local_zone: VAR_LOCAL_ZONE STRING_ARG STRING_ARG
 		if(strcmp($3, "static")!=0 && strcmp($3, "deny")!=0 &&
 		   strcmp($3, "refuse")!=0 && strcmp($3, "redirect")!=0 &&
 		   strcmp($3, "transparent")!=0 && strcmp($3, "nodefault")!=0
-		   && strcmp($3, "typetransparent")!=0)
+		   && strcmp($3, "typetransparent")!=0 &&
+		   strcmp($3, "inform")!=0 && strcmp($3, "inform_deny")!=0)
 			yyerror("local-zone type: expected static, deny, "
 				"refuse, redirect, transparent, "
-				"typetransparent or nodefault");
+				"typetransparent, inform, inform_deny "
+				"or nodefault");
 		else if(strcmp($3, "nodefault")==0) {
 			if(!cfg_strlist_insert(&cfg_parser->cfg->
 				local_zones_nodefault, $2))
@@ -1183,6 +1250,71 @@ server_dns64_synthall: VAR_DNS64_SYNTHALL STRING_ARG
 		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
 			yyerror("expected yes or no.");
 		else cfg_parser->cfg->dns64_synthall = (strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
+server_ratelimit: VAR_RATELIMIT STRING_ARG 
+	{ 
+		OUTYY(("P(server_ratelimit:%s)\n", $2)); 
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->ratelimit = atoi($2);
+		free($2);
+	}
+	;
+server_ratelimit_size: VAR_RATELIMIT_SIZE STRING_ARG
+	{
+		OUTYY(("P(server_ratelimit_size:%s)\n", $2));
+		if(!cfg_parse_memsize($2, &cfg_parser->cfg->ratelimit_size))
+			yyerror("memory size expected");
+		free($2);
+	}
+	;
+server_ratelimit_slabs: VAR_RATELIMIT_SLABS STRING_ARG
+	{
+		OUTYY(("P(server_ratelimit_slabs:%s)\n", $2));
+		if(atoi($2) == 0)
+			yyerror("number expected");
+		else {
+			cfg_parser->cfg->ratelimit_slabs = atoi($2);
+			if(!is_pow2(cfg_parser->cfg->ratelimit_slabs))
+				yyerror("must be a power of 2");
+		}
+		free($2);
+	}
+	;
+server_ratelimit_for_domain: VAR_RATELIMIT_FOR_DOMAIN STRING_ARG STRING_ARG
+	{
+		OUTYY(("P(server_ratelimit_for_domain:%s %s)\n", $2, $3));
+		if(atoi($3) == 0 && strcmp($3, "0") != 0) {
+			yyerror("number expected");
+		} else {
+			if(!cfg_str2list_insert(&cfg_parser->cfg->
+				ratelimit_for_domain, $2, $3))
+				fatal_exit("out of memory adding "
+					"ratelimit-for-domain");
+		}
+	}
+	;
+server_ratelimit_below_domain: VAR_RATELIMIT_BELOW_DOMAIN STRING_ARG STRING_ARG
+	{
+		OUTYY(("P(server_ratelimit_below_domain:%s %s)\n", $2, $3));
+		if(atoi($3) == 0 && strcmp($3, "0") != 0) {
+			yyerror("number expected");
+		} else {
+			if(!cfg_str2list_insert(&cfg_parser->cfg->
+				ratelimit_below_domain, $2, $3))
+				fatal_exit("out of memory adding "
+					"ratelimit-below-domain");
+		}
+	}
+	;
+server_ratelimit_factor: VAR_RATELIMIT_FACTOR STRING_ARG 
+	{ 
+		OUTYY(("P(server_ratelimit_factor:%s)\n", $2)); 
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->ratelimit_factor = atoi($2);
 		free($2);
 	}
 	;

@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"
-#include "opt_random.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -41,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/condvar.h>
 #include <sys/queue.h>
@@ -128,15 +128,6 @@ struct device {
 	device_state_t	state;		/**< current device state  */
 	uint32_t	devflags;	/**< api level flags for device_get_flags() */
 	u_int		flags;		/**< internal device flags  */
-#define	DF_ENABLED	0x01		/* device should be probed/attached */
-#define	DF_FIXEDCLASS	0x02		/* devclass specified at create time */
-#define	DF_WILDCARD	0x04		/* unit was originally wildcard */
-#define	DF_DESCMALLOCED	0x08		/* description was malloced */
-#define	DF_QUIET	0x10		/* don't print verbose attach message */
-#define	DF_DONENOMATCH	0x20		/* don't execute DEVICE_NOMATCH again */
-#define	DF_EXTERNALSOFTC 0x40		/* softc not allocated by us */
-#define	DF_REBID	0x80		/* Can rebid after attach */
-#define	DF_SUSPENDED	0x100		/* Device is suspended. */
 	u_int	order;			/**< order from device_add_child_ordered() */
 	void	*ivars;			/**< instance variables  */
 	void	*softc;			/**< current driver's variables  */
@@ -147,6 +138,8 @@ struct device {
 
 static MALLOC_DEFINE(M_BUS, "bus", "Bus data structures");
 static MALLOC_DEFINE(M_BUS_SC, "bus-sc", "Bus data structures, softc");
+
+static void devctl2_init(void);
 
 #ifdef BUS_DEBUG
 
@@ -218,7 +211,7 @@ devclass_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	default:
 		return (EINVAL);
 	}
-	return (SYSCTL_OUT(req, value, strlen(value)));
+	return (SYSCTL_OUT_STR(req, value));
 }
 
 static void
@@ -275,7 +268,7 @@ device_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	default:
 		return (EINVAL);
 	}
-	error = SYSCTL_OUT(req, value, strlen(value));
+	error = SYSCTL_OUT_STR(req, value);
 	if (buf != NULL)
 		free(buf, M_BUS);
 	return (error);
@@ -432,6 +425,7 @@ devinit(void)
 	cv_init(&devsoftc.cv, "dev cv");
 	TAILQ_INIT(&devsoftc.devq);
 	knlist_init_mtx(&devsoftc.sel.si_note, &devsoftc.mtx);
+	devctl2_init();
 }
 
 static int
@@ -2118,6 +2112,16 @@ device_probe_child(device_t dev, device_t child)
 			}
 
 			/*
+			 * Probes that return BUS_PROBE_NOWILDCARD or lower
+			 * only match on devices whose driver was explicitly
+			 * specified.
+			 */
+			if (result <= BUS_PROBE_NOWILDCARD &&
+			    !(child->flags & DF_FIXEDCLASS)) {
+				result = ENXIO;
+			}
+
+			/*
 			 * The driver returned an error so it
 			 * certainly doesn't match.
 			 */
@@ -2132,14 +2136,6 @@ device_probe_child(device_t dev, device_t child)
 			 * of pri for the first match.
 			 */
 			if (best == NULL || result > pri) {
-				/*
-				 * Probes that return BUS_PROBE_NOWILDCARD
-				 * or lower only match on devices whose
-				 * driver was explicitly specified.
-				 */
-				if (result <= BUS_PROBE_NOWILDCARD &&
-				    !(child->flags & DF_FIXEDCLASS))
-					continue;
 				best = dl;
 				pri = result;
 				continue;
@@ -2648,6 +2644,15 @@ device_is_attached(device_t dev)
 }
 
 /**
+ * @brief Return non-zero if the device is currently suspended.
+ */
+int
+device_is_suspended(device_t dev)
+{
+	return ((dev->flags & DF_SUSPENDED) != 0);
+}
+
+/**
  * @brief Set the devclass of a device
  * @see devclass_add_device().
  */
@@ -2676,6 +2681,25 @@ device_set_devclass(device_t dev, const char *classname)
 
 	bus_data_generation_update();
 	return (error);
+}
+
+/**
+ * @brief Set the devclass of a device and mark the devclass fixed.
+ * @see device_set_devclass()
+ */
+int
+device_set_devclass_fixed(device_t dev, const char *classname)
+{
+	int error;
+
+	if (classname == NULL)
+		return (EINVAL);
+
+	error = device_set_devclass(dev, classname);
+	if (error)
+		return (error);
+	dev->flags |= DF_FIXEDCLASS;
+	return (0);
 }
 
 /**
@@ -2852,14 +2876,16 @@ device_attach(device_t dev)
 	attachtime = get_cyclecount() - attachtime;
 	/*
 	 * 4 bits per device is a reasonable value for desktop and server
-	 * hardware with good get_cyclecount() implementations, but may
+	 * hardware with good get_cyclecount() implementations, but WILL
 	 * need to be adjusted on other platforms.
 	 */
-#ifdef RANDOM_DEBUG
-	printf("random: %s(): feeding %d bit(s) of entropy from %s%d\n",
-	    __func__, 4, dev->driver->name, dev->unit);
-#endif
-	random_harvest(&attachtime, sizeof(attachtime), 4, RANDOM_ATTACH);
+#define	RANDOM_PROBE_BIT_GUESS	4
+	if (bootverbose)
+		printf("random: harvesting attach, %zu bytes (%d bits) from %s%d\n",
+		    sizeof(attachtime), RANDOM_PROBE_BIT_GUESS,
+		    dev->driver->name, dev->unit);
+	random_harvest_direct(&attachtime, sizeof(attachtime),
+	    RANDOM_PROBE_BIT_GUESS, RANDOM_ATTACH);
 	device_sysctl_update(dev);
 	if (dev->busy)
 		dev->state = DS_BUSY;
@@ -3653,7 +3679,7 @@ bus_generic_suspend_child(device_t dev, device_t child)
 	error = DEVICE_SUSPEND(child);
 
 	if (error == 0)
-		dev->flags |= DF_SUSPENDED;
+		child->flags |= DF_SUSPENDED;
 
 	return (error);
 }
@@ -3668,7 +3694,7 @@ bus_generic_resume_child(device_t dev, device_t child)
 {
 
 	DEVICE_RESUME(child);
-	dev->flags &= ~DF_SUSPENDED;
+	child->flags &= ~DF_SUSPENDED;
 
 	return (0);
 }
@@ -5030,4 +5056,254 @@ bus_free_resource(device_t dev, int type, struct resource *r)
 	if (r == NULL)
 		return (0);
 	return (bus_release_resource(dev, type, rman_get_rid(r), r));
+}
+
+/*
+ * /dev/devctl2 implementation.  The existing /dev/devctl device has
+ * implicit semantics on open, so it could not be reused for this.
+ * Another option would be to call this /dev/bus?
+ */
+static int
+find_device(struct devreq *req, device_t *devp)
+{
+	device_t dev;
+
+	/*
+	 * First, ensure that the name is nul terminated.
+	 */
+	if (memchr(req->dr_name, '\0', sizeof(req->dr_name)) == NULL)
+		return (EINVAL);
+
+	/*
+	 * Second, try to find an attached device whose name matches
+	 * 'name'.
+	 */
+	TAILQ_FOREACH(dev, &bus_data_devices, devlink) {
+		if (dev->nameunit != NULL &&
+		    strcmp(dev->nameunit, req->dr_name) == 0) {
+			*devp = dev;
+			return (0);
+		}
+	}
+
+	/* Finally, give device enumerators a chance. */
+	dev = NULL;
+	EVENTHANDLER_INVOKE(dev_lookup, req->dr_name, &dev);
+	if (dev == NULL)
+		return (ENOENT);
+	*devp = dev;
+	return (0);
+}
+
+static bool
+driver_exists(struct device *bus, const char *driver)
+{
+	devclass_t dc;
+
+	for (dc = bus->devclass; dc != NULL; dc = dc->parent) {
+		if (devclass_find_driver_internal(dc, driver) != NULL)
+			return (true);
+	}
+	return (false);
+}
+
+static int
+devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
+    struct thread *td)
+{
+	struct devreq *req;
+	device_t dev;
+	int error, old;
+
+	/* Locate the device to control. */
+	mtx_lock(&Giant);
+	req = (struct devreq *)data;
+	switch (cmd) {
+	case DEV_ATTACH:
+	case DEV_DETACH:
+	case DEV_ENABLE:
+	case DEV_DISABLE:
+	case DEV_SUSPEND:
+	case DEV_RESUME:
+	case DEV_SET_DRIVER:
+		error = priv_check(td, PRIV_DRIVER);
+		if (error == 0)
+			error = find_device(req, &dev);
+		break;
+	default:
+		error = ENOTTY;
+		break;
+	}
+	if (error) {
+		mtx_unlock(&Giant);
+		return (error);
+	}
+
+	/* Perform the requested operation. */
+	switch (cmd) {
+	case DEV_ATTACH:
+		if (device_is_attached(dev) && (dev->flags & DF_REBID) == 0)
+			error = EBUSY;
+		else if (!device_is_enabled(dev))
+			error = ENXIO;
+		else
+			error = device_probe_and_attach(dev);
+		break;
+	case DEV_DETACH:
+		if (!device_is_attached(dev)) {
+			error = ENXIO;
+			break;
+		}
+		if (!(req->dr_flags & DEVF_FORCE_DETACH)) {
+			error = device_quiesce(dev);
+			if (error)
+				break;
+		}
+		error = device_detach(dev);
+		break;
+	case DEV_ENABLE:
+		if (device_is_enabled(dev)) {
+			error = EBUSY;
+			break;
+		}
+
+		/*
+		 * If the device has been probed but not attached (e.g.
+		 * when it has been disabled by a loader hint), just
+		 * attach the device rather than doing a full probe.
+		 */
+		device_enable(dev);
+		if (device_is_alive(dev)) {
+			/*
+			 * If the device was disabled via a hint, clear
+			 * the hint.
+			 */
+			if (resource_disabled(dev->driver->name, dev->unit))
+				resource_unset_value(dev->driver->name,
+				    dev->unit, "disabled");
+			error = device_attach(dev);
+		} else
+			error = device_probe_and_attach(dev);
+		break;
+	case DEV_DISABLE:
+		if (!device_is_enabled(dev)) {
+			error = ENXIO;
+			break;
+		}
+
+		if (!(req->dr_flags & DEVF_FORCE_DETACH)) {
+			error = device_quiesce(dev);
+			if (error)
+				break;
+		}
+
+		/*
+		 * Force DF_FIXEDCLASS on around detach to preserve
+		 * the existing name.
+		 */
+		old = dev->flags;
+		dev->flags |= DF_FIXEDCLASS;
+		error = device_detach(dev);
+		if (!(old & DF_FIXEDCLASS))
+			dev->flags &= ~DF_FIXEDCLASS;
+		if (error == 0)
+			device_disable(dev);
+		break;
+	case DEV_SUSPEND:
+		if (device_is_suspended(dev)) {
+			error = EBUSY;
+			break;
+		}
+		if (device_get_parent(dev) == NULL) {
+			error = EINVAL;
+			break;
+		}
+		error = BUS_SUSPEND_CHILD(device_get_parent(dev), dev);
+		break;
+	case DEV_RESUME:
+		if (!device_is_suspended(dev)) {
+			error = EINVAL;
+			break;
+		}
+		if (device_get_parent(dev) == NULL) {
+			error = EINVAL;
+			break;
+		}
+		error = BUS_RESUME_CHILD(device_get_parent(dev), dev);
+		break;
+	case DEV_SET_DRIVER: {
+		devclass_t dc;
+		char driver[128];
+
+		error = copyinstr(req->dr_data, driver, sizeof(driver), NULL);
+		if (error)
+			break;
+		if (driver[0] == '\0') {
+			error = EINVAL;
+			break;
+		}
+		if (dev->devclass != NULL &&
+		    strcmp(driver, dev->devclass->name) == 0)
+			/* XXX: Could possibly force DF_FIXEDCLASS on? */
+			break;
+
+		/*
+		 * Scan drivers for this device's bus looking for at
+		 * least one matching driver.
+		 */
+		if (dev->parent == NULL) {
+			error = EINVAL;
+			break;
+		}
+		if (!driver_exists(dev->parent, driver)) {
+			error = ENOENT;
+			break;
+		}
+		dc = devclass_create(driver);
+		if (dc == NULL) {
+			error = ENOMEM;
+			break;
+		}
+
+		/* Detach device if necessary. */
+		if (device_is_attached(dev)) {
+			if (req->dr_flags & DEVF_SET_DRIVER_DETACH)
+				error = device_detach(dev);
+			else
+				error = EBUSY;
+			if (error)
+				break;
+		}
+
+		/* Clear any previously-fixed device class and unit. */
+		if (dev->flags & DF_FIXEDCLASS)
+			devclass_delete_device(dev->devclass, dev);
+		dev->flags |= DF_WILDCARD;
+		dev->unit = -1;
+
+		/* Force the new device class. */
+		error = devclass_add_device(dc, dev);
+		if (error)
+			break;
+		dev->flags |= DF_FIXEDCLASS;
+		error = device_probe_and_attach(dev);
+		break;
+	}
+	}
+	mtx_unlock(&Giant);
+	return (error);
+}
+
+static struct cdevsw devctl2_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_ioctl =	devctl2_ioctl,
+	.d_name =	"devctl2",
+};
+
+static void
+devctl2_init(void)
+{
+
+	make_dev_credf(MAKEDEV_ETERNAL, &devctl2_cdevsw, 0, NULL,
+	    UID_ROOT, GID_WHEEL, 0600, "devctl2");
 }

@@ -7,13 +7,7 @@ SYSDIR?=${.CURDIR}/../..
 
 KMOD=	if_gif
 SRCS=	if_gif.c opt_inet.h opt_inet6.h
-
-.if ${MK_INET_SUPPORT} != "no"
-SRCS+=	in_gif.c
-.endif
-
-.if ${MK_INET6_SUPPORT} != "no"
-SRCS+=	in6_gif.c
-.endif
+SRCS.INET=in_gif.c
+SRCS.INET6=in6_gif.c
 
 .include <bsd.kmod.mk>

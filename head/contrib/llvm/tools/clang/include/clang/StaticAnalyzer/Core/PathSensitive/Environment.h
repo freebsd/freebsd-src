@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_ENVIRONMENT_H
-#define LLVM_CLANG_GR_ENVIRONMENT_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_ENVIRONMENT_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_ENVIRONMENT_H
 
 #include "clang/Analysis/AnalysisContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
@@ -106,7 +106,6 @@ private:
 
 public:
   EnvironmentManager(llvm::BumpPtrAllocator& Allocator) : F(Allocator) {}
-  ~EnvironmentManager() {}
 
   Environment getInitialEnvironment() {
     return Environment(F.getEmptyMap());

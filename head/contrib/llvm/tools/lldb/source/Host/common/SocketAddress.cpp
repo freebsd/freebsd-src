@@ -9,10 +9,13 @@
 
 #include "lldb/Host/SocketAddress.h"
 #include <stddef.h>
+#include <stdio.h>
 
 // C Includes
 #if !defined(_WIN32)
 #include <arpa/inet.h>
+#else
+#include "lldb/Host/windows/win32.h"
 #endif
 #include <assert.h>
 #include <string.h>
@@ -20,6 +23,56 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
+
+// WindowsXP needs an inet_ntop implementation
+#ifdef _WIN32
+
+#ifndef INET6_ADDRSTRLEN // might not be defined in older Windows SDKs
+#define INET6_ADDRSTRLEN 46
+#endif
+
+// TODO: implement shortened form "::" for runs of zeros
+const char* inet_ntop(int af, const void * src,
+                      char * dst, socklen_t size)
+{
+    if (size==0)
+    {
+        return nullptr;
+    }
+    
+    switch (af)
+    {
+        case AF_INET:
+        {
+            {
+                const char* formatted = inet_ntoa(*static_cast<const in_addr*>(src));
+                if (formatted && strlen(formatted) < size)
+                {
+                    return ::strcpy(dst, formatted);
+                }
+            }
+            return nullptr;
+        case AF_INET6:
+            {
+                char tmp[INET6_ADDRSTRLEN] = {0};
+                const uint16_t* src16 = static_cast<const uint16_t*>(src);
+                int full_size = ::snprintf(tmp, sizeof(tmp),
+                                          "%x:%x:%x:%x:%x:%x:%x:%x",
+                                          ntohs(src16[0]), ntohs(src16[1]), ntohs(src16[2]), ntohs(src16[3]),
+                                          ntohs(src16[4]), ntohs(src16[5]), ntohs(src16[6]), ntohs(src16[7])
+                                          );
+                if (full_size < static_cast<int>(size))
+                {
+                    return ::strcpy(dst, tmp);
+                }
+                return nullptr;
+            }
+        }
+    }
+    return nullptr;
+} 
+#endif
+    
 
 using namespace lldb_private;
 
@@ -124,6 +177,26 @@ SocketAddress::SetFamily (sa_family_t family)
 #endif
 }
 
+std::string
+SocketAddress::GetIPAddress () const
+{
+    char str[INET6_ADDRSTRLEN] = {0};
+    switch (GetFamily())
+    {
+        case AF_INET:
+            if (inet_ntop(GetFamily(), &m_socket_addr.sa_ipv4.sin_addr, str, sizeof(str)))
+            {
+                return str;
+            }
+        case AF_INET6:
+            if (inet_ntop(GetFamily(), &m_socket_addr.sa_ipv6.sin6_addr, str, sizeof(str)))
+            {
+                return str;
+            }
+    }
+    return "";
+}
+
 uint16_t
 SocketAddress::GetPort () const
 {
@@ -214,6 +287,8 @@ SocketAddress::getaddrinfo (const char *host,
                             int ai_protocol,
                             int ai_flags)
 {
+    Clear ();
+
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = ai_family;
@@ -221,15 +296,17 @@ SocketAddress::getaddrinfo (const char *host,
     hints.ai_protocol = ai_protocol;
     hints.ai_flags = ai_flags;
 
+    bool result = false;
     struct addrinfo *service_info_list = NULL;
     int err = ::getaddrinfo (host, service, &hints, &service_info_list);
     if (err == 0 && service_info_list)
+    {
         *this = service_info_list;
-    else
-        Clear();
+        result = IsValid ();
+    }
     
     :: freeaddrinfo (service_info_list);
-    return IsValid();
+    return result;
 }
 
 

@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_READOBJ_OBJDUMPER_H
-#define LLVM_READOBJ_OBJDUMPER_H
+#ifndef LLVM_TOOLS_LLVM_READOBJ_OBJDUMPER_H
+#define LLVM_TOOLS_LLVM_READOBJ_OBJDUMPER_H
 
 #include <memory>
 #include <system_error>
@@ -33,15 +33,27 @@ public:
   virtual void printUnwindInfo() = 0;
 
   // Only implemented for ELF at this time.
+  virtual void printDynamicRelocations() { }
   virtual void printDynamicTable() { }
   virtual void printNeededLibraries() { }
   virtual void printProgramHeaders() { }
+  virtual void printHashTable() { }
 
   // Only implemented for ARM ELF at this time.
   virtual void printAttributes() { }
 
   // Only implemented for MIPS ELF at this time.
   virtual void printMipsPLTGOT() { }
+  virtual void printMipsABIFlags() { }
+  virtual void printMipsReginfo() { }
+
+  // Only implemented for PE/COFF.
+  virtual void printCOFFImports() { }
+  virtual void printCOFFExports() { }
+  virtual void printCOFFDirectives() { }
+  virtual void printCOFFBaseReloc() { }
+
+  virtual void printStackMap() const = 0;
 
 protected:
   StreamWriter& W;

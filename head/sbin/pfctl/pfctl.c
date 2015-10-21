@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <net/pfvar.h>
 #include <arpa/inet.h>
-#include <altq/altq.h>
+#include <net/altq/altq.h>
 #include <sys/sysctl.h>
 
 #include <err.h>
@@ -1924,7 +1924,7 @@ pfctl_test_altqsupport(int dev, int opts)
 
 	if (ioctl(dev, DIOCGETALTQS, &pa)) {
 		if (errno == ENODEV) {
-			if (!(opts & PF_OPT_QUIET))
+			if (opts & PF_OPT_VERBOSE)
 				fprintf(stderr, "No ALTQ support in kernel\n"
 				    "ALTQ related functions disabled\n");
 			return (0);

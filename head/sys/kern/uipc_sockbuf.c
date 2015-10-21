@@ -420,9 +420,7 @@ sbreserve_locked(struct sockbuf *sb, u_long cc, struct socket *so,
 	if (cc > sb_max_adj)
 		return (0);
 	if (td != NULL) {
-		PROC_LOCK(td->td_proc);
-		sbsize_limit = lim_cur(td->td_proc, RLIMIT_SBSIZE);
-		PROC_UNLOCK(td->td_proc);
+		sbsize_limit = lim_cur(td, RLIMIT_SBSIZE);
 	} else
 		sbsize_limit = RLIM_INFINITY;
 	if (!chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, cc,

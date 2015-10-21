@@ -1,4 +1,4 @@
-/* $NetBSD: xlint.c,v 1.27 2002/01/31 19:09:33 tv Exp $ */
+/* $NetBSD: xlint.c,v 1.36 2005/02/09 21:24:48 dsl Exp $ */
 
 /*
  * Copyright (c) 1996 Christopher G. Demetriou.  All Rights Reserved.
@@ -34,7 +34,7 @@
 
 #include <sys/cdefs.h>
 #if defined(__RCSID) && !defined(lint)
-__RCSID("$NetBSD: xlint.c,v 1.27 2002/01/31 19:09:33 tv Exp $");
+__RCSID("$NetBSD: xlint.c,v 1.36 2005/02/09 21:24:48 dsl Exp $");
 #endif
 __FBSDID("$FreeBSD$");
 
@@ -104,7 +104,7 @@ static	char	**libsrchpath;
 static  char	*libexec_path;
 
 /* flags */
-static	int	iflag, oflag, Cflag, sflag, tflag, Fflag, dflag, Bflag;
+static	int	iflag, oflag, Cflag, sflag, tflag, Fflag, dflag, Bflag, Sflag;
 
 /* print the commands executed to run the stages of compilation */
 static	int	Vflag;
@@ -145,7 +145,7 @@ static	void	cat(char *const *, const char *);
 
 /*
  * Some functions to deal with lists of strings.
- * Take care that we get no surprises in case of asyncron signals.
+ * Take care that we get no surprises in case of asynchronous signals.
  */
 static void
 appstrg(char ***lstp, char *s)
@@ -286,13 +286,13 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-	    "usage: lint [-abceghprvwxzHF] [-s|-t] [-i|-nu] [-Dname[=def]]"
+	    "usage: lint [-abceghprvwxzHFS] [-s|-t] [-i|-nu] [-Dname[=def]]"
 	    " [-Uname] [-X <id>[,<id>]...\n");
 	(void)fprintf(stderr,
 	    "\t[-Idirectory] [-Ldirectory] [-llibrary] [-ooutputfile]"
 	    " file...\n");
 	(void)fprintf(stderr,
-	    "       lint [-abceghprvwzHF] [-s|-t] -Clibrary [-Dname[=def]]\n"
+	    "       lint [-abceghprvwzHFS] [-s|-t] -Clibrary [-Dname[=def]]\n"
 	    " [-X <id>[,<id>]...\n");
 	(void)fprintf(stderr, "\t[-Idirectory] [-Uname] [-Bpath] file"
 	    " ...\n");
@@ -345,6 +345,9 @@ main(int argc, char *argv[])
 	appcstrg(&cflags, "-U__GNUC__");
 	appcstrg(&cflags, "-undef");
 #endif
+#if 0
+	appcstrg(&cflags, "-Wp,-$");
+#endif
 	appcstrg(&cflags, "-Wp,-C");
 	appcstrg(&cflags, "-Wcomment");
 	appcstrg(&cflags, "-D__LINT__");
@@ -359,8 +362,7 @@ main(int argc, char *argv[])
 	(void)signal(SIGINT, terminate);
 	(void)signal(SIGQUIT, terminate);
 	(void)signal(SIGTERM, terminate);
-
-	while ((c = getopt(argc, argv, "abcd:eghil:no:prstuvwxzB:C:D:FHI:L:U:VX:")) != -1) {
+	while ((c = getopt(argc, argv, "abcd:eghil:no:prstuvwxzB:C:D:FHI:L:M:SU:VX:")) != -1) {
 		switch (c) {
 
 		case 'a':
@@ -426,6 +428,13 @@ main(int argc, char *argv[])
 			sflag = 1;
 			break;
 
+		case 'S':
+			if (tflag)
+				usage();
+			appcstrg(&l1flags, "-S");
+			Sflag = 1;
+			break;
+
 #if !HAVE_CONFIG_H
 		case 't':
 			if (sflag)
@@ -465,6 +474,7 @@ main(int argc, char *argv[])
 
 		case 'D':
 		case 'I':
+		case 'M':
 		case 'U':
 			(void)sprintf(flgbuf, "-%c", c);
 			appstrg(&cflags, concat2(flgbuf, optarg));

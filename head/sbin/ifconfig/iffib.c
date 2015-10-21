@@ -50,15 +50,15 @@ fib_status(int s)
 
 	memset(&ifr, 0, sizeof(ifr));
 	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	if (ioctl(s, SIOCGIFFIB, (caddr_t)&ifr) == 0 &&
+	    ifr.ifr_fib != RT_DEFAULT_FIB)
+		printf("\tfib: %u\n", ifr.ifr_fib);
 
-	if (ioctl(s, SIOCGIFFIB, (caddr_t)&ifr) < 0)
-		return;
-
-	/* Ignore if it is the default. */
-	if (ifr.ifr_fib == 0)
-		return;
-
-	printf("\tfib: %u\n", ifr.ifr_fib);
+	memset(&ifr, 0, sizeof(ifr));
+	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	if (ioctl(s, SIOCGTUNFIB, (caddr_t)&ifr) == 0 &&
+	    ifr.ifr_fib != RT_DEFAULT_FIB)
+		printf("\ttunnelfib: %u\n", ifr.ifr_fib);
 }
 
 static void
@@ -80,8 +80,28 @@ setiffib(const char *val, int dummy __unused, int s,
 		warn("ioctl (SIOCSIFFIB)");
 }
 
+static void
+settunfib(const char *val, int dummy __unused, int s,
+    const struct afswtch *afp)
+{
+	unsigned long fib;
+	char *ep;
+
+	fib = strtoul(val, &ep, 0);
+	if (*ep != '\0' || fib > UINT_MAX) {
+		warn("fib %s not valid", val);
+		return;
+	}
+
+	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
+	ifr.ifr_fib = fib;
+	if (ioctl(s, SIOCSTUNFIB, (caddr_t)&ifr) < 0)
+		warn("ioctl (SIOCSTUNFIB)");
+}
+
 static struct cmd fib_cmds[] = {
 	DEF_CMD_ARG("fib", setiffib),
+	DEF_CMD_ARG("tunnelfib", settunfib),
 };
 
 static struct afswtch af_fib = {
@@ -93,11 +113,9 @@ static struct afswtch af_fib = {
 static __constructor void
 fib_ctor(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	size_t i;
 
-	for (i = 0; i < N(fib_cmds);  i++)
+	for (i = 0; i < nitems(fib_cmds);  i++)
 		cmd_register(&fib_cmds[i]);
 	af_register(&af_fib);
-#undef N
 }

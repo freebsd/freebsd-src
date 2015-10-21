@@ -10,6 +10,9 @@
 
 __<bsd.test.mk>__:
 
+# Tests install directory
+TESTSDIR?=	${TESTSBASE}/${RELDIR:H}
+
 # List of subdirectories containing tests into which to recurse.  This has the
 # same semantics as SUBDIR at build-time.  However, the directories listed here
 # get registered into the run-time test suite definitions so that the test
@@ -87,8 +90,10 @@ test: beforetest realtest
 test: aftertest
 .endif
 
-.if !empty(SUBDIR)
-.include <bsd.subdir.mk>
+.ifdef PROG
+# we came here via bsd.progs.mk below
+# parent will do staging.
+MK_STAGING= no
 .endif
 
 .if !empty(PROGS) || !empty(PROGS_CXX) || !empty(SCRIPTS)
@@ -96,4 +101,19 @@ test: aftertest
 .endif
 .include <bsd.files.mk>
 
+.if !defined(PROG) && ${MK_STAGING} != "no"
+.if !defined(_SKIP_BUILD)
+# this will handle staging if needed
+_SKIP_STAGING= no
+# but we don't want it to build anything
+_SKIP_BUILD=
+.endif
+.if !empty(PROGS)
+stage_files.prog: ${PROGS}
+.endif
+.include <bsd.prog.mk>
+.endif
+
+.if !target(objwarn)
 .include <bsd.obj.mk>
+.endif

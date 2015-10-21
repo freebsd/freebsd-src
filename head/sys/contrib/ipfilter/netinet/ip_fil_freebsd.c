@@ -97,7 +97,6 @@ MALLOC_DEFINE(M_IPFILTER, "ipfilter", "IP Filter packet filter data structures")
 # endif
 
 
-static	u_short	ipid = 0;
 static	int	(*ipf_savep) __P((void *, ip_t *, int, void *, int, struct mbuf **));
 static	int	ipf_send_ip __P((fr_info_t *, mb_t *));
 static void	ipf_timer_func __P((void *arg));
@@ -190,7 +189,7 @@ ipf_timer_func(arg)
 #if 0
 		softc->ipf_slow_ch = timeout(ipf_timer_func, softc, hz/2);
 #endif
-		callout_init(&softc->ipf_slow_ch, CALLOUT_MPSAFE);
+		callout_init(&softc->ipf_slow_ch, 1);
 		callout_reset(&softc->ipf_slow_ch,
 			(hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT,
 			ipf_timer_func, softc);
@@ -231,14 +230,12 @@ ipfattach(softc)
 	if (softc->ipf_control_forwarding & 1)
 		V_ipforwarding = 1;
 
-	ipid = 0;
-
 	SPL_X(s);
 #if 0
 	softc->ipf_slow_ch = timeout(ipf_timer_func, softc,
 				     (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT);
 #endif
-	callout_init(&softc->ipf_slow_ch, CALLOUT_MPSAFE);
+	callout_init(&softc->ipf_slow_ch, 1);
 	callout_reset(&softc->ipf_slow_ch, (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT,
 		ipf_timer_func, softc);
 	return 0;
@@ -1074,31 +1071,6 @@ ipf_newisn(fin)
 }
 
 
-/* ------------------------------------------------------------------------ */
-/* Function:    ipf_nextipid                                                */
-/* Returns:     int - 0 == success, -1 == error (packet should be droppped) */
-/* Parameters:  fin(I) - pointer to packet information                      */
-/*                                                                          */
-/* Returns the next IPv4 ID to use for this packet.                         */
-/* ------------------------------------------------------------------------ */
-u_short
-ipf_nextipid(fin)
-	fr_info_t *fin;
-{
-	u_short id;
-
-#ifndef	RANDOM_IP_ID
-	MUTEX_ENTER(&ipfmain.ipf_rw);
-	id = ipid++;
-	MUTEX_EXIT(&ipfmain.ipf_rw);
-#else
-	id = ip_randomid();
-#endif
-
-	return id;
-}
-
-
 INLINE int
 ipf_checkv4sum(fin)
 	fr_info_t *fin;
@@ -1132,6 +1104,22 @@ ipf_checkv4sum(fin)
 		return -1;
 	}
 	if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
+		/* Depending on the driver, UDP may have zero checksum */
+		if (fin->fin_p == IPPROTO_UDP && (fin->fin_flx &
+		    (FI_FRAG|FI_SHORT|FI_BAD)) == 0) {
+			udphdr_t *udp = fin->fin_dp;
+			if (udp->uh_sum == 0) {
+				/*
+				 * we're good no matter what the hardware
+				 * checksum flags and csum_data say (handling
+				 * of csum_data for zero UDP checksum is not
+				 * consistent across all drivers)
+				 */
+				fin->fin_cksum = 1;
+				return 0;
+			}
+		}
+
 		if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
 			sum = m->m_pkthdr.csum_data;
 		else

@@ -51,6 +51,10 @@ METHOD int intr {
 
 #
 # iicbus callback
+# Request ownership of bus
+# index: IIC_REQUEST_BUS or IIC_RELEASE_BUS
+# data: pointer to int containing IIC_WAIT or IIC_DONTWAIT and either IIC_INTR or IIC_NOINTR
+# This function is allowed to sleep if *data contains IIC_WAIT.
 #
 METHOD int callback {
 	device_t dev;

@@ -202,7 +202,9 @@ enum {
 					* optional features are implemented
 					* (if any) in the transceiver
 					* (see Table 42) */
-	SFF_8436_CC_EXT		= 222,	/* Check code for the Extended ID
+	SFF_8636_BITRATE	= 222,	/* Nominal bit rate per channel, units
+					* of 250 Mbps */
+	SFF_8436_CC_EXT		= 223,	/* Check code for the Extended ID
 					* Fields (bytes 192-222 incl) */
 	SFF_8436_VENDOR_RSRVD_START	= 224,
 	SFF_8436_VENDOR_RSRVD_END	= 255,

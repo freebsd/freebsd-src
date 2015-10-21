@@ -81,6 +81,8 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
+#include <libxo/xo.h>
 #include "netstat.h"
 
 #ifdef IPSEC
@@ -118,59 +120,89 @@ pfkey_stats(u_long off, const char *name, int family __unused,
 
 	if (off == 0)
 		return;
-	printf ("%s:\n", name);
+	xo_emit("{T:/%s}:\n", name);
+	xo_open_container(name);
 	kread_counters(off, (char *)&pfkeystat, sizeof(pfkeystat));
 
 #define	p(f, m) if (pfkeystat.f || sflag <= 1) \
-    printf(m, (uintmax_t)pfkeystat.f, plural(pfkeystat.f))
+	xo_emit(m, (uintmax_t)pfkeystat.f, plural(pfkeystat.f))
 
 	/* userland -> kernel */
-	p(out_total, "\t%ju request%s sent from userland\n");
-	p(out_bytes, "\t%ju byte%s sent from userland\n");
+	p(out_total, "\t{:sent-requests/%ju} "
+	    "{N:/request%s sent from userland}\n");
+	p(out_bytes, "\t{:sent-bytes/%ju} "
+	    "{N:/byte%s sent from userland}\n");
 	for (first = 1, type = 0;
-	     type < sizeof(pfkeystat.out_msgtype)/sizeof(pfkeystat.out_msgtype[0]);
-	     type++) {
+	    type<sizeof(pfkeystat.out_msgtype)/sizeof(pfkeystat.out_msgtype[0]);
+	    type++) {
 		if (pfkeystat.out_msgtype[type] <= 0)
 			continue;
 		if (first) {
-			printf("\thistogram by message type:\n");
+			xo_open_list("output-histogram");
+			xo_emit("\t{T:histogram by message type}:\n");
 			first = 0;
 		}
-		printf("\t\t%s: %ju\n", pfkey_msgtype_names(type),
-			(uintmax_t)pfkeystat.out_msgtype[type]);
+		xo_open_instance("output-histogram");
+		xo_emit("\t\t{k::type/%s}: {:count/%ju}\n",
+		    pfkey_msgtype_names(type),
+		    (uintmax_t)pfkeystat.out_msgtype[type]);
+		xo_close_instance("output-histogram");
 	}
-	p(out_invlen, "\t%ju message%s with invalid length field\n");
-	p(out_invver, "\t%ju message%s with invalid version field\n");
-	p(out_invmsgtype, "\t%ju message%s with invalid message type field\n");
-	p(out_tooshort, "\t%ju message%s too short\n");
-	p(out_nomem, "\t%ju message%s with memory allocation failure\n");
-	p(out_dupext, "\t%ju message%s with duplicate extension\n");
-	p(out_invexttype, "\t%ju message%s with invalid extension type\n");
-	p(out_invsatype, "\t%ju message%s with invalid sa type\n");
-	p(out_invaddr, "\t%ju message%s with invalid address extension\n");
+	if (!first)
+		xo_close_list("output-histogram");
+
+	p(out_invlen, "\t{:dropped-bad-length/%ju} "
+	    "{N:/message%s with invalid length field}\n");
+	p(out_invver, "\t{:dropped-bad-version/%ju} "
+	    "{N:/message%s with invalid version field}\n");
+	p(out_invmsgtype, "\t{:dropped-bad-type/%ju} "
+	    "{N:/message%s with invalid message type field}\n");
+	p(out_tooshort, "\t{:dropped-too-short/%ju} "
+	    "{N:/message%s too short}\n");
+	p(out_nomem, "\t{:dropped-no-memory/%ju} "
+	    "{N:/message%s with memory allocation failure}\n");
+	p(out_dupext, "\t{:dropped-duplicate-extension/%ju} "
+	    "{N:/message%s with duplicate extension}\n");
+	p(out_invexttype, "\t{:dropped-bad-extension/%ju} "
+	    "{N:/message%s with invalid extension type}\n");
+	p(out_invsatype, "\t{:dropped-bad-sa-type/%ju} "
+	    "{N:/message%s with invalid sa type}\n");
+	p(out_invaddr, "\t{:dropped-bad-address-extension/%ju} "
+	    "{N:/message%s with invalid address extension}\n");
 
 	/* kernel -> userland */
-	p(in_total, "\t%ju request%s sent to userland\n");
-	p(in_bytes, "\t%ju byte%s sent to userland\n");
+	p(in_total, "\t{:received-requests/%ju} "
+	    "{N:/request%s sent to userland}\n");
+	p(in_bytes, "\t{:received-bytes/%ju} "
+	    "{N:/byte%s sent to userland}\n");
 	for (first = 1, type = 0;
-	     type < sizeof(pfkeystat.in_msgtype)/sizeof(pfkeystat.in_msgtype[0]);
-	     type++) {
+	    type < sizeof(pfkeystat.in_msgtype)/sizeof(pfkeystat.in_msgtype[0]);
+	    type++) {
 		if (pfkeystat.in_msgtype[type] <= 0)
 			continue;
 		if (first) {
-			printf("\thistogram by message type:\n");
+			xo_open_list("input-histogram");
+			xo_emit("\t{T:histogram by message type}:\n");
 			first = 0;
 		}
-		printf("\t\t%s: %ju\n", pfkey_msgtype_names(type),
-			(uintmax_t)pfkeystat.in_msgtype[type]);
+		xo_open_instance("input-histogram");
+		xo_emit("\t\t{k:type/%s}: {:count/%ju}\n",
+		    pfkey_msgtype_names(type),
+		    (uintmax_t)pfkeystat.in_msgtype[type]);
+		xo_close_instance("input-histogram");
 	}
-	p(in_msgtarget[KEY_SENDUP_ONE],
-	    "\t%ju message%s toward single socket\n");
-	p(in_msgtarget[KEY_SENDUP_ALL],
-	    "\t%ju message%s toward all sockets\n");
+	if (!first)
+		xo_close_list("input-histogram");
+	p(in_msgtarget[KEY_SENDUP_ONE], "\t{:received-one-socket/%ju} "
+	    "{N:/message%s toward single socket}\n");
+	p(in_msgtarget[KEY_SENDUP_ALL], "\t{:received-all-sockets/%ju} "
+	    "{N:/message%s toward all sockets}\n");
 	p(in_msgtarget[KEY_SENDUP_REGISTERED],
-	    "\t%ju message%s toward registered sockets\n");
-	p(in_nomem, "\t%ju message%s with memory allocation failure\n");
+	    "\t{:received-registered-sockets/%ju} "
+	    "{N:/message%s toward registered sockets}\n");
+	p(in_nomem, "\t{:discarded-no-memory/%ju} "
+	    "{N:/message%s with memory allocation failure}\n");
 #undef p
+	xo_close_container(name);
 }
 #endif /* IPSEC */

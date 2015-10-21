@@ -32,7 +32,7 @@ static const char sccsid[] = "$Id: screen.c,v 10.25 2011/12/04 04:06:45 zy Exp $
  * screen_init --
  *	Do the default initialization of an SCR structure.
  *
- * PUBLIC: int screen_init __P((GS *, SCR *, SCR **));
+ * PUBLIC: int screen_init(GS *, SCR *, SCR **);
  */
 int
 screen_init(
@@ -129,7 +129,7 @@ err:	screen_end(sp);
  *	Release a screen, no matter what had (and had not) been
  *	initialized.
  *
- * PUBLIC: int screen_end __P((SCR *));
+ * PUBLIC: int screen_end(SCR *);
  */
 int
 screen_end(SCR *sp)
@@ -205,7 +205,7 @@ screen_end(SCR *sp)
  * screen_next --
  *	Return the next screen in the queue.
  *
- * PUBLIC: SCR *screen_next __P((SCR *));
+ * PUBLIC: SCR *screen_next(SCR *);
  */
 SCR *
 screen_next(SCR *sp)

@@ -54,7 +54,7 @@ ENTRY(__aeabi_cfcmple)
 	cmp	r0, #1
 	bne	1f
 	/* Yes, clear Z and C */
-	msr	cpsr_c, #(0)
+	mov	ip, #(0)
 	b	99f
 
 1:
@@ -66,14 +66,15 @@ ENTRY(__aeabi_cfcmple)
 	cmp	r0, #1
 	bne	2f
 	/* Yes, set Z and C */
-	msr	cpsr_c, #(PCR_Z | PCR_C)
+	mov	ip, #(PCR_Z | PCR_C)
 	b 99f
 
 2:
 	/* Not less than or equal, set C and clear Z */
-	msr	cpsr_c, #(PCR_C)
+	mov	ip, #(PCR_C)
 
 99:
+	msr	cpsr_c, ip
 	pop	{r4, r5, ip, pc}
 END(__aeabi_cfcmple)
 
@@ -103,6 +104,9 @@ ENTRY(__aeabi_cfcmpeq)
 	RET
 
 1:
-	msreq	cpsr_c, #(PCR_C)
+	mov	ip, #(PCR_C)
+	msr	cpsr_c, ip
 	RET
 END(__aeabi_cfcmpeq)
+
+	.section .note.GNU-stack,"",%progbits

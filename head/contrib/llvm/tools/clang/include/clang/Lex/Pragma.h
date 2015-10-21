@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_PRAGMA_H
-#define LLVM_CLANG_PRAGMA_H
+#ifndef LLVM_CLANG_LEX_PRAGMA_H
+#define LLVM_CLANG_LEX_PRAGMA_H
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/StringMap.h"
@@ -93,7 +93,7 @@ class PragmaNamespace : public PragmaHandler {
   llvm::StringMap<PragmaHandler*> Handlers;
 public:
   explicit PragmaNamespace(StringRef Name) : PragmaHandler(Name) {}
-  virtual ~PragmaNamespace();
+  ~PragmaNamespace() override;
 
   /// FindHandler - Check to see if there is already a handler for the
   /// specified name.  If not, return the handler for the null name if it

@@ -96,13 +96,14 @@
 #define         ATA_SS_SPD_NO_SPEED     0x00000000
 #define         ATA_SS_SPD_GEN1         0x00000010
 #define         ATA_SS_SPD_GEN2         0x00000020
-#define         ATA_SS_SPD_GEN3         0x00000040
+#define         ATA_SS_SPD_GEN3         0x00000030
 
 #define         ATA_SS_IPM_MASK         0x00000f00
 #define         ATA_SS_IPM_NO_DEVICE    0x00000000
 #define         ATA_SS_IPM_ACTIVE       0x00000100
 #define         ATA_SS_IPM_PARTIAL      0x00000200
 #define         ATA_SS_IPM_SLUMBER      0x00000600
+#define         ATA_SS_IPM_DEVSLEEP     0x00000800
 
 #define ATA_SERROR                      14
 #define         ATA_SE_DATA_CORRECTED   0x00000001
@@ -133,17 +134,19 @@
 #define         ATA_SC_SPD_NO_SPEED     0x00000000
 #define         ATA_SC_SPD_SPEED_GEN1   0x00000010
 #define         ATA_SC_SPD_SPEED_GEN2   0x00000020
-#define         ATA_SC_SPD_SPEED_GEN3   0x00000040
+#define         ATA_SC_SPD_SPEED_GEN3   0x00000030
 
 #define         ATA_SC_IPM_MASK         0x00000f00
 #define         ATA_SC_IPM_NONE         0x00000000
 #define         ATA_SC_IPM_DIS_PARTIAL  0x00000100
 #define         ATA_SC_IPM_DIS_SLUMBER  0x00000200
+#define         ATA_SC_IPM_DIS_DEVSLEEP 0x00000400
 
 #define ATA_SACTIVE                     16
 
 #define AHCI_MAX_PORTS			32
 #define AHCI_MAX_SLOTS			32
+#define AHCI_MAX_IRQS			16
 
 /* SATA AHCI v1.0 register defines */
 #define AHCI_CAP                    0x00
@@ -208,6 +211,9 @@
 #define		AHCI_CAP2_BOH	0x00000001
 #define		AHCI_CAP2_NVMP	0x00000002
 #define		AHCI_CAP2_APST	0x00000004
+#define		AHCI_CAP2_SDS	0x00000008
+#define		AHCI_CAP2_SADM	0x00000010
+#define		AHCI_CAP2_DESO	0x00000020
 
 #define AHCI_OFFSET                 0x100
 #define AHCI_STEP                   0x80
@@ -265,6 +271,7 @@
 #define         AHCI_P_CMD_ACTIVE   0x10000000
 #define         AHCI_P_CMD_PARTIAL  0x20000000
 #define         AHCI_P_CMD_SLUMBER  0x60000000
+#define         AHCI_P_CMD_DEVSLEEP 0x80000000
 
 #define AHCI_P_TFD                  0x20
 #define AHCI_P_SIG                  0x24
@@ -284,6 +291,17 @@
 #define 	AHCI_P_FBS_ADO_SHIFT 12
 #define 	AHCI_P_FBS_DWE      0x000f0000
 #define 	AHCI_P_FBS_DWE_SHIFT 16
+#define AHCI_P_DEVSLP               0x44
+#define 	AHCI_P_DEVSLP_ADSE  0x00000001
+#define 	AHCI_P_DEVSLP_DSP   0x00000002
+#define 	AHCI_P_DEVSLP_DETO  0x000003fc
+#define 	AHCI_P_DEVSLP_DETO_SHIFT 2
+#define 	AHCI_P_DEVSLP_MDAT  0x00007c00
+#define 	AHCI_P_DEVSLP_MDAT_SHIFT 10
+#define 	AHCI_P_DEVSLP_DITO  0x01ff8000
+#define 	AHCI_P_DEVSLP_DITO_SHIFT 15
+#define 	AHCI_P_DEVSLP_DM    0x0e000000
+#define 	AHCI_P_DEVSLP_DM_SHIFT 25
 
 /* Just to be sure, if building as module. */
 #if MAXPHYS < 512 * 1024

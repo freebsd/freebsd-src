@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/API/SBThread.h"
 
 #include "lldb/API/SBSymbolContext.h"
@@ -20,13 +18,15 @@
 #include "lldb/Core/Stream.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Core/StructuredData.h"
+#include "lldb/Core/ValueObject.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
+#include "lldb/Symbol/SymbolContext.h"
+#include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Target/SystemRuntime.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Queue.h"
-#include "lldb/Symbol/SymbolContext.h"
-#include "lldb/Symbol/CompileUnit.h"
+#include "lldb/Target/UnixSignals.h"
 #include "lldb/Target/StopInfo.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/ThreadPlan.h"
@@ -41,6 +41,7 @@
 #include "lldb/API/SBEvent.h"
 #include "lldb/API/SBFrame.h"
 #include "lldb/API/SBProcess.h"
+#include "lldb/API/SBThreadPlan.h"
 #include "lldb/API/SBValue.h"
 
 using namespace lldb;
@@ -113,13 +114,13 @@ SBThread::GetQueue () const
         else
         {
             if (log)
-                log->Printf ("SBThread(%p)::GetQueueKind() => error: process is running",
+                log->Printf ("SBThread(%p)::GetQueue() => error: process is running",
                              static_cast<void*>(exe_ctx.GetThreadPtr()));
         }
     }
 
     if (log)
-        log->Printf ("SBThread(%p)::GetQueueKind () => SBQueue(%p)",
+        log->Printf ("SBThread(%p)::GetQueue () => SBQueue(%p)",
                      static_cast<void*>(exe_ctx.GetThreadPtr()), static_cast<void*>(queue_sp.get()));
 
     return sb_queue;
@@ -194,6 +195,7 @@ SBThread::GetStopReasonDataCount ()
                 case eStopReasonExec:
                 case eStopReasonPlanComplete:
                 case eStopReasonThreadExiting:
+                case eStopReasonInstrumentation:
                     // There is no data for these stop reasons.
                     return 0;
 
@@ -254,6 +256,7 @@ SBThread::GetStopReasonDataAtIndex (uint32_t idx)
                 case eStopReasonExec:
                 case eStopReasonPlanComplete:
                 case eStopReasonThreadExiting:
+                case eStopReasonInstrumentation:
                     // There is no data for these stop reasons.
                     return 0;
 
@@ -303,6 +306,26 @@ SBThread::GetStopReasonDataAtIndex (uint32_t idx)
         }
     }
     return 0;
+}
+
+bool
+SBThread::GetStopReasonExtendedInfoAsJSON (lldb::SBStream &stream)
+{
+    Stream &strm = stream.ref();
+    
+    ExecutionContext exe_ctx (m_opaque_sp.get());
+    if (! exe_ctx.HasThreadScope())
+        return false;
+
+    
+    StopInfoSP stop_info = exe_ctx.GetThreadPtr()->GetStopInfo();
+    StructuredData::ObjectSP info = stop_info->GetExtendedInfo();
+    if (! info)
+        return false;
+
+    info->Dump(strm);
+    
+    return true;
 }
 
 size_t
@@ -369,7 +392,7 @@ SBThread::GetStopDescription (char *dst, size_t dst_len)
 
                     case eStopReasonSignal:
                         {
-                            stop_desc = exe_ctx.GetProcessPtr()->GetUnixSignals ().GetSignalAsCString (stop_info_sp->GetValue());
+                            stop_desc = exe_ctx.GetProcessPtr()->GetUnixSignals()->GetSignalAsCString(stop_info_sp->GetValue());
                             if (stop_desc == NULL || stop_desc[0] == '\0')
                             {
                                 static char signal_desc[] = "signal";
@@ -687,15 +710,11 @@ SBThread::ResumeNewPlan (ExecutionContext &exe_ctx, ThreadPlan *new_plan)
     
     // Why do we need to set the current thread by ID here???
     process->GetThreadList().SetSelectedThreadByID (thread->GetID());
-    sb_error.ref() = process->Resume();
-    
-    if (sb_error.Success())
-    {
-        // If we are doing synchronous mode, then wait for the
-        // process to stop yet again!
-        if (process->GetTarget().GetDebugger().GetAsyncExecution () == false)
-            process->WaitForProcessToStop (NULL);
-    }
+
+    if (process->GetTarget().GetDebugger().GetAsyncExecution ())
+        sb_error.ref() = process->Resume ();
+    else
+        sb_error.ref() = process->ResumeSynchronous (NULL);
     
     return sb_error;
 }
@@ -918,7 +937,9 @@ SBThread::RunToAddress (lldb::addr_t addr)
 
         Thread *thread = exe_ctx.GetThreadPtr();
 
-        ThreadPlanSP new_plan_sp(thread->QueueThreadPlanForRunToAddress (abort_other_plans, target_addr, stop_other_threads));
+        ThreadPlanSP new_plan_sp(thread->QueueThreadPlanForRunToAddress (abort_other_plans,
+                                                                         target_addr,
+                                                                         stop_other_threads));
 
         // This returns an error, we should use it!
         ResumeNewPlan (exe_ctx, new_plan_sp.get());
@@ -1069,6 +1090,46 @@ SBThread::StepOverUntil (lldb::SBFrame &sb_frame,
     {
         sb_error.SetErrorString("this SBThread object is invalid");
     }
+    return sb_error;
+}
+
+SBError
+SBThread::StepUsingScriptedThreadPlan (const char *script_class_name)
+{
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
+    SBError sb_error;
+
+    Mutex::Locker api_locker;
+    ExecutionContext exe_ctx (m_opaque_sp.get(), api_locker);
+
+    if (log)
+    {
+        log->Printf ("SBThread(%p)::StepUsingScriptedThreadPlan: class name: %s",
+                     static_cast<void*>(exe_ctx.GetThreadPtr()),
+                     script_class_name);
+    }
+
+
+    if (!exe_ctx.HasThreadScope())
+    {
+        sb_error.SetErrorString("this SBThread object is invalid");
+        return sb_error;
+    }
+
+    Thread *thread = exe_ctx.GetThreadPtr();
+    ThreadPlanSP thread_plan_sp = thread->QueueThreadPlanForStepScripted(false, script_class_name, false);
+
+    if (thread_plan_sp)
+        sb_error = ResumeNewPlan(exe_ctx, thread_plan_sp.get());
+    else
+    {
+        sb_error.SetErrorStringWithFormat("Error queuing thread plan for class: %s.", script_class_name);
+        if (log)
+        log->Printf ("SBThread(%p)::StepUsingScriptedThreadPlan: Error queuing thread plan for class: %s",
+                     static_cast<void*>(exe_ctx.GetThreadPtr()),
+                     script_class_name);
+    }
+
     return sb_error;
 }
 
@@ -1430,7 +1491,8 @@ SBThread::GetDescription (SBStream &description) const
     ExecutionContext exe_ctx (m_opaque_sp.get());
     if (exe_ctx.HasThreadScope())
     {
-        strm.Printf("SBThread: tid = 0x%4.4" PRIx64, exe_ctx.GetThreadPtr()->GetID());
+        exe_ctx.GetThreadPtr()->DumpUsingSettingsFormat(strm, LLDB_INVALID_THREAD_ID);
+        //strm.Printf("SBThread: tid = 0x%4.4" PRIx64, exe_ctx.GetThreadPtr()->GetID());
     }
     else
         strm.PutCString ("No value");
@@ -1473,7 +1535,8 @@ SBThread::GetExtendedBacktraceThread (const char *type)
                                 const char *queue_name = new_thread_sp->GetQueueName();
                                 if (queue_name == NULL)
                                     queue_name = "";
-                                log->Printf ("SBThread(%p)::GetExtendedBacktraceThread() => new extended Thread created (%p) with queue_id 0x%" PRIx64 " queue name '%s'",
+                                log->Printf ("SBThread(%p)::GetExtendedBacktraceThread() => new extended Thread "
+                                             "created (%p) with queue_id 0x%" PRIx64 " queue name '%s'",
                                              static_cast<void*>(exe_ctx.GetThreadPtr()),
                                              static_cast<void*>(new_thread_sp.get()),
                                              new_thread_sp->GetQueueID(),
@@ -1515,3 +1578,24 @@ SBThread::SafeToCallFunctions ()
         return thread_sp->SafeToCallFunctions();
     return true;
 }
+
+lldb_private::Thread *
+SBThread::operator->()
+{
+    ThreadSP thread_sp(m_opaque_sp->GetThreadSP());
+    if (thread_sp)
+        return thread_sp.get();
+    else
+        return NULL;
+}
+
+lldb_private::Thread *
+SBThread::get()
+{
+    ThreadSP thread_sp(m_opaque_sp->GetThreadSP());
+    if (thread_sp)
+        return thread_sp.get();
+    else
+        return NULL;
+}
+

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2014 Kai Wang
+ * Copyright (c) 2009-2015 Kai Wang
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,10 +24,10 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <ar.h>
+#include <assert.h>
 #include <ctype.h>
 #include <dwarf.h>
 #include <err.h>
@@ -47,7 +47,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: readelf.c 3110 2014-12-20 08:32:46Z kaiwang27 $");
+ELFTC_VCSID("$Id: readelf.c 3250 2015-10-06 13:56:15Z emaste $");
 
 /*
  * readelf(1) options.
@@ -303,6 +303,7 @@ static void dump_gnu_hash(struct readelf *re, struct section *s);
 static void dump_hash(struct readelf *re);
 static void dump_phdr(struct readelf *re);
 static void dump_ppc_attributes(uint8_t *p, uint8_t *pe);
+static void dump_section_groups(struct readelf *re);
 static void dump_symtab(struct readelf *re, int i);
 static void dump_symtabs(struct readelf *re);
 static uint8_t *dump_unknown_tag(uint64_t tag, uint8_t *p);
@@ -314,6 +315,7 @@ static const char *dwarf_reg(unsigned int mach, unsigned int reg);
 static const char *dwarf_regname(struct readelf *re, unsigned int num);
 static struct dumpop *find_dumpop(struct readelf *re, size_t si,
     const char *sn, int op, int t);
+static int get_ent_count(struct section *s, int *ent_count);
 static char *get_regoff_str(struct readelf *re, Dwarf_Half reg,
     Dwarf_Addr off);
 static const char *get_string(struct readelf *re, int strtab, size_t off);
@@ -412,8 +414,8 @@ elf_osabi(unsigned int abi)
 	static char s_abi[32];
 
 	switch(abi) {
-	case ELFOSABI_SYSV: return "SYSV";
-	case ELFOSABI_HPUX: return "HPUS";
+	case ELFOSABI_NONE: return "NONE";
+	case ELFOSABI_HPUX: return "HPUX";
 	case ELFOSABI_NETBSD: return "NetBSD";
 	case ELFOSABI_GNU: return "GNU";
 	case ELFOSABI_HURD: return "HURD";
@@ -446,6 +448,7 @@ elf_machine(unsigned int mach)
 	case EM_SPARC: return "Sun SPARC";
 	case EM_386: return "Intel i386";
 	case EM_68K: return "Motorola 68000";
+	case EM_IAMCU: return "Intel MCU";
 	case EM_88K: return "Motorola 88000";
 	case EM_860: return "Intel i860";
 	case EM_MIPS: return "MIPS R3000 Big-Endian only";
@@ -531,6 +534,7 @@ elf_machine(unsigned int mach)
 	case EM_ARCA: return "Arca RISC Microprocessor";
 	case EM_UNICORE: return "Microprocessor series from PKU-Unity Ltd";
 	case EM_AARCH64: return "AArch64";
+	case EM_RISCV: return "RISC-V";
 	default:
 		snprintf(s_mach, sizeof(s_mach), "<unknown: %#x>", mach);
 		return (s_mach);
@@ -1051,6 +1055,7 @@ r_type(unsigned int mach, unsigned int type)
 	switch(mach) {
 	case EM_NONE: return "";
 	case EM_386:
+	case EM_IAMCU:
 		switch(type) {
 		case 0: return "R_386_NONE";
 		case 1: return "R_386_32";
@@ -1143,7 +1148,11 @@ r_type(unsigned int mach, unsigned int type)
 		case 1025: return "R_AARCH64_GLOB_DAT";
 		case 1026: return "R_AARCH64_JUMP_SLOT";
 		case 1027: return "R_AARCH64_RELATIVE";
+		case 1028: return "R_AARCH64_TLS_DTPREL64";
+		case 1029: return "R_AARCH64_TLS_DTPMOD64";
+		case 1030: return "R_AARCH64_TLS_TPREL64";
 		case 1031: return "R_AARCH64_TLSDESC";
+		case 1032: return "R_AARCH64_IRELATIVE";
 		default: return "";
 		}
 	case EM_ARM:
@@ -1286,6 +1295,20 @@ r_type(unsigned int mach, unsigned int type)
 		case 22: return "R_MIPS_GOTLO16";
 		case 30: return "R_MIPS_CALLHI16";
 		case 31: return "R_MIPS_CALLLO16";
+		case 38: return "R_MIPS_TLS_DTPMOD32";
+		case 39: return "R_MIPS_TLS_DTPREL32";
+		case 40: return "R_MIPS_TLS_DTPMOD64";
+		case 41: return "R_MIPS_TLS_DTPREL64";
+		case 42: return "R_MIPS_TLS_GD";
+		case 43: return "R_MIPS_TLS_LDM";
+		case 44: return "R_MIPS_TLS_DTPREL_HI16";
+		case 45: return "R_MIPS_TLS_DTPREL_LO16";
+		case 46: return "R_MIPS_TLS_GOTTPREL";
+		case 47: return "R_MIPS_TLS_TPREL32";
+		case 48: return "R_MIPS_TLS_TPREL64";
+		case 49: return "R_MIPS_TLS_TPREL_HI16";
+		case 50: return "R_MIPS_TLS_TPREL_LO16";
+
 		default: return "";
 		}
 	case EM_PPC:
@@ -1368,6 +1391,51 @@ r_type(unsigned int mach, unsigned int type)
 		case 115: return "R_PPC_EMB_BIT_FLD";
 		case 116: return "R_PPC_EMB_RELSDA";
 		default: return "";
+		}
+	case EM_RISCV:
+		switch(type) {
+		case 0: return "R_RISCV_NONE";
+		case 1: return "R_RISCV_32";
+		case 2: return "R_RISCV_64";
+		case 3: return "R_RISCV_RELATIVE";
+		case 4: return "R_RISCV_COPY";
+		case 5: return "R_RISCV_JUMP_SLOT";
+		case 6: return "R_RISCV_TLS_DTPMOD32";
+		case 7: return "R_RISCV_TLS_DTPMOD64";
+		case 8: return "R_RISCV_TLS_DTPREL32";
+		case 9: return "R_RISCV_TLS_DTPREL64";
+		case 10: return "R_RISCV_TLS_TPREL32";
+		case 11: return "R_RISCV_TLS_TPREL64";
+		case 16: return "R_RISCV_BRANCH";
+		case 17: return "R_RISCV_JAL";
+		case 18: return "R_RISCV_CALL";
+		case 19: return "R_RISCV_CALL_PLT";
+		case 20: return "R_RISCV_GOT_HI20";
+		case 21: return "R_RISCV_TLS_GOT_HI20";
+		case 22: return "R_RISCV_TLS_GD_HI20";
+		case 23: return "R_RISCV_PCREL_HI20";
+		case 24: return "R_RISCV_PCREL_LO12_I";
+		case 25: return "R_RISCV_PCREL_LO12_S";
+		case 26: return "R_RISCV_HI20";
+		case 27: return "R_RISCV_LO12_I";
+		case 28: return "R_RISCV_LO12_S";
+		case 29: return "R_RISCV_TPREL_HI20";
+		case 30: return "R_RISCV_TPREL_LO12_I";
+		case 31: return "R_RISCV_TPREL_LO12_S";
+		case 32: return "R_RISCV_TPREL_ADD";
+		case 33: return "R_RISCV_ADD8";
+		case 34: return "R_RISCV_ADD16";
+		case 35: return "R_RISCV_ADD32";
+		case 36: return "R_RISCV_ADD64";
+		case 37: return "R_RISCV_SUB8";
+		case 38: return "R_RISCV_SUB16";
+		case 39: return "R_RISCV_SUB32";
+		case 40: return "R_RISCV_SUB64";
+		case 41: return "R_RISCV_GNU_VTINHERIT";
+		case 42: return "R_RISCV_GNU_VTENTRY";
+		case 43: return "R_RISCV_ALIGN";
+		case 44: return "R_RISCV_RVC_BRANCH";
+		case 45: return "R_RISCV_RVC_JUMP";
 		}
 	case EM_SPARC:
 	case EM_SPARCV9:
@@ -1503,7 +1571,8 @@ r_type(unsigned int mach, unsigned int type)
 static const char *
 note_type(const char *name, unsigned int et, unsigned int nt)
 {
-	if (strcmp(name, "CORE") == 0 && et == ET_CORE)
+	if ((strcmp(name, "CORE") == 0 || strcmp(name, "LINUX") == 0) &&
+	    et == ET_CORE)
 		return note_type_linux_core(nt);
 	else if (strcmp(name, "FreeBSD") == 0)
 		if (et == ET_CORE)
@@ -1559,13 +1628,27 @@ note_type_linux_core(unsigned int nt)
 	case 1: return "NT_PRSTATUS (Process status)";
 	case 2: return "NT_FPREGSET (Floating point information)";
 	case 3: return "NT_PRPSINFO (Process information)";
+	case 4: return "NT_TASKSTRUCT (Task structure)";
 	case 6: return "NT_AUXV (Auxiliary vector)";
-	case 0x46E62B7FUL: return "NT_PRXFPREG (Linux user_xfpregs structure)";
 	case 10: return "NT_PSTATUS (Linux process status)";
 	case 12: return "NT_FPREGS (Linux floating point regset)";
 	case 13: return "NT_PSINFO (Linux process information)";
 	case 16: return "NT_LWPSTATUS (Linux lwpstatus_t type)";
 	case 17: return "NT_LWPSINFO (Linux lwpinfo_t type)";
+	case 18: return "NT_WIN32PSTATUS (win32_pstatus structure)";
+	case 0x100: return "NT_PPC_VMX (ppc Altivec registers)";
+	case 0x102: return "NT_PPC_VSX (ppc VSX registers)";
+	case 0x202: return "NT_X86_XSTATE (x86 XSAVE extended state)";
+	case 0x300: return "NT_S390_HIGH_GPRS (s390 upper register halves)";
+	case 0x301: return "NT_S390_TIMER (s390 timer register)";
+	case 0x302: return "NT_S390_TODCMP (s390 TOD comparator register)";
+	case 0x303: return "NT_S390_TODPREG (s390 TOD programmable register)";
+	case 0x304: return "NT_S390_CTRS (s390 control registers)";
+	case 0x305: return "NT_S390_PREFIX (s390 prefix register)";
+	case 0x400: return "NT_ARM_VFP (arm VFP registers)";
+	case 0x46494c45UL: return "NT_FILE (mapped files)";
+	case 0x46E62B7FUL: return "NT_PRXFPREG (Linux user_xfpregs structure)";
+	case 0x53494749UL: return "NT_SIGINFO (siginfo_t data)";
 	default: return (note_type_unknown(nt));
 	}
 }
@@ -1605,7 +1688,8 @@ note_type_unknown(unsigned int nt)
 {
 	static char s_nt[32];
 
-	snprintf(s_nt, sizeof(s_nt), "<unknown: %u>", nt);
+	snprintf(s_nt, sizeof(s_nt),
+	    nt >= 0x100 ? "<unknown: 0x%x>" : "<unknown: %u>", nt);
 	return (s_nt);
 }
 
@@ -2362,6 +2446,7 @@ dwarf_reg(unsigned int mach, unsigned int reg)
 
 	switch (mach) {
 	case EM_386:
+	case EM_IAMCU:
 		switch (reg) {
 		case 0: return "eax";
 		case 1: return "ecx";
@@ -2654,7 +2739,7 @@ dump_phdr(struct readelf *re)
 {
 	const char	*rawfile;
 	GElf_Phdr	 phdr;
-	size_t		 phnum;
+	size_t		 phnum, size;
 	int		 i, j;
 
 #define	PH_HDR	"Type", "Offset", "VirtAddr", "PhysAddr", "FileSiz",	\
@@ -2707,8 +2792,12 @@ dump_phdr(struct readelf *re)
 			    "                 0x%16.16jx 0x%16.16jx  %c%c%c"
 			    "    %#jx\n", PH_CT);
 		if (phdr.p_type == PT_INTERP) {
-			if ((rawfile = elf_rawfile(re->elf, NULL)) == NULL) {
+			if ((rawfile = elf_rawfile(re->elf, &size)) == NULL) {
 				warnx("elf_rawfile failed: %s", elf_errmsg(-1));
+				continue;
+			}
+			if (phdr.p_offset >= size) {
+				warnx("invalid program header offset");
 				continue;
 			}
 			printf("      [Requesting program interpreter: %s]\n",
@@ -2873,6 +2962,24 @@ dump_shdr(struct readelf *re)
 #undef	ST_CTL
 }
 
+/*
+ * Return number of entries in the given section. We'd prefer ent_count be a
+ * size_t *, but libelf APIs already use int for section indices.
+ */
+static int
+get_ent_count(struct section *s, int *ent_count)
+{
+	if (s->entsize == 0) {
+		warnx("section %s has entry size 0", s->name);
+		return (0);
+	} else if (s->sz / s->entsize > INT_MAX) {
+		warnx("section %s has invalid section count", s->name);
+		return (0);
+	}
+	*ent_count = (int)(s->sz / s->entsize);
+	return (1);
+}
+
 static void
 dump_dynamic(struct readelf *re)
 {
@@ -2901,8 +3008,8 @@ dump_dynamic(struct readelf *re)
 
 		/* Determine the actual number of table entries. */
 		nentries = 0;
-		jmax = (int) (s->sz / s->entsize);
-
+		if (!get_ent_count(s, &jmax))
+			continue;
 		for (j = 0; j < jmax; j++) {
 			if (gelf_getdyn(d, j, &dyn) != &dyn) {
 				warnx("gelf_getdyn failed: %s",
@@ -3131,6 +3238,9 @@ dump_rel(struct readelf *re, struct section *s, Elf_Data *d)
 	uint64_t symval;
 	int i, len;
 
+	if (s->link >= re->shnum)
+		return;
+
 #define	REL_HDR "r_offset", "r_info", "r_type", "st_value", "st_name"
 #define	REL_CT32 (uintmax_t)r.r_offset, (uintmax_t)r.r_info,	    \
 		r_type(re->ehdr.e_machine, ELF32_R_TYPE(r.r_info)), \
@@ -3148,7 +3258,9 @@ dump_rel(struct readelf *re, struct section *s, Elf_Data *d)
 		else
 			printf("%-12s %-12s %-19s %-16s %s\n", REL_HDR);
 	}
-	len = d->d_size / s->entsize;
+	assert(d->d_size == s->sz);
+	if (!get_ent_count(s, &len))
+		return;
 	for (i = 0; i < len; i++) {
 		if (gelf_getrel(d, i, &r) != &r) {
 			warnx("gelf_getrel failed: %s", elf_errmsg(-1));
@@ -3182,6 +3294,9 @@ dump_rela(struct readelf *re, struct section *s, Elf_Data *d)
 	uint64_t symval;
 	int i, len;
 
+	if (s->link >= re->shnum)
+		return;
+
 #define	RELA_HDR "r_offset", "r_info", "r_type", "st_value", \
 		"st_name + r_addend"
 #define	RELA_CT32 (uintmax_t)r.r_offset, (uintmax_t)r.r_info,	    \
@@ -3200,7 +3315,9 @@ dump_rela(struct readelf *re, struct section *s, Elf_Data *d)
 		else
 			printf("%-12s %-12s %-19s %-16s %s\n", RELA_HDR);
 	}
-	len = d->d_size / s->entsize;
+	assert(d->d_size == s->sz);
+	if (!get_ent_count(s, &len))
+		return;
 	for (i = 0; i < len; i++) {
 		if (gelf_getrela(d, i, &r) != &r) {
 			warnx("gelf_getrel failed: %s", elf_errmsg(-1));
@@ -3261,9 +3378,13 @@ dump_symtab(struct readelf *re, int i)
 	Elf_Data *d;
 	GElf_Sym sym;
 	const char *name;
-	int elferr, stab, j;
+	uint32_t stab;
+	int elferr, j, len;
+	uint16_t vs;
 
 	s = &re->sl[i];
+	if (s->link >= re->shnum)
+		return;
 	stab = s->link;
 	(void) elf_errno();
 	if ((d = elf_getdata(s->scn, NULL)) == NULL) {
@@ -3274,12 +3395,14 @@ dump_symtab(struct readelf *re, int i)
 	}
 	if (d->d_size <= 0)
 		return;
+	if (!get_ent_count(s, &len))
+		return;
 	printf("Symbol table (%s)", s->name);
-	printf(" contains %ju entries:\n", s->sz / s->entsize);
+	printf(" contains %d entries:\n", len);
 	printf("%7s%9s%14s%5s%8s%6s%9s%5s\n", "Num:", "Value", "Size", "Type",
 	    "Bind", "Vis", "Ndx", "Name");
 
-	for (j = 0; (uint64_t)j < s->sz / s->entsize; j++) {
+	for (j = 0; j < len; j++) {
 		if (gelf_getsym(d, j, &sym) != &sym) {
 			warnx("gelf_getsym failed: %s", elf_errmsg(-1));
 			continue;
@@ -3296,14 +3419,15 @@ dump_symtab(struct readelf *re, int i)
 		/* Append symbol version string for SHT_DYNSYM symbol table. */
 		if (s->type == SHT_DYNSYM && re->ver != NULL &&
 		    re->vs != NULL && re->vs[j] > 1) {
-			if (re->vs[j] & 0x8000 ||
-			    re->ver[re->vs[j] & 0x7fff].type == 0)
-				printf("@%s (%d)",
-				    re->ver[re->vs[j] & 0x7fff].name,
-				    re->vs[j] & 0x7fff);
+			vs = re->vs[j] & VERSYM_VERSION;
+			if (vs >= re->ver_sz || re->ver[vs].name == NULL) {
+				warnx("invalid versym version index %u", vs);
+				break;
+			}
+			if (re->vs[j] & VERSYM_HIDDEN || re->ver[vs].type == 0)
+				printf("@%s (%d)", re->ver[vs].name, vs);
 			else
-				printf("@@%s (%d)", re->ver[re->vs[j]].name,
-				    re->vs[j]);
+				printf("@@%s (%d)", re->ver[vs].name, vs);
 		}
 		putchar('\n');
 	}
@@ -3317,7 +3441,7 @@ dump_symtabs(struct readelf *re)
 	Elf_Data *d;
 	struct section *s;
 	uint64_t dyn_off;
-	int elferr, i;
+	int elferr, i, len;
 
 	/*
 	 * If -D is specified, only dump the symbol table specified by
@@ -3342,8 +3466,10 @@ dump_symtabs(struct readelf *re)
 		}
 		if (d->d_size <= 0)
 			return;
+		if (!get_ent_count(s, &len))
+			return;
 
-		for (i = 0; (uint64_t)i < s->sz / s->entsize; i++) {
+		for (i = 0; i < len; i++) {
 			if (gelf_getdyn(d, i, &dyn) != &dyn) {
 				warnx("gelf_getdyn failed: %s", elf_errmsg(-1));
 				continue;
@@ -3530,8 +3656,11 @@ dump_gnu_hash(struct readelf *re, struct section *s)
 	symndx = buf[1];
 	maskwords = buf[2];
 	buf += 4;
+	if (s->link >= re->shnum)
+		return;
 	ds = &re->sl[s->link];
-	dynsymcount = ds->sz / ds->entsize;
+	if (!get_ent_count(ds, &dynsymcount))
+		return;
 	nchain = dynsymcount - symndx;
 	if (d->d_size != 4 * sizeof(uint32_t) + maskwords *
 	    (re->ec == ELFCLASS32 ? sizeof(uint32_t) : sizeof(uint64_t)) +
@@ -3735,6 +3864,8 @@ dump_verdef(struct readelf *re, int dump)
 
 	if ((s = re->vd_s) == NULL)
 		return;
+	if (s->link >= re->shnum)
+		return;
 
 	if (re->ver == NULL) {
 		re->ver_sz = 16;
@@ -3808,6 +3939,8 @@ dump_verneed(struct readelf *re, int dump)
 
 	if ((s = re->vn_s) == NULL)
 		return;
+	if (s->link >= re->shnum)
+		return;
 
 	if (re->ver == NULL) {
 		re->ver_sz = 16;
@@ -3872,6 +4005,7 @@ static void
 dump_versym(struct readelf *re)
 {
 	int i;
+	uint16_t vs;
 
 	if (re->vs_s == NULL || re->ver == NULL || re->vs == NULL)
 		return;
@@ -3882,12 +4016,16 @@ dump_versym(struct readelf *re)
 				putchar('\n');
 			printf("  %03x:", i);
 		}
-		if (re->vs[i] & 0x8000)
-			printf(" %3xh %-12s ", re->vs[i] & 0x7fff,
-			    re->ver[re->vs[i] & 0x7fff].name);
+		vs = re->vs[i] & VERSYM_VERSION;
+		if (vs >= re->ver_sz || re->ver[vs].name == NULL) {
+			warnx("invalid versym version index %u", re->vs[i]);
+			break;
+		}
+		if (re->vs[i] & VERSYM_HIDDEN)
+			printf(" %3xh %-12s ", vs,
+			    re->ver[re->vs[i] & VERSYM_VERSION].name);
 		else
-			printf(" %3x %-12s ", re->vs[i],
-			    re->ver[re->vs[i]].name);
+			printf(" %3x %-12s ", vs, re->ver[re->vs[i]].name);
 	}
 	putchar('\n');
 }
@@ -3960,11 +4098,13 @@ dump_liblist(struct readelf *re)
 	char tbuf[20];
 	Elf_Data *d;
 	Elf_Lib *lib;
-	int i, j, k, elferr, first;
+	int i, j, k, elferr, first, len;
 
 	for (i = 0; (size_t) i < re->shnum; i++) {
 		s = &re->sl[i];
 		if (s->type != SHT_GNU_LIBLIST)
+			continue;
+		if (s->link >= re->shnum)
 			continue;
 		(void) elf_errno();
 		if ((d = elf_getdata(s->scn, NULL)) == NULL) {
@@ -3977,8 +4117,10 @@ dump_liblist(struct readelf *re)
 		if (d->d_size <= 0)
 			continue;
 		lib = d->d_buf;
+		if (!get_ent_count(s, &len))
+			continue;
 		printf("\nLibrary list section '%s' ", s->name);
-		printf("contains %ju entries:\n", s->sz / s->entsize);
+		printf("contains %d entries:\n", len);
 		printf("%12s%24s%18s%10s%6s\n", "Library", "Time Stamp",
 		    "Checksum", "Version", "Flags");
 		for (j = 0; (uint64_t) j < s->sz / s->entsize; j++) {
@@ -4015,6 +4157,63 @@ dump_liblist(struct readelf *re)
 }
 
 #undef Elf_Lib
+
+static void
+dump_section_groups(struct readelf *re)
+{
+	struct section *s;
+	const char *symname;
+	Elf_Data *d;
+	uint32_t *w;
+	int i, j, elferr;
+	size_t n;
+
+	for (i = 0; (size_t) i < re->shnum; i++) {
+		s = &re->sl[i];
+		if (s->type != SHT_GROUP)
+			continue;
+		if (s->link >= re->shnum)
+			continue;
+		(void) elf_errno();
+		if ((d = elf_getdata(s->scn, NULL)) == NULL) {
+			elferr = elf_errno();
+			if (elferr != 0)
+				warnx("elf_getdata failed: %s",
+				    elf_errmsg(elferr));
+			continue;
+		}
+		if (d->d_size <= 0)
+			continue;
+
+		w = d->d_buf;
+
+		/* We only support COMDAT section. */
+#ifndef GRP_COMDAT
+#define	GRP_COMDAT 0x1
+#endif
+		if ((*w++ & GRP_COMDAT) == 0)
+			return;
+
+		if (s->entsize == 0)
+			s->entsize = 4;
+
+		symname = get_symbol_name(re, s->link, s->info);
+		n = s->sz / s->entsize;
+		if (n-- < 1)
+			return;
+
+		printf("\nCOMDAT group section [%5d] `%s' [%s] contains %ju"
+		    " sections:\n", i, s->name, symname, (uintmax_t)n);
+		printf("   %-10.10s %s\n", "[Index]", "Name");
+		for (j = 0; (size_t) j < n; j++, w++) {
+			if (*w >= re->shnum) {
+				warnx("invalid section index: %u", *w);
+				continue;
+			}
+			printf("   [%5u]   %s\n", *w, re->sl[*w].name);
+		}
+	}
+}
 
 static uint8_t *
 dump_unknown_tag(uint64_t tag, uint8_t *p)
@@ -4219,14 +4418,22 @@ dump_attributes(struct readelf *re)
 		len = d->d_size - 1;
 		p++;
 		while (len > 0) {
+			if (len < 4) {
+				warnx("truncated attribute section length");
+				break;
+			}
 			seclen = re->dw_decode(&p, 4);
 			if (seclen > len) {
 				warnx("invalid attribute section length");
 				break;
 			}
 			len -= seclen;
-			printf("Attribute Section: %s\n", (char *) p);
 			nlen = strlen((char *) p) + 1;
+			if (nlen + 4 > seclen) {
+				warnx("invalid attribute section name");
+				break;
+			}
+			printf("Attribute Section: %s\n", (char *) p);
 			p += nlen;
 			seclen -= nlen + 4;
 			while (seclen > 0) {
@@ -4300,7 +4507,7 @@ static void
 dump_mips_reginfo(struct readelf *re, struct section *s)
 {
 	Elf_Data *d;
-	int elferr;
+	int elferr, len;
 
 	(void) elf_errno();
 	if ((d = elf_rawdata(s->scn, NULL)) == NULL) {
@@ -4312,9 +4519,10 @@ dump_mips_reginfo(struct readelf *re, struct section *s)
 	}
 	if (d->d_size <= 0)
 		return;
+	if (!get_ent_count(s, &len))
+		return;
 
-	printf("\nSection '%s' contains %ju entries:\n", s->name,
-	    s->sz / s->entsize);
+	printf("\nSection '%s' contains %d entries:\n", s->name, len);
 	dump_mips_odk_reginfo(re, d->d_buf, d->d_size);
 }
 
@@ -4343,13 +4551,22 @@ dump_mips_options(struct readelf *re, struct section *s)
 	p = d->d_buf;
 	pe = p + d->d_size;
 	while (p < pe) {
+		if (pe - p < 8) {
+			warnx("Truncated MIPS option header");
+			return;
+		}
 		kind = re->dw_decode(&p, 1);
 		size = re->dw_decode(&p, 1);
 		sndx = re->dw_decode(&p, 2);
 		info = re->dw_decode(&p, 4);
+		if (size < 8 || size - 8 > pe - p) {
+			warnx("Malformed MIPS option header");
+			return;
+		}
+		size -= 8;
 		switch (kind) {
 		case ODK_REGINFO:
-			dump_mips_odk_reginfo(re, p, size - 8);
+			dump_mips_odk_reginfo(re, p, size);
 			break;
 		case ODK_EXCEPTIONS:
 			printf(" EXCEPTIONS FPU_MIN: %#x\n",
@@ -4400,7 +4617,7 @@ dump_mips_options(struct readelf *re, struct section *s)
 		default:
 			break;
 		}
-		p += size - 8;
+		p += size;
 	}
 }
 
@@ -6529,7 +6746,8 @@ get_symbol_name(struct readelf *re, int symtab, int i)
 	if (GELF_ST_TYPE(sym.st_info) == STT_SECTION &&
 	    re->sl[sym.st_shndx].name != NULL)
 		return (re->sl[sym.st_shndx].name);
-	if ((name = elf_strptr(re->elf, s->link, sym.st_name)) == NULL)
+	if (s->link >= re->shnum ||
+	    (name = elf_strptr(re->elf, s->link, sym.st_name)) == NULL)
 		return ("");
 
 	return (name);
@@ -6696,10 +6914,8 @@ load_sections(struct readelf *re)
 		return;
 	}
 
-	if ((scn = elf_getscn(re->elf, 0)) == NULL) {
-		warnx("elf_getscn failed: %s", elf_errmsg(-1));
+	if ((scn = elf_getscn(re->elf, 0)) == NULL)
 		return;
-	}
 
 	(void) elf_errno();
 	do {
@@ -6722,6 +6938,9 @@ load_sections(struct readelf *re)
 			warnx("section index of '%s' out of range", name);
 			continue;
 		}
+		if (sh.sh_link >= re->shnum)
+			warnx("section link %llu of '%s' out of range",
+			    (unsigned long long)sh.sh_link, name);
 		s = &re->sl[ndx];
 		s->name = name;
 		s->scn = scn;
@@ -6792,6 +7011,8 @@ dump_elf(struct readelf *re)
 		dump_phdr(re);
 	if (re->options & RE_SS)
 		dump_shdr(re);
+	if (re->options & RE_G)
+		dump_section_groups(re);
 	if (re->options & RE_D)
 		dump_dynamic(re);
 	if (re->options & RE_R)
@@ -7265,7 +7486,7 @@ Usage: %s [options] file...\n\
   -c | --archive-index     Print the archive symbol table for archives.\n\
   -d | --dynamic           Print the contents of SHT_DYNAMIC sections.\n\
   -e | --headers           Print all headers in the object.\n\
-  -g | --section-groups    (accepted, but ignored)\n\
+  -g | --section-groups    Print the contents of the section groups.\n\
   -h | --file-header       Print the file header for the object.\n\
   -l | --program-headers   Print the PHDR table for the object.\n\
   -n | --notes             Print the contents of SHT_NOTE sections.\n\
@@ -7319,8 +7540,8 @@ main(int argc, char **argv)
 			re->options |= RE_AA;
 			break;
 		case 'a':
-			re->options |= RE_AA | RE_D | RE_H | RE_II | RE_L |
-			    RE_R | RE_SS | RE_S | RE_VV;
+			re->options |= RE_AA | RE_D | RE_G | RE_H | RE_II |
+			    RE_L | RE_R | RE_SS | RE_S | RE_VV;
 			break;
 		case 'c':
 			re->options |= RE_C;
@@ -7425,11 +7646,10 @@ main(int argc, char **argv)
 		errx(EXIT_FAILURE, "ELF library initialization failed: %s",
 		    elf_errmsg(-1));
 
-	for (i = 0; i < argc; i++)
-		if (argv[i] != NULL) {
-			re->filename = argv[i];
-			dump_object(re);
-		}
+	for (i = 0; i < argc; i++) {
+		re->filename = argv[i];
+		dump_object(re);
+	}
 
 	exit(EXIT_SUCCESS);
 }

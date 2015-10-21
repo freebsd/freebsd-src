@@ -68,9 +68,6 @@ static driver_filter_t xen_invltlb;
 static driver_filter_t xen_invlpg;
 static driver_filter_t xen_invlrng;
 static driver_filter_t xen_invlcache;
-#ifdef __i386__
-static driver_filter_t xen_lazypmap;
-#endif
 static driver_filter_t xen_ipi_bitmap_handler;
 static driver_filter_t xen_cpustop_handler;
 static driver_filter_t xen_cpususpend_handler;
@@ -79,9 +76,6 @@ static driver_filter_t xen_cpustophard_handler;
 
 /*---------------------------- Extern Declarations ---------------------------*/
 /* Variables used by mp_machdep to perform the MMU related IPIs */
-#ifdef __i386__
-extern void pmap_lazyfix_action(void);
-#endif
 #ifdef __amd64__
 extern int pmap_pcid_enabled;
 #endif
@@ -104,9 +98,6 @@ static struct xen_ipi_handler xen_ipis[] =
 	[IPI_TO_IDX(IPI_INVLPG)]	= { xen_invlpg,			"ipg" },
 	[IPI_TO_IDX(IPI_INVLRNG)]	= { xen_invlrng,		"irg" },
 	[IPI_TO_IDX(IPI_INVLCACHE)]	= { xen_invlcache,		"ic"  },
-#ifdef __i386__
-	[IPI_TO_IDX(IPI_LAZYPMAP)]	= { xen_lazypmap,		"lp"  },
-#endif
 	[IPI_TO_IDX(IPI_BITMAP_VECTOR)] = { xen_ipi_bitmap_handler,	"b"   },
 	[IPI_TO_IDX(IPI_STOP)]		= { xen_cpustop_handler,	"st"  },
 	[IPI_TO_IDX(IPI_SUSPEND)]	= { xen_cpususpend_handler,	"sp"  },
@@ -311,7 +302,22 @@ xen_pv_lapic_ipi_wait(int delay)
 	XEN_APIC_UNSUPPORTED;
 	return (0);
 }
-#endif
+
+static int
+xen_pv_lapic_ipi_alloc(inthand_t *ipifunc)
+{
+
+	XEN_APIC_UNSUPPORTED;
+	return (-1);
+}
+
+static void
+xen_pv_lapic_ipi_free(int vector)
+{
+
+	XEN_APIC_UNSUPPORTED;
+}
+#endif	/* SMP */
 
 static int
 xen_pv_lapic_set_lvt_mask(u_int apic_id, u_int lvt, u_char masked)
@@ -350,6 +356,7 @@ xen_pv_lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
 struct apic_ops xen_apic_ops = {
 	.create			= xen_pv_lapic_create,
 	.init			= xen_pv_lapic_init,
+	.xapic_mode		= xen_pv_lapic_disable,
 	.setup			= xen_pv_lapic_setup,
 	.dump			= xen_pv_lapic_dump,
 	.disable		= xen_pv_lapic_disable,
@@ -371,6 +378,8 @@ struct apic_ops xen_apic_ops = {
 	.ipi_raw		= xen_pv_lapic_ipi_raw,
 	.ipi_vectored		= xen_pv_lapic_ipi_vectored,
 	.ipi_wait		= xen_pv_lapic_ipi_wait,
+	.ipi_alloc		= xen_pv_lapic_ipi_alloc,
+	.ipi_free		= xen_pv_lapic_ipi_free,
 #endif
 	.set_lvt_mask		= xen_pv_lapic_set_lvt_mask,
 	.set_lvt_mode		= xen_pv_lapic_set_lvt_mode,
@@ -414,6 +423,14 @@ xen_invltlb(void *arg)
 
 #ifdef __amd64__
 static int
+xen_invltlb_invpcid(void *arg)
+{
+
+	invltlb_invpcid_handler();
+	return (FILTER_HANDLED);
+}
+
+static int
 xen_invltlb_pcid(void *arg)
 {
 
@@ -430,16 +447,6 @@ xen_invlpg(void *arg)
 	return (FILTER_HANDLED);
 }
 
-#ifdef __amd64__
-static int
-xen_invlpg_pcid(void *arg)
-{
-
-	invlpg_pcid_handler();
-	return (FILTER_HANDLED);
-}
-#endif
-
 static int
 xen_invlrng(void *arg)
 {
@@ -455,16 +462,6 @@ xen_invlcache(void *arg)
 	invlcache_handler();
 	return (FILTER_HANDLED);
 }
-
-#ifdef __i386__
-static int
-xen_lazypmap(void *arg)
-{
-
-	pmap_lazyfix_action();
-	return (FILTER_HANDLED);
-}
-#endif
 
 static int
 xen_cpustop_handler(void *arg)
@@ -533,8 +530,8 @@ xen_setup_cpus(void)
 
 #ifdef __amd64__
 	if (pmap_pcid_enabled) {
-		xen_ipis[IPI_TO_IDX(IPI_INVLTLB)].filter = xen_invltlb_pcid;
-		xen_ipis[IPI_TO_IDX(IPI_INVLPG)].filter = xen_invlpg_pcid;
+		xen_ipis[IPI_TO_IDX(IPI_INVLTLB)].filter = invpcid_works ?
+		    xen_invltlb_invpcid : xen_invltlb_pcid;
 	}
 #endif
 	CPU_FOREACH(i)

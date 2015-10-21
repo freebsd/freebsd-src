@@ -30,7 +30,11 @@
  */
 struct wpa_ctrl_dst {
 	struct wpa_ctrl_dst *next;
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+	struct sockaddr_in6 addr;
+#else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 	struct sockaddr_in addr;
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 	socklen_t addrlen;
 	int debug_level;
 	int errors;
@@ -51,43 +55,73 @@ static void wpa_supplicant_ctrl_iface_send(struct ctrl_iface_priv *priv,
 
 
 static int wpa_supplicant_ctrl_iface_attach(struct ctrl_iface_priv *priv,
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+					    struct sockaddr_in6 *from,
+#else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 					    struct sockaddr_in *from,
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 					    socklen_t fromlen)
 {
 	struct wpa_ctrl_dst *dst;
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+	char addr[INET6_ADDRSTRLEN];
+#endif /* CONFIG_UDP_IPV6 */
 
 	dst = os_zalloc(sizeof(*dst));
 	if (dst == NULL)
 		return -1;
-	os_memcpy(&dst->addr, from, sizeof(struct sockaddr_in));
+	os_memcpy(&dst->addr, from, sizeof(*from));
 	dst->addrlen = fromlen;
 	dst->debug_level = MSG_INFO;
 	dst->next = priv->ctrl_dst;
 	priv->ctrl_dst = dst;
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+	wpa_printf(MSG_DEBUG, "CTRL_IFACE monitor attached %s:%d",
+		   inet_ntop(AF_INET6, &from->sin6_addr, addr, sizeof(*from)),
+		   ntohs(from->sin6_port));
+#else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 	wpa_printf(MSG_DEBUG, "CTRL_IFACE monitor attached %s:%d",
 		   inet_ntoa(from->sin_addr), ntohs(from->sin_port));
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 	return 0;
 }
 
 
 static int wpa_supplicant_ctrl_iface_detach(struct ctrl_iface_priv *priv,
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+					    struct sockaddr_in6 *from,
+#else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 					    struct sockaddr_in *from,
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 					    socklen_t fromlen)
 {
 	struct wpa_ctrl_dst *dst, *prev = NULL;
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+	char addr[INET6_ADDRSTRLEN];
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 
 	dst = priv->ctrl_dst;
 	while (dst) {
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+		if (from->sin6_port == dst->addr.sin6_port &&
+		    !os_memcmp(&from->sin6_addr, &dst->addr.sin6_addr,
+			       sizeof(from->sin6_addr))) {
+			wpa_printf(MSG_DEBUG, "CTRL_IFACE monitor detached %s:%d",
+				   inet_ntop(AF_INET6, &from->sin6_addr, addr,
+					     sizeof(*from)),
+				   ntohs(from->sin6_port));
+#else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 		if (from->sin_addr.s_addr == dst->addr.sin_addr.s_addr &&
 		    from->sin_port == dst->addr.sin_port) {
+			wpa_printf(MSG_DEBUG, "CTRL_IFACE monitor detached "
+				   "%s:%d", inet_ntoa(from->sin_addr),
+				   ntohs(from->sin_port));
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 			if (prev == NULL)
 				priv->ctrl_dst = dst->next;
 			else
 				prev->next = dst->next;
 			os_free(dst);
-			wpa_printf(MSG_DEBUG, "CTRL_IFACE monitor detached "
-				   "%s:%d", inet_ntoa(from->sin_addr),
-				   ntohs(from->sin_port));
 			return 0;
 		}
 		prev = dst;
@@ -98,21 +132,38 @@ static int wpa_supplicant_ctrl_iface_detach(struct ctrl_iface_priv *priv,
 
 
 static int wpa_supplicant_ctrl_iface_level(struct ctrl_iface_priv *priv,
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+					   struct sockaddr_in6 *from,
+#else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 					   struct sockaddr_in *from,
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 					   socklen_t fromlen,
 					   char *level)
 {
 	struct wpa_ctrl_dst *dst;
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+	char addr[INET6_ADDRSTRLEN];
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 
 	wpa_printf(MSG_DEBUG, "CTRL_IFACE LEVEL %s", level);
 
 	dst = priv->ctrl_dst;
 	while (dst) {
+#if CONFIG_CTRL_IFACE_UDP_IPV6
+		if (from->sin6_port == dst->addr.sin6_port &&
+		    !os_memcmp(&from->sin6_addr, &dst->addr.sin6_addr,
+			       sizeof(from->sin6_addr))) {
+			wpa_printf(MSG_DEBUG, "CTRL_IFACE changed monitor level %s:%d",
+				   inet_ntop(AF_INET6, &from->sin6_addr, addr,
+					     sizeof(*from)),
+				   ntohs(from->sin6_port));
+#else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 		if (from->sin_addr.s_addr == dst->addr.sin_addr.s_addr &&
 		    from->sin_port == dst->addr.sin_port) {
 			wpa_printf(MSG_DEBUG, "CTRL_IFACE changed monitor "
 				   "level %s:%d", inet_ntoa(from->sin_addr),
 				   ntohs(from->sin_port));
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 			dst->debug_level = atoi(level);
 			return 0;
 		}
@@ -150,7 +201,14 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 	struct ctrl_iface_priv *priv = sock_ctx;
 	char buf[256], *pos;
 	int res;
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+	struct sockaddr_in6 from;
+#ifndef CONFIG_CTRL_IFACE_UDP_REMOTE
+	char addr[INET6_ADDRSTRLEN];
+#endif /* CONFIG_CTRL_IFACE_UDP_REMOTE */
+#else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 	struct sockaddr_in from;
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 	socklen_t fromlen = sizeof(from);
 	char *reply = NULL;
 	size_t reply_len = 0;
@@ -160,11 +218,19 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 	res = recvfrom(sock, buf, sizeof(buf) - 1, 0,
 		       (struct sockaddr *) &from, &fromlen);
 	if (res < 0) {
-		perror("recvfrom(ctrl_iface)");
+		wpa_printf(MSG_ERROR, "recvfrom(ctrl_iface): %s",
+			   strerror(errno));
 		return;
 	}
 
 #ifndef CONFIG_CTRL_IFACE_UDP_REMOTE
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+	inet_ntop(AF_INET6, &from.sin6_addr, addr, sizeof(from));
+	if (os_strcmp(addr, "::1")) {
+		wpa_printf(MSG_DEBUG, "CTRL: Drop packet from unexpected source %s",
+			   addr);
+	}
+#else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 	if (from.sin_addr.s_addr != htonl((127 << 24) | 1)) {
 		/*
 		 * The OS networking stack is expected to drop this kind of
@@ -176,6 +242,7 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 			   "source %s", inet_ntoa(from.sin_addr));
 		return;
 	}
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 #endif /* CONFIG_CTRL_IFACE_UDP_REMOTE */
 
 	buf[res] = '\0';
@@ -256,6 +323,7 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 
 
 static void wpa_supplicant_ctrl_iface_msg_cb(void *ctx, int level,
+					     enum wpa_msg_type type,
 					     const char *txt, size_t len)
 {
 	struct wpa_supplicant *wpa_s = ctx;
@@ -269,8 +337,14 @@ struct ctrl_iface_priv *
 wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 {
 	struct ctrl_iface_priv *priv;
-	struct sockaddr_in addr;
 	int port = WPA_CTRL_IFACE_PORT;
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+	struct sockaddr_in6 addr;
+	int domain = PF_INET6;
+#else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
+	struct sockaddr_in addr;
+	int domain = PF_INET;
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 
 	priv = os_zalloc(sizeof(*priv));
 	if (priv == NULL)
@@ -282,26 +356,39 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 	if (wpa_s->conf->ctrl_interface == NULL)
 		return priv;
 
-	priv->sock = socket(PF_INET, SOCK_DGRAM, 0);
+	priv->sock = socket(domain, SOCK_DGRAM, 0);
 	if (priv->sock < 0) {
-		perror("socket(PF_INET)");
+		wpa_printf(MSG_ERROR, "socket(PF_INET): %s", strerror(errno));
 		goto fail;
 	}
 
 	os_memset(&addr, 0, sizeof(addr));
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+	addr.sin6_family = AF_INET6;
+#ifdef CONFIG_CTRL_IFACE_UDP_REMOTE
+	addr.sin6_addr = in6addr_any;
+#else /* CONFIG_CTRL_IFACE_UDP_REMOTE */
+	inet_pton(AF_INET6, "::1", &addr.sin6_addr);
+#endif /* CONFIG_CTRL_IFACE_UDP_REMOTE */
+#else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 	addr.sin_family = AF_INET;
 #ifdef CONFIG_CTRL_IFACE_UDP_REMOTE
 	addr.sin_addr.s_addr = INADDR_ANY;
 #else /* CONFIG_CTRL_IFACE_UDP_REMOTE */
 	addr.sin_addr.s_addr = htonl((127 << 24) | 1);
 #endif /* CONFIG_CTRL_IFACE_UDP_REMOTE */
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 try_again:
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+	addr.sin6_port = htons(port);
+#else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 	addr.sin_port = htons(port);
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 	if (bind(priv->sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
 		port--;
 		if ((WPA_CTRL_IFACE_PORT - port) < WPA_CTRL_IFACE_PORT_LIMIT)
 			goto try_again;
-		perror("bind(AF_INET)");
+		wpa_printf(MSG_ERROR, "bind(AF_INET): %s", strerror(errno));
 		goto fail;
 	}
 
@@ -331,13 +418,13 @@ void wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv)
 		eloop_unregister_read_sock(priv->sock);
 		if (priv->ctrl_dst) {
 			/*
-			 * Wait a second before closing the control socket if
+			 * Wait before closing the control socket if
 			 * there are any attached monitors in order to allow
 			 * them to receive any pending messages.
 			 */
 			wpa_printf(MSG_DEBUG, "CTRL_IFACE wait for attached "
 				   "monitors to receive messages");
-			os_sleep(1, 0);
+			os_sleep(0, 100000);
 		}
 		close(priv->sock);
 		priv->sock = -1;
@@ -362,6 +449,9 @@ static void wpa_supplicant_ctrl_iface_send(struct ctrl_iface_priv *priv,
 	int idx;
 	char *sbuf;
 	int llen;
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+	char addr[INET6_ADDRSTRLEN];
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 
 	dst = priv->ctrl_dst;
 	if (priv->sock < 0 || dst == NULL)
@@ -381,13 +471,22 @@ static void wpa_supplicant_ctrl_iface_send(struct ctrl_iface_priv *priv,
 	while (dst) {
 		next = dst->next;
 		if (level >= dst->debug_level) {
+#ifdef CONFIG_CTRL_IFACE_UDP_IPV6
+			wpa_printf(MSG_DEBUG, "CTRL_IFACE monitor send %s:%d",
+				   inet_ntop(AF_INET6, &dst->addr.sin6_addr,
+					     addr, sizeof(dst->addr)),
+				   ntohs(dst->addr.sin6_port));
+#else /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 			wpa_printf(MSG_DEBUG, "CTRL_IFACE monitor send %s:%d",
 				   inet_ntoa(dst->addr.sin_addr),
 				   ntohs(dst->addr.sin_port));
+#endif /* CONFIG_CTRL_IFACE_UDP_IPV6 */
 			if (sendto(priv->sock, sbuf, llen + len, 0,
 				   (struct sockaddr *) &dst->addr,
 				   sizeof(dst->addr)) < 0) {
-				perror("sendto(CTRL_IFACE monitor)");
+				wpa_printf(MSG_ERROR,
+					   "sendto(CTRL_IFACE monitor): %s",
+					   strerror(errno));
 				dst->errors++;
 				if (dst->errors > 10) {
 					wpa_supplicant_ctrl_iface_detach(
@@ -456,7 +555,8 @@ static void wpa_supplicant_global_ctrl_iface_receive(int sock, void *eloop_ctx,
 	res = recvfrom(sock, buf, sizeof(buf) - 1, 0,
 		       (struct sockaddr *) &from, &fromlen);
 	if (res < 0) {
-		perror("recvfrom(ctrl_iface)");
+		wpa_printf(MSG_ERROR, "recvfrom(ctrl_iface): %s",
+			   strerror(errno));
 		return;
 	}
 
@@ -539,7 +639,7 @@ wpa_supplicant_global_ctrl_iface_init(struct wpa_global *global)
 
 	priv->sock = socket(PF_INET, SOCK_DGRAM, 0);
 	if (priv->sock < 0) {
-		perror("socket(PF_INET)");
+		wpa_printf(MSG_ERROR, "socket(PF_INET): %s", strerror(errno));
 		goto fail;
 	}
 
@@ -557,7 +657,7 @@ try_again:
 		if ((port - WPA_GLOBAL_CTRL_IFACE_PORT) <
 		    WPA_GLOBAL_CTRL_IFACE_PORT_LIMIT)
 			goto try_again;
-		perror("bind(AF_INET)");
+		wpa_printf(MSG_ERROR, "bind(AF_INET): %s", strerror(errno));
 		goto fail;
 	}
 

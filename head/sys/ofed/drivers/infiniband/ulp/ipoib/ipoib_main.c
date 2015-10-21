@@ -832,6 +832,7 @@ ipoib_priv_alloc(void)
 
 	priv = malloc(sizeof(struct ipoib_dev_priv), M_TEMP, M_ZERO|M_WAITOK);
 	spin_lock_init(&priv->lock);
+	spin_lock_init(&priv->drain_lock);
 	mutex_init(&priv->vlan_mutex);
 	INIT_LIST_HEAD(&priv->path_list);
 	INIT_LIST_HEAD(&priv->child_intfs);
@@ -1332,7 +1333,7 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 		else if (m->m_flags & M_MCAST)
 			ipv6_ib_mc_map(&((struct sockaddr_in6 *)dst)->sin6_addr, ifp->if_broadcastaddr, edst);
 		else
-			error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, NULL);
+			error = nd6_resolve(ifp, is_gw, m, dst, edst, NULL);
 		if (error)
 			return error;
 		type = htons(ETHERTYPE_IPV6);

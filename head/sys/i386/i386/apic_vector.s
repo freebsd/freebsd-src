@@ -39,9 +39,26 @@
 #include "opt_smp.h"
 
 #include <machine/asmacros.h>
+#include <machine/specialreg.h>
 #include <x86/apicreg.h>
 
 #include "assym.s"
+
+	.text
+	SUPERALIGN_TEXT
+	/* End Of Interrupt to APIC */
+as_lapic_eoi:
+	cmpl	$0,x2apic_mode
+	jne	1f
+	movl	lapic_map,%eax
+	movl	$0,LA_EOI(%eax)
+	ret
+1:
+	movl	$MSR_APIC_EOI,%ecx
+	xorl	%eax,%eax
+	xorl	%edx,%edx
+	wrmsr
+	ret
 
 /*
  * I/O Interrupt Entry Point.  Rather than having one entry point for
@@ -58,16 +75,23 @@ IDTVEC(vec_name) ;							\
 	SET_KERNEL_SREGS ;						\
 	cld ;								\
 	FAKE_MCOUNT(TF_EIP(%esp)) ;					\
-	movl	lapic, %edx ;	/* pointer to local APIC */		\
+	cmpl	$0,x2apic_mode ;					\
+	je	1f ;							\
+	movl	$(MSR_APIC_ISR0 + index),%ecx ;				\
+	rdmsr ;								\
+	jmp	2f ;							\
+1: ;									\
+	movl	lapic_map, %edx ;/* pointer to local APIC */		\
 	movl	LA_ISR + 16 * (index)(%edx), %eax ;	/* load ISR */	\
+2: ;									\
 	bsrl	%eax, %eax ;	/* index of highest set bit in ISR */	\
-	jz	1f ;							\
+	jz	3f ;							\
 	addl	$(32 * index),%eax ;					\
 	pushl	%esp		;                                       \
 	pushl	%eax ;		/* pass the IRQ */			\
 	call	lapic_handle_intr ;					\
 	addl	$8, %esp ;	/* discard parameter */			\
-1: ;									\
+3: ;									\
 	MEXITCOUNT ;							\
 	jmp	doreti
 
@@ -157,6 +181,25 @@ IDTVEC(xen_intr_upcall)
 	jmp	doreti
 #endif
 
+#ifdef HYPERV
+/*
+ * This is the Hyper-V vmbus channel direct callback interrupt.
+ * Only used when it is running on Hyper-V.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(hv_vmbus_callback)
+	PUSH_FRAME
+	SET_KERNEL_SREGS
+	cld
+	FAKE_MCOUNT(TF_EIP(%esp))
+	pushl	%esp
+	call	hv_vector_handler
+	add	$4, %esp
+	MEXITCOUNT
+	jmp	doreti
+#endif
+
 #ifdef SMP
 /*
  * Global address space TLB shootdown.
@@ -164,8 +207,7 @@ IDTVEC(xen_intr_upcall)
 	.text
 	SUPERALIGN_TEXT
 invltlb_ret:
-	movl	lapic, %eax
-	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
+	call	as_lapic_eoi
 	POP_FRAME
 	iret
 
@@ -224,7 +266,6 @@ IDTVEC(invlcache)
 /*
  * Handler for IPIs sent via the per-cpu IPI bitmap.
  */
-#ifndef XEN
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(ipi_intr_bitmap_handler)	
@@ -232,15 +273,14 @@ IDTVEC(ipi_intr_bitmap_handler)
 	SET_KERNEL_SREGS
 	cld
 
-	movl	lapic, %edx
-	movl	$0, LA_EOI(%edx)	/* End Of Interrupt to APIC */
+	call	as_lapic_eoi
 	
 	FAKE_MCOUNT(TF_EIP(%esp))
 
 	call	ipi_bitmap_handler
 	MEXITCOUNT
 	jmp	doreti
-#endif
+
 /*
  * Executed by a CPU when it receives an IPI_STOP from another CPU.
  */
@@ -251,9 +291,7 @@ IDTVEC(cpustop)
 	SET_KERNEL_SREGS
 	cld
 
-	movl	lapic, %eax
-	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
-
+	call	as_lapic_eoi
 	call	cpustop_handler
 
 	POP_FRAME
@@ -262,7 +300,6 @@ IDTVEC(cpustop)
 /*
  * Executed by a CPU when it receives an IPI_SUSPEND from another CPU.
  */
-#ifndef XEN
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(cpususpend)
@@ -270,14 +307,11 @@ IDTVEC(cpususpend)
 	SET_KERNEL_SREGS
 	cld
 
-	movl	lapic, %eax
-	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
-
+	call	as_lapic_eoi
 	call	cpususpend_handler
 
 	POP_FRAME
 	jmp	doreti_iret
-#endif
 
 /*
  * Executed by a CPU when it receives a RENDEZVOUS IPI from another CPU.
@@ -298,25 +332,8 @@ IDTVEC(rendezvous)
 #endif
 	call	smp_rendezvous_action
 
-	movl	lapic, %eax
-	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
+	call	as_lapic_eoi
 	POP_FRAME
 	iret
 	
-/*
- * Clean up when we lose out on the lazy context switch optimization.
- * ie: when we are about to release a PTD but a cpu is still borrowing it.
- */
-	SUPERALIGN_TEXT
-IDTVEC(lazypmap)
-	PUSH_FRAME
-	SET_KERNEL_SREGS
-	cld
-
-	call	pmap_lazyfix_action
-
-	movl	lapic, %eax
-	movl	$0, LA_EOI(%eax)	/* End Of Interrupt to APIC */
-	POP_FRAME
-	iret
 #endif /* SMP */

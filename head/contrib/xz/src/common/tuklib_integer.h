@@ -321,8 +321,8 @@ unaligned_read32le(const uint8_t *buf)
 static inline void
 unaligned_write16be(uint8_t *buf, uint16_t num)
 {
-	buf[0] = num >> 8;
-	buf[1] = num;
+	buf[0] = (uint8_t)(num >> 8);
+	buf[1] = (uint8_t)num;
 	return;
 }
 
@@ -330,8 +330,8 @@ unaligned_write16be(uint8_t *buf, uint16_t num)
 static inline void
 unaligned_write16le(uint8_t *buf, uint16_t num)
 {
-	buf[0] = num;
-	buf[1] = num >> 8;
+	buf[0] = (uint8_t)num;
+	buf[1] = (uint8_t)(num >> 8);
 	return;
 }
 
@@ -339,10 +339,10 @@ unaligned_write16le(uint8_t *buf, uint16_t num)
 static inline void
 unaligned_write32be(uint8_t *buf, uint32_t num)
 {
-	buf[0] = num >> 24;
-	buf[1] = num >> 16;
-	buf[2] = num >> 8;
-	buf[3] = num;
+	buf[0] = (uint8_t)(num >> 24);
+	buf[1] = (uint8_t)(num >> 16);
+	buf[2] = (uint8_t)(num >> 8);
+	buf[3] = (uint8_t)num;
 	return;
 }
 
@@ -350,10 +350,10 @@ unaligned_write32be(uint8_t *buf, uint32_t num)
 static inline void
 unaligned_write32le(uint8_t *buf, uint32_t num)
 {
-	buf[0] = num;
-	buf[1] = num >> 8;
-	buf[2] = num >> 16;
-	buf[3] = num >> 24;
+	buf[0] = (uint8_t)num;
+	buf[1] = (uint8_t)(num >> 8);
+	buf[2] = (uint8_t)(num >> 16);
+	buf[3] = (uint8_t)(num >> 24);
 	return;
 }
 

@@ -18,13 +18,12 @@ using namespace llvm;
 // Pin the vtable to this file.
 void HexagonMCAsmInfo::anchor() {}
 
-HexagonMCAsmInfo::HexagonMCAsmInfo(StringRef TT) {
+HexagonMCAsmInfo::HexagonMCAsmInfo(const Triple &TT) {
   Data16bitsDirective = "\t.half\t";
   Data32bitsDirective = "\t.word\t";
   Data64bitsDirective = nullptr;  // .xword is only supported by V9.
   ZeroDirective = "\t.skip\t";
   CommentString = "//";
-  HasLEB128 = true;
 
   LCOMMDirectiveAlignmentType = LCOMM::ByteAlignment;
   InlineAsmStart = "# InlineAsm Start";

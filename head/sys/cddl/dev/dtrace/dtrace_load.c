@@ -137,17 +137,6 @@ dtrace_load(void *dummy)
 
 	mutex_exit(&cpu_lock);
 
-	/*
-	 * If DTrace helper tracing is enabled, we need to allocate the
-	 * trace buffer and initialize the values.
-	 */
-	if (dtrace_helptrace_enabled) {
-		ASSERT(dtrace_helptrace_buffer == NULL);
-		dtrace_helptrace_buffer =
-		    kmem_zalloc(dtrace_helptrace_bufsize, KM_SLEEP);
-		dtrace_helptrace_next = 0;
-	}
-
 	mutex_exit(&dtrace_lock);
 	mutex_exit(&dtrace_provider_lock);
 

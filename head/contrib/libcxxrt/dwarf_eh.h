@@ -218,15 +218,17 @@ static int64_t read_sleb128(dw_eh_ptr_t *data)
 static uint64_t read_value(char encoding, dw_eh_ptr_t *data)
 {
 	enum dwarf_data_encoding type = get_encoding(encoding);
-	uint64_t v;
 	switch (type)
 	{
 		// Read fixed-length types
 #define READ(dwarf, type) \
 		case dwarf:\
-			v = static_cast<uint64_t>(*reinterpret_cast<type*>(*data));\
-			*data += sizeof(type);\
-			break;
+		{\
+			type t;\
+			memcpy(&t, *data, sizeof t);\
+			*data += sizeof t;\
+			return static_cast<uint64_t>(t);\
+		}
 		READ(DW_EH_PE_udata2, uint16_t)
 		READ(DW_EH_PE_udata4, uint32_t)
 		READ(DW_EH_PE_udata8, uint64_t)
@@ -237,15 +239,11 @@ static uint64_t read_value(char encoding, dw_eh_ptr_t *data)
 #undef READ
 		// Read variable-length types
 		case DW_EH_PE_sleb128:
-			v = read_sleb128(data);
-			break;
+			return read_sleb128(data);
 		case DW_EH_PE_uleb128:
-			v = read_uleb128(data);
-			break;
+			return read_uleb128(data);
 		default: abort();
 	}
-
-	return v;
 }
 
 /**

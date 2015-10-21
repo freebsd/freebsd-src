@@ -1,47 +1,57 @@
 #------------------------------------------------------------------------------
-# $File: perl,v 1.22 2014/04/28 12:04:35 christos Exp $
+# $File: perl,v 1.24 2015/03/27 17:58:58 christos Exp $
 # perl:  file(1) magic for Larry Wall's perl language.
 #
 # The `eval' lines recognizes an outrageously clever hack.
 # Keith Waclena <keith@cerberus.uchicago.edu>
 # Send additions to <perl5-porters@perl.org>
-0	search/1	eval\ "exec\ /bin/perl		Perl script text
+0	search/1024	eval\ "exec\ perl		Perl script text
 !:mime	text/x-perl
-0	search/1	eval\ "exec\ /usr/bin/perl	Perl script text
+0	search/1024	eval\ "exec\ /bin/perl		Perl script text
 !:mime	text/x-perl
-0	search/1	eval\ "exec\ /usr/local/bin/perl	Perl script text
+0	search/1024	eval\ "exec\ /usr/bin/perl	Perl script text
 !:mime	text/x-perl
-0	search/1	eval\ '(exit\ $?0)'\ &&\ eval\ 'exec	Perl script text
+0	search/1024	eval\ "exec\ /usr/local/bin/perl	Perl script text
 !:mime	text/x-perl
-0	search/1	#!/usr/bin/env\ perl	Perl script text executable
+0	search/1024	eval\ 'exec\ perl		Perl script text
 !:mime	text/x-perl
-0	search/1	#!\ /usr/bin/env\ perl	Perl script text executable
+0	search/1024	eval\ 'exec\ /bin/perl		Perl script text
 !:mime	text/x-perl
-0	search/1	#!
->0	regex	\^#!.*/bin/perl$	Perl script text executable
+0	search/1024	eval\ 'exec\ /usr/bin/perl	Perl script text
+!:mime	text/x-perl
+0	search/1024	eval\ 'exec\ /usr/local/bin/perl	Perl script text
+!:mime	text/x-perl
+0	search/1024	eval\ '(exit\ $?0)'\ &&\ eval\ 'exec	Perl script text
+!:mime	text/x-perl
+0	search/1024	#!/usr/bin/env\ perl	Perl script text executable
+!:mime	text/x-perl
+0	search/1024	#!\ /usr/bin/env\ perl	Perl script text executable
+!:mime	text/x-perl
+0	search/1024	#!
+>0	regex	\^#!.*/bin/perl([[:space:]].*)*$	Perl script text executable
 !:mime	text/x-perl
 
 # by Dmitry V. Levin and Alexey Tourbin
 # check the first line
-0	search/1	package
+0	search/1024	package
 >0	regex		\^package[\ \t]+[0-9A-Za-z_:]+\ *;	Perl5 module source text
 !:strength + 10
 # not 'p', check other lines
-0	search/1	!p
+0	search/1024	!p
 >0	regex		\^package[\ \t]+[0-9A-Za-z_:]+\ *;
 >>0	regex		\^1\ *;|\^(use|sub|my)\ .*[(;{=]	Perl5 module source text
 !:strength + 10
 
 # Perl POD documents
 # From: Tom Hukins <tom@eborcom.com>
-0	search/1/W	\=pod\n		Perl POD document text
-0	search/1/W	\n\=pod\n	Perl POD document text
-0	search/1/W	\=head1\ 	Perl POD document text
-0	search/1/W	\n\=head1\ 	Perl POD document text
-0	search/1/W	\=head2\ 	Perl POD document text
-0	search/1/W	\n\=head2\ 	Perl POD document text
-0	search/1/W	\=encoding\ 	Perl POD document text
-0	search/1/W	\n\=encoding\ 	Perl POD document text
+0	search/1024/W	\=pod\n		Perl POD document text
+0	search/1024/W	\n\=pod\n	Perl POD document text
+0	search/1024/W	\=head1\ 	Perl POD document text
+0	search/1024/W	\n\=head1\ 	Perl POD document text
+0	search/1024/W	\=head2\ 	Perl POD document text
+0	search/1024/W	\n\=head2\ 	Perl POD document text
+0	search/1024/W	\=encoding\ 	Perl POD document text
+0	search/1024/W	\n\=encoding\ 	Perl POD document text
 
 
 # Perl Storable data files.

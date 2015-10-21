@@ -82,8 +82,10 @@ _posix1e_acl_strip_np(const acl_t aclp, int recalculate_mask)
 
 	have_mask_entry = 0;
 	acl_new = acl_init(ACL_MAX_ENTRIES);
-	if (acl_new == NULL)
+	if (acl_new == NULL) {
+		acl_free(acl_old);
 		return (NULL);
+	}
 	tag = ACL_UNDEFINED_TAG;
 
 	/* only save the default user/group/other entries */
@@ -94,24 +96,24 @@ _posix1e_acl_strip_np(const acl_t aclp, int recalculate_mask)
 		assert(_entry_brand(entry) == ACL_BRAND_POSIX);
 
 		if (acl_get_tag_type(entry, &tag) == -1)
-			return (NULL);
+			goto fail;
 
 		switch(tag) {
 		case ACL_USER_OBJ:
 		case ACL_GROUP_OBJ:
 		case ACL_OTHER:
 			if (acl_get_tag_type(entry, &tag) == -1)
-				return (NULL);
+				goto fail;
 			if (acl_get_permset(entry, &perm) == -1)
-				return (NULL);
+				goto fail;
 			if (acl_create_entry(&acl_new, &entry_new) == -1)
-				return (NULL);
+				goto fail;
 			if (acl_set_tag_type(entry_new, tag) == -1)
-				return (NULL);
+				goto fail;
 			if (acl_set_permset(entry_new, perm) == -1)
-				return (NULL);
+				goto fail;
 			if (acl_copy_entry(entry_new, entry) == -1)
-				return (NULL);
+				goto fail;
 			assert(_entry_brand(entry_new) == ACL_BRAND_POSIX);
 			break;
 		case ACL_MASK:
@@ -126,10 +128,16 @@ _posix1e_acl_strip_np(const acl_t aclp, int recalculate_mask)
 
 	if (have_mask_entry && recalculate_mask) {
 		if (acl_calc_mask(&acl_new) == -1)
-			return (NULL);
+			goto fail;
 	}
 
 	return (acl_new);
+
+fail:
+	acl_free(acl_new);
+	acl_free(acl_old);
+
+	return (NULL);
 }
 
 acl_t

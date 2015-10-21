@@ -346,7 +346,7 @@ uhub_tt_buffer_reset_async_locked(struct usb_device *child, struct usb_endpoint 
 	}
 	up->req_reset_tt = req;
 	/* get reset transfer started */
-	usb_proc_msignal(USB_BUS_NON_GIANT_PROC(udev->bus),
+	usb_proc_msignal(USB_BUS_TT_PROC(udev->bus),
 	    &hub->tt_msg[0], &hub->tt_msg[1]);
 }
 #endif
@@ -1579,7 +1579,7 @@ uhub_detach(device_t dev)
 #if USB_HAVE_TT_SUPPORT
 	/* Make sure our TT messages are not queued anywhere */
 	USB_BUS_LOCK(bus);
-	usb_proc_mwait(USB_BUS_NON_GIANT_PROC(bus),
+	usb_proc_mwait(USB_BUS_TT_PROC(bus),
 	    &hub->tt_msg[0], &hub->tt_msg[1]);
 	USB_BUS_UNLOCK(bus);
 #endif
@@ -1681,11 +1681,19 @@ uhub_child_location_string(device_t parent, device_t child,
 		}
 		goto done;
 	}
-	snprintf(buf, buflen, "bus=%u hubaddr=%u port=%u devaddr=%u interface=%u",
-	    device_get_unit(res.udev->bus->bdev),
-	    (res.udev->parent_hub != NULL) ? res.udev->parent_hub->device_index : 0,
-	    res.portno,
-	    res.udev->device_index, res.iface_index);
+	snprintf(buf, buflen, "bus=%u hubaddr=%u port=%u devaddr=%u"
+	    " interface=%u"
+#if USB_HAVE_UGEN
+	    " ugen=%s"
+#endif
+	    , device_get_unit(res.udev->bus->bdev)
+	    , (res.udev->parent_hub != NULL) ?
+	    res.udev->parent_hub->device_index : 0
+	    , res.portno, res.udev->device_index, res.iface_index
+#if USB_HAVE_UGEN
+	    , res.udev->ugen_name
+#endif
+	    );
 done:
 	mtx_unlock(&Giant);
 
@@ -1727,7 +1735,7 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 		    "release=0x%04x "
 		    "mode=%s "
 		    "intclass=0x%02x intsubclass=0x%02x "
-		    "intprotocol=0x%02x " "%s%s",
+		    "intprotocol=0x%02x" "%s%s",
 		    UGETW(res.udev->ddesc.idVendor),
 		    UGETW(res.udev->ddesc.idProduct),
 		    res.udev->ddesc.bDeviceClass,

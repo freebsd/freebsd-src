@@ -1,17 +1,12 @@
-$Id: INSTALL,v 1.9 2014/12/11 07:44:46 schwarze Exp $
+$Id: INSTALL,v 1.10 2015/03/09 21:00:14 schwarze Exp $
 
 About mdocml, the portable mandoc distribution
 ----------------------------------------------
 The mandoc manpage compiler toolset is a suite of tools compiling
 mdoc(7), the roff(7) macro language of choice for BSD manual pages,
 and man(7), the predominant historical language for UNIX manuals.
-Since the present version 1.13.2, it includes a man(1) manual viewer
-in addition to the apropos(1) manual page search tool.
+It includes a man(1) manual viewer and additional tools.
 For general information, see <http://mdocml.bsd.lv/>.
-
-In this document, we describe the installation and deployment of
-mandoc(1), first as a simple, standalone formatter, and then as part of
-the man(1) system.
 
 In case you have questions or want to provide feedback, read
 <http://mdocml.bsd.lv/contact.html>.  Consider subscribing to the
@@ -21,7 +16,7 @@ tech@ mailing list, too.
 
 Enjoy using the mandoc toolset!
 
-Ingo Schwarze, Karlsruhe, December 2014
+Ingo Schwarze, Karlsruhe, March 2015
 
 
 Installation
@@ -31,10 +26,6 @@ whether the newest version of mandoc is already installed by default
 or available via a binary package or a ports system.  A list of the
 latest bundled and ported versions of mandoc for various operating
 systems is maintained at <http://mdocml.bsd.lv/ports.html>.
-
-If mandoc is installed, you can check the version by running "mandoc -V".
-You can find the version contained in this distribution tarball
-by running "./configure".
 
 Regarding how packages and ports are maintained for your operating
 system, please consult your operating system documentation.
@@ -66,17 +57,34 @@ package using some kind of fake root mechanism, you may need a
 command like "make DESTDIR=... install".  Read the *-install targets
 in the "Makefile" to understand how DESTDIR is used.
 
-6. To set up a man.cgi(8) server, read its manual page.
+6. If you want to use the integrated man(1) and your system uses
+manpath(1), make sure it is configured correctly, in particular,
+it returns all directory trees where manual pages are installed.
+Otherwise, if your system uses man.conf(5), make sure it contains
+a "_whatdb" line for each directory tree, and the order of these
+lines meets your wishes.
 
-7. To use mandoc(1) as your man(1) formatter, read the "Deployment"
-sections below.
+7. If you compiled with database support, run the command "sudo
+makewhatis" to build mandoc.db(5) databases in all the directory
+trees configured in step 6.  Whenever installing new manual pages,
+re-run makewhatis(8) to update the databases, or apropos(1) will
+not find the new pages.
+
+8. To set up a man.cgi(8) server, read its manual page.
+
+Note that some man(7) pages may contain low-level roff(7) markup
+that mandoc does not yet understand.  On some BSD systems using
+mandoc, third-party software is vetted on whether it may be formatted
+with mandoc.  If not, groff(1) is pulled in as a dependency and
+used to install a pre-formatted "catpage" instead of directly as
+manual page source.
 
 
 Understanding mandoc dependencies
 ---------------------------------
-The mandoc(1) and demandoc(1) utilities have no external dependencies.
-However, makewhatis(8), apropos(1), and man(1) depend on the following
-software:
+The mandoc(1), man(1), and demandoc(1) utilities have no external
+dependencies, but makewhatis(8) and apropos(1) depend on the
+following software:
 
 1. The SQLite database system, see <http://sqlite.org/>.
 The recommended version of SQLite is 3.8.4.3 or newer.  The mandoc
@@ -142,76 +150,3 @@ for unexpected failures.  Those are most likely to happen if headers
 or libraries are installed in unusual places or interfaces defined
 in unusual headers.  You can also look at the file "config.h" and
 check that no "#define HAVE_*" differ from your expectations.
-
-
-Deployment using the integrated man(1) viewer
----------------------------------------------
-This mode of deployment requires database support.  In case of
-doubt, look at the section "user settings related to database
-support" in the file configure.local.example.
-
-Deployment requires the following steps:
-
-1. Build and install mandoc as described above in steps 2 to 5
-below "Installation".
-
-2. If your system uses manpath(1), make sure it is configured
-correctly, in particular, it returns all directory trees where
-manual pages are installed.  If your system uses man.conf(5), make
-sure it contains a "_whatdb" line for each directory tree, and the
-order of these lines meets your wishes.
-
-3. Run the command "sudo makewhatis" to build mandoc.db(5) databases
-in all the directory trees configured in step 2.
-
-At this point, your new man(1), apropos(1), and whatis(1) should work.
-Otherwise, please look at <http://mdocml.bsd.lv/contact.html>, both
-for help and to have these instructions improved.
-
-Whenever installing new manual pages, re-run makewhatis(8) to update
-the databases, or man(1) will not find the new pages.
-
-
-Deployment using your system's native man(1) viewer
----------------------------------------------------
-This mode of deployment does not require database support,
-so it works even if you don't have SQLite3.
-
-Usually, you can have your default installation and mandoc(1) work right
-alongside each other by using user-specific versions of the files
-mentioned below.
-
-0. Back up each file you want to change!
-
-1. First see whether your system has "/etc/man.conf" or "/etc/manpath.conf"
-(if it has neither, but man(1) is functional, then let us know) or,
-if running as your own user, a per-user override file.  In either
-case, find where man(1) is executing nroff(1) or groff(1) to format
-manuals.  Replace these calls with mandoc(1).
-
-2. Then make sure that man(1) isn't running preprocessors, so you may
-need to replace tbl(1), eqn(1), and similar references with cat(1).
-Some man(1) implementations, like that on Mac OSX, let you run "man -d"
-to see how the formatter is invoked.  Use this to test your changes.  On
-Mac OS X, for instance, man(1) will prepend all files with ".ll" and
-".nr" to set the terminal size, so you need to pass "tail -n+2 |
-mandoc(1)" to disregard them.
-
-3. Finally, make sure that mandoc(1) is actually being invoked instead
-of cached pages being pulled up.  You can usually do this by commenting
-out NOCACHE or similar.
-
-
-mandoc(1) still has a long way to go in understanding non-trivial
-low-level roff(7) markup embedded in some man(7) pages.  On the BSD
-systems using mandoc(1), third-party software is generally vetted
-on whether it may be formatted with mandoc(1).  If not, groff(1)
-is pulled in as a dependency and used to install a pre-formatted
-"catpage" instead of directly as manual page source.
-
-For more background on switching operating systems to use mandoc(1)
-instead of groff(1) to format manuals, see the BSDCan and EuroBSDCon
-presentations by Ingo Schwarze:
-<http://www.openbsd.org/papers/bsdcan11-mandoc-openbsd.html>
-<http://www.openbsd.org/papers/bsdcan14-mandoc.pdf>
-<http://www.openbsd.org/papers/eurobsdcon2014-mandoc-paper.pdf>

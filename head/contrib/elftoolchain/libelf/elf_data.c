@@ -32,7 +32,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_data.c 3009 2014-03-23 01:49:59Z jkoshy $");
+ELFTC_VCSID("$Id: elf_data.c 3177 2015-03-30 18:19:41Z emaste $");
 
 Elf_Data *
 elf_getdata(Elf_Scn *s, Elf_Data *ed)

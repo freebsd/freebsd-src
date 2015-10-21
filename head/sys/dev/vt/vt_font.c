@@ -41,8 +41,8 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_VTFONT, "vtfont", "vt font");
 
 /* Some limits to prevent abnormal fonts from being loaded. */
-#define	VTFONT_MAXMAPPINGS	8192
-#define	VTFONT_MAXGLYPHSIZE	1048576
+#define	VTFONT_MAXMAPPINGS	65536
+#define	VTFONT_MAXGLYPHSIZE	2097152
 #define	VTFONT_MAXDIMENSION	128
 
 static uint16_t

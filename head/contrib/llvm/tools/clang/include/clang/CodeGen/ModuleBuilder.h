@@ -24,9 +24,11 @@ namespace llvm {
 
 namespace clang {
   class DiagnosticsEngine;
+  class CoverageSourceInfo;
   class LangOptions;
+  class HeaderSearchOptions;
+  class PreprocessorOptions;
   class CodeGenOptions;
-  class TargetOptions;
   class Decl;
 
   class CodeGenerator : public ASTConsumer {
@@ -42,9 +44,11 @@ namespace clang {
   /// the allocated CodeGenerator instance.
   CodeGenerator *CreateLLVMCodeGen(DiagnosticsEngine &Diags,
                                    const std::string &ModuleName,
+                                   const HeaderSearchOptions &HeaderSearchOpts,
+                                   const PreprocessorOptions &PreprocessorOpts,
                                    const CodeGenOptions &CGO,
-                                   const TargetOptions &TO,
-                                   llvm::LLVMContext& C);
+                                   llvm::LLVMContext& C,
+                                   CoverageSourceInfo *CoverageInfo = nullptr);
 }
 
 #endif

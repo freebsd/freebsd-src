@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/nand/nandbus.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include "nfc_if.h"
 

@@ -64,6 +64,11 @@ public:
   /// containing function, return the number of bytes known to be
   /// dereferenceable. Otherwise, zero is returned.
   uint64_t getDereferenceableBytes() const;
+  
+  /// \brief If this argument has the dereferenceable_or_null attribute on 
+  /// it in its containing function, return the number of bytes known to be
+  /// dereferenceable. Otherwise, zero is returned.
+  uint64_t getDereferenceableOrNullBytes() const;
 
   /// \brief Return true if this argument has the byval attribute on it in its
   /// containing function.
@@ -104,6 +109,14 @@ public:
   /// \brief Return true if this argument has the inalloca attribute on it in
   /// its containing function.
   bool hasInAllocaAttr() const;
+
+  /// \brief Return true if this argument has the zext attribute on it in its
+  /// containing function.
+  bool hasZExtAttr() const;
+
+  /// \brief Return true if this argument has the sext attribute on it in its
+  /// containing function.
+  bool hasSExtAttr() const;
 
   /// \brief Add a Attribute to an argument.
   void addAttr(AttributeSet AS);

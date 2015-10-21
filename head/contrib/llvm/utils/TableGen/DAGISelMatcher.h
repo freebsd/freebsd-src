@@ -1,4 +1,4 @@
-//===- DAGISelMatcher.h - Representation of DAG pattern matcher -----------===//
+//===- DAGISelMatcher.h - Representation of DAG pattern matcher -*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TBLGEN_DAGISELMATCHER_H
-#define TBLGEN_DAGISELMATCHER_H
+#ifndef LLVM_UTILS_TABLEGEN_DAGISELMATCHER_H
+#define LLVM_UTILS_TABLEGEN_DAGISELMATCHER_H
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
@@ -30,7 +30,8 @@ namespace llvm {
 
 Matcher *ConvertPatternToMatcher(const PatternToMatch &Pattern,unsigned Variant,
                                  const CodeGenDAGPatterns &CGP);
-Matcher *OptimizeMatcher(Matcher *Matcher, const CodeGenDAGPatterns &CGP);
+void OptimizeMatcher(std::unique_ptr<Matcher> &Matcher,
+                     const CodeGenDAGPatterns &CGP);
 void EmitMatcherTable(const Matcher *Matcher, const CodeGenDAGPatterns &CGP,
                       raw_ostream &OS);
 
@@ -193,7 +194,7 @@ public:
   ScopeMatcher(ArrayRef<Matcher *> children)
     : Matcher(Scope), Children(children.begin(), children.end()) {
   }
-  virtual ~ScopeMatcher();
+  ~ScopeMatcher() override;
 
   unsigned getNumChildren() const { return Children.size(); }
 
@@ -506,7 +507,7 @@ class SwitchOpcodeMatcher : public Matcher {
 public:
   SwitchOpcodeMatcher(ArrayRef<std::pair<const SDNodeInfo*, Matcher*> > cases)
     : Matcher(SwitchOpcode), Cases(cases.begin(), cases.end()) {}
-  virtual ~SwitchOpcodeMatcher();
+  ~SwitchOpcodeMatcher() override;
 
   static inline bool classof(const Matcher *N) {
     return N->getKind() == SwitchOpcode;
@@ -560,7 +561,7 @@ class SwitchTypeMatcher : public Matcher {
 public:
   SwitchTypeMatcher(ArrayRef<std::pair<MVT::SimpleValueType, Matcher*> > cases)
   : Matcher(SwitchType), Cases(cases.begin(), cases.end()) {}
-  virtual ~SwitchTypeMatcher();
+  ~SwitchTypeMatcher() override;
 
   static inline bool classof(const Matcher *N) {
     return N->getKind() == SwitchType;

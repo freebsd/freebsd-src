@@ -49,6 +49,8 @@
 #define LLVM_SUPPORT_SPECIALCASELIST_H
 
 #include "llvm/ADT/StringMap.h"
+#include <string>
+#include <vector>
 
 namespace llvm {
 class MemoryBuffer;
@@ -56,17 +58,19 @@ class Regex;
 class StringRef;
 
 class SpecialCaseList {
- public:
-  /// Parses the special case list from a file. If Path is empty, returns
-  /// an empty special case list. On failure, returns 0 and writes an error
-  /// message to string.
-  static SpecialCaseList *create(const StringRef Path, std::string &Error);
+public:
+  /// Parses the special case list entries from files. On failure, returns
+  /// 0 and writes an error message to string.
+  static std::unique_ptr<SpecialCaseList>
+  create(const std::vector<std::string> &Paths, std::string &Error);
   /// Parses the special case list from a memory buffer. On failure, returns
   /// 0 and writes an error message to string.
-  static SpecialCaseList *create(const MemoryBuffer *MB, std::string &Error);
-  /// Parses the special case list from a file. On failure, reports a fatal
-  /// error.
-  static SpecialCaseList *createOrDie(const StringRef Path);
+  static std::unique_ptr<SpecialCaseList> create(const MemoryBuffer *MB,
+                                                 std::string &Error);
+  /// Parses the special case list entries from files. On failure, reports a
+  /// fatal error.
+  static std::unique_ptr<SpecialCaseList>
+  createOrDie(const std::vector<std::string> &Paths);
 
   ~SpecialCaseList();
 
@@ -75,19 +79,23 @@ class SpecialCaseList {
   ///   @Section:<E>=@Category
   /// \endcode
   /// and @Query satisfies a wildcard expression <E>.
-  bool inSection(const StringRef Section, const StringRef Query,
-                 const StringRef Category = StringRef()) const;
+  bool inSection(StringRef Section, StringRef Query,
+                 StringRef Category = StringRef()) const;
 
- private:
-  SpecialCaseList(SpecialCaseList const &) LLVM_DELETED_FUNCTION;
-  SpecialCaseList &operator=(SpecialCaseList const &) LLVM_DELETED_FUNCTION;
+private:
+  SpecialCaseList(SpecialCaseList const &) = delete;
+  SpecialCaseList &operator=(SpecialCaseList const &) = delete;
 
   struct Entry;
-  StringMap<StringMap<Entry> > Entries;
+  StringMap<StringMap<Entry>> Entries;
+  StringMap<StringMap<std::string>> Regexps;
+  bool IsCompiled;
 
   SpecialCaseList();
   /// Parses just-constructed SpecialCaseList entries from a memory buffer.
   bool parse(const MemoryBuffer *MB, std::string &Error);
+  /// compile() should be called once, after parsing all the memory buffers.
+  void compile();
 };
 
 }  // namespace llvm

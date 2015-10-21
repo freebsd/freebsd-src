@@ -31,8 +31,8 @@
 #pragma D option dynvarsize=1m
 
 struct bar {
-	int pid;
-	kthread_t *curthread;
+	pid_t pid;
+	struct thread *curthread;
 };
 
 self struct bar foo[int];

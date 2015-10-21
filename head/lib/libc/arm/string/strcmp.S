@@ -37,8 +37,11 @@ ENTRY(strcmp)
 	ldrb	r2, [r0], #1
 	ldrb	r3, [r1], #1
 	cmp	r2, #1
+	it	cs
 	cmpcs	r2, r3
 	beq	1b
 	sub	r0, r2, r3
 	RET
 END(strcmp)
+
+	.section .note.GNU-stack,"",%progbits

@@ -25,6 +25,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 #ifndef	_LINUX_SCHED_H_
 #define	_LINUX_SCHED_H_
@@ -106,5 +108,16 @@ do {									\
 #define	cond_resched()	if (!cold)	sched_relinquish(curthread)
 
 #define	sched_yield()	sched_relinquish(curthread)
+
+static inline long
+schedule_timeout(signed long timeout)
+{
+	if (timeout < 0)
+		return 0;
+
+	pause("lstim", timeout);
+
+	return 0;
+}
 
 #endif	/* _LINUX_SCHED_H_ */

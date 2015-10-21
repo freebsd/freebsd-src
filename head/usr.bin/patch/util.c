@@ -27,13 +27,13 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h>
 #include <sys/stat.h>
 
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
+#include <limits.h>
 #include <paths.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -96,7 +96,7 @@ int
 backup_file(const char *orig)
 {
 	struct stat	filestat;
-	char		bakname[MAXPATHLEN], *s, *simplename;
+	char		bakname[PATH_MAX], *s, *simplename;
 	dev_t		orig_device;
 	ino_t		orig_inode;
 
@@ -399,36 +399,10 @@ fetchname(const char *at, bool *exists, int strip_leading)
 	return name;
 }
 
-/*
- * Takes the name returned by fetchname and looks in RCS/SCCS directories
- * for a checked in version.
- */
-char *
-checked_in(char *file)
-{
-	char		*filebase, *filedir, tmpbuf[MAXPATHLEN];
-	struct stat	filestat;
-
-	filebase = basename(file);
-	filedir = dirname(file);
-
-#define try(f, a1, a2, a3) \
-(snprintf(tmpbuf, sizeof tmpbuf, f, a1, a2, a3), stat(tmpbuf, &filestat) == 0)
-
-	if (try("%s/RCS/%s%s", filedir, filebase, RCSSUFFIX) ||
-	    try("%s/RCS/%s%s", filedir, filebase, "") ||
-	    try("%s/%s%s", filedir, filebase, RCSSUFFIX) ||
-	    try("%s/SCCS/%s%s", filedir, SCCSPREFIX, filebase) ||
-	    try("%s/%s%s", filedir, SCCSPREFIX, filebase))
-		return file;
-
-	return NULL;
-}
-
 void
 version(void)
 {
-	printf("patch 2.0-12u10 FreeBSD\n");
+	printf("patch 2.0-12u11 FreeBSD\n");
 	my_exit(EXIT_SUCCESS);
 }
 

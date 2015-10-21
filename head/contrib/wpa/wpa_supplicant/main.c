@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / main() function for UNIX like OSes and MinGW
- * Copyright (c) 2003-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2013, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -12,10 +12,10 @@
 #endif /* __linux__ */
 
 #include "common.h"
+#include "fst/fst.h"
 #include "wpa_supplicant_i.h"
 #include "driver_i.h"
-
-extern struct wpa_driver_ops *wpa_drivers[];
+#include "p2p_supplicant.h"
 
 
 static void usage(void)
@@ -23,16 +23,32 @@ static void usage(void)
 	int i;
 	printf("%s\n\n%s\n"
 	       "usage:\n"
-	       "  wpa_supplicant [-BddhKLqqstuvW] [-P<pid file>] "
+	       "  wpa_supplicant [-BddhKLqq"
+#ifdef CONFIG_DEBUG_SYSLOG
+	       "s"
+#endif /* CONFIG_DEBUG_SYSLOG */
+	       "t"
+#ifdef CONFIG_DBUS
+	       "u"
+#endif /* CONFIG_DBUS */
+	       "vW] [-P<pid file>] "
 	       "[-g<global ctrl>] \\\n"
+	       "        [-G<group>] \\\n"
 	       "        -i<ifname> -c<config file> [-C<ctrl>] [-D<driver>] "
 	       "[-p<driver_param>] \\\n"
-	       "        [-b<br_ifname>] [-f<debug file>] [-e<entropy file>] "
-	       "\\\n"
+	       "        [-b<br_ifname>] [-e<entropy file>]"
+#ifdef CONFIG_DEBUG_FILE
+	       " [-f<debug file>]"
+#endif /* CONFIG_DEBUG_FILE */
+	       " \\\n"
 	       "        [-o<override driver>] [-O<override ctrl>] \\\n"
 	       "        [-N -i<ifname> -c<conf> [-C<ctrl>] "
 	       "[-D<driver>] \\\n"
-	       "        [-p<driver_param>] [-b<br_ifname>] ...]\n"
+#ifdef CONFIG_P2P
+	       "        [-m<P2P Device config file>] \\\n"
+#endif /* CONFIG_P2P */
+	       "        [-p<driver_param>] [-b<br_ifname>] [-I<config file>] "
+	       "...]\n"
 	       "\n"
 	       "drivers:\n",
 	       wpa_supplicant_version, wpa_supplicant_license);
@@ -50,6 +66,7 @@ static void usage(void)
 	       "  -c = Configuration file\n"
 	       "  -C = ctrl_interface parameter (only used if -c is not)\n"
 	       "  -i = interface name\n"
+	       "  -I = additional configuration file\n"
 	       "  -d = increase debugging verbosity (-dd even more)\n"
 	       "  -D = driver name (can be multiple drivers: nl80211,wext)\n"
 	       "  -e = entropy file\n");
@@ -57,6 +74,7 @@ static void usage(void)
 	printf("  -f = log output to debug file instead of stdout\n");
 #endif /* CONFIG_DEBUG_FILE */
 	printf("  -g = global ctrl_interface\n"
+	       "  -G = global ctrl_interface group\n"
 	       "  -K = include keys (passwords, etc.) in debug output\n");
 #ifdef CONFIG_DEBUG_SYSLOG
 	printf("  -s = log output to syslog instead of stdout\n");
@@ -78,11 +96,14 @@ static void usage(void)
 #endif /* CONFIG_DBUS */
 	printf("  -v = show version\n"
 	       "  -W = wait for a control interface monitor before starting\n"
+#ifdef CONFIG_P2P
+	       "  -m = Configuration file for the P2P Device interface\n"
+#endif /* CONFIG_P2P */
 	       "  -N = start describing new interface\n");
 
 	printf("example:\n"
 	       "  wpa_supplicant -D%s -iwlan0 -c/etc/wpa_supplicant.conf\n",
-	       wpa_drivers[i] ? wpa_drivers[i]->name : "wext");
+	       wpa_drivers[0] ? wpa_drivers[0]->name : "nl80211");
 #endif /* CONFIG_NO_STDOUT_DEBUG */
 }
 
@@ -155,7 +176,7 @@ int main(int argc, char *argv[])
 
 	for (;;) {
 		c = getopt(argc, argv,
-			   "b:Bc:C:D:de:f:g:hi:KLNo:O:p:P:qsTtuvW");
+			   "b:Bc:C:D:de:f:g:G:hi:I:KLm:No:O:p:P:qsTtuvW");
 		if (c < 0)
 			break;
 		switch (c) {
@@ -195,12 +216,18 @@ int main(int argc, char *argv[])
 		case 'g':
 			params.ctrl_interface = optarg;
 			break;
+		case 'G':
+			params.ctrl_interface_group = optarg;
+			break;
 		case 'h':
 			usage();
 			exitcode = 0;
 			goto out;
 		case 'i':
 			iface->ifname = optarg;
+			break;
+		case 'I':
+			iface->confanother = optarg;
 			break;
 		case 'K':
 			params.wpa_debug_show_keys++;
@@ -209,6 +236,11 @@ int main(int argc, char *argv[])
 			license();
 			exitcode = 0;
 			goto out;
+#ifdef CONFIG_P2P
+		case 'm':
+			params.conf_p2p_dev = optarg;
+			break;
+#endif /* CONFIG_P2P */
 		case 'o':
 			params.override_driver = optarg;
 			break;
@@ -257,7 +289,7 @@ int main(int argc, char *argv[])
 			if (iface == NULL)
 				goto out;
 			ifaces = iface;
-			iface = &ifaces[iface_count - 1]; 
+			iface = &ifaces[iface_count - 1];
 			os_memset(iface, 0, sizeof(*iface));
 			break;
 		default:
@@ -278,7 +310,20 @@ int main(int argc, char *argv[])
 			   "wpa_supplicant");
 	}
 
+	if (fst_global_init()) {
+		wpa_printf(MSG_ERROR, "Failed to initialize FST");
+		exitcode = -1;
+		goto out;
+	}
+
+#if defined(CONFIG_FST) && defined(CONFIG_CTRL_IFACE)
+	if (!fst_global_add_ctrl(fst_ctrl_cli))
+		wpa_printf(MSG_WARNING, "Failed to add CLI FST ctrl");
+#endif
+
 	for (i = 0; exitcode == 0 && i < iface_count; i++) {
+		struct wpa_supplicant *wpa_s;
+
 		if ((ifaces[i].confname == NULL &&
 		     ifaces[i].ctrl_interface == NULL) ||
 		    ifaces[i].ifname == NULL) {
@@ -289,14 +334,19 @@ int main(int argc, char *argv[])
 			exitcode = -1;
 			break;
 		}
-		if (wpa_supplicant_add_iface(global, &ifaces[i]) == NULL)
+		wpa_s = wpa_supplicant_add_iface(global, &ifaces[i], NULL);
+		if (wpa_s == NULL) {
 			exitcode = -1;
+			break;
+		}
 	}
 
 	if (exitcode == 0)
 		exitcode = wpa_supplicant_run(global);
 
 	wpa_supplicant_deinit(global);
+
+	fst_global_deinit();
 
 out:
 	wpa_supplicant_fd_workaround(0);

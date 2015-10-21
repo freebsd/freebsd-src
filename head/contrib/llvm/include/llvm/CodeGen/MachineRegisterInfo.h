@@ -17,9 +17,10 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/IndexedMap.h"
 #include "llvm/ADT/iterator_range.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBundle.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <vector>
 
 namespace llvm {
@@ -39,7 +40,7 @@ public:
   };
 
 private:
-  const TargetMachine &TM;
+  const MachineFunction *MF;
   Delegate *TheDelegate;
 
   /// IsSSA - True when the machine function is in SSA form and virtual
@@ -50,6 +51,9 @@ private:
   /// Basic block live-in lists, kill flags, and implicit defs may not be
   /// accurate when after this flag is cleared.
   bool TracksLiveness;
+
+  /// True if subregister liveness is tracked.
+  bool TracksSubRegLiveness;
 
   /// VRegInfo - Information we keep for each virtual register.
   ///
@@ -69,7 +73,7 @@ private:
 
   /// PhysRegUseDefLists - This is an array of the head of the use/def list for
   /// physical registers.
-  MachineOperand **PhysRegUseDefLists;
+  std::vector<MachineOperand *> PhysRegUseDefLists;
 
   /// getRegUseDefListHead - Return the head pointer for the register use/def
   /// list for the specified virtual or physical register.
@@ -119,14 +123,13 @@ private:
   /// second element.
   std::vector<std::pair<unsigned, unsigned> > LiveIns;
 
-  MachineRegisterInfo(const MachineRegisterInfo&) LLVM_DELETED_FUNCTION;
-  void operator=(const MachineRegisterInfo&) LLVM_DELETED_FUNCTION;
+  MachineRegisterInfo(const MachineRegisterInfo&) = delete;
+  void operator=(const MachineRegisterInfo&) = delete;
 public:
-  explicit MachineRegisterInfo(const TargetMachine &TM);
-  ~MachineRegisterInfo();
+  explicit MachineRegisterInfo(const MachineFunction *MF);
 
   const TargetRegisterInfo *getTargetRegisterInfo() const {
-    return TM.getRegisterInfo();
+    return MF->getSubtarget().getRegisterInfo();
   }
 
   void resetDelegate(Delegate *delegate) {
@@ -178,6 +181,23 @@ public:
   /// This should be called by late passes that invalidate the liveness
   /// information.
   void invalidateLiveness() { TracksLiveness = false; }
+
+  /// Returns true if liveness for register class @p RC should be tracked at
+  /// the subregister level.
+  bool shouldTrackSubRegLiveness(const TargetRegisterClass &RC) const {
+    return subRegLivenessEnabled() && RC.HasDisjunctSubRegs;
+  }
+  bool shouldTrackSubRegLiveness(unsigned VReg) const {
+    assert(TargetRegisterInfo::isVirtualRegister(VReg) && "Must pass a VReg");
+    return shouldTrackSubRegLiveness(*getRegClass(VReg));
+  }
+  bool subRegLivenessEnabled() const {
+    return TracksSubRegLiveness;
+  }
+
+  void enableSubRegLiveness(bool Enable = true) {
+    TracksSubRegLiveness = Enable;
+  }
 
   //===--------------------------------------------------------------------===//
   // Register Info
@@ -515,8 +535,12 @@ public:
   ///
   /// That function will return NULL if the virtual registers have incompatible
   /// constraints.
+  ///
+  /// Note that if ToReg is a physical register the function will replace and
+  /// apply sub registers to ToReg in order to obtain a final/proper physical
+  /// register.
   void replaceRegWith(unsigned FromReg, unsigned ToReg);
-
+  
   /// getVRegDef - Return the machine instr that defines the specified virtual
   /// register or null if none is found.  This assumes that the code is in SSA
   /// form, so there should only be one definition.
@@ -580,7 +604,7 @@ public:
   /// virtual register, for example after removing instructions or splitting
   /// the live range.
   ///
-  bool recomputeRegClass(unsigned Reg, const TargetMachine&);
+  bool recomputeRegClass(unsigned Reg);
 
   /// createVirtualRegister - Create and return a new virtual register in the
   /// function with the specified register class.
@@ -596,22 +620,25 @@ public:
 
   /// setRegAllocationHint - Specify a register allocation hint for the
   /// specified virtual register.
-  void setRegAllocationHint(unsigned Reg, unsigned Type, unsigned PrefReg) {
-    RegAllocHints[Reg].first  = Type;
-    RegAllocHints[Reg].second = PrefReg;
+  void setRegAllocationHint(unsigned VReg, unsigned Type, unsigned PrefReg) {
+    assert(TargetRegisterInfo::isVirtualRegister(VReg));
+    RegAllocHints[VReg].first  = Type;
+    RegAllocHints[VReg].second = PrefReg;
   }
 
   /// getRegAllocationHint - Return the register allocation hint for the
   /// specified virtual register.
   std::pair<unsigned, unsigned>
-  getRegAllocationHint(unsigned Reg) const {
-    return RegAllocHints[Reg];
+  getRegAllocationHint(unsigned VReg) const {
+    assert(TargetRegisterInfo::isVirtualRegister(VReg));
+    return RegAllocHints[VReg];
   }
 
   /// getSimpleHint - Return the preferred register allocation hint, or 0 if a
   /// standard simple hint (Type == 0) is not set.
-  unsigned getSimpleHint(unsigned Reg) const {
-    std::pair<unsigned, unsigned> Hint = getRegAllocationHint(Reg);
+  unsigned getSimpleHint(unsigned VReg) const {
+    assert(TargetRegisterInfo::isVirtualRegister(VReg));
+    std::pair<unsigned, unsigned> Hint = getRegAllocationHint(VReg);
     return Hint.first ? 0 : Hint.second;
   }
 
@@ -619,6 +646,12 @@ public:
   /// specified register as undefined which causes the DBG_VALUE to be
   /// deleted during LiveDebugVariables analysis.
   void markUsesInDebugValueAsUndef(unsigned Reg) const;
+
+  /// Return true if the specified register is modified in this function.
+  /// This checks that no defining machine operands exist for the register or
+  /// any of its aliases. Definitions found on functions marked noreturn are
+  /// ignored.
+  bool isPhysRegModified(unsigned PhysReg) const;
 
   //===--------------------------------------------------------------------===//
   // Physical Register Use Info
@@ -628,9 +661,7 @@ public:
   /// function. Also check for clobbered aliases and registers clobbered by
   /// function calls with register mask operands.
   ///
-  /// This only works after register allocation. It is primarily used by
-  /// PrologEpilogInserter to determine which callee-saved registers need
-  /// spilling.
+  /// This only works after register allocation.
   bool isPhysRegUsed(unsigned Reg) const {
     if (UsedPhysRegMask.test(Reg))
       return true;
@@ -764,6 +795,10 @@ public:
                         const TargetRegisterInfo &TRI,
                         const TargetInstrInfo &TII);
 
+  /// Returns a mask covering all bits that can appear in lane masks of
+  /// subregisters of the virtual register @p Reg.
+  unsigned getMaxLaneMaskForVReg(unsigned Reg) const;
+
   /// defusechain_iterator - This class provides iterator support for machine
   /// operands in the function that use or define a specific register.  If
   /// ReturnUses is true it returns uses of registers, if ReturnDefs is true it
@@ -812,7 +847,6 @@ public:
     typedef std::iterator<std::forward_iterator_tag,
                           MachineInstr, ptrdiff_t>::pointer pointer;
 
-    defusechain_iterator(const defusechain_iterator &I) : Op(I.Op) {}
     defusechain_iterator() : Op(nullptr) {}
 
     bool operator==(const defusechain_iterator &x) const {
@@ -915,7 +949,6 @@ public:
     typedef std::iterator<std::forward_iterator_tag,
                           MachineInstr, ptrdiff_t>::pointer pointer;
 
-    defusechain_instr_iterator(const defusechain_instr_iterator &I) : Op(I.Op){}
     defusechain_instr_iterator() : Op(nullptr) {}
 
     bool operator==(const defusechain_instr_iterator &x) const {

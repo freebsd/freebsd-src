@@ -1206,16 +1206,11 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 			return 0;
 		}
 
-#if 0
 		if (dev->primary->master) {
 			struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 			if (master_priv->sarea_priv)
 				master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
 		}
-#else
-		if (dev_priv->sarea_priv)
-			dev_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
-#endif
 
 		pause("915rng", 1);
 		if (atomic_load_acq_32(&dev_priv->mm.wedged) != 0) {

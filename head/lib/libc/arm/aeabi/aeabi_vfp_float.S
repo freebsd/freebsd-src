@@ -62,6 +62,7 @@ AEABI_ENTRY(fcmpeq)
 	LOAD_SREGS(s0, s1, r0, r1)
 	vcmp.f32 s0, s1
 	vmrs     APSR_nzcv, fpscr
+	ite      ne
 	movne    r0, #0
 	moveq    r0, #1
 	RET
@@ -72,8 +73,9 @@ AEABI_ENTRY(fcmplt)
 	LOAD_SREGS(s0, s1, r0, r1)
 	vcmp.f32 s0, s1
 	vmrs     APSR_nzcv, fpscr
+	ite      cs
 	movcs    r0, #0
-	movlt    r0, #1
+	movcc    r0, #1
 	RET
 AEABI_END(fcmplt)
 
@@ -82,6 +84,7 @@ AEABI_ENTRY(fcmple)
 	LOAD_SREGS(s0, s1, r0, r1)
 	vcmp.f32 s0, s1
 	vmrs     APSR_nzcv, fpscr
+	ite      hi
 	movhi    r0, #0
 	movls    r0, #1
 	RET
@@ -92,6 +95,7 @@ AEABI_ENTRY(fcmpge)
 	LOAD_SREGS(s0, s1, r0, r1)
 	vcmp.f32 s0, s1
 	vmrs     APSR_nzcv, fpscr
+	ite      lt
 	movlt    r0, #0
 	movge    r0, #1
 	RET
@@ -102,6 +106,7 @@ AEABI_ENTRY(fcmpgt)
 	LOAD_SREGS(s0, s1, r0, r1)
 	vcmp.f32 s0, s1
 	vmrs     APSR_nzcv, fpscr
+	ite      le
 	movle    r0, #0
 	movgt    r0, #1
 	RET
@@ -112,6 +117,7 @@ AEABI_ENTRY(fcmpun)
 	LOAD_SREGS(s0, s1, r0, r1)
 	vcmp.f32 s0, s1
 	vmrs     APSR_nzcv, fpscr
+	ite      vc
 	movvc    r0, #0
 	movvs    r0, #1
 	RET
@@ -182,3 +188,4 @@ AEABI_ENTRY(fsub)
 	RET
 AEABI_END(fsub)
 
+	.section .note.GNU-stack,"",%progbits

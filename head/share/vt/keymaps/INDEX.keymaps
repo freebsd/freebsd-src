@@ -20,15 +20,15 @@
 #
 # Language support: MENU, FONT
 #
-MENU:en:Choose your keyboard language
+MENU:en:Choose your keyboard layout
 MENU:da,no,sv:Vælg dit keyboard layout
 MENU:de:Wählen Sie Ihre Tastaturbelegung
-MENU:fr:Choisissez la nationalité de votre clavier
+MENU:fr:Choisissez la disposition de votre clavier
 MENU:pl:Wybierz układ klawiatury
 MENU:pt:Escolha o layout do teclado
-MENU:es:Seleccione el idioma de su teclado
-MENU::ךלש תדלקמה תפש תא רחב
-MENU:uk:Bиберіть розкладку клавіатури
+MENU:es:Seleccione la disposición de su teclado
+MENU:he:ךלש תדלקמה תפש תא רחב
+MENU:uk:Оберiть розкладку клавіатури
 MENU:el:Επιλέξτε το πληκτρολόγιο της κονσόλας
 MENU:hy:Ընտրեք ստեղնաշարի դասավորությունը
 
@@ -121,7 +121,7 @@ dk.kbd.from-cp865:fr:Danois
 dk.kbd.from-cp865:pt:Dinamarquês
 dk.kbd.from-cp865:es:Danés
 
-dk.macbook.kbd:da:Danish (macbook)
+dk.macbook.kbd:en:Danish (macbook)
 dk.macbook.kbd:da:Dansk (macbook)
 dk.macbook.kbd:de:Dänisch (Macbook)
 dk.macbook.kbd:fr:Danois (macbook)
@@ -517,7 +517,7 @@ uk.capsctrl.kbd:en:United Kingdom (Caps Lock acts as Left Ctrl)
 uk.capsctrl.kbd:de:Vereinigtes Königreich (Caps Lock als linke Strg)
 #uk.iso-ctrl.kbd:fr:Royaume Uni (caps lock acts as Left Ctrl)
 #uk.iso-ctrl.kbd:pt:Reino Unido (caps lock acts as Left Ctrl)
-#uk.iso-ctrl.kbd:es:Brit�nico (caps lock acts as Left Ctrl)
+#uk.iso-ctrl.kbd:es:Británico (caps lock acts as Left Ctrl)
 
 uk.dvorak.kbd:en:United Kingdom Dvorak
 uk.dvorak.kbd:de:Vereinigtes Königreich Dvorak

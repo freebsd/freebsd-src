@@ -67,7 +67,10 @@ is undefined.
 The
 .Fn pthread_setspecific
 function may be called from a thread-specific data destructor function,
-however this may result in lost storage or infinite loops.
+however this may result in lost storage or infinite loops if doing so
+causes non-NULL key values to remain after
+.Bq PTHREAD_DESTRUCTOR_ITERATIONS
+iterations of destructor calls have been made.
 .Sh RETURN VALUES
 If successful, the
 .Fn pthread_setspecific

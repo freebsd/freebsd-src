@@ -203,6 +203,16 @@ def msr_mask : Operand<i32> {
   let ParserMatchClass = MSRMaskOperand;
 }
 
+def BankedRegOperand : AsmOperandClass {
+  let Name = "BankedReg";
+  let ParserMethod = "parseBankedRegOperand";
+}
+def banked_reg : Operand<i32> {
+  let PrintMethod = "printBankedRegOperand";
+  let DecoderMethod = "DecodeBankedReg";
+  let ParserMatchClass = BankedRegOperand;
+}
+
 // Shift Right Immediate - A shift right immediate is encoded differently from
 // other shift immediates. The imm6 field is encoded like so:
 //
@@ -973,7 +983,12 @@ class ARMV5MOPat<dag pattern, dag result> : Pat<pattern, result> {
 class ARMV6Pat<dag pattern, dag result> : Pat<pattern, result> {
   list<Predicate> Predicates = [IsARM, HasV6];
 }
-
+class VFPPat<dag pattern, dag result> : Pat<pattern, result> {
+  list<Predicate> Predicates = [HasVFP2];
+}
+class VFPNoNEONPat<dag pattern, dag result> : Pat<pattern, result> {
+  list<Predicate> Predicates = [HasVFP2, DontUseNEONForFP];
+}
 //===----------------------------------------------------------------------===//
 // Thumb Instruction Format Definitions.
 //

@@ -209,15 +209,15 @@ db_print_sbstate(short sb_state)
 
 	comma = 0;
 	if (sb_state & SBS_CANTSENDMORE) {
-		db_printf("%sSS_CANTSENDMORE", comma ? ", " : "");
+		db_printf("%sSBS_CANTSENDMORE", comma ? ", " : "");
 		comma = 1;
 	}
 	if (sb_state & SBS_CANTRCVMORE) {
-		db_printf("%sSS_CANTRCVMORE", comma ? ", " : "");
+		db_printf("%sSBS_CANTRCVMORE", comma ? ", " : "");
 		comma = 1;
 	}
 	if (sb_state & SBS_RCVATMARK) {
-		db_printf("%sSS_RCVATMARK", comma ? ", " : "");
+		db_printf("%sSBS_RCVATMARK", comma ? ", " : "");
 		comma = 1;
 	}
 }

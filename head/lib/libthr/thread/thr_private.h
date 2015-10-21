@@ -337,7 +337,7 @@ struct pthread_key {
 
 /*
  * lwpid_t is 32bit but kernel thr API exports tid as long type
- * in very earily date.
+ * to preserve the ABI for M:N model in very early date (r131431).
  */
 #define TID(thread)	((uint32_t) ((thread)->tid))
 
@@ -927,6 +927,10 @@ int __thr_sigtimedwait(const sigset_t *set, siginfo_t *info,
 int __thr_sigwait(const sigset_t *set, int *sig);
 int __thr_sigwaitinfo(const sigset_t *set, siginfo_t *info);
 int __thr_swapcontext(ucontext_t *oucp, const ucontext_t *ucp);
+
+struct _spinlock;
+void __thr_spinunlock(struct _spinlock *lck);
+void __thr_spinlock(struct _spinlock *lck);
 
 struct tcb *_tcb_ctor(struct pthread *, int);
 void	_tcb_dtor(struct tcb *);

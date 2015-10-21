@@ -168,6 +168,10 @@ protected:
     lldb::addr_t
     GetEntryPoint();
 
+    /// Loads Module from inferior process.
+    void
+    ResolveExecutableModule(lldb::ModuleSP &module_sp);
+
 private:
     DISALLOW_COPY_AND_ASSIGN(DynamicLoaderPOSIXDYLD);
 };

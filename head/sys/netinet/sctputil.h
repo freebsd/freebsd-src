@@ -67,6 +67,9 @@ void
 /*
  * Function prototypes
  */
+int32_t
+sctp_map_assoc_state(int);
+
 uint32_t
 sctp_get_ifa_hash_val(struct sockaddr *addr);
 
@@ -208,7 +211,7 @@ sctp_handle_ootb(struct mbuf *, int, int,
     struct sockaddr *, struct sockaddr *,
     struct sctphdr *, struct sctp_inpcb *,
     struct mbuf *,
-    uint8_t, uint32_t,
+    uint8_t, uint32_t, uint16_t,
     uint32_t, uint16_t);
 
 int 

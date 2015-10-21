@@ -1,6 +1,6 @@
 /*
  * hostapd - WPA/RSN IE and KDE definitions
- * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2015, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -200,6 +200,16 @@ int wpa_write_rsn_ie(struct wpa_auth_config *conf, u8 *buf, size_t len,
 		num_suites++;
 	}
 #endif /* CONFIG_SAE */
+	if (conf->wpa_key_mgmt & WPA_KEY_MGMT_IEEE8021X_SUITE_B) {
+		RSN_SELECTOR_PUT(pos, RSN_AUTH_KEY_MGMT_802_1X_SUITE_B);
+		pos += RSN_SELECTOR_LEN;
+		num_suites++;
+	}
+	if (conf->wpa_key_mgmt & WPA_KEY_MGMT_IEEE8021X_SUITE_B_192) {
+		RSN_SELECTOR_PUT(pos, RSN_AUTH_KEY_MGMT_802_1X_SUITE_B_192);
+		pos += RSN_SELECTOR_LEN;
+		num_suites++;
+	}
 
 #ifdef CONFIG_RSN_TESTING
 	if (rsn_testing) {
@@ -251,7 +261,8 @@ int wpa_write_rsn_ie(struct wpa_auth_config *conf, u8 *buf, size_t len,
 	}
 
 #ifdef CONFIG_IEEE80211W
-	if (conf->ieee80211w != NO_MGMT_FRAME_PROTECTION) {
+	if (conf->ieee80211w != NO_MGMT_FRAME_PROTECTION &&
+	    conf->group_mgmt_cipher != WPA_CIPHER_AES_128_CMAC) {
 		if (pos + 2 + 4 > buf + len)
 			return -1;
 		if (pmkid == NULL) {
@@ -261,7 +272,25 @@ int wpa_write_rsn_ie(struct wpa_auth_config *conf, u8 *buf, size_t len,
 		}
 
 		/* Management Group Cipher Suite */
-		RSN_SELECTOR_PUT(pos, RSN_CIPHER_SUITE_AES_128_CMAC);
+		switch (conf->group_mgmt_cipher) {
+		case WPA_CIPHER_AES_128_CMAC:
+			RSN_SELECTOR_PUT(pos, RSN_CIPHER_SUITE_AES_128_CMAC);
+			break;
+		case WPA_CIPHER_BIP_GMAC_128:
+			RSN_SELECTOR_PUT(pos, RSN_CIPHER_SUITE_BIP_GMAC_128);
+			break;
+		case WPA_CIPHER_BIP_GMAC_256:
+			RSN_SELECTOR_PUT(pos, RSN_CIPHER_SUITE_BIP_GMAC_256);
+			break;
+		case WPA_CIPHER_BIP_CMAC_256:
+			RSN_SELECTOR_PUT(pos, RSN_CIPHER_SUITE_BIP_CMAC_256);
+			break;
+		default:
+			wpa_printf(MSG_DEBUG,
+				   "Invalid group management cipher (0x%x)",
+				   conf->group_mgmt_cipher);
+			return -1;
+		}
 		pos += RSN_SELECTOR_LEN;
 	}
 #endif /* CONFIG_IEEE80211W */
@@ -295,13 +324,82 @@ int wpa_write_rsn_ie(struct wpa_auth_config *conf, u8 *buf, size_t len,
 }
 
 
+static u8 * wpa_write_osen(struct wpa_auth_config *conf, u8 *eid)
+{
+	u8 *len;
+	u16 capab;
+
+	*eid++ = WLAN_EID_VENDOR_SPECIFIC;
+	len = eid++; /* to be filled */
+	WPA_PUT_BE24(eid, OUI_WFA);
+	eid += 3;
+	*eid++ = HS20_OSEN_OUI_TYPE;
+
+	/* Group Data Cipher Suite */
+	RSN_SELECTOR_PUT(eid, RSN_CIPHER_SUITE_NO_GROUP_ADDRESSED);
+	eid += RSN_SELECTOR_LEN;
+
+	/* Pairwise Cipher Suite Count and List */
+	WPA_PUT_LE16(eid, 1);
+	eid += 2;
+	RSN_SELECTOR_PUT(eid, RSN_CIPHER_SUITE_CCMP);
+	eid += RSN_SELECTOR_LEN;
+
+	/* AKM Suite Count and List */
+	WPA_PUT_LE16(eid, 1);
+	eid += 2;
+	RSN_SELECTOR_PUT(eid, RSN_AUTH_KEY_MGMT_OSEN);
+	eid += RSN_SELECTOR_LEN;
+
+	/* RSN Capabilities */
+	capab = 0;
+	if (conf->wmm_enabled) {
+		/* 4 PTKSA replay counters when using WMM */
+		capab |= (RSN_NUM_REPLAY_COUNTERS_16 << 2);
+	}
+#ifdef CONFIG_IEEE80211W
+	if (conf->ieee80211w != NO_MGMT_FRAME_PROTECTION) {
+		capab |= WPA_CAPABILITY_MFPC;
+		if (conf->ieee80211w == MGMT_FRAME_PROTECTION_REQUIRED)
+			capab |= WPA_CAPABILITY_MFPR;
+	}
+#endif /* CONFIG_IEEE80211W */
+	WPA_PUT_LE16(eid, capab);
+	eid += 2;
+
+	*len = eid - len - 1;
+
+	return eid;
+}
+
+
 int wpa_auth_gen_wpa_ie(struct wpa_authenticator *wpa_auth)
 {
 	u8 *pos, buf[128];
 	int res;
 
+#ifdef CONFIG_TESTING_OPTIONS
+	if (wpa_auth->conf.own_ie_override_len) {
+		wpa_hexdump(MSG_DEBUG, "WPA: Forced own IE(s) for testing",
+			    wpa_auth->conf.own_ie_override,
+			    wpa_auth->conf.own_ie_override_len);
+		os_free(wpa_auth->wpa_ie);
+		wpa_auth->wpa_ie =
+			os_malloc(wpa_auth->conf.own_ie_override_len);
+		if (wpa_auth->wpa_ie == NULL)
+			return -1;
+		os_memcpy(wpa_auth->wpa_ie, wpa_auth->conf.own_ie_override,
+			  wpa_auth->conf.own_ie_override_len);
+		wpa_auth->wpa_ie_len = wpa_auth->conf.own_ie_override_len;
+		return 0;
+	}
+#endif /* CONFIG_TESTING_OPTIONS */
+
 	pos = buf;
 
+	if (wpa_auth->conf.wpa == WPA_PROTO_OSEN) {
+		pos = wpa_write_osen(&wpa_auth->conf, pos);
+	}
 	if (wpa_auth->conf.wpa & WPA_PROTO_RSN) {
 		res = wpa_write_rsn_ie(&wpa_auth->conf,
 				       pos, buf + sizeof(buf) - pos, NULL);
@@ -407,6 +505,10 @@ int wpa_validate_wpa_ie(struct wpa_authenticator *wpa_auth,
 		selector = RSN_AUTH_KEY_MGMT_UNSPEC_802_1X;
 		if (0) {
 		}
+		else if (data.key_mgmt & WPA_KEY_MGMT_IEEE8021X_SUITE_B_192)
+			selector = RSN_AUTH_KEY_MGMT_802_1X_SUITE_B_192;
+		else if (data.key_mgmt & WPA_KEY_MGMT_IEEE8021X_SUITE_B)
+			selector = RSN_AUTH_KEY_MGMT_802_1X_SUITE_B;
 #ifdef CONFIG_IEEE80211R
 		else if (data.key_mgmt & WPA_KEY_MGMT_FT_IEEE8021X)
 			selector = RSN_AUTH_KEY_MGMT_FT_802_1X;
@@ -485,6 +587,10 @@ int wpa_validate_wpa_ie(struct wpa_authenticator *wpa_auth,
 	}
 	if (0) {
 	}
+	else if (key_mgmt & WPA_KEY_MGMT_IEEE8021X_SUITE_B_192)
+		sm->wpa_key_mgmt = WPA_KEY_MGMT_IEEE8021X_SUITE_B_192;
+	else if (key_mgmt & WPA_KEY_MGMT_IEEE8021X_SUITE_B)
+		sm->wpa_key_mgmt = WPA_KEY_MGMT_IEEE8021X_SUITE_B;
 #ifdef CONFIG_IEEE80211R
 	else if (key_mgmt & WPA_KEY_MGMT_FT_IEEE8021X)
 		sm->wpa_key_mgmt = WPA_KEY_MGMT_FT_IEEE8021X;
@@ -534,7 +640,8 @@ int wpa_validate_wpa_ie(struct wpa_authenticator *wpa_auth,
 			return WPA_MGMT_FRAME_PROTECTION_VIOLATION;
 		}
 
-		if (data.mgmt_group_cipher != WPA_CIPHER_AES_128_CMAC) {
+		if (data.mgmt_group_cipher != wpa_auth->conf.group_mgmt_cipher)
+		{
 			wpa_printf(MSG_DEBUG, "Unsupported management group "
 				   "cipher %d", data.mgmt_group_cipher);
 			return WPA_INVALID_MGMT_GROUP_CIPHER;
@@ -564,12 +671,9 @@ int wpa_validate_wpa_ie(struct wpa_authenticator *wpa_auth,
 	}
 #endif /* CONFIG_IEEE80211R */
 
-	if (ciphers & WPA_CIPHER_CCMP)
-		sm->pairwise = WPA_CIPHER_CCMP;
-	else if (ciphers & WPA_CIPHER_GCMP)
-		sm->pairwise = WPA_CIPHER_GCMP;
-	else
-		sm->pairwise = WPA_CIPHER_TKIP;
+	sm->pairwise = wpa_pick_pairwise_cipher(ciphers, 0);
+	if (sm->pairwise < 0)
+		return WPA_INVALID_PAIRWISE;
 
 	/* TODO: clear WPA/WPA2 state if STA changes from one to another */
 	if (wpa_ie[0] == WLAN_EID_RSN)
@@ -607,7 +711,7 @@ int wpa_validate_wpa_ie(struct wpa_authenticator *wpa_auth,
 			break;
 		}
 	}
-	if (sm->pmksa) {
+	if (sm->pmksa && pmkid) {
 		wpa_auth_vlogger(wpa_auth, sm->addr, LOGGER_DEBUG,
 				 "PMKID found from PMKSA cache "
 				 "eap_type=%d vlan_id=%d",
@@ -629,6 +733,36 @@ int wpa_validate_wpa_ie(struct wpa_authenticator *wpa_auth,
 }
 
 
+#ifdef CONFIG_HS20
+int wpa_validate_osen(struct wpa_authenticator *wpa_auth,
+		      struct wpa_state_machine *sm,
+		      const u8 *osen_ie, size_t osen_ie_len)
+{
+	if (wpa_auth == NULL || sm == NULL)
+		return -1;
+
+	/* TODO: parse OSEN element */
+	sm->wpa_key_mgmt = WPA_KEY_MGMT_OSEN;
+	sm->mgmt_frame_prot = 1;
+	sm->pairwise = WPA_CIPHER_CCMP;
+	sm->wpa = WPA_VERSION_WPA2;
+
+	if (sm->wpa_ie == NULL || sm->wpa_ie_len < osen_ie_len) {
+		os_free(sm->wpa_ie);
+		sm->wpa_ie = os_malloc(osen_ie_len);
+		if (sm->wpa_ie == NULL)
+			return -1;
+	}
+
+	os_memcpy(sm->wpa_ie, osen_ie, osen_ie_len);
+	sm->wpa_ie_len = osen_ie_len;
+
+	return 0;
+}
+
+#endif /* CONFIG_HS20 */
+
+
 /**
  * wpa_parse_generic - Parse EAPOL-Key Key Data Generic IEs
  * @pos: Pointer to the IE header
@@ -648,6 +782,12 @@ static int wpa_parse_generic(const u8 *pos, const u8 *end,
 	    pos[2 + WPA_SELECTOR_LEN + 1] == 0) {
 		ie->wpa_ie = pos;
 		ie->wpa_ie_len = pos[1] + 2;
+		return 0;
+	}
+
+	if (pos[1] >= 4 && WPA_GET_BE32(pos + 2) == OSEN_IE_VENDOR_TYPE) {
+		ie->osen = pos;
+		ie->osen_len = pos[1] + 2;
 		return 0;
 	}
 
@@ -710,6 +850,25 @@ static int wpa_parse_generic(const u8 *pos, const u8 *end,
 		return 0;
 	}
 #endif /* CONFIG_IEEE80211W */
+
+#ifdef CONFIG_P2P
+	if (pos[1] >= RSN_SELECTOR_LEN + 1 &&
+	    RSN_SELECTOR_GET(pos + 2) == WFA_KEY_DATA_IP_ADDR_REQ) {
+		ie->ip_addr_req = pos + 2 + RSN_SELECTOR_LEN;
+		wpa_hexdump(MSG_DEBUG, "WPA: IP Address Request in EAPOL-Key",
+			    ie->ip_addr_req, pos[1] - RSN_SELECTOR_LEN);
+		return 0;
+	}
+
+	if (pos[1] >= RSN_SELECTOR_LEN + 3 * 4 &&
+	    RSN_SELECTOR_GET(pos + 2) == WFA_KEY_DATA_IP_ADDR_ALLOC) {
+		ie->ip_addr_alloc = pos + 2 + RSN_SELECTOR_LEN;
+		wpa_hexdump(MSG_DEBUG,
+			    "WPA: IP Address Allocation in EAPOL-Key",
+			    ie->ip_addr_alloc, pos[1] - RSN_SELECTOR_LEN);
+		return 0;
+	}
+#endif /* CONFIG_P2P */
 
 	return 0;
 }

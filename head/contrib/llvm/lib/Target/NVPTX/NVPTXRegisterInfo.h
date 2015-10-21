@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef NVPTXREGISTERINFO_H
-#define NVPTXREGISTERINFO_H
+#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXREGISTERINFO_H
+#define LLVM_LIB_TARGET_NVPTX_NVPTXREGISTERINFO_H
 
 #include "ManagedStringPool.h"
 #include "llvm/Target/TargetRegisterInfo.h"
@@ -22,27 +22,20 @@
 #include "NVPTXGenRegisterInfo.inc"
 
 namespace llvm {
-
-// Forward Declarations.
-class TargetInstrInfo;
-class NVPTXSubtarget;
-
 class NVPTXRegisterInfo : public NVPTXGenRegisterInfo {
 private:
-  bool Is64Bit;
   // Hold Strings that can be free'd all together with NVPTXRegisterInfo
   ManagedStringPool ManagedStrPool;
 
 public:
-  NVPTXRegisterInfo(const NVPTXSubtarget &st);
+  NVPTXRegisterInfo();
 
   //------------------------------------------------------
   // Pure virtual functions from TargetRegisterInfo
   //------------------------------------------------------
 
   // NVPTX callee saved registers
-  const MCPhysReg *
-  getCalleeSavedRegs(const MachineFunction *MF = nullptr) const override;
+  const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
 
   BitVector getReservedRegs(const MachineFunction &MF) const override;
 

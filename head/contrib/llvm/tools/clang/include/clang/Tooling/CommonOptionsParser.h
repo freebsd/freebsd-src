@@ -24,8 +24,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TOOLS_CLANG_INCLUDE_CLANG_TOOLING_COMMONOPTIONSPARSER_H
-#define LLVM_TOOLS_CLANG_INCLUDE_CLANG_TOOLING_COMMONOPTIONSPARSER_H
+#ifndef LLVM_CLANG_TOOLING_COMMONOPTIONSPARSER_H
+#define LLVM_CLANG_TOOLING_COMMONOPTIONSPARSER_H
 
 #include "clang/Tooling/CompilationDatabase.h"
 #include "llvm/Support/CommandLine.h"
@@ -89,6 +89,8 @@ public:
 private:
   std::unique_ptr<CompilationDatabase> Compilations;
   std::vector<std::string> SourcePathList;
+  std::vector<std::string> ExtraArgsBefore;
+  std::vector<std::string> ExtraArgsAfter;
 };
 
 }  // namespace tooling

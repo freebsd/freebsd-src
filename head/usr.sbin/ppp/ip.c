@@ -473,7 +473,7 @@ FilterCheck(const unsigned char *packet,
                        ncpaddr_ntoa(&srcaddr), sport, dstip, dport);
           }
           return 1;
-        }		/* Explict match.  Deny this packet */
+        }		/* Explicit match.  Deny this packet */
       }
     } else {
       n++;

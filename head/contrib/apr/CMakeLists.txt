@@ -234,6 +234,7 @@ SET(APR_TEST_SOURCES
   test/testprocmutex.c
   test/testrand.c
   test/testshm.c
+  test/testskiplist.c
   test/testsleep.c
   test/testsock.c
   test/testsockets.c
@@ -252,7 +253,6 @@ SET(APR_TEST_SOURCES
 
 SET(install_targets)
 SET(install_bin_pdb)
-SET(install_lib_pdb)
 
 # libapr-1 is shared, apr-1 is static
 ADD_LIBRARY(libapr-1 SHARED ${APR_SOURCES} ${APR_PUBLIC_HEADERS_GENERATED} libapr.rc)
@@ -264,7 +264,6 @@ ADD_DEPENDENCIES(libapr-1 test_char_header)
 
 ADD_LIBRARY(apr-1 STATIC ${APR_SOURCES} ${APR_PUBLIC_HEADERS_GENERATED})
 SET(install_targets ${install_targets} apr-1)
-SET(install_lib_pdb ${install_lib_pdb} ${PROJECT_BINARY_DIR}/apr-1.pdb)
 TARGET_LINK_LIBRARIES(apr-1 ${APR_SYSTEM_LIBS})
 SET_TARGET_PROPERTIES(apr-1 PROPERTIES COMPILE_DEFINITIONS "APR_DECLARE_STATIC;WINNT")
 ADD_DEPENDENCIES(apr-1 test_char_header)
@@ -272,12 +271,10 @@ ADD_DEPENDENCIES(apr-1 test_char_header)
 # libaprapp-1 and aprapp-1 are static
 ADD_LIBRARY(libaprapp-1 STATIC misc/win32/apr_app.c misc/win32/internal.c ${APR_PUBLIC_HEADERS_GENERATED})
 SET(install_targets ${install_targets} libaprapp-1)
-SET(install_lib_pdb ${install_lib_pdb} ${PROJECT_BINARY_DIR}/libaprapp-1.pdb)
 SET_TARGET_PROPERTIES(libaprapp-1 PROPERTIES COMPILE_DEFINITIONS "APR_APP;WINNT")
 
 ADD_LIBRARY(aprapp-1 STATIC misc/win32/apr_app.c misc/win32/internal.c ${APR_PUBLIC_HEADERS_GENERATED})
 SET(install_targets ${install_targets} aprapp-1)
-SET(install_lib_pdb ${install_lib_pdb} ${PROJECT_BINARY_DIR}/aprapp-1.pdb)
 SET_TARGET_PROPERTIES(aprapp-1 PROPERTIES COMPILE_DEFINITIONS "APR_DECLARE_STATIC;APR_APP;WINNT")
 
 IF(APR_BUILD_TESTAPR)
@@ -393,10 +390,6 @@ INSTALL(TARGETS ${install_targets}
 IF(INSTALL_PDB)
   INSTALL(FILES ${install_bin_pdb}
           DESTINATION bin
-          CONFIGURATIONS RelWithDebInfo Debug)
-
-  INSTALL(FILES ${install_lib_pdb}
-          DESTINATION lib
           CONFIGURATIONS RelWithDebInfo Debug)
 ENDIF()
 

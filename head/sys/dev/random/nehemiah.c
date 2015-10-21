@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Mark R V Murray
+ * Copyright (c) 2013-2015 Mark R V Murray
  * Copyright (c) 2013 David E. O'Brien <obrien@NUXI.org>
  * All rights reserved.
  *
@@ -44,24 +44,17 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 
 #include <dev/random/randomdev.h>
-#include <dev/random/randomdev_soft.h>
-#include <dev/random/random_adaptors.h>
-#include <dev/random/live_entropy_sources.h>
 
 static void random_nehemiah_init(void);
 static void random_nehemiah_deinit(void);
 static u_int random_nehemiah_read(void *, u_int);
 
-static struct live_entropy_source random_nehemiah = {
-	.les_ident = "VIA Nehemiah Padlock RNG",
-	.les_source = RANDOM_PURE_NEHEMIAH,
-	.les_read = random_nehemiah_read
+static struct random_source random_nehemiah = {
+	.rs_ident = "VIA Nehemiah Padlock RNG",
+	.rs_source = RANDOM_PURE_NEHEMIAH,
+	.rs_read = random_nehemiah_read
 };
 
-/* XXX: FIX? Now that the Davies-Meyer hash is gone and we only use
- * the 'xstore' instruction, do we still need to preserve the
- * FPU state with fpu_kern_(enter|leave)() ?
- */
 static struct fpu_kern_ctx *fpu_ctx_save;
 
 /* This H/W source never stores more than 8 bytes in one go */
@@ -131,8 +124,8 @@ nehemiah_modevent(module_t mod, int type, void *unused)
 	switch (type) {
 	case MOD_LOAD:
 		if (via_feature_rng & VIA_HAS_RNG) {
-			live_entropy_source_register(&random_nehemiah);
-			printf("random: live provider: \"%s\"\n", random_nehemiah.les_ident);
+			random_source_register(&random_nehemiah);
+			printf("random: fast provider: \"%s\"\n", random_nehemiah.rs_ident);
 			random_nehemiah_init();
 		}
 		break;
@@ -140,7 +133,7 @@ nehemiah_modevent(module_t mod, int type, void *unused)
 	case MOD_UNLOAD:
 		if (via_feature_rng & VIA_HAS_RNG)
 			random_nehemiah_deinit();
-			live_entropy_source_deregister(&random_nehemiah);
+			random_source_deregister(&random_nehemiah);
 		break;
 
 	case MOD_SHUTDOWN:

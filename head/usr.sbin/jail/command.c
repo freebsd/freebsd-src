@@ -112,6 +112,12 @@ next_command(struct cfjail *j)
 				if (!bool_param(j->intparams[IP_MOUNT_FDESCFS]))
 					continue;
 				j->comstring = &dummystring;
+				break;
+			case IP_MOUNT_PROCFS:
+				if (!bool_param(j->intparams[IP_MOUNT_PROCFS]))
+					continue;
+				j->comstring = &dummystring;
+				break;
 			case IP__OP:
 			case IP_STOP_TIMEOUT:
 				j->comstring = &dummystring;
@@ -528,6 +534,32 @@ run_command(struct cfjail *j)
 		}
 		break;
 
+	case IP_MOUNT_PROCFS:
+		argv = alloca(7 * sizeof(char *));
+		path = string_param(j->intparams[KP_PATH]);
+		if (path == NULL) {
+			jail_warnx(j, "mount.procfs: no path");
+			return -1;
+		}
+		devpath = alloca(strlen(path) + 6);
+		sprintf(devpath, "%s/proc", path);
+		if (check_path(j, "mount.procfs", devpath, 0,
+		    down ? "procfs" : NULL) < 0)
+			return -1;
+		if (down) {
+			argv[0] = "/sbin/umount";
+			argv[1] = devpath;
+			argv[2] = NULL;
+		} else {
+			argv[0] = _PATH_MOUNT;
+			argv[1] = "-t";
+			argv[2] = "procfs";
+			argv[3] = ".";
+			argv[4] = devpath;
+			argv[5] = NULL;
+		}
+		break;
+
 	case IP_COMMAND:
 		if (j->name != NULL)
 			goto default_command;
@@ -729,7 +761,7 @@ add_proc(struct cfjail *j, pid_t pid)
 	if (j->timeout.tv_sec == 0)
 		requeue(j, &sleeping);
 	else {
-		/* File the jail in the sleep queue acording to its timeout. */
+		/* File the jail in the sleep queue according to its timeout. */
 		TAILQ_REMOVE(j->queue, j, tq);
 		TAILQ_FOREACH(tj, &sleeping, tq) {
 			if (!tj->timeout.tv_sec ||

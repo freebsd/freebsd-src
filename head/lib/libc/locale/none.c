@@ -209,7 +209,7 @@ struct xlocale_ctype __xlocale_global_ctype = {
 	256 /* __mb_sb_limit */
 };
 
-const struct xlocale_ctype __xlocale_C_ctype = {
+struct xlocale_ctype __xlocale_C_ctype = {
 	{{0}, "C"},
 	(_RuneLocale*)&_DefaultRuneLocale,
 	_none_mbrtowc,

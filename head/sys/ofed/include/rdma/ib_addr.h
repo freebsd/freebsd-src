@@ -31,17 +31,20 @@
  * SOFTWARE.
  */
 
-#if !defined(IB_ADDR_H)
+#ifndef IB_ADDR_H
 #define IB_ADDR_H
 
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>
+#include <linux/inetdevice.h>
 #include <linux/socket.h>
+#include <linux/if_vlan.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
-#include <linux/if_vlan.h>
+#include <net/if_inet6.h>
+#include <net/ipv6.h>
 
 struct rdma_addr_client {
 	atomic_t refcount;
@@ -72,7 +75,8 @@ struct rdma_dev_addr {
  * rdma_translate_ip - Translate a local IP address to an RDMA hardware
  *   address.
  */
-int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr);
+int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr,
+		      u16 *vlan_id);
 
 /**
  * rdma_resolve_ip - Resolve source and destination IP addresses to
@@ -101,6 +105,9 @@ void rdma_addr_cancel(struct rdma_dev_addr *addr);
 
 int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 	      const unsigned char *dst_dev_addr);
+int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id);
+int rdma_addr_find_dmac_by_grh(union ib_gid *sgid, union ib_gid *dgid, u8 *smac,
+			       u16 *vlan_id);
 
 static inline int ip_addr_size(struct sockaddr *addr)
 {
@@ -130,50 +137,56 @@ static inline int rdma_addr_gid_offset(struct rdma_dev_addr *dev_addr)
 	return dev_addr->dev_type == ARPHRD_INFINIBAND ? 4 : 0;
 }
 
-static inline void iboe_mac_vlan_to_ll(union ib_gid *gid, u8 *mac, u16 vid)
-{
-	memset(gid->raw, 0, 16);
-	*((u32 *)gid->raw) = cpu_to_be32(0xfe800000);
-	if (vid < 0x1000) {
-		gid->raw[12] = vid & 0xff;
-		gid->raw[11] = vid >> 8;
-	} else {
-		gid->raw[12] = 0xfe;
-		gid->raw[11] = 0xff;
-	}
-
-	memcpy(gid->raw + 13, mac + 3, 3);
-	memcpy(gid->raw + 8, mac, 3);
-	gid->raw[8] ^= 2;
-}
-
 static inline u16 rdma_vlan_dev_vlan_id(const struct net_device *dev)
 {
-#ifdef __linux__
-	return dev->priv_flags & IFF_802_1Q_VLAN ?
-		vlan_dev_vlan_id(dev) : 0xffff;
-#else
 	uint16_t tag;
 
 	if (VLAN_TAG(__DECONST(struct ifnet *, dev), &tag) != 0)
 		return 0xffff;
 	return tag;
-#endif
 }
 
+static inline int rdma_ip2gid(struct sockaddr *addr, union ib_gid *gid)
+{
+	switch (addr->sa_family) {
+	case AF_INET:
+		ipv6_addr_set_v4mapped(((struct sockaddr_in *)addr)->sin_addr.s_addr,
+				       (struct in6_addr *)gid);
+		break;
+	case AF_INET6:
+		memcpy(gid->raw, &((struct sockaddr_in6 *)addr)->sin6_addr,
+				   16);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/* Important - sockaddr should be a union of sockaddr_in and sockaddr_in6 */
+static inline int rdma_gid2ip(struct sockaddr *out, union ib_gid *gid)
+{
+	if (ipv6_addr_v4mapped((struct in6_addr *)gid)) {
+		struct sockaddr_in *out_in = (struct sockaddr_in *)out;
+		memset(out_in, 0, sizeof(*out_in));
+		out_in->sin_len = sizeof(*out_in);
+		out_in->sin_family = AF_INET;
+		memcpy(&out_in->sin_addr.s_addr, gid->raw + 12, 4);
+	} else {
+		struct sockaddr_in6 *out_in = (struct sockaddr_in6 *)out;
+		memset(out_in, 0, sizeof(*out_in));
+		out_in->sin6_family = AF_INET6;
+		memcpy(&out_in->sin6_addr.s6_addr, gid->raw, 16);
+	}
+	return 0;
+}
+
+/* This func is called only in loopback ip address (127.0.0.1)
+ * case in which sgid is not relevant
+ */
 static inline void iboe_addr_get_sgid(struct rdma_dev_addr *dev_addr,
 				      union ib_gid *gid)
 {
-	struct net_device *dev;
-	u16 vid = 0xffff;
-
-	dev = dev_get_by_index(&init_net, dev_addr->bound_dev_if);
-	if (dev) {
-		vid = rdma_vlan_dev_vlan_id(dev);
-		dev_put(dev);
-	}
-
-	iboe_mac_vlan_to_ll(gid, dev_addr->src_dev_addr, vid);
 }
 
 static inline void rdma_addr_get_sgid(struct rdma_dev_addr *dev_addr, union ib_gid *gid)
@@ -223,27 +236,6 @@ static inline enum ib_mtu iboe_get_mtu(int mtu)
 		return 0;
 }
 
-#ifdef __linux__
-static inline int iboe_get_rate(struct net_device *dev)
-{
-	struct ethtool_cmd cmd;
-
-	if (!dev->ethtool_ops || !dev->ethtool_ops->get_settings ||
-	    dev->ethtool_ops->get_settings(dev, &cmd))
-		return IB_RATE_PORT_CURRENT;
-
-	if (cmd.speed >= 40000)
-		return IB_RATE_40_GBPS;
-	else if (cmd.speed >= 30000)
-		return IB_RATE_30_GBPS;
-	else if (cmd.speed >= 20000)
-		return IB_RATE_20_GBPS;
-	else if (cmd.speed >= 10000)
-		return IB_RATE_10_GBPS;
-	else
-		return IB_RATE_PORT_CURRENT;
-}
-#else
 static inline int iboe_get_rate(struct net_device *dev)
 {
 	if (dev->if_baudrate >= IF_Gbps(40))
@@ -257,11 +249,10 @@ static inline int iboe_get_rate(struct net_device *dev)
 	else
 		return IB_RATE_PORT_CURRENT;
 }
-#endif
 
 static inline int rdma_link_local_addr(struct in6_addr *addr)
 {
-	if (addr->s6_addr32[0] == cpu_to_be32(0xfe800000) &&
+	if (addr->s6_addr32[0] == htonl(0xfe800000) &&
 	    addr->s6_addr32[1] == 0)
 		return 1;
 
@@ -279,6 +270,20 @@ static inline int rdma_is_multicast_addr(struct in6_addr *addr)
 {
 	return addr->s6_addr[0] == 0xff;
 }
+
+static inline void resolve_mcast_mac(struct in6_addr *addr, u8 *mac)
+{
+	if (addr->s6_addr[0] != 0xff)
+		return;
+
+#ifdef DUAL_MODE_MCAST_MAC
+	if (addr->s6_addr[1] == 0x0e) /* IPv4 */
+		ip_eth_mc_map(addr->s6_addr32[3], mac);
+	else
+#endif
+		ipv6_eth_mc_map(addr, mac);
+}
+
 
 static inline void rdma_get_mcast_mac(struct in6_addr *addr, u8 *mac)
 {
@@ -300,12 +305,7 @@ static inline u16 rdma_get_vlan_id(union ib_gid *dgid)
 
 static inline struct net_device *rdma_vlan_dev_real_dev(const struct net_device *dev)
 {
-#ifdef __linux__
-	return dev->priv_flags & IFF_802_1Q_VLAN ?
-		vlan_dev_real_dev(dev) : 0;
-#else
 	return VLAN_TRUNKDEV(__DECONST(struct ifnet *, dev));
-#endif
 }
 
 #endif /* IB_ADDR_H */

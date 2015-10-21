@@ -25,27 +25,26 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
+#include <geom/geom.h>
 
 #include <vm/vm.h>
+#include <vm/vm_page.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_map.h>
 
 int
 physio(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	struct buf *bp;
-	struct cdevsw *csw;
+	struct buf *pbuf;
+	struct bio *bp;
+	struct vm_page **pages;
 	caddr_t sa;
-	u_int iolen;
-	int error, i, mapped;
-
-	/* Keep the process UPAGES from being swapped. XXX: why ? */
-	PHOLD(curproc);
-
-	bp = getpbuf(NULL);
-	sa = bp->b_data;
-	error = 0;
+	u_int iolen, poff;
+	int error, i, npages, maxpages;
+	vm_prot_t prot;
 
 	/* XXX: sanity check */
 	if(dev->si_iosize_max < PAGE_SIZE) {
@@ -76,95 +75,128 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 			uprintf("%s: request vectors=%d > 1; "
 			    "cannot split request\n", devtoname(dev),
 			    uio->uio_iovcnt);
-
-		error = EFBIG;
-		goto doerror;
+		return (EFBIG);
 	}
 
+	/*
+	 * Keep the process UPAGES from being swapped.  Processes swapped
+	 * out while holding pbufs, used by swapper, may lead to deadlock.
+	 */
+	PHOLD(curproc);
+
+	bp = g_alloc_bio();
+	if (uio->uio_segflg != UIO_USERSPACE) {
+		pbuf = NULL;
+		pages = NULL;
+	} else if ((dev->si_flags & SI_UNMAPPED) && unmapped_buf_allowed) {
+		pbuf = NULL;
+		maxpages = btoc(MIN(uio->uio_resid, MAXPHYS)) + 1;
+		pages = malloc(sizeof(*pages) * maxpages, M_DEVBUF, M_WAITOK);
+	} else {
+		pbuf = getpbuf(NULL);
+		sa = pbuf->b_data;
+		maxpages = btoc(MAXPHYS);
+		pages = pbuf->b_pages;
+	}
+	prot = VM_PROT_READ;
+	if (uio->uio_rw == UIO_READ)
+		prot |= VM_PROT_WRITE;	/* Less backwards than it looks */
+	error = 0;
 	for (i = 0; i < uio->uio_iovcnt; i++) {
 		while (uio->uio_iov[i].iov_len) {
-			bp->b_flags = 0;
+			bzero(bp, sizeof(*bp));
 			if (uio->uio_rw == UIO_READ) {
-				bp->b_iocmd = BIO_READ;
+				bp->bio_cmd = BIO_READ;
 				curthread->td_ru.ru_inblock++;
 			} else {
-				bp->b_iocmd = BIO_WRITE;
+				bp->bio_cmd = BIO_WRITE;
 				curthread->td_ru.ru_oublock++;
 			}
-			bp->b_iodone = bdone;
-			bp->b_data = uio->uio_iov[i].iov_base;
-			bp->b_bcount = uio->uio_iov[i].iov_len;
-			bp->b_offset = uio->uio_offset;
-			bp->b_iooffset = uio->uio_offset;
-			bp->b_saveaddr = sa;
+			bp->bio_offset = uio->uio_offset;
+			bp->bio_data = uio->uio_iov[i].iov_base;
+			bp->bio_length = uio->uio_iov[i].iov_len;
+			if (bp->bio_length > dev->si_iosize_max)
+				bp->bio_length = dev->si_iosize_max;
+			if (bp->bio_length > MAXPHYS)
+				bp->bio_length = MAXPHYS;
 
-			/* Don't exceed drivers iosize limit */
-			if (bp->b_bcount > dev->si_iosize_max)
-				bp->b_bcount = dev->si_iosize_max;
-
-			/* 
-			 * Make sure the pbuf can map the request
-			 * XXX: The pbuf has kvasize = MAXPHYS so a request
-			 * XXX: larger than MAXPHYS - PAGE_SIZE must be
-			 * XXX: page aligned or it will be fragmented.
+			/*
+			 * Make sure the pbuf can map the request.
+			 * The pbuf has kvasize = MAXPHYS, so a request
+			 * larger than MAXPHYS - PAGE_SIZE must be
+			 * page aligned or it will be fragmented.
 			 */
-			iolen = ((vm_offset_t) bp->b_data) & PAGE_MASK;
-			if ((bp->b_bcount + iolen) > bp->b_kvasize) {
-				/*
-				 * This device does not want I/O to be split.
-				 */
+			poff = (vm_offset_t)bp->bio_data & PAGE_MASK;
+			if (pbuf && bp->bio_length + poff > pbuf->b_kvasize) {
 				if (dev->si_flags & SI_NOSPLIT) {
 					uprintf("%s: request ptr %p is not "
 					    "on a page boundary; cannot split "
 					    "request\n", devtoname(dev),
-					    bp->b_data);
+					    bp->bio_data);
 					error = EFBIG;
 					goto doerror;
 				}
-				bp->b_bcount = bp->b_kvasize;
-				if (iolen != 0)
-					bp->b_bcount -= PAGE_SIZE;
+				bp->bio_length = pbuf->b_kvasize;
+				if (poff != 0)
+					bp->bio_length -= PAGE_SIZE;
 			}
-			bp->b_bufsize = bp->b_bcount;
 
-			bp->b_blkno = btodb(bp->b_offset);
+			bp->bio_bcount = bp->bio_length;
+			bp->bio_dev = dev;
 
-			csw = dev->si_devsw;
-			if (uio->uio_segflg == UIO_USERSPACE) {
-				if (dev->si_flags & SI_UNMAPPED)
-					mapped = 0;
-				else
-					mapped = 1;
-				if (vmapbuf(bp, mapped) < 0) {
+			if (pages) {
+				if ((npages = vm_fault_quick_hold_pages(
+				    &curproc->p_vmspace->vm_map,
+				    (vm_offset_t)bp->bio_data, bp->bio_length,
+				    prot, pages, maxpages)) < 0) {
 					error = EFAULT;
 					goto doerror;
 				}
+				if (pbuf) {
+					pmap_qenter((vm_offset_t)sa,
+					    pages, npages);
+					bp->bio_data = sa + poff;
+				} else {
+					bp->bio_ma = pages;
+					bp->bio_ma_n = npages;
+					bp->bio_ma_offset = poff;
+					bp->bio_data = unmapped_buf;
+					bp->bio_flags |= BIO_UNMAPPED;
+				}
 			}
 
-			dev_strategy_csw(dev, csw, bp);
+			dev->si_devsw->d_strategy(bp);
 			if (uio->uio_rw == UIO_READ)
-				bwait(bp, PRIBIO, "physrd");
+				biowait(bp, "physrd");
 			else
-				bwait(bp, PRIBIO, "physwr");
+				biowait(bp, "physwr");
 
-			if (uio->uio_segflg == UIO_USERSPACE)
-				vunmapbuf(bp);
-			iolen = bp->b_bcount - bp->b_resid;
-			if (iolen == 0 && !(bp->b_ioflags & BIO_ERROR))
+			if (pages) {
+				if (pbuf)
+					pmap_qremove((vm_offset_t)sa, npages);
+				vm_page_unhold_pages(pages, npages);
+			}
+
+			iolen = bp->bio_length - bp->bio_resid;
+			if (iolen == 0 && !(bp->bio_flags & BIO_ERROR))
 				goto doerror;	/* EOF */
 			uio->uio_iov[i].iov_len -= iolen;
 			uio->uio_iov[i].iov_base =
 			    (char *)uio->uio_iov[i].iov_base + iolen;
 			uio->uio_resid -= iolen;
 			uio->uio_offset += iolen;
-			if( bp->b_ioflags & BIO_ERROR) {
-				error = bp->b_error;
+			if (bp->bio_flags & BIO_ERROR) {
+				error = bp->bio_error;
 				goto doerror;
 			}
 		}
 	}
 doerror:
-	relpbuf(bp, NULL);
+	if (pbuf)
+		relpbuf(pbuf, NULL);
+	else if (pages)
+		free(pages, M_DEVBUF);
+	g_destroy_bio(bp);
 	PRELE(curproc);
 	return (error);
 }

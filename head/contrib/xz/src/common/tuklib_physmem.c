@@ -33,6 +33,10 @@
 #	include <syidef.h>
 #	include <ssdef.h>
 
+#elif defined(AMIGA) || defined(__AROS__)
+#	define __USE_INLINE__
+#	include <proto/exec.h>
+
 // AIX
 #elif defined(TUKLIB_PHYSMEM_AIX)
 #	include <sys/systemcfg.h>
@@ -118,6 +122,9 @@ tuklib_physmem(void)
 	int val = SYI$_MEMSIZE;
 	if (LIB$GETSYI(&val, &vms_mem, 0, 0, 0, 0) == SS$_NORMAL)
 		ret = (uint64_t)vms_mem * 8192;
+
+#elif defined(AMIGA) || defined(__AROS__)
+	ret = AvailMem(MEMF_TOTAL);
 
 #elif defined(TUKLIB_PHYSMEM_AIX)
 	ret = _system_configuration.physmem;

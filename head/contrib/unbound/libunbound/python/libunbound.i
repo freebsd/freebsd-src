@@ -44,6 +44,10 @@
 
 %pythoncode %{
    import encodings.idna
+   try:
+       import builtins
+   except ImportError:
+       import __builtin__ as builtins
 
    # Ensure compatibility with older python versions
    if 'bytes' not in vars():
@@ -52,11 +56,15 @@
    def ord(s):
        if isinstance(s, int):
            return s
-       return __builtins__.ord(s)
+       return builtins.ord(s)
 %}
 
 //%include "doc.i"
+#if PY_MAJOR_VERSION >= 3
+%include "file_py3.i" // python 3 FILE *
+#else
 %include "file.i"
+#endif
 
 %feature("docstring") strerror "Convert error value to a human readable string."
 
@@ -699,7 +707,7 @@ Result: ['74.125.43.147', '74.125.43.99', '74.125.43.103', '74.125.43.104']
          while (idx < slen):
             complen = ord(s[idx])
             # In python 3.x `str()` converts the string to unicode which is the expected text string type
-            res.append(str(s[idx+1:idx+1+complen]))
+            res.append(str(s[idx+1:idx+1+complen].decode()))
             idx += complen + 1
 
          return res

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SYSTEM_RWMUTEX_H
-#define LLVM_SYSTEM_RWMUTEX_H
+#ifndef LLVM_SUPPORT_RWMUTEX_H
+#define LLVM_SUPPORT_RWMUTEX_H
 
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Threading.h"
@@ -70,14 +70,16 @@ namespace llvm
     /// @name Platform Dependent Data
     /// @{
     private:
+#if defined(LLVM_ENABLE_THREADS) && LLVM_ENABLE_THREADS != 0
       void* data_; ///< We don't know what the data will be
+#endif
 
     /// @}
     /// @name Do Not Implement
     /// @{
     private:
-      RWMutexImpl(const RWMutexImpl & original) LLVM_DELETED_FUNCTION;
-      void operator=(const RWMutexImpl &) LLVM_DELETED_FUNCTION;
+      RWMutexImpl(const RWMutexImpl & original) = delete;
+      void operator=(const RWMutexImpl &) = delete;
     /// @}
     };
 
@@ -85,14 +87,15 @@ namespace llvm
     /// indicates whether this mutex should become a no-op when we're not
     /// running in multithreaded mode.
     template<bool mt_only>
-    class SmartRWMutex : public RWMutexImpl {
+    class SmartRWMutex {
+      RWMutexImpl impl;
       unsigned readers, writers;
     public:
-      explicit SmartRWMutex() : RWMutexImpl(), readers(0), writers(0) { }
+      explicit SmartRWMutex() : impl(), readers(0), writers(0) { }
 
-      bool reader_acquire() {
+      bool lock_shared() {
         if (!mt_only || llvm_is_multithreaded())
-          return RWMutexImpl::reader_acquire();
+          return impl.reader_acquire();
 
         // Single-threaded debugging code.  This would be racy in multithreaded
         // mode, but provides not sanity checks in single threaded mode.
@@ -100,9 +103,9 @@ namespace llvm
         return true;
       }
 
-      bool reader_release() {
+      bool unlock_shared() {
         if (!mt_only || llvm_is_multithreaded())
-          return RWMutexImpl::reader_release();
+          return impl.reader_release();
 
         // Single-threaded debugging code.  This would be racy in multithreaded
         // mode, but provides not sanity checks in single threaded mode.
@@ -111,9 +114,9 @@ namespace llvm
         return true;
       }
 
-      bool writer_acquire() {
+      bool lock() {
         if (!mt_only || llvm_is_multithreaded())
-          return RWMutexImpl::writer_acquire();
+          return impl.writer_acquire();
 
         // Single-threaded debugging code.  This would be racy in multithreaded
         // mode, but provides not sanity checks in single threaded mode.
@@ -122,9 +125,9 @@ namespace llvm
         return true;
       }
 
-      bool writer_release() {
+      bool unlock() {
         if (!mt_only || llvm_is_multithreaded())
-          return RWMutexImpl::writer_release();
+          return impl.writer_release();
 
         // Single-threaded debugging code.  This would be racy in multithreaded
         // mode, but provides not sanity checks in single threaded mode.
@@ -145,11 +148,11 @@ namespace llvm
       SmartRWMutex<mt_only>& mutex;
 
       explicit SmartScopedReader(SmartRWMutex<mt_only>& m) : mutex(m) {
-        mutex.reader_acquire();
+        mutex.lock_shared();
       }
 
       ~SmartScopedReader() {
-        mutex.reader_release();
+        mutex.unlock_shared();
       }
     };
     typedef SmartScopedReader<false> ScopedReader;
@@ -160,11 +163,11 @@ namespace llvm
       SmartRWMutex<mt_only>& mutex;
 
       explicit SmartScopedWriter(SmartRWMutex<mt_only>& m) : mutex(m) {
-        mutex.writer_acquire();
+        mutex.lock();
       }
 
       ~SmartScopedWriter() {
-        mutex.writer_release();
+        mutex.unlock();
       }
     };
     typedef SmartScopedWriter<false> ScopedWriter;

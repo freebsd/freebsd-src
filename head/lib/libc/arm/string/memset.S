@@ -114,6 +114,7 @@ ENTRY(memset)
 	orr	r3, r3, r3, lsl #16	/* Extend value to 32-bits */
 #endif
 #ifdef _ARM_ARCH_5E
+	itt	ne
 	subne	r1, r1, #0x04		/* Quad-align if necessary */
 	strne	r3, [ip], #0x04
 	cmp	r1, #0x10
@@ -127,18 +128,22 @@ ENTRY(memset)
 .Lmemset_loop128:
 	subs	r1, r1, #0x80
 #ifdef _ARM_ARCH_5E
+	itttt	ge
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
+	itttt	ge
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
+	itttt	ge
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
+	itttt	ge
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
@@ -162,6 +167,7 @@ ENTRY(memset)
 	stmiage	ip!, {r2-r3}
 #endif
 	bgt	.Lmemset_loop128
+	it	eq
 	RETeq			/* Zero length so just exit */
 
 	add	r1, r1, #0x80		/* Adjust for extra sub */
@@ -169,6 +175,7 @@ ENTRY(memset)
 	/* Do 32 bytes at a time */
 .Lmemset_loop32:
 	subs	r1, r1, #0x20
+	itttt	ge
 #ifdef _ARM_ARCH_5E
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
@@ -181,11 +188,13 @@ ENTRY(memset)
 	stmiage	ip!, {r2-r3}
 #endif
 	bgt	.Lmemset_loop32
+	it	eq
 	RETeq			/* Zero length so just exit */
 
 	adds	r1, r1, #0x10		/* Partially adjust for extra sub */
 
 	/* Deal with 16 bytes or more */
+	itt	ge
 #ifdef _ARM_ARCH_5E
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
@@ -193,20 +202,25 @@ ENTRY(memset)
 	stmiage	ip!, {r2-r3}
 	stmiage	ip!, {r2-r3}
 #endif
+	it	eq
 	RETeq			/* Zero length so just exit */
 
+	it	lt
 	addlt	r1, r1, #0x10		/* Possibly adjust for extra sub */
 
 	/* We have at least 4 bytes so copy as words */
 .Lmemset_loop4:
 	subs	r1, r1, #0x04
+	it	ge
 	strge	r3, [ip], #0x04
 	bgt	.Lmemset_loop4
+	it	eq
 	RETeq			/* Zero length so just exit */
 
 #ifdef _ARM_ARCH_5E
 	/* Compensate for 64-bit alignment check */
 	adds	r1, r1, #0x04
+	it	eq
 	RETeq
 	cmp	r1, #2
 #else
@@ -214,7 +228,9 @@ ENTRY(memset)
 #endif
 
 	strb	r3, [ip], #0x01		/* Set 1 byte */
+	it	ge
 	strbge	r3, [ip], #0x01		/* Set another byte */
+	it	gt
 	strbgt	r3, [ip]		/* and a third */
 	RET			/* Exit */
 
@@ -222,18 +238,24 @@ ENTRY(memset)
 	rsb	r2, r2, #0x004
 	strb	r3, [ip], #0x01		/* Set 1 byte */
 	cmp	r2, #0x02
+	it	ge
 	strbge	r3, [ip], #0x01		/* Set another byte */
 	sub	r1, r1, r2
+	it	gt
 	strbgt	r3, [ip], #0x01		/* and a third */
 	cmp	r1, #0x04		/* More than 4 bytes left? */
+	it	ge
 	bge	.Lmemset_wordaligned	/* Yup */
 
 .Lmemset_lessthanfour:
 	cmp	r1, #0x00
+	it	eq
 	RETeq			/* Zero length so exit */
 	strb	r3, [ip], #0x01		/* Set 1 byte */
 	cmp	r1, #0x02
+	it	ge
 	strbge	r3, [ip], #0x01		/* Set another byte */
+	it	gt
 	strbgt	r3, [ip]		/* and a third */
 	RET			/* Exit */
 #ifdef _BZERO
@@ -241,3 +263,5 @@ END(bzero)
 #else
 END(memset)
 #endif
+
+	.section .note.GNU-stack,"",%progbits

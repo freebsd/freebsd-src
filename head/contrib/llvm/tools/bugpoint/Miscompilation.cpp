@@ -128,8 +128,8 @@ ReduceMiscompilingPasses::doTest(std::vector<std::string> &Prefix,
   // Ok, so now we know that the prefix passes work, try running the suffix
   // passes on the result of the prefix passes.
   //
-  std::unique_ptr<Module> PrefixOutput(
-      ParseInputFile(BitcodeResult, BD.getContext()));
+  std::unique_ptr<Module> PrefixOutput =
+      parseInputFile(BitcodeResult, BD.getContext());
   if (!PrefixOutput) {
     errs() << BD.getToolName() << ": Error reading bitcode file '"
            << BitcodeResult << "'!\n";
@@ -218,16 +218,12 @@ static Module *TestMergedProgram(const BugDriver &BD, Module *M1, Module *M2,
                                  bool DeleteInputs, std::string &Error,
                                  bool &Broken) {
   // Link the two portions of the program back to together.
-  std::string ErrorMsg;
   if (!DeleteInputs) {
     M1 = CloneModule(M1);
     M2 = CloneModule(M2);
   }
-  if (Linker::LinkModules(M1, M2, Linker::DestroySource, &ErrorMsg)) {
-    errs() << BD.getToolName() << ": Error linking modules together:"
-           << ErrorMsg << '\n';
+  if (Linker::LinkModules(M1, M2))
     exit(1);
-  }
   delete M2;   // We are done with this module.
 
   // Execute the program.
@@ -316,7 +312,7 @@ static bool ExtractLoops(BugDriver &BD,
     Module *ToOptimize = SplitFunctionsOutOfModule(ToNotOptimize,
                                                    MiscompiledFunctions,
                                                    VMap);
-    Module *ToOptimizeLoopExtracted = BD.ExtractLoop(ToOptimize);
+    Module *ToOptimizeLoopExtracted = BD.extractLoop(ToOptimize).release();
     if (!ToOptimizeLoopExtracted) {
       // If the loop extractor crashed or if there were no extractible loops,
       // then this chapter of our odyssey is over with.
@@ -334,8 +330,8 @@ static bool ExtractLoops(BugDriver &BD,
     // extraction.
     AbstractInterpreter *AI = BD.switchToSafeInterpreter();
     bool Failure;
-    Module *New = TestMergedProgram(BD, ToOptimizeLoopExtracted, ToNotOptimize,
-                                    false, Error, Failure);
+    Module *New = TestMergedProgram(BD, ToOptimizeLoopExtracted,
+                                    ToNotOptimize, false, Error, Failure);
     if (!New)
       return false;
 
@@ -364,7 +360,6 @@ static bool ExtractLoops(BugDriver &BD,
              << OutputPrefix << "-loop-extract-fail-*.bc files.\n";
       delete ToOptimize;
       delete ToNotOptimize;
-      delete ToOptimizeLoopExtracted;
       return MadeChange;
     }
     delete ToOptimize;
@@ -391,19 +386,12 @@ static bool ExtractLoops(BugDriver &BD,
       // that masked the error.  Stop loop extraction now.
 
       std::vector<std::pair<std::string, FunctionType*> > MisCompFunctions;
-      for (unsigned i = 0, e = MiscompiledFunctions.size(); i != e; ++i) {
-        Function *F = MiscompiledFunctions[i];
-        MisCompFunctions.push_back(std::make_pair(F->getName(),
-                                                  F->getFunctionType()));
+      for (Function *F : MiscompiledFunctions) {
+        MisCompFunctions.emplace_back(F->getName(), F->getFunctionType());
       }
 
-      std::string ErrorMsg;
-      if (Linker::LinkModules(ToNotOptimize, ToOptimizeLoopExtracted, 
-                              Linker::DestroySource, &ErrorMsg)){
-        errs() << BD.getToolName() << ": Error linking modules together:"
-               << ErrorMsg << '\n';
+      if (Linker::LinkModules(ToNotOptimize, ToOptimizeLoopExtracted))
         exit(1);
-      }
 
       MiscompiledFunctions.clear();
       for (unsigned i = 0, e = MisCompFunctions.size(); i != e; ++i) {
@@ -424,20 +412,15 @@ static bool ExtractLoops(BugDriver &BD,
     for (Module::iterator I = ToOptimizeLoopExtracted->begin(),
            E = ToOptimizeLoopExtracted->end(); I != E; ++I)
       if (!I->isDeclaration())
-        MisCompFunctions.push_back(std::make_pair(I->getName(),
-                                                  I->getFunctionType()));
+        MisCompFunctions.emplace_back(I->getName(), I->getFunctionType());
 
     // Okay, great!  Now we know that we extracted a loop and that loop
     // extraction both didn't break the program, and didn't mask the problem.
     // Replace the current program with the loop extracted version, and try to
     // extract another loop.
-    std::string ErrorMsg;
-    if (Linker::LinkModules(ToNotOptimize, ToOptimizeLoopExtracted, 
-                            Linker::DestroySource, &ErrorMsg)){
-      errs() << BD.getToolName() << ": Error linking modules together:"
-             << ErrorMsg << '\n';
+    if (Linker::LinkModules(ToNotOptimize, ToOptimizeLoopExtracted))
       exit(1);
-    }
+
     delete ToOptimizeLoopExtracted;
 
     // All of the Function*'s in the MiscompiledFunctions list are in the old
@@ -533,11 +516,12 @@ bool ReduceMiscompiledBlocks::TestFuncs(const std::vector<BasicBlock*> &BBs,
 
   // Try the extraction.  If it doesn't work, then the block extractor crashed
   // or something, in which case bugpoint can't chase down this possibility.
-  if (Module *New = BD.ExtractMappedBlocksFromModule(BBsOnClone, ToOptimize)) {
+  if (std::unique_ptr<Module> New =
+          BD.extractMappedBlocksFromModule(BBsOnClone, ToOptimize)) {
     delete ToOptimize;
     // Run the predicate,
     // note that the predicate will delete both input modules.
-    bool Ret = TestFn(BD, New, ToNotOptimize, Error);
+    bool Ret = TestFn(BD, New.get(), ToNotOptimize, Error);
     delete BD.swapProgramIn(Orig);
     return Ret;
   }
@@ -591,7 +575,8 @@ static bool ExtractBlocks(BugDriver &BD,
   Module *ToExtract = SplitFunctionsOutOfModule(ProgClone,
                                                 MiscompiledFunctions,
                                                 VMap);
-  Module *Extracted = BD.ExtractMappedBlocksFromModule(Blocks, ToExtract);
+  std::unique_ptr<Module> Extracted =
+      BD.extractMappedBlocksFromModule(Blocks, ToExtract);
   if (!Extracted) {
     // Weird, extraction should have worked.
     errs() << "Nondeterministic problem extracting blocks??\n";
@@ -608,17 +593,10 @@ static bool ExtractBlocks(BugDriver &BD,
   for (Module::iterator I = Extracted->begin(), E = Extracted->end();
        I != E; ++I)
     if (!I->isDeclaration())
-      MisCompFunctions.push_back(std::make_pair(I->getName(),
-                                                I->getFunctionType()));
+      MisCompFunctions.emplace_back(I->getName(), I->getFunctionType());
 
-  std::string ErrorMsg;
-  if (Linker::LinkModules(ProgClone, Extracted, Linker::DestroySource, 
-                          &ErrorMsg)) {
-    errs() << BD.getToolName() << ": Error linking modules together:"
-           << ErrorMsg << '\n';
+  if (Linker::LinkModules(ProgClone, Extracted.get()))
     exit(1);
-  }
-  delete Extracted;
 
   // Set the new program and delete the old one.
   BD.setNewProgram(ProgClone);
@@ -730,14 +708,15 @@ static bool TestOptimizer(BugDriver &BD, Module *Test, Module *Safe,
   // Run the optimization passes on ToOptimize, producing a transformed version
   // of the functions being tested.
   outs() << "  Optimizing functions being tested: ";
-  Module *Optimized = BD.runPassesOn(Test, BD.getPassesToRun(),
-                                     /*AutoDebugCrashes*/true);
+  std::unique_ptr<Module> Optimized = BD.runPassesOn(Test, BD.getPassesToRun(),
+                                                     /*AutoDebugCrashes*/ true);
   outs() << "done.\n";
   delete Test;
 
   outs() << "  Checking to see if the merged program executes correctly: ";
   bool Broken;
-  Module *New = TestMergedProgram(BD, Optimized, Safe, true, Error, Broken);
+  Module *New =
+      TestMergedProgram(BD, Optimized.get(), Safe, true, Error, Broken);
   if (New) {
     outs() << (Broken ? " nope.\n" : " yup.\n");
     // Delete the original and set the new program.
@@ -796,7 +775,7 @@ void BugDriver::debugMiscompilation(std::string *Error) {
 static void CleanupAndPrepareModules(BugDriver &BD, Module *&Test,
                                      Module *Safe) {
   // Clean up the modules, removing extra cruft that we don't need anymore...
-  Test = BD.performFinalCleanups(Test);
+  Test = BD.performFinalCleanups(Test).release();
 
   // If we are executing the JIT, we have several nasty issues to take care of.
   if (!BD.isExecutingJIT()) return;
@@ -869,7 +848,8 @@ static void CleanupAndPrepareModules(BugDriver &BD, Module *&Test,
         // GetElementPtr *funcName, ulong 0, ulong 0
         std::vector<Constant*> GEPargs(2,
                      Constant::getNullValue(Type::getInt32Ty(F->getContext())));
-        Value *GEP = ConstantExpr::getGetElementPtr(funcName, GEPargs);
+        Value *GEP = ConstantExpr::getGetElementPtr(InitArray->getType(),
+                                                    funcName, GEPargs);
         std::vector<Value*> ResolverArgs;
         ResolverArgs.push_back(GEP);
 
@@ -992,7 +972,7 @@ static bool TestCodeGenerator(BugDriver &BD, Module *Test, Module *Safe,
   }
 
   if (BD.writeProgramToFile(SafeModuleBC.str(), SafeModuleFD, Safe)) {
-    errs() << "Error writing bitcode to `" << SafeModuleBC.str()
+    errs() << "Error writing bitcode to `" << SafeModuleBC
            << "'\nExiting.";
     exit(1);
   }
@@ -1067,7 +1047,7 @@ bool BugDriver::debugCodeGenerator(std::string *Error) {
   }
 
   if (writeProgramToFile(TestModuleBC.str(), TestModuleFD, ToCodeGen)) {
-    errs() << "Error writing bitcode to `" << TestModuleBC.str()
+    errs() << "Error writing bitcode to `" << TestModuleBC
            << "'\nExiting.";
     exit(1);
   }
@@ -1085,7 +1065,7 @@ bool BugDriver::debugCodeGenerator(std::string *Error) {
   }
 
   if (writeProgramToFile(SafeModuleBC.str(), SafeModuleFD, ToNotCodeGen)) {
-    errs() << "Error writing bitcode to `" << SafeModuleBC.str()
+    errs() << "Error writing bitcode to `" << SafeModuleBC
            << "'\nExiting.";
     exit(1);
   }
@@ -1096,17 +1076,17 @@ bool BugDriver::debugCodeGenerator(std::string *Error) {
 
   outs() << "You can reproduce the problem with the command line: \n";
   if (isExecutingJIT()) {
-    outs() << "  lli -load " << SharedObject << " " << TestModuleBC.str();
+    outs() << "  lli -load " << SharedObject << " " << TestModuleBC;
   } else {
-    outs() << "  llc " << TestModuleBC.str() << " -o " << TestModuleBC.str()
+    outs() << "  llc " << TestModuleBC << " -o " << TestModuleBC
            << ".s\n";
     outs() << "  gcc " << SharedObject << " " << TestModuleBC.str()
-              << ".s -o " << TestModuleBC.str() << ".exe";
+              << ".s -o " << TestModuleBC << ".exe";
 #if defined (HAVE_LINK_R)
     outs() << " -Wl,-R.";
 #endif
     outs() << "\n";
-    outs() << "  " << TestModuleBC.str() << ".exe";
+    outs() << "  " << TestModuleBC << ".exe";
   }
   for (unsigned i = 0, e = InputArgv.size(); i != e; ++i)
     outs() << " " << InputArgv[i];

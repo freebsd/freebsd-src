@@ -17,7 +17,6 @@ CFLAGS+=	-I${OPENSOLARIS_USR_DISTDIR} \
 		-I${OPENSOLARIS_USR_DISTDIR}/tools/ctf/common \
 		-I${OPENSOLARIS_SYS_DISTDIR}/uts/common
 
-DPADD=		${LIBPTHREAD} ${LIBELF} ${LIBZ}
-LDADD=		-lpthread -lelf -lz
+LIBADD=		elf z
 
 .include <bsd.prog.mk>

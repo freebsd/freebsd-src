@@ -25,7 +25,7 @@ LIBADD+=	md
 .if ${MK_ICONV} != "no"
 # TODO: This can be changed back to CFLAGS once iconv works correctly
 # with statically linked binaries.
-SHARED_CFLAGS+=	-DHAVE_ICONV=1 -DHAVE_ICONV_H=1 -DICONV_CONST=const
+SHARED_CFLAGS+=	-DHAVE_ICONV=1 -DHAVE_ICONV_H=1 -DICONV_CONST=
 .endif
 
 .if ${MACHINE_ARCH:Marm*} != "" || ${MACHINE_ARCH:Mmips*} != "" || \
@@ -36,12 +36,6 @@ CFLAGS+=	-DPPMD_32BIT
 .endif
 .endif
 NO_WCAST_ALIGN.clang=
-
-.ifndef COMPAT_32BIT
-beforeinstall:
-	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-		${.CURDIR}/libarchive.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
-.endif
 
 .PATH: ${LIBARCHIVEDIR}/libarchive
 
@@ -404,11 +398,8 @@ MLINKS+=	archive_write_set_options.3 archive_write_set_format_option.3
 MLINKS+=	archive_write_set_options.3 archive_write_set_option.3
 MLINKS+=	libarchive.3 archive.3
 
-.PHONY: check test clean-test
-check test:
-	cd ${.CURDIR}/test && make obj && make test
-
-clean-test:
-	cd ${.CURDIR}/test && make clean
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.lib.mk>

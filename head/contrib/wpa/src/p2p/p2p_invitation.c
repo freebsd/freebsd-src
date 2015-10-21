@@ -10,13 +10,15 @@
 
 #include "common.h"
 #include "common/ieee802_11_defs.h"
+#include "common/wpa_ctrl.h"
 #include "p2p_i.h"
 #include "p2p.h"
 
 
 static struct wpabuf * p2p_build_invitation_req(struct p2p_data *p2p,
 						struct p2p_device *peer,
-						const u8 *go_dev_addr)
+						const u8 *go_dev_addr,
+						int dev_pw_id)
 {
 	struct wpabuf *buf;
 	u8 *len;
@@ -44,6 +46,9 @@ static struct wpabuf * p2p_build_invitation_req(struct p2p_data *p2p,
 		extra = wpabuf_len(wfd_ie);
 #endif /* CONFIG_WIFI_DISPLAY */
 
+	if (p2p->vendor_elem && p2p->vendor_elem[VENDOR_ELEM_P2P_INV_REQ])
+		extra += wpabuf_len(p2p->vendor_elem[VENDOR_ELEM_P2P_INV_REQ]);
+
 	buf = wpabuf_alloc(1000 + extra);
 	if (buf == NULL)
 		return NULL;
@@ -62,8 +67,11 @@ static struct wpabuf * p2p_build_invitation_req(struct p2p_data *p2p,
 					   p2p->client_timeout);
 	p2p_buf_add_invitation_flags(buf, p2p->inv_persistent ?
 				     P2P_INVITATION_FLAGS_TYPE : 0);
-	p2p_buf_add_operating_channel(buf, p2p->cfg->country,
-				      p2p->op_reg_class, p2p->op_channel);
+	if (p2p->inv_role != P2P_INVITE_ROLE_CLIENT ||
+	    !(peer->flags & P2P_DEV_NO_PREF_CHAN))
+		p2p_buf_add_operating_channel(buf, p2p->cfg->country,
+					      p2p->op_reg_class,
+					      p2p->op_channel);
 	if (p2p->inv_bssid_set)
 		p2p_buf_add_group_bssid(buf, p2p->inv_bssid);
 	p2p_buf_add_channel_list(buf, p2p->cfg->country, &p2p->channels);
@@ -77,10 +85,21 @@ static struct wpabuf * p2p_build_invitation_req(struct p2p_data *p2p,
 	p2p_buf_add_device_info(buf, p2p, peer);
 	p2p_buf_update_ie_hdr(buf, len);
 
+	p2p_buf_add_pref_channel_list(buf, p2p->pref_freq_list,
+				      p2p->num_pref_freq);
+
 #ifdef CONFIG_WIFI_DISPLAY
 	if (wfd_ie)
 		wpabuf_put_buf(buf, wfd_ie);
 #endif /* CONFIG_WIFI_DISPLAY */
+
+	if (p2p->vendor_elem && p2p->vendor_elem[VENDOR_ELEM_P2P_INV_REQ])
+		wpabuf_put_buf(buf, p2p->vendor_elem[VENDOR_ELEM_P2P_INV_REQ]);
+
+	if (dev_pw_id >= 0) {
+		/* WSC IE in Invitation Request for NFC static handover */
+		p2p_build_wps_ie(p2p, buf, dev_pw_id, 0);
+	}
 
 	return buf;
 }
@@ -118,6 +137,9 @@ static struct wpabuf * p2p_build_invitation_resp(struct p2p_data *p2p,
 		extra = wpabuf_len(wfd_ie);
 #endif /* CONFIG_WIFI_DISPLAY */
 
+	if (p2p->vendor_elem && p2p->vendor_elem[VENDOR_ELEM_P2P_INV_RESP])
+		extra += wpabuf_len(p2p->vendor_elem[VENDOR_ELEM_P2P_INV_RESP]);
+
 	buf = wpabuf_alloc(1000 + extra);
 	if (buf == NULL)
 		return NULL;
@@ -142,6 +164,9 @@ static struct wpabuf * p2p_build_invitation_resp(struct p2p_data *p2p,
 		wpabuf_put_buf(buf, wfd_ie);
 #endif /* CONFIG_WIFI_DISPLAY */
 
+	if (p2p->vendor_elem && p2p->vendor_elem[VENDOR_ELEM_P2P_INV_RESP])
+		wpabuf_put_buf(buf, p2p->vendor_elem[VENDOR_ELEM_P2P_INV_RESP]);
+
 	return buf;
 }
 
@@ -158,13 +183,12 @@ void p2p_process_invitation_req(struct p2p_data *p2p, const u8 *sa,
 	u8 group_bssid[ETH_ALEN], *bssid;
 	int op_freq = 0;
 	u8 reg_class = 0, channel = 0;
-	struct p2p_channels intersection, *channels = NULL;
+	struct p2p_channels all_channels, intersection, *channels = NULL;
 	int persistent;
 
 	os_memset(group_bssid, 0, sizeof(group_bssid));
 
-	wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-		"P2P: Received Invitation Request from " MACSTR " (freq=%d)",
+	p2p_dbg(p2p, "Received Invitation Request from " MACSTR " (freq=%d)",
 		MAC2STR(sa), rx_freq);
 
 	if (p2p_parse(data, len, &msg))
@@ -172,14 +196,12 @@ void p2p_process_invitation_req(struct p2p_data *p2p, const u8 *sa,
 
 	dev = p2p_get_device(p2p, sa);
 	if (dev == NULL || (dev->flags & P2P_DEV_PROBE_REQ_ONLY)) {
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-			"P2P: Invitation Request from unknown peer "
-			MACSTR, MAC2STR(sa));
+		p2p_dbg(p2p, "Invitation Request from unknown peer " MACSTR,
+			MAC2STR(sa));
 
-		if (p2p_add_device(p2p, sa, rx_freq, 0, 0, data + 1, len - 1,
+		if (p2p_add_device(p2p, sa, rx_freq, NULL, 0, data + 1, len - 1,
 				   0)) {
-			wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-				"P2P: Invitation Request add device failed "
+			p2p_dbg(p2p, "Invitation Request add device failed "
 				MACSTR, MAC2STR(sa));
 			status = P2P_SC_FAIL_INFO_CURRENTLY_UNAVAILABLE;
 			goto fail;
@@ -187,18 +209,16 @@ void p2p_process_invitation_req(struct p2p_data *p2p, const u8 *sa,
 
 		dev = p2p_get_device(p2p, sa);
 		if (dev == NULL) {
-			wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-				"P2P: Reject Invitation Request from unknown "
-				"peer " MACSTR, MAC2STR(sa));
+			p2p_dbg(p2p, "Reject Invitation Request from unknown peer "
+				MACSTR, MAC2STR(sa));
 			status = P2P_SC_FAIL_INFO_CURRENTLY_UNAVAILABLE;
 			goto fail;
 		}
 	}
 
 	if (!msg.group_id || !msg.channel_list) {
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-			"P2P: Mandatory attribute missing in Invitation "
-			"Request from " MACSTR, MAC2STR(sa));
+		p2p_dbg(p2p, "Mandatory attribute missing in Invitation Request from "
+			MACSTR, MAC2STR(sa));
 		status = P2P_SC_FAIL_INVALID_PARAMS;
 		goto fail;
 	}
@@ -211,46 +231,61 @@ void p2p_process_invitation_req(struct p2p_data *p2p, const u8 *sa,
 		 * the request was for a persistent group if the attribute is
 		 * missing.
 		 */
-		wpa_printf(MSG_DEBUG, "P2P: Mandatory Invitation Flags "
-			   "attribute missing from Invitation Request");
+		p2p_dbg(p2p, "Mandatory Invitation Flags attribute missing from Invitation Request");
 		persistent = 1;
 	}
 
-	if (p2p_peer_channels_check(p2p, &p2p->cfg->channels, dev,
+	p2p_channels_union(&p2p->cfg->channels, &p2p->cfg->cli_channels,
+			   &all_channels);
+
+	if (p2p_peer_channels_check(p2p, &all_channels, dev,
 				    msg.channel_list, msg.channel_list_len) <
 	    0) {
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-			"P2P: No common channels found");
+		p2p_dbg(p2p, "No common channels found");
 		status = P2P_SC_FAIL_NO_COMMON_CHANNELS;
 		goto fail;
 	}
+
+	p2p_channels_dump(p2p, "own channels", &p2p->cfg->channels);
+	p2p_channels_dump(p2p, "own client channels", &all_channels);
+	p2p_channels_dump(p2p, "peer channels", &dev->channels);
+	p2p_channels_intersect(&all_channels, &dev->channels,
+			       &intersection);
+	p2p_channels_dump(p2p, "intersection", &intersection);
 
 	if (p2p->cfg->invitation_process) {
 		status = p2p->cfg->invitation_process(
 			p2p->cfg->cb_ctx, sa, msg.group_bssid, msg.group_id,
 			msg.group_id + ETH_ALEN, msg.group_id_len - ETH_ALEN,
-			&go, group_bssid, &op_freq, persistent);
+			&go, group_bssid, &op_freq, persistent, &intersection,
+			msg.dev_password_id_present ? msg.dev_password_id : -1);
+	}
+
+	if (go) {
+		p2p_channels_intersect(&p2p->cfg->channels, &dev->channels,
+				       &intersection);
+		p2p_channels_dump(p2p, "intersection(GO)", &intersection);
+		if (intersection.reg_classes == 0) {
+			p2p_dbg(p2p, "No common channels found (GO)");
+			status = P2P_SC_FAIL_NO_COMMON_CHANNELS;
+			goto fail;
+		}
 	}
 
 	if (op_freq) {
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG, "P2P: Invitation "
-			"processing forced frequency %d MHz", op_freq);
-		if (p2p_freq_to_channel(p2p->cfg->country, op_freq,
-					&reg_class, &channel) < 0) {
-			wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-				"P2P: Unknown forced freq %d MHz from "
-				"invitation_process()", op_freq);
+		p2p_dbg(p2p, "Invitation processing forced frequency %d MHz",
+			op_freq);
+		if (p2p_freq_to_channel(op_freq, &reg_class, &channel) < 0) {
+			p2p_dbg(p2p, "Unknown forced freq %d MHz from invitation_process()",
+				op_freq);
 			status = P2P_SC_FAIL_NO_COMMON_CHANNELS;
 			goto fail;
 		}
 
-		p2p_channels_intersect(&p2p->cfg->channels, &dev->channels,
-				       &intersection);
 		if (!p2p_channels_includes(&intersection, reg_class, channel))
 		{
-			wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-				"P2P: forced freq %d MHz not in the supported "
-				"channels interaction", op_freq);
+			p2p_dbg(p2p, "forced freq %d MHz not in the supported channels interaction",
+				op_freq);
 			status = P2P_SC_FAIL_NO_COMMON_CHANNELS;
 			goto fail;
 		}
@@ -258,28 +293,21 @@ void p2p_process_invitation_req(struct p2p_data *p2p, const u8 *sa,
 		if (status == P2P_SC_SUCCESS)
 			channels = &intersection;
 	} else {
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-			"P2P: No forced channel from invitation processing - "
-			"figure out best one to use");
+		p2p_dbg(p2p, "No forced channel from invitation processing - figure out best one to use");
 
-		p2p_channels_intersect(&p2p->cfg->channels, &dev->channels,
-				       &intersection);
 		/* Default to own configuration as a starting point */
 		p2p->op_reg_class = p2p->cfg->op_reg_class;
 		p2p->op_channel = p2p->cfg->op_channel;
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG, "P2P: Own default "
-			"op_class %d channel %d",
+		p2p_dbg(p2p, "Own default op_class %d channel %d",
 			p2p->op_reg_class, p2p->op_channel);
 
 		/* Use peer preference if specified and compatible */
 		if (msg.operating_channel) {
 			int req_freq;
 			req_freq = p2p_channel_to_freq(
-				(const char *) msg.operating_channel,
 				msg.operating_channel[3],
 				msg.operating_channel[4]);
-			wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG, "P2P: Peer "
-				"operating channel preference: %d MHz",
+			p2p_dbg(p2p, "Peer operating channel preference: %d MHz",
 				req_freq);
 			if (req_freq > 0 &&
 			    p2p_channels_includes(&intersection,
@@ -287,56 +315,53 @@ void p2p_process_invitation_req(struct p2p_data *p2p, const u8 *sa,
 						  msg.operating_channel[4])) {
 				p2p->op_reg_class = msg.operating_channel[3];
 				p2p->op_channel = msg.operating_channel[4];
-				wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-					"P2P: Use peer preference op_class %d "
-					"channel %d",
+				p2p_dbg(p2p, "Use peer preference op_class %d channel %d",
 					p2p->op_reg_class, p2p->op_channel);
 			} else {
-				wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-					"P2P: Cannot use peer channel "
-					"preference");
+				p2p_dbg(p2p, "Cannot use peer channel preference");
 			}
 		}
 
-		if (!p2p_channels_includes(&intersection, p2p->op_reg_class,
+		/* Reselect the channel only for the case of the GO */
+		if (go &&
+		    !p2p_channels_includes(&intersection, p2p->op_reg_class,
 					   p2p->op_channel)) {
-			wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-				"P2P: Initially selected channel (op_class %d "
-				"channel %d) not in channel intersection - try "
-				"to reselect",
+			p2p_dbg(p2p, "Initially selected channel (op_class %d channel %d) not in channel intersection - try to reselect",
 				p2p->op_reg_class, p2p->op_channel);
 			p2p_reselect_channel(p2p, &intersection);
-			wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-				"P2P: Re-selection result: op_class %d "
-				"channel %d",
+			p2p_dbg(p2p, "Re-selection result: op_class %d channel %d",
 				p2p->op_reg_class, p2p->op_channel);
 			if (!p2p_channels_includes(&intersection,
 						   p2p->op_reg_class,
 						   p2p->op_channel)) {
-				wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-					"P2P: Peer does not support selected "
-					"operating channel (reg_class=%u "
-					"channel=%u)",
+				p2p_dbg(p2p, "Peer does not support selected operating channel (reg_class=%u channel=%u)",
 					p2p->op_reg_class, p2p->op_channel);
 				status = P2P_SC_FAIL_NO_COMMON_CHANNELS;
 				goto fail;
 			}
+		} else if (go && !(dev->flags & P2P_DEV_FORCE_FREQ) &&
+			   !p2p->cfg->cfg_op_channel) {
+			p2p_dbg(p2p, "Try to reselect channel selection with peer information received; previously selected op_class %u channel %u",
+				p2p->op_reg_class, p2p->op_channel);
+			p2p_reselect_channel(p2p, &intersection);
 		}
 
-		op_freq = p2p_channel_to_freq(p2p->cfg->country,
-					      p2p->op_reg_class,
+		/*
+		 * Use the driver preferred frequency list extension if
+		 * supported.
+		 */
+		p2p_check_pref_chan(p2p, go, dev, &msg);
+
+		op_freq = p2p_channel_to_freq(p2p->op_reg_class,
 					      p2p->op_channel);
 		if (op_freq < 0) {
-			wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-				"P2P: Unknown operational channel "
-				"(country=%c%c reg_class=%u channel=%u)",
+			p2p_dbg(p2p, "Unknown operational channel (country=%c%c reg_class=%u channel=%u)",
 				p2p->cfg->country[0], p2p->cfg->country[1],
 				p2p->op_reg_class, p2p->op_channel);
 			status = P2P_SC_FAIL_NO_COMMON_CHANNELS;
 			goto fail;
 		}
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG, "P2P: Selected operating "
-			"channel - %d MHz", op_freq);
+		p2p_dbg(p2p, "Selected operating channel - %d MHz", op_freq);
 
 		if (status == P2P_SC_SUCCESS) {
 			reg_class = p2p->op_reg_class;
@@ -359,12 +384,10 @@ fail:
 	if (rx_freq > 0)
 		freq = rx_freq;
 	else
-		freq = p2p_channel_to_freq(p2p->cfg->country,
-					   p2p->cfg->reg_class,
+		freq = p2p_channel_to_freq(p2p->cfg->reg_class,
 					   p2p->cfg->channel);
 	if (freq < 0) {
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-			"P2P: Unknown regulatory class/channel");
+		p2p_dbg(p2p, "Unknown regulatory class/channel");
 		goto out;
 	}
 
@@ -378,12 +401,17 @@ fail:
 		p2p->inv_group_bssid_ptr = p2p->inv_group_bssid;
 	} else
 		p2p->inv_group_bssid_ptr = NULL;
-	if (msg.group_id_len - ETH_ALEN <= 32) {
-		os_memcpy(p2p->inv_ssid, msg.group_id + ETH_ALEN,
-			  msg.group_id_len - ETH_ALEN);
-		p2p->inv_ssid_len = msg.group_id_len - ETH_ALEN;
+	if (msg.group_id) {
+		if (msg.group_id_len - ETH_ALEN <= SSID_MAX_LEN) {
+			os_memcpy(p2p->inv_ssid, msg.group_id + ETH_ALEN,
+				  msg.group_id_len - ETH_ALEN);
+			p2p->inv_ssid_len = msg.group_id_len - ETH_ALEN;
+		}
+		os_memcpy(p2p->inv_go_dev_addr, msg.group_id, ETH_ALEN);
+	} else {
+		p2p->inv_ssid_len = 0;
+		os_memset(p2p->inv_go_dev_addr, 0, ETH_ALEN);
 	}
-	os_memcpy(p2p->inv_go_dev_addr, msg.group_id, ETH_ALEN);
 	p2p->inv_status = status;
 	p2p->inv_op_freq = op_freq;
 
@@ -391,8 +419,7 @@ fail:
 	if (p2p_send_action(p2p, freq, sa, p2p->cfg->dev_addr,
 			    p2p->cfg->dev_addr,
 			    wpabuf_head(resp), wpabuf_len(resp), 200) < 0) {
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-			"P2P: Failed to send Action frame");
+		p2p_dbg(p2p, "Failed to send Action frame");
 	}
 
 out:
@@ -406,40 +433,126 @@ void p2p_process_invitation_resp(struct p2p_data *p2p, const u8 *sa,
 {
 	struct p2p_device *dev;
 	struct p2p_message msg;
+	struct p2p_channels intersection, *channels = NULL;
 
-	wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-		"P2P: Received Invitation Response from " MACSTR,
+	p2p_dbg(p2p, "Received Invitation Response from " MACSTR,
 		MAC2STR(sa));
 
 	dev = p2p_get_device(p2p, sa);
 	if (dev == NULL) {
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-			"P2P: Ignore Invitation Response from unknown peer "
+		p2p_dbg(p2p, "Ignore Invitation Response from unknown peer "
 			MACSTR, MAC2STR(sa));
+		p2p->cfg->send_action_done(p2p->cfg->cb_ctx);
 		return;
 	}
 
 	if (dev != p2p->invite_peer) {
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-			"P2P: Ignore unexpected Invitation Response from peer "
+		p2p_dbg(p2p, "Ignore unexpected Invitation Response from peer "
 			MACSTR, MAC2STR(sa));
+		p2p->cfg->send_action_done(p2p->cfg->cb_ctx);
 		return;
 	}
 
-	if (p2p_parse(data, len, &msg))
+	if (p2p_parse(data, len, &msg)) {
+		p2p->cfg->send_action_done(p2p->cfg->cb_ctx);
 		return;
+	}
 
 	if (!msg.status) {
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-			"P2P: Mandatory Status attribute missing in "
-			"Invitation Response from " MACSTR, MAC2STR(sa));
+		p2p_dbg(p2p, "Mandatory Status attribute missing in Invitation Response from "
+			MACSTR, MAC2STR(sa));
+		p2p_parse_free(&msg);
+		p2p->cfg->send_action_done(p2p->cfg->cb_ctx);
+		return;
+	}
+
+	/*
+	 * We should not really receive a replayed response twice since
+	 * duplicate frames are supposed to be dropped. However, not all drivers
+	 * do that for pre-association frames. We did not use to verify dialog
+	 * token matches for invitation response frames, but that check can be
+	 * safely used to drop a replayed response to the previous Invitation
+	 * Request in case the suggested operating channel was changed. This
+	 * allows a duplicated reject frame to be dropped with the assumption
+	 * that the real response follows after it.
+	 */
+	if (*msg.status == P2P_SC_FAIL_NO_COMMON_CHANNELS &&
+	    p2p->retry_invite_req_sent &&
+	    msg.dialog_token != dev->dialog_token) {
+		p2p_dbg(p2p, "Unexpected Dialog Token %u (expected %u)",
+			msg.dialog_token, dev->dialog_token);
 		p2p_parse_free(&msg);
 		return;
 	}
 
-	if (p2p->cfg->invitation_result)
+	if (*msg.status == P2P_SC_FAIL_NO_COMMON_CHANNELS &&
+	    p2p->retry_invite_req &&
+	    p2p_channel_random_social(&p2p->cfg->channels, &p2p->op_reg_class,
+				      &p2p->op_channel) == 0) {
+		p2p->retry_invite_req = 0;
+		p2p->cfg->send_action_done(p2p->cfg->cb_ctx);
+		p2p->cfg->stop_listen(p2p->cfg->cb_ctx);
+		p2p_set_state(p2p, P2P_INVITE);
+		p2p_dbg(p2p, "Resend Invitation Request setting op_class %u channel %u as operating channel",
+			p2p->op_reg_class, p2p->op_channel);
+		p2p->retry_invite_req_sent = 1;
+		p2p_invite_send(p2p, p2p->invite_peer, p2p->invite_go_dev_addr,
+				p2p->invite_dev_pw_id);
+		p2p_parse_free(&msg);
+		return;
+	}
+	p2p->cfg->send_action_done(p2p->cfg->cb_ctx);
+	p2p->retry_invite_req = 0;
+
+	if (!msg.channel_list && *msg.status == P2P_SC_SUCCESS) {
+		p2p_dbg(p2p, "Mandatory Channel List attribute missing in Invitation Response from "
+			MACSTR, MAC2STR(sa));
+#ifdef CONFIG_P2P_STRICT
+		p2p_parse_free(&msg);
+		return;
+#endif /* CONFIG_P2P_STRICT */
+		/* Try to survive without peer channel list */
+		channels = &p2p->channels;
+	} else if (!msg.channel_list) {
+		/* Non-success cases are not required to include Channel List */
+		channels = &p2p->channels;
+	} else if (p2p_peer_channels_check(p2p, &p2p->channels, dev,
+					   msg.channel_list,
+					   msg.channel_list_len) < 0) {
+		p2p_dbg(p2p, "No common channels found");
+		p2p_parse_free(&msg);
+		return;
+	} else {
+		p2p_channels_intersect(&p2p->channels, &dev->channels,
+				       &intersection);
+		channels = &intersection;
+	}
+
+	if (p2p->cfg->invitation_result) {
+		int peer_oper_freq = 0;
+		int freq = p2p_channel_to_freq(p2p->op_reg_class,
+					       p2p->op_channel);
+		if (freq < 0)
+			freq = 0;
+
+		if (msg.operating_channel) {
+			peer_oper_freq = p2p_channel_to_freq(
+				msg.operating_channel[3],
+				msg.operating_channel[4]);
+			if (peer_oper_freq < 0)
+				peer_oper_freq = 0;
+		}
+
+		/*
+		 * Use the driver preferred frequency list extension if
+		 * supported.
+		 */
+		p2p_check_pref_chan(p2p, 0, dev, &msg);
+
 		p2p->cfg->invitation_result(p2p->cfg->cb_ctx, *msg.status,
-					    msg.group_bssid);
+					    msg.group_bssid, channels, sa,
+					    freq, peer_oper_freq);
+	}
 
 	p2p_parse_free(&msg);
 
@@ -450,38 +563,39 @@ void p2p_process_invitation_resp(struct p2p_data *p2p, const u8 *sa,
 
 
 int p2p_invite_send(struct p2p_data *p2p, struct p2p_device *dev,
-		    const u8 *go_dev_addr)
+		    const u8 *go_dev_addr, int dev_pw_id)
 {
 	struct wpabuf *req;
 	int freq;
 
 	freq = dev->listen_freq > 0 ? dev->listen_freq : dev->oper_freq;
+	if (freq <= 0)
+		freq = dev->oob_go_neg_freq;
 	if (freq <= 0) {
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-			"P2P: No Listen/Operating frequency known for the "
-			"peer " MACSTR " to send Invitation Request",
+		p2p_dbg(p2p, "No Listen/Operating frequency known for the peer "
+			MACSTR " to send Invitation Request",
 			MAC2STR(dev->info.p2p_device_addr));
 		return -1;
 	}
 
-	req = p2p_build_invitation_req(p2p, dev, go_dev_addr);
+	req = p2p_build_invitation_req(p2p, dev, go_dev_addr, dev_pw_id);
 	if (req == NULL)
 		return -1;
 	if (p2p->state != P2P_IDLE)
 		p2p_stop_listen_for_freq(p2p, freq);
-	wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-		"P2P: Sending Invitation Request");
+	p2p_dbg(p2p, "Sending Invitation Request");
 	p2p_set_state(p2p, P2P_INVITE);
 	p2p->pending_action_state = P2P_PENDING_INVITATION_REQUEST;
 	p2p->invite_peer = dev;
 	dev->invitation_reqs++;
 	if (p2p_send_action(p2p, freq, dev->info.p2p_device_addr,
 			    p2p->cfg->dev_addr, dev->info.p2p_device_addr,
-			    wpabuf_head(req), wpabuf_len(req), 200) < 0) {
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-			"P2P: Failed to send Action frame");
+			    wpabuf_head(req), wpabuf_len(req), 500) < 0) {
+		p2p_dbg(p2p, "Failed to send Action frame");
 		/* Use P2P find to recover and retry */
 		p2p_set_timeout(p2p, 0, 0);
+	} else {
+		dev->flags |= P2P_DEV_WAIT_INV_REQ_ACK;
 	}
 
 	wpabuf_free(req);
@@ -492,31 +606,34 @@ int p2p_invite_send(struct p2p_data *p2p, struct p2p_device *dev,
 
 void p2p_invitation_req_cb(struct p2p_data *p2p, int success)
 {
-	wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-		"P2P: Invitation Request TX callback: success=%d", success);
+	p2p_dbg(p2p, "Invitation Request TX callback: success=%d", success);
 
 	if (p2p->invite_peer == NULL) {
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-			"P2P: No pending Invite");
+		p2p_dbg(p2p, "No pending Invite");
 		return;
 	}
+
+	if (success)
+		p2p->invite_peer->flags &= ~P2P_DEV_WAIT_INV_REQ_ACK;
 
 	/*
 	 * Use P2P find, if needed, to find the other device from its listen
 	 * channel.
 	 */
 	p2p_set_state(p2p, P2P_INVITE);
-	p2p_set_timeout(p2p, 0, 100000);
+	p2p_set_timeout(p2p, 0, success ? 500000 : 100000);
 }
 
 
 void p2p_invitation_resp_cb(struct p2p_data *p2p, int success)
 {
-	wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-		"P2P: Invitation Response TX callback: success=%d", success);
+	p2p_dbg(p2p, "Invitation Response TX callback: success=%d", success);
 	p2p->cfg->send_action_done(p2p->cfg->cb_ctx);
 
-	if (success && p2p->cfg->invitation_received) {
+	if (!success)
+		p2p_dbg(p2p, "Assume Invitation Response was actually received by the peer even though Ack was not reported");
+
+	if (p2p->cfg->invitation_received) {
 		p2p->cfg->invitation_received(p2p->cfg->cb_ctx,
 					      p2p->inv_sa,
 					      p2p->inv_group_bssid_ptr,
@@ -531,41 +648,55 @@ void p2p_invitation_resp_cb(struct p2p_data *p2p, int success)
 int p2p_invite(struct p2p_data *p2p, const u8 *peer, enum p2p_invite_role role,
 	       const u8 *bssid, const u8 *ssid, size_t ssid_len,
 	       unsigned int force_freq, const u8 *go_dev_addr,
-	       int persistent_group)
+	       int persistent_group, unsigned int pref_freq, int dev_pw_id)
 {
 	struct p2p_device *dev;
 
-	wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-		"P2P: Request to invite peer " MACSTR " role=%d persistent=%d "
+	p2p_dbg(p2p, "Request to invite peer " MACSTR " role=%d persistent=%d "
 		"force_freq=%u",
 		MAC2STR(peer), role, persistent_group, force_freq);
 	if (bssid)
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-			"P2P: Invitation for BSSID " MACSTR, MAC2STR(bssid));
+		p2p_dbg(p2p, "Invitation for BSSID " MACSTR, MAC2STR(bssid));
 	if (go_dev_addr) {
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-			"P2P: Invitation for GO Device Address " MACSTR,
+		p2p_dbg(p2p, "Invitation for GO Device Address " MACSTR,
 			MAC2STR(go_dev_addr));
 		os_memcpy(p2p->invite_go_dev_addr_buf, go_dev_addr, ETH_ALEN);
 		p2p->invite_go_dev_addr = p2p->invite_go_dev_addr_buf;
 	} else
 		p2p->invite_go_dev_addr = NULL;
-	wpa_hexdump_ascii(MSG_DEBUG, "P2P: Invitation for SSID",
+	wpa_hexdump_ascii(MSG_DEBUG, "Invitation for SSID",
 			  ssid, ssid_len);
+	if (dev_pw_id >= 0) {
+		p2p_dbg(p2p, "Invitation to use Device Password ID %d",
+			dev_pw_id);
+	}
+	p2p->invite_dev_pw_id = dev_pw_id;
+	p2p->retry_invite_req = role == P2P_INVITE_ROLE_GO &&
+		persistent_group && !force_freq;
+	p2p->retry_invite_req_sent = 0;
 
 	dev = p2p_get_device(p2p, peer);
-	if (dev == NULL || (dev->listen_freq <= 0 && dev->oper_freq <= 0)) {
-		wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-			"P2P: Cannot invite unknown P2P Device " MACSTR,
+	if (dev == NULL || (dev->listen_freq <= 0 && dev->oper_freq <= 0 &&
+			    dev->oob_go_neg_freq <= 0)) {
+		p2p_dbg(p2p, "Cannot invite unknown P2P Device " MACSTR,
 			MAC2STR(peer));
 		return -1;
 	}
 
+	if (p2p_prepare_channel(p2p, dev, force_freq, pref_freq,
+				role != P2P_INVITE_ROLE_CLIENT) < 0)
+		return -1;
+
+	if (persistent_group && role == P2P_INVITE_ROLE_CLIENT && !force_freq &&
+	    !pref_freq)
+		dev->flags |= P2P_DEV_NO_PREF_CHAN;
+	else
+		dev->flags &= ~P2P_DEV_NO_PREF_CHAN;
+
 	if (dev->flags & P2P_DEV_GROUP_CLIENT_ONLY) {
 		if (!(dev->info.dev_capab &
 		      P2P_DEV_CAPAB_CLIENT_DISCOVERABILITY)) {
-			wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-				"P2P: Cannot invite a P2P Device " MACSTR
+			p2p_dbg(p2p, "Cannot invite a P2P Device " MACSTR
 				" that is in a group and is not discoverable",
 				MAC2STR(peer));
 		}
@@ -573,26 +704,6 @@ int p2p_invite(struct p2p_data *p2p, const u8 *peer, enum p2p_invite_role role,
 	}
 
 	dev->invitation_reqs = 0;
-
-	if (force_freq) {
-		if (p2p_freq_to_channel(p2p->cfg->country, force_freq,
-					&p2p->op_reg_class, &p2p->op_channel) <
-		    0) {
-			wpa_msg(p2p->cfg->msg_ctx, MSG_DEBUG,
-				"P2P: Unsupported frequency %u MHz",
-				force_freq);
-			return -1;
-		}
-		p2p->channels.reg_classes = 1;
-		p2p->channels.reg_class[0].channels = 1;
-		p2p->channels.reg_class[0].reg_class = p2p->op_reg_class;
-		p2p->channels.reg_class[0].channel[0] = p2p->op_channel;
-	} else {
-		p2p->op_reg_class = p2p->cfg->op_reg_class;
-		p2p->op_channel = p2p->cfg->op_channel;
-		os_memcpy(&p2p->channels, &p2p->cfg->channels,
-			  sizeof(struct p2p_channels));
-	}
 
 	if (p2p->state != P2P_IDLE)
 		p2p_stop_find(p2p);
@@ -604,5 +715,5 @@ int p2p_invite(struct p2p_data *p2p, const u8 *peer, enum p2p_invite_role role,
 	os_memcpy(p2p->inv_ssid, ssid, ssid_len);
 	p2p->inv_ssid_len = ssid_len;
 	p2p->inv_persistent = persistent_group;
-	return p2p_invite_send(p2p, dev, go_dev_addr);
+	return p2p_invite_send(p2p, dev, go_dev_addr, dev_pw_id);
 }

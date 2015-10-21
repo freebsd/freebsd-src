@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FRONTEND_TEXT_DIAGNOSTIC_PRINTER_H_
-#define LLVM_CLANG_FRONTEND_TEXT_DIAGNOSTIC_PRINTER_H_
+#ifndef LLVM_CLANG_FRONTEND_TEXTDIAGNOSTICPRINTER_H
+#define LLVM_CLANG_FRONTEND_TEXTDIAGNOSTICPRINTER_H
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LLVM.h"
@@ -40,7 +40,7 @@ class TextDiagnosticPrinter : public DiagnosticConsumer {
 public:
   TextDiagnosticPrinter(raw_ostream &os, DiagnosticOptions *diags,
                         bool OwnsOutputStream = false);
-  virtual ~TextDiagnosticPrinter();
+  ~TextDiagnosticPrinter() override;
 
   /// setPrefix - Set the diagnostic printer prefix string, which will be
   /// printed at the start of any diagnostics. If empty, no prefix string is

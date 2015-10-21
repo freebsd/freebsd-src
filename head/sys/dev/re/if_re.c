@@ -238,6 +238,7 @@ static const struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8168F, RL_8169, "8168F/8111F", RL_JUMBO_MTU_9K},
 	{ RL_HWREV_8168G, RL_8169, "8168G/8111G", RL_JUMBO_MTU_9K},
 	{ RL_HWREV_8168GU, RL_8169, "8168GU/8111GU", RL_JUMBO_MTU_9K},
+	{ RL_HWREV_8168H, RL_8169, "8168H/8111H", RL_JUMBO_MTU_9K},
 	{ RL_HWREV_8411, RL_8169, "8411", RL_JUMBO_MTU_9K},
 	{ RL_HWREV_8411B, RL_8169, "8411B", RL_JUMBO_MTU_9K},
 	{ 0, 0, NULL, 0 }
@@ -304,6 +305,7 @@ static void re_set_linkspeed	(struct rl_softc *);
 
 #ifdef DEV_NETMAP	/* see ixgbe.c for details */
 #include <dev/netmap/if_re_netmap.h>
+MODULE_DEPEND(re, netmap, 1, 1, 1);
 #endif /* !DEV_NETMAP */
 
 #ifdef RE_DIAG
@@ -1484,6 +1486,7 @@ re_attach(device_t dev)
 		break;
 	case RL_HWREV_8168EP:
 	case RL_HWREV_8168G:
+	case RL_HWREV_8168H:
 	case RL_HWREV_8411B:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
@@ -3196,11 +3199,6 @@ re_init_locked(struct rl_softc *sc)
 		    ~0x00080000);
 
 	/*
-	 * Enable transmit and receive.
-	 */
-	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
-
-	/*
 	 * Set the initial TX configuration.
 	 */
 	if (sc->rl_testmode) {
@@ -3226,6 +3224,11 @@ re_init_locked(struct rl_softc *sc)
 		CSR_WRITE_2(sc, RL_INTRMOD, 0x5100);
 	}
 
+	/*
+	 * Enable transmit and receive.
+	 */
+	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB | RL_CMD_RX_ENB);
+
 #ifdef DEVICE_POLLING
 	/*
 	 * Disable interrupts if we are polling.
@@ -3249,10 +3252,6 @@ re_init_locked(struct rl_softc *sc)
 
 	/* Start RX/TX process. */
 	CSR_WRITE_4(sc, RL_MISSEDPKT, 0);
-#ifdef notdef
-	/* Enable receiver and transmitter. */
-	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
-#endif
 
 	/*
 	 * Initialize the timer interrupt register so that

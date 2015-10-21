@@ -25,6 +25,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/ConstantFolding.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
@@ -35,7 +36,6 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include <algorithm>
@@ -154,7 +154,7 @@ namespace {
 /// Constant Propagation.
 ///
 class SCCPSolver : public InstVisitor<SCCPSolver> {
-  const DataLayout *DL;
+  const DataLayout &DL;
   const TargetLibraryInfo *TLI;
   SmallPtrSet<BasicBlock*, 8> BBExecutable; // The BBs that are executable.
   DenseMap<Value*, LatticeVal> ValueState;  // The state each value is in.
@@ -206,15 +206,16 @@ class SCCPSolver : public InstVisitor<SCCPSolver> {
   typedef std::pair<BasicBlock*, BasicBlock*> Edge;
   DenseSet<Edge> KnownFeasibleEdges;
 public:
-  SCCPSolver(const DataLayout *DL, const TargetLibraryInfo *tli)
-    : DL(DL), TLI(tli) {}
+  SCCPSolver(const DataLayout &DL, const TargetLibraryInfo *tli)
+      : DL(DL), TLI(tli) {}
 
   /// MarkBlockExecutable - This method can be used by clients to mark all of
   /// the blocks that are known to be intrinsically live in the processed unit.
   ///
   /// This returns true if the block was not considered live before.
   bool MarkBlockExecutable(BasicBlock *BB) {
-    if (!BBExecutable.insert(BB)) return false;
+    if (!BBExecutable.insert(BB).second)
+      return false;
     DEBUG(dbgs() << "Marking Block Executable: " << BB->getName() << '\n');
     BBWorkList.push_back(BB);  // Add the block to the work list!
     return true;
@@ -1010,8 +1011,9 @@ void SCCPSolver::visitGetElementPtrInst(GetElementPtrInst &I) {
   }
 
   Constant *Ptr = Operands[0];
-  ArrayRef<Constant *> Indices(Operands.begin() + 1, Operands.end());
-  markConstant(&I, ConstantExpr::getGetElementPtr(Ptr, Indices));
+  auto Indices = makeArrayRef(Operands.begin() + 1, Operands.end());
+  markConstant(&I, ConstantExpr::getGetElementPtr(I.getSourceElementType(), Ptr,
+                                                  Indices));
 }
 
 void SCCPSolver::visitStoreInst(StoreInst &SI) {
@@ -1053,7 +1055,7 @@ void SCCPSolver::visitLoadInst(LoadInst &I) {
 
   // load null -> null
   if (isa<ConstantPointerNull>(Ptr) && I.getPointerAddressSpace() == 0)
-    return markConstant(IV, &I, Constant::getNullValue(I.getType()));
+    return markConstant(IV, &I, UndefValue::get(I.getType()));
 
   // Transform load (constant global) into the value loaded.
   if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Ptr)) {
@@ -1106,6 +1108,9 @@ CallOverdefined:
         assert(State.isConstant() && "Unknown state!");
         Operands.push_back(State.getConstant());
       }
+
+      if (getValueState(I).isOverdefined())
+        return;
 
       // If we can constant fold this, mark the result of the call as a
       // constant.
@@ -1500,7 +1505,7 @@ namespace {
   ///
   struct SCCP : public FunctionPass {
     void getAnalysisUsage(AnalysisUsage &AU) const override {
-      AU.addRequired<TargetLibraryInfo>();
+      AU.addRequired<TargetLibraryInfoWrapperPass>();
     }
     static char ID; // Pass identification, replacement for typeid
     SCCP() : FunctionPass(ID) {
@@ -1557,9 +1562,9 @@ bool SCCP::runOnFunction(Function &F) {
     return false;
 
   DEBUG(dbgs() << "SCCP on function '" << F.getName() << "'\n");
-  const DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
-  const DataLayout *DL = DLP ? &DLP->getDataLayout() : nullptr;
-  const TargetLibraryInfo *TLI = &getAnalysis<TargetLibraryInfo>();
+  const DataLayout &DL = F.getParent()->getDataLayout();
+  const TargetLibraryInfo *TLI =
+      &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
   SCCPSolver Solver(DL, TLI);
 
   // Mark the first block of the function as being executable.
@@ -1633,7 +1638,7 @@ namespace {
   ///
   struct IPSCCP : public ModulePass {
     void getAnalysisUsage(AnalysisUsage &AU) const override {
-      AU.addRequired<TargetLibraryInfo>();
+      AU.addRequired<TargetLibraryInfoWrapperPass>();
     }
     static char ID;
     IPSCCP() : ModulePass(ID) {
@@ -1647,7 +1652,7 @@ char IPSCCP::ID = 0;
 INITIALIZE_PASS_BEGIN(IPSCCP, "ipsccp",
                 "Interprocedural Sparse Conditional Constant Propagation",
                 false, false)
-INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
+INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
 INITIALIZE_PASS_END(IPSCCP, "ipsccp",
                 "Interprocedural Sparse Conditional Constant Propagation",
                 false, false)
@@ -1686,9 +1691,9 @@ static bool AddressIsTaken(const GlobalValue *GV) {
 }
 
 bool IPSCCP::runOnModule(Module &M) {
-  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
-  const DataLayout *DL = DLP ? &DLP->getDataLayout() : nullptr;
-  const TargetLibraryInfo *TLI = &getAnalysis<TargetLibraryInfo>();
+  const DataLayout &DL = M.getDataLayout();
+  const TargetLibraryInfo *TLI =
+      &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
   SCCPSolver Solver(DL, TLI);
 
   // AddressTakenFunctions - This set keeps track of the address-taken functions
@@ -1794,11 +1799,10 @@ bool IPSCCP::runOnModule(Module &M) {
         if (!TI->use_empty())
           TI->replaceAllUsesWith(UndefValue::get(TI->getType()));
         TI->eraseFromParent();
+        new UnreachableInst(M.getContext(), BB);
 
         if (&*BB != &F->front())
           BlocksToErase.push_back(BB);
-        else
-          new UnreachableInst(M.getContext(), BB);
         continue;
       }
 

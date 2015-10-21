@@ -382,7 +382,8 @@ uma_zfree(uma_zone_t zone, void *item)
  *	A pointer to the allocated memory or NULL on failure.
  */
 
-typedef void *(*uma_alloc)(uma_zone_t zone, int size, uint8_t *pflag, int wait);
+typedef void *(*uma_alloc)(uma_zone_t zone, vm_size_t size, uint8_t *pflag,
+    int wait);
 
 /*
  * Backend page free routines
@@ -395,7 +396,7 @@ typedef void *(*uma_alloc)(uma_zone_t zone, int size, uint8_t *pflag, int wait);
  * Returns:
  *	None
  */
-typedef void (*uma_free)(void *item, int size, uint8_t pflag);
+typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
 
 
 
@@ -688,5 +689,8 @@ struct uma_percpu_stat {
 	uint64_t	ups_cache_free;	/* Cache: free items in cache. */
 	uint64_t	_ups_reserved[5];	/* Reserved. */
 };
+
+void uma_reclaim_wakeup(void);
+void uma_reclaim_worker(void *);
 
 #endif	/* _VM_UMA_H_ */

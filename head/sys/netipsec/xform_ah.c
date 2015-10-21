@@ -82,11 +82,11 @@
 	(((sav)->flags & SADB_X_EXT_OLD) ? \
 		sizeof (struct ah) : sizeof (struct ah) + sizeof (u_int32_t))
 /* 
- * Return authenticator size in bytes.  The old protocol is known
- * to use a fixed 16-byte authenticator.  The new algorithm use 12-byte
- * authenticator.
+ * Return authenticator size in bytes, based on a field in the
+ * algorithm descriptor.
  */
-#define	AUTHSIZE(sav)	ah_authsize(sav)
+#define	AUTHSIZE(sav)	((sav->flags & SADB_X_EXT_OLD) ? 16 :	\
+			 xform_ah_authsize((sav)->tdb_authalgxform))
 
 VNET_DEFINE(int, ah_enable) = 1;	/* control flow of packets with AH */
 VNET_DEFINE(int, ah_cleartos) = 1;	/* clear ip_tos when doing AH calc */
@@ -112,27 +112,35 @@ static unsigned char ipseczeroes[256];	/* larger than an ip6 extension hdr */
 static int ah_input_cb(struct cryptop*);
 static int ah_output_cb(struct cryptop*);
 
-static int
-ah_authsize(struct secasvar *sav)
+int
+xform_ah_authsize(struct auth_hash *esph)
 {
+	int alen;
 
-	IPSEC_ASSERT(sav != NULL, ("%s: sav == NULL", __func__));
+	if (esph == NULL)
+		return 0;
 
-	if (sav->flags & SADB_X_EXT_OLD)
-		return 16;
+	switch (esph->type) {
+	case CRYPTO_SHA2_256_HMAC:
+	case CRYPTO_SHA2_384_HMAC:
+	case CRYPTO_SHA2_512_HMAC:
+		alen = esph->hashsize / 2;	/* RFC4868 2.3 */
+		break;
 
-	switch (sav->alg_auth) {
-	case SADB_X_AALG_SHA2_256:
-		return 16;
-	case SADB_X_AALG_SHA2_384:
-		return 24;
-	case SADB_X_AALG_SHA2_512:
-		return 32;
+	case CRYPTO_AES_128_NIST_GMAC:
+	case CRYPTO_AES_192_NIST_GMAC:
+	case CRYPTO_AES_256_NIST_GMAC:
+		alen = esph->hashsize;
+		break;
+
 	default:
-		return AH_HMAC_HASHLEN;
+		alen = AH_HMAC_HASHLEN;
+		break;
 	}
-	/* NOTREACHED */
+
+	return alen;
 }
+
 /*
  * NB: this is public for use by the PF_KEY support.
  */
@@ -160,6 +168,12 @@ ah_algorithm_lookup(int alg)
 		return &auth_hash_hmac_sha2_384;
 	case SADB_X_AALG_SHA2_512:
 		return &auth_hash_hmac_sha2_512;
+	case SADB_X_AALG_AES128GMAC:
+		return &auth_hash_nist_gmac_aes_128;
+	case SADB_X_AALG_AES192GMAC:
+		return &auth_hash_nist_gmac_aes_192;
+	case SADB_X_AALG_AES256GMAC:
+		return &auth_hash_nist_gmac_aes_256;
 	}
 	return NULL;
 }
@@ -567,6 +581,7 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 static int
 ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
+	char buf[128];
 	struct auth_hash *ahx;
 	struct tdb_crypto *tc;
 	struct newah *ah;
@@ -596,7 +611,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	if (sav->replay && !ipsec_chkreplay(ntohl(ah->ah_seq), sav)) {
 		AHSTAT_INC(ahs_replay);
 		DPRINTF(("%s: packet replay failure: %s\n", __func__,
-			  ipsec_logsastr(sav)));
+		    ipsec_logsastr(sav, buf, sizeof(buf))));
 		m_freem(m);
 		return ENOBUFS;
 	}
@@ -607,10 +622,10 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	authsize = AUTHSIZE(sav);
 	if (hl != authsize + rplen - sizeof (struct ah)) {
 		DPRINTF(("%s: bad authenticator length %u (expecting %lu)"
-			" for packet in SA %s/%08lx\n", __func__,
-			hl, (u_long) (authsize + rplen - sizeof (struct ah)),
-			ipsec_address(&sav->sah->saidx.dst),
-			(u_long) ntohl(sav->spi)));
+		    " for packet in SA %s/%08lx\n", __func__, hl,
+		    (u_long) (authsize + rplen - sizeof (struct ah)),
+		    ipsec_address(&sav->sah->saidx.dst, buf, sizeof(buf)),
+		    (u_long) ntohl(sav->spi)));
 		AHSTAT_INC(ahs_badauthl);
 		m_freem(m);
 		return EACCES;
@@ -695,6 +710,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 static int
 ah_input_cb(struct cryptop *crp)
 {
+	char buf[INET6_ADDRSTRLEN];
 	int rplen, error, skip, protoff;
 	unsigned char calc[AH_ALEN_MAX];
 	struct mbuf *m;
@@ -761,10 +777,10 @@ ah_input_cb(struct cryptop *crp)
 
 	/* Verify authenticator. */
 	ptr = (caddr_t) (tc + 1);
-	if (bcmp(ptr + skip + rplen, calc, authsize)) {
+	if (timingsafe_bcmp(ptr + skip + rplen, calc, authsize)) {
 		DPRINTF(("%s: authentication hash mismatch for packet "
 		    "in SA %s/%08lx\n", __func__,
-		    ipsec_address(&saidx->dst),
+		    ipsec_address(&saidx->dst, buf, sizeof(buf)),
 		    (u_long) ntohl(sav->spi)));
 		AHSTAT_INC(ahs_badauth);
 		error = EACCES;
@@ -803,8 +819,8 @@ ah_input_cb(struct cryptop *crp)
 	error = m_striphdr(m, skip, rplen + authsize);
 	if (error) {
 		DPRINTF(("%s: mangled mbuf chain for SA %s/%08lx\n", __func__,
-		    ipsec_address(&saidx->dst), (u_long) ntohl(sav->spi)));
-
+		    ipsec_address(&saidx->dst, buf, sizeof(buf)),
+		    (u_long) ntohl(sav->spi)));
 		AHSTAT_INC(ahs_hdrops);
 		goto bad;
 	}
@@ -843,13 +859,10 @@ bad:
  * AH output routine, called by ipsec[46]_process_packet().
  */
 static int
-ah_output(
-	struct mbuf *m,
-	struct ipsecrequest *isr,
-	struct mbuf **mp,
-	int skip,
-	int protoff)
+ah_output(struct mbuf *m, struct ipsecrequest *isr, struct mbuf **mp,
+    int skip, int protoff)
 {
+	char buf[INET6_ADDRSTRLEN];
 	struct secasvar *sav;
 	struct auth_hash *ahx;
 	struct cryptodesc *crda;
@@ -887,7 +900,7 @@ ah_output(
 		DPRINTF(("%s: unknown/unsupported protocol family %u, "
 		    "SA %s/%08lx\n", __func__,
 		    sav->sah->saidx.dst.sa.sa_family,
-		    ipsec_address(&sav->sah->saidx.dst),
+		    ipsec_address(&sav->sah->saidx.dst, buf, sizeof(buf)),
 		    (u_long) ntohl(sav->spi)));
 		AHSTAT_INC(ahs_nopf);
 		error = EPFNOSUPPORT;
@@ -897,7 +910,7 @@ ah_output(
 	if (rplen + authsize + m->m_pkthdr.len > maxpacketsize) {
 		DPRINTF(("%s: packet in SA %s/%08lx got too big "
 		    "(len %u, max len %u)\n", __func__,
-		    ipsec_address(&sav->sah->saidx.dst),
+		    ipsec_address(&sav->sah->saidx.dst, buf, sizeof(buf)),
 		    (u_long) ntohl(sav->spi),
 		    rplen + authsize + m->m_pkthdr.len, maxpacketsize));
 		AHSTAT_INC(ahs_toobig);
@@ -911,7 +924,7 @@ ah_output(
 	m = m_unshare(m, M_NOWAIT);
 	if (m == NULL) {
 		DPRINTF(("%s: cannot clone mbuf chain, SA %s/%08lx\n", __func__,
-		    ipsec_address(&sav->sah->saidx.dst),
+		    ipsec_address(&sav->sah->saidx.dst, buf, sizeof(buf)),
 		    (u_long) ntohl(sav->spi)));
 		AHSTAT_INC(ahs_hdrops);
 		error = ENOBUFS;
@@ -924,7 +937,7 @@ ah_output(
 		DPRINTF(("%s: failed to inject %u byte AH header for SA "
 		    "%s/%08lx\n", __func__,
 		    rplen + authsize,
-		    ipsec_address(&sav->sah->saidx.dst),
+		    ipsec_address(&sav->sah->saidx.dst, buf, sizeof(buf)),
 		    (u_long) ntohl(sav->spi)));
 		AHSTAT_INC(ahs_hdrops);		/*XXX differs from openbsd */
 		error = ENOBUFS;
@@ -951,9 +964,8 @@ ah_output(
 		if (sav->replay->count == ~0 &&
 		    (sav->flags & SADB_X_EXT_CYCSEQ) == 0) {
 			DPRINTF(("%s: replay counter wrapped for SA %s/%08lx\n",
-				__func__,
-				ipsec_address(&sav->sah->saidx.dst),
-				(u_long) ntohl(sav->spi)));
+			    __func__, ipsec_address(&sav->sah->saidx.dst, buf,
+			    sizeof(buf)), (u_long) ntohl(sav->spi)));
 			AHSTAT_INC(ahs_wrap);
 			error = EINVAL;
 			goto bad;
@@ -1056,6 +1068,7 @@ ah_output(
 	crp->crp_opaque = (caddr_t) tc;
 
 	/* These are passed as-is to the callback. */
+	key_addref(isr->sp);
 	tc->tc_isr = isr;
 	KEY_ADDREFSA(sav);
 	tc->tc_sav = sav;
@@ -1093,6 +1106,7 @@ ah_output_cb(struct cryptop *crp)
 	m = (struct mbuf *) crp->crp_buf;
 
 	isr = tc->tc_isr;
+	IPSEC_ASSERT(isr->sp != NULL, ("NULL isr->sp"));
 	IPSECREQUEST_LOCK(isr);
 	sav = tc->tc_sav;
 	/* With the isr lock released SA pointer can be updated. */
@@ -1156,16 +1170,18 @@ ah_output_cb(struct cryptop *crp)
 	error = ipsec_process_done(m, isr);
 	KEY_FREESAV(&sav);
 	IPSECREQUEST_UNLOCK(isr);
-	return error;
+	KEY_FREESP(&isr->sp);
+	return (error);
 bad:
 	if (sav)
 		KEY_FREESAV(&sav);
 	IPSECREQUEST_UNLOCK(isr);
+	KEY_FREESP(&isr->sp);
 	if (m)
 		m_freem(m);
 	free(tc, M_XDATA);
 	crypto_freereq(crp);
-	return error;
+	return (error);
 }
 
 static struct xformsw ah_xformsw = {

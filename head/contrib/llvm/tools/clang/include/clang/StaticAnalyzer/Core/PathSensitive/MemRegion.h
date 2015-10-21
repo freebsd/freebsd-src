@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_MEMREGION_H
-#define LLVM_CLANG_GR_MEMREGION_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_MEMREGION_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_MEMREGION_H
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CharUnits.h"
@@ -609,7 +609,7 @@ public:
 
   AnalysisDeclContext *getAnalysisDeclContext() const { return AC; }
 
-  virtual void dumpToStream(raw_ostream &os) const override;
+  void dumpToStream(raw_ostream &os) const override;
 
   void Profile(llvm::FoldingSetNodeID& ID) const override;
 
@@ -704,7 +704,7 @@ private:
 };
 
 /// SymbolicRegion - A special, "non-concrete" region. Unlike other region
-///  clases, SymbolicRegion represents a region that serves as an alias for
+///  classes, SymbolicRegion represents a region that serves as an alias for
 ///  either a real region, a NULL pointer, etc.  It essentially is used to
 ///  map the concept of symbolic values into the domain of regions.  Symbolic
 ///  regions do not need to be typed.

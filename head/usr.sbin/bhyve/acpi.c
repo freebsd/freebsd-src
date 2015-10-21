@@ -386,7 +386,7 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "[0001]\t\tDuty Cycle Width : 00\n");
 	EFPRINTF(fp, "[0001]\t\tRTC Day Alarm Index : 00\n");
 	EFPRINTF(fp, "[0001]\t\tRTC Month Alarm Index : 00\n");
-	EFPRINTF(fp, "[0001]\t\tRTC Century Index : 00\n");
+	EFPRINTF(fp, "[0001]\t\tRTC Century Index : 32\n");
 	EFPRINTF(fp, "[0002]\t\tBoot Flags (decoded below) : 0000\n");
 	EFPRINTF(fp, "\t\t\tLegacy Devices Supported (V2) : 0\n");
 	EFPRINTF(fp, "\t\t\t8042 Present on ports 60/64 (V2) : 0\n");
@@ -790,10 +790,10 @@ basl_open(struct basl_fio *bf, int suffix)
 	err = 0;
 
 	if (suffix) {
-		strncpy(bf->f_name, basl_stemplate, MAXPATHLEN);
+		strlcpy(bf->f_name, basl_stemplate, MAXPATHLEN);
 		bf->fd = mkstemps(bf->f_name, strlen(BHYVE_ASL_SUFFIX));
 	} else {
-		strncpy(bf->f_name, basl_template, MAXPATHLEN);
+		strlcpy(bf->f_name, basl_template, MAXPATHLEN);
 		bf->fd = mkstemp(bf->f_name);
 	}
 

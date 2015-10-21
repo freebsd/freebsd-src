@@ -29,7 +29,7 @@ static const char sccsid[] = "$Id: v_delete.c,v 10.11 2001/06/25 15:19:31 skimo 
  *	       [buffer][count]D
  *	Delete a range of text.
  *
- * PUBLIC: int v_delete __P((SCR *, VICMD *));
+ * PUBLIC: int v_delete(SCR *, VICMD *);
  */
 int
 v_delete(SCR *sp, VICMD *vp)

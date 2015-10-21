@@ -30,8 +30,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <climits>
 using namespace llvm;
 
@@ -166,15 +166,14 @@ public:
       NeedLatency(needlatency), AvailableQueue(availqueue), CurCycle(0),
       Topo(SUnits, nullptr) {
 
-    const TargetMachine &tm = mf.getTarget();
+    const TargetSubtargetInfo &STI = mf.getSubtarget();
     if (DisableSchedCycles || !NeedLatency)
       HazardRec = new ScheduleHazardRecognizer();
     else
-      HazardRec = tm.getInstrInfo()->CreateTargetHazardRecognizer(
-          tm.getSubtargetImpl(), this);
+      HazardRec = STI.getInstrInfo()->CreateTargetHazardRecognizer(&STI, this);
   }
 
-  ~ScheduleDAGRRList() {
+  ~ScheduleDAGRRList() override {
     delete HazardRec;
     delete AvailableQueue;
   }
@@ -416,8 +415,8 @@ static bool IsChainDependent(SDNode *Outer, SDNode *Inner,
     // to get to the CALLSEQ_BEGIN, but we need to find the path with the
     // most nesting in order to ensure that we find the corresponding match.
     if (N->getOpcode() == ISD::TokenFactor) {
-      for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i)
-        if (IsChainDependent(N->getOperand(i).getNode(), Inner, NestLevel, TII))
+      for (const SDValue &Op : N->op_values())
+        if (IsChainDependent(Op.getNode(), Inner, NestLevel, TII))
           return true;
       return false;
     }
@@ -434,9 +433,9 @@ static bool IsChainDependent(SDNode *Outer, SDNode *Inner,
       }
     }
     // Otherwise, find the chain and continue climbing.
-    for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i)
-      if (N->getOperand(i).getValueType() == MVT::Other) {
-        N = N->getOperand(i).getNode();
+    for (const SDValue &Op : N->op_values())
+      if (Op.getValueType() == MVT::Other) {
+        N = Op.getNode();
         goto found_chain_operand;
       }
     return false;
@@ -465,10 +464,10 @@ FindCallSeqStart(SDNode *N, unsigned &NestLevel, unsigned &MaxNest,
     if (N->getOpcode() == ISD::TokenFactor) {
       SDNode *Best = nullptr;
       unsigned BestMaxNest = MaxNest;
-      for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
+      for (const SDValue &Op : N->op_values()) {
         unsigned MyNestLevel = NestLevel;
         unsigned MyMaxNest = MaxNest;
-        if (SDNode *New = FindCallSeqStart(N->getOperand(i).getNode(),
+        if (SDNode *New = FindCallSeqStart(Op.getNode(),
                                            MyNestLevel, MyMaxNest, TII))
           if (!Best || (MyMaxNest > BestMaxNest)) {
             Best = New;
@@ -494,9 +493,9 @@ FindCallSeqStart(SDNode *N, unsigned &NestLevel, unsigned &MaxNest,
       }
     }
     // Otherwise, find the chain and continue climbing.
-    for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i)
-      if (N->getOperand(i).getValueType() == MVT::Other) {
-        N = N->getOperand(i).getNode();
+    for (const SDValue &Op : N->op_values())
+      if (Op.getValueType() == MVT::Other) {
+        N = Op.getNode();
         goto found_chain_operand;
       }
     return nullptr;
@@ -849,17 +848,26 @@ void ScheduleDAGRRList::UnscheduleNodeBottomUp(SUnit *SU) {
       }
     }
 
-  for (SUnit::succ_iterator I = SU->Succs.begin(), E = SU->Succs.end();
-       I != E; ++I) {
-    if (I->isAssignedRegDep()) {
-      if (!LiveRegDefs[I->getReg()])
+  for (auto &Succ : SU->Succs) {
+    if (Succ.isAssignedRegDep()) {
+      auto Reg = Succ.getReg();
+      if (!LiveRegDefs[Reg])
         ++NumLiveRegs;
       // This becomes the nearest def. Note that an earlier def may still be
       // pending if this is a two-address node.
-      LiveRegDefs[I->getReg()] = SU;
-      if (LiveRegGens[I->getReg()] == nullptr ||
-          I->getSUnit()->getHeight() < LiveRegGens[I->getReg()]->getHeight())
-        LiveRegGens[I->getReg()] = I->getSUnit();
+      LiveRegDefs[Reg] = SU;
+
+      // Update LiveRegGen only if was empty before this unscheduling.
+      // This is to avoid incorrect updating LiveRegGen set in previous run.
+      if (!LiveRegGens[Reg]) {
+        // Find the successor with the lowest height.
+        LiveRegGens[Reg] = Succ.getSUnit();
+        for (auto &Succ2 : SU->Succs) {
+          if (Succ2.isAssignedRegDep() && Succ2.getReg() == Reg &&
+              Succ2.getSUnit()->getHeight() < LiveRegGens[Reg]->getHeight())
+            LiveRegGens[Reg] = Succ2.getSUnit();
+        }
+      }
     }
   }
   if (SU->getHeight() < MinAvailableCycle)
@@ -946,15 +954,14 @@ SUnit *ScheduleDAGRRList::CopyAndMoveSuccessors(SUnit *SU) {
   SUnit *NewSU;
   bool TryUnfold = false;
   for (unsigned i = 0, e = N->getNumValues(); i != e; ++i) {
-    EVT VT = N->getValueType(i);
+    MVT VT = N->getSimpleValueType(i);
     if (VT == MVT::Glue)
       return nullptr;
     else if (VT == MVT::Other)
       TryUnfold = true;
   }
-  for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
-    const SDValue &Op = N->getOperand(i);
-    EVT VT = Op.getNode()->getValueType(Op.getResNo());
+  for (const SDValue &Op : N->op_values()) {
+    MVT VT = Op.getNode()->getSimpleValueType(Op.getResNo());
     if (VT == MVT::Glue)
       return nullptr;
   }
@@ -1189,17 +1196,23 @@ void ScheduleDAGRRList::InsertCopiesAndMoveSuccs(SUnit *SU, unsigned Reg,
 /// getPhysicalRegisterVT - Returns the ValueType of the physical register
 /// definition of the specified node.
 /// FIXME: Move to SelectionDAG?
-static EVT getPhysicalRegisterVT(SDNode *N, unsigned Reg,
+static MVT getPhysicalRegisterVT(SDNode *N, unsigned Reg,
                                  const TargetInstrInfo *TII) {
-  const MCInstrDesc &MCID = TII->get(N->getMachineOpcode());
-  assert(MCID.ImplicitDefs && "Physical reg def must be in implicit def list!");
-  unsigned NumRes = MCID.getNumDefs();
-  for (const uint16_t *ImpDef = MCID.getImplicitDefs(); *ImpDef; ++ImpDef) {
-    if (Reg == *ImpDef)
-      break;
-    ++NumRes;
+  unsigned NumRes;
+  if (N->getOpcode() == ISD::CopyFromReg) {
+    // CopyFromReg has: "chain, Val, glue" so operand 1 gives the type.
+    NumRes = 1;
+  } else {
+    const MCInstrDesc &MCID = TII->get(N->getMachineOpcode());
+    assert(MCID.ImplicitDefs && "Physical reg def must be in implicit def list!");
+    NumRes = MCID.getNumDefs();
+    for (const uint16_t *ImpDef = MCID.getImplicitDefs(); *ImpDef; ++ImpDef) {
+      if (Reg == *ImpDef)
+        break;
+      ++NumRes;
+    }
   }
-  return N->getValueType(NumRes);
+  return N->getSimpleValueType(NumRes);
 }
 
 /// CheckForLiveRegDef - Return true and update live register vector if the
@@ -1218,7 +1231,7 @@ static void CheckForLiveRegDef(SUnit *SU, unsigned Reg,
     if (LiveRegDefs[*AliasI] == SU) continue;
 
     // Add Reg to the set of interfering live regs.
-    if (RegAdded.insert(*AliasI)) {
+    if (RegAdded.insert(*AliasI).second) {
       LRegs.push_back(*AliasI);
     }
   }
@@ -1235,17 +1248,16 @@ static void CheckForLiveRegDefMasked(SUnit *SU, const uint32_t *RegMask,
     if (!LiveRegDefs[i]) continue;
     if (LiveRegDefs[i] == SU) continue;
     if (!MachineOperand::clobbersPhysReg(RegMask, i)) continue;
-    if (RegAdded.insert(i))
+    if (RegAdded.insert(i).second)
       LRegs.push_back(i);
   }
 }
 
 /// getNodeRegMask - Returns the register mask attached to an SDNode, if any.
 static const uint32_t *getNodeRegMask(const SDNode *N) {
-  for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i)
-    if (const RegisterMaskSDNode *Op =
-        dyn_cast<RegisterMaskSDNode>(N->getOperand(i).getNode()))
-      return Op->getRegMask();
+  for (const SDValue &Op : N->op_values())
+    if (const auto *RegOp = dyn_cast<RegisterMaskSDNode>(Op.getNode()))
+      return RegOp->getRegMask();
   return nullptr;
 }
 
@@ -1310,7 +1322,8 @@ DelayForLiveRegsBottomUp(SUnit *SU, SmallVectorImpl<unsigned> &LRegs) {
         SDNode *Gen = LiveRegGens[CallResource]->getNode();
         while (SDNode *Glued = Gen->getGluedNode())
           Gen = Glued;
-        if (!IsChainDependent(Gen, Node, 0, TII) && RegAdded.insert(CallResource))
+        if (!IsChainDependent(Gen, Node, 0, TII) &&
+            RegAdded.insert(CallResource).second)
           LRegs.push_back(CallResource);
       }
     }
@@ -1417,9 +1430,10 @@ SUnit *ScheduleDAGRRList::PickNodeToScheduleBottomUp() {
 
       // If one or more successors has been unscheduled, then the current
       // node is no longer available.
-      if (!TrySU->isAvailable)
+      if (!TrySU->isAvailable || !TrySU->NodeQueueId)
         CurSU = AvailableQueue->pop();
       else {
+        // Available and in AvailableQueue
         AvailableQueue->remove(TrySU);
         CurSU = TrySU;
       }
@@ -1439,7 +1453,7 @@ SUnit *ScheduleDAGRRList::PickNodeToScheduleBottomUp() {
     assert(LRegs.size() == 1 && "Can't handle this yet!");
     unsigned Reg = LRegs[0];
     SUnit *LRDef = LiveRegDefs[Reg];
-    EVT VT = getPhysicalRegisterVT(LRDef->getNode(), Reg, TII);
+    MVT VT = getPhysicalRegisterVT(LRDef->getNode(), Reg, TII);
     const TargetRegisterClass *RC =
       TRI->getMinimalPhysRegClass(Reg, VT);
     const TargetRegisterClass *DestRC = TRI->getCrossCopyRegClass(RC);
@@ -1930,8 +1944,8 @@ void RegReductionPQBase::dumpRegPressure() const {
     unsigned Id = RC->getID();
     unsigned RP = RegPressure[Id];
     if (!RP) continue;
-    DEBUG(dbgs() << RC->getName() << ": " << RP << " / " << RegLimit[Id]
-          << '\n');
+    DEBUG(dbgs() << TRI->getRegClassName(RC) << ": " << RP << " / "
+          << RegLimit[Id] << '\n');
   }
 #endif
 }
@@ -2754,7 +2768,7 @@ static bool canClobberPhysRegDefs(const SUnit *SuccSU, const SUnit *SU,
     if (!SUImpDefs && !SURegMask)
       continue;
     for (unsigned i = NumDefs, e = N->getNumValues(); i != e; ++i) {
-      EVT VT = N->getValueType(i);
+      MVT VT = N->getSimpleValueType(i);
       if (VT == MVT::Glue || VT == MVT::Other)
         continue;
       if (!N->hasAnyUseOfValue(i))
@@ -2977,9 +2991,9 @@ void RegReductionPQBase::AddPseudoTwoAddrDeps() {
 llvm::ScheduleDAGSDNodes *
 llvm::createBURRListDAGScheduler(SelectionDAGISel *IS,
                                  CodeGenOpt::Level OptLevel) {
-  const TargetMachine &TM = IS->TM;
-  const TargetInstrInfo *TII = TM.getInstrInfo();
-  const TargetRegisterInfo *TRI = TM.getRegisterInfo();
+  const TargetSubtargetInfo &STI = IS->MF->getSubtarget();
+  const TargetInstrInfo *TII = STI.getInstrInfo();
+  const TargetRegisterInfo *TRI = STI.getRegisterInfo();
 
   BURegReductionPriorityQueue *PQ =
     new BURegReductionPriorityQueue(*IS->MF, false, false, TII, TRI, nullptr);
@@ -2991,9 +3005,9 @@ llvm::createBURRListDAGScheduler(SelectionDAGISel *IS,
 llvm::ScheduleDAGSDNodes *
 llvm::createSourceListDAGScheduler(SelectionDAGISel *IS,
                                    CodeGenOpt::Level OptLevel) {
-  const TargetMachine &TM = IS->TM;
-  const TargetInstrInfo *TII = TM.getInstrInfo();
-  const TargetRegisterInfo *TRI = TM.getRegisterInfo();
+  const TargetSubtargetInfo &STI = IS->MF->getSubtarget();
+  const TargetInstrInfo *TII = STI.getInstrInfo();
+  const TargetRegisterInfo *TRI = STI.getRegisterInfo();
 
   SrcRegReductionPriorityQueue *PQ =
     new SrcRegReductionPriorityQueue(*IS->MF, false, true, TII, TRI, nullptr);
@@ -3005,10 +3019,10 @@ llvm::createSourceListDAGScheduler(SelectionDAGISel *IS,
 llvm::ScheduleDAGSDNodes *
 llvm::createHybridListDAGScheduler(SelectionDAGISel *IS,
                                    CodeGenOpt::Level OptLevel) {
-  const TargetMachine &TM = IS->TM;
-  const TargetInstrInfo *TII = TM.getInstrInfo();
-  const TargetRegisterInfo *TRI = TM.getRegisterInfo();
-  const TargetLowering *TLI = IS->getTargetLowering();
+  const TargetSubtargetInfo &STI = IS->MF->getSubtarget();
+  const TargetInstrInfo *TII = STI.getInstrInfo();
+  const TargetRegisterInfo *TRI = STI.getRegisterInfo();
+  const TargetLowering *TLI = IS->TLI;
 
   HybridBURRPriorityQueue *PQ =
     new HybridBURRPriorityQueue(*IS->MF, true, false, TII, TRI, TLI);
@@ -3021,10 +3035,10 @@ llvm::createHybridListDAGScheduler(SelectionDAGISel *IS,
 llvm::ScheduleDAGSDNodes *
 llvm::createILPListDAGScheduler(SelectionDAGISel *IS,
                                 CodeGenOpt::Level OptLevel) {
-  const TargetMachine &TM = IS->TM;
-  const TargetInstrInfo *TII = TM.getInstrInfo();
-  const TargetRegisterInfo *TRI = TM.getRegisterInfo();
-  const TargetLowering *TLI = IS->getTargetLowering();
+  const TargetSubtargetInfo &STI = IS->MF->getSubtarget();
+  const TargetInstrInfo *TII = STI.getInstrInfo();
+  const TargetRegisterInfo *TRI = STI.getRegisterInfo();
+  const TargetLowering *TLI = IS->TLI;
 
   ILPBURRPriorityQueue *PQ =
     new ILPBURRPriorityQueue(*IS->MF, true, false, TII, TRI, TLI);

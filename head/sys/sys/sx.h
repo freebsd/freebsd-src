@@ -153,8 +153,8 @@ __sx_xlock(struct sx *sx, struct thread *td, int opts, const char *file,
 	if (!atomic_cmpset_acq_ptr(&sx->sx_lock, SX_LOCK_UNLOCKED, tid))
 		error = _sx_xlock_hard(sx, tid, opts, file, line);
 	else 
-		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_SX_XLOCK_ACQUIRE,
-		    sx, 0, 0, file, line);
+		LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(sx__acquire, sx,
+		    0, 0, file, line, LOCKSTAT_WRITER);
 
 	return (error);
 }
@@ -166,7 +166,8 @@ __sx_xunlock(struct sx *sx, struct thread *td, const char *file, int line)
 	uintptr_t tid = (uintptr_t)td;
 
 	if (sx->sx_recurse == 0)
-		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_SX_XUNLOCK_RELEASE, sx);
+		LOCKSTAT_PROFILE_RELEASE_RWLOCK(sx__release, sx,
+		    LOCKSTAT_WRITER);
 	if (!atomic_cmpset_rel_ptr(&sx->sx_lock, tid, SX_LOCK_UNLOCKED))
 		_sx_xunlock_hard(sx, tid, file, line);
 }
@@ -182,8 +183,8 @@ __sx_slock(struct sx *sx, int opts, const char *file, int line)
 	    !atomic_cmpset_acq_ptr(&sx->sx_lock, x, x + SX_ONE_SHARER))
 		error = _sx_slock_hard(sx, opts, file, line);
 	else
-		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(LS_SX_SLOCK_ACQUIRE, sx, 0,
-		    0, file, line);
+		LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(sx__acquire, sx,
+		    0, 0, file, line, LOCKSTAT_READER);
 
 	return (error);
 }
@@ -200,7 +201,7 @@ __sx_sunlock(struct sx *sx, const char *file, int line)
 {
 	uintptr_t x = sx->sx_lock;
 
-	LOCKSTAT_PROFILE_RELEASE_LOCK(LS_SX_SUNLOCK_RELEASE, sx);
+	LOCKSTAT_PROFILE_RELEASE_RWLOCK(sx__release, sx, LOCKSTAT_READER);
 	if (x == (SX_SHARERS_LOCK(1) | SX_LOCK_EXCLUSIVE_WAITERS) ||
 	    !atomic_cmpset_rel_ptr(&sx->sx_lock, x, x - SX_ONE_SHARER))
 		_sx_sunlock_hard(sx, file, line);

@@ -147,10 +147,12 @@ amfs_program_exec(char *info)
   (void) fclose(stdout);
   if (!logfp)
     logfp = stderr;		/* initialize before possible first use */
-  (void) dup(fileno(logfp));
+    if (dup(fileno(logfp)) == -1)
+      return errno;
   if (fileno(logfp) != fileno(stderr)) {
     (void) fclose(stderr);
-    (void) dup(fileno(logfp));
+    if (dup(fileno(logfp)) == -1)
+      return errno;
   }
 
   /*

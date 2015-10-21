@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPS16REGISTERINFO_H
-#define MIPS16REGISTERINFO_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPS16REGISTERINFO_H
+#define LLVM_LIB_TARGET_MIPS_MIPS16REGISTERINFO_H
 
 #include "MipsRegisterInfo.h"
 
@@ -21,7 +21,7 @@ class Mips16InstrInfo;
 
 class Mips16RegisterInfo : public MipsRegisterInfo {
 public:
-  Mips16RegisterInfo(const MipsSubtarget &Subtarget);
+  Mips16RegisterInfo();
 
   bool requiresRegisterScavenging(const MachineFunction &MF) const override;
 

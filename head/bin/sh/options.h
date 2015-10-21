@@ -64,8 +64,10 @@ struct shparam {
 #define	Tflag optlist[16].val
 #define	Pflag optlist[17].val
 #define	hflag optlist[18].val
+#define	nologflag optlist[19].val
 
-#define NOPTS	19
+#define NSHORTOPTS	19
+#define NOPTS		20
 
 struct optent {
 	const char *name;
@@ -73,6 +75,7 @@ struct optent {
 	char val;
 };
 
+extern struct optent optlist[NOPTS];
 #ifdef DEFINE_OPTIONS
 struct optent optlist[NOPTS] = {
 	{ "errexit",	'e',	0 },
@@ -94,9 +97,8 @@ struct optent optlist[NOPTS] = {
 	{ "trapsasync",	'T',	0 },
 	{ "physical",	'P',	0 },
 	{ "trackall",	'h',	0 },
+	{ "nolog",	'\0',	0 },
 };
-#else
-extern struct optent optlist[NOPTS];
 #endif
 
 

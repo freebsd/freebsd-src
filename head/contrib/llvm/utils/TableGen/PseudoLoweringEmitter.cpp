@@ -232,12 +232,12 @@ void PseudoLoweringEmitter::emitLoweringEmitter(raw_ostream &o) {
               << "      TmpInst.addOperand(MCOp);\n";
             break;
             case OpData::Imm:
-            o << "      TmpInst.addOperand(MCOperand::CreateImm("
+            o << "      TmpInst.addOperand(MCOperand::createImm("
               << Expansion.OperandMap[MIOpNo + i].Data.Imm << "));\n";
             break;
             case OpData::Reg: {
               Record *Reg = Expansion.OperandMap[MIOpNo + i].Data.Reg;
-              o << "      TmpInst.addOperand(MCOperand::CreateReg(";
+              o << "      TmpInst.addOperand(MCOperand::createReg(";
               // "zero_reg" is special.
               if (Reg->getName() == "zero_reg")
                 o << "0";
@@ -277,11 +277,10 @@ void PseudoLoweringEmitter::run(raw_ostream &o) {
   assert(InstructionClass && "Instruction class definition missing!");
 
   std::vector<Record*> Insts;
-  for (std::map<std::string, Record*>::const_iterator I =
-         Records.getDefs().begin(), E = Records.getDefs().end(); I != E; ++I) {
-    if (I->second->isSubClassOf(ExpansionClass) &&
-        I->second->isSubClassOf(InstructionClass))
-      Insts.push_back(I->second);
+  for (const auto &D : Records.getDefs()) {
+    if (D.second->isSubClassOf(ExpansionClass) &&
+        D.second->isSubClassOf(InstructionClass))
+      Insts.push_back(D.second.get());
   }
 
   // Process the pseudo expansion definitions, validating them as we do so.

@@ -37,6 +37,7 @@
 #include <sys/sx.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
+#include <sys/errno.h>
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
@@ -44,28 +45,32 @@
 
 #include "iicbus_if.h"
 
-#define BUFSIZE 1024
-
 struct iic_softc {
-
 	device_t sc_dev;
-	u_char sc_addr;			/* 7 bit address on iicbus */
-	int sc_count;			/* >0 if device opened */
-
-	char sc_buffer[BUFSIZE];	/* output buffer */
-	char sc_inbuf[BUFSIZE];		/* input buffer */
-
 	struct cdev *sc_devnode;
-	struct sx sc_lock;
 };
 
-#define	IIC_LOCK(sc)			sx_xlock(&(sc)->sc_lock)
-#define	IIC_UNLOCK(sc)			sx_xunlock(&(sc)->sc_lock)
+struct iic_cdevpriv {
+	struct sx lock;
+	struct iic_softc *sc;
+	bool started;
+	uint8_t addr;
+};
+
+
+#define	IIC_LOCK(cdp)			sx_xlock(&(cdp)->lock)
+#define	IIC_UNLOCK(cdp)			sx_xunlock(&(cdp)->lock)
+
+static MALLOC_DEFINE(M_IIC, "iic", "I2C device data");
 
 static int iic_probe(device_t);
 static int iic_attach(device_t);
 static int iic_detach(device_t);
 static void iic_identify(driver_t *driver, device_t parent);
+static void iicdtor(void *data);
+static int iicuio_move(struct iic_cdevpriv *priv, struct uio *uio, int last);
+static int iicuio(struct cdev *dev, struct uio *uio, int ioflag);
+static int iicrdwr(struct iic_cdevpriv *priv, struct iic_rdwr_data *d, int flags);
 
 static devclass_t iic_devclass;
 
@@ -89,18 +94,13 @@ static driver_t iic_driver = {
 };
 
 static	d_open_t	iicopen;
-static	d_close_t	iicclose;
-static	d_write_t	iicwrite;
-static	d_read_t	iicread;
 static	d_ioctl_t	iicioctl;
 
 static struct cdevsw iic_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_TRACKCLOSE,
 	.d_open =	iicopen,
-	.d_close =	iicclose,
-	.d_read =	iicread,
-	.d_write =	iicwrite,
+	.d_read =	iicuio,
+	.d_write =	iicuio,
 	.d_ioctl =	iicioctl,
 	.d_name =	"iic",
 };
@@ -127,16 +127,15 @@ iic_probe(device_t dev)
 static int
 iic_attach(device_t dev)
 {
-	struct iic_softc *sc = (struct iic_softc *)device_get_softc(dev);
+	struct iic_softc *sc;
 
+	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
-	sx_init(&sc->sc_lock, "iic");
 	sc->sc_devnode = make_dev(&iic_cdevsw, device_get_unit(dev),
 			UID_ROOT, GID_WHEEL,
 			0600, "iic%d", device_get_unit(dev));
 	if (sc->sc_devnode == NULL) {
 		device_printf(dev, "failed to create character device\n");
-		sx_destroy(&sc->sc_lock);
 		return (ENXIO);
 	}
 	sc->sc_devnode->si_drv1 = sc;
@@ -147,11 +146,12 @@ iic_attach(device_t dev)
 static int
 iic_detach(device_t dev)
 {
-	struct iic_softc *sc = (struct iic_softc *)device_get_softc(dev);
+	struct iic_softc *sc;
+
+	sc = device_get_softc(dev);
 
 	if (sc->sc_devnode)
 		destroy_dev(sc->sc_devnode);
-	sx_destroy(&sc->sc_lock);
 
 	return (0);
 }
@@ -159,238 +159,331 @@ iic_detach(device_t dev)
 static int
 iicopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	struct iic_softc *sc = dev->si_drv1;
+	struct iic_cdevpriv *priv;
+	int error;
 
-	IIC_LOCK(sc);
-	if (sc->sc_count > 0) {
-		IIC_UNLOCK(sc);
-		return (EBUSY);
+	priv = malloc(sizeof(*priv), M_IIC, M_WAITOK | M_ZERO);
+
+	sx_init(&priv->lock, "iic");
+	priv->sc = dev->si_drv1;
+
+	error = devfs_set_cdevpriv(priv, iicdtor); 
+	if (error != 0)
+		free(priv, M_IIC);
+
+	return (error);
+}
+
+static void
+iicdtor(void *data)
+{
+	device_t iicdev, parent;
+	struct iic_cdevpriv *priv;
+
+	priv = data;
+	KASSERT(priv != NULL, ("iic cdevpriv should not be NULL!"));
+
+	iicdev = priv->sc->sc_dev;
+	parent = device_get_parent(iicdev);
+
+	if (priv->started) {
+		iicbus_stop(parent);
+		iicbus_reset(parent, IIC_UNKNOWN, 0, NULL);
+		iicbus_release_bus(parent, iicdev);
 	}
 
-	sc->sc_count++;
-	IIC_UNLOCK(sc);
-
-	return (0);
+	sx_destroy(&priv->lock);
+	free(priv, M_IIC);
 }
 
 static int
-iicclose(struct cdev *dev, int flags, int fmt, struct thread *td)
+iicuio_move(struct iic_cdevpriv *priv, struct uio *uio, int last)
 {
-	struct iic_softc *sc = dev->si_drv1;
+	device_t parent;
+	int error, num_bytes, transferred_bytes, written_bytes;
+	char buffer[128];
 
-	IIC_LOCK(sc);
-	if (!sc->sc_count) {
-		/* XXX: I don't think this can happen. */
-		IIC_UNLOCK(sc);
-		return (EINVAL);
+	parent = device_get_parent(priv->sc->sc_dev);
+	error = 0;
+
+	/*
+	 * We can only transfer up to sizeof(buffer) bytes in 1 shot, so loop until
+	 * everything has been transferred.
+	*/
+	while ((error == 0) && (uio->uio_resid > 0)) {
+
+		num_bytes = MIN(uio->uio_resid, sizeof(buffer));
+		transferred_bytes = 0;
+
+		if (uio->uio_rw == UIO_WRITE) {
+			error = uiomove(buffer, num_bytes, uio);
+
+			while ((error == 0) && (transferred_bytes < num_bytes)) {
+				written_bytes = 0;
+				error = iicbus_write(parent, &buffer[transferred_bytes],
+				    num_bytes - transferred_bytes, &written_bytes, 0);
+				transferred_bytes += written_bytes;
+			}
+				
+		} else if (uio->uio_rw == UIO_READ) {
+			error = iicbus_read(parent, buffer,
+			    num_bytes, &transferred_bytes,
+			    ((uio->uio_resid <= sizeof(buffer)) ? last : 0), 0);
+			if (error == 0)
+				error = uiomove(buffer, transferred_bytes, uio);
+		}
 	}
-
-	sc->sc_count--;
-
-	if (sc->sc_count < 0)
-		panic("%s: iic_count < 0!", __func__);
-	IIC_UNLOCK(sc);
-
-	return (0);
-}
-
-static int
-iicwrite(struct cdev *dev, struct uio * uio, int ioflag)
-{
-	struct iic_softc *sc = dev->si_drv1;
-	device_t iicdev = sc->sc_dev;
-	int sent, error, count;
-
-	IIC_LOCK(sc);
-	if (!sc->sc_addr) {
-		IIC_UNLOCK(sc);
-		return (EINVAL);
-	}
-
-	if (sc->sc_count == 0) {
-		/* XXX: I don't think this can happen. */
-		IIC_UNLOCK(sc);
-		return (EINVAL);
-	}
-
-	error = iicbus_request_bus(device_get_parent(iicdev), iicdev,
-	    IIC_DONTWAIT);
-	if (error) {
-		IIC_UNLOCK(sc);
-		return (error);
-	}
-
-	count = min(uio->uio_resid, BUFSIZE);
-	error = uiomove(sc->sc_buffer, count, uio);
-	if (error) {
-		IIC_UNLOCK(sc);
-		return (error);
-	}
-
-	error = iicbus_block_write(device_get_parent(iicdev), sc->sc_addr,
-					sc->sc_buffer, count, &sent);
-
-	iicbus_release_bus(device_get_parent(iicdev), iicdev);
-	IIC_UNLOCK(sc);
 
 	return (error);
 }
 
 static int
-iicread(struct cdev *dev, struct uio * uio, int ioflag)
+iicuio(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	struct iic_softc *sc = dev->si_drv1;
-	device_t iicdev = sc->sc_dev;
-	int len, error = 0;
-	int bufsize;
+	device_t parent;
+	struct iic_cdevpriv *priv;
+	int error;
+	uint8_t addr;
 
-	IIC_LOCK(sc);
-	if (!sc->sc_addr) {
-		IIC_UNLOCK(sc);
-		return (EINVAL);
+	priv = NULL;
+	error = devfs_get_cdevpriv((void**)&priv);
+
+	if (error != 0)
+		return (error);
+	KASSERT(priv != NULL, ("iic cdevpriv should not be NULL!"));
+
+	IIC_LOCK(priv);
+	if (priv->started || (priv->addr == 0)) {
+		IIC_UNLOCK(priv);
+		return (ENXIO);
 	}
+	parent = device_get_parent(priv->sc->sc_dev);
 
-	if (sc->sc_count == 0) {
-		/* XXX: I don't think this can happen. */
-		IIC_UNLOCK(sc);
-		return (EINVAL);
-	}
-
-	error = iicbus_request_bus(device_get_parent(iicdev), iicdev,
-	    IIC_DONTWAIT);
-	if (error) {
-		IIC_UNLOCK(sc);
+	error = iicbus_request_bus(parent, priv->sc->sc_dev,
+	    (ioflag & O_NONBLOCK) ? IIC_DONTWAIT : (IIC_WAIT | IIC_INTR));
+	if (error != 0) {
+		IIC_UNLOCK(priv);
 		return (error);
 	}
 
-	/* max amount of data to read */
-	len = min(uio->uio_resid, BUFSIZE);
+	if (uio->uio_rw == UIO_READ)
+		addr = priv->addr | LSB;
+	else
+		addr = priv->addr & ~LSB;
 
-	error = iicbus_block_read(device_get_parent(iicdev), sc->sc_addr,
-	    sc->sc_inbuf, len, &bufsize);
-	if (error) {
-		IIC_UNLOCK(sc);
+	error = iicbus_start(parent, addr, 0);
+	if (error != 0)
+	{
+		iicbus_release_bus(parent, priv->sc->sc_dev);
+		IIC_UNLOCK(priv);
 		return (error);
 	}
 
-	if (bufsize > uio->uio_resid)
-		panic("%s: too much data read!", __func__);
+	error = iicuio_move(priv, uio, IIC_LAST_READ);
 
-	iicbus_release_bus(device_get_parent(iicdev), iicdev);
+	iicbus_stop(parent);
+	iicbus_release_bus(parent, priv->sc->sc_dev);
+	IIC_UNLOCK(priv);
+	return (error);
+}
 
-	error = uiomove(sc->sc_inbuf, bufsize, uio);
-	IIC_UNLOCK(sc);
+static int
+iicrdwr(struct iic_cdevpriv *priv, struct iic_rdwr_data *d, int flags)
+{
+	struct iic_msg *buf, *m;
+	void **usrbufs;
+	device_t iicdev, parent;
+	int error, i;
+
+	iicdev = priv->sc->sc_dev;
+	parent = device_get_parent(iicdev);
+	error = 0;
+
+	buf = malloc(sizeof(*d->msgs) * d->nmsgs, M_IIC, M_WAITOK);
+
+	error = copyin(d->msgs, buf, sizeof(*d->msgs) * d->nmsgs);
+
+	/* Alloc kernel buffers for userland data, copyin write data */
+	usrbufs = malloc(sizeof(void *) * d->nmsgs, M_IIC, M_WAITOK | M_ZERO);
+
+	for (i = 0; i < d->nmsgs; i++) {
+		m = &(buf[i]);
+		usrbufs[i] = m->buf;
+
+		/*
+		 * At least init the buffer to NULL so we can safely free() it later.
+		 * If the copyin() to buf failed, don't try to malloc bogus m->len.
+		 */
+		m->buf = NULL;
+		if (error != 0)
+			continue;
+		m->buf = malloc(m->len, M_IIC, M_WAITOK);
+		if (!(m->flags & IIC_M_RD))
+			error = copyin(usrbufs[i], m->buf, m->len);
+	}
+
+	if (error == 0)
+		error = iicbus_request_bus(parent, iicdev,
+		    (flags & O_NONBLOCK) ? IIC_DONTWAIT : (IIC_WAIT | IIC_INTR));
+
+	if (error == 0) {
+		error = iicbus_transfer(iicdev, buf, d->nmsgs);
+		iicbus_release_bus(parent, iicdev);
+	}
+
+	/* Copyout all read segments, free up kernel buffers */
+	for (i = 0; i < d->nmsgs; i++) {
+		m = &(buf[i]);
+		if ((error == 0) && (m->flags & IIC_M_RD))
+			error = copyout(m->buf, usrbufs[i], m->len);
+		free(m->buf, M_IIC);
+	}
+
+	free(usrbufs, M_IIC);
+	free(buf, M_IIC);
 	return (error);
 }
 
 static int
 iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
-	struct iic_softc *sc = dev->si_drv1;
-	device_t iicdev = sc->sc_dev;
-	device_t parent = device_get_parent(iicdev);
-	struct iiccmd *s = (struct iiccmd *)data;
-	struct iic_rdwr_data *d = (struct iic_rdwr_data *)data;
-	struct iic_msg *m;
-	int error, count, i;
-	char *buf = NULL;
-	void **usrbufs = NULL;
+	device_t parent, iicdev;
+	struct iiccmd *s;
+	struct uio ubuf;
+	struct iovec uvec;
+	struct iic_cdevpriv *priv;
+	int error;
 
-	if ((error = iicbus_request_bus(parent, iicdev,
-	    (flags & O_NONBLOCK) ? IIC_DONTWAIT : (IIC_WAIT | IIC_INTR))))
+	s = (struct iiccmd *)data;
+	error = devfs_get_cdevpriv((void**)&priv);
+	if (error != 0)
 		return (error);
+
+	KASSERT(priv != NULL, ("iic cdevpriv should not be NULL!"));
+
+	iicdev = priv->sc->sc_dev;
+	parent = device_get_parent(iicdev);
+	IIC_LOCK(priv);
+
 
 	switch (cmd) {
 	case I2CSTART:
-		IIC_LOCK(sc);
-		error = iicbus_start(parent, s->slave, 0);
+		if (priv->started) {
+			error = EINVAL;
+			break;
+		}
+		error = iicbus_request_bus(parent, iicdev,
+		    (flags & O_NONBLOCK) ? IIC_DONTWAIT : (IIC_WAIT | IIC_INTR));
 
-		/*
-		 * Implicitly set the chip addr to the slave addr passed as
-		 * parameter. Consequently, start/stop shall be called before
-		 * the read or the write of a block.
-		 */
-		if (!error)
-			sc->sc_addr = s->slave;
-		IIC_UNLOCK(sc);
+		if (error == 0)
+			error = iicbus_start(parent, s->slave, 0);
+
+		if (error == 0) {
+			priv->addr = s->slave;
+			priv->started = true;
+		} else
+			iicbus_release_bus(parent, iicdev);
 
 		break;
 
 	case I2CSTOP:
-		error = iicbus_stop(parent);
+		if (priv->started) {
+			error = iicbus_stop(parent);
+			iicbus_release_bus(parent, iicdev);
+			priv->started = false;
+		}
+
 		break;
 
 	case I2CRSTCARD:
-		error = iicbus_reset(parent, IIC_UNKNOWN, 0, NULL);
 		/*
-		 * Ignore IIC_ENOADDR as it only means we have a master-only
-		 * controller.
-		 */
-		if (error == IIC_ENOADDR)
-			error = 0;
+		 * Bus should be owned before we reset it.
+		 * We allow the bus to be already owned as the result of an in-progress
+		 * sequence; however, bus reset will always be followed by release
+		 * (a new start is presumably needed for I/O anyway). */ 
+		if (!priv->started)	
+			error = iicbus_request_bus(parent, iicdev,
+			    (flags & O_NONBLOCK) ? IIC_DONTWAIT : (IIC_WAIT | IIC_INTR));
+
+		if (error == 0) {
+			error = iicbus_reset(parent, IIC_UNKNOWN, 0, NULL);
+			/*
+			 * Ignore IIC_ENOADDR as it only means we have a master-only
+			 * controller.
+			 */
+			if (error == IIC_ENOADDR)
+				error = 0;
+
+			iicbus_release_bus(parent, iicdev);
+			priv->started = false;
+		}
 		break;
 
 	case I2CWRITE:
-		if (s->count <= 0) {
+		if (!priv->started) {
 			error = EINVAL;
 			break;
 		}
-		buf = malloc((unsigned long)s->count, M_TEMP, M_WAITOK);
-		error = copyin(s->buf, buf, s->count);
-		if (error)
-			break;
-		error = iicbus_write(parent, buf, s->count, &count, 10);
+		uvec.iov_base = s->buf;
+		uvec.iov_len = s->count;
+		ubuf.uio_iov = &uvec;
+		ubuf.uio_iovcnt = 1;
+		ubuf.uio_segflg = UIO_USERSPACE;
+		ubuf.uio_td = td;
+		ubuf.uio_resid = s->count;
+		ubuf.uio_offset = 0;
+		ubuf.uio_rw = UIO_WRITE;
+		error = iicuio_move(priv, &ubuf, 0);
 		break;
 
 	case I2CREAD:
-		if (s->count <= 0) {
+		if (!priv->started) {
 			error = EINVAL;
 			break;
 		}
-		buf = malloc((unsigned long)s->count, M_TEMP, M_WAITOK);
-		error = iicbus_read(parent, buf, s->count, &count, s->last, 10);
-		if (error)
-			break;
-		error = copyout(buf, s->buf, s->count);
+		uvec.iov_base = s->buf;
+		uvec.iov_len = s->count;
+		ubuf.uio_iov = &uvec;
+		ubuf.uio_iovcnt = 1;
+		ubuf.uio_segflg = UIO_USERSPACE;
+		ubuf.uio_td = td;
+		ubuf.uio_resid = s->count;
+		ubuf.uio_offset = 0;
+		ubuf.uio_rw = UIO_READ;
+		error = iicuio_move(priv, &ubuf, s->last);
 		break;
 
 	case I2CRDWR:
-		buf = malloc(sizeof(*d->msgs) * d->nmsgs, M_TEMP, M_WAITOK);
-		error = copyin(d->msgs, buf, sizeof(*d->msgs) * d->nmsgs);
-		if (error)
+		/*
+		 * The rdwr list should be a self-contained set of
+		 * transactions.  Fail if another transaction is in progress.
+                 */
+		if (priv->started) {
+			error = EINVAL;
 			break;
-		/* Alloc kernel buffers for userland data, copyin write data */
-		usrbufs = malloc(sizeof(void *) * d->nmsgs, M_TEMP, M_ZERO | M_WAITOK);
-		for (i = 0; i < d->nmsgs; i++) {
-			m = &((struct iic_msg *)buf)[i];
-			usrbufs[i] = m->buf;
-			m->buf = malloc(m->len, M_TEMP, M_WAITOK);
-			if (!(m->flags & IIC_M_RD))
-				copyin(usrbufs[i], m->buf, m->len);
 		}
-		error = iicbus_transfer(iicdev, (struct iic_msg *)buf, d->nmsgs);
-		/* Copyout all read segments, free up kernel buffers */
-		for (i = 0; i < d->nmsgs; i++) {
-			m = &((struct iic_msg *)buf)[i];
-			if (m->flags & IIC_M_RD)
-				copyout(m->buf, usrbufs[i], m->len);
-			free(m->buf, M_TEMP);
-		}
-		free(usrbufs, M_TEMP);
+
+		error = iicrdwr(priv, (struct iic_rdwr_data *)data, flags);
+
 		break;
 
 	case I2CRPTSTART:
+		if (!priv->started) {
+			error = EINVAL;
+			break;
+		}
 		error = iicbus_repeated_start(parent, s->slave, 0);
+		break;
+
+	case I2CSADDR:
+		priv->addr = *((uint8_t*)data);
 		break;
 
 	default:
 		error = ENOTTY;
 	}
 
-	iicbus_release_bus(parent, iicdev);
-
-	if (buf != NULL)
-		free(buf, M_TEMP);
+	IIC_UNLOCK(priv);
 	return (error);
 }
 

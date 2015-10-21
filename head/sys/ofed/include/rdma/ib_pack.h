@@ -263,7 +263,5 @@ int ib_ud_header_pack(struct ib_ud_header *header,
 
 int ib_ud_header_unpack(void                *buf,
 			struct ib_ud_header *header);
-int ib_lrh_header_pack(struct ib_unpacked_lrh *lrh, void *buf);
-int ib_lrh_header_unpack(void *buf, struct ib_unpacked_lrh *lrh);
 
 #endif /* IB_PACK_H */

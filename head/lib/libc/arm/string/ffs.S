@@ -78,8 +78,11 @@ ENTRY(ffs)
 	.byte	31,  0,  0,  0,  0, 24,  0, 20  /* 48-55 */
 	.byte   30,  0, 23, 19, 29, 18, 17,  0  /* 56-63 */
 #else
+	itt	ne
 	clzne	r0, r0
 	rsbne	r0, r0, #32
 	RET
 #endif
 END(ffs)
+
+	.section .note.GNU-stack,"",%progbits

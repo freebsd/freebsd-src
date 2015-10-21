@@ -418,12 +418,16 @@ DWARFDebugLine::ParsePrologue(const DWARFDataExtractor& debug_line_data, lldb::o
     const char * s;
     prologue->total_length      = debug_line_data.GetDWARFInitialLength(offset_ptr);
     prologue->version           = debug_line_data.GetU16(offset_ptr);
-    if (prologue->version < 2 || prologue->version > 3)
+    if (prologue->version < 2 || prologue->version > 4)
       return false;
 
     prologue->prologue_length   = debug_line_data.GetDWARFOffset(offset_ptr);
     const lldb::offset_t end_prologue_offset = prologue->prologue_length + *offset_ptr;
     prologue->min_inst_length   = debug_line_data.GetU8(offset_ptr);
+    if (prologue->version >= 4)
+        prologue->maximum_operations_per_instruction = debug_line_data.GetU8(offset_ptr);
+    else
+        prologue->maximum_operations_per_instruction = 1;
     prologue->default_is_stmt   = debug_line_data.GetU8(offset_ptr);
     prologue->line_base         = debug_line_data.GetU8(offset_ptr);
     prologue->line_range        = debug_line_data.GetU8(offset_ptr);
@@ -484,79 +488,51 @@ DWARFDebugLine::ParseSupportFiles (const lldb::ModuleSP &module_sp,
     lldb::offset_t offset = stmt_list;
     // Skip the total length
     (void)debug_line_data.GetDWARFInitialLength(&offset);
-    const char * s;
     uint32_t version = debug_line_data.GetU16(&offset);
-    if (version < 2 || version > 3)
+    if (version < 2 || version > 4)
       return false;
 
     const dw_offset_t end_prologue_offset = debug_line_data.GetDWARFOffset(&offset) + offset;
-    // Skip instruction length, default is stmt, line base, line range and
-    // opcode base, and all opcode lengths
+    // Skip instruction length, default is stmt, line base, line range
     offset += 4;
+    // For DWARF4, skip maximum operations per instruction
+    if (version >= 4)
+        offset += 1;
+    // Skip opcode base, and all opcode lengths
     const uint8_t opcode_base = debug_line_data.GetU8(&offset);
     offset += opcode_base - 1;
-    std::vector<std::string> include_directories;
-    include_directories.push_back("");  // Directory at index zero doesn't exist
+    std::vector<FileSpec> include_directories{{}}; // Directory at index zero doesn't exist
     while (offset < end_prologue_offset)
     {
-        s = debug_line_data.GetCStr(&offset);
-        if (s && s[0])
-            include_directories.push_back(s);
+        FileSpec dir{debug_line_data.GetCStr(&offset), false};
+        if (dir)
+            include_directories.emplace_back(std::move(dir));
         else
             break;
     }
-    std::string fullpath;
-    std::string remapped_fullpath;
     while (offset < end_prologue_offset)
     {
-        const char* path = debug_line_data.GetCStr( &offset );
-        if (path && path[0])
+        FileSpec file_spec{debug_line_data.GetCStr(&offset), false};
+        if (file_spec)
         {
-            uint32_t dir_idx    = debug_line_data.GetULEB128( &offset );
+            uint32_t dir_idx = debug_line_data.GetULEB128(&offset);
             debug_line_data.Skip_LEB128(&offset); // Skip mod_time
             debug_line_data.Skip_LEB128(&offset); // Skip length
 
-            if (path[0] == '/')
+            if (file_spec.IsRelative())
             {
-                // The path starts with a directory delimiter, so we are done.
-                if (module_sp->RemapSourceFile (path, fullpath))
-                    support_files.Append(FileSpec (fullpath.c_str(), false));
-                else
-                    support_files.Append(FileSpec (path, false));
+                if (0 < dir_idx && dir_idx < include_directories.size())
+                {
+                    const FileSpec &dir = include_directories[dir_idx];
+                    file_spec.PrependPathComponent(dir);
+                }
+                if (file_spec.IsRelative())
+                    file_spec.PrependPathComponent(cu_comp_dir);
             }
-            else
-            {
-                if (dir_idx > 0 && dir_idx < include_directories.size())
-                {
-                    if (cu_comp_dir && include_directories[dir_idx][0] != '/')
-                    {
-                        fullpath = cu_comp_dir;
-
-                        if (*fullpath.rbegin() != '/')
-                            fullpath += '/';
-                        fullpath += include_directories[dir_idx];
-
-                    }
-                    else
-                        fullpath = include_directories[dir_idx];
-                }
-                else if (cu_comp_dir && cu_comp_dir[0])
-                {
-                    fullpath = cu_comp_dir;
-                }
-
-                if (!fullpath.empty())
-                {
-                   if (*fullpath.rbegin() != '/')
-                        fullpath += '/';
-                }
-                fullpath += path;
-                if (module_sp->RemapSourceFile (fullpath.c_str(), remapped_fullpath))
-                    support_files.Append(FileSpec (remapped_fullpath.c_str(), false));
-                else
-                    support_files.Append(FileSpec (fullpath.c_str(), false));
-            }
-            
+            std::string remapped_file;
+            if (module_sp->RemapSourceFile(file_spec.GetCString(), remapped_file))
+                file_spec.SetFile(remapped_file, false);
+            support_files.Append(file_spec);
         }
     }
 
@@ -650,7 +626,10 @@ DWARFDebugLine::ParseStatementTable
                 // relocatable address. All of the other statement program opcodes
                 // that affect the address register add a delta to it. This instruction
                 // stores a relocatable value into it instead.
-                state.address = debug_line_data.GetAddress(offset_ptr);
+                if (arg_size == 4)
+                    state.address = debug_line_data.GetU32(offset_ptr);
+                else // arg_size == 8
+                    state.address = debug_line_data.GetU64(offset_ptr);
                 break;
 
             case DW_LNE_define_file:

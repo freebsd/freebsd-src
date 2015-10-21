@@ -48,11 +48,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #define	BCM2835_NUM_TIMERS	4
 
 #define	DEFAULT_TIMER		3
+#define	DEFAULT_TIMER_NAME	"BCM2835-3"
 #define	DEFAULT_FREQUENCY	1000000
 #define	MIN_PERIOD		5LLU
 
@@ -102,7 +102,7 @@ static struct bcm_systimer_softc *bcm_systimer_sc = NULL;
 static unsigned bcm_systimer_tc_get_timecount(struct timecounter *);
 
 static struct timecounter bcm_systimer_tc = {
-	.tc_name           = "BCM2835 Timecounter",
+	.tc_name           = DEFAULT_TIMER_NAME,
 	.tc_get_timecount  = bcm_systimer_tc_get_timecount,
 	.tc_poll_pps       = NULL,
 	.tc_counter_mask   = ~0u,
@@ -239,8 +239,7 @@ bcm_systimer_attach(device_t dev)
 
 	sc->st[DEFAULT_TIMER].index = DEFAULT_TIMER;
 	sc->st[DEFAULT_TIMER].enabled = 0;
-	sc->st[DEFAULT_TIMER].et.et_name = malloc(64, M_DEVBUF, M_NOWAIT | M_ZERO);
-	sprintf(sc->st[DEFAULT_TIMER].et.et_name, "BCM2835 Event Timer %d", DEFAULT_TIMER);
+	sc->st[DEFAULT_TIMER].et.et_name = DEFAULT_TIMER_NAME;
 	sc->st[DEFAULT_TIMER].et.et_flags = ET_FLAGS_ONESHOT;
 	sc->st[DEFAULT_TIMER].et.et_quality = 1000;
 	sc->st[DEFAULT_TIMER].et.et_frequency = sc->sysclk_freq;

@@ -11,13 +11,14 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-#include "lldb/lldb-private-log.h"
 #include "lldb/Core/Communication.h"
 #include "lldb/Core/Connection.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Timer.h"
 #include "lldb/Core/Event.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/HostThread.h"
+#include "lldb/Host/ThreadLauncher.h"
 #include <string.h>
 
 using namespace lldb;
@@ -36,11 +37,12 @@ Communication::GetStaticBroadcasterClass ()
 Communication::Communication(const char *name) :
     Broadcaster (NULL, name),
     m_connection_sp (),
-    m_read_thread (LLDB_INVALID_HOST_THREAD),
     m_read_thread_enabled (false),
+    m_read_thread_did_exit (false),
     m_bytes(),
     m_bytes_mutex (Mutex::eMutexTypeRecursive),
     m_write_mutex (Mutex::eMutexTypeNormal),
+    m_synchronize_mutex (Mutex::eMutexTypeNormal),
     m_callback (NULL),
     m_callback_baton (NULL),
     m_close_on_eof (true)
@@ -55,6 +57,7 @@ Communication::Communication(const char *name) :
     SetEventName (eBroadcastBitReadThreadDidExit, "read thread did exit");
     SetEventName (eBroadcastBitReadThreadShouldExit, "read thread should exit");
     SetEventName (eBroadcastBitPacketAvailable, "packet available");
+    SetEventName (eBroadcastBitNoMorePendingInput, "no more pending input");
     
     CheckInWithManager();
 }
@@ -181,7 +184,8 @@ Communication::Read (void *dst, size_t dst_len, uint32_t timeout_usec, Connectio
 
             if (event_type & eBroadcastBitReadThreadDidExit)
             {
-                Disconnect (NULL);
+                if (GetCloseOnEOF ())
+                    Disconnect (NULL);
                 break;
             }
         }
@@ -232,7 +236,7 @@ Communication::StartReadThread (Error *error_ptr)
     if (error_ptr)
         error_ptr->Clear();
 
-    if (IS_VALID_LLDB_HOST_THREAD(m_read_thread))
+    if (m_read_thread.IsJoinable())
         return true;
 
     lldb_private::LogIfAnyCategoriesSet (LIBLLDB_LOG_COMMUNICATION,
@@ -243,8 +247,9 @@ Communication::StartReadThread (Error *error_ptr)
     snprintf(thread_name, sizeof(thread_name), "<lldb.comm.%s>", m_broadcaster_name.AsCString());
 
     m_read_thread_enabled = true;
-    m_read_thread = Host::ThreadCreate (thread_name, Communication::ReadThread, this, error_ptr);
-    if (!IS_VALID_LLDB_HOST_THREAD(m_read_thread))
+    m_read_thread_did_exit = false;
+    m_read_thread = ThreadLauncher::LaunchThread(thread_name, Communication::ReadThread, this, error_ptr);
+    if (!m_read_thread.IsJoinable())
         m_read_thread_enabled = false;
     return m_read_thread_enabled;
 }
@@ -252,7 +257,7 @@ Communication::StartReadThread (Error *error_ptr)
 bool
 Communication::StopReadThread (Error *error_ptr)
 {
-    if (!IS_VALID_LLDB_HOST_THREAD(m_read_thread))
+    if (!m_read_thread.IsJoinable())
         return true;
 
     lldb_private::LogIfAnyCategoriesSet (LIBLLDB_LOG_COMMUNICATION,
@@ -262,22 +267,20 @@ Communication::StopReadThread (Error *error_ptr)
 
     BroadcastEvent (eBroadcastBitReadThreadShouldExit, NULL);
 
-    //Host::ThreadCancel (m_read_thread, error_ptr);
+    // error = m_read_thread.Cancel();
 
-    bool status = Host::ThreadJoin (m_read_thread, NULL, error_ptr);
-    m_read_thread = LLDB_INVALID_HOST_THREAD;
-    return status;
+    Error error = m_read_thread.Join(nullptr);
+    return error.Success();
 }
 
 bool
 Communication::JoinReadThread (Error *error_ptr)
 {
-    if (!IS_VALID_LLDB_HOST_THREAD(m_read_thread))
+    if (!m_read_thread.IsJoinable())
         return true;
 
-    bool success = Host::ThreadJoin (m_read_thread, NULL, error_ptr);
-    m_read_thread = LLDB_INVALID_HOST_THREAD;
-    return success;
+    Error error = m_read_thread.Join(nullptr);
+    return error.Success();
 }
 
 size_t
@@ -377,9 +380,8 @@ Communication::ReadThread (lldb::thread_arg_t p)
             break;
 
         case eConnectionStatusEndOfFile:
-            if (comm->GetCloseOnEOF())
-                 done = true;
-             break;
+            done = true;
+            break;
         case eConnectionStatusError:            // Check GetError() for details
             if (error.GetType() == eErrorTypePOSIX && error.GetError() == EIO)
             {
@@ -393,9 +395,13 @@ Communication::ReadThread (lldb::thread_arg_t p)
                                   p,
                                   Communication::ConnectionStatusAsCString (status));
             break;
+        case eConnectionStatusInterrupted:      // Synchronization signal from SynchronizeWithReadThread()
+            // The connection returns eConnectionStatusInterrupted only when there is no
+            // input pending to be read, so we can signal that.
+            comm->BroadcastEvent (eBroadcastBitNoMorePendingInput);
+            break;
         case eConnectionStatusNoConnection:     // No connection
         case eConnectionStatusLostConnection:   // Lost connection while connected to a valid connection
-        case eConnectionStatusInterrupted:      // Interrupted
             done = true;
             // Fall through...
         case eConnectionStatusTimedOut:         // Request timed out
@@ -411,7 +417,9 @@ Communication::ReadThread (lldb::thread_arg_t p)
     if (log)
         log->Printf ("%p Communication::ReadThread () thread exiting...", p);
 
+    comm->m_read_thread_did_exit = true;
     // Let clients know that this thread is exiting
+    comm->BroadcastEvent (eBroadcastBitNoMorePendingInput);
     comm->BroadcastEvent (eBroadcastBitReadThreadDidExit);
     return NULL;
 }
@@ -425,6 +433,28 @@ Communication::SetReadThreadBytesReceivedCallback
 {
     m_callback = callback;
     m_callback_baton = callback_baton;
+}
+
+void
+Communication::SynchronizeWithReadThread ()
+{
+    // Only one thread can do the synchronization dance at a time.
+    Mutex::Locker locker(m_synchronize_mutex);
+
+    // First start listening for the synchronization event.
+    Listener listener("Communication::SyncronizeWithReadThread");
+    listener.StartListeningForEvents(this, eBroadcastBitNoMorePendingInput);
+
+    // If the thread is not running, there is no point in synchronizing.
+    if (!m_read_thread_enabled || m_read_thread_did_exit)
+        return;
+
+    // Notify the read thread.
+    m_connection_sp->InterruptRead();
+
+    // Wait for the synchronization event.
+    EventSP event_sp;
+    listener.WaitForEvent(NULL, event_sp);
 }
 
 void

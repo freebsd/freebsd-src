@@ -12,8 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 
-#ifndef LLVM_TARGET_MSP430_TARGETMACHINE_H
-#define LLVM_TARGET_MSP430_TARGETMACHINE_H
+#ifndef LLVM_LIB_TARGET_MSP430_MSP430TARGETMACHINE_H
+#define LLVM_LIB_TARGET_MSP430_MSP430TARGETMACHINE_H
 
 #include "MSP430Subtarget.h"
 #include "llvm/Target/TargetFrameLowering.h"
@@ -24,38 +24,26 @@ namespace llvm {
 /// MSP430TargetMachine
 ///
 class MSP430TargetMachine : public LLVMTargetMachine {
+  std::unique_ptr<TargetLoweringObjectFile> TLOF;
   MSP430Subtarget        Subtarget;
 
 public:
-  MSP430TargetMachine(const Target &T, StringRef TT,
-                      StringRef CPU, StringRef FS, const TargetOptions &Options,
+  MSP430TargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+                      StringRef FS, const TargetOptions &Options,
                       Reloc::Model RM, CodeModel::Model CM,
                       CodeGenOpt::Level OL);
+  ~MSP430TargetMachine() override;
 
-  const TargetFrameLowering *getFrameLowering() const override {
-    return getSubtargetImpl()->getFrameLowering();
-  }
-  const MSP430InstrInfo *getInstrInfo() const override {
-    return getSubtargetImpl()->getInstrInfo();
-  }
-  const DataLayout *getDataLayout() const override {
-    return getSubtargetImpl()->getDataLayout();
-  }
-  const MSP430Subtarget *getSubtargetImpl() const override {
+  const MSP430Subtarget *getSubtargetImpl(const Function &F) const override {
     return &Subtarget;
   }
-  const TargetRegisterInfo *getRegisterInfo() const override {
-    return getSubtargetImpl()->getRegisterInfo();
-  }
-  const MSP430TargetLowering *getTargetLowering() const override {
-    return getSubtargetImpl()->getTargetLowering();
-  }
-  const MSP430SelectionDAGInfo *getSelectionDAGInfo() const override {
-    return getSubtargetImpl()->getSelectionDAGInfo();
-  }
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
+
+  TargetLoweringObjectFile *getObjFileLowering() const override {
+    return TLOF.get();
+  }
 }; // MSP430TargetMachine.
 
 } // end namespace llvm
 
-#endif // LLVM_TARGET_MSP430_TARGETMACHINE_H
+#endif

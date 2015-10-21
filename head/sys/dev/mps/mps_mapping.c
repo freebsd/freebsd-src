@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2011, 2012 LSI Corp.
+ * Copyright (c) 2011-2015 LSI Corp.
+ * Copyright (c) 2013-2015 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * LSI MPT-Fusion Host Adapter FreeBSD
+ * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
  */
 
 #include <sys/cdefs.h>
@@ -889,14 +890,14 @@ _mapping_get_dev_info(struct mps_softc *sc,
 	u16 ioc_pg8_flags = le16toh(sc->ioc_pg8.Flags);
 	Mpi2ConfigReply_t mpi_reply;
 	Mpi2SasDevicePage0_t sas_device_pg0;
-	u8 entry, enc_idx, phy_idx;
+	u8 entry, enc_idx, phy_idx, sata_end_device;
 	u32 map_idx, index, device_info;
 	struct _map_phy_change *phy_change, *tmp_phy_change;
 	uint64_t sas_address;
 	struct enc_mapping_table *et_entry;
 	struct dev_mapping_table *mt_entry;
 	u8 add_code = MPI2_EVENT_SAS_TOPO_RC_TARG_ADDED;
-	int rc;
+	int rc = 1;
 
 	for (entry = 0; entry < topo_change->num_entries; entry++) {
 		phy_change = &topo_change->phy_details[entry];
@@ -910,42 +911,36 @@ _mapping_get_dev_info(struct mps_softc *sc,
 			continue;
 		}
 
+		/*
+		 * Always get SATA Identify information because this is used
+		 * to determine if Start/Stop Unit should be sent to the drive
+		 * when the system is shutdown.
+		 */
 		device_info = le32toh(sas_device_pg0.DeviceInfo);
-		if ((ioc_pg8_flags & MPI2_IOCPAGE8_FLAGS_MASK_MAPPING_MODE) ==
-		    MPI2_IOCPAGE8_FLAGS_DEVICE_PERSISTENCE_MAPPING) {
-			if ((device_info & MPI2_SAS_DEVICE_INFO_END_DEVICE) &&
-			    (device_info & MPI2_SAS_DEVICE_INFO_SATA_DEVICE)) {
-				rc = mpssas_get_sas_address_for_sata_disk(sc,
-				    &sas_address, phy_change->dev_handle,
-				    device_info);
-				if (rc) {
-					printf("%s: failed to compute the "
-					    "hashed SAS Address for SATA "
-					    "device with handle 0x%04x\n",
-					    __func__, phy_change->dev_handle);
-					sas_address =
-					    sas_device_pg0.SASAddress.High;
-					sas_address = (sas_address << 32) |
-					    sas_device_pg0.SASAddress.Low;
-				}
-				mps_dprint(sc, MPS_MAPPING,
-				    "SAS Address for SATA device = %jx\n",
-				    sas_address);
+		sas_address = sas_device_pg0.SASAddress.High;
+		sas_address = (sas_address << 32) |
+		    sas_device_pg0.SASAddress.Low;
+		sata_end_device = 0;
+		if ((device_info & MPI2_SAS_DEVICE_INFO_END_DEVICE) &&
+		    (device_info & MPI2_SAS_DEVICE_INFO_SATA_DEVICE)) {
+			sata_end_device = 1;
+			rc = mpssas_get_sas_address_for_sata_disk(sc,
+			    &sas_address, phy_change->dev_handle, device_info,
+			    &phy_change->is_SATA_SSD);
+			if (rc) {
+				mps_dprint(sc, MPS_ERROR, "%s: failed to get "
+				    "disk type (SSD or HDD) and SAS Address "
+				    "for SATA device with handle 0x%04x\n",
+				    __func__, phy_change->dev_handle);
 			} else {
-				sas_address =
-					sas_device_pg0.SASAddress.High;
-				sas_address = (sas_address << 32) |
-					sas_device_pg0.SASAddress.Low;
+				mps_dprint(sc, MPS_INFO, "SAS Address for SATA "
+				    "device = %jx\n", sas_address);
 			}
-		} else {
-			sas_address = sas_device_pg0.SASAddress.High;
-			sas_address = (sas_address << 32) |
-			   sas_device_pg0.SASAddress.Low;
 		}
+
 		phy_change->physical_id = sas_address;
 		phy_change->slot = le16toh(sas_device_pg0.Slot);
-		phy_change->device_info =
-		    le32toh(sas_device_pg0.DeviceInfo);
+		phy_change->device_info = le32toh(sas_device_pg0.DeviceInfo);
 
 		if ((ioc_pg8_flags & MPI2_IOCPAGE8_FLAGS_MASK_MAPPING_MODE) ==
 		    MPI2_IOCPAGE8_FLAGS_ENCLOSURE_SLOT_MAPPING) {
@@ -953,10 +948,10 @@ _mapping_get_dev_info(struct mps_softc *sc,
 			    topo_change->enc_handle);
 			if (enc_idx == MPS_ENCTABLE_BAD_IDX) {
 				phy_change->is_processed = 1;
-				printf("%s: failed to add the device with "
-				    "handle 0x%04x because the enclosure is "
-				    "not in the mapping table\n", __func__,
-				    phy_change->dev_handle);
+				mps_dprint(sc, MPS_MAPPING, "%s: failed to add "
+				    "the device with handle 0x%04x because the "
+				    "enclosure is not in the mapping table\n",
+				    __func__, phy_change->dev_handle);
 				continue;
 			}
 			if (!((phy_change->device_info &

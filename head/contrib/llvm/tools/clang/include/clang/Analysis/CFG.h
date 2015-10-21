@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_CFG_H
-#define LLVM_CLANG_CFG_H
+#ifndef LLVM_CLANG_ANALYSIS_CFG_H
+#define LLVM_CLANG_ANALYSIS_CFG_H
 
 #include "clang/AST/Stmt.h"
 #include "clang/Analysis/Support/BumpVector.h"
@@ -322,7 +322,7 @@ public:
   Stmt &operator*() { return *getStmt(); }
   const Stmt &operator*() const { return *getStmt(); }
 
-  LLVM_EXPLICIT operator bool() const { return getStmt(); }
+  explicit operator bool() const { return getStmt(); }
 };
 
 /// CFGBlock - Represents a single basic block in a source-level CFG.
@@ -493,7 +493,6 @@ public:
     : Elements(C), Label(nullptr), Terminator(nullptr), LoopTarget(nullptr), 
       BlockID(blockid), Preds(C, 1), Succs(C, 1), HasNoReturnElement(false),
       Parent(parent) {}
-  ~CFGBlock() {}
 
   // Statement iterators
   typedef ElementList::iterator                      iterator;
@@ -739,6 +738,7 @@ public:
     bool AddTemporaryDtors;
     bool AddStaticInitBranches;
     bool AddCXXNewAllocator;
+    bool AddCXXDefaultInitExprInCtors;
 
     bool alwaysAdd(const Stmt *stmt) const {
       return alwaysAddMask[stmt->getStmtClass()];
@@ -759,7 +759,7 @@ public:
         PruneTriviallyFalseEdges(true), AddEHEdges(false),
         AddInitializers(false), AddImplicitDtors(false),
         AddTemporaryDtors(false), AddStaticInitBranches(false),
-        AddCXXNewAllocator(false) {}
+        AddCXXNewAllocator(false), AddCXXDefaultInitExprInCtors(false) {}
   };
 
   /// \brief Provides a custom implementation of the iterator class to have the
@@ -811,10 +811,9 @@ public:
     ImplTy I;
   };
 
-  /// buildCFG - Builds a CFG from an AST.  The responsibility to free the
-  ///   constructed CFG belongs to the caller.
-  static CFG* buildCFG(const Decl *D, Stmt *AST, ASTContext *C,
-                       const BuildOptions &BO);
+  /// buildCFG - Builds a CFG from an AST.
+  static std::unique_ptr<CFG> buildCFG(const Decl *D, Stmt *AST, ASTContext *C,
+                                       const BuildOptions &BO);
 
   /// createBlock - Create a new block in the CFG.  The CFG owns the block;
   ///  the caller should not directly free it.

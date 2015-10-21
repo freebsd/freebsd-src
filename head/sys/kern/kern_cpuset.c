@@ -113,7 +113,7 @@ static struct unrhdr *cpuset_unr;
 static struct cpuset *cpuset_zero, *cpuset_default;
 
 /* Return the size of cpuset_t at the kernel level */
-SYSCTL_INT(_kern_sched, OID_AUTO, cpusetsize, CTLFLAG_RD,
+SYSCTL_INT(_kern_sched, OID_AUTO, cpusetsize, CTLFLAG_RD | CTLFLAG_CAPRD,
     SYSCTL_NULL_INT_PTR, sizeof(cpuset_t), "sizeof(cpuset_t)");
 
 cpuset_t *cpuset_root;
@@ -400,7 +400,7 @@ out:
  * -1 may be supplied for any argument to mean the current proc/thread or
  * the base set of the current thread.  May fail with ESRCH/EPERM.
  */
-static int
+int
 cpuset_which(cpuwhich_t which, id_t id, struct proc **pp, struct thread **tdp,
     struct cpuset **setp)
 {

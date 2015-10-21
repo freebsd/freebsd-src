@@ -33,11 +33,6 @@
 #include <cstdlib>
 using namespace llvm;
 
-// Handle the Pass registration stuff necessary to use DataLayout's.
-
-INITIALIZE_PASS(DataLayoutPass, "datalayout", "Data Layout", false, true)
-char DataLayoutPass::ID = 0;
-
 //===----------------------------------------------------------------------===//
 // Support for StructLayout
 //===----------------------------------------------------------------------===//
@@ -55,7 +50,7 @@ StructLayout::StructLayout(StructType *ST, const DataLayout &DL) {
 
     // Add padding if necessary to align the data element properly.
     if ((StructSize & (TyAlign-1)) != 0)
-      StructSize = DataLayout::RoundUpAlignment(StructSize, TyAlign);
+      StructSize = RoundUpToAlignment(StructSize, TyAlign);
 
     // Keep track of maximum alignment constraint.
     StructAlignment = std::max(TyAlign, StructAlignment);
@@ -70,7 +65,7 @@ StructLayout::StructLayout(StructType *ST, const DataLayout &DL) {
   // Add padding to the end of the struct so that it could be put in an array
   // and all array elements would be aligned correctly.
   if ((StructSize & (StructAlignment-1)) != 0)
-    StructSize = DataLayout::RoundUpAlignment(StructSize, StructAlignment);
+    StructSize = RoundUpToAlignment(StructSize, StructAlignment);
 }
 
 
@@ -155,8 +150,8 @@ DataLayout::InvalidPointerElem = { 0U, 0U, 0U, ~0U };
 const char *DataLayout::getManglingComponent(const Triple &T) {
   if (T.isOSBinFormatMachO())
     return "-m:o";
-  if (T.isOSWindows() && T.getArch() == Triple::x86 && T.isOSBinFormatCOFF())
-    return "-m:w";
+  if (T.isOSWindows() && T.isOSBinFormatCOFF())
+    return T.getArch() == Triple::x86 ? "-m:x" : "-m:w";
   return "-m:e";
 }
 
@@ -179,7 +174,7 @@ void DataLayout::reset(StringRef Desc) {
   clear();
 
   LayoutMap = nullptr;
-  LittleEndian = false;
+  BigEndian = false;
   StackNaturalAlign = 0;
   ManglingMode = MM_None;
 
@@ -197,8 +192,10 @@ void DataLayout::reset(StringRef Desc) {
 static std::pair<StringRef, StringRef> split(StringRef Str, char Separator) {
   assert(!Str.empty() && "parse error, string can't be empty here");
   std::pair<StringRef, StringRef> Split = Str.split(Separator);
-  assert((!Split.second.empty() || Split.first == Str) &&
-         "a trailing separator is not allowed");
+  if (Split.second.empty() && Split.first != Str)
+    report_fatal_error("Trailing separator in datalayout string");
+  if (!Split.second.empty() && Split.first.empty())
+    report_fatal_error("Expected token before separator in datalayout string");
   return Split;
 }
 
@@ -213,11 +210,13 @@ static unsigned getInt(StringRef R) {
 
 /// Convert bits into bytes. Assert if not a byte width multiple.
 static unsigned inBytes(unsigned Bits) {
-  assert(Bits % 8 == 0 && "number of bits must be a byte width multiple");
+  if (Bits % 8)
+    report_fatal_error("number of bits must be a byte width multiple");
   return Bits / 8;
 }
 
 void DataLayout::parseSpecifier(StringRef Desc) {
+  StringRepresentation = Desc;
   while (!Desc.empty()) {
     // Split at '-'.
     std::pair<StringRef, StringRef> Split = split(Desc, '-');
@@ -239,30 +238,44 @@ void DataLayout::parseSpecifier(StringRef Desc) {
       // FIXME: remove this on LLVM 4.0.
       break;
     case 'E':
-      LittleEndian = false;
+      BigEndian = true;
       break;
     case 'e':
-      LittleEndian = true;
+      BigEndian = false;
       break;
     case 'p': {
       // Address space.
       unsigned AddrSpace = Tok.empty() ? 0 : getInt(Tok);
-      assert(AddrSpace < 1 << 24 &&
-             "Invalid address space, must be a 24bit integer");
+      if (!isUInt<24>(AddrSpace))
+        report_fatal_error("Invalid address space, must be a 24bit integer");
 
       // Size.
+      if (Rest.empty())
+        report_fatal_error(
+            "Missing size specification for pointer in datalayout string");
       Split = split(Rest, ':');
       unsigned PointerMemSize = inBytes(getInt(Tok));
+      if (!PointerMemSize)
+        report_fatal_error("Invalid pointer size of 0 bytes");
 
       // ABI alignment.
+      if (Rest.empty())
+        report_fatal_error(
+            "Missing alignment specification for pointer in datalayout string");
       Split = split(Rest, ':');
       unsigned PointerABIAlign = inBytes(getInt(Tok));
+      if (!isPowerOf2_64(PointerABIAlign))
+        report_fatal_error(
+            "Pointer ABI alignment must be a power of 2");
 
       // Preferred alignment.
       unsigned PointerPrefAlign = PointerABIAlign;
       if (!Rest.empty()) {
         Split = split(Rest, ':');
         PointerPrefAlign = inBytes(getInt(Tok));
+        if (!isPowerOf2_64(PointerPrefAlign))
+          report_fatal_error(
+            "Pointer preferred alignment must be a power of 2");
       }
 
       setPointerAlignment(AddrSpace, PointerABIAlign, PointerPrefAlign,
@@ -285,12 +298,19 @@ void DataLayout::parseSpecifier(StringRef Desc) {
       // Bit size.
       unsigned Size = Tok.empty() ? 0 : getInt(Tok);
 
-      assert((AlignType != AGGREGATE_ALIGN || Size == 0) &&
-             "These specifications don't have a size");
+      if (AlignType == AGGREGATE_ALIGN && Size != 0)
+        report_fatal_error(
+            "Sized aggregate specification in datalayout string");
 
       // ABI alignment.
+      if (Rest.empty())
+        report_fatal_error(
+            "Missing alignment specification in datalayout string");
       Split = split(Rest, ':');
       unsigned ABIAlign = inBytes(getInt(Tok));
+      if (AlignType != AGGREGATE_ALIGN && !ABIAlign)
+        report_fatal_error(
+            "ABI alignment specification must be >0 for non-aggregate types");
 
       // Preferred alignment.
       unsigned PrefAlign = ABIAlign;
@@ -306,7 +326,9 @@ void DataLayout::parseSpecifier(StringRef Desc) {
     case 'n':  // Native integer types.
       for (;;) {
         unsigned Width = getInt(Tok);
-        assert(Width != 0 && "width must be non-zero");
+        if (Width == 0)
+          report_fatal_error(
+              "Zero width native integer type in datalayout string");
         LegalIntWidths.push_back(Width);
         if (Rest.empty())
           break;
@@ -318,11 +340,15 @@ void DataLayout::parseSpecifier(StringRef Desc) {
       break;
     }
     case 'm':
-      assert(Tok.empty());
-      assert(Rest.size() == 1);
+      if (!Tok.empty())
+        report_fatal_error("Unexpected trailing characters after mangling specifier in datalayout string");
+      if (Rest.empty())
+        report_fatal_error("Expected mangling specifier in datalayout string");
+      if (Rest.size() > 1)
+        report_fatal_error("Unknown mangling specifier in datalayout string");
       switch(Rest[0]) {
       default:
-        llvm_unreachable("Unknown mangling in datalayout string");
+        report_fatal_error("Unknown mangling in datalayout string");
       case 'e':
         ManglingMode = MM_ELF;
         break;
@@ -333,41 +359,54 @@ void DataLayout::parseSpecifier(StringRef Desc) {
         ManglingMode = MM_Mips;
         break;
       case 'w':
-        ManglingMode = MM_WINCOFF;
+        ManglingMode = MM_WinCOFF;
+        break;
+      case 'x':
+        ManglingMode = MM_WinCOFFX86;
         break;
       }
       break;
     default:
-      llvm_unreachable("Unknown specifier in datalayout string");
+      report_fatal_error("Unknown specifier in datalayout string");
       break;
     }
   }
 }
 
 DataLayout::DataLayout(const Module *M) : LayoutMap(nullptr) {
-  const DataLayout *Other = M->getDataLayout();
-  if (Other)
-    *this = *Other;
-  else
-    reset("");
+  init(M);
 }
 
+void DataLayout::init(const Module *M) { *this = M->getDataLayout(); }
+
 bool DataLayout::operator==(const DataLayout &Other) const {
-  bool Ret = LittleEndian == Other.LittleEndian &&
+  bool Ret = BigEndian == Other.BigEndian &&
              StackNaturalAlign == Other.StackNaturalAlign &&
              ManglingMode == Other.ManglingMode &&
              LegalIntWidths == Other.LegalIntWidths &&
              Alignments == Other.Alignments && Pointers == Other.Pointers;
-  assert(Ret == (getStringRepresentation() == Other.getStringRepresentation()));
+  // Note: getStringRepresentation() might differs, it is not canonicalized
   return Ret;
 }
 
 void
 DataLayout::setAlignment(AlignTypeEnum align_type, unsigned abi_align,
                          unsigned pref_align, uint32_t bit_width) {
-  assert(abi_align <= pref_align && "Preferred alignment worse than ABI!");
-  assert(pref_align < (1 << 16) && "Alignment doesn't fit in bitfield");
-  assert(bit_width < (1 << 24) && "Bit width doesn't fit in bitfield");
+  if (!isUInt<24>(bit_width))
+    report_fatal_error("Invalid bit width, must be a 24bit integer");
+  if (!isUInt<16>(abi_align))
+    report_fatal_error("Invalid ABI alignment, must be a 16bit integer");
+  if (!isUInt<16>(pref_align))
+    report_fatal_error("Invalid preferred alignment, must be a 16bit integer");
+  if (abi_align != 0 && !isPowerOf2_64(abi_align))
+    report_fatal_error("Invalid ABI alignment, must be a power of 2");
+  if (pref_align != 0 && !isPowerOf2_64(pref_align))
+    report_fatal_error("Invalid preferred alignment, must be a power of 2");
+
+  if (pref_align < abi_align)
+    report_fatal_error(
+        "Preferred alignment cannot be less than the ABI alignment");
+
   for (LayoutAlignElem &Elem : Alignments) {
     if (Elem.AlignType == (unsigned)align_type &&
         Elem.TypeBitWidth == bit_width) {
@@ -393,7 +432,10 @@ DataLayout::findPointerLowerBound(uint32_t AddressSpace) {
 void DataLayout::setPointerAlignment(uint32_t AddrSpace, unsigned ABIAlign,
                                      unsigned PrefAlign,
                                      uint32_t TypeByteWidth) {
-  assert(ABIAlign <= PrefAlign && "Preferred alignment worse than ABI!");
+  if (PrefAlign < ABIAlign)
+    report_fatal_error(
+        "Preferred alignment cannot be less than the ABI alignment");
+
   PointersTy::iterator I = findPointerLowerBound(AddrSpace);
   if (I == Pointers.end() || I->AddressSpace != AddrSpace) {
     Pointers.insert(I, PointerAlignElem::get(AddrSpace, ABIAlign, PrefAlign,
@@ -440,9 +482,7 @@ unsigned DataLayout::getAlignmentInfo(AlignTypeEnum AlignType,
     // If we didn't find an integer alignment, fall back on most conservative.
     if (AlignType == INTEGER_ALIGN) {
       BestMatchIdx = LargestInt;
-    } else {
-      assert(AlignType == VECTOR_ALIGN && "Unknown alignment type!");
-
+    } else if (AlignType == VECTOR_ALIGN) {
       // By default, use natural alignment for vector types. This is consistent
       // with what clang and llvm-gcc do.
       unsigned Align = getTypeAllocSize(cast<VectorType>(Ty)->getElementType());
@@ -453,6 +493,19 @@ unsigned DataLayout::getAlignmentInfo(AlignTypeEnum AlignType,
         Align = NextPowerOf2(Align);
       return Align;
     }
+  }
+
+  // If we still couldn't find a reasonable default alignment, fall back
+  // to a simple heuristic that the alignment is the first power of two
+  // greater-or-equal to the store size of the type.  This is a reasonable
+  // approximation of reality, and if the user wanted something less
+  // less conservative, they should have specified it explicitly in the data
+  // layout.
+  if (BestMatchIdx == -1) {
+    unsigned Align = getTypeStoreSize(Ty);
+    if (Align & (Align-1))
+      Align = NextPowerOf2(Align);
+    return Align;
   }
 
   // Since we got a "best match" index, just return it.
@@ -518,68 +571,6 @@ const StructLayout *DataLayout::getStructLayout(StructType *Ty) const {
   return L;
 }
 
-std::string DataLayout::getStringRepresentation() const {
-  std::string Result;
-  raw_string_ostream OS(Result);
-
-  OS << (LittleEndian ? "e" : "E");
-
-  switch (ManglingMode) {
-  case MM_None:
-    break;
-  case MM_ELF:
-    OS << "-m:e";
-    break;
-  case MM_MachO:
-    OS << "-m:o";
-    break;
-  case MM_WINCOFF:
-    OS << "-m:w";
-    break;
-  case MM_Mips:
-    OS << "-m:m";
-    break;
-  }
-
-  for (const PointerAlignElem &PI : Pointers) {
-    // Skip default.
-    if (PI.AddressSpace == 0 && PI.ABIAlign == 8 && PI.PrefAlign == 8 &&
-        PI.TypeByteWidth == 8)
-      continue;
-
-    OS << "-p";
-    if (PI.AddressSpace) {
-      OS << PI.AddressSpace;
-    }
-    OS << ":" << PI.TypeByteWidth*8 << ':' << PI.ABIAlign*8;
-    if (PI.PrefAlign != PI.ABIAlign)
-      OS << ':' << PI.PrefAlign*8;
-  }
-
-  for (const LayoutAlignElem &AI : Alignments) {
-    if (std::find(std::begin(DefaultAlignments), std::end(DefaultAlignments),
-                  AI) != std::end(DefaultAlignments))
-      continue;
-    OS << '-' << (char)AI.AlignType;
-    if (AI.TypeBitWidth)
-      OS << AI.TypeBitWidth;
-    OS << ':' << AI.ABIAlign*8;
-    if (AI.ABIAlign != AI.PrefAlign)
-      OS << ':' << AI.PrefAlign*8;
-  }
-
-  if (!LegalIntWidths.empty()) {
-    OS << "-n" << (unsigned)LegalIntWidths[0];
-
-    for (unsigned i = 1, e = LegalIntWidths.size(); i != e; ++i)
-      OS << ':' << (unsigned)LegalIntWidths[i];
-  }
-
-  if (StackNaturalAlign)
-    OS << "-S" << StackNaturalAlign*8;
-
-  return OS.str();
-}
 
 unsigned DataLayout::getPointerABIAlignment(unsigned AS) const {
   PointersTy::const_iterator I = findPointerLowerBound(AS);
@@ -637,7 +628,7 @@ unsigned DataLayout::getAlignment(Type *Ty, bool abi_or_pref) const {
             ? getPointerABIAlignment(0)
             : getPointerPrefAlignment(0));
   case Type::PointerTyID: {
-    unsigned AS = dyn_cast<PointerType>(Ty)->getAddressSpace();
+    unsigned AS = cast<PointerType>(Ty)->getAddressSpace();
     return (abi_or_pref
             ? getPointerABIAlignment(AS)
             : getPointerPrefAlignment(AS));
@@ -795,18 +786,3 @@ unsigned DataLayout::getPreferredAlignmentLog(const GlobalVariable *GV) const {
   return Log2_32(getPreferredAlignment(GV));
 }
 
-DataLayoutPass::DataLayoutPass() : ImmutablePass(ID), DL("") {
-  report_fatal_error("Bad DataLayoutPass ctor used. Tool did not specify a "
-                     "DataLayout to use?");
-}
-
-DataLayoutPass::~DataLayoutPass() {}
-
-DataLayoutPass::DataLayoutPass(const DataLayout &DL)
-    : ImmutablePass(ID), DL(DL) {
-  initializeDataLayoutPassPass(*PassRegistry::getPassRegistry());
-}
-
-DataLayoutPass::DataLayoutPass(const Module *M) : ImmutablePass(ID), DL(M) {
-  initializeDataLayoutPassPass(*PassRegistry::getPassRegistry());
-}

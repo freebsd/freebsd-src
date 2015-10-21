@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_NVPTXSECTION_H
-#define LLVM_NVPTXSECTION_H
+#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXSECTION_H
+#define LLVM_LIB_TARGET_NVPTX_NVPTXSECTION_H
 
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/MC/MCSection.h"
@@ -26,7 +26,7 @@ namespace llvm {
 class NVPTXSection : public MCSection {
   virtual void anchor();
 public:
-  NVPTXSection(SectionVariant V, SectionKind K) : MCSection(V, K) {}
+  NVPTXSection(SectionVariant V, SectionKind K) : MCSection(V, K, nullptr) {}
   virtual ~NVPTXSection() {}
 
   /// Override this as NVPTX has its own way of printing switching
@@ -36,11 +36,8 @@ public:
                             const MCExpr *Subsection) const override {}
 
   /// Base address of PTX sections is zero.
-  bool isBaseAddressKnownZero() const override { return true; }
   bool UseCodeAlign() const override { return false; }
   bool isVirtualSection() const override { return false; }
-  std::string getLabelBeginName() const override { return ""; }
-  std::string getLabelEndName() const override { return ""; }
 };
 
 } // end namespace llvm

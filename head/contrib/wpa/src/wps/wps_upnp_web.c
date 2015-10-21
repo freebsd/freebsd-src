@@ -179,15 +179,12 @@ static const char *wps_device_xml_postfix =
 /* format_wps_device_xml -- produce content of "file" wps_device.xml
  * (UPNP_WPS_DEVICE_XML_FILE)
  */
-static void format_wps_device_xml(struct upnp_wps_device_sm *sm,
+static void format_wps_device_xml(struct upnp_wps_device_interface *iface,
+				  struct upnp_wps_device_sm *sm,
 				  struct wpabuf *buf)
 {
 	const char *s;
 	char uuid_string[80];
-	struct upnp_wps_device_interface *iface;
-
-	iface = dl_list_first(&sm->interfaces,
-			      struct upnp_wps_device_interface, list);
 
 	wpabuf_put_str(buf, wps_device_xml_prefix);
 
@@ -319,13 +316,15 @@ static void web_connection_parse_get(struct upnp_wps_device_sm *sm,
 
 	iface = dl_list_first(&sm->interfaces,
 			      struct upnp_wps_device_interface, list);
+	if (iface == NULL) {
+		http_request_deinit(hreq);
+		return;
+	}
 
 	/*
 	 * It is not required that filenames be case insensitive but it is
 	 * allowed and cannot hurt here.
 	 */
-	if (filename == NULL)
-		filename = "(null)"; /* just in case */
 	if (os_strcasecmp(filename, UPNP_WPS_DEVICE_XML_FILE) == 0) {
 		wpa_printf(MSG_DEBUG, "WPS UPnP: HTTP GET for device XML");
 		req = GET_DEVICE_XML_FILE;
@@ -393,7 +392,7 @@ static void web_connection_parse_get(struct upnp_wps_device_sm *sm,
 
 	switch (req) {
 	case GET_DEVICE_XML_FILE:
-		format_wps_device_xml(sm, buf);
+		format_wps_device_xml(iface, sm, buf);
 		break;
 	case GET_SCPD_XML_FILE:
 		wpabuf_put_str(buf, wps_scpd_xml);
@@ -421,12 +420,13 @@ web_process_get_device_info(struct upnp_wps_device_sm *sm,
 
 	iface = dl_list_first(&sm->interfaces,
 			      struct upnp_wps_device_interface, list);
-	peer = &iface->peer;
 
 	wpa_printf(MSG_DEBUG, "WPS UPnP: GetDeviceInfo");
 
-	if (iface->ctx->ap_pin == NULL)
+	if (!iface || iface->ctx->ap_pin == NULL)
 		return HTTP_INTERNAL_SERVER_ERROR;
+
+	peer = &iface->peer;
 
 	/*
 	 * Request for DeviceInfo, i.e., M1 TLVs. This is a start of WPS
@@ -475,6 +475,8 @@ web_process_put_message(struct upnp_wps_device_sm *sm, char *data,
 
 	iface = dl_list_first(&sm->interfaces,
 			      struct upnp_wps_device_interface, list);
+	if (!iface)
+		return HTTP_INTERNAL_SERVER_ERROR;
 
 	/*
 	 * PutMessage is used by external UPnP-based Registrar to perform WPS
@@ -948,7 +950,7 @@ static void web_connection_parse_subscribe(struct upnp_wps_device_sm *sm,
 	wpa_printf(MSG_DEBUG, "WPS UPnP: HTTP SUBSCRIBE for event");
 	end = os_strchr(h, '\n');
 
-	for (; end != NULL; h = end + 1) {
+	while (end) {
 		/* Option line by option line */
 		h = end + 1;
 		end = os_strchr(h, '\n');
@@ -996,13 +998,13 @@ static void web_connection_parse_subscribe(struct upnp_wps_device_sm *sm,
 				h++;
 			len = end - h;
 			os_free(callback_urls);
-			callback_urls = os_malloc(len + 1);
+			callback_urls = dup_binstr(h, len);
 			if (callback_urls == NULL) {
 				ret = HTTP_INTERNAL_SERVER_ERROR;
 				goto error;
 			}
-			os_memcpy(callback_urls, h, len);
-			callback_urls[len] = 0;
+			if (len > 0 && callback_urls[len - 1] == '\r')
+				callback_urls[len - 1] = '\0';
 			continue;
 		}
 		/* SID is only for renewal */
@@ -1157,7 +1159,7 @@ static void web_connection_parse_unsubscribe(struct upnp_wps_device_sm *sm,
 	wpa_printf(MSG_DEBUG, "WPS UPnP: HTTP UNSUBSCRIBE for event");
 	end = os_strchr(h, '\n');
 
-	for (; end != NULL; h = end + 1) {
+	while (end) {
 		/* Option line by option line */
 		h = end + 1;
 		end = os_strchr(h, '\n');
@@ -1175,7 +1177,6 @@ static void web_connection_parse_unsubscribe(struct upnp_wps_device_sm *sm,
 			.....
 		}
 #endif
-		/* SID is only for renewal */
 		match = "SID:";
 		match_len = os_strlen(match);
 		if (os_strncasecmp(h, match, match_len) == 0) {
@@ -1198,19 +1199,44 @@ static void web_connection_parse_unsubscribe(struct upnp_wps_device_sm *sm,
 			got_uuid = 1;
 			continue;
 		}
+
+		match = "NT:";
+		match_len = os_strlen(match);
+		if (os_strncasecmp(h, match, match_len) == 0) {
+			ret = HTTP_BAD_REQUEST;
+			goto send_msg;
+		}
+
+		match = "CALLBACK:";
+		match_len = os_strlen(match);
+		if (os_strncasecmp(h, match, match_len) == 0) {
+			ret = HTTP_BAD_REQUEST;
+			goto send_msg;
+		}
 	}
 
 	if (got_uuid) {
+		char str[80];
+
+		uuid_bin2str(uuid, str, sizeof(str));
+
 		s = subscription_find(sm, uuid);
 		if (s) {
 			struct subscr_addr *sa;
 			sa = dl_list_first(&s->addr_list, struct subscr_addr,
 					   list);
-			wpa_printf(MSG_DEBUG, "WPS UPnP: Unsubscribing %p %s",
-				   s, (sa && sa->domain_and_port) ?
+			wpa_printf(MSG_DEBUG,
+				   "WPS UPnP: Unsubscribing %p (SID %s) %s",
+				   s, str, (sa && sa->domain_and_port) ?
 				   sa->domain_and_port : "-null-");
 			dl_list_del(&s->list);
 			subscription_destroy(s);
+		} else {
+			wpa_printf(MSG_INFO,
+				   "WPS UPnP: Could not find matching subscription to unsubscribe (SID %s)",
+				   str);
+			ret = HTTP_PRECONDITION_FAILED;
+			goto send_msg;
 		}
 	} else {
 		wpa_printf(MSG_INFO, "WPS UPnP: Unsubscribe fails (not "

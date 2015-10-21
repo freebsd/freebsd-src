@@ -12,7 +12,11 @@
         ..
         date
         ..
+        dd
+        ..
         expr
+        ..
+        ls
         ..
         mv
         ..
@@ -49,6 +53,168 @@
         usr.bin
         ..
         usr.sbin
+            dtrace
+                common
+                    aggs
+                    ..
+                    arithmetic
+                    ..
+                    arrays
+                    ..
+                    assocs
+                    ..
+                    begin
+                    ..
+                    bitfields
+                    ..
+                    buffering
+                    ..
+                    builtinvar
+                    ..
+                    cg
+                    ..
+                    clauses
+                    ..
+                    cpc
+                    ..
+                    decls
+                    ..
+                    drops
+                    ..
+                    dtraceUtil
+                    ..
+                    end
+                    ..
+                    enum
+                    ..
+                    error
+                    ..
+                    exit
+                    ..
+                    fbtprovider
+                    ..
+                    funcs
+                    ..
+                    grammar
+                    ..
+                    include
+                    ..
+                    inline
+                    ..
+                    io
+                    ..
+                    ip
+                    ..
+                    java_api
+                    ..
+                    json
+                    ..
+                    lexer
+                    ..
+                    llquantize
+                    ..
+                    mdb
+                    ..
+                    mib
+                    ..
+                    misc
+                    ..
+                    multiaggs
+                    ..
+                    offsetof
+                    ..
+                    operators
+                    ..
+                    pid
+                    ..
+                    plockstat
+                    ..
+                    pointers
+                    ..
+                    pragma
+                    ..
+                    predicates
+                    ..
+                    preprocessor
+                    ..
+                    print
+                    ..
+                    printa
+                    ..
+                    printf
+                    ..
+                    privs
+                    ..
+                    probes
+                    ..
+                    proc
+                    ..
+                    profile-n
+                    ..
+                    providers
+                    ..
+                    raise
+                    ..
+                    rates
+                    ..
+                    safety
+                    ..
+                    scalars
+                    ..
+                    sched
+                    ..
+                    scripting
+                    ..
+                    sdt
+                    ..
+                    sizeof
+                    ..
+                    speculation
+                    ..
+                    stability
+                    ..
+                    stack
+                    ..
+                    stackdepth
+                    ..
+                    stop
+                    ..
+                    strlen
+                    ..
+                    strtoll
+                    ..
+                    struct
+                    ..
+                    syscall
+                    ..
+                    sysevent
+                    ..
+                    tick-n
+                    ..
+                    trace
+                    ..
+                    tracemem
+                    ..
+                    translators
+                    ..
+                    typedef
+                    ..
+                    types
+                    ..
+                    uctf
+                    ..
+                    union
+                    ..
+                    usdt
+                    ..
+                    ustack
+                    ..
+                    vars
+                    ..
+                    version
+                    ..
+                ..
+            ..
         ..
     ..
     etc
@@ -77,6 +243,8 @@
             ..
             test-programs
             ..
+        ..
+        libarchive
         ..
         libc
             c063
@@ -114,8 +282,6 @@
             stdlib
             ..
             string
-                zfsd
-                ..
             ..
             sys
             ..
@@ -147,6 +313,8 @@
             ..
         ..
         libutil
+        ..
+        libxo
         ..
         msun
         ..
@@ -194,285 +362,21 @@
         ..
     ..
     sys
-        cddl
-            zfs
-                bin
-                ..
-                include
-                ..
-                tests
-                    acl
-                        cifs
-                        ..
-                        nontrivial
-                        ..
-                        trivial
-                        ..
-                    ..
-                    atime
-                    ..
-                    bootfs
-                    ..
-                    cache
-                    ..
-                    cachefile
-                    ..
-                    clean_mirror
-                        assertion_001
-                        ..
-                        assertion_002
-                        ..
-                        assertion_003
-                        ..
-                        assertion_004
-                        ..
-                    ..
-                    cli_root
-                        zfs_upgrade
-                        ..
-                        zfs_promote
-                        ..
-                        zfs_clone
-                        ..
-                        zfs_property
-                        ..
-                        zfs_destroy
-                        ..
-                        zpool_create
-                        ..
-                        zpool_history
-                        ..
-                        zpool_expand
-                        ..
-                        zpool_remove
-                        ..
-                        zfs_mount
-                        ..
-                        zfs_unshare
-                        ..
-                        zdb
-                        ..
-                        zpool_online
-                        ..
-                        zpool_get
-                        ..
-                        zpool_export
-                        ..
-                        zfs_copies
-                        ..
-                        zfs_get
-                        ..
-                        zfs
-                        ..
-                        zpool_clear
-                        ..
-                        zpool_import
-                        ..
-                        zpool
-                        ..
-                        zpool_offline
-                        ..
-                        zpool_replace
-                        ..
-                        zfs_rollback
-                        ..
-                        zpool_set
-                        ..
-                        zfs_send
-                        ..
-                        zfs_set
-                        ..
-                        zpool_detach
-                        ..
-                        zpool_scrub
-                        ..
-                        zfs_inherit
-                        ..
-                        zfs_snapshot
-                        ..
-                        zfs_share
-                        ..
-                        zpool_destroy
-                        ..
-                        zpool_status
-                        ..
-                        zfs_unmount
-                        ..
-                        zfs_receive
-                        ..
-                        zfs_create
-                        ..
-                        zpool_upgrade
-                            blockfiles
-                            ..
-                        ..
-                        zpool_add
-                        ..
-                        zfs_rename
-                        ..
-                        zpool_attach
-                        ..
-                        zfs_reservation
-                        ..
-                    ..
-                    cli_user
-                        misc
-                        ..
-                        zfs_list
-                        ..
-                        zpool_iostat
-                        ..
-                        zpool_list
-                        ..
-                    ..
-                    compression
-                    ..
-                    ctime
-                    ..
-                    delegate
-                        zfs_allow
-                        ..
-                        zfs_unallow
-                        ..
-                    ..
-                    devices
-                    ..
-                    exec
-                    ..
-                    grow_pool
-                    ..
-                    grow_replicas
-                    ..
-                    history
-                    ..
-                    hotplug
-                    ..
-                    hotspare
-                    ..
-                    inheritance
-                    ..
-                    interop
-                    ..
-                    inuse
-                    ..
-                    iscsi
-                    ..
-                    large_files
-                    ..
-                    largest_pool
-                    ..
-                    link_count
-                    ..
-                    mdb
-                    ..
-                    migration
-                    ..
-                    mmap
-                        mmap_read
-                        ..
-                        mmap_write
-                        ..
-                    ..
-                    mount
-                    ..
-                    mv_files
-                    ..
-                    nestedfs
-                    ..
-                    no_space
-                    ..
-                    online_offline
-                    ..
-                    pool_names
-                    ..
-                    poolversion
-                    ..
-                    privilege
-                    ..
-                    quota
-                    ..
-                    redundancy
-                    ..
-                    refquota
-                    ..
-                    refreserv
-                    ..
-                    remote
-                        cross_endian
-                        ..
-                        rebooting
-                        ..
-                        sharing
-                        ..
-                    ..
-                    rename_dirs
-                    ..
-                    replacement
-                    ..
-                    reservation
-                    ..
-                    rootpool
-                    ..
-                    rsend
-                    ..
-                    sas_phy_thrash
-                    ..
-                    scrub_mirror
-                    ..
-                    slog
-                    ..
-                    snapshot
-                    ..
-                    snapused
-                    ..
-                    sparse
-                    ..
-                    threadsappend
-                    ..
-                    truncate
-                    ..
-                    txg_integrity
-                    ..
-                    userquota
-                    ..
-                    utils_test
-                    ..
-                    write_dirs
-                    ..
-                    xattr
-                    ..
-                    zfsd
-                    ..
-                    zil
-                    ..
-                    zinject
-                    ..
-                    zones
-                    ..
-                    zvol
-                        zvol_ENOSPC
-                        ..
-                        zvol_cli
-                        ..
-                        zvol_misc
-                        ..
-                        zvol_swap
-                        ..
-                    ..
-                    zvol_thrash
-                    ..
-                ..
-            ..
+        acl
         ..
-        dtrace
+        aio
         ..
-        geom
-            geom_part
-            ..
+        fifo
+        ..
+        file
         ..
         kern
+            execve
+            ..
         ..
-        net
+        kqueue
+        ..
+        mqueue
         ..
         netinet
         ..
@@ -510,6 +414,12 @@
             unlink
             ..
         ..
+        posixshm
+        ..
+        vfs
+        ..
+        vm
+        ..
     ..
     usr.bin
         apply
@@ -534,6 +444,7 @@
                 ..
                 t3
                 ..
+            ..
             execution
                 ellipsis
                 ..
@@ -617,6 +528,10 @@
         ..
         cmp
         ..
+        cpio
+        ..
+        col
+        ..
         comm
         ..
         cut
@@ -628,6 +543,8 @@
         grep
         ..
         gzip
+        ..
+        ident
         ..
         join
         ..
@@ -649,6 +566,10 @@
             regress.multitest.out
             ..
         ..
+        soelim
+        ..
+        tar
+        ..
         timeout
         ..
         tr
@@ -663,6 +584,8 @@
         ..
         xargs
         ..
+        xo
+        ..
         yacc
             yacc
             ..
@@ -670,6 +593,8 @@
     ..
     usr.sbin
         etcupdate
+        ..
+        fstyp
         ..
         newsyslog
         ..

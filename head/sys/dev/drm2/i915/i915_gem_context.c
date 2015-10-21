@@ -317,10 +317,10 @@ void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
-	//DRM_LOCK(dev); /* Called from preclose(), the lock is already owned. */
+	DRM_LOCK(dev);
 	drm_gem_names_foreach(&file_priv->context_idr, context_idr_cleanup, NULL);
 	drm_gem_names_fini(&file_priv->context_idr);
-	//DRM_UNLOCK(dev);
+	DRM_UNLOCK(dev);
 }
 
 static struct i915_hw_context *

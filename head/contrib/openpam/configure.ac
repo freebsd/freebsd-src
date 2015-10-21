@@ -110,7 +110,7 @@ AC_SUBST(CRYPTO_LIBS)
 
 AC_ARG_ENABLE([developer-warnings],
     AS_HELP_STRING([--enable-developer-warnings], [enable strict warnings (default is NO)]),
-    [CFLAGS="${CFLAGS} -Wall -Wextra"])
+    [CFLAGS="${CFLAGS} -Wall -Wextra -Wcast-qual"])
 AC_ARG_ENABLE([debugging-symbols],
     AS_HELP_STRING([--enable-debugging-symbols], [enable debugging symbols (default is NO)]),
     [CFLAGS="${CFLAGS} -O0 -g -fno-inline"])

@@ -48,6 +48,23 @@ static void eap_tls_state(struct eap_tls_data *data, int state)
 		   eap_tls_state_txt(data->state),
 		   eap_tls_state_txt(state));
 	data->state = state;
+	if (state == FAILURE)
+		tls_connection_remove_session(data->ssl.conn);
+}
+
+
+static void eap_tls_valid_session(struct eap_sm *sm, struct eap_tls_data *data)
+{
+	struct wpabuf *buf;
+
+	if (!sm->tls_session_lifetime)
+		return;
+
+	buf = wpabuf_alloc(1);
+	if (!buf)
+		return;
+	wpabuf_put_u8(buf, data->eap_type);
+	tls_connection_set_success_data(data->ssl.conn, buf);
 }
 
 
@@ -60,7 +77,7 @@ static void * eap_tls_init(struct eap_sm *sm)
 		return NULL;
 	data->state = START;
 
-	if (eap_server_tls_ssl_init(sm, &data->ssl, 1)) {
+	if (eap_server_tls_ssl_init(sm, &data->ssl, 1, EAP_TYPE_TLS)) {
 		wpa_printf(MSG_INFO, "EAP-TLS: Failed to initialize SSL.");
 		eap_tls_reset(sm, data);
 		return NULL;
@@ -82,7 +99,7 @@ static void * eap_unauth_tls_init(struct eap_sm *sm)
 		return NULL;
 	data->state = START;
 
-	if (eap_server_tls_ssl_init(sm, &data->ssl, 0)) {
+	if (eap_server_tls_ssl_init(sm, &data->ssl, 0, EAP_UNAUTH_TLS_TYPE)) {
 		wpa_printf(MSG_INFO, "EAP-TLS: Failed to initialize SSL.");
 		eap_tls_reset(sm, data);
 		return NULL;
@@ -92,6 +109,29 @@ static void * eap_unauth_tls_init(struct eap_sm *sm)
 	return data;
 }
 #endif /* EAP_SERVER_UNAUTH_TLS */
+
+
+#ifdef CONFIG_HS20
+static void * eap_wfa_unauth_tls_init(struct eap_sm *sm)
+{
+	struct eap_tls_data *data;
+
+	data = os_zalloc(sizeof(*data));
+	if (data == NULL)
+		return NULL;
+	data->state = START;
+
+	if (eap_server_tls_ssl_init(sm, &data->ssl, 0,
+				    EAP_WFA_UNAUTH_TLS_TYPE)) {
+		wpa_printf(MSG_INFO, "EAP-TLS: Failed to initialize SSL.");
+		eap_tls_reset(sm, data);
+		return NULL;
+	}
+
+	data->eap_type = EAP_WFA_UNAUTH_TLS_TYPE;
+	return data;
+}
+#endif /* CONFIG_HS20 */
 
 
 static void eap_tls_reset(struct eap_sm *sm, void *priv)
@@ -161,6 +201,7 @@ check_established:
 		 * fragments waiting to be sent out. */
 		wpa_printf(MSG_DEBUG, "EAP-TLS: Done");
 		eap_tls_state(data, SUCCESS);
+		eap_tls_valid_session(sm, data);
 	}
 
 	return res;
@@ -177,6 +218,10 @@ static Boolean eap_tls_check(struct eap_sm *sm, void *priv,
 	if (data->eap_type == EAP_UNAUTH_TLS_TYPE)
 		pos = eap_hdr_validate(EAP_VENDOR_UNAUTH_TLS,
 				       EAP_VENDOR_TYPE_UNAUTH_TLS, respData,
+				       &len);
+	else if (data->eap_type == EAP_WFA_UNAUTH_TLS_TYPE)
+		pos = eap_hdr_validate(EAP_VENDOR_WFA_NEW,
+				       EAP_VENDOR_WFA_UNAUTH_TLS, respData,
 				       &len);
 	else
 		pos = eap_hdr_validate(EAP_VENDOR_IETF, data->eap_type,
@@ -208,10 +253,41 @@ static void eap_tls_process(struct eap_sm *sm, void *priv,
 			    struct wpabuf *respData)
 {
 	struct eap_tls_data *data = priv;
+	const struct wpabuf *buf;
+	const u8 *pos;
+
 	if (eap_server_tls_process(sm, &data->ssl, respData, data,
 				   data->eap_type, NULL, eap_tls_process_msg) <
-	    0)
+	    0) {
 		eap_tls_state(data, FAILURE);
+		return;
+	}
+
+	if (!tls_connection_established(sm->ssl_ctx, data->ssl.conn) ||
+	    !tls_connection_resumed(sm->ssl_ctx, data->ssl.conn))
+		return;
+
+	buf = tls_connection_get_success_data(data->ssl.conn);
+	if (!buf || wpabuf_len(buf) < 1) {
+		wpa_printf(MSG_DEBUG,
+			   "EAP-TLS: No success data in resumed session - reject attempt");
+		eap_tls_state(data, FAILURE);
+		return;
+	}
+
+	pos = wpabuf_head(buf);
+	if (*pos != data->eap_type) {
+		wpa_printf(MSG_DEBUG,
+			   "EAP-TLS: Resumed session for another EAP type (%u) - reject attempt",
+			   *pos);
+		eap_tls_state(data, FAILURE);
+		return;
+	}
+
+	wpa_printf(MSG_DEBUG,
+		   "EAP-TLS: Resuming previous session");
+	eap_tls_state(data, SUCCESS);
+	tls_connection_set_success_data_resumed(data->ssl.conn);
 }
 
 
@@ -261,7 +337,7 @@ static u8 * eap_tls_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 		if (emsk)
 			os_memcpy(emsk, eapKeyData + EAP_TLS_KEY_LEN,
 				  EAP_EMSK_LEN);
-		os_free(eapKeyData);
+		bin_clear_free(eapKeyData, EAP_TLS_KEY_LEN + EAP_EMSK_LEN);
 	} else
 		emsk = NULL;
 
@@ -284,6 +360,18 @@ static Boolean eap_tls_isSuccess(struct eap_sm *sm, void *priv)
 }
 
 
+static u8 * eap_tls_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
+{
+	struct eap_tls_data *data = priv;
+
+	if (data->state != SUCCESS)
+		return NULL;
+
+	return eap_server_tls_derive_session_id(sm, &data->ssl, EAP_TYPE_TLS,
+						len);
+}
+
+
 int eap_server_tls_register(void)
 {
 	struct eap_method *eap;
@@ -303,6 +391,7 @@ int eap_server_tls_register(void)
 	eap->getKey = eap_tls_getKey;
 	eap->isSuccess = eap_tls_isSuccess;
 	eap->get_emsk = eap_tls_get_emsk;
+	eap->getSessionId = eap_tls_get_session_id;
 
 	ret = eap_server_method_register(eap);
 	if (ret)
@@ -340,3 +429,34 @@ int eap_server_unauth_tls_register(void)
 	return ret;
 }
 #endif /* EAP_SERVER_UNAUTH_TLS */
+
+
+#ifdef CONFIG_HS20
+int eap_server_wfa_unauth_tls_register(void)
+{
+	struct eap_method *eap;
+	int ret;
+
+	eap = eap_server_method_alloc(EAP_SERVER_METHOD_INTERFACE_VERSION,
+				      EAP_VENDOR_WFA_NEW,
+				      EAP_VENDOR_WFA_UNAUTH_TLS,
+				      "WFA-UNAUTH-TLS");
+	if (eap == NULL)
+		return -1;
+
+	eap->init = eap_wfa_unauth_tls_init;
+	eap->reset = eap_tls_reset;
+	eap->buildReq = eap_tls_buildReq;
+	eap->check = eap_tls_check;
+	eap->process = eap_tls_process;
+	eap->isDone = eap_tls_isDone;
+	eap->getKey = eap_tls_getKey;
+	eap->isSuccess = eap_tls_isSuccess;
+	eap->get_emsk = eap_tls_get_emsk;
+
+	ret = eap_server_method_register(eap);
+	if (ret)
+		eap_server_method_free(eap);
+	return ret;
+}
+#endif /* CONFIG_HS20 */

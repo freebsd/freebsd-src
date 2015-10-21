@@ -21,6 +21,7 @@
 #include "lldb/Core/StringList.h"
 #include "lldb/Host/File.h"
 #include "lldb/Host/FileSpec.h"
+#include "lldb/Host/HostThread.h"
 
 namespace lldb_private {
 
@@ -37,9 +38,6 @@ class ProcessLaunchInfo;
 class Host
 {
 public:
-
-    /// A value of std::numeric_limits<uint32_t>::max() is used if there is no practical limit.
-    static const uint32_t MAX_THREAD_NAME_LENGTH;
 
     typedef bool (*MonitorChildProcessCallback) (void *callback_baton,
                                                  lldb::pid_t pid,
@@ -86,11 +84,8 @@ public:
     ///
     /// @see static void Host::StopMonitoringChildProcess (uint32_t)
     //------------------------------------------------------------------
-    static lldb::thread_t
-    StartMonitoringChildProcess (MonitorChildProcessCallback callback,
-                                 void *callback_baton,
-                                 lldb::pid_t pid,
-                                 bool monitor_signals);
+    static HostThread StartMonitoringChildProcess(MonitorChildProcessCallback callback, void *callback_baton, lldb::pid_t pid,
+                                                  bool monitor_signals);
 
     enum SystemLogType
     {
@@ -138,39 +133,6 @@ public:
     static const char *
     GetSignalAsCString (int signo);
 
-    static void
-    WillTerminate ();
-    //------------------------------------------------------------------
-    /// Host specific thread created function call.
-    ///
-    /// This function call lets the current host OS do any thread
-    /// specific initialization that it needs, including naming the
-    /// thread. No cleanup routine is expected to be called
-    ///
-    /// @param[in] name
-    ///     The current thread's name in the current process.
-    //------------------------------------------------------------------
-    static void
-    ThreadCreated (const char *name);
-
-    static lldb::thread_t
-    ThreadCreate (const char *name,
-                  lldb::thread_func_t function,
-                  lldb::thread_arg_t thread_arg,
-                  Error *err);
-
-    static bool
-    ThreadCancel (lldb::thread_t thread,
-                  Error *error);
-
-    static bool
-    ThreadDetach (lldb::thread_t thread,
-                  Error *error);
-    static bool
-    ThreadJoin (lldb::thread_t thread,
-                lldb::thread_result_t *thread_result_ptr,
-                Error *error);
-
     typedef void (*ThreadLocalStorageCleanupCallback) (void *p);
 
     static lldb::thread_key_t
@@ -182,65 +144,6 @@ public:
     static void
     ThreadLocalStorageSet(lldb::thread_key_t key, void *value);
 
-    //------------------------------------------------------------------
-    /// Gets the name of a thread in a process.
-    ///
-    /// This function will name a thread in a process using it's own
-    /// thread name pool, and also will attempt to set a thread name
-    /// using any supported host OS APIs.
-    ///
-    /// @param[in] pid
-    ///     The process ID in which we are trying to get the name of
-    ///     a thread.
-    ///
-    /// @param[in] tid
-    ///     The thread ID for which we are trying retrieve the name of.
-    ///
-    /// @return
-    ///     A std::string containing the thread name.
-    //------------------------------------------------------------------
-    static std::string
-    GetThreadName (lldb::pid_t pid, lldb::tid_t tid);
-
-    //------------------------------------------------------------------
-    /// Sets the name of a thread in the current process.
-    ///
-    /// @param[in] pid
-    ///     The process ID in which we are trying to name a thread.
-    ///
-    /// @param[in] tid
-    ///     The thread ID which we are trying to name.
-    ///
-    /// @param[in] name
-    ///     The current thread's name in the current process to \a name.
-    ///
-    /// @return
-    ///     \b true if the thread name was able to be set, \b false
-    ///     otherwise.
-    //------------------------------------------------------------------
-    static bool
-    SetThreadName (lldb::pid_t pid, lldb::tid_t tid, const char *name);
-
-    //------------------------------------------------------------------
-    /// Sets a shortened name of a thread in the current process.
-    ///
-    /// @param[in] pid
-    ///     The process ID in which we are trying to name a thread.
-    ///
-    /// @param[in] tid
-    ///     The thread ID which we are trying to name.
-    ///
-    /// @param[in] name
-    ///     The current thread's name in the current process to \a name.
-    ///
-    /// @param[in] len
-    ///     The maximum length for the thread's shortened name.
-    ///
-    /// @return
-    ///     \b true if the thread name was able to be set, \b false
-    ///     otherwise.
-    static bool
-    SetShortThreadName (lldb::pid_t pid, lldb::tid_t tid, const char *name, size_t len);
 
     //------------------------------------------------------------------
     /// Given an address in the current process (the process that
@@ -330,32 +233,50 @@ public:
     GetProcessInfo (lldb::pid_t pid, ProcessInstanceInfo &proc_info);
 
 #if defined (__APPLE__) || defined (__linux__) || defined (__FreeBSD__) || defined (__GLIBC__) || defined (__NetBSD__)
-    static short
-    GetPosixspawnFlags (ProcessLaunchInfo &launch_info);
+#if !defined(__ANDROID__) && !defined(__ANDROID_NDK__)
 
-    static Error
-    LaunchProcessPosixSpawn (const char *exe_path, ProcessLaunchInfo &launch_info, ::pid_t &pid);
+    static short GetPosixspawnFlags(const ProcessLaunchInfo &launch_info);
+
+    static Error LaunchProcessPosixSpawn(const char *exe_path, const ProcessLaunchInfo &launch_info, lldb::pid_t &pid);
 
     static bool AddPosixSpawnFileAction(void *file_actions, const FileAction *info, Log *log, Error &error);
-#endif
 
-    static const lldb_private::UnixSignalsSP&
-    GetUnixSignals ();
+#endif // !defined(__ANDROID__) && !defined(__ANDROID_NDK__)
+#endif // defined (__APPLE__) || defined (__linux__) || defined (__FreeBSD__) || defined (__GLIBC__) || defined(__NetBSD__)
 
-    static lldb::pid_t
-    LaunchApplication (const FileSpec &app_file_spec);
+    static const lldb::UnixSignalsSP &
+    GetUnixSignals();
 
     static Error
     LaunchProcess (ProcessLaunchInfo &launch_info);
 
+    //------------------------------------------------------------------
+    /// Perform expansion of the command-line for this launch info
+    /// This can potentially involve wildcard expansion
+    //  environment variable replacement, and whatever other
+    //  argument magic the platform defines as part of its typical
+    //  user experience
+    //------------------------------------------------------------------
     static Error
-    RunShellCommand (const char *command,           // Shouldn't be NULL
-                     const char *working_dir,       // Pass NULL to use the current working directory
-                     int *status_ptr,               // Pass NULL if you don't want the process exit status
-                     int *signo_ptr,                // Pass NULL if you don't want the signal that caused the process to exit
-                     std::string *command_output,   // Pass NULL if you don't want the command output
-                     uint32_t timeout_sec,
-                     const char *shell = LLDB_DEFAULT_SHELL);
+    ShellExpandArguments (ProcessLaunchInfo &launch_info);
+    
+    static Error
+    RunShellCommand(const char *command,           // Shouldn't be NULL
+                    const FileSpec &working_dir,   // Pass empty FileSpec to use the current working directory
+                    int *status_ptr,               // Pass NULL if you don't want the process exit status
+                    int *signo_ptr,                // Pass NULL if you don't want the signal that caused the process to exit
+                    std::string *command_output,   // Pass NULL if you don't want the command output
+                    uint32_t timeout_sec,
+                    bool run_in_default_shell = true);
+
+    static Error
+    RunShellCommand(const Args& args,
+                    const FileSpec &working_dir,   // Pass empty FileSpec to use the current working directory
+                    int *status_ptr,               // Pass NULL if you don't want the process exit status
+                    int *signo_ptr,                // Pass NULL if you don't want the signal that caused the process to exit
+                    std::string *command_output,   // Pass NULL if you don't want the command output
+                    uint32_t timeout_sec,
+                    bool run_in_default_shell = true);
     
     static lldb::DataBufferSP
     GetAuxvData (lldb_private::Process *process);
@@ -363,16 +284,10 @@ public:
     static lldb::DataBufferSP
     GetAuxvData (lldb::pid_t pid);
 
-    static lldb::TargetSP
-    GetDummyTarget (Debugger &debugger);
-    
     static bool
     OpenFileInExternalEditor (const FileSpec &file_spec, 
                               uint32_t line_no);
 
-    static void
-    Backtrace (Stream &strm, uint32_t max_frames);
-    
     static size_t
     GetEnvironment (StringList &env);
 };

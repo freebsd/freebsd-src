@@ -21,6 +21,9 @@ PPP_NO_PAM=
 PPP_NO_RADIUS=
 PPP_NO_SUID=
 .endif
+CONFS=	ppp.conf
+CONFSDIR=	${CONFDIR}/ppp
+CONFSMODE=	600
 
 .if ${MK_ATM} == "no"
 PPP_NO_ATM=
@@ -30,6 +33,9 @@ PPP_NO_NETGRAPH=
 .endif
 .if ${MK_PAM_SUPPORT} == "no"
 PPP_NO_PAM=
+.endif
+.if ${MK_RADIUS_SUPPORT} == "no"
+PPP_NO_RADIUS=
 .endif
 
 .if defined(PPP_NO_SUID)

@@ -33,67 +33,15 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drmP.h>
 
-int
-drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather *request)
+#define DEBUG_SCATTER 0
+
+static inline vm_offset_t drm_vmalloc_dma(vm_size_t size)
 {
-	struct drm_sg_mem *entry;
-	vm_size_t size;
-	vm_pindex_t pindex;
-
-	if (dev->sg)
-		return EINVAL;
-
-	DRM_DEBUG("request size=%ld\n", request->size);
-
-	entry = malloc(sizeof(*entry), DRM_MEM_DRIVER, M_WAITOK | M_ZERO);
-
-	size = round_page(request->size);
-	entry->pages = OFF_TO_IDX(size);
-	entry->busaddr = malloc(entry->pages * sizeof(*entry->busaddr),
-	    DRM_MEM_SGLISTS, M_WAITOK | M_ZERO);
-
-	entry->vaddr = kmem_alloc_attr(kernel_arena, size, M_WAITOK | M_ZERO,
+	return kmem_alloc_attr(kernel_arena, size, M_NOWAIT | M_ZERO,
 	    0, BUS_SPACE_MAXADDR_32BIT, VM_MEMATTR_WRITE_COMBINING);
-	if (entry->vaddr == 0) {
-		drm_sg_cleanup(entry);
-		return (ENOMEM);
-	}
-
-	for(pindex = 0; pindex < entry->pages; pindex++) {
-		entry->busaddr[pindex] =
-		    vtophys(entry->vaddr + IDX_TO_OFF(pindex));
-	}
-
-	DRM_LOCK(dev);
-	if (dev->sg) {
-		DRM_UNLOCK(dev);
-		drm_sg_cleanup(entry);
-		return (EINVAL);
-	}
-	dev->sg = entry;
-	DRM_UNLOCK(dev);
-
-	request->handle = entry->vaddr;
-
-	DRM_DEBUG("allocated %ju pages @ 0x%08zx, contents=%08lx\n",
-	    entry->pages, entry->vaddr, *(unsigned long *)entry->vaddr);
-
-	return (0);
 }
 
-int
-drm_sg_alloc_ioctl(struct drm_device *dev, void *data,
-		   struct drm_file *file_priv)
-{
-	struct drm_scatter_gather *request = data;
-
-	DRM_DEBUG("\n");
-
-	return (drm_sg_alloc(dev, request));
-}
-
-void
-drm_sg_cleanup(struct drm_sg_mem *entry)
+void drm_sg_cleanup(struct drm_sg_mem * entry)
 {
 	if (entry == NULL)
 		return;
@@ -103,27 +51,86 @@ drm_sg_cleanup(struct drm_sg_mem *entry)
 
 	free(entry->busaddr, DRM_MEM_SGLISTS);
 	free(entry, DRM_MEM_DRIVER);
-
-	return;
 }
 
-int
-drm_sg_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
+int drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather * request)
+{
+	struct drm_sg_mem *entry;
+	vm_size_t size;
+	vm_pindex_t pindex;
+
+	DRM_DEBUG("\n");
+
+	if (!drm_core_check_feature(dev, DRIVER_SG))
+		return -EINVAL;
+
+	if (dev->sg)
+		return -EINVAL;
+
+	entry = malloc(sizeof(*entry), DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
+	if (!entry)
+		return -ENOMEM;
+
+	DRM_DEBUG("request size=%ld\n", request->size);
+
+	size = round_page(request->size);
+	entry->pages = OFF_TO_IDX(size);
+	entry->busaddr = malloc(entry->pages * sizeof(*entry->busaddr),
+	    DRM_MEM_SGLISTS, M_NOWAIT | M_ZERO);
+	if (!entry->busaddr) {
+		free(entry, DRM_MEM_DRIVER);
+		return -ENOMEM;
+	}
+
+	entry->vaddr = drm_vmalloc_dma(size);
+	if (entry->vaddr == 0) {
+		free(entry->busaddr, DRM_MEM_DRIVER);
+		free(entry, DRM_MEM_DRIVER);
+		return -ENOMEM;
+	}
+
+	for (pindex = 0; pindex < entry->pages; pindex++) {
+		entry->busaddr[pindex] =
+		    vtophys(entry->vaddr + IDX_TO_OFF(pindex));
+	}
+
+	request->handle = entry->vaddr;
+
+	dev->sg = entry;
+
+	DRM_DEBUG("allocated %ju pages @ 0x%08zx, contents=%08lx\n",
+	    entry->pages, entry->vaddr, *(unsigned long *)entry->vaddr);
+
+	return 0;
+}
+
+int drm_sg_alloc_ioctl(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv)
+{
+	struct drm_scatter_gather *request = data;
+
+	return drm_sg_alloc(dev, request);
+
+}
+
+int drm_sg_free(struct drm_device *dev, void *data,
+		struct drm_file *file_priv)
 {
 	struct drm_scatter_gather *request = data;
 	struct drm_sg_mem *entry;
 
-	DRM_LOCK(dev);
+	if (!drm_core_check_feature(dev, DRIVER_SG))
+		return -EINVAL;
+
 	entry = dev->sg;
 	dev->sg = NULL;
-	DRM_UNLOCK(dev);
 
 	if (!entry || entry->vaddr != request->handle)
-		return (EINVAL);
+		return -EINVAL;
 
 	DRM_DEBUG("free 0x%zx\n", entry->vaddr);
 
 	drm_sg_cleanup(entry);
 
-	return (0);
+	return 0;
 }
