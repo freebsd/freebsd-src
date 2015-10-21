@@ -860,7 +860,6 @@ arm_gic_post_filter(device_t dev, struct arm_irqsrc *isrc)
 	gic_c_write_4(sc, GICC_EOIR, isrc->isrc_data);
 }
 
-#ifdef SMP
 static int
 arm_gic_bind(device_t dev, struct arm_irqsrc *isrc)
 {
@@ -877,6 +876,7 @@ arm_gic_bind(device_t dev, struct arm_irqsrc *isrc)
 	return (gic_bind(sc, irq, &isrc->isrc_cpu));
 }
 
+#ifdef SMP
 static void
 arm_gic_ipi_send(device_t dev, struct arm_irqsrc *isrc, cpuset_t cpus)
 {
