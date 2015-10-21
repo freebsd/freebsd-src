@@ -57,7 +57,7 @@ static MALLOC_DEFINE(M_BALLOON, "Balloon", "Xen Balloon Driver");
 struct mtx balloon_mutex;
 
 /* We increase/decrease in batches which fit in a page */
-static unsigned long frame_list[PAGE_SIZE / sizeof(unsigned long)];
+static xen_pfn_t frame_list[PAGE_SIZE / sizeof(xen_pfn_t)];
 
 struct balloon_stats {
 	/* We aim for 'current allocation' == 'target allocation'. */
@@ -149,7 +149,7 @@ minimum_target(void)
 static int 
 increase_reservation(unsigned long nr_pages)
 {
-	unsigned long  pfn, i;
+	unsigned long  i;
 	vm_page_t      page;
 	long           rc;
 	struct xen_memory_reservation reservation = {
@@ -195,7 +195,6 @@ increase_reservation(unsigned long nr_pages)
 		TAILQ_REMOVE(&ballooned_pages, page, plinks.q);
 		bs.balloon_low--;
 
-		pfn = (VM_PAGE_TO_PHYS(page) >> PAGE_SHIFT);
 		KASSERT(xen_feature(XENFEAT_auto_translated_physmap),
 		    ("auto translated physmap but mapping is valid"));
 
@@ -211,7 +210,7 @@ increase_reservation(unsigned long nr_pages)
 static int
 decrease_reservation(unsigned long nr_pages)
 {
-	unsigned long  pfn, i;
+	unsigned long  i;
 	vm_page_t      page;
 	int            need_sleep = 0;
 	int ret;
@@ -246,8 +245,7 @@ decrease_reservation(unsigned long nr_pages)
 			pmap_zero_page(page);
 		}
 
-		pfn = (VM_PAGE_TO_PHYS(page) >> PAGE_SHIFT);
-		frame_list[i] = pfn;
+		frame_list[i] = (VM_PAGE_TO_PHYS(page) >> PAGE_SHIFT);
 
 		TAILQ_INSERT_HEAD(&ballooned_pages, page, plinks.q);
 		bs.balloon_low++;

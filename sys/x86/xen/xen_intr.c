@@ -71,6 +71,9 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_XENINTR, "xen_intr", "Xen Interrupt Services");
 
+#define ENABLED_SETSIZE	(sizeof(u_long) * 8)
+BITSET_DEFINE(enabledbits, ENABLED_SETSIZE)
+
 /**
  * Per-cpu event channel processing state.
  */
@@ -95,14 +98,14 @@ struct xen_intr_pcpu_data {
 	 * A bitmap of ports that can be serviced from this CPU.
 	 * A set bit means interrupt handling is enabled.
 	 */
-	u_long	evtchn_enabled[sizeof(u_long) * 8];
+	struct enabledbits evtchn_enabled;
 };
 
 /*
  * Start the scan at port 0 by initializing the last scanned
  * location as the highest numbered event channel port.
  */
-DPCPU_DEFINE(struct xen_intr_pcpu_data, xen_intr_pcpu) = {
+static DPCPU_DEFINE(struct xen_intr_pcpu_data, xen_intr_pcpu) = {
 	.last_processed_l1i = LONG_BIT - 1,
 	.last_processed_l2i = LONG_BIT - 1
 };
@@ -212,7 +215,7 @@ evtchn_cpu_mask_port(u_int cpu, evtchn_port_t port)
 	struct xen_intr_pcpu_data *pcpu;
 
 	pcpu = DPCPU_ID_PTR(cpu, xen_intr_pcpu);
-	clear_bit(port, pcpu->evtchn_enabled);
+	BIT_CLR_ATOMIC(ENABLED_SETSIZE, port, &pcpu->evtchn_enabled);
 }
 
 /**
@@ -234,7 +237,7 @@ evtchn_cpu_unmask_port(u_int cpu, evtchn_port_t port)
 	struct xen_intr_pcpu_data *pcpu;
 
 	pcpu = DPCPU_ID_PTR(cpu, xen_intr_pcpu);
-	set_bit(port, pcpu->evtchn_enabled);
+	BIT_SET_ATOMIC(ENABLED_SETSIZE, port, &pcpu->evtchn_enabled);
 }
 
 /**
@@ -498,7 +501,7 @@ xen_intr_active_ports(struct xen_intr_pcpu_data *pcpu, shared_info_t *sh,
 {
 	return (sh->evtchn_pending[idx]
 	      & ~sh->evtchn_mask[idx]
-	      & pcpu->evtchn_enabled[idx]);
+	      & pcpu->evtchn_enabled.__bits[idx]);
 }
 
 /**
@@ -634,8 +637,10 @@ xen_intr_init(void *dummy __unused)
 	 */
 	CPU_FOREACH(i) {
 		pcpu = DPCPU_ID_PTR(i, xen_intr_pcpu);
-		memset(pcpu->evtchn_enabled, i == 0 ? ~0 : 0,
-		       sizeof(pcpu->evtchn_enabled));
+		if (i == 0)
+			BIT_FILL(ENABLED_SETSIZE, &pcpu->evtchn_enabled);
+		else
+			BIT_ZERO(ENABLED_SETSIZE, &pcpu->evtchn_enabled);
 		xen_intr_intrcnt_add(i);
 	}
 
@@ -748,8 +753,11 @@ xen_intr_resume(struct pic *unused, bool suspend_cancelled)
 		struct xen_intr_pcpu_data *pcpu;
 
 		pcpu = DPCPU_ID_PTR(i, xen_intr_pcpu);
-		memset(pcpu->evtchn_enabled,
-		       i == 0 ? ~0 : 0, sizeof(pcpu->evtchn_enabled));
+
+		if (i == 0)
+			BIT_FILL(ENABLED_SETSIZE, &pcpu->evtchn_enabled);
+		else
+			BIT_ZERO(ENABLED_SETSIZE, &pcpu->evtchn_enabled);
 	}
 
 	/* Mask all event channels. */
@@ -1033,7 +1041,7 @@ xen_intr_pirq_eoi_source(struct intsrc *base_isrc)
 
 	isrc = (struct xenisrc *)base_isrc;
 
-	if (test_bit(isrc->xi_pirq, xen_intr_pirq_eoi_map)) {
+	if (xen_test_bit(isrc->xi_pirq, xen_intr_pirq_eoi_map)) {
 		struct physdev_eoi eoi = { .irq = isrc->xi_pirq };
 
 		error = HYPERVISOR_physdev_op(PHYSDEVOP_eoi, &eoi);
@@ -1070,7 +1078,7 @@ xen_intr_pirq_enable_intr(struct intsrc *base_isrc)
 			 * Since the dynamic PIRQ EOI map is not available
 			 * mark the PIRQ as needing EOI unconditionally.
 			 */
-			set_bit(isrc->xi_pirq, xen_intr_pirq_eoi_map);
+			xen_set_bit(isrc->xi_pirq, xen_intr_pirq_eoi_map);
 		}
 	}
 
@@ -1591,20 +1599,21 @@ xen_intr_dump_port(struct xenisrc *isrc)
 		db_printf("\tPirq: %d ActiveHi: %d EdgeTrigger: %d "
 		    "NeedsEOI: %d\n",
 		    isrc->xi_pirq, isrc->xi_activehi, isrc->xi_edgetrigger,
-		    !!test_bit(isrc->xi_pirq, xen_intr_pirq_eoi_map));
+		    !!xen_test_bit(isrc->xi_pirq, xen_intr_pirq_eoi_map));
 	}
 	if (isrc->xi_type == EVTCHN_TYPE_VIRQ)
 		db_printf("\tVirq: %d\n", isrc->xi_virq);
 
 	db_printf("\tMasked: %d Pending: %d\n",
-	    !!test_bit(isrc->xi_port, &s->evtchn_mask[0]),
-	    !!test_bit(isrc->xi_port, &s->evtchn_pending[0]));
+	    !!xen_test_bit(isrc->xi_port, &s->evtchn_mask[0]),
+	    !!xen_test_bit(isrc->xi_port, &s->evtchn_pending[0]));
 
 	db_printf("\tPer-CPU Masks: ");
 	CPU_FOREACH(i) {
 		pcpu = DPCPU_ID_PTR(i, xen_intr_pcpu);
 		db_printf("cpu#%d: %d ", i,
-		    !!test_bit(isrc->xi_port, pcpu->evtchn_enabled));
+		    BIT_ISSET(ENABLED_SETSIZE, isrc->xi_port,
+			&pcpu->evtchn_enabled));
 	}
 	db_printf("\n");
 }
