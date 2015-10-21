@@ -47,9 +47,6 @@
 /* Everything below this point is not included by assembler (.S) files. */
 #ifndef __ASSEMBLY__
 
-/* Force a proper event-channel callback from Xen. */
-void force_evtchn_callback(void);
-
 extern shared_info_t *HYPERVISOR_shared_info;
 extern start_info_t *HYPERVISOR_start_info;
 
@@ -91,6 +88,31 @@ xen_initial_domain(void)
 	return (xen_domain() && HYPERVISOR_start_info != NULL &&
 	    (HYPERVISOR_start_info->flags & SIF_INITDOMAIN) != 0);
 }
+
+/*
+ * Based on ofed/include/linux/bitops.h
+ *
+ * Those helpers are prefixed by xen_ because xen-os.h is widely included
+ * and we don't want the other drivers using them.
+ *
+ */
+#define NBPL (NBBY * sizeof(long))
+
+static inline bool
+xen_test_bit(int bit, volatile long *addr)
+{
+	unsigned long mask = 1UL << (bit % NBPL);
+
+	return !!(atomic_load_acq_long(&addr[bit / NBPL]) & mask);
+}
+
+static inline void
+xen_set_bit(int bit, volatile long *addr)
+{
+	atomic_set_long(&addr[bit / NBPL], 1UL << (bit % NBPL));
+}
+
+#undef NPBL
 
 /*
  * Functions to allocate/free unused memory in order
