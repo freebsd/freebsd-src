@@ -1,6 +1,8 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
+ * Copyright © 2015 Julien Grall
+ * Copyright © 2021 Elliott Mitchell
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,3 +26,50 @@
  * SUCH DAMAGE.
  */
 
+#ifndef	_MACHINE__XEN_ARCH_INTR_H_
+#define	_MACHINE__XEN_ARCH_INTR_H_
+
+typedef struct intr_event *xen_arch_isrc_t;
+
+#include <dev/xen/bus/intr-internal.h>
+
+/****************************** ARCH wrappers ********************************/
+
+static inline void
+xen_arch_intr_init(void)
+{
+
+	/* Nothing to do */
+}
+
+u_long	xen_arch_intr_execute_handlers(struct xenisrc *_Nonnull isrc,
+	    struct trapframe *_Nullable frame);
+int	xen_arch_intr_add_handler(const char *_Nonnull name,
+	    driver_filter_t filter, driver_intr_t handler, void *_Nullable arg,
+	    enum intr_type flags, struct xenisrc *_Nonnull isrc,
+	    void *_Nullable *_Nonnull cookiep);
+
+static inline int
+xen_arch_intr_describe(struct xenisrc *_Nonnull isrc, void *_Nonnull cookie,
+    const char *_Nonnull descr)
+{
+
+	return (intr_event_describe_handler(isrc->xi_arch, cookie, descr));
+}
+
+static inline int
+xen_arch_intr_remove_handler(struct xenisrc *_Nonnull isrc,
+    void *_Nonnull cookie)
+{
+
+	return (intr_event_remove_handler(cookie));
+}
+
+static inline int
+xen_arch_intr_event_bind(struct xenisrc *_Nonnull isrc, u_int cpu)
+{
+
+	return (intr_event_bind(isrc->xi_arch, cpu));
+}
+
+#endif	/* _MACHINE__XEN_ARCH_INTR_H_ */
