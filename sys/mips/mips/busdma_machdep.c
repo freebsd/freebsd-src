@@ -340,7 +340,7 @@ _busdma_alloc_dmamap(bus_dma_tag_t dmat)
 	if (map != NULL)
 		map->slist = slist;
 	else
-		free(slist, M_BUSDMA);
+		free(slist, M_DEVBUF);
 	return (map);
 }
 
@@ -348,7 +348,7 @@ static __inline void
 _busdma_free_dmamap(bus_dmamap_t map)
 {
 
-	free(map->slist, M_BUSDMA);
+	free(map->slist, M_DEVBUF);
 	uma_zfree(dmamap_zone, map);
 }
 
@@ -725,7 +725,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	else
 		ba = standard_allocator;
 
-	free(map->slist, M_BUSDMA);
+	free(map->slist, M_DEVBUF);
 	uma_zfree(dmamap_zone, map);
 
 	bufzone = busdma_bufalloc_findzone(ba, dmat->maxsize);
