@@ -951,6 +951,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 
 	if (segs == NULL)
 		segs = dmat->segments;
+	if ((flags & BUS_DMA_LOAD_MBUF) != 0)
+		map->flags |= DMAMAP_CACHE_ALIGNED;
 
 	if ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) {
 		_bus_dmamap_count_pages(dmat, map, pmap, buf, buflen, flags);
@@ -1071,10 +1073,16 @@ bus_dmamap_sync_buf(vm_offset_t buf, int len, bus_dmasync_op_t op, int aligned)
 	 * prevent a data loss we save these chunks in temporary buffer
 	 * before invalidation and restore them afer it.
 	 *
-	 * If the aligned flag is set the buffer came from our allocator caches
-	 * which are always sized and aligned to cacheline boundaries, so we can
-	 * skip preserving nearby data if a transfer is unaligned (especially
-	 * it's likely to not end on a boundary).
+	 * If the aligned flag is set the buffer is either an mbuf or came from
+	 * our allocator caches.  In both cases they are always sized and
+	 * aligned to cacheline boundaries, so we can skip preserving nearby
+	 * data if a transfer appears to overlap cachelines.  An mbuf in
+	 * particular will usually appear to be overlapped because of offsetting
+	 * within the buffer to align the L3 headers, but we know that the bytes
+	 * preceeding that offset are part of the same mbuf memory and are not
+	 * unrelated adjacent data (and a rule of mbuf handling is that the cpu
+	 * is not allowed to touch the mbuf while dma is in progress, including
+	 * header fields).
 	 */
 	if (aligned) {
 		size_cl = 0;
