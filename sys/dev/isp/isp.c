@@ -2075,10 +2075,11 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		icbp->icb_fwoptions2 |= ICB2400_OPT2_FCTAPE;
 	}
 
-	if (icbp->icb_fwoptions2 & ICB2400_OPT2_FCTAPE) {
-		FCPARAM(isp, chan)->fctape_enabled = 1;
-	} else {
-		FCPARAM(isp, chan)->fctape_enabled = 0;
+	for (chan = 0; chan < isp->isp_nchan; chan++) {
+		if (icbp->icb_fwoptions2 & ICB2400_OPT2_FCTAPE)
+			FCPARAM(isp, chan)->fctape_enabled = 1;
+		else
+			FCPARAM(isp, chan)->fctape_enabled = 0;
 	}
 
 	switch (isp->isp_confopts & ISP_CFG_PORT_PREF) {
@@ -2209,31 +2210,39 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		size_t amt = 0;
 		uint8_t *off;
 
-		vpinfo.vp_count = isp->isp_nchan - 1;
 		vpinfo.vp_global_options = 0;
+		if (isp->isp_fwattr & ISP2400_FW_ATTR_VP0) {
+			vpinfo.vp_global_options |= ICB2400_VPGOPT_VP0_DECOUPLE;
+			vpinfo.vp_count = isp->isp_nchan;
+			chan = 0;
+		} else {
+			vpinfo.vp_count = isp->isp_nchan - 1;
+			chan = 1;
+		}
 		off = fcp->isp_scratch;
 		off += ICB2400_VPINFO_OFF;
 		vdst = (isp_icb_2400_vpinfo_t *) off;
 		isp_put_icb_2400_vpinfo(isp, &vpinfo, vdst);
 		amt = ICB2400_VPINFO_OFF + sizeof (isp_icb_2400_vpinfo_t);
-		for (chan = 1; chan < isp->isp_nchan; chan++) {
+		for (; chan < isp->isp_nchan; chan++) {
 			fcparam *fcp2;
 
 			ISP_MEMZERO(&pi, sizeof (pi));
 			fcp2 = FCPARAM(isp, chan);
 			if (fcp2->role != ISP_ROLE_NONE) {
 				pi.vp_port_options = ICB2400_VPOPT_ENABLED;
-				if (fcp2->role & ISP_ROLE_INITIATOR) {
+				if (fcp2->role & ISP_ROLE_INITIATOR)
 					pi.vp_port_options |= ICB2400_VPOPT_INI_ENABLE;
-				}
-				if ((fcp2->role & ISP_ROLE_TARGET) == 0) {
+				if ((fcp2->role & ISP_ROLE_TARGET) == 0)
 					pi.vp_port_options |= ICB2400_VPOPT_TGT_DISABLE;
-				}
-				MAKE_NODE_NAME_FROM_WWN(pi.vp_port_portname, fcp2->isp_wwpn);
-				MAKE_NODE_NAME_FROM_WWN(pi.vp_port_nodename, fcp2->isp_wwnn);
 			}
+			MAKE_NODE_NAME_FROM_WWN(pi.vp_port_portname, fcp2->isp_wwpn);
+			MAKE_NODE_NAME_FROM_WWN(pi.vp_port_nodename, fcp2->isp_wwnn);
 			off = fcp->isp_scratch;
-			off += ICB2400_VPINFO_PORT_OFF(chan);
+			if (isp->isp_fwattr & ISP2400_FW_ATTR_VP0)
+				off += ICB2400_VPINFO_PORT_OFF(chan);
+			else
+				off += ICB2400_VPINFO_PORT_OFF(chan - 1);
 			pdst = (vp_port_info_t *) off;
 			isp_put_vp_port_info(isp, &pi, pdst);
 			amt += ICB2400_VPOPT_WRITE_SIZE;
