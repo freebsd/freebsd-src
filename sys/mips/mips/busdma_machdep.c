@@ -340,14 +340,15 @@ _busdma_alloc_dmamap(bus_dma_tag_t dmat)
 	if (map != NULL)
 		map->slist = slist;
 	else
-		free(slist, M_DEVBUF);
+		free(slist, M_BUSDMA);
 	return (map);
 }
 
 static __inline void 
 _busdma_free_dmamap(bus_dmamap_t map)
 {
-	free(map->slist, M_DEVBUF);
+
+	free(map->slist, M_BUSDMA);
 	uma_zfree(dmamap_zone, map);
 }
 
@@ -439,7 +440,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		/* Must bounce */
 
 		if ((error = alloc_bounce_zone(newtag)) != 0) {
-			free(newtag, M_DEVBUF);
+			free(newtag, M_BUSDMA);
 			return (error);
 		}
 		bz = newtag->bounce_zone;
@@ -458,7 +459,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	} else
 		newtag->bounce_zone = NULL;
 	if (error != 0)
-		free(newtag, M_DEVBUF);
+		free(newtag, M_BUSDMA);
 	else
 		*dmat = newtag;
 	CTR4(KTR_BUSDMA, "%s returned tag %p tag flags 0x%x error %d",
@@ -485,8 +486,8 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 			atomic_subtract_int(&dmat->ref_count, 1);
 			if (dmat->ref_count == 0) {
 				if (dmat->segments != NULL)
-					free(dmat->segments, M_DEVBUF);
-				free(dmat, M_DEVBUF);
+					free(dmat->segments, M_BUSDMA);
+				free(dmat, M_BUSDMA);
 				/*
 				 * Last reference count, so
 				 * release our reference
@@ -724,7 +725,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	else
 		ba = standard_allocator;
 
-	free(map->slist, M_DEVBUF);
+	free(map->slist, M_BUSDMA);
 	uma_zfree(dmamap_zone, map);
 
 	bufzone = busdma_bufalloc_findzone(ba, dmat->maxsize);
@@ -1348,7 +1349,7 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 							 PAGE_SIZE,
 							 0);
 		if (bpage->vaddr == 0) {
-			free(bpage, M_DEVBUF);
+			free(bpage, M_BUSDMA);
 			break;
 		}
 		bpage->busaddr = pmap_kextract(bpage->vaddr);
