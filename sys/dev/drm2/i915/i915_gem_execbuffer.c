@@ -941,13 +941,15 @@ i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)
 
 static int
 validate_exec_list(struct drm_i915_gem_exec_object2 *exec, int count,
-    vm_page_t ***map)
+    vm_page_t ***map, int **maplen)
 {
 	vm_page_t *ma;
 	int i, length, page_count;
 
 	/* XXXKIB various limits checking is missing there */
 	*map = malloc(count * sizeof(*ma), DRM_I915_GEM, M_WAITOK | M_ZERO);
+	*maplen = malloc(count * sizeof(*maplen), DRM_I915_GEM, M_WAITOK |
+	    M_ZERO);
 	for (i = 0; i < count; i++) {
 		/* First check for malicious input causing overflow */
 		if (exec[i].relocation_count >
@@ -969,9 +971,10 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec, int count,
 		page_count = howmany(length, PAGE_SIZE) + 2;
 		ma = (*map)[i] = malloc(page_count * sizeof(vm_page_t),
 		    DRM_I915_GEM, M_WAITOK | M_ZERO);
-		if (vm_fault_quick_hold_pages(&curproc->p_vmspace->vm_map,
-		    exec[i].relocs_ptr, length, VM_PROT_READ | VM_PROT_WRITE,
-		    ma, page_count) == -1) {
+		(*maplen)[i] = vm_fault_quick_hold_pages(
+		    &curproc->p_vmspace->vm_map, exec[i].relocs_ptr, length,
+		    VM_PROT_READ | VM_PROT_WRITE, ma, page_count);
+		if ((*maplen)[i] == -1) {
 			free(ma, DRM_I915_GEM);
 			(*map)[i] = NULL;
 			return (-EFAULT);
@@ -1123,6 +1126,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct drm_clip_rect *cliprects = NULL;
 	struct intel_ring_buffer *ring;
 	vm_page_t **relocs_ma;
+	int *relocs_len;
 	u32 ctx_id = i915_execbuffer2_get_context_id(*args);
 	u32 exec_start, exec_len;
 	u32 seqno;
@@ -1137,7 +1141,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (args->batch_len == 0)
 		return (0);
 
-	ret = validate_exec_list(exec, args->buffer_count, &relocs_ma);
+	ret = validate_exec_list(exec, args->buffer_count, &relocs_ma,
+	    &relocs_len);
 	if (ret != 0)
 		goto pre_struct_lock_err;
 
@@ -1411,13 +1416,11 @@ err:
 pre_struct_lock_err:
 	for (i = 0; i < args->buffer_count; i++) {
 		if (relocs_ma[i] != NULL) {
-			vm_page_unhold_pages(relocs_ma[i], howmany(
-			    exec[i].relocation_count *
-			    sizeof(struct drm_i915_gem_relocation_entry),
-			    PAGE_SIZE));
+			vm_page_unhold_pages(relocs_ma[i], relocs_len[i]);
 			free(relocs_ma[i], DRM_I915_GEM);
 		}
 	}
+	free(relocs_len, DRM_I915_GEM);
 	free(relocs_ma, DRM_I915_GEM);
 	free(cliprects, DRM_I915_GEM);
 	return ret;
