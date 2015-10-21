@@ -232,7 +232,7 @@ struct netfront_info {
 	int			xn_if_flags;
 	struct callout	        xn_stat_ch;
 
-	u_long			rx_pfn_array[NET_RX_RING_SIZE];
+	xen_pfn_t		rx_pfn_array[NET_RX_RING_SIZE];
 	struct ifmedia		sc_media;
 
 	bool			xn_resume;
