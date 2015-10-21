@@ -610,7 +610,7 @@ ntpd_addremove_semaphore(
 		 * room, then append to the table array.
 		 */
 		if (hi >= ActiveWaitHandles) {
-			NTP_INSIST(ActiveWaitHandles < COUNTOF(WaitHandles));
+			INSIST(ActiveWaitHandles < COUNTOF(WaitHandles));
 			WaitHandles[ActiveWaitHandles] = sem;
 			ActiveWaitHandles++;
 		}
@@ -758,7 +758,7 @@ OnSerialWaitComplete(
 	buff = lpo->recv_buf;
 	dev  = lpo->devCtx;
 
-	NTP_INSIST(rio == lpo->rio);
+	INSIST(rio == lpo->rio);
 
 #ifdef DEBUG
 	if (~(EV_RXFLAG | EV_RLSD | EV_RXCHAR) & lpo->com_events) {
@@ -898,7 +898,7 @@ OnSerialReadComplete(
 	/* get & validate context and buffer. */
 	rio  = lpo->rio;
 	buff = lpo->recv_buf;
-	NTP_INSIST((ULONG_PTR)rio == key);
+	INSIST((ULONG_PTR)rio == key);
 
 	/* Offload to worker pool */
 	if (!QueueUserWorkItem(&OnSerialReadWorker, lpo, WT_EXECUTEDEFAULT)) {
@@ -1074,7 +1074,7 @@ OnRawSerialReadComplete(
 	/* get & validate context and buffer. */
 	rio  = lpo->rio;
 	buff = lpo->recv_buf;
-	NTP_INSIST((ULONG_PTR)rio == key);
+	INSIST((ULONG_PTR)rio == key);
 
 	/* ignore 0 bytes read. */
 	if (lpo->byteCount > 0) {
@@ -1395,8 +1395,8 @@ OnSocketRecv(
 	recvbuf_t * newbuff;
 	struct interface * inter = (struct interface *)key;
 	
-	NTP_REQUIRE(NULL != lpo);
-	NTP_REQUIRE(NULL != lpo->recv_buf);
+	REQUIRE(NULL != lpo);
+	REQUIRE(NULL != lpo->recv_buf);
 
 	/* check and bail out if operation failed */
 	if (!IoResultCheck(lpo->errCode, lpo,
@@ -1432,8 +1432,7 @@ OnSocketRecv(
 	 * If we keep it add some info to the structure
 	 */
 	if (buff->recv_length && !inter->ignore_packets) {
-		NTP_INSIST(buff->recv_srcadr_len <=
-			   sizeof(buff->recv_srcadr));
+		INSIST(buff->recv_srcadr_len <= sizeof(buff->recv_srcadr));
 		buff->receiver = &receive; 
 		buff->dstadr   = inter;
 		packets_received++;

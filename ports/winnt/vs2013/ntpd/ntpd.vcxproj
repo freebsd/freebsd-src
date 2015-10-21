@@ -282,6 +282,7 @@
     <ClCompile Include="..\..\..\..\ntpd\ntp_signd.c" />
     <ClCompile Include="..\..\..\..\ntpd\ntp_timer.c" />
     <ClCompile Include="..\..\..\..\ntpd\ntp_util.c" />
+    <ClCompile Include="..\..\..\..\ntpd\rc_cmdlength.c" />
     <ClCompile Include="..\..\..\..\ntpd\refclock_acts.c" />
     <ClCompile Include="..\..\..\..\ntpd\refclock_arbiter.c" />
     <ClCompile Include="..\..\..\..\ntpd\refclock_arc.c" />

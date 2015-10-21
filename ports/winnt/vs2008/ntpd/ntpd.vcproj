@@ -408,6 +408,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\..\ntpd\rc_cmdlength.c"
+				>
+			</File>
+			<File
 				RelativePath=".\version.c"
 				>
 			</File>

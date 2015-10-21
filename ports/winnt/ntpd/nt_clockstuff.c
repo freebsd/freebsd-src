@@ -410,7 +410,7 @@ is_qpc_built_on_pcc(void)
 	FT_ULL		ft4;
 	FT_ULL		ft5;
 
-	NTP_REQUIRE(NomPerfCtrFreq != 0);
+	REQUIRE(NomPerfCtrFreq != 0);
 
 	QueryPerformanceCounter(&ft1.li);
 	ft2.ull = get_pcc();
