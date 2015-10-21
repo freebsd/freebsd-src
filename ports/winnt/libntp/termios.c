@@ -94,7 +94,7 @@ HANDLE common_serial_open(
 	}
 
 	if (NULL == hnds[unit].h) {
-		NTP_ENSURE(0 == hnds[unit].opens);
+		INSIST(0 == hnds[unit].opens);
 		LIB_GETBUF(windev);
 		snprintf(windev, LIB_BUFLENGTH, "\\\\.\\COM%d", unit);
 		TRACE(1, ("windows device %s\n", windev));

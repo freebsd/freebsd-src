@@ -10,11 +10,11 @@
 .ds B-Font B
 .ds I-Font I
 .ds R-Font R
-.TH ntp.conf 5man "29 Jun 2015" "4.2.8p3" "File Formats"
+.TH ntp.conf 5man "21 Oct 2015" "4.2.8p4" "File Formats"
 .\"
-.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-R0aO7B/ag-30aG6B)
+.\" EDIT THIS FILE WITH CAUTION (/tmp/.ag-9oaqYI/ag-OpaiXI)
 .\"
-.\" It has been AutoGen-ed June 29, 2015 at 04:30:16 PM by AutoGen 5.18.5
+.\" It has been AutoGen-ed October 21, 2015 at 12:38:01 PM by AutoGen 5.18.5
 .\" From the definitions ntp.conf.def
 .\" and the template file agman-cmd.tpl
 .SH NAME
@@ -2080,7 +2080,7 @@ re-associate accordingly.
 Some administrators prefer to avoid running
 \fCntpd\f[]\fR(1ntpdmdoc)\f[]
 continuously and run either
-\fCntpdate\f[]\fR(8)\f[]
+\fCsntp\f[]\fR(1sntpmdoc)\f[]
 or
 \fCntpd\f[]\fR(1ntpdmdoc)\f[]
 \f\*[B-Font]\-q\f[]
@@ -2170,7 +2170,7 @@ This value defaults to 1, but can be changed
 to any number from 1 to 15.
 .TP 7
 .NOP \f\*[B-Font]minclock\f[] \f\*[I-Font]minclock\f[]
-The clustering algorithm repeatedly casts out outlyer
+The clustering algorithm repeatedly casts out outlier
 associations until no more than
 \f\*[B-Font]minclock\f[]
 associations remain.
@@ -2897,12 +2897,15 @@ pulses will not be suppressed.
 .RS
 .TP 7
 .NOP \f\*[B-Font]memlock\f[] \f\*[I-Font]Nmegabytes\f[]
-Specify the number of megabytes of memory that can be allocated.
-Probably only available under Linux, this option is useful
+Specify the number of megabytes of memory that should be
+allocated and locked.
+Probably only available under Linux, this option may be useful
 when dropping root (the
 \f\*[B-Font]\-i\f[]
 option).
-The default is 32 megabytes. Setting this to zero will prevent any attemp to lock memory.
+The default is 32 megabytes on non-Linux machines, and \-1 under Linux.
+-1 means "do not lock the process into memory".
+0 means "lock whatever memory the process wants into memory".
 .TP 7
 .NOP \f\*[B-Font]stacksize\f[] \f\*[I-Font]N4kPages\f[]
 Specifies the maximum size of the process stack on systems with the
