@@ -314,6 +314,15 @@ pmap_lmem_unmap(void)
 }
 #endif /* !__mips_n64 */
 
+static __inline int
+is_cacheable_page(vm_paddr_t pa, vm_page_t m)
+{
+
+	return ((m->md.pv_flags & PV_MEMATTR_UNCACHEABLE) == 0 &&
+	    is_cacheable_mem(pa));
+
+}
+
 /*
  * Page table entry lookup routines.
  */
@@ -2016,7 +2025,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		newpte |= PTE_W;
 	if (is_kernel_pmap(pmap))
 		newpte |= PTE_G;
-	if (is_cacheable_mem(pa))
+	if (is_cacheable_page(pa, m))
 		newpte |= PTE_C_CACHE;
 	else
 		newpte |= PTE_C_UNCACHED;
@@ -2293,7 +2302,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		*pte |= PTE_MANAGED;
 
-	if (is_cacheable_mem(pa))
+	if (is_cacheable_page(pa, m))
 		*pte |= PTE_C_CACHE;
 	else
 		*pte |= PTE_C_UNCACHED;
@@ -2706,9 +2715,12 @@ pmap_quick_enter_page(vm_page_t m)
 
 	pa = VM_PAGE_TO_PHYS(m);
 
-	if (MIPS_DIRECT_MAPPABLE(pa))
-		return (MIPS_PHYS_TO_DIRECT(pa));
-
+	if (MIPS_DIRECT_MAPPABLE(pa)) {
+		if (m->md.pv_flags & PV_MEMATTR_UNCACHEABLE)
+			return (MIPS_PHYS_TO_DIRECT_UNCACHED(pa));
+		else
+			return (MIPS_PHYS_TO_DIRECT(pa));
+	}
 	critical_enter();
 	sysm = &sysmap_lmem[PCPU_GET(cpuid)];
 
@@ -2716,7 +2728,7 @@ pmap_quick_enter_page(vm_page_t m)
 
 	pte = pmap_pte(kernel_pmap, sysm->base);
 	*pte = TLBLO_PA_TO_PFN(pa) | PTE_D | PTE_V | PTE_G |
-	    (is_cacheable_mem(pa) ? PTE_C_CACHE : PTE_C_UNCACHED);
+	    (is_cacheable_page(pa, m) ? PTE_C_CACHE : PTE_C_UNCACHED);
 	sysm->valid1 = 1;
 
 	return (sysm->base);
@@ -3276,31 +3288,6 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 }
 
 /*
- * Sets the memory attribute for the specified page.
- */
-void
-pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
-{
-
-		/*
-		 * Set the memattr field so the appropriate bits are set in the
-		 * PTE as mappings are created.
-		 */
-		m->md.pv_memattr = ma;
-
-		/*
-		 * It is assumed that this function is only called before any mappings
-		 * are established.  If this is not the case then this function will
-		 * need to walk the pv_list and make each of the existing mappings
-		 * uncacheable, sync the cache (with mips_icache_sync_all() and
-		 * mips_dcache_wbinv_all()) and most likely invalidate TLB entries for
-		 * any of the current mappings it modifies.
-		 */
-		if (TAILQ_FIRST(&m->md.pv_list) != NULL)
-				panic("Can't change memattr on page with existing mappings");
-}
-
-/*
  * perform the pmap work for mincore
  */
 int
@@ -3645,4 +3632,28 @@ pmap_flush_pvcache(vm_page_t m)
 			mips_dcache_wbinv_range_index(pv->pv_va, PAGE_SIZE);
 		}
 	}
+}
+
+void
+pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
+{
+
+	/*
+	 * It appears that this function can only be called before any mappings
+	 * for the page are established.  If this ever changes, this code will
+	 * need to walk the pv_list and make each of the existing mappings
+	 * uncacheable, being careful to sync caches and PTEs (and maybe
+	 * invalidate TLB?) for any current mapping it modifies.
+	 */
+	if (TAILQ_FIRST(&m->md.pv_list) != NULL)
+		panic("Can't change memattr on page with existing mappings");
+
+	/*
+	 * The only memattr we support is UNCACHEABLE, translate the (semi-)MI
+	 * representation of that into our internal flag in the page MD struct.
+	 */
+	if (ma == VM_MEMATTR_UNCACHEABLE)
+		m->md.pv_flags |= PV_MEMATTR_UNCACHEABLE;
+	else
+		m->md.pv_flags &= ~PV_MEMATTR_UNCACHEABLE;
 }

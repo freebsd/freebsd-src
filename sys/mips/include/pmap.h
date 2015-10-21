@@ -83,6 +83,7 @@ struct md_page {
 };
 
 #define	PV_TABLE_REF		0x02	/* referenced */
+#define	PV_MEMATTR_UNCACHEABLE	0x04
 
 #define	ASID_BITS		8
 #define	ASIDGEN_BITS		(32 - ASID_BITS)
@@ -180,7 +181,6 @@ extern vm_paddr_t dump_avail[PHYS_AVAIL_ENTRIES + 2];
 void pmap_bootstrap(void);
 void *pmap_mapdev(vm_paddr_t, vm_size_t);
 boolean_t pmap_page_is_mapped(vm_page_t m);
-void pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
 void pmap_unmapdev(vm_offset_t, vm_size_t);
 vm_offset_t pmap_steal_memory(vm_size_t size);
 void pmap_kenter(vm_offset_t va, vm_paddr_t pa);
@@ -192,6 +192,7 @@ void pmap_flush_pvcache(vm_page_t m);
 int pmap_emulate_modified(pmap_t pmap, vm_offset_t va);
 int pmap_emulate_referenced(pmap_t pmap, vm_offset_t va);
 void pmap_grow_direct_page_cache(void);
+void pmap_page_set_memattr(vm_page_t, vm_memattr_t);
 
 #endif				/* _KERNEL */
 
