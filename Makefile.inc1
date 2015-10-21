@@ -113,7 +113,6 @@ SUBDIR+=	${_DIR}
 .warning ${_DIR} not added to SUBDIR list.  See UPDATING 20141121.
 .endif
 .endfor
-.endif
 
 # We must do etc/ last as it hooks into building the man whatis file
 # by calling 'makedb' in share/man.  This is only relevant for
@@ -123,6 +122,8 @@ SUBDIR+=	${_DIR}
 SUBDIR+=.WAIT
 .endif
 SUBDIR+=etc
+
+.endif	# defined(SUBDIR_OVERRIDE)
 
 .if defined(NOCLEAN)
 NO_CLEAN=	${NOCLEAN}
