@@ -1150,14 +1150,7 @@ ntb_transport_doorbell_callback(void *data, uint32_t vector)
 
 	vec_mask = ntb_db_vector_mask(nt->ntb, vector);
 	while (vec_mask != 0) {
-		qp_num = ffsl(vec_mask);
-		/* i386 doesn't have ffsll(), fake it */
-		if (qp_num == 0) {
-			qp_num = ffsl(vec_mask >> 32);
-			KASSERT(qp_num != 0, ("ffs"));
-			qp_num += 32;
-		}
-		qp_num--;
+		qp_num = ffsll(vec_mask) - 1;
 
 		if (test_bit(qp_num, &db_bits)) {
 			qp = &nt->qp_vec[qp_num];
