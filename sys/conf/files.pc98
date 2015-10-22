@@ -222,6 +222,7 @@ kern/imgact_aout.c		optional compat_aout
 kern/imgact_gzip.c		optional gzip
 kern/subr_sfbuf.c		standard
 libkern/divdi3.c		standard
+libkern/ffsll.c			standard
 libkern/flsll.c			standard
 libkern/memmove.c		standard
 libkern/memset.c		standard

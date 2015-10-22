@@ -67,6 +67,7 @@ kern/syscalls.c			optional	ktr
 kern/subr_sfbuf.c		standard
 libkern/ffs.c			standard
 libkern/ffsl.c			standard
+libkern/ffsll.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard
