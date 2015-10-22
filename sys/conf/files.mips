@@ -56,6 +56,7 @@ kern/subr_sfbuf.c			optional	mips | mipsel | mipsn32
 
 # gcc/clang runtime
 libkern/ffsl.c				standard
+libkern/ffsll.c				standard
 libkern/fls.c				standard
 libkern/flsl.c				standard
 libkern/flsll.c				standard

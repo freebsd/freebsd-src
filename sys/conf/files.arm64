@@ -82,6 +82,7 @@ kern/subr_dummy_vdso_tc.c	standard
 libkern/bcmp.c			standard
 libkern/ffs.c			standard
 libkern/ffsl.c			standard
+libkern/ffsll.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard

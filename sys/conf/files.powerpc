@@ -87,6 +87,7 @@ libkern/cmpdi2.c		optional	powerpc
 libkern/divdi3.c		optional	powerpc
 libkern/ffs.c			standard
 libkern/ffsl.c			standard
+libkern/ffsll.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard
