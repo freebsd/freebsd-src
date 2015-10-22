@@ -810,9 +810,10 @@ nmea_receive(
 	ZERO(tofs);
 	ZERO(date);
 	ZERO(gpsw);
-	sentence = 0;
-	rc_date = 0;
-	rc_time = 0;
+	sentence = 0;	// Should never be needed.
+	rc_date = 0;	// Should never be needed.
+	rc_time = 0;	// Should never be needed.
+
 	/* 
 	 * Read the timecode and timestamp, then initialise field
 	 * processing. The <CR><LF> at the NMEA line end is translated

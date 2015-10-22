@@ -4,6 +4,7 @@
 #include "ntp_stdlib.h"
 #include "unity.h"
 
+
 const char * Version = "stub unit test Version string";
 
 // Hacks into the key database.
@@ -11,21 +12,47 @@ extern struct key* key_ptr;
 extern int key_cnt;
 
 
+void PrepareAuthenticationTest(int key_id,int key_len,const char* type,const void* key_seq);
+void PrepareAuthenticationTestMD5(int key_id,int key_len,const void* key_seq);
+void setUp(void);
+void tearDown(void);
+void test_TooShortLength(void);
+void test_LengthNotMultipleOfFour(void);
+void test_TooShortExtensionFieldLength(void);
+void test_UnauthenticatedPacketReject(void);
+void test_CryptoNAKPacketReject(void);
+void test_AuthenticatedPacketInvalid(void);
+void test_AuthenticatedPacketUnknownKey(void);
+void test_ServerVersionTooOld(void);
+void test_ServerVersionTooNew(void);
+void test_NonWantedMode(void);
+void test_KoDRate(void);
+void test_KoDDeny(void);
+void test_RejectUnsyncedServer(void);
+void test_RejectWrongResponseServerMode(void);
+void test_AcceptNoSentPacketBroadcastMode(void);
+void test_CorrectUnauthenticatedPacket(void);
+void test_CorrectAuthenticatedPacketMD5(void);
+void test_CorrectAuthenticatedPacketSHA1(void);
+
+
 static struct pkt testpkt;
 static struct pkt testspkt;
 static sockaddr_u testsock;
 bool restoreKeyDb;
 
-void PrepareAuthenticationTest(int key_id,
+
+void
+PrepareAuthenticationTest(int key_id,
 							   int key_len,
 							   const char* type,
 							   const void* key_seq) {
 	char str[25];
-	sprintf(str, "%d", key_id);
+	snprintf(str, 25, "%d", key_id);
 	ActivateOption("-a", str);
 
 	key_cnt = 1;
-	key_ptr = malloc(sizeof(struct key));
+	key_ptr = emalloc(sizeof(struct key));
 	key_ptr->next = NULL;
 	key_ptr->key_id = key_id;
 	key_ptr->key_len = key_len;
@@ -37,13 +64,17 @@ void PrepareAuthenticationTest(int key_id,
 	restoreKeyDb = true;
 }
 
-void PrepareAuthenticationTestMD5(int key_id,
+
+void
+PrepareAuthenticationTestMD5(int key_id,
 							   int key_len,
 							   const void* key_seq) {
 	PrepareAuthenticationTest(key_id, key_len, "MD5", key_seq);
 }
 
-void setUp() {
+
+void
+setUp(void) {
 
 	sntptest();
 	restoreKeyDb = false;
@@ -63,10 +94,11 @@ void setUp() {
 
 	HTONL_FP(&tmp, &testpkt.org);
 	HTONL_FP(&tmp, &testspkt.xmt);
-
 }
 
-void tearDown() {
+
+void
+tearDown(void) {
 	
 	if (restoreKeyDb) {
 		key_cnt = 0;
@@ -75,12 +107,12 @@ void tearDown() {
 	}
 
 	sntptest_destroy(); //only on the final test!! if counter == 0 etc...
-
 }
 
 
 
-void test_TooShortLength(void) {
+void
+test_TooShortLength(void) {
 	TEST_ASSERT_EQUAL(PACKET_UNUSEABLE,
 			  process_pkt(&testpkt, &testsock, LEN_PKT_NOMAC - 1,
 						  MODE_SERVER, &testspkt, "UnitTest"));
@@ -89,7 +121,9 @@ void test_TooShortLength(void) {
 						  MODE_BROADCAST, &testspkt, "UnitTest"));
 }
 
-void test_LengthNotMultipleOfFour(void) {
+
+void
+test_LengthNotMultipleOfFour(void) {
 	TEST_ASSERT_EQUAL(PACKET_UNUSEABLE,
 			  process_pkt(&testpkt, &testsock, LEN_PKT_NOMAC + 6,
 						  MODE_SERVER, &testspkt, "UnitTest"));
@@ -98,7 +132,9 @@ void test_LengthNotMultipleOfFour(void) {
 						  MODE_BROADCAST, &testspkt, "UnitTest"));
 }
 
-void test_TooShortExtensionFieldLength(void) {
+
+void
+test_TooShortExtensionFieldLength(void) {
 	/* The lower 16-bits are the length of the extension field.
 	 * This lengths must be multiples of 4 bytes, which gives
 	 * a minimum of 4 byte extension field length. */
@@ -114,7 +150,9 @@ void test_TooShortExtensionFieldLength(void) {
 						  MODE_SERVER, &testspkt, "UnitTest"));
 }
 
-void test_UnauthenticatedPacketReject(void) {
+
+void
+test_UnauthenticatedPacketReject(void) {
 	//sntptest();
 	// Activate authentication option
 	ActivateOption("-a", "123");
@@ -128,7 +166,9 @@ void test_UnauthenticatedPacketReject(void) {
 						  MODE_SERVER, &testspkt, "UnitTest"));
 }
 
-void test_CryptoNAKPacketReject(void) {
+
+void
+test_CryptoNAKPacketReject(void) {
 	// Activate authentication option
 	ActivateOption("-a", "123");
 	TEST_ASSERT_TRUE(ENABLED_OPT(AUTHENTICATION));
@@ -140,7 +180,9 @@ void test_CryptoNAKPacketReject(void) {
 						  MODE_SERVER, &testspkt, "UnitTest"));
 }
 
-void test_AuthenticatedPacketInvalid(void) {
+
+void
+test_AuthenticatedPacketInvalid(void) {
 	// Activate authentication option
 	PrepareAuthenticationTestMD5(50, 9, "123456789");
 	TEST_ASSERT_TRUE(ENABLED_OPT(AUTHENTICATION));
@@ -163,7 +205,9 @@ void test_AuthenticatedPacketInvalid(void) {
 						  MODE_SERVER, &testspkt, "UnitTest"));
 }
 
-void test_AuthenticatedPacketUnknownKey(void) {
+
+void
+test_AuthenticatedPacketUnknownKey(void) {
 	// Activate authentication option
 	PrepareAuthenticationTestMD5(30, 9, "123456789");
 	TEST_ASSERT_TRUE(ENABLED_OPT(AUTHENTICATION));
@@ -183,7 +227,9 @@ void test_AuthenticatedPacketUnknownKey(void) {
 						  MODE_SERVER, &testspkt, "UnitTest"));
 }
 
-void test_ServerVersionTooOld(void) {
+
+void
+test_ServerVersionTooOld(void) {
 	TEST_ASSERT_FALSE(ENABLED_OPT(AUTHENTICATION));
 
 	testpkt.li_vn_mode = PKT_LI_VN_MODE(LEAP_NOWARNING,
@@ -198,7 +244,9 @@ void test_ServerVersionTooOld(void) {
 						  MODE_SERVER, &testspkt, "UnitTest"));
 }
 
-void test_ServerVersionTooNew(void) {
+
+void
+test_ServerVersionTooNew(void) {
 	TEST_ASSERT_FALSE(ENABLED_OPT(AUTHENTICATION));
 
 	testpkt.li_vn_mode = PKT_LI_VN_MODE(LEAP_NOWARNING,
@@ -213,7 +261,9 @@ void test_ServerVersionTooNew(void) {
 						  MODE_SERVER, &testspkt, "UnitTest"));
 }
 
-void test_NonWantedMode(void) {
+
+void
+test_NonWantedMode(void) {
 	TEST_ASSERT_FALSE(ENABLED_OPT(AUTHENTICATION));
 
 	testpkt.li_vn_mode = PKT_LI_VN_MODE(LEAP_NOWARNING,
@@ -227,8 +277,10 @@ void test_NonWantedMode(void) {
 						  MODE_SERVER, &testspkt, "UnitTest"));
 }
 
+
 /* Tests bug 1597 */
-void test_KoDRate(void) {
+void
+test_KoDRate(void) {
 	TEST_ASSERT_FALSE(ENABLED_OPT(AUTHENTICATION));
 
 	testpkt.stratum = STRATUM_PKT_UNSPEC;
@@ -239,7 +291,9 @@ void test_KoDRate(void) {
 						  MODE_SERVER, &testspkt, "UnitTest"));
 }
 
-void test_KoDDeny(void) {
+
+void
+test_KoDDeny(void) {
 	TEST_ASSERT_FALSE(ENABLED_OPT(AUTHENTICATION));
 
 	testpkt.stratum = STRATUM_PKT_UNSPEC;
@@ -250,7 +304,9 @@ void test_KoDDeny(void) {
 						  MODE_SERVER, &testspkt, "UnitTest"));
 }
 
-void test_RejectUnsyncedServer(void) {
+
+void
+test_RejectUnsyncedServer(void) {
 	TEST_ASSERT_FALSE(ENABLED_OPT(AUTHENTICATION));
 
 	testpkt.li_vn_mode = PKT_LI_VN_MODE(LEAP_NOTINSYNC,
@@ -262,7 +318,9 @@ void test_RejectUnsyncedServer(void) {
 						  MODE_SERVER, &testspkt, "UnitTest"));
 }
 
-void test_RejectWrongResponseServerMode(void) {
+
+void
+test_RejectWrongResponseServerMode(void) {
 	TEST_ASSERT_FALSE(ENABLED_OPT(AUTHENTICATION));
 
 	l_fp tmp;
@@ -279,7 +337,9 @@ void test_RejectWrongResponseServerMode(void) {
 						  MODE_SERVER, &testspkt, "UnitTest"));
 }
 
-void test_AcceptNoSentPacketBroadcastMode(void) {
+
+void
+test_AcceptNoSentPacketBroadcastMode(void) {
 	TEST_ASSERT_FALSE(ENABLED_OPT(AUTHENTICATION));
 
 	testpkt.li_vn_mode = PKT_LI_VN_MODE(LEAP_NOWARNING,
@@ -291,7 +351,9 @@ void test_AcceptNoSentPacketBroadcastMode(void) {
 			      MODE_BROADCAST, NULL, "UnitTest"));
 }
 
-void test_CorrectUnauthenticatedPacket(void) {
+
+void
+test_CorrectUnauthenticatedPacket(void) {
 	TEST_ASSERT_FALSE(ENABLED_OPT(AUTHENTICATION));
 
 	TEST_ASSERT_EQUAL(LEN_PKT_NOMAC,
@@ -299,7 +361,9 @@ void test_CorrectUnauthenticatedPacket(void) {
 						  MODE_SERVER, &testspkt, "UnitTest"));
 }
 
-void test_CorrectAuthenticatedPacketMD5(void) {
+
+void
+test_CorrectAuthenticatedPacketMD5(void) {
 	PrepareAuthenticationTestMD5(10, 15, "123456789abcdef");
 	TEST_ASSERT_TRUE(ENABLED_OPT(AUTHENTICATION));
 
@@ -319,7 +383,9 @@ void test_CorrectAuthenticatedPacketMD5(void) {
 
 }
 
-void test_CorrectAuthenticatedPacketSHA1(void) {
+
+void
+test_CorrectAuthenticatedPacketSHA1(void) {
 	PrepareAuthenticationTest(20, 15, "SHA1", "abcdefghijklmno");
 	TEST_ASSERT_TRUE(ENABLED_OPT(AUTHENTICATION));
 

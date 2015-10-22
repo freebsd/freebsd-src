@@ -154,7 +154,7 @@ u_long	asn2ntp		(ASN1_TIME *);
  * Program variables
  */
 extern char *optarg;		/* command line argument */
-char	*progname;
+char	const *progname;
 u_int	lifetime = DAYSPERYEAR;	/* certificate lifetime (days) */
 int	nkeys;			/* MV keys */
 time_t	epoch;			/* Unix epoch (seconds) since 1970 */
@@ -355,8 +355,8 @@ main(
 	fstamp = (u_int)(epoch + JAN_1970);
 
 	optct = ntpOptionProcess(&ntp_keygenOptions, argc, argv);
-	argc -= optct;
-	argv += optct;
+	argc -= optct;	// Just in case we care later.
+	argv += optct;	// Just in case we care later.
 
 #ifdef OPENSSL
 	if (SSLeay() == SSLEAY_VERSION_NUMBER)

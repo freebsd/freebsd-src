@@ -432,6 +432,9 @@ version.c: $(ntpd_OBJECTS) ../libntp/libntp.a @LIBPARSE@ Makefile $(top_srcdir)/
 version.o: version.c
 	env CCACHE_DISABLE=1 $(COMPILE) -c version.c -o version.o
 
+$(srcdir)/Makefile.am:
+	@: do-nothing
+
 include $(top_srcdir)/bincheck.mf
 include $(top_srcdir)/check-libopts.mf
 include $(top_srcdir)/sntp/check-libntp.mf

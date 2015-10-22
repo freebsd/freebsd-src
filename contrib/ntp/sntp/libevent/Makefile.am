@@ -140,7 +140,7 @@ CLEANFILES=
 DISTCLEANFILES=
 BUILT_SOURCES =
 include include/include.am
-include sample/include.am
+#include sample/include.am
 include test/include.am
 
 if BUILD_WIN32

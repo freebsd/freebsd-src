@@ -22,6 +22,8 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include "config.h"
+#include "ntp_stdlib.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
@@ -36,28 +38,28 @@ extern void test_IllegalDigit(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
-char *progname;
+char const *progname;
 
 
 //=======MAIN=====
 int main(int argc, char *argv[])
 {
   progname = argv[0];
-  Unity.TestFile = "octtoint.c";
   UnityBegin("octtoint.c");
-  RUN_TEST(test_SingleDigit, 7);
-  RUN_TEST(test_MultipleDigits, 15);
-  RUN_TEST(test_Zero, 24);
-  RUN_TEST(test_MaximumUnsigned32bit, 33);
-  RUN_TEST(test_Overflow, 42);
-  RUN_TEST(test_IllegalCharacter, 50);
-  RUN_TEST(test_IllegalDigit, 58);
+  RUN_TEST(test_SingleDigit, 8);
+  RUN_TEST(test_MultipleDigits, 9);
+  RUN_TEST(test_Zero, 10);
+  RUN_TEST(test_MaximumUnsigned32bit, 11);
+  RUN_TEST(test_Overflow, 12);
+  RUN_TEST(test_IllegalCharacter, 13);
+  RUN_TEST(test_IllegalDigit, 14);
 
   return (UnityEnd());
 }

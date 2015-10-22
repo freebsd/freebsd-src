@@ -213,6 +213,7 @@ AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
+BUILD_THREAD = @BUILD_THREAD@
 CALC_TICKADJ_DB = @CALC_TICKADJ_DB@
 CALC_TICKADJ_DL = @CALC_TICKADJ_DL@
 CALC_TICKADJ_DS = @CALC_TICKADJ_DS@
@@ -221,6 +222,7 @@ CALC_TICKADJ_NI = @CALC_TICKADJ_NI@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CFLAGS_LIBEVENT = @CFLAGS_LIBEVENT@
 CFLAGS_NTP = @CFLAGS_NTP@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
@@ -274,6 +276,7 @@ LIBTOOL_DEPS = @LIBTOOL_DEPS@
 LIB_SYSLOG = @LIB_SYSLOG@
 LIPO = @LIPO@
 LN_S = @LN_S@
+LTHREAD_LIBS = @LTHREAD_LIBS@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
@@ -443,18 +446,20 @@ BUILT_SOURCES = .deps-ver
 CLEANFILES = .deps-ver
 noinst_LIBRARIES = libunity.a
 libunity_a_CFLAGS = \
-	-DUNITY_INCLUDE_DOUBLE		\
+	-DUNITY_INCLUDE_CONFIG_H	\
 	$(NULL)
 
 libunity_a_SOURCES = \
 	../libpkgver/colcomp.c			\
 	unity.c					\
 	unity.h					\
+	unity_config.h				\
 	unity_internals.h			\
 	unity_fixture.c				\
 	unity_fixture.h				\
 	unity_fixture_internals.h		\
 	unity_fixture_malloc_overrides.h	\
+	unity_config.h				\
 	$(NULL)
 
 SNTP_INCS = -I$(top_srcdir)/../include \

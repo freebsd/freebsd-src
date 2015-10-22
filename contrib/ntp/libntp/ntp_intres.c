@@ -249,12 +249,12 @@ getaddrinfo_sometime(
 	size_t			servsize;
 	time_t			now;
 	
-	NTP_REQUIRE(NULL != node);
+	REQUIRE(NULL != node);
 	if (NULL != hints) {
-		NTP_REQUIRE(0 == hints->ai_addrlen);
-		NTP_REQUIRE(NULL == hints->ai_addr);
-		NTP_REQUIRE(NULL == hints->ai_canonname);
-		NTP_REQUIRE(NULL == hints->ai_next);
+		REQUIRE(0 == hints->ai_addrlen);
+		REQUIRE(NULL == hints->ai_addr);
+		REQUIRE(NULL == hints->ai_canonname);
+		REQUIRE(NULL == hints->ai_next);
 	}
 
 	idx = get_dnschild_ctx();
@@ -420,7 +420,7 @@ blocking_getaddrinfo(
 
 		ai = ai_res;
 		while (NULL != ai) {
-			NTP_INSIST(ai->ai_addrlen <= sizeof(sockaddr_u));
+			INSIST(ai->ai_addrlen <= sizeof(sockaddr_u));
 			memcpy(cp, ai->ai_addr, ai->ai_addrlen);
 			cp += sizeof(sockaddr_u);
 
@@ -568,7 +568,7 @@ getaddrinfo_sometime_complete(
 			ai[i].ai_canonname += (size_t)canon_start;
 	}
 
-	NTP_ENSURE((char *)psau == canon_start);
+	ENSURE((char *)psau == canon_start);
 
 	if (!gai_resp->ai_count)
 		ai = NULL;
@@ -634,8 +634,8 @@ getnameinfo_sometime(
 	dnschild_ctx *		child_ctx;
 	time_t			time_now;
 	
-	NTP_REQUIRE(hostoctets);
-	NTP_REQUIRE(hostoctets + servoctets < 1024);
+	REQUIRE(hostoctets);
+	REQUIRE(hostoctets + servoctets < 1024);
 
 	idx = get_dnschild_ctx();
 	child_ctx = dnschild_contexts[idx];
@@ -699,7 +699,7 @@ blocking_getnameinfo(
 	 * large allocations.  We only need room for the host
 	 * and service names.
 	 */
-	NTP_REQUIRE(octets < sizeof(host));
+	REQUIRE(octets < sizeof(host));
 	service = host + gni_req->hostoctets;
 
 	worker_ctx = get_worker_context(c, gni_req->dns_idx);
@@ -775,8 +775,8 @@ blocking_getnameinfo(
 		cp += gni_resp->servoctets;
 	}
 
-	NTP_INSIST((size_t)(cp - (char *)resp) == resp_octets);
-	NTP_INSIST(resp_octets - sizeof(*resp) == gni_resp->octets);
+	INSIST((size_t)(cp - (char *)resp) == resp_octets);
+	INSIST(resp_octets - sizeof(*resp) == gni_resp->octets);
 
 	rc = queue_blocking_response(c, resp, resp_octets, req);
 	if (rc)

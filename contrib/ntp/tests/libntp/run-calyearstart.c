@@ -22,34 +22,38 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include "config.h"
+#include "ntp_stdlib.h"
+#include "ntp_calendar.h"
+#include "test-libntp.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_NoWrapInDateRange();
-extern void test_NoWrapInDateRangeLeapYear();
-extern void test_WrapInDateRange();
+extern void test_NoWrapInDateRange(void);
+extern void test_NoWrapInDateRangeLeapYear(void);
+extern void test_WrapInDateRange(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
-char *progname;
+char const *progname;
 
 
 //=======MAIN=====
 int main(int argc, char *argv[])
 {
   progname = argv[0];
-  Unity.TestFile = "calyearstart.c";
   UnityBegin("calyearstart.c");
-  RUN_TEST(test_NoWrapInDateRange, 22);
-  RUN_TEST(test_NoWrapInDateRangeLeapYear, 30);
-  RUN_TEST(test_WrapInDateRange, 38);
+  RUN_TEST(test_NoWrapInDateRange, 11);
+  RUN_TEST(test_NoWrapInDateRangeLeapYear, 12);
+  RUN_TEST(test_WrapInDateRange, 13);
 
   return (UnityEnd());
 }

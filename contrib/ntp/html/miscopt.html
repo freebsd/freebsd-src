@@ -11,7 +11,7 @@
 <img src="pic/boom3.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>Pogo</i>, Walt Kelly</a>
 <p>We have three, now looking for more.</p>
 <p>Last update:
-  <!-- #BeginDate format:En2m -->29-Jun-2015  05:56<!-- #EndDate -->
+  <!-- #BeginDate format:En2m -->23-Sep-2015  10:20<!-- #EndDate -->
     UTC</p>
 <br clear="left">
 <h4>Related Links</h4>
@@ -105,7 +105,7 @@
   <dd>
     <dl>
       <dt><tt>memlock <i>Nmegabytes</i></tt></dt>
-      <dd>Specify the number of megabytes of memory that can be allocated.  Probably only available under Linux, this option is useful when dropping root (the <tt>-i</tt> option).   The default is 32  megabytes. Setting this to zero will prevent any attemp to lock memory.</dd>
+      <dd>Specify the number of megabytes of memory that should be allocated and locked.  Probably only available under Linux, this option may be useful when dropping root (the <tt>-i</tt> option).  The default is 32 megabytes on non-Linux machines, and -1 under Linux.  -1 means "do not lock the process into memory".  0 means "lock whatever memory the process wants into memory".</dd>
       <dt><tt>stacksize <i>N4kPages</i></tt></dt>
       <dd>Specifies the maximum size of the process stack on systems with the <tt>mlockall()</tt> function. Defaults to 50 4k pages (200 4k pages in OpenBSD).</dd>
       <dt><tt>filenum <i>Nfiledescriptors</i></tt></dt>

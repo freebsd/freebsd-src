@@ -22,38 +22,40 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include "config.h"
+#include "ntp.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_MD5KeyTypeWithoutDigestLength();
-extern void test_MD5KeyTypeWithDigestLength();
-extern void test_SHA1KeyTypeWithDigestLength();
-extern void test_MD5KeyName();
-extern void test_SHA1KeyName();
+extern void test_MD5KeyTypeWithoutDigestLength(void);
+extern void test_MD5KeyTypeWithDigestLength(void);
+extern void test_SHA1KeyTypeWithDigestLength(void);
+extern void test_MD5KeyName(void);
+extern void test_SHA1KeyName(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
-char *progname;
+char const *progname;
 
 
 //=======MAIN=====
 int main(int argc, char *argv[])
 {
   progname = argv[0];
-  Unity.TestFile = "ssl_init.c";
   UnityBegin("ssl_init.c");
-  RUN_TEST(test_MD5KeyTypeWithoutDigestLength, 19);
-  RUN_TEST(test_MD5KeyTypeWithDigestLength, 23);
-  RUN_TEST(test_SHA1KeyTypeWithDigestLength, 32);
-  RUN_TEST(test_MD5KeyName, 47);
-  RUN_TEST(test_SHA1KeyName, 51);
+  RUN_TEST(test_MD5KeyTypeWithoutDigestLength, 17);
+  RUN_TEST(test_MD5KeyTypeWithDigestLength, 18);
+  RUN_TEST(test_SHA1KeyTypeWithDigestLength, 19);
+  RUN_TEST(test_MD5KeyName, 20);
+  RUN_TEST(test_SHA1KeyName, 21);
 
   return (UnityEnd());
 }

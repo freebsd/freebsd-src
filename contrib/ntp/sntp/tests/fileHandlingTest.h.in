@@ -1,6 +1,7 @@
 #ifndef FILE_HANDLING_TEST_H
 #define FILE_HANDLING_TEST_H
 
+#include "config.h"
 #include "stdlib.h"
 #include "sntptest.h"
 
@@ -13,88 +14,22 @@ enum DirectoryType {
 	OUTPUT_DIR = 1
 };
 
-const char * CreatePath(const char* filename, enum DirectoryType argument) {
-	
-	 char * path = malloc (sizeof (char) * 256);
+#define SRCDIR_DEF "@abs_srcdir@/data/";
+//const char srcdir[] = "@abs_srcdir@/data/";
 
-	/*
-	if (m_params.size() >= argument + 1) {
-		path = m_params[argument];
-	}
+const char *
+CreatePath(const char* filename, enum DirectoryType argument);
 
-	if (path[path.size()-1] != DIR_SEP && !path.empty()) {
-		path.append(1, DIR_SEP);
-	}
-	*/
-	//strcpy(path,filename);
-	//path.append(filename);
 
-	//return path;
+int
+GetFileSize(FILE *file);
 
-	char cwd[1024];
-	if (getcwd(cwd, sizeof(cwd)) != NULL)
-		printf("Current working dir: %s\n", cwd);
-	
-	printf("builddir is   <@builddir@>\n");
-	printf("abs_srcdir is <@abs_srcdir@>\n");
-	strcpy(path,"@abs_srcdir@/data/");
 
-	//strcpy(path,"");
-	strcat(path,filename);
-	printf("PATH IS : %s\n",path);
-	return path;
-}
+bool
+CompareFileContent(FILE* expected, FILE* actual);
 
-int GetFileSize(FILE *file) {
-
-	fseek(file, 0L, SEEK_END);
-	int length = ftell(file);
-	fseek(file, 0L, SEEK_SET);
-	
-	//int initial = file.tellg();
-
-	//file.seekg(0, ios::end);
-	//int length = file.tellg();
-	//file.seekg(initial);
-
-	return length;
-}
-
-bool CompareFileContent(FILE* expected, FILE* actual) {
-	int currentLine = 1;
-
-	char actualLine[1024];
-	char expectedLine[1024];
-	size_t lenAct = sizeof actualLine;
-	size_t lenExp = sizeof expectedLine;
-	
-	while (  ( (fgets(actualLine, lenAct, actual)) != NULL)
-	      && ( (fgets(expectedLine, lenExp, expected)) != NULL )
-	      ) {
-
-		//printf("%s",actualLine);
-		//printf("%s",expectedLine);
-	
-		if( strcmp(actualLine,expectedLine) !=0 ){
-			printf("Comparision failed on line %d",currentLine);
-			return FALSE;
-		}
-
-		//I removed this and modified the test kodFile.c, because there shouldn't be any ASSERTs in .h files!
-		//TEST_ASSERT_EQUAL_STRING(actualLine,expectedLine);//EXPECT_EQ(expectedLine, actualLine) << "Comparision failed on line " << currentLine;
-		currentLine++;
-	}
-
-	return TRUE;
-}
-
-void ClearFile(const char * filename) {
-	FILE * clear = fopen(filename, "w");//ios::trunc); //similar to truncate, I GUESS???!
-	
-	//I removed this because there shouldn't be any ASSERTs in .h files!
-	//TEST_ASSERT_TRUE(clear != NULL);
-	fclose(clear);
-}
+void
+ClearFile(const char * filename) ;
 
 
 #endif // FILE_HANDLING_TEST_H

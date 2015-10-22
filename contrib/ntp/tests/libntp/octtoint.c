@@ -4,6 +4,16 @@
 
 #include "unity.h"
 
+
+void test_SingleDigit(void);
+void test_MultipleDigits(void);
+void test_Zero(void);
+void test_MaximumUnsigned32bit(void);
+void test_Overflow(void);
+void test_IllegalCharacter(void);
+void test_IllegalDigit(void);
+
+
 void test_SingleDigit(void) {
 	const char* str = "5";
 	u_long actual;

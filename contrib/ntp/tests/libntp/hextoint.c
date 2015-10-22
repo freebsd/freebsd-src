@@ -6,6 +6,12 @@
 
 #include "unity.h"
 
+void test_SingleDigit(void);
+void test_MultipleDigits(void);
+void test_MaxUnsigned(void);
+void test_Overflow(void);
+void test_IllegalChar(void);
+
 
 void test_SingleDigit(void) {
         const char *str = "a"; // 10 decimal

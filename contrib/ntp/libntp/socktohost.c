@@ -79,7 +79,7 @@ socktohost(
 	if (a_info)
 		goto forward_fail;
 
-	NTP_INSIST(alist != NULL);
+	INSIST(alist != NULL);
 
 	for (ai = alist; ai != NULL; ai = ai->ai_next) {
 		/*

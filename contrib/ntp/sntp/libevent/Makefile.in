@@ -26,12 +26,6 @@
 #
 # See LICENSE for copying information.
 
-# sample/include.am for libevent
-# Copyright 2000-2007 Niels Provos
-# Copyright 2007-2012 Niels Provos and Nick Mathewson
-#
-# See LICENSE for copying information.
-
 # test/Makefile.am for libevent
 # Copyright 2000-2007 Niels Provos
 # Copyright 2007-2012 Niels Provos and Nick Mathewson
@@ -120,32 +114,26 @@ host_triplet = @host@
 @PTHREADS_TRUE@am__append_2 = libevent_pthreads.pc
 @OPENSSL_TRUE@am__append_3 = libevent_openssl.la
 @OPENSSL_TRUE@am__append_4 = libevent_openssl.pc
-noinst_PROGRAMS = $(am__EXEEXT_4) $(am__EXEEXT_6)
+noinst_PROGRAMS = $(am__EXEEXT_3)
 EXTRA_PROGRAMS = $(am__EXEEXT_1)
 @INSTALL_LIBEVENT_FALSE@am__append_5 = $(EVENT2_EXPORT)
-@OPENSSL_TRUE@am__append_6 = sample/le-proxy sample/https-client
-@OPENSSL_TRUE@am__append_7 = \
-@OPENSSL_TRUE@	sample/hostcheck.h \
-@OPENSSL_TRUE@	sample/openssl_hostname_validation.h
-
-@BUILD_SAMPLES_TRUE@am__append_8 = $(SAMPLES)
-@BUILD_REGRESS_TRUE@am__append_9 = $(TESTPROGRAMS)
-@BUILD_REGRESS_TRUE@am__append_10 = test/regress
-@BUILD_REGRESS_TRUE@am__append_11 = test/regress.gen.c test/regress.gen.h
-@PTHREADS_TRUE@am__append_12 = libevent_pthreads.la
-@BUILD_WIN32_TRUE@am__append_13 = test/regress_iocp.c
-@OPENSSL_TRUE@am__append_14 = test/regress_ssl.c
-@OPENSSL_TRUE@am__append_15 = $(OPENSSL_INCS)
-@OPENSSL_TRUE@am__append_16 = libevent_openssl.la $(OPENSSL_LIBS) ${OPENSSL_LIBADD}
-@STRLCPY_IMPL_TRUE@am__append_17 = strlcpy.c
-@SELECT_BACKEND_TRUE@am__append_18 = select.c
-@POLL_BACKEND_TRUE@am__append_19 = poll.c
-@DEVPOLL_BACKEND_TRUE@am__append_20 = devpoll.c
-@KQUEUE_BACKEND_TRUE@am__append_21 = kqueue.c
-@EPOLL_BACKEND_TRUE@am__append_22 = epoll.c
-@EVPORT_BACKEND_TRUE@am__append_23 = evport.c
-@SIGNAL_SUPPORT_TRUE@am__append_24 = signal.c
-@INSTALL_LIBEVENT_FALSE@am__append_25 = $(EVENT1_HDRS)
+@BUILD_REGRESS_TRUE@am__append_6 = $(TESTPROGRAMS)
+@BUILD_REGRESS_TRUE@am__append_7 = test/regress
+@BUILD_REGRESS_TRUE@am__append_8 = test/regress.gen.c test/regress.gen.h
+@PTHREADS_TRUE@am__append_9 = libevent_pthreads.la
+@BUILD_WIN32_TRUE@am__append_10 = test/regress_iocp.c
+@OPENSSL_TRUE@am__append_11 = test/regress_ssl.c
+@OPENSSL_TRUE@am__append_12 = $(OPENSSL_INCS)
+@OPENSSL_TRUE@am__append_13 = libevent_openssl.la $(OPENSSL_LIBS) ${OPENSSL_LIBADD}
+@STRLCPY_IMPL_TRUE@am__append_14 = strlcpy.c
+@SELECT_BACKEND_TRUE@am__append_15 = select.c
+@POLL_BACKEND_TRUE@am__append_16 = poll.c
+@DEVPOLL_BACKEND_TRUE@am__append_17 = devpoll.c
+@KQUEUE_BACKEND_TRUE@am__append_18 = kqueue.c
+@EPOLL_BACKEND_TRUE@am__append_19 = epoll.c
+@EVPORT_BACKEND_TRUE@am__append_20 = evport.c
+@SIGNAL_SUPPORT_TRUE@am__append_21 = signal.c
+@INSTALL_LIBEVENT_FALSE@am__append_22 = $(EVENT1_HDRS)
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ac_backport_259_ssizet.m4 \
@@ -297,58 +285,16 @@ libevent_pthreads_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 @INSTALL_LIBEVENT_TRUE@@PTHREADS_TRUE@am_libevent_pthreads_la_rpath =  \
 @INSTALL_LIBEVENT_TRUE@@PTHREADS_TRUE@	-rpath $(libdir)
 @BUILD_REGRESS_TRUE@am__EXEEXT_1 = test/regress$(EXEEXT)
-@OPENSSL_TRUE@am__EXEEXT_2 = sample/le-proxy$(EXEEXT) \
-@OPENSSL_TRUE@	sample/https-client$(EXEEXT)
-am__EXEEXT_3 = sample/dns-example$(EXEEXT) \
-	sample/event-read-fifo$(EXEEXT) sample/hello-world$(EXEEXT) \
-	sample/http-server$(EXEEXT) sample/signal-test$(EXEEXT) \
-	sample/time-test$(EXEEXT) $(am__EXEEXT_2)
-@BUILD_SAMPLES_TRUE@am__EXEEXT_4 = $(am__EXEEXT_3)
-am__EXEEXT_5 = test/bench$(EXEEXT) test/bench_cascade$(EXEEXT) \
+am__EXEEXT_2 = test/bench$(EXEEXT) test/bench_cascade$(EXEEXT) \
 	test/bench_http$(EXEEXT) test/bench_httpclient$(EXEEXT) \
 	test/test-changelist$(EXEEXT) test/test-dumpevents$(EXEEXT) \
 	test/test-eof$(EXEEXT) test/test-closed$(EXEEXT) \
 	test/test-fdleak$(EXEEXT) test/test-init$(EXEEXT) \
 	test/test-ratelim$(EXEEXT) test/test-time$(EXEEXT) \
 	test/test-weof$(EXEEXT) test/regress$(EXEEXT)
-@BUILD_REGRESS_TRUE@am__EXEEXT_6 = $(am__EXEEXT_5)
+@BUILD_REGRESS_TRUE@am__EXEEXT_3 = $(am__EXEEXT_2)
 PROGRAMS = $(noinst_PROGRAMS)
 am__dirstamp = $(am__leading_dot)dirstamp
-am_sample_dns_example_OBJECTS = sample/dns-example.$(OBJEXT)
-sample_dns_example_OBJECTS = $(am_sample_dns_example_OBJECTS)
-sample_dns_example_DEPENDENCIES = $(am__DEPENDENCIES_1) libevent.la
-am_sample_event_read_fifo_OBJECTS = sample/event-read-fifo.$(OBJEXT)
-sample_event_read_fifo_OBJECTS = $(am_sample_event_read_fifo_OBJECTS)
-sample_event_read_fifo_DEPENDENCIES = $(am__DEPENDENCIES_1) \
-	libevent.la
-am_sample_hello_world_OBJECTS = sample/hello-world.$(OBJEXT)
-sample_hello_world_OBJECTS = $(am_sample_hello_world_OBJECTS)
-sample_hello_world_DEPENDENCIES = $(am__DEPENDENCIES_1) libevent.la
-am_sample_http_server_OBJECTS = sample/http-server.$(OBJEXT)
-sample_http_server_OBJECTS = $(am_sample_http_server_OBJECTS)
-sample_http_server_DEPENDENCIES = $(am__DEPENDENCIES_1) libevent.la
-am__sample_https_client_SOURCES_DIST = sample/https-client.c \
-	sample/hostcheck.c sample/openssl_hostname_validation.c
-@OPENSSL_TRUE@am_sample_https_client_OBJECTS =  \
-@OPENSSL_TRUE@	sample/https-client.$(OBJEXT) \
-@OPENSSL_TRUE@	sample/hostcheck.$(OBJEXT) \
-@OPENSSL_TRUE@	sample/openssl_hostname_validation.$(OBJEXT)
-sample_https_client_OBJECTS = $(am_sample_https_client_OBJECTS)
-@OPENSSL_TRUE@sample_https_client_DEPENDENCIES = libevent.la \
-@OPENSSL_TRUE@	libevent_openssl.la $(am__DEPENDENCIES_1) \
-@OPENSSL_TRUE@	$(am__DEPENDENCIES_1)
-am__sample_le_proxy_SOURCES_DIST = sample/le-proxy.c
-@OPENSSL_TRUE@am_sample_le_proxy_OBJECTS = sample/le-proxy.$(OBJEXT)
-sample_le_proxy_OBJECTS = $(am_sample_le_proxy_OBJECTS)
-@OPENSSL_TRUE@sample_le_proxy_DEPENDENCIES = libevent.la \
-@OPENSSL_TRUE@	libevent_openssl.la $(am__DEPENDENCIES_1) \
-@OPENSSL_TRUE@	$(am__DEPENDENCIES_1)
-am_sample_signal_test_OBJECTS = sample/signal-test.$(OBJEXT)
-sample_signal_test_OBJECTS = $(am_sample_signal_test_OBJECTS)
-sample_signal_test_DEPENDENCIES = $(am__DEPENDENCIES_1) libevent.la
-am_sample_time_test_OBJECTS = sample/time-test.$(OBJEXT)
-sample_time_test_OBJECTS = $(am_sample_time_test_OBJECTS)
-sample_time_test_DEPENDENCIES = $(am__DEPENDENCIES_1) libevent.la
 am_test_bench_OBJECTS = test/bench.$(OBJEXT)
 test_bench_OBJECTS = $(am_test_bench_OBJECTS)
 test_bench_DEPENDENCIES = $(am__DEPENDENCIES_1) libevent.la
@@ -397,7 +343,7 @@ am_test_regress_OBJECTS = test/test_regress-regress.$(OBJEXT) \
 	test/test_regress-tinytest.$(OBJEXT) $(am__objects_12) \
 	$(am__objects_13) $(am__objects_14) $(am__objects_15)
 test_regress_OBJECTS = $(am_test_regress_OBJECTS)
-am__DEPENDENCIES_3 = $(am__append_12)
+am__DEPENDENCIES_3 = $(am__append_9)
 @OPENSSL_TRUE@am__DEPENDENCIES_4 = libevent_openssl.la \
 @OPENSSL_TRUE@	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 test_regress_DEPENDENCIES = $(am__DEPENDENCIES_1) libevent.la \
@@ -471,31 +417,21 @@ am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
 SOURCES = $(libevent_la_SOURCES) $(libevent_core_la_SOURCES) \
 	$(libevent_extra_la_SOURCES) $(libevent_openssl_la_SOURCES) \
-	$(libevent_pthreads_la_SOURCES) $(sample_dns_example_SOURCES) \
-	$(sample_event_read_fifo_SOURCES) \
-	$(sample_hello_world_SOURCES) $(sample_http_server_SOURCES) \
-	$(sample_https_client_SOURCES) $(sample_le_proxy_SOURCES) \
-	$(sample_signal_test_SOURCES) $(sample_time_test_SOURCES) \
-	$(test_bench_SOURCES) $(test_bench_cascade_SOURCES) \
-	$(test_bench_http_SOURCES) $(test_bench_httpclient_SOURCES) \
-	$(test_regress_SOURCES) $(test_test_changelist_SOURCES) \
-	$(test_test_closed_SOURCES) $(test_test_dumpevents_SOURCES) \
-	$(test_test_eof_SOURCES) $(test_test_fdleak_SOURCES) \
-	$(test_test_init_SOURCES) $(test_test_ratelim_SOURCES) \
-	$(test_test_time_SOURCES) $(test_test_weof_SOURCES)
+	$(libevent_pthreads_la_SOURCES) $(test_bench_SOURCES) \
+	$(test_bench_cascade_SOURCES) $(test_bench_http_SOURCES) \
+	$(test_bench_httpclient_SOURCES) $(test_regress_SOURCES) \
+	$(test_test_changelist_SOURCES) $(test_test_closed_SOURCES) \
+	$(test_test_dumpevents_SOURCES) $(test_test_eof_SOURCES) \
+	$(test_test_fdleak_SOURCES) $(test_test_init_SOURCES) \
+	$(test_test_ratelim_SOURCES) $(test_test_time_SOURCES) \
+	$(test_test_weof_SOURCES)
 DIST_SOURCES = $(am__libevent_la_SOURCES_DIST) \
 	$(am__libevent_core_la_SOURCES_DIST) \
 	$(libevent_extra_la_SOURCES) \
 	$(am__libevent_openssl_la_SOURCES_DIST) \
-	$(am__libevent_pthreads_la_SOURCES_DIST) \
-	$(sample_dns_example_SOURCES) \
-	$(sample_event_read_fifo_SOURCES) \
-	$(sample_hello_world_SOURCES) $(sample_http_server_SOURCES) \
-	$(am__sample_https_client_SOURCES_DIST) \
-	$(am__sample_le_proxy_SOURCES_DIST) \
-	$(sample_signal_test_SOURCES) $(sample_time_test_SOURCES) \
-	$(test_bench_SOURCES) $(test_bench_cascade_SOURCES) \
-	$(test_bench_http_SOURCES) $(test_bench_httpclient_SOURCES) \
+	$(am__libevent_pthreads_la_SOURCES_DIST) $(test_bench_SOURCES) \
+	$(test_bench_cascade_SOURCES) $(test_bench_http_SOURCES) \
+	$(test_bench_httpclient_SOURCES) \
 	$(am__test_regress_SOURCES_DIST) \
 	$(test_test_changelist_SOURCES) $(test_test_closed_SOURCES) \
 	$(test_test_dumpevents_SOURCES) $(test_test_eof_SOURCES) \
@@ -538,7 +474,6 @@ am__noinst_HEADERS_DIST = include/event2/buffer.h \
 	include/event2/rpc_struct.h include/event2/tag.h \
 	include/event2/tag_compat.h include/event2/thread.h \
 	include/event2/util.h include/event2/visibility.h \
-	sample/hostcheck.h sample/openssl_hostname_validation.h \
 	test/regress.h test/regress_thread.h test/tinytest.h \
 	test/tinytest_local.h test/tinytest_macros.h \
 	WIN32-Code/nmake/evconfig-private.h \
@@ -757,8 +692,8 @@ TEST_LOG_COMPILE = $(TEST_LOG_COMPILER) $(AM_TEST_LOG_FLAGS) \
 am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/config.h.in \
 	$(srcdir)/evconfig-private.h.in $(srcdir)/include/include.am \
 	$(srcdir)/libevent.pc.in $(srcdir)/libevent_openssl.pc.in \
-	$(srcdir)/libevent_pthreads.pc.in $(srcdir)/sample/include.am \
-	$(srcdir)/test/include.am $(top_srcdir)/build-aux/compile \
+	$(srcdir)/libevent_pthreads.pc.in $(srcdir)/test/include.am \
+	$(top_srcdir)/build-aux/compile \
 	$(top_srcdir)/build-aux/config.guess \
 	$(top_srcdir)/build-aux/config.sub \
 	$(top_srcdir)/build-aux/depcomp \
@@ -852,7 +787,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PKG_CONFIG = @PKG_CONFIG@
 PTHREAD_CC = @PTHREAD_CC@
 PTHREAD_CFLAGS = @PTHREAD_CFLAGS@
-PTHREAD_LIBS = @PTHREAD_LIBS@ $(am__append_12)
+PTHREAD_LIBS = @PTHREAD_LIBS@ $(am__append_9)
 RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
@@ -1018,9 +953,9 @@ LIBEVENT_LIBS_LA = libevent.la libevent_core.la libevent_extra.la \
 @INSTALL_LIBEVENT_TRUE@pkgconfig_DATA = $(LIBEVENT_PKGCONFIG)
 @INSTALL_LIBEVENT_FALSE@noinst_LTLIBRARIES = $(LIBEVENT_LIBS_LA)
 EXTRA_SOURCE = 
-noinst_HEADERS = $(am__append_5) $(am__append_7) test/regress.h \
-	test/regress_thread.h test/tinytest.h test/tinytest_local.h \
-	test/tinytest_macros.h WIN32-Code/nmake/evconfig-private.h \
+noinst_HEADERS = $(am__append_5) test/regress.h test/regress_thread.h \
+	test/tinytest.h test/tinytest_local.h test/tinytest_macros.h \
+	WIN32-Code/nmake/evconfig-private.h \
 	WIN32-Code/nmake/event2/event-config.h WIN32-Code/tree.h \
 	bufferevent-internal.h changelist-internal.h \
 	compat/sys/queue.h defer-internal.h epolltable-internal.h \
@@ -1030,12 +965,12 @@ noinst_HEADERS = $(am__append_5) $(am__append_7) test/regress.h \
 	iocp-internal.h ipv6-internal.h kqueue-internal.h \
 	log-internal.h minheap-internal.h mm-internal.h \
 	ratelim-internal.h ratelim-internal.h strlcpy-internal.h \
-	time-internal.h util-internal.h $(am__append_25)
+	time-internal.h util-internal.h $(am__append_22)
 CLEANFILES = test/rpcgen-attempted
 DISTCLEANFILES = test/test-script.sh test/regress.gen.c \
 	test/regress.gen.h *~ libevent.pc \
 	./include/event2/event-config.h
-BUILT_SOURCES = $(am__append_11) include/event2/event-config.h
+BUILT_SOURCES = $(am__append_8) include/event2/event-config.h
 include_event2dir = $(includedir)/event2
 EVENT2_EXPORT = \
 	include/event2/buffer.h \
@@ -1067,31 +1002,6 @@ EVENT2_EXPORT = \
 @INSTALL_LIBEVENT_TRUE@include_event2_HEADERS = $(EVENT2_EXPORT)
 @INSTALL_LIBEVENT_TRUE@nodist_include_event2_HEADERS = include/event2/event-config.h
 @INSTALL_LIBEVENT_FALSE@nodist_noinst_HEADERS = include/event2/event-config.h
-SAMPLES = sample/dns-example sample/event-read-fifo sample/hello-world \
-	sample/http-server sample/signal-test sample/time-test \
-	$(am__append_6)
-@OPENSSL_TRUE@sample_le_proxy_SOURCES = sample/le-proxy.c
-@OPENSSL_TRUE@sample_le_proxy_LDADD = libevent.la libevent_openssl.la ${OPENSSL_LIBS} ${OPENSSL_LIBADD}
-@OPENSSL_TRUE@sample_le_proxy_INCLUDES = $(OPENSSL_INCS)
-@OPENSSL_TRUE@sample_https_client_SOURCES = \
-@OPENSSL_TRUE@	sample/https-client.c \
-@OPENSSL_TRUE@	sample/hostcheck.c \
-@OPENSSL_TRUE@	sample/openssl_hostname_validation.c
-
-@OPENSSL_TRUE@sample_https_client_LDADD = libevent.la libevent_openssl.la ${OPENSSL_LIBS} ${OPENSSL_LIBADD}
-@OPENSSL_TRUE@sample_https_client_INCLUDES = $(OPENSSL_INCS)
-sample_event_read_fifo_SOURCES = sample/event-read-fifo.c
-sample_event_read_fifo_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
-sample_time_test_SOURCES = sample/time-test.c
-sample_time_test_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
-sample_signal_test_SOURCES = sample/signal-test.c
-sample_signal_test_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
-sample_dns_example_SOURCES = sample/dns-example.c
-sample_dns_example_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
-sample_hello_world_SOURCES = sample/hello-world.c
-sample_hello_world_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
-sample_http_server_SOURCES = sample/http-server.c
-sample_http_server_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
 regress_CPPFLAGS = -DTINYTEST_LOCAL
 TESTPROGRAMS = \
 	test/bench					\
@@ -1139,14 +1049,14 @@ test_regress_SOURCES = test/regress.c test/regress.gen.c \
 	test/regress_minheap.c test/regress_rpc.c \
 	test/regress_testutils.c test/regress_testutils.h \
 	test/regress_util.c test/tinytest.c $(regress_thread_SOURCES) \
-	$(regress_zlib_SOURCES) $(am__append_13) $(am__append_14)
+	$(regress_zlib_SOURCES) $(am__append_10) $(am__append_11)
 @BUILD_WIN32_TRUE@regress_thread_SOURCES = test/regress_thread.c
 @PTHREADS_TRUE@regress_thread_SOURCES = test/regress_thread.c
 @ZLIB_REGRESS_TRUE@regress_zlib_SOURCES = test/regress_zlib.c
 test_regress_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la \
-	$(PTHREAD_LIBS) $(ZLIB_LIBS) $(am__append_16)
+	$(PTHREAD_LIBS) $(ZLIB_LIBS) $(am__append_13)
 test_regress_CPPFLAGS = $(AM_CPPFLAGS) $(PTHREAD_CFLAGS) \
-	$(ZLIB_CFLAGS) -Itest $(am__append_15)
+	$(ZLIB_CFLAGS) -Itest $(am__append_12)
 test_regress_LDFLAGS = $(PTHREAD_CFLAGS)
 test_bench_SOURCES = test/bench.c
 test_bench_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
@@ -1157,18 +1067,19 @@ test_bench_http_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
 test_bench_httpclient_SOURCES = test/bench_httpclient.c
 test_bench_httpclient_LDADD = $(LIBEVENT_GC_SECTIONS) libevent_core.la
 @BUILD_WIN32_FALSE@SYS_LIBS = 
+#include sample/include.am
 @BUILD_WIN32_TRUE@SYS_LIBS = -lws2_32 -lshell32 -ladvapi32
-@BUILD_WIN32_FALSE@SYS_SRC = $(am__append_17) $(am__append_18) \
-@BUILD_WIN32_FALSE@	$(am__append_19) $(am__append_20) \
-@BUILD_WIN32_FALSE@	$(am__append_21) $(am__append_22) \
-@BUILD_WIN32_FALSE@	$(am__append_23) $(am__append_24)
+@BUILD_WIN32_FALSE@SYS_SRC = $(am__append_14) $(am__append_15) \
+@BUILD_WIN32_FALSE@	$(am__append_16) $(am__append_17) \
+@BUILD_WIN32_FALSE@	$(am__append_18) $(am__append_19) \
+@BUILD_WIN32_FALSE@	$(am__append_20) $(am__append_21)
 @BUILD_WIN32_TRUE@SYS_SRC = win32select.c evthread_win32.c \
 @BUILD_WIN32_TRUE@	buffer_iocp.c event_iocp.c \
-@BUILD_WIN32_TRUE@	bufferevent_async.c $(am__append_17) \
-@BUILD_WIN32_TRUE@	$(am__append_18) $(am__append_19) \
-@BUILD_WIN32_TRUE@	$(am__append_20) $(am__append_21) \
-@BUILD_WIN32_TRUE@	$(am__append_22) $(am__append_23) \
-@BUILD_WIN32_TRUE@	$(am__append_24)
+@BUILD_WIN32_TRUE@	bufferevent_async.c $(am__append_14) \
+@BUILD_WIN32_TRUE@	$(am__append_15) $(am__append_16) \
+@BUILD_WIN32_TRUE@	$(am__append_17) $(am__append_18) \
+@BUILD_WIN32_TRUE@	$(am__append_19) $(am__append_20) \
+@BUILD_WIN32_TRUE@	$(am__append_21)
 @BUILD_WIN32_FALSE@SYS_INCLUDES = 
 @BUILD_WIN32_TRUE@SYS_INCLUDES = -IWIN32-Code -IWIN32-Code/nmake
 CORE_SRC = \
@@ -1231,7 +1142,7 @@ all: $(BUILT_SOURCES) config.h evconfig-private.h
 .SUFFIXES: .c .lo .log .o .obj .test .test$(EXEEXT) .trs
 am--refresh: Makefile
 	@:
-$(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(srcdir)/include/include.am $(srcdir)/sample/include.am $(srcdir)/test/include.am $(am__configure_deps)
+$(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(srcdir)/include/include.am $(srcdir)/test/include.am $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
@@ -1253,7 +1164,7 @@ Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	    echo ' cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__depfiles_maybe)'; \
 	    cd $(top_builddir) && $(SHELL) ./config.status $@ $(am__depfiles_maybe);; \
 	esac;
-$(srcdir)/include/include.am $(srcdir)/sample/include.am $(srcdir)/test/include.am $(am__empty):
+$(srcdir)/include/include.am $(srcdir)/test/include.am $(am__empty):
 
 $(top_builddir)/config.status: $(top_srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
 	$(SHELL) ./config.status --recheck
@@ -1362,64 +1273,6 @@ clean-noinstPROGRAMS:
 	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
 	echo " rm -f" $$list; \
 	rm -f $$list
-sample/$(am__dirstamp):
-	@$(MKDIR_P) sample
-	@: > sample/$(am__dirstamp)
-sample/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) sample/$(DEPDIR)
-	@: > sample/$(DEPDIR)/$(am__dirstamp)
-sample/dns-example.$(OBJEXT): sample/$(am__dirstamp) \
-	sample/$(DEPDIR)/$(am__dirstamp)
-
-sample/dns-example$(EXEEXT): $(sample_dns_example_OBJECTS) $(sample_dns_example_DEPENDENCIES) $(EXTRA_sample_dns_example_DEPENDENCIES) sample/$(am__dirstamp)
-	@rm -f sample/dns-example$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(sample_dns_example_OBJECTS) $(sample_dns_example_LDADD) $(LIBS)
-sample/event-read-fifo.$(OBJEXT): sample/$(am__dirstamp) \
-	sample/$(DEPDIR)/$(am__dirstamp)
-
-sample/event-read-fifo$(EXEEXT): $(sample_event_read_fifo_OBJECTS) $(sample_event_read_fifo_DEPENDENCIES) $(EXTRA_sample_event_read_fifo_DEPENDENCIES) sample/$(am__dirstamp)
-	@rm -f sample/event-read-fifo$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(sample_event_read_fifo_OBJECTS) $(sample_event_read_fifo_LDADD) $(LIBS)
-sample/hello-world.$(OBJEXT): sample/$(am__dirstamp) \
-	sample/$(DEPDIR)/$(am__dirstamp)
-
-sample/hello-world$(EXEEXT): $(sample_hello_world_OBJECTS) $(sample_hello_world_DEPENDENCIES) $(EXTRA_sample_hello_world_DEPENDENCIES) sample/$(am__dirstamp)
-	@rm -f sample/hello-world$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(sample_hello_world_OBJECTS) $(sample_hello_world_LDADD) $(LIBS)
-sample/http-server.$(OBJEXT): sample/$(am__dirstamp) \
-	sample/$(DEPDIR)/$(am__dirstamp)
-
-sample/http-server$(EXEEXT): $(sample_http_server_OBJECTS) $(sample_http_server_DEPENDENCIES) $(EXTRA_sample_http_server_DEPENDENCIES) sample/$(am__dirstamp)
-	@rm -f sample/http-server$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(sample_http_server_OBJECTS) $(sample_http_server_LDADD) $(LIBS)
-sample/https-client.$(OBJEXT): sample/$(am__dirstamp) \
-	sample/$(DEPDIR)/$(am__dirstamp)
-sample/hostcheck.$(OBJEXT): sample/$(am__dirstamp) \
-	sample/$(DEPDIR)/$(am__dirstamp)
-sample/openssl_hostname_validation.$(OBJEXT): sample/$(am__dirstamp) \
-	sample/$(DEPDIR)/$(am__dirstamp)
-
-sample/https-client$(EXEEXT): $(sample_https_client_OBJECTS) $(sample_https_client_DEPENDENCIES) $(EXTRA_sample_https_client_DEPENDENCIES) sample/$(am__dirstamp)
-	@rm -f sample/https-client$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(sample_https_client_OBJECTS) $(sample_https_client_LDADD) $(LIBS)
-sample/le-proxy.$(OBJEXT): sample/$(am__dirstamp) \
-	sample/$(DEPDIR)/$(am__dirstamp)
-
-sample/le-proxy$(EXEEXT): $(sample_le_proxy_OBJECTS) $(sample_le_proxy_DEPENDENCIES) $(EXTRA_sample_le_proxy_DEPENDENCIES) sample/$(am__dirstamp)
-	@rm -f sample/le-proxy$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(sample_le_proxy_OBJECTS) $(sample_le_proxy_LDADD) $(LIBS)
-sample/signal-test.$(OBJEXT): sample/$(am__dirstamp) \
-	sample/$(DEPDIR)/$(am__dirstamp)
-
-sample/signal-test$(EXEEXT): $(sample_signal_test_OBJECTS) $(sample_signal_test_DEPENDENCIES) $(EXTRA_sample_signal_test_DEPENDENCIES) sample/$(am__dirstamp)
-	@rm -f sample/signal-test$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(sample_signal_test_OBJECTS) $(sample_signal_test_LDADD) $(LIBS)
-sample/time-test.$(OBJEXT): sample/$(am__dirstamp) \
-	sample/$(DEPDIR)/$(am__dirstamp)
-
-sample/time-test$(EXEEXT): $(sample_time_test_OBJECTS) $(sample_time_test_DEPENDENCIES) $(EXTRA_sample_time_test_DEPENDENCIES) sample/$(am__dirstamp)
-	@rm -f sample/time-test$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(sample_time_test_OBJECTS) $(sample_time_test_LDADD) $(LIBS)
 test/$(am__dirstamp):
 	@$(MKDIR_P) test
 	@: > test/$(am__dirstamp)
@@ -1584,7 +1437,6 @@ uninstall-dist_binSCRIPTS:
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
-	-rm -f sample/*.$(OBJEXT)
 	-rm -f test/*.$(OBJEXT)
 
 distclean-compile:
@@ -1624,16 +1476,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/signal.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/strlcpy.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/win32select.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@sample/$(DEPDIR)/dns-example.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@sample/$(DEPDIR)/event-read-fifo.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@sample/$(DEPDIR)/hello-world.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@sample/$(DEPDIR)/hostcheck.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@sample/$(DEPDIR)/http-server.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@sample/$(DEPDIR)/https-client.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@sample/$(DEPDIR)/le-proxy.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@sample/$(DEPDIR)/openssl_hostname_validation.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@sample/$(DEPDIR)/signal-test.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@sample/$(DEPDIR)/time-test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@test/$(DEPDIR)/bench.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@test/$(DEPDIR)/bench_cascade.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@test/$(DEPDIR)/bench_http.Po@am__quote@
@@ -1969,7 +1811,6 @@ mostlyclean-libtool:
 
 clean-libtool:
 	-rm -rf .libs _libs
-	-rm -rf sample/.libs sample/_libs
 	-rm -rf test/.libs test/_libs
 
 distclean-libtool:
@@ -2485,8 +2326,6 @@ clean-generic:
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
-	-rm -f sample/$(DEPDIR)/$(am__dirstamp)
-	-rm -f sample/$(am__dirstamp)
 	-rm -f test/$(DEPDIR)/$(am__dirstamp)
 	-rm -f test/$(am__dirstamp)
 	-test -z "$(DISTCLEANFILES)" || rm -f $(DISTCLEANFILES)
@@ -2502,7 +2341,7 @@ clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-	-rm -rf $(DEPDIR) ./$(DEPDIR) sample/$(DEPDIR) test/$(DEPDIR)
+	-rm -rf $(DEPDIR) ./$(DEPDIR) test/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-libtool distclean-tags
@@ -2551,7 +2390,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
-	-rm -rf $(DEPDIR) ./$(DEPDIR) sample/$(DEPDIR) test/$(DEPDIR)
+	-rm -rf $(DEPDIR) ./$(DEPDIR) test/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -2600,8 +2439,6 @@ uninstall-am: uninstall-dist_binSCRIPTS uninstall-includeHEADERS \
 
 .PRECIOUS: Makefile
 
-
-$(SAMPLES) : libevent.la
 
 test/test-script.sh: test/test.sh
 	cp $(top_srcdir)/test/test.sh $@

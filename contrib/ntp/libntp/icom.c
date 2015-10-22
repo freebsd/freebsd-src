@@ -6,14 +6,16 @@
  * frequency. All other parameters must be manually set before use.
  */
 #include <config.h>
-#include "icom.h"
+#include <ntp_stdlib.h>
+#include <ntp_tty.h>
+#include <l_stdlib.h>
+#include <icom.h>
+
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
 
-#include "ntp_tty.h"
-#include "l_stdlib.h"
 
 #ifdef SYS_WINNT
 #undef write	/* ports/winnt/include/config.h: #define write _write */
@@ -60,9 +62,14 @@ static void doublefreq		(double, u_char *, int);
 
 /*
  * icom_freq(fd, ident, freq) - load radio frequency
+ *
+ * returns:
+ *  0 (ok)
+ * -1 (error)
+ *  1 (short write to device)
  */
 int
-icom_freq(			/* returns 0 (ok), EIO (error) */
+icom_freq(
 	int fd,			/* file descriptor */
 	int ident,		/* ICOM radio identifier */
 	double freq		/* frequency (MHz) */
@@ -71,6 +78,7 @@ icom_freq(			/* returns 0 (ok), EIO (error) */
 	u_char cmd[] = {PAD, PR, PR, 0, TX, V_SFREQ, 0, 0, 0, 0, FI,
 	    FI};
 	int temp;
+	int rc;
 
 	cmd[3] = (char)ident;
 	if (ident == IC735)
@@ -78,9 +86,17 @@ icom_freq(			/* returns 0 (ok), EIO (error) */
 	else
 		temp = 5;
 	doublefreq(freq * 1e6, &cmd[6], temp);
-	temp = write(fd, cmd, temp + 7);
+	rc = write(fd, cmd, temp + 7);
+	if (rc == -1) {
+		msyslog(LOG_ERR, "icom_freq: write() failed: %m");
+		return -1;
+	} else if (rc != temp + 7) {
+		msyslog(LOG_ERR, "icom_freq: only wrote %d of %d bytes.",
+			rc, temp+7);
+		return 1;
+	}
 
-	return (0);
+	return 0;
 }
 
 

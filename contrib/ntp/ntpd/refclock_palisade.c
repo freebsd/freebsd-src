@@ -218,7 +218,7 @@ init_thunderbolt (
 	struct packettx tx;
 	
 	tx.size = 0;
-	tx.data = (u_char *) malloc(100);
+	tx.data = (u_char *) emalloc(100);
 
 	/* set UTC time */
 	sendsupercmd (&tx, 0x8E, 0xA2);
@@ -246,7 +246,7 @@ init_acutime (
 	struct packettx tx;
 
 	tx.size = 0;
-	tx.data = (u_char *) malloc(100);
+	tx.data = (u_char *) emalloc(100);
 
 	sendsupercmd(&tx, 0x8E, 0xA5);
 	sendbyte(&tx, 0x02);

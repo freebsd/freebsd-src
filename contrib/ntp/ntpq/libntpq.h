@@ -36,7 +36,7 @@
 #define NTP_STATUS_INVALID      0
 #define NTP_STATUS_FALSETICKER  1
 #define NTP_STATUS_EXCESS       2
-#define NTP_STATUS_OUTLYER      3
+#define NTP_STATUS_OUTLIER      3
 #define NTP_STATUS_CANDIDATE    4
 #define NTP_STATUS_SELECTED     5
 #define NTP_STATUS_SYSPEER      6

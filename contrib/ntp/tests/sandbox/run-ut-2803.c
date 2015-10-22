@@ -35,18 +35,21 @@ extern void test_ignored(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
+char const *progname;
+
 
 //=======MAIN=====
-int main(void)
+int main(int argc, char *argv[])
 {
-  Unity.TestFile = "ut-2803.c";
-  UnityBegin("");
+  progname = argv[0];
+  UnityBegin("ut-2803.c");
   RUN_TEST(test_main, 30);
   RUN_TEST(test_XPASS, 37);
   RUN_TEST(test_XFAIL, 49);

@@ -57,6 +57,12 @@ static void check_leapsec(u_int32, const time_t*, int/*BOOL*/);
 volatile int interface_interval;     /* init_io() sets def. 300s */
 
 /*
+ * Initializing flag.  All async routines watch this and only do their
+ * thing when it is clear.
+ */
+int initializing;
+
+/*
  * Alarm flag. The mainline code imports this.
  */
 volatile int alarm_flag;

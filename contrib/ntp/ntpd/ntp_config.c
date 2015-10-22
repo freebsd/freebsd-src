@@ -53,13 +53,21 @@
 #include "ntp_parser.h"
 #include "ntpd-opts.h"
 
+/* Bug 2817 */
+#if defined(HAVE_SYS_MMAN_H)
+# include <sys/mman.h>
+#endif
 
 /* list of servers from command line for config_peers() */
 int	cmdline_server_count;
 char **	cmdline_servers;
 
-/* set to zero if admin doesn't want memory locked */
-int	do_memlock = 1;
+/* Current state of memory locking:
+ * -1: default
+ *  0: memory locking disabled
+ *  1: Memory locking enabled
+ */
+int	cur_memlock = -1;
 
 /*
  * "logconfig" building blocks
@@ -1152,9 +1160,8 @@ create_address_node(
 {
 	address_node *my_node;
 
-	NTP_REQUIRE(NULL != addr);
-	NTP_REQUIRE(AF_INET == type ||
-		    AF_INET6 == type || AF_UNSPEC == type);
+	REQUIRE(NULL != addr);
+	REQUIRE(AF_INET == type || AF_INET6 == type || AF_UNSPEC == type);
 	my_node = emalloc_zero(sizeof(*my_node));
 	my_node->address = addr;
 	my_node->type = (u_short)type;
@@ -1170,7 +1177,7 @@ destroy_address_node(
 {
 	if (NULL == my_node)
 		return;
-	NTP_REQUIRE(NULL != my_node->address);
+	REQUIRE(NULL != my_node->address);
 
 	free(my_node->address);
 	free(my_node);
@@ -1567,7 +1574,7 @@ create_nic_rule_node(
 {
 	nic_rule_node *my_node;
 
-	NTP_REQUIRE(match_class != 0 || if_name != NULL);
+	REQUIRE(match_class != 0 || if_name != NULL);
 
 	my_node = emalloc_zero(sizeof(*my_node));
 	my_node->match_class = match_class;
@@ -1826,7 +1833,9 @@ config_auth(
 
 	/* Crypto Command */
 #ifdef AUTOKEY
+# ifdef __GNUC__
 	item = -1;	/* quiet warning */
+# endif
 	my_val = HEAD_PFIFO(ptree->auth.crypto_cmd_list);
 	for (; my_val != NULL; my_val = my_val->link) {
 		switch (my_val->attr) {
@@ -1979,7 +1988,9 @@ config_tos(
 	int		item;
 	double		val;
 
+#ifdef __GNUC__
 	item = -1;	/* quiet warning */
+#endif
 	tos = HEAD_PFIFO(ptree->orphan_cmds);
 	for (; tos != NULL; tos = tos->link) {
 		val = tos->value.d;
@@ -2610,18 +2621,36 @@ config_rlimit(
 			break;
 
 		case T_Memlock:
-			if (rlimit_av->value.i != 0) {
+			/* What if we HAVE_OPT(SAVECONFIGQUIT) ? */
+			if (rlimit_av->value.i == -1) {
+# if defined(HAVE_MLOCKALL)
+				if (cur_memlock != 0) {
+					if (-1 == munlockall()) {
+						msyslog(LOG_ERR, "munlockall() failed: %m");
+					}
+				}
+				cur_memlock = 0;
+# endif /* HAVE_MLOCKALL */
+			} else if (rlimit_av->value.i >= 0) {
 #if defined(RLIMIT_MEMLOCK)
+# if defined(HAVE_MLOCKALL)
+				if (cur_memlock != 1) {
+					if (-1 == mlockall(MCL_CURRENT|MCL_FUTURE)) {
+						msyslog(LOG_ERR, "mlockall() failed: %m");
+					}
+				}
+# endif /* HAVE_MLOCKALL */
 				ntp_rlimit(RLIMIT_MEMLOCK,
 					   (rlim_t)(rlimit_av->value.i * 1024 * 1024),
 					   1024 * 1024,
 					   "MB");
+				cur_memlock = 1;
 #else
 				/* STDERR as well would be fine... */
 				msyslog(LOG_WARNING, "'rlimit memlock' specified but is not available on this system.");
 #endif /* RLIMIT_MEMLOCK */
 			} else {
-				do_memlock = 0;
+				msyslog(LOG_WARNING, "'rlimit memlock' value of %d is unexpected!", rlimit_av->value.i);
 			}
 			break;
 
@@ -2662,7 +2691,9 @@ config_tinker(
 	attr_val *	tinker;
 	int		item;
 
+#ifdef __GNUC__
 	item = -1;	/* quiet warning */
+#endif
 	tinker = HEAD_PFIFO(ptree->tinker);
 	for (; tinker != NULL; tinker = tinker->link) {
 		switch (tinker->attr) {
@@ -2776,12 +2807,14 @@ config_nic_rules(
 		switch (curr_node->match_class) {
 
 		default:
+#ifdef __GNUC__
 			/*
 			 * this assignment quiets a gcc "may be used
 			 * uninitialized" warning and is here for no
 			 * other reason.
 			 */
 			match_type = MATCH_ALL;
+#endif
 			INSIST(FALSE);
 			break;
 
@@ -2834,12 +2867,14 @@ config_nic_rules(
 		switch (curr_node->action) {
 
 		default:
+#ifdef __GNUC__
 			/*
 			 * this assignment quiets a gcc "may be used
 			 * uninitialized" warning and is here for no
 			 * other reason.
 			 */
 			action = ACTION_LISTEN;
+#endif
 			INSIST(FALSE);
 			break;
 
@@ -4880,9 +4915,9 @@ getnetnum(
 	enum gnn_type a_type	/* ignored */
 	)
 {
-	NTP_REQUIRE(AF_UNSPEC == AF(addr) ||
-		    AF_INET == AF(addr) ||
-		    AF_INET6 == AF(addr));
+	REQUIRE(AF_UNSPEC == AF(addr) ||
+		AF_INET == AF(addr) ||
+		AF_INET6 == AF(addr));
 
 	if (!is_ip_address(num, AF(addr), addr))
 		return 0;

@@ -1113,9 +1113,9 @@ strtojint(
 	/* Now try to convert a sequence of digits. */
 	hold = cp;
 	accu = 0;
-	while (isdigit(*(const unsigned char*)cp)) {
+	while (isdigit(*(const u_char*)cp)) {
 		flags |= (accu > limit_lo);
-		accu = accu * 10 + (*(const unsigned char*)cp++ - '0');
+		accu = accu * 10 + (*(const u_char*)cp++ - '0');
 		flags |= (accu > limit_hi);
 	}
 	/* Check for empty conversion (no digits seen). */
@@ -2086,8 +2086,8 @@ convert_ascii_time(
 		return FALSE; /* could not parse the mandatory stuff! */
 	if (*ep == '.') {
 		dw = 100000000u;
-		while (isdigit(*(unsigned char*)++ep)) {
-			ts.tv_nsec += (*(unsigned char*)ep - '0') * dw;
+		while (isdigit(*(u_char*)++ep)) {
+			ts.tv_nsec += (*(u_char*)ep - '0') * dw;
 			dw /= 10u;
 		}
 	}
@@ -2189,16 +2189,16 @@ log_data(
 		char       *dtop = s_lbuf + sizeof(s_lbuf) - 1; /* for NUL */
 
 		while (sptr != stop && dptr != dtop) {
-			if (*sptr == '\\') {
+			u_char uch = (u_char)*sptr++;
+			if (uch == '\\') {
 				dptr = add_string(dptr, dtop, "\\\\");
-			} else if (isprint(*sptr)) {
-				*dptr++ = *sptr;
+			} else if (isprint(uch)) {
+				*dptr++ = (char)uch;
 			} else {
 				char fbuf[6];
-				snprintf(fbuf, sizeof(fbuf), "\\%03o", *(const u_char*)sptr);
+				snprintf(fbuf, sizeof(fbuf), "\\%03o", uch);
 				dptr = add_string(dptr, dtop, fbuf);
 			}
-			sptr++;
 		}
 		*dptr = '\0';
 		mprintf("%s[%s]: '%s'\n", up->logname, what, s_lbuf);

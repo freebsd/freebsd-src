@@ -1202,7 +1202,7 @@ printassoc(
 				break;
 
 			case CTL_PST_SEL_SELCAND:
-				condition = "outlyer";
+				condition = "outlier";
 				break;
 
 			case CTL_PST_SEL_SYNCCAND:
@@ -2387,7 +2387,7 @@ add_mru(
 		}
 		UNLINK_DLIST(mon, mlink);
 		UNLINK_SLIST(unlinked, hash_table[hash], mon, hlink, mru);
-		NTP_INSIST(unlinked == mon);
+		INSIST(unlinked == mon);
 		mru_dupes++;
 		TRACE(2, ("(updated from %08x.%08x) ", mon->last.l_ui,
 		      mon->last.l_uf));
@@ -2482,7 +2482,7 @@ collect_mru_list(
 	mru_count = 0;
 	INIT_DLIST(mru_list, mlink);
 	cb = NTP_HASH_SIZE * sizeof(*hash_table);
-	NTP_INSIST(NULL == hash_table);
+	INSIST(NULL == hash_table);
 	hash_table = emalloc_zero(cb);
 
 	c_mru_l_rc = FALSE;
@@ -2526,7 +2526,7 @@ collect_mru_list(
 					ri);
 			while (ri--) {
 				recent = HEAD_DLIST(mru_list, mlink);
-				NTP_INSIST(recent != NULL);
+				INSIST(recent != NULL);
 				if (debug)
 					fprintf(stderr,
 						"tossing prior entry %s to resync\n",
@@ -2535,7 +2535,7 @@ collect_mru_list(
 				hash = NTP_HASH_ADDR(&recent->addr);
 				UNLINK_SLIST(unlinked, hash_table[hash],
 					     recent, hlink, mru);
-				NTP_INSIST(unlinked == recent);
+				INSIST(unlinked == recent);
 				free(recent);
 				mru_count--;
 			}
@@ -2777,7 +2777,7 @@ collect_mru_list(
 		if (have_now)
 			list_complete = TRUE;
 		if (list_complete) {
-			NTP_INSIST(0 == ri || have_addr_older);
+			INSIST(0 == ri || have_addr_older);
 		}
 		if (mrulist_interrupted) {
 			printf("mrulist retrieval interrupted by operator.\n"
@@ -3145,13 +3145,13 @@ mrulist(
 	ppentry = sorted;
 	if (MRUSORT_R_DEF != order) {
 		ITER_DLIST_BEGIN(mru_list, recent, mlink, mru)
-			NTP_INSIST(ppentry < sorted + mru_count);
+			INSIST(ppentry < sorted + mru_count);
 			*ppentry = recent;
 			ppentry++;
 		ITER_DLIST_END()
 	} else {
 		REV_ITER_DLIST_BEGIN(mru_list, recent, mlink, mru)
-			NTP_INSIST(ppentry < sorted + mru_count);
+			INSIST(ppentry < sorted + mru_count);
 			*ppentry = recent;
 			ppentry++;
 		REV_ITER_DLIST_END()
