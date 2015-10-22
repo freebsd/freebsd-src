@@ -1,7 +1,7 @@
 # $FreeBSD$
 .PATH:	${.CURDIR}/../../ofed/include/linux
 
-KMOD=	linuxapi
+KMOD=	linuxkpi
 SRCS=	linux_kmod.c \
 	linux_compat.c \
 	linux_pci.c \
