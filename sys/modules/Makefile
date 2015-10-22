@@ -203,7 +203,7 @@ SUBDIR=	\
 	${_linux} \
 	${_linux_common} \
 	${_linux64} \
-	${_linuxapi} \
+	${_linuxkpi} \
 	lmc \
 	lpt \
 	mac_biba \
@@ -534,7 +534,7 @@ _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
 .if ${MK_OFED} != "no"
-_linuxapi=	linuxapi
+_linuxkpi=	linuxkpi
 .endif
 _ndis=		ndis
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)

@@ -30,6 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/module.h>
 
-MODULE_VERSION(linuxapi, 1);
-MODULE_DEPEND(linuxapi, pci, 1, 1, 1);
+MODULE_VERSION(linuxkpi, 1);
+MODULE_DEPEND(linuxkpi, pci, 1, 1, 1);
 
