@@ -30,7 +30,6 @@
 . "$(dirname "$0")/makefs_tests_common.sh"
 
 MAKEFS="makefs -t ffs"
-TEST_IMAGE="test.img"
 
 atf_test_case basic_ffs cleanup
 basic_ffs_body()
@@ -45,12 +44,11 @@ basic_ffs_body()
 	    tunefs -p /dev/$(cat $TEST_MD_DEVICE_FILE)
 	atf_check -e empty -o empty -s exit:0 \
 	    mount /dev/$(cat $TEST_MD_DEVICE_FILE) $TEST_MOUNT_DIR
-	atf_check -e empty -o not-empty -s exit:0 ls $TEST_MOUNT_DIR
+	atf_check -e empty -o empty -s exit:0 \
+	    diff -Naur $TEST_INPUTS_DIR $TEST_MOUNT_DIR
 }
 basic_ffs_cleanup()
 {
-	ls -a
-
 	test_md_device=$(cat $TEST_MD_DEVICE_FILE) || return
 
 	umount -f /dev/$test_md_device

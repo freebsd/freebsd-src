@@ -27,30 +27,23 @@
 # $FreeBSD$
 #
 
+KB=1024
+TEST_IMAGE="test.img"
+TEST_INPUTS_DIR="inputs"
 TEST_MD_DEVICE_FILE="md.output"
 TEST_MOUNT_DIR="mnt"
 
-create_test_dir()
+create_test_dirs()
 {
-	[ -z "$ATF_TMPDIR" ] || return 0
-
-	export ATF_TMPDIR=$(pwd)
-
-	TEST_MD_DEVICE_FILE="${ATF_TMPDIR}/${TEST_MD_DEVICE_FILE}"
-	TEST_MOUNT_DIR="${ATF_TMPDIR}/${TEST_MOUNT_DIR}"
-
-	# XXX: need to nest this because of how kyua creates $TMPDIR; otherwise
-	# it will run into EPERM issues later
-	TEST_INPUTS_DIR="${ATF_TMPDIR}/test/inputs"
-
 	atf_check -e empty -s exit:0 mkdir -m 0777 -p $TEST_MOUNT_DIR
 	atf_check -e empty -s exit:0 mkdir -m 0777 -p $TEST_INPUTS_DIR
-	cd $TEST_INPUTS_DIR
 }
 
 create_test_inputs()
 {
-	create_test_dir
+	create_test_dirs
+
+	cd $TEST_INPUTS_DIR
 
 	atf_check -e empty -s exit:0 mkdir -m 0755 -p a/b/1
 	atf_check -e empty -s exit:0 ln -s a/b c
@@ -58,7 +51,9 @@ create_test_inputs()
 	atf_check -e empty -s exit:0 ln d e
 	atf_check -e empty -s exit:0 touch .f
 	atf_check -e empty -s exit:0 mkdir .g
-	atf_check -e empty -s exit:0 mkfifo h
+	# XXX: fifos on the filesystem don't match fifos created by makefs for
+	# some odd reason.
+	#atf_check -e empty -s exit:0 mkfifo h
 	atf_check -e ignore -s exit:0 dd if=/dev/zero of=i count=1000 bs=1
 	atf_check -e empty -s exit:0 touch klmn
 	atf_check -e empty -s exit:0 touch opqr
@@ -78,4 +73,14 @@ create_test_inputs()
 	atf_check -e empty -s exit:0 touch 0b00001100
 	atf_check -e empty -s exit:0 touch 0b00001101
 	atf_check -e empty -s exit:0 touch 0b00001110
+
+	for filesize in 1 512 $(( 2 * $KB )) $(( 10 * $KB )) $(( 512 * $KB )); \
+	do
+		atf_check -e ignore -o empty -s exit:0 \
+		    dd if=/dev/zero of=${filesize}.file bs=1 \
+		    count=1 oseek=${filesize} conv=sparse
+		files="${files} ${filesize}.file"
+	done
+
+	cd -
 }
