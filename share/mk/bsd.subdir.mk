@@ -83,6 +83,15 @@ ${SUBDIR:N.WAIT}: .PHONY .MAKE
 	    dir=${.TARGET}; \
 	    ${_SUBDIR_SH};
 
+# .WAIT and dependencies can be skipped for some targets.
+.if defined(SUBDIR_PARALLEL)
+.if make(obj) || make(clean*)
+_skip_subdir_ordering=	1
+SUBDIR:=	${SUBDIR:N.WAIT}
+.else
+_skip_subdir_ordering=	0
+.endif
+.endif	# defined(SUBDIR_PARALLEL)
 # Work around parsing of .if nested in .for by putting .WAIT string into a var.
 __wait= .WAIT
 .for __target in ${ALL_SUBDIR_TARGETS}
@@ -94,9 +103,11 @@ __subdir_targets+= .WAIT
 .else
 __subdir_targets+= ${__target}_subdir_${__dir}
 __deps=
+.if ${_skip_subdir_ordering} == 0
 .for __dep in ${SUBDIR_DEPEND_${__dir}}
 __deps+= ${__target}_subdir_${__dep}
 .endfor
+.endif
 ${__target}_subdir_${__dir}: .PHONY .MAKE ${__deps}
 .if !defined(NO_SUBDIR)
 	@${_+_}target=${__target:realinstall=install}; \
