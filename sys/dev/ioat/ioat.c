@@ -80,6 +80,12 @@ static void ioat_comp_update_map(void *arg, bus_dma_segment_t *seg, int nseg,
 static int ioat_reset_hw(struct ioat_softc *ioat);
 static void ioat_setup_sysctl(device_t device);
 
+#define	ioat_log_message(v, ...) do {					\
+	if ((v) <= g_ioat_debug_level) {				\
+		device_printf(ioat->device, __VA_ARGS__);		\
+	}								\
+} while (0)
+
 MALLOC_DEFINE(M_IOAT, "ioat", "ioat driver memory allocations");
 SYSCTL_NODE(_hw, OID_AUTO, ioat, CTLFLAG_RD, 0, "ioat node");
 
@@ -87,7 +93,7 @@ static int g_force_legacy_interrupts;
 SYSCTL_INT(_hw_ioat, OID_AUTO, force_legacy_interrupts, CTLFLAG_RDTUN,
     &g_force_legacy_interrupts, 0, "Set to non-zero to force MSI-X disabled");
 
-static int g_ioat_debug_level = 0;
+int g_ioat_debug_level = 0;
 SYSCTL_INT(_hw_ioat, OID_AUTO, debug_level, CTLFLAG_RWTUN, &g_ioat_debug_level,
     0, "Set log level (0-3) for ioat(4). Higher is more verbose.");
 
@@ -614,8 +620,8 @@ ioat_release(bus_dmaengine_t dmaengine)
 {
 	struct ioat_softc *ioat;
 
-	ioat_log_message(3, "%s\n", __func__);
 	ioat = to_ioat_softc(dmaengine);
+	ioat_log_message(3, "%s\n", __func__);
 	ioat_write_2(ioat, IOAT_DMACOUNT_OFFSET, (uint16_t)ioat->head);
 	mtx_unlock(&ioat->submit_lock);
 }
@@ -1034,22 +1040,4 @@ ioat_setup_sysctl(device_t device)
 	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
 	    "tail", CTLFLAG_RD, &ioat->tail,
 	    0, "HW descriptor tail pointer index");
-}
-
-void
-ioat_log_message(int verbosity, char *fmt, ...)
-{
-	va_list argp;
-	char buffer[512];
-	struct timeval tv;
-
-	if (verbosity > g_ioat_debug_level)
-		return;
-
-	va_start(argp, fmt);
-	vsnprintf(buffer, sizeof(buffer) - 1, fmt, argp);
-	va_end(argp);
-	microuptime(&tv);
-
-	printf("[%d:%06d] ioat: %s", (int)tv.tv_sec, (int)tv.tv_usec, buffer);
 }
