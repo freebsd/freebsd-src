@@ -4,14 +4,14 @@ SYSDIR?=	${.CURDIR}/../../..
 
 .PATH:		${SYSDIR}/cddl/dev/systrace
 
-KMOD=		systrace_linux32
+KMOD=		systrace_linux
 
 SRCS=		systrace.c
 SRCS+=		vnode_if.h
 
 CFLAGS+=	-I${SYSDIR}/cddl/compat/opensolaris \
 		-I${SYSDIR}/cddl/contrib/opensolaris/uts/common \
-		-I${SYSDIR} -DLINUX32_SYSTRACE
+		-I${SYSDIR} -DLINUX_SYSTRACE
 
 .include <bsd.kmod.mk>
 

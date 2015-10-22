@@ -60,24 +60,37 @@
 
 #ifdef LINUX_SYSTRACE
 #if defined(__amd64__)
-#include <amd64/linux32/linux.h>
-#include <amd64/linux32/linux32_proto.h>
-#include <amd64/linux32/linux32_syscalls.c>
-#include <amd64/linux32/linux32_systrace_args.c>
-#define	MODNAME		"linux32"
+#include <amd64/linux/linux.h>
+#include <amd64/linux/linux_proto.h>
+#include <amd64/linux/linux_syscalls.c>
+#include <amd64/linux/linux_systrace_args.c>
 #elif defined(__i386__)
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 #include <i386/linux/linux_syscalls.c>
 #include <i386/linux/linux_systrace_args.c>
-#define	MODNAME		"linux"
 #else
 #error Only i386 and amd64 are supported.
 #endif
+#define	MODNAME		"linux"
 extern struct sysent linux_sysent[];
 #define	MAXSYSCALL	LINUX_SYS_MAXSYSCALL
 #define	SYSCALLNAMES	linux_syscallnames
 #define	SYSENT		linux_sysent
+#elif defined(LINUX32_SYSTRACE)
+#if defined(__amd64__)
+#include <amd64/linux32/linux.h>
+#include <amd64/linux32/linux32_proto.h>
+#include <amd64/linux32/linux32_syscalls.c>
+#include <amd64/linux32/linux32_systrace_args.c>
+#else
+#error Only amd64 is supported.
+#endif
+#define	MODNAME		"linux32"
+extern struct sysent linux32_sysent[];
+#define	MAXSYSCALL	LINUX32_SYS_MAXSYSCALL
+#define	SYSCALLNAMES	linux32_syscallnames
+#define	SYSENT		linux32_sysent
 #elif defined(FREEBSD32_SYSTRACE)
 /*
  * The syscall arguments are processed into a DTrace argument array
@@ -103,6 +116,7 @@ extern const char *freebsd32_syscallnames[];
 #define	MAXSYSCALL	SYS_MAXSYSCALL
 #define	SYSCALLNAMES	syscallnames
 #define	SYSENT		sysent
+#define	NATIVE_ABI
 #endif
 
 #define	PROVNAME	"syscall"
@@ -132,7 +146,7 @@ static void	systrace_load(void *);
 static struct cdevsw systrace_cdevsw = {
 	.d_version	= D_VERSION,
 	.d_open		= systrace_open,
-#ifdef LINUX_SYSTRACE
+#ifndef NATIVE_ABI
 	.d_name		= "systrace_" MODNAME,
 #else
 	.d_name		= "systrace",
@@ -171,7 +185,7 @@ static dtrace_provider_id_t	systrace_id;
 typedef void (*systrace_dtrace_probe_t)(dtrace_id_t, uintptr_t, uintptr_t,
     uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t);
 
-#if !defined(LINUX_SYSTRACE)
+#ifdef NATIVE_ABI
 /*
  * Probe callback function.
  *
@@ -314,7 +328,7 @@ systrace_load(void *dummy)
 	    NULL, &systrace_pops, NULL, &systrace_id) != 0)
 		return;
 
-#if !defined(LINUX_SYSTRACE)
+#ifdef NATIVE_ABI
 	systrace_probe_func = systrace_probe;
 #endif
 }
@@ -328,7 +342,7 @@ systrace_unload()
 	if ((error = dtrace_unregister(systrace_id)) != 0)
 		return (error);
 
-#if !defined(LINUX_SYSTRACE)
+#ifdef NATIVE_ABI
 	systrace_probe_func = NULL;
 #endif
 
@@ -370,6 +384,16 @@ SYSINIT(systrace_load, SI_SUB_DTRACE_PROVIDER, SI_ORDER_ANY, systrace_load, NULL
 SYSUNINIT(systrace_unload, SI_SUB_DTRACE_PROVIDER, SI_ORDER_ANY, systrace_unload, NULL);
 
 #ifdef LINUX_SYSTRACE
+DEV_MODULE(systrace_linux, systrace_modevent, NULL);
+MODULE_VERSION(systrace_linux, 1);
+#ifdef __amd64__
+MODULE_DEPEND(systrace_linux, linux64, 1, 1, 1);
+#else
+MODULE_DEPEND(systrace_linux, linux, 1, 1, 1);
+#endif
+MODULE_DEPEND(systrace_linux, dtrace, 1, 1, 1);
+MODULE_DEPEND(systrace_linux, opensolaris, 1, 1, 1);
+#elif defined(LINUX32_SYSTRACE)
 DEV_MODULE(systrace_linux32, systrace_modevent, NULL);
 MODULE_VERSION(systrace_linux32, 1);
 MODULE_DEPEND(systrace_linux32, linux, 1, 1, 1);
