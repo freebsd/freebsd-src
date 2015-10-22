@@ -96,6 +96,8 @@ static int ctl_size[CTLTYPE+1] = {
 	[CTLTYPE_ULONG] = sizeof(u_long),
 	[CTLTYPE_S64] = sizeof(int64_t),
 	[CTLTYPE_U64] = sizeof(uint64_t),
+	[CTLTYPE_U8] = sizeof(uint8_t),
+	[CTLTYPE_U16] = sizeof(uint16_t),
 };
 
 static const char *ctl_typename[CTLTYPE+1] = {
@@ -105,6 +107,8 @@ static const char *ctl_typename[CTLTYPE+1] = {
 	[CTLTYPE_ULONG] = "unsigned long",
 	[CTLTYPE_S64] = "int64_t",
 	[CTLTYPE_U64] = "uint64_t",
+	[CTLTYPE_U8] = "uint8_t",
+	[CTLTYPE_U16] = "uint16_t",
 };
 
 static void
@@ -221,6 +225,8 @@ parse(const char *string, int lineno)
 	int len, i, j;
 	const void *newval;
 	const char *newvalstr = NULL;
+	uint8_t u8val;
+	uint16_t u16val;
 	int intval;
 	unsigned int uintval;
 	long longval;
@@ -322,6 +328,8 @@ parse(const char *string, int lineno)
 		}
 
 		switch (kind & CTLTYPE) {
+		case CTLTYPE_U8:
+		case CTLTYPE_U16:
 		case CTLTYPE_INT:
 		case CTLTYPE_UINT:
 		case CTLTYPE_LONG:
@@ -345,6 +353,16 @@ parse(const char *string, int lineno)
 		errno = 0;
 
 		switch (kind & CTLTYPE) {
+			case CTLTYPE_U8:
+				u8val = (uint8_t)strtoul(newvalstr, &endptr, 0);
+				newval = &u8val;
+				newsize = sizeof(u8val);
+				break;
+			case CTLTYPE_U16:
+				u16val = (uint16_t)strtoul(newvalstr, &endptr, 0);
+				newval = &u16val;
+				newsize = sizeof(u16val);
+				break;
 			case CTLTYPE_INT:
 				if (strncmp(fmt, "IK", 2) == 0)
 					intval = strIKtoi(newvalstr, &endptr, fmt);
@@ -890,6 +908,8 @@ show_var(int *oid, int nlen)
 		free(oval);
 		return (0);
 
+	case CTLTYPE_U8:
+	case CTLTYPE_U16:
 	case CTLTYPE_INT:
 	case CTLTYPE_UINT:
 	case CTLTYPE_LONG:
@@ -902,6 +922,14 @@ show_var(int *oid, int nlen)
 		sep1 = "";
 		while (len >= intlen) {
 			switch (kind & CTLTYPE) {
+			case CTLTYPE_U8:
+				umv = *(uint8_t *)p;
+				mv = *(int8_t *)p;
+				break;
+			case CTLTYPE_U16:
+				umv = *(uint16_t *)p;
+				mv = *(int16_t *)p;
+				break;
 			case CTLTYPE_INT:
 			case CTLTYPE_UINT:
 				umv = *(u_int *)p;

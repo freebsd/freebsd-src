@@ -73,6 +73,8 @@ struct ctlname {
 #define	CTLTYPE_LONG	7	/* name describes a long */
 #define	CTLTYPE_ULONG	8	/* name describes an unsigned long */
 #define	CTLTYPE_U64	9	/* name describes an unsigned 64-bit number */
+#define	CTLTYPE_U8	0xa	/* name describes an unsigned 8-bit number */
+#define	CTLTYPE_U16	0xb	/* name describes an unsigned 16-bit number */
 
 #define	CTLFLAG_RD	0x80000000	/* Allow reads of variable */
 #define	CTLFLAG_WR	0x40000000	/* Allow writes to the variable */
@@ -188,6 +190,8 @@ struct sysctl_oid {
 #define	SYSCTL_OUT(r, p, l)	(r->oldfunc)(r, p, l)
 #define	SYSCTL_OUT_STR(r, p)	(r->oldfunc)(r, p, strlen(p) + 1)
 
+int sysctl_handle_8(SYSCTL_HANDLER_ARGS);
+int sysctl_handle_16(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_int(SYSCTL_HANDLER_ARGS);
 int sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_long(SYSCTL_HANDLER_ARGS);
@@ -317,6 +321,46 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_STRING);	\
 	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_STRING|(access),	\
 	    __arg, len, sysctl_handle_string, "A", __DESCR(descr));	\
+})
+
+/* Oid for an unsigned 8-bit int.  If ptr is NULL, val is returned. */
+#define	SYSCTL_NULL_U8_PTR ((unsigned *)NULL)
+#define	SYSCTL_U8(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_OID(parent, nbr, name,				\
+	    CTLTYPE_U8 | CTLFLAG_MPSAFE | (access),		\
+	    ptr, val, sysctl_handle_8, "CU", descr);		\
+	CTASSERT((((access) & CTLTYPE) == 0 ||			\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_U8) && \
+	    sizeof(uint8_t) == sizeof(*(ptr)))
+
+#define	SYSCTL_ADD_U8(ctx, parent, nbr, name, access, ptr, val, descr)	\
+({									\
+	uint8_t *__ptr = (ptr);						\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_U8);		\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_U8 | CTLFLAG_MPSAFE | (access),			\
+	    __ptr, val, sysctl_handle_8, "CU", __DESCR(descr));	\
+})
+
+/* Oid for an unsigned 16-bit int.  If ptr is NULL, val is returned. */
+#define	SYSCTL_NULL_U16_PTR ((unsigned *)NULL)
+#define	SYSCTL_U16(parent, nbr, name, access, ptr, val, descr)	\
+	SYSCTL_OID(parent, nbr, name,				\
+	    CTLTYPE_U16 | CTLFLAG_MPSAFE | (access),		\
+	    ptr, val, sysctl_handle_16, "SU", descr);		\
+	CTASSERT((((access) & CTLTYPE) == 0 ||			\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_U16) && \
+	    sizeof(uint16_t) == sizeof(*(ptr)))
+
+#define	SYSCTL_ADD_U16(ctx, parent, nbr, name, access, ptr, val, descr)	\
+({									\
+	uint16_t *__ptr = (ptr);						\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_U16);		\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_U16 | CTLFLAG_MPSAFE | (access),			\
+	    __ptr, val, sysctl_handle_16, "SU", __DESCR(descr));	\
 })
 
 /* Oid for an int.  If ptr is SYSCTL_NULL_INT_PTR, val is returned. */
