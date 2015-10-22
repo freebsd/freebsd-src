@@ -471,6 +471,31 @@ dcache_inv_poc(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 }
 
 /*
+ * Discard D-cache lines to PoC, prior to overwrite by DMA engine
+ *
+ * Invalidate caches, discarding data in dirty lines.  This is useful
+ * if the memory is about to be overwritten, e.g. by a DMA engine.
+ * Invalidate caches from innermost to outermost to follow the flow
+ * of dirty cachelines.
+ */
+static __inline void
+dcache_dma_preread(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
+{
+	vm_offset_t eva = va + size;
+
+	/* invalidate L1 first */
+	dsb();
+	va &= ~cpuinfo.dcache_line_mask;
+	for ( ; va < eva; va += cpuinfo.dcache_line_size) {
+		_CP15_DCIMVAC(va);
+	}
+	dsb();
+
+	/* then L2 */
+	cpu_l2cache_inv_range(pa, size);
+}
+
+/*
  * Write back D-cache to PoC
  *
  * Caches are written back from innermost to outermost as dirty cachelines
