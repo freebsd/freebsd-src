@@ -119,7 +119,7 @@ MALLOC_DECLARE(M_IOAT);
 
 SYSCTL_DECL(_hw_ioat);
 
-void ioat_log_message(int verbosity, char *fmt, ...);
+extern int g_ioat_debug_level;
 
 struct ioat_dma_hw_descriptor {
 	uint32_t size;

@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
+#include <machine/stdarg.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
@@ -75,6 +76,9 @@ MTX_SYSINIT(ioat_test_lk, &ioat_test_lk, "test coordination mtx", MTX_DEF);
 
 static int g_thread_index = 1;
 static struct cdev *g_ioat_cdev = NULL;
+
+#define	ioat_test_log(v, ...)	_ioat_test_log((v), "ioat " __VA_ARGS__)
+static inline void _ioat_test_log(int verbosity, const char *fmt, ...);
 
 static void
 ioat_test_transaction_destroy(struct test_transaction *tx)
@@ -138,7 +142,7 @@ ioat_dma_test_callback(void *arg)
 	test = tx->test;
 
 	if (test->verify && !ioat_compare_ok(tx)) {
-		ioat_log_message(0, "miscompare found\n");
+		ioat_test_log(0, "miscompare found\n");
 		atomic_add_32(&test->status[IOAT_TEST_MISCOMPARE], tx->depth);
 	} else if (!test->too_late)
 		atomic_add_32(&test->status[IOAT_TEST_OK], tx->depth);
@@ -160,7 +164,7 @@ ioat_test_prealloc_memory(struct ioat_test *test, int index)
 		tx = ioat_test_transaction_create(test->chain_depth * 2,
 		    test->buffer_size);
 		if (tx == NULL) {
-			ioat_log_message(0, "tx == NULL - memory exhausted\n");
+			ioat_test_log(0, "tx == NULL - memory exhausted\n");
 			test->status[IOAT_TEST_NO_MEMORY]++;
 			return (ENOMEM);
 		}
@@ -248,13 +252,13 @@ ioat_dma_test(void *arg)
 	memset(__DEVOLATILE(void *, test->status), 0, sizeof(test->status));
 
 	if (test->buffer_size > 1024 * 1024) {
-		ioat_log_message(0, "Buffer size too large >1MB\n");
+		ioat_test_log(0, "Buffer size too large >1MB\n");
 		test->status[IOAT_TEST_NO_MEMORY]++;
 		return;
 	}
 
 	if (test->chain_depth * 2 > IOAT_MAX_BUFS) {
-		ioat_log_message(0, "Depth too large (> %u)\n",
+		ioat_test_log(0, "Depth too large (> %u)\n",
 		    (unsigned)IOAT_MAX_BUFS / 2);
 		test->status[IOAT_TEST_NO_MEMORY]++;
 		return;
@@ -262,14 +266,14 @@ ioat_dma_test(void *arg)
 
 	if (btoc((uint64_t)test->buffer_size * test->chain_depth *
 	    test->transactions) > (physmem / 4)) {
-		ioat_log_message(0, "Sanity check failed -- test would "
+		ioat_test_log(0, "Sanity check failed -- test would "
 		    "use more than 1/4 of phys mem.\n");
 		test->status[IOAT_TEST_NO_MEMORY]++;
 		return;
 	}
 
 	if ((uint64_t)test->transactions * test->chain_depth > (1<<16)) {
-		ioat_log_message(0, "Sanity check failed -- test would "
+		ioat_test_log(0, "Sanity check failed -- test would "
 		    "use more than available IOAT ring space.\n");
 		test->status[IOAT_TEST_NO_MEMORY]++;
 		return;
@@ -277,7 +281,7 @@ ioat_dma_test(void *arg)
 
 	dmaengine = ioat_get_dmaengine(test->channel_index);
 	if (dmaengine == NULL) {
-		ioat_log_message(0, "Couldn't acquire dmaengine\n");
+		ioat_test_log(0, "Couldn't acquire dmaengine\n");
 		test->status[IOAT_TEST_NO_DMA_ENGINE]++;
 		return;
 	}
@@ -287,14 +291,14 @@ ioat_dma_test(void *arg)
 	TAILQ_INIT(&test->pend_q);
 
 	if (test->duration == 0)
-		ioat_log_message(1, "Thread %d: num_loops remaining: 0x%08x\n",
+		ioat_test_log(1, "Thread %d: num_loops remaining: 0x%08x\n",
 		    index, test->transactions);
 	else
-		ioat_log_message(1, "Thread %d: starting\n", index);
+		ioat_test_log(1, "Thread %d: starting\n", index);
 
 	rc = ioat_test_prealloc_memory(test, index);
 	if (rc != 0) {
-		ioat_log_message(0, "prealloc_memory: %d\n", rc);
+		ioat_test_log(0, "prealloc_memory: %d\n", rc);
 		return;
 	}
 	wmb();
@@ -314,7 +318,7 @@ ioat_dma_test(void *arg)
 		ioat_test_submit_1_tx(test, dmaengine);
 	}
 
-	ioat_log_message(1, "Test Elapsed: %d ticks (overrun %d), %d sec.\n",
+	ioat_test_log(1, "Test Elapsed: %d ticks (overrun %d), %d sec.\n",
 	    ticks - start, ticks - end, (ticks - start) / hz);
 
 	IT_LOCK();
@@ -322,7 +326,7 @@ ioat_dma_test(void *arg)
 		msleep(&test->free_q, &ioat_test_lk, 0, "ioattestcompl", hz);
 	IT_UNLOCK();
 
-	ioat_log_message(1, "Test Elapsed2: %d ticks (overrun %d), %d sec.\n",
+	ioat_test_log(1, "Test Elapsed2: %d ticks (overrun %d), %d sec.\n",
 	    ticks - start, ticks - end, (ticks - start) / hz);
 
 	ioat_test_release_memory(test);
@@ -420,4 +424,17 @@ ioat_test_detach(void)
 	mtx_lock(&Giant);
 	enable_ioat_test(false);
 	mtx_unlock(&Giant);
+}
+
+static inline void
+_ioat_test_log(int verbosity, const char *fmt, ...)
+{
+	va_list argp;
+
+	if (verbosity > g_ioat_debug_level)
+		return;
+
+	va_start(argp, fmt);
+	vprintf(fmt, argp);
+	va_end(argp);
 }
