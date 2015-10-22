@@ -1060,6 +1060,19 @@ struct r92c_tx_desc {
 } __packed __attribute__((aligned(4)));
 
 
+static const uint8_t ridx2rate[] =
+	{ 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 };
+
+/* HW rate indices. */
+#define URTWN_RIDX_CCK1		0
+#define URTWN_RIDX_CCK11	3
+#define URTWN_RIDX_OFDM6	4
+#define URTWN_RIDX_OFDM24	8
+#define URTWN_RIDX_OFDM54	11
+
+#define URTWN_RIDX_COUNT	28
+
+
 /*
  * MAC initialization values.
  */

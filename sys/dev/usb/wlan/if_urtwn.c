@@ -665,22 +665,7 @@ urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
 		tap->wr_flags = 0;
 		/* Map HW rate index to 802.11 rate. */
 		if (!(rxdw3 & R92C_RXDW3_HT)) {
-			switch (rate) {
-			/* CCK. */
-			case  0: tap->wr_rate =   2; break;
-			case  1: tap->wr_rate =   4; break;
-			case  2: tap->wr_rate =  11; break;
-			case  3: tap->wr_rate =  22; break;
-			/* OFDM. */
-			case  4: tap->wr_rate =  12; break;
-			case  5: tap->wr_rate =  18; break;
-			case  6: tap->wr_rate =  24; break;
-			case  7: tap->wr_rate =  36; break;
-			case  8: tap->wr_rate =  48; break;
-			case  9: tap->wr_rate =  72; break;
-			case 10: tap->wr_rate =  96; break;
-			case 11: tap->wr_rate = 108; break;
-			}
+			tap->wr_rate = ridx2rate[rate];
 		} else if (rate >= 12) {	/* MCS0~15. */
 			/* Bit 7 set means HT MCS instead of rate. */
 			tap->wr_rate = 0x80 | (rate - 12);
@@ -1411,8 +1396,6 @@ urtwn_r88e_read_rom(struct urtwn_softc *sc)
 static int
 urtwn_ra_init(struct urtwn_softc *sc)
 {
-	static const uint8_t map[] =
-	    { 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 };
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_node *ni;
@@ -1430,10 +1413,11 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	maxrate = maxbasicrate = 0;
 	for (i = 0; i < rs->rs_nrates; i++) {
 		/* Convert 802.11 rate to HW rate index. */
-		for (j = 0; j < nitems(map); j++)
-			if ((rs->rs_rates[i] & IEEE80211_RATE_VAL) == map[j])
+		for (j = 0; j < nitems(ridx2rate); j++)
+			if ((rs->rs_rates[i] & IEEE80211_RATE_VAL) ==
+			    ridx2rate[j])
 				break;
-		if (j == nitems(map))	/* Unknown rate, skip. */
+		if (j == nitems(ridx2rate))	/* Unknown rate, skip. */
 			continue;
 		rates |= 1 << j;
 		if (j > maxrate)
@@ -1740,7 +1724,7 @@ urtwn_update_avgrssi(struct urtwn_softc *sc, int rate, int8_t rssi)
 	else
 		pwdb = 100 + rssi;
 	if (!(sc->chip & URTWN_CHIP_88E)) {
-		if (rate <= 3) {
+		if (rate <= URTWN_RIDX_CCK11) {
 			/* CCK gain is smaller than OFDM/MCS gain. */
 			pwdb += 6;
 			if (pwdb > 100)
@@ -1773,7 +1757,7 @@ urtwn_get_rssi(struct urtwn_softc *sc, int rate, void *physt)
 	uint8_t rpt;
 	int8_t rssi;
 
-	if (rate <= 3) {
+	if (rate <= URTWN_RIDX_CCK11) {
 		cck = (struct r92c_rx_cck *)physt;
 		if (sc->sc_flags & URTWN_FLAG_CCK_HIPWR) {
 			rpt = (cck->agc_rpt >> 5) & 0x3;
@@ -1799,7 +1783,7 @@ urtwn_r88e_get_rssi(struct urtwn_softc *sc, int rate, void *physt)
 	int8_t rssi;
 
 	rssi = 0;
-	if (rate <= 3) {
+	if (rate <= URTWN_RIDX_CCK11) {
 		cck = (struct r88e_rx_cck *)physt;
 		cck_agc_rpt = cck->agc_rpt;
 		lna_idx = (cck_agc_rpt & 0xe0) >> 5;
@@ -1932,10 +1916,12 @@ urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni,
 			}
 		}
 		/* Send RTS at OFDM24. */
-		txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE, 8));
+		txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE,
+		    URTWN_RIDX_OFDM24));
 		txd->txdw5 |= htole32(0x0001ff00);
 		/* Send data at OFDM54. */
-		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, 11));
+		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE,
+		    URTWN_RIDX_OFDM54));
 	} else {
 		txd->txdw1 |= htole32(
 		    SM(R92C_TXDW1_MACID, 0) |
@@ -1944,7 +1930,8 @@ urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni,
 
 		/* Force CCK1. */
 		txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
-		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, 0));
+		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE,
+		    URTWN_RIDX_CCK1));
 	}
 	/* Set sequence number (already little endian). */
 	txd->txdseq |= *(uint16_t *)wh->i_seq;
@@ -2930,10 +2917,10 @@ urtwn_get_txpower(struct urtwn_softc *sc, int chain,
 
 	memset(power, 0, URTWN_RIDX_COUNT * sizeof(power[0]));
 	if (sc->regulatory == 0) {
-		for (ridx = 0; ridx <= 3; ridx++)
+		for (ridx = URTWN_RIDX_CCK1; ridx <= URTWN_RIDX_CCK11; ridx++)
 			power[ridx] = base->pwr[0][ridx];
 	}
-	for (ridx = 4; ridx < URTWN_RIDX_COUNT; ridx++) {
+	for (ridx = URTWN_RIDX_OFDM6; ridx < URTWN_RIDX_COUNT; ridx++) {
 		if (sc->regulatory == 3) {
 			power[ridx] = base->pwr[0][ridx];
 			/* Apply vendor limits. */
@@ -2953,7 +2940,7 @@ urtwn_get_txpower(struct urtwn_softc *sc, int chain,
 
 	/* Compute per-CCK rate Tx power. */
 	cckpow = rom->cck_tx_pwr[chain][group];
-	for (ridx = 0; ridx <= 3; ridx++) {
+	for (ridx = URTWN_RIDX_CCK1; ridx <= URTWN_RIDX_CCK11; ridx++) {
 		power[ridx] += cckpow;
 		if (power[ridx] > R92C_MAX_TX_PWR)
 			power[ridx] = R92C_MAX_TX_PWR;
@@ -2971,7 +2958,7 @@ urtwn_get_txpower(struct urtwn_softc *sc, int chain,
 	diff = rom->ofdm_tx_pwr_diff[group];
 	diff = (diff >> (chain * 4)) & 0xf;
 	ofdmpow = htpow + diff;	/* HT->OFDM correction. */
-	for (ridx = 4; ridx <= 11; ridx++) {
+	for (ridx = URTWN_RIDX_OFDM6; ridx <= URTWN_RIDX_OFDM54; ridx++) {
 		power[ridx] += ofdmpow;
 		if (power[ridx] > R92C_MAX_TX_PWR)
 			power[ridx] = R92C_MAX_TX_PWR;
@@ -2992,7 +2979,7 @@ urtwn_get_txpower(struct urtwn_softc *sc, int chain,
 	if (urtwn_debug >= 4) {
 		/* Dump per-rate Tx power values. */
 		printf("Tx power for chain %d:\n", chain);
-		for (ridx = 0; ridx < URTWN_RIDX_COUNT; ridx++)
+		for (ridx = URTWN_RIDX_CCK1; ridx < URTWN_RIDX_COUNT; ridx++)
 			printf("Rate %d = %u\n", ridx, power[ridx]);
 	}
 #endif
@@ -3028,10 +3015,10 @@ urtwn_r88e_get_txpower(struct urtwn_softc *sc, int chain,
 
 	memset(power, 0, URTWN_RIDX_COUNT * sizeof(power[0]));
 	if (sc->regulatory == 0) {
-		for (ridx = 0; ridx <= 3; ridx++)
+		for (ridx = URTWN_RIDX_CCK1; ridx <= URTWN_RIDX_CCK11; ridx++)
 			power[ridx] = base->pwr[0][ridx];
 	}
-	for (ridx = 4; ridx < URTWN_RIDX_COUNT; ridx++) {
+	for (ridx = URTWN_RIDX_OFDM6; ridx < URTWN_RIDX_COUNT; ridx++) {
 		if (sc->regulatory == 3)
 			power[ridx] = base->pwr[0][ridx];
 		else if (sc->regulatory == 1) {
@@ -3043,7 +3030,7 @@ urtwn_r88e_get_txpower(struct urtwn_softc *sc, int chain,
 
 	/* Compute per-CCK rate Tx power. */
 	cckpow = sc->cck_tx_pwr[group];
-	for (ridx = 0; ridx <= 3; ridx++) {
+	for (ridx = URTWN_RIDX_CCK1; ridx <= URTWN_RIDX_CCK11; ridx++) {
 		power[ridx] += cckpow;
 		if (power[ridx] > R92C_MAX_TX_PWR)
 			power[ridx] = R92C_MAX_TX_PWR;
@@ -3053,7 +3040,7 @@ urtwn_r88e_get_txpower(struct urtwn_softc *sc, int chain,
 
 	/* Compute per-OFDM rate Tx power. */
 	ofdmpow = htpow + sc->ofdm_tx_pwr_diff;
-	for (ridx = 4; ridx <= 11; ridx++) {
+	for (ridx = URTWN_RIDX_OFDM6; ridx <= URTWN_RIDX_OFDM54; ridx++) {
 		power[ridx] += ofdmpow;
 		if (power[ridx] > R92C_MAX_TX_PWR)
 			power[ridx] = R92C_MAX_TX_PWR;
