@@ -638,7 +638,6 @@ _x86bios=	x86bios
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
-_cloudabi64=	cloudabi64
 _ioat=		ioat
 _ixl=		ixl
 _ixlv=		ixlv
@@ -752,6 +751,10 @@ _opensolaris=	opensolaris
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs
 .endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
+_cloudabi64=	cloudabi64
 .endif
 
 .endif
