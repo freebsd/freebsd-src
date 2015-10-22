@@ -266,6 +266,7 @@ compat/cloudabi/cloudabi_random.c	optional compat_cloudabi64
 compat/cloudabi/cloudabi_sock.c		optional compat_cloudabi64
 compat/cloudabi/cloudabi_thread.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_fd.c	optional compat_cloudabi64
+compat/cloudabi64/cloudabi64_module.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_poll.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_sock.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_syscalls.c	optional compat_cloudabi64
