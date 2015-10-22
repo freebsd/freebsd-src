@@ -77,7 +77,7 @@ MTX_SYSINIT(ioat_test_lk, &ioat_test_lk, "test coordination mtx", MTX_DEF);
 static int g_thread_index = 1;
 static struct cdev *g_ioat_cdev = NULL;
 
-#define	ioat_test_log(v, ...)	_ioat_test_log((v), "ioat " __VA_ARGS__)
+#define	ioat_test_log(v, ...)	_ioat_test_log((v), "ioat_test: " __VA_ARGS__)
 static inline void _ioat_test_log(int verbosity, const char *fmt, ...);
 
 static void
