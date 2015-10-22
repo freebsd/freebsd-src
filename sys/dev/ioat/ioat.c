@@ -341,9 +341,6 @@ ioat3_attach(device_t device)
 	capabilities = ioat_read_dmacapability(ioat);
 
 	xfercap = ioat_read_xfercap(ioat);
-
-	/* Only bits [4:0] are valid. */
-	xfercap &= 0x1f;
 	ioat->max_xfer_size = 1 << xfercap;
 
 	/* TODO: need to check DCA here if we ever do XOR/PQ */

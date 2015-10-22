@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 	ioat_read_1((ioat), IOAT_CHANCNT_OFFSET)
 
 #define	ioat_read_xfercap(ioat) \
-	ioat_read_1((ioat), IOAT_XFERCAP_OFFSET)
+	(ioat_read_1((ioat), IOAT_XFERCAP_OFFSET) & IOAT_XFERCAP_VALID_MASK)
 
 #define	ioat_write_intrctrl(ioat, value) \
 	ioat_write_1((ioat), IOAT_INTRCTRL_OFFSET, (value))
