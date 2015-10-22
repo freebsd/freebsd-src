@@ -22,6 +22,8 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include "config.h"
+#include "ntp_stdlib.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
@@ -31,23 +33,23 @@ extern void test_UnknownMode(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
-char *progname;
+char const *progname;
 
 
 //=======MAIN=====
 int main(int argc, char *argv[])
 {
   progname = argv[0];
-  Unity.TestFile = "modetoa.c";
   UnityBegin("modetoa.c");
-  RUN_TEST(test_KnownMode, 9);
-  RUN_TEST(test_UnknownMode, 15);
+  RUN_TEST(test_KnownMode, 7);
+  RUN_TEST(test_UnknownMode, 8);
 
   return (UnityEnd());
 }
