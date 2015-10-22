@@ -29,17 +29,39 @@ __FBSDID("$FreeBSD$");
 #ifndef __IOAT_TEST_H__
 #define __IOAT_TEST_H__
 
-struct ioat_test {
-	uint32_t channel_index;
-	uint32_t num_loops;
-	volatile uint32_t num_completions;
-	uint32_t status;
+enum ioat_res {
+	IOAT_TEST_OK = 0,
+	IOAT_TEST_NO_DMA_ENGINE,
+	IOAT_TEST_NO_MEMORY,
+	IOAT_TEST_MISCOMPARE,
+	IOAT_NUM_RES
 };
 
-#define	IOAT_TEST_OK		0
-#define	IOAT_TEST_NO_DMA_ENGINE	1
-#define	IOAT_TEST_NO_MEMORY	2
-#define	IOAT_TEST_MISCOMPARE	3
+struct test_transaction;
+
+struct ioat_test {
+	volatile uint32_t status[IOAT_NUM_RES];
+	uint32_t channel_index;
+
+	/* HW max of 1MB */
+	uint32_t buffer_size;
+	uint32_t chain_depth;
+	uint32_t transactions;
+
+	/*
+	 * If non-zero, duration is time in ms;
+	 * If zero, bounded by 'transactions' above.
+	 */
+	uint32_t duration;
+
+	/* If true, check for miscompares after a copy. */
+	bool verify;
+
+	/* Internal usage -- not test inputs */
+	TAILQ_HEAD(, test_transaction) free_q;
+	TAILQ_HEAD(, test_transaction) pend_q;
+	volatile bool too_late;
+};
 
 #define	IOAT_DMATEST	_IOWR('i', 0, struct ioat_test)
 
