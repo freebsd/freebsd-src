@@ -135,43 +135,27 @@ static int	isp_2500_loaded;
 
 #define	ISPFW_VERSION	1
 
-#if	!defined(KLD_MODULE)
-#define	ISPFW_KLD	0
-#else
-#define	ISPFW_KLD	1
-#endif
-
 #define	RMACRO(token)	do {						\
 	if (token##_loaded)						\
 		break;							\
 	if (firmware_register(#token, token##_risc_code,		\
 	    token##_risc_code[3] * sizeof(token##_risc_code[3]),	\
-	    ISPFW_VERSION, NULL) == NULL) {				\
-		printf("%s: unable to register firmware <%s>\n",	\
-		    MODULE_NAME, #token);				\
+	    ISPFW_VERSION, NULL) == NULL)				\
 		break;							\
-	}								\
 	token##_loaded++;						\
-	if (bootverbose || ISPFW_KLD)					\
-		printf("%s: registered firmware <%s>\n", MODULE_NAME, 	\
-		    #token);						\
 } while (0)
 
 #define	UMACRO(token)	do {						\
 	if (!token##_loaded)						\
 		break;							\
 	if (firmware_unregister(#token) != 0) {				\
-		printf("%s: unable to unregister firmware <%s>\n",	\
-		    MODULE_NAME, #token);				\
+		error = EBUSY;						\
 		break;							\
 	}								\
 	token##_loaded--;						\
-	if (bootverbose || ISPFW_KLD)					\
-		printf("%s: unregistered firmware <%s>\n", MODULE_NAME,	\
-		    #token);						\
 } while (0)
 
-static void
+static int
 do_load_fw(void)
 {
 
@@ -214,11 +198,13 @@ do_load_fw(void)
 #if	defined(ISP_2500)
 	RMACRO(isp_2500);
 #endif
+	return (0);
 }
 
-static void
+static int
 do_unload_fw(void)
 {
+	int error = 0;
 
 #if	defined(ISP_1000)
 	UMACRO(isp_1000);
@@ -259,6 +245,7 @@ do_unload_fw(void)
 #if	defined(ISP_2500)
 	UMACRO(isp_2500);
 #endif
+	return (error);
 }
 
 static int
@@ -267,17 +254,11 @@ module_handler(module_t mod, int what, void *arg)
 
 	switch (what) {
 	case MOD_LOAD:
-		do_load_fw();
-		break;
+		return (do_load_fw());
 	case MOD_UNLOAD:
-		do_unload_fw();
-		break;
-	case MOD_SHUTDOWN:
-		break;
-	default:
-		return (EOPNOTSUPP);
+		return (do_unload_fw());
 	}
-	return (0);
+	return (EOPNOTSUPP);
 }
 static moduledata_t ispfw_mod = {
 	MODULE_NAME, module_handler, NULL
