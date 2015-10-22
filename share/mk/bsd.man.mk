@@ -104,8 +104,8 @@ ${__target}: ${__page}
 .endfor
 .endif
 .endfor
-.endif
-.else
+.endif	# !empty(MAN)
+.else	# !defined(MANFILTER)
 .if defined(MAN) && !empty(MAN)
 CLEANFILES+=	${MAN:T:S/$/${CATEXT}/g}
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
@@ -120,9 +120,9 @@ ${__target}: ${__page}
 _manpages: ${MAN}
 .endif
 .endif
-.endif
+.endif	# defined(MANFILTER)
 
-.else
+.else	# ${MK_MANCOMPRESS} == "yes"
 
 ZEXT=		${MCOMPRESS_EXT}
 
@@ -169,7 +169,7 @@ ${__target}: ${__page}
 .endfor
 .endif
 
-.endif
+.endif	# ${MK_MANCOMPRESS} == "no"
 
 maninstall: _maninstall
 _maninstall:
@@ -185,20 +185,26 @@ _maninstall: ${MAN}
 		${DESTDIR}${CATDIR}${__page:E}${MANSUBDIR}/${__page}
 .endif
 .endfor
-.else
-.for _page _sect in ${.ALLSRC:C/\.([^.]*)$/.\1 \1/}
-	@d=${DESTDIR}${MANDIR}${_sect}${MANSUBDIR}/; \
-	${ECHO} ${MINSTALL} ${_page} $${d}; \
-	${MINSTALL} $${page} $${d};
-.endfor
+.else	# !defined(MANFILTER)
+	@set ${.ALLSRC:C/\.([^.]*)$/.\1 \1/}; \
+	while : ; do \
+		case $$# in \
+			0) break;; \
+			1) echo "warn: missing extension: $$1"; break;; \
+		esac; \
+		page=$$1; shift; sect=$$1; shift; \
+		d=${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}; \
+		${ECHO} ${MINSTALL} $${page} $${d}; \
+		${MINSTALL} $${page} $${d}; \
+	done
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for __page in ${MAN}
 	${MINSTALL} ${__page:T:S/$/${CATEXT}/} \
 		${DESTDIR}${CATDIR}${__page:E}${MANSUBDIR}/${__page:T}
 .endfor
 .endif
-.endif
-.else
+.endif	# defined(MANFILTER)
+.else	# ${MK_MANCOMPRESS} == "yes"
 .for __page in ${MAN}
 	${MINSTALL} ${__page:T:S/$/${MCOMPRESS_EXT}/g} \
 		${DESTDIR}${MANDIR}${__page:E}${MANSUBDIR}/
@@ -207,7 +213,7 @@ _maninstall: ${MAN}
 		${DESTDIR}${CATDIR}${__page:E}${MANSUBDIR}/${__page:T:S/$/${MCOMPRESS_EXT}/}
 .endif
 .endfor
-.endif
+.endif	# ${MK_MANCOMPRESS} == "no"
 .endif
 
 .if !defined(NO_MLINKS) && defined(MLINKS) && !empty(MLINKS)
