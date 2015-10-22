@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 24, 2015
+.Dd October 21, 2015
 .Dt IOATCONTROL 8
 .Os
 .Sh NAME
@@ -33,18 +33,64 @@
 .Xr ioat 4
 .Sh SYNOPSIS
 .Nm
+.Op Fl V
 .Ar channel_number
-.Ar num_loops
+.Ar num_txns
+.Ar [ bufsize
+.Ar [ chain-len
+.Ar [ duration ] ] ]
 .Sh DESCRIPTION
 .Nm
 allows one to issue some number of test operations to the
 .Xr ioat 4
 driver on a specific hardware channel.
+The arguments are as follows:
+.Bl -tag -width Ds
+.It Fl V
+Verify copies for accuracy
+.El
 .Pp
-Each loop will allocate two chunks of memory, write data patterns to them,
-submit a DMA request to copy one buffer to the other, and compare the contents
-in the callback.
-If the contents are not as expected, an error is reported.
+.Nm
+operates in one of two modes; if the
+.Ar duration
+argument is passed,
+.Nm
+tries to estimate the copy rate in bytes per second by running
+.Ar num_txns
+repeatedly in loop.
+If
+.Ar duration
+is not passed,
+.Nm
+only runs through
+.Ar num_txns
+once and prints the total bytes copied, as well as error information.
+.Pp
+The
+.Ar bufsize
+argument determines the size of buffers to use for each
+.Fn ioat_copy
+invocation.
+The default is 256 KB.
+.Pp
+The
+.Ar chain-len
+argument determines the number of copies to chain together in a single DMA
+transaction.
+The default is 1, and the maximum is currently 4.
+.Pp
+The
+.Ar duration
+argument specifies an approximate time limit for the test, in milliseconds.
+.Pp
+The test will allocate two chunks of memory for each component of each
+transaction's chain.
+It will initialize them with specific data patterns.
+During the test, it submits DMA requests to copy between pairs of buffers.
+If the
+.Fl V
+flag was specified, it will compare the contents in the callback for a copy
+error.
 .Sh FILES
 .Pa /dev/ioat_test
 .Pp
@@ -55,6 +101,10 @@ and
 .Nm
 exposes it with
 .Cd hw.ioat.enable_ioat_test=1 .
+.Sh DIAGNOSTICS
+The wait channel
+.Va test_submit
+indicates that the test code is keeping the DMA engine full of work.
 .Sh SEE ALSO
 .Xr ioat 4
 .Sh HISTORY
