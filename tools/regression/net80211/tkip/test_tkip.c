@@ -43,6 +43,7 @@
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 
 #include <net80211/ieee80211_var.h>
@@ -141,7 +142,6 @@ struct tkip_ctx {
 	struct ieee80211com *tc_ic;	/* for diagnostics */
 
 	uint16_t tx_ttak[5];
-	int	tx_phase1_done;
 	uint8_t	tx_rc4key[16];
 
 	uint16_t rx_ttak[5];
@@ -179,34 +179,34 @@ cmpfail(const void *gen, size_t genlen, const void *ref, size_t reflen)
 }
 
 static int
-runtest(struct ieee80211com *ic, struct ciphertest *t)
+runtest(struct ieee80211vap *vap, struct ciphertest *t)
 {
 	struct tkip_ctx *ctx;
-	struct ieee80211_key key;
+	struct ieee80211_key *key = &vap->iv_nw_keys[t->keyix];
 	struct mbuf *m = NULL;
 	const struct ieee80211_cipher *cip;
-	u_int8_t mac[IEEE80211_ADDR_LEN];
 	u_int len;
+	int hdrlen;
 
 	printf("%s: ", t->name);
 
 	/*
 	 * Setup key.
 	 */
-	memset(&key, 0, sizeof(key));
-	key.wk_flags = IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV;
-	key.wk_cipher = &ieee80211_cipher_none;
-	if (!ieee80211_crypto_newkey(ic, IEEE80211_CIPHER_TKIP,
-	    IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV, &key)) {
+	memset(key, 0, sizeof(*key));
+	key->wk_flags = IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV;
+	key->wk_cipher = &ieee80211_cipher_none;
+	if (!ieee80211_crypto_newkey(vap, t->cipher,
+	    IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV, key)) {
 		printf("FAIL: ieee80211_crypto_newkey failed\n");
 		goto bad;
 	}
 
-	memcpy(key.wk_key, t->key, t->key_len);
-	key.wk_keylen = 128/NBBY;
-	key.wk_keyrsc = 0;
-	key.wk_keytsc = t->pn;
-	if (!ieee80211_crypto_setkey(ic, &key, mac)) {
+	memcpy(key->wk_key, t->key, t->key_len);
+	key->wk_keylen = 128/NBBY;
+	memset(key->wk_keyrsc, 0, sizeof(key->wk_keyrsc));
+	key->wk_keytsc = t->pn;
+	if (!ieee80211_crypto_setkey(vap, key)) {
 		printf("FAIL: ieee80211_crypto_setkey failed\n");
 		goto bad;
 	}
@@ -214,18 +214,19 @@ runtest(struct ieee80211com *ic, struct ciphertest *t)
 	/*
 	 * Craft frame from plaintext data.
 	 */
-	cip = key.wk_cipher;
+	cip = key->wk_cipher;
 	m = m_getcl(M_NOWAIT, MT_HEADER, M_PKTHDR);
 	m->m_data += cip->ic_header;
 	len = t->plaintext_len - IEEE80211_WEP_MICLEN;
 	memcpy(mtod(m, void *), t->plaintext, len);
 	m->m_len = len;
 	m->m_pkthdr.len = m->m_len;
+	hdrlen = ieee80211_anyhdrsize(mtod(m, void *));
 
 	/*
 	 * Add MIC.
 	 */
-	if (!ieee80211_crypto_enmic(ic, &key, m)) {
+	if (!ieee80211_crypto_enmic(vap, key, m, 1)) {
 		printf("FAIL: tkip enmic failed\n");
 		goto bad;
 	}
@@ -247,14 +248,14 @@ runtest(struct ieee80211com *ic, struct ciphertest *t)
 	/*
 	 * Encrypt frame w/ MIC.
 	 */
-	if (!cip->ic_encap(&key, m, t->keyix<<6)) {
+	if (!cip->ic_encap(key, m)) {
 		printf("FAIL: tkip encap failed\n");
 		goto bad;
 	}
 	/*
 	 * Verify: phase1, phase2, frame length, frame contents.
 	 */
-	ctx = key.wk_private;
+	ctx = key->wk_private;
 	if (memcmp(ctx->tx_ttak, t->phase1, t->phase1_len)) {
 		printf("FAIL: encrypt phase1 botch\n");
 		cmpfail(ctx->tx_ttak, sizeof(ctx->tx_ttak),
@@ -281,7 +282,7 @@ runtest(struct ieee80211com *ic, struct ciphertest *t)
 	/*
 	 * Decrypt frame.
 	 */
-	if (!cip->ic_decap(&key, m)) {
+	if (!cip->ic_decap(key, m, hdrlen)) {
 		printf("tkip decap failed\n");
 		/*
 		 * Check reason for failure: phase1, phase2, frame data (ICV).
@@ -319,17 +320,19 @@ runtest(struct ieee80211com *ic, struct ciphertest *t)
 	/*
 	 * De-MIC decrypted frame.
 	 */
-	if (!ieee80211_crypto_demic(ic, &key, m)) {
+	if (!ieee80211_crypto_demic(vap, key, m, 1)) {
 		printf("FAIL: tkip demic failed\n");
 		goto bad;
 	}
 	/* XXX check frame length and contents... */
+	m_freem(m);
+	ieee80211_crypto_delkey(vap, key);
 	printf("PASS\n");
 	return 1;
 bad:
 	if (m != NULL)
 		m_freem(m);
-	ieee80211_crypto_delkey(ic, &key);
+	ieee80211_crypto_delkey(vap, key);
 	return 0;
 }
 
@@ -343,26 +346,38 @@ static	int tests = -1;
 static int
 init_crypto_tkip_test(void)
 {
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
 	struct ieee80211com ic;
+	struct ieee80211vap vap;
+	struct ifnet ifp;
 	int i, pass, total;
 
 	memset(&ic, 0, sizeof(ic));
-	if (debug)
-		ic.ic_debug = IEEE80211_MSG_CRYPTO;
+	memset(&vap, 0, sizeof(vap));
+	memset(&ifp, 0, sizeof(ifp));
+
 	ieee80211_crypto_attach(&ic);
+
+	/* some minimal initialization */
+	strncpy(ifp.if_xname, "test_ccmp", sizeof(ifp.if_xname));
+	vap.iv_ic = &ic;
+	vap.iv_ifp = &ifp;
+	if (debug)
+		vap.iv_debug = IEEE80211_MSG_CRYPTO;
+	ieee80211_crypto_vattach(&vap);
 
 	pass = 0;
 	total = 0;
-	for (i = 0; i < N(tkiptests); i++)
+	for (i = 0; i < nitems(tkiptests); i++)
 		if (tests & (1<<i)) {
 			total++;
-			pass += runtest(&ic, &tkiptests[i]);
+			pass += runtest(&vap, &tkiptests[i]);
 		}
 	printf("%u of %u 802.11i TKIP test vectors passed\n", pass, total);
+
+	ieee80211_crypto_vdetach(&vap);
 	ieee80211_crypto_detach(&ic);
+
 	return (pass == total ? 0 : -1);
-#undef N
 }
 
 static int
