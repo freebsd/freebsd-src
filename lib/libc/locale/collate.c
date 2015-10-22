@@ -1,6 +1,6 @@
 /*-
  * Copyright 2014 Garrett D'Amore <garrett@damore.org>
- * Copright 2010 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 1995 Alex Tatmanjants <alex@elvisti.kiev.ua>
  *		at Electronni Visti IA, Kiev, Ukraine.
  *			All rights reserved.
@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/mman.h>
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -116,9 +117,10 @@ __collate_load_tables_l(const char *encoding, struct xlocale_collate *table)
 	struct stat sbuf;
 	int fd;
 
+	table->__collate_load_error = 1;
+
 	/* 'encoding' must be already checked. */
 	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0) {
-		table->__collate_load_error = 1;
 		return (_LDP_CACHE);
 	}
 
@@ -167,7 +169,7 @@ __collate_load_tables_l(const char *encoding, struct xlocale_collate *table)
 	i = (sizeof (collate_char_t) * (UCHAR_MAX + 1)) +
 	    (sizeof (collate_chain_t) * chains) +
 	    (sizeof (collate_large_t) * info->large_count);
-	for (z = 0; z < (info->directive_count); z++) {
+	for (z = 0; z < info->directive_count; z++) {
 		i += sizeof (collate_subst_t) * info->subst_count[z];
 	}
 	if (i != (sbuf.st_size - (TMP - map))) {
@@ -176,6 +178,7 @@ __collate_load_tables_l(const char *encoding, struct xlocale_collate *table)
 		return (_LDP_ERROR);
 	}
 
+	table->info = info;
 	table->char_pri_table = (void *)TMP;
 	TMP += sizeof (collate_char_t) * (UCHAR_MAX + 1);
 
@@ -198,21 +201,15 @@ __collate_load_tables_l(const char *encoding, struct xlocale_collate *table)
 	else
 		table->large_pri_table = NULL;
 
-	table->info = info;
 	table->__collate_load_error = 0;
 
 	return (_LDP_LOADED);
 }
 
-/*
- * Note: for performance reasons, we have expanded bsearch here.  This avoids
- * function call overhead with each comparison.
- */
-
-static int32_t *
+static const int32_t *
 substsearch(struct xlocale_collate *table, const wchar_t key, int pass)
 {
-	collate_subst_t *p;
+	const collate_subst_t *p;
 	int n = table->info->subst_count[pass];
 
 	if (n == 0)
@@ -225,8 +222,14 @@ substsearch(struct xlocale_collate *table, const wchar_t key, int pass)
 		return (NULL);
 
 	p = table->subst_table[pass] + (key & ~COLLATE_SUBST_PRIORITY);
+	assert(p->key == key);
 	return (p->pri);
 }
+
+/*
+ * Note: for performance reasons, we have expanded bsearch here.  This avoids
+ * function call overhead with each comparison.
+ */
 
 static collate_chain_t *
 chainsearch(struct xlocale_collate *table, const wchar_t *key, int *len)
@@ -403,8 +406,11 @@ _collate_wxfrm(struct xlocale_collate *table, const wchar_t *src, wchar_t *xf,
 	const int32_t 	*state;
 	size_t		want = 0;
 	size_t		need = 0;
+	int		ndir = table->info->directive_count;
 
-	for (pass = 0; pass <= table->info->directive_count; pass++) {
+	assert(src);
+
+	for (pass = 0; pass <= ndir; pass++) {
 
 		state = NULL;
 
@@ -418,7 +424,7 @@ _collate_wxfrm(struct xlocale_collate *table, const wchar_t *src, wchar_t *xf,
 		}
 
 		/* special pass for undefined */
-		if (pass == table->info->directive_count) {
+		if (pass == ndir) {
 			direc = DIRECTIVE_FORWARD | DIRECTIVE_UNDEFINED;
 		} else {
 			direc = table->info->directive[pass];
@@ -428,8 +434,7 @@ _collate_wxfrm(struct xlocale_collate *table, const wchar_t *src, wchar_t *xf,
 
 		if (direc & DIRECTIVE_BACKWARD) {
 			wchar_t *bp, *fp, c;
-			if (tr)
-				free(tr);
+			free(tr);
 			if ((tr = wcsdup(t)) == NULL) {
 				errno = ENOMEM;
 				goto fail;
@@ -482,13 +487,11 @@ _collate_wxfrm(struct xlocale_collate *table, const wchar_t *src, wchar_t *xf,
 			}
 		}
 	}
-	if (tr)
-		free(tr);
+	free(tr);
 	return (need);
 
 fail:
-	if (tr)
-		free(tr);
+	free(tr);
 	return ((size_t)(-1));
 }
 
@@ -548,8 +551,11 @@ _collate_sxfrm(struct xlocale_collate *table, const wchar_t *src, char *xf,
 	size_t		need = 0;
 	int		b;
 	uint8_t		buf[XFRM_BYTES];
+	int		ndir = table->info->directive_count;
 
-	for (pass = 0; pass <= table->info->directive_count; pass++) {
+	assert(src);
+
+	for (pass = 0; pass <= ndir; pass++) {
 
 		state = NULL;
 
@@ -563,7 +569,7 @@ _collate_sxfrm(struct xlocale_collate *table, const wchar_t *src, char *xf,
 		}
 
 		/* special pass for undefined */
-		if (pass == table->info->directive_count) {
+		if (pass == ndir) {
 			direc = DIRECTIVE_FORWARD | DIRECTIVE_UNDEFINED;
 		} else {
 			direc = table->info->directive[pass];
@@ -573,8 +579,7 @@ _collate_sxfrm(struct xlocale_collate *table, const wchar_t *src, char *xf,
 
 		if (direc & DIRECTIVE_BACKWARD) {
 			wchar_t *bp, *fp, c;
-			if (tr)
-				free(tr);
+			free(tr);
 			if ((tr = wcsdup(t)) == NULL) {
 				errno = ENOMEM;
 				goto fail;
@@ -643,13 +648,11 @@ _collate_sxfrm(struct xlocale_collate *table, const wchar_t *src, char *xf,
 			}
 		}
 	}
-	if (tr)
-		free(tr);
+	free(tr);
 	return (need);
 
 fail:
-	if (tr)
-		free(tr);
+	free(tr);
 	return ((size_t)(-1));
 }
 
