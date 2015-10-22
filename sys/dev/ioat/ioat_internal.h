@@ -366,6 +366,9 @@ struct ioat_softc {
 	struct mtx		cleanup_lock;
 };
 
+void ioat_test_attach(void);
+void ioat_test_detach(void);
+
 static inline uint64_t
 ioat_get_chansts(struct ioat_softc *ioat)
 {
