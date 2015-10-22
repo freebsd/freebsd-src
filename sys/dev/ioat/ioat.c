@@ -56,6 +56,7 @@ static int ioat_detach(device_t device);
 static int ioat_setup_intr(struct ioat_softc *ioat);
 static int ioat_teardown_intr(struct ioat_softc *ioat);
 static int ioat3_attach(device_t device);
+static int ioat3_selftest(struct ioat_softc *ioat);
 static int ioat_map_pci_bar(struct ioat_softc *ioat);
 static void ioat_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg,
     int error);
@@ -239,7 +240,15 @@ ioat_attach(device_t device)
 	if (error != 0)
 		goto err;
 
+	error = ioat3_selftest(ioat);
+	if (error != 0)
+		return (error);
+
+	ioat_process_events(ioat);
+	ioat_setup_sysctl(device);
+
 	ioat_channel[ioat_channel_index++] = ioat;
+	ioat_test_attach();
 
 err:
 	if (error != 0)
@@ -254,6 +263,8 @@ ioat_detach(device_t device)
 	uint32_t i;
 
 	ioat = DEVICE2SOFTC(device);
+
+	ioat_test_detach();
 	callout_drain(&ioat->timer);
 
 	pci_disable_busmaster(device);
@@ -347,7 +358,7 @@ ioat3_attach(device_t device)
 
 	mtx_init(&ioat->submit_lock, "ioat_submit", NULL, MTX_DEF);
 	mtx_init(&ioat->cleanup_lock, "ioat_process_events", NULL, MTX_DEF);
-	callout_init(&ioat->timer, CALLOUT_MPSAFE);
+	callout_init(&ioat->timer, 1);
 
 	ioat->is_resize_pending = FALSE;
 	ioat->is_completion_pending = FALSE;
@@ -415,13 +426,6 @@ ioat3_attach(device_t device)
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 	ioat_write_chancmp(ioat, ioat->comp_update_bus_addr);
 	ioat_write_chainaddr(ioat, ring[0]->hw_desc_bus_addr);
-
-	error = ioat3_selftest(ioat);
-	if (error != 0)
-		return (error);
-
-	ioat_process_events(ioat);
-	ioat_setup_sysctl(device);
 	return (0);
 }
 
