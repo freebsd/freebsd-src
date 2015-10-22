@@ -12,10 +12,10 @@
 # Include the default AR933x parameters
 include         "AR933X_BASE"
 
-ident           CARAMBOLA2
+ident           TL-WR740Nv4
 
 # Override hints with board values
-hints           "CARAMBOLA2.hints"
+hints           "TL-WR740Nv4.hints"
 
 # Board memory - 32MB
 options         AR71XX_REALMEM=(32*1024*1024)
