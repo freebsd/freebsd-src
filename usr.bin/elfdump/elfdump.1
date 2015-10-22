@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2003
+.Dd October 22, 2015
 .Dt ELFDUMP 1
 .Os
 .Sh NAME
@@ -34,7 +34,7 @@
 files
 .Sh SYNOPSIS
 .Nm
-.Fl a | cdeGhinprs
+.Fl a | CcdeGhinprs
 .Op Fl w Ar file
 .Ar file
 .Sh DESCRIPTION
@@ -49,6 +49,8 @@ The options are as follows:
 .Bl -tag -width ".Fl w Ar file"
 .It Fl a
 Dump all information.
+.It Fl C
+Dump CHERI capability relocation table.
 .It Fl c
 Dump section headers.
 .It Fl d

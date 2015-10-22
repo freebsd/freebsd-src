@@ -56,7 +56,8 @@ __FBSDID("$FreeBSD$");
 #define	ED_REL		(1<<7)
 #define	ED_SHDR		(1<<8)
 #define	ED_SYMTAB	(1<<9)
-#define	ED_ALL		((1<<10)-1)
+#define	ED_CAPREL	(1<<10)
+#define	ED_ALL		((1<<11)-1)
 
 #define	elf_get_addr	elf_get_quad
 #define	elf_get_off	elf_get_quad
@@ -82,6 +83,15 @@ enum elf_member {
 	R_OFFSET, R_INFO,
 
 	RA_OFFSET, RA_INFO, RA_ADDEND
+};
+
+struct capreloc
+{
+	uint64_t capability_location;
+	uint64_t object;
+	uint64_t offset;
+	uint64_t size;
+	uint64_t permissions;
 };
 
 typedef enum elf_member elf_member_t;
@@ -435,6 +445,7 @@ static void elf_print_dynamic(Elf32_Ehdr *e, void *sh);
 static void elf_print_rel(Elf32_Ehdr *e, void *r);
 static void elf_print_rela(Elf32_Ehdr *e, void *ra);
 static void elf_print_interp(Elf32_Ehdr *e, void *p);
+static void elf_print_cap_relocs(Elf32_Ehdr *e, void *sh);
 static void elf_print_got(Elf32_Ehdr *e, void *sh);
 static void elf_print_hash(Elf32_Ehdr *e, void *sh);
 static void elf_print_note(Elf32_Ehdr *e, void *sh);
@@ -494,10 +505,13 @@ main(int ac, char **av)
 
 	out = stdout;
 	flags = 0;
-	while ((ch = getopt(ac, av, "acdeiGhnprsw:")) != -1)
+	while ((ch = getopt(ac, av, "aCcdeiGhnprsw:")) != -1)
 		switch (ch) {
 		case 'a':
 			flags = ED_ALL;
+			break;
+		case 'C':
+			flags |= ED_CAPREL;
 			break;
 		case 'c':
 			flags |= ED_SHDR;
@@ -645,6 +659,9 @@ main(int ac, char **av)
 			break;
 		case SHT_PROGBITS:
 			name = elf_get_word(e, v, SH_NAME);
+			if (flags & ED_CAPREL &&
+			    strcmp(shstrtab + name, "__cap_relocs") == 0)
+				elf_print_cap_relocs(e, v);
 			if (flags & ED_GOT &&
 			    strcmp(shstrtab + name, ".got") == 0)
 				elf_print_got(e, v);
@@ -991,6 +1008,33 @@ elf_print_interp(Elf32_Ehdr *e, void *p)
 }
 
 static void
+elf_print_cap_relocs(Elf32_Ehdr *e, void *sh)
+{
+	u_int64_t offset;
+	u_int64_t size;
+	struct capreloc *cr;
+	u_int64_t i;
+
+	offset = elf_get_off(e, sh, SH_OFFSET);
+	size = elf_get_size(e, sh, SH_SIZE);
+	cr = (struct capreloc *)(void *)((char *)e + offset);
+	fprintf(out, "\ncapability relocation table:\n");
+	for (i = 0; i < size / sizeof(*cr); i++) {
+		fprintf(out, "\n");
+		fprintf(out, "entry: %ju\n", i);
+		fprintf(out, "\tcapability location: %#jx\n",
+		    elf_get_quad(e, &cr[i].capability_location, 0));
+		fprintf(out, "\tobject: %#jx\n", elf_get_quad(e, &cr[i].object,
+		0));
+		fprintf(out, "\toffset: %#jx\n", elf_get_quad(e, &cr[i].offset,
+		0));
+		fprintf(out, "\tsize: %#jx\n", elf_get_quad(e, &cr[i].size,
+		0));
+		fprintf(out, "\tpermissions: %#jx\n", elf_get_quad(e, &cr[i].permissions, 0));
+	}
+}
+
+static void
 elf_print_got(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t offset;
@@ -1229,6 +1273,6 @@ elf_get_quad(Elf32_Ehdr *e, void *base, elf_member_t member)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: elfdump -a | -cdeGhinprs [-w file] file\n");
+	fprintf(stderr, "usage: elfdump -a | -CcdeGhinprs [-w file] file\n");
 	exit(1);
 }
