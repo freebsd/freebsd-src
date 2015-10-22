@@ -7,6 +7,14 @@
 
 #include "sockaddrtest.h"
 
+
+void test_ClassBAddress(void);
+void test_ClassCAddress(void);
+void test_ClassAAddress(void);
+void test_IPv6Address(void);
+
+
+
 void test_ClassBAddress(void) {
 	sockaddr_u input = CreateSockaddr4("172.16.2.1", NTP_PORT);
 	sockaddr_u expected = CreateSockaddr4("172.16.0.0", NTP_PORT);
