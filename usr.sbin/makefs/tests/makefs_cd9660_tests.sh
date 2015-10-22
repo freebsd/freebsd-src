@@ -30,7 +30,6 @@
 . "$(dirname "$0")/makefs_tests_common.sh"
 
 MAKEFS="makefs -t cd9660"
-TEST_IMAGE="test.iso"
 
 atf_test_case basic_cd9660 cleanup
 basic_cd9660_body()
@@ -43,12 +42,17 @@ basic_cd9660_body()
 	    mdconfig -a -f $TEST_IMAGE
 	atf_check -e empty -o empty -s exit:0 \
 	    mount_cd9660 /dev/$(cat $TEST_MD_DEVICE_FILE) $TEST_MOUNT_DIR
-	atf_check -e empty -o not-empty -s exit:0 ls $TEST_MOUNT_DIR
+	# diffutils doesn't feature --no-dereference until v3.3, so
+	# $TEST_INPUTS_DIR/c will mismatch with $TEST_MOUNT_DIR/c (the
+	# former will look like a directory; the latter like a file).
+	#
+	# XXX: the latter behavior seems suspect; seems like it should be a
+	# symlink; need to verify this with mkisofs, etc
+	atf_check -e empty -o empty -s exit:0 \
+	    diff --exclude c -Naur $TEST_INPUTS_DIR $TEST_MOUNT_DIR
 }
 basic_cd9660_cleanup()
 {
-	ls -a
-
 	test_md_device=$(cat $TEST_MD_DEVICE_FILE) || return
 
 	umount -f /dev/$test_md_device
