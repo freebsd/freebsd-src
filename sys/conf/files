@@ -3797,15 +3797,15 @@ nlm/nlm_prot_xdr.c		optional nfslockd | nfsd
 nlm/sm_inter_xdr.c		optional nfslockd | nfsd
 
 # Linux Kernel Compatibility API
-ofed/include/linux/linux_kmod.c			optional ofed | compat_linuxapi \
+ofed/include/linux/linux_kmod.c			optional ofed | compat_linuxkpi \
 	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_compat.c		optional ofed | compat_linuxapi \
+ofed/include/linux/linux_compat.c		optional ofed | compat_linuxkpi \
 	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_pci.c			optional ofed | compat_linuxapi \
+ofed/include/linux/linux_pci.c			optional ofed | compat_linuxkpi \
 	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_idr.c			optional ofed | compat_linuxapi \
+ofed/include/linux/linux_idr.c			optional ofed | compat_linuxkpi \
 	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_radix.c		optional ofed | compat_linuxapi \
+ofed/include/linux/linux_radix.c		optional ofed | compat_linuxkpi \
 	no-depend compile-with "${OFED_C}"
 # OpenFabrics Enterprise Distribution (Infiniband)
 ofed/drivers/infiniband/core/addr.c		optional ofed		\
