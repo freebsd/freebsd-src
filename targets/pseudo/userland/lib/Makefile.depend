@@ -42,7 +42,6 @@ DIRDEPS = \
 	lib/libexpat \
 	lib/libfetch \
 	lib/libgeom \
-	lib/libgpib \
 	lib/libgssapi \
 	lib/libiconv_modules/BIG5 \
 	lib/libiconv_modules/DECHanyu \
