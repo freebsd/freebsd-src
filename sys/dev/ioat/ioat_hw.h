@@ -34,6 +34,8 @@ __FBSDID("$FreeBSD$");
 #define	IOAT_CHANCNT_OFFSET		0x00
 
 #define	IOAT_XFERCAP_OFFSET		0x01
+/* Only bits [4:0] are valid. */
+#define	IOAT_XFERCAP_VALID_MASK		0x1f
 
 #define	IOAT_GENCTRL_OFFSET		0x02
 
