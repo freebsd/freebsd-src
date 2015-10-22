@@ -30,6 +30,8 @@
 #	BUILDENV_SHELL= shell to launch for the buildenv target (def:/bin/sh)
 #	WORLD_FLAGS= additional flags to pass to make(1) during buildworld
 #	KERNEL_FLAGS= additional flags to pass to make(1) during buildkernel
+#	SUBDIR_OVERRIDE="list of dirs" to build rather than everything.
+#	    All libraries and includes, and some build tools will still build.
 
 #
 # The intended user-driven targets are:
@@ -59,7 +61,7 @@
 # system here would require fine-grained ordering of all components based
 # on their dependencies.
 SRCDIR?=	${.CURDIR}
-.if defined(SUBDIR_OVERRIDE)
+.if !empty(SUBDIR_OVERRIDE)
 SUBDIR=	${SUBDIR_OVERRIDE}
 .else
 SUBDIR=	lib libexec
@@ -123,7 +125,7 @@ SUBDIR+=.WAIT
 .endif
 SUBDIR+=etc
 
-.endif	# defined(SUBDIR_OVERRIDE)
+.endif	# !empty(SUBDIR_OVERRIDE)
 
 .if defined(NOCLEAN)
 NO_CLEAN=	${NOCLEAN}
@@ -631,8 +633,16 @@ _includes:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.1: building includes"
 	@echo "--------------------------------------------------------------"
+# Special handling for SUBDIR_OVERRIDE in buildworld as they most likely need
+# headers from default SUBDIR.  Do SUBDIR_OVERRIDE includes last.
+	${_+_}cd ${.CURDIR}; ${WMAKE} SUBDIR_OVERRIDE= SHARED=symlinks \
+	    buildincludes
+	${_+_}cd ${.CURDIR}; ${WMAKE} SUBDIR_OVERRIDE= SHARED=symlinks \
+	    installincludes
+.if !empty(SUBDIR_OVERRIDE) && make(buildworld)
 	${_+_}cd ${.CURDIR}; ${WMAKE} SHARED=symlinks buildincludes
 	${_+_}cd ${.CURDIR}; ${WMAKE} SHARED=symlinks installincludes
+.endif
 _libraries:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -727,15 +737,13 @@ distribute32 install32: .MAKE .PHONY
 .endif
 
 WMAKE_TGTS=
-.if !defined(SUBDIR_OVERRIDE)
-WMAKE_TGTS+=	_worldtmp _legacy _bootstrap-tools
+WMAKE_TGTS+=	_worldtmp _legacy
+.if empty(SUBDIR_OVERRIDE)
+WMAKE_TGTS+=	_bootstrap-tools
 .endif
-WMAKE_TGTS+=	_cleanobj _obj _build-tools
-.if !defined(SUBDIR_OVERRIDE)
-WMAKE_TGTS+=	_cross-tools
-.endif
+WMAKE_TGTS+=	_cleanobj _obj _build-tools _cross-tools
 WMAKE_TGTS+=	_includes _libraries _depend everything
-.if defined(LIB32TMP) && ${MK_LIB32} != "no"
+.if defined(LIB32TMP) && ${MK_LIB32} != "no" && empty(SUBDIR_OVERRIDE)
 WMAKE_TGTS+=	build32
 .endif
 
