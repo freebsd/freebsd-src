@@ -367,6 +367,22 @@ static struct cdevsw ioat_cdevsw = {
 };
 
 static int
+enable_ioat_test(bool enable)
+{
+
+	mtx_assert(&Giant, MA_OWNED);
+
+	if (enable && g_ioat_cdev == NULL) {
+		g_ioat_cdev = make_dev(&ioat_cdevsw, 0, UID_ROOT, GID_WHEEL,
+		    0600, "ioat_test");
+	} else if (!enable && g_ioat_cdev != NULL) {
+		destroy_dev(g_ioat_cdev);
+		g_ioat_cdev = NULL;
+	}
+	return (0);
+}
+
+static int
 sysctl_enable_ioat_test(SYSCTL_HANDLER_ARGS)
 {
 	int error, enabled;
@@ -376,15 +392,32 @@ sysctl_enable_ioat_test(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 
-	if (enabled != 0 && g_ioat_cdev == NULL) {
-		g_ioat_cdev = make_dev(&ioat_cdevsw, 0, UID_ROOT, GID_WHEEL,
-		    0600, "ioat_test");
-	} else if (enabled == 0 && g_ioat_cdev != NULL) {
-		destroy_dev(g_ioat_cdev);
-		g_ioat_cdev = NULL;
-	}
+	enable_ioat_test(enabled);
 	return (0);
 }
 SYSCTL_PROC(_hw_ioat, OID_AUTO, enable_ioat_test, CTLTYPE_INT | CTLFLAG_RW,
     0, 0, sysctl_enable_ioat_test, "I",
     "Non-zero: Enable the /dev/ioat_test device");
+
+void
+ioat_test_attach(void)
+{
+	char *val;
+
+	val = kern_getenv("hw.ioat.enable_ioat_test");
+	if (val != NULL && strcmp(val, "0") != 0) {
+		mtx_lock(&Giant);
+		enable_ioat_test(true);
+		mtx_unlock(&Giant);
+	}
+	freeenv(val);
+}
+
+void
+ioat_test_detach(void)
+{
+
+	mtx_lock(&Giant);
+	enable_ioat_test(false);
+	mtx_unlock(&Giant);
+}
