@@ -32,10 +32,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/rman.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -168,7 +170,7 @@ struct ntb_b2b_addr {
 struct ntb_softc {
 	device_t		device;
 	enum ntb_device_type	type;
-	uint64_t		features;
+	uint32_t		features;
 
 	struct ntb_pci_bar_info	bar_info[NTB_MAX_BARS];
 	struct ntb_int_info	int_info[MAX_MSIX_INTERRUPTS];
@@ -309,6 +311,10 @@ static void ntb_db_event(struct ntb_softc *ntb, uint32_t vec);
 static void recover_atom_link(void *arg);
 static bool ntb_poll_link(struct ntb_softc *ntb);
 static void save_bar_parameters(struct ntb_pci_bar_info *bar);
+static void ntb_sysctl_init(struct ntb_softc *);
+static int sysctl_handle_features(SYSCTL_HANDLER_ARGS);
+static int sysctl_handle_link_status(SYSCTL_HANDLER_ARGS);
+static int sysctl_handle_register(SYSCTL_HANDLER_ARGS);
 
 static struct ntb_hw_info pci_ids[] = {
 	/* XXX: PS/SS IDs left out until they are supported. */
@@ -528,6 +534,7 @@ ntb_attach(device_t device)
 	error = ntb_init_isr(ntb);
 	if (error)
 		goto out;
+	ntb_sysctl_init(ntb);
 
 	pci_enable_busmaster(ntb->device);
 
@@ -1897,6 +1904,355 @@ ntb_link_sta_width(struct ntb_softc *ntb)
 	return (NTB_LNK_STA_WIDTH(ntb->lnk_sta));
 }
 
+SYSCTL_NODE(_hw_ntb, OID_AUTO, debug_info, CTLFLAG_RW, 0,
+    "Driver state, statistics, and HW registers");
+
+#define NTB_REGSZ_MASK	(3ul << 30)
+#define NTB_REG_64	(1ul << 30)
+#define NTB_REG_32	(2ul << 30)
+#define NTB_REG_16	(3ul << 30)
+#define NTB_REG_8	(0ul << 30)
+
+#define NTB_DB_READ	(1ul << 29)
+#define NTB_PCI_REG	(1ul << 28)
+#define NTB_REGFLAGS_MASK	(NTB_REGSZ_MASK | NTB_DB_READ | NTB_PCI_REG)
+
+static void
+ntb_sysctl_init(struct ntb_softc *ntb)
+{
+	struct sysctl_oid_list *tree_par, *regpar, *statpar, *errpar;
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree, *tmptree;
+
+	ctx = device_get_sysctl_ctx(ntb->device);
+
+	tree = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(ntb->device)), OID_AUTO,
+	    "debug_info", CTLFLAG_RD, NULL,
+	    "Driver state, statistics, and HW registers");
+	tree_par = SYSCTL_CHILDREN(tree);
+
+	SYSCTL_ADD_UINT(ctx, tree_par, OID_AUTO, "conn_type", CTLFLAG_RD,
+	    &ntb->conn_type, 0, "0 - Transparent; 1 - B2B; 2 - Root Port");
+	SYSCTL_ADD_UINT(ctx, tree_par, OID_AUTO, "dev_type", CTLFLAG_RD,
+	    &ntb->dev_type, 0, "0 - USD; 1 - DSD");
+
+	if (ntb->b2b_mw_idx != B2B_MW_DISABLED) {
+		SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "b2b_idx", CTLFLAG_RD,
+		    &ntb->b2b_mw_idx, 0,
+		    "Index of the MW used for B2B remote register access");
+		SYSCTL_ADD_UQUAD(ctx, tree_par, OID_AUTO, "b2b_off",
+		    CTLFLAG_RD, &ntb->b2b_off,
+		    "If non-zero, offset of B2B register region in shared MW");
+	}
+
+	SYSCTL_ADD_PROC(ctx, tree_par, OID_AUTO, "features",
+	    CTLFLAG_RD | CTLTYPE_STRING, ntb, 0, sysctl_handle_features, "A",
+	    "Features/errata of this NTB device");
+
+	SYSCTL_ADD_UINT(ctx, tree_par, OID_AUTO, "ntb_ctl", CTLFLAG_RD,
+	    &ntb->ntb_ctl, 0, "NTB CTL register (cached)");
+	SYSCTL_ADD_UINT(ctx, tree_par, OID_AUTO, "lnk_sta", CTLFLAG_RD,
+	    &ntb->lnk_sta, 0, "LNK STA register (cached)");
+
+	SYSCTL_ADD_PROC(ctx, tree_par, OID_AUTO, "link_status",
+	    CTLFLAG_RD | CTLTYPE_STRING, ntb, 0, sysctl_handle_link_status,
+	    "A", "Link status");
+
+	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "mw_count", CTLFLAG_RD,
+	    &ntb->mw_count, 0, "MW count (excl. non-shared B2B register BAR)");
+	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "spad_count", CTLFLAG_RD,
+	    &ntb->spad_count, 0, "Scratchpad count");
+	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "db_count", CTLFLAG_RD,
+	    &ntb->db_count, 0, "Doorbell count");
+	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "db_vec_count", CTLFLAG_RD,
+	    &ntb->db_vec_count, 0, "Doorbell vector count");
+	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "db_vec_shift", CTLFLAG_RD,
+	    &ntb->db_vec_shift, 0, "Doorbell vector shift");
+
+	SYSCTL_ADD_UQUAD(ctx, tree_par, OID_AUTO, "db_valid_mask", CTLFLAG_RD,
+	    &ntb->db_valid_mask, "Doorbell valid mask");
+	SYSCTL_ADD_UQUAD(ctx, tree_par, OID_AUTO, "db_link_mask", CTLFLAG_RD,
+	    &ntb->db_link_mask, "Doorbell link mask");
+	SYSCTL_ADD_UQUAD(ctx, tree_par, OID_AUTO, "db_mask", CTLFLAG_RD,
+	    &ntb->db_mask, "Doorbell mask (cached)");
+
+	tmptree = SYSCTL_ADD_NODE(ctx, tree_par, OID_AUTO, "registers",
+	    CTLFLAG_RD, NULL, "Raw HW registers (big-endian)");
+	regpar = SYSCTL_CHILDREN(tmptree);
+
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "db_mask",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_64 | NTB_DB_READ | ntb->self_reg->db_mask,
+	    sysctl_handle_register, "QU", "Doorbell mask register");
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "db_bell",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_64 | NTB_DB_READ | ntb->self_reg->db_bell,
+	    sysctl_handle_register, "QU", "Doorbell register");
+
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "incoming_xlat23",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_64 | ntb->xlat_reg->bar2_xlat,
+	    sysctl_handle_register, "QU", "Incoming XLAT23 register");
+	if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "incoming_xlat4",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | ntb->xlat_reg->bar4_xlat,
+		    sysctl_handle_register, "IU", "Incoming XLAT4 register");
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "incoming_xlat5",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | ntb->xlat_reg->bar5_xlat,
+		    sysctl_handle_register, "IU", "Incoming XLAT5 register");
+	} else {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "incoming_xlat45",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_64 | ntb->xlat_reg->bar4_xlat,
+		    sysctl_handle_register, "QU", "Incoming XLAT45 register");
+	}
+
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "incoming_lmt23",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_64 | ntb->xlat_reg->bar2_limit,
+	    sysctl_handle_register, "QU", "Incoming LMT23 register");
+	if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "incoming_lmt4",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | ntb->xlat_reg->bar4_limit,
+		    sysctl_handle_register, "IU", "Incoming LMT4 register");
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "incoming_lmt5",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | ntb->xlat_reg->bar5_limit,
+		    sysctl_handle_register, "IU", "Incoming LMT5 register");
+	} else {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "incoming_lmt45",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_64 | ntb->xlat_reg->bar4_limit,
+		    sysctl_handle_register, "QU", "Incoming LMT45 register");
+	}
+
+	if (ntb->type == NTB_ATOM)
+		return;
+
+	tmptree = SYSCTL_ADD_NODE(ctx, regpar, OID_AUTO, "xeon_stats",
+	    CTLFLAG_RD, NULL, "Xeon HW statistics");
+	statpar = SYSCTL_CHILDREN(tmptree);
+	SYSCTL_ADD_PROC(ctx, statpar, OID_AUTO, "upstream_mem_miss",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_16 | XEON_USMEMMISS_OFFSET,
+	    sysctl_handle_register, "SU", "Upstream Memory Miss");
+
+	tmptree = SYSCTL_ADD_NODE(ctx, regpar, OID_AUTO, "xeon_hw_err",
+	    CTLFLAG_RD, NULL, "Xeon HW errors");
+	errpar = SYSCTL_CHILDREN(tmptree);
+
+	SYSCTL_ADD_PROC(ctx, errpar, OID_AUTO, "devsts",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_16 | NTB_PCI_REG | XEON_DEVSTS_OFFSET,
+	    sysctl_handle_register, "SU", "DEVSTS");
+	SYSCTL_ADD_PROC(ctx, errpar, OID_AUTO, "lnksts",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_16 | NTB_PCI_REG | XEON_LINK_STATUS_OFFSET,
+	    sysctl_handle_register, "SU", "LNKSTS");
+	SYSCTL_ADD_PROC(ctx, errpar, OID_AUTO, "uncerrsts",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_32 | NTB_PCI_REG | XEON_UNCERRSTS_OFFSET,
+	    sysctl_handle_register, "IU", "UNCERRSTS");
+	SYSCTL_ADD_PROC(ctx, errpar, OID_AUTO, "corerrsts",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_32 | NTB_PCI_REG | XEON_CORERRSTS_OFFSET,
+	    sysctl_handle_register, "IU", "CORERRSTS");
+
+	if (ntb->conn_type != NTB_CONN_B2B)
+		return;
+
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "outgoing_xlat23",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_64 | ntb->bar_info[NTB_B2B_BAR_1].pbarxlat_off,
+	    sysctl_handle_register, "QU", "Outgoing XLAT23 register");
+	if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "outgoing_xlat4",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | ntb->bar_info[NTB_B2B_BAR_2].pbarxlat_off,
+		    sysctl_handle_register, "IU", "Outgoing XLAT4 register");
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "outgoing_xlat5",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | ntb->bar_info[NTB_B2B_BAR_3].pbarxlat_off,
+		    sysctl_handle_register, "IU", "Outgoing XLAT5 register");
+	} else {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "outgoing_xlat45",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_64 | ntb->bar_info[NTB_B2B_BAR_2].pbarxlat_off,
+		    sysctl_handle_register, "QU", "Outgoing XLAT45 register");
+	}
+
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "outgoing_lmt23",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_64 | XEON_PBAR2LMT_OFFSET,
+	    sysctl_handle_register, "QU", "Outgoing LMT23 register");
+	if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "outgoing_lmt4",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | XEON_PBAR4LMT_OFFSET,
+		    sysctl_handle_register, "IU", "Outgoing LMT4 register");
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "outgoing_lmt5",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | XEON_PBAR5LMT_OFFSET,
+		    sysctl_handle_register, "IU", "Outgoing LMT5 register");
+	} else {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "outgoing_lmt45",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_64 | XEON_PBAR4LMT_OFFSET,
+		    sysctl_handle_register, "QU", "Outgoing LMT45 register");
+	}
+
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "sbar01_base",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_64 | ntb->xlat_reg->bar0_base,
+	    sysctl_handle_register, "QU", "Secondary BAR01 base register");
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "sbar23_base",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_64 | ntb->xlat_reg->bar2_base,
+	    sysctl_handle_register, "QU", "Secondary BAR23 base register");
+	if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "sbar4_base",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | ntb->xlat_reg->bar4_base,
+		    sysctl_handle_register, "IU",
+		    "Secondary BAR4 base register");
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "sbar5_base",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | ntb->xlat_reg->bar5_base,
+		    sysctl_handle_register, "IU",
+		    "Secondary BAR5 base register");
+	} else {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "sbar45_base",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_64 | ntb->xlat_reg->bar4_base,
+		    sysctl_handle_register, "QU",
+		    "Secondary BAR45 base register");
+	}
+}
+
+static int
+sysctl_handle_features(SYSCTL_HANDLER_ARGS)
+{
+	struct ntb_softc *ntb;
+	struct sbuf sb;
+	int error;
+
+	error = 0;
+	ntb = arg1;
+
+	sbuf_new_for_sysctl(&sb, NULL, 256, req);
+
+	sbuf_printf(&sb, "%b", ntb->features, NTB_FEATURES_STR);
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+
+	if (error || !req->newptr)
+		return (error);
+	return (EINVAL);
+}
+
+static int
+sysctl_handle_link_status(SYSCTL_HANDLER_ARGS)
+{
+	struct ntb_softc *ntb;
+	struct sbuf sb;
+	enum ntb_speed speed;
+	enum ntb_width width;
+	int error;
+
+	error = 0;
+	ntb = arg1;
+
+	sbuf_new_for_sysctl(&sb, NULL, 32, req);
+
+	if (ntb_link_is_up(ntb, &speed, &width))
+		sbuf_printf(&sb, "up / PCIe Gen %u / Width x%u",
+		    (unsigned)speed, (unsigned)width);
+	else
+		sbuf_printf(&sb, "down");
+
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+
+	if (error || !req->newptr)
+		return (error);
+	return (EINVAL);
+}
+
+static int
+sysctl_handle_register(SYSCTL_HANDLER_ARGS)
+{
+	struct ntb_softc *ntb;
+	const void *outp;
+	uintptr_t sz;
+	uint64_t umv;
+	char be[sizeof(umv)];
+	size_t outsz;
+	uint32_t reg;
+	bool db, pci;
+	int error;
+
+	ntb = arg1;
+	reg = arg2 & ~NTB_REGFLAGS_MASK;
+	sz = arg2 & NTB_REGSZ_MASK;
+	db = (arg2 & NTB_DB_READ) != 0;
+	pci = (arg2 & NTB_PCI_REG) != 0;
+
+	KASSERT(!(db && pci), ("bogus"));
+
+	if (db) {
+		KASSERT(sz == NTB_REG_64, ("bogus"));
+		umv = db_ioread(ntb, reg);
+		outsz = sizeof(uint64_t);
+	} else {
+		switch (sz) {
+		case NTB_REG_64:
+			if (pci)
+				umv = pci_read_config(ntb->device, reg, 8);
+			else
+				umv = ntb_reg_read(8, reg);
+			outsz = sizeof(uint64_t);
+			break;
+		case NTB_REG_32:
+			if (pci)
+				umv = pci_read_config(ntb->device, reg, 4);
+			else
+				umv = ntb_reg_read(4, reg);
+			outsz = sizeof(uint32_t);
+			break;
+		case NTB_REG_16:
+			if (pci)
+				umv = pci_read_config(ntb->device, reg, 2);
+			else
+				umv = ntb_reg_read(2, reg);
+			outsz = sizeof(uint16_t);
+			break;
+		case NTB_REG_8:
+			if (pci)
+				umv = pci_read_config(ntb->device, reg, 1);
+			else
+				umv = ntb_reg_read(1, reg);
+			outsz = sizeof(uint8_t);
+			break;
+		default:
+			panic("bogus");
+			break;
+		}
+	}
+
+	/* Encode bigendian so that sysctl -x is legible. */
+	be64enc(be, umv);
+	outp = ((char *)be) + sizeof(umv) - outsz;
+
+	error = SYSCTL_OUT(req, outp, outsz);
+	if (error || !req->newptr)
+		return (error);
+	return (EINVAL);
+}
+
 /*
  * Public API to the rest of the OS
  */
@@ -2319,7 +2675,7 @@ ntb_get_device(struct ntb_softc *ntb)
 
 /* Export HW-specific errata information. */
 bool
-ntb_has_feature(struct ntb_softc *ntb, uint64_t feature)
+ntb_has_feature(struct ntb_softc *ntb, uint32_t feature)
 {
 
 	return (HAS_FEATURE(feature));
