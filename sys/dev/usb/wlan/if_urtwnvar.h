@@ -26,8 +26,6 @@
 #define	URTWN_RX_DESC_SIZE	(sizeof(struct r92c_rx_stat))
 #define	URTWN_TX_DESC_SIZE	(sizeof(struct r92c_tx_desc))
 
-#define URTWN_RIDX_COUNT	28
-
 #define URTWN_TX_TIMEOUT	5000	/* ms */
 
 #define URTWN_LED_LINK	0
