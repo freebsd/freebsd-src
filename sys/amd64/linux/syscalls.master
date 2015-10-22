@@ -49,8 +49,8 @@
 				    struct l_newstat *buf); }
 6	AUE_LSTAT	STD	{ int linux_newlstat(char *path, \
 				    struct l_newstat *buf); }
-7	AUE_POLL	NOPROTO	{ int poll(struct pollfd*, \
-				    unsigned int nfds, int timeout); }
+7	AUE_POLL	NOPROTO	{ int poll(struct pollfd *fds, u_int nfds, \
+				    int timeout); }
 8	AUE_LSEEK	STD	{ int linux_lseek(l_uint fdes, l_off_t off, \
 				    l_int whence); }
 9	AUE_MMAP	STD	{ int linux_mmap2(l_ulong addr, l_ulong len, \
@@ -316,7 +316,7 @@
 161	AUE_CHROOT	NOPROTO	{ int chroot(char *path); }
 162	AUE_SYNC	NOPROTO	{ int sync(void); }
 163	AUE_ACCT	NOPROTO	{ int acct(char *path); }
-164	AUE_SETTIMEOFDAY	NOPROTO	{ int settimeofday(struct l_timeval *tp, struct timezone *tzp); }
+164	AUE_SETTIMEOFDAY	NOPROTO	{ int settimeofday(struct l_timeval *tv, struct timezone *tzp); }
 165	AUE_MOUNT	STD	{ int linux_mount(char *specialfile, \
 				    char *dir, char *filesystemtype, \
 				    l_ulong rwflag, void *data); }

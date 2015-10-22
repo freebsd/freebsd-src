@@ -115,7 +115,7 @@ static char *linux_shared_page_mapping;
 extern char _binary_linux32_locore_o_start;
 extern char _binary_linux32_locore_o_end;
 
-extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
+extern struct sysent linux32_sysent[LINUX32_SYS_MAXSYSCALL];
 
 SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
@@ -1008,8 +1008,8 @@ linux32_fixlimit(struct rlimit *rl, int which)
 }
 
 struct sysentvec elf_linux_sysvec = {
-	.sv_size	= LINUX_SYS_MAXSYSCALL,
-	.sv_table	= linux_sysent,
+	.sv_size	= LINUX32_SYS_MAXSYSCALL,
+	.sv_table	= linux32_sysent,
 	.sv_mask	= 0,
 	.sv_sigsize	= 0,
 	.sv_sigtbl	= NULL,
