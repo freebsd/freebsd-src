@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2014
+.Dd October 23, 2015
 .Dt SYSCTL 9
 .Os
 .Sh NAME
@@ -39,6 +39,8 @@
 .Nm SYSCTL_ADD_ROOT_NODE ,
 .Nm SYSCTL_ADD_STRING ,
 .Nm SYSCTL_ADD_STRUCT ,
+.Nm SYSCTL_ADD_U8 ,
+.Nm SYSCTL_ADD_U16 ,
 .Nm SYSCTL_ADD_UAUTO ,
 .Nm SYSCTL_ADD_UINT ,
 .Nm SYSCTL_ADD_ULONG ,
@@ -56,6 +58,8 @@
 .Nm SYSCTL_ROOT_NODE ,
 .Nm SYSCTL_STRING ,
 .Nm SYSCTL_STRUCT ,
+.Nm SYSCTL_U8 ,
+.Nm SYSCTL_U16 ,
 .Nm SYSCTL_UINT ,
 .Nm SYSCTL_ULONG ,
 .Nm SYSCTL_UQUAD
@@ -162,6 +166,28 @@
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_U8
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "unsigned int *ptr"
+.Fa "intptr_t val"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_U16
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "unsigned int *ptr"
+.Fa "intptr_t val"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
 .Fo SYSCTL_ADD_UINT
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
@@ -228,6 +254,8 @@
 .Fn SYSCTL_STRING parent number name ctlflags arg len descr
 .Fn SYSCTL_STRUCT parent number name ctlflags ptr struct_type descr
 .Fn SYSCTL_ROOT_NODE number name ctlflags handler descr
+.Fn SYSCTL_U8 parent number name ctlflags ptr val descr
+.Fn SYSCTL_U16 parent number name ctlflags ptr val descr
 .Fn SYSCTL_UINT parent number name ctlflags ptr val descr
 .Fn SYSCTL_ULONG parent number name ctlflags ptr val descr
 .Fn SYSCTL_UQUAD parent number name ctlflags ptr val descr
@@ -413,6 +441,8 @@ Static sysctls are declared using one of the
 .Fn SYSCTL_ROOT_NODE ,
 .Fn SYSCTL_STRING ,
 .Fn SYSCTL_STRUCT ,
+.Fn SYSCTL_U8 ,
+.Fn SYSCTL_U16 ,
 .Fn SYSCTL_UINT ,
 .Fn SYSCTL_ULONG
 or
@@ -429,6 +459,8 @@ Dynamic nodes are created using one of the
 .Fn SYSCTL_ADD_ROOT_NODE ,
 .Fn SYSCTL_ADD_STRING ,
 .Fn SYSCTL_ADD_STRUCT ,
+.Fn SYSCTL_ADD_U8 ,
+.Fn SYSCTL_ADD_U16 ,
 .Fn SYSCTL_ADD_UAUTO ,
 .Fn SYSCTL_ADD_UINT ,
 .Fn SYSCTL_ADD_ULONG ,
@@ -459,6 +491,10 @@ This is an opaque data structure.
 .It Dv CTLTYPE_STRUCT
 Alias for
 .Dv CTLTYPE_OPAQUE .
+.It Dv CTLTYPE_U8
+This is an 8-bit unsigned integer.
+.It Dv CTLTYPE_U16
+This is a 16-bit unsigned integer.
 .It Dv CTLTYPE_UINT
 This is an unsigned integer.
 .It Dv CTLTYPE_LONG

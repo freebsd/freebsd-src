@@ -1629,6 +1629,8 @@ MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_ADD_ROOT_NODE.9 \
 	sysctl.9 SYSCTL_ADD_STRING.9 \
 	sysctl.9 SYSCTL_ADD_STRUCT.9 \
+	sysctl.9 SYSCTL_ADD_U8.9 \
+	sysctl.9 SYSCTL_ADD_U16.9 \
 	sysctl.9 SYSCTL_ADD_UAUTO.9 \
 	sysctl.9 SYSCTL_ADD_UINT.9 \
 	sysctl.9 SYSCTL_ADD_ULONG.9 \
@@ -1646,6 +1648,8 @@ MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_ROOT_NODE.9 \
 	sysctl.9 SYSCTL_STRING.9 \
 	sysctl.9 SYSCTL_STRUCT.9 \
+	sysctl.9 SYSCTL_U8.9 \
+	sysctl.9 SYSCTL_U16.9 \
 	sysctl.9 SYSCTL_UINT.9 \
 	sysctl.9 SYSCTL_ULONG.9 \
 	sysctl.9 SYSCTL_UQUAD.9
