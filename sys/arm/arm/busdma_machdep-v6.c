@@ -1089,10 +1089,6 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat,
 				sl++;
 				sl->vaddr = 0;
 				sl->datacount = sgsize;
-				/*
-				 * PHYS_TO_VM_PAGE() will truncate
-				 * unaligned addresses.
-				 */
 				sl->pages = PHYS_TO_VM_PAGE(curaddr);
 				sl->dataoffs = curaddr & PAGE_MASK;
 			} else
@@ -1214,10 +1210,6 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 				sl++;
 				sl->vaddr = kvaddr;
 				sl->datacount = sgsize;
-				/*
-				 * PHYS_TO_VM_PAGE() will truncate
-				 * unaligned addresses.
-				 */
 				sl->pages = PHYS_TO_VM_PAGE(curaddr);
 				sl->dataoffs = curaddr & PAGE_MASK;
 			} else
@@ -1687,7 +1679,6 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 		bpage->busaddr |= addr & PAGE_MASK;
 	}
 	bpage->datavaddr = vaddr;
-	/* PHYS_TO_VM_PAGE() will truncate unaligned addresses. */
 	bpage->datapage = PHYS_TO_VM_PAGE(addr);
 	bpage->dataoffs = addr & PAGE_MASK;
 	bpage->datacount = size;
