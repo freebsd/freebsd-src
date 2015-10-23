@@ -606,7 +606,8 @@ DoFile(const char *savedir, const char *device)
 	}
 
 	if (kdhl.panicstring[0])
-		syslog(LOG_ALERT, "reboot after panic: %s", kdhl.panicstring);
+		syslog(LOG_ALERT, "reboot after panic: %*s",
+		    (int)sizeof(kdhl.panicstring), kdhl.panicstring);
 	else
 		syslog(LOG_ALERT, "reboot");
 
@@ -657,7 +658,7 @@ DoFile(const char *savedir, const char *device)
 	if (info == NULL) {
 		syslog(LOG_ERR, "fdopen failed: %m");
 		nerr++;
-		goto closefd;
+		goto closeall;
 	}
 
 	xostyle = xo_get_style(NULL);
@@ -665,7 +666,7 @@ DoFile(const char *savedir, const char *device)
 	if (xoinfo == NULL) {
 		syslog(LOG_ERR, "%s: %m", infoname);
 		nerr++;
-		goto closefd;
+		goto closeall;
 	}
 	xo_open_container_h(xoinfo, "crashdump");
 
@@ -726,9 +727,8 @@ nuke:
 		if (verbose)
 			printf("clearing dump header\n");
 		memcpy(kdhl.magic, KERNELDUMPMAGIC_CLEARED, sizeof kdhl.magic);
-		lseek(fd, lasthd, SEEK_SET);
-		error = write(fd, &kdhl, sizeof kdhl);
-		if (error != sizeof kdhl)
+		if (lseek(fd, lasthd, SEEK_SET) != lasthd ||
+		    write(fd, &kdhl, sizeof(kdhl)) != sizeof(kdhl))
 			syslog(LOG_ERR,
 			    "error while clearing the dump header: %m");
 	}
