@@ -1,11 +1,11 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.53 2014/11/06 01:49:40 sjg Exp $
+dnl	$Id: configure.in,v 1.54 2015/10/10 04:17:10 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 AC_PREREQ(2.50)
-AC_INIT([bmake], [20140214], [sjg@NetBSD.org])
+AC_INIT([bmake], [20151009], [sjg@NetBSD.org])
 AC_CONFIG_HEADERS(config.h)
 
 dnl make srcdir absolute
@@ -105,6 +105,7 @@ AC_CHECK_HEADERS( \
 	ar.h \
 	err.h \
 	fcntl.h \
+	limits.h \
 	paths.h \
 	poll.h \
 	ranlib.h \

@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.38 2015/04/11 05:24:30 sjg Exp $ */
+/*      $NetBSD: meta.c,v 1.40 2015/10/11 04:51:24 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -324,7 +324,7 @@ is_submake(void *cmdp, void *gnp)
     }
     cp = strchr(cmd, '$');
     if ((cp)) {
-	mp = Var_Subst(NULL, cmd, gn, FALSE);
+	mp = Var_Subst(NULL, cmd, gn, FALSE, TRUE);
 	cmd = mp;
     }
     cp2 = strstr(cmd, p_make);
@@ -367,7 +367,7 @@ printCMD(void *cmdp, void *mfpp)
     char *cp = NULL;
 
     if (strchr(cmd, '$')) {
-	cmd = cp = Var_Subst(NULL, cmd, mfp->gn, FALSE);
+	cmd = cp = Var_Subst(NULL, cmd, mfp->gn, FALSE, TRUE);
     }
     fprintf(mfp->fp, "CMD %s\n", cmd);
     if (cp)
@@ -462,7 +462,7 @@ meta_create(BuildMon *pbm, GNode *gn)
 	char *mp;
 
 	/* Describe the target we are building */
-	mp = Var_Subst(NULL, "${" MAKE_META_PREFIX "}", gn, 0);
+	mp = Var_Subst(NULL, "${" MAKE_META_PREFIX "}", gn, FALSE, TRUE);
 	if (*mp)
 	    fprintf(stdout, "%s\n", mp);
 	free(mp);
@@ -605,7 +605,8 @@ meta_mode_init(const char *make_mode)
      * We consider ourselves master of all within ${.MAKE.META.BAILIWICK}
      */
     metaBailiwick = Lst_Init(FALSE);
-    cp = Var_Subst(NULL, "${.MAKE.META.BAILIWICK:O:u:tA}", VAR_GLOBAL, 0);
+    cp = Var_Subst(NULL, "${.MAKE.META.BAILIWICK:O:u:tA}", VAR_GLOBAL,
+		   FALSE, TRUE);
     if (cp) {
 	str2Lst_Append(metaBailiwick, cp, NULL);
     }
@@ -616,7 +617,8 @@ meta_mode_init(const char *make_mode)
     Var_Append(MAKE_META_IGNORE_PATHS,
 	       "/dev /etc /proc /tmp /var/run /var/tmp ${TMPDIR}", VAR_GLOBAL);
     cp = Var_Subst(NULL,
-		   "${" MAKE_META_IGNORE_PATHS ":O:u:tA}", VAR_GLOBAL, 0);
+		   "${" MAKE_META_IGNORE_PATHS ":O:u:tA}", VAR_GLOBAL,
+		   FALSE, TRUE);
     if (cp) {
 	str2Lst_Append(metaIgnorePaths, cp, NULL);
     }
@@ -727,7 +729,8 @@ meta_job_output(Job *job, char *cp, const char *nl)
 	    if (!meta_prefix) {
 		char *cp2;
 
-		meta_prefix = Var_Subst(NULL, "${" MAKE_META_PREFIX "}", VAR_GLOBAL, 0);
+		meta_prefix = Var_Subst(NULL, "${" MAKE_META_PREFIX "}",
+					VAR_GLOBAL, FALSE, TRUE);
 		if ((cp2 = strchr(meta_prefix, '$')))
 		    meta_prefix_len = cp2 - meta_prefix;
 		else
@@ -1209,16 +1212,6 @@ meta_oodate(GNode *gn, Boolean oodate)
 			break;
 		    }
 
-		    if ((cp = strrchr(p, '/'))) {
-			cp++;
-			/*
-			 * We don't normally expect to see this,
-			 * but we do expect it to change.
-			 */
-			if (strcmp(cp, makeDependfile) == 0)
-			    break;
-		    }
-
 		    /*
 		     * The rest of the record is the file name.
 		     * Check if it's not an absolute path.
@@ -1322,7 +1315,7 @@ meta_oodate(GNode *gn, Boolean oodate)
 			if (DEBUG(META))
 			    fprintf(debug_file, "%s: %d: cannot compare command using .OODATE\n", fname, lineno);
 		    }
-		    cmd = Var_Subst(NULL, cmd, gn, TRUE);
+		    cmd = Var_Subst(NULL, cmd, gn, TRUE, TRUE);
 
 		    if ((cp = strchr(cmd, '\n'))) {
 			int n;

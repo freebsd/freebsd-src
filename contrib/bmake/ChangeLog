@@ -1,3 +1,40 @@
+2015-10-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20151020
+	  Merge with NetBSD make, pick up
+	  o var.c: fix uninitialized var 
+
+2015-10-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* var.c: the conditional expressions used with ':?' can be
+	expensive, if already discarding do not evaluate or expand
+	anything. 
+
+2015-10-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20151010
+	  Merge with NetBSD make, pick up
+	  o Add Boolean wantit flag to Var_Subst and Var_Parse
+	    when FALSE we know we are discarding the result and can
+	    skip operations like Cmd_Exec.
+
+2015-10-09  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20151009
+	  Merge with NetBSD make, pick up
+	  o var.c: don't check for NULL before free()
+	  o meta.c: meta_oodate, do not hard code ignore of makeDependfile
+
+2015-09-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20150910
+	  Merge with NetBSD make, pick up
+	  o main.c: with -w print Enter/Leaving messages for objdir too
+	    if necessary.
+	  o centralize shell metachar handling
+	
+	* FILES: add metachar.[ch]
+
 2015-06-06  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (MAKE_VERSION): 20150606
