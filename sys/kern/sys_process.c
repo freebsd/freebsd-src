@@ -96,6 +96,8 @@ struct ptrace_lwpinfo32 {
 	struct siginfo32 pl_siginfo;	/* siginfo for signal */
 	char	pl_tdname[MAXCOMLEN + 1];	/* LWP name. */
 	int	pl_child_pid;		/* New child pid */
+	u_int		pl_syscall_code;
+	u_int		pl_syscall_narg;
 };
 
 #endif
@@ -480,6 +482,8 @@ ptrace_lwpinfo_to32(const struct ptrace_lwpinfo *pl,
 	siginfo_to_siginfo32(&pl->pl_siginfo, &pl32->pl_siginfo);
 	strcpy(pl32->pl_tdname, pl->pl_tdname);
 	pl32->pl_child_pid = pl->pl_child_pid;
+	pl32->pl_syscall_code = pl->pl_syscall_code;
+	pl32->pl_syscall_narg = pl->pl_syscall_narg;
 }
 #endif /* COMPAT_FREEBSD32 */
 
@@ -1210,6 +1214,13 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		pl->pl_sigmask = td2->td_sigmask;
 		pl->pl_siglist = td2->td_siglist;
 		strcpy(pl->pl_tdname, td2->td_name);
+		if ((td2->td_dbgflags & (TDB_SCE | TDB_SCX)) != 0) {
+			pl->pl_syscall_code = td2->td_dbg_sc_code;
+			pl->pl_syscall_narg = td2->td_dbg_sc_narg;
+		} else {
+			pl->pl_syscall_code = 0;
+			pl->pl_syscall_narg = 0;
+		}
 #ifdef COMPAT_FREEBSD32
 		if (wrap32)
 			ptrace_lwpinfo_to32(pl, pl32);
