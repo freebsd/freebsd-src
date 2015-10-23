@@ -58,7 +58,7 @@
  */
 typedef struct ispsoftc ispsoftc_t;
 struct ispmdvec {
-	int		(*dv_rd_isr) (ispsoftc_t *, uint32_t *, uint16_t *, uint16_t *);
+	int		(*dv_rd_isr) (ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
 	uint32_t	(*dv_rd_reg) (ispsoftc_t *, int);
 	void		(*dv_wr_reg) (ispsoftc_t *, int, uint32_t);
 	int		(*dv_mbxdma) (ispsoftc_t *);
@@ -86,8 +86,8 @@ struct ispmdvec {
  * Macros to access ISP registers through bus specific layers-
  * mostly wrappers to vector through the mdvec structure.
  */
-#define	ISP_READ_ISR(isp, isrp, semap, mbox0p)	\
-	(*(isp)->isp_mdvec->dv_rd_isr)(isp, isrp, semap, mbox0p)
+#define	ISP_READ_ISR(isp, isrp, semap, info)	\
+	(*(isp)->isp_mdvec->dv_rd_isr)(isp, isrp, semap, info)
 
 #define	ISP_READ(isp, reg)	\
 	(*(isp)->isp_mdvec->dv_rd_reg)((isp), (reg))
@@ -829,7 +829,7 @@ int isp_reinit(ispsoftc_t *, int);
  * semaphore register and first mailbox register (if appropriate). This also
  * means that most spurious/bogus interrupts not for us can be filtered first.
  */
-void isp_intr(ispsoftc_t *, uint32_t, uint16_t, uint16_t);
+void isp_intr(ispsoftc_t *, uint16_t, uint16_t, uint16_t);
 
 
 /*

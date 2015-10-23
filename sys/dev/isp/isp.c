@@ -5037,7 +5037,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 #endif
 
 void
-isp_intr(ispsoftc_t *isp, uint32_t isr, uint16_t sema, uint16_t mbox)
+isp_intr(ispsoftc_t *isp, uint16_t isr, uint16_t sema, uint16_t info)
 {
 	XS_T *complist[MAX_REQUESTQ_COMPLETIONS], *xs;
 	uint32_t iptr, optr, junk;
@@ -5051,11 +5051,11 @@ again:
 	 */
 	if (sema) {
  fmbox:
-		if (mbox & MBOX_COMMAND_COMPLETE) {
+		if (info & MBOX_COMMAND_COMPLETE) {
 			isp->isp_intmboxc++;
 			if (isp->isp_mboxbsy) {
 				int obits = isp->isp_obits;
-				isp->isp_mboxtmp[0] = mbox;
+				isp->isp_mboxtmp[0] = info;
 				for (i = 1; i < ISP_NMBOX(isp); i++) {
 					if ((obits & (1 << i)) == 0) {
 						continue;
@@ -5069,15 +5069,15 @@ again:
 				}
 				MBOX_NOTIFY_COMPLETE(isp);
 			} else {
-				isp_prt(isp, ISP_LOGWARN, "mailbox cmd (0x%x) with no waiters", mbox);
+				isp_prt(isp, ISP_LOGWARN, "mailbox cmd (0x%x) with no waiters", info);
 			}
 		} else {
-			i = IS_FC(isp)? isp_parse_async_fc(isp, mbox) : isp_parse_async(isp, mbox);
+			i = IS_FC(isp)? isp_parse_async_fc(isp, info) : isp_parse_async(isp, info);
 			if (i < 0) {
 				return;
 			}
 		}
-		if ((IS_FC(isp) && mbox != ASYNC_RIOZIO_STALL) || isp->isp_state != ISP_RUNSTATE) {
+		if ((IS_FC(isp) && info != ASYNC_RIOZIO_STALL) || isp->isp_state != ISP_RUNSTATE) {
 			goto out;
 		}
 	}
@@ -5092,7 +5092,8 @@ again:
 		 if (isp->isp_mboxbsy && isp->isp_lastmbxcmd == MBOX_ABOUT_FIRMWARE) {
 			goto fmbox;
 		}
-		isp_prt(isp, ISP_LOGINFO, "interrupt (ISR=%x SEMA=%x) when not ready", isr, sema);
+		isp_prt(isp, ISP_LOGINFO, "interrupt (ISR=%x SEMA=%x INFO=%x) "
+		    "when not ready", isr, sema, info);
 		/*
 		 * Thank you very much!  *Burrrp*!
 		 */
@@ -5110,8 +5111,8 @@ again:
 	 * Check for ATIO Queue entries.
 	 */
 	if (IS_24XX(isp) &&
-	    ((isr & BIU2400_R2HST_ISTAT_MASK) == ISP2400R2HST_ATIO_RSPQ_UPDATE ||
-	     (isr & BIU2400_R2HST_ISTAT_MASK) == ISP2400R2HST_ATIO_RQST_UPDATE)) {
+	    (isr == ISPR2HST_ATIO_UPDATE || isr == ISPR2HST_ATIO_RSPQ_UPDATE ||
+	     isr == ISPR2HST_ATIO_UPDATE2)) {
 		iptr = ISP_READ(isp, BIU2400_ATIO_RSPINP);
 		optr = isp->isp_atioodx;
 
@@ -5145,25 +5146,6 @@ again:
 #endif
 
 	/*
-	 * Get the current Response Queue Out Pointer.
-	 *
-	 * If we're a 2300 or 2400, we can ask what hardware what it thinks.
-	 */
-#if 0
-	if (IS_23XX(isp) || IS_24XX(isp)) {
-		optr = ISP_READ(isp, isp->isp_respoutrp);
-		/*
-		 * Debug: to be taken out eventually
-		 */
-		if (isp->isp_resodx != optr) {
-			isp_prt(isp, ISP_LOGINFO, "isp_intr: hard optr=%x, soft optr %x", optr, isp->isp_resodx);
-			isp->isp_resodx = optr;
-		}
-	} else
-#endif
-		optr = isp->isp_resodx;
-
-	/*
 	 * You *must* read the Response Queue In Pointer
 	 * prior to clearing the RISC interrupt.
 	 *
@@ -5184,6 +5166,7 @@ again:
 		iptr = ISP_READ(isp, isp->isp_respinrp);
 	}
 
+	optr = isp->isp_resodx;
 	if (optr == iptr && sema == 0) {
 		/*
 		 * There are a lot of these- reasons unknown- mostly on
@@ -5207,8 +5190,8 @@ again:
 				;
 			} else {
 				sema = ISP_READ(isp, BIU_SEMA);
-				mbox = ISP_READ(isp, OUTMAILBOX0);
-				if ((sema & 0x3) && (mbox & 0x8000)) {
+				info = ISP_READ(isp, OUTMAILBOX0);
+				if ((sema & 0x3) && (info & 0x8000)) {
 					goto again;
 				}
 			}
