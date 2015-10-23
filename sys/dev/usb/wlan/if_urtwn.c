@@ -222,6 +222,7 @@ static void		urtwn_r88e_read_rom(struct urtwn_softc *);
 static int		urtwn_ra_init(struct urtwn_softc *);
 static void		urtwn_tsf_sync_enable(struct urtwn_softc *);
 static void		urtwn_set_led(struct urtwn_softc *, int, int);
+static void		urtwn_set_mode(struct urtwn_softc *, uint8_t);
 static int		urtwn_newstate(struct ieee80211vap *,
 			    enum ieee80211_state, int);
 static void		urtwn_watchdog(void *);
@@ -1522,6 +1523,16 @@ urtwn_set_led(struct urtwn_softc *sc, int led, int on)
 	}
 }
 
+static void
+urtwn_set_mode(struct urtwn_softc *sc, uint8_t mode)
+{
+	uint8_t reg;
+
+	reg = urtwn_read_1(sc, R92C_MSR);
+	reg = (reg & ~R92C_MSR_MASK) | mode;
+	urtwn_write_1(sc, R92C_MSR, reg);
+}
+
 static int
 urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
@@ -1530,7 +1541,6 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	struct urtwn_softc *sc = ic->ic_softc;
 	struct ieee80211_node *ni;
 	enum ieee80211_state ostate;
-	uint32_t reg;
 
 	ostate = vap->iv_state;
 	DPRINTF("%s -> %s\n", ieee80211_state_name[ostate],
@@ -1545,9 +1555,7 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		urtwn_set_led(sc, URTWN_LED_LINK, 0);
 
 		/* Set media status to 'No Link'. */
-		reg = urtwn_read_4(sc, R92C_CR);
-		reg = RW(reg, R92C_CR_NETTYPE, R92C_CR_NETTYPE_NOLINK);
-		urtwn_write_4(sc, R92C_CR, reg);
+		urtwn_set_mode(sc, R92C_MSR_NOLINK);
 
 		/* Stop Rx of data frames. */
 		urtwn_write_2(sc, R92C_RXFLTMAP2, 0);
@@ -1632,9 +1640,7 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		ni = ieee80211_ref_node(vap->iv_bss);
 		/* Set media status to 'Associated'. */
-		reg = urtwn_read_4(sc, R92C_CR);
-		reg = RW(reg, R92C_CR_NETTYPE, R92C_CR_NETTYPE_INFRA);
-		urtwn_write_4(sc, R92C_CR, reg);
+		urtwn_set_mode(sc, R92C_MSR_INFRA);
 
 		/* Set BSSID. */
 		urtwn_write_4(sc, R92C_BSSID + 0, LE_READ_4(&ni->ni_bssid[0]));
@@ -3294,9 +3300,7 @@ urtwn_init(struct urtwn_softc *sc)
 	urtwn_write_region_1(sc, R92C_MACID, macaddr, IEEE80211_ADDR_LEN);
 
 	/* Set initial network type. */
-	reg = urtwn_read_4(sc, R92C_CR);
-	reg = RW(reg, R92C_CR_NETTYPE, R92C_CR_NETTYPE_INFRA);
-	urtwn_write_4(sc, R92C_CR, reg);
+	urtwn_set_mode(sc, R92C_MSR_INFRA);
 
 	urtwn_rxfilter_init(sc);
 
