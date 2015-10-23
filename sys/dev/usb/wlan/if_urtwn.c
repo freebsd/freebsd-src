@@ -86,7 +86,6 @@ SYSCTL_INT(_hw_usb_urtwn, OID_AUTO, debug, CTLFLAG_RWTUN, &urtwn_debug, 0,
     "Debug level");
 #endif
 
-#define	URTWN_RSSI(r)  (r) - 110
 #define	IEEE80211_HAS_ADDR4(wh)	IEEE80211_IS_DSTODS(wh)
 
 /* various supported device vendors/products */
@@ -641,11 +640,6 @@ urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
 			rssi = urtwn_get_rssi(sc, rate, &stat[1]);
 		/* Update our average RSSI. */
 		urtwn_update_avgrssi(sc, rate, rssi);
-		/*
-		 * Convert the RSSI to a range that will be accepted
-		 * by net80211.
-		 */
-		rssi = URTWN_RSSI(rssi);
 	}
 
 	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
@@ -792,10 +786,12 @@ tr_setup:
 			    (struct ieee80211_frame_min *)wh);
 			nf = URTWN_NOISE_FLOOR;
 			if (ni != NULL) {
-				(void)ieee80211_input(ni, m, rssi, nf);
+				(void)ieee80211_input(ni, m, rssi - nf, nf);
 				ieee80211_free_node(ni);
-			} else
-				(void)ieee80211_input_all(ic, m, rssi, nf);
+			} else {
+				(void)ieee80211_input_all(ic, m, rssi - nf,
+				    nf);
+			}
 			m = next;
 		}
 		URTWN_LOCK(sc);
