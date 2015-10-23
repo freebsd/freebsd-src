@@ -375,6 +375,11 @@ extern long first_page;			/* first physical page number */
 
 #define VM_PAGE_TO_PHYS(entry)	((entry)->phys_addr)
 
+/*
+ * PHYS_TO_VM_PAGE() Returns the vm_page_t object that represents a memory
+ * page to which the given physical address belongs. The correct vm_page_t
+ * object is returned for addresses that are not page-aligned.
+ */
 vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 
 /*
