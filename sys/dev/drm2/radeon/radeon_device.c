@@ -1316,14 +1316,10 @@ int radeon_suspend_kms(struct drm_device *dev)
 
 	radeon_agp_suspend(rdev);
 
-	pci_save_state(device_get_parent(rdev->dev));
 #ifdef DUMBBELL_WIP
 	if (state.event == PM_EVENT_SUSPEND) {
 		/* Shut down the device */
 		pci_disable_device(dev->pdev);
-#endif /* DUMBBELL_WIP */
-		pci_set_powerstate(dev->device, PCI_POWERSTATE_D3);
-#ifdef DUMBBELL_WIP
 	}
 	console_lock();
 #endif /* DUMBBELL_WIP */
@@ -1354,10 +1350,6 @@ int radeon_resume_kms(struct drm_device *dev)
 
 #ifdef DUMBBELL_WIP
 	console_lock();
-#endif /* DUMBBELL_WIP */
-	pci_set_powerstate(dev->device, PCI_POWERSTATE_D0);
-	pci_restore_state(device_get_parent(rdev->dev));
-#ifdef DUMBBELL_WIP
 	if (pci_enable_device(dev->pdev)) {
 		console_unlock();
 		return -1;
