@@ -33,7 +33,6 @@ SRCS+=	libzfs_changelist.c \
 	zfs_comutil.c \
 	zfs_deleg.c \
 	zfs_fletcher.c \
-	zfs_ioctl_compat.c \
 	zfs_namecheck.c \
 	zfs_prop.c \
 	zpool_prop.c \

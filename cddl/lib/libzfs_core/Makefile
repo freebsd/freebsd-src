@@ -11,7 +11,8 @@ DPADD=	${LIBNVPAIR}
 LDADD=	-lnvpair
 
 SRCS=	libzfs_core.c \
-	libzfs_core_compat.c
+	libzfs_core_compat.c \
+	zfs_ioctl_compat.c
 
 SRCS+=	libzfs_compat.c
 
