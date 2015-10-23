@@ -388,7 +388,7 @@ isp_sbus_detach(device_t dev)
 	bus_space_read_2(isp->isp_bus_tag, isp->isp_bus_handle, off)
 
 static int
-isp_sbus_rd_isr(ispsoftc_t *isp, uint32_t *isrp, uint16_t *semap, uint16_t *mbp)
+isp_sbus_rd_isr(ispsoftc_t *isp, uint16_t *isrp, uint16_t *semap, uint16_t *info)
 {
 	uint16_t isr, sema;
 
@@ -401,9 +401,8 @@ isp_sbus_rd_isr(ispsoftc_t *isp, uint32_t *isrp, uint16_t *semap, uint16_t *mbp)
 		return (0);
 	}
 	*isrp = isr;
-	if ((*semap = sema) != 0) {
-		*mbp = BXR2(sbc, IspVirt2Off(isp, OUTMAILBOX0));
-	}
+	if ((*semap = sema) != 0)
+		*info = BXR2(sbc, IspVirt2Off(isp, OUTMAILBOX0));
 	return (1);
 }
 
