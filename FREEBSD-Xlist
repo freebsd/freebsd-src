@@ -10,6 +10,7 @@ openssl-*/*/*.save
 openssl-*/*/*/*.bat
 openssl-*/*/*/*.com
 openssl-*/*/*/*.save
+openssl-*/Git*
 openssl-*/INSTALL.DJGPP
 openssl-*/INSTALL.MacOS
 openssl-*/INSTALL.NW
