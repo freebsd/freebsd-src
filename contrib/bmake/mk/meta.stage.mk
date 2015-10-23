@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.35 2015/05/20 06:40:33 sjg Exp $
+# $Id: meta.stage.mk,v 1.40 2015/10/04 17:36:54 sjg Exp $
 #
 #	@(#) Copyright (c) 2011, Simon J. Gerraty
 #
@@ -22,6 +22,8 @@ _dirdep = ${RELDIR}.${MACHINE}
 .else
 _dirdep = ${RELDIR}
 .endif
+
+CLEANFILES+= .dirdep
 
 # this allows us to trace dependencies back to their src dir
 .dirdep:
@@ -59,14 +61,23 @@ LN_CP_SCRIPT = LnCp() { \
   ln $$1 $$2 2> /dev/null || \
   cp -p $$1 $$2; }
 
+# a staging conflict should cause an error
+# a warning is handy when bootstapping different options.
+STAGE_CONFLICT?= ERROR
+.if ${STAGE_CONFLICT:tl} == "error"
+STAGE_CONFLICT_ACTION= exit 1;
+.else
+STAGE_CONFLICT_ACTION=
+.endif
+
 # it is an error for more than one src dir to try and stage
 # the same file
 STAGE_DIRDEP_SCRIPT = ${LN_CP_SCRIPT}; StageDirdep() { \
   t=$$1; \
   if [ -s $$t.dirdep ]; then \
 	cmp -s .dirdep $$t.dirdep && return; \
-	echo "ERROR: $$t installed by `cat $$t.dirdep` not ${_dirdep}" >&2; \
-	exit 1; \
+	echo "${STAGE_CONFLICT}: $$t installed by `cat $$t.dirdep` not ${_dirdep}" >&2; \
+	${STAGE_CONFLICT_ACTION} \
   fi; \
   LnCp .dirdep $$t.dirdep || exit 1; }
 
@@ -124,7 +135,7 @@ _STAGE_AS_BASENAME_USE:        .USE ${.TARGET:T}
 
 .if !empty(STAGE_INCSDIR)
 STAGE_TARGETS += stage_incs
-STAGE_INCS ?= ${.ALLSRC:N.dirdep}
+STAGE_INCS ?= ${.ALLSRC:N.dirdep:Nstage_*}
 
 stage_includes: stage_incs
 stage_incs:	.dirdep
@@ -135,7 +146,7 @@ stage_incs:	.dirdep
 .if !empty(STAGE_LIBDIR)
 STAGE_TARGETS += stage_libs
 
-STAGE_LIBS ?= ${.ALLSRC:N.dirdep}
+STAGE_LIBS ?= ${.ALLSRC:N.dirdep:Nstage_*}
 
 stage_libs:	.dirdep
 	@${STAGE_FILE_SCRIPT}; StageFiles ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} ${STAGE_LIBS}
@@ -167,8 +178,8 @@ CLEANFILES += ${STAGE_SETS:@s@stage*$s@}
 
 # some makefiles need to populate multiple directories
 .for s in ${STAGE_SETS:O:u}
-STAGE_FILES.$s ?= ${.ALLSRC:N.dirdep}
-STAGE_SYMLINKS.$s ?= ${.ALLSRC:N.dirdep}
+STAGE_FILES.$s ?= ${.ALLSRC:N.dirdep:Nstage_*}
+STAGE_SYMLINKS.$s ?= ${.ALLSRC:N.dirdep:Nstage_*}
 STAGE_LINKS_DIR.$s ?= ${STAGE_OBJTOP}
 STAGE_SYMLINKS_DIR.$s ?= ${STAGE_OBJTOP}
 
@@ -214,7 +225,7 @@ STAGE_TARGETS += stage_as
 # each ${file} will be staged as ${STAGE_AS_${file:T}}
 # one could achieve the same with SYMLINKS
 .for s in ${STAGE_AS_SETS:O:u}
-STAGE_AS.$s ?= ${.ALLSRC:N.dirdep}
+STAGE_AS.$s ?= ${.ALLSRC:N.dirdep:Nstage_*}
 
 stage_as:	stage_as.$s
 stage_as.$s:	.dirdep
@@ -227,13 +238,15 @@ stage_as.$s:	.dirdep
 CLEANFILES += ${STAGE_TARGETS} stage_incs stage_includes
 
 # stage_*links usually needs to follow any others.
+# for non-jobs mode the order here matters
+staging: ${STAGE_TARGETS:N*_links} ${STAGE_TARGETS:M*_links}
+
+.if ${.MAKE.JOBS:U0} > 0 && ${STAGE_TARGETS:M*_links} != ""
+# the above isn't sufficient
 .for t in ${STAGE_TARGETS:N*links:O:u}
 .ORDER: $t stage_links
-.ORDER: $t stage_symlinks
 .endfor
-
-# make sure this exists
-staging:
+.endif
 
 # generally we want staging to wait until everything else is done
 STAGING_WAIT ?= .WAIT
