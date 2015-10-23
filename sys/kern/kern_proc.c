@@ -180,9 +180,9 @@ proc_ctor(void *mem, int size, void *arg, int flags)
 	struct proc *p;
 
 	p = (struct proc *)mem;
-	SDT_PROBE(proc, kernel, ctor , entry, p, size, arg, flags, 0);
+	SDT_PROBE4(proc, kernel, ctor , entry, p, size, arg, flags);
 	EVENTHANDLER_INVOKE(process_ctor, p);
-	SDT_PROBE(proc, kernel, ctor , return, p, size, arg, flags, 0);
+	SDT_PROBE4(proc, kernel, ctor , return, p, size, arg, flags);
 	return (0);
 }
 
@@ -198,7 +198,7 @@ proc_dtor(void *mem, int size, void *arg)
 	/* INVARIANTS checks go here */
 	p = (struct proc *)mem;
 	td = FIRST_THREAD_IN_PROC(p);
-	SDT_PROBE(proc, kernel, dtor, entry, p, size, arg, td, 0);
+	SDT_PROBE4(proc, kernel, dtor, entry, p, size, arg, td);
 	if (td != NULL) {
 #ifdef INVARIANTS
 		KASSERT((p->p_numthreads == 1),
@@ -211,7 +211,7 @@ proc_dtor(void *mem, int size, void *arg)
 	EVENTHANDLER_INVOKE(process_dtor, p);
 	if (p->p_ksi != NULL)
 		KASSERT(! KSI_ONQ(p->p_ksi), ("SIGCHLD queue"));
-	SDT_PROBE(proc, kernel, dtor, return, p, size, arg, 0, 0);
+	SDT_PROBE3(proc, kernel, dtor, return, p, size, arg);
 }
 
 /*
@@ -223,7 +223,7 @@ proc_init(void *mem, int size, int flags)
 	struct proc *p;
 
 	p = (struct proc *)mem;
-	SDT_PROBE(proc, kernel, init, entry, p, size, flags, 0, 0);
+	SDT_PROBE3(proc, kernel, init, entry, p, size, flags);
 	p->p_sched = (struct p_sched *)&p[1];
 	bzero(&p->p_mtx, sizeof(struct mtx));
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
@@ -233,7 +233,7 @@ proc_init(void *mem, int size, int flags)
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 	EVENTHANDLER_INVOKE(process_init, p);
 	p->p_stats = pstats_alloc();
-	SDT_PROBE(proc, kernel, init, return, p, size, flags, 0, 0);
+	SDT_PROBE3(proc, kernel, init, return, p, size, flags);
 	return (0);
 }
 

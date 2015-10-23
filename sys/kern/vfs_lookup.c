@@ -268,8 +268,8 @@ namei(struct nameidata *ndp)
 			VFS_UNLOCK_GIANT(vfslocked);
 		}
 	}
-	SDT_PROBE(vfs, namei, lookup, entry, dp, cnp->cn_pnbuf,
-	    cnp->cn_flags, 0, 0);
+	SDT_PROBE3(vfs, namei, lookup, entry, dp, cnp->cn_pnbuf,
+	    cnp->cn_flags);
 	vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 	for (;;) {
 		/*
@@ -298,8 +298,7 @@ namei(struct nameidata *ndp)
 		error = lookup(ndp);
 		if (error) {
 			namei_cleanup_cnp(cnp);
-			SDT_PROBE(vfs, namei, lookup, return, error, NULL, 0,
-			    0, 0);
+			SDT_PROBE2(vfs, namei, lookup, return, error, NULL);
 			return (error);
 		}
 		vfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
@@ -317,8 +316,7 @@ namei(struct nameidata *ndp)
 				VFS_UNLOCK_GIANT(vfslocked);
 			} else if (vfslocked)
 				ndp->ni_cnd.cn_flags |= GIANTHELD;
-			SDT_PROBE(vfs, namei, lookup, return, 0, ndp->ni_vp,
-			    0, 0, 0);
+			SDT_PROBE2(vfs, namei, lookup, return, 0, ndp->ni_vp);
 			return (0);
 		}
 		if (ndp->ni_loopcnt++ >= MAXSYMLINKS) {
@@ -380,7 +378,7 @@ namei(struct nameidata *ndp)
 	ndp->ni_vp = NULL;
 	vrele(ndp->ni_dvp);
 	VFS_UNLOCK_GIANT(vfslocked);
-	SDT_PROBE(vfs, namei, lookup, return, error, NULL, 0, 0, 0);
+	SDT_PROBE2(vfs, namei, lookup, return, error, NULL);
 	return (error);
 }
 

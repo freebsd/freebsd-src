@@ -514,9 +514,9 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 	binuptime(&bt1);
 #endif
 	THREAD_NO_SLEEPING();
-	SDT_PROBE(callout_execute, kernel, , callout__start, c, 0, 0, 0, 0);
+	SDT_PROBE1(callout_execute, kernel, , callout__start, c);
 	c_func(c_arg);
-	SDT_PROBE(callout_execute, kernel, , callout__end, c, 0, 0, 0, 0);
+	SDT_PROBE1(callout_execute, kernel, , callout__end, c);
 	THREAD_SLEEPING_OK();
 #ifdef DIAGNOSTIC
 	binuptime(&bt2);
