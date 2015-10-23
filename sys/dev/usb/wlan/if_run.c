@@ -3030,20 +3030,11 @@ static void
 run_tx_free(struct run_endpoint_queue *pq,
     struct run_tx_data *data, int txerr)
 {
-	if (data->m != NULL) {
-		if (data->m->m_flags & M_TXCB)
-			ieee80211_process_callback(data->ni, data->m,
-			    txerr ? ETIMEDOUT : 0);
-		m_freem(data->m);
-		data->m = NULL;
 
-		if (data->ni == NULL) {
-			DPRINTF("no node\n");
-		} else {
-			ieee80211_free_node(data->ni);
-			data->ni = NULL;
-		}
-	}
+	ieee80211_tx_complete(data->ni, data->m, txerr);
+
+	data->m = NULL;
+	data->ni = NULL;
 
 	STAILQ_INSERT_TAIL(&pq->tx_fh, data, next);
 	pq->tx_nfree++;
