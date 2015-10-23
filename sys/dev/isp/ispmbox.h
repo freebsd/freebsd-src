@@ -1812,7 +1812,7 @@ typedef struct {
 	uint16_t	in_srr_rxid;
 	uint16_t	in_status;
 	uint8_t		in_status_subcode;
-	uint8_t		in_reserved2;
+	uint8_t		in_fwhandle;
 	uint32_t	in_rxid;
 	uint16_t	in_srr_reloff_lo;
 	uint16_t	in_srr_reloff_hi;
@@ -1845,6 +1845,8 @@ typedef struct {
 #define	IN24XX_FLAG_PUREX_IOCB		0x1
 #define	IN24XX_FLAG_GLOBAL_LOGOUT	0x2
 #define	IN24XX_FLAG_NPHDL_VALID		0x4
+#define	IN24XX_FLAG_N2N_PRLI		0x8
+#define	IN24XX_FLAG_PN_NN_VALID		0x10
 
 #define	IN24XX_LIP_RESET	0x0E
 #define	IN24XX_LINK_RESET	0x0F
@@ -1862,6 +1864,8 @@ typedef struct {
  * the WWNN/WWPN if the ELS is PLOGI, PDISC or ADISC. The WWN is in
  * Big Endian format.
  */
+#define	IN24XX_PRLI_WWNN_OFF	0x18
+#define	IN24XX_PRLI_WWPN_OFF	0x28
 #define	IN24XX_PLOGI_WWNN_OFF	0x20
 #define	IN24XX_PLOGI_WWPN_OFF	0x28
 
@@ -1965,7 +1969,7 @@ typedef struct {
 	uint16_t	na_srr_rxid;
 	uint16_t	na_status;
 	uint8_t		na_status_subcode;
-	uint8_t		na_reserved2;
+	uint8_t		na_fwhandle;
 	uint32_t	na_rxid;
 	uint16_t	na_srr_reloff_lo;
 	uint16_t	na_srr_reloff_hi;

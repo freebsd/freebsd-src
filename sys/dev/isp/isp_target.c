@@ -1079,6 +1079,7 @@ isp_notify_ack(ispsoftc_t *isp, void *arg)
 			na->na_flags = in->in_flags;
 			na->na_status = in->in_status;
 			na->na_status_subcode = in->in_status_subcode;
+			na->na_fwhandle = in->in_fwhandle;
 			na->na_rxid = in->in_rxid;
 			na->na_oxid = in->in_oxid;
 			na->na_vpidx = in->in_vpidx;

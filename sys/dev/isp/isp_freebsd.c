@@ -2480,12 +2480,13 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	else {
 		if ((isp_find_pdb_by_handle(isp, 0, nphdl, &lp) == 0 ||
 		     lp->state == FC_PORTDB_STATE_ZOMBIE)) {
-			uint64_t iid =
+			uint64_t wwpn =
 				(((uint64_t) aep->at_wwpn[0]) << 48) |
 				(((uint64_t) aep->at_wwpn[1]) << 32) |
 				(((uint64_t) aep->at_wwpn[2]) << 16) |
 				(((uint64_t) aep->at_wwpn[3]) <<  0);
-			isp_add_wwn_entry(isp, 0, iid, nphdl, PORT_ANY, 0);
+			isp_add_wwn_entry(isp, 0, wwpn, INI_NONE,
+			    nphdl, PORT_ANY, 0);
 			isp_find_pdb_by_handle(isp, 0, nphdl, &lp);
 		}
 		atiop->init_id = FC_PORTDB_TGT(isp, 0, lp);
@@ -3195,8 +3196,9 @@ isp_handle_platform_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
 	uint16_t prli_options = 0;
 	uint32_t portid;
 	fcportdb_t *lp;
-	uint8_t *ptr = NULL;
-	uint64_t wwn;
+	char *msg = NULL;
+	uint8_t *ptr = (uint8_t *)inot;
+	uint64_t wwpn = INI_NONE, wwnn = INI_NONE;
 
 	nphdl = inot->in_nphdl;
 	if (nphdl != NIL_HANDLE) {
@@ -3208,7 +3210,7 @@ isp_handle_platform_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
 	switch (inot->in_status) {
 	case IN24XX_ELS_RCVD:
 	{
-		char buf[16], *msg;
+		char buf[16];
 		int chan = ISP_GET_VPIDX(isp, inot->in_vpidx);
 
 		/*
@@ -3219,49 +3221,27 @@ isp_handle_platform_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
 		switch (inot->in_status_subcode) {
 		case LOGO:
 			msg = "LOGO";
-			if (ISP_FW_NEWER_THAN(isp, 4, 0, 25)) {
-				ptr = (uint8_t *)inot;  /* point to unswizzled entry! */
-				wwn =	(((uint64_t) ptr[IN24XX_LOGO_WWPN_OFF])   << 56) |
-					(((uint64_t) ptr[IN24XX_LOGO_WWPN_OFF+1]) << 48) |
-					(((uint64_t) ptr[IN24XX_LOGO_WWPN_OFF+2]) << 40) |
-					(((uint64_t) ptr[IN24XX_LOGO_WWPN_OFF+3]) << 32) |
-					(((uint64_t) ptr[IN24XX_LOGO_WWPN_OFF+4]) << 24) |
-					(((uint64_t) ptr[IN24XX_LOGO_WWPN_OFF+5]) << 16) |
-					(((uint64_t) ptr[IN24XX_LOGO_WWPN_OFF+6]) <<  8) |
-					(((uint64_t) ptr[IN24XX_LOGO_WWPN_OFF+7]));
-			} else {
-				wwn = INI_ANY;
-			}
-			isp_del_wwn_entry(isp, chan, wwn, nphdl, portid);
+			wwpn = be64dec(&ptr[IN24XX_PLOGI_WWPN_OFF]);
+			isp_del_wwn_entry(isp, chan, wwpn, nphdl, portid);
 			break;
 		case PRLO:
 			msg = "PRLO";
 			break;
 		case PLOGI:
+			msg = "PLOGI";
+			wwnn = be64dec(&ptr[IN24XX_PLOGI_WWNN_OFF]);
+			wwpn = be64dec(&ptr[IN24XX_PLOGI_WWPN_OFF]);
+			isp_add_wwn_entry(isp, chan, wwpn, wwnn,
+			    nphdl, portid, prli_options);
+			break;
 		case PRLI:
-			/*
-			 * Treat PRLI the same as PLOGI and make a database entry for it.
-			 */
-			if (inot->in_status_subcode == PLOGI) {
-				msg = "PLOGI";
-			} else {
-				prli_options = inot->in_prli_options;
-				msg = "PRLI";
-			}
-			if (ISP_FW_NEWER_THAN(isp, 4, 0, 25)) {
-				ptr = (uint8_t *)inot;  /* point to unswizzled entry! */
-				wwn =	(((uint64_t) ptr[IN24XX_PLOGI_WWPN_OFF])   << 56) |
-					(((uint64_t) ptr[IN24XX_PLOGI_WWPN_OFF+1]) << 48) |
-					(((uint64_t) ptr[IN24XX_PLOGI_WWPN_OFF+2]) << 40) |
-					(((uint64_t) ptr[IN24XX_PLOGI_WWPN_OFF+3]) << 32) |
-					(((uint64_t) ptr[IN24XX_PLOGI_WWPN_OFF+4]) << 24) |
-					(((uint64_t) ptr[IN24XX_PLOGI_WWPN_OFF+5]) << 16) |
-					(((uint64_t) ptr[IN24XX_PLOGI_WWPN_OFF+6]) <<  8) |
-					(((uint64_t) ptr[IN24XX_PLOGI_WWPN_OFF+7]));
-			} else {
-				wwn = INI_NONE;
-			}
-			isp_add_wwn_entry(isp, chan, wwn, nphdl, portid, prli_options);
+			msg = "PRLI";
+			prli_options = inot->in_prli_options;
+			if (inot->in_flags & IN24XX_FLAG_PN_NN_VALID)
+				wwnn = be64dec(&ptr[IN24XX_PRLI_WWNN_OFF]);
+			wwpn = be64dec(&ptr[IN24XX_PRLI_WWPN_OFF]);
+			isp_add_wwn_entry(isp, chan, wwpn, wwnn,
+			    nphdl, portid, prli_options);
 			break;
 		case PDISC:
 			msg = "PDISC";
@@ -3285,21 +3265,19 @@ isp_handle_platform_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
 	}
 
 	case IN24XX_PORT_LOGOUT:
-		ptr = "PORT LOGOUT";
+		msg = "PORT LOGOUT";
 		if (isp_find_pdb_by_handle(isp, ISP_GET_VPIDX(isp, inot->in_vpidx), nphdl, &lp)) {
 			isp_del_wwn_entry(isp, ISP_GET_VPIDX(isp, inot->in_vpidx), lp->port_wwn, nphdl, lp->portid);
 		}
 		/* FALLTHROUGH */
 	case IN24XX_PORT_CHANGED:
-		if (ptr == NULL) {
-			ptr = "PORT CHANGED";
-		}
+		if (msg == NULL)
+			msg = "PORT CHANGED";
 		/* FALLTHROUGH */
-	case IN24XX_LIP_RESET: 
-		if (ptr == NULL) {
-			ptr = "LIP RESET";
-		}
-		isp_prt(isp, ISP_LOGINFO, "Chan %d %s (sub-status 0x%x) for N-port handle 0x%x", ISP_GET_VPIDX(isp, inot->in_vpidx), ptr, inot->in_status_subcode, nphdl);
+	case IN24XX_LIP_RESET:
+		if (msg == NULL)
+			msg = "LIP RESET";
+		isp_prt(isp, ISP_LOGINFO, "Chan %d %s (sub-status 0x%x) for N-port handle 0x%x", ISP_GET_VPIDX(isp, inot->in_vpidx), msg, inot->in_status_subcode, nphdl);
 
 		/*
 		 * All subcodes here are irrelevant. What is relevant
@@ -3315,21 +3293,18 @@ isp_handle_platform_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
 		isp_handle_srr_notify(isp, inot);
 		break;
 #else
-		if (ptr == NULL) {
-			ptr = "SRR RCVD";
-		}
+		if (msg == NULL)
+			msg = "SRR RCVD";
 		/* FALLTHROUGH */
 #endif
 	case IN24XX_LINK_RESET:
-		if (ptr == NULL) {
-			ptr = "LINK RESET";
-		}
+		if (msg == NULL)
+			msg = "LINK RESET";
 	case IN24XX_LINK_FAILED:
-		if (ptr == NULL) {
-			ptr = "LINK FAILED";
-		}
+		if (msg == NULL)
+			msg = "LINK FAILED";
 	default:
-		isp_prt(isp, ISP_LOGWARN, "Chan %d %s", ISP_GET_VPIDX(isp, inot->in_vpidx), ptr);
+		isp_prt(isp, ISP_LOGWARN, "Chan %d %s", ISP_GET_VPIDX(isp, inot->in_vpidx), msg);
 		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inot);
 		break;
 	}
@@ -5698,20 +5673,17 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		break;
 	}
 	case ISPASYNC_LIP:
-		if (msg == NULL) {
+		if (msg == NULL)
 			msg = "LIP Received";
-		}
 		/* FALLTHROUGH */
 	case ISPASYNC_LOOP_RESET:
-		if (msg == NULL) {
+		if (msg == NULL)
 			msg = "LOOP Reset";
-		}
 		/* FALLTHROUGH */
 	case ISPASYNC_LOOP_DOWN:
 	{
-		if (msg == NULL) {
+		if (msg == NULL)
 			msg = "LOOP Down";
-		}
 		va_start(ap, cmd);
 		bus = va_arg(ap, int);
 		va_end(ap);
