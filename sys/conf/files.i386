@@ -538,8 +538,7 @@ kern/imgact_aout.c		optional compat_aout
 kern/imgact_binmisc.c		optional imagact_binmisc
 kern/imgact_gzip.c		optional gzip
 libkern/divdi3.c		standard
-libkern/ffsl.c			standard
-libkern/flsl.c			standard
+libkern/flsll.c			standard
 libkern/memmove.c		standard
 libkern/memset.c		standard
 libkern/moddi3.c		standard

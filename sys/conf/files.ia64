@@ -121,6 +121,7 @@ libkern/bcmp.c			standard
 libkern/ffsl.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
+libkern/flsll.c			standard
 libkern/ia64/__divdi3.S		standard
 libkern/ia64/__divsi3.S		standard
 libkern/ia64/__moddi3.S		standard
