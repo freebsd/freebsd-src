@@ -142,6 +142,12 @@ sdt_create_probe(struct sdt_probe *probe)
 	char *to;
 	size_t len;
 
+	if (probe->version != (int)sizeof(*probe)) {
+		printf("ignoring probe %p, version %u expected %u\n",
+		    probe, probe->version, (int)sizeof(*probe));
+		return;
+	}
+
 	TAILQ_FOREACH(prov, &sdt_prov_list, prov_entry)
 		if (strcmp(prov->name, probe->prov->name) == 0)
 			break;
