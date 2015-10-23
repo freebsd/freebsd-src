@@ -227,6 +227,8 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 	newtd->td_proc = td->td_proc;
 	newtd->td_ucred = crhold(td->td_ucred);
+	newtd->td_dbg_sc_code = td->td_dbg_sc_code;
+	newtd->td_dbg_sc_narg = td->td_dbg_sc_narg;
 
 	if (ctx != NULL) { /* old way to set user context */
 		error = set_mcontext(newtd, ctx);
