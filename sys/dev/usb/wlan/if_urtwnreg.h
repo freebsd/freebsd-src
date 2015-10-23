@@ -975,22 +975,22 @@ struct r92c_rx_cck {
 
 struct r88e_rx_cck {
 	uint8_t		path_agc[2];
+	uint8_t		chan;
+	uint8_t		reserved1;
 	uint8_t		sig_qual;
 	uint8_t		agc_rpt;
 	uint8_t		rpt_b;
-	uint8_t 	reserved1;
+	uint8_t		reserved2;
 	uint8_t		noise_power;
 	uint8_t		path_cfotail[2];        
 	uint8_t		pcts_mask[2];   
 	uint8_t		stream_rxevm[2];        
 	uint8_t		path_rxsnr[2];
 	uint8_t		noise_power_db_lsb;
-	uint8_t		reserved2[3];
+	uint8_t		reserved3[3];
 	uint8_t		stream_csi[2];
 	uint8_t		stream_target_csi[2];
 	uint8_t		sig_evm;
-	uint8_t		reserved3;
-	uint8_t		reserved4;
 } __packed;
 
 /* Tx MAC descriptor. */
