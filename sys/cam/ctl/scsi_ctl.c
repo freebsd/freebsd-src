@@ -1879,7 +1879,7 @@ ctlfe_lun_disable(void *arg, int lun_id)
 
 		path = lun_softc->periph->path;
 
-		if ((xpt_path_target_id(path) == 0)
+		if ((xpt_path_target_id(path) == softc->target_id)
 		 && (xpt_path_lun_id(path) == lun_id)) {
 			break;
 		}
