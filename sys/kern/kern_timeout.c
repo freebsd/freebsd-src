@@ -681,9 +681,9 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	sbt1 = sbinuptime();
 #endif
 	THREAD_NO_SLEEPING();
-	SDT_PROBE(callout_execute, kernel, , callout__start, c, 0, 0, 0, 0);
+	SDT_PROBE1(callout_execute, kernel, , callout__start, c);
 	c_func(c_arg);
-	SDT_PROBE(callout_execute, kernel, , callout__end, c, 0, 0, 0, 0);
+	SDT_PROBE1(callout_execute, kernel, , callout__end, c);
 	THREAD_SLEEPING_OK();
 #if defined(DIAGNOSTIC) || defined(CALLOUT_PROFILING)
 	sbt2 = sbinuptime();

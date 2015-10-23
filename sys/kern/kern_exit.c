@@ -564,7 +564,7 @@ exit1(struct thread *td, int rv)
 		reason = CLD_DUMPED;
 	else if (WIFSIGNALED(rv))
 		reason = CLD_KILLED;
-	SDT_PROBE(proc, kernel, , exit, reason, 0, 0, 0, 0);
+	SDT_PROBE1(proc, kernel, , exit, reason);
 #endif
 
 	/*
