@@ -173,7 +173,8 @@ void		otus_cmd_rxeof(struct otus_softc *, uint8_t *, int);
 void		otus_sub_rxeof(struct otus_softc *, uint8_t *, int,
 		    struct mbufq *);
 static int	otus_tx(struct otus_softc *, struct ieee80211_node *,
-		    struct mbuf *, struct otus_data *);
+		    struct mbuf *, struct otus_data *,
+		    const struct ieee80211_bpf_params *);
 int		otus_ioctl(struct ifnet *, u_long, caddr_t);
 int		otus_set_multi(struct otus_softc *);
 static void	otus_updateedca(struct otus_softc *sc);
@@ -509,7 +510,7 @@ _otus_start(struct otus_softc *sc)
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 		m->m_pkthdr.rcvif = NULL;
 
-		if (otus_tx(sc, ni, m, bf) != 0) {
+		if (otus_tx(sc, ni, m, bf, NULL) != 0) {
 			OTUS_DPRINTF(sc, OTUS_DEBUG_XMIT,
 			    "%s: failed to transmit\n", __func__);
 			if_inc_counter(ni->ni_vap->iv_ifp,
@@ -554,10 +555,7 @@ otus_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		goto error;
 	}
 
-	/*
-	 * XXX TODO: support TX bpf params
-	 */
-	if (otus_tx(sc, ni, m, bf) != 0) {
+	if (otus_tx(sc, ni, m, bf, params) != 0) {
 		error = EIO;
 		goto error;
 	}
@@ -2178,10 +2176,20 @@ otus_tx_update_ratectl(struct otus_softc *sc, struct ieee80211_node *ni)
 
 /*
  * XXX TODO: support tx bpf parameters for configuration!
+ *
+ * Relevant pieces:
+ *
+ * ac = params->ibp_pri & 3;
+ * rate = params->ibp_rate0;
+ * params->ibp_flags & IEEE80211_BPF_NOACK
+ * params->ibp_flags & IEEE80211_BPF_RTS
+ * params->ibp_flags & IEEE80211_BPF_CTS
+ * tx->rts_ntries = params->ibp_try1;
+ * tx->data_ntries = params->ibp_try0;
  */
 static int
 otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
-    struct otus_data *data)
+    struct otus_data *data, const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
@@ -2230,7 +2238,9 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 	}
 
 	/* Pickup a rate index. */
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
+	if (params != NULL) {
+		rate = otus_rate_to_hw_rate(sc, params->ibp_rate0);
+	} else if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
 	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_DATA) {
 		/* Get lowest rate */
 		rate = otus_rate_to_hw_rate(sc, 0);
@@ -2245,6 +2255,9 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 	phyctl = 0;
 	macctl = AR_TX_MAC_BACKOFF | AR_TX_MAC_HW_DUR | AR_TX_MAC_QID(qid);
 
+	/*
+	 * XXX TODO: params for NOACK, ACK, RTS, CTS, etc
+	 */
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
 	    (hasqos && ((qos & IEEE80211_QOS_ACKPOLICY) ==
 	     IEEE80211_QOS_ACKPOLICY_NOACK)))
@@ -2293,7 +2306,7 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 
 	OTUS_DPRINTF(sc, OTUS_DEBUG_XMIT,
 	    "%s: tx: m=%p; data=%p; len=%d mac=0x%04x phy=0x%08x rate=0x%02x, ni_txrate=%d\n",
-	    __func__, m, data, head->len, head->macctl, head->phyctl,
+	    __func__, m, data, le16toh(head->len), macctl, phyctl,
 	    (int) rate, (int) ni->ni_txrate);
 
 	/* Submit transfer */
