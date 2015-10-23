@@ -539,7 +539,6 @@ OLD_LIBS+=lib/libuutil.so.2
 OLD_FILES+=usr/bin/ctfconvert
 OLD_FILES+=usr/bin/ctfdump
 OLD_FILES+=usr/bin/ctfmerge
-OLD_FILES+=usr/bin/sgsmsg
 OLD_FILES+=usr/lib/dtrace/drti.o
 OLD_FILES+=usr/lib/dtrace/errno.d
 OLD_FILES+=usr/lib/dtrace/io.d

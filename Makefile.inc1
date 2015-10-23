@@ -1311,7 +1311,7 @@ ${_bt}-usr.bin/clang/tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/l
     ((${BOOTSTRAPPING} < 1000034 && \
           !(${BOOTSTRAPPING} >= 901505 && ${BOOTSTRAPPING} < 999999)) \
       || (${MACHINE} != ${TARGET} || ${MACHINE_ARCH} != ${TARGET_ARCH}))
-_dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
+_dtrace_tools= cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
 
 ${_bt}-cddl/usr.bin/ctfconvert: ${_bt}-lib/libelf ${_bt}-lib/libdwarf ${_bt}-cddl/lib/libctf
