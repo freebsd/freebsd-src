@@ -52,7 +52,7 @@ do_link() {
 }
 
 BASE_OBJECTS="arch.o buf.o compat.o cond.o dir.o for.o getopt hash.o \
-job.o make.o make_malloc.o parse.o sigcompat.o str.o strlist.o \
+job.o make.o make_malloc.o metachar.o parse.o sigcompat.o str.o strlist.o \
 suff.o targ.o trace.o var.o util.o"
 
 LST_OBJECTS="lstAppend.o lstDupl.o lstInit.o lstOpen.o \

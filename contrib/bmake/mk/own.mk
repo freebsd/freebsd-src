@@ -1,4 +1,4 @@
-# $Id: own.mk,v 1.28 2015/04/16 16:59:00 sjg Exp $
+# $Id: own.mk,v 1.29 2015/09/08 06:15:31 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -133,7 +133,9 @@ USERGRP!=  id -g
 .for x in BIN CONF DOC INFO KMOD LIB MAN NLS SHARE
 $xOWN=  ${USER}
 $xGRP=  ${USERGRP}
+$x_INSTALL_OWN=
 .endfor
+PROG_INSTALL_OWN=
 .endif
 .endif
 
@@ -143,6 +145,7 @@ BINGRP?=	${ROOT_GROUP}
 BINOWN?=	root
 BINMODE?=	555
 NONBINMODE?=	444
+DIRMODE?=	755
 
 # Define MANZ to have the man pages compressed (gzip)
 #MANZ=		1
