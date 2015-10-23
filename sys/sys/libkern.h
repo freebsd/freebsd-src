@@ -94,6 +94,10 @@ int	 fls(int);
 #ifndef	HAVE_INLINE_FLSL
 int	 flsl(long);
 #endif
+#ifndef	HAVE_INLINE_FLSLL
+int	 flsll(long long);
+#endif
+
 #define	bitcount64(x)	__bitcount64((uint64_t)(x))
 #define	bitcount32(x)	__bitcount32((uint32_t)(x))
 #define	bitcount16(x)	__bitcount16((uint16_t)(x))
