@@ -1542,6 +1542,7 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	struct urtwn_softc *sc = ic->ic_softc;
 	struct ieee80211_node *ni;
 	enum ieee80211_state ostate;
+	uint32_t reg;
 
 	ostate = vap->iv_state;
 	DPRINTF("%s -> %s\n", ieee80211_state_name[ostate],
