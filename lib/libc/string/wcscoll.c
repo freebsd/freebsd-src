@@ -77,6 +77,7 @@ wcscoll_l(const wchar_t *ws1, const wchar_t *ws2, locale_t locale)
 		const int32_t *st2 = NULL;
 		const wchar_t	*w1 = ws1;
 		const wchar_t	*w2 = ws2;
+		int check1, check2;
 
 		/* special pass for UNDEFINED */
 		if (pass == table->info->directive_count) {
@@ -110,25 +111,36 @@ wcscoll_l(const wchar_t *ws1, const wchar_t *ws2, locale_t locale)
 		}
 
 		if (direc & DIRECTIVE_POSITION) {
-			while ((*w1 || st1) && (*w2 || st2)) {
+			while (*w1 && *w2) {
 				pri1 = pri2 = 0;
-				_collate_lookup(table, w1, &len1, &pri1, pass,
-				    &st1);
-				if (pri1 <= 0) {
-					if (pri1 < 0) {
-						errno = EINVAL;
-						goto fail;
+				check1 = check2 = 1;
+				while ((pri1 == pri2) && (check1 || check2)) {
+					if (check1) {
+						_collate_lookup(table, w1, &len1,
+						    &pri1, pass, &st1);
+						if (pri1 < 0) {
+							errno = EINVAL;
+							goto fail;
+						}
+						if (!pri1) {
+							pri1 = COLLATE_MAX_PRIORITY;
+							st1 = NULL;
+						}
+						check1 = (st1 != NULL);
 					}
-					pri1 = COLLATE_MAX_PRIORITY;
-				}
-				_collate_lookup(table, w2, &len2, &pri2, pass,
-				    &st2);
-				if (pri2 <= 0) {
-					if (pri2 < 0) {
-						errno = EINVAL;
-						goto fail;
+					if (check2) {
+						_collate_lookup(table, w2, &len2,
+						    &pri2, pass, &st2);
+						if (pri2 < 0) {
+							errno = EINVAL;
+							goto fail;
+						}
+						if (!pri2) {
+							pri2 = COLLATE_MAX_PRIORITY;
+							st2 = NULL;
+						}
+						check2 = (st2 != NULL);
 					}
-					pri2 = COLLATE_MAX_PRIORITY;
 				}
 				if (pri1 != pri2) {
 					ret = pri1 - pri2;
@@ -138,29 +150,38 @@ wcscoll_l(const wchar_t *ws1, const wchar_t *ws2, locale_t locale)
 				w2 += len2;
 			}
 		} else {
-			while ((*w1 || st1) && (*w2 || st2)) {
+			while (*w1 && *w2) {
 				pri1 = pri2 = 0;
-				while (*w1) {
-					_collate_lookup(table, w1, &len1,
-					    &pri1, pass, &st1);
-					if (pri1 > 0)
-						break;
-					if (pri1 < 0) {
-						errno = EINVAL;
-						goto fail;
+				check1 = check2 = 1;
+				while ((pri1 == pri2) && (check1 || check2)) {
+					while (check1 && *w1) {
+						_collate_lookup(table, w1,
+						    &len1, &pri1, pass, &st1);
+						if (pri1 > 0)
+							break;
+						if (pri1 < 0) {
+							errno = EINVAL;
+							goto fail;
+						}
+						st1 = NULL;
+						w1 += 1;
 					}
-					w1 += len1;
-				}
-				while (*w2) {
-					_collate_lookup(table, w2, &len2,
-					    &pri2, pass, &st2);
-					if (pri2 > 0)
-						break;
-					if (pri2 < 0) {
-						errno = EINVAL;
-						goto fail;
+					check1 = (st1 != NULL);
+					while (check2 && *w2) {
+						_collate_lookup(table, w2,
+						    &len2, &pri2, pass, &st2);
+						if (pri2 > 0)
+							break;
+						if (pri2 < 0) {
+							errno = EINVAL;
+							goto fail;
+						}
+						st2 = NULL;
+						w2 += 1;
 					}
-					w2 += len2;
+					check2 = (st2 != NULL);
+					if (!pri1 || !pri2)
+						break;
 				}
 				if (!pri1 || !pri2)
 					break;
@@ -185,10 +206,8 @@ wcscoll_l(const wchar_t *ws1, const wchar_t *ws2, locale_t locale)
 	ret = 0;
 
 end:
-	if (tr1)
-		free(tr1);
-	if (tr2)
-		free(tr2);
+	free(tr1);
+	free(tr2);
 
 	return (ret);
 
