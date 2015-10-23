@@ -213,6 +213,9 @@ static uma_zone_t dmamap_zone;	/* Cache of struct bus_dmamap items */
 static busdma_bufalloc_t coherent_allocator;	/* Cache of coherent buffers */
 static busdma_bufalloc_t standard_allocator;	/* Cache of standard buffers */
 
+MALLOC_DEFINE(M_BUSDMA, "busdma", "busdma metadata");
+MALLOC_DEFINE(M_BOUNCE, "bounce", "busdma bounce pages");
+
 /*
  * This is the ctor function passed to uma_zcreate() for the pool of dma maps.
  * It'll need platform-specific changes if this code is copied.
@@ -277,7 +280,7 @@ busdma_init(void *dummy)
 
 /*
  * This init historically used SI_SUB_VM, but now the init code requires
- * malloc(9) using M_DEVBUF memory, which is set up later than SI_SUB_VM, by
+ * malloc(9) using M_BUSDMA memory, which is set up later than SI_SUB_VM, by
  * SI_SUB_KMEM and SI_ORDER_THIRD, so we'll go right after that by using
  * SI_SUB_KMEM and SI_ORDER_FOURTH.
  */
@@ -419,7 +422,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	if (!parent)
 		parent = arm_root_dma_tag;
 
-	newtag = (bus_dma_tag_t)malloc(sizeof(*newtag), M_DEVBUF, M_NOWAIT);
+	newtag = (bus_dma_tag_t)malloc(sizeof(*newtag), M_BUSDMA, M_NOWAIT);
 	if (newtag == NULL) {
 		CTR4(KTR_BUSDMA, "%s returned tag %p tag flags 0x%x error %d",
 		    __func__, newtag, 0, error);
@@ -497,7 +500,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		/* Must bounce */
 
 		if ((error = alloc_bounce_zone(newtag)) != 0) {
-			free(newtag, M_DEVBUF);
+			free(newtag, M_BUSDMA);
 			return (error);
 		}
 		bz = newtag->bounce_zone;
@@ -516,7 +519,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	} else
 		newtag->bounce_zone = NULL;
 	if (error != 0)
-		free(newtag, M_DEVBUF);
+		free(newtag, M_BUSDMA);
 	else
 		*dmat = newtag;
 	CTR4(KTR_BUSDMA, "%s returned tag %p tag flags 0x%x error %d",
@@ -545,8 +548,8 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 			if (dmat->ref_count == 0) {
 				if (dmat->segments != NULL &&
 				    dmat->segments != dmat->tagsegs)
-					free(dmat->segments, M_DEVBUF);
-				free(dmat, M_DEVBUF);
+					free(dmat->segments, M_BUSDMA);
+				free(dmat, M_BUSDMA);
 				/*
 				 * Last reference count, so
 				 * release our reference
@@ -574,14 +577,14 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	bus_dmamap_t map;
 	int error = 0;
 
-	slist = malloc(sizeof(*slist) * dmat->nsegments, M_DEVBUF, M_NOWAIT);
+	slist = malloc(sizeof(*slist) * dmat->nsegments, M_BUSDMA, M_NOWAIT);
 	if (slist == NULL)
 		return (ENOMEM);
 
 	map = uma_zalloc_arg(dmamap_zone, dmat, M_NOWAIT);
 	*mapp = map;
 	if (map == NULL) {
-		free(slist, M_DEVBUF);
+		free(slist, M_BUSDMA);
 		return (ENOMEM);
 	}
 
@@ -591,9 +594,9 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	 */
 	if (dmat->segments == NULL) {
 		dmat->segments = malloc(dmat->nsegments *
-		    sizeof(*dmat->segments), M_DEVBUF, M_NOWAIT);
+		    sizeof(*dmat->segments), M_BUSDMA, M_NOWAIT);
 		if (dmat->segments == NULL) {
-			free(slist, M_DEVBUF);
+			free(slist, M_BUSDMA);
 			uma_zfree(dmamap_zone, map);
 			*mapp = NULL;
 			return (ENOMEM);
@@ -613,7 +616,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 
 		if (dmat->bounce_zone == NULL) {
 			if ((error = alloc_bounce_zone(dmat)) != 0) {
-				free(slist, M_DEVBUF);
+				free(slist, M_BUSDMA);
 				uma_zfree(dmamap_zone, map);
 				*mapp = NULL;
 				return (error);
@@ -669,7 +672,7 @@ bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 		    __func__, dmat, EBUSY);
 		return (EBUSY);
 	}
-	free(map->slist, M_DEVBUF);
+	free(map->slist, M_BUSDMA);
 	uma_zfree(dmamap_zone, map);
 	if (dmat->bounce_zone)
 		dmat->bounce_zone->map_count--;
@@ -704,14 +707,14 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddrp, int flags,
 	 */
 	if (dmat->segments == NULL)
 		dmat->segments = malloc(dmat->nsegments *
-		   sizeof(*dmat->segments), M_DEVBUF, mflags);
+		   sizeof(*dmat->segments), M_BUSDMA, mflags);
 
-	slist = malloc(sizeof(*slist) * dmat->nsegments, M_DEVBUF, M_NOWAIT);
+	slist = malloc(sizeof(*slist) * dmat->nsegments, M_BUSDMA, M_NOWAIT);
 	if (slist == NULL)
 		return (ENOMEM);
 	map = uma_zalloc_arg(dmamap_zone, dmat, mflags);
 	if (map == NULL) {
-		free(slist, M_DEVBUF);
+		free(slist, M_BUSDMA);
 		return (ENOMEM);
 	}
 	if (flags & BUS_DMA_COHERENT) {
@@ -761,7 +764,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddrp, int flags,
 		    memattr);
 	}
 	if (vaddr == NULL) {
-		free(slist, M_DEVBUF);
+		free(slist, M_BUSDMA);
 		uma_zfree(dmamap_zone, map);
 		map = NULL;
 	} else {
@@ -789,7 +792,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	else
 		ba = standard_allocator;
 
-	free(map->slist, M_DEVBUF);
+	free(map->slist, M_BUSDMA);
 	uma_zfree(dmamap_zone, map);
 
 	bufzone = busdma_bufalloc_findzone(ba, dmat->maxsize);
@@ -1379,7 +1382,7 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 		}
 	}
 
-	if ((bz = (struct bounce_zone *)malloc(sizeof(*bz), M_DEVBUF,
+	if ((bz = (struct bounce_zone *)malloc(sizeof(*bz), M_BUSDMA,
 	    M_NOWAIT | M_ZERO)) == NULL)
 		return (ENOMEM);
 
@@ -1450,15 +1453,15 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 	while (numpages > 0) {
 		struct bounce_page *bpage;
 
-		bpage = (struct bounce_page *)malloc(sizeof(*bpage), M_DEVBUF,
+		bpage = (struct bounce_page *)malloc(sizeof(*bpage), M_BUSDMA,
 		    M_NOWAIT | M_ZERO);
 
 		if (bpage == NULL)
 			break;
-		bpage->vaddr = (vm_offset_t)contigmalloc(PAGE_SIZE, M_DEVBUF,
+		bpage->vaddr = (vm_offset_t)contigmalloc(PAGE_SIZE, M_BOUNCE,
 		    M_NOWAIT, 0ul, bz->lowaddr, PAGE_SIZE, 0);
 		if (bpage->vaddr == 0) {
-			free(bpage, M_DEVBUF);
+			free(bpage, M_BUSDMA);
 			break;
 		}
 		bpage->busaddr = pmap_kextract(bpage->vaddr);
