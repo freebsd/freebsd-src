@@ -1657,6 +1657,10 @@ native-xtools: .PHONY
 	    -p ${OBJTREE}/nxb-bin/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${OBJTREE}/nxb-bin/usr/include >/dev/null
+.if ${MK_DEBUG_FILES} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	    -p ${OBJTREE}/nxb-bin/usr/lib >/dev/null
+.endif
 .for _tool in \
     bin/cat \
     bin/chmod \
