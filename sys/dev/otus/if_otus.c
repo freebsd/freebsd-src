@@ -2460,29 +2460,29 @@ otus_init_mac(struct otus_softc *sc)
 	otus_write(sc, AR_MAC_REG_RX_PE_DELAY, 0x70);
 	otus_write(sc, AR_MAC_REG_EIFS_AND_SIFS, 0xa144000);
 	otus_write(sc, AR_MAC_REG_SLOT_TIME, 9 << 10);
-	otus_write(sc, 0x1c3b2c, 0x19000000);
+	otus_write(sc, AR_MAC_REG_TID_CFACK_CFEND_RATE, 0x19000000);
 	/* NAV protects ACK only (in TXOP). */
-	otus_write(sc, 0x1c3b38, 0x201);
+	otus_write(sc, AR_MAC_REG_TXOP_DURATION, 0x201);
 	/* Set beacon Tx power to 0x7. */
 	otus_write(sc, AR_MAC_REG_BCN_HT1, 0x8000170);
 	otus_write(sc, AR_MAC_REG_BACKOFF_PROTECT, 0x105);
-	otus_write(sc, 0x1c3b9c, 0x10000a);
+	otus_write(sc, AR_MAC_REG_AMPDU_FACTOR, 0x10000a);
 	/* Filter any control frames, BAR is bit 24. */
-	otus_write(sc, 0x1c368c, 0x0500ffff);
-	otus_write(sc, 0x1c3c40, 0x1);
+	otus_write(sc, AR_MAC_REG_FRAMETYPE_FILTER, 0x0500ffff);
+	otus_write(sc, AR_MAC_REG_RX_CONTROL, 0x1);
 	otus_write(sc, AR_MAC_REG_BASIC_RATE, 0x150f);
 	otus_write(sc, AR_MAC_REG_MANDATORY_RATE, 0x150f);
 	otus_write(sc, AR_MAC_REG_RTS_CTS_RATE, 0x10b01bb);
-	otus_write(sc, 0x1c3694, 0x4003c1e);
+	otus_write(sc, AR_MAC_REG_ACK_TPC, 0x4003c1e);
 	/* Enable LED0 and LED1. */
-	otus_write(sc, 0x1d0100, 0x3);
-	otus_write(sc, 0x1d0104, 0x3);
+	otus_write(sc, AR_GPIO_REG_PORT_TYPE, 0x3);
+	otus_write(sc, AR_GPIO_REG_PORT_DATA, 0x3);
 	/* Switch MAC to OTUS interface. */
 	otus_write(sc, 0x1c3600, 0x3);
-	otus_write(sc, 0x1c3c50, 0xffff);
-	otus_write(sc, 0x1c3680, 0xf00008);
+	otus_write(sc, AR_MAC_REG_AMPDU_RX_THRESH, 0xffff);
+	otus_write(sc, AR_MAC_REG_MISC_680, 0xf00008);
 	/* Disable Rx timeout (workaround). */
-	otus_write(sc, 0x1c362c, 0);
+	otus_write(sc, AR_MAC_REG_RX_TIMEOUT, 0);
 
 	/* Set USB Rx stream mode maximum frame number to 2. */
 	otus_write(sc, 0x1e1110, 0x4);
@@ -2490,14 +2490,14 @@ otus_init_mac(struct otus_softc *sc)
 	otus_write(sc, 0x1e1114, 0x80);
 
 	/* Set clock frequency to 88/80MHz. */
-	otus_write(sc, 0x1d4008, 0x73);
+	otus_write(sc, AR_PWR_REG_CLOCK_SEL, 0x73);
 	/* Set WLAN DMA interrupt mode: generate intr per packet. */
-	otus_write(sc, 0x1c3d7c, 0x110011);
-	otus_write(sc, 0x1c3bb0, 0x4);
+	otus_write(sc, AR_MAC_REG_TXRX_MPI, 0x110011);
+	otus_write(sc, AR_MAC_REG_FCS_SELECT, 0x4);
 	otus_write(sc, AR_MAC_REG_TXOP_NOT_ENOUGH_INDICATION, 0x141e0f48);
 
 	/* Disable HW decryption for now. */
-	otus_write(sc, 0x1c3678, 0x78);
+	otus_write(sc, AR_MAC_REG_ENCRYPTION, 0x78);
 
 	if ((error = otus_write_barrier(sc)) != 0)
 		return error;
@@ -2649,9 +2649,9 @@ otus_program_phy(struct otus_softc *sc, struct ieee80211_channel *c)
 	otus_write(sc, AR_PHY_POWER_TX_RATE9, 0x3f3f3f3f);
 
 	if (IEEE80211_IS_CHAN_2GHZ(c))
-		otus_write(sc, 0x1d4014, 0x5163);
+		otus_write(sc, AR_PWR_REG_PLL_ADDAC, 0x5163);
 	else
-		otus_write(sc, 0x1d4014, 0x5143);
+		otus_write(sc, AR_PWR_REG_PLL_ADDAC, 0x5143);
 
 	return otus_write_barrier(sc);
 }
@@ -2763,10 +2763,10 @@ otus_set_chan(struct otus_softc *sc, struct ieee80211_channel *c, int assoc)
 		OTUS_DPRINTF(sc, OTUS_DEBUG_RESET, "band switch\n");
 
 		/* Cold/Warm reset BB/ADDA. */
-		otus_write(sc, 0x1d4004, sc->bb_reset ? 0x800 : 0x400);
+		otus_write(sc, AR_PWR_REG_RESET, sc->bb_reset ? 0x800 : 0x400);
 		if ((error = otus_write_barrier(sc)) != 0)
 			goto finish;
-		otus_write(sc, 0x1d4004, 0);
+		otus_write(sc, AR_PWR_REG_RESET, 0);
 		if ((error = otus_write_barrier(sc)) != 0)
 			goto finish;
 		sc->bb_reset = 0;
@@ -3062,7 +3062,7 @@ otus_led_newstate_type3(struct otus_softc *sc)
 			state &= ~AR_LED0_ON;
 	}
 	if (state != sc->led_state) {
-		otus_write(sc, 0x1d0104, state);
+		otus_write(sc, AR_GPIO_REG_PORT_DATA, state);
 		if (otus_write_barrier(sc) == 0)
 			sc->led_state = state;
 	}
@@ -3097,18 +3097,18 @@ otus_init(struct otus_softc *sc)
 #ifdef notyet
 #ifndef IEEE80211_STA_ONLY
 	case IEEE80211_M_HOSTAP:
-		otus_write(sc, 0x1c3700, 0x0f0000a1);
-		otus_write(sc, 0x1c3c40, 0x1);
+		otus_write(sc, AR_MAC_REG_CAM_MODE, 0x0f0000a1);
+		otus_write(sc, AR_MAC_REG_RX_CONTROL, 0x1);
 		break;
 	case IEEE80211_M_IBSS:
-		otus_write(sc, 0x1c3700, 0x0f000000);
-		otus_write(sc, 0x1c3c40, 0x1);
+		otus_write(sc, AR_MAC_REG_CAM_MODE, 0x0f000000);
+		otus_write(sc, AR_MAC_REG_RX_CONTROL, 0x1);
 		break;
 #endif
 #endif
 	case IEEE80211_M_STA:
-		otus_write(sc, 0x1c3700, 0x0f000002);
-		otus_write(sc, 0x1c3c40, 0x1);
+		otus_write(sc, AR_MAC_REG_CAM_MODE, 0x0f000002);
+		otus_write(sc, AR_MAC_REG_RX_CONTROL, 0x1);
 		break;
 	default:
 		break;
@@ -3117,11 +3117,12 @@ otus_init(struct otus_softc *sc)
 
 	switch (ic->ic_opmode) {
 	case IEEE80211_M_STA:
-		otus_write(sc, 0x1c3700, 0x0f000002);
-		otus_write(sc, 0x1c3c40, 0x1);
+		otus_write(sc, AR_MAC_REG_CAM_MODE, 0x0f000002);
+		otus_write(sc, AR_MAC_REG_RX_CONTROL, 0x1);
+		/* XXX set frametype filter? */
 		break;
 	case IEEE80211_M_MONITOR:
-		otus_write(sc, 0x1c368c, 0xffffffff);
+		otus_write(sc, AR_MAC_REG_FRAMETYPE_FILTER, 0xffffffff);
 		break;
 	default:
 		break;
@@ -3143,7 +3144,7 @@ otus_init(struct otus_softc *sc)
 	}
 
 	/* Start Rx. */
-	otus_write(sc, 0x1c3d30, 0x100);
+	otus_write(sc, AR_MAC_REG_DMA_TRIGGER, 0x100);
 	(void)otus_write_barrier(sc);
 
 	sc->sc_running = 1;
@@ -3174,7 +3175,7 @@ otus_stop(struct otus_softc *sc)
 	OTUS_LOCK(sc);
 	sc->sc_running = 0;
 	/* Stop Rx. */
-	otus_write(sc, 0x1c3d30, 0);
+	otus_write(sc, AR_MAC_REG_DMA_TRIGGER, 0);
 	(void)otus_write_barrier(sc);
 
 	/* Drain any pending TX frames */
