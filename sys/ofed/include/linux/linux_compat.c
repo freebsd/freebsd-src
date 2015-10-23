@@ -663,7 +663,11 @@ _ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr)
 {
 	void *addr;
 
+#if defined(__i386__) || defined(__amd64__)
 	addr = pmap_mapdev_attr(phys_addr, size, attr);
+#else
+	addr = NULL;
+#endif
 	if (addr == NULL)
 		return (NULL);
 	vmmap_add(addr, size);
@@ -679,7 +683,9 @@ iounmap(void *addr)
 	vmmap = vmmap_remove(addr);
 	if (vmmap == NULL)
 		return;
+#if defined(__i386__) || defined(__amd64__)
 	pmap_unmapdev((vm_offset_t)addr, vmmap->vm_size);
+#endif
 	kfree(vmmap);
 }
 
