@@ -734,7 +734,6 @@ extern int isp_fabric_hysteresis;
 extern int isp_loop_down_limit;
 extern int isp_gone_device_time;
 extern int isp_quickboot_time;
-extern int isp_autoconfig;
 
 /*
  * Platform private flags
