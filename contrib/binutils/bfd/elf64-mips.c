@@ -1673,6 +1673,24 @@ static reloc_howto_type elf_mips_gnu_rela16_s2 =
 	 0,			/* src_mask */
 	 0x0000ffff,		/* dst_mask */
 	 TRUE);			/* pcrel_offset */
+
+/* 32 bit pc-relative.  This was a GNU extension used by embedded-PIC.
+   It was co-opted by mips-linux for exception-handling data. */
+/* XXXBD: blind cut and paste from elf32-mips.c */
+static reloc_howto_type elf_mips_gnu_pcrel32 =
+  HOWTO (R_MIPS_PC32,		/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 TRUE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_signed, /* complain_on_overflow */
+	 _bfd_mips_elf_generic_reloc, /* special_function */
+	 "R_MIPS_PC32",		/* name */
+	 TRUE,			/* partial_inplace */
+	 0xffffffff,		/* src_mask */
+	 0xffffffff,		/* dst_mask */
+	 TRUE);			/* pcrel_offset */
 
 /* Swap in a MIPS 64-bit Rel reloc.  */
 
@@ -2231,6 +2249,8 @@ bfd_elf64_bfd_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
       return &elf_mips_gnu_vtinherit_howto;
     case BFD_RELOC_VTABLE_ENTRY:
       return &elf_mips_gnu_vtentry_howto;
+    case BFD_RELOC_32_PCREL:
+      return &elf_mips_gnu_pcrel32;
     default:
       bfd_set_error (bfd_error_bad_value);
       return NULL;
@@ -2262,6 +2282,8 @@ bfd_elf64_bfd_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
     return &elf_mips_gnu_vtinherit_howto;
   if (strcasecmp (elf_mips_gnu_vtentry_howto.name, r_name) == 0)
     return &elf_mips_gnu_vtentry_howto;
+  if (strcasecmp (elf_mips_gnu_pcrel32.name, r_name) == 0)
+    return &elf_mips_gnu_pcrel32;
   if (strcasecmp (elf_mips_gnu_rel16_s2.name, r_name) == 0)
     return &elf_mips_gnu_rel16_s2;
   if (strcasecmp (elf_mips_gnu_rela16_s2.name, r_name) == 0)
@@ -2286,6 +2308,8 @@ mips_elf64_rtype_to_howto (unsigned int r_type, bfd_boolean rela_p)
 	return &elf_mips_gnu_rela16_s2;
       else
 	return &elf_mips_gnu_rel16_s2;
+    case R_MIPS_PC32:
+      return &elf_mips_gnu_pcrel32;
     default:
       if (r_type >= R_MIPS16_min && r_type < R_MIPS16_max)
 	{
