@@ -1274,6 +1274,7 @@ otus_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			taskqueue_enqueue_timeout(taskqueue_thread,
 			    &sc->calib_to, hz);
 		}
+		ieee80211_free_node(ni);
 		break;
 	default:
 		break;
