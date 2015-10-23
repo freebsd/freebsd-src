@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd February 7, 2013
+.Dd October 6, 2015
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -307,6 +307,8 @@ struct ptrace_lwpinfo {
 	siginfo_t pl_siginfo;
 	char	pl_tdname[MAXCOMLEN + 1];
 	int	pl_child_pid;
+	u_int	pl_syscall_code;
+	u_int	pl_syscall_narg;
 };
 .Ed
 .Pp
@@ -395,6 +397,27 @@ stop when
 .Dv PL_FLAG_FORKED
 is set in
 .Va pl_flags .
+.It pl_syscall_code
+The ABI-specific identifier of the current system call.
+Note that for indirect system calls this field reports the indirected
+system call.
+Only valid when
+.Dv PL_FLAG_SCE
+or
+.Dv PL_FLAG_SCX
+is set in
+.Va pl_flags.
+.It pl_syscall_narg
+The number of arguments passed to the current system call not counting
+the system call identifier.
+Note that for indirect system calls this field reports the arguments
+passed to the indirected system call.
+Only valid when
+.Dv PL_FLAG_SCE
+or
+.Dv PL_FLAG_SCX
+is set in
+.Va pl_flags.
 .El
 .It PT_GETNUMLWPS
 This request returns the number of kernel threads associated with the
