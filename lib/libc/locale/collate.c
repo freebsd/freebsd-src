@@ -202,7 +202,6 @@ __collate_load_tables_l(const char *encoding, struct xlocale_collate *table)
 		table->large_pri_table = NULL;
 
 	table->__collate_load_error = 0;
-
 	return (_LDP_LOADED);
 }
 
@@ -226,26 +225,17 @@ substsearch(struct xlocale_collate *table, const wchar_t key, int pass)
 	return (p->pri);
 }
 
-/*
- * Note: for performance reasons, we have expanded bsearch here.  This avoids
- * function call overhead with each comparison.
- */
-
 static collate_chain_t *
 chainsearch(struct xlocale_collate *table, const wchar_t *key, int *len)
 {
-	int low;
-	int high;
+	int low = 0;
+	int high = table->info->chain_count - 1;;
 	int next, compar, l;
 	collate_chain_t *p;
-	collate_chain_t *tab;
+	collate_chain_t *tab = table->chain_pri_table;
 
-	if (table->info->chain_count == 0)
+	if (high < 0)
 		return (NULL);
-
-	low = 0;
-	high = table->info->chain_count - 1;
-	tab = table->chain_pri_table;
 
 	while (low <= high) {
 		next = (low + high) / 2;
@@ -276,7 +266,7 @@ largesearch(struct xlocale_collate *table, const wchar_t key)
 	collate_large_t *p;
 	collate_large_t *tab = table->large_pri_table;
 
-	if (table->info->large_count == 0)
+	if (high < 0)
 		return (NULL);
 
 	while (low <= high) {
@@ -320,7 +310,10 @@ _collate_lookup(struct xlocale_collate *table, const wchar_t *t, int *len,
 	if ((sptr = *state) != NULL) {
 		*pri = *sptr;
 		sptr++;
-		*state = *sptr ? sptr : NULL;
+		if ((sptr == *state) || (sptr == NULL))
+			*state = NULL;
+		else
+			*state = sptr;
 		*len = 0;
 		return;
 	}
@@ -381,7 +374,7 @@ _collate_lookup(struct xlocale_collate *table, const wchar_t *t, int *len,
 	 * code ensures this for us.
 	 */
 	if ((sptr = substsearch(table, *pri, which)) != NULL) {
-		if ((*pri = *sptr) != 0) {
+		if ((*pri = *sptr) > 0) {
 			sptr++;
 			*state = *sptr ? sptr : NULL;
 		}
