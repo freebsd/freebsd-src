@@ -90,25 +90,25 @@ static int ctl_sign[CTLTYPE+1] = {
 };
 
 static int ctl_size[CTLTYPE+1] = {
+	[CTLTYPE_U8] = sizeof(uint8_t),
+	[CTLTYPE_U16] = sizeof(uint16_t),
 	[CTLTYPE_INT] = sizeof(int),
 	[CTLTYPE_UINT] = sizeof(u_int),
 	[CTLTYPE_LONG] = sizeof(long),
 	[CTLTYPE_ULONG] = sizeof(u_long),
 	[CTLTYPE_S64] = sizeof(int64_t),
 	[CTLTYPE_U64] = sizeof(uint64_t),
-	[CTLTYPE_U8] = sizeof(uint8_t),
-	[CTLTYPE_U16] = sizeof(uint16_t),
 };
 
 static const char *ctl_typename[CTLTYPE+1] = {
+	[CTLTYPE_U8] = "uint8_t",
+	[CTLTYPE_U16] = "uint16_t",
 	[CTLTYPE_INT] = "integer",
 	[CTLTYPE_UINT] = "unsigned integer",
 	[CTLTYPE_LONG] = "long integer",
 	[CTLTYPE_ULONG] = "unsigned long",
 	[CTLTYPE_S64] = "int64_t",
 	[CTLTYPE_U64] = "uint64_t",
-	[CTLTYPE_U8] = "uint8_t",
-	[CTLTYPE_U16] = "uint16_t",
 };
 
 static void
@@ -359,7 +359,8 @@ parse(const char *string, int lineno)
 				newsize = sizeof(u8val);
 				break;
 			case CTLTYPE_U16:
-				u16val = (uint16_t)strtoul(newvalstr, &endptr, 0);
+				u16val = (uint16_t)strtoul(newvalstr, &endptr,
+				    0);
 				newval = &u16val;
 				newsize = sizeof(u16val);
 				break;
