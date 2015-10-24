@@ -953,6 +953,9 @@ isp_got_msg_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 	/* nt_tgt set in outer layers */
 	if (ISP_CAP_SCCFW(isp)) {
 		notify.nt_lun = inp->in_scclun;
+#if __FreeBSD_version < 1000700
+		notify.nt_lun &= 0x3fff;
+#endif
 	} else {
 		notify.nt_lun = inp->in_lun;
 	}
@@ -1330,6 +1333,9 @@ isp_handle_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 
 	if (ISP_CAP_SCCFW(isp)) {
 		lun = aep->at_scclun;
+#if __FreeBSD_version < 1000700
+		lun &= 0x3fff;
+#endif
 	} else {
 		lun = aep->at_lun;
 	}
@@ -1357,7 +1363,7 @@ isp_handle_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 		/*
 		 * ATIO rejected by the firmware due to disabled lun.
 		 */
-		isp_prt(isp, ISP_LOGERR, "rejected ATIO2 for disabled lun %d", lun);
+		isp_prt(isp, ISP_LOGERR, "rejected ATIO2 for disabled lun %x", lun);
 		break;
 	case AT_NOCAP:
 		/*
@@ -1365,7 +1371,7 @@ isp_handle_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 		 * We sent an ATIO that overflowed the firmware's
 		 * command resource count.
 		 */
-		isp_prt(isp, ISP_LOGERR, "rejected ATIO2 for lun %d- command count overflow", lun);
+		isp_prt(isp, ISP_LOGERR, "rejected ATIO2 for lun %x- command count overflow", lun);
 		break;
 
 	case AT_BDR_MSG:
@@ -1402,7 +1408,7 @@ isp_handle_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 
 
 	default:
-		isp_prt(isp, ISP_LOGERR, "Unknown ATIO2 status 0x%x from loopid %d for lun %d", aep->at_status, iid, lun);
+		isp_prt(isp, ISP_LOGERR, "Unknown ATIO2 status 0x%x from loopid %d for lun %x", aep->at_status, iid, lun);
 		(void) isp_target_put_atio(isp, aep);
 		break;
 	}
