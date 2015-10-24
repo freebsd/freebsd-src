@@ -549,7 +549,8 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		io->io_hdr.io_type = CTL_IO_SCSI;
 		io->io_hdr.nexus.initid = 1;
 		io->io_hdr.nexus.targ_port = softc->port.targ_port;
-		io->io_hdr.nexus.targ_lun = ccb->ccb_h.target_lun;
+		io->io_hdr.nexus.targ_lun = ctl_decode_lun(
+		    CAM_EXTLUN_BYTE_SWIZZLE(ccb->ccb_h.target_lun));
 		/*
 		 * This tag scheme isn't the best, since we could in theory
 		 * have a very long-lived I/O and tag collision, especially
@@ -638,7 +639,8 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		io->io_hdr.io_type = CTL_IO_TASK;
 		io->io_hdr.nexus.initid = 1;
 		io->io_hdr.nexus.targ_port = softc->port.targ_port;
-		io->io_hdr.nexus.targ_lun = ccb->ccb_h.target_lun;
+		io->io_hdr.nexus.targ_lun = ctl_decode_lun(
+		    CAM_EXTLUN_BYTE_SWIZZLE(ccb->ccb_h.target_lun));
 		io->taskio.task_action = CTL_TASK_ABORT_TASK;
 		io->taskio.tag_num = abort_ccb->csio.tag_id;
 		switch (abort_ccb->csio.tag_action) {
@@ -733,7 +735,8 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		io->io_hdr.io_type = CTL_IO_TASK;
 		io->io_hdr.nexus.initid = 1;
 		io->io_hdr.nexus.targ_port = softc->port.targ_port;
-		io->io_hdr.nexus.targ_lun = ccb->ccb_h.target_lun;
+		io->io_hdr.nexus.targ_lun = ctl_decode_lun(
+		    CAM_EXTLUN_BYTE_SWIZZLE(ccb->ccb_h.target_lun));
 		if (ccb->ccb_h.func_code == XPT_RESET_BUS)
 			io->taskio.task_action = CTL_TASK_BUS_RESET;
 		else
@@ -760,7 +763,7 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 0;
 		cpi->hba_inquiry = PI_TAG_ABLE;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = 0;
+		cpi->hba_misc = PIM_EXTLUNS;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 1;
 		cpi->max_lun = 1024;

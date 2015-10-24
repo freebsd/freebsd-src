@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2008, 2009 Silicon Graphics International Corp.
+ * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,13 +74,14 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_error.h>
 
 struct ctlfe_softc {
-	struct ctl_port port;
-	path_id_t path_id;
-	target_id_t target_id;
-	u_int	maxio;
+	struct ctl_port	port;
+	path_id_t	path_id;
+	target_id_t	target_id;
+	uint32_t	hba_misc;
+	u_int		maxio;
 	struct cam_sim *sim;
-	char port_name[DEV_IDLEN];
-	struct mtx lun_softc_mtx;
+	char		port_name[DEV_IDLEN];
+	struct mtx	lun_softc_mtx;
 	STAILQ_HEAD(, ctlfe_lun_softc) lun_softc_list;
 	STAILQ_ENTRY(ctlfe_softc) links;
 };
@@ -355,6 +357,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		softc->path_id = cpi->ccb_h.path_id;
 		softc->target_id = cpi->initiator_id;
 		softc->sim = xpt_path_sim(path);
+		softc->hba_misc = cpi->hba_misc;
 		if (cpi->maxio != 0)
 			softc->maxio = cpi->maxio;
 		else
@@ -1166,7 +1169,12 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		io->io_hdr.io_type = CTL_IO_SCSI;
 		io->io_hdr.nexus.initid = atio->init_id;
 		io->io_hdr.nexus.targ_port = bus_softc->port.targ_port;
-		io->io_hdr.nexus.targ_lun = atio->ccb_h.target_lun;
+		if (bus_softc->hba_misc & PIM_EXTLUNS) {
+			io->io_hdr.nexus.targ_lun = ctl_decode_lun(
+			    CAM_EXTLUN_BYTE_SWIZZLE(atio->ccb_h.target_lun));
+		} else {
+			io->io_hdr.nexus.targ_lun = atio->ccb_h.target_lun;
+		}
 		io->scsiio.tag_num = atio->tag_id;
 		switch (atio->tag_action) {
 		case CAM_TAG_ACTION_NONE:
@@ -1440,7 +1448,12 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		inot->ccb_h.io_ptr = io;
 		io->io_hdr.nexus.initid = inot->initiator_id;
 		io->io_hdr.nexus.targ_port = bus_softc->port.targ_port;
-		io->io_hdr.nexus.targ_lun = inot->ccb_h.target_lun;
+		if (bus_softc->hba_misc & PIM_EXTLUNS) {
+			io->io_hdr.nexus.targ_lun = ctl_decode_lun(
+			    CAM_EXTLUN_BYTE_SWIZZLE(inot->ccb_h.target_lun));
+		} else {
+			io->io_hdr.nexus.targ_lun = inot->ccb_h.target_lun;
+		}
 		/* XXX KDM should this be the tag_id? */
 		io->taskio.tag_num = inot->seq_id;
 
@@ -1820,9 +1833,11 @@ ctlfe_lun_enable(void *arg, int lun_id)
 	cam_status status;
 
 	bus_softc = (struct ctlfe_softc *)arg;
+	if (bus_softc->hba_misc & PIM_EXTLUNS)
+		lun_id = CAM_EXTLUN_BYTE_SWIZZLE(ctl_encode_lun(lun_id));
 
 	status = xpt_create_path(&path, /*periph*/ NULL,
-				  bus_softc->path_id, bus_softc->target_id, lun_id);
+	    bus_softc->path_id, bus_softc->target_id, lun_id);
 	/* XXX KDM need some way to return status to CTL here? */
 	if (status != CAM_REQ_CMP) {
 		printf("%s: could not create path, status %#x\n", __func__,
@@ -1879,6 +1894,8 @@ ctlfe_lun_disable(void *arg, int lun_id)
 	struct ctlfe_lun_softc *lun_softc;
 
 	softc = (struct ctlfe_softc *)arg;
+	if (softc->hba_misc & PIM_EXTLUNS)
+		lun_id = CAM_EXTLUN_BYTE_SWIZZLE(ctl_encode_lun(lun_id));
 
 	mtx_lock(&softc->lun_softc_mtx);
 	STAILQ_FOREACH(lun_softc, &softc->lun_softc_list, links) {
