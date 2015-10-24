@@ -21,7 +21,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd March 21, 2012
+.Dd October 24, 2015
 .Dt NEWSYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -337,7 +337,7 @@ process ID or to find a group process ID if the
 .Cm U
 flag was specified.
 If this field is present, a
-.Ar signal_number
+.Ar signal
 is sent to the process ID contained in this file.
 If this field is not present and the
 .Cm N
@@ -358,14 +358,23 @@ flag, the file is treated as a path to a binary to be executed
 by the
 .Xr newsyslog 8
 after rotation instead of sending the signal out.
-.It Ar signal_number
-This optional field specifies the signal number that will be sent
-to the daemon process (or to all processes in a process group, if the
+.It Ar signal
+This optional field specifies the signal that will be sent to the daemon
+process (or to all processes in a process group, if the
 .Cm U
 flag was specified).
 If this field is not present, then a
 .Dv SIGHUP
 signal will be sent.
+Signal names
+must start with
+.Dq SIG
+and be the signal name, e.g.,
+.Dv SIGUSR1 .
+Alternatively,
+.Ar signal
+can be the signal number, e.g., 30 for
+.Dv SIGUSR1 .
 .El
 .Sh EXAMPLES
 The following is an example of the
