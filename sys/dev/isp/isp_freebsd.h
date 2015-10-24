@@ -207,12 +207,10 @@ struct isp_pcmd {
  * Per nexus info.
  */
 struct isp_nexus {
-	struct isp_nexus *	next;
-	uint32_t
-		crnseed	:	8;	/* next command reference number */
-	uint32_t
-		tgt	:	16,	/* TGT for target */
-		lun	:	16;	/* LUN for target */
+	uint64_t lun;			/* LUN for target */
+	uint32_t tgt;			/* TGT for target */
+	uint8_t crnseed;		/* next command reference number */
+	struct isp_nexus *next;
 };
 #define	NEXUS_HASH_WIDTH	32
 #define	INITIAL_NEXUS_COUNT	MAX_FC_TARG
@@ -532,7 +530,7 @@ default:							\
 #define	XS_ISP(ccb)		cam_sim_softc(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_CHANNEL(ccb)		cam_sim_bus(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_TGT(ccb)		(ccb)->ccb_h.target_id
-#define	XS_LUN(ccb)		(uint32_t)((ccb)->ccb_h.target_lun)
+#define	XS_LUN(ccb)		(ccb)->ccb_h.target_lun
 
 #define	XS_CDBP(ccb)	\
 	(((ccb)->ccb_h.flags & CAM_CDB_POINTER)? \
