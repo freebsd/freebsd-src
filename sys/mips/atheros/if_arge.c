@@ -655,6 +655,9 @@ arge_attach(device_t dev)
 	switch (ar71xx_soc) {
 	case AR71XX_SOC_AR9330:
 	case AR71XX_SOC_AR9331:
+	case AR71XX_SOC_AR9341:
+	case AR71XX_SOC_AR9342:
+	case AR71XX_SOC_AR9344:
 	case AR71XX_SOC_QCA9556:
 	case AR71XX_SOC_QCA9558:
 		/* Arbitrary alignment */
