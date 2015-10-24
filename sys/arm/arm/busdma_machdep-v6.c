@@ -1284,7 +1284,7 @@ dma_preread_safe(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 	if ((va + size) & cpuinfo.dcache_line_mask)
 		dcache_wb_poc(va + size, pa + size, 1);
 
-	dcache_dma_preread(va, pa, size);
+	dcache_inv_poc_dma(va, pa, size);
 }
 
 static void
@@ -1406,7 +1406,7 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		if ((op & BUS_DMASYNC_PREREAD) && !(op & BUS_DMASYNC_PREWRITE)) {
 			bpage = STAILQ_FIRST(&map->bpages);
 			while (bpage != NULL) {
-				dcache_dma_preread(bpage->vaddr, bpage->busaddr,
+				dcache_inv_poc_dma(bpage->vaddr, bpage->busaddr,
 				    bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
 			}

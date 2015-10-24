@@ -471,15 +471,17 @@ dcache_inv_poc(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 }
 
 /*
- * Discard D-cache lines to PoC, prior to overwrite by DMA engine
+ * Discard D-cache lines to PoC, prior to overwrite by DMA engine.
  *
- * Invalidate caches, discarding data in dirty lines.  This is useful
- * if the memory is about to be overwritten, e.g. by a DMA engine.
- * Invalidate caches from innermost to outermost to follow the flow
- * of dirty cachelines.
+ * Normal invalidation does L2 then L1 to ensure that stale data from L2 doesn't
+ * flow into L1 while invalidating.  This routine is intended to be used only
+ * when invalidating a buffer before a DMA operation loads new data into memory.
+ * The concern in this case is that dirty lines are not evicted to main memory,
+ * overwriting the DMA data.  For that reason, the L1 is done first to ensure
+ * that an evicted L1 line doesn't flow to L2 after the L2 has been cleaned.
  */
 static __inline void
-dcache_dma_preread(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
+dcache_inv_poc_dma(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 {
 	vm_offset_t eva = va + size;
 
