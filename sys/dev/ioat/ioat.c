@@ -82,6 +82,7 @@ static void ioat_comp_update_map(void *arg, bus_dma_segment_t *seg, int nseg,
     int error);
 static int ioat_reset_hw(struct ioat_softc *ioat);
 static void ioat_setup_sysctl(device_t device);
+static int sysctl_handle_reset(SYSCTL_HANDLER_ARGS);
 static inline struct ioat_softc *ioat_get(struct ioat_softc *,
     enum ioat_ref_kind);
 static inline void ioat_put(struct ioat_softc *, enum ioat_ref_kind);
@@ -1028,8 +1029,10 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	 * BDXDE and BWD models reset MSI-X registers on device reset.
 	 * Save/restore their contents manually.
 	 */
-	if (ioat_model_resets_msix(ioat))
+	if (ioat_model_resets_msix(ioat)) {
+		ioat_log_message(1, "device resets MSI-X registers; saving\n");
 		pci_save_state(ioat->device);
+	}
 
 	ioat_reset(ioat);
 
@@ -1039,10 +1042,35 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	if (timeout == 20)
 		return (ETIMEDOUT);
 
-	if (ioat_model_resets_msix(ioat))
+	if (ioat_model_resets_msix(ioat)) {
+		ioat_log_message(1, "device resets registers; restored\n");
 		pci_restore_state(ioat->device);
+	}
 
 	return (0);
+}
+
+static int
+sysctl_handle_reset(SYSCTL_HANDLER_ARGS)
+{
+	struct ioat_softc *ioat;
+	int error, arg;
+
+	ioat = arg1;
+
+	arg = 0;
+	error = SYSCTL_OUT(req, &arg, sizeof(arg));
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	error = SYSCTL_IN(req, &arg, sizeof(arg));
+	if (error != 0)
+		return (error);
+
+	if (arg != 0)
+		error = ioat_reset_hw(ioat);
+
+	return (error);
 }
 
 static void
@@ -1060,23 +1088,26 @@ dump_descriptor(void *hw_desc)
 static void
 ioat_setup_sysctl(device_t device)
 {
-	struct sysctl_ctx_list *sysctl_ctx;
-	struct sysctl_oid *sysctl_tree;
+	struct sysctl_oid_list *par;
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
 	struct ioat_softc *ioat;
 
 	ioat = DEVICE2SOFTC(device);
-	sysctl_ctx = device_get_sysctl_ctx(device);
-	sysctl_tree = device_get_sysctl_tree(device);
+	ctx = device_get_sysctl_ctx(device);
+	tree = device_get_sysctl_tree(device);
+	par = SYSCTL_CHILDREN(tree);
 
-	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
-	    "ring_size_order", CTLFLAG_RD, &ioat->ring_size_order,
-	    0, "HW descriptor ring size order");
-	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
-	    "head", CTLFLAG_RD, &ioat->head,
-	    0, "HW descriptor head pointer index");
-	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
-	    "tail", CTLFLAG_RD, &ioat->tail,
-	    0, "HW descriptor tail pointer index");
+	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "ring_size_order", CTLFLAG_RD,
+	    &ioat->ring_size_order, 0, "HW descriptor ring size order");
+	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "head", CTLFLAG_RD, &ioat->head, 0,
+	    "HW descriptor head pointer index");
+	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "tail", CTLFLAG_RD, &ioat->tail, 0,
+	    "HW descriptor tail pointer index");
+
+	SYSCTL_ADD_PROC(ctx, par, OID_AUTO, "force_hw_reset",
+	    CTLTYPE_INT | CTLFLAG_RW, ioat, 0, sysctl_handle_reset, "I",
+	    "Set to non-zero to reset the hardware");
 }
 
 static inline struct ioat_softc *
