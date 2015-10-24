@@ -242,9 +242,6 @@ struct isp_fc {
 	struct isp_nexus *nexus_free_list;
 	uint32_t
 #ifdef	ISP_TARGET_MODE
-#ifdef	ISP_INTERNAL_TARGET
-		proc_active	: 1,
-#endif
 		tm_luns_enabled	: 1,
 		tm_enable_defer	: 1,
 		tm_enabled	: 1,
@@ -263,9 +260,6 @@ struct isp_fc {
 	struct task gtask;
 #ifdef	ISP_TARGET_MODE
 	struct tslist lun_hash[LUN_HASH_SIZE];
-#ifdef	ISP_INTERNAL_TARGET
-	struct proc *		target_proc;
-#endif
 #if defined(DEBUG)
 	unsigned int inject_lost_data_frame;
 #endif
@@ -278,9 +272,6 @@ struct isp_spi {
 	struct cam_path *path;
 	uint32_t
 #ifdef	ISP_TARGET_MODE
-#ifdef	ISP_INTERNAL_TARGET
-		proc_active	: 1,
-#endif
 		tm_luns_enabled	: 1,
 		tm_enable_defer	: 1,
 		tm_enabled	: 1,
@@ -290,9 +281,6 @@ struct isp_spi {
 		iid		: 4;
 #ifdef	ISP_TARGET_MODE
 	struct tslist lun_hash[LUN_HASH_SIZE];
-#ifdef	ISP_INTERNAL_TARGET
-	struct proc *		target_proc;
-#endif
 #endif
 	int			num_threads;
 };
