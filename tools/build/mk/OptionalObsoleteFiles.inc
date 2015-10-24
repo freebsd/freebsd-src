@@ -173,6 +173,10 @@ OLD_DIRS+=etc/autofs
 .endif
 
 .if ${MK_BHYVE} == no
+OLD_FILES+=usr/lib/libvmmapi.a
+OLD_FILES+=usr/lib/libvmmapi.so
+OLD_LIBS+=usr/lib/libvmmapi.so.5
+OLD_FILES+=usr/include/vmmapi.h
 OLD_FILES+=usr/sbin/bhyve
 OLD_FILES+=usr/sbin/bhyvectl
 OLD_FILES+=usr/sbin/bhyveload
