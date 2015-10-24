@@ -5443,24 +5443,32 @@ again:
 			if (resp && rlen >= 4 && resp[FCP_RSPNS_CODE_OFFSET] != 0) {
 				const char *ptr;
 				char lb[64];
-				const char *rnames[6] = {
-					"Task Management Function Done",
-					"Data Length Differs From Burst Length",
-					"Invalid FCP Cmnd",
-					"FCP DATA RO mismatch with FCP DATA_XFR_RDY RO",
-					"Task Management Function Rejected",
-					"Task Management Function Failed",
+				const char *rnames[10] = {
+				    "Task Management function complete",
+				    "FCP_DATA length different than FCP_BURST_LEN",
+				    "FCP_CMND fields invalid",
+				    "FCP_DATA parameter mismatch with FCP_DATA_RO",
+				    "Task Management function rejected",
+				    "Task Management function failed",
+				    NULL,
+				    NULL,
+				    "Task Management function succeeded",
+				    "Task Management function incorrect logical unit number",
 				};
-				if (resp[FCP_RSPNS_CODE_OFFSET] > 5) {
-					ISP_SNPRINTF(lb, sizeof lb, "Unknown FCP Response Code 0x%x", resp[FCP_RSPNS_CODE_OFFSET]);
+				uint8_t code = resp[FCP_RSPNS_CODE_OFFSET];
+				if (code >= 10 || rnames[code] == NULL) {
+					ISP_SNPRINTF(lb, sizeof(lb),
+					    "Unknown FCP Response Code 0x%x",
+					    code);
 					ptr = lb;
 				} else {
-					ptr = rnames[resp[FCP_RSPNS_CODE_OFFSET]];
+					ptr = rnames[code];
 				}
-				isp_xs_prt(isp, xs, ISP_LOGWARN, "FCP RESPONSE, LENGTH %u: %s CDB0=0x%02x", rlen, ptr, XS_CDBP(xs)[0] & 0xff);
-				if (resp[FCP_RSPNS_CODE_OFFSET] != 0) {
+				isp_xs_prt(isp, xs, ISP_LOGWARN,
+				    "FCP RESPONSE, LENGTH %u: %s CDB0=0x%02x",
+				    rlen, ptr, XS_CDBP(xs)[0] & 0xff);
+				if (code != 0 && code != 8)
 					XS_SETERR(xs, HBA_BOTCH);
-				}
 			}
 			if (IS_24XX(isp)) {
 				isp_parse_status_24xx(isp, (isp24xx_statusreq_t *)sp, xs, &resid);
