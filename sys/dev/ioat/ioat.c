@@ -59,7 +59,7 @@ static int ioat_detach(device_t device);
 static int ioat_setup_intr(struct ioat_softc *ioat);
 static int ioat_teardown_intr(struct ioat_softc *ioat);
 static int ioat3_attach(device_t device);
-static int ioat3_selftest(struct ioat_softc *ioat);
+static int ioat_start_channel(struct ioat_softc *ioat);
 static int ioat_map_pci_bar(struct ioat_softc *ioat);
 static void ioat_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg,
     int error);
@@ -256,7 +256,7 @@ ioat_attach(device_t device)
 	if (error != 0)
 		goto err;
 
-	error = ioat3_selftest(ioat);
+	error = ioat_reset_hw(ioat);
 	if (error != 0)
 		goto err;
 
@@ -326,7 +326,7 @@ ioat_teardown_intr(struct ioat_softc *ioat)
 }
 
 static int
-ioat3_selftest(struct ioat_softc *ioat)
+ioat_start_channel(struct ioat_softc *ioat)
 {
 	uint64_t status;
 	uint32_t chanerr;
@@ -435,14 +435,6 @@ ioat3_attach(device_t device)
 	ioat->head = 0;
 	ioat->tail = 0;
 	ioat->last_seen = 0;
-
-	error = ioat_reset_hw(ioat);
-	if (error != 0)
-		return (error);
-
-	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
-	ioat_write_chancmp(ioat, ioat->comp_update_bus_addr);
-	ioat_write_chainaddr(ioat, ring[0]->hw_desc_bus_addr);
 	return (0);
 }
 
@@ -469,6 +461,7 @@ ioat_comp_update_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 {
 	struct ioat_softc *ioat = arg;
 
+	KASSERT(error == 0, ("%s: error:%d", __func__, error));
 	ioat->comp_update_bus_addr = seg[0].ds_addr;
 }
 
@@ -477,6 +470,7 @@ ioat_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	bus_addr_t *baddr;
 
+	KASSERT(error == 0, ("%s: error:%d", __func__, error));
 	baddr = arg;
 	*baddr = segs->ds_addr;
 }
@@ -1006,7 +1000,7 @@ ioat_reset_hw(struct ioat_softc *ioat)
 {
 	uint64_t status;
 	uint32_t chanerr;
-	int timeout;
+	unsigned timeout;
 
 	status = ioat_get_chansts(ioat);
 	if (is_ioat_active(status) || is_ioat_idle(status))
@@ -1020,6 +1014,8 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	}
 	if (timeout == 20)
 		return (ETIMEDOUT);
+
+	KASSERT(ioat_get_active(ioat) == 0, ("active after quiesce"));
 
 	chanerr = ioat_read_4(ioat, IOAT_CHANERR_OFFSET);
 	ioat_write_4(ioat, IOAT_CHANERR_OFFSET, chanerr);
@@ -1055,7 +1051,34 @@ ioat_reset_hw(struct ioat_softc *ioat)
 		pci_restore_state(ioat->device);
 	}
 
-	return (0);
+	/* Reset attempts to return the hardware to "halted." */
+	status = ioat_get_chansts(ioat);
+	if (is_ioat_active(status) || is_ioat_idle(status)) {
+		/* So this really shouldn't happen... */
+		ioat_log_message(0, "Device is active after a reset?\n");
+		ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
+		return (0);
+	}
+
+	chanerr = ioat_read_4(ioat, IOAT_CHANERR_OFFSET);
+	ioat_halted_debug(ioat, chanerr);
+	if (chanerr != 0)
+		return (EIO);
+
+	/*
+	 * Bring device back online after reset.  Writing CHAINADDR brings the
+	 * device back to active.
+	 *
+	 * The internal ring counter resets to zero, so we have to start over
+	 * at zero as well.
+	 */
+	ioat->tail = ioat->head = 0;
+	ioat->last_seen = 0;
+
+	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
+	ioat_write_chancmp(ioat, ioat->comp_update_bus_addr);
+	ioat_write_chainaddr(ioat, ioat->ring[0]->hw_desc_bus_addr);
+	return (ioat_start_channel(ioat));
 }
 
 static int
