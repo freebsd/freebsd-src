@@ -451,8 +451,8 @@ ioat_map_pci_bar(struct ioat_softc *ioat)
 {
 
 	ioat->pci_resource_id = PCIR_BAR(0);
-	ioat->pci_resource = bus_alloc_resource(ioat->device, SYS_RES_MEMORY,
-	    &ioat->pci_resource_id, 0, ~0, 1, RF_ACTIVE);
+	ioat->pci_resource = bus_alloc_resource_any(ioat->device,
+	    SYS_RES_MEMORY, &ioat->pci_resource_id, RF_ACTIVE);
 
 	if (ioat->pci_resource == NULL) {
 		ioat_log_message(0, "unable to allocate pci resource\n");
