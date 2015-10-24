@@ -17,10 +17,10 @@ files.  In most cases it is only interesting to include bsd.prog.mk or
 bsd.lib.mk.
 
 bsd.arch.inc.mk		- includes arch-specific Makefile.$arch
-bsd.crunchgen.mk	- building crunched binaries using crunchgen(1)
 bsd.compiler.mk		- defined based on current compiler
 bsd.confs.mk		- install of configuration files
 bsd.cpu.mk		- sets CPU/arch-related variables (included from sys.mk)
+bsd.crunchgen.mk	- building crunched binaries using crunchgen(1)
 bsd.dep.mk		- handle Makefile dependencies
 bsd.doc.mk		- building troff system documents
 bsd.endian.mk		- TARGET_ENDIAN=1234(little) or 4321 (big) for target
