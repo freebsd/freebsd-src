@@ -223,7 +223,7 @@ reiserfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 
 	DROP_GIANT();
 	g_topology_lock();
-	g_wither_geom_close(rmp->rm_cp->geom, ENXIO);
+	g_vfs_close(rmp->rm_cp, td);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(rmp->rm_devvp);
@@ -635,7 +635,7 @@ out:
 	if (cp != NULL) {
 		DROP_GIANT();
 		g_topology_lock();
-		g_wither_geom_close(cp->geom, ENXIO);
+		g_vfs_close(cp, td);
 		g_topology_unlock();
 		PICKUP_GIANT();
 	}
