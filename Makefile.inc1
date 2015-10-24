@@ -1620,12 +1620,13 @@ cross-tools: .MAKE .PHONY
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX} install
 .endfor
 
+NXBDESTDIR=	${OBJTREE}/nxb-bin
 NXBENV=		MAKEOBJDIRPREFIX=${OBJTREE}/nxb \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${PATH}:${OBJTREE}/gperf_for_gcc/usr/bin
 NXBMAKE=	${NXBENV} ${MAKE} \
-		TBLGEN=${OBJTREE}/nxb-bin/usr/bin/tblgen \
-		CLANG_TBLGEN=${OBJTREE}/nxb-bin/usr/bin/clang-tblgen \
+		TBLGEN=${NXBDESTDIR}/usr/bin/tblgen \
+		CLANG_TBLGEN=${NXBDESTDIR}/usr/bin/clang-tblgen \
 		MACHINE=${TARGET} MACHINE_ARCH=${TARGET_ARCH} \
 		MK_GDB=no MK_TESTS=no \
 		SSP_CFLAGS= \
@@ -1650,16 +1651,14 @@ native-xtools: .PHONY
 	${NXBMAKE} DIRPRFX=${_gperf}/ all && \
 	${NXBMAKE} DIRPRFX=${_gperf}/ DESTDIR=${OBJTREE}/gperf_for_gcc install
 .endif
-	mkdir -p ${OBJTREE}/nxb-bin/bin
-	mkdir -p ${OBJTREE}/nxb-bin/sbin
-	mkdir -p ${OBJTREE}/nxb-bin/usr
+	mkdir -p ${NXBDESTDIR}/bin ${NXBDESTDIR}/sbin ${NXBDESTDIR}/usr
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
-	    -p ${OBJTREE}/nxb-bin/usr >/dev/null
+	    -p ${NXBDESTDIR}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
-	    -p ${OBJTREE}/nxb-bin/usr/include >/dev/null
+	    -p ${NXBDESTDIR}/usr/include >/dev/null
 .if ${MK_DEBUG_FILES} != "no"
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
-	    -p ${OBJTREE}/nxb-bin/usr/lib >/dev/null
+	    -p ${NXBDESTDIR}/usr/lib >/dev/null
 .endif
 .for _tool in \
     bin/cat \
@@ -1725,7 +1724,7 @@ native-xtools: .PHONY
 		${NXBMAKE} DIRPRFX=${_tool}/ obj && \
 		${NXBMAKE} DIRPRFX=${_tool}/ depend && \
 		${NXBMAKE} DIRPRFX=${_tool}/ all && \
-		${NXBMAKE} DIRPRFX=${_tool}/ DESTDIR=${OBJTREE}/nxb-bin install
+		${NXBMAKE} DIRPRFX=${_tool}/ DESTDIR=${NXBDESTDIR} install
 .endfor
 
 #
