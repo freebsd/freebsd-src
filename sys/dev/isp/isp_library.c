@@ -1071,6 +1071,7 @@ isp_put_24xx_abrt(ispsoftc_t *isp, isp24xx_abrt_t *src, isp24xx_abrt_t *dst)
 	ISP_IOXPUT_16(isp, src->abrt_nphdl, &dst->abrt_nphdl);
 	ISP_IOXPUT_16(isp, src->abrt_options, &dst->abrt_options);
 	ISP_IOXPUT_32(isp, src->abrt_cmd_handle, &dst->abrt_cmd_handle);
+	ISP_IOXPUT_16(isp, src->abrt_queue_number, &dst->abrt_queue_number);
 	for (i = 0; i < ASIZE(src->abrt_reserved); i++) {
 		ISP_IOXPUT_8(isp, src->abrt_reserved[i], &dst->abrt_reserved[i]);
 	}
@@ -1179,6 +1180,7 @@ isp_get_24xx_abrt(ispsoftc_t *isp, isp24xx_abrt_t *src, isp24xx_abrt_t *dst)
 	ISP_IOXGET_16(isp, &src->abrt_nphdl, dst->abrt_nphdl);
 	ISP_IOXGET_16(isp, &src->abrt_options, dst->abrt_options);
 	ISP_IOXGET_32(isp, &src->abrt_cmd_handle, dst->abrt_cmd_handle);
+	ISP_IOXGET_16(isp, &src->abrt_queue_number, dst->abrt_queue_number);
 	for (i = 0; i < ASIZE(src->abrt_reserved); i++) {
 		ISP_IOXGET_8(isp, &src->abrt_reserved[i], dst->abrt_reserved[i]);
 	}

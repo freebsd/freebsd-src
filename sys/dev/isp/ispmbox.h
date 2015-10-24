@@ -574,7 +574,8 @@ typedef struct {
 	uint16_t	abrt_nphdl;
 	uint16_t	abrt_options;
 	uint32_t	abrt_cmd_handle;
-	uint8_t		abrt_reserved[32];
+	uint16_t	abrt_queue_number;
+	uint8_t		abrt_reserved[30];
 	uint16_t	abrt_tidlo;
 	uint8_t		abrt_tidhi;
 	uint8_t		abrt_vpidx;
