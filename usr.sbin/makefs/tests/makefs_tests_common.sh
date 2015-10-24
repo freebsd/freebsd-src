@@ -137,7 +137,6 @@ create_test_inputs()
 
 mount_image()
 {
-	ls -l $TEST_IMAGE
 	atf_check -e empty -o save:$TEST_MD_DEVICE_FILE -s exit:0 \
 	    mdconfig -a -f $TEST_IMAGE
 	atf_check -e empty -o empty -s exit:0 \
