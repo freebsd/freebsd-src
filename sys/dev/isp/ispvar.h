@@ -253,7 +253,7 @@ typedef struct {
 #define	NPH_SNS_ID		0x7FC	/* SNS Server Special ID */
 #define	NPH_FABRIC_CTLR		0x7FD	/* Fabric Controller (0xFFFFFD) */
 #define	NPH_FL_ID		0x7FE	/* F Port Special ID (0xFFFFFE) */
-#define	NPH_IP_BCST		0x7ff	/* IP Broadcast Special ID (0xFFFFFF) */
+#define	NPH_IP_BCST		0x7FF	/* IP Broadcast Special ID (0xFFFFFF) */
 #define	NPH_MAX_2K		0x800
 
 /*

@@ -3164,7 +3164,7 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 			continue;
 		}
 		if (ISP_CAP_2KLOGIN(isp)) {
-			if (handle >= NPH_RESERVED && handle <= NPH_FL_ID) {
+			if (handle >= NPH_RESERVED && handle <= NPH_IP_BCST) {
 				continue;
 			}
 		}
@@ -4301,8 +4301,8 @@ isp_nxt_handle(ispsoftc_t *isp, int chan, uint16_t handle)
 		if (handle >= FL_ID && handle <= SNS_ID) {
 			handle = SNS_ID+1;
 		}
-		if (handle >= NPH_RESERVED && handle <= NPH_FL_ID) {
-			handle = NPH_FL_ID+1;
+		if (handle >= NPH_RESERVED && handle <= NPH_IP_BCST) {
+			handle = NPH_IP_BCST + 1;
 		}
 		if (ISP_CAP_2KLOGIN(isp)) {
 			if (handle == NPH_MAX_2K) {
