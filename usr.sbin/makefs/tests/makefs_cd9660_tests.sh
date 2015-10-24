@@ -271,6 +271,32 @@ o_flag_rockridge_cleanup()
 	common_cleanup
 }
 
+atf_test_case o_flag_rockridge_dev_nodes cleanup
+o_flag_rockridge_dev_nodes_head()
+{
+	atf_set "descr" "Functional tests to ensure that dev nodes are handled properly with rockridge extensions (NetBSD kern/48852; FreeBSD bug 203648)"
+}
+o_flag_rockridge_dev_nodes_body()
+{
+	create_test_dirs
+
+	(tar -cvf - -C /dev null && touch .tar_ok) | \
+	atf_check -e not-empty -o empty -s exit:0 tar -xvf - -C "$TEST_INPUTS_DIR"
+
+	atf_check -e empty -o empty -s exit:0 test -c $TEST_INPUTS_DIR/null
+	atf_check -e empty -o empty -s exit:0 test -f .tar_ok
+
+	atf_check -e empty -o empty -s exit:0 \
+	    $MAKEFS -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
+
+	mount_image
+	check_image_contents
+}
+o_flag_rockridge_dev_nodes_cleanup()
+{
+	common_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case D_flag
@@ -285,4 +311,5 @@ atf_init_test_cases()
 	atf_add_test_case o_flag_preparer
 	atf_add_test_case o_flag_publisher
 	atf_add_test_case o_flag_rockridge
+	atf_add_test_case o_flag_rockridge_dev_nodes
 }
