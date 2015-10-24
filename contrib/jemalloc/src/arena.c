@@ -2679,6 +2679,22 @@ arena_ralloc_large_grow(arena_t *arena, arena_chunk_t *chunk, void *ptr,
 		if (arena_run_split_large(arena, run, splitsize, zero))
 			goto label_fail;
 
+		if (config_cache_oblivious && zero) {
+			/*
+			 * Zero the trailing bytes of the original allocation's
+			 * last page, since they are in an indeterminate state.
+			 * There will always be trailing bytes, because ptr's
+			 * offset from the beginning of the run is a multiple of
+			 * CACHELINE in [0 .. PAGE).
+			 */
+			void *zbase = (void *)((uintptr_t)ptr + oldsize);
+			void *zpast = PAGE_ADDR2BASE((void *)((uintptr_t)zbase +
+			    PAGE));
+			size_t nzero = (uintptr_t)zpast - (uintptr_t)zbase;
+			assert(nzero > 0);
+			memset(zbase, 0, nzero);
+		}
+
 		size = oldsize + splitsize;
 		npages = (size + large_pad) >> LG_PAGE;
 
