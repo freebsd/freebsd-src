@@ -930,9 +930,24 @@ resize_ring(struct ioat_softc *ioat, int order)
 }
 
 static void
-ioat_timer_callback(void *arg)
+ioat_halted_debug(struct ioat_softc *ioat, uint32_t chanerr)
 {
 	struct ioat_descriptor *desc;
+
+	ioat_log_message(0, "Channel halted (%x)\n", chanerr);
+	if (chanerr == 0)
+		return;
+
+	desc = ioat_get_ring_entry(ioat, ioat->tail + 0);
+	dump_descriptor(desc->u.raw);
+
+	desc = ioat_get_ring_entry(ioat, ioat->tail + 1);
+	dump_descriptor(desc->u.raw);
+}
+
+static void
+ioat_timer_callback(void *arg)
+{
 	struct ioat_softc *ioat;
 	uint64_t status;
 	uint32_t chanerr;
@@ -949,13 +964,7 @@ ioat_timer_callback(void *arg)
 		 */
 		if (is_ioat_halted(status)) {
 			chanerr = ioat_read_4(ioat, IOAT_CHANERR_OFFSET);
-			ioat_log_message(0, "Channel halted (%x)\n", chanerr);
-
-			desc = ioat_get_ring_entry(ioat, ioat->tail + 0);
-			dump_descriptor(desc->u.raw);
-
-			desc = ioat_get_ring_entry(ioat, ioat->tail + 1);
-			dump_descriptor(desc->u.raw);
+			ioat_halted_debug(ioat, chanerr);
 		}
 		ioat_process_events(ioat);
 	} else {
