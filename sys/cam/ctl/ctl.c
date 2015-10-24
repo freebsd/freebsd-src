@@ -3533,6 +3533,67 @@ ctl_lun_map_to_port(struct ctl_port *port, uint32_t lun_id)
 	return (UINT32_MAX);
 }
 
+uint32_t
+ctl_decode_lun(uint64_t encoded)
+{
+	uint8_t lun[8];
+	uint32_t result = 0xffffffff;
+
+	be64enc(lun, encoded);
+	switch (lun[0] & RPL_LUNDATA_ATYP_MASK) {
+	case RPL_LUNDATA_ATYP_PERIPH:
+		if ((lun[0] & 0x3f) == 0 && lun[2] == 0 && lun[3] == 0 &&
+		    lun[4] == 0 && lun[5] == 0 && lun[6] == 0 && lun[7] == 0)
+			result = lun[1];
+		break;
+	case RPL_LUNDATA_ATYP_FLAT:
+		if (lun[2] == 0 && lun[3] == 0 && lun[4] == 0 && lun[5] == 0 &&
+		    lun[6] == 0 && lun[7] == 0)
+			result = ((lun[0] & 0x3f) << 8) + lun[1];
+		break;
+	case RPL_LUNDATA_ATYP_EXTLUN:
+		switch (lun[0] & RPL_LUNDATA_EXT_EAM_MASK) {
+		case 0x02:
+			switch (lun[0] & RPL_LUNDATA_EXT_LEN_MASK) {
+			case 0x00:
+				result = lun[1];
+				break;
+			case 0x10:
+				result = (lun[1] << 16) + (lun[2] << 8) +
+				    lun[3];
+				break;
+			case 0x20:
+				if (lun[1] == 0 && lun[6] == 0 && lun[7] == 0)
+					result = (lun[2] << 24) +
+					    (lun[3] << 16) + (lun[4] << 8) +
+					    lun[5];
+				break;
+			}
+			break;
+		case RPL_LUNDATA_EXT_EAM_NOT_SPEC:
+			result = 0xffffffff;
+			break;
+		}
+		break;
+	}
+	return (result);
+}
+
+uint64_t
+ctl_encode_lun(uint32_t decoded)
+{
+	uint64_t l = decoded;
+
+	if (l <= 0xff)
+		return (((uint64_t)RPL_LUNDATA_ATYP_PERIPH << 56) | (l << 48));
+	if (l <= 0x3fff)
+		return (((uint64_t)RPL_LUNDATA_ATYP_FLAT << 56) | (l << 48));
+	if (l <= 0xffffff)
+		return (((uint64_t)(RPL_LUNDATA_ATYP_EXTLUN | 0x12) << 56) |
+		    (l << 32));
+	return ((((uint64_t)RPL_LUNDATA_ATYP_EXTLUN | 0x22) << 56) | (l << 16));
+}
+
 static struct ctl_port *
 ctl_io_port(struct ctl_io_hdr *io_hdr)
 {
@@ -9056,36 +9117,9 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 		if (lun == NULL)
 			continue;
 
-		if (targ_lun_id <= 0xff) {
-			/*
-			 * Peripheral addressing method, bus number 0.
-			 */
-			lun_data->luns[num_filled].lundata[0] =
-				RPL_LUNDATA_ATYP_PERIPH;
-			lun_data->luns[num_filled].lundata[1] = targ_lun_id;
-			num_filled++;
-		} else if (targ_lun_id <= 0x3fff) {
-			/*
-			 * Flat addressing method.
-			 */
-			lun_data->luns[num_filled].lundata[0] =
-				RPL_LUNDATA_ATYP_FLAT | (targ_lun_id >> 8);
-			lun_data->luns[num_filled].lundata[1] =
-				(targ_lun_id & 0xff);
-			num_filled++;
-		} else if (targ_lun_id <= 0xffffff) {
-			/*
-			 * Extended flat addressing method.
-			 */
-			lun_data->luns[num_filled].lundata[0] =
-			    RPL_LUNDATA_ATYP_EXTLUN | 0x12;
-			scsi_ulto3b(targ_lun_id,
-			    &lun_data->luns[num_filled].lundata[1]);
-			num_filled++;
-		} else {
-			printf("ctl_report_luns: bogus LUN number %jd, "
-			       "skipping\n", (intmax_t)targ_lun_id);
-		}
+		be64enc(lun_data->luns[num_filled++].lundata,
+		    ctl_encode_lun(targ_lun_id));
+
 		/*
 		 * According to SPC-3, rev 14 section 6.21:
 		 *
