@@ -738,22 +738,33 @@ ioat_alloc_ring_entry(struct ioat_softc *ioat)
 {
 	struct ioat_dma_hw_descriptor *hw_desc;
 	struct ioat_descriptor *desc;
+	int error;
 
-	desc = malloc(sizeof(struct ioat_descriptor), M_IOAT, M_NOWAIT);
+	error = ENOMEM;
+	hw_desc = NULL;
+
+	desc = malloc(sizeof(*desc), M_IOAT, M_NOWAIT);
 	if (desc == NULL)
-		return (NULL);
+		goto out;
 
-	bus_dmamem_alloc(ioat->hw_desc_tag, (void **)&hw_desc, BUS_DMA_ZERO,
-	    &ioat->hw_desc_map);
-	if (hw_desc == NULL) {
-		free(desc, M_IOAT);
-		return (NULL);
-	}
-
-	bus_dmamap_load(ioat->hw_desc_tag, ioat->hw_desc_map, hw_desc,
-	    sizeof(*hw_desc), ioat_dmamap_cb, &desc->hw_desc_bus_addr, 0);
+	bus_dmamem_alloc(ioat->hw_desc_tag, (void **)&hw_desc,
+	    BUS_DMA_ZERO | BUS_DMA_NOWAIT, &ioat->hw_desc_map);
+	if (hw_desc == NULL)
+		goto out;
 
 	desc->u.dma = hw_desc;
+
+	error = bus_dmamap_load(ioat->hw_desc_tag, ioat->hw_desc_map, hw_desc,
+	    sizeof(*hw_desc), ioat_dmamap_cb, &desc->hw_desc_bus_addr,
+	    BUS_DMA_NOWAIT);
+	if (error)
+		goto out;
+
+out:
+	if (error) {
+		ioat_free_ring_entry(ioat, desc);
+		return (NULL);
+	}
 	return (desc);
 }
 
