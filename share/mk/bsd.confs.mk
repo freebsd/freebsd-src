@@ -4,7 +4,6 @@
 .error bsd.conf.mk cannot be included directly.
 .endif
 
-.if ${MK_INCLUDES} != "no"
 CONFGROUPS?=	CONFS
 
 .if !target(buildconfig)
@@ -83,5 +82,3 @@ _${group}INS: ${_${group}CONFS}
 STAGE_TARGETS+= stage_config
 .endif
 .endif
-
-.endif # ${MK_INCLUDES} != "no"
