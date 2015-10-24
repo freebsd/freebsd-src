@@ -27,40 +27,262 @@
 # $FreeBSD$
 #
 
-. "$(dirname "$0")/makefs_tests_common.sh"
+# A note on specs:
+# - A copy of the ISO-9660 spec can be found here:
+#   http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-119.pdf
+# - Any references to `rockridge` are referring to the `Rock Ridge` extensions
+#   of the ISO-9660 spec. A copy of the draft `IEEE-P1282` spec can be found
+#   here:
+#   http://www.ymi.com/ymi/sites/default/files/pdf/Rockridge.pdf
 
 MAKEFS="makefs -t cd9660"
+MOUNT="mount_cd9660"
 
-atf_test_case basic_cd9660 cleanup
-basic_cd9660_body()
+. "$(dirname "$0")/makefs_tests_common.sh"
+
+common_cleanup()
+{
+	if ! test_md_device=$(cat $TEST_MD_DEVICE_FILE); then
+		echo "$TEST_MD_DEVICE_FILE could not be opened; has an md(4) device been attached?"
+		return
+	fi
+
+	umount -f /dev/$test_md_device || :
+	mdconfig -d -u $test_md_device || :
+}
+
+check_base_iso9660_image_contents()
+{
+	# Symlinks are treated like files when rockridge support isn't
+	# specified
+	check_image_contents "$@" -X c
+
+	atf_check -e empty -o empty -s exit:0 test -L $TEST_INPUTS_DIR/c
+	atf_check -e empty -o empty -s exit:0 test -f $TEST_MOUNT_DIR/c
+}
+
+atf_test_case D_flag cleanup
+D_flag_body()
+{
+	atf_skip "makefs crashes with SIGBUS with dupe mtree entries; see FreeBSD bug # 192839"
+
+	create_test_inputs
+
+	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
+	    mtree -cp $TEST_INPUTS_DIR
+	atf_check -e empty -o not-empty -s exit:0 \
+	    $MAKEFS -F $TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
+
+	atf_check -e empty -o empty -s exit:0 \
+	    cp $TEST_SPEC_FILE spec2.mtree
+	atf_check -e empty -o save:dupe_$TEST_SPEC_FILE -s exit:0 \
+	    cat $TEST_SPEC_FILE spec2.mtree
+
+	atf_check -e empty -o not-empty -s not-exit:0 \
+	    $MAKEFS -F dupe_$TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check -e empty -o not-empty -s exit:0 \
+	    $MAKEFS -D -F dupe_$TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
+}
+D_flag_cleanup()
+{
+	common_cleanup
+}
+
+atf_test_case F_flag cleanup
+F_flag_body()
+{
+	create_test_inputs
+
+	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
+	    mtree -cp $TEST_INPUTS_DIR
+
+	atf_check -e empty -o empty -s exit:0 \
+	    $MAKEFS -F $TEST_SPEC_FILE -M 1m $TEST_IMAGE $TEST_INPUTS_DIR
+
+	mount_image
+	check_base_iso9660_image_contents
+}
+F_flag_cleanup()
+{
+	common_cleanup
+}
+
+atf_test_case from_mtree_spec_file cleanup
+from_mtree_spec_file_body()
+{
+	create_test_inputs
+
+	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
+	    mtree -c -k type,link,size -p $TEST_INPUTS_DIR
+	cd $TEST_INPUTS_DIR
+	atf_check -e empty -o empty -s exit:0 \
+	    $MAKEFS $TEST_IMAGE $TEST_SPEC_FILE
+	cd -
+
+	mount_image
+	check_base_iso9660_image_contents
+}
+from_mtree_spec_file_cleanup()
+{
+	common_cleanup
+}
+
+atf_test_case from_multiple_dirs cleanup
+from_multiple_dirs_body()
+{
+	test_inputs_dir2=$TMPDIR/inputs2
+
+	create_test_inputs
+
+	atf_check -e empty -o empty -s exit:0 mkdir -p $test_inputs_dir2
+	atf_check -e empty -o empty -s exit:0 \
+	    touch $test_inputs_dir2/multiple_dirs_test_file
+
+	atf_check -e empty -o empty -s exit:0 \
+	    $MAKEFS $TEST_IMAGE $TEST_INPUTS_DIR $test_inputs_dir2
+
+	mount_image
+	check_base_iso9660_image_contents -d $test_inputs_dir2
+}
+from_multiple_dirs_cleanup()
+{
+	common_cleanup
+}
+
+atf_test_case from_single_dir cleanup
+from_single_dir_body()
 {
 	create_test_inputs
 
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS $TEST_IMAGE $TEST_INPUTS_DIR
-	atf_check -e empty -o save:$TEST_MD_DEVICE_FILE -s exit:0 \
-	    mdconfig -a -f $TEST_IMAGE
-	atf_check -e empty -o empty -s exit:0 \
-	    mount_cd9660 /dev/$(cat $TEST_MD_DEVICE_FILE) $TEST_MOUNT_DIR
-	# diffutils doesn't feature --no-dereference until v3.3, so
-	# $TEST_INPUTS_DIR/c will mismatch with $TEST_MOUNT_DIR/c (the
-	# former will look like a directory; the latter like a file).
-	#
-	# XXX: the latter behavior seems suspect; seems like it should be a
-	# symlink; need to verify this with mkisofs, etc
-	atf_check -e empty -o empty -s exit:0 \
-	    diff --exclude c -Naur $TEST_INPUTS_DIR $TEST_MOUNT_DIR
-}
-basic_cd9660_cleanup()
-{
-	test_md_device=$(cat $TEST_MD_DEVICE_FILE) || return
 
-	umount -f /dev/$test_md_device
-	mdconfig -d -u $test_md_device
+	mount_image
+	check_base_iso9660_image_contents
+}
+from_single_dir_cleanup()
+{
+	common_cleanup
+}
+
+atf_test_case o_flag_allow_deep_trees cleanup
+o_flag_allow_deep_trees_body()
+{
+	create_test_inputs
+
+	# Make sure the "more than 8 levels deep" requirement is met.
+	atf_check -e empty -o empty -s exit:0 \
+	    mkdir -p $TEST_INPUTS_DIR/a/b/c/d/e/f/g/h/i/j
+
+	atf_check -e empty -o empty -s exit:0 \
+	    $MAKEFS -o allow-deep-trees $TEST_IMAGE $TEST_INPUTS_DIR
+
+	mount_image
+	check_base_iso9660_image_contents
+}
+o_flag_allow_deep_trees_cleanup()
+{
+	common_cleanup
+}
+
+atf_test_case o_flag_allow_max_name cleanup
+o_flag_allow_max_name_body()
+{
+	atf_expect_fail "-o allow-max-name doesn't appear to be implemented on FreeBSD's copy of makefs [yet]"
+
+	create_test_inputs
+
+	long_path=$TEST_INPUTS_DIR/$(jot -s '' -b 0 37)
+
+	# Make sure the "37 char name" limit requirement is met.
+	atf_check -e empty -o empty -s exit:0 touch $long_path
+
+	atf_check -e empty -o empty -s exit:0 \
+	    $MAKEFS -o allow-max-name $TEST_IMAGE $TEST_INPUTS_DIR
+
+	mount_image
+	check_base_iso9660_image_contents
+}
+o_flag_allow_max_name_cleanup()
+{
+	common_cleanup
+}
+
+atf_test_case o_flag_preparer
+o_flag_preparer_body()
+{
+	create_test_dirs
+
+	preparer='My Very First ISO'
+	preparer_uppercase="$(echo $preparer | tr '[[:lower:]]' '[[:upper:]]')"
+
+	atf_check -e empty -o empty -s exit:0 touch $TEST_INPUTS_DIR/dummy_file
+	atf_check -e empty -o empty -s exit:0 \
+	    $MAKEFS -o preparer="$preparer" $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check -e empty -o match:"$preparer_uppercase" -s exit:0 \
+	    strings $TEST_IMAGE
+}
+
+atf_test_case o_flag_publisher
+o_flag_publisher_body()
+{
+	create_test_dirs
+
+	publisher='My Super Awesome Publishing Company LTD'
+	publisher_uppercase="$(echo $publisher | tr '[[:lower:]]' '[[:upper:]]')"
+
+	atf_check -e empty -o empty -s exit:0 touch $TEST_INPUTS_DIR/dummy_file
+	atf_check -e empty -o empty -s exit:0 \
+	    $MAKEFS -o publisher="$publisher" $TEST_IMAGE $TEST_INPUTS_DIR
+	atf_check -e empty -o match:"$publisher_uppercase" -s exit:0 \
+	    strings $TEST_IMAGE
+}
+
+atf_test_case o_flag_rockridge cleanup
+o_flag_rockridge_body()
+{
+	create_test_dirs
+
+	# Make sure the "more than 8 levels deep" requirement is met.
+	atf_check -e empty -o empty -s exit:0 \
+	    mkdir -p $TEST_INPUTS_DIR/a/b/c/d/e/f/g/h/i/j
+
+	# Make sure the "pathname larger than 255 chars" requirement is met.
+	#
+	# $long_path's needs to be nested in a directory, as creating it
+	# outright as a 256 char filename via touch will fail with ENAMETOOLONG
+	long_path=$TEST_INPUTS_DIR/$(jot -s '/' -b "$(jot -s '' -b 0 64)" 4)
+	atf_check -e empty -o empty -s exit:0 mkdir -p "$(dirname $long_path)"
+	atf_check -e empty -o empty -s exit:0 touch "$long_path"
+
+	atf_check -e empty -o empty -s exit:0 \
+	    $MAKEFS -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
+
+	mount_image
+	check_image_contents -X .rr_moved
+
+	# .rr_moved is a special directory created when you have deep directory
+	# trees with rock ridge extensions on
+	atf_check -e empty -o empty -s exit:0 \
+	    test -d $TEST_MOUNT_DIR/.rr_moved
+}
+o_flag_rockridge_cleanup()
+{
+	common_cleanup
 }
 
 atf_init_test_cases()
 {
+	atf_add_test_case D_flag
+	atf_add_test_case F_flag
 
-	atf_add_test_case basic_cd9660
+	atf_add_test_case from_mtree_spec_file
+	atf_add_test_case from_multiple_dirs
+	atf_add_test_case from_single_dir
+
+	atf_add_test_case o_flag_allow_deep_trees
+	atf_add_test_case o_flag_allow_max_name
+	atf_add_test_case o_flag_preparer
+	atf_add_test_case o_flag_publisher
+	atf_add_test_case o_flag_rockridge
 }

@@ -28,10 +28,60 @@
 #
 
 KB=1024
-TEST_IMAGE="test.img"
-TEST_INPUTS_DIR="inputs"
-TEST_MD_DEVICE_FILE="md.output"
-TEST_MOUNT_DIR="mnt"
+: ${TMPDIR=/tmp}
+TEST_IMAGE="$TMPDIR/test.img"
+TEST_INPUTS_DIR="$TMPDIR/inputs"
+TEST_MD_DEVICE_FILE="$TMPDIR/md.output"
+TEST_MOUNT_DIR="$TMPDIR/mnt"
+TEST_SPEC_FILE="$TMPDIR/mtree.spec"
+
+check_image_contents()
+{
+	local directories=$TEST_INPUTS_DIR
+	local excludes mtree_excludes_arg mtree_file
+	local mtree_keywords="type,link,size"
+
+	while getopts "d:f:m:X:" flag; do
+		case "$flag" in
+		d)
+			directories="$directories $OPTARG"
+			;;
+		f)
+			mtree_file=$OPTARG
+			;;
+		m)
+			mtree_keywords=$OPTARG
+			;;
+		X)
+			excludes="$excludes $OPTARG"
+			;;
+		*)
+			echo "usage: check_image_contents [-d directory ...] [-f mtree-file] [-m mtree-keywords] [-X exclude]"
+			atf_fail "unhandled option: $flag"
+			;;
+		esac
+	done
+
+	if [ -n "$excludes" ]; then
+		echo "$excludes" | tr ' ' '\n' > excludes.txt
+		mtree_excludes_arg="-X excludes.txt"
+	fi
+
+	if [ -z "$mtree_file" ]; then
+		mtree_file=input_spec.mtree
+		for directory in $directories; do
+			mtree -c -k $mtree_keywords -p $directory $mtree_excludes_arg
+		done > $mtree_file
+	fi
+
+	echo "<---- Input spec BEGIN ---->"
+	cat $mtree_file
+	echo "<---- Input spec END ---->"
+	atf_check -e empty -o empty -s exit:0 \
+	    mtree -UW -f $mtree_file \
+		-p $TEST_MOUNT_DIR \
+		$mtree_excludes_arg
+}
 
 create_test_dirs()
 {
@@ -84,3 +134,13 @@ create_test_inputs()
 
 	cd -
 }
+
+mount_image()
+{
+	ls -l $TEST_IMAGE
+	atf_check -e empty -o save:$TEST_MD_DEVICE_FILE -s exit:0 \
+	    mdconfig -a -f $TEST_IMAGE
+	atf_check -e empty -o empty -s exit:0 \
+	    $MOUNT /dev/$(cat $TEST_MD_DEVICE_FILE) $TEST_MOUNT_DIR
+}
+
