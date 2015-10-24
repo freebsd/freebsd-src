@@ -575,10 +575,8 @@ ioat_process_events(struct ioat_softc *ioat)
 
 	ioat_log_message(3, "%s\n", __func__);
 
-	if (status == ioat->last_seen) {
-	 	mtx_unlock(&ioat->cleanup_lock);
-		return;
-	}
+	if (status == ioat->last_seen)
+		goto out;
 
 	while (1) {
 		desc = ioat_get_ring_entry(ioat, ioat->tail);
@@ -602,6 +600,7 @@ ioat_process_events(struct ioat_softc *ioat)
 		    ioat_timer_callback, ioat);
 	}
 
+out:
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 	mtx_unlock(&ioat->cleanup_lock);
 
