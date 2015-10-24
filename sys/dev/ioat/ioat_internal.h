@@ -313,6 +313,12 @@ struct ioat_descriptor {
 	bus_addr_t		hw_desc_bus_addr;
 };
 
+enum ioat_ref_kind {
+	IOAT_DMAENGINE_REF = 0,
+	IOAT_ACTIVE_DESCR_REF,
+	IOAT_NUM_REF_KINDS
+};
+
 /* One of these per allocated PCI device. */
 struct ioat_softc {
 	bus_dmaengine_t		dmaengine;
@@ -364,6 +370,10 @@ struct ioat_softc {
 	struct ioat_descriptor	**ring;
 
 	struct mtx		cleanup_lock;
+	volatile uint32_t	refcnt;
+#ifdef INVARIANTS
+	volatile uint32_t	refkinds[IOAT_NUM_REF_KINDS];
+#endif
 };
 
 void ioat_test_attach(void);
