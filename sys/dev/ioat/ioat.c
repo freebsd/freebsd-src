@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include "ioat_hw.h"
 #include "ioat_internal.h"
 
+#define	IOAT_INTR_TIMO	(hz / 10)
+
 static int ioat_probe(device_t device);
 static int ioat_attach(device_t device);
 static int ioat_detach(device_t device);
@@ -271,6 +273,8 @@ ioat_detach(device_t device)
 	ioat = DEVICE2SOFTC(device);
 
 	ioat_test_detach();
+
+	ioat_teardown_intr(ioat);
 	callout_drain(&ioat->timer);
 
 	pci_disable_busmaster(device);
@@ -293,8 +297,6 @@ ioat_detach(device_t device)
 	}
 
 	bus_dma_tag_destroy(ioat->hw_desc_tag);
-
-	ioat_teardown_intr(ioat);
 
 	return (0);
 }
@@ -586,7 +588,8 @@ ioat_process_events(struct ioat_softc *ioat)
 
 	if (ioat->head == ioat->tail) {
 		ioat->is_completion_pending = FALSE;
-		callout_reset(&ioat->timer, 5 * hz, ioat_timer_callback, ioat);
+		callout_reset(&ioat->timer, IOAT_INTR_TIMO,
+		    ioat_timer_callback, ioat);
 	}
 
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
@@ -902,7 +905,7 @@ ioat_timer_callback(void *arg)
 	uint32_t chanerr;
 
 	ioat = arg;
-	ioat_log_message(2, "%s\n", __func__);
+	ioat_log_message(1, "%s\n", __func__);
 
 	if (ioat->is_completion_pending) {
 		status = ioat_get_chansts(ioat);
@@ -934,7 +937,7 @@ ioat_timer_callback(void *arg)
 		mtx_unlock(&ioat->submit_lock);
 
 		if (ioat->ring_size_order > IOAT_MIN_ORDER)
-			callout_reset(&ioat->timer, 5 * hz,
+			callout_reset(&ioat->timer, IOAT_INTR_TIMO,
 			    ioat_timer_callback, ioat);
 	}
 }
@@ -950,8 +953,8 @@ ioat_submit_single(struct ioat_softc *ioat)
 
 	if (!ioat->is_completion_pending) {
 		ioat->is_completion_pending = TRUE;
-		callout_reset(&ioat->timer, 10 * hz, ioat_timer_callback,
-		    ioat);
+		callout_reset(&ioat->timer, IOAT_INTR_TIMO,
+		    ioat_timer_callback, ioat);
 	}
 }
 
