@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "ioat_internal.h"
 
 #define	IOAT_INTR_TIMO	(hz / 10)
+#define	IOAT_REFLK	(&ioat->submit_lock)
 
 static int ioat_probe(device_t device);
 static int ioat_attach(device_t device);
@@ -69,9 +70,9 @@ static inline uint32_t ioat_get_active(struct ioat_softc *ioat);
 static inline uint32_t ioat_get_ring_space(struct ioat_softc *ioat);
 static void ioat_free_ring_entry(struct ioat_softc *ioat,
     struct ioat_descriptor *desc);
-static struct ioat_descriptor * ioat_alloc_ring_entry(struct ioat_softc *ioat);
+static struct ioat_descriptor *ioat_alloc_ring_entry(struct ioat_softc *ioat);
 static int ioat_reserve_space_and_lock(struct ioat_softc *ioat, int num_descs);
-static struct ioat_descriptor * ioat_get_ring_entry(struct ioat_softc *ioat,
+static struct ioat_descriptor *ioat_get_ring_entry(struct ioat_softc *ioat,
     uint32_t index);
 static boolean_t resize_ring(struct ioat_softc *ioat, int order);
 static void ioat_timer_callback(void *arg);
@@ -81,6 +82,12 @@ static void ioat_comp_update_map(void *arg, bus_dma_segment_t *seg, int nseg,
     int error);
 static int ioat_reset_hw(struct ioat_softc *ioat);
 static void ioat_setup_sysctl(device_t device);
+static inline struct ioat_softc *ioat_get(struct ioat_softc *,
+    enum ioat_ref_kind);
+static inline void ioat_put(struct ioat_softc *, enum ioat_ref_kind);
+static inline void ioat_putn(struct ioat_softc *, uint32_t,
+    enum ioat_ref_kind);
+static void ioat_drain(struct ioat_softc *);
 
 #define	ioat_log_message(v, ...) do {					\
 	if ((v) <= g_ioat_debug_level) {				\
@@ -236,10 +243,6 @@ ioat_attach(device_t device)
 		goto err;
 	}
 
-	error = ioat_setup_intr(ioat);
-	if (error != 0)
-		return (error);
-
 	error = ioat3_attach(device);
 	if (error != 0)
 		goto err;
@@ -248,9 +251,13 @@ ioat_attach(device_t device)
 	if (error != 0)
 		goto err;
 
+	error = ioat_setup_intr(ioat);
+	if (error != 0)
+		goto err;
+
 	error = ioat3_selftest(ioat);
 	if (error != 0)
-		return (error);
+		goto err;
 
 	ioat_process_events(ioat);
 	ioat_setup_sysctl(device);
@@ -273,6 +280,7 @@ ioat_detach(device_t device)
 	ioat = DEVICE2SOFTC(device);
 
 	ioat_test_detach();
+	ioat_drain(ioat);
 
 	ioat_teardown_intr(ioat);
 	callout_drain(&ioat->timer);
@@ -579,6 +587,7 @@ ioat_process_events(struct ioat_softc *ioat)
 		if (dmadesc->callback_fn)
 			(*dmadesc->callback_fn)(dmadesc->callback_arg);
 
+		completed++;
 		ioat->tail++;
 		if (desc->hw_desc_bus_addr == status)
 			break;
@@ -594,6 +603,8 @@ ioat_process_events(struct ioat_softc *ioat)
 
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 	mtx_unlock(&ioat->cleanup_lock);
+
+	ioat_putn(ioat, completed, IOAT_ACTIVE_DESCR_REF);
 }
 
 /*
@@ -603,9 +614,18 @@ bus_dmaengine_t
 ioat_get_dmaengine(uint32_t index)
 {
 
-	if (index < ioat_channel_index)
-		return (&ioat_channel[index]->dmaengine);
-	return (NULL);
+	if (index >= ioat_channel_index)
+		return (NULL);
+	return (&ioat_get(ioat_channel[index], IOAT_DMAENGINE_REF)->dmaengine);
+}
+
+void
+ioat_put_dmaengine(bus_dmaengine_t dmaengine)
+{
+	struct ioat_softc *ioat;
+
+	ioat = to_ioat_softc(dmaengine);
+	ioat_put(ioat, IOAT_DMAENGINE_REF);
 }
 
 void
@@ -962,6 +982,7 @@ static void
 ioat_submit_single(struct ioat_softc *ioat)
 {
 
+	ioat_get(ioat, IOAT_ACTIVE_DESCR_REF);
 	atomic_add_rel_int(&ioat->head, 1);
 
 	if (!ioat->is_completion_pending) {
@@ -1056,4 +1077,72 @@ ioat_setup_sysctl(device_t device)
 	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
 	    "tail", CTLFLAG_RD, &ioat->tail,
 	    0, "HW descriptor tail pointer index");
+}
+
+static inline struct ioat_softc *
+ioat_get(struct ioat_softc *ioat, enum ioat_ref_kind kind)
+{
+	uint32_t old;
+
+	KASSERT(kind < IOAT_NUM_REF_KINDS, ("bogus"));
+
+	old = atomic_fetchadd_32(&ioat->refcnt, 1);
+	KASSERT(old < UINT32_MAX, ("refcnt overflow"));
+
+#ifdef INVARIANTS
+	old = atomic_fetchadd_32(&ioat->refkinds[kind], 1);
+	KASSERT(old < UINT32_MAX, ("refcnt kind overflow"));
+#endif
+
+	return (ioat);
+}
+
+static inline void
+ioat_putn(struct ioat_softc *ioat, uint32_t n, enum ioat_ref_kind kind)
+{
+	uint32_t old;
+
+	KASSERT(kind < IOAT_NUM_REF_KINDS, ("bogus"));
+
+	if (n == 0)
+		return;
+
+#ifdef INVARIANTS
+	old = atomic_fetchadd_32(&ioat->refkinds[kind], -n);
+	KASSERT(old >= n, ("refcnt kind underflow"));
+#endif
+
+	/* Skip acquiring the lock if resulting refcnt > 0. */
+	for (;;) {
+		old = ioat->refcnt;
+		if (old <= n)
+			break;
+		if (atomic_cmpset_32(&ioat->refcnt, old, old - n))
+			return;
+	}
+
+	mtx_lock(IOAT_REFLK);
+	old = atomic_fetchadd_32(&ioat->refcnt, -n);
+	KASSERT(old >= n, ("refcnt error"));
+
+	if (old == n)
+		wakeup(IOAT_REFLK);
+	mtx_unlock(IOAT_REFLK);
+}
+
+static inline void
+ioat_put(struct ioat_softc *ioat, enum ioat_ref_kind kind)
+{
+
+	ioat_putn(ioat, 1, kind);
+}
+
+static void
+ioat_drain(struct ioat_softc *ioat)
+{
+
+	mtx_lock(IOAT_REFLK);
+	while (ioat->refcnt > 0)
+		msleep(IOAT_REFLK, IOAT_REFLK, 0, "ioat_drain", 0);
+	mtx_unlock(IOAT_REFLK);
 }
