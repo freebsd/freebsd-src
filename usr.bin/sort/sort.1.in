@@ -33,14 +33,14 @@
 .\"
 .\"     @(#)sort.1	8.1 (Berkeley) 6/6/93
 .\"
-.Dd March 19 2015
+.Dd March 19, 2015
 .Dt SORT 1
 .Os
 .Sh NAME
 .Nm sort
 .Nd sort or merge records (lines) of text and binary files
 .Sh SYNOPSIS
-.Nm sort
+.Nm
 .Bk -words
 .Op Fl bcCdfghiRMmnrsuVz
 .Sm off
@@ -52,9 +52,9 @@
 .Op Fl t Ar char
 .Op Fl o Ar output
 .Op Ar file ...
-.Nm sort
+.Nm
 .Fl Fl help
-.Nm sort
+.Nm
 .Fl Fl version
 .Sh DESCRIPTION
 The
@@ -74,7 +74,7 @@ uses entire lines for comparison.
 .Pp
 The command line options are as follows:
 .Bl -tag -width Ds
-.It Fl c, Fl Fl check, Fl C, Fl Fl check=silent|quiet
+.It Fl c , Fl Fl check , Fl C , Fl Fl check=silent|quiet
 Check that the single input file is sorted.
 If the file is not sorted,
 .Nm
@@ -88,7 +88,7 @@ is specified,
 .Nm
 produces no output.
 This is a "silent" version of
-.Fl c.
+.Fl c .
 .It Fl m , Fl Fl merge
 Merge only.
 The input files are assumed to be pre-sorted.
@@ -97,7 +97,7 @@ If they are not sorted the output order is undefined.
 Print the output to the
 .Ar output
 file instead of the standard output.
-.It Fl S Ar size, Fl Fl buffer-size Ns = Ns Ar size
+.It Fl S Ar size , Fl Fl buffer-size Ns = Ns Ar size
 Use
 .Ar size
 for the maximum size of the memory buffer.
@@ -149,14 +149,14 @@ When attached to a specific key (see
 the ordering options override all global ordering options for
 the key they are attached to.
 .Bl -tag -width indent
-.It Fl b, Fl Fl ignore-leading-blanks
+.It Fl b , Fl Fl ignore-leading-blanks
 Ignore leading blank characters when comparing lines.
 .It Fl d , Fl Fl dictionary-order
 Consider only blank spaces and alphanumeric characters in comparisons.
 .It Fl f , Fl Fl ignore-case
 Convert all lowercase characters to their uppercase equivalent
 before comparison, that is, perform case-independent sorting.
-.It Fl g, Fl Fl general-numeric-sort, Fl Fl sort=general-numeric
+.It Fl g , Fl Fl general-numeric-sort , Fl Fl sort=general-numeric
 Sort by general numerical value.
 As opposed to
 .Fl n ,
@@ -165,7 +165,7 @@ It has a more
 permissive format than that allowed by
 .Fl n
 but it has a significant performance drawback.
-.It Fl h, Fl Fl human-numeric-sort, Fl Fl sort=human-numeric
+.It Fl h , Fl Fl human-numeric-sort , Fl Fl sort=human-numeric
 Sort by numerical value, but take into account the SI suffix,
 if present.
 Sort first by numeric sign (negative, zero, or
@@ -181,15 +181,15 @@ or
 options (human-readable).
 .It Fl i , Fl Fl ignore-nonprinting
 Ignore all non-printable characters.
-.It Fl M, Fl Fl month-sort, Fl Fl sort=month
+.It Fl M , Fl Fl month-sort , Fl Fl sort=month
 Sort by month abbreviations.
 Unknown strings are considered smaller than the month names.
-.It Fl n , Fl Fl numeric-sort, Fl Fl sort=numeric
+.It Fl n , Fl Fl numeric-sort , Fl Fl sort=numeric
 Sort fields numerically by arithmetic value.
 Fields are supposed to have optional blanks in the beginning, an
 optional minus sign, zero or more digits (including decimal point and
 possible thousand separators).
-.It Fl R, Fl Fl random-sort, Fl Fl sort=random
+.It Fl R , Fl Fl random-sort , Fl Fl sort=random
 Sort by a random order.
 This is a random permutation of the inputs except that
 the equal keys sort together.
@@ -204,7 +204,7 @@ Even if multiple sort fields are specified,
 the same random hash function is used for all of them.
 .It Fl r , Fl Fl reverse
 Sort in reverse order.
-.It Fl V, Fl Fl version-sort
+.It Fl V , Fl Fl version-sort
 Sort version numbers.
 The input lines are treated as file names in form
 PREFIX VERSION SUFFIX, where SUFFIX matches the regular expression
@@ -234,8 +234,7 @@ The treatment of field separators can be altered using these options:
 .It Fl b , Fl Fl ignore-leading-blanks
 Ignore leading blank space when determining the start
 and end of a restricted sort key (see
-.Fl k
-).
+.Fl k ) .
 If
 .Fl b
 is specified before the first
@@ -623,7 +622,7 @@ The performance depends highly on locale settings,
 efficient choice of sort keys and key complexity.
 The fastest sort is with locale C, on whole lines,
 with option
-.Fl s.
+.Fl s .
 In general, locale C is the fastest, then single-byte
 locales follow and multi-byte locales as the slowest but
 the correct collation order is always respected.
