@@ -1,5 +1,7 @@
 #################################################################
 #
+# Generate crunched binaries using crunchgen(1).
+#
 # General notes:
 #
 # A number of Make variables are used to generate the crunchgen config file.
