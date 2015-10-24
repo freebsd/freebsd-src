@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_XENINTR, "xen_intr", "Xen Interrupt Services");
 
 #define ENABLED_SETSIZE	(sizeof(u_long) * 8)
-BITSET_DEFINE(enabledbits, ENABLED_SETSIZE)
+BITSET_DEFINE(enabledbits, ENABLED_SETSIZE);
 
 /**
  * Per-cpu event channel processing state.
