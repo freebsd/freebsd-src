@@ -52,6 +52,9 @@ typedef void (*bus_dmaengine_callback_t)(void *arg);
  */
 bus_dmaengine_t ioat_get_dmaengine(uint32_t channel_index);
 
+/* Release the DMA channel */
+void ioat_put_dmaengine(bus_dmaengine_t dmaengine);
+
 /*
  * Acquire must be called before issuing an operation to perform. Release is
  * called after. Multiple operations can be issued within the context of one

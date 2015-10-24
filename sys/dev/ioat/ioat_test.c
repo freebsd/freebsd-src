@@ -299,7 +299,7 @@ ioat_dma_test(void *arg)
 	rc = ioat_test_prealloc_memory(test, index);
 	if (rc != 0) {
 		ioat_test_log(0, "prealloc_memory: %d\n", rc);
-		return;
+		goto out;
 	}
 	wmb();
 
@@ -330,6 +330,8 @@ ioat_dma_test(void *arg)
 	    ticks - start, ticks - end, (ticks - start) / hz);
 
 	ioat_test_release_memory(test);
+out:
+	ioat_put_dmaengine(dmaengine);
 }
 
 static int
