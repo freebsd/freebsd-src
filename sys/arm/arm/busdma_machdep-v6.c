@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2014 Ian Lepore
+ * Copyright (c) 2012-2015 Ian Lepore
  * Copyright (c) 2010 Mark Tinguely
  * Copyright (c) 2004 Olivier Houchard
  * Copyright (c) 2002 Peter Grehan
@@ -35,9 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
-#include <sys/kdb.h>
-#include <ddb/ddb.h>
-#include <ddb/db_output.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
@@ -740,6 +737,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 int
 bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
+
 	if (STAILQ_FIRST(&map->bpages) != NULL || map->sync_count != 0) {
 		CTR3(KTR_BUSDMA, "%s: tag %p error %d",
 		    __func__, dmat, EBUSY);
@@ -756,14 +754,13 @@ bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 	return (0);
 }
 
-
 /*
- * Allocate a piece of memory that can be efficiently mapped into
- * bus device space based on the constraints lited in the dma tag.
- * A dmamap to for use with dmamap_load is also allocated.
+ * Allocate a piece of memory that can be efficiently mapped into bus device
+ * space based on the constraints listed in the dma tag.  Returns a pointer to
+ * the allocated memory, and a pointer to an associated bus_dmamap.
  */
 int
-bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
+bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
     bus_dmamap_t *mapp)
 {
 	busdma_bufalloc_t ba;
@@ -829,8 +826,6 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		    mflags, 0, dmat->lowaddr, dmat->alignment, dmat->boundary,
 		    memattr);
 	}
-
-
 	if (*vaddr == NULL) {
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 		    __func__, dmat, dmat->flags, ENOMEM);
@@ -850,8 +845,8 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 }
 
 /*
- * Free a piece of memory and it's allociated dmamap, that was allocated
- * via bus_dmamem_alloc.  Make the same choice for free/contigfree.
+ * Free a piece of memory that was allocated via bus_dmamem_alloc, along with
+ * its associated map.
  */
 void
 bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
@@ -1075,7 +1070,7 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
 		    sgsize)) {
 			sgsize = MIN(sgsize, PAGE_SIZE - (curaddr & PAGE_MASK));
 			curaddr = add_bounce_page(dmat, map, 0, curaddr,
-						  sgsize);
+			    sgsize);
 		} else {
 			if (map->sync_count > 0)
 				sl_end = VM_PAGE_TO_PHYS(sl->pages) +
@@ -1187,7 +1182,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		if (map->pagesneeded != 0 && must_bounce(dmat, map, curaddr,
 		    sgsize)) {
 			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr,
-						  sgsize);
+			    sgsize);
 		} else {
 			if (map->sync_count > 0) {
 				sl_pend = VM_PAGE_TO_PHYS(sl->pages) +
