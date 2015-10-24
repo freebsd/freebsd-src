@@ -91,7 +91,10 @@ fopen(const char * __restrict file, const char * __restrict mode)
 	 * we can do about this.  (We could set __SAPP and check in
 	 * fseek and ftell.)
 	 */
-	if (oflags & O_APPEND)
+	if (oflags & O_APPEND) {
+		/* XXX: Reuse __SALC for O_APPEND. */
+		fp->_flags |= __SALC;
 		(void)_sseek(fp, (fpos_t)0, SEEK_END);
+	}
 	return (fp);
 }
