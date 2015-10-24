@@ -91,7 +91,10 @@ fdopen(int fd, const char *mode)
 	 * O_APPEND bit set, assert __SAPP so that __swrite() caller
 	 * will _sseek() to the end before write.
 	 */
-	if ((oflags & O_APPEND) && !(fdflags & O_APPEND))
+	/* XXX: Reuse __SALC for O_APPEND. */
+	if (fdflags & O_APPEND)
+		fp->_flags |= __SALC;
+	else if (oflags & O_APPEND)
 		fp->_flags |= __SAPP;
 	fp->_file = fd;
 	fp->_cookie = fp;
