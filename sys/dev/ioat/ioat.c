@@ -641,6 +641,7 @@ ioat_null(bus_dmaengine_t dmaengine, bus_dmaengine_callback_t callback_fn,
 		flags & ~DMA_ALL_FLAGS));
 
 	ioat = to_ioat_softc(dmaengine);
+	mtx_assert(&ioat->submit_lock, MA_OWNED);
 
 	if (ioat_reserve_space_and_lock(ioat, 1) != 0)
 		return (NULL);
@@ -681,6 +682,7 @@ ioat_copy(bus_dmaengine_t dmaengine, bus_addr_t dst,
 		flags & ~DMA_ALL_FLAGS));
 
 	ioat = to_ioat_softc(dmaengine);
+	mtx_assert(&ioat->submit_lock, MA_OWNED);
 
 	if (len > ioat->max_xfer_size) {
 		ioat_log_message(0, "%s: max_xfer_size = %d, requested = %d\n",
