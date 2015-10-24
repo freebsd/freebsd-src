@@ -58,22 +58,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <sys/busdma_bufalloc.h>
+#include <sys/counter.h>
 #include <sys/interrupt.h>
-#include <sys/lock.h>
-#include <sys/proc.h>
-#include <sys/memdesc.h>
-#include <sys/mutex.h>
-#include <sys/ktr.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
+#include <sys/lock.h>
+#include <sys/memdesc.h>
+#include <sys/proc.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 
-#include <vm/uma.h>
 #include <vm/vm.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 
 #include <machine/atomic.h>
 #include <machine/bus.h>
@@ -154,11 +154,42 @@ struct bounce_zone {
 static struct mtx bounce_lock;
 static int total_bpages;
 static int busdma_zonecount;
+static uint32_t tags_total;
+static uint32_t maps_total;
+static uint32_t maps_dmamem;
+static uint32_t maps_coherent;
+static counter_u64_t maploads_total;
+static counter_u64_t maploads_bounced;
+static counter_u64_t maploads_coherent;
+static counter_u64_t maploads_dmamem;
+static counter_u64_t maploads_mbuf;
+static counter_u64_t maploads_physmem;
+
 static STAILQ_HEAD(, bounce_zone) bounce_zone_list;
 
-static SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
+SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
+SYSCTL_UINT(_hw_busdma, OID_AUTO, tags_total, CTLFLAG_RD, &tags_total, 0,
+   "Number of active tags");
+SYSCTL_UINT(_hw_busdma, OID_AUTO, maps_total, CTLFLAG_RD, &maps_total, 0,
+   "Number of active maps");
+SYSCTL_UINT(_hw_busdma, OID_AUTO, maps_dmamem, CTLFLAG_RD, &maps_dmamem, 0,
+   "Number of active maps for bus_dmamem_alloc buffers");
+SYSCTL_UINT(_hw_busdma, OID_AUTO, maps_coherent, CTLFLAG_RD, &maps_coherent, 0,
+   "Number of active maps with BUS_DMA_COHERENT flag set");
+SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_total, CTLFLAG_RD,
+    &maploads_total, "Number of load operations performed");
+SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_bounced, CTLFLAG_RD,
+    &maploads_bounced, "Number of load operations that used bounce buffers");
+SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_coherent, CTLFLAG_RD,
+    &maploads_dmamem, "Number of load operations on BUS_DMA_COHERENT memory");
+SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_dmamem, CTLFLAG_RD,
+    &maploads_dmamem, "Number of load operations on bus_dmamem_alloc buffers");
+SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_mbuf, CTLFLAG_RD,
+    &maploads_mbuf, "Number of load operations for mbufs");
+SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_physmem, CTLFLAG_RD,
+    &maploads_physmem, "Number of load operations on physical buffers");
 SYSCTL_INT(_hw_busdma, OID_AUTO, total_bpages, CTLFLAG_RD, &total_bpages, 0,
-	   "Total bounce pages");
+   "Total bounce pages");
 
 struct bus_dmamap {
 	struct bp_list		bpages;
@@ -211,6 +242,12 @@ static void
 busdma_init(void *dummy)
 {
 
+	maploads_total    = counter_u64_alloc(M_WAITOK);
+	maploads_bounced  = counter_u64_alloc(M_WAITOK);
+	maploads_coherent = counter_u64_alloc(M_WAITOK);
+	maploads_dmamem   = counter_u64_alloc(M_WAITOK);
+	maploads_mbuf     = counter_u64_alloc(M_WAITOK);
+	maploads_physmem  = counter_u64_alloc(M_WAITOK);
 
 	/* Create a cache of buffers in standard (cacheable) memory. */
 	standard_allocator = busdma_bufalloc_create("buffer",
@@ -455,27 +492,33 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		newtag->flags |= BUS_DMA_MIN_ALLOC_COMP;
 	} else
 		newtag->bounce_zone = NULL;
-	if (error != 0)
+
+	if (error != 0) {
 		free(newtag, M_BUSDMA);
-	else
+	} else {
+		atomic_add_32(&tags_total, 1);
 		*dmat = newtag;
+	}
 	CTR4(KTR_BUSDMA, "%s returned tag %p tag flags 0x%x error %d",
 	    __func__, newtag, (newtag != NULL ? newtag->flags : 0), error);
-
 	return (error);
 }
 
 int
 bus_dma_tag_destroy(bus_dma_tag_t dmat)
 {
-#ifdef KTR
-	bus_dma_tag_t dmat_copy = dmat;
-#endif
+	bus_dma_tag_t dmat_copy;
+	int error;
+
+	error = 0;
+	dmat_copy = dmat;
 
 	if (dmat != NULL) {
 
-		if (dmat->map_count != 0)
-			return (EBUSY);
+		if (dmat->map_count != 0) {
+			error = EBUSY;
+			goto out;
+		}
 
 		while (dmat != NULL) {
 			bus_dma_tag_t parent;
@@ -483,6 +526,7 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 			parent = dmat->parent;
 			atomic_subtract_int(&dmat->ref_count, 1);
 			if (dmat->ref_count == 0) {
+				atomic_subtract_32(&tags_total, 1);
 				free(dmat, M_BUSDMA);
 				/*
 				 * Last reference count, so
@@ -494,8 +538,57 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 				dmat = NULL;
 		}
 	}
-	CTR2(KTR_BUSDMA, "%s tag %p", __func__, dmat_copy);
+out:
+	CTR3(KTR_BUSDMA, "%s tag %p error %d", __func__, dmat_copy, error);
+	return (error);
+}
 
+static int
+allocate_bz_and_pages(bus_dma_tag_t dmat, bus_dmamap_t map)
+{
+	int error;
+
+	/*
+	 * Bouncing might be required if the driver asks for an active
+	 * exclusion region, a data alignment that is stricter than 1, and/or
+	 * an active address boundary.
+	 */
+	if (dmat->flags & BUS_DMA_COULD_BOUNCE) {
+
+		/* Must bounce */
+		struct bounce_zone *bz;
+		int maxpages;
+
+		if (dmat->bounce_zone == NULL) {
+			if ((error = alloc_bounce_zone(dmat)) != 0) {
+				return (error);
+			}
+		}
+		bz = dmat->bounce_zone;
+
+		/* Initialize the new map */
+		STAILQ_INIT(&(map->bpages));
+
+		/*
+		 * Attempt to add pages to our pool on a per-instance
+		 * basis up to a sane limit.
+		 */
+		maxpages = MAX_BPAGES;
+		if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0
+		 || (bz->map_count > 0 && bz->total_bpages < maxpages)) {
+			int pages;
+
+			pages = MAX(atop(dmat->maxsize), 1);
+			pages = MIN(maxpages - bz->total_bpages, pages);
+			pages = MAX(pages, 1);
+			if (alloc_bounce_pages(dmat, pages) < pages)
+				return (ENOMEM);
+
+			if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0)
+				dmat->flags |= BUS_DMA_MIN_ALLOC_COMP;
+		}
+		bz->map_count++;
+	}
 	return (0);
 }
 
@@ -547,51 +640,16 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	 * happen can't be known until mapping time, but we need to pre-allocate
 	 * resources now because we might not be allowed to at mapping time.
 	 */
-	if (dmat->flags & BUS_DMA_COULD_BOUNCE) {
-
-		/* Must bounce */
-		struct bounce_zone *bz;
-		int maxpages;
-
-		if (dmat->bounce_zone == NULL) {
-			if ((error = alloc_bounce_zone(dmat)) != 0) {
-				free(map, M_BUSDMA);
-				*mapp = NULL;
-				return (error);
-			}
-		}
-		bz = dmat->bounce_zone;
-
-		/* Initialize the new map */
-		STAILQ_INIT(&((*mapp)->bpages));
-
-		/*
-		 * Attempt to add pages to our pool on a per-instance
-		 * basis up to a sane limit.
-		 */
-		maxpages = MAX_BPAGES;
-		if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0
-		 || (bz->map_count > 0 && bz->total_bpages < maxpages)) {
-			int pages;
-
-			pages = MAX(atop(dmat->maxsize), 1);
-			pages = MIN(maxpages - bz->total_bpages, pages);
-			pages = MAX(pages, 1);
-			if (alloc_bounce_pages(dmat, pages) < pages)
-				error = ENOMEM;
-
-			if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0) {
-				if (error == 0)
-					dmat->flags |= BUS_DMA_MIN_ALLOC_COMP;
-			} else {
-				error = 0;
-			}
-		}
-		bz->map_count++;
+	error = allocate_bz_and_pages(dmat, map);
+	if (error != 0) {
+		free(map, M_BUSDMA);
+		*mapp = NULL;
+		return (error);
 	}
-	map->sync_count = 0;
-	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
-	    __func__, dmat, dmat->flags, error);
+	if (map->flags & DMAMAP_COHERENT)
+		atomic_add_32(&maps_coherent, 1);
+	atomic_add_32(&maps_total, 1);
+	dmat->map_count++;
 
 	return (0);
 }
@@ -611,6 +669,9 @@ bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 	}
 	if (dmat->bounce_zone)
 		dmat->bounce_zone->map_count--;
+	if (map->flags & DMAMAP_COHERENT)
+		atomic_subtract_32(&maps_coherent, 1);
+	atomic_subtract_32(&maps_total, 1);
 	free(map, M_BUSDMA);
 	dmat->map_count--;
 	CTR2(KTR_BUSDMA, "%s: tag %p error 0", __func__, dmat);
@@ -696,6 +757,10 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 		*mapp = NULL;
 		return (ENOMEM);
 	}
+	if (map->flags & DMAMAP_COHERENT)
+		atomic_add_32(&maps_coherent, 1);
+	atomic_add_32(&maps_dmamem, 1);
+	atomic_add_32(&maps_total, 1);
 	dmat->map_count++;
 
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
@@ -727,6 +792,10 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 		kmem_free(kernel_arena, (vm_offset_t)vaddr, dmat->maxsize);
 
 	dmat->map_count--;
+	if (map->flags & DMAMAP_COHERENT)
+		atomic_subtract_32(&maps_coherent, 1);
+	atomic_subtract_32(&maps_total, 1);
+	atomic_subtract_32(&maps_dmamem, 1);
 	free(map, M_BUSDMA);
 	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat, dmat->flags);
 }
@@ -882,18 +951,22 @@ int
 _bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
     bus_size_t buflen, int flags, bus_dma_segment_t *segs, int *segp)
 {
-	struct sync_list *sl;
-	bus_size_t sgsize;
 	bus_addr_t curaddr;
 	bus_addr_t sl_end = 0;
+	bus_size_t sgsize;
+	struct sync_list *sl;
 	int error;
 
 	if (segs == NULL)
 		segs = map->segments;
 
+	counter_u64_add(maploads_total, 1);
+	counter_u64_add(maploads_physmem, 1);
+
 	if ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) {
 		_bus_dmamap_count_phys(dmat, map, buf, buflen, flags);
 		if (map->pagesneeded != 0) {
+			counter_u64_add(maploads_bounced, 1);
 			error = _bus_dmamap_reserve_pages(dmat, map, flags);
 			if (error)
 				return (error);
@@ -972,14 +1045,23 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	vm_offset_t sl_vend = 0;
 	int error = 0;
 
+	counter_u64_add(maploads_total, 1);
+	if (map->flags & DMAMAP_COHERENT)
+		counter_u64_add(maploads_coherent, 1);
+	if (map->flags & DMAMAP_DMAMEM_ALLOC)
+		counter_u64_add(maploads_dmamem, 1);
+
 	if (segs == NULL)
 		segs = map->segments;
-	if ((flags & BUS_DMA_LOAD_MBUF) != 0)
+	if (flags & BUS_DMA_LOAD_MBUF) {
+		counter_u64_add(maploads_mbuf, 1);
 		map->flags |= DMAMAP_CACHE_ALIGNED;
+	}
 
 	if ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) {
 		_bus_dmamap_count_pages(dmat, map, pmap, buf, buflen, flags);
 		if (map->pagesneeded != 0) {
+			counter_u64_add(maploads_bounced, 1);
 			error = _bus_dmamap_reserve_pages(dmat, map, flags);
 			if (error)
 				return (error);
