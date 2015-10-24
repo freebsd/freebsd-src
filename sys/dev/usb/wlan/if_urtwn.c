@@ -183,7 +183,8 @@ static struct mbuf *	urtwn_rx_frame(struct urtwn_softc *, uint8_t *, int,
 			    int *);
 static struct mbuf *	urtwn_rxeof(struct usb_xfer *, struct urtwn_data *,
 			    int *, int8_t *);
-static void		urtwn_txeof(struct usb_xfer *, struct urtwn_data *);
+static void		urtwn_txeof(struct urtwn_softc *, struct urtwn_data *,
+			    int);
 static int		urtwn_alloc_list(struct urtwn_softc *,
 			    struct urtwn_data[], int, int);
 static int		urtwn_alloc_rx_list(struct urtwn_softc *);
@@ -815,16 +816,19 @@ tr_setup:
 }
 
 static void
-urtwn_txeof(struct usb_xfer *xfer, struct urtwn_data *data)
+urtwn_txeof(struct urtwn_softc *sc, struct urtwn_data *data, int status)
 {
-	struct urtwn_softc *sc = usbd_xfer_softc(xfer);
 
 	URTWN_ASSERT_LOCKED(sc);
-	/* XXX status? */
-	ieee80211_tx_complete(data->ni, data->m, 0);
+
+	ieee80211_tx_complete(data->ni, data->m, status);
+
 	data->ni = NULL;
 	data->m = NULL;
+
 	sc->sc_txtimer = 0;
+
+	STAILQ_INSERT_TAIL(&sc->sc_tx_inactive, data, next);
 }
 
 static int
@@ -937,8 +941,7 @@ urtwn_bulk_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (data == NULL)
 			goto tr_setup;
 		STAILQ_REMOVE_HEAD(&sc->sc_tx_active, next);
-		urtwn_txeof(xfer, data);
-		STAILQ_INSERT_TAIL(&sc->sc_tx_inactive, data, next);
+		urtwn_txeof(sc, data, 0);
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
@@ -956,12 +959,8 @@ tr_setup:
 		data = STAILQ_FIRST(&sc->sc_tx_active);
 		if (data == NULL)
 			goto tr_setup;
-		if (data->ni != NULL) {
-			if_inc_counter(data->ni->ni_vap->iv_ifp,
-			    IFCOUNTER_OERRORS, 1);
-			ieee80211_free_node(data->ni);
-			data->ni = NULL;
-		}
+		STAILQ_REMOVE_HEAD(&sc->sc_tx_active, next);
+		urtwn_txeof(sc, data, 1);
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
