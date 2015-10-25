@@ -382,14 +382,16 @@ isp_freeze_loopdown(ispsoftc_t *isp, int chan, char *msg)
 	if (IS_FC(isp)) {
 		struct isp_fc *fc = ISP_FC_PC(isp, chan);
 		if (fc->simqfrozen == 0) {
-			isp_prt(isp, ISP_LOGDEBUG0, "%s: freeze simq (loopdown) chan %d", msg, chan);
+			isp_prt(isp, ISP_LOGDEBUG0,
+			    "Chan %d %s -- freeze simq (loopdown)", chan, msg);
 			fc->simqfrozen = SIMQFRZ_LOOPDOWN;
 #if __FreeBSD_version >= 1000039
 			xpt_hold_boot();
 #endif
 			xpt_freeze_simq(fc->sim, 1);
 		} else {
-			isp_prt(isp, ISP_LOGDEBUG0, "%s: mark frozen (loopdown) chan %d", msg, chan);
+			isp_prt(isp, ISP_LOGDEBUG0,
+			    "Chan %d %s -- mark frozen (loopdown)", chan, msg);
 			fc->simqfrozen |= SIMQFRZ_LOOPDOWN;
 		}
 	}
@@ -4988,11 +4990,11 @@ changed:
 		fc = ISP_FC_PC(isp, bus);
 
 		if (evt == ISPASYNC_CHANGE_PDB) {
-			msg = "Chan %d Port Database Changed";
+			msg = "Port Database Changed";
 		} else if (evt == ISPASYNC_CHANGE_SNS) {
-			msg = "Chan %d Name Server Database Changed";
+			msg = "Name Server Database Changed";
 		} else {
-			msg = "Chan %d Other Change Notify";
+			msg = "Other Change Notify";
 		}
 
 		/*
@@ -5002,7 +5004,7 @@ changed:
 			isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "Stopping Loop Down Timer @ %lu", (unsigned long) time_uptime);
 			callout_stop(&fc->ldt);
 		}
-		isp_prt(isp, ISP_LOGINFO, msg, bus);
+		isp_prt(isp, ISP_LOGINFO, "Chan %d %s", bus, msg);
 		if (FCPARAM(isp, bus)->role & ISP_ROLE_INITIATOR) {
 			isp_freeze_loopdown(isp, bus, msg);
 		}
