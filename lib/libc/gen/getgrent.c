@@ -1239,14 +1239,13 @@ compat_setgrent(void *retval, void *mdata, va_list ap)
 	int		 rv, stayopen;
 
 #define set_setent(x, y) do {	 				\
-	unsigned int i;						\
-								\
-	for (i = 0; i < (sizeof(x)/sizeof(x[0])) - 1; i++)	\
+	int i;							\
+	for (i = 0; i < (int)(nitems(x) - 1); i++)		\
 		x[i].mdata = (void *)y;				\
 } while (0)
 
 	rv = compat_getstate(&st);
-	if (rv != 0) 
+	if (rv != 0)
 		return (NS_UNAVAIL);
 	switch ((enum constants)mdata) {
 	case SETGRENT:
@@ -1309,9 +1308,8 @@ compat_group(void *retval, void *mdata, va_list ap)
 	int			 rv, stayopen, *errnop;
 
 #define set_lookup_type(x, y) do { 				\
-	unsigned int i;						\
-								\
-	for (i = 0; i < (sizeof(x)/sizeof(x[0])) - 1; i++)	\
+	int i;							\
+	for (i = 0; i < (int)(nitems(x) - 1); i++)		\
 		x[i].mdata = (void *)y;				\
 } while (0)
 
