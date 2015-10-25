@@ -1889,6 +1889,8 @@ isp_handle_24xx_inotify(ispsoftc_t *isp, in_fcentry_24xx_t *inot_24xx)
 	}
 	isp_prt(isp, ISP_LOGTDEBUG1, "%s: Immediate Notify Channels %d..%d status=0x%x seqid=0x%x", __func__, lochan, hichan-1, inot_24xx->in_status, inot_24xx->in_rxid);
 	for (chan = lochan; chan < hichan; chan++) {
+		if (FCPARAM(isp, chan)->role == ISP_ROLE_NONE)
+			continue;
 		switch (inot_24xx->in_status) {
 		case IN24XX_LIP_RESET:
 		case IN24XX_LINK_RESET:
