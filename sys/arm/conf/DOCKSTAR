@@ -96,6 +96,7 @@ device		uart
 # Networking
 device		mge			# Marvell Gigabit Ethernet controller
 device		mii
+device		mdio
 device		e1000phy
 
 # USB
