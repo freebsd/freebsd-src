@@ -6073,11 +6073,10 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		if (IS_24XX(isp)) {
 			nphdl = ISP_READ(isp, OUTMAILBOX1);
 			nlstate = ISP_READ(isp, OUTMAILBOX2);
-			reason = ISP_READ(isp, OUTMAILBOX3);
-			chan = reason & 0xff;
+			reason = ISP_READ(isp, OUTMAILBOX3) >> 8;
+			GET_24XX_BUS(isp, chan, "ASYNC_CHANGE_NOTIFY");
 			echan = (nphdl == NIL_HANDLE) ?
 			    isp->isp_nchan - 1 : chan;
-			reason = reason >> 8;
 		} else {
 			nphdl = NIL_HANDLE;
 			nlstate = reason = 0;
