@@ -1669,7 +1669,6 @@ isp_fibre_init(ispsoftc_t *isp)
 	fcparam *fcp;
 	isp_icb_t local, *icbp = &local;
 	mbreg_t mbs;
-	int ownloopid;
 
 	/*
 	 * We only support one channel on non-24XX cards
@@ -1743,19 +1742,12 @@ isp_fibre_init(ispsoftc_t *isp)
 	}
 	icbp->icb_retry_delay = fcp->isp_retry_delay;
 	icbp->icb_retry_count = fcp->isp_retry_count;
-	icbp->icb_hardaddr = fcp->isp_loopid;
-	ownloopid = (isp->isp_confopts & ISP_CFG_OWNLOOPID) != 0;
-	if (icbp->icb_hardaddr >= LOCAL_LOOP_LIM) {
-		icbp->icb_hardaddr = 0;
-		ownloopid = 0;
-	}
-
-	/*
-	 * Our life seems so much better with 2200s and later with
-	 * the latest f/w if we set Hard Address.
-	 */
-	if (ownloopid || ISP_FW_NEWER_THAN(isp, 2, 2, 5)) {
-		icbp->icb_fwoptions |= ICBOPT_HARD_ADDRESS;
+	if (fcp->isp_loopid < LOCAL_LOOP_LIM) {
+		icbp->icb_hardaddr = fcp->isp_loopid;
+		if (isp->isp_confopts & ISP_CFG_OWNLOOPID)
+			icbp->icb_fwoptions |= ICBOPT_HARD_ADDRESS;
+		else
+			icbp->icb_fwoptions |= ICBOPT_PREV_ADDRESS;
 	}
 
 	/*
@@ -1989,7 +1981,6 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	isp_icb_2400_t local, *icbp = &local;
 	mbreg_t mbs;
 	int chan;
-	int ownloopid = 0;
 
 	/*
 	 * Check to see whether all channels have *some* kind of role
@@ -2024,16 +2015,20 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 
 	ISP_MEMZERO(icbp, sizeof (*icbp));
 	icbp->icb_fwoptions1 = fcp->isp_fwoptions;
-	if (fcp->role & ISP_ROLE_TARGET) {
+	icbp->icb_fwoptions2 = fcp->isp_xfwoptions;
+	icbp->icb_fwoptions3 = fcp->isp_zfwoptions;
+	if (isp->isp_nchan > 1 && (isp->isp_fwattr & ISP2400_FW_ATTR_VP0)) {
+		icbp->icb_fwoptions1 &= ~ICB2400_OPT1_INI_DISABLE;
 		icbp->icb_fwoptions1 |= ICB2400_OPT1_TGT_ENABLE;
 	} else {
-		icbp->icb_fwoptions1 &= ~ICB2400_OPT1_TGT_ENABLE;
-	}
-
-	if (fcp->role & ISP_ROLE_INITIATOR) {
-		icbp->icb_fwoptions1 &= ~ICB2400_OPT1_INI_DISABLE;
-	} else {
-		icbp->icb_fwoptions1 |= ICB2400_OPT1_INI_DISABLE;
+		if (fcp->role & ISP_ROLE_TARGET)
+			icbp->icb_fwoptions1 |= ICB2400_OPT1_TGT_ENABLE;
+		else
+			icbp->icb_fwoptions1 &= ~ICB2400_OPT1_TGT_ENABLE;
+		if (fcp->role & ISP_ROLE_INITIATOR)
+			icbp->icb_fwoptions1 &= ~ICB2400_OPT1_INI_DISABLE;
+		else
+			icbp->icb_fwoptions1 |= ICB2400_OPT1_INI_DISABLE;
 	}
 
 	icbp->icb_version = ICB_VERSION1;
@@ -2058,18 +2053,14 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 			icbp->icb_xchgcnt >>= 1;
 	}
 
-
-	ownloopid = (isp->isp_confopts & ISP_CFG_OWNLOOPID) != 0;
-	icbp->icb_hardaddr = fcp->isp_loopid;
-	if (icbp->icb_hardaddr >= LOCAL_LOOP_LIM) {
-		icbp->icb_hardaddr = 0;
-		ownloopid = 0;
+	if (fcp->isp_loopid < LOCAL_LOOP_LIM) {
+		icbp->icb_hardaddr = fcp->isp_loopid;
+		if (isp->isp_confopts & ISP_CFG_OWNLOOPID)
+			icbp->icb_fwoptions1 |= ICB2400_OPT1_HARD_ADDRESS;
+		else
+			icbp->icb_fwoptions1 |= ICB2400_OPT1_PREV_ADDRESS;
 	}
 
-	if (ownloopid)
-		icbp->icb_fwoptions1 |= ICB2400_OPT1_HARD_ADDRESS;
-
-	icbp->icb_fwoptions2 = fcp->isp_xfwoptions;
 	if (isp->isp_confopts & ISP_CFG_NOFCTAPE) {
 		icbp->icb_fwoptions2 &= ~ICB2400_OPT2_FCTAPE;
 	}
@@ -2113,7 +2104,6 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		break;
 	}
 
-	icbp->icb_fwoptions3 = fcp->isp_zfwoptions;
 	if ((icbp->icb_fwoptions3 & ICB2400_OPT3_RSPSZ_MASK) == 0) {
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RSPSZ_24;
 	}
@@ -2128,9 +2118,6 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_EIGHTGB;
 	} else {
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_AUTO;
-	}
-	if (ownloopid == 0) {
-		icbp->icb_fwoptions3 |= ICB2400_OPT3_SOFTID;
 	}
 	icbp->icb_logintime = ICB_LOGIN_TOV;
 
@@ -2237,6 +2224,13 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 					pi.vp_port_options |= ICB2400_VPOPT_INI_ENABLE;
 				if ((fcp2->role & ISP_ROLE_TARGET) == 0)
 					pi.vp_port_options |= ICB2400_VPOPT_TGT_DISABLE;
+			}
+			if (fcp2->isp_loopid < LOCAL_LOOP_LIM) {
+				pi.vp_port_loopid = fcp2->isp_loopid;
+				if (isp->isp_confopts & ISP_CFG_OWNLOOPID)
+					pi.vp_port_options |= ICB2400_VPOPT_HARD_ADDRESS;
+				else
+					pi.vp_port_options |= ICB2400_VPOPT_PREV_ADDRESS;
 			}
 			MAKE_NODE_NAME_FROM_WWN(pi.vp_port_portname, fcp2->isp_wwpn);
 			MAKE_NODE_NAME_FROM_WWN(pi.vp_port_nodename, fcp2->isp_wwnn);
