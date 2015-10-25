@@ -32,6 +32,7 @@
 #include <fcntl.h>
 #include <paths.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,7 +44,7 @@
 __FBSDID("$FreeBSD$");
 
 static int	we_askshell(const char *, wordexp_t *, int);
-static int	we_check(const char *, int);
+static int	we_check(const char *);
 
 /*
  * wordexp --
@@ -65,7 +66,7 @@ wordexp(const char * __restrict words, wordexp_t * __restrict we, int flags)
 		we->we_strings = NULL;
 		we->we_nbytes = 0;
 	}
-	if ((error = we_check(words, flags)) != 0) {
+	if ((error = we_check(words)) != 0) {
 		wordfree(we);
 		return (error);
 	}
@@ -94,18 +95,37 @@ we_read_fully(int fd, char *buffer, size_t len)
 	return done;
 }
 
+static bool
+we_write_fully(int fd, const char *buffer, size_t len)
+{
+	size_t done;
+	ssize_t nwritten;
+
+	done = 0;
+	do {
+		nwritten = _write(fd, buffer + done, len - done);
+		if (nwritten == -1 && errno == EINTR)
+			continue;
+		if (nwritten <= 0)
+			return (false);
+		done += nwritten;
+	} while (done != len);
+	return (true);
+}
+
 /*
  * we_askshell --
- *	Use the `wordexp' /bin/sh builtin function to do most of the work
- *	in expanding the word string. This function is complicated by
+ *	Use the `freebsd_wordexp' /bin/sh builtin function to do most of the
+ *	work in expanding the word string. This function is complicated by
  *	memory management.
  */
 static int
 we_askshell(const char *words, wordexp_t *we, int flags)
 {
-	int pdes[2];			/* Pipe to child */
-	char bbuf[9];			/* Buffer for byte count */
-	char wbuf[9];			/* Buffer for word count */
+	int pdesw[2];			/* Pipe for writing words */
+	int pdes[2];			/* Pipe for reading output */
+	char wfdstr[sizeof(int) * 3 + 1];
+	char buf[35];			/* Buffer for byte and word count */
 	long nwords, nbytes;		/* Number of words, bytes from child */
 	long i;				/* Handy integer */
 	size_t sofs;			/* Offset into we->we_strings */
@@ -124,13 +144,21 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	serrno = errno;
 	ifs = getenv("IFS");
 
-	if (pipe2(pdes, O_CLOEXEC) < 0)
+	if (pipe2(pdesw, O_CLOEXEC) < 0)
 		return (WRDE_NOSPACE);	/* XXX */
+	snprintf(wfdstr, sizeof(wfdstr), "%d", pdesw[0]);
+	if (pipe2(pdes, O_CLOEXEC) < 0) {
+		_close(pdesw[0]);
+		_close(pdesw[1]);
+		return (WRDE_NOSPACE);	/* XXX */
+	}
 	(void)sigemptyset(&newsigblock);
 	(void)sigaddset(&newsigblock, SIGCHLD);
 	(void)__libc_sigprocmask(SIG_BLOCK, &newsigblock, &oldsigblock);
 	if ((pid = fork()) < 0) {
 		serrno = errno;
+		_close(pdesw[0]);
+		_close(pdesw[1]);
 		_close(pdes[0]);
 		_close(pdes[1]);
 		(void)__libc_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
@@ -139,38 +167,63 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	}
 	else if (pid == 0) {
 		/*
-		 * We are the child; just get /bin/sh to run the wordexp
-		 * builtin on `words'.
+		 * We are the child; make /bin/sh expand `words'.
 		 */
 		(void)__libc_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
 		if ((pdes[1] != STDOUT_FILENO ?
 		    _dup2(pdes[1], STDOUT_FILENO) :
 		    _fcntl(pdes[1], F_SETFD, 0)) < 0)
 			_exit(1);
+		if (_fcntl(pdesw[0], F_SETFD, 0) < 0)
+			_exit(1);
 		execl(_PATH_BSHELL, "sh", flags & WRDE_UNDEF ? "-u" : "+u",
-		    "-c", "IFS=$1;eval \"$2\";eval \"wordexp $3\"", "",
+		    "-c", "IFS=$1;eval \"$2\";"
+		    "freebsd_wordexp -f \"$3\" ${4:+\"$4\"}",
+		    "",
 		    ifs != NULL ? ifs : " \t\n",
-		    flags & WRDE_SHOWERR ? "" : "exec 2>/dev/null", words,
+		    flags & WRDE_SHOWERR ? "" : "exec 2>/dev/null",
+		    wfdstr,
+		    flags & WRDE_NOCMD ? "-p" : "",
 		    (char *)NULL);
 		_exit(1);
 	}
 
 	/*
-	 * We are the parent; read the output of the shell wordexp function,
-	 * which is a 32-bit hexadecimal word count, a 32-bit hexadecimal
-	 * byte count (not including terminating null bytes), followed by
-	 * the expanded words separated by nulls.
+	 * We are the parent; write the words.
 	 */
 	_close(pdes[1]);
-	if (we_read_fully(pdes[0], wbuf, 8) != 8 ||
-			we_read_fully(pdes[0], bbuf, 8) != 8) {
-		error = flags & WRDE_UNDEF ? WRDE_BADVAL : WRDE_SYNTAX;
+	_close(pdesw[0]);
+	if (!we_write_fully(pdesw[1], words, strlen(words))) {
+		_close(pdesw[1]);
+		error = WRDE_SYNTAX;
+		goto cleanup;
+	}
+	_close(pdesw[1]);
+	/*
+	 * Read the output of the shell wordexp function,
+	 * which is a byte indicating that the words were parsed successfully,
+	 * a 64-bit hexadecimal word count, a dummy byte, a 64-bit hexadecimal
+	 * byte count (not including terminating null bytes), followed by the
+	 * expanded words separated by nulls.
+	 */
+	switch (we_read_fully(pdes[0], buf, 34)) {
+	case 1:
+		error = buf[0] == 'C' ? WRDE_CMDSUB :
+		    flags & WRDE_UNDEF ? WRDE_BADVAL :
+		    WRDE_SYNTAX;
+		serrno = errno;
+		goto cleanup;
+	case 34:
+		break;
+	default:
+		error = WRDE_SYNTAX;
 		serrno = errno;
 		goto cleanup;
 	}
-	wbuf[8] = bbuf[8] = '\0';
-	nwords = strtol(wbuf, NULL, 16);
-	nbytes = strtol(bbuf, NULL, 16) + nwords;
+	buf[17] = '\0';
+	nwords = strtol(buf + 1, NULL, 16);
+	buf[34] = '\0';
+	nbytes = strtol(buf + 18, NULL, 16) + nwords;
 
 	/*
 	 * Allocate or reallocate (when flags & WRDE_APPEND) the word vector
@@ -243,83 +296,96 @@ cleanup:
  * we_check --
  *	Check that the string contains none of the following unquoted
  *	special characters: <newline> |&;<>(){}
- *	or command substitutions when WRDE_NOCMD is set in flags.
+ *	This mainly serves for {} which are normally legal in sh.
+ *	It deliberately does not attempt to model full sh syntax.
  */
 static int
-we_check(const char *words, int flags)
+we_check(const char *words)
 {
 	char c;
-	int dquote, level, quote, squote;
+	/* Saw \ or $, possibly not special: */
+	bool quote = false, dollar = false;
+	/* Saw ', ", ${, ` or $(, possibly not special: */
+	bool have_sq = false, have_dq = false, have_par_begin = false;
+	bool have_cmd = false;
+	/* Definitely saw a ', ", ${, ` or $(, need a closing character: */
+	bool need_sq = false, need_dq = false, need_par_end = false;
+	bool need_cmd_old = false, need_cmd_new = false;
 
-	quote = squote = dquote = 0;
 	while ((c = *words++) != '\0') {
 		switch (c) {
 		case '\\':
-			if (squote == 0)
-				quote ^= 1;
+			quote = !quote;
+			continue;
+		case '$':
+			if (quote)
+				quote = false;
+			else
+				dollar = !dollar;
 			continue;
 		case '\'':
-			if (quote + dquote == 0)
-				squote ^= 1;
+			if (!quote && !have_sq && !have_dq)
+				need_sq = true;
+			else
+				need_sq = false;
+			have_sq = true;
 			break;
 		case '"':
-			if (quote + squote == 0)
-				dquote ^= 1;
+			if (!quote && !have_sq && !have_dq)
+				need_dq = true;
+			else
+				need_dq = false;
+			have_dq = true;
 			break;
 		case '`':
-			if (quote + squote == 0 && flags & WRDE_NOCMD)
-				return (WRDE_CMDSUB);
-			while ((c = *words++) != '\0' && c != '`')
-				if (c == '\\' && (c = *words++) == '\0')
-					break;
-			if (c == '\0')
-				return (WRDE_SYNTAX);
+			if (!quote && !have_sq && !have_cmd)
+				need_cmd_old = true;
+			else
+				need_cmd_old = false;
+			have_cmd = true;
 			break;
-		case '|': case '&': case ';': case '<': case '>':
-		case '{': case '}': case '(': case ')': case '\n':
-			if (quote + squote + dquote == 0)
+		case '{':
+			if (!quote && !dollar && !have_sq && !have_dq &&
+			    !have_cmd)
 				return (WRDE_BADCHAR);
+			if (dollar) {
+				if (!quote && !have_sq)
+					need_par_end = true;
+				have_par_begin = true;
+			}
 			break;
-		case '$':
-			if ((c = *words++) == '\0')
-				break;
-			else if (quote + squote == 0 && c == '(') {
-				if (flags & WRDE_NOCMD && *words != '(')
-					return (WRDE_CMDSUB);
-				level = 1;
-				while ((c = *words++) != '\0') {
-					if (c == '\\') {
-						if ((c = *words++) == '\0')
-							break;
-					} else if (c == '(')
-						level++;
-					else if (c == ')' && --level == 0)
-						break;
-				}
-				if (c == '\0' || level != 0)
-					return (WRDE_SYNTAX);
-			} else if (quote + squote == 0 && c == '{') {
-				level = 1;
-				while ((c = *words++) != '\0') {
-					if (c == '\\') {
-						if ((c = *words++) == '\0')
-							break;
-					} else if (c == '{')
-						level++;
-					else if (c == '}' && --level == 0)
-						break;
-				}
-				if (c == '\0' || level != 0)
-					return (WRDE_SYNTAX);
-			} else
-				--words;
+		case '}':
+			if (!quote && !have_sq && !have_dq && !have_par_begin &&
+			    !have_cmd)
+				return (WRDE_BADCHAR);
+			need_par_end = false;
+			break;
+		case '(':
+			if (!quote && !dollar && !have_sq && !have_dq &&
+			    !have_cmd)
+				return (WRDE_BADCHAR);
+			if (dollar) {
+				if (!quote && !have_sq)
+					need_cmd_new = true;
+				have_cmd = true;
+			}
+			break;
+		case ')':
+			if (!quote && !have_sq && !have_dq && !have_cmd)
+				return (WRDE_BADCHAR);
+			need_cmd_new = false;
+			break;
+		case '|': case '&': case ';': case '<': case '>': case '\n':
+			if (!quote && !have_sq && !have_dq && !have_cmd)
+				return (WRDE_BADCHAR);
 			break;
 		default:
 			break;
 		}
-		quote = 0;
+		quote = dollar = false;
 	}
-	if (quote + squote + dquote != 0)
+	if (quote || dollar || need_sq || need_dq || need_par_end ||
+	    need_cmd_old || need_cmd_new)
 		return (WRDE_SYNTAX);
 
 	return (0);
