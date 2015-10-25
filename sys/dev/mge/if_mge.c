@@ -133,13 +133,15 @@ static void mge_set_ucast_address(struct mge_softc *sc, uint8_t last_byte,
 static void mge_set_prom_mode(struct mge_softc *sc, uint8_t queue);
 static int mge_allocate_dma(struct mge_softc *sc);
 static int mge_alloc_desc_dma(struct mge_softc *sc,
-    struct mge_desc_wrapper* desc_tab, uint32_t size, bus_dma_tag_t *buffer_tag);
+    struct mge_desc_wrapper* desc_tab, uint32_t size,
+    bus_dma_tag_t *buffer_tag);
 static int mge_new_rxbuf(bus_dma_tag_t tag, bus_dmamap_t map,
     struct mbuf **mbufp, bus_addr_t *paddr);
-static void mge_get_dma_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error);
+static void mge_get_dma_addr(void *arg, bus_dma_segment_t *segs, int nseg,
+    int error);
 static void mge_free_dma(struct mge_softc *sc);
-static void mge_free_desc(struct mge_softc *sc, struct mge_desc_wrapper* tab, uint32_t size,
-    bus_dma_tag_t buffer_tag, uint8_t free_mbufs);
+static void mge_free_desc(struct mge_softc *sc, struct mge_desc_wrapper* tab,
+    uint32_t size, bus_dma_tag_t buffer_tag, uint8_t free_mbufs);
 static void mge_offload_process_frame(struct ifnet *ifp, struct mbuf *frame,
     uint32_t status, uint16_t bufsize);
 static void mge_offload_setup_descriptor(struct mge_softc *sc,
@@ -692,6 +694,7 @@ mge_free_desc(struct mge_softc *sc, struct mge_desc_wrapper* tab,
 static void
 mge_free_dma(struct mge_softc *sc)
 {
+
 	/* Free desciptors and mbufs */
 	mge_free_desc(sc, sc->mge_rx_desc, MGE_RX_DESC_NUM, sc->mge_rx_dtag, 1);
 	mge_free_desc(sc, sc->mge_tx_desc, MGE_TX_DESC_NUM, sc->mge_tx_dtag, 0);
@@ -815,8 +818,10 @@ mge_attach(device_t dev)
 	mge_ver_params(sc);
 
 	/* Initialize mutexes */
-	mtx_init(&sc->transmit_lock, device_get_nameunit(dev), "mge TX lock", MTX_DEF);
-	mtx_init(&sc->receive_lock, device_get_nameunit(dev), "mge RX lock", MTX_DEF);
+	mtx_init(&sc->transmit_lock, device_get_nameunit(dev), "mge TX lock",
+	    MTX_DEF);
+	mtx_init(&sc->receive_lock, device_get_nameunit(dev), "mge RX lock",
+	    MTX_DEF);
 
 	/* Allocate IO and IRQ resources */
 	error = bus_alloc_resources(dev, res_spec, sc->res);
@@ -951,7 +956,8 @@ mge_detach(device_t dev)
 		if (!sc->ih_cookie[i])
 			continue;
 
-		error = bus_teardown_intr(dev, sc->res[1 + i], sc->ih_cookie[i]);
+		error = bus_teardown_intr(dev, sc->res[1 + i],
+		    sc->ih_cookie[i]);
 		if (error)
 			device_printf(dev, "could not release %s\n",
 			    mge_intrs[(sc->mge_intr_cnt == 1 ? 0 : i + 1)].description);
@@ -982,9 +988,10 @@ mge_detach(device_t dev)
 static void
 mge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
-	struct mge_softc *sc = ifp->if_softc;
+	struct mge_softc *sc;
 	struct mii_data *mii;
 
+	sc = ifp->if_softc;
 	MGE_GLOBAL_LOCK(sc);
 
 	if (!sc->phy_attached) {
@@ -1066,8 +1073,9 @@ mge_ifmedia_upd(struct ifnet *ifp)
 static void
 mge_init(void *arg)
 {
-	struct mge_softc *sc = arg;
+	struct mge_softc *sc;
 
+	sc = arg;
 	MGE_GLOBAL_LOCK(sc);
 
 	mge_init_locked(arg);
@@ -1213,9 +1221,10 @@ mge_init_locked(void *arg)
 static void
 mge_intr_rxtx(void *arg)
 {
-	struct mge_softc *sc = arg;
+	struct mge_softc *sc;
 	uint32_t int_cause, int_cause_ext;
 
+	sc = arg;
 	MGE_GLOBAL_LOCK(sc);
 
 #ifdef DEVICE_POLLING
@@ -1248,9 +1257,10 @@ mge_intr_rxtx(void *arg)
 static void
 mge_intr_err(void *arg)
 {
-	struct mge_softc *sc = arg;
+	struct mge_softc *sc;
 	struct ifnet *ifp;
 
+	sc = arg;
 	ifp = sc->ifp;
 	if_printf(ifp, "%s\n", __FUNCTION__);
 }
@@ -1258,18 +1268,20 @@ mge_intr_err(void *arg)
 static void
 mge_intr_misc(void *arg)
 {
-	struct mge_softc *sc = arg;
+	struct mge_softc *sc;
 	struct ifnet *ifp;
 
+	sc = arg;
 	ifp = sc->ifp;
 	if_printf(ifp, "%s\n", __FUNCTION__);
 }
 
 static void
 mge_intr_rx(void *arg) {
-	struct mge_softc *sc = arg;
+	struct mge_softc *sc;
 	uint32_t int_cause, int_cause_ext;
 
+	sc = arg;
 	MGE_RECEIVE_LOCK(sc);
 
 #ifdef DEVICE_POLLING
@@ -1411,7 +1423,6 @@ mge_intr_tx(void *arg)
 	MGE_TRANSMIT_UNLOCK(sc);
 }
 
-
 static void
 mge_intr_tx_locked(struct mge_softc *sc)
 {
@@ -1467,7 +1478,6 @@ mge_intr_tx_locked(struct mge_softc *sc)
 		mge_start_locked(ifp);
 	}
 }
-
 static int
 mge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
@@ -1778,7 +1788,7 @@ mge_start_locked(struct ifnet *ifp)
 		/* The driver support only one DMA fragment. */
 		if (m0->m_next != NULL) {
 			mtmp = m_defrag(m0, M_NOWAIT);
-			if (mtmp)
+			if (mtmp != NULL)
 				m0 = mtmp;
 		}
 
@@ -1870,8 +1880,9 @@ mge_stop(struct mge_softc *sc)
 		DELAY(100);
 	}
 
-	if(!count)
-		if_printf(ifp, "%s: timeout while waiting for end of transmission\n",
+	if (count == 0)
+		if_printf(ifp,
+		    "%s: timeout while waiting for end of transmission\n",
 		    __FUNCTION__);
 
 	reg_val = MGE_READ(sc, MGE_PORT_SERIAL_CTRL);
@@ -1918,7 +1929,7 @@ mge_offload_setup_descriptor(struct mge_softc *sc, struct mge_desc_wrapper *dw)
 	struct ip *ip;
 	int ehlen, etype;
 
-	if (csum_flags) {
+	if (csum_flags != 0) {
 		if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
 			etype = ntohs(eh->evl_proto);
 			ehlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
