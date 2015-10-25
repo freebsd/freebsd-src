@@ -369,7 +369,6 @@ __DEFAULT_YES_OPTIONS = \
     SVNLITE \
     SYMVER \
     SYSCONS \
-    SYSINSTALL \
     TALK \
     TCSH \
     TCP_WRAPPERS \
