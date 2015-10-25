@@ -199,10 +199,10 @@ extern struct rwlock pf_rules_lock;
 
 #define PF_ANEQ(a, b, c) \
 	((c == AF_INET && (a)->addr32[0] != (b)->addr32[0]) || \
-	(c == AF_INET6 && (a)->addr32[3] != (b)->addr32[3] && \
+	(c == AF_INET6 && ((a)->addr32[0] != (b)->addr32[0] || \
 	(a)->addr32[1] != (b)->addr32[1] || \
 	(a)->addr32[2] != (b)->addr32[2] || \
-	(a)->addr32[3] != (b)->addr32[3])) \
+	(a)->addr32[3] != (b)->addr32[3]))) \
 
 #define PF_AZERO(a, c) \
 	((c == AF_INET && !(a)->addr32[0]) || \
