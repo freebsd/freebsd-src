@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20131023: remove never used iscsi directory
+OLD_DIRS+=usr/share/examples/iscsi
 # 20151023: unused sgsmsg utility is removed
 OLD_FILES+=usr/bin/sgsmsg
 # 20140922: sleepq_calc_signal_retval.9 and sleepq_catch_signals.9 removed
@@ -2011,6 +2013,7 @@ OLD_FILES+=usr/sbin/zfs
 OLD_FILES+=usr/sbin/zpool
 # 20070423: rc.bluetooth (examples) removed
 OLD_FILES+=usr/share/examples/netgraph/bluetooth/rc.bluetooth
+OLD_DIRS+=usr/share/examples/netgraph/bluetooth
 # 20070421: worm.4 removed
 OLD_FILES+=usr/share/man/man4/worm.4.gz
 # 20070417: trunk(4) renamed to lagg(4)
