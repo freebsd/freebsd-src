@@ -339,6 +339,18 @@ static int	waitdaemon(int, int, int);
 static void	timedout(int);
 static void	increase_rcvbuf(int);
 
+static void
+close_filed(struct filed *f)
+{
+
+	if (f == NULL || f->f_file == -1)
+		return;
+
+	(void)close(f->f_file);
+	f->f_file = -1;
+	f->f_type = F_UNUSED;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -986,7 +998,8 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 			(void)strlcpy(f->f_lasttime, timestamp,
 				sizeof(f->f_lasttime));
 			fprintlog(f, flags, msg);
-			(void)close(f->f_file);
+			close(f->f_file);
+			f->f_file = -1;
 		}
 		(void)sigsetmask(omask);
 		return;
@@ -1275,8 +1288,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 			 */
 			if (errno != ENOSPC) {
 				int e = errno;
-				(void)close(f->f_file);
-				f->f_type = F_UNUSED;
+				close_filed(f);
 				errno = e;
 				logerror(f->f_un.f_fname);
 			}
@@ -1300,7 +1312,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		}
 		if (writev(f->f_file, iov, IOV_SIZE) < 0) {
 			int e = errno;
-			(void)close(f->f_file);
+			close_filed(f);
 			if (f->f_un.f_pipe.f_pid > 0)
 				deadq_enter(f->f_un.f_pipe.f_pid,
 					    f->f_un.f_pipe.f_pname);
@@ -1408,7 +1420,7 @@ reapchild(int signo __unused)
 		for (f = Files; f; f = f->f_next)
 			if (f->f_type == F_PIPE &&
 			    f->f_un.f_pipe.f_pid == pid) {
-				(void)close(f->f_file);
+				close_filed(f);
 				f->f_un.f_pipe.f_pid = 0;
 				log_deadchild(pid, status,
 					      f->f_un.f_pipe.f_pname);
@@ -1512,7 +1524,7 @@ die(int signo)
 		if (f->f_prevcount)
 			fprintlog(f, 0, (char *)NULL);
 		if (f->f_type == F_PIPE && f->f_un.f_pipe.f_pid > 0) {
-			(void)close(f->f_file);
+			close_filed(f);
 			f->f_un.f_pipe.f_pid = 0;
 		}
 	}
@@ -1578,11 +1590,11 @@ init(int signo)
 		case F_FORW:
 		case F_CONSOLE:
 		case F_TTY:
-			(void)close(f->f_file);
+			close_filed(f);
 			break;
 		case F_PIPE:
 			if (f->f_un.f_pipe.f_pid > 0) {
-				(void)close(f->f_file);
+				close_filed(f);
 				deadq_enter(f->f_un.f_pipe.f_pid,
 					    f->f_un.f_pipe.f_pname);
 			}
