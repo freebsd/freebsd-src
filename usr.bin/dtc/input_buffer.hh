@@ -81,6 +81,10 @@ class input_buffer
 	void skip_spaces();
 	public:
 	/**
+	 * Return whether all input has been consumed.
+	 */
+	bool finished() { return cursor >= size; }
+	/**
 	 * Virtual destructor.  Does nothing, but exists so that subclasses
 	 * that own the memory can run cleanup code for deallocating it.
 	 */
@@ -181,7 +185,7 @@ class input_buffer
 	 *
 	 * The parsed value is returned via the argument.
 	 */
-	bool consume_integer(long long &outInt);
+	bool consume_integer(unsigned long long &outInt);
 	/**
 	 * Template function that consumes a binary value in big-endian format
 	 * from the input stream.  Returns true and advances the cursor if
