@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2004
+.Dd September 30, 2015
 .Dt WORDEXP 3
 .Os
 .Sh NAME
@@ -108,8 +108,8 @@ function frees the memory allocated by
 .Sh IMPLEMENTATION NOTES
 The
 .Fn wordexp
-function is implemented as a wrapper around the undocumented
-.Ic wordexp
+function is implemented using the undocumented
+.Ic freebsd_wordexp
 shell built-in command.
 .Sh RETURN VALUES
 The
@@ -189,18 +189,19 @@ and
 functions conform to
 .St -p1003.1-2001 .
 .Sh BUGS
-Do not pass untrusted user data to
-.Fn wordexp ,
-regardless of whether the
-.Dv WRDE_NOCMD
-flag is set.
-The
-.Fn wordexp
-function attempts to detect input that would cause commands to be
-executed before passing it to the shell
-but it does not use the same parser so it may be fooled.
-.Pp
 The current
 .Fn wordexp
-implementation does not recognize multibyte characters, since the
-shell (which it invokes to perform expansions) does not.
+implementation does not recognize multibyte characters other than UTF-8, since
+the shell (which it invokes to perform expansions) does not.
+.Sh SECURITY CONSIDERATIONS
+Pathname generation may create output that is exponentially larger than the
+input size.
+.Pp
+Although this implementation detects command substitution reliably for
+.Dv WRDE_NOCMD ,
+the attack surface remains fairly large.
+Also, some other implementations
+(such as older versions of this one)
+may execute command substitutions even if
+.Dv WRDE_NOCMD
+is set.

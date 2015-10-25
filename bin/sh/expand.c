@@ -1660,3 +1660,57 @@ wordexpcmd(int argc, char **argv)
 		outbin(argv[i], strlen(argv[i]) + 1, out1);
         return (0);
 }
+
+/*
+ * Do most of the work for wordexp(3), new version.
+ */
+
+int
+freebsd_wordexpcmd(int argc __unused, char **argv __unused)
+{
+	struct arglist arglist;
+	union node *args, *n;
+	struct strlist *sp;
+	size_t count, len;
+	int ch;
+	int protected = 0;
+	int fd = -1;
+
+	while ((ch = nextopt("f:p")) != '\0') {
+		switch (ch) {
+		case 'f':
+			fd = number(shoptarg);
+			break;
+		case 'p':
+			protected = 1;
+			break;
+		}
+	}
+	if (*argptr != NULL)
+		error("wrong number of arguments");
+	if (fd < 0)
+		error("missing fd");
+	INTOFF;
+	setinputfd(fd, 1);
+	INTON;
+	args = parsewordexp();
+	popfile(); /* will also close fd */
+	if (protected)
+		for (n = args; n != NULL; n = n->narg.next) {
+			if (n->narg.backquote != NULL) {
+				outcslow('C', out1);
+				error("command substitution disabled");
+			}
+		}
+	outcslow(' ', out1);
+	arglist.lastp = &arglist.list;
+	for (n = args; n != NULL; n = n->narg.next)
+		expandarg(n, &arglist, EXP_FULL | EXP_TILDE);
+	*arglist.lastp = NULL;
+	for (sp = arglist.list, count = len = 0; sp; sp = sp->next)
+		count++, len += strlen(sp->text);
+	out1fmt("%016zx %016zx", count, len);
+	for (sp = arglist.list; sp; sp = sp->next)
+		outbin(sp->text, strlen(sp->text) + 1, out1);
+	return (0);
+}
