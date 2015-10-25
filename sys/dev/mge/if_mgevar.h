@@ -34,6 +34,8 @@
 #ifndef __IF_MGE_H__
 #define __IF_MGE_H__
 
+#include <arm/mv/mvvar.h>
+
 #define MGE_INTR_COUNT		5	/* ETH controller occupies 5 IRQ lines */
 #define MGE_TX_DESC_NUM		256
 #define MGE_RX_DESC_NUM		256
@@ -71,6 +73,7 @@ struct mge_softc {
 	device_t	miibus;
 
 	struct mii_data	*mii;
+	struct ifmedia	mge_ifmedia;
 	struct resource	*res[1 + MGE_INTR_COUNT];	/* resources */
 	void		*ih_cookie[MGE_INTR_COUNT];	/* interrupt handlers cookies */
 	struct mtx	transmit_lock;			/* transmitter lock */
@@ -106,6 +109,8 @@ struct mge_softc {
 	int		mge_intr_cnt;
 	uint8_t		mge_hw_csum;
 
+	int		phy_attached;
+	int		switch_attached;
 	struct mge_softc *phy_sc;
 };
 
@@ -150,6 +155,14 @@ struct mge_softc {
 			MGE_RECEIVE_LOCK_ASSERT(sc); 				\
 } while (0)
 
+#define MGE_SMI_LOCK() do {				\
+    sx_assert(&sx_smi, SA_UNLOCKED);			\
+    sx_xlock(&sx_smi);					\
+} while (0)
+
+#define MGE_SMI_UNLOCK()		sx_unlock(&sx_smi)
+#define MGE_SMI_LOCK_ASSERT()		sx_assert(&sx_smi, SA_XLOCKED)
+
 /* SMI-related macros */
 #define MGE_REG_PHYDEV		0x000
 #define MGE_REG_SMI		0x004
@@ -157,6 +170,17 @@ struct mge_softc {
 #define MGE_SMI_WRITE		(0 << 26)
 #define MGE_SMI_READVALID	(1 << 27)
 #define MGE_SMI_BUSY		(1 << 28)
+
+#define	MGE_SMI_MASK		0x1fffffff
+#define	MGE_SMI_DATA_MASK	0xffff
+#define	MGE_SMI_DELAY		1000
+
+#define	MGE_SWITCH_PHYDEV	6
+
+/* Internal Switch SMI Command */
+
+#define SW_SMI_READ_CMD(phy, reg)		((1 << 15) | (1 << 12) | (1 << 11) | (phy << 5) | reg)
+#define SW_SMI_WRITE_CMD(phy, reg)		((1 << 15) | (1 << 12) | (1 << 10) | (phy << 5) | reg)
 
 /* TODO verify the timings and retries count w/specs */
 #define MGE_SMI_READ_RETRIES		1000
