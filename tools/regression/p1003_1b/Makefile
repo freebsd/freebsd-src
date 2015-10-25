@@ -14,4 +14,5 @@ SRCS=\
 NO_MAN=
 
 CFLAGS+=-DNO_MEMLOCK
+
 .include <bsd.prog.mk>

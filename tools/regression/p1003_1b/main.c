@@ -1,5 +1,6 @@
 /* $FreeBSD$ */
 #include <stdio.h>
+#include <string.h>
 
 int fifo(int argc, char *argv[]);
 int memlock(int argc, char *argv[]);
