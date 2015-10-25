@@ -106,7 +106,7 @@
 	{EBACKERR} t1
 	{LogErr} t1
 	{Reserved} *t4
-	{MRIE} t4
+	{MRIE} b4
 	{Interval Timer} i4
 	{Report Count} i4
 }
