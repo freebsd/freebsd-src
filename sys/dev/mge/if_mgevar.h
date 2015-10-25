@@ -137,10 +137,8 @@ struct mge_softc {
 #define MGE_RECEIVE_LOCK_ASSERT(sc)	mtx_assert(&(sc)->receive_lock, MA_OWNED)
 
 #define MGE_GLOBAL_LOCK(sc) do {						\
-			if ((mtx_owned(&(sc)->transmit_lock) ? 1 : 0) !=	\
-			    (mtx_owned(&(sc)->receive_lock) ? 1 : 0)) {		\
-				panic("mge deadlock possibility detection!");	\
-			}							\
+			mtx_assert(&(sc)->transmit_lock, MA_NOTOWNED);		\
+			mtx_assert(&(sc)->receive_lock, MA_NOTOWNED);		\
 			mtx_lock(&(sc)->transmit_lock);				\
 			mtx_lock(&(sc)->receive_lock);				\
 } while (0)
