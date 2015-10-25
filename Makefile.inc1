@@ -706,7 +706,7 @@ _nmtree_itools=	nmtree
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 	date echo egrep find grep id install ${_install-info} \
 	ln lockf make mkdir mtree ${_nmtree_itools} mv pwd_mkdb \
-	rm sed sh sysctl test true uname wc ${_zoneinfo}
+	rm sed sh strip sysctl test true uname wc ${_zoneinfo}
 
 #
 # distributeworld
