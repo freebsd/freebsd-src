@@ -6074,21 +6074,22 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 
 	case ASYNC_PDB_CHANGED:
 	{
-		int nphdl, nlstate, reason;
-		/*
-		 * We *should* get a channel out of the 24XX, but we don't seem
-		 * to get more than a PDB CHANGED on channel 0, so turn it into
-		 * a broadcast event.
-		 */
+		int echan, nphdl, nlstate, reason;
+
 		if (IS_24XX(isp)) {
 			nphdl = ISP_READ(isp, OUTMAILBOX1);
 			nlstate = ISP_READ(isp, OUTMAILBOX2);
-			reason = ISP_READ(isp, OUTMAILBOX3) >> 8;
+			reason = ISP_READ(isp, OUTMAILBOX3);
+			chan = reason & 0xff;
+			echan = (nphdl == NIL_HANDLE) ?
+			    isp->isp_nchan - 1 : chan;
+			reason = reason >> 8;
 		} else {
 			nphdl = NIL_HANDLE;
 			nlstate = reason = 0;
+			chan = echan = 0;
 		}
-		for (chan = 0; chan < isp->isp_nchan; chan++) {
+		for (; chan <= echan; chan++) {
 			fcparam *fcp = FCPARAM(isp, chan);
 
 			if (fcp->role == ISP_ROLE_NONE) {
