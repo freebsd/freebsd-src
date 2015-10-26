@@ -1,91 +1,146 @@
 /* -*- buffer-read-only: t -*- vi: set ro:
  *
  * Prototypes for autoopts
- * Generated Sat May  5 12:02:36 PDT 2007
+ * Generated Sat Apr 25 09:53:18 PDT 2015
  */
 #ifndef AUTOOPTS_PROTO_H_GUARD
 #define AUTOOPTS_PROTO_H_GUARD 1
-#ifndef LOCAL
-#  define LOCAL extern
-#  define REDEF_LOCAL 1
-#else
-#  undef  REDEF_LOCAL
-#endif
-/*\n *  Extracted from autoopts.c\n */
-LOCAL void *
-ao_malloc( size_t sz );
 
-LOCAL void *
-ao_realloc( void *p, size_t sz );
+/*
+ *  Extracted from alias.c
+ */
+static tSuccess
+too_many_occurrences(tOptions * opts, tOptDesc * od);
 
-LOCAL void
-ao_free( void *p );
+/*
+ *  Extracted from autoopts.c
+ */
+static void *
+ao_malloc(size_t sz);
 
-LOCAL char *
-ao_strdup( char const *str );
+static void *
+ao_realloc(void *p, size_t sz);
 
-LOCAL tSuccess
-handleOption( tOptions* pOpts, tOptState* pOptState );
+static char *
+ao_strdup(char const *str);
 
-LOCAL tSuccess
-longOptionFind( tOptions* pOpts, char* pzOptName, tOptState* pOptState );
+static tSuccess
+handle_opt(tOptions * opts, tOptState * o_st);
 
-LOCAL tSuccess
-shortOptionFind( tOptions* pOpts, uint_t optValue, tOptState* pOptState );
+static tSuccess
+next_opt(tOptions * opts, tOptState * o_st);
 
-LOCAL tSuccess
-doImmediateOpts( tOptions* pOpts );
+static tSuccess
+regular_opts(tOptions * opts);
 
-LOCAL tSuccess
-doRegularOpts( tOptions* pOpts );
+/*
+ *  Extracted from check.c
+ */
+static bool
+is_consistent(tOptions * pOpts);
 
-/*\n *  Extracted from configfile.c\n */
-LOCAL void
-internalFileLoad( tOptions* pOpts );
+/*
+ *  Extracted from configfile.c
+ */
+static void
+intern_file_load(tOptions * opts);
 
-LOCAL char*
-parseAttributes(
-    tOptions*           pOpts,
-    char*               pzText,
-    tOptionLoadMode*    pMode,
-    tOptionValue*       pType );
+static char const *
+parse_attrs(tOptions * opts, char const * txt, tOptionLoadMode * pMode,
+            tOptionValue * pType);
 
-LOCAL tSuccess
-validateOptionsStruct( tOptions* pOpts, char const* pzProgram );
+/*
+ *  Extracted from env.c
+ */
+static void
+doPrognameEnv(tOptions * pOpts, teEnvPresetType type);
 
-/*\n *  Extracted from environment.c\n */
-LOCAL void
-doPrognameEnv( tOptions* pOpts, teEnvPresetType type );
+static void
+env_presets(tOptions * pOpts, teEnvPresetType type);
 
-LOCAL void
-doEnvPresets( tOptions* pOpts, teEnvPresetType type );
+/*
+ *  Extracted from find.c
+ */
+static tSuccess
+opt_find_long(tOptions * opts, char const * opt_name, tOptState * state);
 
-/*\n *  Extracted from load.c\n */
-LOCAL void
-mungeString( char* pzTxt, tOptionLoadMode mode );
+static tSuccess
+opt_find_short(tOptions * pOpts, uint_t optValue, tOptState * pOptState);
 
-LOCAL void
-loadOptionLine(
-    tOptions*   pOpts,
-    tOptState*  pOS,
-    char*       pzLine,
-    tDirection  direction,
-    tOptionLoadMode   load_mode );
+static tSuccess
+get_opt_arg(tOptions * opts, tOptState * o_st);
 
-/*\n *  Extracted from nested.c\n */
-LOCAL tOptionValue*
-optionLoadNested(char const* pzTxt, char const* pzName, size_t nameLen);
+static tSuccess
+find_opt(tOptions * opts, tOptState * o_st);
 
-/*\n *  Extracted from sort.c\n */
-LOCAL void
-optionSort( tOptions* pOpts );
+/*
+ *  Extracted from init.c
+ */
+static tSuccess
+validate_struct(tOptions * opts, char const * pname);
 
-/*\n *  Extracted from stack.c\n */
-LOCAL void
-addArgListEntry( void** ppAL, void* entry );
+static tSuccess
+immediate_opts(tOptions * opts);
 
-#ifdef REDEF_LOCAL
-#  undef LOCAL
-#  define LOCAL
-#endif
+static bool
+ao_initialize(tOptions * opts, int a_ct, char ** a_v);
+
+/*
+ *  Extracted from load.c
+ */
+static void
+munge_str(char * txt, tOptionLoadMode mode);
+
+static void
+load_opt_line(tOptions * opts, tOptState * opt_state, char * line,
+              tDirection direction, tOptionLoadMode load_mode );
+
+/*
+ *  Extracted from makeshell.c
+ */
+static noreturn void
+option_exits(int exit_code);
+
+static noreturn void
+ao_bug(char const * msg);
+
+static void
+fserr_warn(char const * prog, char const * op, char const * fname);
+
+static noreturn void
+fserr_exit(char const * prog, char const * op, char const * fname);
+
+/*
+ *  Extracted from nested.c
+ */
+static void
+unload_arg_list(tArgList * arg_list);
+
+static tOptionValue *
+optionLoadNested(char const * text, char const * name, size_t nm_len);
+
+static int
+get_special_char(char const ** ppz, int * ct);
+
+static void
+emit_special_char(FILE * fp, int ch);
+
+/*
+ *  Extracted from sort.c
+ */
+static void
+optionSort(tOptions * opts);
+
+/*
+ *  Extracted from stack.c
+ */
+static void
+addArgListEntry(void ** ppAL, void * entry);
+
+/*
+ *  Extracted from usage.c
+ */
+static void
+set_usage_flags(tOptions * opts, char const * flg_txt);
+
 #endif /* AUTOOPTS_PROTO_H_GUARD */

@@ -6,6 +6,8 @@
 #include <config.h>
 #endif
 
+#include "ntp_types.h"
+
 #if defined(REFCLOCK) && defined(CLOCK_ARCRON_MSF)
 
 static const char arc_version[] = { "V1.3 2003/02/21" };
@@ -138,27 +140,27 @@ GENERAL
  2) PRECISION should be -4/-5 (63ms/31ms) for the following reasons:
 
      a) The ARC documentation claims the internal clock is (only)
-        accurate to about 20ms relative to Rugby (plus there must be
-        noticable drift and delay in the ms range due to transmission
-        delays and changing atmospheric effects).  This clock is not
-        designed for ms accuracy as NTP has spoilt us all to expect.
+	accurate to about 20ms relative to Rugby (plus there must be
+	noticable drift and delay in the ms range due to transmission
+	delays and changing atmospheric effects).  This clock is not
+	designed for ms accuracy as NTP has spoilt us all to expect.
 
      b) The clock oscillator looks like a simple uncompensated quartz
-        crystal of the sort used in digital watches (ie 32768Hz) which
-        can have large temperature coefficients and drifts; it is not
-        clear if this oscillator is properly disciplined to the MSF
-        transmission, but as the default is to resync only once per
-        *day*, we can imagine that it is not, and is free-running.  We
-        can minimise drift by resyncing more often (at the cost of
-        reduced battery life), but drift/wander may still be
-        significant.
+	crystal of the sort used in digital watches (ie 32768Hz) which
+	can have large temperature coefficients and drifts; it is not
+	clear if this oscillator is properly disciplined to the MSF
+	transmission, but as the default is to resync only once per
+	*day*, we can imagine that it is not, and is free-running.  We
+	can minimise drift by resyncing more often (at the cost of
+	reduced battery life), but drift/wander may still be
+	significant.
 
      c) Note that the bit time of 3.3ms adds to the potential error in
-        the the clock timestamp, since the bit clock of the serial link
-        may effectively be free-running with respect to the host clock
-        and the MSF clock.  Actually, the error is probably 1/16th of
-        the above, since the input data is probably sampled at at least
-        16x the bit rate.
+	the the clock timestamp, since the bit clock of the serial link
+	may effectively be free-running with respect to the host clock
+	and the MSF clock.  Actually, the error is probably 1/16th of
+	the above, since the input data is probably sampled at at least
+	16x the bit rate.
 
     By keeping the clock marked as not very precise, it will have a
     fairly large dispersion, and thus will tend to be used as a
@@ -178,9 +180,9 @@ GENERAL
     IN ANY CASE, BE SURE TO SET AN APPROPRIATE FUDGE FACTOR TO REMOVE
     ANY RESIDUAL SKEW, eg:
 
-        server 127.127.27.0 # ARCRON MSF radio clock unit 0.
-        # Fudge timestamps by about 20ms.
-        fudge 127.127.27.0 time1 0.020
+	server 127.127.27.0 # ARCRON MSF radio clock unit 0.
+	# Fudge timestamps by about 20ms.
+	fudge 127.127.27.0 time1 0.020
 
     You will need to observe your system's behaviour, assuming you have
     some other NTP source to compare it with, to work out what the
@@ -317,28 +319,28 @@ You have to wait for character echo + 10ms before sending next character.
 /* 12. year tens */
 /* 13. year units */
 /* 14. BST/UTC status */
-/*      bit 7   parity */
-/*      bit 6   always 0 */
-/*      bit 5   always 1 */
-/*      bit 4   always 1 */
-/*      bit 3   always 0 */
-/*      bit 2   =1 if UTC is in effect, complementary to the BST bit */
-/*      bit 1   =1 if BST is in effect, according to the BST bit     */
-/*      bit 0   BST/UTC change impending bit=1 in case of change impending */
+/*	bit 7	parity */
+/*	bit 6	always 0 */
+/*	bit 5	always 1 */
+/*	bit 4	always 1 */
+/*	bit 3	always 0 */
+/*	bit 2	=1 if UTC is in effect, complementary to the BST bit */
+/*	bit 1	=1 if BST is in effect, according to the BST bit     */
+/*	bit 0	BST/UTC change impending bit=1 in case of change impending */
 /* 15. status */
-/*      bit 7   parity */
-/*      bit 6   always 0 */
-/*      bit 5   always 1 */
-/*      bit 4   always 1 */
-/*      bit 3   =1 if low battery is detected */
-/*      bit 2   =1 if the very last reception attempt failed and a valid */
-/*              time information already exists (bit0=1) */
-/*              =0 if the last reception attempt was successful */
-/*      bit 1   =1 if at least one reception since 2:30 am was successful */
-/*              =0 if no reception attempt since 2:30 am was successful */
-/*      bit 0   =1 if the RC Computer Clock contains valid time information */
-/*              This bit is zero after reset and one after the first */
-/*              successful reception attempt */
+/*	bit 7	parity */
+/*	bit 6	always 0 */
+/*	bit 5	always 1 */
+/*	bit 4	always 1 */
+/*	bit 3	=1 if low battery is detected */
+/*	bit 2	=1 if the very last reception attempt failed and a valid */
+/*		time information already exists (bit0=1) */
+/*		=0 if the last reception attempt was successful */
+/*	bit 1	=1 if at least one reception since 2:30 am was successful */
+/*		=0 if no reception attempt since 2:30 am was successful */
+/*	bit 0	=1 if the RC Computer Clock contains valid time information */
+/*		This bit is zero after reset and one after the first */
+/*		successful reception attempt */
 
 /* DHD note:
 Also note g<cr> command which confirms that a resync is in progress, and
@@ -375,15 +377,15 @@ Also note h<cr> command which starts a resync to MSF signal.
 /*
  * Interface definitions
  */
-#define DEVICE          "/dev/arc%d"    /* Device name and unit. */
-#define SPEED           B300            /* UART speed (300 baud) */
-#define PRECISION       (-4)            /* Precision  (~63 ms). */
-#define HIGHPRECISION   (-5)            /* If things are going well... */
-#define REFID           "MSFa"          /* Reference ID. */
-#define REFID_MSF       "MSF"           /* Reference ID. */
-#define REFID_DCF77     "DCF"           /* Reference ID. */
-#define REFID_WWVB      "WWVB"          /* Reference ID. */
-#define DESCRIPTION     "ARCRON MSF/DCF/WWVB Receiver"
+#define DEVICE		"/dev/arc%d"	/* Device name and unit. */
+#define SPEED		B300		/* UART speed (300 baud) */
+#define PRECISION	(-4)		/* Precision  (~63 ms). */
+#define HIGHPRECISION	(-5)		/* If things are going well... */
+#define REFID		"MSFa"		/* Reference ID. */
+#define REFID_MSF	"MSF"		/* Reference ID. */
+#define REFID_DCF77	"DCF"		/* Reference ID. */
+#define REFID_WWVB	"WWVB"		/* Reference ID. */
+#define DESCRIPTION	"ARCRON MSF/DCF/WWVB Receiver"
 
 #ifdef PRE_NTP420
 #define MODE ttlmax
@@ -391,18 +393,18 @@ Also note h<cr> command which starts a resync to MSF signal.
 #define MODE ttl
 #endif
 
-#define LENARC          16              /* Format `o' timecode length. */
+#define LENARC		16		/* Format `o' timecode length. */
 
-#define BITSPERCHAR     11              /* Bits per character. */
-#define BITTIME         0x0DA740E       /* Time for 1 bit at 300bps. */
-#define CHARTIME10      0x8888888       /* Time for 10-bit char at 300bps. */
-#define CHARTIME11      0x962FC96       /* Time for 11-bit char at 300bps. */
-#define CHARTIME                        /* Time for char at 300bps. */ \
+#define BITSPERCHAR	11		/* Bits per character. */
+#define BITTIME		0x0DA740E	/* Time for 1 bit at 300bps. */
+#define CHARTIME10	0x8888888	/* Time for 10-bit char at 300bps. */
+#define CHARTIME11	0x962FC96	/* Time for 11-bit char at 300bps. */
+#define CHARTIME			/* Time for char at 300bps. */ \
 ( (BITSPERCHAR == 11) ? CHARTIME11 : ( (BITSPERCHAR == 10) ? CHARTIME10 : \
 				       (BITSPERCHAR * BITTIME) ) )
 
      /* Allow for UART to accept char half-way through final stop bit. */
-#define INITIALOFFSET (u_int32)(-BITTIME/2)
+#define INITIALOFFSET ((u_int32)(-BITTIME/2))
 
      /*
     charoffsets[x] is the time after the start of the second that byte
@@ -457,12 +459,12 @@ Also note h<cr> command which starts a resync to MSF signal.
 #endif
      };
 
-#define DEFAULT_RESYNC_TIME  (57*60)    /* Gap between resync attempts (s). */
-#define RETRY_RESYNC_TIME    (27*60)    /* Gap to emergency resync attempt. */
+#define DEFAULT_RESYNC_TIME  (57*60)	/* Gap between resync attempts (s). */
+#define RETRY_RESYNC_TIME    (27*60)	/* Gap to emergency resync attempt. */
 #ifdef ARCRON_KEEN
-#define INITIAL_RESYNC_DELAY 500        /* Delay before first resync. */
+#define INITIAL_RESYNC_DELAY 500	/* Delay before first resync. */
 #else
-#define INITIAL_RESYNC_DELAY 50         /* Delay before first resync. */
+#define INITIAL_RESYNC_DELAY 50		/* Delay before first resync. */
 #endif
 
      static const int moff[12] =
@@ -470,30 +472,30 @@ Also note h<cr> command which starts a resync to MSF signal.
 /* Flags for a raw open() of the clock serial device. */
 #ifdef O_NOCTTY /* Good, we can avoid tty becoming controlling tty. */
 #define OPEN_FLAGS (O_RDWR | O_NOCTTY)
-#else           /* Oh well, it may not matter... */
+#else		/* Oh well, it may not matter... */
 #define OPEN_FLAGS (O_RDWR)
 #endif
 
 
 /* Length of queue of command bytes to be sent. */
-#define CMDQUEUELEN 4                   /* Enough for two cmds + each \r. */
+#define CMDQUEUELEN 4			/* Enough for two cmds + each \r. */
 /* Queue tick time; interval in seconds between chars taken off queue. */
 /* Must be >= 2 to allow o\r response to come back uninterrupted. */
-#define QUEUETICK   2                   /* Allow o\r reply to finish. */
+#define QUEUETICK   2			/* Allow o\r reply to finish. */
 
 /*
  * ARC unit control structure
  */
 struct arcunit {
-	l_fp lastrec;       /* Time tag for the receive time (system). */
-	int status;         /* Clock status. */
+	l_fp lastrec;	    /* Time tag for the receive time (system). */
+	int status;	    /* Clock status. */
 
-	int quality;        /* Quality of reception 0--5 for unit. */
+	int quality;	    /* Quality of reception 0--5 for unit. */
 	/* We may also use the values -1 or 6 internally. */
 	u_long quality_stamp; /* Next time to reset quality average. */
 
 	u_long next_resync; /* Next resync time (s) compared to current_time. */
-	int resyncing;      /* Resync in progress if true. */
+	int resyncing;	    /* Resync in progress if true. */
 
 	/* In the outgoing queue, cmdqueue[0] is next to be sent. */
 	char cmdqueue[CMDQUEUELEN+1]; /* Queue of outgoing commands + \0. */
@@ -527,11 +529,11 @@ static int possible_leap = 0;       /* No resync required by default. */
 #endif
 
 #if 0
-static void dummy_event_handler P((struct peer *));
-static void   arc_event_handler P((struct peer *));
+static void dummy_event_handler (struct peer *);
+static void   arc_event_handler (struct peer *);
 #endif /* 0 */
 
-#define QUALITY_UNKNOWN     -1 /* Indicates unknown clock quality. */
+#define QUALITY_UNKNOWN	    -1 /* Indicates unknown clock quality. */
 #define MIN_CLOCK_QUALITY    0 /* Min quality clock will return. */
 #define MIN_CLOCK_QUALITY_OK 3 /* Min quality for OK reception. */
 #define MAX_CLOCK_QUALITY    5 /* Max quality clock will return. */
@@ -539,28 +541,28 @@ static void   arc_event_handler P((struct peer *));
 /*
  * Function prototypes
  */
-static  int     arc_start       P((int, struct peer *));
-static  void    arc_shutdown    P((int, struct peer *));
-static  void    arc_receive     P((struct recvbuf *));
-static  void    arc_poll        P((int, struct peer *));
+static	int	arc_start	(int, struct peer *);
+static	void	arc_shutdown	(int, struct peer *);
+static	void	arc_receive	(struct recvbuf *);
+static	void	arc_poll	(int, struct peer *);
 
 /*
  * Transfer vector
  */
 struct  refclock refclock_arc = {
-	arc_start,              /* start up driver */
-	arc_shutdown,           /* shut down driver */
-	arc_poll,               /* transmit poll message */
-	noentry,                /* not used (old arc_control) */
-	noentry,                /* initialize driver (not used) */
-	noentry,                /* not used (old arc_buginfo) */
-	NOFLAGS                 /* not used */
+	arc_start,		/* start up driver */
+	arc_shutdown,		/* shut down driver */
+	arc_poll,		/* transmit poll message */
+	noentry,		/* not used (old arc_control) */
+	noentry,		/* initialize driver (not used) */
+	noentry,		/* not used (old arc_buginfo) */
+	NOFLAGS			/* not used */
 };
 
 /* Queue us up for the next tick. */
 #define ENQUEUE(up) \
 	do { \
-	     peer->nextaction = current_time + QUEUETICK; \
+	     peer->procptr->nextaction = current_time + QUEUETICK; \
 	} while(0)
 
 /* Placeholder event handler---does nothing safely---soaks up loose tick. */
@@ -591,7 +593,7 @@ arc_event_handler(
 	)
 {
 	struct refclockproc *pp = peer->procptr;
-	register struct arcunit *up = (struct arcunit *)pp->unitptr;
+	register struct arcunit *up = pp->unitptr;
 	int i;
 	char c;
 #ifdef DEBUG
@@ -627,48 +629,52 @@ arc_start(
 {
 	register struct arcunit *up;
 	struct refclockproc *pp;
+	int temp_fd;
 	int fd;
 	char device[20];
 #ifdef HAVE_TERMIOS
 	struct termios arg;
 #endif
 
-	msyslog(LOG_NOTICE, "ARCRON: %s: opening unit %d", arc_version, unit);
-#ifdef DEBUG
-	if(debug) {
-		printf("arc: %s: attempt to open unit %d.\n", arc_version, unit);
-	}
-#endif
-
-	/* Prevent a ridiculous device number causing overflow of device[]. */
-	if((unit < 0) || (unit > 255)) { return(0); }
+	msyslog(LOG_NOTICE, "MSF_ARCRON %s: opening unit %d",
+		arc_version, unit);
+	DPRINTF(1, ("arc: %s: attempt to open unit %d.\n", arc_version,
+		unit));
 
 	/*
 	 * Open serial port. Use CLK line discipline, if available.
 	 */
-	(void)sprintf(device, DEVICE, unit);
-	if (!(fd = refclock_open(device, SPEED, LDISC_CLK)))
-		return(0);
-#ifdef DEBUG
-	if(debug) { printf("arc: unit %d using open().\n", unit); }
-#endif
-	fd = open(device, OPEN_FLAGS);
-	if(fd < 0) {
-#ifdef DEBUG
-		if(debug) { printf("arc: failed [open()] to open %s.\n", device); }
-#endif
-		return(0);
+	snprintf(device, sizeof(device), DEVICE, unit);
+	temp_fd = refclock_open(device, SPEED, LDISC_CLK);
+	if (temp_fd <= 0)
+		return 0;
+	DPRINTF(1, ("arc: unit %d using tty_open().\n", unit));
+	fd = tty_open(device, OPEN_FLAGS, 0777);
+	if (fd < 0) {
+		msyslog(LOG_ERR, "MSF_ARCRON(%d): failed second open(%s, 0777): %m.",
+			unit, device);
+		close(temp_fd);
+		return 0;
 	}
+	close(temp_fd);
+	temp_fd = -1;		/* not used after this, at *this* time. */
 
-	fcntl(fd, F_SETFL, 0); /* clear the descriptor flags */
-#ifdef DEBUG
-	if(debug)
-	{ printf("arc: opened RS232 port with file descriptor %d.\n", fd); }
+#ifndef SYS_WINNT
+	if (-1 == fcntl(fd, F_SETFL, 0)) /* clear the descriptor flags */
+		msyslog(LOG_ERR, "MSF_ARCRON(%d): fcntl(F_SETFL, 0): %m.",
+			unit);
+
 #endif
+	DPRINTF(1, ("arc: opened RS232 port with file descriptor %d.\n", fd));
 
 #ifdef HAVE_TERMIOS
 
-	tcgetattr(fd, &arg);
+	if (tcgetattr(fd, &arg) < 0) {
+		msyslog(LOG_ERR, "MSF_ARCRON(%d): tcgetattr(%s): %m.",
+			unit, device);
+		close(fd);
+		return 0;
+	}
 
 	arg.c_iflag = IGNBRK | ISTRIP;
 	arg.c_oflag = 0;
@@ -677,28 +683,36 @@ arc_start(
 	arg.c_cc[VMIN] = 1;
 	arg.c_cc[VTIME] = 0;
 
-	tcsetattr(fd, TCSANOW, &arg);
+	if (tcsetattr(fd, TCSANOW, &arg) < 0) {
+		msyslog(LOG_ERR, "MSF_ARCRON(%d): tcsetattr(%s): %m.",
+			unit, device);
+		close(fd);
+		return 0;
+	}
 
 #else
 
-	msyslog(LOG_ERR, "ARCRON: termios not supported in this driver");
+	msyslog(LOG_ERR, "ARCRON: termios required by this driver");
 	(void)close(fd);
 
 	return 0;
 
 #endif
 
-	up = (struct arcunit *) emalloc(sizeof(struct arcunit));
-	if(!up) { (void) close(fd); return(0); }
 	/* Set structure to all zeros... */
-	memset((char *)up, 0, sizeof(struct arcunit));
+	up = emalloc_zero(sizeof(*up));
 	pp = peer->procptr;
 	pp->io.clock_recv = arc_receive;
-	pp->io.srcclock = (caddr_t)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
-	if(!io_addclock(&pp->io)) { (void) close(fd); free(up); return(0); }
-	pp->unitptr = (caddr_t)up;
+	if (!io_addclock(&pp->io)) {
+		close(fd);
+		pp->io.fd = -1;
+		free(up); 
+		return(0); 
+	}
+	pp->unitptr = up;
 
 	/*
 	 * Initialize miscellaneous variables
@@ -746,7 +760,7 @@ arc_start(
 	up->quality = MIN_CLOCK_QUALITY;/* Don't trust the clock yet. */
 #endif
 
-	peer->action = arc_event_handler;
+	peer->procptr->action = arc_event_handler;
 
 	ENQUEUE(up);
 
@@ -766,12 +780,14 @@ arc_shutdown(
 	register struct arcunit *up;
 	struct refclockproc *pp;
 
-	peer->action = dummy_event_handler;
+	peer->procptr->action = dummy_event_handler;
 
 	pp = peer->procptr;
-	up = (struct arcunit *)pp->unitptr;
-	io_closeclock(&pp->io);
-	free(up);
+	up = pp->unitptr;
+	if (-1 != pp->io.fd)
+		io_closeclock(&pp->io);
+	if (NULL != up)
+		free(up);
 }
 
 /*
@@ -812,9 +828,9 @@ send_slow(
 	if(spaceleft < sl) { /* Should not normally happen... */
 #ifdef DEBUG
 		msyslog(LOG_NOTICE, "ARCRON: send-buffer overrun (%d/%d)",
-		       sl, spaceleft);
+			sl, spaceleft);
 #endif
-		return(0);                      /* FAILED! */
+		return(0);			/* FAILED! */
 	}
 
 	/* Copy in the command to be sent. */
@@ -827,7 +843,7 @@ send_slow(
 static int
 get2(char *p, int *val)
 {
-  if (!isdigit((int)p[0]) || !isdigit((int)p[1])) return 0;
+  if (!isdigit((unsigned char)p[0]) || !isdigit((unsigned char)p[1])) return 0;
   *val = (p[0] - '0') * 10 + p[1] - '0';
   return 1;
 }
@@ -835,7 +851,7 @@ get2(char *p, int *val)
 static int
 get1(char *p, int *val)
 {
-  if (!isdigit((int)p[0])) return 0;
+  if (!isdigit((unsigned char)p[0])) return 0;
   *val = p[0] - '0';
   return 1;
 }
@@ -846,10 +862,10 @@ get1(char *p, int *val)
  (((q) < MIN_CLOCK_QUALITY_OK) ? "TOO POOR, will not use clock" : \
   "OK, will use clock"))
 
-     /*
+/*
  * arc_receive - receive data from the serial interface
  */
-     static void
+static void
 arc_receive(
 	struct recvbuf *rbufp
 	)
@@ -867,9 +883,9 @@ arc_receive(
 	/*
 	 * Initialize pointers and read the timecode and timestamp
 	 */
-	peer = (struct peer *)rbufp->recv_srcclock;
+	peer = rbufp->recv_peer;
 	pp = peer->procptr;
-	up = (struct arcunit *)pp->unitptr;
+	up = pp->unitptr;
 
 
 	/*
@@ -927,7 +943,7 @@ arc_receive(
 #ifdef DEBUG
 		if(debug) { /* Show \r as `R', other non-printing char as `?'. */
 			printf("arc: stamp -->%c<-- (%d chars rcvd)\n",
-			       ((c == '\r') ? 'R' : (isgraph((int)c) ? c : '?')),
+			       ((c == '\r') ? 'R' : (isgraph((unsigned char)c) ? c : '?')),
 			       rbufp->recv_length);
 		}
 #endif
@@ -992,7 +1008,7 @@ arc_receive(
 					diff = up->lastrec;
 					L_SUB(&diff, &timestamp);
 					printf("arc: adjusted timestamp by -%sms.\n",
-					       mfptoms(diff.l_i, diff.l_f, 3));
+					       mfptoms(diff.l_ui, diff.l_uf, 3));
 				}
 #endif
 			}
@@ -1005,7 +1021,7 @@ arc_receive(
 	/* Just in case we still have lots of rubbish in the buffer... */
 	/* ...and to avoid the same timestamp being reused by mistake, */
 	/* eg on receipt of the \r coming in on its own after the      */
-	/* timecode.                                                   */
+	/* timecode.						       */
 	if(pp->lencode >= LENARC) {
 #ifdef DEBUG
 		if(debug && (rbufp->recv_buffer[0] != '\r'))
@@ -1083,9 +1099,9 @@ arc_receive(
 			}
 #endif
 			msyslog(LOG_NOTICE,
-			       "ARCRON: sync finished, signal quality %d: %s",
-			       up->quality,
-			       quality_action(up->quality));
+				"ARCRON: sync finished, signal quality %d: %s",
+				up->quality,
+				quality_action(up->quality));
 			up->resyncing = 0; /* Resync is over. */
 			quality_average = 0;
 			quality_sum = 0;
@@ -1210,7 +1226,7 @@ arc_receive(
 	if(pp->year >= YEAR_PIVOT+2000-2 ) {  			/* Y2KFixes */
 		/*This should get attention B^> */
 		msyslog(LOG_NOTICE,
-		       "ARCRON: fix me!  EITHER YOUR DATE IS BADLY WRONG or else I will break soon!");
+			"ARCRON: fix me!  EITHER YOUR DATE IS BADLY WRONG or else I will break soon!");
 	}
 #ifdef DEBUG
 	if(debug) {
@@ -1271,50 +1287,52 @@ arc_receive(
 	if(peer->MODE > 0) {
 		if(pp->sloppyclockflag & CLK_FLAG1) {
 			struct tm  local;
-		        struct tm *gmtp;
-		        time_t     unixtime;
+			struct tm *gmtp;
+			time_t	   unixtime;
 
-		        /*
-		         * Convert to GMT for sites that distribute localtime.
+			/*
+			 * Convert to GMT for sites that distribute localtime.
 			 * This means we have to do Y2K conversion on the
 			 * 2-digit year; otherwise, we get the time wrong.
-	        	 */
-	   
+			 */
+
+			memset(&local, 0, sizeof(local));
+
 			local.tm_year  = pp->year-1900;
-	     	  	local.tm_mon   = month-1;
-	      	  	local.tm_mday  = pp->day;
-	        	local.tm_hour  = pp->hour;
-	        	local.tm_min   = pp->minute;
-	        	local.tm_sec   = pp->second;
-	        	switch (peer->MODE) {
+			local.tm_mon   = month-1;
+			local.tm_mday  = pp->day;
+			local.tm_hour  = pp->hour;
+			local.tm_min   = pp->minute;
+			local.tm_sec   = pp->second;
+			switch (peer->MODE) {
 			    case 1:
 				local.tm_isdst = (flags & 2);
 				break;
 			    case 2:
-			        local.tm_isdst = (flags & 2);
+				local.tm_isdst = (flags & 2);
 				break;
 			    case 3:
 				switch (flags & 3) {
 				    case 0: /* It is unclear exactly when the 
-				    	       Arcron changes from DST->ST and 
+					       Arcron changes from DST->ST and 
 					       ST->DST. Testing has shown this
 					       to be irregular. For the time 
 					       being, let the OS decide. */
-				        local.tm_isdst = 0;
+					local.tm_isdst = 0;
 #ifdef DEBUG
 					if (debug)
 					    printf ("arc: DST = 00 (0)\n"); 
 #endif
 					break;
 				    case 1: /* dst->st time */
-				        local.tm_isdst = -1;
+					local.tm_isdst = -1;
 #ifdef DEBUG
 					if (debug) 
 					    printf ("arc: DST = 01 (1)\n"); 
 #endif
 					break;
 				    case 2: /* st->dst time */
-				        local.tm_isdst = -1;
+					local.tm_isdst = -1;
 #ifdef DEBUG
 					if (debug) 
 					    printf ("arc: DST = 10 (2)\n"); 
@@ -1331,26 +1349,26 @@ arc_receive(
 				break;
 			    default:
 				msyslog(LOG_NOTICE, "ARCRON: Invalid mode %d",
-		      			peer->MODE);
+					peer->MODE);
 				return;
 				break;
 			}
-	        	unixtime = mktime (&local);
-	        	if ((gmtp = gmtime (&unixtime)) == NULL)
-	        	{
+			unixtime = mktime (&local);
+			if ((gmtp = gmtime (&unixtime)) == NULL)
+			{
 				pp->lencode = 0;
-			        refclock_report (peer, CEVNT_FAULT);
-			        return;
-	        	}
+				refclock_report (peer, CEVNT_FAULT);
+				return;
+			}
 			pp->year = gmtp->tm_year+1900;
-	        	month = gmtp->tm_mon+1;
-		    	pp->day = ymd2yd(pp->year,month,gmtp->tm_mday);
-	       	 	/* pp->day = gmtp->tm_yday; */
-	        	pp->hour = gmtp->tm_hour;
-	        	pp->minute = gmtp->tm_min;
-	        	pp->second = gmtp->tm_sec;
+			month = gmtp->tm_mon+1;
+			pp->day = ymd2yd(pp->year,month,gmtp->tm_mday);
+			/* pp->day = gmtp->tm_yday; */
+			pp->hour = gmtp->tm_hour;
+			pp->minute = gmtp->tm_min;
+			pp->second = gmtp->tm_sec;
 #ifdef DEBUG
-	        	if (debug)
+			if (debug)
 			{
 				printf ("arc: time is %04d/%02d/%02d %02d:%02d:%02d UTC\n",
 					pp->year,month,gmtp->tm_mday,pp->hour,pp->minute,
@@ -1359,10 +1377,10 @@ arc_receive(
 #endif
 		} else 
 		{
-		    	/*
-		     	* For more rational sites distributing UTC
-		     	*/
-		    	pp->day    = ymd2yd(pp->year,month,pp->day);
+			/*
+			* For more rational sites distributing UTC
+			*/
+			pp->day    = ymd2yd(pp->year,month,pp->day);
 		}
 	}
 
@@ -1391,10 +1409,10 @@ arc_receive(
 	if(up->saved_flags != pp->sloppyclockflag) {
 #ifdef DEBUG
 		msyslog(LOG_NOTICE, "ARCRON: flags enabled: %s%s%s%s",
-		       ((pp->sloppyclockflag & CLK_FLAG1) ? "1" : "."),
-		       ((pp->sloppyclockflag & CLK_FLAG2) ? "2" : "."),
-		       ((pp->sloppyclockflag & CLK_FLAG3) ? "3" : "."),
-		       ((pp->sloppyclockflag & CLK_FLAG4) ? "4" : "."));
+			((pp->sloppyclockflag & CLK_FLAG1) ? "1" : "."),
+			((pp->sloppyclockflag & CLK_FLAG2) ? "2" : "."),
+			((pp->sloppyclockflag & CLK_FLAG3) ? "3" : "."),
+			((pp->sloppyclockflag & CLK_FLAG4) ? "4" : "."));
 		/* Note effects of flags changing... */
 		if(debug) {
 			printf("arc: PRECISION = %d.\n", peer->precision);
@@ -1436,7 +1454,7 @@ arc_receive(
 /* request_time() sends a time request to the clock with given peer. */
 /* This automatically reports a fault if necessary. */
 /* No data should be sent after this until arc_poll() returns. */
-static  void    request_time    P((int, struct peer *));
+static  void    request_time    (int, struct peer *);
 static void
 request_time(
 	int unit,
@@ -1444,7 +1462,7 @@ request_time(
 	)
 {
 	struct refclockproc *pp = peer->procptr;
-	register struct arcunit *up = (struct arcunit *)pp->unitptr;
+	register struct arcunit *up = pp->unitptr;
 #ifdef DEBUG
 	if(debug) { printf("arc: unit %d: requesting time.\n", unit); }
 #endif
@@ -1475,7 +1493,7 @@ arc_poll(
 	int resync_needed;              /* Should we start a resync? */
 
 	pp = peer->procptr;
-	up = (struct arcunit *)pp->unitptr;
+	up = pp->unitptr;
 #if 0
 	pp->lencode = 0;
 	memset(pp->a_lastcode, 0, sizeof(pp->a_lastcode));
@@ -1565,5 +1583,5 @@ arc_poll(
 }
 
 #else
-int refclock_arc_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif

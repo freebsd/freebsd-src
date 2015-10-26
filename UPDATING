@@ -11,6 +11,15 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20151026:	p29	FreeBSD-SA-15:25.ntp
+
+	Fix multiple NTP vulnerabilities. New NTP version is 4.2.8p4.
+
+	The configuration file syntax has been changed, thus mergemaster
+	run is recommended.  Now the "kod" parameter requires "limited" 
+	parameter.  If the ntp.conf is not updated, the ntpd will run 
+	successfully, but with KoD disabled.
+
 20151002:	p28	FreeBSD-SA-15:24.rpcbind [revised]
 	Revised patch to address a regression that prevents NIS from working.
 

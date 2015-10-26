@@ -19,53 +19,48 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-require 5.003; # "never tested with any other version of Perl"
+package plot_summary;
+use 5.006_000;
 use strict;
-
 use Time::Local;
-use Getopt::Long;
 
-# parse command line
-my $summary_dir = "/tmp";
-my $identifier = "host " . `hostname`;	# origin of these data
-chomp $identifier;			# remove newline
-my $offset_limit = 0.128;		# limit of absolute offset
-my $output_file = "";			# output file defaults to stdout
-my $output_file_number = 1;		# numbering of output files
-my $gnuplot_terminal = $ENV{DISPLAY} ? "x11" : "dumb";
-my $wait_after_plot = 1;
-my @peer_list = ();
+my ($identifier, $offset_limit, $gnuplot_terminal, $wait_after_plot,
+    $output_file, $output_file_number);
 
-my %options = ("directory|input-directory=s" => \$summary_dir,
-	       "identifier=s" => \$identifier,
-	       "offset-limit=f" => \$offset_limit,
-	       "output-file=s" => \$output_file,
-	       "peer=s@" => \@peer_list,
-	       "plot-term|gnuplot-term=s" => \$gnuplot_terminal,
-	       "wait-after-plot!" => \$wait_after_plot,
-	       );
+exit run(@ARGV) unless caller;
 
-if ( !GetOptions(%options) )
-{
-    print STDERR "valid options for $0 are:\n";
-    my $opt;
-    foreach $opt (sort(keys %options)) {
-	print STDERR "\t--$opt\t(default is ";
-	if ( ref($options{$opt}) eq "ARRAY" ) {
-	    print STDERR join(", ",  map { "'$_'" } @{$options{$opt}});
-	} else {
-	    print STDERR "'${$options{$opt}}'";
-	}
-	print STDERR ")\n";
+sub run {
+    my $opts;
+    if (!processOptions(\@_, $opts)) {
+        usage(1);
     }
-    print STDERR "\n";
-    die;
-}
 
-chomp $identifier;
-die "illegal offset-limit: $offset_limit" unless $offset_limit > 0.0;
-$offset_limit *= 1e6;			# scale to microseconds
+    $identifier  = $opts->{'identifier'};
+    if (!$identifier) {
+        $identifier = "host".`hostname`;
+        chomp $identifier;
+    }
+    $offset_limit       = $opts->{'offset-limit'};
+    $output_file        = $opts->{'output-file'};
+    $output_file_number = 1;
+    $gnuplot_terminal   = $opts->{'plot-terminal'}
+    || ( $ENV{DISPLAY} ? "x11" : "dumb" );
+    $wait_after_plot    = !$opts->{'dont-wait'};
+
+    die "illegal offset-limit: $offset_limit" unless $offset_limit > 0.0;
+    $offset_limit *= 1e6;			# scale to microseconds
+
+    my $summary_dir = $opts->{'directory'};
+
+    my $loop_summary ="$summary_dir/loop_summary";
+    my $peer_summary ="$summary_dir/peer_summary";
+    my $clock_summary="$summary_dir/clock_summary";
+
+    my @peer_list   = @{$opts->{'peer'}};
+
+    do_loop($loop_summary);
+    do_peer($peer_summary, $_) for @peer_list;
+}
 
 # return the smallest value in the given list
 sub min
@@ -176,7 +171,7 @@ sub do_loop
 	"Daily mean values since $first_day\\n" .
 	"(Offset limit is $offset_limit microseconds)\"\n";
     print "set ylabel \"[us]\"\n";
-    print "set data style yerrorbars\n";
+    print "set style data yerrorbars\n";
     print "set multiplot\n";
     print "set size 1, 0.5\n";
     print "set lmargin 8\n";
@@ -224,7 +219,7 @@ sub do_loop
     print "set xlabel\n";
     print "set ylabel \"[us]\"\n";
     print "set origin 0, 0.5\n";
-    print "set data style linespoints\n";
+    print "set style data linespoints\n";
     print "set multiplot\n";
     print "plot $ylimit \"$out_file\" using 1:6 title \"Offset\", ";
     print "\"$out_file\" using 1:6 smooth bezier " .
@@ -296,7 +291,7 @@ sub do_peer
     print "set origin 0, 0.66\n";
     print "set title " .
 	"\"Peer Summary for $peer on $identifier since $first_day\"\n";
-    print "set data style linespoints\n";
+    print "set style data linespoints\n";
     print "set ylabel \"[us]\"\n";
     print "plot \"$out_file\" using 1:3 title \"mean offset\", ";
     print "\"$out_file\" using 1:3 smooth bezier " .
@@ -328,10 +323,7 @@ sub do_peer
     unlink $out_file;
 }
 
+@plot_summary_opts@
 
-my $loop_summary ="$summary_dir/loop_summary";
-my $peer_summary ="$summary_dir/peer_summary";
-my $clock_summary="$summary_dir/clock_summary";
-
-do_loop $loop_summary;
-map { do_peer $peer_summary, $_ } @peer_list;
+1;
+__END__

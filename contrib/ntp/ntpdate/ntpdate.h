@@ -4,7 +4,7 @@
 
 #include "ntp_malloc.h"
 
-extern void	loadservers	P((char *cfgpath));
+extern void	loadservers	(char *cfgpath);
 
 /*
  * The server structure is a much simplified version of the
@@ -15,14 +15,14 @@ extern void	loadservers	P((char *cfgpath));
  */
 struct server {
 	struct server *next_server;	/* next server in build list */
-	struct sockaddr_storage srcadr;	/* address of remote host */
+	sockaddr_u srcadr;		/* address of remote host */
 	u_char version;			/* version to use */
 	u_char leap;			/* leap indicator */
 	u_char stratum;			/* stratum of remote server */
 	s_char precision;		/* server's clock precision */
 	u_char trust;			/* trustability of the filtered data */
 	u_fp rootdelay;			/* distance from primary clock */
-	u_fp rootdispersion;		/* peer clock dispersion */
+	u_fp rootdisp;			/* peer clock dispersion */
 	u_int32 refid;			/* peer reference ID */
 	l_fp reftime;			/* time of peer's last update */
 	u_long event_time;		/* time for next timeout */
@@ -89,9 +89,13 @@ struct server {
 
 
 /*
- * Some defaults
+ * No less than 2s between requests to a server to stay within ntpd's
+ * default "discard minimum 1" (and 1s enforcement slop).  That is
+ * enforced only if the nondefault limited restriction is in place, such
+ * as with "restrict ... limited" and "restrict ... kod limited".
  */
-#define	DEFTIMEOUT	5		/* 5 timer increments */
+#define	MINTIMEOUT	(1 * TIMER_HZ)	/* 1s min. between packets */
+#define	DEFTIMEOUT	(2 * TIMER_HZ)	/* 2s by default */
 #define	DEFSAMPLES	4		/* get 4 samples per server */
 #define	DEFPRECISION	(-5)		/* the precision we claim */
 #define	DEFMAXPERIOD	60		/* maximum time to wait */
