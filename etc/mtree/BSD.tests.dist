@@ -340,6 +340,8 @@
         ..
         cmp
         ..
+        col
+        ..
         comm
         ..
         cut
