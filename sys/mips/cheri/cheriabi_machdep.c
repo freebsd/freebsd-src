@@ -595,7 +595,7 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * Install CHERI signal-delivery register state for handler to run
 	 * in.  As we don't install this in the CHERI frame on the user stack,
-	 * it will be (genrally) be removed automatically on sigreturn().
+	 * it will be (generally) be removed automatically on sigreturn().
 	 */
 	/* XXX-BD: this isn't quite right */
 	cheri_sendsig(td);
