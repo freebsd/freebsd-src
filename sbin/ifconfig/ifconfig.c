@@ -43,10 +43,10 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/time.h>
 #include <sys/module.h>
 #include <sys/linker.h>
+#include <sys/socket.h>
+#include <sys/time.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -431,7 +431,6 @@ cmd_register(struct cmd *p)
 static const struct cmd *
 cmd_lookup(const char *name, int iscreate)
 {
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
 	const struct cmd *p;
 
 	for (p = cmds; p != NULL; p = p->c_next)
@@ -445,7 +444,6 @@ cmd_lookup(const char *name, int iscreate)
 			}
 		}
 	return NULL;
-#undef N
 }
 
 struct callback {
@@ -1210,10 +1208,8 @@ static struct cmd basic_cmds[] = {
 static __constructor void
 ifconfig_ctor(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	size_t i;
 
-	for (i = 0; i < N(basic_cmds);  i++)
+	for (i = 0; i < nitems(basic_cmds);  i++)
 		cmd_register(&basic_cmds[i]);
-#undef N
 }
