@@ -428,8 +428,7 @@ cd9660_parse_opts(const char *option, fsinfo_t *fsopts)
 			rv = set_option(cd9660_options, var, val);
 	}
 
-	if (var)
-		free(var);
+	free(var);
 	return (rv);
 }
 
