@@ -1,14 +1,17 @@
 
 #include <ntp_types.h>
 
-long ntp_random P((void));
-void ntp_srandom P((unsigned long));
-void ntp_srandomdev P((void));
-char * ntp_initstate P((unsigned long, 	/* seed for R.N.G. */
+void ntp_crypto_srandom(void);
+int ntp_crypto_random_buf(void *buf, size_t nbytes);
+
+long ntp_random (void);
+void ntp_srandom (unsigned long);
+void ntp_srandomdev (void);
+char * ntp_initstate (unsigned long, 	/* seed for R.N.G. */
 			char *,		/* pointer to state array */
 			long		/* # bytes of state info */
-			));
-char * ntp_setstate P((char *));	/* pointer to state array */
+			);
+char * ntp_setstate (char *);	/* pointer to state array */
 
 
 

@@ -69,7 +69,9 @@
 
 #include <sys/types.h>
 #include <ctype.h>
+#ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
+#endif
 #include <isc/net.h>
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
@@ -78,8 +80,152 @@
 
 #include "ntpd.h"
 #include "ntp_malloc.h"
-#include "ntp_stdlib.h"
 #include "ntp_string.h"
+#include "ntp_debug.h"
+
+
+/*
+ * copy_addrinfo()	- copy a single addrinfo to malloc()'d block.
+ * copy_addrinfo_list() - copy an addrinfo list to malloc()'d block.
+ *
+ * Copies an addrinfo list and its associated data to a contiguous block
+ * of storage from emalloc().  Callback routines invoked via
+ * getaddrinfo_sometime() have access to the resulting addrinfo list
+ * only until they return.  This routine provides an easy way to make a
+ * persistent copy.  Although the list provided to gai_sometime_callback
+ * routines is similarly contiguous, to keep this code usable in any
+ * context where we might want to duplicate an addrinfo list, it does
+ * not require the input list be contiguous.
+ *
+ * The returned list head pointer is passed to free() to release the
+ * entire list.
+ *
+ * In keeping with the rest of the NTP distribution, sockaddr_u is used
+ * in preference to struct sockaddr_storage, which is a member of the
+ * former union and so compatible.
+ *
+ * The rest of ntp_rfc2553.c is conditioned on ISC_PLATFORM_HAVEIPV6
+ * not being defined, copy_addrinfo_*() are exceptions.
+ */
+struct addrinfo * copy_addrinfo_common(const struct addrinfo *, int
+#ifdef EREALLOC_CALLSITE
+								   ,
+				       const char *, int
+#endif
+				       );
+
+
+struct addrinfo *
+copy_addrinfo_impl(
+	const struct addrinfo *	src
+#ifdef EREALLOC_CALLSITE
+				   ,
+	const char *		caller_file,
+	int			caller_line
+#endif
+	)
+{
+	return copy_addrinfo_common(src, TRUE
+#ifdef EREALLOC_CALLSITE
+					      ,
+				    caller_file, caller_line
+#endif
+				    );
+}
+
+
+struct addrinfo *
+copy_addrinfo_list_impl(
+	const struct addrinfo *	src
+#ifdef EREALLOC_CALLSITE
+				   ,
+	const char *		caller_file,
+	int			caller_line
+#endif
+	)
+{
+	return copy_addrinfo_common(src, FALSE
+#ifdef EREALLOC_CALLSITE
+					      ,
+				    caller_file, caller_line
+#endif
+				    );
+}
+
+
+struct addrinfo *
+copy_addrinfo_common(
+	const struct addrinfo *	src,
+	int			just_one
+#ifdef EREALLOC_CALLSITE
+					,
+	const char *		caller_file,
+	int			caller_line
+#endif
+	)
+{
+	const struct addrinfo *	ai_src;
+	const struct addrinfo *	ai_nxt;
+	struct addrinfo *	ai_cpy;
+	struct addrinfo *	dst;
+	sockaddr_u *		psau;
+	char *			pcanon;
+	u_int			elements;
+	size_t			octets;
+	size_t			canons_octets;
+	size_t			str_octets;
+
+	elements = 0;
+	canons_octets = 0;
+
+	for (ai_src = src; NULL != ai_src; ai_src = ai_nxt) {
+		if (just_one)
+			ai_nxt = NULL;
+		else
+			ai_nxt = ai_src->ai_next;
+		++elements;
+		if (NULL != ai_src->ai_canonname)
+			canons_octets += 1 + strlen(ai_src->ai_canonname);
+	}
+
+	octets = elements * (sizeof(*ai_cpy) + sizeof(*psau));
+	octets += canons_octets;
+
+	dst = erealloczsite(NULL, octets, 0, TRUE, caller_file,
+			    caller_line);
+	ai_cpy = dst;
+	psau = (void *)(ai_cpy + elements);
+	pcanon = (void *)(psau + elements);
+
+	for (ai_src = src; NULL != ai_src; ai_src = ai_nxt) {
+		if (just_one)
+			ai_nxt = NULL;
+		else
+			ai_nxt = ai_src->ai_next;
+		*ai_cpy = *ai_src;
+		REQUIRE(ai_src->ai_addrlen <= sizeof(sockaddr_u));
+		memcpy(psau, ai_src->ai_addr, ai_src->ai_addrlen);
+		ai_cpy->ai_addr = &psau->sa;
+		++psau;
+		if (NULL != ai_cpy->ai_canonname) {
+			ai_cpy->ai_canonname = pcanon;
+			str_octets = 1 + strlen(ai_src->ai_canonname);
+			memcpy(pcanon, ai_src->ai_canonname, str_octets);
+			pcanon += str_octets;
+		}
+		if (NULL != ai_cpy->ai_next) {
+			if (just_one)
+				ai_cpy->ai_next = NULL;
+			else
+				ai_cpy->ai_next = ai_cpy + 1;
+		}
+		++ai_cpy;
+	}
+	ENSURE(pcanon == ((char *)dst + octets));
+
+	return dst;
+}
+
 
 #ifndef ISC_PLATFORM_HAVEIPV6
 
@@ -127,8 +273,8 @@ DNSlookup_name(
 }
 #endif
 
-static	int do_nodename P((const char *nodename, struct addrinfo *ai,
-    const struct addrinfo *hints));
+static	int do_nodename (const char *nodename, struct addrinfo *ai,
+    const struct addrinfo *hints);
 
 int
 getaddrinfo (const char *nodename, const char *servname,
@@ -288,7 +434,6 @@ getnameinfo (const struct sockaddr *sa, u_int salen, char *host,
 	size_t hostlen, char *serv, size_t servlen, int flags)
 {
 	struct hostent *hp;
-	int namelen;
 
 	if (sa->sa_family != AF_INET)
 		return (EAI_FAMILY);
@@ -301,16 +446,8 @@ getnameinfo (const struct sockaddr *sa, u_int salen, char *host,
 		else
 			return (EAI_FAIL);
 	}
-	if (host != NULL && hostlen > 0) {
-		/*
-		 * Don't exceed buffer
-		 */
-		namelen = min(strlen(hp->h_name), hostlen - 1);
-		if (namelen > 0) {
-			strncpy(host, hp->h_name, namelen);
-			host[namelen] = '\0';
-		}
-	}
+	if (host != NULL && hostlen > 0)
+		strlcpy(host, hp->h_name, hostlen);
 	return (0);
 }
 
@@ -362,7 +499,7 @@ do_nodename(
 			 sockin6->sin6_addr = in6addr_any;
 			 */
 		}
-#ifdef HAVE_SA_LEN_IN_STRUCT_SOCKADDR
+#ifdef ISC_PLATFORM_HAVESALEN
 		ai->ai_addr->sa_len = SOCKLEN(ai->ai_addr);
 #endif
 
@@ -428,15 +565,11 @@ do_nodename(
 	sockin = (struct sockaddr_in *)ai->ai_addr;
 	memcpy(&sockin->sin_addr, hp->h_addr, hp->h_length);
 	ai->ai_addr->sa_family = hp->h_addrtype;
-#ifdef HAVE_SA_LEN_IN_STRUCT_SOCKADDR
+#ifdef ISC_PLATFORM_HAVESALEN
 	ai->ai_addr->sa_len = sizeof(struct sockaddr);
 #endif
-	if (hints != NULL && hints->ai_flags & AI_CANONNAME) {
-		ai->ai_canonname = malloc(strlen(hp->h_name) + 1);
-		if (ai->ai_canonname == NULL)
-			return (EAI_MEMORY);
-		strcpy(ai->ai_canonname, hp->h_name);
-	}
+	if (hints != NULL && (hints->ai_flags & AI_CANONNAME))
+		ai->ai_canonname = estrdup(hp->h_name);
 	return (0);
 }
 
