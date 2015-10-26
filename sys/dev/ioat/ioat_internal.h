@@ -361,6 +361,7 @@ struct ioat_softc {
 
 	uint32_t		head;
 	uint32_t		tail;
+	uint32_t		hw_head;
 	uint32_t		ring_size_order;
 	bus_addr_t		last_seen;
 
