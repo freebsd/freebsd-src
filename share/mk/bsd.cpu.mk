@@ -267,6 +267,27 @@ _CPUCFLAGS += -mfloat-abi=softfp
 CFLAGS += ${_CPUCFLAGS}
 .endif
 
+#
+# Prohibit the compiler from emitting SIMD instructions.
+# These flags are added to CFLAGS in areas where the extra context-switch
+# cost outweighs the advantages of SIMD instructions.
+#
+# gcc:
+# Setting -mno-mmx implies -mno-3dnow
+# Setting -mno-sse implies -mno-sse2, -mno-sse3, -mno-ssse3 and -mfpmath=387
+#
+# clang:
+# Setting -mno-mmx implies -mno-3dnow and -mno-3dnowa
+# Setting -mno-sse implies -mno-sse2, -mno-sse3, -mno-ssse3, -mno-sse41 and
+# -mno-sse42
+# (-mfpmath= is not supported)
+#
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+CFLAGS_NO_SIMD.clang= -mno-avx
+CFLAGS_NO_SIMD= -mno-mmx -mno-sse
+.endif
+CFLAGS_NO_SIMD += ${CFLAGS_NO_SIMD.${COMPILER_TYPE}}
+
 # Add in any architecture-specific CFLAGS.  
 # These come from make.conf or the command line or the environment.
 CFLAGS += ${CFLAGS.${MACHINE_ARCH}}
