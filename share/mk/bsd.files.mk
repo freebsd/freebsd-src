@@ -35,7 +35,7 @@ _${group}FILES=
 .for file in ${${group}}
 .if defined(${group}OWN_${file:T}) || defined(${group}GRP_${file:T}) || \
     defined(${group}MODE_${file:T}) || defined(${group}DIR_${file:T}) || \
-    defined(${group}NAME_${file:T})
+    defined(${group}NAME_${file:T}) || defined(${group}NAME)
 ${group}OWN_${file:T}?=	${${group}OWN}
 ${group}GRP_${file:T}?=	${${group}GRP}
 ${group}MODE_${file:T}?=	${${group}MODE}
