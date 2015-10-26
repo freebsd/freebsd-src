@@ -24,7 +24,6 @@ ${group}MODE?=	${CONFMODE}
 ${group}DIR?=	${CONFIGDIR}/
 STAGE_SETS+=	${group}
 STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
-STAGE_SYMLINKS_DIR.${group}= ${STAGE_OBJTOP}
 
 _${group}CONFS=
 .for cnf in ${${group}}
