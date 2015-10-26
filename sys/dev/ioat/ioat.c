@@ -648,14 +648,17 @@ ioat_release(bus_dmaengine_t dmaengine)
 	mtx_unlock(&ioat->submit_lock);
 }
 
-struct bus_dmadesc *
-ioat_null(bus_dmaengine_t dmaengine, bus_dmaengine_callback_t callback_fn,
-    void *callback_arg, uint32_t flags)
+static struct ioat_descriptor *
+ioat_op_generic(struct ioat_softc *ioat, uint8_t op,
+    uint32_t size, uint64_t src, uint64_t dst,
+    bus_dmaengine_callback_t callback_fn, void *callback_arg,
+    uint32_t flags)
 {
-	struct ioat_softc *ioat;
+	struct ioat_generic_hw_descriptor *hw_desc;
 	struct ioat_descriptor *desc;
-	struct ioat_dma_hw_descriptor *hw_desc;
 	int mflags;
+
+	mtx_assert(&ioat->submit_lock, MA_OWNED);
 
 	KASSERT((flags & ~DMA_ALL_FLAGS) == 0, ("Unrecognized flag(s): %#x",
 		flags & ~DMA_ALL_FLAGS));
@@ -664,31 +667,52 @@ ioat_null(bus_dmaengine_t dmaengine, bus_dmaengine_callback_t callback_fn,
 	else
 		mflags = M_WAITOK;
 
-	ioat = to_ioat_softc(dmaengine);
-	mtx_assert(&ioat->submit_lock, MA_OWNED);
+	if (size > ioat->max_xfer_size) {
+		ioat_log_message(0, "%s: max_xfer_size = %d, requested = %u\n",
+		    __func__, ioat->max_xfer_size, (unsigned)size);
+		return (NULL);
+	}
 
 	if (ioat_reserve_space(ioat, 1, mflags) != 0)
 		return (NULL);
 
-	CTR0(KTR_IOAT, __func__);
-
 	desc = ioat_get_ring_entry(ioat, ioat->head);
-	hw_desc = desc->u.dma;
+	hw_desc = desc->u.generic;
 
 	hw_desc->u.control_raw = 0;
-	hw_desc->u.control.null = 1;
-	hw_desc->u.control.completion_update = 1;
+	hw_desc->u.control_generic.op = op;
+	hw_desc->u.control_generic.completion_update = 1;
 
 	if ((flags & DMA_INT_EN) != 0)
-		hw_desc->u.control.int_enable = 1;
+		hw_desc->u.control_generic.int_enable = 1;
 
-	hw_desc->size = 8;
-	hw_desc->src_addr = 0;
-	hw_desc->dest_addr = 0;
+	hw_desc->size = size;
+	hw_desc->src_addr = src;
+	hw_desc->dest_addr = dst;
 
 	desc->bus_dmadesc.callback_fn = callback_fn;
 	desc->bus_dmadesc.callback_arg = callback_arg;
+	return (desc);
+}
 
+struct bus_dmadesc *
+ioat_null(bus_dmaengine_t dmaengine, bus_dmaengine_callback_t callback_fn,
+    void *callback_arg, uint32_t flags)
+{
+	struct ioat_dma_hw_descriptor *hw_desc;
+	struct ioat_descriptor *desc;
+	struct ioat_softc *ioat;
+
+	CTR0(KTR_IOAT, __func__);
+	ioat = to_ioat_softc(dmaengine);
+
+	desc = ioat_op_generic(ioat, IOAT_OP_COPY, 8, 0, 0, callback_fn,
+	    callback_arg, flags);
+	if (desc == NULL)
+		return (NULL);
+
+	hw_desc = desc->u.dma;
+	hw_desc->u.control.null = 1;
 	ioat_submit_single(ioat);
 	return (&desc->bus_dmadesc);
 }
@@ -698,50 +722,27 @@ ioat_copy(bus_dmaengine_t dmaengine, bus_addr_t dst,
     bus_addr_t src, bus_size_t len, bus_dmaengine_callback_t callback_fn,
     void *callback_arg, uint32_t flags)
 {
-	struct ioat_descriptor *desc;
 	struct ioat_dma_hw_descriptor *hw_desc;
+	struct ioat_descriptor *desc;
 	struct ioat_softc *ioat;
-	int mflags;
 
-	KASSERT((flags & ~DMA_ALL_FLAGS) == 0, ("Unrecognized flag(s): %#x",
-		flags & ~DMA_ALL_FLAGS));
-	if ((flags & DMA_NO_WAIT) != 0)
-		mflags = M_NOWAIT;
-	else
-		mflags = M_WAITOK;
-
+	CTR0(KTR_IOAT, __func__);
 	ioat = to_ioat_softc(dmaengine);
-	mtx_assert(&ioat->submit_lock, MA_OWNED);
 
-	if (len > ioat->max_xfer_size) {
-		ioat_log_message(0, "%s: max_xfer_size = %d, requested = %d\n",
-		    __func__, ioat->max_xfer_size, (int)len);
+	if (((src | dst) & (0xffffull << 48)) != 0) {
+		ioat_log_message(0, "%s: High 16 bits of src/dst invalid\n",
+		    __func__);
 		return (NULL);
 	}
 
-	if (ioat_reserve_space(ioat, 1, mflags) != 0)
+	desc = ioat_op_generic(ioat, IOAT_OP_COPY, len, src, dst, callback_fn,
+	    callback_arg, flags);
+	if (desc == NULL)
 		return (NULL);
 
-	CTR0(KTR_IOAT, __func__);
-
-	desc = ioat_get_ring_entry(ioat, ioat->head);
 	hw_desc = desc->u.dma;
-
-	hw_desc->u.control_raw = 0;
-	hw_desc->u.control.completion_update = 1;
-
-	if ((flags & DMA_INT_EN) != 0)
-		hw_desc->u.control.int_enable = 1;
-
-	hw_desc->size = len;
-	hw_desc->src_addr = src;
-	hw_desc->dest_addr = dst;
-
 	if (g_ioat_debug_level >= 3)
 		dump_descriptor(hw_desc);
-
-	desc->bus_dmadesc.callback_fn = callback_fn;
-	desc->bus_dmadesc.callback_arg = callback_arg;
 
 	ioat_submit_single(ioat);
 	return (&desc->bus_dmadesc);
@@ -767,7 +768,7 @@ ioat_get_ring_space(struct ioat_softc *ioat)
 static struct ioat_descriptor *
 ioat_alloc_ring_entry(struct ioat_softc *ioat, int mflags)
 {
-	struct ioat_dma_hw_descriptor *hw_desc;
+	struct ioat_generic_hw_descriptor *hw_desc;
 	struct ioat_descriptor *desc;
 	int error, busdmaflag;
 
@@ -788,7 +789,7 @@ ioat_alloc_ring_entry(struct ioat_softc *ioat, int mflags)
 	if (hw_desc == NULL)
 		goto out;
 
-	desc->u.dma = hw_desc;
+	desc->u.generic = hw_desc;
 
 	error = bus_dmamap_load(ioat->hw_desc_tag, ioat->hw_desc_map, hw_desc,
 	    sizeof(*hw_desc), ioat_dmamap_cb, &desc->hw_desc_bus_addr,
@@ -811,8 +812,8 @@ ioat_free_ring_entry(struct ioat_softc *ioat, struct ioat_descriptor *desc)
 	if (desc == NULL)
 		return;
 
-	if (desc->u.dma)
-		bus_dmamem_free(ioat->hw_desc_tag, desc->u.dma,
+	if (desc->u.generic)
+		bus_dmamem_free(ioat->hw_desc_tag, desc->u.generic,
 		    ioat->hw_desc_map);
 	free(desc, M_IOAT);
 }
