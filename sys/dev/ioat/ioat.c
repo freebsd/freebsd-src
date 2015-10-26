@@ -567,7 +567,7 @@ ioat_process_events(struct ioat_softc *ioat)
 	comp_update = *ioat->comp_update;
 	status = comp_update & IOAT_CHANSTS_COMPLETED_DESCRIPTOR_MASK;
 
-	ioat_log_message(3, "%s\n", __func__);
+	CTR0(KTR_IOAT, __func__);
 
 	if (status == ioat->last_seen)
 		goto out;
@@ -575,7 +575,7 @@ ioat_process_events(struct ioat_softc *ioat)
 	while (1) {
 		desc = ioat_get_ring_entry(ioat, ioat->tail);
 		dmadesc = &desc->bus_dmadesc;
-		ioat_log_message(3, "completing desc %d\n", ioat->tail);
+		CTR1(KTR_IOAT, "completing desc %d", ioat->tail);
 
 		if (dmadesc->callback_fn)
 			(*dmadesc->callback_fn)(dmadesc->callback_arg);
@@ -629,7 +629,7 @@ ioat_acquire(bus_dmaengine_t dmaengine)
 
 	ioat = to_ioat_softc(dmaengine);
 	mtx_lock(&ioat->submit_lock);
-	ioat_log_message(3, "%s\n", __func__);
+	CTR0(KTR_IOAT, __func__);
 }
 
 void
@@ -638,7 +638,7 @@ ioat_release(bus_dmaengine_t dmaengine)
 	struct ioat_softc *ioat;
 
 	ioat = to_ioat_softc(dmaengine);
-	ioat_log_message(3, "%s\n", __func__);
+	CTR0(KTR_IOAT, __func__);
 	ioat_write_2(ioat, IOAT_DMACOUNT_OFFSET, (uint16_t)ioat->head);
 	mtx_unlock(&ioat->submit_lock);
 }
@@ -660,7 +660,7 @@ ioat_null(bus_dmaengine_t dmaengine, bus_dmaengine_callback_t callback_fn,
 	if (ioat_reserve_space_and_lock(ioat, 1) != 0)
 		return (NULL);
 
-	ioat_log_message(3, "%s\n", __func__);
+	CTR0(KTR_IOAT, __func__);
 
 	desc = ioat_get_ring_entry(ioat, ioat->head);
 	hw_desc = desc->u.dma;
@@ -707,7 +707,7 @@ ioat_copy(bus_dmaengine_t dmaengine, bus_addr_t dst,
 	if (ioat_reserve_space_and_lock(ioat, 1) != 0)
 		return (NULL);
 
-	ioat_log_message(3, "%s\n", __func__);
+	CTR0(KTR_IOAT, __func__);
 
 	desc = ioat_get_ring_entry(ioat, ioat->head);
 	hw_desc = desc->u.dma;

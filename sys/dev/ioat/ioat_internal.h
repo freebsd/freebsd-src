@@ -29,7 +29,8 @@ __FBSDID("$FreeBSD$");
 #ifndef __IOAT_INTERNAL_H__
 #define __IOAT_INTERNAL_H__
 
-#define DEVICE2SOFTC(dev) ((struct ioat_softc *) device_get_softc(dev))
+#define	DEVICE2SOFTC(dev)	((struct ioat_softc *) device_get_softc(dev))
+#define	KTR_IOAT		KTR_SPARE3
 
 #define	ioat_read_chancnt(ioat) \
 	ioat_read_1((ioat), IOAT_CHANCNT_OFFSET)
