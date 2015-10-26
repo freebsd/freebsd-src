@@ -316,24 +316,34 @@ tcpdump_sandboxes_init(struct tcpdump_sandbox_list *list, int mode)
 	case TDS_MODE_ONE_SANDBOX:
 		sb = tcpdump_sandbox_new("sandbox", SB_GREEN, tds_select_all,
 		    NULL);
+		if (sb == NULL)
+			return (-1);
 		STAILQ_INSERT_TAIL(list, sb, tds_entry);
 		default_sandbox = sb;
 		break;
 	case TDS_MODE_SEPARATE_LOCAL:
 		sb = tcpdump_sandbox_new("ipv4_local", SB_YELLOW,
 		    tds_select_ipv4_fromlocal, NULL);
+		if (sb == NULL)
+			return (-1);
 		STAILQ_INSERT_TAIL(list, sb, tds_entry);
 		sb = tcpdump_sandbox_new("ipv4", SB_BLUE, tds_select_ipv4,
 		    NULL);
+		if (sb == NULL)
+			return (-1);
 		STAILQ_INSERT_TAIL(list, sb, tds_entry);
 		sb = tcpdump_sandbox_new("catchall", SB_GREEN, tds_select_all,
 		    NULL);
+		if (sb == NULL)
+			return (-1);
 		STAILQ_INSERT_TAIL(list, sb, tds_entry);
 		default_sandbox = sb;
 		break;
 	case TDS_MODE_PER_PROTOCOL:
 		sb = tcpdump_sandbox_new("per-protocol", SB_YELLOW,
 		    tds_select_all, NULL);
+		if (sb == NULL)
+			return (-1);
 		STAILQ_INSERT_TAIL(list, sb, tds_entry);
 		default_sandbox = sb;
 
@@ -360,10 +370,14 @@ tcpdump_sandboxes_init(struct tcpdump_sandbox_list *list, int mode)
 			sb = tcpdump_sandbox_new(hash_names[i],
 			    hash_colors[i % N_HASH_COLORS],
 			    tds_select_ipv4_hash, (void *)(long)i);
+			if (sb == NULL)
+				return (-1);
 			STAILQ_INSERT_TAIL(list, sb, tds_entry);
 		}
 		sb = tcpdump_sandbox_new("catchall", SB_GREEN, tds_select_all,
 		    NULL);
+		if (sb == NULL)
+			return (-1);
 		STAILQ_INSERT_TAIL(list, sb, tds_entry);
 		default_sandbox = sb;
 		break;
