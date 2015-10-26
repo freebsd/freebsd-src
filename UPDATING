@@ -16,6 +16,15 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20151026:	p23	FreeBSD-SA-15:25.ntp
+
+	Fix multiple NTP vulnerabilities. New NTP version is 4.2.8p4.
+
+	The configuration file syntax has been changed, thus mergemaster
+	run is recommended.  Now the "kod" parameter requires "limited" 
+	parameter.  If the ntp.conf is not updated, the ntpd will run 
+	successfully, but with KoD disabled.
+
 20151002:	p22	FreeBSD-SA-15:24.rpcbind [revised]
 	Revised patch to address a regression that prevents NIS from working.
 

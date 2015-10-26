@@ -45,14 +45,16 @@ $ntp'timeout if 0;
 ;#
 sub usage
 {
-    die("usage: $0 [-n] [-p <port>] [-l <logfile>] [host] ...\n");
+    die("usage: $0 [-p <port>] [-l <logfile>] [host] ...\n");
 }
-
-$opt_l = "/dev/null";	# where to write debug messages to
-$opt_p = 0;		# port to use locally - (0 does mean: will be choosen by kernel)
 
 &usage unless &Getopts('l:p:');
 &Getopts if 0;	# make -w happy
+
+$opt_l = "/dev/null"	# where to write debug messages to
+    if (!$opt_l);
+$opt_p = 0		# port to use locally - (0 does mean: will be chosen by kernel)
+    if (!$opt_p);
 
 @Hosts = ($#ARGV < $[) ? ("localhost") : @ARGV;
 
