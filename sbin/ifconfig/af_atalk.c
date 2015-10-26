@@ -32,7 +32,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <net/if.h>
@@ -172,11 +172,9 @@ static struct afswtch af_atalk = {
 static __constructor void
 atalk_ctor(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	size_t i;
 
-	for (i = 0; i < N(atalk_cmds);  i++)
+	for (i = 0; i < nitems(atalk_cmds);  i++)
 		cmd_register(&atalk_cmds[i]);
 	af_register(&af_atalk);
-#undef N
 }

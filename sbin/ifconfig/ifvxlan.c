@@ -636,13 +636,11 @@ static struct afswtch af_vxlan = {
 static __constructor void
 vxlan_ctor(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	size_t i;
 
-	for (i = 0; i < N(vxlan_cmds); i++)
+	for (i = 0; i < nitems(vxlan_cmds); i++)
 		cmd_register(&vxlan_cmds[i]);
 	af_register(&af_vxlan);
 	callback_register(vxlan_cb, NULL);
 	clone_setdefcallback("vxlan", vxlan_create);
-#undef N
 }
