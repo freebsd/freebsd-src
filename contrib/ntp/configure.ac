@@ -11,6 +11,7 @@ AC_INIT(
 )
 AC_CONFIG_MACRO_DIR([sntp/m4])
 AC_CONFIG_AUX_DIR([sntp/libevent/build-aux])
+AC_LANG([C])
 
 AC_PRESERVE_HELP_ORDER
 
@@ -927,60 +928,6 @@ case "$host" in
 esac
 
 NTP_RLIMIT_ITEMS
-
-# HMS: Only if we are doing the MLOCKALL stuff...
-AC_MSG_CHECKING([for the default number of 4k stack pages])
-AC_ARG_WITH(
-    [stack-limit],
-    [AS_HELP_STRING(
-	[--with-stack-limit],
-	[? =50 (200 for openbsd) 4k pages]
-    )],
-    [ans=$withval],
-    [ans=yes]
-)
-case "$ans" in
- yes | no)
-    case "$host" in
-     *-*-openbsd*)
-	ans=200
-	;;
-     *) ans=50
-        ;;
-    esac
-    ;;
- [[1-9]][[0-9]]*)
-    ;;
- *) AC_MSG_ERROR(["--with-stack-limit requires an integer argument."])
-    ;;
-esac
-AC_MSG_RESULT([$ans])
-AC_DEFINE_UNQUOTED([DFLT_RLIMIT_STACK], [$ans],
-    [Default number of 4k pages for RLIMIT_STACK])
-
-# HMS: only if we have RLIMIT_MEMLOCK
-AC_MSG_CHECKING([for the default number of megabytes to MEMLOCK])
-AC_ARG_WITH(
-    [memlock],
-    [AS_HELP_STRING(
-	[--with-memlock],
-	[? =32 (megabytes)]
-    )],
-    [ans=$withval],
-    [ans=yes]
-)
-case "$ans" in
- yes | no)
-    ans=32
-    ;;
- [[1-9]][[0-9]]*) ;;
- *) AC_MSG_ERROR(["--with-memlock requires an integer argument."])
-     ;;
-esac
-AC_MSG_RESULT([$ans])
-AC_DEFINE_UNQUOTED([DFLT_RLIMIT_MEMLOCK], [$ans],
-    [Default number of megabytes for RLIMIT_MEMLOCK])
-
 
 # some OSes prefer _exit() in forked children to exit()
 AC_CHECK_FUNCS([_exit])
@@ -4382,6 +4329,8 @@ dnl  require a C++ compiler only if we will use gtest, but AC_PROG_CXX
 dnl  can't be conditionalized.
 NTP_GOOGLETEST
 
+NTP_PROBLEM_TESTS
+
 ###
 
 AC_DEFINE_DIR([NTP_KEYSDIR], [sysconfdir],
@@ -4425,6 +4374,7 @@ AC_CONFIG_FILES([tests/Makefile])
 AC_CONFIG_FILES([tests/bug-2803/Makefile])
 AC_CONFIG_FILES([tests/libntp/Makefile])
 AC_CONFIG_FILES([tests/ntpd/Makefile])
+AC_CONFIG_FILES([tests/ntpq/Makefile])
 AC_CONFIG_FILES([tests/sandbox/Makefile])
 AC_CONFIG_FILES([tests/sec-2853/Makefile])
 AC_CONFIG_FILES([util/Makefile])

@@ -3,7 +3,6 @@
 MAN=
 
 .include <bsd.own.mk>
-.include <bsd.own.mk>
 
 .PATH: ${.CURDIR}/../../../contrib/ntp/ntpdc
 

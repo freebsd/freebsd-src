@@ -8,7 +8,17 @@
 #define MD5_LENGTH 16
 #define SHA1_LENGTH 20
 
-void test_MakeMd5Mac(void) {
+
+void test_MakeMd5Mac(void);
+void test_MakeSHA1Mac(void);
+void test_VerifyCorrectMD5(void);
+void test_VerifySHA1(void);
+void test_VerifyFailure(void);
+void test_PacketSizeNotMultipleOfFourBytes(void);
+
+
+void
+test_MakeMd5Mac(void) {
 
 	const char* PKT_DATA = "abcdefgh0123";
 	const int PKT_LEN = strlen(PKT_DATA);
@@ -30,7 +40,8 @@ void test_MakeMd5Mac(void) {
 }
 
 
-void test_MakeSHA1Mac(void) {
+void
+test_MakeSHA1Mac(void) {
 #ifdef OPENSSL
 	const char* PKT_DATA = "abcdefgh0123";
 	const int PKT_LEN = strlen(PKT_DATA);
@@ -49,14 +60,15 @@ void test_MakeSHA1Mac(void) {
 	TEST_ASSERT_EQUAL(SHA1_LENGTH,
 			  make_mac((char*)PKT_DATA, PKT_LEN, SHA1_LENGTH, &sha1, actual));
 
-	TEST_ASSERT_TRUE(memcmp(EXPECTED_DIGEST, actual, SHA1_LENGTH) == 0);
+	TEST_ASSERT_EQUAL_MEMORY(EXPECTED_DIGEST, actual, SHA1_LENGTH);
 #else
 	TEST_IGNORE_MESSAGE("OpenSSL not found, skipping...");
 #endif	/* OPENSSL */
 }
 
 
-void test_VerifyCorrectMD5(void) {
+void
+test_VerifyCorrectMD5(void) {
 	const char* PKT_DATA =
 		"sometestdata"		// Data
 		"\0\0\0\0"			// Key-ID (unused)
@@ -75,7 +87,8 @@ void test_VerifyCorrectMD5(void) {
 }
 
 
-void test_VerifySHA1(void) {
+void
+test_VerifySHA1(void) {
 #ifdef OPENSSL
 	const char* PKT_DATA =
 		"sometestdata"		// Data
@@ -97,7 +110,8 @@ void test_VerifySHA1(void) {
 #endif	/* OPENSSL */
 }
 
-void test_VerifyFailure(void) {
+void
+test_VerifyFailure(void) {
 	/* We use a copy of the MD5 verification code, but modify
 	 * the last bit to make sure verification fails. */
 	const char* PKT_DATA =
@@ -117,7 +131,9 @@ void test_VerifyFailure(void) {
 	TEST_ASSERT_FALSE(auth_md5((char*)PKT_DATA, PKT_LEN, MD5_LENGTH, &md5));
 }
 
-void test_PacketSizeNotMultipleOfFourBytes(void) {
+
+void
+test_PacketSizeNotMultipleOfFourBytes(void) {
 	const char* PKT_DATA = "123456";
 	const int PKT_LEN = 6;
 	char actual[MD5_LENGTH];
@@ -131,4 +147,3 @@ void test_PacketSizeNotMultipleOfFourBytes(void) {
 
 	TEST_ASSERT_EQUAL(0, make_mac((char*)PKT_DATA, PKT_LEN, MD5_LENGTH, &md5, actual));
 }
-

@@ -13,6 +13,8 @@
 # PARTICULAR PURPOSE.
 
 @SET_MAKE@
+
+#AUTOMAKE_OPTIONS = foreign 2.9 subdir-objects
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -87,8 +89,10 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-check_PROGRAMS = bug-2803$(EXEEXT) first-test$(EXEEXT) \
-	second-test$(EXEEXT) smeartest$(EXEEXT)
+check_PROGRAMS = first-test$(EXEEXT) smeartest$(EXEEXT) \
+	$(am__EXEEXT_1)
+EXTRA_PROGRAMS = bug-2803$(EXEEXT) second-test$(EXEEXT) \
+	$(am__EXEEXT_1)
 @NTP_CROSSCOMPILE_FALSE@am__append_1 = $(check_PROGRAMS)
 subdir = tests/sandbox
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -118,6 +122,7 @@ am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
 	$(top_srcdir)/sntp/m4/ntp_locinfo.m4 \
 	$(top_srcdir)/sntp/m4/ntp_openssl.m4 \
 	$(top_srcdir)/sntp/m4/ntp_pkg_config.m4 \
+	$(top_srcdir)/sntp/m4/ntp_problemtests.m4 \
 	$(top_srcdir)/sntp/m4/ntp_prog_cc.m4 \
 	$(top_srcdir)/sntp/m4/ntp_rlimit.m4 \
 	$(top_srcdir)/sntp/m4/ntp_sntp.m4 \
@@ -136,6 +141,7 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
+am__EXEEXT_1 =
 am__objects_1 =
 am_bug_2803_OBJECTS = bug-2803.$(OBJEXT) run-ut-2803.$(OBJEXT) \
 	ut-2803.$(OBJEXT) $(am__objects_1)
@@ -455,6 +461,7 @@ AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
+BUILD_THREAD = @BUILD_THREAD@
 CALC_TICKADJ_DB = @CALC_TICKADJ_DB@
 CALC_TICKADJ_DL = @CALC_TICKADJ_DL@
 CALC_TICKADJ_DS = @CALC_TICKADJ_DS@
@@ -463,6 +470,7 @@ CALC_TICKADJ_NI = @CALC_TICKADJ_NI@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CFLAGS_LIBEVENT = @CFLAGS_LIBEVENT@
 CFLAGS_NTP = @CFLAGS_NTP@
 CHUTEST = @CHUTEST@
 CONFIG_SHELL = @CONFIG_SHELL@
@@ -524,6 +532,7 @@ LIBTOOL_DEPS = @LIBTOOL_DEPS@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LSCF = @LSCF@
+LTHREAD_LIBS = @LTHREAD_LIBS@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MAKE_ADJTIMED = @MAKE_ADJTIMED@
@@ -709,12 +718,14 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-
-#AUTOMAKE_OPTIONS = foreign 2.9 subdir-objects
 NULL = 
 BUILT_SOURCES = run-ut-2803.c run-uglydate.c run-modetoa.c \
 	check-libntp check-libunity .deps-ver
 CLEANFILES = check-libntp check-libunity .deps-ver
+std_unity_list = \
+	$(top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+	$(NULL)
+
 run_unity = cd $(srcdir) && ruby ../../sntp/unity/auto/generate_test_runner.rb
 
 # HMS: we may not need some of these:
@@ -730,12 +741,13 @@ AM_CFLAGS = $(CFLAGS_NTP)
 
 # HMS: we may not need some of these:
 AM_CPPFLAGS = $(NTP_INCS) -I$(top_srcdir)/sntp/unity \
-	-I$(top_srcdir)/include $(CPPFLAGS_NTP)
+	-I$(top_srcdir)/include $(CPPFLAGS_NTP) \
+	-DUNITY_INCLUDE_CONFIG_H -I$(top_srcdir)/sntp/unity
 AM_LDFLAGS = $(LDFLAGS_NTP)
 bug_2803_SOURCES = \
-	bug-2803.c			\
-	run-ut-2803.c			\
-	ut-2803.c			\
+	bug-2803.c		\
+	run-ut-2803.c		\
+	ut-2803.c		\
 	$(NULL)
 
 first_test_SOURCES = \
@@ -1048,23 +1060,9 @@ recheck: all $(check_PROGRAMS)
 	        am__force_recheck=am--force-recheck \
 	        TEST_LOGS="$$log_list"; \
 	exit $$?
-bug-2803.log: bug-2803$(EXEEXT)
-	@p='bug-2803$(EXEEXT)'; \
-	b='bug-2803'; \
-	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
-	--log-file $$b.log --trs-file $$b.trs \
-	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
-	"$$tst" $(AM_TESTS_FD_REDIRECT)
 first-test.log: first-test$(EXEEXT)
 	@p='first-test$(EXEEXT)'; \
 	b='first-test'; \
-	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
-	--log-file $$b.log --trs-file $$b.trs \
-	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
-	"$$tst" $(AM_TESTS_FD_REDIRECT)
-second-test.log: second-test$(EXEEXT)
-	@p='second-test$(EXEEXT)'; \
-	b='second-test'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
