@@ -11,6 +11,13 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20151026:
+	NTP has been upgraded to 4.2.8p4.
+	The configuration file syntax has been changed, thus mergemaster
+	run is recommended.  Now the "kod" parameter requires "limited"
+	parameter.  If the ntp.conf is not updated, the ntpd will run
+	successfully, but with KoD disabled.
+
 20150624:
 	An additional fix for the issue described in the 20150615 sendmail
 	entry below has been been committed in revision 284788.

@@ -11,12 +11,13 @@ NTPDEFS=   -DSYS_FREEBSD
 CFLAGS+= ${NTPDEFS} ${DEFS_LOCAL} ${CLOCKDEFS}
 
 .if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
-CFLAGS+= -DOPENSSL
+CFLAGS+= -DOPENSSL -DUSE_OPENSSL_CRYPTO_RAND -DAUTOKEY
 .endif
 
 LIBOPTS=	${.OBJDIR}/../libopts/libopts.a
 LIBPARSE=	${.OBJDIR}/../libparse/libparse.a
-LIBNTP=	${.OBJDIR}/../libntp/libntp.a
+LIBNTP=		${.OBJDIR}/../libntp/libntp.a
+LIBNTPEVENT=	${.OBJDIR}/../libntpevent/libntpevent.a
 
 WARNS?=	0
 
