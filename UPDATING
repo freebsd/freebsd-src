@@ -16,6 +16,9 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20151026:
+	NTP has been upgraded to 4.2.8p4.
+
 20151025:
 	ALLOW_DEPRECATED_ATF_TOOLS/ATFFILE support has been removed from
 	atf.test.mk (included from bsd.test.mk). Please upgrade devel/atf

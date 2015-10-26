@@ -22,38 +22,42 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include "config.h"
+#include "ntp_stdlib.h"
+#include "ntp_calendar.h"
+#include "ntp_fp.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_RegularPositive();
-extern void test_PositiveOverflowBoundary();
-extern void test_PositiveOverflowBig();
-extern void test_Negative();
-extern void test_IllegalChar();
+extern void test_RegularPositive(void);
+extern void test_PositiveOverflowBoundary(void);
+extern void test_PositiveOverflowBig(void);
+extern void test_Negative(void);
+extern void test_IllegalChar(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
-char *progname;
+char const *progname;
 
 
 //=======MAIN=====
 int main(int argc, char *argv[])
 {
   progname = argv[0];
-  Unity.TestFile = "atouint.c";
   UnityBegin("atouint.c");
   RUN_TEST(test_RegularPositive, 9);
-  RUN_TEST(test_PositiveOverflowBoundary, 17);
-  RUN_TEST(test_PositiveOverflowBig, 24);
-  RUN_TEST(test_Negative, 31);
-  RUN_TEST(test_IllegalChar, 38);
+  RUN_TEST(test_PositiveOverflowBoundary, 10);
+  RUN_TEST(test_PositiveOverflowBig, 11);
+  RUN_TEST(test_Negative, 12);
+  RUN_TEST(test_IllegalChar, 13);
 
   return (UnityEnd());
 }

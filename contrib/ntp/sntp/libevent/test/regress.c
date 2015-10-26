@@ -2823,6 +2823,10 @@ static void *
 dummy_malloc(size_t len)
 {
 	char *mem = malloc(len+16);
+	if (mem == NULL) {
+		fprintf(stderr, "Unable to allocate memory in dummy_malloc()\n");
+		return NULL;
+	}
 	memcpy(mem, "{[<guardedram>]}", 16);
 	return mem+16;
 }
