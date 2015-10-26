@@ -810,6 +810,7 @@ gz_uncompress(int in, int out, char *pre, size_t prelen, off_t *gsizep,
 				if (in_tot > 0) {
 					maybe_warnx("%s: trailing garbage "
 						    "ignored", filename);
+					exit_value = 2;
 					goto stop;
 				}
 				maybe_warnx("input not gziped (MAGIC0)");
