@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
@@ -205,11 +205,9 @@ static struct afswtch af_pfsync = {
 static __constructor void
 pfsync_ctor(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	int i;
 
-	for (i = 0; i < N(pfsync_cmds);  i++)
+	for (i = 0; i < nitems(pfsync_cmds);  i++)
 		cmd_register(&pfsync_cmds[i]);
 	af_register(&af_pfsync);
-#undef N
 }

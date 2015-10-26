@@ -825,11 +825,9 @@ static struct afswtch af_media = {
 static __constructor void
 ifmedia_ctor(void)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	size_t i;
 
-	for (i = 0; i < N(media_cmds);  i++)
+	for (i = 0; i < nitems(media_cmds);  i++)
 		cmd_register(&media_cmds[i]);
 	af_register(&af_media);
-#undef N
 }
