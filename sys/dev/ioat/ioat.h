@@ -41,7 +41,12 @@ __FBSDID("$FreeBSD$");
  * this on the last operation in a group
  */
 #define	DMA_INT_EN	0x1
-#define	DMA_ALL_FLAGS	(DMA_INT_EN)
+/*
+ * Like M_NOWAIT.  Operations will return NULL if they cannot allocate a
+ * descriptor without blocking.
+ */
+#define	DMA_NO_WAIT	0x2
+#define	DMA_ALL_FLAGS	(DMA_INT_EN | DMA_NO_WAIT)
 
 typedef void *bus_dmaengine_t;
 struct bus_dmadesc;
