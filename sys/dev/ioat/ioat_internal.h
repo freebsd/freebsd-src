@@ -333,7 +333,6 @@ struct ioat_softc {
 	int			version;
 
 	struct mtx		submit_lock;
-	int			num_interrupts;
 	device_t		device;
 	bus_space_tag_t		pci_bus_tag;
 	bus_space_handle_t	pci_bus_handle;
@@ -359,12 +358,9 @@ struct ioat_softc {
 	boolean_t		is_completion_pending;
 	boolean_t		is_reset_pending;
 	boolean_t		is_channel_running;
-	boolean_t		is_waiting_for_ack;
 
-	uint32_t		xfercap_log;
 	uint32_t		head;
 	uint32_t		tail;
-	uint16_t		reserved;
 	uint32_t		ring_size_order;
 	bus_addr_t		last_seen;
 
