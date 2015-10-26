@@ -626,7 +626,8 @@ urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
 		counter_u64_add(ic->ic_ierrors, 1);
 		return (NULL);
 	}
-	if (pktlen < sizeof(*wh) || pktlen > MCLBYTES) {
+	if (pktlen < sizeof(struct ieee80211_frame_ack) ||
+	    pktlen > MCLBYTES) {
 		counter_u64_add(ic->ic_ierrors, 1);
 		return (NULL);
 	}
@@ -744,7 +745,7 @@ urtwn_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct urtwn_softc *sc = usbd_xfer_softc(xfer);
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211_frame *wh;
+	struct ieee80211_frame_min *wh;
 	struct ieee80211_node *ni;
 	struct mbuf *m = NULL, *next;
 	struct urtwn_data *data;
@@ -784,9 +785,11 @@ tr_setup:
 		while (m != NULL) {
 			next = m->m_next;
 			m->m_next = NULL;
-			wh = mtod(m, struct ieee80211_frame *);
-			ni = ieee80211_find_rxnode(ic,
-			    (struct ieee80211_frame_min *)wh);
+			wh = mtod(m, struct ieee80211_frame_min *);
+			if (m->m_len >= sizeof(*wh))
+				ni = ieee80211_find_rxnode(ic, wh);
+			else
+				ni = NULL;
 			nf = URTWN_NOISE_FLOOR;
 			if (ni != NULL) {
 				(void)ieee80211_input(ni, m, rssi - nf, nf);
