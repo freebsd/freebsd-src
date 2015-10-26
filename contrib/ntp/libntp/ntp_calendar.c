@@ -3,7 +3,55 @@
  *
  * Written by Juergen Perlinger (perlinger@ntp.org) for the NTP project.
  * The contents of 'html/copyright.html' apply.
+ *
+ * --------------------------------------------------------------------
+ * Some notes on the implementation:
+ *
+ * Calendar algorithms thrive on the division operation, which is one of
+ * the slowest numerical operations in any CPU. What saves us here from
+ * abysmal performance is the fact that all divisions are divisions by
+ * constant numbers, and most compilers can do this by a multiplication
+ * operation.  But this might not work when using the div/ldiv/lldiv
+ * function family, because many compilers are not able to do inline
+ * expansion of the code with following optimisation for the
+ * constant-divider case.
+ *
+ * Also div/ldiv/lldiv are defined in terms of int/long/longlong, which
+ * are inherently target dependent. Nothing that could not be cured with
+ * autoconf, but still a mess...
+ *
+ * Furthermore, we need floor division in many places. C either leaves
+ * the division behaviour undefined (< C99) or demands truncation to
+ * zero (>= C99), so additional steps are required to make sure the
+ * algorithms work. The {l,ll}div function family is requested to
+ * truncate towards zero, which is also the wrong direction for our
+ * purpose.
+ *
+ * For all this, all divisions by constant are coded manually, even when
+ * there is a joined div/mod operation: The optimiser should sort that
+ * out, if possible. Most of the calculations are done with unsigned
+ * types, explicitely using two's complement arithmetics where
+ * necessary. This minimises the dependecies to compiler and target,
+ * while still giving reasonable to good performance.
+ *
+ * The implementation uses a few tricks that exploit properties of the
+ * two's complement: Floor division on negative dividents can be
+ * executed by using the one's complement of the divident. One's
+ * complement can be easily created using XOR and a mask.
+ *
+ * Finally, check for overflow conditions is minimal. There are only two
+ * calculation steps in the whole calendar that suffer from an internal
+ * overflow, and these conditions are checked: errno is set to EDOM and
+ * the results are clamped/saturated in this case.  All other functions
+ * do not suffer from internal overflow and simply return the result
+ * truncated to 32 bits.
+ *
+ * This is a sacrifice made for execution speed.  Since a 32-bit day
+ * counter covers +/- 5,879,610 years and the clamp limits the effective
+ * range to +/-2.9 million years, this should not pose a problem here.
+ *
  */
+
 #include <config.h>
 #include <sys/types.h>
 
@@ -12,6 +60,33 @@
 #include "ntp_stdlib.h"
 #include "ntp_fp.h"
 #include "ntp_unixtime.h"
+
+/* For now, let's take the conservative approach: if the target property
+ * macros are not defined, check a few well-known compiler/architecture
+ * settings. Default is to assume that the representation of signed
+ * integers is unknown and shift-arithmetic-right is not available.
+ */
+#ifndef TARGET_HAS_2CPL
+# if defined(__GNUC__)
+#  if defined(__i386__) || defined(__x86_64__) || defined(__arm__)
+#   define TARGET_HAS_2CPL 1
+#  else
+#   define TARGET_HAS_2CPL 0
+#  endif
+# elif defined(_MSC_VER)
+#  if defined(_M_IX86) || defined(_M_X64) || defined(_M_ARM)
+#   define TARGET_HAS_2CPL 1
+#  else
+#   define TARGET_HAS_2CPL 0
+#  endif
+# else
+#  define TARGET_HAS_2CPL 0
+# endif
+#endif
+
+#ifndef TARGET_HAS_SAR
+# define TARGET_HAS_SAR 0
+#endif
 
 /*
  *---------------------------------------------------------------------
@@ -47,6 +122,117 @@ now(void)
 
 /*
  *---------------------------------------------------------------------
+ * Get sign extension mask and unsigned 2cpl rep for a signed integer
+ *---------------------------------------------------------------------
+ */
+
+static inline uint32_t
+int32_sflag(
+	const int32_t v)
+{
+#   if TARGET_HAS_2CPL && TARGET_HAS_SAR && SIZEOF_INT >= 4
+
+	/* Let's assume that shift is the fastest way to get the sign
+	 * extension of of a signed integer. This might not always be
+	 * true, though -- On 8bit CPUs or machines without barrel
+	 * shifter this will kill the performance. So we make sure
+	 * we do this only if 'int' has at least 4 bytes.
+	 */
+	return (uint32_t)(v >> 31);
+	
+#   else
+
+	/* This should be a rather generic approach for getting a sign
+	 * extension mask...
+	 */
+	return UINT32_C(0) - (uint32_t)(v < 0);
+	
+#   endif
+}
+
+static inline uint32_t
+int32_to_uint32_2cpl(
+	const int32_t v)
+{
+	uint32_t vu;
+	
+#   if TARGET_HAS_2CPL
+
+	/* Just copy through the 32 bits from the signed value if we're
+	 * on a two's complement target.
+	 */
+	vu = (uint32_t)v;
+	
+#   else
+
+	/* Convert from signed int to unsigned int two's complement. Do
+	 * not make any assumptions about the representation of signed
+	 * integers, but make sure signed integer overflow cannot happen
+	 * here. A compiler on a two's complement target *might* find
+	 * out that this is just a complicated cast (as above), but your
+	 * mileage might vary.
+	 */
+	if (v < 0)
+		vu = ~(uint32_t)(-(v + 1));
+	else
+		vu = (uint32_t)v;
+	
+#   endif
+	
+	return vu;
+}
+
+static inline int32_t
+uint32_2cpl_to_int32(
+	const uint32_t vu)
+{
+	int32_t v;
+	
+#   if TARGET_HAS_2CPL
+
+	/* Just copy through the 32 bits from the unsigned value if
+	 * we're on a two's complement target.
+	 */
+	v = (int32_t)vu;
+
+#   else
+
+	/* Convert to signed integer, making sure signed integer
+	 * overflow cannot happen. Again, the optimiser might or might
+	 * not find out that this is just a copy of 32 bits on a target
+	 * with two's complement representation for signed integers.
+	 */
+	if (vu > INT32_MAX)
+		v = -(int32_t)(~vu) - 1;
+	else
+		v = (int32_t)vu;
+	
+#   endif
+	
+	return v;
+}
+
+/* Some of the calculations need to multiply the input by 4 before doing
+ * a division. This can cause overflow and strange results. Therefore we
+ * clamp / saturate the input operand. And since we do the calculations
+ * in unsigned int with an extra sign flag/mask, we only loose one bit
+ * of the input value range.
+ */
+static inline uint32_t
+uint32_saturate(
+	uint32_t vu,
+	uint32_t mu)
+{
+	static const uint32_t limit = UINT32_MAX/4u;
+	if ((mu ^ vu) > limit) {
+		vu    = mu ^ limit;
+		errno = EDOM;
+	}
+	return vu;
+}
+
+/*
+ *---------------------------------------------------------------------
  * Convert between 'time_t' and 'vint64'
  *---------------------------------------------------------------------
  */
@@ -60,7 +246,7 @@ time_to_vint64(
 
 	tt = *ptt;
 
-#if SIZEOF_TIME_T <= 4
+#   if SIZEOF_TIME_T <= 4
 
 	res.D_s.hi = 0;
 	if (tt < 0) {
@@ -70,11 +256,11 @@ time_to_vint64(
 		res.D_s.lo = (uint32_t)tt;
 	}
 
-#elif defined(HAVE_INT64)
+#   elif defined(HAVE_INT64)
 
 	res.q_s = tt;
 
-#else
+#   else
 	/*
 	 * shifting negative signed quantities is compiler-dependent, so
 	 * we better avoid it and do it all manually. And shifting more
@@ -90,7 +276,7 @@ time_to_vint64(
 		res.D_s.hi = (uint32_t)(tt >> 32);
 	}
 
-#endif
+#   endif
 
 	return res;
 }
@@ -103,19 +289,19 @@ vint64_to_time(
 {
 	time_t res;
 
-#if SIZEOF_TIME_T <= 4
+#   if SIZEOF_TIME_T <= 4
 
 	res = (time_t)tv->D_s.lo;
 
-#elif defined(HAVE_INT64)
+#   elif defined(HAVE_INT64)
 
 	res = (time_t)tv->q_s;
 
-#else
+#   else
 
 	res = ((time_t)tv->d_s.hi << 32) | tv->D_s.lo;
 
-#endif
+#   endif
 
 	return res;
 }
@@ -153,11 +339,11 @@ ntpcal_get_build_date(
 	 * problem.
 	 *
 	 */
-#ifdef MKREPRO_DATE
+#   ifdef MKREPRO_DATE
 	static const char build[] = MKREPRO_TIME "/" MKREPRO_DATE;
-#else
+#   else
 	static const char build[] = __TIME__ "/" __DATE__;
-#endif
+#   endif
 	static const char mlist[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
 
 	char		  monstr[4];
@@ -167,16 +353,16 @@ ntpcal_get_build_date(
 	 * so using 'uint16_t' is contra-indicated!
 	 */
 
-#ifdef DEBUG
+#   ifdef DEBUG
 	static int        ignore  = 0;
-#endif
+#   endif
 
 	ZERO(*jd);
 	jd->year     = 1970;
 	jd->month    = 1;
 	jd->monthday = 1;
 
-#ifdef DEBUG
+#   ifdef DEBUG
 	/* check environment if build date should be ignored */
 	if (0 == ignore) {
 	    const char * envstr;
@@ -185,7 +371,7 @@ ntpcal_get_build_date(
 	}
 	if (ignore > 1)
 	    return FALSE;
-#endif
+#   endif
 
 	if (6 == sscanf(build, "%hu:%hu:%hu/%3s %hu %hu",
 			&hour, &minute, &second, monstr, &day, &year)) {
@@ -254,36 +440,7 @@ static const uint16_t real_month_table[2][13] = {
  * (day number).  This is the number of days elapsed since 0000-12-31
  * in the proleptic Gregorian calendar. The begin of the Christian Era
  * (0001-01-01) is RD(1).
- *
- *
- * Some notes on the implementation:
- *
- * Calendar algorithms thrive on the division operation, which is one of
- * the slowest numerical operations in any CPU. What saves us here from
- * abysmal performance is the fact that all divisions are divisions by
- * constant numbers, and most compilers can do this by a multiplication
- * operation.  But this might not work when using the div/ldiv/lldiv
- * function family, because many compilers are not able to do inline
- * expansion of the code with following optimisation for the
- * constant-divider case.
- *
- * Also div/ldiv/lldiv are defined in terms of int/long/longlong, which
- * are inherently target dependent. Nothing that could not be cured with
- * autoconf, but still a mess...
- *
- * Furthermore, we need floor division while C demands truncation to
- * zero, so additional steps are required to make sure the algorithms
- * work.
- *
- * For all this, all divisions by constant are coded manually, even when
- * there is a joined div/mod operation: The optimiser should sort that
- * out, if possible.
- *
- * Finally, the functions do not check for overflow conditions. This
- * is a sacrifice made for execution speed; since a 32-bit day counter
- * covers +/- 5,879,610 years, this should not pose a problem here.
  */
-
 
 /*
  * ==================================================================
@@ -363,22 +520,23 @@ ntpcal_periodic_extend(
 		 * Get absolute difference as unsigned quantity and
 		 * the complement flag. This is done by always
 		 * subtracting the smaller value from the bigger
-		 * one. This implementation works only on a two's
-		 * complement machine!
+		 * one.
 		 */
 		if (value >= pivot) {
-			diff = (uint32_t)value - (uint32_t)pivot;
+			diff = int32_to_uint32_2cpl(value)
+			     - int32_to_uint32_2cpl(pivot);
 		} else {
-			diff = (uint32_t)pivot - (uint32_t)value;
+			diff = int32_to_uint32_2cpl(pivot)
+			     - int32_to_uint32_2cpl(value);
 			cpl ^= 1;
 		}
 		diff %= (uint32_t)cycle;
 		if (diff) {
 			if (cpl)
-				diff = cycle - diff;
+				diff = (uint32_t)cycle - diff;
 			if (neg)
 				diff = ~diff + 1;
-			pivot += diff;
+			pivot += uint32_2cpl_to_int32(diff);
 		}
 	}
 	return pivot;
@@ -405,7 +563,7 @@ ntpcal_ntp_to_time(
 {
 	vint64 res;
 
-#ifdef HAVE_INT64
+#   if defined(HAVE_INT64)
 
 	res.q_s = (pivot != NULL)
 		      ? *pivot
@@ -415,7 +573,7 @@ ntpcal_ntp_to_time(
 	ntp	-= res.D_s.lo;		/* cycle difference	 */
 	res.Q_s += (uint64_t)ntp;	/* get expanded time	 */
 
-#else /* no 64bit scalars */
+#   else /* no 64bit scalars */
 
 	time_t tmp;
 
@@ -428,7 +586,7 @@ ntpcal_ntp_to_time(
 	ntp -= res.D_s.lo;		/* cycle difference	 */
 	M_ADD(res.D_s.hi, res.D_s.lo, 0, ntp);
 
-#endif /* no 64bit scalars */
+#   endif /* no 64bit scalars */
 
 	return res;
 }
@@ -454,7 +612,7 @@ ntpcal_ntp_to_ntp(
 {
 	vint64 res;
 
-#ifdef HAVE_INT64
+#   if defined(HAVE_INT64)
 
 	res.q_s = (pivot)
 		      ? *pivot
@@ -464,7 +622,7 @@ ntpcal_ntp_to_ntp(
 	ntp	-= res.D_s.lo;		/* cycle difference	 */
 	res.Q_s += (uint64_t)ntp;	/* get expanded time	 */
 
-#else /* no 64bit scalars */
+#   else /* no 64bit scalars */
 
 	time_t tmp;
 
@@ -477,7 +635,7 @@ ntpcal_ntp_to_ntp(
 	ntp -= res.D_s.lo;		/* cycle difference	 */
 	M_ADD(res.D_s.hi, res.D_s.lo, 0, ntp);
 
-#endif /* no 64bit scalars */
+#   endif /* no 64bit scalars */
 
 	return res;
 }
@@ -505,78 +663,75 @@ ntpcal_daysplit(
 	)
 {
 	ntpcal_split res;
+	uint32_t Q;
 
-#ifdef HAVE_INT64
-
-	/* manual floor division by SECSPERDAY */
-	res.hi = (int32_t)(ts->q_s / SECSPERDAY);
-	res.lo = (int32_t)(ts->q_s % SECSPERDAY);
-	if (res.lo < 0) {
-		res.hi -= 1;
-		res.lo += SECSPERDAY;
-	}
-
-#else
-
-	/*
-	 * since we do not have 64bit ops, we have to this by hand.
-	 * Luckily SECSPERDAY is 86400 is 675*128, so we do the division
-	 * using chained 32/16 bit divisions and shifts.
+#   if defined(HAVE_INT64)
+	
+	/* Manual floor division by SECSPERDAY. This uses the one's
+	 * complement trick, too, but without an extra flag value: The
+	 * flag would be 64bit, and that's a bit of overkill on a 32bit
+	 * target that has to use a register pair for a 64bit number.
 	 */
-	vint64	 op;
-	uint32_t q, r, a;
-	int	 isneg;
+	if (ts->q_s < 0)
+		Q = ~(uint32_t)(~ts->Q_s / SECSPERDAY);
+	else
+		Q = (uint32_t)(ts->Q_s / SECSPERDAY);
 
-	memcpy(&op, ts, sizeof(op));
-	/* fix sign */
-	isneg = M_ISNEG(op.D_s.hi);
-	if (isneg)
-		M_NEG(op.D_s.hi, op.D_s.lo);
+#   else
 
-	/* save remainder of DIV 128, shift for divide */
-	r  = op.D_s.lo & 127; /* save remainder bits */
-	op.D_s.lo = (op.D_s.lo >> 7) | (op.D_s.hi << 25);
-	op.D_s.hi = (op.D_s.hi >> 7);
+	uint32_t ah, al, sflag, A;
 
-	/* now do a mnual division, trying to remove as many ops as
-	 * possible -- division is always slow! An since we do not have
-	 * the advantage of a specific 64/32 bit or even a specific 32/16
-	 * bit division op, but must use the general 32/32bit division
-	 * even if we *know* the divider fits into unsigned 16 bits, the
-	 * exra code pathes should pay off.
+	/* get operand into ah/al (either ts or ts' one's complement,
+	 * for later floor division)
 	 */
-	a = op.D_s.hi;
-	if (a > 675u)
-		a = a % 675u;
-	if (a) {
-		a = (a << 16) | op.W_s.lh;
-		q = a / 675u;
-		a = a % 675u;
+	sflag = int32_sflag(ts->d_s.hi);
+	ah = sflag ^ ts->D_s.hi;
+	al = sflag ^ ts->D_s.lo;
 
-		a = (a << 16) | op.W_s.ll;
-		q = (q << 16) | (a / 675u);
-	} else {
-		a = op.D_s.lo;
-		q = a / 675u;
-	}
-	a = a % 675u;
+	/* Since 86400 == 128*675 we can drop the least 7 bits and
+	 * divide by 675 instead of 86400. Then the maximum remainder
+	 * after each devision step is 674, and we need 10 bits for
+	 * that. So in the next step we can shift in 22 bits from the
+	 * numerator.
+	 *
+	 * Therefore we load the accu with the top 13 bits (51..63) in
+	 * the first shot. We don't have to remember the quotient -- it
+	 * would be shifted out anyway.
+	 */
+	A = ah >> 19;
+	if (A >= 675)
+		A = (A % 675u);
 
-	/* assemble remainder */
-	r |= a << 7;
+	/* Now assemble the remainder with bits 29..50 from the
+	 * numerator and divide. This creates the upper ten bits of the
+	 * quotient. (Well, the top 22 bits of a 44bit result. But that
+	 * will be truncated to 32 bits anyway.)
+	 */
+	A = (A << 19) | (ah & 0x0007FFFFu);
+	A = (A <<  3) | (al >> 29);
+	Q = A / 675u;
+	A = A % 675u;
 
-	/* fix sign of result */
-	if (isneg) {
-		if (r) {
-			r = SECSPERDAY - r;
-			q = ~q;
-		} else
-			q = ~q + 1;
-	}
+	/* Now assemble the remainder with bits 7..28 from the numerator
+	 * and do a final division step.
+	 */
+	A = (A << 22) | ((al >> 7) & 0x003FFFFFu);
+	Q = (Q << 22) | (A / 675u);
 
-	res.hi = q;
-	res.lo = r;
+	/* The last 7 bits get simply dropped, as they have no affect on
+	 * the quotient when dividing by 86400.
+	 */
 
-#endif
+	/* apply sign correction and calculate the true floor
+	 * remainder.
+	 */
+	Q ^= sflag;
+	
+#   endif
+	
+	res.hi = uint32_2cpl_to_int32(Q);
+	res.lo = ts->D_s.lo - Q * SECSPERDAY;
+
 	return res;
 }
 
@@ -593,25 +748,28 @@ priv_timesplit(
 	int32_t ts
 	)
 {
-	int32_t days = 0;
+	/* Do 3 chained floor divisions by positive constants, using the
+	 * one's complement trick and factoring out the intermediate XOR
+	 * ops to reduce the number of operations.
+	 */
+	uint32_t us, um, uh, ud, sflag;
 
-	/* make sure we have a positive offset into a day */
-	if (ts < 0 || ts >= SECSPERDAY) {
-		days = ts / SECSPERDAY;
-		ts   = ts % SECSPERDAY;
-		if (ts < 0) {
-			days -= 1;
-			ts   += SECSPERDAY;
-		}
-	}
+	sflag = int32_sflag(ts);
+	us    = int32_to_uint32_2cpl(ts);
 
-	/* get secs, mins, hours */
-	split[2] = (uint8_t)(ts % SECSPERMIN);
-	ts /= SECSPERMIN;
-	split[1] = (uint8_t)(ts % MINSPERHR);
-	split[0] = (uint8_t)(ts / MINSPERHR);
+	um = (sflag ^ us) / SECSPERMIN;
+	uh = um / MINSPERHR;
+	ud = uh / HRSPERDAY;
 
-	return days;
+	um ^= sflag;
+	uh ^= sflag;
+	ud ^= sflag;
+
+	split[0] = (int32_t)(uh - ud * HRSPERDAY );
+	split[1] = (int32_t)(um - uh * MINSPERHR );
+	split[2] = (int32_t)(us - um * SECSPERMIN);
+	
+	return uint32_2cpl_to_int32(ud);
 }
 
 /*
@@ -630,46 +788,45 @@ ntpcal_split_eradays(
 	int  *isleapyear
 	)
 {
+	/* Use the fast cyclesplit algorithm here, to calculate the
+	 * centuries and years in a century with one division each. This
+	 * reduces the number of division operations to two, but is
+	 * susceptible to internal range overflow. We make sure the
+	 * input operands are in the safe range; this still gives us
+	 * approx +/-2.9 million years.
+	 */
 	ntpcal_split res;
-	int32_t	     n400, n100, n004, n001, yday; /* calendar year cycles */
+	int32_t	 n100, n001; /* calendar year cycles */
+	uint32_t uday, Q, sflag;
 
-	/*
-	 * Split off calendar cycles, using floor division in the first
-	 * step. After that first step, simple division does it because
-	 * all operands are positive; alas, we have to be aware of the
-	 * possibe cycle overflows for 100 years and 1 year, caused by
-	 * the additional leap day.
+	/* split off centuries first */
+	sflag = int32_sflag(days);
+	uday  = uint32_saturate(int32_to_uint32_2cpl(days), sflag);
+	uday  = (4u * uday) | 3u;
+	Q    = sflag ^ ((sflag ^ uday) / GREGORIAN_CYCLE_DAYS);
+	uday = uday - Q * GREGORIAN_CYCLE_DAYS;
+	n100 = uint32_2cpl_to_int32(Q);
+	
+	/* Split off years in century -- days >= 0 here, and we're far
+	 * away from integer overflow trouble now. */
+	uday |= 3;
+	n001 = uday / GREGORIAN_NORMAL_LEAP_CYCLE_DAYS;
+	uday = uday % GREGORIAN_NORMAL_LEAP_CYCLE_DAYS;
+
+	/* Assemble the year and day in year */
+	res.hi = n100 * 100 + n001;
+	res.lo = uday / 4u;
+
+	/* Eventually set the leap year flag. Note: 0 <= n001 <= 99 and
+	 * Q is still the two's complement representation of the
+	 * centuries: The modulo 4 ops can be done with masking here.
+	 * We also shift the year and the century by one, so the tests
+	 * can be done against zero instead of 3.
 	 */
-	n400 = days / GREGORIAN_CYCLE_DAYS;
-	yday = days % GREGORIAN_CYCLE_DAYS;
-	if (yday < 0) {
-		n400 -= 1;
-		yday += GREGORIAN_CYCLE_DAYS;
-	}
-	n100 = yday / GREGORIAN_NORMAL_CENTURY_DAYS;
-	yday = yday % GREGORIAN_NORMAL_CENTURY_DAYS;
-	n004 = yday / GREGORIAN_NORMAL_LEAP_CYCLE_DAYS;
-	yday = yday % GREGORIAN_NORMAL_LEAP_CYCLE_DAYS;
-	n001 = yday / DAYSPERYEAR;
-	yday = yday % DAYSPERYEAR;
-
-	/*
-	 * check for leap cycle overflows and calculate the leap flag
-	 * if needed
-	 */
-	if ((n001 | n100) > 3) {
-		/* hit last day of leap year */
-		n001 -= 1;
-		yday += DAYSPERYEAR;
-		if (isleapyear)
-			*isleapyear = 1;
-	} else if (isleapyear)
-		*isleapyear = (n001 == 3) && ((n004 != 24) || (n100 == 3));
-
-	/* now merge the cycles to elapsed years, using horner scheme */
-	res.hi = ((4*n400 + n100)*25 + n004)*4 + n001;
-	res.lo = yday;
-
+	if (isleapyear)
+		*isleapyear = !((n001+1) & 3)
+		    && ((n001 != 99) || !((Q+1) & 3));
+	
 	return res;
 }
 
@@ -719,11 +876,9 @@ ntpcal_rd_to_date(
 	)
 {
 	ntpcal_split split;
-	int	     leaps;
-	int	     retv;
+	int	     leapy;
+	u_int	     ymask;
 
-	leaps = 0;
-	retv = 0;
 	/* Get day-of-week first. Since rd is signed, the remainder can
 	 * be in the range [-6..+6], but the assignment to an unsigned
 	 * variable maps the negative values to positive values >=7.
@@ -731,26 +886,28 @@ ntpcal_rd_to_date(
 	 * causes the needed wrap-around into the desired value range of
 	 * zero to six, both inclusive.
 	 */
-	jd->weekday = rd % 7;
-	if (jd->weekday >= 7)	/* unsigned! */
-		jd->weekday += 7;
+	jd->weekday = rd % DAYSPERWEEK;
+	if (jd->weekday >= DAYSPERWEEK)	/* weekday is unsigned! */
+		jd->weekday += DAYSPERWEEK;
 
-	split = ntpcal_split_eradays(rd - 1, &leaps);
-	retv  = leaps;
-	/* get year and day-of-year */
-	jd->year = (uint16_t)split.hi + 1;
-	if (jd->year != split.hi + 1) {
-		jd->year = 0;
-		retv	 = -1;	/* bletch. overflow trouble. */
-	}
+	split = ntpcal_split_eradays(rd - 1, &leapy);
+	/* Get year and day-of-year, with overflow check. If any of the
+	 * upper 16 bits is set after shifting to unity-based years, we
+	 * will have an overflow when converting to an unsigned 16bit
+	 * year. Shifting to the right is OK here, since it does not
+	 * matter if the shift is logic or arithmetic.
+	 */
+	split.hi += 1;
+	ymask = 0u - ((split.hi >> 16) == 0);
+	jd->year = (uint16_t)(split.hi & ymask);
 	jd->yearday = (uint16_t)split.lo + 1;
 
 	/* convert to month and mday */
-	split = ntpcal_split_yeardays(split.lo, leaps);
+	split = ntpcal_split_yeardays(split.lo, leapy);
 	jd->month    = (uint8_t)split.hi + 1;
 	jd->monthday = (uint8_t)split.lo + 1;
 
-	return retv ? retv : leaps;
+	return ymask ? leapy : -1;
 }
 
 /*
@@ -765,25 +922,24 @@ ntpcal_rd_to_tm(
 	)
 {
 	ntpcal_split split;
-	int	     leaps;
+	int	     leapy;
 
-	leaps = 0;
 	/* get day-of-week first */
-	utm->tm_wday = rd % 7;
+	utm->tm_wday = rd % DAYSPERWEEK;
 	if (utm->tm_wday < 0)
-		utm->tm_wday += 7;
+		utm->tm_wday += DAYSPERWEEK;
 
 	/* get year and day-of-year */
-	split = ntpcal_split_eradays(rd - 1, &leaps);
+	split = ntpcal_split_eradays(rd - 1, &leapy);
 	utm->tm_year = split.hi - 1899;
 	utm->tm_yday = split.lo;	/* 0-based */
 
 	/* convert to month and mday */
-	split = ntpcal_split_yeardays(split.lo, leaps);
+	split = ntpcal_split_yeardays(split.lo, leapy);
 	utm->tm_mon  = split.hi;	/* 0-based */
 	utm->tm_mday = split.lo + 1;	/* 1-based */
 
-	return leaps;
+	return leapy;
 }
 
 /*
@@ -918,13 +1074,13 @@ ntpcal_dayjoin(
 {
 	vint64 res;
 
-#ifdef HAVE_INT64
+#   if defined(HAVE_INT64)
 
 	res.q_s	 = days;
 	res.q_s *= SECSPERDAY;
 	res.q_s += secs;
 
-#else
+#   else
 
 	uint32_t p1, p2;
 	int	 isneg;
@@ -963,21 +1119,49 @@ ntpcal_dayjoin(
 	}
 	M_ADD(res.D_s.hi, res.D_s.lo, p2, p1);
 
-#endif
+#   endif
 
 	return res;
 }
 
 /*
  *---------------------------------------------------------------------
+ * get leap years since epoch in elapsed years
+ *---------------------------------------------------------------------
+ */
+int32_t
+ntpcal_leapyears_in_years(
+	int32_t years
+	)
+{
+	/* We use the in-out-in algorithm here, using the one's
+	 * complement division trick for negative numbers. The chained
+	 * division sequence by 4/25/4 gives the compiler the chance to
+	 * get away with only one true division and doing shifts otherwise.
+	 */
+
+	uint32_t sflag, sum, uyear;
+
+	sflag = int32_sflag(years);
+	uyear = int32_to_uint32_2cpl(years);
+	uyear ^= sflag;
+
+	sum  = (uyear /=  4u);	/*   4yr rule --> IN  */
+	sum -= (uyear /= 25u);	/* 100yr rule --> OUT */
+	sum += (uyear /=  4u);	/* 400yr rule --> IN  */
+
+	/* Thanks to the alternation of IN/OUT/IN we can do the sum
+	 * directly and have a single one's complement operation
+	 * here. (Only if the years are negative, of course.) Otherwise
+	 * the one's complement would have to be done when
+	 * adding/subtracting the terms.
+	 */
+	return uint32_2cpl_to_int32(sflag ^ sum);
+}
+
+/*
+ *---------------------------------------------------------------------
  * Convert elapsed years in Era into elapsed days in Era.
- *
- * To accomodate for negative values of years, floor division would be
- * required for all division operations. This can be eased by first
- * splitting the years into full 400-year cycles and years in the
- * cycle. Only this operation must be coded as a full floor division; as
- * the years in the cycle is a non-negative number, all other divisions
- * can be regular truncated divisions.
  *---------------------------------------------------------------------
  */
 int32_t
@@ -985,25 +1169,7 @@ ntpcal_days_in_years(
 	int32_t years
 	)
 {
-	int32_t cycle; /* full gregorian cycle */
-
-	/* split off full calendar cycles, using floor division */
-	cycle = years / 400;
-	years = years % 400;
-	if (years < 0) {
-		cycle -= 1;
-		years += 400;
-	}
-
-	/*
-	 * Calculate days in cycle. years now is a non-negative number,
-	 * holding the number of years in the 400-year cycle.
-	 */
-	return cycle * GREGORIAN_CYCLE_DAYS
-	     + years * DAYSPERYEAR	/* days inregular years	*/
-	     + years / 4		/* 4 year leap rule	*/
-	     - years / 100;		/* 100 year leap rule	*/
-	/* the 400-year rule does not apply due to full-cycle split-off */
+	return years * DAYSPERYEAR + ntpcal_leapyears_in_years(years);
 }
 
 /*
@@ -1029,26 +1195,22 @@ ntpcal_days_in_months(
 {
 	ntpcal_split res;
 
-	/* normalize month into range */
-	res.hi = 0;
-	res.lo = m;
+	/* Add ten months and correct if needed. (It likely is...) */
+	res.lo  = m + 10;
+	res.hi  = (res.lo >= 12);
+	if (res.hi)
+		res.lo -= 12;
+
+	/* if still out of range, normalise by floor division ... */
 	if (res.lo < 0 || res.lo >= 12) {
-		res.hi = res.lo / 12;
-		res.lo = res.lo % 12;
-		if (res.lo < 0) {
-			res.hi -= 1;
-			res.lo += 12;
-		}
+		uint32_t mu, Q, sflag;
+		sflag = int32_sflag(res.lo);
+		mu    = int32_to_uint32_2cpl(res.lo);
+		Q     = sflag ^ ((sflag ^ mu) / 12u);
+		res.hi += uint32_2cpl_to_int32(Q);
+		res.lo  = mu - Q * 12u;
 	}
-
-	/* add 10 month for year starting with march */
-	if (res.lo < 2)
-		res.lo += 10;
-	else {
-		res.hi += 1;
-		res.lo -= 2;
-	}
-
+	
 	/* get cummulated days in year with unshift */
 	res.lo = shift_month_table[res.lo] - 306;
 
@@ -1451,37 +1613,42 @@ int32_t
 isocal_weeks_in_years(
 	int32_t years
 	)
-{
+{	
 	/*
 	 * use: w = (y * 53431 + b[c]) / 1024 as interpolation
 	 */
-	static const int32_t bctab[4] = { 449, 157, 889, 597 };
-	int32_t cycle; /* full gregorian cycle */
-	int32_t cents; /* full centuries	   */
-	int32_t weeks; /* accumulated weeks	   */
+	static const uint16_t bctab[4] = { 157, 449, 597, 889 };
 
-	/* split off full calendar cycles, using floor division */
-	cycle = years / 400;
-	years = years % 400;
-	if (years < 0) {
-		cycle -= 1;
-		years += 400;
-	}
+	int32_t  cs, cw;
+	uint32_t cc, ci, yu, sflag;
 
-	/* split off full centuries */
-	cents = years / 100;
-	years = years % 100;
+	sflag = int32_sflag(years);
+	yu    = int32_to_uint32_2cpl(years);
+	
+	/* split off centuries, using floor division */
+	cc  = sflag ^ ((sflag ^ yu) / 100u);
+	yu -= cc * 100u;
 
-	/*
-	 * calculate elapsed weeks, taking into account that the
-	 * first, third and fourth century have 5218 weeks but the
-	 * second century falls short by one week.
+	/* calculate century cycles shift and cycle index:
+	 * Assuming a century is 5217 weeks, we have to add a cycle
+	 * shift that is 3 for every 4 centuries, because 3 of the four
+	 * centuries have 5218 weeks. So '(cc*3 + 1) / 4' is the actual
+	 * correction, and the second century is the defective one.
+	 *
+	 * Needs floor division by 4, which is done with masking and
+	 * shifting.
 	 */
-	weeks = (years * 53431 + bctab[cents]) / 1024;
+	ci = cc * 3u + 1;
+	cs = uint32_2cpl_to_int32(sflag ^ ((sflag ^ ci) / 4u));
+	ci = ci % 4u;
+	
+	/* Get weeks in century. Can use plain division here as all ops
+	 * are >= 0,  and let the compiler sort out the possible
+	 * optimisations.
+	 */
+	cw = (yu * 53431u + bctab[ci]) / 1024u;
 
-	return cycle * GREGORIAN_CYCLE_WEEKS
-	     + cents * 5218 - (cents > 1)
-	     + weeks;
+	return uint32_2cpl_to_int32(cc) * 5217 + cs + cw;
 }
 
 /*
@@ -1498,35 +1665,41 @@ isocal_split_eraweeks(
 	/*
 	 * use: y = (w * 157 + b[c]) / 8192 as interpolation
 	 */
-	static const int32_t bctab[4] = { 85, 131, 17, 62 };
+
+	static const uint16_t bctab[4] = { 85, 130, 17, 62 };
+
 	ntpcal_split res;
-	int32_t	     cents;
+	int32_t  cc, ci;
+	uint32_t sw, cy, Q, sflag;
 
-	/*
-	 * split off 400-year cycles, using the fact that a 400-year
-	 * cycle has 146097 days, which is exactly 20871 weeks.
+	/* Use two fast cycle-split divisions here. This is again
+	 * susceptible to internal overflow, so we check the range. This
+	 * still permits more than +/-20 million years, so this is
+	 * likely a pure academical problem.
+	 *
+	 * We want to execute '(weeks * 4 + 2) /% 20871' under floor
+	 * division rules in the first step.
 	 */
-	res.hi = weeks / GREGORIAN_CYCLE_WEEKS;
-	res.lo = weeks % GREGORIAN_CYCLE_WEEKS;
-	if (res.lo < 0) {
-		res.hi -= 1;
-		res.lo += GREGORIAN_CYCLE_WEEKS;
-	}
-	res.hi *= 400;
+	sflag = int32_sflag(weeks);
+	sw  = uint32_saturate(int32_to_uint32_2cpl(weeks), sflag);
+	sw  = 4u * sw + 2;
+	Q   = sflag ^ ((sflag ^ sw) / GREGORIAN_CYCLE_WEEKS);
+	sw -= Q * GREGORIAN_CYCLE_WEEKS;
+	ci  = Q % 4u;
+	cc  = uint32_2cpl_to_int32(Q);
 
-	/*
-	 * split off centuries, taking into account that the first,
-	 * third and fourth century have 5218 weeks but that the
-	 * second century falls short by one week.
+	/* Split off years; sw >= 0 here! The scaled weeks in the years
+	 * are scaled up by 157 afterwards.
+	 */ 
+	sw  = (sw / 4u) * 157u + bctab[ci];
+	cy  = sw / 8192u;	/* ws >> 13 , let the compiler sort it out */
+	sw  = sw % 8192u;	/* ws & 8191, let the compiler sort it out */
+
+	/* assemble elapsed years and downscale the elapsed weeks in
+	 * the year.
 	 */
-	res.lo += (res.lo >= 10435);
-	cents	= res.lo / 5218;
-	res.lo %= 5218;		/* res.lo is weeks in century now */
-
-	/* convert elapsed weeks in century to elapsed years and weeks */
-	res.lo	= res.lo * 157 + bctab[cents];
-	res.hi += cents * 100 + res.lo / 8192;
-	res.lo	= (res.lo % 8192) / 157;
+	res.hi = 100*cc + cy;
+	res.lo = sw / 157u;
 
 	return res;
 }
@@ -1544,6 +1717,7 @@ isocal_ntp64_to_date(
 {
 	ntpcal_split ds;
 	int32_t      ts[3];
+	uint32_t     uw, ud, sflag;
 
 	/*
 	 * Split NTP time into days and seconds, shift days into CE
@@ -1557,16 +1731,18 @@ isocal_ntp64_to_date(
 	id->minute = (uint8_t)ts[1];
 	id->second = (uint8_t)ts[2];
 
-	/* split date part */
-	ds.lo = ds.hi + DAY_NTP_STARTS - 1;	/* elapsed era days  */
-	ds.hi = ds.lo / 7;			/* elapsed era weeks */
-	ds.lo = ds.lo % 7;			/* elapsed week days */
-	if (ds.lo < 0) {			/* floor division!   */
-		ds.hi -= 1;
-		ds.lo += 7;
-	}
+	/* split days into days and weeks, using floor division in unsigned */
+	ds.hi += DAY_NTP_STARTS - 1; /* shift from NTP to RDN */
+	sflag = int32_sflag(ds.hi);
+	ud  = int32_to_uint32_2cpl(ds.hi);
+	uw  = sflag ^ ((sflag ^ ud) / DAYSPERWEEK);
+	ud -= uw * DAYSPERWEEK;
+	ds.hi = uint32_2cpl_to_int32(uw);
+	ds.lo = ud;
+
 	id->weekday = (uint8_t)ds.lo + 1;	/* weekday result    */
 
+	/* get year and week in year */
 	ds = isocal_split_eraweeks(ds.hi);	/* elapsed years&week*/
 	id->year = (uint16_t)ds.hi + 1;		/* shift to current  */
 	id->week = (uint8_t )ds.lo + 1;

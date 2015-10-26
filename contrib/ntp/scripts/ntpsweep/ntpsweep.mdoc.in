@@ -1,9 +1,9 @@
-.Dd June 29 2015
+.Dd October 21 2015
 .Dt NTPSWEEP 1ntpsweepmdoc User Commands
 .Os
 .\"  EDIT THIS FILE WITH CAUTION  (ntpsweep-opts.mdoc)
 .\"
-.\"  It has been AutoGen-ed  June 29, 2015 at 04:26:45 PM by AutoGen 5.18.5
+.\"  It has been AutoGen-ed  October 21, 2015 at 12:34:23 PM by AutoGen 5.18.5
 .\"  From the definitions    ntpsweep-opts.def
 .\"  and the template file   agmdoc-cmd.tpl
 .Sh NAME
