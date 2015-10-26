@@ -184,6 +184,14 @@
             ncurses
             ..
             ntp
+                drivers
+                    scripts
+                    ..
+                ..
+                hints
+                ..
+                scripts
+                ..
             ..
             papers
             ..

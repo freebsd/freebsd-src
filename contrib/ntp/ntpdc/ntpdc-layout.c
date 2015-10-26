@@ -2,6 +2,7 @@
  * ntpdc-layout - print layout of NTP mode 7 request/response packets
  */
 
+#include <config.h>
 #include <stdio.h>
 #include <stddef.h>
 

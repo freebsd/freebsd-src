@@ -20,7 +20,7 @@
 #define NSRT 20000		/* size of overflow histogram */
 #define NCNT (600 * 1000000)	/* sample interval (us) */
 
-int col P((long *, long *));
+int col (const void *, const void *);
 
 int
 main(
@@ -37,9 +37,9 @@ main(
 	 * Force pages into memory
 	 */
 	for (i = 0; i < NBUF; i++)
-	    gtod[i] = 0;
+		gtod[i] = 0;
 	for (i = 0; i < NSRT; i++)
-	    ovfl[i] = 0;
+		ovfl[i] = 0;
 
 	/*
 	 * Construct histogram
@@ -52,7 +52,7 @@ main(
 		gettimeofday(&tr, &tzp);
 		u = tr.tv_sec * 1000000 + tr.tv_usec; 
 		if (u - v > NCNT)
-		    break;
+			break;
 		w = u - t;
 		if (w <= 0) {
 /*
@@ -62,7 +62,7 @@ main(
 		} else if (w > NBUF - 1) {
 			ovfl[n] = w;
 			if (n < NSRT - 1)
-			    n++;
+				n++;
 		} else {
 			gtod[w]++;
 		}
@@ -75,39 +75,36 @@ main(
 	 */
 	for (i = 0; i < NBUF - 1; i++) {
 		if (gtod[i] > 0)
-		    printf("%ld %ld\n", i, gtod[i]);
+			printf("%ld %ld\n", i, gtod[i]);
 	}
 	if (n == 0)
-	    return;
-	qsort(
-#ifdef QSORT_USES_VOID_P
-	    (void *)
-#else
-	    (char *)
-#endif
-	    ovfl, (size_t)n, sizeof(long), col);
+		return;
+	qsort(&ovfl, (size_t)n, sizeof(ovfl[0]), col);
 	w = 0;
 	j = 0;
 	for (i = 0; i < n; i++) {
 		if (ovfl[i] != w) {
 			if (j > 0)
-			    printf("%ld %ld\n", w, j);
+				printf("%ld %ld\n", w, j);
 			w = ovfl[i];
 			j = 1;
 		} else
-		    j++;
+			j++;
 	}
 	if (j > 0)
-	    printf("%ld %ld\n", w, j);
+		printf("%ld %ld\n", w, j);
  
 	exit(0);
 }
 
 int
 col(
-	long *x,
-	long *y
+	const void *vx,
+	const void *vy
 	)
 {
+	const long *x = vx;
+	const long *y = vy;
+
 	return (*x - *y);
 }
