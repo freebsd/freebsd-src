@@ -349,7 +349,8 @@ ioat_start_channel(struct ioat_softc *ioat)
 
 	chanerr = ioat_read_4(ioat, IOAT_CHANERR_OFFSET);
 	ioat_log_message(0, "could not start channel: "
-	    "status = %#jx error = %x\n", (uintmax_t)status, chanerr);
+	    "status = %#jx error = %b\n", (uintmax_t)status, (int)chanerr,
+	    IOAT_CHANERR_STR);
 	return (ENXIO);
 }
 
@@ -1105,7 +1106,8 @@ ioat_halted_debug(struct ioat_softc *ioat, uint32_t chanerr)
 {
 	struct ioat_descriptor *desc;
 
-	ioat_log_message(0, "Channel halted (%x)\n", chanerr);
+	ioat_log_message(0, "Channel halted (%b)\n", (int)chanerr,
+	    IOAT_CHANERR_STR);
 	if (chanerr == 0)
 		return;
 
