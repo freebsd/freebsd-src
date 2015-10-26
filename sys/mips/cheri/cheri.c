@@ -274,6 +274,7 @@ cheri_capability_set_user_sigcode(struct chericap *cp, struct sysentvec *se)
 	base = (uintptr_t)se->sv_psstrings - szsigcode;
 	base = rounddown2(base, sizeof(struct chericap));
 
+	/* XXX-BD: should this be read-only? */
 	cheri_capability_set(cp, CHERI_CAP_USER_PERMS, CHERI_CAP_USER_OTYPE,
 	    (void *)base, szsigcode, 0);
 }
