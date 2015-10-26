@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2015
+.Dd October 26, 2015
 .Dt IOATCONTROL 8
 .Os
 .Sh NAME
@@ -33,6 +33,7 @@
 .Xr ioat 4
 .Sh SYNOPSIS
 .Nm
+.Op Fl f
 .Op Fl V
 .Ar channel_number
 .Ar num_txns
@@ -46,8 +47,12 @@ allows one to issue some number of test operations to the
 driver on a specific hardware channel.
 The arguments are as follows:
 .Bl -tag -width Ds
+.It Fl f
+Test block fill (by default,
+.Nm
+tests copy)
 .It Fl V
-Verify copies for accuracy
+Verify copies/fills for accuracy
 .El
 .Pp
 .Nm
@@ -98,13 +103,14 @@ The interface between
 .Nm
 and
 .Xr ioat 4 .
-.Nm
+.Xr ioat 4
 exposes it with
 .Cd hw.ioat.enable_ioat_test=1 .
 .Sh DIAGNOSTICS
 The wait channel
 .Va test_submit
-indicates that the test code is keeping the DMA engine full of work.
+indicates that the test code has enqueued all requested transactions and is
+waiting on the IOAT hardware to complete one before issuing another operation.
 .Sh SEE ALSO
 .Xr ioat 4
 .Sh HISTORY
@@ -119,7 +125,8 @@ driver and
 .Nm
 tool were developed by
 .An \&Jim Harris Aq Mt jimharris@FreeBSD.org ,
+.An \&Carl Delsey Aq Mt carl.r.delsey@intel.com ,
 and
-.An \&Carl Delsey Aq Mt carl.r.delsey@intel.com .
+.An \&Conrad Meyer Aq Mt cem@FreeBSD.org .
 This manual page was written by
 .An \&Conrad Meyer Aq Mt cem@FreeBSD.org .

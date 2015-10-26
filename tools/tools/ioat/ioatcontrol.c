@@ -48,7 +48,7 @@ static void
 usage(void)
 {
 
-	printf("Usage: %s [-V] <channel #> <txns> [<bufsize> "
+	printf("Usage: %s [-fV] <channel #> <txns> [<bufsize> "
 	    "[<chain-len> [duration]]]\n", getprogname());
 	exit(EX_USAGE);
 }
@@ -58,9 +58,13 @@ main(int argc, char **argv)
 {
 	struct ioat_test t;
 	int fd, ch;
+	bool fflag;
 
-	while ((ch = getopt(argc, argv, "V")) != -1) {
+	while ((ch = getopt(argc, argv, "fV")) != -1) {
 		switch (ch) {
+		case 'f':
+			fflag = true;
+			break;
 		case 'V':
 			t.verify = true;
 			break;
@@ -78,6 +82,10 @@ main(int argc, char **argv)
 	t.buffer_size = 256 * 1024;
 	t.chain_depth = 2;
 	t.duration = 0;
+	t.testkind = IOAT_TEST_DMA;
+
+	if (fflag)
+		t.testkind = IOAT_TEST_FILL;
 
 	t.channel_index = atoi(argv[0]);
 	if (t.channel_index > 8) {

@@ -34,7 +34,14 @@ enum ioat_res {
 	IOAT_TEST_NO_DMA_ENGINE,
 	IOAT_TEST_NO_MEMORY,
 	IOAT_TEST_MISCOMPARE,
+	IOAT_TEST_INVALID_INPUT,
 	IOAT_NUM_RES
+};
+
+enum ioat_test_kind {
+	IOAT_TEST_FILL = 0,
+	IOAT_TEST_DMA,
+	IOAT_NUM_TESTKINDS
 };
 
 struct test_transaction;
@@ -42,6 +49,8 @@ struct test_transaction;
 struct ioat_test {
 	volatile uint32_t status[IOAT_NUM_RES];
 	uint32_t channel_index;
+
+	enum ioat_test_kind testkind;
 
 	/* HW max of 1MB */
 	uint32_t buffer_size;
