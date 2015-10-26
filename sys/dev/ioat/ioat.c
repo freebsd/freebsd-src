@@ -381,7 +381,6 @@ ioat3_attach(device_t device)
 	ioat->is_completion_pending = FALSE;
 	ioat->is_reset_pending = FALSE;
 	ioat->is_channel_running = FALSE;
-	ioat->is_waiting_for_ack = FALSE;
 
 	bus_dma_tag_create(bus_get_dma_tag(ioat->device), sizeof(uint64_t), 0x0,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
@@ -1129,12 +1128,29 @@ ioat_setup_sysctl(device_t device)
 	tree = device_get_sysctl_tree(device);
 	par = SYSCTL_CHILDREN(tree);
 
+	SYSCTL_ADD_INT(ctx, par, OID_AUTO, "version", CTLFLAG_RD,
+	    &ioat->version, 0, "HW version (0xMM form)");
+	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "max_xfer_size", CTLFLAG_RD,
+	    &ioat->max_xfer_size, 0, "HW maximum transfer size");
+
 	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "ring_size_order", CTLFLAG_RD,
 	    &ioat->ring_size_order, 0, "HW descriptor ring size order");
 	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "head", CTLFLAG_RD, &ioat->head, 0,
 	    "HW descriptor head pointer index");
 	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "tail", CTLFLAG_RD, &ioat->tail, 0,
 	    "HW descriptor tail pointer index");
+
+	SYSCTL_ADD_UQUAD(ctx, par, OID_AUTO, "last_completion", CTLFLAG_RD,
+	    ioat->comp_update, "HW addr of last completion");
+
+	SYSCTL_ADD_INT(ctx, par, OID_AUTO, "is_resize_pending", CTLFLAG_RD,
+	    &ioat->is_resize_pending, 0, "resize pending");
+	SYSCTL_ADD_INT(ctx, par, OID_AUTO, "is_completion_pending", CTLFLAG_RD,
+	    &ioat->is_completion_pending, 0, "completion pending");
+	SYSCTL_ADD_INT(ctx, par, OID_AUTO, "is_reset_pending", CTLFLAG_RD,
+	    &ioat->is_reset_pending, 0, "reset pending");
+	SYSCTL_ADD_INT(ctx, par, OID_AUTO, "is_channel_running", CTLFLAG_RD,
+	    &ioat->is_channel_running, 0, "channel running");
 
 	SYSCTL_ADD_PROC(ctx, par, OID_AUTO, "force_hw_reset",
 	    CTLTYPE_INT | CTLFLAG_RW, ioat, 0, sysctl_handle_reset, "I",
