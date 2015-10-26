@@ -504,12 +504,16 @@ sandbox_object_new_flags(struct sandbox_class *sbcp, size_t heaplen,
 	 * will need to change in the future.  We also need to think more
 	 * carefully about the mechanism here.
 	 */
-	(void)cheri_invoke(sbop->sbo_cheri_object_rtld,
+	if (cheri_invoke(sbop->sbo_cheri_object_rtld,
 	    SANDBOX_RUNTIME_CONSTRUCTORS,
 	    0, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap());
+	    cheri_zerocap(), cheri_zerocap()) != 0) {
+		sandbox_object_unload(sbop);
+		(void)munmap(sbop->sbo_stackmem, sbop->sbo_stacklen);
+		return (-1);
+	}
 
 	/*
 	 * Now that constructors have completed, return object.
