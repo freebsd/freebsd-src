@@ -44,7 +44,6 @@ STAGE_AS_${cnf:T}= ${${group}NAME_${cnf:T}}
 # XXX {group}OWN,GRP,MODE
 STAGE_DIR.${cnf:T}= ${STAGE_OBJTOP}${${group}DIR_${cnf:T}}
 stage_as.${cnf:T}: ${cnf}
-stage_config: stage_as.${cnf:T}
 
 installconfig: _${group}INS_${cnf:T}
 _${group}INS_${cnf:T}: ${cnf}
@@ -58,7 +57,6 @@ _${group}CONFS+= ${cnf}
 .endfor
 .if !empty(_${group}CONFS)
 stage_files.${group}: ${_${group}CONFS}
-stage_config: stage_files.${group}
 
 installconfig: _${group}INS
 _${group}INS: ${_${group}CONFS}
@@ -76,8 +74,12 @@ _${group}INS: ${_${group}CONFS}
 
 .endif # !target(installconfig)
 
-.if ${MK_STAGING} != "no" && !defined(_SKIP_BUILD)
-.if !defined(NO_STAGE_CONFIG)
-STAGE_TARGETS+= stage_config
+.if ${MK_STAGING} != "no"
+.if !empty(STAGE_SETS)
+buildconfig: stage_files
+.if !empty(STAGE_AS_SETS)
+buildconfig: stage_as
 .endif
 .endif
+.endif
+
