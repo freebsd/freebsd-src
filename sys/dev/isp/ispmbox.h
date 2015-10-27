@@ -1411,7 +1411,7 @@ typedef struct {
 #define	PLOGX_IOCBERR_FAILED	0x04	/* further info in IOPARM 1 */
 #define	PLOGX_IOCBERR_NOFABRIC	0x05
 #define	PLOGX_IOCBERR_NOTREADY	0x07
-#define	PLOGX_IOCBERR_NOLOGIN	0x08	/* further info in IOPARM 1 */
+#define	PLOGX_IOCBERR_NOLOGIN	0x09	/* further info in IOPARM 1 */
 #define	PLOGX_IOCBERR_NOPCB	0x0a
 #define	PLOGX_IOCBERR_REJECT	0x18	/* further info in IOPARM 1 */
 #define	PLOGX_IOCBERR_EINVAL	0x19	/* further info in IOPARM 1 */
