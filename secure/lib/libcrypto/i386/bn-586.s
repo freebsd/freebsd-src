@@ -1,5 +1,5 @@
 	# $FreeBSD$
-.file	"bn-586.s"
+.file	"/root/secure/lib/libcrypto/../../../crypto/openssl/crypto/bn/asm/bn-586.s"
 .text
 .globl	bn_mul_add_words
 .type	bn_mul_add_words,@function
@@ -1519,4 +1519,4 @@ bn_sub_part_words:
 	popl	%ebp
 	ret
 .size	bn_sub_part_words,.-.L_bn_sub_part_words_begin
-.comm	OPENSSL_ia32cap_P,8,4
+.comm	OPENSSL_ia32cap_P,16,4

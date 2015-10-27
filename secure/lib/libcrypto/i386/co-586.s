@@ -1,5 +1,5 @@
 	# $FreeBSD$
-.file	"co-586.s"
+.file	"/root/secure/lib/libcrypto/../../../crypto/openssl/crypto/bn/asm/co-586.s"
 .text
 .globl	bn_mul_comba8
 .type	bn_mul_comba8,@function

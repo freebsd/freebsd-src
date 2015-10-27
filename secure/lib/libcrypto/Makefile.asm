@@ -77,7 +77,6 @@ x86_64cpuid.cmt: x86_64cpuid.pl
 	${LCRYPTO_SRC}/crypto/bf/asm \
 	${LCRYPTO_SRC}/crypto/bn/asm \
 	${LCRYPTO_SRC}/crypto/camellia/asm \
-	${LCRYPTO_SRC}/crypto/cast/asm \
 	${LCRYPTO_SRC}/crypto/des/asm \
 	${LCRYPTO_SRC}/crypto/md5/asm \
 	${LCRYPTO_SRC}/crypto/modes/asm \
@@ -100,9 +99,6 @@ SRCS+=	bn-586.pl co-586.pl x86-gf2m.pl x86-mont.pl
 
 # camellia
 SRCS+=	cmll-x86.pl
-
-# cast
-SRCS+=	cast-586.pl
 
 # des
 SRCS+=	crypt586.pl des-586.pl
