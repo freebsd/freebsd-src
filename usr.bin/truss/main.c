@@ -38,28 +38,18 @@ __FBSDID("$FreeBSD$");
  * do a lot of the work :).
  */
 
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/sysctl.h>
-#include <sys/wait.h>
+#include <sys/ptrace.h>
 
 #include <err.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 #include <unistd.h>
 
 #include "truss.h"
 #include "extern.h"
 #include "syscall.h"
-
-#define	MAXARGS	6
 
 static void
 usage(void)
@@ -70,133 +60,48 @@ usage(void)
 	exit(1);
 }
 
-/*
- * WARNING! "FreeBSD a.out" must be first, or set_etype will not
- * work correctly.
- */
-static struct ex_types {
-	const char *type;
-	void (*enter_syscall)(struct trussinfo *, int);
-	long (*exit_syscall)(struct trussinfo *, int);
-} ex_types[] = {
-#ifdef __arm__
-	{ "FreeBSD ELF32", arm_syscall_entry, arm_syscall_exit },
-#endif
-#ifdef __amd64__
-	{ "FreeBSD ELF64", amd64_syscall_entry, amd64_syscall_exit },
-	{ "FreeBSD ELF32", amd64_fbsd32_syscall_entry, amd64_fbsd32_syscall_exit },
-	{ "Linux ELF32", amd64_linux32_syscall_entry, amd64_linux32_syscall_exit },
-#endif
-#ifdef __i386__
-	{ "FreeBSD a.out", i386_syscall_entry, i386_syscall_exit },
-	{ "FreeBSD ELF", i386_syscall_entry, i386_syscall_exit },
-	{ "FreeBSD ELF32", i386_syscall_entry, i386_syscall_exit },
-	{ "Linux ELF", i386_linux_syscall_entry, i386_linux_syscall_exit },
-#endif
-#ifdef __ia64__
-	{ "FreeBSD ELF64", ia64_syscall_entry, ia64_syscall_exit },
-#endif
-#ifdef __powerpc__
-	{ "FreeBSD ELF", powerpc_syscall_entry, powerpc_syscall_exit },
-	{ "FreeBSD ELF32", powerpc_syscall_entry, powerpc_syscall_exit },
-#ifdef __powerpc64__
-	{ "FreeBSD ELF64", powerpc64_syscall_entry, powerpc64_syscall_exit },
-#endif
-#endif
-#ifdef __sparc64__
-	{ "FreeBSD ELF64", sparc64_syscall_entry, sparc64_syscall_exit },
-#endif
-#ifdef __mips__
-	{ "FreeBSD ELF", mips_syscall_entry, mips_syscall_exit },
-	{ "FreeBSD ELF32", mips_syscall_entry, mips_syscall_exit },
-	{ "FreeBSD ELF64", mips_syscall_entry, mips_syscall_exit }, // XXX
-#endif
-	{ 0, 0, 0 },
-};
-
-/*
- * Set the execution type.  This is called after every exec, and when
- * a process is first monitored.
- */
-
-static struct ex_types *
-set_etype(struct trussinfo *trussinfo)
-{
-	struct ex_types *funcs;
-	size_t len;
-	int error;
-	int mib[4];
-	char progt[32];
-
-	len = sizeof(progt);
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_PROC;
-	mib[2] = KERN_PROC_SV_NAME;
-	mib[3] = trussinfo->pid;
-	error = sysctl(mib, 4, progt, &len, NULL, 0);
-	if (error != 0)
-		err(2, "can not get etype");
-
-	for (funcs = ex_types; funcs->type; funcs++)
-		if (strcmp(funcs->type, progt) == 0)
-			break;
-
-	if (funcs->type == NULL) {
-		funcs = &ex_types[0];
-		warn("execution type %s is not supported -- using %s",
-		    progt, funcs->type);
-	}
-	return (funcs);
-}
-
 char *
 strsig(int sig)
 {
-	char *ret;
+	static char tmp[64];
 
-	ret = NULL;
 	if (sig > 0 && sig < NSIG) {
-		asprintf(&ret, "SIG%s", sys_signame[sig]);
-		if (ret == NULL)
-			return (NULL);
+		snprintf(tmp, sizeof(tmp), "SIG%s", sys_signame[sig]);
+		return (tmp);
 	}
-	return (ret);
+	return (NULL);
 }
 
 int
 main(int ac, char **av)
 {
-	struct timespec timediff;
 	struct sigaction sa;
-	struct ex_types *funcs;
 	struct trussinfo *trussinfo;
 	char *fname;
-	char *signame;
 	char **command;
-	pid_t childpid;
-	int c, initial_open, status;
+	pid_t pid;
+	int c;
 
 	fname = NULL;
-	initial_open = 1;
 
 	/* Initialize the trussinfo struct */
 	trussinfo = (struct trussinfo *)calloc(1, sizeof(struct trussinfo));
 	if (trussinfo == NULL)
 		errx(1, "calloc() failed");
 
+	pid = 0;
 	trussinfo->outfile = stderr;
 	trussinfo->strsize = 32;
-	trussinfo->pr_why = S_NONE;
 	trussinfo->curthread = NULL;
-	SLIST_INIT(&trussinfo->threadlist);
+	LIST_INIT(&trussinfo->proclist);
+	init_syscalls();
 	while ((c = getopt(ac, av, "p:o:facedDs:S")) != -1) {
 		switch (c) {
 		case 'p':	/* specified pid */
-			trussinfo->pid = atoi(optarg);
+			pid = atoi(optarg);
 			/* make sure i don't trace me */
-			if (trussinfo->pid == getpid()) {
-				fprintf(stderr, "attempt to grab self.\n");
-				exit(2);
+			if (pid == getpid()) {
+				errx(2, "attempt to grab self.");
 			}
 			break;
 		case 'f': /* Follow fork()'s */
@@ -206,7 +111,7 @@ main(int ac, char **av)
 			trussinfo->flags |= EXECVEARGS;
 			break;
 		case 'c': /* Count number of system calls and time. */
-			trussinfo->flags |= COUNTONLY;
+			trussinfo->flags |= (COUNTONLY | NOSIGS);
 			break;
 		case 'e': /* Print execve() environment strings. */
 			trussinfo->flags |= EXECVEENVS;
@@ -232,8 +137,8 @@ main(int ac, char **av)
 	}
 
 	ac -= optind; av += optind;
-	if ((trussinfo->pid == 0 && ac == 0) ||
-	    (trussinfo->pid != 0 && ac != 0))
+	if ((pid == 0 && ac == 0) ||
+	    (pid != 0 && ac != 0))
 		usage();
 
 	if (fname != NULL) { /* Use output file */
@@ -251,10 +156,10 @@ main(int ac, char **av)
 	 * exit.  If, however, we are examining an already-running process,
 	 * then we restore the event mask on these same signals.
 	 */
-
-	if (trussinfo->pid == 0) {	/* Start a command ourselves */
+	if (pid == 0) {
+		/* Start a command ourselves */
 		command = av;
-		trussinfo->pid = setup_and_wait(command);
+		setup_and_wait(trussinfo, command);
 		signal(SIGINT, SIG_IGN);
 		signal(SIGTERM, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);
@@ -265,119 +170,37 @@ main(int ac, char **av)
 		sigaction(SIGINT, &sa, NULL);
 		sigaction(SIGQUIT, &sa, NULL);
 		sigaction(SIGTERM, &sa, NULL);
-		start_tracing(trussinfo->pid);
+		start_tracing(trussinfo, pid);
 	}
-
 
 	/*
 	 * At this point, if we started the process, it is stopped waiting to
 	 * be woken up, either in exit() or in execve().
 	 */
+	if (LIST_FIRST(&trussinfo->proclist)->abi == NULL) {
+		/*
+		 * If we are not able to handle this ABI, detach from the
+		 * process and exit.  If we just created a new process to
+		 * run a command, kill the new process rather than letting
+		 * it run untraced.
+		 */
+		if (pid == 0)
+			kill(LIST_FIRST(&trussinfo->proclist)->pid, SIGKILL);
+		ptrace(PT_DETACH, LIST_FIRST(&trussinfo->proclist)->pid, NULL,
+		    0);
+		return (1);
+	}
+	ptrace(PT_SYSCALL, LIST_FIRST(&trussinfo->proclist)->pid, (caddr_t)1,
+	    0);
 
-START_TRACE:
-	funcs = set_etype(trussinfo);
-
-	initial_open = 0;
 	/*
 	 * At this point, it's a simple loop, waiting for the process to
 	 * stop, finding out why, printing out why, and then continuing it.
 	 * All of the grunt work is done in the support routines.
 	 */
-
 	clock_gettime(CLOCK_REALTIME, &trussinfo->start_time);
 
-	do {
-		waitevent(trussinfo);
-
-		switch (trussinfo->pr_why) {
-		case S_SCE:
-			funcs->enter_syscall(trussinfo, MAXARGS);
-			clock_gettime(CLOCK_REALTIME,
-			    &trussinfo->curthread->before);
-			break;
-		case S_SCX:
-			clock_gettime(CLOCK_REALTIME,
-			    &trussinfo->curthread->after);
-
-			if (trussinfo->curthread->in_fork &&
-			    (trussinfo->flags & FOLLOWFORKS)) {
-				trussinfo->curthread->in_fork = 0;
-				childpid = funcs->exit_syscall(trussinfo,
-				    trussinfo->pr_data);
-
-				/*
-				 * Fork a new copy of ourself to trace
-				 * the child of the original traced
-				 * process.
-				 */
-				if (fork() == 0) {
-					trussinfo->pid = childpid;
-					start_tracing(trussinfo->pid);
-					goto START_TRACE;
-				}
-				break;
-			}
-			funcs->exit_syscall(trussinfo, MAXARGS);
-			break;
-		case S_SIG:
-			if (trussinfo->flags & NOSIGS)
-				break;
-			if (trussinfo->flags & FOLLOWFORKS)
-				fprintf(trussinfo->outfile, "%5d: ",
-				    trussinfo->pid);
-			if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-				timespecsubt(&trussinfo->curthread->after,
-				    &trussinfo->start_time, &timediff);
-				fprintf(trussinfo->outfile, "%ld.%09ld ",
-				    (long)timediff.tv_sec,
-				    timediff.tv_nsec);
-			}
-			if (trussinfo->flags & RELATIVETIMESTAMPS) {
-				timespecsubt(&trussinfo->curthread->after,
-				    &trussinfo->curthread->before, &timediff);
-				fprintf(trussinfo->outfile, "%ld.%09ld ",
-				    (long)timediff.tv_sec,
-				    timediff.tv_nsec);
-			}
-			signame = strsig(trussinfo->pr_data);
-			fprintf(trussinfo->outfile,
-			    "SIGNAL %u (%s)\n", trussinfo->pr_data,
-			    signame == NULL ? "?" : signame);
-			free(signame);
-			break;
-		case S_EXIT:
-			if (trussinfo->flags & COUNTONLY)
-				break;
-			if (trussinfo->flags & FOLLOWFORKS)
-				fprintf(trussinfo->outfile, "%5d: ",
-				    trussinfo->pid);
-			if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-				timespecsubt(&trussinfo->curthread->after,
-				    &trussinfo->start_time, &timediff);
-				fprintf(trussinfo->outfile, "%ld.%09ld ",
-				    (long)timediff.tv_sec,
-				    timediff.tv_nsec);
-			}
-			if (trussinfo->flags & RELATIVETIMESTAMPS) {
-				timespecsubt(&trussinfo->curthread->after,
-				    &trussinfo->curthread->before, &timediff);
-				fprintf(trussinfo->outfile, "%ld.%09ld ",
-				    (long)timediff.tv_sec, timediff.tv_nsec);
-			}
-			fprintf(trussinfo->outfile,
-			    "process exit, rval = %u\n", trussinfo->pr_data);
-			break;
-		default:
-			break;
-		}
-	} while (trussinfo->pr_why != S_EXIT &&
-	    trussinfo->pr_why != S_DETACHED);
-
-	if (trussinfo->flags & FOLLOWFORKS) {
-		do {
-			childpid = wait(&status);
-		} while (childpid != -1);
-	}
+	eventloop(trussinfo);
 
 	if (trussinfo->flags & COUNTONLY)
 		print_summary(trussinfo);
