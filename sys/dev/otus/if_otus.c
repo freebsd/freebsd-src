@@ -1645,8 +1645,8 @@ otus_sub_rxeof(struct otus_softc *sc, uint8_t *buf, int len, struct mbufq *rxq)
 	}
 	tail = (struct ar_rx_tail *)(plcp + len - sizeof (*tail));
 
-	/* Discard error frames. */
-	if (__predict_false(tail->error != 0)) {
+	/* Discard error frames; don't discard BAD_RA (eg monitor mode); let net80211 do that */
+	if (__predict_false((tail->error & ~AR_RX_ERROR_BAD_RA) != 0)) {
 		OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE, "error frame 0x%02x\n", tail->error);
 		if (tail->error & AR_RX_ERROR_FCS) {
 			OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE, "bad FCS\n");
@@ -1671,10 +1671,14 @@ otus_sub_rxeof(struct otus_softc *sc, uint8_t *buf, int len, struct mbufq *rxq)
 
 	wh = (struct ieee80211_frame *)(plcp + AR_PLCP_HDR_LEN);
 
+	/*
+	 * TODO: I see > 2KiB buffers in this path; is it A-MSDU or something?
+	 */
 	m = m_get2(mlen, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
-		device_printf(sc->sc_dev, "%s: failed m_get2()\n", __func__);
+		device_printf(sc->sc_dev, "%s: failed m_get2() (mlen=%d)\n", __func__, mlen);
 		counter_u64_add(ic->ic_ierrors, 1);
+		return;
 	}
 
 	/* Finalize mbuf. */
@@ -2469,8 +2473,8 @@ otus_init_mac(struct otus_softc *sc)
 	otus_write(sc, AR_MAC_REG_BACKOFF_PROTECT, 0x105);
 	otus_write(sc, AR_MAC_REG_AMPDU_FACTOR, 0x10000a);
 	/* Filter any control frames, BAR is bit 24. */
-	otus_write(sc, AR_MAC_REG_FRAMETYPE_FILTER, 0x0500ffff);
-	otus_write(sc, AR_MAC_REG_RX_CONTROL, 0x1);
+//	otus_write(sc, AR_MAC_REG_FRAMETYPE_FILTER, 0x0500ffff);
+//	otus_write(sc, AR_MAC_REG_RX_CONTROL, 0x1);
 	otus_write(sc, AR_MAC_REG_BASIC_RATE, 0x150f);
 	otus_write(sc, AR_MAC_REG_MANDATORY_RATE, 0x150f);
 	otus_write(sc, AR_MAC_REG_RTS_CTS_RATE, 0x10b01bb);
@@ -3070,6 +3074,57 @@ otus_led_newstate_type3(struct otus_softc *sc)
 #endif
 }
 
+/*
+ * TODO:
+ *
+ * + If in monitor mode, set BSSID to all zeros, else the node BSSID.
+ * + Handle STA + monitor (eg tcpdump/promisc/radiotap) as well as
+ *   pure monitor mode.
+ */
+static int
+otus_set_operating_mode(struct otus_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	uint32_t rx_ctrl;
+	uint32_t frm_filt;
+	uint32_t cam_mode;
+	uint32_t rx_sniffer;
+
+	OTUS_LOCK_ASSERT(sc);
+
+	/* XXX TODO: too many magic constants */
+	rx_ctrl = 0x1;
+	/* Filter any control frames, BAR is bit 24. */
+	frm_filt = 0x0500ffff;
+	cam_mode = 0x0f000002;	/* XXX STA */
+	rx_sniffer = 0x20000000;
+
+	switch (ic->ic_opmode) {
+	case IEEE80211_M_STA:
+		cam_mode = 0x0f000002;	/* XXX STA */
+		rx_ctrl = 0x1;
+		frm_filt = 0x0500ffff;
+		rx_sniffer = 0x20000000;
+		break;
+	case IEEE80211_M_MONITOR:
+		cam_mode = 0x0f000002;	/* XXX STA */
+		rx_ctrl = 0x1;
+		frm_filt = 0xffffffff;
+		rx_sniffer = 0x20000001;
+		break;
+	default:
+		break;
+	}
+
+	otus_write(sc, AR_MAC_REG_SNIFFER, rx_sniffer);
+	otus_write(sc, AR_MAC_REG_CAM_MODE, cam_mode);
+	otus_write(sc, AR_MAC_REG_FRAMETYPE_FILTER, frm_filt);
+	otus_write(sc, AR_MAC_REG_RX_CONTROL, cam_mode);
+
+	(void) otus_write_barrier(sc);
+	return (0);
+}
+
 int
 otus_init(struct otus_softc *sc)
 {
@@ -3092,48 +3147,7 @@ otus_init(struct otus_softc *sc)
 	}
 
 	(void) otus_set_macaddr(sc, ic->ic_macaddr);
-
-#if 0
-	switch (ic->ic_opmode) {
-#ifdef notyet
-#ifndef IEEE80211_STA_ONLY
-	case IEEE80211_M_HOSTAP:
-		otus_write(sc, AR_MAC_REG_CAM_MODE, 0x0f0000a1);
-		otus_write(sc, AR_MAC_REG_RX_CONTROL, 0x1);
-		break;
-	case IEEE80211_M_IBSS:
-		otus_write(sc, AR_MAC_REG_CAM_MODE, 0x0f000000);
-		otus_write(sc, AR_MAC_REG_RX_CONTROL, 0x1);
-		break;
-#endif
-#endif
-	case IEEE80211_M_STA:
-		otus_write(sc, AR_MAC_REG_CAM_MODE, 0x0f000002);
-		otus_write(sc, AR_MAC_REG_RX_CONTROL, 0x1);
-		break;
-	default:
-		break;
-	}
-#endif
-
-	switch (ic->ic_opmode) {
-	case IEEE80211_M_STA:
-		otus_write(sc, AR_MAC_REG_CAM_MODE, 0x0f000002);
-		otus_write(sc, AR_MAC_REG_RX_CONTROL, 0x1);
-		/* XXX set frametype filter? */
-		break;
-	case IEEE80211_M_MONITOR:
-		otus_write(sc, AR_MAC_REG_FRAMETYPE_FILTER, 0xffffffff);
-		break;
-	default:
-		break;
-	}
-
-	/* XXX ic_opmode? */
-	otus_write(sc, AR_MAC_REG_SNIFFER,
-	    (ic->ic_opmode == IEEE80211_M_MONITOR) ? 0x2000001 : 0x2000000);
-
-	(void)otus_write_barrier(sc);
+	(void) otus_set_operating_mode(sc);
 
 	sc->bb_reset = 1;	/* Force cold reset. */
 
