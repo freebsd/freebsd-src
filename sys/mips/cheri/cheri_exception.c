@@ -246,7 +246,7 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 		regnum = cause & CHERI_CAPCAUSE_REGNUM_MASK;
 		printf("CHERI cause: ExcCode: 0x%02x ", exccode);
 		if (regnum < 32)
-			printf("RegNum: C%02d ", regnum);
+			printf("RegNum: $c%02d ", regnum);
 		else if (regnum == 255)
 			printf("RegNum: PCC ");
 		else

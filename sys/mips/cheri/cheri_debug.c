@@ -59,7 +59,7 @@ DB_SHOW_COMMAND(cheri, ddb_dump_cheri)
 	regnum = cause & CHERI_CAPCAUSE_REGNUM_MASK;
 	db_printf("CHERI cause: ExcCode: 0x%02x ", exccode);
 	if (regnum < 32)
-		db_printf("RegNum: C%02d ", regnum);
+		db_printf("RegNum: $c%02d ", regnum);
 	else if (regnum == 255)
 		db_printf("RegNum: PCC ");
 	else

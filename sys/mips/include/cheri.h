@@ -575,7 +575,7 @@ cheri_get_cyclecount(void)
 } while (0)
 
 #define	CHERI_REG_PRINT(crn, num) do {					\
-	printf("C%02u: ", num);						\
+	printf("$c%02u: ", num);					\
 	CHERI_CAP_PRINT(crn);						\
 } while (0)
 
@@ -597,7 +597,7 @@ cheri_get_cyclecount(void)
 } while (0)
 
 #define	DB_CHERI_REG_PRINT(crn, num) do {				\
-	db_printf("C%02u ", num);					\
+	db_printf("$c%02u: ", num);					\
 	DB_CHERI_CAP_PRINT(crn);					\
 } while (0)
 #endif /* !_KERNEL */
