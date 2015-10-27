@@ -1,4 +1,4 @@
-/*	$NetBSD: gzip.c,v 1.108 2015/04/15 02:29:12 christos Exp $	*/
+/*	$NetBSD: gzip.c,v 1.109 2015/10/27 07:36:18 mrg Exp $	*/
 
 /*-
  * Copyright (c) 1997, 1998, 2003, 2004, 2006 Matthew R. Green
