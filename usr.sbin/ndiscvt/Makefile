@@ -22,7 +22,6 @@ CFLAGS+=-I. -I${.CURDIR} -I${.CURDIR}/../../sys
 CLEANFILES= y.output
 
 FILES= windrv_stub.c
-FILESNAME= windrv_stub.c
 FILESDIR= ${SHAREDIR}/misc
 
 SCRIPTS= ndisgen.sh
