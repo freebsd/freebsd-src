@@ -11,6 +11,8 @@ libucl_la_SOURCES=	ucl_emitter.c \
 					ucl_parser.c \
 					ucl_schema.c \
 					ucl_util.c \
+					ucl_msgpack.c \
+					ucl_sexp.c \
 					xxhash.c
 libucl_la_CFLAGS=	$(libucl_common_cflags) \
 					@CURL_CFLAGS@
@@ -20,7 +22,8 @@ libucl_la_LIBADD=	@LIBFETCH_LIBS@ \
 					@LIBREGEX_LIB@ \
 					@CURL_LIBS@
 
-include_HEADERS=	$(top_srcdir)/include/ucl.h
+include_HEADERS=	$(top_srcdir)/include/ucl.h \
+					$(top_srcdir)/include/ucl++.h
 noinst_HEADERS=	ucl_internal.h \
 				xxhash.h \
 				ucl_hash.h \

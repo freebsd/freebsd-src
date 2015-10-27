@@ -21,7 +21,7 @@
 - [Performance](#performance)
 - [Conclusion](#conclusion)
 
-## Introduction
+## Introduction 
 
 This document describes the main features and principles of the configuration
 language called `UCL` - universal configuration language.
@@ -262,7 +262,20 @@ parser is created but before any configurations are parsed.
 all files that matches the specified pattern (normally the format of patterns is defined in `glob` manual page
 for your operating system). This option is meaningless for URL includes.
 * `url` (default: **true**) - allow URL includes.
+* `path` (default: empty) - A UCL_ARRAY of directories to search for the include file.
+Search ends after the first patch, unless `glob` is true, then all matches are included.
+* `prefix` (default false) - Put included contents inside an object, instead
+of loading them into the root. If no `key` is provided, one is automatically generated based on each files basename()
+* `key` (default: <empty string>) - Key to load contents of include into. If
+the key already exists, it must be the correct type
+* `target` (default: object) - Specify if the `prefix` `key` should be an
+object or an array.
 * `priority` (default: 0) - specify priority for the include (see below).
+* `duplicate` (default: 'append') - specify policy of duplicates resolving:
+	- `append` - default strategy, if we have new object of higher priority then it replaces old one, if we have new object with less priority it is ignored completely, and if we have two duplicate objects with the same priority then we have a multi-value key (implicit array)
+	- `merge` - if we have object or array, then new keys are merged inside, if we have a plain object then an implicit array is formed (regardeless of priorities)
+	- `error` - create error on duplicate keys and stop parsing
+	- `rewrite` - always rewrite an old value with new one (ignoring priorities)
 
 Priorities are used by UCL parser to manage the policy of objects rewriting during including other files
 as following:

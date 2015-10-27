@@ -1,10 +1,12 @@
-EXTRA_DIST = $(TESTS) basic schema generate.res streamline.res rcl_test.json.xz
+EXTRA_DIST = $(TESTS) basic schema generate.res \
+	streamline.res rcl_test.json.xz
 
 TESTS = basic.test \
 		generate.test \
 		schema.test \
+		msgpack.test \
 		speed.test \
-		streamline.test
+		msgpack.test
 TESTS_ENVIRONMENT = $(SH) \
 			TEST_DIR=$(top_srcdir)/tests \
 			TEST_OUT_DIR=$(top_builddir)/tests \
@@ -35,4 +37,9 @@ test_streamline_SOURCES = test_streamline.c
 test_streamline_LDADD = $(common_test_ldadd)
 test_streamline_CFLAGS = $(common_test_cflags)
 
-check_PROGRAMS = test_basic test_speed test_generate test_schema test_streamline
+test_msgpack_SOURCES = test_msgpack.c
+test_msgpack_LDADD = $(common_test_ldadd)
+test_msgpack_CFLAGS = $(common_test_cflags)
+
+check_PROGRAMS = test_basic test_speed test_generate test_schema test_streamline \
+	test_msgpack
