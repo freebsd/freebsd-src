@@ -133,46 +133,94 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL_ia32cap 3"
-.TH OPENSSL_ia32cap 3 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH OPENSSL_ia32cap 3 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-OPENSSL_ia32cap \- finding the IA\-32 processor capabilities
+OPENSSL_ia32cap, OPENSSL_ia32cap_loc \- the IA\-32 processor capabilities vector
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 2
-\& unsigned long *OPENSSL_ia32cap_loc(void);
-\& #define OPENSSL_ia32cap (*(OPENSSL_ia32cap_loc()))
+\& unsigned int *OPENSSL_ia32cap_loc(void);
+\& #define OPENSSL_ia32cap ((OPENSSL_ia32cap_loc())[0])
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 Value returned by \fIOPENSSL_ia32cap_loc()\fR is address of a variable
-containing \s-1IA\-32\s0 processor capabilities bit vector as it appears in \s-1EDX\s0
-register after executing \s-1CPUID\s0 instruction with EAX=1 input value (see
-Intel Application Note #241618). Naturally it's meaningful on IA\-32[E]
-platforms only. The variable is normally set up automatically upon
-toolkit initialization, but can be manipulated afterwards to modify
-crypto library behaviour. For the moment of this writing six bits are
-significant, namely:
-.PP
-1. bit #28 denoting Hyperthreading, which is used to distiguish
-   cores with shared cache;
-2. bit #26 denoting \s-1SSE2\s0 support;
-3. bit #25 denoting \s-1SSE\s0 support;
-4. bit #23 denoting \s-1MMX\s0 support;
-5. bit #20, reserved by Intel, is used to choose between \s-1RC4\s0 code
-   pathes;
-6. bit #4 denoting presence of Time-Stamp Counter.
+containing \s-1IA\-32\s0 processor capabilities bit vector as it appears in
+\&\s-1EDX:ECX\s0 register pair after executing \s-1CPUID\s0 instruction with EAX=1
+input value (see Intel Application Note #241618). Naturally it's
+meaningful on x86 and x86_64 platforms only. The variable is normally
+set up automatically upon toolkit initialization, but can be
+manipulated afterwards to modify crypto library behaviour. For the
+moment of this writing following bits are significant:
+.IP "bit #4 denoting presence of Time-Stamp Counter." 4
+.IX Item "bit #4 denoting presence of Time-Stamp Counter."
+.PD 0
+.IP "bit #19 denoting availability of \s-1CLFLUSH\s0 instruction;" 4
+.IX Item "bit #19 denoting availability of CLFLUSH instruction;"
+.IP "bit #20, reserved by Intel, is used to choose among \s-1RC4\s0 code paths;" 4
+.IX Item "bit #20, reserved by Intel, is used to choose among RC4 code paths;"
+.IP "bit #23 denoting \s-1MMX\s0 support;" 4
+.IX Item "bit #23 denoting MMX support;"
+.IP "bit #24, \s-1FXSR\s0 bit, denoting availability of \s-1XMM\s0 registers;" 4
+.IX Item "bit #24, FXSR bit, denoting availability of XMM registers;"
+.IP "bit #25 denoting \s-1SSE\s0 support;" 4
+.IX Item "bit #25 denoting SSE support;"
+.IP "bit #26 denoting \s-1SSE2\s0 support;" 4
+.IX Item "bit #26 denoting SSE2 support;"
+.IP "bit #28 denoting Hyperthreading, which is used to distinguish cores with shared cache;" 4
+.IX Item "bit #28 denoting Hyperthreading, which is used to distinguish cores with shared cache;"
+.IP "bit #30, reserved by Intel, denotes specifically Intel CPUs;" 4
+.IX Item "bit #30, reserved by Intel, denotes specifically Intel CPUs;"
+.IP "bit #33 denoting availability of \s-1PCLMULQDQ\s0 instruction;" 4
+.IX Item "bit #33 denoting availability of PCLMULQDQ instruction;"
+.IP "bit #41 denoting \s-1SSSE3,\s0 Supplemental \s-1SSE3,\s0 support;" 4
+.IX Item "bit #41 denoting SSSE3, Supplemental SSE3, support;"
+.IP "bit #43 denoting \s-1AMD XOP\s0 support (forced to zero on non-AMD CPUs);" 4
+.IX Item "bit #43 denoting AMD XOP support (forced to zero on non-AMD CPUs);"
+.IP "bit #57 denoting AES-NI instruction set extension;" 4
+.IX Item "bit #57 denoting AES-NI instruction set extension;"
+.IP "bit #59, \s-1OSXSAVE\s0 bit, denoting availability of \s-1YMM\s0 registers;" 4
+.IX Item "bit #59, OSXSAVE bit, denoting availability of YMM registers;"
+.IP "bit #60 denoting \s-1AVX\s0 extension;" 4
+.IX Item "bit #60 denoting AVX extension;"
+.IP "bit #62 denoting availability of \s-1RDRAND\s0 instruction;" 4
+.IX Item "bit #62 denoting availability of RDRAND instruction;"
+.PD
 .PP
 For example, clearing bit #26 at run-time disables high-performance
-\&\s-1SSE2\s0 code present in the crypto library. You might have to do this if
-target OpenSSL application is executed on \s-1SSE2\s0 capable \s-1CPU,\s0 but under
-control of \s-1OS\s0 which does not support \s-1SSE2\s0 extentions. Even though you
-can manipulate the value programmatically, you most likely will find it
-more appropriate to set up an environment variable with the same name
-prior starting target application, e.g. on Intel P4 processor 'env
-OPENSSL_ia32cap=0x12900010 apps/openssl', to achieve same effect
-without modifying the application source code. Alternatively you can
-reconfigure the toolkit with no\-sse2 option and recompile.
+\&\s-1SSE2\s0 code present in the crypto library, while clearing bit #24
+disables \s-1SSE2\s0 code operating on 128\-bit \s-1XMM\s0 register bank. You might
+have to do the latter if target OpenSSL application is executed on \s-1SSE2\s0
+capable \s-1CPU,\s0 but under control of \s-1OS\s0 that does not enable \s-1XMM\s0
+registers. Even though you can manipulate the value programmatically,
+you most likely will find it more appropriate to set up an environment
+variable with the same name prior starting target application, e.g. on
+Intel P4 processor 'env OPENSSL_ia32cap=0x16980010 apps/openssl', or
+better yet 'env OPENSSL_ia32cap=~0x1000000 apps/openssl' to achieve same
+effect without modifying the application source code. Alternatively you
+can reconfigure the toolkit with no\-sse2 option and recompile.
+.PP
+Less intuitive is clearing bit #28. The truth is that it's not copied
+from \s-1CPUID\s0 output verbatim, but is adjusted to reflect whether or not
+the data cache is actually shared between logical cores. This in turn
+affects the decision on whether or not expensive countermeasures
+against cache-timing attacks are applied, most notably in \s-1AES\s0 assembler
+module.
+.PP
+The vector is further extended with \s-1EBX\s0 value returned by \s-1CPUID\s0 with
+EAX=7 and ECX=0 as input. Following bits are significant:
+.IP "bit #64+3 denoting availability of \s-1BMI1\s0 instructions, e.g. \s-1ANDN\s0;" 4
+.IX Item "bit #64+3 denoting availability of BMI1 instructions, e.g. ANDN;"
+.PD 0
+.IP "bit #64+5 denoting availability of \s-1AVX2\s0 instructions;" 4
+.IX Item "bit #64+5 denoting availability of AVX2 instructions;"
+.IP "bit #64+8 denoting availability of \s-1BMI2\s0 instructions, e.g. \s-1MUXL\s0 and \s-1RORX\s0;" 4
+.IX Item "bit #64+8 denoting availability of BMI2 instructions, e.g. MUXL and RORX;"
+.IP "bit #64+18 denoting availability of \s-1RDSEED\s0 instruction;" 4
+.IX Item "bit #64+18 denoting availability of RDSEED instruction;"
+.IP "bit #64+19 denoting availability of \s-1ADCX\s0 and \s-1ADOX\s0 instructions;" 4
+.IX Item "bit #64+19 denoting availability of ADCX and ADOX instructions;"

@@ -3,7 +3,7 @@
 .include <bsd.own.mk>
 
 # OpenSSL version used for manual page generation
-OPENSSL_VER=	1.0.1p
+OPENSSL_VER=	1.0.2d
 OPENSSL_DATE=	2015-07-09
 
 LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl
