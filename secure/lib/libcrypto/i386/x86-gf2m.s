@@ -1,5 +1,5 @@
 	# $FreeBSD$
-.file	"/root/secure/lib/libcrypto/../../../crypto/openssl/crypto/bn/asm/x86-gf2m.s"
+.file	"x86-gf2m.s"
 .text
 .type	_mul_1x1_mmx,@function
 .align	16

@@ -1,5 +1,5 @@
 	# $FreeBSD$
-.file	"/root/secure/lib/libcrypto/../../../crypto/openssl/crypto/bn/asm/bn-586.s"
+.file	"bn-586.s"
 .text
 .globl	bn_mul_add_words
 .type	bn_mul_add_words,@function
