@@ -187,10 +187,10 @@ file_init(sp, frp, rcv_name, flags)
 	 */
 	oname = frp->name;
 	if (LF_ISSET(FS_OPENERR) || oname == NULL || !exists) {
-		if (opts_empty(sp, O_DIRECTORY, 0))
+		if (opts_empty(sp, O_TMP_DIRECTORY, 0))
 			goto err;
 		(void)snprintf(tname, sizeof(tname),
-		    "%s/vi.XXXXXXXXXX", O_STR(sp, O_DIRECTORY));
+		    "%s/vi.XXXXXXXXXX", O_STR(sp, O_TMP_DIRECTORY));
 		if ((fd = mkstemp(tname)) == -1) {
 			msgq(sp, M_SYSERR,
 			    "237|Unable to create temporary file");
