@@ -96,7 +96,7 @@ LOCALES=	am_ET.UTF-8 \
 		zh_TW.Big5 \
 		zh_TW.UTF-8
 
-LOCALEDIR=      /usr/share/locale
+LOCALEDIR=      ${SHAREDIR}/locale
 
 .SUFFIXES: .src .out
 

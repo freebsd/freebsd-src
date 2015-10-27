@@ -30,7 +30,7 @@ LOCALES=	UTF-8 \
 		zh_HK.Big5HKSCS \
 		zh_TW.Big5
 
-LOCALEDIR=	/usr/share/locale
+LOCALEDIR=	${SHAREDIR}/locale
 
 .SUFFIXES: .src .out
 
