@@ -1128,7 +1128,7 @@ bus_dmamap_sync_buf(vm_offset_t buf, int len, bus_dmasync_op_t op, int aligned)
 		break;
 
 	case BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE:
-		mips_dcache_wbinv_range(buf_cl, len);
+		mips_dcache_wbinv_range(buf, len);
 		break;
 
 	case BUS_DMASYNC_PREREAD:
