@@ -356,6 +356,8 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	LIST_REMOVE(ic, ic_next);
 	mtx_unlock(&ic_list_mtx);
 
+	taskqueue_drain(taskqueue_thread, &ic->ic_restart_task);
+
 	/*
 	 * The VAP is responsible for setting and clearing
 	 * the VIMAGE context.
