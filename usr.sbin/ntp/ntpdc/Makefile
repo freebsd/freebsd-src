@@ -17,8 +17,8 @@ CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include \
 	-I${.CURDIR}/../../../lib/libc/${MACHINE_ARCH} \
 	-I${.CURDIR}/../ -I${.CURDIR}
 
-DPADD=	${LIBNTP} ${LIBM} ${LIBOPTS} ${LIBEDIT} ${LIBTERMCAP}
-LDADD=	${LIBNTP} -lm ${LIBOPTS} -ledit -ltermcap
+DPADD=	${LIBNTP} ${LIBM} ${LIBOPTS} ${LIBEDIT} ${LIBTERMCAP} ${LIBPTHREAD}
+LDADD=	${LIBNTP} -lm ${LIBOPTS} -ledit -ltermcap -lpthread
 
 CFLAGS+=	-DHAVE_LIBEDIT -DHAVE_READLINE_READLINE_H \
 		-I${DESTDIR}/${INCLUDEDIR}/edit
