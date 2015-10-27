@@ -28,6 +28,12 @@
 	#define TRAMPOLINE_SIZE 40
 #endif
 
+#ifdef __CHERI_SANDBOX__
+static const char __enable_execute_stack_warning[]
+    __attribute__((section(".gnu.warning.__enable_execute_stack"))) =
+    "__enable_execute_stack is unimplemented for CheriABI";
+#endif
+
 /*
  * The compiler generates calls to __enable_execute_stack() when creating 
  * trampoline functions on the stack for use with nested functions.
@@ -40,6 +46,7 @@ COMPILER_RT_ABI void
 __enable_execute_stack(void* addr)
 {
 
+#ifndef __CHERI_SANDBOX__
 #if __APPLE__
 	/* On Darwin, pagesize is always 4096 bytes */
 	const uintptr_t pageSize = 4096;
@@ -55,4 +62,5 @@ __enable_execute_stack(void* addr)
 	unsigned char* endPage = (unsigned char*)((p+TRAMPOLINE_SIZE+pageSize) & pageAlignMask);
 	size_t length = endPage - startPage;
 	(void) mprotect((void *)startPage, length, PROT_READ | PROT_WRITE | PROT_EXEC);
+#endif
 }
