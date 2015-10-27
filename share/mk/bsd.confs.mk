@@ -7,7 +7,7 @@
 CONFGROUPS?=	CONFS
 
 .if !target(buildconfig)
-.for group in ${CONFSGROUPS}
+.for group in ${CONFGROUPS}
 buildconfig: ${${group}}
 .endfor
 .endif
