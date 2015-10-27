@@ -929,7 +929,7 @@ encryption_change(ng_hci_unit_p unit, struct mbuf *event)
 "%s: %s - invalid connection handle=%d\n",
 				__func__, NG_NODE_NAME(unit->node), h);
 			error = ENOENT;
-		} else if (con->link_type != NG_HCI_LINK_ACL) {
+		} else if (con->link_type == NG_HCI_LINK_SCO) {
 			NG_HCI_ALERT(
 "%s: %s - invalid link type=%d\n",
 				__func__, NG_NODE_NAME(unit->node), 
@@ -940,6 +940,7 @@ encryption_change(ng_hci_unit_p unit, struct mbuf *event)
 			con->encryption_mode = NG_HCI_ENCRYPTION_MODE_P2P;
 		else
 			con->encryption_mode = NG_HCI_ENCRYPTION_MODE_NONE;
+		ng_hci_lp_enc_change(con, ep->encryption_enable);
 	} else
 		NG_HCI_ERR(
 "%s: %s - failed to change encryption mode, status=%d\n",
