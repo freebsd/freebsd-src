@@ -159,13 +159,10 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc3390), 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
 
-SYSCTL_NODE(_net_inet_tcp, OID_AUTO, experimental, CTLFLAG_RW, 0,
-    "Experimental TCP extensions");
-
-VNET_DEFINE(int, tcp_do_initcwnd10) = 1;
-SYSCTL_INT(_net_inet_tcp_experimental, OID_AUTO, initcwnd10, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(tcp_do_initcwnd10), 0,
-    "Enable RFC 6928 (Increasing initial CWND to 10)");
+VNET_DEFINE(int, tcp_initcwnd_segments) = 10;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, initcwnd_segments,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(tcp_initcwnd_segments), 0,
+    "Slow-start flight size (initial congestion window) in number of segments");
 
 VNET_DEFINE(int, tcp_do_rfc3465) = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3465, CTLFLAG_VNET | CTLFLAG_RW,
@@ -364,6 +361,7 @@ cc_conn_init(struct tcpcb *tp)
 	 * RFC5681 Section 3.1 specifies the default conservative values.
 	 * RFC3390 specifies slightly more aggressive values.
 	 * RFC6928 increases it to ten segments.
+	 * Support for user specified value for initial flight size.
 	 *
 	 * If a SYN or SYN/ACK was lost and retransmitted, we have to
 	 * reduce the initial CWND to one segment as congestion is likely
@@ -371,9 +369,9 @@ cc_conn_init(struct tcpcb *tp)
 	 */
 	if (tp->snd_cwnd == 1)
 		tp->snd_cwnd = tp->t_maxseg;		/* SYN(-ACK) lost */
-	else if (V_tcp_do_initcwnd10)
-		tp->snd_cwnd = min(10 * tp->t_maxseg,
-		    max(2 * tp->t_maxseg, 14600));
+	else if (V_tcp_initcwnd_segments)
+		tp->snd_cwnd = min(V_tcp_initcwnd_segments * tp->t_maxseg,
+		    max(2 * tp->t_maxseg, V_tcp_initcwnd_segments * 1460));
 	else if (V_tcp_do_rfc3390)
 		tp->snd_cwnd = min(4 * tp->t_maxseg,
 		    max(2 * tp->t_maxseg, 4380));
