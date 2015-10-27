@@ -217,6 +217,7 @@ kib [label="Konstantin Belousov\nkib@FreeBSD.org\n2006/06/03"]
 kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
 kp [label="Kristof Provost\nkp@FreeBSD.org\n2015/03/22"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
+lidl [label="Kurt Lidl\nlidl@FreeBSD.org\n2015/10/21"]
 loos [label="Luiz Otavio O Souza\nloos@FreeBSD.org\n2013/07/03"]
 lstewart [label="Lawrence Stewart\nlstewart@FreeBSD.org\n2008/10/06"]
 marcel [label="Marcel Moolenaar\nmarcel@FreeBSD.org\n1999/07/03"]
@@ -334,6 +335,7 @@ day1 -> alm
 day1 -> dg
 
 adrian -> avos
+adrian -> lidl
 adrian -> loos
 adrian -> monthadar
 adrian -> ray
@@ -660,6 +662,7 @@ rpaulo -> avg
 rpaulo -> bschmidt
 rpaulo -> dim
 rpaulo -> jmmv
+rpaulo -> lidl
 rpaulo -> ngie
 
 rrs -> brucec
