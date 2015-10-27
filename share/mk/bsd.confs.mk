@@ -21,7 +21,7 @@ all: buildconfig
 ${group}OWN?=	${SHAREOWN}
 ${group}GRP?=	${SHAREGRP}
 ${group}MODE?=	${CONFMODE}
-${group}DIR?=	${CONFIGDIR}/
+${group}DIR?=	${CONFDIR}
 STAGE_SETS+=	${group}
 STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
 
