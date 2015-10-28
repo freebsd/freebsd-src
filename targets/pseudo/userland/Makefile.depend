@@ -564,6 +564,7 @@ DIRDEPS+= \
 	usr.sbin/mlxcontrol \
 	usr.sbin/mountd \
 	usr.sbin/moused \
+	usr.sbin/mpsutil \
 	usr.sbin/mptutil \
 	usr.sbin/mtest \
 	usr.sbin/mtree \
