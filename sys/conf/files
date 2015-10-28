@@ -1398,8 +1398,8 @@ dev/etherswitch/ip17x/ip175c.c		optional ip17x
 dev/etherswitch/ip17x/ip175d.c		optional ip17x
 dev/etherswitch/ip17x/ip17x_phy.c	optional ip17x
 dev/etherswitch/ip17x/ip17x_vlans.c	optional ip17x
-dev/etherswitch/mdio_if.m		optional miiproxy
-dev/etherswitch/mdio.c			optional miiproxy
+dev/etherswitch/mdio_if.m		optional miiproxy | mdio
+dev/etherswitch/mdio.c			optional miiproxy | mdio
 dev/etherswitch/miiproxy.c		optional miiproxy
 dev/etherswitch/rtl8366/rtl8366rb.c	optional rtl8366rb
 dev/etherswitch/ukswitch/ukswitch.c	optional ukswitch

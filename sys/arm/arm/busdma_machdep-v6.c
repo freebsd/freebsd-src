@@ -61,6 +61,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu-v6.h>
 #include <machine/md_var.h>
 
+#if __ARM_ARCH < 6
+#define	BUSDMA_DCACHE_ALIGN	arm_dcache_align
+#define	BUSDMA_DCACHE_MASK	arm_dcache_align_mask
+#else
+#define	BUSDMA_DCACHE_ALIGN	cpuinfo.dcache_line_size
+#define	BUSDMA_DCACHE_MASK	cpuinfo.dcache_line_mask
+#endif
+
 #define	MAX_BPAGES		64
 #define	MAX_DMA_SEGMENTS	4096
 #define	BUS_DMA_EXCL_BOUNCE	BUS_DMA_BUS2
@@ -234,7 +242,7 @@ busdma_init(void *dummy)
 
 	/* Create a cache of buffers in standard (cacheable) memory. */
 	standard_allocator = busdma_bufalloc_create("buffer",
-	    arm_dcache_align,	/* minimum_alignment */
+	    BUSDMA_DCACHE_ALIGN,/* minimum_alignment */
 	    NULL,		/* uma_alloc func */
 	    NULL,		/* uma_free func */
 	    uma_flags);		/* uma_zcreate_flags */
@@ -253,7 +261,7 @@ busdma_init(void *dummy)
 	 * BUS_DMA_COHERENT (and potentially BUS_DMA_NOCACHE) flag.
 	 */
 	coherent_allocator = busdma_bufalloc_create("coherent",
-	    arm_dcache_align,	/* minimum_alignment */
+	    BUSDMA_DCACHE_ALIGN,/* minimum_alignment */
 	    busdma_bufalloc_alloc_uncacheable,
 	    busdma_bufalloc_free_uncacheable,
 	    uma_flags);	/* uma_zcreate_flags */
@@ -1279,12 +1287,12 @@ dma_preread_safe(vm_offset_t va, vm_paddr_t pa, vm_size_t size)
 	 * as dcache_wb_poc() will do the rounding for us and works
 	 * at cacheline granularity.
 	 */
-	if (va & cpuinfo.dcache_line_mask)
+	if (va & BUSDMA_DCACHE_MASK)
 		dcache_wb_poc(va, pa, 1);
-	if ((va + size) & cpuinfo.dcache_line_mask)
+	if ((va + size) & BUSDMA_DCACHE_MASK)
 		dcache_wb_poc(va + size, pa + size, 1);
 
-	dcache_dma_preread(va, pa, size);
+	dcache_inv_poc_dma(va, pa, size);
 }
 
 static void
@@ -1406,7 +1414,7 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		if ((op & BUS_DMASYNC_PREREAD) && !(op & BUS_DMASYNC_PREWRITE)) {
 			bpage = STAILQ_FIRST(&map->bpages);
 			while (bpage != NULL) {
-				dcache_dma_preread(bpage->vaddr, bpage->busaddr,
+				dcache_inv_poc_dma(bpage->vaddr, bpage->busaddr,
 				    bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
 			}

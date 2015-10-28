@@ -574,7 +574,8 @@ typedef struct {
 	uint16_t	abrt_nphdl;
 	uint16_t	abrt_options;
 	uint32_t	abrt_cmd_handle;
-	uint8_t		abrt_reserved[32];
+	uint16_t	abrt_queue_number;
+	uint8_t		abrt_reserved[30];
 	uint16_t	abrt_tidlo;
 	uint8_t		abrt_tidhi;
 	uint8_t		abrt_vpidx;
@@ -854,6 +855,8 @@ typedef struct {
 	(IS_24XX(isp)? (isp->isp_fwattr & ISP2400_FW_ATTR_MULTIID) : 0)
 #define	ISP_GET_VPIDX(isp, tag) \
 	(ISP_CAP_MULTI_ID(isp) ? tag : 0)
+#define	ISP_CAP_VP0(isp)	\
+	(IS_24XX(isp)? (isp->isp_fwattr & ISP2400_FW_ATTR_VP0) : 0)
 
 /*
  * This is true manifestly or is dependent on a f/w attribute
@@ -927,7 +930,7 @@ typedef struct {
 #define	ICBOPT_BOTH_WWNS	0x4000
 #define	ICBOPT_FULL_LOGIN	0x2000
 #define	ICBOPT_STOP_ON_QFULL	0x1000	/* 2200/2100 only */
-#define	ICBOPT_PREVLOOP		0x0800
+#define	ICBOPT_PREV_ADDRESS	0x0800
 #define	ICBOPT_SRCHDOWN		0x0400
 #define	ICBOPT_NOLIP		0x0200
 #define	ICBOPT_PDBCHANGE_AE	0x0100
@@ -981,7 +984,7 @@ typedef struct {
 /* 2400 F/W options */
 #define	ICB2400_OPT1_BOTH_WWNS		0x00004000
 #define	ICB2400_OPT1_FULL_LOGIN		0x00002000
-#define	ICB2400_OPT1_PREVLOOP		0x00000800
+#define	ICB2400_OPT1_PREV_ADDRESS	0x00000800
 #define	ICB2400_OPT1_SRCHDOWN		0x00000400
 #define	ICB2400_OPT1_NOLIP		0x00000200
 #define	ICB2400_OPT1_INI_DISABLE	0x00000020
@@ -1143,7 +1146,7 @@ typedef struct {
 #define	ICB2400_VPOPT_INI_ENABLE	0x00000010	/* Initiator Mode Enabled */
 #define	ICB2400_VPOPT_ENABLED		0x00000008	/* VP Enabled */
 #define	ICB2400_VPOPT_NOPLAY		0x00000004	/* ID Not Acquired */
-#define	ICB2400_VPOPT_PREVLOOP		0x00000002	/* Previously Assigned ID */
+#define	ICB2400_VPOPT_PREV_ADDRESS	0x00000002	/* Previously Assigned ID */
 #define	ICB2400_VPOPT_HARD_ADDRESS	0x00000001	/* Hard Assigned ID */
 
 #define	ICB2400_VPOPT_WRITE_SIZE	20
@@ -1176,14 +1179,16 @@ typedef struct {
 	uint16_t	vp_ctrl_status;
 	uint16_t	vp_ctrl_command;
 	uint16_t	vp_ctrl_vp_count;
-	uint16_t	vp_ctrl_idmap[8];
-	uint8_t		vp_ctrl_reserved[32];
+	uint16_t	vp_ctrl_idmap[16];
+	uint16_t	vp_ctrl_reserved[7];
+	uint16_t	vp_ctrl_fcf_index;
 } vp_ctrl_info_t;
 
-#define	VP_CTRL_CMD_ENABLE_VP			0
-#define	VP_CTRL_CMD_DISABLE_VP			8
-#define	VP_CTRL_CMD_DISABLE_VP_REINIT_LINK	9
-#define	VP_CTRL_CMD_DISABLE_VP_LOGO		0xA
+#define	VP_CTRL_CMD_ENABLE_VP			0x00
+#define	VP_CTRL_CMD_DISABLE_VP			0x08
+#define	VP_CTRL_CMD_DISABLE_VP_REINIT_LINK	0x09
+#define	VP_CTRL_CMD_DISABLE_VP_LOGO		0x0A
+#define	VP_CTRL_CMD_DISABLE_VP_LOGO_ALL		0x0B
 
 /*
  * We can use this structure for modifying either one or two VP ports after initialization
@@ -1406,7 +1411,7 @@ typedef struct {
 #define	PLOGX_IOCBERR_FAILED	0x04	/* further info in IOPARM 1 */
 #define	PLOGX_IOCBERR_NOFABRIC	0x05
 #define	PLOGX_IOCBERR_NOTREADY	0x07
-#define	PLOGX_IOCBERR_NOLOGIN	0x08	/* further info in IOPARM 1 */
+#define	PLOGX_IOCBERR_NOLOGIN	0x09	/* further info in IOPARM 1 */
 #define	PLOGX_IOCBERR_NOPCB	0x0a
 #define	PLOGX_IOCBERR_REJECT	0x18	/* further info in IOPARM 1 */
 #define	PLOGX_IOCBERR_EINVAL	0x19	/* further info in IOPARM 1 */

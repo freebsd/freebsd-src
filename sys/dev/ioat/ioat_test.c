@@ -123,11 +123,26 @@ test_transaction *ioat_test_transaction_create(unsigned num_buffers,
 static bool
 ioat_compare_ok(struct test_transaction *tx)
 {
-	uint32_t i;
+	struct ioat_test *test;
+	char *dst, *src;
+	uint32_t i, j;
+
+	test = tx->test;
 
 	for (i = 0; i < tx->depth; i++) {
-		if (memcmp(tx->buf[2*i], tx->buf[2*i+1], tx->length) != 0)
-			return (false);
+		dst = tx->buf[2 * i + 1];
+		src = tx->buf[2 * i];
+
+		if (test->testkind == IOAT_TEST_FILL) {
+			for (j = 0; j < tx->length; j += sizeof(uint64_t)) {
+				if (memcmp(src, &dst[j],
+					MIN(sizeof(uint64_t), tx->length - j))
+				    != 0)
+					return (false);
+			}
+		} else if (test->testkind == IOAT_TEST_DMA)
+			if (memcmp(src, dst, tx->length) != 0)
+				return (false);
 	}
 	return (true);
 }
@@ -208,7 +223,10 @@ ioat_test_submit_1_tx(struct ioat_test *test, bus_dmaengine_t dma)
 	struct bus_dmadesc *desc;
 	bus_dmaengine_callback_t cb;
 	bus_addr_t src, dest;
+	uint64_t fillpattern;
 	uint32_t i, flags;
+
+	desc = NULL;
 
 	IT_LOCK();
 	while (TAILQ_EMPTY(&test->free_q))
@@ -232,7 +250,15 @@ ioat_test_submit_1_tx(struct ioat_test *test, bus_dmaengine_t dma)
 			flags = 0;
 		}
 
-		desc = ioat_copy(dma, src, dest, tx->length, cb, tx, flags);
+		if (test->testkind == IOAT_TEST_DMA)
+			desc = ioat_copy(dma, dest, src, tx->length, cb, tx,
+			    flags);
+		else if (test->testkind == IOAT_TEST_FILL) {
+			fillpattern = *(uint64_t *)tx->buf[2*i];
+			desc = ioat_blockfill(dma, dest, fillpattern,
+			    tx->length, cb, tx, flags);
+		}
+
 		if (desc == NULL)
 			panic("Failed to allocate a ring slot "
 			    "-- this shouldn't happen!");
@@ -279,11 +305,27 @@ ioat_dma_test(void *arg)
 		return;
 	}
 
+	if (test->testkind >= IOAT_NUM_TESTKINDS) {
+		ioat_test_log(0, "Invalid kind %u\n",
+		    (unsigned)test->testkind);
+		test->status[IOAT_TEST_INVALID_INPUT]++;
+		return;
+	}
+
 	dmaengine = ioat_get_dmaengine(test->channel_index);
 	if (dmaengine == NULL) {
 		ioat_test_log(0, "Couldn't acquire dmaengine\n");
 		test->status[IOAT_TEST_NO_DMA_ENGINE]++;
 		return;
+	}
+
+	if (test->testkind == IOAT_TEST_FILL &&
+	    (to_ioat_softc(dmaengine)->capabilities & IOAT_DMACAP_BFILL) == 0)
+	{
+		ioat_test_log(0,
+		    "Hardware doesn't support block fill, aborting test\n");
+		test->status[IOAT_TEST_INVALID_INPUT]++;
+		goto out;
 	}
 
 	index = g_thread_index++;
@@ -299,7 +341,7 @@ ioat_dma_test(void *arg)
 	rc = ioat_test_prealloc_memory(test, index);
 	if (rc != 0) {
 		ioat_test_log(0, "prealloc_memory: %d\n", rc);
-		return;
+		goto out;
 	}
 	wmb();
 
@@ -330,6 +372,8 @@ ioat_dma_test(void *arg)
 	    ticks - start, ticks - end, (ticks - start) / hz);
 
 	ioat_test_release_memory(test);
+out:
+	ioat_put_dmaengine(dmaengine);
 }
 
 static int

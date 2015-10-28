@@ -244,16 +244,13 @@ typedef struct {
 #define	SNS_ID			0x80	/* SNS Server Special ID */
 #define	NPH_MAX			0xfe
 
-/* Use this handle for the base for multi-id firmware SNS logins */
-#define	NPH_SNS_HDLBASE		0x400
-
 /* These are for 2K Login Firmware cards */
 #define	NPH_RESERVED		0x7F0	/* begin of reserved N-port handles */
 #define	NPH_MGT_ID		0x7FA	/* Management Server Special ID */
 #define	NPH_SNS_ID		0x7FC	/* SNS Server Special ID */
 #define	NPH_FABRIC_CTLR		0x7FD	/* Fabric Controller (0xFFFFFD) */
 #define	NPH_FL_ID		0x7FE	/* F Port Special ID (0xFFFFFE) */
-#define	NPH_IP_BCST		0x7ff	/* IP Broadcast Special ID (0xFFFFFF) */
+#define	NPH_IP_BCST		0x7FF	/* IP Broadcast Special ID (0xFFFFFF) */
 #define	NPH_MAX_2K		0x800
 
 /*

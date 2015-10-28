@@ -29,7 +29,8 @@ __FBSDID("$FreeBSD$");
 #ifndef __IOAT_INTERNAL_H__
 #define __IOAT_INTERNAL_H__
 
-#define DEVICE2SOFTC(dev) ((struct ioat_softc *) device_get_softc(dev))
+#define	DEVICE2SOFTC(dev)	((struct ioat_softc *) device_get_softc(dev))
+#define	KTR_IOAT		KTR_SPARE3
 
 #define	ioat_read_chancnt(ioat) \
 	ioat_read_1((ioat), IOAT_CHANCNT_OFFSET)
@@ -121,10 +122,39 @@ SYSCTL_DECL(_hw_ioat);
 
 extern int g_ioat_debug_level;
 
+struct generic_dma_control {
+	uint32_t int_enable:1;
+	uint32_t src_snoop_disable:1;
+	uint32_t dest_snoop_disable:1;
+	uint32_t completion_update:1;
+	uint32_t fence:1;
+	uint32_t reserved1:1;
+	uint32_t src_page_break:1;
+	uint32_t dest_page_break:1;
+	uint32_t bundle:1;
+	uint32_t dest_dca:1;
+	uint32_t hint:1;
+	uint32_t reserved2:13;
+	uint32_t op:8;
+};
+
+struct ioat_generic_hw_descriptor {
+	uint32_t size;
+	union {
+		uint32_t control_raw;
+		struct generic_dma_control control_generic;
+	} u;
+	uint64_t src_addr;
+	uint64_t dest_addr;
+	uint64_t next;
+	uint64_t reserved[4];
+};
+
 struct ioat_dma_hw_descriptor {
 	uint32_t size;
 	union {
 		uint32_t control_raw;
+		struct generic_dma_control control_generic;
 		struct {
 			uint32_t int_enable:1;
 			uint32_t src_snoop_disable:1;
@@ -155,6 +185,7 @@ struct ioat_fill_hw_descriptor {
 	uint32_t size;
 	union {
 		uint32_t control_raw;
+		struct generic_dma_control control_generic;
 		struct {
 			uint32_t int_enable:1;
 			uint32_t reserved:1;
@@ -182,6 +213,7 @@ struct ioat_xor_hw_descriptor {
 	uint32_t size;
 	union {
 		uint32_t control_raw;
+		struct generic_dma_control control_generic;
 		struct {
 			uint32_t int_enable:1;
 			uint32_t src_snoop_disable:1;
@@ -219,6 +251,7 @@ struct ioat_pq_hw_descriptor {
 	uint32_t size;
 	union {
 		uint32_t control_raw;
+		struct generic_dma_control control_generic;
 		struct {
 			uint32_t int_enable:1;
 			uint32_t src_snoop_disable:1;
@@ -260,6 +293,7 @@ struct ioat_pq_update_hw_descriptor {
 	uint32_t size;
 	union {
 		uint32_t control_raw;
+		struct generic_dma_control control_generic;
 		struct {
 			uint32_t int_enable:1;
 			uint32_t src_snoop_disable:1;
@@ -299,6 +333,7 @@ struct bus_dmadesc {
 struct ioat_descriptor {
 	struct bus_dmadesc	bus_dmadesc;
 	union {
+		struct ioat_generic_hw_descriptor	*generic;
 		struct ioat_dma_hw_descriptor		*dma;
 		struct ioat_fill_hw_descriptor		*fill;
 		struct ioat_xor_hw_descriptor		*xor;
@@ -311,6 +346,12 @@ struct ioat_descriptor {
 	uint32_t		length;
 	enum validate_flags	*validate_result;
 	bus_addr_t		hw_desc_bus_addr;
+};
+
+enum ioat_ref_kind {
+	IOAT_DMAENGINE_REF = 0,
+	IOAT_ACTIVE_DESCR_REF,
+	IOAT_NUM_REF_KINDS
 };
 
 /* One of these per allocated PCI device. */
@@ -326,13 +367,13 @@ struct ioat_softc {
 	int			version;
 
 	struct mtx		submit_lock;
-	int			num_interrupts;
 	device_t		device;
 	bus_space_tag_t		pci_bus_tag;
 	bus_space_handle_t	pci_bus_handle;
 	int			pci_resource_id;
 	struct resource		*pci_resource;
 	uint32_t		max_xfer_size;
+	uint32_t		capabilities;
 
 	struct resource		*res;
 	int			rid;
@@ -352,18 +393,20 @@ struct ioat_softc {
 	boolean_t		is_completion_pending;
 	boolean_t		is_reset_pending;
 	boolean_t		is_channel_running;
-	boolean_t		is_waiting_for_ack;
 
-	uint32_t		xfercap_log;
 	uint32_t		head;
 	uint32_t		tail;
-	uint16_t		reserved;
+	uint32_t		hw_head;
 	uint32_t		ring_size_order;
 	bus_addr_t		last_seen;
 
 	struct ioat_descriptor	**ring;
 
 	struct mtx		cleanup_lock;
+	volatile uint32_t	refcnt;
+#ifdef INVARIANTS
+	volatile uint32_t	refkinds[IOAT_NUM_REF_KINDS];
+#endif
 };
 
 void ioat_test_attach(void);

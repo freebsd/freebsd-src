@@ -183,7 +183,8 @@ static struct mbuf *	urtwn_rx_frame(struct urtwn_softc *, uint8_t *, int,
 			    int *);
 static struct mbuf *	urtwn_rxeof(struct usb_xfer *, struct urtwn_data *,
 			    int *, int8_t *);
-static void		urtwn_txeof(struct usb_xfer *, struct urtwn_data *);
+static void		urtwn_txeof(struct urtwn_softc *, struct urtwn_data *,
+			    int);
 static int		urtwn_alloc_list(struct urtwn_softc *,
 			    struct urtwn_data[], int, int);
 static int		urtwn_alloc_rx_list(struct urtwn_softc *);
@@ -263,6 +264,8 @@ static void		urtwn_r88e_get_txpower(struct urtwn_softc *, int,
 static void		urtwn_set_txpower(struct urtwn_softc *,
 		    	    struct ieee80211_channel *,
 			    struct ieee80211_channel *);
+static void		urtwn_set_rx_bssid_all(struct urtwn_softc *, int);
+static void		urtwn_set_gain(struct urtwn_softc *, uint8_t);
 static void		urtwn_scan_start(struct ieee80211com *);
 static void		urtwn_scan_end(struct ieee80211com *);
 static void		urtwn_set_channel(struct ieee80211com *);
@@ -625,7 +628,8 @@ urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
 		counter_u64_add(ic->ic_ierrors, 1);
 		return (NULL);
 	}
-	if (pktlen < sizeof(*wh) || pktlen > MCLBYTES) {
+	if (pktlen < sizeof(struct ieee80211_frame_ack) ||
+	    pktlen > MCLBYTES) {
 		counter_u64_add(ic->ic_ierrors, 1);
 		return (NULL);
 	}
@@ -743,7 +747,7 @@ urtwn_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct urtwn_softc *sc = usbd_xfer_softc(xfer);
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211_frame *wh;
+	struct ieee80211_frame_min *wh;
 	struct ieee80211_node *ni;
 	struct mbuf *m = NULL, *next;
 	struct urtwn_data *data;
@@ -783,9 +787,11 @@ tr_setup:
 		while (m != NULL) {
 			next = m->m_next;
 			m->m_next = NULL;
-			wh = mtod(m, struct ieee80211_frame *);
-			ni = ieee80211_find_rxnode(ic,
-			    (struct ieee80211_frame_min *)wh);
+			wh = mtod(m, struct ieee80211_frame_min *);
+			if (m->m_len >= sizeof(*wh))
+				ni = ieee80211_find_rxnode(ic, wh);
+			else
+				ni = NULL;
 			nf = URTWN_NOISE_FLOOR;
 			if (ni != NULL) {
 				(void)ieee80211_input(ni, m, rssi - nf, nf);
@@ -815,16 +821,19 @@ tr_setup:
 }
 
 static void
-urtwn_txeof(struct usb_xfer *xfer, struct urtwn_data *data)
+urtwn_txeof(struct urtwn_softc *sc, struct urtwn_data *data, int status)
 {
-	struct urtwn_softc *sc = usbd_xfer_softc(xfer);
 
 	URTWN_ASSERT_LOCKED(sc);
-	/* XXX status? */
-	ieee80211_tx_complete(data->ni, data->m, 0);
+
+	ieee80211_tx_complete(data->ni, data->m, status);
+
 	data->ni = NULL;
 	data->m = NULL;
+
 	sc->sc_txtimer = 0;
+
+	STAILQ_INSERT_TAIL(&sc->sc_tx_inactive, data, next);
 }
 
 static int
@@ -937,8 +946,7 @@ urtwn_bulk_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (data == NULL)
 			goto tr_setup;
 		STAILQ_REMOVE_HEAD(&sc->sc_tx_active, next);
-		urtwn_txeof(xfer, data);
-		STAILQ_INSERT_TAIL(&sc->sc_tx_inactive, data, next);
+		urtwn_txeof(sc, data, 0);
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
@@ -956,12 +964,8 @@ tr_setup:
 		data = STAILQ_FIRST(&sc->sc_tx_active);
 		if (data == NULL)
 			goto tr_setup;
-		if (data->ni != NULL) {
-			if_inc_counter(data->ni->ni_vap->iv_ifp,
-			    IFCOUNTER_OERRORS, 1);
-			ieee80211_free_node(data->ni);
-			data->ni = NULL;
-		}
+		STAILQ_REMOVE_HEAD(&sc->sc_tx_active, next);
+		urtwn_txeof(sc, data, 1);
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
@@ -1542,7 +1546,6 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	struct urtwn_softc *sc = ic->ic_softc;
 	struct ieee80211_node *ni;
 	enum ieee80211_state ostate;
-	uint32_t reg;
 
 	ostate = vap->iv_state;
 	DPRINTF("%s -> %s\n", ieee80211_state_name[ostate],
@@ -1583,38 +1586,11 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		urtwn_set_led(sc, URTWN_LED_LINK, 0);
 		break;
 	case IEEE80211_S_SCAN:
-		if (ostate != IEEE80211_S_SCAN) {
-			/* Allow Rx from any BSSID. */
-			urtwn_write_4(sc, R92C_RCR,
-			    urtwn_read_4(sc, R92C_RCR) &
-			    ~(R92C_RCR_CBSSID_DATA | R92C_RCR_CBSSID_BCN));
-
-			/* Set gain for scanning. */
-			reg = urtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(0));
-			reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, 0x20);
-			urtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(0), reg);
-
-			if (!(sc->chip & URTWN_CHIP_88E)) {
-				reg = urtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(1));
-				reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, 0x20);
-				urtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(1), reg);
-			}
-		}
 		/* Pause AC Tx queues. */
 		urtwn_write_1(sc, R92C_TXPAUSE,
 		    urtwn_read_1(sc, R92C_TXPAUSE) | 0x0f);
 		break;
 	case IEEE80211_S_AUTH:
-		/* Set initial gain under link. */
-		reg = urtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(0));
-		reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, 0x32);
-		urtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(0), reg);
-
-		if (!(sc->chip & URTWN_CHIP_88E)) {
-			reg = urtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(1));
-			reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, 0x32);
-			urtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(1), reg);
-		}
 		urtwn_set_chan(sc, ic->ic_curchan, NULL);
 		break;
 	case IEEE80211_S_RUN:
@@ -3077,15 +3053,58 @@ urtwn_set_txpower(struct urtwn_softc *sc, struct ieee80211_channel *c,
 }
 
 static void
+urtwn_set_rx_bssid_all(struct urtwn_softc *sc, int enable)
+{
+	uint32_t reg;
+
+	reg = urtwn_read_4(sc, R92C_RCR);
+	if (enable)
+		reg &= ~R92C_RCR_CBSSID_BCN;
+	else
+		reg |= R92C_RCR_CBSSID_BCN;
+	urtwn_write_4(sc, R92C_RCR, reg);
+}
+
+static void
+urtwn_set_gain(struct urtwn_softc *sc, uint8_t gain)
+{
+	uint32_t reg;
+
+	reg = urtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(0));
+	reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, gain);
+	urtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(0), reg);
+
+	if (!(sc->chip & URTWN_CHIP_88E)) {
+		reg = urtwn_bb_read(sc, R92C_OFDM0_AGCCORE1(1));
+		reg = RW(reg, R92C_OFDM0_AGCCORE1_GAIN, gain);
+		urtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(1), reg);
+	}
+}
+
+static void
 urtwn_scan_start(struct ieee80211com *ic)
 {
-	/* XXX do nothing?  */
+	struct urtwn_softc *sc = ic->ic_softc;
+
+	URTWN_LOCK(sc);
+	/* Receive beacons / probe responses from any BSSID. */
+	urtwn_set_rx_bssid_all(sc, 1);
+	/* Set gain for scanning. */
+	urtwn_set_gain(sc, 0x20);
+	URTWN_UNLOCK(sc);
 }
 
 static void
 urtwn_scan_end(struct ieee80211com *ic)
 {
-	/* XXX do nothing?  */
+	struct urtwn_softc *sc = ic->ic_softc;
+
+	URTWN_LOCK(sc);
+	/* Restore limitations. */
+	urtwn_set_rx_bssid_all(sc, 0);
+	/* Set gain under link. */
+	urtwn_set_gain(sc, 0x32);
+	URTWN_UNLOCK(sc);
 }
 
 static void
