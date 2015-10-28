@@ -92,8 +92,7 @@ fopen(const char * __restrict file, const char * __restrict mode)
 	 * fseek and ftell.)
 	 */
 	if (oflags & O_APPEND) {
-		/* XXX: Reuse __SALC for O_APPEND. */
-		fp->_flags |= __SALC;
+		fp->_flags2 |= __S2OAP;
 		(void)_sseek(fp, (fpos_t)0, SEEK_END);
 	}
 	return (fp);

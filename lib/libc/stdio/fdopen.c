@@ -91,9 +91,8 @@ fdopen(int fd, const char *mode)
 	 * O_APPEND bit set, assert __SAPP so that __swrite() caller
 	 * will _sseek() to the end before write.
 	 */
-	/* XXX: Reuse __SALC for O_APPEND. */
 	if (fdflags & O_APPEND)
-		fp->_flags |= __SALC;
+		fp->_flags2 |= __S2OAP;
 	else if (oflags & O_APPEND)
 		fp->_flags |= __SAPP;
 	fp->_file = fd;
