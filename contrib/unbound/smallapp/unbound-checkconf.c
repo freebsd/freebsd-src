@@ -53,7 +53,7 @@
 #include "iterator/iter_hints.h"
 #include "validator/validator.h"
 #include "services/localzone.h"
-#include "ldns/sbuffer.h"
+#include "sldns/sbuffer.h"
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
 #endif

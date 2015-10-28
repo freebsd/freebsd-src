@@ -25,6 +25,7 @@
  *
  *	$FreeBSD$
  */
+#include "libc_private.h"
 
 void
 _set_tp(void *tpval)

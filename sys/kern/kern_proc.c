@@ -181,9 +181,9 @@ proc_ctor(void *mem, int size, void *arg, int flags)
 	struct proc *p;
 
 	p = (struct proc *)mem;
-	SDT_PROBE(proc, kernel, ctor , entry, p, size, arg, flags, 0);
+	SDT_PROBE4(proc, kernel, ctor , entry, p, size, arg, flags);
 	EVENTHANDLER_INVOKE(process_ctor, p);
-	SDT_PROBE(proc, kernel, ctor , return, p, size, arg, flags, 0);
+	SDT_PROBE4(proc, kernel, ctor , return, p, size, arg, flags);
 	return (0);
 }
 
@@ -199,7 +199,7 @@ proc_dtor(void *mem, int size, void *arg)
 	/* INVARIANTS checks go here */
 	p = (struct proc *)mem;
 	td = FIRST_THREAD_IN_PROC(p);
-	SDT_PROBE(proc, kernel, dtor, entry, p, size, arg, td, 0);
+	SDT_PROBE4(proc, kernel, dtor, entry, p, size, arg, td);
 	if (td != NULL) {
 #ifdef INVARIANTS
 		KASSERT((p->p_numthreads == 1),
@@ -212,7 +212,7 @@ proc_dtor(void *mem, int size, void *arg)
 	EVENTHANDLER_INVOKE(process_dtor, p);
 	if (p->p_ksi != NULL)
 		KASSERT(! KSI_ONQ(p->p_ksi), ("SIGCHLD queue"));
-	SDT_PROBE(proc, kernel, dtor, return, p, size, arg, 0, 0);
+	SDT_PROBE3(proc, kernel, dtor, return, p, size, arg);
 }
 
 /*
@@ -224,7 +224,7 @@ proc_init(void *mem, int size, int flags)
 	struct proc *p;
 
 	p = (struct proc *)mem;
-	SDT_PROBE(proc, kernel, init, entry, p, size, flags, 0, 0);
+	SDT_PROBE3(proc, kernel, init, entry, p, size, flags);
 	p->p_sched = (struct p_sched *)&p[1];
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK | MTX_NEW);
 	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN | MTX_NEW);
@@ -236,7 +236,7 @@ proc_init(void *mem, int size, int flags)
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 	EVENTHANDLER_INVOKE(process_init, p);
 	p->p_stats = pstats_alloc();
-	SDT_PROBE(proc, kernel, init, return, p, size, flags, 0, 0);
+	SDT_PROBE3(proc, kernel, init, return, p, size, flags);
 	return (0);
 }
 
@@ -694,7 +694,7 @@ orphanpg(pg)
 
 	LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 		PROC_LOCK(p);
-		if (P_SHOULDSTOP(p)) {
+		if (P_SHOULDSTOP(p) == P_STOPPED_SIG) {
 			PROC_UNLOCK(p);
 			LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 				PROC_LOCK(p);
@@ -2252,7 +2252,7 @@ next:;
  * Must be called with the process locked and will return unlocked.
  */
 int
-kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
+kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 {
 	vm_map_entry_t entry, tmp_entry;
 	struct vattr va;
@@ -2276,7 +2276,7 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 		PRELE(p);
 		return (ESRCH);
 	}
-	kve = malloc(sizeof(*kve), M_TEMP, M_WAITOK);
+	kve = malloc(sizeof(*kve), M_TEMP, M_WAITOK | M_ZERO);
 
 	error = 0;
 	map = &vm->vm_map;
@@ -2411,10 +2411,23 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 			free(freepath, M_TEMP);
 
 		/* Pack record size down */
-		kve->kve_structsize = offsetof(struct kinfo_vmentry, kve_path) +
-		    strlen(kve->kve_path) + 1;
+		if ((flags & KERN_VMMAP_PACK_KINFO) != 0)
+			kve->kve_structsize =
+			    offsetof(struct kinfo_vmentry, kve_path) +
+			    strlen(kve->kve_path) + 1;
+		else
+			kve->kve_structsize = sizeof(*kve);
 		kve->kve_structsize = roundup(kve->kve_structsize,
 		    sizeof(uint64_t));
+
+		/* Halt filling and truncate rather than exceeding maxlen */
+		if (maxlen != -1 && maxlen < kve->kve_structsize) {
+			error = 0;
+			vm_map_lock_read(map);
+			break;
+		} else if (maxlen != -1)
+			maxlen -= kve->kve_structsize;
+
 		if (sbuf_bcat(sb, kve, kve->kve_structsize) != 0)
 			error = ENOMEM;
 		vm_map_lock_read(map);
@@ -2447,7 +2460,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 		sbuf_delete(&sb);
 		return (error);
 	}
-	error = kern_proc_vmmap_out(p, &sb);
+	error = kern_proc_vmmap_out(p, &sb, -1, KERN_VMMAP_PACK_KINFO);
 	error2 = sbuf_finish(&sb);
 	sbuf_delete(&sb);
 	return (error != 0 ? error : error2);
@@ -2517,11 +2530,14 @@ repeat:
 		    sizeof(kkstp->kkst_trace), SBUF_FIXEDLEN);
 		thread_lock(td);
 		kkstp->kkst_tid = td->td_tid;
-		if (TD_IS_SWAPPED(td))
+		if (TD_IS_SWAPPED(td)) {
 			kkstp->kkst_state = KKST_STATE_SWAPPED;
-		else if (TD_IS_RUNNING(td))
-			kkstp->kkst_state = KKST_STATE_RUNNING;
-		else {
+		} else if (TD_IS_RUNNING(td)) {
+			if (stack_save_td_running(st, td) == 0)
+				kkstp->kkst_state = KKST_STATE_STACKOK;
+			else
+				kkstp->kkst_state = KKST_STATE_RUNNING;
+		} else {
 			kkstp->kkst_state = KKST_STATE_STACKOK;
 			stack_save_td(st, td);
 		}

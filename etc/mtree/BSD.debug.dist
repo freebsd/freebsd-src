@@ -9,12 +9,16 @@
         bin
         ..
         boot
+            kernel
+            ..
         ..
         lib
             geom
             ..
         ..
         libexec
+            casper
+            ..
         ..
         sbin
         ..
@@ -23,7 +27,7 @@
             ..
             lib
                 clang
-                    3.6.1
+                    3.7.0
                         lib
                             freebsd
                             ..
@@ -32,12 +36,6 @@
                 ..
                 engines
                 ..
-                i18n
-                ..
-                private
-                ..
-            ..
-            lib32
                 i18n
                 ..
                 private
@@ -56,6 +54,8 @@
                 ..
             ..
             sbin
+            ..
+            tests
             ..
         ..
     ..

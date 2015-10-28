@@ -1,4 +1,4 @@
-# $Id: meta.sys.mk,v 1.21 2015/06/01 22:43:49 sjg Exp $
+# $Id: meta.sys.mk,v 1.22 2015/06/16 06:31:05 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -20,6 +20,10 @@
 .if ${MAKE_VERSION:U0} > 20100901
 .if !target(.ERROR)
 
+.-include "local.meta.sys.mk"
+
+# absoulte path to what we are reading.
+_PARSEDIR = ${.PARSEDIR:tA}
 
 META_MODE += meta verbose
 .MAKE.MODE ?= ${META_MODE}
@@ -69,6 +73,7 @@ MACHINE = host
 # for example, if using Makefild.depend for multiple machines,
 # allowing only MACHINE0 to update can keep things simple.
 MACHINE0 := ${MACHINE}
+.export MACHINE0
 
 .if defined(PYTHON) && exists(${PYTHON})
 # we prefer the python version of this - it is much faster

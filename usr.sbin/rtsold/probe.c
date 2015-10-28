@@ -80,12 +80,6 @@ probe_init(void)
 		return (-1);
 	}
 
-	/* make the socket send-only */
-	if (shutdown(probesock, 0)) {
-		warnmsg(LOG_ERR, __func__, "shutdown: %s", strerror(errno));
-		return (-1);
-	}
-
 	/* initialize msghdr for sending packets */
 	sndmhdr.msg_namelen = sizeof(struct sockaddr_in6);
 	sndmhdr.msg_iov = sndiov;

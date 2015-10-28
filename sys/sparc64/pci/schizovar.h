@@ -39,16 +39,27 @@ struct schizo_iommu_state {
 };
 
 struct schizo_softc {
-	struct bus_dma_methods          sc_dma_methods;
+	/*
+	 * This is here so that we can hook up the common bus interface
+	 * methods in ofw_pci.c directly.
+	 */
+	struct ofw_pci_softc		sc_ops;
 
-	device_t			sc_dev;
+	struct schizo_iommu_state	sc_is;
+	struct bus_dma_methods          sc_dma_methods;
 
 	struct mtx			sc_sync_mtx;
 	uint64_t			sc_sync_val;
 
 	struct mtx			*sc_mtx;
 
-	phandle_t			sc_node;
+	struct resource			*sc_mem_res[TOM_NREG];
+	struct resource			*sc_irq_res[STX_NINTR];
+	void				*sc_ihand[STX_NINTR];
+
+	SLIST_ENTRY(schizo_softc)	sc_link;
+
+	device_t			sc_dev;
 
 	u_int				sc_mode;
 #define	SCHIZO_MODE_SCZ			0
@@ -72,28 +83,8 @@ struct schizo_softc {
 	uint32_t			sc_ver;
 	uint32_t			sc_mrev;
 
-	struct resource			*sc_mem_res[TOM_NREG];
-	struct resource			*sc_irq_res[STX_NINTR];
-	void				*sc_ihand[STX_NINTR];
-
-	struct schizo_iommu_state	sc_is;
-
-	struct rman			sc_pci_mem_rman;
-	struct rman			sc_pci_io_rman;
-	bus_space_handle_t		sc_pci_bh[STX_NRANGE];
-	bus_space_tag_t			sc_pci_cfgt;
-	bus_space_tag_t			sc_pci_iot;
-	bus_dma_tag_t			sc_pci_dmat;
-
 	uint32_t			sc_stats_dma_ce;
 	uint32_t			sc_stats_pci_non_fatal;
-
-	uint8_t				sc_pci_secbus;
-	uint8_t				sc_pci_subbus;
-
-	struct ofw_bus_iinfo		sc_pci_iinfo;
-
-	SLIST_ENTRY(schizo_softc)	sc_link;
 };
 
 #endif /* !_SPARC64_PCI_SCHIZOVAR_H_ */

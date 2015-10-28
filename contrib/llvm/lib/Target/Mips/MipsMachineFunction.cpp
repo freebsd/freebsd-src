@@ -7,10 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MipsMachineFunction.h"
 #include "MCTargetDesc/MipsBaseInfo.h"
 #include "MipsInstrInfo.h"
+#include "MipsMachineFunction.h"
 #include "MipsSubtarget.h"
+#include "MipsTargetMachine.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/IR/Function.h"
@@ -59,15 +60,7 @@ void MipsCallEntry::printCustom(raw_ostream &O) const {
 #endif
 }
 
-MipsFunctionInfo::~MipsFunctionInfo() {
-  for (StringMap<const MipsCallEntry *>::iterator
-       I = ExternalCallEntries.begin(), E = ExternalCallEntries.end(); I != E;
-       ++I)
-    delete I->getValue();
-
-  for (const auto &Entry : GlobalCallEntries)
-    delete Entry.second;
-}
+MipsFunctionInfo::~MipsFunctionInfo() {}
 
 bool MipsFunctionInfo::globalBaseRegSet() const {
   return GlobalBaseReg;
@@ -78,12 +71,19 @@ unsigned MipsFunctionInfo::getGlobalBaseReg() {
   if (GlobalBaseReg)
     return GlobalBaseReg;
 
-  const MipsSubtarget &ST = MF.getTarget().getSubtarget<MipsSubtarget>();
+  MipsSubtarget const &STI =
+      static_cast<const MipsSubtarget &>(MF.getSubtarget());
 
   const TargetRegisterClass *RC =
-    ST.inMips16Mode() ? &Mips::CPU16RegsRegClass
-                      : ST.isABI_N64() ? &Mips::GPR64RegClass
-                                       : &Mips::GPR32RegClass;
+      STI.inMips16Mode()
+          ? &Mips::CPU16RegsRegClass
+          : STI.inMicroMipsMode()
+                ? &Mips::GPRMM16RegClass
+                : static_cast<const MipsTargetMachine &>(MF.getTarget())
+                          .getABI()
+                          .IsN64()
+                      ? &Mips::GPR64RegClass
+                      : &Mips::GPR32RegClass;
   return GlobalBaseReg = MF.getRegInfo().createVirtualRegister(RC);
 }
 
@@ -101,9 +101,10 @@ unsigned MipsFunctionInfo::getMips16SPAliasReg() {
 
 void MipsFunctionInfo::createEhDataRegsFI() {
   for (int I = 0; I < 4; ++I) {
-    const MipsSubtarget &ST = MF.getTarget().getSubtarget<MipsSubtarget>();
-    const TargetRegisterClass *RC = ST.isABI_N64() ?
-        &Mips::GPR64RegClass : &Mips::GPR32RegClass;
+    const TargetRegisterClass *RC =
+        static_cast<const MipsTargetMachine &>(MF.getTarget()).getABI().IsN64()
+            ? &Mips::GPR64RegClass
+            : &Mips::GPR32RegClass;
 
     EhDataRegFI[I] = MF.getFrameInfo()->CreateStackObject(RC->getSize(),
         RC->getAlignment(), false);
@@ -116,21 +117,21 @@ bool MipsFunctionInfo::isEhDataRegFI(int FI) const {
 }
 
 MachinePointerInfo MipsFunctionInfo::callPtrInfo(StringRef Name) {
-  const MipsCallEntry *&E = ExternalCallEntries[Name];
+  std::unique_ptr<const MipsCallEntry> &E = ExternalCallEntries[Name];
 
   if (!E)
-    E = new MipsCallEntry(Name);
+    E = llvm::make_unique<MipsCallEntry>(Name);
 
-  return MachinePointerInfo(E);
+  return MachinePointerInfo(E.get());
 }
 
 MachinePointerInfo MipsFunctionInfo::callPtrInfo(const GlobalValue *Val) {
-  const MipsCallEntry *&E = GlobalCallEntries[Val];
+  std::unique_ptr<const MipsCallEntry> &E = GlobalCallEntries[Val];
 
   if (!E)
-    E = new MipsCallEntry(Val);
+    E = llvm::make_unique<MipsCallEntry>(Val);
 
-  return MachinePointerInfo(E);
+  return MachinePointerInfo(E.get());
 }
 
 int MipsFunctionInfo::getMoveF64ViaSpillFI(const TargetRegisterClass *RC) {

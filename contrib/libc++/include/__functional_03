@@ -333,7 +333,8 @@ template<class _Fp, class _Alloc, class _Rp>
 __base<_Rp()>*
 __func<_Fp, _Alloc, _Rp()>::__clone() const
 {
-    typedef typename _Alloc::template rebind<__func>::other _Ap;
+    typedef allocator_traits<_Alloc> __alloc_traits;
+    typedef typename __rebind_alloc_helper<__alloc_traits, __func>::type _Ap;
     _Ap __a(__f_.second());
     typedef __allocator_destructor<_Ap> _Dp;
     unique_ptr<__func, _Dp> __hold(__a.allocate(1), _Dp(__a, 1));
@@ -359,7 +360,8 @@ template<class _Fp, class _Alloc, class _Rp>
 void
 __func<_Fp, _Alloc, _Rp()>::destroy_deallocate()
 {
-    typedef typename _Alloc::template rebind<__func>::other _Ap;
+    typedef allocator_traits<_Alloc> __alloc_traits;
+    typedef typename __rebind_alloc_helper<__alloc_traits, __func>::type _Ap;
     _Ap __a(__f_.second());
     __f_.~__compressed_pair<_Fp, _Alloc>();
     __a.deallocate(this, 1);
@@ -369,7 +371,8 @@ template<class _Fp, class _Alloc, class _Rp>
 _Rp
 __func<_Fp, _Alloc, _Rp()>::operator()()
 {
-    return __invoke(__f_.first());
+    typedef __invoke_void_return_wrapper<_Rp> _Invoker;
+    return _Invoker::__call(__f_.first());
 }
 
 #ifndef _LIBCPP_NO_RTTI
@@ -416,7 +419,8 @@ template<class _Fp, class _Alloc, class _Rp, class _A0>
 __base<_Rp(_A0)>*
 __func<_Fp, _Alloc, _Rp(_A0)>::__clone() const
 {
-    typedef typename _Alloc::template rebind<__func>::other _Ap;
+    typedef allocator_traits<_Alloc> __alloc_traits;
+    typedef typename __rebind_alloc_helper<__alloc_traits, __func>::type _Ap;
     _Ap __a(__f_.second());
     typedef __allocator_destructor<_Ap> _Dp;
     unique_ptr<__func, _Dp> __hold(__a.allocate(1), _Dp(__a, 1));
@@ -442,7 +446,8 @@ template<class _Fp, class _Alloc, class _Rp, class _A0>
 void
 __func<_Fp, _Alloc, _Rp(_A0)>::destroy_deallocate()
 {
-    typedef typename _Alloc::template rebind<__func>::other _Ap;
+    typedef allocator_traits<_Alloc> __alloc_traits;
+    typedef typename __rebind_alloc_helper<__alloc_traits, __func>::type _Ap;
     _Ap __a(__f_.second());
     __f_.~__compressed_pair<_Fp, _Alloc>();
     __a.deallocate(this, 1);
@@ -452,7 +457,8 @@ template<class _Fp, class _Alloc, class _Rp, class _A0>
 _Rp
 __func<_Fp, _Alloc, _Rp(_A0)>::operator()(_A0 __a0)
 {
-    return __invoke(__f_.first(), __a0);
+    typedef __invoke_void_return_wrapper<_Rp> _Invoker;
+    return _Invoker::__call(__f_.first(), __a0);
 }
 
 #ifndef _LIBCPP_NO_RTTI
@@ -499,7 +505,8 @@ template<class _Fp, class _Alloc, class _Rp, class _A0, class _A1>
 __base<_Rp(_A0, _A1)>*
 __func<_Fp, _Alloc, _Rp(_A0, _A1)>::__clone() const
 {
-    typedef typename _Alloc::template rebind<__func>::other _Ap;
+    typedef allocator_traits<_Alloc> __alloc_traits;
+    typedef typename __rebind_alloc_helper<__alloc_traits, __func>::type _Ap;
     _Ap __a(__f_.second());
     typedef __allocator_destructor<_Ap> _Dp;
     unique_ptr<__func, _Dp> __hold(__a.allocate(1), _Dp(__a, 1));
@@ -525,7 +532,8 @@ template<class _Fp, class _Alloc, class _Rp, class _A0, class _A1>
 void
 __func<_Fp, _Alloc, _Rp(_A0, _A1)>::destroy_deallocate()
 {
-    typedef typename _Alloc::template rebind<__func>::other _Ap;
+    typedef allocator_traits<_Alloc> __alloc_traits;
+    typedef typename __rebind_alloc_helper<__alloc_traits, __func>::type _Ap;
     _Ap __a(__f_.second());
     __f_.~__compressed_pair<_Fp, _Alloc>();
     __a.deallocate(this, 1);
@@ -535,7 +543,8 @@ template<class _Fp, class _Alloc, class _Rp, class _A0, class _A1>
 _Rp
 __func<_Fp, _Alloc, _Rp(_A0, _A1)>::operator()(_A0 __a0, _A1 __a1)
 {
-    return __invoke(__f_.first(), __a0, __a1);
+    typedef __invoke_void_return_wrapper<_Rp> _Invoker;
+    return _Invoker::__call(__f_.first(), __a0, __a1);
 }
 
 #ifndef _LIBCPP_NO_RTTI
@@ -582,7 +591,8 @@ template<class _Fp, class _Alloc, class _Rp, class _A0, class _A1, class _A2>
 __base<_Rp(_A0, _A1, _A2)>*
 __func<_Fp, _Alloc, _Rp(_A0, _A1, _A2)>::__clone() const
 {
-    typedef typename _Alloc::template rebind<__func>::other _Ap;
+    typedef allocator_traits<_Alloc> __alloc_traits;
+    typedef typename __rebind_alloc_helper<__alloc_traits, __func>::type _Ap;
     _Ap __a(__f_.second());
     typedef __allocator_destructor<_Ap> _Dp;
     unique_ptr<__func, _Dp> __hold(__a.allocate(1), _Dp(__a, 1));
@@ -608,7 +618,8 @@ template<class _Fp, class _Alloc, class _Rp, class _A0, class _A1, class _A2>
 void
 __func<_Fp, _Alloc, _Rp(_A0, _A1, _A2)>::destroy_deallocate()
 {
-    typedef typename _Alloc::template rebind<__func>::other _Ap;
+    typedef allocator_traits<_Alloc> __alloc_traits;
+    typedef typename __rebind_alloc_helper<__alloc_traits, __func>::type _Ap;
     _Ap __a(__f_.second());
     __f_.~__compressed_pair<_Fp, _Alloc>();
     __a.deallocate(this, 1);
@@ -618,7 +629,8 @@ template<class _Fp, class _Alloc, class _Rp, class _A0, class _A1, class _A2>
 _Rp
 __func<_Fp, _Alloc, _Rp(_A0, _A1, _A2)>::operator()(_A0 __a0, _A1 __a1, _A2 __a2)
 {
-    return __invoke(__f_.first(), __a0, __a1, __a2);
+    typedef __invoke_void_return_wrapper<_Rp> _Invoker;
+    return _Invoker::__call(__f_.first(), __a0, __a1, __a2);
 }
 
 #ifndef _LIBCPP_NO_RTTI
@@ -790,17 +802,11 @@ function<_Rp()>::function(allocator_arg_t, const _Alloc& __a0, _Fp __f,
         if (sizeof(_FF) <= sizeof(__buf_))
         {
             __f_ = (__base*)&__buf_;
-            ::new (__f_) _FF(__f);
+            ::new (__f_) _FF(__f, __a0);
         }
         else
         {
-            typedef typename __alloc_traits::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-                rebind_alloc<_FF>
-#else
-                rebind_alloc<_FF>::other
-#endif
-                                                         _Ap;
+            typedef typename __rebind_alloc_helper<__alloc_traits, _FF>::type _Ap;
             _Ap __a(__a0);
             typedef __allocator_destructor<_Ap> _Dp;
             unique_ptr<__base, _Dp> __hold(__a.allocate(1), _Dp(__a, 1));
@@ -827,6 +833,7 @@ function<_Rp()>::operator=(nullptr_t)
     else if (__f_)
         __f_->destroy_deallocate();
     __f_ = 0;
+    return *this;
 }
 
 template<class _Rp>
@@ -1092,17 +1099,11 @@ function<_Rp(_A0)>::function(allocator_arg_t, const _Alloc& __a0, _Fp __f,
         if (sizeof(_FF) <= sizeof(__buf_))
         {
             __f_ = (__base*)&__buf_;
-            ::new (__f_) _FF(__f);
+            ::new (__f_) _FF(__f, __a0);
         }
         else
         {
-            typedef typename __alloc_traits::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-                rebind_alloc<_FF>
-#else
-                rebind_alloc<_FF>::other
-#endif
-                                                         _Ap;
+            typedef typename __rebind_alloc_helper<__alloc_traits, _FF>::type _Ap;
             _Ap __a(__a0);
             typedef __allocator_destructor<_Ap> _Dp;
             unique_ptr<__base, _Dp> __hold(__a.allocate(1), _Dp(__a, 1));
@@ -1129,6 +1130,7 @@ function<_Rp(_A0)>::operator=(nullptr_t)
     else if (__f_)
         __f_->destroy_deallocate();
     __f_ = 0;
+    return *this;
 }
 
 template<class _Rp, class _A0>
@@ -1394,17 +1396,11 @@ function<_Rp(_A0, _A1)>::function(allocator_arg_t, const _Alloc& __a0, _Fp __f,
         if (sizeof(_FF) <= sizeof(__buf_))
         {
             __f_ = (__base*)&__buf_;
-            ::new (__f_) _FF(__f);
+            ::new (__f_) _FF(__f, __a0);
         }
         else
         {
-            typedef typename __alloc_traits::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-                rebind_alloc<_FF>
-#else
-                rebind_alloc<_FF>::other
-#endif
-                                                         _Ap;
+            typedef typename __rebind_alloc_helper<__alloc_traits, _FF>::type _Ap;
             _Ap __a(__a0);
             typedef __allocator_destructor<_Ap> _Dp;
             unique_ptr<__base, _Dp> __hold(__a.allocate(1), _Dp(__a, 1));
@@ -1431,6 +1427,7 @@ function<_Rp(_A0, _A1)>::operator=(nullptr_t)
     else if (__f_)
         __f_->destroy_deallocate();
     __f_ = 0;
+    return *this;
 }
 
 template<class _Rp, class _A0, class _A1>
@@ -1696,17 +1693,11 @@ function<_Rp(_A0, _A1, _A2)>::function(allocator_arg_t, const _Alloc& __a0, _Fp 
         if (sizeof(_FF) <= sizeof(__buf_))
         {
             __f_ = (__base*)&__buf_;
-            ::new (__f_) _FF(__f);
+            ::new (__f_) _FF(__f, __a0);
         }
         else
         {
-            typedef typename __alloc_traits::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-                rebind_alloc<_FF>
-#else
-                rebind_alloc<_FF>::other
-#endif
-                                                         _Ap;
+            typedef typename __rebind_alloc_helper<__alloc_traits, _FF>::type _Ap;
             _Ap __a(__a0);
             typedef __allocator_destructor<_Ap> _Dp;
             unique_ptr<__base, _Dp> __hold(__a.allocate(1), _Dp(__a, 1));
@@ -1733,6 +1724,7 @@ function<_Rp(_A0, _A1, _A2)>::operator=(nullptr_t)
     else if (__f_)
         __f_->destroy_deallocate();
     __f_ = 0;
+    return *this;
 }
 
 template<class _Rp, class _A0, class _A1, class _A2>
@@ -2099,14 +2091,16 @@ public:
         result_type
         operator()(_Args&& ...__args)
         {
-            return base::operator()(_VSTD::forward<_Args>(__args)...);
+            typedef __invoke_void_return_wrapper<_Rp> _Invoker;
+            return _Invoker::__call(static_cast<base&>(*this), _VSTD::forward<_Args>(__args)...);
         }
 
     template <class ..._Args>
         result_type
         operator()(_Args&& ...__args) const
         {
-            return base::operator()(_VSTD::forward<_Args>(__args)...);
+            typedef __invoke_void_return_wrapper<_Rp> _Invoker;
+            return _Invoker::__call(static_cast<base const&>(*this), _VSTD::forward<_Args>(__args)...);
         }
 };
 

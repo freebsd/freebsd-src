@@ -64,7 +64,7 @@ __rec_open(const char *fname, int flags, int mode, const RECNOINFO *openinfo,
 	int rfd, sverrno;
 
 	/* Open the user's file -- if this fails, we're done. */
-	if (fname != NULL && (rfd = _open(fname, flags, mode)) < 0)
+	if (fname != NULL && (rfd = _open(fname, flags | O_CLOEXEC, mode)) < 0)
 		return (NULL);
 
 	/* Create a btree in memory (backed by disk). */

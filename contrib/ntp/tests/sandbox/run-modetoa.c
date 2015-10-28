@@ -31,18 +31,21 @@ extern void test_UnknownMode(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
+char const *progname;
+
 
 //=======MAIN=====
-int main(void)
+int main(int argc, char *argv[])
 {
-  Unity.TestFile = "modetoa.c";
-  UnityBegin("");
+  progname = argv[0];
+  UnityBegin("modetoa.c");
   RUN_TEST(test_KnownMode, 8);
   RUN_TEST(test_UnknownMode, 15);
 

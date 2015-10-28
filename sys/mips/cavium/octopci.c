@@ -205,7 +205,7 @@ octopci_attach(device_t dev)
 	subbus = octopci_init_bus(dev, sc->sc_bus);
 	octopci_write_config(dev, sc->sc_bus, 0, 0, PCIR_SUBBUS_1, subbus, 1);
 
-	device_add_child(dev, "pci", device_get_unit(dev));
+	device_add_child(dev, "pci", -1);
 
 	return (bus_generic_attach(dev));
 }

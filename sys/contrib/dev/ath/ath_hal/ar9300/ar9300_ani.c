@@ -539,7 +539,7 @@ skip_ws_det:
                 OS_REG_CLR_BIT(ah, AR_PHY_SFCORR_LOW,
                     AR_PHY_SFCORR_LOW_USE_SELF_CORR_LOW);
             }
-            if (!is_on != ani_state->ofdm_weak_sig_detect_off) {
+            if ((!is_on) != ani_state->ofdm_weak_sig_detect_off) {
                 HALDEBUG(ah, HAL_DEBUG_ANI,
                     "%s: ** ch %d: ofdm weak signal: %s=>%s\n",
                     __func__, chan->ic_freq,
@@ -684,7 +684,7 @@ skip_ws_det:
             OS_REG_RMW_FIELD(ah, AR_PHY_MRC_CCK_CTRL,
                 AR_PHY_MRC_CCK_MUX_REG, is_on);
         }
-        if (!is_on != ani_state->mrc_cck_off) {
+        if ((!is_on) != ani_state->mrc_cck_off) {
             HALDEBUG(ah, HAL_DEBUG_ANI,
                 "%s: ** ch %d: MRC CCK: %s=>%s\n", __func__, chan->ic_freq,
                 !ani_state->mrc_cck_off ? "on" : "off", is_on ? "on" : "off");

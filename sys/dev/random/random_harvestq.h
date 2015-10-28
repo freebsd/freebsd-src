@@ -43,6 +43,8 @@ struct harvest_event {
 	uint8_t		he_source;		/* origin of the entropy */
 } __packed;
 
+void read_rate_increment(u_int);
+
 #define	RANDOM_HARVESTQ_BOOT_ENTROPY_FILE	"/boot/entropy"
 
 #define	RANDOM_HARVEST_INIT_LOCK(x)	mtx_init(&harvest_context.hc_mtx, "entropy harvest mutex", NULL, MTX_SPIN)

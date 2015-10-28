@@ -10,7 +10,7 @@ usage()
 
 work()
 {
-	${NM:='nm'} "$1" | ${AWK:='awk'} '
+	${NM:='nm'} ${NMFLAGS} "$1" | ${AWK:='awk'} '
 	/ C .*sign$/ {
 		sign = substr($1, length($1) - 3, 4)
 		sub("^0*", "", sign)

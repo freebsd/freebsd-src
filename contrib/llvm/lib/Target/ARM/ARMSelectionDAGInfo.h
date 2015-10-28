@@ -37,8 +37,6 @@ namespace ARM_AM {
 
 class ARMSelectionDAGInfo : public TargetSelectionDAGInfo {
 public:
-  explicit ARMSelectionDAGInfo(const DataLayout &DL);
-  ~ARMSelectionDAGInfo();
 
   SDValue EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl,
                                   SDValue Chain,
@@ -48,6 +46,13 @@ public:
                                   MachinePointerInfo DstPtrInfo,
                                   MachinePointerInfo SrcPtrInfo) const override;
 
+  SDValue EmitTargetCodeForMemmove(SelectionDAG &DAG, SDLoc dl,
+                                   SDValue Chain,
+                                   SDValue Dst, SDValue Src,
+                                   SDValue Size, unsigned Align, bool isVolatile,
+                                   MachinePointerInfo DstPtrInfo,
+                                   MachinePointerInfo SrcPtrInfo) const override;
+
   // Adjust parameters for memset, see RTABI section 4.3.4
   SDValue EmitTargetCodeForMemset(SelectionDAG &DAG, SDLoc dl,
                                   SDValue Chain,
@@ -55,6 +60,12 @@ public:
                                   SDValue Op3, unsigned Align,
                                   bool isVolatile,
                                   MachinePointerInfo DstPtrInfo) const override;
+
+  SDValue EmitSpecializedLibcall(SelectionDAG &DAG, SDLoc dl,
+                                 SDValue Chain,
+                                 SDValue Dst, SDValue Src,
+                                 SDValue Size, unsigned Align,
+                                 RTLIB::Libcall LC) const;
 };
 
 }

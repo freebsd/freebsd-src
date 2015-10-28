@@ -206,6 +206,15 @@ main(int argc, char *argv[])
 	assert(strcmp(we.we_wordv[0], "\\") == 0);
 	assert(we.we_wordv[1] == NULL);
 	wordfree(&we);
+	/* Two syntax errors that are not detected by the current we_check(). */
+	r = wordexp("${IFS:+'}", &we, 0);
+	assert(r == WRDE_SYNTAX);
+	r = wordexp("${IFS:+'}", &we, WRDE_UNDEF);
+	assert(r == WRDE_SYNTAX);
+	r = wordexp("$(case)", &we, 0);
+	assert(r == WRDE_SYNTAX);
+	r = wordexp("$(case)", &we, WRDE_UNDEF);
+	assert(r == WRDE_SYNTAX);
 
 	/* With a SIGCHLD handler that reaps all zombies. */
 	sa.sa_flags = 0;

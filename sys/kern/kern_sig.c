@@ -952,6 +952,7 @@ sigdflt(struct sigacts *ps, int sig)
 void
 execsigs(struct proc *p)
 {
+	sigset_t osigignore;
 	struct sigacts *ps;
 	int sig;
 	struct thread *td;
@@ -971,6 +972,24 @@ execsigs(struct proc *p)
 		if ((sigprop(sig) & SA_IGNORE) != 0)
 			sigqueue_delete_proc(p, sig);
 	}
+
+	/*
+	 * As CloudABI processes cannot modify signal handlers, fully
+	 * reset all signals to their default behavior. Do ignore
+	 * SIGPIPE, as it would otherwise be impossible to recover from
+	 * writes to broken pipes and sockets.
+	 */
+	if (SV_PROC_ABI(p) == SV_ABI_CLOUDABI) {
+		osigignore = ps->ps_sigignore;
+		while (SIGNOTEMPTY(osigignore)) {
+			sig = sig_ffs(&osigignore);
+			SIGDELSET(osigignore, sig);
+			if (sig != SIGPIPE)
+				sigdflt(ps, sig);
+		}
+		SIGADDSET(ps->ps_sigignore, SIGPIPE);
+	}
+
 	/*
 	 * Reset stack state to the user stack.
 	 * Clear set of signals caught on the signal stack.
@@ -1289,7 +1308,7 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 		reschedule_signals(p, new_block, 0);
 
 	if (error == 0) {
-		SDT_PROBE(proc, kernel, , signal__clear, sig, ksi, 0, 0, 0);
+		SDT_PROBE2(proc, kernel, , signal__clear, sig, ksi);
 
 		if (ksi->ksi_code == SI_TIMER)
 			itimer_accept(p, ksi->ksi_timerid, ksi);
@@ -2102,7 +2121,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	} else
 		sigqueue = &td->td_sigqueue;
 
-	SDT_PROBE(proc, kernel, , signal__send, td, p, sig, 0, 0 );
+	SDT_PROBE3(proc, kernel, , signal__send, td, p, sig);
 
 	/*
 	 * If the signal is being ignored,
@@ -2113,7 +2132,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	 */
 	mtx_lock(&ps->ps_mtx);
 	if (SIGISMEMBER(ps->ps_sigignore, sig)) {
-		SDT_PROBE(proc, kernel, , signal__discard, td, p, sig, 0, 0 );
+		SDT_PROBE3(proc, kernel, , signal__discard, td, p, sig);
 
 		mtx_unlock(&ps->ps_mtx);
 		if (ksi && (ksi->ksi_flags & KSI_INS))

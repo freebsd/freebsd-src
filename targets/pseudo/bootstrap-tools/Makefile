@@ -31,22 +31,22 @@ OSRELDATE?= 0
 .endif
 
 # need to keep this in sync with src/Makefile.inc1 
-BSARGS= \
-	DESTDIR= \
-	BOOTSTRAPPING=${OSRELDATE} \
-	SSP_CFLAGS= \
-	MK_HTML=no NO_LINT=yes MK_MAN=no \
-	-DNO_PIC MK_PROFILE=no -DNO_SHARED \
-	-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
-	MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
-	MK_LLDB=no MK_TESTS=no \
-	MK_INCLUDES=yes 
-
+BSARGS= 	DESTDIR= \
+		BOOTSTRAPPING=${OSRELDATE} \
+		SSP_CFLAGS= \
+		MK_HTML=no NO_LINT=yes MK_MAN=no \
+		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
+		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
+		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
+		MK_LLDB=no MK_TESTS=no \
+		MK_INCLUDES=yes
 
 legacy: .MAKE .META
 	mkdir -p ${LEGACY_TOOLS}
-	${MAKE} -C ${SRCTOP}/etc distrib-dirs DESTDIR=${BTOOLSDIR} > $@2
-	${MAKE} -C ${SRCTOP}/etc distrib-dirs DESTDIR=${LEGACY_TOOLS} > $@
+	${MAKE} -C ${SRCTOP}/etc distrib-dirs DESTDIR=${BTOOLSDIR} \
+	    > $@.distrib-dirs_btoolsdir
+	${MAKE} -C ${SRCTOP}/etc distrib-dirs DESTDIR=${LEGACY_TOOLS} \
+	    > $@.distrib-dirs_legacy_tools
 	${BSENV} ${MAKE} -C ${SRCTOP} -f Makefile.inc1 ${BSARGS} $@
 	touch $@
 

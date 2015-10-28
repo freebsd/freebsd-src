@@ -1972,7 +1972,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 				fdep[i] = fdev;
 				fdep[i]->fde_file = fde->fde_file;
 				filecaps_copy(&fde->fde_caps,
-				    &fdep[i]->fde_caps);
+				    &fdep[i]->fde_caps, true);
 				unp_internalize_fp(fdep[i]->fde_file);
 			}
 			FILEDESC_SUNLOCK(fdesc);

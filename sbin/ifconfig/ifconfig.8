@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd May 15, 2015
+.Dd Aug 12, 2015
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2396,6 +2396,10 @@ Disable local hash computation for RSS hash on the interface.
 Set a shift parameter for RSS local hash computation.
 Hash is calculated by using flowid bits in a packet header mbuf
 which are shifted by the number of this parameter.
+.It Cm lacp_fast_timeout
+Enable lacp fast-timeout on the interface.
+.It Cm -lacp_fast_timeout
+Disable lacp fast-timeout on the interface.
 .El
 .Pp
 The following parameters are specific to IP tunnel interfaces,

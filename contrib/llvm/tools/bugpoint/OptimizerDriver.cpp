@@ -18,9 +18,9 @@
 #include "BugDriver.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
-#include "llvm/PassManager.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FileUtilities.h"
@@ -42,6 +42,11 @@ namespace llvm {
   extern cl::opt<std::string> OutputPrefix;
 }
 
+static cl::opt<bool> PreserveBitcodeUseListOrder(
+    "preserve-bc-uselistorder",
+    cl::desc("Preserve use-list order when writing LLVM bitcode."),
+    cl::init(true), cl::Hidden);
+
 namespace {
   // ChildOutput - This option captures the name of the child output file that
   // is set up by the parent bugpoint process
@@ -55,7 +60,7 @@ namespace {
 /// file.  If an error occurs, true is returned.
 ///
 static bool writeProgramToFileAux(tool_output_file &Out, const Module *M) {
-  WriteBitcodeToFile(M, Out.os());
+  WriteBitcodeToFile(M, Out.os(), PreserveBitcodeUseListOrder);
   Out.os().close();
   if (!Out.os().has_error()) {
     Out.keep();
@@ -151,7 +156,7 @@ bool BugDriver::runPasses(Module *Program,
 
   tool_output_file InFile(InputFilename, InputFD);
 
-  WriteBitcodeToFile(Program, InFile.os());
+  WriteBitcodeToFile(Program, InFile.os(), PreserveBitcodeUseListOrder);
   InFile.os().close();
   if (InFile.os().has_error()) {
     errs() << "Error writing bitcode file: " << InputFilename << "\n";

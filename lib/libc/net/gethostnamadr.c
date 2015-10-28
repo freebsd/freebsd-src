@@ -48,13 +48,6 @@ __FBSDID("$FreeBSD$");
 #include "nscache.h"
 #endif
 
-extern int _ht_gethostbyname(void *, void *, va_list);
-extern int _dns_gethostbyname(void *, void *, va_list);
-extern int _nis_gethostbyname(void *, void *, va_list);
-extern int _ht_gethostbyaddr(void *, void *, va_list);
-extern int _dns_gethostbyaddr(void *, void *, va_list);
-extern int _nis_gethostbyaddr(void *, void *, va_list);
-
 static int gethostbyname_internal(const char *, int, struct hostent *, char *,
     size_t, struct hostent **, int *, res_state);
 

@@ -23,7 +23,7 @@
 **
 ** The official C-language API documentation for SQLite is derived
 ** from comments in this file.  This file is the authoritative source
-** on how SQLite interfaces are suppose to operate.
+** on how SQLite interfaces are supposed to operate.
 **
 ** The name of this file under configuration management is "sqlite.h.in".
 ** The makefile makes some minor changes to this file (such as inserting
@@ -111,9 +111,9 @@ extern "C" {
 ** [sqlite3_libversion_number()], [sqlite3_sourceid()],
 ** [sqlite_version()] and [sqlite_source_id()].
 */
-#define SQLITE_VERSION        "3.8.9"
-#define SQLITE_VERSION_NUMBER 3008009
-#define SQLITE_SOURCE_ID      "2015-04-08 12:16:33 8a8ffc862e96f57aa698f93de10dee28e69f6e09"
+#define SQLITE_VERSION        "3.8.11.1"
+#define SQLITE_VERSION_NUMBER 3008011
+#define SQLITE_SOURCE_ID      "2015-07-29 20:00:57 cf538e2783e468bbc25e7cb2a9ee64d3e0e80b2f"
 
 /*
 ** CAPI3REF: Run-Time Library Version Numbers
@@ -270,6 +270,7 @@ typedef sqlite_uint64 sqlite3_uint64;
 
 /*
 ** CAPI3REF: Closing A Database Connection
+** DESTRUCTOR: sqlite3
 **
 ** ^The sqlite3_close() and sqlite3_close_v2() routines are destructors
 ** for the [sqlite3] object.
@@ -321,6 +322,7 @@ typedef int (*sqlite3_callback)(void*,int,char**, char**);
 
 /*
 ** CAPI3REF: One-Step Query Execution Interface
+** METHOD: sqlite3
 **
 ** The sqlite3_exec() interface is a convenience wrapper around
 ** [sqlite3_prepare_v2()], [sqlite3_step()], and [sqlite3_finalize()],
@@ -961,6 +963,14 @@ struct sqlite3_io_methods {
 ** circumstances in order to fix a problem with priority inversion.
 ** Applications should <em>not</em> use this file-control.
 **
+** <li>[[SQLITE_FCNTL_ZIPVFS]]
+** The [SQLITE_FCNTL_ZIPVFS] opcode is implemented by zipvfs only. All other
+** VFS should return SQLITE_NOTFOUND for this opcode.
+**
+** <li>[[SQLITE_FCNTL_RBU]]
+** The [SQLITE_FCNTL_RBU] opcode is implemented by the special VFS used by
+** the RBU extension only.  All other VFS should return SQLITE_NOTFOUND for
+** this opcode.  
 ** </ul>
 */
 #define SQLITE_FCNTL_LOCKSTATE               1
@@ -986,6 +996,8 @@ struct sqlite3_io_methods {
 #define SQLITE_FCNTL_COMMIT_PHASETWO        22
 #define SQLITE_FCNTL_WIN32_SET_HANDLE       23
 #define SQLITE_FCNTL_WAL_BLOCK              24
+#define SQLITE_FCNTL_ZIPVFS                 25
+#define SQLITE_FCNTL_RBU                    26
 
 /* deprecated names */
 #define SQLITE_GET_LOCKPROXYFILE      SQLITE_FCNTL_GET_LOCKPROXYFILE
@@ -1378,6 +1390,7 @@ SQLITE_API int SQLITE_CDECL sqlite3_config(int, ...);
 
 /*
 ** CAPI3REF: Configure database connections
+** METHOD: sqlite3
 **
 ** The sqlite3_db_config() interface is used to make configuration
 ** changes to a [database connection].  The interface is similar to
@@ -1875,6 +1888,7 @@ struct sqlite3_mem_methods {
 
 /*
 ** CAPI3REF: Enable Or Disable Extended Result Codes
+** METHOD: sqlite3
 **
 ** ^The sqlite3_extended_result_codes() routine enables or disables the
 ** [extended result codes] feature of SQLite. ^The extended result
@@ -1884,6 +1898,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_extended_result_codes(sqlite3*, int onoff)
 
 /*
 ** CAPI3REF: Last Insert Rowid
+** METHOD: sqlite3
 **
 ** ^Each entry in most SQLite tables (except for [WITHOUT ROWID] tables)
 ** has a unique 64-bit signed
@@ -1935,6 +1950,7 @@ SQLITE_API sqlite3_int64 SQLITE_STDCALL sqlite3_last_insert_rowid(sqlite3*);
 
 /*
 ** CAPI3REF: Count The Number Of Rows Modified
+** METHOD: sqlite3
 **
 ** ^This function returns the number of rows modified, inserted or
 ** deleted by the most recently completed INSERT, UPDATE or DELETE
@@ -1987,6 +2003,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_changes(sqlite3*);
 
 /*
 ** CAPI3REF: Total Number Of Rows Modified
+** METHOD: sqlite3
 **
 ** ^This function returns the total number of rows inserted, modified or
 ** deleted by all [INSERT], [UPDATE] or [DELETE] statements completed
@@ -2010,6 +2027,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_total_changes(sqlite3*);
 
 /*
 ** CAPI3REF: Interrupt A Long-Running Query
+** METHOD: sqlite3
 **
 ** ^This function causes any pending database operation to abort and
 ** return at its earliest opportunity. This routine is typically
@@ -2086,6 +2104,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_complete16(const void *sql);
 /*
 ** CAPI3REF: Register A Callback To Handle SQLITE_BUSY Errors
 ** KEYWORDS: {busy-handler callback} {busy handler}
+** METHOD: sqlite3
 **
 ** ^The sqlite3_busy_handler(D,X,P) routine sets a callback function X
 ** that might be invoked with argument P whenever
@@ -2145,6 +2164,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_busy_handler(sqlite3*, int(*)(void*,int), 
 
 /*
 ** CAPI3REF: Set A Busy Timeout
+** METHOD: sqlite3
 **
 ** ^This routine sets a [sqlite3_busy_handler | busy handler] that sleeps
 ** for a specified amount of time when a table is locked.  ^The handler
@@ -2167,6 +2187,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_busy_timeout(sqlite3*, int ms);
 
 /*
 ** CAPI3REF: Convenience Routines For Running Queries
+** METHOD: sqlite3
 **
 ** This is a legacy interface that is preserved for backwards compatibility.
 ** Use of this interface is not recommended.
@@ -2502,6 +2523,7 @@ SQLITE_API void SQLITE_STDCALL sqlite3_randomness(int N, void *P);
 
 /*
 ** CAPI3REF: Compile-Time Authorization Callbacks
+** METHOD: sqlite3
 **
 ** ^This routine registers an authorizer callback with a particular
 ** [database connection], supplied in the first argument.
@@ -2658,6 +2680,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_set_authorizer(
 
 /*
 ** CAPI3REF: Tracing And Profiling Functions
+** METHOD: sqlite3
 **
 ** These routines register callback functions that can be used for
 ** tracing and profiling the execution of SQL statements.
@@ -2690,6 +2713,7 @@ SQLITE_API SQLITE_EXPERIMENTAL void *SQLITE_STDCALL sqlite3_profile(sqlite3*,
 
 /*
 ** CAPI3REF: Query Progress Callbacks
+** METHOD: sqlite3
 **
 ** ^The sqlite3_progress_handler(D,N,X,P) interface causes the callback
 ** function X to be invoked periodically during long running calls to
@@ -2723,6 +2747,7 @@ SQLITE_API void SQLITE_STDCALL sqlite3_progress_handler(sqlite3*, int, int(*)(vo
 
 /*
 ** CAPI3REF: Opening A New Database Connection
+** CONSTRUCTOR: sqlite3
 **
 ** ^These routines open an SQLite database file as specified by the 
 ** filename argument. ^The filename argument is interpreted as UTF-8 for
@@ -3008,6 +3033,7 @@ SQLITE_API sqlite3_int64 SQLITE_STDCALL sqlite3_uri_int64(const char*, const cha
 
 /*
 ** CAPI3REF: Error Codes And Messages
+** METHOD: sqlite3
 **
 ** ^If the most recent sqlite3_* API call associated with 
 ** [database connection] D failed, then the sqlite3_errcode(D) interface
@@ -3053,33 +3079,34 @@ SQLITE_API const void *SQLITE_STDCALL sqlite3_errmsg16(sqlite3*);
 SQLITE_API const char *SQLITE_STDCALL sqlite3_errstr(int);
 
 /*
-** CAPI3REF: SQL Statement Object
+** CAPI3REF: Prepared Statement Object
 ** KEYWORDS: {prepared statement} {prepared statements}
 **
-** An instance of this object represents a single SQL statement.
-** This object is variously known as a "prepared statement" or a
-** "compiled SQL statement" or simply as a "statement".
+** An instance of this object represents a single SQL statement that
+** has been compiled into binary form and is ready to be evaluated.
 **
-** The life of a statement object goes something like this:
+** Think of each SQL statement as a separate computer program.  The
+** original SQL text is source code.  A prepared statement object 
+** is the compiled object code.  All SQL must be converted into a
+** prepared statement before it can be run.
+**
+** The life-cycle of a prepared statement object usually goes like this:
 **
 ** <ol>
-** <li> Create the object using [sqlite3_prepare_v2()] or a related
-**      function.
-** <li> Bind values to [host parameters] using the sqlite3_bind_*()
+** <li> Create the prepared statement object using [sqlite3_prepare_v2()].
+** <li> Bind values to [parameters] using the sqlite3_bind_*()
 **      interfaces.
 ** <li> Run the SQL by calling [sqlite3_step()] one or more times.
-** <li> Reset the statement using [sqlite3_reset()] then go back
+** <li> Reset the prepared statement using [sqlite3_reset()] then go back
 **      to step 2.  Do this zero or more times.
 ** <li> Destroy the object using [sqlite3_finalize()].
 ** </ol>
-**
-** Refer to documentation on individual methods above for additional
-** information.
 */
 typedef struct sqlite3_stmt sqlite3_stmt;
 
 /*
 ** CAPI3REF: Run-time Limits
+** METHOD: sqlite3
 **
 ** ^(This interface allows the size of various constructs to be limited
 ** on a connection by connection basis.  The first parameter is the
@@ -3191,6 +3218,8 @@ SQLITE_API int SQLITE_STDCALL sqlite3_limit(sqlite3*, int id, int newVal);
 /*
 ** CAPI3REF: Compiling An SQL Statement
 ** KEYWORDS: {SQL statement compiler}
+** METHOD: sqlite3
+** CONSTRUCTOR: sqlite3_stmt
 **
 ** To execute an SQL query, it must first be compiled into a byte-code
 ** program using one of these routines.
@@ -3298,6 +3327,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_prepare16_v2(
 
 /*
 ** CAPI3REF: Retrieving Statement SQL
+** METHOD: sqlite3_stmt
 **
 ** ^This interface can be used to retrieve a saved copy of the original
 ** SQL text used to create a [prepared statement] if that statement was
@@ -3307,6 +3337,7 @@ SQLITE_API const char *SQLITE_STDCALL sqlite3_sql(sqlite3_stmt *pStmt);
 
 /*
 ** CAPI3REF: Determine If An SQL Statement Writes The Database
+** METHOD: sqlite3_stmt
 **
 ** ^The sqlite3_stmt_readonly(X) interface returns true (non-zero) if
 ** and only if the [prepared statement] X makes no direct changes to
@@ -3338,6 +3369,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_stmt_readonly(sqlite3_stmt *pStmt);
 
 /*
 ** CAPI3REF: Determine If A Prepared Statement Has Been Reset
+** METHOD: sqlite3_stmt
 **
 ** ^The sqlite3_stmt_busy(S) interface returns true (non-zero) if the
 ** [prepared statement] S has been stepped at least once using 
@@ -3368,7 +3400,9 @@ SQLITE_API int SQLITE_STDCALL sqlite3_stmt_busy(sqlite3_stmt*);
 ** Some interfaces require a protected sqlite3_value.  Other interfaces
 ** will accept either a protected or an unprotected sqlite3_value.
 ** Every interface that accepts sqlite3_value arguments specifies
-** whether or not it requires a protected sqlite3_value.
+** whether or not it requires a protected sqlite3_value.  The
+** [sqlite3_value_dup()] interface can be used to construct a new 
+** protected sqlite3_value from an unprotected sqlite3_value.
 **
 ** The terms "protected" and "unprotected" refer to whether or not
 ** a mutex is held.  An internal mutex is held for a protected
@@ -3412,6 +3446,7 @@ typedef struct sqlite3_context sqlite3_context;
 ** CAPI3REF: Binding Values To Prepared Statements
 ** KEYWORDS: {host parameter} {host parameters} {host parameter name}
 ** KEYWORDS: {SQL parameter} {SQL parameters} {parameter binding}
+** METHOD: sqlite3_stmt
 **
 ** ^(In the SQL statement text input to [sqlite3_prepare_v2()] and its variants,
 ** literals may be replaced by a [parameter] that matches one of following
@@ -3527,9 +3562,11 @@ SQLITE_API int SQLITE_STDCALL sqlite3_bind_text64(sqlite3_stmt*, int, const char
                          void(*)(void*), unsigned char encoding);
 SQLITE_API int SQLITE_STDCALL sqlite3_bind_value(sqlite3_stmt*, int, const sqlite3_value*);
 SQLITE_API int SQLITE_STDCALL sqlite3_bind_zeroblob(sqlite3_stmt*, int, int n);
+SQLITE_API int SQLITE_STDCALL sqlite3_bind_zeroblob64(sqlite3_stmt*, int, sqlite3_uint64);
 
 /*
 ** CAPI3REF: Number Of SQL Parameters
+** METHOD: sqlite3_stmt
 **
 ** ^This routine can be used to find the number of [SQL parameters]
 ** in a [prepared statement].  SQL parameters are tokens of the
@@ -3550,6 +3587,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_bind_parameter_count(sqlite3_stmt*);
 
 /*
 ** CAPI3REF: Name Of A Host Parameter
+** METHOD: sqlite3_stmt
 **
 ** ^The sqlite3_bind_parameter_name(P,N) interface returns
 ** the name of the N-th [SQL parameter] in the [prepared statement] P.
@@ -3577,6 +3615,7 @@ SQLITE_API const char *SQLITE_STDCALL sqlite3_bind_parameter_name(sqlite3_stmt*,
 
 /*
 ** CAPI3REF: Index Of A Parameter With A Given Name
+** METHOD: sqlite3_stmt
 **
 ** ^Return the index of an SQL parameter given its name.  ^The
 ** index value returned is suitable for use as the second
@@ -3593,6 +3632,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_bind_parameter_index(sqlite3_stmt*, const 
 
 /*
 ** CAPI3REF: Reset All Bindings On A Prepared Statement
+** METHOD: sqlite3_stmt
 **
 ** ^Contrary to the intuition of many, [sqlite3_reset()] does not reset
 ** the [sqlite3_bind_blob | bindings] on a [prepared statement].
@@ -3602,6 +3642,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_clear_bindings(sqlite3_stmt*);
 
 /*
 ** CAPI3REF: Number Of Columns In A Result Set
+** METHOD: sqlite3_stmt
 **
 ** ^Return the number of columns in the result set returned by the
 ** [prepared statement]. ^This routine returns 0 if pStmt is an SQL
@@ -3613,6 +3654,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_column_count(sqlite3_stmt *pStmt);
 
 /*
 ** CAPI3REF: Column Names In A Result Set
+** METHOD: sqlite3_stmt
 **
 ** ^These routines return the name assigned to a particular column
 ** in the result set of a [SELECT] statement.  ^The sqlite3_column_name()
@@ -3642,6 +3684,7 @@ SQLITE_API const void *SQLITE_STDCALL sqlite3_column_name16(sqlite3_stmt*, int N
 
 /*
 ** CAPI3REF: Source Of Data In A Query Result
+** METHOD: sqlite3_stmt
 **
 ** ^These routines provide a means to determine the database, table, and
 ** table column that is the origin of a particular result column in
@@ -3694,6 +3737,7 @@ SQLITE_API const void *SQLITE_STDCALL sqlite3_column_origin_name16(sqlite3_stmt*
 
 /*
 ** CAPI3REF: Declared Datatype Of A Query Result
+** METHOD: sqlite3_stmt
 **
 ** ^(The first parameter is a [prepared statement].
 ** If this statement is a [SELECT] statement and the Nth column of the
@@ -3726,6 +3770,7 @@ SQLITE_API const void *SQLITE_STDCALL sqlite3_column_decltype16(sqlite3_stmt*,in
 
 /*
 ** CAPI3REF: Evaluate An SQL Statement
+** METHOD: sqlite3_stmt
 **
 ** After a [prepared statement] has been prepared using either
 ** [sqlite3_prepare_v2()] or [sqlite3_prepare16_v2()] or one of the legacy
@@ -3805,6 +3850,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_step(sqlite3_stmt*);
 
 /*
 ** CAPI3REF: Number of columns in a result set
+** METHOD: sqlite3_stmt
 **
 ** ^The sqlite3_data_count(P) interface returns the number of columns in the
 ** current row of the result set of [prepared statement] P.
@@ -3858,8 +3904,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_data_count(sqlite3_stmt *pStmt);
 /*
 ** CAPI3REF: Result Values From A Query
 ** KEYWORDS: {column access functions}
-**
-** These routines form the "result set" interface.
+** METHOD: sqlite3_stmt
 **
 ** ^These routines return information about a single column of the current
 ** result row of a query.  ^In every case the first argument is a pointer
@@ -3920,13 +3965,14 @@ SQLITE_API int SQLITE_STDCALL sqlite3_data_count(sqlite3_stmt *pStmt);
 ** even empty strings, are always zero-terminated.  ^The return
 ** value from sqlite3_column_blob() for a zero-length BLOB is a NULL pointer.
 **
-** ^The object returned by [sqlite3_column_value()] is an
-** [unprotected sqlite3_value] object.  An unprotected sqlite3_value object
-** may only be used with [sqlite3_bind_value()] and [sqlite3_result_value()].
+** <b>Warning:</b> ^The object returned by [sqlite3_column_value()] is an
+** [unprotected sqlite3_value] object.  In a multithreaded environment,
+** an unprotected sqlite3_value object may only be used safely with
+** [sqlite3_bind_value()] and [sqlite3_result_value()].
 ** If the [unprotected sqlite3_value] object returned by
 ** [sqlite3_column_value()] is used in any other way, including calls
 ** to routines like [sqlite3_value_int()], [sqlite3_value_text()],
-** or [sqlite3_value_bytes()], then the behavior is undefined.
+** or [sqlite3_value_bytes()], the behavior is not threadsafe.
 **
 ** These routines attempt to convert the value where appropriate.  ^For
 ** example, if the internal representation is FLOAT and a text result
@@ -3957,12 +4003,6 @@ SQLITE_API int SQLITE_STDCALL sqlite3_data_count(sqlite3_stmt *pStmt);
 ** </table>
 ** </blockquote>)^
 **
-** The table above makes reference to standard C library functions atoi()
-** and atof().  SQLite does not really use these functions.  It has its
-** own equivalent internal routines.  The atoi() and atof() names are
-** used in the table for brevity and because they are familiar to most
-** C programmers.
-**
 ** Note that when type conversions occur, pointers returned by prior
 ** calls to sqlite3_column_blob(), sqlite3_column_text(), and/or
 ** sqlite3_column_text16() may be invalidated.
@@ -3987,7 +4027,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_data_count(sqlite3_stmt *pStmt);
 ** of conversion are done in place when it is possible, but sometimes they
 ** are not possible and in those cases prior pointers are invalidated.
 **
-** The safest and easiest to remember policy is to invoke these routines
+** The safest policy is to invoke these routines
 ** in one of the following ways:
 **
 ** <ul>
@@ -4007,7 +4047,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_data_count(sqlite3_stmt *pStmt);
 ** ^The pointers returned are valid until a type conversion occurs as
 ** described above, or until [sqlite3_step()] or [sqlite3_reset()] or
 ** [sqlite3_finalize()] is called.  ^The memory space used to hold strings
-** and BLOBs is freed automatically.  Do <b>not</b> pass the pointers returned
+** and BLOBs is freed automatically.  Do <em>not</em> pass the pointers returned
 ** from [sqlite3_column_blob()], [sqlite3_column_text()], etc. into
 ** [sqlite3_free()].
 **
@@ -4030,6 +4070,7 @@ SQLITE_API sqlite3_value *SQLITE_STDCALL sqlite3_column_value(sqlite3_stmt*, int
 
 /*
 ** CAPI3REF: Destroy A Prepared Statement Object
+** DESTRUCTOR: sqlite3_stmt
 **
 ** ^The sqlite3_finalize() function is called to delete a [prepared statement].
 ** ^If the most recent evaluation of the statement encountered no errors
@@ -4057,6 +4098,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_finalize(sqlite3_stmt *pStmt);
 
 /*
 ** CAPI3REF: Reset A Prepared Statement Object
+** METHOD: sqlite3_stmt
 **
 ** The sqlite3_reset() function is called to reset a [prepared statement]
 ** object back to its initial state, ready to be re-executed.
@@ -4086,6 +4128,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_reset(sqlite3_stmt *pStmt);
 ** KEYWORDS: {function creation routines}
 ** KEYWORDS: {application-defined SQL function}
 ** KEYWORDS: {application-defined SQL functions}
+** METHOD: sqlite3
 **
 ** ^These functions (collectively known as "function creation routines")
 ** are used to add SQL functions or aggregates or to redefine the behavior
@@ -4254,11 +4297,12 @@ SQLITE_API SQLITE_DEPRECATED int SQLITE_STDCALL sqlite3_memory_alarm(void(*)(voi
 #endif
 
 /*
-** CAPI3REF: Obtaining SQL Function Parameter Values
+** CAPI3REF: Obtaining SQL Values
+** METHOD: sqlite3_value
 **
 ** The C-language implementation of SQL functions and aggregates uses
 ** this set of interface routines to access the parameter values on
-** the function or aggregate.
+** the function or aggregate.  
 **
 ** The xFunc (for scalar functions) or xStep (for aggregates) parameters
 ** to [sqlite3_create_function()] and [sqlite3_create_function16()]
@@ -4312,7 +4356,25 @@ SQLITE_API int SQLITE_STDCALL sqlite3_value_type(sqlite3_value*);
 SQLITE_API int SQLITE_STDCALL sqlite3_value_numeric_type(sqlite3_value*);
 
 /*
+** CAPI3REF: Copy And Free SQL Values
+** METHOD: sqlite3_value
+**
+** ^The sqlite3_value_dup(V) interface makes a copy of the [sqlite3_value]
+** object D and returns a pointer to that copy.  ^The [sqlite3_value] returned
+** is a [protected sqlite3_value] object even if the input is not.
+** ^The sqlite3_value_dup(V) interface returns NULL if V is NULL or if a
+** memory allocation fails.
+**
+** ^The sqlite3_value_free(V) interface frees an [sqlite3_value] object
+** previously obtained from [sqlite3_value_dup()].  ^If V is a NULL pointer
+** then sqlite3_value_free(V) is a harmless no-op.
+*/
+SQLITE_API SQLITE_EXPERIMENTAL sqlite3_value *SQLITE_STDCALL sqlite3_value_dup(const sqlite3_value*);
+SQLITE_API SQLITE_EXPERIMENTAL void SQLITE_STDCALL sqlite3_value_free(sqlite3_value*);
+
+/*
 ** CAPI3REF: Obtain Aggregate Function Context
+** METHOD: sqlite3_context
 **
 ** Implementations of aggregate SQL functions use this
 ** routine to allocate memory for storing their state.
@@ -4357,6 +4419,7 @@ SQLITE_API void *SQLITE_STDCALL sqlite3_aggregate_context(sqlite3_context*, int 
 
 /*
 ** CAPI3REF: User Data For Functions
+** METHOD: sqlite3_context
 **
 ** ^The sqlite3_user_data() interface returns a copy of
 ** the pointer that was the pUserData parameter (the 5th parameter)
@@ -4371,6 +4434,7 @@ SQLITE_API void *SQLITE_STDCALL sqlite3_user_data(sqlite3_context*);
 
 /*
 ** CAPI3REF: Database Connection For Functions
+** METHOD: sqlite3_context
 **
 ** ^The sqlite3_context_db_handle() interface returns a copy of
 ** the pointer to the [database connection] (the 1st parameter)
@@ -4382,6 +4446,7 @@ SQLITE_API sqlite3 *SQLITE_STDCALL sqlite3_context_db_handle(sqlite3_context*);
 
 /*
 ** CAPI3REF: Function Auxiliary Data
+** METHOD: sqlite3_context
 **
 ** These functions may be used by (non-aggregate) SQL functions to
 ** associate metadata with argument values. If the same value is passed to
@@ -4454,6 +4519,7 @@ typedef void (*sqlite3_destructor_type)(void*);
 
 /*
 ** CAPI3REF: Setting The Result Of An SQL Function
+** METHOD: sqlite3_context
 **
 ** These routines are used by the xFunc or xFinal callbacks that
 ** implement SQL functions and aggregates.  See
@@ -4469,9 +4535,9 @@ typedef void (*sqlite3_destructor_type)(void*);
 ** to by the second parameter and which is N bytes long where N is the
 ** third parameter.
 **
-** ^The sqlite3_result_zeroblob() interfaces set the result of
-** the application-defined function to be a BLOB containing all zero
-** bytes and N bytes in size, where N is the value of the 2nd parameter.
+** ^The sqlite3_result_zeroblob(C,N) and sqlite3_result_zeroblob64(C,N)
+** interfaces set the result of the application-defined function to be
+** a BLOB containing all zero bytes and N bytes in size.
 **
 ** ^The sqlite3_result_double() interface sets the result from
 ** an application-defined function to be a floating point value specified
@@ -4553,7 +4619,7 @@ typedef void (*sqlite3_destructor_type)(void*);
 ** from [sqlite3_malloc()] before it returns.
 **
 ** ^The sqlite3_result_value() interface sets the result of
-** the application-defined function to be a copy the
+** the application-defined function to be a copy of the
 ** [unprotected sqlite3_value] object specified by the 2nd parameter.  ^The
 ** sqlite3_result_value() interface makes a copy of the [sqlite3_value]
 ** so that the [sqlite3_value] specified in the parameter may change or
@@ -4586,9 +4652,11 @@ SQLITE_API void SQLITE_STDCALL sqlite3_result_text16le(sqlite3_context*, const v
 SQLITE_API void SQLITE_STDCALL sqlite3_result_text16be(sqlite3_context*, const void*, int,void(*)(void*));
 SQLITE_API void SQLITE_STDCALL sqlite3_result_value(sqlite3_context*, sqlite3_value*);
 SQLITE_API void SQLITE_STDCALL sqlite3_result_zeroblob(sqlite3_context*, int n);
+SQLITE_API int SQLITE_STDCALL sqlite3_result_zeroblob64(sqlite3_context*, sqlite3_uint64 n);
 
 /*
 ** CAPI3REF: Define New Collating Sequences
+** METHOD: sqlite3
 **
 ** ^These functions add, remove, or modify a [collation] associated
 ** with the [database connection] specified as the first argument.
@@ -4691,6 +4759,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_create_collation16(
 
 /*
 ** CAPI3REF: Collation Needed Callbacks
+** METHOD: sqlite3
 **
 ** ^To avoid having to register all collation sequences before a database
 ** can be used, a single callback function may be registered with the
@@ -4898,6 +4967,7 @@ SQLITE_API SQLITE_EXTERN char *sqlite3_data_directory;
 /*
 ** CAPI3REF: Test For Auto-Commit Mode
 ** KEYWORDS: {autocommit mode}
+** METHOD: sqlite3
 **
 ** ^The sqlite3_get_autocommit() interface returns non-zero or
 ** zero if the given database connection is or is not in autocommit mode,
@@ -4920,6 +4990,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_get_autocommit(sqlite3*);
 
 /*
 ** CAPI3REF: Find The Database Handle Of A Prepared Statement
+** METHOD: sqlite3_stmt
 **
 ** ^The sqlite3_db_handle interface returns the [database connection] handle
 ** to which a [prepared statement] belongs.  ^The [database connection]
@@ -4932,6 +5003,7 @@ SQLITE_API sqlite3 *SQLITE_STDCALL sqlite3_db_handle(sqlite3_stmt*);
 
 /*
 ** CAPI3REF: Return The Filename For A Database Connection
+** METHOD: sqlite3
 **
 ** ^The sqlite3_db_filename(D,N) interface returns a pointer to a filename
 ** associated with database N of connection D.  ^The main database file
@@ -4948,6 +5020,7 @@ SQLITE_API const char *SQLITE_STDCALL sqlite3_db_filename(sqlite3 *db, const cha
 
 /*
 ** CAPI3REF: Determine if a database is read-only
+** METHOD: sqlite3
 **
 ** ^The sqlite3_db_readonly(D,N) interface returns 1 if the database N
 ** of connection D is read-only, 0 if it is read/write, or -1 if N is not
@@ -4957,6 +5030,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_db_readonly(sqlite3 *db, const char *zDbNa
 
 /*
 ** CAPI3REF: Find the next prepared statement
+** METHOD: sqlite3
 **
 ** ^This interface returns a pointer to the next [prepared statement] after
 ** pStmt associated with the [database connection] pDb.  ^If pStmt is NULL
@@ -4972,6 +5046,7 @@ SQLITE_API sqlite3_stmt *SQLITE_STDCALL sqlite3_next_stmt(sqlite3 *pDb, sqlite3_
 
 /*
 ** CAPI3REF: Commit And Rollback Notification Callbacks
+** METHOD: sqlite3
 **
 ** ^The sqlite3_commit_hook() interface registers a callback
 ** function to be invoked whenever a transaction is [COMMIT | committed].
@@ -5021,6 +5096,7 @@ SQLITE_API void *SQLITE_STDCALL sqlite3_rollback_hook(sqlite3*, void(*)(void *),
 
 /*
 ** CAPI3REF: Data Change Notification Callbacks
+** METHOD: sqlite3
 **
 ** ^The sqlite3_update_hook() interface registers a callback function
 ** with the [database connection] identified by the first argument
@@ -5127,6 +5203,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_release_memory(int);
 
 /*
 ** CAPI3REF: Free Memory Used By A Database Connection
+** METHOD: sqlite3
 **
 ** ^The sqlite3_db_release_memory(D) interface attempts to free as much heap
 ** memory as possible from database connection D. Unlike the
@@ -5204,6 +5281,7 @@ SQLITE_API SQLITE_DEPRECATED void SQLITE_STDCALL sqlite3_soft_heap_limit(int N);
 
 /*
 ** CAPI3REF: Extract Metadata About A Column Of A Table
+** METHOD: sqlite3
 **
 ** ^(The sqlite3_table_column_metadata(X,D,T,C,....) routine returns
 ** information about column C of table T in database D
@@ -5282,6 +5360,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_table_column_metadata(
 
 /*
 ** CAPI3REF: Load An Extension
+** METHOD: sqlite3
 **
 ** ^This interface loads an SQLite extension library from the named file.
 **
@@ -5323,6 +5402,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_load_extension(
 
 /*
 ** CAPI3REF: Enable Or Disable Extension Loading
+** METHOD: sqlite3
 **
 ** ^So as not to open security holes in older applications that are
 ** unprepared to deal with [extension loading], and as a means of disabling
@@ -5572,6 +5652,7 @@ struct sqlite3_index_info {
 
 /*
 ** CAPI3REF: Register A Virtual Table Implementation
+** METHOD: sqlite3
 **
 ** ^These routines are used to register a new [virtual table module] name.
 ** ^Module names must be registered before
@@ -5668,6 +5749,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_declare_vtab(sqlite3*, const char *zSQL);
 
 /*
 ** CAPI3REF: Overload A Function For A Virtual Table
+** METHOD: sqlite3
 **
 ** ^(Virtual tables can provide alternative implementations of functions
 ** using the [xFindFunction] method of the [virtual table module].  
@@ -5710,6 +5792,8 @@ typedef struct sqlite3_blob sqlite3_blob;
 
 /*
 ** CAPI3REF: Open A BLOB For Incremental I/O
+** METHOD: sqlite3
+** CONSTRUCTOR: sqlite3_blob
 **
 ** ^(This interfaces opens a [BLOB handle | handle] to the BLOB located
 ** in row iRow, column zColumn, table zTable in database zDb;
@@ -5791,6 +5875,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_blob_open(
 
 /*
 ** CAPI3REF: Move a BLOB Handle to a New Row
+** METHOD: sqlite3_blob
 **
 ** ^This function is used to move an existing blob handle so that it points
 ** to a different row of the same database table. ^The new row is identified
@@ -5811,10 +5896,11 @@ SQLITE_API int SQLITE_STDCALL sqlite3_blob_open(
 **
 ** ^This function sets the database handle error code and message.
 */
-SQLITE_API SQLITE_EXPERIMENTAL int SQLITE_STDCALL sqlite3_blob_reopen(sqlite3_blob *, sqlite3_int64);
+SQLITE_API int SQLITE_STDCALL sqlite3_blob_reopen(sqlite3_blob *, sqlite3_int64);
 
 /*
 ** CAPI3REF: Close A BLOB Handle
+** DESTRUCTOR: sqlite3_blob
 **
 ** ^This function closes an open [BLOB handle]. ^(The BLOB handle is closed
 ** unconditionally.  Even if this routine returns an error code, the 
@@ -5837,6 +5923,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_blob_close(sqlite3_blob *);
 
 /*
 ** CAPI3REF: Return The Size Of An Open BLOB
+** METHOD: sqlite3_blob
 **
 ** ^Returns the size in bytes of the BLOB accessible via the 
 ** successfully opened [BLOB handle] in its only argument.  ^The
@@ -5852,6 +5939,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_blob_bytes(sqlite3_blob *);
 
 /*
 ** CAPI3REF: Read Data From A BLOB Incrementally
+** METHOD: sqlite3_blob
 **
 ** ^(This function is used to read data from an open [BLOB handle] into a
 ** caller-supplied buffer. N bytes of data are copied into buffer Z
@@ -5880,6 +5968,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_blob_read(sqlite3_blob *, void *Z, int N, 
 
 /*
 ** CAPI3REF: Write Data Into A BLOB Incrementally
+** METHOD: sqlite3_blob
 **
 ** ^(This function is used to write data into an open [BLOB handle] from a
 ** caller-supplied buffer. N bytes of data are copied from the buffer Z
@@ -6204,9 +6293,13 @@ SQLITE_API int SQLITE_STDCALL sqlite3_mutex_notheld(sqlite3_mutex*);
 #define SQLITE_MUTEX_STATIC_APP1      8  /* For use by application */
 #define SQLITE_MUTEX_STATIC_APP2      9  /* For use by application */
 #define SQLITE_MUTEX_STATIC_APP3     10  /* For use by application */
+#define SQLITE_MUTEX_STATIC_VFS1     11  /* For use by built-in VFS */
+#define SQLITE_MUTEX_STATIC_VFS2     12  /* For use by extension VFS */
+#define SQLITE_MUTEX_STATIC_VFS3     13  /* For use by application VFS */
 
 /*
 ** CAPI3REF: Retrieve the mutex for a database connection
+** METHOD: sqlite3
 **
 ** ^This interface returns a pointer the [sqlite3_mutex] object that 
 ** serializes access to the [database connection] given in the argument
@@ -6218,6 +6311,7 @@ SQLITE_API sqlite3_mutex *SQLITE_STDCALL sqlite3_db_mutex(sqlite3*);
 
 /*
 ** CAPI3REF: Low-Level Control Of Database Files
+** METHOD: sqlite3
 **
 ** ^The [sqlite3_file_control()] interface makes a direct call to the
 ** xFileControl method for the [sqlite3_io_methods] object associated
@@ -6434,6 +6528,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_status64(
 
 /*
 ** CAPI3REF: Database Connection Status
+** METHOD: sqlite3
 **
 ** ^This interface is used to retrieve runtime status information 
 ** about a single [database connection].  ^The first argument is the
@@ -6562,6 +6657,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_db_status(sqlite3*, int op, int *pCur, int
 
 /*
 ** CAPI3REF: Prepared Statement Status
+** METHOD: sqlite3_stmt
 **
 ** ^(Each prepared statement maintains various
 ** [SQLITE_STMTSTATUS counters] that measure the number
@@ -7065,6 +7161,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_backup_pagecount(sqlite3_backup *p);
 
 /*
 ** CAPI3REF: Unlock Notification
+** METHOD: sqlite3
 **
 ** ^When running in shared-cache mode, a database operation may fail with
 ** an [SQLITE_LOCKED] error if the required locks on the shared-cache or
@@ -7235,6 +7332,7 @@ SQLITE_API void SQLITE_CDECL sqlite3_log(int iErrCode, const char *zFormat, ...)
 
 /*
 ** CAPI3REF: Write-Ahead Log Commit Hook
+** METHOD: sqlite3
 **
 ** ^The [sqlite3_wal_hook()] function is used to register a callback that
 ** is invoked each time data is committed to a database in wal mode.
@@ -7274,6 +7372,7 @@ SQLITE_API void *SQLITE_STDCALL sqlite3_wal_hook(
 
 /*
 ** CAPI3REF: Configure an auto-checkpoint
+** METHOD: sqlite3
 **
 ** ^The [sqlite3_wal_autocheckpoint(D,N)] is a wrapper around
 ** [sqlite3_wal_hook()] that causes any database on [database connection] D
@@ -7304,6 +7403,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_wal_autocheckpoint(sqlite3 *db, int N);
 
 /*
 ** CAPI3REF: Checkpoint a database
+** METHOD: sqlite3
 **
 ** ^(The sqlite3_wal_checkpoint(D,X) is equivalent to
 ** [sqlite3_wal_checkpoint_v2](D,X,[SQLITE_CHECKPOINT_PASSIVE],0,0).)^
@@ -7325,6 +7425,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_wal_checkpoint(sqlite3 *db, const char *zD
 
 /*
 ** CAPI3REF: Checkpoint a database
+** METHOD: sqlite3
 **
 ** ^(The sqlite3_wal_checkpoint_v2(D,X,M,L,C) interface runs a checkpoint
 ** operation on database X of [database connection] D in mode M.  Status
@@ -7579,6 +7680,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_vtab_on_conflict(sqlite3 *);
 
 /*
 ** CAPI3REF: Prepared Statement Scan Status
+** METHOD: sqlite3_stmt
 **
 ** This interface returns information about the predicted and measured
 ** performance for pStmt.  Advanced applications can use this
@@ -7607,7 +7709,7 @@ SQLITE_API int SQLITE_STDCALL sqlite3_vtab_on_conflict(sqlite3 *);
 **
 ** See also: [sqlite3_stmt_scanstatus_reset()]
 */
-SQLITE_API SQLITE_EXPERIMENTAL int SQLITE_STDCALL sqlite3_stmt_scanstatus(
+SQLITE_API int SQLITE_STDCALL sqlite3_stmt_scanstatus(
   sqlite3_stmt *pStmt,      /* Prepared statement for which info desired */
   int idx,                  /* Index of loop to report on */
   int iScanStatusOp,        /* Information desired.  SQLITE_SCANSTAT_* */
@@ -7616,13 +7718,14 @@ SQLITE_API SQLITE_EXPERIMENTAL int SQLITE_STDCALL sqlite3_stmt_scanstatus(
 
 /*
 ** CAPI3REF: Zero Scan-Status Counters
+** METHOD: sqlite3_stmt
 **
 ** ^Zero all [sqlite3_stmt_scanstatus()] related event counters.
 **
 ** This API is only available if the library is built with pre-processor
 ** symbol [SQLITE_ENABLE_STMT_SCANSTATUS] defined.
 */
-SQLITE_API SQLITE_EXPERIMENTAL void SQLITE_STDCALL sqlite3_stmt_scanstatus_reset(sqlite3_stmt*);
+SQLITE_API void SQLITE_STDCALL sqlite3_stmt_scanstatus_reset(sqlite3_stmt*);
 
 
 /*
@@ -7737,6 +7840,8 @@ struct sqlite3_rtree_query_info {
   int eParentWithin;                /* Visibility of parent node */
   int eWithin;                      /* OUT: Visiblity */
   sqlite3_rtree_dbl rScore;         /* OUT: Write the score here */
+  /* The following fields are only available in 3.8.11 and later */
+  sqlite3_value **apSqlParam;       /* Original SQL values of parameters */
 };
 
 /*

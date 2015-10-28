@@ -34,6 +34,7 @@
 #endif
 
 /* defines */
+#define	USB_PRI_HIGHEST	PI_SWI(SWI_TTY)
 #define	USB_PRI_HIGH	PI_SWI(SWI_NET)
 #define	USB_PRI_MED	PI_SWI(SWI_CAMBIO)
 

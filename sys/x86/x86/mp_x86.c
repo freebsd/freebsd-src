@@ -120,7 +120,7 @@ struct cpu_ops cpu_ops;
  * Local data and functions.
  */
 
-static volatile cpuset_t ipi_nmi_pending;
+static volatile cpuset_t ipi_stop_nmi_pending;
 
 /* used to hold the AP's until we are ready to release them */
 struct mtx ap_boot_mtx;
@@ -602,7 +602,7 @@ init_secondary_tail(void)
 	mtx_unlock_spin(&ap_boot_mtx);
 
 	/* Wait until all the AP's are up. */
-	while (smp_started == 0)
+	while (atomic_load_acq_int(&smp_started) == 0)
 		ia32_pause();
 
 	/* Start per-CPU event timers. */
@@ -894,7 +894,7 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		CPU_OR_ATOMIC(&ipi_nmi_pending, &cpus);
+		CPU_OR_ATOMIC(&ipi_stop_nmi_pending, &cpus);
 
 	while ((cpu = CPU_FFS(&cpus)) != 0) {
 		cpu--;
@@ -917,7 +917,7 @@ ipi_cpu(int cpu, u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		CPU_SET_ATOMIC(cpu, &ipi_nmi_pending);
+		CPU_SET_ATOMIC(cpu, &ipi_stop_nmi_pending);
 
 	CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);
 	ipi_send_cpu(cpu, ipi);
@@ -944,7 +944,7 @@ ipi_all_but_self(u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		CPU_OR_ATOMIC(&ipi_nmi_pending, &other_cpus);
+		CPU_OR_ATOMIC(&ipi_stop_nmi_pending, &other_cpus);
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
@@ -962,10 +962,10 @@ ipi_nmi_handler()
 	 * and should be handled.
 	 */
 	cpuid = PCPU_GET(cpuid);
-	if (!CPU_ISSET(cpuid, &ipi_nmi_pending))
+	if (!CPU_ISSET(cpuid, &ipi_stop_nmi_pending))
 		return (1);
 
-	CPU_CLR_ATOMIC(cpuid, &ipi_nmi_pending);
+	CPU_CLR_ATOMIC(cpuid, &ipi_stop_nmi_pending);
 	cpustop_handler();
 	return (0);
 }

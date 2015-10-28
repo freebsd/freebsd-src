@@ -9,8 +9,7 @@
 # Moved to secure: bdes
 #
 
-SUBDIR=	${_addr2line} \
-	alias \
+SUBDIR=	alias \
 	apply \
 	asa \
 	awk \
@@ -24,7 +23,6 @@ SUBDIR=	${_addr2line} \
 	chat \
 	chpass \
 	cksum \
-	${_clang} \
 	cmp \
 	col \
 	colldef \
@@ -36,12 +34,10 @@ SUBDIR=	${_addr2line} \
 	csplit \
 	ctlstat \
 	cut \
-	${_cxxfilt} \
 	dirname \
 	dpv \
 	du \
 	elf2aout \
-	${_elfcopy} \
 	elfdump \
 	enigma \
 	env \
@@ -62,14 +58,12 @@ SUBDIR=	${_addr2line} \
 	gzip \
 	head \
 	hexdump \
-	${_iconv} \
 	id \
 	ident \
 	ipcrm \
 	ipcs \
 	join \
 	jot \
-	${_kdump} \
 	keylogin \
 	keylogout \
 	killall \
@@ -95,15 +89,11 @@ SUBDIR=	${_addr2line} \
 	lsvfs \
 	lzmainfo \
 	m4 \
-	${_makewhatis} \
-	${_man} \
 	mandoc \
 	mesg \
 	minigzip \
 	ministat \
-	${_mkcsmapper} \
 	mkdep \
-	${_mkesdb} \
 	mkfifo \
 	mkimg \
 	mklocale \
@@ -117,7 +107,6 @@ SUBDIR=	${_addr2line} \
 	nfsstat \
 	nice \
 	nl \
-	${_nm} \
 	numactl \
 	nohup \
 	opieinfo \
@@ -135,7 +124,6 @@ SUBDIR=	${_addr2line} \
 	procstat \
 	protect \
 	rctl \
-	${_readelf} \
 	renice \
 	rev \
 	revoke \
@@ -150,14 +138,12 @@ SUBDIR=	${_addr2line} \
 	seq \
 	shar \
 	showmount \
-	${_size} \
 	sockstat \
 	soelim \
 	sort \
 	split \
 	stat \
 	stdbuf \
-	${_strings} \
 	su \
 	systat \
 	tabs \
@@ -165,7 +151,6 @@ SUBDIR=	${_addr2line} \
 	tar \
 	tcopy \
 	tee \
-	${_tests} \
 	time \
 	timeout \
 	tip \
@@ -175,7 +160,6 @@ SUBDIR=	${_addr2line} \
 	tr \
 	true \
 	truncate \
-	${_truss} \
 	tset \
 	tsort \
 	tty \
@@ -202,230 +186,117 @@ SUBDIR=	${_addr2line} \
 	xo \
 	xz \
 	xzdec \
-	yes \
-	${_ypcat} \
-	${_ypmatch} \
-	${_ypwhich}
+	yes
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_AT} != "no"
-SUBDIR+=	at
-.endif
-
-.if ${MK_ATM} != "no"
-SUBDIR+=	atm
-.endif
-
-.if ${MK_BLUETOOTH} != "no"
-SUBDIR+=	bluetooth
-.endif
-
-.if ${MK_BSD_CPIO} != "no"
-SUBDIR+=	cpio
-.endif
-
-.if ${MK_CALENDAR} != "no"
-SUBDIR+=	calendar
-.endif
-
-.if ${MK_CLANG} != "no"
-_clang=		clang
-.endif
-
-.if ${MK_EE} != "no"
-SUBDIR+=	ee
-.endif
-
-.if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
-_addr2line=	addr2line
-_cxxfilt=	cxxfilt
-_elfcopy=	elfcopy
-_nm=		nm
-_readelf=	readelf
-_size=		size
-_strings=	strings
-.endif
-
-.if ${MK_FILE} != "no"
-SUBDIR+=	file
-.endif
-
-.if ${MK_FINGER} != "no"
-SUBDIR+=	finger
-.endif
-
-.if ${MK_FTP} != "no"
-SUBDIR+=	ftp
-.endif
-
+SUBDIR.${MK_AT}+=	at
+SUBDIR.${MK_ATM}+=	atm
+SUBDIR.${MK_BLUETOOTH}+=	bluetooth
+SUBDIR.${MK_BSD_CPIO}+=	cpio
+SUBDIR.${MK_CALENDAR}+=	calendar
+SUBDIR.${MK_CLANG}+=	clang
+SUBDIR.${MK_EE}+=	ee
+SUBDIR.${MK_FILE}+=	file
+SUBDIR.${MK_FINGER}+=	finger
+SUBDIR.${MK_FTP}+=	ftp
+SUBDIR.${MK_GAMES}+=	caesar
+SUBDIR.${MK_GAMES}+=	factor
+SUBDIR.${MK_GAMES}+=	fortune
+SUBDIR.${MK_GAMES}+=	grdc
+SUBDIR.${MK_GAMES}+=	morse
+SUBDIR.${MK_GAMES}+=	number
+SUBDIR.${MK_GAMES}+=	pom
+SUBDIR.${MK_GAMES}+=	primes
+SUBDIR.${MK_GAMES}+=	random
 .if ${MK_GPL_DTC} != "yes"
+.if ${COMPILER_FEATURES:Mc++11}
 SUBDIR+=	dtc
 .endif
-
-.if ${MK_GROFF} != "no"
-SUBDIR+=	vgrind
 .endif
-
-.if ${MK_HESIOD} != "no"
-SUBDIR+=	hesinfo
-.endif
-
-.if ${MK_ICONV} != "no"
-_iconv=		iconv
-_mkcsmapper=	mkcsmapper
-_mkesdb=	mkesdb
-.endif
-
-.if ${MK_ISCSI} != "no"
-SUBDIR+=	iscsictl
-.endif
-
-.if ${MK_KDUMP} != "no"
-SUBDIR+=        kdump
-.if ${MACHINE_ARCH} != "aarch64" # ARM64TODO truss does not build
-SUBDIR+=        truss
-.endif
-.endif
-
-.if ${MK_KERBEROS_SUPPORT} != "no"
-SUBDIR+=	compile_et
-.endif
-
-.if ${MK_LDNS_UTILS} != "no"
-SUBDIR+=	drill
-SUBDIR+=	host
-.endif
-
-.if ${MK_LOCATE} != "no"
-SUBDIR+=	locate
-.endif
-
+SUBDIR.${MK_GROFF}+=	vgrind
+SUBDIR.${MK_HESIOD}+=	hesinfo
+SUBDIR.${MK_ICONV}+=	iconv
+SUBDIR.${MK_ICONV}+=	mkcsmapper
+SUBDIR.${MK_ICONV}+=	mkesdb
+SUBDIR.${MK_ISCSI}+=	iscsictl
+SUBDIR.${MK_KDUMP}+=	kdump
+SUBDIR.${MK_KDUMP}+=	truss
+SUBDIR.${MK_KERBEROS_SUPPORT}+=	compile_et
+SUBDIR.${MK_LDNS_UTILS}+=	drill
+SUBDIR.${MK_LDNS_UTILS}+=	host
+SUBDIR.${MK_LOCATE}+=	locate
 # XXX msgs?
-.if ${MK_MAIL} != "no"
-SUBDIR+=	biff
-SUBDIR+=	from
-SUBDIR+=	mail
-SUBDIR+=	msgs
+SUBDIR.${MK_MAIL}+=	biff
+SUBDIR.${MK_MAIL}+=	from
+SUBDIR.${MK_MAIL}+=	mail
+SUBDIR.${MK_MAIL}+=	msgs
+SUBDIR.${MK_MAKE}+=	bmake
+SUBDIR.${MK_MAN_UTILS}+=	catman
+.if ${MK_MANDOCDB} == "no"	# AND
+SUBDIR.${MK_MAN_UTILS}+=	makewhatis
 .endif
-
-.if ${MK_MAKE} != "no"
-SUBDIR+=	bmake
-.endif
-
-.if ${MK_MAN_UTILS} != "no"
-SUBDIR+=	catman
-.if ${MK_MANDOCDB} == "no"
-_makewhatis=	makewhatis
-.endif
-_man=		man
-.endif
-
-.if ${MK_NETCAT} != "no"
-SUBDIR+=	nc
-.endif
-
-.if ${MK_NIS} != "no"
-SUBDIR+=	ypcat
-SUBDIR+=	ypmatch
-SUBDIR+=	ypwhich
-.endif
-
-.if ${MK_OPENSSH} != "no"
-SUBDIR+=	ssh-copy-id
-.endif
-
-.if ${MK_OPENSSL} != "no"
-SUBDIR+=	bc
-SUBDIR+=	chkey
-SUBDIR+=	dc
-SUBDIR+=	newkey
-.endif
-
-.if ${MK_QUOTAS} != "no"
-SUBDIR+=	quota
-.endif
-
-.if ${MK_RCMDS} != "no"
-SUBDIR+=	rlogin
-SUBDIR+=	rsh
-SUBDIR+=	ruptime
-SUBDIR+=	rwho
-.endif
-
-.if ${MK_SENDMAIL} != "no"
-SUBDIR+=	vacation
-.endif
-
-.if ${MK_TALK} != "no"
-SUBDIR+=	talk
-.endif
-
-.if ${MK_TELNET} != "no"
-SUBDIR+=	telnet
-.endif
-
-.if ${MK_TESTS} != "no"
-_tests=		tests
-.endif
-
-.if ${MK_TEXTPROC} != "no"
-SUBDIR+=	checknr
-SUBDIR+=	colcrt
-SUBDIR+=	ul
-.endif
-
-.if ${MK_TFTP} != "no"
-SUBDIR+=	tftp
-.endif
-
-.if ${MK_TOOLCHAIN} != "no"
-SUBDIR+=	ar
-SUBDIR+=	c89
-SUBDIR+=	c99
-SUBDIR+=	ctags
-SUBDIR+=	file2c
+SUBDIR.${MK_MAN_UTILS}+=	man
+SUBDIR.${MK_NETCAT}+=	nc
+SUBDIR.${MK_NIS}+=	ypcat
+SUBDIR.${MK_NIS}+=	ypmatch
+SUBDIR.${MK_NIS}+=	ypwhich
+SUBDIR.${MK_OPENSSH}+=	ssh-copy-id
+SUBDIR.${MK_OPENSSL}+=	bc
+SUBDIR.${MK_OPENSSL}+=	chkey
+SUBDIR.${MK_OPENSSL}+=	dc
+SUBDIR.${MK_OPENSSL}+=	newkey
+SUBDIR.${MK_QUOTAS}+=	quota
+SUBDIR.${MK_RCMDS}+=	rlogin
+SUBDIR.${MK_RCMDS}+=	rsh
+SUBDIR.${MK_RCMDS}+=	ruptime
+SUBDIR.${MK_RCMDS}+=	rwho
+SUBDIR.${MK_SENDMAIL}+=	vacation
+SUBDIR.${MK_TALK}+=	talk
+SUBDIR.${MK_TELNET}+=	telnet
+SUBDIR.${MK_TESTS}+=	tests
+SUBDIR.${MK_TEXTPROC}+=	checknr
+SUBDIR.${MK_TEXTPROC}+=	colcrt
+SUBDIR.${MK_TEXTPROC}+=	ul
+SUBDIR.${MK_TFTP}+=	tftp
+SUBDIR.${MK_TOOLCHAIN}+=	addr2line
+SUBDIR.${MK_TOOLCHAIN}+=	ar
+SUBDIR.${MK_TOOLCHAIN}+=	c89
+SUBDIR.${MK_TOOLCHAIN}+=	c99
+SUBDIR.${MK_TOOLCHAIN}+=	ctags
+SUBDIR.${MK_TOOLCHAIN}+=	cxxfilt
+SUBDIR.${MK_TOOLCHAIN}+=	elfcopy
+SUBDIR.${MK_TOOLCHAIN}+=	file2c
 .if ${MACHINE_ARCH} != "aarch64" # ARM64TODO gprof does not build
-SUBDIR+=	gprof
+SUBDIR.${MK_TOOLCHAIN}+=	gprof
 .endif
-SUBDIR+=	indent
-SUBDIR+=	lex
-SUBDIR+=	mkstr
-SUBDIR+=	rpcgen
-SUBDIR+=	unifdef
+SUBDIR.${MK_TOOLCHAIN}+=	indent
+SUBDIR.${MK_TOOLCHAIN}+=	lex
+SUBDIR.${MK_TOOLCHAIN}+=	mkstr
+SUBDIR.${MK_TOOLCHAIN}+=	nm
+SUBDIR.${MK_TOOLCHAIN}+=	readelf
+SUBDIR.${MK_TOOLCHAIN}+=	rpcgen
+SUBDIR.${MK_TOOLCHAIN}+=	unifdef
+SUBDIR.${MK_TOOLCHAIN}+=	size
+SUBDIR.${MK_TOOLCHAIN}+=	strings
 .if ${MACHINE_ARCH} != "aarch64" # ARM64TODO xlint does not build
-SUBDIR+=	xlint
+SUBDIR.${MK_TOOLCHAIN}+=	xlint
 .endif
-SUBDIR+=	xstr
-SUBDIR+=	yacc
-.endif
-
-.if ${MK_VI} != "no"
-SUBDIR+=	vi
-.endif
-
-.if ${MK_VT} != "no"
-SUBDIR+=	vtfontcvt
-.endif
-
-.if ${MK_USB} != "no"
-SUBDIR+=	usbhidaction
-SUBDIR+=	usbhidctl
-.endif
-
-.if ${MK_UTMPX} != "no"
-SUBDIR+=	last
-SUBDIR+=	users
-SUBDIR+=	who
-.endif
-
-.if ${MK_SVN} == "yes" || ${MK_SVNLITE} == "yes"
-SUBDIR+=	svn
-.endif
+SUBDIR.${MK_TOOLCHAIN}+=	xstr
+SUBDIR.${MK_TOOLCHAIN}+=	yacc
+SUBDIR.${MK_VI}+=	vi
+SUBDIR.${MK_VT}+=	vtfontcvt
+SUBDIR.${MK_USB}+=	usbhidaction
+SUBDIR.${MK_USB}+=	usbhidctl
+SUBDIR.${MK_UTMPX}+=	last
+SUBDIR.${MK_UTMPX}+=	users
+SUBDIR.${MK_UTMPX}+=	who
+SUBDIR.${MK_SVN}+=	svn
+SUBDIR.${MK_SVNLITE}+=	svn
 
 .include <bsd.arch.inc.mk>
 
-SUBDIR:=	${SUBDIR:O}
+SUBDIR:=	${SUBDIR:O:u}
 
 SUBDIR_PARALLEL=
 

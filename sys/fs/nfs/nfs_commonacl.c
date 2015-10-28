@@ -347,6 +347,8 @@ nfsrv_buildace(struct nfsrv_descript *nd, u_char *name, int namelen,
 			acemask |= NFSV4ACE_WRITEACL;
 		if (ace->ae_perm & ACL_WRITE_OWNER)
 			acemask |= NFSV4ACE_WRITEOWNER;
+		if (ace->ae_perm & ACL_SYNCHRONIZE)
+			acemask |= NFSV4ACE_SYNCHRONIZE;
 	} else {
 		if (ace->ae_perm & ACL_READ_DATA)
 			acemask |= NFSV4ACE_READDATA;

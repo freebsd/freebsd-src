@@ -90,6 +90,8 @@ static int ctl_sign[CTLTYPE+1] = {
 };
 
 static int ctl_size[CTLTYPE+1] = {
+	[CTLTYPE_U8] = sizeof(uint8_t),
+	[CTLTYPE_U16] = sizeof(uint16_t),
 	[CTLTYPE_INT] = sizeof(int),
 	[CTLTYPE_UINT] = sizeof(u_int),
 	[CTLTYPE_LONG] = sizeof(long),
@@ -99,6 +101,8 @@ static int ctl_size[CTLTYPE+1] = {
 };
 
 static const char *ctl_typename[CTLTYPE+1] = {
+	[CTLTYPE_U8] = "uint8_t",
+	[CTLTYPE_U16] = "uint16_t",
 	[CTLTYPE_INT] = "integer",
 	[CTLTYPE_UINT] = "unsigned integer",
 	[CTLTYPE_LONG] = "long integer",
@@ -221,6 +225,8 @@ parse(const char *string, int lineno)
 	int len, i, j;
 	const void *newval;
 	const char *newvalstr = NULL;
+	uint8_t u8val;
+	uint16_t u16val;
 	int intval;
 	unsigned int uintval;
 	long longval;
@@ -262,6 +268,12 @@ parse(const char *string, int lineno)
 		newvalstr = cp;
 		newsize = strlen(cp);
 	}
+	/* Trim spaces */
+	cp = bufp + strlen(bufp) - 1;
+	while (cp >= bufp && isspace((int)*cp)) {
+		*cp = '\0';
+		cp--;
+	}
 	len = name2oid(bufp, mib);
 
 	if (len < 0) {
@@ -270,7 +282,11 @@ parse(const char *string, int lineno)
 		if (qflag)
 			return (1);
 		else {
-			warn("unknown oid '%s'%s", bufp, line);
+			if (errno == ENOENT) {
+				warnx("unknown oid '%s'%s", bufp, line);
+			} else {
+				warn("unknown oid '%s'%s", bufp, line);
+			}
 			return (1);
 		}
 	}
@@ -312,6 +328,8 @@ parse(const char *string, int lineno)
 		}
 
 		switch (kind & CTLTYPE) {
+		case CTLTYPE_U8:
+		case CTLTYPE_U16:
 		case CTLTYPE_INT:
 		case CTLTYPE_UINT:
 		case CTLTYPE_LONG:
@@ -335,6 +353,17 @@ parse(const char *string, int lineno)
 		errno = 0;
 
 		switch (kind & CTLTYPE) {
+			case CTLTYPE_U8:
+				u8val = (uint8_t)strtoul(newvalstr, &endptr, 0);
+				newval = &u8val;
+				newsize = sizeof(u8val);
+				break;
+			case CTLTYPE_U16:
+				u16val = (uint16_t)strtoul(newvalstr, &endptr,
+				    0);
+				newval = &u16val;
+				newsize = sizeof(u16val);
+				break;
 			case CTLTYPE_INT:
 				if (strncmp(fmt, "IK", 2) == 0)
 					intval = strIKtoi(newvalstr, &endptr, fmt);
@@ -880,6 +909,8 @@ show_var(int *oid, int nlen)
 		free(oval);
 		return (0);
 
+	case CTLTYPE_U8:
+	case CTLTYPE_U16:
 	case CTLTYPE_INT:
 	case CTLTYPE_UINT:
 	case CTLTYPE_LONG:
@@ -892,6 +923,14 @@ show_var(int *oid, int nlen)
 		sep1 = "";
 		while (len >= intlen) {
 			switch (kind & CTLTYPE) {
+			case CTLTYPE_U8:
+				umv = *(uint8_t *)p;
+				mv = *(int8_t *)p;
+				break;
+			case CTLTYPE_U16:
+				umv = *(uint16_t *)p;
+				mv = *(int16_t *)p;
+				break;
 			case CTLTYPE_INT:
 			case CTLTYPE_UINT:
 				umv = *(u_int *)p;

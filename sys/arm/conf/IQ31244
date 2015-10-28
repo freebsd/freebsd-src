@@ -75,7 +75,6 @@ device		uart
 device		pci
 
 device		ata
-options 	ATA_STATIC_ID		# Static device numbering
 
 device		scbus			# SCSI bus (required for ATA/SCSI)
 device		cd			# CD

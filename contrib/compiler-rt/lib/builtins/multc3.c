@@ -18,55 +18,50 @@
 /* Returns: the product of a + ib and c + id */
 
 COMPILER_RT_ABI long double _Complex
-__multc3(long double __a, long double __b, long double __c, long double __d)
+__multc3(long double a, long double b, long double c, long double d)
 {
-    long double __ac = __a * __c;
-    long double __bd = __b * __d;
-    long double __ad = __a * __d;
-    long double __bc = __b * __c;
+    long double ac = a * c;
+    long double bd = b * d;
+    long double ad = a * d;
+    long double bc = b * c;
     long double _Complex z;
-    __real__ z = __ac - __bd;
-    __imag__ z = __ad + __bc;
-    if (crt_isnan(__real__ z) && crt_isnan(__imag__ z))
-    {
-        int __recalc = 0;
-        if (crt_isinf(__a) || crt_isinf(__b))
-        {
-            __a = crt_copysignl(crt_isinf(__a) ? 1 : 0, __a);
-            __b = crt_copysignl(crt_isinf(__b) ? 1 : 0, __b);
-            if (crt_isnan(__c))
-                __c = crt_copysignl(0, __c);
-            if (crt_isnan(__d))
-                __d = crt_copysignl(0, __d);
-            __recalc = 1;
+    __real__ z = ac - bd;
+    __imag__ z = ad + bc;
+    if (crt_isnan(__real__ z) && crt_isnan(__imag__ z)) {
+        int recalc = 0;
+        if (crt_isinf(a) || crt_isinf(b)) {
+            a = crt_copysignl(crt_isinf(a) ? 1 : 0, a);
+            b = crt_copysignl(crt_isinf(b) ? 1 : 0, b);
+            if (crt_isnan(c))
+                c = crt_copysignl(0, c);
+            if (crt_isnan(d))
+                d = crt_copysignl(0, d);
+            recalc = 1;
         }
-        if (crt_isinf(__c) || crt_isinf(__d))
-        {
-            __c = crt_copysignl(crt_isinf(__c) ? 1 : 0, __c);
-            __d = crt_copysignl(crt_isinf(__d) ? 1 : 0, __d);
-            if (crt_isnan(__a))
-                __a = crt_copysignl(0, __a);
-            if (crt_isnan(__b))
-                __b = crt_copysignl(0, __b);
-            __recalc = 1;
+        if (crt_isinf(c) || crt_isinf(d)) {
+            c = crt_copysignl(crt_isinf(c) ? 1 : 0, c);
+            d = crt_copysignl(crt_isinf(d) ? 1 : 0, d);
+            if (crt_isnan(a))
+                a = crt_copysignl(0, a);
+            if (crt_isnan(b))
+                b = crt_copysignl(0, b);
+            recalc = 1;
         }
-        if (!__recalc && (crt_isinf(__ac) || crt_isinf(__bd) ||
-                          crt_isinf(__ad) || crt_isinf(__bc)))
-        {
-            if (crt_isnan(__a))
-                __a = crt_copysignl(0, __a);
-            if (crt_isnan(__b))
-                __b = crt_copysignl(0, __b);
-            if (crt_isnan(__c))
-                __c = crt_copysignl(0, __c);
-            if (crt_isnan(__d))
-                __d = crt_copysignl(0, __d);
-            __recalc = 1;
+        if (!recalc && (crt_isinf(ac) || crt_isinf(bd) ||
+                          crt_isinf(ad) || crt_isinf(bc))) {
+            if (crt_isnan(a))
+                a = crt_copysignl(0, a);
+            if (crt_isnan(b))
+                b = crt_copysignl(0, b);
+            if (crt_isnan(c))
+                c = crt_copysignl(0, c);
+            if (crt_isnan(d))
+                d = crt_copysignl(0, d);
+            recalc = 1;
         }
-        if (__recalc)
-        {
-            __real__ z = CRT_INFINITY * (__a * __c - __b * __d);
-            __imag__ z = CRT_INFINITY * (__a * __d + __b * __c);
+        if (recalc) {
+            __real__ z = CRT_INFINITY * (a * c - b * d);
+            __imag__ z = CRT_INFINITY * (a * d + b * c);
         }
     }
     return z;

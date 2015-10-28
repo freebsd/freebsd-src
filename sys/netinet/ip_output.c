@@ -99,26 +99,28 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, mbuf_frag_size, CTLFLAG_RW,
 	&mbuf_frag_size, 0, "Fragment outgoing mbufs to this size");
 #endif
 
-static void	ip_mloopback
-	(struct ifnet *, struct mbuf *, struct sockaddr_in *, int);
+static void	ip_mloopback(struct ifnet *, const struct mbuf *, int);
 
 
 extern int in_mcast_loop;
 extern	struct protosw inetsw[];
 
 static inline int
-ip_output_pfil(struct mbuf *m, struct ifnet *ifp, struct inpcb *inp,
-	struct sockaddr_in *dst, int *fibnum, int *error)
+ip_output_pfil(struct mbuf **mp, struct ifnet *ifp, struct inpcb *inp,
+    struct sockaddr_in *dst, int *fibnum, int *error)
 {
 	struct m_tag *fwd_tag = NULL;
+	struct mbuf *m;
 	struct in_addr odst;
 	struct ip *ip;
 
+	m = *mp;
 	ip = mtod(m, struct ip *);
 
 	/* Run through list of hooks for output packets. */
 	odst.s_addr = ip->ip_dst.s_addr;
-	*error = pfil_run_hooks(&V_inet_pfil_hook, &m, ifp, PFIL_OUT, inp);
+	*error = pfil_run_hooks(&V_inet_pfil_hook, mp, ifp, PFIL_OUT, inp);
+	m = *mp;
 	if ((*error) != 0 || m == NULL)
 		return 1; /* Finished */
 
@@ -443,7 +445,7 @@ again:
 			 * thus deferring a hash lookup and mutex acquisition
 			 * at the expense of a cheap copy using m_copym().
 			 */
-			ip_mloopback(ifp, m, dst, hlen);
+			ip_mloopback(ifp, m, hlen);
 		} else {
 			/*
 			 * If we are acting as a multicast router, perform
@@ -552,7 +554,7 @@ sendit:
 
 	/* Jump over all PFIL processing if hooks are not active. */
 	if (PFIL_HOOKED(&V_inet_pfil_hook)) {
-		switch (ip_output_pfil(m, ifp, inp, dst, &fibnum, &error)) {
+		switch (ip_output_pfil(&m, ifp, inp, dst, &fibnum, &error)) {
 		case 1: /* Finished */
 			goto done;
 
@@ -1356,10 +1358,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
  * replicating that code here.
  */
 static void
-ip_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in *dst,
-    int hlen)
+ip_mloopback(struct ifnet *ifp, const struct mbuf *m, int hlen)
 {
-	register struct ip *ip;
+	struct ip *ip;
 	struct mbuf *copym;
 
 	/*
@@ -1385,13 +1386,6 @@ ip_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in *dst,
 		ip = mtod(copym, struct ip *);
 		ip->ip_sum = 0;
 		ip->ip_sum = in_cksum(copym, hlen);
-#if 1 /* XXX */
-		if (dst->sin_family != AF_INET) {
-			printf("ip_mloopback: bad address family %d\n",
-						dst->sin_family);
-			dst->sin_family = AF_INET;
-		}
-#endif
-		if_simloop(ifp, copym, dst->sin_family, 0);
+		if_simloop(ifp, copym, AF_INET, 0);
 	}
 }

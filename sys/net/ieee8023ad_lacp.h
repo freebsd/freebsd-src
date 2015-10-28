@@ -251,6 +251,7 @@ struct lacp_softc {
 		u_int32_t	lsc_tx_test;
 	} lsc_debug;
 	u_int32_t		lsc_strict_mode;
+	boolean_t		lsc_fast_timeout; /* if set, fast timeout */
 };
 
 #define	LACP_TYPE_ACTORINFO	1

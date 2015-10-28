@@ -22,6 +22,8 @@ ident		IMX6
 include 	"std.armv6"
 include 	"../freescale/imx/std.imx6"
 
+options 	ARM_INTRNG
+
 options 	SOC_IMX6
 
 options 	HZ=500			# Scheduling quantum is 2 milliseconds.
@@ -136,5 +138,5 @@ device		ffec			# Freescale Fast Ethernet Controller
 device		fsliic			# Freescale i2c/iic
 device		iic			# iic protocol
 device		iicbus			# iic bus
-#device		imxwdt			# Watchdog. WARNING: can't be disabled!!!
+device		imxwdt			# Watchdog. WARNING: can't be disabled!!!
 

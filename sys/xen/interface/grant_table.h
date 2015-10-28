@@ -134,8 +134,10 @@ struct grant_entry_v1 {
     /* The domain being granted foreign privileges. [GST] */
     domid_t  domid;
     /*
-     * GTF_permit_access: Frame that @domid is allowed to map and access. [GST]
-     * GTF_accept_transfer: Frame whose ownership transferred by @domid. [XEN]
+     * GTF_permit_access: GFN that @domid is allowed to map and access. [GST]
+     * GTF_accept_transfer: GFN that @domid is allowed to transfer into. [GST]
+     * GTF_transfer_completed: MFN whose ownership transferred by @domid
+     *                         (non-translated guests only). [XEN]
      */
     uint32_t frame;
 };
@@ -309,6 +311,7 @@ typedef uint16_t grant_status_t;
 #define GNTTABOP_get_status_frames    9
 #define GNTTABOP_get_version          10
 #define GNTTABOP_swap_grant_ref	      11
+#define GNTTABOP_cache_flush	      12
 #endif /* __XEN_INTERFACE_VERSION__ */
 /* ` } */
 
@@ -320,7 +323,7 @@ typedef uint32_t grant_handle_t;
 /*
  * GNTTABOP_map_grant_ref: Map the grant entry (<dom>,<ref>) for access
  * by devices and/or host CPUs. If successful, <handle> is a tracking number
- * that must be presented later to destroy the mapping(s). On error, <handle>
+ * that must be presented later to destroy the mapping(s). On error, <status>
  * is a negative status code.
  * NOTES:
  *  1. If GNTMAP_device_map is specified then <dev_bus_addr> is the address
@@ -385,7 +388,11 @@ struct gnttab_setup_table {
     uint32_t nr_frames;
     /* OUT parameters. */
     int16_t  status;              /* => enum grant_status */
+#if __XEN_INTERFACE_VERSION__ < 0x00040300
     XEN_GUEST_HANDLE(ulong) frame_list;
+#else
+    XEN_GUEST_HANDLE(xen_pfn_t) frame_list;
+#endif
 };
 typedef struct gnttab_setup_table gnttab_setup_table_t;
 DEFINE_XEN_GUEST_HANDLE(gnttab_setup_table_t);
@@ -445,12 +452,10 @@ DEFINE_XEN_GUEST_HANDLE(gnttab_transfer_t);
 #define GNTCOPY_source_gref       (1<<_GNTCOPY_source_gref)
 #define _GNTCOPY_dest_gref        (1)
 #define GNTCOPY_dest_gref         (1<<_GNTCOPY_dest_gref)
-#define _GNTCOPY_can_fail         (2)
-#define GNTCOPY_can_fail          (1<<_GNTCOPY_can_fail)
 
 struct gnttab_copy {
     /* IN parameters. */
-    struct {
+    struct gnttab_copy_ptr {
         union {
             grant_ref_t ref;
             xen_pfn_t   gmfn;
@@ -572,6 +577,25 @@ struct gnttab_swap_grant_ref {
 typedef struct gnttab_swap_grant_ref gnttab_swap_grant_ref_t;
 DEFINE_XEN_GUEST_HANDLE(gnttab_swap_grant_ref_t);
 
+/*
+ * Issue one or more cache maintenance operations on a portion of a
+ * page granted to the calling domain by a foreign domain.
+ */
+struct gnttab_cache_flush {
+    union {
+        uint64_t dev_bus_addr;
+        grant_ref_t ref;
+    } a;
+    uint16_t offset; /* offset from start of grant */
+    uint16_t length; /* size within the grant */
+#define GNTTAB_CACHE_CLEAN          (1<<0)
+#define GNTTAB_CACHE_INVAL          (1<<1)
+#define GNTTAB_CACHE_SOURCE_GREF    (1<<31)
+    uint32_t op;
+};
+typedef struct gnttab_cache_flush gnttab_cache_flush_t;
+DEFINE_XEN_GUEST_HANDLE(gnttab_cache_flush_t);
+
 #endif /* __XEN_INTERFACE_VERSION__ */
 
 /*
@@ -652,7 +676,7 @@ DEFINE_XEN_GUEST_HANDLE(gnttab_swap_grant_ref_t);
 /*
  * Local variables:
  * mode: C
- * c-set-style: "BSD"
+ * c-file-style: "BSD"
  * c-basic-offset: 4
  * tab-width: 4
  * indent-tabs-mode: nil

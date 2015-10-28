@@ -855,8 +855,10 @@ static int validate_server_cert(struct http_ctx *ctx, X509 *cert)
 	struct http_cert hcert;
 	int ret;
 
-	if (ctx->cert_cb == NULL)
+	if (ctx->cert_cb == NULL) {
+		wpa_printf(MSG_DEBUG, "%s: no cert_cb configured", __func__);
 		return 0;
+	}
 
 	if (0) {
 		BIO *out;
@@ -950,7 +952,8 @@ static int curl_cb_ssl_verify(int preverify_ok, X509_STORE_CTX *x509_ctx)
 	ssl_ctx = ssl->ctx;
 	ctx = SSL_CTX_get_app_data(ssl_ctx);
 
-	wpa_printf(MSG_DEBUG, "curl_cb_ssl_verify");
+	wpa_printf(MSG_DEBUG, "curl_cb_ssl_verify, preverify_ok: %d",
+		   preverify_ok);
 
 	err = X509_STORE_CTX_get_error(x509_ctx);
 	err_str = X509_verify_cert_error_string(err);
@@ -1249,9 +1252,14 @@ static CURL * setup_curl_post(struct http_ctx *ctx, const char *address,
 			      const char *client_key)
 {
 	CURL *curl;
+#ifdef EAP_TLS_OPENSSL
+	const char *extra = " tls=openssl";
+#else /* EAP_TLS_OPENSSL */
+	const char *extra = "";
+#endif /* EAP_TLS_OPENSSL */
 
 	wpa_printf(MSG_DEBUG, "Start HTTP client: address=%s ca_fname=%s "
-		   "username=%s", address, ca_fname, username);
+		   "username=%s%s", address, ca_fname, username, extra);
 
 	curl = curl_easy_init();
 	if (curl == NULL)

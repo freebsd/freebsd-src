@@ -522,7 +522,7 @@ lacp_port_create(struct lagg_port *lgp)
 	int error;
 
 	boolean_t active = TRUE; /* XXX should be configurable */
-	boolean_t fast = FALSE; /* XXX should be configurable */
+	boolean_t fast = FALSE; /* Configurable via ioctl */ 
 
 	link_init_sdl(ifp, (struct sockaddr *)&sdl, IFT_ETHER);
 	sdl.sdl_alen = ETHER_ADDR_LEN;

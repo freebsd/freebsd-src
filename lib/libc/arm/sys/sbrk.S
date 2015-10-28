@@ -78,3 +78,5 @@ ENTRY(_sbrk)
 .Lcurbrk:
 	.word	PIC_SYM(CURBRK, GOT)
 END(_sbrk)
+
+	.section .note.GNU-stack,"",%progbits

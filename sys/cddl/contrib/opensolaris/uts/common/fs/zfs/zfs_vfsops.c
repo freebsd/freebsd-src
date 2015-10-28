@@ -22,7 +22,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -472,6 +472,19 @@ zfs_register_callbacks(vfs_t *vfsp)
 	}
 
 	/*
+	 * We need to enter pool configuration here, so that we can use
+	 * dsl_prop_get_int_ds() to handle the special nbmand property below.
+	 * dsl_prop_get_integer() can not be used, because it has to acquire
+	 * spa_namespace_lock and we can not do that because we already hold
+	 * z_teardown_lock.  The problem is that spa_config_sync() is called
+	 * with spa_namespace_lock held and the function calls ZFS vnode
+	 * operations to write the cache file and thus z_teardown_lock is
+	 * acquired after spa_namespace_lock.
+	 */
+	ds = dmu_objset_ds(os);
+	dsl_pool_config_enter(dmu_objset_pool(os), FTAG);
+
+	/*
 	 * nbmand is a special property.  It can only be changed at
 	 * mount time.
 	 *
@@ -482,14 +495,9 @@ zfs_register_callbacks(vfs_t *vfsp)
 		nbmand = B_FALSE;
 	} else if (vfs_optionisset(vfsp, MNTOPT_NBMAND, NULL)) {
 		nbmand = B_TRUE;
-	} else {
-		char osname[MAXNAMELEN];
-
-		dmu_objset_name(os, osname);
-		if (error = dsl_prop_get_integer(osname, "nbmand", &nbmand,
-		    NULL)) {
-			return (error);
-		}
+	} else if (error = dsl_prop_get_int_ds(ds, "nbmand", &nbmand) != 0) {
+		dsl_pool_config_exit(dmu_objset_pool(os), FTAG);
+		return (error);
 	}
 
 	/*
@@ -499,8 +507,6 @@ zfs_register_callbacks(vfs_t *vfsp)
 	 * the first prop_register(), but I guess I like to go
 	 * overboard...
 	 */
-	ds = dmu_objset_ds(os);
-	dsl_pool_config_enter(dmu_objset_pool(os), FTAG);
 	error = dsl_prop_register(ds,
 	    zfs_prop_to_name(ZFS_PROP_ATIME), atime_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
@@ -549,35 +555,7 @@ zfs_register_callbacks(vfs_t *vfsp)
 	return (0);
 
 unregister:
-	/*
-	 * We may attempt to unregister some callbacks that are not
-	 * registered, but this is OK; it will simply return ENOMSG,
-	 * which we will ignore.
-	 */
-	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_ATIME),
-	    atime_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_XATTR),
-	    xattr_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_RECORDSIZE),
-	    blksz_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_READONLY),
-	    readonly_changed_cb, zfsvfs);
-#ifdef illumos
-	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_DEVICES),
-	    devices_changed_cb, zfsvfs);
-#endif
-	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_SETUID),
-	    setuid_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_EXEC),
-	    exec_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_SNAPDIR),
-	    snapdir_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_ACLMODE),
-	    acl_mode_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_ACLINHERIT),
-	    acl_inherit_changed_cb, zfsvfs);
-	(void) dsl_prop_unregister(ds, zfs_prop_to_name(ZFS_PROP_VSCAN),
-	    vscan_changed_cb, zfsvfs);
+	dsl_prop_unregister_all(ds, zfsvfs);
 	return (error);
 }
 
@@ -950,7 +928,7 @@ zfsvfs_create(const char *osname, zfsvfs_t **zfvp)
 		error = zap_lookup(os, MASTER_NODE_OBJ, ZFS_SA_ATTRS, 8, 1,
 		    &sa_obj);
 		if (error)
-			return (error);
+			goto out;
 	} else {
 		/*
 		 * Pre SA versions file systems should never touch
@@ -1257,43 +1235,9 @@ void
 zfs_unregister_callbacks(zfsvfs_t *zfsvfs)
 {
 	objset_t *os = zfsvfs->z_os;
-	struct dsl_dataset *ds;
 
-	/*
-	 * Unregister properties.
-	 */
-	if (!dmu_objset_is_snapshot(os)) {
-		ds = dmu_objset_ds(os);
-		VERIFY(dsl_prop_unregister(ds, "atime", atime_changed_cb,
-		    zfsvfs) == 0);
-
-		VERIFY(dsl_prop_unregister(ds, "xattr", xattr_changed_cb,
-		    zfsvfs) == 0);
-
-		VERIFY(dsl_prop_unregister(ds, "recordsize", blksz_changed_cb,
-		    zfsvfs) == 0);
-
-		VERIFY(dsl_prop_unregister(ds, "readonly", readonly_changed_cb,
-		    zfsvfs) == 0);
-
-		VERIFY(dsl_prop_unregister(ds, "setuid", setuid_changed_cb,
-		    zfsvfs) == 0);
-
-		VERIFY(dsl_prop_unregister(ds, "exec", exec_changed_cb,
-		    zfsvfs) == 0);
-
-		VERIFY(dsl_prop_unregister(ds, "snapdir", snapdir_changed_cb,
-		    zfsvfs) == 0);
-
-		VERIFY(dsl_prop_unregister(ds, "aclmode", acl_mode_changed_cb,
-		    zfsvfs) == 0);
-
-		VERIFY(dsl_prop_unregister(ds, "aclinherit",
-		    acl_inherit_changed_cb, zfsvfs) == 0);
-
-		VERIFY(dsl_prop_unregister(ds, "vscan",
-		    vscan_changed_cb, zfsvfs) == 0);
-	}
+	if (!dmu_objset_is_snapshot(os))
+		dsl_prop_unregister_all(dmu_objset_ds(os), zfsvfs);
 }
 
 #ifdef SECLABEL

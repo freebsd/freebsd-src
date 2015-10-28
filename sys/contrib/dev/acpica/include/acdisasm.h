@@ -186,13 +186,16 @@ typedef struct acpi_dmtable_data
 
 typedef struct acpi_op_walk_info
 {
+    ACPI_WALK_STATE         *WalkState;
+    ACPI_PARSE_OBJECT       *MappingOp;
+    UINT8                   *PreviousAml;
+    UINT8                   *StartAml;
     UINT32                  Level;
     UINT32                  LastLevel;
     UINT32                  Count;
     UINT32                  BitOffset;
     UINT32                  Flags;
-    ACPI_WALK_STATE         *WalkState;
-    ACPI_PARSE_OBJECT       *MappingOp;
+    UINT32                  AmlOffset;
 
 } ACPI_OP_WALK_INFO;
 

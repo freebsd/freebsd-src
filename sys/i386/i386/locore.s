@@ -731,7 +731,7 @@ no_kernend:
 	movl	%esi,R(IdlePTD)
 
 /* Allocate KSTACK */
-	ALLOCPAGES(KSTACK_PAGES)
+	ALLOCPAGES(TD0_KSTACK_PAGES)
 	movl	%esi,R(p0kpa)
 	addl	$KERNBASE, %esi
 	movl	%esi, R(proc0kstack)
@@ -800,7 +800,7 @@ no_kernend:
 
 /* Map proc0's KSTACK in the physical way ... */
 	movl	R(p0kpa), %eax
-	movl	$(KSTACK_PAGES), %ecx
+	movl	$(TD0_KSTACK_PAGES), %ecx
 	fillkptphys($PG_RW)
 
 /* Map ISA hole */

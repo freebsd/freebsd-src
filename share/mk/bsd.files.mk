@@ -10,6 +10,9 @@ __<bsd.files.mk>__:
 FILESGROUPS?=	FILES
 
 .for group in ${FILESGROUPS}
+# Add in foo.yes and remove duplicates from all the groups
+${${group}}:= ${${group}} ${${group}.yes}
+${${group}}:= ${${group}:O:u}
 buildfiles: ${${group}}
 .endfor
 
@@ -27,13 +30,12 @@ ${group}DIR?=	${BINDIR}
 STAGE_SETS+=	${group}
 .endif
 STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
-STAGE_SYMLINKS_DIR.${group}= ${STAGE_OBJTOP}
 
 _${group}FILES=
 .for file in ${${group}}
 .if defined(${group}OWN_${file:T}) || defined(${group}GRP_${file:T}) || \
     defined(${group}MODE_${file:T}) || defined(${group}DIR_${file:T}) || \
-    defined(${group}NAME_${file:T})
+    defined(${group}NAME_${file:T}) || defined(${group}NAME)
 ${group}OWN_${file:T}?=	${${group}OWN}
 ${group}GRP_${file:T}?=	${${group}GRP}
 ${group}MODE_${file:T}?=	${${group}MODE}
@@ -44,10 +46,12 @@ ${group}NAME_${file:T}?=	${${group}NAME}
 ${group}NAME_${file:T}?=	${file:T}
 .endif
 .if !make(buildincludes)
-STAGE_AS_SETS+=	${group}
+STAGE_AS_SETS+=	${file:T}
 .endif
 STAGE_AS_${file:T}= ${${group}NAME_${file:T}}
-stage_as.${group}: ${file}
+# XXX {group}OWN,GRP,MODE
+STAGE_DIR.${file:T}= ${STAGE_OBJTOP}${${group}DIR_${file:T}}
+stage_as.${file:T}: ${file}
 
 installfiles-${group}: _${group}INS_${file:T}
 _${group}INS_${file:T}: ${file}
@@ -70,7 +74,7 @@ _${group}INS: ${_${group}FILES}
 	    ${DESTDIR}${${group}DIR}/${${group}NAME}
 .else
 	${INSTALL} -o ${${group}OWN} -g ${${group}GRP} \
-	    -m ${${group}MODE} ${.ALLSRC} ${DESTDIR}${${group}DIR}
+	    -m ${${group}MODE} ${.ALLSRC} ${DESTDIR}${${group}DIR}/
 .endif
 .endif
 

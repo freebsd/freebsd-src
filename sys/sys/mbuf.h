@@ -344,7 +344,7 @@ struct mbuf {
  */
 #define	EXT_CLUSTER	1	/* mbuf cluster */
 #define	EXT_SFBUF	2	/* sendfile(2)'s sf_bufs */
-#define	EXT_JUMBOP	3	/* jumbo cluster 4096 bytes */
+#define	EXT_JUMBOP	3	/* jumbo cluster page sized */
 #define	EXT_JUMBO9	4	/* jumbo cluster 9216 bytes */
 #define	EXT_JUMBO16	5	/* jumbo cluster 16184 bytes */
 #define	EXT_PACKET	6	/* mbuf+cluster from packet zone */
@@ -524,6 +524,7 @@ extern uma_zone_t	zone_jumbo9;
 extern uma_zone_t	zone_jumbo16;
 extern uma_zone_t	zone_ext_refcnt;
 
+void		 mb_dupcl(struct mbuf *, const struct mbuf *);
 void		 mb_free_ext(struct mbuf *);
 int		 m_pkthdr_init(struct mbuf *, int);
 
@@ -953,7 +954,7 @@ int		 m_extadd(struct mbuf *, caddr_t, u_int,
 struct mbuf	*m_collapse(struct mbuf *, int, int);
 void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
-struct mbuf	*m_copym(struct mbuf *, int, int, int);
+struct mbuf	*m_copym(const struct mbuf *, int, int, int);
 struct mbuf	*m_copypacket(struct mbuf *, int);
 void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
 struct mbuf	*m_copyup(struct mbuf *, int, int);
@@ -962,8 +963,8 @@ void		 m_demote_pkthdr(struct mbuf *);
 void		 m_demote(struct mbuf *, int, int);
 struct mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*)(char *, caddr_t, u_int));
-struct mbuf	*m_dup(struct mbuf *, int);
-int		 m_dup_pkthdr(struct mbuf *, struct mbuf *, int);
+struct mbuf	*m_dup(const struct mbuf *, int);
+int		 m_dup_pkthdr(struct mbuf *, const struct mbuf *, int);
 u_int		 m_fixhdr(struct mbuf *);
 struct mbuf	*m_fragment(struct mbuf *, int, int);
 void		 m_freem(struct mbuf *);
@@ -1070,7 +1071,7 @@ void		 m_tag_delete_chain(struct mbuf *, struct m_tag *);
 void		 m_tag_free_default(struct m_tag *);
 struct m_tag	*m_tag_locate(struct mbuf *, u_int32_t, int, struct m_tag *);
 struct m_tag	*m_tag_copy(struct m_tag *, int);
-int		 m_tag_copy_chain(struct mbuf *, struct mbuf *, int);
+int		 m_tag_copy_chain(struct mbuf *, const struct mbuf *, int);
 void		 m_tag_delete_nonpersistent(struct mbuf *);
 
 /*

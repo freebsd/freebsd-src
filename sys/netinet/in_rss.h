@@ -51,7 +51,7 @@ int		rss_proto_software_hash_v4(struct in_addr src,
 		    struct in_addr dst, u_short src_port, u_short dst_port,
 		    int proto, uint32_t *hashval,
 		    uint32_t *hashtype);
-struct mbuf *	rss_soft_m2cpuid(struct mbuf *m, uintptr_t source,
+struct mbuf *	rss_soft_m2cpuid_v4(struct mbuf *m, uintptr_t source,
 		    u_int *cpuid);
 
 #endif /* !_NETINET_IN_RSS_H_ */

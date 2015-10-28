@@ -6,6 +6,7 @@ set opts=' \
 --enable-debug \
 --enable-warnings \
 --enable-printflike \
+--with-gettext=/opt/local \
 --prefix ${HOME}/work/root \
 '
 set opts=`echo $opts`
@@ -22,3 +23,7 @@ cd build
 
 
 alias xx 'cc -I.. -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith -Werror -Waggregate-return -Wcast-align -Wcast-qual -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-declarations -Wnested-externs -Wparentheses -Wreturn-type -Wshadow -Wswitch -Wtrigraphs -Wuninitialized -Wunused -Wwrite-strings -fno-inline-functions-called-once -g -O2 -o xtest -DUNIT_TEST libxo.c'
+
+alias mm "make CFLAGS='-O0 -g'"
+
+alias mmi 'mm && mi'

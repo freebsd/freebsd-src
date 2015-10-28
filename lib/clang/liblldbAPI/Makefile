@@ -6,6 +6,7 @@ LIB=	lldbAPI
 
 SRCDIR=	tools/lldb/source/API
 SRCS=	SBAddress.cpp \
+	SBAttachInfo.cpp \
 	SBBlock.cpp \
 	SBBreakpoint.cpp \
 	SBBreakpointLocation.cpp \
@@ -28,6 +29,8 @@ SRCS=	SBAddress.cpp \
 	SBHostOS.cpp \
 	SBInstruction.cpp \
 	SBInstructionList.cpp \
+	SBLanguageRuntime.cpp \
+	SBLaunchInfo.cpp \
 	SBLineEntry.cpp \
 	SBListener.cpp \
 	SBModule.cpp \
@@ -57,8 +60,10 @@ SRCS=	SBAddress.cpp \
 	SBTypeSynthetic.cpp \
 	SBUnixSignals.cpp \
 	SBValue.cpp \
+	SBVariablesOptions.cpp \
 	SBValueList.cpp \
-	SBWatchpoint.cpp
+	SBWatchpoint.cpp \
+	SystemInitializerFull.cpp
 
 TGHDRS=	AttrList \
 	Attrs \

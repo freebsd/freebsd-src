@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_io.h>
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
-#include <cam/ctl/ctl_frontend_internal.h>
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_backend.h>
 #include <cam/ctl/ctl_ioctl.h>
@@ -395,8 +394,7 @@ ctl_inquiry_evpd_tpc(struct ctl_scsiio *ctsio, int alloc_len)
 	scsi_ulto2b(0, rtfb_ptr->optimal_length_granularity);
 	scsi_u64to8b(0, rtfb_ptr->maximum_bytes);
 	scsi_u64to8b(0, rtfb_ptr->optimal_bytes);
-	scsi_u64to8b(TPC_MAX_IOCHUNK_SIZE,
-	    rtfb_ptr->optimal_bytes_to_token_per_segment);
+	scsi_u64to8b(UINT64_MAX, rtfb_ptr->optimal_bytes_to_token_per_segment);
 	scsi_u64to8b(TPC_MAX_IOCHUNK_SIZE,
 	    rtfb_ptr->optimal_bytes_from_token_per_segment);
 
@@ -535,7 +533,7 @@ ctl_receive_copy_status_lid1(struct ctl_scsiio *ctsio)
 	list_id = cdb->list_identifier;
 	mtx_lock(&lun->lun_lock);
 	list = tpc_find_list(lun, list_id,
-	    ctl_get_resindex(&ctsio->io_hdr.nexus));
+	    ctl_get_initindex(&ctsio->io_hdr.nexus));
 	if (list == NULL) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
@@ -617,7 +615,7 @@ ctl_receive_copy_failure_details(struct ctl_scsiio *ctsio)
 	list_id = cdb->list_identifier;
 	mtx_lock(&lun->lun_lock);
 	list = tpc_find_list(lun, list_id,
-	    ctl_get_resindex(&ctsio->io_hdr.nexus));
+	    ctl_get_initindex(&ctsio->io_hdr.nexus));
 	if (list == NULL || !list->completed) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
@@ -689,7 +687,7 @@ ctl_receive_copy_status_lid4(struct ctl_scsiio *ctsio)
 	list_id = scsi_4btoul(cdb->list_identifier);
 	mtx_lock(&lun->lun_lock);
 	list = tpc_find_list(lun, list_id,
-	    ctl_get_resindex(&ctsio->io_hdr.nexus));
+	    ctl_get_initindex(&ctsio->io_hdr.nexus));
 	if (list == NULL) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
@@ -772,7 +770,7 @@ ctl_copy_operation_abort(struct ctl_scsiio *ctsio)
 	list_id = scsi_4btoul(cdb->list_identifier);
 	mtx_lock(&lun->lun_lock);
 	list = tpc_find_list(lun, list_id,
-	    ctl_get_resindex(&ctsio->io_hdr.nexus));
+	    ctl_get_initindex(&ctsio->io_hdr.nexus));
 	if (list == NULL) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
@@ -817,12 +815,14 @@ tpc_process_b2b(struct tpc_list *list)
 	struct scsi_ec_segment_b2b *seg;
 	struct scsi_ec_cscd_dtsp *sdstp, *ddstp;
 	struct tpc_io *tior, *tiow;
-	struct runl run, *prun;
+	struct runl run;
 	uint64_t sl, dl;
 	off_t srclba, dstlba, numbytes, donebytes, roundbytes;
 	int numlba;
 	uint32_t srcblock, dstblock, pb, pbo, adj;
+	uint8_t csi[4];
 
+	scsi_ulto4b(list->curseg, csi);
 	if (list->stage == 1) {
 		while ((tior = TAILQ_FIRST(&list->allio)) != NULL) {
 			TAILQ_REMOVE(&list->allio, tior, links);
@@ -836,7 +836,9 @@ tpc_process_b2b(struct tpc_list *list)
 		} else if (list->error) {
 			ctl_set_sense(list->ctsio, /*current_error*/ 1,
 			    /*sense_key*/ SSD_KEY_COPY_ABORTED,
-			    /*asc*/ 0x0d, /*ascq*/ 0x01, SSD_ELEM_NONE);
+			    /*asc*/ 0x0d, /*ascq*/ 0x01,
+			    SSD_ELEM_COMMAND, sizeof(csi), csi,
+			    SSD_ELEM_NONE);
 			return (CTL_RETVAL_ERROR);
 		}
 		list->cursectors += list->segsectors;
@@ -851,7 +853,9 @@ tpc_process_b2b(struct tpc_list *list)
 	if (sl >= CTL_MAX_LUNS || dl >= CTL_MAX_LUNS) {
 		ctl_set_sense(list->ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_COPY_ABORTED,
-		    /*asc*/ 0x08, /*ascq*/ 0x04, SSD_ELEM_NONE);
+		    /*asc*/ 0x08, /*ascq*/ 0x04,
+		    SSD_ELEM_COMMAND, sizeof(csi), csi,
+		    SSD_ELEM_NONE);
 		return (CTL_RETVAL_ERROR);
 	}
 	if (pbo > 0)
@@ -880,7 +884,9 @@ tpc_process_b2b(struct tpc_list *list)
 	if (numbytes % srcblock != 0 || numbytes % dstblock != 0) {
 		ctl_set_sense(list->ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_COPY_ABORTED,
-		    /*asc*/ 0x26, /*ascq*/ 0x0A, SSD_ELEM_NONE);
+		    /*asc*/ 0x26, /*ascq*/ 0x0A,
+		    SSD_ELEM_COMMAND, sizeof(csi), csi,
+		    SSD_ELEM_NONE);
 		return (CTL_RETVAL_ERROR);
 	}
 
@@ -889,8 +895,7 @@ tpc_process_b2b(struct tpc_list *list)
 	list->segsectors = numbytes / dstblock;
 	donebytes = 0;
 	TAILQ_INIT(&run);
-	prun = &run;
-	list->tbdio = 1;
+	list->tbdio = 0;
 	while (donebytes < numbytes) {
 		roundbytes = numbytes - donebytes;
 		if (roundbytes > TPC_MAX_IO_SIZE) {
@@ -942,8 +947,8 @@ tpc_process_b2b(struct tpc_list *list)
 		tiow->io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = tiow;
 
 		TAILQ_INSERT_TAIL(&tior->run, tiow, rlinks);
-		TAILQ_INSERT_TAIL(prun, tior, rlinks);
-		prun = &tior->run;
+		TAILQ_INSERT_TAIL(&run, tior, rlinks);
+		list->tbdio++;
 		donebytes += roundbytes;
 		srclba += roundbytes / srcblock;
 		dstlba += roundbytes / dstblock;
@@ -965,7 +970,9 @@ tpc_process_verify(struct tpc_list *list)
 	struct scsi_ec_segment_verify *seg;
 	struct tpc_io *tio;
 	uint64_t sl;
+	uint8_t csi[4];
 
+	scsi_ulto4b(list->curseg, csi);
 	if (list->stage == 1) {
 		while ((tio = TAILQ_FIRST(&list->allio)) != NULL) {
 			TAILQ_REMOVE(&list->allio, tio, links);
@@ -978,7 +985,9 @@ tpc_process_verify(struct tpc_list *list)
 		} else if (list->error) {
 			ctl_set_sense(list->ctsio, /*current_error*/ 1,
 			    /*sense_key*/ SSD_KEY_COPY_ABORTED,
-			    /*asc*/ 0x0d, /*ascq*/ 0x01, SSD_ELEM_NONE);
+			    /*asc*/ 0x0d, /*ascq*/ 0x01,
+			    SSD_ELEM_COMMAND, sizeof(csi), csi,
+			    SSD_ELEM_NONE);
 			return (CTL_RETVAL_ERROR);
 		} else
 			return (CTL_RETVAL_COMPLETE);
@@ -990,7 +999,9 @@ tpc_process_verify(struct tpc_list *list)
 	if (sl >= CTL_MAX_LUNS) {
 		ctl_set_sense(list->ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_COPY_ABORTED,
-		    /*asc*/ 0x08, /*ascq*/ 0x04, SSD_ELEM_NONE);
+		    /*asc*/ 0x08, /*ascq*/ 0x04,
+		    SSD_ELEM_COMMAND, sizeof(csi), csi,
+		    SSD_ELEM_NONE);
 		return (CTL_RETVAL_ERROR);
 	}
 
@@ -1022,7 +1033,9 @@ tpc_process_register_key(struct tpc_list *list)
 	struct tpc_io *tio;
 	uint64_t dl;
 	int datalen;
+	uint8_t csi[4];
 
+	scsi_ulto4b(list->curseg, csi);
 	if (list->stage == 1) {
 		while ((tio = TAILQ_FIRST(&list->allio)) != NULL) {
 			TAILQ_REMOVE(&list->allio, tio, links);
@@ -1036,7 +1049,9 @@ tpc_process_register_key(struct tpc_list *list)
 		} else if (list->error) {
 			ctl_set_sense(list->ctsio, /*current_error*/ 1,
 			    /*sense_key*/ SSD_KEY_COPY_ABORTED,
-			    /*asc*/ 0x0d, /*ascq*/ 0x01, SSD_ELEM_NONE);
+			    /*asc*/ 0x0d, /*ascq*/ 0x01,
+			    SSD_ELEM_COMMAND, sizeof(csi), csi,
+			    SSD_ELEM_NONE);
 			return (CTL_RETVAL_ERROR);
 		} else
 			return (CTL_RETVAL_COMPLETE);
@@ -1048,7 +1063,9 @@ tpc_process_register_key(struct tpc_list *list)
 	if (dl >= CTL_MAX_LUNS) {
 		ctl_set_sense(list->ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_COPY_ABORTED,
-		    /*asc*/ 0x08, /*ascq*/ 0x04, SSD_ELEM_NONE);
+		    /*asc*/ 0x08, /*ascq*/ 0x04,
+		    SSD_ELEM_COMMAND, sizeof(csi), csi,
+		    SSD_ELEM_NONE);
 		return (CTL_RETVAL_ERROR);
 	}
 
@@ -1111,7 +1128,7 @@ static int
 tpc_process_wut(struct tpc_list *list)
 {
 	struct tpc_io *tio, *tior, *tiow;
-	struct runl run, *prun;
+	struct runl run;
 	int drange, srange;
 	off_t doffset, soffset;
 	off_t srclba, dstlba, numbytes, donebytes, roundbytes;
@@ -1191,8 +1208,7 @@ tpc_process_wut(struct tpc_list *list)
 //    srclba, dstlba);
 	donebytes = 0;
 	TAILQ_INIT(&run);
-	prun = &run;
-	list->tbdio = 1;
+	list->tbdio = 0;
 	TAILQ_INIT(&list->allio);
 	while (donebytes < numbytes) {
 		roundbytes = numbytes - donebytes;
@@ -1245,8 +1261,8 @@ tpc_process_wut(struct tpc_list *list)
 		tiow->io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = tiow;
 
 		TAILQ_INSERT_TAIL(&tior->run, tiow, rlinks);
-		TAILQ_INSERT_TAIL(prun, tior, rlinks);
-		prun = &tior->run;
+		TAILQ_INSERT_TAIL(&run, tior, rlinks);
+		list->tbdio++;
 		donebytes += roundbytes;
 		srclba += roundbytes / srcblock;
 		dstlba += roundbytes / dstblock;
@@ -1278,7 +1294,6 @@ complete:
 			ctl_free_io(tio->io);
 			free(tio, M_CTL);
 		}
-		free(list->buf, M_CTL);
 		if (list->abort) {
 			ctl_set_task_aborted(list->ctsio);
 			return (CTL_RETVAL_ERROR);
@@ -1294,7 +1309,6 @@ complete:
 	}
 
 	dstblock = list->lun->be_lun->blocksize;
-	list->buf = malloc(dstblock, M_CTL, M_WAITOK | M_ZERO);
 	TAILQ_INIT(&run);
 	prun = &run;
 	list->tbdio = 1;
@@ -1311,9 +1325,9 @@ complete:
 		TAILQ_INSERT_TAIL(&list->allio, tiow, links);
 		tiow->io = tpcl_alloc_io();
 		ctl_scsi_write_same(tiow->io,
-				    /*data_ptr*/ list->buf,
-				    /*data_len*/ dstblock,
-				    /*byte2*/ 0,
+				    /*data_ptr*/ NULL,
+				    /*data_len*/ 0,
+				    /*byte2*/ SWS_NDOB,
 				    /*lba*/ scsi_8btou64(list->range[r].lba),
 				    /*num_blocks*/ len,
 				    /*tag_type*/ CTL_TAG_SIMPLE,
@@ -1349,6 +1363,7 @@ tpc_process(struct tpc_list *list)
 	struct scsi_ec_segment *seg;
 	struct ctl_scsiio *ctsio = list->ctsio;
 	int retval = CTL_RETVAL_COMPLETE;
+	uint8_t csi[4];
 
 	if (list->service_action == EC_WUT) {
 		if (list->token != NULL)
@@ -1376,9 +1391,12 @@ tpc_process(struct tpc_list *list)
 				retval = tpc_process_register_key(list);
 				break;
 			default:
+				scsi_ulto4b(list->curseg, csi);
 				ctl_set_sense(ctsio, /*current_error*/ 1,
 				    /*sense_key*/ SSD_KEY_COPY_ABORTED,
-				    /*asc*/ 0x26, /*ascq*/ 0x09, SSD_ELEM_NONE);
+				    /*asc*/ 0x26, /*ascq*/ 0x09,
+				    SSD_ELEM_COMMAND, sizeof(csi), csi,
+				    SSD_ELEM_NONE);
 				goto done;
 			}
 			if (retval == CTL_RETVAL_QUEUED)
@@ -1592,6 +1610,10 @@ ctl_extended_copy_lid1(struct ctl_scsiio *ctsio)
 	cdb = (struct scsi_extended_copy *)ctsio->cdb;
 	len = scsi_4btoul(cdb->length);
 
+	if (len == 0) {
+		ctl_set_success(ctsio);
+		goto done;
+	}
 	if (len < sizeof(struct scsi_extended_copy_lid1_data) ||
 	    len > sizeof(struct scsi_extended_copy_lid1_data) +
 	    TPC_MAX_LIST + TPC_MAX_INLINE) {
@@ -1622,20 +1644,22 @@ ctl_extended_copy_lid1(struct ctl_scsiio *ctsio)
 	lencscd = scsi_2btoul(data->cscd_list_length);
 	lenseg = scsi_4btoul(data->segment_list_length);
 	leninl = scsi_4btoul(data->inline_data_length);
-	if (len < sizeof(struct scsi_extended_copy_lid1_data) +
-	    lencscd + lenseg + leninl ||
-	    leninl > TPC_MAX_INLINE) {
-		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1, /*command*/ 0,
-		    /*field*/ 2, /*bit_valid*/ 0, /*bit*/ 0);
-		goto done;
-	}
 	if (lencscd > TPC_MAX_CSCDS * sizeof(struct scsi_ec_cscd)) {
 		ctl_set_sense(ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
 		    /*asc*/ 0x26, /*ascq*/ 0x06, SSD_ELEM_NONE);
 		goto done;
 	}
-	if (lencscd + lenseg > TPC_MAX_LIST) {
+	if (lenseg > TPC_MAX_SEGS * sizeof(struct scsi_ec_segment)) {
+		ctl_set_sense(ctsio, /*current_error*/ 1,
+		    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+		    /*asc*/ 0x26, /*ascq*/ 0x08, SSD_ELEM_NONE);
+		goto done;
+	}
+	if (lencscd + lenseg > TPC_MAX_LIST ||
+	    leninl > TPC_MAX_INLINE ||
+	    len < sizeof(struct scsi_extended_copy_lid1_data) +
+	     lencscd + lenseg + leninl) {
 		ctl_set_param_len_error(ctsio);
 		goto done;
 	}
@@ -1647,7 +1671,7 @@ ctl_extended_copy_lid1(struct ctl_scsiio *ctsio)
 		list->init_port = -1;
 	else
 		list->init_port = ctsio->io_hdr.nexus.targ_port;
-	list->init_idx = ctl_get_resindex(&ctsio->io_hdr.nexus);
+	list->init_idx = ctl_get_initindex(&ctsio->io_hdr.nexus);
 	list->list_id = data->list_identifier;
 	list->flags = data->flags;
 	list->params = ctsio->kern_data_ptr;
@@ -1719,6 +1743,10 @@ ctl_extended_copy_lid4(struct ctl_scsiio *ctsio)
 	cdb = (struct scsi_extended_copy *)ctsio->cdb;
 	len = scsi_4btoul(cdb->length);
 
+	if (len == 0) {
+		ctl_set_success(ctsio);
+		goto done;
+	}
 	if (len < sizeof(struct scsi_extended_copy_lid4_data) ||
 	    len > sizeof(struct scsi_extended_copy_lid4_data) +
 	    TPC_MAX_LIST + TPC_MAX_INLINE) {
@@ -1749,20 +1777,22 @@ ctl_extended_copy_lid4(struct ctl_scsiio *ctsio)
 	lencscd = scsi_2btoul(data->cscd_list_length);
 	lenseg = scsi_2btoul(data->segment_list_length);
 	leninl = scsi_2btoul(data->inline_data_length);
-	if (len < sizeof(struct scsi_extended_copy_lid4_data) +
-	    lencscd + lenseg + leninl ||
-	    leninl > TPC_MAX_INLINE) {
-		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1, /*command*/ 0,
-		    /*field*/ 2, /*bit_valid*/ 0, /*bit*/ 0);
-		goto done;
-	}
 	if (lencscd > TPC_MAX_CSCDS * sizeof(struct scsi_ec_cscd)) {
 		ctl_set_sense(ctsio, /*current_error*/ 1,
 		    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
 		    /*asc*/ 0x26, /*ascq*/ 0x06, SSD_ELEM_NONE);
 		goto done;
 	}
-	if (lencscd + lenseg > TPC_MAX_LIST) {
+	if (lenseg > TPC_MAX_SEGS * sizeof(struct scsi_ec_segment)) {
+		ctl_set_sense(ctsio, /*current_error*/ 1,
+		    /*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+		    /*asc*/ 0x26, /*ascq*/ 0x08, SSD_ELEM_NONE);
+		goto done;
+	}
+	if (lencscd + lenseg > TPC_MAX_LIST ||
+	    leninl > TPC_MAX_INLINE ||
+	    len < sizeof(struct scsi_extended_copy_lid1_data) +
+	     lencscd + lenseg + leninl) {
 		ctl_set_param_len_error(ctsio);
 		goto done;
 	}
@@ -1774,7 +1804,7 @@ ctl_extended_copy_lid4(struct ctl_scsiio *ctsio)
 		list->init_port = -1;
 	else
 		list->init_port = ctsio->io_hdr.nexus.targ_port;
-	list->init_idx = ctl_get_resindex(&ctsio->io_hdr.nexus);
+	list->init_idx = ctl_get_initindex(&ctsio->io_hdr.nexus);
 	list->list_id = scsi_4btoul(data->list_identifier);
 	list->flags = data->flags;
 	list->params = ctsio->kern_data_ptr;
@@ -1892,7 +1922,7 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	softc = lun->ctl_softc;
-	port = softc->ctl_ports[ctl_port_idx(ctsio->io_hdr.nexus.targ_port)];
+	port = softc->ctl_ports[ctsio->io_hdr.nexus.targ_port];
 	cdb = (struct scsi_populate_token *)ctsio->cdb;
 	len = scsi_4btoul(cdb->length);
 
@@ -1946,7 +1976,7 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 	list = malloc(sizeof(struct tpc_list), M_CTL, M_WAITOK | M_ZERO);
 	list->service_action = cdb->service_action;
 	list->init_port = ctsio->io_hdr.nexus.targ_port;
-	list->init_idx = ctl_get_resindex(&ctsio->io_hdr.nexus);
+	list->init_idx = ctl_get_initindex(&ctsio->io_hdr.nexus);
 	list->list_id = scsi_4btoul(cdb->list_identifier);
 	list->flags = data->flags;
 	list->ctsio = ctsio;
@@ -2072,7 +2102,7 @@ ctl_write_using_token(struct ctl_scsiio *ctsio)
 	list = malloc(sizeof(struct tpc_list), M_CTL, M_WAITOK | M_ZERO);
 	list->service_action = cdb->service_action;
 	list->init_port = ctsio->io_hdr.nexus.targ_port;
-	list->init_idx = ctl_get_resindex(&ctsio->io_hdr.nexus);
+	list->init_idx = ctl_get_initindex(&ctsio->io_hdr.nexus);
 	list->list_id = scsi_4btoul(cdb->list_identifier);
 	list->flags = data->flags;
 	list->params = ctsio->kern_data_ptr;
@@ -2164,7 +2194,7 @@ ctl_receive_rod_token_information(struct ctl_scsiio *ctsio)
 	list_id = scsi_4btoul(cdb->list_identifier);
 	mtx_lock(&lun->lun_lock);
 	list = tpc_find_list(lun, list_id,
-	    ctl_get_resindex(&ctsio->io_hdr.nexus));
+	    ctl_get_initindex(&ctsio->io_hdr.nexus));
 	if (list == NULL) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,

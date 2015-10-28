@@ -319,6 +319,14 @@ fairq_class_create(struct fairq_if *pif, int pri, int qlimit,
 		return (NULL);
 	}
 #endif
+#ifndef ALTQ_CODEL
+	if (flags & FARF_CODEL) {
+#ifdef ALTQ_DEBUG
+		printf("fairq_class_create: CODEL not configured for FAIRQ!\n");
+#endif
+		return (NULL);
+	}
+#endif
 	if (nbuckets == 0)
 		nbuckets = 256;
 	if (nbuckets > FAIRQ_MAX_BUCKETS)
@@ -340,6 +348,10 @@ fairq_class_create(struct fairq_if *pif, int pri, int qlimit,
 #ifdef ALTQ_RED
 		if (cl->cl_qtype == Q_RED)
 			red_destroy(cl->cl_red);
+#endif
+#ifdef ALTQ_CODEL
+		if (cl->cl_qtype == Q_CODEL)
+			codel_destroy(cl->cl_codel);
 #endif
 	} else {
 		cl = malloc(sizeof(struct fairq_class),
@@ -407,6 +419,13 @@ fairq_class_create(struct fairq_if *pif, int pri, int qlimit,
 		}
 	}
 #endif /* ALTQ_RED */
+#ifdef ALTQ_CODEL
+	if (flags & FARF_CODEL) {
+		cl->cl_codel = codel_alloc(5, 100, 0);
+		if (cl->cl_codel != NULL)
+			cl->cl_qtype = Q_CODEL;
+	}
+#endif
 
 	return (cl);
 }
@@ -445,6 +464,10 @@ fairq_class_destroy(struct fairq_class *cl)
 #ifdef ALTQ_RED
 		if (cl->cl_qtype == Q_RED)
 			red_destroy(cl->cl_red);
+#endif
+#ifdef ALTQ_CODEL
+		if (cl->cl_qtype == Q_CODEL)
+			codel_destroy(cl->cl_codel);
 #endif
 	}
 	free(cl->cl_buckets, M_DEVBUF);
@@ -640,6 +663,10 @@ fairq_addq(struct fairq_class *cl, struct mbuf *m, u_int32_t bucketid)
 	if (cl->cl_qtype == Q_RED)
 		return red_addq(cl->cl_red, &b->queue, m, cl->cl_pktattr);
 #endif
+#ifdef ALTQ_CODEL
+	if (cl->cl_qtype == Q_CODEL)
+		return codel_addq(cl->cl_codel, &b->queue, m);
+#endif
 	if (qlen(&b->queue) >= qlimit(&b->queue)) {
 		m_freem(m);
 		return (-1);
@@ -669,6 +696,10 @@ fairq_getq(struct fairq_class *cl, uint64_t cur_time)
 #ifdef ALTQ_RED
 	else if (cl->cl_qtype == Q_RED)
 		m = red_getq(cl->cl_red, &b->queue);
+#endif
+#ifdef ALTQ_CODEL
+	else if (cl->cl_qtype == Q_CODEL)
+		m = codel_getq(cl->cl_codel, &b->queue);
 #endif
 	else
 		m = _getq(&b->queue);
@@ -850,6 +881,10 @@ get_class_stats(struct fairq_classstats *sp, struct fairq_class *cl)
 #ifdef ALTQ_RIO
 	if (cl->cl_qtype == Q_RIO)
 		rio_getstats((rio_t *)cl->cl_red, &sp->red[0]);
+#endif
+#ifdef ALTQ_CODEL
+	if (cl->cl_qtype == Q_CODEL)
+		codel_getstats(cl->cl_codel, &sp->codel);
 #endif
 }
 

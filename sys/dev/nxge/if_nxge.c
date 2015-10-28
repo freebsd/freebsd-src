@@ -1457,7 +1457,7 @@ xge_ioctl_stats(xge_lldev_t *lldev, struct ifreq *ifreqp)
 
 	    case XGE_READ_VERSION:
 	        info = xge_os_malloc(NULL, XGE_BUFFER_SIZE);
-	        if(version != NULL) {
+	        if(info != NULL) {
 	            strcpy(info, XGE_DRIVER_VERSION);
 	            if(copyout(info, ifreqp->ifr_data, XGE_BUFFER_SIZE) == 0)
 	                retValue = 0;

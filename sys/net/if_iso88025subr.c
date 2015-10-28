@@ -293,9 +293,9 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #endif	/* INET */
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, NULL);
+		error = nd6_resolve(ifp, is_gw, m, dst, edst, NULL);
 		if (error)
-			return (error);
+			return (error == EWOULDBLOCK ? 0 : error);
 		snap_type = ETHERTYPE_IPV6;
 		break;
 #endif	/* INET6 */

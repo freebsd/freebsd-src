@@ -25,6 +25,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 #ifndef	_LINUX_TYPES_H_
 #define	_LINUX_TYPES_H_
@@ -35,8 +37,6 @@
 #include <sys/systm.h>
 #include <linux/compiler.h>
 #include <asm/types.h>
-
-#define	__read_mostly __attribute__((__section__(".data.read_mostly")))
 
 #ifndef __bitwise__
 #ifdef __CHECKER__

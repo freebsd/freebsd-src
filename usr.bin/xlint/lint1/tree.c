@@ -559,7 +559,7 @@ build(op_t op, tnode_t *ln, tnode_t *rn)
 
 	/*
 	 * Apply class conversions to the left operand, but only if its
-	 * value is needed or it is compaired with null.
+	 * value is needed or it is compared with null.
 	 */
 	if (mp->m_vctx || mp->m_tctx)
 		ln = cconv(ln);
@@ -616,7 +616,7 @@ build(op_t op, tnode_t *ln, tnode_t *rn)
 
 	/*
 	 * Check types for compatibility with the operation and mutual
-	 * compatibility. Return if there are serios problems.
+	 * compatibility. Return if there are serious problems.
 	 */
 	if (!typeok(op, 0, ln, rn))
 		return (NULL);
@@ -733,7 +733,7 @@ cconv(tnode_t *tn)
 	 */
 	if (tn->tn_type->t_tspec == ARRAY) {
 		if (!tn->tn_lvalue) {
-			/* %soperand of '%s' must be lvalue */
+			/* operand of '%s' must be lvalue */
 			/* XXX print correct operator */
 			(void)gnuism(114, "", modtab[AMPER].m_name);
 		}
@@ -761,7 +761,7 @@ cconv(tnode_t *tn)
 
 /*
  * Perform most type checks. First the types are checked using
- * informations from modtab[]. After that it is done by hand for
+ * information from modtab[]. After that it is done by hand for
  * more complicated operators and type combinations.
  *
  * If the types are ok, typeok() returns 1, otherwise 0.
@@ -790,7 +790,7 @@ typeok(op_t op, int arg, tnode_t *ln, tnode_t *rn)
 	}
 
 	if (mp->m_rqint) {
-		/* integertypes required */
+		/* integer types required */
 		if (!isityp(lt) || (mp->m_binary && !isityp(rt))) {
 			incompat(op, lt, rt);
 			return (0);
@@ -826,11 +826,11 @@ typeok(op_t op, int arg, tnode_t *ln, tnode_t *rn)
 	case POINT:
 		/*
 		 * Most errors required by ANSI C are reported in strmemb().
-		 * Here we only must check for totaly wrong things.
+		 * Here we only must check for totally wrong things.
 		 */
 		if (lt == FUNC || lt == VOID || ltp->t_isfield ||
 		    ((lt != STRUCT && lt != UNION) && !ln->tn_lvalue)) {
-			/* Without tflag we got already an error */
+			/* Without tflag we already got an error */
 			if (tflag)
 				/* unacceptable operand of %s */
 				error(111, mp->m_name);
@@ -842,7 +842,7 @@ typeok(op_t op, int arg, tnode_t *ln, tnode_t *rn)
 		if (lt != PTR && !(tflag && isityp(lt))) {
 			/* Without tflag we got already an error */
 			if (tflag)
-				/* unacceptabel operand of %s */
+				/* unacceptable operand of %s */
 				error(111, mp->m_name);
 			return (0);
 		}
@@ -858,11 +858,11 @@ typeok(op_t op, int arg, tnode_t *ln, tnode_t *rn)
 				/* a cast does not yield an lvalue */
 				error(163);
 			}
-			/* %soperand of %s must be lvalue */
+			/* operand of %s must be lvalue */
 			error(114, "", mp->m_name);
 			return (0);
 		} else if (ltp->t_const) {
-			/* %soperand of %s must be modifiable lvalue */
+			/* operand of %s must be modifiable lvalue */
 			if (!tflag)
 				warning(115, "", mp->m_name);
 		}
@@ -1584,7 +1584,7 @@ promote(op_t op, int farg, tnode_t *tn)
 
 /*
  * Insert conversions which are necessary to give both operands the same
- * type. This is done in different ways for traditional C and ANIS C.
+ * type. This is done in different ways for traditional C and ANSI C.
  */
 static void
 balance(op_t op, tnode_t **lnp, tnode_t **rnp)
@@ -1760,7 +1760,7 @@ ptconv(int arg, tspec_t nt, tspec_t ot, type_t *tp, tnode_t *tn)
 }
 
 /*
- * Print warnings for conversions of integer types which my cause
+ * Print warnings for conversions of integer types which may cause
  * problems.
  */
 /* ARGSUSED */
@@ -1819,7 +1819,7 @@ piconv(op_t op, tspec_t nt, type_t *tp, tnode_t *tn)
 		return;
 
 	if (op != CVT) {
-		/* We got already an error. */
+		/* We already got an error. */
 		return;
 	}
 
@@ -1844,7 +1844,7 @@ ppconv(op_t op, tnode_t *tn, type_t *tp)
 	const	char *nts, *ots;
 
 	/*
-	 * We got already an error (pointers of different types
+	 * We already got an error (pointers of different types
 	 * without a cast) or we will not get a warning.
 	 */
 	if (op != CVT)
@@ -1890,7 +1890,7 @@ ppconv(op_t op, tnode_t *tn, type_t *tp)
  *
  * op		operator which requires conversion
  * arg		if op is FARG, # of argument
- * tp		type in which to convert the constant
+ * tp		type to which convert the constant
  * nv		new constant
  * v		old constant
  */
@@ -1938,7 +1938,7 @@ cvtcon(op_t op, int arg, type_t *tp, val_t *nv, val_t *v)
 		case DOUBLE:
 			max = DBL_MAX;		min = -DBL_MAX;		break;
 		case PTR:
-			/* Got already an error because of float --> ptr */
+			/* Already got an error because of float --> ptr */
 		case LDOUBLE:
 			max = LDBL_MAX;		min = -LDBL_MAX;	break;
 		default:
@@ -2566,7 +2566,7 @@ bldcol(tnode_t *ln, tnode_t *rn)
 			LERROR("bldcol()");
 		/*
 		 * XXX For now we simply take the left type. This is
-		 * probably wrong, if one type contains a functionprototype
+		 * probably wrong, if one type contains a function prototype
 		 * and the other one, at the same place, only an old style
 		 * declaration.
 		 */
@@ -3676,7 +3676,7 @@ chkmisc(tnode_t *tn, int vctx, int tctx, int eqwarn, int fcall, int rvdisc,
 /*
  * Checks the range of array indices, if possible.
  * amper is set if only the address of the element is used. This
- * means that the index is allowd to refere to the first element
+ * means that the index is allowed to refer to the first element
  * after the array.
  */
 static void
@@ -3795,7 +3795,7 @@ chkcomp(op_t op, tnode_t *ln, tnode_t *rn)
 }
 
 /*
- * Takes an expression an returns 0 if this expression can be used
+ * Takes an expression and returns 0 if this expression can be used
  * for static initialisation, otherwise -1.
  *
  * Constant initialisation expressions must be constant or an address

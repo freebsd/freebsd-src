@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdFactory.h
-//
-// Overview:    CMICmdFactory interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // Third party headers
@@ -67,8 +55,8 @@ class CMICmdFactory : public CMICmnBase, public MI::ISingleton<CMICmdFactory>
 
     // Methods:
   public:
-    bool Initialize(void);
-    bool Shutdown(void);
+    bool Initialize(void) override;
+    bool Shutdown(void) override;
     bool CmdRegister(const CMIUtilString &vMiCmd, CmdCreatorFnPtr vCmdCreateFn);
     bool CmdCreate(const CMIUtilString &vMiCmd, const SMICmdData &vCmdData, CMICmdBase *&vpNewCmd);
     bool CmdExist(const CMIUtilString &vMiCmd) const;
@@ -85,7 +73,7 @@ class CMICmdFactory : public CMICmnBase, public MI::ISingleton<CMICmdFactory>
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdFactory(void);
+    /* dtor */ ~CMICmdFactory(void) override;
 
     // Typedefs:
   private:

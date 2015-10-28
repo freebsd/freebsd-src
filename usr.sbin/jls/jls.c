@@ -220,7 +220,7 @@ main(int argc, char **argv)
 		putchar('\n');
 	}
 
-	/* Fetch the jail(s) and print the paramters. */
+	/* Fetch the jail(s) and print the parameters. */
 	if (jid != 0 || jname != NULL) {
 		if (print_jail(pflags, jflags) < 0)
 			errx(1, "%s", jail_errmsg);

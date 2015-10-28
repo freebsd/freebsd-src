@@ -7,9 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdCmdVar.cpp
-//
 // Overview:    CMICmdCmdVarCreate                  implementation.
 //              CMICmdCmdVarUpdate                  implementation.
 //              CMICmdCmdVarDelete                  implementation.
@@ -19,17 +16,11 @@
 //              CMICmdCmdVarEvaluateExpression      implementation.
 //              CMICmdCmdVarInfoPathExpression      implementation.
 //              CMICmdCmdVarShowAttributes          implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
 
 // Third Party Headers:
-#include <lldb/API/SBStream.h>
-#include <lldb/API/SBThread.h>
+#include "lldb/API/SBStream.h"
+#include "lldb/API/SBType.h"
+#include "lldb/API/SBThread.h"
 
 // In-house headers:
 #include "MICmdCmdVar.h"
@@ -42,6 +33,7 @@
 #include "MICmdArgValThreadGrp.h"
 #include "MICmdArgValOptionLong.h"
 #include "MICmdArgValOptionShort.h"
+#include "MICmdArgValPrintValues.h"
 #include "MICmdArgValListOfN.h"
 #include "MICmnLLDBProxySBValue.h"
 #include "MICmnLLDBUtilSBValue.h"
@@ -129,16 +121,15 @@ CMICmdCmdVarCreate::Execute(void)
 
     // Retrieve the --thread option's thread ID (only 1)
     MIuint64 nThreadId = UINT64_MAX;
-    if (!pArgThread->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nThreadId))
+    if (pArgThread->GetFound() && !pArgThread->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nThreadId))
     {
         SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_OPTION_NOT_FOUND), m_cmdData.strMiCmd.c_str(), m_constStrArgThread.c_str()));
         return MIstatus::failure;
     }
-    m_nThreadId = nThreadId;
 
     // Retrieve the --frame option's number
     MIuint64 nFrame = UINT64_MAX;
-    if (!pArgFrame->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nFrame))
+    if (pArgThread->GetFound() && !pArgFrame->GetExpectedOption<CMICmdArgValNumber, MIuint64>(nFrame))
     {
         SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_OPTION_NOT_FOUND), m_cmdData.strMiCmd.c_str(), m_constStrArgFrame.c_str()));
         return MIstatus::failure;
@@ -152,32 +143,64 @@ CMICmdCmdVarCreate::Execute(void)
         nFrame = pOption->GetValue();
     }
 
-    bool bAutoName = false;
-    const CMIUtilString strArgName;
+    m_strVarName = "<unnamedvariable>";
     if (pArgName->GetFound())
     {
         const CMIUtilString &rArg = pArgName->GetValue();
-        bAutoName = (rArg == "-");
+        const bool bAutoName = (rArg == "-");
+        if (bAutoName)
+        {
+            m_strVarName = CMIUtilString::Format("var%u", CMICmnLLDBDebugSessionInfoVarObj::VarObjIdGet());
+            CMICmnLLDBDebugSessionInfoVarObj::VarObjIdInc();
+        }
+        else
+            m_strVarName = rArg;
+    }
+
+    bool bCurrentFrame = false;
+    if (pArgFrameAddr->GetFound())
+    {
+        const CMIUtilString &rStrFrameAddr(pArgFrameAddr->GetValue());
+        bCurrentFrame = CMIUtilString::Compare(rStrFrameAddr, "*");
+        if (!bCurrentFrame && (nFrame == UINT64_MAX))
+        {
+            //FIXME: *addr isn't implemented. Exit with error if --thread isn't specified.
+            SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_OPTION_NOT_FOUND), m_cmdData.strMiCmd.c_str(), m_constStrArgFrame.c_str()));
+            return MIstatus::failure;
+        }
     }
 
     const CMIUtilString &rStrExpression(pArgExpression->GetValue());
     m_strExpression = rStrExpression;
 
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    m_strVarName = "<unnamedvariable>";
-    if (bAutoName)
+    lldb::SBProcess sbProcess = rSessionInfo.GetProcess();
+    lldb::SBThread thread = (nThreadId != UINT64_MAX) ? sbProcess.GetThreadByIndexID(nThreadId) : sbProcess.GetSelectedThread();
+    m_nThreadId = thread.GetIndexID();
+    lldb::SBFrame frame = bCurrentFrame ? thread.GetSelectedFrame() : thread.GetFrameAtIndex(nFrame);
+    lldb::SBValue value;
+
+    if (rStrExpression[0] == '$')
     {
-        m_strVarName = CMIUtilString::Format("var%u", CMICmnLLDBDebugSessionInfoVarObj::VarObjIdGet());
-        CMICmnLLDBDebugSessionInfoVarObj::VarObjIdInc();
+        const CMIUtilString rStrRegister(rStrExpression.substr(1).c_str());
+        value = frame.FindRegister(rStrRegister.c_str());
     }
-    lldb::SBProcess &rProcess = rSessionInfo.m_lldbProcess;
-    lldb::SBThread thread = rProcess.GetThreadByIndexID(nThreadId);
-    lldb::SBFrame frame = thread.GetFrameAtIndex(nFrame);
-    lldb::SBValue value = frame.FindVariable(rStrExpression.c_str());
+    else
+    {
+        const bool bArgs = true;
+        const bool bLocals = true;
+        const bool bStatics = true;
+        const bool bInScopeOnly = false;
+        const lldb::SBValueList valueList = frame.GetVariables(bArgs, bLocals, bStatics, bInScopeOnly);
+        value = valueList.GetFirstValueByName(rStrExpression.c_str());
+    }
+
     if (!value.IsValid())
         value = frame.EvaluateExpression(rStrExpression.c_str());
-    if (value.IsValid())
+
+    if (value.IsValid() && value.GetError().Success())
     {
+        CompleteSBValue(value);
         m_bValid = true;
         m_nChildren = value.GetNumChildren();
         m_strType = CMICmnLLDBUtilSBValue(value).GetTypeNameDisplay();
@@ -185,6 +208,12 @@ CMICmdCmdVarCreate::Execute(void)
         // This gets added to CMICmnLLDBDebugSessionInfoVarObj static container of varObjs
         CMICmnLLDBDebugSessionInfoVarObj varObj(rStrExpression, m_strVarName, value);
         m_strValue = varObj.GetValueFormatted();
+    }
+    else 
+    {
+        lldb::SBStream err;
+        if (value.GetError().GetDescription(err))
+            m_strValue = err.GetData();
     }
 
     return MIstatus::success;
@@ -226,7 +255,10 @@ CMICmdCmdVarCreate::Acknowledge(void)
         return MIstatus::success;
     }
 
-    const CMICmnMIValueConst miValueConst(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_VARIABLE_CREATION_FAILED), m_strExpression.c_str()));
+    CMIUtilString strErrMsg(m_strValue);
+    if (m_strValue.empty())
+        strErrMsg = CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_VARIABLE_CREATION_FAILED), m_strExpression.c_str());
+    const CMICmnMIValueConst miValueConst(strErrMsg);
     CMICmnMIValueResult miValueResult("msg", miValueConst);
     const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Error, miValueResult);
     m_miResultRecord = miRecordResult;
@@ -248,6 +280,35 @@ CMICmdCmdVarCreate::CreateSelf(void)
     return new CMICmdCmdVarCreate();
 }
 
+//++ ------------------------------------------------------------------------------------
+// Details: Complete SBValue object and its children to get SBValue::GetValueDidChange
+//          work.
+// Type:    Method.
+// Args:    vrwValue    - (R)   Value to update.
+// Return:  MIstatus::success - Functional succeeded.
+//          MIstatus::failure - Functional failed.
+// Throws:  None.
+//--
+void
+CMICmdCmdVarCreate::CompleteSBValue(lldb::SBValue &vrwValue)
+{
+    // Force a value to update
+    vrwValue.GetValueDidChange();
+
+    // And update its children
+    lldb::SBType valueType = vrwValue.GetType();
+    if (!valueType.IsPointerType() && !valueType.IsReferenceType())
+    {
+        const MIuint nChildren = vrwValue.GetNumChildren();
+        for (MIuint i = 0; i < nChildren; ++i)
+        {
+            lldb::SBValue member = vrwValue.GetChildAtIndex(i);
+            if (member.IsValid())
+                CompleteSBValue(member);
+        }
+    }
+}
+
 //---------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------
@@ -262,9 +323,7 @@ CMICmdCmdVarCreate::CreateSelf(void)
 CMICmdCmdVarUpdate::CMICmdCmdVarUpdate(void)
     : m_constStrArgPrintValues("print-values")
     , m_constStrArgName("name")
-    , m_bValueChangedArrayType(false)
-    , m_bValueChangedCompositeType(false)
-    , m_bValueChangedNormalType(false)
+    , m_bValueChanged(false)
     , m_miValueList(true)
 {
     // Command factory matches this name with that received from the stdin stream
@@ -297,7 +356,7 @@ CMICmdCmdVarUpdate::~CMICmdCmdVarUpdate(void)
 bool
 CMICmdCmdVarUpdate::ParseArgs(void)
 {
-    bool bOk = m_setCmdArgs.Add(*(new CMICmdArgValNumber(m_constStrArgPrintValues, false, false)));
+    bool bOk = m_setCmdArgs.Add(*(new CMICmdArgValPrintValues(m_constStrArgPrintValues, false, true)));
     bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgName, true, true)));
     return (bOk && ParseValidateCmdOptions());
 }
@@ -314,7 +373,12 @@ CMICmdCmdVarUpdate::ParseArgs(void)
 bool
 CMICmdCmdVarUpdate::Execute(void)
 {
+    CMICMDBASE_GETOPTION(pArgPrintValues, PrintValues, m_constStrArgPrintValues);
     CMICMDBASE_GETOPTION(pArgName, String, m_constStrArgName);
+
+    CMICmnLLDBDebugSessionInfo::VariableInfoFormat_e eVarInfoFormat = CMICmnLLDBDebugSessionInfo::eVariableInfoFormat_NoValues;
+    if (pArgPrintValues->GetFound())
+        eVarInfoFormat = static_cast<CMICmnLLDBDebugSessionInfo::VariableInfoFormat_e>(pArgPrintValues->GetValue());
 
     const CMIUtilString &rVarObjName(pArgName->GetValue());
     CMICmnLLDBDebugSessionInfoVarObj varObj;
@@ -324,65 +388,18 @@ CMICmdCmdVarUpdate::Execute(void)
         return MIstatus::failure;
     }
 
-    const CMIUtilString &rVarRealName(varObj.GetNameReal());
-    MIunused(rVarRealName);
-    lldb::SBValue &rValue = const_cast<lldb::SBValue &>(varObj.GetValue());
-    const bool bValid = rValue.IsValid();
-    if (bValid && rValue.GetValueDidChange())
-    {
-        m_bValueChangedNormalType = true;
-        varObj.UpdateValue();
-        m_strValueName = rVarObjName;
-        return MIstatus::success;
-    }
-
-    // Examine an array type variable
-    if (!ExamineSBValueForChange(varObj, false, m_bValueChangedArrayType))
+    lldb::SBValue &rValue = varObj.GetValue();
+    if (!ExamineSBValueForChange(rValue, m_bValueChanged))
         return MIstatus::failure;
 
-    // Handle composite types i.e. struct or arrays
-    const MIuint nChildren = rValue.GetNumChildren();
-    for (MIuint i = 0; i < nChildren; i++)
+    if (m_bValueChanged)
     {
-        lldb::SBValue member = rValue.GetChildAtIndex(i);
-        if (!member.IsValid())
-            continue;
-
-        const CMIUtilString varName(CMIUtilString::Format("%s.%s", rVarObjName.c_str(), member.GetName()));
-        if (member.GetValueDidChange())
-        {
-            // Handle composite
-            const CMIUtilString strValue(
-                CMICmnLLDBDebugSessionInfoVarObj::GetValueStringFormatted(member, CMICmnLLDBDebugSessionInfoVarObj::eVarFormat_Natural));
-            const CMIUtilString strInScope(member.IsInScope() ? "true" : "false");
-            MIFormResponse(varName, strValue, strInScope);
-
-            m_bValueChangedCompositeType = true;
-        }
-        else
-        {
-            // Handle array of composites
-            CMICmnLLDBDebugSessionInfoVarObj varObj;
-            if (CMICmnLLDBDebugSessionInfoVarObj::VarObjGet(varName, varObj))
-            {
-                bool bValueChanged = false;
-                if (ExamineSBValueForChange(varObj, true, bValueChanged))
-                {
-                    if (bValueChanged && CMICmnLLDBDebugSessionInfoVarObj::VarObjGet(varName, varObj))
-                    {
-                        lldb::SBValue &rValue = const_cast<lldb::SBValue &>(varObj.GetValue());
-                        const bool bValid = rValue.IsValid();
-                        const CMIUtilString strValue(bValid ? varObj.GetValueFormatted() : "<unknown>");
-                        const CMIUtilString strInScope((bValid && rValue.IsInScope()) ? "true" : "false");
-                        MIFormResponse(varName, strValue, strInScope);
-
-                        m_bValueChangedCompositeType = true;
-                    }
-                }
-                else
-                    return MIstatus::failure;
-            }
-        }
+        varObj.UpdateValue();
+        const bool bPrintValue((eVarInfoFormat == CMICmnLLDBDebugSessionInfo::eVariableInfoFormat_AllValues) ||
+                               (eVarInfoFormat == CMICmnLLDBDebugSessionInfo::eVariableInfoFormat_SimpleValues && rValue.GetNumChildren() == 0));
+        const CMIUtilString strValue(bPrintValue ? varObj.GetValueFormatted() : "");
+        const CMIUtilString strInScope(rValue.IsInScope() ? "true" : "false");
+        return MIFormResponse(rVarObjName, bPrintValue ? strValue.c_str() : nullptr, strInScope);
     }
 
     return MIstatus::success;
@@ -400,54 +417,20 @@ CMICmdCmdVarUpdate::Execute(void)
 bool
 CMICmdCmdVarUpdate::Acknowledge(void)
 {
-    if (m_bValueChangedArrayType || m_bValueChangedNormalType)
+    if (m_bValueChanged)
     {
-        CMICmnLLDBDebugSessionInfoVarObj varObj;
-        CMICmnLLDBDebugSessionInfoVarObj::VarObjGet(m_strValueName, varObj);
-        lldb::SBValue &rValue = const_cast<lldb::SBValue &>(varObj.GetValue());
-        const bool bValid = rValue.IsValid();
-        const CMIUtilString strValue(bValid ? varObj.GetValueFormatted() : "<unknown>");
-        const CMIUtilString strInScope((bValid && rValue.IsInScope()) ? "true" : "false");
-
         // MI print "%s^done,changelist=[{name=\"%s\",value=\"%s\",in_scope=\"%s\",type_changed=\"false\",has_more=\"0\"}]"
-        const CMICmnMIValueConst miValueConst(m_strValueName);
-        CMICmnMIValueResult miValueResult("name", miValueConst);
-        CMICmnMIValueTuple miValueTuple(miValueResult);
-        const CMICmnMIValueConst miValueConst2(strValue);
-        CMICmnMIValueResult miValueResult2("value", miValueConst2);
-        miValueTuple.Add(miValueResult2);
-        const CMICmnMIValueConst miValueConst3(strInScope);
-        CMICmnMIValueResult miValueResult3("in_scope", miValueConst3);
-        miValueTuple.Add(miValueResult3);
-        const CMICmnMIValueConst miValueConst4("false");
-        CMICmnMIValueResult miValueResult4("type_changed", miValueConst4);
-        miValueTuple.Add(miValueResult4);
-        const CMICmnMIValueConst miValueConst5("0");
-        CMICmnMIValueResult miValueResult5("has_more", miValueConst5);
-        miValueTuple.Add(miValueResult5);
-        const CMICmnMIValueList miValueList(miValueTuple);
-        CMICmnMIValueResult miValueResult6("changelist", miValueList);
-        const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Done, miValueResult6);
-        m_miResultRecord = miRecordResult;
-
-        return MIstatus::success;
-    }
-    else if (m_bValueChangedCompositeType)
-    {
-        // MI print
-        // "%s^done,changelist=[{name=\"%s\",value=\"%s\",in_scope=\"%s\",type_changed=\"false\",has_more=\"0\"},{name=\"%s\",value=\"%s\",in_scope=\"%s\",type_changed=\"false\",has_more=\"0\"}]"
-        CMICmnMIValueResult miValueResult6("changelist", m_miValueList);
-        const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Done, miValueResult6);
+        CMICmnMIValueResult miValueResult("changelist", m_miValueList);
+        const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Done, miValueResult);
         m_miResultRecord = miRecordResult;
     }
     else
     {
-        // MI: "%s^done,changelist=[]"
+        // MI print "%s^done,changelist=[]"
         const CMICmnMIValueList miValueList(true);
         CMICmnMIValueResult miValueResult6("changelist", miValueList);
         const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Done, miValueResult6);
         m_miResultRecord = miRecordResult;
-        return MIstatus::success;
     }
 
     return MIstatus::success;
@@ -471,30 +454,34 @@ CMICmdCmdVarUpdate::CreateSelf(void)
 // Details: Form the MI response for multiple variables.
 // Type:    Method.
 // Args:    vrStrVarName    - (R)   Session var object's name.
-//          vrStrValue      - (R)   Text version of the value held in the variable.
+//          vpValue         - (R)   Text version of the value held in the variable.
 //          vrStrScope      - (R)   In scope "yes" or "no".
 // Return:  MIstatus::success - Functional succeeded.
 //          MIstatus::failure - Functional failed.
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarUpdate::MIFormResponse(const CMIUtilString &vrStrVarName, const CMIUtilString &vrStrValue, const CMIUtilString &vrStrScope)
+CMICmdCmdVarUpdate::MIFormResponse(const CMIUtilString &vrStrVarName, const char *const vpValue, const CMIUtilString &vrStrScope)
 {
     // MI print "[{name=\"%s\",value=\"%s\",in_scope=\"%s\",type_changed=\"false\",has_more=\"0\"}]"
     const CMICmnMIValueConst miValueConst(vrStrVarName);
-    CMICmnMIValueResult miValueResult("name", miValueConst);
+    const CMICmnMIValueResult miValueResult("name", miValueConst);
     CMICmnMIValueTuple miValueTuple(miValueResult);
-    const CMICmnMIValueConst miValueConst2(vrStrValue);
-    CMICmnMIValueResult miValueResult2("value", miValueConst2);
-    bool bOk = miValueTuple.Add(miValueResult2);
+    bool bOk = true;
+    if (vpValue != nullptr)
+    {
+        const CMICmnMIValueConst miValueConst2(vpValue);
+        const CMICmnMIValueResult miValueResult2("value", miValueConst2);
+        bOk = bOk && miValueTuple.Add(miValueResult2);
+    }
     const CMICmnMIValueConst miValueConst3(vrStrScope);
-    CMICmnMIValueResult miValueResult3("in_scope", miValueConst3);
+    const CMICmnMIValueResult miValueResult3("in_scope", miValueConst3);
     bOk = bOk && miValueTuple.Add(miValueResult3);
     const CMICmnMIValueConst miValueConst4("false");
-    CMICmnMIValueResult miValueResult4("type_changed", miValueConst4);
+    const CMICmnMIValueResult miValueResult4("type_changed", miValueConst4);
     bOk = bOk && miValueTuple.Add(miValueResult4);
     const CMICmnMIValueConst miValueConst5("0");
-    CMICmnMIValueResult miValueResult5("has_more", miValueConst5);
+    const CMICmnMIValueResult miValueResult5("has_more", miValueConst5);
     bOk = bOk && miValueTuple.Add(miValueResult5);
     bOk = bOk && m_miValueList.Add(miValueTuple);
 
@@ -502,74 +489,46 @@ CMICmdCmdVarUpdate::MIFormResponse(const CMIUtilString &vrStrVarName, const CMIU
 }
 
 //++ ------------------------------------------------------------------------------------
-// Details: Determine if the var object is a array type variable. LLDB does not 'detect'
-//          a value change for some types like elements in an array so have to re-evaluate
-//          the expression again.
+// Details: Determine if the var object was changed.
 // Type:    Method.
 // Args:    vrVarObj    - (R)   Session var object to examine.
-//          vrwbChanged - (W)   True = Is an array type and it changed,
-//                              False = Not an array type or not changed.
+//          vrwbChanged - (W)   True = The var object was changed,
+//                              False = It was not changed.
 // Return:  MIstatus::success - Functional succeeded.
 //          MIstatus::failure - Functional failed.
 // Throws:  None.
 //--
 bool
-CMICmdCmdVarUpdate::ExamineSBValueForChange(const CMICmnLLDBDebugSessionInfoVarObj &vrVarObj, const bool vbIgnoreVarType, bool &vrwbChanged)
+CMICmdCmdVarUpdate::ExamineSBValueForChange(lldb::SBValue &vrwValue, bool &vrwbChanged)
 {
-    vrwbChanged = false;
-
-    CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBProcess &rProcess = rSessionInfo.m_lldbProcess;
-    lldb::SBThread thread = rProcess.GetSelectedThread();
-    if (thread.GetNumFrames() == 0)
+    if (vrwValue.GetValueDidChange())
     {
+        vrwbChanged = true;
         return MIstatus::success;
     }
 
-    const CMIUtilString &strVarObjParentName = vrVarObj.GetVarParentName();
-    lldb::SBFrame frame = thread.GetSelectedFrame();
-    const CMIUtilString &rExpression(vrVarObj.GetNameReal());
-    CMIUtilString varExpression;
-    if (strVarObjParentName.empty())
+    lldb::SBType valueType = vrwValue.GetType();
+    if (!valueType.IsPointerType() && !valueType.IsReferenceType())
     {
-        varExpression = rExpression;
-    }
-    else
-    {
-        CMICmnLLDBDebugSessionInfoVarObj varObjParent;
-        if (CMICmnLLDBDebugSessionInfoVarObj::VarObjGet(strVarObjParentName, varObjParent))
-            varExpression = CMIUtilString::Format("%s.%s", varObjParent.GetNameReal().c_str(), rExpression.c_str());
-        else
+        const MIuint nChildren = vrwValue.GetNumChildren();
+        for (MIuint i = 0; i < nChildren; ++i)
         {
-            // The parent is only assigned in the CMICmdCmdVarListChildren command, we have a problem, need to investigate
-            SetError(
-                CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_VARIABLE_DOESNOTEXIST), m_cmdData.strMiCmd.c_str(), strVarObjParentName.c_str()));
-            return MIstatus::failure;
-        }
-    }
+            lldb::SBValue member = vrwValue.GetChildAtIndex(i);
+            if (!member.IsValid())
+                continue;
 
-    lldb::SBValue value = frame.EvaluateExpression(varExpression.c_str());
-    if (!value.IsValid())
-        value = frame.FindVariable(rExpression.c_str());
-    if (value.IsValid())
-    {
-        lldb::SBType valueType = value.GetType();
-        const lldb::BasicType eValueType = valueType.GetBasicType();
-        if (vbIgnoreVarType || (eValueType != lldb::BasicType::eBasicTypeInvalid))
-        {
-            MIuint64 nPrevValue = 0;
-            MIuint64 nRevaluateValue = 0;
-            lldb::SBValue &rValue = const_cast<lldb::SBValue &>(vrVarObj.GetValue());
-            if (CMICmnLLDBProxySBValue::GetValueAsUnsigned(rValue, nPrevValue) &&
-                CMICmnLLDBProxySBValue::GetValueAsUnsigned(value, nRevaluateValue) && (nPrevValue != nRevaluateValue))
+            if (member.GetValueDidChange())
             {
-                // Have a value change so update the var object
                 vrwbChanged = true;
-                const CMICmnLLDBDebugSessionInfoVarObj varObj(rExpression, vrVarObj.GetName(), value, strVarObjParentName);
+                return MIstatus::success;
             }
+            else if (ExamineSBValueForChange(member, vrwbChanged) && vrwbChanged)
+                // Handle composite types (i.e. struct or arrays)
+                return MIstatus::success;
         }
     }
 
+    vrwbChanged = false;
     return MIstatus::success;
 }
 
@@ -960,11 +919,15 @@ CMICmdCmdVarSetFormat::CreateSelf(void)
 // Throws:  None.
 //--
 CMICmdCmdVarListChildren::CMICmdCmdVarListChildren(void)
-    : m_bValueValid(false)
-    , m_nChildren(0)
-    , m_constStrArgPrintValues("print-values")
+    : m_constStrArgPrintValues("print-values")
     , m_constStrArgName("name")
-{
+    , m_constStrArgFrom("from")
+    , m_constStrArgTo("to")
+    , m_bValueValid(false)
+    , m_nChildren(0)
+    , m_miValueList(true)
+    , m_bHasMore(false)
+    {
     // Command factory matches this name with that received from the stdin stream
     m_strMiCmd = "var-list-children";
 
@@ -981,7 +944,6 @@ CMICmdCmdVarListChildren::CMICmdCmdVarListChildren(void)
 //--
 CMICmdCmdVarListChildren::~CMICmdCmdVarListChildren(void)
 {
-    m_vecMiValueResult.clear();
 }
 
 //++ ------------------------------------------------------------------------------------
@@ -996,8 +958,10 @@ CMICmdCmdVarListChildren::~CMICmdCmdVarListChildren(void)
 bool
 CMICmdCmdVarListChildren::ParseArgs(void)
 {
-    bool bOk = m_setCmdArgs.Add(*(new CMICmdArgValNumber(m_constStrArgPrintValues, false, false)));
+    bool bOk = m_setCmdArgs.Add(*(new CMICmdArgValPrintValues(m_constStrArgPrintValues, false, true)));
     bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValString(m_constStrArgName, true, true)));
+    bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValNumber(m_constStrArgFrom, false, true)));
+    bOk = bOk && m_setCmdArgs.Add(*(new CMICmdArgValNumber(m_constStrArgTo, false, true)));
     return (bOk && ParseValidateCmdOptions());
 }
 
@@ -1013,7 +977,14 @@ CMICmdCmdVarListChildren::ParseArgs(void)
 bool
 CMICmdCmdVarListChildren::Execute(void)
 {
+    CMICMDBASE_GETOPTION(pArgPrintValues, PrintValues, m_constStrArgPrintValues);
     CMICMDBASE_GETOPTION(pArgName, String, m_constStrArgName);
+    CMICMDBASE_GETOPTION(pArgFrom, Number, m_constStrArgFrom);
+    CMICMDBASE_GETOPTION(pArgTo, Number, m_constStrArgTo);
+
+    CMICmnLLDBDebugSessionInfo::VariableInfoFormat_e eVarInfoFormat = CMICmnLLDBDebugSessionInfo::eVariableInfoFormat_NoValues;
+    if (pArgPrintValues->GetFound())
+        eVarInfoFormat = static_cast<CMICmnLLDBDebugSessionInfo::VariableInfoFormat_e>(pArgPrintValues->GetValue());
 
     const CMIUtilString &rVarObjName(pArgName->GetValue());
     CMICmnLLDBDebugSessionInfoVarObj varObj;
@@ -1023,26 +994,37 @@ CMICmdCmdVarListChildren::Execute(void)
         return MIstatus::failure;
     }
 
+    MIuint nFrom = 0;
+    MIuint nTo = UINT32_MAX;
+    if (pArgFrom->GetFound() && pArgTo->GetFound())
+    {
+        nFrom = pArgFrom->GetValue();
+        nTo = pArgTo->GetValue();
+    }
+    else if (pArgFrom->GetFound() || pArgTo->GetFound())
+    {
+        // Only from or to was specified but both are required
+        SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_VARIABLE_CHILD_RANGE_INVALID), m_cmdData.strMiCmd.c_str()));
+        return MIstatus::failure;
+    }
+
     lldb::SBValue &rValue = const_cast<lldb::SBValue &>(varObj.GetValue());
     m_bValueValid = rValue.IsValid();
     if (!m_bValueValid)
         return MIstatus::success;
 
-    m_vecMiValueResult.clear();
-    m_nChildren = rValue.GetNumChildren();
-    for (MIuint i = 0; i < m_nChildren; i++)
+    const MIuint nChildren = rValue.GetNumChildren();
+    m_bHasMore = nTo < nChildren;
+    nTo = std::min(nTo, nChildren);
+    m_nChildren = nFrom < nTo ? nTo - nFrom : 0;
+    for (MIuint i = nFrom; i < nTo; i++)
     {
         lldb::SBValue member = rValue.GetChildAtIndex(i);
-        if (!member.IsValid())
-            continue;
         const CMICmnLLDBUtilSBValue utilValue(member);
         const CMIUtilString strExp = utilValue.GetName();
         const CMIUtilString name(CMIUtilString::Format("%s.%s", rVarObjName.c_str(), strExp.c_str()));
         const MIuint nChildren = member.GetNumChildren();
         const CMIUtilString strThreadId(CMIUtilString::Format("%u", member.GetThread().GetIndexID()));
-
-        // Varobj gets added to CMICmnLLDBDebugSessionInfoVarObj static container of varObjs
-        CMICmnLLDBDebugSessionInfoVarObj var(strExp, name, member, rVarObjName);
 
         // MI print "child={name=\"%s\",exp=\"%s\",numchild=\"%d\",value=\"%s\",type=\"%s\",thread-id=\"%u\",has_more=\"%u\"}"
         const CMICmnMIValueConst miValueConst(name);
@@ -1050,22 +1032,36 @@ CMICmdCmdVarListChildren::Execute(void)
         CMICmnMIValueTuple miValueTuple(miValueResult);
         const CMICmnMIValueConst miValueConst2(strExp);
         const CMICmnMIValueResult miValueResult2("exp", miValueConst2);
-        miValueTuple.Add(miValueResult2);
-        const CMIUtilString strNumChild(CMIUtilString::Format("%d", nChildren));
+        bool bOk = miValueTuple.Add(miValueResult2);
+        const CMIUtilString strNumChild(CMIUtilString::Format("%u", nChildren));
         const CMICmnMIValueConst miValueConst3(strNumChild);
         const CMICmnMIValueResult miValueResult3("numchild", miValueConst3);
-        miValueTuple.Add(miValueResult3);
+        bOk = bOk && miValueTuple.Add(miValueResult3);
         const CMICmnMIValueConst miValueConst5(utilValue.GetTypeNameDisplay());
         const CMICmnMIValueResult miValueResult5("type", miValueConst5);
-        miValueTuple.Add(miValueResult5);
+        bOk = bOk && miValueTuple.Add(miValueResult5);
         const CMICmnMIValueConst miValueConst6(strThreadId);
         const CMICmnMIValueResult miValueResult6("thread-id", miValueConst6);
-        miValueTuple.Add(miValueResult6);
-        const CMICmnMIValueConst miValueConst7("0");
-        const CMICmnMIValueResult miValueResult7("has_more", miValueConst7);
-        miValueTuple.Add(miValueResult7);
-        const CMICmnMIValueResult miValueResult8("child", miValueTuple);
-        m_vecMiValueResult.push_back(miValueResult8);
+        bOk = bOk && miValueTuple.Add(miValueResult6);
+        // nChildren == 0 is used to check for simple values
+        if (eVarInfoFormat == CMICmnLLDBDebugSessionInfo::eVariableInfoFormat_AllValues ||
+            (eVarInfoFormat == CMICmnLLDBDebugSessionInfo::eVariableInfoFormat_SimpleValues && nChildren == 0))
+        {
+            // Varobj gets added to CMICmnLLDBDebugSessionInfoVarObj static container of varObjs
+            CMICmnLLDBDebugSessionInfoVarObj var(strExp, name, member, rVarObjName);
+            const CMIUtilString strValue(
+            CMICmnLLDBDebugSessionInfoVarObj::GetValueStringFormatted(member, CMICmnLLDBDebugSessionInfoVarObj::eVarFormat_Natural));
+            const CMICmnMIValueConst miValueConst7(strValue);
+            const CMICmnMIValueResult miValueResult7("value", miValueConst7);
+            bOk = bOk && miValueTuple.Add(miValueResult7);
+        }
+        const CMICmnMIValueConst miValueConst8("0");
+        const CMICmnMIValueResult miValueResult8("has_more", miValueConst8);
+        bOk = bOk && miValueTuple.Add(miValueResult8);
+        const CMICmnMIValueResult miValueResult9("child", miValueTuple);
+        bOk = bOk && m_miValueList.Add(miValueResult9);
+        if (!bOk)
+            return MIstatus::failure;
     }
 
     return MIstatus::success;
@@ -1085,41 +1081,29 @@ CMICmdCmdVarListChildren::Acknowledge(void)
 {
     if (m_bValueValid)
     {
-        // MI print "%s^done,numchild=\"%u\",children=[]""
+        // MI print "%s^done,numchild=\"%u\",children=[%s],has_more=\"%d\""
         const CMIUtilString strNumChild(CMIUtilString::Format("%u", m_nChildren));
         const CMICmnMIValueConst miValueConst(strNumChild);
         CMICmnMIValueResult miValueResult("numchild", miValueConst);
-
-        VecMIValueResult_t::const_iterator it = m_vecMiValueResult.begin();
-        if (it == m_vecMiValueResult.end())
-        {
-            const CMICmnMIValueConst miValueConst("[]");
-            miValueResult.Add("children", miValueConst);
-        }
-        else
-        {
-            CMICmnMIValueList miValueList(*it);
-            ++it;
-            while (it != m_vecMiValueResult.end())
-            {
-                const CMICmnMIValueResult &rResult(*it);
-                miValueList.Add(rResult);
-
-                // Next
-                ++it;
-            }
-            miValueResult.Add("children", miValueList);
-        }
+        bool bOk = MIstatus::success;
+        if (m_nChildren != 0)
+            bOk = bOk && miValueResult.Add("children", m_miValueList);
+        const CMIUtilString strHasMore(m_bHasMore ? "1" : "0");
+        const CMICmnMIValueConst miValueConst2(strHasMore);
+        bOk = bOk && miValueResult.Add("has_more", miValueConst2);
+        if (!bOk)
+            return MIstatus::failure;
 
         const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Done, miValueResult);
         m_miResultRecord = miRecordResult;
+
         return MIstatus::success;
     }
 
-    // MI print "%s^done,numchild=\"0\""
-    const CMICmnMIValueConst miValueConst("0");
-    const CMICmnMIValueResult miValueResult("numchild", miValueConst);
-    const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Done, miValueResult);
+    // MI print "%s^error,msg=\"variable invalid\""
+    const CMICmnMIValueConst miValueConst("variable invalid");
+    const CMICmnMIValueResult miValueResult("msg", miValueConst);
+    const CMICmnMIResultRecord miRecordResult(m_cmdData.strMiCmdToken, CMICmnMIResultRecord::eResultClass_Error, miValueResult);
     m_miResultRecord = miRecordResult;
 
     return MIstatus::success;
@@ -1351,7 +1335,7 @@ CMICmdCmdVarInfoPathExpression::Execute(void)
         return MIstatus::failure;
     }
 
-    const MIchar *pPathExpression = stream.GetData();
+    const char *pPathExpression = stream.GetData();
     if (pPathExpression == nullptr)
     {
         // Build expression from what we do know
@@ -1493,7 +1477,7 @@ CMICmdCmdVarShowAttributes::Execute(void)
 
     const CMIUtilString &rVarObjName(pArgName->GetValue());
     CMICmnLLDBDebugSessionInfoVarObj varObj;
-    if (CMICmnLLDBDebugSessionInfoVarObj::VarObjGet(rVarObjName, varObj))
+    if (!CMICmnLLDBDebugSessionInfoVarObj::VarObjGet(rVarObjName, varObj))
     {
         SetError(CMIUtilString::Format(MIRSRC(IDS_CMD_ERR_VARIABLE_DOESNOTEXIST), m_cmdData.strMiCmd.c_str(), rVarObjName.c_str()));
         return MIstatus::failure;

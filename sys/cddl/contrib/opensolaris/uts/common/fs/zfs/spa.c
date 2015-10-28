@@ -22,8 +22,10 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
- * Copyright (c) 2013, 2014, Nexenta Systems, Inc.  All rights reserved.
+ * Copyright (c) 2015, Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
+ * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
+ * Copyright 2013 Saso Kiselkov. All rights reserved.
  */
 
 /*
@@ -1130,6 +1132,8 @@ spa_activate(spa_t *spa, int mode)
 
 	list_create(&spa->spa_config_dirty_list, sizeof (vdev_t),
 	    offsetof(vdev_t, vdev_config_dirty_node));
+	list_create(&spa->spa_evicting_os_list, sizeof (objset_t),
+	    offsetof(objset_t, os_evicting_node));
 	list_create(&spa->spa_state_dirty_list, sizeof (vdev_t),
 	    offsetof(vdev_t, vdev_state_dirty_node));
 
@@ -1162,9 +1166,12 @@ spa_deactivate(spa_t *spa)
 	 */
 	trim_thread_destroy(spa);
 
+	spa_evicting_os_wait(spa);
+
 	txg_list_destroy(&spa->spa_vdev_txg_list);
 
 	list_destroy(&spa->spa_config_dirty_list);
+	list_destroy(&spa->spa_evicting_os_list);
 	list_destroy(&spa->spa_state_dirty_list);
 
 	for (int t = 0; t < ZIO_TYPES; t++) {
@@ -1627,6 +1634,7 @@ load_nvlist(spa_t *spa, uint64_t obj, nvlist_t **value)
 	error = dmu_bonus_hold(spa->spa_meta_objset, obj, FTAG, &db);
 	if (error != 0)
 		return (error);
+
 	nvsize = *(uint64_t *)db->db_data;
 	dmu_buf_rele(db, FTAG);
 
@@ -1786,13 +1794,14 @@ static boolean_t
 spa_check_logs(spa_t *spa)
 {
 	boolean_t rv = B_FALSE;
+	dsl_pool_t *dp = spa_get_dsl(spa);
 
 	switch (spa->spa_log_state) {
 	case SPA_LOG_MISSING:
 		/* need to recheck in case slog has been restored */
 	case SPA_LOG_UNKNOWN:
-		rv = (dmu_objset_find(spa->spa_name, zil_check_log_chain,
-		    NULL, DS_FIND_CHILDREN) != 0);
+		rv = (dmu_objset_find_dp(dp, dp->dp_root_dir_obj,
+		    zil_check_log_chain, NULL, DS_FIND_CHILDREN) != 0);
 		if (rv)
 			spa_set_log_state(spa, SPA_LOG_MISSING);
 		break;
@@ -1936,7 +1945,7 @@ static int
 spa_load_verify_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
     const zbookmark_phys_t *zb, const dnode_phys_t *dnp, void *arg)
 {
-	if (BP_IS_HOLE(bp) || BP_IS_EMBEDDED(bp))
+	if (bp == NULL || BP_IS_HOLE(bp) || BP_IS_EMBEDDED(bp))
 		return (0);
 	/*
 	 * Note: normally this routine will not be called if
@@ -2179,6 +2188,11 @@ spa_load(spa_t *spa, spa_load_state_t state, spa_import_type_t type,
 		    mosconfig, &ereport);
 	}
 
+	/*
+	 * Don't count references from objsets that are already closed
+	 * and are making their way through the eviction process.
+	 */
+	spa_evicting_os_wait(spa);
 	spa->spa_minref = refcount_count(&spa->spa_refcount);
 	if (error) {
 		if (error != EEXIST) {
@@ -2569,6 +2583,19 @@ spa_load_impl(spa_t *spa, uint64_t pool_guid, nvlist_t *config,
 		return (spa_load(spa, state, SPA_IMPORT_EXISTING, B_TRUE));
 	}
 
+	/* Grab the secret checksum salt from the MOS. */
+	error = zap_lookup(spa->spa_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
+	    DMU_POOL_CHECKSUM_SALT, 1,
+	    sizeof (spa->spa_cksum_salt.zcs_bytes),
+	    spa->spa_cksum_salt.zcs_bytes);
+	if (error == ENOENT) {
+		/* Generate a new salt for subsequent use */
+		(void) random_get_pseudo_bytes(spa->spa_cksum_salt.zcs_bytes,
+		    sizeof (spa->spa_cksum_salt.zcs_bytes));
+	} else if (error != 0) {
+		return (spa_vdev_err(rvd, VDEV_AUX_CORRUPT_DATA, EIO));
+	}
+
 	if (spa_dir_prop(spa, DMU_POOL_SYNC_BPOBJ, &obj) != 0)
 		return (spa_vdev_err(rvd, VDEV_AUX_CORRUPT_DATA, EIO));
 	error = bpobj_open(&spa->spa_deferred_bpobj, spa->spa_meta_objset, obj);
@@ -2744,7 +2771,7 @@ spa_load_impl(spa_t *spa, uint64_t pool_guid, nvlist_t *config,
 		if (rvd->vdev_state <= VDEV_STATE_CANT_OPEN)
 			return (SET_ERROR(ENXIO));
 
-		if (spa_check_logs(spa)) {
+		if (spa_writeable(spa) && spa_check_logs(spa)) {
 			*ereport = FM_EREPORT_ZFS_LOG_REPLAY;
 			return (spa_vdev_err(rvd, VDEV_AUX_BAD_LOG, ENXIO));
 		}
@@ -2775,6 +2802,7 @@ spa_load_impl(spa_t *spa, uint64_t pool_guid, nvlist_t *config,
 	    spa->spa_load_max_txg == UINT64_MAX)) {
 		dmu_tx_t *tx;
 		int need_update = B_FALSE;
+		dsl_pool_t *dp = spa_get_dsl(spa);
 
 		ASSERT(state != SPA_LOAD_TRYIMPORT);
 
@@ -2787,9 +2815,8 @@ spa_load_impl(spa_t *spa, uint64_t pool_guid, nvlist_t *config,
 		 */
 		spa->spa_claiming = B_TRUE;
 
-		tx = dmu_tx_create_assigned(spa_get_dsl(spa),
-		    spa_first_txg(spa));
-		(void) dmu_objset_find(spa_name(spa),
+		tx = dmu_tx_create_assigned(dp, spa_first_txg(spa));
+		(void) dmu_objset_find_dp(dp, dp->dp_root_dir_obj,
 		    zil_claim, tx, DS_FIND_CHILDREN);
 		dmu_tx_commit(tx);
 
@@ -3737,6 +3764,12 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 		spa_history_create_obj(spa, tx);
 
 	/*
+	 * Generate some random noise for salted checksums to operate on.
+	 */
+	(void) random_get_pseudo_bytes(spa->spa_cksum_salt.zcs_bytes,
+	    sizeof (spa->spa_cksum_salt.zcs_bytes));
+
+	/*
 	 * Set pool properties.
 	 */
 	spa->spa_bootfs = zpool_prop_default_numeric(ZPOOL_PROP_BOOTFS);
@@ -3761,9 +3794,15 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	txg_wait_synced(spa->spa_dsl_pool, txg);
 
 	spa_config_sync(spa, B_FALSE, B_TRUE);
+	spa_event_notify(spa, NULL, ESC_ZFS_POOL_CREATE);
 
 	spa_history_log_version(spa, "create");
 
+	/*
+	 * Don't count references from objsets that are already closed
+	 * and are making their way through the eviction process.
+	 */
+	spa_evicting_os_wait(spa);
 	spa->spa_minref = refcount_count(&spa->spa_refcount);
 
 	mutex_exit(&spa_namespace_lock);
@@ -4129,6 +4168,8 @@ spa_import_rootpool(const char *name)
 		    &spa->spa_ubsync.ub_version) != 0)
 			spa->spa_ubsync.ub_version = SPA_VERSION_INITIAL;
 	} else if ((spa = spa_lookup(name)) == NULL) {
+		mutex_exit(&spa_namespace_lock);
+		nvlist_free(config);
 		cmn_err(CE_NOTE, "Cannot find the pool label for '%s'",
 		    name);
 		return (EIO);
@@ -4214,6 +4255,7 @@ spa_import(const char *pool, nvlist_t *config, nvlist_t *props, uint64_t flags)
 			spa_configfile_set(spa, props, B_FALSE);
 
 		spa_config_sync(spa, B_FALSE, B_TRUE);
+		spa_event_notify(spa, NULL, ESC_ZFS_POOL_IMPORT);
 
 		mutex_exit(&spa_namespace_lock);
 		return (0);
@@ -4344,8 +4386,11 @@ spa_import(const char *pool, nvlist_t *config, nvlist_t *props, uint64_t flags)
 	 */
 	spa_async_request(spa, SPA_ASYNC_AUTOEXPAND);
 
-	mutex_exit(&spa_namespace_lock);
 	spa_history_log_version(spa, "import");
+
+	spa_event_notify(spa, NULL, ESC_ZFS_POOL_IMPORT);
+
+	mutex_exit(&spa_namespace_lock);
 
 #ifdef __FreeBSD__
 #ifdef _KERNEL
@@ -4494,6 +4539,7 @@ spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
 		 * have to force it to sync before checking spa_refcnt.
 		 */
 		txg_wait_synced(spa->spa_dsl_pool, 0);
+		spa_evicting_os_wait(spa);
 
 		/*
 		 * A pool cannot be exported or destroyed if there are active
@@ -4691,6 +4737,7 @@ spa_vdev_add(spa_t *spa, nvlist_t *nvroot)
 
 	mutex_enter(&spa_namespace_lock);
 	spa_config_update(spa, SPA_CONFIG_UPDATE_POOL);
+	spa_event_notify(spa, NULL, ESC_ZFS_VDEV_ADD);
 	mutex_exit(&spa_namespace_lock);
 
 	return (0);
@@ -4885,6 +4932,11 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing)
 	 */
 	dsl_resilver_restart(spa->spa_dsl_pool, dtl_max_txg);
 
+	if (spa->spa_bootfs)
+		spa_event_notify(spa, newvd, ESC_ZFS_BOOTFS_VDEV_ATTACH);
+
+	spa_event_notify(spa, newvd, ESC_ZFS_VDEV_ATTACH);
+
 	/*
 	 * Commit the config
 	 */
@@ -4898,9 +4950,6 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing)
 
 	spa_strfree(oldvdpath);
 	spa_strfree(newvdpath);
-
-	if (spa->spa_bootfs)
-		spa_event_notify(spa, newvd, ESC_ZFS_BOOTFS_VDEV_ATTACH);
 
 	return (0);
 }
@@ -6522,6 +6571,20 @@ spa_sync_upgrades(spa_t *spa, dmu_tx_t *tx)
 		if (lz4_en && !lz4_ac)
 			spa_feature_incr(spa, SPA_FEATURE_LZ4_COMPRESS, tx);
 	}
+
+	/*
+	 * If we haven't written the salt, do so now.  Note that the
+	 * feature may not be activated yet, but that's fine since
+	 * the presence of this ZAP entry is backwards compatible.
+	 */
+	if (zap_contains(spa->spa_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
+	    DMU_POOL_CHECKSUM_SALT) == ENOENT) {
+		VERIFY0(zap_add(spa->spa_meta_objset,
+		    DMU_POOL_DIRECTORY_OBJECT, DMU_POOL_CHECKSUM_SALT, 1,
+		    sizeof (spa->spa_cksum_salt.zcs_bytes),
+		    spa->spa_cksum_salt.zcs_bytes, tx));
+	}
+
 	rrw_exit(&dp->dp_config_rwlock, FTAG);
 }
 

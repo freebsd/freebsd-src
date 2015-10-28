@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="rctl"
+rcvar="rctl_enable"
 start_cmd="rctl_start"
 stop_cmd="rctl_stop"
 

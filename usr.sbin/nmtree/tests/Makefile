@@ -1,9 +1,7 @@
 # $FreeBSD$
 
-TESTSRC=	${.CURDIR}/../../../contrib/netbsd-tests/usr.sbin/mtree
+TESTSRC=	${SRCTOP}/contrib/netbsd-tests/usr.sbin/mtree
 .PATH: ${TESTSRC}
-
-TESTSDIR=	${TESTSBASE}/usr.sbin/nmtree
 
 ATF_TESTS_SH=	nmtree_test
 ATF_TESTS_SH_SRC_nmtree_test=	t_mtree.sh

@@ -11,6 +11,7 @@ MAN=	accept_filter.9 \
 	altq.9 \
 	atomic.9 \
 	bios.9 \
+	bitset.9 \
 	boot.9 \
 	bpf.9 \
 	buf.9 \
@@ -39,6 +40,7 @@ MAN=	accept_filter.9 \
 	bus_generic_print_child.9 \
 	bus_generic_read_ivar.9 \
 	bus_generic_shutdown.9 \
+	bus_get_resource.9 \
 	BUS_NEW_PASS.9 \
 	BUS_PRINT_CHILD.9 \
 	BUS_READ_IVAR.9 \
@@ -55,6 +57,7 @@ MAN=	accept_filter.9 \
 	contigmalloc.9 \
 	copy.9 \
 	counter.9 \
+	cpuset.9 \
 	cr_cansee.9 \
 	critical_enter.9 \
 	cr_seeothergids.9 \
@@ -190,6 +193,8 @@ MAN=	accept_filter.9 \
 	netisr.9 \
 	nv.9 \
 	osd.9 \
+	owll.9 \
+	own.9 \
 	panic.9 \
 	pbuf.9 \
 	PCBGROUP.9 \
@@ -223,6 +228,7 @@ MAN=	accept_filter.9 \
 	pmap_pinit.9 \
 	pmap_protect.9 \
 	pmap_qenter.9 \
+	pmap_quick_enter_page.9 \
 	pmap_release.9 \
 	pmap_remove.9 \
 	pmap_resident_count.9 \
@@ -425,6 +431,32 @@ MLINKS+=atomic.9 atomic_add.9 \
 	atomic.9 atomic_subtract.9 \
 	atomic.9 atomic_swap.9 \
 	atomic.9 atomic_testandset.9
+MLINKS+=bitset.9 BITSET_DEFINE.9 \
+	bitset.9 BITSET_T_INITIALIZER.9 \
+	bitset.9 BITSET_FSET.9 \
+	bitset.9 BIT_CLR.9 \
+	bitset.9 BIT_COPY.9 \
+	bitset.9 BIT_ISSET.9 \
+	bitset.9 BIT_SET.9 \
+	bitset.9 BIT_ZERO.9 \
+	bitset.9 BIT_FILL.9 \
+	bitset.9 BIT_SETOF.9 \
+	bitset.9 BIT_EMPTY.9 \
+	bitset.9 BIT_ISFULLSET.9 \
+	bitset.9 BIT_FFS.9 \
+	bitset.9 BIT_COUNT.9 \
+	bitset.9 BIT_SUBSET.9 \
+	bitset.9 BIT_OVERLAP.9 \
+	bitset.9 BIT_CMP.9 \
+	bitset.9 BIT_OR.9 \
+	bitset.9 BIT_AND.9 \
+	bitset.9 BIT_NAND.9 \
+	bitset.9 BIT_CLR_ATOMIC.9 \
+	bitset.9 BIT_SET_ATOMIC.9 \
+	bitset.9 BIT_SET_ATOMIC_ACQ.9 \
+	bitset.9 BIT_AND_ATOMIC.9 \
+	bitset.9 BIT_OR_ATOMIC.9 \
+	bitset.9 BIT_COPY_STORE_REL.9
 MLINKS+=bpf.9 bpfattach.9 \
 	bpf.9 bpfattach2.9 \
 	bpf.9 bpfdetach.9 \
@@ -605,6 +637,31 @@ MLINKS+=counter.9 counter_u64_alloc.9 \
 	counter.9 counter_u64_add_protected.9 \
 	counter.9 counter_u64_fetch.9 \
 	counter.9 counter_u64_zero.9
+MLINKS+=cpuset.9 CPUSET_T_INITIALIZER.9 \
+	cpuset.9 CPUSET_FSET.9 \
+	cpuset.9 CPU_CLR.9 \
+	cpuset.9 CPU_COPY.9 \
+	cpuset.9 CPU_ISSET.9 \
+	cpuset.9 CPU_SET.9 \
+	cpuset.9 CPU_ZERO.9 \
+	cpuset.9 CPU_FILL.9 \
+	cpuset.9 CPU_SETOF.9 \
+	cpuset.9 CPU_EMPTY.9 \
+	cpuset.9 CPU_ISFULLSET.9 \
+	cpuset.9 CPU_FFS.9 \
+	cpuset.9 CPU_COUNT.9 \
+	cpuset.9 CPU_SUBSET.9 \
+	cpuset.9 CPU_OVERLAP.9 \
+	cpuset.9 CPU_CMP.9 \
+	cpuset.9 CPU_OR.9 \
+	cpuset.9 CPU_AND.9 \
+	cpuset.9 CPU_NAND.9 \
+	cpuset.9 CPU_CLR_ATOMIC.9 \
+	cpuset.9 CPU_SET_ATOMIC.9 \
+	cpuset.9 CPU_SET_ATOMIC_ACQ.9 \
+	cpuset.9 CPU_AND_ATOMIC.9 \
+	cpuset.9 CPU_OR_ATOMIC.9 \
+	cpuset.9 CPU_COPY_STORE_REL.9
 MLINKS+=critical_enter.9 critical.9 \
 	critical_enter.9 critical_exit.9
 MLINKS+=crypto.9 crypto_dispatch.9 \
@@ -1004,12 +1061,7 @@ MLINKS+=\
 	mbuf.9 m_dup.9 \
 	mbuf.9 m_dup_pkthdr.9 \
 	mbuf.9 MEXTADD.9 \
-	mbuf.9 MEXT_ADD_REF.9 \
-	mbuf.9 MEXTFREE.9 \
-	mbuf.9 MEXT_IS_REF.9 \
-	mbuf.9 MEXT_REM_REF.9 \
 	mbuf.9 m_fixhdr.9 \
-	mbuf.9 MFREE.9 \
 	mbuf.9 m_free.9 \
 	mbuf.9 m_freem.9 \
 	mbuf.9 MGET.9 \
@@ -1265,6 +1317,7 @@ MLINKS+=pmap_is_modified.9 pmap_ts_referenced.9
 MLINKS+=pmap_pinit.9 pmap_pinit0.9 \
 	pmap_pinit.9 pmap_pinit2.9
 MLINKS+=pmap_qenter.9 pmap_qremove.9
+MLINKS+=pmap_quick_enter_page.9 pmap_quick_remove_page.9
 MLINKS+=pmap_remove.9 pmap_remove_all.9 \
 	pmap_remove.9 pmap_remove_pages.9
 MLINKS+=pmap_resident_count.9 pmap_wired_count.9
@@ -1353,6 +1406,7 @@ MLINKS+=rwlock.9 rw_assert.9 \
 	rwlock.9 rw_initialized.9 \
 	rwlock.9 rw_rlock.9 \
 	rwlock.9 rw_runlock.9 \
+	rwlock.9 rw_unlock.9 \
 	rwlock.9 rw_sleep.9 \
 	rwlock.9 RW_SYSINIT.9 \
 	rwlock.9 rw_try_rlock.9 \
@@ -1575,6 +1629,8 @@ MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_ADD_ROOT_NODE.9 \
 	sysctl.9 SYSCTL_ADD_STRING.9 \
 	sysctl.9 SYSCTL_ADD_STRUCT.9 \
+	sysctl.9 SYSCTL_ADD_U8.9 \
+	sysctl.9 SYSCTL_ADD_U16.9 \
 	sysctl.9 SYSCTL_ADD_UAUTO.9 \
 	sysctl.9 SYSCTL_ADD_UINT.9 \
 	sysctl.9 SYSCTL_ADD_ULONG.9 \
@@ -1592,6 +1648,8 @@ MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_ROOT_NODE.9 \
 	sysctl.9 SYSCTL_STRING.9 \
 	sysctl.9 SYSCTL_STRUCT.9 \
+	sysctl.9 SYSCTL_U8.9 \
+	sysctl.9 SYSCTL_U16.9 \
 	sysctl.9 SYSCTL_UINT.9 \
 	sysctl.9 SYSCTL_ULONG.9 \
 	sysctl.9 SYSCTL_UQUAD.9

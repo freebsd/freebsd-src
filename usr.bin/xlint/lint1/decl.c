@@ -127,7 +127,7 @@ initdecl(void)
 /*
  * Returns a shared type structure vor arithmetic types and void.
  *
- * It's important do duplicate this structure (using duptyp() or tdupdyp())
+ * It's important to duplicate this structure (using duptyp() or tdupdyp())
  * if it is to be modified (adding qualifiers or anything else).
  */
 type_t *
@@ -803,7 +803,7 @@ length(type_t *tp, const char *name)
 }
 
 /*
- * Get the alignment of the given Type in bits.
+ * Get the alignment of the given type in bits.
  */
 int
 getbound(type_t *tp)
@@ -984,8 +984,8 @@ decl1str(sym_t *dsym)
 		/*
 		 * bit field
 		 *
-		 * only unsigned und signed int are protable bit-field types
-		 *(at least in ANSI C, in traditional C only unsigned int)
+		 * only unsigned and signed int are portable bit-field types
+		 * (at least in ANSI C, in traditional C only unsigned int)
 		 */
 		if (t == CHAR || t == UCHAR || t == SCHAR ||
 		    t == SHORT || t == USHORT || t == ENUM) {
@@ -1173,7 +1173,7 @@ mergepq(pqinf_t *p1, pqinf_t *p2)
  * Followint 3 functions extend the type of a declarator with
  * pointer, function and array types.
  *
- * The current type is the Type built by deftyp() (dcs->d_type) and
+ * The current type is the type built by deftyp() (dcs->d_type) and
  * pointer, function and array types already added for this
  * declarator. The new type extension is inserted between both.
  */
@@ -1559,7 +1559,7 @@ mktag(sym_t *tag, tspec_t kind, int decl, int semi)
 			tp->t_enum = getblk(sizeof (enum_t));
 			tp->t_enum->etag = tag;
 		}
-		/* ist unvollstaendiger Typ */
+		/* is incomplete type */
 		setcompl(tp, 1);
 	}
 
@@ -1769,7 +1769,7 @@ decl1ext(sym_t *dsym, int initflg)
 	if (plibflg && llibflg &&
 	    dsym->s_type->t_tspec == FUNC && dsym->s_type->t_proto) {
 		/*
-		 * With both LINTLIBRARY and PROTOLIB the prototyp is
+		 * With both LINTLIBRARY and PROTOLIB the prototype is
 		 * written as a function definition to the output file.
 		 */
 		rval = dsym->s_type->t_subt->t_tspec != VOID;
@@ -1800,7 +1800,7 @@ decl1ext(sym_t *dsym, int initflg)
 			}
 
 			/*
-			 * Overtake the rememberd params if the new symbol
+			 * Overtake the remembered params if the new symbol
 			 * is not a prototype.
 			 */
 			if (rdsym->s_osdef && !dsym->s_type->t_proto) {
@@ -1912,7 +1912,7 @@ isredec(sym_t *dsym, int *warn)
 		return(0);
 	if (rsym->s_scl == EXTERN && rsym->s_def == DEF) {
 		/*
-		 * All cases except "int a = 1; static int a;" are catched
+		 * All cases except "int a = 1; static int a;" are caught
 		 * above with or without a warning
 		 */
 		/* redeclaration of %s */
@@ -2125,7 +2125,7 @@ chkosdef(sym_t *rdsym, sym_t *dsym)
 }
 
 /*
- * Complets a type by copying the dimension and prototype information
+ * Completes a type by copying the dimension and prototype information
  * from a second compatible type.
  *
  * Following lines are legal:
@@ -2150,7 +2150,7 @@ compltyp(sym_t *dsym, sym_t *ssym)
 			if (dst->t_dim == 0 && src->t_dim != 0) {
 				*dstp = dst = duptyp(dst);
 				dst->t_dim = src->t_dim;
-				/* now a complete Typ */
+				/* now a complete type */
 				setcompl(dst, 0);
 			}
 		} else if (dst->t_tspec == FUNC) {
@@ -2229,7 +2229,7 @@ decl1arg(sym_t *sym, int initflg)
  * Does some checks for lint directives which apply to functions.
  * Processes arguments in old style function definitions which default
  * to int.
- * Checks compatiblility of old style function definition with previous
+ * Checks compatibility of old style function definition with previous
  * prototype.
  */
 void
@@ -2300,7 +2300,7 @@ cluparg(void)
 	}
 
 	/*
-	 * print a warning for each argument off an old style function
+	 * print a warning for each argument of an old style function
 	 * definition which defaults to int
 	 */
 	for (arg = args; arg != NULL; arg = arg->s_nxt) {
@@ -2657,7 +2657,7 @@ globclup(void)
 	mblklev = 0;
 
 	/*
-	 * remove all informations about pending lint directives without
+	 * remove all information about pending lint directives without
 	 * warnings.
 	 */
 	glclup(1);

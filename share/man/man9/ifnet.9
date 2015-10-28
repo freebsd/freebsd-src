@@ -215,7 +215,7 @@ Interfaces are also associated with an output queue, defined as a
 this structure is used to hold packets while the interface is in the
 process of sending another.
 .Pp
-.Ss The Vt ifnet Ss structure
+.Ss The ifnet Structure
 The fields of
 .Vt "struct ifnet"
 are as follows:
@@ -840,7 +840,7 @@ routine.
 The
 .Xr polling
 handler returns the number of packets processed.
-.Ss The Vt if_data Ss Structure
+.Ss The if_data Structure
 The
 .Vt if_data
 structure contains statistics and identifying information used
@@ -1021,7 +1021,7 @@ The link is down.
 .It Dv LINK_STATE_UP
 The link is up.
 .El
-.Ss The Vt ifaddr Ss Structure
+.Ss The ifaddr Structure
 Every interface is associated with a list
 (or, rather, a
 .Li TAILQ )
@@ -1119,7 +1119,7 @@ In addition to these functions, there
 may also be link-layer support routines which are used by a number of
 drivers implementing a specific link layer over different hardware;
 see the documentation for that link layer for more details.
-.Ss The Vt ifmultiaddr Ss Structure
+.Ss The ifmultiaddr Structure
 Every multicast-capable interface is associated with a list of
 multicast group memberships, which indicate at a low level which
 link-layer multicast addresses (if any) should be accepted, and at a

@@ -314,6 +314,15 @@ pmap_lmem_unmap(void)
 }
 #endif /* !__mips_n64 */
 
+static __inline int
+is_cacheable_page(vm_paddr_t pa, vm_page_t m)
+{
+
+	return ((m->md.pv_flags & PV_MEMATTR_UNCACHEABLE) == 0 &&
+	    is_cacheable_mem(pa));
+
+}
+
 /*
  * Page table entry lookup routines.
  */
@@ -1527,7 +1536,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	PV_STAT(pc_chunk_frees++);
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(MIPS_DIRECT_TO_PHYS((vm_offset_t)pc));
-	vm_page_unwire(m, PQ_INACTIVE);
+	vm_page_unwire(m, PQ_NONE);
 	vm_page_free(m);
 }
 
@@ -2009,7 +2018,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		newpte |= PTE_W;
 	if (is_kernel_pmap(pmap))
 		newpte |= PTE_G;
-	if (is_cacheable_mem(pa))
+	if (is_cacheable_page(pa, m))
 		newpte |= PTE_C_CACHE;
 	else
 		newpte |= PTE_C_UNCACHED;
@@ -2280,7 +2289,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		*pte |= PTE_MANAGED;
 
-	if (is_cacheable_mem(pa))
+	if (is_cacheable_page(pa, m))
 		*pte |= PTE_C_CACHE;
 	else
 		*pte |= PTE_C_UNCACHED;
@@ -2636,6 +2645,65 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 		b_offset += cnt;
 		xfersize -= cnt;
 	}
+}
+
+vm_offset_t
+pmap_quick_enter_page(vm_page_t m)
+{
+#if defined(__mips_n64)
+	return MIPS_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m));
+#else
+	vm_paddr_t pa;
+	struct local_sysmaps *sysm;
+	pt_entry_t *pte;
+
+	pa = VM_PAGE_TO_PHYS(m);
+
+	if (MIPS_DIRECT_MAPPABLE(pa)) {
+		if (m->md.pv_flags & PV_MEMATTR_UNCACHEABLE)
+			return (MIPS_PHYS_TO_DIRECT_UNCACHED(pa));
+		else
+			return (MIPS_PHYS_TO_DIRECT(pa));
+	}
+	critical_enter();
+	sysm = &sysmap_lmem[PCPU_GET(cpuid)];
+
+	KASSERT(sysm->valid1 == 0, ("pmap_quick_enter_page: PTE busy"));
+
+	pte = pmap_pte(kernel_pmap, sysm->base);
+	*pte = TLBLO_PA_TO_PFN(pa) | PTE_D | PTE_V | PTE_G |
+	    (is_cacheable_page(pa, m) ? PTE_C_CACHE : PTE_C_UNCACHED);
+	sysm->valid1 = 1;
+
+	return (sysm->base);
+#endif
+}
+
+void
+pmap_quick_remove_page(vm_offset_t addr)
+{
+	mips_dcache_wbinv_range(addr, PAGE_SIZE);
+
+#if !defined(__mips_n64)
+	struct local_sysmaps *sysm;
+	pt_entry_t *pte;
+
+	if (addr >= MIPS_KSEG0_START && addr < MIPS_KSEG0_END)
+		return;
+
+	sysm = &sysmap_lmem[PCPU_GET(cpuid)];
+
+	KASSERT(sysm->valid1 != 0,
+	    ("pmap_quick_remove_page: PTE not in use"));
+	KASSERT(sysm->base == addr,
+	    ("pmap_quick_remove_page: invalid address"));
+
+	pte = pmap_pte(kernel_pmap, addr);
+	*pte = PTE_G;
+	tlb_invalidate_address(kernel_pmap, addr);
+	sysm->valid1 = 0;
+	critical_exit();
+#endif
 }
 
 /*
@@ -3463,4 +3531,28 @@ pmap_flush_pvcache(vm_page_t m)
 			mips_dcache_wbinv_range_index(pv->pv_va, PAGE_SIZE);
 		}
 	}
+}
+
+void
+pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
+{
+
+	/*
+	 * It appears that this function can only be called before any mappings
+	 * for the page are established.  If this ever changes, this code will
+	 * need to walk the pv_list and make each of the existing mappings
+	 * uncacheable, being careful to sync caches and PTEs (and maybe
+	 * invalidate TLB?) for any current mapping it modifies.
+	 */
+	if (TAILQ_FIRST(&m->md.pv_list) != NULL)
+		panic("Can't change memattr on page with existing mappings");
+
+	/*
+	 * The only memattr we support is UNCACHEABLE, translate the (semi-)MI
+	 * representation of that into our internal flag in the page MD struct.
+	 */
+	if (ma == VM_MEMATTR_UNCACHEABLE)
+		m->md.pv_flags |= PV_MEMATTR_UNCACHEABLE;
+	else
+		m->md.pv_flags &= ~PV_MEMATTR_UNCACHEABLE;
 }

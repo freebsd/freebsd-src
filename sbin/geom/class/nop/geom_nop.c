@@ -43,14 +43,16 @@ struct g_command class_commands[] = {
 	    {
 		{ 'e', "error", "-1", G_TYPE_NUMBER },
 		{ 'o', "offset", "0", G_TYPE_NUMBER },
+		{ 'p', "stripesize", "0", G_TYPE_NUMBER },
+		{ 'P', "stripeoffset", "0", G_TYPE_NUMBER },
 		{ 'r', "rfailprob", "-1", G_TYPE_NUMBER },
 		{ 's', "size", "0", G_TYPE_NUMBER },
 		{ 'S', "secsize", "0", G_TYPE_NUMBER },
 		{ 'w', "wfailprob", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-v] [-e error] [-o offset] [-r rfailprob] [-s size] "
-	    "[-S secsize] [-w wfailprob] dev ..."
+	    "[-v] [-e error] [-o offset] [-p stripesize] [-P stripeoffset] "
+	    "[-r rfailprob] [-s size] [-S secsize] [-w wfailprob] dev ..."
 	},
 	{ "configure", G_FLAG_VERBOSE, NULL,
 	    {

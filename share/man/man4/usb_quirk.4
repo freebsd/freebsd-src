@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 7, 2015
+.Dd September 26, 2015
 .Dt USB_QUIRK 4
 .Os
 .Sh NAME
@@ -177,7 +177,54 @@ ejects after HID command
 .Pp
 See
 .Pa /sys/dev/usb/quirk/usb_quirk.h
-for the complete list of supported quirks.
+or run "usbconfig dump_quirk_names" for the complete list of supported quirks.
+.Sh LOADER TUNABLE
+The following tunable can be set at the
+.Xr loader 8
+prompt before booting the kernel, or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.usb.quirk.%d
+The value is a string whose format is:
+.Bd -literal -offset indent
+.Qo VendorId ProductId LowRevision HighRevision UQ_QUIRK,... Qc
+.Ed
+.Pp
+Installs the quirks
+.Ic UQ_QUIRK,...
+for all USB devices matching
+.Ic VendorId
+and
+.Ic ProductId
+which have a hardware revision between and including
+.Ic LowRevision
+and
+.Ic HighRevision .
+.Pp
+.Ic VendorId ,
+.Ic ProductId ,
+.Ic LowRevision
+and
+.Ic HighRevision
+are all 16 bits numbers which can be decimal or hexadecimal based.
+.Pp
+A maximum of 100 variables
+.Ic hw.usb.quirk.0, .1, ..., .99
+can be defined.
+.Pp
+If a matching entry is found in the kernel's internal quirks table, it
+is replaced by the new definition.
+.Pp
+Else a new entry is created given that the quirk table is not full.
+.Pp
+The kernel iterates over the
+.Ic hw.usb.quirk.N
+variables starting at
+.Ic N = 0
+and stops at
+.Ic N = 99
+or the first non-existing one.
+.El
 .Sh EXAMPLES
 After attaching a
 .Nm u3g
@@ -185,6 +232,13 @@ device which appears as a USB device on
 .Pa ugen0.3 :
 .Bd -literal -offset indent
 usbconfig -d ugen0.3 add_quirk UQ_MSC_EJECT_WAIT
+.Ed
+.Pp
+To install a quirk at boot time, place one or several lines like the
+following in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.usb.quirk.0="0x04d9 0xfa50 0 0xffff UQ_KBD_IGNORE"
 .Ed
 .Sh SEE ALSO
 .Xr usbconfig 8

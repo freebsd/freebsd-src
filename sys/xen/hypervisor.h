@@ -11,22 +11,6 @@
 #ifndef __XEN_HYPERVISOR_H__
 #define __XEN_HYPERVISOR_H__
 
-#ifdef XENHVM
-
-#define is_running_on_xen()	(HYPERVISOR_shared_info != NULL)
-
-#else
-
-#define is_running_on_xen() 1
-
-#endif
-
-#ifdef PAE
-#ifndef CONFIG_X86_PAE
-#define CONFIG_X86_PAE
-#endif
-#endif
-
 #include <sys/cdefs.h>
 #include <sys/systm.h>
 #include <xen/interface/xen.h>
@@ -38,31 +22,13 @@
 #include <xen/interface/memory.h>
 #include <machine/xen/hypercall.h>
 
-#if defined(__amd64__)
-#define MULTI_UVMFLAGS_INDEX 2
-#define MULTI_UVMDOMID_INDEX 3
-#else
-#define MULTI_UVMFLAGS_INDEX 3
-#define MULTI_UVMDOMID_INDEX 4
-#endif
-
-#ifdef CONFIG_XEN_PRIVILEGED_GUEST
-#define is_initial_xendomain() (xen_start_info->flags & SIF_INITDOMAIN)
-#else
-#define is_initial_xendomain() 0
-#endif
-
-extern start_info_t *xen_start_info;
-
 extern uint64_t get_system_time(int ticks);
 
 static inline int 
-HYPERVISOR_console_write(char *str, int count)
+HYPERVISOR_console_write(const char *str, int count)
 {
     return HYPERVISOR_console_io(CONSOLEIO_write, count, str); 
 }
-
-static inline void HYPERVISOR_crash(void) __dead2;
 
 static inline int
 HYPERVISOR_yield(void)
@@ -130,25 +96,6 @@ HYPERVISOR_poll(
 		rc = HYPERVISOR_sched_op_compat(SCHEDOP_yield, 0);
 #endif	
 	return (rc);
-}
-
-static inline void
-MULTI_update_va_mapping(
-	multicall_entry_t *mcl, unsigned long va,
-        uint64_t new_val, unsigned long flags)
-{
-    mcl->op = __HYPERVISOR_update_va_mapping;
-    mcl->args[0] = va;
-#if defined(__amd64__)
-    mcl->args[1] = new_val;
-#elif defined(PAE)
-    mcl->args[1] = (uint32_t)(new_val & 0xffffffff) ;
-    mcl->args[2] = (uint32_t)(new_val >> 32);
-#else
-    mcl->args[1] = new_val;
-    mcl->args[2] = 0;
-#endif
-    mcl->args[MULTI_UVMFLAGS_INDEX] = flags;
 }
 
 #endif /* __XEN_HYPERVISOR_H__ */

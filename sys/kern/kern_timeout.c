@@ -718,9 +718,9 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	sbt1 = sbinuptime();
 #endif
 	THREAD_NO_SLEEPING();
-	SDT_PROBE(callout_execute, kernel, , callout__start, c, 0, 0, 0, 0);
+	SDT_PROBE1(callout_execute, kernel, , callout__start, c);
 	c_func(c_arg);
-	SDT_PROBE(callout_execute, kernel, , callout__end, c, 0, 0, 0, 0);
+	SDT_PROBE1(callout_execute, kernel, , callout__end, c);
 	THREAD_SLEEPING_OK();
 #if defined(DIAGNOSTIC) || defined(CALLOUT_PROFILING)
 	sbt2 = sbinuptime();
@@ -1032,7 +1032,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 		 * currently in progress.  If there is a lock then we
 		 * can cancel the callout if it has not really started.
 		 */
-		if (c->c_lock != NULL && cc_exec_cancel(cc, direct))
+		if (c->c_lock != NULL && !cc_exec_cancel(cc, direct))
 			cancelled = cc_exec_cancel(cc, direct) = true;
 		if (cc_exec_waiting(cc, direct)) {
 			/*

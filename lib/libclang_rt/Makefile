@@ -4,10 +4,11 @@
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 SUBDIR+= asan\
+	 asan-preinit\
 	 asan_cxx\
-	 san\
-	 ubsan\
-	 ubsan_cxx
+	 safestack\
+	 ubsan_standalone\
+	 ubsan_standalone_cxx
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64" || \

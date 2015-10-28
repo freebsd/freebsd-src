@@ -1,5 +1,4 @@
-#------------------------------------------------------------------------------
-# $File: sgml,v 1.31 2015/03/11 19:38:04 christos Exp $
+#------------------------------------------------------------------------------ # $File: sgml,v 1.32 2015/07/11 15:08:53 christos Exp $
 # Type:	SVG Vectorial Graphics
 # From:	Noel Torres <tecnico@ejerciciosresueltos.com>
 0	string		\<?xml\ version="
@@ -24,16 +23,16 @@
 
 # xhtml
 0	string/t		\<?xml\ version="
->15	string		>\0
->>19	search/4096/cWbt	\<!doctype\ html	XHTML document text
+>19	search/4096/cWbt	\<!doctype\ html	XHTML document text
+>>15	string		>\0	(version %.3s)
 !:mime	text/html
 0	string/t		\<?xml\ version='
->15	string		>\0
->>19	search/4096/cWbt	\<!doctype\ html	XHTML document text
+>19	search/4096/cWbt	\<!doctype\ html	XHTML document text
+>>15	string		>\0	(version %.3s)
 !:mime	text/html
 0	string/t		\<?xml\ version="
->15	string		>\0
->>19	search/4096/cWbt	\<html	broken XHTML document text
+>19	search/4096/cWbt	\<html	broken XHTML document text
+>>15	string		>\0	(version %.3s)
 !:mime	text/html
 
 #------------------------------------------------------------------------------
@@ -106,9 +105,6 @@
 >15	string/t	>\0			%.3s document text
 >>23	search/1	\<xsl:stylesheet	(XSL stylesheet)
 >>24	search/1	\<xsl:stylesheet	(XSL stylesheet)
-0	search/1/wbt	\<?xml			XML document text
-!:mime	application/xml
-!:strength - 10
 0	search/1/wt	\<?XML			broken XML document text
 !:mime	application/xml
 !:strength - 10

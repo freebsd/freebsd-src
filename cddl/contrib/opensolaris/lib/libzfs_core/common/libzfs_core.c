@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  */
 
@@ -515,6 +515,13 @@ int
 lzc_send(const char *snapname, const char *from, int fd,
     enum lzc_send_flags flags)
 {
+	return (lzc_send_resume(snapname, from, fd, flags, 0, 0));
+}
+
+int
+lzc_send_resume(const char *snapname, const char *from, int fd,
+    enum lzc_send_flags flags, uint64_t resumeobj, uint64_t resumeoff)
+{
 	nvlist_t *args;
 	int err;
 
@@ -526,24 +533,40 @@ lzc_send(const char *snapname, const char *from, int fd,
 		fnvlist_add_boolean(args, "largeblockok");
 	if (flags & LZC_SEND_FLAG_EMBED_DATA)
 		fnvlist_add_boolean(args, "embedok");
+	if (resumeobj != 0 || resumeoff != 0) {
+		fnvlist_add_uint64(args, "resume_object", resumeobj);
+		fnvlist_add_uint64(args, "resume_offset", resumeoff);
+	}
 	err = lzc_ioctl(ZFS_IOC_SEND_NEW, snapname, args, NULL);
 	nvlist_free(args);
 	return (err);
 }
 
 /*
- * If fromsnap is NULL, a full (non-incremental) stream will be estimated.
+ * "from" can be NULL, a snapshot, or a bookmark.
+ *
+ * If from is NULL, a full (non-incremental) stream will be estimated.  This
+ * is calculated very efficiently.
+ *
+ * If from is a snapshot, lzc_send_space uses the deadlists attached to
+ * each snapshot to efficiently estimate the stream size.
+ *
+ * If from is a bookmark, the indirect blocks in the destination snapshot
+ * are traversed, looking for blocks with a birth time since the creation TXG of
+ * the snapshot this bookmark was created from.  This will result in
+ * significantly more I/O and be less efficient than a send space estimation on
+ * an equivalent snapshot.
  */
 int
-lzc_send_space(const char *snapname, const char *fromsnap, uint64_t *spacep)
+lzc_send_space(const char *snapname, const char *from, uint64_t *spacep)
 {
 	nvlist_t *args;
 	nvlist_t *result;
 	int err;
 
 	args = fnvlist_alloc();
-	if (fromsnap != NULL)
-		fnvlist_add_string(args, "fromsnap", fromsnap);
+	if (from != NULL)
+		fnvlist_add_string(args, "from", from);
 	err = lzc_ioctl(ZFS_IOC_SEND_SPACE, snapname, args, &result);
 	nvlist_free(args);
 	if (err == 0)
@@ -571,22 +594,9 @@ recv_read(int fd, void *buf, int ilen)
 	return (0);
 }
 
-/*
- * The simplest receive case: receive from the specified fd, creating the
- * specified snapshot.  Apply the specified properties a "received" properties
- * (which can be overridden by locally-set properties).  If the stream is a
- * clone, its origin snapshot must be specified by 'origin'.  The 'force'
- * flag will cause the target filesystem to be rolled back or destroyed if
- * necessary to receive.
- *
- * Return 0 on success or an errno on failure.
- *
- * Note: this interface does not work on dedup'd streams
- * (those with DMU_BACKUP_FEATURE_DEDUP).
- */
-int
-lzc_receive(const char *snapname, nvlist_t *props, const char *origin,
-    boolean_t force, int fd)
+static int
+lzc_receive_impl(const char *snapname, nvlist_t *props, const char *origin,
+    boolean_t force, boolean_t resumable, int fd)
 {
 	/*
 	 * The receive ioctl is still legacy, so we need to construct our own
@@ -596,7 +606,6 @@ lzc_receive(const char *snapname, nvlist_t *props, const char *origin,
 	char *atp;
 	char *packed = NULL;
 	size_t size;
-	dmu_replay_record_t drr;
 	int error;
 
 	ASSERT3S(g_refcount, >, 0);
@@ -632,16 +641,17 @@ lzc_receive(const char *snapname, nvlist_t *props, const char *origin,
 		(void) strlcpy(zc.zc_string, origin, sizeof (zc.zc_string));
 
 	/* zc_begin_record is non-byteswapped BEGIN record */
-	error = recv_read(fd, &drr, sizeof (drr));
+	error = recv_read(fd, &zc.zc_begin_record, sizeof (zc.zc_begin_record));
 	if (error != 0)
 		goto out;
-	zc.zc_begin_record = drr.drr_u.drr_begin;
 
 	/* zc_cookie is fd to read from */
 	zc.zc_cookie = fd;
 
 	/* zc guid is force flag */
 	zc.zc_guid = force;
+
+	zc.zc_resumable = resumable;
 
 	/* zc_cleanup_fd is unused */
 	zc.zc_cleanup_fd = -1;
@@ -655,6 +665,39 @@ out:
 		fnvlist_pack_free(packed, size);
 	free((void*)(uintptr_t)zc.zc_nvlist_dst);
 	return (error);
+}
+
+/*
+ * The simplest receive case: receive from the specified fd, creating the
+ * specified snapshot.  Apply the specified properties as "received" properties
+ * (which can be overridden by locally-set properties).  If the stream is a
+ * clone, its origin snapshot must be specified by 'origin'.  The 'force'
+ * flag will cause the target filesystem to be rolled back or destroyed if
+ * necessary to receive.
+ *
+ * Return 0 on success or an errno on failure.
+ *
+ * Note: this interface does not work on dedup'd streams
+ * (those with DMU_BACKUP_FEATURE_DEDUP).
+ */
+int
+lzc_receive(const char *snapname, nvlist_t *props, const char *origin,
+    boolean_t force, int fd)
+{
+	return (lzc_receive_impl(snapname, props, origin, force, B_FALSE, fd));
+}
+
+/*
+ * Like lzc_receive, but if the receive fails due to premature stream
+ * termination, the intermediate state will be preserved on disk.  In this
+ * case, ECKSUM will be returned.  The receive may subsequently be resumed
+ * with a resuming send stream generated by lzc_send_resume().
+ */
+int
+lzc_receive_resumable(const char *snapname, nvlist_t *props, const char *origin,
+    boolean_t force, int fd)
+{
+	return (lzc_receive_impl(snapname, props, origin, force, B_TRUE, fd));
 }
 
 /*

@@ -714,7 +714,7 @@ kernconfdump(const char *file)
 	if (pp == NULL)
 		errx(EXIT_FAILURE, "popen() failed");
 	free(cmd);
-	fread(o, osz, 1, pp);
+	(void)fread(o, osz, 1, pp);
 	pclose(pp);
 	r = sscanf(o, "%d%d%d%d%d", &off, &size, &t1, &t2, &align);
 	free(o);

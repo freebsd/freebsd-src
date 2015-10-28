@@ -102,6 +102,7 @@ COMMAND_SET(load, "load", "load a kernel or module", command_load);
 static int
 command_load(int argc, char *argv[])
 {
+    struct preloaded_file *fp;
     char	*typestr;
     int		dofile, dokld, ch, error;
     
@@ -139,6 +140,13 @@ command_load(int argc, char *argv[])
 	    command_errmsg = "invalid load type";
 	    return(CMD_ERROR);
 	}
+
+	fp = file_findfile(argv[1], typestr);
+	if (fp) {
+		sprintf(command_errbuf, "warning: file '%s' already loaded", argv[1]);
+		return (CMD_ERROR);
+	}
+
 	return (file_loadraw(argv[1], typestr, 1) ? CMD_OK : CMD_ERROR);
     }
     /*

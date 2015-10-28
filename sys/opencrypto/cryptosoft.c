@@ -711,6 +711,7 @@ swcr_newsession(device_t dev, u_int32_t *sid, struct cryptoini *cri)
 	struct enc_xform *txf;
 	struct comp_algo *cxf;
 	u_int32_t i;
+	int len;
 	int error;
 
 	if (sid == NULL || cri == NULL)
@@ -928,6 +929,10 @@ swcr_newsession(device_t dev, u_int32_t *sid, struct cryptoini *cri)
 		case CRYPTO_AES_256_NIST_GMAC:
 			axf = &auth_hash_nist_gmac_aes_256;
 		auth4common:
+			len = cri->cri_klen / 8;
+			if (len != 16 && len != 24 && len != 32)
+				return EINVAL;
+
 			(*swd)->sw_ictx = malloc(axf->ctxsize, M_CRYPTO_DATA,
 			    M_NOWAIT);
 			if ((*swd)->sw_ictx == NULL) {
@@ -936,8 +941,7 @@ swcr_newsession(device_t dev, u_int32_t *sid, struct cryptoini *cri)
 				return ENOBUFS;
 			}
 			axf->Init((*swd)->sw_ictx);
-			axf->Setkey((*swd)->sw_ictx, cri->cri_key,
-			    cri->cri_klen / 8);
+			axf->Setkey((*swd)->sw_ictx, cri->cri_key, len);
 			(*swd)->sw_axf = axf;
 			break;
 

@@ -129,7 +129,7 @@ CLANG_NO_IAS=	 -no-integrated-as
 .endif
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
 		 -mllvm -simplifycfg-dup-ret
-.if ${COMPILER_VERSION} >= 30500
+.if ${COMPILER_VERSION} >= 30500 && ${COMPILER_VERSION} < 30700
 CLANG_OPT_SMALL+= -mllvm -enable-gvn=false
 .else
 CLANG_OPT_SMALL+= -mllvm -enable-load-pre=false
@@ -148,8 +148,14 @@ CXXFLAGS.clang+=	 -Wno-c++11-extensions
 
 .if ${MK_SSP} != "no" && \
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
+.if (${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30500) || \
+    (${COMPILER_TYPE} == "gcc" && \
+     (${COMPILER_VERSION} == 40201 || ${COMPILER_VERSION} >= 40900))
 # Don't use -Wstack-protector as it breaks world with -Werror.
+SSP_CFLAGS?=	-fstack-protector-strong
+.else
 SSP_CFLAGS?=	-fstack-protector
+.endif
 CFLAGS+=	${SSP_CFLAGS}
 .endif # SSP && !ARM && !MIPS
 
@@ -165,13 +171,13 @@ CXXFLAGS+=	 ${CXXFLAGS.${COMPILER_TYPE}}
 # Tell bmake not to mistake standard targets for things to be searched for
 # or expect to ever be up-to-date.
 PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
-		beforelinking build build-tools buildfiles buildincludes \
-		checkdpadd clean cleandepend cleandir cleanobj configure \
-		depend dependall distclean distribute exe \
-		html includes install installfiles installincludes lint \
-		obj objlink objs objwarn realall realdepend \
-		realinstall regress subdir-all subdir-depend subdir-install \
-		tags whereobj
+		beforelinking build build-tools buildconfig buildfiles \
+		buildincludes checkdpadd clean cleandepend cleandir cleanobj \
+		configure depend dependall distclean distribute exe \
+		files html includes install installconfig installfiles \
+		installincludes lint obj objlink objs objwarn realall \
+		realdepend realinstall regress subdir-all subdir-depend \
+		subdir-install tags whereobj
 
 # we don't want ${PROG} to be PHONY
 .PHONY: ${PHONY_NOTMAIN:N${PROG:U}}
@@ -186,7 +192,6 @@ staging stage_libs stage_files stage_as stage_links stage_symlinks:
 .else
 # allow targets like beforeinstall to be leveraged
 DESTDIR= ${STAGE_OBJTOP}
-_SHLIBDIRPREFIX= ${STAGE_OBJTOP}
 
 .if commands(beforeinstall)
 .if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"
@@ -206,7 +211,7 @@ stage_as.prog: ${PROG}
 .else
 STAGE_SETS+= prog
 stage_files.prog: ${PROG}
-staging: stage_files
+STAGE_TARGETS+= stage_files
 .endif
 .endif
 .endif
@@ -252,18 +257,18 @@ beforebuild: stage_includes
 
 .for t in stage_libs stage_files stage_as
 .if target($t)
-staging: $t
+STAGE_TARGETS+= $t
 .endif
 .endfor
 
 .if !empty(STAGE_AS_SETS)
-staging: stage_as
+STAGE_TARGETS+= stage_as
 .endif
 
 .if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"
 
 .if !empty(LINKS)
-staging: stage_links
+STAGE_TARGETS+= stage_links
 .if ${MAKE_VERSION} < 20131001
 stage_links.links: ${_LIBS} ${PROG}
 .endif
@@ -272,7 +277,7 @@ STAGE_LINKS.links= ${LINKS}
 .endif
 
 .if !empty(SYMLINKS)
-staging: stage_symlinks
+STAGE_TARGETS+= stage_symlinks
 STAGE_SETS+= links
 STAGE_SYMLINKS.links= ${SYMLINKS}
 .endif

@@ -20,10 +20,13 @@
 // Project includes
 #include "lldb/lldb-private.h"
 #include "lldb/Core/PluginInterface.h"
+#include "lldb/Core/ThreadSafeDenseMap.h"
 #include "lldb/Symbol/ClangASTType.h"
 #include "lldb/Symbol/DeclVendor.h"
 #include "lldb/Symbol/Type.h"
 #include "lldb/Target/LanguageRuntime.h"
+
+class CommandObjectObjC_ClassTable_Dump;
 
 namespace lldb_private {
     
@@ -288,6 +291,48 @@ public:
     protected:
         std::unique_ptr<ClangASTContext> m_scratch_ast_ctx_ap;
     };
+
+    class ObjCExceptionPrecondition : public Breakpoint::BreakpointPrecondition
+    {
+    public:
+        ObjCExceptionPrecondition();
+
+        virtual ~ObjCExceptionPrecondition() {}
+
+        bool EvaluatePrecondition(StoppointCallbackContext &context) override;
+        void DescribePrecondition(Stream &stream, lldb::DescriptionLevel level) override;
+        Error ConfigurePrecondition(Args &args) override;
+
+    protected:
+        void AddClassName(const char *class_name);
+
+    private:
+        std::unordered_set<std::string> m_class_names;
+    };
+    
+    class TaggedPointerVendor
+    {
+    public:
+        virtual bool
+        IsPossibleTaggedPointer (lldb::addr_t ptr) = 0;
+        
+        virtual ObjCLanguageRuntime::ClassDescriptorSP
+        GetClassDescriptor (lldb::addr_t ptr) = 0;
+        
+        virtual
+        ~TaggedPointerVendor () { }
+    protected:
+        TaggedPointerVendor () = default;
+
+    private:
+        DISALLOW_COPY_AND_ASSIGN(TaggedPointerVendor);
+    };
+    
+    virtual TaggedPointerVendor*
+    GetTaggedPointerVendor ()
+    {
+        return nullptr;
+    }
     
     typedef std::shared_ptr<EncodingToType> EncodingToTypeSP;
     
@@ -312,8 +357,8 @@ public:
     virtual
     ~ObjCLanguageRuntime();
     
-    virtual lldb::LanguageType
-    GetLanguageType () const
+    lldb::LanguageType
+    GetLanguageType () const override
     {
         return lldb::eLanguageTypeObjC;
     }
@@ -514,6 +559,10 @@ public:
         m_negative_complete_class_cache.clear();
     }
     
+    bool
+    GetTypeBitSize (const ClangASTType& clang_type,
+                    uint64_t &size) override;
+
 protected:
     //------------------------------------------------------------------
     // Classes that inherit from ObjCLanguageRuntime can see and modify these
@@ -610,11 +659,13 @@ private:
     typedef std::multimap<uint32_t, ObjCISA> HashToISAMap;
     typedef ISAToDescriptorMap::iterator ISAToDescriptorIterator;
     typedef HashToISAMap::iterator HashToISAIterator;
+    typedef ThreadSafeDenseMap<void*, uint64_t> TypeSizeCache;
 
     MsgImplMap m_impl_cache;
     LazyBool m_has_new_literals_and_indexing;
     ISAToDescriptorMap m_isa_to_descriptor;
     HashToISAMap m_hash_to_isa_map;
+    TypeSizeCache m_type_size_cache;
 
 protected:
     uint32_t m_isa_to_descriptor_stop_id;
@@ -637,6 +688,14 @@ protected:
 
     ISAToDescriptorIterator
     GetDescriptorIterator (const ConstString &name);
+
+    friend class ::CommandObjectObjC_ClassTable_Dump;
+    
+    std::pair<ISAToDescriptorIterator,ISAToDescriptorIterator>
+    GetDescriptorIteratorPair (bool update_if_needed = true);
+
+    void
+    ReadObjCLibraryIfNeeded (const ModuleList &module_list);
 
     DISALLOW_COPY_AND_ASSIGN (ObjCLanguageRuntime);
 };

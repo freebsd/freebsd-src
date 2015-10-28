@@ -43,8 +43,8 @@
 #include "util/data/dname.h"
 #include "util/module.h"
 #include "util/regional.h"
-#include "ldns/parseutil.h"
-#include "ldns/wire2str.h"
+#include "sldns/parseutil.h"
+#include "sldns/wire2str.h"
 #include <fcntl.h>
 #ifdef HAVE_OPENSSL_SSL_H
 #include <openssl/ssl.h>
@@ -629,9 +629,9 @@ void* listen_sslctx_create(char* key, char* pem, char* verifypem)
 		SSL_CTX_free(ctx);
 		return NULL;
 	}
-	if(!SSL_CTX_use_certificate_file(ctx, pem, SSL_FILETYPE_PEM)) {
+	if(!SSL_CTX_use_certificate_chain_file(ctx, pem)) {
 		log_err("error for cert file: %s", pem);
-		log_crypto_err("error in SSL_CTX use_certificate_file");
+		log_crypto_err("error in SSL_CTX use_certificate_chain_file");
 		SSL_CTX_free(ctx);
 		return NULL;
 	}
@@ -647,6 +647,23 @@ void* listen_sslctx_create(char* key, char* pem, char* verifypem)
 		SSL_CTX_free(ctx);
 		return NULL;
 	}
+#if HAVE_DECL_SSL_CTX_SET_ECDH_AUTO
+	if(!SSL_CTX_set_ecdh_auto(ctx,1)) {
+		log_crypto_err("Error in SSL_CTX_ecdh_auto, not enabling ECDHE");
+	}
+#elif defined(USE_ECDSA)
+	if(1) {
+		EC_KEY *ecdh = EC_KEY_new_by_curve_name (NID_X9_62_prime256v1);
+		if (!ecdh) {
+			log_crypto_err("could not find p256, not enabling ECDHE");
+		} else {
+			if (1 != SSL_CTX_set_tmp_ecdh (ctx, ecdh)) {
+				log_crypto_err("Error in SSL_CTX_set_tmp_ecdh, not enabling ECDHE");
+			}
+			EC_KEY_free (ecdh);
+		}
+	}
+#endif
 
 	if(verifypem && verifypem[0]) {
 		if(!SSL_CTX_load_verify_locations(ctx, verifypem, NULL)) {
@@ -684,7 +701,7 @@ void* connect_sslctx_create(char* key, char* pem, char* verifypem)
 		return NULL;
 	}
 	if(key && key[0]) {
-		if(!SSL_CTX_use_certificate_file(ctx, pem, SSL_FILETYPE_PEM)) {
+		if(!SSL_CTX_use_certificate_chain_file(ctx, pem)) {
 			log_err("error in client certificate %s", pem);
 			log_crypto_err("error in certificate file");
 			SSL_CTX_free(ctx);
@@ -770,7 +787,7 @@ static lock_basic_t *ub_openssl_locks = NULL;
 static unsigned long
 ub_crypto_id_cb(void)
 {
-	return (unsigned long)ub_thread_self();
+	return (unsigned long)log_thread_get();
 }
 
 static void
@@ -789,8 +806,8 @@ int ub_openssl_lock_init(void)
 {
 #if defined(HAVE_SSL) && defined(OPENSSL_THREADS) && !defined(THREADS_DISABLED)
 	int i;
-	ub_openssl_locks = (lock_basic_t*)malloc(
-		sizeof(lock_basic_t)*CRYPTO_num_locks());
+	ub_openssl_locks = (lock_basic_t*)reallocarray(
+		NULL, (size_t)CRYPTO_num_locks(), sizeof(lock_basic_t));
 	if(!ub_openssl_locks)
 		return 0;
 	for(i=0; i<CRYPTO_num_locks(); i++) {
