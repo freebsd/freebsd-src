@@ -28,6 +28,9 @@
  *
  * $FreeBSD$
  */
+
+#include <sys/param.h>
+
 #include "diag.h"
 
 #include "ah.h"
@@ -36,8 +39,6 @@
 #include "ar5416/ar5416phy.h"
 
 #include "dumpregs.h"
-
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 
 #define	MAC5416	SREV(13,8), SREV(0xffff,0xffff)	/* XXX */
 
@@ -406,7 +407,7 @@ static struct dumpreg ar5416regs[] = {
 static __constructor void
 ar5416_ctor(void)
 {
-	register_regs(ar5416regs, N(ar5416regs), MAC5416, PHYANY);
+	register_regs(ar5416regs, nitems(ar5416regs), MAC5416, PHYANY);
 	register_keycache(128, MAC5416, PHYANY);
 
 	register_range(0x9800, 0x987c, DUMP_BASEBAND, MAC5416, PHYANY);

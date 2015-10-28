@@ -59,7 +59,3 @@
 #define	WDOG_MCR_REG	0x08	/* Miscellaneous Control Register */
 #define		WDOG_MCR_PDE		(1 << 0)
 
-#define	READ(_sc, _r)							\
-		bus_space_read_2((_sc)->sc_bst, (_sc)->sc_bsh, (_r))
-#define	WRITE(_sc, _r, _v)						\
-		bus_space_write_2((_sc)->sc_bst, (_sc)->sc_bsh, (_r), (_v))

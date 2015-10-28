@@ -1,5 +1,8 @@
+/*	$OpenBSD: ypset.c,v 1.20 2015/01/16 06:40:23 deraadt Exp $ */
+/*	$NetBSD: ypset.c,v 1.8 1996/05/13 02:46:33 thorpej Exp $	*/
+
 /*
- * Copyright (c) 1992/3 Theo de Raadt <deraadt@fsa.ca>
+ * Copyright (c) 1992, 1993 Theo de Raadt <deraadt@theos.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,9 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -30,61 +30,58 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+
 #include <err.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/socket.h>
+
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
 #include <rpcsvc/yp.h>
 #include <rpcsvc/ypclnt.h>
 #include <arpa/inet.h>
 
-extern bool_t xdr_domainname();
-
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: ypset [-h host] [-d domain] server\n");
+	fprintf(stderr, "usage: ypset [-d domain] [-h host] server\n");
 	exit(1);
 }
 
-int
+static int
 bind_tohost(struct sockaddr_in *sin, char *dom, char *server)
 {
 	struct ypbind_setdom ypsd;
-	struct timeval tv;
+	struct in_addr iaddr;
 	struct hostent *hp;
+	struct timeval tv;
 	CLIENT *client;
-	int sock, port;
-	int r;
-	unsigned long server_addr;
+	int sock, port, r;
 
-	if ((port = htons(getrpcport(server, YPPROG, YPPROC_NULL, IPPROTO_UDP))) == 0)
+	port = getrpcport(server, YPPROG, YPPROC_NULL, IPPROTO_UDP);
+	if (port == 0)
 		errx(1, "%s not running ypserv", server);
+	port = htons(port);
 
-	bzero(&ypsd, sizeof ypsd);
+	memset(&ypsd, 0, sizeof ypsd);
 
-	if ((hp = gethostbyname (server)) != NULL) {
-		/* is this the most compatible way?? */
-		bcopy (hp->h_addr_list[0],
-		       (u_long *)&ypsd.ypsetdom_binding.ypbind_binding_addr,
-		       sizeof (unsigned long));
-	} else if ((server_addr = inet_addr(server)) == INADDR_NONE) {
-		errx(1, "can't find address for %s", server);
-	} else
-		bcopy (&server_addr,
-		       (u_long *)&ypsd.ypsetdom_binding.ypbind_binding_addr,
-		       sizeof (server_addr));
-
-/*	strncpy(ypsd.ypsetdom_domain, dom, sizeof ypsd.ypsetdom_domain); */
+	if (inet_aton(server, &iaddr) == 0) {
+		hp = gethostbyname(server);
+		if (hp == NULL)
+			errx(1, "can't find address for %s", server);
+		memmove(&iaddr.s_addr, hp->h_addr, sizeof(iaddr.s_addr));
+	}
 	ypsd.ypsetdom_domain = dom;
-	*(u_long *)&ypsd.ypsetdom_binding.ypbind_binding_port = port;
+	bcopy(&iaddr.s_addr, &ypsd.ypsetdom_binding.ypbind_binding_addr,
+	    sizeof(ypsd.ypsetdom_binding.ypbind_binding_addr));
+	bcopy(&port, &ypsd.ypsetdom_binding.ypbind_binding_port,
+	    sizeof(ypsd.ypsetdom_binding.ypbind_binding_port));
 	ypsd.ypsetdom_vers = YPVERS;
 
 	tv.tv_sec = 15;
@@ -101,7 +98,9 @@ bind_tohost(struct sockaddr_in *sin, char *dom, char *server)
 		(xdrproc_t)xdr_ypbind_setdom, &ypsd,
 		(xdrproc_t)xdr_void, NULL, tv);
 	if (r) {
-		warnx("sorry, cannot ypset for domain %s on host - make sure ypbind was started with -ypset or -ypsetme", dom);
+		warnx("cannot ypset for domain %s on host %s: %s"
+                " - make sure ypbind was started with -ypset or -ypsetme", dom,
+		    server, clnt_sperrno(r));
 		clnt_destroy(client);
 		return (YPERR_YPBIND);
 	}
@@ -129,13 +128,12 @@ main(int argc, char *argv[])
 			domainname = optarg;
 			break;
 		case 'h':
-			if ((sin.sin_addr.s_addr = inet_addr(optarg)) ==
-			    INADDR_NONE) {
+			if (inet_aton(optarg, &sin.sin_addr) == 0) {
 				hent = gethostbyname(optarg);
 				if (hent == NULL)
-					errx(1, "host %s unknown", optarg);
-				bcopy(hent->h_addr_list[0], &sin.sin_addr,
-					sizeof sin.sin_addr);
+					errx(1, "host %s unknown\n", optarg);
+				bcopy(hent->h_addr, &sin.sin_addr,
+				    sizeof(sin.sin_addr));
 			}
 			break;
 		default:

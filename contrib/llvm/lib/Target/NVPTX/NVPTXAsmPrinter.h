@@ -40,6 +40,7 @@
 // (subclass of MCStreamer).
 
 namespace llvm {
+  class MCOperand;
 
 class LineReader {
 private:
@@ -86,14 +87,22 @@ class LLVM_LIBRARY_VISIBILITY NVPTXAsmPrinter : public AsmPrinter {
     std::vector<unsigned char> buffer; // the buffer
     SmallVector<unsigned, 4> symbolPosInBuffer;
     SmallVector<const Value *, 4> Symbols;
+    // SymbolsBeforeStripping[i] is the original form of Symbols[i] before
+    // stripping pointer casts, i.e.,
+    // Symbols[i] == SymbolsBeforeStripping[i]->stripPointerCasts().
+    //
+    // We need to keep these values because AggBuffer::print decides whether to
+    // emit a "generic()" cast for Symbols[i] depending on the address space of
+    // SymbolsBeforeStripping[i].
+    SmallVector<const Value *, 4> SymbolsBeforeStripping;
     unsigned curpos;
     raw_ostream &O;
     NVPTXAsmPrinter &AP;
     bool EmitGeneric;
 
   public:
-    AggBuffer(unsigned _size, raw_ostream &_O, NVPTXAsmPrinter &_AP)
-        : size(_size), buffer(_size), O(_O), AP(_AP) {
+    AggBuffer(unsigned size, raw_ostream &O, NVPTXAsmPrinter &AP)
+        : size(size), buffer(size), O(O), AP(AP) {
       curpos = 0;
       numSymbols = 0;
       EmitGeneric = AP.EmitGeneric;
@@ -119,9 +128,10 @@ class LLVM_LIBRARY_VISIBILITY NVPTXAsmPrinter : public AsmPrinter {
       }
       return curpos;
     }
-    void addSymbol(const Value *GVar) {
+    void addSymbol(const Value *GVar, const Value *GVarBeforeStripping) {
       symbolPosInBuffer.push_back(curpos);
       Symbols.push_back(GVar);
+      SymbolsBeforeStripping.push_back(GVarBeforeStripping);
       numSymbols++;
     }
     void print() {
@@ -138,29 +148,32 @@ class LLVM_LIBRARY_VISIBILITY NVPTXAsmPrinter : public AsmPrinter {
         unsigned int nSym = 0;
         unsigned int nextSymbolPos = symbolPosInBuffer[nSym];
         unsigned int nBytes = 4;
-        if (AP.nvptxSubtarget.is64Bit())
+        if (static_cast<const NVPTXTargetMachine &>(AP.TM).is64Bit())
           nBytes = 8;
         for (pos = 0; pos < size; pos += nBytes) {
           if (pos)
             O << ", ";
           if (pos == nextSymbolPos) {
             const Value *v = Symbols[nSym];
+            const Value *v0 = SymbolsBeforeStripping[nSym];
             if (const GlobalValue *GVar = dyn_cast<GlobalValue>(v)) {
               MCSymbol *Name = AP.getSymbol(GVar);
-              PointerType *PTy = dyn_cast<PointerType>(GVar->getType());
-              bool IsNonGenericPointer = false;
+              PointerType *PTy = dyn_cast<PointerType>(v0->getType());
+              bool IsNonGenericPointer = false; // Is v0 a non-generic pointer?
               if (PTy && PTy->getAddressSpace() != 0) {
                 IsNonGenericPointer = true;
               }
               if (EmitGeneric && !isa<Function>(v) && !IsNonGenericPointer) {
                 O << "generic(";
-                O << *Name;
+                Name->print(O, AP.MAI);
                 O << ")";
               } else {
-                O << *Name;
+                Name->print(O, AP.MAI);
               }
-            } else if (const ConstantExpr *Cexpr = dyn_cast<ConstantExpr>(v)) {
-              O << *AP.lowerConstant(Cexpr);
+            } else if (const ConstantExpr *CExpr = dyn_cast<ConstantExpr>(v0)) {
+              const MCExpr *Expr =
+                AP.lowerConstantForGV(cast<Constant>(CExpr), false);
+              AP.printMCExpr(*Expr, O);
             } else
               llvm_unreachable("symbol type unknown");
             nSym++;
@@ -187,6 +200,7 @@ private:
   const Function *F;
   std::string CurrentFnName;
 
+  void EmitBasicBlockStart(const MachineBasicBlock &MBB) const override;
   void EmitFunctionEntryLabel() override;
   void EmitFunctionBodyStart() override;
   void EmitFunctionBodyEnd() override;
@@ -211,7 +225,7 @@ private:
   void printParamName(Function::const_arg_iterator I, int paramIndex,
                       raw_ostream &O);
   void emitGlobals(const Module &M);
-  void emitHeader(Module &M, raw_ostream &O);
+  void emitHeader(Module &M, raw_ostream &O, const NVPTXSubtarget &STI);
   void emitKernelFunctionDirectives(const Function &F, raw_ostream &O) const;
   void emitVirtualRegister(unsigned int vr, raw_ostream &);
   void emitFunctionExternParamList(const MachineFunction &MF);
@@ -230,6 +244,10 @@ private:
   bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
                              unsigned AsmVariant, const char *ExtraCode,
                              raw_ostream &) override;
+
+  const MCExpr *lowerConstantForGV(const Constant *CV, bool ProcessingGeneric);
+  void printMCExpr(const MCExpr &Expr, raw_ostream &OS);
+
 protected:
   bool doInitialization(Module &M) override;
   bool doFinalization(Module &M) override;
@@ -247,8 +265,10 @@ private:
   typedef DenseMap<unsigned, unsigned> VRegMap;
   typedef DenseMap<const TargetRegisterClass *, VRegMap> VRegRCMap;
   VRegRCMap VRegMapping;
-  // cache the subtarget here.
-  const NVPTXSubtarget &nvptxSubtarget;
+
+  // Cache the subtarget here.
+  const NVPTXSubtarget *nvptxSubtarget;
+
   // Build the map between type name and ID based on module's type
   // symbol table.
   std::map<const Type *, std::string> TypeNameMap;
@@ -281,6 +301,8 @@ private:
                                MCOperand &MCOp);
   void lowerImageHandleSymbol(unsigned Index, MCOperand &MCOp);
 
+  bool isLoopHeaderOfNoUnroll(const MachineBasicBlock &MBB) const;
+
   LineReader *reader;
   LineReader *getReader(std::string);
 
@@ -298,17 +320,26 @@ private:
   bool EmitGeneric;
 
 public:
-  NVPTXAsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
-      : AsmPrinter(TM, Streamer),
-        nvptxSubtarget(TM.getSubtarget<NVPTXSubtarget>()) {
+  NVPTXAsmPrinter(TargetMachine &TM, std::unique_ptr<MCStreamer> Streamer)
+      : AsmPrinter(TM, std::move(Streamer)),
+        EmitGeneric(static_cast<NVPTXTargetMachine &>(TM).getDrvInterface() ==
+                    NVPTX::CUDA) {
     CurrentBankselLabelInBasicBlock = "";
     reader = nullptr;
-    EmitGeneric = (nvptxSubtarget.getDrvInterface() == NVPTX::CUDA);
   }
 
   ~NVPTXAsmPrinter() {
     if (!reader)
       delete reader;
+  }
+
+  bool runOnMachineFunction(MachineFunction &F) override {
+    nvptxSubtarget = &F.getSubtarget<NVPTXSubtarget>();
+    return AsmPrinter::runOnMachineFunction(F);
+  }
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<MachineLoopInfo>();
+    AsmPrinter::getAnalysisUsage(AU);
   }
 
   bool ignoreLoc(const MachineInstr &);

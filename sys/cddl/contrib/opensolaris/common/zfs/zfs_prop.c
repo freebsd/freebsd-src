@@ -71,6 +71,11 @@ zfs_prop_init(void)
 		{ "fletcher4",	ZIO_CHECKSUM_FLETCHER_4 },
 		{ "sha256",	ZIO_CHECKSUM_SHA256 },
 		{ "noparity",	ZIO_CHECKSUM_NOPARITY },
+#ifdef illumos
+		{ "sha512",	ZIO_CHECKSUM_SHA512 },
+		{ "skein",	ZIO_CHECKSUM_SKEIN },
+		{ "edonr",	ZIO_CHECKSUM_EDONR },
+#endif
 		{ NULL }
 	};
 
@@ -81,6 +86,16 @@ zfs_prop_init(void)
 		{ "sha256",	ZIO_CHECKSUM_SHA256 },
 		{ "sha256,verify",
 				ZIO_CHECKSUM_SHA256 | ZIO_CHECKSUM_VERIFY },
+#ifdef illumos
+		{ "sha512",	ZIO_CHECKSUM_SHA512 },
+		{ "sha512,verify",
+				ZIO_CHECKSUM_SHA512 | ZIO_CHECKSUM_VERIFY },
+		{ "skein",	ZIO_CHECKSUM_SKEIN },
+		{ "skein,verify",
+				ZIO_CHECKSUM_SKEIN | ZIO_CHECKSUM_VERIFY },
+		{ "edonr,verify",
+				ZIO_CHECKSUM_EDONR | ZIO_CHECKSUM_VERIFY },
+#endif
 		{ NULL }
 	};
 
@@ -225,12 +240,12 @@ zfs_prop_init(void)
 	zprop_register_index(ZFS_PROP_CHECKSUM, "checksum",
 	    ZIO_CHECKSUM_DEFAULT, PROP_INHERIT, ZFS_TYPE_FILESYSTEM |
 	    ZFS_TYPE_VOLUME,
-	    "on | off | fletcher2 | fletcher4 | sha256", "CHECKSUM",
-	    checksum_table);
+	    "on | off | fletcher2 | fletcher4 | sha256 | sha512 | "
+	    "skein | edonr", "CHECKSUM", checksum_table);
 	zprop_register_index(ZFS_PROP_DEDUP, "dedup", ZIO_CHECKSUM_OFF,
 	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
-	    "on | off | verify | sha256[,verify]", "DEDUP",
-	    dedup_table);
+	    "on | off | verify | sha256[,verify], sha512[,verify], "
+	    "skein[,verify], edonr,verify", "DEDUP", dedup_table);
 	zprop_register_index(ZFS_PROP_COMPRESSION, "compression",
 	    ZIO_COMPRESS_DEFAULT, PROP_INHERIT,
 	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
@@ -343,6 +358,10 @@ zfs_prop_init(void)
 	zprop_register_string(ZFS_PROP_MLSLABEL, "mlslabel",
 	    ZFS_MLSLABEL_DEFAULT, PROP_INHERIT, ZFS_TYPE_DATASET,
 	    "<sensitivity label>", "MLSLABEL");
+	zprop_register_string(ZFS_PROP_RECEIVE_RESUME_TOKEN,
+	    "receive_resume_token",
+	    NULL, PROP_READONLY, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
+	    "<string token>", "RESUMETOK");
 
 	/* readonly number properties */
 	zprop_register_number(ZFS_PROP_USED, "used", 0, PROP_READONLY,

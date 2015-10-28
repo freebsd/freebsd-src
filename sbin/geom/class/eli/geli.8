@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 2, 2015
+.Dd July 10, 2015
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -51,7 +51,7 @@ utility:
 .Pp
 .Nm
 .Cm init
-.Op Fl bPv
+.Op Fl bPTv
 .Op Fl a Ar aalgo
 .Op Fl B Ar backupfile
 .Op Fl e Ar ealgo
@@ -80,7 +80,7 @@ utility:
 .Cm detach
 .Nm
 .Cm onetime
-.Op Fl d
+.Op Fl dT
 .Op Fl a Ar aalgo
 .Op Fl e Ar ealgo
 .Op Fl l Ar keylen
@@ -88,7 +88,7 @@ utility:
 .Ar prov
 .Nm
 .Cm configure
-.Op Fl bB
+.Op Fl bBtT
 .Ar prov ...
 .Nm
 .Cm setkey
@@ -351,6 +351,17 @@ Change decrypted provider's sector size.
 Increasing the sector size allows increased performance,
 because encryption/decryption which requires an initialization vector
 is done per sector; fewer sectors means less computational work.
+.It Fl T
+Don't pass through
+.Dv BIO_DELETE
+calls (i.e., TRIM/UNMAP).
+This can prevent an attacker from knowing how much space you're actually
+using and which sectors contain live data, but will also prevent the
+backing store (SSD, etc) from reclaiming space you're not using, which
+may degrade its performance and lifespan.
+The underlying provider may or may not actually obliterate the deleted
+sectors when TRIM is enabled, so it should not be considered to add any
+security.
 .It Fl V Ar version
 Metadata version to use.
 This option is helpful when creating a provider that may be used by older
@@ -456,6 +467,11 @@ Change decrypted provider's sector size.
 For more information, see the description of the
 .Cm init
 subcommand.
+.It Fl T
+Disable TRIM/UNMAP passthru.
+For more information, see the description of the
+.Cm init
+subcommand.
 .El
 .It Cm configure
 Change configuration of the given providers.
@@ -469,6 +485,13 @@ For more information, see the description of the
 subcommand.
 .It Fl B
 Remove the BOOT flag from the given providers.
+.It Fl t
+Enable TRIM/UNMAP passthru.
+For more information, see the description of the
+.Cm init
+subcommand.
+.It Fl T
+Disable TRIM/UNMAP passthru.
 .El
 .It Cm setkey
 Install a copy of the Master Key into the selected slot, encrypted with

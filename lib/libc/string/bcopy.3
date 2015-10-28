@@ -31,7 +31,7 @@
 .\"     @(#)bcopy.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd August 24, 2015
 .Dt BCOPY 3
 .Os
 .Sh NAME
@@ -75,3 +75,24 @@ before it was moved to
 for
 .St -p1003.1-2001
 compliance.
+.Pp
+.St -p1003.1-2008
+removes the specification of
+.Fn bcopy
+and it is marked as LEGACY in
+.St -p1003.1-2004 .
+New programs should use
+.Xr memmove 3 .
+If the input and output buffer do not overlap, then
+.Xr memcpy 3
+is more efficient.
+Note that
+.Fn bcopy
+takes
+.Ar src
+and
+.Ar dst
+in the opposite order from
+.Fn memmove
+and
+.Fn memcpy .

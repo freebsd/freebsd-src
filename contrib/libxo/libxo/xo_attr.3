@@ -11,8 +11,8 @@
 .Dt LIBXO 3
 .Os
 .Sh NAME
-.Nm xo_emit
-.Nd emit formatted output based on format string and arguments
+.Nm xo_attr , xo_attr_h , xo_attr_hv
+.Nd Add attribute name/value pairs to formatted output
 .Sh LIBRARY
 .Lb libxo
 .Sh SYNOPSIS
@@ -55,27 +55,6 @@ parameter as passed to
 Since attributes are only emitted in XML, their use should be limited
 to meta-data and additional or redundant representations of data
 already emitted in other form.
-.Sh ADDITIONAL DOCUMENTATION
-.Pp
-Complete documentation can be found on github:
-.Bd -literal -offset indent
-http://juniper.github.io/libxo/libxo-manual.html
-.Ed
-.Pp
-libxo lives on github as:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo
-.Ed
-.Pp
-The latest release of libxo is available at:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo/releases
-.Ed
 .Sh SEE ALSO
-.Xr xo_emit 3
-.Sh HISTORY
-The
-.Fa libxo
-library was added in FreeBSD 11.0.
-.Sh AUTHOR
-Phil Shafer
+.Xr xo_emit 3 ,
+.Xr libxo 3

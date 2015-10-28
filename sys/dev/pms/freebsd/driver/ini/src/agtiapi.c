@@ -214,7 +214,6 @@ STATIC void agtiapi_CheckIOTimeout(void *data);
 
 
 
-static unsigned char cardMap[AGTIAPI_MAX_CARDS] = { 0, 0, 0, 0 };
 static ag_card_info_t agCardInfoList[ AGTIAPI_MAX_CARDS ]; // card info list
 static void agtiapi_cam_action( struct cam_sim *, union ccb * );
 static void agtiapi_cam_poll( struct cam_sim * );
@@ -695,37 +694,20 @@ Note:
 static int agtiapi_probe( device_t dev )
 {
   int retVal;
-  
-  if ( pci_get_vendor(dev) == PCI_VENDOR_ID_PMC_SIERRA ||
-       pci_get_vendor(dev) == PCI_VENDOR_ID_HIALEAH ) 
+  int thisCard;
+  ag_card_info_t *thisCardInst;
+
+  thisCard = device_get_unit( dev );
+  if ( thisCard >= AGTIAPI_MAX_CARDS ) 
   {
-    int thisCard = device_get_unit( dev );
-//    AGTIAPI_PRINTK("agtiapi_probe: thisCard %d\n", thisCard);
-    if( thisCard >= AGTIAPI_MAX_CARDS) 
-    {
-      device_printf( dev, "Too many PMC-Sierra cards detected ERROR!\n" );
-      return (ENXIO); // maybe change to different return value?
-    }
-    ag_card_info_t *thisCardInst = &agCardInfoList[ thisCard ];
-    retVal = agtiapi_ProbeCard( dev, thisCardInst, thisCard );
-    if ( retVal ) {
-      // error on probe
-      if( retVal == 2 ) return 0; // another thread ran probe on this card
-      device_printf( dev,
-		     "agtiapi_probe: PCI DEVICE NOT SUPPORTED by this driver!!"
-		     "Vendor ID : 0x%x Device ID : 0x%x\n",
-		     pci_get_vendor(dev), pci_get_device( dev ) );
-      return (ENXIO); // maybe change to different return value?
-    }
-    else {
-      // AGTIAPI_PRINTK( "agtiapi_ProbeCard: returned with pointer values "
-      //                 "%p / %p\n",
-      //                 thisCardInst->pPCIDev, thisCardInst );
-      cardMap[thisCard] = 11;  // record this card is present
-      return( BUS_PROBE_DEFAULT );  // successful probe
-    }
+    device_printf( dev, "Too many PMC-Sierra cards detected ERROR!\n" );
+    return (ENXIO); // maybe change to different return value?
   }
-  return (ENXIO);
+  thisCardInst = &agCardInfoList[ thisCard ];
+  retVal = agtiapi_ProbeCard( dev, thisCardInst, thisCard );
+  if ( retVal )
+    return (ENXIO); // maybe change to different return value?
+  return( BUS_PROBE_DEFAULT );  // successful probe
 }
 
 

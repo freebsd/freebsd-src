@@ -475,13 +475,9 @@ ff_transmit(struct ieee80211_node *ni, struct mbuf *m)
 	if (m != NULL) {
 		struct ifnet *ifp = vap->iv_ifp;
 
-		error = ieee80211_parent_xmitpkt(ic, m);;
-		if (error != 0) {
-			/* NB: IFQ_HANDOFF reclaims mbuf */
-			ieee80211_free_node(ni);
-		} else {
+		error = ieee80211_parent_xmitpkt(ic, m);
+		if (!error)
 			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-		}
 	} else
 		ieee80211_free_node(ni);
 }
@@ -530,7 +526,6 @@ ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
 {
 	struct mbuf *m, *head;
 	struct ieee80211_node *ni;
-	struct ieee80211_tx_ampdu *tap;
 
 #if 0
 	KASSERT(sq->head != NULL, ("stageq empty"));
@@ -541,11 +536,10 @@ ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
 	while ((m = sq->head) != NULL && M_AGE_GET(m) < quanta) {
 		int tid = WME_AC_TO_TID(M_WME_GETAC(m));
 
-		/* clear tap ref to frame */
+		/* clear staging ref to frame */
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
-		tap = &ni->ni_tx_ampdu[tid];
-		KASSERT(tap->txa_private == m, ("staging queue empty"));
-		tap->txa_private = NULL;
+		KASSERT(ni->ni_tx_superg[tid] == m, ("staging queue empty"));
+		ni->ni_tx_superg[tid] = NULL;
 
 		sq->head = m->m_nextpkt;
 		sq->depth--;
@@ -658,7 +652,12 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 	 */
 	IEEE80211_LOCK(ic);
 	tap = &ni->ni_tx_ampdu[WME_AC_TO_TID(pri)];
-	mstaged = tap->txa_private;		/* NB: we reuse AMPDU state */
+	mstaged = ni->ni_tx_superg[WME_AC_TO_TID(pri)];
+	/* XXX NOTE: reusing packet counter state from A-MPDU */
+	/*
+	 * XXX NOTE: this means we're double-counting; it should just
+	 * be done in ieee80211_output.c once for both superg and A-MPDU.
+	 */
 	ieee80211_txampdu_count_packet(tap);
 
 	/*
@@ -698,7 +697,7 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 		    "%s: txtime %u exceeds txop limit %u\n",
 		    __func__, txtime, limit);
 
-		tap->txa_private = NULL;
+		ni->ni_tx_superg[WME_AC_TO_TID(pri)] = NULL;
 		if (mstaged != NULL)
 			stageq_remove(ic, sq, mstaged);
 		IEEE80211_UNLOCK(ic);
@@ -721,7 +720,7 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 	 * hold their node reference.
 	 */
 	if (mstaged != NULL) {
-		tap->txa_private = NULL;
+		ni->ni_tx_superg[WME_AC_TO_TID(pri)] = NULL;
 		stageq_remove(ic, sq, mstaged);
 		IEEE80211_UNLOCK(ic);
 
@@ -739,9 +738,10 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 		mstaged->m_nextpkt = m;
 		mstaged->m_flags |= M_FF; /* NB: mark for encap work */
 	} else {
-		KASSERT(tap->txa_private == NULL,
-		    ("txa_private %p", tap->txa_private));
-		tap->txa_private = m;
+		KASSERT(ni->ni_tx_superg[WME_AC_TO_TID(pri)]== NULL,
+		    ("ni_tx_superg[]: %p",
+		    ni->ni_tx_superg[WME_AC_TO_TID(pri)]));
+		ni->ni_tx_superg[WME_AC_TO_TID(pri)] = m;
 
 		stageq_add(ic, sq, m);
 		IEEE80211_UNLOCK(ic);
@@ -769,7 +769,6 @@ ieee80211_ff_node_cleanup(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_superg *sg = ic->ic_superg;
-	struct ieee80211_tx_ampdu *tap;
 	struct mbuf *m, *next_m, *head;
 	int tid;
 
@@ -777,11 +776,16 @@ ieee80211_ff_node_cleanup(struct ieee80211_node *ni)
 	head = NULL;
 	for (tid = 0; tid < WME_NUM_TID; tid++) {
 		int ac = TID_TO_WME_AC(tid);
-
-		tap = &ni->ni_tx_ampdu[tid];
-		m = tap->txa_private;
+		/*
+		 * XXX Initialise the packet counter.
+		 *
+		 * This may be double-work for 11n stations;
+		 * but without it we never setup things.
+		 */
+		ieee80211_txampdu_init_pps(&ni->ni_tx_ampdu[tid]);
+		m = ni->ni_tx_superg[tid];
 		if (m != NULL) {
-			tap->txa_private = NULL;
+			ni->ni_tx_superg[tid] = NULL;
 			stageq_remove(ic, &sg->ff_stageq[ac], m);
 			m->m_nextpkt = head;
 			head = m;

@@ -239,6 +239,7 @@ _DP_vmmapi=	util
 _DP_ctf=	z
 _DP_proc=	rtld_db util
 _DP_dtrace=	rtld_db pthread
+_DP_xo=		util
 
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
@@ -298,9 +299,6 @@ DPADD_gssapi_krb5+=	${DPADD_pthread}
 LDADD_gssapi_krb5+=	${LDADD_pthread}
 
 .for _l in ${LIBADD}
-.if ${_PRIVATELIBS:M${_l}}
-USEPRIVATELIB+=	${_l}
-.endif
 DPADD+=		${DPADD_${_l}:Umissing-dpadd_${_l}}
 LDADD+=		${LDADD_${_l}}
 .endfor

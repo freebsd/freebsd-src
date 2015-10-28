@@ -111,7 +111,7 @@
 #endif
 #endif
 #define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
-#define	USPACE		(KSTACK_PAGES * PAGE_SIZE)	/* total size of pcb */
+#define	USPACE		(kstack_pages * PAGE_SIZE)	/* total size of pcb */
 
 /*
  * Mach derived conversion macros

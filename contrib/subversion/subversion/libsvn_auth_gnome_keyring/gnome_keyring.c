@@ -49,120 +49,19 @@
 /*-----------------------------------------------------------------------*/
 
 
-struct gnome_keyring_baton
-{
-  const char *keyring_name;
-  GnomeKeyringInfo *info;
-  GMainLoop *loop;
-};
-
-
-/* Callback function to destroy gnome_keyring_baton. */
-static void
-callback_destroy_data_keyring(void *data)
-{
-  struct gnome_keyring_baton *key_info = data;
-
-  if (data == NULL)
-    return;
-
-  free((void*)key_info->keyring_name);
-  key_info->keyring_name = NULL;
-
-  if (key_info->info)
-    {
-      gnome_keyring_info_free(key_info->info);
-      key_info->info = NULL;
-    }
-
-  return;
-}
-
-
-/* Callback function to complete the keyring operation. */
-static void
-callback_done(GnomeKeyringResult result,
-              gpointer data)
-{
-  struct gnome_keyring_baton *key_info = data;
-
-  g_main_loop_quit(key_info->loop);
-  return;
-}
-
-
-/* Callback function to get the keyring info. */
-static void
-callback_get_info_keyring(GnomeKeyringResult result,
-                          GnomeKeyringInfo *info,
-                          void *data)
-{
-  struct gnome_keyring_baton *key_info = data;
-
-  if (result == GNOME_KEYRING_RESULT_OK && info != NULL)
-    {
-      key_info->info = gnome_keyring_info_copy(info);
-    }
-  else
-    {
-      if (key_info->info != NULL)
-        gnome_keyring_info_free(key_info->info);
-
-      key_info->info = NULL;
-    }
-
-  g_main_loop_quit(key_info->loop);
-
-  return;
-}
-
-
-/* Callback function to get the default keyring string name. */
-static void
-callback_default_keyring(GnomeKeyringResult result,
-                         const char *string,
-                         void *data)
-{
-  struct gnome_keyring_baton *key_info = data;
-
-  if (result == GNOME_KEYRING_RESULT_OK && string != NULL)
-    {
-      key_info->keyring_name = strdup(string);
-    }
-  else
-    {
-      free((void*)key_info->keyring_name);
-      key_info->keyring_name = NULL;
-    }
-
-  g_main_loop_quit(key_info->loop);
-
-  return;
-}
-
 /* Returns the default keyring name, allocated in RESULT_POOL. */
 static char*
 get_default_keyring_name(apr_pool_t *result_pool)
 {
-  char *def = NULL;
-  struct gnome_keyring_baton key_info;
+  char *name, *def;
+  GnomeKeyringResult gkr;
 
-  key_info.info = NULL;
-  key_info.keyring_name = NULL;
+  gkr = gnome_keyring_get_default_keyring_sync(&name);
+  if (gkr != GNOME_KEYRING_RESULT_OK)
+    return NULL;
 
-  /* Finds default keyring. */
-  key_info.loop = g_main_loop_new(NULL, FALSE);
-  gnome_keyring_get_default_keyring(callback_default_keyring, &key_info, NULL);
-  g_main_loop_run(key_info.loop);
-
-  if (key_info.keyring_name == NULL)
-    {
-      callback_destroy_data_keyring(&key_info);
-      return NULL;
-    }
-
-  def = apr_pstrdup(result_pool, key_info.keyring_name);
-  callback_destroy_data_keyring(&key_info);
+  def = apr_pstrdup(result_pool, name);
+  g_free(name);
 
   return def;
 }
@@ -171,28 +70,22 @@ get_default_keyring_name(apr_pool_t *result_pool)
 static svn_boolean_t
 check_keyring_is_locked(const char *keyring_name)
 {
-  struct gnome_keyring_baton key_info;
+  GnomeKeyringInfo *info;
+  svn_boolean_t locked;
+  GnomeKeyringResult gkr;
 
-  key_info.info = NULL;
-  key_info.keyring_name = NULL;
-
-  /* Get details about the default keyring. */
-  key_info.loop = g_main_loop_new(NULL, FALSE);
-  gnome_keyring_get_info(keyring_name, callback_get_info_keyring, &key_info,
-                         NULL);
-  g_main_loop_run(key_info.loop);
-
-  if (key_info.info == NULL)
-    {
-      callback_destroy_data_keyring(&key_info);
-      return FALSE;
-    }
-
-  /* Check if keyring is locked. */
-  if (gnome_keyring_info_get_is_locked(key_info.info))
-    return TRUE;
-  else
+  gkr = gnome_keyring_get_info_sync(keyring_name, &info);
+  if (gkr != GNOME_KEYRING_RESULT_OK)
     return FALSE;
+
+  if (gnome_keyring_info_get_is_locked(info))
+    locked = TRUE;
+  else
+    locked = FALSE;
+
+  gnome_keyring_info_free(info);
+
+  return locked;
 }
 
 /* Unlock the KEYRING_NAME with the KEYRING_PASSWORD. If KEYRING was
@@ -202,34 +95,19 @@ unlock_gnome_keyring(const char *keyring_name,
                      const char *keyring_password,
                      apr_pool_t *pool)
 {
-  struct gnome_keyring_baton key_info;
+  GnomeKeyringInfo *info;
+  GnomeKeyringResult gkr;
 
-  key_info.info = NULL;
-  key_info.keyring_name = NULL;
-
-  /* Get details about the default keyring. */
-  key_info.loop = g_main_loop_new(NULL, FALSE);
-  gnome_keyring_get_info(keyring_name, callback_get_info_keyring,
-                         &key_info, NULL);
-  g_main_loop_run(key_info.loop);
-
-  if (key_info.info == NULL)
-    {
-      callback_destroy_data_keyring(&key_info);
-      return FALSE;
-    }
-  else
-    {
-      key_info.loop = g_main_loop_new(NULL, FALSE);
-      gnome_keyring_unlock(keyring_name, keyring_password,
-                           callback_done, &key_info, NULL);
-      g_main_loop_run(key_info.loop);
-    }
-  callback_destroy_data_keyring(&key_info);
-  if (check_keyring_is_locked(keyring_name))
+  gkr = gnome_keyring_get_info_sync(keyring_name, &info);
+  if (gkr != GNOME_KEYRING_RESULT_OK)
     return FALSE;
 
-  return TRUE;
+  gkr = gnome_keyring_unlock_sync(keyring_name, keyring_password);
+  gnome_keyring_info_free(info);
+  if (gkr != GNOME_KEYRING_RESULT_OK)
+    return FALSE;
+
+  return check_keyring_is_locked(keyring_name);
 }
 
 

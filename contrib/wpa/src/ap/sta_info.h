@@ -117,10 +117,8 @@ struct sta_info {
 	struct wpa_state_machine *wpa_sm;
 	struct rsn_preauth_interface *preauth_iface;
 
-	struct hostapd_ssid *ssid; /* SSID selection based on (Re)AssocReq */
-	struct hostapd_ssid *ssid_probe; /* SSID selection based on ProbeReq */
-
-	int vlan_id;
+	int vlan_id; /* 0: none, >0: VID */
+	int vlan_id_bound; /* updated by ap_sta_bind_vlan() */
 	 /* PSKs from RADIUS authentication server */
 	struct hostapd_sta_wpa_psk_short *psk;
 
@@ -155,6 +153,9 @@ struct sta_info {
 	struct wpabuf *hs20_deauth_req;
 	char *hs20_session_info_url;
 	int hs20_disassoc_timer;
+#ifdef CONFIG_FST
+	struct wpabuf *mb_ies; /* MB IEs from (Re)Association Request */
+#endif /* CONFIG_FST */
 
 	struct os_reltime connected_time;
 
@@ -218,8 +219,7 @@ void ap_sta_deauthenticate(struct hostapd_data *hapd, struct sta_info *sta,
 int ap_sta_wps_cancel(struct hostapd_data *hapd,
 		      struct sta_info *sta, void *ctx);
 #endif /* CONFIG_WPS */
-int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta,
-		     int old_vlanid);
+int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta);
 void ap_sta_start_sa_query(struct hostapd_data *hapd, struct sta_info *sta);
 void ap_sta_stop_sa_query(struct hostapd_data *hapd, struct sta_info *sta);
 int ap_check_sa_query_timeout(struct hostapd_data *hapd, struct sta_info *sta);

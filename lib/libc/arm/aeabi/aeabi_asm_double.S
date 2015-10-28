@@ -117,3 +117,5 @@ ENTRY(__aeabi_cdcmpeq)
 	msr	cpsr_c, ip
 	RET
 END(__aeabi_cdcmpeq)
+
+	.section .note.GNU-stack,"",%progbits

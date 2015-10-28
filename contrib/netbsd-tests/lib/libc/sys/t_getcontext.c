@@ -53,6 +53,8 @@ run(int n, ...)
 	va_start(va, n);
 #if defined(__FreeBSD__) && defined(__amd64__)
 	for (i = 0; i < 5; i++) {
+#elif defined(__FreeBSD__) && defined(__aarch64__)
+	for (i = 0; i < 7; i++) {
 #else
 	for (i = 0; i < 9; i++) {
 #endif
@@ -116,6 +118,10 @@ ATF_TC_BODY(setcontext_link, tc)
 		/* FreeBSD/amd64 only permits up to 6 arguments. */
 		makecontext(&uc[i], (void *)run, 6, i,
 			0, 1, 2, 3, 4);
+#elif defined(__FreeBSD__) && defined(__aarch64__)
+		/* FreeBSD/arm64 only permits up to 8 arguments. */
+		makecontext(&uc[i], (void *)run, 8, i,
+			0, 1, 2, 3, 4, 5, 6);
 #else
 		makecontext(&uc[i], (void *)run, 10, i,
 			0, 1, 2, 3, 4, 5, 6, 7, 8);

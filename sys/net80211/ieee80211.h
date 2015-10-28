@@ -815,6 +815,7 @@ struct ieee80211_csa_ie {
 /* rate set entries are in .5 Mb/s units, and potentially marked as basic */
 #define	IEEE80211_RATE_BASIC		0x80
 #define	IEEE80211_RATE_VAL		0x7f
+#define	IEEE80211_RV(v)			((v) & IEEE80211_RATE_VAL)
 
 /* ERP information element flags */
 #define	IEEE80211_ERP_NON_ERP_PRESENT	0x01

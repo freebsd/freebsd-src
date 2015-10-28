@@ -441,7 +441,7 @@ trap_cecc(void)
 static int
 trap_pfault(struct thread *td, struct trapframe *tf)
 {
-	struct vmspace *vm;
+	vm_map_t map;
 	struct proc *p;
 	vm_offset_t va;
 	vm_prot_t prot;
@@ -484,28 +484,8 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 			return (0);
 		}
 
-		/*
-		 * This is a fault on non-kernel virtual memory.
-		 */
-		vm = p->p_vmspace;
-
-		/*
-		 * Keep swapout from messing with us during this
-		 * critical time.
-		 */
-		PROC_LOCK(p);
-		++p->p_lock;
-		PROC_UNLOCK(p);
-
-		/* Fault in the user page. */
-		rv = vm_fault(&vm->vm_map, va, prot, VM_FAULT_NORMAL);
-
-		/*
-		 * Now the process can be swapped again.
-		 */
-		PROC_LOCK(p);
-		--p->p_lock;
-		PROC_UNLOCK(p);
+		/* This is a fault on non-kernel virtual memory. */
+		map = &p->p_vmspace->vm_map;
 	} else {
 		/*
 		 * This is a fault on kernel virtual memory.  Attempts to
@@ -527,13 +507,11 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 			}
 			vm_map_unlock_read(kernel_map);
 		}
-
-		/*
-		 * We don't have to worry about process locking or stacks in
-		 * the kernel.
-		 */
-		rv = vm_fault(kernel_map, va, prot, VM_FAULT_NORMAL);
+		map = kernel_map;
 	}
+
+	/* Fault in the page. */
+	rv = vm_fault(map, va, prot, VM_FAULT_NORMAL);
 
 	CTR3(KTR_TRAP, "trap_pfault: return td=%p va=%#lx rv=%d",
 	    td, va, rv);

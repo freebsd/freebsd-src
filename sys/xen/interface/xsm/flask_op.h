@@ -25,6 +25,8 @@
 #ifndef __FLASK_OP_H__
 #define __FLASK_OP_H__
 
+#include "../event_channel.h"
+
 #define XEN_FLASK_INTERFACE_VERSION 1
 
 struct xen_flask_load {
@@ -142,6 +144,19 @@ struct xen_flask_peersid {
     uint32_t sid;
 };
 
+struct xen_flask_relabel {
+    /* IN */
+    uint32_t domid;
+    uint32_t sid;
+};
+
+struct xen_flask_devicetree_label {
+    /* IN */
+    uint32_t sid;
+    uint32_t length;
+    XEN_GUEST_HANDLE(char) path;
+};
+
 struct xen_flask_op {
     uint32_t cmd;
 #define FLASK_LOAD              1
@@ -167,6 +182,8 @@ struct xen_flask_op {
 #define FLASK_ADD_OCONTEXT      21
 #define FLASK_DEL_OCONTEXT      22
 #define FLASK_GET_PEER_SID      23
+#define FLASK_RELABEL_DOMAIN    24
+#define FLASK_DEVICETREE_LABEL  25
     uint32_t interface_version; /* XEN_FLASK_INTERFACE_VERSION */
     union {
         struct xen_flask_load load;
@@ -185,6 +202,8 @@ struct xen_flask_op {
         /* FLASK_ADD_OCONTEXT, FLASK_DEL_OCONTEXT */
         struct xen_flask_ocontext ocontext;
         struct xen_flask_peersid peersid;
+        struct xen_flask_relabel relabel;
+        struct xen_flask_devicetree_label devicetree_label;
     } u;
 };
 typedef struct xen_flask_op xen_flask_op_t;

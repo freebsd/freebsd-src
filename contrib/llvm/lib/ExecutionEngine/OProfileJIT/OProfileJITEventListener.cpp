@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Config/config.h"
-#include "EventListenerCommon.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/ExecutionEngine/JITEventListener.h"
 #include "llvm/ExecutionEngine/OProfileWrapper.h"
@@ -21,6 +20,7 @@
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Object/ObjectFile.h"
+#include "llvm/Object/SymbolSize.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Errno.h"
 #include "llvm/Support/raw_ostream.h"
@@ -28,7 +28,6 @@
 #include <fcntl.h>
 
 using namespace llvm;
-using namespace llvm::jitprofiling;
 using namespace llvm::object;
 
 #define DEBUG_TYPE "oprofile-jit-event-listener"
@@ -87,27 +86,29 @@ void OProfileJITEventListener::NotifyObjectEmitted(
   const ObjectFile &DebugObj = *DebugObjOwner.getBinary();
 
   // Use symbol info to iterate functions in the object.
-  for (symbol_iterator I = DebugObj.symbol_begin(), E = DebugObj.symbol_end();
-       I != E; ++I) {
-    SymbolRef::Type SymType;
-    if (I->getType(SymType)) continue;
-    if (SymType == SymbolRef::ST_Function) {
-      StringRef  Name;
-      uint64_t   Addr;
-      uint64_t   Size;
-      if (I->getName(Name)) continue;
-      if (I->getAddress(Addr)) continue;
-      if (I->getSize(Size)) continue;
+  for (const std::pair<SymbolRef, uint64_t> &P : computeSymbolSizes(DebugObj)) {
+    SymbolRef Sym = P.first;
+    if (Sym.getType() != SymbolRef::ST_Function)
+      continue;
 
-      if (Wrapper->op_write_native_code(Name.data(), Addr, (void*)Addr, Size)
-                        == -1) {
-        DEBUG(dbgs() << "Failed to tell OProfile about native function "
-          << Name << " at ["
-          << (void*)Addr << "-" << ((char*)Addr + Size) << "]\n");
-        continue;
-      }
-      // TODO: support line number info (similar to IntelJITEventListener.cpp)
+    ErrorOr<StringRef> NameOrErr = Sym.getName();
+    if (NameOrErr.getError())
+      continue;
+    StringRef Name = *NameOrErr;
+    ErrorOr<uint64_t> AddrOrErr = Sym.getAddress();
+    if (AddrOrErr.getError())
+      continue;
+    uint64_t Addr = *AddrOrErr;
+    uint64_t Size = P.second;
+
+    if (Wrapper->op_write_native_code(Name.data(), Addr, (void *)Addr, Size) ==
+        -1) {
+      DEBUG(dbgs() << "Failed to tell OProfile about native function " << Name
+                   << " at [" << (void *)Addr << "-" << ((char *)Addr + Size)
+                   << "]\n");
+      continue;
     }
+    // TODO: support line number info (similar to IntelJITEventListener.cpp)
   }
 
   DebugObjects[Obj.getData().data()] = std::move(DebugObjOwner);
@@ -127,11 +128,11 @@ void OProfileJITEventListener::NotifyFreeingObject(const ObjectFile &Obj) {
     for (symbol_iterator I = DebugObj.symbol_begin(),
                          E = DebugObj.symbol_end();
          I != E; ++I) {
-      SymbolRef::Type SymType;
-      if (I->getType(SymType)) continue;
-      if (SymType == SymbolRef::ST_Function) {
-        uint64_t   Addr;
-        if (I->getAddress(Addr)) continue;
+      if (I->getType() == SymbolRef::ST_Function) {
+        ErrorOr<uint64_t> AddrOrErr = I->getAddress();
+        if (AddrOrErr.getError())
+          continue;
+        uint64_t Addr = *AddrOrErr;
 
         if (Wrapper->op_unload_native_code(Addr) == -1) {
           DEBUG(dbgs()

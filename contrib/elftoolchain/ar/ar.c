@@ -72,7 +72,7 @@
 
 #include "ar.h"
 
-ELFTC_VCSID("$Id: ar.c 3183 2015-04-10 16:18:42Z emaste $");
+ELFTC_VCSID("$Id: ar.c 3243 2015-08-31 19:28:45Z emaste $");
 
 enum options
 {
@@ -123,7 +123,7 @@ main(int argc, char **argv)
 	len = strlen(bsdar->progname);
 	if (len >= strlen("ranlib") &&
 	    strcmp(bsdar->progname + len - strlen("ranlib"), "ranlib") == 0) {
-		while ((opt = getopt_long(argc, argv, "tDV", longopts,
+		while ((opt = getopt_long(argc, argv, "tDUV", longopts,
 		    NULL)) != -1) {
 			switch(opt) {
 			case 't':
@@ -131,6 +131,9 @@ main(int argc, char **argv)
 				break;
 			case 'D':
 				bsdar->options |= AR_D;
+				break;
+			case 'U':
+				bsdar->options &= ~AR_D;
 				break;
 			case 'V':
 				bsdar_version();
@@ -148,7 +151,7 @@ main(int argc, char **argv)
 			ranlib_usage();
 
 		bsdar->options |= AR_S;
-		for (;(bsdar->filename = *argv++) != NULL;)
+		while ((bsdar->filename = *argv++) != NULL)
 			ar_write_archive(bsdar, 's');
 
 		exit(EXIT_SUCCESS);
@@ -169,7 +172,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	while ((opt = getopt_long(argc, argv, "abCcdDfF:ijlMmopqrSsTtuVvxz",
+	while ((opt = getopt_long(argc, argv, "abCcdDfF:ijlMmopqrSsTtUuVvxz",
 	    longopts, NULL)) != -1) {
 		switch(opt) {
 		case 'a':
@@ -236,6 +239,9 @@ main(int argc, char **argv)
 			break;
 		case 't':
 			set_mode(bsdar, opt);
+			break;
+		case 'U':
+			bsdar->options &= ~AR_D;
 			break;
 		case 'u':
 			bsdar->options |= AR_U;
@@ -400,7 +406,8 @@ Usage: %s <command> [options] archive file...\n\
   -D            Use fixed metadata, for consistent archive checksums.\n\
   -F FORMAT | --flavor=FORMAT\n\
                 Create archives with the specified format.\n\
-  -S            Do not generate an archive symbol table.\n"
+  -S            Do not generate an archive symbol table.\n\
+  -U            Use original metadata, for unique archive checksums.\n"
 
 static void
 bsdar_usage(void)
@@ -415,6 +422,7 @@ Usage: %s [options] archive...\n\
   Options:\n\
   -t              (This option is accepted, but ignored).\n\
   -D              Use fixed metadata, for consistent archive checksums.\n\
+  -U              Use original metadata, for unique archive checksums.\n\
   -V              Print a version identifier and exit.\n"
 
 static void

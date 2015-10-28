@@ -74,8 +74,8 @@ static void ig4iic_intr(void *cookie);
 static void ig4iic_dump(ig4iic_softc_t *sc);
 
 static int ig4_dump;
-SYSCTL_INT(_debug, OID_AUTO, ig4_dump, CTLTYPE_INT | CTLFLAG_RW,
-	   &ig4_dump, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, ig4_dump, CTLFLAG_RW,
+	   &ig4_dump, 0, "Dump controller registers");
 
 /*
  * Low-level inline support functions

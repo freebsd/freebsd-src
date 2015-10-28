@@ -17,7 +17,7 @@
 
 struct wpabuf_trace {
 	unsigned int magic;
-};
+} __attribute__((aligned(8)));
 
 static struct wpabuf_trace * wpabuf_get_trace(const struct wpabuf *buf)
 {

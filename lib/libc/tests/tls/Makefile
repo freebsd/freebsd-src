@@ -2,7 +2,6 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/lib/libc/tls
 .if !defined(NO_PIC)
 SUBDIR+=	dso
 .endif

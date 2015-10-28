@@ -70,7 +70,7 @@ LOCALES=	af_ZA.ISO8859-1 \
 		zh_TW.Big5 \
 		zh_TW.UTF-8
 
-LOCALEDIR=	/usr/share/locale
+LOCALEDIR=	${SHAREDIR}/locale
 
 .SUFFIXES: .src .out
 
@@ -132,13 +132,6 @@ SYMLINKS+=	../${lang_terr:C/:.*$//}.${enc1}/${FILESNAME} \
 		${LOCALEDIR}/${lang_terr:C/^.*://}.${enc2}/${FILESNAME}
 .endfor
 .endfor
-.endfor
-
-beforeinstall:
-.for locale in ${LOCALES}
-.if exists(${DESTDIR}${LOCALEDIR}/${locale}/LC_MESSAGES/)
-	rm -rf ${DESTDIR}${LOCALEDIR}/${locale}/LC_MESSAGES
-.endif
 .endfor
 
 .include <bsd.prog.mk>

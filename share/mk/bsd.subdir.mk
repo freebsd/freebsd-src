@@ -16,7 +16,8 @@
 #
 # SUBDIR	A list of subdirectories that should be built as well.
 #		Each of the targets will execute the same target in the
-#		subdirectories.
+#		subdirectories. SUBDIR.yes is automatically appeneded
+#		to this list.
 #
 # +++ targets +++
 #
@@ -24,13 +25,26 @@
 # 		This is a variant of install, which will
 # 		put the stuff into the right "distribution".
 #
-#	afterinstall, all, all-man, beforeinstall, checkdpadd, clean,
-#	cleandepend, cleandir, cleanilinks depend, install, lint,
-#	maninstall, manlint, obj, objlink, realinstall, regress, tags
+# 	See ALL_SUBDIR_TARGETS for list of targets that will recurse.
+# 	Custom targets can be added to SUBDIR_TARGETS in src.conf.
+#
+# 	Targets defined in STANDALONE_SUBDIR_TARGETS will always be ran
+# 	with SUBDIR_PARALLEL and will not respect .WAIT or SUBDIR_DEPEND_
+# 	values.
 #
 
 .if !target(__<bsd.subdir.mk>__)
 __<bsd.subdir.mk>__:
+
+ALL_SUBDIR_TARGETS= all all-man buildconfig checkdpadd clean cleandepend \
+		    cleandir cleanilinks cleanobj depend distribute \
+		    installconfig lint maninstall manlint obj objlink \
+		    realinstall regress tags \
+		    ${SUBDIR_TARGETS}
+
+# Described above.
+STANDALONE_SUBDIR_TARGETS?= obj checkdpadd clean cleandepend cleandir \
+			    cleanilinks cleanobj
 
 .include <bsd.init.mk>
 
@@ -43,6 +57,11 @@ _SUBDIR:
 .endif
 .if !target(_SUBDIR)
 
+.if defined(SUBDIR)
+SUBDIR:=${SUBDIR} ${SUBDIR.yes}
+SUBDIR:=${SUBDIR:u}
+.endif
+
 DISTRIBUTION?=	base
 .if !target(distribute)
 distribute: .MAKE
@@ -52,37 +71,37 @@ distribute: .MAKE
 .endfor
 .endif
 
-_SUBDIR: .USE .MAKE
-.if defined(SUBDIR) && !empty(SUBDIR) && !defined(NO_SUBDIR)
-	@${_+_}set -e; for entry in ${SUBDIR:N.WAIT}; do \
-		if test -d ${.CURDIR}/$${entry}.${MACHINE_ARCH}; then \
-			${ECHODIR} "===> ${DIRPRFX}$${entry}.${MACHINE_ARCH} (${.TARGET:S,realinstall,install,:S,^_sub.,,})"; \
-			edir=$${entry}.${MACHINE_ARCH}; \
-			cd ${.CURDIR}/$${edir}; \
-		else \
-			${ECHODIR} "===> ${DIRPRFX}$$entry (${.TARGET:S,realinstall,install,:S,^_sub.,,})"; \
-			edir=$${entry}; \
-			cd ${.CURDIR}/$${edir}; \
+# Subdir code shared among 'make <subdir>', 'make <target>' and SUBDIR_PARALLEL.
+_SUBDIR_SH=	\
+		if test -d ${.CURDIR}/$${dir}.${MACHINE_ARCH}; then \
+			dir=$${dir}.${MACHINE_ARCH}; \
 		fi; \
-		${MAKE} ${.TARGET:S,realinstall,install,:S,^_sub.,,} \
-		    DIRPRFX=${DIRPRFX}$$edir/; \
-	done
+		${ECHODIR} "===> ${DIRPRFX}$${dir} ($${target})"; \
+		cd ${.CURDIR}/$${dir}; \
+		${MAKE} $${target} DIRPRFX=${DIRPRFX}$${dir}/
+
+_SUBDIR: .USEBEFORE
+.if defined(SUBDIR) && !empty(SUBDIR) && !defined(NO_SUBDIR)
+	@${_+_}target=${.TARGET:S,realinstall,install,}; \
+	    for dir in ${SUBDIR:N.WAIT}; do ${_SUBDIR_SH}; done
 .endif
 
 ${SUBDIR:N.WAIT}: .PHONY .MAKE
-	${_+_}@if test -d ${.TARGET}.${MACHINE_ARCH}; then \
-		cd ${.CURDIR}/${.TARGET}.${MACHINE_ARCH}; \
-	else \
-		cd ${.CURDIR}/${.TARGET}; \
-	fi; \
-	${MAKE} all
+	${_+_}@target=all; \
+	    dir=${.TARGET}; \
+	    ${_SUBDIR_SH};
 
 # Work around parsing of .if nested in .for by putting .WAIT string into a var.
 __wait= .WAIT
-.for __target in all all-man checkdpadd clean cleandepend cleandir \
-    cleanilinks depend distribute lint maninstall manlint obj objlink \
-    realinstall regress tags ${SUBDIR_TARGETS}
-.ifdef SUBDIR_PARALLEL
+.for __target in ${ALL_SUBDIR_TARGETS}
+# Can ordering be skipped for this and SUBDIR_PARALLEL forced?
+.if make(${__target}) && ${STANDALONE_SUBDIR_TARGETS:M${__target}}
+_is_standalone_target=	1
+SUBDIR:=	${SUBDIR:N.WAIT}
+.else
+_is_standalone_target=	0
+.endif
+.if defined(SUBDIR_PARALLEL) || ${_is_standalone_target} == 1
 __subdir_targets=
 .for __dir in ${SUBDIR}
 .if ${__wait} == ${__dir}
@@ -90,44 +109,38 @@ __subdir_targets+= .WAIT
 .else
 __subdir_targets+= ${__target}_subdir_${__dir}
 __deps=
+.if ${_is_standalone_target} == 0
 .for __dep in ${SUBDIR_DEPEND_${__dir}}
 __deps+= ${__target}_subdir_${__dep}
 .endfor
-${__target}_subdir_${__dir}: .MAKE ${__deps}
+.endif
+${__target}_subdir_${__dir}: .PHONY .MAKE ${__deps}
 .if !defined(NO_SUBDIR)
-	@${_+_}set -e; \
-		if test -d ${.CURDIR}/${__dir}.${MACHINE_ARCH}; then \
-			${ECHODIR} "===> ${DIRPRFX}${__dir}.${MACHINE_ARCH} (${__target:realinstall=install})"; \
-			edir=${__dir}.${MACHINE_ARCH}; \
-			cd ${.CURDIR}/$${edir}; \
-		else \
-			${ECHODIR} "===> ${DIRPRFX}${__dir} (${__target:realinstall=install})"; \
-			edir=${__dir}; \
-			cd ${.CURDIR}/$${edir}; \
-		fi; \
-		${MAKE} ${__target:realinstall=install} \
-		    DIRPRFX=${DIRPRFX}$$edir/
+	@${_+_}target=${__target:realinstall=install}; \
+	    dir=${__dir}; \
+	    ${_SUBDIR_SH};
 .endif
 .endif
-.endfor
+.endfor	# __dir in ${SUBDIR}
 ${__target}: ${__subdir_targets}
 .else
-${__target}: _sub.${__target}
-_sub.${__target}: _SUBDIR
-.endif
-.endfor
+${__target}: _SUBDIR
+.endif	# SUBDIR_PARALLEL || _is_standalone_target
+.endfor	# __target in ${ALL_SUBDIR_TARGETS}
 
+# This is to support 'make includes' calling 'make buildincludes' and
+# 'make installincludes' in the proper order, and to support these
+# targets as SUBDIR_TARGETS.
 .for __target in files includes
 .for __stage in build install
 ${__stage}${__target}:
 .if make(${__stage}${__target})
-${__stage}${__target}: _sub.${__stage}${__target}
-_sub.${__stage}${__target}: _SUBDIR
+${__stage}${__target}: _SUBDIR
 .endif
 .endfor
 .if !target(${__target})
 ${__target}: .MAKE
-	${_+_}set -e; cd ${.CURDIR}; ${MAKE} build${__target}; ${MAKE} install${__target}
+	${_+_}cd ${.CURDIR}; ${MAKE} build${__target}; ${MAKE} install${__target}
 .endif
 .endfor
 

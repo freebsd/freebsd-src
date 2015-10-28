@@ -78,6 +78,7 @@ MLINKS+=portindex.5 INDEX.5
 MLINKS+=quota.user.5 quota.group.5
 MLINKS+=rc.conf.5 rc.conf.local.5
 MLINKS+=resolver.5 resolv.conf.5
+MLINKS+=src.conf.5 src-env.conf.5
 
 .if ${MK_AUTOFS} != "no"
 MAN+=	autofs.5

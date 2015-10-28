@@ -28,6 +28,8 @@
  * Use is subject to license terms.
  */
 
+#pragma D depends_on module kernel
+
 typedef struct psinfo {
 	int	pr_nlwp;	/* number of threads */
 	pid_t	pr_pid;		/* unique process id */

@@ -34,7 +34,7 @@ CONTRIBDIR=	${.CURDIR}/../../contrib/tzdata/
 .PATH:		${CONTRIBDIR}
 
 .if defined(LEAPSECONDS)
-LEAPFILE=	-L leapseconds
+LEAPFILE=	-L ${CONTRIBDIR}leapseconds
 .else
 LEAPFILE=
 .endif
@@ -79,7 +79,7 @@ zoneinfo: yearistype ${TDATA}
 
 beforeinstall:
 	cd ${TZBUILDDIR} && \
-	    find * -type f -print -exec ${INSTALL} \
+	    find -s * -type f -print -exec ${INSTALL} \
 	    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    \{} ${DESTDIR}/usr/share/zoneinfo/\{} \;
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \

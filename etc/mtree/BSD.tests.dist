@@ -12,7 +12,11 @@
         ..
         date
         ..
+        dd
+        ..
         expr
+        ..
+        ls
         ..
         mv
         ..
@@ -240,6 +244,8 @@
             test-programs
             ..
         ..
+        libarchive
+        ..
         libc
             c063
             ..
@@ -308,6 +314,8 @@
         ..
         libutil
         ..
+        libxo
+        ..
         msun
         ..
     ..
@@ -354,6 +362,8 @@
         ..
     ..
     sys
+        acl
+        ..
         aio
         ..
         fifo
@@ -403,6 +413,10 @@
             ..
             unlink
             ..
+        ..
+        posixshm
+        ..
+        vfs
         ..
         vm
         ..
@@ -514,6 +528,8 @@
         ..
         cmp
         ..
+        cpio
+        ..
         col
         ..
         comm
@@ -552,6 +568,8 @@
         ..
         soelim
         ..
+        tar
+        ..
         timeout
         ..
         tr
@@ -566,6 +584,8 @@
         ..
         xargs
         ..
+        xo
+        ..
         yacc
             yacc
             ..
@@ -573,6 +593,10 @@
     ..
     usr.sbin
         etcupdate
+        ..
+        fstyp
+        ..
+        makefs
         ..
         newsyslog
         ..

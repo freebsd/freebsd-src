@@ -63,6 +63,7 @@
 
 #include <net/altq/if_altq.h>
 #include <net/altq/altq.h>
+#include <net/altq/altq_codel.h>
 #include <net/altq/altq_rmclass.h>
 #include <net/altq/altq_rmclass_debug.h>
 #include <net/altq/altq_red.h>
@@ -213,6 +214,14 @@ rmc_newclass(int pri, struct rm_ifdat *ifd, u_int nsecPerByte,
 		return (NULL);
 	}
 #endif
+#ifndef ALTQ_CODEL
+	if (flags & RMCF_CODEL) {
+#ifdef ALTQ_DEBUG
+		printf("rmc_newclass: CODEL not configured for CBQ!\n");
+#endif
+		return (NULL);
+	}
+#endif
 
 	cl = malloc(sizeof(struct rm_class), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (cl == NULL)
@@ -297,6 +306,13 @@ rmc_newclass(int pri, struct rm_ifdat *ifd, u_int nsecPerByte,
 #endif
 	}
 #endif /* ALTQ_RED */
+#ifdef ALTQ_CODEL
+	if (flags & RMCF_CODEL) {
+		cl->codel_ = codel_alloc(5, 100, 0);
+		if (cl->codel_ != NULL)
+			qtype(cl->q_) = Q_CODEL;
+	}
+#endif
 
 	/*
 	 * put the class into the class tree
@@ -634,6 +650,10 @@ rmc_delete_class(struct rm_ifdat *ifd, struct rm_class *cl)
 #ifdef ALTQ_RED
 		if (q_is_red(cl->q_))
 			red_destroy(cl->red_);
+#endif
+#ifdef ALTQ_CODEL
+		if (q_is_codel(cl->q_))
+			codel_destroy(cl->codel_);
 #endif
 	}
 	free(cl->q_, M_DEVBUF);
@@ -1592,6 +1612,10 @@ _rmc_addq(rm_class_t *cl, mbuf_t *m)
 	if (q_is_red(cl->q_))
 		return red_addq(cl->red_, cl->q_, m, cl->pktattr_);
 #endif /* ALTQ_RED */
+#ifdef ALTQ_CODEL
+	if (q_is_codel(cl->q_))
+		return codel_addq(cl->codel_, cl->q_, m);
+#endif
 
 	if (cl->flags_ & RMCF_CLEARDSCP)
 		write_dsfield(m, cl->pktattr_, 0);
@@ -1620,6 +1644,10 @@ _rmc_getq(rm_class_t *cl)
 #ifdef ALTQ_RED
 	if (q_is_red(cl->q_))
 		return red_getq(cl->red_, cl->q_);
+#endif
+#ifdef ALTQ_CODEL
+	if (q_is_codel(cl->q_))
+		return codel_getq(cl->codel_, cl->q_);
 #endif
 	return _getq(cl->q_);
 }
@@ -1691,7 +1719,8 @@ void cbqtrace_dump(int counter)
 #endif /* CBQ_TRACE */
 #endif /* ALTQ_CBQ */
 
-#if defined(ALTQ_CBQ) || defined(ALTQ_RED) || defined(ALTQ_RIO) || defined(ALTQ_HFSC) || defined(ALTQ_PRIQ)
+#if defined(ALTQ_CBQ) || defined(ALTQ_RED) || defined(ALTQ_RIO) || \
+    defined(ALTQ_HFSC) || defined(ALTQ_PRIQ) || defined(ALTQ_CODEL)
 #if !defined(__GNUC__) || defined(ALTQ_DEBUG)
 
 void

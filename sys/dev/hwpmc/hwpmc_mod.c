@@ -2538,13 +2538,35 @@ static int
 pmc_find_pmc(pmc_id_t pmcid, struct pmc **pmc)
 {
 
-	struct pmc *pm;
+	struct pmc *pm, *opm;
 	struct pmc_owner *po;
+	struct pmc_process *pp;
 
+	KASSERT(PMC_ID_TO_ROWINDEX(pmcid) < md->pmd_npmc,
+	    ("[pmc,%d] Illegal pmc index %d (max %d)", __LINE__,
+		PMC_ID_TO_ROWINDEX(pmcid), md->pmd_npmc));
 	PMCDBG1(PMC,FND,1, "find-pmc id=%d", pmcid);
 
-	if ((po = pmc_find_owner_descriptor(curthread->td_proc)) == NULL)
-		return ESRCH;
+	if ((po = pmc_find_owner_descriptor(curthread->td_proc)) == NULL) {
+		/*
+		 * In case of PMC_F_DESCENDANTS child processes we will not find
+		 * the current process in the owners hash list.  Find the owner
+		 * process first and from there lookup the po.
+		 */
+		if ((pp = pmc_find_process_descriptor(curthread->td_proc,
+		    PMC_FLAG_NONE)) == NULL) {
+			return ESRCH;
+		} else {
+			opm = pp->pp_pmcs[PMC_ID_TO_ROWINDEX(pmcid)].pp_pmc;
+			if (opm == NULL)
+				return ESRCH;
+			if ((opm->pm_flags & (PMC_F_ATTACHED_TO_OWNER|
+			    PMC_F_DESCENDANTS)) != (PMC_F_ATTACHED_TO_OWNER|
+			    PMC_F_DESCENDANTS))
+				return ESRCH;
+			po = opm->pm_owner;
+		}
+	}
 
 	if ((pm = pmc_find_pmc_descriptor_in_process(po, pmcid)) == NULL)
 		return EINVAL;

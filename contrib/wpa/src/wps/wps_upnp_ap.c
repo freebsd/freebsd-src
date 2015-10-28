@@ -34,10 +34,8 @@ int upnp_er_set_selected_registrar(struct wps_registrar *reg,
 
 	wpa_hexdump_buf(MSG_MSGDUMP, "WPS: SetSelectedRegistrar attributes",
 			msg);
-	if (wps_validate_upnp_set_selected_registrar(msg) < 0)
-		return -1;
-
-	if (wps_parse_msg(msg, &attr) < 0)
+	if (wps_validate_upnp_set_selected_registrar(msg) < 0 ||
+	    wps_parse_msg(msg, &attr) < 0)
 		return -1;
 
 	s->reg = reg;

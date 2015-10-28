@@ -605,6 +605,9 @@ search_failed:
 	mtspr	SPR_MAS3, %r23
 	isync
 
+	bl	zero_mas7
+	bl	zero_mas8
+
 	tlbwe
 	msync
 	isync
@@ -697,8 +700,10 @@ tlb_fill_entry:
 
 	/* Setup MAS3 value in r23. */
 	lwz	%r23, PTE_RPN(%r25)		/* get pte->rpn */
+	rlwinm	%r22, %r23, 12, 0, 20		/* extract MAS3 portion of RPN */
 
-	rlwimi	%r23, %r21, 24, 26, 31		/* insert protection bits from pte */
+	rlwimi	%r22, %r21, 24, 26, 31		/* insert protection bits from pte */
+	rlwinm	%r23, %r23, 12, 28, 31		/* MAS7 portion of RPN */
 
 	/* Load MAS registers. */
 	mtspr	SPR_MAS0, %r29
@@ -707,8 +712,14 @@ tlb_fill_entry:
 	isync
 	mtspr	SPR_MAS2, %r27
 	isync
-	mtspr	SPR_MAS3, %r23
+	mtspr	SPR_MAS3, %r22
 	isync
+	mtspr	SPR_MAS7, %r23
+	isync
+
+	mflr	%r21
+	bl	zero_mas8
+	mtlr	%r21
 
 	tlbwe
 	isync

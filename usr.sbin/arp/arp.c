@@ -673,9 +673,12 @@ print_entry(struct sockaddr_dl *sdl,
  */
 static void
 nuke_entry(struct sockaddr_dl *sdl __unused,
-	struct sockaddr_in *addr, struct rt_msghdr *rtm __unused)
+	struct sockaddr_in *addr, struct rt_msghdr *rtm)
 {
 	char ip[20];
+
+	if (rtm->rtm_flags & RTF_PINNED)
+		return;
 
 	snprintf(ip, sizeof(ip), "%s", inet_ntoa(addr->sin_addr));
 	delete(ip);

@@ -66,6 +66,14 @@
 #include "miibus_if.h"
 #include "etherswitch_if.h"
 
+/*
+ * AR8327 TODO:
+ *
+ * There should be a default hardware setup hint set for the default
+ * switch config.  Otherwise the default is "all ports in one vlangroup",
+ * which means both CPU ports can see each other and that will quickly
+ * lead to traffic storms/loops.
+ */
 
 static int
 ar8327_vlan_op(struct arswitch_softc *sc, uint32_t op, uint32_t vid,
@@ -897,8 +905,8 @@ ar8327_reset_vlans(struct arswitch_softc *sc)
 	/*
 	 * If dot1q - set pvid; dot1q, etc.
 	 */
-	sc->vid[0] = 1;
 	if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
+		sc->vid[0] = 1;
 		for (i = 0; i < AR8327_NUM_PORTS; i++) {
 			/* Each port - pvid 1 */
 			sc->hal.arswitch_vlan_set_pvid(sc, i, sc->vid[0]);

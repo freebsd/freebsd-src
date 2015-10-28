@@ -84,7 +84,6 @@ compute_weight(struct dns_srvinfo **d, int first, int last)
 	int i, j, totalweight;
 	int *chosen;
 
-	chosen = malloc(sizeof(int) * (last - first + 1));
 	totalweight = 0;
 	
 	for (i = 0; i <= last; i++)
@@ -92,6 +91,8 @@ compute_weight(struct dns_srvinfo **d, int first, int last)
 
 	if (totalweight == 0)
 		return;
+
+	chosen = malloc(sizeof(int) * (last - first + 1));
 
 	for (i = 0; i <= last; i++) {
 		for (;;) {

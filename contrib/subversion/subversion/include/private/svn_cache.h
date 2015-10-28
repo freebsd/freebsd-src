@@ -173,6 +173,12 @@ typedef struct svn_cache__info_t
    * May be 0 if that information is not available.
    */
   apr_uint64_t total_entries;
+
+  /** Number of index buckets with the given number of entries.
+   * Bucket sizes larger than the array will saturate into the
+   * highest array index.
+   */
+  apr_uint64_t histogram[32];
 } svn_cache__info_t;
 
 /**
@@ -251,7 +257,8 @@ svn_cache__create_memcache(svn_cache__t **cache_p,
  * Given @a config, returns an APR memcached interface in @a
  * *memcache_p allocated in @a result_pool if @a config contains entries in
  * the SVN_CACHE_CONFIG_CATEGORY_MEMCACHED_SERVERS section describing
- * memcached servers; otherwise, sets @a *memcache_p to NULL.
+ * memcached servers; otherwise, sets @a *memcache_p to NULL.  Use
+ * @a scratch_pool for temporary allocations.
  *
  * If Subversion was not built with apr_memcache_support, then raises
  * SVN_ERR_NO_APR_MEMCACHE if and only if @a config is configured to
@@ -260,7 +267,8 @@ svn_cache__create_memcache(svn_cache__t **cache_p,
 svn_error_t *
 svn_cache__make_memcache_from_config(svn_memcache_t **memcache_p,
                                      svn_config_t *config,
-                                     apr_pool_t *result_pool);
+                                     apr_pool_t *result_pool,
+                                     apr_pool_t *scratch_pool);
 
 /**
  * Creates a new membuffer cache object in @a *cache. It will contain
@@ -303,6 +311,33 @@ svn_cache__membuffer_cache_create(svn_membuffer_t **cache,
                                   apr_pool_t *result_pool);
 
 /**
+ * @defgroup Standard priority classes for #svn_cache__create_membuffer_cache.
+ * @{
+ */
+
+/**
+ * Data in this priority class should not be removed from the cache unless
+ * absolutely necessary.  Use of this should be very restricted.
+ */
+#define SVN_CACHE__MEMBUFFER_HIGH_PRIORITY   10000
+
+/**
+ * Data in this priority class has a good chance to remain in cache unless
+ * there is more data in this class than the cache's capacity.  Use of this
+ * as the default for all information that is costly to fetch from disk.
+ */
+#define SVN_CACHE__MEMBUFFER_DEFAULT_PRIORITY 1000
+
+/**
+ * Data in this priority class will be removed as soon as the cache starts
+ * filling up.  Use of this for ephemeral data that can easily be acquired
+ * again from other sources.
+ */
+#define SVN_CACHE__MEMBUFFER_LOW_PRIORITY      100
+
+/** @} */
+
+/**
  * Creates a new cache in @a *cache_p, storing the data in a potentially
  * shared @a membuffer object.  The elements in the cache will be indexed
  * by keys of length @a klen, which may be APR_HASH_KEY_STRING if they
@@ -310,7 +345,10 @@ svn_cache__membuffer_cache_create(svn_membuffer_t **cache,
  * serialize_func and deserialized using @a deserialize_func.  Because
  * the same memcache object may cache many different kinds of values
  * form multiple caches, @a prefix should be specified to differentiate
- * this cache from other caches.  @a *cache_p will be allocated in @a result_pool.
+ * this cache from other caches.  All entries written through this cache
+ * interface will be assigned into the given @a priority class.  @a *cache_p
+ * will be allocated in @a result_pool.  @a scratch_pool is used for
+ * temporary allocations.
  *
  * If @a deserialize_func is NULL, then the data is returned as an
  * svn_stringbuf_t; if @a serialize_func is NULL, then the data is
@@ -329,8 +367,10 @@ svn_cache__create_membuffer_cache(svn_cache__t **cache_p,
                                   svn_cache__deserialize_func_t deserialize,
                                   apr_ssize_t klen,
                                   const char *prefix,
+                                  apr_uint32_t priority,
                                   svn_boolean_t thread_safe,
-                                  apr_pool_t *result_pool);
+                                  apr_pool_t *result_pool,
+                                  apr_pool_t *scratch_pool);
 
 /**
  * Sets @a handler to be @a cache's error handling routine.  If any
@@ -373,6 +413,18 @@ svn_cache__get(void **value,
                svn_cache__t *cache,
                const void *key,
                apr_pool_t *result_pool);
+
+/**
+ * Looks for an entry indexed by @a key in @a cache,  setting @a *found
+ * to TRUE if an entry has been found and FALSE otherwise.  @a key may be
+ * NULL in which case @a *found will be FALSE.  Temporary allocations will
+ * be made from @a scratch_pool.
+ */
+svn_error_t *
+svn_cache__has_key(svn_boolean_t *found,
+                   svn_cache__t *cache,
+                   const void *key,
+                   apr_pool_t *scratch_pool);
 
 /**
  * Stores the value @a value under the key @a key in @a cache.  Uses @a
@@ -465,13 +517,16 @@ svn_cache__get_info(svn_cache__t *cache,
 
 /**
  * Return the information given in @a info formatted as a multi-line string.
- * Allocations take place in @a result_pool.
+ * If @a access_only has been set, size and fill-level statistics will be
+ * omitted.  Allocations take place in @a result_pool.
  */
 svn_string_t *
 svn_cache__format_info(const svn_cache__info_t *info,
+                       svn_boolean_t access_only,
                        apr_pool_t *result_pool);
 
-/* Access the process-global (singleton) membuffer cache. The first call
+/**
+ * Access the process-global (singleton) membuffer cache. The first call
  * will automatically allocate the cache using the current cache config.
  * NULL will be returned if the desired cache size is 0.
  *
@@ -479,6 +534,22 @@ svn_cache__format_info(const svn_cache__info_t *info,
  */
 struct svn_membuffer_t *
 svn_cache__get_global_membuffer_cache(void);
+
+/**
+ * Return total access and size stats over all membuffer caches as they
+ * share the underlying data buffer.  The result will be allocated in POOL.
+ */
+svn_cache__info_t *
+svn_cache__membuffer_get_global_info(apr_pool_t *pool);
+
+/**
+ * Remove all current contents from CACHE.
+ *
+ * NOTE:  In a multi-threaded environment, new contents may have been put
+ * into the cache by the time this function returns.
+ */
+svn_error_t *
+svn_cache__membuffer_clear(svn_membuffer_t *cache);
 
 /** @} */
 

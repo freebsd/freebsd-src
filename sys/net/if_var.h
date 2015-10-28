@@ -243,11 +243,12 @@ struct ifnet {
 	 * count limit does not apply. If all three fields are zero,
 	 * there is no TSO limit.
 	 *
-	 * NOTE: The TSO limits only apply to the data payload part of
-	 * a TCP/IP packet. That means there is no need to subtract
-	 * space for ethernet-, vlan-, IP- or TCP- headers from the
-	 * TSO limits unless the hardware driver in question requires
-	 * so.
+	 * NOTE: The TSO limits should reflect the values used in the
+	 * BUSDMA tag a network adapter is using to load a mbuf chain
+	 * for transmission. The TCP/IP network stack will subtract
+	 * space for all linklevel and protocol level headers and
+	 * ensure that the full mbuf chain passed to the network
+	 * adapter fits within the given limits.
 	 */
 	u_int	if_hw_tsomax;		/* TSO maximum size in bytes */
 	u_int	if_hw_tsomaxsegcount;	/* TSO maximum segment count */
@@ -487,7 +488,7 @@ void	if_purgeaddrs(struct ifnet *);
 void	if_delallmulti(struct ifnet *);
 void	if_down(struct ifnet *);
 struct ifmultiaddr *
-	if_findmulti(struct ifnet *, struct sockaddr *);
+	if_findmulti(struct ifnet *, const struct sockaddr *);
 void	if_free(struct ifnet *);
 void	if_initname(struct ifnet *, const char *, int);
 void	if_link_state_change(struct ifnet *, int);
@@ -503,15 +504,16 @@ struct	ifnet *ifunit_ref(const char *);
 
 int	ifa_add_loopback_route(struct ifaddr *, struct sockaddr *);
 int	ifa_del_loopback_route(struct ifaddr *, struct sockaddr *);
-int	ifa_switch_loopback_route(struct ifaddr *, struct sockaddr *, int fib);
+int	ifa_switch_loopback_route(struct ifaddr *, struct sockaddr *);
 
-struct	ifaddr *ifa_ifwithaddr(struct sockaddr *);
-int		ifa_ifwithaddr_check(struct sockaddr *);
-struct	ifaddr *ifa_ifwithbroadaddr(struct sockaddr *, int);
-struct	ifaddr *ifa_ifwithdstaddr(struct sockaddr *, int);
-struct	ifaddr *ifa_ifwithnet(struct sockaddr *, int, int);
-struct	ifaddr *ifa_ifwithroute(int, struct sockaddr *, struct sockaddr *, u_int);
-struct	ifaddr *ifaof_ifpforaddr(struct sockaddr *, struct ifnet *);
+struct	ifaddr *ifa_ifwithaddr(const struct sockaddr *);
+int		ifa_ifwithaddr_check(const struct sockaddr *);
+struct	ifaddr *ifa_ifwithbroadaddr(const struct sockaddr *, int);
+struct	ifaddr *ifa_ifwithdstaddr(const struct sockaddr *, int);
+struct	ifaddr *ifa_ifwithnet(const struct sockaddr *, int, int);
+struct	ifaddr *ifa_ifwithroute(int, const struct sockaddr *, struct sockaddr *,
+    u_int);
+struct	ifaddr *ifaof_ifpforaddr(const struct sockaddr *, struct ifnet *);
 int	ifa_preferred(struct ifaddr *, struct ifaddr *);
 
 int	if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen);

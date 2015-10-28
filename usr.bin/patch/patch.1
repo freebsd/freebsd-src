@@ -21,7 +21,7 @@
 .\"
 .\" $OpenBSD: patch.1,v 1.27 2014/04/15 06:26:54 jmc Exp $
 .\" $FreeBSD$
-.Dd July 21, 2015
+.Dd August 15, 2015
 .Dt PATCH 1
 .Os
 .Sh NAME
@@ -175,7 +175,7 @@ for that.
 .Fl Fl input Ar patchfile
 .Xc
 Causes the next argument to be interpreted as the input file name
-(i.e. a patchfile).
+(i.e., a patchfile).
 This option may be specified multiple times.
 .It Fl l , Fl Fl ignore-whitespace
 Causes the pattern matching to be done loosely, in case the tabs and
@@ -245,7 +245,7 @@ option.
 Tells
 .Nm
 that this patch was created with the old and new files swapped.
-(Yes, I'm afraid that does happen occasionally, human nature being what it
+(Yes, I am afraid that does happen occasionally, human nature being what it
 is.)
 .Nm
 will attempt to swap each hunk around before applying it.
@@ -263,7 +263,7 @@ If it can, you will be asked if you want to have the
 option set.
 If it cannot, the patch will continue to be applied normally.
 (Note: this method cannot detect a reversed patch if it is a normal diff
-and if the first command is an append (i.e. it should have been a delete)
+and if the first command is an append (i.e., it should have been a delete)
 since appends always succeed, due to the fact that a null context will match
 anywhere.
 Luckily, most patches add or change lines rather than delete them, so most
@@ -387,7 +387,7 @@ given in the hunk.
 First
 .Nm
 looks for a place where all lines of the context match.
-If no such place is found, and it's a context diff, and the maximum fuzz factor
+If no such place is found, and it is a context diff, and the maximum fuzz factor
 is set to 1 or more, then another scan takes place ignoring the first and last
 line of context.
 If that fails, and the maximum fuzz factor is set to 2 or more,
@@ -482,15 +482,6 @@ file names or, for a non-context diff, the
 .Dq index
 file name, and choose the file name with the fewest path components,
 the shortest basename, and the shortest total file name length (in that order).
-.It
-If no file exists,
-.Nm
-checks for the existence of the files in an SCCS or RCS directory
-(using the appropriate prefix or suffix) using the criteria specified
-above.
-If found,
-.Nm
-will attempt to get or check out the file.
 .It
 If no suitable file was found to patch, the patch file is a context or
 unified diff, and the old file was zero length, the new file name is

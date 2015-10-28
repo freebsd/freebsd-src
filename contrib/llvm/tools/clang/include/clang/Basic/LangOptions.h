@@ -21,6 +21,7 @@
 #include "clang/Basic/Sanitizers.h"
 #include "clang/Basic/Visibility.h"
 #include <string>
+#include <vector>
 
 namespace clang {
 
@@ -66,13 +67,20 @@ public:
 
   enum AddrSpaceMapMangling { ASMM_Target, ASMM_On, ASMM_Off };
 
+  enum MSVCMajorVersion {
+    MSVC2010 = 16,
+    MSVC2012 = 17,
+    MSVC2013 = 18,
+    MSVC2015 = 19
+  };
+
 public:
   /// \brief Set of enabled sanitizers.
   SanitizerSet Sanitize;
 
-  /// \brief Path to blacklist file specifying which objects
+  /// \brief Paths to blacklist files specifying which objects
   /// (files, functions, variables) should not be instrumented.
-  std::string SanitizerBlacklistFile;
+  std::vector<std::string> SanitizerBlacklistFiles;
 
   clang::ObjCRuntime ObjCRuntime;
 
@@ -91,6 +99,12 @@ public:
   /// implementation of. Prevents semantic imports, but does not otherwise
   /// treat this as the CurrentModule.
   std::string ImplementationOfModule;
+
+  /// \brief The names of any features to enable in module 'requires' decls
+  /// in addition to the hard-coded list in Module.cpp and the target features.
+  ///
+  /// This list is sorted.
+  std::vector<std::string> ModuleFeatures;
 
   /// \brief Options for parsing comments.
   CommentOptions CommentOpts;
@@ -111,6 +125,10 @@ public:
   bool isSubscriptPointerArithmetic() const {
     return ObjCRuntime.isSubscriptPointerArithmetic() &&
            !ObjCSubscriptingLegacyRuntime;
+  }
+
+  bool isCompatibleWithMSVC(MSVCMajorVersion MajorVersion) const {
+    return MSCompatibilityVersion >= MajorVersion * 10000000U;
   }
 
   /// \brief Reset all of the options that are not considered when building a

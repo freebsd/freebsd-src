@@ -51,9 +51,10 @@ struct iter_forwards;
 struct iter_donotq;
 struct iter_prep_list;
 struct iter_priv;
+struct rbtree_t;
 
 /** max number of targets spawned for a query and its subqueries */
-#define MAX_TARGET_COUNT	32
+#define MAX_TARGET_COUNT	64
 /** max number of query restarts. Determines max number of CNAME chain. */
 #define MAX_RESTART_COUNT       8
 /** max number of referrals. Makes sure resolver does not run away */
@@ -95,6 +96,9 @@ struct iter_env {
 
 	/** private address space and private domains */
 	struct iter_priv* priv;
+
+	/** whitelist for capsforid names */
+	struct rbtree_t* caps_white;
 
 	/** The maximum dependency depth that this resolver will pursue. */
 	int max_dependency_depth;
@@ -235,6 +239,7 @@ struct iter_qstate {
 	/** state for capsfail: stored query for comparisons. Can be NULL if
 	 * no response had been seen prior to starting the fallback. */
 	struct reply_info* caps_reply;
+	struct dns_msg* caps_response;
 
 	/** Current delegation message - returned for non-RD queries */
 	struct dns_msg* deleg_msg;
@@ -257,6 +262,9 @@ struct iter_qstate {
 	/** number of target queries spawned in [1], for this query and its
 	 * subqueries, the malloced-array is shared, [0] refcount. */
 	int* target_count;
+
+	/** if true, already tested for ratelimiting and passed the test */
+	int ratelimit_ok;
 
 	/**
 	 * The query must store NS records from referrals as parentside RRs

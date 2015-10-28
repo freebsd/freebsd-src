@@ -91,7 +91,7 @@ acl_create_entry_np(acl_t *acl_p, acl_entry_t *entry_p, int offset)
 		return (-1);
 	}
 
-	if (offset < 0 || offset >= acl_int->acl_cnt) {
+	if (offset < 0 || offset > acl_int->acl_cnt) {
 		errno = EINVAL;
 		return (-1);
 	}

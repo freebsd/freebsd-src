@@ -849,14 +849,16 @@ static int
 ti_gpio_activate_resource(device_t dev, device_t child, int type, int rid,
 	struct resource *res)
 {
-	int pin;
+	struct ti_gpio_mask_arg mask_arg;
 
 	if (type != SYS_RES_IRQ)
 		return (ENXIO);
 
 	/* Unmask the interrupt. */
-	pin = rman_get_start(res);
-	ti_gpio_unmask_irq((void *)(uintptr_t)pin);
+	mask_arg.pin = rman_get_start(res);
+	mask_arg.softc = device_get_softc(dev);
+
+	ti_gpio_unmask_irq((void *)&mask_arg);
 
 	return (0);
 }

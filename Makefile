@@ -121,7 +121,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _cross-tools _includes _libraries _depend \
 	build32 builddtb distribute32 install32 xdev xdev-build xdev-install \
-	xdev-links native-xtools \
+	xdev-links native-xtools installconfig \
 
 TGTS+=	${SUBDIR_TARGETS}
 
@@ -243,14 +243,8 @@ cleanworld:
 # Handle the user-driven targets, using the source relative mk files.
 #
 
-.if empty(.MAKEFLAGS:M-n)
-# skip this for -n to avoid changing previous behavior of 
-# 'make -n buildworld' etc.
-${TGTS}: .MAKE
 tinderbox toolchains kernel-toolchains: .MAKE
-.endif
-
-${TGTS}:
+${TGTS}: .PHONY .MAKE
 	${_+_}@cd ${.CURDIR}; ${_MAKE} ${.TARGET}
 
 # The historic default "all" target creates files which may cause stale
@@ -259,9 +253,9 @@ ${TGTS}:
 # if they want the historic behavior.
 .MAIN:	_guard
 
-_guard:
+_guard: .PHONY
 	@echo
-	@echo "Explicit target required (use \"all\" for historic behavior)"
+	@echo "Explicit target required.  Likely \"${SUBDIR_OVERRIDE:Dall:Ubuildworld}\" is wanted.  See build(7)."
 	@echo
 	@false
 
@@ -381,17 +375,8 @@ kernel-toolchains:
 # existing system is.
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
-# XXX Add arm64 to universe only if we have an external binutils installed.
-# It does not build with the in-tree linker.
-.if exists(/usr/local/aarch64-freebsd/bin/ld)
-UNIVERSE_arm64=arm64
-.elif empty(${TARGETS})
-universe: universe_arm64_skip
-universe_epilogue: universe_arm64_skip
-universe_arm64_skip: universe_prologue
-	@echo ">> arm64 skipped - install aarch64-binutils port or package to build"
-.endif
-TARGETS?=amd64 arm ${UNIVERSE_arm64} i386 mips pc98 powerpc sparc64
+TARGETS?=amd64 arm arm64 i386 mips pc98 powerpc sparc64
+_UNIVERSE_TARGETS=	${TARGETS}
 TARGET_ARCHES_arm?=	arm armeb armv6 armv6hf
 TARGET_ARCHES_arm64?=	aarch64
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32
@@ -400,6 +385,16 @@ TARGET_ARCHES_pc98?=	i386
 .for target in ${TARGETS}
 TARGET_ARCHES_${target}?= ${target}
 .endfor
+
+# XXX Add arm64 to universe only if we have an external binutils installed.
+# It does not build with the in-tree linker.
+.if !exists(/usr/local/aarch64-freebsd/bin/ld) && empty(${TARGETS})
+_UNIVERSE_TARGETS:= ${_UNIVERSE_TARGETS:Narm64}
+universe: universe_arm64_skip
+universe_epilogue: universe_arm64_skip
+universe_arm64_skip: universe_prologue
+	@echo ">> arm64 skipped - install aarch64-binutils port or package to build"
+.endif
 
 .if defined(UNIVERSE_TARGET)
 MAKE_JUST_WORLDS=	YES
@@ -432,7 +427,7 @@ universe_prologue:
 .if defined(DOING_TINDERBOX)
 	@rm -f ${FAILFILE}
 .endif
-.for target in ${TARGETS}
+.for target in ${_UNIVERSE_TARGETS}
 universe: universe_${target}
 universe_epilogue: universe_${target}
 universe_${target}: universe_${target}_prologue

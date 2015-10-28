@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,8 +25,9 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
-
 #ifndef	_LINUX_INTERRUPT_H_
 #define	_LINUX_INTERRUPT_H_
 
@@ -115,6 +116,23 @@ request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
 	list_add(&irqe->links, &dev->irqents);
 
 	return 0;
+}
+
+static inline int
+bind_irq_to_cpu(unsigned int irq, int cpu_id)
+{
+	struct irq_ent *irqe;
+	struct device *dev;
+
+	dev = _pci_find_irq_dev(irq);
+	if (dev == NULL)
+		return (-ENOENT);
+
+	irqe = _irq_ent(dev, irq);
+	if (irqe == NULL)
+		return (-ENOENT);
+
+	return (-bus_bind_intr(dev->bsddev, irqe->res, cpu_id));
 }
 
 static inline void

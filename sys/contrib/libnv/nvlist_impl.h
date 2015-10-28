@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 The FreeBSD Foundation
+ * Copyright (c) 2013-2015 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from

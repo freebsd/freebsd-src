@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 /*
  * Returns true if the named feature is present in the currently

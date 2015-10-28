@@ -124,7 +124,7 @@ main(int argc, char **argv)
 			if (regcomp(&f_re, optarg, REG_EXTENDED) != 0)
 				errx(EX_USAGE,
 				    "Invalid filter - see re_format(7)");
-			strncpy(f_s, optarg, sizeof(f_s));
+			strlcpy(f_s, optarg, sizeof(f_s));
 			break;
 		case 'o':
 			flag_o = 1;
@@ -216,7 +216,7 @@ main(int argc, char **argv)
 				getyx(stdscr, cury, curx);
 				getmaxyx(stdscr, maxy, maxx);
 			}
-			strncpy(pf_s, f_s, sizeof(pf_s));
+			strlcpy(pf_s, f_s, sizeof(pf_s));
 			max_flen = maxx - curx - 1;
 			if ((int)strlen(f_s) > max_flen && max_flen >= 0) {
 				if (max_flen > 3)
@@ -406,7 +406,7 @@ main(int argc, char **argv)
 					err(1, "el_gets");
 				if (line_len > 1)
 					history(hist, &hist_ev, H_ENTER, line);
-				strncpy(tmp_f_s, line, sizeof(f_s));
+				strlcpy(tmp_f_s, line, sizeof(f_s));
 				if ((p = strchr(tmp_f_s, '\n')) != NULL)
 					*p = '\0';
 				/*
@@ -423,7 +423,7 @@ main(int argc, char **argv)
 					refresh();
 					sleep(1);
 				} else {
-					strncpy(f_s, tmp_f_s, sizeof(f_s));
+					strlcpy(f_s, tmp_f_s, sizeof(f_s));
 					f_re = tmp_f_re;
 				}
 				break;

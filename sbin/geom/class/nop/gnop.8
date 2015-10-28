@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 14, 2013
+.Dd October 10, 2015
 .Dt GNOP 8
 .Os
 .Sh NAME
@@ -36,6 +36,8 @@
 .Op Fl v
 .Op Fl e Ar error
 .Op Fl o Ar offset
+.Op Fl p Ar stripesize
+.Op Fl P Ar stripeoffset
 .Op Fl r Ar rfailprob
 .Op Fl s Ar size
 .Op Fl S Ar secsize
@@ -70,9 +72,10 @@ The
 utility is used for setting up transparent providers on existing ones.
 Its main purpose is testing other GEOM classes, as it allows forced provider
 removal and I/O error simulation with a given probability.
-It also gathers the following statistics: number of read requests, number of
-write requests, number of bytes read and number of bytes written.
-In addition, it can be used as a good starting point for implementing new GEOM
+It also gathers statistics on the number of read, write, delete,
+getattr, flush, and other requests, and the number of bytes read and written.
+.Nm
+can also be used as a good starting point for implementing new GEOM
 classes.
 .Pp
 The first argument to
@@ -115,6 +118,10 @@ Specifies the error number to return on failure.
 Force the removal of the specified provider.
 .It Fl o Ar offset
 Where to begin on the original provider.
+.It Fl p Ar stripesize
+Value of the stripesize property of the transparent provider.
+.It Fl P Ar stripeoffset
+Value of the stripeoffset property of the transparent provider.
 .It Fl r Ar rfailprob
 Specifies read failure probability in percent.
 .It Fl s Ar size

@@ -11,8 +11,8 @@
 .Dt LIBXO 3
 .Os
 .Sh NAME
-.Nm xo_emit
-.Nd emit formatted output based on format string and arguments
+.Nm xo_create , xo_create_to_file , xo_destroy
+.Nd create and destroy libxo output handles
 .Sh LIBRARY
 .Lb libxo
 .Sh SYNOPSIS
@@ -61,31 +61,7 @@ with a
 .Dv NULL
 handle will release any
 resources associated with the default handle.
-.Sh ADDITIONAL DOCUMENTATION
-Complete documentation can be found on github:
-.Bd -literal -offset indent
-http://juniper.github.io/libxo/libxo-manual.html
-.Ed
-.Pp
-.Nm libxo
-lives on github as:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo
-.Ed
-.Pp
-The latest release of
-.Nm libxo
-is available at:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo/releases
-.Ed
 .Sh SEE ALSO
 .Xr xo_emit 3 ,
-.Xr xo_set_options 3
-.Sh HISTORY
-The
-.Nm libxo
-library was added in
-.Fx 11.0 .
-.Sh AUTHOR
-Phil Shafer
+.Xr xo_set_options 3 ,
+.Xr libxo 3

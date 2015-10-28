@@ -1,7 +1,7 @@
 m4_define([maj_ver], [0])
 m4_define([med_ver], [7])
-m4_define([min_ver], [2])
-m4_define([so_version], [5:0:1])
+m4_define([min_ver], [3])
+m4_define([so_version], [5:0:2])
 m4_define([ucl_version], [maj_ver.med_ver.min_ver])
 
 AC_INIT([libucl],[ucl_version],[https://github.com/vstakhov/libucl],[libucl])
@@ -47,6 +47,7 @@ AC_CHECK_HEADERS_ONCE([libgen.h])
 AC_CHECK_HEADERS_ONCE([stdio.h])
 AC_CHECK_HEADERS_ONCE([float.h])
 AC_CHECK_HEADERS_ONCE([math.h])
+AC_CHECK_HEADERS_ONCE([endian.h sys/endian.h machine/endian.h])
 
 dnl Example of default-disabled feature
 AC_ARG_ENABLE([urls], AS_HELP_STRING([--enable-urls], 

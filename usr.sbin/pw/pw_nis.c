@@ -30,6 +30,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/types.h>
+
 #include <err.h>
 #include <pwd.h>
 #include <libutil.h>
@@ -43,6 +44,7 @@ pw_nisupdate(const char * path, struct passwd * pwd, char const * user)
 	struct passwd *pw = NULL;
 	struct passwd *old_pw = NULL;
 
+	printf("===> %s\n", path);
 	if (pwd != NULL)
 		pw = pw_dup(pwd);
 

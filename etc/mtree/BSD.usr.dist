@@ -19,7 +19,7 @@
         aout
         ..
         clang
-            3.6.1
+            3.7.0
                 include
                 ..
                 lib
@@ -38,11 +38,9 @@
         ..
         i18n
         ..
-    ..
-    lib32
-        dtrace
-        ..
-        i18n
+        libxo
+            encoder
+            ..
         ..
     ..
     libdata
@@ -186,12 +184,6 @@
             atm
             ..
             legal
-                intel_ipw
-                ..
-                intel_iwi
-                ..
-                intel_wpi
-                ..
             ..
             llvm
                 clang
@@ -718,6 +710,8 @@
             ja_JP.UTF-8
             ..
             ja_JP.eucJP
+            ..
+            kk_Cyrl_KZ.UTF-8
             ..
             kk_KZ.PT154
             ..

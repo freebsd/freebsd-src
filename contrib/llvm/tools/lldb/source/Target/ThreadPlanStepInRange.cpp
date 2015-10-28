@@ -13,8 +13,6 @@
 // C++ Includes
 // Other libraries and framework includes
 // Project includes
-
-#include "lldb/lldb-private-log.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Stream.h"
@@ -526,6 +524,7 @@ ThreadPlanStepInRange::DoPlanExplainsStop (Event *event_ptr)
 bool
 ThreadPlanStepInRange::DoWillResume (lldb::StateType resume_state, bool current_plan)
 {
+    m_virtual_step = false;
     if (resume_state == eStateStepping && current_plan)
     {
         // See if we are about to step over a virtual inlined call.

@@ -65,6 +65,27 @@ svn_error_t *
 svn_rangelist__combine_adjacent_ranges(svn_rangelist_t *rangelist,
                                        apr_pool_t *scratch_pool);
 
+/** Canonicalize the @a rangelist: sort the ranges, and combine adjacent or
+ * overlapping ranges into single ranges where possible.
+ *
+ * If overlapping ranges have different inheritability, return an error.
+ *
+ * Modify @a rangelist in place. Use @a scratch_pool for temporary
+ * allocations.
+ */
+svn_error_t *
+svn_rangelist__canonicalize(svn_rangelist_t *rangelist,
+                            apr_pool_t *scratch_pool);
+
+/** Canonicalize the revision range lists in the @a mergeinfo.
+ *
+ * Modify @a mergeinfo in place. Use @a scratch_pool for temporary
+ * allocations.
+ */
+svn_error_t *
+svn_mergeinfo__canonicalize_ranges(svn_mergeinfo_t mergeinfo,
+                                   apr_pool_t *scratch_pool);
+
 /* Set inheritability of all rangelists in MERGEINFO to INHERITABLE.
    If MERGEINFO is NULL do nothing.  If a rangelist in MERGEINFO is
    NULL leave it alone. */
@@ -98,13 +119,13 @@ svn_mergeinfo__equals(svn_boolean_t *is_equal,
                       svn_boolean_t consider_inheritance,
                       apr_pool_t *pool);
 
-/* Examine MERGEINFO, removing all paths from the hash which map to
-   empty rangelists.  POOL is used only to allocate the apr_hash_index_t
-   iterator.  Returns TRUE if any paths were removed and FALSE if none were
+/* Remove all paths from MERGEINFO which map to empty rangelists.
+
+   Return TRUE if any paths were removed and FALSE if none were
    removed or MERGEINFO is NULL. */
 svn_boolean_t
 svn_mergeinfo__remove_empty_rangelists(svn_mergeinfo_t mergeinfo,
-                                       apr_pool_t *pool);
+                                       apr_pool_t *scratch_pool);
 
 /* Make a shallow (ie, mergeinfos are not duped, or altered at all;
    keys share storage) copy of IN_CATALOG in *OUT_CATALOG, removing

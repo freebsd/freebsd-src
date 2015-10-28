@@ -29,13 +29,11 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <err.h>
 #include <grp.h>
 #include <libutil.h>
-#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/param.h>
 
 #include "pwupd.h"
 

@@ -1583,15 +1583,8 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 	 * If configured to loop back multicasts by default,
 	 * loop back a copy now.
 	 */
-	if (in6_mcast_loop) {
-		struct sockaddr_in6 dst6;
-
-		bzero(&dst6, sizeof(dst6));
-		dst6.sin6_len = sizeof(struct sockaddr_in6);
-		dst6.sin6_family = AF_INET6;
-		dst6.sin6_addr = ip6->ip6_dst;
-		ip6_mloopback(ifp, m, &dst6);
-	}
+	if (in6_mcast_loop)
+		ip6_mloopback(ifp, m);
 
 	/*
 	 * Put the packet into the sending queue of the outgoing interface

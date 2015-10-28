@@ -130,10 +130,9 @@ CGCXXABI::EmitNullMemberPointer(const MemberPointerType *MPT) {
   return GetBogusMemberPointer(QualType(MPT, 0));
 }
 
-llvm::Constant *CGCXXABI::EmitMemberPointer(const CXXMethodDecl *MD) {
-  return GetBogusMemberPointer(
-                         CGM.getContext().getMemberPointerType(MD->getType(),
-                                         MD->getParent()->getTypeForDecl()));
+llvm::Constant *CGCXXABI::EmitMemberFunctionPointer(const CXXMethodDecl *MD) {
+  return GetBogusMemberPointer(CGM.getContext().getMemberPointerType(
+      MD->getType(), MD->getParent()->getTypeForDecl()));
 }
 
 llvm::Constant *CGCXXABI::EmitMemberDataPointer(const MemberPointerType *MPT,
@@ -301,4 +300,11 @@ CGCXXABI::EmitCtorCompleteObjectHandler(CodeGenFunction &CGF,
 
 bool CGCXXABI::NeedsVTTParameter(GlobalDecl GD) {
   return false;
+}
+
+llvm::CallInst *
+CGCXXABI::emitTerminateForUnexpectedException(CodeGenFunction &CGF,
+                                              llvm::Value *Exn) {
+  // Just call std::terminate and ignore the violating exception.
+  return CGF.EmitNounwindRuntimeCall(CGF.CGM.getTerminateFn());
 }

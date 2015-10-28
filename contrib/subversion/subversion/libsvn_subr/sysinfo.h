@@ -62,6 +62,17 @@ const apr_array_header_t *svn_sysinfo__linked_libs(apr_pool_t *pool);
  */
 const apr_array_header_t *svn_sysinfo__loaded_libs(apr_pool_t *pool);
 
+#ifdef WIN32
+/* Obtain the Windows version information as OSVERSIONINFOEXW structure.
+ *
+ * !!! Unlike other apis the caller is expected to pre-allocate the buffer
+ * !!! to allow using this api from the crash handler.
+ */
+svn_boolean_t
+svn_sysinfo___fill_windows_version(OSVERSIONINFOEXW *version_info);
+#endif
+
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

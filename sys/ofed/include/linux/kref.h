@@ -2,7 +2,8 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013 François Tigeot
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,6 +26,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 #ifndef _LINUX_KREF_H_
 #define _LINUX_KREF_H_
@@ -32,33 +35,56 @@
 #include <sys/types.h>
 #include <sys/refcount.h>
 
+#include <asm/atomic.h>
+
 struct kref {
-        volatile u_int count;
+	atomic_t refcount;
 };
 
 static inline void
 kref_init(struct kref *kref)
 {
 
-	refcount_init(&kref->count, 1);
+	refcount_init(&kref->refcount.counter, 1);
 }
 
 static inline void
 kref_get(struct kref *kref)
 {
 
-	refcount_acquire(&kref->count);
+	refcount_acquire(&kref->refcount.counter);
 }
 
 static inline int
 kref_put(struct kref *kref, void (*rel)(struct kref *kref))
 {
 
-	if (refcount_release(&kref->count)) {
+	if (refcount_release(&kref->refcount.counter)) {
 		rel(kref);
 		return 1;
 	}
 	return 0;
+}
+
+static inline int
+kref_sub(struct kref *kref, unsigned int count,
+    void (*rel)(struct kref *kref))
+{
+
+	while (count--) {
+		if (refcount_release(&kref->refcount.counter)) {
+			rel(kref);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static inline int __must_check
+kref_get_unless_zero(struct kref *kref)
+{
+
+	return atomic_add_unless(&kref->refcount, 1, 0);
 }
 
 #endif /* _LINUX_KREF_H_ */

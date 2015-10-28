@@ -51,6 +51,11 @@ FBSD_1.3 {
 	__nallocm;
 };
 
+FBSD_1.4 {
+	sdallocx;
+	__sdallocx;
+};
+
 FBSDprivate_1.0 {
 	_malloc_thread_cleanup;
 	_malloc_prefork;

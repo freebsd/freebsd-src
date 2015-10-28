@@ -447,25 +447,55 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 		break;
 	case ATTR_MANUFACTURER:
 		attr->manufacturer = pos;
-		attr->manufacturer_len = len;
+		if (len > WPS_MANUFACTURER_MAX_LEN)
+			attr->manufacturer_len = WPS_MANUFACTURER_MAX_LEN;
+		else
+			attr->manufacturer_len = len;
 		break;
 	case ATTR_MODEL_NAME:
 		attr->model_name = pos;
-		attr->model_name_len = len;
+		if (len > WPS_MODEL_NAME_MAX_LEN)
+			attr->model_name_len = WPS_MODEL_NAME_MAX_LEN;
+		else
+			attr->model_name_len = len;
 		break;
 	case ATTR_MODEL_NUMBER:
 		attr->model_number = pos;
-		attr->model_number_len = len;
+		if (len > WPS_MODEL_NUMBER_MAX_LEN)
+			attr->model_number_len = WPS_MODEL_NUMBER_MAX_LEN;
+		else
+			attr->model_number_len = len;
 		break;
 	case ATTR_SERIAL_NUMBER:
 		attr->serial_number = pos;
-		attr->serial_number_len = len;
+		if (len > WPS_SERIAL_NUMBER_MAX_LEN)
+			attr->serial_number_len = WPS_SERIAL_NUMBER_MAX_LEN;
+		else
+			attr->serial_number_len = len;
 		break;
 	case ATTR_DEV_NAME:
+		if (len > WPS_DEV_NAME_MAX_LEN) {
+			wpa_printf(MSG_DEBUG,
+				   "WPS: Ignore too long Device Name (len=%u)",
+				   len);
+			break;
+		}
 		attr->dev_name = pos;
 		attr->dev_name_len = len;
 		break;
 	case ATTR_PUBLIC_KEY:
+		/*
+		 * The Public Key attribute is supposed to be exactly 192 bytes
+		 * in length. Allow couple of bytes shorter one to try to
+		 * interoperate with implementations that do not use proper
+		 * zero-padding.
+		 */
+		if (len < 190 || len > 192) {
+			wpa_printf(MSG_DEBUG,
+				   "WPS: Ignore Public Key with unexpected length %u",
+				   len);
+			break;
+		}
 		attr->public_key = pos;
 		attr->public_key_len = len;
 		break;
@@ -485,6 +515,11 @@ static int wps_set_attr(struct wps_parse_attr *attr, u16 type,
 		attr->num_cred++;
 		break;
 	case ATTR_SSID:
+		if (len > SSID_MAX_LEN) {
+			wpa_printf(MSG_DEBUG,
+				   "WPS: Ignore too long SSID (len=%u)", len);
+			break;
+		}
 		attr->ssid = pos;
 		attr->ssid_len = len;
 		break;

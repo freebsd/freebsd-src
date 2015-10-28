@@ -1081,9 +1081,19 @@ vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr, int ahead)
 				if (m->valid != VM_PAGE_BITS_ALL ||
 				    vm_page_busied(m))
 					continue;
+
+				/*
+				 * Don't clear PGA_REFERENCED, since it would
+				 * likely represent a reference by a different
+				 * process.
+				 *
+				 * Typically, at this point, prefetched pages
+				 * are still in the inactive queue.  Only
+				 * pages that triggered page faults are in the
+				 * active queue.
+				 */
 				vm_page_lock(m);
-				if (m->hold_count == 0 && m->wire_count == 0)
-					vm_page_advise(m, MADV_DONTNEED);
+				vm_page_deactivate(m);
 				vm_page_unlock(m);
 			}
 		}

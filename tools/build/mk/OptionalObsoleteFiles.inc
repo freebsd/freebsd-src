@@ -155,6 +155,7 @@ OLD_FILES+=usr/share/man/man8/authpf-noip.8.gz
 OLD_FILES+=etc/autofs/include_ldap
 OLD_FILES+=etc/autofs/special_hosts
 OLD_FILES+=etc/autofs/special_media
+OLD_FILES+=etc/autofs/special_noauto
 OLD_FILES+=etc/autofs/special_null
 OLD_FILES+=etc/auto_master
 OLD_FILES+=etc/rc.d/automount
@@ -172,6 +173,10 @@ OLD_DIRS+=etc/autofs
 .endif
 
 .if ${MK_BHYVE} == no
+OLD_FILES+=usr/lib/libvmmapi.a
+OLD_FILES+=usr/lib/libvmmapi.so
+OLD_LIBS+=usr/lib/libvmmapi.so.5
+OLD_FILES+=usr/include/vmmapi.h
 OLD_FILES+=usr/sbin/bhyve
 OLD_FILES+=usr/sbin/bhyvectl
 OLD_FILES+=usr/sbin/bhyveload
@@ -184,10 +189,192 @@ OLD_DIRS+=usr/share/examples/bhyve
 .if ${MK_BINUTILS} == no
 OLD_FILES+=usr/bin/as
 OLD_FILES+=usr/bin/ld
-.if ${MK_ELFTOOLCHAIN_TOOLS} != no && ${MK_ELFCOPY_AS_OBJCOPY} == no
+.if ${MK_ELFCOPY_AS_OBJCOPY} == no
 OLD_FILES+=usr/bin/objcopy
 .endif
 OLD_FILES+=usr/bin/objdump
+OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.x
+OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xbn
+OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xc
+OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xd
+OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xdc
+OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xdw
+OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xn
+OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xr
+OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xs
+OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xsc
+OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xsw
+OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xu
+OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xw
+OLD_FILES+=usr/libdata/ldscripts/armelfb_fbsd.x
+OLD_FILES+=usr/libdata/ldscripts/armelfb_fbsd.xbn
+OLD_FILES+=usr/libdata/ldscripts/armelfb_fbsd.xc
+OLD_FILES+=usr/libdata/ldscripts/armelfb_fbsd.xd
+OLD_FILES+=usr/libdata/ldscripts/armelfb_fbsd.xdc
+OLD_FILES+=usr/libdata/ldscripts/armelfb_fbsd.xdw
+OLD_FILES+=usr/libdata/ldscripts/armelfb_fbsd.xn
+OLD_FILES+=usr/libdata/ldscripts/armelfb_fbsd.xr
+OLD_FILES+=usr/libdata/ldscripts/armelfb_fbsd.xs
+OLD_FILES+=usr/libdata/ldscripts/armelfb_fbsd.xsc
+OLD_FILES+=usr/libdata/ldscripts/armelfb_fbsd.xsw
+OLD_FILES+=usr/libdata/ldscripts/armelfb_fbsd.xu
+OLD_FILES+=usr/libdata/ldscripts/armelfb_fbsd.xw
+OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.x
+OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xbn
+OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xc
+OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xd
+OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xdc
+OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xdw
+OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xn
+OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xr
+OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xs
+OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xsc
+OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xsw
+OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xu
+OLD_FILES+=usr/libdata/ldscripts/elf32_sparc.xw
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmip_fbsd.x
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmip_fbsd.xbn
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmip_fbsd.xc
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmip_fbsd.xd
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmip_fbsd.xdc
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmip_fbsd.xdw
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmip_fbsd.xn
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmip_fbsd.xr
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmip_fbsd.xs
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmip_fbsd.xsc
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmip_fbsd.xsw
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmip_fbsd.xu
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmip_fbsd.xw
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmipn32_fbsd.x
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmipn32_fbsd.xbn
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmipn32_fbsd.xc
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmipn32_fbsd.xd
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmipn32_fbsd.xdc
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmipn32_fbsd.xdw
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmipn32_fbsd.xn
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmipn32_fbsd.xr
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmipn32_fbsd.xs
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmipn32_fbsd.xsc
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmipn32_fbsd.xsw
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmipn32_fbsd.xu
+OLD_FILES+=usr/libdata/ldscripts/elf32btsmipn32_fbsd.xw
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmip_fbsd.x
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmip_fbsd.xbn
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmip_fbsd.xc
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmip_fbsd.xd
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmip_fbsd.xdc
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmip_fbsd.xdw
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmip_fbsd.xn
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmip_fbsd.xr
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmip_fbsd.xs
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmip_fbsd.xsc
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmip_fbsd.xsw
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmip_fbsd.xu
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmip_fbsd.xw
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmipn32_fbsd.x
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmipn32_fbsd.xbn
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmipn32_fbsd.xc
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmipn32_fbsd.xd
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmipn32_fbsd.xdc
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmipn32_fbsd.xdw
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmipn32_fbsd.xn
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmipn32_fbsd.xr
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmipn32_fbsd.xs
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmipn32_fbsd.xsc
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmipn32_fbsd.xsw
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmipn32_fbsd.xu
+OLD_FILES+=usr/libdata/ldscripts/elf32ltsmipn32_fbsd.xw
+OLD_FILES+=usr/libdata/ldscripts/elf32ppc_fbsd.x
+OLD_FILES+=usr/libdata/ldscripts/elf32ppc_fbsd.xbn
+OLD_FILES+=usr/libdata/ldscripts/elf32ppc_fbsd.xc
+OLD_FILES+=usr/libdata/ldscripts/elf32ppc_fbsd.xd
+OLD_FILES+=usr/libdata/ldscripts/elf32ppc_fbsd.xdc
+OLD_FILES+=usr/libdata/ldscripts/elf32ppc_fbsd.xdw
+OLD_FILES+=usr/libdata/ldscripts/elf32ppc_fbsd.xn
+OLD_FILES+=usr/libdata/ldscripts/elf32ppc_fbsd.xr
+OLD_FILES+=usr/libdata/ldscripts/elf32ppc_fbsd.xs
+OLD_FILES+=usr/libdata/ldscripts/elf32ppc_fbsd.xsc
+OLD_FILES+=usr/libdata/ldscripts/elf32ppc_fbsd.xsw
+OLD_FILES+=usr/libdata/ldscripts/elf32ppc_fbsd.xu
+OLD_FILES+=usr/libdata/ldscripts/elf32ppc_fbsd.xw
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.x
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xbn
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xc
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xd
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xdc
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xdw
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xn
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xr
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xs
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xsc
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xsw
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xu
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc.xw
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc_fbsd.x
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc_fbsd.xbn
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc_fbsd.xc
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc_fbsd.xd
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc_fbsd.xdc
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc_fbsd.xdw
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc_fbsd.xn
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc_fbsd.xr
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc_fbsd.xs
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc_fbsd.xsc
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc_fbsd.xsw
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc_fbsd.xu
+OLD_FILES+=usr/libdata/ldscripts/elf64_sparc_fbsd.xw
+OLD_FILES+=usr/libdata/ldscripts/elf64btsmip_fbsd.x
+OLD_FILES+=usr/libdata/ldscripts/elf64btsmip_fbsd.xbn
+OLD_FILES+=usr/libdata/ldscripts/elf64btsmip_fbsd.xc
+OLD_FILES+=usr/libdata/ldscripts/elf64btsmip_fbsd.xd
+OLD_FILES+=usr/libdata/ldscripts/elf64btsmip_fbsd.xdc
+OLD_FILES+=usr/libdata/ldscripts/elf64btsmip_fbsd.xdw
+OLD_FILES+=usr/libdata/ldscripts/elf64btsmip_fbsd.xn
+OLD_FILES+=usr/libdata/ldscripts/elf64btsmip_fbsd.xr
+OLD_FILES+=usr/libdata/ldscripts/elf64btsmip_fbsd.xs
+OLD_FILES+=usr/libdata/ldscripts/elf64btsmip_fbsd.xsc
+OLD_FILES+=usr/libdata/ldscripts/elf64btsmip_fbsd.xsw
+OLD_FILES+=usr/libdata/ldscripts/elf64btsmip_fbsd.xu
+OLD_FILES+=usr/libdata/ldscripts/elf64btsmip_fbsd.xw
+OLD_FILES+=usr/libdata/ldscripts/elf64ltsmip_fbsd.x
+OLD_FILES+=usr/libdata/ldscripts/elf64ltsmip_fbsd.xbn
+OLD_FILES+=usr/libdata/ldscripts/elf64ltsmip_fbsd.xc
+OLD_FILES+=usr/libdata/ldscripts/elf64ltsmip_fbsd.xd
+OLD_FILES+=usr/libdata/ldscripts/elf64ltsmip_fbsd.xdc
+OLD_FILES+=usr/libdata/ldscripts/elf64ltsmip_fbsd.xdw
+OLD_FILES+=usr/libdata/ldscripts/elf64ltsmip_fbsd.xn
+OLD_FILES+=usr/libdata/ldscripts/elf64ltsmip_fbsd.xr
+OLD_FILES+=usr/libdata/ldscripts/elf64ltsmip_fbsd.xs
+OLD_FILES+=usr/libdata/ldscripts/elf64ltsmip_fbsd.xsc
+OLD_FILES+=usr/libdata/ldscripts/elf64ltsmip_fbsd.xsw
+OLD_FILES+=usr/libdata/ldscripts/elf64ltsmip_fbsd.xu
+OLD_FILES+=usr/libdata/ldscripts/elf64ltsmip_fbsd.xw
+OLD_FILES+=usr/libdata/ldscripts/elf64ppc_fbsd.x
+OLD_FILES+=usr/libdata/ldscripts/elf64ppc_fbsd.xbn
+OLD_FILES+=usr/libdata/ldscripts/elf64ppc_fbsd.xc
+OLD_FILES+=usr/libdata/ldscripts/elf64ppc_fbsd.xd
+OLD_FILES+=usr/libdata/ldscripts/elf64ppc_fbsd.xdc
+OLD_FILES+=usr/libdata/ldscripts/elf64ppc_fbsd.xdw
+OLD_FILES+=usr/libdata/ldscripts/elf64ppc_fbsd.xn
+OLD_FILES+=usr/libdata/ldscripts/elf64ppc_fbsd.xr
+OLD_FILES+=usr/libdata/ldscripts/elf64ppc_fbsd.xs
+OLD_FILES+=usr/libdata/ldscripts/elf64ppc_fbsd.xsc
+OLD_FILES+=usr/libdata/ldscripts/elf64ppc_fbsd.xsw
+OLD_FILES+=usr/libdata/ldscripts/elf64ppc_fbsd.xu
+OLD_FILES+=usr/libdata/ldscripts/elf64ppc_fbsd.xw
+OLD_FILES+=usr/libdata/ldscripts/elf_i386_fbsd.x
+OLD_FILES+=usr/libdata/ldscripts/elf_i386_fbsd.xbn
+OLD_FILES+=usr/libdata/ldscripts/elf_i386_fbsd.xc
+OLD_FILES+=usr/libdata/ldscripts/elf_i386_fbsd.xd
+OLD_FILES+=usr/libdata/ldscripts/elf_i386_fbsd.xdc
+OLD_FILES+=usr/libdata/ldscripts/elf_i386_fbsd.xdw
+OLD_FILES+=usr/libdata/ldscripts/elf_i386_fbsd.xn
+OLD_FILES+=usr/libdata/ldscripts/elf_i386_fbsd.xr
+OLD_FILES+=usr/libdata/ldscripts/elf_i386_fbsd.xs
+OLD_FILES+=usr/libdata/ldscripts/elf_i386_fbsd.xsc
+OLD_FILES+=usr/libdata/ldscripts/elf_i386_fbsd.xsw
+OLD_FILES+=usr/libdata/ldscripts/elf_i386_fbsd.xu
+OLD_FILES+=usr/libdata/ldscripts/elf_i386_fbsd.xw
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.x
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xbn
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xc
@@ -203,7 +390,7 @@ OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xu
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xw
 OLD_FILES+=usr/share/man/man1/as.1.gz
 OLD_FILES+=usr/share/man/man1/ld.1.gz
-.if ${MK_ELFTOOLCHAIN_TOOLS} != no && ${MK_ELFCOPY_AS_OBJCOPY} == no
+.if ${MK_ELFCOPY_AS_OBJCOPY} == no
 OLD_FILES+=usr/share/man/man1/objcopy.1.gz
 .endif
 OLD_FILES+=usr/share/man/man1/objdump.1.gz
@@ -727,7 +914,6 @@ OLD_LIBS+=lib/libuutil.so.2
 OLD_FILES+=usr/bin/ctfconvert
 OLD_FILES+=usr/bin/ctfdump
 OLD_FILES+=usr/bin/ctfmerge
-OLD_FILES+=usr/bin/sgsmsg
 OLD_FILES+=usr/lib/dtrace/drti.o
 OLD_FILES+=usr/lib/dtrace/errno.d
 OLD_FILES+=usr/lib/dtrace/io.d
@@ -858,66 +1044,77 @@ OLD_FILES+=usr/bin/clang++
 OLD_FILES+=usr/bin/clang-cpp
 OLD_FILES+=usr/bin/clang-tblgen
 OLD_FILES+=usr/bin/tblgen
-OLD_FILES+=usr/lib/clang/3.6.1/include/__stddef_max_align_t.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_aes.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_pclmul.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/adxintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/altivec.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/ammintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/arm_acle.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/arm_neon.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/avx2intrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/avx512bwintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/avx512erintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/avx512fintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/avx512vlbwintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/avx512vlintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/avxintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/bmi2intrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/bmiintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/cpuid.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/emmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/f16cintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/fma4intrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/fmaintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/ia32intrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/immintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/lzcntintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/mm3dnow.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/mm_malloc.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/mmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/module.modulemap
-OLD_FILES+=usr/lib/clang/3.6.1/include/nmmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/pmmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/popcntintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/prfchwintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/rdseedintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/rtmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/shaintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/smmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/tbmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/tmmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/wmmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/x86intrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/xmmintrin.h
-OLD_FILES+=usr/lib/clang/3.6.1/include/xopintrin.h
-OLD_DIRS+=usr/lib/clang/3.6.1/include
-OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan-i386.a
-OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan-x86_64.a
-OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan_cxx-i386.a
-OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
-OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.profile-arm.a
-OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.profile-i386.a
-OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.profile-x86_64.a
-OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.san-i386.a
-OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.san-x86_64.a
-OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan-i386.a
-OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan-x86_64.a
-OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan_cxx-i386.a
-OLD_FILES+=usr/lib/clang/3.6.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
-OLD_DIRS+=usr/lib/clang/3.6.1/lib/freebsd
-OLD_DIRS+=usr/lib/clang/3.6.1/lib
-OLD_DIRS+=usr/lib/clang/3.6.1
+OLD_FILES+=usr/lib/clang/3.7.0/include/__stddef_max_align_t.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/__wmmintrin_aes.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/__wmmintrin_pclmul.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/adxintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/altivec.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/ammintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/arm_acle.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/arm_neon.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx2intrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx512bwintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx512cdintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx512dqintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx512erintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx512fintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx512vlbwintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx512vldqintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avx512vlintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/avxintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/bmi2intrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/bmiintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/cpuid.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/cuda_builtin_vars.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/emmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/f16cintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/fma4intrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/fmaintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/fxsrintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/htmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/htmxlintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/ia32intrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/immintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/lzcntintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/mm3dnow.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/mm_malloc.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/mmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/module.modulemap
+OLD_FILES+=usr/lib/clang/3.7.0/include/nmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/pmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/popcntintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/prfchwintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/rdseedintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/rtmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/s390intrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/shaintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/smmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/tbmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/tmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/vadefs.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/vecintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/wmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/x86intrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/xmmintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/xopintrin.h
+OLD_FILES+=usr/lib/clang/3.7.0/include/xtestintrin.h
+OLD_DIRS+=usr/lib/clang/3.7.0/include
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan-i386.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.profile-arm.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.profile-i386.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.profile-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.san-i386.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.san-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.ubsan-i386.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.ubsan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.ubsan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.7.0/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
+OLD_DIRS+=usr/lib/clang/3.7.0/lib/freebsd
+OLD_DIRS+=usr/lib/clang/3.7.0/lib
+OLD_DIRS+=usr/lib/clang/3.7.0
 OLD_DIRS+=usr/lib/clang
 OLD_FILES+=usr/share/doc/llvm/clang/LICENSE.TXT
 OLD_DIRS+=usr/share/doc/llvm/clang
@@ -937,13 +1134,17 @@ OLD_FILES+=usr/bin/lli
 OLD_FILES+=usr/bin/llvm-ar
 OLD_FILES+=usr/bin/llvm-as
 OLD_FILES+=usr/bin/llvm-bcanalyzer
+OLD_FILES+=usr/bin/llvm-cxxdump
 OLD_FILES+=usr/bin/llvm-diff
 OLD_FILES+=usr/bin/llvm-dis
+OLD_FILES+=usr/bin/llvm-dwarfdump
 OLD_FILES+=usr/bin/llvm-extract
 OLD_FILES+=usr/bin/llvm-link
+OLD_FILES+=usr/bin/llvm-lto
 OLD_FILES+=usr/bin/llvm-mc
 OLD_FILES+=usr/bin/llvm-nm
 OLD_FILES+=usr/bin/llvm-objdump
+OLD_FILES+=usr/bin/llvm-pdbdump
 OLD_FILES+=usr/bin/llvm-rtdyld
 OLD_FILES+=usr/bin/llvm-symbolizer
 OLD_FILES+=usr/bin/macho-dump
@@ -956,6 +1157,7 @@ OLD_FILES+=usr/share/man/man1/llvm-as.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-bcanalyzer.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-diff.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-dis.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-dwarfdump.1
 OLD_FILES+=usr/share/man/man1/llvm-extract.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-link.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-nm.1.gz
@@ -1025,9 +1227,6 @@ OLD_DIRS+=usr/include/fs/cuse
 .if ${MK_CXX} == no
 OLD_FILES+=usr/bin/CC
 OLD_FILES+=usr/bin/c++
-.if ${MK_ELFTOOLCHAIN_TOOLS} == no
-OLD_FILES+=usr/bin/c++filt
-.endif
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/libexec/cc1plus
 .endif
@@ -1650,27 +1849,6 @@ OLD_FILES+=usr/share/nls/ru_RU.KOI8-R/ee.cat
 OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/ee.cat
 .endif
 
-.if ${MK_ELFTOOLCHAIN_TOOLS} == no || \
-    (${MK_ELFTOOLCHAIN_TOOLS} != no && ${MK_ELFCOPY_AS_OBJCOPY} != no)
-OLD_FILES+=usr/bin/elfcopy
-OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
-.endif
-
-.if ${MK_ELFTOOLCHAIN_TOOLS} == no && ${MK_BINUTILS} == no
-OLD_FILES+=usr/bin/addr2line
-OLD_FILES+=usr/bin/nm
-OLD_FILES+=usr/bin/readelf
-OLD_FILES+=usr/bin/size
-OLD_FILES+=usr/bin/strings
-OLD_FILES+=usr/bin/strip
-OLD_FILES+=usr/share/man/man1/addr2line.1.gz
-OLD_FILES+=usr/share/man/man1/nm.1.gz
-OLD_FILES+=usr/share/man/man1/readelf.1.gz
-OLD_FILES+=usr/share/man/man1/size.1.gz
-OLD_FILES+=usr/share/man/man1/strings.1.gz
-OLD_FILES+=usr/share/man/man1/strip.1.gz
-.endif
-
 #.if ${MK_EXAMPLES} == no
 # to be filled in
 #.endif
@@ -1753,9 +1931,6 @@ OLD_FILES+=usr/share/man/man8/unstr.8.gz
 .endif
 
 .if ${MK_GCC} == no
-.if ${MK_ELFTOOLCHAIN_TOOLS} == no
-OLD_FILES+=usr/bin/c++filt
-.endif
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/bin/gcc
 OLD_FILES+=usr/bin/gcov
@@ -3793,9 +3968,34 @@ OLD_FILES+=usr/share/man/man5/keymap.5.gz
 OLD_FILES+=usr/share/man/man8/moused.8.gz
 .endif
 
-#.if ${MK_LIB32} == no
-# to be filled in
-#.endif
+.if ${MK_LIB32} == no
+OLD_FILES+=etc/mtree/BSD.lib32.dist
+OLD_FILES+=libexec/ld-elf32.so.1
+.  if exists(${DESTDIR}/usr/lib32)
+LIB32_DIRS!=find ${DESTDIR}/usr/lib32 -type d \
+    | sed -e 's,^${DESTDIR}/,,'; echo
+LIB32_FILES!=find ${DESTDIR}/usr/lib32 \! -type d \
+    \! -name "lib*.so*" | sed -e 's,^${DESTDIR}/,,'; echo
+LIB32_LIBS!=find ${DESTDIR}/usr/lib32 \! -type d \
+    -name "lib*.so*" | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_DIRS+=${LIB32_DIRS}
+OLD_FILES+=${LIB32_FILES}
+OLD_LIBS+=${LIB32_LIBS}
+.  endif
+.  if ${MK_DEBUG_FILES} == no
+.    if exists(${DESTDIR}/usr/lib/debug/usr/lib32)
+DEBUG_LIB32_DIRS!=find ${DESTDIR}/usr/lib/debug/usr/lib32 -type d \
+    | sed -e 's,^${DESTDIR}/,,'; echo
+DEBUG_LIB32_FILES!=find ${DESTDIR}/usr/lib/debug/usr/lib32 \! -type d \
+    \! -name "lib*.so*" | sed -e 's,^${DESTDIR}/,,'; echo
+DEBUG_LIB32_LIBS!=find ${DESTDIR}/usr/lib/debug/usr/lib32 \! -type d \
+    -name "lib*.so*" | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_DIRS+=${DEBUG_LIB32_DIRS}
+OLD_FILES+=${DEBUG_LIB32_FILES}
+OLD_LIBS+=${DEBUG_LIB32_LIBS}
+.    endif
+.  endif
+.endif
 
 .if ${MK_LIBCPLUSPLUS} == no
 OLD_LIBS+=lib/libcxxrt.so.1
@@ -3821,7 +4021,7 @@ OLD_FILES+=usr/include/c++/v1/__sso_allocator
 OLD_FILES+=usr/include/c++/v1/__std_stream
 OLD_FILES+=usr/include/c++/v1/__tree
 OLD_FILES+=usr/include/c++/v1/__tuple
-OLD_FILES+=usr/include/c++/v1/__tuple_03
+OLD_FILES+=usr/include/c++/v1/__undef___deallocate
 OLD_FILES+=usr/include/c++/v1/__undef_min_max
 OLD_FILES+=usr/include/c++/v1/algorithm
 OLD_FILES+=usr/include/c++/v1/array
@@ -3860,9 +4060,14 @@ OLD_FILES+=usr/include/c++/v1/cxxabi.h
 OLD_FILES+=usr/include/c++/v1/deque
 OLD_FILES+=usr/include/c++/v1/exception
 OLD_FILES+=usr/include/c++/v1/experimental/__config
+OLD_FILES+=usr/include/c++/v1/experimental/chrono
+OLD_FILES+=usr/include/c++/v1/experimental/dynarray
 OLD_FILES+=usr/include/c++/v1/experimental/dynarray
 OLD_FILES+=usr/include/c++/v1/experimental/optional
+OLD_FILES+=usr/include/c++/v1/experimental/ratio
 OLD_FILES+=usr/include/c++/v1/experimental/string_view
+OLD_FILES+=usr/include/c++/v1/experimental/system_error
+OLD_FILES+=usr/include/c++/v1/experimental/tuple
 OLD_FILES+=usr/include/c++/v1/experimental/type_traits
 OLD_FILES+=usr/include/c++/v1/experimental/utility
 OLD_FILES+=usr/include/c++/v1/ext/__hash
@@ -4021,6 +4226,7 @@ OLD_FILES+=usr/lib32/libcxxrt.a
 OLD_FILES+=usr/lib32/libcxxrt.so
 OLD_LIBS+=usr/lib32/libcxxrt.so.1
 OLD_FILES+=usr/lib32/libcxxrt_p.a
+OLD_DIRS+=usr/include/c++/v1/tr1
 OLD_DIRS+=usr/include/c++/v1/experimental
 OLD_DIRS+=usr/include/c++/v1/ext
 OLD_DIRS+=usr/include/c++/v1
@@ -6462,6 +6668,7 @@ OLD_FILES+=usr/share/sendmail/cf/feature/allmasquerade.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/always_add_domain.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/authinfo.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/badmx.m4
+OLD_FILES+=usr/share/sendmail/cf/feature/bcc.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/bestmx_is_local.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/bitdomain.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/blacklist_recipients.m4
@@ -6489,9 +6696,11 @@ OLD_FILES+=usr/share/sendmail/cf/feature/msp.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/mtamark.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/no_default_msa.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/nocanonify.m4
+OLD_FILES+=usr/share/sendmail/cf/feature/nopercenthack.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/notsticky.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/nouucp.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/nullclient.m4
+OLD_FILES+=usr/share/sendmail/cf/feature/prefixmod.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/preserve_local_plus_detail.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/preserve_luser_host.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/promiscuous_relay.m4
@@ -6506,6 +6715,7 @@ OLD_FILES+=usr/share/sendmail/cf/feature/relay_mail_from.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/require_rdns.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/smrsh.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/stickyhost.m4
+OLD_FILES+=usr/share/sendmail/cf/feature/tls_session_features.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/use_client_ptr.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/use_ct_file.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/use_cw_file.m4
@@ -6514,6 +6724,7 @@ OLD_FILES+=usr/share/sendmail/cf/feature/virtuser_entire_domain.m4
 OLD_FILES+=usr/share/sendmail/cf/feature/virtusertable.m4
 OLD_DIRS+=usr/share/sendmail/cf/feature
 OLD_FILES+=usr/share/sendmail/cf/hack/cssubdomain.m4
+OLD_FILES+=usr/share/sendmail/cf/hack/xconnect.m4
 OLD_DIRS+=usr/share/sendmail/cf/hack
 OLD_FILES+=usr/share/sendmail/cf/m4/cf.m4
 OLD_FILES+=usr/share/sendmail/cf/m4/cfhead.m4
@@ -7527,9 +7738,26 @@ OLD_FILES+=usr/share/man/man1/colcrt.1.gz
 OLD_FILES+=usr/share/man/man1/ul.1.gz
 .endif
 
-#.if ${MK_TOOLCHAIN} == no
-# to be filled in
-#.endif
+.if ${MK_TOOLCHAIN} == no
+OLD_FILES+=usr/bin/addr2line
+OLD_FILES+=usr/bin/c++filt
+OLD_FILES+=usr/bin/nm
+OLD_FILES+=usr/bin/readelf
+OLD_FILES+=usr/bin/size
+OLD_FILES+=usr/bin/strings
+OLD_FILES+=usr/bin/strip
+OLD_FILES+=usr/share/man/man1/addr2line.1.gz
+OLD_FILES+=usr/share/man/man1/c++filt.1.gz
+OLD_FILES+=usr/share/man/man1/nm.1.gz
+OLD_FILES+=usr/share/man/man1/readelf.1.gz
+OLD_FILES+=usr/share/man/man1/size.1.gz
+OLD_FILES+=usr/share/man/man1/strings.1.gz
+OLD_FILES+=usr/share/man/man1/strip.1.gz
+.endif
+.if ${MK_TOOLCHAIN} == no || ${MK_ELFCOPY_AS_OBJCOPY} != no
+OLD_FILES+=usr/bin/elfcopy
+OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
+.endif
 
 .if ${MK_UNBOUND} == no
 OLD_FILES+=etc/rc.d/local_unbound

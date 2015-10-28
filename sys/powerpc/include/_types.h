@@ -128,7 +128,11 @@ typedef	__uint64_t	__vm_size_t;
 #else
 typedef	__uint32_t	__u_register_t;
 typedef	__uint32_t	__vm_offset_t;
+#ifdef BOOKE
+typedef	__uint64_t	__vm_paddr_t;
+#else
 typedef	__uint32_t	__vm_paddr_t;
+#endif
 typedef	__uint32_t	__vm_size_t;
 #endif
 typedef	__int64_t	__vm_ooffset_t;

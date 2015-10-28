@@ -94,8 +94,8 @@ showpigs(void)
 	qsort(pt, nproc, sizeof (struct p_times), compar);
 	y = 1;
 	i = nproc;
-	if (i > wnd->_maxy-1)
-		i = wnd->_maxy-1;
+	if (i > getmaxy(wnd)-2)
+		i = getmaxy(wnd)-2;
 	for (k = 0; i > 0 && pt[k].pt_pctcpu > 0.01; i--, y++, k++) {
 		uname = user_from_uid(pt[k].pt_kp->ki_uid, 0);
 		pname = pt[k].pt_kp->ki_comm;

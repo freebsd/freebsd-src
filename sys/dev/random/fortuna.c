@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/random.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -58,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/fortuna.h>
 #else /* !_KERNEL */
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -93,6 +95,11 @@ CTASSERT(RANDOM_FORTUNA_DEFPOOLSIZE <= RANDOM_FORTUNA_MAXPOOLSIZE);
 CTASSERT(RANDOM_BLOCKSIZE == sizeof(uint128_t));
 CTASSERT(RANDOM_KEYSIZE == 2*RANDOM_BLOCKSIZE);
 
+/* Probes for dtrace(1) */
+SDT_PROVIDER_DECLARE(random);
+SDT_PROVIDER_DEFINE(random);
+SDT_PROBE_DEFINE2(random, fortuna, event_processor, debug, "u_int", "struct fs_pool *");
+
 /*
  * This is the beastie that needs protecting. It contains all of the
  * state that we are excited about. Exactly one is instantiated.
@@ -124,9 +131,7 @@ static uint8_t zero_region[RANDOM_ZERO_BLOCKSIZE];
 
 static void random_fortuna_pre_read(void);
 static void random_fortuna_read(uint8_t *, u_int);
-static void random_fortuna_write(uint8_t *, u_int);
-static void random_fortuna_reseed(void);
-static int random_fortuna_seeded(void);
+static bool random_fortuna_seeded(void);
 static void random_fortuna_process_event(struct harvest_event *);
 static void random_fortuna_init_alg(void *);
 static void random_fortuna_deinit_alg(void *);
@@ -139,8 +144,6 @@ struct random_algorithm random_alg_context = {
 	.ra_deinit_alg = random_fortuna_deinit_alg,
 	.ra_pre_read = random_fortuna_pre_read,
 	.ra_read = random_fortuna_read,
-	.ra_write = random_fortuna_write,
-	.ra_reseed = random_fortuna_reseed,
 	.ra_seeded = random_fortuna_seeded,
 	.ra_event_processor = random_fortuna_process_event,
 	.ra_poolcount = RANDOM_FORTUNA_NPOOLS,
@@ -382,16 +385,7 @@ random_fortuna_pre_read(void)
 			} else
 				break;
 		}
-#ifdef RANDOM_DEBUG
-		{
-			u_int j;
-
-			printf("random: reseedcount [%d]", fortuna_state.fs_reseedcount);
-			for (j = 0; j < RANDOM_FORTUNA_NPOOLS; j++)
-				printf(" %X", fortuna_state.fs_pool[j].fsp_length);
-			printf("\n");
-		}
-#endif
+		SDT_PROBE2(random, fortuna, event_processor, debug, fortuna_state.fs_reseedcount, fortuna_state.fs_pool);
 		/* FS&K */
 		random_fortuna_reseed_internal(s, i < RANDOM_FORTUNA_NPOOLS ? i + 1 : RANDOM_FORTUNA_NPOOLS);
 		/* Clean up and secure */
@@ -420,43 +414,7 @@ random_fortuna_read(uint8_t *buf, u_int bytecount)
 	RANDOM_RESEED_UNLOCK();
 }
 
-/* Internal function to hand external entropy to the PRNG. */
-void
-random_fortuna_write(uint8_t *buf, u_int count)
-{
-	static u_int destination = 0;
-	struct harvest_event event;
-	struct randomdev_hash hash;
-	uint32_t entropy_data[RANDOM_KEYSIZE_WORDS], timestamp;
-	int i;
-
-	/* Extra timing here is helpful to scrape scheduler timing entropy */
-	randomdev_hash_init(&hash);
-	timestamp = (uint32_t)get_cyclecount();
-	randomdev_hash_iterate(&hash, &timestamp, sizeof(timestamp));
-	randomdev_hash_iterate(&hash, buf, count);
-	timestamp = (uint32_t)get_cyclecount();
-	randomdev_hash_iterate(&hash, &timestamp, sizeof(timestamp));
-	randomdev_hash_finish(&hash, entropy_data);
-	explicit_bzero(&hash, sizeof(hash));
-	for (i = 0; i < RANDOM_KEYSIZE_WORDS; i += sizeof(event.he_entropy)/sizeof(event.he_entropy[0])) {
-		event.he_somecounter = (uint32_t)get_cyclecount();
-		event.he_size = sizeof(event.he_entropy);
-		event.he_bits = event.he_size/8;
-		event.he_source = RANDOM_CACHED;
-		event.he_destination = destination++; /* Harmless cheating */
-		memcpy(event.he_entropy, entropy_data + i, sizeof(event.he_entropy));
-		random_fortuna_process_event(&event);
-	}
-	explicit_bzero(entropy_data, sizeof(entropy_data));
-}
-
-void
-random_fortuna_reseed(void)
-{
-}
-
-int
+bool
 random_fortuna_seeded(void)
 {
 

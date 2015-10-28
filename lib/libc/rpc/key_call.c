@@ -81,15 +81,14 @@ __FBSDID("$FreeBSD$");
  * implementations of these functions, and to call those in key_call().
  */
 
-cryptkeyres *(*__key_encryptsession_pk_LOCAL)() = 0;
-cryptkeyres *(*__key_decryptsession_pk_LOCAL)() = 0;
-des_block *(*__key_gendes_LOCAL)() = 0;
+cryptkeyres *(*__key_encryptsession_pk_LOCAL)(uid_t, void *arg) = 0;
+cryptkeyres *(*__key_decryptsession_pk_LOCAL)(uid_t, void *arg) = 0;
+des_block *(*__key_gendes_LOCAL)(uid_t, void *) = 0;
 
 static int key_call( u_long, xdrproc_t, void *, xdrproc_t, void *);
 
 int
-key_setsecret(secretkey)
-	const char *secretkey;
+key_setsecret(const char *secretkey)
 {
 	keystatus status;
 
@@ -131,10 +130,7 @@ key_secretkey_is_set(void)
 }
 
 int
-key_encryptsession_pk(remotename, remotekey, deskey)
-	char *remotename;
-	netobj *remotekey;
-	des_block *deskey;
+key_encryptsession_pk(char *remotename, netobj *remotekey, des_block *deskey)
 {
 	cryptkeyarg2 arg;
 	cryptkeyres res;
@@ -155,10 +151,7 @@ key_encryptsession_pk(remotename, remotekey, deskey)
 }
 
 int
-key_decryptsession_pk(remotename, remotekey, deskey)
-	char *remotename;
-	netobj *remotekey;
-	des_block *deskey;
+key_decryptsession_pk(char *remotename, netobj *remotekey, des_block *deskey)
 {
 	cryptkeyarg2 arg;
 	cryptkeyres res;
@@ -179,9 +172,7 @@ key_decryptsession_pk(remotename, remotekey, deskey)
 }
 
 int
-key_encryptsession(remotename, deskey)
-	const char *remotename;
-	des_block *deskey;
+key_encryptsession(const char *remotename, des_block *deskey)
 {
 	cryptkeyarg arg;
 	cryptkeyres res;
@@ -201,9 +192,7 @@ key_encryptsession(remotename, deskey)
 }
 
 int
-key_decryptsession(remotename, deskey)
-	const char *remotename;
-	des_block *deskey;
+key_decryptsession(const char *remotename, des_block *deskey)
 {
 	cryptkeyarg arg;
 	cryptkeyres res;
@@ -223,8 +212,7 @@ key_decryptsession(remotename, deskey)
 }
 
 int
-key_gendes(key)
-	des_block *key;
+key_gendes(des_block *key)
 {
 	if (!key_call((u_long)KEY_GEN, (xdrproc_t)xdr_void, NULL,
 			(xdrproc_t)xdr_des_block, key)) {
@@ -234,8 +222,7 @@ key_gendes(key)
 }
 
 int
-key_setnet(arg)
-struct key_netstarg *arg;
+key_setnet(struct key_netstarg *arg)
 {
 	keystatus status;
 
@@ -254,9 +241,7 @@ struct key_netstarg *arg;
 
 
 int
-key_get_conv(pkey, deskey)
-	char *pkey;
-	des_block *deskey;
+key_get_conv(char *pkey, des_block *deskey)
 {
 	cryptkeyres res;
 
@@ -305,8 +290,7 @@ key_call_init(void)
  * Keep the handle cached.  This call may be made quite often.
  */
 static CLIENT *
-getkeyserv_handle(vers)
-int	vers;
+getkeyserv_handle(int vers)
 {
 	void *localhandle;
 	struct netconfig *nconf;
@@ -429,12 +413,8 @@ int	vers;
 /* returns  0 on failure, 1 on success */
 
 static int
-key_call(proc, xdr_arg, arg, xdr_rslt, rslt)
-	u_long proc;
-	xdrproc_t xdr_arg;
-	void *arg;
-	xdrproc_t xdr_rslt;
-	void *rslt;
+key_call(u_long proc, xdrproc_t xdr_arg, void *arg, xdrproc_t xdr_rslt,
+    void *rslt)
 {
 	CLIENT *clnt;
 	struct timeval wait_time;

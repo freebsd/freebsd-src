@@ -811,7 +811,7 @@ kvp_get_ip_info(int family, char *if_name, int op,
 	int error = 0;
 	char *buffer;
 	size_t buffer_length;
-	struct hv_kvp_ipaddr_value *ip_buffer;
+	struct hv_kvp_ipaddr_value *ip_buffer = NULL;
 	char cidr_mask[5];
 	int weight;
 	int i;

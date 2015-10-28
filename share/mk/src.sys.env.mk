@@ -5,6 +5,12 @@
 # make sure this is defined in a consistent manner
 SRCTOP:= ${.PARSEDIR:tA:H:H}
 
+.if ${.CURDIR} == ${SRCTOP}
+RELDIR = .
+.elif ${.CURDIR:M${SRCTOP}/*}
+RELDIR := ${.CURDIR:S,${SRCTOP}/,,}
+.endif
+
 # site customizations that do not depend on anything!
 SRC_ENV_CONF?= /etc/src-env.conf
 .if !empty(SRC_ENV_CONF) && !target(_src_env_conf_included_)

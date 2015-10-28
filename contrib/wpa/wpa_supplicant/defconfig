@@ -495,3 +495,12 @@ CONFIG_PEERKEY=y
 #
 # External password backend for testing purposes (developer use)
 #CONFIG_EXT_PASSWORD_TEST=y
+
+# Enable Fast Session Transfer (FST)
+#CONFIG_FST=y
+
+# Enable CLI commands for FST testing
+#CONFIG_FST_TEST=y
+
+# OS X builds. This is only for building eapol_test.
+#CONFIG_OSX=y

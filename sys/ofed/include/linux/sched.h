@@ -25,6 +25,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 #ifndef	_LINUX_SCHED_H_
 #define	_LINUX_SCHED_H_
@@ -62,9 +64,12 @@ struct task_struct {
 	int	should_stop;
 };
 
-#define	current			((struct task_struct *)curthread->td_retval[1])
-#define	task_struct_get(x)	(struct task_struct *)(x)->td_retval[1]
-#define	task_struct_set(x, y)	(x)->td_retval[1] = (register_t)(y)
+#define	current			task_struct_get(curthread)
+#define	task_struct_get(x)	((struct task_struct *)(uintptr_t)(x)->td_retval[1])
+#define	task_struct_set(x, y)	(x)->td_retval[1] = (uintptr_t)(y)
+
+/* ensure the task_struct pointer fits into the td_retval[1] field */
+CTASSERT(sizeof(((struct thread *)0)->td_retval[1]) >= sizeof(uintptr_t));
 
 #define	set_current_state(x)						\
 	atomic_store_rel_int((volatile int *)&current->state, (x))
@@ -106,5 +111,16 @@ do {									\
 #define	cond_resched()	if (!cold)	sched_relinquish(curthread)
 
 #define	sched_yield()	sched_relinquish(curthread)
+
+static inline long
+schedule_timeout(signed long timeout)
+{
+	if (timeout < 0)
+		return 0;
+
+	pause("lstim", timeout);
+
+	return 0;
+}
 
 #endif	/* _LINUX_SCHED_H_ */

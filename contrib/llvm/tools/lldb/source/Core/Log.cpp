@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 // C Includes
 #include <stdio.h>
 #include <stdarg.h>
@@ -20,7 +18,6 @@
 
 // Other libraries and framework includes
 // Project includes
-#include "lldb/Core/Debugger.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/StreamFile.h"
@@ -30,8 +27,11 @@
 #include "lldb/Host/ThisThread.h"
 #include "lldb/Host/TimeValue.h"
 #include "lldb/Interpreter/Args.h"
+#include "lldb/Utility/NameMatches.h"
 
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Signals.h"
 using namespace lldb;
 using namespace lldb_private;
 
@@ -77,6 +77,23 @@ Log::GetMask() const
     return m_mask_bits;
 }
 
+void
+Log::PutCString(const char *cstr)
+{
+    Printf("%s", cstr);
+}
+
+//----------------------------------------------------------------------
+// Simple variable argument logging with flags.
+//----------------------------------------------------------------------
+void
+Log::Printf(const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    VAPrintf(format, args);
+    va_end(args);
+}
 
 //----------------------------------------------------------------------
 // All logging eventually boils down to this function call. If we have
@@ -84,7 +101,7 @@ Log::GetMask() const
 // a valid file handle, we also log to the file.
 //----------------------------------------------------------------------
 void
-Log::PrintfWithFlagsVarArg (uint32_t flags, const char *format, va_list args)
+Log::VAPrintf(const char *format, va_list args)
 {
     // Make a copy of our stream shared pointer in case someone disables our
     // log while we are logging and releases the stream
@@ -93,10 +110,6 @@ Log::PrintfWithFlagsVarArg (uint32_t flags, const char *format, va_list args)
     {
         static uint32_t g_sequence_id = 0;
         StreamString header;
-		// Enabling the thread safe logging actually deadlocks right now.
-		// Need to fix this at some point.
-//        static Mutex g_LogThreadedMutex(Mutex::eMutexTypeRecursive);
-//        Mutex::Locker locker (g_LogThreadedMutex);
 
         // Add a sequence ID if requested
         if (m_options.Test (LLDB_LOG_OPTION_PREPEND_SEQUENCE))
@@ -106,7 +119,7 @@ Log::PrintfWithFlagsVarArg (uint32_t flags, const char *format, va_list args)
         if (m_options.Test (LLDB_LOG_OPTION_PREPEND_TIMESTAMP))
         {
             TimeValue now = TimeValue::Now();
-            header.Printf ("%9d.%6.6d ", now.seconds(), now.nanoseconds());
+            header.Printf ("%9d.%09.9d ", now.seconds(), now.nanoseconds());
         }
 
         // Add the process and thread if requested
@@ -123,51 +136,29 @@ Log::PrintfWithFlagsVarArg (uint32_t flags, const char *format, va_list args)
         }
 
         header.PrintfVarArg (format, args);
-        stream_sp->Printf("%s\n", header.GetData());
-        
-        if (m_options.Test (LLDB_LOG_OPTION_BACKTRACE))
-            Host::Backtrace (*stream_sp, 1024);
-        stream_sp->Flush();
+        header.PutCString("\n");
+
+        if (m_options.Test(LLDB_LOG_OPTION_BACKTRACE)) 
+        {
+            std::string back_trace;
+            llvm::raw_string_ostream stream(back_trace);
+            llvm::sys::PrintStackTrace(stream);
+            header.PutCString(back_trace.c_str());
+        }
+
+        if (m_options.Test(LLDB_LOG_OPTION_THREADSAFE))
+        {
+            static Mutex g_LogThreadedMutex(Mutex::eMutexTypeRecursive);
+            Mutex::Locker locker(g_LogThreadedMutex);
+            stream_sp->PutCString(header.GetString().c_str());
+            stream_sp->Flush();
+        }
+        else
+        {
+            stream_sp->PutCString(header.GetString().c_str());
+            stream_sp->Flush();
+        }
     }
-}
-
-
-void
-Log::PutCString (const char *cstr)
-{
-    Printf ("%s", cstr);
-}
-
-
-//----------------------------------------------------------------------
-// Simple variable argument logging with flags.
-//----------------------------------------------------------------------
-void
-Log::Printf(const char *format, ...)
-{
-    va_list args;
-    va_start (args, format);
-    PrintfWithFlagsVarArg (0, format, args);
-    va_end (args);
-}
-
-void
-Log::VAPrintf (const char *format, va_list args)
-{
-    PrintfWithFlagsVarArg (0, format, args);
-}
-
-
-//----------------------------------------------------------------------
-// Simple variable argument logging with flags.
-//----------------------------------------------------------------------
-void
-Log::PrintfWithFlags (uint32_t flags, const char *format, ...)
-{
-    va_list args;
-    va_start (args, format);
-    PrintfWithFlagsVarArg (flags, format, args);
-    va_end (args);
 }
 
 //----------------------------------------------------------------------
@@ -175,15 +166,15 @@ Log::PrintfWithFlags (uint32_t flags, const char *format, ...)
 // a non-zero value.
 //----------------------------------------------------------------------
 void
-Log::Debug (const char *format, ...)
+Log::Debug(const char *format, ...)
 {
-    if (GetOptions().Test(LLDB_LOG_OPTION_DEBUG))
-    {
-        va_list args;
-        va_start (args, format);
-        PrintfWithFlagsVarArg (LLDB_LOG_FLAG_DEBUG, format, args);
-        va_end (args);
-    }
+    if (!GetOptions().Test(LLDB_LOG_OPTION_DEBUG))
+        return;
+
+    va_list args;
+    va_start(args, format);
+    VAPrintf(format, args);
+    va_end(args);
 }
 
 
@@ -192,15 +183,15 @@ Log::Debug (const char *format, ...)
 // a non-zero value.
 //----------------------------------------------------------------------
 void
-Log::DebugVerbose (const char *format, ...)
+Log::DebugVerbose(const char *format, ...)
 {
-    if (GetOptions().AllSet (LLDB_LOG_OPTION_DEBUG | LLDB_LOG_OPTION_VERBOSE))
-    {
-        va_list args;
-        va_start (args, format);
-        PrintfWithFlagsVarArg (LLDB_LOG_FLAG_DEBUG | LLDB_LOG_FLAG_VERBOSE, format, args);
-        va_end (args);
-    }
+    if (!GetOptions().AllSet(LLDB_LOG_OPTION_DEBUG | LLDB_LOG_OPTION_VERBOSE))
+        return;
+
+    va_list args;
+    va_start(args, format);
+    VAPrintf(format, args);
+    va_end(args);
 }
 
 
@@ -208,56 +199,63 @@ Log::DebugVerbose (const char *format, ...)
 // Log only if all of the bits are set
 //----------------------------------------------------------------------
 void
-Log::LogIf (uint32_t bits, const char *format, ...)
+Log::LogIf(uint32_t bits, const char *format, ...)
 {
-    if (m_options.AllSet (bits))
-    {
-        va_list args;
-        va_start (args, format);
-        PrintfWithFlagsVarArg (0, format, args);
-        va_end (args);
-    }
-}
+    if (!m_options.AllSet(bits))
+        return;
 
+    va_list args;
+    va_start(args, format);
+    VAPrintf(format, args);
+    va_end(args);
+}
 
 //----------------------------------------------------------------------
 // Printing of errors that are not fatal.
 //----------------------------------------------------------------------
 void
-Log::Error (const char *format, ...)
+Log::Error(const char *format, ...)
 {
-    char *arg_msg = NULL;
     va_list args;
-    va_start (args, format);
-    ::vasprintf (&arg_msg, format, args);
-    va_end (args);
-
-    if (arg_msg != NULL)
-    {
-        PrintfWithFlags (LLDB_LOG_FLAG_ERROR, "error: %s", arg_msg);
-        free (arg_msg);
-    }
+    va_start(args, format);
+    VAError(format, args);
+    va_end(args);
 }
+
+
+void
+Log::VAError(const char *format, va_list args)
+{
+    char *arg_msg = nullptr;
+    ::vasprintf(&arg_msg, format, args);
+
+    if (arg_msg == nullptr)
+        return;
+
+    Printf("error: %s", arg_msg);
+    free(arg_msg);
+}
+
 
 //----------------------------------------------------------------------
 // Printing of errors that ARE fatal. Exit with ERR exit code
 // immediately.
 //----------------------------------------------------------------------
 void
-Log::FatalError (int err, const char *format, ...)
+Log::FatalError(int err, const char *format, ...)
 {
-    char *arg_msg = NULL;
+    char *arg_msg = nullptr;
     va_list args;
-    va_start (args, format);
-    ::vasprintf (&arg_msg, format, args);
-    va_end (args);
+    va_start(args, format);
+    ::vasprintf(&arg_msg, format, args);
+    va_end(args);
 
-    if (arg_msg != NULL)
+    if (arg_msg != nullptr)
     {
-        PrintfWithFlags (LLDB_LOG_FLAG_ERROR | LLDB_LOG_FLAG_FATAL, "error: %s", arg_msg);
-        ::free (arg_msg);
+        Printf("error: %s", arg_msg);
+        ::free(arg_msg);
     }
-    ::exit (err);
+    ::exit(err);
 }
 
 
@@ -266,15 +264,15 @@ Log::FatalError (int err, const char *format, ...)
 // enabled.
 //----------------------------------------------------------------------
 void
-Log::Verbose (const char *format, ...)
+Log::Verbose(const char *format, ...)
 {
-    if (m_options.Test(LLDB_LOG_OPTION_VERBOSE))
-    {
-        va_list args;
-        va_start (args, format);
-        PrintfWithFlagsVarArg (LLDB_LOG_FLAG_VERBOSE, format, args);
-        va_end (args);
-    }
+    if (!m_options.Test(LLDB_LOG_OPTION_VERBOSE))
+        return;
+
+    va_list args;
+    va_start(args, format);
+    VAPrintf(format, args);
+    va_end(args);
 }
 
 //----------------------------------------------------------------------
@@ -282,40 +280,40 @@ Log::Verbose (const char *format, ...)
 // enabled.
 //----------------------------------------------------------------------
 void
-Log::WarningVerbose (const char *format, ...)
+Log::WarningVerbose(const char *format, ...)
 {
-    if (m_options.Test(LLDB_LOG_OPTION_VERBOSE))
-    {
-        char *arg_msg = NULL;
-        va_list args;
-        va_start (args, format);
-        ::vasprintf (&arg_msg, format, args);
-        va_end (args);
+    if (!m_options.Test(LLDB_LOG_OPTION_VERBOSE))
+        return;
 
-        if (arg_msg != NULL)
-        {
-            PrintfWithFlags (LLDB_LOG_FLAG_WARNING | LLDB_LOG_FLAG_VERBOSE, "warning: %s", arg_msg);
-            free (arg_msg);
-        }
-    }
+    char *arg_msg = nullptr;
+    va_list args;
+    va_start(args, format);
+    ::vasprintf(&arg_msg, format, args);
+    va_end(args);
+
+    if (arg_msg == nullptr)
+        return;
+
+    Printf("warning: %s", arg_msg);
+    free(arg_msg);
 }
 //----------------------------------------------------------------------
 // Printing of warnings that are not fatal.
 //----------------------------------------------------------------------
 void
-Log::Warning (const char *format, ...)
+Log::Warning(const char *format, ...)
 {
-    char *arg_msg = NULL;
+    char *arg_msg = nullptr;
     va_list args;
-    va_start (args, format);
-    ::vasprintf (&arg_msg, format, args);
-    va_end (args);
+    va_start(args, format);
+    ::vasprintf(&arg_msg, format, args);
+    va_end(args);
 
-    if (arg_msg != NULL)
-    {
-        PrintfWithFlags (LLDB_LOG_FLAG_WARNING, "warning: %s", arg_msg);
-        free (arg_msg);
-    }
+    if (arg_msg == nullptr)
+        return;
+
+    Printf("warning: %s", arg_msg);
+    free(arg_msg);
 }
 
 typedef std::map <ConstString, Log::Callbacks> CallbackMap;
@@ -365,6 +363,40 @@ Log::GetLogChannelCallbacks (const ConstString &channel, Log::Callbacks &log_cal
     }
     ::memset (&log_callbacks, 0, sizeof(log_callbacks));
     return false;
+}
+
+bool
+Log::EnableLogChannel(lldb::StreamSP &log_stream_sp,
+                      uint32_t log_options,
+                      const char *channel,
+                      const char **categories,
+                      Stream &error_stream)
+{
+    Log::Callbacks log_callbacks;
+    if (Log::GetLogChannelCallbacks (ConstString(channel), log_callbacks))
+    {
+        log_callbacks.enable (log_stream_sp, log_options, categories, &error_stream);
+        return true;
+    }
+    
+    LogChannelSP log_channel_sp (LogChannel::FindPlugin (channel));
+    if (log_channel_sp)
+    {
+        if (log_channel_sp->Enable (log_stream_sp, log_options, &error_stream, categories))
+        {
+            return true;
+        }
+        else
+        {
+            error_stream.Printf ("Invalid log channel '%s'.\n", channel);
+            return false;
+        }
+    }
+    else
+    {
+        error_stream.Printf ("Invalid log channel '%s'.\n", channel);
+        return false;
+    }
 }
 
 void

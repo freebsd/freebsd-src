@@ -187,6 +187,8 @@ ENTRY(savectx)
 	stmw	%r12,PCB_CONTEXT(%r3)	/* Save the non-volatile GP regs */
 	mfcr	%r4			/* Save the condition register */
 	stw	%r4,PCB_CR(%r3)
+	mflr	%r4			/* Save the link register */
+	stw	%r4,PCB_LR(%r3)
 	blr
 
 /*

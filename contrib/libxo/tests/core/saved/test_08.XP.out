@@ -23,7 +23,7 @@
       </item>
     </contents>
   </data>
-  <data>
+  <data2>
     <contents>
       <item>
         <name key="key">gum</name>
@@ -46,8 +46,8 @@
         <count>17</count>
       </item>
     </contents>
-  </data>
-  <data>
+  </data2>
+  <data3>
     <contents>
       <item>
         <name key="key">gum</name>
@@ -71,8 +71,8 @@
         <test>one</test>
       </item>
     </contents>
-  </data>
-  <data>
+  </data3>
+  <data4>
     <contents>
       <item>
         <name key="key">gum</name>
@@ -161,5 +161,5 @@
         <test>one</test>
       </item>
     </contents>
-  </data>
+  </data4>
 </top>

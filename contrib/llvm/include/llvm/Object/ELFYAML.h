@@ -41,11 +41,19 @@ LLVM_YAML_STRONG_TYPEDEF(uint8_t, ELF_ELFOSABI)
 LLVM_YAML_STRONG_TYPEDEF(uint64_t, ELF_EF)
 LLVM_YAML_STRONG_TYPEDEF(uint32_t, ELF_SHT)
 LLVM_YAML_STRONG_TYPEDEF(uint32_t, ELF_REL)
+LLVM_YAML_STRONG_TYPEDEF(uint8_t, ELF_RSS)
 // Just use 64, since it can hold 32-bit values too.
 LLVM_YAML_STRONG_TYPEDEF(uint64_t, ELF_SHF)
 LLVM_YAML_STRONG_TYPEDEF(uint8_t, ELF_STT)
 LLVM_YAML_STRONG_TYPEDEF(uint8_t, ELF_STV)
 LLVM_YAML_STRONG_TYPEDEF(uint8_t, ELF_STO)
+
+LLVM_YAML_STRONG_TYPEDEF(uint8_t, MIPS_AFL_REG)
+LLVM_YAML_STRONG_TYPEDEF(uint8_t, MIPS_ABI_FP)
+LLVM_YAML_STRONG_TYPEDEF(uint32_t, MIPS_AFL_EXT)
+LLVM_YAML_STRONG_TYPEDEF(uint32_t, MIPS_AFL_ASE)
+LLVM_YAML_STRONG_TYPEDEF(uint32_t, MIPS_AFL_FLAGS1)
+LLVM_YAML_STRONG_TYPEDEF(uint32_t, MIPS_ISA)
 
 // For now, hardcode 64 bits everywhere that 32 or 64 would be needed
 // since 64-bit can hold 32-bit values too.
@@ -71,14 +79,26 @@ struct LocalGlobalWeakSymbols {
   std::vector<Symbol> Global;
   std::vector<Symbol> Weak;
 };
+
+struct SectionOrType {
+  StringRef sectionNameOrType;
+};
+
 struct Section {
-  enum class SectionKind { RawContent, Relocation };
+  enum class SectionKind {
+    Group,
+    RawContent,
+    Relocation,
+    NoBits,
+    MipsABIFlags
+  };
   SectionKind Kind;
   StringRef Name;
   ELF_SHT Type;
   ELF_SHF Flags;
   llvm::yaml::Hex64 Address;
   StringRef Link;
+  StringRef Info;
   llvm::yaml::Hex64 AddressAlign;
   Section(SectionKind Kind) : Kind(Kind) {}
   virtual ~Section();
@@ -91,6 +111,25 @@ struct RawContentSection : Section {
     return S->Kind == SectionKind::RawContent;
   }
 };
+
+struct NoBitsSection : Section {
+  llvm::yaml::Hex64 Size;
+  NoBitsSection() : Section(SectionKind::NoBits) {}
+  static bool classof(const Section *S) {
+    return S->Kind == SectionKind::NoBits;
+  }
+};
+
+struct Group : Section {
+  // Members of a group contain a flag and a list of section indices
+  // that are part of the group.
+  std::vector<SectionOrType> Members;
+  Group() : Section(SectionKind::Group) {}
+  static bool classof(const Section *S) {
+    return S->Kind == SectionKind::Group;
+  }
+};
+
 struct Relocation {
   llvm::yaml::Hex64 Offset;
   int64_t Addend;
@@ -98,13 +137,32 @@ struct Relocation {
   StringRef Symbol;
 };
 struct RelocationSection : Section {
-  StringRef Info;
   std::vector<Relocation> Relocations;
   RelocationSection() : Section(SectionKind::Relocation) {}
   static bool classof(const Section *S) {
     return S->Kind == SectionKind::Relocation;
   }
 };
+
+// Represents .MIPS.abiflags section
+struct MipsABIFlags : Section {
+  llvm::yaml::Hex16 Version;
+  MIPS_ISA ISALevel;
+  llvm::yaml::Hex8 ISARevision;
+  MIPS_AFL_REG GPRSize;
+  MIPS_AFL_REG CPR1Size;
+  MIPS_AFL_REG CPR2Size;
+  MIPS_ABI_FP FpABI;
+  MIPS_AFL_EXT ISAExtension;
+  MIPS_AFL_ASE ASEs;
+  MIPS_AFL_FLAGS1 Flags1;
+  llvm::yaml::Hex32 Flags2;
+  MipsABIFlags() : Section(SectionKind::MipsABIFlags) {}
+  static bool classof(const Section *S) {
+    return S->Kind == SectionKind::MipsABIFlags;
+  }
+};
+
 struct Object {
   FileHeader Header;
   std::vector<std::unique_ptr<Section>> Sections;
@@ -121,6 +179,7 @@ struct Object {
 LLVM_YAML_IS_SEQUENCE_VECTOR(std::unique_ptr<llvm::ELFYAML::Section>)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::ELFYAML::Symbol)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::ELFYAML::Relocation)
+LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::ELFYAML::SectionOrType)
 
 namespace llvm {
 namespace yaml {
@@ -186,6 +245,41 @@ struct ScalarEnumerationTraits<ELFYAML::ELF_REL> {
 };
 
 template <>
+struct ScalarEnumerationTraits<ELFYAML::ELF_RSS> {
+  static void enumeration(IO &IO, ELFYAML::ELF_RSS &Value);
+};
+
+template <>
+struct ScalarEnumerationTraits<ELFYAML::MIPS_AFL_REG> {
+  static void enumeration(IO &IO, ELFYAML::MIPS_AFL_REG &Value);
+};
+
+template <>
+struct ScalarEnumerationTraits<ELFYAML::MIPS_ABI_FP> {
+  static void enumeration(IO &IO, ELFYAML::MIPS_ABI_FP &Value);
+};
+
+template <>
+struct ScalarEnumerationTraits<ELFYAML::MIPS_AFL_EXT> {
+  static void enumeration(IO &IO, ELFYAML::MIPS_AFL_EXT &Value);
+};
+
+template <>
+struct ScalarEnumerationTraits<ELFYAML::MIPS_ISA> {
+  static void enumeration(IO &IO, ELFYAML::MIPS_ISA &Value);
+};
+
+template <>
+struct ScalarBitSetTraits<ELFYAML::MIPS_AFL_ASE> {
+  static void bitset(IO &IO, ELFYAML::MIPS_AFL_ASE &Value);
+};
+
+template <>
+struct ScalarBitSetTraits<ELFYAML::MIPS_AFL_FLAGS1> {
+  static void bitset(IO &IO, ELFYAML::MIPS_AFL_FLAGS1 &Value);
+};
+
+template <>
 struct MappingTraits<ELFYAML::FileHeader> {
   static void mapping(IO &IO, ELFYAML::FileHeader &FileHdr);
 };
@@ -213,6 +307,10 @@ struct MappingTraits<std::unique_ptr<ELFYAML::Section>> {
 template <>
 struct MappingTraits<ELFYAML::Object> {
   static void mapping(IO &IO, ELFYAML::Object &Object);
+};
+
+template <> struct MappingTraits<ELFYAML::SectionOrType> {
+  static void mapping(IO &IO, ELFYAML::SectionOrType &sectionOrType);
 };
 
 } // end namespace yaml

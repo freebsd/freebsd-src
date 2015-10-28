@@ -84,7 +84,7 @@ AcpiUtIsPciRootBridge (
 }
 
 
-#if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP)
+#if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP || defined ACPI_NAMES_APP)
 /*******************************************************************************
  *
  * FUNCTION:    AcpiUtIsAmlTable
@@ -418,7 +418,7 @@ AcpiUtDisplayInitPathname (
     /* Get the full pathname to the node */
 
     Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
-    Status = AcpiNsHandleToPathname (ObjHandle, &Buffer, FALSE);
+    Status = AcpiNsHandleToPathname (ObjHandle, &Buffer, TRUE);
     if (ACPI_FAILURE (Status))
     {
         return;

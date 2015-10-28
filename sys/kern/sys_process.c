@@ -96,7 +96,9 @@ struct ptrace_lwpinfo32 {
 	sigset_t	pl_siglist;	/* LWP pending signal */
 	struct siginfo32 pl_siginfo;	/* siginfo for signal */
 	char	pl_tdname[MAXCOMLEN + 1];	/* LWP name. */
-	int	pl_child_pid;		/* New child pid */
+	pid_t	pl_child_pid;		/* New child pid */
+	u_int		pl_syscall_code;
+	u_int		pl_syscall_narg;
 };
 
 #endif
@@ -441,7 +443,7 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 }
 
 #ifdef COMPAT_FREEBSD32
-static int      
+static int
 ptrace_vm_entry32(struct thread *td, struct proc *p,
     struct ptrace_vm_entry32 *pve32)
 {
@@ -481,6 +483,8 @@ ptrace_lwpinfo_to32(const struct ptrace_lwpinfo *pl,
 	siginfo_to_siginfo32(&pl->pl_siginfo, &pl32->pl_siginfo);
 	strcpy(pl32->pl_tdname, pl->pl_tdname);
 	pl32->pl_child_pid = pl->pl_child_pid;
+	pl32->pl_syscall_code = pl->pl_syscall_code;
+	pl32->pl_syscall_narg = pl->pl_syscall_narg;
 }
 #endif /* COMPAT_FREEBSD32 */
 
@@ -740,12 +744,23 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	 */
 	switch (req) {
 	case PT_TRACE_ME:
-		/* Always legal. */
+		/*
+		 * Always legal, when there is a parent process which
+		 * could trace us.  Otherwise, reject.
+		 */
+		if ((p->p_flag & P_TRACED) != 0) {
+			error = EBUSY;
+			goto fail;
+		}
+		if (p->p_pptr == initproc) {
+			error = EPERM;
+			goto fail;
+		}
 		break;
 
 	case PT_ATTACH:
 		/* Self */
-		if (p->p_pid == td->td_proc->p_pid) {
+		if (p == td->td_proc) {
 			error = EINVAL;
 			goto fail;
 		}
@@ -924,25 +939,29 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			switch (req) {
 			case PT_TO_SCE:
 				p->p_stops |= S_PT_SCE;
-				CTR2(KTR_PTRACE,
-				    "PT_TO_SCE: pid %d, stops = %#x", p->p_pid,
-				    p->p_stops);
+				CTR4(KTR_PTRACE,
+		    "PT_TO_SCE: pid %d, stops = %#x, PC = %#lx, sig = %d",
+				    p->p_pid, p->p_stops,
+				    (u_long)(uintfptr_t)addr, data);
 				break;
 			case PT_TO_SCX:
 				p->p_stops |= S_PT_SCX;
-				CTR2(KTR_PTRACE,
-				    "PT_TO_SCX: pid %d, stops = %#x", p->p_pid,
-				    p->p_stops);
+				CTR4(KTR_PTRACE,
+		    "PT_TO_SCX: pid %d, stops = %#x, PC = %#lx, sig = %d",
+				    p->p_pid, p->p_stops,
+				    (u_long)(uintfptr_t)addr, data);
 				break;
 			case PT_SYSCALL:
 				p->p_stops |= S_PT_SCE | S_PT_SCX;
-				CTR2(KTR_PTRACE,
-				    "PT_SYSCALL: pid %d, stops = %#x", p->p_pid,
-				    p->p_stops);
+				CTR4(KTR_PTRACE,
+		    "PT_SYSCALL: pid %d, stops = %#x, PC = %#lx, sig = %d",
+				    p->p_pid, p->p_stops,
+				    (u_long)(uintfptr_t)addr, data);
 				break;
 			case PT_CONTINUE:
-				CTR1(KTR_PTRACE,
-				    "PT_CONTINUE: pid %d", p->p_pid);
+				CTR3(KTR_PTRACE,
+				    "PT_CONTINUE: pid %d, PC = %#lx, sig = %d",
+				    p->p_pid, (u_long)(uintfptr_t)addr, data);
 				break;
 			}
 			break;
@@ -965,11 +984,12 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 				proc_reparent(p, pp);
 				if (pp == initproc)
 					p->p_sigparent = SIGCHLD;
-				CTR2(KTR_PTRACE,
-				    "PT_DETACH: pid %d reparented to pid %d",
-				    p->p_pid, pp->p_pid);
+				CTR3(KTR_PTRACE,
+			    "PT_DETACH: pid %d reparented to pid %d, sig %d",
+				    p->p_pid, pp->p_pid, data);
 			} else
-				CTR1(KTR_PTRACE, "PT_DETACH: pid %d", p->p_pid);
+				CTR2(KTR_PTRACE, "PT_DETACH: pid %d, sig %d",
+				    p->p_pid, data);
 			p->p_oppid = 0;
 			p->p_stops = 0;
 
@@ -1211,14 +1231,21 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		pl->pl_sigmask = td2->td_sigmask;
 		pl->pl_siglist = td2->td_siglist;
 		strcpy(pl->pl_tdname, td2->td_name);
+		if ((td2->td_dbgflags & (TDB_SCE | TDB_SCX)) != 0) {
+			pl->pl_syscall_code = td2->td_dbg_sc_code;
+			pl->pl_syscall_narg = td2->td_dbg_sc_narg;
+		} else {
+			pl->pl_syscall_code = 0;
+			pl->pl_syscall_narg = 0;
+		}
 #ifdef COMPAT_FREEBSD32
 		if (wrap32)
 			ptrace_lwpinfo_to32(pl, pl32);
 #endif
-		CTR5(KTR_PTRACE,
-	    "PT_LWPINFO: tid %d (pid %d) event %d flags %#x child pid %d",
+		CTR6(KTR_PTRACE,
+    "PT_LWPINFO: tid %d (pid %d) event %d flags %#x child pid %d syscall %d",
 		    td2->td_tid, p->p_pid, pl->pl_event, pl->pl_flags,
-		    pl->pl_child_pid);
+		    pl->pl_child_pid, pl->pl_syscall_code);
 		break;
 
 	case PT_GETNUMLWPS:

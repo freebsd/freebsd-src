@@ -20,6 +20,7 @@
 #define WPA_SUPPLICANT_DRIVER_VERSION 4
 
 #include "common/defs.h"
+#include "common/ieee802_11_defs.h"
 #include "utils/list.h"
 
 #define HOSTAPD_CHAN_DISABLED 0x00000001
@@ -341,7 +342,7 @@ struct wpa_driver_scan_params {
 	 * is not needed anymore.
 	 */
 	struct wpa_driver_scan_filter {
-		u8 ssid[32];
+		u8 ssid[SSID_MAX_LEN];
 		size_t ssid_len;
 	} *filter_ssids;
 
@@ -1211,6 +1212,8 @@ struct wpa_driver_capa {
 #define WPA_DRIVER_FLAGS_HT_IBSS		0x0000001000000000ULL
 /** Driver supports IBSS with VHT datarates */
 #define WPA_DRIVER_FLAGS_VHT_IBSS		0x0000002000000000ULL
+/** Driver supports automatic band selection */
+#define WPA_DRIVER_FLAGS_SUPPORT_HW_MODE_ANY	0x0000004000000000ULL
 	u64 flags;
 
 #define WPA_DRIVER_SMPS_MODE_STATIC			0x00000001
@@ -1294,6 +1297,13 @@ struct wpa_driver_capa {
  */
 #define WPA_DRIVER_FLAGS_TX_POWER_INSERTION		0x00000008
 	u32 rrm_flags;
+
+	/* Driver concurrency capabilities */
+	unsigned int conc_capab;
+	/* Maximum number of concurrent channels on 2.4 GHz */
+	unsigned int max_conc_chan_2_4;
+	/* Maximum number of concurrent channels on 5 GHz */
+	unsigned int max_conc_chan_5_0;
 };
 
 
@@ -1394,6 +1404,16 @@ enum wpa_driver_if_type {
 	 * WPA_IF_MESH - Mesh interface
 	 */
 	WPA_IF_MESH,
+
+	/*
+	 * WPA_IF_TDLS - TDLS offchannel interface (used for pref freq only)
+	 */
+	WPA_IF_TDLS,
+
+	/*
+	 * WPA_IF_IBSS - IBSS interface (used for pref freq only)
+	 */
+	WPA_IF_IBSS,
 };
 
 struct wpa_init_params {
@@ -1477,6 +1497,7 @@ struct wpa_signal_info {
 	int above_threshold;
 	int current_signal;
 	int avg_signal;
+	int avg_beacon_signal;
 	int current_noise;
 	int current_txrate;
 	enum chan_width chanwidth;
@@ -1576,6 +1597,7 @@ enum drv_br_port_attr {
 
 enum drv_br_net_param {
 	DRV_BR_NET_PARAM_GARP_ACCEPT,
+	DRV_BR_MULTICAST_SNOOPING,
 };
 
 struct drv_acs_params {
@@ -1587,6 +1609,17 @@ struct drv_acs_params {
 
 	/* Indicates whether HT40 is enabled */
 	int ht40_enabled;
+
+	/* Indicates whether VHT is enabled */
+	int vht_enabled;
+
+	/* Configured ACS channel width */
+	u16 ch_width;
+
+	/* ACS channel list info */
+	unsigned int ch_list_len;
+	const u8 *ch_list;
+	const int *freq_list;
 };
 
 
@@ -1925,10 +1958,12 @@ struct wpa_driver_ops {
 	 * @data: IEEE 802.11 management frame with IEEE 802.11 header
 	 * @data_len: Size of the management frame
 	 * @noack: Do not wait for this frame to be acked (disable retries)
+	 * @freq: Frequency (in MHz) to send the frame on, or 0 to let the
+	 * driver decide
 	 * Returns: 0 on success, -1 on failure
 	 */
 	int (*send_mlme)(void *priv, const u8 *data, size_t data_len,
-			 int noack);
+			 int noack, unsigned int freq);
 
 	/**
 	 * update_ft_ies - Update FT (IEEE 802.11r) IEs
@@ -2332,7 +2367,8 @@ struct wpa_driver_ops {
 	 * Returns: 0 on success, -1 on failure
 	 */
 	int (*sta_set_flags)(void *priv, const u8 *addr,
-			     int total_flags, int flags_or, int flags_and);
+			     unsigned int total_flags, unsigned int flags_or,
+			     unsigned int flags_and);
 
 	/**
 	 * set_tx_queue_params - Set TX queue parameters
@@ -2654,18 +2690,6 @@ struct wpa_driver_ops {
 	 */
 	int (*send_frame)(void *priv, const u8 *data, size_t data_len,
 			  int encrypt);
-
-	/**
-	 * shared_freq - Get operating frequency of shared interface(s)
-	 * @priv: Private driver interface data
-	 * Returns: Operating frequency in MHz, 0 if no shared operation in
-	 * use, or -1 on failure
-	 *
-	 * This command can be used to request the current operating frequency
-	 * of any virtual interface that shares the same radio to provide
-	 * information for channel selection for other virtual interfaces.
-	 */
-	int (*shared_freq)(void *priv);
 
 	/**
 	 * get_noa - Get current Notice of Absence attribute payload
@@ -3381,6 +3405,40 @@ struct wpa_driver_ops {
 	 * indicates support for such offloading (WPA_DRIVER_FLAGS_ACS_OFFLOAD).
 	 */
 	int (*do_acs)(void *priv, struct drv_acs_params *params);
+
+	/**
+	 * set_band - Notify driver of band selection
+	 * @priv: Private driver interface data
+	 * @band: The selected band(s)
+	 * Returns 0 on success, -1 on failure
+	 */
+	int (*set_band)(void *priv, enum set_band band);
+
+	/**
+	 * get_pref_freq_list - Get preferred frequency list for an interface
+	 * @priv: Private driver interface data
+	 * @if_type: Interface type
+	 * @num: Number of channels
+	 * @freq_list: Preferred channel frequency list encoded in MHz values
+	 * Returns 0 on success, -1 on failure
+	 *
+	 * This command can be used to query the preferred frequency list from
+	 * the driver specific to a particular interface type.
+	 */
+	int (*get_pref_freq_list)(void *priv, enum wpa_driver_if_type if_type,
+				  unsigned int *num, unsigned int *freq_list);
+
+	/**
+	 * set_prob_oper_freq - Indicate probable P2P operating channel
+	 * @priv: Private driver interface data
+	 * @freq: Channel frequency in MHz
+	 * Returns 0 on success, -1 on failure
+	 *
+	 * This command can be used to inform the driver of the operating
+	 * frequency that an ongoing P2P group formation is likely to come up
+	 * on. Local device is assuming P2P Client role.
+	 */
+	int (*set_prob_oper_freq)(void *priv, unsigned int freq);
 };
 
 
@@ -4557,10 +4615,20 @@ union wpa_event_data {
 	 * struct acs_selected_channels - Data for EVENT_ACS_CHANNEL_SELECTED
 	 * @pri_channel: Selected primary channel
 	 * @sec_channel: Selected secondary channel
+	 * @vht_seg0_center_ch: VHT mode Segment0 center channel
+	 * @vht_seg1_center_ch: VHT mode Segment1 center channel
+	 * @ch_width: Selected Channel width by driver. Driver may choose to
+	 *	change hostapd configured ACS channel width due driver internal
+	 *	channel restrictions.
+	 * hw_mode: Selected band (used with hw_mode=any)
 	 */
 	struct acs_selected_channels {
 		u8 pri_channel;
 		u8 sec_channel;
+		u8 vht_seg0_center_ch;
+		u8 vht_seg1_center_ch;
+		u16 ch_width;
+		enum hostapd_hw_mode hw_mode;
 	} acs_selected_channels;
 };
 
@@ -4631,6 +4699,6 @@ wpa_get_wowlan_triggers(const char *wowlan_triggers,
 			const struct wpa_driver_capa *capa);
 
 /* NULL terminated array of linked in driver wrappers */
-extern struct wpa_driver_ops *wpa_drivers[];
+extern const struct wpa_driver_ops *const wpa_drivers[];
 
 #endif /* DRIVER_H */

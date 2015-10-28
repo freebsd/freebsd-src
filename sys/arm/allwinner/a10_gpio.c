@@ -449,6 +449,18 @@ a10_gpio_get_node(device_t dev, device_t bus)
 	return (ofw_bus_get_node(dev));
 }
 
+static int
+a10_gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
+    pcell_t *gpios, uint32_t *pin, uint32_t *flags)
+{
+
+	/* The GPIO pins are mapped as: <gpio-phandle bank pin flags>. */
+	*pin = gpios[0] * 32 + gpios[1];
+	*flags = gpios[gcells - 1];
+
+	return (0);
+}
+
 static device_method_t a10_gpio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		a10_gpio_probe),
@@ -465,6 +477,7 @@ static device_method_t a10_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_get,		a10_gpio_pin_get),
 	DEVMETHOD(gpio_pin_set,		a10_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle,	a10_gpio_pin_toggle),
+	DEVMETHOD(gpio_map_gpios,	a10_gpio_map_gpios),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	a10_gpio_get_node),

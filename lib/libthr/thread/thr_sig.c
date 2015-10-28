@@ -30,6 +30,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/signalvar.h>
+#include <sys/syscall.h>
 #include <signal.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -257,7 +258,7 @@ handle_signal(struct sigaction *actp, int sig, siginfo_t *info, ucontext_t *ucp)
 	/* reschedule cancellation */
 	check_cancel(curthread, &uc2);
 	errno = err;
-	__sys_sigreturn(&uc2);
+	syscall(SYS_sigreturn, &uc2);
 }
 
 void

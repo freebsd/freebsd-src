@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/lib/libc/c063
-
 #TODO: t_o_search
 
 NETBSD_ATF_TESTS_C=	faccessat

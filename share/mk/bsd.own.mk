@@ -28,8 +28,6 @@
 #
 # LIBCOMPATDIR	Base path for compat libraries. [/usr/lib/compat]
 #
-# LIBPRIVATEDIR	Base path for private libraries. [/usr/lib/private]
-#
 # LIBDATADIR	Base path for misc. utility data files. [/usr/libdata]
 #
 # LIBEXECDIR	Base path for system daemons and utilities. [/usr/libexec]
@@ -171,7 +169,6 @@ DTBMODE?=	444
 
 LIBDIR?=	/usr/lib
 LIBCOMPATDIR?=	/usr/lib/compat
-LIBPRIVATEDIR?=	/usr/lib/private
 LIBDATADIR?=	/usr/libdata
 LIBEXECDIR?=	/usr/libexec
 LINTLIBDIR?=	/usr/libdata/lint
@@ -249,7 +246,10 @@ XZ_CMD?=	xz
 # overriden by Makefiles, but the user may choose to set this in src.conf(5).
 TESTSBASE?= /usr/tests
 
-# Compat for the moment
+# Compat for the moment -- old bsd.own.mk only included this when _WITHOUT_SRCCONF
+# wasn't defined. bsd.ports.mk and friends depend on this behavior. Remove in 12.
+.if !defined(_WITHOUT_SRCCONF)
 .include <bsd.compiler.mk>
+.endif # !_WITHOUT_SRCCONF
 
 .endif	# !target(__<bsd.own.mk>__)

@@ -103,8 +103,8 @@ arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	u_int8_t		atype, adst;
 	int			loop_copy = 0;
 	int			isphds;
-#ifdef INET
-	int			is_gw;
+#if defined(INET) || defined(INET6)
+	int			is_gw = 0;
 #endif
 
 	if (!((ifp->if_flags & IFF_UP) &&
@@ -112,6 +112,11 @@ arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		return(ENETDOWN); /* m, m1 aren't initialized yet */
 
 	error = 0;
+#if defined(INET) || defined(INET6)
+	if (ro != NULL && ro->ro_rt != NULL &&
+	    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
+		is_gw = 1;
+#endif
 
 	switch (dst->sa_family) {
 #ifdef INET
@@ -125,10 +130,6 @@ arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		else if (ifp->if_flags & IFF_NOARP)
 			adst = ntohl(SIN(dst)->sin_addr.s_addr) & 0xFF;
 		else {
-			is_gw = 0;
-			if (ro != NULL && ro->ro_rt != NULL &&
-			    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
-				is_gw = 1;
 			error = arpresolve(ifp, is_gw, m, dst, &adst, NULL);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);
@@ -169,10 +170,11 @@ arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	case AF_INET6:
 		if ((m->m_flags & M_MCAST) != 0)
 			adst = arcbroadcastaddr; /* ARCnet broadcast address */
-		else
-			error = nd6_storelladdr(ifp, m, dst, (u_char *)&adst, NULL);
-		if (error)
-			return (error);
+		else {
+			error = nd6_resolve(ifp, is_gw, m, dst, &adst, NULL);
+			if (error != 0)
+				return (error == EWOULDBLOCK ? 0 : error);
+		}
 		atype = ARCTYPE_INET6;
 		break;
 #endif

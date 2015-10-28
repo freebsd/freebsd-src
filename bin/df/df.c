@@ -311,7 +311,7 @@ main(int argc, char *argv[])
 
 	xo_close_container("storage-system-information");
 	xo_finish();
-	return (rv);
+	exit(rv);
 }
 
 static char *

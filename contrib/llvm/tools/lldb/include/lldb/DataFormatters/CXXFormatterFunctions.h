@@ -18,6 +18,7 @@
 #include "lldb/Core/ConstString.h"
 #include "lldb/DataFormatters/FormatClasses.h"
 #include "lldb/DataFormatters/TypeSynthetic.h"
+#include "lldb/DataFormatters/VectorType.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/Target.h"
@@ -186,6 +187,9 @@ namespace lldb_private {
         extern template bool
         ObjCSELSummaryProvider<false> (ValueObject&, Stream&, const TypeSummaryOptions&);
         
+        bool
+        CMTimeSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
+        
         SyntheticChildrenFrontEnd* NSArraySyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
         
         SyntheticChildrenFrontEnd* NSDictionarySyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
@@ -228,37 +232,6 @@ namespace lldb_private {
         
         bool
         LibcxxContainerSummaryProvider (ValueObject& valobj, Stream& stream, const TypeSummaryOptions& options);
-        
-        class LibstdcppVectorBoolSyntheticFrontEnd : public SyntheticChildrenFrontEnd
-        {
-        public:
-            LibstdcppVectorBoolSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp);
-            
-            virtual size_t
-            CalculateNumChildren ();
-            
-            virtual lldb::ValueObjectSP
-            GetChildAtIndex (size_t idx);
-            
-            virtual bool
-            Update();
-            
-            virtual bool
-            MightHaveChildren ();
-            
-            virtual size_t
-            GetIndexOfChildWithName (const ConstString &name);
-            
-            virtual
-            ~LibstdcppVectorBoolSyntheticFrontEnd ();
-        private:
-            ExecutionContextRef m_exe_ctx_ref;
-            uint64_t m_count;
-            lldb::addr_t m_base_data_address;
-            EvaluateExpressionOptions m_options;
-        };
-        
-        SyntheticChildrenFrontEnd* LibstdcppVectorBoolSyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
         
         class LibstdcppMapIteratorSyntheticFrontEnd : public SyntheticChildrenFrontEnd
         {
@@ -395,6 +368,7 @@ namespace lldb_private {
         
         SyntheticChildrenFrontEnd* LibcxxInitializerListSyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
         
+        SyntheticChildrenFrontEnd* VectorTypeSyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP);
     } // namespace formatters
 } // namespace lldb_private
 

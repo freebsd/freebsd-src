@@ -236,7 +236,7 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 	const char *name;
 	intmax_t *keylen, *sectorsize;
 	u_char mkey[G_ELI_DATAIVKEYLEN];
-	int *nargs, *detach;
+	int *nargs, *detach, *notrim;
 
 	g_topology_assert();
 	bzero(&md, sizeof(md));
@@ -251,17 +251,16 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 
-	detach = gctl_get_paraml(req, "detach", sizeof(*detach));
-	if (detach == NULL) {
-		gctl_error(req, "No '%s' argument.", "detach");
-		return;
-	}
-
 	strlcpy(md.md_magic, G_ELI_MAGIC, sizeof(md.md_magic));
 	md.md_version = G_ELI_VERSION;
 	md.md_flags |= G_ELI_FLAG_ONETIME;
-	if (*detach)
+
+	detach = gctl_get_paraml(req, "detach", sizeof(*detach));
+	if (detach != NULL && *detach)
 		md.md_flags |= G_ELI_FLAG_WO_DETACH;
+	notrim = gctl_get_paraml(req, "notrim", sizeof(*notrim));
+	if (notrim != NULL && *notrim)
+		md.md_flags |= G_ELI_FLAG_NODELETE;
 
 	md.md_ealgo = CRYPTO_ALGORITHM_MIN - 1;
 	name = gctl_get_asciiparam(req, "aalgo");
@@ -377,11 +376,14 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	char param[16];
 	const char *prov;
 	u_char *sector;
-	int *nargs, *boot, *noboot;
-	int error;
+	int *nargs, *boot, *noboot, *trim, *notrim;
+	int zero, error, changed;
 	u_int i;
 
 	g_topology_assert();
+
+	changed = 0;
+	zero = 0;
 
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
@@ -394,20 +396,32 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	}
 
 	boot = gctl_get_paraml(req, "boot", sizeof(*boot));
-	if (boot == NULL) {
-		gctl_error(req, "No '%s' argument.", "boot");
-		return;
-	}
+	if (boot == NULL)
+		boot = &zero;
 	noboot = gctl_get_paraml(req, "noboot", sizeof(*noboot));
-	if (noboot == NULL) {
-		gctl_error(req, "No '%s' argument.", "noboot");
-		return;
-	}
+	if (noboot == NULL)
+		noboot = &zero;
 	if (*boot && *noboot) {
 		gctl_error(req, "Options -b and -B are mutually exclusive.");
 		return;
 	}
-	if (!*boot && !*noboot) {
+	if (*boot || *noboot)
+		changed = 1;
+
+	trim = gctl_get_paraml(req, "trim", sizeof(*trim));
+	if (trim == NULL)
+		trim = &zero;
+	notrim = gctl_get_paraml(req, "notrim", sizeof(*notrim));
+	if (notrim == NULL)
+		notrim = &zero;
+	if (*trim && *notrim) {
+		gctl_error(req, "Options -t and -T are mutually exclusive.");
+		return;
+	}
+	if (*trim || *notrim)
+		changed = 1;
+
+	if (!changed) {
 		gctl_error(req, "No option given.");
 		return;
 	}
@@ -429,36 +443,70 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			    "provider %s.", prov);
 			continue;
 		}
-		if (*boot && (sc->sc_flags & G_ELI_FLAG_BOOT)) {
-			G_ELI_DEBUG(1, "BOOT flag already configured for %s.",
-			    prov);
-			continue;
-		} else if (!*boot && !(sc->sc_flags & G_ELI_FLAG_BOOT)) {
-			G_ELI_DEBUG(1, "BOOT flag not configured for %s.",
-			    prov);
-			continue;
-		}
 		if (sc->sc_flags & G_ELI_FLAG_RO) {
 			gctl_error(req, "Cannot change configuration of "
 			    "read-only provider %s.", prov);
 			continue;
 		}
-		cp = LIST_FIRST(&sc->sc_geom->consumer);
-		pp = cp->provider;
-		error = g_eli_read_metadata(mp, pp, &md);
-		if (error != 0) {
-			gctl_error(req,
-			    "Cannot read metadata from %s (error=%d).",
-			    prov, error);
+
+		if (*boot && (sc->sc_flags & G_ELI_FLAG_BOOT)) {
+			G_ELI_DEBUG(1, "BOOT flag already configured for %s.",
+			    prov);
 			continue;
+		} else if (*noboot && !(sc->sc_flags & G_ELI_FLAG_BOOT)) {
+			G_ELI_DEBUG(1, "BOOT flag not configured for %s.",
+			    prov);
+			continue;
+		}
+
+		if (*notrim && (sc->sc_flags & G_ELI_FLAG_NODELETE)) {
+			G_ELI_DEBUG(1, "TRIM disable flag already configured for %s.",
+			    prov);
+			continue;
+		} else if (*trim && !(sc->sc_flags & G_ELI_FLAG_NODELETE)) {
+			G_ELI_DEBUG(1, "TRIM disable flag not configured for %s.",
+			    prov);
+			continue;
+		}
+
+		if (!(sc->sc_flags & G_ELI_FLAG_ONETIME)) {
+			/*
+			 * ONETIME providers don't write metadata to
+			 * disk, so don't try reading it.  This means
+			 * we're bit-flipping uninitialized memory in md
+			 * below, but that's OK; we don't do anything
+			 * with it later.
+			 */
+			cp = LIST_FIRST(&sc->sc_geom->consumer);
+			pp = cp->provider;
+			error = g_eli_read_metadata(mp, pp, &md);
+			if (error != 0) {
+			    gctl_error(req,
+				"Cannot read metadata from %s (error=%d).",
+				prov, error);
+			    continue;
+			}
 		}
 
 		if (*boot) {
 			md.md_flags |= G_ELI_FLAG_BOOT;
 			sc->sc_flags |= G_ELI_FLAG_BOOT;
-		} else {
+		} else if (*noboot) {
 			md.md_flags &= ~G_ELI_FLAG_BOOT;
 			sc->sc_flags &= ~G_ELI_FLAG_BOOT;
+		}
+
+		if (*notrim) {
+			md.md_flags |= G_ELI_FLAG_NODELETE;
+			sc->sc_flags |= G_ELI_FLAG_NODELETE;
+		} else if (*trim) {
+			md.md_flags &= ~G_ELI_FLAG_NODELETE;
+			sc->sc_flags &= ~G_ELI_FLAG_NODELETE;
+		}
+
+		if (sc->sc_flags & G_ELI_FLAG_ONETIME) {
+			/* There's no metadata on disk so we are done here. */
+			continue;
 		}
 
 		sector = malloc(pp->sectorsize, M_ELI, M_WAITOK | M_ZERO);

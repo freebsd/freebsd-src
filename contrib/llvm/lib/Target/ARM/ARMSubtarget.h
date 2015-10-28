@@ -43,7 +43,7 @@ class ARMSubtarget : public ARMGenSubtargetInfo {
 protected:
   enum ARMProcFamilyEnum {
     Others, CortexA5, CortexA7, CortexA8, CortexA9, CortexA12, CortexA15,
-    CortexA17, CortexR5, Swift, CortexA53, CortexA57, Krait, 
+    CortexA17, CortexR4, CortexR4F, CortexR5, Swift, CortexA53, CortexA57, Krait,
   };
   enum ARMProcClassEnum {
     None, AClass, RClass, MClass
@@ -56,16 +56,18 @@ protected:
   ARMProcClassEnum ARMProcClass;
 
   /// HasV4TOps, HasV5TOps, HasV5TEOps,
-  /// HasV6Ops, HasV6MOps, HasV6T2Ops, HasV7Ops, HasV8Ops -
+  /// HasV6Ops, HasV6MOps, HasV6KOps, HasV6T2Ops, HasV7Ops, HasV8Ops -
   /// Specify whether target support specific ARM ISA variants.
   bool HasV4TOps;
   bool HasV5TOps;
   bool HasV5TEOps;
   bool HasV6Ops;
   bool HasV6MOps;
+  bool HasV6KOps;
   bool HasV6T2Ops;
   bool HasV7Ops;
   bool HasV8Ops;
+  bool HasV8_1aOps;
 
   /// HasVFPv2, HasVFPv3, HasVFPv4, HasFPARMv8, HasNEON - Specify what
   /// floating point ISAs are supported.
@@ -97,6 +99,9 @@ protected:
 
   /// InThumbMode - True if compiling for Thumb, false for ARM.
   bool InThumbMode;
+
+  /// UseSoftFloat - True if we're using software floating point features.
+  bool UseSoftFloat;
 
   /// HasThumb2 - True if Thumb2 instructions are supported.
   bool HasThumb2;
@@ -201,6 +206,9 @@ protected:
   /// NaCl TRAP instruction is generated instead of the regular TRAP.
   bool UseNaClTrap;
 
+  /// Generate calls via indirect call instructions.
+  bool GenLongCalls;
+
   /// Target machine allowed unsafe FP math (such as use of NEON fp)
   bool UnsafeFPMath;
 
@@ -232,8 +240,8 @@ public:
   /// This constructor initializes the data members to match that
   /// of the specified triple.
   ///
-  ARMSubtarget(const std::string &TT, const std::string &CPU,
-               const std::string &FS, const ARMBaseTargetMachine &TM, bool IsLittle);
+  ARMSubtarget(const Triple &TT, const std::string &CPU, const std::string &FS,
+               const ARMBaseTargetMachine &TM, bool IsLittle);
 
   /// getMaxInlineSizeThreshold - Returns the maximum memset / memcpy size
   /// that still makes it profitable to inline the call.
@@ -248,7 +256,6 @@ public:
   /// so that we can use initializer lists for subtarget initialization.
   ARMSubtarget &initializeSubtargetDependencies(StringRef CPU, StringRef FS);
 
-  const DataLayout *getDataLayout() const override { return &DL; }
   const ARMSelectionDAGInfo *getSelectionDAGInfo() const override {
     return &TSInfo;
   }
@@ -266,16 +273,17 @@ public:
   }
 
 private:
-  const DataLayout DL;
   ARMSelectionDAGInfo TSInfo;
+  // Either Thumb1FrameLowering or ARMFrameLowering.
+  std::unique_ptr<ARMFrameLowering> FrameLowering;
   // Either Thumb1InstrInfo or Thumb2InstrInfo.
   std::unique_ptr<ARMBaseInstrInfo> InstrInfo;
   ARMTargetLowering   TLInfo;
-  // Either Thumb1FrameLowering or ARMFrameLowering.
-  std::unique_ptr<ARMFrameLowering> FrameLowering;
 
   void initializeEnvironment();
   void initSubtargetFeatures(StringRef CPU, StringRef FS);
+  ARMFrameLowering *initializeFrameLowering(StringRef CPU, StringRef FS);
+
 public:
   void computeIssueWidth();
 
@@ -284,9 +292,11 @@ public:
   bool hasV5TEOps() const { return HasV5TEOps; }
   bool hasV6Ops()   const { return HasV6Ops;   }
   bool hasV6MOps()  const { return HasV6MOps;  }
+  bool hasV6KOps()  const { return HasV6KOps; }
   bool hasV6T2Ops() const { return HasV6T2Ops; }
   bool hasV7Ops()   const { return HasV7Ops;  }
   bool hasV8Ops()   const { return HasV8Ops;  }
+  bool hasV8_1aOps() const { return HasV8_1aOps; }
 
   bool isCortexA5() const { return ARMProcFamily == CortexA5; }
   bool isCortexA7() const { return ARMProcFamily == CortexA7; }
@@ -310,7 +320,8 @@ public:
   bool hasCRC() const { return HasCRC; }
   bool hasVirtualization() const { return HasVirtualization; }
   bool useNEONForSinglePrecisionFP() const {
-    return hasNEON() && UseNEONForSinglePrecisionFP; }
+    return hasNEON() && UseNEONForSinglePrecisionFP;
+  }
 
   bool hasDivide() const { return HasHardwareDivide; }
   bool hasDivideInARMMode() const { return HasHardwareDivideInARM; }
@@ -334,6 +345,7 @@ public:
   bool hasMPExtension() const { return HasMPExtension; }
   bool hasThumb2DSP() const { return Thumb2DSP; }
   bool useNaClTrap() const { return UseNaClTrap; }
+  bool genLongCalls() const { return GenLongCalls; }
 
   bool hasFP16() const { return HasFP16; }
   bool hasD16() const { return HasD16; }
@@ -388,6 +400,7 @@ public:
   bool isAPCS_ABI() const;
   bool isAAPCS_ABI() const;
 
+  bool useSoftFloat() const { return UseSoftFloat; }
   bool isThumb() const { return InThumbMode; }
   bool isThumb1Only() const { return InThumbMode && !HasThumb2; }
   bool isThumb2() const { return InThumbMode && HasThumb2; }
@@ -421,7 +434,7 @@ public:
   bool hasSinCos() const;
 
   /// True for some subtargets at > -O0.
-  bool enablePostMachineScheduler() const override;
+  bool enablePostRAScheduler() const override;
 
   // enableAtomicExpand- True if we need to expand our atomics.
   bool enableAtomicExpand() const override;
@@ -441,6 +454,8 @@ public:
   /// symbol.
   bool GVIsIndirectSymbol(const GlobalValue *GV, Reloc::Model RelocM) const;
 
+  /// True if fast-isel is used.
+  bool useFastISel() const;
 };
 } // End llvm namespace
 
