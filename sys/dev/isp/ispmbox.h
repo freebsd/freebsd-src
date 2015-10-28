@@ -156,6 +156,8 @@
 #define	MBOX_SEND_CHANGE_REQUEST	0x0070
 #define	MBOX_FABRIC_LOGOUT		0x0071
 #define	MBOX_INIT_LIP_LOGIN		0x0072
+#define	MBOX_GET_PORT_NODE_NAME_LIST	0x0075
+#define	MBOX_GET_ID_LIST		0x007C
 #define	MBOX_LUN_RESET			0x007E
 
 #define	MBOX_DRIVER_HEARTBEAT		0x005B
@@ -1340,6 +1342,40 @@ typedef struct {
 	uint8_t		portname[8];
 	uint8_t		nodename[8];
 } isp_pdb_t;
+
+/*
+ * Port/Node Name List Element
+ */
+typedef struct {
+	uint8_t		pnnle_name[8];
+	uint16_t	pnnle_handle;
+	uint16_t	pnnle_reserved;
+} isp_pnnle_t;
+
+#define	PNNL_OPTIONS_NODE_NAMES	(1<<0)
+#define	PNNL_OPTIONS_PORT_DATA	(1<<2)
+#define	PNNL_OPTIONS_INITIATORS	(1<<3)
+
+/*
+ * Port and N-Port Handle List Element
+ */
+typedef struct {
+	uint16_t	pnhle_port_id_lo;
+	uint16_t	pnhle_port_id_hi_handle;
+} isp_pnhle_21xx_t;
+
+typedef struct {
+	uint16_t	pnhle_port_id_lo;
+	uint16_t	pnhle_port_id_hi;
+	uint16_t	pnhle_handle;
+} isp_pnhle_23xx_t;
+
+typedef struct {
+	uint16_t	pnhle_port_id_lo;
+	uint16_t	pnhle_port_id_hi;
+	uint16_t	pnhle_handle;
+	uint16_t	pnhle_reserved;
+} isp_pnhle_24xx_t;
 
 /*
  * Port Database Changed Async Event information for 24XX cards
