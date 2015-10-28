@@ -45,6 +45,11 @@ f_include $BSDCFG_SHARE/variable.subr
 : ${ZFSBOOT_POOL_NAME:=zroot}
 
 #
+# Default pool size is optional
+#
+: ${ZFSBOOT_POOL_SIZE=}
+
+#
 # Default options to use when creating zroot pool
 #
 : ${ZFSBOOT_POOL_CREATE_OPTIONS:=-O compress=lz4 -O atime=off}
@@ -248,6 +253,7 @@ msg_install_help="Create ZFS boot pool with displayed options"
 msg_invalid_boot_pool_size="Invalid boot pool size \`%s'"
 msg_invalid_disk_argument="Invalid disk argument \`%s'"
 msg_invalid_index_argument="Invalid index argument \`%s'"
+msg_invalid_pool_size="Invalid pool size \`%s'"
 msg_invalid_swap_size="Invalid swap size \`%s'"
 msg_invalid_virtual_device_type="Invalid Virtual Device type \`%s'"
 msg_last_chance_are_you_sure="Last Chance! Are you sure you want to destroy\nthe current contents of the following disks:\n\n   %s"
@@ -899,9 +905,15 @@ zfs_create_diskpart()
 		#
 		# 4. Add freebsd-zfs partition labeled `zfs#' for zroot
 		#
-		f_eval_catch $funcname gpart "$GPART_ADD_ALIGN_LABEL" \
-		             "$align_big" zfs$index freebsd-zfs $disk ||
-		             return $FAILURE
+		if [ "$ZFSBOOT_POOL_SIZE" ]; then
+			f_eval_catch $funcname gpart "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
+					"$align_big" zfs$index freebsd-zfs $ZFSBOOT_POOL_SIZE $disk ||
+					return $FAILURE
+		else
+			f_eval_catch $funcname gpart "$GPART_ADD_ALIGN_LABEL" \
+					"$align_big" zfs$index freebsd-zfs $disk ||
+					return $FAILURE
+		fi
 		f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
 		                /dev/$disk$targetpart
 		;;
@@ -972,8 +984,13 @@ zfs_create_diskpart()
 		#
 		# 5. Add freebsd-zfs partition for zroot
 		#
-		f_eval_catch $funcname gpart "$GPART_ADD_ALIGN_INDEX" \
-		             "$align_small" $mbrindex freebsd-zfs ${disk}s1 || return $FAILURE
+		if [ "$ZFSBOOT_POOL_SIZE" ]; then
+			f_eval_catch $funcname gpart "$GPART_ADD_ALIGN_INDEX_WITH_SIZE" \
+					"$align_small" $mbrindex freebsd-zfs $ZFSBOOT_POOL_SIZE ${disk}s1 || return $FAILURE
+		else
+			f_eval_catch $funcname gpart "$GPART_ADD_ALIGN_INDEX" \
+					"$align_small" $mbrindex freebsd-zfs ${disk}s1 || return $FAILURE
+		fi
 		f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
 		                /dev/$disk$targetpart # Pedantic
 		f_eval_catch $funcname dd "$DD_WITH_OPTIONS" \
@@ -1068,7 +1085,7 @@ zfs_create_boot()
 	# Expand SI units in desired sizes
 	#
 	f_dprintf "$funcname: Expanding supplied size values..."
-	local swapsize bootsize
+	local swapsize bootsize poolsize
 	if ! f_expand_number "$ZFSBOOT_SWAP_SIZE" swapsize; then
 		f_dprintf "$funcname: Invalid swap size \`%s'" \
 		          "$ZFSBOOT_SWAP_SIZE"
@@ -1081,6 +1098,16 @@ zfs_create_boot()
 		f_show_err "$msg_invalid_boot_pool_size" \
 		           "$ZFSBOOT_BOOT_POOL_SIZE"
 		return $FAILURE
+	fi
+	if [ "$ZFSBOOT_POOL_SIZE" ]; then
+		if ! f_expand_number "$ZFSBOOT_POOL_SIZE" poolsize; then
+			f_dprintf "$funcname: Invalid pool size \`%s'" \
+				  "$ZFSBOOT_POOL_SIZE"
+			f_show_err "$msg_invalid_pool_size" \
+				   "$ZFSBOOT_POOL_SIZE"
+		fi
+		f_dprintf "$funcname: ZFSBOOT_POOL_SIZE=[%s] poolsize=[%s]" \
+			  "$ZFSBOOT_POOL_SIZE" "$poolsize"
 	fi
 	f_dprintf "$funcname: ZFSBOOT_SWAP_SIZE=[%s] swapsize=[%s]" \
 	          "$ZFSBOOT_SWAP_SIZE" "$swapsize"
@@ -1514,6 +1541,10 @@ while :; do
 		   f_expand_number "$ZFSBOOT_BOOT_POOL_SIZE" bootsize
 		then
 			minsize=$swapsize teeny_disks=
+			if [ "$ZFSBOOT_POOL_SIZE" ]; then
+				f_expand_number "$ZFSBOOT_POOL_SIZE" poolsize
+				minsize=$(( $minsize + $poolsize ))
+			fi
 			[ "$ZFSBOOT_BOOT_POOL" ] &&
 				minsize=$(( $minsize + $bootsize ))
 			for disk in $ZFSBOOT_DISKS; do
