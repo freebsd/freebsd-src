@@ -209,7 +209,9 @@ METHOD void driver_added {
  * For busses which use use drivers supporting DEVICE_IDENTIFY() to
  * enumerate their devices, this method is used to create new
  * device instances. The new device will be added after the last
- * existing child with the same order.
+ * existing child with the same order. Implementations of bus_add_child
+ * call device_add_child_ordered to add the child and often add
+ * a suitable ivar to the device specific to that bus.
  * 
  * @param _dev		the bus device which will be the parent of the
  *			new child device
