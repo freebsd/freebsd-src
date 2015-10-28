@@ -364,14 +364,16 @@ ioat3_attach(device_t device)
 	struct ioat_descriptor **ring;
 	struct ioat_descriptor *next;
 	struct ioat_dma_hw_descriptor *dma_hw_desc;
-	uint32_t capabilities;
 	int i, num_descriptors;
 	int error;
 	uint8_t xfercap;
 
 	error = 0;
 	ioat = DEVICE2SOFTC(device);
-	capabilities = ioat_read_dmacapability(ioat);
+	ioat->capabilities = ioat_read_dmacapability(ioat);
+
+	ioat_log_message(1, "Capabilities: %b\n", (int)ioat->capabilities,
+	    IOAT_DMACAP_STR);
 
 	xfercap = ioat_read_xfercap(ioat);
 	ioat->max_xfer_size = 1 << xfercap;
@@ -759,6 +761,12 @@ ioat_blockfill(bus_dmaengine_t dmaengine, bus_addr_t dst, uint64_t fillpattern,
 
 	CTR0(KTR_IOAT, __func__);
 	ioat = to_ioat_softc(dmaengine);
+
+	if ((ioat->capabilities & IOAT_DMACAP_BFILL) == 0) {
+		ioat_log_message(0, "%s: Device lacks BFILL capability\n",
+		    __func__);
+		return (NULL);
+	}
 
 	if ((dst & (0xffffull << 48)) != 0) {
 		ioat_log_message(0, "%s: High 16 bits of dst invalid\n",
