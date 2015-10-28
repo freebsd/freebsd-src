@@ -691,6 +691,14 @@ gre_input(struct mbuf **mp, int *offp, int proto)
 	KASSERT(sc != NULL, ("encap_getarg returned NULL"));
 
 	ifp = GRE2IFP(sc);
+	hlen = *offp + sizeof(struct grehdr) + 4 * sizeof(uint32_t);
+	if (m->m_pkthdr.len < hlen)
+		goto drop;
+	if (m->m_len < hlen) {
+		m = m_pullup(m, hlen);
+		if (m == NULL)
+			goto drop;
+	}
 	gh = (struct grehdr *)mtodo(m, *offp);
 	flags = ntohs(gh->gre_flags);
 	if (flags & ~GRE_FLAGS_MASK)
