@@ -27,8 +27,11 @@ _CHERI_CC+=	--sysroot=${SYSROOT}
 .endif
 
 .if ${WANT_CHERI} == "pure" || ${WANT_CHERI} == "sandbox"
-_CHERI_CC+=    -mabi=sandbox -cheri-linker
+_CHERI_CC+=	-mabi=sandbox
 LIBDIR:=	/usr/libcheri
+.if ${MK_CHERI_LINKER} == "yes"
+_CHERI_CC+=	-cheri-linker
+.endif
 .endif
 
 .if ${WANT_CHERI} == "pure" && defined(__BSD_PROG_MK)
