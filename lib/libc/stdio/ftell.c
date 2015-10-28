@@ -119,8 +119,7 @@ _ftello(FILE *fp, fpos_t *offset)
 		if (HASUB(fp))
 			pos -= fp->_r;  /* Can be negative at this point. */
 	} else if ((fp->_flags & __SWR) && fp->_p != NULL) {
-		/* XXX: Reuse __SALC for O_APPEND. */
-		if (fp->_flags & (__SAPP|__SALC)) {
+		if ((fp->_flags & __SAPP) || (fp->_flags2 & __S2OAP)) {
 			int serrno = errno;
 
 			errno = 0;
