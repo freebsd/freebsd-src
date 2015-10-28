@@ -277,6 +277,28 @@ arge_probe(device_t dev)
 	return (BUS_PROBE_NOWILDCARD);
 }
 
+#ifdef	ARGE_DEBUG
+static void
+arge_attach_intr_sysctl(device_t dev, struct sysctl_oid_list *parent)
+{
+	struct arge_softc *sc = device_get_softc(dev);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(dev);
+	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
+	char sn[8];
+	int i;
+
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "intr",
+	    CTLFLAG_RD, NULL, "Interrupt statistics");
+	child = SYSCTL_CHILDREN(tree);
+	for (i = 0; i < 32; i++) {
+		snprintf(sn, sizeof(sn), "%d", i);
+		SYSCTL_ADD_UINT(ctx, child, OID_AUTO, sn, CTLFLAG_RD,
+		    &sc->intr_stats.count[i], 0, "");
+	}
+}
+#endif
+
 static void
 arge_attach_sysctl(device_t dev)
 {
@@ -288,6 +310,7 @@ arge_attach_sysctl(device_t dev)
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"debug", CTLFLAG_RW, &sc->arge_debug, 0,
 		"arge interface debugging flags");
+	arge_attach_intr_sysctl(dev, SYSCTL_CHILDREN(tree));
 #endif
 
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
@@ -2440,6 +2463,9 @@ arge_intr(void *arg)
 	struct arge_softc	*sc = arg;
 	uint32_t		status;
 	struct ifnet		*ifp = sc->arge_ifp;
+#ifdef	ARGE_DEBUG
+	int i;
+#endif
 
 	status = ARGE_READ(sc, AR71XX_DMA_INTR_STATUS);
 	status |= sc->arge_intr_status;
@@ -2455,6 +2481,14 @@ arge_intr(void *arg)
 		sc->stats.intr_stray2++;
 		return;
 	}
+
+#ifdef	ARGE_DEBUG
+	for (i = 0; i < 32; i++) {
+		if (status & (1 << i)) {
+			sc->intr_stats.count[1 << i]++;
+		}
+	}
+#endif
 
 	if (status & DMA_INTR_RX_BUS_ERROR) {
 		ARGE_WRITE(sc, AR71XX_DMA_RX_STATUS, DMA_RX_STATUS_BUS_ERROR);
