@@ -122,30 +122,6 @@ void	*mps_read_extended_config_page(int fd, U8 ExtPageType, U8 PageVersion,
 int	mps_map_btdh(int fd, uint16_t *devhandle, uint16_t *bus,
     uint16_t *target);
 const char *mps_ioc_status(U16 IOCStatus);
-#if 0
-int	mpt_write_config_page(int fd, void *buf, U16 *IOCStatus);
-int	mpt_raid_action(int fd, U8 Action, U8 VolumeBus, U8 VolumeID,
-    U8 PhysDiskNum, U32 ActionDataWord, void *buf, int len,
-    RAID_VOL0_STATUS *VolumeStatus, U32 *ActionData, int datalen,
-    U16 *IOCStatus, U16 *ActionStatus, int write);
-const char *mpt_raid_status(U16 ActionStatus);
-const char *mpt_raid_level(U8 VolumeType);
-const char *mpt_volstate(U8 State);
-const char *mpt_pdstate(CONFIG_PAGE_RAID_PHYS_DISK_0 *info);
-const char *mpt_pd_inq_string(CONFIG_PAGE_RAID_PHYS_DISK_0 *pd_info);
-struct mpt_drive_list *mpt_pd_list(int fd);
-void	mpt_free_pd_list(struct mpt_drive_list *list);
-int	mpt_query_disk(U8 VolumeBus, U8 VolumeID, struct mpt_query_disk *qd);
-const char *mpt_volume_name(U8 VolumeBus, U8 VolumeID);
-int	mpt_fetch_disks(int fd, int *ndisks,
-    struct mpt_standalone_disk **disksp);
-int	mpt_lock_volume(U8 VolumeBus, U8 VolumeID);
-int	mpt_lookup_drive(struct mpt_drive_list *list, const char *drive,
-    U8 *PhysDiskNum);
-int	mpt_lookup_volume(int fd, const char *name, U8 *VolumeBus,
-    U8 *VolumeID);
-int	mpt_rescan_bus(int bus, int id);
-#endif
 
 static __inline void *
 mps_read_man_page(int fd, U8 PageNumber, U16 *IOCStatus)
