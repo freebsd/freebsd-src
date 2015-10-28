@@ -5947,13 +5947,6 @@ pmap_activate(struct thread *td)
 	critical_exit();
 }
 
-int
-pmap_dmap_iscurrent(pmap_t pmap)
-{
-
-	return (pmap_is_current(pmap));
-}
-
 /*
  *  Perform the pmap work for mincore.
  */

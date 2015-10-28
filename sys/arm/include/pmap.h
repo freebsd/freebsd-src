@@ -277,7 +277,6 @@ void
 pmap_map_entry(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa, int prot,
     int cache);
 int pmap_fault_fixup(pmap_t, vm_offset_t, vm_prot_t, int);
-int pmap_dmap_iscurrent(pmap_t pmap);
 
 /*
  * Definitions for MMU domains
