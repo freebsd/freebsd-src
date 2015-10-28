@@ -141,4 +141,4 @@ mps_read_ioc_page(int fd, U8 PageNumber, U16 *IOCStatus)
 
 MPI2_IOC_FACTS_REPLY * mps_get_iocfacts(int fd);
 
-#endif /* !__MPTUTIL_H__ */
+#endif /* !__MPSUTIL_H__ */
