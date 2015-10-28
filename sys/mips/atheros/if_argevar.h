@@ -214,6 +214,9 @@ struct arge_softc {
 		uint32_t	intr_stray2;
 		uint32_t	intr_ok;
 	} stats;
+	struct {
+		uint32_t	count[32];
+	} intr_stats;
 };
 
 #endif /* __IF_ARGEVAR_H__ */
