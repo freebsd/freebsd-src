@@ -319,6 +319,15 @@ ioat_dma_test(void *arg)
 		return;
 	}
 
+	if (test->testkind == IOAT_TEST_FILL &&
+	    (to_ioat_softc(dmaengine)->capabilities & IOAT_DMACAP_BFILL) == 0)
+	{
+		ioat_test_log(0,
+		    "Hardware doesn't support block fill, aborting test\n");
+		test->status[IOAT_TEST_INVALID_INPUT]++;
+		goto out;
+	}
+
 	index = g_thread_index++;
 	TAILQ_INIT(&test->free_q);
 	TAILQ_INIT(&test->pend_q);

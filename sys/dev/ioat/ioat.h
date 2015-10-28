@@ -71,6 +71,8 @@ void ioat_release(bus_dmaengine_t dmaengine);
 /*
  * Issue a blockfill operation.  The 64-bit pattern 'fillpattern' is written to
  * 'len' physically contiguous bytes at 'dst'.
+ *
+ * Only supported on devices with the BFILL capability.
  */
 struct bus_dmadesc *ioat_blockfill(bus_dmaengine_t dmaengine, bus_addr_t dst,
     uint64_t fillpattern, bus_size_t len, bus_dmaengine_callback_t callback_fn,

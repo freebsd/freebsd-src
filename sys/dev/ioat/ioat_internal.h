@@ -373,6 +373,7 @@ struct ioat_softc {
 	int			pci_resource_id;
 	struct resource		*pci_resource;
 	uint32_t		max_xfer_size;
+	uint32_t		capabilities;
 
 	struct resource		*res;
 	int			rid;
