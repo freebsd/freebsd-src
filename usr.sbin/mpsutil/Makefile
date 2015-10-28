@@ -2,12 +2,11 @@
 
 PROG=	mpsutil
 SRCS=	mpsutil.c mps_cmd.c mps_show.c
-#	mpt_flash.c
 MAN=	mpsutil.8
 
 WARNS?= 3
 
-LIBADD=	cam util
+#LIBADD=	cam util
 LINKS=	${BINDIR}/mpsutil ${BINDIR}/mprutil
 MLINKS=	mpsutil.8 mprutil.8
 
