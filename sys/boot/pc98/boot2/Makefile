@@ -93,6 +93,7 @@ boot2.out: ${BTXCRT} boot2.o sio.o
 	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}
 
 boot2.o: boot2.s
+	${CC} ${ACFLAGS} -c boot2.s
 
 SRCS=	boot2.c boot2.h
 
