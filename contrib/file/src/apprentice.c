@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: apprentice.c,v 1.233 2015/06/10 00:57:41 christos Exp $")
+FILE_RCSID("@(#)$File: apprentice.c,v 1.238 2015/09/12 18:10:42 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -531,6 +531,7 @@ file_ms_alloc(int flags)
 	ms->elf_shnum_max = FILE_ELF_SHNUM_MAX;
 	ms->elf_phnum_max = FILE_ELF_PHNUM_MAX;
 	ms->elf_notes_max = FILE_ELF_NOTES_MAX;
+	ms->regex_max = FILE_REGEX_MAX;
 	return ms;
 free:
 	free(ms);
@@ -540,6 +541,7 @@ free:
 private void
 apprentice_unmap(struct magic_map *map)
 {
+	size_t i;
 	if (map == NULL)
 		return;
 
@@ -552,6 +554,8 @@ apprentice_unmap(struct magic_map *map)
 #endif
 	case MAP_TYPE_MALLOC:
 		free(map->p);
+		for (i = 0; i < MAGIC_SETS; i++)
+			free(map->magic[i]);
 		break;
 	case MAP_TYPE_USER:
 		break;
@@ -1288,6 +1292,7 @@ apprentice_load(struct magic_set *ms, const char *fn, int action)
 		file_oomem(ms, sizeof(*map));
 		return NULL;
 	}
+	map->type = MAP_TYPE_MALLOC;
 
 	/* print silly verbose header for USG compat. */
 	if (action == FILE_CHECK)
@@ -1348,8 +1353,9 @@ apprentice_load(struct magic_set *ms, const char *fn, int action)
 			}
 			i = set_text_binary(ms, mset[j].me, mset[j].count, i);
 		}
-		qsort(mset[j].me, mset[j].count, sizeof(*mset[j].me),
-		    apprentice_sort);
+		if (mset[j].me)
+			qsort(mset[j].me, mset[j].count, sizeof(*mset[j].me),
+			    apprentice_sort);
 
 		/*
 		 * Make sure that any level 0 "default" line is last
@@ -2555,12 +2561,14 @@ getvalue(struct magic_set *ms, struct magic *m, const char **p, int action)
 	case FILE_LEFLOAT:
 		if (m->reln != 'x') {
 			char *ep;
+			errno = 0;
 #ifdef HAVE_STRTOF
 			m->value.f = strtof(*p, &ep);
 #else
 			m->value.f = (float)strtod(*p, &ep);
 #endif
-			*p = ep;
+			if (errno == 0)
+				*p = ep;
 		}
 		return 0;
 	case FILE_DOUBLE:
@@ -2568,17 +2576,22 @@ getvalue(struct magic_set *ms, struct magic *m, const char **p, int action)
 	case FILE_LEDOUBLE:
 		if (m->reln != 'x') {
 			char *ep;
+			errno = 0;
 			m->value.d = strtod(*p, &ep);
-			*p = ep;
+			if (errno == 0)
+				*p = ep;
 		}
 		return 0;
 	default:
 		if (m->reln != 'x') {
 			char *ep;
+			errno = 0;
 			m->value.q = file_signextend(ms, m,
 			    (uint64_t)strtoull(*p, &ep, 0));
-			*p = ep;
-			eatsize(p);
+			if (errno == 0) {
+				*p = ep;
+				eatsize(p);
+			}
 		}
 		return 0;
 	}
@@ -2614,6 +2627,7 @@ getstr(struct magic_set *ms, struct magic *m, const char *s, int warn)
 			case '\0':
 				if (warn)
 					file_magwarn(ms, "incomplete escape");
+				s--;
 				goto out;
 
 			case '\t':
@@ -2737,6 +2751,7 @@ getstr(struct magic_set *ms, struct magic *m, const char *s, int warn)
 		} else
 			*p++ = (char)c;
 	}
+	--s;
 out:
 	*p = '\0';
 	m->vallen = CAST(unsigned char, (p - origp));
@@ -3209,9 +3224,10 @@ file_pstring_length_size(const struct magic *m)
 	}
 }
 protected size_t
-file_pstring_get_length(const struct magic *m, const char *s)
+file_pstring_get_length(const struct magic *m, const char *ss)
 {
 	size_t len = 0;
+	const unsigned char *s = (const unsigned char *)ss;
 
 	switch (m->str_flags & PSTRING_LEN) {
 	case PSTRING_1_LE:
