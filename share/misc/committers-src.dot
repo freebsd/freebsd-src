@@ -206,6 +206,7 @@ joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1993/11/14"]
 jon [label="Jonathan Chen\njon@FreeBSD.org\n2000/10/17"]
 jonathan [label="Jonathan Anderson\njonathan@FreeBSD.org\n2010/10/07"]
 jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2011/01/21"]
+jtl [label="Jonathan T. Looney\njtl@FreeBSD.org\n2015/10/26"]
 julian [label="Julian Elischer\njulian@FreeBSD.org\n1993/04/19"]
 jwd [label="John De Boskey\njwd@FreeBSD.org\n2000/05/19"]
 kaiw [label="Kai Wang\nkaiw@FreeBSD.org\n2007/09/26"]
@@ -460,6 +461,7 @@ gnn -> davide
 gnn -> arybchik
 gnn -> erj
 gnn -> kp
+gnn -> jtl
 
 grehan -> bryanv
 
