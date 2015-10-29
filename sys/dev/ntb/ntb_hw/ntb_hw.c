@@ -755,9 +755,13 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 		save_bar_parameters(bar);
 	}
 
+#if 0	/* XXX: amd64 pmap_change_attr() assumes region lies in DMAP. */
 	/* Mark bar region as write combining to improve performance. */
 	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size,
 	    VM_MEMATTR_WRITE_COMBINING);
+#else
+	rc = EINVAL;
+#endif
 	print_map_success(ntb, bar, "mw");
 	if (rc == 0)
 		device_printf(ntb->device,
