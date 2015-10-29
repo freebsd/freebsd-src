@@ -2885,6 +2885,7 @@ getnewbuf(struct vnode *vp, int slpflag, int slptimeo, int maxsize, int gbflags)
 	struct buf *bp;
 	bool metadata, reserved;
 
+	bp = NULL;
 	KASSERT((gbflags & (GB_UNMAPPED | GB_KVAALLOC)) != GB_KVAALLOC,
 	    ("GB_KVAALLOC only makes sense with GB_UNMAPPED"));
 	if (!unmapped_buf_allowed)
