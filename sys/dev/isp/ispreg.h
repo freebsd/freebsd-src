@@ -453,11 +453,9 @@ typedef struct {
 	uint32_t obits;	/* bits to add for register copyout */
 	uint32_t ibitm;	/* bits to mask for register copyin */
 	uint32_t obitm;	/* bits to mask for register copyout */
-	uint32_t
-		lineno	: 16,
-			: 12,
-		logval	: 4;
+	uint32_t logval;	/* Bitmask of status codes to log */
 	uint32_t timeout;
+	uint32_t lineno;
 	const char *func;
 } mbreg_t;
 #define	MBSINIT(mbxp, code, loglev, timo)	\
