@@ -195,9 +195,6 @@ filemon_open(struct cdev *dev, int oflags __unused, int devtype __unused,
 	if (filemon == NULL) {
 		filemon = malloc(sizeof(struct filemon), M_FILEMON,
 		    M_WAITOK | M_ZERO);
-
-		filemon->fp = NULL;
-
 		sx_init(&filemon->lock, "filemon");
 	}
 
