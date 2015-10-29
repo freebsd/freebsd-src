@@ -6411,7 +6411,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	 */
 	for (tmpva = base; tmpva < base + size; ) {
 		pdpe = pmap_pdpe(kernel_pmap, tmpva);
-		if (*pdpe == 0)
+		if (pdpe == NULL || *pdpe == 0)
 			return (EINVAL);
 		if (*pdpe & PG_PS) {
 			/*
@@ -6484,7 +6484,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 				    X86_PG_PDE_CACHE);
 				changed = TRUE;
 			}
-			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
+			if (tmpva >= VM_MIN_KERNEL_ADDRESS &&
+			    (*pdpe & PG_PS_FRAME) < dmaplimit) {
 				if (pa_start == pa_end) {
 					/* Start physical address run. */
 					pa_start = *pdpe & PG_PS_FRAME;
@@ -6513,7 +6514,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 				    X86_PG_PDE_CACHE);
 				changed = TRUE;
 			}
-			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
+			if (tmpva >= VM_MIN_KERNEL_ADDRESS &&
+			    (*pde & PG_PS_FRAME) < dmaplimit) {
 				if (pa_start == pa_end) {
 					/* Start physical address run. */
 					pa_start = *pde & PG_PS_FRAME;
@@ -6540,7 +6542,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 				    X86_PG_PTE_CACHE);
 				changed = TRUE;
 			}
-			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
+			if (tmpva >= VM_MIN_KERNEL_ADDRESS &&
+			    (*pte & PG_PS_FRAME) < dmaplimit) {
 				if (pa_start == pa_end) {
 					/* Start physical address run. */
 					pa_start = *pte & PG_FRAME;
