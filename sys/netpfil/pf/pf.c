@@ -5574,6 +5574,13 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	if (ifp->if_flags & IFF_LOOPBACK)
 		m0->m_flags |= M_SKIP_FIREWALL;
 
+	if (m0->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6 &
+	    ~ifp->if_hwassist) {
+		uint32_t plen = m0->m_pkthdr.len - sizeof(*ip6);
+		in6_delayed_cksum(m0, plen, sizeof(struct ip6_hdr));
+		m0->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
+	}
+
 	/*
 	 * If the packet is too large for the outgoing interface,
 	 * send back an icmp6 error.
