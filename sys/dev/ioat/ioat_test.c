@@ -284,12 +284,23 @@ ioat_test_submit_1_tx(struct ioat_test *test, bus_dmaengine_t dma)
 			desc = ioat_blockfill(dma, dest, fillpattern,
 			    tx->length, cb, tx, flags);
 		}
-
 		if (desc == NULL)
-			panic("Failed to allocate a ring slot "
-			    "-- this shouldn't happen!");
+			break;
 	}
 	ioat_release(dma);
+
+	/*
+	 * We couldn't issue an IO -- either the device is being detached or
+	 * the HW reset.  Essentially spin until the device comes back up or
+	 * our timer expires.
+	 */
+	if (desc == NULL && tx->depth > 0) {
+		atomic_add_32(&test->status[IOAT_TEST_NO_DMA_ENGINE], tx->depth);
+		IT_LOCK();
+		TAILQ_REMOVE(&test->pend_q, tx, entry);
+		TAILQ_INSERT_HEAD(&test->free_q, tx, entry);
+		IT_UNLOCK();
+	}
 }
 
 static void
