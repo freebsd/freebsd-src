@@ -1,5 +1,0 @@
-.\" $FreeBSD$
-Set to disable stripping debug info into a separate file for each executable
-binary and shared library, preventing
-.Pa /usr/lib/debug
-from being created.

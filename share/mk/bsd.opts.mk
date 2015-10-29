@@ -50,7 +50,6 @@ __<bsd.opts.mk>__:
 
 __DEFAULT_YES_OPTIONS = \
     ASSERT_DEBUG \
-    DEBUG_FILES \
     DOCCOMPRESS \
     INCLUDES \
     INSTALLLIB \
@@ -68,6 +67,7 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     CTF \
+    DEBUG_FILES \
     INSTALL_AS_USER
 
 .include <bsd.mkopt.mk>
@@ -80,6 +80,7 @@ __DEFAULT_NO_OPTIONS = \
 #
 .for var in \
     CTF \
+    DEBUG_FILES \
     INSTALLLIB \
     MAN \
     PROFILE \
