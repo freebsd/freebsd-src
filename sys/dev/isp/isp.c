@@ -2279,10 +2279,6 @@ isp_mark_portdb(ispsoftc_t *isp, int chan, int disposition)
 	fcportdb_t *lp;
 	int i;
 
-	if (chan < 0 || chan >= isp->isp_nchan) {
-		isp_prt(isp, ISP_LOGWARN, "isp_mark_portdb: bad channel %d", chan);
-		return;
-	}
 	for (i = 0; i < MAX_FC_TARG; i++) {
 		lp = &fcp->portdb[i];
 		switch (lp->state) {
