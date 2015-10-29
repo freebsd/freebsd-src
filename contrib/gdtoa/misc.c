@@ -40,6 +40,10 @@ THIS SOFTWARE.
 static double private_mem[PRIVATE_mem], *pmem_next = private_mem;
 #endif
 
+#ifndef roundup2
+#define	roundup2(x, y)	(((x)+((y)-1))&(~((y)-1)))
+#endif
+
  Bigint *
 Balloc
 #ifdef KR_headers
@@ -65,7 +69,7 @@ Balloc
 #ifdef Omit_Private_Memory
 		rv = (Bigint *)MALLOC(sizeof(Bigint) + (x-1)*sizeof(ULong));
 #else
-		len = (sizeof(Bigint) + (x-1)*sizeof(ULong) + sizeof(double) - 1)
+		len = roundup2(sizeof(Bigint) + (x-1)*sizeof(ULong) + sizeof(double) - 1, sizeof(void *))
 			/sizeof(double);
 		if (k <= Kmax && pmem_next - private_mem + len <= PRIVATE_mem) {
 			rv = (Bigint*)pmem_next;
