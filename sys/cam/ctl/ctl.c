@@ -929,6 +929,11 @@ ctl_isc_announce_mode(struct ctl_lun *lun, uint32_t initidx,
 	}
 	if (i == CTL_NUM_MODE_PAGES)
 		return;
+
+	/* Don't try to replicate pages not present on this device. */
+	if (lun->mode_pages.index[i].page_data == NULL)
+		return;
+
 	bzero(&msg.mode, sizeof(msg.mode));
 	msg.hdr.msg_type = CTL_MSG_MODE_SYNC;
 	msg.hdr.nexus.targ_port = initidx / CTL_MAX_INIT_PER_PORT;
