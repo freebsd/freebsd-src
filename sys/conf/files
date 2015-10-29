@@ -2574,7 +2574,6 @@ dev/usb/storage/ustorage_fs.c	optional usfs
 # USB core
 #
 dev/usb/usb_busdma.c		optional usb
-dev/usb/usb_compat_linux.c	optional usb
 dev/usb/usb_core.c		optional usb
 dev/usb/usb_debug.c		optional usb
 dev/usb/usb_dev.c		optional usb
@@ -3796,17 +3795,20 @@ nlm/nlm_prot_svc.c		optional nfslockd | nfsd
 nlm/nlm_prot_xdr.c		optional nfslockd | nfsd
 nlm/sm_inter_xdr.c		optional nfslockd | nfsd
 
-# Linux Kernel Compatibility API
-ofed/include/linux/linux_kmod.c			optional ofed | compat_linuxkpi \
-	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_compat.c		optional ofed | compat_linuxkpi \
-	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_pci.c			optional ofed | compat_linuxkpi \
-	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_idr.c			optional ofed | compat_linuxkpi \
-	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_radix.c		optional ofed | compat_linuxkpi \
-	no-depend compile-with "${OFED_C}"
+# Linux Kernel Programming Interface
+compat/linuxkpi/common/src/linux_kmod.c		optional compat_linuxkpi \
+	no-depend compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_compat.c	optional compat_linuxkpi \
+	no-depend compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_pci.c		optional compat_linuxkpi pci \
+	no-depend compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_idr.c		optional compat_linuxkpi \
+	no-depend compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_radix.c	optional compat_linuxkpi \
+	no-depend compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_usb.c		optional compat_linuxkpi usb \
+	no-depend compile-with "${LINUXKPI_C}"
+
 # OpenFabrics Enterprise Distribution (Infiniband)
 ofed/drivers/infiniband/core/addr.c		optional ofed		\
 	no-depend							\
