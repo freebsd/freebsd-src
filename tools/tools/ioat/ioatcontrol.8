@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 26, 2015
+.Dd October 28, 2015
 .Dt IOATCONTROL 8
 .Os
 .Sh NAME
@@ -40,6 +40,14 @@
 .Ar [ bufsize
 .Ar [ chain-len
 .Ar [ duration ] ] ]
+.Nm
+.Fl r
+.Op Fl v
+.Op Fl V
+.Op Fl w
+.Ar channel_number
+.Ar address
+.Ar [ bufsize ]
 .Sh DESCRIPTION
 .Nm
 allows one to issue some number of test operations to the
@@ -53,6 +61,29 @@ Test block fill (by default,
 tests copy)
 .It Fl V
 Verify copies/fills for accuracy
+.El
+.Pp
+Alternatively one can use
+.Nm
+.Fl r
+to issue DMA to or from a specific
+.Ar address .
+The arguments in "raw" mode are:
+.Bl -tag -width Ds
+.It Fl v
+.Ar address
+is a kernel virtual address (by default,
+.Ar address
+is assumed to be a physical address)
+.It Fl V
+Dump the resulting hex to syslog
+.It Fl w
+Write to the specified
+.Ar address
+(by default,
+.Nm
+.Fl r
+reads)
 .El
 .Pp
 .Nm
@@ -77,6 +108,7 @@ argument determines the size of buffers to use for each
 .Fn ioat_copy
 invocation.
 The default is 256 KB.
+In raw mode, the default is 4 KB.
 .Pp
 The
 .Ar chain-len
