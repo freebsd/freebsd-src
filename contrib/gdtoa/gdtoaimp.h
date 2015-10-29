@@ -209,6 +209,10 @@ THIS SOFTWARE.
 #define Char void
 #endif
 
+#ifdef __CHERI_SANDBOX__
+#define	Omit_Private_Memory
+#endif
+
 #ifdef MALLOC
 extern Char *MALLOC ANSI((size_t));
 #else
