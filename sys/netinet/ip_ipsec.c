@@ -159,7 +159,7 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
 {
 	struct secpolicy *sp;
 
-	if (!key_havesp(IPSEC_DIR_INBOUND))
+	if (!key_havesp(IPSEC_DIR_OUTBOUND))
 		return 0;
 
 	/*
