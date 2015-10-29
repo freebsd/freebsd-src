@@ -54,7 +54,7 @@
 #define	USB_DEBUG_VAR usb_debug
 
 #include <dev/usb/usb_core.h>
-#include <dev/usb/usb_compat_linux.h>
+#include <linux/usb.h>
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_util.h>
@@ -63,6 +63,7 @@
 #include <dev/usb/usb_hub.h>
 #include <dev/usb/usb_request.h>
 #include <dev/usb/usb_debug.h>
+#include <dev/usb/usb_dynamic.h>
 #endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 struct usb_linux_softc {
@@ -1733,3 +1734,13 @@ usb_bulk_msg(struct usb_device *udev, struct usb_host_endpoint *uhe,
 
 	return (err);
 }
+MODULE_DEPEND(linuxkpi, usb, 1, 1, 1);
+
+static void
+usb_linux_init(void *arg)
+{
+	/* register our function */
+	usb_linux_free_device_p = &usb_linux_free_device;
+}
+SYSINIT(usb_linux_init, SI_SUB_LOCK, SI_ORDER_FIRST, usb_linux_init, NULL);
+SYSUNINIT(usb_linux_unload, SI_SUB_LOCK, SI_ORDER_ANY, usb_linux_unload, NULL);

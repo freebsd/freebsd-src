@@ -177,9 +177,13 @@ NORMAL_CTFCONVERT=	@:
 
 NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 
+# Linux Kernel Programming Interface C-flags
+LINUXKPI_INCLUDES=	-I$S/compat/linuxkpi/common/include
+LINUXKPI_C=		${NORMAL_C} ${LINUXKPI_INCLUDES}
+
 # Infiniband C flags.  Correct include paths and omit errors that linux
 # does not honor.
-OFEDINCLUDES=	-I$S/ofed/include/
+OFEDINCLUDES=	-I$S/ofed/include ${LINUXKPI_INCLUDES}
 OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith
 OFEDCFLAGS=	${CFLAGS:N-I*} ${OFEDINCLUDES} ${CFLAGS:M-I*} ${OFEDNOERR}
 OFED_C_NOIMP=	${CC} -c -o ${.TARGET} ${OFEDCFLAGS} ${WERROR} ${PROF}

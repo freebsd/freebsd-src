@@ -359,6 +359,9 @@ options 	COMPAT_FREEBSD9
 # Enable FreeBSD10 compatibility syscalls
 options 	COMPAT_FREEBSD10
 
+# Enable Linux Kernel Programming Interface
+options 	COMPAT_LINUXKPI
+
 #
 # These three options provide support for System V Interface
 # Definition-style interprocess communication, in the form of shared
