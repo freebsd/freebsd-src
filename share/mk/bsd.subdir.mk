@@ -83,7 +83,7 @@ _SUBDIR_SH=	\
 _SUBDIR: .USEBEFORE
 .if defined(SUBDIR) && !empty(SUBDIR) && !defined(NO_SUBDIR)
 	@${_+_}target=${.TARGET:S,realinstall,install,}; \
-	    for dir in ${SUBDIR:N.WAIT}; do ${_SUBDIR_SH}; done
+	    for dir in ${SUBDIR:N.WAIT}; do ( ${_SUBDIR_SH} ); done
 .endif
 
 ${SUBDIR:N.WAIT}: .PHONY .MAKE
