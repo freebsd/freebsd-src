@@ -107,8 +107,10 @@ mkdir_home_parents(int dfd, const char *dir)
 		errx(EX_UNAVAILABLE, "out of memory");
 
 	tmp = strrchr(dirs, '/');
-	if (tmp == NULL)
+	if (tmp == NULL) {
+		free(dirs);
 		return;
+	}
 	tmp[0] = '\0';
 
 	/*
