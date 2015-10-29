@@ -41,6 +41,7 @@ enum ioat_res {
 enum ioat_test_kind {
 	IOAT_TEST_FILL = 0,
 	IOAT_TEST_DMA,
+	IOAT_TEST_RAW_DMA,
 	IOAT_NUM_TESTKINDS
 };
 
@@ -65,6 +66,12 @@ struct ioat_test {
 
 	/* If true, check for miscompares after a copy. */
 	bool verify;
+
+	/* DMA directly to/from some memory address */
+	uint64_t raw_target;
+	void *raw_vtarget;
+	bool raw_write;
+	bool raw_is_virtual;
 
 	/* Internal usage -- not test inputs */
 	TAILQ_HEAD(, test_transaction) free_q;
