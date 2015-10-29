@@ -328,7 +328,7 @@ _citrus_esdb_get_list(char ***rlist, size_t *rnum, bool sorted)
 			    (int)_region_size(&data),
 			    (const char *)_region_head(&data));
 			if ((p = strchr(buf1, '/')) != NULL)
-				memcpy(buf1, p + 1, strlen(p) - 1);
+				memmove(buf1, p + 1, strlen(p) - 1);
 			if ((p = strstr(buf1, ".esdb")) != NULL)
 				*p = '\0';
 			snprintf(buf, sizeof(buf), "%s/%.*s", buf1,
