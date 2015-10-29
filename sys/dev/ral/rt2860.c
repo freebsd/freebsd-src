@@ -115,7 +115,6 @@ static void	rt2860_tx_intr(struct rt2860_softc *, int);
 static void	rt2860_rx_intr(struct rt2860_softc *);
 static void	rt2860_tbtt_intr(struct rt2860_softc *);
 static void	rt2860_gp_intr(struct rt2860_softc *);
-static void	rt2860_intr(void *);
 static int	rt2860_tx(struct rt2860_softc *, struct mbuf *,
 		    struct ieee80211_node *);
 static int	rt2860_raw_xmit(struct ieee80211_node *, struct mbuf *,
@@ -1387,7 +1386,7 @@ rt2860_gp_intr(struct rt2860_softc *sc)
 		rt2860_updatestats(sc);
 }
 
-static void
+void
 rt2860_intr(void *arg)
 {
 	struct rt2860_softc *sc = arg;
