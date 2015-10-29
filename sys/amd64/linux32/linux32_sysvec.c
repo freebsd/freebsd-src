@@ -105,8 +105,8 @@ MODULE_VERSION(linux, 1);
  * to syscall 0. This is slightly less bogus than using
  * ldebug(sigreturn).
  */
-#define	LINUX_SYS_linux_rt_sendsig	0
-#define	LINUX_SYS_linux_sendsig		0
+#define	LINUX32_SYS_linux_rt_sendsig	0
+#define	LINUX32_SYS_linux_sendsig	0
 
 const char *linux_kplatform;
 static int linux_szsigcode;
