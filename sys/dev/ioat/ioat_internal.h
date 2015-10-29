@@ -365,6 +365,7 @@ struct ioat_softc {
 })
 
 	int			version;
+	int			chan_idx;
 
 	struct mtx		submit_lock;
 	device_t		device;
@@ -389,6 +390,7 @@ struct ioat_softc {
 
 	struct callout		timer;
 
+	boolean_t		quiescing;
 	boolean_t		is_resize_pending;
 	boolean_t		is_completion_pending;
 	boolean_t		is_reset_pending;

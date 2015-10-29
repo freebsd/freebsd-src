@@ -96,7 +96,7 @@ static inline struct ioat_softc *ioat_get(struct ioat_softc *,
 static inline void ioat_put(struct ioat_softc *, enum ioat_ref_kind);
 static inline void ioat_putn(struct ioat_softc *, uint32_t,
     enum ioat_ref_kind);
-static void ioat_drain(struct ioat_softc *);
+static void ioat_drain_locked(struct ioat_softc *);
 
 #define	ioat_log_message(v, ...) do {					\
 	if ((v) <= g_ioat_debug_level) {				\
@@ -271,6 +271,7 @@ ioat_attach(device_t device)
 	ioat_process_events(ioat);
 	ioat_setup_sysctl(device);
 
+	ioat->chan_idx = ioat_channel_index;
 	ioat_channel[ioat_channel_index++] = ioat;
 	ioat_test_attach();
 
@@ -288,7 +289,13 @@ ioat_detach(device_t device)
 	ioat = DEVICE2SOFTC(device);
 
 	ioat_test_detach();
-	ioat_drain(ioat);
+
+	mtx_lock(IOAT_REFLK);
+	ioat->quiescing = TRUE;
+	ioat_channel[ioat->chan_idx] = NULL;
+
+	ioat_drain_locked(ioat);
+	mtx_unlock(IOAT_REFLK);
 
 	ioat_teardown_intr(ioat);
 	callout_drain(&ioat->timer);
@@ -614,10 +621,16 @@ out:
 bus_dmaengine_t
 ioat_get_dmaengine(uint32_t index)
 {
+	struct ioat_softc *sc;
 
 	if (index >= ioat_channel_index)
 		return (NULL);
-	return (&ioat_get(ioat_channel[index], IOAT_DMAENGINE_REF)->dmaengine);
+
+	sc = ioat_channel[index];
+	if (sc == NULL || sc->quiescing)
+		return (NULL);
+
+	return (&ioat_get(sc, IOAT_DMAENGINE_REF)->dmaengine);
 }
 
 void
@@ -885,6 +898,10 @@ ioat_reserve_space(struct ioat_softc *ioat, uint32_t num_descs, int mflags)
 
 	if (num_descs < 1 || num_descs > (1 << IOAT_MAX_ORDER)) {
 		error = EINVAL;
+		goto out;
+	}
+	if (ioat->quiescing) {
+		error = ENXIO;
 		goto out;
 	}
 
@@ -1238,6 +1255,12 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	uint64_t status;
 	uint32_t chanerr;
 	unsigned timeout;
+	int error;
+
+	mtx_lock(IOAT_REFLK);
+	ioat->quiescing = TRUE;
+	ioat_drain_locked(ioat);
+	mtx_unlock(IOAT_REFLK);
 
 	status = ioat_get_chansts(ioat);
 	if (is_ioat_active(status) || is_ioat_idle(status))
@@ -1249,8 +1272,10 @@ ioat_reset_hw(struct ioat_softc *ioat)
 		DELAY(1000);
 		status = ioat_get_chansts(ioat);
 	}
-	if (timeout == 20)
-		return (ETIMEDOUT);
+	if (timeout == 20) {
+		error = ETIMEDOUT;
+		goto out;
+	}
 
 	KASSERT(ioat_get_active(ioat) == 0, ("active after quiesce"));
 
@@ -1280,8 +1305,10 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	/* Wait at most 20 ms */
 	for (timeout = 0; ioat_reset_pending(ioat) && timeout < 20; timeout++)
 		DELAY(1000);
-	if (timeout == 20)
-		return (ETIMEDOUT);
+	if (timeout == 20) {
+		error = ETIMEDOUT;
+		goto out;
+	}
 
 	if (ioat_model_resets_msix(ioat)) {
 		ioat_log_message(1, "device resets registers; restored\n");
@@ -1294,13 +1321,16 @@ ioat_reset_hw(struct ioat_softc *ioat)
 		/* So this really shouldn't happen... */
 		ioat_log_message(0, "Device is active after a reset?\n");
 		ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
-		return (0);
+		error = 0;
+		goto out;
 	}
 
 	chanerr = ioat_read_4(ioat, IOAT_CHANERR_OFFSET);
 	ioat_halted_debug(ioat, chanerr);
-	if (chanerr != 0)
-		return (EIO);
+	if (chanerr != 0) {
+		error = EIO;
+		goto out;
+	}
 
 	/*
 	 * Bring device back online after reset.  Writing CHAINADDR brings the
@@ -1315,7 +1345,17 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 	ioat_write_chancmp(ioat, ioat->comp_update_bus_addr);
 	ioat_write_chainaddr(ioat, ioat->ring[0]->hw_desc_bus_addr);
-	return (ioat_start_channel(ioat));
+	error = 0;
+
+out:
+	mtx_lock(IOAT_REFLK);
+	ioat->quiescing = FALSE;
+	mtx_unlock(IOAT_REFLK);
+
+	if (error == 0)
+		error = ioat_start_channel(ioat);
+
+	return (error);
 }
 
 static int
@@ -1456,11 +1496,10 @@ ioat_put(struct ioat_softc *ioat, enum ioat_ref_kind kind)
 }
 
 static void
-ioat_drain(struct ioat_softc *ioat)
+ioat_drain_locked(struct ioat_softc *ioat)
 {
 
-	mtx_lock(IOAT_REFLK);
+	mtx_assert(IOAT_REFLK, MA_OWNED);
 	while (ioat->refcnt > 0)
 		msleep(IOAT_REFLK, IOAT_REFLK, 0, "ioat_drain", 0);
-	mtx_unlock(IOAT_REFLK);
 }
