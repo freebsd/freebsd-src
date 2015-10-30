@@ -1550,6 +1550,9 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	    sc->arge_cdata.arge_tx_ring_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
+	/* Flush writes */
+	ARGE_BARRIER_WRITE(sc);
+
 	/* Start transmitting */
 	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: setting DMA_TX_CONTROL_EN\n",
 	    __func__);
