@@ -68,6 +68,7 @@
 #define ARGE_WRITE(sc, reg, val)	do {	\
 		bus_write_4(sc->arge_res, (reg), (val)); \
 		ARGE_BARRIER_WRITE((sc)); \
+		ARGE_READ((sc), (reg)); \
 	} while (0)
 #define ARGE_READ(sc, reg)	 bus_read_4(sc->arge_res, (reg))
 
@@ -87,10 +88,7 @@
  * FIFO(s) before we continue issuing MDIO bus updates.
  */
 #define ARGE_MDIO_WRITE(_sc, _reg, _val) \
-	do { \
-		ARGE_WRITE((_sc), (_reg), (_val)); \
-		ARGE_READ((_sc), (_reg)); \
-	} while (0)
+	ARGE_WRITE((_sc), (_reg), (_val))
 #define ARGE_MDIO_READ(_sc, _reg)	\
 	ARGE_READ((_sc), (_reg))
 #define	ARGE_MDIO_BARRIER_READ(_sc)	ARGE_BARRIER_READ(_sc)
