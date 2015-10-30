@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BN_CTX_new 3"
-.TH BN_CTX_new 3 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH BN_CTX_new 3 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -147,9 +147,13 @@ BN_CTX_new, BN_CTX_init, BN_CTX_free \- allocate and free BN_CTX structures
 \&
 \& BN_CTX *BN_CTX_new(void);
 \&
-\& void BN_CTX_init(BN_CTX *c);
-\&
 \& void BN_CTX_free(BN_CTX *c);
+.Ve
+.PP
+Deprecated:
+.PP
+.Vb 1
+\& void BN_CTX_init(BN_CTX *c);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -159,14 +163,16 @@ is rather expensive when used in conjunction with repeated subroutine
 calls, the \fB\s-1BN_CTX\s0\fR structure is used.
 .PP
 \&\fIBN_CTX_new()\fR allocates and initializes a \fB\s-1BN_CTX\s0\fR
-structure. \fIBN_CTX_init()\fR initializes an existing uninitialized
-\&\fB\s-1BN_CTX\s0\fR.
+structure.
 .PP
 \&\fIBN_CTX_free()\fR frees the components of the \fB\s-1BN_CTX\s0\fR, and if it was
 created by \fIBN_CTX_new()\fR, also the structure itself.
 If \fIBN_CTX_start\fR\|(3) has been used on the \fB\s-1BN_CTX\s0\fR,
 \&\fIBN_CTX_end\fR\|(3) must be called before the \fB\s-1BN_CTX\s0\fR
 may be freed by \fIBN_CTX_free()\fR.
+.PP
+\&\fIBN_CTX_init()\fR (deprecated) initializes an existing uninitialized \fB\s-1BN_CTX\s0\fR.
+This should not be used for new programs. Use \fIBN_CTX_new()\fR instead.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fIBN_CTX_new()\fR returns a pointer to the \fB\s-1BN_CTX\s0\fR. If the allocation fails,

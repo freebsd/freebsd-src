@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CMS 1"
-.TH CMS 1 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH CMS 1 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -194,6 +194,7 @@ cms \- CMS utility
 [\fB\-secretkeyid id\fR]
 [\fB\-econtent_type type\fR]
 [\fB\-inkey file\fR]
+[\fB\-keyopt name:parameter\fR]
 [\fB\-passin arg\fR]
 [\fB\-rand file(s)\fR]
 [\fBcert.pem...\fR]
@@ -412,8 +413,13 @@ verified then the signers certificates will be written to this file if the
 verification was successful.
 .IP "\fB\-recip file\fR" 4
 .IX Item "-recip file"
-the recipients certificate when decrypting a message. This certificate
-must match one of the recipients of the message or an error occurs.
+when decrypting a message this specifies the recipients certificate. The
+certificate must match one of the recipients of the message or an error
+occurs.
+.Sp
+When encrypting a message this option may be used multiple times to specify
+each recipient. This form \fBmust\fR be used if customised parameters are
+required (for example to specify RSA-OAEP).
 .IP "\fB\-keyid\fR" 4
 .IX Item "-keyid"
 use subject key identifier to identify certificates instead of issuer name and
@@ -462,6 +468,12 @@ corresponding certificate. If this option is not specified then the
 private key must be included in the certificate file specified with
 the \fB\-recip\fR or \fB\-signer\fR file. When signing this option can be used
 multiple times to specify successive keys.
+.IP "\fB\-keyopt name:opt\fR" 4
+.IX Item "-keyopt name:opt"
+for signing and encryption this option can be used multiple times to
+set customised parameters for the preceding key or certificate. It can
+currently be used to set RSA-PSS for signing, RSA-OAEP for encryption
+or to modify default parameters for \s-1ECDH.\s0
 .IP "\fB\-passin arg\fR" 4
 .IX Item "-passin arg"
 the private key password source. For more information about the format of \fBarg\fR
@@ -570,6 +582,10 @@ The \fB\-compress\fR option.
 .PP
 The \fB\-secretkey\fR option when used with \fB\-encrypt\fR.
 .PP
+The use of \s-1PSS\s0 with \fB\-sign\fR.
+.PP
+The use of \s-1OAEP\s0 or non-RSA keys with \fB\-encrypt\fR.
+.PP
 Additionally the \fB\-EncryptedData_create\fR and \fB\-data_create\fR type cannot
 be processed by the older \fBsmime\fR command.
 .SH "EXAMPLES"
@@ -676,6 +692,27 @@ Add a signer to an existing message:
 .Vb 1
 \& openssl cms \-resign \-in mail.msg \-signer newsign.pem \-out mail2.msg
 .Ve
+.PP
+Sign mail using RSA-PSS:
+.PP
+.Vb 2
+\& openssl cms \-sign \-in message.txt \-text \-out mail.msg \e
+\&        \-signer mycert.pem \-keyopt rsa_padding_mode:pss
+.Ve
+.PP
+Create encrypted mail using RSA-OAEP:
+.PP
+.Vb 2
+\& openssl cms \-encrypt \-in plain.txt \-out mail.msg \e
+\&        \-recip cert.pem \-keyopt rsa_padding_mode:oaep
+.Ve
+.PP
+Use \s-1SHA256 KDF\s0 with an \s-1ECDH\s0 certificate:
+.PP
+.Vb 2
+\& openssl cms \-encrypt \-in plain.txt \-out mail.msg \e
+\&        \-recip ecdhcert.pem \-keyopt ecdh_kdf_md:sha256
+.Ve
 .SH "BUGS"
 .IX Header "BUGS"
 The \s-1MIME\s0 parser isn't very clever: it seems to handle most messages that I've
@@ -700,4 +737,14 @@ No revocation checking is done on the signer's certificate.
 The use of multiple \fB\-signer\fR options and the \fB\-resign\fR command were first
 added in OpenSSL 1.0.0
 .PP
-The \-no_alt_chains options was first added to OpenSSL 1.0.1n and 1.0.2b.
+The \fBkeyopt\fR option was first added in OpenSSL 1.1.0
+.PP
+The use of \fB\-recip\fR to specify the recipient when encrypting mail was first
+added to OpenSSL 1.1.0
+.PP
+Support for RSA-OAEP and RSA-PSS was first added to OpenSSL 1.1.0.
+.PP
+The use of non-RSA keys with \fB\-encrypt\fR and \fB\-decrypt\fR was first added
+to OpenSSL 1.1.0.
+.PP
+The \-no_alt_chains options was first added to OpenSSL 1.0.2b.

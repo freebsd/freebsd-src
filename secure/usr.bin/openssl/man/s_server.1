@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "S_SERVER 1"
-.TH S_SERVER 1 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH S_SERVER 1 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -181,7 +181,6 @@ s_server \- SSL/TLS server program
 [\fB\-no_ssl3\fR]
 [\fB\-no_tls1\fR]
 [\fB\-no_dhe\fR]
-[\fB\-no_ecdhe\fR]
 [\fB\-bugs\fR]
 [\fB\-hack\fR]
 [\fB\-www\fR]
@@ -192,6 +191,8 @@ s_server \- SSL/TLS server program
 [\fB\-no_ticket\fR]
 [\fB\-id_prefix arg\fR]
 [\fB\-rand file(s)\fR]
+[\fB\-serverinfo file\fR]
+[\fB\-no_resumption_on_reneg\fR]
 [\fB\-status\fR]
 [\fB\-status_verbose\fR]
 [\fB\-status_timeout nsec\fR]
@@ -258,10 +259,6 @@ a static set of parameters hard coded into the s_server program will be used.
 .IX Item "-no_dhe"
 if this option is set then no \s-1DH\s0 parameters will be loaded effectively
 disabling the ephemeral \s-1DH\s0 cipher suites.
-.IP "\fB\-no_ecdhe\fR" 4
-.IX Item "-no_ecdhe"
-if this option is set then no \s-1ECDH\s0 parameters will be loaded effectively
-disabling the ephemeral \s-1ECDH\s0 cipher suites.
 .IP "\fB\-no_tmp_rsa\fR" 4
 .IX Item "-no_tmp_rsa"
 certain export cipher suites sometimes use a temporary \s-1RSA\s0 key, this option
@@ -390,6 +387,16 @@ generator, or an \s-1EGD\s0 socket (see \fIRAND_egd\fR\|(3)).
 Multiple files can be specified separated by a OS-dependent character.
 The separator is \fB;\fR for MS-Windows, \fB,\fR for OpenVMS, and \fB:\fR for
 all others.
+.IP "\fB\-serverinfo file\fR" 4
+.IX Item "-serverinfo file"
+a file containing one or more blocks of \s-1PEM\s0 data.  Each \s-1PEM\s0 block
+must encode a \s-1TLS\s0 ServerHello extension (2 bytes type, 2 bytes length,
+followed by \*(L"length\*(R" bytes of extension data).  If the client sends
+an empty \s-1TLS\s0 ClientHello extension matching the type, the corresponding
+ServerHello extension will be returned.
+.IP "\fB\-no_resumption_on_reneg\fR" 4
+.IX Item "-no_resumption_on_reneg"
+set \s-1SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION\s0 flag.
 .IP "\fB\-status\fR" 4
 .IX Item "-status"
 enables certificate status request support (aka \s-1OCSP\s0 stapling).
@@ -476,4 +483,4 @@ unknown cipher suites a client says it supports.
 \&\fIsess_id\fR\|(1), \fIs_client\fR\|(1), \fIciphers\fR\|(1)
 .SH "HISTORY"
 .IX Header "HISTORY"
-The \-no_alt_chains options was first added to OpenSSL 1.0.1n and 1.0.2b.
+The \-no_alt_chains options was first added to OpenSSL 1.0.2b.

@@ -387,6 +387,6 @@ second file.
 
 =head1 HISTORY
 
-The -no_alt_chains options was first added to OpenSSL 1.0.1n and 1.0.2b.
+The -no_alt_chains options was first added to OpenSSL 1.0.2b.
 
 =cut

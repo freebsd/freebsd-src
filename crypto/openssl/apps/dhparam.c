@@ -489,9 +489,12 @@ int MAIN(int argc, char **argv)
     if (!noout) {
         if (outformat == FORMAT_ASN1)
             i = i2d_DHparams_bio(out, dh);
-        else if (outformat == FORMAT_PEM)
-            i = PEM_write_bio_DHparams(out, dh);
-        else {
+        else if (outformat == FORMAT_PEM) {
+            if (dh->q)
+                i = PEM_write_bio_DHxparams(out, dh);
+            else
+                i = PEM_write_bio_DHparams(out, dh);
+        } else {
             BIO_printf(bio_err, "bad output format specified for outfile\n");
             goto end;
         }

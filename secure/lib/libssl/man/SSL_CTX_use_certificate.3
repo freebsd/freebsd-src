@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_use_certificate 3"
-.TH SSL_CTX_use_certificate 3 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH SSL_CTX_use_certificate 3 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -244,10 +244,9 @@ the same check for \fBssl\fR. If no key/certificate was explicitly added for
 this \fBssl\fR, the last item added into \fBctx\fR will be checked.
 .SH "NOTES"
 .IX Header "NOTES"
-The internal certificate store of OpenSSL can hold two private key/certificate
-pairs at a time: one key/certificate of type \s-1RSA\s0 and one key/certificate
-of type \s-1DSA.\s0 The certificate used depends on the cipher select, see
-also \fISSL_CTX_set_cipher_list\fR\|(3).
+The internal certificate store of OpenSSL can hold several private
+key/certificate pairs at a time. The certificate used depends on the
+cipher selected, see also \fISSL_CTX_set_cipher_list\fR\|(3).
 .PP
 When reading certificates and private keys from file, files of type
 \&\s-1SSL_FILETYPE_ASN1 \s0(also known as \fB\s-1DER\s0\fR, binary encoding) can only contain
@@ -257,16 +256,13 @@ Files of type \s-1SSL_FILETYPE_PEM\s0 can contain more than one item.
 .PP
 \&\fISSL_CTX_use_certificate_chain_file()\fR adds the first certificate found
 in the file to the certificate store. The other certificates are added
-to the store of chain certificates using
-\&\fISSL_CTX_add_extra_chain_cert\fR\|(3).
-There exists only one extra chain store, so that the same chain is appended
-to both types of certificates, \s-1RSA\s0 and \s-1DSA\s0! If it is not intended to use
-both type of certificate at the same time, it is recommended to use the
-\&\fISSL_CTX_use_certificate_chain_file()\fR instead of the
-\&\fISSL_CTX_use_certificate_file()\fR function in order to allow the use of
-complete certificate chains even when no trusted \s-1CA\s0 storage is used or
-when the \s-1CA\s0 issuing the certificate shall not be added to the trusted
-\&\s-1CA\s0 storage.
+to the store of chain certificates using \fISSL_CTX_add1_chain_cert\fR\|(3). Note: versions of OpenSSL before 1.0.2 only had a single
+certificate chain store for all certificate types, OpenSSL 1.0.2 and later
+have a separate chain store for each type. \fISSL_CTX_use_certificate_chain_file()\fR 
+should be used instead of the \fISSL_CTX_use_certificate_file()\fR function in order
+to allow the use of complete certificate chains even when no trusted \s-1CA\s0
+storage is used or when the \s-1CA\s0 issuing the certificate shall not be added to
+the trusted \s-1CA\s0 storage.
 .PP
 If additional certificates are needed to complete the chain during the
 \&\s-1TLS\s0 negotiation, \s-1CA\s0 certificates are additionally looked up in the

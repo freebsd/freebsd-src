@@ -442,6 +442,6 @@ structures may cause parsing errors.
 The use of multiple B<-signer> options and the B<-resign> command were first
 added in OpenSSL 1.0.0
 
-The -no_alt_chains options was first added to OpenSSL 1.0.1n and 1.0.2b.
+The -no_alt_chains options was first added to OpenSSL 1.0.2b.
 
 =cut

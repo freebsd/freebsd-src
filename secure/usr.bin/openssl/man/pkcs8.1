@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PKCS8 1"
-.TH PKCS8 1 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH PKCS8 1 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -156,6 +156,7 @@ pkcs8 \- PKCS#8 format private key conversion tool
 [\fB\-embed\fR]
 [\fB\-nsdb\fR]
 [\fB\-v2 alg\fR]
+[\fB\-v2prf alg\fR]
 [\fB\-v1 alg\fR]
 [\fB\-engine id\fR]
 .SH "DESCRIPTION"
@@ -238,6 +239,11 @@ private keys with OpenSSL then this doesn't matter.
 .Sp
 The \fBalg\fR argument is the encryption algorithm to use, valid values include
 \&\fBdes\fR, \fBdes3\fR and \fBrc2\fR. It is recommended that \fBdes3\fR is used.
+.IP "\fB\-v2prf alg\fR" 4
+.IX Item "-v2prf alg"
+This option sets the \s-1PRF\s0 algorithm to use with PKCS#5 v2.0. A typical value
+values would be \fBhmacWithSHA256\fR. If this option isn't set then the default
+for the cipher is used or \fBhmacWithSHA1\fR if there is no default.
 .IP "\fB\-v1 alg\fR" 4
 .IX Item "-v1 alg"
 This option specifies a PKCS#5 v1.5 or PKCS#12 algorithm to use. A complete
@@ -306,6 +312,13 @@ Convert a private from traditional to PKCS#5 v2.0 format using triple
 .PP
 .Vb 1
 \& openssl pkcs8 \-in key.pem \-topk8 \-v2 des3 \-out enckey.pem
+.Ve
+.PP
+Convert a private from traditional to PKCS#5 v2.0 format using \s-1AES\s0 with
+256 bits in \s-1CBC\s0 mode and \fBhmacWithSHA256\fR \s-1PRF:\s0
+.PP
+.Vb 1
+\& openssl pkcs8 \-in key.pem \-topk8 \-v2 aes\-256\-cbc \-v2prf hmacWithSHA256 \-out enckey.pem
 .Ve
 .PP
 Convert a private key to PKCS#8 using a PKCS#5 1.5 compatible algorithm

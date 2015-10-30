@@ -133,34 +133,47 @@
 .\" ========================================================================
 .\"
 .IX Title "ERR_remove_state 3"
-.TH ERR_remove_state 3 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH ERR_remove_state 3 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-ERR_remove_state \- free a thread's error queue
+ERR_remove_thread_state, ERR_remove_state \- free a thread's error queue
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/err.h>
 \&
+\& void ERR_remove_thread_state(const CRYPTO_THREADID *tid);
+.Ve
+.PP
+Deprecated:
+.PP
+.Vb 1
 \& void ERR_remove_state(unsigned long pid);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fIERR_remove_state()\fR frees the error queue associated with thread \fBpid\fR.
-If \fBpid\fR == 0, the current thread will have its error queue removed.
+\&\fIERR_remove_thread_state()\fR frees the error queue associated with thread \fBtid\fR.
+If \fBtid\fR == \fB\s-1NULL\s0\fR, the current thread will have its error queue removed.
 .PP
 Since error queue data structures are allocated automatically for new
 threads, they must be freed when threads are terminated in order to
 avoid memory leaks.
+.PP
+ERR_remove_state is deprecated and has been replaced by
+ERR_remove_thread_state. Since threads in OpenSSL are no longer identified
+by unsigned long values any argument to this function is ignored. Calling
+ERR_remove_state is equivalent to \fBERR_remove_thread_state(\s-1NULL\s0)\fR.
 .SH "RETURN VALUE"
 .IX Header "RETURN VALUE"
-\&\fIERR_remove_state()\fR returns no value.
+ERR_remove_thread_state and \fIERR_remove_state()\fR return no value.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIerr\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\fIERR_remove_state()\fR is available in all versions of SSLeay and OpenSSL.
+\&\fIERR_remove_state()\fR is available in all versions of SSLeay and OpenSSL. It
+was deprecated in OpenSSL 1.0.0 when ERR_remove_thread_state was introduced
+and thread IDs were introduced to identify threads instead of 'unsigned long'.

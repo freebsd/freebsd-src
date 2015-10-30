@@ -38,6 +38,15 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20151030: OpenSSL 1.0.2d import
+OLD_FILES+=usr/share/openssl/man/man3/CMS_set1_signer_certs.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_ctrl.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_ctrl_str.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/d2i_509_CRL_fp.3.gz
+OLD_LIBS+=lib/libcrypto.so.7
+OLD_LIBS+=usr/lib/libssl.so.7
+OLD_LIBS+=usr/lib32/libcrypto.so.7
+OLD_LIBS+=usr/lib32/libssl.so.7
 # 20151015: test symbols moved to /usr/lib/debug
 OLD_DIRS+=usr/tests/lib/atf/libatf-c++/.debug
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/.debug/atf_c++_test.debug
