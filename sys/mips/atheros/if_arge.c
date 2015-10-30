@@ -1501,7 +1501,7 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	}
 
 	/* Check number of available descriptors. */
-	if (sc->arge_cdata.arge_tx_cnt + nsegs >= (ARGE_TX_RING_COUNT - 1)) {
+	if (sc->arge_cdata.arge_tx_cnt + nsegs >= (ARGE_TX_RING_COUNT - 2)) {
 		bus_dmamap_unload(sc->arge_cdata.arge_tx_tag, txd->tx_dmamap);
 		sc->stats.tx_pkts_nosegs++;
 		return (ENOBUFS);
