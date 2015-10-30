@@ -577,7 +577,7 @@ bcm2835_mbox_fb_init(device_t dev, struct bcm2835_fb_config *fb)
 		fb->xoffset = msg->offset.body.resp.x;
 		fb->yoffset = msg->offset.body.resp.y;
 		fb->pitch = msg->pitch.body.resp.pitch;
-		fb->base = msg->buffer.body.resp.fb_address;
+		fb->base = VCBUS_TO_PHYS(msg->buffer.body.resp.fb_address);
 		fb->size = msg->buffer.body.resp.fb_size;
 	}
 
