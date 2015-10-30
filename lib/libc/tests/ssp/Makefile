@@ -26,9 +26,14 @@ PROGS+=		h_memmove
 PROGS+=		h_memset
 # This testcase doesn't run properly when not compiled with -fsantize=bounds
 # with clang, which is currently contingent on a compiler_rt update
-.if (${COMPILER_TYPE} != "clang" || \
-     (${COMPILER_VERSION} < 30500 || 30700 <= ${COMPILER_VERSION}))
+#
+# XXX: the h_raw/h_read testcases don't cause a SIGABRT with in-tree gcc right
+# now on amd64 when it trips the stack bounds specified in t_ssp.sh . This
+# probably needs to be fixed as it's currently hardcoded.
+.if ${COMPILER_TYPE} == "clang"
+.if ${COMPILER_VERSION} < 30500 || 30700 <= ${COMPILER_VERSION}
 PROGS+=		h_raw
+.endif
 .endif
 PROGS+=		h_read
 PROGS+=		h_readlink
