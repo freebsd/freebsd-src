@@ -88,6 +88,7 @@ __FBSDID("$FreeBSD$");
 
 static int parse_mount(char **);
 static struct mntarg *parse_mountroot_options(struct mntarg *, const char *);
+static int sysctl_vfs_root_mount_hold(SYSCTL_HANDLER_ARGS);
 static int vfs_mountroot_wait_if_neccessary(const char *fs, const char *dev);
 
 /*
@@ -129,6 +130,35 @@ static int root_mount_complete;
 /* By default wait up to 3 seconds for devices to appear. */
 static int root_mount_timeout = 3;
 TUNABLE_INT("vfs.mountroot.timeout", &root_mount_timeout);
+
+SYSCTL_PROC(_vfs, OID_AUTO, root_mount_hold,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_vfs_root_mount_hold, "A",
+    "List of root mount hold tokens");
+
+static int
+sysctl_vfs_root_mount_hold(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sb;
+	struct root_hold_token *h;
+	int error;
+
+	sbuf_new(&sb, NULL, 256, SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
+
+	mtx_lock(&root_holds_mtx);
+	LIST_FOREACH(h, &root_holds, list) {
+		if (h != LIST_FIRST(&root_holds))
+			sbuf_putc(&sb, ' ');
+		sbuf_printf(&sb, "%s", h->who);
+	}
+	mtx_unlock(&root_holds_mtx);
+
+	error = sbuf_finish(&sb);
+	if (error == 0)
+		error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
+	sbuf_delete(&sb);
+	return (error);
+}
 
 struct root_hold_token *
 root_mount_hold(const char *identifier)
