@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/ptrace.h>
 
-#include <machine/psl.h>
+#include <machine/armreg.h>
 
 #include <errno.h>
 #include <stdio.h>
@@ -39,11 +39,12 @@ __FBSDID("$FreeBSD$");
 #include "truss.h"
 
 static int
-amd64_cloudabi64_fetch_args(struct trussinfo *trussinfo, unsigned int narg)
+aarch64_cloudabi64_fetch_args(struct trussinfo *trussinfo, unsigned int narg)
 {
 	struct current_syscall *cs;
 	struct reg regs;
 	lwpid_t tid;
+	unsigned int i;
 
 	tid = trussinfo->curthread->tid;
 	if (ptrace(PT_GETREGS, tid, (caddr_t)&regs, 0) == -1) {
@@ -52,23 +53,13 @@ amd64_cloudabi64_fetch_args(struct trussinfo *trussinfo, unsigned int narg)
 	}
 
 	cs = &trussinfo->curthread->cs;
-	if (narg >= 1)
-		cs->args[0] = regs.r_rdi;
-	if (narg >= 2)
-		cs->args[1] = regs.r_rsi;
-	if (narg >= 3)
-		cs->args[2] = regs.r_rdx;
-	if (narg >= 4)
-		cs->args[3] = regs.r_rcx;
-	if (narg >= 5)
-		cs->args[4] = regs.r_r8;
-	if (narg >= 6)
-		cs->args[5] = regs.r_r9;
+	for (i = 0; i < narg && i < 8; i++)
+		cs->args[i] = regs.x[i];
 	return (0);
 }
 
 static int
-amd64_cloudabi64_fetch_retval(struct trussinfo *trussinfo, long *retval,
+aarch64_cloudabi64_fetch_retval(struct trussinfo *trussinfo, long *retval,
     int *errorp)
 {
 	struct reg regs;
@@ -80,20 +71,20 @@ amd64_cloudabi64_fetch_retval(struct trussinfo *trussinfo, long *retval,
 		return (-1);
 	}
 
-	retval[0] = regs.r_rax;
-	retval[1] = regs.r_rdx;
-	*errorp = (regs.r_rflags & PSL_C) != 0;
+	retval[0] = regs.x[0];
+	retval[1] = regs.x[1];
+	*errorp = (regs.spsr & PSR_C) != 0;
 	if (*errorp)
 		retval[0] = cloudabi_convert_errno(retval[0]);
 	return (0);
 }
 
-static struct procabi amd64_cloudabi64 = {
+static struct procabi aarch64_cloudabi64 = {
 	"CloudABI ELF64",
 	syscallnames,
 	nitems(syscallnames),
-	amd64_cloudabi64_fetch_args,
-	amd64_cloudabi64_fetch_retval
+	aarch64_cloudabi64_fetch_args,
+	aarch64_cloudabi64_fetch_retval
 };
 
-PROCABI(amd64_cloudabi64);
+PROCABI(aarch64_cloudabi64);
