@@ -3734,7 +3734,7 @@ __umtx_op_nwake_private32(struct thread *td, struct _umtx_op_args *uap)
 	return (error);
 }
 
-static _umtx_op_func op_table_compat32[] = {
+static const _umtx_op_func op_table_compat32[] = {
 	[UMTX_OP_RESERVED0]	= __umtx_op_unimpl,
 	[UMTX_OP_RESERVED1]	= __umtx_op_unimpl,
 	[UMTX_OP_WAIT]	= __umtx_op_wait_compat32,
