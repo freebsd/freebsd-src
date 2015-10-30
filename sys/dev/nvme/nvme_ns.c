@@ -210,6 +210,13 @@ nvme_ns_get_data(struct nvme_namespace *ns)
 	return (&ns->data);
 }
 
+uint32_t
+nvme_ns_get_stripesize(struct nvme_namespace *ns)
+{
+
+	return (ns->stripesize);
+}
+
 static void
 nvme_ns_bio_done(void *arg, const struct nvme_completion *status)
 {
