@@ -813,7 +813,7 @@ umtx_key_get(const void *addr, int type, int share, struct umtx_key *key)
 		if (vm_map_lookup(&map, (vm_offset_t)addr, VM_PROT_WRITE,
 		    &entry, &key->info.shared.object, &pindex, &prot,
 		    &wired) != KERN_SUCCESS) {
-			return EFAULT;
+			return (EFAULT);
 		}
 
 		if ((share == PROCESS_SHARE) ||
@@ -1163,7 +1163,7 @@ do_wake2_umutex(struct thread *td, struct umutex *m, uint32_t flags)
 	int error;
 	int count;
 
-	switch(flags & (UMUTEX_PRIO_INHERIT | UMUTEX_PRIO_PROTECT)) {
+	switch (flags & (UMUTEX_PRIO_INHERIT | UMUTEX_PRIO_PROTECT)) {
 	case 0:
 		type = TYPE_NORMAL_UMUTEX;
 		break;
@@ -3402,14 +3402,16 @@ __umtx_op_sem_wait(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_sem_wake(struct thread *td, struct _umtx_op_args *uap)
 {
-	return do_sem_wake(td, uap->obj);
+
+	return (do_sem_wake(td, uap->obj));
 }
 #endif
 
 static int
 __umtx_op_wake2_umutex(struct thread *td, struct _umtx_op_args *uap)
 {
-	return do_wake2_umutex(td, uap->obj, uap->val);
+
+	return (do_wake2_umutex(td, uap->obj, uap->val));
 }
 
 static int
@@ -3434,7 +3436,8 @@ __umtx_op_sem2_wait(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_sem2_wake(struct thread *td, struct _umtx_op_args *uap)
 {
-	return do_sem2_wake(td, uap->obj);
+
+	return (do_sem2_wake(td, uap->obj));
 }
 
 typedef int (*_umtx_op_func)(struct thread *td, struct _umtx_op_args *uap);
