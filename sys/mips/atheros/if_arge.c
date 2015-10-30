@@ -1519,12 +1519,27 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	/*
 	 * Make a list of descriptors for this packet. DMA controller will
 	 * walk through it while arge_link is not zero.
+	 *
+	 * Since we're in a endless circular buffer, ensure that
+	 * the first descriptor in a multi-descriptor ring is always
+	 * set to EMPTY, then un-do it when we're done populating.
 	 */
 	prev_prod = prod;
 	desc = prev_desc = NULL;
 	for (i = 0; i < nsegs; i++) {
+		uint32_t tmp;
+
 		desc = &sc->arge_rdata.arge_tx_ring[prod];
-		desc->packet_ctrl = ARGE_DMASIZE(txsegs[i].ds_len);
+
+		/*
+		 * Set DESC_EMPTY so the hardware (hopefully) stops at this
+		 * point.  We don't want it to start transmitting descriptors
+		 * before we've finished fleshing this out.
+		 */
+		tmp = ARGE_DMASIZE(txsegs[i].ds_len);
+		if (i == 0)
+			tmp |= ARGE_DESC_EMPTY;
+		desc->packet_ctrl = tmp;
 
 		/* XXX Note: only relevant for older MACs; but check length! */
 		if ((sc->arge_hw_flags & ARGE_HW_FLG_TX_DESC_ALIGN_4BYTE) &&
@@ -1544,6 +1559,12 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 
 	/* Update producer index. */
 	sc->arge_cdata.arge_tx_prod = prod;
+
+	/*
+	 * The descriptors are updated, so enable the first one.
+	 */
+	desc = &sc->arge_rdata.arge_tx_ring[prev_prod];
+	desc->packet_ctrl &= ~ ARGE_DESC_EMPTY;
 
 	/* Sync descriptors. */
 	bus_dmamap_sync(sc->arge_cdata.arge_tx_ring_tag,
