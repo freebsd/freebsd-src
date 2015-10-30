@@ -1081,8 +1081,10 @@ arge_miibus_readreg(device_t dev, int phy, int reg)
 
 	i = ARGE_MII_TIMEOUT;
 	while ((ARGE_MDIO_READ(sc, AR71XX_MAC_MII_INDICATOR) & 
-	    MAC_MII_INDICATOR_BUSY) && (i--))
+	    MAC_MII_INDICATOR_BUSY) && (i--)) {
+		ARGE_MDIO_BARRIER_READ(sc);
 		DELAY(5);
+	}
 
 	if (i < 0) {
 		mtx_unlock(&miibus_mtx);
@@ -1092,6 +1094,7 @@ arge_miibus_readreg(device_t dev, int phy, int reg)
 	}
 
 	result = ARGE_MDIO_READ(sc, AR71XX_MAC_MII_STATUS) & MAC_MII_STATUS_MASK;
+	ARGE_MDIO_BARRIER_READ(sc);
 	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
 	mtx_unlock(&miibus_mtx);
 
@@ -1119,8 +1122,10 @@ arge_miibus_writereg(device_t dev, int phy, int reg, int data)
 
 	i = ARGE_MII_TIMEOUT;
 	while ((ARGE_MDIO_READ(sc, AR71XX_MAC_MII_INDICATOR) & 
-	    MAC_MII_INDICATOR_BUSY) && (i--))
+	    MAC_MII_INDICATOR_BUSY) && (i--)) {
+		ARGE_MDIO_BARRIER_READ(sc);
 		DELAY(5);
+	}
 
 	mtx_unlock(&miibus_mtx);
 
