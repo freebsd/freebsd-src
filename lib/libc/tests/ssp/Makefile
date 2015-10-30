@@ -26,7 +26,8 @@ PROGS+=		h_memmove
 PROGS+=		h_memset
 # This testcase doesn't run properly when not compiled with -fsantize=bounds
 # with clang, which is currently contingent on a compiler_rt update
-.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 30500
+.if (${COMPILER_TYPE} != "clang" || \
+     (${COMPILER_VERSION} < 30500 || 30700 <= ${COMPILER_VERSION}))
 PROGS+=		h_raw
 .endif
 PROGS+=		h_read
