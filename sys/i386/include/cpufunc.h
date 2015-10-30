@@ -89,7 +89,7 @@ static __inline void
 clflushopt(u_long addr)
 {
 
-	__asm __volatile(".byte 66;clflush %0" : : "m" (*(char *)addr));
+	__asm __volatile(".byte 0x66;clflush %0" : : "m" (*(char *)addr));
 }
 
 static __inline void
