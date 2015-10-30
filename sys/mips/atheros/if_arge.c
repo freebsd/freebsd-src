@@ -2492,7 +2492,7 @@ arge_intr(void *arg)
 
 #ifdef	ARGE_DEBUG
 	for (i = 0; i < 32; i++) {
-		if (status & (1 << i)) {
+		if (status & (1U << i)) {
 			sc->intr_stats.count[i]++;
 		}
 	}
