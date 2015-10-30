@@ -31,7 +31,7 @@ UPDATE_DEPENDFILE_PROG = ${PROGS:[1]}
 # They may have asked us to build just one
 .for t in ${PROGS}
 .if make($t)
-.if ${PROGS_CXX:M${t}}
+.if ${PROGS_CXX:U:M${t}}
 PROG_CXX ?= $t
 .endif
 PROG ?= $t
