@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "S_CLIENT 1"
-.TH S_CLIENT 1 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH S_CLIENT 1 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -173,6 +173,9 @@ s_client \- SSL/TLS client program
 [\fB\-no_ssl2\fR]
 [\fB\-no_ssl3\fR]
 [\fB\-no_tls1\fR]
+[\fB\-no_tls1_1\fR]
+[\fB\-no_tls1_2\fR]
+[\fB\-fallback_scsv\fR]
 [\fB\-bugs\fR]
 [\fB\-cipher cipherlist\fR]
 [\fB\-serverpref\fR]
@@ -183,6 +186,7 @@ s_client \- SSL/TLS client program
 [\fB\-sess_out filename\fR]
 [\fB\-sess_in filename\fR]
 [\fB\-rand file(s)\fR]
+[\fB\-serverinfo types\fR]
 [\fB\-status\fR]
 [\fB\-nextprotoneg protocols\fR]
 .SH "DESCRIPTION"
@@ -301,16 +305,18 @@ Use the \s-1PSK\s0 identity \fBidentity\fR when using a \s-1PSK\s0 cipher suite.
 Use the \s-1PSK\s0 key \fBkey\fR when using a \s-1PSK\s0 cipher suite. The key is
 given as a hexadecimal number without leading 0x, for example \-psk
 1a2b3c4d.
-.IP "\fB\-ssl2\fR, \fB\-ssl3\fR, \fB\-tls1\fR, \fB\-no_ssl2\fR, \fB\-no_ssl3\fR, \fB\-no_tls1\fR" 4
-.IX Item "-ssl2, -ssl3, -tls1, -no_ssl2, -no_ssl3, -no_tls1"
+.IP "\fB\-ssl2\fR, \fB\-ssl3\fR, \fB\-tls1\fR, \fB\-no_ssl2\fR, \fB\-no_ssl3\fR, \fB\-no_tls1\fR, \fB\-no_tls1_1\fR, \fB\-no_tls1_2\fR" 4
+.IX Item "-ssl2, -ssl3, -tls1, -no_ssl2, -no_ssl3, -no_tls1, -no_tls1_1, -no_tls1_2"
 these options disable the use of certain \s-1SSL\s0 or \s-1TLS\s0 protocols. By default
 the initial handshake uses a method which should be compatible with all
 servers and permit them to use \s-1SSL\s0 v3, \s-1SSL\s0 v2 or \s-1TLS\s0 as appropriate.
 .Sp
-Unfortunately there are a lot of ancient and broken servers in use which
+Unfortunately there are still ancient and broken servers in use which
 cannot handle this technique and will fail to connect. Some servers only
-work if \s-1TLS\s0 is turned off with the \fB\-no_tls\fR option others will only
-support \s-1SSL\s0 v2 and may need the \fB\-ssl2\fR option.
+work if \s-1TLS\s0 is turned off.
+.IP "\fB\-fallback_scsv\fR" 4
+.IX Item "-fallback_scsv"
+Send \s-1TLS_FALLBACK_SCSV\s0 in the ClientHello.
 .IP "\fB\-bugs\fR" 4
 .IX Item "-bugs"
 there are several known bug in \s-1SSL\s0 and \s-1TLS\s0 implementations. Adding this
@@ -355,6 +361,12 @@ generator, or an \s-1EGD\s0 socket (see \fIRAND_egd\fR\|(3)).
 Multiple files can be specified separated by a OS-dependent character.
 The separator is \fB;\fR for MS-Windows, \fB,\fR for OpenVMS, and \fB:\fR for
 all others.
+.IP "\fB\-serverinfo types\fR" 4
+.IX Item "-serverinfo types"
+a list of comma-separated \s-1TLS\s0 Extension Types (numbers between 0 and 
+65535).  Each type will be sent as an empty ClientHello \s-1TLS\s0 Extension.
+The server's response (if any) will be encoded and displayed as a \s-1PEM\s0
+file.
 .IP "\fB\-status\fR" 4
 .IX Item "-status"
 sends a certificate status request to the server (\s-1OCSP\s0 stapling). The server
@@ -437,4 +449,4 @@ information whenever a session is renegotiated.
 \&\fIsess_id\fR\|(1), \fIs_server\fR\|(1), \fIciphers\fR\|(1)
 .SH "HISTORY"
 .IX Header "HISTORY"
-The \-no_alt_chains options was first added to OpenSSL 1.0.1n and 1.0.2b.
+The \-no_alt_chains options was first added to OpenSSL 1.0.2b.
