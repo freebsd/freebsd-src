@@ -1067,34 +1067,47 @@ arge_hinted_child(device_t bus, const char *dname, int dunit)
 }
 
 static int
+arge_mdio_busy(struct arge_softc *sc)
+{
+	int i,result;
+
+	for (i = 0; i < ARGE_MII_TIMEOUT; i++) {
+		DELAY(5);
+		ARGE_MDIO_BARRIER_READ(sc);
+		result = ARGE_MDIO_READ(sc, AR71XX_MAC_MII_INDICATOR);
+		if (! result)
+			return (0);
+		DELAY(5);
+	}
+	return (-1);
+}
+
+static int
 arge_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct arge_softc * sc = device_get_softc(dev);
-	int i, result;
+	int result;
 	uint32_t addr = (phy << MAC_MII_PHY_ADDR_SHIFT)
 	    | (reg & MAC_MII_REG_MASK);
 
 	mtx_lock(&miibus_mtx);
+	ARGE_MDIO_BARRIER_RW(sc);
 	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
+	ARGE_MDIO_BARRIER_WRITE(sc);
 	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_ADDR, addr);
+	ARGE_MDIO_BARRIER_WRITE(sc);
 	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_CMD, MAC_MII_CMD_READ);
 
-	i = ARGE_MII_TIMEOUT;
-	while ((ARGE_MDIO_READ(sc, AR71XX_MAC_MII_INDICATOR) & 
-	    MAC_MII_INDICATOR_BUSY) && (i--)) {
-		ARGE_MDIO_BARRIER_READ(sc);
-		DELAY(5);
-	}
-
-	if (i < 0) {
+	if (arge_mdio_busy(sc) != 0) {
 		mtx_unlock(&miibus_mtx);
 		ARGEDEBUG(sc, ARGE_DBG_MII, "%s timedout\n", __func__);
 		/* XXX: return ERRNO istead? */
 		return (-1);
 	}
 
-	result = ARGE_MDIO_READ(sc, AR71XX_MAC_MII_STATUS) & MAC_MII_STATUS_MASK;
 	ARGE_MDIO_BARRIER_READ(sc);
+	result = ARGE_MDIO_READ(sc, AR71XX_MAC_MII_STATUS) & MAC_MII_STATUS_MASK;
+	ARGE_MDIO_BARRIER_RW(sc);
 	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
 	mtx_unlock(&miibus_mtx);
 
@@ -1109,7 +1122,6 @@ static int
 arge_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct arge_softc * sc = device_get_softc(dev);
-	int i;
 	uint32_t addr =
 	    (phy << MAC_MII_PHY_ADDR_SHIFT) | (reg & MAC_MII_REG_MASK);
 
@@ -1117,24 +1129,20 @@ arge_miibus_writereg(device_t dev, int phy, int reg, int data)
 	    phy, reg, data);
 
 	mtx_lock(&miibus_mtx);
+	ARGE_MDIO_BARRIER_RW(sc);
 	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_ADDR, addr);
+	ARGE_MDIO_BARRIER_WRITE(sc);
 	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_CONTROL, data);
+	ARGE_MDIO_BARRIER_WRITE(sc);
 
-	i = ARGE_MII_TIMEOUT;
-	while ((ARGE_MDIO_READ(sc, AR71XX_MAC_MII_INDICATOR) & 
-	    MAC_MII_INDICATOR_BUSY) && (i--)) {
-		ARGE_MDIO_BARRIER_READ(sc);
-		DELAY(5);
-	}
-
-	mtx_unlock(&miibus_mtx);
-
-	if (i < 0) {
+	if (arge_mdio_busy(sc) != 0) {
+		mtx_unlock(&miibus_mtx);
 		ARGEDEBUG(sc, ARGE_DBG_MII, "%s timedout\n", __func__);
 		/* XXX: return ERRNO istead? */
 		return (-1);
 	}
 
+	mtx_unlock(&miibus_mtx);
 	return (0);
 }
 
