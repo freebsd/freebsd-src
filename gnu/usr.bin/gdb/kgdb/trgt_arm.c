@@ -63,7 +63,7 @@ kgdb_trgt_fetch_registers(int regno __unused)
 #ifndef CROSS_DEBUGGER
 	struct kthr *kt;
 	struct pcb pcb;
-	int i, reg;
+	int i;
 
 	kt = kgdb_thr_lookup_tid(ptid_get_pid(inferior_ptid));
 	if (kt == NULL)
@@ -76,12 +76,8 @@ kgdb_trgt_fetch_registers(int regno __unused)
 		supply_register(i, (char *)&pcb.pcb_regs.sf_r4 +
 		    (i - (ARM_A1_REGNUM + 4 )) * 4);
 	}
-	if (pcb.pcb_regs.sf_sp != 0) {
-		if (kvm_read(kvm, pcb.pcb_regs.sf_sp + 4 * 4, &reg, 4) != 4)
-			warnx("kvm_read :%s", kvm_geterr(kvm));
-		else
-			supply_register(ARM_PC_REGNUM, (char *)&reg);
-	}
+	supply_register(ARM_PC_REGNUM, (char *)&pcb.pcb_regs.sf_pc);
+	supply_register(ARM_LR_REGNUM, (char *)&pcb.pcb_regs.sf_lr);
 #endif
 }
 
