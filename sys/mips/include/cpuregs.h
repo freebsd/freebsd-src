@@ -151,7 +151,7 @@
 
 #if defined(CPU_MIPS74KC)
 #define	MIPS_CCA_UNCACHED	0x02
-#define	MIPS_CCA_CACHED		0x00
+#define	MIPS_CCA_CACHED		0x03
 #endif
 
 #ifndef	MIPS_CCA_UNCACHED
