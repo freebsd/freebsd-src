@@ -61,4 +61,10 @@
 #define	LD_			"LD_"
 #endif
 
+extern char *ld_path_elf_hints;
+extern char *ld_path_libmap_conf;
+extern char *ld_path_rtld;
+extern char *ld_standard_library_path;
+extern char *ld_env_prefix;
+
 #endif /* PATHS_H */
