@@ -176,12 +176,12 @@ cpu_startup(void *dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	printf("real memory  = %ld (%ld MB)\n", ptoa(physmem),
+	printf("real memory  = %lu (%lu MB)\n", ptoa(physmem),
 	    ptoa(physmem) / 1048576);
 	realmem = physmem;
 
 	if (bootverbose)
-		printf("available KVA = %zd (%zd MB)\n",
+		printf("available KVA = %zu (%zu MB)\n",
 		    virtual_end - virtual_avail,
 		    (virtual_end - virtual_avail) / 1048576);
 
@@ -199,7 +199,7 @@ cpu_startup(void *dummy)
 			#ifdef __powerpc64__
 			printf("0x%016lx - 0x%016lx, %ld bytes (%ld pages)\n",
 			#else
-			printf("0x%08x - 0x%08x, %d bytes (%ld pages)\n",
+			printf("0x%08x - 0x%08x, %u bytes (%lu pages)\n",
 			#endif
 			    phys_avail[indx], phys_avail[indx + 1] - 1, size1,
 			    size1 / PAGE_SIZE);
@@ -208,7 +208,7 @@ cpu_startup(void *dummy)
 
 	vm_ksubmap_init(&kmi);
 
-	printf("avail memory = %ld (%ld MB)\n", ptoa(vm_cnt.v_free_count),
+	printf("avail memory = %lu (%lu MB)\n", ptoa(vm_cnt.v_free_count),
 	    ptoa(vm_cnt.v_free_count) / 1048576);
 
 	/*
