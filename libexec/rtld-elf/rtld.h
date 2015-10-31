@@ -41,22 +41,6 @@
 #include "rtld_lock.h"
 #include "rtld_machdep.h"
 
-#ifdef COMPAT_32BIT
-#undef STANDARD_LIBRARY_PATH
-#undef _PATH_ELF_HINTS
-#define	_PATH_ELF_HINTS		"/var/run/ld-elf32.so.hints"
-/* For running 32 bit binaries  */
-#define	STANDARD_LIBRARY_PATH	"/lib32:/usr/lib32"
-#define LD_ "LD_32_"
-#endif
-
-#ifndef STANDARD_LIBRARY_PATH
-#define STANDARD_LIBRARY_PATH	"/lib:/usr/lib"
-#endif
-#ifndef LD_
-#define LD_ "LD_"
-#endif
-
 #define NEW(type)	((type *) xmalloc(sizeof(type)))
 #define CNEW(type)	((type *) xcalloc(1, sizeof(type)))
 

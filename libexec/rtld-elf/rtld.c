@@ -56,15 +56,10 @@
 #include "debug.h"
 #include "rtld.h"
 #include "libmap.h"
+#include "paths.h"
 #include "rtld_tls.h"
 #include "rtld_printf.h"
 #include "notes.h"
-
-#ifndef COMPAT_32BIT
-#define PATH_RTLD	"/libexec/ld-elf.so.1"
-#else
-#define PATH_RTLD	"/libexec/ld-elf32.so.1"
-#endif
 
 /* Types. */
 typedef void (*func_ptr_type)();
@@ -1892,7 +1887,7 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
     digest_dynamic2(&obj_rtld, dyn_rpath, dyn_soname, dyn_runpath);
 
     /* Replace the path with a dynamically allocated copy. */
-    obj_rtld.path = xstrdup(PATH_RTLD);
+    obj_rtld.path = xstrdup(_PATH_RTLD);
 
     r_debug.r_brk = r_debug_state;
     r_debug.r_state = RT_CONSISTENT;
