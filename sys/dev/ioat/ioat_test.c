@@ -166,10 +166,13 @@ ioat_compare_ok(struct test_transaction *tx)
 }
 
 static void
-ioat_dma_test_callback(void *arg)
+ioat_dma_test_callback(void *arg, int error)
 {
 	struct test_transaction *tx;
 	struct ioat_test *test;
+
+	if (error != 0)
+		ioat_test_log(0, "%s: Got error: %d\n", __func__, error);
 
 	tx = arg;
 	test = tx->test;
