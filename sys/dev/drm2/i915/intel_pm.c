@@ -602,7 +602,7 @@ static void i915_ironlake_get_mem_freq(struct drm_device *dev)
 		dev_priv->mem_freq = 1600;
 		break;
 	default:
-		DRM_DEBUG("unknown memory frequency 0x%02x\n",
+		DRM_DEBUG_DRIVER("unknown memory frequency 0x%02x\n",
 				 ddrpll & 0xff);
 		dev_priv->mem_freq = 0;
 		break;
@@ -633,7 +633,7 @@ static void i915_ironlake_get_mem_freq(struct drm_device *dev)
 		dev_priv->fsb_freq = 6400;
 		break;
 	default:
-		DRM_DEBUG("unknown fsb frequency 0x%04x\n",
+		DRM_DEBUG_DRIVER("unknown fsb frequency 0x%04x\n",
 				 csipll & 0x3ff);
 		dev_priv->fsb_freq = 0;
 		break;
@@ -2706,7 +2706,7 @@ unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
 	 * zero and give the hw a chance to gather more samples.
 	 */
 	if (diff1 <= 10)
-		return (dev_priv->chipset_power);
+		return dev_priv->chipset_power;
 
 	count1 = I915_READ(DMIEC);
 	count2 = I915_READ(DDREC);
@@ -2739,7 +2739,7 @@ unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
 	dev_priv->last_time1 = now;
 
 	dev_priv->chipset_power = ret;
-	return (ret);
+	return ret;
 }
 
 unsigned long i915_mch_val(struct drm_i915_private *dev_priv)
@@ -3192,6 +3192,18 @@ void intel_init_emon(struct drm_device *dev)
 	dev_priv->corr = (lcfuse & LCFUSE_HIV_MASK);
 }
 
+static void ibx_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/*
+	 * On Ibex Peak and Cougar Point, we need to disable clock
+	 * gating for the panel power sequencer or it will fail to
+	 * start up when no ports are active.
+	 */
+	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
+}
+
 static void ironlake_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3259,6 +3271,24 @@ static void ironlake_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(_3D_CHICKEN2,
 		   _3D_CHICKEN2_WM_READ_PIPELINED << 16 |
 		   _3D_CHICKEN2_WM_READ_PIPELINED);
+}
+
+static void cpt_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe;
+
+	/*
+	 * On Ibex Peak and Cougar Point, we need to disable clock
+	 * gating for the panel power sequencer or it will fail to
+	 * start up when no ports are active.
+	 */
+	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
+	I915_WRITE(SOUTH_CHICKEN2, I915_READ(SOUTH_CHICKEN2) |
+		   DPLS_EDP_PPS_FIX_DIS);
+	/* Without this, mode sets may fail silently on FDI */
+	for_each_pipe(pipe)
+		I915_WRITE(TRANS_CHICKEN2(pipe), TRANS_AUTOTRAIN_GEN_STALL_DIS);
 }
 
 static void gen6_init_clock_gating(struct drm_device *dev)
@@ -3508,36 +3538,6 @@ static void i830_init_clock_gating(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	I915_WRITE(DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
-}
-
-static void ibx_init_clock_gating(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	/*
-	 * On Ibex Peak and Cougar Point, we need to disable clock
-	 * gating for the panel power sequencer or it will fail to
-	 * start up when no ports are active.
-	 */
-	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
-}
-
-static void cpt_init_clock_gating(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe;
-
-	/*
-	 * On Ibex Peak and Cougar Point, we need to disable clock
-	 * gating for the panel power sequencer or it will fail to
-	 * start up when no ports are active.
-	 */
-	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
-	I915_WRITE(SOUTH_CHICKEN2, I915_READ(SOUTH_CHICKEN2) |
-		   DPLS_EDP_PPS_FIX_DIS);
-	/* Without this, mode sets may fail silently on FDI */
-	for_each_pipe(pipe)
-		I915_WRITE(TRANS_CHICKEN2(pipe), TRANS_AUTOTRAIN_GEN_STALL_DIS);
 }
 
 void intel_init_clock_gating(struct drm_device *dev)
