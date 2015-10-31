@@ -68,7 +68,7 @@ lm_init(char *libmap_override)
 	dbg("lm_init(\"%s\")", libmap_override);
 	TAILQ_INIT(&lmp_head);
 
-	lmc_parse_file(_PATH_LIBMAP_CONF);
+	lmc_parse_file(ld_path_libmap_conf);
 
 	if (libmap_override) {
 		/*
