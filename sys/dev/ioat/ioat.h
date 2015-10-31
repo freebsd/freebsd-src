@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 
 typedef void *bus_dmaengine_t;
 struct bus_dmadesc;
-typedef void (*bus_dmaengine_callback_t)(void *arg);
+typedef void (*bus_dmaengine_callback_t)(void *arg, int error);
 
 /*
  * Called first to acquire a reference to the DMA channel

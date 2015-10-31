@@ -343,8 +343,6 @@ struct ioat_descriptor {
 		struct ioat_raw_hw_descriptor		*raw;
 	} u;
 	uint32_t		id;
-	uint32_t		length;
-	enum validate_flags	*validate_result;
 	bus_addr_t		hw_desc_bus_addr;
 };
 
