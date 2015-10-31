@@ -13,8 +13,3 @@ MDASM+=	brk.S sbrk.S
 NOASM=	break.o exit.o getlogin.o openbsd_poll.o sstk.o vfork.o yield.o
 
 PSEUDO= _exit.o _getlogin.o
-
-.if defined(LIBCHERI)
-SRCS+=		open.c
-PSEUDO+=	_open.o
-.endif
