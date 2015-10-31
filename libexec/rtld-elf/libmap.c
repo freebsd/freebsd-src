@@ -16,15 +16,7 @@
 #include "debug.h"
 #include "rtld.h"
 #include "libmap.h"
-
-#ifndef _PATH_LIBMAP_CONF
-#define	_PATH_LIBMAP_CONF	"/etc/libmap.conf"
-#endif
-
-#ifdef COMPAT_32BIT
-#undef _PATH_LIBMAP_CONF
-#define	_PATH_LIBMAP_CONF	"/etc/libmap32.conf"
-#endif
+#include "paths.h"
 
 TAILQ_HEAD(lm_list, lm);
 struct lm {
