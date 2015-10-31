@@ -1220,11 +1220,12 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	if (STAILQ_FIRST(&map->bpages))
 		_bus_dmamap_sync_bp(dmat, map, op);
 
-	if (dmat->flags & BUS_DMA_COHERENT)
+	if ((dmat->flags & BUS_DMA_COHERENT) ||
+	    (map->flags & DMAMAP_UNCACHEABLE)) {
+		if (op & BUS_DMASYNC_PREWRITE)
+			mips_sync();
 		return;
-
-	if (map->flags & DMAMAP_UNCACHEABLE)
-		return;
+	}
 
 	aligned = (map->flags & DMAMAP_CACHE_ALIGNED) ? 1 : 0;
 
