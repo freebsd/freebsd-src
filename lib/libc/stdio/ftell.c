@@ -125,10 +125,6 @@ _ftello(FILE *fp, fpos_t *offset)
 		 * underlying object.
 		 */
 		n = fp->_p - fp->_bf._base;
-		if (pos > OFF_MAX - n) {
-			errno = EOVERFLOW;
-			return (1);
-		}
 		if (n > 0 &&
 		    ((fp->_flags & __SAPP) || (fp->_flags2 & __S2OAP))) {
 			int serrno = errno;
@@ -147,6 +143,12 @@ _ftello(FILE *fp, fpos_t *offset)
 				}
 			}
 			errno = serrno;
+			/* fp->_p can be changed in _sseek(), recalculate. */
+			n = fp->_p - fp->_bf._base;
+		}
+		if (pos > OFF_MAX - n) {
+			errno = EOVERFLOW;
+			return (1);
 		}
 		pos += n;
 	}
