@@ -3314,8 +3314,10 @@ if_delmulti_locked(struct ifnet *ifp, struct ifmultiaddr *ifma, int detaching)
  *
  * At this time we only support certain types of interfaces,
  * and we don't allow the length of the address to change.
+ *
+ * Set noinline to be dtrace-friendly
  */
-int
+__noinline int
 if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 {
 	struct sockaddr_dl *sdl;
