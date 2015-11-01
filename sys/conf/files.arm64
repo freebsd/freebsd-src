@@ -53,6 +53,7 @@ arm64/arm64/vm_machdep.c	standard
 arm64/cavium/thunder_pcie.c	optional	soc_cavm_thunderx pci fdt
 arm64/cavium/thunder_pcie_pem.c	optional	soc_cavm_thunderx pci
 arm64/cavium/thunder_pcie_common.c	optional soc_cavm_thunderx pci
+arm64/cloudabi64/cloudabi64_sysvec.c	optional compat_cloudabi64
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/acpica/acpi_if.m		optional	acpi
@@ -81,6 +82,7 @@ kern/subr_dummy_vdso_tc.c	standard
 libkern/bcmp.c			standard
 libkern/ffs.c			standard
 libkern/ffsl.c			standard
+libkern/ffsll.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard

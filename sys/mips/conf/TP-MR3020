@@ -27,6 +27,9 @@ hints	"TP-MR3020.hints"
 # Board memory - 32MB
 options	AR71XX_REALMEM=(32*1024*1024)
 
+# Disable support for paging
+options		NO_SWAPPING
+
 # i2c GPIO bus
 device	gpioiic
 device	iicbb

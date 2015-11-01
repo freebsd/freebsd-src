@@ -83,7 +83,6 @@
 #define	UMTX_OP_MUTEX_WAKE2	22
 #define	UMTX_OP_SEM2_WAIT	23
 #define	UMTX_OP_SEM2_WAKE	24
-#define	UMTX_OP_MAX		25
 
 /* Flags for UMTX_OP_CV_WAIT */
 #define	CVWAIT_CHECK_UNPARKING	0x01

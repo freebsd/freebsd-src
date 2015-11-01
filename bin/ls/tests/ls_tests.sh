@@ -418,10 +418,10 @@ T_flag_body()
 
 	atf_check -e empty -o empty -s exit:0 touch a.file
 
-	birthtime_in_secs=$(stat -f %B -t %s a.file)
-	birthtime=$(date -j -f %s $birthtime_in_secs +"[[:space:]]+%b[[:space:]]+%e[[:space:]]+%H:%M:%S[[:space:]]+%Y")
+	mtime_in_secs=$(stat -f %m -t %s a.file)
+	mtime=$(date -j -f %s $mtime_in_secs +"[[:space:]]+%b[[:space:]]+%e[[:space:]]+%H:%M:%S[[:space:]]+%Y")
 
-	atf_check -e empty -o match:"$birthtime"'[[:space:]]+a\.file' \
+	atf_check -e empty -o match:"$mtime"'[[:space:]]+a\.file' \
 	    -s exit:0 ls -lT a.file
 }
 
@@ -626,10 +626,10 @@ l_flag_body()
 
 	atf_check -e empty -o empty -s exit:0 touch a.file
 
-	birthtime_in_secs=$(stat -f "%B" -t "%s" a.file)
-	birthtime=$(date -j -f "%s" $birthtime_in_secs +"%b[[:space:]]+%e[[:space:]]+%H:%M")
+	mtime_in_secs=$(stat -f "%m" -t "%s" a.file)
+	mtime=$(date -j -f "%s" $mtime_in_secs +"%b[[:space:]]+%e[[:space:]]+%H:%M")
 
-	expected_output=$(stat -f "%Sp[[:space:]]+%l[[:space:]]+%Su[[:space:]]+%Sg[[:space:]]+%z[[:space:]]+$birthtime[[:space:]]+a\\.file" a.file)
+	expected_output=$(stat -f "%Sp[[:space:]]+%l[[:space:]]+%Su[[:space:]]+%Sg[[:space:]]+%z[[:space:]]+$mtime[[:space:]]+a\\.file" a.file)
 
 	atf_check -e empty -o match:"$expected_output" -s exit:0 ls -l a.file
 }

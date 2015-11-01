@@ -1,7 +1,7 @@
 /*
  *  EDIT THIS FILE WITH CAUTION  (ntpsnmpd-opts.c)
  *
- *  It has been AutoGen-ed  June 29, 2015 at 04:31:44 PM by AutoGen 5.18.5
+ *  It has been AutoGen-ed  October 21, 2015 at 12:39:32 PM by AutoGen 5.18.5
  *  From the definitions    ntpsnmpd-opts.def
  *  and the template file   options
  *
@@ -61,7 +61,7 @@ extern FILE * option_usage_fp;
  *  static const strings for ntpsnmpd options
  */
 static char const ntpsnmpd_opt_strs[1610] =
-/*     0 */ "ntpsnmpd 4.2.8p3\n"
+/*     0 */ "ntpsnmpd 4.2.8p4\n"
             "Copyright (C) 1992-2015 The University of Delaware and Network Time Foundation, all rights reserved.\n"
             "This is free software. It is licensed for use, modification and\n"
             "redistribution under the terms of the NTP License, copies of which\n"
@@ -101,14 +101,14 @@ static char const ntpsnmpd_opt_strs[1610] =
 /*  1414 */ "no-load-opts\0"
 /*  1427 */ "no\0"
 /*  1430 */ "NTPSNMPD\0"
-/*  1439 */ "ntpsnmpd - NTP SNMP MIB agent - Ver. 4.2.8p3\n"
+/*  1439 */ "ntpsnmpd - NTP SNMP MIB agent - Ver. 4.2.8p4\n"
             "Usage:  %s [ -<flag> [<val>] | --<name>[{=| }<val>] ]...\n\0"
 /*  1542 */ "$HOME\0"
 /*  1548 */ ".\0"
 /*  1550 */ ".ntprc\0"
 /*  1557 */ "http://bugs.ntp.org, bugs@ntp.org\0"
 /*  1591 */ "\n\0"
-/*  1593 */ "ntpsnmpd 4.2.8p3";
+/*  1593 */ "ntpsnmpd 4.2.8p4";
 
 /**
  *  nofork option description:
@@ -554,7 +554,7 @@ static void bogus_function(void) {
      translate option names.
    */
   /* referenced via ntpsnmpdOptions.pzCopyright */
-  puts(_("ntpsnmpd 4.2.8p3\n\
+  puts(_("ntpsnmpd 4.2.8p4\n\
 Copyright (C) 1992-2015 The University of Delaware and Network Time Foundation, all rights reserved.\n\
 This is free software. It is licensed for use, modification and\n\
 redistribution under the terms of the NTP License, copies of which\n\
@@ -599,14 +599,14 @@ implied warranty.\n"));
   puts(_("load options from a config file"));
 
   /* referenced via ntpsnmpdOptions.pzUsageTitle */
-  puts(_("ntpsnmpd - NTP SNMP MIB agent - Ver. 4.2.8p3\n\
+  puts(_("ntpsnmpd - NTP SNMP MIB agent - Ver. 4.2.8p4\n\
 Usage:  %s [ -<flag> [<val>] | --<name>[{=| }<val>] ]...\n"));
 
   /* referenced via ntpsnmpdOptions.pzExplain */
   puts(_("\n"));
 
   /* referenced via ntpsnmpdOptions.pzFullVersion */
-  puts(_("ntpsnmpd 4.2.8p3"));
+  puts(_("ntpsnmpd 4.2.8p4"));
 
   /* referenced via ntpsnmpdOptions.pzFullUsage */
   puts(_("<<<NOT-FOUND>>>"));

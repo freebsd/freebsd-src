@@ -369,6 +369,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 	 * received new blocks from the other side.
 	 */
 	if (to->to_flags & TOF_SACK) {
+		tp->sackhint.sacked_bytes = 0;	/* reset */
 		for (i = 0; i < to->to_nsacks; i++) {
 			bcopy((to->to_sacks + i * TCPOLEN_SACK),
 			    &sack, sizeof(sack));
@@ -379,8 +380,11 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 			    SEQ_GT(sack.start, th_ack) &&
 			    SEQ_LT(sack.start, tp->snd_max) &&
 			    SEQ_GT(sack.end, tp->snd_una) &&
-			    SEQ_LEQ(sack.end, tp->snd_max))
+			    SEQ_LEQ(sack.end, tp->snd_max)) {
 				sack_blocks[num_sack_blks++] = sack;
+				tp->sackhint.sacked_bytes +=
+				    (sack.end-sack.start);
+			}
 		}
 	}
 	/*

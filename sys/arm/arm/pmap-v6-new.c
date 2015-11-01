@@ -713,6 +713,7 @@ pmap_bootstrap_prepare(vm_paddr_t last)
 	pt1_entry_t *pte1p;
 	pt2_entry_t *pte2p;
 	u_int i;
+	uint32_t actlr_mask, actlr_set;
 
 	/*
 	 * Now, we are going to make real kernel mapping. Note that we are
@@ -829,8 +830,8 @@ pmap_bootstrap_prepare(vm_paddr_t last)
 
 	/* Finally, switch from 'boot_pt1' to 'kern_pt1'. */
 	pmap_kern_ttb = base_pt1 | ttb_flags;
-	reinit_mmu(pmap_kern_ttb, (1 << 6) | (1 << 0), (1 << 6) | (1 << 0));
-
+	cpuinfo_get_actlr_modifier(&actlr_mask, &actlr_set);
+	reinit_mmu(pmap_kern_ttb, actlr_mask, actlr_set);
 	/*
 	 * Initialize the first available KVA. As kernel image is mapped by
 	 * sections, we are leaving some gap behind.
@@ -5944,13 +5945,6 @@ pmap_activate(struct thread *td)
 	cp15_ttbr_set(ttb);
 	PCPU_SET(curpmap, pmap);
 	critical_exit();
-}
-
-int
-pmap_dmap_iscurrent(pmap_t pmap)
-{
-
-	return (pmap_is_current(pmap));
 }
 
 /*

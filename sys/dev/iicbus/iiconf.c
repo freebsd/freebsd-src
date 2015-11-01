@@ -395,6 +395,21 @@ iicbus_transfer(device_t bus, struct iic_msg *msgs, uint32_t nmsgs)
 	return (IICBUS_TRANSFER(device_get_parent(bus), msgs, nmsgs));
 }
 
+int
+iicbus_transfer_excl(device_t dev, struct iic_msg *msgs, uint32_t nmsgs,
+    int how)
+{
+	device_t bus;
+	int error;
+
+	bus = device_get_parent(dev);
+	error = iicbus_request_bus(bus, dev, how);
+	if (error == 0)
+		error = IICBUS_TRANSFER(bus, msgs, nmsgs);
+	iicbus_release_bus(bus, dev);
+	return (error);
+}
+
 /*
  * Generic version of iicbus_transfer that calls the appropriate
  * routines to accomplish this.  See note above about acceptable

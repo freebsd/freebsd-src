@@ -581,6 +581,136 @@ isp_fc_toponame(fcparam *fcp)
 	}
 }
 
+static int
+isp_fc_enable_vp(ispsoftc_t *isp, int chan)
+{
+	fcparam *fcp = FCPARAM(isp, chan);
+	mbreg_t mbs;
+	vp_modify_t *vp;
+	uint8_t qe[QENTRY_LEN], *scp;
+
+	ISP_MEMZERO(qe, QENTRY_LEN);
+	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
+		return (EBUSY);
+	}
+	scp = fcp->isp_scratch;
+
+	/*
+	 * Build a VP MODIFY command in memory
+	 */
+	vp = (vp_modify_t *) qe;
+	vp->vp_mod_hdr.rqs_entry_type = RQSTYPE_VP_MODIFY;
+	vp->vp_mod_hdr.rqs_entry_count = 1;
+	vp->vp_mod_cnt = 1;
+	vp->vp_mod_idx0 = chan;
+	vp->vp_mod_cmd = VP_MODIFY_ENA;
+	vp->vp_mod_ports[0].options = ICB2400_VPOPT_ENABLED;
+	if (fcp->role & ISP_ROLE_INITIATOR) {
+		vp->vp_mod_ports[0].options |= ICB2400_VPOPT_INI_ENABLE;
+	}
+	if ((fcp->role & ISP_ROLE_TARGET) == 0) {
+		vp->vp_mod_ports[0].options |= ICB2400_VPOPT_TGT_DISABLE;
+	}
+	if (fcp->isp_loopid < LOCAL_LOOP_LIM) {
+		vp->vp_mod_ports[0].loopid = fcp->isp_loopid;
+		if (isp->isp_confopts & ISP_CFG_OWNLOOPID)
+			vp->vp_mod_ports[0].options |=
+			    ICB2400_VPOPT_HARD_ADDRESS;
+		else
+			vp->vp_mod_ports[0].options |=
+			    ICB2400_VPOPT_PREV_ADDRESS;
+	}
+	MAKE_NODE_NAME_FROM_WWN(vp->vp_mod_ports[0].wwpn, fcp->isp_wwpn);
+	MAKE_NODE_NAME_FROM_WWN(vp->vp_mod_ports[0].wwnn, fcp->isp_wwnn);
+	isp_put_vp_modify(isp, vp, (vp_modify_t *) scp);
+
+	/*
+	 * Build a EXEC IOCB A64 command that points to the VP MODIFY command
+	 */
+	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 0);
+	mbs.param[1] = QENTRY_LEN;
+	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
+	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
+	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
+	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN, chan);
+	isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
+	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+		FC_SCRATCH_RELEASE(isp, chan);
+		return (EIO);
+	}
+	MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
+	isp_get_vp_modify(isp, (vp_modify_t *)&scp[QENTRY_LEN], vp);
+
+	FC_SCRATCH_RELEASE(isp, chan);
+
+	if (vp->vp_mod_status != VP_STS_OK) {
+		isp_prt(isp, ISP_LOGERR, "%s: VP_MODIFY of Chan %d failed with status %d", __func__, chan, vp->vp_mod_status);
+		return (EIO);
+	}
+	return (0);
+}
+
+static int
+isp_fc_disable_vp(ispsoftc_t *isp, int chan)
+{
+	fcparam *fcp = FCPARAM(isp, chan);
+	mbreg_t mbs;
+	vp_ctrl_info_t *vp;
+	uint8_t qe[QENTRY_LEN], *scp;
+
+	ISP_MEMZERO(qe, QENTRY_LEN);
+	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
+		return (EBUSY);
+	}
+	scp = fcp->isp_scratch;
+
+	/*
+	 * Build a VP CTRL command in memory
+	 */
+	vp = (vp_ctrl_info_t *) qe;
+	vp->vp_ctrl_hdr.rqs_entry_type = RQSTYPE_VP_CTRL;
+	vp->vp_ctrl_hdr.rqs_entry_count = 1;
+	if (ISP_CAP_VP0(isp)) {
+		vp->vp_ctrl_status = 1;
+	} else {
+		vp->vp_ctrl_status = 0;
+		chan--;	/* VP0 can not be controlled in this case. */
+	}
+	vp->vp_ctrl_command = VP_CTRL_CMD_DISABLE_VP_LOGO_ALL;
+	vp->vp_ctrl_vp_count = 1;
+	vp->vp_ctrl_idmap[chan / 16] |= (1 << chan % 16);
+	isp_put_vp_ctrl_info(isp, vp, (vp_ctrl_info_t *) scp);
+
+	/*
+	 * Build a EXEC IOCB A64 command that points to the VP CTRL command
+	 */
+	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 0);
+	mbs.param[1] = QENTRY_LEN;
+	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
+	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
+	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
+	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN, chan);
+	isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
+	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+		FC_SCRATCH_RELEASE(isp, chan);
+		return (EIO);
+	}
+	MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
+	isp_get_vp_ctrl_info(isp, (vp_ctrl_info_t *)&scp[QENTRY_LEN], vp);
+
+	FC_SCRATCH_RELEASE(isp, chan);
+
+	if (vp->vp_ctrl_status != 0) {
+		isp_prt(isp, ISP_LOGERR,
+		    "%s: VP_CTRL of Chan %d failed with status %d %d",
+		    __func__, chan, vp->vp_ctrl_status, vp->vp_ctrl_index_fail);
+		return (EIO);
+	}
+	return (0);
+}
+
 /*
  * Change Roles
  */
@@ -588,74 +718,28 @@ int
 isp_fc_change_role(ispsoftc_t *isp, int chan, int new_role)
 {
 	fcparam *fcp = FCPARAM(isp, chan);
+	int i, was, res = 0;
 
 	if (chan >= isp->isp_nchan) {
 		isp_prt(isp, ISP_LOGWARN, "%s: bad channel %d", __func__, chan);
 		return (ENXIO);
 	}
-	if (chan == 0) {
+	if (fcp->role == new_role)
+		return (0);
+	for (was = 0, i = 0; i < isp->isp_nchan; i++) {
+		if (FCPARAM(isp, i)->role != ISP_ROLE_NONE)
+			was++;
+	}
+	if (was == 0 || (was == 1 && fcp->role != ISP_ROLE_NONE)) {
 		fcp->role = new_role;
 		return (isp_reinit(isp, 0));
-	} else if (ISP_CAP_MULTI_ID(isp)) {
-		mbreg_t mbs;
-		vp_modify_t *vp;
-		uint8_t qe[QENTRY_LEN], *scp;
-
-		ISP_MEMZERO(qe, QENTRY_LEN);
-		if (FC_SCRATCH_ACQUIRE(isp, chan)) {
-			return (EBUSY);
-		}
-		scp = fcp->isp_scratch;
-
-		/*
-		 * Build a VP MODIFY command in memory
-		 */
-		vp = (vp_modify_t *) qe;
-		vp->vp_mod_hdr.rqs_entry_type = RQSTYPE_VP_MODIFY;
-		vp->vp_mod_hdr.rqs_entry_count = 1;
-		vp->vp_mod_cnt = 1;
-		vp->vp_mod_idx0 = chan;
-		vp->vp_mod_cmd = VP_MODIFY_ENA;
-		vp->vp_mod_ports[0].options = ICB2400_VPOPT_ENABLED;
-		if (new_role & ISP_ROLE_INITIATOR) {
-			vp->vp_mod_ports[0].options |= ICB2400_VPOPT_INI_ENABLE;
-		}
-		if ((new_role & ISP_ROLE_TARGET) == 0) {
-			vp->vp_mod_ports[0].options |= ICB2400_VPOPT_TGT_DISABLE;
-		}
-		MAKE_NODE_NAME_FROM_WWN(vp->vp_mod_ports[0].wwpn, fcp->isp_wwpn);
-		MAKE_NODE_NAME_FROM_WWN(vp->vp_mod_ports[0].wwnn, fcp->isp_wwnn);
-		isp_put_vp_modify(isp, vp, (vp_modify_t *) scp);
-
-		/*
-		 * Build a EXEC IOCB A64 command that points to the VP MODIFY command
-		 */
-		MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 0);
-		mbs.param[1] = QENTRY_LEN;
-		mbs.param[2] = DMA_WD1(fcp->isp_scdma);
-		mbs.param[3] = DMA_WD0(fcp->isp_scdma);
-		mbs.param[6] = DMA_WD3(fcp->isp_scdma);
-		mbs.param[7] = DMA_WD2(fcp->isp_scdma);
-		MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN, chan);
-		isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
-		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			FC_SCRATCH_RELEASE(isp, chan);
-			return (EIO);
-		}
-		MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
-		isp_get_vp_modify(isp, (vp_modify_t *)&scp[QENTRY_LEN], vp);
-
-		FC_SCRATCH_RELEASE(isp, chan);
-
-		if (vp->vp_mod_status != VP_STS_OK) {
-			isp_prt(isp, ISP_LOGERR, "%s: VP_MODIFY of Chan %d failed with status %d", __func__, chan, vp->vp_mod_status);
-			return (EIO);
-		}
-		fcp->role = new_role;
-		return (0);
-	} else {
-		return (EINVAL);
 	}
+	if (fcp->role != ISP_ROLE_NONE)
+		res = isp_fc_disable_vp(isp, chan);
+	fcp->role = new_role;
+	if (fcp->role != ISP_ROLE_NONE)
+		res = isp_fc_enable_vp(isp, chan);
+	return (res);
 }
 
 void
@@ -1071,6 +1155,7 @@ isp_put_24xx_abrt(ispsoftc_t *isp, isp24xx_abrt_t *src, isp24xx_abrt_t *dst)
 	ISP_IOXPUT_16(isp, src->abrt_nphdl, &dst->abrt_nphdl);
 	ISP_IOXPUT_16(isp, src->abrt_options, &dst->abrt_options);
 	ISP_IOXPUT_32(isp, src->abrt_cmd_handle, &dst->abrt_cmd_handle);
+	ISP_IOXPUT_16(isp, src->abrt_queue_number, &dst->abrt_queue_number);
 	for (i = 0; i < ASIZE(src->abrt_reserved); i++) {
 		ISP_IOXPUT_8(isp, src->abrt_reserved[i], &dst->abrt_reserved[i]);
 	}
@@ -1158,7 +1243,7 @@ isp_get_24xx_response(ispsoftc_t *isp, isp24xx_statusreq_t *src, isp24xx_statusr
 	ISP_IOXGET_32(isp, &src->req_resid, dst->req_resid);
 	ISP_IOXGET_16(isp, &src->req_reserved0, dst->req_reserved0);
 	ISP_IOXGET_16(isp, &src->req_state_flags, dst->req_state_flags);
-	ISP_IOXGET_16(isp, &src->req_reserved1, dst->req_reserved1);
+	ISP_IOXGET_16(isp, &src->req_retry_delay, dst->req_retry_delay);
 	ISP_IOXGET_16(isp, &src->req_scsi_status, dst->req_scsi_status);
 	ISP_IOXGET_32(isp, &src->req_fcp_residual, dst->req_fcp_residual);
 	ISP_IOXGET_32(isp, &src->req_sense_len, dst->req_sense_len);
@@ -1179,6 +1264,7 @@ isp_get_24xx_abrt(ispsoftc_t *isp, isp24xx_abrt_t *src, isp24xx_abrt_t *dst)
 	ISP_IOXGET_16(isp, &src->abrt_nphdl, dst->abrt_nphdl);
 	ISP_IOXGET_16(isp, &src->abrt_options, dst->abrt_options);
 	ISP_IOXGET_32(isp, &src->abrt_cmd_handle, dst->abrt_cmd_handle);
+	ISP_IOXGET_16(isp, &src->abrt_queue_number, dst->abrt_queue_number);
 	for (i = 0; i < ASIZE(src->abrt_reserved); i++) {
 		ISP_IOXGET_8(isp, &src->abrt_reserved[i], dst->abrt_reserved[i]);
 	}
@@ -1398,8 +1484,9 @@ isp_put_vp_ctrl_info(ispsoftc_t *isp, vp_ctrl_info_t *src, vp_ctrl_info_t *dst)
 		ISP_IOXPUT_16(isp, src->vp_ctrl_idmap[i], &dst->vp_ctrl_idmap[i]);
 	}
 	for (i = 0; i < ASIZE(src->vp_ctrl_reserved); i++) {
-		ISP_IOXPUT_8(isp, src->vp_ctrl_reserved[i], &dst->vp_ctrl_reserved[i]);
+		ISP_IOXPUT_16(isp, src->vp_ctrl_reserved[i], &dst->vp_ctrl_reserved[i]);
 	}
+	ISP_IOXPUT_16(isp, src->vp_ctrl_fcf_index, &dst->vp_ctrl_fcf_index);
 }
 
 void
@@ -1416,8 +1503,9 @@ isp_get_vp_ctrl_info(ispsoftc_t *isp, vp_ctrl_info_t *src, vp_ctrl_info_t *dst)
 		ISP_IOXGET_16(isp, &src->vp_ctrl_idmap[i], dst->vp_ctrl_idmap[i]);
 	}
 	for (i = 0; i < ASIZE(src->vp_ctrl_reserved); i++) {
-		ISP_IOXGET_8(isp, &src->vp_ctrl_reserved[i], dst->vp_ctrl_reserved[i]);
+		ISP_IOXGET_16(isp, &src->vp_ctrl_reserved[i], dst->vp_ctrl_reserved[i]);
 	}
+	ISP_IOXGET_16(isp, &src->vp_ctrl_fcf_index, dst->vp_ctrl_fcf_index);
 }
 
 void
@@ -1556,6 +1644,44 @@ isp_get_pdb_24xx(ispsoftc_t *isp, isp_pdb_24xx_t *src, isp_pdb_24xx_t *dst)
 	for (i = 0; i < 24; i++) {
 		ISP_IOXGET_8(isp, &src->pdb_reserved1[i], dst->pdb_reserved1[i]);
 	}
+}
+
+void
+isp_get_pnhle_21xx(ispsoftc_t *isp, isp_pnhle_21xx_t *src, isp_pnhle_21xx_t *dst)
+{
+
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_lo, dst->pnhle_port_id_lo);
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_hi_handle, dst->pnhle_port_id_hi_handle);
+}
+
+void
+isp_get_pnhle_23xx(ispsoftc_t *isp, isp_pnhle_23xx_t *src, isp_pnhle_23xx_t *dst)
+{
+
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_lo, dst->pnhle_port_id_lo);
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_hi, dst->pnhle_port_id_hi);
+	ISP_IOXGET_16(isp, &src->pnhle_handle, dst->pnhle_handle);
+}
+
+void
+isp_get_pnhle_24xx(ispsoftc_t *isp, isp_pnhle_24xx_t *src, isp_pnhle_24xx_t *dst)
+{
+
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_lo, dst->pnhle_port_id_lo);
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_hi, dst->pnhle_port_id_hi);
+	ISP_IOXGET_16(isp, &src->pnhle_handle, dst->pnhle_handle);
+	ISP_IOXGET_16(isp, &src->pnhle_reserved, dst->pnhle_reserved);
+}
+
+void
+isp_get_pnnle(ispsoftc_t *isp, isp_pnnle_t *src, isp_pnnle_t *dst)
+{
+	int i;
+
+	for (i = 0; i < 8; i++)
+		ISP_IOXGET_8(isp, &src->pnnle_name[i], dst->pnnle_name[i]);
+	ISP_IOXGET_16(isp, &src->pnnle_handle, dst->pnnle_handle);
+	ISP_IOXGET_16(isp, &src->pnnle_reserved, dst->pnnle_reserved);
 }
 
 /*
@@ -2421,7 +2547,8 @@ isp_find_chan_by_did(ispsoftc_t *isp, uint32_t did, uint16_t *cp)
  * Add an initiator device to the port database
  */
 void
-isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint32_t s_id, uint16_t prli_params)
+isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t wwpn, uint64_t wwnn,
+    uint16_t nphdl, uint32_t s_id, uint16_t prli_params)
 {
 	char buf[64];
 	fcparam *fcp;
@@ -2432,7 +2559,7 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 	if (nphdl >= MAX_NPORT_HANDLE) {
 		isp_prt(isp, ISP_LOGTINFO|ISP_LOGWARN, "Chan %d WWPN 0x%016llx "
 		    "PortID 0x%06x handle 0x%x -- bad handle",
-		    chan, (unsigned long long) ini, s_id, nphdl);
+		    chan, (unsigned long long) wwpn, s_id, nphdl);
 		return;
 	}
 
@@ -2441,7 +2568,7 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 	 * with new parameters.  Some cases of update can be suspicious,
 	 * so log them verbosely and dump the whole port database.
 	 */
-	if ((VALID_INI(ini) && isp_find_pdb_by_wwn(isp, chan, ini, &lp)) ||
+	if ((VALID_INI(wwpn) && isp_find_pdb_by_wwn(isp, chan, wwpn, &lp)) ||
 	    (s_id != PORT_NONE && isp_find_pdb_by_sid(isp, chan, s_id, &lp))) {
 		change = 0;
 		lp->new_portid = lp->portid;
@@ -2465,24 +2592,42 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 			lp->new_portid = s_id;
 			change++;
 		}
-		if (VALID_INI(ini) && lp->port_wwn != ini) {
+		if (VALID_INI(wwpn) && lp->port_wwn != wwpn) {
 			if (!VALID_INI(lp->port_wwn)) {
 				isp_prt(isp, ISP_LOGTINFO,
 				    "Chan %d PortID 0x%06x handle 0x%x "
-				    "gets WWN 0x%016llxx",
+				    "gets WWPN 0x%016llxx",
 				    chan, lp->portid, nphdl,
-				    (unsigned long long) ini);
-			} else if (lp->port_wwn != ini) {
+				    (unsigned long long) wwpn);
+			} else if (lp->port_wwn != wwpn) {
 				isp_prt(isp, ISP_LOGTINFO|ISP_LOGWARN,
 				    "Chan %d PortID 0x%06x handle 0x%x "
-				    "changes WWN 0x%016llx to 0x%016llx",
+				    "changes WWPN 0x%016llx to 0x%016llx",
 				    chan, lp->portid, nphdl,
 				    (unsigned long long) lp->port_wwn,
-				    (unsigned long long) ini);
+				    (unsigned long long) wwpn);
 				if (isp->isp_dblev & (ISP_LOGTINFO|ISP_LOGWARN))
 					isp_dump_portdb(isp, chan);
 			}
-			lp->port_wwn = ini;
+			lp->port_wwn = wwpn;
+			change++;
+		}
+		if (VALID_INI(wwnn) && lp->node_wwn != wwnn) {
+			if (!VALID_INI(lp->node_wwn)) {
+				isp_prt(isp, ISP_LOGTINFO,
+				    "Chan %d PortID 0x%06x handle 0x%x "
+				    "gets WWNN 0x%016llxx",
+				    chan, lp->portid, nphdl,
+				    (unsigned long long) wwnn);
+			} else if (lp->port_wwn != wwnn) {
+				isp_prt(isp, ISP_LOGTINFO,
+				    "Chan %d PortID 0x%06x handle 0x%x "
+				    "changes WWNN 0x%016llx to 0x%016llx",
+				    chan, lp->portid, nphdl,
+				    (unsigned long long) lp->node_wwn,
+				    (unsigned long long) wwnn);
+			}
+			lp->node_wwn = wwnn;
 			change++;
 		}
 		if (prli_params != 0 && lp->prli_word3 != prli_params) {
@@ -2531,7 +2676,7 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 		isp_prt(isp, ISP_LOGTINFO|ISP_LOGWARN,
 		    "Chan %d WWPN 0x%016llx PortID 0x%06x handle 0x%x "
 		    "-- no room in port database",
-		    chan, (unsigned long long) ini, s_id, nphdl);
+		    chan, (unsigned long long) wwpn, s_id, nphdl);
 		if (isp->isp_dblev & (ISP_LOGTINFO|ISP_LOGWARN))
 			isp_dump_portdb(isp, chan);
 		return;
@@ -2542,14 +2687,15 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 	ISP_MEMZERO(lp, sizeof (fcportdb_t));
 	lp->handle = nphdl;
 	lp->portid = s_id;
-	lp->port_wwn = ini;
+	lp->port_wwn = wwpn;
+	lp->node_wwn = wwnn;
 	lp->prli_word3 = (prli_params != 0) ? prli_params : PRLI_WD3_INITIATOR_FUNCTION;
 	lp->state = FC_PORTDB_STATE_VALID;
 
 	isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
 	isp_prt(isp, ISP_LOGTINFO, "Chan %d WWPN 0x%016llx "
 	    "PortID 0x%06x handle 0x%x vtgt %d %s added", chan,
-	    (unsigned long long) ini, s_id, nphdl, i, buf);
+	    (unsigned long long) wwpn, s_id, nphdl, i, buf);
 
 	/* Notify above levels about new port arrival. */
 	isp_async(isp, ISPASYNC_DEV_ARRIVED, chan, lp);
@@ -2559,21 +2705,21 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
  * Remove a target device to the port database
  */
 void
-isp_del_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint32_t s_id)
+isp_del_wwn_entry(ispsoftc_t *isp, int chan, uint64_t wwpn, uint16_t nphdl, uint32_t s_id)
 {
 	fcparam *fcp;
 	fcportdb_t *lp;
 
 	if (nphdl >= MAX_NPORT_HANDLE) {
 		isp_prt(isp, ISP_LOGWARN, "Chan %d WWPN 0x%016llx PortID 0x%06x bad handle 0x%x",
-		    chan, (unsigned long long) ini, s_id, nphdl);
+		    chan, (unsigned long long) wwpn, s_id, nphdl);
 		return;
 	}
 
 	fcp = FCPARAM(isp, chan);
 	if (isp_find_pdb_by_handle(isp, chan, nphdl, &lp) == 0) {
 		isp_prt(isp, ISP_LOGWARN, "Chan %d WWPN 0x%016llx PortID 0x%06x handle 0x%x cannot be found to be deleted",
-		    chan, (unsigned long long) ini, s_id, nphdl);
+		    chan, (unsigned long long) wwpn, s_id, nphdl);
 		isp_dump_portdb(isp, chan);
 		return;
 	}
@@ -3468,7 +3614,7 @@ isp_put_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *src, in_fcentry_24xx_t *
 	ISP_IOXPUT_16(isp, src->in_srr_rxid, &dst->in_srr_rxid);
 	ISP_IOXPUT_16(isp, src->in_status, &dst->in_status);
 	ISP_IOXPUT_8(isp, src->in_status_subcode, &dst->in_status_subcode);
-	ISP_IOXPUT_16(isp, src->in_reserved2, &dst->in_reserved2);
+	ISP_IOXPUT_8(isp, src->in_fwhandle, &dst->in_fwhandle);
 	ISP_IOXPUT_32(isp, src->in_rxid, &dst->in_rxid);
 	ISP_IOXPUT_16(isp, src->in_srr_reloff_hi, &dst->in_srr_reloff_hi);
 	ISP_IOXPUT_16(isp, src->in_srr_reloff_lo, &dst->in_srr_reloff_lo);
@@ -3531,7 +3677,7 @@ isp_get_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *src, in_fcentry_24xx_t *
 	ISP_IOXGET_16(isp, &src->in_srr_rxid, dst->in_srr_rxid);
 	ISP_IOXGET_16(isp, &src->in_status, dst->in_status);
 	ISP_IOXGET_8(isp, &src->in_status_subcode, dst->in_status_subcode);
-	ISP_IOXGET_16(isp, &src->in_reserved2, dst->in_reserved2);
+	ISP_IOXGET_8(isp, &src->in_fwhandle, dst->in_fwhandle);
 	ISP_IOXGET_32(isp, &src->in_rxid, dst->in_rxid);
 	ISP_IOXGET_16(isp, &src->in_srr_reloff_hi, dst->in_srr_reloff_hi);
 	ISP_IOXGET_16(isp, &src->in_srr_reloff_lo, dst->in_srr_reloff_lo);
@@ -3650,7 +3796,7 @@ isp_put_notify_24xx_ack(ispsoftc_t *isp, na_fcentry_24xx_t *src, na_fcentry_24xx
 	ISP_IOXPUT_16(isp, src->na_srr_rxid, &dst->na_srr_rxid);
 	ISP_IOXPUT_16(isp, src->na_status, &dst->na_status);
 	ISP_IOXPUT_8(isp, src->na_status_subcode, &dst->na_status_subcode);
-	ISP_IOXPUT_16(isp, src->na_reserved2, &dst->na_reserved2);
+	ISP_IOXPUT_8(isp, src->na_fwhandle, &dst->na_fwhandle);
 	ISP_IOXPUT_32(isp, src->na_rxid, &dst->na_rxid);
 	ISP_IOXPUT_16(isp, src->na_srr_reloff_hi, &dst->na_srr_reloff_hi);
 	ISP_IOXPUT_16(isp, src->na_srr_reloff_lo, &dst->na_srr_reloff_lo);
@@ -3721,7 +3867,7 @@ isp_get_notify_ack_24xx(ispsoftc_t *isp, na_fcentry_24xx_t *src, na_fcentry_24xx
 	ISP_IOXGET_16(isp, &src->na_srr_rxid, dst->na_srr_rxid);
 	ISP_IOXGET_16(isp, &src->na_status, dst->na_status);
 	ISP_IOXGET_8(isp, &src->na_status_subcode, dst->na_status_subcode);
-	ISP_IOXGET_16(isp, &src->na_reserved2, dst->na_reserved2);
+	ISP_IOXGET_8(isp, &src->na_fwhandle, dst->na_fwhandle);
 	ISP_IOXGET_32(isp, &src->na_rxid, dst->na_rxid);
 	ISP_IOXGET_16(isp, &src->na_srr_reloff_hi, dst->na_srr_reloff_hi);
 	ISP_IOXGET_16(isp, &src->na_srr_reloff_lo, dst->na_srr_reloff_lo);

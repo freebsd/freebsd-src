@@ -387,6 +387,7 @@ ql_hw_add_sysctls(qla_host_t *ha)
 		"Minidump Utility can start minidump process");
 #ifdef QL_DBG
 
+	ha->err_inject = 0;
         SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
                 SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
                 OID_AUTO, "err_inject",
@@ -3057,7 +3058,7 @@ ql_hw_check_health(qla_host_t *ha)
 	val = READ_REG32(ha, Q8_FIRMWARE_HEARTBEAT);
 
 	if ((val != ha->hw.hbeat_value) &&
-		(!(QL_ERR_INJECT(ha, INJCT_TEMPERATURE_FAILURE)))) {
+		(!(QL_ERR_INJECT(ha, INJCT_HEARTBEAT_FAILURE)))) {
 		ha->hw.hbeat_value = val;
 		return 0;
 	}

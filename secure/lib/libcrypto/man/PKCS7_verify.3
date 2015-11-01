@@ -133,13 +133,13 @@
 .\" ========================================================================
 .\"
 .IX Title "PKCS7_verify 3"
-.TH PKCS7_verify 3 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH PKCS7_verify 3 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-PKCS7_verify \- verify a PKCS#7 signedData structure
+PKCS7_verify, PKCS7_get0_signers \- verify a PKCS#7 signedData structure
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -225,8 +225,8 @@ signer it cannot be trusted without additional evidence (such as a trusted
 timestamp).
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fIPKCS7_verify()\fR returns 1 for a successful verification and zero or a negative
-value if an error occurs.
+\&\fIPKCS7_verify()\fR returns one for a successful verification and zero
+if an error occurs.
 .PP
 \&\fIPKCS7_get0_signers()\fR returns all signers or \fB\s-1NULL\s0\fR if an error occurred.
 .PP

@@ -33,7 +33,7 @@ Up:&nbsp;<a rel="up" accesskey="u" href="#dir">(dir)</a>
 <p>This document describes the configuration file for the NTP Project's
 <code>ntpd</code> program.
 
-  <p>This document applies to version 4.2.8p3 of <code>ntp.conf</code>.
+  <p>This document applies to version 4.2.8p4 of <code>ntp.conf</code>.
 
   <div class="shortcontents">
 <h2>Short Contents</h2>
@@ -1839,7 +1839,7 @@ re-associate accordingly.
   <p>Some administrators prefer to avoid running
 <code>ntpd(1ntpdmdoc)</code>
 continuously and run either
-<code>ntpdate(8)</code>
+<code>sntp(1sntpmdoc)</code>
 or
 <code>ntpd(1ntpdmdoc)</code>
 <code>-q</code>
@@ -1922,7 +1922,7 @@ will be discarded if there are at least
 peers remaining. 
 This value defaults to 1, but can be changed
 to any number from 1 to 15. 
-<br><dt><code>minclock</code> <kbd>minclock</kbd><dd>The clustering algorithm repeatedly casts out outlyer
+<br><dt><code>minclock</code> <kbd>minclock</kbd><dd>The clustering algorithm repeatedly casts out outlier
 associations until no more than
 <code>minclock</code>
 associations remain. 
@@ -2546,12 +2546,15 @@ pulses will not be suppressed.
 </dl>
      <br><dt><code>rlimit</code> <code>[memlock </code><kbd>Nmegabytes</kbd><code> | stacksize </code><kbd>N4kPages</kbd><code> filenum </code><kbd>Nfiledescriptors</kbd><code>]</code><dd>
           <dl>
-<dt><code>memlock</code> <kbd>Nmegabytes</kbd><dd>Specify the number of megabytes of memory that can be allocated. 
-Probably only available under Linux, this option is useful
+<dt><code>memlock</code> <kbd>Nmegabytes</kbd><dd>Specify the number of megabytes of memory that should be
+allocated and locked. 
+Probably only available under Linux, this option may be useful
 when dropping root (the
 <code>-i</code>
 option). 
-The default is 32 megabytes. Setting this to zero will prevent any attemp to lock memory. 
+The default is 32 megabytes on non-Linux machines, and -1 under Linux. 
+-1 means "do not lock the process into memory". 
+0 means "lock whatever memory the process wants into memory". 
 <br><dt><code>stacksize</code> <kbd>N4kPages</kbd><dd>Specifies the maximum size of the process stack on systems with the
 <code>mlockall()</code>
 function. 

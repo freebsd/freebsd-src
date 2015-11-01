@@ -513,7 +513,7 @@ rt2860_alloc_tx_ring(struct rt2860_softc *sc, struct rt2860_tx_ring *ring)
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    size, 1, size, 0, NULL, NULL, &ring->desc_dmat);
 	if (error != 0) {
-		device_printf(sc->sc_dev, "could not create desc DMA map\n");
+		device_printf(sc->sc_dev, "could not create desc DMA tag\n");
 		goto fail;
 	}
 
@@ -1699,7 +1699,7 @@ rt2860_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	RAL_LOCK(sc);
 
 	/* prevent management frames from being sent if we're not ready */
-	if (!(sc->sc_flags & RT2860_RUNNNING)) {
+	if (!(sc->sc_flags & RT2860_RUNNING)) {
 		RAL_UNLOCK(sc);
 		m_freem(m);
 		return ENETDOWN;
@@ -1940,7 +1940,7 @@ rt2860_transmit(struct ieee80211com *ic, struct mbuf *m)
 	int error;
 
 	RAL_LOCK(sc);
-	if ((sc->sc_flags & RT2860_RUNNNING) == 0) {
+	if ((sc->sc_flags & RT2860_RUNNING) == 0) {
 		RAL_UNLOCK(sc);
 		return (ENXIO);
 	}
@@ -1963,7 +1963,7 @@ rt2860_start(struct rt2860_softc *sc)
 
 	RAL_LOCK_ASSERT(sc);
 
-	if ((sc->sc_flags & RT2860_RUNNNING) == 0)
+	if ((sc->sc_flags & RT2860_RUNNING) == 0)
 		return;
 
 	while (!SLIST_EMPTY(&sc->data_pool) && sc->qfullmsk == 0 &&
@@ -1986,7 +1986,7 @@ rt2860_watchdog(void *arg)
 
 	RAL_LOCK_ASSERT(sc);
 
-	KASSERT(sc->sc_flags & RT2860_RUNNNING, ("not running"));
+	KASSERT(sc->sc_flags & RT2860_RUNNING, ("not running"));
 
 	if (sc->sc_invalid)		/* card ejected */
 		return;
@@ -2009,12 +2009,12 @@ rt2860_parent(struct ieee80211com *ic)
 
 	RAL_LOCK(sc);
 	if (ic->ic_nrunning> 0) {
-		if (!(sc->sc_flags & RT2860_RUNNNING)) {
+		if (!(sc->sc_flags & RT2860_RUNNING)) {
 			rt2860_init_locked(sc);
 			startall = 1;
 		} else
 			rt2860_update_promisc(ic);
-	} else if (sc->sc_flags & RT2860_RUNNNING)
+	} else if (sc->sc_flags & RT2860_RUNNING)
 		rt2860_stop_locked(sc);
 	RAL_UNLOCK(sc);
 	if (startall)
@@ -3791,7 +3791,7 @@ rt2860_init(void *arg)
 	rt2860_init_locked(sc);
 	RAL_UNLOCK(sc);
 
-	if (sc->sc_flags & RT2860_RUNNNING)
+	if (sc->sc_flags & RT2860_RUNNING)
 		ieee80211_start_all(ic);
 }
 
@@ -4051,7 +4051,7 @@ rt2860_init_locked(struct rt2860_softc *sc)
 	if (sc->sc_flags & RT2860_ADVANCED_PS)
 		rt2860_mcu_cmd(sc, RT2860_MCU_CMD_PSLEVEL, sc->pslevel, 0);
 
-	sc->sc_flags |= RT2860_RUNNNING;
+	sc->sc_flags |= RT2860_RUNNING;
 
 	callout_reset(&sc->watchdog_ch, hz, rt2860_watchdog, sc);
 }
@@ -4072,12 +4072,12 @@ rt2860_stop_locked(struct rt2860_softc *sc)
 	uint32_t tmp;
 	int qid;
 
-	if (sc->sc_flags & RT2860_RUNNNING)
+	if (sc->sc_flags & RT2860_RUNNING)
 		rt2860_set_leds(sc, 0);	/* turn all LEDs off */
 
 	callout_stop(&sc->watchdog_ch);
 	sc->sc_tx_timer = 0;
-	sc->sc_flags &= ~RT2860_RUNNNING;
+	sc->sc_flags &= ~RT2860_RUNNING;
 
 	/* disable interrupts */
 	RAL_WRITE(sc, RT2860_INT_MASK, 0);

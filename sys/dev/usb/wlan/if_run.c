@@ -2847,13 +2847,6 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 
 	m->m_pkthdr.len = m->m_len = len;
 
-	if (ni != NULL) {
-		(void)ieee80211_input(ni, m, rssi, nf);
-		ieee80211_free_node(ni);
-	} else {
-		(void)ieee80211_input_all(ic, m, rssi, nf);
-	}
-
 	if (__predict_false(ieee80211_radiotap_active(ic))) {
 		struct run_rx_radiotap_header *tap = &sc->sc_rxtap;
 		uint16_t phy;
@@ -2891,6 +2884,13 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 			}
 			break;
 		}
+	}
+
+	if (ni != NULL) {
+		(void)ieee80211_input(ni, m, rssi, nf);
+		ieee80211_free_node(ni);
+	} else {
+		(void)ieee80211_input_all(ic, m, rssi, nf);
 	}
 }
 
@@ -3030,20 +3030,11 @@ static void
 run_tx_free(struct run_endpoint_queue *pq,
     struct run_tx_data *data, int txerr)
 {
-	if (data->m != NULL) {
-		if (data->m->m_flags & M_TXCB)
-			ieee80211_process_callback(data->ni, data->m,
-			    txerr ? ETIMEDOUT : 0);
-		m_freem(data->m);
-		data->m = NULL;
 
-		if (data->ni == NULL) {
-			DPRINTF("no node\n");
-		} else {
-			ieee80211_free_node(data->ni);
-			data->ni = NULL;
-		}
-	}
+	ieee80211_tx_complete(data->ni, data->m, txerr);
+
+	data->m = NULL;
+	data->ni = NULL;
 
 	STAILQ_INSERT_TAIL(&pq->tx_fh, data, next);
 	pq->tx_nfree++;

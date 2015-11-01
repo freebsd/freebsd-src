@@ -32,10 +32,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/rman.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -60,16 +62,28 @@ __FBSDID("$FreeBSD$");
  * be picked up and redistributed in Linux with a dual GPL/BSD license.
  */
 
-#define MAX_MSIX_INTERRUPTS MAX(XEON_DB_COUNT, SOC_DB_COUNT)
+#define MAX_MSIX_INTERRUPTS MAX(XEON_DB_COUNT, ATOM_DB_COUNT)
 
 #define NTB_HB_TIMEOUT		1 /* second */
-#define SOC_LINK_RECOVERY_TIME	500 /* ms */
+#define ATOM_LINK_RECOVERY_TIME	500 /* ms */
 
 #define DEVICE2SOFTC(dev) ((struct ntb_softc *) device_get_softc(dev))
 
 enum ntb_device_type {
 	NTB_XEON,
-	NTB_SOC
+	NTB_ATOM
+};
+
+/* ntb_conn_type are hardware numbers, cannot change. */
+enum ntb_conn_type {
+	NTB_CONN_TRANSPARENT = 0,
+	NTB_CONN_B2B = 1,
+	NTB_CONN_RP = 2,
+};
+
+enum ntb_b2b_direction {
+	NTB_DEV_USD = 0,
+	NTB_DEV_DSD = 1,
 };
 
 enum ntb_bar {
@@ -156,7 +170,7 @@ struct ntb_b2b_addr {
 struct ntb_softc {
 	device_t		device;
 	enum ntb_device_type	type;
-	uint64_t		features;
+	uint32_t		features;
 
 	struct ntb_pci_bar_info	bar_info[NTB_MAX_BARS];
 	struct ntb_int_info	int_info[MAX_MSIX_INTERRUPTS];
@@ -173,19 +187,9 @@ struct ntb_softc {
 #define CTX_ASSERT(sc,f)	mtx_assert(&(sc)->ctx_lock, (f))
 	struct mtx		ctx_lock;
 
-	struct {
-		uint32_t ldb;
-		uint32_t ldb_mask;
-		uint32_t bar4_xlat;
-		uint32_t bar5_xlat;
-		uint32_t spad_local;
-		uint32_t spci_cmd;
-	} reg_ofs;
-	uint32_t ppd;
-	uint8_t conn_type;
-	uint8_t dev_type;
-	uint8_t link_width;
-	uint8_t link_speed;
+	uint32_t		ppd;
+	enum ntb_conn_type	conn_type;
+	enum ntb_b2b_direction	dev_type;
 
 	/* Offset of peer bar0 in B2B BAR */
 	uint64_t			b2b_off;
@@ -263,7 +267,8 @@ static inline bool bar_is_64bit(struct ntb_softc *, enum ntb_bar);
 static inline void bar_get_xlat_params(struct ntb_softc *, enum ntb_bar,
     uint32_t *base, uint32_t *xlat, uint32_t *lmt);
 static int ntb_map_pci_bars(struct ntb_softc *ntb);
-static void print_map_success(struct ntb_softc *, struct ntb_pci_bar_info *);
+static void print_map_success(struct ntb_softc *, struct ntb_pci_bar_info *,
+    const char *);
 static int map_mmr_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar);
 static int map_memory_window_bar(struct ntb_softc *ntb,
     struct ntb_pci_bar_info *bar);
@@ -284,11 +289,11 @@ static void ntb_free_msix_vec(struct ntb_softc *ntb);
 static struct ntb_hw_info *ntb_get_device_info(uint32_t device_id);
 static void ntb_detect_max_mw(struct ntb_softc *ntb);
 static int ntb_detect_xeon(struct ntb_softc *ntb);
-static int ntb_detect_soc(struct ntb_softc *ntb);
+static int ntb_detect_atom(struct ntb_softc *ntb);
 static int ntb_xeon_init_dev(struct ntb_softc *ntb);
-static int ntb_soc_init_dev(struct ntb_softc *ntb);
+static int ntb_atom_init_dev(struct ntb_softc *ntb);
 static void ntb_teardown_xeon(struct ntb_softc *ntb);
-static void configure_soc_secondary_side_bars(struct ntb_softc *ntb);
+static void configure_atom_secondary_side_bars(struct ntb_softc *ntb);
 static void xeon_reset_sbar_size(struct ntb_softc *, enum ntb_bar idx,
     enum ntb_bar regbar);
 static void xeon_set_sbar_base_and_limit(struct ntb_softc *,
@@ -298,19 +303,24 @@ static void xeon_set_pbar_xlat(struct ntb_softc *, uint64_t base_addr,
 static int xeon_setup_b2b_mw(struct ntb_softc *,
     const struct ntb_b2b_addr *addr, const struct ntb_b2b_addr *peer_addr);
 static inline bool link_is_up(struct ntb_softc *ntb);
-static inline bool soc_link_is_err(struct ntb_softc *ntb);
+static inline bool atom_link_is_err(struct ntb_softc *ntb);
 static inline enum ntb_speed ntb_link_sta_speed(struct ntb_softc *);
 static inline enum ntb_width ntb_link_sta_width(struct ntb_softc *);
-static void soc_link_hb(void *arg);
+static void atom_link_hb(void *arg);
 static void ntb_db_event(struct ntb_softc *ntb, uint32_t vec);
-static void recover_soc_link(void *arg);
+static void recover_atom_link(void *arg);
 static bool ntb_poll_link(struct ntb_softc *ntb);
 static void save_bar_parameters(struct ntb_pci_bar_info *bar);
+static void ntb_sysctl_init(struct ntb_softc *);
+static int sysctl_handle_features(SYSCTL_HANDLER_ARGS);
+static int sysctl_handle_link_status(SYSCTL_HANDLER_ARGS);
+static int sysctl_handle_register(SYSCTL_HANDLER_ARGS);
 
 static struct ntb_hw_info pci_ids[] = {
-	{ 0x0C4E8086, "Atom Processor S1200 NTB Primary B2B", NTB_SOC, 0 },
-
 	/* XXX: PS/SS IDs left out until they are supported. */
+	{ 0x0C4E8086, "BWD Atom Processor S1200 Non-Transparent Bridge B2B",
+		NTB_ATOM, 0 },
+
 	{ 0x37258086, "JSF Xeon C35xx/C55xx Non-Transparent Bridge B2B",
 		NTB_XEON, NTB_SDOORBELL_LOCKUP | NTB_B2BDOORBELL_BIT14 },
 	{ 0x3C0D8086, "SNB Xeon E5/Core i7 Non-Transparent Bridge B2B",
@@ -325,34 +335,40 @@ static struct ntb_hw_info pci_ids[] = {
 		NTB_SDOORBELL_LOCKUP | NTB_B2BDOORBELL_BIT14 |
 		    NTB_SB01BASE_LOCKUP },
 
-	{ 0x00000000, NULL, NTB_SOC, 0 }
+	{ 0x00000000, NULL, NTB_ATOM, 0 }
 };
 
-static const struct ntb_reg soc_reg = {
-	.ntb_ctl = SOC_NTBCNTL_OFFSET,
-	.lnk_sta = SOC_LINK_STATUS_OFFSET,
+static const struct ntb_reg atom_reg = {
+	.ntb_ctl = ATOM_NTBCNTL_OFFSET,
+	.lnk_sta = ATOM_LINK_STATUS_OFFSET,
 	.db_size = sizeof(uint64_t),
 	.mw_bar = { NTB_B2B_BAR_1, NTB_B2B_BAR_2 },
 };
 
-static const struct ntb_alt_reg soc_b2b_reg = {
-	.db_bell = SOC_B2B_DOORBELL_OFFSET,
-	.spad = SOC_B2B_SPAD_OFFSET,
+static const struct ntb_alt_reg atom_pri_reg = {
+	.db_bell = ATOM_PDOORBELL_OFFSET,
+	.db_mask = ATOM_PDBMSK_OFFSET,
+	.spad = ATOM_SPAD_OFFSET,
 };
 
-static const struct ntb_xlat_reg soc_sec_xlat = {
+static const struct ntb_alt_reg atom_b2b_reg = {
+	.db_bell = ATOM_B2B_DOORBELL_OFFSET,
+	.spad = ATOM_B2B_SPAD_OFFSET,
+};
+
+static const struct ntb_xlat_reg atom_sec_xlat = {
 #if 0
 	/* "FIXME" says the Linux driver. */
-	.bar0_base = SOC_SBAR0BASE_OFFSET,
-	.bar2_base = SOC_SBAR2BASE_OFFSET,
-	.bar4_base = SOC_SBAR4BASE_OFFSET,
+	.bar0_base = ATOM_SBAR0BASE_OFFSET,
+	.bar2_base = ATOM_SBAR2BASE_OFFSET,
+	.bar4_base = ATOM_SBAR4BASE_OFFSET,
 
-	.bar2_limit = SOC_SBAR2LMT_OFFSET,
-	.bar4_limit = SOC_SBAR4LMT_OFFSET,
+	.bar2_limit = ATOM_SBAR2LMT_OFFSET,
+	.bar4_limit = ATOM_SBAR4LMT_OFFSET,
 #endif
 
-	.bar2_xlat = SOC_SBAR2XLAT_OFFSET,
-	.bar4_xlat = SOC_SBAR4XLAT_OFFSET,
+	.bar2_xlat = ATOM_SBAR2XLAT_OFFSET,
+	.bar4_xlat = ATOM_SBAR4XLAT_OFFSET,
 };
 
 static const struct ntb_reg xeon_reg = {
@@ -360,6 +376,12 @@ static const struct ntb_reg xeon_reg = {
 	.lnk_sta = XEON_LINK_STATUS_OFFSET,
 	.db_size = sizeof(uint16_t),
 	.mw_bar = { NTB_B2B_BAR_1, NTB_B2B_BAR_2, NTB_B2B_BAR_3 },
+};
+
+static const struct ntb_alt_reg xeon_pri_reg = {
+	.db_bell = XEON_PDOORBELL_OFFSET,
+	.db_mask = XEON_PDBMSK_OFFSET,
+	.spad = XEON_SPAD_OFFSET,
 };
 
 static const struct ntb_alt_reg xeon_b2b_reg = {
@@ -382,7 +404,7 @@ static const struct ntb_xlat_reg xeon_sec_xlat = {
 	.bar5_xlat = XEON_SBAR5XLAT_OFFSET,
 };
 
-static const struct ntb_b2b_addr xeon_b2b_usd_addr = {
+static struct ntb_b2b_addr xeon_b2b_usd_addr = {
 	.bar0_addr = XEON_B2B_BAR0_USD_ADDR,
 	.bar2_addr64 = XEON_B2B_BAR2_USD_ADDR64,
 	.bar4_addr64 = XEON_B2B_BAR4_USD_ADDR64,
@@ -390,13 +412,44 @@ static const struct ntb_b2b_addr xeon_b2b_usd_addr = {
 	.bar5_addr32 = XEON_B2B_BAR5_USD_ADDR32,
 };
 
-static const struct ntb_b2b_addr xeon_b2b_dsd_addr = {
+static struct ntb_b2b_addr xeon_b2b_dsd_addr = {
 	.bar0_addr = XEON_B2B_BAR0_DSD_ADDR,
 	.bar2_addr64 = XEON_B2B_BAR2_DSD_ADDR64,
 	.bar4_addr64 = XEON_B2B_BAR4_DSD_ADDR64,
 	.bar4_addr32 = XEON_B2B_BAR4_DSD_ADDR32,
 	.bar5_addr32 = XEON_B2B_BAR5_DSD_ADDR32,
 };
+
+SYSCTL_NODE(_hw_ntb, OID_AUTO, xeon_b2b, CTLFLAG_RW, 0,
+    "B2B MW segment overrides -- MUST be the same on both sides");
+
+SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, usd_bar2_addr64, CTLFLAG_RDTUN,
+    &xeon_b2b_usd_addr.bar2_addr64, 0, "If using B2B topology on Xeon "
+    "hardware, use this 64-bit address on the bus between the NTB devices for "
+    "the window at BAR2, on the upstream side of the link.  MUST be the same "
+    "address on both sides.");
+SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, usd_bar4_addr64, CTLFLAG_RDTUN,
+    &xeon_b2b_usd_addr.bar4_addr64, 0, "See usd_bar2_addr64, but BAR4.");
+SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, usd_bar4_addr32, CTLFLAG_RDTUN,
+    &xeon_b2b_usd_addr.bar4_addr32, 0, "See usd_bar2_addr64, but BAR4 "
+    "(split-BAR mode).");
+SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, usd_bar5_addr32, CTLFLAG_RDTUN,
+    &xeon_b2b_usd_addr.bar5_addr32, 0, "See usd_bar2_addr64, but BAR5 "
+    "(split-BAR mode).");
+
+SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, dsd_bar2_addr64, CTLFLAG_RDTUN,
+    &xeon_b2b_dsd_addr.bar2_addr64, 0, "If using B2B topology on Xeon "
+    "hardware, use this 64-bit address on the bus between the NTB devices for "
+    "the window at BAR2, on the downstream side of the link.  MUST be the same"
+    " address on both sides.");
+SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, dsd_bar4_addr64, CTLFLAG_RDTUN,
+    &xeon_b2b_dsd_addr.bar4_addr64, 0, "See dsd_bar2_addr64, but BAR4.");
+SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, dsd_bar4_addr32, CTLFLAG_RDTUN,
+    &xeon_b2b_dsd_addr.bar4_addr32, 0, "See dsd_bar2_addr64, but BAR4 "
+    "(split-BAR mode).");
+SYSCTL_UQUAD(_hw_ntb_xeon_b2b, OID_AUTO, dsd_bar5_addr32, CTLFLAG_RDTUN,
+    &xeon_b2b_dsd_addr.bar5_addr32, 0, "See dsd_bar2_addr64, but BAR5 "
+    "(split-BAR mode).");
 
 /*
  * OS <-> Driver interface structures
@@ -454,14 +507,14 @@ ntb_attach(device_t device)
 	ntb->features = p->features;
 	ntb->b2b_mw_idx = B2B_MW_DISABLED;
 
-	/* Heartbeat timer for NTB_SOC since there is no link interrupt */
+	/* Heartbeat timer for NTB_ATOM since there is no link interrupt */
 	callout_init(&ntb->heartbeat_timer, 1);
 	callout_init(&ntb->lr_timer, 1);
 	mtx_init(&ntb->db_mask_lock, "ntb hw bits", NULL, MTX_SPIN);
 	mtx_init(&ntb->ctx_lock, "ntb ctx", NULL, MTX_SPIN);
 
-	if (ntb->type == NTB_SOC)
-		error = ntb_detect_soc(ntb);
+	if (ntb->type == NTB_ATOM)
+		error = ntb_detect_atom(ntb);
 	else
 		error = ntb_detect_xeon(ntb);
 	if (error)
@@ -472,8 +525,8 @@ ntb_attach(device_t device)
 	error = ntb_map_pci_bars(ntb);
 	if (error)
 		goto out;
-	if (ntb->type == NTB_SOC)
-		error = ntb_soc_init_dev(ntb);
+	if (ntb->type == NTB_ATOM)
+		error = ntb_atom_init_dev(ntb);
 	else
 		error = ntb_xeon_init_dev(ntb);
 	if (error)
@@ -481,6 +534,7 @@ ntb_attach(device_t device)
 	error = ntb_init_isr(ntb);
 	if (error)
 		goto out;
+	ntb_sysctl_init(ntb);
 
 	pci_enable_busmaster(ntb->device);
 
@@ -497,7 +551,8 @@ ntb_detach(device_t device)
 
 	ntb = DEVICE2SOFTC(device);
 
-	ntb_db_set_mask(ntb, ntb->db_valid_mask);
+	if (ntb->self_reg != NULL)
+		ntb_db_set_mask(ntb, ntb->db_valid_mask);
 	callout_drain(&ntb->heartbeat_timer);
 	callout_drain(&ntb->lr_timer);
 	if (ntb->type == NTB_XEON)
@@ -625,11 +680,16 @@ out:
 }
 
 static void
-print_map_success(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
+print_map_success(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar,
+    const char *kind)
 {
 
-	device_printf(ntb->device, "Bar size = %lx, v %p, p %p\n",
-	    bar->size, bar->vbase, (void *)(bar->pbase));
+	device_printf(ntb->device,
+	    "Mapped BAR%d v:[%p-%p] p:[%p-%p] (0x%jx bytes) (%s)\n",
+	    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
+	    (char *)bar->vbase + bar->size - 1,
+	    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1),
+	    (uintmax_t)bar->size, kind);
 }
 
 static int
@@ -642,7 +702,7 @@ map_mmr_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 		return (ENXIO);
 
 	save_bar_parameters(bar);
-	print_map_success(ntb, bar);
+	print_map_success(ntb, bar, "mmr");
 	return (0);
 }
 
@@ -698,12 +758,23 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 	/* Mark bar region as write combining to improve performance. */
 	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size,
 	    VM_MEMATTR_WRITE_COMBINING);
-	if (rc != 0) {
+	print_map_success(ntb, bar, "mw");
+	if (rc == 0)
 		device_printf(ntb->device,
-		    "unable to mark bar as WRITE_COMBINING\n");
-		return (rc);
-	}
-	print_map_success(ntb, bar);
+		    "Marked BAR%d v:[%p-%p] p:[%p-%p] as "
+		    "WRITE_COMBINING.\n",
+		    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
+		    (char *)bar->vbase + bar->size - 1,
+		    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1));
+	else
+		device_printf(ntb->device,
+		    "Unable to mark BAR%d v:[%p-%p] p:[%p-%p] as "
+		    "WRITE_COMBINING: %d\n",
+		    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
+		    (char *)bar->vbase + bar->size - 1,
+		    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1),
+		    rc);
+		/* Proceed anyway */
 	return (0);
 }
 
@@ -897,14 +968,14 @@ ntb_teardown_interrupts(struct ntb_softc *ntb)
 }
 
 /*
- * Doorbell register and mask are 64-bit on SoC, 16-bit on Xeon.  Abstract it
+ * Doorbell register and mask are 64-bit on Atom, 16-bit on Xeon.  Abstract it
  * out to make code clearer.
  */
 static inline uint64_t
 db_ioread(struct ntb_softc *ntb, uint64_t regoff)
 {
 
-	if (ntb->type == NTB_SOC)
+	if (ntb->type == NTB_ATOM)
 		return (ntb_reg_read(8, regoff));
 
 	KASSERT(ntb->type == NTB_XEON, ("bad ntb type"));
@@ -921,10 +992,10 @@ db_iowrite(struct ntb_softc *ntb, uint64_t regoff, uint64_t val)
 	     (uintmax_t)(val & ~ntb->db_valid_mask),
 	     (uintmax_t)ntb->db_valid_mask));
 
-	if (regoff == ntb->reg_ofs.ldb_mask)
+	if (regoff == ntb->self_reg->db_mask)
 		DB_MASK_ASSERT(ntb, MA_OWNED);
 
-	if (ntb->type == NTB_SOC) {
+	if (ntb->type == NTB_ATOM) {
 		ntb_reg_write(8, regoff, val);
 		return;
 	}
@@ -939,7 +1010,7 @@ ntb_db_set_mask(struct ntb_softc *ntb, uint64_t bits)
 
 	DB_MASK_LOCK(ntb);
 	ntb->db_mask |= bits;
-	db_iowrite(ntb, ntb->reg_ofs.ldb_mask, ntb->db_mask);
+	db_iowrite(ntb, ntb->self_reg->db_mask, ntb->db_mask);
 	DB_MASK_UNLOCK(ntb);
 }
 
@@ -954,7 +1025,7 @@ ntb_db_clear_mask(struct ntb_softc *ntb, uint64_t bits)
 
 	DB_MASK_LOCK(ntb);
 	ntb->db_mask &= ~bits;
-	db_iowrite(ntb, ntb->reg_ofs.ldb_mask, ntb->db_mask);
+	db_iowrite(ntb, ntb->self_reg->db_mask, ntb->db_mask);
 	DB_MASK_UNLOCK(ntb);
 }
 
@@ -962,7 +1033,7 @@ uint64_t
 ntb_db_read(struct ntb_softc *ntb)
 {
 
-	return (db_ioread(ntb, ntb->reg_ofs.ldb));
+	return (db_ioread(ntb, ntb->self_reg->db_bell));
 }
 
 void
@@ -974,7 +1045,7 @@ ntb_db_clear(struct ntb_softc *ntb, uint64_t bits)
 	     (uintmax_t)(bits & ~ntb->db_valid_mask),
 	     (uintmax_t)ntb->db_valid_mask));
 
-	db_iowrite(ntb, ntb->reg_ofs.ldb, bits);
+	db_iowrite(ntb, ntb->self_reg->db_bell, bits);
 }
 
 static inline uint64_t
@@ -1062,15 +1133,16 @@ static void
 ntb_teardown_xeon(struct ntb_softc *ntb)
 {
 
-	ntb_link_disable(ntb);
+	if (ntb->reg != NULL)
+		ntb_link_disable(ntb);
 }
 
 static void
 ntb_detect_max_mw(struct ntb_softc *ntb)
 {
 
-	if (ntb->type == NTB_SOC) {
-		ntb->mw_count = SOC_MW_COUNT;
+	if (ntb->type == NTB_ATOM) {
+		ntb->mw_count = ATOM_MW_COUNT;
 		return;
 	}
 
@@ -1116,19 +1188,19 @@ ntb_detect_xeon(struct ntb_softc *ntb)
 }
 
 static int
-ntb_detect_soc(struct ntb_softc *ntb)
+ntb_detect_atom(struct ntb_softc *ntb)
 {
 	uint32_t ppd, conn_type;
 
 	ppd = pci_read_config(ntb->device, NTB_PPD_OFFSET, 4);
 	ntb->ppd = ppd;
 
-	if ((ppd & SOC_PPD_DEV_TYPE) != 0)
+	if ((ppd & ATOM_PPD_DEV_TYPE) != 0)
 		ntb->dev_type = NTB_DEV_DSD;
 	else
 		ntb->dev_type = NTB_DEV_USD;
 
-	conn_type = (ppd & SOC_PPD_CONN_TYPE) >> 8;
+	conn_type = (ppd & ATOM_PPD_CONN_TYPE) >> 8;
 	switch (conn_type) {
 	case NTB_CONN_B2B:
 		ntb->conn_type = conn_type;
@@ -1145,14 +1217,6 @@ ntb_xeon_init_dev(struct ntb_softc *ntb)
 {
 	int rc;
 
-	ntb->reg_ofs.ldb	= XEON_PDOORBELL_OFFSET;
-	ntb->reg_ofs.ldb_mask	= XEON_PDBMSK_OFFSET;
-	ntb->reg_ofs.spad_local	= XEON_SPAD_OFFSET;
-	ntb->reg_ofs.bar4_xlat	= XEON_SBAR4XLAT_OFFSET;
-	if (HAS_FEATURE(NTB_SPLIT_BAR))
-		ntb->reg_ofs.bar5_xlat = XEON_SBAR5XLAT_OFFSET;
-	ntb->reg_ofs.spci_cmd	= XEON_PCICMD_OFFSET;
-
 	ntb->spad_count		= XEON_SPAD_COUNT;
 	ntb->db_count		= XEON_DB_COUNT;
 	ntb->db_link_mask	= XEON_DB_LINK_BIT;
@@ -1166,6 +1230,7 @@ ntb_xeon_init_dev(struct ntb_softc *ntb)
 	}
 
 	ntb->reg = &xeon_reg;
+	ntb->self_reg = &xeon_pri_reg;
 	ntb->peer_reg = &xeon_b2b_reg;
 	ntb->xlat_reg = &xeon_sec_xlat;
 
@@ -1202,7 +1267,7 @@ ntb_xeon_init_dev(struct ntb_softc *ntb)
 		return (rc);
 
 	/* Enable Bus Master and Memory Space on the secondary side */
-	ntb_reg_write(2, ntb->reg_ofs.spci_cmd,
+	ntb_reg_write(2, XEON_PCICMD_OFFSET,
 	    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
 
 	/* Enable link training */
@@ -1212,67 +1277,62 @@ ntb_xeon_init_dev(struct ntb_softc *ntb)
 }
 
 static int
-ntb_soc_init_dev(struct ntb_softc *ntb)
+ntb_atom_init_dev(struct ntb_softc *ntb)
 {
 
 	KASSERT(ntb->conn_type == NTB_CONN_B2B,
 	    ("Unsupported NTB configuration (%d)\n", ntb->conn_type));
 
-	ntb->reg_ofs.ldb	 = SOC_PDOORBELL_OFFSET;
-	ntb->reg_ofs.ldb_mask	 = SOC_PDBMSK_OFFSET;
-	ntb->reg_ofs.bar4_xlat	 = SOC_SBAR4XLAT_OFFSET;
-	ntb->reg_ofs.spad_local	 = SOC_SPAD_OFFSET;
-	ntb->reg_ofs.spci_cmd	 = SOC_PCICMD_OFFSET;
-
-	ntb->spad_count		 = SOC_SPAD_COUNT;
-	ntb->db_count		 = SOC_DB_COUNT;
-	ntb->db_vec_count	 = SOC_DB_MSIX_VECTOR_COUNT;
-	ntb->db_vec_shift	 = SOC_DB_MSIX_VECTOR_SHIFT;
+	ntb->spad_count		 = ATOM_SPAD_COUNT;
+	ntb->db_count		 = ATOM_DB_COUNT;
+	ntb->db_vec_count	 = ATOM_DB_MSIX_VECTOR_COUNT;
+	ntb->db_vec_shift	 = ATOM_DB_MSIX_VECTOR_SHIFT;
 	ntb->db_valid_mask	 = (1ull << ntb->db_count) - 1;
 
-	ntb->reg = &soc_reg;
-	ntb->peer_reg = &soc_b2b_reg;
-	ntb->xlat_reg = &soc_sec_xlat;
+	ntb->reg = &atom_reg;
+	ntb->self_reg = &atom_pri_reg;
+	ntb->peer_reg = &atom_b2b_reg;
+	ntb->xlat_reg = &atom_sec_xlat;
 
 	/*
-	 * FIXME - MSI-X bug on early SOC HW, remove once internal issue is
+	 * FIXME - MSI-X bug on early Atom HW, remove once internal issue is
 	 * resolved.  Mask transaction layer internal parity errors.
 	 */
 	pci_write_config(ntb->device, 0xFC, 0x4, 4);
 
-	configure_soc_secondary_side_bars(ntb);
+	configure_atom_secondary_side_bars(ntb);
 
 	/* Enable Bus Master and Memory Space on the secondary side */
-	ntb_reg_write(2, ntb->reg_ofs.spci_cmd,
+	ntb_reg_write(2, ATOM_PCICMD_OFFSET,
 	    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
 
 	/* Initiate PCI-E link training */
 	ntb_link_enable(ntb, NTB_SPEED_AUTO, NTB_WIDTH_AUTO);
 
-	callout_reset(&ntb->heartbeat_timer, 0, soc_link_hb, ntb);
+	callout_reset(&ntb->heartbeat_timer, 0, atom_link_hb, ntb);
 
 	return (0);
 }
 
-/* XXX: Linux driver doesn't seem to do any of this for SoC. */
+/* XXX: Linux driver doesn't seem to do any of this for Atom. */
 static void
-configure_soc_secondary_side_bars(struct ntb_softc *ntb)
+configure_atom_secondary_side_bars(struct ntb_softc *ntb)
 {
 
 	if (ntb->dev_type == NTB_DEV_USD) {
-		ntb_reg_write(8, SOC_PBAR2XLAT_OFFSET,
+		ntb_reg_write(8, ATOM_PBAR2XLAT_OFFSET,
 		    XEON_B2B_BAR2_DSD_ADDR64);
-		ntb_reg_write(8, SOC_PBAR4XLAT_OFFSET,
+		ntb_reg_write(8, ATOM_PBAR4XLAT_OFFSET,
 		    XEON_B2B_BAR4_DSD_ADDR64);
-		ntb_reg_write(8, SOC_MBAR23_OFFSET, XEON_B2B_BAR2_USD_ADDR64);
-		ntb_reg_write(8, SOC_MBAR45_OFFSET, XEON_B2B_BAR4_USD_ADDR64);
+		ntb_reg_write(8, ATOM_MBAR23_OFFSET, XEON_B2B_BAR2_USD_ADDR64);
+		ntb_reg_write(8, ATOM_MBAR45_OFFSET, XEON_B2B_BAR4_USD_ADDR64);
 	} else {
-		ntb_reg_write(8, SOC_PBAR2XLAT_OFFSET,
+		ntb_reg_write(8, ATOM_PBAR2XLAT_OFFSET,
 		    XEON_B2B_BAR2_USD_ADDR64);
-		ntb_reg_write(8, SOC_PBAR4XLAT_OFFSET,
+		ntb_reg_write(8, ATOM_PBAR4XLAT_OFFSET,
 		    XEON_B2B_BAR4_USD_ADDR64);
-		ntb_reg_write(8, SOC_MBAR23_OFFSET, XEON_B2B_BAR2_DSD_ADDR64);
-		ntb_reg_write(8, SOC_MBAR45_OFFSET, XEON_B2B_BAR4_DSD_ADDR64);
+		ntb_reg_write(8, ATOM_MBAR23_OFFSET, XEON_B2B_BAR2_DSD_ADDR64);
+		ntb_reg_write(8, ATOM_MBAR45_OFFSET, XEON_B2B_BAR4_DSD_ADDR64);
 	}
 }
 
@@ -1479,31 +1539,34 @@ static inline bool
 link_is_up(struct ntb_softc *ntb)
 {
 
-	if (ntb->type == NTB_XEON)
+	if (ntb->type == NTB_XEON) {
+		if (ntb->conn_type == NTB_CONN_TRANSPARENT)
+			return (true);
 		return ((ntb->lnk_sta & NTB_LINK_STATUS_ACTIVE) != 0);
+	}
 
-	KASSERT(ntb->type == NTB_SOC, ("ntb type"));
-	return ((ntb->ntb_ctl & SOC_CNTL_LINK_DOWN) == 0);
+	KASSERT(ntb->type == NTB_ATOM, ("ntb type"));
+	return ((ntb->ntb_ctl & ATOM_CNTL_LINK_DOWN) == 0);
 }
 
 static inline bool
-soc_link_is_err(struct ntb_softc *ntb)
+atom_link_is_err(struct ntb_softc *ntb)
 {
 	uint32_t status;
 
-	KASSERT(ntb->type == NTB_SOC, ("ntb type"));
+	KASSERT(ntb->type == NTB_ATOM, ("ntb type"));
 
-	status = ntb_reg_read(4, SOC_LTSSMSTATEJMP_OFFSET);
-	if ((status & SOC_LTSSMSTATEJMP_FORCEDETECT) != 0)
+	status = ntb_reg_read(4, ATOM_LTSSMSTATEJMP_OFFSET);
+	if ((status & ATOM_LTSSMSTATEJMP_FORCEDETECT) != 0)
 		return (true);
 
-	status = ntb_reg_read(4, SOC_IBSTERRRCRVSTS0_OFFSET);
-	return ((status & SOC_IBIST_ERR_OFLOW) != 0);
+	status = ntb_reg_read(4, ATOM_IBSTERRRCRVSTS0_OFFSET);
+	return ((status & ATOM_IBIST_ERR_OFLOW) != 0);
 }
 
-/* SOC does not have link status interrupt, poll on that platform */
+/* Atom does not have link status interrupt, poll on that platform */
 static void
-soc_link_hb(void *arg)
+atom_link_hb(void *arg)
 {
 	struct ntb_softc *ntb = arg;
 	sbintime_t timo, poll_ts;
@@ -1523,53 +1586,53 @@ soc_link_hb(void *arg)
 	if (ntb_poll_link(ntb))
 		ntb_link_event(ntb);
 
-	if (!link_is_up(ntb) && soc_link_is_err(ntb)) {
+	if (!link_is_up(ntb) && atom_link_is_err(ntb)) {
 		/* Link is down with error, proceed with recovery */
-		callout_reset(&ntb->lr_timer, 0, recover_soc_link, ntb);
+		callout_reset(&ntb->lr_timer, 0, recover_atom_link, ntb);
 		return;
 	}
 
 out:
-	callout_reset(&ntb->heartbeat_timer, timo, soc_link_hb, ntb);
+	callout_reset(&ntb->heartbeat_timer, timo, atom_link_hb, ntb);
 }
 
 static void
-soc_perform_link_restart(struct ntb_softc *ntb)
+atom_perform_link_restart(struct ntb_softc *ntb)
 {
 	uint32_t status;
 
 	/* Driver resets the NTB ModPhy lanes - magic! */
-	ntb_reg_write(1, SOC_MODPHY_PCSREG6, 0xe0);
-	ntb_reg_write(1, SOC_MODPHY_PCSREG4, 0x40);
-	ntb_reg_write(1, SOC_MODPHY_PCSREG4, 0x60);
-	ntb_reg_write(1, SOC_MODPHY_PCSREG6, 0x60);
+	ntb_reg_write(1, ATOM_MODPHY_PCSREG6, 0xe0);
+	ntb_reg_write(1, ATOM_MODPHY_PCSREG4, 0x40);
+	ntb_reg_write(1, ATOM_MODPHY_PCSREG4, 0x60);
+	ntb_reg_write(1, ATOM_MODPHY_PCSREG6, 0x60);
 
 	/* Driver waits 100ms to allow the NTB ModPhy to settle */
 	pause("ModPhy", hz / 10);
 
 	/* Clear AER Errors, write to clear */
-	status = ntb_reg_read(4, SOC_ERRCORSTS_OFFSET);
+	status = ntb_reg_read(4, ATOM_ERRCORSTS_OFFSET);
 	status &= PCIM_AER_COR_REPLAY_ROLLOVER;
-	ntb_reg_write(4, SOC_ERRCORSTS_OFFSET, status);
+	ntb_reg_write(4, ATOM_ERRCORSTS_OFFSET, status);
 
 	/* Clear unexpected electrical idle event in LTSSM, write to clear */
-	status = ntb_reg_read(4, SOC_LTSSMERRSTS0_OFFSET);
-	status |= SOC_LTSSMERRSTS0_UNEXPECTEDEI;
-	ntb_reg_write(4, SOC_LTSSMERRSTS0_OFFSET, status);
+	status = ntb_reg_read(4, ATOM_LTSSMERRSTS0_OFFSET);
+	status |= ATOM_LTSSMERRSTS0_UNEXPECTEDEI;
+	ntb_reg_write(4, ATOM_LTSSMERRSTS0_OFFSET, status);
 
 	/* Clear DeSkew Buffer error, write to clear */
-	status = ntb_reg_read(4, SOC_DESKEWSTS_OFFSET);
-	status |= SOC_DESKEWSTS_DBERR;
-	ntb_reg_write(4, SOC_DESKEWSTS_OFFSET, status);
+	status = ntb_reg_read(4, ATOM_DESKEWSTS_OFFSET);
+	status |= ATOM_DESKEWSTS_DBERR;
+	ntb_reg_write(4, ATOM_DESKEWSTS_OFFSET, status);
 
-	status = ntb_reg_read(4, SOC_IBSTERRRCRVSTS0_OFFSET);
-	status &= SOC_IBIST_ERR_OFLOW;
-	ntb_reg_write(4, SOC_IBSTERRRCRVSTS0_OFFSET, status);
+	status = ntb_reg_read(4, ATOM_IBSTERRRCRVSTS0_OFFSET);
+	status &= ATOM_IBIST_ERR_OFLOW;
+	ntb_reg_write(4, ATOM_IBSTERRRCRVSTS0_OFFSET, status);
 
 	/* Releases the NTB state machine to allow the link to retrain */
-	status = ntb_reg_read(4, SOC_LTSSMSTATEJMP_OFFSET);
-	status &= ~SOC_LTSSMSTATEJMP_FORCEDETECT;
-	ntb_reg_write(4, SOC_LTSSMSTATEJMP_OFFSET, status);
+	status = ntb_reg_read(4, ATOM_LTSSMSTATEJMP_OFFSET);
+	status &= ~ATOM_LTSSMSTATEJMP_FORCEDETECT;
+	ntb_reg_write(4, ATOM_LTSSMSTATEJMP_OFFSET, status);
 }
 
 /*
@@ -1698,9 +1761,9 @@ ntb_link_enable(struct ntb_softc *ntb, enum ntb_speed s __unused,
 {
 	uint32_t cntl;
 
-	if (ntb->type == NTB_SOC) {
+	if (ntb->type == NTB_ATOM) {
 		pci_write_config(ntb->device, NTB_PPD_OFFSET,
-		    ntb->ppd | SOC_PPD_INIT_LINK, 4);
+		    ntb->ppd | ATOM_PPD_INIT_LINK, 4);
 		return (0);
 	}
 
@@ -1752,13 +1815,13 @@ ntb_link_disable(struct ntb_softc *ntb)
 }
 
 static void
-recover_soc_link(void *arg)
+recover_atom_link(void *arg)
 {
 	struct ntb_softc *ntb = arg;
-	uint8_t speed, width;
+	unsigned speed, width, oldspeed, oldwidth;
 	uint32_t status32;
 
-	soc_perform_link_restart(ntb);
+	atom_perform_link_restart(ntb);
 
 	/*
 	 * There is a potential race between the 2 NTB devices recovering at
@@ -1766,34 +1829,32 @@ recover_soc_link(void *arg)
 	 * and the driver will be stuck in this loop forever.  Add a random
 	 * interval to the recovery time to prevent this race.
 	 */
-	status32 = arc4random() % SOC_LINK_RECOVERY_TIME;
-	pause("Link", (SOC_LINK_RECOVERY_TIME + status32) * hz / 1000);
+	status32 = arc4random() % ATOM_LINK_RECOVERY_TIME;
+	pause("Link", (ATOM_LINK_RECOVERY_TIME + status32) * hz / 1000);
 
-	status32 = ntb_reg_read(4, SOC_LTSSMSTATEJMP_OFFSET);
-	if ((status32 & SOC_LTSSMSTATEJMP_FORCEDETECT) != 0)
-		goto retry;
-
-	status32 = ntb_reg_read(4, SOC_IBSTERRRCRVSTS0_OFFSET);
-	if ((status32 & SOC_IBIST_ERR_OFLOW) != 0)
+	if (atom_link_is_err(ntb))
 		goto retry;
 
 	status32 = ntb_reg_read(4, ntb->reg->ntb_ctl);
-	if ((status32 & SOC_CNTL_LINK_DOWN) != 0)
+	if ((status32 & ATOM_CNTL_LINK_DOWN) != 0)
 		goto out;
 
 	status32 = ntb_reg_read(4, ntb->reg->lnk_sta);
-	width = (status32 & NTB_LINK_WIDTH_MASK) >> 4;
-	speed = (status32 & NTB_LINK_SPEED_MASK);
-	if (ntb->link_width != width || ntb->link_speed != speed)
+	width = NTB_LNK_STA_WIDTH(status32);
+	speed = status32 & NTB_LINK_SPEED_MASK;
+
+	oldwidth = NTB_LNK_STA_WIDTH(ntb->lnk_sta);
+	oldspeed = ntb->lnk_sta & NTB_LINK_SPEED_MASK;
+	if (oldwidth != width || oldspeed != speed)
 		goto retry;
 
 out:
-	callout_reset(&ntb->heartbeat_timer, NTB_HB_TIMEOUT * hz, soc_link_hb,
+	callout_reset(&ntb->heartbeat_timer, NTB_HB_TIMEOUT * hz, atom_link_hb,
 	    ntb);
 	return;
 
 retry:
-	callout_reset(&ntb->lr_timer, NTB_HB_TIMEOUT * hz, recover_soc_link,
+	callout_reset(&ntb->lr_timer, NTB_HB_TIMEOUT * hz, recover_atom_link,
 	    ntb);
 }
 
@@ -1806,7 +1867,7 @@ ntb_poll_link(struct ntb_softc *ntb)
 	uint32_t ntb_cntl;
 	uint16_t reg_val;
 
-	if (ntb->type == NTB_SOC) {
+	if (ntb->type == NTB_ATOM) {
 		ntb_cntl = ntb_reg_read(4, ntb->reg->ntb_ctl);
 		if (ntb_cntl == ntb->ntb_ctl)
 			return (false);
@@ -1814,7 +1875,7 @@ ntb_poll_link(struct ntb_softc *ntb)
 		ntb->ntb_ctl = ntb_cntl;
 		ntb->lnk_sta = ntb_reg_read(4, ntb->reg->lnk_sta);
 	} else {
-		db_iowrite(ntb, ntb->reg_ofs.ldb, ntb->db_link_mask);
+		db_iowrite(ntb, ntb->self_reg->db_bell, ntb->db_link_mask);
 
 		reg_val = pci_read_config(ntb->device, ntb->reg->lnk_sta, 2);
 		if (reg_val == ntb->lnk_sta)
@@ -1841,6 +1902,355 @@ ntb_link_sta_width(struct ntb_softc *ntb)
 	if (!link_is_up(ntb))
 		return (NTB_WIDTH_NONE);
 	return (NTB_LNK_STA_WIDTH(ntb->lnk_sta));
+}
+
+SYSCTL_NODE(_hw_ntb, OID_AUTO, debug_info, CTLFLAG_RW, 0,
+    "Driver state, statistics, and HW registers");
+
+#define NTB_REGSZ_MASK	(3ul << 30)
+#define NTB_REG_64	(1ul << 30)
+#define NTB_REG_32	(2ul << 30)
+#define NTB_REG_16	(3ul << 30)
+#define NTB_REG_8	(0ul << 30)
+
+#define NTB_DB_READ	(1ul << 29)
+#define NTB_PCI_REG	(1ul << 28)
+#define NTB_REGFLAGS_MASK	(NTB_REGSZ_MASK | NTB_DB_READ | NTB_PCI_REG)
+
+static void
+ntb_sysctl_init(struct ntb_softc *ntb)
+{
+	struct sysctl_oid_list *tree_par, *regpar, *statpar, *errpar;
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree, *tmptree;
+
+	ctx = device_get_sysctl_ctx(ntb->device);
+
+	tree = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(ntb->device)), OID_AUTO,
+	    "debug_info", CTLFLAG_RD, NULL,
+	    "Driver state, statistics, and HW registers");
+	tree_par = SYSCTL_CHILDREN(tree);
+
+	SYSCTL_ADD_UINT(ctx, tree_par, OID_AUTO, "conn_type", CTLFLAG_RD,
+	    &ntb->conn_type, 0, "0 - Transparent; 1 - B2B; 2 - Root Port");
+	SYSCTL_ADD_UINT(ctx, tree_par, OID_AUTO, "dev_type", CTLFLAG_RD,
+	    &ntb->dev_type, 0, "0 - USD; 1 - DSD");
+
+	if (ntb->b2b_mw_idx != B2B_MW_DISABLED) {
+		SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "b2b_idx", CTLFLAG_RD,
+		    &ntb->b2b_mw_idx, 0,
+		    "Index of the MW used for B2B remote register access");
+		SYSCTL_ADD_UQUAD(ctx, tree_par, OID_AUTO, "b2b_off",
+		    CTLFLAG_RD, &ntb->b2b_off,
+		    "If non-zero, offset of B2B register region in shared MW");
+	}
+
+	SYSCTL_ADD_PROC(ctx, tree_par, OID_AUTO, "features",
+	    CTLFLAG_RD | CTLTYPE_STRING, ntb, 0, sysctl_handle_features, "A",
+	    "Features/errata of this NTB device");
+
+	SYSCTL_ADD_UINT(ctx, tree_par, OID_AUTO, "ntb_ctl", CTLFLAG_RD,
+	    &ntb->ntb_ctl, 0, "NTB CTL register (cached)");
+	SYSCTL_ADD_UINT(ctx, tree_par, OID_AUTO, "lnk_sta", CTLFLAG_RD,
+	    &ntb->lnk_sta, 0, "LNK STA register (cached)");
+
+	SYSCTL_ADD_PROC(ctx, tree_par, OID_AUTO, "link_status",
+	    CTLFLAG_RD | CTLTYPE_STRING, ntb, 0, sysctl_handle_link_status,
+	    "A", "Link status");
+
+	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "mw_count", CTLFLAG_RD,
+	    &ntb->mw_count, 0, "MW count (excl. non-shared B2B register BAR)");
+	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "spad_count", CTLFLAG_RD,
+	    &ntb->spad_count, 0, "Scratchpad count");
+	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "db_count", CTLFLAG_RD,
+	    &ntb->db_count, 0, "Doorbell count");
+	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "db_vec_count", CTLFLAG_RD,
+	    &ntb->db_vec_count, 0, "Doorbell vector count");
+	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "db_vec_shift", CTLFLAG_RD,
+	    &ntb->db_vec_shift, 0, "Doorbell vector shift");
+
+	SYSCTL_ADD_UQUAD(ctx, tree_par, OID_AUTO, "db_valid_mask", CTLFLAG_RD,
+	    &ntb->db_valid_mask, "Doorbell valid mask");
+	SYSCTL_ADD_UQUAD(ctx, tree_par, OID_AUTO, "db_link_mask", CTLFLAG_RD,
+	    &ntb->db_link_mask, "Doorbell link mask");
+	SYSCTL_ADD_UQUAD(ctx, tree_par, OID_AUTO, "db_mask", CTLFLAG_RD,
+	    &ntb->db_mask, "Doorbell mask (cached)");
+
+	tmptree = SYSCTL_ADD_NODE(ctx, tree_par, OID_AUTO, "registers",
+	    CTLFLAG_RD, NULL, "Raw HW registers (big-endian)");
+	regpar = SYSCTL_CHILDREN(tmptree);
+
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "db_mask",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_64 | NTB_DB_READ | ntb->self_reg->db_mask,
+	    sysctl_handle_register, "QU", "Doorbell mask register");
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "db_bell",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_64 | NTB_DB_READ | ntb->self_reg->db_bell,
+	    sysctl_handle_register, "QU", "Doorbell register");
+
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "incoming_xlat23",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_64 | ntb->xlat_reg->bar2_xlat,
+	    sysctl_handle_register, "QU", "Incoming XLAT23 register");
+	if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "incoming_xlat4",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | ntb->xlat_reg->bar4_xlat,
+		    sysctl_handle_register, "IU", "Incoming XLAT4 register");
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "incoming_xlat5",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | ntb->xlat_reg->bar5_xlat,
+		    sysctl_handle_register, "IU", "Incoming XLAT5 register");
+	} else {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "incoming_xlat45",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_64 | ntb->xlat_reg->bar4_xlat,
+		    sysctl_handle_register, "QU", "Incoming XLAT45 register");
+	}
+
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "incoming_lmt23",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_64 | ntb->xlat_reg->bar2_limit,
+	    sysctl_handle_register, "QU", "Incoming LMT23 register");
+	if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "incoming_lmt4",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | ntb->xlat_reg->bar4_limit,
+		    sysctl_handle_register, "IU", "Incoming LMT4 register");
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "incoming_lmt5",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | ntb->xlat_reg->bar5_limit,
+		    sysctl_handle_register, "IU", "Incoming LMT5 register");
+	} else {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "incoming_lmt45",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_64 | ntb->xlat_reg->bar4_limit,
+		    sysctl_handle_register, "QU", "Incoming LMT45 register");
+	}
+
+	if (ntb->type == NTB_ATOM)
+		return;
+
+	tmptree = SYSCTL_ADD_NODE(ctx, regpar, OID_AUTO, "xeon_stats",
+	    CTLFLAG_RD, NULL, "Xeon HW statistics");
+	statpar = SYSCTL_CHILDREN(tmptree);
+	SYSCTL_ADD_PROC(ctx, statpar, OID_AUTO, "upstream_mem_miss",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_16 | XEON_USMEMMISS_OFFSET,
+	    sysctl_handle_register, "SU", "Upstream Memory Miss");
+
+	tmptree = SYSCTL_ADD_NODE(ctx, regpar, OID_AUTO, "xeon_hw_err",
+	    CTLFLAG_RD, NULL, "Xeon HW errors");
+	errpar = SYSCTL_CHILDREN(tmptree);
+
+	SYSCTL_ADD_PROC(ctx, errpar, OID_AUTO, "devsts",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_16 | NTB_PCI_REG | XEON_DEVSTS_OFFSET,
+	    sysctl_handle_register, "SU", "DEVSTS");
+	SYSCTL_ADD_PROC(ctx, errpar, OID_AUTO, "lnksts",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_16 | NTB_PCI_REG | XEON_LINK_STATUS_OFFSET,
+	    sysctl_handle_register, "SU", "LNKSTS");
+	SYSCTL_ADD_PROC(ctx, errpar, OID_AUTO, "uncerrsts",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_32 | NTB_PCI_REG | XEON_UNCERRSTS_OFFSET,
+	    sysctl_handle_register, "IU", "UNCERRSTS");
+	SYSCTL_ADD_PROC(ctx, errpar, OID_AUTO, "corerrsts",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_32 | NTB_PCI_REG | XEON_CORERRSTS_OFFSET,
+	    sysctl_handle_register, "IU", "CORERRSTS");
+
+	if (ntb->conn_type != NTB_CONN_B2B)
+		return;
+
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "outgoing_xlat23",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_64 | ntb->bar_info[NTB_B2B_BAR_1].pbarxlat_off,
+	    sysctl_handle_register, "QU", "Outgoing XLAT23 register");
+	if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "outgoing_xlat4",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | ntb->bar_info[NTB_B2B_BAR_2].pbarxlat_off,
+		    sysctl_handle_register, "IU", "Outgoing XLAT4 register");
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "outgoing_xlat5",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | ntb->bar_info[NTB_B2B_BAR_3].pbarxlat_off,
+		    sysctl_handle_register, "IU", "Outgoing XLAT5 register");
+	} else {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "outgoing_xlat45",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_64 | ntb->bar_info[NTB_B2B_BAR_2].pbarxlat_off,
+		    sysctl_handle_register, "QU", "Outgoing XLAT45 register");
+	}
+
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "outgoing_lmt23",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_64 | XEON_PBAR2LMT_OFFSET,
+	    sysctl_handle_register, "QU", "Outgoing LMT23 register");
+	if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "outgoing_lmt4",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | XEON_PBAR4LMT_OFFSET,
+		    sysctl_handle_register, "IU", "Outgoing LMT4 register");
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "outgoing_lmt5",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | XEON_PBAR5LMT_OFFSET,
+		    sysctl_handle_register, "IU", "Outgoing LMT5 register");
+	} else {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "outgoing_lmt45",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_64 | XEON_PBAR4LMT_OFFSET,
+		    sysctl_handle_register, "QU", "Outgoing LMT45 register");
+	}
+
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "sbar01_base",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_64 | ntb->xlat_reg->bar0_base,
+	    sysctl_handle_register, "QU", "Secondary BAR01 base register");
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "sbar23_base",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_64 | ntb->xlat_reg->bar2_base,
+	    sysctl_handle_register, "QU", "Secondary BAR23 base register");
+	if (HAS_FEATURE(NTB_SPLIT_BAR)) {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "sbar4_base",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | ntb->xlat_reg->bar4_base,
+		    sysctl_handle_register, "IU",
+		    "Secondary BAR4 base register");
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "sbar5_base",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_32 | ntb->xlat_reg->bar5_base,
+		    sysctl_handle_register, "IU",
+		    "Secondary BAR5 base register");
+	} else {
+		SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "sbar45_base",
+		    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+		    NTB_REG_64 | ntb->xlat_reg->bar4_base,
+		    sysctl_handle_register, "QU",
+		    "Secondary BAR45 base register");
+	}
+}
+
+static int
+sysctl_handle_features(SYSCTL_HANDLER_ARGS)
+{
+	struct ntb_softc *ntb;
+	struct sbuf sb;
+	int error;
+
+	error = 0;
+	ntb = arg1;
+
+	sbuf_new_for_sysctl(&sb, NULL, 256, req);
+
+	sbuf_printf(&sb, "%b", ntb->features, NTB_FEATURES_STR);
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+
+	if (error || !req->newptr)
+		return (error);
+	return (EINVAL);
+}
+
+static int
+sysctl_handle_link_status(SYSCTL_HANDLER_ARGS)
+{
+	struct ntb_softc *ntb;
+	struct sbuf sb;
+	enum ntb_speed speed;
+	enum ntb_width width;
+	int error;
+
+	error = 0;
+	ntb = arg1;
+
+	sbuf_new_for_sysctl(&sb, NULL, 32, req);
+
+	if (ntb_link_is_up(ntb, &speed, &width))
+		sbuf_printf(&sb, "up / PCIe Gen %u / Width x%u",
+		    (unsigned)speed, (unsigned)width);
+	else
+		sbuf_printf(&sb, "down");
+
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+
+	if (error || !req->newptr)
+		return (error);
+	return (EINVAL);
+}
+
+static int
+sysctl_handle_register(SYSCTL_HANDLER_ARGS)
+{
+	struct ntb_softc *ntb;
+	const void *outp;
+	uintptr_t sz;
+	uint64_t umv;
+	char be[sizeof(umv)];
+	size_t outsz;
+	uint32_t reg;
+	bool db, pci;
+	int error;
+
+	ntb = arg1;
+	reg = arg2 & ~NTB_REGFLAGS_MASK;
+	sz = arg2 & NTB_REGSZ_MASK;
+	db = (arg2 & NTB_DB_READ) != 0;
+	pci = (arg2 & NTB_PCI_REG) != 0;
+
+	KASSERT(!(db && pci), ("bogus"));
+
+	if (db) {
+		KASSERT(sz == NTB_REG_64, ("bogus"));
+		umv = db_ioread(ntb, reg);
+		outsz = sizeof(uint64_t);
+	} else {
+		switch (sz) {
+		case NTB_REG_64:
+			if (pci)
+				umv = pci_read_config(ntb->device, reg, 8);
+			else
+				umv = ntb_reg_read(8, reg);
+			outsz = sizeof(uint64_t);
+			break;
+		case NTB_REG_32:
+			if (pci)
+				umv = pci_read_config(ntb->device, reg, 4);
+			else
+				umv = ntb_reg_read(4, reg);
+			outsz = sizeof(uint32_t);
+			break;
+		case NTB_REG_16:
+			if (pci)
+				umv = pci_read_config(ntb->device, reg, 2);
+			else
+				umv = ntb_reg_read(2, reg);
+			outsz = sizeof(uint16_t);
+			break;
+		case NTB_REG_8:
+			if (pci)
+				umv = pci_read_config(ntb->device, reg, 1);
+			else
+				umv = ntb_reg_read(1, reg);
+			outsz = sizeof(uint8_t);
+			break;
+		default:
+			panic("bogus");
+			break;
+		}
+	}
+
+	/* Encode bigendian so that sysctl -x is legible. */
+	be64enc(be, umv);
+	outp = ((char *)be) + sizeof(umv) - outsz;
+
+	error = SYSCTL_OUT(req, outp, outsz);
+	if (error || !req->newptr)
+		return (error);
+	return (EINVAL);
 }
 
 /*
@@ -1888,7 +2298,7 @@ ntb_spad_write(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
 	if (idx >= ntb->spad_count)
 		return (EINVAL);
 
-	ntb_reg_write(4, ntb->reg_ofs.spad_local + idx * 4, val);
+	ntb_reg_write(4, ntb->self_reg->spad + idx * 4, val);
 
 	return (0);
 }
@@ -1911,7 +2321,7 @@ ntb_spad_read(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
 	if (idx >= ntb->spad_count)
 		return (EINVAL);
 
-	*val = ntb_reg_read(4, ntb->reg_ofs.spad_local + idx * 4);
+	*val = ntb_reg_read(4, ntb->self_reg->spad + idx * 4);
 
 	return (0);
 }
@@ -2117,6 +2527,23 @@ ntb_mw_set_trans(struct ntb_softc *ntb, unsigned idx, bus_addr_t addr,
 	return (0);
 }
 
+/*
+ * ntb_mw_clear_trans() - clear the translation of a memory window
+ * @ntb:	NTB device context
+ * @idx:	Memory window number
+ *
+ * Clear the translation of a memory window.  The peer may no longer access
+ * local memory through the window.
+ *
+ * Return: Zero on success, otherwise an error number.
+ */
+int
+ntb_mw_clear_trans(struct ntb_softc *ntb, unsigned mw_idx)
+{
+
+	return (ntb_mw_set_trans(ntb, mw_idx, 0, 0));
+}
+
 /**
  * ntb_peer_db_set() - Set the doorbell on the secondary/external side
  * @ntb: pointer to ntb_softc instance
@@ -2175,6 +2602,39 @@ ntb_get_peer_db_addr(struct ntb_softc *ntb, vm_size_t *sz_out)
 	return ((uint64_t)bar->pci_bus_handle + regoff);
 }
 
+/*
+ * ntb_db_valid_mask() - get a mask of doorbell bits supported by the ntb
+ * @ntb:	NTB device context
+ *
+ * Hardware may support different number or arrangement of doorbell bits.
+ *
+ * Return: A mask of doorbell bits supported by the ntb.
+ */
+uint64_t
+ntb_db_valid_mask(struct ntb_softc *ntb)
+{
+
+	return (ntb->db_valid_mask);
+}
+
+/*
+ * ntb_db_vector_mask() - get a mask of doorbell bits serviced by a vector
+ * @ntb:	NTB device context
+ * @vector:	Doorbell vector number
+ *
+ * Each interrupt vector may have a different number or arrangement of bits.
+ *
+ * Return: A mask of doorbell bits serviced by a vector.
+ */
+uint64_t
+ntb_db_vector_mask(struct ntb_softc *ntb, uint32_t vector)
+{
+
+	if (vector > ntb->db_vec_count)
+		return (0);
+	return (ntb->db_valid_mask & ntb_vec_mask(ntb, vector));
+}
+
 /**
  * ntb_link_is_up() - get the current ntb link state
  * @ntb:        NTB device context
@@ -2215,7 +2675,7 @@ ntb_get_device(struct ntb_softc *ntb)
 
 /* Export HW-specific errata information. */
 bool
-ntb_has_feature(struct ntb_softc *ntb, uint64_t feature)
+ntb_has_feature(struct ntb_softc *ntb, uint32_t feature)
 {
 
 	return (HAS_FEATURE(feature));
