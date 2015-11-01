@@ -179,12 +179,12 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 	fpexc = fmrx(fpexc);
 	if (fpexc & VFPEXC_EN) {
 		/* Clear any exceptions */
-		fmxr(fpexc, fpexc & ~(VFPEXC_EX | VFPEXC_FP2V));
+		fmxr(fpexc, fpexc & ~(VFPEXC_EX | VFPEXC_DEX | VFPEXC_FP2V));
 
 		/* kill the process - we do not handle emulation */
 		critical_exit();
 
-		if (fpexc & VFPEXC_EX) {
+		if (fpexc & (VFPEXC_EX | VFPEXC_DEX)) {
 			/* We have an exception, signal a SIGFPE */
 			ksiginfo_init_trap(&ksi);
 			ksi.ksi_signo = SIGFPE;
