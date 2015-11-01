@@ -318,7 +318,7 @@ expconv()
 
 
 /*
- *	The following routine recognises an irregular expresion
+ *	The following routine recognises an irregular expression
  *	with the following special characters:
  *
  *		\?	-	means last match was optional

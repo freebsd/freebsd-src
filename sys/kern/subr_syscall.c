@@ -176,6 +176,9 @@ syscallret(struct thread *td, int error, struct syscall_args *sa)
 	struct proc *p, *p2;
 	int traced;
 
+	KASSERT((td->td_pflags & TDP_FORKING) == 0,
+	    ("fork() did not clear TDP_FORKING upon completion"));
+
 	p = td->td_proc;
 
 	/*

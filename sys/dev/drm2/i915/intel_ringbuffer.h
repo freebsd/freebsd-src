@@ -81,15 +81,15 @@ struct  intel_ring_buffer {
 	int		(*init)(struct intel_ring_buffer *ring);
 
 	void		(*write_tail)(struct intel_ring_buffer *ring,
-				      uint32_t value);
+				      u32 value);
 	int		(*flush)(struct intel_ring_buffer *ring,
-				  uint32_t	invalidate_domains,
-				  uint32_t	flush_domains);
+				  u32	invalidate_domains,
+				  u32	flush_domains);
 	int		(*add_request)(struct intel_ring_buffer *ring,
 				       uint32_t *seqno);
 	uint32_t	(*get_seqno)(struct intel_ring_buffer *ring);
 	int		(*dispatch_execbuffer)(struct intel_ring_buffer *ring,
-					       uint32_t offset, uint32_t length);
+					       u32 offset, u32 length);
 #define I915_DISPATCH_SECURE 0x1
 #define I915_DISPATCH_PINNED 0x2
 	void		(*cleanup)(struct intel_ring_buffer *ring);
@@ -155,7 +155,7 @@ intel_ring_flag(struct intel_ring_buffer *ring)
 	return 1 << ring->id;
 }
 
-static inline uint32_t
+static inline u32
 intel_ring_sync_index(struct intel_ring_buffer *ring,
 		      struct intel_ring_buffer *other)
 {
@@ -180,7 +180,7 @@ intel_read_status_page(struct intel_ring_buffer *ring,
 {
 	/* Ensure that the compiler doesn't optimize away the load. */
 	__compiler_membar();
-	return (atomic_load_acq_32(ring->status_page.page_addr + reg));
+	return atomic_load_acq_32(ring->status_page.page_addr + reg);
 }
 
 void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring);
@@ -221,7 +221,6 @@ static inline u32 intel_ring_get_tail(struct intel_ring_buffer *ring)
 void i915_trace_irq_get(struct intel_ring_buffer *ring, uint32_t seqno);
 
 /* DRI warts */
-int intel_render_ring_init_dri(struct drm_device *dev, uint64_t start,
-    uint32_t size);
+int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

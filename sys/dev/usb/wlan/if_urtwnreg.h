@@ -96,6 +96,7 @@
 #define R92C_SYS_CFG			0x0f0
 /* MAC General Configuration. */
 #define R92C_CR				0x100
+#define R92C_MSR			0x102
 #define R92C_PBP			0x104
 #define R92C_TRXDMA_CTRL		0x10c
 #define R92C_TRXFF_BNDY			0x114
@@ -377,22 +378,23 @@
 #define R92C_SYS_CFG_TYPE_92C		0x08000000
 
 /* Bits for R92C_CR. */
-#define R92C_CR_HCI_TXDMA_EN	0x00000001
-#define R92C_CR_HCI_RXDMA_EN	0x00000002
-#define R92C_CR_TXDMA_EN	0x00000004
-#define R92C_CR_RXDMA_EN	0x00000008
-#define R92C_CR_PROTOCOL_EN	0x00000010
-#define R92C_CR_SCHEDULE_EN	0x00000020
-#define R92C_CR_MACTXEN		0x00000040
-#define R92C_CR_MACRXEN		0x00000080
-#define R92C_CR_ENSEC		0x00000200
-#define R92C_CR_CALTMR_EN	0x00000400
-#define R92C_CR_NETTYPE_S	16
-#define R92C_CR_NETTYPE_M	0x00030000
-#define R92C_CR_NETTYPE_NOLINK	0
-#define R92C_CR_NETTYPE_ADHOC	1
-#define R92C_CR_NETTYPE_INFRA	2
-#define R92C_CR_NETTYPE_AP	3
+#define R92C_CR_HCI_TXDMA_EN	0x0001
+#define R92C_CR_HCI_RXDMA_EN	0x0002
+#define R92C_CR_TXDMA_EN	0x0004
+#define R92C_CR_RXDMA_EN	0x0008
+#define R92C_CR_PROTOCOL_EN	0x0010
+#define R92C_CR_SCHEDULE_EN	0x0020
+#define R92C_CR_MACTXEN		0x0040
+#define R92C_CR_MACRXEN		0x0080
+#define R92C_CR_ENSEC		0x0200
+#define R92C_CR_CALTMR_EN	0x0400
+
+/* Bits for R92C_MSR. */
+#define R92C_MSR_NOLINK		0x00
+#define R92C_MSR_ADHOC		0x01
+#define R92C_MSR_INFRA		0x02
+#define R92C_MSR_AP		0x03
+#define R92C_MSR_MASK		(R92C_MSR_AP)
 
 /* Bits for R92C_PBP. */
 #define R92C_PBP_PSRX_M		0x0f
@@ -975,22 +977,22 @@ struct r92c_rx_cck {
 
 struct r88e_rx_cck {
 	uint8_t		path_agc[2];
+	uint8_t		chan;
+	uint8_t		reserved1;
 	uint8_t		sig_qual;
 	uint8_t		agc_rpt;
 	uint8_t		rpt_b;
-	uint8_t 	reserved1;
+	uint8_t		reserved2;
 	uint8_t		noise_power;
 	uint8_t		path_cfotail[2];        
 	uint8_t		pcts_mask[2];   
 	uint8_t		stream_rxevm[2];        
 	uint8_t		path_rxsnr[2];
 	uint8_t		noise_power_db_lsb;
-	uint8_t		reserved2[3];
+	uint8_t		reserved3[3];
 	uint8_t		stream_csi[2];
 	uint8_t		stream_target_csi[2];
 	uint8_t		sig_evm;
-	uint8_t		reserved3;
-	uint8_t		reserved4;
 } __packed;
 
 /* Tx MAC descriptor. */
@@ -1058,6 +1060,19 @@ struct r92c_tx_desc {
 	uint16_t	txdsum;
 	uint16_t	pad;
 } __packed __attribute__((aligned(4)));
+
+
+static const uint8_t ridx2rate[] =
+	{ 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 };
+
+/* HW rate indices. */
+#define URTWN_RIDX_CCK1		0
+#define URTWN_RIDX_CCK11	3
+#define URTWN_RIDX_OFDM6	4
+#define URTWN_RIDX_OFDM24	8
+#define URTWN_RIDX_OFDM54	11
+
+#define URTWN_RIDX_COUNT	28
 
 
 /*

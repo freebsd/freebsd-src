@@ -498,16 +498,16 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
-	device_t iic;
+	device_t i2c;
 
-	iic = intel_gmbus_get_adapter(dev_priv, dev_priv->crt_ddc_pin);
-	ret = intel_ddc_get_modes(connector, iic);
+	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->crt_ddc_pin);
+	ret = intel_ddc_get_modes(connector, i2c);
 	if (ret || !IS_G4X(dev))
 		return ret;
 
 	/* Try to probe digital port for output in DVI-I -> VGA mode. */
-	iic = intel_gmbus_get_adapter(dev_priv, GMBUS_PORT_DPB);
-	return intel_ddc_get_modes(connector, iic);
+	i2c = intel_gmbus_get_adapter(dev_priv, GMBUS_PORT_DPB);
+	return intel_ddc_get_modes(connector, i2c);
 }
 
 static int intel_crt_set_property(struct drm_connector *connector,
@@ -522,8 +522,9 @@ static void intel_crt_reset(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct intel_crt *crt = intel_attached_crt(connector);
 
-	if (HAS_PCH_SPLIT(dev))
+	if (HAS_PCH_SPLIT(dev)) {
 		crt->force_hotplug_required = 1;
+	}
 }
 
 /*
@@ -596,6 +597,7 @@ void intel_crt_init(struct drm_device *dev)
 		return;
 
 	crt = malloc(sizeof(struct intel_crt), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+
 	intel_connector = malloc(sizeof(struct intel_connector), DRM_MEM_KMS,
 	    M_WAITOK | M_ZERO);
 

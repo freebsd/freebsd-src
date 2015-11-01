@@ -1,4 +1,4 @@
-# $Id: doc.mk,v 1.4 2012/11/11 22:37:02 sjg Exp $
+# $Id: doc.mk,v 1.5 2015/09/08 06:15:31 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -47,17 +47,19 @@ install:
 .else
 FILES?=	${SRCS}
 install:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    Makefile ${FILES} ${EXTRA} ${DESTDIR}${BINDIR}/${DIR}
+	test -d ${DESTDIR}${DOCDIR}/${DIR} || \
+	    ${INSTALL} -d ${DOC_INSTALL_OWN} -m ${DIRMODE} ${DESTDIR}${DOCDIR}/${DIR}
+	${INSTALL} ${COPY} ${DOC_INSTALL_OWN} -m ${DOCMODE} \
+	    Makefile ${FILES} ${EXTRA} ${DESTDIR}${DOCDIR}/${DIR}
 .endif
 
 spell: ${SRCS}
 	spell ${SRCS} | sort | comm -23 - spell.ok > paper.spell
 
-BINDIR?=	/usr/share/doc
-BINGRP?=	bin
-BINOWN?=	bin
-BINMODE?=	444
-
 .include <own.mk>
+
+.if !empty(DOCOWN)
+DOC_INSTALL_OWN?= -o ${DOCOWN} -g ${DOGGRP}
+.endif
+
 .endif

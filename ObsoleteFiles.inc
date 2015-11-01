@@ -97,6 +97,15 @@ OLD_FILES+=usr/bin/colldef
 OLD_FILES+=usr/share/man/man1/colldef.1.gz
 OLD_FILES+=usr/bin/mklocale
 OLD_FILES+=usr/share/man/man1/mklocale.1.gz
+# 20151030: OpenSSL 1.0.2d import
+OLD_FILES+=usr/share/openssl/man/man3/CMS_set1_signer_certs.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_ctrl.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_ctrl_str.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/d2i_509_CRL_fp.3.gz
+OLD_LIBS+=lib/libcrypto.so.7
+OLD_LIBS+=usr/lib/libssl.so.7
+OLD_LIBS+=usr/lib32/libcrypto.so.7
+OLD_LIBS+=usr/lib32/libssl.so.7
 # 20151015: test symbols moved to /usr/lib/debug
 OLD_DIRS+=usr/tests/lib/atf/libatf-c++/.debug
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/.debug/atf_c++_test.debug
@@ -503,6 +512,8 @@ OLD_DIRS+=usr/share/doc/legal/intel_wpi
 OLD_FILES+=usr/share/doc/legal/intel_wpi/LICENSE
 # 20151006: new libc++ import
 OLD_FILES+=usr/include/c++/__tuple_03
+OLD_FILES+=usr/include/c++/v1/__tuple_03
+OLD_FILES+=usr/include/c++/v1/tr1/__tuple_03
 # 20151006: new clang import which bumps version from 3.6.1 to 3.7.0.
 OLD_FILES+=usr/lib/clang/3.6.1/include/__stddef_max_align_t.h
 OLD_FILES+=usr/lib/clang/3.6.1/include/__wmmintrin_aes.h
@@ -589,11 +600,16 @@ OLD_FILES+=usr/share/man/man4/dtrace-proc.4.gz
 OLD_FILES+=usr/share/man/man4/dtrace-sched.4.gz
 OLD_FILES+=usr/share/man/man4/dtrace-tcp.4.gz
 OLD_FILES+=usr/share/man/man4/dtrace-udp.4.gz
+# 20150704: nvlist private headers no longer installed
+OLD_FILES+=usr/include/sys/nv_impl.h
+OLD_FILES+=usr/include/sys/nvlist_impl.h
+OLD_FILES+=usr/include/sys/nvpair_impl.h
 # 20150624
 OLD_LIBS+=usr/lib/libugidfw.so.4
 OLD_LIBS+=usr/lib32/libugidfw.so.4
 # 20150604: Move nvlist man pages to section 9.
 OLD_FILES+=usr/share/man/man3/libnv.3.gz
+OLD_FILES+=usr/share/man/man3/nv.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_add_binary.3.gz
 OLD_FILES+=usr/share/man/man3/nvlist_add_bool.3.gz

@@ -209,10 +209,10 @@ main(int argc, char *argv[])
 			fsoptions.sparse = 1;
 			break;
 
-		case 'r':
+		case 'R':
 			/* Round image size up to specified block size */
 			fsoptions.roundup =
-			    strsuftoll("roundup", optarg, 0, LLONG_MAX);
+			    strsuftoll("roundup-size", optarg, 0, LLONG_MAX);
 			break;
 
 		case 's':
@@ -365,7 +365,7 @@ usage(void)
 	prog = getprogname();
 	fprintf(stderr,
 "usage: %s [-t fs-type] [-o fs-options] [-d debug-mask] [-B endian]\n"
-"\t[-S sector-size] [-M minimum-size] [-m maximum-size] [-r roundup ]\n"
+"\t[-S sector-size] [-M minimum-size] [-m maximum-size] [-R roundup-size]\n"
 "\t[-s image-size] [-b free-blocks] [-f free-files] [-F mtree-specfile]\n"
 "\t[-xZ] [-N userdb-dir] image-file directory | manifest [extra-directory ...]\n",
 	    prog);

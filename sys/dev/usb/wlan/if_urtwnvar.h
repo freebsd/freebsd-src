@@ -26,8 +26,6 @@
 #define	URTWN_RX_DESC_SIZE	(sizeof(struct r92c_rx_stat))
 #define	URTWN_TX_DESC_SIZE	(sizeof(struct r92c_tx_desc))
 
-#define URTWN_RIDX_COUNT	28
-
 #define URTWN_TX_TIMEOUT	5000	/* ms */
 
 #define URTWN_LED_LINK	0
@@ -39,14 +37,16 @@ struct urtwn_rx_radiotap_header {
 	uint8_t		wr_rate;
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
-	uint8_t		wr_dbm_antsignal;
+	int8_t		wr_dbm_antsignal;
+	int8_t		wr_dbm_antnoise;
 } __packed __aligned(8);
 
 #define URTWN_RX_RADIOTAP_PRESENT			\
 	(1 << IEEE80211_RADIOTAP_FLAGS |		\
 	 1 << IEEE80211_RADIOTAP_RATE |			\
 	 1 << IEEE80211_RADIOTAP_CHANNEL |		\
-	 1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL)
+	 1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL |	\
+	 1 << IEEE80211_RADIOTAP_DBM_ANTNOISE)
 
 struct urtwn_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;

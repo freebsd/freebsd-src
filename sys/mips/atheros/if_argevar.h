@@ -68,6 +68,7 @@
 #define ARGE_WRITE(sc, reg, val)	do {	\
 		bus_write_4(sc->arge_res, (reg), (val)); \
 		ARGE_BARRIER_WRITE((sc)); \
+		ARGE_READ((sc), (reg)); \
 	} while (0)
 #define ARGE_READ(sc, reg)	 bus_read_4(sc->arge_res, (reg))
 
@@ -87,15 +88,12 @@
  * FIFO(s) before we continue issuing MDIO bus updates.
  */
 #define ARGE_MDIO_WRITE(_sc, _reg, _val) \
-	do { \
-		ARGE_WRITE((_sc), (_reg), (_val)); \
-		ARGE_READ((_sc), (_reg)); \
-	} while (0)
+	ARGE_WRITE((_sc), (_reg), (_val))
 #define ARGE_MDIO_READ(_sc, _reg)	\
 	ARGE_READ((_sc), (_reg))
 #define	ARGE_MDIO_BARRIER_READ(_sc)	ARGE_BARRIER_READ(_sc)
 #define	ARGE_MDIO_BARRIER_WRITE(_sc)	ARGE_BARRIER_WRITE(_sc)
-#define	ARGE_MDIO_BARRIER_RW(_sc)	ARGE_BARRIER_READ_RW(_sc)
+#define	ARGE_MDIO_BARRIER_RW(_sc)	ARGE_BARRIER_RW(_sc)
 
 #define ARGE_DESC_EMPTY		(1U << 31)
 #define ARGE_DESC_MORE		(1 << 24)
@@ -214,6 +212,9 @@ struct arge_softc {
 		uint32_t	intr_stray2;
 		uint32_t	intr_ok;
 	} stats;
+	struct {
+		uint32_t	count[32];
+	} intr_stats;
 };
 
 #endif /* __IF_ARGEVAR_H__ */

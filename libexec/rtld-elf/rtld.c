@@ -56,15 +56,10 @@
 #include "debug.h"
 #include "rtld.h"
 #include "libmap.h"
+#include "paths.h"
 #include "rtld_tls.h"
 #include "rtld_printf.h"
 #include "notes.h"
-
-#ifndef COMPAT_32BIT
-#define PATH_RTLD	"/libexec/ld-elf.so.1"
-#else
-#define PATH_RTLD	"/libexec/ld-elf32.so.1"
-#endif
 
 /* Types. */
 typedef void (*func_ptr_type)();
@@ -258,6 +253,15 @@ int tls_dtv_generation = 1;	/* Used to detect when dtv size changes  */
 int tls_max_index = 1;		/* Largest module index allocated */
 
 bool ld_library_path_rpath = false;
+
+/*
+ * Globals for path names, and such
+ */
+char *ld_path_elf_hints = _PATH_ELF_HINTS;
+char *ld_path_libmap_conf = _PATH_LIBMAP_CONF;
+char *ld_path_rtld = _PATH_RTLD;
+char *ld_standard_library_path = STANDARD_LIBRARY_PATH;
+char *ld_env_prefix = LD_;
 
 /*
  * Fill in a DoneList with an allocation large enough to hold all of
@@ -454,7 +458,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     ld_utrace = getenv(LD_ "UTRACE");
 
     if ((ld_elf_hints_path == NULL) || strlen(ld_elf_hints_path) == 0)
-	ld_elf_hints_path = _PATH_ELF_HINTS;
+	ld_elf_hints_path = ld_path_elf_hints;
 
     if (ld_debug != NULL && *ld_debug != '\0')
 	debug = 1;
@@ -1511,7 +1515,7 @@ find_library(const char *xname, const Obj_Entry *refobj, int *fdp)
 	  (pathname = search_library_path(name, refobj->rpath)) != NULL) ||
 	  (pathname = search_library_pathfds(name, ld_library_dirs, fdp)) != NULL ||
           (pathname = search_library_path(name, gethints(false))) != NULL ||
-	  (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL)
+	  (pathname = search_library_path(name, ld_standard_library_path)) != NULL)
 	    return (pathname);
     } else {
 	nodeflib = objgiven ? refobj->z_nodeflib : false;
@@ -1525,7 +1529,7 @@ find_library(const char *xname, const Obj_Entry *refobj, int *fdp)
 	  (pathname = search_library_pathfds(name, ld_library_dirs, fdp)) != NULL ||
 	  (pathname = search_library_path(name, gethints(nodeflib))) != NULL ||
 	  (objgiven && !nodeflib &&
-	  (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL))
+	  (pathname = search_library_path(name, ld_standard_library_path)) != NULL))
 	    return (pathname);
     }
 
@@ -1695,7 +1699,7 @@ gethints(bool nostdlib)
 	hargs.request = RTLD_DI_SERINFOSIZE;
 	hargs.serinfo = &hmeta;
 
-	path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &sargs);
+	path_enumerate(ld_standard_library_path, fill_search_info, &sargs);
 	path_enumerate(p, fill_search_info, &hargs);
 
 	SLPinfo = xmalloc(smeta.dls_size);
@@ -1714,7 +1718,7 @@ gethints(bool nostdlib)
 	hargs.serpath = &hintinfo->dls_serpath[0];
 	hargs.strspace = (char *)&hintinfo->dls_serpath[hmeta.dls_cnt];
 
-	path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &sargs);
+	path_enumerate(ld_standard_library_path, fill_search_info, &sargs);
 	path_enumerate(p, fill_search_info, &hargs);
 
 	/*
@@ -1892,7 +1896,7 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
     digest_dynamic2(&obj_rtld, dyn_rpath, dyn_soname, dyn_runpath);
 
     /* Replace the path with a dynamically allocated copy. */
-    obj_rtld.path = xstrdup(PATH_RTLD);
+    obj_rtld.path = xstrdup(ld_path_rtld);
 
     r_debug.r_brk = r_debug_state;
     r_debug.r_state = RT_CONSISTENT;
@@ -3506,7 +3510,7 @@ do_search_info(const Obj_Entry *obj, int request, struct dl_serinfo *info)
     path_enumerate(obj->runpath, fill_search_info, &args);
     path_enumerate(gethints(obj->z_nodeflib), fill_search_info, &args);
     if (!obj->z_nodeflib)
-      path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &args);
+      path_enumerate(ld_standard_library_path, fill_search_info, &args);
 
 
     if (request == RTLD_DI_SERINFOSIZE) {
@@ -3544,7 +3548,7 @@ do_search_info(const Obj_Entry *obj, int request, struct dl_serinfo *info)
 
     args.flags = LA_SER_DEFAULT;
     if (!obj->z_nodeflib &&
-      path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &args) != NULL)
+      path_enumerate(ld_standard_library_path, fill_search_info, &args) != NULL)
 	return (-1);
     return (0);
 }

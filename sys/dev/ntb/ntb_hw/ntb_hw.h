@@ -56,7 +56,7 @@ enum ntb_width {
 
 SYSCTL_DECL(_hw_ntb);
 
-typedef void (*ntb_db_callback)(void *data, int vector);
+typedef void (*ntb_db_callback)(void *data, uint32_t vector);
 typedef void (*ntb_event_callback)(void *data);
 
 struct ntb_ctx_ops {
@@ -90,22 +90,27 @@ int ntb_peer_spad_read(struct ntb_softc *ntb, unsigned int idx,
     uint32_t *val);
 
 uint64_t ntb_db_valid_mask(struct ntb_softc *);
+uint64_t ntb_db_vector_mask(struct ntb_softc *, uint32_t vector);
 bus_addr_t ntb_get_peer_db_addr(struct ntb_softc *, vm_size_t *sz_out);
 
 void ntb_db_clear(struct ntb_softc *, uint64_t bits);
 void ntb_db_clear_mask(struct ntb_softc *, uint64_t bits);
 uint64_t ntb_db_read(struct ntb_softc *);
 void ntb_db_set_mask(struct ntb_softc *, uint64_t bits);
-uint64_t ntb_db_vector_mask(struct ntb_softc *, int vector);
 void ntb_peer_db_set(struct ntb_softc *, uint64_t bits);
 
-/* Hardware owns the low 32 bits of features. */
+/* Hardware owns the low 16 bits of features. */
 #define NTB_BAR_SIZE_4K		(1 << 0)
 #define NTB_SDOORBELL_LOCKUP	(1 << 1)
 #define NTB_SB01BASE_LOCKUP	(1 << 2)
 #define NTB_B2BDOORBELL_BIT14	(1 << 3)
-/* Software/configuration owns the top 32 bits. */
-#define NTB_SPLIT_BAR		(1ull << 32)
-bool ntb_has_feature(struct ntb_softc *, uint64_t);
+/* Software/configuration owns the top 16 bits. */
+#define NTB_SPLIT_BAR		(1ull << 16)
+
+#define NTB_FEATURES_STR \
+    "\20\21SPLIT_BAR4\04B2B_DOORBELL_BIT14\03SB01BASE_LOCKUP" \
+    "\02SDOORBELL_LOCKUP\01BAR_SIZE_4K"
+
+bool ntb_has_feature(struct ntb_softc *, uint32_t);
 
 #endif /* _NTB_HW_H_ */

@@ -109,6 +109,22 @@ vchiq_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
 	*addr = PHYS_TO_VCBUS(segs[0].ds_addr);
 }
 
+static int
+copyout_page(vm_page_t p, size_t offset, void *kaddr, size_t size)
+{
+        uint8_t *dst;
+
+        dst = pmap_mapdev(VM_PAGE_TO_PHYS(p), PAGE_SIZE);
+        if (!dst)
+                return ENOMEM;
+
+        memcpy(dst + offset, kaddr, size);
+
+        pmap_unmapdev((vm_offset_t)dst, PAGE_SIZE);
+
+        return 0;
+}
+
 int __init
 vchiq_platform_init(VCHIQ_STATE_T *state)
 {
@@ -560,15 +576,19 @@ free_pagelist(BULKINFO_T *bi, int actual)
 			if (head_bytes > actual)
 				head_bytes = actual;
 
-			memcpy((char *)bi->buf,
+			copyout_page(pages[0],
+				pagelist->offset,
 				fragments->headbuf,
 				head_bytes);
 		}
 
 		if ((actual >= 0) && (head_bytes < actual) &&
 			(tail_bytes != 0)) {
-			memcpy((char *)bi->buf + actual - tail_bytes, 
-					 fragments->tailbuf, tail_bytes);
+
+			copyout_page(pages[num_pages-1],
+				(((vm_offset_t)bi->buf + actual) % PAGE_SIZE) - tail_bytes,
+				fragments->tailbuf,
+				tail_bytes);
 		}
 
 		down(&g_free_fragments_mutex);

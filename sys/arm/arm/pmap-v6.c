@@ -5398,12 +5398,6 @@ pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 
 }
 
-int
-pmap_dmap_iscurrent(pmap_t pmap)
-{
-	return(pmap_is_current(pmap));
-}
-
 void
 pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 {

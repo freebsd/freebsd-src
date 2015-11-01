@@ -1710,9 +1710,8 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva, boolean_t force)
 
 	if ((cpu_feature & CPUID_SS) != 0 && !force)
 		; /* If "Self Snoop" is supported and allowed, do nothing. */
-	else if ((cpu_feature & CPUID_CLFSH) != 0 &&
+	else if ((cpu_stdext_feature & CPUID_STDEXT_CLFLUSHOPT) != 0 &&
 	    eva - sva < PMAP_CLFLUSH_THRESHOLD) {
-
 		/*
 		 * XXX: Some CPUs fault, hang, or trash the local APIC
 		 * registers if we use CLFLUSH on the local APIC
@@ -1731,8 +1730,21 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva, boolean_t force)
 		 */
 		mfence();
 		for (; sva < eva; sva += cpu_clflush_line_size)
-			clflush(sva);
+			clflushopt(sva);
 		mfence();
+	} else if ((cpu_feature & CPUID_CLFSH) != 0 &&
+	    eva - sva < PMAP_CLFLUSH_THRESHOLD) {
+		if (pmap_kextract(sva) == lapic_paddr)
+			return;
+		/*
+		 * Writes are ordered by CLFLUSH on Intel CPUs.
+		 */
+		if (cpu_vendor_id != CPU_VENDOR_INTEL)
+			mfence();
+		for (; sva < eva; sva += cpu_clflush_line_size)
+			clflush(sva);
+		if (cpu_vendor_id != CPU_VENDOR_INTEL)
+			mfence();
 	} else {
 
 		/*
@@ -1756,19 +1768,27 @@ pmap_invalidate_cache_pages(vm_page_t *pages, int count)
 {
 	vm_offset_t daddr, eva;
 	int i;
+	bool useclflushopt;
 
+	useclflushopt = (cpu_stdext_feature & CPUID_STDEXT_CLFLUSHOPT) != 0;
 	if (count >= PMAP_CLFLUSH_THRESHOLD / PAGE_SIZE ||
-	    (cpu_feature & CPUID_CLFSH) == 0)
+	    ((cpu_feature & CPUID_CLFSH) == 0 && !useclflushopt))
 		pmap_invalidate_cache();
 	else {
-		mfence();
+		if (useclflushopt || cpu_vendor_id != CPU_VENDOR_INTEL)
+			mfence();
 		for (i = 0; i < count; i++) {
 			daddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pages[i]));
 			eva = daddr + PAGE_SIZE;
-			for (; daddr < eva; daddr += cpu_clflush_line_size)
-				clflush(daddr);
+			for (; daddr < eva; daddr += cpu_clflush_line_size) {
+				if (useclflushopt)
+					clflushopt(daddr);
+				else
+					clflush(daddr);
+			}
 		}
-		mfence();
+		if (useclflushopt || cpu_vendor_id != CPU_VENDOR_INTEL)
+			mfence();
 	}
 }
 
@@ -6391,7 +6411,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	 */
 	for (tmpva = base; tmpva < base + size; ) {
 		pdpe = pmap_pdpe(kernel_pmap, tmpva);
-		if (*pdpe == 0)
+		if (pdpe == NULL || *pdpe == 0)
 			return (EINVAL);
 		if (*pdpe & PG_PS) {
 			/*
@@ -6464,7 +6484,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 				    X86_PG_PDE_CACHE);
 				changed = TRUE;
 			}
-			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
+			if (tmpva >= VM_MIN_KERNEL_ADDRESS &&
+			    (*pdpe & PG_PS_FRAME) < dmaplimit) {
 				if (pa_start == pa_end) {
 					/* Start physical address run. */
 					pa_start = *pdpe & PG_PS_FRAME;
@@ -6493,7 +6514,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 				    X86_PG_PDE_CACHE);
 				changed = TRUE;
 			}
-			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
+			if (tmpva >= VM_MIN_KERNEL_ADDRESS &&
+			    (*pde & PG_PS_FRAME) < dmaplimit) {
 				if (pa_start == pa_end) {
 					/* Start physical address run. */
 					pa_start = *pde & PG_PS_FRAME;
@@ -6520,7 +6542,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 				    X86_PG_PTE_CACHE);
 				changed = TRUE;
 			}
-			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
+			if (tmpva >= VM_MIN_KERNEL_ADDRESS &&
+			    (*pte & PG_PS_FRAME) < dmaplimit) {
 				if (pa_start == pa_end) {
 					/* Start physical address run. */
 					pa_start = *pte & PG_FRAME;

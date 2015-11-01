@@ -74,9 +74,11 @@ __FBSDID("$FreeBSD$");
 	teq	r0, #(PSR_HYP32_MODE) /* Hyp Mode? */			;\
 	bne	1f							;\
 	/* Ensure that IRQ, FIQ and Aborts will be disabled after eret */ ;\
-	mrs	r0, spsr						;\
+	mrs	r0, cpsr						;\
+	bic	r0, r0, #(PSR_MODE)					;\
+	orr	r0, r0, #(PSR_SVC32_MODE)				;\
 	orr	r0, r0, #(PSR_I | PSR_F | PSR_A)			;\
-	msr	spsr, r0						;\
+	msr	spsr_cxsf, r0						;\
 	/* Exit hypervisor mode */					;\
 	adr	lr, 1f							;\
 	MSR_ELR_HYP(14)							;\

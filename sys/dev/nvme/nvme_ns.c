@@ -210,6 +210,13 @@ nvme_ns_get_data(struct nvme_namespace *ns)
 	return (&ns->data);
 }
 
+uint32_t
+nvme_ns_get_stripesize(struct nvme_namespace *ns)
+{
+
+	return (ns->stripesize);
+}
+
 static void
 nvme_ns_bio_done(void *arg, const struct nvme_completion *status)
 {
@@ -239,7 +246,7 @@ static void
 nvme_bio_child_inbed(struct bio *parent, int bio_error)
 {
 	struct nvme_completion	parent_cpl;
-	int			inbed;
+	int			children, inbed;
 
 	if (bio_error != 0) {
 		parent->bio_flags |= BIO_ERROR;
@@ -248,10 +255,13 @@ nvme_bio_child_inbed(struct bio *parent, int bio_error)
 
 	/*
 	 * atomic_fetchadd will return value before adding 1, so we still
-	 *  must add 1 to get the updated inbed number.
+	 *  must add 1 to get the updated inbed number.  Save bio_children
+	 *  before incrementing to guard against race conditions when
+	 *  two children bios complete on different queues.
 	 */
+	children = atomic_load_acq_int(&parent->bio_children);
 	inbed = atomic_fetchadd_int(&parent->bio_inbed, 1) + 1;
-	if (inbed == parent->bio_children) {
+	if (inbed == children) {
 		bzero(&parent_cpl, sizeof(parent_cpl));
 		if (parent->bio_flags & BIO_ERROR)
 			parent_cpl.status.sc = NVME_SC_DATA_TRANSFER_ERROR;

@@ -265,11 +265,6 @@ void pmap_devmap_bootstrap(const struct pmap_devmap *);
 #define	PMAP_DOMAIN_KERNEL	0	/* The kernel uses domain #0 */
 
 /*
- * sys/arm/arm/busdma_machdep-v6.c
- */
-int pmap_dmap_iscurrent(pmap_t pmap);
-
-/*
  * sys/arm/arm/cpufunc.c
  */
 void pmap_pte_init_mmu_v6(void);

@@ -107,8 +107,10 @@ mkdir_home_parents(int dfd, const char *dir)
 		errx(EX_UNAVAILABLE, "out of memory");
 
 	tmp = strrchr(dirs, '/');
-	if (tmp == NULL)
+	if (tmp == NULL) {
+		free(dirs);
 		return;
+	}
 	tmp[0] = '\0';
 
 	/*
@@ -280,9 +282,10 @@ pw_userlock(char *arg1, int mode)
 	if (arg1 == NULL)
 		errx(EX_DATAERR, "username or id required");
 
-	if (arg1[strspn(arg1, "0123456789")] == '\0')
+	if (arg1[strspn(arg1, "0123456789")] == '\0') {
 		id = pw_checkid(arg1, UID_MAX);
-	else
+		name = NULL;
+	} else
 		name = arg1;
 
 	pwd = (name != NULL) ? GETPWNAM(pw_checkname(name, 0)) : GETPWUID(id);
