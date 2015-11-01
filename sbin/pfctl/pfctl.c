@@ -1840,6 +1840,7 @@ pfctl_set_debug(struct pfctl *pf, char *d)
 	}
 
 	pf->debug_set = 1;
+	level = pf->debug;
 
 	if ((pf->opts & PF_OPT_NOACTION) == 0)
 		if (ioctl(dev, DIOCSETDEBUG, &level))
