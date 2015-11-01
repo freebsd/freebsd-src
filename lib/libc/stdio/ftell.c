@@ -118,15 +118,14 @@ _ftello(FILE *fp, fpos_t *offset)
 		}
 		if (HASUB(fp))
 			pos -= fp->_r;  /* Can be negative at this point. */
-	} else if ((fp->_flags & __SWR) && fp->_p != NULL) {
+	} else if ((fp->_flags & __SWR) && fp->_p != NULL &&
+	    (n = fp->_p - fp->_bf._base) > 0) {
 		/*
 		 * Writing.  Any buffered characters cause the
 		 * position to be greater than that in the
 		 * underlying object.
 		 */
-		n = fp->_p - fp->_bf._base;
-		if (n > 0 &&
-		    ((fp->_flags & __SAPP) || (fp->_flags2 & __S2OAP))) {
+		if ((fp->_flags & __SAPP) || (fp->_flags2 & __S2OAP)) {
 			int serrno = errno;
 
 			errno = 0;
