@@ -52,6 +52,7 @@ struct arglist {
 
 
 void emptyarglist(struct arglist *);
+void appendarglist(struct arglist *, char *);
 union node;
 void expandarg(union node *, struct arglist *, int);
 void rmescapes(char *);
