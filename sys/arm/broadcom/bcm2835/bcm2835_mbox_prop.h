@@ -438,6 +438,21 @@ struct bcm2835_mbox_tag_release_buffer {
 	} body;
 };
 
+#define	BCM2835_MBOX_TAG_GET_TOUCHBUF		0x0004000f
+
+struct bcm2835_mbox_tag_touchbuf {
+	struct bcm2835_mbox_hdr hdr;
+	struct bcm2835_mbox_tag_hdr tag_hdr;
+	union {
+		struct {
+		} req;
+		struct {
+			uint32_t address;
+		} resp;
+	} body;
+	uint32_t end_tag;
+};
+
 struct bcm2835_fb_config {
 	uint32_t xres;
 	uint32_t yres;
