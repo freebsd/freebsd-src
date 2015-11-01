@@ -317,8 +317,8 @@ _EUC_mbrtowc_impl(wchar_t * __restrict pwc, const char * __restrict s,
 {
 	_EucState *es;
 	int i, want;
-	wchar_t wc;
-	unsigned char ch;
+	wchar_t wc = 0;
+	unsigned char ch, chs;
 
 	es = (_EucState *)ps;
 
@@ -367,7 +367,8 @@ _EUC_mbrtowc_impl(wchar_t * __restrict pwc, const char * __restrict s,
 
 	for (i = 0; i < MIN(want, n); i++) {
 		wc <<= 8;
-		wc |= *s;
+		chs = *s;
+		wc |= chs;
 		s++;
 	}
 	if (i < want) {
