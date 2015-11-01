@@ -1124,10 +1124,16 @@ syscallcheri_helper_unregister(struct syscall_helper_data *sd)
 }
 #endif
 
+/*
+ * XXXRW: Here, we really want to take the desired permissions as an argument
+ * so we can copy out a capability with suitable permissions.  But will we
+ * always know what those are?
+ */
 #define sucap(uaddr, base, length)					\
 	do {								\
 		struct chericap	_tmpcap;				\
-		cheri_capability_set(&_tmpcap, CHERI_CAP_USER_PERMS,	\
+		cheri_capability_set(					\
+		    &_tmpcap, CHERI_CAP_USER_DATA_PERMS,		\
 		    NULL, (base), (length), 0);				\
 		copyoutcap(&_tmpcap, uaddr, sizeof(_tmpcap));		\
 	} while(0)

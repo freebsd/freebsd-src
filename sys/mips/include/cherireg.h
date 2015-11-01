@@ -124,11 +124,31 @@
 	CHERI_PERM_ACCESS_KCC | CHERI_PERM_ACCESS_KR1C |		\
 	CHERI_PERM_ACCESS_KR2C | CHERI_PERM_USER_PRIVS)
 
+/*
+ * Basic userspace permission mask; CHERI_PERM_EXECUTE will be added for
+ * executable capabilities ($pcc); CHERI_PERM_STORE, CHERI_PERM_STORE_CAP,
+ * and CHERI_PERM_STORE_LOCAL_CAP will be added for data permissions ($c0).
+ */
 #define	CHERI_PERM_USER							\
-	(CHERI_PERM_GLOBAL | CHERI_PERM_EXECUTE |			\
-	CHERI_PERM_LOAD | CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP |	\
-	CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP |		\
+	(CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |	\
 	CHERI_PERM_SEAL | CHERI_PERM_SETTYPE | CHERI_PERM_USER_PRIVS)
+
+/*
+ * XXXRW: For now, install all permissions for both data and executable
+ * capabilities, until libcheri is ready for non-executable $c0.
+ */
+#ifdef NOTYET
+#define	CHERI_PERM_USER_CODE	(CHERI_PERM_USER | CHERI_PERM_EXECUTE)
+#define	CHERI_PERM_USER_DATA	(CHERI_PERM_USER | CHERI_PERM_STORE |	\
+				CHERI_PERM_STORE_CAP |			\
+				CHERI_PERM_STORE_LOCAL_CAP)
+#else
+#define	CHERI_PERM_USER_CODE	(CHERI_PERM_USER | CHERI_PERM_STORE |	\
+				CHERI_PERM_STORE_CAP |			\
+				CHERI_PERM_STORE_LOCAL_CAP |		\
+				CHERI_PERM_EXECUTE)
+#define	CHERI_PERM_USER_DATA	CHERI_PERM_USER_CODE
+#endif
 
 /*
  * Definition for kernel "privileged" capability able to name the entire
@@ -144,11 +164,17 @@
  * Definition for userspace "unprivileged" capability able to name the user
  * portion of the address space.
  */
-#define	CHERI_CAP_USER_PERMS		CHERI_PERM_USER
-#define	CHERI_CAP_USER_OTYPE		0x0
-#define	CHERI_CAP_USER_BASE		MIPS_XUSEG_START
-#define	CHERI_CAP_USER_LENGTH		(MIPS_XUSEG_END - MIPS_XUSEG_START)
-#define	CHERI_CAP_USER_OFFSET		0x0
+#define	CHERI_CAP_USER_CODE_PERMS	CHERI_PERM_USER_CODE
+#define	CHERI_CAP_USER_CODE_OTYPE	0x0
+#define	CHERI_CAP_USER_CODE_BASE	MIPS_XUSEG_START
+#define	CHERI_CAP_USER_CODE_LENGTH	(MIPS_XUSEG_END - MIPS_XUSEG_START)
+#define	CHERI_CAP_USER_CODE_OFFSET	0x0
+
+#define	CHERI_CAP_USER_DATA_PERMS	CHERI_PERM_USER_DATA
+#define	CHERI_CAP_USER_DATA_OTYPE	0x0
+#define	CHERI_CAP_USER_DATA_BASE	MIPS_XUSEG_START
+#define	CHERI_CAP_USER_DATA_LENGTH	(MIPS_XUSEG_END - MIPS_XUSEG_START)
+#define	CHERI_CAP_USER_DATA_OFFSET	0x0
 
 /*
  * A blend of hardware and software allocation of capability registers.

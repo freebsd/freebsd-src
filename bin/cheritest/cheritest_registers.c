@@ -122,38 +122,84 @@ test_listregs(const struct cheri_test *ctp __unused)
  * during process startup -- and also the new expected values.
  */
 static void
-check_initreg(__capability void *c)
+check_initreg_code(__capability void *c)
 {
 	register_t v;
 
 	/* Base. */
 	v = cheri_getbase(c);
-	if (v != CHERI_CAP_USER_BASE)
+	if (v != CHERI_CAP_USER_CODE_BASE)
 		cheritest_failure_errx("base %jx (expected %jx)", v,
-		    CHERI_CAP_USER_BASE);
+		    CHERI_CAP_USER_CODE_BASE);
 
 	/* Length. */
 	v = cheri_getlen(c);
-	if (v != CHERI_CAP_USER_LENGTH)
+	if (v != CHERI_CAP_USER_CODE_LENGTH)
 		cheritest_failure_errx("length 0x%jx (expected 0x%jx)", v,
-		    CHERI_CAP_USER_LENGTH);
+		    CHERI_CAP_USER_CODE_LENGTH);
 
 	/* Offset. */
 	v = cheri_getoffset(c);
-	if (v != CHERI_CAP_USER_OFFSET)
+	if (v != CHERI_CAP_USER_CODE_OFFSET)
 		cheritest_failure_errx("offset %jx (expected %jx)", v,
-		    CHERI_CAP_USER_OFFSET);
+		    CHERI_CAP_USER_CODE_OFFSET);
 	/* Type. */
 	v = cheri_gettype(c);
-	if (v != CHERI_CAP_USER_OTYPE)
+	if (v != CHERI_CAP_USER_CODE_OTYPE)
 		cheritest_failure_errx("otype %jx (expected %jx)", v,
-		    CHERI_CAP_USER_OTYPE);
+		    CHERI_CAP_USER_CODE_OTYPE);
 
 	/* Permissions. */
 	v = cheri_getperm(c);
-	if (v != CHERI_CAP_USER_PERMS)
+	if (v != CHERI_CAP_USER_CODE_PERMS)
 		cheritest_failure_errx("perms %jx (expected %jx)", v,
-		    CHERI_CAP_USER_PERMS);
+		    CHERI_CAP_USER_CODE_PERMS);
+
+	/* Sealed bit. */
+	v = cheri_getsealed(c);
+	if (v != 0)
+		cheritest_failure_errx("sealed %jx (expected 0)", v);
+
+	/* Tag bit. */
+	v = cheri_gettag(c);
+	if (v != 1)
+		cheritest_failure_errx("tag %jx (expected 1)", v);
+	cheritest_success();
+}
+
+static void
+check_initreg_data(__capability void *c)
+{
+	register_t v;
+
+	/* Base. */
+	v = cheri_getbase(c);
+	if (v != CHERI_CAP_USER_DATA_BASE)
+		cheritest_failure_errx("base %jx (expected %jx)", v,
+		    CHERI_CAP_USER_DATA_BASE);
+
+	/* Length. */
+	v = cheri_getlen(c);
+	if (v != CHERI_CAP_USER_DATA_LENGTH)
+		cheritest_failure_errx("length 0x%jx (expected 0x%jx)", v,
+		    CHERI_CAP_USER_DATA_LENGTH);
+
+	/* Offset. */
+	v = cheri_getoffset(c);
+	if (v != CHERI_CAP_USER_DATA_OFFSET)
+		cheritest_failure_errx("offset %jx (expected %jx)", v,
+		    CHERI_CAP_USER_DATA_OFFSET);
+	/* Type. */
+	v = cheri_gettype(c);
+	if (v != CHERI_CAP_USER_DATA_OTYPE)
+		cheritest_failure_errx("otype %jx (expected %jx)", v,
+		    CHERI_CAP_USER_DATA_OTYPE);
+
+	/* Permissions. */
+	v = cheri_getperm(c);
+	if (v != CHERI_CAP_USER_DATA_PERMS)
+		cheritest_failure_errx("perms %jx (expected %jx)", v,
+		    CHERI_CAP_USER_DATA_PERMS);
 
 	/* Sealed bit. */
 	v = cheri_getsealed(c);
@@ -171,7 +217,7 @@ void
 test_initregs_default(const struct cheri_test *ctp __unused)
 {
 
-	check_initreg(cheri_getdefault());
+	check_initreg_data(cheri_getdefault());
 }
 
 void
@@ -179,14 +225,14 @@ test_initregs_stack(const struct cheri_test *ctp __unused)
 {
 
 	/* XXXRW: There is no Clang builtin for the stack capability! */
-	check_initreg(cheri_getreg(11));
+	check_initreg_data(cheri_getreg(11));
 }
 
 void
 test_initregs_idc(const struct cheri_test *ctp __unused)
 {
 
-	check_initreg(cheri_getidc());
+	check_initreg_code(cheri_getidc());
 }
 
 void
@@ -197,5 +243,5 @@ test_initregs_pcc(const struct cheri_test *ctp __unused)
 	/* $pcc includes $pc, so clear that for the purposes of the check. */
 	c = cheri_getpcc();
 	c = cheri_setoffset(c, 0);
-	check_initreg(c);
+	check_initreg_code(c);
 }

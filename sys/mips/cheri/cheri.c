@@ -224,9 +224,9 @@ static void
 cheri_capability_set_user_c0(struct chericap *cp)
 {
 
-	cheri_capability_set(cp, CHERI_CAP_USER_PERMS, CHERI_CAP_USER_OTYPE,
-	    CHERI_CAP_USER_BASE, CHERI_CAP_USER_LENGTH,
-	    CHERI_CAP_USER_OFFSET);
+	cheri_capability_set(cp, CHERI_CAP_USER_DATA_PERMS,
+	    CHERI_CAP_USER_DATA_OTYPE, CHERI_CAP_USER_DATA_BASE,
+	    CHERI_CAP_USER_DATA_LENGTH, CHERI_CAP_USER_DATA_OFFSET);
 }
 
 static void
@@ -238,9 +238,7 @@ cheri_capability_set_user_stack(struct chericap *cp)
 	 * In the future, we will likely want to change this to be local
 	 * (non-global).
 	 */
-	cheri_capability_set(cp, CHERI_CAP_USER_PERMS, CHERI_CAP_USER_OTYPE,
-	    CHERI_CAP_USER_BASE, CHERI_CAP_USER_LENGTH,
-	    CHERI_CAP_USER_OFFSET);
+	cheri_capability_set_user_c0(cp);
 }
 
 static void
@@ -250,18 +248,16 @@ cheri_capability_set_user_idc(struct chericap *cp)
 	/*
 	 * The default invoked data capability is also identical to $c0.
 	 */
-	cheri_capability_set(cp, CHERI_CAP_USER_PERMS, CHERI_CAP_USER_OTYPE,
-	    CHERI_CAP_USER_BASE, CHERI_CAP_USER_LENGTH,
-	    CHERI_CAP_USER_OFFSET);
+	cheri_capability_set_user_c0(cp);
 }
 
 static void
 cheri_capability_set_user_pcc(struct chericap *cp)
 {
 
-	cheri_capability_set(cp, CHERI_CAP_USER_PERMS, CHERI_CAP_USER_OTYPE,
-	    CHERI_CAP_USER_BASE, CHERI_CAP_USER_LENGTH,
-	    CHERI_CAP_USER_OFFSET);
+	cheri_capability_set(cp, CHERI_CAP_USER_CODE_PERMS,
+	    CHERI_CAP_USER_CODE_OTYPE, CHERI_CAP_USER_CODE_BASE,
+	    CHERI_CAP_USER_CODE_LENGTH, CHERI_CAP_USER_CODE_OFFSET);
 }
 
 static void
@@ -274,9 +270,8 @@ cheri_capability_set_user_sigcode(struct chericap *cp, struct sysentvec *se)
 	base = (uintptr_t)se->sv_psstrings - szsigcode;
 	base = rounddown2(base, sizeof(struct chericap));
 
-	/* XXX-BD: should this be read-only? */
-	cheri_capability_set(cp, CHERI_CAP_USER_PERMS, CHERI_CAP_USER_OTYPE,
-	    (void *)base, szsigcode, 0);
+	cheri_capability_set(cp, CHERI_CAP_USER_CODE_PERMS,
+	    CHERI_CAP_USER_CODE_OTYPE, (void *)base, szsigcode, 0);
 }
 
 void

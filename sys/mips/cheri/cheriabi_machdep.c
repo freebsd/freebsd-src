@@ -304,15 +304,24 @@ cheriabi_set_syscall_retval(struct thread *td, int error)
 			 * POSIX which assumes fixed page sizes and page
 			 * granularity allocations and probably will break
 			 * existing code.
+			 *
+			 * XXXRW: How should we decide what permissions are
+			 * appropriate here -- based on the MAP_ arguments?
+			 * Perhaps combined with any permissions found in the
+			 * optionally passed originating capability?  For now,
+			 * return permissions appropriate for either data or
+			 * code use, and userspace will need to mask them off
+			 * as desired.
 			 */
 			if ((void *)td->td_retval[0] == MAP_FAILED)
 				/* XXXBD: is this really what we want? */
 				cheri_capability_set(&capreg->cf_c3,
-				    CHERI_CAP_USER_PERMS, NULL,
+				    CHERI_CAP_USER_DATA_PERMS, NULL,
 				    0, 0, -1);
 			else
 				cheri_capability_set(&capreg->cf_c3,
-				    CHERI_CAP_USER_PERMS, NULL,
+				    CHERI_CAP_USER_DATA_PERMS |
+				    CHERI_CAP_USER_CODE_PERMS, NULL,
 				    (void *)td->td_retval[0],
 				    roundup2((size_t)a0, PAGE_SIZE), 0);
 			break;
@@ -551,11 +560,11 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->a0 = sig;
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
-		cheri_capability_set(&capreg->cf_c3, CHERI_CAP_USER_PERMS,
-		    CHERI_CAP_USER_OTYPE, (void *)(intptr_t)&sfp->sf_si,
+		cheri_capability_set(&capreg->cf_c3, CHERI_CAP_USER_DATA_PERMS,
+		    CHERI_CAP_USER_DATA_OTYPE, (void *)(intptr_t)&sfp->sf_si,
 		    sizeof(sfp->sf_si), 0);
-		cheri_capability_set(&capreg->cf_c4, CHERI_CAP_USER_PERMS,
-		    CHERI_CAP_USER_OTYPE, (void *)(intptr_t)&sfp->sf_uc,
+		cheri_capability_set(&capreg->cf_c4, CHERI_CAP_USER_DATA_PERMS,
+		    CHERI_CAP_USER_DATA_OTYPE, (void *)(intptr_t)&sfp->sf_uc,
 		    sizeof(sfp->sf_uc), 0);
 		/* sf.sf_ahu.sf_action = (__siginfohandler_t *)catcher; */
 
