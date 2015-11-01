@@ -33,6 +33,7 @@
 
 #include "vchiq_connected.h"
 #include "vchiq_core.h"
+#include "vchiq_killable.h"
 
 #define  MAX_CALLBACKS  10
 

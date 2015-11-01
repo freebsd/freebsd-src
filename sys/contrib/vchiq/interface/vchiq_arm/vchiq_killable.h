@@ -31,20 +31,42 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef VCHIQ_CONNECTED_H
-#define VCHIQ_CONNECTED_H
+#ifndef VCHIQ_KILLABLE_H
+#define VCHIQ_KILLABLE_H
 
-/* ---- Include Files ----------------------------------------------------- */
+#ifdef notyet
+#include <linux/mutex.h>
+#include <linux/semaphore.h>
 
-/* ---- Constants and Types ---------------------------------------------- */
+#define SHUTDOWN_SIGS   (sigmask(SIGKILL) | sigmask(SIGINT) | sigmask(SIGQUIT) | sigmask(SIGTRAP) | sigmask(SIGSTOP) | sigmask(SIGCONT))
 
-typedef void (*VCHIQ_CONNECTED_CALLBACK_T)(void);
+static inline int __must_check down_interruptible_killable(struct semaphore *sem)
+{
+	/* Allow interception of killable signals only. We don't want to be interrupted by harmless signals like SIGALRM */
+	int ret;
+	sigset_t blocked, oldset;
+	siginitsetinv(&blocked, SHUTDOWN_SIGS);
+	sigprocmask(SIG_SETMASK, &blocked, &oldset);
+	ret = down_interruptible(sem);
+	sigprocmask(SIG_SETMASK, &oldset, NULL);
+	return ret;
+}
+#define down_interruptible down_interruptible_killable
 
-/* ---- Variable Externs ------------------------------------------------- */
 
-/* ---- Function Prototypes ---------------------------------------------- */
+static inline int __must_check mutex_lock_interruptible_killable(struct mutex *lock)
+{
+	/* Allow interception of killable signals only. We don't want to be interrupted by harmless signals like SIGALRM */
+	int ret;
+	sigset_t blocked, oldset;
+	siginitsetinv(&blocked, SHUTDOWN_SIGS);
+	sigprocmask(SIG_SETMASK, &blocked, &oldset);
+	ret = mutex_lock_interruptible(lock);
+	sigprocmask(SIG_SETMASK, &oldset, NULL);
+	return ret;
+}
+#define mutex_lock_interruptible mutex_lock_interruptible_killable
 
-void vchiq_add_connected_callback(VCHIQ_CONNECTED_CALLBACK_T callback);
-void vchiq_call_connected_callbacks(void);
+#endif
 
-#endif /* VCHIQ_CONNECTED_H */
+#endif
