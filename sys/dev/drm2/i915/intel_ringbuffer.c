@@ -99,11 +99,11 @@ gen2_render_ring_flush(struct intel_ring_buffer *ring,
 
 static int
 gen4_render_ring_flush(struct intel_ring_buffer *ring,
-		  u32	invalidate_domains,
-		  u32	flush_domains)
+		       u32	invalidate_domains,
+		       u32	flush_domains)
 {
 	struct drm_device *dev = ring->dev;
-	uint32_t cmd;
+	u32 cmd;
 	int ret;
 
 	/*
@@ -268,7 +268,7 @@ gen6_render_ring_flush(struct intel_ring_buffer *ring,
 }
 
 static void ring_write_tail(struct intel_ring_buffer *ring,
-			    uint32_t value)
+			    u32 value)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	I915_WRITE_TAIL(ring, value);
@@ -277,7 +277,7 @@ static void ring_write_tail(struct intel_ring_buffer *ring,
 u32 intel_ring_get_active_head(struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
-	uint32_t acthd_reg = INTEL_INFO(ring->dev)->gen >= 4 ?
+	u32 acthd_reg = INTEL_INFO(ring->dev)->gen >= 4 ?
 			RING_ACTHD(ring->mmio_base) : ACTHD;
 
 	return I915_READ(acthd_reg);
@@ -287,7 +287,7 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	struct drm_i915_gem_object *obj = ring->obj;
-	uint32_t head;
+	u32 head;
 
 	/* Stop the ring if it's running. */
 	I915_WRITE_CTL(ring, 0);
@@ -300,7 +300,7 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 
 	/* G45 ring initialization fails to reset head to zero */
 	if (head != 0) {
-		DRM_DEBUG("%s head not reset to zero "
+		DRM_DEBUG_KMS("%s head not reset to zero "
 			      "ctl %08x head %08x tail %08x start %08x\n",
 			      ring->name,
 			      I915_READ_CTL(ring),
@@ -410,6 +410,7 @@ cleanup_pipe_control(struct intel_ring_buffer *ring)
 		return;
 
 	obj = pc->obj;
+
 	pmap_qremove((vm_offset_t)pc->cpu_page, 1);
 	kva_free((uintptr_t)pc->cpu_page, PAGE_SIZE);
 	i915_gem_object_unpin(obj);
@@ -438,7 +439,6 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 		if (ret)
 			return ret;
 	}
-
 
 	if (IS_GEN6(dev)) {
 		/* From the Sandybridge PRM, volume 1 part 3, page 24:
@@ -473,8 +473,8 @@ static void render_ring_cleanup(struct intel_ring_buffer *ring)
 
 static void
 update_mboxes(struct intel_ring_buffer *ring,
-	    u32 seqno,
-	    u32 mmio_offset)
+	      u32 seqno,
+	      u32 mmio_offset)
 {
 	intel_ring_emit(ring, MI_SEMAPHORE_MBOX |
 			      MI_SEMAPHORE_GLOBAL_GTT |
@@ -643,7 +643,7 @@ gen6_ring_get_seqno(struct intel_ring_buffer *ring)
 	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
 }
 
-static uint32_t
+static u32
 ring_get_seqno(struct intel_ring_buffer *ring)
 {
 	if (ring->status_page.page_addr == NULL)
@@ -651,7 +651,7 @@ ring_get_seqno(struct intel_ring_buffer *ring)
 	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
 }
 
-static uint32_t
+static u32
 pc_render_get_seqno(struct intel_ring_buffer *ring)
 {
 	struct pipe_control *pc = ring->private;
@@ -764,7 +764,7 @@ void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	uint32_t mmio = 0;
+	u32 mmio = 0;
 
 	/* The ring status page addresses are no longer next to the rest of
 	 * the ring registers as of gen7.
@@ -793,8 +793,8 @@ void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 
 static int
 bsd_ring_flush(struct intel_ring_buffer *ring,
-	       uint32_t     invalidate_domains,
-	       uint32_t     flush_domains)
+	       u32     invalidate_domains,
+	       u32     flush_domains)
 {
 	int ret;
 
@@ -871,7 +871,8 @@ gen6_ring_put_irq(struct intel_ring_buffer *ring)
 }
 
 static int
-i965_dispatch_execbuffer(struct intel_ring_buffer *ring, u32 offset, u32 length)
+i965_dispatch_execbuffer(struct intel_ring_buffer *ring,
+			 u32 offset, u32 length)
 {
 	int ret;
 
@@ -910,7 +911,7 @@ i830_dispatch_execbuffer(struct intel_ring_buffer *ring,
 
 static int
 i915_dispatch_execbuffer(struct intel_ring_buffer *ring,
-				u32 offset, u32 len)
+			 u32 offset, u32 len)
 {
 	int ret;
 
@@ -974,7 +975,7 @@ static int init_status_page(struct intel_ring_buffer *ring)
 	memset(ring->status_page.page_addr, 0, PAGE_SIZE);
 
 	intel_ring_setup_status_page(ring);
-	DRM_DEBUG("i915: init_status_page %s hws offset: 0x%08x\n",
+	DRM_DEBUG_DRIVER("%s hws offset: 0x%08x\n",
 			ring->name, ring->status_page.gfx_addr);
 
 	return 0;
@@ -1076,28 +1077,6 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 		ring->cleanup(ring);
 
 	cleanup_status_page(ring);
-}
-
-static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
-{
-	uint32_t *virt;
-	int rem = ring->size - ring->tail;
-
-	if (ring->space < rem) {
-		int ret = intel_wait_ring_buffer(ring, rem);
-		if (ret)
-			return ret;
-	}
-
-	virt = (uint32_t *)((char *)ring->virtual_start + ring->tail);
-	rem /= 4;
-	while (rem--)
-		*virt++ = MI_NOOP;
-
-	ring->tail = 0;
-	ring->space = ring_space(ring);
-
-	return 0;
 }
 
 static int intel_ring_wait_seqno(struct intel_ring_buffer *ring, u32 seqno)
@@ -1222,6 +1201,28 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 	return -EBUSY;
 }
 
+static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
+{
+	uint32_t *virt;
+	int rem = ring->size - ring->tail;
+
+	if (ring->space < rem) {
+		int ret = intel_wait_ring_buffer(ring, rem);
+		if (ret)
+			return ret;
+	}
+
+	virt = (uint32_t *)((char *)ring->virtual_start + ring->tail);
+	rem /= 4;
+	while (rem--)
+		*virt++ = MI_NOOP;
+
+	ring->tail = 0;
+	ring->space = ring_space(ring);
+
+	return 0;
+}
+
 int intel_ring_begin(struct intel_ring_buffer *ring,
 		     int num_dwords)
 {
@@ -1283,7 +1284,7 @@ static void gen6_bsd_ring_write_tail(struct intel_ring_buffer *ring,
 }
 
 static int gen6_ring_flush(struct intel_ring_buffer *ring,
-			   uint32_t invalidate, uint32_t flush)
+			   u32 invalidate, u32 flush)
 {
 	uint32_t cmd;
 	int ret;
@@ -1305,7 +1306,7 @@ static int gen6_ring_flush(struct intel_ring_buffer *ring,
 
 static int
 gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
-			      uint32_t offset, uint32_t len)
+			      u32 offset, u32 len)
 {
 	int ret;
 
@@ -1326,7 +1327,7 @@ gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 static int blt_ring_flush(struct intel_ring_buffer *ring,
 			  u32 invalidate, u32 flush)
 {
-	u32 cmd;
+	uint32_t cmd;
 	int ret;
 
 	ret = intel_ring_begin(ring, 4);
