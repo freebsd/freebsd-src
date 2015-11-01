@@ -92,6 +92,7 @@
 #define	cheri_getkdc()		__builtin_cheri_get_kernel_data_cap()
 #define	cheri_getepcc()		__builtin_cheri_get_exception_program_counter_cap()
 #define	cheri_getpcc()		__builtin_cheri_get_program_counter_cap()
+#define	cheri_getstack()	__builtin_memcap_stack_get()
 
 #define	cheri_local(c)		cheri_andperm((c), ~CHERI_PERM_GLOBAL)
 
