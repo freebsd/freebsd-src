@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2010-2012 Broadcom. All rights reserved.
+ * Copyright (c) 2014 Raspberry Pi (Trading) Ltd. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,20 +31,22 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef VCHIQ_CONNECTED_H
-#define VCHIQ_CONNECTED_H
+#ifndef VCHIQ_DEBUGFS_H
+#define VCHIQ_DEBUGFS_H
 
-/* ---- Include Files ----------------------------------------------------- */
+#include "vchiq_core.h"
 
-/* ---- Constants and Types ---------------------------------------------- */
+typedef struct vchiq_debugfs_node_struct
+{
+    struct dentry *dentry;
+} VCHIQ_DEBUGFS_NODE_T;
 
-typedef void (*VCHIQ_CONNECTED_CALLBACK_T)(void);
+int vchiq_debugfs_init(void);
 
-/* ---- Variable Externs ------------------------------------------------- */
+void vchiq_debugfs_deinit(void);
 
-/* ---- Function Prototypes ---------------------------------------------- */
+int vchiq_debugfs_add_instance(VCHIQ_INSTANCE_T instance);
 
-void vchiq_add_connected_callback(VCHIQ_CONNECTED_CALLBACK_T callback);
-void vchiq_call_connected_callbacks(void);
+void vchiq_debugfs_remove_instance(VCHIQ_INSTANCE_T instance);
 
-#endif /* VCHIQ_CONNECTED_H */
+#endif /* VCHIQ_DEBUGFS_H */
