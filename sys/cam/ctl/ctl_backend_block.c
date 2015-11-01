@@ -2110,7 +2110,7 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 		case CTL_BE_BLOCK_NONE:
 			break;
 		default:
-			panic("Unexpected backend type.");
+			panic("Unexpected backend type %d", be_lun->dev_type);
 			break;
 		}
 		be_lun->dev_type = CTL_BE_BLOCK_NONE;

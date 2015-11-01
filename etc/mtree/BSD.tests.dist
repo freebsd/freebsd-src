@@ -275,6 +275,8 @@
                 data
                 ..
             ..
+            rpc
+            ..
             ssp
             ..
             stdio
@@ -595,6 +597,8 @@
         etcupdate
         ..
         fstyp
+        ..
+        makefs
         ..
         newsyslog
         ..

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 24, 2015
+.Dd October 28, 2015
 .Dt IOATCONTROL 8
 .Os
 .Sh NAME
@@ -33,18 +33,101 @@
 .Xr ioat 4
 .Sh SYNOPSIS
 .Nm
+.Op Fl f
+.Op Fl V
 .Ar channel_number
-.Ar num_loops
+.Ar num_txns
+.Ar [ bufsize
+.Ar [ chain-len
+.Ar [ duration ] ] ]
+.Nm
+.Fl r
+.Op Fl v
+.Op Fl V
+.Op Fl w
+.Ar channel_number
+.Ar address
+.Ar [ bufsize ]
 .Sh DESCRIPTION
 .Nm
 allows one to issue some number of test operations to the
 .Xr ioat 4
 driver on a specific hardware channel.
+The arguments are as follows:
+.Bl -tag -width Ds
+.It Fl f
+Test block fill (by default,
+.Nm
+tests copy)
+.It Fl V
+Verify copies/fills for accuracy
+.El
 .Pp
-Each loop will allocate two chunks of memory, write data patterns to them,
-submit a DMA request to copy one buffer to the other, and compare the contents
-in the callback.
-If the contents are not as expected, an error is reported.
+Alternatively one can use
+.Nm
+.Fl r
+to issue DMA to or from a specific
+.Ar address .
+The arguments in "raw" mode are:
+.Bl -tag -width Ds
+.It Fl v
+.Ar address
+is a kernel virtual address (by default,
+.Ar address
+is assumed to be a physical address)
+.It Fl V
+Dump the resulting hex to syslog
+.It Fl w
+Write to the specified
+.Ar address
+(by default,
+.Nm
+.Fl r
+reads)
+.El
+.Pp
+.Nm
+operates in one of two modes; if the
+.Ar duration
+argument is passed,
+.Nm
+tries to estimate the copy rate in bytes per second by running
+.Ar num_txns
+repeatedly in loop.
+If
+.Ar duration
+is not passed,
+.Nm
+only runs through
+.Ar num_txns
+once and prints the total bytes copied, as well as error information.
+.Pp
+The
+.Ar bufsize
+argument determines the size of buffers to use for each
+.Fn ioat_copy
+invocation.
+The default is 256 KB.
+In raw mode, the default is 4 KB.
+.Pp
+The
+.Ar chain-len
+argument determines the number of copies to chain together in a single DMA
+transaction.
+The default is 1, and the maximum is currently 4.
+.Pp
+The
+.Ar duration
+argument specifies an approximate time limit for the test, in milliseconds.
+.Pp
+The test will allocate two chunks of memory for each component of each
+transaction's chain.
+It will initialize them with specific data patterns.
+During the test, it submits DMA requests to copy between pairs of buffers.
+If the
+.Fl V
+flag was specified, it will compare the contents in the callback for a copy
+error.
 .Sh FILES
 .Pa /dev/ioat_test
 .Pp
@@ -52,9 +135,14 @@ The interface between
 .Nm
 and
 .Xr ioat 4 .
-.Nm
+.Xr ioat 4
 exposes it with
 .Cd hw.ioat.enable_ioat_test=1 .
+.Sh DIAGNOSTICS
+The wait channel
+.Va test_submit
+indicates that the test code has enqueued all requested transactions and is
+waiting on the IOAT hardware to complete one before issuing another operation.
 .Sh SEE ALSO
 .Xr ioat 4
 .Sh HISTORY
@@ -69,7 +157,8 @@ driver and
 .Nm
 tool were developed by
 .An \&Jim Harris Aq Mt jimharris@FreeBSD.org ,
+.An \&Carl Delsey Aq Mt carl.r.delsey@intel.com ,
 and
-.An \&Carl Delsey Aq Mt carl.r.delsey@intel.com .
+.An \&Conrad Meyer Aq Mt cem@FreeBSD.org .
 This manual page was written by
 .An \&Conrad Meyer Aq Mt cem@FreeBSD.org .

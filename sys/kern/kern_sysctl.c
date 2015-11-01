@@ -1128,6 +1128,70 @@ static SYSCTL_NODE(_sysctl, 5, oiddescr, CTLFLAG_RD|CTLFLAG_MPSAFE|CTLFLAG_CAPRD
  */
 
 /*
+ * Handle an int8_t, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
+ */
+
+int
+sysctl_handle_8(SYSCTL_HANDLER_ARGS)
+{
+	int8_t tmpout;
+	int error = 0;
+
+	/*
+	 * Attempt to get a coherent snapshot by making a copy of the data.
+	 */
+	if (arg1)
+		tmpout = *(int8_t *)arg1;
+	else
+		tmpout = arg2;
+	error = SYSCTL_OUT(req, &tmpout, sizeof(tmpout));
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		error = EPERM;
+	else
+		error = SYSCTL_IN(req, arg1, sizeof(tmpout));
+	return (error);
+}
+
+/*
+ * Handle an int16_t, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
+ */
+
+int
+sysctl_handle_16(SYSCTL_HANDLER_ARGS)
+{
+	int16_t tmpout;
+	int error = 0;
+
+	/*
+	 * Attempt to get a coherent snapshot by making a copy of the data.
+	 */
+	if (arg1)
+		tmpout = *(int16_t *)arg1;
+	else
+		tmpout = arg2;
+	error = SYSCTL_OUT(req, &tmpout, sizeof(tmpout));
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (!arg1)
+		error = EPERM;
+	else
+		error = SYSCTL_IN(req, arg1, sizeof(tmpout));
+	return (error);
+}
+
+/*
  * Handle an int, signed or unsigned.
  * Two cases:
  *     a variable:  point arg1 at it.

@@ -6,33 +6,49 @@
 #include "unity.h"
 #include "test-libntp.h"
 
+void setUp(void);
+void tearDown(void);
+void test_CurrentYear(void);
+void test_CurrentYearFuzz(void);
+void test_TimeZoneOffset(void);
+void test_WrongYearStart(void);
+void test_PreviousYear(void);
+void test_NextYear(void);
+void test_NoReasonableConversion(void);
+int isLE(u_int32 diff,u_int32 actual);
+void test_AlwaysInLimit(void);
 
-// ---------------------------------------------------------------------
-// test fixture
-//
-// The clocktimeTest uses the NTP calendar feature to use a mockup
-// function for getting the current system time, so the tests are not
-// dependent on the actual system time.
 
+/* ---------------------------------------------------------------------
+ * test fixture
+ *
+ * The clocktimeTest uses the NTP calendar feature to use a mockup
+ * function for getting the current system time, so the tests are not
+ * dependent on the actual system time.
+ */
 
-void setUp()
+void
+setUp()
 {
     ntpcal_set_timefunc(timefunc);
     settime(2000, 1, 1, 0, 0, 0);
 }
 
-void tearDown()
+void
+tearDown()
 {
     ntpcal_set_timefunc(NULL);
 }
 
-// ---------------------------------------------------------------------
-// test cases
+/* ---------------------------------------------------------------------
+ * test cases
+ */
 
-void test_CurrentYear() {
-	// Timestamp: 2010-06-24 12:50:00Z
+void
+test_CurrentYear(void) {
+	/* Timestamp: 2010-06-24 12:50:00Z */
 	const u_int32 timestamp = 3486372600UL;
-	const u_int32 expected	= timestamp; // exactly the same.
+	const u_int32 expected	= timestamp; /* exactly the same. */
 
 	const int yday=175, hour=12, minute=50, second=0, tzoff=0;
 
@@ -44,7 +60,8 @@ void test_CurrentYear() {
 	TEST_ASSERT_EQUAL(expected, actual);
 }
 
-void test_CurrentYearFuzz() {
+void
+test_CurrentYearFuzz(void) {
 	/* 
 	 * Timestamp (rec_ui) is: 2010-06-24 12:50:00
 	 * Time sent into function is 12:00:00.
@@ -53,8 +70,8 @@ void test_CurrentYearFuzz() {
 	 * timestamp for the 12:00:00 time.
 	 */
 
-	const u_int32 timestamp = 3486372600UL; // 2010-06-24 12:50:00Z
-	const u_int32 expected	= 3486369600UL; // 2010-06-24 12:00:00Z
+	const u_int32 timestamp = 3486372600UL; /* 2010-06-24 12:50:00Z */
+	const u_int32 expected	= 3486369600UL; /* 2010-06-24 12:00:00Z */
 
 	const int yday=175, hour=12, minute=0, second=0, tzoff=0;
 
@@ -66,7 +83,8 @@ void test_CurrentYearFuzz() {
 	TEST_ASSERT_EQUAL(expected, actual);
 }
 
-void test_TimeZoneOffset() {
+void
+test_TimeZoneOffset(void) {
 	/*
 	 * Timestamp (rec_ui) is: 2010-06-24 12:00:00 +0800
 	 * (which is 2010-06-24 04:00:00Z)
@@ -86,7 +104,8 @@ void test_TimeZoneOffset() {
 	TEST_ASSERT_EQUAL(expected, actual);
 }
 
-void test_WrongYearStart() {
+void
+test_WrongYearStart(void) {
 	/* 
 	 * Timestamp (rec_ui) is: 2010-01-02 11:00:00Z
 	 * Time sent into function is 11:00:00.
@@ -97,7 +116,7 @@ void test_WrongYearStart() {
 
 	const int yday=2, hour=11, minute=0, second=0, tzoff=0;
 
-	u_long yearstart = 302024100UL; // Yearstart of 2009.
+	u_long yearstart = 302024100UL; /* Yearstart of 2009. */
 	u_int32 actual;
 
 	TEST_ASSERT_TRUE(clocktime(yday, hour, minute, second, tzoff, timestamp,
@@ -105,7 +124,8 @@ void test_WrongYearStart() {
 	TEST_ASSERT_EQUAL(expected, actual);
 }
 
-void test_PreviousYear() {
+void
+test_PreviousYear(void) {
 	/*
 	 * Timestamp is: 2010-01-01 01:00:00Z
 	 * Time sent into function is 23:00:00
@@ -124,7 +144,8 @@ void test_PreviousYear() {
 	TEST_ASSERT_EQUAL(expected, actual);
 }
 
-void test_NextYear() {
+void
+test_NextYear(void) {
 	/*
 	 * Timestamp is: 2009-12-31 23:00:00Z
 	 * Time sent into function is 01:00:00
@@ -142,7 +163,8 @@ void test_NextYear() {
 	TEST_ASSERT_EQUAL(expected, actual);
 }
 
-void test_NoReasonableConversion() {
+void
+test_NoReasonableConversion(void) {
 	/* Timestamp is: 2010-01-02 11:00:00Z */
 	const u_int32 timestamp = 3471418800UL;
 	
@@ -154,9 +176,9 @@ void test_NoReasonableConversion() {
 						   &yearstart, &actual));
 }
 
-// *** FUNCTION isLE, to simulate gtest's ASSERT_LE using Unity's TEST_ASSERT_TRUE
-//tehnically boolean
-int isLE(u_int32 diff,u_int32 actual){
+
+int/*BOOL*/
+isLE(u_int32 diff,u_int32 actual){
 	if(diff <= actual){
 		return TRUE;
 	}
@@ -164,7 +186,8 @@ int isLE(u_int32 diff,u_int32 actual){
 }
 
 
-void test_AlwaysInLimit() {
+void
+test_AlwaysInLimit(void) {
 	/* Timestamp is: 2010-01-02 11:00:00Z */
 	const u_int32 timestamp = 3471418800UL;
 	const u_short prime_incs[] = { 127, 151, 163, 179 };
@@ -174,7 +197,6 @@ void test_AlwaysInLimit() {
 	u_short	ydayinc;
 	int	hour;
 	int	minute;
-	int	second;
 	u_long	yearstart;
 	u_int32	actual;
 	u_int32	diff;
@@ -192,8 +214,7 @@ void test_AlwaysInLimit() {
 					diff = actual - timestamp;
 					if (diff >= 0x80000000UL)
 						diff = ~diff + 1;
-					TEST_ASSERT_TRUE(isLE(diff, (183u * SECSPERDAY))); // adding new function to return TRUE if first number is less or equal the second
-					//TEST_ASSERT_LE(diff, (183u * SECSPERDAY));
+					TEST_ASSERT_TRUE(isLE(diff, (183u * SECSPERDAY)));
 				}
 			}
 		}

@@ -2266,19 +2266,17 @@ brelse(struct buf *bp)
 		bdirty(bp);
 	}
 	if (bp->b_iocmd == BIO_WRITE && (bp->b_ioflags & BIO_ERROR) &&
-	    bp->b_error == EIO && !(bp->b_flags & B_INVAL)) {
+	    !(bp->b_flags & B_INVAL)) {
 		/*
 		 * Failed write, redirty.  Must clear BIO_ERROR to prevent
-		 * pages from being scrapped.  If the error is anything
-		 * other than an I/O error (EIO), assume that retrying
-		 * is futile.
+		 * pages from being scrapped.
 		 */
 		bp->b_ioflags &= ~BIO_ERROR;
 		bdirty(bp);
 	} else if ((bp->b_flags & (B_NOCACHE | B_INVAL)) ||
 	    (bp->b_ioflags & BIO_ERROR) || (bp->b_bufsize <= 0)) {
 		/*
-		 * Either a failed I/O or we were asked to free or not
+		 * Either a failed read I/O or we were asked to free or not
 		 * cache the buffer.
 		 */
 		bp->b_flags |= B_INVAL;
@@ -2885,6 +2883,7 @@ getnewbuf(struct vnode *vp, int slpflag, int slptimeo, int maxsize, int gbflags)
 	struct buf *bp;
 	bool metadata, reserved;
 
+	bp = NULL;
 	KASSERT((gbflags & (GB_UNMAPPED | GB_KVAALLOC)) != GB_KVAALLOC,
 	    ("GB_KVAALLOC only makes sense with GB_UNMAPPED"));
 	if (!unmapped_buf_allowed)

@@ -41,6 +41,8 @@ typedef void * xen_intr_handle_t;
 /** If non-zero, the hypervisor has been configured to use a direct vector */
 extern int xen_vector_callback_enabled;
 
+void xen_intr_handle_upcall(struct trapframe *trap_frame);
+
 /**
  * Associate an already allocated local event channel port an interrupt
  * handler.

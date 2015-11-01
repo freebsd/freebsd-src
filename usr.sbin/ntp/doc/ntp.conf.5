@@ -1,11 +1,11 @@
-.Dd February 4 2015
+.Dd October 21 2015
 .Dt NTP_CONF 5 File Formats
 .Os
 .\"  EDIT THIS FILE WITH CAUTION  (ntp.mdoc)
 .\"
 .\" $FreeBSD$
 .\"
-.\"  It has been AutoGen-ed  February  4, 2015 at 02:42:07 AM by AutoGen 5.18.5pre4
+.\"  It has been AutoGen-ed  October 21, 2015 at 12:38:24 PM by AutoGen 5.18.5
 .\"  From the definitions    ntp.conf.def
 .\"  and the template file   agmdoc-cmd.tpl
 .Sh NAME
@@ -1905,7 +1905,7 @@ re\-associate accordingly.
 Some administrators prefer to avoid running
 .Xr ntpd 8
 continuously and run either
-.Xr ntpdate 8
+.Xr sntp 8
 or
 .Xr ntpd 8
 .Fl q
@@ -1997,7 +1997,7 @@ peers remaining.
 This value defaults to 1, but can be changed
 to any number from 1 to 15.
 .It Cm minclock Ar minclock
-The clustering algorithm repeatedly casts out outlyer
+The clustering algorithm repeatedly casts out outlier
 associations until no more than
 .Cm minclock
 associations remain.
@@ -2388,6 +2388,9 @@ This implies that
 must have write permission for the directory the
 drift file is located in, and that file system links, symbolic or
 otherwise, should be avoided.
+.It Ic dscp Ar value
+This option specifies the Differentiated Services Control Point (DSCP) value,
+a 6\-bit code.  The default value is 46, signifying Expedited Forwarding.
 .It Xo Ic enable
 .Oo
 .Cm auth | Cm bclient |
@@ -2487,6 +2490,19 @@ This option is useful for sites that run
 .Xr ntpd 8
 on multiple hosts, with (mostly) common options (e.g., a
 restriction list).
+.It Ic leapsmearinterval Ar seconds
+This EXPERIMENTAL option is only available if
+.Xr ntpd 8
+was built with the
+.Cm \-\-enable\-leap\-smear
+option to the
+.Cm configure
+script.
+It specifies the interval over which a leap second correction will be applied.
+Recommended values for this option are between
+7200 (2 hours) and 86400 (24 hours).
+.Sy DO NOT USE THIS OPTION ON PUBLIC\-ACCESS SERVERS!
+See http://bugs.ntp.org/2855 for more information.
 .It Ic logconfig Ar configkeyword
 This command controls the amount and type of output written to
 the system
@@ -2620,7 +2636,9 @@ holds the names of the reference clock variables.
 .Cm freq Ar freq |
 .Cm huffpuff Ar huffpuff |
 .Cm panic Ar panic |
-.Cm step Ar srep |
+.Cm step Ar step |
+.Cm stepback Ar stepback |
+.Cm stepfwd Ar stepfwd |
 .Cm stepout Ar stepout
 .Oc
 .Xc
@@ -2680,6 +2698,19 @@ adjustments will never occur.
 Note: The kernel time discipline is
 disabled if the step threshold is set to zero or greater than the
 default.
+.It Cm stepback Ar stepback
+The argument is the step threshold for the backward direction,
+which by default is 0.128 s.
+It can
+be set to any positive number in seconds.
+If both the forward and backward step thresholds are set to zero, step
+adjustments will never occur.
+Note: The kernel time discipline is
+disabled if
+each direction of step threshold are either
+set to zero or greater than .5 second.
+.It Cm stepfwd Ar stepfwd
+As for stepback, but for the forward direction.
 .It Cm stepout Ar stepout
 The argument is the stepout timeout, which by default is 900 s.
 It can
@@ -2696,19 +2727,22 @@ pulses will not be suppressed.
 .Xc
 .Bl -tag -width indent
 .It Cm memlock Ar Nmegabytes
-Specify the number of megabytes of memory that can be allocated.
-Probably only available under Linux, this option is useful
+Specify the number of megabytes of memory that should be
+allocated and locked.
+Probably only available under Linux, this option may be useful
 when dropping root (the
 .Fl i
 option).
-The default is 32 megabytes. Setting this to zero will prevent any attemp to lock memory.
+The default is 32 megabytes on non\-Linux machines, and \-1 under Linux.
+-1 means "do not lock the process into memory".
+0 means "lock whatever memory the process wants into memory".
 .It Cm stacksize Ar N4kPages
 Specifies the maximum size of the process stack on systems with the
-.It Cm filenum Ar Nfiledescriptors
-Specifies the maximum number of file descriptors ntpd may have open at once. Defaults to the system default.
 .Fn mlockall
 function.
 Defaults to 50 4k pages (200 4k pages in OpenBSD).
+.It Cm filenum Ar Nfiledescriptors
+Specifies the maximum number of file descriptors ntpd may have open at once. Defaults to the system default.
 .El
 .It Xo Ic trap Ar host_address
 .Op Cm port Ar port_number

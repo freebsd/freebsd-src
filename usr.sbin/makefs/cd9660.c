@@ -163,7 +163,7 @@ static cd9660node *cd9660_create_special_directory(u_char, cd9660node *);
 
 
 /*
- * Allocate and initalize a cd9660node
+ * Allocate and initialize a cd9660node
  * @returns struct cd9660node * Pointer to new node, or NULL on error
  */
 static cd9660node *
@@ -428,8 +428,7 @@ cd9660_parse_opts(const char *option, fsinfo_t *fsopts)
 			rv = set_option(cd9660_options, var, val);
 	}
 
-	if (var)
-		free(var);
+	free(var);
 	return (rv);
 }
 

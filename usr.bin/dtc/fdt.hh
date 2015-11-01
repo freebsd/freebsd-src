@@ -32,7 +32,10 @@
 
 #ifndef _FDT_HH_
 #define _FDT_HH_
-#include <map>
+#include <unordered_map>
+#include <unordered_set>
+#include <memory>
+#include <string>
 
 #include "util.hh"
 #include "string.hh"
@@ -49,7 +52,19 @@ class string_table;
 namespace fdt
 {
 class property;
-typedef std::map<string, property*> define_map;
+class node;
+/**
+ * Type for (owned) pointers to properties.
+ */
+typedef std::shared_ptr<property> property_ptr;
+/**
+ * Owning pointer to a node.
+ */
+typedef std::unique_ptr<node> node_ptr;
+/**
+ * Map from macros to property pointers.
+ */
+typedef std::unordered_map<string, property_ptr> define_map;
 /**
  * Properties may contain a number of different value, each with a different
  * label.  This class encapsulates a single value.
@@ -186,6 +201,11 @@ struct property_value
 	 * - Otherwise, it is printed as a byte buffer.
 	 */
 	void write_dts(FILE *file);
+	/**
+	 * Tries to merge adjacent property values, returns true if it succeeds and
+	 * false otherwise.
+	 */
+	bool try_to_merge(property_value &other);
 	private:
 	/**
 	 * Returns whether the value is of the specified type.  If the type of
@@ -250,7 +270,7 @@ class property
 	/**
 	 * Parses one or more 32-bit values enclosed in angle brackets.
 	 */
-	void parse_cells(input_buffer &input);
+	void parse_cells(input_buffer &input, int cell_size);
 	/**
 	 * Parses an array of bytes, contained within square brackets.
 	 */
@@ -299,18 +319,18 @@ class property
 	 * property from the input, and returns it on success.  On any parse
 	 * error, this will return 0.
 	 */
-	static property* parse_dtb(input_buffer &structs,
+	static property_ptr parse_dtb(input_buffer &structs,
 	                           input_buffer &strings);
 	/**
 	 * Factory method for constructing a new property.  Attempts to parse a
 	 * property from the input, and returns it on success.  On any parse
 	 * error, this will return 0.
 	 */
-	static property* parse(input_buffer &input,
-	                       string key,
-	                       string label=string(),
-	                       bool semicolonTerminated=true,
-	                       define_map *defines=0);
+	static property_ptr parse(input_buffer &input,
+	                          string key,
+	                          string label=string(),
+	                          bool semicolonTerminated=true,
+	                          define_map *defines=0);
 	/**
 	 * Iterator type used for accessing the values of a property.
 	 */
@@ -378,15 +398,19 @@ class node
 	 * name followed by an at symbol.
 	 */
 	string unit_address;
+	/**
+	 * The type for the property vector.
+	 */
+	typedef std::vector<property_ptr> property_vector;
 	private:
 	/**
 	 * The properties contained within this node.
 	 */
-	std::vector<property*> properties;
+	property_vector properties;
 	/**
 	 * The children of this node.
 	 */
-	std::vector<node*> children;
+	std::vector<node_ptr> children;
 	/**
 	 * A flag indicating whether this node is valid.  This is set to false
 	 * if an error occurs during parsing.
@@ -415,7 +439,7 @@ class node
 	 * Comparison function for properties, used when sorting the properties
 	 * vector.  Orders the properties based on their names.
 	 */
-	static inline bool cmp_properties(property *p1, property *p2);
+	static inline bool cmp_properties(property_ptr &p1, property_ptr &p2);
 		/*
 	{
 		return p1->get_key() < p2->get_key();
@@ -426,16 +450,7 @@ class node
 	 * vector.  Orders the nodes based on their names or, if the names are
 	 * the same, by the unit addresses.
 	 */
-	static inline bool cmp_children(node *c1, node *c2);
-		/*
-	{
-		if (c1->name == c2->name)
-		{
-			return c1->unit_address < c2->unit_address;
-		}
-		return c1->name < c2->name;
-	}
-	*/
+	static inline bool cmp_children(node_ptr &c1, node_ptr &c2);
 	public:
 	/**
 	 * Sorts the node's properties and children into alphabetical order and
@@ -445,7 +460,7 @@ class node
 	/**
 	 * Iterator type for child nodes.
 	 */
-	typedef std::vector<node*>::iterator child_iterator;
+	typedef std::vector<node_ptr>::iterator child_iterator;
 	/**
 	 * Returns an iterator for the first child of this node.
 	 */
@@ -461,20 +476,16 @@ class node
 		return children.end();
 	}
 	/**
-	 * Iterator type for properties of a node.
-	 */
-	typedef std::vector<property*>::iterator property_iterator;
-	/**
 	 * Returns an iterator after the last property of this node.
 	 */
-	inline property_iterator property_begin()
+	inline property_vector::iterator property_begin()
 	{
 		return properties.begin();
 	}
 	/**
 	 * Returns an iterator for the first property of this node.
 	 */
-	inline property_iterator property_end()
+	inline property_vector::iterator property_end()
 	{
 		return properties.end();
 	}
@@ -485,11 +496,11 @@ class node
 	 * cursor on the open brace of the property, after the name and so on
 	 * have been parsed.
 	 */
-	static node* parse(input_buffer &input,
-	                   string name,
-	                   string label=string(),
-	                   string address=string(),
-	                   define_map *defines=0);
+	static node_ptr parse(input_buffer &input,
+	                      string name,
+	                      string label=string(),
+	                      string address=string(),
+	                      define_map *defines=0);
 	/**
 	 * Factory method for constructing a new node.  Attempts to parse a
 	 * node in DTB format from the input, and returns it on success.  On
@@ -497,21 +508,16 @@ class node
 	 * cursor on the open brace of the property, after the name and so on
 	 * have been parsed.
 	 */
-	static node* parse_dtb(input_buffer &structs, input_buffer &strings);
-	/**
-	 * Destroys the node, recursively deleting all of its properties and
-	 * children.
-	 */
-	~node();
+	static node_ptr parse_dtb(input_buffer &structs, input_buffer &strings);
 	/**
 	 * Returns a property corresponding to the specified key, or 0 if this
 	 * node does not contain a property of that name.
 	 */
-	property *get_property(string key);
+	property_ptr get_property(string key);
 	/**
 	 * Adds a new property to this node.
 	 */
-	inline void add_property(property *p)
+	inline void add_property(property_ptr &p)
 	{
 		properties.push_back(p);
 	}
@@ -519,7 +525,7 @@ class node
 	 * Merges a node into this one.  Any properties present in both are
 	 * overridden, any properties present in only one are preserved.
 	 */
-	void merge_node(node *other);
+	void merge_node(node_ptr other);
 	/**
 	 * Write this node to the specified output.  Although nodes do not
 	 * refer to a string table directly, their properties do.  The string
@@ -584,18 +590,18 @@ class device_tree
 	/**
 	 * Root node.  All other nodes are children of this node.
 	 */
-	node *root;
+	node_ptr root;
 	/**
 	 * Mapping from names to nodes.  Only unambiguous names are recorded,
 	 * duplicate names are stored as (node*)-1.
 	 */
-	std::map<string, node*> node_names;
+	std::unordered_map<string, node*> node_names;
 	/**
 	 * A map from labels to node paths.  When resolving cross references,
 	 * we look up referenced nodes in this and replace the cross reference
 	 * with the full path to its target.
 	 */
-	std::map<string, node_path> node_paths;
+	std::unordered_map<string, node_path> node_paths;
 	/**
 	 * A collection of property values that are references to other nodes.
 	 * These should be expanded to the full path of their targets.
@@ -608,11 +614,15 @@ class device_tree
 	 */
 	std::vector<property_value*> phandles;
 	/**
+	 * The names of nodes that target phandles.
+	 */
+	std::unordered_set<string> phandle_targets;
+	/**
 	 * A collection of input buffers that we are using.  These input
 	 * buffers are the ones that own their memory, and so we must preserve
 	 * them for the lifetime of the device tree.  
 	 */
-	std::vector<input_buffer*> buffers;
+	std::vector<std::unique_ptr<input_buffer>> buffers;
 	/**
 	 * A map of used phandle values to nodes.  All phandles must be unique,
 	 * so we keep a set of ones that the user explicitly provides in the
@@ -622,13 +632,13 @@ class device_tree
 	 * find phandles that were provided by the user explicitly when we are
 	 * doing checking.
 	 */
-	std::map<uint32_t, node*> used_phandles;
+	std::unordered_map<uint32_t, node*> used_phandles;
 	/**
 	 * Paths to search for include files.  This contains a set of
 	 * nul-terminated strings, which are not owned by this class and so
 	 * must be freed separately.
 	 */
-	std::vector<const char*> include_paths;
+	std::vector<std::string> include_paths;
 	/**
 	 * Dictionary of predefined macros provided on the command line.
 	 */
@@ -655,7 +665,13 @@ class device_tree
 	 * used in resolving cross references.  Also collects phandle
 	 * properties that have been explicitly added.  
 	 */
-	void collect_names_recursive(node* n, node_path &path);
+	void collect_names_recursive(node_ptr &n, node_path &path);
+	/**
+	 * Assign phandle properties to all nodes that have been referenced and
+	 * require one.  This method will recursively visit the tree starting at
+	 * the node that it is passed.
+	 */
+	void assign_phandles(node_ptr &n, uint32_t &next);
 	/**
 	 * Calls the recursive version of this method on every root node.
 	 */
@@ -667,9 +683,16 @@ class device_tree
 	 */
 	void resolve_cross_references();
 	/**
-	 * Parses root nodes from the top level of a dts file.  
+	 * Parses a dts file in the given buffer and adds the roots to the parsed
+	 * set.  The `read_header` argument indicates whether the header has
+	 * already been read.  Some dts files place the header in an include,
+	 * rather than in the top-level file.
 	 */
-	void parse_roots(input_buffer &input, std::vector<node*> &roots);
+	void parse_file(input_buffer &input,
+	                const std::string &dir,
+	                std::vector<node_ptr> &roots,
+	                FILE *depfile,
+	                bool &read_header);
 	/**
 	 * Allocates a new mmap()'d input buffer for use in parsing.  This
 	 * object then keeps a reference to it, ensuring that it is not
@@ -706,7 +729,7 @@ class device_tree
 	/**
 	 * Default constructor.  Creates a valid, but empty FDT.
 	 */
-	device_tree() : phandle_node_name(EPAPR), valid(true), root(0),
+	device_tree() : phandle_node_name(EPAPR), valid(true),
 		boot_cpu(0), spare_reserve_map_entries(0),
 		minimum_blob_size(0), blob_padding(0) {}
 	/**
@@ -719,10 +742,6 @@ class device_tree
 	 * a file that contains device tree source.
 	 */
 	void parse_dts(const char *fn, FILE *depfile);
-	/**
-	 * Destroy the tree and any input buffers that it holds.
-	 */
-	~device_tree();
 	/**
 	 * Returns whether this tree is valid.
 	 */
@@ -741,7 +760,7 @@ class device_tree
 	 * Returns a pointer to the root node of this tree.  No ownership
 	 * transfer.
 	 */
-	inline node *get_root() const
+	inline const node_ptr &get_root() const
 	{
 		return root;
 	}
@@ -767,7 +786,8 @@ class device_tree
 	 */
 	void add_include_path(const char *path)
 	{
-		include_paths.push_back(path);
+		std::string p(path);
+		include_paths.push_back(std::move(p));
 	}
 	/**
 	 * Sets the number of empty reserve map entries to add.

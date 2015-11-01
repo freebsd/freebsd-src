@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <dev/pci/pcireg.h>
@@ -50,27 +51,41 @@ __FBSDID("$FreeBSD$");
 #include "ioat_hw.h"
 #include "ioat_internal.h"
 
+#define	IOAT_INTR_TIMO	(hz / 10)
+#define	IOAT_REFLK	(&ioat->submit_lock)
+
 static int ioat_probe(device_t device);
 static int ioat_attach(device_t device);
 static int ioat_detach(device_t device);
 static int ioat_setup_intr(struct ioat_softc *ioat);
 static int ioat_teardown_intr(struct ioat_softc *ioat);
 static int ioat3_attach(device_t device);
+static int ioat_start_channel(struct ioat_softc *ioat);
 static int ioat_map_pci_bar(struct ioat_softc *ioat);
 static void ioat_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg,
     int error);
 static void ioat_interrupt_handler(void *arg);
 static boolean_t ioat_model_resets_msix(struct ioat_softc *ioat);
+static int chanerr_to_errno(uint32_t);
 static void ioat_process_events(struct ioat_softc *ioat);
 static inline uint32_t ioat_get_active(struct ioat_softc *ioat);
 static inline uint32_t ioat_get_ring_space(struct ioat_softc *ioat);
+static void ioat_free_ring(struct ioat_softc *, uint32_t size,
+    struct ioat_descriptor **);
 static void ioat_free_ring_entry(struct ioat_softc *ioat,
     struct ioat_descriptor *desc);
-static struct ioat_descriptor * ioat_alloc_ring_entry(struct ioat_softc *ioat);
-static int ioat_reserve_space_and_lock(struct ioat_softc *ioat, int num_descs);
-static struct ioat_descriptor * ioat_get_ring_entry(struct ioat_softc *ioat,
+static struct ioat_descriptor *ioat_alloc_ring_entry(struct ioat_softc *,
+    int mflags);
+static int ioat_reserve_space(struct ioat_softc *, uint32_t, int mflags);
+static struct ioat_descriptor *ioat_get_ring_entry(struct ioat_softc *ioat,
     uint32_t index);
-static boolean_t resize_ring(struct ioat_softc *ioat, int order);
+static struct ioat_descriptor **ioat_prealloc_ring(struct ioat_softc *,
+    uint32_t size, boolean_t need_dscr, int mflags);
+static int ring_grow(struct ioat_softc *, uint32_t oldorder,
+    struct ioat_descriptor **);
+static int ring_shrink(struct ioat_softc *, uint32_t oldorder,
+    struct ioat_descriptor **);
+static void ioat_halted_debug(struct ioat_softc *, uint32_t);
 static void ioat_timer_callback(void *arg);
 static void dump_descriptor(void *hw_desc);
 static void ioat_submit_single(struct ioat_softc *ioat);
@@ -78,6 +93,23 @@ static void ioat_comp_update_map(void *arg, bus_dma_segment_t *seg, int nseg,
     int error);
 static int ioat_reset_hw(struct ioat_softc *ioat);
 static void ioat_setup_sysctl(device_t device);
+static int sysctl_handle_reset(SYSCTL_HANDLER_ARGS);
+static inline struct ioat_softc *ioat_get(struct ioat_softc *,
+    enum ioat_ref_kind);
+static inline void ioat_put(struct ioat_softc *, enum ioat_ref_kind);
+static inline void _ioat_putn(struct ioat_softc *, uint32_t,
+    enum ioat_ref_kind, boolean_t);
+static inline void ioat_putn(struct ioat_softc *, uint32_t,
+    enum ioat_ref_kind);
+static inline void ioat_putn_locked(struct ioat_softc *, uint32_t,
+    enum ioat_ref_kind);
+static void ioat_drain_locked(struct ioat_softc *);
+
+#define	ioat_log_message(v, ...) do {					\
+	if ((v) <= g_ioat_debug_level) {				\
+		device_printf(ioat->device, __VA_ARGS__);		\
+	}								\
+} while (0)
 
 MALLOC_DEFINE(M_IOAT, "ioat", "ioat driver memory allocations");
 SYSCTL_NODE(_hw, OID_AUTO, ioat, CTLFLAG_RD, 0, "ioat node");
@@ -86,7 +118,7 @@ static int g_force_legacy_interrupts;
 SYSCTL_INT(_hw_ioat, OID_AUTO, force_legacy_interrupts, CTLFLAG_RDTUN,
     &g_force_legacy_interrupts, 0, "Set to non-zero to force MSI-X disabled");
 
-static int g_ioat_debug_level = 0;
+int g_ioat_debug_level = 0;
 SYSCTL_INT(_hw_ioat, OID_AUTO, debug_level, CTLFLAG_RWTUN, &g_ioat_debug_level,
     0, "Set log level (0-3) for ioat(4). Higher is more verbose.");
 
@@ -227,10 +259,6 @@ ioat_attach(device_t device)
 		goto err;
 	}
 
-	error = ioat_setup_intr(ioat);
-	if (error != 0)
-		return (error);
-
 	error = ioat3_attach(device);
 	if (error != 0)
 		goto err;
@@ -239,7 +267,20 @@ ioat_attach(device_t device)
 	if (error != 0)
 		goto err;
 
+	error = ioat_setup_intr(ioat);
+	if (error != 0)
+		goto err;
+
+	error = ioat_reset_hw(ioat);
+	if (error != 0)
+		goto err;
+
+	ioat_process_events(ioat);
+	ioat_setup_sysctl(device);
+
+	ioat->chan_idx = ioat_channel_index;
 	ioat_channel[ioat_channel_index++] = ioat;
+	ioat_test_attach();
 
 err:
 	if (error != 0)
@@ -251,9 +292,19 @@ static int
 ioat_detach(device_t device)
 {
 	struct ioat_softc *ioat;
-	uint32_t i;
 
 	ioat = DEVICE2SOFTC(device);
+
+	ioat_test_detach();
+
+	mtx_lock(IOAT_REFLK);
+	ioat->quiescing = TRUE;
+	ioat_channel[ioat->chan_idx] = NULL;
+
+	ioat_drain_locked(ioat);
+	mtx_unlock(IOAT_REFLK);
+
+	ioat_teardown_intr(ioat);
 	callout_drain(&ioat->timer);
 
 	pci_disable_busmaster(device);
@@ -262,11 +313,8 @@ ioat_detach(device_t device)
 		bus_release_resource(device, SYS_RES_MEMORY,
 		    ioat->pci_resource_id, ioat->pci_resource);
 
-	if (ioat->ring != NULL) {
-		for (i = 0; i < (1 << ioat->ring_size_order); i++)
-			ioat_free_ring_entry(ioat, ioat->ring[i]);
-		free(ioat->ring, M_IOAT);
-	}
+	if (ioat->ring != NULL)
+		ioat_free_ring(ioat, 1 << ioat->ring_size_order, ioat->ring);
 
 	if (ioat->comp_update != NULL) {
 		bus_dmamap_unload(ioat->comp_update_tag, ioat->comp_update_map);
@@ -276,8 +324,6 @@ ioat_detach(device_t device)
 	}
 
 	bus_dma_tag_destroy(ioat->hw_desc_tag);
-
-	ioat_teardown_intr(ioat);
 
 	return (0);
 }
@@ -298,7 +344,7 @@ ioat_teardown_intr(struct ioat_softc *ioat)
 }
 
 static int
-ioat3_selftest(struct ioat_softc *ioat)
+ioat_start_channel(struct ioat_softc *ioat)
 {
 	uint64_t status;
 	uint32_t chanerr;
@@ -317,7 +363,8 @@ ioat3_selftest(struct ioat_softc *ioat)
 
 	chanerr = ioat_read_4(ioat, IOAT_CHANERR_OFFSET);
 	ioat_log_message(0, "could not start channel: "
-	    "status = %#jx error = %x\n", (uintmax_t)status, chanerr);
+	    "status = %#jx error = %b\n", (uintmax_t)status, (int)chanerr,
+	    IOAT_CHANERR_STR);
 	return (ENXIO);
 }
 
@@ -331,32 +378,36 @@ ioat3_attach(device_t device)
 	struct ioat_descriptor **ring;
 	struct ioat_descriptor *next;
 	struct ioat_dma_hw_descriptor *dma_hw_desc;
-	uint32_t capabilities;
 	int i, num_descriptors;
 	int error;
 	uint8_t xfercap;
 
 	error = 0;
 	ioat = DEVICE2SOFTC(device);
-	capabilities = ioat_read_dmacapability(ioat);
+	ioat->capabilities = ioat_read_dmacapability(ioat);
+
+	ioat_log_message(1, "Capabilities: %b\n", (int)ioat->capabilities,
+	    IOAT_DMACAP_STR);
 
 	xfercap = ioat_read_xfercap(ioat);
-
-	/* Only bits [4:0] are valid. */
-	xfercap &= 0x1f;
 	ioat->max_xfer_size = 1 << xfercap;
 
 	/* TODO: need to check DCA here if we ever do XOR/PQ */
 
 	mtx_init(&ioat->submit_lock, "ioat_submit", NULL, MTX_DEF);
-	mtx_init(&ioat->cleanup_lock, "ioat_process_events", NULL, MTX_DEF);
-	callout_init(&ioat->timer, CALLOUT_MPSAFE);
+	mtx_init(&ioat->cleanup_lock, "ioat_cleanup", NULL, MTX_DEF);
+	callout_init(&ioat->timer, 1);
+
+	/* Establish lock order for Witness */
+	mtx_lock(&ioat->submit_lock);
+	mtx_lock(&ioat->cleanup_lock);
+	mtx_unlock(&ioat->cleanup_lock);
+	mtx_unlock(&ioat->submit_lock);
 
 	ioat->is_resize_pending = FALSE;
 	ioat->is_completion_pending = FALSE;
 	ioat->is_reset_pending = FALSE;
 	ioat->is_channel_running = FALSE;
-	ioat->is_waiting_for_ack = FALSE;
 
 	bus_dma_tag_create(bus_get_dma_tag(ioat->device), sizeof(uint64_t), 0x0,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
@@ -385,13 +436,13 @@ ioat3_attach(device_t device)
 	    &ioat->hw_desc_tag);
 
 	ioat->ring = malloc(num_descriptors * sizeof(*ring), M_IOAT,
-	    M_ZERO | M_NOWAIT);
+	    M_ZERO | M_WAITOK);
 	if (ioat->ring == NULL)
 		return (ENOMEM);
 
 	ring = ioat->ring;
 	for (i = 0; i < num_descriptors; i++) {
-		ring[i] = ioat_alloc_ring_entry(ioat);
+		ring[i] = ioat_alloc_ring_entry(ioat, M_WAITOK);
 		if (ring[i] == NULL)
 			return (ENOMEM);
 
@@ -407,24 +458,9 @@ ioat3_attach(device_t device)
 
 	ring[i]->u.dma->next = ring[0]->hw_desc_bus_addr;
 
-	ioat->head = 0;
+	ioat->head = ioat->hw_head = 0;
 	ioat->tail = 0;
 	ioat->last_seen = 0;
-
-	error = ioat_reset_hw(ioat);
-	if (error != 0)
-		return (error);
-
-	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
-	ioat_write_chancmp(ioat, ioat->comp_update_bus_addr);
-	ioat_write_chainaddr(ioat, ring[0]->hw_desc_bus_addr);
-
-	error = ioat3_selftest(ioat);
-	if (error != 0)
-		return (error);
-
-	ioat_process_events(ioat);
-	ioat_setup_sysctl(device);
 	return (0);
 }
 
@@ -433,8 +469,8 @@ ioat_map_pci_bar(struct ioat_softc *ioat)
 {
 
 	ioat->pci_resource_id = PCIR_BAR(0);
-	ioat->pci_resource = bus_alloc_resource(ioat->device, SYS_RES_MEMORY,
-	    &ioat->pci_resource_id, 0, ~0, 1, RF_ACTIVE);
+	ioat->pci_resource = bus_alloc_resource_any(ioat->device,
+	    SYS_RES_MEMORY, &ioat->pci_resource_id, RF_ACTIVE);
 
 	if (ioat->pci_resource == NULL) {
 		ioat_log_message(0, "unable to allocate pci resource\n");
@@ -451,6 +487,7 @@ ioat_comp_update_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 {
 	struct ioat_softc *ioat = arg;
 
+	KASSERT(error == 0, ("%s: error:%d", __func__, error));
 	ioat->comp_update_bus_addr = seg[0].ds_addr;
 }
 
@@ -459,6 +496,7 @@ ioat_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	bus_addr_t *baddr;
 
+	KASSERT(error == 0, ("%s: error:%d", __func__, error));
 	baddr = arg;
 	*baddr = segs->ds_addr;
 }
@@ -541,13 +579,30 @@ ioat_interrupt_handler(void *arg)
 	ioat_process_events(ioat);
 }
 
+static int
+chanerr_to_errno(uint32_t chanerr)
+{
+
+	if (chanerr == 0)
+		return (0);
+	if ((chanerr & (IOAT_CHANERR_XSADDERR | IOAT_CHANERR_XDADDERR)) != 0)
+		return (EFAULT);
+	if ((chanerr & (IOAT_CHANERR_RDERR | IOAT_CHANERR_WDERR)) != 0)
+		return (EIO);
+	/* This one is probably our fault: */
+	if ((chanerr & IOAT_CHANERR_NDADDERR) != 0)
+		return (EIO);
+	return (EIO);
+}
+
 static void
 ioat_process_events(struct ioat_softc *ioat)
 {
 	struct ioat_descriptor *desc;
 	struct bus_dmadesc *dmadesc;
 	uint64_t comp_update, status;
-	uint32_t completed;
+	uint32_t completed, chanerr;
+	int error;
 
 	mtx_lock(&ioat->cleanup_lock);
 
@@ -555,21 +610,20 @@ ioat_process_events(struct ioat_softc *ioat)
 	comp_update = *ioat->comp_update;
 	status = comp_update & IOAT_CHANSTS_COMPLETED_DESCRIPTOR_MASK;
 
-	ioat_log_message(3, "%s\n", __func__);
+	CTR0(KTR_IOAT, __func__);
 
-	if (status == ioat->last_seen) {
-	 	mtx_unlock(&ioat->cleanup_lock);
-		return;
-	}
+	if (status == ioat->last_seen)
+		goto out;
 
 	while (1) {
 		desc = ioat_get_ring_entry(ioat, ioat->tail);
 		dmadesc = &desc->bus_dmadesc;
-		ioat_log_message(3, "completing desc %d\n", ioat->tail);
+		CTR1(KTR_IOAT, "completing desc %d", ioat->tail);
 
-		if (dmadesc->callback_fn)
-			(*dmadesc->callback_fn)(dmadesc->callback_arg);
+		if (dmadesc->callback_fn != NULL)
+			dmadesc->callback_fn(dmadesc->callback_arg, 0);
 
+		completed++;
 		ioat->tail++;
 		if (desc->hw_desc_bus_addr == status)
 			break;
@@ -579,11 +633,54 @@ ioat_process_events(struct ioat_softc *ioat)
 
 	if (ioat->head == ioat->tail) {
 		ioat->is_completion_pending = FALSE;
-		callout_reset(&ioat->timer, 5 * hz, ioat_timer_callback, ioat);
+		callout_reset(&ioat->timer, IOAT_INTR_TIMO,
+		    ioat_timer_callback, ioat);
 	}
 
+out:
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 	mtx_unlock(&ioat->cleanup_lock);
+
+	ioat_putn(ioat, completed, IOAT_ACTIVE_DESCR_REF);
+	wakeup(&ioat->tail);
+
+	if (!is_ioat_halted(comp_update))
+		return;
+
+	/*
+	 * Fatal programming error on this DMA channel.  Flush any outstanding
+	 * work with error status and restart the engine.
+	 */
+	ioat_log_message(0, "Channel halted due to fatal programming error\n");
+	mtx_lock(&ioat->submit_lock);
+	mtx_lock(&ioat->cleanup_lock);
+	ioat->quiescing = TRUE;
+
+	chanerr = ioat_read_4(ioat, IOAT_CHANERR_OFFSET);
+	ioat_halted_debug(ioat, chanerr);
+
+	while (ioat_get_active(ioat) > 0) {
+		desc = ioat_get_ring_entry(ioat, ioat->tail);
+		dmadesc = &desc->bus_dmadesc;
+		CTR1(KTR_IOAT, "completing err desc %d", ioat->tail);
+
+		if (dmadesc->callback_fn != NULL)
+			dmadesc->callback_fn(dmadesc->callback_arg,
+			    chanerr_to_errno(chanerr));
+
+		ioat_putn_locked(ioat, 1, IOAT_ACTIVE_DESCR_REF);
+		ioat->tail++;
+	}
+
+	/* Clear error status */
+	ioat_write_4(ioat, IOAT_CHANERR_OFFSET, chanerr);
+
+	mtx_unlock(&ioat->cleanup_lock);
+	mtx_unlock(&ioat->submit_lock);
+
+	ioat_log_message(0, "Resetting channel to recover from error\n");
+	error = ioat_reset_hw(ioat);
+	KASSERT(error == 0, ("%s: reset failed: %d", __func__, error));
 }
 
 /*
@@ -592,10 +689,25 @@ ioat_process_events(struct ioat_softc *ioat)
 bus_dmaengine_t
 ioat_get_dmaengine(uint32_t index)
 {
+	struct ioat_softc *sc;
 
-	if (index < ioat_channel_index)
-		return (&ioat_channel[index]->dmaengine);
-	return (NULL);
+	if (index >= ioat_channel_index)
+		return (NULL);
+
+	sc = ioat_channel[index];
+	if (sc == NULL || sc->quiescing)
+		return (NULL);
+
+	return (&ioat_get(sc, IOAT_DMAENGINE_REF)->dmaengine);
+}
+
+void
+ioat_put_dmaengine(bus_dmaengine_t dmaengine)
+{
+	struct ioat_softc *ioat;
+
+	ioat = to_ioat_softc(dmaengine);
+	ioat_put(ioat, IOAT_DMAENGINE_REF);
 }
 
 void
@@ -605,7 +717,7 @@ ioat_acquire(bus_dmaengine_t dmaengine)
 
 	ioat = to_ioat_softc(dmaengine);
 	mtx_lock(&ioat->submit_lock);
-	ioat_log_message(3, "%s\n", __func__);
+	CTR0(KTR_IOAT, __func__);
 }
 
 void
@@ -613,47 +725,77 @@ ioat_release(bus_dmaengine_t dmaengine)
 {
 	struct ioat_softc *ioat;
 
-	ioat_log_message(3, "%s\n", __func__);
 	ioat = to_ioat_softc(dmaengine);
-	ioat_write_2(ioat, IOAT_DMACOUNT_OFFSET, (uint16_t)ioat->head);
+	CTR0(KTR_IOAT, __func__);
+	ioat_write_2(ioat, IOAT_DMACOUNT_OFFSET, (uint16_t)ioat->hw_head);
 	mtx_unlock(&ioat->submit_lock);
+}
+
+static struct ioat_descriptor *
+ioat_op_generic(struct ioat_softc *ioat, uint8_t op,
+    uint32_t size, uint64_t src, uint64_t dst,
+    bus_dmaengine_callback_t callback_fn, void *callback_arg,
+    uint32_t flags)
+{
+	struct ioat_generic_hw_descriptor *hw_desc;
+	struct ioat_descriptor *desc;
+	int mflags;
+
+	mtx_assert(&ioat->submit_lock, MA_OWNED);
+
+	KASSERT((flags & ~DMA_ALL_FLAGS) == 0, ("Unrecognized flag(s): %#x",
+		flags & ~DMA_ALL_FLAGS));
+	if ((flags & DMA_NO_WAIT) != 0)
+		mflags = M_NOWAIT;
+	else
+		mflags = M_WAITOK;
+
+	if (size > ioat->max_xfer_size) {
+		ioat_log_message(0, "%s: max_xfer_size = %d, requested = %u\n",
+		    __func__, ioat->max_xfer_size, (unsigned)size);
+		return (NULL);
+	}
+
+	if (ioat_reserve_space(ioat, 1, mflags) != 0)
+		return (NULL);
+
+	desc = ioat_get_ring_entry(ioat, ioat->head);
+	hw_desc = desc->u.generic;
+
+	hw_desc->u.control_raw = 0;
+	hw_desc->u.control_generic.op = op;
+	hw_desc->u.control_generic.completion_update = 1;
+
+	if ((flags & DMA_INT_EN) != 0)
+		hw_desc->u.control_generic.int_enable = 1;
+
+	hw_desc->size = size;
+	hw_desc->src_addr = src;
+	hw_desc->dest_addr = dst;
+
+	desc->bus_dmadesc.callback_fn = callback_fn;
+	desc->bus_dmadesc.callback_arg = callback_arg;
+	return (desc);
 }
 
 struct bus_dmadesc *
 ioat_null(bus_dmaengine_t dmaengine, bus_dmaengine_callback_t callback_fn,
     void *callback_arg, uint32_t flags)
 {
-	struct ioat_softc *ioat;
-	struct ioat_descriptor *desc;
 	struct ioat_dma_hw_descriptor *hw_desc;
+	struct ioat_descriptor *desc;
+	struct ioat_softc *ioat;
 
-	KASSERT((flags & ~DMA_ALL_FLAGS) == 0, ("Unrecognized flag(s): %#x",
-		flags & ~DMA_ALL_FLAGS));
-
+	CTR0(KTR_IOAT, __func__);
 	ioat = to_ioat_softc(dmaengine);
 
-	if (ioat_reserve_space_and_lock(ioat, 1) != 0)
+	desc = ioat_op_generic(ioat, IOAT_OP_COPY, 8, 0, 0, callback_fn,
+	    callback_arg, flags);
+	if (desc == NULL)
 		return (NULL);
 
-	ioat_log_message(3, "%s\n", __func__);
-
-	desc = ioat_get_ring_entry(ioat, ioat->head);
 	hw_desc = desc->u.dma;
-
-	hw_desc->u.control_raw = 0;
 	hw_desc->u.control.null = 1;
-	hw_desc->u.control.completion_update = 1;
-
-	if ((flags & DMA_INT_EN) != 0)
-		hw_desc->u.control.int_enable = 1;
-
-	hw_desc->size = 8;
-	hw_desc->src_addr = 0;
-	hw_desc->dest_addr = 0;
-
-	desc->bus_dmadesc.callback_fn = callback_fn;
-	desc->bus_dmadesc.callback_arg = callback_arg;
-
 	ioat_submit_single(ioat);
 	return (&desc->bus_dmadesc);
 }
@@ -663,44 +805,64 @@ ioat_copy(bus_dmaengine_t dmaengine, bus_addr_t dst,
     bus_addr_t src, bus_size_t len, bus_dmaengine_callback_t callback_fn,
     void *callback_arg, uint32_t flags)
 {
-	struct ioat_descriptor *desc;
 	struct ioat_dma_hw_descriptor *hw_desc;
+	struct ioat_descriptor *desc;
 	struct ioat_softc *ioat;
 
-	KASSERT((flags & ~DMA_ALL_FLAGS) == 0, ("Unrecognized flag(s): %#x",
-		flags & ~DMA_ALL_FLAGS));
-
+	CTR0(KTR_IOAT, __func__);
 	ioat = to_ioat_softc(dmaengine);
 
-	if (len > ioat->max_xfer_size) {
-		ioat_log_message(0, "%s: max_xfer_size = %d, requested = %d\n",
-		    __func__, ioat->max_xfer_size, (int)len);
+	if (((src | dst) & (0xffffull << 48)) != 0) {
+		ioat_log_message(0, "%s: High 16 bits of src/dst invalid\n",
+		    __func__);
 		return (NULL);
 	}
 
-	if (ioat_reserve_space_and_lock(ioat, 1) != 0)
+	desc = ioat_op_generic(ioat, IOAT_OP_COPY, len, src, dst, callback_fn,
+	    callback_arg, flags);
+	if (desc == NULL)
 		return (NULL);
 
-	ioat_log_message(3, "%s\n", __func__);
-
-	desc = ioat_get_ring_entry(ioat, ioat->head);
 	hw_desc = desc->u.dma;
-
-	hw_desc->u.control_raw = 0;
-	hw_desc->u.control.completion_update = 1;
-
-	if ((flags & DMA_INT_EN) != 0)
-		hw_desc->u.control.int_enable = 1;
-
-	hw_desc->size = len;
-	hw_desc->src_addr = src;
-	hw_desc->dest_addr = dst;
-
 	if (g_ioat_debug_level >= 3)
 		dump_descriptor(hw_desc);
 
-	desc->bus_dmadesc.callback_fn = callback_fn;
-	desc->bus_dmadesc.callback_arg = callback_arg;
+	ioat_submit_single(ioat);
+	return (&desc->bus_dmadesc);
+}
+
+struct bus_dmadesc *
+ioat_blockfill(bus_dmaengine_t dmaengine, bus_addr_t dst, uint64_t fillpattern,
+    bus_size_t len, bus_dmaengine_callback_t callback_fn, void *callback_arg,
+    uint32_t flags)
+{
+	struct ioat_fill_hw_descriptor *hw_desc;
+	struct ioat_descriptor *desc;
+	struct ioat_softc *ioat;
+
+	CTR0(KTR_IOAT, __func__);
+	ioat = to_ioat_softc(dmaengine);
+
+	if ((ioat->capabilities & IOAT_DMACAP_BFILL) == 0) {
+		ioat_log_message(0, "%s: Device lacks BFILL capability\n",
+		    __func__);
+		return (NULL);
+	}
+
+	if ((dst & (0xffffull << 48)) != 0) {
+		ioat_log_message(0, "%s: High 16 bits of dst invalid\n",
+		    __func__);
+		return (NULL);
+	}
+
+	desc = ioat_op_generic(ioat, IOAT_OP_FILL, len, fillpattern, dst,
+	    callback_fn, callback_arg, flags);
+	if (desc == NULL)
+		return (NULL);
+
+	hw_desc = desc->u.fill;
+	if (g_ioat_debug_level >= 3)
+		dump_descriptor(hw_desc);
 
 	ioat_submit_single(ioat);
 	return (&desc->bus_dmadesc);
@@ -724,26 +886,43 @@ ioat_get_ring_space(struct ioat_softc *ioat)
 }
 
 static struct ioat_descriptor *
-ioat_alloc_ring_entry(struct ioat_softc *ioat)
+ioat_alloc_ring_entry(struct ioat_softc *ioat, int mflags)
 {
-	struct ioat_dma_hw_descriptor *hw_desc;
+	struct ioat_generic_hw_descriptor *hw_desc;
 	struct ioat_descriptor *desc;
+	int error, busdmaflag;
 
-	desc = malloc(sizeof(struct ioat_descriptor), M_IOAT, M_NOWAIT);
+	error = ENOMEM;
+	hw_desc = NULL;
+
+	if ((mflags & M_WAITOK) != 0)
+		busdmaflag = BUS_DMA_WAITOK;
+	else
+		busdmaflag = BUS_DMA_NOWAIT;
+
+	desc = malloc(sizeof(*desc), M_IOAT, mflags);
 	if (desc == NULL)
-		return (NULL);
+		goto out;
 
-	bus_dmamem_alloc(ioat->hw_desc_tag, (void **)&hw_desc, BUS_DMA_ZERO,
-	    &ioat->hw_desc_map);
-	if (hw_desc == NULL) {
-		free(desc, M_IOAT);
+	bus_dmamem_alloc(ioat->hw_desc_tag, (void **)&hw_desc,
+	    BUS_DMA_ZERO | busdmaflag, &ioat->hw_desc_map);
+	if (hw_desc == NULL)
+		goto out;
+
+	memset(&desc->bus_dmadesc, 0, sizeof(desc->bus_dmadesc));
+	desc->u.generic = hw_desc;
+
+	error = bus_dmamap_load(ioat->hw_desc_tag, ioat->hw_desc_map, hw_desc,
+	    sizeof(*hw_desc), ioat_dmamap_cb, &desc->hw_desc_bus_addr,
+	    busdmaflag);
+	if (error)
+		goto out;
+
+out:
+	if (error) {
+		ioat_free_ring_entry(ioat, desc);
 		return (NULL);
 	}
-
-	bus_dmamap_load(ioat->hw_desc_tag, ioat->hw_desc_map, hw_desc,
-	    sizeof(*hw_desc), ioat_dmamap_cb, &desc->hw_desc_bus_addr, 0);
-
-	desc->u.dma = hw_desc;
 	return (desc);
 }
 
@@ -754,28 +933,140 @@ ioat_free_ring_entry(struct ioat_softc *ioat, struct ioat_descriptor *desc)
 	if (desc == NULL)
 		return;
 
-	if (desc->u.dma)
-		bus_dmamem_free(ioat->hw_desc_tag, desc->u.dma,
+	if (desc->u.generic)
+		bus_dmamem_free(ioat->hw_desc_tag, desc->u.generic,
 		    ioat->hw_desc_map);
 	free(desc, M_IOAT);
 }
 
+/*
+ * Reserves space in this IOAT descriptor ring by ensuring enough slots remain
+ * for 'num_descs'.
+ *
+ * If mflags contains M_WAITOK, blocks until enough space is available.
+ *
+ * Returns zero on success, or an errno on error.  If num_descs is beyond the
+ * maximum ring size, returns EINVAl; if allocation would block and mflags
+ * contains M_NOWAIT, returns EAGAIN.
+ *
+ * Must be called with the submit_lock held; returns with the lock held.  The
+ * lock may be dropped to allocate the ring.
+ *
+ * (The submit_lock is needed to add any entries to the ring, so callers are
+ * assured enough room is available.)
+ */
 static int
-ioat_reserve_space_and_lock(struct ioat_softc *ioat, int num_descs)
+ioat_reserve_space(struct ioat_softc *ioat, uint32_t num_descs, int mflags)
 {
-	boolean_t retry;
+	struct ioat_descriptor **new_ring;
+	uint32_t order;
+	int error;
 
-	while (1) {
-		if (ioat_get_ring_space(ioat) >= num_descs)
-			return (0);
+	mtx_assert(&ioat->submit_lock, MA_OWNED);
+	error = 0;
 
-		mtx_lock(&ioat->cleanup_lock);
-		retry = resize_ring(ioat, ioat->ring_size_order + 1);
-		mtx_unlock(&ioat->cleanup_lock);
-
-		if (!retry)
-			return (ENOMEM);
+	if (num_descs < 1 || num_descs > (1 << IOAT_MAX_ORDER)) {
+		error = EINVAL;
+		goto out;
 	}
+	if (ioat->quiescing) {
+		error = ENXIO;
+		goto out;
+	}
+
+	for (;;) {
+		if (ioat_get_ring_space(ioat) >= num_descs)
+			goto out;
+
+		order = ioat->ring_size_order;
+		if (ioat->is_resize_pending || order == IOAT_MAX_ORDER) {
+			if ((mflags & M_WAITOK) != 0) {
+				msleep(&ioat->tail, &ioat->submit_lock, 0,
+				    "ioat_rsz", 0);
+				continue;
+			}
+
+			error = EAGAIN;
+			break;
+		}
+
+		ioat->is_resize_pending = TRUE;
+		for (;;) {
+			mtx_unlock(&ioat->submit_lock);
+
+			new_ring = ioat_prealloc_ring(ioat, 1 << (order + 1),
+			    TRUE, mflags);
+
+			mtx_lock(&ioat->submit_lock);
+			KASSERT(ioat->ring_size_order == order,
+			    ("is_resize_pending should protect order"));
+
+			if (new_ring == NULL) {
+				KASSERT((mflags & M_WAITOK) == 0,
+				    ("allocation failed"));
+				error = EAGAIN;
+				break;
+			}
+
+			error = ring_grow(ioat, order, new_ring);
+			if (error == 0)
+				break;
+		}
+		ioat->is_resize_pending = FALSE;
+		wakeup(&ioat->tail);
+		if (error)
+			break;
+	}
+
+out:
+	mtx_assert(&ioat->submit_lock, MA_OWNED);
+	return (error);
+}
+
+static struct ioat_descriptor **
+ioat_prealloc_ring(struct ioat_softc *ioat, uint32_t size, boolean_t need_dscr,
+    int mflags)
+{
+	struct ioat_descriptor **ring;
+	uint32_t i;
+	int error;
+
+	KASSERT(size > 0 && powerof2(size), ("bogus size"));
+
+	ring = malloc(size * sizeof(*ring), M_IOAT, M_ZERO | mflags);
+	if (ring == NULL)
+		return (NULL);
+
+	if (need_dscr) {
+		error = ENOMEM;
+		for (i = size / 2; i < size; i++) {
+			ring[i] = ioat_alloc_ring_entry(ioat, mflags);
+			if (ring[i] == NULL)
+				goto out;
+			ring[i]->id = i;
+		}
+	}
+	error = 0;
+
+out:
+	if (error != 0 && ring != NULL) {
+		ioat_free_ring(ioat, size, ring);
+		ring = NULL;
+	}
+	return (ring);
+}
+
+static void
+ioat_free_ring(struct ioat_softc *ioat, uint32_t size,
+    struct ioat_descriptor **ring)
+{
+	uint32_t i;
+
+	for (i = 0; i < size; i++) {
+		if (ring[i] != NULL)
+			ioat_free_ring_entry(ioat, ring[i]);
+	}
+	free(ring, M_IOAT);
 }
 
 static struct ioat_descriptor *
@@ -785,151 +1076,218 @@ ioat_get_ring_entry(struct ioat_softc *ioat, uint32_t index)
 	return (ioat->ring[index % (1 << ioat->ring_size_order)]);
 }
 
-static boolean_t
-resize_ring(struct ioat_softc *ioat, int order)
+static int
+ring_grow(struct ioat_softc *ioat, uint32_t oldorder,
+    struct ioat_descriptor **newring)
 {
-	struct ioat_descriptor **ring;
-	struct ioat_descriptor *next;
+	struct ioat_descriptor *tmp, *next;
 	struct ioat_dma_hw_descriptor *hw;
-	struct ioat_descriptor *ent;
-	uint32_t current_size, active, new_size, i, new_idx, current_idx;
-	uint32_t new_idx2;
+	uint32_t oldsize, newsize, head, tail, i, end;
+	int error;
 
-	current_size = 1 << ioat->ring_size_order;
-	active = (ioat->head - ioat->tail) & (current_size - 1);
-	new_size = 1 << order;
+	CTR0(KTR_IOAT, __func__);
 
-	if (order > IOAT_MAX_ORDER)
-		return (FALSE);
+	mtx_assert(&ioat->submit_lock, MA_OWNED);
+
+	if (oldorder != ioat->ring_size_order || oldorder >= IOAT_MAX_ORDER) {
+		error = EINVAL;
+		goto out;
+	}
+
+	oldsize = (1 << oldorder);
+	newsize = (1 << (oldorder + 1));
+
+	mtx_lock(&ioat->cleanup_lock);
+
+	head = ioat->head & (oldsize - 1);
+	tail = ioat->tail & (oldsize - 1);
+
+	/* Copy old descriptors to new ring */
+	for (i = 0; i < oldsize; i++)
+		newring[i] = ioat->ring[i];
 
 	/*
-	 * when shrinking, verify that we can hold the current active
-	 * set in the new ring
+	 * If head has wrapped but tail hasn't, we must swap some descriptors
+	 * around so that tail can increment directly to head.
 	 */
-	if (active >= new_size)
-		return (FALSE);
+	if (head < tail) {
+		for (i = 0; i <= head; i++) {
+			tmp = newring[oldsize + i];
 
-	/* allocate the array to hold the software ring */
-	ring = malloc(new_size * sizeof(*ring), M_IOAT, M_ZERO | M_NOWAIT);
-	if (ring == NULL)
-		return (FALSE);
+			newring[oldsize + i] = newring[i];
+			newring[oldsize + i]->id = oldsize + i;
 
-	ioat_log_message(2, "ring resize: new: %d old: %d\n",
-	    new_size, current_size);
-
-	/* allocate/trim descriptors as needed */
-	if (new_size > current_size) {
-		/* copy current descriptors to the new ring */
-		for (i = 0; i < current_size; i++) {
-			current_idx = (ioat->tail + i) & (current_size - 1);
-			new_idx = (ioat->tail + i) & (new_size - 1);
-
-			ring[new_idx] = ioat->ring[current_idx];
-			ring[new_idx]->id = new_idx;
+			newring[i] = tmp;
+			newring[i]->id = i;
 		}
+		head += oldsize;
+	}
 
-		/* add new descriptors to the ring */
-		for (i = current_size; i < new_size; i++) {
-			new_idx = (ioat->tail + i) & (new_size - 1);
+	KASSERT(head >= tail, ("invariants"));
 
-			ring[new_idx] = ioat_alloc_ring_entry(ioat);
-			if (ring[new_idx] == NULL) {
-				while (i--) {
-					new_idx2 = (ioat->tail + i) &
-					    (new_size - 1);
-
-					ioat_free_ring_entry(ioat,
-					    ring[new_idx2]);
-				}
-				free(ring, M_IOAT);
-				return (FALSE);
-			}
-			ring[new_idx]->id = new_idx;
-		}
-
-		for (i = current_size - 1; i < new_size; i++) {
-			new_idx = (ioat->tail + i) & (new_size - 1);
-			next = ring[(new_idx + 1) & (new_size - 1)];
-			hw = ring[new_idx]->u.dma;
-
-			hw->next = next->hw_desc_bus_addr;
-		}
+	/* Head didn't wrap; we only need to link in oldsize..newsize */
+	if (head < oldsize) {
+		i = oldsize - 1;
+		end = newsize;
 	} else {
-		/*
-		 * copy current descriptors to the new ring, dropping the
-		 * removed descriptors
-		 */
-		for (i = 0; i < new_size; i++) {
-			current_idx = (ioat->tail + i) & (current_size - 1);
-			new_idx = (ioat->tail + i) & (new_size - 1);
+		/* Head did wrap; link newhead..newsize and 0..oldhead */
+		i = head;
+		end = newsize + (head - oldsize) + 1;
+	}
 
-			ring[new_idx] = ioat->ring[current_idx];
-			ring[new_idx]->id = new_idx;
-		}
+	/*
+	 * Fix up hardware ring, being careful not to trample the active
+	 * section (tail -> head).
+	 */
+	for (; i < end; i++) {
+		KASSERT((i & (newsize - 1)) < tail ||
+		    (i & (newsize - 1)) >= head, ("trampling snake"));
 
-		/* free deleted descriptors */
-		for (i = new_size; i < current_size; i++) {
-			ent = ioat_get_ring_entry(ioat, ioat->tail + i);
-			ioat_free_ring_entry(ioat, ent);
-		}
-
-		/* fix up hardware ring */
-		hw = ring[(ioat->tail + new_size - 1) & (new_size - 1)]->u.dma;
-		next = ring[(ioat->tail + new_size) & (new_size - 1)];
+		next = newring[(i + 1) & (newsize - 1)];
+		hw = newring[i & (newsize - 1)]->u.dma;
 		hw->next = next->hw_desc_bus_addr;
 	}
 
 	free(ioat->ring, M_IOAT);
-	ioat->ring = ring;
-	ioat->ring_size_order = order;
+	ioat->ring = newring;
+	ioat->ring_size_order = oldorder + 1;
+	ioat->tail = tail;
+	ioat->head = head;
+	error = 0;
 
-	return (TRUE);
+	mtx_unlock(&ioat->cleanup_lock);
+out:
+	if (error)
+		ioat_free_ring(ioat, (1 << (oldorder + 1)), newring);
+	return (error);
+}
+
+static int
+ring_shrink(struct ioat_softc *ioat, uint32_t oldorder,
+    struct ioat_descriptor **newring)
+{
+	struct ioat_dma_hw_descriptor *hw;
+	struct ioat_descriptor *ent, *next;
+	uint32_t oldsize, newsize, current_idx, new_idx, i;
+	int error;
+
+	CTR0(KTR_IOAT, __func__);
+
+	mtx_assert(&ioat->submit_lock, MA_OWNED);
+
+	if (oldorder != ioat->ring_size_order || oldorder <= IOAT_MIN_ORDER) {
+		error = EINVAL;
+		goto out_unlocked;
+	}
+
+	oldsize = (1 << oldorder);
+	newsize = (1 << (oldorder - 1));
+
+	mtx_lock(&ioat->cleanup_lock);
+
+	/* Can't shrink below current active set! */
+	if (ioat_get_active(ioat) >= newsize) {
+		error = ENOMEM;
+		goto out;
+	}
+
+	/*
+	 * Copy current descriptors to the new ring, dropping the removed
+	 * descriptors.
+	 */
+	for (i = 0; i < newsize; i++) {
+		current_idx = (ioat->tail + i) & (oldsize - 1);
+		new_idx = (ioat->tail + i) & (newsize - 1);
+
+		newring[new_idx] = ioat->ring[current_idx];
+		newring[new_idx]->id = new_idx;
+	}
+
+	/* Free deleted descriptors */
+	for (i = newsize; i < oldsize; i++) {
+		ent = ioat_get_ring_entry(ioat, ioat->tail + i);
+		ioat_free_ring_entry(ioat, ent);
+	}
+
+	/* Fix up hardware ring. */
+	hw = newring[(ioat->tail + newsize - 1) & (newsize - 1)]->u.dma;
+	next = newring[(ioat->tail + newsize) & (newsize - 1)];
+	hw->next = next->hw_desc_bus_addr;
+
+	free(ioat->ring, M_IOAT);
+	ioat->ring = newring;
+	ioat->ring_size_order = oldorder - 1;
+	error = 0;
+
+out:
+	mtx_unlock(&ioat->cleanup_lock);
+out_unlocked:
+	if (error)
+		ioat_free_ring(ioat, (1 << (oldorder - 1)), newring);
+	return (error);
+}
+
+static void
+ioat_halted_debug(struct ioat_softc *ioat, uint32_t chanerr)
+{
+	struct ioat_descriptor *desc;
+
+	ioat_log_message(0, "Channel halted (%b)\n", (int)chanerr,
+	    IOAT_CHANERR_STR);
+	if (chanerr == 0)
+		return;
+
+	mtx_assert(&ioat->cleanup_lock, MA_OWNED);
+
+	desc = ioat_get_ring_entry(ioat, ioat->tail + 0);
+	dump_descriptor(desc->u.raw);
+
+	desc = ioat_get_ring_entry(ioat, ioat->tail + 1);
+	dump_descriptor(desc->u.raw);
 }
 
 static void
 ioat_timer_callback(void *arg)
 {
-	struct ioat_descriptor *desc;
+	struct ioat_descriptor **newring;
 	struct ioat_softc *ioat;
-	uint64_t status;
-	uint32_t chanerr;
+	uint32_t order;
 
 	ioat = arg;
-	ioat_log_message(2, "%s\n", __func__);
+	ioat_log_message(1, "%s\n", __func__);
 
 	if (ioat->is_completion_pending) {
-		status = ioat_get_chansts(ioat);
-
-		/*
-		 * When halted due to errors, check for channel programming
-		 * errors before advancing the completion state.
-		 */
-		if (is_ioat_halted(status)) {
-			chanerr = ioat_read_4(ioat, IOAT_CHANERR_OFFSET);
-			ioat_log_message(0, "Channel halted (%x)\n", chanerr);
-
-			desc = ioat_get_ring_entry(ioat, ioat->tail + 0);
-			dump_descriptor(desc->u.raw);
-
-			desc = ioat_get_ring_entry(ioat, ioat->tail + 1);
-			dump_descriptor(desc->u.raw);
-		}
 		ioat_process_events(ioat);
-	} else {
-		mtx_lock(&ioat->submit_lock);
-		mtx_lock(&ioat->cleanup_lock);
-
-		if (ioat_get_active(ioat) == 0 &&
-		    ioat->ring_size_order > IOAT_MIN_ORDER)
-			resize_ring(ioat, ioat->ring_size_order - 1);
-
-		mtx_unlock(&ioat->cleanup_lock);
-		mtx_unlock(&ioat->submit_lock);
-
-		if (ioat->ring_size_order > IOAT_MIN_ORDER)
-			callout_reset(&ioat->timer, 5 * hz,
-			    ioat_timer_callback, ioat);
+		return;
 	}
+
+	/* Slowly scale the ring down if idle. */
+	mtx_lock(&ioat->submit_lock);
+	order = ioat->ring_size_order;
+	if (ioat->is_resize_pending || order == IOAT_MIN_ORDER) {
+		mtx_unlock(&ioat->submit_lock);
+		goto out;
+	}
+	ioat->is_resize_pending = TRUE;
+	mtx_unlock(&ioat->submit_lock);
+
+	newring = ioat_prealloc_ring(ioat, 1 << (order - 1), FALSE,
+	    M_NOWAIT);
+
+	mtx_lock(&ioat->submit_lock);
+	KASSERT(ioat->ring_size_order == order,
+	    ("resize_pending protects order"));
+
+	if (newring != NULL)
+		ring_shrink(ioat, order, newring);
+
+	ioat->is_resize_pending = FALSE;
+	mtx_unlock(&ioat->submit_lock);
+
+out:
+	if (ioat->ring_size_order > IOAT_MIN_ORDER)
+		callout_reset(&ioat->timer, 10 * hz,
+		    ioat_timer_callback, ioat);
 }
 
 /*
@@ -939,12 +1297,14 @@ static void
 ioat_submit_single(struct ioat_softc *ioat)
 {
 
+	ioat_get(ioat, IOAT_ACTIVE_DESCR_REF);
 	atomic_add_rel_int(&ioat->head, 1);
+	atomic_add_rel_int(&ioat->hw_head, 1);
 
 	if (!ioat->is_completion_pending) {
 		ioat->is_completion_pending = TRUE;
-		callout_reset(&ioat->timer, 10 * hz, ioat_timer_callback,
-		    ioat);
+		callout_reset(&ioat->timer, IOAT_INTR_TIMO,
+		    ioat_timer_callback, ioat);
 	}
 }
 
@@ -953,7 +1313,13 @@ ioat_reset_hw(struct ioat_softc *ioat)
 {
 	uint64_t status;
 	uint32_t chanerr;
-	int timeout;
+	unsigned timeout;
+	int error;
+
+	mtx_lock(IOAT_REFLK);
+	ioat->quiescing = TRUE;
+	ioat_drain_locked(ioat);
+	mtx_unlock(IOAT_REFLK);
 
 	status = ioat_get_chansts(ioat);
 	if (is_ioat_active(status) || is_ioat_idle(status))
@@ -965,8 +1331,12 @@ ioat_reset_hw(struct ioat_softc *ioat)
 		DELAY(1000);
 		status = ioat_get_chansts(ioat);
 	}
-	if (timeout == 20)
-		return (ETIMEDOUT);
+	if (timeout == 20) {
+		error = ETIMEDOUT;
+		goto out;
+	}
+
+	KASSERT(ioat_get_active(ioat) == 0, ("active after quiesce"));
 
 	chanerr = ioat_read_4(ioat, IOAT_CHANERR_OFFSET);
 	ioat_write_4(ioat, IOAT_CHANERR_OFFSET, chanerr);
@@ -984,21 +1354,165 @@ ioat_reset_hw(struct ioat_softc *ioat)
 	 * BDXDE and BWD models reset MSI-X registers on device reset.
 	 * Save/restore their contents manually.
 	 */
-	if (ioat_model_resets_msix(ioat))
+	if (ioat_model_resets_msix(ioat)) {
+		ioat_log_message(1, "device resets MSI-X registers; saving\n");
 		pci_save_state(ioat->device);
+	}
 
 	ioat_reset(ioat);
 
 	/* Wait at most 20 ms */
 	for (timeout = 0; ioat_reset_pending(ioat) && timeout < 20; timeout++)
 		DELAY(1000);
-	if (timeout == 20)
-		return (ETIMEDOUT);
+	if (timeout == 20) {
+		error = ETIMEDOUT;
+		goto out;
+	}
 
-	if (ioat_model_resets_msix(ioat))
+	if (ioat_model_resets_msix(ioat)) {
+		ioat_log_message(1, "device resets registers; restored\n");
 		pci_restore_state(ioat->device);
+	}
 
-	return (0);
+	/* Reset attempts to return the hardware to "halted." */
+	status = ioat_get_chansts(ioat);
+	if (is_ioat_active(status) || is_ioat_idle(status)) {
+		/* So this really shouldn't happen... */
+		ioat_log_message(0, "Device is active after a reset?\n");
+		ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
+		error = 0;
+		goto out;
+	}
+
+	chanerr = ioat_read_4(ioat, IOAT_CHANERR_OFFSET);
+	if (chanerr != 0) {
+		mtx_lock(&ioat->cleanup_lock);
+		ioat_halted_debug(ioat, chanerr);
+		mtx_unlock(&ioat->cleanup_lock);
+		error = EIO;
+		goto out;
+	}
+
+	/*
+	 * Bring device back online after reset.  Writing CHAINADDR brings the
+	 * device back to active.
+	 *
+	 * The internal ring counter resets to zero, so we have to start over
+	 * at zero as well.
+	 */
+	ioat->tail = ioat->head = ioat->hw_head = 0;
+	ioat->last_seen = 0;
+
+	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
+	ioat_write_chancmp(ioat, ioat->comp_update_bus_addr);
+	ioat_write_chainaddr(ioat, ioat->ring[0]->hw_desc_bus_addr);
+	error = 0;
+
+out:
+	mtx_lock(IOAT_REFLK);
+	ioat->quiescing = FALSE;
+	mtx_unlock(IOAT_REFLK);
+
+	if (error == 0)
+		error = ioat_start_channel(ioat);
+
+	return (error);
+}
+
+static int
+sysctl_handle_chansts(SYSCTL_HANDLER_ARGS)
+{
+	struct ioat_softc *ioat;
+	struct sbuf sb;
+	uint64_t status;
+	int error;
+
+	ioat = arg1;
+
+	status = ioat_get_chansts(ioat) & IOAT_CHANSTS_STATUS;
+
+	sbuf_new_for_sysctl(&sb, NULL, 256, req);
+	switch (status) {
+	case IOAT_CHANSTS_ACTIVE:
+		sbuf_printf(&sb, "ACTIVE");
+		break;
+	case IOAT_CHANSTS_IDLE:
+		sbuf_printf(&sb, "IDLE");
+		break;
+	case IOAT_CHANSTS_SUSPENDED:
+		sbuf_printf(&sb, "SUSPENDED");
+		break;
+	case IOAT_CHANSTS_HALTED:
+		sbuf_printf(&sb, "HALTED");
+		break;
+	case IOAT_CHANSTS_ARMED:
+		sbuf_printf(&sb, "ARMED");
+		break;
+	default:
+		sbuf_printf(&sb, "UNKNOWN");
+		break;
+	}
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	return (EINVAL);
+}
+
+static int
+sysctl_handle_error(SYSCTL_HANDLER_ARGS)
+{
+	struct ioat_descriptor *desc;
+	struct ioat_softc *ioat;
+	int error, arg;
+
+	ioat = arg1;
+
+	arg = 0;
+	error = SYSCTL_OUT(req, &arg, sizeof(arg));
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	error = SYSCTL_IN(req, &arg, sizeof(arg));
+	if (error != 0)
+		return (error);
+
+	if (arg != 0) {
+		ioat_acquire(&ioat->dmaengine);
+		desc = ioat_op_generic(ioat, IOAT_OP_COPY, 1,
+		    0xffff000000000000ull, 0xffff000000000000ull, NULL, NULL,
+		    0);
+		if (desc == NULL)
+			error = ENOMEM;
+		else
+			ioat_submit_single(ioat);
+		ioat_release(&ioat->dmaengine);
+	}
+	return (error);
+}
+
+static int
+sysctl_handle_reset(SYSCTL_HANDLER_ARGS)
+{
+	struct ioat_softc *ioat;
+	int error, arg;
+
+	ioat = arg1;
+
+	arg = 0;
+	error = SYSCTL_OUT(req, &arg, sizeof(arg));
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	error = SYSCTL_IN(req, &arg, sizeof(arg));
+	if (error != 0)
+		return (error);
+
+	if (arg != 0)
+		error = ioat_reset_hw(ioat);
+
+	return (error);
 }
 
 static void
@@ -1016,39 +1530,136 @@ dump_descriptor(void *hw_desc)
 static void
 ioat_setup_sysctl(device_t device)
 {
-	struct sysctl_ctx_list *sysctl_ctx;
-	struct sysctl_oid *sysctl_tree;
+	struct sysctl_oid_list *par;
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
 	struct ioat_softc *ioat;
 
 	ioat = DEVICE2SOFTC(device);
-	sysctl_ctx = device_get_sysctl_ctx(device);
-	sysctl_tree = device_get_sysctl_tree(device);
+	ctx = device_get_sysctl_ctx(device);
+	tree = device_get_sysctl_tree(device);
+	par = SYSCTL_CHILDREN(tree);
 
-	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
-	    "ring_size_order", CTLFLAG_RD, &ioat->ring_size_order,
-	    0, "HW descriptor ring size order");
-	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
-	    "head", CTLFLAG_RD, &ioat->head,
-	    0, "HW descriptor head pointer index");
-	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
-	    "tail", CTLFLAG_RD, &ioat->tail,
-	    0, "HW descriptor tail pointer index");
+	SYSCTL_ADD_INT(ctx, par, OID_AUTO, "version", CTLFLAG_RD,
+	    &ioat->version, 0, "HW version (0xMM form)");
+	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "max_xfer_size", CTLFLAG_RD,
+	    &ioat->max_xfer_size, 0, "HW maximum transfer size");
+
+	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "ring_size_order", CTLFLAG_RD,
+	    &ioat->ring_size_order, 0, "SW descriptor ring size order");
+	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "head", CTLFLAG_RD, &ioat->head, 0,
+	    "SW descriptor head pointer index");
+	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "tail", CTLFLAG_RD, &ioat->tail, 0,
+	    "SW descriptor tail pointer index");
+	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "hw_head", CTLFLAG_RD,
+	    &ioat->hw_head, 0, "HW DMACOUNT");
+
+	SYSCTL_ADD_UQUAD(ctx, par, OID_AUTO, "last_completion", CTLFLAG_RD,
+	    ioat->comp_update, "HW addr of last completion");
+
+	SYSCTL_ADD_INT(ctx, par, OID_AUTO, "is_resize_pending", CTLFLAG_RD,
+	    &ioat->is_resize_pending, 0, "resize pending");
+	SYSCTL_ADD_INT(ctx, par, OID_AUTO, "is_completion_pending", CTLFLAG_RD,
+	    &ioat->is_completion_pending, 0, "completion pending");
+	SYSCTL_ADD_INT(ctx, par, OID_AUTO, "is_reset_pending", CTLFLAG_RD,
+	    &ioat->is_reset_pending, 0, "reset pending");
+	SYSCTL_ADD_INT(ctx, par, OID_AUTO, "is_channel_running", CTLFLAG_RD,
+	    &ioat->is_channel_running, 0, "channel running");
+
+	SYSCTL_ADD_PROC(ctx, par, OID_AUTO, "force_hw_reset",
+	    CTLTYPE_INT | CTLFLAG_RW, ioat, 0, sysctl_handle_reset, "I",
+	    "Set to non-zero to reset the hardware");
+	SYSCTL_ADD_PROC(ctx, par, OID_AUTO, "force_hw_error",
+	    CTLTYPE_INT | CTLFLAG_RW, ioat, 0, sysctl_handle_error, "I",
+	    "Set to non-zero to inject a recoverable hardware error");
+	SYSCTL_ADD_PROC(ctx, par, OID_AUTO, "chansts",
+	    CTLTYPE_STRING | CTLFLAG_RD, ioat, 0, sysctl_handle_chansts, "A",
+	    "String of the channel status");
 }
 
-void
-ioat_log_message(int verbosity, char *fmt, ...)
+static inline struct ioat_softc *
+ioat_get(struct ioat_softc *ioat, enum ioat_ref_kind kind)
 {
-	va_list argp;
-	char buffer[512];
-	struct timeval tv;
+	uint32_t old;
 
-	if (verbosity > g_ioat_debug_level)
+	KASSERT(kind < IOAT_NUM_REF_KINDS, ("bogus"));
+
+	old = atomic_fetchadd_32(&ioat->refcnt, 1);
+	KASSERT(old < UINT32_MAX, ("refcnt overflow"));
+
+#ifdef INVARIANTS
+	old = atomic_fetchadd_32(&ioat->refkinds[kind], 1);
+	KASSERT(old < UINT32_MAX, ("refcnt kind overflow"));
+#endif
+
+	return (ioat);
+}
+
+static inline void
+ioat_putn(struct ioat_softc *ioat, uint32_t n, enum ioat_ref_kind kind)
+{
+
+	_ioat_putn(ioat, n, kind, FALSE);
+}
+
+static inline void
+ioat_putn_locked(struct ioat_softc *ioat, uint32_t n, enum ioat_ref_kind kind)
+{
+
+	_ioat_putn(ioat, n, kind, TRUE);
+}
+
+static inline void
+_ioat_putn(struct ioat_softc *ioat, uint32_t n, enum ioat_ref_kind kind,
+    boolean_t locked)
+{
+	uint32_t old;
+
+	KASSERT(kind < IOAT_NUM_REF_KINDS, ("bogus"));
+
+	if (n == 0)
 		return;
 
-	va_start(argp, fmt);
-	vsnprintf(buffer, sizeof(buffer) - 1, fmt, argp);
-	va_end(argp);
-	microuptime(&tv);
+#ifdef INVARIANTS
+	old = atomic_fetchadd_32(&ioat->refkinds[kind], -n);
+	KASSERT(old >= n, ("refcnt kind underflow"));
+#endif
 
-	printf("[%d:%06d] ioat: %s", (int)tv.tv_sec, (int)tv.tv_usec, buffer);
+	/* Skip acquiring the lock if resulting refcnt > 0. */
+	for (;;) {
+		old = ioat->refcnt;
+		if (old <= n)
+			break;
+		if (atomic_cmpset_32(&ioat->refcnt, old, old - n))
+			return;
+	}
+
+	if (locked)
+		mtx_assert(IOAT_REFLK, MA_OWNED);
+	else
+		mtx_lock(IOAT_REFLK);
+
+	old = atomic_fetchadd_32(&ioat->refcnt, -n);
+	KASSERT(old >= n, ("refcnt error"));
+
+	if (old == n)
+		wakeup(IOAT_REFLK);
+	if (!locked)
+		mtx_unlock(IOAT_REFLK);
+}
+
+static inline void
+ioat_put(struct ioat_softc *ioat, enum ioat_ref_kind kind)
+{
+
+	ioat_putn(ioat, 1, kind);
+}
+
+static void
+ioat_drain_locked(struct ioat_softc *ioat)
+{
+
+	mtx_assert(IOAT_REFLK, MA_OWNED);
+	while (ioat->refcnt > 0)
+		msleep(IOAT_REFLK, IOAT_REFLK, 0, "ioat_drain", 0);
 }
