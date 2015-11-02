@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20151101: 430.status-rwho was renamed to 430.status-uptime
+OLD_FILES+=etc/periodic/daily/430.status-rwho
 # 20151030: OpenSSL 1.0.2d import
 OLD_FILES+=usr/share/openssl/man/man3/CMS_set1_signer_certs.3.gz
 OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_ctrl.3.gz

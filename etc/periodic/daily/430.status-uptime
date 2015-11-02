@@ -11,7 +11,7 @@ then
     source_periodic_confs
 fi
 
-case "$daily_status_rwho_enable" in
+case "$daily_status_uptime_enable" in
     [Yy][Ee][Ss])
 	rwho=$(echo /var/rwho/*)
         if [ -f "${rwho%% *}" ]
