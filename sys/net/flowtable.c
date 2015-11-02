@@ -435,8 +435,7 @@ static int
 flow_stale(struct flowtable *ft, struct flentry *fle, int maxidle)
 {
 
-	if (((fle->f_rt->rt_flags & RTF_HOST) &&
-	    ((fle->f_rt->rt_flags & (RTF_UP)) != (RTF_UP))) ||
+	if (((fle->f_rt->rt_flags & RTF_UP) == 0) ||
 	    (fle->f_rt->rt_ifp == NULL) ||
 	    !RT_LINK_IS_UP(fle->f_rt->rt_ifp) ||
 	    (fle->f_lle->la_flags & LLE_VALID) == 0)
@@ -477,7 +476,7 @@ flow_matches(struct flentry *fle, uint32_t *key, int keylen, uint32_t fibnum)
 	CRITICAL_ASSERT(curthread);
 
 	/* Microoptimization for IPv4: don't use bcmp(). */
-	if (((keylen == sizeof(uint32_t) && (fle->f_key[0] != key[0])) ||
+	if (((keylen == sizeof(uint32_t) && (fle->f_key[0] == key[0])) ||
 	    (bcmp(fle->f_key, key, keylen) == 0)) &&
 	    fibnum == fle->f_fibnum &&
 #ifdef FLOWTABLE_HASH_ALL
@@ -818,8 +817,6 @@ flowtable_free_stale(struct flowtable *ft, struct rtentry *rt, int maxidle)
 		critical_exit();
 
 		bit_clear(tmpmask, curbit);
-		tmpmask += (curbit / 8);
-		tmpsize -= (curbit / 8) * 8;
 		bit_ffs(tmpmask, tmpsize, &curbit);
 	}
 
