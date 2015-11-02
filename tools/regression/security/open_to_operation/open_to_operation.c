@@ -119,10 +119,10 @@ __FBSDID("$FreeBSD$");
  */
 static const int file_modes[] = { O_RDONLY, O_WRONLY, O_RDWR,
     O_RDONLY | O_TRUNC, O_WRONLY | O_TRUNC, O_RDWR | O_TRUNC };
-static const int file_modes_count = sizeof(file_modes) / sizeof(int);
+static const int file_modes_count = nitems(file_modes);
 
 static const int dir_modes[] = { O_RDONLY };
-static const int dir_modes_count = sizeof(dir_modes) / sizeof(int);
+static const int dir_modes_count = nitems(dir_modes);
 
 static int testnum;
 static int aio_present;
