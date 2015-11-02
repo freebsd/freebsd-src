@@ -106,8 +106,7 @@ __rpc_createerr(void)
 		rce_addr = (struct rpc_createerr *)
 			malloc(sizeof (struct rpc_createerr));
 		if (thr_setspecific(rce_key, (void *) rce_addr) != 0) {
-			if (rce_addr)
-				free(rce_addr);
+			free(rce_addr);
 			return (&rpc_createerr);
 		}
 		memset(rce_addr, 0, sizeof (struct rpc_createerr));

@@ -432,8 +432,7 @@ clntunix_create(struct sockaddr_un *raddr, u_long prog, u_long vers, int *sockp,
 	if ((raddr->sun_len == 0) ||
 	   ((svcaddr = malloc(sizeof(struct netbuf))) == NULL ) ||
 	   ((svcaddr->buf = malloc(sizeof(struct sockaddr_un))) == NULL)) {
-		if (svcaddr != NULL)
-			free(svcaddr);
+		free(svcaddr);
 		rpc_createerr.cf_stat = RPC_SYSTEMERROR;
 		rpc_createerr.cf_error.re_errno = errno;
 		return(cl);
