@@ -222,7 +222,7 @@ zfs_dirent_lock(zfs_dirlock_t **dlpp, znode_t *dzp, char *name, znode_t **zpp,
 
 	mutex_enter(&dzp->z_lock);
 	for (;;) {
-		if (dzp->z_unlinked) {
+		if (dzp->z_unlinked && !(flag & ZXATTR)) {
 			mutex_exit(&dzp->z_lock);
 			if (!(flag & ZHAVELOCK))
 				rw_exit(&dzp->z_name_lock);
