@@ -375,6 +375,7 @@ _EUC_mbrtowc_impl(wchar_t * __restrict pwc, const char * __restrict s,
 		/* Incomplete multibyte sequence */
 		es->want = want - i;
 		es->ch = wc;
+		errno = EILSEQ;
 		return ((size_t)-2);
 	}
 	if (pwc != NULL)
