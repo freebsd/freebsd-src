@@ -6517,8 +6517,7 @@ OLD_FILES+=usr/share/man/man8/repquota.8.gz
 .if ${MK_RCMDS} == no
 OLD_FILES+=bin/rcp
 OLD_FILES+=etc/rc.d/rwho
-OLD_FILES+=etc/periodic/daily/140.clean-rwho 
-OLD_FILES+=etc/periodic/daily/430.status-rwho
+OLD_FILES+=etc/periodic/daily/140.clean-rwho
 OLD_FILES+=rescue/rcp
 OLD_FILES+=usr/bin/rlogin
 OLD_FILES+=usr/bin/rsh
