@@ -51,6 +51,8 @@ struct mdthread {
 	register_t md_spurflt_addr;     /* (k) Spurious page fault address. */
 	int md_ptrace_instr;
 	int md_ptrace_addr;
+	int md_ptrace_instr_alt;
+	int md_ptrace_addr_alt;
 	register_t md_tp;
 	void *md_ras_start;
 	void *md_ras_end;

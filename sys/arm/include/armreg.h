@@ -444,6 +444,12 @@
 #define INSN_COND_MASK		0xf0000000	/* Condition mask */
 #define INSN_COND_AL		0xe0000000	/* Always condition */
 
+/* ARM register defines */
+#define	ARM_REG_SIZE		4
+#define	ARM_REG_NUM_PC		15
+#define	ARM_REG_NUM_LR		14
+#define	ARM_REG_NUM_SP		13
+
 #define THUMB_INSN_SIZE		2		/* Some are 4 bytes.  */
 
 #endif /* !MACHINE_ARMREG_H */
