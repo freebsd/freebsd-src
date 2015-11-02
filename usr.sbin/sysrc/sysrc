@@ -57,7 +57,7 @@ SHOW_EQUALS=
 SHOW_FILE=
 SHOW_NAME=1
 SHOW_VALUE=1
-SYSRC_VERBOSE=
+VERBOSE=
 
 ############################################################ FUNCTIONS
 
@@ -240,11 +240,11 @@ while getopts aAcdDef:Fhij:nNqR:vxX flag; do
 	   JAIL="$OPTARG";;
 	n) SHOW_NAME=;;
 	N) SHOW_VALUE=;;
-	q) QUIET=1 SYSRC_VERBOSE=;;
+	q) QUIET=1 VERBOSE=;;
 	R) [ "$OPTARG" ] || die \
 	   	"%s: Missing or null argument to \`-R' flag" "$pgm"
 	   ROOTDIR="$OPTARG";;
-	v) SYSRC_VERBOSE=1 QUIET=;;
+	v) VERBOSE=1 QUIET=;;
 	x) DELETE=${DELETE:-1};;
 	X) DELETE=2;;
 	\?) usage;;
@@ -300,7 +300,7 @@ fi
 SEP=': '
 [ "$SHOW_FILE" ] && SHOW_EQUALS=
 [ "$SHOW_NAME" ] || SHOW_EQUALS=
-[ "$SYSRC_VERBOSE" = "0" ] && SYSRC_VERBOSE=
+[ "$VERBOSE" = "0" ] && VERBOSE=
 if [ ! "$SHOW_VALUE" ]; then
 	SHOW_NAME=1
 	SHOW_EQUALS=
@@ -315,7 +315,7 @@ if [ "$JAIL" -o "$ROOTDIR" ]; then
 	# Reconstruct the arguments that we want to carry-over
 	#
 	args="
-		${SYSRC_VERBOSE:+-v}
+		${VERBOSE:+-v}
 		${QUIET:+-q}
 		$( [ "$DELETE" = "1" ] && echo \ -x )
 		$( [ "$DELETE" = "2" ] && echo \ -X )
@@ -431,7 +431,7 @@ if [ "$SHOW_ALL" ]; then
 		IFS="$IFS|"
 		EXCEPT="IFS|EXCEPT|PATH|RC_DEFAULTS|OPTIND|DESCRIBE|SEP"
 		EXCEPT="$EXCEPT|DELETE|SHOW_ALL|SHOW_EQUALS|SHOW_NAME"
-		EXCEPT="$EXCEPT|SHOW_VALUE|SHOW_FILE|SYSRC_VERBOSE|RC_CONFS"
+		EXCEPT="$EXCEPT|SHOW_VALUE|SHOW_FILE|VERBOSE|RC_CONFS"
 		EXCEPT="$EXCEPT|pgm|SUCCESS|FAILURE|CHECK_ONLY"
 		EXCEPT="$EXCEPT|f_sysrc_desc_awk|f_sysrc_delete_awk"
 
@@ -499,7 +499,7 @@ if [ "$SHOW_ALL" ]; then
 				continue
 			fi
 
-			[ "$SYSRC_VERBOSE" ] && \
+			[ "$VERBOSE" ] && \
 				echo -n "$( f_sysrc_find "$NAME" ): "
 
 			#
@@ -546,7 +546,7 @@ while [ $# -gt 0 ]; do
 		#
 
 		# If verbose, prefix line with where the directive lives
-		if [ "$SYSRC_VERBOSE" -a ! "$CHECK_ONLY" ]; then
+		if [ "$VERBOSE" -a ! "$CHECK_ONLY" ]; then
 			file=$( f_sysrc_find "$NAME" )
 			[ "$file" = "$RC_DEFAULTS" -o ! "$file" ] && \
 				file=$( f_sysrc_get 'rc_conf_files%%[$IFS]*' )
@@ -573,7 +573,7 @@ while [ $# -gt 0 ]; do
 		if [ "$CHECK_ONLY" ]; then
 			if ! IGNORED=$( f_sysrc_get "$NAME?" ); then
 				status=$FAILURE
-				[ "$SYSRC_VERBOSE" ] &&
+				[ "$VERBOSE" ] &&
 					echo "$NAME: not currently set"
 				shift 1
 				continue
@@ -581,12 +581,12 @@ while [ $# -gt 0 ]; do
 			value=$( f_sysrc_get "$NAME" )
 			if [ "$value" != "${1#*=}" ]; then
 				status=$FAILURE
-				if [ "$SYSRC_VERBOSE" ]; then
+				if [ "$VERBOSE" ]; then
 					echo -n "$( f_sysrc_find "$NAME" ): "
 					echo -n "$NAME: would change from "
 					echo "\`$value' to \`${1#*=}'"
 				fi
-			elif [ "$SYSRC_VERBOSE" ]; then
+			elif [ "$VERBOSE" ]; then
 				echo -n "$( f_sysrc_find "$NAME" ): "
 				echo "$NAME: already set to \`$value'"
 			fi
@@ -715,7 +715,7 @@ while [ $# -gt 0 ]; do
 			continue
 		fi
 
-		if [ "$SYSRC_VERBOSE" ]; then
+		if [ "$VERBOSE" ]; then
 			if [ "$SHOW_EQUALS" ]; then
 				echo -n ": $( f_sysrc_find "$NAME" ); "
 			else
