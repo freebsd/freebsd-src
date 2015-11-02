@@ -29,6 +29,13 @@
 
 KB=1024
 : ${TMPDIR=/tmp}
+# TODO: add mtree `time` support; get a lot of errors like this right now when
+# passing generating disk images with keyword mtree support, like:
+#
+# `[...]/mtree.spec:8: error: time: invalid value '1446458503'`
+#
+#DEFAULT_MTREE_KEYWORDS="type,mode,gid,uid,size,link,time"
+DEFAULT_MTREE_KEYWORDS="type,mode,gid,uid,size,link"
 TEST_IMAGE="$TMPDIR/test.img"
 TEST_INPUTS_DIR="$TMPDIR/inputs"
 TEST_MD_DEVICE_FILE="$TMPDIR/md.output"
@@ -39,7 +46,7 @@ check_image_contents()
 {
 	local directories=$TEST_INPUTS_DIR
 	local excludes mtree_excludes_arg mtree_file
-	local mtree_keywords="type,link,size"
+	local mtree_keywords="$DEFAULT_MTREE_KEYWORDS"
 
 	while getopts "d:f:m:X:" flag; do
 		case "$flag" in

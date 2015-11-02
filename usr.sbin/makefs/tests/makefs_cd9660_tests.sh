@@ -113,7 +113,7 @@ from_mtree_spec_file_body()
 	create_test_inputs
 
 	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
-	    mtree -c -k type,link,size -p $TEST_INPUTS_DIR
+	    mtree -c -k "$DEFAULT_MTREE_KEYWORDS" -p $TEST_INPUTS_DIR
 	cd $TEST_INPUTS_DIR
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS $TEST_IMAGE $TEST_SPEC_FILE
