@@ -518,14 +518,14 @@ nexus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 
 	/*
 	 * XXX:
-	 * (dmat->dt_alignment < dmat->dt_maxsize) is just a quick hack; the
+	 * (dmat->dt_alignment <= dmat->dt_maxsize) is just a quick hack; the
 	 * exact alignment guarantees of malloc need to be nailed down, and
 	 * the code below should be rewritten to take that into account.
 	 *
 	 * In the meantime, we'll warn the user if malloc gets it wrong.
 	 */
 	if (dmat->dt_maxsize <= PAGE_SIZE &&
-	    dmat->dt_alignment < dmat->dt_maxsize)
+	    dmat->dt_alignment <= dmat->dt_maxsize)
 		*vaddr = malloc(dmat->dt_maxsize, M_DEVBUF, mflags);
 	else {
 		/*
