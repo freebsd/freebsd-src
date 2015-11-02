@@ -158,6 +158,70 @@ from_single_dir_cleanup()
 	common_cleanup
 }
 
+atf_test_case o_flag_version_1 cleanup
+o_flag_version_1_body()
+{
+	ffs_version=1
+
+	platform=$(uname)
+	case "$platform" in
+	FreeBSD)
+		ffs_label=UFS${ffs_version}
+		;;
+	NetBSD)
+		ffs_label=FFSv${ffs_version}
+		;;
+	*)
+		atf_skip "Unsupported platform"
+		;;
+	esac
+
+	create_test_inputs
+
+	atf_check -e empty -o not-empty -s exit:0 \
+	    $MAKEFS -M 1m -o version=$ffs_version $TEST_IMAGE $TEST_INPUTS_DIR
+
+	mount_image
+	atf_check -e empty -o match:"$ffs_label" dumpfs $TEST_MOUNT_DIR
+	check_ffs_image_contents
+}
+o_flag_version_1_cleanup()
+{
+	common_cleanup
+}
+
+atf_test_case o_flag_version_2 cleanup
+o_flag_version_2_body()
+{
+	ffs_version=2
+
+	platform=$(uname)
+	case "$platform" in
+	FreeBSD)
+		ffs_label=UFS${ffs_version}
+		;;
+	NetBSD)
+		ffs_label=FFSv${ffs_version}
+		;;
+	*)
+		atf_skip "Unsupported platform"
+		;;
+	esac
+
+	create_test_inputs
+
+	atf_check -e empty -o not-empty -s exit:0 \
+	    $MAKEFS -M 1m -o version=$ffs_version $TEST_IMAGE $TEST_INPUTS_DIR
+
+	mount_image
+	atf_check -e empty -o match:"$ffs_label" dumpfs $TEST_MOUNT_DIR
+	check_ffs_image_contents
+}
+o_flag_version_2_cleanup()
+{
+	common_cleanup
+}
+
 atf_init_test_cases()
 {
 
@@ -168,5 +232,6 @@ atf_init_test_cases()
 	atf_add_test_case from_multiple_dirs
 	atf_add_test_case from_single_dir
 
-
+	atf_add_test_case o_flag_version_1
+	atf_add_test_case o_flag_version_2
 }
