@@ -303,10 +303,10 @@ The following keywords are supported:
 .It Sy allow-deep-trees
 Allow the directory structure to exceed the maximum specified in
 the spec.
-.\" .It Sy allow-illegal-chars
-.\" Unknown
-.\" .It Sy allow-lowercase
-.\" Unknown
+.It Sy allow-illegal-chars
+Allow illegal characters in filenames. This option is not implemented.
+.It Sy allow-lowercase
+Allow lowercase characters in filenames. This option is not implemented.
 .It Sy allow-max-name
 Allow 37 instead of 33 characters for filenames by omitting the
 version id.
@@ -320,6 +320,8 @@ Use the
 extension to encode
 .Tn RISC OS
 metadata.
+.It Sy bootimagedir
+Boot image directory. This option is not implemented.
 .It Sy chrp-boot
 Write an MBR partition table to the image to allow older CHRP hardware to
 boot.
@@ -340,6 +342,16 @@ or
 Load a generic boot image into the first 32K of the cd9660 image.
 .It Sy hard-disk-boot
 Boot image is a hard disk image.
+.It Sy isoLevel
+An integer representing the ISO 9660 interchange level where
+.Dq level
+is either
+.Ql 1
+or
+.Ql 2 .
+.Dq level
+.Ql 3
+is not implemented.
 .It Sy keep-bad-images
 Don't throw away images whose write was aborted due to an error.
 For debugging purposes.
@@ -353,14 +365,16 @@ Boot image is a
 ElTorito image.
 .It Sy no-trailing-padding
 Do not pad the image (apparently Linux needs the padding).
-.\" .It Sy omit-trailing-period
-.\" Unknown
+.It Sy omit-trailing-period
+Omit trailing periods in filenames.
 .It Sy preparer
 Preparer ID of the image.
 .It Sy publisher
 Publisher ID of the image.
 .It Sy rockridge
 Use RockRidge extensions (for longer filenames, etc.).
+.It Sy verbose
+Turns on verbose output.
 .It Sy volumeid
 Volume set identifier of the image.
 .El
