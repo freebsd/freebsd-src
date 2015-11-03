@@ -1605,10 +1605,9 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 		case O_RECV:
 		case O_XMIT:
 		case O_VIA:
-			if (((ipfw_insn_if *)cmd)->name[0] == '\1')
-				ci->object_opcodes++;
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_if))
 				goto bad_size;
+			ci->object_opcodes++;
 			break;
 
 		case O_ALTQ:

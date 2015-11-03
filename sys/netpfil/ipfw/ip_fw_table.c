@@ -3400,6 +3400,9 @@ ref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule,
 	if (numnew != 0)
 		error = create_objects_compat(ch, rule->cmd, oib, pidx, ti);
 
+	/* Calculate real number of dynamic objects */
+	ci->object_opcodes = (uint16_t)(pidx - oib);
+
 	return (error);
 }
 
@@ -3431,7 +3434,6 @@ ipfw_rewrite_rule_uidx(struct ip_fw_chain *chain,
 		pidx_first = malloc(ci->object_opcodes * sizeof(struct obj_idx),
 		    M_IPFW, M_WAITOK | M_ZERO);
 
-	pidx_last = pidx_first + ci->object_opcodes;
 	error = 0;
 	type = 0;
 	memset(&ti, 0, sizeof(ti));
@@ -3450,9 +3452,14 @@ ipfw_rewrite_rule_uidx(struct ip_fw_chain *chain,
 	error = ref_rule_objects(chain, ci->krule, ci, pidx_first, &ti);
 	if (error != 0)
 		goto free;
+	/*
+	 * Note that ref_rule_objects() might have updated ci->object_opcodes
+	 * to reflect actual number of object opcodes.
+	 */
 
 	/* Perform rule rewrite */
 	p = pidx_first;
+	pidx_last = pidx_first + ci->object_opcodes;
 	for (p = pidx_first; p < pidx_last; p++) {
 		cmd = ci->krule->cmd + p->off;
 		update_opcode_kidx(cmd, p->kidx);
