@@ -88,6 +88,7 @@ void vchiq_exit(void);
 int vchiq_init(void);
 
 extern VCHIQ_STATE_T g_state;
+extern int g_cache_line_size;
 
 static void
 bcm_vchiq_intr(void *arg)
@@ -133,6 +134,8 @@ static int
 bcm_vchiq_attach(device_t dev)
 {
 	struct bcm_vchiq_softc *sc = device_get_softc(dev);
+	phandle_t node;
+	pcell_t cell;
 	int rid = 0;
 
 	if (bcm_vchiq_sc != NULL)
@@ -153,6 +156,10 @@ bcm_vchiq_attach(device_t dev)
 		device_printf(dev, "could not allocate interrupt resource\n");
 		return (ENXIO);
 	}
+
+	node = ofw_bus_get_node(dev);
+	if ((OF_getencprop(node, "cache-line-size", &cell, sizeof(cell))) > 0)
+		g_cache_line_size = cell;
 
 	vchiq_core_initialize();
 
