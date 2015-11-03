@@ -703,14 +703,14 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				memcpy(rqp->odata, cmd->data, rqp->olen);
 				DPRINTF(sc, ZYD_DEBUG_CMD,
 				    "command %p complete, data = %*D \n",
-				    rqp, rqp->olen, (unsigned char *)rqp->odata, ":");
+				    rqp, rqp->olen, (char *)rqp->odata, ":");
 				wakeup(rqp);	/* wakeup caller */
 				break;
 			}
 			if (rqp == NULL) {
 				device_printf(sc->sc_dev,
 				    "unexpected IORD notification %*D\n",
-				    datalen, (unsigned char *)cmd->data, ":");
+				    datalen, cmd->data, ":");
 			}
 			break;
 		}
@@ -802,7 +802,7 @@ zyd_cmd(struct zyd_softc *sc, uint16_t code, const void *idata, int ilen,
 	cmd.code = htole16(code);
 	memcpy(cmd.data, idata, ilen);
 	DPRINTF(sc, ZYD_DEBUG_CMD, "sending cmd %p = %*D\n",
-	    &rq, ilen, (unsigned char *)idata, ":");
+	    &rq, ilen, idata, ":");
 
 	rq.cmd = &cmd;
 	rq.idata = idata;
