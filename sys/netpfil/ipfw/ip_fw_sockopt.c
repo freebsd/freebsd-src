@@ -2156,19 +2156,16 @@ cleanup:
 	return (error);
 }
 
-static int
-check_object_name(ipfw_obj_ntlv *ntlv)
+int
+ipfw_check_object_name_generic(const char *name)
 {
-	int error;
+	int nsize;
 
-	switch (ntlv->head.type) {
-	case IPFW_TLV_TBL_NAME:
-		error = ipfw_check_table_name(ntlv->name);
-		break;
-	default:
-		error = ENOTSUP;
-	}
-
+	nsize = sizeof(((ipfw_obj_ntlv *)0)->name);
+	if (strnlen(name, nsize) == nsize)
+		return (EINVAL);
+	if (name[0] == '\0')
+		return (EINVAL);
 	return (0);
 }
 
@@ -2483,7 +2480,7 @@ add_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 			if (ntlv->head.length != sizeof(ipfw_obj_ntlv))
 				return (EINVAL);
 
-			error = check_object_name(ntlv);
+			error = ipfw_check_object_name_generic(ntlv->name);
 			if (error != 0)
 				return (error);
 
