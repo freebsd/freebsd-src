@@ -33,6 +33,7 @@
 
 #include <sys/types.h>
 #include <sys/systm.h>
+#include <sys/errno.h>
 
 #define	BIT(nr)			(1UL << (nr))
 #ifdef __LP64__

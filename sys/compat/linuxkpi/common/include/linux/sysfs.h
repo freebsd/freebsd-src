@@ -31,13 +31,11 @@
 #ifndef	_LINUX_SYSFS_H_
 #define	_LINUX_SYSFS_H_
 
+#include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/errno.h>
 
-struct attribute {
-	const char 	*name;
-	struct module	*owner;
-	mode_t		mode;
-};
+#include <linux/kobject.h>
 
 struct sysfs_ops {
 	ssize_t (*show)(struct kobject *, struct attribute *, char *);

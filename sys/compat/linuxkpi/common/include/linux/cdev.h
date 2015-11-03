@@ -32,6 +32,7 @@
 #define	_LINUX_CDEV_H_
 
 #include <linux/kobject.h>
+#include <linux/sysfs.h>
 #include <linux/kdev_t.h>
 #include <linux/list.h>
 
