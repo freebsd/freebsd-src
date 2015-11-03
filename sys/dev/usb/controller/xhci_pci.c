@@ -86,9 +86,8 @@ static driver_t xhci_driver = {
 
 static devclass_t xhci_devclass;
 
-DRIVER_MODULE(xhci, pci, xhci_driver, xhci_devclass, 0, 0);
+DRIVER_MODULE(xhci, pci, xhci_driver, xhci_devclass, NULL, NULL);
 MODULE_DEPEND(xhci, usb, 1, 1, 1);
-
 
 static const char *
 xhci_pci_match(device_t self)
@@ -99,11 +98,16 @@ xhci_pci_match(device_t self)
 	case 0x01941033:
 		return ("NEC uPD720200 USB 3.0 controller");
 
+	case 0x10001b73:
+		return ("Fresco Logic FL1000G USB 3.0 controller");
+
 	case 0x10421b21:
 		return ("ASMedia ASM1042 USB 3.0 controller");
+	case 0x11421b21:
+		return ("ASMedia ASM1042A USB 3.0 controller");
 
 	case 0x0f358086:
-		return ("Intel Intel BayTrail USB 3.0 controller");
+		return ("Intel BayTrail USB 3.0 controller");
 	case 0x9c318086:
 	case 0x1e318086:
 		return ("Intel Panther Point USB 3.0 controller");
@@ -111,6 +115,8 @@ xhci_pci_match(device_t self)
 		return ("Intel Lynx Point USB 3.0 controller");
 	case 0x8cb18086:
 		return ("Intel Wildcat Point USB 3.0 controller");
+	case 0x9cb18086:
+		return ("Broadwell Integrated PCH-LP chipset USB 3.0 controller");
 
 	case 0xa01b177d:
 		return ("Cavium ThunderX USB 3.0 controller");
@@ -183,7 +189,8 @@ xhci_pci_attach(device_t self)
 {
 	struct xhci_softc *sc = device_get_softc(self);
 	int count, err, rid;
-	uint8_t usedma32;
+	uint8_t usemsi = 1;
+	uint8_t usedma32 = 0;
 
 	rid = PCI_XHCI_CBMEM;
 	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
@@ -196,16 +203,31 @@ xhci_pci_attach(device_t self)
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
-	/* check for USB 3.0 controllers which don't support 64-bit DMA */
 	switch (pci_get_devid(self)) {
 	case 0x01941033:	/* NEC uPD720200 USB 3.0 controller */
+	case 0x00141912:	/* NEC uPD720201 USB 3.0 controller */
+		/* Don't use 64-bit DMA on these controllers. */
 		usedma32 = 1;
 		break;
-	default:
-		usedma32 = 0;
+	case 0x10001b73:	/* FL1000G */
+		/* Fresco Logic host doesn't support MSI. */
+		usemsi = 0;
+		break;
+	case 0x0f358086:	/* BayTrail */
+	case 0x9c318086:	/* Panther Point */
+	case 0x1e318086:	/* Panther Point */
+	case 0x8c318086:	/* Lynx Point */
+	case 0x8cb18086:	/* Wildcat Point */
+	case 0x9cb18086:	/* Broadwell Mobile Integrated */
+		/*
+		 * On Intel chipsets, reroute ports from EHCI to XHCI
+		 * controller and use a different IMOD value.
+		 */
+		sc->sc_port_route = &xhci_pci_port_route;
+		sc->sc_imod_default = XHCI_IMOD_DEFAULT_LP;
 		break;
 	}
-	
+
 	if (xhci_init(sc, self, usedma32)) {
 		device_printf(self, "Could not initialize softc\n");
 		bus_release_resource(self, SYS_RES_MEMORY, PCI_XHCI_CBMEM,
@@ -218,7 +240,7 @@ xhci_pci_attach(device_t self)
 	usb_callout_init_mtx(&sc->sc_callout, &sc->sc_bus.bus_mtx, 0);
 
 	rid = 0;
-	if (xhci_use_msi) {
+	if (xhci_use_msi && usemsi) {
 		count = 1;
 		if (pci_alloc_msi(self, &count) == 0) {
 			if (bootverbose)
@@ -262,20 +284,6 @@ xhci_pci_attach(device_t self)
 			USB_BUS_UNLOCK(&sc->sc_bus);
 		} else
 			goto error;
-	}
-
-	/* On Intel chipsets reroute ports from EHCI to XHCI controller. */
-	switch (pci_get_devid(self)) {
-	case 0x0f358086:	/* BayTrail */
-	case 0x9c318086:	/* Panther Point */
-	case 0x1e318086:	/* Panther Point */
-	case 0x8c318086:	/* Lynx Point */
-	case 0x8cb18086:	/* Wildcat Point */
-		sc->sc_port_route = &xhci_pci_port_route;
-		sc->sc_imod_default = XHCI_IMOD_DEFAULT_LP;
-		break;
-	default:
-		break;
 	}
 
 	xhci_pci_take_controller(self);
