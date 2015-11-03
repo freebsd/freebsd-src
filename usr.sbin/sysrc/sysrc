@@ -40,18 +40,23 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 #
 # Version information
 #
-SYSRC_VERSION="6.5 Sep-1,2015"
+SYSRC_VERSION="7.0 Sep-13,2015"
 
 #
 # Options
 #
 CHECK_ONLY=
+DEFAULT=
 DELETE=
 DESCRIBE=
+EXISTING_ONLY=
 IGNORE_UNKNOWNS=
 JAIL=
+LIST_SERVICE_CONFS=
+LIST_CONFS=
 QUIET=
 ROOTDIR=
+SERVICE=
 SHOW_ALL=
 SHOW_EQUALS=
 SHOW_FILE=
@@ -80,7 +85,8 @@ die()
 #
 usage()
 {
-	f_err "Usage: %s [OPTIONS] name[[+|-]=value] ...\n" "$pgm"
+	f_err "Usage: %s [OPTIONS] %s\n" "$pgm" \
+		"{name[[+|-]=value] ... | -a | -A | -l | -L [name ...]}"
 	f_err "Try \`%s --help' for more information.\n" "$pgm"
 	die
 }
@@ -95,6 +101,8 @@ help()
 	local envfmt="\t%-17s%s\n"
 
 	f_err "Usage: %s [OPTIONS] name[[+|-]=value] ...\n" "$pgm"
+	f_err "Usage: %s [OPTIONS] -a | -A\n" "$pgm"
+	f_err "Usage: %s [OPTIONS] -l | -L [name ...]\n" "$pgm"
 
 	f_err "OPTIONS:\n"
 	f_err "$optfmt" "-a" \
@@ -113,6 +121,8 @@ help()
 	      "Print query results as \`var=value' (useful for producing"
 	f_err "$optfmt" "" \
 	      "output to be fed back in). Ignored if \`-n' is specified."
+	f_err "$optfmt" "-E" \
+	      "Existing files only with \`-[lL]' or when changing a setting."
 	f_err "$optfmt" "-f file" \
 	      "Operate on the specified file(s) instead of rc_conf_files."
 	f_err "$optfmt" "" \
@@ -129,12 +139,20 @@ help()
 	      "The jid or name of the jail to operate within (overrides"
 	f_err "$optfmt" "" \
 	      "\`-R dir'; requires jexec(8))."
+	f_err "$optfmt" "-l" \
+	      "List configuration files used at startup on stdout and exit."
+	f_err "$optfmt" "-L" \
+	      "List all configuration files including rc.conf.d entries."
 	f_err "$optfmt" "-n" \
 	      "Show only variable values, not their names."
 	f_err "$optfmt" "-N" \
 	      "Show only variable names, not their values."
 	f_err "$optfmt" "-q" \
 	      "Quiet. Disable verbose and hide certain errors."
+	f_err "$optfmt" "-s name" \
+	      "Process additional \`rc.conf.d' entries for service name."
+	f_err "$optfmt" "" \
+	      "Ignored if \`-f file' is given."
 	f_err "$optfmt" "-R dir" \
 	      "Operate within the root directory \`dir' rather than \`/'."
 	f_err "$optfmt" "-v" \
@@ -245,27 +263,33 @@ unset arg
 #
 # Process command-line flags
 #
-while getopts aAcdDef:Fhij:nNqR:vxX flag; do
+while getopts aAcdDeEf:Fhij:lLnNqR:s:vxX flag; do
 	case "$flag" in
 	a) SHOW_ALL=${SHOW_ALL:-1} ;;
 	A) SHOW_ALL=2 ;;
 	c) CHECK_ONLY=1 ;;
 	d) DESCRIBE=1 ;;
-	D) RC_CONFS= ;;
+	D) DEFAULT=1 RC_CONFS= ;;
 	e) SHOW_EQUALS=1 ;;
-	f) RC_CONFS="$RC_CONFS${RC_CONFS:+ }$OPTARG" ;;
+	E) EXISTING_ONLY=1 ;;
+	f) DEFAULT= RC_CONFS="$RC_CONFS${RC_CONFS:+ }$OPTARG" ;;
 	F) SHOW_FILE=1 ;;
 	h) usage ;; # NOTREACHED
 	i) IGNORE_UNKNOWNS=1 ;;
 	j) [ "$OPTARG" ] ||
 		die "%s: Missing or null argument to \`-j' flag" "$pgm"
 	   JAIL="$OPTARG" ;;
+	l) LIST_CONFS=1 ;;
+	L) LIST_SERVICE_CONFS=1 ;;
 	n) SHOW_NAME= ;;
 	N) SHOW_VALUE= ;;
 	q) QUIET=1 VERBOSE= ;;
 	R) [ "$OPTARG" ] ||
 		die "%s: Missing or null argument to \`-R' flag" "$pgm"
 	   ROOTDIR="$OPTARG" ;;
+	s) [ "$OPTARG" ] ||
+		die "%s: Missing or null argument to \`-s' flag" "$pgm"
+	   SERVICE="$OPTARG" ;;
 	v) VERBOSE=1 QUIET= ;;
 	x) DELETE=${DELETE:-1} ;;
 	X) DELETE=2 ;;
@@ -273,6 +297,129 @@ while getopts aAcdDef:Fhij:nNqR:vxX flag; do
 	esac
 done
 shift $(( $OPTIND - 1 ))
+
+#
+# Process `-L' flag
+#
+if [ "$LIST_SERVICE_CONFS" ]; then
+	list= 
+
+	#
+	# List rc_conf_files if no service names given
+	#
+	files=
+	[ $# -eq 0 ] && files=$( f_sysrc_get rc_conf_files )
+	for file in $files; do
+		if [ "$EXISTING_ONLY" ]; then
+			[ -e "$file" -a ! -d "$file" ] || continue
+		fi
+		case "$list" in
+		"$file"|*" $file"|"$file "*|*" $file "*) continue ;;
+		esac
+		list="$list $file"
+	done
+	list="${list# }"
+	if [ $# -eq 0 ]; then
+		if [ "$VERBOSE" ]; then
+			echo rc_conf_files: $list
+		elif [ "$SHOW_EQUALS" ]; then
+			echo "rc_conf_files=\"$list\""
+		fi
+	fi
+
+	#
+	# List rc.conf.d entries
+	#
+	retval=$SUCCESS
+	for service in ${*:-$( service -l )}; do
+		slist=
+		f_sysrc_service_configs $service files || retval=$? continue
+		for file in $files; do
+			if [ "$EXISTING_ONLY" ]; then
+				[ -e "$file" -a ! -d "$file" ] || continue
+			fi
+			if [ ! "$VERBOSE" -a ! "$SHOW_EQUALS" ]; then
+				case "$list" in
+				"$file"|*" $file"|"$file "*|*" $file "*)
+					continue ;;
+				esac
+			fi
+			slist="$slist $file"
+		done
+		slist="${slist# }"
+		if [ $# -gt 0 ]; then
+			[ "$slist" ] || retval=$?
+		fi
+		if [ "$VERBOSE" ]; then
+			[ "$slist" ] && echo "$service: $slist"
+			continue
+		elif [ "$SHOW_EQUALS" ]; then
+			[ "$slist" ] && echo "$service=\"$slist\""
+			continue
+		fi
+		list="$list${slist:+ }$slist"
+	done
+	if [ ! "$VERBOSE" -a ! "$SHOW_EQUALS" ]; then
+		if [ $# -eq 0 -o ! "$QUIET" ]; then
+			list="${list# }"
+			[ "$list" ] && echo $list
+		fi
+	fi
+
+	exit $retval
+fi
+
+#
+# Process `-s name' argument
+#
+if [ "$SERVICE" -a ! "${RC_CONFS+set}" ]; then
+	if f_sysrc_service_configs "$SERVICE" RC_CONFS; then
+		rc_conf_files=$( f_sysrc_get rc_conf_files )
+		RC_CONFS="$rc_conf_files${RC_CONFS:+ }$RC_CONFS"
+		unset rc_conf_files
+	else
+		unset RC_CONFS
+	fi
+fi
+
+#
+# Process `-E' option flag
+#
+if [ "$EXISTING_ONLY" ]; then
+	#
+	# To get f_sysrc_*() to ignore missing rc_conf_files, we have to use
+	# RC_CONFS to override the unpreened value. If RC_CONFS already has a
+	# value (`-D', `-f file', `-s name', or inherited from parent), use it.
+	# Otherwise, include filtered contents of rc_conf_files.
+	# 
+	RC_CONFS=$(
+		if [ "${RC_CONFS+set}" ]; then
+			set -- $RC_CONFS
+		else
+			set -- $( f_sysrc_get rc_conf_files )
+		fi
+		while [ $# -gt 0 ]; do
+			[ -f "$1" ] && echo -n " $1"
+			shift
+		done
+	)
+	RC_CONFS="${RC_CONFS# }"
+fi
+
+#
+# Process `-l' option flag
+#
+if [ "$LIST_CONFS" ]; then
+	[ $# -eq 0 ] || usage
+	if [ "$DEFAULT" ]; then
+		echo "$RC_DEFAULTS"
+	elif [ "${RC_CONFS+set}" ]; then
+		echo "$RC_CONFS"
+	else
+		f_sysrc_get rc_conf_files
+	fi
+	exit $SUCCESS
+fi
 
 #
 # [More] Sanity checks (e.g., "sysrc --")
@@ -344,6 +491,10 @@ if [ "$JAIL" -o "$ROOTDIR" ]; then
 		$( [ "$SHOW_ALL" = "1" ] && echo \ -a )
 		$( [ "$SHOW_ALL" = "2" ] && echo \ -A )
 		${CHECK_ONLY:+-c}
+		${DEFAULT:+-D}
+		${EXISTING_ONLY:+-E}
+		${LIST_CONFS:+-l}
+		${LIST_SERVICE_CONFS:+-L}
 		${DESCRIBE:+-d}
 		${SHOW_EQUALS:+-e}
 		${IGNORE_UNKNOWNS:+-i}
@@ -351,6 +502,11 @@ if [ "$JAIL" -o "$ROOTDIR" ]; then
 		$( [ "$SHOW_VALUE" ] || echo \ -N )
 		$( [ "$SHOW_FILE"  ] && echo \ -F )
 	"
+	if [ "$SERVICE" ]; then
+		escape "$SERVICE" _SERVICE
+		args="$args -s '$_SERVICE'"
+		unset _SERVICE
+	fi
 	if [ "${RC_CONFS+set}" ]; then
 		escape "$RC_CONFS" _RC_CONFS
 		args="$args -f '$_RC_CONFS'"
@@ -454,9 +610,10 @@ if [ "$SHOW_ALL" ]; then
 		#
 		IFS="$IFS|"
 		EXCEPT="IFS|EXCEPT|PATH|RC_DEFAULTS|OPTIND|DESCRIBE|SEP"
-		EXCEPT="$EXCEPT|DELETE|SHOW_ALL|SHOW_EQUALS|SHOW_NAME"
-		EXCEPT="$EXCEPT|SHOW_VALUE|SHOW_FILE|VERBOSE|RC_CONFS"
-		EXCEPT="$EXCEPT|pgm|SUCCESS|FAILURE|CHECK_ONLY"
+		EXCEPT="$EXCEPT|DELETE|SHOW_ALL|SHOW_EQUALS|SHOW_NAME|DEFAULT"
+		EXCEPT="$EXCEPT|SHOW_VALUE|SHOW_FILE|VERBOSE|RC_CONFS|SERVICE"
+		EXCEPT="$EXCEPT|pgm|SUCCESS|FAILURE|CHECK_ONLY|EXISTING_ONLY"
+		EXCEPT="$EXCEPT|LIST_CONFS|LIST_SERVICE_CONFS"
 		EXCEPT="$EXCEPT|f_sysrc_desc_awk|f_sysrc_delete_awk"
 
 		#
@@ -479,7 +636,13 @@ if [ "$SHOW_ALL" ]; then
 			# explicit value, modifying the default behavior of
 			# source_rc_confs().
 			#
-			[ "${RC_CONFS+set}" ] && rc_conf_files="$RC_CONFS"
+			if [ "${RC_CONFS+set}" ]; then
+				[ "$SHOW_ALL" = "1" -a "$SERVICE" -a \
+					! "$DEFAULT" ] || rc_conf_files=
+				rc_conf_files="$rc_conf_files $RC_CONFS"
+				rc_conf_files="${rc_conf_files# }"
+				rc_conf_files="${rc_conf_files% }"
+			fi
 
 			source_rc_confs
 
