@@ -119,6 +119,8 @@ static int manage_sets(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 static int dump_soptcodes(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
+static int dump_srvobjects(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
 
 /* ctl3 handler data */
 struct mtx ctl3_lock;
@@ -146,6 +148,7 @@ static struct ipfw_sopt_handler	scodes[] = {
 	{ IP_FW_SET_MOVE,	0,	HDIR_SET,	manage_sets },
 	{ IP_FW_SET_ENABLE,	0,	HDIR_SET,	manage_sets },
 	{ IP_FW_DUMP_SOPTCODES,	0,	HDIR_GET,	dump_soptcodes },
+	{ IP_FW_DUMP_SRVOBJECTS,0,	HDIR_GET,	dump_srvobjects },
 };
 
 static int
@@ -1876,6 +1879,16 @@ struct dump_args {
 	int		rcounters;	/* counters */
 };
 
+void
+ipfw_export_obj_ntlv(struct named_object *no, ipfw_obj_ntlv *ntlv)
+{
+
+	ntlv->head.type = no->etlv;
+	ntlv->head.length = sizeof(*ntlv);
+	ntlv->idx = no->kidx;
+	strlcpy(ntlv->name, no->name, sizeof(ntlv->name));
+}
+
 /*
  * Export named object info in instance @ni, identified by @kidx
  * to ipfw_obj_ntlv. TLV is allocated from @sd space.
@@ -1896,11 +1909,7 @@ export_objhash_ntlv(struct namedobj_instance *ni, uint16_t kidx,
 	if (ntlv == NULL)
 		return (ENOMEM);
 
-	ntlv->head.type = no->etlv;
-	ntlv->head.length = sizeof(*ntlv);
-	ntlv->idx = no->kidx;
-	strlcpy(ntlv->name, no->name, sizeof(ntlv->name));
-
+	ipfw_export_obj_ntlv(no, ntlv);
 	return (0);
 }
 
@@ -2800,6 +2809,54 @@ ipfw_del_obj_rewriter(struct opcode_obj_rewrite *rw, size_t count)
 
 	CTL3_UNLOCK();
 
+	return (0);
+}
+
+static void
+export_objhash_ntlv_internal(struct namedobj_instance *ni,
+    struct named_object *no, void *arg)
+{
+	struct sockopt_data *sd;
+	ipfw_obj_ntlv *ntlv;
+
+	sd = (struct sockopt_data *)arg;
+	ntlv = (ipfw_obj_ntlv *)ipfw_get_sopt_space(sd, sizeof(*ntlv));
+	if (ntlv == NULL)
+		return;
+	ipfw_export_obj_ntlv(no, ntlv);
+}
+
+/*
+ * Lists all service objects.
+ * Data layout (v0)(current):
+ * Request: [ ipfw_obj_lheader ] size = ipfw_cfg_lheader.size
+ * Reply: [ ipfw_obj_lheader [ ipfw_obj_ntlv x N ] (optional) ]
+ * Returns 0 on success
+ */
+static int
+dump_srvobjects(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
+{
+	ipfw_obj_lheader *hdr;
+	int count;
+
+	hdr = (ipfw_obj_lheader *)ipfw_get_sopt_header(sd, sizeof(*hdr));
+	if (hdr == NULL)
+		return (EINVAL);
+
+	IPFW_UH_RLOCK(chain);
+	count = ipfw_objhash_count(CHAIN_TO_SRV(chain));
+	hdr->size = sizeof(ipfw_obj_lheader) + count * sizeof(ipfw_obj_ntlv);
+	if (sd->valsize < hdr->size) {
+		IPFW_UH_RUNLOCK(chain);
+		return (ENOMEM);
+	}
+	hdr->count = count;
+	hdr->objsize = sizeof(ipfw_obj_ntlv);
+	if (count > 0)
+		ipfw_objhash_foreach(CHAIN_TO_SRV(chain),
+		    export_objhash_ntlv_internal, sd);
+	IPFW_UH_RUNLOCK(chain);
 	return (0);
 }
 
