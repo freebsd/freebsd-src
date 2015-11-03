@@ -19,8 +19,7 @@ UTF8=	af_ZA am_ET be_BY bg_BG ca_AD ca_ES ca_FR ca_IT \
 
 LOCALEDIR=	${SHAREDIR}/locale
 
-SYMLINKS=	ja_JP.eucJP      ${LOCALEDIR}/ja_JP.eucjp \
-		zh_Hant_TW.UTF-8 ${LOCALEDIR}/zh_TW
+SYMLINKS=	zh_Hant_TW.UTF-8 ${LOCALEDIR}/zh_TW
 
 .for symdir in ${UTF8}
 SYMLINKS+=	${symdir}.UTF-8 ${LOCALEDIR}/${symdir}
