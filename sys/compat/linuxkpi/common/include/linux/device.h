@@ -33,6 +33,7 @@
 
 #include <linux/types.h>
 #include <linux/kobject.h>
+#include <linux/sysfs.h>
 #include <linux/list.h>
 #include <linux/compiler.h>
 #include <linux/types.h>

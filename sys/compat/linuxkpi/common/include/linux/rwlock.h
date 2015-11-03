@@ -31,6 +31,7 @@
 #ifndef	_LINUX_RWLOCK_H_
 #define	_LINUX_RWLOCK_H_
 
+#include <sys/types.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
 
