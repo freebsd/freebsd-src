@@ -693,6 +693,7 @@ void update_opcode_kidx(ipfw_insn *cmd, uint16_t idx);
 int classify_opcode_kidx(ipfw_insn *cmd, uint16_t *puidx);
 void ipfw_init_srv(struct ip_fw_chain *ch);
 void ipfw_destroy_srv(struct ip_fw_chain *ch);
+int ipfw_check_object_name_generic(const char *name);
 
 /* In ip_fw_table.c */
 struct table_info;
