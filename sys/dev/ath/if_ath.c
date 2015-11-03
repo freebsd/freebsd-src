@@ -3320,6 +3320,9 @@ nextfrag:
 	 *
 	 * Note: if this fails, then the mbufs are freed but
 	 * not the node reference.
+	 *
+	 * So, we now have to free the node reference ourselves here
+	 * and return OK up to the stack.
 	 */
 	next = m->m_nextpkt;
 	if (ath_tx_start(sc, ni, bf, m)) {
@@ -3336,7 +3339,14 @@ reclaim:
 		 */
 		ath_txfrag_cleanup(sc, &frags, ni);
 		ATH_TXBUF_UNLOCK(sc);
-		retval = ENOBUFS;
+
+		/*
+		 * XXX: And free the node/return OK; ath_tx_start() may have
+		 *      modified the buffer.  We currently have no way to
+		 *      signify that the mbuf was freed but there was an error.
+		 */
+		ieee80211_free_node(ni);
+		retval = 0;
 		goto finish;
 	}
 
