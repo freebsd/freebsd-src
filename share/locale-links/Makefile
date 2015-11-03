@@ -17,42 +17,14 @@ UTF8=	af_ZA am_ET be_BY bg_BG ca_AD ca_ES ca_FR ca_IT \
 	zh_Hant_HK \
 	zh_Hant_TW
 
-STD1=	af_ZA en_AU en_CA en_HK en_NZ en_SG en_US en_ZA \
-	es_AR es_MX fr_CA pt_BR
-STD2=	cs_CZ hr_HR hu_HU ro_RO sr_Latn_RS
-STD5=	be_BY ru_RU sr_Cyrl_RS
-STD15=	ca_AD ca_ES ca_FR ca_IT da_DK de_AT de_CH de_DE \
-	en_GB en_IE es_ES et_EE eu_ES fi_FI fr_BE fr_CH \
-	fr_FR is_IS it_CH it_IT nb_NO nl_BE nl_NL nn_NO \
-	pt_PT sv_FI sv_SE
-
-MANUAL=	lt_LT el_GR lv_LV
-
 LOCALEDIR=	/usr/share/locale
 
-SYMLINKS=	lt_LT.ISO8859-13 ${LOCALEDIR}/lt_LT \
-		el_GR.ISO8859-7  ${LOCALEDIR}/el_GR \
-		lv_LV.ISO8859-13 ${LOCALEDIR}/lv_LV \
-		en_US.ISO8859-1  ${LOCALEDIR}/en_US.ISO-8859-1 \
-		ja_JP.eucJP      ${LOCALEDIR}/ja_JP.eucjp
+SYMLINKS=	en_US.ISO8859-1  ${LOCALEDIR}/en_US.ISO-8859-1 \
+		ja_JP.eucJP      ${LOCALEDIR}/ja_JP.eucjp \
+		zh_Hant_TW.UTF-8 ${LOCALEDIR}/zh_TW
 
-.for symdir in ${STD1}
-SYMLINKS+=	${symdir}.ISO8859-1 ${LOCALEDIR}/${symdir}
-.endfor
-.for symdir in ${STD2}
-SYMLINKS+=	${symdir}.ISO8859-2 ${LOCALEDIR}/${symdir}
-.endfor
-.for symdir in ${STD5}
-SYMLINKS+=	${symdir}.ISO8859-5 ${LOCALEDIR}/${symdir}
-.endfor
-.for symdir in ${STD15}
-SYMLINKS+=	${symdir}.ISO8859-15 ${LOCALEDIR}/${symdir}
-.endfor
 .for symdir in ${UTF8}
-.  if ! (${STD1:M${symdir}} || ${STD2:M${symdir}} || \
-         ${STD5:M${symdir}} || ${STD15:M${symdir}} || ${MANUAL:M${symdir}})
 SYMLINKS+=	${symdir}.UTF-8 ${LOCALEDIR}/${symdir}
-.  endif
 .endfor
 
 # We need to keep zh_CN.* around as aliases to zh_Hans_CN.* because some
@@ -65,7 +37,5 @@ SYMLINKS+=	zh_Hans_CN.${CN} ${LOCALEDIR}/zh_CN.${CN}
 .for TW in Big5 UTF-8
 SYMLINKS+=	zh_Hant_TW.${TW} ${LOCALEDIR}/zh_TW.${TW}
 .endfor
-
-SYMLINKS+=	zh_Hant_TW.UTF-8 ${LOCALEDIR}/zh_TW
 
 .include <bsd.prog.mk>
