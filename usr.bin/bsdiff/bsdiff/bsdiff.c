@@ -237,7 +237,8 @@ int main(int argc,char *argv[])
 		err(1, "%s", argv[1]);
 
 	if (oldsize > SSIZE_MAX ||
-	    (uintmax_t)oldsize >= SIZE_T_MAX / sizeof(off_t)) {
+	    (uintmax_t)oldsize >= SIZE_T_MAX / sizeof(off_t) ||
+	    oldsize == OFF_MAX) {
 		errno = EFBIG;
 		err(1, "%s", argv[1]);
 	}
@@ -260,7 +261,8 @@ int main(int argc,char *argv[])
 	    ((newsize=lseek(fd,0,SEEK_END))==-1))
 		err(1, "%s", argv[2]);
 
-	if (newsize > SSIZE_MAX || (uintmax_t)newsize >= SIZE_T_MAX) {
+	if (newsize > SSIZE_MAX || (uintmax_t)newsize >= SIZE_T_MAX ||
+	    newsize == OFF_MAX) {
 		errno = EFBIG;
 		err(1, "%s", argv[2]);
 	}
