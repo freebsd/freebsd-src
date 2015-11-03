@@ -782,9 +782,9 @@ fsl_pcib_decode_win(phandle_t node, struct fsl_pcib_softc *sc)
 			    sc->pci_sc.sc_range[i].host,
 			    sc->pci_sc.sc_range[i].size,
 			    sc->pci_sc.sc_range[i].pci);
-			sc->sc_ioport_start = sc->pci_sc.sc_range[i].host;
-			sc->sc_ioport_end = sc->pci_sc.sc_range[i].host +
-			    sc->pci_sc.sc_range[i].size;
+			sc->sc_ioport_start = sc->pci_sc.sc_range[i].pci;
+			sc->sc_ioport_end = sc->pci_sc.sc_range[i].pci +
+			    sc->pci_sc.sc_range[i].size - 1;
 			sc->sc_ioport_alloc = 0x1000 + sc->pci_sc.sc_range[i].pci;
 			break;
 		case OFW_PCI_PHYS_HI_SPACE_MEM32:
@@ -794,9 +794,9 @@ fsl_pcib_decode_win(phandle_t node, struct fsl_pcib_softc *sc)
 			    sc->pci_sc.sc_range[i].host,
 			    sc->pci_sc.sc_range[i].size,
 			    sc->pci_sc.sc_range[i].pci);
-			sc->sc_iomem_start = sc->pci_sc.sc_range[i].host;
-			sc->sc_iomem_end = sc->pci_sc.sc_range[i].host +
-			    sc->pci_sc.sc_range[i].size;
+			sc->sc_iomem_start = sc->pci_sc.sc_range[i].pci;
+			sc->sc_iomem_end = sc->pci_sc.sc_range[i].pci +
+			    sc->pci_sc.sc_range[i].size - 1;
 			sc->sc_iomem_alloc = sc->pci_sc.sc_range[i].pci;
 			break;
 		default:
