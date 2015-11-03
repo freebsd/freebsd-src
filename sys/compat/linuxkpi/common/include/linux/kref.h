@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <sys/refcount.h>
 
+#include <linux/compiler.h>
 #include <asm/atomic.h>
 
 struct kref {

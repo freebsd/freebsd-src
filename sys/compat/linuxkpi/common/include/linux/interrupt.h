@@ -61,7 +61,7 @@ _irq_rid(struct device *dev, int irq)
 	return irq - dev->msix + 1;
 }
 
-static void
+static inline void
 _irq_handler(void *ent)
 {
 	struct irq_ent *irqe;

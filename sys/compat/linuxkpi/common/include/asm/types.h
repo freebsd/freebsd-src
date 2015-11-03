@@ -33,6 +33,8 @@
 
 #ifdef _KERNEL
 
+#include <sys/types.h>
+
 typedef uint8_t u8;
 typedef uint8_t __u8;
 typedef uint16_t u16;

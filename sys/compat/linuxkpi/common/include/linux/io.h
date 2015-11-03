@@ -33,6 +33,7 @@
 
 #include <machine/vm.h>
 #include <sys/endian.h>
+#include <sys/types.h>
 
 static inline uint32_t
 __raw_readl(const volatile void *addr)
