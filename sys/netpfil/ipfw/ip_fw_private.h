@@ -673,6 +673,7 @@ int ipfw_objhash_free_idx(struct namedobj_instance *ni, uint16_t idx);
 int ipfw_objhash_alloc_idx(void *n, uint16_t *pidx);
 void ipfw_objhash_set_funcs(struct namedobj_instance *ni,
     objhash_hash_f *hash_f, objhash_cmp_f *cmp_f);
+void ipfw_export_obj_ntlv(struct named_object *no, ipfw_obj_ntlv *ntlv);
 void ipfw_init_obj_rewriter(void);
 void ipfw_destroy_obj_rewriter(void);
 void ipfw_add_obj_rewriter(struct opcode_obj_rewrite *rw, size_t count);
