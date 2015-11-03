@@ -17,7 +17,7 @@ UTF8=	af_ZA am_ET be_BY bg_BG ca_AD ca_ES ca_FR ca_IT \
 	zh_Hant_HK \
 	zh_Hant_TW
 
-LOCALEDIR=	/usr/share/locale
+LOCALEDIR=	${SHAREDIR}/locale
 
 SYMLINKS=	en_US.ISO8859-1  ${LOCALEDIR}/en_US.ISO-8859-1 \
 		ja_JP.eucJP      ${LOCALEDIR}/ja_JP.eucjp \
