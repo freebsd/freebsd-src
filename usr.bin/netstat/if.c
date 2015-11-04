@@ -271,7 +271,9 @@ intpr(void (*pfunc)(char *), int af)
 {
 	struct ifaddrs *ifap, *ifa;
 	struct ifmaddrs *ifmap, *ifma;
-	
+	u_int ifn_len_max = 5, ifn_len;
+	char ifn_hdr_fmt[14], ifn_bdy_fmt[41];
+
 	if (interval)
 		return sidewaysintpr();
 
@@ -280,12 +282,28 @@ intpr(void (*pfunc)(char *), int af)
 	if (aflag && getifmaddrs(&ifmap) != 0)
 		err(EX_OSERR, "getifmaddrs");
 
+	if (Wflag) {
+		for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+			if (interface != NULL &&
+			    strcmp(ifa->ifa_name, interface) != 0)
+				continue;
+			if (af != AF_UNSPEC && ifa->ifa_addr->sa_family != af)
+				continue;
+			ifn_len = strlen(ifa->ifa_name);
+			if ((ifa->ifa_flags & IFF_UP) == 0)
+				++ifn_len;
+			ifn_len_max = MAX(ifn_len_max, ifn_len);
+		}
+	}
+	snprintf(ifn_hdr_fmt, sizeof(ifn_hdr_fmt), "{T:/%%-%d.%ds}",
+	    ifn_len_max, ifn_len_max);
+	snprintf(ifn_bdy_fmt, sizeof(ifn_bdy_fmt),
+	    "{etk:name/%%s}{e:flags/0x%%x}{d:/%%-%d.%ds}", ifn_len_max,
+	    ifn_len_max);
+
 	xo_open_list("interface");
 	if (!pfunc) {
-		if (Wflag)
-			xo_emit("{T:/%-7.7s}", "Name");
-		else
-			xo_emit("{T:/%-5.5s}", "Name");
+		xo_emit(ifn_hdr_fmt, "Name");
 		xo_emit(" {T:/%5.5s} {T:/%-13.13s} {T:/%-17.17s} {T:/%8.8s} "
 		    "{T:/%5.5s} {T:/%5.5s}",
 		    "Mtu", "Network", "Address", "Ipkts", "Ierrs", "Idrop");
@@ -336,12 +354,7 @@ intpr(void (*pfunc)(char *), int af)
 		} else
 			xname = name;
 
-		if (Wflag)
-			xo_emit("{etk:name/%s}{e:flags/0x%x}{d:/%-7.7s}",
-			    name, ifa->ifa_flags, xname);
-		else
-			xo_emit("{etk:name/%s}{e:flags/0x%x}{d:/%-5.5s}",
-			    name, ifa->ifa_flags, xname);
+		xo_emit(ifn_bdy_fmt, name, ifa->ifa_flags, xname);
 
 #define IFA_MTU(ifa)	(((struct if_data *)(ifa)->ifa_data)->ifi_mtu)
 		show_stat("lu", 6, "mtu", IFA_MTU(ifa), IFA_MTU(ifa), 0);
