@@ -337,10 +337,10 @@ intpr(void (*pfunc)(char *), int af)
 			xname = name;
 
 		if (Wflag)
-			xo_emit("{etk:name/%s}{e:flags/0x%x}{d:/%7.7s}",
+			xo_emit("{etk:name/%s}{e:flags/0x%x}{d:/%-7.7s}",
 			    name, ifa->ifa_flags, xname);
 		else
-			xo_emit("{etk:name/%s}{e:flags/0x%x}{d:/%5.5s}",
+			xo_emit("{etk:name/%s}{e:flags/0x%x}{d:/%-5.5s}",
 			    name, ifa->ifa_flags, xname);
 
 #define IFA_MTU(ifa)	(((struct if_data *)(ifa)->ifa_data)->ifi_mtu)
