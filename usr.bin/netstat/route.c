@@ -527,6 +527,10 @@ routename(struct sockaddr *sa, int flags)
 	static char line[NI_MAXHOST];
 	int error, f;
 
+	/* XXX: sa->sa_len doesn't match sizeof(struct sockaddr_dl) */
+	if (sa->sa_family == AF_LINK)
+		sa->sa_len = sizeof(struct sockaddr_dl);
+
 	f = (flags) ? NI_NUMERICHOST : 0;
 	error = getnameinfo(sa, sa->sa_len, line, sizeof(line),
 	    NULL, 0, f);
