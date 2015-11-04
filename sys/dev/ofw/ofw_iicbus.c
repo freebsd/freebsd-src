@@ -148,10 +148,16 @@ ofw_iicbus_attach(device_t dev)
 		if (dinfo == NULL)
 			continue;
 		/*
-		 * OFW uses 7-bit I2C address format (see ePAPR),
-		 * but system expect 8-bit.
+		 * FreeBSD drivers expect I2C addresses to be expressed as
+		 * 8-bit values.  Apple OFW data contains 8-bit values, but
+		 * Linux FDT data contains 7-bit values, so shift them up to
+		 * 8-bit format.
 		 */
+#ifdef AIM
+		dinfo->opd_dinfo.addr = paddr;
+#else
 		dinfo->opd_dinfo.addr = paddr << 1;
+#endif
 		if (ofw_bus_gen_setup_devinfo(&dinfo->opd_obdinfo, child) !=
 		    0) {
 			free(dinfo, M_DEVBUF);
