@@ -272,7 +272,6 @@ intpr(void (*pfunc)(char *), int af)
 	struct ifaddrs *ifap, *ifa;
 	struct ifmaddrs *ifmap, *ifma;
 	u_int ifn_len_max = 5, ifn_len;
-	char ifn_hdr_fmt[14], ifn_bdy_fmt[41];
 
 	if (interval)
 		return sidewaysintpr();
@@ -295,15 +294,10 @@ intpr(void (*pfunc)(char *), int af)
 			ifn_len_max = MAX(ifn_len_max, ifn_len);
 		}
 	}
-	snprintf(ifn_hdr_fmt, sizeof(ifn_hdr_fmt), "{T:/%%-%d.%ds}",
-	    ifn_len_max, ifn_len_max);
-	snprintf(ifn_bdy_fmt, sizeof(ifn_bdy_fmt),
-	    "{etk:name/%%s}{e:flags/0x%%x}{d:/%%-%d.%ds}", ifn_len_max,
-	    ifn_len_max);
 
 	xo_open_list("interface");
 	if (!pfunc) {
-		xo_emit(ifn_hdr_fmt, "Name");
+		xo_emit("{T:/%-*.*s}", ifn_len_max, ifn_len_max, "Name");
 		xo_emit(" {T:/%5.5s} {T:/%-13.13s} {T:/%-17.17s} {T:/%8.8s} "
 		    "{T:/%5.5s} {T:/%5.5s}",
 		    "Mtu", "Network", "Address", "Ipkts", "Ierrs", "Idrop");
@@ -354,7 +348,8 @@ intpr(void (*pfunc)(char *), int af)
 		} else
 			xname = name;
 
-		xo_emit(ifn_bdy_fmt, name, ifa->ifa_flags, xname);
+		xo_emit("{etk:name/%s}{e:flags/0x%x}{d:/%-*.*s}",
+		    name, ifa->ifa_flags, ifn_len_max, ifn_len_max, xname);
 
 #define IFA_MTU(ifa)	(((struct if_data *)(ifa)->ifa_data)->ifi_mtu)
 		show_stat("lu", 6, "mtu", IFA_MTU(ifa), IFA_MTU(ifa), 0);
