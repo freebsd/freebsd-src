@@ -391,8 +391,7 @@ intpr(void (*pfunc)(char *), int af)
 			    sdl->sdl_slen == 0)
 				xo_emit("{P:                  }");
 			else
-				xo_emit("{:address/%*s}",
-				    32 - 3 * sdl->sdl_alen,
+				xo_emit("{:address/%-17.17s} ",
 				    routename(ifa->ifa_addr, 1));
 			link = true;
 			break;
