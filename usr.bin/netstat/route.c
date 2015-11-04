@@ -688,9 +688,10 @@ static const char *
 netname6(struct sockaddr_in6 *sa6, struct sockaddr_in6 *mask)
 {
 	static char line[NI_MAXHOST + sizeof("/xxx") - 1];
+	struct sockaddr_in6 addr;
 	char nline[NI_MAXHOST];
 	u_char *p, *lim;
-	int masklen, illegal = 0;
+	int masklen, illegal = 0, i;
 
 	if (mask) {
 		p = (u_char *)&mask->sin6_addr;
@@ -703,6 +704,12 @@ netname6(struct sockaddr_in6 *sa6, struct sockaddr_in6 *mask)
 		}
 		if (illegal)
 			xo_error("illegal prefixlen\n");
+
+		memcpy(&addr, sa6, sizeof(addr));
+		for (i = 0; i < 16; ++i)
+			addr.sin6_addr.s6_addr[i] &=
+			    mask->sin6_addr.s6_addr[i];
+		sa6 = &addr;
 	}
 	else
 		masklen = 128;
