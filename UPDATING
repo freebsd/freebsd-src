@@ -16,6 +16,18 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20151104	p7	FreeBSD-SA-15:25.ntp [revised]
+			FreeBSD-EN-15:19.kqueue
+			FreeBSD-EN-15:20.vm
+
+	Fix regression in ntpd(8) lacking support for RAWDCF reference
+	clock in 10.2-RELEASE-p6. [SA-15:25]
+
+	Fix kqueue write events never fired for files greater 2GB. [EN-15:19]
+
+	Fix applications exiting due to segmentation violation on a correct
+	memory address. [EN-15:20.vm]
+
 20151026:	p6	FreeBSD-SA-15:25.ntp
 
 	Fix multiple NTP vulnerabilities. New NTP version is 4.2.8p4.
