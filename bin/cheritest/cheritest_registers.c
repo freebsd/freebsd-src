@@ -224,8 +224,7 @@ void
 test_initregs_stack(const struct cheri_test *ctp __unused)
 {
 
-	/* XXXRW: There is no Clang builtin for the stack capability! */
-	check_initreg_data(cheri_getreg(11));
+	check_initreg_data(cheri_getstack());
 }
 
 void
