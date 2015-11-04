@@ -82,8 +82,8 @@ SRCS+=	${DB_SRCS}
 
 WARNS?=	2
 CFLAGS+= -DHAVE_CONFIG_H \
-	 -I${.CURDIR}/../../lib/libohash/ \
+	 -I${.CURDIR}/../../lib/libopenbsd/ \
 	 -I${.CURDIR}/../../contrib/sqlite3
-LIBADD=	ohash sqlite3 z
+LIBADD=	openbsd sqlite3 z
 
 .include <bsd.prog.mk>

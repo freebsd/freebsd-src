@@ -9,7 +9,7 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libohash \
+	lib/libopenbsd \
 	lib/libsqlite3 \
 	lib/libthr \
 	lib/libz \
