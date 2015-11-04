@@ -11,6 +11,21 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20151104	p30	FreeBSD-SA-15:25.ntp [revised]
+			FreeBSD-EN-15:19.kqueue
+			FreeBSD-EN-15:20.vm
+
+	Fix regression of ntpq(8) utility exiting due to trap 6 in
+	9.3-RELEASE-p29. [SA-15:25]
+
+	Fix regression in ntpd(8) lacking support for RAWDCF reference
+	clock in 9.3-RELEASE-p29. [SA-15:25]
+
+	Fix kqueue write events never fired for files greater 2GB. [EN-15:19]
+
+	Fix applications exiting due to segmentation violation on a correct
+	memory address. [EN-15:20]
+
 20151026:	p29	FreeBSD-SA-15:25.ntp
 
 	Fix multiple NTP vulnerabilities. New NTP version is 4.2.8p4.
