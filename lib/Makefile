@@ -80,7 +80,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libnetgraph} \
 	${_libngatm} \
 	libnv \
-	libohash \
+	libopenbsd \
 	libopie \
 	libpam \
 	libpcap \
