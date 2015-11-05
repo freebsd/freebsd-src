@@ -5431,3 +5431,44 @@ pci_get_rid_method(device_t dev, device_t child)
 
 	return (PCIB_GET_RID(device_get_parent(dev), child));
 }
+
+/* Find the upstream port of a given PCI device in a root complex. */
+device_t
+pci_find_pcie_root_port(device_t dev)
+{
+	struct pci_devinfo *dinfo;
+	devclass_t pci_class;
+	device_t pcib, bus;
+
+	pci_class = devclass_find("pci");
+	KASSERT(device_get_devclass(device_get_parent(dev)) == pci_class,
+	    ("%s: non-pci device %s", __func__, device_get_nameunit(dev)));
+
+	/*
+	 * Walk the bridge hierarchy until we find a PCI-e root
+	 * port or a non-PCI device.
+	 */
+	for (;;) {
+		bus = device_get_parent(dev);
+		KASSERT(bus != NULL, ("%s: null parent of %s", __func__,
+		    device_get_nameunit(dev)));
+
+		pcib = device_get_parent(bus);
+		KASSERT(pcib != NULL, ("%s: null bridge of %s", __func__,
+		    device_get_nameunit(bus)));
+
+		/*
+		 * pcib's parent must be a PCI bus for this to be a
+		 * PCI-PCI bridge.
+		 */
+		if (device_get_devclass(device_get_parent(pcib)) != pci_class)
+			return (NULL);
+
+		dinfo = device_get_ivars(pcib);
+		if (dinfo->cfg.pcie.pcie_location != 0 &&
+		    dinfo->cfg.pcie.pcie_type == PCIEM_TYPE_ROOT_PORT)
+			return (pcib);
+
+		dev = pcib;
+	}
+}
