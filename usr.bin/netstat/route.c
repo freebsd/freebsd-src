@@ -637,14 +637,13 @@ netname4(in_addr_t in, in_addr_t mask)
 			trimdomain(cp, strlen(cp));
 		}
 	}
-	inet_ntop(AF_INET, &in, nline, sizeof(line));
-	if (cp != NULL) {
-		if (strcpy(cp, nline) != 0)
-			return (line);
+	if (cp != NULL)
 		strlcpy(line, cp, sizeof(line));
-	} else
+	else {
+		inet_ntop(AF_INET, &in, nline, sizeof(nline));
 		strlcpy(line, nline, sizeof(line));
-	domask(line + strlen(line), i, ntohl(mask));
+		domask(line + strlen(line), i, ntohl(mask));
+	}
 
 	return (line);
 }
