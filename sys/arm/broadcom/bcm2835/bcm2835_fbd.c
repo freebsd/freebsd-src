@@ -81,7 +81,7 @@ bcm_fb_attach(device_t dev)
 {
 	char bootargs[2048], *n, *p, *v;
 	device_t fbd;
-	int fbswap;
+	int fbswap, err;
 	phandle_t chosen;
 	struct bcm2835_fb_config fb;
 	struct bcmsc_softc *sc;
@@ -89,11 +89,13 @@ bcm_fb_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	memset(&fb, 0, sizeof(fb));
-	if (bcm2835_mbox_fb_get_w_h(dev, &fb) != 0)
+	if (bcm2835_mbox_fb_get_w_h(&fb) != 0)
 		return (ENXIO);
 	fb.bpp = FB_DEPTH;
-	if (bcm2835_mbox_fb_init(dev, &fb) != 0)
+	if ((err = bcm2835_mbox_fb_init(&fb)) != 0) {
+		device_printf(dev, "bcm2835_mbox_fb_init failed, err=%d\n", err);
 		return (ENXIO);
+	}
 
 	info = malloc(sizeof(struct fb_info), M_DEVBUF, M_WAITOK | M_ZERO);
 	info->fb_name = device_get_nameunit(dev);
