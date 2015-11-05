@@ -325,11 +325,11 @@ el_get(EditLine *el, int op, ...)
 		ret = el_wget(el, op, va_arg(ap, const char **));
 		break;
 
-	case EL_SIGNAL:         /* int */
+	case EL_SIGNAL:         /* int * */
 	case EL_EDITMODE:
 	case EL_UNBUFFERED:
 	case EL_PREP_TERM:
-		ret = el_wget(el, op, va_arg(ap, int));
+		ret = el_wget(el, op, va_arg(ap, int *));
 		break;
 
 	case EL_GETTC: {
