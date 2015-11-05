@@ -255,7 +255,7 @@ int zfs_flags = 0;
  */
 boolean_t zfs_recover = B_FALSE;
 SYSCTL_DECL(_vfs_zfs);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, recover, CTLFLAG_RDTUN, &zfs_recover, 0,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, recover, CTLFLAG_RWTUN, &zfs_recover, 0,
     "Try to recover from otherwise-fatal errors.");
 
 static int
