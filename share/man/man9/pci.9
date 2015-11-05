@@ -42,6 +42,7 @@
 .Nm pci_find_device ,
 .Nm pci_find_extcap ,
 .Nm pci_find_htcap ,
+.Nm pci_find_pcie_root_port ,
 .Nm pci_get_max_read_req ,
 .Nm pci_get_powerstate ,
 .Nm pci_get_vpd_ident ,
@@ -91,6 +92,8 @@
 .Fn pci_find_extcap "device_t dev" "int capability" "int *capreg"
 .Ft int
 .Fn pci_find_htcap "device_t dev" "int capability" "int *capreg"
+.Ft device_t
+.Fn pci_find_pcie_root_port "device_t dev"
 .Ft int
 .Fn pci_get_max_read_req "device_t dev"
 .Ft int
@@ -336,6 +339,16 @@ returns zero.
 If the capability is not found or the device is not a HyperTransport device,
 .Fn pci_find_htcap
 returns an error.
+.Pp
+The
+.Fn pci_find_pcie_root_port
+function walks up the PCI device hierarchy to locate the PCI-express root
+port upstream of
+.Fa dev .
+If a root port is not found,
+.Fn pci_find_pcie_root_port
+returns
+.Dv NULL .
 .Pp
 The
 .Fn pci_get_vpd_ident
