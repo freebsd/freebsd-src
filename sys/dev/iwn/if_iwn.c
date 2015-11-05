@@ -4852,6 +4852,7 @@ iwn_xmit_task(void *arg0, int pending)
 			if_inc_counter(ni->ni_vap->iv_ifp,
 			    IFCOUNTER_OERRORS, 1);
 			ieee80211_free_node(ni);
+			m_freem(m);
 		}
 	}
 
@@ -4872,15 +4873,12 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	DPRINTF(sc, IWN_DEBUG_XMIT | IWN_DEBUG_TRACE, "->%s begin\n", __func__);
 
+	IWN_LOCK(sc);
 	if ((sc->sc_flags & IWN_FLAG_RUNNING) == 0) {
 		m_freem(m);
-		return ENETDOWN;
+		IWN_UNLOCK(sc);
+		return (ENETDOWN);
 	}
-
-	/* XXX? net80211 doesn't set this on xmit'ed raw frames? */
-	m->m_pkthdr.rcvif = (void *) ni;
-
-	IWN_LOCK(sc);
 
 	/* queue frame if we have to */
 	if (sc->sc_beacon_wait) {
@@ -4909,12 +4907,14 @@ iwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	}
 	if (error == 0)
 		sc->sc_tx_timer = 5;
+	else
+		m_freem(m);
 
 	IWN_UNLOCK(sc);
 
 	DPRINTF(sc, IWN_DEBUG_TRACE | IWN_DEBUG_XMIT, "->%s: end\n",__func__);
 
-	return error;
+	return (error);
 }
 
 /*
