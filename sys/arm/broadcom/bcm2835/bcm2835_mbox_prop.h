@@ -106,7 +106,7 @@ struct msg_set_power_state {
 };
 
 /* Sets the power state for a given device */
-int bcm2835_mbox_set_power_state(device_t, uint32_t, boolean_t);
+int bcm2835_mbox_set_power_state(uint32_t, boolean_t);
 
 #define BCM2835_MBOX_CLOCK_ID_EMMC		0x00000001
 #define BCM2835_MBOX_CLOCK_ID_UART		0x00000002
@@ -185,7 +185,7 @@ struct msg_get_min_clock_rate {
 	uint32_t end_tag;
 };
 
-int bcm2835_mbox_get_clock_rate(device_t, uint32_t, uint32_t *);
+int bcm2835_mbox_get_clock_rate(uint32_t, uint32_t *);
 
 #define BCM2835_MBOX_TURBO_ON			1
 #define BCM2835_MBOX_TURBO_OFF			0
@@ -474,7 +474,7 @@ struct msg_fb_get_w_h {
 	uint32_t end_tag;
 };
 
-int bcm2835_mbox_fb_get_w_h(device_t, struct bcm2835_fb_config *);
+int bcm2835_mbox_fb_get_w_h(struct bcm2835_fb_config *);
 
 struct msg_fb_setup {
 	struct bcm2835_mbox_hdr hdr;
@@ -488,6 +488,8 @@ struct msg_fb_setup {
 	uint32_t end_tag;
 };
 
-int bcm2835_mbox_fb_init(device_t, struct bcm2835_fb_config *);
+int bcm2835_mbox_fb_init(struct bcm2835_fb_config *);
+
+int bcm2835_mbox_property(void *, size_t);
 
 #endif /* _BCM2835_MBOX_PROP_H_ */
