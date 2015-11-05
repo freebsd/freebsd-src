@@ -48,9 +48,15 @@
 .error "Both TARGET and TARGET_ARCH must be defined."
 .endif
 
-.include "share/mk/src.opts.mk"
-.include <bsd.arch.inc.mk>
-.include <bsd.compiler.mk>
+# Cross toolchain changes must be in effect before bsd.compiler.mk
+# so that gets the right CC, and pass CROSS_TOOLCHAIN to submakes.
+.if defined(CROSS_TOOLCHAIN)
+LOCALBASE?=	/usr/local
+.include "${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk"
+CROSSENV+=CROSS_TOOLCHAIN="${CROSS_TOOLCHAIN}"
+.endif
+.include <bsd.compiler.mk>		# don't depend on src.opts.mk doing it
+.include "share/mk/src.opts.mk"	
 
 # We must do lib/ and libexec/ before bin/ in case of a mid-install error to
 # keep the users system reasonably usable.  For static->dynamic root upgrades,
@@ -254,7 +260,7 @@ INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 BOOTSTRAPPING?=	0
 
 # Common environment for world related stages
-CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
+CROSSENV+=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
 		CPUTYPE=${TARGET_CPUTYPE}
@@ -329,10 +335,6 @@ HMAKE=		PATH=${TMPPATH} ${MAKE} LOCAL_MTREE=${LOCAL_MTREE:Q}
 HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
 .endif
 
-.if defined(CROSS_TOOLCHAIN)
-LOCALBASE?=	/usr/local
-.include "${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk"
-.endif
 .if defined(CROSS_TOOLCHAIN_PREFIX)
 CROSS_COMPILER_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
 CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
@@ -369,7 +371,7 @@ X${BINUTIL}?=	${CROSS_BINUTILS_PREFIX}${${BINUTIL}}
 X${BINUTIL}?=	${${BINUTIL}}
 .endif
 .endfor
-WMAKEENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCFLAGS} ${XCXXFLAGS}" \
+CROSSENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCFLAGS} ${XCXXFLAGS}" \
 		DEPFLAGS="${DEPFLAGS}" \
 		CPP="${XCPP} ${XCFLAGS}" \
 		AS="${XAS}" AR="${XAR}" LD="${XLD}" NM=${XNM} \
