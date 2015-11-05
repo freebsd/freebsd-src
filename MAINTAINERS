@@ -27,6 +27,12 @@ sub-system.
 subsystem	login	notes
 -----------------------------
 share/mk	imp, bapt, bdrewery, emaste, sjg	Make is hard.
+ath(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+net80211	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+iwn(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+iwm(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+otus(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+dev/usb/wlan	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 ---- OLD ----
 kqueue		jmg	Pre-commit review requested.  Documentation Required.
 libc/posix1e	rwatson	Pre-commit review requested.
@@ -36,7 +42,6 @@ MAC Framework	rwatson	Pre-commit review requested.
 MAC Modules	rwatson	Pre-commit review requested.
 contrib/openbsm	rwatson	Pre-commit review requested.
 sys/security/audit	rwatson	Pre-commit review requested.
-ath(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 ahc(4)		gibbs	Pre-commit review requested.
 ahd(4)		gibbs	Pre-commit review requested.
 pci bus		imp,jhb	Pre-commit review requested.
@@ -68,7 +73,6 @@ procfs		des	Pre-commit review requested.
 linprocfs	des	Pre-commit review requested.
 lpr		gad	Pre-commit review requested, particularly for
 			lpd/recvjob.c and lpd/printjob.c.
-net80211	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 nvi		peter	Try not to break it.
 libz		peter	Try not to break it.
 groff		ru	Recommends pre-commit review.
