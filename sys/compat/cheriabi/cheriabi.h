@@ -58,11 +58,11 @@ __cheri_cap_to_ptr(struct chericap *c)
 	do { (dst).fld = PTRIN((src).fld); } while (0)
 
 struct kevent_c {
-	uintptr_t	ident;		/* identifier for this event */
+	struct chericap	ident;		/* identifier for this event */
 	short		filter;		/* filter for event */
 	u_short		flags;
 	u_int		fflags;
-	intptr_t	data;
+	int64_t		data;
 	struct chericap	udata;		/* opaque user data identifier */
 };
 
