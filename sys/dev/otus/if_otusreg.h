@@ -1009,7 +1009,6 @@ struct otus_softc {
 	struct ieee80211_channel	*sc_curchan;
 
 	struct task			tx_task;
-	struct task			wme_update_task;
 	struct timeout_task		scan_to;
 	struct timeout_task		calib_to;
 
