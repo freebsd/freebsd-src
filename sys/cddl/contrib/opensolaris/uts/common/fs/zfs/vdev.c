@@ -2808,7 +2808,8 @@ vdev_get_stats(vdev_t *vd, vdev_stat_t *vs)
 	vs->vs_rsize = vdev_get_min_asize(vd);
 	if (vd->vdev_ops->vdev_op_leaf)
 		vs->vs_rsize += VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE;
-	vs->vs_esize = vd->vdev_max_asize - vd->vdev_asize;
+	if (vd->vdev_max_asize != 0)
+		vs->vs_esize = vd->vdev_max_asize - vd->vdev_asize;
 	vs->vs_configured_ashift = vd->vdev_top != NULL
 	    ? vd->vdev_top->vdev_ashift : vd->vdev_ashift;
 	vs->vs_logical_ashift = vd->vdev_logical_ashift;
