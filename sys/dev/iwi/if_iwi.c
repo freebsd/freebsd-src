@@ -155,7 +155,6 @@ static void	iwi_media_status(struct ifnet *, struct ifmediareq *);
 static int	iwi_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	iwi_wme_init(struct iwi_softc *);
 static int	iwi_wme_setparams(struct iwi_softc *);
-static void	iwi_update_wme(void *, int);
 static int	iwi_wme_update(struct ieee80211com *);
 static uint16_t	iwi_read_prom_word(struct iwi_softc *, uint8_t);
 static void	iwi_frame_intr(struct iwi_softc *, struct iwi_rx_data *, int,
@@ -286,7 +285,6 @@ iwi_attach(device_t dev)
 	TASK_INIT(&sc->sc_radiofftask, 0, iwi_radio_off, sc);
 	TASK_INIT(&sc->sc_restarttask, 0, iwi_restart, sc);
 	TASK_INIT(&sc->sc_disassoctask, 0, iwi_disassoc, sc);
-	TASK_INIT(&sc->sc_wmetask, 0, iwi_update_wme, sc);
 	TASK_INIT(&sc->sc_monitortask, 0, iwi_monitor_scan, sc);
 
 	callout_init_mtx(&sc->sc_wdtimer, &sc->sc_mtx, 0);
@@ -1060,22 +1058,12 @@ iwi_wme_setparams(struct iwi_softc *sc)
 #undef IWI_USEC
 #undef IWI_EXP2
 
-static void
-iwi_update_wme(void *arg, int npending)
-{
-	struct iwi_softc *sc = arg;
-	IWI_LOCK_DECL;
-
-	IWI_LOCK(sc);
-	(void) iwi_wme_setparams(sc);
-	IWI_UNLOCK(sc);
-}
-
 static int
 iwi_wme_update(struct ieee80211com *ic)
 {
 	struct iwi_softc *sc = ic->ic_softc;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	IWI_LOCK_DECL;
 
 	/*
 	 * We may be called to update the WME parameters in
@@ -1085,8 +1073,11 @@ iwi_wme_update(struct ieee80211com *ic)
 	 * to the adapter as part of the work iwi_auth_and_assoc
 	 * does.
 	 */
-	if (vap->iv_state == IEEE80211_S_RUN)
-		ieee80211_runtask(ic, &sc->sc_wmetask);
+	if (vap->iv_state == IEEE80211_S_RUN) {
+		IWI_LOCK(sc);
+		iwi_wme_setparams(sc);
+		IWI_UNLOCK(sc);
+	}
 	return (0);
 }
 
