@@ -27,7 +27,7 @@
 #	    when NO_ROOT is set.  (default: ${DESTDIR}/METALOG)
 #	TARGET="machine" to crossbuild world for a different machine type
 #	TARGET_ARCH= may be required when a TARGET supports multiple endians
-#	BUILDENV_SHELL= shell to launch for the buildenv target (def:/bin/sh)
+#	BUILDENV_SHELL= shell to launch for the buildenv target (def:${SHELL})
 #	WORLD_FLAGS= additional flags to pass to make(1) during buildworld
 #	KERNEL_FLAGS= additional flags to pass to make(1) during buildkernel
 #	SUBDIR_OVERRIDE="list of dirs" to build rather than everything.
@@ -145,7 +145,7 @@ CLEANDIR=	cleandir
 
 LOCAL_TOOL_DIRS?=
 
-BUILDENV_SHELL?=/bin/sh
+BUILDENV_SHELL?=${SHELL}
 
 SVN?=		/usr/local/bin/svn
 SVNFLAGS?=	-r HEAD
@@ -783,7 +783,7 @@ buildenvvars:
 .endif
 buildenv:
 	@echo Entering world for ${TARGET_ARCH}:${TARGET}
-	@cd ${.CURDIR} && env ${WMAKEENV} ${BUILDENV_SHELL} || true
+	@cd ${.CURDIR} && env ${WMAKEENV} BUILDENV=1 ${BUILDENV_SHELL} || true
 
 TOOLCHAIN_TGTS=	${WMAKE_TGTS:N_depend:Neverything:Nbuild32}
 toolchain: ${TOOLCHAIN_TGTS}
