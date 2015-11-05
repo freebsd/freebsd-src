@@ -460,6 +460,10 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 	    MAX_PAYLOAD(cap & PCIEM_CAP_MAX_PAYLOAD));
 	if ((cap & PCIEM_CAP_FLR) != 0)
 		printf(" FLR");
+	if (ctl & PCIEM_CTL_RELAXED_ORD_ENABLE)
+		printf(" RO");
+	if (ctl & PCIEM_CTL_NOSNOOP_ENABLE)
+		printf(" NS");
 	cap = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_CAP, 4);
 	sta = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_STA, 2);
 	printf(" link x%d(x%d)", (sta & PCIEM_LINK_STA_WIDTH) >> 4,
