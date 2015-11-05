@@ -505,8 +505,6 @@ handle_ddp_close(struct toepcb *toep, struct tcpcb *tp, struct sockbuf *sb,
 	 F_DDP_INVALID_TAG | F_DDP_COLOR_ERR | F_DDP_TID_MISMATCH |\
 	 F_DDP_INVALID_PPOD | F_DDP_HDRCRC_ERR | F_DDP_DATACRC_ERR)
 
-void (*cxgbei_rx_data_ddp)(struct toepcb *, const struct cpl_rx_data_ddp *);
-
 static int
 do_rx_data_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
@@ -528,9 +526,9 @@ do_rx_data_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	if (toep->ulp_mode == ULP_MODE_ISCSI) {
-		cxgbei_rx_data_ddp(toep, cpl);
+		sc->cpl_handler[CPL_RX_ISCSI_DDP](iq, rss, m);
 		return (0);
-        }
+	}
 
 	handle_ddp_data(toep, cpl->u.ddp_report, cpl->seq, be16toh(cpl->len));
 
