@@ -76,9 +76,15 @@ typedef	__int32_t	__clock_t;		/* clock()... */
 typedef	double		__double_t;
 typedef	float		__float_t;
 #ifdef __mips_n64
+#ifndef __CHERI_SANDBOX__
 typedef	__int64_t	__critical_t;
 typedef	__int64_t	__intfptr_t;
 typedef	__int64_t	__intptr_t;
+#else
+typedef	__intcap_t	__critical_t;
+typedef	__intcap_t	__intfptr_t;
+typedef	__intcap_t	__intptr_t;
+#endif
 #else
 typedef	__int32_t	__critical_t;
 typedef	__int32_t	__intfptr_t;
@@ -106,8 +112,13 @@ typedef	__int64_t	__segsz_t;
 typedef	__int64_t	__semid_t;		/* historically intptr_t */
 typedef	__uint64_t	__size_t;
 typedef	__int64_t	__ssize_t;
+#ifndef __CHERI_SANDBOX__
 typedef	__uint64_t	__uintfptr_t;
 typedef	__uint64_t	__uintptr_t;
+#else
+typedef	__uintcap_t	__uintfptr_t;
+typedef	__uintcap_t	__uintptr_t;
+#endif
 #else
 typedef	__int32_t	__ptrdiff_t;		/* ptr1 - ptr2 */
 typedef	__int32_t	__segsz_t;		/* segment size (in pages) */
