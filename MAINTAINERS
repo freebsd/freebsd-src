@@ -36,6 +36,8 @@ iwm(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 otus(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 dev/usb/wlan	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 openssl		benl,jkim	Pre-commit review requested.
+release/release.sh	gjb,re	Pre-commit review and regression tests
+				requested.
 ---- OLD ----
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
@@ -136,7 +138,5 @@ sh(1)		jilles		Pre-commit review requested. This also applies
 nvme(4)		jimharris	Pre-commit review requested.
 nvd(4)		jimharris	Pre-commit review requested.
 nvmecontrol(8)	jimharris	Pre-commit review requested.
-release/release.sh	gjb	Pre-commit review and regression tests
-				requested.
 nanobsd		imp	Pre-commit review requested for coordination.
 vmm(4)		neel,grehan	Pre-commit review requested.
