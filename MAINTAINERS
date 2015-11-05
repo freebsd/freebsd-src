@@ -26,6 +26,8 @@ sub-system.
 
 subsystem	login	notes
 -----------------------------
+opencrypto	jmg	Pre-commit review requested.  Documentation Required.
+kqueue		jmg	Pre-commit review requested.  Documentation Required.
 share/mk	imp, bapt, bdrewery, emaste, sjg	Make is hard.
 ath(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 net80211	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
@@ -34,7 +36,6 @@ iwm(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 otus(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 dev/usb/wlan	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 ---- OLD ----
-kqueue		jmg	Pre-commit review requested.  Documentation Required.
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
 UFS EAs		rwatson	Pre-commit review requested.
@@ -139,4 +140,3 @@ release/release.sh	gjb	Pre-commit review and regression tests
 				requested.
 nanobsd		imp	Pre-commit review requested for coordination.
 vmm(4)		neel,grehan	Pre-commit review requested.
-opencrypto	jmg	Pre-commit review requested.  Documentation Required.
