@@ -308,7 +308,7 @@ intpr(void (*pfunc)(char *), int af)
 			xo_emit(" {T:/%10.10s}","Obytes");
 		xo_emit(" {T:/%5s}", "Coll");
 		if (dflag)
-			xo_emit(" {T:/%s}", "Drop");
+			xo_emit(" {T:/%5.5s}", "Drop");
 		xo_emit("\n");
 	}
 
