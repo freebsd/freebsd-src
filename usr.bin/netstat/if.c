@@ -37,7 +37,7 @@ static char sccsid[] = "@(#)if.c	8.3 (Berkeley) 4/28/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
