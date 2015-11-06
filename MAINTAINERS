@@ -38,6 +38,9 @@ dev/usb/wlan	adrian	Pre-commit review requested, send to freebsd-wireless@freebs
 openssl		benl,jkim	Pre-commit review requested.
 release/release.sh	gjb,re	Pre-commit review and regression tests
 				requested.
+sh(1)		jilles		Pre-commit review requested. This also applies
+				to kill(1), printf(1) and test(1) which are
+				compiled in as builtins.
 ---- OLD ----
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
@@ -132,9 +135,6 @@ isci(4)		jimharris	Pre-commit review requested.
 cmx		daniel@roe.ch	Pre-commit review preferred.
 filemon		obrien		Pre-commit review preferred.
 sysdoc		trhodes		Pre-commit review preferred.
-sh(1)		jilles		Pre-commit review requested. This also applies
-				to kill(1), printf(1) and test(1) which are
-				compiled in as builtins.
 nvme(4)		jimharris	Pre-commit review requested.
 nvd(4)		jimharris	Pre-commit review requested.
 nvmecontrol(8)	jimharris	Pre-commit review requested.
