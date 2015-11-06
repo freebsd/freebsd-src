@@ -52,6 +52,11 @@ openssh		des	Pre-commit review requested.
 pseudofs	des	Pre-commit review requested.
 procfs		des	Pre-commit review requested.
 linprocfs	des	Pre-commit review requested.
+contrib/compiler-rt	dim	Pre-commit review preferred.
+contrib/libc++		dim	Pre-commit review preferred.
+contrib/libcxxrt	dim	Pre-commit review preferred.
+contrib/llvm		dim	Pre-commit review preferred.
+contrib/llvm/tools/lldb	emaste	Pre-commit review preferred.
 ---- OLD ----
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
