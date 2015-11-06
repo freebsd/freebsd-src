@@ -2559,6 +2559,7 @@ dwc_otg_interrupt_poll_locked(struct dwc_otg_softc *sc)
 	struct usb_xfer *xfer;
 	uint32_t count;
 	uint32_t temp;
+	uint32_t haint;
 	uint8_t got_rx_status;
 	uint8_t x;
 
@@ -2576,14 +2577,18 @@ repeat:
 		DPRINTF("Yield\n");
 		return;
 	}
+
 	/* get all host channel interrupts */
-	for (x = 0; x != sc->sc_host_ch_max; x++) {
+	haint = DWC_OTG_READ_4(sc, DOTG_HAINT);
+	while (1) {
+		x = ffs(haint) - 1;
+		if (x >= sc->sc_host_ch_max)
+			break;
 		temp = DWC_OTG_READ_4(sc, DOTG_HCINT(x));
-		if (temp != 0) {
-			DWC_OTG_WRITE_4(sc, DOTG_HCINT(x), temp);
-			temp &= ~HCINT_SOFTWARE_ONLY;
-			sc->sc_chan_state[x].hcint |= temp;
-		}
+		DWC_OTG_WRITE_4(sc, DOTG_HCINT(x), temp);
+		temp &= ~HCINT_SOFTWARE_ONLY;
+		sc->sc_chan_state[x].hcint |= temp;
+		haint &= ~(1U << x);
 	}
 
 	if (sc->sc_last_rx_status == 0) {
