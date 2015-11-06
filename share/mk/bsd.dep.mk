@@ -50,6 +50,18 @@ HTAGSFLAGS?=
 
 MKDEPCMD?=	CC='${CC.${.IMPSRC:T}:U${CC}} ${DEPFLAGS}' mkdep
 DEPENDFILE?=	.depend
+DEPENDFILES=	${DEPENDFILE}
+.if ${MK_FAST_DEPEND} == "yes"
+DEPENDFILES+=	${DEPENDFILE}.*
+DEPEND_CFLAGS+=	-MD -MP -MF${DEPENDFILE}.${.TARGET}
+DEPEND_CFLAGS+=	-MT${.TARGET}
+CFLAGS+=	${DEPEND_CFLAGS}
+DEPENDOBJS+=	${OBJS} ${POBJS} ${SOBJS}
+.for __obj in ${DEPENDOBJS:O:u}
+.sinclude "${DEPENDFILE}.${__obj}"
+DEPENDFILES_OBJS+=	${DEPENDFILE}.${__obj}
+.endfor
+.endif	# ${MK_FAST_DEPEND} == "yes"
 
 # Keep `tags' here, before SRCS are mangled below for `depend'.
 .if !target(tags) && defined(SRCS) && !defined(NO_TAGS)
@@ -157,7 +169,7 @@ afterdepend: beforedepend
 depend: beforedepend ${DEPENDFILE} afterdepend
 
 # Tell bmake not to look for generated files via .PATH
-.NOPATH: ${DEPENDFILE}
+.NOPATH: ${DEPENDFILE} ${DEPENDFILES_OBJS}
 
 # Different types of sources are compiled with slightly different flags.
 # Split up the sources, and filter out headers and non-applicable flags.
@@ -166,9 +178,7 @@ MKDEP_CFLAGS=	${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BIDU]*} ${CFLAGS:M-std=*} \
 MKDEP_CXXFLAGS=	${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BIDU]*} \
 		${CXXFLAGS:M-std=*} ${CXXFLAGS:M-ansi} ${CXXFLAGS:M-stdlib=*}
 
-# Each source has it's own dependency file suffix in case multple possible
-# sources exists (e.g. fabs.c and fabs.S in libc)
-DPSRCS+=	${SRCS}
+DPSRCS+= ${SRCS}
 DPFILES+=	${DPSRCS:M*.[cS]:S/.c$/.dep_c/:S/.S$/.dep_S/} \
 		${DPSRCS:M*.cc:S/.cc$/.dep_cc/} \
 		${DPSRCS:M*.C:S/.C$/.dep_C/} \
@@ -180,8 +190,13 @@ DPFILES+=	${DPSRCS:M*.[cS]:S/.c$/.dep_c/:S/.S$/.dep_S/} \
 .cc.dep_cc .C.dep_C .cpp.dep_cpp .cxx.dep_cxx: ${DPSRCS}
 	${MKDEPCMD} -f ${.TARGET} ${MKDEP} ${MKDEP_CXXFLAGS} ${.IMPSRC}
 
+.if ${MK_FAST_DEPEND} == "no"
 ${DEPENDFILE}: ${DPFILES}
 	cat ${.ALLSRC} > ${DEPENDFILE}
+.else
+${DEPENDFILE}: ${DPSRCS}
+	: > ${.TARGET}
+.endif	# ${MK_FAST_DEPEND} == "no"
 .if target(_EXTRADEPEND)
 _EXTRADEPEND: .USE
 ${DEPENDFILE}: _EXTRADEPEND
@@ -206,12 +221,12 @@ afterdepend:
 cleandepend:
 .if defined(SRCS)
 .if ${CTAGS:T} == "gtags"
-	rm -f ${DPFILES} ${DEPENDFILE} GPATH GRTAGS GSYMS GTAGS
+	rm -f ${DEPENDFILES} GPATH GRTAGS GSYMS GTAGS
 .if defined(HTML)
 	rm -rf HTML
 .endif
 .else
-	rm -f ${DPFILES} ${DEPENDFILE} tags
+	rm -f ${DEPENDFILES} tags
 .endif
 .endif
 .endif
