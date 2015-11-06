@@ -45,6 +45,13 @@ isci(4)		jimharris	Pre-commit review requested.
 nvme(4)		jimharris	Pre-commit review requested.
 nvd(4)		jimharris	Pre-commit review requested.
 nvmecontrol(8)	jimharris	Pre-commit review requested.
+libfetch	des	Advance notification requested.
+fetch		des	Advance notification requested.
+libpam		des	Pre-commit review requested.
+openssh		des	Pre-commit review requested.
+pseudofs	des	Pre-commit review requested.
+procfs		des	Pre-commit review requested.
+linprocfs	des	Pre-commit review requested.
 ---- OLD ----
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
@@ -75,13 +82,6 @@ etc/mail	gshapiro	Pre-commit review requested.
 				Keep in sync with -STABLE.
 etc/sendmail	gshapiro	Pre-commit review requested.
 				Keep in sync with -STABLE.
-libfetch	des	Advance notification requested.
-fetch		des	Advance notification requested.
-libpam		des	Pre-commit review requested.
-openssh		des	Pre-commit review requested.
-pseudofs	des	Pre-commit review requested.
-procfs		des	Pre-commit review requested.
-linprocfs	des	Pre-commit review requested.
 lpr		gad	Pre-commit review requested, particularly for
 			lpd/recvjob.c and lpd/printjob.c.
 nvi		peter	Try not to break it.
