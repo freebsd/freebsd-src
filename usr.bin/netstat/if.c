@@ -324,6 +324,7 @@ intpr(void (*pfunc)(char *), int af)
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		bool network = false, link = false;
 		char *name, *xname, buf[IFNAMSIZ+1];
+		const char *nn, *rn;
 
 		if (interface != NULL && strcmp(ifa->ifa_name, interface) != 0)
 			continue;
@@ -375,18 +376,18 @@ intpr(void (*pfunc)(char *), int af)
 #ifdef INET6
 		case AF_INET6:
 #endif /* INET6 */
+			nn = netname(ifa->ifa_addr, ifa->ifa_netmask);
+			rn = routename(ifa->ifa_addr, numeric_addr);
 			if (Wflag) {
-				xo_emit("{t:network/%-*s} ", net_len,
-				    netname(ifa->ifa_addr, ifa->ifa_netmask));
-				xo_emit("{t:address/%-*s} ", addr_len,
-				    routename(ifa->ifa_addr, numeric_addr));
+				xo_emit("{et:network/%s}{d:/%-*s} ",
+				    nn, net_len, nn);
+				xo_emit("{et:address/%s}{d:/%-*s} ",
+				    rn, addr_len, rn);
 			} else {
-				xo_emit("{t:network/%-*.*s} ",
-				    net_len, net_len,
-				    netname(ifa->ifa_addr, ifa->ifa_netmask));
-				xo_emit("{t:address/%-*.*s} ",
-				    addr_len, addr_len,
-				    routename(ifa->ifa_addr, numeric_addr));
+				xo_emit("{et:network/%s}{d:/%-*.*s} ",
+				    nn, net_len, net_len, nn);
+				xo_emit("{et:address/%s}{d:/%-*.*s} ",
+				    rn, addr_len, addr_len, rn);
 			}
 
 			network = true;
