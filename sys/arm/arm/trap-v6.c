@@ -620,26 +620,17 @@ abort_align(struct trapframe *tf, u_int idx, u_int fsr, u_int far,
 	u_int usermode;
 
 	usermode = TRAPF_USERMODE(tf);
-
-	/*
-	 * Alignment faults are always fatal if they occur in any but user mode.
-	 *
-	 * XXX The old trap code handles pcb fault even for alignment traps.
-	 * Unfortunately, we don't known why and if is this need.
-	 */
 	if (!usermode) {
 		if (td->td_intr_nesting_level == 0 && td != NULL &&
 		    td->td_pcb->pcb_onfault != NULL) {
-			printf("%s: Got alignment fault with pcb_onfault set"
-			    ", please report this issue\n", __func__);
-			tf->tf_r0 = EFAULT;;
+			tf->tf_r0 = EFAULT;
 			tf->tf_pc = (int)td->td_pcb->pcb_onfault;
 			return (0);
 		}
 		abort_fatal(tf, idx, fsr, far, prefetch, td, ksig);
 	}
 	/* Deliver a bus error signal to the process */
-	ksig->code = 0;
+	ksig->code = BUS_ADRALN;
 	ksig->sig = SIGBUS;
 	ksig->addr = far;
 	return (1);
