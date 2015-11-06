@@ -576,6 +576,9 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 	    toep->ulp_mode == ULP_MODE_RDMA,
 	    ("%s: ulp_mode %u for toep %p", __func__, toep->ulp_mode, toep));
 
+	if (__predict_false(toep->flags & TPF_ABORT_SHUTDOWN))
+		return;
+
 	/*
 	 * This function doesn't resume by itself.  Someone else must clear the
 	 * flag and call this function.
@@ -802,6 +805,9 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 	    ("%s: flowc_wr not sent for tid %u.", __func__, toep->tid));
 	KASSERT(toep->ulp_mode == ULP_MODE_ISCSI,
 	    ("%s: ulp_mode %u for toep %p", __func__, toep->ulp_mode, toep));
+
+	if (__predict_false(toep->flags & TPF_ABORT_SHUTDOWN))
+		return;
 
 	/*
 	 * This function doesn't resume by itself.  Someone else must clear the
