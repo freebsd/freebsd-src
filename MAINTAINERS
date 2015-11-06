@@ -41,6 +41,10 @@ release/release.sh	gjb,re	Pre-commit review and regression tests
 sh(1)		jilles		Pre-commit review requested. This also applies
 				to kill(1), printf(1) and test(1) which are
 				compiled in as builtins.
+isci(4)		jimharris	Pre-commit review requested.
+nvme(4)		jimharris	Pre-commit review requested.
+nvd(4)		jimharris	Pre-commit review requested.
+nvmecontrol(8)	jimharris	Pre-commit review requested.
 ---- OLD ----
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
@@ -131,12 +135,8 @@ usr.sbin/zic		edwin   Heads-up appreciated, since this code is
 lib/libc/stdtime	edwin   Heads-up appreciated, since parts of this code
 				is maintained by a third party source.
 sbin/routed	bms	Pre-commit review; notify vendor at rhyolite.com
-isci(4)		jimharris	Pre-commit review requested.
 cmx		daniel@roe.ch	Pre-commit review preferred.
 filemon		obrien		Pre-commit review preferred.
 sysdoc		trhodes		Pre-commit review preferred.
-nvme(4)		jimharris	Pre-commit review requested.
-nvd(4)		jimharris	Pre-commit review requested.
-nvmecontrol(8)	jimharris	Pre-commit review requested.
 nanobsd		imp	Pre-commit review requested for coordination.
 vmm(4)		neel,grehan	Pre-commit review requested.
