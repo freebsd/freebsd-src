@@ -172,6 +172,7 @@ rss_mbuf_software_hash_v6(const struct mbuf *m, int dir, uint32_t *hashval,
     uint32_t *hashtype)
 {
 	const struct ip6_hdr *ip6;
+	const struct ip6_frag *ip6f;
 	const struct tcphdr *th;
 	const struct udphdr *uh;
 	uint32_t flowtype;
@@ -219,6 +220,26 @@ rss_mbuf_software_hash_v6(const struct mbuf *m, int dir, uint32_t *hashval,
 			break;
 		off = newoff;
 		proto = nxt;
+	}
+
+	/*
+	 * Ignore the fragment header if this is an "atomic" fragment
+	 * (offset and m bit set to 0)
+	 */
+	if (proto == IPPROTO_FRAGMENT) {
+		if (m->m_len < off + sizeof(struct ip6_frag)) {
+			RSS_DEBUG("short fragment frame?\n");
+			return (-1);
+		}
+		ip6f = (const struct ip6_frag *)((c_caddr_t)ip6 + off);
+		if ((ip6f->ip6f_offlg & ~IP6F_RESERVED_MASK) == 0) {
+			off = ip6_lasthdr(m, off, proto, &nxt);
+			if (off < 0) {
+				RSS_DEBUG("invalid extension header\n");
+				return (-1);
+			}
+			proto = nxt;
+		}
 	}
 
 	/*
