@@ -403,9 +403,9 @@ intpr(void (*pfunc)(char *), int af)
 			if (sdl->sdl_nlen == 0 &&
 			    sdl->sdl_alen == 0 &&
 			    sdl->sdl_slen == 0)
-				xo_emit("{P:                  }");
+				xo_emit("{P:/%*s} ", addr_len, "");
 			else
-				xo_emit("{:address/%-*.*s} ", addr_len,
+				xo_emit("{t:address/%-*.*s} ", addr_len,
 				    addr_len, routename(ifa->ifa_addr, 1));
 			link = true;
 			break;
