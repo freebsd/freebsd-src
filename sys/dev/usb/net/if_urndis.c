@@ -884,7 +884,7 @@ urndis_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				DPRINTF("invalid ethernet size "
 				    "%u < %u\n", msg.rm_datalen, (unsigned)sizeof(struct ether_header));
 				goto tr_setup;
-			} else if (msg.rm_datalen > (uint32_t)MCLBYTES) {
+			} else if (msg.rm_datalen > (uint32_t)(MCLBYTES - ETHER_ALIGN)) {
 				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				DPRINTF("invalid ethernet size "
 				    "%u > %u\n",
@@ -898,6 +898,7 @@ urndis_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 			/* check if we have a buffer */
 			if (m != NULL) {
+				m->m_len = m->m_pkthdr.len = msg.rm_datalen + ETHER_ALIGN;
 				m_adj(m, ETHER_ALIGN);
 
 				usbd_copy_out(pc, offset + msg.rm_dataoffset +
