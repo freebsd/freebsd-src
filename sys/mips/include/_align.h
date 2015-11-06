@@ -46,8 +46,11 @@
  * Round p (pointer or byte index) up to a correctly-aligned value for all
  * data types (int, long, ...).	  The result is u_long and must be cast to
  * any desired pointer type.
+ *
+ * XXXCHERI: Changed '7' to 'sizeof(void *) - 1', but likely we also need
+ * to change (u_long) below to (uintptr_t)?
  */
-#define	_ALIGNBYTES	7
+#define	_ALIGNBYTES	(sizeof(void *) - 1)
 #define	_ALIGN(p)	(((u_long)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
 
 #endif /* !_MIPS_INCLUDE__ALIGN_H_ */
