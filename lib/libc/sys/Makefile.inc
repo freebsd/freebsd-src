@@ -73,6 +73,11 @@ NOASM+=	sigaction.o
 INTERPOSED+= sigaction
 .endif
 
+.if defined(LIBCHERI)
+# ioctl isn't actually interposed, but does need a top level C implementation.
+INTERPOSED+=	ioctl
+.endif
+
 SRCS+=	${INTERPOSED:S/$/.c/}
 NOASM+=	${INTERPOSED:S/$/.o/}
 PSEUDO+=	${INTERPOSED:C/^.*$/_&.o/}

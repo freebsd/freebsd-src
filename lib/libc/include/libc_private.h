@@ -312,6 +312,8 @@ int		__sys_fsync(int);
 __pid_t		__sys_fork(void);
 int		__sys_ftruncate(int, __off_t);
 int		__sys_gettimeofday(struct timeval *, struct timezone *);
+		/* ioctl declared to match the kernel so we can call directly */
+int		__sys_ioctl(int, unsigned long, void *);
 int		__sys_kevent(int, const struct kevent *, int, struct kevent *,
 		    int, const struct timespec *);
 __off_t		__sys_lseek(int, __off_t, int);
