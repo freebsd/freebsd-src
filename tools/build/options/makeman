@@ -33,7 +33,7 @@ show_options()
 	ALL_TARGETS=$(echo $(${make} targets | tail -n +2))
 	rm -f $t/settings
 	for target in ${ALL_TARGETS} ; do
-		${make} showconfig \
+		env -i ${make} showconfig \
 		    SRC_ENV_CONF=/dev/null SRCCONF=/dev/null \
 		    __MAKE_CONF=/dev/null \
 		    TARGET_ARCH=${target#*/} TARGET=${target%/*} |
@@ -97,7 +97,7 @@ show()
 		exit 1
 		;;
 	esac
-	${make} .MAKE.MODE=normal "$@" showconfig __MAKE_CONF=/dev/null \
+	env -i ${make} .MAKE.MODE=normal "$@" showconfig __MAKE_CONF=/dev/null \
 	    SRCCONF=/dev/null |
 	while read var _ val ; do
 		opt=${var#MK_}
