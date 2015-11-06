@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #define	ARM_LOCAL_INT_TIMER(n)		(0x40 + (n) * 4)
 #define	ARM_LOCAL_INT_MAILBOX(n)	(0x50 + (n) * 4)
 #define	ARM_LOCAL_INT_PENDING(n)	(0x60 + (n) * 4)
-#define	 INT_PENDING_MASK		0x01f
+#define	 INT_PENDING_MASK		0x011f
 #define	MAILBOX0_IRQ			4
 #define	MAILBOX0_IRQEN			(1 << 0)
 
