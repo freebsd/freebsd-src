@@ -409,7 +409,7 @@ buildinf.h: Makefile
 	echo "#endif" ) > ${.TARGET}
 
 opensslconf.h: ${OPENSSLCONF_H}
-	${CP} ${.IMPSRC} ${.TARGET}
+	${CP} ${.ALLSRC} ${.TARGET}
 
 .include <bsd.lib.mk>
 
