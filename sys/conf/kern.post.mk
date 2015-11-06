@@ -198,18 +198,37 @@ kernel-depend: .depend
 SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	${MFILES:T:S/.m$/.h/}
+DEPENDFILES=	.depend
+.if ${MK_FAST_DEPEND} == "yes"
+DEPENDFILES+=	.depend.*
+DEPEND_CFLAGS+=	-MD -MP -MF.depend.${.TARGET}
+DEPEND_CFLAGS+=	-MT${.TARGET}
+CFLAGS+=	${DEPEND_CFLAGS}
+DEPENDOBJS+=	${SYSTEM_OBJS}
+.for __obj in ${DEPENDOBJS:O:u}
+.sinclude ".depend.${__obj}"
+DEPENDFILES_OBJS+=	.depend.${__obj}
+.endfor
+.endif	# ${MK_FAST_DEPEND} == "yes"
+
+.NOPATH: .depend ${DEPENDFILES_OBJS}
+
 .depend: .PRECIOUS ${SRCS}
-	rm -f .newdep
+.if ${MK_FAST_DEPEND} == "no"
+	rm -f ${.TARGET}.tmp
 	${MAKE} -V CFILES_NOCDDL -V SYSTEM_CFILES -V GEN_CFILES | \
-	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${CFLAGS}
+	    CC="${CC}" xargs mkdep -a -f ${.TARGET}.tmp ${CFLAGS}
 	${MAKE} -V CFILES_CDDL | \
-	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${ZFS_CFLAGS} ${FBT_CFLAGS} ${DTRACE_CFLAGS}
+	    CC="${CC}" xargs mkdep -a -f ${.TARGET}.tmp ${ZFS_CFLAGS} \
+	    ${FBT_CFLAGS} ${DTRACE_CFLAGS}
 	${MAKE} -V SFILES_NOCDDL | \
-	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ASM_CFLAGS}
+	    CC="${CC}" xargs mkdep -a -f ${.TARGET}.tmp ${ASM_CFLAGS}
 	${MAKE} -V SFILES_CDDL | \
-	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ZFS_ASM_CFLAGS}
-	rm -f .depend
-	mv .newdep .depend
+	    CC="${CC}" xargs mkdep -a -f ${.TARGET}.tmp ${ZFS_ASM_CFLAGS}
+	mv ${.TARGET}.tmp ${.TARGET}
+.else
+	: > ${.TARGET}
+.endif
 
 _ILINKS= machine
 .if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"
@@ -237,8 +256,8 @@ ${_ILINKS}:
 	ln -s $$path ${.TARGET}
 
 # .depend needs include links so we remove them only together.
-kernel-cleandepend:
-	rm -f .depend ${_ILINKS}
+kernel-cleandepend: .PHONY
+	rm -f ${DEPENDFILES} ${_ILINKS}
 
 kernel-tags:
 	@[ -f .depend ] || { echo "you must make depend first"; exit 1; }
