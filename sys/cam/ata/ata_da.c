@@ -631,8 +631,6 @@ static struct periph_driver adadriver =
 
 PERIPHDRIVER_DECLARE(ada, adadriver);
 
-static MALLOC_DEFINE(M_ATADA, "ata_da", "ata_da buffers");
-
 static int
 adaopen(struct disk *dp)
 {
