@@ -1473,32 +1473,11 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	return (0);
 }
 
-void
+static void
 urtwn_tsf_sync_enable(struct urtwn_softc *sc)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
-	struct ieee80211_node *ni = vap->iv_bss;
-
-	uint64_t tsf;
-
-	/* Enable TSF synchronization. */
 	urtwn_write_1(sc, R92C_BCN_CTRL,
 	    urtwn_read_1(sc, R92C_BCN_CTRL) & ~R92C_BCN_CTRL_DIS_TSF_UDT0);
-
-	urtwn_write_1(sc, R92C_BCN_CTRL,
-	    urtwn_read_1(sc, R92C_BCN_CTRL) & ~R92C_BCN_CTRL_EN_BCN);
-
-	/* Set initial TSF. */
-	memcpy(&tsf, ni->ni_tstamp.data, 8);
-	tsf = le64toh(tsf);
-	tsf = tsf - (tsf % (vap->iv_bss->ni_intval * IEEE80211_DUR_TU));
-	tsf -= IEEE80211_DUR_TU;
-	urtwn_write_4(sc, R92C_TSFTR + 0, tsf);
-	urtwn_write_4(sc, R92C_TSFTR + 4, tsf >> 32);
-
-	urtwn_write_1(sc, R92C_BCN_CTRL,
-	    urtwn_read_1(sc, R92C_BCN_CTRL) | R92C_BCN_CTRL_EN_BCN);
 }
 
 static void
