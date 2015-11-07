@@ -644,7 +644,8 @@ set_wide_encoding(const char *encoding)
 	_tomb = tomb_none;
 	_nbits = 8;
 
-	snprint(_encoding_buffer, sizeof(_encoding_buffer), "NONE:%s", encoding);
+	snprintf(_encoding_buffer, sizeof(_encoding_buffer), "NONE:%s",
+	    encoding);
 	for (i = 0; mb_encodings[i].name; i++) {
 		if (strcasecmp(encoding, mb_encodings[i].name) == 0) {
 			_towide = mb_encodings[i].towide;
