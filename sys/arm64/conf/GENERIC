@@ -101,6 +101,7 @@ device		pci
 # Ethernet NICs
 device		vnic		# Cavium ThunderX NIC
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
+device		igb		# Intel PRO/1000 PCIE Server Gigabit Family
 device		mii
 device		miibus		# MII bus support
 
