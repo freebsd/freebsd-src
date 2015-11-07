@@ -949,7 +949,7 @@ extern char	kern_ident[];
 /* Dynamic oid handling */
 struct sysctl_oid *sysctl_add_oid(struct sysctl_ctx_list *clist,
 	    struct sysctl_oid_list *parent, int nbr, const char *name, int kind,
-	    void *arg1, intptr_t arg2, int (*handler)(SYSCTL_HANDLER_ARGS),
+	    void *arg1, intmax_t arg2, int (*handler)(SYSCTL_HANDLER_ARGS),
 	    const char *fmt, const char *descr);
 int	sysctl_remove_name(struct sysctl_oid *parent, const char *name, int del,
 	    int recurse);
