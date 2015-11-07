@@ -227,7 +227,7 @@ add_charmap_impl(const char *sym, wchar_t wc, int nodups)
 	 * also possibly insert the wide mapping, although note that there
 	 * can only be one of these per wide character code.
 	 */
-	if ((wc != -1) && ((RB_FIND(cmap_wc, &cmap_wc, &srch)) == NULL)) {
+	if ((wc != (wchar_t)-1) && ((RB_FIND(cmap_wc, &cmap_wc, &srch)) == NULL)) {
 		if ((n = calloc(1, sizeof (*n))) == NULL) {
 			errf("out of memory");
 			return;
@@ -269,7 +269,7 @@ add_charmap_undefined(char *sym)
 	srch.name = sym;
 	cm = RB_FIND(cmap_sym, &cmap_sym, &srch);
 
-	if ((undefok == 0) && ((cm == NULL) || (cm->wc == -1))) {
+	if ((undefok == 0) && ((cm == NULL) || (cm->wc == (wchar_t)-1))) {
 		warn("undefined symbol <%s>", sym);
 		add_charmap_impl(sym, -1, 0);
 	} else {
@@ -344,7 +344,7 @@ lookup_charmap(const char *sym, wchar_t *wc)
 
 	srch.name = sym;
 	n = RB_FIND(cmap_sym, &cmap_sym, &srch);
-	if (n && n->wc != -1) {
+	if (n && n->wc != (wchar_t)-1) {
 		if (wc)
 			*wc = n->wc;
 		return (0);

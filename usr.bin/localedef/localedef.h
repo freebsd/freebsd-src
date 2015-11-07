@@ -124,7 +124,7 @@ wchar_t * wsncpy(wchar_t *, const wchar_t *, size_t);
 /* ctype.c - LC_CTYPE handling */
 void init_ctype(void);
 void add_ctype(int);
-void add_ctype_range(int);
+void add_ctype_range(wchar_t);
 void add_width(int, int);
 void add_width_range(int, int, int);
 void add_caseconv(int, int);
