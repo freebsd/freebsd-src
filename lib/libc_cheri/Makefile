@@ -67,8 +67,9 @@ CFLAGS.table.c=	-Wno-missing-field-initializers
 CFLAGS.wcsnrtombs.c=	-Wno-sign-compare
 CFLAGS.xlocale.c=	-Wno-missing-field-initializers \
 			-Wno-unused-parameter -Wno-unused-function
-SRCS+=		ascii.c big5.c gbk.c gb2312.c gb18030.c euc.c utf8.c \
-		none.c mbsnrtowcs.c mskanji.c rune.c setlocale.c wcsnrtombs.c
+SRCS+=		big5.c gbk.c gb2312.c gb18030.c euc.c utf8.c \
+		none.c mbsnrtowcs.c mskanji.c rune.c setlocale.c wcsnrtombs.c \
+		wcsnlen.c wcsncmp.c wcsdup.c wcslen.c wcsncpy.c wmemcpy.c
 
 SRCS+=		collate.c		\
 		collcmp.c		\

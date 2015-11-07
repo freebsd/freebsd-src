@@ -37,7 +37,10 @@ __FBSDID("$FreeBSD$");
 #include <locale.h>
 #include <stdlib.h>
 #include <string.h>
+#include <runetype.h>
+#include <wchar.h>
 
+#include "mblocal.h"
 #include "lnumeric.h"
 #include "lmessages.h"
 #include "lmonetary.h"
@@ -54,14 +57,25 @@ nl_langinfo_l(nl_item item, locale_t loc)
 
    switch (item) {
 	case CODESET:
-		ret = "";
-		if ((s = querylocale(LC_CTYPE_MASK, loc)) != NULL) {
-			if ((cs = strchr(s, '.')) != NULL)
-				ret = cs + 1;
-			else if (strcmp(s, "C") == 0 ||
-				 strcmp(s, "POSIX") == 0)
-				ret = "US-ASCII";
-		}
+		s = XLOCALE_CTYPE(loc)->runes->__encoding;
+		if (strcmp(s, "EUC-CN") == 0)
+			ret = "eucCN";
+		else if (strcmp(s, "EUC-JP") == 0)
+			ret = "eucJP";
+		else if (strcmp(s, "EUC-KR") == 0)
+			ret = "eucKR";
+		else if (strcmp(s, "EUC-TW") == 0)
+			ret = "eucTW";
+		else if (strcmp(s, "BIG5") == 0)
+			ret = "Big5";
+		else if (strcmp(s, "MSKanji") == 0)
+			ret = "SJIS";
+		else if (strcmp(s, "NONE") == 0)
+			ret = "US-ASCII";
+		else if (strncmp(s, "NONE:", 5) == 0)
+			ret = (char *)(s + 5);
+		else
+			ret = (char *)s;
 		break;
 	case D_T_FMT:
 		ret = (char *) __get_current_time_locale(loc)->c_fmt;
