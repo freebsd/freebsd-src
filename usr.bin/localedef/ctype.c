@@ -199,7 +199,7 @@ add_ctype(int val)
 }
 
 void
-add_ctype_range(int end)
+add_ctype_range(wchar_t end)
 {
 	ctype_node_t	*ctn;
 	wchar_t		cur;
