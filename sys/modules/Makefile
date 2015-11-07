@@ -504,6 +504,11 @@ _cxgb=		cxgb
 .endif
 .endif
 
+.if ${MACHINE_CPUARCH} == "aarch64"
+_em=		em
+_igb=		igb
+.endif
+
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _agp=		agp
 _an=		an
