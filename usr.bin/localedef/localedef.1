@@ -87,7 +87,7 @@ The following options are supported:
 .It Fl c
 Creates permanent output even if warning messages have been issued.
 .It Fl D
-.Dx Ns -style
+BSD-style
 output.
 Rather than the default of creating the
 .Ar localename
@@ -152,7 +152,7 @@ belonging to the same locale can be processed.)
 creates a directory of files that represents the locale's data,
 unless instructed otherwise by the
 .Fl D (
-.Dx
+BSD
 output) option.
 The contants of this directory should generally be copied into the
 appropriate subdirectory of
@@ -249,14 +249,19 @@ values defined by the US-ASCII, the result is unspecified.
 .Sh HISTORY
 .Nm
 first appeared in
-.Dx 4.3 .
-It was ported from Illumos from the point
+.Fx 11 .
+.Pp
+It was written by
 .An Garrett D'Amore
 .Aq Mt garrett@nexenta.com
-added multibyte support (October 2010).
+for Illumos.
 .An John Marino
 .Aq Mt draco@marino.st
 provided the alternations necessary to compile cleanly on
-.Dx
-as well as altered libc to use the new collation (the changes were also based
-on Illumos, but modified to work with xlocale functionality.)
+.Dx .
+.An Baptiste Daroussin
+.Aq Mt bapt@FreeBSD.org
+ported it to
+.Fx
+and converted it to
+.Xr tree 3 .
