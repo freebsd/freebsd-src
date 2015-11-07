@@ -1,3 +1,6 @@
+# $FreeBSD$
+
+LOCALEDIR=	${SHAREDIR}/locale
 
 # We need to keep zh_CN.* around as aliases to zh_Hans_CN.* because some
 # of the lang catalogs use zh_CN still (e.g. vi), plus people may expect it
