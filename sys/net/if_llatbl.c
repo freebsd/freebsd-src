@@ -277,6 +277,15 @@ lltable_drop_entry_queue(struct llentry *lle)
 	return (pkts_dropped);
 }
 
+void
+lltable_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
+    const char *lladdr)
+{
+
+	bcopy(lladdr, &lle->ll_addr, ifp->if_addrlen);
+	lle->la_flags |= LLE_VALID;
+}
+
 /*
  *
  * Performes generic cleanup routines and frees lle.
