@@ -1294,6 +1294,52 @@ macb_get_mac(struct macb_softc *sc, u_char *eaddr)
 }
 
 
+#ifdef FDT
+/*
+ * We have to know if we're using MII or RMII attachment
+ * for the MACB to talk to the PHY correctly. With FDT,
+ * we must use rmii if there's a proprety phy-mode
+ * equal to "rmii". Otherwise we MII mode is used.
+ */
+static void
+macb_set_rmii(struct macb_softc *sc)
+{
+	phandle_t node;
+	char prop[10];
+	ssize_t len;
+
+	node = ofw_bus_get_node(sc->dev);
+	memset(prop, 0 ,sizeof(prop));
+	len = OF_getproplen(node, "phy-mode");
+	if (len != 4)
+		return;
+	if (OF_getprop(node, "phy-mode", prop, len) != len)
+		return;
+	if (strncmp(prop, "rmii", 4) == 0)
+		sc->use_rmii = USRIO_RMII;
+}
+#else
+/*
+ * We have to know if we're using MII or RMII attachment
+ * for the MACB to talk to the PHY correctly. Without FDT,
+ * there's no good way to do this. So, if the config file
+ * has 'option AT91_MACB_USE_RMII', then we'll force RMII.
+ * Otherwise, we'll use what the bootloader setup. Either
+ * it setup RMII or MII, in which case we'll get it right,
+ * or it did nothing, and we'll fall back to MII and the
+ * option would override if present.
+ */
+static void
+macb_set_rmii(struct macb_softc *sc)
+{
+#ifdef AT91_MACB_USE_RMII
+	sc->use_rmii = USRIO_RMII;
+#else
+	sc->use_rmii = read_4(sc, EMAC_USRIO) & USRIO_RMII;
+#endif
+}
+#endif
+
 static int
 macb_attach(device_t dev)
 {
@@ -1360,12 +1406,7 @@ macb_attach(device_t dev)
 
 	sc->clock = sc->clock << 10;
 
-#ifdef AT91_MACB_USE_RMII
-	sc->use_rmii = USRIO_RMII;
-#else
-	sc->use_rmii = read_4(sc, EMAC_USRIO) & USRIO_RMII;
-#endif
-
+	macb_set_rmii(sc);
 	write_4(sc, EMAC_NCFGR, sc->clock);
 	write_4(sc, EMAC_USRIO, USRIO_CLOCK | sc->use_rmii);       //enable clock
 
