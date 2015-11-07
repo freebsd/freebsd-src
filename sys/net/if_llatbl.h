@@ -207,6 +207,8 @@ struct llentry  *llentry_alloc(struct ifnet *, struct lltable *,
 
 /* helper functions */
 size_t lltable_drop_entry_queue(struct llentry *);
+void lltable_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
+    const char *lladdr);
 
 struct llentry *lltable_alloc_entry(struct lltable *llt, u_int flags,
     const struct sockaddr *l4addr);

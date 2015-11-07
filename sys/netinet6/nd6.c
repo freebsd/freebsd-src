@@ -1738,10 +1738,8 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		 * Since we already know all the data for the new entry,
 		 * fill it before insertion.
 		 */
-		if (lladdr != NULL) {
-			bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
-			ln->la_flags |= LLE_VALID;
-		}
+		if (lladdr != NULL)
+			lltable_set_entry_addr(ifp, ln, lladdr);
 		IF_AFDATA_WLOCK(ifp);
 		LLE_WLOCK(ln);
 		/* Prefer any existing lle over newly-created one */
@@ -1799,8 +1797,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		 * Record source link-layer address
 		 * XXX is it dependent to ifp->if_type?
 		 */
-		bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
-		ln->la_flags |= LLE_VALID;
+		lltable_set_entry_addr(ifp, ln, lladdr);
 		nd6_llinfo_setstate(ln, ND6_LLINFO_STALE);
 
 		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
