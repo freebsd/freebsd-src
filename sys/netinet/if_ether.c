@@ -141,8 +141,6 @@ static void	in_arpinput(struct mbuf *);
 
 static void arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr,
     struct ifnet *ifp, int bridged, struct llentry *la);
-static void arp_update_lle(struct arphdr *ah, struct ifnet *ifp,
-    struct llentry *la);
 static void arp_mark_lle_reachable(struct llentry *la);
 
 
@@ -820,7 +818,7 @@ match:
 		la = lltable_alloc_entry(LLTABLE(ifp), 0, dst);
 		if (la == NULL)
 			goto drop;
-		arp_update_lle(ah, ifp, la);
+		lltable_set_entry_addr(ifp, la, ar_sha(ah));
 
 		IF_AFDATA_WLOCK(ifp);
 		LLE_WLOCK(la);
@@ -1038,7 +1036,7 @@ arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp
 		}
 
 		/* Update data */
-		arp_update_lle(ah, ifp, la);
+		lltable_set_entry_addr(ifp, la, ar_sha(ah));
 
 		IF_AFDATA_WUNLOCK(ifp);
 		LLE_REMREF(la);
@@ -1068,17 +1066,6 @@ arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp
 		}
 	} else
 		LLE_WUNLOCK(la);
-}
-
-/*
- * Updates @la fields used by fast path code.
- */
-static void
-arp_update_lle(struct arphdr *ah, struct ifnet *ifp, struct llentry *la)
-{
-
-	memcpy(&la->ll_addr, ar_sha(ah), ifp->if_addrlen);
-	la->la_flags |= LLE_VALID;
 }
 
 static void
