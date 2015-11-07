@@ -2774,7 +2774,7 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 	 */
 	lwfs = FW_CONFIG_WAIT;
 	GET_NANOTIME(&hra);
-	do {
+	while (1) {
 		isp_fw_state(isp, chan);
 		if (lwfs != fcp->isp_fwstate) {
 			isp_prt(isp, ISP_LOGCONFIG|ISP_LOG_SANCFG, "Chan %d Firmware State <%s->%s>", chan, isp_fc_fw_statename((int)lwfs), isp_fc_fw_statename((int)fcp->isp_fwstate));
@@ -2783,9 +2783,11 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 		if (fcp->isp_fwstate == FW_READY) {
 			break;
 		}
-		ISP_SLEEP(isp, 1000);
 		GET_NANOTIME(&hrb);
-	} while (NANOTIME_SUB(&hrb, &hra) / 1000 < usdelay);
+		if ((NANOTIME_SUB(&hrb, &hra) / 1000 + 1000 >= usdelay))
+			break;
+		ISP_SLEEP(isp, 1000);
+	}
 
 	/*
 	 * If we haven't gone to 'ready' state, return.
