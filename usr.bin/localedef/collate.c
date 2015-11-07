@@ -1255,7 +1255,8 @@ dump_collate(void)
 	 * Large (> UCHAR_MAX) character priorities
 	 */
 	RB_NUMNODES(collchar_t, collchars, &collchars, n);
-	large = calloc(sizeof (collate_large_t) * n, 1);
+	large = malloc(sizeof (collate_large_t) * n);
+	memset(large, 0, sizeof (collate_large_t) * n);
 	if (large == NULL) {
 		fprintf(stderr, "out of memory");
 		return;
