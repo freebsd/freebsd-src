@@ -76,11 +76,11 @@ wchar_t *get_wcs(void);
 
 /* charmap.c - CHARMAP handling */
 void init_charmap(void);
-void add_charmap(char *, int);
+void add_charmap(const char *, int);
 void add_charmap_undefined(char *);
 void add_charmap_posix(void);
 void add_charmap_range(char *, char *, int);
-void add_charmap_char(char *name, int val);
+void add_charmap_char(const char *name, int val);
 int lookup_charmap(const char *, wchar_t *);
 int check_charmap_undefined(char *);
 int check_charmap(wchar_t);

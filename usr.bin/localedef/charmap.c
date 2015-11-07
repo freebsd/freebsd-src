@@ -68,11 +68,8 @@ RB_GENERATE_STATIC(cmap_wc, charmap, rb_wc, cmap_compare_wc);
  * Array of POSIX specific portable characters.
  */
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdiscarded-qualifiers"
-
 static const struct {
-	char	*name;
+	const char *name;
 	int	ch;
 } portable_chars[] = {
 	{ "NUL",		'\0' },
@@ -189,8 +186,6 @@ static const struct {
 	{ NULL, 0 }
 };
 
-#pragma GCC diagnostic pop
-
 static int
 cmap_compare_sym(const void *n1, const void *n2)
 {
@@ -220,7 +215,7 @@ init_charmap(void)
 }
 
 static void
-add_charmap_impl(char *sym, wchar_t wc, int nodups)
+add_charmap_impl(const char *sym, wchar_t wc, int nodups)
 {
 	charmap_t	srch;
 	charmap_t	*n = NULL;
@@ -260,7 +255,7 @@ add_charmap_impl(char *sym, wchar_t wc, int nodups)
 }
 
 void
-add_charmap(char *sym, int c)
+add_charmap(const char *sym, int c)
 {
 	add_charmap_impl(sym, c, 1);
 }
@@ -322,7 +317,7 @@ add_charmap_range(char *s, char *e, int wc)
 }
 
 void
-add_charmap_char(char *name, int val)
+add_charmap_char(const char *name, int val)
 {
 	add_charmap_impl(name, val, 0);
 }
