@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #define	TEXT_DOMAIN	"SYS_TEST"
 #endif
 
-int bsd = 0;
+static int bsd = 0;
 int verbose = 0;
 int undefok = 0;
 int warnok = 0;
