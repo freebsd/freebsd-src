@@ -467,6 +467,7 @@ ng_btsocket_l2cap_process_l2ca_con_req_rsp(struct ng_mesg *msg,
 		   (pcb->idtype == NG_L2CAP_L2CA_IDTYPE_SMP)){
 			pcb->encryption = op->encryption;					pcb->cid = op->lcid;	
 			if(pcb->need_encrypt && !(pcb->encryption)){
+				ng_btsocket_l2cap_timeout(pcb);
 				pcb->state = NG_BTSOCKET_L2CAP_W4_ENC_CHANGE;
 			}else{
 				pcb->state = NG_BTSOCKET_L2CAP_OPEN;
@@ -713,6 +714,7 @@ static int ng_btsocket_l2cap_process_l2ca_enc_change(struct ng_mesg *msg, ng_bts
 	pcb->encryption = op->result;
 	
 	if(pcb->need_encrypt){
+		ng_btsocket_l2cap_untimeout(pcb);		
 		if(pcb->state != NG_BTSOCKET_L2CAP_W4_ENC_CHANGE){
 			NG_BTSOCKET_L2CAP_WARN("%s: Invalid pcb status %d",
 					       __func__, pcb->state);
@@ -721,6 +723,7 @@ static int ng_btsocket_l2cap_process_l2ca_enc_change(struct ng_mesg *msg, ng_bts
 			soisconnected(pcb->so);
 		}else{
 			pcb->so->so_error = EPERM;
+			ng_btsocket_l2cap_send_l2ca_discon_req(0, pcb);
 			pcb->state = NG_BTSOCKET_L2CAP_CLOSED;
 			soisdisconnected(pcb->so);
 		}
@@ -2844,6 +2847,7 @@ ng_btsocket_l2cap_process_timeout(void *xpcb)
 	switch (pcb->state) {
 	case NG_BTSOCKET_L2CAP_CONNECTING:
 	case NG_BTSOCKET_L2CAP_CONFIGURING:
+	case NG_BTSOCKET_L2CAP_W4_ENC_CHANGE:		
 		/* Send disconnect request with "zero" token */
 		if (pcb->cid != 0)
 			ng_btsocket_l2cap_send_l2ca_discon_req(0, pcb);
