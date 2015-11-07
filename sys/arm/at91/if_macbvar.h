@@ -131,8 +131,8 @@ struct macb_softc
 
 	struct macb_chain_data	macb_cdata;
 	int clock;
+
+	uint32_t use_rmii; /* 0 or USRIO_RMII */
 };
-
-
 
 #endif
