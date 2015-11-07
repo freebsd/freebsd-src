@@ -286,7 +286,7 @@ ate_set_rmii(struct ate_softc *sc)
  * option would override if present.
  */
 static void
-ata_set_rmii(struct ate_softc *sc)
+ate_set_rmii(struct ate_softc *sc)
 {
 
 	/* Default to what boot rom did */
