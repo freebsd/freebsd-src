@@ -1242,11 +1242,11 @@ dump_collate(void)
 	}
 	n = 0;
 	RB_FOREACH(ce, elem_by_expand, &elem_by_expand) {
-		n++;
 		(void) wsncpy(chain[n].str, ce->expand, COLLATE_STR_LEN);
 		for (i = 0; i < NUM_WT; i++) {
 			chain[n].pri[i] = get_weight(ce->ref[i], i);
 		}
+		n++;
 	}
 	if (n != collinfo.chain_count)
 		INTERR;
@@ -1255,12 +1255,11 @@ dump_collate(void)
 	 * Large (> UCHAR_MAX) character priorities
 	 */
 	RB_NUMNODES(collchar_t, collchars, &collchars, n);
-	large = malloc(sizeof (collate_large_t) * n);
+	large = calloc(n, sizeof (collate_large_t));
 	if (large == NULL) {
 		fprintf(stderr, "out of memory");
 		return;
 	}
-	memset(large, 0, sizeof (collate_large_t) * n);
 
 	i = 0;
 	RB_FOREACH(cc, collchars, &collchars) {
