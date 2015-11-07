@@ -1,4 +1,6 @@
 /*-
+ * Copyright 2014 Garrett D'Amore <garrett@damore.org>
+ * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -45,14 +47,15 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "un-namespace.h"
 
 #include "runefile.h"
 
-_RuneLocale *_Read_RuneMagi(FILE *);
-
 _RuneLocale *
-_Read_RuneMagi(FILE *fp)
+_Read_RuneMagi(const char *fname)
 {
 	char *fdata, *data;
 	void *lastp;
@@ -67,119 +70,77 @@ _Read_RuneMagi(FILE *fp)
 	_FileRuneEntry *maplower_ext_ranges;
 	_FileRuneEntry *mapupper_ext_ranges;
 	int runetype_ext_len = 0;
+	int fd;
 
-	if (_fstat(fileno(fp), &sb) < 0)
-		return (NULL);
-
-	if ((size_t)sb.st_size < sizeof(_FileRuneLocale)) {
-		errno = EFTYPE;
+	if ((fd = _open(fname, O_RDONLY)) < 0) {
+		errno = EINVAL;
 		return (NULL);
 	}
 
-	if ((fdata = malloc(sb.st_size)) == NULL)
-		return (NULL);
-
-	errno = 0;
-	rewind(fp); /* Someone might have read the magic number once already */
-	if (errno) {
-		saverr = errno;
-		free(fdata);
-		errno = saverr;
+	if (_fstat(fd, &sb) < 0) {
+		(void) _close(fd);
+		errno = EINVAL;
 		return (NULL);
 	}
 
-	if (fread(fdata, sb.st_size, 1, fp) != 1) {
-		saverr = errno;
-		free(fdata);
-		errno = saverr;
+	if ((size_t)sb.st_size < sizeof (_FileRuneLocale)) {
+		(void) _close(fd);
+		errno = EINVAL;
 		return (NULL);
 	}
 
-	frl = (_FileRuneLocale *)fdata;
+
+	fdata = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	(void) _close(fd);
+	if (fdata == NULL) {
+		errno = EINVAL;
+		return (NULL);
+	}
+
+	frl = (_FileRuneLocale *)(void *)fdata;
 	lastp = fdata + sb.st_size;
 
 	variable = frl + 1;
 
-	if (memcmp(frl->magic, _FILE_RUNE_MAGIC_1, sizeof(frl->magic))) {
-		free(fdata);
-		errno = EFTYPE;
-		return (NULL);
-	}
-
-	frl->variable_len = ntohl(frl->variable_len);
-	frl->runetype_ext_nranges = ntohl(frl->runetype_ext_nranges);
-	frl->maplower_ext_nranges = ntohl(frl->maplower_ext_nranges);
-	frl->mapupper_ext_nranges = ntohl(frl->mapupper_ext_nranges);
-
-	for (x = 0; x < _CACHED_RUNES; ++x) {
-		frl->runetype[x] = ntohl(frl->runetype[x]);
-		frl->maplower[x] = ntohl(frl->maplower[x]);
-		frl->mapupper[x] = ntohl(frl->mapupper[x]);
+	if (memcmp(frl->magic, _FILE_RUNE_MAGIC_1, sizeof (frl->magic))) {
+		goto invalid;
 	}
 
 	runetype_ext_ranges = (_FileRuneEntry *)variable;
 	variable = runetype_ext_ranges + frl->runetype_ext_nranges;
 	if (variable > lastp) {
-		free(fdata);
-		errno = EFTYPE;
-		return (NULL);
+		goto invalid;
 	}
 
 	maplower_ext_ranges = (_FileRuneEntry *)variable;
 	variable = maplower_ext_ranges + frl->maplower_ext_nranges;
 	if (variable > lastp) {
-		free(fdata);
-		errno = EFTYPE;
-		return (NULL);
+		goto invalid;
 	}
 
 	mapupper_ext_ranges = (_FileRuneEntry *)variable;
 	variable = mapupper_ext_ranges + frl->mapupper_ext_nranges;
 	if (variable > lastp) {
-		free(fdata);
-		errno = EFTYPE;
-		return (NULL);
+		goto invalid;
 	}
 
 	frr = runetype_ext_ranges;
 	for (x = 0; x < frl->runetype_ext_nranges; ++x) {
 		uint32_t *types;
 
-		frr[x].min = ntohl(frr[x].min);
-		frr[x].max = ntohl(frr[x].max);
-		frr[x].map = ntohl(frr[x].map);
 		if (frr[x].map == 0) {
 			int len = frr[x].max - frr[x].min + 1;
 			types = variable;
 			variable = types + len;
 			runetype_ext_len += len;
 			if (variable > lastp) {
-				free(fdata);
-				errno = EFTYPE;
-				return (NULL);
+				goto invalid;
 			}
-			while (len-- > 0)
-				types[len] = ntohl(types[len]);
 		}
 	}
 
-	frr = maplower_ext_ranges;
-	for (x = 0; x < frl->maplower_ext_nranges; ++x) {
-		frr[x].min = ntohl(frr[x].min);
-		frr[x].max = ntohl(frr[x].max);
-		frr[x].map = ntohl(frr[x].map);
-	}
-
-	frr = mapupper_ext_ranges;
-	for (x = 0; x < frl->mapupper_ext_nranges; ++x) {
-		frr[x].min = ntohl(frr[x].min);
-		frr[x].max = ntohl(frr[x].max);
-		frr[x].map = ntohl(frr[x].map);
-	}
 	if ((char *)variable + frl->variable_len > (char *)lastp) {
-		free(fdata);
-		errno = EFTYPE;
-		return (NULL);
+		goto invalid;
 	}
 
 	/*
@@ -192,7 +153,7 @@ _Read_RuneMagi(FILE *fp)
 	    frl->variable_len);
 	if (data == NULL) {
 		saverr = errno;
-		free(fdata);
+		munmap(fdata, sb.st_size);
 		errno = saverr;
 		return (NULL);
 	}
@@ -202,7 +163,6 @@ _Read_RuneMagi(FILE *fp)
 
 	memcpy(rl->__magic, _RUNE_MAGIC_1, sizeof(rl->__magic));
 	memcpy(rl->__encoding, frl->encoding, sizeof(rl->__encoding));
-	rl->__invalid_rune = 0;
 
 	rl->__variable_len = frl->variable_len;
 	rl->__runetype_ext.__nranges = frl->runetype_ext_nranges;
@@ -265,7 +225,7 @@ _Read_RuneMagi(FILE *fp)
 	}
 
 	memcpy(rl->__variable, variable, rl->__variable_len);
-	free(fdata);
+	munmap(fdata, sb.st_size);
 
 	/*
 	 * Go out and zero pointers that should be zero.
@@ -283,4 +243,9 @@ _Read_RuneMagi(FILE *fp)
 		rl->__mapupper_ext.__ranges = NULL;
 
 	return (rl);
+
+invalid:
+	munmap(fdata, sb.st_size);
+	errno = EINVAL;
+	return (NULL);
 }

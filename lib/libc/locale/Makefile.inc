@@ -4,7 +4,7 @@
 # locale sources
 .PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/locale ${LIBC_SRCTOP}/locale
 
-SRCS+=	ascii.c big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c \
+SRCS+=	big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c \
 	gb18030.c gb2312.c gbk.c ctype.c isctype.c iswctype.c \
 	ldpart.c lmessages.c lmonetary.c lnumeric.c localeconv.c mblen.c \
 	mbrlen.c \
