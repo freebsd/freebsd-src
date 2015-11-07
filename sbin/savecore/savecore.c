@@ -836,15 +836,18 @@ main(int argc, char **argv)
 	/* Emit minimal output. */
 	if (nfound == 0) {
 		if (checkfor) {
-			printf("No dump exists\n");
+			if (verbose)
+				printf("No dump exists\n");
 			exit(1);
 		}
-		syslog(LOG_WARNING, "no dumps found");
-	}
-	else if (nsaved == 0) {
-		if (nerr != 0)
-			syslog(LOG_WARNING, "unsaved dumps found but not saved");
-		else
+		if (verbose)
+			syslog(LOG_WARNING, "no dumps found");
+	} else if (nsaved == 0) {
+		if (nerr != 0) {
+			if (verbose)
+				syslog(LOG_WARNING, "unsaved dumps found but not saved");
+			exit(1);
+		} else if (verbose)
 			syslog(LOG_WARNING, "no unsaved dumps found");
 	}
 
