@@ -1256,11 +1256,11 @@ dump_collate(void)
 	 */
 	RB_NUMNODES(collchar_t, collchars, &collchars, n);
 	large = malloc(sizeof (collate_large_t) * n);
-	memset(large, 0, sizeof (collate_large_t) * n);
 	if (large == NULL) {
 		fprintf(stderr, "out of memory");
 		return;
 	}
+	memset(large, 0, sizeof (collate_large_t) * n);
 
 	i = 0;
 	RB_FOREACH(cc, collchars, &collchars) {
