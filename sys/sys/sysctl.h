@@ -137,7 +137,7 @@ struct ctlname {
 #endif
 
 #define	SYSCTL_HANDLER_ARGS struct sysctl_oid *oidp, void *arg1,	\
-	intptr_t arg2, struct sysctl_req *req
+	intmax_t arg2, struct sysctl_req *req
 
 /* definitions for sysctl_req 'lock' member */
 #define	REQ_UNWIRED	1
@@ -181,7 +181,7 @@ struct sysctl_oid {
 	int		 oid_number;
 	u_int		 oid_kind;
 	void		*oid_arg1;
-	intptr_t	 oid_arg2;
+	intmax_t	 oid_arg2;
 	const char	*oid_name;
 	int		(*oid_handler)(SYSCTL_HANDLER_ARGS);
 	const char	*oid_fmt;
@@ -329,7 +329,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 })
 
 /* Oid for a signed 8-bit int.  If ptr is NULL, val is returned. */
-#define	SYSCTL_NULL_S8_PTR ((unsigned *)NULL)
+#define	SYSCTL_NULL_S8_PTR ((int8_t *)NULL)
 #define	SYSCTL_S8(parent, nbr, name, access, ptr, val, descr)	\
 	SYSCTL_OID(parent, nbr, name,				\
 	    CTLTYPE_S8 | CTLFLAG_MPSAFE | (access),		\
@@ -349,7 +349,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 })
 
 /* Oid for an unsigned 8-bit int.  If ptr is NULL, val is returned. */
-#define	SYSCTL_NULL_U8_PTR ((unsigned *)NULL)
+#define	SYSCTL_NULL_U8_PTR ((uint8_t *)NULL)
 #define	SYSCTL_U8(parent, nbr, name, access, ptr, val, descr)	\
 	SYSCTL_OID(parent, nbr, name,				\
 	    CTLTYPE_U8 | CTLFLAG_MPSAFE | (access),		\
@@ -369,7 +369,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 })
 
 /* Oid for a signed 16-bit int.  If ptr is NULL, val is returned. */
-#define	SYSCTL_NULL_S16_PTR ((unsigned *)NULL)
+#define	SYSCTL_NULL_S16_PTR ((int16_t *)NULL)
 #define	SYSCTL_S16(parent, nbr, name, access, ptr, val, descr)	\
 	SYSCTL_OID(parent, nbr, name,				\
 	    CTLTYPE_S16 | CTLFLAG_MPSAFE | (access),		\
@@ -389,7 +389,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 })
 
 /* Oid for an unsigned 16-bit int.  If ptr is NULL, val is returned. */
-#define	SYSCTL_NULL_U16_PTR ((unsigned *)NULL)
+#define	SYSCTL_NULL_U16_PTR ((uint16_t *)NULL)
 #define	SYSCTL_U16(parent, nbr, name, access, ptr, val, descr)	\
 	SYSCTL_OID(parent, nbr, name,				\
 	    CTLTYPE_U16 | CTLFLAG_MPSAFE | (access),		\
@@ -409,7 +409,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 })
 
 /* Oid for a signed 32-bit int.  If ptr is NULL, val is returned. */
-#define	SYSCTL_NULL_S32_PTR ((unsigned *)NULL)
+#define	SYSCTL_NULL_S32_PTR ((int32_t *)NULL)
 #define	SYSCTL_S32(parent, nbr, name, access, ptr, val, descr)	\
 	SYSCTL_OID(parent, nbr, name,				\
 	    CTLTYPE_S32 | CTLFLAG_MPSAFE | (access),		\
@@ -429,7 +429,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 })
 
 /* Oid for an unsigned 32-bit int.  If ptr is NULL, val is returned. */
-#define	SYSCTL_NULL_U32_PTR ((unsigned *)NULL)
+#define	SYSCTL_NULL_U32_PTR ((uint32_t *)NULL)
 #define	SYSCTL_U32(parent, nbr, name, access, ptr, val, descr)	\
 	SYSCTL_OID(parent, nbr, name,				\
 	    CTLTYPE_U32 | CTLFLAG_MPSAFE | (access),		\
@@ -449,7 +449,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 })
 
 /* Oid for a signed 64-bit int.  If ptr is NULL, val is returned. */
-#define	SYSCTL_NULL_S64_PTR ((unsigned *)NULL)
+#define	SYSCTL_NULL_S64_PTR ((int64_t *)NULL)
 #define	SYSCTL_S64(parent, nbr, name, access, ptr, val, descr)	\
 	SYSCTL_OID(parent, nbr, name,				\
 	    CTLTYPE_S64 | CTLFLAG_MPSAFE | (access),		\
@@ -469,7 +469,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 })
 
 /* Oid for an unsigned 64-bit int.  If ptr is NULL, val is returned. */
-#define	SYSCTL_NULL_U64_PTR ((unsigned *)NULL)
+#define	SYSCTL_NULL_U64_PTR ((uint64_t *)NULL)
 #define	SYSCTL_U64(parent, nbr, name, access, ptr, val, descr)	\
 	SYSCTL_OID(parent, nbr, name,				\
 	    CTLTYPE_U64 | CTLFLAG_MPSAFE | (access),		\
