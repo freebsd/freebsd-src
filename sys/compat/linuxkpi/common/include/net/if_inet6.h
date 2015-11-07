@@ -31,6 +31,11 @@
 #ifndef _NET_IF_INET6_H_
 #define	_NET_IF_INET6_H_
 
+#include <sys/types.h>
+#include <netinet/in.h>
+
+#include <asm/types.h>
+
 static inline void ipv6_eth_mc_map(const struct in6_addr *addr, char *buf)
 {
 /*

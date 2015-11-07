@@ -59,6 +59,8 @@
 #define AR_MAC_REG_RX_PE_DELAY		(AR_MAC_REG_BASE + 0x64c)
 #define AR_MAC_REG_DYNAMIC_SIFS_ACK	(AR_MAC_REG_BASE + 0x658)
 #define AR_MAC_REG_SNIFFER		(AR_MAC_REG_BASE + 0x674)
+#define         AR_MAC_SNIFFER_DEFAULTS	0x02000000
+#define         AR_MAC_SNIFFER_ENABLE_PROMISC	0x1
 #define AR_MAC_REG_ENCRYPTION		(AR_MAC_REG_BASE + 0x678)
 #define AR_MAC_REG_MISC_680		(AR_MAC_REG_BASE + 0x680)
 #define AR_MAC_REG_FRAMETYPE_FILTER	(AR_MAC_REG_BASE + 0x68c)
@@ -69,6 +71,11 @@
 #define AR_MAC_REG_BUSY_EXT		(AR_MAC_REG_BASE + 0x6ec)
 #define AR_MAC_REG_SLOT_TIME		(AR_MAC_REG_BASE + 0x6f0)
 #define AR_MAC_REG_CAM_MODE		(AR_MAC_REG_BASE + 0x700)
+#define         AR_MAC_CAM_DEFAULTS	(0xf << 24)
+#define         AR_MAC_CAM_IBSS		0xe0
+#define         AR_MAC_CAM_AP		0xa1
+#define         AR_MAC_CAM_STA		0x2
+#define         AR_MAC_CAM_AP_WDS	0x3
 #define AR_MAC_REG_AC0_CW		(AR_MAC_REG_BASE + 0xb00)
 #define AR_MAC_REG_AC1_CW		(AR_MAC_REG_BASE + 0xb04)
 #define AR_MAC_REG_AC2_CW		(AR_MAC_REG_BASE + 0xb08)
@@ -86,6 +93,12 @@
 #define AR_MAC_REG_AMPDU_FACTOR		(AR_MAC_REG_BASE + 0xb9c)
 #define AR_MAC_REG_FCS_SELECT		(AR_MAC_REG_BASE + 0xbb0)
 #define AR_MAC_REG_RX_CONTROL		(AR_MAC_REG_BASE + 0xc40)
+#define         AR_MAC_RX_CTRL_DEAGG		0x1
+#define         AR_MAC_RX_CTRL_SHORT_FILTER	0x2
+#define         AR_MAC_RX_CTRL_SA_DA_SEARCH	0x20
+#define         AR_MAC_RX_CTRL_PASS_TO_HOST	(1 << 28)
+#define         AR_MAC_RX_CTRL_ACK_IN_SNIFFER	(1 << 30)
+
 #define AR_MAC_REG_AMPDU_RX_THRESH	(AR_MAC_REG_BASE + 0xc50)
 #define AR_MAC_REG_OFDM_PHY_ERRORS	(AR_MAC_REG_BASE + 0xcb4)
 #define AR_MAC_REG_CCK_PHY_ERRORS	(AR_MAC_REG_BASE + 0xcb8)
@@ -1009,7 +1022,6 @@ struct otus_softc {
 	struct ieee80211_channel	*sc_curchan;
 
 	struct task			tx_task;
-	struct task			wme_update_task;
 	struct timeout_task		scan_to;
 	struct timeout_task		calib_to;
 

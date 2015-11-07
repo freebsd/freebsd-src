@@ -30,6 +30,8 @@
  */
 #ifndef	_LINUX_IF_ARP_H_
 #define	_LINUX_IF_ARP_H_
+#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <net/if_arp.h>
 #endif	/* _LINUX_IF_ARP_H_ */

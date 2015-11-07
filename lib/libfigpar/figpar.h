@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2014 Devin Teske <dteske@FreeBSD.org>
+ * Copyright (c) 2002-2015 Devin Teske <dteske@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 /*
  * Union for storing various types of data in a single common container.
  */
-union fp_cfgvalue {
+union figpar_cfgvalue {
 	void		*data;		/* Pointer to NUL-terminated string */
 	char		*str;		/* Pointer to NUL-terminated string */
 	char		**strarray;	/* Pointer to an array of strings */
@@ -46,53 +46,53 @@ union fp_cfgvalue {
 /*
  * Option types (based on above cfgvalue union)
  */
-enum fp_cfgtype {
-	FP_TYPE_NONE		= 0x0000, /* for directives with no value */
-	FP_TYPE_BOOL		= 0x0001, /* boolean */
-	FP_TYPE_INT		= 0x0002, /* signed 32 bit integer */
-	FP_TYPE_UINT		= 0x0004, /* unsigned 32 bit integer */
-	FP_TYPE_STR		= 0x0008, /* string pointer */
-	FP_TYPE_STRARRAY	= 0x0010, /* string array pointer */
-	FP_TYPE_DATA1		= 0x0020, /* void data type-1 (whatever) */
-	FP_TYPE_DATA2		= 0x0040, /* void data type-2 (whatever) */
-	FP_TYPE_DATA3		= 0x0080, /* void data type-3 (whatever) */
-	FP_TYPE_RESERVED1	= 0x0100, /* reserved data type-1 (future) */
-	FP_TYPE_RESERVED2	= 0x0200, /* reserved data type-2 (future) */
-	FP_TYPE_RESERVED3	= 0x0400, /* reserved data type-3 (future) */
+enum figpar_cfgtype {
+	FIGPAR_TYPE_NONE	= 0x0000, /* directives with no value */
+	FIGPAR_TYPE_BOOL	= 0x0001, /* boolean */
+	FIGPAR_TYPE_INT		= 0x0002, /* signed 32 bit integer */
+	FIGPAR_TYPE_UINT	= 0x0004, /* unsigned 32 bit integer */
+	FIGPAR_TYPE_STR		= 0x0008, /* string pointer */
+	FIGPAR_TYPE_STRARRAY	= 0x0010, /* string array pointer */
+	FIGPAR_TYPE_DATA1	= 0x0020, /* void data type-1 (open) */
+	FIGPAR_TYPE_DATA2	= 0x0040, /* void data type-2 (open) */
+	FIGPAR_TYPE_DATA3	= 0x0080, /* void data type-3 (open) */
+	FIGPAR_TYPE_RESERVED1	= 0x0100, /* reserved data type-1 */
+	FIGPAR_TYPE_RESERVED2	= 0x0200, /* reserved data type-2 */
+	FIGPAR_TYPE_RESERVED3	= 0x0400, /* reserved data type-3 */
 };
 
 /*
  * Options to parse_config() for processing_options bitmask
  */
-#define FP_BREAK_ON_EQUALS	0x0001	/* stop reading directive at `=' */
-#define FP_BREAK_ON_SEMICOLON	0x0002	/* `;' starts a new line */
-#define FP_CASE_SENSITIVE	0x0004	/* directives are case sensitive */
-#define FP_REQUIRE_EQUALS	0x0008	/* assignment directives only */
-#define FP_STRICT_EQUALS	0x0010	/* `=' must be part of directive */
+#define FIGPAR_BREAK_ON_EQUALS    0x0001 /* stop reading directive at `=' */
+#define FIGPAR_BREAK_ON_SEMICOLON 0x0002 /* `;' starts a new line */
+#define FIGPAR_CASE_SENSITIVE     0x0004 /* directives are case sensitive */
+#define FIGPAR_REQUIRE_EQUALS     0x0008 /* assignment directives only */
+#define FIGPAR_STRICT_EQUALS      0x0010 /* `=' must be part of directive */
 
 /*
  * Anatomy of a config file option
  */
-struct fp_config {
-	enum fp_cfgtype		type;		/* Option value type */
+struct figpar_config {
+	enum figpar_cfgtype	type;		/* Option value type */
 	const char		*directive;	/* config file keyword */
-	union fp_cfgvalue	value;		/* NB: set by action */
+	union figpar_cfgvalue	value;		/* NB: set by action */
 
 	/*
 	 * Function pointer; action to be taken when the directive is found
 	 */
-	int (*action)(struct fp_config *option, uint32_t line, char *directive,
-	    char *value);
+	int (*action)(struct figpar_config *option, uint32_t line,
+	    char *directive, char *value);
 };
-extern struct fp_config fp_dummy_config;
+extern struct figpar_config figpar_dummy_config;
 
 __BEGIN_DECLS
-int			 parse_config(struct fp_config _options[],
+int			 parse_config(struct figpar_config _options[],
 			    const char *_path,
-			    int (*_unknown)(struct fp_config *_option,
+			    int (*_unknown)(struct figpar_config *_option,
 			    uint32_t _line, char *_directive, char *_value),
 			    uint16_t _processing_options);
-struct fp_config	*get_config_option(struct fp_config _options[],
+struct figpar_config	*get_config_option(struct figpar_config _options[],
 			    const char *_directive);
 __END_DECLS
 

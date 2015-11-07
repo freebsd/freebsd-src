@@ -255,7 +255,7 @@ int zfs_flags = 0;
  */
 boolean_t zfs_recover = B_FALSE;
 SYSCTL_DECL(_vfs_zfs);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, recover, CTLFLAG_RDTUN, &zfs_recover, 0,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, recover, CTLFLAG_RWTUN, &zfs_recover, 0,
     "Try to recover from otherwise-fatal errors.");
 
 static int
@@ -1835,7 +1835,13 @@ dva_get_dsize_sync(spa_t *spa, const dva_t *dva)
 	ASSERT(spa_config_held(spa, SCL_ALL, RW_READER) != 0);
 
 	if (asize != 0 && spa->spa_deflate) {
-		vdev_t *vd = vdev_lookup_top(spa, DVA_GET_VDEV(dva));
+		uint64_t vdev = DVA_GET_VDEV(dva);
+		vdev_t *vd = vdev_lookup_top(spa, vdev);
+		if (vd == NULL) {
+			panic(
+			    "dva_get_dsize_sync(): bad DVA %llu:%llu",
+			    (u_longlong_t)vdev, (u_longlong_t)asize);
+		}
 		dsize = (asize >> SPA_MINBLOCKSHIFT) * vd->vdev_deflate_ratio;
 	}
 

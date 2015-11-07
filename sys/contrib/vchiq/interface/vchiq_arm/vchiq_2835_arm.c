@@ -61,8 +61,12 @@ MALLOC_DEFINE(M_VCPAGELIST, "vcpagelist", "VideoCore pagelist memory");
 #include "vchiq_arm.h"
 #include "vchiq_2835.h"
 #include "vchiq_connected.h"
+#include "vchiq_killable.h"
 
 #define MAX_FRAGMENTS (VCHIQ_NUM_CURRENT_BULKS * 2)
+
+int g_cache_line_size = 32;
+static int g_fragment_size;
 
 typedef struct vchiq_2835_state_struct {
    int inited;
@@ -76,8 +80,8 @@ vm_paddr_t g_slot_phys;
 bus_dma_tag_t bcm_slots_dma_tag;
 bus_dmamap_t bcm_slots_dma_map;
 
-static FRAGMENTS_T *g_fragments_base;
-static FRAGMENTS_T *g_free_fragments;
+static char *g_fragments_base;
+static char *g_free_fragments;
 struct semaphore g_free_fragments_sema;
 
 static DEFINE_SEMAPHORE(g_free_fragments_mutex);
@@ -114,13 +118,13 @@ copyout_page(vm_page_t p, size_t offset, void *kaddr, size_t size)
 {
         uint8_t *dst;
 
-        dst = pmap_mapdev(VM_PAGE_TO_PHYS(p), PAGE_SIZE);
+        dst = (uint8_t*)pmap_quick_enter_page(p);
         if (!dst)
                 return ENOMEM;
 
         memcpy(dst + offset, kaddr, size);
 
-        pmap_unmapdev((vm_offset_t)dst, PAGE_SIZE);
+        pmap_quick_remove_page((vm_offset_t)dst);
 
         return 0;
 }
@@ -135,7 +139,8 @@ vchiq_platform_init(VCHIQ_STATE_T *state)
 
 	/* Allocate space for the channels in coherent memory */
 	g_slot_mem_size = PAGE_ALIGN(TOTAL_SLOTS * VCHIQ_SLOT_SIZE);
-	frag_mem_size = PAGE_ALIGN(sizeof(FRAGMENTS_T) * MAX_FRAGMENTS);
+	g_fragment_size = 2*g_cache_line_size;
+	frag_mem_size = PAGE_ALIGN(g_fragment_size * MAX_FRAGMENTS);
 
 	err = bus_dma_tag_create(
 	    NULL,
@@ -179,15 +184,15 @@ vchiq_platform_init(VCHIQ_STATE_T *state)
 	vchiq_slot_zero->platform_data[VCHIQ_PLATFORM_FRAGMENTS_COUNT_IDX] =
 		MAX_FRAGMENTS;
 
-	g_fragments_base = (FRAGMENTS_T *)(g_slot_mem + g_slot_mem_size);
+	g_fragments_base = (char *)(g_slot_mem + g_slot_mem_size);
 	g_slot_mem_size += frag_mem_size;
 
 	g_free_fragments = g_fragments_base;
 	for (i = 0; i < (MAX_FRAGMENTS - 1); i++) {
-		*(FRAGMENTS_T **)&g_fragments_base[i] =
-			&g_fragments_base[i + 1];
+		*(char **)&g_fragments_base[i*g_fragment_size] =
+			&g_fragments_base[(i + 1)*g_fragment_size];
 	}
-	*(FRAGMENTS_T **)&g_fragments_base[i] = NULL;
+	*(char **)&g_fragments_base[i*g_fragment_size] = NULL;
 	_sema_init(&g_free_fragments_sema, MAX_FRAGMENTS);
 
 	if (vchiq_init_state(state, vchiq_slot_zero, 0/*slave*/) !=
@@ -451,7 +456,8 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 	}
 
 	vchiq_log_trace(vchiq_arm_log_level,
-		"create_pagelist - %x", (unsigned int)pagelist);
+		"create_pagelist - %x (%d bytes @%p)", (unsigned int)pagelist, count, buf);
+
 	if (!pagelist)
 		return -ENOMEM;
 
@@ -505,10 +511,10 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 
 	/* Partial cache lines (fragments) require special measures */
 	if ((type == PAGELIST_READ) &&
-		((pagelist->offset & (CACHE_LINE_SIZE - 1)) ||
+		((pagelist->offset & (g_cache_line_size - 1)) ||
 		((pagelist->offset + pagelist->length) &
-		(CACHE_LINE_SIZE - 1)))) {
-		FRAGMENTS_T *fragments;
+		(g_cache_line_size - 1)))) {
+		char *fragments;
 
 		if (down_interruptible(&g_free_fragments_sema) != 0) {
       			free(pagelist, M_VCPAGELIST);
@@ -518,13 +524,13 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 		WARN_ON(g_free_fragments == NULL);
 
 		down(&g_free_fragments_mutex);
-		fragments = (FRAGMENTS_T *) g_free_fragments;
+		fragments = g_free_fragments;
 		WARN_ON(fragments == NULL);
-		g_free_fragments = *(FRAGMENTS_T **) g_free_fragments;
+		g_free_fragments = *(char **) g_free_fragments;
 		up(&g_free_fragments_mutex);
 		pagelist->type =
-			 PAGELIST_READ_WITH_FRAGMENTS + (fragments -
-							 g_fragments_base);
+			 PAGELIST_READ_WITH_FRAGMENTS + 
+			 (fragments - g_fragments_base)/g_fragment_size;
 	}
 
 	cpu_dcache_wbinv_range((vm_offset_t)buf, count);
@@ -554,7 +560,7 @@ free_pagelist(BULKINFO_T *bi, int actual)
 	pagelist = bi->pagelist;
 
 	vchiq_log_trace(vchiq_arm_log_level,
-		"free_pagelist - %x, %d", (unsigned int)pagelist, actual);
+		"free_pagelist - %x, %d (%lu bytes @%p)", (unsigned int)pagelist, actual, pagelist->length, bi->buf);
 
 	num_pages =
 		(pagelist->length + pagelist->offset + PAGE_SIZE - 1) /
@@ -564,13 +570,13 @@ free_pagelist(BULKINFO_T *bi, int actual)
 
 	/* Deal with any partial cache lines (fragments) */
 	if (pagelist->type >= PAGELIST_READ_WITH_FRAGMENTS) {
-		FRAGMENTS_T *fragments = g_fragments_base +
-			(pagelist->type - PAGELIST_READ_WITH_FRAGMENTS);
+		char *fragments = g_fragments_base +
+			(pagelist->type - PAGELIST_READ_WITH_FRAGMENTS)*g_fragment_size;
 		int head_bytes, tail_bytes;
-		head_bytes = (CACHE_LINE_SIZE - pagelist->offset) &
-			(CACHE_LINE_SIZE - 1);
+		head_bytes = (g_cache_line_size - pagelist->offset) &
+			(g_cache_line_size - 1);
 		tail_bytes = (pagelist->offset + actual) &
-			(CACHE_LINE_SIZE - 1);
+			(g_cache_line_size - 1);
 
 		if ((actual >= 0) && (head_bytes != 0)) {
 			if (head_bytes > actual)
@@ -578,7 +584,7 @@ free_pagelist(BULKINFO_T *bi, int actual)
 
 			copyout_page(pages[0],
 				pagelist->offset,
-				fragments->headbuf,
+				fragments,
 				head_bytes);
 		}
 
@@ -587,12 +593,12 @@ free_pagelist(BULKINFO_T *bi, int actual)
 
 			copyout_page(pages[num_pages-1],
 				(((vm_offset_t)bi->buf + actual) % PAGE_SIZE) - tail_bytes,
-				fragments->tailbuf,
+				fragments + g_cache_line_size,
 				tail_bytes);
 		}
 
 		down(&g_free_fragments_mutex);
-		*(FRAGMENTS_T **) fragments = g_free_fragments;
+		*(char **) fragments = g_free_fragments;
 		g_free_fragments = fragments;
 		up(&g_free_fragments_mutex);
 		up(&g_free_fragments_sema);

@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# XXXXX: String collation improvements
+# 20151107: String collation improvements
 OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_COLLATE
 OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_CTYPE
 OLD_FILES+=usr/share/locale/kk_KZ.PT154/LC_MESSAGES
@@ -97,6 +97,39 @@ OLD_FILES+=usr/bin/colldef
 OLD_FILES+=usr/share/man/man1/colldef.1.gz
 OLD_FILES+=usr/bin/mklocale
 OLD_FILES+=usr/share/man/man1/mklocale.1.gz
+# 20151101: added missing _test suffix on multiple tests in lib/libc
+OLD_FILES+=usr/tests/lib/libc/c063/faccessat
+OLD_FILES+=usr/tests/lib/libc/c063/fchmodat
+OLD_FILES+=usr/tests/lib/libc/c063/fchownat
+OLD_FILES+=usr/tests/lib/libc/c063/fexecve
+OLD_FILES+=usr/tests/lib/libc/c063/fstatat
+OLD_FILES+=usr/tests/lib/libc/c063/linkat
+OLD_FILES+=usr/tests/lib/libc/c063/mkdirat
+OLD_FILES+=usr/tests/lib/libc/c063/mkfifoat
+OLD_FILES+=usr/tests/lib/libc/c063/mknodat
+OLD_FILES+=usr/tests/lib/libc/c063/openat
+OLD_FILES+=usr/tests/lib/libc/c063/readlinkat
+OLD_FILES+=usr/tests/lib/libc/c063/renameat
+OLD_FILES+=usr/tests/lib/libc/c063/symlinkat
+OLD_FILES+=usr/tests/lib/libc/c063/unlinkat
+OLD_FILES+=usr/tests/lib/libc/c063/utimensat
+OLD_FILES+=usr/tests/lib/libc/string/memchr
+OLD_FILES+=usr/tests/lib/libc/string/memcpy
+OLD_FILES+=usr/tests/lib/libc/string/memmem
+OLD_FILES+=usr/tests/lib/libc/string/memset
+OLD_FILES+=usr/tests/lib/libc/string/strcat
+OLD_FILES+=usr/tests/lib/libc/string/strchr
+OLD_FILES+=usr/tests/lib/libc/string/strcmp
+OLD_FILES+=usr/tests/lib/libc/string/strcpy
+OLD_FILES+=usr/tests/lib/libc/string/strcspn
+OLD_FILES+=usr/tests/lib/libc/string/strerror
+OLD_FILES+=usr/tests/lib/libc/string/strlen
+OLD_FILES+=usr/tests/lib/libc/string/strpbrk
+OLD_FILES+=usr/tests/lib/libc/string/strrchr
+OLD_FILES+=usr/tests/lib/libc/string/strspn
+OLD_FILES+=usr/tests/lib/libc/string/swab
+# 20151101: 430.status-rwho was renamed to 430.status-uptime
+OLD_FILES+=etc/periodic/daily/430.status-rwho
 # 20151030: OpenSSL 1.0.2d import
 OLD_FILES+=usr/share/openssl/man/man3/CMS_set1_signer_certs.3.gz
 OLD_FILES+=usr/share/openssl/man/man3/EVP_PKEY_ctrl.3.gz

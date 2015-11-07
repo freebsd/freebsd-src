@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Oct 22, 2015
+.Dd Nov 2, 2015
 .Dt FIGPAR 3
 .Os
 .Sh NAME
@@ -38,13 +38,13 @@
 .In figpar.h
 .Ft int
 .Fo parse_config
-.Fa "struct fp_config options[], const char *path"
-.Fa "int \*[lp]*unknown\*[rp]\*[lp]struct fp_config *option, uint32_t line"
+.Fa "struct figpar_config options[], const char *path"
+.Fa "int \*[lp]*unknown\*[rp]\*[lp]struct figpar_config *option, uint32_t line"
 .Fa "char *directive, char *value\*[rp], uint8_t processing_options"
 .Fc
-.Ft "struct fp_config *"
+.Ft "struct figpar_config *"
 .Fo get_config_option
-.Fa "struct fp_config options[], const char *directive"
+.Fa "struct figpar_config options[], const char *directive"
 .Fc
 .In string_m.h
 .Ft int
@@ -91,32 +91,32 @@ Configuration directives, types, and callback functions are provided through
 data structures defined in
 .In figpar.h :
 .Bd -literal -offset indent
-struct fp_config {
-    enum fp_cfgtype	type;		/* value type */
-    const char		*directive;	/* keyword */
-    union fp_cfgvalue	value;		/* value */
+struct figpar_config {
+    enum figpar_cfgtype		type;		/* value type */
+    const char			*directive;	/* keyword */
+    union figpar_cfgvalue	value;		/* value */
 
     /* Pointer to function used when directive is found */
-    int (*action)(struct fp_config *option, uint32_t line,
+    int (*action)(struct figpar_config *option, uint32_t line,
         char *directive, char *value);
 };
 
-enum fp_cfgtype {
-    FP_TYPE_NONE      = 0x0000, /* for directives with no value */
-    FP_TYPE_BOOL      = 0x0001, /* boolean */
-    FP_TYPE_INT       = 0x0002, /* signed 32 bit integer */
-    FP_TYPE_UINT      = 0x0004, /* unsigned 32 bit integer */
-    FP_TYPE_STR       = 0x0008, /* string pointer */
-    FP_TYPE_STRARRAY  = 0x0010, /* string array pointer */
-    FP_TYPE_DATA1     = 0x0020, /* void data type-1 (whatever) */
-    FP_TYPE_DATA2     = 0x0040, /* void data type-2 (whatever) */
-    FP_TYPE_DATA3     = 0x0080, /* void data type-3 (whatever) */
-    FP_TYPE_RESERVED1 = 0x0100, /* reserved data type-1 (future) */
-    FP_TYPE_RESERVED2 = 0x0200, /* reserved data type-2 (future) */
-    FP_TYPE_RESERVED3 = 0x0400, /* reserved data type-3 (future) */
+enum figpar_cfgtype {
+    FIGPAR_TYPE_NONE      = 0x0000, /* directives with no value */
+    FIGPAR_TYPE_BOOL      = 0x0001, /* boolean */
+    FIGPAR_TYPE_INT       = 0x0002, /* signed 32 bit integer */
+    FIGPAR_TYPE_UINT      = 0x0004, /* unsigned 32 bit integer */
+    FIGPAR_TYPE_STR       = 0x0008, /* string pointer */
+    FIGPAR_TYPE_STRARRAY  = 0x0010, /* string array pointer */
+    FIGPAR_TYPE_DATA1     = 0x0020, /* void data type-1 (open) */
+    FIGPAR_TYPE_DATA2     = 0x0040, /* void data type-2 (open) */
+    FIGPAR_TYPE_DATA3     = 0x0080, /* void data type-3 (open) */
+    FIGPAR_TYPE_RESERVED1 = 0x0100, /* reserved data type-1 */
+    FIGPAR_TYPE_RESERVED2 = 0x0200, /* reserved data type-2 */
+    FIGPAR_TYPE_RESERVED3 = 0x0400, /* reserved data type-3 */
 };
 
-union fp_cfgvalue {
+union figpar_cfgvalue {
     void	*data;      /* Pointer to NUL-terminated string */
     char	*str;       /* Pointer to NUL-terminated string */
     char	**strarray; /* Pointer to an array of strings */
@@ -133,26 +133,26 @@ argument to
 is a mask of bit fields which indicate various
 processing options.
 The possible flags are as follows:
-.Bl -tag -width FP_BREAK_ON_SEMICOLON
-.It Dv FP_BREAK_ON_EQUALS
+.Bl -tag -width FIGPAR_BREAK_ON_SEMICOLON
+.It Dv FIGPAR_BREAK_ON_EQUALS
 An equals sign
 .Pq Ql Li =
 is normally considered part of the directive.
 This flag enables terminating the directive at the equals sign.
 Also makes equals sign optional and transient.
-.It Dv FP_BREAK_ON_SEMICOLON
+.It Dv FIGPAR_BREAK_ON_SEMICOLON
 A semicolon
 .Pq Ql Li \;
 is normally considered part of the value.
 This flag enables terminating the value at the semicolon.
 Also allows multiple statements on a single line separated by semicolon.
-.It Dv FP_CASE_SENSITIVE
+.It Dv FIGPAR_CASE_SENSITIVE
 Normally directives are matched case insensitively using
 .Xr fnmatch 3 .
 This flag enables directive matching to be case sensitive.
-.It Dv FP_REQUIRE_EQUALS
+.It Dv FIGPAR_REQUIRE_EQUALS
 If a directive is not followed by an equals, processing is aborted.
-.It Dv FP_STRICT_EQUALS
+.It Dv FIGPAR_STRICT_EQUALS
 Equals must be part of the directive to be considered a delimiter between
 directive and value.
 .El
@@ -163,14 +163,14 @@ struct array pointer can be NULL and every directive will invoke the
 .Fn unknown
 function argument.
 .Pp
-The directive for each fp_config item in the
+The directive for each figpar_config item in the
 .Fn parse_config
 options argument is matched against each parsed directive using
 .Xr fnmatch 3
 until a match is found.
 If a match is found, the
 .Fn action
-function for that fp_config directive is invoked with the line number,
+function for that figpar_config directive is invoked with the line number,
 directive, and value.
 Otherwise if no match, the
 .Fn unknown
@@ -192,11 +192,11 @@ or if no match a pointer to a static dummy struct is returned
 .Pq whose values are all zero or NULL .
 .Pp
 The use of
-.Fa "struct fp_config"
+.Fa "struct figpar_config"
 is entirely optional as-is the use of
-.Fa "enum fp_cfgtype"
+.Fa "enum figpar_cfgtype"
 or
-.Fa "union fp_cfgvalue" .
+.Fa "union figpar_cfgvalue" .
 For example, you could choose to pass a NULL pointer to
 .Fn parse_config
 for the first argument and then provide a simple
