@@ -23,6 +23,14 @@ ident		SAM9G20EK
 include 	"std.arm"
 include 	"../at91/std.sam9g20ek"
 
+#options		FDT
+#options 	FDT_DTB_STATIC
+#makeoptions	FDT_DTS_FILE=at91sam9g20ek.dts
+
+options 	EARLY_PRINTF
+options 	SOCDEV_PA=0xfc000000
+options 	SOCDEV_VA=0xdc000000
+
 #To statically compile in device wiring instead of /boot/device.hints
 hints		"SAM9G20EK.hints"
 makeoptions	MODULES_OVERRIDE=""
@@ -92,8 +100,10 @@ device		bpf			# Berkeley packet filter
 
 # Ethernet
 device		mii			# Minimal MII support
-device		ate			# Atmel AT91 Ethernet driver
-options 	AT91_ATE_USE_RMII
+#device		ate			# Atmel AT91 Ethernet driver
+#options 	AT91_ATE_USE_RMII
+device		macb			# Atmel AT91 Ethernet driver
+options 	AT91_MACB_USE_RMII
 
 # I2C
 device		at91_twi		# Atmel AT91 Two-wire Interface

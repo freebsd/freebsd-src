@@ -25,6 +25,7 @@
  */
 
 #include "opt_platform.h"
+#include "opt_at91.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -1359,8 +1360,14 @@ macb_attach(device_t dev)
 
 	sc->clock = sc->clock << 10;
 
+#ifdef AT91_MACB_USE_RMII
+	sc->use_rmii = USRIO_RMII;
+#else
+	sc->use_rmii = read_4(sc, EMAC_USRIO) & USRIO_RMII;
+#endif
+
 	write_4(sc, EMAC_NCFGR, sc->clock);
-	write_4(sc, EMAC_USRIO, USRIO_CLOCK);       //enable clock
+	write_4(sc, EMAC_USRIO, USRIO_CLOCK | sc->use_rmii);       //enable clock
 
 	write_4(sc, EMAC_NCR, MPE_ENABLE); //enable MPE
 

@@ -99,7 +99,8 @@
 
 #define	CFG_DRFCS	(1 << 17)
 
-#define USRIO_CLOCK	(1 << 1)
+#define USRIO_RMII	(1 << 0)		/* RMII vs MII pins */
+#define USRIO_CLOCK	(1 << 1)		/* Enable the clock! */
 
 
 
