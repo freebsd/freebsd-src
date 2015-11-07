@@ -149,7 +149,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_VNET | CTLFLAG_RW,
     "Drop TCP packets with SYN+FIN set");
 
 VNET_DEFINE(int, tcp_do_rfc6675_pipe) = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_pipe, CTLFLAG_VNET | CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc6675_pipe, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc6675_pipe), 0,
     "Use calculated pipe/in-flight bytes per RFC 6675");
 

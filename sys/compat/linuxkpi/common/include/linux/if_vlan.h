@@ -31,6 +31,7 @@
 #ifndef	_LINUX_IF_VLAN_H_
 #define	_LINUX_IF_VLAN_H_
 
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <net/ethernet.h>

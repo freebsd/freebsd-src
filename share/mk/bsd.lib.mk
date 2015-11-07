@@ -305,10 +305,12 @@ all: _manpages
 .endif
 
 _EXTRADEPEND:
+.if ${MK_FAST_DEPEND} == "no"
 	@TMP=_depend$$$$; \
 	sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.So:/' < ${DEPENDFILE} \
 	    > $$TMP; \
 	mv $$TMP ${DEPENDFILE}
+.endif
 .if !defined(NO_EXTRADEPEND) && defined(SHLIB_NAME)
 .if defined(DPADD) && !empty(DPADD)
 	echo ${SHLIB_NAME_FULL}: ${DPADD} >> ${DEPENDFILE}

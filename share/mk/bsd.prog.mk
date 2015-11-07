@@ -82,9 +82,9 @@ ${PROG_FULL}: beforelinking
 .endif
 ${PROG_FULL}: ${OBJS}
 .if defined(PROG_CXX)
-	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+	${CXX} ${CXXFLAGS:N-M*} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .else
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+	${CC} ${CFLAGS:N-M*} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
@@ -112,9 +112,9 @@ ${PROG_FULL}: beforelinking
 .endif
 ${PROG_FULL}: ${OBJS}
 .if defined(PROG_CXX)
-	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+	${CXX} ${CXXFLAGS:N-M*} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .else
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+	${CC} ${CFLAGS:N-M*} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}

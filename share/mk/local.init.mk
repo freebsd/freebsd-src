@@ -38,3 +38,5 @@ CPP=		${HOST_CPP}
 HOST_CFLAGS+= -DHOSTPROG
 CFLAGS+= ${HOST_CFLAGS}
 .endif
+
+.-include "src.init.mk"

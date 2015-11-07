@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-LIB=	ohash
+LIB=	openbsd
 SRCS=	ohash.c
 INTERNALLIB=
 

@@ -107,6 +107,7 @@ struct mx25l_flash_ident flash_devices[] = {
 	{ "s25fl032",	0x01, 0x0215, 64 * 1024, 64, FL_NONE },
 	{ "s25fl064",	0x01, 0x0216, 64 * 1024, 128, FL_NONE },
 	{ "s25fl128",	0x01, 0x2018, 64 * 1024, 256, FL_NONE },
+	{ "s25fl256s",	0x01, 0x0219, 64 * 1024, 512, FL_NONE },
 	{ "SST25VF032B", 0xbf, 0x254a, 64 * 1024, 64, FL_ERASE_4K | FL_ERASE_32K },
 
 	/* Winbond -- w25x "blocks" are 64K, "sectors" are 4KiB */

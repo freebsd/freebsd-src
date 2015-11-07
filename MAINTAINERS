@@ -26,7 +26,38 @@ sub-system.
 
 subsystem	login	notes
 -----------------------------
+opencrypto	jmg	Pre-commit review requested.  Documentation Required.
 kqueue		jmg	Pre-commit review requested.  Documentation Required.
+share/mk	imp, bapt, bdrewery, emaste, sjg	Make is hard.
+ath(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+net80211	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+iwn(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+iwm(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+otus(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+dev/usb/wlan	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+openssl		benl,jkim	Pre-commit review requested.
+release/release.sh	gjb,re	Pre-commit review and regression tests
+				requested.
+sh(1)		jilles		Pre-commit review requested. This also applies
+				to kill(1), printf(1) and test(1) which are
+				compiled in as builtins.
+isci(4)		jimharris	Pre-commit review requested.
+nvme(4)		jimharris	Pre-commit review requested.
+nvd(4)		jimharris	Pre-commit review requested.
+nvmecontrol(8)	jimharris	Pre-commit review requested.
+libfetch	des	Advance notification requested.
+fetch		des	Advance notification requested.
+libpam		des	Pre-commit review requested.
+openssh		des	Pre-commit review requested.
+pseudofs	des	Pre-commit review requested.
+procfs		des	Pre-commit review requested.
+linprocfs	des	Pre-commit review requested.
+contrib/compiler-rt	dim	Pre-commit review preferred.
+contrib/libc++		dim	Pre-commit review preferred.
+contrib/libcxxrt	dim	Pre-commit review preferred.
+contrib/llvm		dim	Pre-commit review preferred.
+contrib/llvm/tools/lldb	emaste	Pre-commit review preferred.
+---- OLD ----
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
 UFS EAs		rwatson	Pre-commit review requested.
@@ -34,7 +65,6 @@ MAC Framework	rwatson	Pre-commit review requested.
 MAC Modules	rwatson	Pre-commit review requested.
 contrib/openbsm	rwatson	Pre-commit review requested.
 sys/security/audit	rwatson	Pre-commit review requested.
-ath(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 ahc(4)		gibbs	Pre-commit review requested.
 ahd(4)		gibbs	Pre-commit review requested.
 pci bus		imp,jhb	Pre-commit review requested.
@@ -57,20 +87,11 @@ etc/mail	gshapiro	Pre-commit review requested.
 				Keep in sync with -STABLE.
 etc/sendmail	gshapiro	Pre-commit review requested.
 				Keep in sync with -STABLE.
-libfetch	des	Advance notification requested.
-fetch		des	Advance notification requested.
-libpam		des	Pre-commit review requested.
-openssh		des	Pre-commit review requested.
-pseudofs	des	Pre-commit review requested.
-procfs		des	Pre-commit review requested.
-linprocfs	des	Pre-commit review requested.
 lpr		gad	Pre-commit review requested, particularly for
 			lpd/recvjob.c and lpd/printjob.c.
-net80211	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 nvi		peter	Try not to break it.
 libz		peter	Try not to break it.
 groff		ru	Recommends pre-commit review.
-share/mk	imp, bapt, bdrewery, emaste, sjg	Make is hard.
 ipfw		ipfw	Pre-commit review preferred. send to ipfw@freebsd.org
 drm		rnoland	Just keep me informed of changes, try not to break it.
 unifdef(1)	fanf	Pre-commit review requested.
@@ -102,7 +123,6 @@ linux emul	emulation	Please discuss changes here.
 bs{diff,patch}	cperciva	Pre-commit review requested.
 portsnap	cperciva	Pre-commit review requested.
 freebsd-update	cperciva	Pre-commit review requested.
-openssl		benl,jkim	Pre-commit review requested.
 sys/dev/usb	hselasky	If in doubt, ask.
 sys/dev/sound/usb	hselasky	If in doubt, ask.
 sys/compat/linuxkpi	hselasky	If in doubt, ask.
@@ -120,18 +140,8 @@ usr.sbin/zic		edwin   Heads-up appreciated, since this code is
 lib/libc/stdtime	edwin   Heads-up appreciated, since parts of this code
 				is maintained by a third party source.
 sbin/routed	bms	Pre-commit review; notify vendor at rhyolite.com
-isci(4)		jimharris	Pre-commit review requested.
 cmx		daniel@roe.ch	Pre-commit review preferred.
 filemon		obrien		Pre-commit review preferred.
 sysdoc		trhodes		Pre-commit review preferred.
-sh(1)		jilles		Pre-commit review requested. This also applies
-				to kill(1), printf(1) and test(1) which are
-				compiled in as builtins.
-nvme(4)		jimharris	Pre-commit review requested.
-nvd(4)		jimharris	Pre-commit review requested.
-nvmecontrol(8)	jimharris	Pre-commit review requested.
-release/release.sh	gjb	Pre-commit review and regression tests
-				requested.
 nanobsd		imp	Pre-commit review requested for coordination.
 vmm(4)		neel,grehan	Pre-commit review requested.
-opencrypto	jmg	Pre-commit review requested.  Documentation Required.

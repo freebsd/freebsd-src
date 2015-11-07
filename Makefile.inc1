@@ -27,7 +27,7 @@
 #	    when NO_ROOT is set.  (default: ${DESTDIR}/METALOG)
 #	TARGET="machine" to crossbuild world for a different machine type
 #	TARGET_ARCH= may be required when a TARGET supports multiple endians
-#	BUILDENV_SHELL= shell to launch for the buildenv target (def:/bin/sh)
+#	BUILDENV_SHELL= shell to launch for the buildenv target (def:${SHELL})
 #	WORLD_FLAGS= additional flags to pass to make(1) during buildworld
 #	KERNEL_FLAGS= additional flags to pass to make(1) during buildkernel
 #	SUBDIR_OVERRIDE="list of dirs" to build rather than everything.
@@ -48,9 +48,15 @@
 .error "Both TARGET and TARGET_ARCH must be defined."
 .endif
 
-.include "share/mk/src.opts.mk"
-.include <bsd.arch.inc.mk>
-.include <bsd.compiler.mk>
+# Cross toolchain changes must be in effect before bsd.compiler.mk
+# so that gets the right CC, and pass CROSS_TOOLCHAIN to submakes.
+.if defined(CROSS_TOOLCHAIN)
+LOCALBASE?=	/usr/local
+.include "${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk"
+CROSSENV+=CROSS_TOOLCHAIN="${CROSS_TOOLCHAIN}"
+.endif
+.include <bsd.compiler.mk>		# don't depend on src.opts.mk doing it
+.include "share/mk/src.opts.mk"	
 
 # We must do lib/ and libexec/ before bin/ in case of a mid-install error to
 # keep the users system reasonably usable.  For static->dynamic root upgrades,
@@ -139,7 +145,7 @@ CLEANDIR=	cleandir
 
 LOCAL_TOOL_DIRS?=
 
-BUILDENV_SHELL?=/bin/sh
+BUILDENV_SHELL?=${SHELL}
 
 SVN?=		/usr/local/bin/svn
 SVNFLAGS?=	-r HEAD
@@ -254,7 +260,7 @@ INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 BOOTSTRAPPING?=	0
 
 # Common environment for world related stages
-CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
+CROSSENV+=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
 		CPUTYPE=${TARGET_CPUTYPE}
@@ -329,10 +335,6 @@ HMAKE=		PATH=${TMPPATH} ${MAKE} LOCAL_MTREE=${LOCAL_MTREE:Q}
 HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
 .endif
 
-.if defined(CROSS_TOOLCHAIN)
-LOCALBASE?=	/usr/local
-.include "${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk"
-.endif
 .if defined(CROSS_TOOLCHAIN_PREFIX)
 CROSS_COMPILER_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
 CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
@@ -369,7 +371,7 @@ X${BINUTIL}?=	${CROSS_BINUTILS_PREFIX}${${BINUTIL}}
 X${BINUTIL}?=	${${BINUTIL}}
 .endif
 .endfor
-WMAKEENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCFLAGS} ${XCXXFLAGS}" \
+CROSSENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCFLAGS} ${XCXXFLAGS}" \
 		DEPFLAGS="${DEPFLAGS}" \
 		CPP="${XCPP} ${XCFLAGS}" \
 		AS="${XAS}" AR="${XAR}" LD="${XLD}" NM=${XNM} \
@@ -771,7 +773,7 @@ buildworld_epilogue:
 # modification of the current environment's PATH.  In addition, we need
 # to quote multiword values.
 #
-buildenvvars:
+buildenvvars: .PHONY
 	@echo ${WMAKEENV:Q} ${.MAKE.EXPORTED:@v@$v=\"${$v}\"@}
 
 .if ${.TARGETS:Mbuildenv}
@@ -779,9 +781,11 @@ buildenvvars:
 .error The buildenv target is incompatible with -j
 .endif
 .endif
-buildenv:
+BUILDENV_DIR?=	${.CURDIR}
+buildenv: .PHONY
 	@echo Entering world for ${TARGET_ARCH}:${TARGET}
-	@cd ${.CURDIR} && env ${WMAKEENV} ${BUILDENV_SHELL} || true
+	@cd ${BUILDENV_DIR} && env ${WMAKEENV} BUILDENV=1 ${BUILDENV_SHELL} \
+	    || true
 
 TOOLCHAIN_TGTS=	${WMAKE_TGTS:N_depend:Neverything:Nbuild32}
 toolchain: ${TOOLCHAIN_TGTS}
@@ -1367,10 +1371,10 @@ _sed=		usr.bin/sed
 .endif
 
 .if ${BOOTSTRAPPING} < 1000002
-_libohash=	lib/libohash
+_libopenbsd=	lib/libopenbsd
 _m4=		usr.bin/m4
 
-${_bt}-usr.bin/m4: ${_bt}-lib/libohash
+${_bt}-usr.bin/m4: ${_bt}-lib/libopenbsd
 .endif
 
 .if ${BOOTSTRAPPING} < 1000026
@@ -1443,10 +1447,10 @@ _kerberos5_bootstrap_tools= \
 .endif
 
 .if ${MK_MANDOCDB} != "no"
-_libohash?=	lib/libohash
+_libopenbsd?=	lib/libopenbsd
 _makewhatis=	lib/libsqlite3 \
 		usr.bin/mandoc
-${_bt}-usr.bin/mandoc: ${_bt}-lib/libohash ${_bt}-lib/libsqlite3
+${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd ${_bt}-lib/libsqlite3
 .else
 _makewhatis=usr.bin/makewhatis
 .endif
@@ -1469,7 +1473,7 @@ bootstrap-tools: .PHONY
     ${_awk} \
     ${_cat} \
     usr.bin/lorder \
-    ${_libohash} \
+    ${_libopenbsd} \
     ${_makewhatis} \
     usr.bin/rpcgen \
     ${_sed} \

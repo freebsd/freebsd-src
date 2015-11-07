@@ -403,7 +403,7 @@
 #define FAULT_PERM_L1		0x00D	/* Permission Fault (L1) */
 #define FAULT_EA_TRAN_L2	0x00E	/* External Translation Abort (L2) */
 #define FAULT_PERM_L2		0x00F	/* Permission Fault (L2) */
-#define FAULT_TLB_CONFLICT	0x010	/* Permission Fault (L2) */
+#define FAULT_TLB_CONFLICT	0x010	/* TLB Conflict Abort */
 #define FAULT_EA_IMPREC		0x016	/* Asynchronous External Abort */
 #define FAULT_PE_IMPREC		0x018	/* Asynchronous Parity Error */
 #define FAULT_PARITY		0x019	/* Parity Error */
@@ -443,6 +443,12 @@
 #define INSN_SIZE		4		/* Always 4 bytes */
 #define INSN_COND_MASK		0xf0000000	/* Condition mask */
 #define INSN_COND_AL		0xe0000000	/* Always condition */
+
+/* ARM register defines */
+#define	ARM_REG_SIZE		4
+#define	ARM_REG_NUM_PC		15
+#define	ARM_REG_NUM_LR		14
+#define	ARM_REG_NUM_SP		13
 
 #define THUMB_INSN_SIZE		2		/* Some are 4 bytes.  */
 

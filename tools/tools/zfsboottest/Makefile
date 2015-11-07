@@ -16,6 +16,7 @@ CFLAGS=	-O1 \
 	-I. \
 	-fdiagnostics-show-option \
 	-W -Wextra -Wno-sign-compare -Wno-unused-parameter
+CFLAGS+=-m32
 LDADD+=	-lmd
 
 .if ${MACHINE_CPUARCH} == "amd64"
