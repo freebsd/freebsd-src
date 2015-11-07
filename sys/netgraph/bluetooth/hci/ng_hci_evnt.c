@@ -913,17 +913,17 @@ encryption_change(ng_hci_unit_p unit, struct mbuf *event)
 	ng_hci_encryption_change_ep	*ep = NULL;
 	ng_hci_unit_con_p		 con = NULL;
 	int				 error = 0;
+	u_int16_t	h;
 
 	NG_HCI_M_PULLUP(event, sizeof(*ep));
 	if (event == NULL)
 		return (ENOBUFS);
 
 	ep = mtod(event, ng_hci_encryption_change_ep *);
+	h = NG_HCI_CON_HANDLE(le16toh(ep->con_handle));
+	con = ng_hci_con_by_handle(unit, h);
 
 	if (ep->status == 0) {
-		u_int16_t	h = NG_HCI_CON_HANDLE(le16toh(ep->con_handle));
-
-		con = ng_hci_con_by_handle(unit, h);
 		if (con == NULL) {
 			NG_HCI_ALERT(
 "%s: %s - invalid connection handle=%d\n",
@@ -940,11 +940,13 @@ encryption_change(ng_hci_unit_p unit, struct mbuf *event)
 			con->encryption_mode = NG_HCI_ENCRYPTION_MODE_P2P;
 		else
 			con->encryption_mode = NG_HCI_ENCRYPTION_MODE_NONE;
-		ng_hci_lp_enc_change(con, ep->encryption_enable);
 	} else
 		NG_HCI_ERR(
 "%s: %s - failed to change encryption mode, status=%d\n",
 			__func__, NG_NODE_NAME(unit->node), ep->status);
+
+	/*Anyway, propagete encryption status to upper layer*/
+	ng_hci_lp_enc_change(con, con->encryption_mode);
 
 	NG_FREE_M(event);
 
