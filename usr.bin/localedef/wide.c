@@ -210,7 +210,7 @@ towide_utf8(wchar_t *wc, const char *mb, unsigned n)
 {
 	wchar_t	c;
 	int	nb;
-	int	lv;	/* lowest legal value */
+	wchar_t	lv;	/* lowest legal value */
 	int	i;
 	const uint8_t *s = (const uint8_t *)mb;
 
