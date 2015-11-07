@@ -36,6 +36,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	order of files listed by ls(1) for example. To get back to the old
 	behaviour, set LC_COLLATE environment variable to "C".
 
+	Databases administrators will need to reindex their databases given
+	collation results will be different.
+
 20151030:
 	The OpenSSL has been upgraded to 1.0.2d.  Any binaries requiring
 	libcrypto.so.7 or libssl.so.7 must be recompiled.
