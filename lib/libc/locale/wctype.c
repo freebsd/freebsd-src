@@ -73,9 +73,10 @@ wctype_l(const char *property, locale_t locale)
 		"ideogram\0"	/* BSD extension */
 		"special\0"	/* BSD extension */
 		"phonogram\0"	/* BSD extension */
+		"number\0"	/* BSD extension */
 		"rune\0";	/* BSD extension */
 	static const wctype_t propmasks[] = {
-		_CTYPE_A|_CTYPE_D,
+		_CTYPE_A|_CTYPE_N,
 		_CTYPE_A,
 		_CTYPE_B,
 		_CTYPE_C,
@@ -90,6 +91,7 @@ wctype_l(const char *property, locale_t locale)
 		_CTYPE_I,
 		_CTYPE_T,
 		_CTYPE_Q,
+		_CTYPE_N,
 		0xFFFFFF00L
 	};
 	size_t len1, len2;

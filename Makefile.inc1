@@ -1486,7 +1486,8 @@ bootstrap-tools: .PHONY
     usr.sbin/config \
     ${_crunch} \
     ${_nmtree} \
-    ${_vtfontcvt}
+    ${_vtfontcvt} \
+    usr.bin/localedef
 ${_bt}-${_tool}: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
