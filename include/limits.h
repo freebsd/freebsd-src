@@ -63,7 +63,7 @@
 #define	BC_DIM_MAX		 2048	/* max array elements in bc(1) */
 #define	BC_SCALE_MAX		   99	/* max scale value in bc(1) */
 #define	BC_STRING_MAX		 1000	/* max const string length in bc(1) */
-#define	COLL_WEIGHTS_MAX	    0	/* max weights for order keyword */
+#define	COLL_WEIGHTS_MAX	   10	/* max weights for order keyword */
 #define	EXPR_NEST_MAX		   32	/* max expressions nested in expr(1) */
 #define	LINE_MAX		 2048	/* max bytes in an input line */
 #define	RE_DUP_MAX		  255	/* max RE's in interval notation */
