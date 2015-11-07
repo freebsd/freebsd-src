@@ -703,9 +703,10 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KERN_PROC_OSREL		40	/* osreldate for process binary */
 #define	KERN_PROC_SIGTRAMP	41	/* signal trampoline location */
 #define	KERN_PROC_CWD		42	/* process current working directory */
-#define	KERN_PROC_SBCLASSES	43	/* get sandbox classes */
-#define	KERN_PROC_SBMETHODS	44	/* get sandbox methods */
-#define	KERN_PROC_SBOBJECTS	45	/* get sandbox objects */
+#define	KERN_PROC_NFDS		43	/* number of open file descriptors */
+#define	KERN_PROC_SBCLASSES	44	/* get sandbox classes */
+#define	KERN_PROC_SBMETHODS	45	/* get sandbox methods */
+#define	KERN_PROC_SBOBJECTS	46	/* get sandbox objects */
 
 /*
  * KERN_IPC identifiers
