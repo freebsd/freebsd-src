@@ -229,6 +229,7 @@ struct vm_domain {
 	int vmd_pass;	/* local pagedaemon pass */
 	int vmd_last_active_scan;
 	struct vm_page vmd_marker; /* marker for pagedaemon private use */
+	struct vm_page vmd_inacthead; /* marker for LRU-defeating insertions */
 };
 
 extern struct vm_domain vm_dom[MAXMEMDOM];

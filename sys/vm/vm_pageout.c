@@ -1630,6 +1630,9 @@ vm_pageout_worker(void *arg)
 	KASSERT(domain->vmd_segs != 0, ("domain without segments"));
 	domain->vmd_last_active_scan = ticks;
 	vm_pageout_init_marker(&domain->vmd_marker, PQ_INACTIVE);
+	vm_pageout_init_marker(&domain->vmd_inacthead, PQ_INACTIVE);
+	TAILQ_INSERT_HEAD(&domain->vmd_pagequeues[PQ_INACTIVE].pq_pl,
+	    &domain->vmd_inacthead, plinks.q);
 
 	/*
 	 * The pageout daemon worker is never done, so loop forever.
