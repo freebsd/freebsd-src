@@ -33,41 +33,32 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <atf-c.h>
+
 #include "test-eui64.h"
 
-static int
-test_str( const char *str, const struct eui64 *eui)
+static void
+test_str(const char *str, const struct eui64 *eui)
 {
-	struct eui64	e;
-	char		buf[EUI64_SIZ];
-	static int	test = 0;
+	char a[EUI64_SIZ];
 
-	test++;
-
-	if (eui64_aton(str, &e) != 0 &&
-	    memcmp(&e, &eui, sizeof(struct eui64)) != 0) {
-		printf("not ok %d - : eui64_aton(%s)\n", test, str);
-		eui64_ntoa(&e, buf, sizeof(buf));
-		printf("# got: %s\n", buf);
-		return (0);
-	} else {
-		printf("ok %d - eui64_aton(%s)\n", test, str);
-		return (1);
-	}
-
+	ATF_REQUIRE_MSG(eui64_ntoa(&test_eui64_id, a, sizeof(a)) == 0,
+	    "eui64_ntoa failed");
+	ATF_REQUIRE_MSG(strcmp(a, test_eui64_id_ascii) == 0,
+	    "the strings mismatched: `%s` != `%s`", a, test_eui64_id_ascii);
 }
 
-int
-main(int argc, char **argv)
+ATF_TC_WITHOUT_HEAD(id_ascii);
+ATF_TC_BODY(id_ascii, tc)
 {
 
-	printf("1..5\n");
-
 	test_str(test_eui64_id_ascii, &test_eui64_id);
-	test_str(test_eui64_id_colon_ascii, &test_eui64_id);
-	test_str(test_eui64_mac_ascii, &test_eui64_eui48);
-	test_str(test_eui64_mac_colon_ascii, &test_eui64_eui48);
-	test_str(test_eui64_hex_ascii, &test_eui64_id);
+}
 
-	return (0);
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, id_ascii);
+
+	return (atf_no_error());
 }

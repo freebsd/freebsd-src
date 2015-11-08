@@ -30,25 +30,75 @@
 
 #include <sys/types.h>
 #include <sys/eui64.h>
+#include <locale.h>
 #include <stdio.h>
 #include <string.h>
 
+#include <atf-c.h>
+
 #include "test-eui64.h"
 
-int
-main(int argc, char **argv)
+static void
+test_str(const char *str, const struct eui64 *eui)
 {
-	char a[EUI64_SIZ];
+	struct eui64 e;
+	char buf[EUI64_SIZ];
+	int rc;
 
-	printf("1..1\n");
-
-	if (eui64_ntoa(&test_eui64_id, a, sizeof(a)) == 0 &&
-	    strcmp(a, test_eui64_id_ascii) == 0) {
-		printf("ok 1 - eui64_ntoa\n");
-		return (0);
+	ATF_REQUIRE_MSG(eui64_aton(str, &e) == 0, "eui64_aton failed");
+	rc = memcmp(&e, eui, sizeof(e));
+	if (rc != 0) {
+		eui64_ntoa(&e, buf, sizeof(buf));
+		atf_tc_fail(
+		    "eui64_aton(\"%s\", ..) failed; memcmp returned %d. "
+		    "String obtained form eui64_ntoa was: `%s`",
+		    str, rc, buf);
 	}
-	printf("# a = '%s'\n", a);
+}
 
-	printf("not ok 1 - eui64_ntoa\n");
-	return (0);
+ATF_TC_WITHOUT_HEAD(id_ascii);
+ATF_TC_BODY(id_ascii, tc)
+{
+
+	test_str(test_eui64_id_ascii, &test_eui64_id);
+}
+
+ATF_TC_WITHOUT_HEAD(id_colon_ascii);
+ATF_TC_BODY(id_colon_ascii, tc)
+{
+
+	test_str(test_eui64_id_colon_ascii, &test_eui64_id);
+}
+
+ATF_TC_WITHOUT_HEAD(mac_ascii);
+ATF_TC_BODY(mac_ascii, tc)
+{
+
+	test_str(test_eui64_mac_ascii, &test_eui64_eui48);
+}
+
+ATF_TC_WITHOUT_HEAD(mac_colon_ascii);
+ATF_TC_BODY(mac_colon_ascii, tc)
+{
+
+	test_str(test_eui64_mac_colon_ascii, &test_eui64_eui48);
+}
+
+ATF_TC_WITHOUT_HEAD(hex_ascii);
+ATF_TC_BODY(hex_ascii, tc)
+{
+
+	test_str(test_eui64_hex_ascii, &test_eui64_id);
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, id_ascii);
+	ATF_TP_ADD_TC(tp, id_colon_ascii);
+	ATF_TP_ADD_TC(tp, mac_ascii);
+	ATF_TP_ADD_TC(tp, mac_colon_ascii);
+	ATF_TP_ADD_TC(tp, hex_ascii);
+
+	return (atf_no_error());
 }
