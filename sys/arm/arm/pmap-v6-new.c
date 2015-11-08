@@ -6133,7 +6133,7 @@ CTASSERT(powerof2(PT2MAP_SIZE));
  *  Handle access and R/W emulation faults.
  */
 int
-pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, int usermode)
+pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, bool usermode)
 {
 	pt1_entry_t *pte1p, pte1;
 	pt2_entry_t *pte2p, pte2;
