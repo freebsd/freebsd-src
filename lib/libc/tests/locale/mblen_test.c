@@ -53,8 +53,6 @@ ATF_TC_BODY(mblen_test, tc)
 	 * C/POSIX locale.
 	 */
 
-	printf("1..1\n");
-
 	ATF_REQUIRE(MB_CUR_MAX == 1);
 
 	/* No shift states in C locale. */
