@@ -187,9 +187,6 @@ check_time_list(void)
 	fprintf(stderr,"too few items in list (%d)", last_kw);
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
-
 void
 reset_time_list(void)
 {
@@ -227,8 +224,6 @@ reset_time_list(void)
 		break;
 	}
 }
-
-#pragma GCC diagnostic pop
 
 void
 dump_time(void)

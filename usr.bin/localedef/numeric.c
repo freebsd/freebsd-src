@@ -77,9 +77,6 @@ add_numeric_str(wchar_t *wcs)
 	}
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
-
 void
 reset_numeric_group(void)
 {
@@ -103,8 +100,6 @@ add_numeric_group(int n)
 	free((char *)numeric.grouping);
 	numeric.grouping = s;
 }
-
-#pragma GCC diagnostic pop
 
 void
 dump_numeric(void)
