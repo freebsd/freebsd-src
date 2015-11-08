@@ -48,7 +48,14 @@ CTAGSFLAGS?=
 GTAGSFLAGS?=	-o
 HTAGSFLAGS?=
 
-MKDEPCMD?=	CC='${CC.${.IMPSRC:T}:U${CC}} ${DEPFLAGS}' mkdep
+# XXX-BD: Is _MKDEPCC:= in head, but we need to expand in the target
+_MKDEPCC=	${CC.${.IMPSRC:T}:U${CC}:N${CCACHE_BIN}}
+# XXX: DEPFLAGS can come out once Makefile.inc1 properly passes down
+# CXXFLAGS.
+.if !empty(DEPFLAGS)
+_MKDEPCC+=	${DEPFLAGS}
+.endif
+MKDEPCMD?=	CC='${_MKDEPCC}' mkdep
 DEPENDFILE?=	.depend
 DEPENDFILES=	${DEPENDFILE}
 .if ${MK_FAST_DEPEND} == "yes" && ${.MAKE.MODE:Unormal:Mmeta*} == ""
