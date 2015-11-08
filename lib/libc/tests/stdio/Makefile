@@ -26,6 +26,12 @@ NETBSD_ATF_TESTS_C+=	popen_test
 NETBSD_ATF_TESTS_C+=	printf_test
 NETBSD_ATF_TESTS_C+=	scanf_test
 
+DPADD.printfloat_test+=	${LIBM}
+LDADD.printfloat_test+=	-lm
+
+DPADD.scanfloat_test+=	${LIBM}
+LDADD.scanfloat_test+=	-lm
+
 .include "../Makefile.netbsd-tests"
 
 .include <bsd.test.mk>
