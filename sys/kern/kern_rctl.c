@@ -71,12 +71,17 @@ FEATURE(rctl, "Resource Limits");
 #define	HRF_DONT_INHERIT	1
 #define	HRF_DONT_ACCUMULATE	2
 
-/* Default buffer size for rctl_get_rules(2). */
-#define	RCTL_DEFAULT_BUFSIZE	4096
-#define	RCTL_MAX_INBUFLEN	4096
+#define	RCTL_MAX_INBUFLEN	4 * 1024
+#define	RCTL_MAX_OUTBUFLEN	16 * 1024 * 1024
 #define	RCTL_LOG_BUFSIZE	128
 
 #define	RCTL_PCPU_SHIFT		(10 * 1000000)
+
+unsigned int rctl_maxbufsize = RCTL_MAX_OUTBUFLEN;
+
+SYSCTL_NODE(_kern_racct, OID_AUTO, rctl, CTLFLAG_RW, 0, "Resource Limits");
+SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, maxbufsize, CTLFLAG_RWTUN,
+    &rctl_maxbufsize, 0, "Maximum output buffer size");
 
 /*
  * 'rctl_rule_link' connects a rule with every racct it's related to.
@@ -1435,7 +1440,7 @@ int
 sys_rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
 {
 	int error;
-	size_t bufsize = RCTL_DEFAULT_BUFSIZE;
+	size_t bufsize;
 	char *inputstr, *buf;
 	struct sbuf *sb;
 	struct rctl_rule *filter;
@@ -1461,12 +1466,16 @@ sys_rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
 		return (error);
 	}
 
-again:
+	bufsize = uap->outbuflen;
+	if (bufsize > rctl_maxbufsize) {
+		sx_sunlock(&allproc_lock);
+		return (E2BIG);
+	}
+
 	buf = malloc(bufsize, M_RCTL, M_WAITOK);
 	sb = sbuf_new(NULL, buf, bufsize, SBUF_FIXEDLEN);
 	KASSERT(sb != NULL, ("sbuf_new failed"));
 
-	sx_assert(&allproc_lock, SA_LOCKED);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		rw_rlock(&rctl_lock);
 		LIST_FOREACH(link, &p->p_racct->r_rule_links, rrl_next) {
@@ -1489,10 +1498,8 @@ again:
 	ui_racct_foreach(rctl_get_rules_callback, filter, sb);
 	prison_racct_foreach(rctl_get_rules_callback, filter, sb);
 	if (sbuf_error(sb) == ENOMEM) {
-		sbuf_delete(sb);
-		free(buf, M_RCTL);
-		bufsize *= 4;
-		goto again;
+		error = ERANGE;
+		goto out;
 	}
 
 	/*
@@ -1502,7 +1509,7 @@ again:
 		sbuf_setpos(sb, sbuf_len(sb) - 1);
 
 	error = rctl_write_outbuf(sb, uap->outbufp, uap->outbuflen);
-
+out:
 	rctl_rule_release(filter);
 	sx_sunlock(&allproc_lock);
 	free(buf, M_RCTL);
@@ -1513,7 +1520,7 @@ int
 sys_rctl_get_limits(struct thread *td, struct rctl_get_limits_args *uap)
 {
 	int error;
-	size_t bufsize = RCTL_DEFAULT_BUFSIZE;
+	size_t bufsize;
 	char *inputstr, *buf;
 	struct sbuf *sb;
 	struct rctl_rule *filter;
@@ -1554,7 +1561,13 @@ sys_rctl_get_limits(struct thread *td, struct rctl_get_limits_args *uap)
 		return (EINVAL);
 	}
 
-again:
+	bufsize = uap->outbuflen;
+	if (bufsize > rctl_maxbufsize) {
+		rctl_rule_release(filter);
+		sx_sunlock(&allproc_lock);
+		return (E2BIG);
+	}
+
 	buf = malloc(bufsize, M_RCTL, M_WAITOK);
 	sb = sbuf_new(NULL, buf, bufsize, SBUF_FIXEDLEN);
 	KASSERT(sb != NULL, ("sbuf_new failed"));
@@ -1567,10 +1580,8 @@ again:
 	}
 	rw_runlock(&rctl_lock);
 	if (sbuf_error(sb) == ENOMEM) {
-		sbuf_delete(sb);
-		free(buf, M_RCTL);
-		bufsize *= 4;
-		goto again;
+		error = ERANGE;
+		goto out;
 	}
 
 	/*
@@ -1580,6 +1591,7 @@ again:
 		sbuf_setpos(sb, sbuf_len(sb) - 1);
 
 	error = rctl_write_outbuf(sb, uap->outbufp, uap->outbuflen);
+out:
 	rctl_rule_release(filter);
 	sx_sunlock(&allproc_lock);
 	free(buf, M_RCTL);
