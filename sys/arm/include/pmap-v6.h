@@ -201,7 +201,7 @@ void pmap_tlb_flush_ng(pmap_t );
 void pmap_dcache_wb_range(vm_paddr_t , vm_size_t , vm_memattr_t );
 
 vm_paddr_t pmap_kextract(vm_offset_t );
-int pmap_fault(pmap_t , vm_offset_t , uint32_t , int , int );
+int pmap_fault(pmap_t , vm_offset_t , uint32_t , int , bool);
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
 void pmap_set_tex(void);
