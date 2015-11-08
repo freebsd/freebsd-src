@@ -164,7 +164,7 @@ bcm_vchiq_attach(device_t dev)
 	vchiq_core_initialize();
 
 	/* Setup and enable the timer */
-	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC,
+	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
 			NULL, bcm_vchiq_intr, sc,
 			&sc->intr_hl) != 0) {
 		bus_release_resource(dev, SYS_RES_IRQ, rid,
