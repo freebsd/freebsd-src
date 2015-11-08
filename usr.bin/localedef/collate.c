@@ -435,23 +435,18 @@ subst_compare(const void *n1, const void *n2)
 
 RB_GENERATE_STATIC(substs, subst, entry, subst_compare);
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
-
 static int
 subst_compare_ref(const void *n1, const void *n2)
 {
-	int32_t *c1 = ((subst_t *)n1)->ref;
-	int32_t *c2 = ((subst_t *)n2)->ref;
+	const wchar_t *c1 = ((const subst_t *)n1)->ref;
+	const wchar_t *c2 = ((const subst_t *)n2)->ref;
 	int rv;
 
-	rv = wcscmp((wchar_t *)c1, (wchar_t *)c2);
+	rv = wcscmp(c1, c2);
 	return ((rv < 0) ? -1 : (rv > 0) ? 1 : 0);
 }
 
 RB_GENERATE_STATIC(substs_ref, subst, entry_ref, subst_compare_ref);
-
-#pragma GCC diagnostic pop
 
 void
 init_collate(void)
