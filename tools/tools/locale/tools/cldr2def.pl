@@ -1,4 +1,5 @@
 #!/usr/local/bin/perl -wC
+# $FreeBSD$
 
 use strict;
 use File::Copy;
@@ -66,6 +67,7 @@ my %callback = (
 	mdorder => \&callback_mdorder,
 	altmon => \&callback_altmon,
 	cformat => \&callback_cformat,
+	cbabmon => \&callback_abmon,
 	data => undef,
 );
 
@@ -173,7 +175,7 @@ if ($TYPE eq "msgdef") {
 
 if ($TYPE eq "timedef") {
 	%keys = (
-	    "abmon"		=> "as",
+	    "abmon"		=> "<cbabmon<abmon<as",
 	    "mon"		=> "as",
 	    "abday"		=> "as",
 	    "day"		=> "as",
@@ -223,6 +225,30 @@ sub callback_altmon {
 		return join(";",@cleaned);
 	}
 
+	return $s;
+}
+
+sub callback_abmon {
+	# for specified CJK locales, pad result with a space to enable
+	# columns to line up (style established in FreeBSD in 2001)
+	my $s = shift;
+	my $nl = $callback{data}{l} . "_" . $callback{data}{c};
+
+	if ($nl eq 'ja_JP' || $nl eq 'ko_KR' || $nl eq 'zh_CN' ||
+	    $nl eq 'zh_HK' || $nl eq 'zh_TW') {
+		my @monthnames = split(";", $s);
+		my @cleaned;
+		foreach (@monthnames)
+		{
+			if ($_ =~ /^"<(two|three|four|five|six|seven|eight|nine)>/ ||
+			   ($_ =~ /^"<one>/ && $_ !~ /^"<one>(<zero>|<one>|<two>)/))
+			{
+				$_ =~ s/^"/"<space>/;
+			}
+			push @cleaned, $_;
+		}
+		return join(";",@cleaned);
+	}
 	return $s;
 }
 
