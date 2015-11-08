@@ -542,9 +542,8 @@ create_pagelist(char __user *buf, size_t count, unsigned short type,
 	return 0;
 
 failed_load:
-	bus_dmamap_unload(bi->pagelist_dma_tag, bi->pagelist_dma_map);
+	bus_dmamem_free(bi->pagelist_dma_tag, bi->pagelist, bi->pagelist_dma_map);
 failed_alloc:
-	bus_dmamap_destroy(bi->pagelist_dma_tag, bi->pagelist_dma_map);
 	bus_dma_tag_destroy(bi->pagelist_dma_tag);
 
 	return err;
@@ -613,7 +612,6 @@ free_pagelist(BULKINFO_T *bi, int actual)
 
 	bus_dmamap_unload(bi->pagelist_dma_tag, bi->pagelist_dma_map);
 	bus_dmamem_free(bi->pagelist_dma_tag, bi->pagelist, bi->pagelist_dma_map);
-	bus_dmamap_destroy(bi->pagelist_dma_tag, bi->pagelist_dma_map);
 	bus_dma_tag_destroy(bi->pagelist_dma_tag);
 
 	free(bi, M_VCPAGELIST);
