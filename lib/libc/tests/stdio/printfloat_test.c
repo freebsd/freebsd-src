@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <err.h>
 #include <fenv.h>
 #include <float.h>
@@ -44,21 +43,58 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <wchar.h>
 
-#define	testfmt(result, fmt, ...)	\
-	_testfmt((result), __LINE__, #__VA_ARGS__, fmt, __VA_ARGS__)
-void _testfmt(const char *, int, const char *, const char *, ...);
-void smash_stack(void);
+#include <atf-c.h>
 
-int
-main(int argc, char *argv[])
+static void
+smash_stack(void)
+{
+	static uint32_t junk = 0xdeadbeef;
+	uint32_t buf[512];
+	int i;
+
+	for (i = 0; i < sizeof(buf) / sizeof(buf[0]); i++)
+		buf[i] = junk;
+}
+
+#define	testfmt(result, fmt, ...)       \
+	_testfmt((result), #__VA_ARGS__, fmt, __VA_ARGS__)
+static void
+_testfmt(const char *result, const char *argstr, const char *fmt,...)
+{
+#define	BUF	100
+	wchar_t ws[BUF], wfmt[BUF], wresult[BUF];
+	char s[BUF];
+	va_list ap, ap2;
+
+	va_start(ap, fmt);
+	va_copy(ap2, ap);
+	smash_stack();
+	vsnprintf(s, sizeof(s), fmt, ap);
+	if (strcmp(result, s) != 0) {
+		atf_tc_fail(
+		    "printf(\"%s\", %s) ==> [%s], expected [%s]\n",
+		    fmt, argstr, s, result);
+	}
+
+	smash_stack();
+	mbstowcs(ws, s, BUF - 1);
+	mbstowcs(wfmt, fmt, BUF - 1);
+	mbstowcs(wresult, result, BUF - 1);
+	vswprintf(ws, sizeof(ws) / sizeof(ws[0]), wfmt, ap2);
+	if (wcscmp(wresult, ws) != 0) {
+		atf_tc_fail(
+		    "wprintf(\"%ls\", %s) ==> [%ls], expected [%ls]\n",
+		    wfmt, argstr, ws, wresult);
+	}
+}
+
+ATF_TC_WITHOUT_HEAD(float_within_limits);
+ATF_TC_BODY(float_within_limits, tc)
 {
 
-	printf("1..11\n");
-	assert(setlocale(LC_NUMERIC, "C"));
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
 
-	/*
-	 * Basic tests of decimal output functionality.
-	 */
+	/* Basic tests of decimal output functionality. */
 	testfmt(" 1.000000E+00", "%13E", 1.0);
 	testfmt("     1.000000", "%13f", 1.0);
 	testfmt("            1", "%13G", 1.0);
@@ -82,12 +118,14 @@ main(int argc, char *argv[])
 	testfmt(" 3.141592653589793238e-4000", "%L27.18Le",
 	    3.14159265358979323846e-4000L);
 #endif
+}
 
-	printf("ok 1 - printfloat\n");
+ATF_TC_WITHOUT_HEAD(infinities_and_nans);
+ATF_TC_BODY(infinities_and_nans, tc)
+{
 
-	/*
-	 * Infinities and NaNs
-	 */
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
+
 	testfmt("nan", "%e", NAN);
 	testfmt("NAN", "%F", NAN);
 	testfmt("nan", "%g", NAN);
@@ -101,59 +139,69 @@ main(int argc, char *argv[])
 	testfmt("-inf", "%Lf", -HUGE_VALL);
 	testfmt("  inf", "%05e", HUGE_VAL);
 	testfmt(" -inf", "%05e", -HUGE_VAL);
+}
 
-	printf("ok 2 - printfloat\n");
+ATF_TC_WITHOUT_HEAD(padding);
+ATF_TC_BODY(padding, tc)
+{
 
-	/*
-	 * Padding
-	 */
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
+
 	testfmt("0.000000e+00", "%e", 0.0);
 	testfmt("0.000000", "%F", (double)0.0);
 	testfmt("0", "%G", 0.0);
 	testfmt("  0", "%3.0Lg", 0.0L);
 	testfmt("    0", "%5.0f", 0.001);
-	printf("ok 3 - printfloat\n");
+}
 
-	/*
-	 * Precision specifiers
-	 */
+ATF_TC_WITHOUT_HEAD(precision_specifiers);
+ATF_TC_BODY(precision_specifiers, tc)
+{
+
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
+
 	testfmt("1.0123e+00", "%.4e", 1.0123456789);
 	testfmt("1.0123", "%.4f", 1.0123456789);
 	testfmt("1.012", "%.4g", 1.0123456789);
 	testfmt("1.2346e-02", "%.4e", 0.0123456789);
 	testfmt("0.0123", "%.4f", 0.0123456789);
 	testfmt("0.01235", "%.4g", 0.0123456789);
-	printf("ok 4 - printfloat\n");
+}
 
-	/*
-	 * Thousands' separators and other locale fun
-	 */
+ATF_TC_WITHOUT_HEAD(thousands_separator_and_other_locale_tests);
+ATF_TC_BODY(thousands_separator_and_other_locale_tests, tc)
+{
+
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
+
 	testfmt("12345678.0625", "%'.04f", 12345678.0625);
 	testfmt("0012345678.0625", "%'015.4F", 12345678.0625);
 
-	assert(setlocale(LC_NUMERIC, "hi_IN.ISCII-DEV")); /* grouping == 2;3 */
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "hi_IN.ISCII-DEV")); /* grouping == 2;3 */
 	testfmt("123,456,78.0625", "%'.4f", 12345678.0625);
 	testfmt("00123,456,78.0625", "%'017.4F", 12345678.0625);
 	testfmt(" 90,00", "%'6.0f", 9000.0);
 	testfmt("90,00.0", "%'.1f", 9000.0);
 
-	assert(setlocale(LC_NUMERIC, "ru_RU.ISO8859-5")); /* decimalpoint==, */
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "ru_RU.ISO8859-5")); /* decimalpoint==, */
 	testfmt("3,1415", "%g", 3.1415);
 
 	/* thousands=. decimalpoint=, grouping=3;3 */
-	assert(setlocale(LC_NUMERIC, "el_GR.ISO8859-7")); /* decimalpoint==, */
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "el_GR.ISO8859-7")); /* decimalpoint==, */
 	testfmt("1.234,00", "%'.2f", 1234.00);
 	testfmt("123.456,789", "%'.3f", 123456.789);
 
-	assert(setlocale(LC_NUMERIC, "C"));
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
 	testfmt("12345678.062500", "%'f", 12345678.0625);
 	testfmt("9000.000000", "%'f", 9000.0);
+}
 
-	printf("ok 5 - printfloat\n");
+ATF_TC_WITHOUT_HEAD(signed_conversions);
+ATF_TC_BODY(signed_conversions, tc)
+{
 
-	/*
-	 * Signed conversions
-	 */
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
+
 	testfmt("+2.500000e-01", "%+e", 0.25);
 	testfmt("+0.000000", "%+F", 0.0);
 	testfmt("-1", "%+g", -1.0);
@@ -162,22 +210,27 @@ main(int argc, char *argv[])
 	testfmt("+1.000000", "% +f", 1.0);
 	testfmt(" 1", "% g", 1.0);
 	testfmt(" 0", "% g", 0.0);
+}
 
-	printf("ok 6 - printfloat\n");
+ATF_TC_WITHOUT_HEAD(alternate_form);
+ATF_TC_BODY(alternate_form, tc)
+{
 
-	/*
-	 * ``Alternate form''
-	 */
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
+
 	testfmt("1.250e+00", "%#.3e", 1.25);
 	testfmt("123.000000", "%#f", 123.0);
 	testfmt(" 12345.", "%#7.5g", 12345.0);
 	testfmt(" 1.00000", "%#8g", 1.0);
 	testfmt("0.0", "%#.2g", 0.0);
-	printf("ok 7 - printfloat\n");
+}
 
-	/*
-	 * Padding and decimal point placement
-	 */
+ATF_TC_WITHOUT_HEAD(padding_and_decimal_point_placement);
+ATF_TC_BODY(padding_and_decimal_point_placement, tc)
+{
+
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
+
 	testfmt("03.2E+00", "%08.1E", 3.25);
 	testfmt("003.25", "%06.2F", 3.25);
 	testfmt("0003.25", "%07.4G", 3.25);
@@ -205,12 +258,14 @@ main(int argc, char *argv[])
 	testfmt(" 100", "%4.0f", 100.0);
 	testfmt("9.0e+01", "%4.1e", 90.0);
 	testfmt("1e+02", "%4.0e", 100.0);
+}
 
-	printf("ok 8 - printfloat\n");
+ATF_TC_WITHOUT_HEAD(decimal_rounding);
+ATF_TC_BODY(decimal_rounding, tc)
+{
 
-	/*
-	 * Decimal rounding
-	 */
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
+
 	fesetround(FE_DOWNWARD);
 	testfmt("4.437", "%.3f", 4.4375);
 	testfmt("-4.438", "%.3f", -4.4375);
@@ -234,8 +289,13 @@ main(int argc, char *argv[])
 	testfmt("-4.438", "%.3f", -4.4375);
 	testfmt("4.438", "%.3Lf", 4.4375L);
 	testfmt("-4.438", "%.3Lf", -4.4375L);
+}
 
-	printf("ok 9 - printfloat\n");
+ATF_TC_WITHOUT_HEAD(hexadecimal_floating_point);
+ATF_TC_BODY(hexadecimal_floating_point, tc)
+{
+
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
 
 	/*
 	 * Hexadecimal floating point (%a, %A) tests.  Some of these
@@ -270,12 +330,14 @@ main(int argc, char *argv[])
 	testfmt("0x1p-1074", "%La", 0x1p-1074L);
 	testfmt("0x1.30ecap-1021", "%La", 0x9.8765p-1024L);
 #endif
+}
 
-	printf("ok 10 - printfloat\n");
+ATF_TC_WITHOUT_HEAD(hexadecimal_rounding);
+ATF_TC_BODY(hexadecimal_rounding, tc)
+{
 
-	/*
-	 * Hexadecimal rounding
-	 */
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
+
 	fesetround(FE_TOWARDZERO);
 	testfmt("0X1.23456789ABCP+0", "%.11A", 0x1.23456789abcdep0);
 	testfmt("-0x1.23456p+0", "%.5a", -0x1.23456789abcdep0);
@@ -307,51 +369,22 @@ main(int argc, char *argv[])
 	testfmt("0x1.00p-1029", "%.2a", 0x1.fffp-1030);
 	testfmt("0x1.00p-1026", "%.2a", 0xf.fffp-1030);
 	testfmt("0x1.83p+0", "%.2a", 1.51);
-
-	printf("ok 11 - printfloat\n");
-
-	return (0);
 }
 
-void
-smash_stack(void)
+ATF_TP_ADD_TCS(tp)
 {
-	static uint32_t junk = 0xdeadbeef;
-	uint32_t buf[512];
-	int i;
 
-	for (i = 0; i < sizeof(buf) / sizeof(buf[0]); i++)
-		buf[i] = junk;
-}
+	ATF_TP_ADD_TC(tp, float_within_limits);
+	ATF_TP_ADD_TC(tp, infinities_and_nans);
+	ATF_TP_ADD_TC(tp, padding);
+	ATF_TP_ADD_TC(tp, precision_specifiers);
+	ATF_TP_ADD_TC(tp, thousands_separator_and_other_locale_tests);
+	ATF_TP_ADD_TC(tp, signed_conversions);
+	ATF_TP_ADD_TC(tp, alternate_form);
+	ATF_TP_ADD_TC(tp, padding_and_decimal_point_placement);
+	ATF_TP_ADD_TC(tp, decimal_rounding);
+	ATF_TP_ADD_TC(tp, hexadecimal_floating_point);
+	ATF_TP_ADD_TC(tp, hexadecimal_rounding);
 
-void
-_testfmt(const char *result, int line, const char *argstr, const char *fmt,...)
-{
-#define	BUF	100
-	wchar_t ws[BUF], wfmt[BUF], wresult[BUF];
-	char s[BUF];
-	va_list ap, ap2;
-
-	va_start(ap, fmt);
-	va_copy(ap2, ap);
-	smash_stack();
-	vsnprintf(s, sizeof(s), fmt, ap);
-	if (strcmp(result, s) != 0) {
-		fprintf(stderr,
-		    "%d: printf(\"%s\", %s) ==> [%s], expected [%s]\n",
-		    line, fmt, argstr, s, result);
-		abort();
-	}
-
-	smash_stack();
-	mbstowcs(ws, s, BUF - 1);
-	mbstowcs(wfmt, fmt, BUF - 1);
-	mbstowcs(wresult, result, BUF - 1);
-	vswprintf(ws, sizeof(ws) / sizeof(ws[0]), wfmt, ap2);
-	if (wcscmp(wresult, ws) != 0) {
-		fprintf(stderr,
-		    "%d: wprintf(\"%ls\", %s) ==> [%ls], expected [%ls]\n",
-		    line, wfmt, argstr, ws, wresult);
-		abort();
-	}	
+	return (atf_no_error());
 }

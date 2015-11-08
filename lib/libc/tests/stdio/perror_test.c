@@ -32,7 +32,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
@@ -42,28 +41,24 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-static void cleanup(void);
+#include <atf-c.h>
+
 static char tmpfil[PATH_MAX];
 
-int
-main(int argc, char *argv[])
+ATF_TC_WITHOUT_HEAD(perror_test);
+ATF_TC_BODY(perror_test, tc)
 {
-	char lbuf[512];
+	char buf[512], lbuf[512];
 	int i;
 	char *s;
 
-	printf("1..1\n");
-
-	strcpy(tmpfil, _PATH_TMP "perror.XXXXXXXX");
-	if (mkstemp(tmpfil) < 0)
-		err(1, "mkstemp");
-	atexit(cleanup);
+	strcpy(tmpfil, "perror.XXXXXXXX");
+	ATF_REQUIRE(mkstemp(tmpfil) >= 0);
 	/* Reopen stderr on a file descriptor other than 2. */
 	fclose(stderr);
 	for (i = 0; i < 3; i++)
 		dup(0);
-	if (freopen(tmpfil, "r+", stderr) == NULL)
-		err(1, "%s", tmpfil);
+	ATF_REQUIRE(freopen(tmpfil, "r+", stderr) != NULL);
 
 	/*
 	 * Test that perror() doesn't call strerror() (4.4BSD bug),
@@ -71,38 +66,42 @@ main(int argc, char *argv[])
 	 * a program name is specified.
 	 */
 	s = strerror(ENOENT);
-	assert(strcmp(s, "No such file or directory") == 0);
+	ATF_REQUIRE_MSG(strcmp(s, "No such file or directory") == 0,
+	    "message obtained was: %s", s);
 	errno = EPERM;
 	perror(NULL);
 	perror("");
-	perror("test-perror");
-	assert(strcmp(s, "No such file or directory") == 0);
+	perror("perror_test");
+	ATF_REQUIRE_MSG(strcmp(s, "No such file or directory") == 0,
+	    "message obtained was: %s", s);
 
 	/*
 	 * Read it back to check...
 	 */
 	rewind(stderr);
 	s = fgets(lbuf, sizeof(lbuf), stderr);
-	assert(s != NULL);
-	assert(strcmp(s, "Operation not permitted\n") == 0);
+	ATF_REQUIRE(s != NULL);
+	ATF_REQUIRE_MSG(strcmp(s, "Operation not permitted\n") == 0,
+	    "message obtained was: %s", s);
 	s = fgets(lbuf, sizeof(lbuf), stderr);
-	assert(s != NULL);
-	assert(strcmp(s, "Operation not permitted\n") == 0);
+	ATF_REQUIRE(s != NULL);
+	ATF_REQUIRE_MSG(strcmp(s, "Operation not permitted\n") == 0,
+	    "message obtained was: %s", s);
 	s = fgets(lbuf, sizeof(lbuf), stderr);
-	assert(s != NULL);
-	assert(strcmp(s, "test-perror: Operation not permitted\n") == 0);
+	ATF_REQUIRE(s != NULL);
+	ATF_REQUIRE_MSG(
+	    strcmp(s, "perror_test: Operation not permitted\n") == 0,
+	    "message obtained was: %s", s);
 	s = fgets(lbuf, sizeof(lbuf), stderr);
-	assert(s == NULL);
+	ATF_REQUIRE(s == NULL);
 	fclose(stderr);
 
-	printf("ok 1 - perror()\n");
-
-	return (0);
 }
 
-static void
-cleanup(void)
+ATF_TP_ADD_TCS(tp)
 {
 
-	unlink(tmpfil);
+	ATF_TP_ADD_TC(tp, perror_test);
+
+	return (atf_no_error());
 }
