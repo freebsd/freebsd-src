@@ -55,7 +55,7 @@ MKDEPCMD?=	mkdep
 .endif
 DEPENDFILE?=	.depend
 DEPENDFILES=	${DEPENDFILE}
-.if ${MK_FAST_DEPEND} == "yes"
+.if ${MK_FAST_DEPEND} == "yes" && ${.MAKE.MODE:Unormal:Mmeta*} == ""
 DEPENDFILES+=	${DEPENDFILE}.*
 DEPEND_CFLAGS+=	-MD -MP -MF${DEPENDFILE}.${.TARGET}
 DEPEND_CFLAGS+=	-MT${.TARGET}
