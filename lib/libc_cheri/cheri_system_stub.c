@@ -34,4 +34,6 @@
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 
+#include <cheri_system.h>
+
 struct cheri_object _cheri_system_object;

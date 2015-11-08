@@ -26,6 +26,7 @@ CFLAGS.malloc.c=	-Wno-cast-align
 CFLAGS+=	-I${.CURDIR}/../libc/include \
 		-I${.CURDIR}/../libc/locale \
 		-I${.CURDIR}/../libc/mips \
+		-I${.CURDIR}/../libcheri \
 		-I${.CURDIR}/../../contrib/gdtoa \
 		-I${.CURDIR}/../../contrib/tzcode/stdtime \
 		-mxgot
