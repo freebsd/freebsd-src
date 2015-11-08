@@ -34,15 +34,16 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <locale.h>
 #include <stdio.h>
 #include <string.h>
 #include <wchar.h>
 #include <wctype.h>
 
-int
-main(int argc, char *argv[])
+#include <atf-c.h>
+
+ATF_TC_WITHOUT_HEAD(towctrans_test);
+ATF_TC_BODY(towctrans_test, tc)
 {
 	wctype_t t;
 	int i, j;
@@ -54,39 +55,36 @@ main(int argc, char *argv[])
 		{ "toupper", towupper },
 	};
 
-	printf("1..2\n");
-
-	/*
-	 * C/POSIX locale.
-	 */
+	/* C/POSIX locale. */
 	for (i = 0; i < sizeof(tran) / sizeof(*tran); i++) {
 		t = wctrans(tran[i].name);
-		assert(t != 0);
+		ATF_REQUIRE(t != 0);
 		for (j = 0; j < 256; j++)
-			assert(tran[i].func(j) == towctrans(j, t));
+			ATF_REQUIRE(tran[i].func(j) == towctrans(j, t));
 	}
 	t = wctrans("elephant");
-	assert(t == 0);
+	ATF_REQUIRE(t == 0);
 	for (i = 0; i < 256; i++)
-		assert(towctrans(i, t) == i);
+		ATF_REQUIRE(towctrans(i, t) == i);
 
-	/*
-	 * Japanese (EUC) locale.
-	 */
-	assert(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
+	/* Japanese (EUC) locale. */
+	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
 	for (i = 0; i < sizeof(tran) / sizeof(*tran); i++) {
 		t = wctrans(tran[i].name);
-		assert(t != 0);
+		ATF_REQUIRE(t != 0);
 		for (j = 0; j < 65536; j++)
-			assert(tran[i].func(j) == towctrans(j, t));
+			ATF_REQUIRE(tran[i].func(j) == towctrans(j, t));
 	}
 	t = wctrans("elephant");
-	assert(t == 0);
+	ATF_REQUIRE(t == 0);
 	for (i = 0; i < 65536; i++)
-		assert(towctrans(i, t) == i);
+		ATF_REQUIRE(towctrans(i, t) == i);
+}
 
-	printf("ok 1 - towctrans()\n");
-	printf("ok 2 - wctrans()\n");
+ATF_TP_ADD_TCS(tp)
+{
 
-	return (0);
+	ATF_TP_ADD_TC(tp, towctrans_test);
+
+	return (atf_no_error());
 }
