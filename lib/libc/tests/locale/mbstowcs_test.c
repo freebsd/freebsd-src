@@ -25,7 +25,7 @@
  */
 
 /*
- * Test program for mbsrtowcs(), as specified by IEEE Std. 1003.1-2001 and
+ * Test program for mbstowcs(), as specified by IEEE Std. 1003.1-2001 and
  * ISO/IEC 9899:1999.
  *
  * The function is tested with both the "C" ("POSIX") LC_CTYPE setting and
@@ -35,7 +35,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <errno.h>
 #include <limits.h>
 #include <locale.h>
@@ -44,107 +43,69 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <wchar.h>
 
-int
-main(int argc, char *argv[])
+#include <atf-c.h>
+
+ATF_TC_WITHOUT_HEAD(mbstowcs_test);
+ATF_TC_BODY(mbstowcs_test, tc)
 {
 	char srcbuf[128];
 	wchar_t dstbuf[128];
-	char *src;
-	mbstate_t s;
 
-	/*
-	 * C/POSIX locale.
-	 */
-
-	printf("1..1\n");
+	/* C/POSIX locale. */
 
 	/* Simple null terminated string. */
 	memset(srcbuf, 0xcc, sizeof(srcbuf));
 	strcpy(srcbuf, "hello");
 	wmemset(dstbuf, 0xcccc, sizeof(dstbuf) / sizeof(*dstbuf));
-	src = srcbuf;
-	memset(&s, 0, sizeof(s));
-	assert(mbsrtowcs(dstbuf, (const char **)&src, sizeof(dstbuf) /
-	    sizeof(*dstbuf), &s) == 5);
-	assert(wcscmp(dstbuf, L"hello") == 0);
-	assert(dstbuf[6] == 0xcccc);
-	assert(src == NULL);
+	ATF_REQUIRE(mbstowcs(dstbuf, srcbuf, sizeof(dstbuf) / sizeof(*dstbuf)) == 5);
+	ATF_REQUIRE(wcscmp(dstbuf, L"hello") == 0);
+	ATF_REQUIRE(dstbuf[6] == 0xcccc);
 
 	/* Not enough space in destination buffer. */
 	memset(srcbuf, 0xcc, sizeof(srcbuf));
 	strcpy(srcbuf, "hello");
 	wmemset(dstbuf, 0xcccc, sizeof(dstbuf) / sizeof(*dstbuf));
-	src = srcbuf;
-	memset(&s, 0, sizeof(s));
-	assert(mbsrtowcs(dstbuf, (const char **)&src, 4, &s) == 4);
-	assert(wmemcmp(dstbuf, L"hell", 4) == 0);
-	assert(dstbuf[5] == 0xcccc);
-	assert(src == srcbuf + 4);
+	ATF_REQUIRE(mbstowcs(dstbuf, srcbuf, 4) == 4);
+	ATF_REQUIRE(wmemcmp(dstbuf, L"hell", 4) == 0);
+	ATF_REQUIRE(dstbuf[5] == 0xcccc);
 
-	/* Null terminated string, internal dest. buffer */
+	/* Null terminated string, internal dest. buffer (XSI extension) */
 	memset(srcbuf, 0xcc, sizeof(srcbuf));
 	strcpy(srcbuf, "hello");
-	src = srcbuf;
-	memset(&s, 0, sizeof(s));
-	assert(mbsrtowcs(NULL, (const char **)&src, 0, &s) == 5);
-
-	/* Null terminated string, internal state. */
-	memset(srcbuf, 0xcc, sizeof(srcbuf));
-	strcpy(srcbuf, "hello");
-	wmemset(dstbuf, 0xcccc, sizeof(dstbuf) / sizeof(*dstbuf));
-	src = srcbuf;
-	assert(mbsrtowcs(dstbuf, (const char **)&src, sizeof(dstbuf) /
-	    sizeof(*dstbuf), NULL) == 5);
-	assert(wcscmp(dstbuf, L"hello") == 0);
-	assert(dstbuf[6] == 0xcccc);
-	assert(src == NULL);
-
-	/* Null terminated string, internal state, internal dest. buffer. */
-	memset(srcbuf, 0xcc, sizeof(srcbuf));
-	strcpy(srcbuf, "hello");
-	src = srcbuf;
-	assert(mbsrtowcs(NULL, (const char **)&src, 0, NULL) == 5);
+	ATF_REQUIRE(mbstowcs(NULL, srcbuf, 0) == 5);
 
 	/* Empty source buffer. */
 	memset(srcbuf, 0xcc, sizeof(srcbuf));
 	srcbuf[0] = '\0';
-	src = srcbuf;
-	memset(&s, 0, sizeof(s));
 	wmemset(dstbuf, 0xcccc, sizeof(dstbuf) / sizeof(*dstbuf));
-	assert(mbsrtowcs(dstbuf, (const char **)&src, 1, &s) == 0);
-	assert(dstbuf[0] == 0);
-	assert(dstbuf[1] == 0xcccc);
-	assert(src == NULL);
+	ATF_REQUIRE(mbstowcs(dstbuf, srcbuf, 1) == 0);
+	ATF_REQUIRE(dstbuf[0] == 0);
+	ATF_REQUIRE(dstbuf[1] == 0xcccc);
 
 	/* Zero length destination buffer. */
 	memset(srcbuf, 0xcc, sizeof(srcbuf));
 	strcpy(srcbuf, "hello");
-	src = srcbuf;
-	memset(&s, 0, sizeof(s));
 	wmemset(dstbuf, 0xcccc, sizeof(dstbuf) / sizeof(*dstbuf));
-	assert(mbsrtowcs(dstbuf, (const char **)&src, 0, &s) == 0);
-	assert(dstbuf[0] == 0xcccc);
-	assert(src == srcbuf);
+	ATF_REQUIRE(mbstowcs(dstbuf, srcbuf, 0) == 0);
+	ATF_REQUIRE(dstbuf[0] == 0xcccc);
 
-	/*
-	 * Japanese (EUC) locale.
-	 */
+	/* Japanese (EUC) locale. */
 
-	assert(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
-	assert(MB_CUR_MAX > 1);
+	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
+	ATF_REQUIRE(MB_CUR_MAX > 1);
 
 	memset(srcbuf, 0xcc, sizeof(srcbuf));
 	strcpy(srcbuf, "\xA3\xC1 B \xA3\xC3");
-	src = srcbuf;
-	memset(&s, 0, sizeof(s));
 	wmemset(dstbuf, 0xcccc, sizeof(dstbuf) / sizeof(*dstbuf));
-	assert(mbsrtowcs(dstbuf, (const char **)&src, sizeof(dstbuf) /
-	    sizeof(*dstbuf), &s) == 5);
-	assert(dstbuf[0] == 0xA3C1 && dstbuf[1] == 0x20 && dstbuf[2] == 0x42 &&
+	ATF_REQUIRE(mbstowcs(dstbuf, srcbuf, sizeof(dstbuf) / sizeof(*dstbuf)) == 5);
+	ATF_REQUIRE(dstbuf[0] == 0xA3C1 && dstbuf[1] == 0x20 && dstbuf[2] == 0x42 &&
 	    dstbuf[3] == 0x20 && dstbuf[4] == 0xA3C3 && dstbuf[5] == 0);
-	assert(src == NULL);
+}
 
-	printf("ok 1 - mbsrtowcs()\n");
+ATF_TP_ADD_TCS(tp)
+{
 
-	return (0);
+	ATF_TP_ADD_TC(tp, mbstowcs_test);
+
+	return (atf_no_error());
 }

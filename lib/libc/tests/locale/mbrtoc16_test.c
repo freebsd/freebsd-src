@@ -33,7 +33,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <errno.h>
 #include <limits.h>
 #include <locale.h>
@@ -41,8 +40,10 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <uchar.h>
 
-int
-main(int argc, char *argv[])
+#include <atf-c.h>
+
+ATF_TC_WITHOUT_HEAD(mbrtoc16_test);
+ATF_TC_BODY(mbrtoc16_test, tc)
 {
 	mbstate_t s;
 	size_t len;
@@ -55,141 +56,145 @@ main(int argc, char *argv[])
 	printf("1..1\n");
 
 	/* Null wide character, internal state. */
-	assert(mbrtoc16(&c16, "", 1, NULL) == 0);
-	assert(c16 == 0);
+	ATF_REQUIRE(mbrtoc16(&c16, "", 1, NULL) == 0);
+	ATF_REQUIRE(c16 == 0);
 
 	/* Null wide character. */
 	memset(&s, 0, sizeof(s));
-	assert(mbrtoc16(&c16, "", 1, &s) == 0);
-	assert(c16 == 0);
+	ATF_REQUIRE(mbrtoc16(&c16, "", 1, &s) == 0);
+	ATF_REQUIRE(c16 == 0);
 
 	/* Latin letter A, internal state. */
-	assert(mbrtoc16(NULL, 0, 0, NULL) == 0);
-	assert(mbrtoc16(&c16, "A", 1, NULL) == 1);
-	assert(c16 == L'A');
+	ATF_REQUIRE(mbrtoc16(NULL, 0, 0, NULL) == 0);
+	ATF_REQUIRE(mbrtoc16(&c16, "A", 1, NULL) == 1);
+	ATF_REQUIRE(c16 == L'A');
 
 	/* Latin letter A. */
 	memset(&s, 0, sizeof(s));
-	assert(mbrtoc16(&c16, "A", 1, &s) == 1);
-	assert(c16 == L'A');
+	ATF_REQUIRE(mbrtoc16(&c16, "A", 1, &s) == 1);
+	ATF_REQUIRE(c16 == L'A');
 
 	/* Incomplete character sequence. */
 	c16 = L'z';
 	memset(&s, 0, sizeof(s));
-	assert(mbrtoc16(&c16, "", 0, &s) == (size_t)-2);
-	assert(c16 == L'z');
+	ATF_REQUIRE(mbrtoc16(&c16, "", 0, &s) == (size_t)-2);
+	ATF_REQUIRE(c16 == L'z');
 
 	/* Check that mbrtoc16() doesn't access the buffer when n == 0. */
 	c16 = L'z';
 	memset(&s, 0, sizeof(s));
-	assert(mbrtoc16(&c16, "", 0, &s) == (size_t)-2);
-	assert(c16 == L'z');
+	ATF_REQUIRE(mbrtoc16(&c16, "", 0, &s) == (size_t)-2);
+	ATF_REQUIRE(c16 == L'z');
 
 	/* Check that mbrtoc16() doesn't read ahead too aggressively. */
 	memset(&s, 0, sizeof(s));
-	assert(mbrtoc16(&c16, "AB", 2, &s) == 1);
-	assert(c16 == L'A');
-	assert(mbrtoc16(&c16, "C", 1, &s) == 1);
-	assert(c16 == L'C');
+	ATF_REQUIRE(mbrtoc16(&c16, "AB", 2, &s) == 1);
+	ATF_REQUIRE(c16 == L'A');
+	ATF_REQUIRE(mbrtoc16(&c16, "C", 1, &s) == 1);
+	ATF_REQUIRE(c16 == L'C');
 
 	/*
 	 * ISO-8859-1.
 	 */
 
-	assert(strcmp(setlocale(LC_CTYPE, "en_US.ISO8859-1"),
+	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "en_US.ISO8859-1"),
 	    "en_US.ISO8859-1") == 0);
 
 	/* Currency sign. */
 	memset(&s, 0, sizeof(s));
-	assert(mbrtoc16(&c16, "\xa4", 1, &s) == 1);
-	assert(c16 == 0xa4);
+	ATF_REQUIRE(mbrtoc16(&c16, "\xa4", 1, &s) == 1);
+	ATF_REQUIRE(c16 == 0xa4);
 
 	/*
 	 * ISO-8859-15.
 	 */
 
-	assert(strcmp(setlocale(LC_CTYPE, "en_US.ISO8859-15"),
+	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "en_US.ISO8859-15"),
 	    "en_US.ISO8859-15") == 0);
 
 	/* Euro sign. */
 	memset(&s, 0, sizeof(s));
-	assert(mbrtoc16(&c16, "\xa4", 1, &s) == 1);
-	assert(c16 == 0x20ac);
+	ATF_REQUIRE(mbrtoc16(&c16, "\xa4", 1, &s) == 1);
+	ATF_REQUIRE(c16 == 0x20ac);
 
 	/*
 	 * UTF-8.
 	 */
 
-	assert(strcmp(setlocale(LC_CTYPE, "en_US.UTF-8"), "en_US.UTF-8") == 0);
+	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "en_US.UTF-8"), "en_US.UTF-8") == 0);
 
 	/* Null wide character, internal state. */
-	assert(mbrtoc16(NULL, 0, 0, NULL) == 0);
-	assert(mbrtoc16(&c16, "", 1, NULL) == 0);
-	assert(c16 == 0);
+	ATF_REQUIRE(mbrtoc16(NULL, 0, 0, NULL) == 0);
+	ATF_REQUIRE(mbrtoc16(&c16, "", 1, NULL) == 0);
+	ATF_REQUIRE(c16 == 0);
 
 	/* Null wide character. */
 	memset(&s, 0, sizeof(s));
-	assert(mbrtoc16(&c16, "", 1, &s) == 0);
-	assert(c16 == 0);
+	ATF_REQUIRE(mbrtoc16(&c16, "", 1, &s) == 0);
+	ATF_REQUIRE(c16 == 0);
 
 	/* Latin letter A, internal state. */
-	assert(mbrtoc16(NULL, 0, 0, NULL) == 0);
-	assert(mbrtoc16(&c16, "A", 1, NULL) == 1);
-	assert(c16 == L'A');
+	ATF_REQUIRE(mbrtoc16(NULL, 0, 0, NULL) == 0);
+	ATF_REQUIRE(mbrtoc16(&c16, "A", 1, NULL) == 1);
+	ATF_REQUIRE(c16 == L'A');
 
 	/* Latin letter A. */
 	memset(&s, 0, sizeof(s));
-	assert(mbrtoc16(&c16, "A", 1, &s) == 1);
-	assert(c16 == L'A');
+	ATF_REQUIRE(mbrtoc16(&c16, "A", 1, &s) == 1);
+	ATF_REQUIRE(c16 == L'A');
 
 	/* Incomplete character sequence (zero length). */
 	c16 = L'z';
 	memset(&s, 0, sizeof(s));
-	assert(mbrtoc16(&c16, "", 0, &s) == (size_t)-2);
-	assert(c16 == L'z');
+	ATF_REQUIRE(mbrtoc16(&c16, "", 0, &s) == (size_t)-2);
+	ATF_REQUIRE(c16 == L'z');
 
 	/* Incomplete character sequence (truncated double-byte). */
 	memset(&s, 0, sizeof(s));
 	c16 = 0;
-	assert(mbrtoc16(&c16, "\xc3", 1, &s) == (size_t)-2);
+	ATF_REQUIRE(mbrtoc16(&c16, "\xc3", 1, &s) == (size_t)-2);
 
 	/* Same as above, but complete. */
 	memset(&s, 0, sizeof(s));
 	c16 = 0;
-	assert(mbrtoc16(&c16, "\xc3\x84", 2, &s) == 2);
-	assert(c16 == 0xc4);
+	ATF_REQUIRE(mbrtoc16(&c16, "\xc3\x84", 2, &s) == 2);
+	ATF_REQUIRE(c16 == 0xc4);
 
 	/* Test restarting behaviour. */
 	memset(&s, 0, sizeof(s));
 	c16 = 0;
-	assert(mbrtoc16(&c16, "\xc3", 1, &s) == (size_t)-2);
-	assert(c16 == 0);
-	assert(mbrtoc16(&c16, "\xb7", 1, &s) == 1);
-	assert(c16 == 0xf7);
+	ATF_REQUIRE(mbrtoc16(&c16, "\xc3", 1, &s) == (size_t)-2);
+	ATF_REQUIRE(c16 == 0);
+	ATF_REQUIRE(mbrtoc16(&c16, "\xb7", 1, &s) == 1);
+	ATF_REQUIRE(c16 == 0xf7);
 
 	/* Surrogate pair. */
 	memset(&s, 0, sizeof(s));
 	c16 = 0;
-	assert(mbrtoc16(&c16, "\xf0\x9f\x92\xa9", 4, &s) == 4);
-	assert(c16 == 0xd83d);
-	assert(mbrtoc16(&c16, "", 0, &s) == (size_t)-3);
-	assert(c16 == 0xdca9);
+	ATF_REQUIRE(mbrtoc16(&c16, "\xf0\x9f\x92\xa9", 4, &s) == 4);
+	ATF_REQUIRE(c16 == 0xd83d);
+	ATF_REQUIRE(mbrtoc16(&c16, "", 0, &s) == (size_t)-3);
+	ATF_REQUIRE(c16 == 0xdca9);
 
 	/* Letter e with acute, precomposed. */
 	memset(&s, 0, sizeof(s));
 	c16 = 0;
-	assert(mbrtoc16(&c16, "\xc3\xa9", 2, &s) == 2);
-	assert(c16 == 0xe9);
+	ATF_REQUIRE(mbrtoc16(&c16, "\xc3\xa9", 2, &s) == 2);
+	ATF_REQUIRE(c16 == 0xe9);
 
 	/* Letter e with acute, combined. */
 	memset(&s, 0, sizeof(s));
 	c16 = 0;
-	assert(mbrtoc16(&c16, "\x65\xcc\x81", 3, &s) == 1);
-	assert(c16 == 0x65);
-	assert(mbrtoc16(&c16, "\xcc\x81", 2, &s) == 2);
-	assert(c16 == 0x301);
+	ATF_REQUIRE(mbrtoc16(&c16, "\x65\xcc\x81", 3, &s) == 1);
+	ATF_REQUIRE(c16 == 0x65);
+	ATF_REQUIRE(mbrtoc16(&c16, "\xcc\x81", 2, &s) == 2);
+	ATF_REQUIRE(c16 == 0x301);
+}
 
-	printf("ok 1 - mbrtoc16()\n");
+ATF_TP_ADD_TCS(tp)
+{
 
-	return (0);
+	ATF_TP_ADD_TC(tp, mbrtoc16_test);
+
+	return (atf_no_error());
 }

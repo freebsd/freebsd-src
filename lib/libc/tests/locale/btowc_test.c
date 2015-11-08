@@ -34,7 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <limits.h>
 #include <locale.h>
 #include <stdio.h>
@@ -42,32 +41,31 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <wchar.h>
 
-int
-main(int argc, char *argv[])
+#include <atf-c.h>
+
+ATF_TC_WITHOUT_HEAD(btowc_test);
+ATF_TC_BODY(btowc_test, tc)
 {
 	int i;
 
-	printf("1..2\n");
-
-	/*
-	 * C/POSIX locale.
-	 */
-	assert(btowc(EOF) == WEOF);
-	assert(wctob(WEOF) == EOF);
+	/* C/POSIX locale. */
+	ATF_REQUIRE(btowc(EOF) == WEOF);
+	ATF_REQUIRE(wctob(WEOF) == EOF);
 	for (i = 0; i < UCHAR_MAX; i++)
-		assert(btowc(i) == (wchar_t)i && i == (int)wctob(i));
+		ATF_REQUIRE(btowc(i) == (wchar_t)i && i == (int)wctob(i));
 
-	/*
-	 * Japanese (EUC) locale.
-	 */
+	/* Japanese (EUC) locale. */
+	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
+	ATF_REQUIRE(MB_CUR_MAX > 1);
+	ATF_REQUIRE(btowc('A') == L'A' && wctob(L'A') == 'A');
+	ATF_REQUIRE(btowc(0xa3) == WEOF && wctob(0xa3c1) == EOF);
 
-	assert(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
-	assert(MB_CUR_MAX > 1);
-	assert(btowc('A') == L'A' && wctob(L'A') == 'A');
-	assert(btowc(0xa3) == WEOF && wctob(0xa3c1) == EOF);
+}
 
-	printf("ok 1 - btowc()\n");
-	printf("ok 2 - wctob()\n");
+ATF_TP_ADD_TCS(tp)
+{
 
-	return (0);
+	ATF_TP_ADD_TC(tp, btowc_test);
+
+	return (atf_no_error());
 }

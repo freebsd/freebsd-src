@@ -35,7 +35,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <errno.h>
 #include <limits.h>
 #include <locale.h>
@@ -44,8 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <wchar.h>
 
-int
-main(int argc, char *argv[])
+#include <atf-c.h>
+
+ATF_TC_WITHOUT_HEAD(mbrtowc_test);
+ATF_TC_BODY(mbrtowc_test, tc)
 {
 	mbstate_t s;
 	size_t len;
@@ -58,78 +59,78 @@ main(int argc, char *argv[])
 
 	printf("1..1\n");
 
-	assert(MB_CUR_MAX == 1);
+	ATF_REQUIRE(MB_CUR_MAX == 1);
 
 	/* Null wide character, internal state. */
 	memset(buf, 0xcc, sizeof(buf));
 	buf[0] = 0;
-	assert(mbrtowc(&wc, buf, 1, NULL) == 0);
-	assert(wc == 0);
+	ATF_REQUIRE(mbrtowc(&wc, buf, 1, NULL) == 0);
+	ATF_REQUIRE(wc == 0);
 
 	/* Null wide character. */
 	memset(&s, 0, sizeof(s));
-	assert(mbrtowc(&wc, buf, 1, &s) == 0);
-	assert(wc == 0);
+	ATF_REQUIRE(mbrtowc(&wc, buf, 1, &s) == 0);
+	ATF_REQUIRE(wc == 0);
 
 	/* Latin letter A, internal state. */
-	assert(mbrtowc(NULL, 0, 0, NULL) == 0);
+	ATF_REQUIRE(mbrtowc(NULL, 0, 0, NULL) == 0);
 	buf[0] = 'A';
-	assert(mbrtowc(&wc, buf, 1, NULL) == 1);
-	assert(wc == L'A');
+	ATF_REQUIRE(mbrtowc(&wc, buf, 1, NULL) == 1);
+	ATF_REQUIRE(wc == L'A');
 
 	/* Latin letter A. */
 	memset(&s, 0, sizeof(s));
-	assert(mbrtowc(&wc, buf, 1, &s) == 1);
-	assert(wc == L'A');
+	ATF_REQUIRE(mbrtowc(&wc, buf, 1, &s) == 1);
+	ATF_REQUIRE(wc == L'A');
 
 	/* Incomplete character sequence. */
 	wc = L'z';
 	memset(&s, 0, sizeof(s));
-	assert(mbrtowc(&wc, buf, 0, &s) == (size_t)-2);
-	assert(wc == L'z');
+	ATF_REQUIRE(mbrtowc(&wc, buf, 0, &s) == (size_t)-2);
+	ATF_REQUIRE(wc == L'z');
 
 	/* Check that mbrtowc() doesn't access the buffer when n == 0. */
 	wc = L'z';
 	memset(&s, 0, sizeof(s));
 	buf[0] = '\0';
-	assert(mbrtowc(&wc, buf, 0, &s) == (size_t)-2);
-	assert(wc == L'z');
+	ATF_REQUIRE(mbrtowc(&wc, buf, 0, &s) == (size_t)-2);
+	ATF_REQUIRE(wc == L'z');
 
 	/*
 	 * Japanese (EUC) locale.
 	 */
 
-	assert(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
-	assert(MB_CUR_MAX > 1);
+	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
+	ATF_REQUIRE(MB_CUR_MAX > 1);
 
 	/* Null wide character, internal state. */
-	assert(mbrtowc(NULL, 0, 0, NULL) == 0);
+	ATF_REQUIRE(mbrtowc(NULL, 0, 0, NULL) == 0);
 	memset(buf, 0xcc, sizeof(buf));
 	buf[0] = 0;
-	assert(mbrtowc(&wc, buf, 1, NULL) == 0);
-	assert(wc == 0);
+	ATF_REQUIRE(mbrtowc(&wc, buf, 1, NULL) == 0);
+	ATF_REQUIRE(wc == 0);
 
 	/* Null wide character. */
 	memset(&s, 0, sizeof(s));
-	assert(mbrtowc(&wc, buf, 1, &s) == 0);
-	assert(wc == 0);
+	ATF_REQUIRE(mbrtowc(&wc, buf, 1, &s) == 0);
+	ATF_REQUIRE(wc == 0);
 
 	/* Latin letter A, internal state. */
-	assert(mbrtowc(NULL, 0, 0, NULL) == 0);
+	ATF_REQUIRE(mbrtowc(NULL, 0, 0, NULL) == 0);
 	buf[0] = 'A';
-	assert(mbrtowc(&wc, buf, 1, NULL) == 1);
-	assert(wc == L'A');
+	ATF_REQUIRE(mbrtowc(&wc, buf, 1, NULL) == 1);
+	ATF_REQUIRE(wc == L'A');
 
 	/* Latin letter A. */
 	memset(&s, 0, sizeof(s));
-	assert(mbrtowc(&wc, buf, 1, &s) == 1);
-	assert(wc == L'A');
+	ATF_REQUIRE(mbrtowc(&wc, buf, 1, &s) == 1);
+	ATF_REQUIRE(wc == L'A');
 
 	/* Incomplete character sequence (zero length). */
 	wc = L'z';
 	memset(&s, 0, sizeof(s));
-	assert(mbrtowc(&wc, buf, 0, &s) == (size_t)-2);
-	assert(wc == L'z');
+	ATF_REQUIRE(mbrtowc(&wc, buf, 0, &s) == (size_t)-2);
+	ATF_REQUIRE(wc == L'z');
 
 	/* Incomplete character sequence (truncated double-byte). */
 	memset(buf, 0xcc, sizeof(buf));
@@ -137,27 +138,31 @@ main(int argc, char *argv[])
 	buf[1] = 0x00;
 	memset(&s, 0, sizeof(s));
 	wc = 0;
-	assert(mbrtowc(&wc, buf, 1, &s) == (size_t)-2);
+	ATF_REQUIRE(mbrtowc(&wc, buf, 1, &s) == (size_t)-2);
 
 	/* Same as above, but complete. */
 	buf[1] = 0xc1;
 	memset(&s, 0, sizeof(s));
 	wc = 0;
-	assert(mbrtowc(&wc, buf, 2, &s) == 2);
-	assert(wc == 0xa3c1);
+	ATF_REQUIRE(mbrtowc(&wc, buf, 2, &s) == 2);
+	ATF_REQUIRE(wc == 0xa3c1);
 
 	/* Test restarting behaviour. */
 	memset(buf, 0xcc, sizeof(buf));
 	buf[0] = 0xa3;
 	memset(&s, 0, sizeof(s));
 	wc = 0;
-	assert(mbrtowc(&wc, buf, 1, &s) == (size_t)-2);
-	assert(wc == 0);
+	ATF_REQUIRE(mbrtowc(&wc, buf, 1, &s) == (size_t)-2);
+	ATF_REQUIRE(wc == 0);
 	buf[0] = 0xc1;
-	assert(mbrtowc(&wc, buf, 1, &s) == 1);
-	assert(wc == 0xa3c1);
+	ATF_REQUIRE(mbrtowc(&wc, buf, 1, &s) == 1);
+	ATF_REQUIRE(wc == 0xa3c1);
+}
 
-	printf("ok 1 - mbrtowc()\n");
+ATF_TP_ADD_TCS(tp)
+{
 
-	return (0);
+	ATF_TP_ADD_TC(tp, mbrtowc_test);
+
+	return (atf_no_error());
 }
