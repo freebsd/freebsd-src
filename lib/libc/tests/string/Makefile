@@ -1,6 +1,9 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+ATF_TESTS_C+=		stpncpy_test
+ATF_TESTS_C+=		strerror2_test
+ATF_TESTS_C+=		wcscasecmp_test
+ATF_TESTS_C+=		wcsnlen_test
 
 # TODO: popcount, stresep
 
@@ -19,6 +22,8 @@ NETBSD_ATF_TESTS_C+=	strpbrk_test
 NETBSD_ATF_TESTS_C+=	strrchr_test
 NETBSD_ATF_TESTS_C+=	strspn_test
 NETBSD_ATF_TESTS_C+=	swab_test
+
+SRCS.strerror2_test=	strerror_test.c
 
 .include "../Makefile.netbsd-tests"
 

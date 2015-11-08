@@ -27,13 +27,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/mman.h>
 #include <sys/param.h>
+#include <sys/mman.h>
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
+
+#include <atf-c.h>
 
 static void *
 makebuf(size_t len, int guard_at_end)
@@ -42,12 +44,12 @@ makebuf(size_t len, int guard_at_end)
 	size_t alloc_size = roundup2(len, PAGE_SIZE) + PAGE_SIZE;
 
 	buf = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
-	assert(buf);
+	ATF_CHECK(buf);
 	if (guard_at_end) {
-		assert(munmap(buf + alloc_size - PAGE_SIZE, PAGE_SIZE) == 0);
+		ATF_CHECK(munmap(buf + alloc_size - PAGE_SIZE, PAGE_SIZE) == 0);
 		return (buf + alloc_size - PAGE_SIZE - len);
 	} else {
-		assert(munmap(buf, PAGE_SIZE) == 0);
+		ATF_CHECK(munmap(buf, PAGE_SIZE) == 0);
 		return (buf + PAGE_SIZE);
 	}
 }
@@ -61,27 +63,42 @@ test_wcsnlen(const wchar_t *s)
 
 	size = wcslen(s) + 1;
 	for (i = 0; i <= 1; i++) {
-	    for (bufsize = 0; bufsize <= size + 10; bufsize++) {
-		s1 = makebuf(bufsize * sizeof(wchar_t), i);
-		wmemcpy(s1, s, bufsize);
-		len = (size > bufsize) ? bufsize : size - 1;
-		assert(wcsnlen(s1, bufsize) == len);
-	    }
+		for (bufsize = 0; bufsize <= size + 10; bufsize++) {
+			s1 = makebuf(bufsize * sizeof(wchar_t), i);
+			wmemcpy(s1, s, bufsize);
+			len = (size > bufsize) ? bufsize : size - 1;
+			ATF_CHECK(wcsnlen(s1, bufsize) == len);
+		}
 	}
 }
 
-int
-main(int argc, char *argv[])
+ATF_TC_WITHOUT_HEAD(nul);
+ATF_TC_BODY(nul, tc)
 {
 
-	printf("1..3\n");
-
 	test_wcsnlen(L"");
-	printf("ok 1 - wcsnlen\n");
-	test_wcsnlen(L"foo");
-	printf("ok 2 - wcsnlen\n");
-	test_wcsnlen(L"glorp");
-	printf("ok 3 - wcsnlen\n");
+}
 
-	exit(0);
+ATF_TC_WITHOUT_HEAD(foo);
+ATF_TC_BODY(foo, tc)
+{
+
+	test_wcsnlen(L"foo");
+}
+
+ATF_TC_WITHOUT_HEAD(glorp);
+ATF_TC_BODY(glorp, tc)
+{
+
+	test_wcsnlen(L"glorp");
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, nul);
+	ATF_TP_ADD_TC(tp, foo);
+	ATF_TP_ADD_TC(tp, glorp);
+
+	return (atf_no_error());
 }

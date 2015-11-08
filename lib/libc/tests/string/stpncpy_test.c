@@ -27,12 +27,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/mman.h>
 #include <sys/param.h>
+#include <sys/mman.h>
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <atf-c.h>
 
 static char *
 makebuf(size_t len, int guard_at_end)
@@ -76,18 +78,33 @@ test_stpncpy(const char *s)
 	}
 }
 
-int
-main(int argc, char *argv[])
+ATF_TC_WITHOUT_HEAD(nul);
+ATF_TC_BODY(nul, tc)
 {
 
-	printf("1..3\n");
-
 	test_stpncpy("");
-	printf("ok 1 - stpncpy\n");
-	test_stpncpy("foo");
-	printf("ok 2 - stpncpy\n");
-	test_stpncpy("glorp");
-	printf("ok 3 - stpncpy\n");
+}
 
-	exit(0);
+ATF_TC_WITHOUT_HEAD(foo);
+ATF_TC_BODY(foo, tc)
+{
+
+	test_stpncpy("foo");
+}
+
+ATF_TC_WITHOUT_HEAD(glorp);
+ATF_TC_BODY(glorp, tc)
+{
+
+	test_stpncpy("glorp");
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, nul);
+	ATF_TP_ADD_TC(tp, foo);
+	ATF_TP_ADD_TC(tp, glorp);
+
+	return (atf_no_error());
 }
