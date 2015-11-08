@@ -28,7 +28,7 @@
 .\"	@(#)reboot.8	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd October 11, 2010
+.Dd May 22, 2015
 .Dt REBOOT 8
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 .Op Fl lnpq
 .Op Fl k Ar kernel
 .Nm
-.Op Fl dlnpq
+.Op Fl dlnpqr
 .Op Fl k Ar kernel
 .Nm fasthalt
 .Op Fl lnpq
@@ -111,6 +111,13 @@ the flushing of the file system cache is performed (if the
 .Fl n
 option is not specified).
 This option should probably not be used.
+.It Fl r
+The system kills all processes, unmounts all filesystems, mounts the new
+root filesystem, and begins the usual startup sequence.
+After changing vfs.root.mountfrom with
+.Xr kenv 8 ,
+.Nm Fl r
+can be used to change the root filesystem while preserving kernel state.
 .El
 .Pp
 The
@@ -128,6 +135,13 @@ Normally, the
 utility is used when the system needs to be halted or restarted, giving
 users advance warning of their impending doom and cleanly terminating
 specific programs.
+.Sh EXAMPLES
+Replace current root filesystem with UFS mounted from
+.Pa /dev/ada0s1a :
+.Bd -literal -offset indent
+kenv vfs.root.mountfrom=ufs:/dev/ada0s1a
+reboot -r
+.Ed
 .Sh SEE ALSO
 .Xr getutxent 3 ,
 .Xr boot 8 ,
