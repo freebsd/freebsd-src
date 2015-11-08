@@ -209,6 +209,7 @@ MAN=	accept_filter.9 \
 	pfind.9 \
 	pget.9 \
 	pgfind.9 \
+	PHOLD.9 \
 	physio.9 \
 	pmap.9 \
 	pmap_activate.9 \
@@ -1314,6 +1315,11 @@ MLINKS+=pfil.9 pfil_add_hook.9 \
 	pfil.9 pfil_wlock.9 \
 	pfil.9 pfil_wunlock.9
 MLINKS+=pfind.9 zpfind.9
+MLINKS+=PHOLD.9 PRELE.9 \
+	PHOLD.9 _PHOLD.9 \
+	PHOLD.9 _PRELE.9 \
+	PHOLD.9 PROC_ASSERT_HELD.9 \
+	PHOLD.9 PROC_ASSERT_NOT_HELD.9
 MLINKS+=pmap_copy.9 pmap_copy_page.9
 MLINKS+=pmap_extract.9 pmap_extract_and_hold.9
 MLINKS+=pmap_init.9 pmap_init2.9
