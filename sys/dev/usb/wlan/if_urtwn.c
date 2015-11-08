@@ -269,6 +269,8 @@ static void		urtwn_set_gain(struct urtwn_softc *, uint8_t);
 static void		urtwn_scan_start(struct ieee80211com *);
 static void		urtwn_scan_end(struct ieee80211com *);
 static void		urtwn_set_channel(struct ieee80211com *);
+static void		urtwn_set_promisc(struct urtwn_softc *);
+static void		urtwn_update_promisc(struct ieee80211com *);
 static void		urtwn_update_mcast(struct ieee80211com *);
 static void		urtwn_set_chan(struct urtwn_softc *,
 		    	    struct ieee80211_channel *,
@@ -457,6 +459,7 @@ urtwn_attach(device_t self)
 	ic->ic_parent = urtwn_parent;
 	ic->ic_vap_create = urtwn_vap_create;
 	ic->ic_vap_delete = urtwn_vap_delete;
+	ic->ic_update_promisc = urtwn_update_promisc;
 	ic->ic_update_mcast = urtwn_update_mcast;
 
 	ieee80211_radiotap_attach(ic, &sc->sc_txtap.wt_ihdr,
@@ -1574,22 +1577,6 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		break;
 	case IEEE80211_S_RUN:
 		if (vap->iv_opmode == IEEE80211_M_MONITOR) {
-			/* Enable Rx of data frames. */
-			urtwn_write_2(sc, R92C_RXFLTMAP2, 0xffff);
-
-			/* Enable Rx of ctrl frames. */
-			urtwn_write_2(sc, R92C_RXFLTMAP1, 0xffff);
-
-			/*
-			 * Accept data/control/management frames
-			 * from any BSSID.
-			 */
-			urtwn_write_4(sc, R92C_RCR,
-			    (urtwn_read_4(sc, R92C_RCR) & ~(R92C_RCR_APM |
-			    R92C_RCR_CBSSID_DATA | R92C_RCR_CBSSID_BCN)) |
-			    R92C_RCR_ADF | R92C_RCR_ACF | R92C_RCR_AMF |
-			    R92C_RCR_AAP);
-
 			/* Turn link LED on. */
 			urtwn_set_led(sc, URTWN_LED_LINK, 1);
 			break;
@@ -1618,9 +1605,11 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		urtwn_write_2(sc, R92C_BCN_INTERVAL, ni->ni_intval);
 
 		/* Allow Rx from our BSSID only. */
-		urtwn_write_4(sc, R92C_RCR,
-		    urtwn_read_4(sc, R92C_RCR) |
-		    R92C_RCR_CBSSID_DATA | R92C_RCR_CBSSID_BCN);
+		if (ic->ic_promisc == 0) {
+			urtwn_write_4(sc, R92C_RCR,
+			    urtwn_read_4(sc, R92C_RCR) |
+			    R92C_RCR_CBSSID_DATA | R92C_RCR_CBSSID_BCN);
+		}
 
 		/* Enable TSF synchronization. */
 		urtwn_tsf_sync_enable(sc);
@@ -2755,21 +2744,50 @@ urtwn_pa_bias_init(struct urtwn_softc *sc)
 static void
 urtwn_rxfilter_init(struct urtwn_softc *sc)
 {
-	/* Initialize Rx filter. */
-	/* TODO: use better filter for monitor mode. */
-	urtwn_write_4(sc, R92C_RCR,
-	    R92C_RCR_AAP | R92C_RCR_APM | R92C_RCR_AM | R92C_RCR_AB |
-	    R92C_RCR_APP_ICV | R92C_RCR_AMF | R92C_RCR_HTC_LOC_CTRL |
-	    R92C_RCR_APP_MIC | R92C_RCR_APP_PHYSTS);
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	uint32_t rcr;
+	uint16_t filter;
+
+	URTWN_ASSERT_LOCKED(sc);
+
 	/* Accept all multicast frames. */
 	urtwn_write_4(sc, R92C_MAR + 0, 0xffffffff);
 	urtwn_write_4(sc, R92C_MAR + 4, 0xffffffff);
-	/* Accept all management frames. */
-	urtwn_write_2(sc, R92C_RXFLTMAP0, 0xffff);
+
+	/* Filter for management frames. */
+	filter = 0x7f3f;
+	if (vap->iv_opmode == IEEE80211_M_STA) {
+		filter &= ~(
+		    R92C_RXFLTMAP_SUBTYPE(IEEE80211_FC0_SUBTYPE_ASSOC_REQ) |
+		    R92C_RXFLTMAP_SUBTYPE(IEEE80211_FC0_SUBTYPE_REASSOC_REQ) |
+		    R92C_RXFLTMAP_SUBTYPE(IEEE80211_FC0_SUBTYPE_PROBE_REQ));
+	}
+	urtwn_write_2(sc, R92C_RXFLTMAP0, filter);
+
 	/* Reject all control frames. */
 	urtwn_write_2(sc, R92C_RXFLTMAP1, 0x0000);
-	/* Accept all data frames. */
-	urtwn_write_2(sc, R92C_RXFLTMAP2, 0xffff);
+
+	/* Reject all data frames. */
+	urtwn_write_2(sc, R92C_RXFLTMAP2, 0x0000);
+
+	rcr = R92C_RCR_AM | R92C_RCR_AB | R92C_RCR_APM |
+	      R92C_RCR_HTC_LOC_CTRL | R92C_RCR_APP_PHYSTS |
+	      R92C_RCR_APP_ICV | R92C_RCR_APP_MIC;
+
+	if (vap->iv_opmode == IEEE80211_M_MONITOR) {
+		/* Accept all frames. */
+		rcr |= R92C_RCR_ACF | R92C_RCR_ADF | R92C_RCR_AMF |
+		       R92C_RCR_AAP;
+	}
+
+	/* Set Rx filter. */
+	urtwn_write_4(sc, R92C_RCR, rcr);
+
+	if (ic->ic_promisc != 0) {
+		/* Update Rx filter. */
+		urtwn_set_promisc(sc);
+	}
 }
 
 static void
@@ -3080,7 +3098,8 @@ urtwn_scan_end(struct ieee80211com *ic)
 
 	URTWN_LOCK(sc);
 	/* Restore limitations. */
-	urtwn_set_rx_bssid_all(sc, 0);
+	if (ic->ic_promisc == 0)
+		urtwn_set_rx_bssid_all(sc, 0);
 	/* Set gain under link. */
 	urtwn_set_gain(sc, 0x32);
 	URTWN_UNLOCK(sc);
@@ -3098,6 +3117,52 @@ urtwn_set_channel(struct ieee80211com *ic)
 		urtwn_set_led(sc, URTWN_LED_LINK, !sc->ledlink);
 	}
 	urtwn_set_chan(sc, ic->ic_curchan, NULL);
+	URTWN_UNLOCK(sc);
+}
+
+static void
+urtwn_set_promisc(struct urtwn_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	uint32_t rcr, mask1, mask2;
+
+	URTWN_ASSERT_LOCKED(sc);
+
+	if (vap->iv_opmode == IEEE80211_M_MONITOR)
+		return;
+
+	mask1 = R92C_RCR_ACF | R92C_RCR_ADF | R92C_RCR_AMF | R92C_RCR_AAP;
+	mask2 = R92C_RCR_APM;
+
+	if (vap->iv_state == IEEE80211_S_RUN) {
+		switch (vap->iv_opmode) {
+		case IEEE80211_M_STA:
+			mask2 |= R92C_RCR_CBSSID_BCN | R92C_RCR_CBSSID_DATA;
+			break;
+		default:
+			device_printf(sc->sc_dev, "%s: undefined opmode %d\n",
+			    __func__, vap->iv_opmode);
+			return;
+		}
+	}
+
+	rcr = urtwn_read_4(sc, R92C_RCR);
+	if (ic->ic_promisc == 0)
+		rcr = (rcr & ~mask1) | mask2;
+	else
+		rcr = (rcr & ~mask2) | mask1;
+	urtwn_write_4(sc, R92C_RCR, rcr);
+}
+
+static void
+urtwn_update_promisc(struct ieee80211com *ic)
+{
+	struct urtwn_softc *sc = ic->ic_softc;
+
+	URTWN_LOCK(sc);
+	if (sc->sc_flags & URTWN_RUNNING)
+		urtwn_set_promisc(sc);
 	URTWN_UNLOCK(sc);
 }
 
@@ -3302,6 +3367,7 @@ urtwn_init(struct urtwn_softc *sc)
 	/* Set initial network type. */
 	urtwn_set_mode(sc, R92C_MSR_INFRA);
 
+	/* Initialize Rx filter. */
 	urtwn_rxfilter_init(sc);
 
 	/* Set response rate. */
@@ -3374,6 +3440,9 @@ urtwn_init(struct urtwn_softc *sc)
 	urtwn_mac_init(sc);
 	urtwn_bb_init(sc);
 	urtwn_rf_init(sc);
+
+	/* Reinitialize Rx filter (D3845 is not committed yet). */
+	urtwn_rxfilter_init(sc);
 
 	if (sc->chip & URTWN_CHIP_88E) {
 		urtwn_write_2(sc, R92C_CR,

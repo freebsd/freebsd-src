@@ -535,6 +535,10 @@
 #define R92C_CAMCMD_CLR		0x40000000
 #define R92C_CAMCMD_POLLING	0x80000000
 
+/* Bits for R92C_RXFLTMAP*. */
+#define R92C_RXFLTMAP_SUBTYPE(subtype)	\
+	(1 << ((subtype) >> IEEE80211_FC0_SUBTYPE_SHIFT))
+
 
 /*
  * Baseband registers.
