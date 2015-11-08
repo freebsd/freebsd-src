@@ -57,8 +57,6 @@ ATF_TC_BODY(mbrtowc_test, tc)
 	 * C/POSIX locale.
 	 */
 
-	printf("1..1\n");
-
 	ATF_REQUIRE(MB_CUR_MAX == 1);
 
 	/* Null wide character, internal state. */

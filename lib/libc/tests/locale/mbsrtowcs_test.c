@@ -57,8 +57,6 @@ ATF_TC_BODY(mbsrtowcs_test, tc)
 	 * C/POSIX locale.
 	 */
 
-	printf("1..1\n");
-
 	/* Simple null terminated string. */
 	memset(srcbuf, 0xcc, sizeof(srcbuf));
 	strcpy(srcbuf, "hello");
