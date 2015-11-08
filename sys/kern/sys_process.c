@@ -251,8 +251,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	 * curthread but we can't assert that.)  This keeps the process
 	 * from exiting out from under us until this operation completes.
 	 */
-	KASSERT(p->p_lock >= 1, ("%s: process %p (pid %d) not held", __func__,
-	    p, p->p_pid));
+	PROC_ASSERT_HELD(p);
 
 	/*
 	 * The map we want...
