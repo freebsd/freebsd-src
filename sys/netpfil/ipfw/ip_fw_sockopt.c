@@ -1497,9 +1497,9 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 			if ((cmd->arg1 != IP_FW_TARG) &&
-			    ((cmd->arg1 & 0x7FFFF) >= rt_numfibs)) {
+			    ((cmd->arg1 & 0x7FFF) >= rt_numfibs)) {
 				printf("ipfw: invalid fib number %d\n",
-					cmd->arg1 & 0x7FFFF);
+					cmd->arg1 & 0x7FFF);
 				return EINVAL;
 			}
 			goto check_action;
