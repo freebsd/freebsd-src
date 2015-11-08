@@ -109,21 +109,23 @@ PO_FLAG=-pg
 	${CTFCONVERT_CMD}
 
 .asm.po:
-	${CC} -x assembler-with-cpp -DPROF ${PO_CFLAGS} ${ACFLAGS} \
-		-c ${.IMPSRC} -o ${.TARGET}
+	${CC:N${CCACHE_BIN}} -x assembler-with-cpp -DPROF ${PO_CFLAGS} \
+	    ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .asm.So:
-	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} \
-	    -c ${.IMPSRC} -o ${.TARGET}
+	${CC:N${CCACHE_BIN}} -x assembler-with-cpp ${PICFLAG} -DPIC \
+	    ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .S.po:
-	${CC} -DPROF ${PO_CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC:N${CCACHE_BIN}} -DPROF ${PO_CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
+	    -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .S.So:
-	${CC} ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC:N${CCACHE_BIN}} ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} \
+	    -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .if !defined(_SKIP_BUILD)
@@ -249,7 +251,7 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 .if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld)
 	@${INSTALL_SYMLINK} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
-	${_LD} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
+	${_LD:N${CCACHE_BIN}} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `NM='${NM}' NMFLAGS='${NMFLAGS}' lorder ${SOBJS} | tsort -q` ${LDADD}
 .if ${MK_CTF} != "no"
