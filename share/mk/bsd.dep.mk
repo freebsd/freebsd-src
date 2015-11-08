@@ -62,7 +62,9 @@ DEPEND_CFLAGS+=	-MT${.TARGET}
 CFLAGS+=	${DEPEND_CFLAGS}
 DEPENDOBJS+=	${OBJS} ${POBJS} ${SOBJS}
 .for __obj in ${DEPENDOBJS:O:u}
+.if ${.MAKEFLAGS:M-V} == ""
 .sinclude "${DEPENDFILE}.${__obj}"
+.endif
 DEPENDFILES_OBJS+=	${DEPENDFILE}.${__obj}
 .endfor
 .endif	# ${MK_FAST_DEPEND} == "yes"
