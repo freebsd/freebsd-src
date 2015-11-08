@@ -30,7 +30,7 @@ display_usage () {
 
 # Set the default path for the temporary root environment
 #
-TEMPROOT='/var/tmp/temproot'
+TEMPROOT=`TMPDIR=/var/tmp mktemp -d -t temproot`
 
 # Assign the location of the mtree database
 #
