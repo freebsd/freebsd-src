@@ -25,7 +25,7 @@
  */
 
 /*
- * Test for heapsort() routine.
+ * Test for qsort() routine.
  */
 
 #include <sys/cdefs.h>
@@ -37,30 +37,35 @@ __FBSDID("$FreeBSD$");
 
 #include "test-sort.h"
 
-int
-main(int argc, char *argv[])
+ATF_TC_WITHOUT_HEAD(qsort_test);
+ATF_TC_BODY(qsort_test, tc)
 {
-  int i, j;
-  int testvector[IVEC_LEN];
-  int sresvector[IVEC_LEN];
+	int testvector[IVEC_LEN];
+	int sresvector[IVEC_LEN];
+	int i, j;
 
-  printf("1..1\n");
-  for (j = 2; j < IVEC_LEN; j++) {
-    /* Populate test vectors */
-    for (i = 0; i < j; i++)
-      testvector[i] = sresvector[i] = initvector[i];
+	for (j = 2; j < IVEC_LEN; j++) {
+		/* Populate test vectors */
+		for (i = 0; i < j; i++)
+			testvector[i] = sresvector[i] = initvector[i];
 
-    /* Sort using heapsort(3) */
-    heapsort(testvector, j, sizeof(testvector[0]), sorthelp);
-    /* Sort using reference slow sorting routine */
-    ssort(sresvector, j);
+		/* Sort using qsort(3) */
+		qsort(testvector, j, sizeof(testvector[0]), sorthelp);
+		/* Sort using reference slow sorting routine */
+		ssort(sresvector, j);
 
-    /* Compare results */
-    for (i = 0; i < j; i++)
-      assert(testvector[i] == sresvector[i]);
-  }
+		/* Compare results */
+		for (i = 0; i < j; i++)
+			ATF_CHECK_MSG(testvector[i] == sresvector[i],
+			    "item at index %d didn't match: %d != %d",
+			    i, testvector[i], sresvector[i]);
+	}
+}
 
-  printf("ok 1 - heapsort\n");
+ATF_TP_ADD_TCS(tp)
+{
 
-  return(0);
+	ATF_TP_ADD_TC(tp, qsort_test);
+
+	return (atf_no_error());
 }
