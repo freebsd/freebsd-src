@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <wchar.h>
 
+#include <atf-c.h>
+
 const char correct[] =
 	"|xx 01 02 03 04\n"
 	"|xx 05 06 07 08\n"
@@ -53,15 +55,13 @@ const char correct[] =
 
 const char correct2[] =
 	"b bs BSD";
+static char buf[1024];
+static wchar_t wbuf1[1024], wbuf2[1024];
+static const char *temp;
 
-int
-main(int argc, char *argv[])
+ATF_TC_WITHOUT_HEAD(positional_normal);
+ATF_TC_BODY(positional_normal, tc)
 {
-	char buf[1024];
-	wchar_t wbuf1[1024], wbuf2[1024];
-	const char *temp;
-
-	printf("1..4\n");
 
 	/* Test positional arguments */
 	snprintf(buf, sizeof buf,
@@ -86,8 +86,13 @@ main(int argc, char *argv[])
 	    "37", "38", "39", "40", "41", "42",
 	    "43", "44", 45, -1L, 1LL, -1, 1LL
 	    );
-	printf("%sok 1 - print-positional normal\n",
-	       strcmp(buf, correct) == 0 ? "" : "not ");
+	ATF_REQUIRE_MSG(wcscmp(wbuf1, wbuf2) == 0,
+	    "buffers didn't match");
+}
+
+ATF_TC_WITHOUT_HEAD(positional_wide);
+ATF_TC_BODY(positional_wide, tc)
+{
 
 	swprintf(wbuf1, sizeof wbuf1,
 	    L"|xx %1$s %2$s %3$s %4$s\n"
@@ -113,20 +118,39 @@ main(int argc, char *argv[])
 	    );
 	temp = correct;
 	mbsrtowcs(wbuf2, &temp, sizeof wbuf2, NULL);
-	printf("%sok 2 - print-positional wide\n",
-	       wcscmp(wbuf1, wbuf2) == 0 ? "" : "not ");
+	ATF_REQUIRE_MSG(wcscmp(wbuf1, wbuf2) == 0,
+	    "buffers didn't match");
+}
+
+ATF_TC_WITHOUT_HEAD(positional_precision);
+ATF_TC_BODY(positional_precision, tc)
+{
 
 	snprintf(buf, sizeof buf, "%2$.*4$s %2$.*3$s %1$s",
 		 "BSD", "bsd", 2, 1);
-	printf("%sok 3 - print-positional precision\n",
-	       strcmp(buf, correct2) == 0 ? "" : "not ");
+	ATF_REQUIRE_MSG(strcmp(buf, correct2) == 0,
+	    "buffers didn't match");
+}
+
+ATF_TC_WITHOUT_HEAD(positional_precision_wide);
+ATF_TC_BODY(positional_precision_wide, tc)
+{
 
 	swprintf(wbuf1, sizeof buf, L"%2$.*4$s %2$.*3$s %1$s",
 		 "BSD", "bsd", 2, 1);
 	temp = correct2;
 	mbsrtowcs(wbuf2, &temp, sizeof wbuf2, NULL);
-	printf("%sok 4 - print-positional precision wide\n",
-	       wcscmp(wbuf1, wbuf2) == 0 ? "" : "not ");
+	ATF_REQUIRE_MSG(wcscmp(wbuf1, wbuf2) == 0,
+	    "buffers didn't match");
+}
 
-	exit(0);
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, positional_normal);
+	ATF_TP_ADD_TC(tp, positional_wide);
+	ATF_TP_ADD_TC(tp, positional_precision);
+	ATF_TP_ADD_TC(tp, positional_precision_wide);
+
+	return (atf_no_error());
 }
