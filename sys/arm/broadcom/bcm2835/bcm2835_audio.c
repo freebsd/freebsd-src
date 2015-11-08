@@ -104,11 +104,6 @@ struct bcm2835_audio_info {
 	/* VCHI data */
 	struct mtx vchi_lock;
 
-	/* MSG reply */
-	struct mtx msg_avail_lock;
-	struct cv msg_avail_cv;
-	uint32_t msg_result;
-
 	VCHI_INSTANCE_T vchi_instance;
 	VCHI_CONNECTION_T *vchi_connection;
 	VCHI_SERVICE_HANDLE_T vchi_handle;
@@ -162,8 +157,11 @@ bcm2835_audio_callback(void *param, const VCHI_CALLBACK_REASON_T reason, void *m
 	status = vchi_msg_dequeue(sc->vchi_handle,
 	    &m, sizeof m, &msg_len, VCHI_FLAGS_NONE);
 	if (m.type == VC_AUDIO_MSG_TYPE_RESULT) {
-		sc->msg_result = m.u.result.success;
-		cv_signal(&sc->msg_avail_cv);
+		if (m.u.result.success) {
+			device_printf(sc->dev, 
+			    "msg type %08x failed\n",
+			    m.type);
+		}
 	} else if (m.type == VC_AUDIO_MSG_TYPE_COMPLETE) {
 		struct bcm2835_audio_chinfo *ch = m.u.complete.cookie;
 
@@ -333,8 +331,6 @@ bcm2835_audio_update_controls(struct bcm2835_audio_info *sc)
 	if (sc->vchi_handle != VCHIQ_SERVICE_HANDLE_INVALID) {
 		vchi_service_use(sc->vchi_handle);
 
-		sc->msg_result = -1;
-
 		m.type = VC_AUDIO_MSG_TYPE_CONTROL;
 		m.u.control.dest = sc->dest;
 		if (sc->volume > 99)
@@ -347,12 +343,6 @@ bcm2835_audio_update_controls(struct bcm2835_audio_info *sc)
 
 		if (ret != 0)
 			printf("%s: vchi_msg_queue failed (err %d)\n", __func__, ret);
-
-		mtx_lock(&sc->msg_avail_lock);
-		cv_wait_sig(&sc->msg_avail_cv, &sc->msg_avail_lock);
-		if (sc->msg_result)
-			printf("%s failed: %d\n", __func__, sc->msg_result);
-		mtx_unlock(&sc->msg_avail_lock);
 
 		vchi_service_release(sc->vchi_handle);
 	}
@@ -369,8 +359,6 @@ bcm2835_audio_update_params(struct bcm2835_audio_info *sc, struct bcm2835_audio_
 	if (sc->vchi_handle != VCHIQ_SERVICE_HANDLE_INVALID) {
 		vchi_service_use(sc->vchi_handle);
 
-		sc->msg_result = -1;
-
 		m.type = VC_AUDIO_MSG_TYPE_CONFIG;
 		m.u.config.channels = AFMT_CHANNEL(ch->fmt);
 		m.u.config.samplerate = ch->spd;
@@ -381,12 +369,6 @@ bcm2835_audio_update_params(struct bcm2835_audio_info *sc, struct bcm2835_audio_
 
 		if (ret != 0)
 			printf("%s: vchi_msg_queue failed (err %d)\n", __func__, ret);
-
-		mtx_lock(&sc->msg_avail_lock);
-		cv_wait_sig(&sc->msg_avail_cv, &sc->msg_avail_lock);
-		if (sc->msg_result)
-			printf("%s failed: %d\n", __func__, sc->msg_result);
-		mtx_unlock(&sc->msg_avail_lock);
 
 		vchi_service_release(sc->vchi_handle);
 	}
@@ -831,8 +813,6 @@ bcm2835_audio_attach(device_t dev)
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "bcm2835_audio softc");
 
 	mtx_init(&sc->vchi_lock, "bcm2835_audio", "vchi_lock", MTX_DEF);
-	mtx_init(&sc->msg_avail_lock, "msg_avail_mtx", "msg_avail_mtx", MTX_DEF);
-	cv_init(&sc->msg_avail_cv, "msg_avail_cv");
 	mtx_init(&sc->data_lock, "data_mtx", "data_mtx", MTX_DEF);
 	cv_init(&sc->data_cv, "data_cv");
 	sc->vchi_handle = VCHIQ_SERVICE_HANDLE_INVALID;
@@ -869,8 +849,6 @@ bcm2835_audio_detach(device_t dev)
 		return r;
 
 	mtx_destroy(&sc->vchi_lock);
-	mtx_destroy(&sc->msg_avail_lock);
-	cv_destroy(&sc->msg_avail_cv);
 	mtx_destroy(&sc->data_lock);
 	cv_destroy(&sc->data_cv);
 
