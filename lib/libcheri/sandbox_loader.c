@@ -135,12 +135,12 @@ sandbox_class_load(struct sandbox_class *sbcp)
 	 */
 	sbcp->sbc_typecap = cheri_type_alloc();
 
-	codecap = cheri_ptrperm(sbcp->sbc_codemem, sbcp->sbc_codelen,
+	codecap = cheri_codeptrperm(sbcp->sbc_codemem, sbcp->sbc_codelen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
 	codecap = cheri_setoffset(codecap, SANDBOX_RTLD_VECTOR);
 	sbcp->sbc_classcap_rtld = cheri_seal(codecap, sbcp->sbc_typecap);
 
-	codecap = cheri_ptrperm(sbcp->sbc_codemem, sbcp->sbc_codelen,
+	codecap = cheri_codeptrperm(sbcp->sbc_codemem, sbcp->sbc_codelen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
 	codecap = cheri_setoffset(codecap, SANDBOX_INVOKE_VECTOR);
 	sbcp->sbc_classcap_invoke = cheri_seal(codecap, sbcp->sbc_typecap);
@@ -179,6 +179,8 @@ cheri_system_object_for_instance(struct sandbox_object *sbop)
 	 *
 	 * XXXRW: We should do this once per class .. or even just once
 	 * globally, rather than on every object creation.
+	 *
+	 * XXXRW: Use cheri_codeptr() here in the future?
 	 */
 	codecap = cheri_getpcc();
 	codecap = cheri_setoffset(codecap,

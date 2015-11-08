@@ -114,6 +114,8 @@ cheri_fd_new(int fd, struct cheri_object *cop)
 	 * needs a full set of permissions rather than just LOAD/EXECUTE. In
 	 * the future, we will want to preserve a copy of cheri_getdefault()
 	 * in the struct cheri_fd to be reinstalled by the entry code.
+	 *
+	 * XXXRW: In the future, use cheri_codeptr() here?
 	 */
 	codecap = cheri_setoffset(cheri_getpcc(),
 	    (register_t)CHERI_CLASS_ENTRY(cheri_fd));

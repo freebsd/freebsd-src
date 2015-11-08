@@ -98,14 +98,37 @@
 
 #define	cheri_csetbounds(x, y)	__builtin_memcap_bounds_set(		\
 				    __DECONST(__capability void *, (x)), (y))
+
+/*
+ * Two variations on cheri_ptr() based on whether we are looking for a code or
+ * data capability.  The compiler's use of CFromPtr will be with respect to
+ * $c0 or $pcc depending on the type of the pointer derived, so we need to use
+ * types to differentiate the two versions at compile time.  We don't provide
+ * the full set of function variations for code pointers as they haven't
+ * proved necessary as yet.
+ */
+static __inline __capability void *
+cheri_codeptr(const void *ptr, size_t len)
+{
+
+	/* Assume CFromPtr without base set, availability of CSetBounds. */
+	return (cheri_csetbounds((const __capability void *)ptr, len));
+}
+
+static __inline __capability void *
+cheri_codeptrperm(const void *ptr, size_t len, register_t perm)
+{
+
+	return (cheri_andperm(cheri_codeptr(ptr, len),
+	    perm | CHERI_PERM_GLOBAL));
+}
+
 static __inline __capability void *
 cheri_ptr(const void *ptr, size_t len)
 {
-	const __capability void *c;
 
 	/* Assume CFromPtr without base set, availability of CSetBounds. */
-	c = (const __capability void *)ptr;
-	return (cheri_csetbounds(c, len));
+	return (cheri_csetbounds((const __capability void *)ptr, len));
 }
 
 static __inline __capability void *
@@ -125,6 +148,11 @@ cheri_ptrpermoff(const void *ptr, size_t len, register_t perm, off_t off)
 /*
  * Construct a capability suitable to describe a type identified by 'ptr';
  * set it to zero-length with the offset equal to the base.
+ *
+ * NB: We choose to derive 'type' capabilities from the default data
+ * capability.  There's a legitimate argument that a third root capability
+ * should provide access to types, to fully differentiate data, code, and
+ * types.
  */
 static __inline __capability void *
 cheri_maketype(const void *ptr, register_t perm)
@@ -136,7 +164,7 @@ cheri_maketype(const void *ptr, register_t perm)
 static __inline __capability void *
 cheri_zerocap(void)
 {
-	return (__capability void*)0;
+	return (__capability void *)0;
 }
 
 #define	cheri_getreg(x) ({						\
