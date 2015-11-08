@@ -71,13 +71,13 @@ FEATURE(rctl, "Resource Limits");
 #define	HRF_DONT_INHERIT	1
 #define	HRF_DONT_ACCUMULATE	2
 
-#define	RCTL_MAX_INBUFLEN	4 * 1024
-#define	RCTL_MAX_OUTBUFLEN	16 * 1024 * 1024
+#define	RCTL_MAX_INBUFSIZE	4 * 1024
+#define	RCTL_MAX_OUTBUFSIZE	16 * 1024 * 1024
 #define	RCTL_LOG_BUFSIZE	128
 
 #define	RCTL_PCPU_SHIFT		(10 * 1000000)
 
-unsigned int rctl_maxbufsize = RCTL_MAX_OUTBUFLEN;
+unsigned int rctl_maxbufsize = RCTL_MAX_OUTBUFSIZE;
 
 SYSCTL_NODE(_kern_racct, OID_AUTO, rctl, CTLFLAG_RW, 0, "Resource Limits");
 SYSCTL_UINT(_kern_racct_rctl, OID_AUTO, maxbufsize, CTLFLAG_RWTUN,
@@ -1278,7 +1278,7 @@ rctl_read_inbuf(char **inputstr, const char *inbufp, size_t inbuflen)
 
 	if (inbuflen <= 0)
 		return (EINVAL);
-	if (inbuflen > RCTL_MAX_INBUFLEN)
+	if (inbuflen > RCTL_MAX_INBUFSIZE)
 		return (E2BIG);
 
 	str = malloc(inbuflen + 1, M_RCTL, M_WAITOK);
