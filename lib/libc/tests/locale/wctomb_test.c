@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Tim J. Robbins
+ * Copyright (c) 2002-2004 Tim J. Robbins
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
  */
 
 /*
- * Test program for wcrtomb(), as specified by IEEE Std. 1003.1-2001 and
+ * Test program for wctomb(), as specified by IEEE Std. 1003.1-2001 and
  * ISO/IEC 9899:1999.
  *
  * The function is tested with both the "C" ("POSIX") LC_CTYPE setting and
@@ -35,100 +35,79 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <errno.h>
 #include <limits.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <wchar.h>
 
-int
-main(int argc, char *argv[])
+#include <atf-c.h>
+
+ATF_TC_WITHOUT_HEAD(wctomb_test);
+ATF_TC_BODY(wctomb_test, tc)
 {
-	mbstate_t s;
 	size_t len;
 	char buf[MB_LEN_MAX + 1];
 
-	/*
-	 * C/POSIX locale.
-	 */
+	/* C/POSIX locale. */
 
-	printf("1..1\n");
+	ATF_REQUIRE(MB_CUR_MAX == 1);
 
-	assert(MB_CUR_MAX == 1);
-
-	/*
-	 * If the buffer argument is NULL, wc is implicitly L'\0',
-	 * wcrtomb() resets its internal state.
-	 */
-	assert(wcrtomb(NULL, L'\0', NULL) == 1);
-	assert(wcrtomb(NULL, UCHAR_MAX + 1, NULL) == 1);
+	/* No shift states in C locale. */
+	ATF_REQUIRE(wctomb(NULL, L'\0') == 0);
 
 	/* Null wide character. */
-	memset(&s, 0, sizeof(s));
 	memset(buf, 0xcc, sizeof(buf));
-	len = wcrtomb(buf, L'\0', &s);
-	assert(len == 1);
-	assert((unsigned char)buf[0] == 0 && (unsigned char)buf[1] == 0xcc);
-
-	/* Latin letter A, internal state. */
-	assert(wcrtomb(NULL, L'\0', NULL) == 1);
-	assert(wcrtomb(NULL, L'A', NULL) == 1);
+	len = wctomb(buf, L'\0');
+	ATF_REQUIRE(len == 1);
+	ATF_REQUIRE((unsigned char)buf[0] == 0 && (unsigned char)buf[1] == 0xcc);
 
 	/* Latin letter A. */
-	memset(&s, 0, sizeof(s));
 	memset(buf, 0xcc, sizeof(buf));
-	len = wcrtomb(buf, L'A', &s);
-	assert(len == 1);
-	assert((unsigned char)buf[0] == 'A' && (unsigned char)buf[1] == 0xcc);
+	len = wctomb(buf, L'A');
+	ATF_REQUIRE(len == 1);
+	ATF_REQUIRE((unsigned char)buf[0] == 'A' && (unsigned char)buf[1] == 0xcc);
 
 	/* Invalid code. */
-	assert(wcrtomb(buf, UCHAR_MAX + 1, NULL) == (size_t)-1);
-	assert(errno == EILSEQ);
+	ATF_REQUIRE(wctomb(buf, UCHAR_MAX + 1) == -1);
+	ATF_REQUIRE(wctomb(NULL, 0) == 0);
 
 	/*
 	 * Japanese (EUC) locale.
 	 */
 
-	assert(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
-	assert(MB_CUR_MAX == 3);
+	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
+	ATF_REQUIRE(MB_CUR_MAX == 3);
 
-	/*
-	 * If the buffer argument is NULL, wc is implicitly L'\0',
-	 * wcrtomb() resets its internal state.
-	 */
-	assert(wcrtomb(NULL, L'\0', NULL) == 1);
+	/* No shift states in EUC encoding. */
+	ATF_REQUIRE(wctomb(NULL, L'\0') == 0);
 
 	/* Null wide character. */
-	memset(&s, 0, sizeof(s));
 	memset(buf, 0xcc, sizeof(buf));
-	len = wcrtomb(buf, L'\0', &s);
-	assert(len == 1);
-	assert((unsigned char)buf[0] == 0 && (unsigned char)buf[1] == 0xcc);
-
-	/* Latin letter A, internal state. */
-	assert(wcrtomb(NULL, L'\0', NULL) == 1);
-	assert(wcrtomb(NULL, L'A', NULL) == 1);
+	len = wctomb(buf, L'\0');
+	ATF_REQUIRE(len == 1);
+	ATF_REQUIRE((unsigned char)buf[0] == 0 && (unsigned char)buf[1] == 0xcc);
 
 	/* Latin letter A. */
-	memset(&s, 0, sizeof(s));
 	memset(buf, 0xcc, sizeof(buf));
-	len = wcrtomb(buf, L'A', &s);
-	assert(len == 1);
-	assert((unsigned char)buf[0] == 'A' && (unsigned char)buf[1] == 0xcc);
+	len = wctomb(buf, L'A');
+	ATF_REQUIRE(len == 1);
+	ATF_REQUIRE((unsigned char)buf[0] == 'A' && (unsigned char)buf[1] == 0xcc);
 
 	/* Full width letter A. */
-	memset(&s, 0, sizeof(s));
 	memset(buf, 0xcc, sizeof(buf));
-	len = wcrtomb(buf, 0xa3c1, &s);
-	assert(len == 2);
-	assert((unsigned char)buf[0] == 0xa3 &&
+	len = wctomb(buf, 0xa3c1);
+	ATF_REQUIRE(len == 2);
+	ATF_REQUIRE((unsigned char)buf[0] == 0xa3 &&
 		(unsigned char)buf[1] == 0xc1 &&
 		(unsigned char)buf[2] == 0xcc);
+}
 
-	printf("ok 1 - wcrtomb()\n");
+ATF_TP_ADD_TCS(tp)
+{
 
-	return (0);
+	ATF_TP_ADD_TC(tp, wctomb_test);
+
+	return (atf_no_error());
 }
