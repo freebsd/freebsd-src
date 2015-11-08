@@ -53,8 +53,6 @@ ATF_TC_BODY(mbrtoc16_test, tc)
 	 * C/POSIX locale.
 	 */
 
-	printf("1..1\n");
-
 	/* Null wide character, internal state. */
 	ATF_REQUIRE(mbrtoc16(&c16, "", 1, NULL) == 0);
 	ATF_REQUIRE(c16 == 0);
