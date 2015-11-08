@@ -379,7 +379,7 @@ CROSSENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCFLAGS} ${XCXXFLAGS}" \
 		RANLIB=${XRANLIB} STRINGS=${XSTRINGS} \
 		SIZE="${XSIZE}"
 
-.if ${XCC:M/*}
+.if ${XCC:N${CCACHE_BIN}:M/*}
 .if defined(CROSS_BINUTILS_PREFIX)
 # In the case of xdev-build tools, CROSS_BINUTILS_PREFIX won't be a
 # directory, but the compiler will look in the right place for it's
@@ -456,7 +456,7 @@ LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -DCOMPAT_32BIT \
 		-isystem ${LIB32TMP}/usr/include/ \
 		-L${LIB32TMP}/usr/lib32 \
 		-B${LIB32TMP}/usr/lib32
-.if ${XCC:M/*}
+.if ${XCC:N${CCACHE_BIN}:M/*}
 LIB32FLAGS+=		--sysroot=${WORLDTMP}
 .endif
 
@@ -1599,7 +1599,7 @@ _elftctools=	lib/libelftc \
 
 # If an full path to an external cross compiler is given, don't build
 # a cross compiler.
-.if ${XCC:M/*} == "" && ${MK_CROSS_COMPILER} != "no"
+.if ${XCC:N${CCACHE_BIN}:M/*} == "" && ${MK_CROSS_COMPILER} != "no"
 .if ${MK_CLANG_BOOTSTRAP} != "no"
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang
