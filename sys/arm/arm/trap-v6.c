@@ -211,7 +211,7 @@ call_trapsignal(struct thread *td, int sig, int code, vm_offset_t addr)
  *	FAULT_IS_NOT_MINE value, then the abort is fatal.
  */
 static __inline void
-abort_imprecise(struct trapframe *tf, u_int fsr, u_int prefetch, u_int usermode)
+abort_imprecise(struct trapframe *tf, u_int fsr, u_int prefetch, bool usermode)
 {
 
 	/*
@@ -243,7 +243,7 @@ out:
  *
  */
 static __inline void
-abort_debug(struct trapframe *tf, u_int fsr, u_int prefetch, u_int usermode,
+abort_debug(struct trapframe *tf, u_int fsr, u_int prefetch, bool usermode,
     u_int far)
 {
 
@@ -277,7 +277,7 @@ abort_handler(struct trapframe *tf, int prefetch)
 {
 	struct thread *td;
 	vm_offset_t far, va;
-	int idx, usermode;
+	int idx, rv;
 	uint32_t fsr;
 	struct ksig ksig;
 	struct proc *p;
@@ -285,7 +285,7 @@ abort_handler(struct trapframe *tf, int prefetch)
 	struct vm_map *map;
 	struct vmspace *vm;
 	vm_prot_t ftype;
-	int rv;
+	bool usermode;
 #ifdef INVARIANTS
 	void *onfault;
 #endif
@@ -556,7 +556,7 @@ static int
 abort_fatal(struct trapframe *tf, u_int idx, u_int fsr, u_int far,
     u_int prefetch, struct thread *td, struct ksig *ksig)
 {
-	u_int usermode;
+	bool usermode;
 	const char *mode;
 	const char *rw_mode;
 
@@ -617,7 +617,7 @@ static int
 abort_align(struct trapframe *tf, u_int idx, u_int fsr, u_int far,
     u_int prefetch, struct thread *td, struct ksig *ksig)
 {
-	u_int usermode;
+	bool usermode;
 
 	usermode = TRAPF_USERMODE(tf);
 	if (!usermode) {
