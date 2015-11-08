@@ -2476,7 +2476,7 @@ do {								\
 				uint32_t fib;
 
 				IPFW_INC_RULE_COUNTER(f, pktlen);
-				fib = TARG(cmd->arg1, fib) & 0x7FFFF;
+				fib = TARG(cmd->arg1, fib) & 0x7FFF;
 				if (fib >= rt_numfibs)
 					fib = 0;
 				M_SETFIB(m, fib);
