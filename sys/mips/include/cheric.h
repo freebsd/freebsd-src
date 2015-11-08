@@ -105,14 +105,25 @@
  * $c0 or $pcc depending on the type of the pointer derived, so we need to use
  * types to differentiate the two versions at compile time.  We don't provide
  * the full set of function variations for code pointers as they haven't
- * proved necessary as yet.
+ * proven necessary as yet.
+ *
+ * XXXRW: Ideally, casting via a function pointer would cause the compiler to
+ * derive the capability using CFromPtr on $pcc rather than on $c0.  This
+ * appears not currently to be the case, so manually derive using
+ * cheri_getpcc() for now.
  */
 static __inline __capability void *
 cheri_codeptr(const void *ptr, size_t len)
 {
+#ifdef NOTYET
+	__capability void (*c)(void) = ptr;
+#else
+	__capability void *c = cheri_setoffset(cheri_getpcc(),
+	    (register_t)ptr);
+#endif
 
 	/* Assume CFromPtr without base set, availability of CSetBounds. */
-	return (cheri_csetbounds((const __capability void *)ptr, len));
+	return (cheri_csetbounds(c, len));
 }
 
 static __inline __capability void *

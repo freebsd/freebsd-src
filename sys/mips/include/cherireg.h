@@ -133,22 +133,10 @@
 	(CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |	\
 	CHERI_PERM_SEAL | CHERI_PERM_SETTYPE | CHERI_PERM_USER_PRIVS)
 
-/*
- * XXXRW: For now, install all permissions for data capabilites, until
- * libcheri is ready for a non-executable $c0.
- */
 #define	CHERI_PERM_USER_CODE	(CHERI_PERM_USER | CHERI_PERM_EXECUTE)
-
-#ifdef NOTYET
 #define	CHERI_PERM_USER_DATA	(CHERI_PERM_USER | CHERI_PERM_STORE |	\
 				CHERI_PERM_STORE_CAP |			\
 				CHERI_PERM_STORE_LOCAL_CAP)
-#else
-#define	CHERI_PERM_USER_DATA	(CHERI_PERM_USER | CHERI_PERM_STORE |	\
-				CHERI_PERM_STORE_CAP |			\
-				CHERI_PERM_STORE_LOCAL_CAP |		\
-				CHERI_PERM_EXECUTE)
-#endif
 
 /*
  * Definition for kernel "privileged" capability able to name the entire
