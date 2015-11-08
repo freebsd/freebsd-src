@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
-#include <sys/sema.h>
 #include <machine/bus.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -83,7 +82,7 @@ struct bcm_mbox_softc {
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
 	int			msg[BCM2835_MBOX_CHANS];
-	struct sema		sema[BCM2835_MBOX_CHANS];
+	int			have_message[BCM2835_MBOX_CHANS];
 };
 
 #define	mbox_read_4(sc, reg)		\
@@ -121,9 +120,11 @@ bcm_mbox_intr(void *arg)
 	struct bcm_mbox_softc *sc = arg;
 	int chan;
 
+	MBOX_LOCK(sc);
 	while (!(mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY))
 		if (bcm_mbox_read_msg(sc, &chan) == 0)
-			sema_post(&sc->sema[chan]);
+			wakeup(&sc->have_message[chan]);
+	MBOX_UNLOCK(sc);
 }
 
 static int
@@ -175,7 +176,7 @@ bcm_mbox_attach(device_t dev)
 	mtx_init(&sc->lock, "vcio mbox", NULL, MTX_DEF);
 	for (i = 0; i < BCM2835_MBOX_CHANS; i++) {
 		sc->msg[i] = 0;
-		sema_init(&sc->sema[i], 0, "mbox");
+		sc->have_message[i] = 0;
 	}
 
 	/* Read all pending messages */
@@ -198,6 +199,7 @@ bcm_mbox_write(device_t dev, int chan, uint32_t data)
 
 	dprintf("bcm_mbox_write: chan %d, data %08x\n", chan, data);
 	MBOX_LOCK(sc);
+	sc->have_message[chan] = 0;
 	while ((mbox_read_4(sc, REG_STATUS) & STATUS_FULL) && --limit)
 		DELAY(5);
 	if (limit == 0) {
@@ -222,11 +224,12 @@ bcm_mbox_read(device_t dev, int chan, uint32_t *data)
 	err = 0;
 	MBOX_LOCK(sc);
 	if (!cold) {
-		while (sema_trywait(&sc->sema[chan]) == 0) {
-			/* do not unlock sc while waiting for the mbox */
-			if (sema_timedwait(&sc->sema[chan], 10*hz) == 0)
-				break;
-			printf("timeout sema for chan %d\n", chan);
+		if (sc->have_message[chan] == 0) {
+			if (mtx_sleep(&sc->have_message[chan], &sc->lock, 0,
+			    "mbox", 10*hz) != 0) {
+				device_printf(dev, "timeout waiting for message on chan %d\n", chan);
+				err = ETIMEDOUT;
+			}
 		}
 	} else {
 		do {
@@ -246,6 +249,7 @@ bcm_mbox_read(device_t dev, int chan, uint32_t *data)
 	 */
 	*data = MBOX_DATA(sc->msg[chan]);
 	sc->msg[chan] = 0;
+	sc->have_message[chan] = 0;
 out:
 	MBOX_UNLOCK(sc);
 	dprintf("bcm_mbox_read: chan %d, data %08x\n", chan, *data);
