@@ -824,13 +824,13 @@ extern pid_t pid_max;
 #define	_PHOLD(p) do {							\
 	PROC_LOCK_ASSERT((p), MA_OWNED);				\
 	KASSERT(!((p)->p_flag & P_WEXIT) || (p) == curproc,		\
-	    ("PHOLD of exiting process"));				\
+	    ("PHOLD of exiting process %p", p));			\
 	(p)->p_lock++;							\
 	if (((p)->p_flag & P_INMEM) == 0)				\
 		faultin((p));						\
 } while (0)
-#define PROC_ASSERT_HELD(p) do {					\
-	KASSERT((p)->p_lock > 0, ("process not held"));			\
+#define	PROC_ASSERT_HELD(p) do {					\
+	KASSERT((p)->p_lock > 0, ("process %p not held", p));		\
 } while (0)
 
 #define	PRELE(p) do {							\
@@ -845,8 +845,8 @@ extern pid_t pid_max;
 	if (((p)->p_flag & P_WEXIT) && (p)->p_lock == 0)		\
 		wakeup(&(p)->p_lock);					\
 } while (0)
-#define PROC_ASSERT_NOT_HELD(p) do {					\
-	KASSERT((p)->p_lock == 0, ("process held"));			\
+#define	PROC_ASSERT_NOT_HELD(p) do {					\
+	KASSERT((p)->p_lock == 0, ("process %p held", p));		\
 } while (0)
 
 #define	PROC_UPDATE_COW(p) do {						\
