@@ -77,7 +77,7 @@ main(int argc, char *argv[])
 	} else
 		howto = 0;
 	lflag = nflag = qflag = 0;
-	while ((ch = getopt(argc, argv, "dk:lnpq")) != -1)
+	while ((ch = getopt(argc, argv, "dk:lnpqr")) != -1)
 		switch(ch) {
 		case 'd':
 			howto |= RB_DUMP;
@@ -98,6 +98,9 @@ main(int argc, char *argv[])
 		case 'q':
 			qflag = 1;
 			break;
+		case 'r':
+			howto |= RB_REROOT;
+			break;
 		case '?':
 		default:
 			usage();
@@ -107,6 +110,8 @@ main(int argc, char *argv[])
 
 	if ((howto & (RB_DUMP | RB_HALT)) == (RB_DUMP | RB_HALT))
 		errx(1, "cannot dump (-d) when halting; must reboot instead");
+	if ((howto & RB_REROOT) != 0 && howto != RB_REROOT)
+		errx(1, "-r cannot be used with -d, -n, or -p");
 	if (geteuid()) {
 		errno = EPERM;
 		err(1, NULL);
@@ -137,6 +142,9 @@ main(int argc, char *argv[])
 		if (dohalt) {
 			openlog("halt", 0, LOG_AUTH | LOG_CONS);
 			syslog(LOG_CRIT, "halted by %s", user);
+		} else if (howto & RB_REROOT) {
+			openlog("reroot", 0, LOG_AUTH | LOG_CONS);
+			syslog(LOG_CRIT, "rerooted by %s", user);
 		} else {
 			openlog("reboot", 0, LOG_AUTH | LOG_CONS);
 			syslog(LOG_CRIT, "rebooted by %s", user);
@@ -169,6 +177,16 @@ main(int argc, char *argv[])
 	 * after killing whatever we're writing to.
 	 */
 	(void)signal(SIGPIPE, SIG_IGN);
+
+	/*
+	 * Only init(8) can perform rerooting.
+	 */
+	if (howto & RB_REROOT) {
+		if (kill(1, SIGEMT) == -1)
+			err(1, "SIGEMT init");
+
+		return (0);
+	}
 
 	/* Just stop init -- if we fail, we'll restart it. */
 	if (kill(1, SIGTSTP) == -1)
