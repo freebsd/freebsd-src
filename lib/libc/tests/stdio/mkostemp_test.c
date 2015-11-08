@@ -41,7 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-static const char template[] = _PATH_TMP "mkostemp.XXXXXXXX";
+#include <atf-c.h>
+
+static const char template[] = "mkostemp.XXXXXXXX";
 static int testnum;
 
 #define MISCFLAGS (O_APPEND | O_DIRECT | O_SHLOCK | O_EXLOCK | O_SYNC)
@@ -131,34 +133,53 @@ test_one(int oflags)
 	(void)unlink(tmpf);
 }
 
-static void
-test_badflags(void)
+ATF_TC_WITHOUT_HEAD(zero);
+ATF_TC_BODY(zero, tc)
 {
+
+	test_one(0);
+}
+
+ATF_TC_WITHOUT_HEAD(O_CLOEXEC);
+ATF_TC_BODY(O_CLOEXEC, tc)
+{
+
+	test_one(O_CLOEXEC);
+}
+
+ATF_TC_WITHOUT_HEAD(O_APPEND);
+ATF_TC_BODY(O_APPEND, tc)
+{
+
+	test_one(O_APPEND);
+}
+
+ATF_TC_WITHOUT_HEAD(O_APPEND__O_CLOEXEC);
+ATF_TC_BODY(O_APPEND__O_CLOEXEC, tc)
+{
+
+	test_one(O_APPEND|O_CLOEXEC);
+}
+
+ATF_TC_WITHOUT_HEAD(bad_flags);
+ATF_TC_BODY(bad_flags, tc)
+{
+
 	char tmpf[sizeof(template)];
 
 	memcpy(tmpf, template, sizeof(tmpf));
-	if (mkostemp(tmpf, O_CREAT) == -1)
-		printf("ok %d - mkostemp(O_CREAT) correctly failed\n",
-		    testnum++);
-	else
-		printf("not ok %d - mkostemp(O_CREAT) wrongly succeeded\n",
-		    testnum++);
+	ATF_REQUIRE_MSG(mkostemp(tmpf, O_CREAT) == -1,
+		"mkostemp(O_CREAT) succeeded unexpectedly");
 }
 
-int
-main(int argc, char *argv[])
+ATF_TP_ADD_TCS(tp)
 {
-	int i;
-	const char *e;
 
-	printf("1..5\n");
-	testnum = 1;
+	ATF_TP_ADD_TC(tp, zero);
+	ATF_TP_ADD_TC(tp, O_CLOEXEC);
+	ATF_TP_ADD_TC(tp, O_APPEND);
+	ATF_TP_ADD_TC(tp, O_APPEND__O_CLOEXEC);
+	ATF_TP_ADD_TC(tp, bad_flags);
 
-	test_one(0);
-	test_one(O_CLOEXEC);
-	test_one(O_APPEND);
-	test_one(O_APPEND | O_CLOEXEC);
-	test_badflags();
-
-	return (0);
+	return (atf_no_error());
 }

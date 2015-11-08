@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <err.h>
 #include <limits.h>
 #include <locale.h>
@@ -43,10 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <wchar.h>
 
-#define	testfmt(result, fmt, ...)	\
-	_testfmt((result), __LINE__, #__VA_ARGS__, fmt, __VA_ARGS__)
-void _testfmt(const char *, int, const char *, const char *, ...);
-void smash_stack(void);
+#include <atf-c.h>
 
 #define	S_UINT64MAX	"18446744073709551615"
 #define	S_UINT32MAX	"4294967295"
@@ -57,22 +53,62 @@ void smash_stack(void);
 #define	S_ULONGMAX	(ULONG_MAX == UINT64_MAX ? S_UINT64MAX : S_UINT32MAX)
 #define	S_ULLONGMAX	(ULLONG_MAX == UINT64_MAX ? S_UINT64MAX : S_UINT32MAX)
 
-int
-main(int argc, char *argv[])
+static void
+smash_stack(void)
+{
+	static uint32_t junk = 0xdeadbeef;
+	uint32_t buf[512];
+	int i;
+
+	for (i = 0; i < sizeof(buf) / sizeof(buf[0]); i++)
+		buf[i] = junk;
+}
+
+#define	testfmt(result, fmt, ...)       \
+	_testfmt((result), #__VA_ARGS__, fmt, __VA_ARGS__)
+static void
+_testfmt(const char *result, const char *argstr, const char *fmt,...)
+{
+#define	BUF	100
+	wchar_t ws[BUF], wfmt[BUF], wresult[BUF];
+	char s[BUF];
+	va_list ap, ap2;
+
+	va_start(ap, fmt);
+	va_copy(ap2, ap);
+	smash_stack();
+	vsnprintf(s, sizeof(s), fmt, ap);
+	if (strcmp(result, s) != 0) {
+		atf_tc_fail(
+		    "printf(\"%s\", %s) ==> [%s], expected [%s]\n",
+		    fmt, argstr, s, result);
+	}
+
+	smash_stack();
+	mbstowcs(ws, s, BUF - 1);
+	mbstowcs(wfmt, fmt, BUF - 1);
+	mbstowcs(wresult, result, BUF - 1);
+	vswprintf(ws, sizeof(ws) / sizeof(ws[0]), wfmt, ap2);
+	if (wcscmp(wresult, ws) != 0) {
+		atf_tc_fail(
+		    "wprintf(\"%ls\", %s) ==> [%ls], expected [%ls]\n",
+		    wfmt, argstr, ws, wresult);
+	}
+}
+
+ATF_TC_WITHOUT_HEAD(int_within_limits);
+ATF_TC_BODY(int_within_limits, tc)
 {
 
-	printf("1..2\n");
-	assert(setlocale(LC_NUMERIC, "C"));
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
 
 	/* The test requires these to be true. */
-	assert(UINTMAX_MAX == UINT64_MAX);
-	assert(UINT_MAX == UINT32_MAX);
-	assert(USHRT_MAX == 0xffff);
-	assert(UCHAR_MAX == 0xff);
+	ATF_REQUIRE(UINTMAX_MAX == UINT64_MAX);
+	ATF_REQUIRE(UINT_MAX == UINT32_MAX);
+	ATF_REQUIRE(USHRT_MAX == 0xffff);
+	ATF_REQUIRE(UCHAR_MAX == 0xff);
 
-	/*
-	 * Make sure we handle signed vs. unsigned args correctly.
-	 */
+	/* Make sure we handle signed vs. unsigned args correctly. */
 	testfmt("-1", "%jd", (intmax_t)-1);
 	testfmt(S_UINT64MAX, "%ju", UINT64_MAX);
 
@@ -96,8 +132,13 @@ main(int argc, char *argv[])
 
 	testfmt("-1", "%hhd", -1);
 	testfmt("255", "%hhu", UCHAR_MAX);
+}
 
-	printf("ok 1 - printbasic signed/unsigned\n");
+ATF_TC_WITHOUT_HEAD(int_limits);
+ATF_TC_BODY(int_limits, tc)
+{
+
+	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
 
 	/*
 	 * Check that printing the largest negative number does not cause
@@ -105,52 +146,13 @@ main(int argc, char *argv[])
 	 */
 	testfmt(S_INT32MIN, "%d", INT_MIN);
 	testfmt(S_INT64MIN, "%jd", INTMAX_MIN);
-
-	printf("ok 2 - printbasic INT_MIN\n");
-
-
-	return (0);
 }
 
-void
-smash_stack(void)
+ATF_TP_ADD_TCS(tp)
 {
-	static uint32_t junk = 0xdeadbeef;
-	uint32_t buf[512];
-	int i;
 
-	for (i = 0; i < sizeof(buf) / sizeof(buf[0]); i++)
-		buf[i] = junk;
-}
+	ATF_TP_ADD_TC(tp, int_within_limits);
+	ATF_TP_ADD_TC(tp, int_limits);
 
-void
-_testfmt(const char *result, int line, const char *argstr, const char *fmt,...)
-{
-#define	BUF	100
-	wchar_t ws[BUF], wfmt[BUF], wresult[BUF];
-	char s[BUF];
-	va_list ap, ap2;
-
-	va_start(ap, fmt);
-	va_copy(ap2, ap);
-	smash_stack();
-	vsnprintf(s, sizeof(s), fmt, ap);
-	if (strcmp(result, s) != 0) {
-		fprintf(stderr,
-		    "%d: printf(\"%s\", %s) ==> [%s], expected [%s]\n",
-		    line, fmt, argstr, s, result);
-		abort();
-	}
-
-	smash_stack();
-	mbstowcs(ws, s, BUF - 1);
-	mbstowcs(wfmt, fmt, BUF - 1);
-	mbstowcs(wresult, result, BUF - 1);
-	vswprintf(ws, sizeof(ws) / sizeof(ws[0]), wfmt, ap2);
-	if (wcscmp(wresult, ws) != 0) {
-		fprintf(stderr,
-		    "%d: wprintf(\"%ls\", %s) ==> [%ls], expected [%ls]\n",
-		    line, wfmt, argstr, ws, wresult);
-		abort();
-	}	
+	return (atf_no_error());
 }

@@ -28,11 +28,12 @@
 __FBSDID("$FreeBSD$");
 
 #define	_WITH_GETLINE
-#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <atf-c.h>
 
 #define	CHUNK_MAX	10
 
@@ -70,17 +71,15 @@ mkfilebuf(void)
 	return (fropen(offp, _reader));
 }
 
-int
-main(int argc, char *argv[])
+ATF_TC_WITHOUT_HEAD(getline_basic);
+ATF_TC_BODY(getline_basic, tc)
 {
 	FILE *fp;
 	char *line;
 	size_t linecap;
-	int i, n;
+	int i;
 
 	srandom(0);
-
-	printf("1..6\n");
 
 	/*
 	 * Test multiple times with different buffer sizes
@@ -92,96 +91,147 @@ main(int argc, char *argv[])
 		linecap = i;
 		line = malloc(i);
 		/* First line: the full apothegm */
-		assert(getline(&line, &linecap, fp) == sizeof(apothegm) - 1);
-		assert(memcmp(line, apothegm, sizeof(apothegm)) == 0);
-		assert(linecap >= sizeof(apothegm));
+		ATF_REQUIRE(getline(&line, &linecap, fp) == sizeof(apothegm) - 1);
+		ATF_REQUIRE(memcmp(line, apothegm, sizeof(apothegm)) == 0);
+		ATF_REQUIRE(linecap >= sizeof(apothegm));
 		/* Second line: the NUL terminator following the newline */
-		assert(getline(&line, &linecap, fp) == 1);
-		assert(line[0] == '\0' && line[1] == '\0');
+		ATF_REQUIRE(getline(&line, &linecap, fp) == 1);
+		ATF_REQUIRE(line[0] == '\0' && line[1] == '\0');
 		/* Third line: EOF */
 		line[0] = 'X';
-		assert(getline(&line, &linecap, fp) == -1);
-		assert(line[0] == '\0');
+		ATF_REQUIRE(getline(&line, &linecap, fp) == -1);
+		ATF_REQUIRE(line[0] == '\0');
 		free(line);
 		line = NULL;
-		assert(feof(fp));
-		assert(!ferror(fp));
+		ATF_REQUIRE(feof(fp));
+		ATF_REQUIRE(!ferror(fp));
 		fclose(fp);
 	}
-	assert(errno == 0);
-	printf("ok 1 - getline basic\n");
+	ATF_REQUIRE(errno == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(stream_error);
+ATF_TC_BODY(stream_error, tc)
+{
+	FILE *fp;
+	char *line;
+	size_t linecap;
 
 	/* Make sure read errors are handled properly. */
+	line = NULL;
 	linecap = 0;
 	errno = 0;
-	assert(getline(&line, &linecap, stdout) == -1);
-	assert(errno == EBADF);
+	ATF_REQUIRE(getline(&line, &linecap, stdout) == -1);
+	ATF_REQUIRE(errno == EBADF);
 	errno = 0;
-	assert(getdelim(&line, &linecap, 'X', stdout) == -1);
-	assert(errno == EBADF);
-	assert(ferror(stdout));
-	printf("ok 2 - stream error\n");
+	ATF_REQUIRE(getdelim(&line, &linecap, 'X', stdout) == -1);
+	ATF_REQUIRE(errno == EBADF);
+	ATF_REQUIRE(ferror(stdout));
+}
+
+ATF_TC_WITHOUT_HEAD(invalid_params);
+ATF_TC_BODY(invalid_params, tc)
+{
+	FILE *fp;
+	char *line;
+	size_t linecap;
 
 	/* Make sure NULL linep or linecapp pointers are handled. */
 	fp = mkfilebuf();
-	assert(getline(NULL, &linecap, fp) == -1);
-	assert(errno == EINVAL);
-	assert(getline(&line, NULL, fp) == -1);
-	assert(errno == EINVAL);
-	assert(ferror(fp));
+	ATF_REQUIRE(getline(NULL, &linecap, fp) == -1);
+	ATF_REQUIRE(errno == EINVAL);
+	ATF_REQUIRE(getline(&line, NULL, fp) == -1);
+	ATF_REQUIRE(errno == EINVAL);
+	ATF_REQUIRE(ferror(fp));
 	fclose(fp);
-	printf("ok 3 - invalid params\n");
+}
+
+ATF_TC_WITHOUT_HEAD(eof);
+ATF_TC_BODY(eof, tc)
+{
+	FILE *fp;
+	char *line;
+	size_t linecap;
 
 	/* Make sure getline() allocates memory as needed if fp is at EOF. */
 	errno = 0;
 	fp = mkfilebuf();
 	while (!feof(fp))	/* advance to EOF; can't fseek this stream */
 		getc(fp);
-	free(line);
 	line = NULL;
 	linecap = 0;
-	assert(getline(&line, &linecap, fp) == -1);
-	assert(line[0] == '\0');
-	assert(linecap > 0);
-	assert(errno == 0);
-	assert(feof(fp));
-	assert(!ferror(fp));
+	printf("getline\n");
+	ATF_REQUIRE(getline(&line, &linecap, fp) == -1);
+	ATF_REQUIRE(line[0] == '\0');
+	ATF_REQUIRE(linecap > 0);
+	ATF_REQUIRE(errno == 0);
+	printf("feof\n");
+	ATF_REQUIRE(feof(fp));
+	ATF_REQUIRE(!ferror(fp));
 	fclose(fp);
-	printf("ok 4 - eof\n");
+}
 
+ATF_TC_WITHOUT_HEAD(nul);
+ATF_TC_BODY(nul, tc)
+{
+	FILE *fp;
+	char *line;
+	size_t linecap, n;
+
+	line = NULL;
+	linecap = 0;
 	/* Make sure a NUL delimiter works. */
 	fp = mkfilebuf();
 	n = strlen(apothegm);
-	assert(getdelim(&line, &linecap, '\0', fp) == n + 1);
-	assert(strcmp(line, apothegm) == 0);
-	assert(line[n + 1] == '\0');
-	assert(linecap > n + 1);
+	printf("getdelim\n");
+	ATF_REQUIRE(getdelim(&line, &linecap, '\0', fp) == n + 1);
+	ATF_REQUIRE(strcmp(line, apothegm) == 0);
+	ATF_REQUIRE(line[n + 1] == '\0');
+	ATF_REQUIRE(linecap > n + 1);
 	n = strlen(apothegm + n + 1);
-	assert(getdelim(&line, &linecap, '\0', fp) == n + 1);
-	assert(line[n + 1] == '\0');
-	assert(linecap > n + 1);
-	assert(errno == 0);
-	assert(!ferror(fp));
+	printf("getdelim 2\n");
+	ATF_REQUIRE(getdelim(&line, &linecap, '\0', fp) == n + 1);
+	ATF_REQUIRE(line[n + 1] == '\0');
+	ATF_REQUIRE(linecap > n + 1);
+	ATF_REQUIRE(errno == 0);
+	ATF_REQUIRE(!ferror(fp));
 	fclose(fp);
-	printf("ok 5 - nul\n");
+}
+
+ATF_TC_WITHOUT_HEAD(empty_NULL_buffer);
+ATF_TC_BODY(empty_NULL_buffer, tc)
+{
+	FILE *fp;
+	char *line;
+	size_t linecap;
 
 	/* Make sure NULL *linep and zero *linecapp are handled. */
 	fp = mkfilebuf();
 	free(line);
 	line = NULL;
 	linecap = 42;
-	assert(getline(&line, &linecap, fp) == sizeof(apothegm) - 1);
-	assert(memcmp(line, apothegm, sizeof(apothegm)) == 0);
+	ATF_REQUIRE(getline(&line, &linecap, fp) == sizeof(apothegm) - 1);
+	ATF_REQUIRE(memcmp(line, apothegm, sizeof(apothegm)) == 0);
 	fp = mkfilebuf();
 	free(line);
 	line = malloc(100);
 	linecap = 0;
-	assert(getline(&line, &linecap, fp) == sizeof(apothegm) - 1);
-	assert(memcmp(line, apothegm, sizeof(apothegm)) == 0);
+	ATF_REQUIRE(getline(&line, &linecap, fp) == sizeof(apothegm) - 1);
+	ATF_REQUIRE(memcmp(line, apothegm, sizeof(apothegm)) == 0);
 	free(line);
-	assert(!ferror(fp));
+	ATF_REQUIRE(!ferror(fp));
 	fclose(fp);
-	printf("ok 6 - empty/NULL initial buffer\n");
+}
 
-	exit(0);
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, getline_basic);
+	ATF_TP_ADD_TC(tp, stream_error);
+	ATF_TP_ADD_TC(tp, eof);
+	ATF_TP_ADD_TC(tp, invalid_params);
+	ATF_TP_ADD_TC(tp, nul);
+	ATF_TP_ADD_TC(tp, empty_NULL_buffer);
+
+	return (atf_no_error());
 }
