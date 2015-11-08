@@ -101,9 +101,13 @@ ofw_iicbus_attach(device_t dev)
 {
 	struct iicbus_softc *sc = IICBUS_SOFTC(dev);
 	struct ofw_iicbus_devinfo *dinfo;
-	phandle_t child, node;
+	phandle_t child, node, root;
 	pcell_t freq, paddr;
 	device_t childdev;
+	ssize_t compatlen;
+	char compat[255];
+	char *curstr;
+	u_int iic_addr_8bit = 0;
 
 	sc->dev = dev;
 	mtx_init(&sc->lock, "iicbus", NULL, MTX_DEF);
@@ -123,6 +127,21 @@ ofw_iicbus_attach(device_t dev)
 
 	bus_generic_probe(dev);
 	bus_enumerate_hinted_children(dev);
+
+	/*
+	 * Check if we're running on a PowerMac, needed for the I2C
+	 * address below.
+	 */
+	root = OF_peer(0);
+	compatlen = OF_getprop(root, "compatible", compat,
+				sizeof(compat));
+	if (compatlen != -1) {
+	    for (curstr = compat; curstr < compat + compatlen;
+		curstr += strlen(curstr) + 1) {
+		if (strncmp(curstr, "MacRISC", 7) == 0)
+		    iic_addr_8bit = 1;
+	    }
+	}
 
 	/*
 	 * Attach those children represented in the device tree.
@@ -153,11 +172,11 @@ ofw_iicbus_attach(device_t dev)
 		 * Linux FDT data contains 7-bit values, so shift them up to
 		 * 8-bit format.
 		 */
-#ifdef AIM
-		dinfo->opd_dinfo.addr = paddr;
-#else
-		dinfo->opd_dinfo.addr = paddr << 1;
-#endif
+		if (iic_addr_8bit)
+		    dinfo->opd_dinfo.addr = paddr;
+		else
+		    dinfo->opd_dinfo.addr = paddr << 1;
+
 		if (ofw_bus_gen_setup_devinfo(&dinfo->opd_obdinfo, child) !=
 		    0) {
 			free(dinfo, M_DEVBUF);
