@@ -134,20 +134,20 @@
 	CHERI_PERM_SEAL | CHERI_PERM_SETTYPE | CHERI_PERM_USER_PRIVS)
 
 /*
- * XXXRW: For now, install all permissions for both data and executable
- * capabilities, until libcheri is ready for non-executable $c0.
+ * XXXRW: For now, install all permissions for data capabilites, until
+ * libcheri is ready for a non-executable $c0.
  */
-#ifdef NOTYET
 #define	CHERI_PERM_USER_CODE	(CHERI_PERM_USER | CHERI_PERM_EXECUTE)
+
+#ifdef NOTYET
 #define	CHERI_PERM_USER_DATA	(CHERI_PERM_USER | CHERI_PERM_STORE |	\
 				CHERI_PERM_STORE_CAP |			\
 				CHERI_PERM_STORE_LOCAL_CAP)
 #else
-#define	CHERI_PERM_USER_CODE	(CHERI_PERM_USER | CHERI_PERM_STORE |	\
+#define	CHERI_PERM_USER_DATA	(CHERI_PERM_USER | CHERI_PERM_STORE |	\
 				CHERI_PERM_STORE_CAP |			\
 				CHERI_PERM_STORE_LOCAL_CAP |		\
 				CHERI_PERM_EXECUTE)
-#define	CHERI_PERM_USER_DATA	CHERI_PERM_USER_CODE
 #endif
 
 /*
