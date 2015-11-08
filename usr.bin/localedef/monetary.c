@@ -151,9 +151,6 @@ add_monetary_num(int n)
 	}
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
-
 void
 reset_monetary_group(void)
 {
@@ -177,8 +174,6 @@ add_monetary_group(int n)
 	free((char *)mon.mon_grouping);
 	mon.mon_grouping = s;
 }
-
-#pragma GCC diagnostic pop
 
 void
 dump_monetary(void)
