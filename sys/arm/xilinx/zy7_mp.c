@@ -57,13 +57,13 @@ platform_mp_setmaxid(void)
 {
 
 	mp_maxid = 1;
+	mp_ncpus = 2;
 }
 
 int
 platform_mp_probe(void)
 {
 
-	mp_ncpus = 2;
 	return (1);
 }
 

@@ -425,18 +425,11 @@ cpu_mp_setmaxid(void)
 {
 
 	/*
-	 * mp_maxid should be already set by calls to cpu_add().
-	 * Just sanity check its value here.
+	 * mp_ncpus and mp_maxid should be already set by calls to cpu_add().
+	 * If there were no calls to cpu_add() assume this is a UP system.
 	 */
 	if (mp_ncpus == 0)
-		KASSERT(mp_maxid == 0,
-		    ("%s: mp_ncpus is zero, but mp_maxid is not", __func__));
-	else if (mp_ncpus == 1)
-		mp_maxid = 0;
-	else
-		KASSERT(mp_maxid >= mp_ncpus - 1,
-		    ("%s: counters out of sync: max %d, count %d", __func__,
-			mp_maxid, mp_ncpus));
+		mp_ncpus = 1;
 }
 
 int
@@ -448,28 +441,7 @@ cpu_mp_probe(void)
 	 * correctly.
 	 */
 	CPU_SETOF(0, &all_cpus);
-	if (mp_ncpus == 0) {
-		/*
-		 * No CPUs were found, so this must be a UP system.  Setup
-		 * the variables to represent a system with a single CPU
-		 * with an id of 0.
-		 */
-		mp_ncpus = 1;
-		return (0);
-	}
-
-	/* At least one CPU was found. */
-	if (mp_ncpus == 1) {
-		/*
-		 * One CPU was found, so this must be a UP system with
-		 * an I/O APIC.
-		 */
-		mp_maxid = 0;
-		return (0);
-	}
-
-	/* At least two CPUs were found. */
-	return (1);
+	return (mp_ncpus > 1);
 }
 
 /*
