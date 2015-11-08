@@ -231,7 +231,7 @@ void
 test_initregs_idc(const struct cheri_test *ctp __unused)
 {
 
-	check_initreg_code(cheri_getidc());
+	check_initreg_data(cheri_getidc());
 }
 
 void
