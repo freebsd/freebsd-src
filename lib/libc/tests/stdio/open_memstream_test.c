@@ -37,85 +37,83 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <wchar.h>
 
-static wchar_t *buf;
+#include <atf-c.h>
+
+static char *buf;
 static size_t len;
 
 static void
-assert_stream(const wchar_t *contents)
+assert_stream(const char *contents)
 {
-	if (wcslen(contents) != len)
-		printf("bad length %zd for \"%ls\"\n", len, contents);
-	else if (wcsncmp(buf, contents, wcslen(contents)) != 0)
-		printf("bad buffer \"%ls\" for \"%ls\"\n", buf, contents);
+	if (strlen(contents) != len)
+		printf("bad length %zd for \"%s\"\n", len, contents);
+	else if (strncmp(buf, contents, strlen(contents)) != 0)
+		printf("bad buffer \"%s\" for \"%s\"\n", buf, contents);
 }
 
-static void
-open_group_test(void)
+ATF_TC_WITHOUT_HEAD(open_group_test);
+ATF_TC_BODY(open_group_test, tc)
 {
 	FILE *fp;
 	off_t eob;
 
-	fp = open_wmemstream(&buf, &len);
-	if (fp == NULL)
-		err(1, "failed to open stream");
+	fp = open_memstream(&buf, &len);
+	ATF_REQUIRE_MSG(fp != NULL, "open_memstream failed");
 
-	fwprintf(fp, L"hello my world");
+	fprintf(fp, "hello my world");
 	fflush(fp);
-	assert_stream(L"hello my world");
+	assert_stream("hello my world");
 	eob = ftello(fp);
 	rewind(fp);
-	fwprintf(fp, L"good-bye");
+	fprintf(fp, "good-bye");
 	fseeko(fp, eob, SEEK_SET);
 	fclose(fp);
-	assert_stream(L"good-bye world");
+	assert_stream("good-bye world");
 	free(buf);
 }
 
-static void
-simple_tests(void)
+ATF_TC_WITHOUT_HEAD(simple_tests);
+ATF_TC_BODY(simple_tests, tc)
 {
-	static const wchar_t zerobuf[] =
-	    { L'f', L'o', L'o', 0, 0, 0, 0, L'b', L'a', L'r', 0 };
-	wchar_t c;
+	static const char zerobuf[] =
+	    { 'f', 'o', 'o', 0, 0, 0, 0, 'b', 'a', 'r', 0 };
+	char c;
 	FILE *fp;
 
-	fp = open_wmemstream(&buf, NULL);
-	if (fp != NULL)
-		errx(1, "did not fail to open stream");
-	else if (errno != EINVAL)
-		err(1, "incorrect error for bad length pointer");
-	fp = open_wmemstream(NULL, &len);
-	if (fp != NULL)
-		errx(1, "did not fail to open stream");
-	else if (errno != EINVAL)
-		err(1, "incorrect error for bad buffer pointer");
-	fp = open_wmemstream(&buf, &len);
-	if (fp == NULL)
-		err(1, "failed to open stream");
+	fp = open_memstream(&buf, NULL);
+	ATF_REQUIRE_MSG(fp == NULL, "open_memstream did not fail");
+	ATF_REQUIRE_MSG(errno == EINVAL,
+	    "open_memstream didn't fail with EINVAL");
+	fp = open_memstream(NULL, &len);
+	ATF_REQUIRE_MSG(fp == NULL, "open_memstream did not fail");
+	ATF_REQUIRE_MSG(errno == EINVAL,
+	    "open_memstream didn't fail with EINVAL");
+	fp = open_memstream(&buf, &len);
+	ATF_REQUIRE_MSG(fp != NULL, "open_memstream failed; errno=%d", errno);
 	fflush(fp);
-	assert_stream(L"");
-	if (fwide(fp, 0) <= 0)
-		printf("stream is not wide-oriented\n");
+	assert_stream("");
+	if (fwide(fp, 0) >= 0)
+		printf("stream is not byte-oriented\n");
 
-	fwprintf(fp, L"fo");
+	fprintf(fp, "fo");
 	fflush(fp);
-	assert_stream(L"fo");
-	fputwc(L'o', fp);
+	assert_stream("fo");
+	fputc('o', fp);
 	fflush(fp);
-	assert_stream(L"foo");
+	assert_stream("foo");
 	rewind(fp);
 	fflush(fp);
-	assert_stream(L"");
+	assert_stream("");
 	fseek(fp, 0, SEEK_END);
 	fflush(fp);
-	assert_stream(L"foo");
+	assert_stream("foo");
 
 	/*
 	 * Test seeking out past the current end.  Should zero-fill the
 	 * intermediate area.
 	 */
 	fseek(fp, 4, SEEK_END);
-	fwprintf(fp, L"bar");
+	fprintf(fp, "bar");
 	fflush(fp);
 
 	/*
@@ -128,12 +126,12 @@ simple_tests(void)
 		printf("bad buffer for zero-fill test\n");
 
 	fseek(fp, 3, SEEK_SET);
-	fwprintf(fp, L" in ");
+	fprintf(fp, " in ");
 	fflush(fp);
-	assert_stream(L"foo in ");
+	assert_stream("foo in ");
 	fseek(fp, 0, SEEK_END);
 	fflush(fp);
-	assert_stream(L"foo in bar");
+	assert_stream("foo in bar");
 
 	rewind(fp);
 	if (fread(&c, sizeof(c), 1, fp) != 0)
@@ -144,46 +142,46 @@ simple_tests(void)
 		clearerr(fp);
 
 	fseek(fp, 4, SEEK_SET);
-	fwprintf(fp, L"bar baz");
+	fprintf(fp, "bar baz");
 	fclose(fp);
-	assert_stream(L"foo bar baz");
+	assert_stream("foo bar baz");
 	free(buf);
 }
 
-static void
-seek_tests(void)
+ATF_TC_WITHOUT_HEAD(seek_tests);
+ATF_TC_BODY(seek_tests, tc)
 {
 	FILE *fp;
 
-	fp = open_wmemstream(&buf, &len);
-	if (fp == NULL)
-		err(1, "failed to open stream");
-#define SEEK_FAIL(offset, whence, error) do {				\
-	errno = 0;							\
-	if (fseeko(fp, (offset), (whence)) == 0)			\
-		printf("fseeko(%s, %s) did not fail, set pos to %jd\n",	\
-		    __STRING(offset), __STRING(whence),			\
-		    (intmax_t)ftello(fp));				\
-	else if (errno != (error))					\
-		printf("fseeko(%s, %s) failed with %d rather than %s\n",\
-		    __STRING(offset), __STRING(whence),	errno,		\
-		    __STRING(error));					\
+	fp = open_memstream(&buf, &len);
+	ATF_REQUIRE_MSG(fp != NULL, "open_memstream failed: %d", errno);
+
+#define SEEK_FAIL(offset, whence, error) do {			\
+	errno = 0;						\
+	ATF_REQUIRE_MSG(fseeko(fp, (offset), (whence)) != 0,	\
+	    "fseeko(%s, %s) did not fail, set pos to %jd\n",	\
+	    __STRING(offset), __STRING(whence),			\
+	    (intmax_t)ftello(fp));				\
+	ATF_REQUIRE_MSG(errno == (error),			\
+	    "fseeko(%s, %s) failed with %d rather than %s\n",	\
+	    __STRING(offset), __STRING(whence),	errno,		\
+	    __STRING(error));					\
 } while (0)
 
-#define SEEK_OK(offset, whence, result) do {				\
-	if (fseeko(fp, (offset), (whence)) != 0)			\
-		printf("fseeko(%s, %s) failed: %s\n",			\
-		    __STRING(offset), __STRING(whence),	strerror(errno)); \
-	else if (ftello(fp) != (result))				\
-		printf("fseeko(%s, %s) seeked to %jd rather than %s\n",	\
-		    __STRING(offset), __STRING(whence),			\
-		    (intmax_t)ftello(fp), __STRING(result));		\
+#define SEEK_OK(offset, whence, result) do {			\
+	ATF_REQUIRE_MSG(fseeko(fp, (offset), (whence)) == 0,	\
+	    "fseeko(%s, %s) failed: %s",			\
+	    __STRING(offset), __STRING(whence), strerror(errno)); \
+	ATF_REQUIRE_MSG(ftello(fp) == (result),			\
+	    "fseeko(%s, %s) seeked to %jd rather than %s\n",	\
+	    __STRING(offset), __STRING(whence),			\
+	    (intmax_t)ftello(fp), __STRING(result));		\
 } while (0)
 
 	SEEK_FAIL(-1, SEEK_SET, EINVAL);
 	SEEK_FAIL(-1, SEEK_CUR, EINVAL);
 	SEEK_FAIL(-1, SEEK_END, EINVAL);
-	fwprintf(fp, L"foo");
+	fprintf(fp, "foo");
 	SEEK_OK(-1, SEEK_CUR, 2);
 	SEEK_OK(0, SEEK_SET, 0);
 	SEEK_OK(-1, SEEK_END, 2);
@@ -192,12 +190,12 @@ seek_tests(void)
 	fclose(fp);
 }
 
-int
-main(int ac, char **av)
+ATF_TP_ADD_TCS(tp)
 {
 
-	open_group_test();
-	simple_tests();
-	seek_tests();
-	return (0);
+	ATF_TP_ADD_TC(tp, open_group_test);
+	ATF_TP_ADD_TC(tp, simple_tests);
+	ATF_TP_ADD_TC(tp, seek_tests);
+
+	return (atf_no_error());
 }

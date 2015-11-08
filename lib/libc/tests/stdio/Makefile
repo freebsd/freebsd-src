@@ -1,6 +1,20 @@
 # $FreeBSD$
 
-ATF_TESTS_C=		fmemopen2_test
+ATF_TESTS_C+=		fdopen_test
+ATF_TESTS_C+=		fmemopen2_test
+ATF_TESTS_C+=		fopen2_test
+ATF_TESTS_C+=		freopen_test
+ATF_TESTS_C+=		getdelim_test
+ATF_TESTS_C+=		mkostemp_test
+ATF_TESTS_C+=		open_memstream_test
+ATF_TESTS_C+=		open_wmemstream_test
+ATF_TESTS_C+=		perror_test
+ATF_TESTS_C+=		print_positional_test
+ATF_TESTS_C+=		printbasic_test
+ATF_TESTS_C+=		printfloat_test
+ATF_TESTS_C+=		scanfloat_test
+
+SRCS.fopen2_test=	fopen_test.c
 
 NETBSD_ATF_TESTS_C=	clearerr_test
 NETBSD_ATF_TESTS_C+=	fflush_test
