@@ -2512,7 +2512,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (error);
 		error = if_setlladdr(ifp,
 		    ifr->ifr_addr.sa_data, ifr->ifr_addr.sa_len);
-		EVENTHANDLER_INVOKE(iflladdr_event, ifp);
+		if (error == 0)
+			EVENTHANDLER_INVOKE(iflladdr_event, ifp);
 		break;
 
 	case SIOCAIFGROUP:
@@ -3375,16 +3376,6 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 			ifr.ifr_flagshigh = ifp->if_flags >> 16;
 			(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
 		}
-#ifdef INET
-		/*
-		 * Also send gratuitous ARPs to notify other nodes about
-		 * the address change.
-		 */
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			if (ifa->ifa_addr->sa_family == AF_INET)
-				arp_ifinit(ifp, ifa);
-		}
-#endif
 	}
 	return (0);
 }
