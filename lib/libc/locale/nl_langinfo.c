@@ -71,6 +71,8 @@ nl_langinfo_l(nl_item item, locale_t loc)
 		else if (strcmp(s, "MSKanji") == 0)
 			ret = "SJIS";
 		else if (strcmp(s, "NONE") == 0)
+			ret = "POSIX";
+		else if (strcmp(s, "NONE:US-ASCII") == 0)
 			ret = "US-ASCII";
 		else if (strncmp(s, "NONE:", 5) == 0)
 			ret = (char *)(s + 5);
