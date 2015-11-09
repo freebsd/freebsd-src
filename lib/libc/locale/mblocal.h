@@ -76,6 +76,7 @@ int	_GB2312_init(struct xlocale_ctype *, _RuneLocale *);
 int	_GBK_init(struct xlocale_ctype *, _RuneLocale *);
 int	_BIG5_init(struct xlocale_ctype *, _RuneLocale *);
 int	_MSKanji_init(struct xlocale_ctype *, _RuneLocale *);
+int	_ascii_init(struct xlocale_ctype *, _RuneLocale *);
 
 typedef size_t (*mbrtowc_pfn_t)(wchar_t * __restrict,
     const char * __restrict, size_t, mbstate_t * __restrict);

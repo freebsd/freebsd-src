@@ -129,7 +129,9 @@ __setrunelocale(struct xlocale_ctype *l, const char *encoding)
 
 	rl->__sputrune = NULL;
 	rl->__sgetrune = NULL;
-	if (strncmp(rl->__encoding, "NONE", 4) == 0)
+	if (strcmp(rl->__encoding, "NONE:US-ASCII") == 0)
+		ret = _ascii_init(l, rl);
+	else if (strncmp(rl->__encoding, "NONE", 4) == 0)
 		ret = _none_init(l, rl);
 	else if (strcmp(rl->__encoding, "UTF-8") == 0)
 		ret = _UTF8_init(l, rl);
