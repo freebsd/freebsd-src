@@ -30,10 +30,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
 #include <atf-c.h>
 
 /*
@@ -56,14 +58,9 @@ ATF_TC_BODY(test_arc4random, tc)
 	pid_t pid;
 	char c;
 
-	printf("1..1\n");
-
 	page = mmap(NULL, sizeof(struct shared_page), PROT_READ | PROT_WRITE,
 		    MAP_ANON | MAP_SHARED, -1, 0);
-	if (page == MAP_FAILED) {
-		printf("fail 1 - mmap\n");
-		exit(1);
-	}
+	ATF_REQUIRE_MSG(page != MAP_FAILED, "mmap failed; errno=%d", errno);
 
 	arc4random_buf(&c, 1);
 
