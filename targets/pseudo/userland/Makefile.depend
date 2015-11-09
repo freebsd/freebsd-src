@@ -581,6 +581,7 @@ DIRDEPS+= \
 	usr.sbin/nfsuserd \
 	usr.sbin/ngctl \
 	usr.sbin/nghook \
+	usr.sbin/nmtree \
 	usr.sbin/nologin \
 	usr.sbin/nscd \
 	usr.sbin/nsec3hash \
