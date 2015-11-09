@@ -147,6 +147,7 @@ extern	void ar5211Detach(struct ath_hal *);
 
 extern	HAL_BOOL ar5211Reset(struct ath_hal *, HAL_OPMODE,
 		struct ieee80211_channel *, HAL_BOOL bChannelChange,
+		HAL_RESET_TYPE,
 		HAL_STATUS *);
 extern	HAL_BOOL ar5211PhyDisable(struct ath_hal *);
 extern	HAL_BOOL ar5211Disable(struct ath_hal *);

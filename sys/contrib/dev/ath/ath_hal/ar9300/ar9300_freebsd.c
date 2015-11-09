@@ -313,6 +313,7 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 HAL_BOOL
 ar9300_reset_freebsd(struct ath_hal *ah, HAL_OPMODE opmode,
     struct ieee80211_channel *chan, HAL_BOOL bChannelChange,
+    HAL_RESET_TYPE resetType,
     HAL_STATUS *status)
 {
 	HAL_BOOL r;

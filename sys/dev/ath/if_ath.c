@@ -1916,7 +1916,7 @@ ath_resume(struct ath_softc *sc)
 
 	ath_hal_reset(ah, sc->sc_opmode,
 	    sc->sc_curchan != NULL ? sc->sc_curchan : ic->ic_curchan,
-	    AH_FALSE, &status);
+	    AH_FALSE, HAL_RESET_NORMAL, &status);
 	ath_reset_keycache(sc);
 
 	ATH_RX_LOCK(sc);
@@ -2449,7 +2449,7 @@ ath_init(struct ath_softc *sc)
 	    sc->sc_cur_rxchainmask);
 
 	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_FALSE,
-	    &status)) {
+	    HAL_RESET_NORMAL, &status)) {
 		device_printf(sc->sc_dev,
 		    "unable to reset hardware; hal status %u\n", status);
 		return (ENODEV);
@@ -2823,7 +2823,8 @@ ath_reset(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	ath_update_chainmasks(sc, ic->ic_curchan);
 	ath_hal_setchainmasks(sc->sc_ah, sc->sc_cur_txchainmask,
 	    sc->sc_cur_rxchainmask);
-	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_TRUE, &status))
+	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_TRUE,
+	    HAL_RESET_NORMAL, &status))
 		device_printf(sc->sc_dev,
 		    "%s: unable to reset hardware; hal status %u\n",
 		    __func__, status);
@@ -5423,7 +5424,8 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		ath_update_chainmasks(sc, chan);
 		ath_hal_setchainmasks(sc->sc_ah, sc->sc_cur_txchainmask,
 		    sc->sc_cur_rxchainmask);
-		if (!ath_hal_reset(ah, sc->sc_opmode, chan, AH_TRUE, &status)) {
+		if (!ath_hal_reset(ah, sc->sc_opmode, chan, AH_TRUE,
+		    HAL_RESET_NORMAL, &status)) {
 			device_printf(sc->sc_dev, "%s: unable to reset "
 			    "channel %u (%u MHz, flags 0x%x), hal status %u\n",
 			    __func__, ieee80211_chan2ieee(ic, chan),
