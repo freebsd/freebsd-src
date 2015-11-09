@@ -346,6 +346,8 @@ portal_group_entry:
 	|
 	portal_group_offload
 	|
+	portal_group_option
+	|
 	portal_group_redirect
 	|
 	portal_group_tag
@@ -418,6 +420,18 @@ portal_group_offload:	OFFLOAD STR
 		error = portal_group_set_offload(portal_group, $2);
 		free($2);
 		if (error != 0)
+			return (1);
+	}
+	;
+
+portal_group_option:	OPTION STR STR
+	{
+		struct option *o;
+
+		o = option_new(&portal_group->pg_options, $2, $3);
+		free($2);
+		free($3);
+		if (o == NULL)
 			return (1);
 	}
 	;
@@ -963,12 +977,12 @@ lun_ctl_lun:	CTL_LUN STR
 
 lun_option:	OPTION STR STR
 	{
-		struct lun_option *clo;
+		struct option *o;
 
-		clo = lun_option_new(lun, $2, $3);
+		o = option_new(&lun->l_options, $2, $3);
 		free($2);
 		free($3);
-		if (clo == NULL)
+		if (o == NULL)
 			return (1);
 	}
 	;
