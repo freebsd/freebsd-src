@@ -27,8 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/wait.h>
-
 #include <err.h>
 #include <errno.h>
 #include <fmtmsg.h>
@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <atf-c.h>
 
 static char *run_test(long classification, const char *label, int severity,
     const char *text, const char *action, const char *tag);
@@ -217,18 +219,14 @@ run_test(long classification, const char *label, int severity,
 	return (result);
 }
 
-int
-main(void)
+ATF_TC_WITHOUT_HEAD(fmtmsg_test);
+ATF_TC_BODY(fmtmsg_test, tc)
 {
-	size_t i, n;
-	int errors;
 	char *result;
 	struct testcase *t;
+	int i;
 
-	n = sizeof(testcases) / sizeof(testcases[0]);
-	errors = 0;
-	printf("1..%zu\n", n);
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < nitems(testcases); i++) {
 		t = &testcases[i];
 		if (t->msgverb != NULL)
 			setenv("MSGVERB", t->msgverb, 1);
@@ -236,16 +234,19 @@ main(void)
 			unsetenv("MSGVERB");
 		result = run_test(t->classification, t->label, t->severity,
 		    t->text, t->action, t->tag);
-		if (result != NULL && strcmp(result, t->result) == 0)
-			printf("ok %zu - correct\n",
-			    i + 1);
-		else {
-			printf("not ok %zu - %s\n",
-			    i + 1, result != NULL ? "incorrect" : "failed");
-			errors = 1;
-		}
+		ATF_CHECK_MSG(result != NULL, "testcase %d failed", i + 1);
+		if (result != NULL)
+			ATF_CHECK_MSG(strcmp(result, t->result) == 0,
+			    "results for testcase %d didn't match; "
+			    "`%s` != `%s`", i + 1, result, t->result);
 		free(result);
 	}
+}
 
-	return (errors);
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, fmtmsg_test);
+
+	return (atf_no_error());
 }
