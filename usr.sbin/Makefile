@@ -159,7 +159,7 @@ SUBDIR+=	fdwrite
 .endif
 
 .if ${MK_FMTREE} != "no"
-SUBDIR+=	mtree
+SUBDIR+=	fmtree
 .endif
 
 .if ${MK_FREEBSD_UPDATE} != "no"
