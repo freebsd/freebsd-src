@@ -230,9 +230,11 @@ static void		urtwn_watchdog(void *);
 static void		urtwn_update_avgrssi(struct urtwn_softc *, int, int8_t);
 static int8_t		urtwn_get_rssi(struct urtwn_softc *, int, void *);
 static int8_t		urtwn_r88e_get_rssi(struct urtwn_softc *, int, void *);
-static int		urtwn_tx_start(struct urtwn_softc *,
+static int		urtwn_tx_data(struct urtwn_softc *,
 			    struct ieee80211_node *, struct mbuf *,
 			    struct urtwn_data *);
+static void		urtwn_tx_start(struct urtwn_softc *, struct mbuf *,
+			    uint8_t, struct urtwn_data *);
 static int		urtwn_transmit(struct ieee80211com *, struct mbuf *);
 static void		urtwn_start(struct urtwn_softc *);
 static void		urtwn_parent(struct ieee80211com *);
@@ -989,8 +991,6 @@ _urtwn_getbuf(struct urtwn_softc *sc)
 	if (bf != NULL)
 		STAILQ_REMOVE_HEAD(&sc->sc_tx_inactive, next);
 	else
-		bf = NULL;
-	if (bf == NULL)
 		DPRINTF("%s: %s\n", __func__, "out of xmit buffers");
 	return (bf);
 }
@@ -1774,19 +1774,145 @@ urtwn_r88e_get_rssi(struct urtwn_softc *sc, int rate, void *physt)
 }
 
 static int
-urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni,
-    struct mbuf *m0, struct urtwn_data *data)
+urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
+    struct mbuf *m, struct urtwn_data *data)
 {
 	struct ieee80211_frame *wh;
-	struct ieee80211_key *k;
+	struct ieee80211_key *k = NULL;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct r92c_tx_desc *txd;
+	uint8_t macid, raid, ridx, subtype, type, qsel;
+	int ismcast;
+
+	URTWN_ASSERT_LOCKED(sc);
+
+	/*
+	 * Software crypto.
+	 */
+	wh = mtod(m, struct ieee80211_frame *);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
+	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
+
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
+		k = ieee80211_crypto_encap(ni, m);
+		if (k == NULL) {
+			device_printf(sc->sc_dev,
+			    "ieee80211_crypto_encap returns NULL.\n");
+			return (ENOBUFS);
+		}
+
+		/* in case packet header moved, reset pointer */
+		wh = mtod(m, struct ieee80211_frame *);
+	}
+
+	/* Fill Tx descriptor. */
+	txd = (struct r92c_tx_desc *)data->buf;
+	memset(txd, 0, sizeof(*txd));
+
+	txd->txdw0 |= htole32(
+	    SM(R92C_TXDW0_OFFSET, sizeof(*txd)) |
+	    R92C_TXDW0_OWN | R92C_TXDW0_FSG | R92C_TXDW0_LSG);
+	if (ismcast)
+		txd->txdw0 |= htole32(R92C_TXDW0_BMCAST);
+
+	raid = R92C_RAID_11B;	/* by default */
+	ridx = URTWN_RIDX_CCK1;
+	if (!ismcast) {
+		macid = URTWN_MACID_BSS;
+
+		if (type == IEEE80211_FC0_TYPE_DATA) {
+			qsel = R92C_TXDW1_QSEL_BE;
+
+			if (!(m->m_flags & M_EAPOL)) {
+				if (ic->ic_curmode != IEEE80211_MODE_11B) {
+					raid = R92C_RAID_11BG;
+					ridx = URTWN_RIDX_OFDM54;
+				} else
+					ridx = URTWN_RIDX_CCK11;
+			}
+
+			if (sc->chip & URTWN_CHIP_88E)
+				txd->txdw2 |= htole32(R88E_TXDW2_AGGBK);
+			else
+				txd->txdw1 |= htole32(R92C_TXDW1_AGGBK);
+
+			if (ic->ic_flags & IEEE80211_F_USEPROT) {
+				switch (ic->ic_protmode) {
+				case IEEE80211_PROT_CTSONLY:
+					txd->txdw4 |= htole32(
+					    R92C_TXDW4_CTS2SELF |
+					    R92C_TXDW4_HWRTSEN);
+					break;
+				case IEEE80211_PROT_RTSCTS:
+					txd->txdw4 |= htole32(
+					    R92C_TXDW4_RTSEN |
+					    R92C_TXDW4_HWRTSEN);
+					break;
+				default:
+					break;
+				}
+			}
+			txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE,
+			    URTWN_RIDX_OFDM24));
+			txd->txdw5 |= htole32(0x0001ff00);
+		} else	/* IEEE80211_FC0_TYPE_MGT */
+			qsel = R92C_TXDW1_QSEL_MGNT;
+	} else {
+		macid = URTWN_MACID_BC;
+		qsel = R92C_TXDW1_QSEL_MGNT;
+	}
+
+	txd->txdw1 |= htole32(
+	    SM(R92C_TXDW1_QSEL, qsel) |
+	    SM(R92C_TXDW1_RAID, raid));
+
+	if (sc->chip & URTWN_CHIP_88E)
+		txd->txdw1 |= htole32(SM(R88E_TXDW1_MACID, macid));
+	else
+		txd->txdw1 |= htole32(SM(R92C_TXDW1_MACID, macid));
+
+	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, ridx));
+	/* not sure here */
+	if (ridx <= URTWN_RIDX_CCK11)
+		txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
+
+	if (!IEEE80211_QOS_HAS_SEQ(wh)) {
+		/* Use HW sequence numbering for non-QoS frames. */
+		txd->txdseq = htole16(R92C_TXDSEQ_HWSEQ_EN);
+	} else {
+		/* Set sequence number. */
+		txd->txdseq = htole16(M_SEQNO_GET(m) % IEEE80211_SEQ_RANGE);
+	}
+
+	if (ieee80211_radiotap_active_vap(vap)) {
+		struct urtwn_tx_radiotap_header *tap = &sc->sc_txtap;
+
+		tap->wt_flags = 0;
+		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
+		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
+		if (k != NULL)
+			tap->wt_flags |= IEEE80211_RADIOTAP_F_WEP;
+		ieee80211_radiotap_tx(vap, m);
+	}
+
+	data->ni = ni;
+
+	urtwn_tx_start(sc, m, type, data);
+
+	return (0);
+}
+
+static void
+urtwn_tx_start(struct urtwn_softc *sc, struct mbuf *m, uint8_t type,
+    struct urtwn_data *data)
+{
 	struct usb_xfer *xfer;
 	struct r92c_tx_desc *txd;
-	uint8_t raid, type;
-	uint16_t sum;
+	uint16_t ac, sum;
 	int i, xferlen;
-	struct usb_xfer *urtwn_pipes[4] = {
+	struct usb_xfer *urtwn_pipes[WME_NUM_AC] = {
 		sc->sc_xfer[URTWN_BULK_TX_BE],
 		sc->sc_xfer[URTWN_BULK_TX_BK],
 		sc->sc_xfer[URTWN_BULK_TX_VI],
@@ -1795,24 +1921,7 @@ urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni,
 
 	URTWN_ASSERT_LOCKED(sc);
 
-	/*
-	 * Software crypto.
-	 */
-	wh = mtod(m0, struct ieee80211_frame *);
-	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
-
-	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
-		k = ieee80211_crypto_encap(ni, m0);
-		if (k == NULL) {
-			device_printf(sc->sc_dev,
-			    "ieee80211_crypto_encap returns NULL.\n");
-			/* XXX we don't expect the fragmented frames */
-			return (ENOBUFS);
-		}
-
-		/* in case packet header moved, reset pointer */
-		wh = mtod(m0, struct ieee80211_frame *);
-	}
+	ac = M_WME_GETAC(m);
 
 	switch (type) {
 	case IEEE80211_FC0_TYPE_CTL:
@@ -1820,102 +1929,27 @@ urtwn_tx_start(struct urtwn_softc *sc, struct ieee80211_node *ni,
 		xfer = sc->sc_xfer[URTWN_BULK_TX_VO];
 		break;
 	default:
-		KASSERT(M_WME_GETAC(m0) < 4,
-		    ("unsupported WME pipe %d", M_WME_GETAC(m0)));
-		xfer = urtwn_pipes[M_WME_GETAC(m0)];
+		xfer = urtwn_pipes[ac];
 		break;
 	}
 
-	/* Fill Tx descriptor. */
 	txd = (struct r92c_tx_desc *)data->buf;
-	memset(txd, 0, sizeof(*txd));
-
-	txd->txdw0 |= htole32(
-	    SM(R92C_TXDW0_PKTLEN, m0->m_pkthdr.len) |
-	    SM(R92C_TXDW0_OFFSET, sizeof(*txd)) |
-	    R92C_TXDW0_OWN | R92C_TXDW0_FSG | R92C_TXDW0_LSG);
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
-		txd->txdw0 |= htole32(R92C_TXDW0_BMCAST);
-	if (!IEEE80211_IS_MULTICAST(wh->i_addr1) &&
-	    type == IEEE80211_FC0_TYPE_DATA) {
-		if (ic->ic_curmode == IEEE80211_MODE_11B)
-			raid = R92C_RAID_11B;
-		else
-			raid = R92C_RAID_11BG;
-		if (sc->chip & URTWN_CHIP_88E) {
-			txd->txdw1 |= htole32(
-			    SM(R88E_TXDW1_MACID, URTWN_MACID_BSS) |
-			    SM(R92C_TXDW1_QSEL, R92C_TXDW1_QSEL_BE) |
-			    SM(R92C_TXDW1_RAID, raid));
-			txd->txdw2 |= htole32(R88E_TXDW2_AGGBK);
-		} else {
-			txd->txdw1 |= htole32(
-			    SM(R92C_TXDW1_MACID, URTWN_MACID_BSS) |
-			    SM(R92C_TXDW1_QSEL, R92C_TXDW1_QSEL_BE) |
-		 	    SM(R92C_TXDW1_RAID, raid) | R92C_TXDW1_AGGBK);
-		}
-		if (ic->ic_flags & IEEE80211_F_USEPROT) {
-			if (ic->ic_protmode == IEEE80211_PROT_CTSONLY) {
-				txd->txdw4 |= htole32(R92C_TXDW4_CTS2SELF |
-				    R92C_TXDW4_HWRTSEN);
-			} else if (ic->ic_protmode == IEEE80211_PROT_RTSCTS) {
-				txd->txdw4 |= htole32(R92C_TXDW4_RTSEN |
-				    R92C_TXDW4_HWRTSEN);
-			}
-		}
-		/* Send RTS at OFDM24. */
-		txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE,
-		    URTWN_RIDX_OFDM24));
-		txd->txdw5 |= htole32(0x0001ff00);
-		/* Send data at OFDM54. */
-		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE,
-		    URTWN_RIDX_OFDM54));
-	} else {
-		txd->txdw1 |= htole32(
-		    SM(R92C_TXDW1_MACID, 0) |
-		    SM(R92C_TXDW1_QSEL, R92C_TXDW1_QSEL_MGNT) |
-		    SM(R92C_TXDW1_RAID, R92C_RAID_11B));
-
-		/* Force CCK1. */
-		txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
-		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE,
-		    URTWN_RIDX_CCK1));
-	}
-	/* Set sequence number (already little endian). */
-	txd->txdseq |= *(uint16_t *)wh->i_seq;
-
-	if (!IEEE80211_QOS_HAS_SEQ(wh)) {
-		/* Use HW sequence numbering for non-QoS frames. */
-		txd->txdw4  |= htole32(R92C_TXDW4_HWSEQ);
-		txd->txdseq |= htole16(0x8000);
-	} else
-		txd->txdw4 |= htole32(R92C_TXDW4_QOS);
+	txd->txdw0 |= htole32(SM(R92C_TXDW0_PKTLEN, m->m_pkthdr.len));
 
 	/* Compute Tx descriptor checksum. */
 	sum = 0;
 	for (i = 0; i < sizeof(*txd) / 2; i++)
 		sum ^= ((uint16_t *)txd)[i];
-	txd->txdsum = sum; 	/* NB: already little endian. */
+	txd->txdsum = sum;	/* NB: already little endian. */
 
-	if (ieee80211_radiotap_active_vap(vap)) {
-		struct urtwn_tx_radiotap_header *tap = &sc->sc_txtap;
-
-		tap->wt_flags = 0;
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
-		ieee80211_radiotap_tx(vap, m0);
-	}
-
-	xferlen = sizeof(*txd) + m0->m_pkthdr.len;
-	m_copydata(m0, 0, m0->m_pkthdr.len, (caddr_t)&txd[1]);
+	xferlen = sizeof(*txd) + m->m_pkthdr.len;
+	m_copydata(m, 0, m->m_pkthdr.len, (caddr_t)&txd[1]);
 
 	data->buflen = xferlen;
-	data->ni = ni;
-	data->m = m0;
+	data->m = m;
 
 	STAILQ_INSERT_TAIL(&sc->sc_tx_pending, data, next);
 	usbd_transfer_start(xfer);
-	return (0);
 }
 
 static int
@@ -1956,7 +1990,7 @@ urtwn_start(struct urtwn_softc *sc)
 		}
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 		m->m_pkthdr.rcvif = NULL;
-		if (urtwn_tx_start(sc, ni, m, bf) != 0) {
+		if (urtwn_tx_data(sc, ni, m, bf) != 0) {
 			if_inc_counter(ni->ni_vap->iv_ifp,
 			    IFCOUNTER_OERRORS, 1);
 			STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
@@ -3526,30 +3560,36 @@ urtwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct ieee80211com *ic = ni->ni_ic;
 	struct urtwn_softc *sc = ic->ic_softc;
 	struct urtwn_data *bf;
+	int error;
 
 	/* prevent management frames from being sent if we're not ready */
-	if (!(sc->sc_flags & URTWN_RUNNING)) {
-		m_freem(m);
-		return (ENETDOWN);
-	}
 	URTWN_LOCK(sc);
+	if (!(sc->sc_flags & URTWN_RUNNING)) {
+		error = ENETDOWN;
+		goto end;
+	}
+
 	bf = urtwn_getbuf(sc);
 	if (bf == NULL) {
-		m_freem(m);
-		URTWN_UNLOCK(sc);
-		return (ENOBUFS);
+		error = ENOBUFS;
+		goto end;
 	}
 
-	if (urtwn_tx_start(sc, ni, m, bf) != 0) {
-		m_freem(m);
+	if ((error = urtwn_tx_data(sc, ni, m, bf)) != 0) {
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
-		URTWN_UNLOCK(sc);
-		return (EIO);
+		goto end;
 	}
+
 	sc->sc_txtimer = 5;
+	callout_reset(&sc->sc_watchdog_ch, hz, urtwn_watchdog, sc);
+
+end:
+	if (error != 0)
+		m_freem(m);
+
 	URTWN_UNLOCK(sc);
 
-	return (0);
+	return (error);
 }
 
 static void
