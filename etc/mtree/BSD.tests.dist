@@ -234,6 +234,8 @@
             unlink
             ..
         ..
+        posixshm
+        ..
         vfs
         ..
         vm
