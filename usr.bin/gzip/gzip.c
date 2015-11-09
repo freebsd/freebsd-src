@@ -1,4 +1,4 @@
-/*	$NetBSD: gzip.c,v 1.108 2015/04/15 02:29:12 christos Exp $	*/
+/*	$NetBSD: gzip.c,v 1.109 2015/10/27 07:36:18 mrg Exp $	*/
 
 /*-
  * Copyright (c) 1997, 1998, 2003, 2004, 2006 Matthew R. Green
@@ -810,6 +810,7 @@ gz_uncompress(int in, int out, char *pre, size_t prelen, off_t *gsizep,
 				if (in_tot > 0) {
 					maybe_warnx("%s: trailing garbage "
 						    "ignored", filename);
+					exit_value = 2;
 					goto stop;
 				}
 				maybe_warnx("input not gziped (MAGIC0)");
