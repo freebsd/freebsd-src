@@ -102,6 +102,9 @@ device		ti_pruss
 # Mailbox support
 device		ti_mbox
 
+# PMU support (for CCNT).
+device		pmu
+
 # USB support
 device		usb
 options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.

@@ -94,16 +94,44 @@ static struct resource_spec pmu_spec[] = {
 	{ -1, 0 }
 };
 
+/* CCNT */
+#if __ARM_ARCH > 6
+int pmu_attched = 0;
+uint32_t ccnt_hi[MAXCPU];
+#endif
+
+#define	PMU_OVSR_C		0x80000000	/* Cycle Counter */
+#define	PMU_IESR_C		0x80000000	/* Cycle Counter */
+
 static int
 pmu_intr(void *arg)
 {
+#ifdef HWPMC_HOOKS
 	struct trapframe *tf;
+#endif
+	uint32_t r;
+#if defined(__arm__) && (__ARM_ARCH > 6)
+	u_int cpu;
 
-	tf = arg;
+	cpu = PCPU_GET(cpuid);
+
+	r = cp15_pmovsr_get();
+	if (r & PMU_OVSR_C) {
+		atomic_add_32(&ccnt_hi[cpu], 1);
+		/* Clear the event. */
+		r &= ~PMU_OVSR_C;
+		cp15_pmovsr_set(PMU_OVSR_C);
+	}
+#else
+	r = 1;
+#endif
 
 #ifdef HWPMC_HOOKS
-	if (pmc_intr)
+	/* Only call into the HWPMC framework if we know there is work. */
+	if (r != 0 && pmc_intr) {
+		tf = arg;
 		(*pmc_intr)(PCPU_GET(cpuid), tf);
+	}
 #endif
 
 	return (FILTER_HANDLED);
@@ -128,6 +156,9 @@ static int
 pmu_attach(device_t dev)
 {
 	struct pmu_softc *sc;
+#if defined(__arm__) && (__ARM_ARCH > 6)
+	uint32_t iesr;
+#endif
 	int err;
 	int i;
 
@@ -151,6 +182,20 @@ pmu_attach(device_t dev)
 			return (ENXIO);
 		}
 	}
+
+#if defined(__arm__) && (__ARM_ARCH > 6)
+	/* Initialize to 0. */
+	for (i = 0; i < MAXCPU; i++)
+		ccnt_hi[i] = 0;
+
+	/* Enable the interrupt to fire on overflow. */
+	iesr = cp15_pminten_get();
+	iesr |= PMU_IESR_C;
+	cp15_pminten_set(iesr);
+
+	/* Need this for getcyclecount() fast path. */
+	pmu_attched |= 1;
+#endif
 
 	return (0);
 }
