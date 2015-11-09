@@ -113,7 +113,7 @@ from_mtree_spec_file_body()
 	create_test_inputs
 
 	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
-	    mtree -c -k type,link,size -p $TEST_INPUTS_DIR
+	    mtree -c -k "$DEFAULT_MTREE_KEYWORDS" -p $TEST_INPUTS_DIR
 	cd $TEST_INPUTS_DIR
 	atf_check -e empty -o empty -s exit:0 \
 	    $MAKEFS $TEST_IMAGE $TEST_SPEC_FILE
@@ -204,6 +204,61 @@ o_flag_allow_max_name_body()
 	check_base_iso9660_image_contents
 }
 o_flag_allow_max_name_cleanup()
+{
+	common_cleanup
+}
+
+atf_test_case o_flag_isolevel_1 cleanup
+o_flag_isolevel_1_body()
+{
+	atf_expect_fail "this testcase needs work; the filenames generated seem incorrect/corrupt"
+
+	create_test_inputs
+
+	atf_check -e empty -o empty -s exit:0 \
+	    $MAKEFS -o isolevel=1 $TEST_IMAGE $TEST_INPUTS_DIR
+
+	mount_image
+	check_base_iso9660_image_contents
+}
+o_flag_isolevel_1_cleanup()
+{
+	common_cleanup
+}
+
+atf_test_case o_flag_isolevel_2 cleanup
+o_flag_isolevel_2_body()
+{
+	create_test_inputs
+
+	atf_check -e empty -o empty -s exit:0 \
+	    $MAKEFS -o isolevel=2 $TEST_IMAGE $TEST_INPUTS_DIR
+
+	mount_image
+	check_base_iso9660_image_contents
+}
+o_flag_isolevel_2_cleanup()
+{
+	common_cleanup
+}
+
+atf_test_case o_flag_isolevel_3 cleanup
+o_flag_isolevel_3_body()
+{
+	create_test_inputs
+
+	# XXX: isolevel=3 isn't implemented yet. See FreeBSD bug # 203645
+	if true; then
+	atf_check -e match:'makefs: ISO Level 3 is greater than 2\.' -o empty -s not-exit:0 \
+	    $MAKEFS -o isolevel=3 $TEST_IMAGE $TEST_INPUTS_DIR
+	else
+	atf_check -e empty -o empty -s exit:0 \
+	    $MAKEFS -o isolevel=3 $TEST_IMAGE $TEST_INPUTS_DIR
+	mount_image
+	check_base_iso9660_image_contents
+	fi
+}
+o_flag_isolevel_3_cleanup()
 {
 	common_cleanup
 }
@@ -308,6 +363,9 @@ atf_init_test_cases()
 
 	atf_add_test_case o_flag_allow_deep_trees
 	atf_add_test_case o_flag_allow_max_name
+	atf_add_test_case o_flag_isolevel_1
+	atf_add_test_case o_flag_isolevel_2
+	atf_add_test_case o_flag_isolevel_3
 	atf_add_test_case o_flag_preparer
 	atf_add_test_case o_flag_publisher
 	atf_add_test_case o_flag_rockridge
