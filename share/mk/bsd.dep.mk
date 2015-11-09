@@ -89,7 +89,7 @@ tags: ${SRCS}
 .if defined(SRCS)
 CLEANFILES?=
 
-.if !exists(${.OBJDIR}/${DEPENDFILE})
+.if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
 .for _S in ${SRCS:N*.[dhly]}
 ${_S:R}.o: ${_S}
 .endfor
@@ -100,7 +100,7 @@ ${_S:R}.o: ${_S}
 .for _LC in ${_LSRC:R}.c
 ${_LC}: ${_LSRC}
 	${LEX} ${LFLAGS} -o${.TARGET} ${.ALLSRC}
-.if !exists(${.OBJDIR}/${DEPENDFILE})
+.if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
 ${_LC:R}.o: ${_LC}
 .endif
 SRCS:=	${SRCS:S/${_LSRC}/${_LC}/}
@@ -131,7 +131,7 @@ CLEANFILES+= ${_YH}
 ${_YC}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 .endif
-.if !exists(${.OBJDIR}/${DEPENDFILE})
+.if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
 ${_YC:R}.o: ${_YC}
 .endif
 .endfor
