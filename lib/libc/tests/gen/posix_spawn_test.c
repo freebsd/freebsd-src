@@ -33,26 +33,27 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/wait.h>
-
-#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <spawn.h>
 
-int
-main(int argc, char *argv[])
+#include <atf-c.h>
+
+char *myenv[2] = { "answer=42", NULL };
+
+ATF_TC_WITHOUT_HEAD(posix_spawn_simple_test);
+ATF_TC_BODY(posix_spawn_simple_test, tc)
 {
+	char *myargs[4];
 	int error, status;
 	pid_t pid, waitres;
-	char *myargs[4];
-	char *myenv[2] = { "answer=42", NULL };
 
 	/* Make sure we have no child processes. */
 	while (waitpid(-1, NULL, 0) != -1)
 		;
-	assert(errno == ECHILD);
+	ATF_REQUIRE_MSG(errno == ECHILD, "errno was not ECHILD: %d", errno);
 
 	/* Simple test. */
 	myargs[0] = "sh";
@@ -60,10 +61,18 @@ main(int argc, char *argv[])
 	myargs[2] = "exit $answer";
 	myargs[3] = NULL;
 	error = posix_spawnp(&pid, myargs[0], NULL, NULL, myargs, myenv);
-	assert(error == 0);
+	ATF_REQUIRE(error == 0);
 	waitres = waitpid(pid, &status, 0);
-	assert(waitres == pid);
-	assert(WIFEXITED(status) && WEXITSTATUS(status) == 42);
+	ATF_REQUIRE(waitres == pid);
+	ATF_REQUIRE(WIFEXITED(status) && WEXITSTATUS(status) == 42);
+}
+
+ATF_TC_WITHOUT_HEAD(posix_spawn_no_such_command_negative_test);
+ATF_TC_BODY(posix_spawn_no_such_command_negative_test, tc)
+{
+	char *myargs[4];
+	int error, status;
+	pid_t pid, waitres;
 
 	/*
 	 * If the executable does not exist, the function shall either fail
@@ -75,16 +84,20 @@ main(int argc, char *argv[])
 	error = posix_spawn(&pid, myargs[0], NULL, NULL, myargs, myenv);
 	if (error == 0) {
 		waitres = waitpid(pid, &status, 0);
-		assert(waitres == pid);
-		assert(WIFEXITED(status) && WEXITSTATUS(status) == 127);
+		ATF_REQUIRE(waitres == pid);
+		ATF_REQUIRE(WIFEXITED(status) && WEXITSTATUS(status) == 127);
 	} else {
-		assert(error == ENOENT);
+		ATF_REQUIRE(error == ENOENT);
 		waitres = waitpid(-1, NULL, 0);
-		assert(waitres == -1 && errno == ECHILD);
+		ATF_REQUIRE(waitres == -1 && errno == ECHILD);
 	}
+}
 
-	printf("PASS posix_spawn()\n");
-	printf("PASS posix_spawnp()\n");
+ATF_TP_ADD_TCS(tp)
+{
 
-	return (0);
+	ATF_TP_ADD_TC(tp, posix_spawn_simple_test);
+	ATF_TP_ADD_TC(tp, posix_spawn_no_such_command_negative_test);
+
+	return (atf_no_error());
 }
