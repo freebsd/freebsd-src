@@ -1,4 +1,4 @@
-.\"	$NetBSD: gzip.1,v 1.25 2015/04/06 21:41:17 wiz Exp $
+.\"	$NetBSD: gzip.1,v 1.26 2015/10/27 07:36:18 mrg Exp $
 .\"
 .\" Copyright (c) 1997, 2003, 2004 Matthew R. Green
 .\" All rights reserved.
@@ -25,7 +25,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd April 6, 2015
+.Dd October 26, 2015
 .Dt GZIP 1
 .Os
 .Sh NAME
@@ -136,7 +136,7 @@ option, allowing non-compressed data to pass through unchanged.
 .It Fl h , -help
 This option prints a usage summary and exits.
 .It Fl k , -keep
-Keep (don't delete) input files during compression
+Keep (do not delete) input files during compression
 or decompression.
 .It Fl L , -license
 This option prints
@@ -183,6 +183,12 @@ is set, it is parsed as a white-space separated list of options
 handled before any options on the command line.
 Options on the command line will override anything in
 .Ev GZIP .
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 on success,
+1 on errors,
+and 2 if a warning occurs.
 .Sh SEE ALSO
 .Xr bzip2 1 ,
 .Xr compress 1 ,
@@ -220,7 +226,7 @@ with unpack support written by
 .An Xin LI Aq delphij@FreeBSD.org .
 .Sh BUGS
 According to RFC 1952, the recorded file size is stored in a 32-bit
-integer, therefore, it can not represent files larger than 4GB.
+integer, therefore, it cannot represent files larger than 4GB.
 This limitation also applies to
 .Fl l
 option of
