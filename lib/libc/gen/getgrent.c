@@ -659,14 +659,13 @@ __getgroupmembership(const char *uname, gid_t agroup, gid_t *groups,
 		NS_FALLBACK_CB(getgroupmembership_fallback)
 		{ NULL, NULL, NULL }
 	};
-	int rv;
 
 	assert(uname != NULL);
 	/* groups may be NULL if just sizing when invoked with maxgrp = 0 */
 	assert(grpcnt != NULL);
 
 	*grpcnt = 0;
-	rv = _nsdispatch(NULL, dtab, NSDB_GROUP, "getgroupmembership",
+	(void)_nsdispatch(NULL, dtab, NSDB_GROUP, "getgroupmembership",
 	    defaultsrc, uname, agroup, groups, maxgrp, grpcnt);
 
 	/* too many groups found? */
