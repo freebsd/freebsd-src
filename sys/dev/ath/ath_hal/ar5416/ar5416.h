@@ -193,7 +193,7 @@ extern	void ar5416RxMonitor(struct ath_hal *, const HAL_NODE_STATS *,
 			     const struct ieee80211_channel *);
 extern	void ar5416AniPoll(struct ath_hal *, const struct ieee80211_channel *);
 extern	void ar5416AniReset(struct ath_hal *, const struct ieee80211_channel *,
-		HAL_OPMODE, HAL_RESET_TYPE, int);
+		HAL_OPMODE, int);
 
 extern	void ar5416SetBeaconTimers(struct ath_hal *, const HAL_BEACON_TIMERS *);
 extern	void ar5416BeaconInit(struct ath_hal *ah,
