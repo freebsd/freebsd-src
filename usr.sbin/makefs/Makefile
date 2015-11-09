@@ -1,5 +1,7 @@
 #	$FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=	makefs
 
 CFLAGS+=-I${.CURDIR}
@@ -37,5 +39,9 @@ LDADD+=		${LIBNETBSD}
 
 DPADD+=  ${LIBSBUF} ${LIBUTIL}
 LDADD+=  -lsbuf -lutil
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.prog.mk>
