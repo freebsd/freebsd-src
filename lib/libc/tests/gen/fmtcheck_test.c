@@ -31,9 +31,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <atf-c.h>
 
 struct test_fmt {
 	char	*fmt1;
@@ -72,31 +75,31 @@ struct test_fmt {
 	{ "%p %30s %#llx %-10.*e", "This number %lu%% and string %s has %qd numbers and %.*g floats", 1 },
 };
 
-int
-main(int argc, char *argv[])
+ATF_TC_WITHOUT_HEAD(fmtcheck_test);
+ATF_TC_BODY(fmtcheck_test, tc)
 {
-	int		i, n, r;
-	const char	*f, *cf, *f1, *f2;
+	int i;
+	const char *f, *cf, *f1, *f2;
 
-	printf("1..1\n");
-	r = 0;
-	n = sizeof(test_fmts) / sizeof(test_fmts[0]);
-	for (i=0 ; i<n ; i++) {
+	for (i = 0; i < nitems(test_fmts); i++) {
 		f1 = test_fmts[i].fmt1;
 		f2 = test_fmts[i].fmt2;
 		f = fmtcheck(f1, f2);
-		if (test_fmts[i].correct == 1) {
+		if (test_fmts[i].correct == 1)
 			cf = f1;
-		} else {
+		else
 			cf = f2;
-		}
-		if (f != cf) {
-			r++;
-			errx(1, "Test %d: (%s) vs. (%s) failed "
-			    "(should have returned %s)", i, f1, f2,
-			    (test_fmts[i].correct == 1) ? "1st" : "2nd");
-		}
+		ATF_CHECK_MSG(f == cf,
+		    "Test %d: (%s) vs. (%s) failed "
+		    "(should have returned %s)", i + 1, f1, f2,
+		    (test_fmts[i].correct == 1) ? "1st" : "2nd");
 	}
-	printf("ok 1\n");
-	exit(0);
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, fmtcheck_test);
+
+	return (atf_no_error());
 }
