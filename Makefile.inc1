@@ -2219,20 +2219,16 @@ builddtb:
 # created by bsd.obj.mk, except that we don't want to .include that file
 # in this makefile.
 #
-BW_CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
+BW_CANONICALOBJDIR:=${OBJTREE}${.CURDIR}
 cleanworld: .PHONY
-.if ${.CURDIR} == ${.OBJDIR} || ${.CURDIR}/obj == ${.OBJDIR}
 .if exists(${BW_CANONICALOBJDIR}/)
 	-rm -rf ${BW_CANONICALOBJDIR}/*
 	-chflags -R 0 ${BW_CANONICALOBJDIR}
 	rm -rf ${BW_CANONICALOBJDIR}/*
 .endif
+.if ${.CURDIR} == ${.OBJDIR} || ${.CURDIR}/obj == ${.OBJDIR}
 	#   To be safe in this case, fall back to a 'make cleandir'
 	${_+_}@cd ${.CURDIR}; ${MAKE} cleandir
-.else
-	-rm -rf ${.OBJDIR}/*
-	-chflags -R 0 ${.OBJDIR}
-	rm -rf ${.OBJDIR}/*
 .endif
 
 .if defined(TARGET) && defined(TARGET_ARCH)
