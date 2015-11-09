@@ -839,15 +839,15 @@ static void
 usage(void)
 {
 #ifndef SMALL
-	fprintf(stderr, "usage: rtsold [-adDfFm1] [-O script-name] "
-	    "[-P pidfile] [-R script-name] interfaces...\n");
 	fprintf(stderr, "usage: rtsold [-dDfFm1] [-O script-name] "
-	    "[-P pidfile] [-R script-name] -a\n");
+	    "[-p pidfile] [-R script-name] interface ...\n");
+	fprintf(stderr, "usage: rtsold [-dDfFm1] [-O script-name] "
+	    "[-p pidfile] [-R script-name] -a\n");
 #else
 	fprintf(stderr, "usage: rtsol [-dDF] [-O script-name] "
-	    "[-P pidfile] [-R script-name] interfaces...\n");
+	    "[-p pidfile] [-R script-name] interface ...\n");
 	fprintf(stderr, "usage: rtsol [-dDF] [-O script-name] "
-	    "[-P pidfile] [-R script-name] -a\n");
+	    "[-p pidfile] [-R script-name] -a\n");
 #endif
 }
 
