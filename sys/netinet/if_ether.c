@@ -1091,26 +1091,13 @@ arp_mark_lle_reachable(struct llentry *la)
 	la->la_preempt = V_arp_maxtries;
 }
 
-void
-arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
+/*
+ * Add pernament link-layer record for given interface address.
+ */
+static __noinline void
+arp_add_ifa_lle(struct ifnet *ifp, const struct sockaddr *dst)
 {
 	struct llentry *lle, *lle_tmp;
-	struct sockaddr_in *dst_in;
-	struct sockaddr *dst;
-
-	if (ifa->ifa_carp != NULL)
-		return;
-
-	ifa->ifa_rtrequest = NULL;
-
-	dst_in = IA_SIN(ifa);
-	dst = (struct sockaddr *)dst_in;
-
-	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) == INADDR_ANY)
-		return;
-
-	arprequest(ifp, &IA_SIN(ifa)->sin_addr,
-			&IA_SIN(ifa)->sin_addr, IF_LLADDR(ifp));
 
 	/*
 	 * Interface address LLE record is considered static
@@ -1144,12 +1131,30 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 }
 
 void
-arp_ifinit2(struct ifnet *ifp, struct ifaddr *ifa, u_char *enaddr)
+arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 {
-	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) != INADDR_ANY)
-		arprequest(ifp, &IA_SIN(ifa)->sin_addr,
-				&IA_SIN(ifa)->sin_addr, enaddr);
-	ifa->ifa_rtrequest = NULL;
+	const struct sockaddr_in *dst_in;
+	const struct sockaddr *dst;
+
+	if (ifa->ifa_carp != NULL)
+		return;
+
+	dst = ifa->ifa_addr;
+	dst_in = (const struct sockaddr_in *)dst;
+
+	if (ntohl(dst_in->sin_addr.s_addr) == INADDR_ANY)
+		return;
+	arp_announce_ifaddr(ifp, dst_in->sin_addr, IF_LLADDR(ifp));
+
+	arp_add_ifa_lle(ifp, dst);
+}
+
+void
+arp_announce_ifaddr(struct ifnet *ifp, struct in_addr addr, u_char *enaddr)
+{
+
+	if (ntohl(addr.s_addr) != INADDR_ANY)
+		arprequest(ifp, &addr, &addr, enaddr);
 }
 
 /*
