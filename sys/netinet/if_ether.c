@@ -142,7 +142,9 @@ static void	in_arpinput(struct mbuf *);
 static void arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr,
     struct ifnet *ifp, int bridged, struct llentry *la);
 static void arp_mark_lle_reachable(struct llentry *la);
+static void arp_iflladdr(void *arg __unused, struct ifnet *ifp);
 
+static eventhandler_tag iflladdr_tag;
 
 static const struct netisr_handler arp_nh = {
 	.nh_name = "arp",
@@ -1150,10 +1152,39 @@ arp_ifinit2(struct ifnet *ifp, struct ifaddr *ifa, u_char *enaddr)
 	ifa->ifa_rtrequest = NULL;
 }
 
+/*
+ * Sends gratuitous ARPs for each ifaddr to notify other
+ * nodes about the address change.
+ */
+static __noinline void
+arp_handle_ifllchange(struct ifnet *ifp)
+{
+	struct ifaddr *ifa;
+
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family == AF_INET)
+			arp_ifinit(ifp, ifa);
+	}
+}
+
+/*
+ * A handler for interface link layer address change event.
+ */
+static __noinline void
+arp_iflladdr(void *arg __unused, struct ifnet *ifp)
+{
+
+	if ((ifp->if_flags & IFF_UP) != 0)
+		arp_handle_ifllchange(ifp);
+}
+
 static void
 arp_init(void)
 {
 
 	netisr_register(&arp_nh);
+	if (IS_DEFAULT_VNET(curvnet))
+		iflladdr_tag = EVENTHANDLER_REGISTER(iflladdr_event,
+		    arp_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
 }
 SYSINIT(arp, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, arp_init, 0);
