@@ -370,10 +370,10 @@ distrib-dirs: ${MTREES:N/*}
 		d=${DESTDIR}$$1; \
 		shift; \
 		test -d $$d || mkdir -p $$d; \
-		${ECHO} ${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} \
+		${ECHO} ${MTREE_CMD} -deiU ${MTREE_FOLLOWS_SYMLINKS} \
 		    -f $$m -p $$d; \
 		${MTREE_FILTER} $$m | \
-		${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} -p $$d; \
+		${MTREE_CMD} -deiU ${MTREE_FOLLOWS_SYMLINKS} -p $$d; \
 	done; true
 .if defined(NO_ROOT)
 	@set ${MTREES}; \
