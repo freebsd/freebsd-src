@@ -36,13 +36,10 @@ in_addr_t route_addr = -1;
 struct sockaddr_in my_addr;
 char *bootpfile = "/etc/bootparams";
 
-extern  void bootparamprog_1();
 static void usage(void);
 
 int
-main(argc, argv)
-int argc;
-char **argv;
+main(int argc, char **argv)
 {
 	SVCXPRT *transp;
 	struct hostent *he;
@@ -110,7 +107,7 @@ char **argv;
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 		"usage: bootparamd [-d] [-s] [-r router] [-f bootparmsfile]\n");
