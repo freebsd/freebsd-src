@@ -62,6 +62,9 @@ contrib/netbsd-tests	freebsd-testing,ngie	Pre-commit review requested.
 contrib/pjdfstest	freebsd-testing,ngie,pjd	Pre-commit review requested.
 share/mk/*.test.mk	freebsd-testing,ngie (same list as share/mk too)	Pre-commit review requested.
 tests			freebsd-testing,ngie	Pre-commit review requested.
+sys/dev/usb	hselasky	If in doubt, ask.
+sys/dev/sound/usb	hselasky	If in doubt, ask.
+sys/compat/linuxkpi	hselasky	If in doubt, ask.
 ---- OLD ----
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
@@ -126,9 +129,6 @@ linux emul	emulation	Please discuss changes here.
 bs{diff,patch}	cperciva	Pre-commit review requested.
 portsnap	cperciva	Pre-commit review requested.
 freebsd-update	cperciva	Pre-commit review requested.
-sys/dev/usb	hselasky	If in doubt, ask.
-sys/dev/sound/usb	hselasky	If in doubt, ask.
-sys/compat/linuxkpi	hselasky	If in doubt, ask.
 sys/netgraph/bluetooth	emax	Pre-commit review preferred.
 lib/libbluetooth	emax	Pre-commit review preferred.
 lib/libsdp		emax	Pre-commit review preferred.
