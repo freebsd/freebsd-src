@@ -62,7 +62,7 @@ struct pcb {
 #endif
 	struct vfp_state pcb_vfpstate;          /* VP/NEON state */
 	u_int pcb_vfpcpu;                       /* VP/NEON last cpu */
-} __aligned(8); /* 
+} __aligned(8); /*
 		 * We need the PCB to be aligned on 8 bytes, as we may
 		 * access it using ldrd/strd, and ARM ABI require it
 		 * to by aligned on 8 bytes.
