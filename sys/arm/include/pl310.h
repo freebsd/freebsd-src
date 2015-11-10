@@ -155,7 +155,7 @@ struct pl310_softc {
  *	pl310_write4 - write a 32-bit value from the PL310 registers
  *	@off: byte offset within the register set to read from
  *	@val: the value to write into the register
- *	
+ *
  *
  *	LOCKING:
  *	None

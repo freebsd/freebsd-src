@@ -59,7 +59,7 @@ breakpoint(void)
 struct cpu_functions {
 
 	/* CPU functions */
-	
+
 	u_int	(*cf_id)		(void);
 	void	(*cf_cpwait)		(void);
 
@@ -73,12 +73,12 @@ struct cpu_functions {
 
 	/* TLB functions */
 
-	void	(*cf_tlb_flushID)	(void);	
-	void	(*cf_tlb_flushID_SE)	(u_int va);	
+	void	(*cf_tlb_flushID)	(void);
+	void	(*cf_tlb_flushID_SE)	(u_int va);
 	void	(*cf_tlb_flushI)	(void);
-	void	(*cf_tlb_flushI_SE)	(u_int va);	
+	void	(*cf_tlb_flushI_SE)	(u_int va);
 	void	(*cf_tlb_flushD)	(void);
-	void	(*cf_tlb_flushD_SE)	(u_int va);	
+	void	(*cf_tlb_flushD_SE)	(u_int va);
 
 	/*
 	 * Cache operations:
@@ -109,7 +109,7 @@ struct cpu_functions {
 	 *		It is used to intialize the MMU when it is in an unknown
 	 *		state (such as when it may have lines tagged as valid
 	 *		that belong to a previous set of mappings).
-	 *                                          
+	 *
 	 *	I-cache Synch (all or range):
 	 *		The goal is to synchronize the instruction stream,
 	 *		so you may beed to write-back dirty D-cache blocks

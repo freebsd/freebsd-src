@@ -128,7 +128,7 @@ struct bus_space {
 			    bus_size_t, uint32_t *, bus_size_t);
 	void		(*bs_rm_8) (bus_space_tag_t, bus_space_handle_t,
 			    bus_size_t, uint64_t *, bus_size_t);
-					
+
 	/* read region */
 	void		(*bs_rr_1) (bus_space_tag_t, bus_space_handle_t,
 			    bus_size_t, uint8_t *, bus_size_t);
@@ -138,7 +138,7 @@ struct bus_space {
 			    bus_size_t, uint32_t *, bus_size_t);
 	void		(*bs_rr_8) (bus_space_tag_t, bus_space_handle_t,
 			    bus_size_t, uint64_t *, bus_size_t);
-					
+
 	/* Write single, the less commonly used functions. */
 	void		(*bs_w_2) (bus_space_tag_t, bus_space_handle_t,
 			    bus_size_t, uint16_t);
@@ -154,7 +154,7 @@ struct bus_space {
 			    bus_size_t, const uint32_t *, bus_size_t);
 	void		(*bs_wm_8) (bus_space_tag_t, bus_space_handle_t,
 			    bus_size_t, const uint64_t *, bus_size_t);
-					
+
 	/* write region */
 	void		(*bs_wr_1) (bus_space_tag_t, bus_space_handle_t,
 			    bus_size_t, const uint8_t *, bus_size_t);
@@ -210,7 +210,7 @@ struct bus_space {
 			    bus_size_t, uint32_t *, bus_size_t);
 	void		(*bs_rm_8_s) (bus_space_tag_t, bus_space_handle_t,
 			    bus_size_t, uint64_t *, bus_size_t);
-					
+
 	/* read region stream */
 	void		(*bs_rr_1_s) (bus_space_tag_t, bus_space_handle_t,
 			    bus_size_t, uint8_t *, bus_size_t);
@@ -220,7 +220,7 @@ struct bus_space {
 			    bus_size_t, uint32_t *, bus_size_t);
 	void		(*bs_rr_8_s) (bus_space_tag_t, bus_space_handle_t,
 			    bus_size_t, uint64_t *, bus_size_t);
-					
+
 	/* write stream (single) */
 	void		(*bs_w_1_s) (bus_space_tag_t, bus_space_handle_t,
 			    bus_size_t, uint8_t);
@@ -240,7 +240,7 @@ struct bus_space {
 			    bus_size_t, const uint32_t *, bus_size_t);
 	void		(*bs_wm_8_s) (bus_space_tag_t, bus_space_handle_t,
 			    bus_size_t, const uint64_t *, bus_size_t);
-					
+
 	/* write region stream */
 	void		(*bs_wr_1_s) (bus_space_tag_t, bus_space_handle_t,
 			    bus_size_t, const uint8_t *, bus_size_t);
@@ -335,10 +335,10 @@ __generate_inline_bs_rs(bus_space_read_2, bs_r_2, uint16_t);
 __generate_inline_bs_rs(bus_space_read_4, bs_r_4, uint32_t);
 __generate_inline_bs_rs(bus_space_read_8, bs_r_8, uint64_t);
 
-__generate_inline_bs_rs(bus_space_read_stream_1, bs_r_1_s, uint8_t);           
-__generate_inline_bs_rs(bus_space_read_stream_2, bs_r_2_s, uint16_t);          
-__generate_inline_bs_rs(bus_space_read_stream_4, bs_r_4_s, uint32_t);          
-__generate_inline_bs_rs(bus_space_read_stream_8, bs_r_8_s, uint64_t);          
+__generate_inline_bs_rs(bus_space_read_stream_1, bs_r_1_s, uint8_t);
+__generate_inline_bs_rs(bus_space_read_stream_2, bs_r_2_s, uint16_t);
+__generate_inline_bs_rs(bus_space_read_stream_4, bs_r_4_s, uint32_t);
+__generate_inline_bs_rs(bus_space_read_stream_8, bs_r_8_s, uint64_t);
 
 /*
  * Bus read multiple operations.
@@ -392,10 +392,10 @@ __generate_inline_bs_ws(bus_space_write_2, bs_w_2, uint16_t);
 __generate_inline_bs_ws(bus_space_write_4, bs_w_4, uint32_t);
 __generate_inline_bs_ws(bus_space_write_8, bs_w_8, uint64_t);
 
-__generate_inline_bs_ws(bus_space_write_stream_1, bs_w_1_s, uint8_t);           
-__generate_inline_bs_ws(bus_space_write_stream_2, bs_w_2_s, uint16_t);          
-__generate_inline_bs_ws(bus_space_write_stream_4, bs_w_4_s, uint32_t);          
-__generate_inline_bs_ws(bus_space_write_stream_8, bs_w_8_s, uint64_t);          
+__generate_inline_bs_ws(bus_space_write_stream_1, bs_w_1_s, uint8_t);
+__generate_inline_bs_ws(bus_space_write_stream_2, bs_w_2_s, uint16_t);
+__generate_inline_bs_ws(bus_space_write_stream_4, bs_w_4_s, uint32_t);
+__generate_inline_bs_ws(bus_space_write_stream_8, bs_w_8_s, uint64_t);
 
 
 /*
@@ -581,7 +581,7 @@ void	__bs_c(f,_bs_rm_2) (bus_space_tag_t t, bus_space_handle_t bsh,	\
 
 #define	bs_rm_4_proto(f)						\
 void	__bs_c(f,_bs_rm_4) (bus_space_tag_t t, bus_space_handle_t bsh,	\
-	    bus_size_t offset, uint32_t *addr, bus_size_t count);		
+	    bus_size_t offset, uint32_t *addr, bus_size_t count);
 
 #define	bs_rm_8_proto(f)						\
 void	__bs_c(f,_bs_rm_8) (bus_space_tag_t t, bus_space_handle_t bsh,	\
