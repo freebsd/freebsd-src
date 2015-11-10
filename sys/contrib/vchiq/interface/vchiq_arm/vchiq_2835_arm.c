@@ -213,10 +213,10 @@ vchiq_platform_init(VCHIQ_STATE_T *state)
 
 failed_vchiq_init:
 failed_init_slots:
-failed_load:
 	bus_dmamap_unload(bcm_slots_dma_tag, bcm_slots_dma_map);
+failed_load:
+	bus_dmamem_free(bcm_slots_dma_tag, g_slot_mem, bcm_slots_dma_map);
 failed_alloc:
-	bus_dmamap_destroy(bcm_slots_dma_tag, bcm_slots_dma_map);
 	bus_dma_tag_destroy(bcm_slots_dma_tag);
 
    return err;
@@ -227,7 +227,7 @@ vchiq_platform_exit(VCHIQ_STATE_T *state)
 {
 
 	bus_dmamap_unload(bcm_slots_dma_tag, bcm_slots_dma_map);
-	bus_dmamap_destroy(bcm_slots_dma_tag, bcm_slots_dma_map);
+	bus_dmamem_free(bcm_slots_dma_tag, g_slot_mem, bcm_slots_dma_map);
 	bus_dma_tag_destroy(bcm_slots_dma_tag);
 }
 
