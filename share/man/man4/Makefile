@@ -313,7 +313,6 @@ MAN=	aac.4 \
 	ng_atm.4 \
 	ngatmbase.4 \
 	ng_atmllc.4 \
-	ng_bluetooth.4 \
 	ng_bpf.4 \
 	ng_bridge.4 \
 	ng_bt3c.4 \
@@ -824,6 +823,10 @@ MLINKS+=sfxge.4 if_sfxge.4
 .if ${MK_BHYVE} != "no"
 _bhyve.4=	bhyve.4
 .endif
+.endif
+
+.if ${MK_BLUETOOTH} != "no"
+MAN+=		ng_bluetooth.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
