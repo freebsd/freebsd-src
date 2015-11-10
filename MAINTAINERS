@@ -45,8 +45,8 @@ isci(4)		jimharris	Pre-commit review requested.
 nvme(4)		jimharris	Pre-commit review requested.
 nvd(4)		jimharris	Pre-commit review requested.
 nvmecontrol(8)	jimharris	Pre-commit review requested.
-libfetch	des	Advance notification requested.
-fetch		des	Advance notification requested.
+libfetch	des	Pre-commit review requested.
+fetch		des	Pre-commit review requested.
 libpam		des	Pre-commit review requested.
 openssh		des	Pre-commit review requested.
 pseudofs	des	Pre-commit review requested.
