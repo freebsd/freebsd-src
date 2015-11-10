@@ -343,6 +343,8 @@ SUBDIR=	\
 	${_syscons} \
 	sysvipc \
 	${_ti} \
+	tests/framework \
+	tests/callout_test \
 	tl \
 	tmpfs \
 	${_toecore} \
