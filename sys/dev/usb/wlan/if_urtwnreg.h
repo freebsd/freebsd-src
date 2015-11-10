@@ -1028,8 +1028,16 @@ struct r92c_tx_desc {
 #define R92C_TXDW1_AGGBK	0x00000040
 #define R92C_TXDW1_QSEL_M	0x00001f00
 #define R92C_TXDW1_QSEL_S	8
-#define R92C_TXDW1_QSEL_BE	0x00
+
+#define R92C_TXDW1_QSEL_BE	0x00	/* or 0x03 */
+#define R92C_TXDW1_QSEL_BK	0x01	/* or 0x02 */
+#define R92C_TXDW1_QSEL_VI	0x04	/* or 0x05 */
+#define R92C_TXDW1_QSEL_VO	0x06	/* or 0x07 */
+#define URTWN_MAX_TID		8
+
+#define R92C_TXDW1_QSEL_BEACON	0x10
 #define R92C_TXDW1_QSEL_MGNT	0x12
+
 #define R92C_TXDW1_RAID_M	0x000f0000
 #define R92C_TXDW1_RAID_S	16
 #define R92C_TXDW1_CIPHER_M	0x00c00000
