@@ -87,13 +87,18 @@ struct urtwn_fw_info {
 };
 
 struct urtwn_vap {
-	struct ieee80211vap		vap;
+	struct ieee80211vap	vap;
 
-	struct r92c_tx_desc		bcn_desc;
-	struct mbuf			*bcn_mbuf;
+	struct r92c_tx_desc	bcn_desc;
+	struct mbuf		*bcn_mbuf;
+	struct task		tsf_task_adhoc;
 
-	int				(*newstate)(struct ieee80211vap *,
-					    enum ieee80211_state, int);
+	int			(*newstate)(struct ieee80211vap *,
+				    enum ieee80211_state, int);
+	void			(*recv_mgmt)(struct ieee80211_node *,
+				    struct mbuf *, int,
+				    const struct ieee80211_rx_stats *,
+				    int, int);
 };
 #define	URTWN_VAP(vap)	((struct urtwn_vap *)(vap))
 
