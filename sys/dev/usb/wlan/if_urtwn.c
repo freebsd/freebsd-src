@@ -228,10 +228,14 @@ static int		urtwn_setup_beacon(struct urtwn_softc *,
 static void		urtwn_update_beacon(struct ieee80211vap *, int);
 static int		urtwn_tx_beacon(struct urtwn_softc *sc,
 			    struct urtwn_vap *);
+static void		urtwn_tsf_task_adhoc(void *, int);
 static void		urtwn_tsf_sync_enable(struct urtwn_softc *,
 			    struct ieee80211vap *);
 static void		urtwn_set_led(struct urtwn_softc *, int, int);
 static void		urtwn_set_mode(struct urtwn_softc *, uint8_t);
+static void		urtwn_ibss_recv_mgmt(struct ieee80211_node *,
+			    struct mbuf *, int,
+			    const struct ieee80211_rx_stats *, int, int);
 static int		urtwn_newstate(struct ieee80211vap *,
 			    enum ieee80211_state, int);
 static void		urtwn_watchdog(void *);
@@ -449,6 +453,7 @@ urtwn_attach(device_t self)
 	ic->ic_caps =
 		  IEEE80211_C_STA		/* station mode */
 		| IEEE80211_C_MONITOR		/* monitor mode */
+		| IEEE80211_C_IBSS		/* adhoc mode */
 		| IEEE80211_C_HOSTAP		/* hostap mode */
 		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
@@ -592,13 +597,18 @@ urtwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 		return (NULL);
 	}
 
-	if (opmode == IEEE80211_M_HOSTAP)
+	if (opmode == IEEE80211_M_HOSTAP || opmode == IEEE80211_M_IBSS)
 		urtwn_init_beacon(sc, uvp);
 
 	/* override state transition machine */
 	uvp->newstate = vap->iv_newstate;
 	vap->iv_newstate = urtwn_newstate;
 	vap->iv_update_beacon = urtwn_update_beacon;
+	if (opmode == IEEE80211_M_IBSS) {
+		uvp->recv_mgmt = vap->iv_recv_mgmt;
+		vap->iv_recv_mgmt = urtwn_ibss_recv_mgmt;
+		TASK_INIT(&uvp->tsf_task_adhoc, 0, urtwn_tsf_task_adhoc, vap);
+	}
 
 	/* complete setup */
 	ieee80211_vap_attach(vap, ieee80211_media_change,
@@ -610,13 +620,13 @@ urtwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 static void
 urtwn_vap_delete(struct ieee80211vap *vap)
 {
+	struct ieee80211com *ic = vap->iv_ic;
 	struct urtwn_vap *uvp = URTWN_VAP(vap);
-	enum ieee80211_opmode opmode = vap->iv_opmode;
 
-	if (opmode == IEEE80211_M_HOSTAP) {
-		if (uvp->bcn_mbuf != NULL)
-			m_freem(uvp->bcn_mbuf);
-	}
+	if (uvp->bcn_mbuf != NULL)
+		m_freem(uvp->bcn_mbuf);
+	if (vap->iv_opmode == IEEE80211_M_IBSS)
+		ieee80211_draintask(ic, &uvp->tsf_task_adhoc);
 	ieee80211_vap_detach(vap);
 	free(uvp, M_80211_VAP);
 }
@@ -1611,8 +1621,50 @@ urtwn_tx_beacon(struct urtwn_softc *sc, struct urtwn_vap *uvp)
 }
 
 static void
+urtwn_tsf_task_adhoc(void *arg, int pending)
+{
+	struct ieee80211vap *vap = arg;
+	struct urtwn_softc *sc = vap->iv_ic->ic_softc;
+	struct ieee80211_node *ni;
+	uint32_t reg;
+
+	URTWN_LOCK(sc);
+	ni = ieee80211_ref_node(vap->iv_bss);
+	reg = urtwn_read_1(sc, R92C_BCN_CTRL);
+
+	/* Accept beacons with the same BSSID. */
+	urtwn_set_rx_bssid_all(sc, 0);
+
+	/* Enable synchronization. */
+	reg &= ~R92C_BCN_CTRL_DIS_TSF_UDT0;
+	urtwn_write_1(sc, R92C_BCN_CTRL, reg);
+
+	/* Synchronize. */
+	usb_pause_mtx(&sc->sc_mtx, hz * ni->ni_intval * 5 / 1000);
+
+	/* Disable synchronization. */
+	reg |= R92C_BCN_CTRL_DIS_TSF_UDT0;
+	urtwn_write_1(sc, R92C_BCN_CTRL, reg);
+
+	/* Remove beacon filter. */
+	urtwn_set_rx_bssid_all(sc, 1);
+
+	/* Enable beaconing. */
+	urtwn_write_1(sc, R92C_MBID_NUM,
+	    urtwn_read_1(sc, R92C_MBID_NUM) | R92C_MBID_TXBCN_RPT0);
+	reg |= R92C_BCN_CTRL_EN_BCN;
+
+	urtwn_write_1(sc, R92C_BCN_CTRL, reg);
+	ieee80211_free_node(ni);
+	URTWN_UNLOCK(sc);
+}
+
+static void
 urtwn_tsf_sync_enable(struct urtwn_softc *sc, struct ieee80211vap *vap)
 {
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct urtwn_vap *uvp = URTWN_VAP(vap);
+
 	/* Reset TSF. */
 	urtwn_write_1(sc, R92C_DUAL_TSF_RST, R92C_DUAL_TSF_RST0);
 
@@ -1622,6 +1674,9 @@ urtwn_tsf_sync_enable(struct urtwn_softc *sc, struct ieee80211vap *vap)
 		urtwn_write_1(sc, R92C_BCN_CTRL,
 		    urtwn_read_1(sc, R92C_BCN_CTRL) &
 		    ~R92C_BCN_CTRL_DIS_TSF_UDT0);
+		break;
+	case IEEE80211_M_IBSS:
+		ieee80211_runtask(ic, &uvp->tsf_task_adhoc);
 		break;
 	case IEEE80211_M_HOSTAP:
 		/* Enable beaconing. */
@@ -1672,6 +1727,37 @@ urtwn_set_mode(struct urtwn_softc *sc, uint8_t mode)
 	reg = urtwn_read_1(sc, R92C_MSR);
 	reg = (reg & ~R92C_MSR_MASK) | mode;
 	urtwn_write_1(sc, R92C_MSR, reg);
+}
+
+static void
+urtwn_ibss_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype,
+    const struct ieee80211_rx_stats *rxs,
+    int rssi, int nf)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct urtwn_softc *sc = vap->iv_ic->ic_softc;
+	struct urtwn_vap *uvp = URTWN_VAP(vap);
+	uint64_t ni_tstamp, curr_tstamp;
+
+	uvp->recv_mgmt(ni, m, subtype, rxs, rssi, nf);
+
+	if (vap->iv_state == IEEE80211_S_RUN &&
+	    (subtype == IEEE80211_FC0_SUBTYPE_BEACON ||
+	    subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)) {
+		ni_tstamp = le64toh(ni->ni_tstamp.tsf);
+#ifdef D3831
+		URTWN_LOCK(sc);
+		urtwn_get_tsf(sc, &curr_tstamp);
+		URTWN_UNLOCK(sc);
+		curr_tstamp = le64toh(curr_tstamp);
+
+		if (ni_tstamp >= curr_tstamp)
+			(void) ieee80211_ibss_merge(ni);
+#else
+		(void) sc;
+		(void) curr_tstamp;
+#endif
+	}
 }
 
 static int
@@ -1757,6 +1843,9 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		case IEEE80211_M_STA:
 			mode = R92C_MSR_INFRA;
 			break;
+		case IEEE80211_M_IBSS:
+			mode = R92C_MSR_ADHOC;
+			break;
 		case IEEE80211_M_HOSTAP:
 			mode = R92C_MSR_AP;
 			break;
@@ -1794,13 +1883,14 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 			if (vap->iv_opmode != IEEE80211_M_HOSTAP)
 				reg |= R92C_RCR_CBSSID_DATA;
-
-			reg |= R92C_RCR_CBSSID_BCN;
+			if (vap->iv_opmode != IEEE80211_M_IBSS)
+				reg |= R92C_RCR_CBSSID_BCN;
 
 			urtwn_write_4(sc, R92C_RCR, reg);
 		}
 
-		if (vap->iv_opmode == IEEE80211_M_HOSTAP) {
+		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
+		    vap->iv_opmode == IEEE80211_M_IBSS) {
 			error = urtwn_setup_beacon(sc, ni);
 			if (error != 0) {
 				device_printf(sc->sc_dev,
@@ -3007,6 +3097,7 @@ urtwn_rxfilter_init(struct urtwn_softc *sc)
 		    R92C_RXFLTMAP_SUBTYPE(IEEE80211_FC0_SUBTYPE_BEACON));
 		break;
 	case IEEE80211_M_MONITOR:
+	case IEEE80211_M_IBSS:
 		break;
 	default:
 		device_printf(sc->sc_dev, "%s: undefined opmode %d\n",
@@ -3335,7 +3426,9 @@ urtwn_scan_start(struct ieee80211com *ic)
 
 	URTWN_LOCK(sc);
 	/* Receive beacons / probe responses from any BSSID. */
-	urtwn_set_rx_bssid_all(sc, 1);
+	if (ic->ic_opmode != IEEE80211_M_IBSS)
+		urtwn_set_rx_bssid_all(sc, 1);
+
 	/* Set gain for scanning. */
 	urtwn_set_gain(sc, 0x20);
 	URTWN_UNLOCK(sc);
@@ -3348,8 +3441,9 @@ urtwn_scan_end(struct ieee80211com *ic)
 
 	URTWN_LOCK(sc);
 	/* Restore limitations. */
-	if (ic->ic_promisc == 0)
+	if (ic->ic_promisc == 0 && ic->ic_opmode != IEEE80211_M_IBSS)
 		urtwn_set_rx_bssid_all(sc, 0);
+
 	/* Set gain under link. */
 	urtwn_set_gain(sc, 0x32);
 	URTWN_UNLOCK(sc);
@@ -3392,6 +3486,9 @@ urtwn_set_promisc(struct urtwn_softc *sc)
 			/* FALLTHROUGH */
 		case IEEE80211_M_HOSTAP:
 			mask2 |= R92C_RCR_CBSSID_BCN;
+			break;
+		case IEEE80211_M_IBSS:
+			mask2 |= R92C_RCR_CBSSID_DATA;
 			break;
 		default:
 			device_printf(sc->sc_dev, "%s: undefined opmode %d\n",
