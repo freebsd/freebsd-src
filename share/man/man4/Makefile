@@ -820,16 +820,16 @@ _bhyve.4=	bhyve.4
 .endif
 .endif
 
-.if ${MK_BLUETOOTH} != "no"
-MAN+=		ng_bluetooth.4
-.endif
-
 .if ${MACHINE_CPUARCH} == "mips"
 _nvram2env.4=	nvram2env.4
 .endif
 
 .if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
 SUBDIR=	man4.${MACHINE_CPUARCH}
+.endif
+
+.if ${MK_BLUETOOTH} != "no"
+MAN+=		ng_bluetooth.4
 .endif
 
 .if ${MK_CCD} != "no"
