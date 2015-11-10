@@ -57,6 +57,11 @@ contrib/libc++		dim	Pre-commit review preferred.
 contrib/libcxxrt	dim	Pre-commit review preferred.
 contrib/llvm		dim	Pre-commit review preferred.
 contrib/llvm/tools/lldb	emaste	Pre-commit review preferred.
+atf			freebsd-testing,jmmv,ngie	Pre-commit review requested.
+contrib/netbsd-tests	freebsd-testing,ngie	Pre-commit review requested.
+contrib/pjdfstest	freebsd-testing,ngie,pjd	Pre-commit review requested.
+share/mk/*.test.mk	freebsd-testing,ngie (same list as share/mk too)	Pre-commit review requested.
+tests			freebsd-testing,ngie	Pre-commit review requested.
 ---- OLD ----
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
@@ -103,8 +108,6 @@ contrib/pf	glebius	Pre-commit review recommended.
 file		obrien	Insists to keep file blocked from other's unapproved
 			commits
 contrib/bzip2	obrien	Pre-commit review required.
-contrib/netbsd-tests	freebsd-testing,ngie	Pre-commit review requested.
-contrib/pjdfstest	freebsd-testing,ngie	Pre-commit review requested.
 geom		freebsd-geom@FreeBSD.org
 geom_concat	pjd	Pre-commit review preferred.
 geom_eli	pjd	Pre-commit review preferred.
