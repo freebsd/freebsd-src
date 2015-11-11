@@ -317,6 +317,15 @@ static int sysctl_handle_features(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_link_status(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_register(SYSCTL_HANDLER_ARGS);
 
+static unsigned g_ntb_hw_debug_level;
+SYSCTL_UINT(_hw_ntb, OID_AUTO, debug_level, CTLFLAG_RWTUN,
+    &g_ntb_hw_debug_level, 0, "ntb_hw log level -- higher is more verbose");
+#define ntb_printf(lvl, ...) do {				\
+	if ((lvl) <= g_ntb_hw_debug_level) {			\
+		device_printf(ntb->device, __VA_ARGS__);	\
+	}							\
+} while (0)
+
 static struct ntb_hw_info pci_ids[] = {
 	/* XXX: PS/SS IDs left out until they are supported. */
 	{ 0x0C4E8086, "BWD Atom Processor S1200 Non-Transparent Bridge B2B",
