@@ -90,15 +90,26 @@ enum ntb_link_event {
 	NTB_LINK_UP,
 };
 
-static unsigned int transport_mtu = 0x10000 + ETHER_HDR_LEN + ETHER_CRC_LEN;
+static SYSCTL_NODE(_hw, OID_AUTO, if_ntb, CTLFLAG_RW, 0, "if_ntb");
+
+static unsigned g_if_ntb_debug_level;
+SYSCTL_UINT(_hw_if_ntb, OID_AUTO, debug_level, CTLFLAG_RWTUN,
+    &g_if_ntb_debug_level, 0, "if_ntb log level -- higher is more verbose");
+#define ntb_printf(lvl, ...) do {			\
+	if ((lvl) <= g_if_ntb_debug_level) {		\
+		if_printf(nt->ifp, __VA_ARGS__);	\
+	}						\
+} while (0)
+
+static unsigned transport_mtu = 0x10000 + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
 static uint64_t max_mw_size;
-SYSCTL_UQUAD(_hw_ntb, OID_AUTO, max_mw_size, CTLFLAG_RDTUN, &max_mw_size, 0,
+SYSCTL_UQUAD(_hw_if_ntb, OID_AUTO, max_mw_size, CTLFLAG_RDTUN, &max_mw_size, 0,
     "If enabled (non-zero), limit the size of large memory windows. "
     "Both sides of the NTB MUST set the same value here.");
 
-static unsigned int max_num_clients;
-SYSCTL_UINT(_hw_ntb, OID_AUTO, max_num_clients, CTLFLAG_RDTUN,
+static unsigned max_num_clients;
+SYSCTL_UINT(_hw_if_ntb, OID_AUTO, max_num_clients, CTLFLAG_RDTUN,
     &max_num_clients, 0, "Maximum number of NTB transport clients.  "
     "0 (default) - use all available NTB memory windows; "
     "positive integer N - Limit to N memory windows.");
@@ -370,22 +381,23 @@ ntb_setup_interface(void)
 		return (ENXIO);
 	}
 
-	rc = ntb_transport_probe(net_softc.ntb);
-	if (rc != 0) {
-		printf("ntb: Cannot init transport: %d\n", rc);
-		return (rc);
-	}
-
 	ifp = net_softc.ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		ntb_transport_free(&net_softc);
 		printf("ntb: Cannot allocate ifnet structure\n");
 		return (ENOMEM);
 	}
+	if_initname(ifp, "ntb", 0);
+
+	rc = ntb_transport_probe(net_softc.ntb);
+	if (rc != 0) {
+		printf("ntb: Cannot init transport: %d\n", rc);
+		if_free(net_softc.ifp);
+		return (rc);
+	}
 
 	net_softc.qp = ntb_transport_create_queue(ifp, net_softc.ntb,
 	    &handlers);
-	if_initname(ifp, "ntb", 0);
 	ifp->if_init = ntb_net_init;
 	ifp->if_softc = &net_softc;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
@@ -409,17 +421,17 @@ static int
 ntb_teardown_interface(void)
 {
 
-	if (net_softc.qp != NULL)
+	if (net_softc.qp != NULL) {
 		ntb_transport_link_down(net_softc.qp);
+
+		ntb_transport_free_queue(net_softc.qp);
+		ntb_transport_free(&net_softc);
+	}
 
 	if (net_softc.ifp != NULL) {
 		ether_ifdetach(net_softc.ifp);
 		if_free(net_softc.ifp);
-	}
-
-	if (net_softc.qp != NULL) {
-		ntb_transport_free_queue(net_softc.qp);
-		ntb_transport_free(&net_softc);
+		net_softc.ifp = NULL;
 	}
 
 	return (0);
@@ -804,13 +816,15 @@ ntb_transport_create_queue(void *data, struct ntb_softc *ntb,
 static void
 ntb_transport_link_up(struct ntb_transport_qp *qp)
 {
+	struct ntb_transport_ctx *nt;
 
 	if (qp == NULL)
 		return;
 
 	qp->client_ready = true;
-	if (bootverbose)
-		if_printf(qp->transport->ifp, "qp client ready\n");
+
+	nt = qp->transport;
+	ntb_printf(2, "qp client ready\n");
 
 	if (qp->transport->link_is_up)
 		callout_reset(&qp->link_work, 0, ntb_qp_link_work, qp);
@@ -1175,12 +1189,10 @@ ntb_transport_event_callback(void *data)
 	struct ntb_transport_ctx *nt = data;
 
 	if (ntb_link_is_up(nt->ntb, NULL, NULL)) {
-		if (bootverbose)
-			if_printf(nt->ifp, "HW link up\n");
+		ntb_printf(1, "HW link up\n");
 		callout_reset(&nt->link_work, 0, ntb_transport_link_work, nt);
 	} else {
-		if (bootverbose)
-			if_printf(nt->ifp, "HW link down\n");
+		ntb_printf(1, "HW link down\n");
 		taskqueue_enqueue(taskqueue_swi, &nt->link_cleanup);
 	}
 }
@@ -1242,8 +1254,7 @@ ntb_transport_link_work(void *arg)
 	}
 
 	nt->link_is_up = true;
-	if (bootverbose)
-		if_printf(nt->ifp, "transport link up\n");
+	ntb_printf(1, "transport link up\n");
 
 	for (i = 0; i < nt->qp_count; i++) {
 		qp = &nt->qp_vec[i];
@@ -1307,7 +1318,7 @@ ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw, size_t size)
 	 * with the Linux driver.
 	 */
 	if (mw->dma_addr % mw->xlat_align != 0) {
-		if_printf(nt->ifp,
+		ntb_printf(0,
 		    "DMA memory 0x%jx not aligned to BAR size 0x%zx\n",
 		    (uintmax_t)mw->dma_addr, size);
 		ntb_free_mw(nt, num_mw);
@@ -1317,7 +1328,7 @@ ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw, size_t size)
 	/* Notify HW the memory location of the receive buffer */
 	rc = ntb_mw_set_trans(nt->ntb, num_mw, mw->dma_addr, mw->xlat_size);
 	if (rc) {
-		if_printf(nt->ifp, "Unable to set mw%d translation", num_mw);
+		ntb_printf(0, "Unable to set mw%d translation\n", num_mw);
 		ntb_free_mw(nt, num_mw);
 		return (rc);
 	}
@@ -1407,8 +1418,7 @@ ntb_qp_link_work(void *arg)
 
 	/* See if the remote side is up */
 	if ((val & (1ull << qp->qp_num)) != 0) {
-		if (bootverbose)
-			if_printf(nt->ifp, "qp link up\n");
+		ntb_printf(2, "qp link up\n");
 		qp->link_is_up = true;
 
 		if (qp->event_handler != NULL)
