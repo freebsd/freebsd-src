@@ -209,8 +209,8 @@ struct ntb_softc {
 #define DB_MASK_ASSERT(sc,f)	mtx_assert(&(sc)->db_mask_lock, (f))
 	struct mtx			db_mask_lock;
 
-	uint32_t			ntb_ctl;
-	uint32_t			lnk_sta;
+	volatile uint32_t		ntb_ctl;
+	volatile uint32_t		lnk_sta;
 
 	uint64_t			db_valid_mask;
 	uint64_t			db_link_mask;
@@ -1976,9 +1976,11 @@ ntb_sysctl_init(struct ntb_softc *ntb)
 	    "Features/errata of this NTB device");
 
 	SYSCTL_ADD_UINT(ctx, tree_par, OID_AUTO, "ntb_ctl", CTLFLAG_RD,
-	    &ntb->ntb_ctl, 0, "NTB CTL register (cached)");
+	    __DEVOLATILE(uint32_t *, &ntb->ntb_ctl), 0,
+	    "NTB CTL register (cached)");
 	SYSCTL_ADD_UINT(ctx, tree_par, OID_AUTO, "lnk_sta", CTLFLAG_RD,
-	    &ntb->lnk_sta, 0, "LNK STA register (cached)");
+	    __DEVOLATILE(uint32_t *, &ntb->lnk_sta), 0,
+	    "LNK STA register (cached)");
 
 	SYSCTL_ADD_PROC(ctx, tree_par, OID_AUTO, "link_status",
 	    CTLFLAG_RD | CTLTYPE_STRING, ntb, 0, sysctl_handle_link_status,
