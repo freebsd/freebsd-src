@@ -39,6 +39,7 @@
 #define XEON_HSX_SPLIT_MW_COUNT	3
 /* Reserve the uppermost bit for link interrupt */
 #define XEON_DB_COUNT		15
+#define XEON_DB_TOTAL_SHIFT	16
 #define XEON_DB_LINK		15
 #define XEON_DB_MSIX_VECTOR_COUNT	4
 #define XEON_DB_MSIX_VECTOR_SHIFT	5
