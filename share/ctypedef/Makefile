@@ -176,7 +176,8 @@ FILES=		${LOCALES:S/$/.LC_CTYPE/}
 CLEANFILES=	${FILES}
 
 .for f in ${SAME}
-SYMLINKS+=	../${f:C/:.*$//}/${FILESNAME} ${LOCALEDIR}/${f:C/^.*://}
+SYMLINKS+=	../${f:C/:.*$//}/${FILESNAME} \
+    ${LOCALEDIR}/${f:C/^.*://}/${FILESNAME}
 .endfor
 
 .for f in ${LOCALES}
