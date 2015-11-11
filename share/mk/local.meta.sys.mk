@@ -218,6 +218,15 @@ CPP?=		${HOST_CPP}
 .endif
 .endif
 
+.if ${MACHINE} == "host"
+HOST_CC?=	/usr/bin/cc
+CC=		${HOST_CC}
+HOST_CXX?=	/usr/bin/c++
+CXX=		${HOST_CXX}
+HOST_CPP?=	/usr/bin/cpp
+CPP=		${HOST_CPP}
+.endif
+
 .if ${MACHINE:Nhost:Ncommon} != "" && ${MACHINE} != ${HOST_MACHINE}
 # cross-building
 .if !defined(FREEBSD_REVISION)
