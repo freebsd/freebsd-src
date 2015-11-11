@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/rman.h>
 #include <machine/bus.h>
 
@@ -83,6 +84,7 @@ struct bcm_mbox_softc {
 	bus_space_handle_t	bsh;
 	int			msg[BCM2835_MBOX_CHANS];
 	int			have_message[BCM2835_MBOX_CHANS];
+	struct sx		property_chan_lock;
 };
 
 #define	mbox_read_4(sc, reg)		\
@@ -122,8 +124,10 @@ bcm_mbox_intr(void *arg)
 
 	MBOX_LOCK(sc);
 	while (!(mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY))
-		if (bcm_mbox_read_msg(sc, &chan) == 0)
+		if (bcm_mbox_read_msg(sc, &chan) == 0) {
+			sc->have_message[chan] = 1;
 			wakeup(&sc->have_message[chan]);
+		}
 	MBOX_UNLOCK(sc);
 }
 
@@ -178,6 +182,8 @@ bcm_mbox_attach(device_t dev)
 		sc->msg[i] = 0;
 		sc->have_message[i] = 0;
 	}
+
+	sx_init(&sc->property_chan_lock, "mboxprop");
 
 	/* Read all pending messages */
 	while ((mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY) == 0)
@@ -366,6 +372,7 @@ bcm2835_mbox_err(device_t dev, bus_addr_t msg_phys, uint32_t resp_phys,
 int
 bcm2835_mbox_property(void *msg, size_t msg_size)
 {
+	struct bcm_mbox_softc *sc;
 	struct msg_set_power_state *buf;
 	bus_dma_tag_t msg_tag;
 	bus_dmamap_t msg_map;
@@ -379,11 +386,16 @@ bcm2835_mbox_property(void *msg, size_t msg_size)
 	if (mbox == NULL)
 		return (ENXIO);
 
+	sc = device_get_softc(mbox);
+	sx_xlock(&sc->property_chan_lock);
+
 	/* Allocate memory for the message */
 	buf = bcm2835_mbox_init_dma(mbox, msg_size, &msg_tag, &msg_map,
 	    &msg_phys);
-	if (buf == NULL)
-		return (ENOMEM);
+	if (buf == NULL) {
+		err = ENOMEM;
+		goto out;
+	}
 
 	memcpy(buf, msg, msg_size);
 
@@ -404,7 +416,8 @@ bcm2835_mbox_property(void *msg, size_t msg_size)
 	bus_dmamap_unload(msg_tag, msg_map);
 	bus_dmamem_free(msg_tag, buf, msg_map);
 	bus_dma_tag_destroy(msg_tag);
-
+out:
+	sx_xunlock(&sc->property_chan_lock);
 	return (err);
 }
 
