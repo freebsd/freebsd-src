@@ -518,26 +518,26 @@ ntb_attach(device_t device)
 		error = ntb_detect_atom(ntb);
 	else
 		error = ntb_detect_xeon(ntb);
-	if (error)
+	if (error != 0)
 		goto out;
 
 	ntb_detect_max_mw(ntb);
 
+	pci_enable_busmaster(ntb->device);
+
 	error = ntb_map_pci_bars(ntb);
-	if (error)
+	if (error != 0)
 		goto out;
 	if (ntb->type == NTB_ATOM)
 		error = ntb_atom_init_dev(ntb);
 	else
 		error = ntb_xeon_init_dev(ntb);
-	if (error)
+	if (error != 0)
 		goto out;
-	error = ntb_init_isr(ntb);
-	if (error)
-		goto out;
-	ntb_sysctl_init(ntb);
 
-	pci_enable_busmaster(ntb->device);
+	ntb_poll_link(ntb);
+
+	ntb_sysctl_init(ntb);
 
 out:
 	if (error != 0)
@@ -556,6 +556,7 @@ ntb_detach(device_t device)
 		ntb_db_set_mask(ntb, ntb->db_valid_mask);
 	callout_drain(&ntb->heartbeat_timer);
 	callout_drain(&ntb->lr_timer);
+	pci_disable_busmaster(ntb->device);
 	if (ntb->type == NTB_XEON)
 		ntb_teardown_xeon(ntb);
 	ntb_teardown_interrupts(ntb);
@@ -1274,18 +1275,22 @@ ntb_xeon_init_dev(struct ntb_softc *ntb)
 		return (rc);
 
 	/* Enable Bus Master and Memory Space on the secondary side */
-	ntb_reg_write(2, XEON_PCICMD_OFFSET,
+	ntb_reg_write(2, XEON_SPCICMD_OFFSET,
 	    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
 
-	/* Enable link training */
-	ntb_link_enable(ntb, NTB_SPEED_AUTO, NTB_WIDTH_AUTO);
+	/*
+	 * Mask all doorbell interrupts.
+	 */
+	ntb_db_set_mask(ntb, ntb->db_valid_mask);
 
-	return (0);
+	rc = ntb_init_isr(ntb);
+	return (rc);
 }
 
 static int
 ntb_atom_init_dev(struct ntb_softc *ntb)
 {
+	int error;
 
 	KASSERT(ntb->conn_type == NTB_CONN_B2B,
 	    ("Unsupported NTB configuration (%d)\n", ntb->conn_type));
@@ -1310,8 +1315,12 @@ ntb_atom_init_dev(struct ntb_softc *ntb)
 	configure_atom_secondary_side_bars(ntb);
 
 	/* Enable Bus Master and Memory Space on the secondary side */
-	ntb_reg_write(2, ATOM_PCICMD_OFFSET,
+	ntb_reg_write(2, ATOM_SPCICMD_OFFSET,
 	    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
+
+	error = ntb_init_isr(ntb);
+	if (error != 0)
+		return (error);
 
 	/* Initiate PCI-E link training */
 	ntb_link_enable(ntb, NTB_SPEED_AUTO, NTB_WIDTH_AUTO);
@@ -1988,6 +1997,19 @@ ntb_sysctl_init(struct ntb_softc *ntb)
 	    CTLFLAG_RD, NULL, "Raw HW registers (big-endian)");
 	regpar = SYSCTL_CHILDREN(tmptree);
 
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "ntbcntl",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb, NTB_REG_32 |
+	    ntb->reg->ntb_ctl, sysctl_handle_register, "IU",
+	    "NTB Control register");
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "lnkcap",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb, NTB_REG_32 |
+	    0x19c, sysctl_handle_register, "IU",
+	    "NTB Link Capabilities");
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "lnkcon",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb, NTB_REG_32 |
+	    0x1a0, sysctl_handle_register, "IU",
+	    "NTB Link Control register");
+
 	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "db_mask",
 	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
 	    NTB_REG_64 | NTB_DB_READ | ntb->self_reg->db_mask,
@@ -2352,7 +2374,7 @@ ntb_peer_spad_write(struct ntb_softc *ntb, unsigned int idx, uint32_t val)
 		return (EINVAL);
 
 	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP))
-		ntb_mw_write(4, XEON_SHADOW_SPAD_OFFSET + idx * 4, val);
+		ntb_mw_write(4, XEON_SPAD_OFFSET + idx * 4, val);
 	else
 		ntb_reg_write(4, ntb->peer_reg->spad + idx * 4, val);
 
@@ -2378,7 +2400,7 @@ ntb_peer_spad_read(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
 		return (EINVAL);
 
 	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP))
-		*val = ntb_mw_read(4, XEON_SHADOW_SPAD_OFFSET + idx * 4);
+		*val = ntb_mw_read(4, XEON_SPAD_OFFSET + idx * 4);
 	else
 		*val = ntb_reg_read(4, ntb->peer_reg->spad + idx * 4);
 
@@ -2564,7 +2586,7 @@ ntb_peer_db_set(struct ntb_softc *ntb, uint64_t bit)
 {
 
 	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP)) {
-		ntb_mw_write(2, XEON_SHADOW_PDOORBELL_OFFSET, bit);
+		ntb_mw_write(2, XEON_PDOORBELL_OFFSET, bit);
 		return;
 	}
 
@@ -2600,7 +2622,7 @@ ntb_get_peer_db_addr(struct ntb_softc *ntb, vm_size_t *sz_out)
 		    ("invalid b2b idx"));
 
 		bar = &ntb->bar_info[ntb_mw_to_bar(ntb, ntb->b2b_mw_idx)];
-		regoff = XEON_SHADOW_PDOORBELL_OFFSET;
+		regoff = XEON_PDOORBELL_OFFSET;
 	}
 	KASSERT(bar->pci_bus_tag != X86_BUS_SPACE_IO, ("uh oh"));
 

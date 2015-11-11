@@ -273,7 +273,7 @@ static void ntb_net_tx_handler(struct ntb_transport_qp *qp, void *qp_data,
 static void ntb_net_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
     void *data, int len);
 static void ntb_net_event_handler(void *data, enum ntb_link_event status);
-static int ntb_transport_init(struct ntb_softc *ntb);
+static int ntb_transport_probe(struct ntb_softc *ntb);
 static void ntb_transport_free(struct ntb_transport_ctx *);
 static void ntb_transport_init_queue(struct ntb_transport_ctx *nt,
     unsigned int qp_num);
@@ -368,7 +368,7 @@ ntb_setup_interface(void)
 		return (ENXIO);
 	}
 
-	rc = ntb_transport_init(net_softc.ntb);
+	rc = ntb_transport_probe(net_softc.ntb);
 	if (rc != 0) {
 		printf("ntb: Cannot init transport: %d\n", rc);
 		return (rc);
@@ -541,7 +541,7 @@ ntb_net_event_handler(void *data, enum ntb_link_event status)
 /* Transport Init and teardown */
 
 static int
-ntb_transport_init(struct ntb_softc *ntb)
+ntb_transport_probe(struct ntb_softc *ntb)
 {
 	struct ntb_transport_ctx *nt = &net_softc;
 	struct ntb_transport_mw *mw;
@@ -596,6 +596,8 @@ ntb_transport_init(struct ntb_softc *ntb)
 	nt->link_is_up = false;
 	ntb_link_enable(ntb, NTB_SPEED_AUTO, NTB_WIDTH_AUTO);
 	ntb_link_event(ntb);
+
+	callout_reset(&nt->link_work, 0, ntb_transport_link_work, nt);
 	return (0);
 
 err:
@@ -693,6 +695,8 @@ ntb_transport_init_queue(struct ntb_transport_ctx *nt, unsigned int qp_num)
 	STAILQ_INIT(&qp->rx_pend_q);
 	STAILQ_INIT(&qp->rx_free_q);
 	STAILQ_INIT(&qp->tx_free_q);
+
+	callout_reset(&qp->link_work, 0, ntb_qp_link_work, qp);
 }
 
 static void
