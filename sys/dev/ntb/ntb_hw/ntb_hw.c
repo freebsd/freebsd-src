@@ -283,7 +283,8 @@ static void ntb_interrupt(struct ntb_softc *, uint32_t vec);
 static void ndev_vec_isr(void *arg);
 static void ndev_irq_isr(void *arg);
 static inline uint64_t db_ioread(struct ntb_softc *, uint64_t regoff);
-static inline void db_iowrite(struct ntb_softc *, uint64_t regoff, uint64_t val);
+static inline void db_iowrite(struct ntb_softc *, uint64_t regoff, uint64_t);
+static inline void db_iowrite_raw(struct ntb_softc *, uint64_t regoff, uint64_t);
 static int ntb_create_msix_vec(struct ntb_softc *ntb, uint32_t num_vectors);
 static void ntb_free_msix_vec(struct ntb_softc *ntb);
 static struct ntb_hw_info *ntb_get_device_info(uint32_t device_id);
@@ -994,6 +995,12 @@ db_iowrite(struct ntb_softc *ntb, uint64_t regoff, uint64_t val)
 
 	if (regoff == ntb->self_reg->db_mask)
 		DB_MASK_ASSERT(ntb, MA_OWNED);
+	db_iowrite_raw(ntb, regoff, val);
+}
+
+static inline void
+db_iowrite_raw(struct ntb_softc *ntb, uint64_t regoff, uint64_t val)
+{
 
 	if (ntb->type == NTB_ATOM) {
 		ntb_reg_write(8, regoff, val);
@@ -1875,7 +1882,7 @@ ntb_poll_link(struct ntb_softc *ntb)
 		ntb->ntb_ctl = ntb_cntl;
 		ntb->lnk_sta = ntb_reg_read(4, ntb->reg->lnk_sta);
 	} else {
-		db_iowrite(ntb, ntb->self_reg->db_bell, ntb->db_link_mask);
+		db_iowrite_raw(ntb, ntb->self_reg->db_bell, ntb->db_link_mask);
 
 		reg_val = pci_read_config(ntb->device, ntb->reg->lnk_sta, 2);
 		if (reg_val == ntb->lnk_sta)
