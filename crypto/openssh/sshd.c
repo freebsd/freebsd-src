@@ -1,5 +1,4 @@
 /* $OpenBSD: sshd.c,v 1.420 2014/02/26 21:53:37 markus Exp $ */
-/* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
