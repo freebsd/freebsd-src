@@ -146,9 +146,12 @@
 	pushl	$0 ;		/* dummy error code */			\
 	pushl	$0 ;		/* dummy trap type */			\
 	pushal ;		/* 8 ints */				\
-	pushl	%ds ;		/* save data and extra segments ... */	\
-	pushl	%es ;							\
-	pushl	%fs
+	pushl	$0 ;		/* save data and extra segments ... */	\
+	movw	%ds,(%esp) ;						\
+	pushl	$0 ;							\
+	movw	%es,(%esp) ;						\
+	pushl	$0 ;							\
+	movw	%fs,(%esp)
 	
 #define	POP_FRAME							\
 	popl	%fs ;							\
