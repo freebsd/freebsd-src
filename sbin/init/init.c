@@ -659,6 +659,7 @@ read_file(const char *path, void **bufp, size_t *bufsizep)
 	error = fstat(fd, &sb);
 	if (error != 0) {
 		emergency("fstat: %s", strerror(errno));
+		close(fd);
 		return (error);
 	}
 
@@ -666,12 +667,14 @@ read_file(const char *path, void **bufp, size_t *bufsizep)
 	buf = malloc(bufsize);
 	if (buf == NULL) {
 		emergency("malloc: %s", strerror(errno));
+		close(fd);
 		return (error);
 	}
 
 	nbytes = read(fd, buf, bufsize);
 	if (nbytes != (ssize_t)bufsize) {
 		emergency("read: %s", strerror(errno));
+		close(fd);
 		free(buf);
 		return (error);
 	}
@@ -690,7 +693,7 @@ read_file(const char *path, void **bufp, size_t *bufsizep)
 }
 
 static int
-create_file(const char *path, void *buf, size_t bufsize)
+create_file(const char *path, const void *buf, size_t bufsize)
 {
 	ssize_t nbytes;
 	int error, fd;
@@ -704,13 +707,13 @@ create_file(const char *path, void *buf, size_t bufsize)
 	nbytes = write(fd, buf, bufsize);
 	if (nbytes != (ssize_t)bufsize) {
 		emergency("write: %s", strerror(errno));
+		close(fd);
 		return (-1);
 	}
 
 	error = close(fd);
 	if (error != 0) {
 		emergency("close: %s", strerror(errno));
-		free(buf);
 		return (-1);
 	}
 
@@ -756,6 +759,9 @@ reroot(void)
 	size_t bufsize, init_path_len;
 	int error, name[4];
 
+	buf = NULL;
+	bufsize = 0;
+
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
 	name[2] = KERN_PROC_PATHNAME;
@@ -781,12 +787,6 @@ reroot(void)
 	}
 
 	/*
-	 * Pacify GCC.
-	 */
-	buf = NULL;
-	bufsize = 0;
-
-	/*
 	 * Copy the init binary into tmpfs, so that we can unmount
 	 * the old rootfs without committing suicide.
 	 */
@@ -808,6 +808,7 @@ reroot(void)
 
 out:
 	emergency("reroot failed; going to single user mode");
+	free(buf);
 	return (state_func_t) single_user;
 }
 
