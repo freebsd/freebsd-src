@@ -144,7 +144,7 @@ struct ntb_transport_qp {
 	void			*cb_data;
 
 	bool			client_ready;
-	bool			link_is_up;
+	volatile bool		link_is_up;
 	uint8_t			qp_num;	/* Only 64 QPs are allowed.  0-63 */
 
 	struct ntb_rx_info	*rx_info;
@@ -225,7 +225,7 @@ struct ntb_transport_ctx {
 	struct _qpset		qp_bitmap_free;
 	unsigned		mw_count;
 	unsigned		qp_count;
-	enum ntb_link_event	link_is_up;
+	volatile bool		link_is_up;
 	struct callout		link_work;
 	struct task		link_cleanup;
 	uint64_t		bufsize;
