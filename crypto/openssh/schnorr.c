@@ -1,5 +1,4 @@
 /* $OpenBSD: schnorr.c,v 1.9 2014/01/09 23:20:00 djm Exp $ */
-/* $FreeBSD$ */
 /*
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
  *
