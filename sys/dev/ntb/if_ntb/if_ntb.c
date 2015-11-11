@@ -216,6 +216,7 @@ struct ntb_transport_ctx {
 	unsigned		qp_count;
 	enum ntb_link_event	link_is_up;
 	struct callout		link_work;
+	struct task		link_cleanup;
 	uint64_t		bufsize;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct mtx		tx_lock;
@@ -304,6 +305,7 @@ static int ntb_transport_setup_qp_mw(struct ntb_transport_ctx *nt,
     unsigned int qp_num);
 static void ntb_qp_link_work(void *arg);
 static void ntb_transport_link_cleanup(struct ntb_transport_ctx *nt);
+static void ntb_transport_link_cleanup_work(void *, int);
 static void ntb_qp_link_down(struct ntb_transport_qp *qp);
 static void ntb_qp_link_down_reset(struct ntb_transport_qp *qp);
 static void ntb_qp_link_cleanup(struct ntb_transport_qp *qp);
@@ -588,6 +590,7 @@ ntb_transport_probe(struct ntb_softc *ntb)
 	}
 
 	callout_init(&nt->link_work, 0);
+	TASK_INIT(&nt->link_cleanup, 0, ntb_transport_link_cleanup_work, nt);
 
 	rc = ntb_set_ctx(ntb, nt, &ntb_transport_ops);
 	if (rc != 0)
@@ -614,7 +617,7 @@ ntb_transport_free(struct ntb_transport_ctx *nt)
 	uint8_t i;
 
 	ntb_transport_link_cleanup(nt);
-
+	taskqueue_drain(taskqueue_swi, &nt->link_cleanup);
 	callout_drain(&nt->link_work);
 
 	BIT_COPY(QP_SETSIZE, &nt->qp_bitmap, &qp_bitmap_alloc);
@@ -1178,7 +1181,7 @@ ntb_transport_event_callback(void *data)
 	} else {
 		if (bootverbose)
 			if_printf(nt->ifp, "HW link down\n");
-		ntb_transport_link_cleanup(nt);
+		taskqueue_enqueue(taskqueue_swi, &nt->link_cleanup);
 	}
 }
 
@@ -1448,6 +1451,12 @@ ntb_transport_link_cleanup(struct ntb_transport_ctx *nt)
 		ntb_spad_write(nt->ntb, i, 0);
 }
 
+static void
+ntb_transport_link_cleanup_work(void *arg, int pending __unused)
+{
+
+	ntb_transport_link_cleanup(arg);
+}
 
 static void
 ntb_qp_link_down(struct ntb_transport_qp *qp)
