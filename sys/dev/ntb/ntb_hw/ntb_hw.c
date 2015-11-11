@@ -182,8 +182,8 @@ struct ntb_softc {
 	void			*ntb_ctx;
 	const struct ntb_ctx_ops *ctx_ops;
 	struct ntb_vec		*msix_vec;
-#define CTX_LOCK(sc)		mtx_lock_spin(&(sc)->ctx_lock)
-#define CTX_UNLOCK(sc)		mtx_unlock_spin(&(sc)->ctx_lock)
+#define CTX_LOCK(sc)		mtx_lock(&(sc)->ctx_lock)
+#define CTX_UNLOCK(sc)		mtx_unlock(&(sc)->ctx_lock)
 #define CTX_ASSERT(sc,f)	mtx_assert(&(sc)->ctx_lock, (f))
 	struct mtx		ctx_lock;
 
@@ -512,7 +512,7 @@ ntb_attach(device_t device)
 	callout_init(&ntb->heartbeat_timer, 1);
 	callout_init(&ntb->lr_timer, 1);
 	mtx_init(&ntb->db_mask_lock, "ntb hw bits", NULL, MTX_SPIN);
-	mtx_init(&ntb->ctx_lock, "ntb ctx", NULL, MTX_SPIN);
+	mtx_init(&ntb->ctx_lock, "ntb ctx", NULL, MTX_DEF);
 
 	if (ntb->type == NTB_ATOM)
 		error = ntb_detect_atom(ntb);
