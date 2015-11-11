@@ -946,7 +946,8 @@ FILES=		\${LOCALES:S/\$/.${SRCOUT2}/}
 CLEANFILES=	\${FILES}
 
 .for f in \${SAME}
-SYMLINKS+=	../\${f:C/:.*\$//}/\${FILESNAME} \${LOCALEDIR}/\${f:C/^.*://}
+SYMLINKS+=	../\${f:C/:.*\$//}/\${FILESNAME} \\
+    \${LOCALEDIR}/\${f:C/^.*://}/\${FILESNAME}
 .endfor
 
 .for f in \${LOCALES}
