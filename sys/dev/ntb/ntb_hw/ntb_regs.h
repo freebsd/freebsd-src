@@ -46,7 +46,7 @@
 #define XEON_DB_LINK_BIT	(1 << XEON_DB_LINK)
 #define XEON_SPAD_COUNT		16
 
-#define XEON_PCICMD_OFFSET	0x0504
+#define XEON_SPCICMD_OFFSET	0x0504
 #define XEON_DEVCTRL_OFFSET	0x0598
 #define XEON_DEVSTS_OFFSET	0x059a
 #define XEON_LINK_STATUS_OFFSET	0x01a2
@@ -91,7 +91,7 @@
 #define ATOM_DB_MSIX_VECTOR_SHIFT	1
 #define ATOM_SPAD_COUNT		16
 
-#define ATOM_PCICMD_OFFSET	0xb004
+#define ATOM_SPCICMD_OFFSET	0xb004
 #define ATOM_MBAR23_OFFSET	0xb018
 #define ATOM_MBAR45_OFFSET	0xb020
 #define ATOM_DEVCTRL_OFFSET	0xb048
@@ -167,9 +167,5 @@
 
 /* The peer ntb secondary config space is 32KB fixed size */
 #define XEON_B2B_MIN_SIZE		0x8000
-
-/* XEON Shadowed MMIO Space */
-#define XEON_SHADOW_PDOORBELL_OFFSET	0x60
-#define XEON_SHADOW_SPAD_OFFSET		0x80
 
 #endif /* _NTB_REGS_H_ */
