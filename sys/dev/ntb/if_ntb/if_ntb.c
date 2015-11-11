@@ -143,7 +143,7 @@ struct ntb_transport_qp {
 	    void *data, int len);
 	struct ntb_queue_list	tx_free_q;
 	struct mtx		ntb_tx_free_q_lock;
-	void			*tx_mw;
+	caddr_t			tx_mw;
 	bus_addr_t		tx_mw_phys;
 	ntb_q_idx_t		tx_index;
 	ntb_q_idx_t		tx_max_entry;
@@ -158,7 +158,7 @@ struct ntb_transport_qp {
 	struct mtx		ntb_rx_q_lock;
 	struct task		rx_completion_task;
 	struct task		rxc_db_work;
-	void			*rx_buff;
+	caddr_t			rx_buff;
 	ntb_q_idx_t		rx_index;
 	ntb_q_idx_t		rx_max_entry;
 	uint64_t		rx_max_frame;
@@ -197,11 +197,11 @@ struct ntb_transport_mw {
 	size_t		xlat_align;
 	size_t		xlat_align_size;
 	/* Tx buff is off vbase / phys_addr */
-	void		*vbase;
+	caddr_t		vbase;
 	size_t		xlat_size;
 	size_t		buff_size;
 	/* Rx buff is off virt_addr / dma_addr */
-	void		*virt_addr;
+	caddr_t		virt_addr;
 	bus_addr_t	dma_addr;
 };
 
@@ -560,7 +560,7 @@ ntb_transport_init(struct ntb_softc *ntb)
 
 		mw->buff_size = 0;
 		mw->xlat_size = 0;
-		mw->virt_addr = 0;
+		mw->virt_addr = NULL;
 		mw->dma_addr = 0;
 	}
 
@@ -665,7 +665,7 @@ ntb_transport_init_queue(struct ntb_transport_ctx *nt, unsigned int qp_num)
 	tx_size = mw_size / num_qps_mw;
 	qp_offset = tx_size * qp_num / mw_count;
 
-	qp->tx_mw = (char *)mw->vbase + qp_offset;
+	qp->tx_mw = mw->vbase + qp_offset;
 	KASSERT(qp->tx_mw != NULL, ("uh oh?"));
 
 	/* XXX Assumes that a vm_paddr_t is equivalent to bus_addr_t */
@@ -673,7 +673,7 @@ ntb_transport_init_queue(struct ntb_transport_ctx *nt, unsigned int qp_num)
 	KASSERT(qp->tx_mw_phys != 0, ("uh oh?"));
 
 	tx_size -= sizeof(struct ntb_rx_info);
-	qp->rx_info = (void *)((char *)qp->tx_mw + tx_size);
+	qp->rx_info = (void *)(qp->tx_mw + tx_size);
 
 	/* Due to house-keeping, there must be at least 2 buffs */
 	qp->tx_max_frame = qmin(tx_size / 2,
@@ -1356,10 +1356,10 @@ ntb_transport_setup_qp_mw(struct ntb_transport_ctx *nt, unsigned int qp_num)
 		num_qps_mw = nt->qp_count / mw_count;
 
 	rx_size = mw->xlat_size / num_qps_mw;
-	qp->rx_buff = (char *)mw->virt_addr + rx_size * qp_num / mw_count;
+	qp->rx_buff = mw->virt_addr + rx_size * qp_num / mw_count;
 	rx_size -= sizeof(struct ntb_rx_info);
 
-	qp->remote_rx_info = (void*)((char *)qp->rx_buff + rx_size);
+	qp->remote_rx_info = (void*)(qp->rx_buff + rx_size);
 
 	/* Due to house-keeping, there must be at least 2 buffs */
 	qp->rx_max_frame = qmin(rx_size / 2,
@@ -1371,8 +1371,7 @@ ntb_transport_setup_qp_mw(struct ntb_transport_ctx *nt, unsigned int qp_num)
 
 	/* Set up the hdr offsets with 0s */
 	for (i = 0; i < qp->rx_max_entry; i++) {
-		offset = (void *)((uint8_t *)qp->rx_buff +
-		    qp->rx_max_frame * (i + 1) -
+		offset = (void *)(qp->rx_buff + qp->rx_max_frame * (i + 1) -
 		    sizeof(struct ntb_payload_header));
 		memset(offset, 0, sizeof(struct ntb_payload_header));
 	}
