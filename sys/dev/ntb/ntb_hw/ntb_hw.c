@@ -905,7 +905,7 @@ ntb_init_isr(struct ntb_softc *ntb)
 
 	if (ntb->type == NTB_XEON && num_vectors < ntb->db_vec_count) {
 		ntb->db_vec_count = 1;
-		ntb->db_vec_shift = ntb->db_count;
+		ntb->db_vec_shift = XEON_DB_TOTAL_SHIFT;
 		rc = ntb_setup_legacy_interrupt(ntb);
 	} else {
 		ntb_create_msix_vec(ntb, num_vectors);
