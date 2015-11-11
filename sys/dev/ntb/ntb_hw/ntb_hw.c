@@ -111,8 +111,8 @@ struct ntb_pci_bar_info {
 	int			pci_resource_id;
 	struct resource		*pci_resource;
 	vm_paddr_t		pbase;
-	void			*vbase;
-	u_long			size;
+	caddr_t			vbase;
+	vm_size_t		size;
 
 	/* Configuration register offsets */
 	uint32_t		psz_off;
@@ -2404,7 +2404,7 @@ ntb_peer_spad_read(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
  */
 int
 ntb_mw_get_range(struct ntb_softc *ntb, unsigned mw_idx, vm_paddr_t *base,
-    void **vbase, size_t *size, size_t *align, size_t *align_size)
+    caddr_t *vbase, size_t *size, size_t *align, size_t *align_size)
 {
 	struct ntb_pci_bar_info *bar;
 	size_t bar_b2b_off;
@@ -2423,7 +2423,7 @@ ntb_mw_get_range(struct ntb_softc *ntb, unsigned mw_idx, vm_paddr_t *base,
 	if (base != NULL)
 		*base = bar->pbase + bar_b2b_off;
 	if (vbase != NULL)
-		*vbase = (char *)bar->vbase + bar_b2b_off;
+		*vbase = bar->vbase + bar_b2b_off;
 	if (size != NULL)
 		*size = bar->size - bar_b2b_off;
 	if (align != NULL)
