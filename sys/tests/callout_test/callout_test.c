@@ -72,7 +72,7 @@ static struct callout_run *comaster[MAXCPU];
 
 uint64_t callout_total=0;
 
-static void execute_the_co_test();
+static void execute_the_co_test(struct callout_run *rn);
 
 static void
 co_saydone(void *arg)
