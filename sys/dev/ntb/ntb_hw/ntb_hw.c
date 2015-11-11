@@ -1961,6 +1961,8 @@ ntb_sysctl_init(struct ntb_softc *ntb)
 	    &ntb->conn_type, 0, "0 - Transparent; 1 - B2B; 2 - Root Port");
 	SYSCTL_ADD_UINT(ctx, tree_par, OID_AUTO, "dev_type", CTLFLAG_RD,
 	    &ntb->dev_type, 0, "0 - USD; 1 - DSD");
+	SYSCTL_ADD_UINT(ctx, tree_par, OID_AUTO, "ppd", CTLFLAG_RD,
+	    &ntb->ppd, 0, "Raw PPD register (cached)");
 
 	if (ntb->b2b_mw_idx != B2B_MW_DISABLED) {
 		SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "b2b_idx", CTLFLAG_RD,
@@ -2085,14 +2087,50 @@ ntb_sysctl_init(struct ntb_softc *ntb)
 	    CTLFLAG_RD, NULL, "Xeon HW errors");
 	errpar = SYSCTL_CHILDREN(tmptree);
 
-	SYSCTL_ADD_PROC(ctx, errpar, OID_AUTO, "devsts",
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "ppd",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_8 | NTB_PCI_REG | NTB_PPD_OFFSET,
+	    sysctl_handle_register, "CU", "PPD");
+
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "pbar23_sz",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_8 | NTB_PCI_REG | XEON_PBAR23SZ_OFFSET,
+	    sysctl_handle_register, "CU", "PBAR23 SZ (log2)");
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "pbar4_sz",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_8 | NTB_PCI_REG | XEON_PBAR4SZ_OFFSET,
+	    sysctl_handle_register, "CU", "PBAR4 SZ (log2)");
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "pbar5_sz",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_8 | NTB_PCI_REG | XEON_PBAR5SZ_OFFSET,
+	    sysctl_handle_register, "CU", "PBAR5 SZ (log2)");
+
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "sbar23_sz",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_8 | NTB_PCI_REG | XEON_SBAR23SZ_OFFSET,
+	    sysctl_handle_register, "CU", "SBAR23 SZ (log2)");
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "sbar4_sz",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_8 | NTB_PCI_REG | XEON_SBAR4SZ_OFFSET,
+	    sysctl_handle_register, "CU", "SBAR4 SZ (log2)");
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "sbar5_sz",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_8 | NTB_PCI_REG | XEON_SBAR5SZ_OFFSET,
+	    sysctl_handle_register, "CU", "SBAR5 SZ (log2)");
+
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "devsts",
 	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
 	    NTB_REG_16 | NTB_PCI_REG | XEON_DEVSTS_OFFSET,
 	    sysctl_handle_register, "SU", "DEVSTS");
-	SYSCTL_ADD_PROC(ctx, errpar, OID_AUTO, "lnksts",
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "lnksts",
 	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
 	    NTB_REG_16 | NTB_PCI_REG | XEON_LINK_STATUS_OFFSET,
 	    sysctl_handle_register, "SU", "LNKSTS");
+	SYSCTL_ADD_PROC(ctx, regpar, OID_AUTO, "slnksts",
+	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
+	    NTB_REG_16 | NTB_PCI_REG | XEON_SLINK_STATUS_OFFSET,
+	    sysctl_handle_register, "SU", "SLNKSTS");
+
 	SYSCTL_ADD_PROC(ctx, errpar, OID_AUTO, "uncerrsts",
 	    CTLFLAG_RD | CTLTYPE_OPAQUE, ntb,
 	    NTB_REG_32 | NTB_PCI_REG | XEON_UNCERRSTS_OFFSET,
