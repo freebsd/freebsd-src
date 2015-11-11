@@ -1168,9 +1168,9 @@ ntb_detect_xeon(struct ntb_softc *ntb)
 	ntb->ppd = ppd;
 
 	if ((ppd & XEON_PPD_DEV_TYPE) != 0)
-		ntb->dev_type = NTB_DEV_USD;
-	else
 		ntb->dev_type = NTB_DEV_DSD;
+	else
+		ntb->dev_type = NTB_DEV_USD;
 
 	if ((ppd & XEON_PPD_SPLIT_BAR) != 0)
 		ntb->features |= NTB_SPLIT_BAR;
