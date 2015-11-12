@@ -105,7 +105,7 @@ options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 
 # alternatively, boot from a MMC/SD memory card
 # s1 is FAT on this platform.
-options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s2a\"
+options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s3a\"
 
 # Alternatively, boot from a USB card.
 #options 	ROOTDEVNAME=\"ufs:/dev/da0s1a\"
