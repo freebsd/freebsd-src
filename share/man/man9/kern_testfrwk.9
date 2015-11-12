@@ -1,0 +1,188 @@
+.\"
+.\" Copyright (c) 2015 Netflix Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Novmember 10, 2015
+.Dt KERN_TESTFRWK
+.Os
+.Sh NAME
+.Nm kern_testfrwk
+.Sh SYNOPSIS
+kld_load kern_testfrwk
+.Sh DESCRIPTION
+So what is this sys/tests directory in the kernel all about?
+.Pp
+Have you ever wanted to test a part of the FreeBSD kernel in
+some way and you have no real way from user-land to make
+what you want to occur happen? Say an error path or
+situation where locking occurs in a particular manner
+that happens only once in a blue moon?
+.Pp
+If so then the kernel test framework is just what you are
+looking for. Its designed to help you create the situation
+you want.
+.Pp
+There are two components to the system, the test-framework
+and your-test. This document will talk about both components
+and use the one test submitted with the initial commit of
+this code to discuss the test (callout_test). All of the
+tests become kernel loadable modules. The test you write
+should have a dependancy on the test-framework, that way
+it will be loaded automatically with your test. You can see
+how to do this in the bottom of the callout_test.c in
+sys/tests/callout_test/callout_test.c (thats the example test).
+.Pp
+The framework itself is in sys/tests/framework/kern_testfrwk.c. Its
+job is to manage the test's that are loaded, yes more than
+one can be loaded. The idea is pretty simple, you load
+the test framework and then load your test.
+.Pp
+So when your test loads, you register your tests with the
+kernel-test framework. You do that through a call to
+.Fn kern_testframework_register
+.Pp
+Usually this is done at the module load event as shown below:
+.Pp
+.Bd -literal -offset indent
+	switch (type) {
+	case MOD_LOAD:
+		err = kern_testframework_register("callout_test",
+		    run_callout_test);
+.Ed
+.Pp
+Here the test is "callout_test" and is registered to run the function
+.Fn run_callout_test
+passing it a
+.Fa struct kern_test *ptr
+The kern_test structure is
+a structure as defined in kern_testfrwk.h
+.Bd -literal -offset indent
+struct kern_test {
+	char name[TEST_NAME_LEN];
+	int num_threads; /* Fill in how many threads you want */
+	int tot_threads_running; /* For framework */
+	uint8_t test_options[TEST_OPTION_SPACE];
+};
+.Ed
+.Pp
+The user sends this structure down via a sysctl to start your
+test running he or she places the same name you registered, "callout_test"
+in our example, in the
+.Fa name
+field. The user can also set the
+number of threads to run by putting that in
+.Fa num_threads.
+.Pp
+The framework will start that many kernel threads all running your test
+at the same time. The user does not specify anything in
+.Fa tot_threads_running
+(the framework uses that). As the framework calls each one of
+your tests it will set the
+.Fa tot_threads_running
+to the index
+of the thread that your call is made from. So for example if the user
+sets
+.Fa num_threads
+to two, then the function run_callout_test() will
+be called once with
+.Fa tot_threads_running
+to 0, and a second time with
+.Fa tot_threads_running
+set to 1.
+.Pp
+The
+.Fa test_options
+field is a test-specific set of information that
+is an opaque glob that is passed in from user space (a max of 256 bytes)
+that you reshape to what input your test wants.
+In the case of callout_test we reshape that to:
+.Pp
+.Bd -literal -offset indent
+struct callout_test {
+	int number_of_callouts;
+	int test_number;
+};
+.Ed
+.Pp
+So the first lines of
+.Fn run_callout_test()
+does the following to get at the user specific data:
+.Pp
+.Bd -literal -offset indent
+{
+	struct callout_test *u;
+	size_t sz;
+	int i;
+	struct callout_run *rn;
+	int index = test->tot_threads_running;
+
+	u = (struct callout_test *)test->test_options;
+.Ed
+.Pp
+That way it can access:
+.Bd -literal
+   u->test_number (there are two types of tests provided with this test)
+and
+   u->number_of_callouts (how many simultaneous callouts to run).
+.Ed
+.Pp
+Your test can of course do anything it wants with these bytes, they
+may not even use them (they are optional). So the callout_test in
+question wants to create a situation where multiple callouts are
+all run, thats the
+.Fa number_of_callouts
+, and it try's to cancel
+the callout with the new
+.Fn callout_async_drain
+feature. The threads do
+this by the test executor getting the lock in question, and then
+starting each of the callouts waiting for the callouts to
+all go off (the executor spins waits). This forces the situation that
+the callout's have expired and are all waiting on the lock that
+the executor holds. After the callouts are all 
+blocked, the executor then calls the new function
+.Fn callout_async_drain
+on each callout and then releases the lock.
+.Pp
+After all the callouts are done, a total status is printed
+showing the results via printf. The human tester then can run dmesg
+to see the results. In this case it is expected that if you are
+running test 0, all the callouts expire on the same CPU so then
+only one callout_drain function would have been called. And
+the number of zero_returns should match the number of callout_drains
+that were called i.e. 1. The one_returns should be the remainder of the
+callouts. If the test number was 1, the callouts were spread
+across all CPU's. So that the number of zero_returns will
+again match the number of drain calls made which matches the number
+of CPU's that were put in use.
+.Pp
+More than one thread can be used with this test, though in the
+example case its probably not necessary. 
+.Pp
+You should not need to change the framework
+just add tests and register them after loading.
+.Sh AUTHORS
+The kernel test framework was written by Randall Stewart rrs@freebsd.org
+with help from John Mark Gurney jmg@freebsd.org
