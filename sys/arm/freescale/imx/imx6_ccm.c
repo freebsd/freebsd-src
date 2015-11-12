@@ -95,7 +95,7 @@ ccm_init_gates(struct ccm_softc *sc)
 	WR4(sc, CCM_CCGR3, 0x3ff00000); /* DDR memory controller */
 	WR4(sc, CCM_CCGR4, 0x0000f300); /* pl301 bus crossbar */
 	WR4(sc, CCM_CCGR5, 0x0ffc00c0); /* uarts, ssi, sdma */
-	WR4(sc, CCM_CCGR6, 0x000000ff); /* usdhc 1-4 */
+	WR4(sc, CCM_CCGR6, 0x000003ff); /* usdhc 1-4, usboh3 */
 }
 
 static int
