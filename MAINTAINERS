@@ -68,6 +68,7 @@ sys/compat/linuxkpi	hselasky	If in doubt, ask.
 sys/dev/e1000	erj	Pre-commit phabricator review requested.
 sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
 sys/dev/ixl	erj	Pre-commit phabricator review requested.
+usr.sbin/pkg	pkg@	Please coordinate behavior or flag changes with pkg team.
 ---- OLD ----
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
