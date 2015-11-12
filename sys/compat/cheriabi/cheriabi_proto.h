@@ -227,9 +227,6 @@ struct cheriabi_msgctl_args {
 	char cmd_l_[PADL_(int)]; int cmd; char cmd_r_[PADR_(int)];
 	char buf_l_[PADL_(struct msqid_ds_c *)]; struct msqid_ds_c * buf; char buf_r_[PADR_(struct msqid_ds_c *)];
 };
-struct cheriabi_cap_enter_args {
-	register_t dummy;
-};
 struct cheriabi_wait6_args {
 	char idtype_l_[PADL_(int)]; int idtype; char idtype_r_[PADR_(int)];
 	char id_l_[PADL_(id_t)]; id_t id; char id_r_[PADR_(id_t)];
@@ -283,7 +280,6 @@ int	cheriabi_jail_get(struct thread *, struct cheriabi_jail_get_args *);
 int	cheriabi_jail_set(struct thread *, struct cheriabi_jail_set_args *);
 int	cheriabi_semctl(struct thread *, struct cheriabi_semctl_args *);
 int	cheriabi_msgctl(struct thread *, struct cheriabi_msgctl_args *);
-int	cheriabi_cap_enter(struct thread *, struct cheriabi_cap_enter_args *);
 int	cheriabi_wait6(struct thread *, struct cheriabi_wait6_args *);
 int	cheriabi_aio_mlock(struct thread *, struct cheriabi_aio_mlock_args *);
 
@@ -361,7 +357,6 @@ int	cheriabi_aio_mlock(struct thread *, struct cheriabi_aio_mlock_args *);
 #define	CHERIABI_SYS_AUE_cheriabi_jail_set	AUE_NULL
 #define	CHERIABI_SYS_AUE_cheriabi_semctl	AUE_SEMCTL
 #define	CHERIABI_SYS_AUE_cheriabi_msgctl	AUE_MSGCTL
-#define	CHERIABI_SYS_AUE_cheriabi_cap_enter	AUE_CAP_ENTER
 #define	CHERIABI_SYS_AUE_cheriabi_wait6	AUE_WAIT6
 #define	CHERIABI_SYS_AUE_cheriabi_aio_mlock	AUE_NULL
 

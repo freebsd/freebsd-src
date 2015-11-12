@@ -413,7 +413,7 @@
 #define	CHERIABI_SYS_lpathconf	513
 				/* 514 is obsolete cap_new */
 #define	CHERIABI_SYS___cap_rights_get	515
-#define	CHERIABI_SYS_cheriabi_cap_enter	516
+#define	CHERIABI_SYS_cap_enter	516
 #define	CHERIABI_SYS_cap_getmode	517
 #define	CHERIABI_SYS_pdfork	518
 #define	CHERIABI_SYS_pdkill	519
