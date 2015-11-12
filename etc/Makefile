@@ -338,6 +338,9 @@ MTREE_FILTER= sed -e 's,\([gu]\)name=,\1id=,g' \
 .else
 MTREE_FILTER= cat
 .endif
+.if !defined(NO_FSCHG)
+MTREE_FSCHG=	-i
+.endif
 
 MTREES=		mtree/BSD.root.dist		/		\
 		mtree/BSD.var.dist		/var		\
@@ -370,10 +373,11 @@ distrib-dirs: ${MTREES:N/*}
 		d=${DESTDIR}$$1; \
 		shift; \
 		test -d $$d || mkdir -p $$d; \
-		${ECHO} ${MTREE_CMD} -deiU ${MTREE_FOLLOWS_SYMLINKS} \
-		    -f $$m -p $$d; \
+		${ECHO} ${MTREE_CMD} -deU ${MTREE_FSCHG} \
+		    ${MTREE_FOLLOWS_SYMLINKS} -f $$m -p $$d; \
 		${MTREE_FILTER} $$m | \
-		${MTREE_CMD} -deiU ${MTREE_FOLLOWS_SYMLINKS} -p $$d; \
+		${MTREE_CMD} -deU ${MTREE_FSCHG} ${MTREE_FOLLOWS_SYMLINKS} \
+		    -p $$d; \
 	done; true
 .if defined(NO_ROOT)
 	@set ${MTREES}; \
