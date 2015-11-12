@@ -152,6 +152,11 @@ PPLEVEL=3
 # /cfg partition will be ${NANO_LABEL}s3
 # /data partition will be ${NANO_LABEL}s4
 NANO_LABEL=""
+NANO_SLICE_ROOT=s1
+NANO_SLICE_ALTROOT=s2
+NANO_SLICE_CFG=s3
+NANO_SLICE_DATA=s4
+
 
 #######################################################################
 # Architecture to build.  Corresponds to TARGET_ARCH in a buildworld.
@@ -410,7 +415,6 @@ setup_nanobsd ( ) (
 		# link /$d under /conf
 		# we use hard links so we have them both places.
 		# the files in /$d will be hidden by the mount.
-		# XXX: configure /$d ramdisk size
 		mkdir -p conf/base/$d conf/default/$d
 		find $d -print | cpio -dumpl conf/base/
 	done
@@ -419,7 +423,7 @@ setup_nanobsd ( ) (
 	echo "$NANO_RAM_TMPVARSIZE" > conf/base/var/md_size
 
 	# pick up config files from the special partition
-	echo "mount -o ro /dev/${NANO_DRIVE}s3" > conf/default/etc/remount
+	echo "mount -o ro /dev/${NANO_DRIVE}${NANO_SLICE_CFG}" > conf/default/etc/remount
 
 	# Put /tmp on the /var ramdisk (could be symlink already)
 	nano_rm -rf tmp
@@ -443,8 +447,8 @@ setup_nanobsd_etc ( ) (
 	# save config file for scripts
 	echo "NANO_DRIVE=${NANO_DRIVE}" > etc/nanobsd.conf
 
-	echo "/dev/${NANO_DRIVE}s1a / ufs ro 1 1" > etc/fstab
-	echo "/dev/${NANO_DRIVE}s3 /cfg ufs rw,noauto 2 2" >> etc/fstab
+	echo "/dev/${NANO_DRIVE}${NANO_SLICE_ROOT}a / ufs ro 1 1" > etc/fstab
+	echo "/dev/${NANO_DRIVE}${NANO_SLICE_CFG} /cfg ufs rw,noauto 2 2" >> etc/fstab
 	mkdir -p cfg
 	)
 )
@@ -598,15 +602,15 @@ create_diskimage ( ) (
 		boot0cfg -B -b ${NANO_WORLDDIR}/${NANO_BOOTLOADER} ${NANO_BOOT0CFG} ${MD}
 	fi
 	if [ -f ${NANO_WORLDDIR}/boot/boot ]; then
-		bsdlabel -w -B -b ${NANO_WORLDDIR}/boot/boot ${MD}s1
+		bsdlabel -w -B -b ${NANO_WORLDDIR}/boot/boot ${MD}${NANO_SLICE_ROOT}
 	else
-		bsdlabel -w ${MD}s1
+		bsdlabel -w ${MD}${NANO_SLICE_ROOT}
 	fi
-	bsdlabel ${MD}s1
+	bsdlabel ${MD}${NANO_SLICE_ROOT}
 
 	# Create first image
-	populate_slice /dev/${MD}s1a ${NANO_WORLDDIR} ${MNT} "s1a"
-	mount /dev/${MD}s1a ${MNT}
+	populate_slice /dev/${MD}${NANO_SLICE_ROOT}a ${NANO_WORLDDIR} ${MNT} "${NANO_SLICE_ROOT}a"
+	mount /dev/${MD}${NANO_SLICE_ROOT}a ${MNT}
 	echo "Generating mtree..."
 	( cd ${MNT} && mtree -c ) > ${NANO_OBJ}/_.mtree
 	( cd ${MNT} && du -k ) > ${NANO_OBJ}/_.du
@@ -615,26 +619,31 @@ create_diskimage ( ) (
 	if [ $NANO_IMAGES -gt 1 -a $NANO_INIT_IMG2 -gt 0 ] ; then
 		# Duplicate to second image (if present)
 		echo "Duplicating to second image..."
-		dd conv=sparse if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
-		mount /dev/${MD}s2a ${MNT}
+		dd conv=sparse if=/dev/${MD}${NANO_SLICE_ROOT} of=/dev/${MD}${NANO_SLICE_ALTROOT} bs=64k
+		mount /dev/${MD}${NANO_SLICE_ALTROOT}a ${MNT}
 		for f in ${MNT}/etc/fstab ${MNT}/conf/base/etc/fstab
 		do
-			sed -i "" "s=${NANO_DRIVE}s1=${NANO_DRIVE}s2=g" $f
+			sed -i "" "s=${NANO_DRIVE}${NANO_SLICE_ROOT}=${NANO_DRIVE}${NANO_SLICE_ALTROOT}=g" $f
 		done
 		nano_umount ${MNT}
 		# Override the label from the first partition so we
 		# don't confuse glabel with duplicates.
 		if [ ! -z ${NANO_LABEL} ]; then
-			tunefs -L ${NANO_LABEL}"s2a" /dev/${MD}s2a
+			tunefs -L ${NANO_LABEL}"${NANO_SLICE_ALTROOT}a" /dev/${MD}${NANO_SLICE_ALTROOT}a
 		fi
 	fi
 	
 	# Create Config slice
-	populate_cfg_slice /dev/${MD}s3 "${NANO_CFGDIR}" ${MNT} "s3"
+	populate_cfg_slice /dev/${MD}${NANO_SLICE_CFG} "${NANO_CFGDIR}" ${MNT} "${NANO_SLICE_CFG}"
 
 	# Create Data slice, if any.
-	if [ $NANO_DATASIZE -ne 0 ] ; then
-		populate_data_slice /dev/${MD}s4 "${NANO_DATADIR}" ${MNT} "s4"
+	if [ ! -z $NANO_SLICE_DATA -a $NANO_SLICE_CFG = $NANO_SLICE_DATA -a \
+	   $NANO_DATASIZE -ne 0 ]; then
+		pprint 2 "NANO_SLICE_DATA is the same as NANO_SLICE_CFG, fix."
+		exit 2
+	fi
+	if [ $NANO_DATASIZE -ne 0 -a ! -z $NANO_SLICE_DATA ] ; then
+		populate_data_slice /dev/${MD}${NANO_SLICE_DATA} "${NANO_DATADIR}" ${MNT} "${NANO_SLICE_DATA}"
 	fi
 
 	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
@@ -652,7 +661,7 @@ create_diskimage ( ) (
 
 	if ${do_copyout_partition} ; then
 		echo "Writing out _.disk.image..."
-		dd conv=sparse if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
+		dd conv=sparse if=/dev/${MD}${NANO_SLICE_ROOT} of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
 	fi
 	mdconfig -d -u $MD
 
