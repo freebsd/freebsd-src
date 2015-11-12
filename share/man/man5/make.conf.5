@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2014
+.Dd November 12, 2015
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -165,13 +165,9 @@ to contain the appropriate optimization directive to
 .Xr cc 1 .
 The automatic setting of
 .Va CFLAGS
-and
-.Va COPTFLAGS
 may be overridden using the
 .Va NO_CPU_CFLAGS
-and
-.Va NO_CPU_COPTFLAGS
-variables, respectively.
+variable.
 Refer to
 .Pa /usr/share/examples/etc/make.conf
 for a list of recognized
@@ -230,12 +226,6 @@ to follow symlinks.
 Setting this variable will prevent CPU specific compiler flags
 from being automatically added to
 .Va CFLAGS
-during compile time.
-.It Va NO_CPU_COPTFLAGS
-.Pq Vt str
-Setting this variable will prevent CPU specific compiler flags
-from being automatically added to
-.Va COPTFLAGS
 during compile time.
 .It Va NO_DOCUPDATE
 .Pq Vt bool
