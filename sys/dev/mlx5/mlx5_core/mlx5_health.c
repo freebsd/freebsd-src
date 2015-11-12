@@ -115,7 +115,7 @@ static void print_health_info(struct mlx5_core_dev *dev)
 	printf("mlx5_core: INFO: ""ext_sync 0x%04x\n", read_be16(&h->ext_sync));
 }
 
-static void poll_health(uintptr_t data)
+static void poll_health(unsigned long data)
 {
 	struct mlx5_core_dev *dev = (struct mlx5_core_dev *)data;
 	struct mlx5_core_health *health = &dev->priv.health;
@@ -155,7 +155,7 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev)
 	health->health = &dev->iseg->health;
 	health->health_counter = &dev->iseg->health_counter;
 
-	setup_timer(&health->timer, poll_health, (uintptr_t)dev);
+	setup_timer(&health->timer, poll_health, (unsigned long)dev);
 	mod_timer(&health->timer,
 		  round_jiffies(jiffies + MLX5_HEALTH_POLL_INTERVAL));
 }
