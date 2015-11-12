@@ -42,12 +42,8 @@ sysprotoend="sysprotoend.$$"
 systracetmp="systrace.$$"
 systraceret="systraceret.$$"
 
-if [ -r capabilities.conf ]; then
-	capenabled=`cat capabilities.conf | grep -v "^#" | grep -v "^$"`
-	capenabled=`echo $capenabled | sed 's/ /,/g'`
-else
-	capenabled=""
-fi
+# default input files:
+capabilities_conf="capabilities.conf"
 
 trap "rm $sysaue $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $syscompat6 $syscompat6dcl $syscompat7 $syscompat7dcl $sysent $sysinc $sysarg $sysprotoend $systracetmp $systraceret" 0
 
@@ -61,6 +57,13 @@ esac
 
 if [ -n "$2" ]; then
 	. $2
+fi
+
+if [ -r $capabilities_conf ]; then
+	capenabled=`cat $capabilities_conf | grep -v "^#" | grep -v "^$"`
+	capenabled=`echo $capenabled | sed 's/ /,/g'`
+else
+	capenabled=""
 fi
 
 sed -e '
@@ -111,6 +114,7 @@ s/\$//g
 		namesname = \"$namesname\"
 		infile = \"$1\"
 		capenabled_string = \"$capenabled\"
+		cap_prefix = \"$cap_prefix\"
 		"'
 
 		split(capenabled_string, capenabled, ",");
@@ -341,7 +345,7 @@ s/\$//g
 		# from it.
 		#
 		for (cap in capenabled) {
-			if (funcname == capenabled[cap]) {
+			if (funcname == capenabled[cap] || funcname == cap_prefix capenabled[cap] ) {
 				flags = "SYF_CAPENABLED";
 				break;
 			}
