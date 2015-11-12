@@ -67,6 +67,8 @@
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
+#include <vm/pmap.h>
+#include <machine/pmap.h>
 
 #define	prefetch(x)
 
