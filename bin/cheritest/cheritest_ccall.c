@@ -189,9 +189,10 @@ test_nofault_ccall_nop_creturn(const struct cheri_test *ctp __unused)
 
 /*
  * CCall code that will load a value (0x1234) into a return register,
- * which we can check for.  We use getpid() to ensure a well-known and quite
- * different value appears in the return register prior to CCall.
+ * which we can check for.  We install a quite different value (0x5678) in the
+ * register prior to CCall to make sure that is overwritten.
  */
+#define	PRIOR_RETVAL	0x5678
 #define	DLI_RETVAL	0x1234
 void
 test_nofault_ccall_dli_creturn(const struct cheri_test *ctp __unused)
@@ -199,7 +200,7 @@ test_nofault_ccall_dli_creturn(const struct cheri_test *ctp __unused)
 	struct cheri_object co;
 	register_t v0;
 
-	v0 = getpid();
+	v0 = PRIOR_RETVAL;
 	co.co_codecap = sandbox_dli_creturn_codecap;
 	co.co_datacap = sandbox_dli_creturn_datacap;
 	v0 = cheri_invoke(co, 0,
