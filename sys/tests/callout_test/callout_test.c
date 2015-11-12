@@ -46,11 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpuctl.h>
 #include <tests/kern_testfrwk.h>
 #include <tests/callout_test.h>
-#ifdef SMP
 #include <machine/cpu.h>
-#else 
-#define cpu_spinwait()
-#endif
 
 MALLOC_DEFINE(M_CALLTMP, "Temp callout Memory", "CalloutTest");
 
