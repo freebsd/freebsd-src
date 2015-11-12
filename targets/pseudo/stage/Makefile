@@ -8,7 +8,7 @@ all:
 # we don't need to see it.
 stage-distrib-dirs: .META
 	mkdir -p ${STAGE_OBJTOP}
-	${.MAKE} -C ${SRCTOP}/etc distrib-dirs -DWITH_TESTS \
+	${.MAKE} -C ${SRCTOP}/etc distrib-dirs -DNO_FSCHG -DWITH_TESTS \
 	    DESTDIR=${STAGE_OBJTOP} > $@.distrib_dirs
 	touch $@
 
