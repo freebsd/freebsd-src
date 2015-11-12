@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2015
  *	Netflix Incorporated, All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -55,27 +55,28 @@ struct kern_test_list {
 	kerntfunc func;
 };
 
-TAILQ_HEAD(ktestlist, kern_test_list); 
+TAILQ_HEAD(ktestlist, kern_test_list);
 
 struct kern_test_entry {
 	TAILQ_ENTRY(kern_test_entry) next;
-	struct kern_test_list 	*kt_e;
-	struct kern_test 	kt_data;
+	struct kern_test_list *kt_e;
+	struct kern_test kt_data;
 };
-TAILQ_HEAD(ktestqueue, kern_test_entry); 
+
+TAILQ_HEAD(ktestqueue, kern_test_entry);
 
 MALLOC_DEFINE(M_KTFRWK, "kern_tfrwk", "Kernel Test Framework");
 struct kern_totfrwk {
-	struct taskqueue	*kfrwk_tq;
-	struct task		kfrwk_que;
-	struct ktestlist 	kfrwk_testlist;
-	struct ktestqueue 	kfrwk_testq;
-	struct mtx 		kfrwk_mtx;
-	int 			kfrwk_waiting;
+	struct taskqueue *kfrwk_tq;
+	struct task kfrwk_que;
+	struct ktestlist kfrwk_testlist;
+	struct ktestqueue kfrwk_testq;
+	struct mtx kfrwk_mtx;
+	int kfrwk_waiting;
 };
 
 struct kern_totfrwk kfrwk;
-static int ktest_frwk_inited=0;
+static int ktest_frwk_inited = 0;
 
 #define KTFRWK_MUTEX_INIT() mtx_init(&kfrwk.kfrwk_mtx, "kern_test_frwk", "tfrwk", MTX_DEF)
 
@@ -90,7 +91,7 @@ kfrwk_task(void *context, int pending)
 {
 	struct kern_totfrwk *tf;
 	struct kern_test_entry *wk;
-	int free_mem=0;
+	int free_mem = 0;
 	struct kern_test kt_data;
 	kerntfunc ktf;
 
@@ -113,14 +114,14 @@ kfrwk_task(void *context, int pending)
 		if (wk->kt_e) {
 			ktf = wk->kt_e->func;
 		}
-        }
+	}
 	KTFRWK_UNLOCK();
 	if (wk && free_mem) {
 		free(wk, M_KTFRWK);
 	}
 	/* Execute the test */
-	if (ktf){
-		(*ktf)(&kt_data);
+	if (ktf) {
+		(*ktf) (&kt_data);
 	}
 	/* We are done */
 	atomic_add_int(&tf->kfrwk_waiting, 1);
@@ -135,9 +136,9 @@ kerntest_frwk_init(void)
 	TAILQ_INIT(&kfrwk.kfrwk_testq);
 	TAILQ_INIT(&kfrwk.kfrwk_testlist);
 	/* Now lets start up a number of tasks to do the work */
-	TASK_INIT(&kfrwk.kfrwk_que, 0, kfrwk_task,  &kfrwk);
+	TASK_INIT(&kfrwk.kfrwk_que, 0, kfrwk_task, &kfrwk);
 	kfrwk.kfrwk_tq = taskqueue_create_fast("sbtls_task", M_NOWAIT,
-					       taskqueue_thread_enqueue, &kfrwk.kfrwk_tq);
+	    taskqueue_thread_enqueue, &kfrwk.kfrwk_tq);
 	if (kfrwk.kfrwk_tq == NULL) {
 		printf("Can't start taskqueue for Kernel Test Framework\n");
 		panic("Taskqueue init fails for kfrwk");
@@ -145,16 +146,16 @@ kerntest_frwk_init(void)
 	taskqueue_start_threads(&kfrwk.kfrwk_tq, ncpus, PI_NET, "[kt_frwk task]");
 	kfrwk.kfrwk_waiting = ncpus;
 	ktest_frwk_inited = 1;
-	return(0);
+	return (0);
 }
 
 static int
 kerntest_frwk_fini(void)
 {
-	KTFRWK_LOCK();	
+	KTFRWK_LOCK();
 	if (!TAILQ_EMPTY(&kfrwk.kfrwk_testlist)) {
 		/* Still modules registered */
-		KTFRWK_UNLOCK();	
+		KTFRWK_UNLOCK();
 		return (EBUSY);
 	}
 	ktest_frwk_inited = 0;
@@ -168,25 +169,25 @@ kerntest_frwk_fini(void)
 
 static int kerntest_execute(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_NODE(_kern, OID_AUTO, testfrwk,  CTLFLAG_RW, 0, "Kernel Test Framework");
+SYSCTL_NODE(_kern, OID_AUTO, testfrwk, CTLFLAG_RW, 0, "Kernel Test Framework");
 SYSCTL_PROC(_kern_testfrwk, OID_AUTO, runtest, (CTLTYPE_STRUCT | CTLFLAG_RW),
-	    0, 0, kerntest_execute, "IU", "Execute a kernel test");
+    0, 0, kerntest_execute, "IU", "Execute a kernel test");
 
-int 
+int
 kerntest_execute(SYSCTL_HANDLER_ARGS)
 {
 	struct kern_test kt;
-	struct kern_test_list *li, *te=NULL;
-	struct kern_test_entry *kte=NULL;
+	struct kern_test_list *li, *te = NULL;
+	struct kern_test_entry *kte = NULL;
 	int error = 0;
 
 	if (ktest_frwk_inited == 0) {
-		return(ENOENT);
+		return (ENOENT);
 	}
 	/* Find the entry if possible */
 	error = SYSCTL_IN(req, &kt, sizeof(struct kern_test));
 	if (error) {
-		return(error);
+		return (error);
 	}
 	if (kt.num_threads <= 0) {
 		return (EINVAL);
@@ -230,21 +231,21 @@ kerntest_execute(SYSCTL_HANDLER_ARGS)
 	taskqueue_enqueue(kfrwk.kfrwk_tq, &kfrwk.kfrwk_que);
 out:
 	KTFRWK_UNLOCK();
-	return(error);
+	return (error);
 }
 
 int
 kern_testframework_register(const char *name, kerntfunc func)
 {
 	int error = 0;
-	struct kern_test_list *li, *te=NULL;
+	struct kern_test_list *li, *te = NULL;
 	int len;
 
 	len = strlen(name);
 	if (len >= TEST_NAME_LEN) {
 		return (E2BIG);
 	}
-	te = malloc(sizeof(struct kern_test_list), M_KTFRWK, M_WAITOK);	
+	te = malloc(sizeof(struct kern_test_list), M_KTFRWK, M_WAITOK);
 	if (te == NULL) {
 		error = ENOMEM;
 		goto out;
@@ -263,20 +264,20 @@ kern_testframework_register(const char *name, kerntfunc func)
 	strcpy(te->name, name);
 	TAILQ_INSERT_TAIL(&kfrwk.kfrwk_testlist, te, next);
 out:
-	KTFRWK_UNLOCK();	
-	return(error);
+	KTFRWK_UNLOCK();
+	return (error);
 }
 
 int
 kern_testframework_deregister(const char *name)
 {
-	struct kern_test_list *li, *te=NULL;
+	struct kern_test_list *li, *te = NULL;
 	u_int ncpus = mp_ncpus ? mp_ncpus : MAXCPU;
 	int error = 0;
 
 	KTFRWK_LOCK();
 	/* First does it already exist? */
-	TAILQ_FOREACH (li, &kfrwk.kfrwk_testlist, next) {
+	TAILQ_FOREACH(li, &kfrwk.kfrwk_testlist, next) {
 		if (strcmp(li->name, name) == 0) {
 			te = li;
 			break;
@@ -301,8 +302,8 @@ kern_testframework_deregister(const char *name)
 	memset(te, 0, sizeof(struct kern_test_list));
 	free(te, M_KTFRWK);
 out:
-	KTFRWK_UNLOCK();	
-	return(error);
+	KTFRWK_UNLOCK();
+	return (error);
 }
 
 static int
@@ -321,7 +322,7 @@ kerntest_mod_init(module_t mod, int type, void *data)
 		} else {
 			err = EBUSY;
 		}
-		KTFRWK_UNLOCK();		
+		KTFRWK_UNLOCK();
 		break;
 	case MOD_UNLOAD:
 		err = kerntest_frwk_fini();
