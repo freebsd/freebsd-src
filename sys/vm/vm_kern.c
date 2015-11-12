@@ -94,6 +94,9 @@ vm_map_t pipe_map;
 const void *zero_region;
 CTASSERT((ZERO_REGION_SIZE & PAGE_MASK) == 0);
 
+/* NB: Used by kernel debuggers. */
+const u_long vm_maxuser_address = VM_MAXUSER_ADDRESS;
+
 SYSCTL_ULONG(_vm, OID_AUTO, min_kernel_address, CTLFLAG_RD,
     SYSCTL_NULL_ULONG_PTR, VM_MIN_KERNEL_ADDRESS, "Min kernel address");
 
