@@ -495,7 +495,7 @@ ti_i2c_reset(struct ti_i2c_softc *sc, u_char speed)
 		break;
 #endif
 	default:
-		panic("Unknown Ti SoC, unable to reset the i2c");
+		panic("Unknown TI SoC, unable to reset the i2c");
 	}
 
 	/*
