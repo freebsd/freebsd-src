@@ -66,7 +66,7 @@ struct callout_run {
 
 static struct callout_run *comaster[MAXCPU];
 
-uint64_t callout_total=0;
+uint64_t callout_total = 0;
 
 static void execute_the_co_test(struct callout_run *rn);
 
@@ -74,18 +74,19 @@ static void
 co_saydone(void *arg)
 {
 	struct callout_run *rn;
+
 	rn = (struct callout_run *)arg;
 	printf("The callout test is now complete for thread %d\n",
-	       rn->index);
+	    rn->index);
 	printf("number_callouts:%d\n",
-	       rn->co_number_callouts);
+	    rn->co_number_callouts);
 	printf("Callouts that bailed (Not PENDING or ACTIVE cleared):%d\n",
-	       rn->co_return_npa);
+	    rn->co_return_npa);
 	printf("Callouts that completed:%d\n", rn->co_completed);
 	printf("Drain calls:%d\n", rn->drain_calls);
 	printf("Zero returns:%d non-zero:%d\n",
-	       rn->cnt_zero,
-	       rn->cnt_one);
+	    rn->cnt_zero,
+	    rn->cnt_one);
 
 }
 
@@ -93,6 +94,7 @@ static void
 drainit(void *arg)
 {
 	struct callout_run *rn;
+
 	rn = (struct callout_run *)arg;
 	mtx_lock(&rn->lock);
 	rn->drain_calls++;
@@ -104,7 +106,7 @@ test_callout(void *arg)
 {
 	struct callout_run *rn;
 	int cpu;
-	
+
 	critical_enter();
 	cpu = curcpu;
 	critical_exit();
@@ -120,7 +122,7 @@ test_callout(void *arg)
 	}
 	callout_deactivate(&rn->co_array[cpu]);
 	rn->co_completed++;
-	mtx_unlock(&rn->lock);	
+	mtx_unlock(&rn->lock);
 	atomic_subtract_int(&rn->callout_waiting, 1);
 }
 
@@ -132,16 +134,16 @@ execute_the_co_test(struct callout_run *rn)
 
 	mtx_lock(&rn->lock);
 	rn->callout_waiting = 0;
-	for(i=0; i<rn->co_number_callouts; i++) {
+	for (i = 0; i < rn->co_number_callouts; i++) {
 		if (rn->co_test == 1) {
 			/* start all on spread out cpu's */
 			cpu = i % mp_ncpus;
-			callout_reset_sbt_on(&rn->co_array[i], 3, 0, test_callout, rn, 
-					     cpu, 0);
+			callout_reset_sbt_on(&rn->co_array[i], 3, 0, test_callout, rn,
+			    cpu, 0);
 		} else {
 			/* Start all on the same CPU */
-			callout_reset_sbt_on(&rn->co_array[i], 3, 0, test_callout, rn, 
-					     rn->index, 0);
+			callout_reset_sbt_on(&rn->co_array[i], 3, 0, test_callout, rn,
+			    rn->index, 0);
 		}
 	}
 	tk_s = ticks;
@@ -154,7 +156,7 @@ execute_the_co_test(struct callout_run *rn)
 		}
 	}
 	/* OK everyone is waiting and we have the lock */
-	for(i=0; i<rn->co_number_callouts; i++) {
+	for (i = 0; i < rn->co_number_callouts; i++) {
 		ret = callout_async_drain(&rn->co_array[i], drainit);
 		if (ret) {
 			rn->cnt_one++;
@@ -191,7 +193,7 @@ run_callout_test(struct kern_test *test)
 	if (comaster[index] == NULL) {
 		rn = comaster[index] = malloc(sizeof(struct callout_run), M_CALLTMP, M_WAITOK);
 		memset(comaster[index], 0, sizeof(struct callout_run));
-		mtx_init(&rn->lock, "callouttest",  NULL, MTX_DUPOK);
+		mtx_init(&rn->lock, "callouttest", NULL, MTX_DUPOK);
 		rn->index = index;
 	} else {
 		rn = comaster[index];
@@ -207,19 +209,20 @@ run_callout_test(struct kern_test *test)
 	rn->co_test = u->test_number;
 	sz = sizeof(struct callout) * rn->co_number_callouts;
 	rn->co_array = malloc(sz, M_CALLTMP, M_WAITOK);
-	for(i=0; i<rn->co_number_callouts; i++) {
+	for (i = 0; i < rn->co_number_callouts; i++) {
 		callout_init(&rn->co_array[i], CALLOUT_MPSAFE);
 	}
 	execute_the_co_test(rn);
 }
 
-int callout_test_is_loaded=0;
+int callout_test_is_loaded = 0;
 
 static void
 cocleanup(void)
 {
 	int i;
-	for(i=0; i<MAXCPU; i++) {
+
+	for (i = 0; i < MAXCPU; i++) {
 		if (comaster[i]) {
 			if (comaster[i]->co_array) {
 				free(comaster[i]->co_array, M_CALLTMP);
@@ -234,15 +237,15 @@ cocleanup(void)
 static int
 callout_test_modevent(module_t mod, int type, void *data)
 {
-	int err=0;
+	int err = 0;
 
 	switch (type) {
 	case MOD_LOAD:
 		err = kern_testframework_register("callout_test",
-						  run_callout_test);
+		    run_callout_test);
 		if (err) {
 			printf("Can't load callout_test err:%d returned\n",
-			       err);
+			    err);
 		} else {
 			memset(comaster, 0, sizeof(comaster));
 			callout_test_is_loaded = 1;
