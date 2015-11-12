@@ -580,6 +580,11 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, buf, CTLFLAG_RD,
 SYSCTL_INT(_debug_sizeof, OID_AUTO, kinfo_proc, CTLFLAG_RD,
     SYSCTL_NULL_INT_PTR, sizeof(struct kinfo_proc), "sizeof(struct kinfo_proc)");
 
+/* Used by kernel debuggers. */
+const int pcb_size = sizeof(struct pcb);
+SYSCTL_INT(_debug_sizeof, OID_AUTO, pcb, CTLFLAG_RD,
+    SYSCTL_NULL_INT_PTR, sizeof(struct pcb), "sizeof(struct pcb)");
+
 /* XXX compatibility, remove for 6.0 */
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
