@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -106,12 +106,39 @@ iowrite32be(uint32_t v, volatile void *addr)
 	*(volatile uint32_t *)addr = htobe32(v);
 }
 
+#undef readb
+static inline uint8_t
+readb(const volatile void *addr)
+{
+	return *(const volatile uint8_t *)addr;
+}
+
+#undef readw
+static inline uint16_t
+readw(const volatile void *addr)
+{
+	return *(const volatile uint16_t *)addr;
+}
+
+#undef readl
+static inline uint32_t
+readl(const volatile void *addr)
+{
+	return *(const volatile uint32_t *)addr;
+}
+
+#if defined(__i386__) || defined(__amd64__)
 void *_ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr);
+#else
+#define	_ioremap_attr(...) NULL
+#endif
+
 #define	ioremap_nocache(addr, size)					\
     _ioremap_attr((addr), (size), VM_MEMATTR_UNCACHEABLE)
 #define	ioremap_wc(addr, size)						\
     _ioremap_attr((addr), (size), VM_MEMATTR_WRITE_COMBINING)
-#define	ioremap	ioremap_nocache
+#define	ioremap(addr, size)						\
+    _ioremap_attr((addr), (size), VM_MEMATTR_UNCACHEABLE)
 void iounmap(void *addr);
 
 #define	memset_io(a, b, c)	memset((a), (b), (c))
