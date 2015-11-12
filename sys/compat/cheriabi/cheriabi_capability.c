@@ -60,118 +60,11 @@ cheriabi_cap_enter(struct thread *td,
 	return (ENOSYS);
 }
 
-int
-cheriabi_cap_ioctls_limit(struct thread *td,
-    struct cheriabi_cap_ioctls_limit_args *uap)
-{
-#if 0
-	u_long *cmds;
-	uint32_t *cmds32;
-	size_t ncmds;
-	u_int i;
-	int error;
-
-	ncmds = uap->ncmds;
-
-	if (ncmds > 256)	/* XXX: Is 256 sane? */
-		return (EINVAL);
-
-	if (ncmds == 0) {
-		cmds = NULL;
-	} else {
-		cmds32 = malloc(sizeof(cmds32[0]) * ncmds, M_FILECAPS, M_WAITOK);
-		error = copyin(uap->cmds, cmds32, sizeof(cmds32[0]) * ncmds);
-		if (error != 0) {
-			free(cmds32, M_FILECAPS);
-			return (error);
-		}
-		cmds = malloc(sizeof(cmds[0]) * ncmds, M_FILECAPS, M_WAITOK);
-		for (i = 0; i < ncmds; i++)
-			cmds[i] = cmds32[i];
-		free(cmds32, M_FILECAPS);
-	}
-
-	return (kern_cap_ioctls_limit(td, uap->fd, cmds, ncmds));
-#endif
-	return (ENOSYS);
-}
-
-int
-cheriabi_cap_ioctls_get(struct thread *td,
-    struct cheriabi_cap_ioctls_get_args *uap)
-{
-#if 0
-	struct filedesc *fdp;
-	struct filedescent *fdep;
-	uint32_t *cmds32;
-	u_long *cmds;
-	size_t maxcmds;
-	int error, fd;
-	u_int i;
-
-	fd = uap->fd;
-	cmds32 = uap->cmds;
-	maxcmds = uap->maxcmds;
-
-	AUDIT_ARG_FD(fd);
-
-	fdp = td->td_proc->p_fd;
-	FILEDESC_SLOCK(fdp);
-
-	if (fget_locked(fdp, fd) == NULL) {
-		error = EBADF;
-		goto out;
-	}
-
-	/*
-	 * If all ioctls are allowed (fde_nioctls == -1 && fde_ioctls == NULL)
-	 * the only sane thing we can do is to not populate the given array and
-	 * return CAP_IOCTLS_ALL (actually, INT_MAX).
-	 */
-
-	fdep = &fdp->fd_ofiles[fd];
-	cmds = fdep->fde_ioctls;
-	if (cmds32 != NULL && cmds != NULL) {
-		for (i = 0; i < MIN(fdep->fde_nioctls, maxcmds); i++) {
-			error = suword32(&cmds32[i], cmds[i]);
-			if (error != 0)
-				goto out;
-		}
-	}
-	if (fdep->fde_nioctls == -1)
-		td->td_retval[0] = INT_MAX;
-	else
-		td->td_retval[0] = fdep->fde_nioctls;
-
-	error = 0;
-out:
-	FILEDESC_SUNLOCK(fdp);
-	return (error);
-#endif
-	return (ENOSYS);
-}
-
 #else /* !CAPABILITIES */
 
 int
 cheriabi_cap_enter(struct thread *td,
     struct cheriabi_cap_enter_args *uap)
-{
-
-	return (ENOSYS);
-}
-
-int
-cheriabi_cap_ioctls_limit(struct thread *td,
-    struct cheriabi_cap_ioctls_limit_args *uap)
-{
-
-	return (ENOSYS);
-}
-
-int
-cheriabi_cap_ioctls_get(struct thread *td,
-    struct cheriabi_cap_ioctls_get_args *uap)
 {
 
 	return (ENOSYS);

@@ -2993,20 +2993,20 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* cheriabi_cap_ioctls_limit */
+	/* cap_ioctls_limit */
 	case 534: {
-		struct cheriabi_cap_ioctls_limit_args *p = params;
+		struct cap_ioctls_limit_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->cmds; /* const struct chericap * */
+		uarg[1] = (intptr_t) p->cmds; /* const u_long * */
 		uarg[2] = p->ncmds; /* size_t */
 		*n_args = 3;
 		break;
 	}
-	/* cheriabi_cap_ioctls_get */
+	/* cap_ioctls_get */
 	case 535: {
-		struct cheriabi_cap_ioctls_get_args *p = params;
+		struct cap_ioctls_get_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->cmds; /* struct chericap * */
+		uarg[1] = (intptr_t) p->cmds; /* u_long * */
 		uarg[2] = p->maxcmds; /* size_t */
 		*n_args = 3;
 		break;
@@ -8079,14 +8079,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cheriabi_cap_ioctls_limit */
+	/* cap_ioctls_limit */
 	case 534:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "const struct chericap *";
+			p = "const u_long *";
 			break;
 		case 2:
 			p = "size_t";
@@ -8095,14 +8095,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cheriabi_cap_ioctls_get */
+	/* cap_ioctls_get */
 	case 535:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "struct chericap *";
+			p = "u_long *";
 			break;
 		case 2:
 			p = "size_t";
@@ -10027,12 +10027,12 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* cheriabi_cap_ioctls_limit */
+	/* cap_ioctls_limit */
 	case 534:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* cheriabi_cap_ioctls_get */
+	/* cap_ioctls_get */
 	case 535:
 		if (ndx == 0 || ndx == 1)
 			p = "ssize_t";

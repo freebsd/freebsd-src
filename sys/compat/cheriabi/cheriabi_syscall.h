@@ -430,8 +430,8 @@
 #define	CHERIABI_SYS_posix_fadvise	531
 #define	CHERIABI_SYS_cheriabi_wait6	532
 #define	CHERIABI_SYS_cap_rights_limit	533
-#define	CHERIABI_SYS_cheriabi_cap_ioctls_limit	534
-#define	CHERIABI_SYS_cheriabi_cap_ioctls_get	535
+#define	CHERIABI_SYS_cap_ioctls_limit	534
+#define	CHERIABI_SYS_cap_ioctls_get	535
 #define	CHERIABI_SYS_cap_fcntls_limit	536
 #define	CHERIABI_SYS_cap_fcntls_get	537
 #define	CHERIABI_SYS_bindat	538

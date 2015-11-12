@@ -922,12 +922,12 @@
 533	AUE_CAP_RIGHTS_LIMIT	NOPROTO	{ \
 				    int cap_rights_limit(int fd, \
 				    cap_rights_t *rightsp); }
-534	AUE_CAP_IOCTLS_LIMIT	STD	{ \
-				    int cheriabi_cap_ioctls_limit(int fd, \
-				    const struct chericap *cmds, size_t ncmds); }
-535	AUE_CAP_IOCTLS_GET	STD	{ \
-				    ssize_t cheriabi_cap_ioctls_get(int fd, \
-				    struct chericap *cmds, size_t maxcmds); }
+534	AUE_CAP_IOCTLS_LIMIT	NOPROTO	{ \
+				    int cap_ioctls_limit(int fd, \
+				    const u_long *cmds, size_t ncmds); }
+535	AUE_CAP_IOCTLS_GET	NOPROTO	{ \
+				    ssize_t cap_ioctls_get(int fd, \
+				    u_long *cmds, size_t maxcmds); }
 536	AUE_CAP_FCNTLS_LIMIT	NOPROTO	{ int cap_fcntls_limit(int fd, \
 				    uint32_t fcntlrights); }
 537	AUE_CAP_FCNTLS_GET	NOPROTO	{ int cap_fcntls_get(int fd, \

@@ -929,10 +929,10 @@ struct {
 	[CHERIABI_SYS_cap_rights_limit] = {
 		.sam_ptrmask = 0x2
 	},
-	[CHERIABI_SYS_cheriabi_cap_ioctls_limit] = {
+	[CHERIABI_SYS_cap_ioctls_limit] = {
 		.sam_ptrmask = 0x2
 	},
-	[CHERIABI_SYS_cheriabi_cap_ioctls_get] = {
+	[CHERIABI_SYS_cap_ioctls_get] = {
 		.sam_ptrmask = 0x2
 	},
 	[CHERIABI_SYS_cap_fcntls_limit] = {

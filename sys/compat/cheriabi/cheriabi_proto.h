@@ -238,16 +238,6 @@ struct cheriabi_wait6_args {
 	char wrusage_l_[PADL_(struct __wrusage *)]; struct __wrusage * wrusage; char wrusage_r_[PADR_(struct __wrusage *)];
 	char info_l_[PADL_(struct __siginfo_c *)]; struct __siginfo_c * info; char info_r_[PADR_(struct __siginfo_c *)];
 };
-struct cheriabi_cap_ioctls_limit_args {
-	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char cmds_l_[PADL_(const struct chericap *)]; const struct chericap * cmds; char cmds_r_[PADR_(const struct chericap *)];
-	char ncmds_l_[PADL_(size_t)]; size_t ncmds; char ncmds_r_[PADR_(size_t)];
-};
-struct cheriabi_cap_ioctls_get_args {
-	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char cmds_l_[PADL_(struct chericap *)]; struct chericap * cmds; char cmds_r_[PADR_(struct chericap *)];
-	char maxcmds_l_[PADL_(size_t)]; size_t maxcmds; char maxcmds_r_[PADR_(size_t)];
-};
 struct cheriabi_aio_mlock_args {
 	char aiocbp_l_[PADL_(struct aiocb_c *)]; struct aiocb_c * aiocbp; char aiocbp_r_[PADR_(struct aiocb_c *)];
 };
@@ -295,8 +285,6 @@ int	cheriabi_semctl(struct thread *, struct cheriabi_semctl_args *);
 int	cheriabi_msgctl(struct thread *, struct cheriabi_msgctl_args *);
 int	cheriabi_cap_enter(struct thread *, struct cheriabi_cap_enter_args *);
 int	cheriabi_wait6(struct thread *, struct cheriabi_wait6_args *);
-int	cheriabi_cap_ioctls_limit(struct thread *, struct cheriabi_cap_ioctls_limit_args *);
-int	cheriabi_cap_ioctls_get(struct thread *, struct cheriabi_cap_ioctls_get_args *);
 int	cheriabi_aio_mlock(struct thread *, struct cheriabi_aio_mlock_args *);
 
 #ifdef COMPAT_43
@@ -375,8 +363,6 @@ int	cheriabi_aio_mlock(struct thread *, struct cheriabi_aio_mlock_args *);
 #define	CHERIABI_SYS_AUE_cheriabi_msgctl	AUE_MSGCTL
 #define	CHERIABI_SYS_AUE_cheriabi_cap_enter	AUE_CAP_ENTER
 #define	CHERIABI_SYS_AUE_cheriabi_wait6	AUE_WAIT6
-#define	CHERIABI_SYS_AUE_cheriabi_cap_ioctls_limit	AUE_CAP_IOCTLS_LIMIT
-#define	CHERIABI_SYS_AUE_cheriabi_cap_ioctls_get	AUE_CAP_IOCTLS_GET
 #define	CHERIABI_SYS_AUE_cheriabi_aio_mlock	AUE_NULL
 
 #undef PAD_
