@@ -43,10 +43,10 @@ BSARGS= 	DESTDIR= \
 
 legacy: .MAKE .META
 	mkdir -p ${LEGACY_TOOLS}
-	${MAKE} -C ${SRCTOP}/etc distrib-dirs DESTDIR=${BTOOLSDIR} \
+	${MAKE} -C ${SRCTOP}/etc distrib-dirs -DNO_FSCHG DESTDIR=${BTOOLSDIR} \
 	    > $@.distrib-dirs_btoolsdir
-	${MAKE} -C ${SRCTOP}/etc distrib-dirs DESTDIR=${LEGACY_TOOLS} \
-	    > $@.distrib-dirs_legacy_tools
+	${MAKE} -C ${SRCTOP}/etc distrib-dirs -DNO_FSCHG \
+	    DESTDIR=${LEGACY_TOOLS} > $@.distrib-dirs_legacy_tools
 	${BSENV} ${MAKE} -C ${SRCTOP} -f Makefile.inc1 ${BSARGS} $@
 	touch $@
 
