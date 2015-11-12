@@ -157,6 +157,7 @@ MAN=	accept_filter.9 \
 	intro.9 \
 	ithread.9 \
 	KASSERT.9 \
+	kern_testfrwk.9 \
 	kernacc.9 \
 	kernel_mount.9 \
 	khelp.9 \
