@@ -415,19 +415,19 @@ static const struct ntb_xlat_reg xeon_sec_xlat = {
 };
 
 static struct ntb_b2b_addr xeon_b2b_usd_addr = {
-	.bar0_addr = XEON_B2B_BAR0_USD_ADDR,
-	.bar2_addr64 = XEON_B2B_BAR2_USD_ADDR64,
-	.bar4_addr64 = XEON_B2B_BAR4_USD_ADDR64,
-	.bar4_addr32 = XEON_B2B_BAR4_USD_ADDR32,
-	.bar5_addr32 = XEON_B2B_BAR5_USD_ADDR32,
+	.bar0_addr = XEON_B2B_BAR0_ADDR,
+	.bar2_addr64 = XEON_B2B_BAR2_ADDR64,
+	.bar4_addr64 = XEON_B2B_BAR4_ADDR64,
+	.bar4_addr32 = XEON_B2B_BAR4_ADDR32,
+	.bar5_addr32 = XEON_B2B_BAR5_ADDR32,
 };
 
 static struct ntb_b2b_addr xeon_b2b_dsd_addr = {
-	.bar0_addr = XEON_B2B_BAR0_DSD_ADDR,
-	.bar2_addr64 = XEON_B2B_BAR2_DSD_ADDR64,
-	.bar4_addr64 = XEON_B2B_BAR4_DSD_ADDR64,
-	.bar4_addr32 = XEON_B2B_BAR4_DSD_ADDR32,
-	.bar5_addr32 = XEON_B2B_BAR5_DSD_ADDR32,
+	.bar0_addr = XEON_B2B_BAR0_ADDR,
+	.bar2_addr64 = XEON_B2B_BAR2_ADDR64,
+	.bar4_addr64 = XEON_B2B_BAR4_ADDR64,
+	.bar4_addr32 = XEON_B2B_BAR4_ADDR32,
+	.bar5_addr32 = XEON_B2B_BAR5_ADDR32,
 };
 
 SYSCTL_NODE(_hw_ntb, OID_AUTO, xeon_b2b, CTLFLAG_RW, 0,
@@ -1346,18 +1346,18 @@ configure_atom_secondary_side_bars(struct ntb_softc *ntb)
 
 	if (ntb->dev_type == NTB_DEV_USD) {
 		ntb_reg_write(8, ATOM_PBAR2XLAT_OFFSET,
-		    XEON_B2B_BAR2_DSD_ADDR64);
+		    XEON_B2B_BAR2_ADDR64);
 		ntb_reg_write(8, ATOM_PBAR4XLAT_OFFSET,
-		    XEON_B2B_BAR4_DSD_ADDR64);
-		ntb_reg_write(8, ATOM_MBAR23_OFFSET, XEON_B2B_BAR2_USD_ADDR64);
-		ntb_reg_write(8, ATOM_MBAR45_OFFSET, XEON_B2B_BAR4_USD_ADDR64);
+		    XEON_B2B_BAR4_ADDR64);
+		ntb_reg_write(8, ATOM_MBAR23_OFFSET, XEON_B2B_BAR2_ADDR64);
+		ntb_reg_write(8, ATOM_MBAR45_OFFSET, XEON_B2B_BAR4_ADDR64);
 	} else {
 		ntb_reg_write(8, ATOM_PBAR2XLAT_OFFSET,
-		    XEON_B2B_BAR2_USD_ADDR64);
+		    XEON_B2B_BAR2_ADDR64);
 		ntb_reg_write(8, ATOM_PBAR4XLAT_OFFSET,
-		    XEON_B2B_BAR4_USD_ADDR64);
-		ntb_reg_write(8, ATOM_MBAR23_OFFSET, XEON_B2B_BAR2_DSD_ADDR64);
-		ntb_reg_write(8, ATOM_MBAR45_OFFSET, XEON_B2B_BAR4_DSD_ADDR64);
+		    XEON_B2B_BAR4_ADDR64);
+		ntb_reg_write(8, ATOM_MBAR23_OFFSET, XEON_B2B_BAR2_ADDR64);
+		ntb_reg_write(8, ATOM_MBAR45_OFFSET, XEON_B2B_BAR4_ADDR64);
 	}
 }
 
