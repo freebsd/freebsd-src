@@ -1773,13 +1773,6 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 		}
 		break;
 	    }
-	case SIOCSIFMTU:
-		if (ifr->ifr_mtu > ETHERMTU_JUMBO) {
-			error = EINVAL;
-		} else {
-			ifp->if_mtu = ifr->ifr_mtu;
-		}
-		break;
 	default:
 		error = EINVAL;
 	}
