@@ -18,7 +18,7 @@
 .\" information: Portions Copyright [yyyy] [name of copyright owner]
 .\"
 .\" Copyright (c) 2010, Sun Microsystems, Inc. All Rights Reserved.
-.\" Copyright (c) 2014 by Delphix. All rights reserved.
+.\" Copyright (c) 2011, 2014 by Delphix. All rights reserved.
 .\" Copyright (c) 2011, Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
 .\" Copyright (c) 2012, Bryan Drewery <bdrewery@FreeBSD.org>
@@ -117,7 +117,7 @@
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
 .Cm set
-.Ar property Ns = Ns Ar value
+.Ar property Ns = Ns Ar value Oc ...
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot Ns ...
 .Nm
 .Cm get
@@ -2121,14 +2121,14 @@ option, but sorts by property in descending order.
 .It Xo
 .Nm
 .Cm set
-.Ar property Ns = Ns Ar value
+.Ar property Ns = Ns Ar value Oc ...
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
 .Pp
-Sets the property to the given value for each dataset. Only some properties can
-be edited. See the "Properties" section for more information on what properties
-can be set and acceptable values. Numeric values can be specified as exact
-values, or in a human-readable form with a suffix of
+Sets the property or list of properties to the given value(s) for each dataset.
+Only some properties can be edited. See the "Properties" section for more
+information on what properties can be set and acceptable values. Numeric values
+can be specified as exact values, or in a human-readable form with a suffix of
 .Sy B , K , M , G , T , P , E , Z
 (for bytes, kilobytes, megabytes, gigabytes, terabytes, petabytes, exabytes, or
 zettabytes, respectively). User properties can be set on snapshots. For more
