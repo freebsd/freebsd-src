@@ -1090,8 +1090,13 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		} else {
 			isp->isp_fwattr = mbs.param[6];
 		}
-		if (IS_24XX(isp) && (isp->isp_fwattr & ISP2400_FW_ATTR_EXTNDED)) {
-			isp->isp_fwattr |= (((uint64_t) mbs.param[15]) << 16) | (((uint64_t) mbs.param[16]) << 32) | (((uint64_t) mbs.param[17]) << 48);
+		if (IS_24XX(isp)) {
+			isp->isp_fwattr |= ((uint64_t) mbs.param[15]) << 16;
+			if (isp->isp_fwattr & ISP2400_FW_ATTR_EXTNDED) {
+				isp->isp_fwattr |=
+				    (((uint64_t) mbs.param[16]) << 32) |
+				    (((uint64_t) mbs.param[17]) << 48);
+			}
 		}
 	} else if (IS_SCSI(isp)) {
 #ifndef	ISP_TARGET_MODE
@@ -1132,6 +1137,18 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			fwt ^=ISP2400_FW_ATTR_VI;
 			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s VI", buf);
 		}
+		if (fwt & ISP2400_FW_ATTR_MQ) {
+			fwt ^=ISP2400_FW_ATTR_MQ;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s MQ", buf);
+		}
+		if (fwt & ISP2400_FW_ATTR_MSIX) {
+			fwt ^=ISP2400_FW_ATTR_MSIX;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s MSIX", buf);
+		}
+		if (fwt & ISP2400_FW_ATTR_FCOE) {
+			fwt ^=ISP2400_FW_ATTR_FCOE;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s FCOE", buf);
+		}
 		if (fwt & ISP2400_FW_ATTR_VP0) {
 			fwt ^= ISP2400_FW_ATTR_VP0;
 			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s VP0_Decoupling", buf);
@@ -1140,7 +1157,43 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			fwt ^= ISP2400_FW_ATTR_EXPFW;
 			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s (Experimental)", buf);
 		}
+		if (fwt & ISP2400_FW_ATTR_HOTFW) {
+			fwt ^= ISP2400_FW_ATTR_HOTFW;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s HotFW", buf);
+		}
 		fwt &= ~ISP2400_FW_ATTR_EXTNDED;
+		if (fwt & ISP2400_FW_ATTR_EXTVP) {
+			fwt ^= ISP2400_FW_ATTR_EXTVP;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s ExtVP", buf);
+		}
+		if (fwt & ISP2400_FW_ATTR_VN2VN) {
+			fwt ^= ISP2400_FW_ATTR_VN2VN;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s VN2VN", buf);
+		}
+		if (fwt & ISP2400_FW_ATTR_EXMOFF) {
+			fwt ^= ISP2400_FW_ATTR_EXMOFF;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s EXMOFF", buf);
+		}
+		if (fwt & ISP2400_FW_ATTR_NPMOFF) {
+			fwt ^= ISP2400_FW_ATTR_NPMOFF;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s NPMOFF", buf);
+		}
+		if (fwt & ISP2400_FW_ATTR_DIFCHOP) {
+			fwt ^= ISP2400_FW_ATTR_DIFCHOP;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s DIFCHOP", buf);
+		}
+		if (fwt & ISP2400_FW_ATTR_SRIOV) {
+			fwt ^= ISP2400_FW_ATTR_SRIOV;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s SRIOV", buf);
+		}
+		if (fwt & ISP2400_FW_ATTR_ASICTMP) {
+			fwt ^= ISP2400_FW_ATTR_ASICTMP;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s ASICTMP", buf);
+		}
+		if (fwt & ISP2400_FW_ATTR_ATIOMQ) {
+			fwt ^= ISP2400_FW_ATTR_ATIOMQ;
+			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s ATIOMQ", buf);
+		}
 		if (fwt) {
 			ISP_SNPRINTF(buf, ISP_FC_SCRLEN - strlen(buf), "%s (unknown 0x%08x%08x)", buf,
 			    (uint32_t) (fwt >> 32), (uint32_t) fwt);
