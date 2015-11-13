@@ -899,9 +899,6 @@ isp_pci_attach(device_t dev)
 	if (IS_SCSI(isp) && (ISP_SPI_PC(isp, 0)->def_role & ISP_ROLE_TARGET)) {
 		snprintf(fwname, sizeof (fwname), "isp_%04x_it", did);
 		isp->isp_osinfo.fw = firmware_get(fwname);
-	} else if (IS_24XX(isp)) {
-		snprintf(fwname, sizeof (fwname), "isp_%04x_multi", did);
-		isp->isp_osinfo.fw = firmware_get(fwname);
 	}
 	if (isp->isp_osinfo.fw == NULL) {
 		snprintf(fwname, sizeof (fwname), "isp_%04x", did);
