@@ -675,6 +675,10 @@ tdesc_array_create(dwarf_t *dw, Dwarf_Die dim, tdesc_t *arrtdp,
 		ar->ad_nelems = uval + 1;
 	else if (die_signed(dw, dim, DW_AT_upper_bound, &sval, 0))
 		ar->ad_nelems = sval + 1;
+	else if (die_unsigned(dw, dim, DW_AT_count, &uval, 0))
+		ar->ad_nelems = uval;
+	else if (die_signed(dw, dim, DW_AT_count, &sval, 0))
+		ar->ad_nelems = sval;
 	else
 		ar->ad_nelems = 0;
 
