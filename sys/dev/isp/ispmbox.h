@@ -989,6 +989,13 @@ typedef struct {
 #define	ICB2400_OPT1_FAIRNESS		0x00000002
 #define	ICB2400_OPT1_HARD_ADDRESS	0x00000001
 
+#define	ICB2400_OPT2_ENA_ATIOMQ		0x08000000
+#define	ICB2400_OPT2_ENA_IHA		0x04000000
+#define	ICB2400_OPT2_QOS		0x02000000
+#define	ICB2400_OPT2_IOCBS		0x01000000
+#define	ICB2400_OPT2_ENA_IHR		0x00400000
+#define	ICB2400_OPT2_ENA_VMS		0x00200000
+#define	ICB2400_OPT2_ENA_TA		0x00100000
 #define	ICB2400_OPT2_TPRLIC		0x00004000
 #define	ICB2400_OPT2_FCTAPE		0x00001000
 #define	ICB2400_OPT2_FCSP		0x00000800
@@ -1003,14 +1010,20 @@ typedef struct {
 #define	ICB2400_OPT2_ZIO		0x00000005
 #define	ICB2400_OPT2_ZIO1		0x00000006
 
-#define	ICB2400_OPT3_75_OHM		0x00010000
+#define	ICB2400_OPT3_NO_CTXDIS		0x40000000
+#define	ICB2400_OPT3_ENA_ETH_RESP	0x08000000
+#define	ICB2400_OPT3_ENA_ETH_ATIO	0x04000000
+#define	ICB2400_OPT3_ENA_MFCF		0x00020000
+#define	ICB2400_OPT3_SKIP_FOURGB	0x00010000
 #define	ICB2400_OPT3_RATE_MASK		0x0000E000
 #define	ICB2400_OPT3_RATE_ONEGB		0x00000000
 #define	ICB2400_OPT3_RATE_TWOGB		0x00002000
-#define ICB2400_OPT3_RATE_AUTO		0x00004000
+#define	ICB2400_OPT3_RATE_AUTO		0x00004000
 #define	ICB2400_OPT3_RATE_FOURGB	0x00006000
 #define	ICB2400_OPT3_RATE_EIGHTGB	0x00008000
+#define	ICB2400_OPT3_RATE_SIXTEENGB	0x0000A000
 #define	ICB2400_OPT3_ENA_OOF_XFRDY	0x00000200
+#define	ICB2400_OPT3_NO_N2N_LOGI	0x00000100
 #define	ICB2400_OPT3_NO_LOCAL_PLOGI	0x00000080
 #define	ICB2400_OPT3_ENA_OOF		0x00000040
 /* note that a response size flag of zero is reserved! */
@@ -1124,12 +1137,13 @@ typedef struct {
 	uint16_t	vp_port_portid_hi;	/* not present when trailing icb */
 } vp_port_info_t;
 
-#define	ICB2400_VPOPT_TGT_DISABLE	0x00000020	/* disable target mode */
-#define	ICB2400_VPOPT_INI_ENABLE	0x00000010	/* enable initiator mode */
-#define	ICB2400_VPOPT_ENABLED		0x00000008
-#define	ICB2400_VPOPT_NOPLAY		0x00000004
-#define	ICB2400_VPOPT_PREVLOOP		0x00000002
-#define	ICB2400_VPOPT_HARD_ADDRESS	0x00000001
+#define	ICB2400_VPOPT_ENA_SNSLOGIN	0x00000040	/* Enable SNS Login and SCR for Virtual Ports */
+#define	ICB2400_VPOPT_TGT_DISABLE	0x00000020	/* Target Mode Disabled */
+#define	ICB2400_VPOPT_INI_ENABLE	0x00000010	/* Initiator Mode Enabled */
+#define	ICB2400_VPOPT_ENABLED		0x00000008	/* VP Enabled */
+#define	ICB2400_VPOPT_NOPLAY		0x00000004	/* ID Not Acquired */
+#define	ICB2400_VPOPT_PREVLOOP		0x00000002	/* Previously Assigned ID */
+#define	ICB2400_VPOPT_HARD_ADDRESS	0x00000001	/* Hard Assigned ID */
 
 #define	ICB2400_VPOPT_WRITE_SIZE	20
 
@@ -1145,12 +1159,14 @@ typedef struct {
 
 #define	ICB2400_VPINFO_OFF	0x80	/* offset from start of ICB */
 #define	ICB2400_VPINFO_PORT_OFF(chan)		\
-    ICB2400_VPINFO_OFF + 			\
-    sizeof (isp_icb_2400_vpinfo_t) + ((chan - 1) * ICB2400_VPOPT_WRITE_SIZE)
+    (ICB2400_VPINFO_OFF + 			\
+     sizeof (isp_icb_2400_vpinfo_t) + (chan * ICB2400_VPOPT_WRITE_SIZE))
 
 #define	ICB2400_VPGOPT_FCA		0x01	/* Assume Clean Address bit in FLOGI ACC set (works only in static configurations) */
 #define	ICB2400_VPGOPT_MID_DISABLE	0x02	/* when set, connection mode2 will work with NPIV-capable switched */
 #define	ICB2400_VPGOPT_VP0_DECOUPLE	0x04	/* Allow VP0 decoupling if firmware supports it */
+#define	ICB2400_VPGOPT_SUSP_FDISK	0x10	/* Suspend FDISC for Enabled VPs */
+#define	ICB2400_VPGOPT_GEN_RIDA		0x20	/* Generate RIDA if FLOGI Fails */
 
 typedef struct {
 	isphdr_t	vp_ctrl_hdr;
@@ -1197,8 +1213,10 @@ typedef struct {
 #define	VP_IDX_ERR	0x04
 #define	VP_STS_BSY	0x05
 
-#define	VP_MODIFY_VP	0x00
+#define	VP_MODIFY	0x00
 #define	VP_MODIFY_ENA	0x01
+#define	VP_MODIFY_OPT	0x02
+#define	VP_RESUME	0x03
 
 /*
  * Port Data Base Element
