@@ -950,3 +950,11 @@ linux_compat_uninit(void *arg)
 	kobject_kfree_name(&miscclass.kobj);
 }
 SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);
+
+/*
+ * NOTE: Linux frequently uses "unsigned long" for pointer to integer
+ * conversion and vice versa, where in FreeBSD "uintptr_t" would be
+ * used. Assert these types have the same size, else some parts of the
+ * LinuxKPI may not work like expected:
+ */
+CTASSERT(sizeof(unsigned long) == sizeof(uintptr_t));
