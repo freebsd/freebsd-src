@@ -1275,7 +1275,12 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 */
 	if (IS_FC(isp) && isp->isp_nchan > 1) {
 		if (!ISP_CAP_MULTI_ID(isp)) {
-			isp_prt(isp, ISP_LOGWARN, "non-MULTIID f/w loaded, only can enable 1 of %d channels", isp->isp_nchan);
+			isp_prt(isp, ISP_LOGWARN, "non-MULTIID f/w loaded, "
+			    "only can enable 1 of %d channels", isp->isp_nchan);
+			isp->isp_nchan = 1;
+		} else if (!ISP_CAP_VP0(isp)) {
+			isp_prt(isp, ISP_LOGWARN, "We can not use MULTIID "
+			    "feature properly without VP0_Decoupling");
 			isp->isp_nchan = 1;
 		}
 	}
@@ -2017,7 +2022,7 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	icbp->icb_fwoptions1 = fcp->isp_fwoptions;
 	icbp->icb_fwoptions2 = fcp->isp_xfwoptions;
 	icbp->icb_fwoptions3 = fcp->isp_zfwoptions;
-	if (isp->isp_nchan > 1 && (isp->isp_fwattr & ISP2400_FW_ATTR_VP0)) {
+	if (isp->isp_nchan > 1 && ISP_CAP_VP0(isp)) {
 		icbp->icb_fwoptions1 &= ~ICB2400_OPT1_INI_DISABLE;
 		icbp->icb_fwoptions1 |= ICB2400_OPT1_TGT_ENABLE;
 	} else {
@@ -2200,7 +2205,7 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		uint8_t *off;
 
 		vpinfo.vp_global_options = 0;
-		if (isp->isp_fwattr & ISP2400_FW_ATTR_VP0) {
+		if (ISP_CAP_VP0(isp)) {
 			vpinfo.vp_global_options |= ICB2400_VPGOPT_VP0_DECOUPLE;
 			vpinfo.vp_count = isp->isp_nchan;
 			chan = 0;
@@ -2235,7 +2240,7 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 			MAKE_NODE_NAME_FROM_WWN(pi.vp_port_portname, fcp2->isp_wwpn);
 			MAKE_NODE_NAME_FROM_WWN(pi.vp_port_nodename, fcp2->isp_wwnn);
 			off = fcp->isp_scratch;
-			if (isp->isp_fwattr & ISP2400_FW_ATTR_VP0)
+			if (ISP_CAP_VP0(isp))
 				off += ICB2400_VPINFO_PORT_OFF(chan);
 			else
 				off += ICB2400_VPINFO_PORT_OFF(chan - 1);

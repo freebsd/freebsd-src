@@ -581,6 +581,136 @@ isp_fc_toponame(fcparam *fcp)
 	}
 }
 
+static int
+isp_fc_enable_vp(ispsoftc_t *isp, int chan)
+{
+	fcparam *fcp = FCPARAM(isp, chan);
+	mbreg_t mbs;
+	vp_modify_t *vp;
+	uint8_t qe[QENTRY_LEN], *scp;
+
+	ISP_MEMZERO(qe, QENTRY_LEN);
+	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
+		return (EBUSY);
+	}
+	scp = fcp->isp_scratch;
+
+	/*
+	 * Build a VP MODIFY command in memory
+	 */
+	vp = (vp_modify_t *) qe;
+	vp->vp_mod_hdr.rqs_entry_type = RQSTYPE_VP_MODIFY;
+	vp->vp_mod_hdr.rqs_entry_count = 1;
+	vp->vp_mod_cnt = 1;
+	vp->vp_mod_idx0 = chan;
+	vp->vp_mod_cmd = VP_MODIFY_ENA;
+	vp->vp_mod_ports[0].options = ICB2400_VPOPT_ENABLED;
+	if (fcp->role & ISP_ROLE_INITIATOR) {
+		vp->vp_mod_ports[0].options |= ICB2400_VPOPT_INI_ENABLE;
+	}
+	if ((fcp->role & ISP_ROLE_TARGET) == 0) {
+		vp->vp_mod_ports[0].options |= ICB2400_VPOPT_TGT_DISABLE;
+	}
+	if (fcp->isp_loopid < LOCAL_LOOP_LIM) {
+		vp->vp_mod_ports[0].loopid = fcp->isp_loopid;
+		if (isp->isp_confopts & ISP_CFG_OWNLOOPID)
+			vp->vp_mod_ports[0].options |=
+			    ICB2400_VPOPT_HARD_ADDRESS;
+		else
+			vp->vp_mod_ports[0].options |=
+			    ICB2400_VPOPT_PREV_ADDRESS;
+	}
+	MAKE_NODE_NAME_FROM_WWN(vp->vp_mod_ports[0].wwpn, fcp->isp_wwpn);
+	MAKE_NODE_NAME_FROM_WWN(vp->vp_mod_ports[0].wwnn, fcp->isp_wwnn);
+	isp_put_vp_modify(isp, vp, (vp_modify_t *) scp);
+
+	/*
+	 * Build a EXEC IOCB A64 command that points to the VP MODIFY command
+	 */
+	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 0);
+	mbs.param[1] = QENTRY_LEN;
+	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
+	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
+	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
+	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN, chan);
+	isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
+	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+		FC_SCRATCH_RELEASE(isp, chan);
+		return (EIO);
+	}
+	MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
+	isp_get_vp_modify(isp, (vp_modify_t *)&scp[QENTRY_LEN], vp);
+
+	FC_SCRATCH_RELEASE(isp, chan);
+
+	if (vp->vp_mod_status != VP_STS_OK) {
+		isp_prt(isp, ISP_LOGERR, "%s: VP_MODIFY of Chan %d failed with status %d", __func__, chan, vp->vp_mod_status);
+		return (EIO);
+	}
+	return (0);
+}
+
+static int
+isp_fc_disable_vp(ispsoftc_t *isp, int chan)
+{
+	fcparam *fcp = FCPARAM(isp, chan);
+	mbreg_t mbs;
+	vp_ctrl_info_t *vp;
+	uint8_t qe[QENTRY_LEN], *scp;
+
+	ISP_MEMZERO(qe, QENTRY_LEN);
+	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
+		return (EBUSY);
+	}
+	scp = fcp->isp_scratch;
+
+	/*
+	 * Build a VP CTRL command in memory
+	 */
+	vp = (vp_ctrl_info_t *) qe;
+	vp->vp_ctrl_hdr.rqs_entry_type = RQSTYPE_VP_CTRL;
+	vp->vp_ctrl_hdr.rqs_entry_count = 1;
+	if (ISP_CAP_VP0(isp)) {
+		vp->vp_ctrl_status = 1;
+	} else {
+		vp->vp_ctrl_status = 0;
+		chan--;	/* VP0 can not be controlled in this case. */
+	}
+	vp->vp_ctrl_command = VP_CTRL_CMD_DISABLE_VP_LOGO_ALL;
+	vp->vp_ctrl_vp_count = 1;
+	vp->vp_ctrl_idmap[chan / 16] |= (1 << chan % 16);
+	isp_put_vp_ctrl_info(isp, vp, (vp_ctrl_info_t *) scp);
+
+	/*
+	 * Build a EXEC IOCB A64 command that points to the VP CTRL command
+	 */
+	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 0);
+	mbs.param[1] = QENTRY_LEN;
+	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
+	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
+	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
+	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN, chan);
+	isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
+	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+		FC_SCRATCH_RELEASE(isp, chan);
+		return (EIO);
+	}
+	MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
+	isp_get_vp_ctrl_info(isp, (vp_ctrl_info_t *)&scp[QENTRY_LEN], vp);
+
+	FC_SCRATCH_RELEASE(isp, chan);
+
+	if (vp->vp_ctrl_status != 0) {
+		isp_prt(isp, ISP_LOGERR,
+		    "%s: VP_CTRL of Chan %d failed with status %d %d",
+		    __func__, chan, vp->vp_ctrl_status, vp->vp_ctrl_index_fail);
+		return (EIO);
+	}
+	return (0);
+}
+
 /*
  * Change Roles
  */
@@ -588,74 +718,28 @@ int
 isp_fc_change_role(ispsoftc_t *isp, int chan, int new_role)
 {
 	fcparam *fcp = FCPARAM(isp, chan);
+	int i, was, res = 0;
 
 	if (chan >= isp->isp_nchan) {
 		isp_prt(isp, ISP_LOGWARN, "%s: bad channel %d", __func__, chan);
 		return (ENXIO);
 	}
-	if (chan == 0) {
+	if (fcp->role == new_role)
+		return (0);
+	for (was = 0, i = 0; i < isp->isp_nchan; i++) {
+		if (FCPARAM(isp, i)->role != ISP_ROLE_NONE)
+			was++;
+	}
+	if (was == 0 || (was == 1 && fcp->role != ISP_ROLE_NONE)) {
 		fcp->role = new_role;
 		return (isp_reinit(isp, 0));
-	} else if (ISP_CAP_MULTI_ID(isp)) {
-		mbreg_t mbs;
-		vp_modify_t *vp;
-		uint8_t qe[QENTRY_LEN], *scp;
-
-		ISP_MEMZERO(qe, QENTRY_LEN);
-		if (FC_SCRATCH_ACQUIRE(isp, chan)) {
-			return (EBUSY);
-		}
-		scp = fcp->isp_scratch;
-
-		/*
-		 * Build a VP MODIFY command in memory
-		 */
-		vp = (vp_modify_t *) qe;
-		vp->vp_mod_hdr.rqs_entry_type = RQSTYPE_VP_MODIFY;
-		vp->vp_mod_hdr.rqs_entry_count = 1;
-		vp->vp_mod_cnt = 1;
-		vp->vp_mod_idx0 = chan;
-		vp->vp_mod_cmd = VP_MODIFY_ENA;
-		vp->vp_mod_ports[0].options = ICB2400_VPOPT_ENABLED;
-		if (new_role & ISP_ROLE_INITIATOR) {
-			vp->vp_mod_ports[0].options |= ICB2400_VPOPT_INI_ENABLE;
-		}
-		if ((new_role & ISP_ROLE_TARGET) == 0) {
-			vp->vp_mod_ports[0].options |= ICB2400_VPOPT_TGT_DISABLE;
-		}
-		MAKE_NODE_NAME_FROM_WWN(vp->vp_mod_ports[0].wwpn, fcp->isp_wwpn);
-		MAKE_NODE_NAME_FROM_WWN(vp->vp_mod_ports[0].wwnn, fcp->isp_wwnn);
-		isp_put_vp_modify(isp, vp, (vp_modify_t *) scp);
-
-		/*
-		 * Build a EXEC IOCB A64 command that points to the VP MODIFY command
-		 */
-		MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 0);
-		mbs.param[1] = QENTRY_LEN;
-		mbs.param[2] = DMA_WD1(fcp->isp_scdma);
-		mbs.param[3] = DMA_WD0(fcp->isp_scdma);
-		mbs.param[6] = DMA_WD3(fcp->isp_scdma);
-		mbs.param[7] = DMA_WD2(fcp->isp_scdma);
-		MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN, chan);
-		isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
-		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			FC_SCRATCH_RELEASE(isp, chan);
-			return (EIO);
-		}
-		MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
-		isp_get_vp_modify(isp, (vp_modify_t *)&scp[QENTRY_LEN], vp);
-
-		FC_SCRATCH_RELEASE(isp, chan);
-
-		if (vp->vp_mod_status != VP_STS_OK) {
-			isp_prt(isp, ISP_LOGERR, "%s: VP_MODIFY of Chan %d failed with status %d", __func__, chan, vp->vp_mod_status);
-			return (EIO);
-		}
-		fcp->role = new_role;
-		return (0);
-	} else {
-		return (EINVAL);
 	}
+	if (fcp->role != ISP_ROLE_NONE)
+		res = isp_fc_disable_vp(isp, chan);
+	fcp->role = new_role;
+	if (fcp->role != ISP_ROLE_NONE)
+		res = isp_fc_enable_vp(isp, chan);
+	return (res);
 }
 
 void
@@ -1400,8 +1484,9 @@ isp_put_vp_ctrl_info(ispsoftc_t *isp, vp_ctrl_info_t *src, vp_ctrl_info_t *dst)
 		ISP_IOXPUT_16(isp, src->vp_ctrl_idmap[i], &dst->vp_ctrl_idmap[i]);
 	}
 	for (i = 0; i < ASIZE(src->vp_ctrl_reserved); i++) {
-		ISP_IOXPUT_8(isp, src->vp_ctrl_reserved[i], &dst->vp_ctrl_reserved[i]);
+		ISP_IOXPUT_16(isp, src->vp_ctrl_reserved[i], &dst->vp_ctrl_reserved[i]);
 	}
+	ISP_IOXPUT_16(isp, src->vp_ctrl_fcf_index, &dst->vp_ctrl_fcf_index);
 }
 
 void
@@ -1418,8 +1503,9 @@ isp_get_vp_ctrl_info(ispsoftc_t *isp, vp_ctrl_info_t *src, vp_ctrl_info_t *dst)
 		ISP_IOXGET_16(isp, &src->vp_ctrl_idmap[i], dst->vp_ctrl_idmap[i]);
 	}
 	for (i = 0; i < ASIZE(src->vp_ctrl_reserved); i++) {
-		ISP_IOXGET_8(isp, &src->vp_ctrl_reserved[i], dst->vp_ctrl_reserved[i]);
+		ISP_IOXGET_16(isp, &src->vp_ctrl_reserved[i], dst->vp_ctrl_reserved[i]);
 	}
+	ISP_IOXGET_16(isp, &src->vp_ctrl_fcf_index, dst->vp_ctrl_fcf_index);
 }
 
 void
