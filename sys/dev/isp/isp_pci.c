@@ -489,9 +489,6 @@ isp_get_generic_options(device_t dev, ispsoftc_t *isp)
 	if (tval > 0 && tval < 127) {
 		isp_nvports = tval;
 	}
-	tval = 1;
-	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "autoconfig", &tval);
-	isp_autoconfig = tval;
 	tval = 7;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "quickboot_time", &tval);
 	isp_quickboot_time = tval;
