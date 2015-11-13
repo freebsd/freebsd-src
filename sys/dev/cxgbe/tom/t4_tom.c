@@ -390,6 +390,7 @@ final_cpl_received(struct toepcb *toep)
 
 	toep->inp = NULL;
 	toep->flags &= ~TPF_CPL_PENDING;
+	mbufq_drain(&toep->ulp_pdu_reclaimq);
 
 	if (!(toep->flags & TPF_ATTACHED))
 		release_offload_resources(toep);
