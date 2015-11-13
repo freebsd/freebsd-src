@@ -27,6 +27,7 @@
  * Copyright 2013 DEY Storage Systems, Inc.
  * Copyright 2014 HybridCluster. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
+ * Copyright 2013 Saso Kiselkov. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -320,6 +321,7 @@ typedef struct dmu_buf {
 #define	DMU_POOL_FREE_BPOBJ		"free_bpobj"
 #define	DMU_POOL_BPTREE_OBJ		"bptree_obj"
 #define	DMU_POOL_EMPTY_BPOBJ		"empty_bpobj"
+#define	DMU_POOL_CHECKSUM_SALT		"org.illumos:checksum_salt"
 
 /*
  * Allocate an object from this objset.  The range of object numbers

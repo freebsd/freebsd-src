@@ -25,6 +25,7 @@
 
 /*
  * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright 2013 Saso Kiselkov. All rights reserved.
  */
 
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
@@ -129,6 +130,16 @@ _NOTE(CONSTCOND) } while (0)
 #define	ASSERT3U(x, y, z)	((void)0)
 #define	ASSERT3P(x, y, z)	((void)0)
 #define	ASSERT0(x)		((void)0)
+#endif
+
+/*
+ * Compile-time assertion. The condition 'x' must be constant.
+ */
+#ifndef CTASSERT
+#define	CTASSERT(x)		_CTASSERT(x, __LINE__)
+#define	_CTASSERT(x, y)		__CTASSERT(x, y)
+#define	__CTASSERT(x, y) \
+	typedef char __compile_time_assertion__ ## y [(x) ? 1 : -1]
 #endif
 
 #ifdef	_KERNEL
