@@ -4520,12 +4520,10 @@ static void
 isp_poll(struct cam_sim *sim)
 {
 	ispsoftc_t *isp = cam_sim_softc(sim);
-	uint32_t isr;
-	uint16_t sema, mbox;
+	uint16_t isr, sema, info;
 
-	if (ISP_READ_ISR(isp, &isr, &sema, &mbox)) {
-		isp_intr(isp, isr, sema, mbox);
-	}
+	if (ISP_READ_ISR(isp, &isr, &sema, &info))
+		isp_intr(isp, isr, sema, info);
 }
 
 
@@ -4544,11 +4542,9 @@ isp_watchdog(void *arg)
 	 * Hand crank the interrupt code just to be sure the command isn't stuck somewhere.
 	 */
 	if (handle != ISP_HANDLE_FREE) {
-		uint32_t isr;
-		uint16_t sema, mbox;
-		if (ISP_READ_ISR(isp, &isr, &sema, &mbox) != 0) {
-			isp_intr(isp, isr, sema, mbox);
-		}
+		uint16_t isr, sema, info;
+		if (ISP_READ_ISR(isp, &isr, &sema, &info) != 0)
+			isp_intr(isp, isr, sema, info);
 		ohandle = handle;
 		handle = isp_find_handle(isp, xs);
 	}
@@ -6277,13 +6273,12 @@ isp_mbox_wait_complete(ispsoftc_t *isp, mbreg_t *mbp)
 	} else {
 		for (olim = 0; olim < max; olim++) {
 			for (ilim = 0; ilim < usecs; ilim += 100) {
-				uint32_t isr;
-				uint16_t sema, mbox;
+				uint16_t isr, sema, info;
 				if (isp->isp_osinfo.mboxcmd_done) {
 					break;
 				}
-				if (ISP_READ_ISR(isp, &isr, &sema, &mbox)) {
-					isp_intr(isp, isr, sema, mbox);
+				if (ISP_READ_ISR(isp, &isr, &sema, &info)) {
+					isp_intr(isp, isr, sema, info);
 					if (isp->isp_osinfo.mboxcmd_done) {
 						break;
 					}
@@ -6351,16 +6346,14 @@ void
 isp_platform_intr(void *arg)
 {
 	ispsoftc_t *isp = arg;
-	uint32_t isr;
-	uint16_t sema, mbox;
+	uint16_t isr, sema, info;
 
 	ISP_LOCK(isp);
 	isp->isp_intcnt++;
-	if (ISP_READ_ISR(isp, &isr, &sema, &mbox) == 0) {
+	if (ISP_READ_ISR(isp, &isr, &sema, &info))
+		isp_intr(isp, isr, sema, info);
+	else
 		isp->isp_intbogus++;
-	} else {
-		isp_intr(isp, isr, sema, mbox);
-	}
 	ISP_UNLOCK(isp);
 }
 
