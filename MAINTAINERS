@@ -59,6 +59,7 @@ contrib/llvm		dim	Pre-commit review preferred.
 contrib/llvm/tools/lldb	emaste	Pre-commit review preferred.
 atf			freebsd-testing,jmmv,ngie	Pre-commit review requested.
 contrib/netbsd-tests	freebsd-testing,ngie	Pre-commit review requested.
+contrib/pf		kp,glebius	Pre-commit review recommended.
 contrib/pjdfstest	freebsd-testing,ngie,pjd	Pre-commit review requested.
 share/mk/*.test.mk	freebsd-testing,ngie (same list as share/mk too)	Pre-commit review requested.
 tests			freebsd-testing,ngie	Pre-commit review requested.
@@ -111,7 +112,6 @@ ntp         	roberto	Pre-commit review requested.
 inetd		dwmalone	Recommends pre-commit review.
 contrib/smbfs	bp	Open for in-tree committs. In case of functional
 			changes pre-commit review requested.
-contrib/pf	glebius	Pre-commit review recommended.
 file		obrien	Insists to keep file blocked from other's unapproved
 			commits
 contrib/bzip2	obrien	Pre-commit review required.
