@@ -1459,24 +1459,31 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 				    CTL_TASK_ABORT_TASK_SET;
 				break;
 			case MSG_TARGET_RESET:
-				io->taskio.task_action =
-					CTL_TASK_TARGET_RESET;
+				io->taskio.task_action = CTL_TASK_TARGET_RESET;
 				break;
 			case MSG_ABORT_TASK:
-				io->taskio.task_action =
-					CTL_TASK_ABORT_TASK;
+				io->taskio.task_action = CTL_TASK_ABORT_TASK;
 				break;
 			case MSG_LOGICAL_UNIT_RESET:
-				io->taskio.task_action =
-					CTL_TASK_LUN_RESET;
+				io->taskio.task_action = CTL_TASK_LUN_RESET;
 				break;
 			case MSG_CLEAR_TASK_SET:
 				io->taskio.task_action =
-					CTL_TASK_CLEAR_TASK_SET;
+				    CTL_TASK_CLEAR_TASK_SET;
 				break;
 			case MSG_CLEAR_ACA:
+				io->taskio.task_action = CTL_TASK_CLEAR_ACA;
+				break;
+			case MSG_QUERY_TASK:
+				io->taskio.task_action = CTL_TASK_QUERY_TASK;
+				break;
+			case MSG_QUERY_TASK_SET:
 				io->taskio.task_action =
-					CTL_TASK_CLEAR_ACA;
+				    CTL_TASK_QUERY_TASK_SET;
+				break;
+			case MSG_QUERY_ASYNC_EVENT:
+				io->taskio.task_action =
+				    CTL_TASK_QUERY_ASYNC_EVENT;
 				break;
 			case MSG_NOOP:
 				send_ctl_io = 0;

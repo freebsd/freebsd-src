@@ -3479,6 +3479,12 @@ isp_handle_platform_target_tmf(ispsoftc_t *isp, isp_notify_t *notify)
 	case NT_TARGET_RESET:
 		inot->arg = MSG_TARGET_RESET;
 		break;
+	case NT_QUERY_TASK_SET:
+		inot->arg = MSG_QUERY_TASK_SET;
+		break;
+	case NT_QUERY_ASYNC_EVENT:
+		inot->arg = MSG_QUERY_ASYNC_EVENT;
+		break;
 	default:
 		isp_prt(isp, ISP_LOGWARN, "%s: unknown TMF code 0x%x for chan %d lun 0x%x", __func__, notify->nt_ncode, notify->nt_channel, lun);
 		goto bad;
@@ -5883,6 +5889,8 @@ changed:
 		case NT_CLEAR_TASK_SET:
 		case NT_LUN_RESET:
 		case NT_TARGET_RESET:
+		case NT_QUERY_TASK_SET:
+		case NT_QUERY_ASYNC_EVENT:
 			/*
 			 * These are task management functions.
 			 */
