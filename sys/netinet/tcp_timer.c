@@ -862,7 +862,7 @@ tcp_timer_activate(struct tcpcb *tp, uint32_t timer_type, u_int delta)
 		}
 	if (delta == 0) {
 		if ((tp->t_timers->tt_flags & timer_type) &&
-		    callout_stop(t_callout) &&
+		    (callout_stop(t_callout) > 0) &&
 		    (tp->t_timers->tt_flags & f_reset)) {
 			tp->t_timers->tt_flags &= ~(timer_type | f_reset);
 		}
@@ -949,7 +949,7 @@ tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 		}
 
 	if (tp->t_timers->tt_flags & timer_type) {
-		if (callout_stop(t_callout) &&
+		if ((callout_stop(t_callout) > 0) &&
 		    (tp->t_timers->tt_flags & f_reset)) {
 			tp->t_timers->tt_flags &= ~(timer_type | f_reset);
 		} else {
