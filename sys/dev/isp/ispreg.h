@@ -125,17 +125,20 @@
 
 #define	BIU_R2HST_INTR		(1 << 15)	/* RISC to Host Interrupt */
 #define	BIU_R2HST_PAUSED	(1 <<  8)	/* RISC paused */
-#define	BIU_R2HST_ISTAT_MASK	0x3f		/* intr information && status */
+#define	BIU_R2HST_ISTAT_MASK	0xff		/* intr information && status */
 #define		ISPR2HST_ROM_MBX_OK	0x1	/* ROM mailbox cmd done ok */
 #define		ISPR2HST_ROM_MBX_FAIL	0x2	/* ROM mailbox cmd done fail */
 #define		ISPR2HST_MBX_OK		0x10	/* mailbox cmd done ok */
 #define		ISPR2HST_MBX_FAIL	0x11	/* mailbox cmd done fail */
 #define		ISPR2HST_ASYNC_EVENT	0x12	/* Async Event */
 #define		ISPR2HST_RSPQ_UPDATE	0x13	/* Response Queue Update */
-#define		ISPR2HST_RQST_UPDATE	0x14	/* Resquest Queue Update */
+#define		ISPR2HST_RSPQ_UPDATE2	0x14	/* Response Queue Update */
 #define		ISPR2HST_RIO_16		0x15	/* RIO 1-16 */
 #define		ISPR2HST_FPOST		0x16	/* Low 16 bits fast post */
 #define		ISPR2HST_FPOST_CTIO	0x17	/* Low 16 bits fast post ctio */
+#define		ISPR2HST_ATIO_UPDATE	0x1C	/* ATIO Queue Update */
+#define		ISPR2HST_ATIO_RSPQ_UPDATE 0x1D	/* ATIO & Request Update */
+#define		ISPR2HST_ATIO_UPDATE2	0x1E	/* ATIO Queue Update */
 
 /* fifo command stuff- mostly for SPI */
 #define	DFIFO_COMMAND	(BIU_BLOCK+0x60)	/* RW : Command FIFO Port */
@@ -245,11 +248,6 @@
 #define	BIU2100_ISR_CDMA_INT		0x0004	/* CDMA interrupt pending */
 #define	BIU2100_ISR_RXDMA_INT_PENDING	0x0002	/* Global interrupt pending */
 #define	BIU2100_ISR_TXDMA_INT_PENDING	0x0001	/* Global interrupt pending */
-
-#define	INT_PENDING(isp, isr)						\
- IS_FC(isp)?								\
-  (IS_24XX(isp)? (isr & BIU2400_ISR_RISC_INT) : (isr & BIU2100_ISR_RISC_INT)) :\
-  (isr & BIU_ISR_RISC_INT)
 
 #define	INT_PENDING_MASK(isp)	\
  (IS_FC(isp)? (IS_24XX(isp)? BIU2400_ISR_RISC_INT : BIU2100_ISR_RISC_INT) : \
@@ -397,19 +395,6 @@
 
 /* BIU2400_ISR definitions */
 #define	BIU2400_ISR_RISC_INT		0x8
-
-#define	BIU2400_R2HST_INTR		BIU_R2HST_INTR
-#define	BIU2400_R2HST_PAUSED		BIU_R2HST_PAUSED
-#define	BIU2400_R2HST_ISTAT_MASK	0x1f
-/* interrupt status meanings */
-#define	ISP2400R2HST_ROM_MBX_OK		0x1	/* ROM mailbox cmd done ok */
-#define	ISP2400R2HST_ROM_MBX_FAIL	0x2	/* ROM mailbox cmd done fail */
-#define	ISP2400R2HST_MBX_OK		0x10	/* mailbox cmd done ok */
-#define	ISP2400R2HST_MBX_FAIL		0x11	/* mailbox cmd done fail */
-#define	ISP2400R2HST_ASYNC_EVENT	0x12	/* Async Event */
-#define	ISP2400R2HST_RSPQ_UPDATE	0x13	/* Response Queue Update */
-#define	ISP2400R2HST_ATIO_RSPQ_UPDATE	0x1C	/* ATIO Response Queue Update */
-#define	ISP2400R2HST_ATIO_RQST_UPDATE	0x1D	/* ATIO Request Queue Update */
 
 /* BIU2400_HCCR definitions */
 
