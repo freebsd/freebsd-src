@@ -20,7 +20,7 @@ WANT_CHERI:= ${NEED_CHERI}
 .error CHERI_CC is defined to ${CHERI_CC} which does not exist
 .endif
 
-_CHERI_CC=	${CHERI_CC} -integrated-as --target=cheri-unknown-freebsd \
+_CHERI_CC=	${CHERI_CC} -g -integrated-as --target=cheri-unknown-freebsd \
 		-msoft-float
 .if defined(SYSROOT)
 _CHERI_CC+=	--sysroot=${SYSROOT}

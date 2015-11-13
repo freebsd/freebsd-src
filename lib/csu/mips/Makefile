@@ -74,3 +74,7 @@ Scrt1.o: Scrt1_c.o crt1_s.o
 	${LD} ${LDFLAGS:S/^-Wl,//} -o Scrt1.o -r crt1_s.o Scrt1_c.o
 
 .include <bsd.prog.mk>
+
+.if defined(LIBCHERI)
+CC:=	${CC:N-g}
+.endif
