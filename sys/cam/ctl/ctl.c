@@ -11044,7 +11044,15 @@ ctl_check_for_blockage(struct ctl_lun *lun, union ctl_io *pending_io,
 		return (CTL_ACTION_BLOCK);
 
 	pending_entry = ctl_get_cmd_entry(&pending_io->scsiio, NULL);
+	KASSERT(pending_entry->seridx < CTL_SERIDX_COUNT,
+	    ("%s: Invalid seridx %d for pending CDB %02x %02x @ %p",
+	     __func__, pending_entry->seridx, pending_io->scsiio.cdb[0],
+	     pending_io->scsiio.cdb[1], pending_io));
 	ooa_entry = ctl_get_cmd_entry(&ooa_io->scsiio, NULL);
+	KASSERT(ooa_entry->seridx < CTL_SERIDX_COUNT,
+	    ("%s: Invalid seridx %d for ooa CDB %02x %02x @ %p",
+	     __func__, ooa_entry->seridx, ooa_io->scsiio.cdb[0],
+	     ooa_io->scsiio.cdb[1], ooa_io));
 
 	serialize_row = ctl_serialize_table[ooa_entry->seridx];
 
