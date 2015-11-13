@@ -4029,19 +4029,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 	isp_prt(isp, ISP_LOGDEBUG2, "isp_action code %x", ccb->ccb_h.func_code);
 	ISP_PCMD(ccb) = NULL;
 
-	if (isp->isp_state != ISP_RUNSTATE && ccb->ccb_h.func_code == XPT_SCSI_IO) {
-		isp_init(isp);
-		if (isp->isp_state != ISP_INITSTATE) {
-			/*
-			 * Lie. Say it was a selection timeout.
-			 */
-			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
-			isp_done((struct ccb_scsiio *) ccb);
-			return;
-		}
-		isp->isp_state = ISP_RUNSTATE;
-	}
-
 	switch (ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:	/* Execute the requested I/O operation */
 		bus = XS_CHANNEL(ccb);
