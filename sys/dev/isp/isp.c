@@ -130,7 +130,7 @@ static int isp_scan_fabric(ispsoftc_t *, int);
 static int isp_login_device(ispsoftc_t *, int, uint32_t, isp_pdb_t *, uint16_t *);
 static int isp_register_fc4_type(ispsoftc_t *, int);
 static int isp_register_fc4_type_24xx(ispsoftc_t *, int);
-static uint16_t isp_nxt_handle(ispsoftc_t *, int, uint16_t);
+static uint16_t isp_next_handle(ispsoftc_t *, uint16_t *);
 static void isp_fw_state(ispsoftc_t *, int);
 static void isp_mboxcmd_qnw(ispsoftc_t *, mbreg_t *, int);
 static void isp_mboxcmd(ispsoftc_t *, mbreg_t *);
@@ -2901,7 +2901,7 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 				fcp->isp_fabric_params = 0;
 			}
 			if (chan) {
-				fcp->isp_sns_hdl = NPH_SNS_HDLBASE + chan;
+				fcp->isp_sns_hdl = NPH_RESERVED - chan;
 				r = isp_plogx(isp, chan, fcp->isp_sns_hdl, SNS_PORT_ID, PLOGX_FLG_CMD_PLOGI | PLOGX_FLG_COND_PLOGI | PLOGX_FLG_SKIP_PRLI, 0);
 				if (r) {
 					isp_prt(isp, ISP_LOGWARN, "%s: Chan %d cannot log into SNS", __func__, chan);
@@ -3522,7 +3522,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 {
 	fcparam *fcp = FCPARAM(isp, chan);
 	uint32_t portid;
-	uint16_t handle, oldhandle, loopid;
+	uint16_t handle, loopid;
 	isp_pdb_t pdb;
 	int portidx, portlim, r;
 	sns_gid_ft_rsp_t *rs0, *rs1;
@@ -3623,11 +3623,6 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 	 * If we get this far, we certainly still have the fabric controller.
 	 */
 	fcp->portdb[FL_ID].state = FC_PORTDB_STATE_PENDING_VALID;
-
-	/*
-	 * Prime the handle we will start using.
-	 */
-	oldhandle = FCPARAM(isp, 0)->isp_lasthdl;
 
 	/*
 	 * Go through the list and remove duplicate port ids.
@@ -3822,7 +3817,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 				 */
 				if ((fcp->role & ISP_ROLE_INITIATOR) == 0 ||
 				    isp_login_device(isp, chan, portid, &pdb,
-				     &oldhandle)) {
+				     &FCPARAM(isp, 0)->isp_lasthdl)) {
 					lp->new_portid = portid;
 					lp->state = FC_PORTDB_STATE_DEAD;
 					if (fcp->isp_loopstate !=
@@ -3839,7 +3834,6 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 					ISP_MARK_PORTDB(isp, chan, 1);
 					return (-1);
 				}
-				FCPARAM(isp, 0)->isp_lasthdl = oldhandle;
 				MAKE_WWN_FROM_NODE_NAME(wwnn, pdb.nodename);
 				MAKE_WWN_FROM_NODE_NAME(wwpn, pdb.portname);
 				if (wwpn != lp->port_wwn ||
@@ -3940,7 +3934,8 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 		 * isp_login_device will check for handle and
 		 * portid consistency after login.
 		 */
-		if (isp_login_device(isp, chan, portid, &pdb, &oldhandle)) {
+		if (isp_login_device(isp, chan, portid, &pdb,
+		    &FCPARAM(isp, 0)->isp_lasthdl)) {
 			if (fcp->isp_loopstate != LOOP_SCANNING_FABRIC) {
 				FC_SCRATCH_RELEASE(isp, chan);
 				ISP_MARK_PORTDB(isp, chan, 1);
@@ -3953,7 +3948,6 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 			ISP_MARK_PORTDB(isp, chan, 1);
 			return (-1);
 		}
-		FCPARAM(isp, 0)->isp_lasthdl = oldhandle;
 
 		handle = pdb.handle;
 		MAKE_WWN_FROM_NODE_NAME(wwnn, pdb.nodename);
@@ -4046,7 +4040,7 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p, uint1
 		lim = NPH_MAX;
 	}
 
-	handle = isp_nxt_handle(isp, chan, *ohp);
+	handle = isp_next_handle(isp, ohp);
 	for (i = 0; i < lim; i++) {
 		/*
 		 * See if we're still logged into something with
@@ -4070,7 +4064,6 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p, uint1
 			return (-1);
 		}
 		if (r == 0) {
-			*ohp = handle;
 			break;
 		} else if ((r & 0xffff) == MBOX_PORT_ID_USED) {
 			/*
@@ -4088,22 +4081,14 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p, uint1
 			if (FCPARAM(isp, chan)->isp_loopstate != LOOP_SCANNING_FABRIC) {
 				return (-1);
 			}
-			if (r == 0) {
-				*ohp = handle;
-			} else {
+			if (r != 0)
 				i = lim;
-			}
 			break;
 		} else if ((r & 0xffff) == MBOX_LOOP_ID_USED) {
-			/*
-			 * Try the next loop id.
-			 */
-			*ohp = handle;
-			handle = isp_nxt_handle(isp, chan, handle);
+			/* Try the next loop id. */
+			handle = isp_next_handle(isp, ohp);
 		} else {
-			/*
-			 * Give up.
-			 */
+			/* Give up. */
 			i = lim;
 			break;
 		}
@@ -4288,45 +4273,46 @@ isp_register_fc4_type_24xx(ispsoftc_t *isp, int chan)
 }
 
 static uint16_t
-isp_nxt_handle(ispsoftc_t *isp, int chan, uint16_t handle)
+isp_next_handle(ispsoftc_t *isp, uint16_t *ohp)
 {
-	int i;
-	if (handle == NIL_HANDLE) {
-		if (FCPARAM(isp, chan)->isp_topo == TOPO_F_PORT) {
-			handle = 0;
-		} else {
-			handle = SNS_ID+1;
-		}
+	fcparam *fcp;
+	int i, chan, wrap;
+	uint16_t handle, minh, maxh;
+
+	handle = *ohp;
+	if (ISP_CAP_2KLOGIN(isp)) {
+		minh = 0;
+		maxh = NPH_RESERVED - isp->isp_nchan; /* Reserve for SNS */
 	} else {
-		handle += 1;
-		if (handle >= FL_ID && handle <= SNS_ID) {
-			handle = SNS_ID+1;
-		}
-		if (handle >= NPH_RESERVED && handle <= NPH_IP_BCST) {
-			handle = NPH_IP_BCST + 1;
-		}
-		if (ISP_CAP_2KLOGIN(isp)) {
-			if (handle == NPH_MAX_2K) {
-				handle = 0;
+		minh = SNS_ID + 1;
+		maxh = NPH_MAX - 1;
+	}
+	wrap = 0;
+
+next:
+	if (handle == NIL_HANDLE) {
+		handle = minh;
+	} else {
+		handle++;
+		if (handle > maxh) {
+			if (++wrap >= 2) {
+				isp_prt(isp, ISP_LOGERR, "Out of port handles!");
+				return (NIL_HANDLE);
 			}
-		} else {
-			if (handle == NPH_MAX) {
-				handle = 0;
-			}
+			handle = minh;
 		}
 	}
-	if (handle == FCPARAM(isp, chan)->isp_loopid) {
-		return (isp_nxt_handle(isp, chan, handle));
-	}
-	for (i = 0; i < MAX_FC_TARG; i++) {
-		if (FCPARAM(isp, chan)->portdb[i].state ==
-		    FC_PORTDB_STATE_NIL) {
+	for (chan = 0; chan < isp->isp_nchan; chan++) {
+		fcp = FCPARAM(isp, chan);
+		if (fcp->role == ISP_ROLE_NONE)
 			continue;
-		}
-		if (FCPARAM(isp, chan)->portdb[i].handle == handle) {
-			return (isp_nxt_handle(isp, chan, handle));
+		for (i = 0; i < MAX_FC_TARG; i++) {
+			if (fcp->portdb[i].state != FC_PORTDB_STATE_NIL &&
+			    fcp->portdb[i].handle == handle)
+				goto next;
 		}
 	}
+	*ohp = handle;
 	return (handle);
 }
 
@@ -5015,7 +5001,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			return (isp_plogx(isp, p->channel, p->handle, p->portid, p->flags, 0));
 		}
 		do {
-			p->handle = isp_nxt_handle(isp, p->channel, p->handle);
+			isp_next_handle(isp, &p->handle);
 			r = isp_plogx(isp, p->channel, p->handle, p->portid, p->flags, 0);
 			if ((r & 0xffff) == MBOX_PORT_ID_USED) {
 				p->handle = r >> 16;
