@@ -276,7 +276,8 @@ STAGE_SETS+= links
 STAGE_LINKS.links= ${LINKS}
 .endif
 
-.if !empty(SYMLINKS)
+# Don't handle SYMLINKS for libraries since stage_libs is already doing so.
+.if !empty(SYMLINKS) && empty(_LIBS)
 STAGE_TARGETS+= stage_symlinks
 STAGE_SETS+= links
 STAGE_SYMLINKS.links= ${SYMLINKS}
