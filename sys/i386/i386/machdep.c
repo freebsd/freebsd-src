@@ -1962,8 +1962,6 @@ DB_SHOW_COMMAND(sysregs, db_show_sysregs)
 	db_printf("cr2\t0x%08x\n", rcr2());
 	db_printf("cr3\t0x%08x\n", rcr3());
 	db_printf("cr4\t0x%08x\n", rcr4());
-	if (rcr4() & CR4_XSAVE)
-		db_printf("xcr0\t0x%016llx\n", rxcr(0));
 	if (amd_feature & (AMDID_NX | AMDID_LM))
 		db_printf("EFER\t0x%016llx\n", rdmsr(MSR_EFER));
 	if (cpu_feature2 & (CPUID2_VMX | CPUID2_SMX))
