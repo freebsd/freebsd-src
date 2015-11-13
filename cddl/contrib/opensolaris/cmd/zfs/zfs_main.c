@@ -3579,7 +3579,7 @@ zfs_do_set(int argc, char **argv)
 {
 	nvlist_t *props = NULL;
 	int ds_start = -1; /* argv idx of first dataset arg */
-	int ret = 0;
+	int i, ret = 0;
 
 	/* check for options */
 	if (argc > 1 && argv[1][0] == '-') {
@@ -3605,7 +3605,7 @@ zfs_do_set(int argc, char **argv)
 	}
 
 	/* validate argument order:  prop=val args followed by dataset args */
-	for (int i = 1; i < argc; i++) {
+	for (i = 1; i < argc; i++) {
 		if (strchr(argv[i], '=') != NULL) {
 			if (ds_start > 0) {
 				/* out-of-order prop=val argument */
@@ -3625,7 +3625,7 @@ zfs_do_set(int argc, char **argv)
 	/* Populate a list of property settings */
 	if (nvlist_alloc(&props, NV_UNIQUE_NAME, 0) != 0)
 		nomem();
-	for (int i = 1; i < ds_start; i++) {
+	for (i = 1; i < ds_start; i++) {
 		if ((ret = parseprop(props, argv[i])) != 0)
 			goto error;
 	}
