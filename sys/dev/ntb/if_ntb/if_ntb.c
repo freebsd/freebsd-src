@@ -783,7 +783,7 @@ ntb_transport_create_queue(void *data, struct ntb_softc *ntb,
 	free_queue--;
 
 	qp = &nt->qp_vec[free_queue];
-	clear_bit(1ull << qp->qp_num, &nt->qp_bitmap_free);
+	clear_bit(qp->qp_num, &nt->qp_bitmap_free);
 	qp->cb_data = data;
 	qp->rx_handler = handlers->rx_handler;
 	qp->tx_handler = handlers->tx_handler;
