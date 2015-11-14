@@ -4096,6 +4096,7 @@ pmc_process_interrupt(int cpu, int ring, struct pmc *pm, struct trapframe *tf,
 		    cpu, pm, (void *) tf, inuserspace,
 		    (int) (psb->ps_write - psb->ps_samples),
 		    (int) (psb->ps_read - psb->ps_samples));
+		callchaindepth = 1;
 		error = ENOMEM;
 		goto done;
 	}
@@ -4153,7 +4154,8 @@ pmc_process_interrupt(int cpu, int ring, struct pmc *pm, struct trapframe *tf,
 
  done:
 	/* mark CPU as needing processing */
-	CPU_SET_ATOMIC(cpu, &pmc_cpumask);
+	if (callchaindepth != PMC_SAMPLE_INUSE)
+		CPU_SET_ATOMIC(cpu, &pmc_cpumask);
 
 	return (error);
 }
@@ -4167,10 +4169,9 @@ pmc_process_interrupt(int cpu, int ring, struct pmc *pm, struct trapframe *tf,
 static void
 pmc_capture_user_callchain(int cpu, int ring, struct trapframe *tf)
 {
-	int i;
 	struct pmc *pm;
 	struct thread *td;
-	struct pmc_sample *ps;
+	struct pmc_sample *ps, *ps_end;
 	struct pmc_samplebuffer *psb;
 #ifdef	INVARIANTS
 	int ncallchains;
@@ -4189,15 +4190,17 @@ pmc_capture_user_callchain(int cpu, int ring, struct trapframe *tf)
 
 	/*
 	 * Iterate through all deferred callchain requests.
+	 * Walk from the current read pointer to the current
+	 * write pointer.
 	 */
 
-	ps = psb->ps_samples;
-	for (i = 0; i < pmc_nsamples; i++, ps++) {
-
+	ps = psb->ps_read;
+	ps_end = psb->ps_write;
+	do {
 		if (ps->ps_nsamples != PMC_SAMPLE_INUSE)
-			continue;
+			goto next;
 		if (ps->ps_td != td)
-			continue;
+			goto next;
 
 		KASSERT(ps->ps_cpu == cpu,
 		    ("[pmc,%d] cpu mismatch ps_cpu=%d pcpu=%d", __LINE__,
@@ -4222,7 +4225,12 @@ pmc_capture_user_callchain(int cpu, int ring, struct trapframe *tf)
 #ifdef	INVARIANTS
 		ncallchains++;
 #endif
-	}
+
+next:
+		/* increment the pointer, modulo sample ring size */
+		if (++ps == psb->ps_fence)
+			ps = psb->ps_samples;
+	} while (ps != ps_end);
 
 	KASSERT(ncallchains > 0,
 	    ("[pmc,%d] cpu %d didn't find a sample to collect", __LINE__,
@@ -4231,6 +4239,9 @@ pmc_capture_user_callchain(int cpu, int ring, struct trapframe *tf)
 	KASSERT(td->td_pinned == 1,
 	    ("[pmc,%d] invalid td_pinned value", __LINE__));
 	sched_unpin();	/* Can migrate safely now. */
+
+	/* mark CPU as needing processing */
+	CPU_SET_ATOMIC(cpu, &pmc_cpumask);
 
 	return;
 }
