@@ -34,11 +34,14 @@
 #include <sys/poll.h>
 #include <sys/fcntl.h>
 
+#include <linux/wait.h>
+#include <linux/file.h>
+
 typedef struct poll_table_struct {
 } poll_table;
 
 static inline void
-poll_wait(struct file *filp, wait_queue_head_t *wait_address, poll_table *p)
+poll_wait(struct linux_file *filp, wait_queue_head_t *wait_address, poll_table *p)
 {
 	selrecord(curthread, &filp->f_selinfo);
 }

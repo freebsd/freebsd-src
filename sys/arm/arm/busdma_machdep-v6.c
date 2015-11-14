@@ -473,11 +473,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	bus_dma_tag_t newtag;
 	int error = 0;
 
-#if 0
-	if (!parent)
-		parent = arm_root_dma_tag;
-#endif
-
 	/* Basic sanity checking. */
 	KASSERT(boundary == 0 || powerof2(boundary),
 	    ("dma tag boundary %lu, must be a power of 2", boundary));

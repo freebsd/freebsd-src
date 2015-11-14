@@ -1093,7 +1093,7 @@ in_lltable_free_entry(struct lltable *llt, struct llentry *lle)
 	}
 
 	/* cancel timer */
-	if (callout_stop(&lle->lle_timer))
+	if (callout_stop(&lle->lle_timer) > 0)
 		LLE_REMREF(lle);
 
 	/* Drop hold queue */
@@ -1258,8 +1258,8 @@ in_lltable_alloc(struct lltable *llt, u_int flags, const struct sockaddr *l3addr
 	}
 	lle->la_flags = flags;
 	if ((flags & LLE_IFADDR) == LLE_IFADDR) {
-		bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
-		lle->la_flags |= (LLE_VALID | LLE_STATIC);
+		lltable_set_entry_addr(ifp, lle, IF_LLADDR(ifp));
+		lle->la_flags |= LLE_STATIC;
 	}
 
 	return (lle);

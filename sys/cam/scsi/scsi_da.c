@@ -368,7 +368,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * VMware returns BUSY status when storage has transient
 		 * connectivity problems, so better wait.
 		 */
-		{T_DIRECT, SIP_MEDIA_FIXED, "VMware", "Virtual disk", "*"},
+		{T_DIRECT, SIP_MEDIA_FIXED, "VMware*", "*", "*"},
 		/*quirks*/ DA_Q_RETRY_BUSY
 	},
 	/* USB mass storage devices supported by umass(4) */

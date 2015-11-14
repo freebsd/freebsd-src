@@ -189,7 +189,7 @@ gic_v3_its_attach(device_t dev)
 	 */
 	if (device_get_unit(dev) != 0) {
 		device_printf(dev,
-		    "Only single instance of ITS is supported, exitting...\n");
+		    "Only single instance of ITS is supported, exiting...\n");
 		return (ENXIO);
 	}
 	sc->its_socket = 0;

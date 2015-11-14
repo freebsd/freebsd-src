@@ -28,6 +28,15 @@
 #ifndef _USB_COMPAT_LINUX_H
 #define	_USB_COMPAT_LINUX_H
 
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/condvar.h>
+
+#include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
+
 struct usb_device;
 struct usb_interface;
 struct usb_driver;

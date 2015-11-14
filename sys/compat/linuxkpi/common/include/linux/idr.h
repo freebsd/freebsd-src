@@ -31,7 +31,11 @@
 #ifndef	_LINUX_IDR_H_
 #define	_LINUX_IDR_H_
 
-#include <sys/kernel.h>
+#include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+
+#include <linux/types.h>
 
 #define	IDR_BITS	5
 #define	IDR_SIZE	(1 << IDR_BITS)

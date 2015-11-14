@@ -59,6 +59,20 @@ struct kobject {
 
 extern struct kobject *mm_kobj;
 
+struct attribute {
+	const char 	*name;
+	struct module	*owner;
+	mode_t		mode;
+};
+
+struct kobj_attribute {
+        struct attribute attr;
+        ssize_t (*show)(struct kobject *kobj, struct kobj_attribute *attr,
+                        char *buf);
+        ssize_t (*store)(struct kobject *kobj, struct kobj_attribute *attr,
+                         const char *buf, size_t count);
+};
+
 static inline void
 kobject_init(struct kobject *kobj, struct kobj_type *ktype)
 {
@@ -154,18 +168,5 @@ kobject_name(const struct kobject *kobj)
 int	kobject_set_name(struct kobject *kobj, const char *fmt, ...);
 int	kobject_init_and_add(struct kobject *kobj, struct kobj_type *ktype,
 	    struct kobject *parent, const char *fmt, ...);
-
-/* sysfs.h calles for 'kobject' which is defined here, 
- * so we need to add the include only after the 'kobject' def.
- */
-#include <linux/sysfs.h>
-
-struct kobj_attribute {
-        struct attribute attr;
-        ssize_t (*show)(struct kobject *kobj, struct kobj_attribute *attr,
-                        char *buf);
-        ssize_t (*store)(struct kobject *kobj, struct kobj_attribute *attr,
-                         const char *buf, size_t count);
-};
 
 #endif /* _LINUX_KOBJECT_H_ */

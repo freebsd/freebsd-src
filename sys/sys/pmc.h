@@ -614,6 +614,7 @@ struct pmc_op_getdyneventinfo {
 
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
+#include <sys/_cpuset.h>
 
 #include <machine/frame.h>
 
@@ -729,7 +730,8 @@ struct pmc {
 		pmc_value_t	pm_initial;	/* counting PMC modes */
 	} pm_sc;
 
-	uint32_t	pm_stalled;	/* marks stalled sampling PMCs */
+	volatile cpuset_t pm_stalled;	/* marks stalled sampling PMCs */
+	volatile cpuset_t pm_cpustate;	/* CPUs where PMC should be active */
 	uint32_t	pm_caps;	/* PMC capabilities */
 	enum pmc_event	pm_event;	/* event being measured */
 	uint32_t	pm_flags;	/* additional flags PMC_F_... */

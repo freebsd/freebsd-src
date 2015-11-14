@@ -155,7 +155,6 @@ static void	otus_free_txcmd(struct otus_softc *, struct otus_tx_cmd *);
 
 void		otus_next_scan(void *, int);
 static void	otus_tx_task(void *, int pending);
-static void	otus_wme_update_task(void *, int pending);
 void		otus_do_async(struct otus_softc *,
 		    void (*)(struct otus_softc *, void *), void *, int);
 int		otus_newstate(struct ieee80211vap *, enum ieee80211_state,
@@ -177,8 +176,9 @@ static int	otus_tx(struct otus_softc *, struct ieee80211_node *,
 		    const struct ieee80211_bpf_params *);
 int		otus_ioctl(struct ifnet *, u_long, caddr_t);
 int		otus_set_multi(struct otus_softc *);
-static void	otus_updateedca(struct otus_softc *sc);
-static void	otus_updateslot(struct otus_softc *sc);
+static int	otus_updateedca(struct ieee80211com *);
+static void	otus_updateedca_locked(struct otus_softc *);
+static void	otus_updateslot(struct otus_softc *);
 int		otus_init_mac(struct otus_softc *);
 uint32_t	otus_phy_get_def(struct otus_softc *, uint32_t);
 int		otus_set_board_values(struct otus_softc *,
@@ -300,7 +300,6 @@ otus_attach(device_t self)
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->scan_to, 0, otus_next_scan, sc);
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->calib_to, 0, otus_calibrate_to, sc);
 	TASK_INIT(&sc->tx_task, 0, otus_tx_task, sc);
-	TASK_INIT(&sc->wme_update_task, 0, otus_wme_update_task, sc);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
 	iface_index = 0;
@@ -345,7 +344,6 @@ otus_detach(device_t self)
 	taskqueue_drain_timeout(taskqueue_thread, &sc->scan_to);
 	taskqueue_drain_timeout(taskqueue_thread, &sc->calib_to);
 	taskqueue_drain(taskqueue_thread, &sc->tx_task);
-	taskqueue_drain(taskqueue_thread, &sc->wme_update_task);
 
 	otus_close_pipes(sc);
 #if 0
@@ -590,44 +588,6 @@ otus_set_channel(struct ieee80211com *ic)
 	OTUS_UNLOCK(sc);
 }
 
-static void
-otus_wme_update_task(void *arg, int pending)
-{
-	struct otus_softc *sc = arg;
-
-	OTUS_LOCK(sc);
-	/*
-	 * XXX TODO: take temporary copy of EDCA information
-	 * when scheduling this so we have a more time-correct view
-	 * of things.
-	 */
-	otus_updateedca(sc);
-	OTUS_UNLOCK(sc);
-}
-
-static void
-otus_wme_schedule_update(struct otus_softc *sc)
-{
-
-	taskqueue_enqueue(taskqueue_thread, &sc->wme_update_task);
-}
-
-/*
- * This is called by net80211 in RX packet context, so we
- * can't sleep here.
- *
- * TODO: have net80211 schedule an update itself for its
- * own internal taskqueue.
- */
-static int
-otus_wme_update(struct ieee80211com *ic)
-{
-	struct otus_softc *sc = ic->ic_softc;
-
-	otus_wme_schedule_update(sc);
-	return (0);
-}
-
 static int
 otus_ampdu_enable(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 {
@@ -811,7 +771,7 @@ otus_attachhook(struct otus_softc *sc)
 	ic->ic_transmit = otus_transmit;
 	ic->ic_update_chw = otus_update_chw;
 	ic->ic_ampdu_enable = otus_ampdu_enable;
-	ic->ic_wme.wme_update = otus_wme_update;
+	ic->ic_wme.wme_update = otus_updateedca;
 	ic->ic_newassoc = otus_newassoc;
 	ic->ic_node_alloc = otus_node_alloc;
 
@@ -2383,8 +2343,25 @@ otus_set_multi(struct otus_softc *sc)
 	return (r);
 }
 
+static int
+otus_updateedca(struct ieee80211com *ic)
+{
+	struct otus_softc *sc = ic->ic_softc;
+
+	OTUS_LOCK(sc);
+	/*
+	 * XXX TODO: take temporary copy of EDCA information
+	 * when scheduling this so we have a more time-correct view
+	 * of things.
+	 * XXX TODO: this can be done on the net80211 level
+	 */
+	otus_updateedca_locked(sc);
+	OTUS_UNLOCK(sc);
+	return (0);
+}
+
 static void
-otus_updateedca(struct otus_softc *sc)
+otus_updateedca_locked(struct otus_softc *sc)
 {
 #define EXP2(val)	((1 << (val)) - 1)
 #define AIFS(val)	((val) * 9 + 10)
@@ -2508,7 +2485,7 @@ otus_init_mac(struct otus_softc *sc)
 		return error;
 
 	/* Set default EDCA parameters. */
-	otus_updateedca(sc);
+	otus_updateedca_locked(sc);
 
 	return 0;
 }
@@ -3185,7 +3162,6 @@ otus_stop(struct otus_softc *sc)
 	taskqueue_drain_timeout(taskqueue_thread, &sc->scan_to);
 	taskqueue_drain_timeout(taskqueue_thread, &sc->calib_to);
 	taskqueue_drain(taskqueue_thread, &sc->tx_task);
-	taskqueue_drain(taskqueue_thread, &sc->wme_update_task);
 
 	OTUS_LOCK(sc);
 	sc->sc_running = 0;

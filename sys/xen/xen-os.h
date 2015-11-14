@@ -112,6 +112,12 @@ xen_set_bit(int bit, volatile long *addr)
 	atomic_set_long(&addr[bit / NBPL], 1UL << (bit % NBPL));
 }
 
+static inline void
+xen_clear_bit(int bit, volatile long *addr)
+{
+	atomic_clear_long(&addr[bit / NBPL], 1UL << (bit % NBPL));
+}
+
 #undef NPBL
 
 /*

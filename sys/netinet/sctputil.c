@@ -5654,20 +5654,20 @@ found_one:
 			s_extra = (struct sctp_extrcvinfo *)sinfo;
 			if ((nxt) &&
 			    (nxt->length)) {
-				s_extra->sreinfo_next_flags = SCTP_NEXT_MSG_AVAIL;
+				s_extra->serinfo_next_flags = SCTP_NEXT_MSG_AVAIL;
 				if (nxt->sinfo_flags & SCTP_UNORDERED) {
-					s_extra->sreinfo_next_flags |= SCTP_NEXT_MSG_IS_UNORDERED;
+					s_extra->serinfo_next_flags |= SCTP_NEXT_MSG_IS_UNORDERED;
 				}
 				if (nxt->spec_flags & M_NOTIFICATION) {
-					s_extra->sreinfo_next_flags |= SCTP_NEXT_MSG_IS_NOTIFICATION;
+					s_extra->serinfo_next_flags |= SCTP_NEXT_MSG_IS_NOTIFICATION;
 				}
-				s_extra->sreinfo_next_aid = nxt->sinfo_assoc_id;
-				s_extra->sreinfo_next_length = nxt->length;
-				s_extra->sreinfo_next_ppid = nxt->sinfo_ppid;
-				s_extra->sreinfo_next_stream = nxt->sinfo_stream;
+				s_extra->serinfo_next_aid = nxt->sinfo_assoc_id;
+				s_extra->serinfo_next_length = nxt->length;
+				s_extra->serinfo_next_ppid = nxt->sinfo_ppid;
+				s_extra->serinfo_next_stream = nxt->sinfo_stream;
 				if (nxt->tail_mbuf != NULL) {
 					if (nxt->end_added) {
-						s_extra->sreinfo_next_flags |= SCTP_NEXT_MSG_ISCOMPLETE;
+						s_extra->serinfo_next_flags |= SCTP_NEXT_MSG_ISCOMPLETE;
 					}
 				}
 			} else {
@@ -5678,11 +5678,11 @@ found_one:
 				 * :-D
 				 */
 				nxt = NULL;
-				s_extra->sreinfo_next_flags = SCTP_NO_NEXT_MSG;
-				s_extra->sreinfo_next_aid = 0;
-				s_extra->sreinfo_next_length = 0;
-				s_extra->sreinfo_next_ppid = 0;
-				s_extra->sreinfo_next_stream = 0;
+				s_extra->serinfo_next_flags = SCTP_NO_NEXT_MSG;
+				s_extra->serinfo_next_aid = 0;
+				s_extra->serinfo_next_length = 0;
+				s_extra->serinfo_next_ppid = 0;
+				s_extra->serinfo_next_stream = 0;
 			}
 		}
 		/*
@@ -6165,7 +6165,7 @@ out:
 		struct sctp_extrcvinfo *s_extra;
 
 		s_extra = (struct sctp_extrcvinfo *)sinfo;
-		s_extra->sreinfo_next_flags = SCTP_NO_NEXT_MSG;
+		s_extra->serinfo_next_flags = SCTP_NO_NEXT_MSG;
 	}
 	if (hold_rlock == 1) {
 		SCTP_INP_READ_UNLOCK(inp);

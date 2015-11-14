@@ -1131,6 +1131,10 @@ product APPLE WELLSPRING7A_JIS	0x025b	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING8_ANSI	0x0290	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING8_ISO	0x0291	Apple Internal Keyboard/Trackpad
 product APPLE WELLSPRING8_JIS	0x0292	Apple Internal Keyboard/Trackpad
+/* MacbookPro12,1 */
+product APPLE WELLSPRING9_ANSI	0x0272	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING9_ISO	0x0273	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING9_JIS	0x0274	Apple Internal Keyboard/Trackpad
 product APPLE MOUSE		0x0301	Mouse M4848
 product APPLE OPTMOUSE		0x0302	Optical mouse
 product APPLE MIGHTYMOUSE	0x0304	Mighty Mouse

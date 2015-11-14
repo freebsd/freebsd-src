@@ -100,16 +100,20 @@
 # For more information, see the build(7) manual page.
 #
 
+# This is included so CC is set to ccache for -V, and COMPILER_TYPE/VERSION
+# can be cached for sub-makes.
+.include <bsd.compiler.mk>
+
 # Note: we use this awkward construct to be compatible with FreeBSD's
 # old make used in 10.0 and 9.2 and earlier.
-.if defined(MK_META_MODE) && ${MK_META_MODE} == "yes" && !make(showconfig)
+.if defined(MK_DIRDEPS_BUILD) && ${MK_DIRDEPS_BUILD} == "yes" && !make(showconfig)
 # targets/Makefile plays the role of top-level
 .include "targets/Makefile"
 .else
 
 TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	check-old check-old-dirs check-old-files check-old-libs \
-	checkdpadd clean cleandepend cleandir \
+	checkdpadd clean cleandepend cleandir cleanworld \
 	delete-old delete-old-dirs delete-old-files delete-old-libs \
 	depend distribute distributekernel distributekernel.debug \
 	distributeworld distrib-dirs distribution doxygen \
@@ -205,38 +209,6 @@ _TARGET_ARCH?=	${MACHINE_ARCH}
 ${TGTS}: upgrade_checks
 .else
 buildworld: upgrade_checks
-.endif
-
-#
-# This 'cleanworld' target is not included in TGTS, because it is not a
-# recursive target.  All of the work for it is done right here.   It is
-# expected that BW_CANONICALOBJDIR == the CANONICALOBJDIR as would be
-# created by bsd.obj.mk, except that we don't want to .include that file
-# in this makefile.  
-#
-# In the following, the first 'rm' in a series will usually remove all
-# files and directories.  If it does not, then there are probably some
-# files with file flags set, so this unsets them and tries the 'rm' a
-# second time.  There are situations where this target will be cleaning
-# some directories via more than one method, but that duplication is
-# needed to correctly handle all the possible situations.  Removing all
-# files without file flags set in the first 'rm' instance saves time,
-# because 'chflags' will need to operate on fewer files afterwards.
-#
-BW_CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
-cleanworld:
-.if ${.CURDIR} == ${.OBJDIR} || ${.CURDIR}/obj == ${.OBJDIR}
-.if exists(${BW_CANONICALOBJDIR}/)
-	-rm -rf ${BW_CANONICALOBJDIR}/*
-	-chflags -R 0 ${BW_CANONICALOBJDIR}
-	rm -rf ${BW_CANONICALOBJDIR}/*
-.endif
-	#   To be safe in this case, fall back to a 'make cleandir'
-	${_+_}@cd ${.CURDIR}; ${_MAKE} cleandir
-.else
-	-rm -rf ${.OBJDIR}/*
-	-chflags -R 0 ${.OBJDIR}
-	rm -rf ${.OBJDIR}/*
 .endif
 
 #
@@ -526,15 +498,15 @@ buildLINT:
 # This makefile does not run in meta mode
 .MAKE.MODE= normal
 # Normally the things we run from here don't either.
-# Using -DWITH_META_FILES
+# Using -DWITH_META_MODE
 # we can buildworld with meta files created which are useful 
 # for debugging, but without any of the rest of a meta mode build.
-MK_META_MODE= no
+MK_DIRDEPS_BUILD= no
 MK_STAGING= no
 # tell meta.autodep.mk to not even think about updating anything.
 UPDATE_DEPENDFILE= NO
 .if !make(showconfig)
-.export MK_META_MODE MK_STAGING UPDATE_DEPENDFILE
+.export MK_DIRDEPS_BUILD MK_STAGING UPDATE_DEPENDFILE
 .endif
 
 .if make(universe)
@@ -544,4 +516,4 @@ MAKE_JOB_ERROR_TOKEN= no
 .endif
 .endif # bmake
 
-.endif				# META_MODE
+.endif				# DIRDEPS_BUILD

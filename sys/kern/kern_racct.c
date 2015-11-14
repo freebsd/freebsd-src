@@ -517,16 +517,16 @@ racct_adjust_resource(struct racct *racct, int resource,
 	
 	/*
 	 * There are some cases where the racct %cpu resource would grow
-	 * beyond 100%.
-	 * For example in racct_proc_exit() we add the process %cpu usage
-	 * to the ucred racct containers.  If too many processes terminated
-	 * in a short time span, the ucred %cpu resource could grow too much.
-	 * Also, the 4BSD scheduler sometimes returns for a thread more than
-	 * 100% cpu usage.  So we set a boundary here to 100%.
+	 * beyond 100% per core.  For example in racct_proc_exit() we add
+	 * the process %cpu usage to the ucred racct containers.  If too
+	 * many processes terminated in a short time span, the ucred %cpu
+	 * resource could grow too much.  Also, the 4BSD scheduler sometimes
+	 * returns for a thread more than 100% cpu usage. So we set a sane
+	 * boundary here to 100% * the maxumum number of CPUs.
 	 */
 	if ((resource == RACCT_PCTCPU) &&
-	    (racct->r_resources[RACCT_PCTCPU] > 100 * 1000000))
-		racct->r_resources[RACCT_PCTCPU] = 100 * 1000000;
+	    (racct->r_resources[RACCT_PCTCPU] > 100 * 1000000 * (int64_t)MAXCPU))
+		racct->r_resources[RACCT_PCTCPU] = 100 * 1000000 * (int64_t)MAXCPU;
 }
 
 static int

@@ -23,6 +23,8 @@ INCSDIR=${INCLUDEDIR}/openssl
 
 LIBADD=	crypto
 
+CFLAGS+=	-I${LCRYPTO_SRC}/crypto
+
 .include <bsd.lib.mk>
 
 .PATH:	${LCRYPTO_SRC}/ssl \

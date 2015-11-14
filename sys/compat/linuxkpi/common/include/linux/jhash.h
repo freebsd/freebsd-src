@@ -1,6 +1,8 @@
 #ifndef	_LINUX_JHASH_H_
 #define	_LINUX_JHASH_H_
 
+#include <asm/types.h>
+
 /* jhash.h: Jenkins hash support.
  *
  * Copyright (C) 1996 Bob Jenkins (bob_jenkins@burtleburtle.net)

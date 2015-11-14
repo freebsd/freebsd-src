@@ -27,7 +27,7 @@
 #	    when NO_ROOT is set.  (default: ${DESTDIR}/METALOG)
 #	TARGET="machine" to crossbuild world for a different machine type
 #	TARGET_ARCH= may be required when a TARGET supports multiple endians
-#	BUILDENV_SHELL= shell to launch for the buildenv target (def:/bin/sh)
+#	BUILDENV_SHELL= shell to launch for the buildenv target (def:${SHELL})
 #	WORLD_FLAGS= additional flags to pass to make(1) during buildworld
 #	KERNEL_FLAGS= additional flags to pass to make(1) during buildkernel
 #	SUBDIR_OVERRIDE="list of dirs" to build rather than everything.
@@ -48,9 +48,15 @@
 .error "Both TARGET and TARGET_ARCH must be defined."
 .endif
 
-.include "share/mk/src.opts.mk"
-.include <bsd.arch.inc.mk>
-.include <bsd.compiler.mk>
+# Cross toolchain changes must be in effect before bsd.compiler.mk
+# so that gets the right CC, and pass CROSS_TOOLCHAIN to submakes.
+.if defined(CROSS_TOOLCHAIN)
+LOCALBASE?=	/usr/local
+.include "${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk"
+CROSSENV+=CROSS_TOOLCHAIN="${CROSS_TOOLCHAIN}"
+.endif
+.include <bsd.compiler.mk>		# don't depend on src.opts.mk doing it
+.include "share/mk/src.opts.mk"	
 
 # We must do lib/ and libexec/ before bin/ in case of a mid-install error to
 # keep the users system reasonably usable.  For static->dynamic root upgrades,
@@ -139,7 +145,7 @@ CLEANDIR=	cleandir
 
 LOCAL_TOOL_DIRS?=
 
-BUILDENV_SHELL?=/bin/sh
+BUILDENV_SHELL?=${SHELL}
 
 SVN?=		/usr/local/bin/svn
 SVNFLAGS?=	-r HEAD
@@ -254,7 +260,7 @@ INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 BOOTSTRAPPING?=	0
 
 # Common environment for world related stages
-CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
+CROSSENV+=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
 		CPUTYPE=${TARGET_CPUTYPE}
@@ -329,10 +335,6 @@ HMAKE=		PATH=${TMPPATH} ${MAKE} LOCAL_MTREE=${LOCAL_MTREE:Q}
 HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
 .endif
 
-.if defined(CROSS_TOOLCHAIN)
-LOCALBASE?=	/usr/local
-.include "${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk"
-.endif
 .if defined(CROSS_TOOLCHAIN_PREFIX)
 CROSS_COMPILER_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
 CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
@@ -369,7 +371,7 @@ X${BINUTIL}?=	${CROSS_BINUTILS_PREFIX}${${BINUTIL}}
 X${BINUTIL}?=	${${BINUTIL}}
 .endif
 .endfor
-WMAKEENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCFLAGS} ${XCXXFLAGS}" \
+CROSSENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCFLAGS} ${XCXXFLAGS}" \
 		DEPFLAGS="${DEPFLAGS}" \
 		CPP="${XCPP} ${XCFLAGS}" \
 		AS="${XAS}" AR="${XAR}" LD="${XLD}" NM=${XNM} \
@@ -377,7 +379,7 @@ WMAKEENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCFLAGS} ${XCXXFLAGS}" \
 		RANLIB=${XRANLIB} STRINGS=${XSTRINGS} \
 		SIZE="${XSIZE}"
 
-.if ${XCC:M/*}
+.if ${XCC:N${CCACHE_BIN}:M/*}
 .if defined(CROSS_BINUTILS_PREFIX)
 # In the case of xdev-build tools, CROSS_BINUTILS_PREFIX won't be a
 # directory, but the compiler will look in the right place for it's
@@ -454,7 +456,7 @@ LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -DCOMPAT_32BIT \
 		-isystem ${LIB32TMP}/usr/include/ \
 		-L${LIB32TMP}/usr/lib32 \
 		-B${LIB32TMP}/usr/lib32
-.if ${XCC:M/*}
+.if ${XCC:N${CCACHE_BIN}:M/*}
 LIB32FLAGS+=		--sysroot=${WORLDTMP}
 .endif
 
@@ -714,10 +716,10 @@ build32: .PHONY
 	    build-tools
 .endfor
 	${_+_}cd ${.CURDIR}; \
-	    ${LIB32WMAKE} -f Makefile.inc1 libraries
+	    ${LIB32WMAKE} -f Makefile.inc1 -DNO_FSCHG libraries
 .for _t in obj depend all
 	${_+_}cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32WMAKE} \
-	    DIRPRFX=libexec/rtld-elf/ ${_t}
+	    -DNO_FSCHG DIRPRFX=libexec/rtld-elf/ ${_t}
 	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32WMAKE} \
 	    DIRPRFX=usr.bin/ldd ${_t}
 .endfor
@@ -771,7 +773,7 @@ buildworld_epilogue:
 # modification of the current environment's PATH.  In addition, we need
 # to quote multiword values.
 #
-buildenvvars:
+buildenvvars: .PHONY
 	@echo ${WMAKEENV:Q} ${.MAKE.EXPORTED:@v@$v=\"${$v}\"@}
 
 .if ${.TARGETS:Mbuildenv}
@@ -779,9 +781,14 @@ buildenvvars:
 .error The buildenv target is incompatible with -j
 .endif
 .endif
-buildenv:
+BUILDENV_DIR?=	${.CURDIR}
+buildenv: .PHONY
 	@echo Entering world for ${TARGET_ARCH}:${TARGET}
-	@cd ${.CURDIR} && env ${WMAKEENV} ${BUILDENV_SHELL} || true
+.if ${BUILDENV_SHELL:M*zsh*}
+	@echo For ZSH you must run: export CPUTYPE=${TARGET_CPUTYPE}
+.endif
+	@cd ${BUILDENV_DIR} && env ${WMAKEENV} BUILDENV=1 ${BUILDENV_SHELL} \
+	    || true
 
 TOOLCHAIN_TGTS=	${WMAKE_TGTS:N_depend:Neverything:Nbuild32}
 toolchain: ${TOOLCHAIN_TGTS}
@@ -1367,10 +1374,10 @@ _sed=		usr.bin/sed
 .endif
 
 .if ${BOOTSTRAPPING} < 1000002
-_libohash=	lib/libohash
+_libopenbsd=	lib/libopenbsd
 _m4=		usr.bin/m4
 
-${_bt}-usr.bin/m4: ${_bt}-lib/libohash
+${_bt}-usr.bin/m4: ${_bt}-lib/libopenbsd
 .endif
 
 .if ${BOOTSTRAPPING} < 1000026
@@ -1443,10 +1450,10 @@ _kerberos5_bootstrap_tools= \
 .endif
 
 .if ${MK_MANDOCDB} != "no"
-_libohash?=	lib/libohash
+_libopenbsd?=	lib/libopenbsd
 _makewhatis=	lib/libsqlite3 \
 		usr.bin/mandoc
-${_bt}-usr.bin/mandoc: ${_bt}-lib/libohash ${_bt}-lib/libsqlite3
+${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd ${_bt}-lib/libsqlite3
 .else
 _makewhatis=usr.bin/makewhatis
 .endif
@@ -1469,7 +1476,7 @@ bootstrap-tools: .PHONY
     ${_awk} \
     ${_cat} \
     usr.bin/lorder \
-    ${_libohash} \
+    ${_libopenbsd} \
     ${_makewhatis} \
     usr.bin/rpcgen \
     ${_sed} \
@@ -1482,7 +1489,8 @@ bootstrap-tools: .PHONY
     usr.sbin/config \
     ${_crunch} \
     ${_nmtree} \
-    ${_vtfontcvt}
+    ${_vtfontcvt} \
+    usr.bin/localedef
 ${_bt}-${_tool}: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
@@ -1591,7 +1599,7 @@ _elftctools=	lib/libelftc \
 
 # If an full path to an external cross compiler is given, don't build
 # a cross compiler.
-.if ${XCC:M/*} == "" && ${MK_CROSS_COMPILER} != "no"
+.if ${XCC:N${CCACHE_BIN}:M/*} == "" && ${MK_CROSS_COMPILER} != "no"
 .if ${MK_CLANG_BOOTSTRAP} != "no"
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang
@@ -2196,6 +2204,32 @@ builddtb:
 	    "${FDT_DTS_FILE}" ${DTBOUTPUTPATH}
 
 ###############
+
+# cleanworld
+# In the following, the first 'rm' in a series will usually remove all
+# files and directories.  If it does not, then there are probably some
+# files with file flags set, so this unsets them and tries the 'rm' a
+# second time.  There are situations where this target will be cleaning
+# some directories via more than one method, but that duplication is
+# needed to correctly handle all the possible situations.  Removing all
+# files without file flags set in the first 'rm' instance saves time,
+# because 'chflags' will need to operate on fewer files afterwards.
+#
+# It is expected that BW_CANONICALOBJDIR == the CANONICALOBJDIR as would be
+# created by bsd.obj.mk, except that we don't want to .include that file
+# in this makefile.
+#
+BW_CANONICALOBJDIR:=${OBJTREE}${.CURDIR}
+cleanworld: .PHONY
+.if exists(${BW_CANONICALOBJDIR}/)
+	-rm -rf ${BW_CANONICALOBJDIR}/*
+	-chflags -R 0 ${BW_CANONICALOBJDIR}
+	rm -rf ${BW_CANONICALOBJDIR}/*
+.endif
+.if ${.CURDIR} == ${.OBJDIR} || ${.CURDIR}/obj == ${.OBJDIR}
+	#   To be safe in this case, fall back to a 'make cleandir'
+	${_+_}@cd ${.CURDIR}; ${MAKE} cleandir
+.endif
 
 .if defined(TARGET) && defined(TARGET_ARCH)
 

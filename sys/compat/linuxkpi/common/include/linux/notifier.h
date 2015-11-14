@@ -31,6 +31,7 @@
 #ifndef	_LINUX_NOTIFIER_H_
 #define	_LINUX_NOTIFIER_H_
 
+#include <sys/types.h>
 #include <sys/eventhandler.h>
 
 /*

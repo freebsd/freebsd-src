@@ -109,21 +109,23 @@ PO_FLAG=-pg
 	${CTFCONVERT_CMD}
 
 .asm.po:
-	${CC} -x assembler-with-cpp -DPROF ${PO_CFLAGS} ${ACFLAGS} \
-		-c ${.IMPSRC} -o ${.TARGET}
+	${CC:N${CCACHE_BIN}} -x assembler-with-cpp -DPROF ${PO_CFLAGS} \
+	    ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .asm.So:
-	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} \
-	    -c ${.IMPSRC} -o ${.TARGET}
+	${CC:N${CCACHE_BIN}} -x assembler-with-cpp ${PICFLAG} -DPIC \
+	    ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .S.po:
-	${CC} -DPROF ${PO_CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC:N${CCACHE_BIN}} -DPROF ${PO_CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
+	    -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .S.So:
-	${CC} ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC:N${CCACHE_BIN}} ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} \
+	    -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .if !defined(_SKIP_BUILD)
@@ -249,7 +251,7 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 .if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld)
 	@${INSTALL_SYMLINK} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
-	${_LD} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
+	${_LD:N${CCACHE_BIN}} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `NM='${NM}' NMFLAGS='${NMFLAGS}' lorder ${SOBJS} | tsort -q` ${LDADD}
 .if ${MK_CTF} != "no"
@@ -305,10 +307,12 @@ all: _manpages
 .endif
 
 _EXTRADEPEND:
+.if ${MK_FAST_DEPEND} == "no"
 	@TMP=_depend$$$$; \
 	sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.So:/' < ${DEPENDFILE} \
 	    > $$TMP; \
 	mv $$TMP ${DEPENDFILE}
+.endif
 .if !defined(NO_EXTRADEPEND) && defined(SHLIB_NAME)
 .if defined(DPADD) && !empty(DPADD)
 	echo ${SHLIB_NAME_FULL}: ${DPADD} >> ${DEPENDFILE}
@@ -413,9 +417,11 @@ lint: ${SRCS:M*.c}
 
 .include <bsd.dep.mk>
 
-.if !exists(${.OBJDIR}/${DEPENDFILE})
+.if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
 .if defined(LIB) && !empty(LIB)
+.if ${MK_FAST_DEPEND} == "no"
 ${OBJS} ${STATICOBJS} ${POBJS}: ${SRCS:M*.h}
+.endif
 .for _S in ${SRCS:N*.[hly]}
 ${_S:R}.po: ${_S}
 .endfor

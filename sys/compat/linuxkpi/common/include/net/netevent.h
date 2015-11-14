@@ -31,7 +31,10 @@
 #ifndef	_LINUX_NET_NETEVENT_H_
 #define	_LINUX_NET_NETEVENT_H_
 
-#include <netinet/if_ether.h>
+#include <sys/types.h>
+#include <sys/eventhandler.h>
+
+#include <linux/notifier.h>
 
 enum netevent_notif_type {
 	NETEVENT_NEIGH_UPDATE = 0,

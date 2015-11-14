@@ -31,13 +31,11 @@
 #ifndef	_LINUX_SYSFS_H_
 #define	_LINUX_SYSFS_H_
 
+#include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/errno.h>
 
-struct attribute {
-	const char 	*name;
-	struct module	*owner;
-	mode_t		mode;
-};
+#include <linux/kobject.h>
 
 struct sysfs_ops {
 	ssize_t (*show)(struct kobject *, struct attribute *, char *);
@@ -82,7 +80,7 @@ sysctl_handle_attr(SYSCTL_HANDLER_ARGS)
 	ssize_t len;
 
 	kobj = arg1;
-	attr = (struct attribute *)arg2;
+	attr = (struct attribute *)(intptr_t)arg2;
 	if (kobj->ktype == NULL || kobj->ktype->sysfs_ops == NULL)
 		return (ENODEV);
 	buf = (char *)get_zeroed_page(GFP_KERNEL);

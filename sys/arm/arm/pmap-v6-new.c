@@ -6133,7 +6133,7 @@ CTASSERT(powerof2(PT2MAP_SIZE));
  *  Handle access and R/W emulation faults.
  */
 int
-pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, int usermode)
+pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, bool usermode)
 {
 	pt1_entry_t *pte1p, pte1;
 	pt2_entry_t *pte2p, pte2;
@@ -6152,8 +6152,9 @@ pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, int usermode)
 		 * All L1 tables should always be mapped and present.
 		 * However, we check only current one herein. For user mode,
 		 * only permission abort from malicious user is not fatal.
+		 * And alignment abort as it may have higher priority.
 		 */
-		if (!usermode || (idx != FAULT_PERM_L2)) {
+		if (!usermode || (idx != FAULT_ALIGN && idx != FAULT_PERM_L2)) {
 			CTR4(KTR_PMAP, "%s: pmap %#x pm_pt1 %#x far %#x",
 			    __func__, pmap, pmap->pm_pt1, far);
 			panic("%s: pm_pt1 abort", __func__);
@@ -6166,9 +6167,10 @@ pmap_fault(pmap_t pmap, vm_offset_t far, uint32_t fsr, int idx, int usermode)
 		 * L1 table. However, only existing L2 tables are mapped
 		 * in PT2MAP. For user mode, only L2 translation abort and
 		 * permission abort from malicious user is not fatal.
+		 * And alignment abort as it may have higher priority.
 		 */
-		if (!usermode ||
-		    (idx != FAULT_TRAN_L2 && idx != FAULT_PERM_L2)) {
+		if (!usermode || (idx != FAULT_ALIGN &&
+		    idx != FAULT_TRAN_L2 && idx != FAULT_PERM_L2)) {
 			CTR4(KTR_PMAP, "%s: pmap %#x PT2MAP %#x far %#x",
 			    __func__, pmap, PT2MAP, far);
 			panic("%s: PT2MAP abort", __func__);

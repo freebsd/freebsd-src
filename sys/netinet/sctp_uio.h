@@ -134,19 +134,26 @@ struct sctp_extrcvinfo {
 	uint16_t sinfo_flags;
 	uint32_t sinfo_ppid;
 	uint32_t sinfo_context;
-	uint32_t sinfo_timetolive;
+	uint32_t sinfo_timetolive;	/* should have been sinfo_pr_value */
 	uint32_t sinfo_tsn;
 	uint32_t sinfo_cumtsn;
 	sctp_assoc_t sinfo_assoc_id;
-	uint16_t sreinfo_next_flags;
-	uint16_t sreinfo_next_stream;
-	uint32_t sreinfo_next_aid;
-	uint32_t sreinfo_next_length;
-	uint32_t sreinfo_next_ppid;
+	uint16_t serinfo_next_flags;
+	uint16_t serinfo_next_stream;
+	uint32_t serinfo_next_aid;
+	uint32_t serinfo_next_length;
+	uint32_t serinfo_next_ppid;
 	uint16_t sinfo_keynumber;
 	uint16_t sinfo_keynumber_valid;
 	uint8_t __reserve_pad[SCTP_ALIGN_RESV_PAD_SHORT];
 };
+
+#define sinfo_pr_value sinfo_timetolive
+#define sreinfo_next_flags serinfo_next_flags
+#define sreinfo_next_stream serinfo_next_stream
+#define sreinfo_next_aid serinfo_next_aid
+#define sreinfo_next_length serinfo_next_length
+#define sreinfo_next_ppid serinfo_next_ppid
 
 struct sctp_sndinfo {
 	uint16_t snd_sid;

@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -658,22 +658,20 @@ vmmap_remove(void *addr)
 	return (vmmap);
 }
 
+#if defined(__i386__) || defined(__amd64__)
 void *
 _ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr)
 {
 	void *addr;
 
-#if defined(__i386__) || defined(__amd64__)
 	addr = pmap_mapdev_attr(phys_addr, size, attr);
-#else
-	addr = NULL;
-#endif
 	if (addr == NULL)
 		return (NULL);
 	vmmap_add(addr, size);
 
 	return (addr);
 }
+#endif
 
 void
 iounmap(void *addr)
@@ -952,3 +950,11 @@ linux_compat_uninit(void *arg)
 	kobject_kfree_name(&miscclass.kobj);
 }
 SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);
+
+/*
+ * NOTE: Linux frequently uses "unsigned long" for pointer to integer
+ * conversion and vice versa, where in FreeBSD "uintptr_t" would be
+ * used. Assert these types have the same size, else some parts of the
+ * LinuxKPI may not work like expected:
+ */
+CTASSERT(sizeof(unsigned long) == sizeof(uintptr_t));

@@ -399,8 +399,14 @@ struct isposinfo {
 #define	ISP_MEMZERO(a, b)	memset(a, 0, b)
 #define	ISP_MEMCPY		memcpy
 #define	ISP_SNPRINTF		snprintf
-#define	ISP_DELAY		DELAY
-#define	ISP_SLEEP(isp, x)	DELAY(x)
+#define	ISP_DELAY(x)		DELAY(x)
+#if __FreeBSD_version < 1000029
+#define	ISP_SLEEP(isp, x)	msleep(&(isp)->isp_osinfo.is_exiting, \
+    &(isp)->isp_osinfo.lock, 0, "isp_sleep", ((x) + tick - 1) / tick)
+#else
+#define	ISP_SLEEP(isp, x)	msleep_sbt(&(isp)->isp_osinfo.is_exiting, \
+    &(isp)->isp_osinfo.lock, 0, "isp_sleep", (x) * SBT_1US, 0, 0)
+#endif
 
 #define	ISP_MIN			imin
 
@@ -739,7 +745,7 @@ int isp_fc_scratch_acquire(ispsoftc_t *, int);
 int isp_mstohz(int);
 void isp_platform_intr(void *);
 void isp_common_dmateardown(ispsoftc_t *, struct ccb_scsiio *, uint32_t);
-void isp_fcp_reset_crn(struct isp_fc *, uint32_t, int);
+void isp_fcp_reset_crn(ispsoftc_t *, int, uint32_t, int);
 int isp_fcp_next_crn(ispsoftc_t *, uint8_t *, XS_T *);
 
 /*

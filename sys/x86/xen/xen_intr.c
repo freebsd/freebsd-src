@@ -71,9 +71,6 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_XENINTR, "xen_intr", "Xen Interrupt Services");
 
-#define ENABLED_SETSIZE	(sizeof(u_long) * 8)
-BITSET_DEFINE(enabledbits, ENABLED_SETSIZE);
-
 /**
  * Per-cpu event channel processing state.
  */
@@ -98,7 +95,7 @@ struct xen_intr_pcpu_data {
 	 * A bitmap of ports that can be serviced from this CPU.
 	 * A set bit means interrupt handling is enabled.
 	 */
-	struct enabledbits evtchn_enabled;
+	u_long	evtchn_enabled[sizeof(u_long) * 8];
 };
 
 /*
@@ -215,7 +212,7 @@ evtchn_cpu_mask_port(u_int cpu, evtchn_port_t port)
 	struct xen_intr_pcpu_data *pcpu;
 
 	pcpu = DPCPU_ID_PTR(cpu, xen_intr_pcpu);
-	BIT_CLR_ATOMIC(ENABLED_SETSIZE, port, &pcpu->evtchn_enabled);
+	xen_clear_bit(port, pcpu->evtchn_enabled);
 }
 
 /**
@@ -237,7 +234,7 @@ evtchn_cpu_unmask_port(u_int cpu, evtchn_port_t port)
 	struct xen_intr_pcpu_data *pcpu;
 
 	pcpu = DPCPU_ID_PTR(cpu, xen_intr_pcpu);
-	BIT_SET_ATOMIC(ENABLED_SETSIZE, port, &pcpu->evtchn_enabled);
+	xen_set_bit(port, pcpu->evtchn_enabled);
 }
 
 /**
@@ -499,9 +496,14 @@ static inline u_long
 xen_intr_active_ports(struct xen_intr_pcpu_data *pcpu, shared_info_t *sh,
     u_int idx)
 {
+
+	CTASSERT(sizeof(sh->evtchn_mask[0]) == sizeof(sh->evtchn_pending[0]));
+	CTASSERT(sizeof(sh->evtchn_mask[0]) == sizeof(pcpu->evtchn_enabled[0]));
+	CTASSERT(sizeof(sh->evtchn_mask) == sizeof(sh->evtchn_pending));
+	CTASSERT(sizeof(sh->evtchn_mask) == sizeof(pcpu->evtchn_enabled));
 	return (sh->evtchn_pending[idx]
 	      & ~sh->evtchn_mask[idx]
-	      & pcpu->evtchn_enabled.__bits[idx]);
+	      & pcpu->evtchn_enabled[idx]);
 }
 
 /**
@@ -637,10 +639,8 @@ xen_intr_init(void *dummy __unused)
 	 */
 	CPU_FOREACH(i) {
 		pcpu = DPCPU_ID_PTR(i, xen_intr_pcpu);
-		if (i == 0)
-			BIT_FILL(ENABLED_SETSIZE, &pcpu->evtchn_enabled);
-		else
-			BIT_ZERO(ENABLED_SETSIZE, &pcpu->evtchn_enabled);
+		memset(pcpu->evtchn_enabled, i == 0 ? ~0 : 0,
+		    sizeof(pcpu->evtchn_enabled));
 		xen_intr_intrcnt_add(i);
 	}
 
@@ -753,11 +753,8 @@ xen_intr_resume(struct pic *unused, bool suspend_cancelled)
 		struct xen_intr_pcpu_data *pcpu;
 
 		pcpu = DPCPU_ID_PTR(i, xen_intr_pcpu);
-
-		if (i == 0)
-			BIT_FILL(ENABLED_SETSIZE, &pcpu->evtchn_enabled);
-		else
-			BIT_ZERO(ENABLED_SETSIZE, &pcpu->evtchn_enabled);
+		memset(pcpu->evtchn_enabled, i == 0 ? ~0 : 0,
+		    sizeof(pcpu->evtchn_enabled));
 	}
 
 	/* Mask all event channels. */
@@ -1612,8 +1609,7 @@ xen_intr_dump_port(struct xenisrc *isrc)
 	CPU_FOREACH(i) {
 		pcpu = DPCPU_ID_PTR(i, xen_intr_pcpu);
 		db_printf("cpu#%d: %d ", i,
-		    BIT_ISSET(ENABLED_SETSIZE, isrc->xi_port,
-			&pcpu->evtchn_enabled));
+		    !!xen_test_bit(isrc->xi_port, pcpu->evtchn_enabled));
 	}
 	db_printf("\n");
 }
