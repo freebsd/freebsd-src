@@ -163,7 +163,7 @@ beforedepend: ${DHDRS}
 beforebuild: ${DHDRS}
 .endif
 
-.if ${MK_META_MODE} == "yes"
+.if ${MK_DIRDEPS_BUILD} == "yes"
 .include <meta.autodep.mk>
 # this depend: bypasses that below
 # the dependency helps when bootstrapping
