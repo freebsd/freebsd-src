@@ -1032,7 +1032,7 @@ MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_write_config.9 \
 	pci.9 pcie_adjust_config.9 \
 	pci.9 pcie_read_config.9 \
-	pci.9 pcie_write_config.9 \
+	pci.9 pcie_write_config.9
 MLINKS+=pfil.9 pfil_add_hook.9 \
 	pfil.9 pfil_hook_get.9 \
 	pfil.9 pfil_remove_hook.9
