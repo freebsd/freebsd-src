@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/videomode/videomode.h>
 #include <dev/videomode/edidvar.h>
-#include <arm/ti/am335x/hdmi.h>
 
 #include "iicbus_if.h"
 #include "hdmi_if.h"
