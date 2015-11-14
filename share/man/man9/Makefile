@@ -1014,6 +1014,7 @@ MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_find_device.9 \
 	pci.9 pci_find_extcap.9 \
 	pci.9 pci_find_htcap.9 \
+	pci.9 pci_find_pcie_root_port.9 \
 	pci.9 pci_get_max_read_req.9 \
 	pci.9 pci_get_powerstate.9 \
 	pci.9 pci_get_vpd_ident.9 \
@@ -1028,7 +1029,10 @@ MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_save_state.9 \
 	pci.9 pci_set_powerstate.9 \
 	pci.9 pci_set_max_read_req.9 \
-	pci.9 pci_write_config.9
+	pci.9 pci_write_config.9 \
+	pci.9 pcie_adjust_config.9 \
+	pci.9 pcie_read_config.9 \
+	pci.9 pcie_write_config.9 \
 MLINKS+=pfil.9 pfil_add_hook.9 \
 	pfil.9 pfil_hook_get.9 \
 	pfil.9 pfil_remove_hook.9
