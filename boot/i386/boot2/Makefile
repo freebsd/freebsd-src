@@ -61,7 +61,7 @@ boot: boot1 boot2
 CLEANFILES+=	boot1 boot1.out boot1.o
 
 boot1: boot1.out
-	objcopy -S -O binary boot1.out ${.TARGET}
+	${OBJCOPY} -S -O binary boot1.out ${.TARGET}
 
 boot1.out: boot1.o
 	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} boot1.o
@@ -82,7 +82,7 @@ boot2.ldr:
 	dd if=/dev/zero of=${.TARGET} bs=512 count=1
 
 boot2.bin: boot2.out
-	objcopy -S -O binary boot2.out ${.TARGET}
+	${OBJCOPY} -S -O binary boot2.out ${.TARGET}
 
 boot2.out: ${BTXCRT} boot2.o sio.o
 	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}

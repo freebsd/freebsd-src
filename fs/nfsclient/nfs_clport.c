@@ -42,7 +42,9 @@ __FBSDID("$FreeBSD$");
  * generally, I don't like #includes inside .h files, but it seems to
  * be the easiest way to handle the port.
  */
+#include <sys/fail.h>
 #include <sys/hash.h>
+#include <sys/sysctl.h>
 #include <fs/nfs/nfsport.h>
 #include <netinet/if_ether.h>
 #include <net/if_types.h>
@@ -82,6 +84,16 @@ struct mtx ncl_iod_mutex;
 NFSDLOCKMUTEX;
 
 extern void (*ncl_call_invalcaches)(struct vnode *);
+
+SYSCTL_DECL(_vfs_nfs);
+static int ncl_fileid_maxwarnings = 10;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, fileid_maxwarnings, CTLFLAG_RWTUN,
+    &ncl_fileid_maxwarnings, 0,
+    "Limit fileid corruption warnings; 0 is off; -1 is unlimited");
+static volatile int ncl_fileid_nwarnings;
+
+static void nfscl_warn_fileid(struct nfsmount *, struct nfsvattr *,
+    struct nfsvattr *);
 
 /*
  * Comparison function for vfs_hash functions.
@@ -343,6 +355,37 @@ nfscl_ngetreopen(struct mount *mntp, u_int8_t *fhp, int fhsize,
 	return (EINVAL);
 }
 
+static void
+nfscl_warn_fileid(struct nfsmount *nmp, struct nfsvattr *oldnap,
+    struct nfsvattr *newnap)
+{
+	int off;
+
+	if (ncl_fileid_maxwarnings >= 0 &&
+	    ncl_fileid_nwarnings >= ncl_fileid_maxwarnings)
+		return;
+	off = 0;
+	if (ncl_fileid_maxwarnings >= 0) {
+		if (++ncl_fileid_nwarnings >= ncl_fileid_maxwarnings)
+			off = 1;
+	}
+
+	printf("newnfs: server '%s' error: fileid changed. "
+	    "fsid %jx:%jx: expected fileid %#jx, got %#jx. "
+	    "(BROKEN NFS SERVER OR MIDDLEWARE)\n",
+	    nmp->nm_com.nmcom_hostname,
+	    (uintmax_t)nmp->nm_fsid[0],
+	    (uintmax_t)nmp->nm_fsid[1],
+	    (uintmax_t)oldnap->na_fileid,
+	    (uintmax_t)newnap->na_fileid);
+
+	if (off)
+		printf("newnfs: Logged %d times about fileid corruption; "
+		    "going quiet to avoid spamming logs excessively. (Limit "
+		    "is: %d).\n", ncl_fileid_nwarnings,
+		    ncl_fileid_maxwarnings);
+}
+
 /*
  * Load the attribute cache (that lives in the nfsnode entry) with
  * the attributes of the second argument and
@@ -361,7 +404,11 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	struct nfsmount *nmp;
 	struct timespec mtime_save;
 	u_quad_t nsize;
-	int setnsize;
+	int setnsize, error, force_fid_err;
+
+	error = 0;
+	setnsize = 0;
+	nsize = 0;
 
 	/*
 	 * If v_type == VNON it is a new node, so fill in the v_type,
@@ -389,6 +436,34 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 		np->n_vattr.na_fsid = nap->na_fsid;
 		np->n_vattr.na_mode = nap->na_mode;
 	} else {
+		force_fid_err = 0;
+		KFAIL_POINT_ERROR(DEBUG_FP, nfscl_force_fileid_warning,
+		    force_fid_err);
+		/*
+		 * BROKEN NFS SERVER OR MIDDLEWARE
+		 *
+		 * Certain NFS servers (certain old proprietary filers ca.
+		 * 2006) or broken middleboxes (e.g. WAN accelerator products)
+		 * will respond to GETATTR requests with results for a
+		 * different fileid.
+		 *
+		 * The WAN accelerator we've observed not only serves stale
+		 * cache results for a given file, it also occasionally serves
+		 * results for wholly different files.  This causes surprising
+		 * problems; for example the cached size attribute of a file
+		 * may truncate down and then back up, resulting in zero
+		 * regions in file contents read by applications.  We observed
+		 * this reliably with Clang and .c files during parallel build.
+		 * A pcap revealed packet fragmentation and GETATTR RPC
+		 * responses with wholly wrong fileids.
+		 */
+		if ((np->n_vattr.na_fileid != 0 &&
+		     np->n_vattr.na_fileid != nap->na_fileid) ||
+		    force_fid_err) {
+			nfscl_warn_fileid(nmp, &np->n_vattr, nap);
+			error = EIDRM;
+			goto out;
+		}
 		NFSBCOPY((caddr_t)nap, (caddr_t)&np->n_vattr,
 		    sizeof (struct nfsvattr));
 	}
@@ -419,8 +494,6 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	} else
 		vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	np->n_attrstamp = time_second;
-	setnsize = 0;
-	nsize = 0;
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {
 			if (dontshrink && vap->va_size < np->n_size) {
@@ -490,14 +563,16 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 				vaper->va_mtime = np->n_mtim;
 		}
 	}
+
+out:
 #ifdef KDTRACE_HOOKS
 	if (np->n_attrstamp != 0)
-		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, vap, 0);
+		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, vap, error);
 #endif
 	NFSUNLOCKNODE(np);
 	if (setnsize)
 		vnode_pager_setsize(vp, nsize);
-	return (0);
+	return (error);
 }
 
 /*

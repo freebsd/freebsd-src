@@ -131,7 +131,7 @@
 #define KSTACK_GUARD_PAGES	1
 #endif /* !KSTACK_GUARD_PAGES */
 
-#define USPACE_SVC_STACK_TOP		(KSTACK_PAGES * PAGE_SIZE)
+#define USPACE_SVC_STACK_TOP		(kstack_pages * PAGE_SIZE)
 
 /*
  * Mach derived conversion macros
@@ -148,9 +148,5 @@
 #define	arm32_ptob(x)		((unsigned)(x) << PAGE_SHIFT)
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
-
-#ifdef _KERNEL
-#define	NO_FUEWORD	1
-#endif
 
 #endif /* !_ARM_INCLUDE_PARAM_H_ */

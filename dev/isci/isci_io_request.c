@@ -680,7 +680,7 @@ isci_request_construct(struct ISCI_REQUEST *request,
 	request->dma_tag = io_buffer_dma_tag;
 	request->physical_address = physical_address;
 	bus_dmamap_create(request->dma_tag, 0, &request->dma_map);
-	callout_init(&request->timer, CALLOUT_MPSAFE);
+	callout_init(&request->timer, 1);
 }
 
 static void

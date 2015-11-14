@@ -47,7 +47,7 @@
  */
 #define	IF_DUNIT_NONE	-1
 
-#include <altq/if_altq.h>
+#include <net/altq/if_altq.h>
 
 /*
  * Structure defining a queue for a network interface.

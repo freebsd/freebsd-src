@@ -214,7 +214,7 @@ in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
 
 int
 ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
-    int mtu)
+    int mtu, uint32_t id)
 {
 	struct mbuf *m, **mnext, *m_frgpart;
 	struct ip6_hdr *ip6, *mhip6;
@@ -222,7 +222,6 @@ ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
 	int off;
 	int error;
 	int tlen = m0->m_pkthdr.len;
-	uint32_t id = htonl(ip6_randomid());
 
 	m = m0;
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -318,6 +317,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	int needfiblookup;
 	uint32_t fibnum;
 	struct m_tag *fwd_tag = NULL;
+	uint32_t id;
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (ip6 == NULL) {
@@ -662,7 +662,7 @@ again:
 			 * thus deferring a hash lookup and lock acquisition
 			 * at the expense of an m_copym().
 			 */
-			ip6_mloopback(ifp, m, dst);
+			ip6_mloopback(ifp, m);
 		} else {
 			/*
 			 * If we are acting as a multicast router, perform
@@ -935,7 +935,7 @@ passout:
 			    m->m_pkthdr.len);
 			ifa_free(&ia6->ia_ifa);
 		}
-		error = nd6_output(ifp, origifp, m, dst, ro->ro_rt);
+		error = nd6_output_ifp(ifp, origifp, m, dst);
 		goto done;
 	}
 
@@ -1010,7 +1010,8 @@ passout:
 		 * chain.
 		 */
 		m0 = m;
-		if ((error = ip6_fragment(ifp, m, hlen, nextproto, len)))
+		id = htonl(ip6_randomid());
+		if ((error = ip6_fragment(ifp, m, hlen, nextproto, len, id)))
 			goto sendorfree;
 
 		in6_ifstat_inc(ifp, ifs6_out_fragok);
@@ -1033,7 +1034,7 @@ sendorfree:
 				counter_u64_add(ia->ia_ifa.ifa_obytes,
 				    m->m_pkthdr.len);
 			}
-			error = nd6_output(ifp, origifp, m, dst, ro->ro_rt);
+			error = nd6_output_ifp(ifp, origifp, m, dst);
 		} else
 			m_freem(m);
 	}
@@ -1399,6 +1400,10 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IPV6_RECVRTHDR:
 			case IPV6_RECVPATHMTU:
 			case IPV6_RECVTCLASS:
+			case IPV6_RECVFLOWID:
+#ifdef	RSS
+			case IPV6_RECVRSSBUCKETID:
+#endif
 			case IPV6_V6ONLY:
 			case IPV6_AUTOFLOWLABEL:
 			case IPV6_BINDANY:
@@ -1546,6 +1551,16 @@ do { \
 					if (uproto != IPPROTO_TCP)
 						OPTSET(IN6P_MTU);
 					break;
+
+				case IPV6_RECVFLOWID:
+					OPTSET2(INP_RECVFLOWID, optval);
+					break;
+
+#ifdef	RSS
+				case IPV6_RECVRSSBUCKETID:
+					OPTSET2(INP_RECVRSSBUCKETID, optval);
+					break;
+#endif
 
 				case IPV6_V6ONLY:
 					/*
@@ -1810,8 +1825,10 @@ do { \
 			case IPV6_BINDANY:
 			case IPV6_FLOWID:
 			case IPV6_FLOWTYPE:
+			case IPV6_RECVFLOWID:
 #ifdef	RSS
 			case IPV6_RSSBUCKETID:
+			case IPV6_RECVRSSBUCKETID:
 #endif
 				switch (optname) {
 
@@ -1882,6 +1899,10 @@ do { \
 				case IPV6_FLOWTYPE:
 					optval = in6p->inp_flowtype;
 					break;
+
+				case IPV6_RECVFLOWID:
+					optval = OPTBIT2(INP_RECVFLOWID);
+					break;
 #ifdef	RSS
 				case IPV6_RSSBUCKETID:
 					retval =
@@ -1892,6 +1913,10 @@ do { \
 						optval = rss_bucket;
 					else
 						error = EINVAL;
+					break;
+
+				case IPV6_RECVRSSBUCKETID:
+					optval = OPTBIT2(INP_RECVRSSBUCKETID);
 					break;
 #endif
 
@@ -2188,12 +2213,14 @@ ip6_getpcbopt(struct ip6_pktopts *pktopt, int optname, struct sockopt *sopt)
 
 	switch (optname) {
 	case IPV6_PKTINFO:
-		if (pktopt && pktopt->ip6po_pktinfo)
-			optdata = (void *)pktopt->ip6po_pktinfo;
-		else {
+		optdata = (void *)&null_pktinfo;
+		if (pktopt && pktopt->ip6po_pktinfo) {
+			bcopy(pktopt->ip6po_pktinfo, &null_pktinfo,
+			    sizeof(null_pktinfo));
+			in6_clearscope(&null_pktinfo.ipi6_addr);
+		} else {
 			/* XXX: we don't have to do this every time... */
 			bzero(&null_pktinfo, sizeof(null_pktinfo));
-			optdata = (void *)&null_pktinfo;
 		}
 		optdatalen = sizeof(struct in6_pktinfo);
 		break;
@@ -2565,6 +2592,7 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 		    !IN6_IS_ADDR_UNSPECIFIED(&pktinfo->ipi6_addr)) {
 			struct in6_ifaddr *ia;
 
+			in6_setscope(&pktinfo->ipi6_addr, ifp, NULL);
 			ia = in6ifa_ifpwithaddr(ifp, &pktinfo->ipi6_addr);
 			if (ia == NULL)
 				return (EADDRNOTAVAIL);
@@ -2879,7 +2907,7 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
  * pointer that might NOT be &loif -- easier than replicating that code here.
  */
 void
-ip6_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in6 *dst)
+ip6_mloopback(struct ifnet *ifp, const struct mbuf *m)
 {
 	struct mbuf *copym;
 	struct ip6_hdr *ip6;
@@ -2899,14 +2927,6 @@ ip6_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in6 *dst)
 		if (copym == NULL)
 			return;
 	}
-
-#ifdef DIAGNOSTIC
-	if (copym->m_len < sizeof(*ip6)) {
-		m_freem(copym);
-		return;
-	}
-#endif
-
 	ip6 = mtod(copym, struct ip6_hdr *);
 	/*
 	 * clear embedded scope identifiers if necessary.
@@ -2914,8 +2934,12 @@ ip6_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in6 *dst)
 	 */
 	in6_clearscope(&ip6->ip6_src);
 	in6_clearscope(&ip6->ip6_dst);
-
-	(void)if_simloop(ifp, copym, dst->sin6_family, 0);
+	if (copym->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
+		copym->m_pkthdr.csum_flags |= CSUM_DATA_VALID_IPV6 |
+		    CSUM_PSEUDO_HDR;
+		copym->m_pkthdr.csum_data = 0xffff;
+	}
+	if_simloop(ifp, copym, AF_INET6, 0);
 }
 
 /*

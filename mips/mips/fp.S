@@ -76,6 +76,8 @@
 #define	COND_LESS	0x4
 #define	COND_SIGNAL	0x8
 
+.set hardfloat
+
 /*----------------------------------------------------------------------------
  *
  * MipsEmulateFP --

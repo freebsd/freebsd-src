@@ -28,6 +28,7 @@
 
 #include <dev/hpt27xx/hpt27xx_config.h>
 
+
 #ifndef HPT_INTF_H
 #define HPT_INTF_H
 
@@ -111,6 +112,7 @@ typedef HPT_U32 DEVICEID;
 #define PDT_HARDDISK    1
 #define PDT_CDROM       2
 #define PDT_TAPE        3
+#define PDT_CHANGER     4
 
 /*
  * Some constants.
@@ -158,6 +160,9 @@ typedef HPT_U32 DEVICEID;
 #define ARRAY_FLAG_NEEDINITIALIZING 0x00001000 /* the array's initialization hasn't finished*/
 #define ARRAY_FLAG_BROKEN_REDUNDANT 0x00002000 /* broken but redundant (raid6) */
 #define ARRAY_FLAG_RAID15PLUS       0x80000000 /* display this RAID 1 as RAID 1.5 */
+
+#define ARRAY_FLAG_ZERO_STARTING    0x40000000 /* start lba of all members of this array is 0 */
+
 /*
  * device flags
  */
@@ -169,10 +174,19 @@ typedef HPT_U32 DEVICEID;
 #define DEVICE_FLAG_ON_PM_PORT      0x00000020 /* PM port */
 #define DEVICE_FLAG_SAS             0x00000040 /* SAS device */
 #define DEVICE_FLAG_IN_ENCLOSURE    0x00000080 /* PathId is enclosure# */
+#define DEVICE_FLAG_TAPE            0x00000200 /* SAS Tape device */
+#define DEVICE_FLAG_CHANGER         0x00000400 /* SAS Changer device */
 #define DEVICE_FLAG_UNINITIALIZED   0x00010000 /* device is not initialized, can't be used to create array */
 #define DEVICE_FLAG_LEGACY          0x00020000 /* single disk & mbr contains at least one partition */
+#define DEVICE_FLAG_BAD_SECTOR_FOUND	0x00040000 /* found bad sector on target disk, set and clear by GUI */
 
 #define DEVICE_FLAG_IS_SPARE        0x80000000 /* is a spare disk */
+
+
+#define DEVICE_FLAG_SSD             0x00000100 /* SSD device */
+#define DEVICE_FLAG_3G              0x10000000
+#define DEVICE_FLAG_6G              0x20000000
+
 
 /*
  * array states used by hpt_set_array_state()
@@ -288,14 +302,28 @@ typedef HPT_U32 DEVICEID;
 #define HPT_IOCTL_SET_PERFMON_STATUS        HPT_CTL_CODE(64)
 #define HPT_IOCTL_GET_PERFMON_DATA          HPT_CTL_CODE(65)
 #define HPT_IOCTL_IDE_PASS_THROUGH_V2       HPT_CTL_CODE(66)
-#define HPT_IOCTL_GET_ENCLOSURE_INFO_V2    HPT_CTL_CODE(67)
-#define HPT_IOCTL_GET_ENCLOSURE_INFO_V3    HPT_CTL_CODE(68)
+#define HPT_IOCTL_GET_ENCLOSURE_INFO_V2     HPT_CTL_CODE(67)
+#define HPT_IOCTL_GET_ENCLOSURE_INFO_V3     HPT_CTL_CODE(68)
+#define HPT_IOCTL_ACCESS_CONFIG_REG         HPT_CTL_CODE(69)
+
+#define HPT_IOCTL_GET_ENCLOSURE_INFO_V4    HPT_CTL_CODE(70)
+#define HPT_IOCTL_GET_ENCLOSURE_ELEMENT_INFO    HPT_CTL_CODE(71)
+#define HPT_IOCTL_DUMP_METADATA             HPT_CTL_CODE(72)
+#define HPT_IOCTL_GET_CONTROLLER_INFO_V2_EXT    HPT_CTL_CODE(73)
+
 
 #define HPT_IOCTL_GET_CONTROLLER_IDS        HPT_CTL_CODE(100)
 #define HPT_IOCTL_GET_DCB                   HPT_CTL_CODE(101)
 
 #define HPT_IOCTL_EPROM_IO                  HPT_CTL_CODE(102)
 #define HPT_IOCTL_GET_CONTROLLER_VENID      HPT_CTL_CODE(103)
+
+
+#define HPT_IOCTL_GET_DRIVER_CAPABILITIES_CC   HPT_CTL_CODE(200)
+#define HPT_IOCTL_GET_CCS_INFO                 HPT_CTL_CODE(201)
+#define HPT_IOCTL_CREATE_CC                    HPT_CTL_CODE(202)
+#define HPT_IOCTL_DELETE_CC                    HPT_CTL_CODE(203)
+#define HPT_IOCTL_REENABLE_ARRAY               HPT_CTL_CODE(204)
 
 /************************************************************************
  * shared data structures
@@ -345,6 +373,10 @@ typedef HPT_U32 DEVICEID;
 #define HPT_SPIN_UP_MODE_FULL      1
 #define HPT_SPIN_UP_MODE_STANDBY   2
 
+#define HPT_CAP_DUMP_METADATA   0x1
+#define HPT_CAP_DISK_CHECKING   0x2
+#define HPT_CAP_REPORT_SECTOR_SIZE  0x10
+
 typedef struct _DRIVER_CAPABILITIES {
 	HPT_U32 dwSize;
 
@@ -385,7 +417,10 @@ DRIVER_CAPABILITIES, *PDRIVER_CAPABILITIES;
 typedef struct _DRIVER_CAPABILITIES_V2 {
 	DRIVER_CAPABILITIES v1;
 	HPT_U8 SupportedCachePolicies[16];
-	HPT_U32 reserved[17];
+	HPT_U32 ConfigRegSize; /* max sectors */
+	HPT_U32 SupportDiskCachePolicy; /* disable/enable disk cache policy */
+	HPT_U32 Flags;
+	HPT_U32 reserved[14];
 }
 DRIVER_CAPABILITIES_V2, *PDRIVER_CAPABILITIES_V2;
 
@@ -423,6 +458,14 @@ typedef struct _CONTROLLER_INFO_V2 {
 	HPT_U32 ExFlags;
 } CONTROLLER_INFO_V2, *PCONTROLLER_INFO_V2;
 
+typedef struct _CONTROLLER_INFO_V2_EXT {
+	HPT_U8 MaxWidth;
+	HPT_U8 CurrentWidth;
+	HPT_U8 MaxSpeed;
+	HPT_U8 CurrentSpeed;
+	HPT_U8 reserve[64];
+} CONTROLLER_INFO_V2_EXT, *PCONTROLLER_INFO_V2_EXT;
+
 
 #define CEXF_IOPModel            1
 #define CEXF_SDRAMSize           2
@@ -447,6 +490,9 @@ typedef struct _CONTROLLER_INFO_V2 {
 #define CEXF_FanSpeed            0x100000
 #define CEXF_Core1p0v            0x200000
 #define CEXF_Fan2Speed           0x400000
+#define CEXF_Power1p0v           0x800000
+#define CEXF_Power1p5v           0x1000000
+#define CEXF_SASAddress           0x2000000
 
 typedef struct _CONTROLLER_INFO_V3 {
 	HPT_U8 ChipType;
@@ -485,7 +531,10 @@ typedef struct _CONTROLLER_INFO_V3 {
 	HPT_U16 DDR1p8vRef;
 	HPT_U16 Core1p0v;
 	HPT_U16 Fan2Speed;
-	HPT_U8  reserve[60];
+	HPT_U16 Power1p0v;
+	HPT_U16 Power1p5v;	
+	HPT_U8  SASAddress[8];
+	HPT_U8  reserve[48];
 }
 CONTROLLER_INFO_V3, *PCONTROLLER_INFO_V3;
 typedef char check_CONTROLLER_INFO_V3[sizeof(CONTROLLER_INFO_V3)==256? 1:-1];
@@ -566,8 +615,8 @@ typedef struct _SES_ELEMENT_STATUS {
 #define	SES_STATUS_UNRECOVERABLE	0x04
 #define	SES_STATUS_NOTINSTALLED		0x05
 #define	SES_STATUS_UNKNOWN			0x06
-#define	SES_STATUS_NOTAVAILABLE		0x06
-#define	SES_STATUS_RESERVED			0x07
+#define	SES_STATUS_NOTAVAILABLE		0x07
+#define	SES_STATUS_RESERVED			0x08
 
 
 typedef struct _ENCLOSURE_INFO_V2 {
@@ -595,6 +644,20 @@ typedef struct _ENCLOSURE_INFO_V3 {
 	HPT_U32 reserved[32];
 	SES_ELEMENT_STATUS ElementStatus[MAX_ELEMENT_COUNT];
 } ENCLOSURE_INFO_V3, *PENCLOSURE_INFO_V3;
+
+typedef struct _ENCLOSURE_INFO_V4 {
+	HPT_U8  EnclosureType;
+	HPT_U8  NumberOfPhys;
+	HPT_U8  AttachedTo; 
+	HPT_U8  Status;
+	HPT_U8  VendorId[8];
+	HPT_U8  ProductId[16];
+	HPT_U8  ProductRevisionLevel[4];
+	HPT_U32 PortPhyMap;
+	HPT_U32	UnitId;	/*272x card has two Cores, unitId is used to distinguish them */
+	HPT_U32 ElementCount;
+	HPT_U32 reserved[32];
+} ENCLOSURE_INFO_V4, *PENCLOSURE_INFO_V4;
 
 #define ENCLOSURE_STATUS_OFFLINE 1
 
@@ -759,7 +822,7 @@ typedef struct _IDENTIFY_DATA2 {
 	HPT_U16 NumberOfCurrentCylinders;
 	HPT_U16 NumberOfCurrentHeads;
 	HPT_U16 CurrentSectorsPerTrack;
-	HPT_U32 CurrentSectorCapacity;
+	HPT_U32 CurrentSectorCapacity; /*word58,59  the value indecate the logical sector size. */
 	HPT_U16 CurrentMultiSectorSetting;
 	HPT_U32 UserAddressableSectors;
 	HPT_U8  SingleWordDMASupport;
@@ -1022,6 +1085,7 @@ __attribute__((packed)) LOGICAL_DEVICE_INFO_V4, *PLOGICAL_DEVICE_INFO_V4;
 #define ADIF_WRITE_CACHE    8
 #define ADIF_READ_AHEAD     0x10
 #define ADIF_SPIN_UP_MODE   0x20
+#define ADIF_SET_BAD        0x40
 
 typedef struct _ALTERABLE_ARRAY_INFO {
 	HPT_U32   ValidFields;              /* mark valid fields below */
@@ -1042,7 +1106,8 @@ typedef struct _ALTERABLE_DEVICE_INFO_V2 {
 	HPT_U8   WriteCacheEnabled;
 	HPT_U8   ReadAheadEnabled;
 	HPT_U8   SpinUpMode;
-	HPT_U8   reserve[2];
+	HPT_U8   SetBadSector;
+	HPT_U8   reserve[1];
 	HPT_U32  reserve2[13]; /* pad to 64 bytes */
 }__attribute__((packed))ALTERABLE_DEVICE_INFO_V2, *PALTERABLE_DEVICE_INFO_V2;
 
@@ -1063,6 +1128,10 @@ typedef struct _ALTERABLE_DEVICE_INFO_V2 {
 #define DIT_TCQ         3
 #define DIT_NCQ         4
 #define DIT_IDENTIFY    5
+
+#define DISK_CACHE_POLICY_UNCHANGE 0
+#define DISK_CACHE_POLICY_ENABLE 1
+#define DISK_CACHE_POLICY_DISABLE 2
 
 /* param type is determined by target_type and info_type*/
 typedef struct _SET_DEV_INFO
@@ -1121,7 +1190,8 @@ typedef struct _CREATE_ARRAY_PARAMS_V2 {
 typedef struct _CREATE_ARRAY_PARAMS_V3 {
 	HPT_U32  dwSize;
 	HPT_U8 revision;			/*CREATE_ARRAY_PARAMS_V3_REVISION*/
-	HPT_U8 reserved[5];
+	HPT_U8 diskCachePolicy;  /*unchange:0 enable:1 disable:2*/
+	HPT_U8 reserved[4];
 	HPT_U8 subDisks;            /* RAIDn0 sub array */
 	HPT_U8 SectorSizeShift;     /*sector size = 512B<<SectorSizeShift*/
 	HPT_U8 ArrayType;                   /* 1-level array type */
@@ -1359,6 +1429,29 @@ typedef struct _HPT_PM_IOSTAT {
 }
 HPT_PM_IOSTAT, *PHPT_PM_IOSTAT;
 
+/*
+ * disk config region
+ */
+typedef struct _ACCESS_CONFIG_REG {
+	DEVICEID  id;
+	HPT_U16   start;
+	HPT_U8    sectors;
+	HPT_U8    read;
+	HPT_U32   Reserved;
+	#define ACCESS_CONFIG_REG_buffer(p) ((HPT_U8 *)(p) + sizeof(ACCESS_CONFIG_REG_PARAMS))
+} __attribute__((packed))ACCESS_CONFIG_REG_PARAMS, *PACCESS_CONFIG_REG_PARAMS;
+
+/*
+ * dump meta data
+ */
+typedef struct _DUMP_METADATA {
+	DEVICEID  id;
+	HPT_U8    sectors;
+	HPT_U8    backsectors;
+	HPT_U8    offset;
+	HPT_U8    backoffset;
+} __attribute__((packed))DUMP_METADATA_PARAMS, *PDUMP_METADATA_PARAMS;
+
 
 
 /*
@@ -1460,6 +1553,16 @@ int hpt_get_controller_info(int id, PCONTROLLER_INFO pInfo);
  *  0       Success, controller info is put into (*pInfo ).
  */
 int hpt_get_controller_info_v2(int id, PCONTROLLER_INFO_V2 pInfo);
+
+/* hpt_get_controller_info_v2_ext
+ * Version compatibility: v2.0.0.0 or later
+ * Parameters:
+ *  id      Controller id
+ *  pInfo   pointer to CONTROLLER_INFO_V2_EXT buffer
+ * Returns:
+ *  0       Success, controller info is put into (*pInfo ).
+ */
+int hpt_get_controller_info_v2_ext(int id, PCONTROLLER_INFO_V2_EXT pInfo);
 
 /* hpt_get_controller_info_v3
  * Version compatibility: v2.0.0.0 or later
@@ -2090,6 +2193,9 @@ int hpt_get_enclosure_info_v2(int ctlr_id, int enc_id, PENCLOSURE_INFO_V2 pInfo)
 
 int hpt_get_enclosure_info_v3(int ctlr_id, int enc_id, PENCLOSURE_INFO_V3 pInfo);
 
+int hpt_get_enclosure_info_v4(int ctlr_id, int enc_id, PENCLOSURE_INFO_V4 pInfo);
+int hpt_get_enclosure_element_info(int ctlr_id, int enc_id, int ele_id, PSES_ELEMENT_STATUS pInfo);
+
 /* performance monitor interface
  * Version compatibility: v2.1.0.0 or later
  */
@@ -2101,6 +2207,24 @@ int hpt_get_perfmon_data(DEVICEID id, PHPT_PM_IOSTAT iostat);
  * Version compatibility: v1.0.0.0 or later
  */
 int hpt_get_controller_venid(int ctlr_id, HPT_U32 *venid);
+
+/* hpt_access_config_reg
+ *  access the reserved config space on disk
+ * Parameters:
+ *   p - ACCESS_CONFIG_REG_PARAMS header pointer
+ * Returns:
+ *   0  Success
+ */
+int hpt_access_config_reg(PACCESS_CONFIG_REG_PARAMS p);
+
+/* hpt_dump_metadata
+ *  dump internal metadata
+ * Parameters:
+ *   p - PDUMP_METADATA_PARAMS header pointer
+ * Returns:
+ *   0  Success
+ */
+int hpt_dump_metadata(PDUMP_METADATA_PARAMS p);
 
 #endif
 

@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/unistd.h>
+
+#include <machine/acle-compat.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/pcb.h>
@@ -72,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 
+#include <machine/acle-compat.h>
 #include <machine/md_var.h>
 #include <machine/vfp.h>
 
@@ -81,6 +84,8 @@ __FBSDID("$FreeBSD$");
  */
 CTASSERT(sizeof(struct switchframe) == 48);
 CTASSERT(sizeof(struct trapframe) == 80);
+
+uint32_t initial_fpscr = VFPSCR_DN | VFPSCR_FZ;
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -107,10 +112,10 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 #endif
 #endif
 	td2->td_pcb = pcb2;
-	
+
 	/* Clone td1's pcb */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
-	
+
 	/* Point to mdproc and then copy over td1's contents */
 	mdp2 = &p2->p_md;
 	bcopy(&td1->td_proc->p_md, mdp2, sizeof(*mdp2));
@@ -131,8 +136,8 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	pcb2->pcb_regs.sf_sp = STACKALIGN(td2->td_frame);
 
 	pcb2->pcb_vfpcpu = -1;
-	pcb2->pcb_vfpstate.fpscr = VFPSCR_DN | VFPSCR_FZ;
-	
+	pcb2->pcb_vfpstate.fpscr = initial_fpscr;
+
 	tf = td2->td_frame;
 	tf->tf_spsr &= ~PSR_C;
 	tf->tf_r0 = 0;
@@ -142,13 +147,13 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_cspr = PSR_SVC32_MODE;;
-#ifdef ARM_TP_ADDRESS
-	td2->td_md.md_tp = *(register_t *)ARM_TP_ADDRESS;
+#if __ARM_ARCH >= 6
+	td2->td_md.md_tp = td1->td_md.md_tp;
 #else
-	td2->td_md.md_tp = (register_t) get_tls();
+	td2->td_md.md_tp = *(register_t *)ARM_TP_ADDRESS;
 #endif
 }
-				
+
 void
 cpu_thread_swapin(struct thread *td)
 {
@@ -178,11 +183,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 	 * place the returned data into r1. As the lseek and frerebsd6_lseek
 	 * syscalls also return an off_t they do not need this fixup.
 	 */
-#ifdef __ARM_EABI__
 	call = frame->tf_r7;
-#else
-	call = *(u_int32_t *)(frame->tf_pc - INSN_SIZE) & 0x000fffff;
-#endif
 	if (call == SYS___syscall) {
 		register_t *ap = &frame->tf_r0;
 		register_t code = ap[_QUAD_LOWWORD];
@@ -208,7 +209,12 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		/*
 		 * Reconstruct the pc to point at the swi.
 		 */
-		frame->tf_pc -= INSN_SIZE;
+#if __ARM_ARCH >= 7
+		if ((frame->tf_spsr & PSR_T) != 0)
+			frame->tf_pc -= THUMB_INSN_SIZE;
+		else
+#endif
+			frame->tf_pc -= INSN_SIZE;
 		break;
 	case EJUSTRETURN:
 		/* nothing to do */
@@ -271,10 +277,10 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 	td->td_md.md_tp = (register_t)tls_base;
 	if (td == curthread) {
 		critical_enter();
-#ifdef ARM_TP_ADDRESS
-		*(register_t *)ARM_TP_ADDRESS = (register_t)tls_base;
+#if __ARM_ARCH >= 6
+		set_tls(tls_base);
 #else
-		set_tls((void *)tls_base);
+		*(register_t *)ARM_TP_ADDRESS = (register_t)tls_base;
 #endif
 		critical_exit();
 	}
@@ -334,7 +340,7 @@ cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 void
 swi_vm(void *dummy)
 {
-	
+
 	if (busdma_swi_pending)
 		busdma_swi();
 }

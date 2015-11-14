@@ -88,6 +88,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_shared_page_base = SHAREDPAGE,
 	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= NULL,
+	.sv_thread_detach = NULL,
 };
 INIT_SYSENTVEC(elf32_sysvec, &elf32_freebsd_sysvec);
 
@@ -177,6 +178,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	Elf_Word rtype, symidx;
 	const Elf_Rel *rel;
 	const Elf_Rela *rela;
+	int error;
 
 	switch (type) {
 	case ELF_RELOC_REL:
@@ -212,8 +214,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			break;
 
 		case R_386_32:		/* S + A */
-			addr = lookup(lf, symidx, 1);
-			if (addr == 0)
+			error = lookup(lf, symidx, 1, &addr);
+			if (error != 0)
 				return -1;
 			addr += addend;
 			if (*where != addr)
@@ -221,8 +223,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			break;
 
 		case R_386_PC32:	/* S + A - P */
-			addr = lookup(lf, symidx, 1);
-			if (addr == 0)
+			error = lookup(lf, symidx, 1, &addr);
+			if (error != 0)
 				return -1;
 			addr += addend - (Elf_Addr)where;
 			if (*where != addr)
@@ -239,8 +241,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			break;
 
 		case R_386_GLOB_DAT:	/* S */
-			addr = lookup(lf, symidx, 1);
-			if (addr == 0)
+			error = lookup(lf, symidx, 1, &addr);
+			if (error != 0)
 				return -1;
 			if (*where != addr)
 				*where = addr;

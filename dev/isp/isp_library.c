@@ -411,10 +411,6 @@ isp_fc_runstate(ispsoftc_t *isp, int chan, int tval)
 		}
 	}
 
-	if ((fcp->role & ISP_ROLE_INITIATOR) == 0) {
-		return (0);
-	}
-
 	if (isp_control(isp, ISPCTL_SCAN_LOOP, chan) != 0) {
 		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: scan loop fails on channel %d", chan);
 		return (LOOP_PDB_RCVD);
@@ -444,7 +440,7 @@ isp_dump_portdb(ispsoftc_t *isp, int chan)
 	int i;
 
 	for (i = 0; i < MAX_FC_TARG; i++) {
-		char mb[4], buf1[64], buf2[64];
+		char buf1[64], buf2[64];
 		const char *dbs[8] = {
 			"NIL ",
 			"PROB",
@@ -457,18 +453,13 @@ isp_dump_portdb(ispsoftc_t *isp, int chan)
 		};
 		fcportdb_t *lp = &fcp->portdb[i];
 
-		if (lp->state == FC_PORTDB_STATE_NIL && lp->target_mode == 0) {
+		if (lp->state == FC_PORTDB_STATE_NIL) {
 			continue;
-		}
-		if (lp->dev_map_idx) {
-			ISP_SNPRINTF(mb, sizeof (mb), "%3d", ((int) lp->dev_map_idx) - 1);
-		} else {
-			ISP_SNPRINTF(mb, sizeof (mb), "---");
 		}
 		isp_gen_role_str(buf1, sizeof (buf1), lp->prli_word3);
 		isp_gen_role_str(buf2, sizeof (buf2), lp->new_prli_word3);
-		isp_prt(isp, ISP_LOGALL, "Chan %d [%d]: hdl 0x%x %s al%d tgt %s %s 0x%06x =>%s 0x%06x; WWNN 0x%08x%08x WWPN 0x%08x%08x",
-		    chan, i, lp->handle, dbs[lp->state], lp->autologin, mb, buf1, lp->portid, buf2, lp->new_portid,
+		isp_prt(isp, ISP_LOGALL, "Chan %d [%d]: hdl 0x%x %s al%d %s 0x%06x =>%s 0x%06x; WWNN 0x%08x%08x WWPN 0x%08x%08x",
+		    chan, i, lp->handle, dbs[lp->state], lp->autologin, buf1, lp->portid, buf2, lp->new_portid,
 		    (uint32_t) (lp->node_wwn >> 32), (uint32_t) (lp->node_wwn), (uint32_t) (lp->port_wwn >> 32), (uint32_t) (lp->port_wwn));
 	}
 }
@@ -590,6 +581,136 @@ isp_fc_toponame(fcparam *fcp)
 	}
 }
 
+static int
+isp_fc_enable_vp(ispsoftc_t *isp, int chan)
+{
+	fcparam *fcp = FCPARAM(isp, chan);
+	mbreg_t mbs;
+	vp_modify_t *vp;
+	uint8_t qe[QENTRY_LEN], *scp;
+
+	ISP_MEMZERO(qe, QENTRY_LEN);
+	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
+		return (EBUSY);
+	}
+	scp = fcp->isp_scratch;
+
+	/*
+	 * Build a VP MODIFY command in memory
+	 */
+	vp = (vp_modify_t *) qe;
+	vp->vp_mod_hdr.rqs_entry_type = RQSTYPE_VP_MODIFY;
+	vp->vp_mod_hdr.rqs_entry_count = 1;
+	vp->vp_mod_cnt = 1;
+	vp->vp_mod_idx0 = chan;
+	vp->vp_mod_cmd = VP_MODIFY_ENA;
+	vp->vp_mod_ports[0].options = ICB2400_VPOPT_ENABLED;
+	if (fcp->role & ISP_ROLE_INITIATOR) {
+		vp->vp_mod_ports[0].options |= ICB2400_VPOPT_INI_ENABLE;
+	}
+	if ((fcp->role & ISP_ROLE_TARGET) == 0) {
+		vp->vp_mod_ports[0].options |= ICB2400_VPOPT_TGT_DISABLE;
+	}
+	if (fcp->isp_loopid < LOCAL_LOOP_LIM) {
+		vp->vp_mod_ports[0].loopid = fcp->isp_loopid;
+		if (isp->isp_confopts & ISP_CFG_OWNLOOPID)
+			vp->vp_mod_ports[0].options |=
+			    ICB2400_VPOPT_HARD_ADDRESS;
+		else
+			vp->vp_mod_ports[0].options |=
+			    ICB2400_VPOPT_PREV_ADDRESS;
+	}
+	MAKE_NODE_NAME_FROM_WWN(vp->vp_mod_ports[0].wwpn, fcp->isp_wwpn);
+	MAKE_NODE_NAME_FROM_WWN(vp->vp_mod_ports[0].wwnn, fcp->isp_wwnn);
+	isp_put_vp_modify(isp, vp, (vp_modify_t *) scp);
+
+	/*
+	 * Build a EXEC IOCB A64 command that points to the VP MODIFY command
+	 */
+	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 0);
+	mbs.param[1] = QENTRY_LEN;
+	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
+	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
+	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
+	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN, chan);
+	isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
+	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+		FC_SCRATCH_RELEASE(isp, chan);
+		return (EIO);
+	}
+	MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
+	isp_get_vp_modify(isp, (vp_modify_t *)&scp[QENTRY_LEN], vp);
+
+	FC_SCRATCH_RELEASE(isp, chan);
+
+	if (vp->vp_mod_status != VP_STS_OK) {
+		isp_prt(isp, ISP_LOGERR, "%s: VP_MODIFY of Chan %d failed with status %d", __func__, chan, vp->vp_mod_status);
+		return (EIO);
+	}
+	return (0);
+}
+
+static int
+isp_fc_disable_vp(ispsoftc_t *isp, int chan)
+{
+	fcparam *fcp = FCPARAM(isp, chan);
+	mbreg_t mbs;
+	vp_ctrl_info_t *vp;
+	uint8_t qe[QENTRY_LEN], *scp;
+
+	ISP_MEMZERO(qe, QENTRY_LEN);
+	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
+		return (EBUSY);
+	}
+	scp = fcp->isp_scratch;
+
+	/*
+	 * Build a VP CTRL command in memory
+	 */
+	vp = (vp_ctrl_info_t *) qe;
+	vp->vp_ctrl_hdr.rqs_entry_type = RQSTYPE_VP_CTRL;
+	vp->vp_ctrl_hdr.rqs_entry_count = 1;
+	if (ISP_CAP_VP0(isp)) {
+		vp->vp_ctrl_status = 1;
+	} else {
+		vp->vp_ctrl_status = 0;
+		chan--;	/* VP0 can not be controlled in this case. */
+	}
+	vp->vp_ctrl_command = VP_CTRL_CMD_DISABLE_VP_LOGO_ALL;
+	vp->vp_ctrl_vp_count = 1;
+	vp->vp_ctrl_idmap[chan / 16] |= (1 << chan % 16);
+	isp_put_vp_ctrl_info(isp, vp, (vp_ctrl_info_t *) scp);
+
+	/*
+	 * Build a EXEC IOCB A64 command that points to the VP CTRL command
+	 */
+	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 0);
+	mbs.param[1] = QENTRY_LEN;
+	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
+	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
+	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
+	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN, chan);
+	isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
+	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+		FC_SCRATCH_RELEASE(isp, chan);
+		return (EIO);
+	}
+	MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
+	isp_get_vp_ctrl_info(isp, (vp_ctrl_info_t *)&scp[QENTRY_LEN], vp);
+
+	FC_SCRATCH_RELEASE(isp, chan);
+
+	if (vp->vp_ctrl_status != 0) {
+		isp_prt(isp, ISP_LOGERR,
+		    "%s: VP_CTRL of Chan %d failed with status %d %d",
+		    __func__, chan, vp->vp_ctrl_status, vp->vp_ctrl_index_fail);
+		return (EIO);
+	}
+	return (0);
+}
+
 /*
  * Change Roles
  */
@@ -597,97 +718,28 @@ int
 isp_fc_change_role(ispsoftc_t *isp, int chan, int new_role)
 {
 	fcparam *fcp = FCPARAM(isp, chan);
+	int i, was, res = 0;
 
 	if (chan >= isp->isp_nchan) {
 		isp_prt(isp, ISP_LOGWARN, "%s: bad channel %d", __func__, chan);
 		return (ENXIO);
 	}
-	if (chan == 0) {
-#ifdef	ISP_TARGET_MODE
-		isp_del_all_wwn_entries(isp, chan);
-#endif
-		isp_clear_commands(isp);
-		isp_reset(isp, 0);
-		if (isp->isp_state != ISP_RESETSTATE) {
-			isp_prt(isp, ISP_LOGERR, "%s: cannot reset card", __func__);
-			return (EIO);
-		}
-		fcp->role = new_role;
-		isp_init(isp);
-		if (isp->isp_state != ISP_INITSTATE) {
-			isp_prt(isp, ISP_LOGERR, "%s: cannot init card", __func__);
-			return (EIO);
-		}
-		isp->isp_state = ISP_RUNSTATE;
+	if (fcp->role == new_role)
 		return (0);
-	} else if (ISP_CAP_MULTI_ID(isp)) {
-		mbreg_t mbs;
-		vp_modify_t *vp;
-		uint8_t qe[QENTRY_LEN], *scp;
-
-		ISP_MEMZERO(qe, QENTRY_LEN);
-		/* Acquire Scratch */
-
-		if (FC_SCRATCH_ACQUIRE(isp, chan)) {
-			return (EBUSY);
-		}
-		scp = fcp->isp_scratch;
-
-		/*
-		 * Build a VP MODIFY command in memory
-		 */
-		vp = (vp_modify_t *) qe;
-		vp->vp_mod_hdr.rqs_entry_type = RQSTYPE_VP_MODIFY;
-		vp->vp_mod_hdr.rqs_entry_count = 1;
-		vp->vp_mod_cnt = 1;
-		vp->vp_mod_idx0 = chan;
-		vp->vp_mod_cmd = VP_MODIFY_ENA;
-		vp->vp_mod_ports[0].options = ICB2400_VPOPT_ENABLED;
-		if (new_role & ISP_ROLE_INITIATOR) {
-			vp->vp_mod_ports[0].options |= ICB2400_VPOPT_INI_ENABLE;
-		}
-		if ((new_role & ISP_ROLE_TARGET) == 0) {
-			vp->vp_mod_ports[0].options |= ICB2400_VPOPT_TGT_DISABLE;
-		}
-		MAKE_NODE_NAME_FROM_WWN(vp->vp_mod_ports[0].wwpn, fcp->isp_wwpn);
-		MAKE_NODE_NAME_FROM_WWN(vp->vp_mod_ports[0].wwnn, fcp->isp_wwnn);
-		isp_put_vp_modify(isp, vp, (vp_modify_t *) scp);
-
-		/*
-		 * Build a EXEC IOCB A64 command that points to the VP MODIFY command
-		 */
-		MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 0);
-		mbs.param[1] = QENTRY_LEN;
-		mbs.param[2] = DMA_WD1(fcp->isp_scdma);
-		mbs.param[3] = DMA_WD0(fcp->isp_scdma);
-		mbs.param[6] = DMA_WD3(fcp->isp_scdma);
-		mbs.param[7] = DMA_WD2(fcp->isp_scdma);
-		MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN, chan);
-		isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
-		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			FC_SCRATCH_RELEASE(isp, chan);
-			return (EIO);
-		}
-		MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
-		isp_get_vp_modify(isp, (vp_modify_t *)&scp[QENTRY_LEN], vp);
-
-#ifdef	ISP_TARGET_MODE
-		isp_del_all_wwn_entries(isp, chan);
-#endif
-		/*
-		 * Release Scratch
-		 */
-		FC_SCRATCH_RELEASE(isp, chan);
-
-		if (vp->vp_mod_status != VP_STS_OK) {
-			isp_prt(isp, ISP_LOGERR, "%s: VP_MODIFY of Chan %d failed with status %d", __func__, chan, vp->vp_mod_status);
-			return (EIO);
-		}
-		fcp->role = new_role;
-		return (0);
-	} else {
-		return (EINVAL);
+	for (was = 0, i = 0; i < isp->isp_nchan; i++) {
+		if (FCPARAM(isp, i)->role != ISP_ROLE_NONE)
+			was++;
 	}
+	if (was == 0 || (was == 1 && fcp->role != ISP_ROLE_NONE)) {
+		fcp->role = new_role;
+		return (isp_reinit(isp, 0));
+	}
+	if (fcp->role != ISP_ROLE_NONE)
+		res = isp_fc_disable_vp(isp, chan);
+	fcp->role = new_role;
+	if (fcp->role != ISP_ROLE_NONE)
+		res = isp_fc_enable_vp(isp, chan);
+	return (res);
 }
 
 void
@@ -1103,6 +1155,7 @@ isp_put_24xx_abrt(ispsoftc_t *isp, isp24xx_abrt_t *src, isp24xx_abrt_t *dst)
 	ISP_IOXPUT_16(isp, src->abrt_nphdl, &dst->abrt_nphdl);
 	ISP_IOXPUT_16(isp, src->abrt_options, &dst->abrt_options);
 	ISP_IOXPUT_32(isp, src->abrt_cmd_handle, &dst->abrt_cmd_handle);
+	ISP_IOXPUT_16(isp, src->abrt_queue_number, &dst->abrt_queue_number);
 	for (i = 0; i < ASIZE(src->abrt_reserved); i++) {
 		ISP_IOXPUT_8(isp, src->abrt_reserved[i], &dst->abrt_reserved[i]);
 	}
@@ -1190,7 +1243,7 @@ isp_get_24xx_response(ispsoftc_t *isp, isp24xx_statusreq_t *src, isp24xx_statusr
 	ISP_IOXGET_32(isp, &src->req_resid, dst->req_resid);
 	ISP_IOXGET_16(isp, &src->req_reserved0, dst->req_reserved0);
 	ISP_IOXGET_16(isp, &src->req_state_flags, dst->req_state_flags);
-	ISP_IOXGET_16(isp, &src->req_reserved1, dst->req_reserved1);
+	ISP_IOXGET_16(isp, &src->req_retry_delay, dst->req_retry_delay);
 	ISP_IOXGET_16(isp, &src->req_scsi_status, dst->req_scsi_status);
 	ISP_IOXGET_32(isp, &src->req_fcp_residual, dst->req_fcp_residual);
 	ISP_IOXGET_32(isp, &src->req_sense_len, dst->req_sense_len);
@@ -1211,6 +1264,7 @@ isp_get_24xx_abrt(ispsoftc_t *isp, isp24xx_abrt_t *src, isp24xx_abrt_t *dst)
 	ISP_IOXGET_16(isp, &src->abrt_nphdl, dst->abrt_nphdl);
 	ISP_IOXGET_16(isp, &src->abrt_options, dst->abrt_options);
 	ISP_IOXGET_32(isp, &src->abrt_cmd_handle, dst->abrt_cmd_handle);
+	ISP_IOXGET_16(isp, &src->abrt_queue_number, dst->abrt_queue_number);
 	for (i = 0; i < ASIZE(src->abrt_reserved); i++) {
 		ISP_IOXGET_8(isp, &src->abrt_reserved[i], dst->abrt_reserved[i]);
 	}
@@ -1430,8 +1484,9 @@ isp_put_vp_ctrl_info(ispsoftc_t *isp, vp_ctrl_info_t *src, vp_ctrl_info_t *dst)
 		ISP_IOXPUT_16(isp, src->vp_ctrl_idmap[i], &dst->vp_ctrl_idmap[i]);
 	}
 	for (i = 0; i < ASIZE(src->vp_ctrl_reserved); i++) {
-		ISP_IOXPUT_8(isp, src->vp_ctrl_reserved[i], &dst->vp_ctrl_reserved[i]);
+		ISP_IOXPUT_16(isp, src->vp_ctrl_reserved[i], &dst->vp_ctrl_reserved[i]);
 	}
+	ISP_IOXPUT_16(isp, src->vp_ctrl_fcf_index, &dst->vp_ctrl_fcf_index);
 }
 
 void
@@ -1448,8 +1503,9 @@ isp_get_vp_ctrl_info(ispsoftc_t *isp, vp_ctrl_info_t *src, vp_ctrl_info_t *dst)
 		ISP_IOXGET_16(isp, &src->vp_ctrl_idmap[i], dst->vp_ctrl_idmap[i]);
 	}
 	for (i = 0; i < ASIZE(src->vp_ctrl_reserved); i++) {
-		ISP_IOXGET_8(isp, &src->vp_ctrl_reserved[i], dst->vp_ctrl_reserved[i]);
+		ISP_IOXGET_16(isp, &src->vp_ctrl_reserved[i], dst->vp_ctrl_reserved[i]);
 	}
+	ISP_IOXGET_16(isp, &src->vp_ctrl_fcf_index, dst->vp_ctrl_fcf_index);
 }
 
 void
@@ -1588,6 +1644,44 @@ isp_get_pdb_24xx(ispsoftc_t *isp, isp_pdb_24xx_t *src, isp_pdb_24xx_t *dst)
 	for (i = 0; i < 24; i++) {
 		ISP_IOXGET_8(isp, &src->pdb_reserved1[i], dst->pdb_reserved1[i]);
 	}
+}
+
+void
+isp_get_pnhle_21xx(ispsoftc_t *isp, isp_pnhle_21xx_t *src, isp_pnhle_21xx_t *dst)
+{
+
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_lo, dst->pnhle_port_id_lo);
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_hi_handle, dst->pnhle_port_id_hi_handle);
+}
+
+void
+isp_get_pnhle_23xx(ispsoftc_t *isp, isp_pnhle_23xx_t *src, isp_pnhle_23xx_t *dst)
+{
+
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_lo, dst->pnhle_port_id_lo);
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_hi, dst->pnhle_port_id_hi);
+	ISP_IOXGET_16(isp, &src->pnhle_handle, dst->pnhle_handle);
+}
+
+void
+isp_get_pnhle_24xx(ispsoftc_t *isp, isp_pnhle_24xx_t *src, isp_pnhle_24xx_t *dst)
+{
+
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_lo, dst->pnhle_port_id_lo);
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_hi, dst->pnhle_port_id_hi);
+	ISP_IOXGET_16(isp, &src->pnhle_handle, dst->pnhle_handle);
+	ISP_IOXGET_16(isp, &src->pnhle_reserved, dst->pnhle_reserved);
+}
+
+void
+isp_get_pnnle(ispsoftc_t *isp, isp_pnnle_t *src, isp_pnnle_t *dst)
+{
+	int i;
+
+	for (i = 0; i < 8; i++)
+		ISP_IOXGET_8(isp, &src->pnnle_name[i], dst->pnnle_name[i]);
+	ISP_IOXGET_16(isp, &src->pnnle_handle, dst->pnnle_handle);
+	ISP_IOXGET_16(isp, &src->pnnle_reserved, dst->pnnle_reserved);
 }
 
 /*
@@ -2358,8 +2452,10 @@ isp_destroy_tgt_handle(ispsoftc_t *isp, uint32_t handle)
 	}
 }
 
+#endif
+
 /*
- * Find target mode entries
+ * Find port database entries
  */
 int
 isp_find_pdb_by_wwn(ispsoftc_t *isp, int chan, uint64_t wwn, fcportdb_t **lptr)
@@ -2367,41 +2463,41 @@ isp_find_pdb_by_wwn(ispsoftc_t *isp, int chan, uint64_t wwn, fcportdb_t **lptr)
 	fcparam *fcp;
 	int i;
 
-	if (chan < isp->isp_nchan) {
-		fcp = FCPARAM(isp, chan);
-		for (i = MAX_FC_TARG - 1; i >= 0; i--) {
-			fcportdb_t *lp = &fcp->portdb[i];
+	if (chan >= isp->isp_nchan)
+		return (0);
+	fcp = FCPARAM(isp, chan);
+	for (i = 0; i < MAX_FC_TARG; i++) {
+		fcportdb_t *lp = &fcp->portdb[i];
 
-			if (lp->target_mode == 0) {
-				continue;
-			}
-			if (lp->port_wwn == wwn) {
-				*lptr = lp;
-				return (1);
-			}
+		if (lp->state == FC_PORTDB_STATE_NIL)
+			continue;
+		if (lp->port_wwn == wwn) {
+			*lptr = lp;
+			return (1);
 		}
 	}
 	return (0);
 }
 
+#ifdef	ISP_TARGET_MODE
+
 int
-isp_find_pdb_by_loopid(ispsoftc_t *isp, int chan, uint32_t loopid, fcportdb_t **lptr)
+isp_find_pdb_by_handle(ispsoftc_t *isp, int chan, uint32_t handle, fcportdb_t **lptr)
 {
 	fcparam *fcp;
 	int i;
 
-	if (chan < isp->isp_nchan) {
-		fcp = FCPARAM(isp, chan);
-		for (i = MAX_FC_TARG - 1; i >= 0; i--) {
-			fcportdb_t *lp = &fcp->portdb[i];
+	if (chan >= isp->isp_nchan)
+		return (0);
+	fcp = FCPARAM(isp, chan);
+	for (i = 0; i < MAX_FC_TARG; i++) {
+		fcportdb_t *lp = &fcp->portdb[i];
 
-			if (lp->target_mode == 0) {
-				continue;
-			}
-			if (lp->handle == loopid) {
-				*lptr = lp;
-				return (1);
-			}
+		if (lp->state == FC_PORTDB_STATE_NIL)
+			continue;
+		if (lp->handle == handle) {
+			*lptr = lp;
+			return (1);
 		}
 	}
 	return (0);
@@ -2413,17 +2509,14 @@ isp_find_pdb_by_sid(ispsoftc_t *isp, int chan, uint32_t sid, fcportdb_t **lptr)
 	fcparam *fcp;
 	int i;
 
-	if (chan >= isp->isp_nchan) {
+	if (chan >= isp->isp_nchan)
 		return (0);
-	}
-
 	fcp = FCPARAM(isp, chan);
-	for (i = MAX_FC_TARG - 1; i >= 0; i--) {
+	for (i = 0; i < MAX_FC_TARG; i++) {
 		fcportdb_t *lp = &fcp->portdb[i];
 
-		if (lp->target_mode == 0) {
+		if (lp->state == FC_PORTDB_STATE_NIL)
 			continue;
-		}
 		if (lp->portid == sid) {
 			*lptr = lp;
 			return (1);
@@ -2454,188 +2547,188 @@ isp_find_chan_by_did(ispsoftc_t *isp, uint32_t did, uint16_t *cp)
  * Add an initiator device to the port database
  */
 void
-isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint32_t s_id, uint16_t prli_params)
+isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t wwpn, uint64_t wwnn,
+    uint16_t nphdl, uint32_t s_id, uint16_t prli_params)
 {
 	char buf[64];
 	fcparam *fcp;
 	fcportdb_t *lp;
-	isp_notify_t nt;
-	int i;
+	int i, change;
 
 	fcp = FCPARAM(isp, chan);
-
 	if (nphdl >= MAX_NPORT_HANDLE) {
-		isp_prt(isp, ISP_LOGWARN, "Chan %d IID 0x%016llx bad N-Port handle 0x%04x Port ID 0x%06x",
-		    chan, (unsigned long long) ini, nphdl, s_id);
-		return;
-	}
-
-	lp = NULL;
-	if (fcp->isp_tgt_map[nphdl]) {
-		i = fcp->isp_tgt_map[nphdl] - 1;
-		lp = &fcp->portdb[i];
-	} else {
-		/*
-		 * Make sure the addition of a new target mode entry doesn't duplicate entries
-		 * with the same N-Port handles, the same portids or the same Port WWN.
-		 */
-		for (i = 0; i < MAX_FC_TARG; i++) {
-			lp = &fcp->portdb[i];
-			if (lp->target_mode == 0) {
-				lp = NULL;
-				continue;
-			}
-			if (lp->handle == nphdl) {
-				break;
-			}
-			if (s_id != PORT_ANY && lp->portid == s_id) {
-				break;
-			}
-			if (VALID_INI(ini) && lp->port_wwn == ini) {
-				break;
-			}
-			lp = NULL;
-		}
-
-	}
-
-	if (lp) {
-		int something = 0;
-		if (lp->handle != nphdl) {
-			isp_prt(isp, ISP_LOGWARN, "Chan %d attempt to re-enter N-port handle 0x%04x IID 0x%016llx Port ID 0x%06x finds IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x",
-			    chan, nphdl, (unsigned long long)ini, s_id, (unsigned long long) lp->port_wwn, lp->handle, lp->portid);
-			isp_dump_portdb(isp, chan);
-			return;
-		}
-		if (s_id != PORT_NONE) {
-			if (lp->portid == PORT_NONE) {
-				lp->portid = s_id;
-				isp_prt(isp, ISP_LOGTINFO, "Chan %d N-port handle 0x%04x gets Port ID 0x%06x", chan, nphdl, s_id);
-				something++;
-			} else if (lp->portid != s_id) {
-				isp_prt(isp, ISP_LOGTINFO, "Chan %d N-port handle 0x%04x tries to change Port ID 0x%06x to 0x%06x", chan, nphdl, lp->portid, s_id);
-				isp_dump_portdb(isp, chan);
-				return;
-			}
-		}
-		if (VALID_INI(ini)) {
-			if (!VALID_INI(lp->port_wwn)) {
-				lp->port_wwn = ini;
-				isp_prt(isp, ISP_LOGTINFO, "Chan %d N-port handle 0x%04x gets WWN 0x%016llxx", chan, nphdl, (unsigned long long) ini);
-				something++;
-			} else if (lp->port_wwn != ini) {
-				isp_prt(isp, ISP_LOGWARN, "Chan %d N-port handle 0x%04x tries to change WWN 0x%016llx to 0x%016llx", chan, nphdl,
-				    (unsigned long long) lp->port_wwn, (unsigned long long) ini);
-				isp_dump_portdb(isp, chan);
-				return;
-			}
-		}
-		if (prli_params != lp->prli_word3) {
-			lp->prli_word3 = prli_params;
-			isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
-			isp_prt(isp, ISP_LOGTINFO|ISP_LOGCONFIG, "Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x new PRLI Word 3 params %s", chan,
-			    (unsigned long long) lp->port_wwn, lp->handle, lp->portid, buf);
-			something++;
-		}
-		if (!something) {
-			isp_prt(isp, ISP_LOGWARN, "Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x reentered", chan,
-			    (unsigned long long) lp->port_wwn, lp->handle, lp->portid);
-		}
-		if (fcp->isp_tgt_map[nphdl] == 0) {
-			fcp->isp_tgt_map[nphdl] = i + 1;
-			goto notify;
-		}
+		isp_prt(isp, ISP_LOGTINFO|ISP_LOGWARN, "Chan %d WWPN 0x%016llx "
+		    "PortID 0x%06x handle 0x%x -- bad handle",
+		    chan, (unsigned long long) wwpn, s_id, nphdl);
 		return;
 	}
 
 	/*
-	 * Find a new spot
+	 * If valid record for requested handle already exists, update it
+	 * with new parameters.  Some cases of update can be suspicious,
+	 * so log them verbosely and dump the whole port database.
 	 */
-	for (i = MAX_FC_TARG - 1; i >= 0; i--) {
-		if (fcp->portdb[i].target_mode == 1) {
-			continue;
+	if ((VALID_INI(wwpn) && isp_find_pdb_by_wwn(isp, chan, wwpn, &lp)) ||
+	    (s_id != PORT_NONE && isp_find_pdb_by_sid(isp, chan, s_id, &lp))) {
+		change = 0;
+		lp->new_portid = lp->portid;
+		lp->new_prli_word3 = lp->prli_word3;
+		if (s_id != PORT_NONE && lp->portid != s_id) {
+			if (lp->portid == PORT_NONE) {
+				isp_prt(isp, ISP_LOGTINFO,
+				    "Chan %d WWPN 0x%016llx handle 0x%x "
+				    "gets PortID 0x%06x",
+				    chan, (unsigned long long) lp->port_wwn,
+				    nphdl, s_id);
+			} else {
+				isp_prt(isp, ISP_LOGTINFO|ISP_LOGWARN,
+				    "Chan %d WWPN 0x%016llx handle 0x%x "
+				    "changes PortID 0x%06x to 0x%06x",
+				    chan, (unsigned long long) lp->port_wwn,
+				    nphdl, lp->portid, s_id);
+				if (isp->isp_dblev & (ISP_LOGTINFO|ISP_LOGWARN))
+					isp_dump_portdb(isp, chan);
+			}
+			lp->new_portid = s_id;
+			change++;
 		}
-		if (fcp->portdb[i].state == FC_PORTDB_STATE_NIL) {
-			break;
+		if (VALID_INI(wwpn) && lp->port_wwn != wwpn) {
+			if (!VALID_INI(lp->port_wwn)) {
+				isp_prt(isp, ISP_LOGTINFO,
+				    "Chan %d PortID 0x%06x handle 0x%x "
+				    "gets WWPN 0x%016llxx",
+				    chan, lp->portid, nphdl,
+				    (unsigned long long) wwpn);
+			} else if (lp->port_wwn != wwpn) {
+				isp_prt(isp, ISP_LOGTINFO|ISP_LOGWARN,
+				    "Chan %d PortID 0x%06x handle 0x%x "
+				    "changes WWPN 0x%016llx to 0x%016llx",
+				    chan, lp->portid, nphdl,
+				    (unsigned long long) lp->port_wwn,
+				    (unsigned long long) wwpn);
+				if (isp->isp_dblev & (ISP_LOGTINFO|ISP_LOGWARN))
+					isp_dump_portdb(isp, chan);
+			}
+			lp->port_wwn = wwpn;
+			change++;
 		}
-	}
-	if (i < 0) {
-		isp_prt(isp, ISP_LOGWARN, "Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x- no room in port database",
-		    chan, (unsigned long long) ini, nphdl, s_id);
+		if (VALID_INI(wwnn) && lp->node_wwn != wwnn) {
+			if (!VALID_INI(lp->node_wwn)) {
+				isp_prt(isp, ISP_LOGTINFO,
+				    "Chan %d PortID 0x%06x handle 0x%x "
+				    "gets WWNN 0x%016llxx",
+				    chan, lp->portid, nphdl,
+				    (unsigned long long) wwnn);
+			} else if (lp->port_wwn != wwnn) {
+				isp_prt(isp, ISP_LOGTINFO,
+				    "Chan %d PortID 0x%06x handle 0x%x "
+				    "changes WWNN 0x%016llx to 0x%016llx",
+				    chan, lp->portid, nphdl,
+				    (unsigned long long) lp->node_wwn,
+				    (unsigned long long) wwnn);
+			}
+			lp->node_wwn = wwnn;
+			change++;
+		}
+		if (prli_params != 0 && lp->prli_word3 != prli_params) {
+			isp_gen_role_str(buf, sizeof (buf), prli_params);
+			isp_prt(isp, ISP_LOGTINFO|ISP_LOGCONFIG,
+			    "Chan %d WWPN 0x%016llx PortID 0x%06x "
+			    "handle 0x%x changes PRLI Word 3 %s",
+			    chan, (unsigned long long) lp->port_wwn,
+			    lp->portid, lp->handle, buf);
+			lp->new_prli_word3 = prli_params;
+			change++;
+		}
+		if (lp->handle != nphdl) {
+			isp_prt(isp, ISP_LOGTINFO|ISP_LOGCONFIG,
+			    "Chan %d WWPN 0x%016llx PortID 0x%06x "
+			    "changes handle 0x%x to 0x%x",
+			    chan, (unsigned long long) lp->port_wwn,
+			    lp->portid, lp->handle, nphdl);
+			lp->handle = nphdl;
+			change++;
+		}
+		lp->state = FC_PORTDB_STATE_VALID;
+		if (change) {
+			isp_async(isp, ISPASYNC_DEV_CHANGED, chan, lp);
+			lp->portid = lp->new_portid;
+			lp->prli_word3 = lp->new_prli_word3;
+			lp->new_prli_word3 = 0;
+			lp->new_portid = 0;
+		} else {
+			isp_prt(isp, ISP_LOGTINFO,
+			    "Chan %d WWPN 0x%016llx PortID 0x%06x "
+			    "handle 0x%x reentered",
+			    chan, (unsigned long long) lp->port_wwn,
+			    lp->portid, lp->handle);
+			isp_async(isp, ISPASYNC_DEV_STAYED, chan, lp);
+		}
 		return;
 	}
 
+	/* Search for room to insert new record. */
+	for (i = 0; i < MAX_FC_TARG; i++) {
+		if (fcp->portdb[i].state == FC_PORTDB_STATE_NIL)
+			break;
+	}
+	if (i >= MAX_FC_TARG) {
+		isp_prt(isp, ISP_LOGTINFO|ISP_LOGWARN,
+		    "Chan %d WWPN 0x%016llx PortID 0x%06x handle 0x%x "
+		    "-- no room in port database",
+		    chan, (unsigned long long) wwpn, s_id, nphdl);
+		if (isp->isp_dblev & (ISP_LOGTINFO|ISP_LOGWARN))
+			isp_dump_portdb(isp, chan);
+		return;
+	}
+
+	/* Insert new record and mark it valid. */
 	lp = &fcp->portdb[i];
 	ISP_MEMZERO(lp, sizeof (fcportdb_t));
-	lp->target_mode = 1;
 	lp->handle = nphdl;
 	lp->portid = s_id;
-	lp->port_wwn = ini;
-	lp->prli_word3 = prli_params;
+	lp->port_wwn = wwpn;
+	lp->node_wwn = wwnn;
+	lp->prli_word3 = (prli_params != 0) ? prli_params : PRLI_WD3_INITIATOR_FUNCTION;
+	lp->state = FC_PORTDB_STATE_VALID;
+
 	isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
-	fcp->isp_tgt_map[nphdl] = i + 1;
+	isp_prt(isp, ISP_LOGTINFO, "Chan %d WWPN 0x%016llx "
+	    "PortID 0x%06x handle 0x%x vtgt %d %s added", chan,
+	    (unsigned long long) wwpn, s_id, nphdl, i, buf);
 
-	isp_prt(isp, ISP_LOGTINFO, "Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x vtgt %d %s added", chan,
-	    (unsigned long long) ini, nphdl, s_id, fcp->isp_tgt_map[nphdl] - 1, buf);
-
-notify:
-	ISP_MEMZERO(&nt, sizeof (nt));
-	nt.nt_hba = isp;
-	nt.nt_wwn = ini;
-	nt.nt_tgt = FCPARAM(isp, chan)->isp_wwpn;
-	nt.nt_sid = s_id;
-	nt.nt_did = FCPARAM(isp, chan)->isp_portid;
-	nt.nt_nphdl = nphdl;
-	nt.nt_channel = chan;
-	nt.nt_ncode = NT_ARRIVED;
-	isp_async(isp, ISPASYNC_TARGET_NOTIFY, &nt);
+	/* Notify above levels about new port arrival. */
+	isp_async(isp, ISPASYNC_DEV_ARRIVED, chan, lp);
 }
 
 /*
  * Remove a target device to the port database
  */
 void
-isp_del_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint32_t s_id)
+isp_del_wwn_entry(ispsoftc_t *isp, int chan, uint64_t wwpn, uint16_t nphdl, uint32_t s_id)
 {
 	fcparam *fcp;
-	isp_notify_t nt;
 	fcportdb_t *lp;
 
 	if (nphdl >= MAX_NPORT_HANDLE) {
-		isp_prt(isp, ISP_LOGWARN, "Chan %d IID 0x%016llx bad N-Port handle 0x%04x Port ID 0x%06x",
-		    chan, (unsigned long long) ini, nphdl, s_id);
+		isp_prt(isp, ISP_LOGWARN, "Chan %d WWPN 0x%016llx PortID 0x%06x bad handle 0x%x",
+		    chan, (unsigned long long) wwpn, s_id, nphdl);
 		return;
 	}
 
 	fcp = FCPARAM(isp, chan);
-	if (fcp->isp_tgt_map[nphdl] == 0) {
-		lp = NULL;
-	} else {
-		lp = &fcp->portdb[fcp->isp_tgt_map[nphdl] - 1];
-		if (lp->target_mode == 0) {
-			lp = NULL;
-		}
-	}
-	if (lp == NULL) {
-		isp_prt(isp, ISP_LOGWARN, "Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x cannot be found to be cleared",
-		    chan, (unsigned long long) ini, nphdl, s_id);
+	if (isp_find_pdb_by_handle(isp, chan, nphdl, &lp) == 0) {
+		isp_prt(isp, ISP_LOGWARN, "Chan %d WWPN 0x%016llx PortID 0x%06x handle 0x%x cannot be found to be deleted",
+		    chan, (unsigned long long) wwpn, s_id, nphdl);
 		isp_dump_portdb(isp, chan);
 		return;
 	}
-	isp_prt(isp, ISP_LOGTINFO, "Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x vtgt %d cleared",
-	    chan, (unsigned long long) lp->port_wwn, nphdl, lp->portid, fcp->isp_tgt_map[nphdl] - 1);
-	fcp->isp_tgt_map[nphdl] = 0;
+	isp_prt(isp, ISP_LOGTINFO, "Chan %d WWPN 0x%016llx PortID 0x%06x handle 0x%x vtgt %d deleted",
+	    chan, (unsigned long long) lp->port_wwn, lp->portid, nphdl, FC_PORTDB_TGT(isp, chan, lp));
+	lp->state = FC_PORTDB_STATE_NIL;
 
-	ISP_MEMZERO(&nt, sizeof (nt));
-	nt.nt_hba = isp;
-	nt.nt_wwn = lp->port_wwn;
-	nt.nt_tgt = FCPARAM(isp, chan)->isp_wwpn;
-	nt.nt_sid = lp->portid;
-	nt.nt_did = FCPARAM(isp, chan)->isp_portid;
-	nt.nt_nphdl = nphdl;
-	nt.nt_channel = chan;
-	nt.nt_ncode = NT_DEPARTED;
-	isp_async(isp, ISPASYNC_TARGET_NOTIFY, &nt);
+	/* Notify above levels about gone port. */
+	isp_async(isp, ISPASYNC_DEV_GONE, chan, lp);
 }
 
 void
@@ -2666,11 +2759,11 @@ isp_del_all_wwn_entries(ispsoftc_t *isp, int chan)
 	if (fcp == NULL) {
 		return;
 	}
-	for (i = 0; i < MAX_NPORT_HANDLE; i++) {
-		if (fcp->isp_tgt_map[i]) {
-			fcportdb_t *lp = &fcp->portdb[fcp->isp_tgt_map[i] - 1];
+	for (i = 0; i < MAX_FC_TARG; i++) {
+		fcportdb_t *lp = &fcp->portdb[i];
+
+		if (lp->state != FC_PORTDB_STATE_NIL)
 			isp_del_wwn_entry(isp, chan, lp->port_wwn, lp->handle, lp->portid);
-		}
 	}
 }
 
@@ -2697,7 +2790,7 @@ isp_del_wwn_entries(ispsoftc_t *isp, isp_notify_t *mp)
 	 * We need to find the actual entry so we can delete it.
 	 */
 	if (mp->nt_nphdl != NIL_HANDLE) {
-		if (isp_find_pdb_by_loopid(isp, mp->nt_channel, mp->nt_nphdl, &lp)) {
+		if (isp_find_pdb_by_handle(isp, mp->nt_channel, mp->nt_nphdl, &lp)) {
 			isp_del_wwn_entry(isp, mp->nt_channel, lp->port_wwn, lp->handle, lp->portid);
 			return;
 		}
@@ -2714,8 +2807,8 @@ isp_del_wwn_entries(ispsoftc_t *isp, isp_notify_t *mp)
 			return;
 		}
 	}
-	isp_prt(isp, ISP_LOGWARN, "Chan %d unable to find entry to delete N-port handle 0x%04x initiator WWN 0x%016llx Port ID 0x%06x",
-	    mp->nt_channel, mp->nt_nphdl, (unsigned long long) mp->nt_wwn, mp->nt_sid);
+	isp_prt(isp, ISP_LOGWARN, "Chan %d unable to find entry to delete WWPN 0x%016jx PortID 0x%06x handle 0x%x",
+	    mp->nt_channel, mp->nt_wwn, mp->nt_sid, mp->nt_nphdl);
 }
 
 void
@@ -3521,7 +3614,7 @@ isp_put_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *src, in_fcentry_24xx_t *
 	ISP_IOXPUT_16(isp, src->in_srr_rxid, &dst->in_srr_rxid);
 	ISP_IOXPUT_16(isp, src->in_status, &dst->in_status);
 	ISP_IOXPUT_8(isp, src->in_status_subcode, &dst->in_status_subcode);
-	ISP_IOXPUT_16(isp, src->in_reserved2, &dst->in_reserved2);
+	ISP_IOXPUT_8(isp, src->in_fwhandle, &dst->in_fwhandle);
 	ISP_IOXPUT_32(isp, src->in_rxid, &dst->in_rxid);
 	ISP_IOXPUT_16(isp, src->in_srr_reloff_hi, &dst->in_srr_reloff_hi);
 	ISP_IOXPUT_16(isp, src->in_srr_reloff_lo, &dst->in_srr_reloff_lo);
@@ -3584,7 +3677,7 @@ isp_get_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *src, in_fcentry_24xx_t *
 	ISP_IOXGET_16(isp, &src->in_srr_rxid, dst->in_srr_rxid);
 	ISP_IOXGET_16(isp, &src->in_status, dst->in_status);
 	ISP_IOXGET_8(isp, &src->in_status_subcode, dst->in_status_subcode);
-	ISP_IOXGET_16(isp, &src->in_reserved2, dst->in_reserved2);
+	ISP_IOXGET_8(isp, &src->in_fwhandle, dst->in_fwhandle);
 	ISP_IOXGET_32(isp, &src->in_rxid, dst->in_rxid);
 	ISP_IOXGET_16(isp, &src->in_srr_reloff_hi, dst->in_srr_reloff_hi);
 	ISP_IOXGET_16(isp, &src->in_srr_reloff_lo, dst->in_srr_reloff_lo);
@@ -3703,7 +3796,7 @@ isp_put_notify_24xx_ack(ispsoftc_t *isp, na_fcentry_24xx_t *src, na_fcentry_24xx
 	ISP_IOXPUT_16(isp, src->na_srr_rxid, &dst->na_srr_rxid);
 	ISP_IOXPUT_16(isp, src->na_status, &dst->na_status);
 	ISP_IOXPUT_8(isp, src->na_status_subcode, &dst->na_status_subcode);
-	ISP_IOXPUT_16(isp, src->na_reserved2, &dst->na_reserved2);
+	ISP_IOXPUT_8(isp, src->na_fwhandle, &dst->na_fwhandle);
 	ISP_IOXPUT_32(isp, src->na_rxid, &dst->na_rxid);
 	ISP_IOXPUT_16(isp, src->na_srr_reloff_hi, &dst->na_srr_reloff_hi);
 	ISP_IOXPUT_16(isp, src->na_srr_reloff_lo, &dst->na_srr_reloff_lo);
@@ -3774,7 +3867,7 @@ isp_get_notify_ack_24xx(ispsoftc_t *isp, na_fcentry_24xx_t *src, na_fcentry_24xx
 	ISP_IOXGET_16(isp, &src->na_srr_rxid, dst->na_srr_rxid);
 	ISP_IOXGET_16(isp, &src->na_status, dst->na_status);
 	ISP_IOXGET_8(isp, &src->na_status_subcode, dst->na_status_subcode);
-	ISP_IOXGET_16(isp, &src->na_reserved2, dst->na_reserved2);
+	ISP_IOXGET_8(isp, &src->na_fwhandle, dst->na_fwhandle);
 	ISP_IOXGET_32(isp, &src->na_rxid, dst->na_rxid);
 	ISP_IOXGET_16(isp, &src->na_srr_reloff_hi, dst->na_srr_reloff_hi);
 	ISP_IOXGET_16(isp, &src->na_srr_reloff_lo, dst->na_srr_reloff_lo);

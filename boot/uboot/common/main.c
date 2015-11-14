@@ -28,6 +28,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+#include <sys/param.h>
 
 #include <stand.h>
 
@@ -43,6 +44,9 @@ __FBSDID("$FreeBSD$");
 struct uboot_devdesc currdev;
 struct arch_switch archsw;		/* MI/MD interface boundary */
 int devs_no;
+
+uintptr_t uboot_heap_start;
+uintptr_t uboot_heap_end;
 
 struct device_type { 
 	const char *name;
@@ -414,7 +418,9 @@ main(void)
 	 * Initialise the heap as early as possible.  Once this is done,
 	 * alloc() is usable. The stack is buried inside us, so this is safe.
 	 */
-	setheap((void *)end, (void *)(end + 512 * 1024));
+	uboot_heap_start = round_page((uintptr_t)end);
+	uboot_heap_end   = uboot_heap_start + 512 * 1024;
+	setheap((void *)uboot_heap_start, (void *)uboot_heap_end);
 
 	/*
 	 * Set up console.
@@ -487,6 +493,7 @@ main(void)
 	setenv("LINES", "24", 1);		/* optional */
 	setenv("prompt", "loader>", 1);
 
+	archsw.arch_loadaddr = uboot_loadaddr;
 	archsw.arch_getdev = uboot_getdev;
 	archsw.arch_copyin = uboot_copyin;
 	archsw.arch_copyout = uboot_copyout;

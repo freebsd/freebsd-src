@@ -38,9 +38,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
@@ -1748,6 +1750,7 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 int
 inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 {
+	struct rm_priotracker	 in_ifa_tracker;
 	struct ip_mreqn		 mreqn;
 	struct ip_moptions	*imo;
 	struct ifnet		*ifp;
@@ -1787,7 +1790,7 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 				mreqn.imr_address = imo->imo_multicast_addr;
 			} else if (ifp != NULL) {
 				mreqn.imr_ifindex = ifp->if_index;
-				IFP_TO_IA(ifp, ia);
+				IFP_TO_IA(ifp, ia, &in_ifa_tracker);
 				if (ia != NULL) {
 					mreqn.imr_address =
 					    IA_SIN(ia)->sin_addr;
@@ -1878,6 +1881,7 @@ static struct ifnet *
 inp_lookup_mcast_ifp(const struct inpcb *inp,
     const struct sockaddr_in *gsin, const struct in_addr ina)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct ifnet *ifp;
 
 	KASSERT(gsin->sin_family == AF_INET, ("%s: not AF_INET", __func__));
@@ -1902,7 +1906,7 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 			struct ifnet *mifp;
 
 			mifp = NULL;
-			IN_IFADDR_RLOCK();
+			IN_IFADDR_RLOCK(&in_ifa_tracker);
 			TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 				mifp = ia->ia_ifp;
 				if (!(mifp->if_flags & IFF_LOOPBACK) &&
@@ -1911,7 +1915,7 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 					break;
 				}
 			}
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 		}
 	}
 

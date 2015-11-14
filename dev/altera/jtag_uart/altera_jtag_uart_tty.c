@@ -454,11 +454,11 @@ altera_jtag_uart_attach(struct altera_jtag_uart_softc *sc)
 		aju_intr_readable_enable(sc);
 		AJU_UNLOCK(sc);
 	} else {
-		callout_init(&sc->ajus_io_callout, CALLOUT_MPSAFE);
+		callout_init(&sc->ajus_io_callout, 1);
 		callout_reset(&sc->ajus_io_callout, AJU_IO_POLLINTERVAL,
 		    aju_io_callout, sc);
 	}
-	callout_init(&sc->ajus_ac_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->ajus_ac_callout, 1);
 	callout_reset(&sc->ajus_ac_callout, AJU_AC_POLLINTERVAL,
 	    aju_ac_callout, sc);
 	return (0);

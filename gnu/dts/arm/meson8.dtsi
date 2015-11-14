@@ -90,3 +90,7 @@
 		clock-frequency = <141666666>;
 	};
 }; /* end of / */
+
+&L2 {
+	interrupts = <0 143 1>;
+};

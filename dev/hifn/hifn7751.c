@@ -258,7 +258,8 @@ hifn_partname(struct hifn_softc *sc)
 static void
 default_harvest(struct rndtest_state *rsp, void *buf, u_int count)
 {
-	random_harvest(buf, count, count*NBBY/2, RANDOM_PURE_HIFN);
+	/* MarkM: FIX!! Check that this does not swamp the harvester! */
+	random_harvest_queue(buf, count, count*NBBY/2, RANDOM_PURE_HIFN);
 }
 
 static u_int
@@ -589,7 +590,7 @@ hifn_attach(device_t dev)
 	if (sc->sc_flags & (HIFN_HAS_PUBLIC | HIFN_HAS_RNG))
 		hifn_init_pubrng(sc);
 
-	callout_init(&sc->sc_tickto, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_tickto, 1);
 	callout_reset(&sc->sc_tickto, hz, hifn_tick, sc);
 
 	return (0);
@@ -765,7 +766,7 @@ hifn_init_pubrng(struct hifn_softc *sc)
 			sc->sc_rnghz = hz / 100;
 		else
 			sc->sc_rnghz = 1;
-		callout_init(&sc->sc_rngto, CALLOUT_MPSAFE);
+		callout_init(&sc->sc_rngto, 1);
 		callout_reset(&sc->sc_rngto, sc->sc_rnghz, hifn_rng, sc);
 	}
 

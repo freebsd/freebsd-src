@@ -1,49 +1,34 @@
 # Chelsio T5 Factory Default configuration file.
 #
-# Copyright (C) 2010-2014 Chelsio Communications.  All rights reserved.
+# Copyright (C) 2010-2015 Chelsio Communications.  All rights reserved.
 #
-#   DO NOT MODIFY THIS FILE UNDER ANY CIRCUMSTANCES.  MODIFICATION OF
-#   THIS FILE WILL RESULT IN A NON-FUNCTIONAL T4 ADAPTER AND MAY RESULT
-#   IN PHYSICAL DAMAGE TO T4 ADAPTERS.
+#   DO NOT MODIFY THIS FILE UNDER ANY CIRCUMSTANCES.  MODIFICATION OF THIS FILE
+#   WILL RESULT IN A NON-FUNCTIONAL ADAPTER AND MAY RESULT IN PHYSICAL DAMAGE
+#   TO ADAPTERS.
 
-# This file provides the default, power-on configuration for 4-port T4-based
+
+# This file provides the default, power-on configuration for 4-port T5-based
 # adapters shipped from the factory.  These defaults are designed to address
-# the needs of the vast majority of T4 customers.  The basic idea is to have
-# a default configuration which allows a customer to plug a T4 adapter in and
-# have it work regardless of OS, driver or application except in the most
-# unusual and/or demanding customer applications.
+# the needs of the vast majority of Terminator customers.  The basic idea is to
+# have a default configuration which allows a customer to plug a Terminator
+# adapter in and have it work regardless of OS, driver or application except in
+# the most unusual and/or demanding customer applications.
 #
-# Many of the T4 resources which are described by this configuration are
-# finite.  This requires balancing the configuration/operation needs of
+# Many of the Terminator resources which are described by this configuration
+# are finite.  This requires balancing the configuration/operation needs of
 # device drivers across OSes and a large number of customer application.
 #
 # Some of the more important resources to allocate and their constaints are:
-#  1. Virtual Interfaces: 128.
-#  2. Ingress Queues with Free Lists: 1024.  PCI-E SR-IOV Virtual Functions
-#     must use a power of 2 Ingress Queues.
-#  3. Egress Queues: 128K.  PCI-E SR-IOV Virtual Functions must use a
-#     power of 2 Egress Queues.
-#  4. MSI-X Vectors: 1088.  A complication here is that the PCI-E SR-IOV
-#     Virtual Functions based off of a Physical Function all get the
-#     same umber of MSI-X Vectors as the base Physical Function.
-#     Additionally, regardless of whether Virtual Functions are enabled or
-#     not, their MSI-X "needs" are counted by the PCI-E implementation.
-#     And finally, all Physical Funcations capable of supporting Virtual
-#     Functions (PF0-3) must have the same number of configured TotalVFs in
-#     their SR-IOV Capabilities.
+#  1. Virtual Interfaces: 256.
+#  2. Ingress Queues with Free Lists: 1024.
+#  3. Egress Queues: 128K.
+#  4. MSI-X Vectors: 1088.
 #  5. Multi-Port Support (MPS) TCAM: 336 entries to support MAC destination
 #     address matching on Ingress Packets.
 #
 # Some of the important OS/Driver resource needs are:
 #  6. Some OS Drivers will manage all resources through a single Physical
-#     Function (currently PF0 but it could be any Physical Function).  Thus,
-#     this "Unified PF"  will need to have enough resources allocated to it
-#     to allow for this.  And because of the MSI-X resource allocation
-#     constraints mentioned above, this probably means we'll either have to
-#     severely limit the TotalVFs if we continue to use PF0 as the Unified PF
-#     or we'll need to move the Unified PF into the PF4-7 range since those
-#     Physical Functions don't have any Virtual Functions associated with
-#     them.
+#     Function (currently PF4 but it could be any Physical Function).
 #  7. Some OS Drivers will manage different ports and functions (NIC,
 #     storage, etc.) on different Physical Functions.  For example, NIC
 #     functions for ports 0-3 on PF0-3, FCoE on PF4, iSCSI on PF5, etc.
@@ -64,12 +49,10 @@
 #     for a total of 96 Ingress Queues and MSI-X Vectors on the Unified PF.
 #     (Plus a few for Firmware Event Queues, etc.)
 #
-#  9. Some customers will want to use T4's PCI-E SR-IOV Capability to allow
-#     Virtual Machines to directly access T4 functionality via SR-IOV
-#     Virtual Functions and "PCI Device Passthrough" -- this is especially
-#     true for the NIC application functionality.  (Note that there is
-#     currently no ability to use the TOE, FCoE, iSCSI, etc. via Virtual
-#     Functions so this is in fact solely limited to NIC.)
+#  9. Some customers will want to use PCI-E SR-IOV Capability to allow Virtual
+#     Machines to directly access T6 functionality via SR-IOV Virtual Functions
+#     and "PCI Device Passthrough" -- this is especially true for the NIC
+#     application functionality.
 #
 
 
@@ -80,7 +63,7 @@
 	rss_glb_config_options = tnlmapen,hashtoeplitz,tnlalllkp
 
 	# PL_TIMEOUT register
-	pl_timeout_value = 200		# the timeout value in units of us
+	pl_timeout_value = 10000	# the timeout value in units of us
 
 	# The following Scatter Gather Engine (SGE) settings assume a 4KB Host
 	# Page Size and a 64B L1 Cache Line Size. It programs the
@@ -138,7 +121,7 @@
 	# enable TP_OUT_CONFIG.IPIDSPLITMODE
 	reg[0x7d04] = 0x00010000/0x00010000
 
-	reg[0x7dc0] = 0x062f8849	# TP_SHIFT_CNT
+	reg[0x7dc0] = 0x0e2f8849	# TP_SHIFT_CNT
 
 	# TP_VLAN_PRI_MAP to select filter tuples and enable ServerSram
 	# filter control: compact, fcoemask
@@ -146,14 +129,14 @@
 	# filter tuples : fragmentation, mpshittype, macmatch, ethertype,
 	#		  protocol, tos, vlan, vnic_id, port, fcoe
 	# valid filterModes are described the Terminator 5 Data Book
-	filterMode = srvrsram, fragmentation, mpshittype, protocol, vlan, port, fcoe
+	filterMode = fcoemask, srvrsram, fragmentation, mpshittype, protocol, vlan, port, fcoe
 
 	# filter tuples enforced in LE active region (equal to or subset of filterMode)
 	filterMask = protocol, fcoe
 
 	# Percentage of dynamic memory (in either the EDRAM or external MEM)
 	# to use for TP RX payload
-	tp_pmrx = 30, 512
+	tp_pmrx = 30
 
 	# TP RX payload page size
 	tp_pmrx_pagesize = 64K
@@ -163,7 +146,7 @@
 
 	# Percentage of dynamic memory (in either the EDRAM or external MEM)
 	# to use for TP TX payload
-	tp_pmtx = 50, 512
+	tp_pmtx = 50
 
 	# TP TX payload page size
 	tp_pmtx_pagesize = 64K
@@ -182,6 +165,9 @@
 
 	# TP_PARA_REG0
 	reg[0x7d60] = 0x06000000/0x07000000 # set InitCWND to 6
+
+	# ULPRX iSCSI Page Sizes
+	reg[0x19168] = 0x04020100 # 64K, 16K, 8K and 4K
 
 	# LE_DB_CONFIG
 	reg[0x19c04] = 0x00400000/0x00400000 # LE Server SRAM Enable
@@ -218,7 +204,7 @@
 # NEQ_NIC = 64			# NIC Egress Queues (FL, ETHCTRL/TX)
 # NMPSTCAM_NIC = 16		# NIC MPS TCAM Entries (NPORTS*4)
 # NMSIX_NIC = 32		# NIC MSI-X Interrupt Vectors (FLIQ)
-# 
+#
 # NVI_OFLD = 0			# Offload uses NIC function to access ports
 # NFLIQ_OFLD = 16		# Offload Ingress Queues with Free Lists
 # NETHCTRL_OFLD = 0		# Offload Ethernet Control/TX Queues
@@ -322,19 +308,20 @@
 # PF2_INT = 8			# NCPUS
 # PF3_INT = 8			# NCPUS
 # PF0_3_INT = 32		# PF0_INT + PF1_INT + PF2_INT + PF3_INT
-# 
+#
 # PF4_INT = 128			# NMSIX_UNIFIED
 # PF5_INT = 32			# NMSIX_STORAGE
 # PF6_INT = 32			# NMSIX_STORAGE
 # PF7_INT = 0			# Nothing Assigned
 # PF4_7_INT = 192		# PF4_INT + PF5_INT + PF6_INT + PF7_INT
-# 
+#
 # PF0_7_INT = 224		# PF0_3_INT + PF4_7_INT
-# 
+#
 # With the above we can get 17 VFs/PF0-3 (limited by 336 MPS TCAM entries)
 # but we'll lower that to 16 to make our total 64 and a nice power of 2 ...
 #
 # NVF = 16
+
 
 # For those OSes which manage different ports on different PFs, we need
 # only enough resources to support a single port's NIC application functions
@@ -354,6 +341,7 @@
 	cmask = all		# access to all channels
 	pmask = 0x1		# access to only one port
 
+
 [function "1"]
 	nvf = 16		# NVF on this function
 	wx_caps = all		# write/execute permissions for all commands
@@ -365,6 +353,7 @@
 	nexactf = 8		# number of exact MPSTCAM MAC filters
 	cmask = all		# access to all channels
 	pmask = 0x2		# access to only one port
+
 
 [function "2"]
 	nvf = 16		# NVF on this function
@@ -378,6 +367,7 @@
 	cmask = all		# access to all channels
 	pmask = 0x4		# access to only one port
 
+
 [function "3"]
 	nvf = 16		# NVF on this function
 	wx_caps = all		# write/execute permissions for all commands
@@ -389,6 +379,7 @@
 	nexactf = 8		# number of exact MPSTCAM MAC filters
 	cmask = all		# access to all channels
 	pmask = 0x8		# access to only one port
+
 
 # Some OS Drivers manage all application functions for all ports via PF4.
 # Thus we need to provide a large number of resources here.  For Egress
@@ -403,6 +394,7 @@
 	niqflint = 170		# NFLIQ_UNIFIED + NLFIQ_WD
 	nethctrl = 100		# NETHCTRL_UNIFIED + NETHCTRL_WD
 	neq = 256		# NEQ_UNIFIED + NEQ_WD
+	nqpcq = 12288 
 	nexactf = 40		# NMPSTCAM_UNIFIED
 	cmask = all		# access to all channels
 	pmask = all		# access to all four ports ...
@@ -412,13 +404,14 @@
 	nfilter = 496		# number of filter region entries
 	nserver = 496		# number of server region entries
 	nhash = 12288		# number of hash region entries
-	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu
+	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif
 	tp_l2t = 3072
 	tp_ddp = 2
 	tp_ddp_iscsi = 2
 	tp_stag = 2
 	tp_pbl = 5
 	tp_rq = 7
+
 
 # We have FCoE and iSCSI storage functions on PF5 and PF6 each of which may
 # need to have Virtual Interfaces on each of the four ports with up to NCPUS
@@ -431,7 +424,7 @@
 	niqflint = 34		# NPORTS*NCPUS + NMSIX_EXTRA
 	nethctrl = 32		# NPORTS*NCPUS
 	neq = 64		# NPORTS*NCPUS * 2 (FL, ETHCTRL/TX)
-	nexactf = 4		# NPORTS
+	nexactf = 16		# (NPORTS *(no of snmc grp + 1 hw mac) + 1 anmc grp)) rounded to 16.
 	cmask = all		# access to all channels
 	pmask = all		# access to all four ports ...
 	nserver = 16
@@ -443,6 +436,7 @@
 	iscsi_nsess = 2048
 	iscsi_nconn_per_session = 1
 	iscsi_ninitiator_instance = 64
+
 
 [function "6"]
 	wx_caps = all		# write/execute permissions for all commands
@@ -463,6 +457,8 @@
 	fcoe_nfcf = 16
 	fcoe_nvnp = 32
 	fcoe_nssn = 1024
+	fcoe_nfcb = 256
+
 
 # The following function, 1023, is not an actual PCIE function but is used to
 # configure and reserve firmware internal resources that come from the global
@@ -476,6 +472,7 @@
 	pmask = all		# access to all four ports ...
 	nexactf = 8		# NPORTS + DCBX +
 	nfilter = 16		# number of filter region entries
+
 
 # For Virtual functions, we only allow NIC functionality and we only allow
 # access to one port (1 << PF).  Note that because of limitations in the
@@ -494,6 +491,7 @@
 	cmask = all		# access to all channels
 	pmask = 0x1		# access to only one port ...
 
+
 [function "1/*"]		# NVF
 	wx_caps = 0x82		# DMAQ | VF
 	r_caps = 0x86		# DMAQ | VF | PORT
@@ -504,6 +502,7 @@
 	nexactf = 4
 	cmask = all		# access to all channels
 	pmask = 0x2		# access to only one port ...
+
 
 [function "2/*"]		# NVF
 	wx_caps = 0x82		# DMAQ | VF
@@ -516,6 +515,7 @@
 	cmask = all		# access to all channels
 	pmask = 0x4		# access to only one port ...
 
+
 [function "3/*"]		# NVF
 	wx_caps = 0x82		# DMAQ | VF
 	r_caps = 0x86		# DMAQ | VF | PORT
@@ -526,6 +526,7 @@
 	nexactf = 4
 	cmask = all		# access to all channels
 	pmask = 0x8		# access to only one port ...
+
 
 # MPS features a 196608 bytes ingress buffer that is used for ingress buffering
 # for packets from the wire as well as the loopback path of the L2 switch. The
@@ -552,6 +553,7 @@
 	dcb_app_tlv[1] = 0x8914, ethertype, 3
 	dcb_app_tlv[2] = 3260, socketnum, 5
 
+
 [port "1"]
 	dcb = ppp, dcbx
 	bg_mem = 25
@@ -562,6 +564,7 @@
 	dcb_app_tlv[0] = 0x8906, ethertype, 3
 	dcb_app_tlv[1] = 0x8914, ethertype, 3
 	dcb_app_tlv[2] = 3260, socketnum, 5
+
 
 [port "2"]
 	dcb = ppp, dcbx
@@ -574,6 +577,7 @@
 	dcb_app_tlv[1] = 0x8914, ethertype, 3
 	dcb_app_tlv[2] = 3260, socketnum, 5
 
+
 [port "3"]
 	dcb = ppp, dcbx
 	bg_mem = 25
@@ -585,9 +589,10 @@
 	dcb_app_tlv[1] = 0x8914, ethertype, 3
 	dcb_app_tlv[2] = 3260, socketnum, 5
 
+
 [fini]
-	version = 0x14250016
-	checksum = 0xafaf8723
+	version = 0x1425001c
+	checksum = 0xb1c3ae38
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

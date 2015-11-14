@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <xen/features.h>
 #include <xen/xenstore/xenstorevar.h>
 
-#include <machine/xen/xenvar.h>
-
 static MALLOC_DEFINE(M_BALLOON, "Balloon", "Xen Balloon Driver");
 
 /* Convert from KB (as fetched from xenstore) to number of PAGES */
@@ -59,7 +57,7 @@ static MALLOC_DEFINE(M_BALLOON, "Balloon", "Xen Balloon Driver");
 struct mtx balloon_mutex;
 
 /* We increase/decrease in batches which fit in a page */
-static unsigned long frame_list[PAGE_SIZE / sizeof(unsigned long)];
+static xen_pfn_t frame_list[PAGE_SIZE / sizeof(xen_pfn_t)];
 
 struct balloon_stats {
 	/* We aim for 'current allocation' == 'target allocation'. */
@@ -118,11 +116,6 @@ current_target(void)
 static unsigned long
 minimum_target(void)
 {
-#ifdef XENHVM
-#define max_pfn realmem
-#else
-#define max_pfn HYPERVISOR_shared_info->arch.max_pfn
-#endif
 	unsigned long min_pages, curr_pages = current_target();
 
 #define MB2PAGES(mb) ((mb) << (20 - PAGE_SHIFT))
@@ -139,16 +132,15 @@ minimum_target(void)
 	 *   32768	1320
 	 *  131072	4392
 	 */
-	if (max_pfn < MB2PAGES(128))
-		min_pages = MB2PAGES(8) + (max_pfn >> 1);
-	else if (max_pfn < MB2PAGES(512))
-		min_pages = MB2PAGES(40) + (max_pfn >> 2);
-	else if (max_pfn < MB2PAGES(2048))
-		min_pages = MB2PAGES(104) + (max_pfn >> 3);
+	if (realmem < MB2PAGES(128))
+		min_pages = MB2PAGES(8) + (realmem >> 1);
+	else if (realmem < MB2PAGES(512))
+		min_pages = MB2PAGES(40) + (realmem >> 2);
+	else if (realmem < MB2PAGES(2048))
+		min_pages = MB2PAGES(104) + (realmem >> 3);
 	else
-		min_pages = MB2PAGES(296) + (max_pfn >> 5);
+		min_pages = MB2PAGES(296) + (realmem >> 5);
 #undef MB2PAGES
-#undef max_pfn
 
 	/* Don't enforce growth */
 	return (min(min_pages, curr_pages));
@@ -157,7 +149,7 @@ minimum_target(void)
 static int 
 increase_reservation(unsigned long nr_pages)
 {
-	unsigned long  pfn, i;
+	unsigned long  i;
 	vm_page_t      page;
 	long           rc;
 	struct xen_memory_reservation reservation = {
@@ -203,12 +195,8 @@ increase_reservation(unsigned long nr_pages)
 		TAILQ_REMOVE(&ballooned_pages, page, plinks.q);
 		bs.balloon_low--;
 
-		pfn = (VM_PAGE_TO_PHYS(page) >> PAGE_SHIFT);
-		KASSERT((xen_feature(XENFEAT_auto_translated_physmap) ||
-			!phys_to_machine_mapping_valid(pfn)),
+		KASSERT(xen_feature(XENFEAT_auto_translated_physmap),
 		    ("auto translated physmap but mapping is valid"));
-
-		set_phys_to_machine(pfn, frame_list[i]);
 
 		vm_page_free(page);
 	}
@@ -222,7 +210,7 @@ increase_reservation(unsigned long nr_pages)
 static int
 decrease_reservation(unsigned long nr_pages)
 {
-	unsigned long  pfn, i;
+	unsigned long  i;
 	vm_page_t      page;
 	int            need_sleep = 0;
 	int ret;
@@ -257,10 +245,8 @@ decrease_reservation(unsigned long nr_pages)
 			pmap_zero_page(page);
 		}
 
-		pfn = (VM_PAGE_TO_PHYS(page) >> PAGE_SHIFT);
-		frame_list[i] = PFNTOMFN(pfn);
+		frame_list[i] = (VM_PAGE_TO_PHYS(page) >> PAGE_SHIFT);
 
-		set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 		TAILQ_INSERT_HEAD(&ballooned_pages, page, plinks.q);
 		bs.balloon_low++;
 	}
@@ -393,21 +379,11 @@ static int
 xenballoon_attach(device_t dev)
 {
 	int err;
-#ifndef XENHVM
-	vm_page_t page;
-	unsigned long pfn;
-
-#define max_pfn HYPERVISOR_shared_info->arch.max_pfn
-#endif
 
 	mtx_init(&balloon_mutex, "balloon_mutex", NULL, MTX_DEF);
 
-#ifndef XENHVM
-	bs.current_pages = min(xen_start_info->nr_pages, max_pfn);
-#else
 	bs.current_pages = xen_pv_domain() ?
 	    HYPERVISOR_start_info->nr_pages : realmem;
-#endif
 	bs.target_pages  = bs.current_pages;
 	bs.balloon_low   = 0;
 	bs.balloon_high  = 0;
@@ -416,16 +392,6 @@ xenballoon_attach(device_t dev)
 
 	kproc_create(balloon_process, NULL, NULL, 0, 0, "balloon");
     
-#ifndef XENHVM
-	/* Initialise the balloon with excess memory space. */
-	for (pfn = xen_start_info->nr_pages; pfn < max_pfn; pfn++) {
-		page = PHYS_TO_VM_PAGE(pfn << PAGE_SHIFT);
-		TAILQ_INSERT_HEAD(&ballooned_pages, page, plinks.q);
-		bs.balloon_low++;
-	}
-#undef max_pfn
-#endif
-
 	target_watch.callback = watch_target;
 
 	err = xs_register_watch(&target_watch);

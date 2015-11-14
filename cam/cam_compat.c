@@ -300,7 +300,7 @@ cam_compat_translate_dev_match_0x18(union ccb *ccb)
 
 	/* Remap the CCB into kernel address space */
 	bzero(&mapinfo, sizeof(mapinfo));
-	cam_periph_mapmem(ccb, &mapinfo);
+	cam_periph_mapmem(ccb, &mapinfo, MAXPHYS);
 
 	dm = ccb->cdm.matches;
 	/* Translate in-place: old fields are smaller */

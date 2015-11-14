@@ -207,31 +207,34 @@ qca955x_chip_set_pll_ge(int unit, int speed, uint32_t pll)
 }
 
 static void
-qca955x_chip_ddr_flush_ge(int unit)
+qca955x_chip_ddr_flush(ar71xx_flush_ddr_id_t id)
 {
 
-	switch (unit) {
-	case 0:
+	switch (id) {
+	case AR71XX_CPU_DDR_FLUSH_GE0:
 		ar71xx_ddr_flush(QCA955X_DDR_REG_FLUSH_GE0);
 		break;
-	case 1:
+	case AR71XX_CPU_DDR_FLUSH_GE1:
 		ar71xx_ddr_flush(QCA955X_DDR_REG_FLUSH_GE1);
 		break;
+	case AR71XX_CPU_DDR_FLUSH_USB:
+		ar71xx_ddr_flush(QCA955X_DDR_REG_FLUSH_USB);
+		break;
+	case AR71XX_CPU_DDR_FLUSH_PCIE:
+		ar71xx_ddr_flush(QCA955X_DDR_REG_FLUSH_PCIE);
+		break;
+	case AR71XX_CPU_DDR_FLUSH_WMAC:
+		ar71xx_ddr_flush(QCA955X_DDR_REG_FLUSH_WMAC);
+		break;
+	case AR71XX_CPU_DDR_FLUSH_PCIE_EP:
+		ar71xx_ddr_flush(QCA955X_DDR_REG_FLUSH_SRC1);
+		break;
+	case AR71XX_CPU_DDR_FLUSH_CHECKSUM:
+		ar71xx_ddr_flush(QCA955X_DDR_REG_FLUSH_SRC2);
+		break;
 	default:
-		printf("%s: invalid DDR flush for arge unit: %d\n",
-		    __func__, unit);
-		return;
+		printf("%s: invalid flush (%d)\n", __func__, id);
 	}
-}
-
-/* XXX TODO: USB flush, PCIe flush, wmac flush */
-
-static void
-qca955x_chip_ddr_flush_ip2(void)
-{
-#if 0
-	ar71xx_ddr_flush(AR934X_DDR_REG_FLUSH_WMAC);
-#endif
 }
 
 static uint32_t
@@ -351,7 +354,7 @@ qca955x_chip_reset_nfc(int active)
 /*
  * Configure the GPIO output mux setup.
  *
- * The AR934x introduced an output mux which allowed
+ * The QCA955x has an output mux which allowed
  * certain functions to be configured on any pin.
  * Specifically, the switch PHY link LEDs and
  * WMAC external RX LNA switches are not limited to
@@ -360,14 +363,13 @@ qca955x_chip_reset_nfc(int active)
 static void
 qca955x_chip_gpio_output_configure(int gpio, uint8_t func)
 {
-#if 0
 	uint32_t reg, s;
 	uint32_t t;
 
 	if (gpio > QCA955X_GPIO_COUNT)
 		return;
 
-	reg = AR934X_GPIO_REG_OUT_FUNC0 + 4 * (gpio / 4);
+	reg = QCA955X_GPIO_REG_OUT_FUNC0 + 4 * (gpio / 4);
 	s = 8 * (gpio % 4);
 
 	/* read-modify-write */
@@ -378,7 +380,6 @@ qca955x_chip_gpio_output_configure(int gpio, uint8_t func)
 
 	/* flush write */
 	ATH_READ_REG(AR71XX_GPIO_BASE + reg);
-#endif
 }
 
 struct ar71xx_cpu_def qca955x_chip_def = {
@@ -390,9 +391,8 @@ struct ar71xx_cpu_def qca955x_chip_def = {
 	&qca955x_chip_set_pll_ge,
 	&qca955x_chip_set_mii_speed,
 	&qca955x_chip_set_mii_if,
-	&qca955x_chip_ddr_flush_ge,
 	&qca955x_chip_get_eth_pll,
-	&qca955x_chip_ddr_flush_ip2,
+	&qca955x_chip_ddr_flush,
 	&qca955x_chip_init_usb_peripheral,
 	&qca955x_chip_reset_ethernet_switch,
 	&qca955x_chip_reset_wmac,

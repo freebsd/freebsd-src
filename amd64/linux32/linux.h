@@ -33,20 +33,19 @@
 #ifndef _AMD64_LINUX_H_
 #define	_AMD64_LINUX_H_
 
+#include <compat/linux/linux.h>
 #include <amd64/linux32/linux32_syscall.h>
 
 /*
  * debugging support
  */
 extern u_char linux_debug_map[];
-#define	ldebug(name)	isclr(linux_debug_map, LINUX_SYS_linux_ ## name)
-#define	ARGS(nm, fmt)	"linux(%ld): "#nm"("fmt")\n", (long)td->td_proc->p_pid
-#define	LMSG(fmt)	"linux(%ld): "fmt"\n", (long)td->td_proc->p_pid
+#define	ldebug(name)	isclr(linux_debug_map, LINUX32_SYS_linux_ ## name)
+#define	ARGS(nm, fmt)	"linux(%ld/%ld): "#nm"("fmt")\n",			\
+			(long)td->td_proc->p_pid, (long)td->td_tid
+#define	LMSG(fmt)	"linux(%ld/%ld): "fmt"\n",				\
+			(long)td->td_proc->p_pid, (long)td->td_tid
 #define	LINUX_DTRACE	linuxulator32
-
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_LINUX);
-#endif
 
 #define	LINUX32_MAXUSER		((1ul << 32) - PAGE_SIZE)
 #define	LINUX32_SHAREDPAGE	(LINUX32_MAXUSER - PAGE_SIZE)
@@ -97,6 +96,7 @@ typedef l_uint		l_uid_t;
 typedef l_ushort	l_uid16_t;
 typedef l_int		l_timer_t;
 typedef l_int		l_mqd_t;
+typedef	l_ulong		l_fd_mask;
 
 typedef struct {
 	l_int		val[2];
@@ -112,7 +112,7 @@ typedef struct {
 /*
  * Miscellaneous
  */
-#define	LINUX_AT_COUNT		16	/* Count of used aux entry types.
+#define	LINUX_AT_COUNT		20	/* Count of used aux entry types.
 					 * Keep this synchronized with
 					 * elf_linux_fixup() code.
 					 */
@@ -260,49 +260,6 @@ struct l_statfs64 {
         l_int           f_spare[6];
 } __packed;
 
-/*
- * Signalling
- */
-#define	LINUX_SIGHUP		1
-#define	LINUX_SIGINT		2
-#define	LINUX_SIGQUIT		3
-#define	LINUX_SIGILL		4
-#define	LINUX_SIGTRAP		5
-#define	LINUX_SIGABRT		6
-#define	LINUX_SIGIOT		LINUX_SIGABRT
-#define	LINUX_SIGBUS		7
-#define	LINUX_SIGFPE		8
-#define	LINUX_SIGKILL		9
-#define	LINUX_SIGUSR1		10
-#define	LINUX_SIGSEGV		11
-#define	LINUX_SIGUSR2		12
-#define	LINUX_SIGPIPE		13
-#define	LINUX_SIGALRM		14
-#define	LINUX_SIGTERM		15
-#define	LINUX_SIGSTKFLT		16
-#define	LINUX_SIGCHLD		17
-#define	LINUX_SIGCONT		18
-#define	LINUX_SIGSTOP		19
-#define	LINUX_SIGTSTP		20
-#define	LINUX_SIGTTIN		21
-#define	LINUX_SIGTTOU		22
-#define	LINUX_SIGURG		23
-#define	LINUX_SIGXCPU		24
-#define	LINUX_SIGXFSZ		25
-#define	LINUX_SIGVTALRM		26
-#define	LINUX_SIGPROF		27
-#define	LINUX_SIGWINCH		28
-#define	LINUX_SIGIO		29
-#define	LINUX_SIGPOLL		LINUX_SIGIO
-#define	LINUX_SIGPWR		30
-#define	LINUX_SIGSYS		31
-#define	LINUX_SIGRTMIN		32
-
-#define	LINUX_SIGTBLSZ		31
-#define	LINUX_NSIG_WORDS	2
-#define	LINUX_NBPW		32
-#define	LINUX_NSIG		(LINUX_NBPW * LINUX_NSIG_WORDS)
-
 /* sigaction flags */
 #define	LINUX_SA_NOCLDSTOP	0x00000001
 #define	LINUX_SA_NOCLDWAIT	0x00000002
@@ -319,25 +276,11 @@ struct l_statfs64 {
 #define	LINUX_SIG_UNBLOCK	1
 #define	LINUX_SIG_SETMASK	2
 
-/* sigset_t macros */
-#define	LINUX_SIGEMPTYSET(set)		(set).__bits[0] = (set).__bits[1] = 0
-#define	LINUX_SIGISMEMBER(set, sig)	SIGISMEMBER(set, sig)
-#define	LINUX_SIGADDSET(set, sig)	SIGADDSET(set, sig)
-
 /* sigaltstack */
 #define	LINUX_MINSIGSTKSZ	2048
-#define	LINUX_SS_ONSTACK	1
-#define	LINUX_SS_DISABLE	2
-
-int linux_to_bsd_sigaltstack(int lsa);
-int bsd_to_linux_sigaltstack(int bsa);
 
 typedef l_uintptr_t l_handler_t;
 typedef l_ulong	l_osigset_t;
-
-typedef struct {
-	l_uint	__bits[LINUX_NSIG_WORDS];
-} __packed l_sigset_t;
 
 typedef struct {
 	l_handler_t	lsa_handler;
@@ -508,7 +451,7 @@ struct l_sigframe {
 	l_int			sf_sig;
 	struct l_sigcontext	sf_sc;
 	struct l_fpstate	sf_fpstate;
-	l_uint			sf_extramask[LINUX_NSIG_WORDS-1];
+	l_uint			sf_extramask[1];
 	l_handler_t		sf_handler;
 } __packed;
 
@@ -521,49 +464,12 @@ struct l_rt_sigframe {
 	l_handler_t 		sf_handler;
 } __packed;
 
-extern struct sysentvec elf_linux_sysvec;
-
 /*
- * open/fcntl flags
+ * arch specific open/fcntl flags
  */
-#define	LINUX_O_RDONLY		00000000
-#define	LINUX_O_WRONLY		00000001
-#define	LINUX_O_RDWR		00000002
-#define	LINUX_O_ACCMODE		00000003
-#define	LINUX_O_CREAT		00000100
-#define	LINUX_O_EXCL		00000200
-#define	LINUX_O_NOCTTY		00000400
-#define	LINUX_O_TRUNC		00001000
-#define	LINUX_O_APPEND		00002000
-#define	LINUX_O_NONBLOCK	00004000
-#define	LINUX_O_NDELAY		LINUX_O_NONBLOCK
-#define	LINUX_O_SYNC		00010000
-#define	LINUX_FASYNC		00020000
-#define	LINUX_O_DIRECT		00040000	/* Direct disk access hint */
-#define	LINUX_O_LARGEFILE	00100000
-#define	LINUX_O_DIRECTORY	00200000	/* Must be a directory */
-#define	LINUX_O_NOFOLLOW	00400000	/* Do not follow links */
-#define	LINUX_O_NOATIME		01000000
-#define	LINUX_O_CLOEXEC		02000000
-
-#define	LINUX_F_DUPFD		0
-#define	LINUX_F_GETFD		1
-#define	LINUX_F_SETFD		2
-#define	LINUX_F_GETFL		3
-#define	LINUX_F_SETFL		4
-#define	LINUX_F_GETLK		5
-#define	LINUX_F_SETLK		6
-#define	LINUX_F_SETLKW		7
-#define	LINUX_F_SETOWN		8
-#define	LINUX_F_GETOWN		9
-
 #define	LINUX_F_GETLK64		12
 #define	LINUX_F_SETLK64		13
 #define	LINUX_F_SETLKW64	14
-
-#define	LINUX_F_RDLCK		0
-#define	LINUX_F_WRLCK		1
-#define	LINUX_F_UNLCK		2
 
 union l_semun {
 	l_int		val;
@@ -572,6 +478,16 @@ union l_semun {
 	l_uintptr_t	__buf;
 	l_uintptr_t	__pad;
 } __packed;
+
+struct l_ipc_perm {
+	l_key_t		key;
+	l_uid16_t	uid;
+	l_gid16_t	gid;
+	l_uid16_t	cuid;
+	l_gid16_t	cgid;
+	l_ushort	mode;
+	l_ushort	seq;
+};
 
 /*
  * Socket defines
@@ -608,22 +524,6 @@ struct l_sockaddr {
 	l_ushort	sa_family;
 	char		sa_data[14];
 } __packed;
-
-struct l_msghdr {
-	l_uintptr_t	msg_name;
-	l_int		msg_namelen;
-	l_uintptr_t	msg_iov;
-	l_size_t	msg_iovlen;
-	l_uintptr_t	msg_control;
-	l_size_t	msg_controllen;
-	l_uint		msg_flags;
-};
-
-struct l_cmsghdr {
-	l_size_t	cmsg_len;
-	l_int		cmsg_level;
-	l_int		cmsg_type;
-};
 
 struct l_ifmap {
 	l_ulong		mem_start;
@@ -778,6 +678,7 @@ struct l_iovec32 {
 
 int linux32_copyiniov(struct l_iovec32 *iovp32, l_ulong iovcnt,
 			    struct iovec **iovp, int error);
+int linux_copyout_rusage(struct rusage *ru, void *uaddr);
 
 /* robust futexes */
 struct linux_robust_list {

@@ -43,15 +43,17 @@
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/include/acapps.h>
+#include <contrib/dev/acpica/compiler/dtcompiler.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslfiles")
 
 /* Local prototypes */
 
-FILE *
+static FILE *
 FlOpenIncludeWithPrefix (
     char                    *PrefixDir,
+    ACPI_PARSE_OBJECT       *Op,
     char                    *Filename);
 
 
@@ -83,7 +85,6 @@ FlSetLineNumber (
          LineNumber, Gbl_LogicalLineNumber);
 
     Gbl_CurrentLineNumber = LineNumber;
-    Gbl_LogicalLineNumber = LineNumber;
 }
 
 
@@ -294,13 +295,15 @@ ConvertBackslashes:
  *
  ******************************************************************************/
 
-FILE *
+static FILE *
 FlOpenIncludeWithPrefix (
     char                    *PrefixDir,
+    ACPI_PARSE_OBJECT       *Op,
     char                    *Filename)
 {
     FILE                    *IncludeFile;
     char                    *Pathname;
+    UINT32                  OriginalLineNumber;
 
 
     /* Build the full pathname to the file */
@@ -319,6 +322,33 @@ FlOpenIncludeWithPrefix (
         ACPI_FREE (Pathname);
         return (NULL);
     }
+
+    /*
+     * Check the entire include file for any # preprocessor directives.
+     * This is because there may be some confusion between the #include
+     * preprocessor directive and the ASL Include statement. A file included
+     * by the ASL include cannot contain preprocessor directives because
+     * the preprocessor has already run by the time the ASL include is
+     * recognized (by the compiler, not the preprocessor.)
+     *
+     * Note: DtGetNextLine strips/ignores comments.
+     * Save current line number since DtGetNextLine modifies it.
+     */
+    Gbl_CurrentLineNumber--;
+    OriginalLineNumber = Gbl_CurrentLineNumber;
+    while (DtGetNextLine (IncludeFile, DT_ALLOW_MULTILINE_QUOTES) != ASL_EOF)
+    {
+        if (Gbl_CurrentLineBuffer[0] == '#')
+        {
+            AslError (ASL_ERROR, ASL_MSG_INCLUDE_FILE,
+                Op, "use #include instead");
+        }
+    }
+    Gbl_CurrentLineNumber = OriginalLineNumber;
+
+    /* Must seek back to the start of the file */
+
+    fseek (IncludeFile, 0, SEEK_SET);
 
     /* Push the include file on the open input file stack */
 
@@ -376,7 +406,7 @@ FlOpenIncludeFile (
         (Op->Asl.Value.String[0] == '\\') ||
         (Op->Asl.Value.String[1] == ':'))
     {
-        IncludeFile = FlOpenIncludeWithPrefix ("", Op->Asl.Value.String);
+        IncludeFile = FlOpenIncludeWithPrefix ("", Op, Op->Asl.Value.String);
         if (!IncludeFile)
         {
             goto ErrorExit;
@@ -392,7 +422,7 @@ FlOpenIncludeFile (
      *
      * Construct the file pathname from the global directory name.
      */
-    IncludeFile = FlOpenIncludeWithPrefix (Gbl_DirectoryPath, Op->Asl.Value.String);
+    IncludeFile = FlOpenIncludeWithPrefix (Gbl_DirectoryPath, Op, Op->Asl.Value.String);
     if (IncludeFile)
     {
         return;
@@ -405,7 +435,7 @@ FlOpenIncludeFile (
     NextDir = Gbl_IncludeDirList;
     while (NextDir)
     {
-        IncludeFile = FlOpenIncludeWithPrefix (NextDir->Dir, Op->Asl.Value.String);
+        IncludeFile = FlOpenIncludeWithPrefix (NextDir->Dir, Op, Op->Asl.Value.String);
         if (IncludeFile)
         {
             return;
@@ -516,6 +546,26 @@ FlOpenMiscOutputFiles (
     char                    *Filename;
 
 
+     /* Create/Open a map file if requested */
+
+    if (Gbl_MapfileFlag)
+    {
+        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_MAP);
+        if (!Filename)
+        {
+            AslCommonError (ASL_ERROR, ASL_MSG_LISTING_FILENAME,
+                0, 0, 0, 0, NULL, NULL);
+            return (AE_ERROR);
+        }
+
+        /* Open the hex file, text mode (closed at compiler exit) */
+
+        FlOpenFile (ASL_FILE_MAP_OUTPUT, Filename, "w+t");
+
+        AslCompilerSignon (ASL_FILE_MAP_OUTPUT);
+        AslCompilerFileHeader (ASL_FILE_MAP_OUTPUT);
+    }
+
     /* All done for disassembler */
 
     if (Gbl_FileType == ASL_INPUT_TYPE_ACPI_TABLE)
@@ -557,8 +607,6 @@ FlOpenMiscOutputFiles (
 
         /* Open the debug file as STDERR, text mode */
 
-        /* TBD: hide this behind a FlReopenFile function */
-
         Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Filename = Filename;
         Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Handle =
             freopen (Filename, "w+t", stderr);
@@ -566,13 +614,15 @@ FlOpenMiscOutputFiles (
         if (!Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Handle)
         {
             /*
-             * A problem with freopen is that on error,
-             * we no longer have stderr.
+             * A problem with freopen is that on error, we no longer
+             * have stderr and cannot emit normal error messages.
+             * Emit error to stdout, close files, and exit.
              */
-            Gbl_DebugFlag = FALSE;
-            memcpy (stderr, stdout, sizeof (FILE));
-            FlFileError (ASL_FILE_DEBUG_OUTPUT, ASL_MSG_DEBUG_FILENAME);
-            AslAbort ();
+            fprintf (stdout,
+                "\nCould not open debug output file: %s\n\n", Filename);
+
+            CmCleanupAndExit ();
+            exit (1);
         }
 
         AslCompilerSignon (ASL_FILE_DEBUG_OUTPUT);
@@ -599,7 +649,7 @@ FlOpenMiscOutputFiles (
         AslCompilerFileHeader (ASL_FILE_LISTING_OUTPUT);
     }
 
-    /* Create the preprocessor output file if preprocessor enabled */
+    /* Create the preprocessor output temp file if preprocessor enabled */
 
     if (Gbl_PreprocessFlag)
     {
@@ -612,6 +662,23 @@ FlOpenMiscOutputFiles (
         }
 
         FlOpenFile (ASL_FILE_PREPROCESSOR, Filename, "w+t");
+    }
+
+    /*
+     * Create the "user" preprocessor output file if -li flag set.
+     * Note, this file contains no embedded #line directives.
+     */
+    if (Gbl_PreprocessorOutputFlag)
+    {
+        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_PREPROC_USER);
+        if (!Filename)
+        {
+            AslCommonError (ASL_ERROR, ASL_MSG_PREPROCESSOR_FILENAME,
+                0, 0, 0, 0, NULL, NULL);
+            return (AE_ERROR);
+        }
+
+        FlOpenFile (ASL_FILE_PREPROCESSOR_USER, Filename, "w+t");
     }
 
     /* All done for data table compiler */
@@ -763,26 +830,6 @@ FlOpenMiscOutputFiles (
 
         AslCompilerSignon (ASL_FILE_NAMESPACE_OUTPUT);
         AslCompilerFileHeader (ASL_FILE_NAMESPACE_OUTPUT);
-    }
-
-    /* Create/Open a map file if requested */
-
-    if (Gbl_MapfileFlag)
-    {
-        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_MAP);
-        if (!Filename)
-        {
-            AslCommonError (ASL_ERROR, ASL_MSG_LISTING_FILENAME,
-                0, 0, 0, 0, NULL, NULL);
-            return (AE_ERROR);
-        }
-
-        /* Open the hex file, text mode (closed at compiler exit) */
-
-        FlOpenFile (ASL_FILE_MAP_OUTPUT, Filename, "w+t");
-
-        AslCompilerSignon (ASL_FILE_MAP_OUTPUT);
-        AslCompilerFileHeader (ASL_FILE_MAP_OUTPUT);
     }
 
     return (AE_OK);

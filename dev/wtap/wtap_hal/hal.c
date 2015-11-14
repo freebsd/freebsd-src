@@ -182,6 +182,8 @@ new_wtap(struct wtap_hal *hal, int32_t id)
 	bzero(hal->hal_devs[id], sizeof(struct wtap_softc));
 	hal->hal_devs[id]->sc_md = hal->hal_md;
 	hal->hal_devs[id]->id = id;
+	snprintf(hal->hal_devs[id]->name, sizeof(hal->hal_devs[id]->name),
+	    "wlan%d", id);
 	mtx_init(&hal->hal_devs[id]->sc_mtx, "wtap_softc mtx", NULL,
 	    MTX_DEF | MTX_RECURSE);
 

@@ -586,9 +586,13 @@ struct iwn_rxon {
 #define IWN_RXON_ANTENNA_B	(1 <<  9)
 #define IWN_RXON_TSF		(1 << 15)
 #define IWN_RXON_HT_HT40MINUS	(1 << 22)
+
 #define IWN_RXON_HT_PROTMODE(x)	(x << 23)
+
+/* 0=legacy, 1=pure40, 2=mixed */
 #define IWN_RXON_HT_MODEPURE40	(1 << 25)
 #define IWN_RXON_HT_MODEMIXED	(2 << 25)
+
 #define IWN_RXON_CTS_TO_SELF	(1 << 30)
 
 	uint32_t	filter;

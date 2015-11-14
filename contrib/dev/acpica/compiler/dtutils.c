@@ -241,7 +241,7 @@ DtStrtoul64 (
 
     while (*ThisChar)
     {
-        if (ACPI_IS_DIGIT (*ThisChar))
+        if (isdigit ((int) *ThisChar))
         {
             /* Convert ASCII 0-9 to Decimal value */
 
@@ -249,8 +249,8 @@ DtStrtoul64 (
         }
         else /* Letter */
         {
-            ThisDigit = (UINT32) ACPI_TOUPPER (*ThisChar);
-            if (!ACPI_IS_XDIGIT ((char) ThisDigit))
+            ThisDigit = (UINT32) toupper ((int) *ThisChar);
+            if (!isxdigit ((int) ThisDigit))
             {
                 /* Not A-F */
 
@@ -364,6 +364,7 @@ DtGetFieldType (
         break;
 
     case ACPI_DMT_BUFFER:
+    case ACPI_DMT_RAW_BUFFER:
     case ACPI_DMT_BUF7:
     case ACPI_DMT_BUF10:
     case ACPI_DMT_BUF16:
@@ -375,6 +376,7 @@ DtGetFieldType (
 
     case ACPI_DMT_GAS:
     case ACPI_DMT_HESTNTFY:
+    case ACPI_DMT_IORTMEM:
 
         Type = DT_FIELD_TYPE_INLINE_SUBTABLE;
         break;
@@ -519,6 +521,7 @@ DtGetFieldLength (
     case ACPI_DMT_UINT16:
     case ACPI_DMT_DMAR:
     case ACPI_DMT_HEST:
+    case ACPI_DMT_NFIT:
     case ACPI_DMT_PCI_PATH:
 
         ByteLength = 2;
@@ -531,7 +534,6 @@ DtGetFieldLength (
 
     case ACPI_DMT_UINT32:
     case ACPI_DMT_NAME4:
-    case ACPI_DMT_SLIC:
     case ACPI_DMT_SIG:
     case ACPI_DMT_LPIT:
 
@@ -566,7 +568,7 @@ DtGetFieldLength (
         Value = DtGetFieldValue (Field);
         if (Value)
         {
-            ByteLength = ACPI_STRLEN (Value) + 1;
+            ByteLength = strlen (Value) + 1;
         }
         else
         {   /* At this point, this is a fatal error */
@@ -587,7 +589,13 @@ DtGetFieldLength (
         ByteLength = sizeof (ACPI_HEST_NOTIFY);
         break;
 
+    case ACPI_DMT_IORTMEM:
+
+        ByteLength = sizeof (ACPI_IORT_MEMORY_ACCESS);
+        break;
+
     case ACPI_DMT_BUFFER:
+    case ACPI_DMT_RAW_BUFFER:
 
         Value = DtGetFieldValue (Field);
         if (Value)
@@ -625,7 +633,7 @@ DtGetFieldLength (
 
         /* TBD: error if Value is NULL? (as below?) */
 
-        ByteLength = (ACPI_STRLEN (Value) + 1) * sizeof(UINT16);
+        ByteLength = (strlen (Value) + 1) * sizeof(UINT16);
         break;
 
     default:

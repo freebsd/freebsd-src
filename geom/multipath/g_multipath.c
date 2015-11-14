@@ -369,9 +369,9 @@ g_multipath_done(struct bio *bp)
 		mtx_lock(&sc->sc_mtx);
 		(*cnt)--;
 		if (*cnt == 0 && (cp->index & MP_LOST)) {
-			cp->index |= MP_POSTED;
+			if (g_post_event(g_mpd, cp, M_NOWAIT, NULL) == 0)
+				cp->index |= MP_POSTED;
 			mtx_unlock(&sc->sc_mtx);
-			g_post_event(g_mpd, cp, M_WAITOK, NULL);
 		} else
 			mtx_unlock(&sc->sc_mtx);
 		g_std_done(bp);

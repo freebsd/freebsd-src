@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2014, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -188,6 +188,7 @@ bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
 		case IXGBE_DEV_ID_X540T1:
 		case IXGBE_DEV_ID_X540_BYPASS:
 		case IXGBE_DEV_ID_X550T:
+		case IXGBE_DEV_ID_X550EM_X_10G_T:
 			supported = TRUE;
 			break;
 		default:
@@ -1090,7 +1091,7 @@ s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw)
 	msec_delay(2);
 
 	/*
-	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
+	 * Prevent the PCI-E bus from hanging by disabling PCI-E master
 	 * access and verify no pending requests
 	 */
 	return ixgbe_disable_pcie_master(hw);
@@ -3573,7 +3574,6 @@ u16 ixgbe_get_pcie_msix_count_generic(struct ixgbe_hw *hw)
 	case ixgbe_mac_X540:
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
-	case ixgbe_mac_X550EM_a:
 		pcie_offset = IXGBE_PCIE_MSIX_82599_CAPS;
 		max_msix_count = IXGBE_MAX_MSIX_VECTORS_82599;
 		break;

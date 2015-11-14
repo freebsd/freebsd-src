@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_route.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -82,6 +83,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/rmlock.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
@@ -90,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/netisr.h>
+#include <net/rss_config.h>
 #include <net/pfil.h>
 #include <net/vnet.h>
 
@@ -110,6 +114,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/nd6.h>
+#include <netinet6/in6_rss.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -130,8 +135,25 @@ static struct netisr_handler ip6_nh = {
 	.nh_name = "ip6",
 	.nh_handler = ip6_input,
 	.nh_proto = NETISR_IPV6,
+#ifdef RSS
+	.nh_m2cpuid = rss_soft_m2cpuid_v6,
+	.nh_policy = NETISR_POLICY_CPU,
+	.nh_dispatch = NETISR_DISPATCH_HYBRID,
+#else
 	.nh_policy = NETISR_POLICY_FLOW,
+#endif
 };
+
+#ifdef RSS
+static struct netisr_handler ip6_direct_nh = {
+	.nh_name = "ip6_direct",
+	.nh_handler = ip6_direct_input,
+	.nh_proto = NETISR_IPV6_DIRECT,
+	.nh_m2cpuid = rss_soft_m2cpuid_v6,
+	.nh_policy = NETISR_POLICY_CPU,
+	.nh_dispatch = NETISR_DISPATCH_HYBRID,
+};
+#endif
 
 VNET_DECLARE(struct callout, in6_tmpaddrtimer_ch);
 #define	V_in6_tmpaddrtimer_ch		VNET(in6_tmpaddrtimer_ch)
@@ -144,8 +166,8 @@ VNET_PCPUSTAT_SYSINIT(ip6stat);
 VNET_PCPUSTAT_SYSUNINIT(ip6stat);
 #endif /* VIMAGE */
 
-struct rwlock in6_ifaddr_lock;
-RW_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
+struct rmlock in6_ifaddr_lock;
+RM_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
 
 static void ip6_init2(void *);
 static int ip6_hopopts_input(u_int32_t *, u_int32_t *, struct mbuf **, int *);
@@ -211,6 +233,9 @@ ip6_init(void)
 		}
 
 	netisr_register(&ip6_nh);
+#ifdef RSS
+	netisr_register(&ip6_direct_nh);
+#endif
 }
 
 /*
@@ -391,6 +416,66 @@ ip6_input_hbh(struct mbuf *m, uint32_t *plen, uint32_t *rtalert, int *off,
 out:
 	return (1);
 }
+
+#ifdef RSS
+/*
+ * IPv6 direct input routine.
+ *
+ * This is called when reinjecting completed fragments where
+ * all of the previous checking and book-keeping has been done.
+ */
+void
+ip6_direct_input(struct mbuf *m)
+{
+	int off, nxt;
+	int nest;
+	struct m_tag *mtag;
+	struct ip6_direct_ctx *ip6dc;
+
+	mtag = m_tag_locate(m, MTAG_ABI_IPV6, IPV6_TAG_DIRECT, NULL);
+	KASSERT(mtag != NULL, ("Reinjected packet w/o direct ctx tag!"));
+
+	ip6dc = (struct ip6_direct_ctx *)(mtag + 1);
+	nxt = ip6dc->ip6dc_nxt;
+	off = ip6dc->ip6dc_off;
+
+	nest = 0;
+
+	m_tag_delete(m, mtag);
+
+	while (nxt != IPPROTO_DONE) {
+		if (V_ip6_hdrnestlimit && (++nest > V_ip6_hdrnestlimit)) {
+			IP6STAT_INC(ip6s_toomanyhdr);
+			goto bad;
+		}
+
+		/*
+		 * protection against faulty packet - there should be
+		 * more sanity checks in header chain processing.
+		 */
+		if (m->m_pkthdr.len < off) {
+			IP6STAT_INC(ip6s_tooshort);
+			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_truncated);
+			goto bad;
+		}
+
+#ifdef IPSEC
+		/*
+		 * enforce IPsec policy checking if we are seeing last header.
+		 * note that we do not visit this with protocols with pcb layer
+		 * code - like udp/tcp/raw ip.
+		 */
+		if (ip6_ipsec_input(m, nxt))
+			goto bad;
+#endif /* IPSEC */
+
+		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
+	}
+	return;
+bad:
+	m_freem(m);
+}
+#endif
 
 void
 ip6_input(struct mbuf *m)
@@ -702,6 +787,13 @@ passin:
 		nxt = ip6->ip6_nxt;
 
 	/*
+	 * Use mbuf flags to propagate Router Alert option to
+	 * ICMPv6 layer, as hop-by-hop options have been stripped.
+	 */
+	if (rtalert != ~0)
+		m->m_flags |= M_RTALERT_MLD;
+
+	/*
 	 * Check that the amount of data in the buffers
 	 * is as at least much as the IPv6 header would have us expect.
 	 * Trim mbufs if longer than we expect.
@@ -797,13 +889,6 @@ passin:
 		if (ip6_ipsec_input(m, nxt))
 			goto bad;
 #endif /* IPSEC */
-
-		/*
-		 * Use mbuf flags to propagate Router Alert option to
-		 * ICMPv6 layer, as hop-by-hop options have been stripped.
-		 */
-		if (nxt == IPPROTO_ICMPV6 && rtalert != ~0)
-			m->m_flags |= M_RTALERT_MLD;
 
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
 	}
@@ -1339,6 +1424,44 @@ ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
 	  loopend:
 		;
 	}
+
+	if (in6p->inp_flags2 & INP_RECVFLOWID) {
+		uint32_t flowid, flow_type;
+
+		flowid = m->m_pkthdr.flowid;
+		flow_type = M_HASHTYPE_GET(m);
+
+		/*
+		 * XXX should handle the failure of one or the
+		 * other - don't populate both?
+		 */
+		*mp = sbcreatecontrol((caddr_t) &flowid,
+		    sizeof(uint32_t), IPV6_FLOWID, IPPROTO_IPV6);
+		if (*mp)
+			mp = &(*mp)->m_next;
+		*mp = sbcreatecontrol((caddr_t) &flow_type,
+		    sizeof(uint32_t), IPV6_FLOWTYPE, IPPROTO_IPV6);
+		if (*mp)
+			mp = &(*mp)->m_next;
+	}
+
+#ifdef	RSS
+	if (in6p->inp_flags2 & INP_RECVRSSBUCKETID) {
+		uint32_t flowid, flow_type;
+		uint32_t rss_bucketid;
+
+		flowid = m->m_pkthdr.flowid;
+		flow_type = M_HASHTYPE_GET(m);
+
+		if (rss_hash2bucket(flowid, flow_type, &rss_bucketid) == 0) {
+			*mp = sbcreatecontrol((caddr_t) &rss_bucketid,
+			   sizeof(uint32_t), IPV6_RSSBUCKETID, IPPROTO_IPV6);
+			if (*mp)
+				mp = &(*mp)->m_next;
+		}
+	}
+#endif
+
 }
 #undef IS2292
 
@@ -1438,7 +1561,7 @@ ip6_pullexthdr(struct mbuf *m, size_t off, int nxt)
  * we develop `neater' mechanism to process extension headers.
  */
 char *
-ip6_get_prevhdr(struct mbuf *m, int off)
+ip6_get_prevhdr(const struct mbuf *m, int off)
 {
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 
@@ -1477,7 +1600,7 @@ ip6_get_prevhdr(struct mbuf *m, int off)
  * get next header offset.  m will be retained.
  */
 int
-ip6_nexthdr(struct mbuf *m, int off, int proto, int *nxtp)
+ip6_nexthdr(const struct mbuf *m, int off, int proto, int *nxtp)
 {
 	struct ip6_hdr ip6;
 	struct ip6_ext ip6e;
@@ -1545,14 +1668,14 @@ ip6_nexthdr(struct mbuf *m, int off, int proto, int *nxtp)
 		return -1;
 	}
 
-	return -1;
+	/* NOTREACHED */
 }
 
 /*
  * get offset for the last header in the chain.  m will be kept untainted.
  */
 int
-ip6_lasthdr(struct mbuf *m, int off, int proto, int *nxtp)
+ip6_lasthdr(const struct mbuf *m, int off, int proto, int *nxtp)
 {
 	int newoff;
 	int nxt;

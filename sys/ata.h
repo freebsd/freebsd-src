@@ -335,6 +335,7 @@ struct ata_params {
 #define ATA_UDMA6               0x46
 #define ATA_SA150               0x47
 #define ATA_SA300               0x48
+#define ATA_SA600               0x49
 #define ATA_DMA_MAX             0x4f
 
 
@@ -398,6 +399,7 @@ struct ata_params {
 #define ATA_IDLE_CMD                    0xe3    /* idle */
 #define ATA_READ_BUFFER                 0xe4    /* read buffer */
 #define ATA_READ_PM                     0xe4    /* read portmultiplier */
+#define ATA_CHECK_POWER_MODE            0xe5    /* device power mode */
 #define ATA_SLEEP                       0xe6    /* sleep */
 #define ATA_FLUSHCACHE                  0xe7    /* flush cache to disk */
 #define ATA_WRITE_PM                    0xe8    /* write portmultiplier */

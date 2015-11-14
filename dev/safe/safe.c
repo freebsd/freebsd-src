@@ -211,7 +211,8 @@ safe_partname(struct safe_softc *sc)
 static void
 default_harvest(struct rndtest_state *rsp, void *buf, u_int count)
 {
-	random_harvest(buf, count, count*NBBY/2, RANDOM_PURE_SAFE);
+	/* MarkM: FIX!! Check that this does not swamp the harvester! */
+	random_harvest_queue(buf, count, count*NBBY/2, RANDOM_PURE_SAFE);
 }
 #endif /* SAFE_NO_RNG */
 
@@ -425,7 +426,7 @@ safe_attach(device_t dev)
 #endif
 		safe_rng_init(sc);
 
-		callout_init(&sc->sc_rngto, CALLOUT_MPSAFE);
+		callout_init(&sc->sc_rngto, 1);
 		callout_reset(&sc->sc_rngto, hz*safe_rnginterval, safe_rng, sc);
 	}
 #endif /* SAFE_NO_RNG */

@@ -187,7 +187,7 @@ xlr_i2c_attach(device_t dev)
 		return -1;
 	}
 	if(xlr_board_info.xlr_i2c_device[I2C_RTC].enabled == 1) {
-		tmpd = device_add_child(sc->iicbus, "ds1374u", 0);
+		tmpd = device_add_child(sc->iicbus, "ds1374_rtc", 0);
 		device_set_ivars(tmpd, &xlr_board_info.xlr_i2c_device[I2C_RTC]);
 	}
 	if(xlr_board_info.xlr_i2c_device[I2C_THERMAL].enabled == 1) {

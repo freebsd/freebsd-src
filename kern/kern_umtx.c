@@ -793,7 +793,7 @@ umtxq_sleep(struct umtx_q *uq, const char *wmesg, struct abs_timeout *abstime)
  * Convert userspace address into unique logical address.
  */
 int
-umtx_key_get(void *addr, int type, int share, struct umtx_key *key)
+umtx_key_get(const void *addr, int type, int share, struct umtx_key *key)
 {
 	struct thread *td = curthread;
 	vm_map_t map;
@@ -813,15 +813,15 @@ umtx_key_get(void *addr, int type, int share, struct umtx_key *key)
 		if (vm_map_lookup(&map, (vm_offset_t)addr, VM_PROT_WRITE,
 		    &entry, &key->info.shared.object, &pindex, &prot,
 		    &wired) != KERN_SUCCESS) {
-			return EFAULT;
+			return (EFAULT);
 		}
 
 		if ((share == PROCESS_SHARE) ||
 		    (share == AUTO_SHARE &&
 		     VM_INHERIT_SHARE == entry->inheritance)) {
 			key->shared = 1;
-			key->info.shared.offset = entry->offset + entry->start -
-				(vm_offset_t)addr;
+			key->info.shared.offset = (vm_offset_t)addr -
+			    entry->start + entry->offset;
 			vm_object_reference(key->info.shared.object);
 		} else {
 			key->shared = 0;
@@ -912,7 +912,7 @@ kern_umtx_wake(struct thread *td, void *uaddr, int n_wake, int is_private)
 		is_private ? THREAD_SHARE : AUTO_SHARE, &key)) != 0)
 		return (ret);
 	umtxq_lock(&key);
-	ret = umtxq_signal(&key, n_wake);
+	umtxq_signal(&key, n_wake);
 	umtxq_unlock(&key);
 	umtx_key_release(&key);
 	return (0);
@@ -1163,7 +1163,7 @@ do_wake2_umutex(struct thread *td, struct umutex *m, uint32_t flags)
 	int error;
 	int count;
 
-	switch(flags & (UMUTEX_PRIO_INHERIT | UMUTEX_PRIO_PROTECT)) {
+	switch (flags & (UMUTEX_PRIO_INHERIT | UMUTEX_PRIO_PROTECT)) {
 	case 0:
 		type = TYPE_NORMAL_UMUTEX;
 		break;
@@ -1440,7 +1440,7 @@ umtx_pi_setowner(struct umtx_pi *pi, struct thread *owner)
 	uq_owner = owner->td_umtxq;
 	mtx_assert(&umtx_lock, MA_OWNED);
 	if (pi->pi_owner != NULL)
-		panic("pi_ower != NULL");
+		panic("pi_owner != NULL");
 	pi->pi_owner = owner;
 	TAILQ_INSERT_TAIL(&uq_owner->uq_pi_contested, pi, pi_link);
 }
@@ -1464,9 +1464,8 @@ umtx_pi_disown(struct umtx_pi *pi)
 static int
 umtx_pi_claim(struct umtx_pi *pi, struct thread *owner)
 {
-	struct umtx_q *uq, *uq_owner;
+	struct umtx_q *uq;
 
-	uq_owner = owner->td_umtxq;
 	mtx_lock(&umtx_lock);
 	if (pi->pi_owner == owner) {
 		mtx_unlock(&umtx_lock);
@@ -1612,11 +1611,8 @@ umtx_pi_unref(struct umtx_pi *pi)
 	KASSERT(pi->pi_refcount > 0, ("invalid reference count"));
 	if (--pi->pi_refcount == 0) {
 		mtx_lock(&umtx_lock);
-		if (pi->pi_owner != NULL) {
-			TAILQ_REMOVE(&pi->pi_owner->td_umtxq->uq_pi_contested,
-				pi, pi_link);
-			pi->pi_owner = NULL;
-		}
+		if (pi->pi_owner != NULL)
+			umtx_pi_disown(pi);
 		KASSERT(TAILQ_EMPTY(&pi->pi_blocked),
 			("blocked queue not empty"));
 		mtx_unlock(&umtx_lock);
@@ -1876,7 +1872,7 @@ do_unlock_pi(struct thread *td, struct umutex *m, uint32_t flags)
 		mtx_lock(&umtx_lock);
 		pi = uq_first->uq_pi_blocked;
 		KASSERT(pi != NULL, ("pi == NULL?"));
-		if (pi->pi_owner != curthread) {
+		if (pi->pi_owner != td) {
 			mtx_unlock(&umtx_lock);
 			umtxq_unbusy(&key);
 			umtxq_unlock(&key);
@@ -1884,7 +1880,7 @@ do_unlock_pi(struct thread *td, struct umutex *m, uint32_t flags)
 			/* userland messed the mutex */
 			return (EPERM);
 		}
-		uq_me = curthread->td_umtxq;
+		uq_me = td->td_umtxq;
 		umtx_pi_disown(pi);
 		/* get highest priority thread which is still sleeping. */
 		uq_first = TAILQ_FIRST(&pi->pi_blocked);
@@ -1900,9 +1896,9 @@ do_unlock_pi(struct thread *td, struct umutex *m, uint32_t flags)
 					pri = UPRI(uq_first2->uq_thread);
 			}
 		}
-		thread_lock(curthread);
-		sched_lend_user_prio(curthread, pri);
-		thread_unlock(curthread);
+		thread_lock(td);
+		sched_lend_user_prio(td, pri);
+		thread_unlock(td);
 		mtx_unlock(&umtx_lock);
 		if (uq_first)
 			umtxq_signal_thread(uq_first);
@@ -3406,14 +3402,16 @@ __umtx_op_sem_wait(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_sem_wake(struct thread *td, struct _umtx_op_args *uap)
 {
-	return do_sem_wake(td, uap->obj);
+
+	return (do_sem_wake(td, uap->obj));
 }
 #endif
 
 static int
 __umtx_op_wake2_umutex(struct thread *td, struct _umtx_op_args *uap)
 {
-	return do_wake2_umutex(td, uap->obj, uap->val);
+
+	return (do_wake2_umutex(td, uap->obj, uap->val));
 }
 
 static int
@@ -3438,48 +3436,50 @@ __umtx_op_sem2_wait(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_sem2_wake(struct thread *td, struct _umtx_op_args *uap)
 {
-	return do_sem2_wake(td, uap->obj);
+
+	return (do_sem2_wake(td, uap->obj));
 }
 
 typedef int (*_umtx_op_func)(struct thread *td, struct _umtx_op_args *uap);
 
-static _umtx_op_func op_table[] = {
-	__umtx_op_unimpl,		/* UMTX_OP_RESERVED0 */
-	__umtx_op_unimpl,		/* UMTX_OP_RESERVED1 */
-	__umtx_op_wait,			/* UMTX_OP_WAIT */
-	__umtx_op_wake,			/* UMTX_OP_WAKE */
-	__umtx_op_trylock_umutex,	/* UMTX_OP_MUTEX_TRYLOCK */
-	__umtx_op_lock_umutex,		/* UMTX_OP_MUTEX_LOCK */
-	__umtx_op_unlock_umutex,	/* UMTX_OP_MUTEX_UNLOCK */
-	__umtx_op_set_ceiling,		/* UMTX_OP_SET_CEILING */
-	__umtx_op_cv_wait,		/* UMTX_OP_CV_WAIT*/
-	__umtx_op_cv_signal,		/* UMTX_OP_CV_SIGNAL */
-	__umtx_op_cv_broadcast,		/* UMTX_OP_CV_BROADCAST */
-	__umtx_op_wait_uint,		/* UMTX_OP_WAIT_UINT */
-	__umtx_op_rw_rdlock,		/* UMTX_OP_RW_RDLOCK */
-	__umtx_op_rw_wrlock,		/* UMTX_OP_RW_WRLOCK */
-	__umtx_op_rw_unlock,		/* UMTX_OP_RW_UNLOCK */
-	__umtx_op_wait_uint_private,	/* UMTX_OP_WAIT_UINT_PRIVATE */
-	__umtx_op_wake_private,		/* UMTX_OP_WAKE_PRIVATE */
-	__umtx_op_wait_umutex,		/* UMTX_OP_MUTEX_WAIT */
-	__umtx_op_wake_umutex,		/* UMTX_OP_MUTEX_WAKE */
+static const _umtx_op_func op_table[] = {
+	[UMTX_OP_RESERVED0]	= __umtx_op_unimpl,
+	[UMTX_OP_RESERVED1]	= __umtx_op_unimpl,
+	[UMTX_OP_WAIT]		= __umtx_op_wait,
+	[UMTX_OP_WAKE]		= __umtx_op_wake,
+	[UMTX_OP_MUTEX_TRYLOCK]	= __umtx_op_trylock_umutex,
+	[UMTX_OP_MUTEX_LOCK]	= __umtx_op_lock_umutex,
+	[UMTX_OP_MUTEX_UNLOCK]	= __umtx_op_unlock_umutex,
+	[UMTX_OP_SET_CEILING]	= __umtx_op_set_ceiling,
+	[UMTX_OP_CV_WAIT]	= __umtx_op_cv_wait,
+	[UMTX_OP_CV_SIGNAL]	= __umtx_op_cv_signal,
+	[UMTX_OP_CV_BROADCAST]	= __umtx_op_cv_broadcast,
+	[UMTX_OP_WAIT_UINT]	= __umtx_op_wait_uint,
+	[UMTX_OP_RW_RDLOCK]	= __umtx_op_rw_rdlock,
+	[UMTX_OP_RW_WRLOCK]	= __umtx_op_rw_wrlock,
+	[UMTX_OP_RW_UNLOCK]	= __umtx_op_rw_unlock,
+	[UMTX_OP_WAIT_UINT_PRIVATE] = __umtx_op_wait_uint_private,
+	[UMTX_OP_WAKE_PRIVATE]	= __umtx_op_wake_private,
+	[UMTX_OP_MUTEX_WAIT]	= __umtx_op_wait_umutex,
+	[UMTX_OP_MUTEX_WAKE]	= __umtx_op_wake_umutex,
 #if defined(COMPAT_FREEBSD9) || defined(COMPAT_FREEBSD10)
-	__umtx_op_sem_wait,		/* UMTX_OP_SEM_WAIT */
-	__umtx_op_sem_wake,		/* UMTX_OP_SEM_WAKE */
+	[UMTX_OP_SEM_WAIT]	= __umtx_op_sem_wait,
+	[UMTX_OP_SEM_WAKE]	= __umtx_op_sem_wake,
 #else
-	__umtx_op_unimpl,		/* UMTX_OP_SEM_WAIT */
-	__umtx_op_unimpl,		/* UMTX_OP_SEM_WAKE */
+	[UMTX_OP_SEM_WAIT]	= __umtx_op_unimpl,
+	[UMTX_OP_SEM_WAKE]	= __umtx_op_unimpl,
 #endif
-	__umtx_op_nwake_private,	/* UMTX_OP_NWAKE_PRIVATE */
-	__umtx_op_wake2_umutex,		/* UMTX_OP_MUTEX_WAKE2 */
-	__umtx_op_sem2_wait,		/* UMTX_OP_SEM2_WAIT */
-	__umtx_op_sem2_wake,		/* UMTX_OP_SEM2_WAKE */
+	[UMTX_OP_NWAKE_PRIVATE]	= __umtx_op_nwake_private,
+	[UMTX_OP_MUTEX_WAKE2]	= __umtx_op_wake2_umutex,
+	[UMTX_OP_SEM2_WAIT]	= __umtx_op_sem2_wait,
+	[UMTX_OP_SEM2_WAKE]	= __umtx_op_sem2_wake,
 };
 
 int
 sys__umtx_op(struct thread *td, struct _umtx_op_args *uap)
 {
-	if ((unsigned)uap->op < UMTX_OP_MAX)
+
+	if ((unsigned)uap->op < nitems(op_table))
 		return (*op_table[uap->op])(td, uap);
 	return (EINVAL);
 }
@@ -3737,45 +3737,47 @@ __umtx_op_nwake_private32(struct thread *td, struct _umtx_op_args *uap)
 	return (error);
 }
 
-static _umtx_op_func op_table_compat32[] = {
-	__umtx_op_unimpl,		/* UMTX_OP_RESERVED0 */
-	__umtx_op_unimpl,		/* UMTX_OP_RESERVED1 */
-	__umtx_op_wait_compat32,	/* UMTX_OP_WAIT */
-	__umtx_op_wake,			/* UMTX_OP_WAKE */
-	__umtx_op_trylock_umutex,	/* UMTX_OP_MUTEX_LOCK */
-	__umtx_op_lock_umutex_compat32,	/* UMTX_OP_MUTEX_TRYLOCK */
-	__umtx_op_unlock_umutex,	/* UMTX_OP_MUTEX_UNLOCK	*/
-	__umtx_op_set_ceiling,		/* UMTX_OP_SET_CEILING */
-	__umtx_op_cv_wait_compat32,	/* UMTX_OP_CV_WAIT*/
-	__umtx_op_cv_signal,		/* UMTX_OP_CV_SIGNAL */
-	__umtx_op_cv_broadcast,		/* UMTX_OP_CV_BROADCAST */
-	__umtx_op_wait_compat32,	/* UMTX_OP_WAIT_UINT */
-	__umtx_op_rw_rdlock_compat32,	/* UMTX_OP_RW_RDLOCK */
-	__umtx_op_rw_wrlock_compat32,	/* UMTX_OP_RW_WRLOCK */
-	__umtx_op_rw_unlock,		/* UMTX_OP_RW_UNLOCK */
-	__umtx_op_wait_uint_private_compat32,	/* UMTX_OP_WAIT_UINT_PRIVATE */
-	__umtx_op_wake_private,		/* UMTX_OP_WAKE_PRIVATE */
-	__umtx_op_wait_umutex_compat32, /* UMTX_OP_MUTEX_WAIT */
-	__umtx_op_wake_umutex,		/* UMTX_OP_MUTEX_WAKE */
+static const _umtx_op_func op_table_compat32[] = {
+	[UMTX_OP_RESERVED0]	= __umtx_op_unimpl,
+	[UMTX_OP_RESERVED1]	= __umtx_op_unimpl,
+	[UMTX_OP_WAIT]	= __umtx_op_wait_compat32,
+	[UMTX_OP_WAKE]	= __umtx_op_wake,
+	[UMTX_OP_MUTEX_LOCK]	= __umtx_op_trylock_umutex,
+	[UMTX_OP_MUTEX_TRYLOCK]	= __umtx_op_lock_umutex_compat32,
+	[UMTX_OP_MUTEX_UNLOCK]	= __umtx_op_unlock_umutex,
+	[UMTX_OP_SET_CEILING]	= __umtx_op_set_ceiling,
+	[UMTX_OP_CV_WAIT]	= __umtx_op_cv_wait_compat32,
+	[UMTX_OP_CV_SIGNAL]	= __umtx_op_cv_signal,
+	[UMTX_OP_CV_BROADCAST]	= __umtx_op_cv_broadcast,
+	[UMTX_OP_WAIT_UINT]	= __umtx_op_wait_compat32,
+	[UMTX_OP_RW_RDLOCK]	= __umtx_op_rw_rdlock_compat32,
+	[UMTX_OP_RW_WRLOCK]	= __umtx_op_rw_wrlock_compat32,
+	[UMTX_OP_RW_UNLOCK]	= __umtx_op_rw_unlock,
+	[UMTX_OP_WAIT_UINT_PRIVATE] = __umtx_op_wait_uint_private_compat32,
+	[UMTX_OP_WAKE_PRIVATE]	= __umtx_op_wake_private,
+	[UMTX_OP_MUTEX_WAIT]	= __umtx_op_wait_umutex_compat32,
+	[UMTX_OP_MUTEX_WAKE]	= __umtx_op_wake_umutex,
 #if defined(COMPAT_FREEBSD9) || defined(COMPAT_FREEBSD10)
-	__umtx_op_sem_wait_compat32,	/* UMTX_OP_SEM_WAIT */
-	__umtx_op_sem_wake,		/* UMTX_OP_SEM_WAKE */
+	[UMTX_OP_SEM_WAIT]	= __umtx_op_sem_wait_compat32,
+	[UMTX_OP_SEM_WAKE]	= __umtx_op_sem_wake,
 #else
-	__umtx_op_unimpl,		/* UMTX_OP_SEM_WAIT */
-	__umtx_op_unimpl,		/* UMTX_OP_SEM_WAKE */
+	[UMTX_OP_SEM_WAIT]	= __umtx_op_unimpl,
+	[UMTX_OP_SEM_WAKE]	= __umtx_op_unimpl,
 #endif
-	__umtx_op_nwake_private32,	/* UMTX_OP_NWAKE_PRIVATE */
-	__umtx_op_wake2_umutex,		/* UMTX_OP_MUTEX_WAKE2 */
-	__umtx_op_sem2_wait_compat32,	/* UMTX_OP_SEM2_WAIT */
-	__umtx_op_sem2_wake,		/* UMTX_OP_SEM2_WAKE */
+	[UMTX_OP_NWAKE_PRIVATE]	= __umtx_op_nwake_private32,
+	[UMTX_OP_MUTEX_WAKE2]	= __umtx_op_wake2_umutex,
+	[UMTX_OP_SEM2_WAIT]	= __umtx_op_sem2_wait_compat32,
+	[UMTX_OP_SEM2_WAKE]	= __umtx_op_sem2_wake,
 };
 
 int
 freebsd32_umtx_op(struct thread *td, struct freebsd32_umtx_op_args *uap)
 {
-	if ((unsigned)uap->op < UMTX_OP_MAX)
+
+	if ((unsigned)uap->op < nitems(op_table_compat32)) {
 		return (*op_table_compat32[uap->op])(td,
-			(struct _umtx_op_args *)uap);
+		    (struct _umtx_op_args *)uap);
+	}
 	return (EINVAL);
 }
 #endif

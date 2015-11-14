@@ -2404,7 +2404,6 @@ icmp6_redirect_input(struct mbuf *m, int off)
 		    icmp6_redirect_diag(&src6, &reddst6, &redtgt6)));
 		goto bad;
 	}
-	/* validation passed */
 
 	icmp6len -= sizeof(*nd_rd);
 	nd6_option_init(nd_rd + 1, icmp6len, &ndopts);
@@ -2429,31 +2428,45 @@ icmp6_redirect_input(struct mbuf *m, int off)
 		goto bad;
 	}
 
+	/* Validation passed. */
+
 	/* RFC 2461 8.3 */
 	nd6_cache_lladdr(ifp, &redtgt6, lladdr, lladdrlen, ND_REDIRECT,
 	    is_onlink ? ND_REDIRECT_ONLINK : ND_REDIRECT_ROUTER);
 
-	if (!is_onlink) {	/* better router case.  perform rtredirect. */
-		/* perform rtredirect */
+	/*
+	 * Install a gateway route in the better-router case or an interface
+	 * route in the on-link-destination case.
+	 */
+	{
 		struct sockaddr_in6 sdst;
 		struct sockaddr_in6 sgw;
 		struct sockaddr_in6 ssrc;
+		struct sockaddr *gw;
+		int rt_flags;
 		u_int fibnum;
 
 		bzero(&sdst, sizeof(sdst));
-		bzero(&sgw, sizeof(sgw));
 		bzero(&ssrc, sizeof(ssrc));
-		sdst.sin6_family = sgw.sin6_family = ssrc.sin6_family = AF_INET6;
-		sdst.sin6_len = sgw.sin6_len = ssrc.sin6_len =
-			sizeof(struct sockaddr_in6);
-		bcopy(&redtgt6, &sgw.sin6_addr, sizeof(struct in6_addr));
+		sdst.sin6_family = ssrc.sin6_family = AF_INET6;
+		sdst.sin6_len = ssrc.sin6_len = sizeof(struct sockaddr_in6);
 		bcopy(&reddst6, &sdst.sin6_addr, sizeof(struct in6_addr));
 		bcopy(&src6, &ssrc.sin6_addr, sizeof(struct in6_addr));
+		rt_flags = RTF_HOST;
+		if (is_router) {
+			bzero(&sgw, sizeof(sgw));
+			sgw.sin6_family = AF_INET6;
+			sgw.sin6_len = sizeof(struct sockaddr_in6);
+			bcopy(&redtgt6, &sgw.sin6_addr,
+				sizeof(struct in6_addr));
+			gw = (struct sockaddr *)&sgw;
+			rt_flags |= RTF_GATEWAY;
+		} else
+			gw = ifp->if_addr->ifa_addr;
 		for (fibnum = 0; fibnum < rt_numfibs; fibnum++)
-			in6_rtredirect((struct sockaddr *)&sdst,
-			    (struct sockaddr *)&sgw, (struct sockaddr *)NULL,
-			    RTF_GATEWAY | RTF_HOST, (struct sockaddr *)&ssrc,
-			    fibnum);
+			in6_rtredirect((struct sockaddr *)&sdst, gw,
+			    (struct sockaddr *)NULL, rt_flags,
+			    (struct sockaddr *)&ssrc, fibnum);
 	}
 	/* finally update cached route in each socket via pfctlinput */
     {

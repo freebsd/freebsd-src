@@ -35,6 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/rman.h>
 #include <sys/watchdog.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
@@ -262,7 +266,7 @@ versatile_pci_attach(device_t dev)
 		versatile_pci_conf_write_4((slot << 11) + PCIR_COMMAND, val);
 	}
 
-	device_add_child(dev, "pci", 0);
+	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
 

@@ -134,19 +134,26 @@ struct sctp_extrcvinfo {
 	uint16_t sinfo_flags;
 	uint32_t sinfo_ppid;
 	uint32_t sinfo_context;
-	uint32_t sinfo_timetolive;
+	uint32_t sinfo_timetolive;	/* should have been sinfo_pr_value */
 	uint32_t sinfo_tsn;
 	uint32_t sinfo_cumtsn;
 	sctp_assoc_t sinfo_assoc_id;
-	uint16_t sreinfo_next_flags;
-	uint16_t sreinfo_next_stream;
-	uint32_t sreinfo_next_aid;
-	uint32_t sreinfo_next_length;
-	uint32_t sreinfo_next_ppid;
+	uint16_t serinfo_next_flags;
+	uint16_t serinfo_next_stream;
+	uint32_t serinfo_next_aid;
+	uint32_t serinfo_next_length;
+	uint32_t serinfo_next_ppid;
 	uint16_t sinfo_keynumber;
 	uint16_t sinfo_keynumber_valid;
 	uint8_t __reserve_pad[SCTP_ALIGN_RESV_PAD_SHORT];
 };
+
+#define sinfo_pr_value sinfo_timetolive
+#define sreinfo_next_flags serinfo_next_flags
+#define sreinfo_next_stream serinfo_next_stream
+#define sreinfo_next_aid serinfo_next_aid
+#define sreinfo_next_length serinfo_next_length
+#define sreinfo_next_ppid serinfo_next_ppid
 
 struct sctp_sndinfo {
 	uint16_t snd_sid;
@@ -1165,7 +1172,12 @@ struct xsctp_inpcb {
 	uint16_t local_port;
 	uint16_t qlen;
 	uint16_t maxqlen;
-	uint32_t extra_padding[31];	/* future */
+	void *socket;
+#if defined(__LP64__)
+	uint32_t extra_padding[29];	/* future */
+#else
+	uint32_t extra_padding[30];	/* future */
+#endif
 };
 
 struct xsctp_tcb {
@@ -1223,7 +1235,8 @@ struct xsctp_raddr {
 	struct sctp_timeval start_time;	/* sctpAssocLocalRemEntry 8   */
 	uint32_t rtt;
 	uint32_t heartbeat_interval;
-	uint32_t extra_padding[31];	/* future */
+	uint32_t ssthresh;
+	uint32_t extra_padding[30];	/* future */
 };
 
 #define SCTP_MAX_LOGGING_SIZE 30000

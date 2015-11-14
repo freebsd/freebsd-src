@@ -189,7 +189,8 @@ mips_get_perfctl(int cpu, int ri, uint32_t event, uint32_t caps)
 	if (caps & PMC_CAP_INTERRUPT)
 		control.s.ie = 1;
 
-	PMCDBG(MDP,ALL,2,"mips-allocate ri=%d -> config=0x%x", ri, control.u32);
+	PMCDBG2(MDP,ALL,2,"mips-allocate ri=%d -> config=0x%x", ri,
+	    control.u32);
 
 	return (control.u32);
 }

@@ -39,7 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
+#include <sys/rmlock.h>
 #include <sys/syslog.h>
 #include <sys/md5.h>
 
@@ -274,9 +276,7 @@ found:
 	case IFT_ISO88025:
 	case IFT_ATM:
 	case IFT_IEEE1394:
-#ifdef IFT_IEEE80211
 	case IFT_IEEE80211:
-#endif
 		/* IEEE802/EUI64 cases - what others? */
 		/* IEEE1394 uses 16byte length address starting with EUI64 */
 		if (addrlen > 8)
@@ -338,9 +338,7 @@ found:
 		break;
 
 	case IFT_GIF:
-#ifdef IFT_STF
 	case IFT_STF:
-#endif
 		/*
 		 * RFC2893 says: "SHOULD use IPv4 address as ifid source".
 		 * however, IPv4 address is not very suitable as unique
@@ -567,12 +565,6 @@ in6_ifattach_loopback(struct ifnet *ifp)
 	/* the loopback  address should NEVER expire. */
 	ifra.ifra_lifetime.ia6t_vltime = ND6_INFINITE_LIFETIME;
 	ifra.ifra_lifetime.ia6t_pltime = ND6_INFINITE_LIFETIME;
-
-	/* we don't need to perform DAD on loopback interfaces. */
-	ifra.ifra_flags |= IN6_IFF_NODAD;
-
-	/* skip registration to the prefix list. XXX should be temporary. */
-	ifra.ifra_flags |= IN6_IFF_NOPFX;
 
 	/*
 	 * We are sure that this is a newly assigned address, so we can set

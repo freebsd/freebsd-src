@@ -74,6 +74,7 @@ u_int	cpu_fxsr;		/* SSE enabled */
 u_int	cpu_mxcsr_mask;		/* Valid bits in mxcsr */
 u_int	cpu_clflush_line_size = 32;
 u_int	cpu_stdext_feature;
+u_int	cpu_stdext_feature2;
 u_int	cpu_max_ext_state_size;
 u_int	cpu_mon_mwait_flags;	/* MONITOR/MWAIT flags (CPUID.05H.ECX) */
 u_int	cpu_mon_min_size;	/* MONITOR minimum range size, bytes */
@@ -210,12 +211,17 @@ initializecpucache(void)
 	 * CPUID_SS feature even though the native CPU supports it.
 	 */
 	TUNABLE_INT_FETCH("hw.clflush_disable", &hw_clflush_disable);
-	if (vm_guest != VM_GUEST_NO && hw_clflush_disable == -1)
+	if (vm_guest != VM_GUEST_NO && hw_clflush_disable == -1) {
 		cpu_feature &= ~CPUID_CLFSH;
+		cpu_stdext_feature &= ~CPUID_STDEXT_CLFLUSHOPT;
+	}
+
 	/*
-	 * Allow to disable CLFLUSH feature manually by
-	 * hw.clflush_disable tunable.
+	 * The kernel's use of CLFLUSH{,OPT} can be disabled manually
+	 * by setting the hw.clflush_disable tunable.
 	 */
-	if (hw_clflush_disable == 1)
+	if (hw_clflush_disable == 1) {
 		cpu_feature &= ~CPUID_CLFSH;
+		cpu_stdext_feature &= ~CPUID_STDEXT_CLFLUSHOPT;
+	}
 }

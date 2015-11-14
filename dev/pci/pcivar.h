@@ -39,7 +39,14 @@
 
 typedef uint64_t pci_addr_t;
 
-struct nvlist;
+/* Config registers for PCI-PCI and PCI-Cardbus bridges. */
+struct pcicfg_bridge {
+    uint8_t	br_seclat;
+    uint8_t	br_subbus;
+    uint8_t	br_secbus;
+    uint8_t	br_pribus;
+    uint16_t	br_control;
+};
 
 /* Interesting values for PCI power management */
 struct pcicfg_pp {
@@ -190,6 +197,7 @@ typedef struct pcicfg {
     uint32_t	flags;		/* flags defined above */
     size_t	devinfo_size;	/* Size of devinfo for this bus type. */
 
+    struct pcicfg_bridge bridge; /* Bridges */
     struct pcicfg_pp pp;	/* Power management */
     struct pcicfg_vpd vpd;	/* Vital product data */
     struct pcicfg_msi msi;	/* PCI MSI */
@@ -526,19 +534,6 @@ pci_child_added(device_t dev)
     return (PCI_CHILD_ADDED(device_get_parent(dev), dev));
 }
 
-static __inline int
-pci_iov_attach(device_t dev, struct nvlist *pf_schema, struct nvlist *vf_schema)
-{
-	return (PCI_IOV_ATTACH(device_get_parent(dev), dev, pf_schema,
-	    vf_schema));
-}
-
-static __inline int
-pci_iov_detach(device_t dev)
-{
-	return (PCI_IOV_DETACH(device_get_parent(dev), dev));
-}
-
 device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);
 device_t pci_find_dbsf(uint32_t, uint8_t, uint8_t, uint8_t);
 device_t pci_find_device(uint16_t, uint16_t);
@@ -552,10 +547,15 @@ int	pci_msix_device_blacklisted(device_t dev);
 
 void	pci_ht_map_msi(device_t dev, uint64_t addr);
 
+device_t pci_find_pcie_root_port(device_t dev);
 int	pci_get_max_read_req(device_t dev);
 void	pci_restore_state(device_t dev);
 void	pci_save_state(device_t dev);
 int	pci_set_max_read_req(device_t dev, int size);
+uint32_t pcie_read_config(device_t dev, int reg, int width);
+void	pcie_write_config(device_t dev, int reg, uint32_t value, int width);
+uint32_t pcie_adjust_config(device_t dev, int reg, uint32_t mask,
+	    uint32_t value, int width);
 
 
 #ifdef BUS_SPACE_MAXADDR

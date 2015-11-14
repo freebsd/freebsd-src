@@ -461,4 +461,14 @@ AcpiDsResultPush (
     ACPI_OPERAND_OBJECT     *Object,
     ACPI_WALK_STATE         *WalkState);
 
+
+/*
+ * dsdebug - parser debugging routines
+ */
+void
+AcpiDsDumpMethodStack (
+    ACPI_STATUS             Status,
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_PARSE_OBJECT       *Op);
+
 #endif /* _ACDISPAT_H_ */

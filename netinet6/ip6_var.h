@@ -99,6 +99,14 @@ struct	ip6asfrag {
 #define IP6_REASS_MBUF(ip6af) (*(struct mbuf **)&((ip6af)->ip6af_m))
 
 /*
+ * IP6 reinjecting structure.
+ */
+struct ip6_direct_ctx {
+	uint32_t	ip6dc_nxt;	/* next header to process */
+	uint32_t	ip6dc_off;	/* offset to next header */
+};
+
+/*
  * Structure attached to inpcb.in6p_moptions and
  * passed to ip6_output when IPv6 multicast options are in use.
  * This structure is lazy-allocated.
@@ -353,12 +361,13 @@ int	ip6proto_register(short);
 int	ip6proto_unregister(short);
 
 void	ip6_input(struct mbuf *);
+void	ip6_direct_input(struct mbuf *);
 void	ip6_freepcbopts(struct ip6_pktopts *);
 
 int	ip6_unknown_opt(u_int8_t *, struct mbuf *, int);
-char *	ip6_get_prevhdr(struct mbuf *, int);
-int	ip6_nexthdr(struct mbuf *, int, int, int *);
-int	ip6_lasthdr(struct mbuf *, int, int, int *);
+char *	ip6_get_prevhdr(const struct mbuf *, int);
+int	ip6_nexthdr(const struct mbuf *, int, int, int *);
+int	ip6_lasthdr(const struct mbuf *, int, int, int *);
 
 extern int	(*ip6_mforward)(struct ip6_hdr *, struct ifnet *,
     struct mbuf *);
@@ -373,7 +382,7 @@ int	ip6_sysctl(int *, u_int, void *, size_t *, void *, size_t);
 
 void	ip6_forward(struct mbuf *, int);
 
-void	ip6_mloopback(struct ifnet *, struct mbuf *, struct sockaddr_in6 *);
+void	ip6_mloopback(struct ifnet *, const struct mbuf *);
 int	ip6_output(struct mbuf *, struct ip6_pktopts *,
 			struct route_in6 *,
 			int,
@@ -388,7 +397,8 @@ void	ip6_clearpktopts(struct ip6_pktopts *, int);
 struct ip6_pktopts *ip6_copypktopts(struct ip6_pktopts *, int);
 int	ip6_optlen(struct inpcb *);
 int	ip6_deletefraghdr(struct mbuf *, int, int);
-int	ip6_fragment(struct ifnet *, struct mbuf *, int, u_char, int);
+int	ip6_fragment(struct ifnet *, struct mbuf *, int, u_char, int,
+			uint32_t);
 
 int	route6_input(struct mbuf **, int *, int);
 

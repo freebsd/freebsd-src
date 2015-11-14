@@ -50,5 +50,7 @@ SET_DECLARE(uart_fdt_class_set, struct ofw_compat_data );
 #define UART_FDT_CLASS(data)				\
 	DATA_SET(uart_fdt_class_set, data)
 
+int uart_fdt_get_clock(phandle_t node, pcell_t *cell);
+int uart_fdt_get_shift(phandle_t node, pcell_t *cell);
 
 #endif /* _DEV_UART_CPU_FDT_H_ */

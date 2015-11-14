@@ -830,7 +830,8 @@ usb_fifo_close(struct usb_fifo *f, int fflags)
 			    (!f->flag_iserror)) {
 				/* wait until all data has been written */
 				f->flag_sleeping = 1;
-				err = cv_wait_sig(&f->cv_io, f->priv_mtx);
+				err = cv_timedwait_sig(&f->cv_io, f->priv_mtx,
+				    USB_MS_TO_TICKS(USB_DEFAULT_TIMEOUT));
 				if (err) {
 					DPRINTF("signal received\n");
 					break;

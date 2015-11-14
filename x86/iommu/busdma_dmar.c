@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/uio.h>
+#include <sys/vmem.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <vm/vm.h>
@@ -92,7 +93,7 @@ dmar_bus_dma_is_dev_disabled(int domain, int bus, int slot, int func)
  * domain, and must collectively be assigned to use either DMAR or
  * bounce mapping.
  */
-static device_t
+device_t
 dmar_get_requester(device_t dev, uint16_t *rid)
 {
 	devclass_t pci_class;
@@ -224,7 +225,7 @@ dmar_instantiate_ctx(struct dmar_unit *dmar, device_t dev, bool rmrr)
 	disabled = dmar_bus_dma_is_dev_disabled(pci_get_domain(requester), 
 	    pci_get_bus(requester), pci_get_slot(requester), 
 	    pci_get_function(requester));
-	ctx = dmar_get_ctx(dmar, requester, rid, disabled, rmrr);
+	ctx = dmar_get_ctx_for_dev(dmar, requester, rid, disabled, rmrr);
 	if (ctx == NULL)
 		return (NULL);
 	if (disabled) {
@@ -254,6 +255,8 @@ dmar_get_dma_tag(device_t dev, device_t child)
 	dmar = dmar_find(child);
 	/* Not in scope of any DMAR ? */
 	if (dmar == NULL)
+		return (NULL);
+	if (!dmar->dma_enabled)
 		return (NULL);
 	dmar_quirks_pre_use(dmar);
 	dmar_instantiate_rmrr_ctxs(dmar);
@@ -368,16 +371,18 @@ dmar_bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map1)
 {
 	struct bus_dma_tag_dmar *tag;
 	struct bus_dmamap_dmar *map;
+	struct dmar_domain *domain;
 
 	tag = (struct bus_dma_tag_dmar *)dmat;
 	map = (struct bus_dmamap_dmar *)map1;
 	if (map != NULL) {
-		DMAR_CTX_LOCK(tag->ctx);
+		domain = tag->ctx->domain;
+		DMAR_DOMAIN_LOCK(domain);
 		if (!TAILQ_EMPTY(&map->map_entries)) {
-			DMAR_CTX_UNLOCK(tag->ctx);
+			DMAR_DOMAIN_UNLOCK(domain);
 			return (EBUSY);
 		}
-		DMAR_CTX_UNLOCK(tag->ctx);
+		DMAR_DOMAIN_UNLOCK(domain);
 		free(map, M_DMAR_DMAMAP);
 	}
 	tag->map_count--;
@@ -454,14 +459,17 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
     struct dmar_map_entries_tailq *unroll_list)
 {
 	struct dmar_ctx *ctx;
+	struct dmar_domain *domain;
 	struct dmar_map_entry *entry;
 	dmar_gaddr_t size;
 	bus_size_t buflen1;
 	int error, idx, gas_flags, seg;
 
+	KASSERT(offset < DMAR_PAGE_SIZE, ("offset %d", offset));
 	if (segs == NULL)
 		segs = tag->segments;
 	ctx = tag->ctx;
+	domain = ctx->domain;
 	seg = *segp;
 	error = 0;
 	idx = 0;
@@ -473,7 +481,6 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 		}
 		buflen1 = buflen > tag->common.maxsegsz ?
 		    tag->common.maxsegsz : buflen;
-		buflen -= buflen1;
 		size = round_page(offset + buflen1);
 
 		/*
@@ -484,7 +491,7 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 		if (seg + 1 < tag->common.nsegments)
 			gas_flags |= DMAR_GM_CANSPLIT;
 
-		error = dmar_gas_map(ctx, &tag->common, size,
+		error = dmar_gas_map(domain, &tag->common, size, offset,
 		    DMAR_MAP_ENTRY_READ | DMAR_MAP_ENTRY_WRITE,
 		    gas_flags, ma + idx, &entry);
 		if (error != 0)
@@ -503,6 +510,10 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 			    (uintmax_t)size, (uintmax_t)entry->start,
 			    (uintmax_t)entry->end));
 		}
+		if (offset + buflen1 > size)
+			buflen1 = size - offset;
+		if (buflen1 > tag->common.maxsegsz)
+			buflen1 = tag->common.maxsegsz;
 
 		KASSERT(((entry->start + offset) & (tag->common.alignment - 1))
 		    == 0,
@@ -516,20 +527,21 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 		    (uintmax_t)entry->start, (uintmax_t)entry->end,
 		    (uintmax_t)tag->common.lowaddr,
 		    (uintmax_t)tag->common.highaddr));
-		KASSERT(dmar_test_boundary(entry->start, entry->end -
-		    entry->start, tag->common.boundary),
+		KASSERT(dmar_test_boundary(entry->start + offset, buflen1,
+		    tag->common.boundary),
 		    ("boundary failed: ctx %p start 0x%jx end 0x%jx "
 		    "boundary 0x%jx", ctx, (uintmax_t)entry->start,
 		    (uintmax_t)entry->end, (uintmax_t)tag->common.boundary));
 		KASSERT(buflen1 <= tag->common.maxsegsz,
 		    ("segment too large: ctx %p start 0x%jx end 0x%jx "
-		    "maxsegsz 0x%jx", ctx, (uintmax_t)entry->start,
-		    (uintmax_t)entry->end, (uintmax_t)tag->common.maxsegsz));
+		    "buflen1 0x%jx maxsegsz 0x%jx", ctx,
+		    (uintmax_t)entry->start, (uintmax_t)entry->end,
+		    (uintmax_t)buflen1, (uintmax_t)tag->common.maxsegsz));
 
-		DMAR_CTX_LOCK(ctx);
+		DMAR_DOMAIN_LOCK(domain);
 		TAILQ_INSERT_TAIL(&map->map_entries, entry, dmamap_link);
 		entry->flags |= DMAR_MAP_ENTRY_MAP;
-		DMAR_CTX_UNLOCK(ctx);
+		DMAR_DOMAIN_UNLOCK(domain);
 		TAILQ_INSERT_TAIL(unroll_list, entry, unroll_link);
 
 		segs[seg].ds_addr = entry->start + offset;
@@ -538,6 +550,7 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 		idx += OFF_TO_IDX(trunc_page(offset + buflen1));
 		offset += buflen1;
 		offset &= DMAR_PAGE_MASK;
+		buflen -= buflen1;
 	}
 	if (error == 0)
 		*segp = seg;
@@ -550,11 +563,13 @@ dmar_bus_dmamap_load_something(struct bus_dma_tag_dmar *tag,
     int flags, bus_dma_segment_t *segs, int *segp)
 {
 	struct dmar_ctx *ctx;
+	struct dmar_domain *domain;
 	struct dmar_map_entry *entry, *entry1;
 	struct dmar_map_entries_tailq unroll_list;
 	int error;
 
 	ctx = tag->ctx;
+	domain = ctx->domain;
 	atomic_add_long(&ctx->loads, 1);
 
 	TAILQ_INIT(&unroll_list);
@@ -566,7 +581,7 @@ dmar_bus_dmamap_load_something(struct bus_dma_tag_dmar *tag,
 		 * partial buffer load, so unfortunately we have to
 		 * revert all work done.
 		 */
-		DMAR_CTX_LOCK(ctx);
+		DMAR_DOMAIN_LOCK(domain);
 		TAILQ_FOREACH_SAFE(entry, &unroll_list, unroll_link,
 		    entry1) {
 			/*
@@ -577,19 +592,19 @@ dmar_bus_dmamap_load_something(struct bus_dma_tag_dmar *tag,
 			 */
 			TAILQ_REMOVE(&map->map_entries, entry, dmamap_link);
 			TAILQ_REMOVE(&unroll_list, entry, unroll_link);
-			TAILQ_INSERT_TAIL(&ctx->unload_entries, entry,
+			TAILQ_INSERT_TAIL(&domain->unload_entries, entry,
 			    dmamap_link);
 		}
-		DMAR_CTX_UNLOCK(ctx);
-		taskqueue_enqueue(ctx->dmar->delayed_taskqueue,
-		    &ctx->unload_task);
+		DMAR_DOMAIN_UNLOCK(domain);
+		taskqueue_enqueue(domain->dmar->delayed_taskqueue,
+		    &domain->unload_task);
 	}
 
 	if (error == ENOMEM && (flags & BUS_DMA_NOWAIT) == 0 &&
 	    !map->cansleep)
 		error = EINPROGRESS;
 	if (error == EINPROGRESS)
-		dmar_bus_schedule_dmamap(ctx->dmar, map);
+		dmar_bus_schedule_dmamap(domain->dmar, map);
 	return (error);
 }
 
@@ -755,6 +770,7 @@ dmar_bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map1)
 	struct bus_dma_tag_dmar *tag;
 	struct bus_dmamap_dmar *map;
 	struct dmar_ctx *ctx;
+	struct dmar_domain *domain;
 #if defined(__amd64__)
 	struct dmar_map_entries_tailq entries;
 #endif
@@ -762,20 +778,22 @@ dmar_bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map1)
 	tag = (struct bus_dma_tag_dmar *)dmat;
 	map = (struct bus_dmamap_dmar *)map1;
 	ctx = tag->ctx;
+	domain = ctx->domain;
 	atomic_add_long(&ctx->unloads, 1);
 
 #if defined(__i386__)
-	DMAR_CTX_LOCK(ctx);
-	TAILQ_CONCAT(&ctx->unload_entries, &map->map_entries, dmamap_link);
-	DMAR_CTX_UNLOCK(ctx);
-	taskqueue_enqueue(ctx->dmar->delayed_taskqueue, &ctx->unload_task);
+	DMAR_DOMAIN_LOCK(domain);
+	TAILQ_CONCAT(&domain->unload_entries, &map->map_entries, dmamap_link);
+	DMAR_DOMAIN_UNLOCK(domain);
+	taskqueue_enqueue(domain->dmar->delayed_taskqueue,
+	    &domain->unload_task);
 #else /* defined(__amd64__) */
 	TAILQ_INIT(&entries);
-	DMAR_CTX_LOCK(ctx);
+	DMAR_DOMAIN_LOCK(domain);
 	TAILQ_CONCAT(&entries, &map->map_entries, dmamap_link);
-	DMAR_CTX_UNLOCK(ctx);
+	DMAR_DOMAIN_UNLOCK(domain);
 	THREAD_NO_SLEEPING();
-	dmar_ctx_unload(ctx, &entries, false);
+	dmar_domain_unload(domain, &entries, false);
 	THREAD_SLEEPING_OK();
 	KASSERT(TAILQ_EMPTY(&entries), ("lazy dmar_ctx_unload %p", ctx));
 #endif
@@ -809,7 +827,6 @@ dmar_bus_task_dmamap(void *arg, int pending)
 	struct bus_dma_tag_dmar *tag;
 	struct bus_dmamap_dmar *map;
 	struct dmar_unit *unit;
-	struct dmar_ctx *ctx;
 
 	unit = arg;
 	DMAR_LOCK(unit);
@@ -817,7 +834,6 @@ dmar_bus_task_dmamap(void *arg, int pending)
 		TAILQ_REMOVE(&unit->delayed_maps, map, delay_link);
 		DMAR_UNLOCK(unit);
 		tag = map->tag;
-		ctx = map->tag->ctx;
 		map->cansleep = true;
 		map->locked = false;
 		bus_dmamap_load_mem((bus_dma_tag_t)tag, (bus_dmamap_t)map,
@@ -838,9 +854,7 @@ dmar_bus_task_dmamap(void *arg, int pending)
 static void
 dmar_bus_schedule_dmamap(struct dmar_unit *unit, struct bus_dmamap_dmar *map)
 {
-	struct dmar_ctx *ctx;
 
-	ctx = map->tag->ctx;
 	map->locked = false;
 	DMAR_LOCK(unit);
 	TAILQ_INSERT_TAIL(&unit->delayed_maps, map, delay_link);
@@ -852,6 +866,8 @@ int
 dmar_init_busdma(struct dmar_unit *unit)
 {
 
+	unit->dma_enabled = 1;
+	TUNABLE_INT_FETCH("hw.dmar.dma", &unit->dma_enabled);
 	TAILQ_INIT(&unit->delayed_maps);
 	TASK_INIT(&unit->dmamap_load_task, 0, dmar_bus_task_dmamap, unit);
 	unit->delayed_taskqueue = taskqueue_create("dmar", M_WAITOK,

@@ -5,7 +5,8 @@
 #
 
 ident		TS7800
-include		"../mv/orion/std.ts7800"
+include 	"std.arm"
+include 	"../mv/orion/std.ts7800"
 
 options 	SOC_MV_ORION
 
@@ -59,6 +60,7 @@ device		uart
 device		ether
 device		mge			# Marvell Gigabit Ethernet controller
 device		mii
+device		mdio
 device		e1000phy
 device		bpf
 options 	HZ=1000

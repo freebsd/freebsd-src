@@ -1,10 +1,11 @@
 #$FreeBSD$
 
-arm/arm/gic.c					standard
 arm/arm/mpcore_timer.c				standard
 arm/ti/ti_smc.S					standard
 
 arm/ti/usb/omap_ehci.c				optional	usb ehci
+arm/ti/usb/omap_host.c				optional	usb
+arm/ti/usb/omap_tll.c				optional	usb
 arm/ti/ti_sdma.c				optional	ti_sdma
 
 arm/ti/omap4/omap4_gpio.c			optional	gpio

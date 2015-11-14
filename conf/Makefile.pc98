@@ -28,6 +28,9 @@ S=	./@
 S=	../../..
 .endif
 .endif
+
+LDSCRIPT_NAME?= ldscript.${MACHINE_ARCH}
+
 .include "$S/conf/kern.pre.mk"
 
 ASM_CFLAGS.mpboot.s=		${CLANG_NO_IAS34}

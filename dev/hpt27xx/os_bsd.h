@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 HighPoint Technologies, Inc.
+ * Copyright (c) 2005-2011 HighPoint Technologies, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -153,7 +153,9 @@ typedef struct _os_cmdext {
 	struct _os_cmdext *next;
 	union ccb         *ccb;
 	bus_dmamap_t       dma_map;
+#if (__FreeBSD_version >= 1000510)	
 	struct callout     timeout;
+#endif
 	SG                 psg[os_max_sg_descriptors];
 }
 OS_CMDEXT, *POS_CMDEXT;
@@ -174,9 +176,11 @@ typedef struct _vbus_ext {
 
 	OSM_TASK         *tasks;
 	struct task       worker;
-	
+#if (__FreeBSD_version >= 1000510)	
 	struct callout    timer;
-
+#else 
+	struct callout_handle timer;
+#endif
 	eventhandler_tag  shutdown_eh;
 	
 	/* the LDM vbus instance continues */
@@ -195,9 +199,14 @@ VBUS_EXT, *PVBUS_EXT;
 
 #define HPT_SCAN_BUS		_IO('H', 1)
 
+#if __FreeBSD_version < 1000510
+#define TASK_ENQUEUE(task)	taskqueue_enqueue(taskqueue_swi_giant,(task));
+#else 
 #define TASK_ENQUEUE(task)	taskqueue_enqueue(taskqueue_swi,(task));
+#endif
 
 static	__inline	int hpt_sleep(PVBUS_EXT vbus_ext, void *ident, int priority, const char *wmesg, int timo)
 {
 	return	msleep(ident, &vbus_ext->lock, priority, wmesg, timo);
 }
+

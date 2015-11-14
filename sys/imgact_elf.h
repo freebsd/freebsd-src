@@ -37,6 +37,7 @@
 
 #define	AUXARGS_ENTRY(pos, id, val) {suword(pos++, id); suword(pos++, val);}
 
+struct image_params;
 struct thread;
 
 /*
@@ -52,6 +53,7 @@ typedef struct {
 	Elf_Size	base;
 	Elf_Size	flags;
 	Elf_Size	entry;
+	Elf_Word	hdr_eflags;		/* e_flags field from ehdr */
 } __ElfN(Auxargs);
 
 typedef struct {

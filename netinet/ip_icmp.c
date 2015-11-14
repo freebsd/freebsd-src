@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/rmlock.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 
@@ -647,6 +649,7 @@ freeit:
 static void
 icmp_reflect(struct mbuf *m)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct ip *ip = mtod(m, struct ip *);
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
@@ -672,15 +675,15 @@ icmp_reflect(struct mbuf *m)
 	 * If the incoming packet was addressed directly to one of our
 	 * own addresses, use dst as the src for the reply.
 	 */
-	IN_IFADDR_RLOCK();
+	IN_IFADDR_RLOCK(&in_ifa_tracker);
 	LIST_FOREACH(ia, INADDR_HASH(t.s_addr), ia_hash) {
 		if (t.s_addr == IA_SIN(ia)->sin_addr.s_addr) {
 			t = IA_SIN(ia)->sin_addr;
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 			goto match;
 		}
 	}
-	IN_IFADDR_RUNLOCK();
+	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 
 	/*
 	 * If the incoming packet was addressed to one of our broadcast

@@ -477,7 +477,7 @@ struct scsi_medium_type_data {
 	u_int8_t length[2];
 #define	SMTD_DEFAULT_LENGTH	52
 	u_int8_t num_density_codes;
-	u_int8_t primary_density_codes[8];
+	u_int8_t primary_density_codes[9];
 	u_int8_t media_width[2];
 	u_int8_t medium_length[2];
 	u_int8_t reserved2[2];

@@ -78,7 +78,7 @@ struct socket {
 	short	so_state;		/* (b) internal state flags SS_* */
 	int	so_qstate;		/* (e) internal state flags SQ_* */
 	void	*so_pcb;		/* protocol control block */
-	struct	vnet *so_vnet;		/* network stack instance */
+	struct	vnet *so_vnet;		/* (a) network stack instance */
 	struct	protosw *so_proto;	/* (a) protocol handle */
 /*
  * Variables for connection queuing.
@@ -339,7 +339,7 @@ struct uio;
  */
 int	sockargs(struct mbuf **mp, caddr_t buf, int buflen, int type);
 int	getsockaddr(struct sockaddr **namp, caddr_t uaddr, size_t len);
-int	getsock_cap(struct filedesc *fdp, int fd, cap_rights_t *rightsp,
+int	getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
 	    struct file **fpp, u_int *fflagp);
 void	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr **nam);

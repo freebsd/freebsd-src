@@ -138,18 +138,24 @@ static void	vtmmio_vq_intr(void *);
  */
 #define vtmmio_write_config_1(sc, o, v)				\
 do {								\
+	if (sc->platform != NULL)				\
+		VIRTIO_MMIO_PREWRITE(sc->platform, (o), (v));	\
 	bus_write_1((sc)->res[0], (o), (v)); 			\
 	if (sc->platform != NULL)				\
 		VIRTIO_MMIO_NOTE(sc->platform, (o), (v));	\
 } while (0)
 #define vtmmio_write_config_2(sc, o, v)				\
 do {								\
+	if (sc->platform != NULL)				\
+		VIRTIO_MMIO_PREWRITE(sc->platform, (o), (v));	\
 	bus_write_2((sc)->res[0], (o), (v));			\
 	if (sc->platform != NULL)				\
 		VIRTIO_MMIO_NOTE(sc->platform, (o), (v));	\
 } while (0)
 #define vtmmio_write_config_4(sc, o, v)				\
 do {								\
+	if (sc->platform != NULL)				\
+		VIRTIO_MMIO_PREWRITE(sc->platform, (o), (v));	\
 	bus_write_4((sc)->res[0], (o), (v));			\
 	if (sc->platform != NULL)				\
 		VIRTIO_MMIO_NOTE(sc->platform, (o), (v));	\

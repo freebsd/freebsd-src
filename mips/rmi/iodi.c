@@ -104,12 +104,12 @@ iodi_setup_intr(device_t dev, device_t child,
 		cpu_establish_hardintr("uart", filt, intr, arg,
 		    PIC_UART_0_IRQ, flags, cookiep);
 		pic_setup_intr(PIC_IRT_UART_0_INDEX, PIC_UART_0_IRQ, 0x1, 1);
-	} else if (strcmp(name, "rge") == 0 || strcmp(name, "nlge") == 0) {
+	} else if (strcmp(name, "nlge") == 0) {
 		int irq;
 
 		/* This is a hack to pass in the irq */
 		irq = (intptr_t)ires->__r_i;
-		cpu_establish_hardintr("rge", filt, intr, arg, irq, flags,
+		cpu_establish_hardintr("nlge", filt, intr, arg, irq, flags,
 		    cookiep);
 		pic_setup_intr(irq - PIC_IRQ_BASE, irq, 0x1, 1);
 	} else if (strcmp(name, "ehci") == 0) {
@@ -224,58 +224,13 @@ iodi_attach(device_t dev)
 	if (xlr_board_info.ata)
 		device_add_child(dev, "ata", 0);
 
-	if (xlr_board_info.gmac_block[0].enabled) {
-		tmpd = device_add_child(dev, "rge", 0);
-		device_set_ivars(tmpd, &xlr_board_info.gmac_block[0]);
-
-		tmpd = device_add_child(dev, "rge", 1);
-		device_set_ivars(tmpd, &xlr_board_info.gmac_block[0]);
-
-		tmpd = device_add_child(dev, "rge", 2);
-		device_set_ivars(tmpd, &xlr_board_info.gmac_block[0]);
-
-		tmpd = device_add_child(dev, "rge", 3);
-		device_set_ivars(tmpd, &xlr_board_info.gmac_block[0]);
-	}
-	if (xlr_board_info.gmac_block[1].enabled) {
-		if (xlr_board_info.gmac_block[1].type == XLR_GMAC) {
-			tmpd = device_add_child(dev, "rge", 4);
-			device_set_ivars(tmpd, &xlr_board_info.gmac_block[1]);
-
-			tmpd = device_add_child(dev, "rge", 5);
-			device_set_ivars(tmpd, &xlr_board_info.gmac_block[1]);
-
-			if (xlr_board_info.gmac_block[1].enabled & 0x4) {
-				tmpd = device_add_child(dev, "rge", 6);
-				device_set_ivars(tmpd, &xlr_board_info.gmac_block[1]);
-			}
-
-			if (xlr_board_info.gmac_block[1].enabled & 0x8) {
-				tmpd = device_add_child(dev, "rge", 7);
-				device_set_ivars(tmpd, &xlr_board_info.gmac_block[1]);
-			}
-		} else if (xlr_board_info.gmac_block[1].type == XLR_XGMAC) {
-#if 0				/* XGMAC not yet */
-			tmpd = device_add_child(dev, "rge", 4);
-			device_set_ivars(tmpd, &xlr_board_info.gmac_block[1]);
-
-			tmpd = device_add_child(dev, "rge", 5);
-			device_set_ivars(tmpd, &xlr_board_info.gmac_block[1]);
-#endif
-		} else 
-			device_printf(dev, "Unknown type of gmac 1\n"); 
-	}
-
-	/* This is to add the new GMAC driver. The above adds the old driver,
-	   which has been retained for now as the new driver is stabilized.
-	   The new driver is enabled with "option nlge". Make sure that only
-	   one of rge or nlge is enabled in the conf file. */
 	for (i = 0; i < 3; i++) {
 		if (xlr_board_info.gmac_block[i].enabled == 0)
 			continue;
 		tmpd = device_add_child(dev, "nlna", i);
 		device_set_ivars(tmpd, &xlr_board_info.gmac_block[i]);
 	}
+
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 	return 0;

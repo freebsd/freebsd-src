@@ -51,6 +51,7 @@ struct powerpc_cpu {
 
 extern struct powerpc_cpu **powerpc_pcpu;
 
+extern int pmc_e500_initialize(struct pmc_mdep *pmc_mdep);
 extern int pmc_mpc7xxx_initialize(struct pmc_mdep *pmc_mdep);
 extern int pmc_ppc970_initialize(struct pmc_mdep *pmc_mdep);
 

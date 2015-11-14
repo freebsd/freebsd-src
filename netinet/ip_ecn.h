@@ -38,10 +38,6 @@
 #ifndef _NETINET_IP_ECN_H_
 #define _NETINET_IP_ECN_H_
 
-#if defined(_KERNEL) && !defined(_LKM)
-#include "opt_inet.h"
-#endif
-
 #define ECN_ALLOWED	1	/* ECN allowed */
 #define ECN_FORBIDDEN	0	/* ECN forbidden */
 #define ECN_NOCARE	(-1)	/* no consideration to ECN */

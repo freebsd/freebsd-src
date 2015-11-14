@@ -91,9 +91,7 @@ enum {
 
 extern uint64_t ath_debug;
 
-#define	IFF_DUMPPKTS(sc, m) \
-	((sc->sc_debug & (m)) || \
-	    (sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
+#define	IFF_DUMPPKTS(sc, m)	(sc->sc_debug & (m))
 #define	DPRINTF(sc, m, fmt, ...) do {				\
 	if (sc->sc_debug & (m))					\
 		device_printf(sc->sc_dev, fmt, __VA_ARGS__);		\
@@ -112,8 +110,7 @@ extern	void ath_printtxstatbuf(struct ath_softc *sc, const struct ath_buf *bf,
 #else	/* ATH_DEBUG */
 #define	ATH_KTR(_sc, _km, _kf, ...)	do { } while (0)
 
-#define	IFF_DUMPPKTS(sc, m) \
-	((sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
+#define	IFF_DUMPPKTS(sc, m)	(0)
 #define	DPRINTF(sc, m, fmt, ...) do {				\
 	(void) sc;						\
 } while (0)

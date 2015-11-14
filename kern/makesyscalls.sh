@@ -411,6 +411,10 @@ s/\$//g
 					printf("\t\tuarg[%d] = (intptr_t) p->%s; /* %s */\n", \
 					     i - 1, \
 					     argname[i], arg) > systrace
+				else if (arg == "union l_semun")
+					printf("\t\tuarg[%d] = p->%s.buf; /* %s */\n", \
+					     i - 1, \
+					     argname[i], arg) > systrace
 				else if (substr(arg, 1, 1) == "u" || arg == "size_t")
 					printf("\t\tuarg[%d] = p->%s; /* %s */\n", \
 					     i - 1, \
@@ -446,7 +450,8 @@ s/\$//g
 			if (funcname == "nosys" || funcname == "lkmnosys" ||
 			    funcname == "sysarch" || funcname ~ /^freebsd/ || 
 			    funcname ~ /^linux/ || funcname ~ /^svr4/ || 
-			    funcname ~ /^ibcs2/ || funcname ~ /^xenix/) {				
+			    funcname ~ /^ibcs2/ || funcname ~ /^xenix/ ||
+			    funcname ~ /^cloudabi/) {
 				printf("%s\t%s(struct thread *, struct %s *)",
 				    rettype, funcname, argalias) > sysdcl
 			} else {
@@ -466,7 +471,8 @@ s/\$//g
 			if (funcname == "nosys" || funcname == "sysarch" || 
 			    funcname == "lkmnosys" || funcname ~ /^freebsd/ ||
 			    funcname ~ /^linux/ || funcname ~ /^svr4/ ||
-			    funcname ~ /^ibcs2/ || funcname ~ /^xenix/) {
+			    funcname ~ /^ibcs2/ || funcname ~ /^xenix/ ||
+			    funcname ~ /^cloudabi/) {
 				printf("%s, %s, NULL, 0, 0, %s, %s },", funcname, auditev, flags, thr_flag) > sysent
 				column = column + length(funcname) + length(auditev) + length(flags) + 3 
 			} else {

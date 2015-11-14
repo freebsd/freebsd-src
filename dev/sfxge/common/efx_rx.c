@@ -1,26 +1,31 @@
 /*-
- * Copyright 2007-2009 Solarflare Communications Inc.  All rights reserved.
+ * Copyright (c) 2007-2015 Solarflare Communications Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
@@ -32,12 +37,174 @@ __FBSDID("$FreeBSD$");
 #include "efx_regs.h"
 #include "efx_impl.h"
 
+
+#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+
+static	__checkReturn	int
+falconsiena_rx_init(
+	__in		efx_nic_t *enp);
+
+static			void
+falconsiena_rx_fini(
+	__in		efx_nic_t *enp);
+
+#if EFSYS_OPT_RX_HDR_SPLIT
+static	__checkReturn	int
+falconsiena_rx_hdr_split_enable(
+	__in		efx_nic_t *enp,
+	__in		unsigned int hdr_buf_size,
+	__in		unsigned int pld_buf_size);
+#endif /* EFSYS_OPT_RX_HDR_SPLIT */
+
+#if EFSYS_OPT_RX_SCATTER
+static	__checkReturn	int
+falconsiena_rx_scatter_enable(
+	__in		efx_nic_t *enp,
+	__in		unsigned int buf_size);
+#endif /* EFSYS_OPT_RX_SCATTER */
+
+#if EFSYS_OPT_RX_SCALE
+static	__checkReturn	int
+falconsiena_rx_scale_mode_set(
+	__in		efx_nic_t *enp,
+	__in		efx_rx_hash_alg_t alg,
+	__in		efx_rx_hash_type_t type,
+	__in		boolean_t insert);
+
+static	__checkReturn	int
+falconsiena_rx_scale_key_set(
+	__in		efx_nic_t *enp,
+	__in_ecount(n)	uint8_t *key,
+	__in		size_t n);
+
+static	__checkReturn	int
+falconsiena_rx_scale_tbl_set(
+	__in		efx_nic_t *enp,
+	__in_ecount(n)	unsigned int *table,
+	__in		size_t n);
+
+#endif /* EFSYS_OPT_RX_SCALE */
+
+static			void
+falconsiena_rx_qpost(
+	__in		efx_rxq_t *erp,
+	__in_ecount(n)	efsys_dma_addr_t *addrp,
+	__in		size_t size,
+	__in		unsigned int n,
+	__in		unsigned int completed,
+	__in		unsigned int added);
+
+static			void
+falconsiena_rx_qpush(
+	__in		efx_rxq_t *erp,
+	__in		unsigned int added,
+	__inout		unsigned int *pushedp);
+
+static	__checkReturn	int
+falconsiena_rx_qflush(
+	__in		efx_rxq_t *erp);
+
+static			void
+falconsiena_rx_qenable(
+	__in		efx_rxq_t *erp);
+
+static	__checkReturn	int
+falconsiena_rx_qcreate(
+	__in		efx_nic_t *enp,
+	__in		unsigned int index,
+	__in		unsigned int label,
+	__in		efx_rxq_type_t type,
+	__in		efsys_mem_t *esmp,
+	__in		size_t n,
+	__in		uint32_t id,
+	__in		efx_evq_t *eep,
+	__in		efx_rxq_t *erp);
+
+static			void
+falconsiena_rx_qdestroy(
+	__in		efx_rxq_t *erp);
+
+#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+
+
+#if EFSYS_OPT_FALCON
+static efx_rx_ops_t __efx_rx_falcon_ops = {
+	falconsiena_rx_init,			/* erxo_init */
+	falconsiena_rx_fini,			/* erxo_fini */
+#if EFSYS_OPT_RX_HDR_SPLIT
+	falconsiena_rx_hdr_split_enable,	/* erxo_hdr_split_enable */
+#endif
+#if EFSYS_OPT_RX_SCATTER
+	falconsiena_rx_scatter_enable,		/* erxo_scatter_enable */
+#endif
+#if EFSYS_OPT_RX_SCALE
+	falconsiena_rx_scale_mode_set,		/* erxo_scale_mode_set */
+	falconsiena_rx_scale_key_set,		/* erxo_scale_key_set */
+	falconsiena_rx_scale_tbl_set,		/* erxo_scale_tbl_set */
+#endif
+	falconsiena_rx_qpost,			/* erxo_qpost */
+	falconsiena_rx_qpush,			/* erxo_qpush */
+	falconsiena_rx_qflush,			/* erxo_qflush */
+	falconsiena_rx_qenable,			/* erxo_qenable */
+	falconsiena_rx_qcreate,			/* erxo_qcreate */
+	falconsiena_rx_qdestroy,		/* erxo_qdestroy */
+};
+#endif	/* EFSYS_OPT_FALCON */
+
+#if EFSYS_OPT_SIENA
+static efx_rx_ops_t __efx_rx_siena_ops = {
+	falconsiena_rx_init,			/* erxo_init */
+	falconsiena_rx_fini,			/* erxo_fini */
+#if EFSYS_OPT_RX_HDR_SPLIT
+	falconsiena_rx_hdr_split_enable,	/* erxo_hdr_split_enable */
+#endif
+#if EFSYS_OPT_RX_SCATTER
+	falconsiena_rx_scatter_enable,		/* erxo_scatter_enable */
+#endif
+#if EFSYS_OPT_RX_SCALE
+	falconsiena_rx_scale_mode_set,		/* erxo_scale_mode_set */
+	falconsiena_rx_scale_key_set,		/* erxo_scale_key_set */
+	falconsiena_rx_scale_tbl_set,		/* erxo_scale_tbl_set */
+#endif
+	falconsiena_rx_qpost,			/* erxo_qpost */
+	falconsiena_rx_qpush,			/* erxo_qpush */
+	falconsiena_rx_qflush,			/* erxo_qflush */
+	falconsiena_rx_qenable,			/* erxo_qenable */
+	falconsiena_rx_qcreate,			/* erxo_qcreate */
+	falconsiena_rx_qdestroy,		/* erxo_qdestroy */
+};
+#endif	/* EFSYS_OPT_SIENA */
+
+#if EFSYS_OPT_HUNTINGTON
+static efx_rx_ops_t __efx_rx_hunt_ops = {
+	hunt_rx_init,				/* erxo_init */
+	hunt_rx_fini,				/* erxo_fini */
+#if EFSYS_OPT_RX_HDR_SPLIT
+	hunt_rx_hdr_split_enable,		/* erxo_hdr_split_enable */
+#endif
+#if EFSYS_OPT_RX_SCATTER
+	hunt_rx_scatter_enable,			/* erxo_scatter_enable */
+#endif
+#if EFSYS_OPT_RX_SCALE
+	hunt_rx_scale_mode_set,			/* erxo_scale_mode_set */
+	hunt_rx_scale_key_set,			/* erxo_scale_key_set */
+	hunt_rx_scale_tbl_set,			/* erxo_scale_tbl_set */
+#endif
+	hunt_rx_qpost,				/* erxo_qpost */
+	hunt_rx_qpush,				/* erxo_qpush */
+	hunt_rx_qflush,				/* erxo_qflush */
+	hunt_rx_qenable,			/* erxo_qenable */
+	hunt_rx_qcreate,			/* erxo_qcreate */
+	hunt_rx_qdestroy,			/* erxo_qdestroy */
+};
+#endif	/* EFSYS_OPT_HUNTINGTON */
+
+
 	__checkReturn	int
 efx_rx_init(
-	__in		efx_nic_t *enp)
+	__inout		efx_nic_t *enp)
 {
-	efx_oword_t oword;
-	unsigned int index;
+	efx_rx_ops_t *erxop;
 	int rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -52,6 +219,471 @@ efx_rx_init(
 		rc = EINVAL;
 		goto fail2;
 	}
+
+	switch (enp->en_family) {
+#if EFSYS_OPT_FALCON
+	case EFX_FAMILY_FALCON:
+		erxop = (efx_rx_ops_t *)&__efx_rx_falcon_ops;
+		break;
+#endif /* EFSYS_OPT_FALCON */
+
+#if EFSYS_OPT_SIENA
+	case EFX_FAMILY_SIENA:
+		erxop = (efx_rx_ops_t *)&__efx_rx_siena_ops;
+		break;
+#endif /* EFSYS_OPT_SIENA */
+
+#if EFSYS_OPT_HUNTINGTON
+	case EFX_FAMILY_HUNTINGTON:
+		erxop = (efx_rx_ops_t *)&__efx_rx_hunt_ops;
+		break;
+#endif /* EFSYS_OPT_HUNTINGTON */
+
+	default:
+		EFSYS_ASSERT(0);
+		rc = ENOTSUP;
+		goto fail3;
+	}
+
+	if ((rc = erxop->erxo_init(enp)) != 0)
+		goto fail4;
+
+	enp->en_erxop = erxop;
+	enp->en_mod_flags |= EFX_MOD_RX;
+	return (0);
+
+fail4:
+	EFSYS_PROBE(fail4);
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, int, rc);
+
+	enp->en_erxop = NULL;
+	enp->en_mod_flags &= ~EFX_MOD_RX;
+	return (rc);
+}
+
+			void
+efx_rx_fini(
+	__in		efx_nic_t *enp)
+{
+	efx_rx_ops_t *erxop = enp->en_erxop;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
+	EFSYS_ASSERT3U(enp->en_rx_qcount, ==, 0);
+
+	erxop->erxo_fini(enp);
+
+	enp->en_erxop = NULL;
+	enp->en_mod_flags &= ~EFX_MOD_RX;
+}
+
+#if EFSYS_OPT_RX_HDR_SPLIT
+	__checkReturn	int
+efx_rx_hdr_split_enable(
+	__in		efx_nic_t *enp,
+	__in		unsigned int hdr_buf_size,
+	__in		unsigned int pld_buf_size)
+{
+	efx_rx_ops_t *erxop = enp->en_erxop;
+	int rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
+	EFSYS_ASSERT3U(enp->en_family, >=, EFX_FAMILY_SIENA);
+
+	if ((rc = erxop->erxo_hdr_split_enable(enp, hdr_buf_size,
+	    pld_buf_size)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, int, rc);
+	return (rc);
+}
+#endif	/* EFSYS_OPT_RX_HDR_SPLIT */
+
+#if EFSYS_OPT_RX_SCATTER
+	__checkReturn	int
+efx_rx_scatter_enable(
+	__in		efx_nic_t *enp,
+	__in		unsigned int buf_size)
+{
+	efx_rx_ops_t *erxop = enp->en_erxop;
+	int rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
+
+	if ((rc = erxop->erxo_scatter_enable(enp, buf_size)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, int, rc);
+	return (rc);
+}
+#endif	/* EFSYS_OPT_RX_SCATTER */
+
+#if EFSYS_OPT_RX_SCALE
+	__checkReturn	int
+efx_rx_hash_support_get(
+	__in		efx_nic_t *enp,
+	__out		efx_rx_hash_support_t *supportp)
+{
+	int rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
+
+	if (supportp == NULL) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	/* Report if resources are available to insert RX hash value */
+	*supportp = enp->en_hash_support;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, int, rc);
+
+	return (rc);
+}
+
+	__checkReturn	int
+efx_rx_scale_support_get(
+	__in		efx_nic_t *enp,
+	__out		efx_rx_scale_support_t *supportp)
+{
+	int rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
+
+	if (supportp == NULL) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	/* Report if resources are available to support RSS */
+	*supportp = enp->en_rss_support;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, int, rc);
+
+	return (rc);
+}
+
+	__checkReturn	int
+efx_rx_scale_mode_set(
+	__in		efx_nic_t *enp,
+	__in		efx_rx_hash_alg_t alg,
+	__in		efx_rx_hash_type_t type,
+	__in		boolean_t insert)
+{
+	efx_rx_ops_t *erxop = enp->en_erxop;
+	int rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
+
+	if (erxop->erxo_scale_mode_set != NULL) {
+		if ((rc = erxop->erxo_scale_mode_set(enp, alg,
+			    type, insert)) != 0)
+			goto fail1;
+	}
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, int, rc);
+	return (rc);
+}
+#endif	/* EFSYS_OPT_RX_SCALE */
+
+#if EFSYS_OPT_RX_SCALE
+	__checkReturn	int
+efx_rx_scale_key_set(
+	__in		efx_nic_t *enp,
+	__in_ecount(n)	uint8_t *key,
+	__in		size_t n)
+{
+	efx_rx_ops_t *erxop = enp->en_erxop;
+	int rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
+
+	if ((rc = erxop->erxo_scale_key_set(enp, key, n)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, int, rc);
+
+	return (rc);
+}
+#endif	/* EFSYS_OPT_RX_SCALE */
+
+#if EFSYS_OPT_RX_SCALE
+	__checkReturn	int
+efx_rx_scale_tbl_set(
+	__in		efx_nic_t *enp,
+	__in_ecount(n)	unsigned int *table,
+	__in		size_t n)
+{
+	efx_rx_ops_t *erxop = enp->en_erxop;
+	int rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
+
+	if ((rc = erxop->erxo_scale_tbl_set(enp, table, n)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, int, rc);
+
+	return (rc);
+}
+#endif	/* EFSYS_OPT_RX_SCALE */
+
+			void
+efx_rx_qpost(
+	__in		efx_rxq_t *erp,
+	__in_ecount(n)	efsys_dma_addr_t *addrp,
+	__in		size_t size,
+	__in		unsigned int n,
+	__in		unsigned int completed,
+	__in		unsigned int added)
+{
+	efx_nic_t *enp = erp->er_enp;
+	efx_rx_ops_t *erxop = enp->en_erxop;
+
+	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
+
+	erxop->erxo_qpost(erp, addrp, size, n, completed, added);
+}
+
+			void
+efx_rx_qpush(
+	__in		efx_rxq_t *erp,
+	__in		unsigned int added,
+	__inout		unsigned int *pushedp)
+{
+	efx_nic_t *enp = erp->er_enp;
+	efx_rx_ops_t *erxop = enp->en_erxop;
+
+	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
+
+	erxop->erxo_qpush(erp, added, pushedp);
+}
+
+	__checkReturn	int
+efx_rx_qflush(
+	__in		efx_rxq_t *erp)
+{
+	efx_nic_t *enp = erp->er_enp;
+	efx_rx_ops_t *erxop = enp->en_erxop;
+	int rc;
+
+	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
+
+	if ((rc = erxop->erxo_qflush(erp)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, int, rc);
+
+	return (rc);
+}
+
+			void
+efx_rx_qenable(
+	__in		efx_rxq_t *erp)
+{
+	efx_nic_t *enp = erp->er_enp;
+	efx_rx_ops_t *erxop = enp->en_erxop;
+
+	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
+
+	erxop->erxo_qenable(erp);
+}
+
+	__checkReturn	int
+efx_rx_qcreate(
+	__in		efx_nic_t *enp,
+	__in		unsigned int index,
+	__in		unsigned int label,
+	__in		efx_rxq_type_t type,
+	__in		efsys_mem_t *esmp,
+	__in		size_t n,
+	__in		uint32_t id,
+	__in		efx_evq_t *eep,
+	__deref_out	efx_rxq_t **erpp)
+{
+	efx_rx_ops_t *erxop = enp->en_erxop;
+	efx_rxq_t *erp;
+	int rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
+
+	/* Allocate an RXQ object */
+	EFSYS_KMEM_ALLOC(enp->en_esip, sizeof (efx_rxq_t), erp);
+
+	if (erp == NULL) {
+		rc = ENOMEM;
+		goto fail1;
+	}
+
+	erp->er_magic = EFX_RXQ_MAGIC;
+	erp->er_enp = enp;
+	erp->er_index = index;
+	erp->er_mask = n - 1;
+	erp->er_esmp = esmp;
+
+	if ((rc = erxop->erxo_qcreate(enp, index, label, type, esmp, n, id,
+	    eep, erp)) != 0)
+		goto fail2;
+
+	enp->en_rx_qcount++;
+	*erpp = erp;
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+
+	EFSYS_KMEM_FREE(enp->en_esip, sizeof (efx_rxq_t), erp);
+fail1:
+	EFSYS_PROBE1(fail1, int, rc);
+
+	return (rc);
+}
+
+			void
+efx_rx_qdestroy(
+	__in		efx_rxq_t *erp)
+{
+	efx_nic_t *enp = erp->er_enp;
+	efx_rx_ops_t *erxop = enp->en_erxop;
+
+	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
+
+	erxop->erxo_qdestroy(erp);
+}
+
+/*
+ * Psuedo-header info for Siena/Falcon.
+ *
+ * The psuedo-header is a byte array of one of the forms:
+ *
+ *  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+ * XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.TT.TT.TT.TT
+ * XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.XX.LL.LL
+ *
+ * where:
+ *
+ * TT.TT.TT.TT is a 32-bit Toeplitz hash
+ * LL.LL is a 16-bit LFSR hash
+ *
+ * Hash values are in network (big-endian) byte order.
+ *
+ *
+ * On Huntington the pseudo-header is laid out as:
+ * (See also SF-109306-TC section 9)
+ *
+ * Toeplitz hash (32 bits, little-endian)
+ * Out-of-band outer VLAN tag
+ *     (16 bits, big-endian, 0 if the packet did not have an outer VLAN tag)
+ * Out-of-band inner VLAN tag
+ *     (16 bits, big-endian, 0 if the packet did not have an inner VLAN tag)
+ * Packet length (16 bits, little-endian, may be 0)
+ * MAC timestamp (32 bits, little-endian, may be 0)
+ * VLAN tag
+ *     (16 bits, big-endian, 0 if the packet did not have an outer VLAN tag)
+ * VLAN tag
+ *     (16 bits, big-endian, 0 if the packet did not have an inner VLAN tag)
+ */
+
+	__checkReturn	int
+efx_psuedo_hdr_pkt_length_get(
+	__in		efx_nic_t *enp,
+	__in		uint8_t *buffer,
+	__out		uint16_t *pkt_lengthp)
+{
+	if (enp->en_family != EFX_FAMILY_HUNTINGTON) {
+		EFSYS_ASSERT(0);
+		return (ENOTSUP);
+	}
+
+	*pkt_lengthp = buffer[8] | (buffer[9] << 8);
+
+	return (0);
+}
+
+#if EFSYS_OPT_RX_SCALE
+
+uint32_t
+efx_psuedo_hdr_hash_get(
+	__in		efx_nic_t *enp,
+	__in		efx_rx_hash_alg_t func,
+	__in		uint8_t *buffer)
+{
+	if (func == EFX_RX_HASHALG_TOEPLITZ) {
+		switch (enp->en_family) {
+		case EFX_FAMILY_FALCON:
+		case EFX_FAMILY_SIENA:
+			return ((buffer[12] << 24) |
+			    (buffer[13] << 16) |
+			    (buffer[14] << 8) |
+			    buffer[15]);
+		case EFX_FAMILY_HUNTINGTON:
+			return (buffer[0] |
+			    (buffer[1] << 8) |
+			    (buffer[2] << 16) |
+			    (buffer[3] << 24));
+		default:
+			EFSYS_ASSERT(0);
+			return (0);
+		}
+	} else if (func == EFX_RX_HASHALG_LFSR) {
+		EFSYS_ASSERT(enp->en_family == EFX_FAMILY_FALCON ||
+		    enp->en_family == EFX_FAMILY_SIENA);
+		return ((buffer[14] << 8) | buffer[15]);
+	} else {
+		EFSYS_ASSERT(0);
+		return (0);
+	}
+}
+
+#endif	/* EFSYS_OPT_RX_SCALE */
+
+#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+
+static	__checkReturn	int
+falconsiena_rx_init(
+	__in		efx_nic_t *enp)
+{
+	efx_oword_t oword;
+	unsigned int index;
 
 	EFX_BAR_READO(enp, FR_AZ_RX_CFG_REG, &oword);
 
@@ -68,23 +700,23 @@ efx_rx_init(
 	    index++) {
 		EFX_ZERO_OWORD(oword);
 		EFX_BAR_TBL_WRITEO(enp, FR_BZ_RX_INDIRECTION_TBL,
-				    index, &oword);
+				    index, &oword, B_TRUE);
 	}
 
-	enp->en_mod_flags |= EFX_MOD_RX;
+#if EFSYS_OPT_RX_SCALE
+	/* The RSS key and indirection table are writable. */
+	enp->en_rss_support = EFX_RX_SCALE_EXCLUSIVE;
+
+	/* Hardware can insert RX hash with/without RSS */
+	enp->en_hash_support = EFX_RX_HASH_AVAILABLE;
+#endif	/* EFSYS_OPT_RX_SCALE */
+
 	return (0);
-
-fail2:
-	EFSYS_PROBE(fail2);
-fail1:
-	EFSYS_PROBE1(fail1, int, rc);
-
-	return (rc);
 }
 
 #if EFSYS_OPT_RX_HDR_SPLIT
-	__checkReturn	int
-efx_rx_hdr_split_enable(
+static	__checkReturn	int
+falconsiena_rx_hdr_split_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int hdr_buf_size,
 	__in		unsigned int pld_buf_size)
@@ -93,10 +725,6 @@ efx_rx_hdr_split_enable(
 	unsigned int npld32;
 	efx_oword_t oword;
 	int rc;
-
-	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
-	EFSYS_ASSERT3U(enp->en_family, >=, EFX_FAMILY_SIENA);
 
 	nhdr32 = hdr_buf_size / 32;
 	if ((nhdr32 == 0) ||
@@ -140,20 +768,15 @@ fail1:
 }
 #endif	/* EFSYS_OPT_RX_HDR_SPLIT */
 
-
 #if EFSYS_OPT_RX_SCATTER
-	__checkReturn	int
-efx_rx_scatter_enable(
+static	__checkReturn	int
+falconsiena_rx_scatter_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int buf_size)
 {
 	unsigned int nbuf32;
 	efx_oword_t oword;
 	int rc;
-
-	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
-	EFSYS_ASSERT3U(enp->en_family, >=, EFX_FAMILY_FALCON);
 
 	nbuf32 = buf_size / 32;
 	if ((nbuf32 == 0) ||
@@ -191,7 +814,7 @@ fail1:
 
 
 #define	EFX_RX_LFSR_HASH(_enp, _insert)					\
-	do {                                    			\
+	do {								\
 		efx_oword_t oword;					\
 									\
 		EFX_BAR_READO((_enp), FR_AZ_RX_CFG_REG, &oword);	\
@@ -215,7 +838,7 @@ fail1:
 	} while (B_FALSE)
 
 #define	EFX_RX_TOEPLITZ_IPV4_HASH(_enp, _insert, _ip, _tcp)		\
-	do {                                    			\
+	do {								\
 		efx_oword_t oword;					\
 									\
 		EFX_BAR_READO((_enp), FR_AZ_RX_CFG_REG,	&oword);	\
@@ -232,7 +855,7 @@ fail1:
 	} while (B_FALSE)
 
 #define	EFX_RX_TOEPLITZ_IPV6_HASH(_enp, _ip, _tcp, _rc)			\
-	do {                                    			\
+	do {								\
 		efx_oword_t oword;					\
 									\
 		if ((_enp)->en_family == EFX_FAMILY_FALCON) {		\
@@ -256,18 +879,15 @@ fail1:
 
 
 #if EFSYS_OPT_RX_SCALE
-	__checkReturn	int
-efx_rx_scale_mode_set(
+
+static	__checkReturn	int
+falconsiena_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
 	__in		efx_rx_hash_alg_t alg,
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert)
 {
 	int rc;
-
-	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
-	EFSYS_ASSERT3U(enp->en_family, >=, EFX_FAMILY_FALCON);
 
 	switch (alg) {
 	case EFX_RX_HASHALG_LFSR:
@@ -307,8 +927,8 @@ fail1:
 #endif
 
 #if EFSYS_OPT_RX_SCALE
-	__checkReturn	int
-efx_rx_scale_toeplitz_ipv4_key_set(
+static	__checkReturn	int
+falconsiena_rx_scale_key_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n)
@@ -318,12 +938,9 @@ efx_rx_scale_toeplitz_ipv4_key_set(
 	unsigned int offset;
 	int rc;
 
-	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
-
 	byte = 0;
 
-	/* Write toeplitz hash key */
+	/* Write Toeplitz IPv4 hash key */
 	EFX_ZERO_OWORD(oword);
 	for (offset = (FRF_BZ_RX_RSS_TKEY_LBN + FRF_BZ_RX_RSS_TKEY_WIDTH) / 8;
 	    offset > 0 && byte < n;
@@ -334,7 +951,7 @@ efx_rx_scale_toeplitz_ipv4_key_set(
 
 	byte = 0;
 
-	/* Verify toeplitz hash key */
+	/* Verify Toeplitz IPv4 hash key */
 	EFX_BAR_READO(enp, FR_BZ_RX_RSS_TKEY_REG, &oword);
 	for (offset = (FRF_BZ_RX_RSS_TKEY_LBN + FRF_BZ_RX_RSS_TKEY_WIDTH) / 8;
 	    offset > 0 && byte < n;
@@ -345,33 +962,14 @@ efx_rx_scale_toeplitz_ipv4_key_set(
 		}
 	}
 
-	return (0);
+	if ((enp->en_features & EFX_FEATURE_IPV6) == 0)
+		goto done;
 
-fail1:
-	EFSYS_PROBE1(fail1, int, rc);
-
-	return (rc);
-}
-#endif
-
-#if EFSYS_OPT_RX_SCALE
-	__checkReturn	int
-efx_rx_scale_toeplitz_ipv6_key_set(
-	__in		efx_nic_t *enp,
-	__in_ecount(n)	uint8_t *key,
-	__in		size_t n)
-{
-	efx_oword_t oword;
-	unsigned int byte;
-	int offset;
-	int rc;
-
-	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
+	EFSYS_ASSERT3U(enp->en_family, !=, EFX_FAMILY_FALCON);
 
 	byte = 0;
 
-	/* Write toeplitz hash key 3 */
+	/* Write Toeplitz IPv6 hash key 3 */
 	EFX_BAR_READO(enp, FR_CZ_RX_RSS_IPV6_REG3, &oword);
 	for (offset = (FRF_CZ_RX_RSS_IPV6_TKEY_HI_LBN +
 	    FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH) / 8;
@@ -381,7 +979,7 @@ efx_rx_scale_toeplitz_ipv6_key_set(
 
 	EFX_BAR_WRITEO(enp, FR_CZ_RX_RSS_IPV6_REG3, &oword);
 
-	/* Write toeplitz hash key 2 */
+	/* Write Toeplitz IPv6 hash key 2 */
 	EFX_ZERO_OWORD(oword);
 	for (offset = (FRF_CZ_RX_RSS_IPV6_TKEY_MID_LBN +
 	    FRF_CZ_RX_RSS_IPV6_TKEY_MID_WIDTH) / 8;
@@ -391,7 +989,7 @@ efx_rx_scale_toeplitz_ipv6_key_set(
 
 	EFX_BAR_WRITEO(enp, FR_CZ_RX_RSS_IPV6_REG2, &oword);
 
-	/* Write toeplitz hash key 1 */
+	/* Write Toeplitz IPv6 hash key 1 */
 	EFX_ZERO_OWORD(oword);
 	for (offset = (FRF_CZ_RX_RSS_IPV6_TKEY_LO_LBN +
 	    FRF_CZ_RX_RSS_IPV6_TKEY_LO_WIDTH) / 8;
@@ -403,22 +1001,10 @@ efx_rx_scale_toeplitz_ipv6_key_set(
 
 	byte = 0;
 
-	/* Verify toeplitz hash key 3 */
+	/* Verify Toeplitz IPv6 hash key 3 */
 	EFX_BAR_READO(enp, FR_CZ_RX_RSS_IPV6_REG3, &oword);
 	for (offset = (FRF_CZ_RX_RSS_IPV6_TKEY_HI_LBN +
 	    FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH) / 8;
-	    offset > 0 && byte < n;
-	    --offset) {
-		if (oword.eo_u8[offset - 1] != key[byte++]) {
-			rc = EFAULT;
-			goto fail1;
-		}
-	}
-
-	/* Verify toeplitz hash key 2 */
-	EFX_BAR_READO(enp, FR_CZ_RX_RSS_IPV6_REG2, &oword);
-	for (offset = (FRF_CZ_RX_RSS_IPV6_TKEY_MID_LBN +
-	    FRF_CZ_RX_RSS_IPV6_TKEY_MID_WIDTH) / 8;
 	    offset > 0 && byte < n;
 	    --offset) {
 		if (oword.eo_u8[offset - 1] != key[byte++]) {
@@ -427,10 +1013,10 @@ efx_rx_scale_toeplitz_ipv6_key_set(
 		}
 	}
 
-	/* Verify toeplitz hash key 1 */
-	EFX_BAR_READO(enp, FR_CZ_RX_RSS_IPV6_REG1, &oword);
-	for (offset = (FRF_CZ_RX_RSS_IPV6_TKEY_LO_LBN +
-	    FRF_CZ_RX_RSS_IPV6_TKEY_LO_WIDTH) / 8;
+	/* Verify Toeplitz IPv6 hash key 2 */
+	EFX_BAR_READO(enp, FR_CZ_RX_RSS_IPV6_REG2, &oword);
+	for (offset = (FRF_CZ_RX_RSS_IPV6_TKEY_MID_LBN +
+	    FRF_CZ_RX_RSS_IPV6_TKEY_MID_WIDTH) / 8;
 	    offset > 0 && byte < n;
 	    --offset) {
 		if (oword.eo_u8[offset - 1] != key[byte++]) {
@@ -439,8 +1025,23 @@ efx_rx_scale_toeplitz_ipv6_key_set(
 		}
 	}
 
+	/* Verify Toeplitz IPv6 hash key 1 */
+	EFX_BAR_READO(enp, FR_CZ_RX_RSS_IPV6_REG1, &oword);
+	for (offset = (FRF_CZ_RX_RSS_IPV6_TKEY_LO_LBN +
+	    FRF_CZ_RX_RSS_IPV6_TKEY_LO_WIDTH) / 8;
+	    offset > 0 && byte < n;
+	    --offset) {
+		if (oword.eo_u8[offset - 1] != key[byte++]) {
+			rc = EFAULT;
+			goto fail4;
+		}
+	}
+
+done:
 	return (0);
 
+fail4:
+	EFSYS_PROBE(fail4);
 fail3:
 	EFSYS_PROBE(fail3);
 fail2:
@@ -453,8 +1054,8 @@ fail1:
 #endif
 
 #if EFSYS_OPT_RX_SCALE
-	__checkReturn	int
-efx_rx_scale_tbl_set(
+static	__checkReturn	int
+falconsiena_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n)
@@ -462,9 +1063,6 @@ efx_rx_scale_tbl_set(
 	efx_oword_t oword;
 	int index;
 	int rc;
-
-	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
 
 	EFX_STATIC_ASSERT(EFX_RSS_TBL_SIZE == FR_BZ_RX_INDIRECTION_TBL_ROWS);
 	EFX_STATIC_ASSERT(EFX_MAXRSS == (1 << FRF_BZ_IT_QUEUE_WIDTH));
@@ -478,7 +1076,7 @@ efx_rx_scale_tbl_set(
 		uint32_t byte;
 
 		/* Calculate the entry to place in the table */
-		byte = (uint32_t)table[index % n];
+		byte = (n > 0) ? (uint32_t)table[index % n] : 0;
 
 		EFSYS_PROBE2(table, int, index, uint32_t, byte);
 
@@ -486,18 +1084,18 @@ efx_rx_scale_tbl_set(
 
 		/* Write the table */
 		EFX_BAR_TBL_WRITEO(enp, FR_BZ_RX_INDIRECTION_TBL,
-				    index, &oword);
+				    index, &oword, B_TRUE);
 	}
 
 	for (index = FR_BZ_RX_INDIRECTION_TBL_ROWS - 1; index >= 0; --index) {
 		uint32_t byte;
 
 		/* Determine if we're starting a new batch */
-		byte = (uint32_t)table[index % n];
+		byte = (n > 0) ? (uint32_t)table[index % n] : 0;
 
 		/* Read the table */
 		EFX_BAR_TBL_READO(enp, FR_BZ_RX_INDIRECTION_TBL,
-				    index, &oword);
+				    index, &oword, B_TRUE);
 
 		/* Verify the entry */
 		if (EFX_OWORD_FIELD(oword, FRF_BZ_IT_QUEUE) != byte) {
@@ -517,36 +1115,8 @@ fail1:
 }
 #endif
 
-#if EFSYS_OPT_FILTER
-extern	__checkReturn	int
-efx_rx_filter_insert(
-	__in		efx_rxq_t *erp,
-	__inout		efx_filter_spec_t *spec)
-{
-	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
-	EFSYS_ASSERT3P(spec, !=, NULL);
-
-	spec->efs_dmaq_id = (uint16_t)erp->er_index;
-	return (efx_filter_insert_filter(erp->er_enp, spec, B_FALSE));
-}
-#endif
-
-#if EFSYS_OPT_FILTER
-extern	__checkReturn	int
-efx_rx_filter_remove(
-	__in		efx_rxq_t *erp,
-	__inout		efx_filter_spec_t *spec)
-{
-	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
-	EFSYS_ASSERT3P(spec, !=, NULL);
-
-	spec->efs_dmaq_id = (uint16_t)erp->er_index;
-	return (efx_filter_remove_filter(erp->er_enp, spec));
-}
-#endif
-
-extern			void
-efx_rx_qpost(
+static			void
+falconsiena_rx_qpost(
 	__in		efx_rxq_t *erp,
 	__in_ecount(n)	efsys_dma_addr_t *addrp,
 	__in		size_t size,
@@ -558,8 +1128,6 @@ efx_rx_qpost(
 	unsigned int i;
 	unsigned int offset;
 	unsigned int id;
-
-	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
 	/* The client driver must not overfill the queue */
 	EFSYS_ASSERT3U(added - completed + n, <=,
@@ -585,20 +1153,20 @@ efx_rx_qpost(
 	}
 }
 
-		void
-efx_rx_qpush(
+static			void
+falconsiena_rx_qpush(
 	__in	efx_rxq_t *erp,
-	__in	unsigned int added)
+	__in	unsigned int added,
+	__inout	unsigned int *pushedp)
 {
 	efx_nic_t *enp = erp->er_enp;
+	unsigned int pushed = *pushedp;
 	uint32_t wptr;
 	efx_oword_t oword;
 	efx_dword_t dword;
 
-	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
-
-	/* Guarantee ordering of memory (descriptors) and PIO (doorbell) */
-	EFSYS_PIO_WRITE_BARRIER();
+	/* All descriptors are pushed */
+	*pushedp = added;
 
 	/* Push the populated descriptors out */
 	wptr = added & erp->er_mask;
@@ -608,19 +1176,22 @@ efx_rx_qpush(
 	/* Only write the third DWORD */
 	EFX_POPULATE_DWORD_1(dword,
 	    EFX_DWORD_0, EFX_OWORD_FIELD(oword, EFX_DWORD_3));
+
+	/* Guarantee ordering of memory (descriptors) and PIO (doorbell) */
+	EFX_DMA_SYNC_QUEUE_FOR_DEVICE(erp->er_esmp, erp->er_mask + 1,
+	    wptr, pushed & erp->er_mask);
+	EFSYS_PIO_WRITE_BARRIER();
 	EFX_BAR_TBL_WRITED3(enp, FR_BZ_RX_DESC_UPD_REGP0,
 			    erp->er_index, &dword, B_FALSE);
 }
 
-		void
-efx_rx_qflush(
+static	__checkReturn	int
+falconsiena_rx_qflush(
 	__in	efx_rxq_t *erp)
 {
 	efx_nic_t *enp = erp->er_enp;
 	efx_oword_t oword;
 	uint32_t label;
-
-	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
 	label = erp->er_index;
 
@@ -628,10 +1199,12 @@ efx_rx_qflush(
 	EFX_POPULATE_OWORD_2(oword, FRF_AZ_RX_FLUSH_DESCQ_CMD, 1,
 	    FRF_AZ_RX_FLUSH_DESCQ, label);
 	EFX_BAR_WRITEO(enp, FR_AZ_RX_FLUSH_DESCQ_REG, &oword);
+
+	return (0);
 }
 
-		void
-efx_rx_qenable(
+static		void
+falconsiena_rx_qenable(
 	__in	efx_rxq_t *erp)
 {
 	efx_nic_t *enp = erp->er_enp;
@@ -640,18 +1213,18 @@ efx_rx_qenable(
 	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
 	EFX_BAR_TBL_READO(enp, FR_AZ_RX_DESC_PTR_TBL,
-			    erp->er_index, &oword);
+			    erp->er_index, &oword, B_TRUE);
 
 	EFX_SET_OWORD_FIELD(oword, FRF_AZ_RX_DC_HW_RPTR, 0);
 	EFX_SET_OWORD_FIELD(oword, FRF_AZ_RX_DESCQ_HW_RPTR, 0);
 	EFX_SET_OWORD_FIELD(oword, FRF_AZ_RX_DESCQ_EN, 1);
 
 	EFX_BAR_TBL_WRITEO(enp, FR_AZ_RX_DESC_PTR_TBL,
-			    erp->er_index, &oword);
+			    erp->er_index, &oword, B_TRUE);
 }
 
-	__checkReturn	int
-efx_rx_qcreate(
+static	__checkReturn	int
+falconsiena_rx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		unsigned int label,
@@ -660,25 +1233,24 @@ efx_rx_qcreate(
 	__in		size_t n,
 	__in		uint32_t id,
 	__in		efx_evq_t *eep,
-	__deref_out	efx_rxq_t **erpp)
+	__in		efx_rxq_t *erp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	efx_rxq_t *erp;
 	efx_oword_t oword;
 	uint32_t size;
 	boolean_t split;
 	boolean_t jumbo;
 	int rc;
 
-	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
-
 	EFX_STATIC_ASSERT(EFX_EV_RX_NLABELS ==
 	    (1 << FRF_AZ_RX_DESCQ_LABEL_WIDTH));
 	EFSYS_ASSERT3U(label, <, EFX_EV_RX_NLABELS);
 	EFSYS_ASSERT3U(enp->en_rx_qcount + 1, <, encp->enc_rxq_limit);
 
-	if (!ISP2(n) || !(n & EFX_RXQ_NDESCS_MASK)) {
+	EFX_STATIC_ASSERT(ISP2(EFX_RXQ_MAXNDESCS));
+	EFX_STATIC_ASSERT(ISP2(EFX_RXQ_MINNDESCS));
+
+	if (!ISP2(n) || (n < EFX_RXQ_MINNDESCS) || (n > EFX_RXQ_MAXNDESCS)) {
 		rc = EINVAL;
 		goto fail1;
 	}
@@ -737,20 +1309,6 @@ efx_rx_qcreate(
 		goto fail4;
 	}
 
-	/* Allocate an RXQ object */
-	EFSYS_KMEM_ALLOC(enp->en_esip, sizeof (efx_rxq_t), erp);
-
-	if (erp == NULL) {
-		rc = ENOMEM;
-		goto fail5;
-	}
-
-	erp->er_magic = EFX_RXQ_MAGIC;
-	erp->er_enp = enp;
-	erp->er_index = index;
-	erp->er_mask = n - 1;
-	erp->er_esmp = esmp;
-
 	/* Set up the new descriptor queue */
 	EFX_POPULATE_OWORD_10(oword,
 	    FRF_CZ_RX_HDR_SPLIT, split,
@@ -765,14 +1323,10 @@ efx_rx_qcreate(
 	    FRF_AZ_RX_DESCQ_JUMBO, jumbo);
 
 	EFX_BAR_TBL_WRITEO(enp, FR_AZ_RX_DESC_PTR_TBL,
-			    erp->er_index, &oword);
+			    erp->er_index, &oword, B_TRUE);
 
-	enp->en_rx_qcount++;
-	*erpp = erp;
 	return (0);
 
-fail5:
-	EFSYS_PROBE(fail5);
 fail4:
 	EFSYS_PROBE(fail4);
 fail3:
@@ -785,14 +1339,12 @@ fail1:
 	return (rc);
 }
 
-		void
-efx_rx_qdestroy(
+static		void
+falconsiena_rx_qdestroy(
 	__in	efx_rxq_t *erp)
 {
 	efx_nic_t *enp = erp->er_enp;
 	efx_oword_t oword;
-
-	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
 	EFSYS_ASSERT(enp->en_rx_qcount != 0);
 	--enp->en_rx_qcount;
@@ -801,20 +1353,17 @@ efx_rx_qdestroy(
 	EFX_ZERO_OWORD(oword);
 
 	EFX_BAR_TBL_WRITEO(enp, FR_AZ_RX_DESC_PTR_TBL,
-			    erp->er_index, &oword);
+			    erp->er_index, &oword, B_TRUE);
 
 	/* Free the RXQ object */
 	EFSYS_KMEM_FREE(enp->en_esip, sizeof (efx_rxq_t), erp);
 }
 
-		void
-efx_rx_fini(
+static		void
+falconsiena_rx_fini(
 	__in	efx_nic_t *enp)
 {
-	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NIC);
-	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
-	EFSYS_ASSERT3U(enp->en_rx_qcount, ==, 0);
-
-	enp->en_mod_flags &= ~EFX_MOD_RX;
+	_NOTE(ARGUNUSED(enp))
 }
+
+#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */

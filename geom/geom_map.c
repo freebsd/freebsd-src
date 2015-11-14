@@ -171,6 +171,13 @@ find_marker(struct g_consumer *cp, const char *line, off_t *offset)
 		    roundup(strlen(search_key), sectorsize), NULL);
 		g_topology_lock();
 
+		/*
+		 * Don't bother doing the rest if buf==NULL; eg derefencing
+		 * to assemble 'key'.
+		 */
+		if (buf == NULL)
+			continue;
+
 		/* Wildcard, replace '.' with byte from data */
 		/* TODO: add support wildcard escape '\.' */
 
@@ -183,7 +190,8 @@ find_marker(struct g_consumer *cp, const char *line, off_t *offset)
 			}
 		}
 
-		if (buf != NULL && strncmp(buf + search_offset % sectorsize,
+		/* Assume buf != NULL here */
+		if (memcmp(buf + search_offset % sectorsize,
 		    key, strlen(search_key)) == 0) {
 			g_free(buf);
 			/* Marker found, so return their offset */

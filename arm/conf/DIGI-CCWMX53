@@ -19,7 +19,7 @@
 
 #NO_UNIVERSE
 
-include		"IMX53"
+include 	"IMX53"
 ident		DIGI-CCWMX53
 
 makeoptions	WITHOUT_MODULES="ahc"

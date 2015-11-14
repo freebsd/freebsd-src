@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/protosw.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/rmlock.h>
 #include <sys/sysctl.h>
 #include <sys/ktr.h>
 #include <sys/condvar.h>
@@ -1215,6 +1217,7 @@ static int
 igmp_input_v1_report(struct ifnet *ifp, /*const*/ struct ip *ip,
     /*const*/ struct igmp *igmp)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct in_ifaddr *ia;
 	struct in_multi *inm;
 
@@ -1237,7 +1240,7 @@ igmp_input_v1_report(struct ifnet *ifp, /*const*/ struct ip *ip,
 	 * Replace 0.0.0.0 with the subnet address if told to do so.
 	 */
 	if (V_igmp_recvifkludge && in_nullhost(ip->ip_src)) {
-		IFP_TO_IA(ifp, ia);
+		IFP_TO_IA(ifp, ia, &in_ifa_tracker);
 		if (ia != NULL) {
 			ip->ip_src.s_addr = htonl(ia->ia_subnet);
 			ifa_free(&ia->ia_ifa);
@@ -1323,6 +1326,7 @@ static int
 igmp_input_v2_report(struct ifnet *ifp, /*const*/ struct ip *ip,
     /*const*/ struct igmp *igmp)
 {
+	struct rm_priotracker in_ifa_tracker;
 	struct in_ifaddr *ia;
 	struct in_multi *inm;
 
@@ -1331,7 +1335,7 @@ igmp_input_v2_report(struct ifnet *ifp, /*const*/ struct ip *ip,
 	 * leave requires knowing that we are the only member of a
 	 * group.
 	 */
-	IFP_TO_IA(ifp, ia);
+	IFP_TO_IA(ifp, ia, &in_ifa_tracker);
 	if (ia != NULL && in_hosteq(ip->ip_src, IA_SIN(ia)->sin_addr)) {
 		ifa_free(&ia->ia_ifa);
 		return (0);
@@ -1540,7 +1544,6 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 				struct igmpv3 *igmpv3;
 				uint16_t igmpv3len;
 				uint16_t nsrc;
-				int srclen;
 
 				IGMPSTAT_INC(igps_rcv_v3_queries);
 				igmpv3 = (struct igmpv3 *)igmp;
@@ -1548,8 +1551,8 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 				 * Validate length based on source count.
 				 */
 				nsrc = ntohs(igmpv3->igmp_numsrc);
-				srclen = sizeof(struct in_addr) * nsrc;
-				if (nsrc * sizeof(in_addr_t) > srclen) {
+				if (nsrc * sizeof(in_addr_t) >
+				    UINT16_MAX - iphlen - IGMP_V3_QUERY_MINLEN) {
 					IGMPSTAT_INC(igps_rcv_tooshort);
 					return (IPPROTO_DONE);
 				}
@@ -1558,7 +1561,7 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 				 * this scope.
 				 */
 				igmpv3len = iphlen + IGMP_V3_QUERY_MINLEN +
-				    srclen;
+				   sizeof(struct in_addr) * nsrc;
 				if ((!M_WRITABLE(m) ||
 				     m->m_len < igmpv3len) &&
 				    (m = m_pullup(m, igmpv3len)) == NULL) {
@@ -3488,6 +3491,7 @@ out:
 static struct mbuf *
 igmp_v3_encap_report(struct ifnet *ifp, struct mbuf *m)
 {
+	struct rm_priotracker	in_ifa_tracker;
 	struct igmp_report	*igmp;
 	struct ip		*ip;
 	int			 hdrlen, igmpreclen;
@@ -3536,7 +3540,7 @@ igmp_v3_encap_report(struct ifnet *ifp, struct mbuf *m)
 	if (m->m_flags & M_IGMP_LOOP) {
 		struct in_ifaddr *ia;
 
-		IFP_TO_IA(ifp, ia);
+		IFP_TO_IA(ifp, ia, &in_ifa_tracker);
 		if (ia != NULL) {
 			ip->ip_src = ia->ia_addr.sin_addr;
 			ifa_free(&ia->ia_ifa);

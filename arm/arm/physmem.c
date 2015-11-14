@@ -62,7 +62,7 @@ static size_t hwcnt;
 static size_t excnt;
 
 /*
- * These "avail lists" are globals used to communicate physical memory layout to 
+ * These "avail lists" are globals used to communicate physical memory layout to
  * other parts of the kernel.  Within the arrays, each value is the starting
  * address of a contiguous area of physical address space.  The values at even
  * indexes are areas that contain usable memory and the values at odd indexes

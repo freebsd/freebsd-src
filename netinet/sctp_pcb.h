@@ -430,6 +430,7 @@ struct sctp_inpcb {
 	struct mtx inp_rdata_mtx;
 	int32_t refcount;
 	uint32_t def_vrf_id;
+	uint16_t fibnum;
 	uint32_t total_sends;
 	uint32_t total_recvs;
 	uint32_t last_abort_code;

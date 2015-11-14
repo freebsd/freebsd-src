@@ -75,7 +75,7 @@ vmbus_channel_set_event(hv_vmbus_channel *channel)
 			(uint32_t *)&monitor_page->
 				trigger_group[channel->monitor_group].u.pending);
 	} else {
-		hv_vmbus_set_event(channel->offer_msg.child_rel_id);
+		hv_vmbus_set_event(channel);
 	}
 
 }
@@ -98,6 +98,18 @@ hv_vmbus_channel_open(
 	void *in, *out;
 	hv_vmbus_channel_open_channel*	open_msg;
 	hv_vmbus_channel_msg_info* 	open_info;
+
+	mtx_lock(&new_channel->sc_lock);
+	if (new_channel->state == HV_CHANNEL_OPEN_STATE) {
+	    new_channel->state = HV_CHANNEL_OPENING_STATE;
+	} else {
+	    mtx_unlock(&new_channel->sc_lock);
+	    if(bootverbose)
+		printf("VMBUS: Trying to open channel <%p> which in "
+		    "%d state.\n", new_channel, new_channel->state);
+	    return (EINVAL);
+	}
+	mtx_unlock(&new_channel->sc_lock);
 
 	new_channel->on_channel_callback = pfn_on_channel_callback;
 	new_channel->channel_callback_context = context;
@@ -162,7 +174,7 @@ hv_vmbus_channel_open(
 		new_channel->ring_buffer_gpadl_handle;
 	open_msg->downstream_ring_buffer_page_offset = send_ring_buffer_size
 		>> PAGE_SHIFT;
-	open_msg->server_context_area_gpadl_handle = 0;
+	open_msg->target_vcpu = new_channel->target_vcpu;
 
 	if (user_data_len)
 		memcpy(open_msg->user_data, user_data, user_data_len);
@@ -182,10 +194,14 @@ hv_vmbus_channel_open(
 
 	ret = sema_timedwait(&open_info->wait_sema, 500); /* KYS 5 seconds */
 
-	if (ret)
+	if (ret) {
+	    if(bootverbose)
+		printf("VMBUS: channel <%p> open timeout.\n", new_channel);
 	    goto cleanup;
+	}
 
 	if (open_info->response.open_result.status == 0) {
+	    new_channel->state = HV_CHANNEL_OPENED_STATE;
 	    if(bootverbose)
 		printf("VMBUS: channel <%p> open success.\n", new_channel);
 	} else {
@@ -497,16 +513,20 @@ cleanup:
 	return (ret);
 }
 
-/**
- * @brief Close the specified channel
- */
-void
-hv_vmbus_channel_close(hv_vmbus_channel *channel)
+static void
+hv_vmbus_channel_close_internal(hv_vmbus_channel *channel)
 {
 	int ret = 0;
 	hv_vmbus_channel_close_channel* msg;
 	hv_vmbus_channel_msg_info* info;
 
+	channel->state = HV_CHANNEL_OPEN_STATE;
+	channel->sc_creation_callback = NULL;
+
+	/*
+	 * Grab the lock to prevent race condition when a packet received
+	 * and unloading driver is in the process.
+	 */
 	mtx_lock(&channel->inbound_lock);
 	channel->on_channel_callback = NULL;
 	mtx_unlock(&channel->inbound_lock);
@@ -545,23 +565,37 @@ hv_vmbus_channel_close(hv_vmbus_channel *channel)
 	    M_DEVBUF);
 
 	free(info, M_DEVBUF);
+}
 
-	/*
-	 *  If we are closing the channel during an error path in
-	 *  opening the channel, don't free the channel
-	 *  since the caller will free the channel
-	 */
-	if (channel->state == HV_CHANNEL_OPEN_STATE) {
-		mtx_lock_spin(&hv_vmbus_g_connection.channel_lock);
-		TAILQ_REMOVE(
-			&hv_vmbus_g_connection.channel_anchor,
-			channel,
-			list_entry);
-		mtx_unlock_spin(&hv_vmbus_g_connection.channel_lock);
+/**
+ * @brief Close the specified channel
+ */
+void
+hv_vmbus_channel_close(hv_vmbus_channel *channel)
+{
+	hv_vmbus_channel*	sub_channel;
 
-		hv_vmbus_free_vmbus_channel(channel);
+	if (channel->primary_channel != NULL) {
+		/*
+		 * We only close multi-channels when the primary is
+		 * closed.
+		 */
+		return;
 	}
 
+	/*
+	 * Close all multi-channels first.
+	 */
+	TAILQ_FOREACH(sub_channel, &channel->sc_list_anchor,
+	    sc_list_entry) {
+		if (sub_channel->state != HV_CHANNEL_OPENED_STATE)
+			continue;
+		hv_vmbus_channel_close_internal(sub_channel);
+	}
+	/*
+	 * Then close the primary channel.
+	 */
+	hv_vmbus_channel_close_internal(channel);
 }
 
 /**
@@ -581,6 +615,7 @@ hv_vmbus_channel_send_packet(
 	uint32_t		packet_len;
 	uint64_t		aligned_data;
 	uint32_t		packet_len_aligned;
+	boolean_t		need_sig;
 	hv_vmbus_sg_buffer_list	buffer_list[3];
 
 	packet_len = sizeof(hv_vm_packet_descriptor) + buffer_len;
@@ -604,12 +639,11 @@ hv_vmbus_channel_send_packet(
 	buffer_list[2].data = &aligned_data;
 	buffer_list[2].length = packet_len_aligned - packet_len;
 
-	ret = hv_ring_buffer_write(&channel->outbound, buffer_list, 3);
+	ret = hv_ring_buffer_write(&channel->outbound, buffer_list, 3,
+	    &need_sig);
 
 	/* TODO: We should determine if this is optional */
-	if (ret == 0
-		&& !hv_vmbus_get_ring_buffer_interrupt_mask(
-			&channel->outbound)) {
+	if (ret == 0 && need_sig) {
 		vmbus_channel_set_event(channel);
 	}
 
@@ -632,6 +666,7 @@ hv_vmbus_channel_send_packet_pagebuffer(
 
 	int					ret = 0;
 	int					i = 0;
+	boolean_t				need_sig;
 	uint32_t				packet_len;
 	uint32_t				packetLen_aligned;
 	hv_vmbus_sg_buffer_list			buffer_list[3];
@@ -675,11 +710,11 @@ hv_vmbus_channel_send_packet_pagebuffer(
 	buffer_list[2].data = &alignedData;
 	buffer_list[2].length = packetLen_aligned - packet_len;
 
-	ret = hv_ring_buffer_write(&channel->outbound, buffer_list, 3);
+	ret = hv_ring_buffer_write(&channel->outbound, buffer_list, 3,
+	    &need_sig);
 
 	/* TODO: We should determine if this is optional */
-	if (ret == 0 &&
-		!hv_vmbus_get_ring_buffer_interrupt_mask(&channel->outbound)) {
+	if (ret == 0 && need_sig) {
 		vmbus_channel_set_event(channel);
 	}
 
@@ -700,6 +735,7 @@ hv_vmbus_channel_send_packet_multipagebuffer(
 
 	int			ret = 0;
 	uint32_t		desc_size;
+	boolean_t		need_sig;
 	uint32_t		packet_len;
 	uint32_t		packet_len_aligned;
 	uint32_t		pfn_count;
@@ -750,11 +786,11 @@ hv_vmbus_channel_send_packet_multipagebuffer(
 	buffer_list[2].data = &aligned_data;
 	buffer_list[2].length = packet_len_aligned - packet_len;
 
-	ret = hv_ring_buffer_write(&channel->outbound, buffer_list, 3);
+	ret = hv_ring_buffer_write(&channel->outbound, buffer_list, 3,
+	    &need_sig);
 
 	/* TODO: We should determine if this is optional */
-	if (ret == 0 &&
-	    !hv_vmbus_get_ring_buffer_interrupt_mask(&channel->outbound)) {
+	if (ret == 0 && need_sig) {
 	    vmbus_channel_set_event(channel);
 	}
 

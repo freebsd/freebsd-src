@@ -256,7 +256,7 @@ uart_phyp_attach(device_t dev)
 		bus_setup_intr(dev, sc->irqres, INTR_TYPE_TTY | INTR_MPSAFE,
 		    NULL, uart_phyp_intr, sc, &sc->sc_icookie);
 	} else {
-		callout_init(&sc->callout, CALLOUT_MPSAFE);
+		callout_init(&sc->callout, 1);
 		sc->polltime = hz / 20;
 		if (sc->polltime < 1)
 			sc->polltime = 1;

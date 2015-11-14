@@ -259,32 +259,6 @@ cbb_pci_probe(device_t brdev)
 }
 
 /*
- * Still need this because the pci code only does power for type 0
- * header devices.
- */
-static void
-cbb_powerstate_d0(device_t dev)
-{
-	u_int32_t membase, irq;
-
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		/* Save important PCI config data. */
-		membase = pci_read_config(dev, CBBR_SOCKBASE, 4);
-		irq = pci_read_config(dev, PCIR_INTLINE, 4);
-
-		/* Reset the power state. */
-		device_printf(dev, "chip is in D%d power mode "
-		    "-- setting to D0\n", pci_get_powerstate(dev));
-
-		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-
-		/* Restore PCI config data. */
-		pci_write_config(dev, CBBR_SOCKBASE, membase, 4);
-		pci_write_config(dev, PCIR_INTLINE, irq, 4);
-	}
-}
-
-/*
  * Print out the config space
  */
 static void
@@ -321,15 +295,15 @@ cbb_pci_attach(device_t brdev)
 	sc->cbdev = NULL;
 	sc->exca[0].pccarddev = NULL;
 	sc->domain = pci_get_domain(brdev);
-	sc->bus.sec = pci_read_config(brdev, PCIR_SECBUS_2, 1);
-	sc->bus.sub = pci_read_config(brdev, PCIR_SUBBUS_2, 1);
 	sc->pribus = pcib_get_bus(parent);
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 	pci_write_config(brdev, PCIR_PRIBUS_2, sc->pribus, 1);
 	pcib_setup_secbus(brdev, &sc->bus, 1);
+#else
+	sc->bus.sec = pci_read_config(brdev, PCIR_SECBUS_2, 1);
+	sc->bus.sub = pci_read_config(brdev, PCIR_SUBBUS_2, 1);
 #endif
 	SLIST_INIT(&sc->rl);
-	cbb_powerstate_d0(brdev);
 
 	rid = CBBR_SOCKBASE;
 	sc->base_res = bus_alloc_resource_any(brdev, SYS_RES_MEMORY, &rid,
@@ -467,17 +441,12 @@ cbb_chipinit(struct cbb_softc *sc)
 	uint32_t mux, sysctrl, reg;
 
 	/* Set CardBus latency timer */
-	if (pci_read_config(sc->dev, PCIR_SECLAT_1, 1) < 0x20)
-		pci_write_config(sc->dev, PCIR_SECLAT_1, 0x20, 1);
+	if (pci_read_config(sc->dev, PCIR_SECLAT_2, 1) < 0x20)
+		pci_write_config(sc->dev, PCIR_SECLAT_2, 0x20, 1);
 
 	/* Set PCI latency timer */
 	if (pci_read_config(sc->dev, PCIR_LATTIMER, 1) < 0x20)
 		pci_write_config(sc->dev, PCIR_LATTIMER, 0x20, 1);
-
-	/* Restore bus configuration */
-	pci_write_config(sc->dev, PCIR_PRIBUS_2, sc->pribus, 1);
-	pci_write_config(sc->dev, PCIR_SECBUS_2, sc->bus.sec, 1);
-	pci_write_config(sc->dev, PCIR_SUBBUS_2, sc->bus.sub, 1);
 
 	/* Enable DMA, memory access for this card and I/O acces for children */
 	pci_enable_busmaster(sc->dev);
@@ -533,10 +502,26 @@ cbb_chipinit(struct cbb_softc *sc)
 		 * properly initialized.
 		 *
 		 * The TI125X parts have a different register.
+		 *
+		 * Note: Only the lower two nibbles matter. When set
+		 * to 0, the MFUNC{0,1} pins are GPIO, which isn't
+		 * going to work out too well because we specifically
+		 * program these parts to parallel interrupt signalling
+		 * elsewhere. We preserve the upper bits of this
+		 * register since changing them have subtle side effects
+		 * for different variants of the card and are
+		 * extremely difficult to exaustively test.
+		 *
+		 * Also, the TI 1510/1520 changed the default for the MFUNC
+		 * register from 0x0 to 0x1000 to enable IRQSER by default.
+		 * We want to be careful to avoid overriding that, and the
+		 * below test will do that. Should this check prove to be
+		 * too permissive, we should just check against 0 and 0x1000
+		 * and not touch it otherwise.
 		 */
 		mux = pci_read_config(sc->dev, CBBR_MFUNC, 4);
 		sysctrl = pci_read_config(sc->dev, CBBR_SYSCTRL, 4);
-		if (mux == 0) {
+		if ((mux & (CBBM_MFUNC_PIN0 | CBBM_MFUNC_PIN1)) == 0) {
 			mux = (mux & ~CBBM_MFUNC_PIN0) |
 			    CBBM_MFUNC_PIN0_INTA;
 			if ((sysctrl & CBBM_SYSCTRL_INTRTIE) == 0)
@@ -549,7 +534,8 @@ cbb_chipinit(struct cbb_softc *sc)
 		/*
 		 * Disable zoom video.  Some machines initialize this
 		 * improperly and exerpience has shown that this helps
-		 * prevent strange behavior.
+		 * prevent strange behavior. We don't support zoom
+		 * video anyway, so no harm can come from this.
 		 */
 		pci_write_config(sc->dev, CBBR_MMCTRL, 0, 4);
 		break;
@@ -906,15 +892,10 @@ cbb_pci_resume(device_t brdev)
 	 * from D0 and back to D0 cause the bridge to lose its config space, so
 	 * all the bus mappings and such are preserved.
 	 *
-	 * For most drivers, the PCI layer handles this saving. However, since
-	 * there's much black magic and arcane art hidden in these few lines of
-	 * code that would be difficult to transition into the PCI
-	 * layer. chipinit was several years of trial and error to write.
+	 * The PCI layer handles standard PCI registers like the
+	 * command register and BARs, but cbb-specific registers are
+	 * handled here.
 	 */
-	pci_write_config(brdev, CBBR_SOCKBASE, rman_get_start(sc->base_res), 4);
-	DEVPRINTF((brdev, "PCI Memory allocated: %08lx\n",
-	    rman_get_start(sc->base_res)));
-
 	sc->chipinit(sc);
 
 	/* reset interrupt -- Do we really need to do this? */

@@ -106,6 +106,7 @@ struct unpcb {
 #define	UNPGC_REF			0x1	/* unpcb has external ref. */
 #define	UNPGC_DEAD			0x2	/* unpcb might be dead. */
 #define	UNPGC_SCANNED			0x4	/* Has been scanned. */
+#define	UNPGC_IGNORE_RIGHTS		0x8	/* Attached rights are freed */
 
 /*
  * These flags are used to handle non-atomicity in connect() and bind()

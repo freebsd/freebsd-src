@@ -128,6 +128,7 @@ struct vop_vector ext2_vnodeops = {
 	.vop_create =		ext2_create,
 	.vop_fsync =		ext2_fsync,
 	.vop_getpages =		vnode_pager_local_getpages,
+	.vop_getpages_async =	vnode_pager_local_getpages_async,
 	.vop_getattr =		ext2_getattr,
 	.vop_inactive =		ext2_inactive,
 	.vop_ioctl =		ext2_ioctl,

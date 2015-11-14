@@ -5,10 +5,16 @@
 #define _MACHDEP_BOOT_MACHDEP_H_
 
 /* Structs that need to be initialised by initarm */
+#ifdef ARM_NEW_PMAP
+extern vm_offset_t irqstack;
+extern vm_offset_t undstack;
+extern vm_offset_t abtstack;
+#else
 struct pv_addr;
 extern struct pv_addr irqstack;
 extern struct pv_addr undstack;
 extern struct pv_addr abtstack;
+#endif
 
 /* Define various stack sizes in pages */
 #define IRQ_STACK_SIZE	1
@@ -36,5 +42,8 @@ void arm_generic_initclocks(void);
 /* Board-specific attributes */
 void board_set_serial(uint64_t);
 void board_set_revision(uint32_t);
+
+int arm_predict_branch(void *, u_int, register_t, register_t *,
+    u_int (*)(void*, int), u_int (*)(void*, vm_offset_t, u_int*));
 
 #endif /* !_MACHINE_MACHDEP_H_ */

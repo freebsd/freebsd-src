@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Advanced Computing Technologies LLC
+ * Copyright (c) 2010 Hudson River Trading LLC
  * Written by: John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
@@ -218,7 +218,7 @@ static int
 qpi_pcib_attach(device_t dev)
 {
 
-	device_add_child(dev, "pci", pcib_get_bus(dev));      
+	device_add_child(dev, "pci", -1);
         return (bus_generic_attach(dev));
 }
 

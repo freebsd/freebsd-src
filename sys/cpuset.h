@@ -116,6 +116,7 @@ struct cpuset {
 extern cpuset_t *cpuset_root;
 struct prison;
 struct proc;
+struct thread;
 
 struct cpuset *cpuset_thread0(void);
 struct cpuset *cpuset_ref(struct cpuset *);
@@ -124,6 +125,9 @@ int	cpuset_setthread(lwpid_t id, cpuset_t *);
 int	cpuset_setithread(lwpid_t id, int cpu);
 int	cpuset_create_root(struct prison *, struct cpuset **);
 int	cpuset_setproc_update_set(struct proc *, struct cpuset *);
+int	cpuset_which(cpuwhich_t, id_t, struct proc **,
+	    struct thread **, struct cpuset **);
+
 char	*cpusetobj_strprint(char *, const cpuset_t *);
 int	cpusetobj_strscan(cpuset_t *, const char *);
 #ifdef DDB

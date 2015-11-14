@@ -45,6 +45,10 @@
 /* Misc. Constants */
 		.set SIZ_PAG,0x1000		# Page size
 		.set SIZ_SEC,0x200		# Sector size
+		.set COPY_BLKS,0x4		# Number of blocks
+						# to copy for boot2
+		.set COPY_BLK_SZ,0x8000		# Copy in 32k blocks; must be
+						# a multiple of 16 bytes
 
 		.globl start
 		.code16
@@ -68,26 +72,39 @@ start:		xor %cx,%cx			# Zero
  * its header to find boot2.  We need to copy boot2 to MEM_USR and BTX
  * to MEM_BTX.  Since those might overlap, we have to copy boot2
  * backwards first and then copy BTX.  We aren't sure exactly how long
- * boot2 is, but we assume it can't be longer than 64k, so we just always
- * copy 64k.
+ * boot2 is, but it's currently under 128kB so we'll copy 4 blocks of 32kB
+ * each; this can be adjusted via COPY_BLK and COPY_BLK_SZ above.
  */
 		mov $end,%bx			# BTX
 		mov 0xa(%bx),%si		# Get BTX length and set
 		add %bx,%si			#  %si to start of boot2
-		mov %si,%ax			# Align %ds:%si on a
-		shr $4,%ax			#  paragraph boundary
-		and $0xf,%si			#  with the smallest
-		mov %ax,%ds			#  possible %si
-		add $(64 * 1024 - 16),%si
-		mov $MEM_USR/16,%ax		# Point %es:%di at end of
-		mov $(64 * 1024 - 16),%di	#  largest boot2 range
+		dec %si				# Set %ds:%si to point at the
+		mov %si,%ax			# last byte we want to copy
+		shr $4,%ax			# from boot2, with %si made as
+		add $(COPY_BLKS*COPY_BLK_SZ/16),%ax	# small as possible.
+		and $0xf,%si			# 
+		mov %ax,%ds			#
+		mov $MEM_USR/16,%ax		# Set %es:(-1) to point at
+		add $(COPY_BLKS*COPY_BLK_SZ/16),%ax	# the last byte we
+		mov %ax,%es			# want to copy boot2 into.
+		mov $COPY_BLKS,%bx		# Copy COPY_BLKS 32k blocks
+copyloop:
+		add $COPY_BLK_SZ,%si		# Adjust %ds:%si to point at
+		mov %ds,%ax			# the end of the next 32k to
+		sub $COPY_BLK_SZ/16,%ax		# copy from boot2
+		mov %ax,%ds
+		mov $COPY_BLK_SZ-1,%di		# Adjust %es:%di to point at
+		mov %es,%ax			# the end of the next 32k into
+		sub $COPY_BLK_SZ/16,%ax		# which we want boot2 copied
 		mov %ax,%es
+		mov $COPY_BLK_SZ,%cx		# Copy 32k
 		std
-		mov %di,%cx			# Copy 64k - paragraph + 1 
-		inc %cx				#  bytes
 		rep movsb
+		dec %bx
+		jnz copyloop
 		mov %cx,%ds			# Reset %ds and %es
 		mov %cx,%es
+		mov $end,%bx			# BTX
 		mov 0xa(%bx),%cx		# Get BTX length and set
 		mov %bx,%si			#  %si to end of BTX
 		mov $MEM_BTX,%di		# %di -> end of BTX at

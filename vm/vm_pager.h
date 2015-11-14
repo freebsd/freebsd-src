@@ -106,48 +106,14 @@ vm_object_t vm_pager_allocate(objtype_t, void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
 void vm_pager_bufferinit(void);
 void vm_pager_deallocate(vm_object_t);
-static __inline int vm_pager_get_pages(vm_object_t, vm_page_t *, int, int);
-static inline int vm_pager_get_pages_async(vm_object_t, vm_page_t *, int,
-    int, pgo_getpages_iodone_t, void *);
+int vm_pager_get_pages(vm_object_t, vm_page_t *, int, int);
+int vm_pager_get_pages_async(vm_object_t, vm_page_t *, int, int,
+    pgo_getpages_iodone_t, void *);
 static __inline boolean_t vm_pager_has_page(vm_object_t, vm_pindex_t, int *, int *);
 void vm_pager_init(void);
 vm_object_t vm_pager_object_lookup(struct pagerlst *, void *);
 void vm_pager_free_nonreq(vm_object_t object, vm_page_t ma[], int reqpage,
     int npages, boolean_t object_locked);
-
-/*
- *	vm_page_get_pages:
- *
- *	Retrieve pages from the VM system in order to map them into an object
- *	( or into VM space somewhere ).  If the pagein was successful, we
- *	must fully validate it.
- */
-static __inline int
-vm_pager_get_pages(
-	vm_object_t object,
-	vm_page_t *m,
-	int count,
-	int reqpage
-) {
-	int r;
-
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	r = (*pagertab[object->type]->pgo_getpages)(object, m, count, reqpage);
-	if (r == VM_PAGER_OK && m[reqpage]->valid != VM_PAGE_BITS_ALL) {
-		vm_page_zero_invalid(m[reqpage], TRUE);
-	}
-	return (r);
-}
-
-static inline int
-vm_pager_get_pages_async(vm_object_t object, vm_page_t *m, int count,
-    int reqpage, pgo_getpages_iodone_t iodone, void *arg)
-{
-
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	return ((*pagertab[object->type]->pgo_getpages_async)(object, m,
-	    count, reqpage, iodone, arg));
-}
 
 static __inline void
 vm_pager_put_pages(

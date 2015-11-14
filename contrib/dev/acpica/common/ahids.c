@@ -230,7 +230,7 @@ AcpiAhMatchHardwareId (
 
     for (Info = AslDeviceIds; Info->Name; Info++)
     {
-        if (!ACPI_STRCMP (HardwareId, Info->Name))
+        if (!strcmp (HardwareId, Info->Name))
         {
             return (Info);
         }

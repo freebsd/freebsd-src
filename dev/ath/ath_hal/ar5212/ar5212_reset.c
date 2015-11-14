@@ -116,7 +116,9 @@ write_common(struct ath_hal *ah, const HAL_INI_ARRAY *ia,
 HAL_BOOL
 ar5212Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	struct ieee80211_channel *chan,
-	HAL_BOOL bChannelChange, HAL_STATUS *status)
+	HAL_BOOL bChannelChange,
+	HAL_RESET_TYPE resetType,
+	HAL_STATUS *status)
 {
 #define	N(a)	(sizeof (a) / sizeof (a[0]))
 #define	FAIL(_code)	do { ecode = _code; goto bad; } while (0)
@@ -197,7 +199,8 @@ ar5212Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		saveFrameSeqCount = 0;		/* NB: silence compiler */
 
 	/* Blank the channel survey statistics */
-	OS_MEMZERO(&ahp->ah_chansurvey, sizeof(ahp->ah_chansurvey));
+	ath_hal_survey_clear(ah);
+
 #if 0
 	/*
 	 * XXX disable for now; this appears to sometimes cause OFDM

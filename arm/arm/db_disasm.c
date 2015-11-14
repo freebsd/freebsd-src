@@ -70,7 +70,7 @@ db_disasm_printaddr(u_int address)
 }
 
 vm_offset_t
-db_disasm(vm_offset_t loc, boolean_t altfmt)
+db_disasm(vm_offset_t loc, bool altfmt)
 {
 
 	return disasm(&db_disasm_interface, loc, altfmt);

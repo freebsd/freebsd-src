@@ -48,6 +48,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kstack_pages.h"
+
 #define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -293,7 +295,7 @@ initarm(struct arm_boot_params *abp)
 	valloc_pages(irqstack, IRQ_STACK_SIZE);
 	valloc_pages(abtstack, ABT_STACK_SIZE);
 	valloc_pages(undstack, UND_STACK_SIZE);
-	valloc_pages(kernelstack, KSTACK_PAGES);
+	valloc_pages(kernelstack, kstack_pages);
 	alloc_pages(minidataclean.pv_pa, 1);
 	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 
@@ -376,7 +378,7 @@ initarm(struct arm_boot_params *abp)
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
-	cpu_setup("");
+	cpu_setup();
 
 	/* ready to setup the console (XXX move earlier if possible) */
 	cninit();

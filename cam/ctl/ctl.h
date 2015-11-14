@@ -120,14 +120,14 @@ typedef enum {
 	CTL_UA_LUN_CHANGE	= 0x0020,
 	CTL_UA_MODE_CHANGE	= 0x0040,
 	CTL_UA_LOG_CHANGE	= 0x0080,
-	CTL_UA_LVD		= 0x0100,
-	CTL_UA_SE		= 0x0200,
+	CTL_UA_INQ_CHANGE	= 0x0100,
 	CTL_UA_RES_PREEMPT	= 0x0400,
 	CTL_UA_RES_RELEASE	= 0x0800,
-	CTL_UA_REG_PREEMPT  	= 0x1000,
-	CTL_UA_ASYM_ACC_CHANGE  = 0x2000,
-	CTL_UA_CAPACITY_CHANGED = 0x4000,
-	CTL_UA_THIN_PROV_THRES	= 0x8000
+	CTL_UA_REG_PREEMPT	= 0x1000,
+	CTL_UA_ASYM_ACC_CHANGE	= 0x2000,
+	CTL_UA_CAPACITY_CHANGE	= 0x4000,
+	CTL_UA_THIN_PROV_THRES	= 0x8000,
+	CTL_UA_MEDIUM_CHANGE	= 0x10000
 } ctl_ua_type;
 
 #ifdef	_KERNEL
@@ -140,17 +140,9 @@ struct ctl_page_index;
 SYSCTL_DECL(_kern_cam_ctl);
 #endif
 
-/*
- * Call these routines to enable or disable front end ports.
- */
-int ctl_port_enable(ctl_port_type port_type);
-int ctl_port_disable(ctl_port_type port_type);
-/*
- * This routine grabs a list of frontend ports.
- */
-int ctl_port_list(struct ctl_port_entry *entries, int num_entries_alloced,
-		  int *num_entries_filled, int *num_entries_dropped,
-		  ctl_port_type port_type, int no_virtual);
+struct ctl_lun;
+struct ctl_port;
+struct ctl_softc;
 
 /*
  * Put a string into an sbuf, escaping characters that are illegal or not
@@ -158,7 +150,7 @@ int ctl_port_list(struct ctl_port_entry *entries, int num_entries_alloced,
  */
 int ctl_sbuf_printf_esc(struct sbuf *sb, char *str, int size);
 
-int ctl_ffz(uint32_t *mask, uint32_t size);
+int ctl_ffz(uint32_t *mask, uint32_t first, uint32_t last);
 int ctl_set_mask(uint32_t *mask, uint32_t bit);
 int ctl_clear_mask(uint32_t *mask, uint32_t bit);
 int ctl_is_set(uint32_t *mask, uint32_t bit);
@@ -167,11 +159,6 @@ int ctl_caching_sp_handler(struct ctl_scsiio *ctsio,
 int ctl_control_page_handler(struct ctl_scsiio *ctsio,
 			     struct ctl_page_index *page_index,
 			     uint8_t *page_ptr);
-/**
-int ctl_failover_sp_handler(struct ctl_scsiio *ctsio,
-			    struct ctl_page_index *page_index,
-			    uint8_t *page_ptr);
-**/
 int ctl_debugconf_sp_sense_handler(struct ctl_scsiio *ctsio,
 				   struct ctl_page_index *page_index,
 				   int pc);
@@ -186,12 +173,32 @@ int ctl_sap_log_sense_handler(struct ctl_scsiio *ctsio,
 				   int pc);
 int ctl_config_move_done(union ctl_io *io);
 void ctl_datamove(union ctl_io *io);
+void ctl_serseq_done(union ctl_io *io);
 void ctl_done(union ctl_io *io);
 void ctl_data_submit_done(union ctl_io *io);
 void ctl_config_read_done(union ctl_io *io);
 void ctl_config_write_done(union ctl_io *io);
 void ctl_portDB_changed(int portnum);
-void ctl_init_isc_msg(void);
+int ctl_ioctl_io(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
+		 struct thread *td);
+
+void ctl_est_ua(struct ctl_lun *lun, uint32_t initidx, ctl_ua_type ua);
+void ctl_est_ua_port(struct ctl_lun *lun, int port, uint32_t except,
+    ctl_ua_type ua);
+void ctl_est_ua_all(struct ctl_lun *lun, uint32_t except, ctl_ua_type ua);
+void ctl_clr_ua(struct ctl_lun *lun, uint32_t initidx, ctl_ua_type ua);
+void ctl_clr_ua_all(struct ctl_lun *lun, uint32_t except, ctl_ua_type ua);
+void ctl_clr_ua_allluns(struct ctl_softc *ctl_softc, uint32_t initidx,
+    ctl_ua_type ua_type);
+
+uint32_t ctl_decode_lun(uint64_t encoded);
+uint64_t ctl_encode_lun(uint32_t decoded);
+
+void ctl_isc_announce_lun(struct ctl_lun *lun);
+void ctl_isc_announce_port(struct ctl_port *port);
+void ctl_isc_announce_iid(struct ctl_port *port, int iid);
+void ctl_isc_announce_mode(struct ctl_lun *lun, uint32_t initidx,
+    uint8_t page, uint8_t subpage);
 
 /*
  * KPI to manipulate LUN/port options
@@ -206,6 +213,8 @@ typedef STAILQ_HEAD(ctl_options, ctl_option) ctl_options_t;
 
 struct ctl_be_arg;
 void ctl_init_opts(ctl_options_t *opts, int num_args, struct ctl_be_arg *args);
+void ctl_update_opts(ctl_options_t *opts, int num_args,
+    struct ctl_be_arg *args);
 void ctl_free_opts(ctl_options_t *opts);
 char * ctl_get_opt(ctl_options_t *opts, const char *name);
 int ctl_expand_number(const char *buf, uint64_t *num);

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  */
 
 #include <sys/dsl_scan.h>
@@ -101,6 +101,14 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, free_max_blocks, CTLFLAG_RWTUN,
 	(scn)->scn_phys.scn_func == POOL_SCAN_RESILVER)
 
 extern int zfs_txg_timeout;
+
+/*
+ * Enable/disable the processing of the free_bpobj object.
+ */
+boolean_t zfs_free_bpobj_enabled = B_TRUE;
+
+SYSCTL_INT(_vfs_zfs, OID_AUTO, free_bpobj_enabled, CTLFLAG_RWTUN,
+    &zfs_free_bpobj_enabled, 0, "Enable free_bpobj processing");
 
 /* the order has to match pool_scan_type */
 static scan_cb_t *scan_funcs[POOL_SCAN_FUNCS] = {
@@ -400,7 +408,7 @@ static uint64_t
 dsl_scan_ds_maxtxg(dsl_dataset_t *ds)
 {
 	uint64_t smt = ds->ds_dir->dd_pool->dp_scan->scn_phys.scn_max_txg;
-	if (dsl_dataset_is_snapshot(ds))
+	if (ds->ds_is_snapshot)
 		return (MIN(smt, dsl_dataset_phys(ds)->ds_creation_txg));
 	return (smt);
 }
@@ -600,7 +608,8 @@ dsl_scan_check_resume(dsl_scan_t *scn, const dnode_phys_t *dnp,
 		 * If we already visited this bp & everything below (in
 		 * a prior txg sync), don't bother doing it again.
 		 */
-		if (zbookmark_is_before(dnp, zb, &scn->scn_phys.scn_bookmark))
+		if (zbookmark_subtree_completed(dnp, zb,
+		    &scn->scn_phys.scn_bookmark))
 			return (B_TRUE);
 
 		/*
@@ -836,7 +845,7 @@ dsl_scan_ds_destroyed(dsl_dataset_t *ds, dmu_tx_t *tx)
 		return;
 
 	if (scn->scn_phys.scn_bookmark.zb_objset == ds->ds_object) {
-		if (dsl_dataset_is_snapshot(ds)) {
+		if (ds->ds_is_snapshot) {
 			/* Note, scn_cur_{min,max}_txg stays the same. */
 			scn->scn_phys.scn_bookmark.zb_objset =
 			    dsl_dataset_phys(ds)->ds_next_snap_obj;
@@ -858,7 +867,7 @@ dsl_scan_ds_destroyed(dsl_dataset_t *ds, dmu_tx_t *tx)
 		ASSERT3U(dsl_dataset_phys(ds)->ds_num_children, <=, 1);
 		VERIFY3U(0, ==, zap_remove_int(dp->dp_meta_objset,
 		    scn->scn_phys.scn_queue_obj, ds->ds_object, tx));
-		if (dsl_dataset_is_snapshot(ds)) {
+		if (ds->ds_is_snapshot) {
 			/*
 			 * We keep the same mintxg; it could be >
 			 * ds_creation_txg if the previous snapshot was
@@ -1042,7 +1051,7 @@ dsl_scan_visitds(dsl_scan_t *scn, uint64_t dsobj, dmu_tx_t *tx)
 	 * ZIL here, rather than in scan_recurse(), because the regular
 	 * snapshot block-sharing rules don't apply to it.
 	 */
-	if (DSL_SCAN_IS_SCRUB_RESILVER(scn) && !dsl_dataset_is_snapshot(ds))
+	if (DSL_SCAN_IS_SCRUB_RESILVER(scn) && !ds->ds_is_snapshot)
 		dsl_scan_zil(dp, &os->os_zil_header);
 
 	/*
@@ -1450,7 +1459,8 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 	 * have to worry about traversing it.  It is also faster to free the
 	 * blocks than to scrub them.
 	 */
-	if (spa_version(dp->dp_spa) >= SPA_VERSION_DEADLISTS) {
+	if (zfs_free_bpobj_enabled &&
+	    spa_version(dp->dp_spa) >= SPA_VERSION_DEADLISTS) {
 		scn->scn_is_bptree = B_FALSE;
 		scn->scn_zio_root = zio_root(dp->dp_spa, NULL,
 		    NULL, ZIO_FLAG_MUSTSUCCEED);

@@ -76,11 +76,17 @@ struct pptintr_arg {				/* pptintr(pptintr_arg) */
 	uint64_t	msg_data;
 };
 
+struct pptseg {
+	vm_paddr_t	gpa;
+	size_t		len;
+	int		wired;
+};
+
 struct pptdev {
 	device_t	dev;
 	struct vm	*vm;			/* owner of this device */
 	TAILQ_ENTRY(pptdev)	next;
-	struct vm_memory_segment mmio[MAX_MMIOSEGS];
+	struct pptseg mmio[MAX_MMIOSEGS];
 	struct {
 		int	num_msgs;		/* guest state */
 
@@ -207,14 +213,14 @@ static void
 ppt_unmap_mmio(struct vm *vm, struct pptdev *ppt)
 {
 	int i;
-	struct vm_memory_segment *seg;
+	struct pptseg *seg;
 
 	for (i = 0; i < MAX_MMIOSEGS; i++) {
 		seg = &ppt->mmio[i];
 		if (seg->len == 0)
 			continue;
 		(void)vm_unmap_mmio(vm, seg->gpa, seg->len);
-		bzero(seg, sizeof(struct vm_memory_segment));
+		bzero(seg, sizeof(struct pptseg));
 	}
 }
 
@@ -324,7 +330,7 @@ ppt_is_mmio(struct vm *vm, vm_paddr_t gpa)
 {
 	int i;
 	struct pptdev *ppt;
-	struct vm_memory_segment *seg;
+	struct pptseg *seg;
 
 	TAILQ_FOREACH(ppt, &pptdev_list, next) {
 		if (ppt->vm != vm)
@@ -410,7 +416,7 @@ ppt_map_mmio(struct vm *vm, int bus, int slot, int func,
 	     vm_paddr_t gpa, size_t len, vm_paddr_t hpa)
 {
 	int i, error;
-	struct vm_memory_segment *seg;
+	struct pptseg *seg;
 	struct pptdev *ppt;
 
 	ppt = ppt_find(bus, slot, func);

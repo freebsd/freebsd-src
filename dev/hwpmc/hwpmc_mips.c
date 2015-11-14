@@ -104,7 +104,7 @@ mips_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	pm->pm_md.pm_mips_evsel = config;
 
-	PMCDBG(MDP,ALL,2,"mips-allocate ri=%d -> config=0x%x", ri, config);
+	PMCDBG2(MDP,ALL,2,"mips-allocate ri=%d -> config=0x%x", ri, config);
 
 	return 0;
 }
@@ -123,7 +123,7 @@ mips_read_pmc(int cpu, int ri, pmc_value_t *v)
 
 	pm  = mips_pcpu[cpu]->pc_mipspmcs[ri].phw_pmc;
 	tmp = mips_pmcn_read(ri);
-	PMCDBG(MDP,REA,2,"mips-read id=%d -> %jd", ri, tmp);
+	PMCDBG2(MDP,REA,2,"mips-read id=%d -> %jd", ri, tmp);
 
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		*v = tmp - (1UL << (mips_pmc_spec.ps_counter_width - 1));
@@ -148,7 +148,7 @@ mips_write_pmc(int cpu, int ri, pmc_value_t v)
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		v = (1UL << (mips_pmc_spec.ps_counter_width - 1)) - v;
 	
-	PMCDBG(MDP,WRI,1,"mips-write cpu=%d ri=%d v=%jx", cpu, ri, v);
+	PMCDBG3(MDP,WRI,1,"mips-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
 	mips_pmcn_write(ri, v);
 
@@ -160,7 +160,7 @@ mips_config_pmc(int cpu, int ri, struct pmc *pm)
 {
 	struct pmc_hw *phw;
 
-	PMCDBG(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
+	PMCDBG3(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[mips,%d] illegal CPU value %d", __LINE__, cpu));
@@ -376,7 +376,7 @@ mips_pcpu_init(struct pmc_mdep *md, int cpu)
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[mips,%d] wrong cpu number %d", __LINE__, cpu));
-	PMCDBG(MDP,INI,1,"mips-init cpu=%d", cpu);
+	PMCDBG1(MDP,INI,1,"mips-init cpu=%d", cpu);
 
 	mips_pcpu[cpu] = pac = malloc(sizeof(struct mips_cpu), M_PMC,
 	    M_WAITOK|M_ZERO);
@@ -421,7 +421,7 @@ pmc_mips_initialize()
 	 */
 	mips_npmcs = 2;
 	
-	PMCDBG(MDP,INI,1,"mips-init npmcs=%d", mips_npmcs);
+	PMCDBG1(MDP,INI,1,"mips-init npmcs=%d", mips_npmcs);
 
 	/*
 	 * Allocate space for pointers to PMC HW descriptors and for

@@ -158,8 +158,17 @@ AcpiUtDumpBuffer (
                 return;
             }
 
+            /*
+             * Add comment characters so rest of line is ignored when
+             * compiled
+             */
+            if (j == 0)
+            {
+                AcpiOsPrintf ("// ");
+            }
+
             BufChar = Buffer[(ACPI_SIZE) i + j];
-            if (ACPI_IS_PRINT (BufChar))
+            if (isprint (BufChar))
             {
                 AcpiOsPrintf ("%c", BufChar);
             }
@@ -332,7 +341,7 @@ AcpiUtDumpBufferToFile (
             }
 
             BufChar = Buffer[(ACPI_SIZE) i + j];
-            if (ACPI_IS_PRINT (BufChar))
+            if (isprint (BufChar))
             {
                 AcpiUtFilePrintf (File, "%c", BufChar);
             }

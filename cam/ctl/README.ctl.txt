@@ -19,9 +19,9 @@ Userland Commands
 Introduction:
 ============
 
-CTL is a disk and processor device emulation subsystem originally written
-for Copan Systems under Linux starting in 2003.  It has been shipping in
-Copan (now SGI) products since 2005.
+CTL is a disk, processor and cdrom device emulation subsystem originally
+written for Copan Systems under Linux starting in 2003.  It has been
+shipping in Copan (now SGI) products since 2005.
 
 It was ported to FreeBSD in 2008, and thanks to an agreement between SGI
 (who acquired Copan's assets in 2010) and Spectra Logic in 2010, CTL is
@@ -31,7 +31,7 @@ that Spectra would work to get CTL into the FreeBSD tree.
 Features:
 ========
 
- - Disk and processor device emulation.
+ - Disk, processor and cdrom device emulation.
  - Tagged queueing
  - SCSI task attribute support (ordered, head of queue, simple tags)
  - SCSI implicit command ordering support.  (e.g. if a read follows a mode
@@ -40,28 +40,24 @@ Features:
  - Support for multiple ports
  - Support for multiple simultaneous initiators
  - Support for multiple simultaneous backing stores
+ - Support for VMWare VAAI: COMPARE AND WRITE, XCOPY, WRITE SAME and
+   UNMAP commands
+ - Support for Microsoft ODX: POPULATE TOKEN/WRITE USING TOKEN, WRITE SAME
+   and UNMAP commands
  - Persistent reservation support
  - Mode sense/select support
  - Error injection support
- - High Availability support (1)
+ - High Availability clustering support with ALUA
  - All I/O handled in-kernel, no userland context switch overhead.
-
-(1) HA Support is just an API stub, and needs much more to be fully
-    functional.  See the to-do list below.
 
 Configuring and Running CTL:
 ===========================
 
- - After applying the CTL patchset to your tree, build world and install it
-   on your target system.
-
- - Add 'device ctl' to your kernel configuration file.
+ - Add 'device ctl' to your kernel configuration file or load the module.
 
  - If you're running with a 8Gb or 4Gb Qlogic FC board, add
-   'options ISP_TARGET_MODE' to your kernel config file.  Keep in mind that
-   the isp(4) driver can run in target or initiator mode, but not both on
-   the same machine.  'device ispfw' or loading the ispfw module is also
-   recommended.
+   'options ISP_TARGET_MODE' to your kernel config file. 'device ispfw' or
+   loading the ispfw module is also recommended.
 
  - Rebuild and install a new kernel.
 
@@ -245,27 +241,6 @@ To Do List:
    another data structure in the stack, more memory allocations, etc.  This
    will also require changes to the CAM CCB structure to support CTL.
 
- - Full-featured High Availability support.  The HA API that is in ctl_ha.h
-   is essentially a renamed version of Copan's HA API.  There is no
-   substance to it, but it remains in CTL to show what needs to be done to
-   implement active/active HA from a CTL standpoint.  The things that would
-   need to be done include:
-	- A kernel level software API for message passing as well as DMA
-	  between at least two nodes.
-	- Hardware support and drivers for inter-node communication.  This
-	  could be as simples as ethernet hardware and drivers.
-	- A "supervisor", or startup framework to control and coordinate
-	  HA startup, failover (going from active/active to single mode),
-	  and failback (going from single mode to active/active).
-	- HA support in other components of the stack.  The goal behind HA
-	  is that one node can fail and another node can seamlessly take
-	  over handling I/O requests.  This requires support from pretty
-	  much every component in the storage stack, from top to bottom.
-	  CTL is one piece of it, but you also need support in the RAID
-	  stack/filesystem/backing store.  You also need full configuration
-	  mirroring, and all peer nodes need to be able to talk to the
-	  underlying storage hardware.
-
 Code Roadmap:
 ============
 
@@ -318,7 +293,6 @@ These files define the basic CTL backend API.  The comments in the header
 explain the API.
 
 ctl_backend_block.c
-ctl_backend_block.h:
 -------------------
 
 The block and file backend.  This allows for using a disk or a file as the
@@ -366,21 +340,11 @@ This is a CTL frontend port that is also a CAM SIM.  The idea is that this
 frontend allows for using CTL without any target-capable hardware.  So any
 LUNs you create in CTL are visible via this port.
 
-
-ctl_frontend_internal.c
-ctl_frontend_internal.h:
------------------------
-
-This is a frontend port written for Copan to do some system-specific tasks
-that required sending commands into CTL from inside the kernel.  This isn't
-entirely relevant to FreeBSD in general, but can perhaps be repurposed or
-removed later.
-
+ctl_ha.c:
 ctl_ha.h:
 --------
 
-This is a stubbed-out High Availability API.  See the comments in the
-header and the description of what is needed as far as HA support above.
+This is a High Availability API and TCP-based interlink implementation.
 
 ctl_io.h:
 --------

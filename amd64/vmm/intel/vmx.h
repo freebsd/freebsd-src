@@ -135,6 +135,8 @@ void	vmx_call_isr(uintptr_t entry);
 u_long	vmx_fix_cr0(u_long cr0);
 u_long	vmx_fix_cr4(u_long cr4);
 
+int	vmx_set_tsc_offset(struct vmx *vmx, int vcpu, uint64_t offset);
+
 extern char	vmx_exit_guest[];
 
 #endif

@@ -1,26 +1,31 @@
 /*-
- * Copyright 2007-2009 Solarflare Communications Inc.  All rights reserved.
+ * Copyright (c) 2007-2015 Solarflare Communications Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  *
  * Ackowledgement to Fen Systems Ltd.
  *
@@ -113,11 +118,10 @@ extern "C" {
 #define	EFX_DWORD_3_LBN 96
 #define	EFX_DWORD_3_WIDTH 32
 
-#define	EFX_QWORD_0_LBN 0
-#define	EFX_QWORD_0_WIDTH 64
-
-#define	EFX_QWORD_1_LBN 64
-#define	EFX_QWORD_1_WIDTH 64
+/* There are intentionally no EFX_QWORD_0 or EFX_QWORD_1 field definitions
+ * here as the implementaion of EFX_QWORD_FIELD and EFX_OWORD_FIELD do not
+ * support field widths larger than 32 bits.
+ */
 
 /* Specified attribute (i.e. LBN ow WIDTH) of the specified field */
 #define	EFX_VAL(_field, _attribute)					\
@@ -229,6 +233,9 @@ typedef union efx_oword_u {
 	efx_word_t eo_word[8];
 	efx_dword_t eo_dword[4];
 	efx_qword_t eo_qword[2];
+#if EFSYS_HAS_SSE2_M128
+	__m128i eo_u128[1];
+#endif
 #if EFSYS_HAS_UINT64
 	uint64_t eo_u64[2];
 #endif	
@@ -891,11 +898,7 @@ extern int fix_lint;
 #define	EFX_ZERO_OWORD(_oword)						\
 	EFX_POPULATE_OWORD_1(_oword, EFX_DUMMY_FIELD, 0)
 
-#define	EFX_SET_OWORD64(_oword)						\
-	EFX_POPULATE_OWORD_2(_oword,					\
-	    EFX_QWORD_0, (uint64_t)-1, EFX_QWORD_1, (uint64_t)-1)
-
-#define	EFX_SET_OWORD32(_oword)						\
+#define	EFX_SET_OWORD(_oword)						\
 	EFX_POPULATE_OWORD_4(_oword,					\
 	    EFX_DWORD_0, 0xffffffff, EFX_DWORD_1, 0xffffffff,		\
 	    EFX_DWORD_2, 0xffffffff, EFX_DWORD_3, 0xffffffff)
@@ -969,11 +972,7 @@ extern int fix_lint;
 #define	EFX_ZERO_QWORD(_qword)						\
 	EFX_POPULATE_QWORD_1(_qword, EFX_DUMMY_FIELD, 0)
 
-#define	EFX_SET_QWORD64(_qword)						\
-	EFX_POPULATE_QWORD_1(_qword,					\
-	    EFX_QWORD_0, (uint64_t)-1)
-
-#define	EFX_SET_QWORD32(_qword)						\
+#define	EFX_SET_QWORD(_qword)						\
 	EFX_POPULATE_QWORD_2(_qword,					\
 	    EFX_DWORD_0, 0xffffffff, EFX_DWORD_1, 0xffffffff)
 
@@ -1380,6 +1379,23 @@ extern int fix_lint;
 	_NOTE(CONSTANTCONDITION) 					\
 	} while (B_FALSE)
 
+#define	EFX_TEST_OWORD_BIT64(_oword, _bit)				\
+	(((_oword).eo_u64[0] &						\
+		    __CPU_TO_LE_64(EFX_SHIFT64(_bit, FIX_LINT(0)))) ||	\
+	((_oword).eo_u64[1] &						\
+		    __CPU_TO_LE_64(EFX_SHIFT64(_bit, FIX_LINT(64)))))
+
+#define	EFX_TEST_OWORD_BIT32(_oword, _bit)				\
+	(((_oword).eo_u32[0] &						\
+		    __CPU_TO_LE_32(EFX_SHIFT32(_bit, FIX_LINT(0)))) ||	\
+	((_oword).eo_u32[1] &						\
+		    __CPU_TO_LE_32(EFX_SHIFT32(_bit, FIX_LINT(32)))) ||	\
+	((_oword).eo_u32[2] &						\
+		    __CPU_TO_LE_32(EFX_SHIFT32(_bit, FIX_LINT(64)))) ||	\
+	((_oword).eo_u32[3] &						\
+		    __CPU_TO_LE_32(EFX_SHIFT32(_bit, FIX_LINT(96)))))
+
+
 #define	EFX_SET_QWORD_BIT64(_qword, _bit)				\
 	do {								\
 		_NOTE(CONSTANTCONDITION) 				\
@@ -1416,6 +1432,17 @@ extern int fix_lint;
 	_NOTE(CONSTANTCONDITION) 					\
 	} while (B_FALSE)
 
+#define	EFX_TEST_QWORD_BIT64(_qword, _bit)				\
+	(((_qword).eq_u64[0] &						\
+		    __CPU_TO_LE_64(EFX_SHIFT64(_bit, FIX_LINT(0)))) != 0)
+
+#define	EFX_TEST_QWORD_BIT32(_qword, _bit)				\
+	(((_qword).eq_u32[0] &						\
+		    __CPU_TO_LE_32(EFX_SHIFT32(_bit, FIX_LINT(0)))) ||	\
+	((_qword).eq_u32[1] &						\
+		    __CPU_TO_LE_32(EFX_SHIFT32(_bit, FIX_LINT(32)))))
+
+
 #define	EFX_SET_DWORD_BIT(_dword, _bit)					\
 	do {								\
 		(_dword).ed_u32[0] |=					\
@@ -1429,6 +1456,11 @@ extern int fix_lint;
 		    __CPU_TO_LE_32(~EFX_SHIFT32(_bit, FIX_LINT(0)));	\
 	_NOTE(CONSTANTCONDITION) 					\
 	} while (B_FALSE)
+
+#define	EFX_TEST_DWORD_BIT(_dword, _bit)				\
+	(((_dword).ed_u32[0] &						\
+		    __CPU_TO_LE_32(EFX_SHIFT32(_bit, FIX_LINT(0)))) != 0)
+
 
 #define	EFX_SET_WORD_BIT(_word, _bit)					\
 	do {								\
@@ -1444,6 +1476,11 @@ extern int fix_lint;
 	_NOTE(CONSTANTCONDITION) 					\
 	} while (B_FALSE)
 
+#define	EFX_TEST_WORD_BIT(_word, _bit)					\
+	(((_word).ew_u16[0] &						\
+		    __CPU_TO_LE_16(EFX_SHIFT16(_bit, FIX_LINT(0)))) != 0)
+
+
 #define	EFX_SET_BYTE_BIT(_byte, _bit)					\
 	do {								\
 		(_byte).eb_u8[0] |=					\
@@ -1457,6 +1494,11 @@ extern int fix_lint;
 		    __NATIVE_8(~EFX_SHIFT8(_bit, FIX_LINT(0)));		\
 	_NOTE(CONSTANTCONDITION) 					\
 	} while (B_FALSE)
+
+#define	EFX_TEST_BYTE_BIT(_byte, _bit)					\
+	(((_byte).eb_u8[0] &						\
+		    __NATIVE_8(EFX_SHIFT8(_bit, FIX_LINT(0)))) != 0)
+
 
 #define	EFX_OR_OWORD64(_oword1, _oword2)				\
 	do {								\
@@ -1563,18 +1605,18 @@ extern int fix_lint;
 #define	EFX_QWORD_IS_SET	EFX_QWORD_IS_SET64
 #define	EFX_POPULATE_OWORD	EFX_POPULATE_OWORD64
 #define	EFX_POPULATE_QWORD	EFX_POPULATE_QWORD64
-#define	EFX_SET_OWORD		EFX_SET_OWORD64
-#define	EFX_SET_QWORD		EFX_SET_QWORD64
 #define	EFX_SET_OWORD_FIELD	EFX_SET_OWORD_FIELD64
 #define	EFX_SET_QWORD_FIELD	EFX_SET_QWORD_FIELD64
 #define	EFX_SET_OWORD_BIT	EFX_SET_OWORD_BIT64
 #define	EFX_CLEAR_OWORD_BIT	EFX_CLEAR_OWORD_BIT64
+#define	EFX_TEST_OWORD_BIT	EFX_TEST_OWORD_BIT64
 #define	EFX_SET_QWORD_BIT	EFX_SET_QWORD_BIT64
 #define	EFX_CLEAR_QWORD_BIT	EFX_CLEAR_QWORD_BIT64
+#define	EFX_TEST_QWORD_BIT	EFX_TEST_QWORD_BIT64
 #define	EFX_OR_OWORD		EFX_OR_OWORD64
 #define	EFX_AND_OWORD		EFX_AND_OWORD64
 #define	EFX_OR_QWORD		EFX_OR_QWORD64
-#define	EFX_AND_QWORD		EFX_OR_QWORD64
+#define	EFX_AND_QWORD		EFX_AND_QWORD64
 #else
 #define	EFX_OWORD_FIELD		EFX_OWORD_FIELD32
 #define	EFX_QWORD_FIELD		EFX_QWORD_FIELD32
@@ -1586,18 +1628,18 @@ extern int fix_lint;
 #define	EFX_QWORD_IS_SET	EFX_QWORD_IS_SET32
 #define	EFX_POPULATE_OWORD	EFX_POPULATE_OWORD32
 #define	EFX_POPULATE_QWORD	EFX_POPULATE_QWORD32
-#define	EFX_SET_OWORD		EFX_SET_OWORD32
-#define	EFX_SET_QWORD		EFX_SET_QWORD32
 #define	EFX_SET_OWORD_FIELD	EFX_SET_OWORD_FIELD32
 #define	EFX_SET_QWORD_FIELD	EFX_SET_QWORD_FIELD32
 #define	EFX_SET_OWORD_BIT	EFX_SET_OWORD_BIT32
 #define	EFX_CLEAR_OWORD_BIT	EFX_CLEAR_OWORD_BIT32
+#define	EFX_TEST_OWORD_BIT	EFX_TEST_OWORD_BIT32
 #define	EFX_SET_QWORD_BIT	EFX_SET_QWORD_BIT32
 #define	EFX_CLEAR_QWORD_BIT	EFX_CLEAR_QWORD_BIT32
+#define	EFX_TEST_QWORD_BIT	EFX_TEST_QWORD_BIT32
 #define	EFX_OR_OWORD		EFX_OR_OWORD32
 #define	EFX_AND_OWORD		EFX_AND_OWORD32
 #define	EFX_OR_QWORD		EFX_OR_QWORD32
-#define	EFX_AND_QWORD		EFX_OR_QWORD32
+#define	EFX_AND_QWORD		EFX_AND_QWORD32
 #endif
 
 #ifdef	__cplusplus

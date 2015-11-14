@@ -514,14 +514,14 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 
 	/* 
 	 * XXX:
-	 * (dmat->alignment < dmat->maxsize) is just a quick hack; the exact
+	 * (dmat->alignment <= dmat->maxsize) is just a quick hack; the exact
 	 * alignment guarantees of malloc need to be nailed down, and the
 	 * code below should be rewritten to take that into account.
 	 *
 	 * In the meantime, we'll warn the user if malloc gets it wrong.
 	 */
 	if ((dmat->maxsize <= PAGE_SIZE) &&
-	   (dmat->alignment < dmat->maxsize) &&
+	   (dmat->alignment <= dmat->maxsize) &&
 	    dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem) &&
 	    attr == VM_MEMATTR_DEFAULT) {
 		*vaddr = malloc(dmat->maxsize, M_DEVBUF, mflags);
@@ -1121,8 +1121,8 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 
 	if (dmat->flags & BUS_DMA_KEEP_PG_OFFSET) {
 		/* Page offset needs to be preserved. */
-		bpage->vaddr |= vaddr & PAGE_MASK;
-		bpage->busaddr |= vaddr & PAGE_MASK;
+		bpage->vaddr |= addr & PAGE_MASK;
+		bpage->busaddr |= addr & PAGE_MASK;
 	}
 	bpage->datavaddr = vaddr;
 	bpage->dataaddr = addr;

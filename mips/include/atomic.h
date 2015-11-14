@@ -496,6 +496,34 @@ atomic_fetchadd_64(__volatile uint64_t *p, uint64_t v)
 }
 #endif
 
+static __inline void
+atomic_thread_fence_acq(void)
+{
+
+	mips_sync();
+}
+
+static __inline void
+atomic_thread_fence_rel(void)
+{
+
+	mips_sync();
+}
+
+static __inline void
+atomic_thread_fence_acq_rel(void)
+{
+
+	mips_sync();
+}
+
+static __inline void
+atomic_thread_fence_seq_cst(void)
+{
+
+	mips_sync();
+}
+
 /* Operations on chars. */
 #define	atomic_set_char		atomic_set_8
 #define	atomic_set_acq_char	atomic_set_acq_8

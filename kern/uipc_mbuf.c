@@ -395,8 +395,8 @@ mb_free_ext(struct mbuf *m)
  * Attach the cluster from *m to *n, set up m_ext in *n
  * and bump the refcount of the cluster.
  */
-static void
-mb_dupcl(struct mbuf *n, struct mbuf *m)
+void
+mb_dupcl(struct mbuf *n, const struct mbuf *m)
 {
 
 	KASSERT(m->m_flags & M_EXT, ("%s: M_EXT not set on %p", __func__, m));
@@ -420,6 +420,17 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
 	n->m_flags |= m->m_flags & M_RDONLY;
 }
 
+void
+m_demote_pkthdr(struct mbuf *m)
+{
+
+	M_ASSERTPKTHDR(m);
+
+	m_tag_delete_chain(m, NULL);
+	m->m_flags &= ~M_PKTHDR;
+	bzero(&m->m_pkthdr, sizeof(struct pkthdr));
+}
+
 /*
  * Clean up mbuf (chain) from any tags and packet headers.
  * If "all" is set then the first mbuf in the chain will be
@@ -433,11 +444,8 @@ m_demote(struct mbuf *m0, int all, int flags)
 	for (m = all ? m0 : m0->m_next; m != NULL; m = m->m_next) {
 		KASSERT(m->m_nextpkt == NULL, ("%s: m_nextpkt in m %p, m0 %p",
 		    __func__, m, m0));
-		if (m->m_flags & M_PKTHDR) {
-			m_tag_delete_chain(m, NULL);
-			m->m_flags &= ~M_PKTHDR;
-			bzero(&m->m_pkthdr, sizeof(struct pkthdr));
-		}
+		if (m->m_flags & M_PKTHDR)
+			m_demote_pkthdr(m);
 		m->m_flags = m->m_flags & (M_EXT | M_RDONLY | M_NOFREE | flags);
 	}
 }
@@ -559,7 +567,7 @@ m_move_pkthdr(struct mbuf *to, struct mbuf *from)
  * In particular, this does a deep copy of the packet tags.
  */
 int
-m_dup_pkthdr(struct mbuf *to, struct mbuf *from, int how)
+m_dup_pkthdr(struct mbuf *to, const struct mbuf *from, int how)
 {
 
 #if 0
@@ -623,7 +631,7 @@ m_prepend(struct mbuf *m, int len, int how)
  * only their reference counts are incremented.
  */
 struct mbuf *
-m_copym(struct mbuf *m, int off0, int len, int wait)
+m_copym(const struct mbuf *m, int off0, int len, int wait)
 {
 	struct mbuf *n, **np;
 	int off = off0;
@@ -777,7 +785,7 @@ m_copydata(const struct mbuf *m, int off, int len, caddr_t cp)
  * you need a writable copy of an mbuf chain.
  */
 struct mbuf *
-m_dup(struct mbuf *m, int how)
+m_dup(const struct mbuf *m, int how)
 {
 	struct mbuf **p, *top = NULL;
 	int remain, moff, nsize;
@@ -813,6 +821,7 @@ m_dup(struct mbuf *m, int how)
 			}
 			if ((n->m_flags & M_EXT) == 0)
 				nsize = MHLEN;
+			n->m_flags &= ~M_RDONLY;
 		}
 		n->m_len = 0;
 
@@ -1025,8 +1034,6 @@ bad:
  * the amount of empty space before the data in the new mbuf to be specified
  * (in the event that the caller expects to prepend later).
  */
-int MSFail;
-
 struct mbuf *
 m_copyup(struct mbuf *n, int len, int dstoff)
 {
@@ -1063,7 +1070,6 @@ m_copyup(struct mbuf *n, int len, int dstoff)
 	return (m);
  bad:
 	m_freem(n);
-	MSFail++;
 	return (NULL);
 }
 
@@ -1860,6 +1866,11 @@ m_unshare(struct mbuf *m0, int how)
 		if (n == NULL) {
 			m_freem(m0);
 			return (NULL);
+		}
+		if (m->m_flags & M_PKTHDR) {
+			KASSERT(mprev == NULL, ("%s: m0 %p, m %p has M_PKTHDR",
+			    __func__, m0, m));
+			m_move_pkthdr(n, m);
 		}
 		len = m->m_len;
 		off = 0;

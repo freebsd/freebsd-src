@@ -82,10 +82,6 @@ static u_int g_raid_idle_threshold = 1000000;
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, idle_threshold, CTLFLAG_RWTUN,
     &g_raid_idle_threshold, 1000000,
     "Time in microseconds to consider a volume idle.");
-static u_int ar_legacy_aliases = 1;
-SYSCTL_INT(_kern_geom_raid, OID_AUTO, legacy_aliases, CTLFLAG_RWTUN,
-           &ar_legacy_aliases, 0, "Create aliases named as the legacy ataraid style.");
-
 
 #define	MSLEEP(rv, ident, mtx, priority, wmesg, timeout)	do {	\
 	G_RAID_DEBUG(4, "%s: Sleeping %p.", __func__, (ident));		\
@@ -1132,7 +1128,7 @@ g_raid_start(struct bio *bp)
 		return;
 	}
 	mtx_lock(&sc->sc_queue_mtx);
-	bioq_disksort(&sc->sc_queue, bp);
+	bioq_insert_tail(&sc->sc_queue, bp);
 	mtx_unlock(&sc->sc_queue_mtx);
 	if (!dumping) {
 		G_RAID_DEBUG1(4, sc, "Waking up %p.", sc);
@@ -1344,7 +1340,7 @@ g_raid_unlock_range(struct g_raid_volume *vol, off_t off, off_t len)
 			    (intmax_t)(lp->l_offset+lp->l_length));
 			mtx_lock(&sc->sc_queue_mtx);
 			while ((bp = bioq_takefirst(&vol->v_locked)) != NULL)
-				bioq_disksort(&sc->sc_queue, bp);
+				bioq_insert_tail(&sc->sc_queue, bp);
 			mtx_unlock(&sc->sc_queue_mtx);
 			free(lp, M_RAID);
 			return (0);
@@ -1438,7 +1434,7 @@ g_raid_disk_done(struct bio *bp)
 	sd = bp->bio_caller1;
 	sc = sd->sd_softc;
 	mtx_lock(&sc->sc_queue_mtx);
-	bioq_disksort(&sc->sc_queue, bp);
+	bioq_insert_tail(&sc->sc_queue, bp);
 	mtx_unlock(&sc->sc_queue_mtx);
 	if (!dumping)
 		wakeup(sc);
@@ -1628,7 +1624,6 @@ g_raid_launch_provider(struct g_raid_volume *vol)
 	struct g_raid_softc *sc;
 	struct g_provider *pp;
 	char name[G_RAID_MAX_VOLUMENAME];
-	char   announce_buf[80], buf1[32];
 	off_t off;
 	int i;
 
@@ -1643,21 +1638,6 @@ g_raid_launch_provider(struct g_raid_volume *vol)
 		/* Otherwise use sequential volume number. */
 		snprintf(name, sizeof(name), "raid/r%d", vol->v_global_id);
 	}
-
-	/*
-	 * Create a /dev/ar%d that the old ataraid(4) stack once
-	 * created as an alias for /dev/raid/r%d if requested.
-	 * This helps going from stable/7 ataraid devices to newer
-	 * FreeBSD releases. sbruno 07 MAY 2013
-	 */
-
-        if (ar_legacy_aliases) {
-		snprintf(announce_buf, sizeof(announce_buf),
-                        "kern.devalias.%s", name);
-                snprintf(buf1, sizeof(buf1),
-                        "ar%d", vol->v_global_id);
-                kern_setenv(announce_buf, buf1);
-        }
 
 	pp = g_new_providerf(sc->sc_geom, "%s", name);
 	pp->flags |= G_PF_DIRECT_RECEIVE;

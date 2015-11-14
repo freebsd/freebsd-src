@@ -195,7 +195,7 @@ g_eli_read_done(struct bio *bp)
 
 	G_ELI_LOGREQ(2, bp, "Request done.");
 	pbp = bp->bio_parent;
-	if (pbp->bio_error == 0)
+	if (pbp->bio_error == 0 && bp->bio_error != 0)
 		pbp->bio_error = bp->bio_error;
 	g_destroy_bio(bp);
 	/*
@@ -206,7 +206,8 @@ g_eli_read_done(struct bio *bp)
 		return;
 	sc = pbp->bio_to->geom->softc;
 	if (pbp->bio_error != 0) {
-		G_ELI_LOGREQ(0, pbp, "%s() failed", __func__);
+		G_ELI_LOGREQ(0, pbp, "%s() failed (error=%d)", __func__,
+		    pbp->bio_error);
 		pbp->bio_completed = 0;
 		if (pbp->bio_driver2 != NULL) {
 			free(pbp->bio_driver2, M_ELI);
@@ -235,10 +236,8 @@ g_eli_write_done(struct bio *bp)
 
 	G_ELI_LOGREQ(2, bp, "Request done.");
 	pbp = bp->bio_parent;
-	if (pbp->bio_error == 0) {
-		if (bp->bio_error != 0)
-			pbp->bio_error = bp->bio_error;
-	}
+	if (pbp->bio_error == 0 && bp->bio_error != 0)
+		pbp->bio_error = bp->bio_error;
 	g_destroy_bio(bp);
 	/*
 	 * Do we have all sectors already?
@@ -249,14 +248,15 @@ g_eli_write_done(struct bio *bp)
 	free(pbp->bio_driver2, M_ELI);
 	pbp->bio_driver2 = NULL;
 	if (pbp->bio_error != 0) {
-		G_ELI_LOGREQ(0, pbp, "Crypto WRITE request failed (error=%d).",
+		G_ELI_LOGREQ(0, pbp, "%s() failed (error=%d)", __func__,
 		    pbp->bio_error);
 		pbp->bio_completed = 0;
-	}
+	} else
+		pbp->bio_completed = pbp->bio_length;
+
 	/*
 	 * Write is finished, send it up.
 	 */
-	pbp->bio_completed = pbp->bio_length;
 	sc = pbp->bio_to->geom->softc;
 	g_io_deliver(pbp, pbp->bio_error);
 	atomic_subtract_int(&sc->sc_inflight, 1);
@@ -312,10 +312,15 @@ g_eli_start(struct bio *bp)
 		break;
 	case BIO_DELETE:
 		/*
-		 * We could eventually support BIO_DELETE request.
-		 * It could be done by overwritting requested sector with
-		 * random data g_eli_overwrites number of times.
+		 * If the user hasn't set the NODELETE flag, we just pass
+		 * it down the stack and let the layers beneath us do (or
+		 * not) whatever they do with it.  If they have, we
+		 * reject it.  A possible extension would be an
+		 * additional flag to take it as a hint to shred the data
+		 * with [multiple?] overwrites.
 		 */
+		if (!(sc->sc_flags & G_ELI_FLAG_NODELETE))
+			break;
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
@@ -342,6 +347,7 @@ g_eli_start(struct bio *bp)
 		break;
 	case BIO_GETATTR:
 	case BIO_FLUSH:
+	case BIO_DELETE:
 		cbp->bio_done = g_std_done;
 		cp = LIST_FIRST(&sc->sc_geom->consumer);
 		cbp->bio_to = cp->provider;
@@ -633,7 +639,10 @@ g_eli_read_metadata(struct g_class *mp, struct g_provider *pp,
 	g_topology_lock();
 	if (buf == NULL)
 		goto end;
-	eli_metadata_decode(buf, md);
+	error = eli_metadata_decode(buf, md);
+	if (error != 0)
+		goto end;
+	/* Metadata was read and decoded successfully. */
 end:
 	if (buf != NULL)
 		g_free(buf);
@@ -727,10 +736,10 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	sc = malloc(sizeof(*sc), M_ELI, M_WAITOK | M_ZERO);
 	gp->start = g_eli_start;
 	/*
-	 * Spoiling cannot happen actually, because we keep provider open for
-	 * writing all the time or provider is read-only.
+	 * Spoiling can happen even though we have the provider open
+	 * exclusively, e.g. through media change events.
 	 */
-	gp->spoiled = g_eli_orphan_spoil_assert;
+	gp->spoiled = g_eli_orphan;
 	gp->orphan = g_eli_orphan;
 	gp->dumpconf = g_eli_dumpconf;
 	/*
@@ -998,6 +1007,13 @@ g_eli_keyfiles_load(struct hmac_ctx *ctx, const char *provider)
 	for (i = 0; ; i++) {
 		snprintf(name, sizeof(name), "%s:geli_keyfile%d", provider, i);
 		keyfile = preload_search_by_type(name);
+		if (keyfile == NULL && i == 0) {
+			/*
+			 * If there is only one keyfile, allow simpler name.
+			 */
+			snprintf(name, sizeof(name), "%s:geli_keyfile", provider);
+			keyfile = preload_search_by_type(name);
+		}
 		if (keyfile == NULL)
 			return (i);	/* Return number of loaded keyfiles. */
 		data = preload_fetch_addr(keyfile);
@@ -1245,6 +1261,7 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		ADD_FLAG(G_ELI_FLAG_WOPEN, "W-OPEN");
 		ADD_FLAG(G_ELI_FLAG_DESTROY, "DESTROY");
 		ADD_FLAG(G_ELI_FLAG_RO, "READ-ONLY");
+		ADD_FLAG(G_ELI_FLAG_NODELETE, "NODELETE");
 #undef  ADD_FLAG
 	}
 	sbuf_printf(sb, "</Flags>\n");

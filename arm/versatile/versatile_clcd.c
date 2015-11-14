@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/syscons/syscons.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #define	PL110_VENDOR_ARM926PXP	1
 

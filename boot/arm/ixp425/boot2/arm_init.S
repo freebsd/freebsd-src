@@ -43,6 +43,7 @@ ASENTRY_NP(start)
 /* main should not return.  If it does, spin forever		*/
 infiniteLoop:
 	b	infiniteLoop
+END(start)
 
 .Lstart:
 	.word	_edata
@@ -52,5 +53,6 @@ infiniteLoop:
 ENTRY(cpu_id)
 	mrc	p15, 0, r0, c0, c0, 0
 	RET
+END(cpu_id)
 
 /* End */

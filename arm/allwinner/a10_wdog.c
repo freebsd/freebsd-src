@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpufunc.h>
 #include <machine/machdep.h>
-#include <machine/fdt.h>
 
 #include <arm/allwinner/a10_wdog.h>
 

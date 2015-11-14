@@ -225,7 +225,6 @@ alltraps_pushregs_no_rdi:
 	movq	$calltrap,dtrace_invop_calltrap_addr(%rip)
 
 	/* Jump to the code hooked in by DTrace. */
-	movq	dtrace_invop_jump_addr,%rax
 	jmpq	*dtrace_invop_jump_addr
 #endif
 	.globl	calltrap

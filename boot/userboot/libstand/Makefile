@@ -11,35 +11,16 @@ MAN=
 .include <bsd.own.mk>
 MK_SSP=		no
 
-S=		${.CURDIR}/../../../../lib/libstand
+LIBSTAND_SRC=	${.CURDIR}/../../../../lib/libstand
+LIBC_SRC=	${LIBSTAND_SRC}/../libc
 
-.PATH:		${S}
+.PATH:		${LIBSTAND_SRC}
 LIB=		stand
 INTERNALLIB=
 MK_PROFILE=	no
 NO_PIC=
 
 WARNS?=		0
-
-CFLAGS+= -ffreestanding -Wformat -fPIC
-CFLAGS+= -I${.CURDIR}/../../../../lib/libstand
-
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2
-.endif
-.if ${MACHINE_CPUARCH} == "i386"
-CFLAGS.gcc+=	-mpreferred-stack-boundary=2
-CFLAGS+=	-mno-sse3
-.endif
-.if ${MACHINE} == "pc98"
-CFLAGS+=	-Os
-.endif
-.if ${MACHINE_CPUARCH} == "powerpc"
-CFLAGS+=	-msoft-float -D_STANDALONE -DNETIF_DEBUG
-.endif
-.if ${MACHINE_CPUARCH} == "arm"
-CFLAGS+=	-msoft-float -D_STANDALONE
-.endif
 
 # standalone components and stuff we have modified locally
 SRCS+=	gzguts.h zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
@@ -49,14 +30,12 @@ SRCS+=	gzguts.h zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c g
 # private (pruned) versions of libc string functions
 SRCS+=	strcasecmp.c
 
-LIBC=	${.CURDIR}/../../../../lib/libc
-
-.PATH: ${LIBC}/net
+.PATH: ${LIBC_SRC}/net
 
 SRCS+= ntoh.c
 
 # string functions from libc
-.PATH: ${LIBC}/string
+.PATH: ${LIBC_SRC}/string
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "powerpc" || \
 	${MACHINE_CPUARCH} == "sparc64" || ${MACHINE_CPUARCH} == "amd64" || \
 	${MACHINE_CPUARCH} == "arm"
@@ -66,34 +45,34 @@ SRCS+=	bcmp.c bcopy.c bzero.c ffs.c memccpy.c memchr.c memcmp.c memcpy.c \
 	strrchr.c strsep.c strspn.c strstr.c strtok.c swab.c
 .endif
 .if ${MACHINE_CPUARCH} == "arm"
-.PATH: ${LIBC}/arm/gen
+.PATH: ${LIBC_SRC}/arm/gen
 SRCS+= divsi3.S
 .endif
 .if ${MACHINE_CPUARCH} == "powerpc"
-.PATH: ${LIBC}/libc/quad
+.PATH: ${LIBC_SRC}/quad
 SRCS+=	ashldi3.c ashrdi3.c
-.PATH: ${LIBC}/powerpc/gen
+.PATH: ${LIBC_SRC}/powerpc/gen
 SRCS+=	syncicache.c
 .endif
 
 # uuid functions from libc
-.PATH: ${LIBC}/uuid
+.PATH: ${LIBC_SRC}/uuid
 SRCS+= uuid_equal.c uuid_is_nil.c
 
 # _setjmp/_longjmp
 .if ${MACHINE_CPUARCH} == "amd64"
-.PATH: ${S}/amd64
+.PATH: ${LIBSTAND_SRC}/amd64
 .elif ${MACHINE_ARCH} == "powerpc64"
-.PATH: ${S}/powerpc
+.PATH: ${LIBSTAND_SRC}/powerpc
 .else
-.PATH: ${S}/${MACHINE_CPUARCH}
+.PATH: ${LIBSTAND_SRC}/${MACHINE_CPUARCH}
 .endif
 SRCS+=	_setjmp.S
 
 # decompression functionality from libbz2
 # NOTE: to actually test this functionality after libbz2 upgrade compile
 # loader(8) with LOADER_BZIP2_SUPPORT defined
-.PATH: ${.CURDIR}/../../../../contrib/bzip2
+.PATH: ${LIBSTAND_SRC}/../../contrib/bzip2
 CFLAGS+= -DBZ_NO_STDIO -DBZ_NO_COMPRESS
 SRCS+=	libstand_bzlib_private.h
 
@@ -102,7 +81,8 @@ SRCS+=	_${file}
 CLEANFILES+=	_${file}
 
 _${file}: ${file}
-	sed "s|bzlib_private\.h|libstand_bzlib_private.h|" ${.ALLSRC} > ${.TARGET}
+	sed "s|bzlib_private\.h|libstand_bzlib_private.h|" \
+	    ${.ALLSRC} > ${.TARGET}
 .endfor
 
 CLEANFILES+= libstand_bzlib_private.h
@@ -111,8 +91,8 @@ libstand_bzlib_private.h: bzlib_private.h
 		${.ALLSRC} > ${.TARGET}
 
 # decompression functionality from libz
-.PATH: ${.CURDIR}/../../../../lib/libz
-CFLAGS+=-DHAVE_MEMCPY -I${.CURDIR}/../../../../lib/libz
+.PATH: ${LIBSTAND_SRC}/../libz
+CFLAGS+=-DHAVE_MEMCPY -I${LIBSTAND_SRC}/../libz
 SRCS+=	adler32.c crc32.c libstand_zutil.h libstand_gzguts.h
 
 .for file in infback.c inffast.c inflate.c inftrees.c zutil.c
@@ -121,7 +101,8 @@ CLEANFILES+=	_${file}
 
 _${file}: ${file}
 	sed -e "s|zutil\.h|libstand_zutil.h|" \
-	    -e "s|gzguts\.h|libstand_gzguts.h|" ${.ALLSRC} > ${.TARGET}
+	    -e "s|gzguts\.h|libstand_gzguts.h|" \
+	    ${.ALLSRC} > ${.TARGET}
 .endfor
 
 # depend on stand.h being able to be included multiple times
@@ -151,4 +132,5 @@ SRCS+=	ufs.c nfs.c cd9660.c tftp.c gzipfs.c bzipfs.c
 SRCS+=	dosfs.c ext2fs.c
 SRCS+=	splitfs.c
 
+.include <bsd.stand.mk>
 .include <bsd.lib.mk>

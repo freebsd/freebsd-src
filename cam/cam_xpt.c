@@ -536,7 +536,7 @@ xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *
 			 * Map the pattern and match buffers into kernel
 			 * virtual address space.
 			 */
-			error = cam_periph_mapmem(inccb, &mapinfo);
+			error = cam_periph_mapmem(inccb, &mapinfo, MAXPHYS);
 
 			if (error) {
 				inccb->ccb_h.path = old_path;
@@ -3756,45 +3756,6 @@ xpt_path_periph(struct cam_path *path)
 	return (path->periph);
 }
 
-int
-xpt_path_legacy_ata_id(struct cam_path *path)
-{
-	struct cam_eb *bus;
-	int bus_id;
-
-	if ((strcmp(path->bus->sim->sim_name, "ata") != 0) &&
-	    strcmp(path->bus->sim->sim_name, "ahcich") != 0 &&
-	    strcmp(path->bus->sim->sim_name, "mvsch") != 0 &&
-	    strcmp(path->bus->sim->sim_name, "siisch") != 0)
-		return (-1);
-
-	if (strcmp(path->bus->sim->sim_name, "ata") == 0 &&
-	    path->bus->sim->unit_number < 2) {
-		bus_id = path->bus->sim->unit_number;
-	} else {
-		bus_id = 2;
-		xpt_lock_buses();
-		TAILQ_FOREACH(bus, &xsoftc.xpt_busses, links) {
-			if (bus == path->bus)
-				break;
-			if ((strcmp(bus->sim->sim_name, "ata") == 0 &&
-			     bus->sim->unit_number >= 2) ||
-			    strcmp(bus->sim->sim_name, "ahcich") == 0 ||
-			    strcmp(bus->sim->sim_name, "mvsch") == 0 ||
-			    strcmp(bus->sim->sim_name, "siisch") == 0)
-				bus_id++;
-		}
-		xpt_unlock_buses();
-	}
-	if (path->target != NULL) {
-		if (path->target->target_id < 2)
-			return (bus_id * 2 + path->target->target_id);
-		else
-			return (-1);
-	} else
-		return (bus_id * 2);
-}
-
 /*
  * Release a CAM control block for the caller.  Remit the cost of the structure
  * to the device referenced by the path.  If the this device had no 'credits'
@@ -4264,8 +4225,10 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 		}
 		memcpy(ccb->casync.async_arg_ptr, async_arg, size);
 		ccb->casync.async_arg_size = size;
-	} else if (size < 0)
+	} else if (size < 0) {
+		ccb->casync.async_arg_ptr = async_arg;
 		ccb->casync.async_arg_size = size;
+	}
 	if (path->device != NULL && path->device->lun_id != CAM_LUN_WILDCARD)
 		xpt_freeze_devq(path, 1);
 	else
@@ -4523,7 +4486,7 @@ xpt_get_ccb_nowait(struct cam_periph *periph)
 {
 	union ccb *new_ccb;
 
-	new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_NOWAIT);
+	new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_ZERO|M_NOWAIT);
 	if (new_ccb == NULL)
 		return (NULL);
 	periph->periph_allocated++;
@@ -4537,7 +4500,7 @@ xpt_get_ccb(struct cam_periph *periph)
 	union ccb *new_ccb;
 
 	cam_periph_unlock(periph);
-	new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_WAITOK);
+	new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_ZERO|M_WAITOK);
 	cam_periph_lock(periph);
 	periph->periph_allocated++;
 	cam_ccbq_take_opening(&periph->path->device->ccbq);

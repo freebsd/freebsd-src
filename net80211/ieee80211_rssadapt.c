@@ -132,8 +132,8 @@ rssadapt_init(struct ieee80211vap *vap)
 	KASSERT(vap->iv_rs == NULL, ("%s: iv_rs already initialized",
 	    __func__));
 	
-	vap->iv_rs = rs = malloc(sizeof(struct ieee80211_rssadapt),
-	    M_80211_RATECTL, M_NOWAIT|M_ZERO);
+	vap->iv_rs = rs = IEEE80211_MALLOC(sizeof(struct ieee80211_rssadapt),
+	    M_80211_RATECTL, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (rs == NULL) {
 		if_printf(vap->iv_ifp, "couldn't alloc ratectl structure\n");
 		return;
@@ -146,7 +146,7 @@ rssadapt_init(struct ieee80211vap *vap)
 static void
 rssadapt_deinit(struct ieee80211vap *vap)
 {
-	free(vap->iv_rs, M_80211_RATECTL);
+	IEEE80211_FREE(vap->iv_rs, M_80211_RATECTL);
 }
 
 static void
@@ -175,8 +175,8 @@ rssadapt_node_init(struct ieee80211_node *ni)
 
 	if (ni->ni_rctls == NULL) {
 		ni->ni_rctls = ra = 
-		    malloc(sizeof(struct ieee80211_rssadapt_node),
-		        M_80211_RATECTL, M_NOWAIT|M_ZERO);
+		    IEEE80211_MALLOC(sizeof(struct ieee80211_rssadapt_node),
+		        M_80211_RATECTL, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 		if (ra == NULL) {
 			if_printf(vap->iv_ifp, "couldn't alloc per-node ratectl "
 			    "structure\n");
@@ -204,7 +204,7 @@ static void
 rssadapt_node_deinit(struct ieee80211_node *ni)
 {
 
-	free(ni->ni_rctls, M_80211_RATECTL);
+	IEEE80211_FREE(ni->ni_rctls, M_80211_RATECTL);
 }
 
 static __inline int

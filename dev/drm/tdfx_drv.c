@@ -109,9 +109,5 @@ static driver_t tdfx_driver = {
 };
 
 extern devclass_t drm_devclass;
-#if __FreeBSD_version >= 700010
 DRIVER_MODULE(tdfx, vgapci, tdfx_driver, drm_devclass, 0, 0);
-#else
-DRIVER_MODULE(tdfx, pci, tdfx_driver, drm_devclass, 0, 0);
-#endif
 MODULE_DEPEND(tdfx, drm, 1, 1, 1);

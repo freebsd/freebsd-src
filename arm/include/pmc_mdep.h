@@ -56,8 +56,7 @@ union pmc_md_pmc {
 
 #define	PMC_IN_KERNEL_STACK(S,START,END)		\
 	((S) >= (START) && (S) < (END))
-#define	PMC_IN_KERNEL(va) (((va) >= USRSTACK) &&	\
-	((va) < VM_MAX_KERNEL_ADDRESS))
+#define	PMC_IN_KERNEL(va)	INKERNEL((va))
 
 #define	PMC_IN_USERSPACE(va) ((va) <= VM_MAXUSER_ADDRESS)
 
@@ -65,6 +64,8 @@ union pmc_md_pmc {
 #define	PMC_TRAPFRAME_TO_FP(TF)		((TF)->tf_r11)
 #define	PMC_TRAPFRAME_TO_SVC_SP(TF)	((TF)->tf_svc_sp)
 #define	PMC_TRAPFRAME_TO_USR_SP(TF)	((TF)->tf_usr_sp)
+#define	PMC_TRAPFRAME_TO_SVC_LR(TF)	((TF)->tf_svc_lr)
+#define	PMC_TRAPFRAME_TO_USR_LR(TF)	((TF)->tf_usr_lr)
 
 /* Build a fake kernel trapframe from current instruction pointer. */
 #define PMC_FAKE_TRAPFRAME(TF)						\

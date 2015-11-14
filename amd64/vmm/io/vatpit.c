@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/queue.h>
-#include <sys/cpuset.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -437,7 +436,7 @@ vatpit_init(struct vm *vm)
 	vatpit->freq_sbt = bttosbt(bt);
 
 	for (i = 0; i < 3; i++) {
-		callout_init(&vatpit->channel[i].callout, true);
+		callout_init(&vatpit->channel[i].callout, 1);
 		arg = &vatpit->channel[i].callout_arg;
 		arg->vatpit = vatpit;
 		arg->channel_num = i;

@@ -68,7 +68,7 @@ acpi_get_root_from_loader(void)
 static u_long
 acpi_get_root_from_memory(void)
 {
-	ACPI_SIZE acpi_root;
+	ACPI_PHYSICAL_ADDRESS acpi_root;
 
 	if (ACPI_SUCCESS(AcpiFindRootPointer(&acpi_root)))
 		return (acpi_root);

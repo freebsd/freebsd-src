@@ -283,9 +283,7 @@ struct mps_softc {
 	int				chain_free_lowwater;
 	u_int				enable_ssu;
 	int				spinup_wait_time;
-#if __FreeBSD_version >= 900030
 	uint64_t			chain_alloc_fail;
-#endif
 	struct sysctl_ctx_list		sysctl_ctx;
 	struct sysctl_oid		*sysctl_tree;
 	char                            fw_version[16];
@@ -483,20 +481,14 @@ mps_alloc_chain(struct mps_softc *sc)
 		sc->chain_free--;
 		if (sc->chain_free < sc->chain_free_lowwater)
 			sc->chain_free_lowwater = sc->chain_free;
-	}
-#if __FreeBSD_version >= 900030
-	else
+	} else
 		sc->chain_alloc_fail++;
-#endif
 	return (chain);
 }
 
 static __inline void
 mps_free_chain(struct mps_softc *sc, struct mps_chain *chain)
 {
-#if 0
-	bzero(chain->chain, 128);
-#endif
 	sc->chain_free++;
 	TAILQ_INSERT_TAIL(&sc->chain_list, chain, chain_link);
 }
@@ -715,7 +707,6 @@ void mpssas_record_event(struct mps_softc *sc,
 int mps_map_command(struct mps_softc *sc, struct mps_command *cm);
 int mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout,
     int sleep_flag);
-int mps_request_polled(struct mps_softc *sc, struct mps_command *cm);
 
 int mps_config_get_bios_pg3(struct mps_softc *sc, Mpi2ConfigReply_t
     *mpi_reply, Mpi2BiosPage3_t *config_page);

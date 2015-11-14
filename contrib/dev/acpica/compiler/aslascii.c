@@ -148,8 +148,7 @@ FlCheckForAcpiTable (
  *
  * FUNCTION:    FlCheckForAscii
  *
- * PARAMETERS:  Handle              - Open input file
- *              Filename            - Input filename
+ * PARAMETERS:  Filename            - Full input filename
  *              DisplayErrors       - TRUE if error messages desired
  *
  * RETURN:      Status
@@ -165,7 +164,6 @@ FlCheckForAcpiTable (
 
 ACPI_STATUS
 FlCheckForAscii (
-    FILE                    *Handle,
     char                    *Filename,
     BOOLEAN                 DisplayErrors)
 {
@@ -173,7 +171,17 @@ FlCheckForAscii (
     ACPI_SIZE               BadBytes = 0;
     BOOLEAN                 OpeningComment = FALSE;
     ASL_FILE_STATUS         Status;
+    FILE                    *Handle;
 
+
+    /* Open file in text mode so file offset is always accurate */
+
+    Handle = fopen (Filename, "rb");
+    if (!Handle)
+    {
+        perror ("Could not open input file");
+        return (AE_ERROR);
+    }
 
     Status.Line = 1;
     Status.Offset = 0;
@@ -214,16 +222,30 @@ FlCheckForAscii (
             if ((BadBytes < 10) && (DisplayErrors))
             {
                 AcpiOsPrintf (
-                    "Non-ASCII character [0x%2.2X] found in line %u, file offset 0x%.2X\n",
+                    "Found non-ASCII character in source text: "
+                    "0x%2.2X in line %u, file offset 0x%2.2X\n",
                     Byte, Status.Line, Status.Offset);
             }
-
             BadBytes++;
         }
 
-        /* Update line counter */
+        /* Ensure character is either printable or a "space" char */
 
-        else if (Byte == 0x0A)
+        else if (!isprint (Byte) && !isspace (Byte))
+        {
+            if ((BadBytes < 10) && (DisplayErrors))
+            {
+                AcpiOsPrintf (
+                    "Found invalid character in source text: "
+                    "0x%2.2X in line %u, file offset 0x%2.2X\n",
+                    Byte, Status.Line, Status.Offset);
+            }
+            BadBytes++;
+        }
+
+        /* Update line counter as necessary */
+
+        if (Byte == 0x0A)
         {
             Status.Line++;
         }
@@ -231,9 +253,7 @@ FlCheckForAscii (
         Status.Offset++;
     }
 
-    /* Seek back to the beginning of the source file */
-
-    fseek (Handle, 0, SEEK_SET);
+    fclose (Handle);
 
     /* Were there any non-ASCII characters in the file? */
 
@@ -242,8 +262,8 @@ FlCheckForAscii (
         if (DisplayErrors)
         {
             AcpiOsPrintf (
-                "%u non-ASCII characters found in input source text, could be a binary file\n",
-                BadBytes);
+                "Total %u invalid characters found in input source text, "
+                "could be a binary file\n", BadBytes);
             AslError (ASL_ERROR, ASL_MSG_NON_ASCII, NULL, Filename);
         }
 
@@ -286,6 +306,7 @@ FlConsumeAnsiComment (
         {
             if (Byte == '/')
             {
+                Status->Offset++;
                 return;
             }
 

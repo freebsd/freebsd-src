@@ -128,6 +128,8 @@ struct usb_xfer_queue {
 	void    (*command) (struct usb_xfer_queue *pq);
 	uint8_t	recurse_1:1;
 	uint8_t	recurse_2:1;
+	uint8_t	recurse_3:1;
+	uint8_t	reserved:5;
 };
 
 /*

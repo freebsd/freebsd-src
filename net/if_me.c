@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/vnet.h>
+#include <net/route.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -191,6 +192,8 @@ me_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ME2IFP(sc)->if_ioctl = me_ioctl;
 	ME2IFP(sc)->if_transmit = me_transmit;
 	ME2IFP(sc)->if_qflush = me_qflush;
+	ME2IFP(sc)->if_capabilities |= IFCAP_LINKSTATE;
+	ME2IFP(sc)->if_capenable |= IFCAP_LINKSTATE;
 	if_attach(ME2IFP(sc));
 	bpfattach(ME2IFP(sc), DLT_NULL, sizeof(u_int32_t));
 	ME_LIST_LOCK();
@@ -297,6 +300,17 @@ me_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (error != 0)
 			memset(src, 0, sizeof(*src));
 		break;
+	case SIOCGTUNFIB:
+		ifr->ifr_fib = sc->me_fibnum;
+		break;
+	case SIOCSTUNFIB:
+		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
+			break;
+		if (ifr->ifr_fib >= rt_numfibs)
+			error = EINVAL;
+		else
+			sc->me_fibnum = ifr->ifr_fib;
+		break;
 	default:
 		error = EINVAL;
 		break;
@@ -364,8 +378,10 @@ me_set_tunnel(struct ifnet *ifp, struct sockaddr_in *src,
 	if (sc->me_ecookie == NULL)
 		sc->me_ecookie = encap_attach_func(AF_INET, IPPROTO_MOBILE,
 		    me_encapcheck, &in_mobile_protosw, sc);
-	if (sc->me_ecookie != NULL)
+	if (sc->me_ecookie != NULL) {
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
+		if_link_state_change(ifp, LINK_STATE_UP);
+	}
 	return (0);
 }
 
@@ -383,6 +399,7 @@ me_delete_tunnel(struct ifnet *ifp)
 	sc->me_dst.s_addr = 0;
 	ME_WUNLOCK(sc);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_link_state_change(ifp, LINK_STATE_DOWN);
 }
 
 static uint16_t
@@ -453,7 +470,7 @@ me_input(struct mbuf **mp, int *offp, int proto)
 	m_clrprotoflags(m);
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.csum_flags |= (CSUM_IP_CHECKED | CSUM_IP_VALID);
-	M_SETFIB(m, sc->me_fibnum);
+	M_SETFIB(m, ifp->if_fib);
 	hlen = AF_INET;
 	BPF_MTAP2(ifp, &hlen, sizeof(hlen), m);
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
@@ -477,7 +494,7 @@ me_check_nesting(struct ifnet *ifp, struct mbuf *m)
 
 	count = 1;
 	mtag = NULL;
-	while ((mtag = m_tag_locate(m, MTAG_ME, 0, NULL)) != NULL) {
+	while ((mtag = m_tag_locate(m, MTAG_ME, 0, mtag)) != NULL) {
 		if (*(struct ifnet **)(mtag + 1) == ifp) {
 			log(LOG_NOTICE, "%s: loop detected\n", ifp->if_xname);
 			return (EIO);

@@ -238,6 +238,7 @@ static const struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8168F, RL_8169, "8168F/8111F", RL_JUMBO_MTU_9K},
 	{ RL_HWREV_8168G, RL_8169, "8168G/8111G", RL_JUMBO_MTU_9K},
 	{ RL_HWREV_8168GU, RL_8169, "8168GU/8111GU", RL_JUMBO_MTU_9K},
+	{ RL_HWREV_8168H, RL_8169, "8168H/8111H", RL_JUMBO_MTU_9K},
 	{ RL_HWREV_8411, RL_8169, "8411", RL_JUMBO_MTU_9K},
 	{ RL_HWREV_8411B, RL_8169, "8411B", RL_JUMBO_MTU_9K},
 	{ 0, 0, NULL, 0 }
@@ -304,6 +305,7 @@ static void re_set_linkspeed	(struct rl_softc *);
 
 #ifdef DEV_NETMAP	/* see ixgbe.c for details */
 #include <dev/netmap/if_re_netmap.h>
+MODULE_DEPEND(re, netmap, 1, 1, 1);
 #endif /* !DEV_NETMAP */
 
 #ifdef RE_DIAG
@@ -634,9 +636,8 @@ re_miibus_statchg(device_t dev)
 		}
 	}
 	/*
-	 * RealTek controllers does not provide any interface to
-	 * Tx/Rx MACs for resolved speed, duplex and flow-control
-	 * parameters.
+	 * RealTek controllers do not provide any interface to the RX/TX
+	 * MACs for resolved speed, duplex and flow-control parameters.
 	 */
 }
 
@@ -658,7 +659,7 @@ re_set_rxmode(struct rl_softc *sc)
 	rxfilt = RL_RXCFG_CONFIG | RL_RXCFG_RX_INDIV | RL_RXCFG_RX_BROAD;
 	if ((sc->rl_flags & RL_FLAG_EARLYOFF) != 0)
 		rxfilt |= RL_RXCFG_EARLYOFF;
-	else if ((sc->rl_flags & RL_FLAG_EARLYOFFV2) != 0)
+	else if ((sc->rl_flags & RL_FLAG_8168G_PLUS) != 0)
 		rxfilt |= RL_RXCFG_EARLYOFFV2;
 
 	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
@@ -1205,11 +1206,10 @@ re_attach(device_t dev)
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
 	const struct rl_hwrev	*hw_rev;
+	int			capmask, error = 0, hwrev, i, msic, msixc,
+				phy, reg, rid;
 	u_int32_t		cap, ctl;
-	int			hwrev;
 	u_int16_t		devid, re_did = 0;
-	int			error = 0, i, phy, rid;
-	int			msic, msixc, reg;
 	uint8_t			cfg;
 
 	sc = device_get_softc(dev);
@@ -1489,11 +1489,12 @@ re_attach(device_t dev)
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
 		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 |
 		    RL_FLAG_CMDSTOP_WAIT_TXQ | RL_FLAG_WOL_MANLINK |
-		    RL_FLAG_EARLYOFFV2 | RL_FLAG_RXDV_GATED;
+		    RL_FLAG_8168G_PLUS;
 		break;
 	case RL_HWREV_8168GU:
+	case RL_HWREV_8168H:
 		if (pci_get_device(dev) == RT_DEVICEID_8101E) {
-			/* RTL8106EUS */
+			/* RTL8106E(US), RTL8107E */
 			sc->rl_flags |= RL_FLAG_FASTETHER;
 		} else
 			sc->rl_flags |= RL_FLAG_JUMBOV2 | RL_FLAG_WOL_MANLINK;
@@ -1501,7 +1502,7 @@ re_attach(device_t dev)
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
 		    RL_FLAG_AUTOPAD | RL_FLAG_CMDSTOP_WAIT_TXQ |
-		    RL_FLAG_EARLYOFFV2 | RL_FLAG_RXDV_GATED;
+		    RL_FLAG_8168G_PLUS;
 		break;
 	case RL_HWREV_8169_8110SB:
 	case RL_HWREV_8169_8110SBL:
@@ -1651,8 +1652,11 @@ re_attach(device_t dev)
 	phy = RE_PHYAD_INTERNAL;
 	if (sc->rl_type == RL_8169)
 		phy = 1;
+	capmask = BMSR_DEFCAPMASK;
+	if ((sc->rl_flags & RL_FLAG_FASTETHER) != 0)
+		 capmask &= ~BMSR_EXTSTAT;
 	error = mii_attach(dev, &sc->rl_miibus, ifp, re_ifmedia_upd,
-	    re_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, MIIF_DOPAUSE);
+	    re_ifmedia_sts, capmask, phy, MII_OFFSET_ANY, MIIF_DOPAUSE);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
@@ -1730,7 +1734,6 @@ re_attach(device_t dev)
 	}
 
 fail:
-
 	if (error)
 		re_detach(dev);
 
@@ -3191,14 +3194,18 @@ re_init_locked(struct rl_softc *sc)
 	CSR_WRITE_4(sc, RL_TXLIST_ADDR_LO,
 	    RL_ADDR_LO(sc->rl_ldata.rl_tx_list_addr));
 
-	if ((sc->rl_flags & RL_FLAG_RXDV_GATED) != 0)
+	if ((sc->rl_flags & RL_FLAG_8168G_PLUS) != 0) {
+		/* Disable RXDV gate. */
 		CSR_WRITE_4(sc, RL_MISC, CSR_READ_4(sc, RL_MISC) &
 		    ~0x00080000);
+	}
 
 	/*
-	 * Enable transmit and receive.
+	 * Enable transmit and receive for pre-RTL8168G controllers.
+	 * RX/TX MACs should be enabled before RX/TX configuration.
 	 */
-	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
+	if ((sc->rl_flags & RL_FLAG_8168G_PLUS) == 0)
+		CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB | RL_CMD_RX_ENB);
 
 	/*
 	 * Set the initial TX configuration.
@@ -3226,6 +3233,13 @@ re_init_locked(struct rl_softc *sc)
 		CSR_WRITE_2(sc, RL_INTRMOD, 0x5100);
 	}
 
+	/*
+	 * Enable transmit and receive for RTL8168G and later controllers.
+	 * RX/TX MACs should be enabled after RX/TX configuration.
+	 */
+	if ((sc->rl_flags & RL_FLAG_8168G_PLUS) != 0)
+		CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB | RL_CMD_RX_ENB);
+
 #ifdef DEVICE_POLLING
 	/*
 	 * Disable interrupts if we are polling.
@@ -3249,10 +3263,6 @@ re_init_locked(struct rl_softc *sc)
 
 	/* Start RX/TX process. */
 	CSR_WRITE_4(sc, RL_MISSEDPKT, 0);
-#ifdef notdef
-	/* Enable receiver and transmitter. */
-	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
-#endif
 
 	/*
 	 * Initialize the timer interrupt register so that
@@ -3583,6 +3593,12 @@ re_stop(struct rl_softc *sc)
 	CSR_WRITE_4(sc, RL_RXCFG, CSR_READ_4(sc, RL_RXCFG) &
 	    ~(RL_RXCFG_RX_ALLPHYS | RL_RXCFG_RX_INDIV | RL_RXCFG_RX_MULTI |
 	    RL_RXCFG_RX_BROAD));
+
+	if ((sc->rl_flags & RL_FLAG_8168G_PLUS) != 0) {
+		/* Enable RXDV gate. */
+		CSR_WRITE_4(sc, RL_MISC, CSR_READ_4(sc, RL_MISC) |
+		    0x00080000);
+	}
 
 	if ((sc->rl_flags & RL_FLAG_WAIT_TXPOLL) != 0) {
 		for (i = RL_TIMEOUT; i > 0; i--) {
@@ -3947,7 +3963,6 @@ re_add_sysctls(struct rl_softc *sc)
 			sc->rl_int_rx_mod = RL_TIMER_DEFAULT;
 		}
 	}
-
 }
 
 static int

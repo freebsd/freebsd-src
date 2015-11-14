@@ -42,7 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
+#ifndef __aarch64__
 #include <machine/fdt.h>
+#endif
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
@@ -52,43 +54,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_cpu_fdt.h>
 
+#ifdef __aarch64__
+extern bus_space_tag_t fdtbus_bs_tag;
+#endif
+
 /*
  * UART console routines.
  */
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;
-
-static int
-uart_fdt_get_clock(phandle_t node, pcell_t *cell)
-{
-	pcell_t clock;
-
-	/* clock-frequency is a FreeBSD-only extention. */
-	if ((OF_getprop(node, "clock-frequency", &clock,
-	    sizeof(clock))) <= 0)
-		clock = 0;
-
-	if (clock == 0)
-		/* Try to retrieve parent 'bus-frequency' */
-		/* XXX this should go to simple-bus fixup or so */
-		if ((OF_getprop(OF_parent(node), "bus-frequency", &clock,
-		    sizeof(clock))) <= 0)
-			clock = 0;
-
-	*cell = fdt32_to_cpu(clock);
-	return (0);
-}
-
-static int
-uart_fdt_get_shift(phandle_t node, pcell_t *cell)
-{
-	pcell_t shift;
-
-	if ((OF_getprop(node, "reg-shift", &shift, sizeof(shift))) <= 0)
-		shift = 0;
-	*cell = fdt32_to_cpu(shift);
-	return (0);
-}
 
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
@@ -160,6 +134,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	phandle_t node, chosen;
 	pcell_t shift, br, rclk;
 	u_long start, size, pbase, psize;
+	char *cp;
 	int err;
 
 	uart_bus_space_mem = fdtbus_bs_tag;
@@ -174,30 +149,28 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	if (devtype != UART_DEV_CONSOLE)
 		return (ENXIO);
 
-	/*
-	 * Retrieve /chosen/std{in,out}.
-	 */
-	node = -1;
-	if ((chosen = OF_finddevice("/chosen")) != -1) {
-		for (name = propnames; *name != NULL; name++) {
-			if (phandle_chosen_propdev(chosen, *name, &node) == 0)
-				break;
+	/* Has the user forced a specific device node? */
+	cp = kern_getenv("hw.fdt.console");
+	if (cp == NULL) {
+		/*
+		 * Retrieve /chosen/std{in,out}.
+		 */
+		node = -1;
+		if ((chosen = OF_finddevice("/chosen")) != -1) {
+			for (name = propnames; *name != NULL; name++) {
+				if (phandle_chosen_propdev(chosen, *name,
+				    &node) == 0)
+					break;
+			}
 		}
+		if (chosen == -1 || *name == NULL)
+			node = OF_finddevice("serial0"); /* Last ditch */
+	} else {
+		node = OF_finddevice(cp);
 	}
-	if (chosen == -1 || *name == NULL)
-		node = OF_finddevice("serial0"); /* Last ditch */
 
 	if (node == -1) /* Can't find anything */
 		return (ENXIO);
-
-	/*
-	 * Retrieve serial attributes.
-	 */
-	uart_fdt_get_shift(node, &shift);
-	if (OF_getprop(node, "current-speed", &br, sizeof(br)) <= 0)
-		br = 0;
-	else
-		br = fdt32_to_cpu(br);
 
 	/*
 	 * Check old style of UART definition first. Unfortunately, the common
@@ -216,6 +189,17 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 			return (ENXIO);
 		rclk = 0;
 	}
+
+	/*
+	 * Retrieve serial attributes.
+	 */
+	if (uart_fdt_get_shift(node, &shift) != 0)
+		shift = uart_getregshift(class);
+
+	if (OF_getprop(node, "current-speed", &br, sizeof(br)) <= 0)
+		br = 0;
+	else
+		br = fdt32_to_cpu(br);
 
 	/*
 	 * Finalize configuration.

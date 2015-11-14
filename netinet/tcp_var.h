@@ -37,6 +37,7 @@
 
 #ifdef _KERNEL
 #include <net/vnet.h>
+#include <sys/mbuf.h>
 
 /*
  * Kernel variables for tcp.
@@ -45,6 +46,15 @@ VNET_DECLARE(int, tcp_do_rfc1323);
 #define	V_tcp_do_rfc1323	VNET(tcp_do_rfc1323)
 
 #endif /* _KERNEL */
+
+/* TCP segment queue entry */
+struct tseg_qent {
+	LIST_ENTRY(tseg_qent) tqe_q;
+	int	tqe_len;		/* TCP segment data length */
+	struct	tcphdr *tqe_th;		/* a pointer to tcp header */
+	struct	mbuf	*tqe_m;		/* mbuf contains packet */
+};
+LIST_HEAD(tsegqe_head, tseg_qent);
 
 struct sackblk {
 	tcp_seq start;		/* start seq no. of sack block */
@@ -64,7 +74,11 @@ struct sackhint {
 	tcp_seq		last_sack_ack;	/* Most recent/largest sacked ack */
 
 	int		ispare;		/* explicit pad for 64bit alignment */
-	uint64_t	_pad[2];	/* 1 sacked_bytes, 1 TBD */
+	int             sacked_bytes;	/*
+					 * Total sacked bytes reported by the
+					 * receiver via sack option
+					 */
+	uint64_t	_pad[1];	/* TBD */
 };
 
 struct tcptemp {
@@ -74,24 +88,12 @@ struct tcptemp {
 
 #define tcp6cb		tcpcb  /* for KAME src sync over BSD*'s */
 
-/* Neighbor Discovery, Neighbor Unreachability Detection Upper layer hint. */
-#ifdef INET6
-#define ND6_HINT(tp)						\
-do {								\
-	if ((tp) && (tp)->t_inpcb &&				\
-	    ((tp)->t_inpcb->inp_vflag & INP_IPV6) != 0)		\
-		nd6_nud_hint(NULL, NULL, 0);			\
-} while (0)
-#else
-#define ND6_HINT(tp)
-#endif
-
 /*
  * Tcp control block, one per tcp; fields:
  * Organized for 16 byte cacheline efficiency.
  */
 struct tcpcb {
-	struct	mbuf *t_segq;		/* segment reassembly queue */
+	struct	tsegqe_head t_segq;	/* segment reassembly queue */
 	void	*t_pspare[2];		/* new reassembly queue */
 	int	t_segqlen;		/* segment reassembly queue length */
 	int	t_dupacks;		/* consecutive dup acks recd */
@@ -104,7 +106,7 @@ struct tcpcb {
 
 	struct	vnet *t_vnet;		/* back pointer to parent vnet */
 
-	tcp_seq	snd_una;		/* send unacknowledged */
+	tcp_seq	snd_una;		/* sent but unacknowledged */
 	tcp_seq	snd_max;		/* highest sequence number sent;
 					 * used to recognize retransmits
 					 */
@@ -207,7 +209,17 @@ struct tcpcb {
 
 	uint32_t t_ispare[8];		/* 5 UTO, 3 TBD */
 	void	*t_pspare2[4];		/* 1 TCP_SIGNATURE, 3 TBD */
-	uint64_t _pad[6];		/* 6 TBD (1-2 CC/RTT?) */
+#if defined(_KERNEL) && defined(TCPPCAP)
+	struct mbufq t_inpkts;		/* List of saved input packets. */
+	struct mbufq t_outpkts;		/* List of saved output packets. */
+#ifdef _LP64
+	uint64_t _pad[0];		/* all used! */
+#else
+	uint64_t _pad[2];		/* 2 are available */
+#endif /* _LP64 */
+#else
+	uint64_t _pad[6];
+#endif /* defined(_KERNEL) && defined(TCPPCAP) */
 };
 
 /*
@@ -613,7 +625,7 @@ VNET_DECLARE(int, tcp_mssdflt);	/* XXX */
 VNET_DECLARE(int, tcp_minmss);
 VNET_DECLARE(int, tcp_delack_enabled);
 VNET_DECLARE(int, tcp_do_rfc3390);
-VNET_DECLARE(int, tcp_do_initcwnd10);
+VNET_DECLARE(int, tcp_initcwnd_segments);
 VNET_DECLARE(int, tcp_sendspace);
 VNET_DECLARE(int, tcp_recvspace);
 VNET_DECLARE(int, path_mtu_discovery);
@@ -625,7 +637,7 @@ VNET_DECLARE(int, tcp_abc_l_var);
 #define	V_tcp_minmss		VNET(tcp_minmss)
 #define	V_tcp_delack_enabled	VNET(tcp_delack_enabled)
 #define	V_tcp_do_rfc3390	VNET(tcp_do_rfc3390)
-#define	V_tcp_do_initcwnd10	VNET(tcp_do_initcwnd10)
+#define	V_tcp_initcwnd_segments	VNET(tcp_initcwnd_segments)
 #define	V_tcp_sendspace		VNET(tcp_sendspace)
 #define	V_tcp_recvspace		VNET(tcp_recvspace)
 #define	V_path_mtu_discovery	VNET(path_mtu_discovery)
@@ -644,6 +656,9 @@ VNET_DECLARE(int, tcp_ecn_maxretries);
 
 VNET_DECLARE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST + 1]);
 #define	V_tcp_hhh		VNET(tcp_hhh)
+
+VNET_DECLARE(int, tcp_do_rfc6675_pipe);
+#define V_tcp_do_rfc6675_pipe	VNET(tcp_do_rfc6675_pipe)
 
 int	 tcp_addoptions(struct tcpopt *, u_char *);
 int	 tcp_ccalgounload(struct cc_algo *unload_algo);
@@ -667,6 +682,7 @@ char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
 char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
 int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
+void	 tcp_reass_global_init(void);
 void	 tcp_reass_flush(struct tcpcb *);
 int	 tcp_input(struct mbuf **, int *, int);
 u_long	 tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
@@ -677,8 +693,6 @@ void	 tcp_mss(struct tcpcb *, int);
 int	 tcp_mssopt(struct in_conninfo *);
 struct inpcb *
 	 tcp_drop_syn_sent(struct inpcb *, int);
-struct inpcb *
-	 tcp_mtudisc(struct inpcb *, int);
 struct tcpcb *
 	 tcp_newtcpcb(struct inpcb *);
 int	 tcp_output(struct tcpcb *);
@@ -708,8 +722,9 @@ void	 tcp_slowtimo(void);
 struct tcptemp *
 	 tcpip_maketemplate(struct inpcb *);
 void	 tcpip_fillheaders(struct inpcb *, void *, void *);
-void	 tcp_timer_activate(struct tcpcb *, int, u_int);
-int	 tcp_timer_active(struct tcpcb *, int);
+void	 tcp_timer_activate(struct tcpcb *, uint32_t, u_int);
+int	 tcp_timer_active(struct tcpcb *, uint32_t);
+void	 tcp_timer_stop(struct tcpcb *, uint32_t);
 void	 tcp_trace(short, short, struct tcpcb *, void *, struct tcphdr *, int);
 /*
  * All tcp_hc_* functions are IPv4 and IPv6 (via in_conninfo)
@@ -735,6 +750,7 @@ void	 tcp_sack_partialack(struct tcpcb *, struct tcphdr *);
 void	 tcp_free_sackholes(struct tcpcb *tp);
 int	 tcp_newreno(struct tcpcb *, struct tcphdr *);
 u_long	 tcp_seq_subtract(u_long, u_long );
+int	 tcp_compute_pipe(struct tcpcb *);
 
 void	cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type);
 

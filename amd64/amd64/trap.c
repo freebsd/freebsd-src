@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_hwpmc_hooks.h"
 #include "opt_isa.h"
 #include "opt_kdb.h"
+#include "opt_stack.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -91,6 +92,7 @@ PMC_SOFT_DEFINE( , , page_fault, write);
 #ifdef SMP
 #include <machine/smp.h>
 #endif
+#include <machine/stack.h>
 #include <machine/tss.h>
 
 #ifdef KDTRACE_HOOKS
@@ -202,17 +204,24 @@ trap(struct trapframe *frame)
 		goto out;
 	}
 
-#ifdef	HWPMC_HOOKS
-	/*
-	 * CPU PMCs interrupt using an NMI.  If the PMC module is
-	 * active, pass the 'rip' value to the PMC module's interrupt
-	 * handler.  A return value of '1' from the handler means that
-	 * the NMI was handled by it and we can return immediately.
-	 */
-	if (type == T_NMI && pmc_intr &&
-	    (*pmc_intr)(PCPU_GET(cpuid), frame))
-		goto out;
+	if (type == T_NMI) {
+#ifdef HWPMC_HOOKS
+		/*
+		 * CPU PMCs interrupt using an NMI.  If the PMC module is
+		 * active, pass the 'rip' value to the PMC module's interrupt
+		 * handler.  A non-zero return value from the handler means that
+		 * the NMI was consumed by it and we can return immediately.
+		 */
+		if (pmc_intr != NULL &&
+		    (*pmc_intr)(PCPU_GET(cpuid), frame) != 0)
+			goto out;
 #endif
+
+#ifdef STACK
+		if (stack_nmi_handler(frame) != 0)
+			goto out;
+#endif
+	}
 
 	if (type == T_MCHK) {
 		mca_intr();
@@ -257,8 +266,8 @@ trap(struct trapframe *frame)
 		td->td_pticks = 0;
 		td->td_frame = frame;
 		addr = frame->tf_rip;
-		if (td->td_ucred != p->p_ucred) 
-			cred_update_thread(td);
+		if (td->td_cowgen != p->p_cowgen)
+			thread_cow_update(td);
 
 		switch (type) {
 		case T_PRIVINFLT:	/* privileged instruction fault */
@@ -443,8 +452,6 @@ trap(struct trapframe *frame)
 			goto out;
 
 		case T_STKFLT:		/* stack fault */
-			break;
-
 		case T_PROTFLT:		/* general protection fault */
 		case T_SEGNPFLT:	/* segment not present fault */
 			if (td->td_intr_nesting_level != 0)
@@ -627,7 +634,6 @@ trap_pfault(frame, usermode)
 	int usermode;
 {
 	vm_offset_t va;
-	struct vmspace *vm;
 	vm_map_t map;
 	int rv = 0;
 	vm_prot_t ftype;
@@ -689,14 +695,7 @@ trap_pfault(frame, usermode)
 
 		map = kernel_map;
 	} else {
-		/*
-		 * This is a fault on non-kernel virtual memory.  If either
-		 * p or p->p_vmspace is NULL, then the fault is fatal.
-		 */
-		if (p == NULL || (vm = p->p_vmspace) == NULL)
-			goto nogo;
-
-		map = &vm->vm_map;
+		map = &p->p_vmspace->vm_map;
 
 		/*
 		 * When accessing a usermode address, kernel must be
@@ -731,28 +730,8 @@ trap_pfault(frame, usermode)
 	else
 		ftype = VM_PROT_READ;
 
-	if (map != kernel_map) {
-		/*
-		 * Keep swapout from messing with us during this
-		 *	critical time.
-		 */
-		PROC_LOCK(p);
-		++p->p_lock;
-		PROC_UNLOCK(p);
-
-		/* Fault in the user page: */
-		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-
-		PROC_LOCK(p);
-		--p->p_lock;
-		PROC_UNLOCK(p);
-	} else {
-		/*
-		 * Don't have to worry about process locking or stacks in the
-		 * kernel.
-		 */
-		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-	}
+	/* Fault in the page. */
+	rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 	if (rv == KERN_SUCCESS) {
 #ifdef HWPMC_HOOKS
 		if (ftype == VM_PROT_READ || ftype == VM_PROT_WRITE) {
@@ -842,14 +821,8 @@ trap_fatal(frame, eva)
 	if (frame->tf_rflags & PSL_RF)
 		printf("resume, ");
 	printf("IOPL = %ld\n", (frame->tf_rflags & PSL_IOPL) >> 12);
-	printf("current process		= ");
-	if (curproc) {
-		printf("%lu (%s)\n",
-		    (u_long)curproc->p_pid, curthread->td_name ?
-		    curthread->td_name : "");
-	} else {
-		printf("Idle\n");
-	}
+	printf("current process		= %d (%s)\n",
+	    curproc->p_pid, curthread->td_name);
 
 #ifdef KDB
 	if (debugger_on_panic || kdb_active)

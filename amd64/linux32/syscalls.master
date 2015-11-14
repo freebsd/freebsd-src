@@ -2,7 +2,7 @@
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
-; Processed to create linux_sysent.c, linux_proto.h and linux_syscall.h.
+; Processed to create linux32_sysent.c, linux32_proto.h and linux32_syscall.h.
 
 ; Columns: number audit type nargs name alt{name,tag,rtyp}/comments
 ;	number	system call number, must be in order
@@ -38,8 +38,7 @@
 ; #ifdef's, etc. may be included, and are copied to the output files.
 
 0	AUE_NULL	UNIMPL	setup
-1	AUE_EXIT	NOPROTO	{ void sys_exit(int rval); } exit \
-				    sys_exit_args void
+1	AUE_EXIT	STD	{ void linux_exit(int rval); }
 2	AUE_FORK	STD	{ int linux_fork(void); }
 3	AUE_NULL	NOPROTO	{ int read(int fd, char *buf, \
 				    u_int nbyte); }
@@ -268,10 +267,10 @@
 151	AUE_MUNLOCK	NOPROTO	{ int munlock(const void *addr, size_t len); }
 152	AUE_MLOCKALL	NOPROTO	{ int mlockall(int how); }
 153	AUE_MUNLOCKALL	NOPROTO	{ int munlockall(void); }
-154	AUE_SCHED_SETPARAM	NOPROTO	{ int sched_setparam(pid_t pid, \
-				    const struct sched_param *param); }
-155	AUE_SCHED_GETPARAM	NOPROTO	{ int sched_getparam(pid_t pid, \
-				    struct sched_param *param); }
+154	AUE_SCHED_SETPARAM	STD	{ int linux_sched_setparam(l_pid_t pid, \
+				    struct l_sched_param *param); }
+155	AUE_SCHED_GETPARAM	STD	{ int linux_sched_getparam(l_pid_t pid, \
+				    struct l_sched_param *param); }
 156	AUE_SCHED_SETSCHEDULER	STD { int linux_sched_setscheduler( \
 				    l_pid_t pid, l_int policy, \
 				    struct l_sched_param *param); }
@@ -319,7 +318,8 @@
 				    l_siginfo_t *ptr, \
 				    struct l_timeval *timeout, \
 				    l_size_t sigsetsize); }
-178	AUE_NULL	STD	{ int linux_rt_sigqueueinfo(void); }
+178	AUE_NULL	STD	{ int linux_rt_sigqueueinfo(l_pid_t pid, l_int sig, \
+				    l_siginfo_t *info); }
 179	AUE_NULL	STD	{ int linux_rt_sigsuspend( \
 				    l_sigset_t *newset, \
 				    l_size_t sigsetsize); }
@@ -430,9 +430,11 @@
 251	AUE_NULL	UNIMPL
 252	AUE_EXIT	STD	{ int linux_exit_group(int error_code); }
 253	AUE_NULL	STD	{ int linux_lookup_dcookie(void); }
-254	AUE_NULL	STD	{ int linux_epoll_create(void); }
-255	AUE_NULL	STD	{ int linux_epoll_ctl(void); }
-256	AUE_NULL	STD	{ int linux_epoll_wait(void); }
+254	AUE_NULL	STD	{ int linux_epoll_create(l_int size); }
+255	AUE_NULL	STD	{ int linux_epoll_ctl(l_int epfd, l_int op, l_int fd, \
+					struct epoll_event *event); }
+256	AUE_NULL	STD	{ int linux_epoll_wait(l_int epfd, struct epoll_event *events, \
+					l_int maxevents, l_int timeout); }
 257	AUE_NULL	STD	{ int linux_remap_file_pages(void); }
 258	AUE_NULL	STD	{ int linux_set_tid_address(int *tidptr); }
 259	AUE_NULL	STD	{ int linux_timer_create(clockid_t clock_id, \
@@ -467,7 +469,9 @@
 281	AUE_NULL	STD	{ int linux_mq_notify(void); }
 282	AUE_NULL	STD	{ int linux_mq_getsetattr(void); }
 283	AUE_NULL	STD	{ int linux_kexec_load(void); }
-284	AUE_NULL	STD	{ int linux_waitid(void); }
+284	AUE_WAIT6	STD	{ int linux_waitid(int idtype, l_pid_t id, \
+				    l_siginfo_t *info, int options, \
+				    struct l_rusage *rusage); }
 285	AUE_NULL	UNIMPL
 ; linux 2.6.11:
 286	AUE_NULL	STD	{ int linux_add_key(void); }
@@ -505,9 +509,13 @@
 					char *buf, l_int bufsiz); }
 306	AUE_FCHMODAT	STD	{ int linux_fchmodat(l_int dfd, const char *filename, \
 					l_mode_t mode); }
-307	AUE_FACCESSAT	STD	{ int linux_faccessat(l_int dfd, const char *filename, l_int amode, int flag); }
-308	AUE_NULL	STD	{ int linux_pselect6(void); }
-309	AUE_NULL	STD	{ int linux_ppoll(void); }
+307	AUE_FACCESSAT	STD	{ int linux_faccessat(l_int dfd, const char *filename, \
+					l_int amode); }
+308	AUE_SELECT	STD	{ int linux_pselect6(l_int nfds, l_fd_set *readfds,	\
+					l_fd_set *writefds, l_fd_set *exceptfds,	\
+					struct l_timespec *tsp, l_uintptr_t *sig); }
+309	AUE_POLL	STD	{ int linux_ppoll(struct pollfd *fds, uint32_t nfds,	\
+				    struct l_timespec *tsp, l_sigset_t *sset, l_size_t ssize); }
 310	AUE_NULL	STD	{ int linux_unshare(void); }
 ; linux 2.6.17:
 311	AUE_NULL	STD	{ int linux_set_robust_list(struct linux_robust_list_head *head, \
@@ -522,22 +530,26 @@
 317	AUE_NULL	STD	{ int linux_move_pages(void); }
 ; linux 2.6.19:
 318	AUE_NULL	STD	{ int linux_getcpu(void); }
-319	AUE_NULL	STD	{ int linux_epoll_pwait(void); }
+319     AUE_NULL        STD     { int linux_epoll_pwait(l_int epfd, struct epoll_event *events, \
+                                        l_int maxevents, l_int timeout, l_sigset_t *mask); }
 ; linux 2.6.22:
-320	AUE_NULL	STD	{ int linux_utimensat(void); }
+320	AUE_FUTIMESAT	STD	{ int linux_utimensat(l_int dfd, const char *pathname, \
+					const struct l_timespec *times, l_int flags); }
 321	AUE_NULL	STD	{ int linux_signalfd(void); }
 322	AUE_NULL	STD	{ int linux_timerfd_create(void); }
-323	AUE_NULL	STD	{ int linux_eventfd(void); }
+323	AUE_NULL	STD	{ int linux_eventfd(l_uint initval); }
 ; linux 2.6.23:
-324	AUE_NULL	STD	{ int linux_fallocate(void); }
+324	AUE_NULL	STD	{ int linux_fallocate(l_int fd, l_int mode, \
+				    l_loff_t offset, l_loff_t len); }
 ; linux 2.6.25:
 325	AUE_NULL	STD	{ int linux_timerfd_settime(void); }
 326	AUE_NULL	STD	{ int linux_timerfd_gettime(void); }
 ; linux 2.6.27:
 327	AUE_NULL	STD	{ int linux_signalfd4(void); }
-328	AUE_NULL	STD	{ int linux_eventfd2(void); }
-329	AUE_NULL	STD	{ int linux_epoll_create1(void); }
-330	AUE_NULL	STD	{ int linux_dup3(void); }
+328	AUE_NULL	STD	{ int linux_eventfd2(l_uint initval, l_int flags); }
+329	AUE_NULL	STD	{ int linux_epoll_create1(l_int flags); }
+330	AUE_NULL	STD	{ int linux_dup3(l_int oldfd,		\
+					l_int newfd, l_int flags); }
 331	AUE_NULL	STD	{ int linux_pipe2(l_int *pipefds, l_int flags); }
 332	AUE_NULL	STD	{ int linux_inotify_init1(void); }
 ; linux 2.6.30:
@@ -547,17 +559,26 @@
 335	AUE_NULL	STD	{ int linux_rt_tsigqueueinfo(void); }
 336	AUE_NULL	STD	{ int linux_perf_event_open(void); }
 ; linux 2.6.33:
-337	AUE_NULL	STD	{ int linux_recvmmsg(void); }
+337	AUE_NULL	STD	{ int linux_recvmmsg(l_int s,			\
+				    struct l_mmsghdr *msg, l_uint vlen,		\
+				    l_uint flags, struct l_timespec *timeout); }
 338	AUE_NULL	STD	{ int linux_fanotify_init(void); }
 339	AUE_NULL	STD	{ int linux_fanotify_mark(void); }
 ; linux 2.6.36:
-340	AUE_NULL	STD	{ int linux_prlimit64(void); }
+340	AUE_NULL	STD	{ int linux_prlimit64(l_pid_t pid,	\
+				    l_uint resource,			\
+				    struct rlimit *new,			\
+				    struct rlimit *old); }
 ; later:
 341	AUE_NULL	STD	{ int linux_name_to_handle_at(void); }
 342	AUE_NULL	STD	{ int linux_open_by_handle_at(void); }
 343	AUE_NULL	STD	{ int linux_clock_adjtime(void); }
-344	AUE_NULL	STD	{ int linux_syncfs(void); }
-345	AUE_NULL	STD	{ int linux_sendmmsg(void); }
+344	AUE_SYNC	STD	{ int linux_syncfs(l_int fd); }
+345	AUE_NULL	STD	{ int linux_sendmmsg(l_int s,			\
+				    struct l_mmsghdr *msg, l_uint vlen,		\
+				    l_uint flags); }
 346	AUE_NULL	STD	{ int linux_setns(void); }
 347	AUE_NULL	STD	{ int linux_process_vm_readv(void); }
 348	AUE_NULL	STD	{ int linux_process_vm_writev(void); }
+; please, keep this line at the end.
+349	AUE_NULL	UNIMPL	nosys

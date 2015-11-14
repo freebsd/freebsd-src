@@ -69,12 +69,8 @@ CTASSERT(LK_UNLOCKED == (LK_UNLOCKED &
 
 #ifndef INVARIANTS
 #define	_lockmgr_assert(lk, what, file, line)
-#define	TD_LOCKS_INC(td)
-#define	TD_LOCKS_DEC(td)
-#else
-#define	TD_LOCKS_INC(td)	((td)->td_locks++)
-#define	TD_LOCKS_DEC(td)	((td)->td_locks--)
 #endif
+
 #define	TD_SLOCKS_INC(td)	((td)->td_lk_slocks++)
 #define	TD_SLOCKS_DEC(td)	((td)->td_lk_slocks--)
 

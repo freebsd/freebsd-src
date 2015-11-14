@@ -116,7 +116,7 @@ struct pcpu_state {
 	sbintime_t	now;		/* Last tick time. */
 	sbintime_t	nextevent;	/* Next scheduled event on this CPU. */
 	sbintime_t	nexttick;	/* Next timer tick time. */
-	sbintime_t	nexthard;	/* Next hardlock() event. */
+	sbintime_t	nexthard;	/* Next hardclock() event. */
 	sbintime_t	nextstat;	/* Next statclock() event. */
 	sbintime_t	nextprof;	/* Next profclock() event. */
 	sbintime_t	nextcall;	/* Next callout event. */

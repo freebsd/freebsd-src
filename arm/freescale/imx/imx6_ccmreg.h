@@ -29,6 +29,7 @@
 #ifndef	IMX6_CCMREG_H
 #define	IMX6_CCMREG_H
 
+#define	CCM_CACCR			0x010
 #define	CCM_CSCMR1			0x01C
 #define	  SSI1_CLK_SEL_S		  10
 #define	  SSI2_CLK_SEL_S		  12
@@ -64,6 +65,5 @@
 #define	CCM_CCGR5			0x07C
 #define	CCM_CCGR6			0x080
 #define	CCM_CMEOR			0x088
-                  
 
 #endif

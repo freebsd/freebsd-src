@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/pioctl.h>
 #include <sys/ptrace.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -79,17 +80,13 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 #endif
 
-#ifdef XEN
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-#endif
-
 #ifdef	HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
 
 #include <security/mac/mac_framework.h>
+
+void (*softdep_ast_cleanup)(void);
 
 /*
  * Define the code needed before returning to user mode, for trap and
@@ -119,6 +116,9 @@ userret(struct thread *td, struct trapframe *frame)
 #ifdef KTRACE
 	KTRUSERRET(td);
 #endif
+	if (softdep_ast_cleanup != NULL)
+		softdep_ast_cleanup();
+
 	/*
 	 * If this thread tickled GEOM, we need to wait for the giggling to
 	 * stop before we return to userland
@@ -135,9 +135,6 @@ userret(struct thread *td, struct trapframe *frame)
 	 * Let the scheduler adjust our priority etc.
 	 */
 	sched_userret(td);
-#ifdef XEN
-	PT_UPDATES_FLUSH();
-#endif
 
 	/*
 	 * Check for misbehavior.
@@ -165,6 +162,8 @@ userret(struct thread *td, struct trapframe *frame)
 	    ("userret: Returning while holding vnode reservation"));
 	KASSERT((td->td_flags & TDF_SBDRY) == 0,
 	    ("userret: Returning with stop signals deferred"));
+	KASSERT(td->td_su == NULL,
+	    ("userret: Returning with SU cleanup request not handled"));
 #ifdef VIMAGE
 	/* Unfortunately td_vnet_lpush needs VNET_DEBUG. */
 	VNET_ASSERT(curvnet == NULL,
@@ -172,11 +171,13 @@ userret(struct thread *td, struct trapframe *frame)
 	    __func__, td, p->p_pid, td->td_name, curvnet,
 	    (td->td_vnet_lpush != NULL) ? td->td_vnet_lpush : "N/A"));
 #endif
-#ifdef	RACCT
-	PROC_LOCK(p);
-	while (p->p_throttled == 1)
-		msleep(p->p_racct, &p->p_mtx, 0, "racct", 0);
-	PROC_UNLOCK(p);
+#ifdef RACCT
+	if (racct_enable && p->p_throttled == 1) {
+		PROC_LOCK(p);
+		while (p->p_throttled == 1)
+			msleep(p->p_racct, &p->p_mtx, 0, "racct", 0);
+		PROC_UNLOCK(p);
+	}
 #endif
 }
 
@@ -219,8 +220,8 @@ ast(struct trapframe *framep)
 	thread_unlock(td);
 	PCPU_INC(cnt.v_trap);
 
-	if (td->td_ucred != p->p_ucred) 
-		cred_update_thread(td);
+	if (td->td_cowgen != p->p_cowgen)
+		thread_cow_update(td);
 	if (td->td_pflags & TDP_OWEUPC && p->p_flag & P_PROFIL) {
 		addupc_task(td, td->td_profil_addr, td->td_profil_ticks);
 		td->td_profil_ticks = 0;

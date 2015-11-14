@@ -135,7 +135,7 @@ device		ic
 device		iic
 device		iicbb
 device		iicbus
-device		ds1374u	# RTC on XLR boards
+device		ds1374	# RTC on XLR boards
 device		max6657	# Temparature sensor on XLR boards
 device		at24co2n	# EEPROM on XLR boards
 

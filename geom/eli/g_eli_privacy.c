@@ -230,10 +230,10 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	struct cryptop *crp;
 	struct cryptodesc *crd;
 	u_int i, nsec, secsize;
-	int err, error;
 	off_t dstoff;
 	size_t size;
 	u_char *p, *data;
+	int error;
 
 	G_ELI_LOGREQ(3, bp, "%s", __func__);
 
@@ -271,7 +271,6 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 		bcopy(bp->bio_data, data, bp->bio_length);
 	}
 
-	error = 0;
 	for (i = 0, dstoff = bp->bio_offset; i < nsec; i++, dstoff += secsize) {
 		crp = (struct cryptop *)p;	p += sizeof(*crp);
 		crd = (struct cryptodesc *)p;	p += sizeof(*crd);
@@ -308,10 +307,8 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 		crd->crd_next = NULL;
 
 		crp->crp_etype = 0;
-		err = crypto_dispatch(crp);
-		if (error == 0)
-			error = err;
+		error = crypto_dispatch(crp);
+		KASSERT(error == 0, ("crypto_dispatch() failed (error=%d)",
+		    error));
 	}
-	if (bp->bio_error == 0)
-		bp->bio_error = error;
 }

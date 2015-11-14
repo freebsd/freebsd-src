@@ -175,6 +175,11 @@ pmc_md_initialize()
 	case IBM970MP:
 		error = pmc_ppc970_initialize(pmc_mdep);
 		break;
+	case FSL_E500v1:
+	case FSL_E500v2:
+	case FSL_E500mc:
+		error = pmc_e500_initialize(pmc_mdep);
+		break;
 	default:
 		error = -1;
 		break;

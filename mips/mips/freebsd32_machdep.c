@@ -106,6 +106,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = freebsd32_syscallnames,
 	.sv_schedtail	= NULL,
+	.sv_thread_detach = NULL,
 };
 INIT_SYSENTVEC(elf32_sysvec, &elf32_freebsd_sysvec);
 
@@ -417,12 +418,6 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	} else
 		sfp = (struct sigframe32 *)((vm_offset_t)(td->td_frame->sp - 
 		    sizeof(struct sigframe32)) & ~(sizeof(__int64_t) - 1));
-
-	/* Translate the signal if appropriate */
-	if (p->p_sysent->sv_sigtbl) {
-		if (sig <= p->p_sysent->sv_sigsize)
-			sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
-	}
 
 	/* Build the argument list for the signal handler. */
 	td->td_frame->a0 = sig;

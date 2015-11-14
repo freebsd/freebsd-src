@@ -187,10 +187,12 @@ Usage (
     ACPI_OPTION ("-db",             "Do not translate Buffers to Resource Templates");
     ACPI_OPTION ("-dc <f1 f2 ...>", "Disassemble AML and immediately compile it");
     ACPI_OPTION ("",                "  (Obtain DSDT from current system if no input file)");
+    ACPI_OPTION ("-df",             "Force disassembler to assume table contains valid AML");
     ACPI_OPTION ("-dl",             "Emit legacy ASL code only (no C-style operators)");
     ACPI_OPTION ("-e  <f1 f2 ...>", "Include ACPI table(s) for external symbol resolution");
     ACPI_OPTION ("-fe <file>",      "Specify external symbol declaration file");
     ACPI_OPTION ("-in",             "Ignore NoOp opcodes");
+    ACPI_OPTION ("-l",              "Disassemble to mixed ASL and AML code");
     ACPI_OPTION ("-vt",             "Dump binary table data in hex format within output file");
 
     printf ("\nDebug Options:\n");
@@ -260,7 +262,7 @@ AslSignalHandler (
 
     /* Close all open files */
 
-    Gbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL; /* the .i file is same as source file */
+    Gbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL; /* the .pre file is same as source file */
 
     for (i = ASL_FILE_INPUT; i < ASL_MAX_FILE_TYPE; i++)
     {
@@ -296,6 +298,8 @@ AslInitialize (
 {
     UINT32                  i;
 
+
+    AcpiGbl_DmOpt_Verbose = FALSE;
 
     for (i = 0; i < ASL_NUM_FILES; i++)
     {

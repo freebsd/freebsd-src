@@ -34,13 +34,14 @@
 #ifndef _NETGRAPH_L2CAP_LLPI_H_
 #define _NETGRAPH_L2CAP_LLPI_H_
 
-int  ng_l2cap_lp_con_req             (ng_l2cap_p, bdaddr_p);
+int  ng_l2cap_lp_con_req             (ng_l2cap_p, bdaddr_p, int);
 int  ng_l2cap_lp_con_cfm             (ng_l2cap_p, struct ng_mesg *);
 int  ng_l2cap_lp_con_ind             (ng_l2cap_p, struct ng_mesg *);
 int  ng_l2cap_lp_discon_ind          (ng_l2cap_p, struct ng_mesg *);
 int  ng_l2cap_lp_qos_req             (ng_l2cap_p, u_int16_t, ng_l2cap_flow_p);
 int  ng_l2cap_lp_qos_cfm             (ng_l2cap_p, struct ng_mesg *);
 int  ng_l2cap_lp_qos_ind             (ng_l2cap_p, struct ng_mesg *);
+int  ng_l2cap_lp_enc_change             (ng_l2cap_p, struct ng_mesg *);
 int  ng_l2cap_lp_send                (ng_l2cap_con_p, u_int16_t,struct mbuf *);
 int  ng_l2cap_lp_receive             (ng_l2cap_p, struct mbuf *);
 void ng_l2cap_lp_deliver             (ng_l2cap_con_p);

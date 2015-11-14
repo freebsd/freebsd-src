@@ -18,8 +18,13 @@
 #ifndef	__IF_IWN_IOCTL_H__
 #define	__IF_IWN_IOCTL_H__
 
+struct iwn_ioctl_data {
+	void *dst_addr;
+	int dst_len;
+};
+
 /* XXX how should I pick appropriate ioctl numbers? */
-#define	SIOCGIWNSTATS		_IOWR('i', 145, struct ifreq)
-#define	SIOCZIWNSTATS		_IOWR('i', 146, struct ifreq)
+#define	SIOCGIWNSTATS		_IOWR('f', 145, struct iwn_ioctl_data)
+#define	SIOCZIWNSTATS		_IOWR('f', 146, struct iwn_ioctl_data)
 
 #endif	/* __IF_IWN_IOCTL_H__ */

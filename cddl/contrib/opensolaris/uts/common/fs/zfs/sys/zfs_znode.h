@@ -261,10 +261,6 @@ VTOZ(vnode_t *vp)
 		} \
 	}
 
-/* Called on entry to each ZFS vnode and vfs operation that can not return EIO */
-#define	ZFS_ENTER_NOERROR(zfsvfs) \
-	rrm_enter(&(zfsvfs)->z_teardown_lock, RW_READER, FTAG)
-
 /* Must be called before exiting the vop */
 #define	ZFS_EXIT(zfsvfs) rrm_exit(&(zfsvfs)->z_teardown_lock, FTAG)
 

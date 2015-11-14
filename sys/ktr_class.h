@@ -55,7 +55,7 @@
 #define	KTR_PROC	0x00001000		/* Process scheduling */
 #define	KTR_SYSC	0x00002000		/* System call */
 #define	KTR_INIT	0x00004000		/* System initialization */
-#define	KTR_SPARE3	0x00008000		/* cxgb, drm2, ntb */
+#define	KTR_SPARE3	0x00008000		/* cxgb, drm2, ioat, ntb */
 #define	KTR_SPARE4	0x00010000		/* geom_sched */
 #define	KTR_EVH		0x00020000		/* Eventhandler */
 #define	KTR_VFS		0x00040000		/* VFS events */
@@ -71,7 +71,8 @@
 #define	KTR_INET6	0x10000000		/* IPv6 stack */
 #define	KTR_SCHED	0x20000000		/* Machine parsed sched info. */
 #define	KTR_BUF		0x40000000		/* Buffer cache */
-#define	KTR_ALL		0x7fffffff
+#define	KTR_PTRACE	0x80000000		/* Process debugging. */
+#define	KTR_ALL		0xffffffff
 
 /* KTR trace classes to compile in */
 #ifdef KTR

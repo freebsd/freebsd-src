@@ -101,8 +101,7 @@ ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 ASSYM(V_TRAP, offsetof(struct vmmeter, v_trap));
 ASSYM(V_SYSCALL, offsetof(struct vmmeter, v_syscall));
 ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
-/* ASSYM(UPAGES, UPAGES);*/
-ASSYM(KSTACK_PAGES, KSTACK_PAGES);
+ASSYM(TD0_KSTACK_PAGES, TD0_KSTACK_PAGES);
 ASSYM(PAGE_SIZE, PAGE_SIZE);
 ASSYM(NPTEPG, NPTEPG);
 ASSYM(NPDEPG, NPDEPG);
@@ -236,11 +235,6 @@ ASSYM(VM86_FRAMESIZE, sizeof(struct vm86frame));
 
 ASSYM(BUS_SPACE_HANDLE_BASE, offsetof(struct bus_space_handle, bsh_base));
 ASSYM(BUS_SPACE_HANDLE_IAT, offsetof(struct bus_space_handle, bsh_iat));
-#endif
-
-#ifdef XEN
-ASSYM(PC_CR3, offsetof(struct pcpu, pc_cr3));
-ASSYM(XEN_HYPERVISOR_VIRT_START, HYPERVISOR_VIRT_START);
 #endif
 
 #ifdef	HWPMC_HOOKS

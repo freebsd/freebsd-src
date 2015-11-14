@@ -940,6 +940,13 @@ ar9300_get_capability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
                     return HAL_OK;
             }
             return HAL_EINVAL;
+    case HAL_CAP_ENFORCE_TXOP:
+        if (capability == 0)
+            return (HAL_OK);
+        if (capability != 1)
+            return (HAL_ENOTSUPP);
+        (*result) = !! (ahp->ah_misc_mode & AR_PCU_TXOP_TBTT_LIMIT_ENA);
+        return (HAL_OK);
     default:
         return ath_hal_getcapability(ah, type, capability, result);
     }
@@ -1039,6 +1046,18 @@ ar9300_set_capability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
     case HAL_CAP_RXBUFSIZE:         /* set MAC receive buffer size */
         ahp->rx_buf_size = setting & AR_DATABUF_MASK;
         OS_REG_WRITE(ah, AR_DATABUF, ahp->rx_buf_size);
+        return AH_TRUE;
+
+    case HAL_CAP_ENFORCE_TXOP:
+        if (capability != 1)
+            return AH_FALSE;
+        if (setting) {
+            ahp->ah_misc_mode |= AR_PCU_TXOP_TBTT_LIMIT_ENA;
+            OS_REG_SET_BIT(ah, AR_PCU_MISC, AR_PCU_TXOP_TBTT_LIMIT_ENA);
+        } else {
+            ahp->ah_misc_mode &= ~AR_PCU_TXOP_TBTT_LIMIT_ENA;
+            OS_REG_CLR_BIT(ah, AR_PCU_MISC, AR_PCU_TXOP_TBTT_LIMIT_ENA);
+        }
         return AH_TRUE;
 
         /* fall thru... */
@@ -1179,6 +1198,7 @@ ar9300_get_diag_state(struct ath_hal *ah, int request,
         void **result, u_int32_t *resultsize)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
+    struct ar9300_ani_state *ani;
 
     (void) ahp;
     if (ath_hal_getdiagstate(ah, request, args, argsize, result, resultsize)) {
@@ -1219,14 +1239,35 @@ ar9300_get_diag_state(struct ath_hal *ah, int request,
         return AH_TRUE;
 #endif
     case HAL_DIAG_ANI_CURRENT:
+
+        ani = ar9300_ani_get_current_state(ah);
+        if (ani == AH_NULL)
+            return AH_FALSE;
+        /* Convert ar9300 HAL to FreeBSD HAL ANI state */
+        /* XXX TODO: add all of these to the HAL ANI state structure */
+        bzero(&ahp->ext_ani_state, sizeof(ahp->ext_ani_state));
+        /* XXX should this be OFDM or CCK noise immunity level? */
+        ahp->ext_ani_state.noiseImmunityLevel = ani->ofdm_noise_immunity_level;
+        ahp->ext_ani_state.spurImmunityLevel = ani->spur_immunity_level;
+        ahp->ext_ani_state.firstepLevel = ani->firstep_level;
+        ahp->ext_ani_state.ofdmWeakSigDetectOff = ani->ofdm_weak_sig_detect_off;
+        /* mrc_cck_off */
+        /* cck_noise_immunity_level */
+
+        ahp->ext_ani_state.listenTime = ani->listen_time;
+
+        *result = &ahp->ext_ani_state;
+        *resultsize = sizeof(ahp->ext_ani_state);
+#if 0
         *result = ar9300_ani_get_current_state(ah);
         *resultsize = (*result == AH_NULL) ?
             0 : sizeof(struct ar9300_ani_state);
+#endif
         return AH_TRUE;
     case HAL_DIAG_ANI_STATS:
         *result = ar9300_ani_get_current_stats(ah);
         *resultsize = (*result == AH_NULL) ?
-            0 : sizeof(struct ar9300_stats);
+            0 : sizeof(HAL_ANI_STATS);
         return AH_TRUE;
     case HAL_DIAG_ANI_CMD:
         if (argsize != 2*sizeof(u_int32_t)) {

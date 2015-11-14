@@ -73,7 +73,7 @@ static struct svc_callout *svc_find(SVCPOOL *pool, rpcprog_t, rpcvers_t,
     char *);
 static void svc_new_thread(SVCGROUP *grp);
 static void xprt_unregister_locked(SVCXPRT *xprt);
-static void svc_change_space_used(SVCPOOL *pool, int delta);
+static void svc_change_space_used(SVCPOOL *pool, long delta);
 static bool_t svc_request_space_available(SVCPOOL *pool);
 
 /* ***************  SVCXPRT related stuff **************** */
@@ -113,13 +113,14 @@ svcpool_create(const char *name, struct sysctl_oid_list *sysctl_base)
 	}
 
 	/*
-	 * Don't use more than a quarter of mbuf clusters or more than
-	 * 45Mb buffering requests.
+	 * Don't use more than a quarter of mbuf clusters.  Nota bene:
+	 * nmbclusters is an int, but nmbclusters*MCLBYTES may overflow
+	 * on LP64 architectures, so cast to u_long to avoid undefined
+	 * behavior.  (ILP32 architectures cannot have nmbclusters
+	 * large enough to overflow for other reasons.)
 	 */
-	pool->sp_space_high = nmbclusters * MCLBYTES / 4;
-	if (pool->sp_space_high > 45 << 20)
-		pool->sp_space_high = 45 << 20;
-	pool->sp_space_low = 2 * pool->sp_space_high / 3;
+	pool->sp_space_high = (u_long)nmbclusters * MCLBYTES / 4;
+	pool->sp_space_low = (pool->sp_space_high / 3) * 2;
 
 	sysctl_ctx_init(&pool->sp_sysctl);
 	if (sysctl_base) {
@@ -139,24 +140,24 @@ svcpool_create(const char *name, struct sysctl_oid_list *sysctl_base)
 		    "groups", CTLFLAG_RD, &pool->sp_groupcount, 0,
 		    "Number of thread groups");
 
-		SYSCTL_ADD_UINT(&pool->sp_sysctl, sysctl_base, OID_AUTO,
+		SYSCTL_ADD_ULONG(&pool->sp_sysctl, sysctl_base, OID_AUTO,
 		    "request_space_used", CTLFLAG_RD,
-		    &pool->sp_space_used, 0,
+		    &pool->sp_space_used,
 		    "Space in parsed but not handled requests.");
 
-		SYSCTL_ADD_UINT(&pool->sp_sysctl, sysctl_base, OID_AUTO,
+		SYSCTL_ADD_ULONG(&pool->sp_sysctl, sysctl_base, OID_AUTO,
 		    "request_space_used_highest", CTLFLAG_RD,
-		    &pool->sp_space_used_highest, 0,
+		    &pool->sp_space_used_highest,
 		    "Highest space used since reboot.");
 
-		SYSCTL_ADD_UINT(&pool->sp_sysctl, sysctl_base, OID_AUTO,
+		SYSCTL_ADD_ULONG(&pool->sp_sysctl, sysctl_base, OID_AUTO,
 		    "request_space_high", CTLFLAG_RW,
-		    &pool->sp_space_high, 0,
+		    &pool->sp_space_high,
 		    "Maximum space in parsed but not handled requests.");
 
-		SYSCTL_ADD_UINT(&pool->sp_sysctl, sysctl_base, OID_AUTO,
+		SYSCTL_ADD_ULONG(&pool->sp_sysctl, sysctl_base, OID_AUTO,
 		    "request_space_low", CTLFLAG_RW,
-		    &pool->sp_space_low, 0,
+		    &pool->sp_space_low,
 		    "Low water mark for request space.");
 
 		SYSCTL_ADD_INT(&pool->sp_sysctl, sysctl_base, OID_AUTO,
@@ -1064,11 +1065,11 @@ svc_assign_waiting_sockets(SVCPOOL *pool)
 }
 
 static void
-svc_change_space_used(SVCPOOL *pool, int delta)
+svc_change_space_used(SVCPOOL *pool, long delta)
 {
-	unsigned int value;
+	unsigned long value;
 
-	value = atomic_fetchadd_int(&pool->sp_space_used, delta) + delta;
+	value = atomic_fetchadd_long(&pool->sp_space_used, delta) + delta;
 	if (delta > 0) {
 		if (value >= pool->sp_space_high && !pool->sp_space_throttled) {
 			pool->sp_space_throttled = TRUE;
@@ -1102,7 +1103,7 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 	enum xprt_stat stat;
 	struct svc_req *rqstp;
 	struct proc *p;
-	size_t sz;
+	long sz;
 	int error;
 
 	st = mem_alloc(sizeof(*st));
@@ -1259,17 +1260,16 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 		/*
 		 * Execute what we have queued.
 		 */
-		sz = 0;
 		mtx_lock(&st->st_lock);
 		while ((rqstp = STAILQ_FIRST(&st->st_reqs)) != NULL) {
 			STAILQ_REMOVE_HEAD(&st->st_reqs, rq_link);
 			mtx_unlock(&st->st_lock);
-			sz += rqstp->rq_size;
+			sz = (long)rqstp->rq_size;
 			svc_executereq(rqstp);
+			svc_change_space_used(pool, -sz);
 			mtx_lock(&st->st_lock);
 		}
 		mtx_unlock(&st->st_lock);
-		svc_change_space_used(pool, -sz);
 		mtx_lock(&grp->sg_lock);
 	}
 

@@ -47,8 +47,10 @@ uboot_autoload(void)
 #if defined(LOADER_FDT_SUPPORT)
 	int err;
 
-	if ((err = fdt_setup_fdtp()) != 0)
+	if ((err = fdt_setup_fdtp()) != 0) {
+		printf("No valid device tree blob found!\n");
 		return (err);
+	}
 #endif
 
 	return(0);

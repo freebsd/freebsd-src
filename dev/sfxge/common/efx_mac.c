@@ -1,26 +1,31 @@
 /*-
- * Copyright 2007-2009 Solarflare Communications Inc.  All rights reserved.
+ * Copyright (c) 2007-2015 Solarflare Communications Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  */
 
 #include <sys/cdefs.h>
@@ -39,74 +44,126 @@ __FBSDID("$FreeBSD$");
 #include "falcon_xmac.h"
 #endif
 
+#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+
+static	__checkReturn	int
+falconsiena_mac_multicast_list_set(
+	__in				efx_nic_t *enp);
+
+#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */
+
 #if EFSYS_OPT_MAC_FALCON_GMAC
-static efx_mac_ops_t	__cs __efx_falcon_gmac_ops = {
-	falcon_gmac_reset,		/* emo_reset */
-	falcon_mac_poll,		/* emo_poll */
-	falcon_mac_up,			/* emo_up */
-	falcon_gmac_reconfigure,	/* emo_reconfigure */
+static efx_mac_ops_t	__efx_falcon_gmac_ops = {
+	falcon_gmac_reset,			/* emo_reset */
+	falcon_mac_poll,			/* emo_poll */
+	falcon_mac_up,				/* emo_up */
+	falcon_gmac_reconfigure,		/* emo_addr_set */
+	falcon_gmac_reconfigure,		/* emo_reconfigure */
+	falconsiena_mac_multicast_list_set,	/* emo_multicast_list_set */
+	NULL,					/* emo_filter_set_default_rxq */
+	NULL,				/* emo_filter_default_rxq_clear */
 #if EFSYS_OPT_LOOPBACK
-	falcon_mac_loopback_set,	/* emo_loopback_set */
+	falcon_mac_loopback_set,		/* emo_loopback_set */
 #endif	/* EFSYS_OPT_LOOPBACK */
 #if EFSYS_OPT_MAC_STATS
-	falcon_mac_stats_upload,	/* emo_stats_upload */
-	NULL,				/* emo_stats_periodic */
-	falcon_gmac_stats_update	/* emo_stats_update */
+	falcon_mac_stats_upload,		/* emo_stats_upload */
+	NULL,					/* emo_stats_periodic */
+	falcon_gmac_stats_update		/* emo_stats_update */
 #endif	/* EFSYS_OPT_MAC_STATS */
 };
 #endif	/* EFSYS_OPT_MAC_FALCON_GMAC */
 
 #if EFSYS_OPT_MAC_FALCON_XMAC
-static efx_mac_ops_t	__cs __efx_falcon_xmac_ops = {
-	falcon_xmac_reset,		/* emo_reset */
-	falcon_mac_poll,		/* emo_poll */
-	falcon_mac_up,			/* emo_up */
-	falcon_xmac_reconfigure,	/* emo_reconfigure */
+static efx_mac_ops_t	__efx_falcon_xmac_ops = {
+	falcon_xmac_reset,			/* emo_reset */
+	falcon_mac_poll,			/* emo_poll */
+	falcon_mac_up,				/* emo_up */
+	falcon_xmac_reconfigure,		/* emo_addr_set */
+	falcon_xmac_reconfigure,		/* emo_reconfigure */
+	falconsiena_mac_multicast_list_set,	/* emo_multicast_list_set */
+	NULL,					/* emo_filter_set_default_rxq */
+	NULL,				/* emo_filter_default_rxq_clear */
 #if EFSYS_OPT_LOOPBACK
-	falcon_mac_loopback_set,	/* emo_loopback_set */
+	falcon_mac_loopback_set,		/* emo_loopback_set */
 #endif	/* EFSYS_OPT_LOOPBACK */
 #if EFSYS_OPT_MAC_STATS
-	falcon_mac_stats_upload,	/* emo_stats_upload */
-	NULL,				/* emo_stats_periodic */
-	falcon_xmac_stats_update	/* emo_stats_update */
+	falcon_mac_stats_upload,		/* emo_stats_upload */
+	NULL,					/* emo_stats_periodic */
+	falcon_xmac_stats_update		/* emo_stats_update */
 #endif	/* EFSYS_OPT_MAC_STATS */
 };
 #endif	/* EFSYS_OPT_MAC_FALCON_XMAC */
 
 #if EFSYS_OPT_SIENA
-static efx_mac_ops_t	__cs __efx_siena_mac_ops = {
-	NULL,				/* emo_reset */
-	siena_mac_poll,			/* emo_poll */
-	siena_mac_up,			/* emo_up */
-	siena_mac_reconfigure,		/* emo_reconfigure */
+static efx_mac_ops_t	__efx_siena_mac_ops = {
+	NULL,					/* emo_reset */
+	siena_mac_poll,				/* emo_poll */
+	siena_mac_up,				/* emo_up */
+	siena_mac_reconfigure,			/* emo_addr_set */
+	siena_mac_reconfigure,			/* emo_reconfigure */
+	falconsiena_mac_multicast_list_set,	/* emo_multicast_list_set */
+	NULL,					/* emo_filter_set_default_rxq */
+	NULL,				/* emo_filter_default_rxq_clear */
 #if EFSYS_OPT_LOOPBACK
-	siena_mac_loopback_set,		/* emo_loopback_set */
+	siena_mac_loopback_set,			/* emo_loopback_set */
 #endif	/* EFSYS_OPT_LOOPBACK */
 #if EFSYS_OPT_MAC_STATS
-	siena_mac_stats_upload,		/* emo_stats_upload */
-	siena_mac_stats_periodic,	/* emo_stats_periodic */
-	siena_mac_stats_update		/* emo_stats_update */
+	efx_mcdi_mac_stats_upload,		/* emo_stats_upload */
+	efx_mcdi_mac_stats_periodic,		/* emo_stats_periodic */
+	siena_mac_stats_update			/* emo_stats_update */
 #endif	/* EFSYS_OPT_MAC_STATS */
 };
 #endif	/* EFSYS_OPT_SIENA */
 
-static efx_mac_ops_t	__cs * __cs __efx_mac_ops[] = {
+#if EFSYS_OPT_HUNTINGTON
+static efx_mac_ops_t	__efx_hunt_mac_ops = {
+	NULL,					/* emo_reset */
+	hunt_mac_poll,				/* emo_poll */
+	hunt_mac_up,				/* emo_up */
+	hunt_mac_addr_set,			/* emo_addr_set */
+	hunt_mac_reconfigure,			/* emo_reconfigure */
+	hunt_mac_multicast_list_set,		/* emo_multicast_list_set */
+	hunt_mac_filter_default_rxq_set,	/* emo_filter_default_rxq_set */
+	hunt_mac_filter_default_rxq_clear,
+					/* emo_filter_default_rxq_clear */
+#if EFSYS_OPT_LOOPBACK
+	hunt_mac_loopback_set,			/* emo_loopback_set */
+#endif	/* EFSYS_OPT_LOOPBACK */
+#if EFSYS_OPT_MAC_STATS
+	efx_mcdi_mac_stats_upload,		/* emo_stats_upload */
+	efx_mcdi_mac_stats_periodic,		/* emo_stats_periodic */
+	hunt_mac_stats_update			/* emo_stats_update */
+#endif	/* EFSYS_OPT_MAC_STATS */
+};
+#endif	/* EFSYS_OPT_HUNTINGTON */
+
+static efx_mac_ops_t	*__efx_mac_ops[] = {
+	/* [EFX_MAC_INVALID] */
 	NULL,
+	/* [EFX_MAC_FALCON_GMAC] */
 #if EFSYS_OPT_MAC_FALCON_GMAC
 	&__efx_falcon_gmac_ops,
 #else
 	NULL,
-#endif	/* EFSYS_OPT_MAC_FALCON_GMAC */
+#endif
+	/* [EFX_MAC_FALCON_XMAC] */
 #if EFSYS_OPT_MAC_FALCON_XMAC
 	&__efx_falcon_xmac_ops,
 #else
 	NULL,
-#endif	/* EFSYS_OPT_MAC_FALCON_XMAC */
+#endif
+	/* [EFX_MAC_SIENA] */
 #if EFSYS_OPT_SIENA
 	&__efx_siena_mac_ops,
 #else
 	NULL,
-#endif	/* EFSYS_OPT_SIENA */
+#endif
+	/* [EFX_MAC_HUNTINGTON] */
+#if EFSYS_OPT_HUNTINGTON
+	&__efx_hunt_mac_ops,
+#else
+	NULL,
+#endif
 };
 
 	__checkReturn			int
@@ -167,7 +224,7 @@ efx_mac_addr_set(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
 
-	if (addr[0] & 0x01) {
+	if (EFX_MAC_ADDR_IS_MULTICAST(addr)) {
 		rc = EINVAL;
 		goto fail1;
 	}
@@ -180,7 +237,7 @@ efx_mac_addr_set(
 
 	EFX_MAC_ADDR_COPY(old_addr, epp->ep_mac_addr);
 	EFX_MAC_ADDR_COPY(epp->ep_mac_addr, addr);
-	if ((rc = emop->emo_reconfigure(enp)) != 0)
+	if ((rc = emop->emo_addr_set(enp)) != 0)
 		goto fail3;
 
 	return (0);
@@ -201,22 +258,30 @@ fail1:
 	__checkReturn			int
 efx_mac_filter_set(
 	__in				efx_nic_t *enp,
-	__in				boolean_t unicst,
+	__in				boolean_t all_unicst,
+	__in				boolean_t mulcst,
+	__in				boolean_t all_mulcst,
 	__in				boolean_t brdcst)
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_mac_ops_t *emop = epp->ep_emop;
-	boolean_t old_unicst;
+	boolean_t old_all_unicst;
+	boolean_t old_mulcst;
+	boolean_t old_all_mulcst;
 	boolean_t old_brdcst;
 	int rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
 
-	old_unicst = unicst;
-	old_brdcst = brdcst;
+	old_all_unicst = epp->ep_all_unicst;
+	old_mulcst = epp->ep_mulcst;
+	old_all_mulcst = epp->ep_all_mulcst;
+	old_brdcst = epp->ep_brdcst;
 
-	epp->ep_unicst = unicst;
+	epp->ep_all_unicst = all_unicst;
+	epp->ep_mulcst = mulcst;
+	epp->ep_all_mulcst = all_mulcst;
 	epp->ep_brdcst = brdcst;
 
 	if ((rc = emop->emo_reconfigure(enp)) != 0)
@@ -227,7 +292,9 @@ efx_mac_filter_set(
 fail1:
 	EFSYS_PROBE1(fail1, int, rc);
 
-	epp->ep_unicst = old_unicst;
+	epp->ep_all_unicst = old_all_unicst;
+	epp->ep_mulcst = old_mulcst;
+	epp->ep_all_mulcst = old_all_mulcst;
 	epp->ep_brdcst = old_brdcst;
 
 	return (rc);
@@ -318,44 +385,44 @@ efx_mac_fcntl_set(
 	}
 
 	/*
-	 * Ignore a request to set flow control autonegotiation
+	 * Ignore a request to set flow control auto-negotiation
 	 * if the PHY doesn't support it.
 	 */
 	if (~epp->ep_phy_cap_mask & (1 << EFX_PHY_CAP_AN))
 		autoneg = B_FALSE;
 
 	old_fcntl = epp->ep_fcntl;
-	old_autoneg = autoneg;
+	old_autoneg = epp->ep_fcntl_autoneg;
 	old_adv_cap = epp->ep_adv_cap_mask;
 
 	epp->ep_fcntl = fcntl;
 	epp->ep_fcntl_autoneg = autoneg;
 
 	/*
-	 * If the PHY supports autonegotiation, then encode the flow control
-	 * settings in the advertised capabilities, and restart AN. Otherwise,
-	 * just push the new settings directly to the MAC.
+	 * Always encode the flow control settings in the advertised
+	 * capabilities even if we are not trying to auto-negotiate
+	 * them and reconfigure both the PHY and the MAC.
 	 */
-	if (epp->ep_phy_cap_mask & (1 << EFX_PHY_CAP_AN)) {
-		if (fcntl & EFX_FCNTL_RESPOND)
-			epp->ep_adv_cap_mask |=    (1 << EFX_PHY_CAP_PAUSE |
-						    1 << EFX_PHY_CAP_ASYM);
-		else
-			epp->ep_adv_cap_mask &=   ~(1 << EFX_PHY_CAP_PAUSE |
-						    1 << EFX_PHY_CAP_ASYM);
+	if (fcntl & EFX_FCNTL_RESPOND)
+		epp->ep_adv_cap_mask |=    (1 << EFX_PHY_CAP_PAUSE |
+					    1 << EFX_PHY_CAP_ASYM);
+	else
+		epp->ep_adv_cap_mask &=   ~(1 << EFX_PHY_CAP_PAUSE |
+					    1 << EFX_PHY_CAP_ASYM);
 
-		if (fcntl & EFX_FCNTL_GENERATE)
-			epp->ep_adv_cap_mask ^= (1 << EFX_PHY_CAP_ASYM);
+	if (fcntl & EFX_FCNTL_GENERATE)
+		epp->ep_adv_cap_mask ^= (1 << EFX_PHY_CAP_ASYM);
 
-		if ((rc = epop->epo_reconfigure(enp)) != 0)
-			goto fail2;
+	if ((rc = epop->epo_reconfigure(enp)) != 0)
+		goto fail2;
 
-	} else {
-		if ((rc = emop->emo_reconfigure(enp)) != 0)
-			goto fail2;
-	}
+	if ((rc = emop->emo_reconfigure(enp)) != 0)
+		goto fail3;
 
 	return (0);
+
+fail3:
+	EFSYS_PROBE(fail3);
 
 fail2:
 	EFSYS_PROBE(fail2);
@@ -377,29 +444,30 @@ efx_mac_fcntl_get(
 	__out		unsigned int *fcntl_linkp)
 {
 	efx_port_t *epp = &(enp->en_port);
-	unsigned int wanted;
+	unsigned int wanted = 0;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
 
 	/*
-	 * If the PHY supports auto negotiation, then the requested flow
-	 * control settings are encoded in the advertised capabilities.
+	 * Decode the requested flow control settings from the PHY
+	 * advertised capabilities.
 	 */
-	if (epp->ep_phy_cap_mask & (1 << EFX_PHY_CAP_AN)) {
-		wanted = 0;
-
-		if (epp->ep_adv_cap_mask & (1 << EFX_PHY_CAP_PAUSE))
-			wanted = EFX_FCNTL_RESPOND | EFX_FCNTL_GENERATE;
-		if (epp->ep_adv_cap_mask & (1 << EFX_PHY_CAP_ASYM))
-			wanted ^= EFX_FCNTL_GENERATE;
-	} else
-		wanted = epp->ep_fcntl;
+	if (epp->ep_adv_cap_mask & (1 << EFX_PHY_CAP_PAUSE))
+		wanted = EFX_FCNTL_RESPOND | EFX_FCNTL_GENERATE;
+	if (epp->ep_adv_cap_mask & (1 << EFX_PHY_CAP_ASYM))
+		wanted ^= EFX_FCNTL_GENERATE;
 
 	*fcntl_linkp = epp->ep_fcntl;
 	*fcntl_wantedp = wanted;
 }
 
+/*
+ * FIXME: efx_mac_hash_set() should be deleted once all its callers have been
+ * updated to use efx_mac_multicast_list_set().
+ * Then efx_port_t.ep_multicst_hash could be made Falcon/Siena specific as
+ * well.
+ */
 	__checkReturn			int
 efx_mac_hash_set(
 	__in				efx_nic_t *enp,
@@ -443,12 +511,130 @@ fail1:
 	return (rc);
 }
 
+	__checkReturn	int
+efx_mac_multicast_list_set(
+	__in				efx_nic_t *enp,
+	__in_ecount(6*count)		uint8_t const *addrs,
+	__in				int count)
+{
+	efx_port_t *epp = &(enp->en_port);
+	efx_mac_ops_t *emop = epp->ep_emop;
+	uint8_t	*old_mulcst_addr_list = NULL;
+	uint32_t old_mulcst_addr_count;
+	int rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
+
+	if (count > EFX_MAC_MULTICAST_LIST_MAX) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	old_mulcst_addr_count = epp->ep_mulcst_addr_count;
+	if (old_mulcst_addr_count > 0) {
+		/* Allocate memory to store old list (instead of using stack) */
+		EFSYS_KMEM_ALLOC(enp->en_esip,
+				old_mulcst_addr_count * EFX_MAC_ADDR_LEN,
+				old_mulcst_addr_list);
+		if (old_mulcst_addr_list == NULL) {
+			rc = ENOMEM;
+			goto fail2;
+		}
+
+		/* Save the old list in case we need to rollback */
+		memcpy(old_mulcst_addr_list, epp->ep_mulcst_addr_list,
+			old_mulcst_addr_count * EFX_MAC_ADDR_LEN);
+	}
+
+	/* Store the new list */
+	memcpy(epp->ep_mulcst_addr_list, addrs,
+		count * EFX_MAC_ADDR_LEN);
+	epp->ep_mulcst_addr_count = count;
+
+	if ((rc = emop->emo_multicast_list_set(enp)) != 0)
+		goto fail3;
+
+	if (old_mulcst_addr_count > 0) {
+		EFSYS_KMEM_FREE(enp->en_esip,
+				old_mulcst_addr_count * EFX_MAC_ADDR_LEN,
+				old_mulcst_addr_list);
+	}
+
+	return (0);
+
+fail3:
+	EFSYS_PROBE(fail3);
+
+	/* Restore original list on failure */
+	epp->ep_mulcst_addr_count = old_mulcst_addr_count;
+	if (old_mulcst_addr_count > 0) {
+		memcpy(epp->ep_mulcst_addr_list, old_mulcst_addr_list,
+			old_mulcst_addr_count * EFX_MAC_ADDR_LEN);
+
+		EFSYS_KMEM_FREE(enp->en_esip,
+				old_mulcst_addr_count * EFX_MAC_ADDR_LEN,
+				old_mulcst_addr_list);
+	}
+
+fail2:
+	EFSYS_PROBE(fail2);
+
+fail1:
+	EFSYS_PROBE1(fail1, int, rc);
+
+	return (rc);
+
+}
+
+	__checkReturn	int
+efx_mac_filter_default_rxq_set(
+	__in		efx_nic_t *enp,
+	__in		efx_rxq_t *erp,
+	__in		boolean_t using_rss)
+{
+	efx_port_t *epp = &(enp->en_port);
+	efx_mac_ops_t *emop = epp->ep_emop;
+	int rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
+
+	if (emop->emo_filter_default_rxq_set != NULL) {
+		rc = emop->emo_filter_default_rxq_set(enp, erp, using_rss);
+		if (rc != 0)
+			goto fail1;
+	}
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, int, rc);
+
+	return (rc);
+}
+
+			void
+efx_mac_filter_default_rxq_clear(
+	__in		efx_nic_t *enp)
+{
+	efx_port_t *epp = &(enp->en_port);
+	efx_mac_ops_t *emop = epp->ep_emop;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
+
+	if (emop->emo_filter_default_rxq_clear != NULL)
+		emop->emo_filter_default_rxq_clear(enp);
+}
+
+
 #if EFSYS_OPT_MAC_STATS
 
 #if EFSYS_OPT_NAMES
 
-/* START MKCONFIG GENERATED EfxMacStatNamesBlock adf707adba80813e */
-static const char 	__cs * __cs __efx_mac_stat_name[] = {
+/* START MKCONFIG GENERATED EfxMacStatNamesBlock 054d43a31d2d7a45 */
+static const char 	*__efx_mac_stat_name[] = {
 	"rx_octets",
 	"rx_pkts",
 	"rx_unicst_pkts",
@@ -500,10 +686,40 @@ static const char 	__cs * __cs __efx_mac_stat_name[] = {
 	"tx_late_col_pkts",
 	"tx_def_pkts",
 	"tx_ex_def_pkts",
+	"pm_trunc_bb_overflow",
+	"pm_discard_bb_overflow",
+	"pm_trunc_vfifo_full",
+	"pm_discard_vfifo_full",
+	"pm_trunc_qbb",
+	"pm_discard_qbb",
+	"pm_discard_mapping",
+	"rxdp_q_disabled_pkts",
+	"rxdp_di_dropped_pkts",
+	"rxdp_streaming_pkts",
+	"rxdp_hlb_fetch",
+	"rxdp_hlb_wait",
+	"vadapter_rx_unicast_packets",
+	"vadapter_rx_unicast_bytes",
+	"vadapter_rx_multicast_packets",
+	"vadapter_rx_multicast_bytes",
+	"vadapter_rx_broadcast_packets",
+	"vadapter_rx_broadcast_bytes",
+	"vadapter_rx_bad_packets",
+	"vadapter_rx_bad_bytes",
+	"vadapter_rx_overflow",
+	"vadapter_tx_unicast_packets",
+	"vadapter_tx_unicast_bytes",
+	"vadapter_tx_multicast_packets",
+	"vadapter_tx_multicast_bytes",
+	"vadapter_tx_broadcast_packets",
+	"vadapter_tx_broadcast_bytes",
+	"vadapter_tx_bad_packets",
+	"vadapter_tx_bad_bytes",
+	"vadapter_tx_overflow",
 };
 /* END MKCONFIG GENERATED EfxMacStatNamesBlock */
 
-	__checkReturn			const char __cs *
+	__checkReturn			const char *
 efx_mac_stat_name(
 	__in				efx_nic_t *enp,
 	__in				unsigned int id)
@@ -515,7 +731,7 @@ efx_mac_stat_name(
 	return (__efx_mac_stat_name[id]);
 }
 
-#endif	/* EFSYS_OPT_STAT_NAME */
+#endif	/* EFSYS_OPT_NAMES */
 
 	__checkReturn			int
 efx_mac_stats_upload(
@@ -588,7 +804,7 @@ efx_mac_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
 	__inout_ecount(EFX_MAC_NSTATS)	efsys_stat_t *essp,
-	__in				uint32_t *generationp)
+	__out_opt			uint32_t *generationp)
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_mac_ops_t *emop = epp->ep_emop;
@@ -615,6 +831,13 @@ efx_mac_select(
 	efx_mac_type_t type = EFX_MAC_INVALID;
 	efx_mac_ops_t *emop;
 	int rc = EINVAL;
+
+#if EFSYS_OPT_HUNTINGTON
+	if (enp->en_family == EFX_FAMILY_HUNTINGTON) {
+		type = EFX_MAC_HUNTINGTON;
+		goto chosen;
+	}
+#endif
 
 #if EFSYS_OPT_SIENA
 	if (enp->en_family == EFX_FAMILY_SIENA) {
@@ -685,3 +908,71 @@ fail1:
 
 	return (rc);
 }
+
+
+#if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
+
+/* Compute the multicast hash as used on Falcon and Siena. */
+static	void
+falconsiena_mac_multicast_hash_compute(
+	__in_ecount(6*count)		uint8_t const *addrs,
+	__in				int count,
+	__out				efx_oword_t *hash_low,
+	__out				efx_oword_t *hash_high)
+{
+	uint32_t crc, index;
+	int i;
+
+	EFSYS_ASSERT(hash_low != NULL);
+	EFSYS_ASSERT(hash_high != NULL);
+
+	EFX_ZERO_OWORD(*hash_low);
+	EFX_ZERO_OWORD(*hash_high);
+
+	for (i = 0; i < count; i++) {
+		/* Calculate hash bucket (IEEE 802.3 CRC32 of the MAC addr) */
+		crc = efx_crc32_calculate(0xffffffff, addrs, EFX_MAC_ADDR_LEN);
+		index = crc % EFX_MAC_HASH_BITS;
+		if (index < 128) {
+			EFX_SET_OWORD_BIT(*hash_low, index);
+		} else {
+			EFX_SET_OWORD_BIT(*hash_high, index - 128);
+		}
+
+		addrs += EFX_MAC_ADDR_LEN;
+	}
+}
+
+static	__checkReturn	int
+falconsiena_mac_multicast_list_set(
+	__in			efx_nic_t *enp)
+{
+	efx_port_t *epp = &(enp->en_port);
+	efx_mac_ops_t *emop = epp->ep_emop;
+	efx_oword_t old_hash[2];
+	int rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
+
+	memcpy(old_hash, epp->ep_multicst_hash, sizeof (old_hash));
+
+	falconsiena_mac_multicast_hash_compute(epp->ep_mulcst_addr_list,
+				epp->ep_mulcst_addr_count,
+				&epp->ep_multicst_hash[0],
+				&epp->ep_multicst_hash[1]);
+
+	if ((rc = emop->emo_reconfigure(enp)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, int, rc);
+
+	memcpy(epp->ep_multicst_hash, old_hash, sizeof (old_hash));
+
+	return (rc);
+}
+
+#endif /* EFSYS_OPT_FALCON || EFSYS_OPT_SIENA */

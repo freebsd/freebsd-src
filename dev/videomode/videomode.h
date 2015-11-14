@@ -43,6 +43,7 @@ struct videomode {
 	int vtotal;
 	int flags;		/* Video mode flags; see below. */
 	const char *name;
+	int hskew;
 };
 
 /*

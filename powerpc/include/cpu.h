@@ -65,9 +65,6 @@ extern int cpu_features;
 #define	TRAPF_USERMODE(frame)	(((frame)->srr1 & PSL_PR) != 0)
 #define	TRAPF_PC(frame)		((frame)->srr0)
 
-#define	cpu_swapout(p)
-#define	cpu_number()		0
-
 /*
  * CTL_MACHDEP definitions.
  */

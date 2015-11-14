@@ -163,7 +163,7 @@ start_ep_timer(struct iwch_ep *ep)
 		 * XXX this looks racy
 		 */
 		get_ep(&ep->com);
-		callout_init(&ep->timer, TRUE);
+		callout_init(&ep->timer, 1);
 	}
 	callout_reset(&ep->timer, ep_timeout_secs * hz, ep_timeout, ep);
 }
@@ -1307,7 +1307,7 @@ iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		err = (-ENOMEM);
 		goto out;
 	}
-	callout_init(&ep->timer, TRUE);
+	callout_init(&ep->timer, 1);
 	ep->plen = conn_param->private_data_len;
 	if (ep->plen)
 		memcpy(ep->mpa_pkt + sizeof(struct mpa_message),
@@ -1598,7 +1598,7 @@ process_newconn(struct iwch_ep *parent_ep)
 	free(remote, M_SONAME);
 	get_ep(&parent_ep->com);
 	child_ep->parent_ep = parent_ep;
-	callout_init(&child_ep->timer, TRUE);
+	callout_init(&child_ep->timer, 1);
 	state_set(&child_ep->com, MPA_REQ_WAIT);
 	start_ep_timer(child_ep);
 

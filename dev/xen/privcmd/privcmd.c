@@ -141,11 +141,8 @@ retry:
 		free(map->errs, M_PRIVCMD);
 	}
 
-	vm_phys_fictitious_unreg_range(map->phys_base_addr,
-	    map->phys_base_addr + map->size * PAGE_SIZE);
-
-	error = bus_release_resource(privcmd_dev, SYS_RES_MEMORY,
-	    map->pseudo_phys_res_id, map->pseudo_phys_res);
+	error = xenmem_free(privcmd_dev, map->pseudo_phys_res_id,
+	    map->pseudo_phys_res);
 	KASSERT(error == 0, ("Unable to release memory resource: %d", error));
 
 	free(map, M_PRIVCMD);
@@ -196,36 +193,25 @@ privcmd_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t size,
     vm_object_t *object, int nprot)
 {
 	struct privcmd_map *map;
-	int error;
 
 	map = malloc(sizeof(*map), M_PRIVCMD, M_WAITOK | M_ZERO);
 
 	map->size = OFF_TO_IDX(size);
 	map->pseudo_phys_res_id = 0;
 
-	map->pseudo_phys_res = bus_alloc_resource(privcmd_dev, SYS_RES_MEMORY,
-	    &map->pseudo_phys_res_id, 0, ~0, size, RF_ACTIVE);
+	map->pseudo_phys_res = xenmem_alloc(privcmd_dev,
+	    &map->pseudo_phys_res_id, size);
 	if (map->pseudo_phys_res == NULL) {
 		free(map, M_PRIVCMD);
 		return (ENOMEM);
 	}
 
 	map->phys_base_addr = rman_get_start(map->pseudo_phys_res);
-
-	error = vm_phys_fictitious_reg_range(map->phys_base_addr,
-	    map->phys_base_addr + size, VM_MEMATTR_DEFAULT);
-	if (error) {
-		bus_release_resource(privcmd_dev, SYS_RES_MEMORY,
-		    map->pseudo_phys_res_id, map->pseudo_phys_res);
-		free(map, M_PRIVCMD);
-		return (error);
-	}
-
 	map->mem = cdev_pager_allocate(map, OBJT_MGTDEVICE, &privcmd_pg_ops,
 	    size, nprot, *offset, NULL);
 	if (map->mem == NULL) {
-		bus_release_resource(privcmd_dev, SYS_RES_MEMORY,
-		    map->pseudo_phys_res_id, map->pseudo_phys_res);
+		xenmem_free(privcmd_dev, map->pseudo_phys_res_id,
+		    map->pseudo_phys_res);
 		free(map, M_PRIVCMD);
 		return (ENOMEM);
 	}

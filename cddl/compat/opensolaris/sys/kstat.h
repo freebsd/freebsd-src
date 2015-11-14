@@ -35,6 +35,9 @@
 
 #define	KSTAT_FLAG_VIRTUAL	0x01
 
+#define	KSTAT_READ	0
+#define	KSTAT_WRITE	1
+
 typedef struct kstat {
 	void	*ks_data;
 	u_int	 ks_ndata;
@@ -42,6 +45,8 @@ typedef struct kstat {
 	struct sysctl_ctx_list ks_sysctl_ctx;
 	struct sysctl_oid *ks_sysctl_root;
 #endif
+	int		(*ks_update)(struct kstat *, int); /* dynamic update */
+	void		*ks_private;	/* arbitrary provider-private data */
 } kstat_t;
 
 typedef struct kstat_named {

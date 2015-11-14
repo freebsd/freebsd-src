@@ -13,8 +13,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_pmap.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -27,6 +25,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
+#include <machine/cpu.h>
 
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
@@ -40,8 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
 
-#define cmpxchg(a, b, c) atomic_cmpset_int((volatile u_int *)(a),(b),(c))
-
 /* External tools reserve first few grant table entries. */
 #define NR_RESERVED_ENTRIES 8
 #define GREFS_PER_GRANT_FRAME (PAGE_SIZE / sizeof(grant_entry_t))
@@ -53,7 +50,6 @@ static int gnttab_free_count;
 static grant_ref_t gnttab_free_head;
 static struct mtx gnttab_list_lock;
 
-#ifdef XENHVM
 /*
  * Resource representing allocated physical address space
  * for the grant table metainfo
@@ -62,7 +58,6 @@ static struct resource *gnttab_pseudo_phys_res;
 
 /* Resource id for allocated physical address space. */
 static int gnttab_pseudo_phys_res_id;
-#endif
 
 static grant_entry_t *shared;
 
@@ -293,13 +288,13 @@ gnttab_end_foreign_transfer_ref(grant_ref_t ref)
 	while (!((flags = shared[ref].flags) & GTF_transfer_committed)) {
 		if ( synch_cmpxchg(&shared[ref].flags, flags, 0) == flags )
 			return (0);
-		cpu_relax();
+		cpu_spinwait();
 	}
 
 	/* If a transfer is in progress then wait until it is completed. */
 	while (!(flags & GTF_transfer_completed)) {
 		flags = shared[ref].flags;
-		cpu_relax();
+		cpu_spinwait();
 	}
 
 	/* Read the frame number /after/ reading completion status. */
@@ -510,72 +505,6 @@ unmap_pte_fn(pte_t *pte, struct page *pmd_page,
 }
 #endif
 
-#ifndef XENHVM
-
-static int
-gnttab_map(unsigned int start_idx, unsigned int end_idx)
-{
-	struct gnttab_setup_table setup;
-	u_long *frames;
-
-	unsigned int nr_gframes = end_idx + 1;
-	int i, rc;
-
-	frames = malloc(nr_gframes * sizeof(unsigned long), M_DEVBUF, M_NOWAIT);
-	if (!frames)
-		return (ENOMEM);
-
-	setup.dom        = DOMID_SELF;
-	setup.nr_frames  = nr_gframes;
-	set_xen_guest_handle(setup.frame_list, frames);
-
-	rc = HYPERVISOR_grant_table_op(GNTTABOP_setup_table, &setup, 1);
-	if (rc == -ENOSYS) {
-		free(frames, M_DEVBUF);
-		return (ENOSYS);
-	}
-	KASSERT(!(rc || setup.status),
-	    ("unexpected result from grant_table_op"));
-
-	if (shared == NULL) {
-		vm_offset_t area;
-
-		area = kva_alloc(PAGE_SIZE * max_nr_grant_frames());
-		KASSERT(area, ("can't allocate VM space for grant table"));
-		shared = (grant_entry_t *)area;
-	}
-
-	for (i = 0; i < nr_gframes; i++)
-		PT_SET_MA(((caddr_t)shared) + i*PAGE_SIZE, 
-		    ((vm_paddr_t)frames[i]) << PAGE_SHIFT | PG_RW | PG_V);
-
-	free(frames, M_DEVBUF);
-
-	return (0);
-}
-
-int
-gnttab_resume(device_t dev)
-{
-
-	if (max_nr_grant_frames() < nr_grant_frames)
-		return (ENOSYS);
-	return (gnttab_map(0, nr_grant_frames - 1));
-}
-
-int
-gnttab_suspend(void)
-{
-	int i;
-
-	for (i = 0; i < nr_grant_frames; i++)
-		pmap_kremove((vm_offset_t) shared + i * PAGE_SIZE);
-
-	return (0);
-}
-
-#else /* XENHVM */
-
 static vm_paddr_t resume_frames;
 
 static int
@@ -627,9 +556,8 @@ gnttab_resume(device_t dev)
 		KASSERT(dev != NULL,
 		    ("No resume frames and no device provided"));
 
-		gnttab_pseudo_phys_res = bus_alloc_resource(dev,
-		    SYS_RES_MEMORY, &gnttab_pseudo_phys_res_id, 0, ~0,
-		    PAGE_SIZE * max_nr_gframes, RF_ACTIVE);
+		gnttab_pseudo_phys_res = xenmem_alloc(dev,
+		    &gnttab_pseudo_phys_res_id, PAGE_SIZE * max_nr_gframes);
 		if (gnttab_pseudo_phys_res == NULL)
 			panic("Unable to reserve physical memory for gnttab");
 		resume_frames = rman_get_start(gnttab_pseudo_phys_res);
@@ -637,8 +565,6 @@ gnttab_resume(device_t dev)
 
 	return (gnttab_map(0, nr_gframes - 1));
 }
-
-#endif
 
 static int
 gnttab_expand(unsigned int req_entries)

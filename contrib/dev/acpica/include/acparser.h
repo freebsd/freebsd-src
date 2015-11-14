@@ -72,6 +72,9 @@
  *
  *****************************************************************************/
 
+extern const UINT8      AcpiGbl_ShortOpIndex[];
+extern const UINT8      AcpiGbl_LongOpIndex[];
+
 
 /*
  * psxface - Parser external interfaces
@@ -303,7 +306,7 @@ AcpiPsDeleteParseTree (
  */
 ACPI_PARSE_OBJECT *
 AcpiPsCreateScopeOp (
-    void);
+    UINT8                   *Aml);
 
 void
 AcpiPsInitOp (
@@ -312,7 +315,8 @@ AcpiPsInitOp (
 
 ACPI_PARSE_OBJECT *
 AcpiPsAllocOp (
-    UINT16                  opcode);
+    UINT16                  Opcode,
+    UINT8                   *Aml);
 
 void
 AcpiPsFreeOp (

@@ -57,7 +57,7 @@ static int	db_run_mode;
 #define	STEP_INVISIBLE	5
 #define	STEP_COUNT	6
 
-static boolean_t	db_sstep_print;
+static bool		db_sstep_print;
 static int		db_loop_count;
 static int		db_call_depth;
 
@@ -77,17 +77,17 @@ db_breakpoint_t	db_not_taken_bkpt = 0;
 db_breakpoint_t	db_taken_bkpt = 0;
 #endif
 
-boolean_t
-db_stop_at_pc(boolean_t *is_breakpoint)
+bool
+db_stop_at_pc(bool *is_breakpoint)
 {
-	register db_addr_t	pc;
-	register db_breakpoint_t bkpt;
+	db_addr_t	pc;
+	db_breakpoint_t bkpt;
 
 	pc = PC_REGS();
 #ifdef SOFTWARE_SSTEP
 	if ((db_not_taken_bkpt != 0 && pc == db_not_taken_bkpt->address)
 	    || (db_taken_bkpt != 0 && pc == db_taken_bkpt->address))
-		*is_breakpoint = FALSE;
+		*is_breakpoint = false;
 #endif
 
 	db_clear_single_step();
@@ -112,8 +112,8 @@ db_stop_at_pc(boolean_t *is_breakpoint)
 	if (bkpt) {
 	    if (--bkpt->count == 0) {
 		bkpt->count = bkpt->init_count;
-		*is_breakpoint = TRUE;
-		return (TRUE);	/* stop here */
+		*is_breakpoint = true;
+		return (true);	/* stop here */
 	    }
 	} else if (*is_breakpoint) {
 #ifdef BKPT_SKIP
@@ -121,14 +121,14 @@ db_stop_at_pc(boolean_t *is_breakpoint)
 #endif
 	}
 
-	*is_breakpoint = FALSE;
+	*is_breakpoint = false;
 
 	if (db_run_mode == STEP_INVISIBLE) {
 	    db_run_mode = STEP_CONTINUE;
-	    return (FALSE);	/* continue */
+	    return (false);	/* continue */
 	}
 	if (db_run_mode == STEP_COUNT) {
-	    return (FALSE); /* continue */
+	    return (false); /* continue */
 	}
 	if (db_run_mode == STEP_ONCE) {
 	    if (--db_loop_count > 0) {
@@ -137,19 +137,19 @@ db_stop_at_pc(boolean_t *is_breakpoint)
 		    db_print_loc_and_inst(pc);
 		    db_printf("\n");
 		}
-		return (FALSE);	/* continue */
+		return (false);	/* continue */
 	    }
 	}
 	if (db_run_mode == STEP_RETURN) {
 	    /* continue until matching return */
 	    db_expr_t ins;
 
-	    ins = db_get_value(pc, sizeof(int), FALSE);
+	    ins = db_get_value(pc, sizeof(int), false);
 	    if (!inst_trap_return(ins) &&
 		(!inst_return(ins) || --db_call_depth != 0)) {
 		if (db_sstep_print) {
 		    if (inst_call(ins) || inst_return(ins)) {
-			register int i;
+			int i;
 
 			db_printf("[after %6d]     ", db_inst_count);
 			for (i = db_call_depth; --i > 0; )
@@ -160,28 +160,28 @@ db_stop_at_pc(boolean_t *is_breakpoint)
 		}
 		if (inst_call(ins))
 		    db_call_depth++;
-		return (FALSE);	/* continue */
+		return (false);	/* continue */
 	    }
 	}
 	if (db_run_mode == STEP_CALLT) {
 	    /* continue until call or return */
 	    db_expr_t ins;
 
-	    ins = db_get_value(pc, sizeof(int), FALSE);
+	    ins = db_get_value(pc, sizeof(int), false);
 	    if (!inst_call(ins) &&
 		!inst_return(ins) &&
 		!inst_trap_return(ins)) {
-		return (FALSE);	/* continue */
+		return (false);	/* continue */
 	    }
 	}
 	db_run_mode = STEP_NONE;
-	return (TRUE);
+	return (true);
 }
 
 void
-db_restart_at_pc(boolean_t watchpt)
+db_restart_at_pc(bool watchpt)
 {
-	register db_addr_t	pc = PC_REGS();
+	db_addr_t	pc = PC_REGS();
 
 	if ((db_run_mode == STEP_COUNT) ||
 	    (db_run_mode == STEP_RETURN) ||
@@ -193,7 +193,7 @@ db_restart_at_pc(boolean_t watchpt)
 #ifdef	SOFTWARE_SSTEP
 	    db_expr_t		ins =
 #endif
-	    db_get_value(pc, sizeof(int), FALSE);
+	    db_get_value(pc, sizeof(int), false);
 	    db_inst_count++;
 	    db_load_count += inst_load(ins);
 	    db_store_count += inst_store(ins);
@@ -201,7 +201,7 @@ db_restart_at_pc(boolean_t watchpt)
 	    /* XXX works on mips, but... */
 	    if (inst_branch(ins) || inst_call(ins)) {
 		ins = db_get_value(next_instr_address(pc,1),
-				   sizeof(int), FALSE);
+				   sizeof(int), false);
 		db_inst_count++;
 		db_load_count += inst_load(ins);
 		db_store_count += inst_store(ins);
@@ -234,7 +234,7 @@ db_restart_at_pc(boolean_t watchpt)
  *	Just define the above conditional and provide
  *	the functions/macros defined below.
  *
- * extern boolean_t
+ * extern bool
  *	inst_branch(),		returns true if the instruction might branch
  * extern unsigned
  *	branch_taken(),		return the address the instruction might
@@ -266,7 +266,7 @@ db_set_single_step(void)
 	 *	User was stopped at pc, e.g. the instruction
 	 *	at pc was not executed.
 	 */
-	inst = db_get_value(pc, sizeof(int), FALSE);
+	inst = db_get_value(pc, sizeof(int), false);
 	if (inst_branch(inst) || inst_call(inst) || inst_return(inst)) {
 		brpc = branch_taken(inst, pc);
 		if (brpc != pc) {	/* self-branches are hopeless */
@@ -299,19 +299,15 @@ extern int	db_cmd_loop_done;
 /* single-step */
 /*ARGSUSED*/
 void
-db_single_step_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_single_step_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
-	boolean_t	print = FALSE;
+	bool		print = false;
 
 	if (count == -1)
 	    count = 1;
 
 	if (modif[0] == 'p')
-	    print = TRUE;
+	    print = true;
 
 	db_run_mode = STEP_ONCE;
 	db_loop_count = count;
@@ -326,13 +322,13 @@ db_single_step_cmd(addr, have_addr, count, modif)
 /* trace and print until call/return */
 /*ARGSUSED*/
 void
-db_trace_until_call_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+db_trace_until_call_cmd(db_expr_t addr, bool have_addr, db_expr_t count,
     char *modif)
 {
-	boolean_t	print = FALSE;
+	bool	print = false;
 
 	if (modif[0] == 'p')
-	    print = TRUE;
+	    print = true;
 
 	db_run_mode = STEP_CALLT;
 	db_sstep_print = print;
@@ -345,13 +341,13 @@ db_trace_until_call_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 
 /*ARGSUSED*/
 void
-db_trace_until_matching_cmd(db_expr_t addr, boolean_t have_addr,
-    db_expr_t count, char *modif)
+db_trace_until_matching_cmd(db_expr_t addr, bool have_addr, db_expr_t count,
+    char *modif)
 {
-	boolean_t	print = FALSE;
+	bool	print = false;
 
 	if (modif[0] == 'p')
-	    print = TRUE;
+	    print = true;
 
 	db_run_mode = STEP_RETURN;
 	db_call_depth = 1;
@@ -366,8 +362,7 @@ db_trace_until_matching_cmd(db_expr_t addr, boolean_t have_addr,
 /* continue */
 /*ARGSUSED*/
 void
-db_continue_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
-    char *modif)
+db_continue_cmd(db_expr_t addr, bool have_addr, db_expr_t count, char *modif)
 {
 	if (modif[0] == 'c')
 	    db_run_mode = STEP_COUNT;

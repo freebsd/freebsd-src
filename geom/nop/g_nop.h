@@ -59,10 +59,18 @@ struct g_nop_softc {
 	int		sc_error;
 	off_t		sc_offset;
 	off_t		sc_explicitsize;
+	off_t		sc_stripesize;
+	off_t		sc_stripeoffset;
 	u_int		sc_rfailprob;
 	u_int		sc_wfailprob;
 	uintmax_t	sc_reads;
 	uintmax_t	sc_writes;
+	uintmax_t	sc_deletes;
+	uintmax_t	sc_getattrs;
+	uintmax_t	sc_flushes;
+	uintmax_t	sc_cmd0s;
+	uintmax_t	sc_cmd1s;
+	uintmax_t	sc_cmd2s;
 	uintmax_t	sc_readbytes;
 	uintmax_t	sc_wrotebytes;
 	struct mtx	sc_lock;

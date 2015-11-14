@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_VDEV_IMPL_H
@@ -113,6 +113,8 @@ struct vdev_queue {
 	vdev_t		*vq_vdev;
 	vdev_queue_class_t vq_class[ZIO_PRIORITY_NUM_QUEUEABLE];
 	avl_tree_t	vq_active_tree;
+	avl_tree_t	vq_read_offset_tree;
+	avl_tree_t	vq_write_offset_tree;
 	uint64_t	vq_last_offset;
 	hrtime_t	vq_io_complete_ts; /* time last i/o completed */
 	kmutex_t	vq_lock;
@@ -225,7 +227,7 @@ struct vdev {
 	boolean_t	vdev_isl2cache;	/* was a l2cache device		*/
 	vdev_queue_t	vdev_queue;	/* I/O deadline schedule queue	*/
 	vdev_cache_t	vdev_cache;	/* physical block cache		*/
-	spa_aux_vdev_t	*vdev_aux;	/* for l2cache vdevs		*/
+	spa_aux_vdev_t	*vdev_aux;	/* for l2cache and spares vdevs	*/
 	zio_t		*vdev_probe_zio; /* root of current probe	*/
 	vdev_aux_t	vdev_label_aux;	/* on-disk aux state		*/
 	struct trim_map	*vdev_trimmap;	/* map on outstanding trims	*/ 

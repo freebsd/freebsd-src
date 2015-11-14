@@ -253,8 +253,8 @@ dfs_timeout(void *arg)
 					 * msg instead of one for every channel
 					 * table entry.
 					 */
-					if_printf(ic->ic_ifp, "radar on channel"
-					    " %u (%u MHz) cleared after timeout\n",
+					ic_printf(ic, "radar on channel %u "
+					    "(%u MHz) cleared after timeout\n",
 					    c->ic_ieee, c->ic_freq);
 					/* notify user space */
 					c->ic_state &=
@@ -272,14 +272,14 @@ dfs_timeout(void *arg)
 }
 
 static void
-announce_radar(struct ifnet *ifp, const struct ieee80211_channel *curchan,
+announce_radar(struct ieee80211com *ic, const struct ieee80211_channel *curchan,
 	const struct ieee80211_channel *newchan)
 {
 	if (newchan == NULL)
-		if_printf(ifp, "radar detected on channel %u (%u MHz)\n",
+		ic_printf(ic, "radar detected on channel %u (%u MHz)\n",
 		    curchan->ic_ieee, curchan->ic_freq);
 	else
-		if_printf(ifp, "radar detected on channel %u (%u MHz), "
+		ic_printf(ic, "radar detected on channel %u (%u MHz), "
 		    "moving to channel %u (%u MHz)\n",
 		    curchan->ic_ieee, curchan->ic_freq,
 		    newchan->ic_ieee, newchan->ic_freq);
@@ -309,7 +309,7 @@ ieee80211_dfs_notify_radar(struct ieee80211com *ic, struct ieee80211_channel *ch
 	 * along merrily.
 	 */
 	if (ieee80211_dfs_debug == DFS_DBG_NOCSANOL) {
-		announce_radar(ic->ic_ifp, chan, chan);
+		announce_radar(ic, chan, chan);
 		ieee80211_notify_radar(ic, chan);
 		return;
 	}
@@ -364,7 +364,7 @@ ieee80211_dfs_notify_radar(struct ieee80211com *ic, struct ieee80211_channel *ch
 		else
 			dfs->newchan = chan;
 
-		announce_radar(ic->ic_ifp, chan, dfs->newchan);
+		announce_radar(ic, chan, dfs->newchan);
 
 		if (callout_pending(&dfs->cac_timer))
 			callout_schedule(&dfs->cac_timer, 0);
@@ -380,7 +380,7 @@ ieee80211_dfs_notify_radar(struct ieee80211com *ic, struct ieee80211_channel *ch
 			 * on the NOL to expire.
 			 */
 			/*XXX*/
-			if_printf(ic->ic_ifp, "%s: No free channels; waiting for entry "
+			ic_printf(ic, "%s: No free channels; waiting for entry "
 			    "on NOL to expire\n", __func__);
 		}
 	} else {
@@ -390,9 +390,9 @@ ieee80211_dfs_notify_radar(struct ieee80211com *ic, struct ieee80211_channel *ch
 		if (dfs->lastchan != chan) {
 			dfs->lastchan = chan;
 			dfs->cureps = 0;
-			announce_radar(ic->ic_ifp, chan, NULL);
+			announce_radar(ic, chan, NULL);
 		} else if (ppsratecheck(&dfs->lastevent, &dfs->cureps, 1)) {
-			announce_radar(ic->ic_ifp, chan, NULL);
+			announce_radar(ic, chan, NULL);
 		}
 	}
 }
@@ -434,6 +434,6 @@ ieee80211_dfs_pickchannel(struct ieee80211com *ic)
 		   (c->ic_flags & flags) == flags)
 			return c;
 	}
-	if_printf(ic->ic_ifp, "HELP, no channel located to switch to!\n");
+	ic_printf(ic, "HELP, no channel located to switch to!\n");
 	return NULL;
 }

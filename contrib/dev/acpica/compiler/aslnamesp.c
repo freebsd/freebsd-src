@@ -409,7 +409,7 @@ NsDoOnePathname (
 
 
     TargetPath.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
-    Status = AcpiNsHandleToPathname (Node, &TargetPath);
+    Status = AcpiNsHandleToPathname (Node, &TargetPath, FALSE);
     if (ACPI_FAILURE (Status))
     {
         return (Status);

@@ -129,12 +129,14 @@
 #else
 #define	IPI_DYN_FIRST	(APIC_IPI_INTS + 8)
 #endif
-#define	IPI_DYN_LAST	(254)			/* IPIs allocated at runtime */
+#define	IPI_DYN_LAST	(253)			/* IPIs allocated at runtime */
 
 /*
  * IPI_STOP_HARD does not need to occupy a slot in the IPI vector space since
  * it is delivered using an NMI anyways.
  */
+#define	IPI_NMI_FIRST	254
+#define	IPI_TRACE	254			/* Interrupt for tracing. */
 #define	IPI_STOP_HARD	255			/* Stop CPU with a NMI. */
 
 /*
@@ -154,6 +156,11 @@
 #define	APIC_BUS_EISA		1
 #define	APIC_BUS_PCI		2
 #define	APIC_BUS_MAX		APIC_BUS_PCI
+
+#define	IRQ_EXTINT		(NUM_IO_INTS + 1)
+#define	IRQ_NMI			(NUM_IO_INTS + 2)
+#define	IRQ_SMI			(NUM_IO_INTS + 3)
+#define	IRQ_DISABLED		(NUM_IO_INTS + 4)
 
 /*
  * An APIC enumerator is a psuedo bus driver that enumerates APIC's including
@@ -448,7 +455,7 @@ void	lapic_handle_cmc(void);
 void	lapic_handle_error(void);
 void	lapic_handle_intr(int vector, struct trapframe *frame);
 void	lapic_handle_timer(struct trapframe *frame);
-void	xen_intr_handle_upcall(struct trapframe *frame);
+void	hv_vector_handler(struct trapframe *frame);
 
 extern int x2apic_mode;
 extern int lapic_eoi_suppression;

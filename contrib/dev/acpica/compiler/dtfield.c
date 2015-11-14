@@ -166,7 +166,7 @@ DtCompileString (
     UINT32                  Length;
 
 
-    Length = ACPI_STRLEN (Field->Value);
+    Length = strlen (Field->Value);
 
     /* Check if the string is too long for the field */
 
@@ -177,7 +177,7 @@ DtCompileString (
         Length = ByteLength;
     }
 
-    ACPI_MEMCPY (Buffer, Field->Value, Length);
+    memcpy (Buffer, Field->Value, Length);
 }
 
 
@@ -212,7 +212,7 @@ DtCompileUnicode (
 
     AsciiString = Field->Value;
     UnicodeString = (UINT16 *) Buffer;
-    Count = ACPI_STRLEN (AsciiString) + 1;
+    Count = strlen (AsciiString) + 1;
 
     /* Convert to Unicode string (including null terminator) */
 
@@ -318,7 +318,7 @@ DtCompileInteger (
 
     /* TBD: Should use a flag rather than compare "Reserved" */
 
-    if (!ACPI_STRCMP (Field->Name, "Reserved"))
+    if (!strcmp (Field->Name, "Reserved"))
     {
         if (Flags & DT_NON_ZERO)
         {
@@ -359,7 +359,7 @@ DtCompileInteger (
         DtError (ASL_ERROR, ASL_MSG_INTEGER_SIZE, Field, MsgBuffer);
     }
 
-    ACPI_MEMCPY (Buffer, &Value, ByteLength);
+    memcpy (Buffer, &Value, ByteLength);
     return;
 }
 
@@ -391,7 +391,7 @@ DtNormalizeBuffer (
     char                    c;
 
 
-    NewBuffer = UtLocalCalloc (ACPI_STRLEN (Buffer) + 1);
+    NewBuffer = UtLocalCalloc (strlen (Buffer) + 1);
     TmpBuffer = NewBuffer;
 
     while ((c = *Buffer++))

@@ -76,6 +76,7 @@ static int page_scan_mode_change      (ng_hci_unit_p, struct mbuf *);
 static int page_scan_rep_mode_change  (ng_hci_unit_p, struct mbuf *);
 static int sync_con_queue             (ng_hci_unit_p, ng_hci_unit_con_p, int);
 static int send_data_packets          (ng_hci_unit_p, int, int);
+static int le_event		      (ng_hci_unit_p, struct mbuf *);
 
 /*
  * Process HCI event packet
@@ -120,6 +121,9 @@ ng_hci_process_event(ng_hci_unit_p unit, struct mbuf *event)
 	case NG_HCI_EVENT_READ_REMOTE_VER_INFO_COMPL:
 		/* These do not need post processing */
 		NG_FREE_M(event);
+		break;
+	case NG_HCI_EVENT_LE:
+		error = le_event(unit, event);
 		break;
 
 	case NG_HCI_EVENT_INQUIRY_RESULT:
@@ -247,6 +251,7 @@ static int
 send_data_packets(ng_hci_unit_p unit, int link_type, int limit)
 {
 	ng_hci_unit_con_p	con = NULL, winner = NULL;
+	int			reallink_type;
 	item_p			item = NULL;
 	int			min_pending, total_sent, sent, error, v;
 
@@ -260,8 +265,11 @@ send_data_packets(ng_hci_unit_p unit, int link_type, int limit)
 		 */
 
 		LIST_FOREACH(con, &unit->con_list, next) {
-			if (con->link_type != link_type)
+			reallink_type = (con->link_type == NG_HCI_LINK_SCO)?
+				NG_HCI_LINK_SCO: NG_HCI_LINK_ACL;
+			if (reallink_type != link_type){
 				continue;
+			}
 			if (NG_BT_ITEMQ_LEN(&con->conq) == 0)
 				continue;
         
@@ -327,7 +335,6 @@ send_data_packets(ng_hci_unit_p unit, int link_type, int limit)
 		/*
 		 * Sync connection queue for the winner
 		 */
-
 		sync_con_queue(unit, winner, sent);
 	}
 
@@ -346,7 +353,7 @@ sync_con_queue(ng_hci_unit_p unit, ng_hci_unit_con_p con, int completed)
 	ng_hci_sync_con_queue_ep	*state = NULL;
 	int				 error;
 
-	hook = (con->link_type == NG_HCI_LINK_ACL)? unit->acl : unit->sco;
+	hook = (con->link_type != NG_HCI_LINK_SCO)? unit->acl : unit->sco;
 	if (hook == NULL || NG_HOOK_NOT_VALID(hook))
 		return (ENOTCONN);
 
@@ -363,6 +370,223 @@ sync_con_queue(ng_hci_unit_p unit, ng_hci_unit_con_p con, int completed)
 
 	return (error);
 } /* sync_con_queue */
+/* le meta event */
+/* Inquiry result event */
+static int
+le_advertizing_report(ng_hci_unit_p unit, struct mbuf *event)
+{
+	ng_hci_le_advertising_report_ep	*ep = NULL;
+	ng_hci_neighbor_p		 n = NULL;
+	bdaddr_t			 bdaddr;
+	int				 error = 0;
+	u_int8_t event_type;
+	u_int8_t addr_type;
+
+	NG_HCI_M_PULLUP(event, sizeof(*ep));
+	if (event == NULL)
+		return (ENOBUFS);
+
+	ep = mtod(event, ng_hci_le_advertising_report_ep *);
+	m_adj(event, sizeof(*ep));
+
+	for (; ep->num_reports > 0; ep->num_reports --) {
+		/* Get remote unit address */
+		NG_HCI_M_PULLUP(event, sizeof(u_int8_t));
+		event_type = *mtod(event, u_int8_t *);
+		m_adj(event, sizeof(u_int8_t));
+		NG_HCI_M_PULLUP(event, sizeof(u_int8_t));
+		addr_type = *mtod(event, u_int8_t *);
+		m_adj(event, sizeof(u_int8_t));
+
+		m_copydata(event, 0, sizeof(bdaddr), (caddr_t) &bdaddr);
+		m_adj(event, sizeof(bdaddr));
+		
+		/* Lookup entry in the cache */
+		n = ng_hci_get_neighbor(unit, &bdaddr, (addr_type) ? NG_HCI_LINK_LE_RANDOM:NG_HCI_LINK_LE_PUBLIC);
+		if (n == NULL) {
+			/* Create new entry */
+			n = ng_hci_new_neighbor(unit);
+			if (n == NULL) {
+				error = ENOMEM;
+				break;
+			}
+			bcopy(&bdaddr, &n->bdaddr, sizeof(n->bdaddr));
+			n->addrtype = (addr_type)? NG_HCI_LINK_LE_RANDOM :
+			  NG_HCI_LINK_LE_PUBLIC;
+			
+		} else
+			getmicrotime(&n->updated);
+		
+#if 0
+		{
+			/* 
+			 * TODO: Make these information 
+			 * Available from userland.
+			 */
+			u_int8_t length_data;
+			
+			char *rssi;
+			
+			NG_HCI_M_PULLUP(event, sizeof(u_int8_t));
+			length_data = *mtod(event, u_int8_t *);
+			m_adj(event, sizeof(u_int8_t));
+			/*Advertizement data*/
+			NG_HCI_M_PULLUP(event, length_data);
+			m_adj(event, length_data);
+			NG_HCI_M_PULLUP(event, sizeof(char ));
+			/*Get RSSI*/
+			rssi = mtod(event, char *);
+			m_adj(event, sizeof(u_int8_t));
+		}
+#endif
+	}
+	NG_FREE_M(event);
+
+	return (error);
+} /* inquiry_result */
+
+static int le_connection_complete(ng_hci_unit_p unit, struct mbuf *event)
+{
+	int			 error = 0;
+
+	ng_hci_le_connection_complete_ep	*ep = NULL;
+	ng_hci_unit_con_p	 con = NULL;
+	int link_type;
+	uint8_t uclass[3] = {0,0,0};//dummy uclass
+
+	NG_HCI_M_PULLUP(event, sizeof(*ep));
+	if (event == NULL)
+		return (ENOBUFS);
+
+	ep = mtod(event, ng_hci_le_connection_complete_ep *);
+	link_type = (ep->address_type)? NG_HCI_LINK_LE_RANDOM :
+	  NG_HCI_LINK_LE_PUBLIC;
+	/*
+	 * Find the first connection descriptor that matches the following:
+	 *
+	 * 1) con->link_type == link_type
+	 * 2) con->state == NG_HCI_CON_W4_CONN_COMPLETE
+	 * 3) con->bdaddr == ep->address
+	 */
+	LIST_FOREACH(con, &unit->con_list, next)
+		if (con->link_type == link_type &&
+		    con->state == NG_HCI_CON_W4_CONN_COMPLETE &&
+		    bcmp(&con->bdaddr, &ep->address, sizeof(bdaddr_t)) == 0)
+			break;
+
+	/*
+	 * Two possible cases:
+	 *
+	 * 1) We have found connection descriptor. That means upper layer has
+	 *    requested this connection via LP_CON_REQ message. In this case
+	 *    connection must have timeout set. If ng_hci_con_untimeout() fails
+	 *    then timeout message already went into node's queue. In this case
+	 *    ignore Connection_Complete event and let timeout deal with it.
+	 *
+	 * 2) We do not have connection descriptor. That means upper layer
+	 *    nas not requested this connection , (less likely) we gave up
+	 *    on this connection (timeout) or as node act as slave role.
+	 *    The most likely scenario is that
+	 *    we have received LE_Create_Connection command 
+	 *    from the RAW hook
+	 */
+
+	if (con == NULL) {
+		if (ep->status != 0)
+			goto out;
+
+		con = ng_hci_new_con(unit, link_type);
+		if (con == NULL) {
+			error = ENOMEM;
+			goto out;
+		}
+
+		con->state = NG_HCI_CON_W4_LP_CON_RSP;
+		ng_hci_con_timeout(con);
+
+		bcopy(&ep->address, &con->bdaddr, sizeof(con->bdaddr));
+		error = ng_hci_lp_con_ind(con, uclass);
+		if (error != 0) {
+			ng_hci_con_untimeout(con);
+			ng_hci_free_con(con);
+		}
+
+	} else if ((error = ng_hci_con_untimeout(con)) != 0)
+			goto out;
+
+	/*
+	 * Update connection descriptor and send notification 
+	 * to the upper layers.
+	 */
+
+	con->con_handle = NG_HCI_CON_HANDLE(le16toh(ep->handle));
+	con->encryption_mode = NG_HCI_ENCRYPTION_MODE_NONE;
+
+	ng_hci_lp_con_cfm(con, ep->status);
+
+	/* Adjust connection state */
+	if (ep->status != 0)
+		ng_hci_free_con(con);
+	else {
+		con->state = NG_HCI_CON_OPEN;
+
+		/*	
+		 * Change link policy for the ACL connections. Enable all 
+		 * supported link modes. Enable Role switch as well if
+		 * device supports it.
+		 */
+
+	}
+
+out:
+	NG_FREE_M(event);
+
+	return (error);
+
+}
+
+static int le_connection_update(ng_hci_unit_p unit, struct mbuf *event)
+{
+	int error = 0;
+	/*TBD*/
+	
+	NG_FREE_M(event);
+	return error;
+
+}
+static int
+le_event(ng_hci_unit_p unit, struct mbuf *event)
+{
+	int error = 0;
+	ng_hci_le_ep *lep;
+
+	NG_HCI_M_PULLUP(event, sizeof(*lep));
+	if(event ==NULL){
+		return ENOBUFS;
+	}
+	lep = mtod(event, ng_hci_le_ep *);
+	m_adj(event, sizeof(*lep));
+	switch(lep->subevent_code){
+	case NG_HCI_LEEV_CON_COMPL:
+		le_connection_complete(unit, event);
+		break;
+	case NG_HCI_LEEV_ADVREP:
+		le_advertizing_report(unit, event);
+		break;
+	case NG_HCI_LEEV_CON_UPDATE_COMPL:
+		le_connection_update(unit, event);
+		break;
+	case NG_HCI_LEEV_READ_REMOTE_FEATURES_COMPL:
+		//TBD
+	  /*FALLTHROUGH*/
+	case NG_HCI_LEEV_LONG_TERM_KEY_REQUEST:
+		//TBD
+	  /*FALLTHROUGH*/
+	default:
+	  	NG_FREE_M(event);
+	}
+	return error;
+}
 
 /* Inquiry result event */
 static int
@@ -386,7 +610,7 @@ inquiry_result(ng_hci_unit_p unit, struct mbuf *event)
 		m_adj(event, sizeof(bdaddr));
 
 		/* Lookup entry in the cache */
-		n = ng_hci_get_neighbor(unit, &bdaddr);
+		n = ng_hci_get_neighbor(unit, &bdaddr, NG_HCI_LINK_ACL);
 		if (n == NULL) {
 			/* Create new entry */
 			n = ng_hci_new_neighbor(unit);
@@ -398,6 +622,7 @@ inquiry_result(ng_hci_unit_p unit, struct mbuf *event)
 			getmicrotime(&n->updated);
 
 		bcopy(&bdaddr, &n->bdaddr, sizeof(n->bdaddr));
+		n->addrtype = NG_HCI_LINK_ACL;
 
 		/* XXX call m_pullup here? */
 
@@ -688,23 +913,23 @@ encryption_change(ng_hci_unit_p unit, struct mbuf *event)
 	ng_hci_encryption_change_ep	*ep = NULL;
 	ng_hci_unit_con_p		 con = NULL;
 	int				 error = 0;
+	u_int16_t	h;
 
 	NG_HCI_M_PULLUP(event, sizeof(*ep));
 	if (event == NULL)
 		return (ENOBUFS);
 
 	ep = mtod(event, ng_hci_encryption_change_ep *);
+	h = NG_HCI_CON_HANDLE(le16toh(ep->con_handle));
+	con = ng_hci_con_by_handle(unit, h);
 
 	if (ep->status == 0) {
-		u_int16_t	h = NG_HCI_CON_HANDLE(le16toh(ep->con_handle));
-
-		con = ng_hci_con_by_handle(unit, h);
 		if (con == NULL) {
 			NG_HCI_ALERT(
 "%s: %s - invalid connection handle=%d\n",
 				__func__, NG_NODE_NAME(unit->node), h);
 			error = ENOENT;
-		} else if (con->link_type != NG_HCI_LINK_ACL) {
+		} else if (con->link_type == NG_HCI_LINK_SCO) {
 			NG_HCI_ALERT(
 "%s: %s - invalid link type=%d\n",
 				__func__, NG_NODE_NAME(unit->node), 
@@ -719,6 +944,9 @@ encryption_change(ng_hci_unit_p unit, struct mbuf *event)
 		NG_HCI_ERR(
 "%s: %s - failed to change encryption mode, status=%d\n",
 			__func__, NG_NODE_NAME(unit->node), ep->status);
+
+	/*Anyway, propagete encryption status to upper layer*/
+	ng_hci_lp_enc_change(con, con->encryption_mode);
 
 	NG_FREE_M(event);
 
@@ -754,7 +982,7 @@ read_remote_features_compl(ng_hci_unit_p unit, struct mbuf *event)
 		}
 
 		/* Update cache entry */
-		n = ng_hci_get_neighbor(unit, &con->bdaddr);
+		n = ng_hci_get_neighbor(unit, &con->bdaddr, NG_HCI_LINK_ACL);
 		if (n == NULL) {
 			n = ng_hci_new_neighbor(unit);
 			if (n == NULL) {
@@ -763,6 +991,7 @@ read_remote_features_compl(ng_hci_unit_p unit, struct mbuf *event)
 			}
 
 			bcopy(&con->bdaddr, &n->bdaddr, sizeof(n->bdaddr));
+			n->addrtype = NG_HCI_LINK_ACL;
 		} else
 			getmicrotime(&n->updated);
 
@@ -909,7 +1138,7 @@ num_compl_pkts(ng_hci_unit_p unit, struct mbuf *event)
 			}
 
 			/* Update buffer descriptor */
-			if (con->link_type == NG_HCI_LINK_ACL)
+			if (con->link_type != NG_HCI_LINK_SCO)
 				NG_HCI_BUFF_ACL_FREE(unit->buffer, p);
 			else 
 				NG_HCI_BUFF_SCO_FREE(unit->buffer, p);
@@ -1010,7 +1239,7 @@ read_clock_offset_compl(ng_hci_unit_p unit, struct mbuf *event)
 		}
 
 		/* Update cache entry */
-		n = ng_hci_get_neighbor(unit, &con->bdaddr);
+		n = ng_hci_get_neighbor(unit, &con->bdaddr, NG_HCI_LINK_ACL);
 		if (n == NULL) {
 			n = ng_hci_new_neighbor(unit);
 			if (n == NULL) {
@@ -1019,6 +1248,7 @@ read_clock_offset_compl(ng_hci_unit_p unit, struct mbuf *event)
 			}
 
 			bcopy(&con->bdaddr, &n->bdaddr, sizeof(n->bdaddr));
+			n->addrtype = NG_HCI_LINK_ACL;
 		} else
 			getmicrotime(&n->updated);
 
@@ -1089,7 +1319,7 @@ page_scan_mode_change(ng_hci_unit_p unit, struct mbuf *event)
 	ep = mtod(event, ng_hci_page_scan_mode_change_ep *);
 
 	/* Update cache entry */
-	n = ng_hci_get_neighbor(unit, &ep->bdaddr);
+	n = ng_hci_get_neighbor(unit, &ep->bdaddr, NG_HCI_LINK_ACL);
 	if (n == NULL) {
 		n = ng_hci_new_neighbor(unit);
 		if (n == NULL) {
@@ -1098,6 +1328,7 @@ page_scan_mode_change(ng_hci_unit_p unit, struct mbuf *event)
 		}
 
 		bcopy(&ep->bdaddr, &n->bdaddr, sizeof(n->bdaddr));
+		n->addrtype = NG_HCI_LINK_ACL;
 	} else
 		getmicrotime(&n->updated);
 
@@ -1123,7 +1354,7 @@ page_scan_rep_mode_change(ng_hci_unit_p unit, struct mbuf *event)
 	ep = mtod(event, ng_hci_page_scan_rep_mode_change_ep *);
 
 	/* Update cache entry */
-	n = ng_hci_get_neighbor(unit, &ep->bdaddr);
+	n = ng_hci_get_neighbor(unit, &ep->bdaddr, NG_HCI_LINK_ACL);
 	if (n == NULL) {
 		n = ng_hci_new_neighbor(unit);
 		if (n == NULL) {
@@ -1132,6 +1363,7 @@ page_scan_rep_mode_change(ng_hci_unit_p unit, struct mbuf *event)
 		}
 
 		bcopy(&ep->bdaddr, &n->bdaddr, sizeof(n->bdaddr));
+		n->addrtype = NG_HCI_LINK_ACL;
 	} else
 		getmicrotime(&n->updated);
 

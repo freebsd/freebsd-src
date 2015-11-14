@@ -1,6 +1,7 @@
 /*
+ * Copyright (c) 2015, AVAGO Tech. All rights reserved. Author: Marian Choy
  * Copyright (c) 2014, LSI Corp. All rights reserved. Author: Marian Choy
- * Support: freebsdraid@lsi.com
+ * Support: freebsdraid@avagotech.com
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,7 +32,7 @@
  * those of the authors and should not be interpreted as representing
  * official policies,either expressed or implied, of the FreeBSD Project.
  *
- * Send feedback to: <megaraidfbsd@lsi.com> Mail to: LSI Corporation, 1621
+ * Send feedback to: <megaraidfbsd@avagotech.com> Mail to: AVAGO TECHNOLOGIES, 1621
  * Barber Lane, Milpitas, CA 95035 ATTN: MegaRaid FreeBSD
  *
  */
@@ -55,13 +56,13 @@ __FBSDID("$FreeBSD$");
  */
 u_int8_t MR_ValidateMapInfo(struct mrsas_softc *sc);
 u_int8_t 
-mrsas_get_best_arm(PLD_LOAD_BALANCE_INFO lbInfo, u_int8_t arm,
-    u_int64_t block, u_int32_t count);
-u_int8_t 
+mrsas_get_best_arm_pd(struct mrsas_softc *sc,
+    PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info);
+u_int8_t
 MR_BuildRaidContext(struct mrsas_softc *sc,
     struct IO_REQUEST_INFO *io_info,
     RAID_CONTEXT * pRAID_Context, MR_DRV_RAID_MAP_ALL * map);
-u_int8_t 
+u_int8_t
 MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
     u_int64_t stripRow, u_int16_t stripRef, struct IO_REQUEST_INFO *io_info,
     RAID_CONTEXT * pRAID_Context,
@@ -70,32 +71,32 @@ u_int16_t MR_TargetIdToLdGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map);
 u_int32_t MR_LdBlockSizeGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map);
 u_int16_t MR_GetLDTgtId(u_int32_t ld, MR_DRV_RAID_MAP_ALL * map);
 u_int16_t 
-mrsas_get_updated_dev_handle(PLD_LOAD_BALANCE_INFO lbInfo,
-    struct IO_REQUEST_INFO *io_info);
+mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
+    PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info);
 u_int32_t mega_mod64(u_int64_t dividend, u_int32_t divisor);
-u_int32_t 
+u_int32_t
 MR_GetSpanBlock(u_int32_t ld, u_int64_t row, u_int64_t *span_blk,
     MR_DRV_RAID_MAP_ALL * map, int *div_error);
 u_int64_t mega_div64_32(u_int64_t dividend, u_int32_t divisor);
 void 
-mrsas_update_load_balance_params(MR_DRV_RAID_MAP_ALL * map,
-    PLD_LOAD_BALANCE_INFO lbInfo);
-void 
+mrsas_update_load_balance_params(struct mrsas_softc *sc,
+    MR_DRV_RAID_MAP_ALL * map, PLD_LOAD_BALANCE_INFO lbInfo);
+void
 mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST * io_request,
     u_int8_t cdb_len, struct IO_REQUEST_INFO *io_info, union ccb *ccb,
     MR_DRV_RAID_MAP_ALL * local_map_ptr, u_int32_t ref_tag,
     u_int32_t ld_block_size);
-static u_int16_t 
+static u_int16_t
 MR_LdSpanArrayGet(u_int32_t ld, u_int32_t span,
     MR_DRV_RAID_MAP_ALL * map);
 static u_int16_t MR_PdDevHandleGet(u_int32_t pd, MR_DRV_RAID_MAP_ALL * map);
-static u_int16_t 
+static u_int16_t
 MR_ArPdGet(u_int32_t ar, u_int32_t arm,
     MR_DRV_RAID_MAP_ALL * map);
 static MR_LD_SPAN *
 MR_LdSpanPtrGet(u_int32_t ld, u_int32_t span,
     MR_DRV_RAID_MAP_ALL * map);
-static u_int8_t 
+static u_int8_t
 MR_LdDataArmGet(u_int32_t ld, u_int32_t armIdx,
     MR_DRV_RAID_MAP_ALL * map);
 static MR_SPAN_BLOCK_INFO *
@@ -145,6 +146,8 @@ typedef u_int32_t REGION_LEN;
 #define	MR_LD_STATE_OPTIMAL		3
 #define	FALSE					0
 #define	TRUE					1
+
+#define	LB_PENDING_CMDS_DEFAULT 4
 
 
 /*
@@ -376,10 +379,9 @@ MR_ValidateMapInfo(struct mrsas_softc *sc)
 		return 1;
 	}
 	if (sc->UnevenSpanSupport) {
-		printf("Updating span set\n\n");
 		mr_update_span_set(drv_map, ldSpanInfo);
 	}
-	mrsas_update_load_balance_params(drv_map, sc->load_balance_info);
+	mrsas_update_load_balance_params(sc, drv_map, sc->load_balance_info);
 
 	return 0;
 }
@@ -566,12 +568,12 @@ get_row_from_strip(struct mrsas_softc *sc,
 				else
 					break;
 			}
-		mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug : Strip 0x%llx, span_set_Strip 0x%llx, span_set_Row 0x%llx "
+		mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug : Strip 0x%llx, span_set_Strip 0x%llx, span_set_Row 0x%llx "
 		    "data width 0x%llx span offset 0x%llx\n", (unsigned long long)strip,
 		    (unsigned long long)span_set_Strip,
 		    (unsigned long long)span_set_Row,
 		    (unsigned long long)span_set->span_row_data_width, (unsigned long long)span_offset);
-		mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug : For strip 0x%llx row is 0x%llx\n", (unsigned long long)strip,
+		mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug : For strip 0x%llx row is 0x%llx\n", (unsigned long long)strip,
 		    (unsigned long long)span_set->data_row_start +
 		    (unsigned long long)span_set_Row + (span_offset - 1));
 		return (span_set->data_row_start + span_set_Row + (span_offset - 1));
@@ -631,7 +633,7 @@ get_strip_from_row(struct mrsas_softc *sc,
 				}
 			}
 	}
-	mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug - get_strip_from_row: returns invalid "
+	mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug - get_strip_from_row: returns invalid "
 	    "strip for ld=%x, row=%lx\n", ld, (long unsigned int)row);
 	return -1;
 }
@@ -679,13 +681,13 @@ get_arm_from_strip(struct mrsas_softc *sc,
 				else
 					break;
 			}
-		mrsas_dprint(sc, MRSAS_PRL11, "LSI PRL11: get_arm_from_strip: "
+		mrsas_dprint(sc, MRSAS_PRL11, "AVAGO PRL11: get_arm_from_strip: "
 		    "for ld=0x%x strip=0x%lx arm is  0x%x\n", ld,
 		    (long unsigned int)strip, (strip_offset - span_offset));
 		return (strip_offset - span_offset);
 	}
 
-	mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug: - get_arm_from_strip: returns invalid arm"
+	mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug: - get_arm_from_strip: returns invalid arm"
 	    " for ld=%x strip=%lx\n", ld, (long unsigned int)strip);
 
 	return -1;
@@ -723,9 +725,11 @@ get_arm(struct mrsas_softc *sc, u_int32_t ld, u_int8_t span, u_int64_t stripe,
  * This routine calculates the arm, span and block for the specified stripe and
  * reference in stripe using spanset
  *
- * Inputs :		Logical drive number
- * stripRow:	Stripe number
- * stripRef:	Reference in stripe
+ * Inputs :
+ * sc - HBA instance
+ * ld - Logical drive number
+ * stripRow: Stripe number
+ * stripRef: Reference in stripe
  *
  * Outputs :	span - Span number block - Absolute Block
  * number in the physical disk
@@ -785,6 +789,7 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 
 	*pdBlock += stripRef + MR_LdSpanPtrGet(ld, span, map)->startBlk;
 	pRAID_Context->spanArm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
+	io_info->span_arm = pRAID_Context->spanArm;
 	return retval;
 }
 
@@ -831,7 +836,7 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 		else if (sc->UnevenSpanSupport) {
 			io_info->IoforUnevenSpan = 1;
 		} else {
-			mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug: raid->rowDataSize is 0, but has SPAN[0] rowDataSize = 0x%0x,"
+			mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug: raid->rowDataSize is 0, but has SPAN[0] rowDataSize = 0x%0x,"
 			    " but there is _NO_ UnevenSpanSupport\n",
 			    MR_LdSpanPtrGet(ld, 0, map)->spanRowDataSize);
 			return FALSE;
@@ -858,13 +863,13 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 			startlba_span = (u_int8_t)mr_spanset_get_span_block(sc, ld, start_row,
 			    pdBlock, map, &error_code);
 			if (error_code == 1) {
-				mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug: return from %s %d. Send IO w/o region lock.\n",
+				mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug: return from %s %d. Send IO w/o region lock.\n",
 				    __func__, __LINE__);
 				return FALSE;
 			}
 		}
 		if (startlba_span == SPAN_INVALID) {
-			mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug: return from %s %d for row 0x%llx,"
+			mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug: return from %s %d for row 0x%llx,"
 			    "start strip %llx endSrip %llx\n", __func__,
 			    __LINE__, (unsigned long long)start_row,
 			    (unsigned long long)start_strip,
@@ -873,12 +878,12 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 		}
 		io_info->start_span = startlba_span;
 		io_info->start_row = start_row;
-		mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug: Check Span number from %s %d for row 0x%llx, "
+		mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug: Check Span number from %s %d for row 0x%llx, "
 		    " start strip 0x%llx endSrip 0x%llx span 0x%x\n",
 		    __func__, __LINE__, (unsigned long long)start_row,
 		    (unsigned long long)start_strip,
 		    (unsigned long long)endStrip, startlba_span);
-		mrsas_dprint(sc, MRSAS_PRL11, "LSI Debug : 1. start_row 0x%llx endRow 0x%llx Start span 0x%x\n",
+		mrsas_dprint(sc, MRSAS_PRL11, "AVAGO Debug : 1. start_row 0x%llx endRow 0x%llx Start span 0x%x\n",
 		    (unsigned long long)start_row, (unsigned long long)endRow, startlba_span);
 	} else {
 		start_row = mega_div64_32(start_strip, raid->rowDataSize);
@@ -1042,7 +1047,7 @@ mr_update_span_set(MR_DRV_RAID_MAP_ALL * map, PLD_SPAN_INFO ldSpanInfo)
 						span_row_width +=
 						    MR_LdSpanPtrGet(ld, count, map)->spanRowDataSize;
 #if SPAN_DEBUG
-						printf("LSI Debug span %x rowDataSize %x\n", count,
+						printf("AVAGO Debug span %x rowDataSize %x\n", count,
 						    MR_LdSpanPtrGet(ld, count, map)->spanRowDataSize);
 #endif
 					}
@@ -1097,46 +1102,38 @@ mr_update_span_set(MR_DRV_RAID_MAP_ALL * map, PLD_SPAN_INFO ldSpanInfo)
 
 /*
  * mrsas_update_load_balance_params:	Update load balance parmas
- * Inputs:								map pointer
- * 										Load balance info
+ * Inputs:
+ * sc - driver softc instance
+ * drv_map - driver RAID map
+ * lbInfo - Load balance info
  *
  * This function updates the load balance parameters for the LD config of a two
  * drive optimal RAID-1.
  */
-void 
-mrsas_update_load_balance_params(MR_DRV_RAID_MAP_ALL * map,
-    PLD_LOAD_BALANCE_INFO lbInfo)
+void
+mrsas_update_load_balance_params(struct mrsas_softc *sc,
+    MR_DRV_RAID_MAP_ALL * drv_map, PLD_LOAD_BALANCE_INFO lbInfo)
 {
 	int ldCount;
 	u_int16_t ld;
-	u_int32_t pd, arRef;
 	MR_LD_RAID *raid;
 
-	for (ldCount = 0; ldCount < MAX_LOGICAL_DRIVES; ldCount++) {
-		ld = MR_TargetIdToLdGet(ldCount, map);
-		if (ld >= MAX_LOGICAL_DRIVES) {
+	if (sc->lb_pending_cmds > 128 || sc->lb_pending_cmds < 1)
+		sc->lb_pending_cmds = LB_PENDING_CMDS_DEFAULT;
+
+	for (ldCount = 0; ldCount < MAX_LOGICAL_DRIVES_EXT; ldCount++) {
+		ld = MR_TargetIdToLdGet(ldCount, drv_map);
+		if (ld >= MAX_LOGICAL_DRIVES_EXT) {
 			lbInfo[ldCount].loadBalanceFlag = 0;
 			continue;
 		}
-		raid = MR_LdRaidGet(ld, map);
-
-		/* Two drive Optimal RAID 1 */
-		if ((raid->level == 1) && (raid->rowSize == 2) &&
-		    (raid->spanDepth == 1)
-		    && raid->ldState == MR_LD_STATE_OPTIMAL) {
-			lbInfo[ldCount].loadBalanceFlag = 1;
-
-			/* Get the array on which this span is present */
-			arRef = MR_LdSpanArrayGet(ld, 0, map);
-
-			/* Get the PD */
-			pd = MR_ArPdGet(arRef, 0, map);
-			/* Get dev handle from PD */
-			lbInfo[ldCount].raid1DevHandle[0] = MR_PdDevHandleGet(pd, map);
-			pd = MR_ArPdGet(arRef, 1, map);
-			lbInfo[ldCount].raid1DevHandle[1] = MR_PdDevHandleGet(pd, map);
-		} else
+		raid = MR_LdRaidGet(ld, drv_map);
+		if ((raid->level != 1) ||
+		    (raid->ldState != MR_LD_STATE_OPTIMAL)) {
 			lbInfo[ldCount].loadBalanceFlag = 0;
+			continue;
+		}
+		lbInfo[ldCount].loadBalanceFlag = 1;
 	}
 }
 
@@ -1152,7 +1149,7 @@ mrsas_update_load_balance_params(MR_DRV_RAID_MAP_ALL * map,
  *
  * Used to set the PD logical block address in CDB for FP IOs.
  */
-void 
+void
 mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST * io_request, u_int8_t cdb_len,
     struct IO_REQUEST_INFO *io_info, union ccb *ccb,
     MR_DRV_RAID_MAP_ALL * local_map_ptr, u_int32_t ref_tag,
@@ -1299,6 +1296,7 @@ mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST * io_request, u_int8_t cdb_len,
 		}
 		/* Fall through normal case, just load LBA here */
 		u_int8_t val = cdb[1] & 0xE0;
+
 		switch (cdb_len) {
 		case 6:
 			cdb[3] = (u_int8_t)(start_blk & 0xff);
@@ -1332,57 +1330,94 @@ mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST * io_request, u_int8_t cdb_len,
 }
 
 /*
- * mrsas_get_best_arm:	Determine the best spindle arm
- * Inputs:				Load balance info
+ * mrsas_get_best_arm_pd:	Determine the best spindle arm
+ * Inputs:
+ *    sc - HBA instance
+ *    lbInfo - Load balance info
+ *    io_info - IO request info
  *
  * This function determines and returns the best arm by looking at the
  * parameters of the last PD access.
  */
-u_int8_t
-mrsas_get_best_arm(PLD_LOAD_BALANCE_INFO lbInfo, u_int8_t arm,
-    u_int64_t block, u_int32_t count)
+u_int8_t 
+mrsas_get_best_arm_pd(struct mrsas_softc *sc,
+    PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info)
 {
-	u_int16_t pend0, pend1;
+	MR_LD_RAID *raid;
+	MR_DRV_RAID_MAP_ALL *drv_map;
+	u_int16_t pend0, pend1, ld;
 	u_int64_t diff0, diff1;
-	u_int8_t bestArm;
+	u_int8_t bestArm, pd0, pd1, span, arm;
+	u_int32_t arRef, span_row_size;
+
+	u_int64_t block = io_info->ldStartBlock;
+	u_int32_t count = io_info->numBlocks;
+
+	span = ((io_info->span_arm & RAID_CTX_SPANARM_SPAN_MASK)
+	    >> RAID_CTX_SPANARM_SPAN_SHIFT);
+	arm = (io_info->span_arm & RAID_CTX_SPANARM_ARM_MASK);
+
+	drv_map = sc->ld_drv_map[(sc->map_id & 1)];
+	ld = MR_TargetIdToLdGet(io_info->ldTgtId, drv_map);
+	raid = MR_LdRaidGet(ld, drv_map);
+	span_row_size = sc->UnevenSpanSupport ?
+	    SPAN_ROW_SIZE(drv_map, ld, span) : raid->rowSize;
+
+	arRef = MR_LdSpanArrayGet(ld, span, drv_map);
+	pd0 = MR_ArPdGet(arRef, arm, drv_map);
+	pd1 = MR_ArPdGet(arRef, (arm + 1) >= span_row_size ?
+	    (arm + 1 - span_row_size) : arm + 1, drv_map);
 
 	/* get the pending cmds for the data and mirror arms */
-	pend0 = mrsas_atomic_read(&lbInfo->scsi_pending_cmds[0]);
-	pend1 = mrsas_atomic_read(&lbInfo->scsi_pending_cmds[1]);
+	pend0 = mrsas_atomic_read(&lbInfo->scsi_pending_cmds[pd0]);
+	pend1 = mrsas_atomic_read(&lbInfo->scsi_pending_cmds[pd1]);
 
 	/* Determine the disk whose head is nearer to the req. block */
-	diff0 = ABS_DIFF(block, lbInfo->last_accessed_block[0]);
-	diff1 = ABS_DIFF(block, lbInfo->last_accessed_block[1]);
-	bestArm = (diff0 <= diff1 ? 0 : 1);
+	diff0 = ABS_DIFF(block, lbInfo->last_accessed_block[pd0]);
+	diff1 = ABS_DIFF(block, lbInfo->last_accessed_block[pd1]);
+	bestArm = (diff0 <= diff1 ? arm : arm ^ 1);
 
-	if ((bestArm == arm && pend0 > pend1 + 16) || (bestArm != arm && pend1 > pend0 + 16))
+	if ((bestArm == arm && pend0 > pend1 + sc->lb_pending_cmds) ||
+	    (bestArm != arm && pend1 > pend0 + sc->lb_pending_cmds))
 		bestArm ^= 1;
 
 	/* Update the last accessed block on the correct pd */
-	lbInfo->last_accessed_block[bestArm] = block + count - 1;
+	lbInfo->last_accessed_block[bestArm == arm ? pd0 : pd1] = block + count - 1;
+	io_info->span_arm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | bestArm;
+	io_info->pd_after_lb = (bestArm == arm) ? pd0 : pd1;
+#if SPAN_DEBUG
+	if (arm != bestArm)
+		printf("AVAGO Debug R1 Load balance occur - span 0x%x arm 0x%x bestArm 0x%x "
+		    "io_info->span_arm 0x%x\n",
+		    span, arm, bestArm, io_info->span_arm);
+#endif
 
-	return bestArm;
+	return io_info->pd_after_lb;
 }
 
 /*
  * mrsas_get_updated_dev_handle:	Get the update dev handle
- * Inputs:							Load balance info io_info pointer
+ * Inputs:
+ *	sc - Adapter instance soft state
+ *	lbInfo - Load balance info
+ *	io_info - io_info pointer
  *
  * This function determines and returns the updated dev handle.
  */
-u_int16_t
-mrsas_get_updated_dev_handle(PLD_LOAD_BALANCE_INFO lbInfo,
-    struct IO_REQUEST_INFO *io_info)
+u_int16_t 
+mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
+    PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info)
 {
-	u_int8_t arm, old_arm;
+	u_int8_t arm_pd;
 	u_int16_t devHandle;
+	MR_DRV_RAID_MAP_ALL *drv_map;
 
-	old_arm = lbInfo->raid1DevHandle[0] == io_info->devHandle ? 0 : 1;
+	drv_map = sc->ld_drv_map[(sc->map_id & 1)];
 
 	/* get best new arm */
-	arm = mrsas_get_best_arm(lbInfo, old_arm, io_info->ldStartBlock, io_info->numBlocks);
-	devHandle = lbInfo->raid1DevHandle[arm];
-	mrsas_atomic_inc(&lbInfo->scsi_pending_cmds[arm]);
+	arm_pd = mrsas_get_best_arm_pd(sc, lbInfo, io_info);
+	devHandle = MR_PdDevHandleGet(arm_pd, drv_map);
+	mrsas_atomic_inc(&lbInfo->scsi_pending_cmds[arm_pd]);
 
 	return devHandle;
 }
@@ -1471,6 +1506,7 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 
 	*pdBlock += stripRef + MR_LdSpanPtrGet(ld, span, map)->startBlk;
 	pRAID_Context->spanArm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
+	io_info->span_arm = pRAID_Context->spanArm;
 	return retval;
 }
 

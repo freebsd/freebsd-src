@@ -57,7 +57,7 @@ static int		pcib_resume(device_t dev);
 static int		pcib_power_for_sleep(device_t pcib, device_t dev,
 			    int *pstate);
 static uint16_t		pcib_ari_get_rid(device_t pcib, device_t dev);
-static uint32_t		pcib_read_config(device_t dev, u_int b, u_int s, 
+static uint32_t		pcib_read_config(device_t dev, u_int b, u_int s,
     u_int f, u_int reg, int width);
 static void		pcib_write_config(device_t dev, u_int b, u_int s,
     u_int f, u_int reg, uint32_t val, int width);
@@ -266,7 +266,7 @@ pcib_add_window_resources(struct pcib_window *w, struct resource **res,
 	free(w->res, M_DEVBUF);
 	w->res = newarray;
 	w->count += count;
-	
+
 	for (i = 0; i < count; i++) {
 		error = rman_manage_region(&w->rman, rman_get_start(res[i]),
 		    rman_get_end(res[i]));
@@ -442,16 +442,7 @@ pcib_probe_windows(struct pcib_softc *sc)
 	dev = sc->dev;
 
 	if (pci_clear_pcib) {
-		pci_write_config(dev, PCIR_IOBASEL_1, 0xff, 1);
-		pci_write_config(dev, PCIR_IOBASEH_1, 0xffff, 2);
-		pci_write_config(dev, PCIR_IOLIMITL_1, 0, 1);
-		pci_write_config(dev, PCIR_IOLIMITH_1, 0, 2);
-		pci_write_config(dev, PCIR_MEMBASE_1, 0xffff, 2);
-		pci_write_config(dev, PCIR_MEMLIMIT_1, 0, 2);
-		pci_write_config(dev, PCIR_PMBASEL_1, 0xffff, 2);
-		pci_write_config(dev, PCIR_PMBASEH_1, 0xffffffff, 4);
-		pci_write_config(dev, PCIR_PMLIMITL_1, 0, 2);
-		pci_write_config(dev, PCIR_PMLIMITH_1, 0, 4);
+		pcib_bridge_init(dev);
 	}
 
 	/* Determine if the I/O port window is implemented. */
@@ -553,18 +544,22 @@ void
 pcib_setup_secbus(device_t dev, struct pcib_secbus *bus, int min_count)
 {
 	char buf[64];
-	int error, rid;
+	int error, rid, sec_reg;
 
 	switch (pci_read_config(dev, PCIR_HDRTYPE, 1) & PCIM_HDRTYPE) {
 	case PCIM_HDRTYPE_BRIDGE:
+		sec_reg = PCIR_SECBUS_1;
 		bus->sub_reg = PCIR_SUBBUS_1;
 		break;
 	case PCIM_HDRTYPE_CARDBUS:
+		sec_reg = PCIR_SECBUS_2;
 		bus->sub_reg = PCIR_SUBBUS_2;
 		break;
 	default:
 		panic("not a PCI bridge");
 	}
+	bus->sec = pci_read_config(dev, sec_reg, 1);
+	bus->sub = pci_read_config(dev, bus->sub_reg, 1);
 	bus->dev = dev;
 	bus->rman.rm_start = 0;
 	bus->rman.rm_end = PCI_BUSMAX;
@@ -788,7 +783,7 @@ pcib_get_mem_decode(struct pcib_softc *sc)
 		sc->pmembase = PCI_PPBMEMBASE(0, pmemlow);
 
 	pmemlow = pci_read_config(dev, PCIR_PMLIMITL_1, 2);
-	if ((pmemlow & PCIM_BRPM_MASK) == PCIM_BRPM_64)	
+	if ((pmemlow & PCIM_BRPM_MASK) == PCIM_BRPM_64)
 		sc->pmemlimit = PCI_PPBMEMLIMIT(
 		    pci_read_config(dev, PCIR_PMLIMITH_1, 4), pmemlow);
 	else
@@ -849,20 +844,16 @@ pcib_set_mem_decode(struct pcib_softc *sc)
 static void
 pcib_cfg_save(struct pcib_softc *sc)
 {
+#ifndef NEW_PCIB
 	device_t	dev;
+	uint16_t command;
 
 	dev = sc->dev;
 
-	sc->command = pci_read_config(dev, PCIR_COMMAND, 2);
-	sc->pribus = pci_read_config(dev, PCIR_PRIBUS_1, 1);
-	sc->bus.sec = pci_read_config(dev, PCIR_SECBUS_1, 1);
-	sc->bus.sub = pci_read_config(dev, PCIR_SUBBUS_1, 1);
-	sc->bridgectl = pci_read_config(dev, PCIR_BRIDGECTL_1, 2);
-	sc->seclat = pci_read_config(dev, PCIR_SECLAT_1, 1);
-#ifndef NEW_PCIB
-	if (sc->command & PCIM_CMD_PORTEN)
+	command = pci_read_config(dev, PCIR_COMMAND, 2);
+	if (command & PCIM_CMD_PORTEN)
 		pcib_get_io_decode(sc);
-	if (sc->command & PCIM_CMD_MEMEN)
+	if (command & PCIM_CMD_MEMEN)
 		pcib_get_mem_decode(sc);
 #endif
 }
@@ -874,21 +865,18 @@ static void
 pcib_cfg_restore(struct pcib_softc *sc)
 {
 	device_t	dev;
-
+#ifndef NEW_PCIB
+	uint16_t command;
+#endif
 	dev = sc->dev;
 
-	pci_write_config(dev, PCIR_COMMAND, sc->command, 2);
-	pci_write_config(dev, PCIR_PRIBUS_1, sc->pribus, 1);
-	pci_write_config(dev, PCIR_SECBUS_1, sc->bus.sec, 1);
-	pci_write_config(dev, PCIR_SUBBUS_1, sc->bus.sub, 1);
-	pci_write_config(dev, PCIR_BRIDGECTL_1, sc->bridgectl, 2);
-	pci_write_config(dev, PCIR_SECLAT_1, sc->seclat, 1);
 #ifdef NEW_PCIB
 	pcib_write_windows(sc, WIN_IO | WIN_MEM | WIN_PMEM);
 #else
-	if (sc->command & PCIM_CMD_PORTEN)
+	command = pci_read_config(dev, PCIR_COMMAND, 2);
+	if (command & PCIM_CMD_PORTEN)
 		pcib_set_io_decode(sc);
-	if (sc->command & PCIM_CMD_MEMEN)
+	if (command & PCIM_CMD_MEMEN)
 		pcib_set_mem_decode(sc);
 #endif
 }
@@ -922,7 +910,11 @@ pcib_attach_common(device_t dev)
      * Get current bridge configuration.
      */
     sc->domain = pci_get_domain(dev);
-    sc->secstat = pci_read_config(dev, PCIR_SECSTAT_1, 2);
+#if !(defined(NEW_PCIB) && defined(PCI_RES_BUS))
+    sc->bus.sec = pci_read_config(dev, PCIR_SECBUS_1, 1);
+    sc->bus.sub = pci_read_config(dev, PCIR_SUBBUS_1, 1);
+#endif
+    sc->bridgectl = pci_read_config(dev, PCIR_BRIDGECTL_1, 2);
     pcib_cfg_save(sc);
 
     /*
@@ -950,7 +942,7 @@ pcib_attach_common(device_t dev)
      * Quirk handling.
      */
     switch (pci_get_devid(dev)) {
-#if !defined(NEW_PCIB) && !defined(PCI_RES_BUS)
+#if !(defined(NEW_PCIB) && defined(PCI_RES_BUS))
     case 0x12258086:		/* Intel 82454KX/GX (Orion) */
 	{
 	    uint8_t	supbus;
@@ -968,15 +960,16 @@ pcib_attach_common(device_t dev)
      * The i82380FB mobile docking controller is a PCI-PCI bridge,
      * and it is a subtractive bridge.  However, the ProgIf is wrong
      * so the normal setting of PCIB_SUBTRACTIVE bit doesn't
-     * happen.  There's also a Toshiba bridge that behaves this
-     * way.
+     * happen.  There are also Toshiba and Cavium ThunderX bridges
+     * that behave this way.
      */
+    case 0xa002177d:		/* Cavium ThunderX */
     case 0x124b8086:		/* Intel 82380FB Mobile */
     case 0x060513d7:		/* Toshiba ???? */
 	sc->flags |= PCIB_SUBTRACTIVE;
 	break;
 
-#if !defined(NEW_PCIB) && !defined(PCI_RES_BUS)
+#if !(defined(NEW_PCIB) && defined(PCI_RES_BUS))
     /* Compaq R3000 BIOS sets wrong subordinate bus number. */
     case 0x00dd10de:
 	{
@@ -1089,7 +1082,7 @@ pcib_attach(device_t dev)
     pcib_attach_common(dev);
     sc = device_get_softc(dev);
     if (sc->bus.sec != 0) {
-	child = device_add_child(dev, "pci", sc->bus.sec);
+	child = device_add_child(dev, "pci", -1);
 	if (child != NULL)
 	    return(bus_generic_attach(dev));
     }
@@ -1101,41 +1094,39 @@ pcib_attach(device_t dev)
 int
 pcib_suspend(device_t dev)
 {
-	device_t	pcib;
-	int		dstate, error;
 
 	pcib_cfg_save(device_get_softc(dev));
-	error = bus_generic_suspend(dev);
-	if (error == 0 && pci_do_power_suspend) {
-		dstate = PCI_POWERSTATE_D3;
-		pcib = device_get_parent(device_get_parent(dev));
-		if (PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
-			pci_set_powerstate(dev, dstate);
-	}
-	return (error);
+	return (bus_generic_suspend(dev));
 }
 
 int
 pcib_resume(device_t dev)
 {
-	device_t	pcib;
-	int dstate;
 
-	if (pci_do_power_resume) {
-		pcib = device_get_parent(device_get_parent(dev));
-		dstate = PCI_POWERSTATE_D0;
-		if (PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
-			pci_set_powerstate(dev, dstate);
-	}
 	pcib_cfg_restore(device_get_softc(dev));
 	return (bus_generic_resume(dev));
+}
+
+void
+pcib_bridge_init(device_t dev)
+{
+	pci_write_config(dev, PCIR_IOBASEL_1, 0xff, 1);
+	pci_write_config(dev, PCIR_IOBASEH_1, 0xffff, 2);
+	pci_write_config(dev, PCIR_IOLIMITL_1, 0, 1);
+	pci_write_config(dev, PCIR_IOLIMITH_1, 0, 2);
+	pci_write_config(dev, PCIR_MEMBASE_1, 0xffff, 2);
+	pci_write_config(dev, PCIR_MEMLIMIT_1, 0, 2);
+	pci_write_config(dev, PCIR_PMBASEL_1, 0xffff, 2);
+	pci_write_config(dev, PCIR_PMBASEH_1, 0xffffffff, 4);
+	pci_write_config(dev, PCIR_PMLIMITL_1, 0, 2);
+	pci_write_config(dev, PCIR_PMLIMITH_1, 0, 4);
 }
 
 int
 pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
     struct pcib_softc	*sc = device_get_softc(dev);
-    
+
     switch (which) {
     case PCIB_IVAR_DOMAIN:
 	*result = sc->domain;
@@ -1252,9 +1243,9 @@ pcib_alloc_new_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 				return (0);
 			}
 		}
-		return (ENOSPC);		
+		return (ENOSPC);
 	}
-	
+
 	wmask = (1ul << w->step) - 1;
 	if (RF_ALIGNMENT(flags) < w->step) {
 		flags &= ~RF_ALIGNMENT_MASK;
@@ -1346,7 +1337,7 @@ pcib_expand_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 		KASSERT(w->base == rman_get_start(res),
 		    ("existing resource mismatch"));
 		force_64k_base = 0;
-	}	
+	}
 
 	error = bus_adjust_resource(sc->dev, type, res, force_64k_base ?
 	    rman_get_start(res) : base, limit);
@@ -1666,7 +1657,7 @@ pcib_release_resource(device_t dev, device_t child, int type, int rid,
  * is set up to, or capable of handling them.
  */
 struct resource *
-pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 
+pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
 	struct pcib_softc	*sc = device_get_softc(dev);
@@ -1937,7 +1928,7 @@ pcib_route_interrupt(device_t pcib, device_t dev, int pin)
     int		parent_intpin;
     int		intnum;
 
-    /*	
+    /*
      *
      * The PCI standard defines a swizzle of the child-side device/intpin to
      * the parent-side intpin as follows.
@@ -2125,4 +2116,3 @@ pcib_try_enable_ari(device_t pcib, device_t dev)
 
 	return (0);
 }
-

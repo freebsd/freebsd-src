@@ -23,7 +23,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2015, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
@@ -155,7 +155,7 @@ int		dtrace_destructive_disallow = 0;
 dtrace_optval_t	dtrace_nonroot_maxsize = (16 * 1024 * 1024);
 size_t		dtrace_difo_maxsize = (256 * 1024);
 dtrace_optval_t	dtrace_dof_maxsize = (8 * 1024 * 1024);
-size_t		dtrace_global_maxsize = (16 * 1024);
+size_t		dtrace_statvar_maxsize = (16 * 1024);
 size_t		dtrace_actions_max = (16 * 1024);
 size_t		dtrace_retain_max = 1024;
 dtrace_optval_t	dtrace_helper_actions_max = 128;
@@ -611,7 +611,11 @@ dtrace_panic(const char *format, ...)
 	va_list alist;
 
 	va_start(alist, format);
+#ifdef __FreeBSD__
+	vpanic(format, alist);
+#else
 	dtrace_vpanic(format, alist);
+#endif
 	va_end(alist);
 }
 
@@ -695,12 +699,32 @@ dtrace_canstore_statvar(uint64_t addr, size_t sz,
     dtrace_statvar_t **svars, int nsvars)
 {
 	int i;
+	size_t maxglobalsize, maxlocalsize;
+
+	if (nsvars == 0)
+		return (0);
+
+	maxglobalsize = dtrace_statvar_maxsize;
+	maxlocalsize = (maxglobalsize + sizeof (uint64_t)) * NCPU;
 
 	for (i = 0; i < nsvars; i++) {
 		dtrace_statvar_t *svar = svars[i];
+		uint8_t scope;
+		size_t size;
 
-		if (svar == NULL || svar->dtsv_size == 0)
+		if (svar == NULL || (size = svar->dtsv_size) == 0)
 			continue;
+
+		scope = svar->dtsv_var.dtdv_scope;
+
+		/*
+		 * We verify that our size is valid in the spirit of providing
+		 * defense in depth:  we want to prevent attackers from using
+		 * DTrace to escalate an orthogonal kernel heap corruption bug
+		 * into the ability to store to arbitrary locations in memory.
+		 */
+		VERIFY((scope == DIFV_SCOPE_GLOBAL && size < maxglobalsize) ||
+		    (scope == DIFV_SCOPE_LOCAL && size < maxlocalsize));
 
 		if (DTRACE_INRANGE(addr, sz, svar->dtsv_data, svar->dtsv_size))
 			return (1);
@@ -2142,7 +2166,7 @@ retry:
 	 * this hash chain, or another CPU is deleting an element from this
 	 * hash chain.  The simplest way to deal with both of these cases
 	 * (though not necessarily the most efficient) is to free our
-	 * allocated block and tail-call ourselves.  Note that the free is
+	 * allocated block and re-attempt it all.  Note that the free is
 	 * to the dirty list and _not_ to the free list.  This is to prevent
 	 * races with allocators, above.
 	 */
@@ -2155,7 +2179,7 @@ retry:
 		dvar->dtdv_next = free;
 	} while (dtrace_casptr(&dcpu->dtdsc_dirty, free, dvar) != free);
 
-	return (dtrace_dynvar(dstate, nkeys, key, dsize, op, mstate, vstate));
+	goto top;
 }
 
 /*ARGSUSED*/
@@ -3506,7 +3530,6 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 		 */
 		if (DTRACE_ANCHORED(mstate->dtms_probe) && CPU_ON_INTR(CPU))
 			return ((uint64_t)p0.p_cred->cr_uid);
-#endif
 
 		/*
 		 * It is always safe to dereference one's own t_procp pointer:
@@ -3518,6 +3541,9 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 		 * credential, since this is never NULL after process birth.
 		 */
 		return ((uint64_t)curthread->t_procp->p_cred->cr_uid);
+#else
+		return ((uint64_t)curthread->td_ucred->cr_uid);
+#endif
 
 	case DIF_VAR_GID:
 		if (!dtrace_priv_proc(state))
@@ -3529,7 +3555,6 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 		 */
 		if (DTRACE_ANCHORED(mstate->dtms_probe) && CPU_ON_INTR(CPU))
 			return ((uint64_t)p0.p_cred->cr_gid);
-#endif
 
 		/*
 		 * It is always safe to dereference one's own t_procp pointer:
@@ -3541,6 +3566,9 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 		 * credential, since this is never NULL after process birth.
 		 */
 		return ((uint64_t)curthread->t_procp->p_cred->cr_gid);
+#else
+		return ((uint64_t)curthread->td_ucred->cr_gid);
+#endif
 
 	case DIF_VAR_ERRNO: {
 #ifdef illumos
@@ -4447,7 +4475,8 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 
 		if (!dtrace_destructive_disallow &&
 		    dtrace_priv_proc_control(state) &&
-		    !dtrace_istoxic(kaddr, size)) {
+		    !dtrace_istoxic(kaddr, size) &&
+		    dtrace_canload(kaddr, size, mstate, vstate)) {
 			DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 			dtrace_copyout(kaddr, uaddr, size, flags);
 			DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
@@ -4462,7 +4491,8 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 
 		if (!dtrace_destructive_disallow &&
 		    dtrace_priv_proc_control(state) &&
-		    !dtrace_istoxic(kaddr, size)) {
+		    !dtrace_istoxic(kaddr, size) &&
+		    dtrace_strcanload(kaddr, size, mstate, vstate)) {
 			DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 			dtrace_copyoutstr(kaddr, uaddr, size, flags);
 			DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
@@ -6450,6 +6480,11 @@ dtrace_dif_emulate(dtrace_difo_t *difo, dtrace_mstate_t *mstate,
 				    regs[r2] ? regs[r2] :
 				    dtrace_strsize_default) + 1;
 			} else {
+				if (regs[r2] > LONG_MAX) {
+					*flags |= CPU_DTRACE_ILLOP;
+					break;
+				}
+
 				tupregs[ttop].dttk_size = regs[r2];
 			}
 
@@ -9907,9 +9942,10 @@ dtrace_difo_validate(dtrace_difo_t *dp, dtrace_vstate_t *vstate, uint_t nregs,
 				break;
 			}
 
-			if (v->dtdv_scope == DIFV_SCOPE_GLOBAL &&
-			    vt->dtdt_size > dtrace_global_maxsize) {
-				err += efunc(i, "oversized by-ref global\n");
+			if ((v->dtdv_scope == DIFV_SCOPE_GLOBAL ||
+			    v->dtdv_scope == DIFV_SCOPE_LOCAL) &&
+			    vt->dtdt_size > dtrace_statvar_maxsize) {
+				err += efunc(i, "oversized by-ref static\n");
 				break;
 			}
 		}
@@ -10253,6 +10289,9 @@ dtrace_difo_chunksize(dtrace_difo_t *dp, dtrace_vstate_t *vstate)
 				if (srd == 0)
 					return;
 
+				if (sval > LONG_MAX)
+					return;
+
 				tupregs[ttop++].dttk_size = sval;
 			}
 
@@ -10313,6 +10352,19 @@ dtrace_difo_chunksize(dtrace_difo_t *dp, dtrace_vstate_t *vstate)
 		 * for our dynamic variable state, reset the chunk size.
 		 */
 		size = P2ROUNDUP(size, sizeof (uint64_t));
+
+		/*
+		 * Before setting the chunk size, check that we're not going
+		 * to set it to a negative value...
+		 */
+		if (size > LONG_MAX)
+			return;
+
+		/*
+		 * ...and make certain that we didn't badly overflow.
+		 */
+		if (size < ksize || size < sizeof (dtrace_dynvar_t))
+			return;
 
 		if (size > vstate->dtvs_dynvars.dtds_chunksize)
 			vstate->dtvs_dynvars.dtds_chunksize = size;
@@ -11880,7 +11932,8 @@ err:
 	int i;
 
 	*factor = 1;
-#if defined(__amd64__) || defined(__arm__) || defined(__mips__) || defined(__powerpc__)
+#if defined(__aarch64__) || defined(__amd64__) || defined(__arm__) || \
+    defined(__mips__) || defined(__powerpc__)
 	/*
 	 * FreeBSD isn't good at limiting the amount of memory we
 	 * ask to malloc, so let's place a limit here before trying
@@ -13933,6 +13986,8 @@ dtrace_dstate_init(dtrace_dstate_t *dstate, size_t size)
 	if ((dstate->dtds_chunksize = chunksize) == 0)
 		dstate->dtds_chunksize = DTRACE_DYNVAR_CHUNKSIZE;
 
+	VERIFY(dstate->dtds_chunksize < LONG_MAX);
+
 	if (size < (min = dstate->dtds_chunksize + sizeof (dtrace_dynhash_t)))
 		size = min;
 
@@ -13973,6 +14028,9 @@ dtrace_dstate_init(dtrace_dstate_t *dstate, size_t size)
 	    ((uintptr_t)base + hashsize * sizeof (dtrace_dynhash_t));
 	limit = (uintptr_t)base + size;
 
+	VERIFY((uintptr_t)start < limit);
+	VERIFY((uintptr_t)start >= (uintptr_t)base);
+
 	maxper = (limit - (uintptr_t)start) / NCPU;
 	maxper = (maxper / dstate->dtds_chunksize) * dstate->dtds_chunksize;
 
@@ -13998,7 +14056,7 @@ dtrace_dstate_init(dtrace_dstate_t *dstate, size_t size)
 			start = (dtrace_dynvar_t *)limit;
 		}
 
-		ASSERT(limit <= (uintptr_t)base + size);
+		VERIFY(limit <= (uintptr_t)base + size);
 
 		for (;;) {
 			next = (dtrace_dynvar_t *)((uintptr_t)dvar +
@@ -14007,6 +14065,8 @@ dtrace_dstate_init(dtrace_dstate_t *dstate, size_t size)
 			if ((uintptr_t)next + dstate->dtds_chunksize >= limit)
 				break;
 
+			VERIFY((uintptr_t)dvar >= (uintptr_t)base &&
+			    (uintptr_t)dvar <= (uintptr_t)base + size);
 			dvar->dtdv_next = next;
 			dvar = next;
 		}
@@ -14221,8 +14281,8 @@ dtrace_state_create(struct cdev *dev)
 	state->dts_cleaner = CYCLIC_NONE;
 	state->dts_deadman = CYCLIC_NONE;
 #else
-	callout_init(&state->dts_cleaner, CALLOUT_MPSAFE);
-	callout_init(&state->dts_deadman, CALLOUT_MPSAFE);
+	callout_init(&state->dts_cleaner, 1);
+	callout_init(&state->dts_deadman, 1);
 #endif
 	state->dts_vstate.dtvs_state = state;
 
@@ -15374,12 +15434,14 @@ dtrace_helper_action_destroy(dtrace_helper_action_t *helper,
 }
 
 static int
-dtrace_helper_destroygen(int gen)
+dtrace_helper_destroygen(dtrace_helpers_t *help, int gen)
 {
 	proc_t *p = curproc;
-	dtrace_helpers_t *help = p->p_dtrace_helpers;
 	dtrace_vstate_t *vstate;
 	int i;
+
+	if (help == NULL)
+		help = p->p_dtrace_helpers;
 
 	ASSERT(MUTEX_HELD(&dtrace_lock));
 
@@ -15478,9 +15540,9 @@ dtrace_helper_validate(dtrace_helper_action_t *helper)
 }
 
 static int
-dtrace_helper_action_add(int which, dtrace_ecbdesc_t *ep)
+dtrace_helper_action_add(int which, dtrace_ecbdesc_t *ep,
+    dtrace_helpers_t *help)
 {
-	dtrace_helpers_t *help;
 	dtrace_helper_action_t *helper, *last;
 	dtrace_actdesc_t *act;
 	dtrace_vstate_t *vstate;
@@ -15490,7 +15552,6 @@ dtrace_helper_action_add(int which, dtrace_ecbdesc_t *ep)
 	if (which < 0 || which >= DTRACE_NHELPER_ACTIONS)
 		return (EINVAL);
 
-	help = curproc->p_dtrace_helpers;
 	last = help->dthps_actions[which];
 	vstate = &help->dthps_vstate;
 
@@ -15614,15 +15675,12 @@ dtrace_helper_provider_register(proc_t *p, dtrace_helpers_t *help,
 }
 
 static int
-dtrace_helper_provider_add(dof_helper_t *dofhp, int gen)
+dtrace_helper_provider_add(dof_helper_t *dofhp, dtrace_helpers_t *help, int gen)
 {
-	dtrace_helpers_t *help;
 	dtrace_helper_provider_t *hprov, **tmp_provs;
 	uint_t tmp_maxprovs, i;
 
 	ASSERT(MUTEX_HELD(&dtrace_lock));
-
-	help = curproc->p_dtrace_helpers;
 	ASSERT(help != NULL);
 
 	/*
@@ -15914,13 +15972,28 @@ dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp)
 	dtrace_helpers_t *help;
 	dtrace_vstate_t *vstate;
 	dtrace_enabling_t *enab = NULL;
+	proc_t *p = curproc;
 	int i, gen, rv, nhelpers = 0, nprovs = 0, destroy = 1;
 	uintptr_t daddr = (uintptr_t)dof;
 
 	ASSERT(MUTEX_HELD(&dtrace_lock));
 
-	if ((help = curproc->p_dtrace_helpers) == NULL)
-		help = dtrace_helpers_create(curproc);
+#ifdef __FreeBSD__
+	if (dhp->dofhp_pid != p->p_pid) {
+		if ((p = pfind(dhp->dofhp_pid)) == NULL)
+			return (-1);
+		if (!P_SHOULDSTOP(p) ||
+		    (p->p_flag & P_TRACED) == 0 ||
+		    p->p_pptr->p_pid != curproc->p_pid) {
+			PROC_UNLOCK(p);
+			return (-1);
+		}
+		PROC_UNLOCK(p);
+	}
+#endif
+
+	if ((help = p->p_dtrace_helpers) == NULL)
+		help = dtrace_helpers_create(p);
 
 	vstate = &help->dthps_vstate;
 
@@ -15968,12 +16041,13 @@ dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp)
 			continue;
 
 		if ((rv = dtrace_helper_action_add(DTRACE_HELPER_ACTION_USTACK,
-		    ep)) != 0) {
+		    ep, help)) != 0) {
 			/*
 			 * Adding this helper action failed -- we are now going
 			 * to rip out the entire generation and return failure.
 			 */
-			(void) dtrace_helper_destroygen(help->dthps_generation);
+			(void) dtrace_helper_destroygen(help,
+			    help->dthps_generation);
 			dtrace_enabling_destroy(enab);
 			dtrace_dof_destroy(dof);
 			return (-1);
@@ -15990,9 +16064,9 @@ dtrace_helper_slurp(dof_hdr_t *dof, dof_helper_t *dhp)
 
 	if (dhp != NULL && nprovs > 0) {
 		dhp->dofhp_dof = (uint64_t)(uintptr_t)dof;
-		if (dtrace_helper_provider_add(dhp, gen) == 0) {
+		if (dtrace_helper_provider_add(dhp, help, gen) == 0) {
 			mutex_exit(&dtrace_lock);
-			dtrace_helper_provider_register(curproc, help, dhp);
+			dtrace_helper_provider_register(p, help, dhp);
 			mutex_enter(&dtrace_lock);
 
 			destroy = 0;
@@ -16956,7 +17030,7 @@ dtrace_ioctl_helper(int cmd, intptr_t arg, int *rv)
 
 	case DTRACEHIOC_REMOVE: {
 		mutex_enter(&dtrace_lock);
-		rval = dtrace_helper_destroygen(arg);
+		rval = dtrace_helper_destroygen(NULL, arg);
 		mutex_exit(&dtrace_lock);
 
 		return (rval);

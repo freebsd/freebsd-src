@@ -87,6 +87,8 @@ struct inode {
 		daddr_t *snapblklist;    /* Collect expunged snapshot blocks. */
 	} i_un;
 
+	int	i_nextclustercg; /* last cg searched for cluster */
+
 	/*
 	 * Data for extended attribute modification.
  	 */

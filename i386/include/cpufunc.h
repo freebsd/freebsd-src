@@ -42,17 +42,6 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
-#ifdef XEN
-extern void xen_cli(void);
-extern void xen_sti(void);
-extern u_int xen_rcr2(void);
-extern void xen_load_cr3(u_int data);
-extern void xen_tlb_flush(void);
-extern void xen_invlpg(u_int addr);
-extern void write_eflags(u_int eflags);
-extern u_int read_eflags(void);
-#endif
-
 struct region_descriptor;
 
 #define readb(va)	(*(volatile uint8_t *) (va))
@@ -97,6 +86,13 @@ clflush(u_long addr)
 }
 
 static __inline void
+clflushopt(u_long addr)
+{
+
+	__asm __volatile(".byte 0x66;clflush %0" : : "m" (*(char *)addr));
+}
+
+static __inline void
 clts(void)
 {
 
@@ -106,11 +102,8 @@ clts(void)
 static __inline void
 disable_intr(void)
 {
-#ifdef XEN
-	xen_cli();
-#else	
+
 	__asm __volatile("cli" : : : "memory");
-#endif
 }
 
 static __inline void
@@ -132,11 +125,8 @@ cpuid_count(u_int ax, u_int cx, u_int *p)
 static __inline void
 enable_intr(void)
 {
-#ifdef XEN
-	xen_sti();
-#else
+
 	__asm __volatile("sti");
-#endif
 }
 
 static __inline void
@@ -325,11 +315,7 @@ ia32_pause(void)
 }
 
 static __inline u_int
-#ifdef XEN
-_read_eflags(void)
-#else	
 read_eflags(void)
-#endif
 {
 	u_int	ef;
 
@@ -389,11 +375,7 @@ wbinvd(void)
 }
 
 static __inline void
-#ifdef XEN
-_write_eflags(u_int ef)
-#else
 write_eflags(u_int ef)
-#endif
 {
 	__asm __volatile("pushl %0; popfl" : : "r" (ef));
 }
@@ -425,9 +407,6 @@ rcr2(void)
 {
 	u_int	data;
 
-#ifdef XEN
-	return (xen_rcr2());
-#endif
 	__asm __volatile("movl %%cr2,%0" : "=r" (data));
 	return (data);
 }
@@ -435,11 +414,8 @@ rcr2(void)
 static __inline void
 load_cr3(u_int data)
 {
-#ifdef XEN
-	xen_load_cr3(data);
-#else
+
 	__asm __volatile("movl %0,%%cr3" : : "r" (data) : "memory");
-#endif
 }
 
 static __inline u_int
@@ -491,11 +467,8 @@ load_xcr(u_int reg, uint64_t val)
 static __inline void
 invltlb(void)
 {
-#ifdef XEN
-	xen_tlb_flush();
-#else	
+
 	load_cr3(rcr3());
-#endif
 }
 
 /*
@@ -506,11 +479,7 @@ static __inline void
 invlpg(u_int addr)
 {
 
-#ifdef XEN
-	xen_invlpg(addr);
-#else
 	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
-#endif
 }
 
 static __inline u_short

@@ -43,9 +43,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_hwpmc_hooks.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/disk.h>
+#include <sys/fail.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/kdb.h>
@@ -54,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
@@ -80,6 +84,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vnode_pager.h>
+
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 
 static fo_rdwr_t	vn_read;
 static fo_rdwr_t	vn_write;
@@ -90,6 +99,7 @@ static fo_poll_t	vn_poll;
 static fo_kqfilter_t	vn_kqfilter;
 static fo_stat_t	vn_statfile;
 static fo_close_t	vn_closefile;
+static fo_mmap_t	vn_mmap;
 
 struct 	fileops vnops = {
 	.fo_read = vn_io_fault,
@@ -105,6 +115,7 @@ struct 	fileops vnops = {
 	.fo_sendfile = vn_sendfile,
 	.fo_seek = vn_seek,
 	.fo_fill_kinfo = vn_fill_kinfo,
+	.fo_mmap = vn_mmap,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
@@ -112,6 +123,9 @@ static const int io_hold_cnt = 16;
 static int vn_io_fault_enable = 1;
 SYSCTL_INT(_debug, OID_AUTO, vn_io_fault_enable, CTLFLAG_RW,
     &vn_io_fault_enable, 0, "Enable vn_io_fault lock avoidance");
+static int vn_io_fault_prefault = 0;
+SYSCTL_INT(_debug, OID_AUTO, vn_io_fault_prefault, CTLFLAG_RW,
+    &vn_io_fault_prefault, 0, "Enable vn_io_fault prefaulting");
 static u_long vn_io_faults_cnt;
 SYSCTL_ULONG(_debug, OID_AUTO, vn_io_faults, CTLFLAG_RD,
     &vn_io_faults_cnt, 0, "Count of vn_io_fault lock avoidance triggers");
@@ -187,7 +201,10 @@ vn_open_cred(struct nameidata *ndp, int *flagp, int cmode, u_int vn_open_flags,
 
 restart:
 	fmode = *flagp;
-	if (fmode & O_CREAT) {
+	if ((fmode & (O_CREAT | O_EXCL | O_DIRECTORY)) == (O_CREAT |
+	    O_EXCL | O_DIRECTORY))
+		return (EINVAL);
+	else if ((fmode & (O_CREAT | O_DIRECTORY)) == O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
 		/*
 		 * Set NOCACHE to avoid flushing the cache when
@@ -306,9 +323,15 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 	if ((fmode & O_APPEND) && (fmode & FWRITE))
 		accmode |= VAPPEND;
 #ifdef MAC
+	if (fmode & O_CREAT)
+		accmode |= VCREAT;
+	if (fmode & O_VERIFY)
+		accmode |= VVERIFY;
 	error = mac_vnode_check_open(cred, vp, accmode);
 	if (error)
 		return (error);
+
+	accmode &= ~(VCREAT | VVERIFY);
 #endif
 	if ((fmode & O_CREAT) == 0) {
 		if (accmode & VWRITE) {
@@ -753,10 +776,9 @@ vn_read(fp, uio, active_cred, flags, td)
 	struct thread *td;
 {
 	struct vnode *vp;
-	struct mtx *mtxp;
+	off_t orig_offset;
 	int error, ioflag;
 	int advice;
-	off_t offset, start, end;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
@@ -780,7 +802,7 @@ vn_read(fp, uio, active_cred, flags, td)
 		/* Disable read-ahead for random I/O. */
 		break;
 	}
-	offset = uio->uio_offset;
+	orig_offset = uio->uio_offset;
 
 #ifdef MAC
 	error = mac_vnode_check_read(active_cred, fp->f_cred, vp);
@@ -790,39 +812,14 @@ vn_read(fp, uio, active_cred, flags, td)
 	fp->f_nextoff = uio->uio_offset;
 	VOP_UNLOCK(vp, 0);
 	if (error == 0 && advice == POSIX_FADV_NOREUSE &&
-	    offset != uio->uio_offset) {
+	    orig_offset != uio->uio_offset)
 		/*
-		 * Use POSIX_FADV_DONTNEED to flush clean pages and
-		 * buffers for the backing file after a
-		 * POSIX_FADV_NOREUSE read(2).  To optimize the common
-		 * case of using POSIX_FADV_NOREUSE with sequential
-		 * access, track the previous implicit DONTNEED
-		 * request and grow this request to include the
-		 * current read(2) in addition to the previous
-		 * DONTNEED.  With purely sequential access this will
-		 * cause the DONTNEED requests to continously grow to
-		 * cover all of the previously read regions of the
-		 * file.  This allows filesystem blocks that are
-		 * accessed by multiple calls to read(2) to be flushed
-		 * once the last read(2) finishes.
+		 * Use POSIX_FADV_DONTNEED to flush pages and buffers
+		 * for the backing file after a POSIX_FADV_NOREUSE
+		 * read(2).
 		 */
-		start = offset;
-		end = uio->uio_offset - 1;
-		mtxp = mtx_pool_find(mtxpool_sleep, fp);
-		mtx_lock(mtxp);
-		if (fp->f_advice != NULL &&
-		    fp->f_advice->fa_advice == POSIX_FADV_NOREUSE) {
-			if (start != 0 && fp->f_advice->fa_prevend + 1 == start)
-				start = fp->f_advice->fa_prevstart;
-			else if (fp->f_advice->fa_prevstart != 0 &&
-			    fp->f_advice->fa_prevstart == end + 1)
-				end = fp->f_advice->fa_prevend;
-			fp->f_advice->fa_prevstart = start;
-			fp->f_advice->fa_prevend = end;
-		}
-		mtx_unlock(mtxp);
-		error = VOP_ADVISE(vp, start, end, POSIX_FADV_DONTNEED);
-	}
+		error = VOP_ADVISE(vp, orig_offset, uio->uio_offset - 1,
+		    POSIX_FADV_DONTNEED);
 	return (error);
 }
 
@@ -839,10 +836,9 @@ vn_write(fp, uio, active_cred, flags, td)
 {
 	struct vnode *vp;
 	struct mount *mp;
-	struct mtx *mtxp;
+	off_t orig_offset;
 	int error, ioflag, lock_flags;
 	int advice;
-	off_t offset, start, end;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
@@ -885,7 +881,7 @@ vn_write(fp, uio, active_cred, flags, td)
 		/* XXX: Is this correct? */
 		break;
 	}
-	offset = uio->uio_offset;
+	orig_offset = uio->uio_offset;
 
 #ifdef MAC
 	error = mac_vnode_check_write(active_cred, fp->f_cred, vp);
@@ -897,55 +893,14 @@ vn_write(fp, uio, active_cred, flags, td)
 	if (vp->v_type != VCHR)
 		vn_finished_write(mp);
 	if (error == 0 && advice == POSIX_FADV_NOREUSE &&
-	    offset != uio->uio_offset) {
+	    orig_offset != uio->uio_offset)
 		/*
-		 * Use POSIX_FADV_DONTNEED to flush clean pages and
-		 * buffers for the backing file after a
-		 * POSIX_FADV_NOREUSE write(2).  To optimize the
-		 * common case of using POSIX_FADV_NOREUSE with
-		 * sequential access, track the previous implicit
-		 * DONTNEED request and grow this request to include
-		 * the current write(2) in addition to the previous
-		 * DONTNEED.  With purely sequential access this will
-		 * cause the DONTNEED requests to continously grow to
-		 * cover all of the previously written regions of the
-		 * file.
-		 *
-		 * Note that the blocks just written are almost
-		 * certainly still dirty, so this only works when
-		 * VOP_ADVISE() calls from subsequent writes push out
-		 * the data written by this write(2) once the backing
-		 * buffers are clean.  However, as compared to forcing
-		 * IO_DIRECT, this gives much saner behavior.  Write
-		 * clustering is still allowed, and clean pages are
-		 * merely moved to the cache page queue rather than
-		 * outright thrown away.  This means a subsequent
-		 * read(2) can still avoid hitting the disk if the
-		 * pages have not been reclaimed.
-		 *
-		 * This does make POSIX_FADV_NOREUSE largely useless
-		 * with non-sequential access.  However, sequential
-		 * access is the more common use case and the flag is
-		 * merely advisory.
+		 * Use POSIX_FADV_DONTNEED to flush pages and buffers
+		 * for the backing file after a POSIX_FADV_NOREUSE
+		 * write(2).
 		 */
-		start = offset;
-		end = uio->uio_offset - 1;
-		mtxp = mtx_pool_find(mtxpool_sleep, fp);
-		mtx_lock(mtxp);
-		if (fp->f_advice != NULL &&
-		    fp->f_advice->fa_advice == POSIX_FADV_NOREUSE) {
-			if (start != 0 && fp->f_advice->fa_prevend + 1 == start)
-				start = fp->f_advice->fa_prevstart;
-			else if (fp->f_advice->fa_prevstart != 0 &&
-			    fp->f_advice->fa_prevstart == end + 1)
-				end = fp->f_advice->fa_prevend;
-			fp->f_advice->fa_prevstart = start;
-			fp->f_advice->fa_prevend = end;
-		}
-		mtx_unlock(mtxp);
-		error = VOP_ADVISE(vp, start, end, POSIX_FADV_DONTNEED);
-	}
-	
+		error = VOP_ADVISE(vp, orig_offset, uio->uio_offset - 1,
+		    POSIX_FADV_DONTNEED);
 unlock:
 	return (error);
 }
@@ -1010,6 +965,59 @@ vn_io_fault_doio(struct vn_io_fault_args *args, struct uio *uio,
 	    uio->uio_rw);
 }
 
+static int
+vn_io_fault_touch(char *base, const struct uio *uio)
+{
+	int r;
+
+	r = fubyte(base);
+	if (r == -1 || (uio->uio_rw == UIO_READ && subyte(base, r) == -1))
+		return (EFAULT);
+	return (0);
+}
+
+static int
+vn_io_fault_prefault_user(const struct uio *uio)
+{
+	char *base;
+	const struct iovec *iov;
+	size_t len;
+	ssize_t resid;
+	int error, i;
+
+	KASSERT(uio->uio_segflg == UIO_USERSPACE,
+	    ("vn_io_fault_prefault userspace"));
+
+	error = i = 0;
+	iov = uio->uio_iov;
+	resid = uio->uio_resid;
+	base = iov->iov_base;
+	len = iov->iov_len;
+	while (resid > 0) {
+		error = vn_io_fault_touch(base, uio);
+		if (error != 0)
+			break;
+		if (len < PAGE_SIZE) {
+			if (len != 0) {
+				error = vn_io_fault_touch(base + len - 1, uio);
+				if (error != 0)
+					break;
+				resid -= len;
+			}
+			if (++i >= uio->uio_iovcnt)
+				break;
+			iov = uio->uio_iov + i;
+			base = iov->iov_base;
+			len = iov->iov_len;
+		} else {
+			len -= PAGE_SIZE;
+			base += PAGE_SIZE;
+			resid -= PAGE_SIZE;
+		}
+	}
+	return (error);
+}
+
 /*
  * Common code for vn_io_fault(), agnostic to the kind of i/o request.
  * Uses vn_io_fault_doio() to make the call to an actual i/o function.
@@ -1030,6 +1038,12 @@ vn_io_fault1(struct vnode *vp, struct uio *uio, struct vn_io_fault_args *args,
 	size_t len, resid;
 	ssize_t adv;
 	int error, cnt, save, saveheld, prev_td_ma_cnt;
+
+	if (vn_io_fault_prefault) {
+		error = vn_io_fault_prefault_user(uio);
+		if (error != 0)
+			return (error); /* Or ignore ? */
+	}
 
 	prot = uio->uio_rw == UIO_READ ? VM_PROT_WRITE : VM_PROT_READ;
 
@@ -1579,22 +1593,10 @@ vn_closefile(fp, td)
 }
 
 static bool
-vn_suspendable_mp(struct mount *mp)
+vn_suspendable(struct mount *mp)
 {
 
-	return ((mp->mnt_kern_flag & MNTK_SUSPENDABLE) != 0);
-}
-
-static bool
-vn_suspendable(struct vnode *vp, struct mount **mpp)
-{
-
-	if (vp != NULL)
-		*mpp = vp->v_mount;
-	if (*mpp == NULL)
-		return (false);
-
-	return (vn_suspendable_mp(*mpp));
+	return (mp->mnt_op->vfs_susp_clean != NULL);
 }
 
 /*
@@ -1640,16 +1642,13 @@ unlock:
 }
 
 int
-vn_start_write(vp, mpp, flags)
-	struct vnode *vp;
-	struct mount **mpp;
-	int flags;
+vn_start_write(struct vnode *vp, struct mount **mpp, int flags)
 {
 	struct mount *mp;
 	int error;
 
-	if (!vn_suspendable(vp, mpp))
-		return (0);
+	KASSERT((flags & V_MNTREF) == 0 || (*mpp != NULL && vp == NULL),
+	    ("V_MNTREF requires mp"));
 
 	error = 0;
 	/*
@@ -1667,6 +1666,12 @@ vn_start_write(vp, mpp, flags)
 	if ((mp = *mpp) == NULL)
 		return (0);
 
+	if (!vn_suspendable(mp)) {
+		if (vp != NULL || (flags & V_MNTREF) != 0)
+			vfs_rel(mp);
+		return (0);
+	}
+
 	/*
 	 * VOP_GETWRITEMOUNT() returns with the mp refcount held through
 	 * a vfs_ref().
@@ -1675,7 +1680,7 @@ vn_start_write(vp, mpp, flags)
 	 * emulate a vfs_ref().
 	 */
 	MNT_ILOCK(mp);
-	if (vp == NULL)
+	if (vp == NULL && (flags & V_MNTREF) == 0)
 		MNT_REF(mp);
 
 	return (vn_start_write_locked(mp, flags));
@@ -1689,16 +1694,13 @@ vn_start_write(vp, mpp, flags)
  * time, these operations are halted until the suspension is over.
  */
 int
-vn_start_secondary_write(vp, mpp, flags)
-	struct vnode *vp;
-	struct mount **mpp;
-	int flags;
+vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 {
 	struct mount *mp;
 	int error;
 
-	if (!vn_suspendable(vp, mpp))
-		return (0);
+	KASSERT((flags & V_MNTREF) == 0 || (*mpp != NULL && vp == NULL),
+	    ("V_MNTREF requires mp"));
 
  retry:
 	if (vp != NULL) {
@@ -1716,6 +1718,12 @@ vn_start_secondary_write(vp, mpp, flags)
 	if ((mp = *mpp) == NULL)
 		return (0);
 
+	if (!vn_suspendable(mp)) {
+		if (vp != NULL || (flags & V_MNTREF) != 0)
+			vfs_rel(mp);
+		return (0);
+	}
+
 	/*
 	 * VOP_GETWRITEMOUNT() returns with the mp refcount held through
 	 * a vfs_ref().
@@ -1724,7 +1732,7 @@ vn_start_secondary_write(vp, mpp, flags)
 	 * emulate a vfs_ref().
 	 */
 	MNT_ILOCK(mp);
-	if (vp == NULL)
+	if (vp == NULL && (flags & V_MNTREF) == 0)
 		MNT_REF(mp);
 	if ((mp->mnt_kern_flag & (MNTK_SUSPENDED | MNTK_SUSPEND2)) == 0) {
 		mp->mnt_secondary_writes++;
@@ -1758,7 +1766,7 @@ void
 vn_finished_write(mp)
 	struct mount *mp;
 {
-	if (mp == NULL || !vn_suspendable_mp(mp))
+	if (mp == NULL || !vn_suspendable(mp))
 		return;
 	MNT_ILOCK(mp);
 	MNT_REL(mp);
@@ -1781,7 +1789,7 @@ void
 vn_finished_secondary_write(mp)
 	struct mount *mp;
 {
-	if (mp == NULL || !vn_suspendable_mp(mp))
+	if (mp == NULL || !vn_suspendable(mp))
 		return;
 	MNT_ILOCK(mp);
 	MNT_REL(mp);
@@ -1804,7 +1812,7 @@ vfs_write_suspend(struct mount *mp, int flags)
 {
 	int error;
 
-	MPASS(vn_suspendable_mp(mp));
+	MPASS(vn_suspendable(mp));
 
 	MNT_ILOCK(mp);
 	if (mp->mnt_susp_owner == curthread) {
@@ -1847,7 +1855,7 @@ void
 vfs_write_resume(struct mount *mp, int flags)
 {
 
-	MPASS(vn_suspendable_mp(mp));
+	MPASS(vn_suspendable(mp));
 
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
@@ -1882,7 +1890,7 @@ vfs_write_suspend_umnt(struct mount *mp)
 {
 	int error;
 
-	MPASS(vn_suspendable_mp(mp));
+	MPASS(vn_suspendable(mp));
 	KASSERT((curthread->td_pflags & TDP_IGNSUSP) == 0,
 	    ("vfs_write_suspend_umnt: recursed"));
 
@@ -2092,19 +2100,18 @@ vn_vget_ino_gen(struct vnode *vp, vn_get_ino_t alloc, void *alloc_arg,
 
 int
 vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
-    const struct thread *td)
+    struct thread *td)
 {
 
 	if (vp->v_type != VREG || td == NULL)
 		return (0);
-	PROC_LOCK(td->td_proc);
 	if ((uoff_t)uio->uio_offset + uio->uio_resid >
-	    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
+	    lim_cur(td, RLIMIT_FSIZE)) {
+		PROC_LOCK(td->td_proc);
 		kern_psignal(td->td_proc, SIGXFSZ);
 		PROC_UNLOCK(td->td_proc);
 		return (EFBIG);
 	}
-	PROC_UNLOCK(td->td_proc);
 	return (0);
 }
 
@@ -2314,6 +2321,24 @@ vn_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	return (error);
 }
 
+static inline void
+vn_fill_junk(struct kinfo_file *kif)
+{
+	size_t len, olen;
+
+	/*
+	 * Simulate vn_fullpath returning changing values for a given
+	 * vp during e.g. coredump.
+	 */
+	len = (arc4random() % (sizeof(kif->kf_path) - 2)) + 1;
+	olen = strlen(kif->kf_path);
+	if (len < olen)
+		strcpy(&kif->kf_path[len - 1], "$");
+	else
+		for (; olen < len; olen++)
+			strcpy(&kif->kf_path[olen], "A");
+}
+
 int
 vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif)
 {
@@ -2330,6 +2355,10 @@ vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif)
 	}
 	if (freepath != NULL)
 		free(freepath, M_TEMP);
+
+	KFAIL_POINT_CODE(DEBUG_FP, fill_kinfo_vnode__random_path,
+		vn_fill_junk(kif);
+	);
 
 	/*
 	 * Retrieve vnode attributes.
@@ -2351,4 +2380,96 @@ vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif)
 	kif->kf_un.kf_file.kf_file_size = va.va_size;
 	kif->kf_un.kf_file.kf_file_rdev = va.va_rdev;
 	return (0);
+}
+
+int
+vn_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
+    vm_prot_t prot, vm_prot_t cap_maxprot, int flags, vm_ooffset_t foff,
+    struct thread *td)
+{
+#ifdef HWPMC_HOOKS
+	struct pmckern_map_in pkm;
+#endif
+	struct mount *mp;
+	struct vnode *vp;
+	vm_object_t object;
+	vm_prot_t maxprot;
+	boolean_t writecounted;
+	int error;
+
+#if defined(COMPAT_FREEBSD7) || defined(COMPAT_FREEBSD6) || \
+    defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4)
+	/*
+	 * POSIX shared-memory objects are defined to have
+	 * kernel persistence, and are not defined to support
+	 * read(2)/write(2) -- or even open(2).  Thus, we can
+	 * use MAP_ASYNC to trade on-disk coherence for speed.
+	 * The shm_open(3) library routine turns on the FPOSIXSHM
+	 * flag to request this behavior.
+	 */
+	if ((fp->f_flag & FPOSIXSHM) != 0)
+		flags |= MAP_NOSYNC;
+#endif
+	vp = fp->f_vnode;
+
+	/*
+	 * Ensure that file and memory protections are
+	 * compatible.  Note that we only worry about
+	 * writability if mapping is shared; in this case,
+	 * current and max prot are dictated by the open file.
+	 * XXX use the vnode instead?  Problem is: what
+	 * credentials do we use for determination? What if
+	 * proc does a setuid?
+	 */
+	mp = vp->v_mount;
+	if (mp != NULL && (mp->mnt_flag & MNT_NOEXEC) != 0)
+		maxprot = VM_PROT_NONE;
+	else
+		maxprot = VM_PROT_EXECUTE;
+	if ((fp->f_flag & FREAD) != 0)
+		maxprot |= VM_PROT_READ;
+	else if ((prot & VM_PROT_READ) != 0)
+		return (EACCES);
+
+	/*
+	 * If we are sharing potential changes via MAP_SHARED and we
+	 * are trying to get write permission although we opened it
+	 * without asking for it, bail out.
+	 */
+	if ((flags & MAP_SHARED) != 0) {
+		if ((fp->f_flag & FWRITE) != 0)
+			maxprot |= VM_PROT_WRITE;
+		else if ((prot & VM_PROT_WRITE) != 0)
+			return (EACCES);
+	} else {
+		maxprot |= VM_PROT_WRITE;
+		cap_maxprot |= VM_PROT_WRITE;
+	}
+	maxprot &= cap_maxprot;
+
+	writecounted = FALSE;
+	error = vm_mmap_vnode(td, size, prot, &maxprot, &flags, vp,
+	    &foff, &object, &writecounted);
+	if (error != 0)
+		return (error);
+	error = vm_mmap_object(map, addr, size, prot, maxprot, flags, object,
+	    foff, writecounted, td);
+	if (error != 0) {
+		/*
+		 * If this mapping was accounted for in the vnode's
+		 * writecount, then undo that now.
+		 */
+		if (writecounted)
+			vnode_pager_release_writecount(object, 0, size);
+		vm_object_deallocate(object);
+	}
+#ifdef HWPMC_HOOKS
+	/* Inform hwpmc(4) if an executable is being mapped. */
+	if (error == 0 && (prot & VM_PROT_EXECUTE) != 0) {
+		pkm.pm_file = vp;
+		pkm.pm_address = (uintptr_t) *addr;
+		PMC_CALL_HOOK(td, PMC_FN_MMAP, (void *) &pkm);
+	}
+#endif
+	return (error);
 }

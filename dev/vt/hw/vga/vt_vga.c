@@ -46,13 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#if defined(__amd64__) || defined(__i386__)
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <machine/pmap.h>
-#include <machine/vmparam.h>
-#endif /* __amd64__ || __i386__ */
-
 struct vga_softc {
 	bus_space_tag_t		 vga_fb_tag;
 	bus_space_handle_t	 vga_fb_handle;
@@ -890,9 +883,9 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
 			/* Convert colors to VGA attributes. */
 			attr = bg << 4 | fg;
 
-			MEM_WRITE1(sc, 0x18000 + (row * 80 + col) * 2 + 0,
+			MEM_WRITE1(sc, (row * 80 + col) * 2 + 0,
 			    ch);
-			MEM_WRITE1(sc, 0x18000 + (row * 80 + col) * 2 + 1,
+			MEM_WRITE1(sc, (row * 80 + col) * 2 + 1,
 			    attr);
 		}
 	}
@@ -1035,11 +1028,12 @@ vga_initialize_graphics(struct vt_device *vd)
 	REG_WRITE1(sc, VGA_GC_DATA, 0xff);
 }
 
-static void
+static int
 vga_initialize(struct vt_device *vd, int textmode)
 {
 	struct vga_softc *sc = vd->vd_softc;
 	uint8_t x;
+	int timeout;
 
 	/* Make sure the VGA adapter is not in monochrome emulation mode. */
 	x = REG_READ1(sc, VGA_GEN_MISC_OUTPUT_R);
@@ -1060,10 +1054,16 @@ vga_initialize(struct vt_device *vd, int textmode)
 	 * code therefore also removes that guarantee and appropriate measures
 	 * need to be taken.
 	 */
+	timeout = 10000;
 	do {
+		DELAY(10);
 		x = REG_READ1(sc, VGA_GEN_INPUT_STAT_1);
 		x &= VGA_GEN_IS1_VR | VGA_GEN_IS1_DE;
-	} while (x != (VGA_GEN_IS1_VR | VGA_GEN_IS1_DE));
+	} while (x != (VGA_GEN_IS1_VR | VGA_GEN_IS1_DE) && --timeout != 0);
+	if (timeout == 0) {
+		printf("Timeout initializing vt_vga\n");
+		return (ENXIO);
+	}
 
 	/* Now, disable the sync. signals. */
 	REG_WRITE1(sc, VGA_CRTC_ADDRESS, VGA_CRTC_MODE_CONTROL);
@@ -1194,6 +1194,8 @@ vga_initialize(struct vt_device *vd, int textmode)
 		 */
 		sc->vga_curfg = sc->vga_curbg = 0xff;
 	}
+
+	return (0);
 }
 
 static int
@@ -1219,23 +1221,29 @@ vga_init(struct vt_device *vd)
 
 #if defined(__amd64__) || defined(__i386__)
 	sc->vga_fb_tag = X86_BUS_SPACE_MEM;
-	sc->vga_fb_handle = KERNBASE + VGA_MEM_BASE;
 	sc->vga_reg_tag = X86_BUS_SPACE_IO;
-	sc->vga_reg_handle = VGA_REG_BASE;
 #else
 # error "Architecture not yet supported!"
 #endif
+
+	bus_space_map(sc->vga_reg_tag, VGA_REG_BASE, VGA_REG_SIZE, 0,
+	    &sc->vga_reg_handle);
 
 	TUNABLE_INT_FETCH("hw.vga.textmode", &textmode);
 	if (textmode) {
 		vd->vd_flags |= VDF_TEXTMODE;
 		vd->vd_width = 80;
 		vd->vd_height = 25;
+		bus_space_map(sc->vga_fb_tag, VGA_TXT_BASE, VGA_TXT_SIZE, 0,
+		    &sc->vga_fb_handle);
 	} else {
 		vd->vd_width = VT_VGA_WIDTH;
 		vd->vd_height = VT_VGA_HEIGHT;
+		bus_space_map(sc->vga_fb_tag, VGA_MEM_BASE, VGA_MEM_SIZE, 0,
+		    &sc->vga_fb_handle);
 	}
-	vga_initialize(vd, textmode);
+	if (vga_initialize(vd, textmode) != 0)
+		return (CN_DEAD);
 	sc->vga_enabled = true;
 
 	return (CN_INTERNAL);

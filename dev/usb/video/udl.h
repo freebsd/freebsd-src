@@ -34,6 +34,15 @@
 #define	UDL_FONT_HEIGHT		16	/* pixels */
 #define	UDL_MAX_MODES		25	/* units */
 
+MALLOC_DECLARE(M_USB_DL);
+
+struct udl_buffer {
+	TAILQ_ENTRY(udl_buffer) entry;
+	uint32_t size;
+};
+
+TAILQ_HEAD(udl_buffer_head, udl_buffer);
+
 struct udl_cmd_buf {
 	TAILQ_ENTRY(udl_cmd_buf) entry;
 	uint32_t off;

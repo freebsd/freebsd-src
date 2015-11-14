@@ -636,7 +636,7 @@ OpcDoEisaId (
      * The EISAID string must be exactly 7 characters and of the form
      * "UUUXXXX" -- 3 uppercase letters and 4 hex digits (e.g., "PNP0001")
      */
-    if (ACPI_STRLEN (InString) != 7)
+    if (strlen (InString) != 7)
     {
         Status = AE_BAD_PARAMETER;
     }
@@ -791,43 +791,6 @@ OpcEncodePldBuffer (
 
 /*******************************************************************************
  *
- * FUNCTION:    OpcStrupr (strupr)
- *
- * PARAMETERS:  SrcString           - The source string to convert
- *
- * RETURN:      None
- *
- * DESCRIPTION: Convert string to uppercase
- *
- * NOTE: This is not a POSIX function, so it appears here, not in utclib.c
- *
- ******************************************************************************/
-
-static void
-OpcStrupr (
-    char                    *SrcString)
-{
-    char                    *String;
-
-
-    if (!SrcString)
-    {
-        return;
-    }
-
-    /* Walk entire string, uppercasing the letters */
-
-    for (String = SrcString; *String; String++)
-    {
-        *String = (char) toupper ((int) *String);
-    }
-
-    return;
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    OpcFindName
  *
  * PARAMETERS:  List                - Array of char strings to be searched
@@ -851,11 +814,11 @@ OpcFindName (
     UINT32                   i;
 
 
-    OpcStrupr (Name);
+    AcpiUtStrupr (Name);
 
     for (i = 0, Str = List[0]; Str; i++, Str = List[i])
     {
-        if (!(ACPI_STRNCMP (Str, Name, ACPI_STRLEN (Name))))
+        if (!(strncmp (Str, Name, strlen (Name))))
         {
             *Index = i;
             return (TRUE);
@@ -900,14 +863,7 @@ OpcDoPld (
         return;
     }
 
-    Buffer = UtLocalCalloc (ACPI_PLD_BUFFER_SIZE);
-    if (!Buffer)
-    {
-        AslError(ASL_ERROR, ASL_MSG_BUFFER_ALLOCATION, Op, NULL);
-        return;
-    }
-
-    ACPI_MEMSET (&PldInfo, 0, sizeof (ACPI_PLD_INFO));
+    memset (&PldInfo, 0, sizeof (ACPI_PLD_INFO));
 
     Node = Op->Asl.Child;
     while (Node)

@@ -20,9 +20,11 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
+ * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
+ * Copyright 2013 Saso Kiselkov. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -50,7 +52,7 @@
 #include <sys/arc.h>
 #include <sys/ddt.h>
 #include "zfs_prop.h"
-#include "zfeature_common.h"
+#include <sys/zfeature.h>
 
 /*
  * SPA locking
@@ -253,7 +255,7 @@ int zfs_flags = 0;
  */
 boolean_t zfs_recover = B_FALSE;
 SYSCTL_DECL(_vfs_zfs);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, recover, CTLFLAG_RDTUN, &zfs_recover, 0,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, recover, CTLFLAG_RWTUN, &zfs_recover, 0,
     "Try to recover from otherwise-fatal errors.");
 
 static int
@@ -626,14 +628,17 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 	mutex_init(&spa->spa_async_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_errlist_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_errlog_lock, NULL, MUTEX_DEFAULT, NULL);
+	mutex_init(&spa->spa_evicting_os_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_history_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_proc_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_props_lock, NULL, MUTEX_DEFAULT, NULL);
+	mutex_init(&spa->spa_cksum_tmpls_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_scrub_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_suspend_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&spa->spa_vdev_top_lock, NULL, MUTEX_DEFAULT, NULL);
 
 	cv_init(&spa->spa_async_cv, NULL, CV_DEFAULT, NULL);
+	cv_init(&spa->spa_evicting_os_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&spa->spa_proc_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&spa->spa_scrub_io_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&spa->spa_suspend_cv, NULL, CV_DEFAULT, NULL);
@@ -671,7 +676,7 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 	mutex_exit(&cpu_lock);
 #else	/* !illumos */
 #ifdef _KERNEL
-	callout_init(&spa->spa_deadman_cycid, CALLOUT_MPSAFE);
+	callout_init(&spa->spa_deadman_cycid, 1);
 #endif
 #endif
 	refcount_create(&spa->spa_refcount);
@@ -719,6 +724,9 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 
 	spa->spa_debug = ((zfs_flags & ZFS_DEBUG_SPA) != 0);
 
+	spa->spa_min_ashift = INT_MAX;
+	spa->spa_max_ashift = 0;
+
 	/*
 	 * As a pool is being created, treat all features as disabled by
 	 * setting SPA_FEATURE_DISABLED for all entries in the feature
@@ -743,6 +751,7 @@ spa_remove(spa_t *spa)
 
 	ASSERT(MUTEX_HELD(&spa_namespace_lock));
 	ASSERT(spa->spa_state == POOL_STATE_UNINITIALIZED);
+	ASSERT3U(refcount_count(&spa->spa_refcount), ==, 0);
 
 	nvlist_free(spa->spa_config_splitting);
 
@@ -786,7 +795,10 @@ spa_remove(spa_t *spa)
 	for (int t = 0; t < TXG_SIZE; t++)
 		bplist_destroy(&spa->spa_free_bplist[t]);
 
+	zio_checksum_templates_free(spa);
+
 	cv_destroy(&spa->spa_async_cv);
+	cv_destroy(&spa->spa_evicting_os_cv);
 	cv_destroy(&spa->spa_proc_cv);
 	cv_destroy(&spa->spa_scrub_io_cv);
 	cv_destroy(&spa->spa_suspend_cv);
@@ -794,9 +806,11 @@ spa_remove(spa_t *spa)
 	mutex_destroy(&spa->spa_async_lock);
 	mutex_destroy(&spa->spa_errlist_lock);
 	mutex_destroy(&spa->spa_errlog_lock);
+	mutex_destroy(&spa->spa_evicting_os_lock);
 	mutex_destroy(&spa->spa_history_lock);
 	mutex_destroy(&spa->spa_proc_lock);
 	mutex_destroy(&spa->spa_props_lock);
+	mutex_destroy(&spa->spa_cksum_tmpls_lock);
 	mutex_destroy(&spa->spa_scrub_lock);
 	mutex_destroy(&spa->spa_suspend_lock);
 	mutex_destroy(&spa->spa_vdev_top_lock);
@@ -846,6 +860,20 @@ spa_close(spa_t *spa, void *tag)
 {
 	ASSERT(refcount_count(&spa->spa_refcount) > spa->spa_minref ||
 	    MUTEX_HELD(&spa_namespace_lock));
+	(void) refcount_remove(&spa->spa_refcount, tag);
+}
+
+/*
+ * Remove a reference to the given spa_t held by a dsl dir that is
+ * being asynchronously released.  Async releases occur from a taskq
+ * performing eviction of dsl datasets and dirs.  The namespace lock
+ * isn't held and the hold by the object being evicted may contribute to
+ * spa_minref (e.g. dataset or directory released during pool export),
+ * so the asserts in spa_close() do not apply.
+ */
+void
+spa_async_close(spa_t *spa, void *tag)
+{
 	(void) refcount_remove(&spa->spa_refcount, tag);
 }
 
@@ -1745,6 +1773,34 @@ spa_log_class(spa_t *spa)
 	return (spa->spa_log_class);
 }
 
+void
+spa_evicting_os_register(spa_t *spa, objset_t *os)
+{
+	mutex_enter(&spa->spa_evicting_os_lock);
+	list_insert_head(&spa->spa_evicting_os_list, os);
+	mutex_exit(&spa->spa_evicting_os_lock);
+}
+
+void
+spa_evicting_os_deregister(spa_t *spa, objset_t *os)
+{
+	mutex_enter(&spa->spa_evicting_os_lock);
+	list_remove(&spa->spa_evicting_os_list, os);
+	cv_broadcast(&spa->spa_evicting_os_cv);
+	mutex_exit(&spa->spa_evicting_os_lock);
+}
+
+void
+spa_evicting_os_wait(spa_t *spa)
+{
+	mutex_enter(&spa->spa_evicting_os_lock);
+	while (!list_is_empty(&spa->spa_evicting_os_list))
+		cv_wait(&spa->spa_evicting_os_cv, &spa->spa_evicting_os_lock);
+	mutex_exit(&spa->spa_evicting_os_lock);
+
+	dmu_buf_user_evict_wait();
+}
+
 int
 spa_max_replication(spa_t *spa)
 {
@@ -1779,7 +1835,13 @@ dva_get_dsize_sync(spa_t *spa, const dva_t *dva)
 	ASSERT(spa_config_held(spa, SCL_ALL, RW_READER) != 0);
 
 	if (asize != 0 && spa->spa_deflate) {
-		vdev_t *vd = vdev_lookup_top(spa, DVA_GET_VDEV(dva));
+		uint64_t vdev = DVA_GET_VDEV(dva);
+		vdev_t *vd = vdev_lookup_top(spa, vdev);
+		if (vd == NULL) {
+			panic(
+			    "dva_get_dsize_sync(): bad DVA %llu:%llu",
+			    (u_longlong_t)vdev, (u_longlong_t)asize);
+		}
 		dsize = (asize >> SPA_MINBLOCKSHIFT) * vd->vdev_deflate_ratio;
 	}
 

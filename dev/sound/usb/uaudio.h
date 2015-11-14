@@ -54,8 +54,8 @@ extern struct	pcmchan_matrix *uaudio_chan_getmatrix(struct uaudio_chan *ch,
 		    uint32_t format);
 extern int	uaudio_chan_set_param_format(struct uaudio_chan *ch,
 		    uint32_t format);
-extern int	uaudio_chan_start(struct uaudio_chan *ch);
-extern int	uaudio_chan_stop(struct uaudio_chan *ch);
+extern void	uaudio_chan_start(struct uaudio_chan *ch);
+extern void	uaudio_chan_stop(struct uaudio_chan *ch);
 extern int	uaudio_mixer_init_sub(struct uaudio_softc *sc,
 		    struct snd_mixer *m);
 extern int	uaudio_mixer_uninit_sub(struct uaudio_softc *sc);

@@ -162,6 +162,7 @@ struct pcm_channel {
 	} channels;
 
 	struct pcmchan_matrix matrix;
+  	struct pcmchan_matrix matrix_scratch;
 
 	int volume[SND_VOL_C_MAX][SND_CHN_T_VOL_MAX];
 

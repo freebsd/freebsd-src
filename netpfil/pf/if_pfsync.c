@@ -324,7 +324,7 @@ pfsync_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 	ifp->if_mtu = ETHERMTU;
 	mtx_init(&sc->sc_mtx, pfsyncname, NULL, MTX_DEF);
 	mtx_init(&sc->sc_bulk_mtx, "pfsync bulk", NULL, MTX_DEF);
-	callout_init(&sc->sc_tmo, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_tmo, 1);
 	callout_init_mtx(&sc->sc_bulk_tmo, &sc->sc_bulk_mtx, 0);
 	callout_init_mtx(&sc->sc_bulkfail_tmo, &sc->sc_bulk_mtx, 0);
 
@@ -352,7 +352,7 @@ pfsync_clone_destroy(struct ifnet *ifp)
 
 		TAILQ_REMOVE(&sc->sc_deferrals, pd, pd_entry);
 		sc->sc_deferred--;
-		if (callout_stop(&pd->pd_tmo)) {
+		if (callout_stop(&pd->pd_tmo) > 0) {
 			pf_release_state(pd->pd_st);
 			m_freem(pd->pd_m);
 			free(pd, M_PFSYNC);
@@ -1538,7 +1538,7 @@ pfsync_sendout(int schedswi)
 	offset = sizeof(*ip);
 
 	ip->ip_len = htons(m->m_pkthdr.len);
-	ip->ip_id = htons(ip_randomid());
+	ip_fillid(ip);
 
 	/* build the pfsync header */
 	ph = (struct pfsync_header *)(m->m_data + offset);
@@ -1775,7 +1775,7 @@ pfsync_undefer_state(struct pf_state *st, int drop)
 
 	TAILQ_FOREACH(pd, &sc->sc_deferrals, pd_entry) {
 		 if (pd->pd_st == st) {
-			if (callout_stop(&pd->pd_tmo))
+			if (callout_stop(&pd->pd_tmo) > 0)
 				pfsync_undefer(pd, drop);
 			return;
 		}

@@ -105,6 +105,7 @@ struct ipmi_softc {
 	int			ipmi_opened;
 	struct cdev		*ipmi_cdev;
 	TAILQ_HEAD(,ipmi_request) ipmi_pending_requests;
+	int			ipmi_driver_requests_polled;
 	eventhandler_tag	ipmi_watchdog_tag;
 	int			ipmi_watchdog_active;
 	struct intr_config_hook	ipmi_ich;
@@ -192,13 +193,6 @@ struct ipmi_ipmb {
 #define	IPMI_IO_LOCK(sc)	mtx_lock(&(sc)->ipmi_io_lock)
 #define	IPMI_IO_UNLOCK(sc)	mtx_unlock(&(sc)->ipmi_io_lock)
 #define	IPMI_IO_LOCK_ASSERT(sc)	mtx_assert(&(sc)->ipmi_io_lock, MA_OWNED)
-
-#if __FreeBSD_version < 601105
-#define bus_read_1(r, o) \
-	bus_space_read_1(rman_get_bustag(r), rman_get_bushandle(r), (o))
-#define bus_write_1(r, o, v) \
-	bus_space_write_1(rman_get_bustag(r), rman_get_bushandle(r), (o), (v))
-#endif
 
 /* I/O to a single I/O resource. */
 #define INB_SINGLE(sc, x)						\

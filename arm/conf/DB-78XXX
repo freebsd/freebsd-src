@@ -5,7 +5,8 @@
 #
 
 ident		DB-88F78XX
-include		"../mv/discovery/std.db78xxx"
+include 	"std.arm"
+include 	"../mv/discovery/std.db78xxx"
 
 options 	SOC_MV_DISCOVERY
 
@@ -65,6 +66,7 @@ device		uart
 device		ether
 device		mge			# Marvell Gigabit Ethernet controller
 device		mii
+device		mdio
 device		e1000phy
 device		bpf
 

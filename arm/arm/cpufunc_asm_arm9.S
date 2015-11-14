@@ -130,7 +130,7 @@ ENTRY(arm9_dcache_wb_range)
 	bhi	.Larm9_wb_next
 	mov	pc, lr
 END(arm9_dcache_wb_range)
-	
+
 ENTRY(arm9_dcache_wbinv_range)
 	ldr	ip, .Larm9_line_size
 	cmp	r1, #0x4000
@@ -147,7 +147,7 @@ ENTRY(arm9_dcache_wbinv_range)
 	bhi	.Larm9_wbinv_next
 	mov	pc, lr
 END(arm9_dcache_wbinv_range)
-	
+
 /*
  * Note, we must not invalidate everything.  If the range is too big we
  * must use wb-inv of the entire cache.

@@ -54,11 +54,10 @@
 #define	NFS_VER4	4
 #define	NFS_V2MAXDATA	8192
 #define	NFS_MAXDGRAMDATA 16384
-#define	NFS_MAXDATA	NFS_MAXBSIZE
 #define	NFS_MAXPATHLEN	1024
 #define	NFS_MAXNAMLEN	255
 #define	NFS_MAXPKTHDR	404
-#define	NFS_MAXPACKET	(NFS_MAXDATA + 2048)
+#define	NFS_MAXPACKET	(NFS_SRVMAXIO + 2048)
 #define	NFS_MINPACKET	20
 #define	NFS_FABLKSIZE	512	/* Size in bytes of a block wrt fa_blocks */
 #define	NFSV4_MINORVERSION	0	/* V4 Minor version */
@@ -66,6 +65,18 @@
 #define	NFSV4_CBVERS		1	/* V4 CB Version */
 #define	NFSV41_CBVERS		4	/* V4.1 CB Version */
 #define	NFSV4_SMALLSTR	50		/* Strings small enough for stack */
+
+/*
+ * This value isn't a fixed value in the RFCs.
+ * It is the maximum data size supported by NFSv3 or NFSv4 over TCP for
+ * the server.  It should be set to the I/O size preferred by ZFS or
+ * MAXBSIZE, whichever is greater.
+ * ZFS currently prefers 128K.
+ * It used to be called NFS_MAXDATA, but has been renamed to clarify that
+ * it refers to server side only and doesn't conflict with the NFS_MAXDATA
+ * defined in rpcsvc/nfs_prot.h for userland.
+ */
+#define	NFS_SRVMAXIO	(128 * 1024)
 
 /* Stat numbers for rpc returns (version 2, 3 and 4) */
 /*

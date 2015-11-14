@@ -22,7 +22,7 @@ __FBSDID("$FreeBSD$");
 
 #define	ARC4_RESEED_BYTES 65536
 #define	ARC4_RESEED_SECONDS 300
-#define	ARC4_KEYBYTES (256 / 8)
+#define	ARC4_KEYBYTES 256
 
 int arc4rand_iniseed_state = ARC4_ENTR_NONE;
 
@@ -48,39 +48,33 @@ arc4_swap(u_int8_t *a, u_int8_t *b)
  * Stir our S-box.
  */
 static void
-arc4_randomstir (void)
+arc4_randomstir(void)
 {
-	u_int8_t key[256];
-	int r, n;
+	u_int8_t key[ARC4_KEYBYTES];
+	int n;
 	struct timeval tv_now;
 
 	/*
-	 * XXX read_random() returns unsafe numbers if the entropy
-	 * device is not loaded -- MarkM.
+	 * XXX: FIX!! This isn't brilliant. Need more confidence.
+	 * This returns zero entropy before random(4) is seeded.
 	 */
-	r = read_random(key, ARC4_KEYBYTES);
+	(void)read_random(key, ARC4_KEYBYTES);
 	getmicrouptime(&tv_now);
 	mtx_lock(&arc4_mtx);
-	/* If r == 0 || -1, just use what was on the stack. */
-	if (r > 0) {
-		for (n = r; n < sizeof(key); n++)
-			key[n] = key[n % r];
-	}
-
 	for (n = 0; n < 256; n++) {
 		arc4_j = (arc4_j + arc4_sbox[n] + key[n]) % 256;
 		arc4_swap(&arc4_sbox[n], &arc4_sbox[arc4_j]);
 	}
 	arc4_i = arc4_j = 0;
-
 	/* Reset for next reseed cycle. */
 	arc4_t_reseed = tv_now.tv_sec + ARC4_RESEED_SECONDS;
 	arc4_numruns = 0;
-
 	/*
 	 * Throw away the first N words of output, as suggested in the
 	 * paper "Weaknesses in the Key Scheduling Algorithm of RC4"
 	 * by Fluher, Mantin, and Shamir.  (N = 256 in our case.)
+	 *
+	 * http://dl.acm.org/citation.cfm?id=646557.694759
 	 */
 	for (n = 0; n < 256*4; n++)
 		arc4_randbyte();

@@ -571,7 +571,7 @@ DB_SHOW_COMMAND(pcb, ddb_dump_pcb)
 
 	/* Determine which thread to examine. */
 	if (have_addr)
-		td = db_lookup_thread(addr, TRUE);
+		td = db_lookup_thread(addr, true);
 	else
 		td = curthread;
 	

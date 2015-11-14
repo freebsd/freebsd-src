@@ -192,21 +192,21 @@ extern struct rwlock pf_rules_lock;
 
 #define PF_AEQ(a, b, c) \
 	((c == AF_INET && (a)->addr32[0] == (b)->addr32[0]) || \
-	((a)->addr32[3] == (b)->addr32[3] && \
+	(c == AF_INET6 && (a)->addr32[3] == (b)->addr32[3] && \
 	(a)->addr32[2] == (b)->addr32[2] && \
 	(a)->addr32[1] == (b)->addr32[1] && \
 	(a)->addr32[0] == (b)->addr32[0])) \
 
 #define PF_ANEQ(a, b, c) \
 	((c == AF_INET && (a)->addr32[0] != (b)->addr32[0]) || \
-	((a)->addr32[3] != (b)->addr32[3] || \
-	(a)->addr32[2] != (b)->addr32[2] || \
+	(c == AF_INET6 && ((a)->addr32[0] != (b)->addr32[0] || \
 	(a)->addr32[1] != (b)->addr32[1] || \
-	(a)->addr32[0] != (b)->addr32[0])) \
+	(a)->addr32[2] != (b)->addr32[2] || \
+	(a)->addr32[3] != (b)->addr32[3]))) \
 
 #define PF_AZERO(a, c) \
 	((c == AF_INET && !(a)->addr32[0]) || \
-	(!(a)->addr32[0] && !(a)->addr32[1] && \
+	(c == AF_INET6 && !(a)->addr32[0] && !(a)->addr32[1] && \
 	!(a)->addr32[2] && !(a)->addr32[3] )) \
 
 #define PF_MATCHA(n, a, m, b, f) \
@@ -599,8 +599,6 @@ struct pf_rule {
 
 /* scrub flags */
 #define	PFRULE_NODF		0x0100
-#define	PFRULE_FRAGCROP		0x0200	/* non-buffering frag cache */
-#define	PFRULE_FRAGDROP		0x0400	/* drop funny fragments */
 #define PFRULE_RANDOMID		0x0800
 #define PFRULE_REASSEMBLE_TCP	0x1000
 #define PFRULE_SET_TOS		0x2000
@@ -1555,6 +1553,8 @@ extern void			 pf_print_state(struct pf_state *);
 extern void			 pf_print_flags(u_int8_t);
 extern u_int16_t		 pf_cksum_fixup(u_int16_t, u_int16_t, u_int16_t,
 				    u_int8_t);
+extern u_int16_t		 pf_proto_cksum_fixup(struct mbuf *, u_int16_t,
+				    u_int16_t, u_int16_t, u_int8_t);
 
 VNET_DECLARE(struct ifnet *,		 sync_ifp);
 #define	V_sync_ifp		 	 VNET(sync_ifp);
@@ -1584,6 +1584,9 @@ u_int32_t	pf_new_isn(struct pf_state *);
 void   *pf_pull_hdr(struct mbuf *, int, void *, int, u_short *, u_short *,
 	    sa_family_t);
 void	pf_change_a(void *, u_int16_t *, u_int32_t, u_int8_t);
+void	pf_change_proto_a(struct mbuf *, void *, u_int16_t *, u_int32_t,
+	    u_int8_t);
+void	pf_change_tcp_a(struct mbuf *, void *, u_int16_t *, u_int32_t);
 void	pf_send_deferred_syn(struct pf_state *);
 int	pf_match_addr(u_int8_t, struct pf_addr *, struct pf_addr *,
 	    struct pf_addr *, sa_family_t);

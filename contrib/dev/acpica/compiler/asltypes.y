@@ -74,7 +74,7 @@ NoEcho('
 %type <n> Term
 %type <n> TermArg
 %type <n> TermList
-%type <n> UserTerm
+%type <n> MethodInvocationTerm
 
 /* Type4Opcode is obsolete */
 

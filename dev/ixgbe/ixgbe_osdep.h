@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -108,13 +108,14 @@
 #define UNREFERENCED_3PARAMETER(_p, _q, _r)
 #define UNREFERENCED_4PARAMETER(_p, _q, _r, _s)
 
-
 #define IXGBE_NTOHL(_i)	ntohl(_i)
 #define IXGBE_NTOHS(_i)	ntohs(_i)
 
 /* XXX these need to be revisited */
-#define IXGBE_CPU_TO_LE32 le32toh
-#define IXGBE_LE32_TO_CPUS le32dec
+#define IXGBE_CPU_TO_LE32 htole32
+#define IXGBE_LE32_TO_CPUS(x)
+#define IXGBE_CPU_TO_BE16 htobe16
+#define IXGBE_CPU_TO_BE32 htobe32
 
 typedef uint8_t		u8;
 typedef int8_t		s8;

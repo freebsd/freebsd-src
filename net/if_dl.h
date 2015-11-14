@@ -67,6 +67,7 @@ struct sockaddr_dl {
 };
 
 #define LLADDR(s) ((caddr_t)((s)->sdl_data + (s)->sdl_nlen))
+#define CLLADDR(s) ((c_caddr_t)((s)->sdl_data + (s)->sdl_nlen))
 #define LLINDEX(s) ((s)->sdl_index)
 
 

@@ -45,6 +45,12 @@ struct cbq_opts {
 	int		flags;
 };
 
+struct codel_opts {
+	u_int		target;
+	u_int		interval;
+	int		ecn;
+};
+
 struct priq_opts {
 	int		flags;
 };
@@ -63,6 +69,20 @@ struct hfsc_opts {
 	u_int		ulsc_d;
 	u_int		ulsc_m2;
 	int		flags;
+};
+
+/*
+ * XXX this needs some work
+ */
+struct fairq_opts {
+	u_int           nbuckets;
+	u_int           hogs_m1;
+	int             flags;
+
+	/* link sharing service curve */
+	u_int           lssc_m1;
+	u_int           lssc_d;
+	u_int           lssc_m2;
 };
 
 struct pf_altq {
@@ -89,8 +109,10 @@ struct pf_altq {
 	uint16_t		 flags;		/* misc flags */
 	union {
 		struct cbq_opts		 cbq_opts;
+		struct codel_opts	 codel_opts;
 		struct priq_opts	 priq_opts;
 		struct hfsc_opts	 hfsc_opts;
+		struct fairq_opts        fairq_opts;
 	} pq_u;
 
 	uint32_t		 qid;		/* return value */

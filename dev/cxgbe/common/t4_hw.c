@@ -262,6 +262,8 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 	for (i = 0; i < size; i += 8, p++)
 		t4_write_reg64(adap, data_reg + i, be64_to_cpu(*p));
 
+	CH_DUMP_MBOX(adap, mbox, data_reg);
+
 	t4_write_reg(adap, ctl_reg, F_MBMSGVALID | V_MBOWNER(X_MBOWNER_FW));
 	t4_read_reg(adap, ctl_reg);          /* flush write */
 
@@ -286,6 +288,8 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 					     V_MBOWNER(X_MBOWNER_NONE));
 				continue;
 			}
+
+			CH_DUMP_MBOX(adap, mbox, data_reg);
 
 			res = t4_read_reg64(adap, data_reg);
 			if (G_FW_CMD_OP(res >> 32) == FW_DEBUG_CMD) {
@@ -5695,6 +5699,7 @@ int __devinit t4_port_init(struct port_info *p, int mbox, int pf, int vf)
 	struct fw_port_cmd c;
 	u16 rss_size;
 	adapter_t *adap = p->adapter;
+	u32 param, val;
 
 	memset(&c, 0, sizeof(c));
 
@@ -5732,6 +5737,17 @@ int __devinit t4_port_init(struct port_info *p, int mbox, int pf, int vf)
 	p->mod_type = G_FW_PORT_CMD_MODTYPE(ret);
 
 	init_link_config(&p->link_cfg, ntohs(c.u.info.pcap));
+
+	param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_RSSINFO) |
+	    V_FW_PARAMS_PARAM_YZ(p->viid);
+	ret = t4_query_params(adap, mbox, pf, vf, 1, &param, &val);
+	if (ret)
+		p->rss_base = 0xffff;
+	else {
+		/* MPASS((val >> 16) == rss_size); */
+		p->rss_base = val & 0xffff;
+	}
 
 	return 0;
 }

@@ -191,29 +191,28 @@ ar933x_chip_set_pll_ge(int unit, int speed, uint32_t pll)
 }
 
 static void
-ar933x_chip_ddr_flush_ge(int unit)
+ar933x_chip_ddr_flush(ar71xx_flush_ddr_id_t id)
 {
 
-	switch (unit) {
-	case 0:
+	switch (id) {
+	case AR71XX_CPU_DDR_FLUSH_GE0:
 		ar71xx_ddr_flush(AR933X_DDR_REG_FLUSH_GE0);
 		break;
-	case 1:
+	case AR71XX_CPU_DDR_FLUSH_GE1:
 		ar71xx_ddr_flush(AR933X_DDR_REG_FLUSH_GE1);
 		break;
+	case AR71XX_CPU_DDR_FLUSH_USB:
+		ar71xx_ddr_flush(AR933X_DDR_REG_FLUSH_USB);
+		break;
+	case AR71XX_CPU_DDR_FLUSH_WMAC:
+		ar71xx_ddr_flush(AR933X_DDR_REG_FLUSH_WMAC);
+		break;
 	default:
-		printf("%s: invalid DDR flush for arge unit: %d\n",
-		    __func__, unit);
-		return;
+		printf("%s: invalid DDR flush id (%d)\n", __func__, id);
+		break;
 	}
 }
 
-static void
-ar933x_chip_ddr_flush_ip2(void)
-{
-
-	ar71xx_ddr_flush(AR933X_DDR_REG_FLUSH_WMAC);
-}
 
 static uint32_t
 ar933x_chip_get_eth_pll(unsigned int mac, int speed)
@@ -348,9 +347,8 @@ struct ar71xx_cpu_def ar933x_chip_def = {
 	&ar933x_chip_set_pll_ge,
 	&ar933x_chip_set_mii_speed,
 	&ar71xx_chip_set_mii_if,
-	&ar933x_chip_ddr_flush_ge,
 	&ar933x_chip_get_eth_pll,
-	&ar933x_chip_ddr_flush_ip2,
+	&ar933x_chip_ddr_flush,
 	&ar933x_chip_init_usb_peripheral,
 	NULL,
 	NULL,

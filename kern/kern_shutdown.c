@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/eventhandler.h>
+#include <sys/filedesc.h>
 #include <sys/jail.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -136,6 +137,10 @@ static int show_busybufs = 1;
 SYSCTL_INT(_kern_shutdown, OID_AUTO, show_busybufs, CTLFLAG_RW,
 	&show_busybufs, 0, "");
 
+int suspend_blocked = 0;
+SYSCTL_INT(_kern, OID_AUTO, suspend_blocked, CTLFLAG_RW,
+	&suspend_blocked, 0, "Block suspend due to a pending shutdown");
+
 /*
  * Variable panicstr contains argument to first call to panic; used as flag
  * to indicate that the kernel has already called panic.
@@ -150,11 +155,16 @@ static struct dumperinfo dumper;	/* our selected dumper */
 static struct pcb dumppcb;		/* Registers. */
 lwpid_t dumptid;			/* Thread ID. */
 
+static struct cdevsw reroot_cdevsw = {
+     .d_version = D_VERSION,
+     .d_name    = "reroot",
+};
+
 static void poweroff_wait(void *, int);
 static void shutdown_halt(void *junk, int howto);
 static void shutdown_panic(void *junk, int howto);
 static void shutdown_reset(void *junk, int howto);
-static void vpanic(const char *fmt, va_list ap) __dead2;
+static int kern_reroot(void);
 
 /* register various local shutdown events */
 static void
@@ -174,6 +184,26 @@ shutdown_conf(void *unused)
 SYSINIT(shutdown_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, shutdown_conf, NULL);
 
 /*
+ * The only reason this exists is to create the /dev/reroot/ directory,
+ * used by reroot code in init(8) as a mountpoint for tmpfs.
+ */
+static void
+reroot_conf(void *unused)
+{
+	int error;
+	struct cdev *cdev;
+
+	error = make_dev_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK, &cdev,
+	    &reroot_cdevsw, NULL, UID_ROOT, GID_WHEEL, 0600, "reroot/reroot");
+	if (error != 0) {
+		printf("%s: failed to create device node, error %d",
+		    __func__, error);
+	}
+}
+
+SYSINIT(reroot_conf, SI_SUB_DEVFS, SI_ORDER_ANY, reroot_conf, NULL);
+
+/*
  * The system call that results in a reboot.
  */
 /* ARGSUSED */
@@ -189,9 +219,13 @@ sys_reboot(struct thread *td, struct reboot_args *uap)
 	if (error == 0)
 		error = priv_check(td, PRIV_REBOOT);
 	if (error == 0) {
-		mtx_lock(&Giant);
-		kern_reboot(uap->opt);
-		mtx_unlock(&Giant);
+		if (uap->opt & RB_REROOT) {
+			error = kern_reroot();
+		} else {
+			mtx_lock(&Giant);
+			kern_reboot(uap->opt);
+			mtx_unlock(&Giant);
+		}
 	}
 	return (error);
 }
@@ -276,24 +310,13 @@ doadump(boolean_t textdump)
 	return (error);
 }
 
-static int
-isbufbusy(struct buf *bp)
-{
-	if (((bp->b_flags & (B_INVAL | B_PERSISTENT)) == 0 &&
-	    BUF_ISLOCKED(bp)) ||
-	    ((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI))
-		return (1);
-	return (0);
-}
-
 /*
  * Shutdown the system cleanly to prepare for reboot, halt, or power off.
  */
 void
 kern_reboot(int howto)
 {
-	static int first_buf_printf = 1;
-	static int waittime = -1;
+	static int once = 0;
 
 #if defined(SMP)
 	/*
@@ -322,116 +345,9 @@ kern_reboot(int howto)
 	/* 
 	 * Now sync filesystems
 	 */
-	if (!cold && (howto & RB_NOSYNC) == 0 && waittime < 0) {
-		register struct buf *bp;
-		int iter, nbusy, pbusy;
-#ifndef PREEMPTION
-		int subiter;
-#endif
-
-		waittime = 0;
-
-		wdog_kern_pat(WD_LASTVAL);
-		sys_sync(curthread, NULL);
-
-		/*
-		 * With soft updates, some buffers that are
-		 * written will be remarked as dirty until other
-		 * buffers are written.
-		 */
-		for (iter = pbusy = 0; iter < 20; iter++) {
-			nbusy = 0;
-			for (bp = &buf[nbuf]; --bp >= buf; )
-				if (isbufbusy(bp))
-					nbusy++;
-			if (nbusy == 0) {
-				if (first_buf_printf)
-					printf("All buffers synced.");
-				break;
-			}
-			if (first_buf_printf) {
-				printf("Syncing disks, buffers remaining... ");
-				first_buf_printf = 0;
-			}
-			printf("%d ", nbusy);
-			if (nbusy < pbusy)
-				iter = 0;
-			pbusy = nbusy;
-
-			wdog_kern_pat(WD_LASTVAL);
-			sys_sync(curthread, NULL);
-
-#ifdef PREEMPTION
-			/*
-			 * Drop Giant and spin for a while to allow
-			 * interrupt threads to run.
-			 */
-			DROP_GIANT();
-			DELAY(50000 * iter);
-			PICKUP_GIANT();
-#else
-			/*
-			 * Drop Giant and context switch several times to
-			 * allow interrupt threads to run.
-			 */
-			DROP_GIANT();
-			for (subiter = 0; subiter < 50 * iter; subiter++) {
-				thread_lock(curthread);
-				mi_switch(SW_VOL, NULL);
-				thread_unlock(curthread);
-				DELAY(1000);
-			}
-			PICKUP_GIANT();
-#endif
-		}
-		printf("\n");
-		/*
-		 * Count only busy local buffers to prevent forcing 
-		 * a fsck if we're just a client of a wedged NFS server
-		 */
-		nbusy = 0;
-		for (bp = &buf[nbuf]; --bp >= buf; ) {
-			if (isbufbusy(bp)) {
-#if 0
-/* XXX: This is bogus.  We should probably have a BO_REMOTE flag instead */
-				if (bp->b_dev == NULL) {
-					TAILQ_REMOVE(&mountlist,
-					    bp->b_vp->v_mount, mnt_list);
-					continue;
-				}
-#endif
-				nbusy++;
-				if (show_busybufs > 0) {
-					printf(
-	    "%d: buf:%p, vnode:%p, flags:%0x, blkno:%jd, lblkno:%jd, buflock:",
-					    nbusy, bp, bp->b_vp, bp->b_flags,
-					    (intmax_t)bp->b_blkno,
-					    (intmax_t)bp->b_lblkno);
-					BUF_LOCKPRINTINFO(bp);
-					if (show_busybufs > 1)
-						vn_printf(bp->b_vp,
-						    "vnode content: ");
-				}
-			}
-		}
-		if (nbusy) {
-			/*
-			 * Failed to sync all blocks. Indicate this and don't
-			 * unmount filesystems (thus forcing an fsck on reboot).
-			 */
-			printf("Giving up on %d buffers\n", nbusy);
-			DELAY(5000000);	/* 5 seconds */
-		} else {
-			if (!first_buf_printf)
-				printf("Final sync complete\n");
-			/*
-			 * Unmount filesystems
-			 */
-			if (panicstr == 0)
-				vfs_unmountall();
-		}
-		swapoff_all();
-		DELAY(100000);		/* wait for console output to finish */
+	if (!cold && (howto & RB_NOSYNC) == 0 && once == 0) {
+		once = 1;
+		bufshutdown(show_busybufs);
 	}
 
 	print_uptime();
@@ -452,6 +368,102 @@ kern_reboot(int howto)
 
 	for(;;) ;	/* safety against shutdown_reset not working */
 	/* NOTREACHED */
+}
+
+/*
+ * The system call that results in changing the rootfs.
+ */
+static int
+kern_reroot(void)
+{
+	struct vnode *oldrootvnode, *vp;
+	struct mount *mp, *devmp;
+	int error;
+
+	if (curproc != initproc)
+		return (EPERM);
+
+	/*
+	 * Mark the filesystem containing currently-running executable
+	 * (the temporary copy of init(8)) busy.
+	 */
+	vp = curproc->p_textvp;
+	error = vn_lock(vp, LK_SHARED);
+	if (error != 0)
+		return (error);
+	mp = vp->v_mount;
+	error = vfs_busy(mp, MBF_NOWAIT);
+	if (error != 0) {
+		vfs_ref(mp);
+		VOP_UNLOCK(vp, 0);
+		error = vfs_busy(mp, 0);
+		vn_lock(vp, LK_SHARED | LK_RETRY);
+		vfs_rel(mp);
+		if (error != 0) {
+			VOP_UNLOCK(vp, 0);
+			return (ENOENT);
+		}
+		if (vp->v_iflag & VI_DOOMED) {
+			VOP_UNLOCK(vp, 0);
+			vfs_unbusy(mp);
+			return (ENOENT);
+		}
+	}
+	VOP_UNLOCK(vp, 0);
+
+	/*
+	 * Remove the filesystem containing currently-running executable
+	 * from the mount list, to prevent it from being unmounted
+	 * by vfs_unmountall(), and to avoid confusing vfs_mountroot().
+	 *
+	 * Also preserve /dev - forcibly unmounting it could cause driver
+	 * reinitialization.
+	 */
+
+	vfs_ref(rootdevmp);
+	devmp = rootdevmp;
+	rootdevmp = NULL;
+
+	mtx_lock(&mountlist_mtx);
+	TAILQ_REMOVE(&mountlist, mp, mnt_list);
+	TAILQ_REMOVE(&mountlist, devmp, mnt_list);
+	mtx_unlock(&mountlist_mtx);
+
+	oldrootvnode = rootvnode;
+
+	/*
+	 * Unmount everything except for the two filesystems preserved above.
+	 */
+	vfs_unmountall();
+
+	/*
+	 * Add /dev back; vfs_mountroot() will move it into its new place.
+	 */
+	mtx_lock(&mountlist_mtx);
+	TAILQ_INSERT_HEAD(&mountlist, devmp, mnt_list);
+	mtx_unlock(&mountlist_mtx);
+	rootdevmp = devmp;
+	vfs_rel(rootdevmp);
+
+	/*
+	 * Mount the new rootfs.
+	 */
+	vfs_mountroot();
+
+	/*
+	 * Update all references to the old rootvnode.
+	 */
+	mountcheckdirs(oldrootvnode, rootvnode);
+
+	/*
+	 * Add the temporary filesystem back and unbusy it.
+	 */
+	mtx_lock(&mountlist_mtx);
+	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+	mtx_unlock(&mountlist_mtx);
+	vfs_unbusy(mp);
+
+	return (0);
 }
 
 /*
@@ -676,7 +688,7 @@ panic(const char *fmt, ...)
 	vpanic(fmt, ap);
 }
 
-static void
+void
 vpanic(const char *fmt, va_list ap)
 {
 #ifdef SMP
@@ -701,10 +713,8 @@ vpanic(const char *fmt, va_list ap)
 	}
 
 	/*
-	 * We set stop_scheduler here and not in the block above,
-	 * because we want to ensure that if panic has been called and
-	 * stop_scheduler_on_panic is true, then stop_scheduler will
-	 * always be set.  Even if panic has been entered from kdb.
+	 * Ensure that the scheduler is stopped while panicking, even if panic
+	 * has been entered from kdb.
 	 */
 	td->td_stopsched = 1;
 #endif
@@ -876,16 +886,16 @@ mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
 {
 
 	bzero(kdh, sizeof(*kdh));
-	strncpy(kdh->magic, magic, sizeof(kdh->magic));
-	strncpy(kdh->architecture, MACHINE_ARCH, sizeof(kdh->architecture));
+	strlcpy(kdh->magic, magic, sizeof(kdh->magic));
+	strlcpy(kdh->architecture, MACHINE_ARCH, sizeof(kdh->architecture));
 	kdh->version = htod32(KERNELDUMPVERSION);
 	kdh->architectureversion = htod32(archver);
 	kdh->dumplength = htod64(dumplen);
 	kdh->dumptime = htod64(time_second);
 	kdh->blocksize = htod32(blksz);
-	strncpy(kdh->hostname, prison0.pr_hostname, sizeof(kdh->hostname));
-	strncpy(kdh->versionstring, version, sizeof(kdh->versionstring));
+	strlcpy(kdh->hostname, prison0.pr_hostname, sizeof(kdh->hostname));
+	strlcpy(kdh->versionstring, version, sizeof(kdh->versionstring));
 	if (panicstr != NULL)
-		strncpy(kdh->panicstring, panicstr, sizeof(kdh->panicstring));
+		strlcpy(kdh->panicstring, panicstr, sizeof(kdh->panicstring));
 	kdh->parity = kerneldump_parity(kdh);
 }

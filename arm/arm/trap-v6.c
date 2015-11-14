@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_param.h>
 
+#include <machine/acle-compat.h>
 #include <machine/cpu.h>
 #include <machine/cpu-v6.h>
 #include <machine/frame.h>
@@ -66,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 extern char fusubailout[];
+extern char cachebailout[];
 
 #ifdef DEBUG
 int last_fault_code;	/* For the benefit of pmap_fault_fixup() */
@@ -96,18 +98,18 @@ struct abort {
  *  - Always fatal as we do not know what does it mean.
  * Imprecise External Abort:
  *  - Always fatal, but can be handled somehow in the future.
- *    Now, due to PCIe buggy harware, ignored.
+ *    Now, due to PCIe buggy hardware, ignored.
  * Precise External Abort:
  *  - Always fatal, but who knows in the future???
  * Debug Event:
  *  - Special handling.
  * External Translation Abort (L1 & L2)
- *  - Always fatal as something is screwed up in page tables or harware.
+ *  - Always fatal as something is screwed up in page tables or hardware.
  * Domain Fault (L1 & L2):
  *  - Always fatal as we do not play game with domains.
  * Alignment Fault:
- *  - Everything should be aligned in kernel including user to kernel and
- *    vice versa data copying, so we ignore pcb_onfault, and it's always fatal.
+ *  - Everything should be aligned in kernel with exception of user to kernel
+ *    and vice versa data copying, so if pcb_onfault is not set, it's fatal.
  *    We generate signal in case of abort from user mode.
  * Instruction cache maintenance:
  *  - According to manual, this is translation fault during cache maintenance
@@ -123,7 +125,7 @@ struct abort {
  * Translation Fault (L1 & L2):
  *  - Standard fault mechanism is held including vm_fault().
  * Permission Fault (L1 & L2):
- *  - Fast harware emulation of modify bits and in other cases, standard
+ *  - Fast hardware emulation of modify bits and in other cases, standard
  *    fault mechanism is held including vm_fault().
  */
 
@@ -132,7 +134,7 @@ static const struct abort aborts[] = {
 	{abort_align,	"Alignment Fault"},
 	{abort_fatal,	"Debug Event"},
 	{NULL,		"Access Bit (L1)"},
-	{abort_icache,	"Instruction cache maintenance"},
+	{NULL,		"Instruction cache maintenance"},
 	{NULL,		"Translation Fault (L1)"},
 	{NULL,		"Access Bit (L2)"},
 	{NULL,		"Translation Fault (L2)"},
@@ -165,7 +167,6 @@ static const struct abort aborts[] = {
 	{abort_fatal,	"Undefined Code (0x40F)"}
 };
 
-
 static __inline void
 call_trapsignal(struct thread *td, int sig, int code, vm_offset_t addr)
 {
@@ -193,7 +194,7 @@ call_trapsignal(struct thread *td, int sig, int code, vm_offset_t addr)
  *
  * The imprecise means that we don't know where the abort happened,
  * thus FAR is undefined. The abort should not never fire, but hot
- * plugging or accidental harware failure can be the cause of it.
+ * plugging or accidental hardware failure can be the cause of it.
  * If the abort happens, it can even be on different (thread) context.
  * Without any additional support, the abort is fatal, as we do not
  * know what really happened.
@@ -210,9 +211,11 @@ call_trapsignal(struct thread *td, int sig, int code, vm_offset_t addr)
  *	FAULT_IS_NOT_MINE value, then the abort is fatal.
  */
 static __inline void
-abort_imprecise(struct trapframe *tf, u_int fsr, u_int prefetch, u_int usermode)
+abort_imprecise(struct trapframe *tf, u_int fsr, u_int prefetch, bool usermode)
 {
-	/* XXXX  We can got imprecise abort as result of access
+
+	/*
+	 * XXX - We can got imprecise abort as result of access
 	 * to not-present PCI/PCIe configuration space.
 	 */
 #if 0
@@ -240,9 +243,10 @@ out:
  *
  */
 static __inline void
-abort_debug(struct trapframe *tf, u_int fsr, u_int prefetch, u_int usermode,
+abort_debug(struct trapframe *tf, u_int fsr, u_int prefetch, bool usermode,
     u_int far)
 {
+
 	if (usermode) {
 		struct thread *td;
 
@@ -273,7 +277,7 @@ abort_handler(struct trapframe *tf, int prefetch)
 {
 	struct thread *td;
 	vm_offset_t far, va;
-	int idx, usermode;
+	int idx, rv;
 	uint32_t fsr;
 	struct ksig ksig;
 	struct proc *p;
@@ -281,13 +285,17 @@ abort_handler(struct trapframe *tf, int prefetch)
 	struct vm_map *map;
 	struct vmspace *vm;
 	vm_prot_t ftype;
-	int rv;
+	bool usermode;
 #ifdef INVARIANTS
 	void *onfault;
 #endif
 	td = curthread;
 	fsr = (prefetch) ? cp15_ifsr_get(): cp15_dfsr_get();
+#if __ARM_ARCH >= 7
+	far = (prefetch) ? cp15_ifar_get() : cp15_dfar_get();
+#else
 	far = (prefetch) ? TRAPF_PC(tf) : cp15_dfar_get();
+#endif
 
 	idx = FSR_TO_FAULT(fsr);
 	usermode = TRAPF_USERMODE(tf);	/* Abort came from user mode? */
@@ -310,6 +318,18 @@ abort_handler(struct trapframe *tf, int prefetch)
 		return;
 	}
 
+	/*
+	 * ARM has a set of unprivileged load and store instructions
+	 * (LDRT/LDRBT/STRT/STRBT ...) which are supposed to be used in other
+	 * than user mode and OS should recognize their aborts and behave
+	 * appropriately. However, there is no way how to do that reasonably
+	 * in general unless we restrict the handling somehow.
+	 *
+	 * For now, these instructions are used only in copyin()/copyout()
+	 * like functions where usermode buffers are checked in advance that
+	 * they are not from KVA space. Thus, no action is needed here.
+	 */
+
 #ifdef ARM_NEW_PMAP
 	rv = pmap_fault(PCPU_GET(curpmap), far, fsr, idx, usermode);
 	if (rv == 0) {
@@ -324,7 +344,6 @@ abort_handler(struct trapframe *tf, int prefetch)
 	/*
 	 * Now, when we handled imprecise and debug aborts, the rest of
 	 * aborts should be really related to mapping.
-	 *
 	 */
 
 	PCPU_INC(cnt.v_trap);
@@ -389,13 +408,31 @@ abort_handler(struct trapframe *tf, int prefetch)
 	p = td->td_proc;
 	if (usermode) {
 		td->td_pticks = 0;
-		if (td->td_ucred != p->p_ucred)
-			cred_update_thread(td);
+		if (td->td_cowgen != p->p_cowgen)
+			thread_cow_update(td);
 	}
 
 	/* Invoke the appropriate handler, if necessary. */
 	if (__predict_false(aborts[idx].func != NULL)) {
 		if ((aborts[idx].func)(tf, idx, fsr, far, prefetch, td, &ksig))
+			goto do_trapsignal;
+		goto out;
+	}
+
+	/*
+	 * Don't pass faulting cache operation to vm_fault(). We don't want
+	 * to handle all vm stuff at this moment.
+	 */
+	pcb = td->td_pcb;
+	if (__predict_false(pcb->pcb_onfault == cachebailout)) {
+		tf->tf_r0 = far;		/* return failing address */
+		tf->tf_pc = (register_t)pcb->pcb_onfault;
+		return;
+	}
+
+	/* Handle remaining I-cache aborts. */
+	if (idx == FAULT_ICACHE) {
+		if (abort_icache(tf, idx, fsr, far, prefetch, td, &ksig))
 			goto do_trapsignal;
 		goto out;
 	}
@@ -410,26 +447,13 @@ abort_handler(struct trapframe *tf, int prefetch)
 	 * the MMU.
 	 */
 
-	/* fusubailout is used by [fs]uswintr to avoid page faulting */
+	/* fusubailout is used by [fs]uswintr to avoid page faulting. */
 	pcb = td->td_pcb;
 	if (__predict_false(pcb->pcb_onfault == fusubailout)) {
 		tf->tf_r0 = EFAULT;
 		tf->tf_pc = (register_t)pcb->pcb_onfault;
 		return;
 	}
-
-	/*
-	 * QQQ: ARM has a set of unprivileged load and store instructions
-	 *      (LDRT/LDRBT/STRT/STRBT ...) which are supposed to be used
-	 *      in other than user mode and OS should recognize their
-	 *      aborts and behaved appropriately. However, there is no way
-	 *      how to do that reasonably in general unless we restrict
-	 *      the handling somehow. One way is to limit the handling for
-	 *      aborts which come from undefined mode only.
-	 *
-	 *      Anyhow, we do not use these instructions and do not implement
-	 *      any special handling for them.
-	 */
 
 	va = trunc_page(far);
 	if (va >= KERNBASE) {
@@ -476,28 +500,9 @@ abort_handler(struct trapframe *tf, int prefetch)
 	onfault = pcb->pcb_onfault;
 	pcb->pcb_onfault = NULL;
 #endif
-	if (map != kernel_map) {
-		/*
-		 * Keep swapout from messing with us during this
-		 *	critical time.
-		 */
-		PROC_LOCK(p);
-		++p->p_lock;
-		PROC_UNLOCK(p);
 
-		/* Fault in the user page: */
-		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-
-		PROC_LOCK(p);
-		--p->p_lock;
-		PROC_UNLOCK(p);
-	} else {
-		/*
-		 * Don't have to worry about process locking or stacks in the
-		 * kernel.
-		 */
-		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-	}
+	/* Fault in the page. */
+	rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 
 #ifdef INVARIANTS
 	pcb->pcb_onfault = onfault;
@@ -518,8 +523,8 @@ nogo:
 		return;
 	}
 
-	ksig.sig = (rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV;
-	ksig.code = 0;
+	ksig.sig = SIGSEGV;
+	ksig.code = (rv == KERN_PROTECTION_FAILURE) ? SEGV_ACCERR : SEGV_MAPERR;
 	ksig.addr = far;
 
 do_trapsignal:
@@ -531,7 +536,7 @@ out:
 
 /*
  * abort_fatal() handles the following data aborts:
-
+ *
  *  FAULT_DEBUG		- Debug Event
  *  FAULT_ACCESS_xx	- Acces Bit
  *  FAULT_EA_PREC	- Precise External Abort
@@ -548,10 +553,10 @@ out:
  * Note: If 'l' is NULL, we assume we're dealing with a prefetch abort.
  */
 static int
-abort_fatal(struct trapframe *tf, u_int idx, u_int fsr, u_int far, u_int prefetch,
-    struct thread *td, struct ksig *ksig)
+abort_fatal(struct trapframe *tf, u_int idx, u_int fsr, u_int far,
+    u_int prefetch, struct thread *td, struct ksig *ksig)
 {
-	u_int usermode;
+	bool usermode;
 	const char *mode;
 	const char *rw_mode;
 
@@ -604,37 +609,28 @@ abort_fatal(struct trapframe *tf, u_int idx, u_int fsr, u_int far, u_int prefetc
  *
  *  FAULT_ALIGN - Alignment fault
  *
- * Every memory access should be correctly aligned in kernel including
- * user to kernel and vice versa data copying, so we ignore pcb_onfault,
- * and it's always fatal. We generate a signal in case of abort from user mode.
+ * Everything should be aligned in kernel with exception of user to kernel 
+ * and vice versa data copying, so if pcb_onfault is not set, it's fatal.
+ * We generate signal in case of abort from user mode.
  */
 static int
-abort_align(struct trapframe *tf, u_int idx, u_int fsr, u_int far, u_int prefetch,
-    struct thread *td, struct ksig *ksig)
+abort_align(struct trapframe *tf, u_int idx, u_int fsr, u_int far,
+    u_int prefetch, struct thread *td, struct ksig *ksig)
 {
-	u_int usermode;
+	bool usermode;
 
 	usermode = TRAPF_USERMODE(tf);
-
-	/*
-	 * Alignment faults are always fatal if they occur in any but user mode.
-	 *
-	 * XXX The old trap code handles pcb fault even for alignment traps.
-	 * Unfortunately, we don't known why and if is this need.
-	 */
 	if (!usermode) {
 		if (td->td_intr_nesting_level == 0 && td != NULL &&
 		    td->td_pcb->pcb_onfault != NULL) {
-			printf("%s: Got alignment fault with pcb_onfault set"
-			    ", please report this issue\n", __func__);
-			tf->tf_r0 = EFAULT;;
+			tf->tf_r0 = EFAULT;
 			tf->tf_pc = (int)td->td_pcb->pcb_onfault;
 			return (0);
 		}
 		abort_fatal(tf, idx, fsr, far, prefetch, td, ksig);
 	}
 	/* Deliver a bus error signal to the process */
-	ksig->code = 0;
+	ksig->code = BUS_ADRALN;
 	ksig->sig = SIGBUS;
 	ksig->addr = far;
 	return (1);
@@ -655,9 +651,10 @@ abort_align(struct trapframe *tf, u_int idx, u_int fsr, u_int far, u_int prefetc
  * should be held here including vm_fault() calling.
  */
 static int
-abort_icache(struct trapframe *tf, u_int idx, u_int fsr, u_int far, u_int prefetch,
-    struct thread *td, struct ksig *ksig)
+abort_icache(struct trapframe *tf, u_int idx, u_int fsr, u_int far,
+    u_int prefetch, struct thread *td, struct ksig *ksig)
 {
+
 	abort_fatal(tf, idx, fsr, far, prefetch, td, ksig);
 	return(0);
 }

@@ -1,30 +1,34 @@
 /*-
- * Copyright (c) 2010-2011 Solarflare Communications, Inc.
+ * Copyright (c) 2010-2015 Solarflare Communications Inc.
  * All rights reserved.
  *
  * This software was developed in part by Philip Paeps under contract for
  * Solarflare Communications, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are
+ * those of the authors and should not be interpreted as representing official
+ * policies, either expressed or implied, of the FreeBSD Project.
  *
  * $FreeBSD$
  */
@@ -128,12 +132,6 @@ enum sfxge_txq_type {
 
 #define	SFXGE_TX_BATCH	64
 
-#ifdef SFXGE_HAVE_MQ
-#define	SFXGE_TX_LOCK(txq)		(&(txq)->lock)
-#else
-#define	SFXGE_TX_LOCK(txq)		(&(txq)->sc->tx_lock)
-#endif
-
 #define	SFXGE_TXQ_LOCK_INIT(_txq, _ifname, _txq_index)			\
 	do {								\
 		struct sfxge_txq  *__txq = (_txq);			\
@@ -147,13 +145,15 @@ enum sfxge_txq_type {
 #define	SFXGE_TXQ_LOCK_DESTROY(_txq)					\
 	mtx_destroy(&(_txq)->lock)
 #define	SFXGE_TXQ_LOCK(_txq)						\
-	mtx_lock(SFXGE_TX_LOCK(_txq))
+	mtx_lock(&(_txq)->lock)
 #define	SFXGE_TXQ_TRYLOCK(_txq)						\
-	mtx_trylock(SFXGE_TX_LOCK(_txq))
+	mtx_trylock(&(_txq)->lock)
 #define	SFXGE_TXQ_UNLOCK(_txq)						\
-	mtx_unlock(SFXGE_TX_LOCK(_txq))
+	mtx_unlock(&(_txq)->lock)
 #define	SFXGE_TXQ_LOCK_ASSERT_OWNED(_txq)				\
-	mtx_assert(SFXGE_TX_LOCK(_txq), MA_OWNED)
+	mtx_assert(&(_txq)->lock, MA_OWNED)
+#define	SFXGE_TXQ_LOCK_ASSERT_NOTOWNED(_txq)				\
+	mtx_assert(&(_txq)->lock, MA_NOTOWNED)
 
 
 struct sfxge_txq {
@@ -168,10 +168,11 @@ struct sfxge_txq {
 	unsigned int			buf_base_id;
 	unsigned int			entries;
 	unsigned int			ptr_mask;
+	unsigned int			max_pkt_desc;
 
 	struct sfxge_tx_mapping		*stmp;	/* Packets in flight. */
 	bus_dma_tag_t			packet_dma_tag;
-	efx_buffer_t			*pend_desc;
+	efx_desc_t			*pend_desc;
 	efx_txq_t			*common;
 
 	efsys_mem_t			*tsoh_buffer;
@@ -186,15 +187,16 @@ struct sfxge_txq {
 	/* The following fields change more often, and are used mostly
 	 * on the initiation path
 	 */
-#ifdef SFXGE_HAVE_MQ
 	struct mtx			lock __aligned(CACHE_LINE_SIZE);
 	struct sfxge_tx_dpl		dpl;	/* Deferred packet list. */
 	unsigned int			n_pend_desc;
-#else
-	unsigned int			n_pend_desc __aligned(CACHE_LINE_SIZE);
-#endif
 	unsigned int			added;
 	unsigned int			reaped;
+
+	/* The last VLAN TCI seen on the queue if FW-assisted tagging is
+	   used */
+	uint16_t			hw_vlan_tci;
+
 	/* Statistics */
 	unsigned long			tso_bursts;
 	unsigned long			tso_packets;
@@ -218,7 +220,6 @@ struct sfxge_txq {
 
 struct sfxge_evq;
 
-extern int sfxge_tx_packet_add(struct sfxge_txq *, struct mbuf *);
 extern uint64_t sfxge_tx_get_drops(struct sfxge_softc *sc);
 
 extern int sfxge_tx_init(struct sfxge_softc *sc);
@@ -227,11 +228,7 @@ extern int sfxge_tx_start(struct sfxge_softc *sc);
 extern void sfxge_tx_stop(struct sfxge_softc *sc);
 extern void sfxge_tx_qcomplete(struct sfxge_txq *txq, struct sfxge_evq *evq);
 extern void sfxge_tx_qflush_done(struct sfxge_txq *txq);
-#ifdef SFXGE_HAVE_MQ
 extern void sfxge_if_qflush(struct ifnet *ifp);
 extern int sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m);
-#else
-extern void sfxge_if_start(struct ifnet *ifp);
-#endif
 
 #endif

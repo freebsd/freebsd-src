@@ -408,6 +408,15 @@ hv_util_attach(device_t dev)
 	    }
 	}
 
+	/*
+	 * These services are not performance critical and do not need
+	 * batched reading. Furthermore, some services such as KVP can
+	 * only handle one message from the host at a time.
+	 * Turn off batched reading for all util drivers before we open the
+	 * channel.
+	 */
+	hv_set_channel_read_state(hv_dev->channel, FALSE);
+
 	ret = hv_vmbus_channel_open(hv_dev->channel, 4 * PAGE_SIZE,
 		    4 * PAGE_SIZE, NULL, 0,
 		    service->callback, hv_dev->channel);

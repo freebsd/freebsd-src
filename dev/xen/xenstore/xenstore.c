@@ -1124,7 +1124,7 @@ xs_probe(device_t dev)
 	 * Unconditionally return success.
 	 */
 	device_set_desc(dev, "XenStore");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static void
@@ -1427,7 +1427,6 @@ xs_rm_tree(struct xs_transaction xbt, const char *base, const char *node)
 	char *cur_path;
 	const char **dir;
 	int error;
-	int empty;
 
 retry:
 	root_path_sbuf = xs_join(base, node);
@@ -1444,7 +1443,6 @@ retry:
 		xbt = local_xbt;
 	}
 
-	empty = 0;
 	while (1) {
 		u_int count;
 		u_int i;

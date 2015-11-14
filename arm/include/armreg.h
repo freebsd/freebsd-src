@@ -133,6 +133,7 @@
 #define CPU_ID_CORTEXA9R1	0x411fc090
 #define CPU_ID_CORTEXA9R2	0x412fc090
 #define CPU_ID_CORTEXA9R3	0x413fc090
+#define CPU_ID_CORTEXA9R4	0x414fc090
 #define CPU_ID_CORTEXA12R0	0x410fc0d0
 #define CPU_ID_CORTEXA15R0	0x410fc0f0
 #define CPU_ID_CORTEXA15R1	0x411fc0f0
@@ -284,7 +285,7 @@
 					    * in r0 steppings. See errata
 					    * 364296.
 					    */
-/* ARM1176 Auxiliary Control Register (CP15 register 1, opcode2 1) */   
+/* ARM1176 Auxiliary Control Register (CP15 register 1, opcode2 1) */
 #define	ARM1176_AUXCTL_PHD	0x10000000 /* inst. prefetch halting disable */
 #define	ARM1176_AUXCTL_BFD	0x20000000 /* branch folding disable */
 #define	ARM1176_AUXCTL_FSD	0x40000000 /* force speculative ops disable */
@@ -346,6 +347,9 @@
 #define	CPUV7_CT_xSIZE_ASSOC(x)	(((x) >> 3) & 0x3ff)	/* associativity */
 #define	CPUV7_CT_xSIZE_SET(x)	(((x) >> 13) & 0x7fff)	/* num sets */
 
+#define	CPUV7_L2CTLR_NPROC_SHIFT	24
+#define	CPUV7_L2CTLR_NPROC(r)	((((r) >> CPUV7_L2CTLR_NPROC_SHIFT) & 3) + 1)
+
 #define	CPU_CLIDR_CTYPE(reg,x)	(((reg) >> ((x) * 3)) & 0x7)
 #define	CPU_CLIDR_LOUIS(reg)	(((reg) >> 21) & 0x7)
 #define	CPU_CLIDR_LOC(reg)	(((reg) >> 24) & 0x7)
@@ -399,7 +403,7 @@
 #define FAULT_PERM_L1		0x00D	/* Permission Fault (L1) */
 #define FAULT_EA_TRAN_L2	0x00E	/* External Translation Abort (L2) */
 #define FAULT_PERM_L2		0x00F	/* Permission Fault (L2) */
-#define FAULT_TLB_CONFLICT	0x010	/* Permission Fault (L2) */
+#define FAULT_TLB_CONFLICT	0x010	/* TLB Conflict Abort */
 #define FAULT_EA_IMPREC		0x016	/* Asynchronous External Abort */
 #define FAULT_PE_IMPREC		0x018	/* Asynchronous Parity Error */
 #define FAULT_PARITY		0x019	/* Parity Error */
@@ -439,6 +443,12 @@
 #define INSN_SIZE		4		/* Always 4 bytes */
 #define INSN_COND_MASK		0xf0000000	/* Condition mask */
 #define INSN_COND_AL		0xe0000000	/* Always condition */
+
+/* ARM register defines */
+#define	ARM_REG_SIZE		4
+#define	ARM_REG_NUM_PC		15
+#define	ARM_REG_NUM_LR		14
+#define	ARM_REG_NUM_SP		13
 
 #define THUMB_INSN_SIZE		2		/* Some are 4 bytes.  */
 

@@ -172,7 +172,6 @@ FlCheckForAcpiTable (
 
 ACPI_STATUS
 FlCheckForAscii (
-    FILE                    *Handle,
     char                    *Filename,
     BOOLEAN                 DisplayErrors);
 
@@ -686,6 +685,10 @@ TrAllocateNode (
     UINT32                  ParseOpcode);
 
 void
+TrPrintNodeCompileFlags (
+    UINT32                  Flags);
+
+void
 TrReleaseNode (
     ACPI_PARSE_OBJECT       *Op);
 
@@ -703,6 +706,10 @@ TrCreateNode (
 ACPI_PARSE_OBJECT *
 TrCreateLeafNode (
     UINT32                  ParseOpcode);
+
+ACPI_PARSE_OBJECT *
+TrCreateNullTarget (
+    void);
 
 ACPI_PARSE_OBJECT *
 TrCreateAssignmentNode (
@@ -996,7 +1003,7 @@ UtDoConstant (
     char                    *String);
 
 ACPI_STATUS
-UtStrtoul64 (
+stroul64 (
     char                    *String,
     UINT32                  Base,
     UINT64                  *RetInteger);
