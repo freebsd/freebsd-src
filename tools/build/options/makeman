@@ -198,6 +198,7 @@ variable, which defaults to
 .Pa /etc/src-env.conf .
 Some examples that may only be set in this file are
 .Va MAKEOBJDIRPREFIX ,
+.Va WITH_DIRDEPS_BUILD ,
 and
 .Va WITH_META_MODE
 as they are environment-only variables.
