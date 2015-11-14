@@ -33,8 +33,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/rmlock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -150,11 +148,11 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 	int error = 0;
 	struct scope6_id *sid = NULL;
 
-	if_afdata_wlock(ifp);
+	IF_AFDATA_WLOCK(ifp);
 	sid = SID(ifp);
 
 	if (!sid) {	/* paranoid? */
-		if_afdata_wunlock(ifp);
+		IF_AFDATA_WUNLOCK(ifp);
 		return (EINVAL);
 	}
 
@@ -177,7 +175,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 			 */
 			if (i == IPV6_ADDR_SCOPE_INTFACELOCAL &&
 			    idlist->s6id_list[i] != ifp->if_index) {
-				if_afdata_wunlock(ifp);
+				IF_AFDATA_WUNLOCK(ifp);
 				return (EINVAL);
 			}
 
@@ -189,7 +187,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 				 * IDs, but we check the consistency for
 				 * safety in later use.
 				 */
-				if_afdata_wunlock(ifp);
+				IF_AFDATA_WUNLOCK(ifp);
 				return (EINVAL);
 			}
 
@@ -201,7 +199,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 			sid->s6id_list[i] = idlist->s6id_list[i];
 		}
 	}
-	if_afdata_wunlock(ifp);
+	IF_AFDATA_WUNLOCK(ifp);
 
 	return (error);
 }
@@ -210,7 +208,6 @@ static int
 scope6_get(struct ifnet *ifp, struct scope6_id *idlist)
 {
 	struct scope6_id *sid;
-	struct rm_priotracker if_afdata_tracker;
 
 	/* We only need to lock the interface's afdata for SID() to work. */
 	IF_AFDATA_RLOCK(ifp);
@@ -413,7 +410,6 @@ in6_setscope(struct in6_addr *in6, struct ifnet *ifp, u_int32_t *ret_id)
 	int scope;
 	u_int32_t zoneid = 0;
 	struct scope6_id *sid;
-	struct rm_priotracker if_afdata_tracker;
 
 	/*
 	 * special case: the loopback address can only belong to a loopback

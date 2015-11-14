@@ -129,7 +129,6 @@ fib6_storelladdr(struct ifnet *ifp, struct in6_addr *dst, int mm_flags,
 {
 	struct llentry *ln;
 	struct sockaddr_in6 dst_sa;
-	struct rm_priotracker if_afdata_tracker;
 
 	if (mm_flags & M_MCAST) {
 		ETHER_MAP_IPV6_MULTICAST(&dst, desten);

@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
-#include <sys/rmlock.h>
 #include <sys/queue.h>
 #include <sys/sdt.h>
 #include <sys/sysctl.h>
@@ -1102,7 +1101,6 @@ nd6_is_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 {
 	struct llentry *lle;
 	int rc = 0;
-	struct rm_priotracker if_afdata_tracker;
 
 	IF_AFDATA_UNLOCK_ASSERT(ifp);
 	if (nd6_is_new_addr_neighbor(addr, ifp))
@@ -1268,7 +1266,6 @@ nd6_nud_hint(struct rtentry *rt, struct in6_addr *dst6, int force)
 {
 	struct llentry *ln;
 	struct ifnet *ifp;
-	struct rm_priotracker if_afdata_tracker;
 
 	if ((dst6 == NULL) || (rt == NULL))
 		return;
@@ -1356,7 +1353,6 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	struct nd_defrouter *dr;
 	struct nd_prefix *pr;
 	int i = 0, error = 0;
-	struct rm_priotracker if_afdata_tracker;
 
 	if (ifp->if_afdata[AF_INET6] == NULL)
 		return (EPFNOSUPPORT);
@@ -1682,7 +1678,6 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	struct sockaddr_in6 sin6;
 	struct mbuf *chain = NULL;
 	int static_route = 0;
-	struct rm_priotracker if_afdata_tracker;
 
 	IF_AFDATA_UNLOCK_ASSERT(ifp);
 
@@ -2021,7 +2016,6 @@ nd6_output(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
     struct sockaddr_in6 *dst, struct rtentry *rt0)
 {
 	struct llentry *ln = NULL;
-	struct rm_priotracker if_afdata_tracker;
 
 	/* discard the packet if IPv6 operation is disabled on the interface */
 	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)) {
@@ -2077,7 +2071,6 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
     struct sockaddr_in6 *dst)
 {
 	struct llentry *lle = NULL, *lle_tmp;
-	struct rm_priotracker if_afdata_tracker;
 
 	KASSERT(m != NULL, ("NULL mbuf, nothing to send"));
 	/* discard the packet if IPv6 operation is disabled on the interface */
@@ -2366,7 +2359,6 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
     const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
 {
 	struct llentry *ln;
-	struct rm_priotracker if_afdata_tracker;
 
 	if (pflags != NULL)
 		*pflags = 0;

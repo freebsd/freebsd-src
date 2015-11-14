@@ -375,7 +375,6 @@ arpresolve_fast(struct ifnet *ifp, struct in_addr dst, u_int mflags,
 	int error;
 	struct llentry *la;
 	struct sockaddr_in sin;
-	struct rm_priotracker if_afdata_tracker;
 
 	if (mflags & M_BCAST) {
 		memcpy(dst_addr, ifp->if_broadcastaddr, ifp->if_addrlen);
@@ -432,7 +431,6 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int create, struct mbuf *m,
 	struct mbuf *curr = NULL;
 	struct mbuf *next = NULL;
 	int error, renew;
-	struct rm_priotracker if_afdata_tracker;
 
 	if (pflags != NULL)
 		*pflags = 0;
@@ -558,7 +556,6 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
 {
 	struct llentry *la = 0;
-	struct rm_priotracker if_afdata_tracker;
 
 	if (pflags != NULL)
 		*pflags = 0;
@@ -710,7 +707,6 @@ in_arpinput(struct mbuf *m)
 	struct nhop4_extended nh_ext;
 	struct sockaddr_in sin;
 	struct sockaddr *dst;
-	struct rm_priotracker if_afdata_tracker;
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = 0;
