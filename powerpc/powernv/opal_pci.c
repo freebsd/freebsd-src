@@ -108,7 +108,8 @@ opalpci_probe(device_t dev)
 
 	type = ofw_bus_get_type(dev);
 
-	if (type == NULL || strcmp(type, "pci") != 0)
+	if (type == NULL || (strcmp(type, "pci") != 0 &&
+	    strcmp(type, "pciex") != 0))
 		return (ENXIO);
 
 	if (!OF_hasprop(ofw_bus_get_node(dev), "ibm,opal-phbid"))
