@@ -2512,8 +2512,6 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (error);
 		error = if_setlladdr(ifp,
 		    ifr->ifr_addr.sa_data, ifr->ifr_addr.sa_len);
-		if (error == 0)
-			EVENTHANDLER_INVOKE(iflladdr_event, ifp);
 		break;
 
 	case SIOCAIFGROUP:
@@ -3377,6 +3375,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 			(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
 		}
 	}
+	EVENTHANDLER_INVOKE(iflladdr_event, ifp);
 	return (0);
 }
 

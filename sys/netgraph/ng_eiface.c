@@ -489,8 +489,6 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			error = if_setlladdr(priv->ifp,
 			    (u_char *)msg->data, ETHER_ADDR_LEN);
-			if (error == 0)
-				EVENTHANDLER_INVOKE(iflladdr_event, priv->ifp);
 			break;
 		    }
 

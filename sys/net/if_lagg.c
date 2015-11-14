@@ -690,7 +690,6 @@ lagg_port_setlladdr(void *arg, int pending)
 	struct lagg_softc *sc = (struct lagg_softc *)arg;
 	struct lagg_llq *llq, *head;
 	struct ifnet *ifp;
-	int error;
 
 	/* Grab a local reference of the queue and remove it from the softc */
 	LAGG_WLOCK(sc);
@@ -706,7 +705,6 @@ lagg_port_setlladdr(void *arg, int pending)
 		ifp = llq->llq_ifp;
 
 		CURVNET_SET(ifp->if_vnet);
-		error = 0;
 
 		/*
 		 * Set the link layer address on the laggport interface.
@@ -714,11 +712,8 @@ lagg_port_setlladdr(void *arg, int pending)
 		 * may result in arp transmission / lltable updates.
 		 */
 		if (llq->llq_type == LAGG_LLQTYPE_PHYS)
-			error = if_setlladdr(ifp, llq->llq_lladdr,
+			if_setlladdr(ifp, llq->llq_lladdr,
 			    ETHER_ADDR_LEN);
-		if (error)
-			printf("%s: setlladdr failed on %s\n", __func__,
-			    ifp->if_xname);
 		else
 			EVENTHANDLER_INVOKE(iflladdr_event, ifp);
 		CURVNET_RESTORE();

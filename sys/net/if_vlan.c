@@ -523,7 +523,7 @@ vlan_iflladdr(void *arg __unused, struct ifnet *ifp)
 #ifndef VLAN_ARRAY
 	struct ifvlan *next;
 #endif
-	int error, i;
+	int i;
 
 	/*
 	 * Check if it's a trunk interface first of all
@@ -544,11 +544,8 @@ vlan_iflladdr(void *arg __unused, struct ifnet *ifp)
 		LIST_FOREACH_SAFE(ifv, &ifp->if_vlantrunk->hash[i], ifv_list, next) {
 #endif /* VLAN_ARRAY */
 			VLAN_UNLOCK();
-			error = if_setlladdr(ifv->ifv_ifp, IF_LLADDR(ifp),
+			if_setlladdr(ifv->ifv_ifp, IF_LLADDR(ifp),
 			    ifp->if_addrlen);
-			if (error == 0)
-				EVENTHANDLER_INVOKE(iflladdr_event,
-				    ifv->ifv_ifp);
 			VLAN_LOCK();
 		}
 	VLAN_UNLOCK();
