@@ -798,6 +798,9 @@ pci_read_cap(device_t pcib, pcicfgregs *cfg)
 			 * at least one PCI-express device.
 			 */
 			pcie_chipset = 1;
+			cfg->pcie.pcie_location = ptr;
+			val = REG(ptr + PCIR_EXPRESS_FLAGS, 2);
+			cfg->pcie.pcie_type = val & PCIM_EXP_FLAGS_TYPE;
 			break;
 		default:
 			break;
@@ -1776,10 +1779,12 @@ pci_ht_map_msi(device_t dev, uint64_t addr)
 int
 pci_get_max_read_req(device_t dev)
 {
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	int cap;
 	uint16_t val;
 
-	if (pci_find_cap(dev, PCIY_EXPRESS, &cap) != 0)
+	cap = dinfo->cfg.pcie.pcie_location;
+	if (cap == 0)
 		return (0);
 	val = pci_read_config(dev, cap + PCIER_DEVICE_CTL, 2);
 	val &= PCIEM_CTL_MAX_READ_REQUEST;
@@ -1790,10 +1795,12 @@ pci_get_max_read_req(device_t dev)
 int
 pci_set_max_read_req(device_t dev, int size)
 {
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	int cap;
 	uint16_t val;
 
-	if (pci_find_cap(dev, PCIY_EXPRESS, &cap) != 0)
+	cap = dinfo->cfg.pcie.pcie_location;
+	if (cap == 0)
 		return (0);
 	if (size < 128)
 		size = 128;

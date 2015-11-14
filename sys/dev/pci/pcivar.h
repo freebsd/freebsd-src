@@ -124,6 +124,12 @@ struct pcicfg_ht {
     uint64_t	ht_msiaddr;	/* MSI mapping base address */
 };
 
+/* Interesting values for PCI-express */
+struct pcicfg_pcie {
+    uint8_t	pcie_location;	/* Offset of PCI-e capability registers. */
+    uint8_t	pcie_type;	/* Device type. */
+};
+
 /* config header information common to all header types */
 typedef struct pcicfg {
     struct device *dev;		/* device which owns this */
@@ -165,6 +171,7 @@ typedef struct pcicfg {
     struct pcicfg_msi msi;	/* PCI MSI */
     struct pcicfg_msix msix;	/* PCI MSI-X */
     struct pcicfg_ht ht;	/* HyperTransport */
+    struct pcicfg_pcie pcie;	/* PCI Express */
 } pcicfgregs;
 
 /* additional type 1 device config header information (PCI to PCI bridge) */
