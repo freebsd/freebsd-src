@@ -1298,6 +1298,15 @@ pmc_process_csw_in(struct thread *td)
 		PMCDBG3(CSW,SWI,1,"cpu=%d ri=%d new=%jd", cpu, ri, newvalue);
 
 		pcd->pcd_write_pmc(cpu, adjri, newvalue);
+
+		/* If a sampling mode PMC, reset stalled state. */
+		if (PMC_TO_MODE(pm) == PMC_MODE_TS)
+			CPU_CLR_ATOMIC(cpu, &pm->pm_stalled);
+
+		/* Indicate that we desire this to run. */
+		CPU_SET_ATOMIC(cpu, &pm->pm_cpustate);
+
+		/* Start the PMC. */
 		pcd->pcd_start_pmc(cpu, adjri);
 	}
 
@@ -1392,8 +1401,14 @@ pmc_process_csw_out(struct thread *td)
 		    ("[pmc,%d] ri mismatch pmc(%d) ri(%d)",
 			__LINE__, PMC_TO_ROWINDEX(pm), ri));
 
-		/* Stop hardware if not already stopped */
-		if (pm->pm_stalled == 0)
+		/*
+		 * Change desired state, and then stop if not stalled.
+		 * This two-step dance should avoid race conditions where
+		 * an interrupt re-enables the PMC after this code has
+		 * already checked the pm_stalled flag.
+		 */
+		CPU_CLR_ATOMIC(cpu, &pm->pm_cpustate);
+		if (!CPU_ISSET(cpu, &pm->pm_stalled))
 			pcd->pcd_stop_pmc(cpu, adjri);
 
 		/* reduce this PMC's runcount */
@@ -2258,8 +2273,9 @@ pmc_release_pmc_descriptor(struct pmc *pm)
 		pmc_select_cpu(cpu);
 
 		/* switch off non-stalled CPUs */
+		CPU_CLR_ATOMIC(cpu, &pm->pm_cpustate);
 		if (pm->pm_state == PMC_STATE_RUNNING &&
-		    pm->pm_stalled == 0) {
+		    !CPU_ISSET(cpu, &pm->pm_stalled)) {
 
 			phw = pmc_pcpu[cpu]->pc_hwpmcs[ri];
 
@@ -2695,8 +2711,15 @@ pmc_start(struct pmc *pm)
 	if ((error = pcd->pcd_write_pmc(cpu, adjri,
 		 PMC_IS_SAMPLING_MODE(mode) ?
 		 pm->pm_sc.pm_reloadcount :
-		 pm->pm_sc.pm_initial)) == 0)
+		 pm->pm_sc.pm_initial)) == 0) {
+		/* If a sampling mode PMC, reset stalled state. */
+		if (PMC_IS_SAMPLING_MODE(mode))
+			CPU_CLR_ATOMIC(cpu, &pm->pm_stalled);
+
+		/* Indicate that we desire this to run. Start it. */
+		CPU_SET_ATOMIC(cpu, &pm->pm_cpustate);
 		error = pcd->pcd_start_pmc(cpu, adjri);
+	}
 	critical_exit();
 
 	pmc_restore_cpu_binding(&pb);
@@ -2758,6 +2781,7 @@ pmc_stop(struct pmc *pm)
 	ri = PMC_TO_ROWINDEX(pm);
 	pcd = pmc_ri_to_classdep(md, ri, &adjri);
 
+	CPU_CLR_ATOMIC(cpu, &pm->pm_cpustate);
 	critical_enter();
 	if ((error = pcd->pcd_stop_pmc(cpu, adjri)) == 0)
 		error = pcd->pcd_read_pmc(cpu, adjri, &pm->pm_sc.pm_initial);
@@ -4066,7 +4090,7 @@ pmc_process_interrupt(int cpu, int ring, struct pmc *pm, struct trapframe *tf,
 
 	ps = psb->ps_write;
 	if (ps->ps_nsamples) {	/* in use, reader hasn't caught up */
-		pm->pm_stalled = 1;
+		CPU_SET_ATOMIC(cpu, &pm->pm_stalled);
 		atomic_add_int(&pmc_stats.pm_intr_bufferfull, 1);
 		PMCDBG6(SAM,INT,1,"(spc) cpu=%d pm=%p tf=%p um=%d wr=%d rd=%d",
 		    cpu, pm, (void *) tf, inuserspace,
@@ -4321,10 +4345,11 @@ pmc_process_samples(int cpu, int ring)
 		if (pm == NULL ||			 /* !cfg'ed */
 		    pm->pm_state != PMC_STATE_RUNNING || /* !active */
 		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)) || /* !sampling */
-		    pm->pm_stalled == 0) /* !stalled */
+		    !CPU_ISSET(cpu, &pm->pm_cpustate) || /* !desired */
+		    !CPU_ISSET(cpu, &pm->pm_stalled)) /* !stalled */
 			continue;
 
-		pm->pm_stalled = 0;
+		CPU_CLR_ATOMIC(cpu, &pm->pm_stalled);
 		(*pcd->pcd_start_pmc)(cpu, adjri);
 	}
 }
@@ -4443,23 +4468,31 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 			    ("[pmc,%d] pm %p != pp_pmcs[%d] %p",
 				__LINE__, pm, ri, pp->pp_pmcs[ri].pp_pmc));
 
-			(void) pcd->pcd_stop_pmc(cpu, adjri);
-
 			KASSERT(pm->pm_runcount > 0,
 			    ("[pmc,%d] bad runcount ri %d rc %d",
 				__LINE__, ri, pm->pm_runcount));
 
-			/* Stop hardware only if it is actually running */
-			if (pm->pm_state == PMC_STATE_RUNNING &&
-			    pm->pm_stalled == 0) {
-				pcd->pcd_read_pmc(cpu, adjri, &newvalue);
-				tmp = newvalue -
-				    PMC_PCPU_SAVED(cpu,ri);
+			/*
+			 * Change desired state, and then stop if not
+			 * stalled. This two-step dance should avoid
+			 * race conditions where an interrupt re-enables
+			 * the PMC after this code has already checked
+			 * the pm_stalled flag.
+			 */
+			if (CPU_ISSET(cpu, &pm->pm_cpustate)) {
+				CPU_CLR_ATOMIC(cpu, &pm->pm_cpustate);
+				if (!CPU_ISSET(cpu, &pm->pm_stalled)) {
+					(void) pcd->pcd_stop_pmc(cpu, adjri);
+					pcd->pcd_read_pmc(cpu, adjri,
+					    &newvalue);
+					tmp = newvalue -
+					    PMC_PCPU_SAVED(cpu,ri);
 
-				mtx_pool_lock_spin(pmc_mtxpool, pm);
-				pm->pm_gv.pm_savedvalue += tmp;
-				pp->pp_pmcs[ri].pp_pmcval += tmp;
-				mtx_pool_unlock_spin(pmc_mtxpool, pm);
+					mtx_pool_lock_spin(pmc_mtxpool, pm);
+					pm->pm_gv.pm_savedvalue += tmp;
+					pp->pp_pmcs[ri].pp_pmcval += tmp;
+					mtx_pool_unlock_spin(pmc_mtxpool, pm);
+				}
 			}
 
 			atomic_subtract_rel_int(&pm->pm_runcount,1);
