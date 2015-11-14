@@ -515,8 +515,7 @@ retry_port:
 	STAILQ_FOREACH(port, &devlist.port_list, links) {
 		if (strcmp(port->port_frontend, "ha") == 0)
 			continue;
-		if (name)
-			free(name);
+		free(name);
 		if (port->pp == 0 && port->vp == 0)
 			name = checked_strdup(port->port_name);
 		else if (port->vp == 0)
@@ -583,8 +582,7 @@ retry_port:
 		}
 		cp->p_ctl_port = port->port_id;
 	}
-	if (name)
-		free(name);
+	free(name);
 
 	STAILQ_FOREACH(lun, &devlist.lun_list, links) {
 		struct cctl_lun_nv *nv;
