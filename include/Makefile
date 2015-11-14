@@ -166,7 +166,7 @@ compat:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR} > /dev/null
-.if ${MK_META_MODE} == "yes"
+.if ${MK_DIRDEPS_BUILD} == "yes"
 	@touch ${.TARGET}
 .endif
 
@@ -255,7 +255,7 @@ copies:
 	cd ${.CURDIR}/../sys/teken; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
 	    ${DESTDIR}${INCLUDEDIR}/teken
-.if ${MK_META_MODE} == "yes"
+.if ${MK_DIRDEPS_BUILD} == "yes"
 	@touch ${.OBJDIR}/${.TARGET}
 .endif
 
@@ -372,7 +372,7 @@ symlinks:
 		ln -fs ../../../sys/rpc/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/rpc; \
 	done
-.if ${MK_META_MODE} == "yes"
+.if ${MK_DIRDEPS_BUILD} == "yes"
 	@touch ${.OBJDIR}/${.TARGET}
 .endif
 
