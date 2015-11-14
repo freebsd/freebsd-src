@@ -2,7 +2,7 @@
 
 # local configuration specific to meta mode
 # XXX some of this should be in meta.sys.mk
-# we assume that MK_META_MODE=yes
+# we assume that MK_DIRDEPS_BUILD=yes
 
 # we need this until there is an alternative
 MK_INSTALL_AS_USER= yes
