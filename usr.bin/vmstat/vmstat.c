@@ -541,7 +541,6 @@ fill_vmmeter(struct vmmeter *vmmp)
 		GET_VM_STATS(vm, v_reactivated);
 		GET_VM_STATS(vm, v_pdwakeups);
 		GET_VM_STATS(vm, v_pdpages);
-		GET_VM_STATS(vm, v_tcached);
 		GET_VM_STATS(vm, v_dfree);
 		GET_VM_STATS(vm, v_pfree);
 		GET_VM_STATS(vm, v_tfree);
@@ -555,7 +554,7 @@ fill_vmmeter(struct vmmeter *vmmp)
 		GET_VM_STATS(vm, v_active_count);
 		GET_VM_STATS(vm, v_inactive_target);
 		GET_VM_STATS(vm, v_inactive_count);
-		GET_VM_STATS(vm, v_cache_count);
+		GET_VM_STATS(vm, v_laundry_count);
 		GET_VM_STATS(vm, v_pageout_free_min);
 		GET_VM_STATS(vm, v_interrupt_free_min);
 		/*GET_VM_STATS(vm, v_free_severe);*/
@@ -1006,13 +1005,12 @@ dosum(void)
 	(void)printf("%9u pages affected by  fork()\n", sum.v_forkpages);
 	(void)printf("%9u pages affected by vfork()\n", sum.v_vforkpages);
 	(void)printf("%9u pages affected by rfork()\n", sum.v_rforkpages);
-	(void)printf("%9u pages cached\n", sum.v_tcached);
 	(void)printf("%9u pages freed\n", sum.v_tfree);
 	(void)printf("%9u pages freed by daemon\n", sum.v_dfree);
 	(void)printf("%9u pages freed by exiting processes\n", sum.v_pfree);
 	(void)printf("%9u pages active\n", sum.v_active_count);
 	(void)printf("%9u pages inactive\n", sum.v_inactive_count);
-	(void)printf("%9u pages in VM cache\n", sum.v_cache_count);
+	(void)printf("%9u pages in the laundry\n", sum.v_laundry_count);
 	(void)printf("%9u pages wired down\n", sum.v_wire_count);
 	(void)printf("%9u pages free\n", sum.v_free_count);
 	(void)printf("%9u bytes per page\n", sum.v_page_size);
