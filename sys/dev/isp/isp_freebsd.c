@@ -4249,16 +4249,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 #endif
 	case XPT_RESET_DEV:		/* BDR the specified SCSI device */
-	{
-		struct isp_fc *fc;
-
 		bus = cam_sim_bus(xpt_path_sim(ccb->ccb_h.path));
 		tgt = ccb->ccb_h.target_id;
 		tgt |= (bus << 16);
-		if (IS_FC(isp))
-			fc = ISP_FC_PC(isp, bus);
-		else
-			fc = NULL;
 
 		error = isp_control(isp, ISPCTL_RESET_DEV, bus, tgt);
 		if (error) {
@@ -4269,14 +4262,13 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			 * Reference Number, because the target will expect
 			 * that we re-start the CRN at 1 after a reset.
 			 */
-			if (fc != NULL)
-				isp_fcp_reset_crn(fc, tgt, /*tgt_set*/ 1);
+			if (IS_FC(isp))
+				isp_fcp_reset_crn(isp, bus, tgt, /*tgt_set*/ 1);
 
 			ccb->ccb_h.status = CAM_REQ_CMP;
 		}
 		xpt_done(ccb);
 		break;
-	}
 	case XPT_ABORT:			/* Abort the specified CCB */
 	{
 		union ccb *accb = ccb->cab.abort_ccb;
@@ -4854,7 +4846,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 				isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "Starting Loop Down Timer @ %lu", (unsigned long) time_uptime);
 			}
 		}
-		isp_fcp_reset_crn(fc, /*tgt*/0, /*tgt_set*/ 0);
+		isp_fcp_reset_crn(isp, bus, /*tgt*/0, /*tgt_set*/ 0);
 
 		isp_prt(isp, ISP_LOGINFO, "Chan %d: %s", bus, msg);
 		break;
@@ -4887,7 +4879,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		if ((FCPARAM(isp, bus)->role & ISP_ROLE_INITIATOR) &&
 		    (lp->prli_word3 & PRLI_WD3_TARGET_FUNCTION)) {
 			lp->is_target = 1;
-			isp_fcp_reset_crn(fc, tgt, /*tgt_set*/ 1);
+			isp_fcp_reset_crn(isp, bus, tgt, /*tgt_set*/ 1);
 			isp_make_here(isp, lp, bus, tgt);
 		}
 		if ((FCPARAM(isp, bus)->role & ISP_ROLE_TARGET) &&
@@ -4917,11 +4909,11 @@ changed:
 		     (lp->new_prli_word3 & PRLI_WD3_TARGET_FUNCTION))) {
 			lp->is_target = !lp->is_target;
 			if (lp->is_target) {
-				isp_fcp_reset_crn(fc, tgt, /*tgt_set*/ 1);
+				isp_fcp_reset_crn(isp, bus, tgt, /*tgt_set*/ 1);
 				isp_make_here(isp, lp, bus, tgt);
 			} else {
 				isp_make_gone(isp, lp, bus, tgt);
-				isp_fcp_reset_crn(fc, tgt, /*tgt_set*/ 1);
+				isp_fcp_reset_crn(isp, bus, tgt, /*tgt_set*/ 1);
 			}
 		}
 		if (lp->is_initiator !=
@@ -5490,23 +5482,23 @@ isp_common_dmateardown(ispsoftc_t *isp, struct ccb_scsiio *csio, uint32_t hdl)
  * (needed for events like a LIP).
  */
 void
-isp_fcp_reset_crn(struct isp_fc *fc, uint32_t tgt, int tgt_set)
+isp_fcp_reset_crn(ispsoftc_t *isp, int chan, uint32_t tgt, int tgt_set)
 {
-	int i;
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
 	struct isp_nexus *nxp;
+	int i;
 
 	if (tgt_set == 0)
-		isp_prt(fc->isp, ISP_LOG_SANCFG, "resetting CRN on all targets");
+		isp_prt(isp, ISP_LOGDEBUG0,
+		    "Chan %d resetting CRN on all targets", chan);
 	else
-		isp_prt(fc->isp, ISP_LOG_SANCFG, "resetting CRN target %u", tgt);
+		isp_prt(isp, ISP_LOGDEBUG0,
+		    "Chan %d resetting CRN on target %u", chan, tgt);
 
 	for (i = 0; i < NEXUS_HASH_WIDTH; i++) {
-		nxp = fc->nexus_hash[i];
-		while (nxp) {
-			if ((tgt_set != 0) && (tgt == nxp->tgt))
+		for (nxp = fc->nexus_hash[i]; nxp != NULL; nxp = nxp->next) {
+			if (tgt_set == 0 || tgt == nxp->tgt)
 				nxp->crnseed = 0;
-
-			nxp = nxp->next;
 		}
 	}
 }
@@ -5550,15 +5542,11 @@ isp_fcp_next_crn(ispsoftc_t *isp, uint8_t *crnp, XS_T *cmd)
 		nxp->next = fc->nexus_hash[idx];
 		fc->nexus_hash[idx] = nxp;
 	}
-	if (nxp) {
-		if (nxp->crnseed == 0)
-			nxp->crnseed = 1;
-		if (cmd)
-			PISP_PCMD(cmd)->crn = nxp->crnseed;
-		*crnp = nxp->crnseed++;
-		return (0);
-	}
-	return (-1);
+	if (nxp->crnseed == 0)
+		nxp->crnseed = 1;
+	PISP_PCMD(cmd)->crn = nxp->crnseed;
+	*crnp = nxp->crnseed++;
+	return (0);
 }
 
 /*
