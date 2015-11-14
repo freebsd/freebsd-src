@@ -516,13 +516,19 @@ retry_port:
 		if (strcmp(port->port_frontend, "ha") == 0)
 			continue;
 		free(name);
-		if (port->pp == 0 && port->vp == 0)
+		if (port->pp == 0 && port->vp == 0) {
 			name = checked_strdup(port->port_name);
-		else if (port->vp == 0)
-			asprintf(&name, "%s/%d", port->port_name, port->pp);
-		else
-			asprintf(&name, "%s/%d/%d", port->port_name, port->pp,
-			    port->vp);
+		} else if (port->vp == 0) {
+			retval = asprintf(&name, "%s/%d",
+			    port->port_name, port->pp);
+			if (retval <= 0)
+				log_err(1, "asprintf");
+		} else {
+			retval = asprintf(&name, "%s/%d/%d",
+			    port->port_name, port->pp, port->vp);
+			if (retval <= 0)
+				log_err(1, "asprintf");
+		}
 
 		if (port->cfiscsi_target == NULL) {
 			log_debugx("CTL port %u \"%s\" wasn't managed by ctld; ",
