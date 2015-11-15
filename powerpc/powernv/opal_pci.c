@@ -124,6 +124,7 @@ opalpci_attach(device_t dev)
 {
 	struct opalpci_softc *sc;
 	cell_t id[2];
+	int err;
 
 	sc = device_get_softc(dev);
 
@@ -139,6 +140,28 @@ opalpci_attach(device_t dev)
 	default:
 		device_printf(dev, "PHB ID property had wrong length (%zd)\n",
 		    OF_getproplen(ofw_bus_get_node(dev), "ibm,opal-phbid"));
+		return (ENXIO);
+	}
+
+	/*
+	 * Map all devices on the bus to partitionable endpoint zero until
+	 * such time as we start wanting to do things like bhyve.
+	 */
+	err = opal_call(OPAL_PCI_SET_PE, sc->phb_id, 0 /* Root PE */,
+	    0, 0, 0, 0, /* All devices */
+	    OPAL_MAP_PE);
+	if (err != 0) {
+		device_printf(dev, "PE mapping failed: %d\n", err);
+		return (ENXIO);
+	}
+
+	/*
+	 * Also disable the IOMMU for the time being for PE 0 (everything)
+	 */
+	err = opal_call(OPAL_PCI_MAP_PE_DMA_WINDOW_REAL, sc->phb_id, 0, 0,
+	    0 /* start address */, roundup2(Maxmem, 16*1024*1024)/* all RAM */);
+	if (err != 0) {
+		device_printf(dev, "DMA mapping failed: %d\n", err);
 		return (ENXIO);
 	}
 

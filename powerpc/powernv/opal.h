@@ -50,9 +50,16 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_PCI_CONFIG_WRITE_WORD	18
 #define	OPAL_SET_XIVE			19
 #define	OPAL_GET_XIVE			20
+#define	OPAL_PCI_SET_PE			31
 #define OPAL_START_CPU			41
+#define	OPAL_PCI_MAP_PE_DMA_WINDOW_REAL	45
+
+/* For OPAL_PCI_SET_PE */
+#define	OPAL_UNMAP_PE			0
+#define OPAL_MAP_PE			1
 
 #define OPAL_SUCCESS			0
+#define OPAL_PARAMETER			-1
 #define	OPAL_BUSY_EVENT			-12
 
 #endif
