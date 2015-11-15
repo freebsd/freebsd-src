@@ -42,16 +42,27 @@ __FBSDID("$FreeBSD$");
 
 #include <atf-c.h>
 
-ATF_TC_WITHOUT_HEAD(mbrtoc16_test);
-ATF_TC_BODY(mbrtoc16_test, tc)
+static void
+require_lc_ctype(const char *locale_name)
 {
-	mbstate_t s;
-	size_t len;
-	char16_t c16;
+	char *lc_ctype_set;
 
-	/*
-	 * C/POSIX locale.
-	 */
+	lc_ctype_set = setlocale(LC_CTYPE, locale_name);
+	if (lc_ctype_set == NULL)
+		atf_tc_fail("setlocale(LC_CTYPE, \"%s\") failed; errno=%d",
+		    locale_name, errno);
+
+	ATF_REQUIRE(strcmp(lc_ctype_set, locale_name) == 0);
+}
+
+static mbstate_t s;
+static char16_t c16;
+
+ATF_TC_WITHOUT_HEAD(mbrtoc16_c_locale_test);
+ATF_TC_BODY(mbrtoc16_c_locale_test, tc)
+{
+
+	require_lc_ctype("C");
 
 	/* Null wide character, internal state. */
 	ATF_REQUIRE(mbrtoc16(&c16, "", 1, NULL) == 0);
@@ -91,35 +102,37 @@ ATF_TC_BODY(mbrtoc16_test, tc)
 	ATF_REQUIRE(mbrtoc16(&c16, "C", 1, &s) == 1);
 	ATF_REQUIRE(c16 == L'C');
 
-	/*
-	 * ISO-8859-1.
-	 */
+}
 
-	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "en_US.ISO8859-1"),
-	    "en_US.ISO8859-1") == 0);
+ATF_TC_WITHOUT_HEAD(mbrtoc16_iso_8859_1_test);
+ATF_TC_BODY(mbrtoc16_iso_8859_1_test, tc)
+{
+
+	require_lc_ctype("en_US.ISO8859-1");
 
 	/* Currency sign. */
 	memset(&s, 0, sizeof(s));
 	ATF_REQUIRE(mbrtoc16(&c16, "\xa4", 1, &s) == 1);
 	ATF_REQUIRE(c16 == 0xa4);
+}
 
-	/*
-	 * ISO-8859-15.
-	 */
+ATF_TC_WITHOUT_HEAD(mbrtoc16_iso_8859_15_test);
+ATF_TC_BODY(mbrtoc16_iso_8859_15_test, tc)
+{
 
-	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "en_US.ISO8859-15"),
-	    "en_US.ISO8859-15") == 0);
+	require_lc_ctype("en_US.ISO8859-15");
 
 	/* Euro sign. */
 	memset(&s, 0, sizeof(s));
 	ATF_REQUIRE(mbrtoc16(&c16, "\xa4", 1, &s) == 1);
 	ATF_REQUIRE(c16 == 0x20ac);
+}
 
-	/*
-	 * UTF-8.
-	 */
+ATF_TC_WITHOUT_HEAD(mbrtoc16_utf_8_test);
+ATF_TC_BODY(mbrtoc16_utf_8_test, tc)
+{
 
-	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "en_US.UTF-8"), "en_US.UTF-8") == 0);
+	require_lc_ctype("en_US.UTF-8");
 
 	/* Null wide character, internal state. */
 	ATF_REQUIRE(mbrtoc16(NULL, 0, 0, NULL) == 0);
@@ -192,7 +205,10 @@ ATF_TC_BODY(mbrtoc16_test, tc)
 ATF_TP_ADD_TCS(tp)
 {
 
-	ATF_TP_ADD_TC(tp, mbrtoc16_test);
+	ATF_TP_ADD_TC(tp, mbrtoc16_c_locale_test);
+	ATF_TP_ADD_TC(tp, mbrtoc16_iso_8859_1_test);
+	ATF_TP_ADD_TC(tp, mbrtoc16_iso_8859_15_test);
+	ATF_TP_ADD_TC(tp, mbrtoc16_utf_8_test);
 
 	return (atf_no_error());
 }
