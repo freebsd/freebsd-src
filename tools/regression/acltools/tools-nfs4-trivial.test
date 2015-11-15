@@ -42,9 +42,9 @@ $ ls -l xxx | cut -d' ' -f1
 > -rw-r--r--
 
 $ getfacl -q xxx
->             owner@:rw-p--aARWcCos:------:allow
->             group@:r-----a-R-c--s:------:allow
->          everyone@:r-----a-R-c--s:------:allow
+>             owner@:rw-p--aARWcCos:-------:allow
+>             group@:r-----a-R-c--s:-------:allow
+>          everyone@:r-----a-R-c--s:-------:allow
 
 # Check whether ls(1) correctly recognizes draft-style trivial ACLs.
 $ rm xxx
@@ -58,12 +58,12 @@ $ ls -l xxx | cut -d' ' -f1
 > -rw-r--r--
 
 $ getfacl -q xxx
->             owner@:--x-----------:------:deny
->             owner@:rw-p---A-W-Co-:------:allow
->             group@:-wxp----------:------:deny
->             group@:r-------------:------:allow
->          everyone@:-wxp---A-W-Co-:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>             owner@:--x-----------:-------:deny
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             group@:-wxp----------:-------:deny
+>             group@:r-------------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 # Make sure ls(1) actually can recognize something as non-trivial.
 $ setfacl -x0 xxx
@@ -72,11 +72,11 @@ $ ls -l xxx | cut -d' ' -f1
 > -rw-r--r--+
 
 $ getfacl -q xxx
->             owner@:rw-p---A-W-Co-:------:allow
->             group@:-wxp----------:------:deny
->             group@:r-------------:------:allow
->          everyone@:-wxp---A-W-Co-:------:deny
->          everyone@:r-----a-R-c--s:------:allow
+>             owner@:rw-p---A-W-Co-:-------:allow
+>             group@:-wxp----------:-------:deny
+>             group@:r-------------:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:r-----a-R-c--s:-------:allow
 
 $ rm xxx
 
