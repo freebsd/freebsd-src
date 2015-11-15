@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 ATF_TESTS_C+=		fdopen_test
 ATF_TESTS_C+=		fmemopen2_test
 ATF_TESTS_C+=		fopen2_test
@@ -31,6 +33,12 @@ LDADD.printfloat_test+=	-lm
 
 DPADD.scanfloat_test+=	${LIBM}
 LDADD.scanfloat_test+=	-lm
+
+.if ${COMPILER_TYPE} == "gcc"
+# 90: use of assignment suppression and length modifier together in scanf format
+PROG_OVERRIDE_VARS+=	NO_WFORMAT
+NO_WFORMAT.scanfloat_test=
+.endif
 
 .include "../Makefile.netbsd-tests"
 
