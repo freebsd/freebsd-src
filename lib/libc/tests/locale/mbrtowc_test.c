@@ -49,7 +49,6 @@ ATF_TC_WITHOUT_HEAD(mbrtowc_test);
 ATF_TC_BODY(mbrtowc_test, tc)
 {
 	mbstate_t s;
-	size_t len;
 	wchar_t wc;
 	char buf[MB_LEN_MAX + 1];
 
