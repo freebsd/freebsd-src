@@ -42,13 +42,27 @@ __FBSDID("$FreeBSD$");
 
 #include <atf-c.h>
 
-ATF_TC_WITHOUT_HEAD(c16rtomb_test);
-ATF_TC_BODY(c16rtomb_test, tc)
+static void
+require_lc_ctype(const char *locale_name)
 {
-	mbstate_t s;
-	char buf[MB_LEN_MAX + 1];
+	char *lc_ctype_set;
 
-	/* C/POSIX locale. */
+	lc_ctype_set = setlocale(LC_CTYPE, locale_name);
+	if (lc_ctype_set == NULL)
+		atf_tc_fail("setlocale(LC_CTYPE, \"%s\") failed; errno=%d",
+		    locale_name, errno);
+
+	ATF_REQUIRE(strcmp(lc_ctype_set, locale_name) == 0);
+}
+
+static mbstate_t s;
+static char buf[MB_LEN_MAX + 1];
+
+ATF_TC_WITHOUT_HEAD(c16rtomb_c_locale_test);
+ATF_TC_BODY(c16rtomb_c_locale_test, tc)
+{
+
+	require_lc_ctype("C");
 
 	/*
 	 * If the buffer argument is NULL, c16 is implicitly 0,
@@ -80,11 +94,13 @@ ATF_TC_BODY(c16rtomb_test, tc)
 	ATF_REQUIRE(c16rtomb(buf, 0xdca9, &s) == (size_t)-1);
 	ATF_REQUIRE(errno == EILSEQ);
 	ATF_REQUIRE((unsigned char)buf[0] == 0xcc);
+}
 
-	/* ISO8859-1. */
+ATF_TC_WITHOUT_HEAD(c16rtomb_iso_8859_1_test);
+ATF_TC_BODY(c16rtomb_iso_8859_1_test, tc)
+{
 
-	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "en_US.ISO8859-1"),
-	    "en_US.ISO8859-1") == 0);
+	require_lc_ctype("en_US.ISO8859-1");
 
 	/* Unicode character 'Euro sign'. */
 	memset(&s, 0, sizeof(s));
@@ -92,21 +108,26 @@ ATF_TC_BODY(c16rtomb_test, tc)
 	ATF_REQUIRE(c16rtomb(buf, 0x20ac, &s) == (size_t)-1);
 	ATF_REQUIRE(errno == EILSEQ);
 	ATF_REQUIRE((unsigned char)buf[0] == 0xcc);
+}
 
-	/* ISO8859-15. */
+ATF_TC_WITHOUT_HEAD(c16rtomb_iso_8859_15_test);
+ATF_TC_BODY(c16rtomb_iso_8859_15_test, tc)
+{
 
-	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "en_US.ISO8859-15"),
-	    "en_US.ISO8859-15") == 0);
+	require_lc_ctype("en_US.ISO8859-15");
 
 	/* Unicode character 'Euro sign'. */
 	memset(&s, 0, sizeof(s));
 	memset(buf, 0xcc, sizeof(buf));
 	ATF_REQUIRE(c16rtomb(buf, 0x20ac, &s) == 1);
 	ATF_REQUIRE((unsigned char)buf[0] == 0xa4 && (unsigned char)buf[1] == 0xcc);
+}
 
-	/* UTF-8. */
+ATF_TC_WITHOUT_HEAD(c16rtomb_utf_8_test);
+ATF_TC_BODY(c16rtomb_utf_8_test, tc)
+{
 
-	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "en_US.UTF-8"), "en_US.UTF-8") == 0);
+	require_lc_ctype("en_US.UTF-8");
 
 	/* Unicode character 'Pile of poo'. */
 	memset(&s, 0, sizeof(s));
@@ -136,7 +157,10 @@ ATF_TC_BODY(c16rtomb_test, tc)
 ATF_TP_ADD_TCS(tp)
 {
 
-	ATF_TP_ADD_TC(tp, c16rtomb_test);
+	ATF_TP_ADD_TC(tp, c16rtomb_c_locale_test);
+	ATF_TP_ADD_TC(tp, c16rtomb_iso_8859_1_test);
+	ATF_TP_ADD_TC(tp, c16rtomb_iso_8859_15_test);
+	ATF_TP_ADD_TC(tp, c16rtomb_utf_8_test);
 
 	return (atf_no_error());
 }
