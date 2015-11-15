@@ -178,10 +178,10 @@ ATF_TC_BODY(thousands_separator_and_other_locale_tests, tc)
 	testfmt("0012345678.0625", "%'015.4F", 12345678.0625);
 
 	ATF_REQUIRE(setlocale(LC_NUMERIC, "hi_IN.ISCII-DEV")); /* grouping == 2;3 */
-	testfmt("123,456,78.0625", "%'.4f", 12345678.0625);
-	testfmt("00123,456,78.0625", "%'017.4F", 12345678.0625);
-	testfmt(" 90,00", "%'6.0f", 9000.0);
-	testfmt("90,00.0", "%'.1f", 9000.0);
+	testfmt("1,23,45,678.0625", "%'.4f", 12345678.0625);
+	testfmt("01,23,45,678.0625", "%'017.4F", 12345678.0625);
+	testfmt(" 9,000", "%'6.0f", 9000.0);
+	testfmt("9,000.0", "%'.1f", 9000.0);
 
 	ATF_REQUIRE(setlocale(LC_NUMERIC, "ru_RU.ISO8859-5")); /* decimalpoint==, */
 	testfmt("3,1415", "%g", 3.1415);
