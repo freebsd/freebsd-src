@@ -80,6 +80,8 @@
             test-programs
             ..
         ..
+        libarchive
+        ..
         libc
             c063
             ..
@@ -348,6 +350,8 @@
         ..
         cmp
         ..
+        cpio
+        ..
         col
         ..
         comm
@@ -379,6 +383,8 @@
         sed
             regress.multitest.out
             ..
+        ..
+        tar
         ..
         timeout
         ..
