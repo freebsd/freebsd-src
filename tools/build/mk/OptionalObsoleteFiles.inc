@@ -2774,15 +2774,15 @@ OLD_FILES+=usr/share/man/man1/iconv.1.gz
 OLD_FILES+=usr/share/man/man1/mkcsmapper.1.gz
 OLD_FILES+=usr/share/man/man1/mkesdb.1.gz
 OLD_FILES+=usr/share/man/man3/__iconv.3.gz
-OLD_FILES+=usr/share/man/man3/__iconv_free_list.3.gz	
+OLD_FILES+=usr/share/man/man3/__iconv_free_list.3.gz
 OLD_FILES+=usr/share/man/man3/__iconv_get_list.3.gz
 OLD_FILES+=usr/share/man/man3/iconv.3.gz
-OLD_FILES+=usr/share/man/man3/iconv_canonicalize.3.gz	
+OLD_FILES+=usr/share/man/man3/iconv_canonicalize.3.gz
 OLD_FILES+=usr/share/man/man3/iconv_close.3.gz
 OLD_FILES+=usr/share/man/man3/iconv_open.3.gz
 OLD_FILES+=usr/share/man/man3/iconv_open_into.3.gz
 OLD_FILES+=usr/share/man/man3/iconvctl.3.gz
-OLD_FILES+=usr/share/man/man3/iconvlist.3.gz	
+OLD_FILES+=usr/share/man/man3/iconvlist.3.gz
 .endif
 
 .if ${MK_INET6} == no
