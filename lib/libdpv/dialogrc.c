@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Devin Teske <dteske@FreeBSD.org>
+ * Copyright (c) 2013-2015 Devin Teske <dteske@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,58 +49,58 @@ char gauge_color[STR_BUFSIZE]	= "47b"; /* (BLUE,WHITE,ON) */
 char separator[STR_BUFSIZE]	= "";
 
 /* Function prototypes */
-static int setattr(struct fp_config *, uint32_t, char *, char *);
-static int setbool(struct fp_config *, uint32_t, char *, char *);
-static int setnum(struct fp_config *, uint32_t, char *, char *);
-static int setstr(struct fp_config *, uint32_t, char *, char *);
+static int setattr(struct figpar_config *, uint32_t, char *, char *);
+static int setbool(struct figpar_config *, uint32_t, char *, char *);
+static int setnum(struct figpar_config *, uint32_t, char *, char *);
+static int setstr(struct figpar_config *, uint32_t, char *, char *);
 
 /*
  * Anatomy of DIALOGRC (~/.dialogrc by default)
  * NOTE: Must appear after private function prototypes (above)
  * NB: Brace-initialization of union requires cast to *first* member of union
  */
-static struct fp_config dialogrc_config[] = {
-    /* TYPE        Directive                     DEFAULT        HANDLER */
-    {FP_TYPE_INT,  "aspect",                     {(void *)0},   &setnum},
-    {FP_TYPE_STR,  "separate_widget",            {separator},   &setstr},
-    {FP_TYPE_INT,  "tab_len",                    {(void *)0},   &setnum},
-    {FP_TYPE_BOOL, "visit_items",                {(void *)0},   &setbool},
-    {FP_TYPE_BOOL, "use_shadow",                 {(void *)1},   &setbool},
-    {FP_TYPE_BOOL, "use_colors",                 {(void *)1},   &setbool},
-    {FP_TYPE_STR,  "screen_color",               {NULL},        &setattr},
-    {FP_TYPE_STR,  "shadow_color",               {NULL},        &setattr},
-    {FP_TYPE_STR,  "dialog_color",               {NULL},        &setattr},
-    {FP_TYPE_STR,  "title_color",                {NULL},        &setattr},
-    {FP_TYPE_STR,  "border_color",               {NULL},        &setattr},
-    {FP_TYPE_STR,  "button_active_color",        {NULL},        &setattr},
-    {FP_TYPE_STR,  "button_inactive_color",      {NULL},        &setattr},
-    {FP_TYPE_STR,  "button_key_active_color",    {NULL},        &setattr},
-    {FP_TYPE_STR,  "button_key_inactive_color",  {NULL},        &setattr},
-    {FP_TYPE_STR,  "button_label_active_color",  {NULL},        &setattr},
-    {FP_TYPE_STR,  "button_label_inactive_color",{NULL},        &setattr},
-    {FP_TYPE_STR,  "inputbox_color",             {NULL},        &setattr},
-    {FP_TYPE_STR,  "inputbox_border_color",      {NULL},        &setattr},
-    {FP_TYPE_STR,  "searchbox_color",            {NULL},        &setattr},
-    {FP_TYPE_STR,  "searchbox_title_color",      {NULL},        &setattr},
-    {FP_TYPE_STR,  "searchbox_border_color",     {NULL},        &setattr},
-    {FP_TYPE_STR,  "position_indicator_color",   {NULL},        &setattr},
-    {FP_TYPE_STR,  "menubox_color",              {NULL},        &setattr},
-    {FP_TYPE_STR,  "menubox_border_color",       {NULL},        &setattr},
-    {FP_TYPE_STR,  "item_color",                 {NULL},        &setattr},
-    {FP_TYPE_STR,  "item_selected_color",        {NULL},        &setattr},
-    {FP_TYPE_STR,  "tag_color",                  {NULL},        &setattr},
-    {FP_TYPE_STR,  "tag_selected_color",         {NULL},        &setattr},
-    {FP_TYPE_STR,  "tag_key_color",              {NULL},        &setattr},
-    {FP_TYPE_STR,  "tag_key_selected_color",     {NULL},        &setattr},
-    {FP_TYPE_STR,  "check_color",                {NULL},        &setattr},
-    {FP_TYPE_STR,  "check_selected_color",       {NULL},        &setattr},
-    {FP_TYPE_STR,  "uarrow_color",               {NULL},        &setattr},
-    {FP_TYPE_STR,  "darrow_color",               {NULL},        &setattr},
-    {FP_TYPE_STR,  "itemhelp_color",             {NULL},        &setattr},
-    {FP_TYPE_STR,  "form_active_text_color",     {NULL},        &setattr},
-    {FP_TYPE_STR,  "form_text_color",            {NULL},        &setattr},
-    {FP_TYPE_STR,  "form_item_readonly_color",   {NULL},        &setattr},
-    {FP_TYPE_STR,  "gauge_color",                {gauge_color}, &setattr},
+static struct figpar_config dialogrc_config[] = {
+    /* TYPE            DIRECTIVE                      DEFAULT        HANDLER */
+    {FIGPAR_TYPE_INT,  "aspect",                      {(void *)0},   &setnum},
+    {FIGPAR_TYPE_STR,  "separate_widget",             {separator},   &setstr},
+    {FIGPAR_TYPE_INT,  "tab_len",                     {(void *)0},   &setnum},
+    {FIGPAR_TYPE_BOOL, "visit_items",                 {(void *)0},   &setbool},
+    {FIGPAR_TYPE_BOOL, "use_shadow",                  {(void *)1},   &setbool},
+    {FIGPAR_TYPE_BOOL, "use_colors",                  {(void *)1},   &setbool},
+    {FIGPAR_TYPE_STR,  "screen_color",                {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "shadow_color",                {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "dialog_color",                {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "title_color",                 {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "border_color",                {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "button_active_color",         {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "button_inactive_color",       {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "button_key_active_color",     {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "button_key_inactive_color",   {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "button_label_active_color",   {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "button_label_inactive_color", {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "inputbox_color",              {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "inputbox_border_color",       {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "searchbox_color",             {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "searchbox_title_color",       {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "searchbox_border_color",      {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "position_indicator_color",    {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "menubox_color",               {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "menubox_border_color",        {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "item_color",                  {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "item_selected_color",         {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "tag_color",                   {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "tag_selected_color",          {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "tag_key_color",               {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "tag_key_selected_color",      {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "check_color",                 {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "check_selected_color",        {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "uarrow_color",                {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "darrow_color",                {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "itemhelp_color",              {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "form_active_text_color",      {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "form_text_color",             {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "form_item_readonly_color",    {NULL},        &setattr},
+    {FIGPAR_TYPE_STR,  "gauge_color",                 {gauge_color}, &setattr},
     {0, NULL, {0}, NULL}
 };
 
@@ -108,7 +108,7 @@ static struct fp_config dialogrc_config[] = {
  * figpar call-back for interpreting value as .dialogrc `Attribute'
  */
 static int
-setattr(struct fp_config *option, uint32_t line __unused,
+setattr(struct figpar_config *option, uint32_t line __unused,
     char *directive __unused, char *value)
 {
 	char *cp = value;
@@ -204,7 +204,7 @@ write_attrbuf:
  * figpar call-back for interpreting value as .dialogrc `Boolean'
  */
 static int
-setbool(struct fp_config *option, uint32_t line __unused,
+setbool(struct figpar_config *option, uint32_t line __unused,
     char *directive __unused, char *value)
 {
 
@@ -227,7 +227,7 @@ setbool(struct fp_config *option, uint32_t line __unused,
  * figpar call-back for interpreting value as .dialogrc `Number'
  */
 static int
-setnum(struct fp_config *option, uint32_t line __unused,
+setnum(struct figpar_config *option, uint32_t line __unused,
     char *directive __unused, char *value)
 {
 
@@ -247,7 +247,7 @@ setnum(struct fp_config *option, uint32_t line __unused,
  * figpar call-back for interpreting value as .dialogrc `String'
  */
 static int
-setstr(struct fp_config *option, uint32_t line __unused,
+setstr(struct figpar_config *option, uint32_t line __unused,
     char *directive __unused, char *value)
 {
 	size_t len;
@@ -315,7 +315,8 @@ parse_dialogrc(void)
 	}
 
 	/* Process file (either $DIALOGRC if set, or `$HOME/.dialogrc') */
-	res = parse_config(dialogrc_config, path, NULL, FP_BREAK_ON_EQUALS);
+	res = parse_config(dialogrc_config,
+		path, NULL, FIGPAR_BREAK_ON_EQUALS);
 
 	/* Set some globals based on what we parsed */
 	use_shadow = dialogrc_config_option("use_shadow")->value.boolean;
@@ -328,10 +329,10 @@ parse_dialogrc(void)
 
 /*
  * Return a pointer to the `.dialogrc' config option specific to `directive' or
- * static fp_dummy_config (full of NULLs) if none found (see
+ * static figpar_dummy_config (full of NULLs) if none found (see
  * get_config_option(3); part of figpar(3)).
  */
-struct fp_config *
+struct figpar_config *
 dialogrc_config_option(const char *directive)
 {
 	return (get_config_option(dialogrc_config, directive));

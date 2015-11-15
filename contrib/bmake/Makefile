@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.39 2015/06/07 15:54:37 sjg Exp $
+#	$Id: Makefile,v 1.44 2015/10/20 21:41:40 sjg Exp $
 
 # Base version on src date
-MAKE_VERSION= 20150606
+MAKE_VERSION= 20151020
 
 PROG=	bmake
 
@@ -18,6 +18,7 @@ SRCS= \
 	make.c \
 	make_malloc.c \
 	meta.c \
+	metachar.c \
 	parse.c \
 	str.c \
 	strlist.c \

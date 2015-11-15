@@ -98,7 +98,7 @@ bool IdentifierResolver::isDeclInScope(Decl *D, DeclContext *Ctx, Scope *S,
                                        bool AllowInlineNamespace) const {
   Ctx = Ctx->getRedeclContext();
 
-  if (Ctx->isFunctionOrMethod() || S->isFunctionPrototypeScope()) {
+  if (Ctx->isFunctionOrMethod() || (S && S->isFunctionPrototypeScope())) {
     // Ignore the scopes associated within transparent declaration contexts.
     while (S->getEntity() && S->getEntity()->isTransparentContext())
       S = S->getParent();
@@ -266,6 +266,11 @@ static DeclMatchKind compareDeclarations(NamedDecl *Existing, NamedDecl *New) {
 
   // If the declarations are redeclarations of each other, keep the newest one.
   if (Existing->getCanonicalDecl() == New->getCanonicalDecl()) {
+    // If we're adding an imported declaration, don't replace another imported
+    // declaration.
+    if (Existing->isFromASTFile() && New->isFromASTFile())
+      return DMK_Different;
+
     // If either of these is the most recent declaration, use it.
     Decl *MostRecent = Existing->getMostRecentDecl();
     if (Existing == MostRecent)

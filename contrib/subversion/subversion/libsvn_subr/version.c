@@ -75,10 +75,10 @@ svn_boolean_t svn_ver_equal(const svn_version_t *my_version,
 
 
 svn_error_t *
-svn_ver__check_list2(const svn_version_t *my_version,
-                     const svn_version_checklist_t *checklist,
-                     svn_boolean_t (*comparator)(const svn_version_t *,
-                                                 const svn_version_t *))
+svn_ver_check_list2(const svn_version_t *my_version,
+                    const svn_version_checklist_t *checklist,
+                    svn_boolean_t (*comparator)(const svn_version_t *,
+                                                const svn_version_t *))
 {
   svn_error_t *err = SVN_NO_ERROR;
   int i;

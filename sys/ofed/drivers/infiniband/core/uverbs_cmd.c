@@ -1379,7 +1379,8 @@ ssize_t ib_uverbs_create_cq(struct ib_uverbs_file *file,
 		return -EFAULT;
 
 	return create_cq(file, buf, in_len, out_len, &cmd,
-			 IB_USER_VERBS_CMD_BASIC, (void __user *)cmd.response);
+			 IB_USER_VERBS_CMD_BASIC,
+			 (void __user *) (unsigned long) cmd.response);
 }
 
 ssize_t ib_uverbs_resize_cq(struct ib_uverbs_file *file,
@@ -1609,7 +1610,7 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 	if (copy_from_user(&cmd_obj, buf, cmd_size))
 		return -EFAULT;
 
-	response = (void __user *)cmd->response;
+	response = (void __user *) (unsigned long) cmd->response;
 
 	if (!disable_raw_qp_enforcement &&
 	    cmd->qp_type == IB_QPT_RAW_PACKET && !priv_check(curthread, PRIV_NET_RAW))

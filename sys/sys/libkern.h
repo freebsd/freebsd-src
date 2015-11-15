@@ -89,6 +89,9 @@ int	 ffs(int);
 #ifndef	HAVE_INLINE_FFSL
 int	 ffsl(long);
 #endif
+#ifndef	HAVE_INLINE_FFSLL
+int	 ffsll(long long);
+#endif
 #ifndef	HAVE_INLINE_FLS
 int	 fls(int);
 #endif

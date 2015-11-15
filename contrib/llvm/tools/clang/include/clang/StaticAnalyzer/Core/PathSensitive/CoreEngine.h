@@ -103,8 +103,8 @@ private:
                         ExplodedNode *Pred);
 
 private:
-  CoreEngine(const CoreEngine &) LLVM_DELETED_FUNCTION;
-  void operator=(const CoreEngine &) LLVM_DELETED_FUNCTION;
+  CoreEngine(const CoreEngine &) = delete;
+  void operator=(const CoreEngine &) = delete;
 
   ExplodedNode *generateCallExitBeginNode(ExplodedNode *N);
 
@@ -367,7 +367,7 @@ public:
         EnclosingBldr->takeNodes(*I);
   }
 
-  virtual ~StmtNodeBuilder();
+  ~StmtNodeBuilder() override;
 
   using NodeBuilder::generateNode;
   using NodeBuilder::generateSink;

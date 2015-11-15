@@ -1,5 +1,4 @@
 /* $OpenBSD: ssh.c,v 1.401 2014/02/26 20:18:37 djm Exp $ */
-/* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland

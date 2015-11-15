@@ -233,7 +233,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	plen = ntohs(ip6->ip6_plen) - off + sizeof(*ip6);
 	ulen = ntohs((u_short)uh->uh_ulen);
 
-	nxt = ip6->ip6_nxt;
+	nxt = proto;
 	cscov_partial = (nxt == IPPROTO_UDPLITE) ? 1 : 0;
 	if (nxt == IPPROTO_UDPLITE) {
 		/* Zero means checksum over the complete packet. */
@@ -667,9 +667,11 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 			return (error);
 	}
 
+	nxt = (inp->inp_socket->so_proto->pr_protocol == IPPROTO_UDP) ?
+	    IPPROTO_UDP : IPPROTO_UDPLITE;
 	if (control) {
 		if ((error = ip6_setpktopts(control, &opt,
-		    inp->in6p_outputopts, td->td_ucred, IPPROTO_UDP)) != 0)
+		    inp->in6p_outputopts, td->td_ucred, nxt)) != 0)
 			goto release;
 		optp = &opt;
 	} else
@@ -780,7 +782,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 	 * for UDP and IP6 headers.
 	 */
 	M_PREPEND(m, hlen + sizeof(struct udphdr), M_NOWAIT);
-	if (m == 0) {
+	if (m == NULL) {
 		error = ENOBUFS;
 		goto release;
 	}
@@ -788,8 +790,6 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 	/*
 	 * Stuff checksum and output datagram.
 	 */
-	nxt = (inp->inp_socket->so_proto->pr_protocol == IPPROTO_UDP) ?
-	    IPPROTO_UDP : IPPROTO_UDPLITE;
 	udp6 = (struct udphdr *)(mtod(m, caddr_t) + hlen);
 	udp6->uh_sport = inp->inp_lport; /* lport is always set in the PCB */
 	udp6->uh_dport = fport;
@@ -906,17 +906,21 @@ udp6_abort(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_abort: inp == NULL"));
 
+	INP_WLOCK(inp);
 #ifdef INET
 	if (inp->inp_vflag & INP_IPV4) {
 		struct pr_usrreqs *pru;
+		uint8_t nxt;
 
-		pru = inetsw[ip_protox[IPPROTO_UDP]].pr_usrreqs;
+		nxt = (inp->inp_socket->so_proto->pr_protocol == IPPROTO_UDP) ?
+		    IPPROTO_UDP : IPPROTO_UDPLITE;
+		INP_WUNLOCK(inp);
+		pru = inetsw[ip_protox[nxt]].pr_usrreqs;
 		(*pru->pru_abort)(so);
 		return;
 	}
 #endif
 
-	INP_WLOCK(inp);
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
 		INP_HASH_WLOCK(pcbinfo);
 		in6_pcbdisconnect(inp);
@@ -1030,16 +1034,20 @@ udp6_close(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_close: inp == NULL"));
 
+	INP_WLOCK(inp);
 #ifdef INET
 	if (inp->inp_vflag & INP_IPV4) {
 		struct pr_usrreqs *pru;
+		uint8_t nxt;
 
-		pru = inetsw[ip_protox[IPPROTO_UDP]].pr_usrreqs;
+		nxt = (inp->inp_socket->so_proto->pr_protocol == IPPROTO_UDP) ?
+		    IPPROTO_UDP : IPPROTO_UDPLITE;
+		INP_WUNLOCK(inp);
+		pru = inetsw[ip_protox[nxt]].pr_usrreqs;
 		(*pru->pru_disconnect)(so);
 		return;
 	}
 #endif
-	INP_WLOCK(inp);
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
 		INP_HASH_WLOCK(pcbinfo);
 		in6_pcbdisconnect(inp);
@@ -1145,17 +1153,20 @@ udp6_disconnect(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp6_disconnect: inp == NULL"));
 
+	INP_WLOCK(inp);
 #ifdef INET
 	if (inp->inp_vflag & INP_IPV4) {
 		struct pr_usrreqs *pru;
+		uint8_t nxt;
 
-		pru = inetsw[ip_protox[IPPROTO_UDP]].pr_usrreqs;
+		nxt = (inp->inp_socket->so_proto->pr_protocol == IPPROTO_UDP) ?
+		    IPPROTO_UDP : IPPROTO_UDPLITE;
+		INP_WUNLOCK(inp);
+		pru = inetsw[ip_protox[nxt]].pr_usrreqs;
 		(void)(*pru->pru_disconnect)(so);
 		return (0);
 	}
 #endif
-
-	INP_WLOCK(inp);
 
 	if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
 		error = ENOTCONN;
@@ -1212,7 +1223,10 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 		}
 		if (hasv4addr) {
 			struct pr_usrreqs *pru;
+			uint8_t nxt;
 
+			nxt = (inp->inp_socket->so_proto->pr_protocol ==
+			    IPPROTO_UDP) ? IPPROTO_UDP : IPPROTO_UDPLITE;
 			/*
 			 * XXXRW: We release UDP-layer locks before calling
 			 * udp_send() in order to avoid recursion.  However,
@@ -1224,7 +1238,7 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 			INP_WUNLOCK(inp);
 			if (sin6)
 				in6_sin6_2_sin_in_sock(addr);
-			pru = inetsw[ip_protox[IPPROTO_UDP]].pr_usrreqs;
+			pru = inetsw[ip_protox[nxt]].pr_usrreqs;
 			/* addr will just be freed in sendit(). */
 			return ((*pru->pru_send)(so, flags, m, addr, control,
 			    td));

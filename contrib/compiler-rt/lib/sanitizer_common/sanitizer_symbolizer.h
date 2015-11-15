@@ -43,8 +43,7 @@ struct AddressInfo {
   AddressInfo();
   // Deletes all strings and resets all fields.
   void Clear();
-  void FillAddressAndModuleInfo(uptr addr, const char *mod_name,
-                                uptr mod_offset);
+  void FillModuleInfo(const char *mod_name, uptr mod_offset);
 };
 
 // Linked list of symbolized frames (each frame is described by AddressInfo).
@@ -74,33 +73,35 @@ struct DataInfo {
   void Clear();
 };
 
-class Symbolizer {
+class SymbolizerTool;
+
+class Symbolizer final {
  public:
   /// Initialize and return platform-specific implementation of symbolizer
   /// (if it wasn't already initialized).
   static Symbolizer *GetOrInit();
   // Returns a list of symbolized frames for a given address (containing
   // all inlined functions, if necessary).
-  virtual SymbolizedStack *SymbolizePC(uptr address) {
-    return SymbolizedStack::New(address);
+  SymbolizedStack *SymbolizePC(uptr address);
+  bool SymbolizeData(uptr address, DataInfo *info);
+
+  // The module names Symbolizer returns are stable and unique for every given
+  // module.  It is safe to store and compare them as pointers.
+  bool GetModuleNameAndOffsetForPC(uptr pc, const char **module_name,
+                                   uptr *module_address);
+  const char *GetModuleNameForPc(uptr pc) {
+    const char *module_name = nullptr;
+    uptr unused;
+    if (GetModuleNameAndOffsetForPC(pc, &module_name, &unused))
+      return module_name;
+    return nullptr;
   }
-  virtual bool SymbolizeData(uptr address, DataInfo *info) {
-    return false;
-  }
-  virtual bool GetModuleNameAndOffsetForPC(uptr pc, const char **module_name,
-                                           uptr *module_address) {
-    return false;
-  }
-  virtual bool CanReturnFileLineInfo() {
-    return false;
-  }
+
   // Release internal caches (if any).
-  virtual void Flush() {}
+  void Flush();
   // Attempts to demangle the provided C++ mangled name.
-  virtual const char *Demangle(const char *name) {
-    return name;
-  }
-  virtual void PrepareForSandboxing() {}
+  const char *Demangle(const char *name);
+  void PrepareForSandboxing();
 
   // Allow user to install hooks that would be called before/after Symbolizer
   // does the actual file/line info fetching. Specific sanitizers may need this
@@ -113,16 +114,53 @@ class Symbolizer {
                 EndSymbolizationHook end_hook);
 
  private:
+  // GetModuleNameAndOffsetForPC has to return a string to the caller.
+  // Since the corresponding module might get unloaded later, we should create
+  // our owned copies of the strings that we can safely return.
+  // ModuleNameOwner does not provide any synchronization, thus calls to
+  // its method should be protected by |mu_|.
+  class ModuleNameOwner {
+   public:
+    explicit ModuleNameOwner(BlockingMutex *synchronized_by)
+        : storage_(kInitialCapacity), last_match_(nullptr),
+          mu_(synchronized_by) {}
+    const char *GetOwnedCopy(const char *str);
+
+   private:
+    static const uptr kInitialCapacity = 1000;
+    InternalMmapVector<const char*> storage_;
+    const char *last_match_;
+
+    BlockingMutex *mu_;
+  } module_names_;
+
   /// Platform-specific function for creating a Symbolizer object.
   static Symbolizer *PlatformInit();
-  /// Initialize the symbolizer in a disabled state.  Not thread safe.
-  static Symbolizer *Disable();
+
+  bool FindModuleNameAndOffsetForAddress(uptr address, const char **module_name,
+                                         uptr *module_offset);
+  LoadedModule *FindModuleForAddress(uptr address);
+  LoadedModule modules_[kMaxNumberOfModules];
+  uptr n_modules_;
+  // If stale, need to reload the modules before looking up addresses.
+  bool modules_fresh_;
+
+  // Platform-specific default demangler, must not return nullptr.
+  const char *PlatformDemangle(const char *name);
+  void PlatformPrepareForSandboxing();
 
   static Symbolizer *symbolizer_;
   static StaticSpinMutex init_mu_;
 
- protected:
-  Symbolizer();
+  // Mutex locked from public methods of |Symbolizer|, so that the internals
+  // (including individual symbolizer tools and platform-specific methods) are
+  // always synchronized.
+  BlockingMutex mu_;
+
+  typedef IntrusiveList<SymbolizerTool>::Iterator Iterator;
+  IntrusiveList<SymbolizerTool> tools_;
+
+  explicit Symbolizer(IntrusiveList<SymbolizerTool> tools);
 
   static LowLevelAllocator symbolizer_allocator_;
 

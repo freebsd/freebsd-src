@@ -35,10 +35,6 @@
 
 #include "private/svn_auth_private.h"
 
-/* Helper for svn_config_{read|write}_auth_data.  Return a path to a
-   file within ~/.subversion/auth/ that holds CRED_KIND credentials
-   within REALMSTRING.  If no path is available *PATH will be set to
-   NULL. */
 svn_error_t *
 svn_auth__file_path(const char **path,
                     const char *cred_kind,
@@ -124,9 +120,8 @@ svn_config_write_auth_data(apr_hash_t *hash,
                            const char *config_dir,
                            apr_pool_t *pool)
 {
-  apr_file_t *authfile = NULL;
   svn_stream_t *stream;
-  const char *auth_path;
+  const char *auth_path, *tmp_path;
 
   SVN_ERR(svn_auth__file_path(&auth_path, cred_kind, realmstring, config_dir,
                               pool));
@@ -135,25 +130,25 @@ svn_config_write_auth_data(apr_hash_t *hash,
                             _("Unable to locate auth file"));
 
   /* Add the realmstring to the hash, so programs (or users) can
-     verify exactly which set of credentials this file holds.  */
+     verify exactly which set of credentials this file holds.
+     ### What if realmstring key is already in the hash? */
   svn_hash_sets(hash, SVN_CONFIG_REALMSTRING_KEY,
                 svn_string_create(realmstring, pool));
 
-  SVN_ERR_W(svn_io_file_open(&authfile, auth_path,
-                             (APR_WRITE | APR_CREATE | APR_TRUNCATE
-                              | APR_BUFFERED),
-                             APR_OS_DEFAULT, pool),
+  SVN_ERR_W(svn_stream_open_unique(&stream, &tmp_path,
+                                   svn_dirent_dirname(auth_path, pool),
+                                   svn_io_file_del_on_pool_cleanup,
+                                   pool, pool),
             _("Unable to open auth file for writing"));
-
-  stream = svn_stream_from_aprfile2(authfile, FALSE, pool);
   SVN_ERR_W(svn_hash_write2(hash, stream, SVN_HASH_TERMINATOR, pool),
             apr_psprintf(pool, _("Error writing hash to '%s'"),
                          svn_dirent_local_style(auth_path, pool)));
-
   SVN_ERR(svn_stream_close(stream));
+  SVN_ERR(svn_io_file_rename(tmp_path, auth_path, pool));
 
   /* To be nice, remove the realmstring from the hash again, just in
-     case the caller wants their hash unchanged. */
+     case the caller wants their hash unchanged.
+     ### Should we also do this when a write error occurs? */
   svn_hash_sets(hash, SVN_CONFIG_REALMSTRING_KEY, NULL);
 
   return SVN_NO_ERROR;
@@ -213,7 +208,7 @@ svn_config_walk_auth_data(const char *config_dir,
       itempool = svn_pool_create(iterpool);
       for (hi = apr_hash_first(iterpool, nodes); hi; hi = apr_hash_next(hi))
         {
-          svn_io_dirent2_t *dirent = svn__apr_hash_index_val(hi);
+          svn_io_dirent2_t *dirent = apr_hash_this_val(hi);
           svn_stream_t *stream;
           apr_hash_t *creds_hash;
           const svn_string_t *realm;
@@ -227,7 +222,7 @@ svn_config_walk_auth_data(const char *config_dir,
 
           svn_pool_clear(itempool);
 
-          item_path = svn_dirent_join(dir_path, svn__apr_hash_index_key(hi),
+          item_path = svn_dirent_join(dir_path, apr_hash_this_key(hi),
                                       itempool);
 
           err = svn_stream_open_readonly(&stream, item_path,

@@ -45,6 +45,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
@@ -101,6 +102,8 @@ class TwoAddressInstructionPass : public MachineFunctionPass {
 
   bool sink3AddrInstruction(MachineInstr *MI, unsigned Reg,
                             MachineBasicBlock::iterator OldPos);
+
+  bool isRevCopyChain(unsigned FromReg, unsigned ToReg, int Maxlen);
 
   bool noUseAfterLastDef(unsigned Reg, unsigned Dist, unsigned &LastDef);
 
@@ -186,7 +189,7 @@ sink3AddrInstruction(MachineInstr *MI, unsigned SavedReg,
 
   // Check if it's safe to move this instruction.
   bool SeenStore = true; // Be conservative.
-  if (!MI->isSafeToMove(TII, AA, SeenStore))
+  if (!MI->isSafeToMove(AA, SeenStore))
     return false;
 
   unsigned DefReg = 0;
@@ -307,6 +310,45 @@ sink3AddrInstruction(MachineInstr *MI, unsigned SavedReg,
 
   ++Num3AddrSunk;
   return true;
+}
+
+/// getSingleDef -- return the MachineInstr* if it is the single def of the Reg
+/// in current BB.
+static MachineInstr *getSingleDef(unsigned Reg, MachineBasicBlock *BB,
+                                  const MachineRegisterInfo *MRI) {
+  MachineInstr *Ret = nullptr;
+  for (MachineInstr &DefMI : MRI->def_instructions(Reg)) {
+    if (DefMI.getParent() != BB || DefMI.isDebugValue())
+      continue;
+    if (!Ret)
+      Ret = &DefMI;
+    else if (Ret != &DefMI)
+      return nullptr;
+  }
+  return Ret;
+}
+
+/// Check if there is a reversed copy chain from FromReg to ToReg:
+/// %Tmp1 = copy %Tmp2;
+/// %FromReg = copy %Tmp1;
+/// %ToReg = add %FromReg ...
+/// %Tmp2 = copy %ToReg;
+/// MaxLen specifies the maximum length of the copy chain the func
+/// can walk through.
+bool TwoAddressInstructionPass::isRevCopyChain(unsigned FromReg, unsigned ToReg,
+                                               int Maxlen) {
+  unsigned TmpReg = FromReg;
+  for (int i = 0; i < Maxlen; i++) {
+    MachineInstr *Def = getSingleDef(TmpReg, MBB, MRI);
+    if (!Def || !Def->isCopy())
+      return false;
+
+    TmpReg = Def->getOperand(1).getReg();
+
+    if (TmpReg == ToReg)
+      return true;
+  }
+  return false;
 }
 
 /// noUseAfterLastDef - Return true if there are no intervening uses between the
@@ -574,6 +616,27 @@ isProfitableToCommute(unsigned regA, unsigned regB, unsigned regC,
   if (!noUseAfterLastDef(regB, Dist, LastDefB))
     return true;
 
+  // Look for situation like this:
+  // %reg101 = MOV %reg100
+  // %reg102 = ...
+  // %reg103 = ADD %reg102, %reg101
+  // ... = %reg103 ...
+  // %reg100 = MOV %reg103
+  // If there is a reversed copy chain from reg101 to reg103, commute the ADD
+  // to eliminate an otherwise unavoidable copy.
+  // FIXME:
+  // We can extend the logic further: If an pair of operands in an insn has
+  // been merged, the insn could be regarded as a virtual copy, and the virtual
+  // copy could also be used to construct a copy chain.
+  // To more generally minimize register copies, ideally the logic of two addr
+  // instruction pass should be integrated with register allocation pass where
+  // interference graph is available.
+  if (isRevCopyChain(regC, regA, 3))
+    return true;
+
+  if (isRevCopyChain(regB, regA, 3))
+    return false;
+
   // Since there are no intervening uses for both registers, then commute
   // if the def of regC is closer. Its live interval is shorter.
   return LastDefB && LastDefC && LastDefC > LastDefB;
@@ -798,7 +861,7 @@ rescheduleMIBelowKill(MachineBasicBlock::iterator &mi,
     return false;
 
   bool SeenStore = true;
-  if (!MI->isSafeToMove(TII, AA, SeenStore))
+  if (!MI->isSafeToMove(AA, SeenStore))
     return false;
 
   if (TII->getInstrLatency(InstrItins, MI) > 1)
@@ -985,7 +1048,7 @@ rescheduleKillAboveMI(MachineBasicBlock::iterator &mi,
     return false;
 
   bool SeenStore = true;
-  if (!KillMI->isSafeToMove(TII, AA, SeenStore))
+  if (!KillMI->isSafeToMove(AA, SeenStore))
     return false;
 
   SmallSet<unsigned, 2> Uses;
@@ -1144,12 +1207,24 @@ tryInstructionTransform(MachineBasicBlock::iterator &mi,
     }
   }
 
+  // If the instruction is convertible to 3 Addr, instead
+  // of returning try 3 Addr transformation aggresively and
+  // use this variable to check later. Because it might be better.
+  // For example, we can just use `leal (%rsi,%rdi), %eax` and `ret`
+  // instead of the following code.
+  //   addl	%esi, %edi
+  //   movl	%edi, %eax
+  //   ret
+  bool Commuted = false;
+
   // If it's profitable to commute, try to do so.
   if (TryCommute && commuteInstruction(mi, regB, regC, Dist)) {
+    Commuted = true;
     ++NumCommuted;
     if (AggressiveCommute)
       ++NumAggrCommuted;
-    return false;
+    if (!MI.isConvertibleTo3Addr())
+      return false;
   }
 
   if (shouldOnlyCommute)
@@ -1157,7 +1232,7 @@ tryInstructionTransform(MachineBasicBlock::iterator &mi,
 
   // If there is one more use of regB later in the same MBB, consider
   // re-schedule this MI below it.
-  if (EnableRescheduling && rescheduleMIBelowKill(mi, nmi, regB)) {
+  if (!Commuted && EnableRescheduling && rescheduleMIBelowKill(mi, nmi, regB)) {
     ++NumReSchedDowns;
     return true;
   }
@@ -1173,6 +1248,10 @@ tryInstructionTransform(MachineBasicBlock::iterator &mi,
       }
     }
   }
+
+  // Return if it is commuted but 3 addr conversion is failed.
+  if (Commuted)
+    return false;
 
   // If there is one more use of regB later in the same MBB, consider
   // re-schedule it before this MI if it's legal.
@@ -1515,9 +1594,9 @@ bool TwoAddressInstructionPass::runOnMachineFunction(MachineFunction &Func) {
   MF = &Func;
   const TargetMachine &TM = MF->getTarget();
   MRI = &MF->getRegInfo();
-  TII = TM.getSubtargetImpl()->getInstrInfo();
-  TRI = TM.getSubtargetImpl()->getRegisterInfo();
-  InstrItins = TM.getSubtargetImpl()->getInstrItineraryData();
+  TII = MF->getSubtarget().getInstrInfo();
+  TRI = MF->getSubtarget().getRegisterInfo();
+  InstrItins = MF->getSubtarget().getInstrItineraryData();
   LV = getAnalysisIfAvailable<LiveVariables>();
   LIS = getAnalysisIfAvailable<LiveIntervals>();
   AA = &getAnalysis<AliasAnalysis>();

@@ -129,6 +129,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/ADT/SetVector.h"
 using namespace llvm;
 
 // A handy option for disabling TBAA functionality. The same effect can also be
@@ -282,9 +283,7 @@ namespace {
       initializeTypeBasedAliasAnalysisPass(*PassRegistry::getPassRegistry());
     }
 
-    void initializePass() override {
-      InitializeAliasAnalysis(this);
-    }
+    bool doInitialization(Module &M) override;
 
     /// getAdjustedAnalysisPointer - This method is used when a pass implements
     /// an analysis interface through multiple inheritance.  If needed, it
@@ -301,12 +300,14 @@ namespace {
 
   private:
     void getAnalysisUsage(AnalysisUsage &AU) const override;
-    AliasResult alias(const Location &LocA, const Location &LocB) override;
-    bool pointsToConstantMemory(const Location &Loc, bool OrLocal) override;
+    AliasResult alias(const MemoryLocation &LocA,
+                      const MemoryLocation &LocB) override;
+    bool pointsToConstantMemory(const MemoryLocation &Loc,
+                                bool OrLocal) override;
     ModRefBehavior getModRefBehavior(ImmutableCallSite CS) override;
     ModRefBehavior getModRefBehavior(const Function *F) override;
     ModRefResult getModRefInfo(ImmutableCallSite CS,
-                               const Location &Loc) override;
+                               const MemoryLocation &Loc) override;
     ModRefResult getModRefInfo(ImmutableCallSite CS1,
                                ImmutableCallSite CS2) override;
   };
@@ -319,6 +320,11 @@ INITIALIZE_AG_PASS(TypeBasedAliasAnalysis, AliasAnalysis, "tbaa",
 
 ImmutablePass *llvm::createTypeBasedAliasAnalysisPass() {
   return new TypeBasedAliasAnalysis();
+}
+
+bool TypeBasedAliasAnalysis::doInitialization(Module &M) {
+  InitializeAliasAnalysis(this, &M.getDataLayout());
+  return true;
 }
 
 void
@@ -448,9 +454,8 @@ TypeBasedAliasAnalysis::PathAliases(const MDNode *A,
   return false;
 }
 
-AliasAnalysis::AliasResult
-TypeBasedAliasAnalysis::alias(const Location &LocA,
-                              const Location &LocB) {
+AliasResult TypeBasedAliasAnalysis::alias(const MemoryLocation &LocA,
+                                          const MemoryLocation &LocB) {
   if (!EnableTBAA)
     return AliasAnalysis::alias(LocA, LocB);
 
@@ -469,7 +474,7 @@ TypeBasedAliasAnalysis::alias(const Location &LocA,
   return NoAlias;
 }
 
-bool TypeBasedAliasAnalysis::pointsToConstantMemory(const Location &Loc,
+bool TypeBasedAliasAnalysis::pointsToConstantMemory(const MemoryLocation &Loc,
                                                     bool OrLocal) {
   if (!EnableTBAA)
     return AliasAnalysis::pointsToConstantMemory(Loc, OrLocal);
@@ -511,7 +516,7 @@ TypeBasedAliasAnalysis::getModRefBehavior(const Function *F) {
 
 AliasAnalysis::ModRefResult
 TypeBasedAliasAnalysis::getModRefInfo(ImmutableCallSite CS,
-                                      const Location &Loc) {
+                                      const MemoryLocation &Loc) {
   if (!EnableTBAA)
     return AliasAnalysis::getModRefInfo(CS, Loc);
 
@@ -575,18 +580,22 @@ MDNode *MDNode::getMostGenericTBAA(MDNode *A, MDNode *B) {
     if (!B) return nullptr;
   }
 
-  SmallVector<MDNode *, 4> PathA;
+  SmallSetVector<MDNode *, 4> PathA;
   MDNode *T = A;
   while (T) {
-    PathA.push_back(T);
+    if (PathA.count(T))
+      report_fatal_error("Cycle found in TBAA metadata.");
+    PathA.insert(T);
     T = T->getNumOperands() >= 2 ? cast_or_null<MDNode>(T->getOperand(1))
                                  : nullptr;
   }
 
-  SmallVector<MDNode *, 4> PathB;
+  SmallSetVector<MDNode *, 4> PathB;
   T = B;
   while (T) {
-    PathB.push_back(T);
+    if (PathB.count(T))
+      report_fatal_error("Cycle found in TBAA metadata.");
+    PathB.insert(T);
     T = T->getNumOperands() >= 2 ? cast_or_null<MDNode>(T->getOperand(1))
                                  : nullptr;
   }

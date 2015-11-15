@@ -414,7 +414,7 @@ struct xen_mc_mceinject {
 
 struct xen_mc_inject_v2 {
 	uint32_t flags;
-	struct xenctl_cpumap cpumap;
+	struct xenctl_bitmap cpumap;
 };
 #endif
 

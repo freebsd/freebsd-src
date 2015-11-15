@@ -215,19 +215,6 @@ in_ifadown(struct ifaddr *ifa, int delete)
  * for now will just reference the _fib variants.
  * eventually this order will be reversed,
  */
-int
-in_rtrequest( int req,
-	struct sockaddr *dst,
-	struct sockaddr *gateway,
-	struct sockaddr *netmask,
-	int flags,
-	struct rtentry **ret_nrt,
-	u_int fibnum)
-{
-	return (rtrequest_fib(req, dst, gateway, netmask, 
-	    flags, ret_nrt, fibnum));
-}
-
 void
 in_rtredirect(struct sockaddr *dst,
 	struct sockaddr *gateway,
@@ -239,10 +226,3 @@ in_rtredirect(struct sockaddr *dst,
 	rtredirect_fib(dst, gateway, netmask, flags, src, fibnum);
 }
  
-#if 0
-int	 in_rt_getifa(struct rt_addrinfo *, u_int fibnum);
-int	 in_rtioctl(u_long, caddr_t, u_int);
-int	 in_rtrequest1(int, struct rt_addrinfo *, struct rtentry **, u_int);
-#endif
-
-

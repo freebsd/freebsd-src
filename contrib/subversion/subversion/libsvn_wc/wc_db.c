@@ -27,6 +27,7 @@
 #include <apr_pools.h>
 #include <apr_hash.h>
 
+#include "svn_private_config.h"
 #include "svn_types.h"
 #include "svn_error.h"
 #include "svn_dirent_uri.h"
@@ -48,7 +49,7 @@
 #include "workqueue.h"
 #include "token-map.h"
 
-#include "svn_private_config.h"
+#include "private/svn_sorts_private.h"
 #include "private/svn_sqlite.h"
 #include "private/svn_skel.h"
 #include "private/svn_wc_private.h"
@@ -277,10 +278,9 @@ add_work_items(svn_sqlite__db_t *sdb,
                apr_pool_t *scratch_pool);
 
 static svn_error_t *
-set_actual_props(apr_int64_t wc_id,
+set_actual_props(svn_wc__db_wcroot_t *wcroot,
                  const char *local_relpath,
                  apr_hash_t *props,
-                 svn_sqlite__db_t *db,
                  apr_pool_t *scratch_pool);
 
 static svn_error_t *
@@ -354,13 +354,6 @@ convert_to_working_status(svn_wc__db_status_t *working_status,
                           svn_wc__db_status_t status);
 
 static svn_error_t *
-wclock_owns_lock(svn_boolean_t *own_lock,
-                 svn_wc__db_wcroot_t *wcroot,
-                 const char *local_relpath,
-                 svn_boolean_t exact,
-                 apr_pool_t *scratch_pool);
-
-static svn_error_t *
 db_is_switched(svn_boolean_t *is_switched,
                svn_node_kind_t *kind,
                svn_wc__db_wcroot_t *wcroot,
@@ -424,7 +417,7 @@ lock_from_columns(svn_sqlite__stmt_t *stmt,
 svn_error_t *
 svn_wc__db_fetch_repos_info(const char **repos_root_url,
                             const char **repos_uuid,
-                            svn_sqlite__db_t *sdb,
+                            svn_wc__db_wcroot_t *wcroot,
                             apr_int64_t repos_id,
                             apr_pool_t *result_pool)
 {
@@ -443,7 +436,7 @@ svn_wc__db_fetch_repos_info(const char **repos_root_url,
       return SVN_NO_ERROR;
     }
 
-  SVN_ERR(svn_sqlite__get_statement(&stmt, sdb,
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
                                     STMT_SELECT_REPOSITORY_BY_ID));
   SVN_ERR(svn_sqlite__bindf(stmt, "i", repos_id));
   SVN_ERR(svn_sqlite__step(&have_row, stmt));
@@ -492,35 +485,6 @@ repos_location_from_columns(apr_int64_t *repos_id,
                                                result_pool);
     }
 }
-
-
-/* Get the statement given by STMT_IDX, and bind the appropriate wc_id and
-   local_relpath based upon LOCAL_ABSPATH.  Store it in *STMT, and use
-   SCRATCH_POOL for temporary allocations.
-
-   Note: WC_ID and LOCAL_RELPATH must be arguments 1 and 2 in the statement. */
-static svn_error_t *
-get_statement_for_path(svn_sqlite__stmt_t **stmt,
-                       svn_wc__db_t *db,
-                       const char *local_abspath,
-                       int stmt_idx,
-                       apr_pool_t *scratch_pool)
-{
-  svn_wc__db_wcroot_t *wcroot;
-  const char *local_relpath;
-
-  SVN_ERR_ASSERT(svn_dirent_is_absolute(local_abspath));
-
-  SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_relpath, db,
-                              local_abspath, scratch_pool, scratch_pool));
-  VERIFY_USABLE_WCROOT(wcroot);
-
-  SVN_ERR(svn_sqlite__get_statement(stmt, wcroot->sdb, stmt_idx));
-  SVN_ERR(svn_sqlite__bindf(*stmt, "is", wcroot->wc_id, local_relpath));
-
-  return SVN_NO_ERROR;
-}
-
 
 /* For a given REPOS_ROOT_URL/REPOS_UUID pair, return the existing REPOS_ID
    value. If one does not exist, then create a new one. */
@@ -575,12 +539,53 @@ blank_ibb(insert_base_baton_t *pibb)
 }
 
 
-svn_error_t *
-svn_wc__db_extend_parent_delete(svn_wc__db_wcroot_t *wcroot,
-                                const char *local_relpath,
-                                svn_node_kind_t kind,
-                                int op_depth,
-                                apr_pool_t *scratch_pool)
+/* Extend any delete of the parent of LOCAL_RELPATH to LOCAL_RELPATH.
+
+   ### What about KIND and OP_DEPTH?  KIND ought to be redundant; I'm
+       discussing on dev@ whether we can let that be null for presence
+       == base-deleted.  OP_DEPTH is the op-depth of what, and why?
+       It is used to select the lowest working node higher than OP_DEPTH,
+       so, in terms of the API, OP_DEPTH means ...?
+
+   Given a wc:
+
+              0         1         2         3         4
+              normal
+   A          normal
+   A/B        normal              normal
+   A/B/C                          not-pres  normal
+   A/B/C/D                                            normal
+
+   That is checkout, delete A/B, copy a replacement A/B, delete copied
+   child A/B/C, add replacement A/B/C, add A/B/C/D.
+
+   Now an update that adds base nodes for A/B/C, A/B/C/D and A/B/C/D/E
+   must extend the A/B deletion:
+
+              0         1         2         3         4
+              normal
+   A          normal
+   A/B        normal              normal
+   A/B/C      normal              not-pres  normal
+   A/B/C/D    normal              base-del            normal
+   A/B/C/D/E  normal              base-del
+
+   When adding a node if the parent has a higher working node then the
+   parent node is deleted (or replaced) and the delete must be extended
+   to cover new node.
+
+   In the example above A/B/C/D and A/B/C/D/E are the nodes that get
+   the extended delete, A/B/C is already deleted.
+
+   If ADDED_DELETE is not NULL, set *ADDED_DELETE to TRUE if a new delete
+   was recorded, otherwise to FALSE.
+ */
+static svn_error_t *
+db_extend_parent_delete(svn_wc__db_wcroot_t *wcroot,
+                        const char *local_relpath,
+                        svn_node_kind_t kind,
+                        int op_depth,
+                        apr_pool_t *scratch_pool)
 {
   svn_boolean_t have_row;
   svn_sqlite__stmt_t *stmt;
@@ -622,7 +627,7 @@ svn_wc__db_extend_parent_delete(svn_wc__db_wcroot_t *wcroot,
 }
 
 
-/* This is the reverse of svn_wc__db_extend_parent_delete.
+/* This is the reverse of db_extend_parent_delete.
 
    When removing a node if the parent has a higher working node then
    the parent node and this node are both deleted or replaced and any
@@ -632,11 +637,11 @@ svn_wc__db_extend_parent_delete(svn_wc__db_wcroot_t *wcroot,
    only uses this function within an sqlite transaction if atomic
    behavior is needed.
  */
-svn_error_t *
-svn_wc__db_retract_parent_delete(svn_wc__db_wcroot_t *wcroot,
-                                 const char *local_relpath,
-                                 int op_depth,
-                                 apr_pool_t *scratch_pool)
+static svn_error_t *
+db_retract_parent_delete(svn_wc__db_wcroot_t *wcroot,
+                         const char *local_relpath,
+                         int op_depth,
+                         apr_pool_t *scratch_pool)
 {
   svn_sqlite__stmt_t *stmt;
   svn_boolean_t have_row;
@@ -825,8 +830,8 @@ insert_base_node(const insert_base_baton_t *pibb,
             new_actual_props = NULL;
         }
 
-      SVN_ERR(set_actual_props(wcroot->wc_id, local_relpath, new_actual_props,
-                               wcroot->sdb, scratch_pool));
+      SVN_ERR(set_actual_props(wcroot, local_relpath, new_actual_props,
+                               scratch_pool));
     }
 
   if (pibb->kind == svn_node_dir && pibb->children)
@@ -847,16 +852,16 @@ insert_base_node(const insert_base_baton_t *pibb,
               || (pibb->status == svn_wc__db_status_incomplete))
           && ! pibb->file_external)
         {
-          SVN_ERR(svn_wc__db_extend_parent_delete(wcroot, local_relpath,
-                                                  pibb->kind, 0,
-                                                  scratch_pool));
+          SVN_ERR(db_extend_parent_delete(wcroot, local_relpath,
+                                          pibb->kind, 0,
+                                          scratch_pool));
         }
       else if (pibb->status == svn_wc__db_status_not_present
                || pibb->status == svn_wc__db_status_server_excluded
                || pibb->status == svn_wc__db_status_excluded)
         {
-          SVN_ERR(svn_wc__db_retract_parent_delete(wcroot, local_relpath, 0,
-                                                   scratch_pool));
+          SVN_ERR(db_retract_parent_delete(wcroot, local_relpath, 0,
+                                           scratch_pool));
         }
     }
 
@@ -1101,8 +1106,8 @@ insert_working_node(const insert_working_baton_t *piwb,
             new_actual_props = NULL;
         }
 
-      SVN_ERR(set_actual_props(wcroot->wc_id, local_relpath, new_actual_props,
-                               wcroot->sdb, scratch_pool));
+      SVN_ERR(set_actual_props(wcroot, local_relpath, new_actual_props,
+                               scratch_pool));
     }
 
   if (piwb->kind == svn_node_dir)
@@ -1148,158 +1153,43 @@ insert_working_node(const insert_working_baton_t *piwb,
 }
 
 
-/* Each name is allocated in RESULT_POOL and stored into CHILDREN as a key
-   pointed to the same name.  */
+/* Return in *CHILDREN all of the children of the directory LOCAL_RELPATH,
+   of any status, in all op-depths in the NODES table. */
 static svn_error_t *
-add_children_to_hash(apr_hash_t *children,
-                     int stmt_idx,
-                     svn_sqlite__db_t *sdb,
-                     apr_int64_t wc_id,
-                     const char *parent_relpath,
-                     apr_pool_t *result_pool)
+gather_children(const apr_array_header_t **children,
+                svn_wc__db_wcroot_t *wcroot,
+                const char *parent_relpath,
+                int stmt_idx,
+                int op_depth,
+                apr_pool_t *result_pool,
+                apr_pool_t *scratch_pool)
 {
+  apr_array_header_t *result;
   svn_sqlite__stmt_t *stmt;
   svn_boolean_t have_row;
 
-  SVN_ERR(svn_sqlite__get_statement(&stmt, sdb, stmt_idx));
-  SVN_ERR(svn_sqlite__bindf(stmt, "is", wc_id, parent_relpath));
+  result = apr_array_make(result_pool, 16, sizeof(const char*));
+
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb, stmt_idx));
+  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, parent_relpath));
+  if (op_depth >= 0)
+    SVN_ERR(svn_sqlite__bind_int(stmt, 3, op_depth));
+
   SVN_ERR(svn_sqlite__step(&have_row, stmt));
   while (have_row)
     {
       const char *child_relpath = svn_sqlite__column_text(stmt, 0, NULL);
       const char *name = svn_relpath_basename(child_relpath, result_pool);
 
-      svn_hash_sets(children, name, name);
+      APR_ARRAY_PUSH(result, const char *) = name;
 
       SVN_ERR(svn_sqlite__step(&have_row, stmt));
     }
 
-  return svn_sqlite__reset(stmt);
-}
-
-
-/* Set *CHILDREN to a new array of the (const char *) basenames of the
-   immediate children, whatever their status, of the working node at
-   LOCAL_RELPATH. */
-static svn_error_t *
-gather_children2(const apr_array_header_t **children,
-                 svn_wc__db_wcroot_t *wcroot,
-                 const char *local_relpath,
-                 apr_pool_t *result_pool,
-                 apr_pool_t *scratch_pool)
-{
-  apr_hash_t *names_hash = apr_hash_make(scratch_pool);
-  apr_array_header_t *names_array;
-
-  /* All of the names get allocated in RESULT_POOL.  It
-     appears to be faster to use the hash to remove duplicates than to
-     use DISTINCT in the SQL query. */
-  SVN_ERR(add_children_to_hash(names_hash, STMT_SELECT_WORKING_CHILDREN,
-                               wcroot->sdb, wcroot->wc_id,
-                               local_relpath, result_pool));
-
-  SVN_ERR(svn_hash_keys(&names_array, names_hash, result_pool));
-  *children = names_array;
-  return SVN_NO_ERROR;
-}
-
-/* Return in *CHILDREN all of the children of the directory LOCAL_RELPATH,
-   of any status, in all op-depths in the NODES table. */
-static svn_error_t *
-gather_children(const apr_array_header_t **children,
-                svn_wc__db_wcroot_t *wcroot,
-                const char *local_relpath,
-                apr_pool_t *result_pool,
-                apr_pool_t *scratch_pool)
-{
-  apr_hash_t *names_hash = apr_hash_make(scratch_pool);
-  apr_array_header_t *names_array;
-
-  /* All of the names get allocated in RESULT_POOL.  It
-     appears to be faster to use the hash to remove duplicates than to
-     use DISTINCT in the SQL query. */
-  SVN_ERR(add_children_to_hash(names_hash, STMT_SELECT_NODE_CHILDREN,
-                               wcroot->sdb, wcroot->wc_id,
-                               local_relpath, result_pool));
-
-  SVN_ERR(svn_hash_keys(&names_array, names_hash, result_pool));
-  *children = names_array;
-  return SVN_NO_ERROR;
-}
-
-
-/* Set *CHILDREN to a new array of (const char *) names of the children of
-   the repository directory corresponding to WCROOT:LOCAL_RELPATH:OP_DEPTH -
-   that is, only the children that are at the same op-depth as their parent. */
-static svn_error_t *
-gather_repo_children(const apr_array_header_t **children,
-                     svn_wc__db_wcroot_t *wcroot,
-                     const char *local_relpath,
-                     int op_depth,
-                     apr_pool_t *result_pool,
-                     apr_pool_t *scratch_pool)
-{
-  apr_array_header_t *result
-    = apr_array_make(result_pool, 0, sizeof(const char *));
-  svn_sqlite__stmt_t *stmt;
-  svn_boolean_t have_row;
-
-  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                    STMT_SELECT_OP_DEPTH_CHILDREN));
-  SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, local_relpath,
-                            op_depth));
-  SVN_ERR(svn_sqlite__step(&have_row, stmt));
-  while (have_row)
-    {
-      const char *child_relpath = svn_sqlite__column_text(stmt, 0, NULL);
-
-      /* Allocate the name in RESULT_POOL so we won't have to copy it. */
-      APR_ARRAY_PUSH(result, const char *)
-        = svn_relpath_basename(child_relpath, result_pool);
-
-      SVN_ERR(svn_sqlite__step(&have_row, stmt));
-    }
   SVN_ERR(svn_sqlite__reset(stmt));
-
   *children = result;
   return SVN_NO_ERROR;
 }
-
-svn_error_t *
-svn_wc__db_get_children_op_depth(apr_hash_t **children,
-                                 svn_wc__db_wcroot_t *wcroot,
-                                 const char *local_relpath,
-                                 int op_depth,
-                                 apr_pool_t *result_pool,
-                                 apr_pool_t *scratch_pool)
-{
-  svn_sqlite__stmt_t *stmt;
-  svn_boolean_t have_row;
-
-  *children = apr_hash_make(result_pool);
-
-  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                    STMT_SELECT_OP_DEPTH_CHILDREN));
-  SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, local_relpath,
-                            op_depth));
-  SVN_ERR(svn_sqlite__step(&have_row, stmt));
-  while (have_row)
-    {
-      const char *child_relpath = svn_sqlite__column_text(stmt, 0, NULL);
-      svn_node_kind_t *child_kind = apr_palloc(result_pool, sizeof(svn_node_kind_t));
-
-      *child_kind = svn_sqlite__column_token(stmt, 1, kind_map);
-      svn_hash_sets(*children,
-                    svn_relpath_basename(child_relpath, result_pool),
-                    child_kind);
-
-      SVN_ERR(svn_sqlite__step(&have_row, stmt));
-    }
-  SVN_ERR(svn_sqlite__reset(stmt));
-
-  return SVN_NO_ERROR;
-}
-
 
 /* Return TRUE if CHILD_ABSPATH is an immediate child of PARENT_ABSPATH.
  * Else, return FALSE. */
@@ -1358,7 +1248,7 @@ flush_entries(svn_wc__db_wcroot_t *wcroot,
            hi;
            hi = apr_hash_next(hi))
         {
-          const char *item_abspath = svn__apr_hash_index_key(hi);
+          const char *item_abspath = apr_hash_this_key(hi);
 
           if ((depth == svn_depth_files || depth == svn_depth_immediates) &&
               is_immediate_child_path(local_abspath, item_abspath))
@@ -1485,11 +1375,11 @@ init_db(/* output values */
   SVN_ERR(svn_sqlite__exec_statements(db, STMT_CREATE_NODES_TRIGGERS));
   SVN_ERR(svn_sqlite__exec_statements(db, STMT_CREATE_EXTERNALS));
 
+  SVN_ERR(svn_wc__db_install_schema_statistics(db, scratch_pool));
+
   /* Insert the repository. */
   SVN_ERR(create_repos_id(repos_id, repos_root_url, repos_uuid,
                           db, scratch_pool));
-
-  SVN_ERR(svn_wc__db_install_schema_statistics(db, scratch_pool));
 
   /* Insert the wcroot. */
   /* ### Right now, this just assumes wc metadata is being stored locally. */
@@ -1508,7 +1398,7 @@ init_db(/* output values */
                                 *wc_id,              /* 1 */
                                 "",                  /* 2 */
                                 0,                   /* op_depth is 0 for base */
-                                NULL,                /* 4 */
+                                SVN_VA_NULL,         /* 4 */
                                 *repos_id,
                                 root_node_repos_relpath,
                                 root_node_revision,
@@ -1544,11 +1434,13 @@ create_db(svn_sqlite__db_t **sdb,
           svn_revnum_t root_node_revision,
           svn_depth_t root_node_depth,
           svn_boolean_t exclusive,
+          apr_int32_t timeout,
           apr_pool_t *result_pool,
           apr_pool_t *scratch_pool)
 {
   SVN_ERR(svn_wc__db_util_open_db(sdb, dir_abspath, sdb_fname,
                                   svn_sqlite__mode_rwcreate, exclusive,
+                                  timeout,
                                   NULL /* my_statements */,
                                   result_pool, scratch_pool));
 
@@ -1577,6 +1469,8 @@ svn_wc__db_init(svn_wc__db_t *db,
   apr_int64_t wc_id;
   svn_wc__db_wcroot_t *wcroot;
   svn_boolean_t sqlite_exclusive = FALSE;
+  apr_int32_t sqlite_timeout = 0; /* default timeout */
+  apr_hash_index_t *hi;
 
   SVN_ERR_ASSERT(svn_dirent_is_absolute(local_abspath));
   SVN_ERR_ASSERT(repos_relpath != NULL);
@@ -1587,7 +1481,7 @@ svn_wc__db_init(svn_wc__db_t *db,
 
   /* ### REPOS_ROOT_URL and REPOS_UUID may be NULL. ... more doc: tbd  */
 
-  SVN_ERR(svn_config_get_bool((svn_config_t *)db->config, &sqlite_exclusive,
+  SVN_ERR(svn_config_get_bool(db->config, &sqlite_exclusive,
                               SVN_CONFIG_SECTION_WORKING_COPY,
                               SVN_CONFIG_OPTION_SQLITE_EXCLUSIVE,
                               FALSE));
@@ -1596,6 +1490,7 @@ svn_wc__db_init(svn_wc__db_t *db,
   SVN_ERR(create_db(&sdb, &repos_id, &wc_id, local_abspath, repos_root_url,
                     repos_uuid, SDB_FILE,
                     repos_relpath, initial_rev, depth, sqlite_exclusive,
+                    sqlite_timeout,
                     db->state_pool, scratch_pool));
 
   /* Create the WCROOT for this directory.  */
@@ -1603,8 +1498,30 @@ svn_wc__db_init(svn_wc__db_t *db,
                         apr_pstrdup(db->state_pool, local_abspath),
                         sdb, wc_id, FORMAT_FROM_SDB,
                         FALSE /* auto-upgrade */,
-                        FALSE /* enforce_empty_wq */,
                         db->state_pool, scratch_pool));
+
+  /* Any previously cached children may now have a new WCROOT, most likely that
+     of the new WCROOT, but there might be descendant directories that are their
+     own working copy, in which case setting WCROOT to our new WCROOT might
+     actually break things for those.
+
+     Clearing is the safest thing we can do in this case, as a test would lead
+     to unnecessary probing, while the standard code probes later anyway. So we
+     only lose a bit of memory
+
+     ### Perhaps we could check wcroot->abspath to detect which case we have
+         where, but currently it is already very hard to trigger this from
+         the short living 'svn' client. (GUI clients like TortoiseSVN are far
+         more likely to get in these cases)
+     */
+  for (hi = apr_hash_first(scratch_pool, db->dir_data);
+       hi;
+       hi = apr_hash_next(hi))
+    {
+      const char *abspath = apr_hash_this_key(hi);
+      if (svn_dirent_is_ancestor(wcroot->abspath, abspath))
+        svn_hash_sets(db->dir_data, abspath, NULL);
+    }
 
   /* The WCROOT is complete. Stash it into DB.  */
   svn_hash_sets(db->dir_data, wcroot->abspath, wcroot);
@@ -1714,10 +1631,10 @@ svn_wc__db_base_add_directory(svn_wc__db_t *db,
                               const apr_array_header_t *children,
                               svn_depth_t depth,
                               apr_hash_t *dav_cache,
-                              const svn_skel_t *conflict,
                               svn_boolean_t update_actual_props,
                               apr_hash_t *new_actual_props,
                               apr_array_header_t *new_iprops,
+                              const svn_skel_t *conflict,
                               const svn_skel_t *work_items,
                               apr_pool_t *scratch_pool)
 {
@@ -2126,31 +2043,62 @@ svn_wc__db_base_add_not_present_node(svn_wc__db_t *db,
 }
 
 /* Recursively clear moved-here information at the copy-half of the move
- * which moved the node at SRC_RELPATH away. This transforms the move into
- * a simple copy. */
+ * which moved a node to MOVED_TO_RELPATH. This transforms this side of the
+ * move into a simple copy.
+ */
 static svn_error_t *
-clear_moved_here(const char *src_relpath,
-                 svn_wc__db_wcroot_t *wcroot,
+clear_moved_here(svn_wc__db_wcroot_t *wcroot,
+                 const char *moved_to_relpath,
                  apr_pool_t *scratch_pool)
 {
   svn_sqlite__stmt_t *stmt;
-  const char *dst_relpath;
-
-  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb, STMT_SELECT_MOVED_TO));
-  SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id,
-                            src_relpath, relpath_depth(src_relpath)));
-  SVN_ERR(svn_sqlite__step_row(stmt));
-  dst_relpath = svn_sqlite__column_text(stmt, 0, scratch_pool);
-  SVN_ERR(svn_sqlite__reset(stmt));
+  int affected_rows;
 
   SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
                                     STMT_CLEAR_MOVED_HERE_RECURSIVE));
-  SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id,
-                            dst_relpath, relpath_depth(dst_relpath)));
-  SVN_ERR(svn_sqlite__step_done(stmt));
+  SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, moved_to_relpath,
+                            relpath_depth(moved_to_relpath)));
+
+  SVN_ERR(svn_sqlite__update(&affected_rows, stmt));
+
+  if (affected_rows == 0)
+     return svn_error_createf(SVN_ERR_WC_PATH_NOT_FOUND, NULL,
+                              _("The node '%s' was not found."),
+                              path_for_error_message(wcroot, moved_to_relpath,
+                                                     scratch_pool));
 
   return SVN_NO_ERROR;
 }
+
+svn_error_t *
+svn_wc__db_op_break_move_internal(svn_wc__db_wcroot_t *wcroot,
+                                  const char *src_relpath,
+                                  int delete_op_depth,
+                                  const char *dst_relpath,
+                                  const svn_skel_t *work_items,
+                                  apr_pool_t *scratch_pool)
+{
+  svn_sqlite__stmt_t *stmt;
+  int affected;
+
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                    STMT_CLEAR_MOVED_TO_RELPATH));
+  SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, src_relpath,
+                            delete_op_depth));
+  SVN_ERR(svn_sqlite__update(&affected, stmt));
+
+  if (affected != 1)
+    return svn_error_createf(SVN_ERR_WC_PATH_UNEXPECTED_STATUS, NULL,
+                             _("Path '%s' is not moved"),
+                             path_for_error_message(wcroot, src_relpath,
+                                                    scratch_pool));
+
+  SVN_ERR(clear_moved_here(wcroot, dst_relpath, scratch_pool));
+
+  SVN_ERR(add_work_items(wcroot->sdb, work_items, scratch_pool));
+  return SVN_NO_ERROR;
+}
+
 
 /* The body of svn_wc__db_base_remove().
  */
@@ -2159,9 +2107,9 @@ db_base_remove(svn_wc__db_wcroot_t *wcroot,
                const char *local_relpath,
                svn_wc__db_t *db, /* For checking conflicts */
                svn_boolean_t keep_as_working,
-               svn_boolean_t queue_deletes,
-               svn_boolean_t remove_locks,
-               svn_revnum_t not_present_revision,
+               svn_boolean_t mark_not_present,
+               svn_boolean_t mark_excluded,
+               svn_revnum_t marker_revision,
                svn_skel_t *conflict,
                svn_skel_t *work_items,
                apr_pool_t *scratch_pool)
@@ -2169,66 +2117,82 @@ db_base_remove(svn_wc__db_wcroot_t *wcroot,
   svn_sqlite__stmt_t *stmt;
   svn_boolean_t have_row;
   svn_wc__db_status_t status;
+  svn_revnum_t revision;
   apr_int64_t repos_id;
   const char *repos_relpath;
   svn_node_kind_t kind;
   svn_boolean_t keep_working;
+  int op_depth;
+  svn_node_kind_t wrk_kind;
+  svn_boolean_t no_delete_wc = FALSE;
+  svn_boolean_t file_external;
 
-  SVN_ERR(svn_wc__db_base_get_info_internal(&status, &kind, NULL,
+  SVN_ERR(svn_wc__db_base_get_info_internal(&status, &kind, &revision,
                                             &repos_relpath, &repos_id,
                                             NULL, NULL, NULL, NULL, NULL,
-                                            NULL, NULL, NULL, NULL, NULL,
+                                            NULL, NULL, NULL, NULL,
+                                            &file_external,
                                             wcroot, local_relpath,
                                             scratch_pool, scratch_pool));
 
-  if (remove_locks)
-    {
-      svn_sqlite__stmt_t *lock_stmt;
+  /* Check if there is already a working node */
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                    STMT_SELECT_NODE_INFO));
+  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
+  SVN_ERR(svn_sqlite__step(&have_row, stmt));
 
-      SVN_ERR(svn_sqlite__get_statement(&lock_stmt, wcroot->sdb,
-                                        STMT_DELETE_LOCK_RECURSIVELY));
-      SVN_ERR(svn_sqlite__bindf(lock_stmt, "is", repos_id, repos_relpath));
-      SVN_ERR(svn_sqlite__step_done(lock_stmt));
-    }
+  if (!have_row)
+    return svn_error_trace(svn_sqlite__reset(stmt)); /* No BASE */
 
-  if (status == svn_wc__db_status_normal
-      && keep_as_working)
+  op_depth = svn_sqlite__column_int(stmt, 0);
+  wrk_kind = svn_sqlite__column_token(stmt, 4, kind_map);
+
+  if (op_depth > 0
+      && op_depth == relpath_depth(local_relpath))
     {
-      SVN_ERR(svn_wc__db_op_make_copy(db,
-                                      svn_dirent_join(wcroot->abspath,
-                                                      local_relpath,
-                                                      scratch_pool),
-                                      NULL, NULL,
-                                      scratch_pool));
-      keep_working = TRUE;
+      svn_wc__db_status_t presence;
+      presence = svn_sqlite__column_token(stmt, 3, presence_map);
+
+      if (presence == svn_wc__db_status_base_deleted)
+        {
+          keep_working = FALSE;
+          no_delete_wc = TRUE;
+        }
+      else
+        {
+          keep_working = TRUE;
+        }
     }
   else
+    keep_working = FALSE;
+  SVN_ERR(svn_sqlite__reset(stmt));
+
+  if (keep_as_working && op_depth == 0)
     {
-      /* Check if there is already a working node */
-      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                        STMT_SELECT_WORKING_NODE));
-      SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
-      SVN_ERR(svn_sqlite__step(&keep_working, stmt));
-      SVN_ERR(svn_sqlite__reset(stmt));
+      if (status == svn_wc__db_status_normal
+          || status == svn_wc__db_status_incomplete)
+        {
+          SVN_ERR(svn_wc__db_op_make_copy_internal(wcroot, local_relpath, TRUE,
+                                                   NULL, NULL,
+                                                   scratch_pool));
+        }
+      keep_working = TRUE;
     }
 
   /* Step 1: Create workqueue operations to remove files and dirs in the
      local-wc */
-  if (!keep_working
-      && queue_deletes
-      && (status == svn_wc__db_status_normal
-          || status == svn_wc__db_status_incomplete))
+  if (!keep_working && !no_delete_wc)
     {
       svn_skel_t *work_item;
       const char *local_abspath;
 
       local_abspath = svn_dirent_join(wcroot->abspath, local_relpath,
                                       scratch_pool);
-      if (kind == svn_node_dir)
+      if (wrk_kind == svn_node_dir)
         {
           apr_pool_t *iterpool;
           SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                            STMT_SELECT_BASE_PRESENT));
+                                            STMT_SELECT_WORKING_PRESENT));
           SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
 
           iterpool = svn_pool_create(scratch_pool);
@@ -2307,27 +2271,12 @@ db_base_remove(svn_wc__db_wcroot_t *wcroot,
            ACTUAL_NODE records */
 
   /* Step 3: Delete WORKING nodes */
-  if (conflict)
+  if (!keep_working)
     {
       apr_pool_t *iterpool;
 
-      /*
-       * When deleting a conflicted node, moves of any moved-outside children
-       * of the node must be broken. Else, the destination will still be marked
-       * moved-here after the move source disappears from the working copy.
-       *
-       * ### FIXME: It would be nicer to have the conflict resolver
-       * break the move instead. It might also be a good idea to
-       * flag a tree conflict on each moved-away child. But doing so
-       * might introduce actual-only nodes without direct parents,
-       * and we're not yet sure if other existing code is prepared
-       * to handle such nodes. To be revisited post-1.8.
-       *
-       * ### In case of a conflict we are most likely creating WORKING nodes
-       *     describing a copy of what was in BASE. The move information
-       *     should be updated to describe a move from the WORKING layer.
-       *     When stored that way the resolver of the tree conflict still has
-       *     the knowledge of what was moved.
+      /* When deleting everything in working we should break moves from
+         here and to here.
        */
       SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
                                         STMT_SELECT_MOVED_OUTSIDE));
@@ -2338,12 +2287,12 @@ db_base_remove(svn_wc__db_wcroot_t *wcroot,
       iterpool = svn_pool_create(scratch_pool);
       while (have_row)
         {
-          const char *child_relpath;
+          const char *moved_to_relpath;
           svn_error_t *err;
 
           svn_pool_clear(iterpool);
-          child_relpath = svn_sqlite__column_text(stmt, 0, iterpool);
-          err = clear_moved_here(child_relpath, wcroot, iterpool);
+          moved_to_relpath = svn_sqlite__column_text(stmt, 1, iterpool);
+          err = clear_moved_here(wcroot, moved_to_relpath, iterpool);
           if (err)
             return svn_error_compose_create(err, svn_sqlite__reset(stmt));
           SVN_ERR(svn_sqlite__step(&have_row, stmt));
@@ -2351,11 +2300,52 @@ db_base_remove(svn_wc__db_wcroot_t *wcroot,
       svn_pool_destroy(iterpool);
       SVN_ERR(svn_sqlite__reset(stmt));
     }
+  else
+    {
+      /* We are keeping things that are in WORKING, but we should still
+         break moves of things in BASE. (Mixed revisions make it
+         impossible to guarantee that we can keep everything moved) */
+
+      apr_pool_t *iterpool;
+
+      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                        STMT_SELECT_MOVED_DESCENDANTS_SRC));
+      SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id,
+                                local_relpath, 0));
+      SVN_ERR(svn_sqlite__step(&have_row, stmt));
+      iterpool = svn_pool_create(scratch_pool);
+      while (have_row)
+        {
+          int delete_op_depth = svn_sqlite__column_int(stmt, 0);
+          const char *src_relpath;
+          const char *dst_relpath;
+          svn_error_t *err;
+
+          svn_pool_clear(iterpool);
+
+          src_relpath = svn_sqlite__column_text(stmt, 1, iterpool);
+          dst_relpath = svn_sqlite__column_text(stmt, 4, iterpool);
+
+          err = svn_wc__db_op_break_move_internal(wcroot, src_relpath,
+                                                  delete_op_depth,
+                                                  dst_relpath,
+                                                  NULL,
+                                                  iterpool);
+
+          if (err)
+            return svn_error_compose_create(err, svn_sqlite__reset(stmt));
+
+          SVN_ERR(svn_sqlite__step(&have_row, stmt));
+        }
+      svn_pool_destroy(iterpool);
+      SVN_ERR(svn_sqlite__reset(stmt));
+    }
   if (keep_working)
     {
-      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                        STMT_DELETE_WORKING_BASE_DELETE));
-      SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
+      SVN_ERR(svn_sqlite__get_statement(
+                    &stmt, wcroot->sdb,
+                    STMT_DELETE_WORKING_BASE_DELETE_RECURSIVE));
+      SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, local_relpath, 0));
       SVN_ERR(svn_sqlite__step_done(stmt));
     }
   else
@@ -2372,42 +2362,69 @@ db_base_remove(svn_wc__db_wcroot_t *wcroot,
   SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
   SVN_ERR(svn_sqlite__step_done(stmt));
 
-  /* Step 5: handle the BASE node itself */
-  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                    STMT_DELETE_BASE_NODE));
-  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
-  SVN_ERR(svn_sqlite__step_done(stmt));
+  SVN_ERR(db_retract_parent_delete(wcroot, local_relpath, 0, scratch_pool));
 
-  SVN_ERR(svn_wc__db_retract_parent_delete(wcroot, local_relpath, 0,
-                                           scratch_pool));
-
-  /* Step 6: Delete actual node if we don't keep working */
-  if (! keep_working)
-    {
-      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                        STMT_DELETE_ACTUAL_NODE));
-      SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
-      SVN_ERR(svn_sqlite__step_done(stmt));
-    }
-
-  if (SVN_IS_VALID_REVNUM(not_present_revision))
+  if (mark_not_present || mark_excluded)
     {
       struct insert_base_baton_t ibb;
-      blank_ibb(&ibb);
+      svn_boolean_t no_marker = FALSE;
 
-      ibb.repos_id = repos_id;
-      ibb.status = svn_wc__db_status_not_present;
-      ibb.kind = kind;
-      ibb.repos_relpath = repos_relpath;
-      ibb.revision = not_present_revision;
+      if (file_external)
+        {
+          const char *parent_local_relpath;
+          const char *name;
+          svn_error_t *err;
 
-      /* Depending upon KIND, any of these might get used. */
-      ibb.children = NULL;
-      ibb.depth = svn_depth_unknown;
-      ibb.checksum = NULL;
-      ibb.target = NULL;
+          /* For file externals we only want to place a not present marker
+             if there is a BASE parent */
+          
+          svn_relpath_split(&parent_local_relpath, &name, local_relpath,
+                            scratch_pool);
 
-      SVN_ERR(insert_base_node(&ibb, wcroot, local_relpath, scratch_pool));
+          err = svn_wc__db_base_get_info_internal(NULL, NULL, NULL,
+                                                  &repos_relpath, &repos_id,
+                                                  NULL, NULL, NULL, NULL, NULL,
+                                                  NULL, NULL, NULL, NULL, NULL,
+                                                  wcroot, parent_local_relpath,
+                                                  scratch_pool, scratch_pool);
+
+          if (err && err->apr_err != SVN_ERR_WC_PATH_NOT_FOUND)
+            return svn_error_trace(err);
+          else if (err)
+            {
+              svn_error_clear(err);
+              no_marker = TRUE;
+            }
+          else
+            {
+              /* Replace the repos_relpath with something more expected than
+                 the unrelated old file external repository relpath, which
+                 one day may come from a different repository */
+              repos_relpath = svn_relpath_join(repos_relpath, name, scratch_pool);
+            }
+        }
+
+      if (!no_marker)
+        {
+          blank_ibb(&ibb);
+
+          ibb.repos_id = repos_id;
+          ibb.status = mark_excluded ? svn_wc__db_status_excluded
+                                     : svn_wc__db_status_not_present;
+          ibb.kind = kind;
+          ibb.repos_relpath = repos_relpath;
+          ibb.revision = SVN_IS_VALID_REVNUM(marker_revision)
+                            ? marker_revision
+                            : revision;
+
+          /* Depending upon KIND, any of these might get used. */
+          ibb.children = NULL;
+          ibb.depth = svn_depth_unknown;
+          ibb.checksum = NULL;
+          ibb.target = NULL;
+
+          SVN_ERR(insert_base_node(&ibb, wcroot, local_relpath, scratch_pool));
+        }
     }
 
   SVN_ERR(add_work_items(wcroot->sdb, work_items, scratch_pool));
@@ -2423,9 +2440,9 @@ svn_error_t *
 svn_wc__db_base_remove(svn_wc__db_t *db,
                        const char *local_abspath,
                        svn_boolean_t keep_as_working,
-                       svn_boolean_t queue_deletes,
-                       svn_boolean_t remove_locks,
-                       svn_revnum_t not_present_revision,
+                       svn_boolean_t mark_not_present,
+                       svn_boolean_t mark_excluded,
+                       svn_revnum_t marker_revision,
                        svn_skel_t *conflict,
                        svn_skel_t *work_items,
                        apr_pool_t *scratch_pool)
@@ -2440,8 +2457,9 @@ svn_wc__db_base_remove(svn_wc__db_t *db,
   VERIFY_USABLE_WCROOT(wcroot);
 
   SVN_WC__DB_WITH_TXN(db_base_remove(wcroot, local_relpath,
-                                     db, keep_as_working, queue_deletes,
-                                     remove_locks, not_present_revision,
+                                     db, keep_as_working,
+                                     mark_not_present, mark_excluded,
+                                     marker_revision,
                                      conflict, work_items, scratch_pool),
                       wcroot);
 
@@ -2638,7 +2656,7 @@ svn_wc__db_base_get_info(svn_wc__db_status_t *status,
                                             wcroot, local_relpath,
                                             result_pool, scratch_pool),
           svn_wc__db_fetch_repos_info(repos_root_url, repos_uuid,
-                                      wcroot->sdb, repos_id, result_pool),
+                                      wcroot, repos_id, result_pool),
           SVN_NO_ERROR,
           SVN_NO_ERROR,
           wcroot);
@@ -2647,28 +2665,26 @@ svn_wc__db_base_get_info(svn_wc__db_status_t *status,
   return SVN_NO_ERROR;
 }
 
-svn_error_t *
-svn_wc__db_base_get_children_info(apr_hash_t **nodes,
-                                  svn_wc__db_t *db,
-                                  const char *dir_abspath,
-                                  apr_pool_t *result_pool,
-                                  apr_pool_t *scratch_pool)
+/* The implementation of svn_wc__db_base_get_children_info */
+static svn_error_t *
+base_get_children_info(apr_hash_t **nodes,
+                       svn_wc__db_wcroot_t *wcroot,
+                       const char *local_relpath,
+                       svn_boolean_t obtain_locks,
+                       apr_pool_t *result_pool,
+                       apr_pool_t *scratch_pool)
 {
-  svn_wc__db_wcroot_t *wcroot;
-  const char *local_relpath;
   svn_sqlite__stmt_t *stmt;
   svn_boolean_t have_row;
-
-  SVN_ERR_ASSERT(svn_dirent_is_absolute(dir_abspath));
-
-  SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_relpath, db,
-                              dir_abspath, scratch_pool, scratch_pool));
-  VERIFY_USABLE_WCROOT(wcroot);
+  apr_int64_t last_repos_id = INVALID_REPOS_ID;
+  const char *last_repos_root_url = NULL;
 
   *nodes = apr_hash_make(result_pool);
 
   SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                    STMT_SELECT_BASE_CHILDREN_INFO));
+                                    obtain_locks
+                                      ? STMT_SELECT_BASE_CHILDREN_INFO_LOCK
+                                      : STMT_SELECT_BASE_CHILDREN_INFO));
   SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
 
   SVN_ERR(svn_sqlite__step(&have_row, stmt));
@@ -2676,7 +2692,6 @@ svn_wc__db_base_get_children_info(apr_hash_t **nodes,
   while (have_row)
     {
       struct svn_wc__db_base_info_t *info;
-      svn_error_t *err;
       apr_int64_t repos_id;
       const char *child_relpath = svn_sqlite__column_text(stmt, 0, NULL);
       const char *name = svn_relpath_basename(child_relpath, result_pool);
@@ -2694,16 +2709,26 @@ svn_wc__db_base_get_children_info(apr_hash_t **nodes,
 
       info->update_root = svn_sqlite__column_boolean(stmt, 7);
 
-      info->lock = lock_from_columns(stmt, 8, 9, 10, 11, result_pool);
+      if (obtain_locks)
+        info->lock = lock_from_columns(stmt, 8, 9, 10, 11, result_pool);
 
-      err = svn_wc__db_fetch_repos_info(&info->repos_root_url, NULL,
-                                        wcroot->sdb, repos_id, result_pool);
+      if (repos_id != last_repos_id)
+        {
+          svn_error_t *err;
 
-      if (err)
-        return svn_error_trace(
-                 svn_error_compose_create(err,
-                                          svn_sqlite__reset(stmt)));
+          err = svn_wc__db_fetch_repos_info(&last_repos_root_url, NULL,
+                                            wcroot, repos_id,
+                                            result_pool);
 
+          if (err)
+            return svn_error_trace(
+                     svn_error_compose_create(err,
+                                              svn_sqlite__reset(stmt)));
+
+          last_repos_id = repos_id;
+        }
+
+      info->repos_root_url = last_repos_root_url;
 
       svn_hash_sets(*nodes, name, info);
 
@@ -2713,6 +2738,30 @@ svn_wc__db_base_get_children_info(apr_hash_t **nodes,
   SVN_ERR(svn_sqlite__reset(stmt));
 
   return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_wc__db_base_get_children_info(apr_hash_t **nodes,
+                                  svn_wc__db_t *db,
+                                  const char *dir_abspath,
+                                  apr_pool_t *result_pool,
+                                  apr_pool_t *scratch_pool)
+{
+  svn_wc__db_wcroot_t *wcroot;
+  const char *local_relpath;
+
+  SVN_ERR_ASSERT(svn_dirent_is_absolute(dir_abspath));
+
+  SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_relpath, db,
+                              dir_abspath, scratch_pool, scratch_pool));
+  VERIFY_USABLE_WCROOT(wcroot);
+
+  return svn_error_trace(base_get_children_info(nodes,
+                                                wcroot,
+                                                local_relpath,
+                                                TRUE /* obtain_locks */,
+                                                result_pool,
+                                                scratch_pool));
 }
 
 
@@ -2761,8 +2810,10 @@ svn_wc__db_base_get_children(const apr_array_header_t **children,
                                              scratch_pool, scratch_pool));
   VERIFY_USABLE_WCROOT(wcroot);
 
-  return gather_repo_children(children, wcroot, local_relpath, 0,
-                              result_pool, scratch_pool);
+  return svn_error_trace(
+              gather_children(children, wcroot, local_relpath,
+                              STMT_SELECT_OP_DEPTH_CHILDREN, 0,
+                              result_pool, scratch_pool));
 }
 
 
@@ -2772,12 +2823,20 @@ svn_wc__db_base_set_dav_cache(svn_wc__db_t *db,
                               const apr_hash_t *props,
                               apr_pool_t *scratch_pool)
 {
+  svn_wc__db_wcroot_t *wcroot;
+  const char *local_relpath;
   svn_sqlite__stmt_t *stmt;
   int affected_rows;
 
-  SVN_ERR(get_statement_for_path(&stmt, db, local_abspath,
-                                 STMT_UPDATE_BASE_NODE_DAV_CACHE,
-                                 scratch_pool));
+  SVN_ERR_ASSERT(svn_dirent_is_absolute(local_abspath));
+
+  SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_relpath, db,
+                              local_abspath, scratch_pool, scratch_pool));
+  VERIFY_USABLE_WCROOT(wcroot);
+
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                    STMT_UPDATE_BASE_NODE_DAV_CACHE));
+  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
   SVN_ERR(svn_sqlite__bind_properties(stmt, 3, props, scratch_pool));
 
   SVN_ERR(svn_sqlite__update(&affected_rows, stmt));
@@ -2799,11 +2858,20 @@ svn_wc__db_base_get_dav_cache(apr_hash_t **props,
                               apr_pool_t *result_pool,
                               apr_pool_t *scratch_pool)
 {
+  svn_wc__db_wcroot_t *wcroot;
+  const char *local_relpath;
   svn_sqlite__stmt_t *stmt;
   svn_boolean_t have_row;
 
-  SVN_ERR(get_statement_for_path(&stmt, db, local_abspath,
-                                 STMT_SELECT_BASE_DAV_CACHE, scratch_pool));
+  SVN_ERR_ASSERT(svn_dirent_is_absolute(local_abspath));
+
+  SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_relpath, db,
+                              local_abspath, scratch_pool, scratch_pool));
+  VERIFY_USABLE_WCROOT(wcroot);
+
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                    STMT_SELECT_BASE_DAV_CACHE));
+
   SVN_ERR(svn_sqlite__step(&have_row, stmt));
   if (!have_row)
     return svn_error_createf(SVN_ERR_WC_PATH_NOT_FOUND,
@@ -2944,21 +3012,21 @@ svn_wc__db_depth_get_info(svn_wc__db_status_t *status,
         }
       if (had_props)
         {
-          *had_props = SQLITE_PROPERTIES_AVAILABLE(stmt, 13);
+          *had_props = SQLITE_PROPERTIES_AVAILABLE(stmt, 12);
         }
       if (props)
         {
           if (node_status == svn_wc__db_status_normal
               || node_status == svn_wc__db_status_incomplete)
             {
-              SVN_ERR(svn_sqlite__column_properties(props, stmt, 13,
+              SVN_ERR(svn_sqlite__column_properties(props, stmt, 12,
                                                     result_pool, scratch_pool));
               if (*props == NULL)
                 *props = apr_hash_make(result_pool);
             }
           else
             {
-              assert(svn_sqlite__column_is_null(stmt, 13));
+              assert(svn_sqlite__column_is_null(stmt, 12));
               *props = NULL;
             }
         }
@@ -2975,6 +3043,11 @@ svn_wc__db_depth_get_info(svn_wc__db_status_t *status,
   return svn_error_compose_create(err, svn_sqlite__reset(stmt));
 }
 
+/* A callback which supplies WCROOTs and LOCAL_RELPATHs. */
+typedef svn_error_t *(*svn_wc__db_txn_callback_t)(void *baton,
+                                          svn_wc__db_wcroot_t *wcroot,
+                                          const char *local_relpath,
+                                          apr_pool_t *scratch_pool);
 
 /* Baton for passing args to with_triggers(). */
 struct with_triggers_baton_t {
@@ -3051,8 +3124,13 @@ with_finalization(svn_wc__db_wcroot_t *wcroot,
   svn_error_t *err1;
   svn_error_t *err2;
 
-  err1 = svn_wc__db_with_txn(wcroot, local_relpath, txn_cb, txn_baton,
-                             scratch_pool);
+  err1 = svn_sqlite__begin_savepoint(wcroot->sdb);
+  if (!err1)
+    {
+      err1 = txn_cb(txn_baton, wcroot, local_relpath, scratch_pool);
+
+      err1 = svn_sqlite__finish_savepoint(wcroot->sdb, err1);
+    }
 
   if (err1 == NULL && notify_func != NULL)
     {
@@ -3438,11 +3516,18 @@ db_external_remove(const svn_skel_t *work_items,
                    apr_pool_t *scratch_pool)
 {
   svn_sqlite__stmt_t *stmt;
+  int affected_rows;
 
   SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
                                     STMT_DELETE_EXTERNAL));
   SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
-  SVN_ERR(svn_sqlite__step_done(stmt));
+  SVN_ERR(svn_sqlite__update(&affected_rows, stmt));
+
+  if (!affected_rows)
+    return svn_error_createf(SVN_ERR_WC_PATH_NOT_FOUND, NULL,
+                             _("The node '%s' is not an external."),
+                             path_for_error_message(wcroot, local_relpath,
+                                                    scratch_pool));
 
   SVN_ERR(add_work_items(wcroot->sdb, work_items, scratch_pool));
 
@@ -3543,7 +3628,7 @@ svn_wc__db_external_read(svn_wc__db_status_t *status,
           err = svn_error_compose_create(
                         err,
                         svn_wc__db_fetch_repos_info(repos_root_url, repos_uuid,
-                                                    wcroot->sdb, repos_id,
+                                                    wcroot, repos_id,
                                                     result_pool));
         }
 
@@ -3925,14 +4010,14 @@ get_moved_to(const char **moved_to_relpath_p,
 /* The body of svn_wc__db_scan_deletion().
  */
 static svn_error_t *
-scan_deletion_txn(const char **base_del_relpath,
-                  const char **moved_to_relpath,
-                  const char **work_del_relpath,
-                  const char **moved_to_op_root_relpath,
-                  svn_wc__db_wcroot_t *wcroot,
-                  const char *local_relpath,
-                  apr_pool_t *result_pool,
-                  apr_pool_t *scratch_pool)
+scan_deletion(const char **base_del_relpath,
+              const char **moved_to_relpath,
+              const char **work_del_relpath,
+              const char **moved_to_op_root_relpath,
+              svn_wc__db_wcroot_t *wcroot,
+              const char *local_relpath,
+              apr_pool_t *result_pool,
+              apr_pool_t *scratch_pool)
 {
   const char *current_relpath = local_relpath;
   svn_sqlite__stmt_t *stmt;
@@ -3956,9 +4041,7 @@ scan_deletion_txn(const char **base_del_relpath,
   scan = (moved_to_op_root_relpath || moved_to_relpath);
 
   SVN_ERR(svn_sqlite__get_statement(
-                    &stmt, wcroot->sdb,
-                    scan ? STMT_SELECT_DELETION_INFO_SCAN
-                         : STMT_SELECT_DELETION_INFO));
+                    &stmt, wcroot->sdb, STMT_SELECT_DELETION_INFO));
 
   SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, current_relpath));
   SVN_ERR(svn_sqlite__step(&have_row, stmt));
@@ -4079,6 +4162,25 @@ scan_deletion_txn(const char **base_del_relpath,
 }
 
 svn_error_t *
+svn_wc__db_scan_deletion_internal(
+              const char **base_del_relpath,
+              const char **moved_to_relpath,
+              const char **work_del_relpath,
+              const char **moved_to_op_root_relpath,
+              svn_wc__db_wcroot_t *wcroot,
+              const char *local_relpath,
+              apr_pool_t *result_pool,
+              apr_pool_t *scratch_pool)
+{
+  return svn_error_trace(
+            scan_deletion(base_del_relpath, moved_to_relpath, work_del_relpath,
+                          moved_to_op_root_relpath,
+                          wcroot, local_relpath,
+                          result_pool, scratch_pool));
+}
+
+
+svn_error_t *
 svn_wc__db_scan_deletion(const char **base_del_abspath,
                          const char **moved_to_abspath,
                          const char **work_del_abspath,
@@ -4100,9 +4202,9 @@ svn_wc__db_scan_deletion(const char **base_del_abspath,
   VERIFY_USABLE_WCROOT(wcroot);
 
   SVN_WC__DB_WITH_TXN(
-    scan_deletion_txn(&base_del_relpath, &moved_to_relpath,
-                      &work_del_relpath, &moved_to_op_root_relpath,
-                      wcroot, local_relpath, result_pool, scratch_pool),
+    scan_deletion(&base_del_relpath, &moved_to_relpath,
+                  &work_del_relpath, &moved_to_op_root_relpath,
+                  wcroot, local_relpath, result_pool, scratch_pool),
     wcroot);
 
   if (base_del_abspath)
@@ -4200,10 +4302,10 @@ get_info_for_copy(apr_int64_t *copyfrom_id,
     {
       const char *base_del_relpath, *work_del_relpath;
 
-      SVN_ERR(scan_deletion_txn(&base_del_relpath, NULL,
-                                &work_del_relpath,
-                                NULL, src_wcroot, local_relpath,
-                                scratch_pool, scratch_pool));
+      SVN_ERR(scan_deletion(&base_del_relpath, NULL,
+                            &work_del_relpath,
+                            NULL, src_wcroot, local_relpath,
+                            scratch_pool, scratch_pool));
       if (work_del_relpath)
         {
           const char *op_root_relpath;
@@ -4264,7 +4366,7 @@ get_info_for_copy(apr_int64_t *copyfrom_id,
          working copies in a single db)! */
 
       SVN_ERR(svn_wc__db_fetch_repos_info(&repos_root_url, &repos_uuid,
-                                          src_wcroot->sdb, *copyfrom_id,
+                                          src_wcroot, *copyfrom_id,
                                           scratch_pool));
 
       SVN_ERR(create_repos_id(copyfrom_id, repos_root_url, repos_uuid,
@@ -4532,8 +4634,9 @@ db_op_copy(svn_wc__db_wcroot_t *src_wcroot,
       int src_op_depth;
 
       SVN_ERR(op_depth_of(&src_op_depth, src_wcroot, src_relpath));
-      SVN_ERR(gather_repo_children(&children, src_wcroot, src_relpath,
-                                   src_op_depth, scratch_pool, scratch_pool));
+      SVN_ERR(gather_children(&children, src_wcroot, src_relpath,
+                              STMT_SELECT_OP_DEPTH_CHILDREN, src_op_depth,
+                              scratch_pool, scratch_pool));
     }
   else
     children = NULL;
@@ -4684,25 +4787,23 @@ struct op_copy_baton
   const char *dst_op_root_relpath;
 };
 
-/* Helper for svn_wc__db_op_copy().
- *
- * Implements svn_sqlite__transaction_callback_t. */
+/* Helper for svn_wc__db_op_copy(). */
 static svn_error_t *
-op_copy_txn(void * baton,
-            svn_sqlite__db_t *sdb,
+op_copy_txn(svn_wc__db_wcroot_t *wcroot,
+            struct op_copy_baton *ocb,
             apr_pool_t *scratch_pool)
 {
-  struct op_copy_baton *ocb = baton;
   int move_op_depth;
 
-  if (sdb != ocb->dst_wcroot->sdb)
+  if (wcroot != ocb->dst_wcroot)
     {
        /* Source and destination databases differ; so also start a lock
-          in the destination database, by calling ourself in a lock. */
+          in the destination database, by calling ourself in an extra lock. */
 
-      return svn_error_trace(
-                        svn_sqlite__with_lock(ocb->dst_wcroot->sdb,
-                                              op_copy_txn, ocb, scratch_pool));
+      SVN_WC__DB_WITH_TXN(op_copy_txn(ocb->dst_wcroot, ocb, scratch_pool),
+                          ocb->dst_wcroot);
+
+      return SVN_NO_ERROR;
     }
 
   /* From this point we can assume a lock in the src and dst databases */
@@ -4753,8 +4854,237 @@ svn_wc__db_op_copy(svn_wc__db_t *db,
 
   /* Call with the sdb in src_wcroot. It might call itself again to
      also obtain a lock in dst_wcroot */
-  SVN_ERR(svn_sqlite__with_lock(ocb.src_wcroot->sdb, op_copy_txn, &ocb,
-                                scratch_pool));
+  SVN_WC__DB_WITH_TXN(op_copy_txn(ocb.src_wcroot, &ocb, scratch_pool),
+                      ocb.src_wcroot);
+
+  return SVN_NO_ERROR;
+}
+
+/* Remove unneeded actual nodes for svn_wc__db_op_copy_layer_internal */
+static svn_error_t *
+clear_or_remove_actual(svn_wc__db_wcroot_t *wcroot,
+                       const char *local_relpath,
+                       int op_depth,
+                       apr_pool_t *scratch_pool)
+{
+  svn_sqlite__stmt_t *stmt;
+  svn_boolean_t have_row, shadowed;
+  svn_boolean_t keep_conflict = FALSE;
+
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                    STMT_SELECT_NODE_INFO));
+
+  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
+  SVN_ERR(svn_sqlite__step(&have_row, stmt));
+
+  if (have_row)
+    {
+      svn_wc__db_status_t presence;
+
+      shadowed = (svn_sqlite__column_int(stmt, 0) > op_depth);
+      presence = svn_sqlite__column_token(stmt, 3, presence_map);
+
+      if (shadowed && presence == svn_wc__db_status_base_deleted)
+        {
+          keep_conflict = TRUE;
+          SVN_ERR(svn_sqlite__step(&have_row, stmt));
+
+          if (have_row)
+            shadowed = (svn_sqlite__column_int(stmt, 0) > op_depth);
+          else
+            shadowed = FALSE;
+        }
+    }
+  else
+    shadowed = FALSE;
+
+  SVN_ERR(svn_sqlite__reset(stmt));
+  if (shadowed)
+    return SVN_NO_ERROR;
+
+  if (keep_conflict)
+    {
+      /* We don't want to accidentally remove delete-delete conflicts */
+      SVN_ERR(svn_sqlite__get_statement(
+                          &stmt, wcroot->sdb,
+                          STMT_CLEAR_ACTUAL_NODE_LEAVING_CONFLICT));
+      SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
+      SVN_ERR(svn_sqlite__step_done(stmt));
+      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                        STMT_DELETE_ACTUAL_EMPTY));
+      SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
+      SVN_ERR(svn_sqlite__step_done(stmt));
+    }
+  else
+    {
+      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                        STMT_DELETE_ACTUAL_NODE));
+      SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
+      SVN_ERR(svn_sqlite__step_done(stmt));
+    }
+
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_wc__db_op_copy_layer_internal(svn_wc__db_wcroot_t *wcroot,
+                                  const char *src_op_relpath,
+                                  int src_op_depth,
+                                  const char *dst_op_relpath,
+                                  svn_skel_t *conflict,
+                                  svn_skel_t *work_items,
+                                  apr_pool_t *scratch_pool)
+{
+  svn_sqlite__stmt_t *stmt, *stmt2;
+  svn_boolean_t have_row;
+  apr_pool_t *iterpool = svn_pool_create(scratch_pool);
+  int dst_op_depth = relpath_depth(dst_op_relpath);
+  svn_boolean_t locked;
+  svn_error_t *err = NULL;
+
+  SVN_ERR(svn_wc__db_wclock_owns_lock_internal(&locked, wcroot, dst_op_relpath,
+                                               FALSE, scratch_pool));
+
+  if (!locked)
+    return svn_error_createf(SVN_ERR_WC_NOT_LOCKED, NULL,
+                             _("No write-lock in '%s'"),
+                             path_for_error_message(wcroot, dst_op_relpath,
+                                                    scratch_pool));
+
+  SVN_ERR(svn_sqlite__get_statement(&stmt2, wcroot->sdb,
+                                    STMT_COPY_NODE_MOVE));
+
+  /* Replace entire subtree at one op-depth. */
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                    STMT_SELECT_LAYER_FOR_REPLACE));
+  SVN_ERR(svn_sqlite__bindf(stmt, "isdsd", wcroot->wc_id,
+                            src_op_relpath, src_op_depth,
+                            dst_op_relpath, dst_op_depth));
+  SVN_ERR(svn_sqlite__step(&have_row, stmt));
+  while (have_row)
+    {
+      const char *src_relpath;
+      const char *dst_relpath;
+
+      svn_pool_clear(iterpool);
+
+      src_relpath = svn_sqlite__column_text(stmt, 0, iterpool);
+      dst_relpath = svn_sqlite__column_text(stmt, 2, iterpool);
+
+      err = svn_sqlite__bindf(stmt2, "isdsds", wcroot->wc_id,
+                              src_relpath, src_op_depth,
+                              dst_relpath, dst_op_depth,
+                              svn_relpath_dirname(dst_relpath, iterpool));
+      if (!err)
+        err = svn_sqlite__step_done(stmt2);
+
+      /* stmt2 is reset (never modified or by step_done) */
+
+      if (err)
+        break;
+
+      /* The node can't be deleted where it is added, so extension of
+         an existing shadowing is only interesting 2 levels deep. */
+      if (relpath_depth(dst_relpath) > (dst_op_depth+1))
+        {
+          svn_boolean_t exists = !svn_sqlite__column_is_null(stmt, 3);
+
+          if (exists)
+            {
+              svn_wc__db_status_t presence;
+
+              presence = svn_sqlite__column_token(stmt, 3, presence_map);
+
+              if (presence != svn_wc__db_status_normal)
+                exists = FALSE;
+            }
+
+          if (!exists)
+            {
+              svn_node_kind_t kind = svn_sqlite__column_token(stmt, 1, kind_map);
+
+              err = db_extend_parent_delete(wcroot, dst_relpath,
+                                            kind, dst_op_depth, iterpool);
+
+              if (err)
+                break;
+            }
+        }
+
+      SVN_ERR(svn_sqlite__step(&have_row, stmt));
+    }
+
+  SVN_ERR(svn_error_compose_create(err, svn_sqlite__reset(stmt)));
+
+  /* And now remove the records that are no longer needed */
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                    STMT_SELECT_NO_LONGER_MOVED_RV));
+  SVN_ERR(svn_sqlite__bindf(stmt, "isdsd", wcroot->wc_id,
+                            dst_op_relpath, dst_op_depth,
+                            src_op_relpath, src_op_depth));
+  SVN_ERR(svn_sqlite__step(&have_row, stmt));
+  while (have_row)
+    {
+      const char *dst_relpath;
+      svn_wc__db_status_t shadowed_presence;
+
+      svn_pool_clear(iterpool);
+
+      dst_relpath = svn_sqlite__column_text(stmt, 0, iterpool);
+
+      if (!svn_sqlite__column_is_null(stmt, 2))
+        shadowed_presence = svn_sqlite__column_token(stmt, 2, presence_map);
+      else
+        shadowed_presence = svn_wc__db_status_not_present;
+
+      if (shadowed_presence != svn_wc__db_status_normal
+          && shadowed_presence != svn_wc__db_status_incomplete)
+        {
+          err = svn_sqlite__get_statement(&stmt2, wcroot->sdb,
+                                            STMT_DELETE_NODE);
+        }
+      else
+        {
+          err =svn_sqlite__get_statement(&stmt2, wcroot->sdb,
+                                         STMT_REPLACE_WITH_BASE_DELETED);
+        }
+
+      if (!err)
+        err = svn_sqlite__bindf(stmt2, "isd", wcroot->wc_id, dst_relpath,
+                                             dst_op_depth);
+
+      if (!err)
+        err = svn_sqlite__step_done(stmt2);
+
+      /* stmt2 is reset (never modified or by step_done) */
+      if (err)
+        break;
+
+      /* Delete ACTUAL information about this node that we just deleted */
+      err = clear_or_remove_actual(wcroot, dst_relpath, dst_op_depth,
+                                   scratch_pool);
+
+      if (err)
+        break;
+
+      /* Retract base-delete for the node itself */
+      err = db_retract_parent_delete(wcroot, dst_relpath, dst_op_depth,
+                                     scratch_pool);
+
+      if (err)
+        break;
+
+      SVN_ERR(svn_sqlite__step(&have_row, stmt));
+    }
+  svn_pool_destroy(iterpool);
+
+  SVN_ERR(svn_error_compose_create(err, svn_sqlite__reset(stmt)));
+
+  SVN_ERR(add_work_items(wcroot->sdb, work_items, scratch_pool));
+
+  if (conflict)
+    SVN_ERR(svn_wc__db_mark_conflict_internal(wcroot, dst_op_relpath /* ## */,
+                                              conflict, scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -4919,7 +5249,7 @@ handle_move_back(svn_boolean_t *moved_back,
              generally these values should be the same anyway as it was
              a no-op move. */
       SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                        STMT_DELETE_MOVED_BACK));
+                                        STMT_DELETE_WORKING_OP_DEPTH));
 
       SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id,
                                              local_relpath,
@@ -5044,7 +5374,7 @@ db_op_copy_shadowed_layer(svn_wc__db_wcroot_t *src_wcroot,
           const char *repos_uuid;
 
           SVN_ERR(svn_wc__db_fetch_repos_info(&repos_root_url, &repos_uuid,
-                                              src_wcroot->sdb, node_repos_id,
+                                              src_wcroot, node_repos_id,
                                               scratch_pool));
 
           SVN_ERR(create_repos_id(&node_repos_id, repos_root_url, repos_uuid,
@@ -5166,8 +5496,9 @@ db_op_copy_shadowed_layer(svn_wc__db_wcroot_t *src_wcroot,
       return SVN_NO_ERROR;
     }
 
-  SVN_ERR(gather_repo_children(&children, src_wcroot, src_relpath,
-                               src_op_depth, scratch_pool, iterpool));
+  SVN_ERR(gather_children(&children, src_wcroot, src_relpath,
+                          STMT_SELECT_OP_DEPTH_CHILDREN, src_op_depth,
+                          scratch_pool, iterpool));
 
   for (i = 0; i < children->nelts; i++)
     {
@@ -5196,15 +5527,12 @@ db_op_copy_shadowed_layer(svn_wc__db_wcroot_t *src_wcroot,
   return SVN_NO_ERROR;
 }
 
-/* Helper for svn_wc__db_op_copy_shadowed_layer().
- *
- * Implements  svn_sqlite__transaction_callback_t. */
+/* Helper for svn_wc__db_op_copy_shadowed_layer(). */
 static svn_error_t *
-op_copy_shadowed_layer_txn(void *baton,
-                           svn_sqlite__db_t *sdb,
+op_copy_shadowed_layer_txn(svn_wc__db_wcroot_t *wcroot,
+                           struct op_copy_baton *ocb,
                            apr_pool_t *scratch_pool)
 {
-  struct op_copy_baton *ocb = baton;
   const char *src_parent_relpath;
   const char *dst_parent_relpath;
   int src_op_depth;
@@ -5214,15 +5542,16 @@ op_copy_shadowed_layer_txn(void *baton,
   apr_int64_t repos_id = INVALID_REPOS_ID;
   svn_revnum_t revision = SVN_INVALID_REVNUM;
 
-  if (sdb != ocb->dst_wcroot->sdb)
+  if (wcroot != ocb->dst_wcroot)
     {
-       /* Source and destination databases differ; so also start a lock
-          in the destination database, by calling ourself in a lock. */
+      /* Source and destination databases differ; so also start a lock
+         in the destination database, by calling ourself in an extra lock. */
 
-      return svn_error_trace(
-                        svn_sqlite__with_lock(ocb->dst_wcroot->sdb,
-                                              op_copy_shadowed_layer_txn,
-                                              ocb, scratch_pool));
+      SVN_WC__DB_WITH_TXN(op_copy_shadowed_layer_txn(ocb->dst_wcroot, ocb,
+                                                     scratch_pool),
+                          ocb->dst_wcroot);
+
+      return SVN_NO_ERROR;
     }
 
   /* From this point we can assume a lock in the src and dst databases */
@@ -5304,9 +5633,9 @@ svn_wc__db_op_copy_shadowed_layer(svn_wc__db_t *db,
 
   /* Call with the sdb in src_wcroot. It might call itself again to
      also obtain a lock in dst_wcroot */
-  SVN_ERR(svn_sqlite__with_lock(ocb.src_wcroot->sdb,
-                                op_copy_shadowed_layer_txn,
-                                &ocb, scratch_pool));
+  SVN_WC__DB_WITH_TXN(op_copy_shadowed_layer_txn(ocb.src_wcroot, &ocb,
+                                                 scratch_pool),
+                      ocb.src_wcroot);
 
   return SVN_NO_ERROR;
 }
@@ -5776,27 +6105,39 @@ svn_wc__db_global_record_fileinfo(svn_wc__db_t *db,
  * props; to indicate no properties when the pristine has some props,
  * PROPS must be an empty hash. */
 static svn_error_t *
-set_actual_props(apr_int64_t wc_id,
+set_actual_props(svn_wc__db_wcroot_t *wcroot,
                  const char *local_relpath,
                  apr_hash_t *props,
-                 svn_sqlite__db_t *db,
                  apr_pool_t *scratch_pool)
 {
   svn_sqlite__stmt_t *stmt;
   int affected_rows;
 
-  SVN_ERR(svn_sqlite__get_statement(&stmt, db, STMT_UPDATE_ACTUAL_PROPS));
-  SVN_ERR(svn_sqlite__bindf(stmt, "is", wc_id, local_relpath));
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                    STMT_UPDATE_ACTUAL_PROPS));
+  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
   SVN_ERR(svn_sqlite__bind_properties(stmt, 3, props, scratch_pool));
   SVN_ERR(svn_sqlite__update(&affected_rows, stmt));
 
   if (affected_rows == 1 || !props)
-    return SVN_NO_ERROR; /* We are done */
+    {
+      /* Perhaps the entire ACTUAL record is unneeded now? */
+      if (!props && affected_rows)
+        {
+          SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                            STMT_DELETE_ACTUAL_EMPTY));
+          SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
+          SVN_ERR(svn_sqlite__step_done(stmt));
+        }
+
+      return SVN_NO_ERROR; /* We are done */
+    }
 
   /* We have to insert a row in ACTUAL */
 
-  SVN_ERR(svn_sqlite__get_statement(&stmt, db, STMT_INSERT_ACTUAL_PROPS));
-  SVN_ERR(svn_sqlite__bindf(stmt, "is", wc_id, local_relpath));
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                    STMT_INSERT_ACTUAL_PROPS));
+  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
   if (*local_relpath != '\0')
     SVN_ERR(svn_sqlite__bind_text(stmt, 3,
                                   svn_relpath_dirname(local_relpath,
@@ -5805,6 +6146,24 @@ set_actual_props(apr_int64_t wc_id,
   return svn_error_trace(svn_sqlite__step_done(stmt));
 }
 
+svn_error_t *
+svn_wc__db_op_set_props_internal(svn_wc__db_wcroot_t *wcroot,
+                                 const char *local_relpath,
+                                 apr_hash_t *props,
+                                 svn_boolean_t clear_recorded_info,
+                                 apr_pool_t *scratch_pool)
+{
+  SVN_ERR(set_actual_props(wcroot, local_relpath, props, scratch_pool));
+
+  if (clear_recorded_info)
+    {
+      SVN_ERR(db_record_fileinfo(wcroot, local_relpath,
+                                 SVN_INVALID_FILESIZE, 0,
+                                 scratch_pool));
+    }
+
+  return SVN_NO_ERROR;
+}
 
 /* The body of svn_wc__db_op_set_props().
 
@@ -5840,15 +6199,8 @@ set_props_txn(svn_wc__db_wcroot_t *wcroot,
         props = NULL;
     }
 
-  SVN_ERR(set_actual_props(wcroot->wc_id, local_relpath,
-                           props, wcroot->sdb, scratch_pool));
-
-  if (clear_recorded_info)
-    {
-      SVN_ERR(db_record_fileinfo(wcroot, local_relpath,
-                                 SVN_INVALID_FILESIZE, 0,
-                                 scratch_pool));
-    }
+  SVN_ERR(svn_wc__db_op_set_props_internal(wcroot, local_relpath, props,
+                                           clear_recorded_info, scratch_pool));
 
   /* And finally.  */
   SVN_ERR(add_work_items(wcroot->sdb, work_items, scratch_pool));
@@ -6080,7 +6432,7 @@ set_changelist_txn(void *baton,
   if (scb->new_changelist)
     {
       SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                        STMT_INSERT_ACTUAL_EMPTIES));
+                                        STMT_INSERT_ACTUAL_EMPTIES_FILES));
       SVN_ERR(svn_sqlite__step_done(stmt));
     }
 
@@ -6297,15 +6649,15 @@ svn_wc__db_op_mark_conflict(svn_wc__db_t *db,
 
 /* The body of svn_wc__db_op_mark_resolved().
  */
-static svn_error_t *
-db_op_mark_resolved(svn_wc__db_wcroot_t *wcroot,
-                    const char *local_relpath,
-                    svn_wc__db_t *db,
-                    svn_boolean_t resolved_text,
-                    svn_boolean_t resolved_props,
-                    svn_boolean_t resolved_tree,
-                    const svn_skel_t *work_items,
-                    apr_pool_t *scratch_pool)
+svn_error_t *
+svn_wc__db_op_mark_resolved_internal(svn_wc__db_wcroot_t *wcroot,
+                                     const char *local_relpath,
+                                     svn_wc__db_t *db,
+                                     svn_boolean_t resolved_text,
+                                     svn_boolean_t resolved_props,
+                                     svn_boolean_t resolved_tree,
+                                     const svn_skel_t *work_items,
+                                     apr_pool_t *scratch_pool)
 {
   svn_sqlite__stmt_t *stmt;
   svn_boolean_t have_row;
@@ -6403,7 +6755,8 @@ svn_wc__db_op_mark_resolved(svn_wc__db_t *db,
   VERIFY_USABLE_WCROOT(wcroot);
 
   SVN_WC__DB_WITH_TXN(
-    db_op_mark_resolved(wcroot, local_relpath, db,
+    svn_wc__db_op_mark_resolved_internal(
+                        wcroot, local_relpath, db,
                         resolved_text, resolved_props, resolved_tree,
                         work_items, scratch_pool),
     wcroot);
@@ -6412,39 +6765,115 @@ svn_wc__db_op_mark_resolved(svn_wc__db_t *db,
   return SVN_NO_ERROR;
 }
 
-/* Clear moved-to information at the delete-half of the move which
- * moved LOCAL_RELPATH here. This transforms the move into a simple delete. */
+/* Clear moved-to information at the delete-half of the move which moved
+ * MOVED_TO_RELPATH here. This transforms the delete part of the move into a
+ * normal delete.
+ *
+ * Note that the moved-to location is always an op-root, while this is not the
+ * case for a moved-from location.
+ */
 static svn_error_t *
-clear_moved_to(const char *local_relpath,
-               svn_wc__db_wcroot_t *wcroot,
+clear_moved_to(svn_wc__db_wcroot_t *wcroot,
+               const char *moved_to_relpath,
                apr_pool_t *scratch_pool)
 {
   svn_sqlite__stmt_t *stmt;
-  svn_boolean_t have_row;
   const char *moved_from_relpath;
+  int moved_from_op_depth;
 
   SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
                                     STMT_SELECT_MOVED_FROM_RELPATH));
-  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
-  SVN_ERR(svn_sqlite__step(&have_row, stmt));
-  if (!have_row)
-    {
-      SVN_ERR(svn_sqlite__reset(stmt));
-      return SVN_NO_ERROR;
-    }
+  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, moved_to_relpath));
+  SVN_ERR(svn_sqlite__step_row(stmt));
 
   moved_from_relpath = svn_sqlite__column_text(stmt, 0, scratch_pool);
+  moved_from_op_depth = svn_sqlite__column_int(stmt, 1);
   SVN_ERR(svn_sqlite__reset(stmt));
 
   SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
                                     STMT_CLEAR_MOVED_TO_RELPATH));
   SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id,
-                            moved_from_relpath,
-                            relpath_depth(moved_from_relpath)));
-  SVN_ERR(svn_sqlite__step_done(stmt));
+                            moved_from_relpath, moved_from_op_depth));
+  SVN_ERR(svn_sqlite__update(NULL, stmt));
 
   return SVN_NO_ERROR;
 }
+
+/* Helper function for op_revert_txn. Raises move tree conflicts on
+   descendants to ensure database stability on a non recursive revert
+   of an ancestor that contains a possible move related tree conflict.
+ */
+static svn_error_t *
+revert_maybe_raise_moved_away(svn_wc__db_wcroot_t * wcroot,
+                              svn_wc__db_t *db,
+                              const char *local_relpath,
+                              int op_depth_below,
+                              apr_pool_t *scratch_pool)
+{
+  svn_skel_t *conflict;
+  svn_wc_operation_t operation;
+  svn_boolean_t tree_conflicted;
+  const apr_array_header_t *locations;
+  svn_wc_conflict_reason_t reason;
+  svn_wc_conflict_action_t action;
+
+  SVN_ERR(svn_wc__db_read_conflict_internal(&conflict, NULL, NULL, wcroot,
+                                            local_relpath,
+                                            scratch_pool, scratch_pool));
+
+  if (!conflict)
+    return SVN_NO_ERROR;
+
+  SVN_ERR(svn_wc__conflict_read_info(&operation, &locations, NULL, NULL,
+                                     &tree_conflicted,
+                                     db, wcroot->abspath,
+                                     conflict,
+                                     scratch_pool, scratch_pool));
+
+  if (!tree_conflicted
+      || (operation != svn_wc_operation_update
+          && operation != svn_wc_operation_switch))
+    {
+      return SVN_NO_ERROR;
+    }
+
+  SVN_ERR(svn_wc__conflict_read_tree_conflict(&reason, &action,
+                                              NULL,
+                                              db, wcroot->abspath,
+                                              conflict,
+                                              scratch_pool,
+                                              scratch_pool));
+
+  if (reason == svn_wc_conflict_reason_deleted
+      || reason == svn_wc_conflict_reason_replaced)
+    {
+      SVN_ERR(svn_wc__db_op_raise_moved_away_internal(
+        wcroot, local_relpath, op_depth_below, db,
+        operation, action,
+        (locations && locations->nelts > 0)
+        ? APR_ARRAY_IDX(locations, 0,
+                        const svn_wc_conflict_version_t *)
+        : NULL,
+        (locations && locations->nelts > 1)
+        ? APR_ARRAY_IDX(locations, 1,
+                        const svn_wc_conflict_version_t *)
+        : NULL,
+        scratch_pool));
+
+      /* Transform the move information into revert information */
+      SVN_ERR(svn_sqlite__exec_statements(wcroot->sdb,
+                                          STMT_MOVE_NOTIFY_TO_REVERT));
+    }
+
+  return SVN_NO_ERROR;
+}
+
+/* Baton for op_revert_txn and op_revert_recursive_txn */
+struct revert_baton_t
+{
+  svn_wc__db_t *db;
+  svn_boolean_t clear_changelists;
+};
 
 /* One of the two alternative bodies of svn_wc__db_op_revert().
  *
@@ -6455,13 +6884,15 @@ op_revert_txn(void *baton,
               const char *local_relpath,
               apr_pool_t *scratch_pool)
 {
-  svn_wc__db_t *db = baton;
+  struct revert_baton_t *rvb = baton;
+  svn_wc__db_t *db = rvb->db;
   svn_sqlite__stmt_t *stmt;
   svn_boolean_t have_row;
   int op_depth;
   svn_boolean_t moved_here;
   int affected_rows;
   const char *moved_to;
+  int op_depth_below;
 
   /* ### Similar structure to op_revert_recursive_txn, should they be
          combined? */
@@ -6508,58 +6939,26 @@ op_revert_txn(void *baton,
   op_depth = svn_sqlite__column_int(stmt, 0);
   moved_here = svn_sqlite__column_boolean(stmt, 15);
   moved_to = svn_sqlite__column_text(stmt, 17, scratch_pool);
+
+  SVN_ERR(svn_sqlite__step(&have_row, stmt));
+  if (have_row)
+    op_depth_below = svn_sqlite__column_int(stmt, 0);
+  else
+    op_depth_below = -1;
+
   SVN_ERR(svn_sqlite__reset(stmt));
 
   if (moved_to)
     {
-      SVN_ERR(svn_wc__db_resolve_break_moved_away_internal(wcroot,
-                                                           local_relpath,
-                                                           op_depth,
-                                                           scratch_pool));
-    }
-  else
-    {
-      svn_skel_t *conflict;
-
-      SVN_ERR(svn_wc__db_read_conflict_internal(&conflict, wcroot,
-                                                local_relpath,
-                                                scratch_pool, scratch_pool));
-      if (conflict)
-        {
-          svn_wc_operation_t operation;
-          svn_boolean_t tree_conflicted;
-
-          SVN_ERR(svn_wc__conflict_read_info(&operation, NULL, NULL, NULL,
-                                             &tree_conflicted,
-                                             db, wcroot->abspath,
-                                             conflict,
-                                             scratch_pool, scratch_pool));
-          if (tree_conflicted
-              && (operation == svn_wc_operation_update
-                  || operation == svn_wc_operation_switch))
-            {
-              svn_wc_conflict_reason_t reason;
-              svn_wc_conflict_action_t action;
-
-              SVN_ERR(svn_wc__conflict_read_tree_conflict(&reason, &action,
-                                                          NULL,
-                                                          db, wcroot->abspath,
-                                                          conflict,
-                                                          scratch_pool,
-                                                          scratch_pool));
-
-              if (reason == svn_wc_conflict_reason_deleted)
-                SVN_ERR(svn_wc__db_resolve_delete_raise_moved_away(
-                          db, svn_dirent_join(wcroot->abspath, local_relpath,
-                                              scratch_pool),
-                          NULL, NULL /* ### How do we notify this? */,
-                          scratch_pool));
-            }
-        }
+      SVN_ERR(svn_wc__db_op_break_move_internal(wcroot,
+                                                local_relpath, op_depth,
+                                                moved_to, NULL, scratch_pool));
     }
 
   if (op_depth > 0 && op_depth == relpath_depth(local_relpath))
     {
+      int op_depth_increased;
+
       /* Can't do non-recursive revert if children exist */
       SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
                                         STMT_SELECT_GE_OP_DEPTH_CHILDREN));
@@ -6582,7 +6981,7 @@ op_revert_txn(void *baton,
       SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id,
                                 local_relpath,
                                 op_depth));
-      SVN_ERR(svn_sqlite__step_done(stmt));
+      SVN_ERR(svn_sqlite__update(&op_depth_increased, stmt));
 
       SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
                                         STMT_DELETE_WORKING_NODE));
@@ -6597,19 +6996,35 @@ op_revert_txn(void *baton,
 
       /* If this node was moved-here, clear moved-to at the move source. */
       if (moved_here)
-        SVN_ERR(clear_moved_to(local_relpath, wcroot, scratch_pool));
+        SVN_ERR(clear_moved_to(wcroot, local_relpath, scratch_pool));
+
+      /* If the node was moved itself, we don't have interesting moved
+         children (and the move itself was already broken) */
+      if (op_depth_increased && !moved_to)
+        SVN_ERR(revert_maybe_raise_moved_away(wcroot, db, local_relpath,
+                                              op_depth_below, scratch_pool));
     }
 
-  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                  STMT_DELETE_ACTUAL_NODE_LEAVING_CHANGELIST));
-  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
-  SVN_ERR(svn_sqlite__update(&affected_rows, stmt));
-  if (!affected_rows)
+  if (rvb->clear_changelists)
     {
       SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                    STMT_CLEAR_ACTUAL_NODE_LEAVING_CHANGELIST));
+                                        STMT_DELETE_ACTUAL_NODE));
       SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
       SVN_ERR(svn_sqlite__update(&affected_rows, stmt));
+    }
+  else
+    {
+      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                  STMT_DELETE_ACTUAL_NODE_LEAVING_CHANGELIST));
+      SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
+      SVN_ERR(svn_sqlite__update(&affected_rows, stmt));
+      if (!affected_rows)
+        {
+          SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                  STMT_CLEAR_ACTUAL_NODE_LEAVING_CHANGELIST));
+          SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
+          SVN_ERR(svn_sqlite__update(&affected_rows, stmt));
+        }
     }
 
   return SVN_NO_ERROR;
@@ -6625,6 +7040,7 @@ op_revert_recursive_txn(void *baton,
                         const char *local_relpath,
                         apr_pool_t *scratch_pool)
 {
+  struct revert_baton_t *rvb = baton;
   svn_sqlite__stmt_t *stmt;
   svn_boolean_t have_row;
   int op_depth;
@@ -6680,14 +7096,14 @@ op_revert_recursive_txn(void *baton,
   SVN_ERR(svn_sqlite__step(&have_row, stmt));
   while (have_row)
     {
-      const char *move_src_relpath = svn_sqlite__column_text(stmt, 0, NULL);
+      const char *src_relpath = svn_sqlite__column_text(stmt, 0, NULL);
+      const char *dst_relpath = svn_sqlite__column_text(stmt, 1, NULL);
       int move_op_depth = svn_sqlite__column_int(stmt, 2);
       svn_error_t *err;
 
-      err = svn_wc__db_resolve_break_moved_away_internal(wcroot,
-                                                         move_src_relpath,
-                                                         move_op_depth,
-                                                         scratch_pool);
+      err = svn_wc__db_op_break_move_internal(wcroot,
+                                              src_relpath, move_op_depth,
+                                              dst_relpath, NULL, scratch_pool);
       if (err)
         return svn_error_compose_create(err, svn_sqlite__reset(stmt));
 
@@ -6706,17 +7122,28 @@ op_revert_recursive_txn(void *baton,
                             local_relpath, select_op_depth));
   SVN_ERR(svn_sqlite__step_done(stmt));
 
-  SVN_ERR(svn_sqlite__get_statement(
-                    &stmt, wcroot->sdb,
-                    STMT_DELETE_ACTUAL_NODE_LEAVING_CHANGELIST_RECURSIVE));
-  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
-  SVN_ERR(svn_sqlite__step_done(stmt));
+  if (rvb->clear_changelists)
+    {
+      SVN_ERR(svn_sqlite__get_statement(
+                        &stmt, wcroot->sdb,
+                        STMT_DELETE_ACTUAL_NODE_RECURSIVE));
+      SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
+      SVN_ERR(svn_sqlite__step_done(stmt));
+    }
+  else
+    {
+      SVN_ERR(svn_sqlite__get_statement(
+                        &stmt, wcroot->sdb,
+                        STMT_DELETE_ACTUAL_NODE_LEAVING_CHANGELIST_RECURSIVE));
+      SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
+      SVN_ERR(svn_sqlite__step_done(stmt));
 
-  SVN_ERR(svn_sqlite__get_statement(
-                    &stmt, wcroot->sdb,
-                    STMT_CLEAR_ACTUAL_NODE_LEAVING_CHANGELIST_RECURSIVE));
-  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
-  SVN_ERR(svn_sqlite__step_done(stmt));
+      SVN_ERR(svn_sqlite__get_statement(
+                        &stmt, wcroot->sdb,
+                        STMT_CLEAR_ACTUAL_NODE_LEAVING_CHANGELIST_RECURSIVE));
+      SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
+      SVN_ERR(svn_sqlite__step_done(stmt));
+    }
 
   /* ### This removes the locks, but what about the access batons? */
   SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
@@ -6740,7 +7167,7 @@ op_revert_recursive_txn(void *baton,
       svn_pool_clear(iterpool);
 
       moved_here_child_relpath = svn_sqlite__column_text(stmt, 0, iterpool);
-      err = clear_moved_to(moved_here_child_relpath, wcroot, iterpool);
+      err = clear_moved_to(wcroot, moved_here_child_relpath, iterpool);
       if (err)
         return svn_error_trace(svn_error_compose_create(
                                         err,
@@ -6754,7 +7181,7 @@ op_revert_recursive_txn(void *baton,
   /* Clear potential moved-to pointing at the target node itself. */
   if (op_depth > 0 && op_depth == relpath_depth(local_relpath)
       && moved_here)
-    SVN_ERR(clear_moved_to(local_relpath, wcroot, scratch_pool));
+    SVN_ERR(clear_moved_to(wcroot, local_relpath, scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -6763,22 +7190,27 @@ svn_error_t *
 svn_wc__db_op_revert(svn_wc__db_t *db,
                      const char *local_abspath,
                      svn_depth_t depth,
+                     svn_boolean_t clear_changelists,
                      apr_pool_t *result_pool,
                      apr_pool_t *scratch_pool)
 {
   svn_wc__db_wcroot_t *wcroot;
   const char *local_relpath;
+  struct revert_baton_t rvb;
   struct with_triggers_baton_t wtb = { STMT_CREATE_REVERT_LIST,
                                        STMT_DROP_REVERT_LIST_TRIGGERS,
                                        NULL, NULL};
 
   SVN_ERR_ASSERT(svn_dirent_is_absolute(local_abspath));
 
+  rvb.db = db;
+  rvb.clear_changelists = clear_changelists;
+  wtb.cb_baton = &rvb;
+
   switch (depth)
     {
     case svn_depth_empty:
       wtb.cb_func = op_revert_txn;
-      wtb.cb_baton = db;
       break;
     case svn_depth_infinity:
       wtb.cb_func = op_revert_recursive_txn;
@@ -6914,7 +7346,7 @@ svn_wc__db_revert_list_read(svn_boolean_t *reverted,
 static svn_error_t *
 revert_list_read_copied_children(svn_wc__db_wcroot_t *wcroot,
                                  const char *local_relpath,
-                                 const apr_array_header_t **children_p,
+                                 apr_array_header_t **children_p,
                                  apr_pool_t *result_pool,
                                  apr_pool_t *scratch_pool)
 {
@@ -6957,7 +7389,7 @@ revert_list_read_copied_children(svn_wc__db_wcroot_t *wcroot,
 
 
 svn_error_t *
-svn_wc__db_revert_list_read_copied_children(const apr_array_header_t **children,
+svn_wc__db_revert_list_read_copied_children(apr_array_header_t **children,
                                             svn_wc__db_t *db,
                                             const char *local_abspath,
                                             apr_pool_t *result_pool,
@@ -7004,16 +7436,39 @@ svn_wc__db_revert_list_notify(svn_wc_notify_func2_t notify_func,
   while (have_row)
     {
       const char *notify_relpath = svn_sqlite__column_text(stmt, 0, NULL);
+      svn_wc_notify_t *notify;
 
       svn_pool_clear(iterpool);
 
-      notify_func(notify_baton,
-                  svn_wc_create_notify(svn_dirent_join(wcroot->abspath,
-                                                       notify_relpath,
-                                                       iterpool),
-                                       svn_wc_notify_revert,
-                                       iterpool),
-                  iterpool);
+      notify = svn_wc_create_notify(svn_dirent_join(wcroot->abspath,
+                                                    notify_relpath,
+                                                    iterpool),
+                                    svn_wc_notify_revert,
+                                    iterpool);
+
+      if (!svn_sqlite__column_is_null(stmt, 1))
+        notify->kind = svn_sqlite__column_token(stmt, 1, kind_map);
+      else
+        {
+          if (!svn_sqlite__column_is_null(stmt, 3))
+            notify->kind = svn_sqlite__column_token(stmt, 3, kind_map_none);
+
+          switch (svn_sqlite__column_int(stmt, 2))
+            {
+              case 0:
+                continue;
+              case 1:
+                /* standard revert */
+                break;
+              case 2:
+                notify->action = svn_wc_notify_tree_conflict;
+                break;
+              default:
+                SVN_ERR_MALFUNCTION();
+            }
+        }
+
+      notify_func(notify_baton, notify, iterpool);
 
       SVN_ERR(svn_sqlite__step(&have_row, stmt));
     }
@@ -7055,9 +7510,6 @@ remove_node_txn(svn_boolean_t *left_changes,
                 svn_wc__db_t *db,
                 svn_boolean_t destroy_wc,
                 svn_boolean_t destroy_changes,
-                svn_revnum_t not_present_rev,
-                svn_wc__db_status_t not_present_status,
-                svn_node_kind_t not_present_kind,
                 const svn_skel_t *conflict,
                 const svn_skel_t *work_items,
                 svn_cancel_func_t cancel_func,
@@ -7065,9 +7517,6 @@ remove_node_txn(svn_boolean_t *left_changes,
                 apr_pool_t *scratch_pool)
 {
   svn_sqlite__stmt_t *stmt;
-
-  apr_int64_t repos_id;
-  const char *repos_relpath;
 
   /* Note that unlike many similar functions it is a valid scenario for this
      function to be called on a wcroot! */
@@ -7077,15 +7526,6 @@ remove_node_txn(svn_boolean_t *left_changes,
 
   if (left_changes)
     *left_changes = FALSE;
-
-  /* Need info for not_present node? */
-  if (SVN_IS_VALID_REVNUM(not_present_rev))
-    SVN_ERR(svn_wc__db_base_get_info_internal(NULL, NULL, NULL,
-                                              &repos_relpath, &repos_id,
-                                              NULL, NULL, NULL, NULL, NULL,
-                                              NULL, NULL, NULL, NULL, NULL,
-                                              wcroot, local_relpath,
-                                              scratch_pool, scratch_pool));
 
   if (destroy_wc
       && (!destroy_changes || *local_relpath == '\0'))
@@ -7283,26 +7723,6 @@ remove_node_txn(svn_boolean_t *left_changes,
                                          local_relpath));
   SVN_ERR(svn_sqlite__step_done(stmt));
 
-  /* Should we leave a not-present node? */
-  if (SVN_IS_VALID_REVNUM(not_present_rev))
-    {
-      insert_base_baton_t ibb;
-      blank_ibb(&ibb);
-
-      ibb.repos_id = repos_id;
-
-      SVN_ERR_ASSERT(not_present_status == svn_wc__db_status_not_present
-                     || not_present_status == svn_wc__db_status_excluded);
-
-      ibb.status = not_present_status;
-      ibb.kind = not_present_kind;
-
-      ibb.repos_relpath = repos_relpath;
-      ibb.revision = not_present_rev;
-
-      SVN_ERR(insert_base_node(&ibb, wcroot, local_relpath, scratch_pool));
-    }
-
   SVN_ERR(add_work_items(wcroot->sdb, work_items, scratch_pool));
   if (conflict)
     SVN_ERR(svn_wc__db_mark_conflict_internal(wcroot, local_relpath,
@@ -7317,9 +7737,6 @@ svn_wc__db_op_remove_node(svn_boolean_t *left_changes,
                           const char *local_abspath,
                           svn_boolean_t destroy_wc,
                           svn_boolean_t destroy_changes,
-                          svn_revnum_t not_present_revision,
-                          svn_wc__db_status_t not_present_status,
-                          svn_node_kind_t not_present_kind,
                           const svn_skel_t *conflict,
                           const svn_skel_t *work_items,
                           svn_cancel_func_t cancel_func,
@@ -7338,8 +7755,7 @@ svn_wc__db_op_remove_node(svn_boolean_t *left_changes,
   SVN_WC__DB_WITH_TXN(remove_node_txn(left_changes,
                                       wcroot, local_relpath, db,
                                       destroy_wc, destroy_changes,
-                                      not_present_revision, not_present_status,
-                                      not_present_kind, conflict, work_items,
+                                      conflict, work_items,
                                       cancel_func, cancel_baton, scratch_pool),
                       wcroot);
 
@@ -7371,7 +7787,7 @@ db_op_set_base_depth(svn_wc__db_wcroot_t *wcroot,
 
   if (affected_rows == 0)
     return svn_error_createf(SVN_ERR_WC_PATH_NOT_FOUND, NULL,
-                             "The node '%s' is not a committed directory",
+                             _("The node '%s' is not a committed directory"),
                              path_for_error_message(wcroot, local_relpath,
                                                     scratch_pool));
 
@@ -8109,7 +8525,7 @@ struct op_delete_many_baton_t {
   apr_array_header_t *rel_targets;
   svn_boolean_t delete_dir_externals;
   const svn_skel_t *work_items;
-} op_delete_many_baton_t;
+};
 
 static svn_error_t *
 op_delete_many_txn(void *baton,
@@ -8344,6 +8760,45 @@ svn_wc__db_op_delete_many(svn_wc__db_t *db,
                                            scratch_pool));
 }
 
+/* Helper function for read_info() to provide better diagnostics than just
+   asserting.
+
+   ### BH: Yes this code is ugly, and that is why I only introduce it in
+   ### read_info(). But we really need something to determine the root cause
+   ### of this problem to diagnose why TortoiseSVN users were seeing all those
+   ### assertions.
+
+   Adds an error to the *err chain if invalid values are encountered. In that
+   case the value is set to the first value in the map, assuming that caller
+   will just return the combined error.
+ */
+static int
+column_token_err(svn_error_t **err,
+                 svn_sqlite__stmt_t *stmt,
+                 int column,
+                 const svn_token_map_t *map)
+{
+  svn_error_t *err2;
+  const char *word = svn_sqlite__column_text(stmt, column, NULL);
+  int value;
+
+  /* svn_token__from_word_err() handles NULL for us */
+  err2 = svn_token__from_word_err(&value, map, word);
+
+  if (err2)
+    {
+      *err = svn_error_compose_create(
+                *err,
+                svn_error_createf(
+                    SVN_ERR_WC_CORRUPT, err2,
+                    _("Encountered invalid node state in column %d of "
+                      "info query to working copy database"),
+                    column));
+      value = map[0].val;
+    }
+
+  return value;
+}
 
 /* Like svn_wc__db_read_info(), but taking WCROOT+LOCAL_RELPATH instead of
    DB+LOCAL_ABSPATH, and outputting repos ids instead of URL+UUID. */
@@ -8411,11 +8866,11 @@ read_info(svn_wc__db_status_t *status,
       svn_node_kind_t node_kind;
 
       op_depth = svn_sqlite__column_int(stmt_info, 0);
-      node_kind = svn_sqlite__column_token(stmt_info, 4, kind_map);
+      node_kind = column_token_err(&err, stmt_info, 4, kind_map);
 
       if (status)
         {
-          *status = svn_sqlite__column_token(stmt_info, 3, presence_map);
+          *status = column_token_err(&err, stmt_info, 3, presence_map);
 
           if (op_depth != 0) /* WORKING */
             err = svn_error_compose_create(err,
@@ -8467,14 +8922,11 @@ read_info(svn_wc__db_status_t *status,
       if (depth)
         {
           if (node_kind != svn_node_dir)
-            {
-              *depth = svn_depth_unknown;
-            }
+            *depth = svn_depth_unknown;
+          else if (svn_sqlite__column_is_null(stmt_info, 11))
+            *depth = svn_depth_unknown;
           else
-            {
-              *depth = svn_sqlite__column_token_null(stmt_info, 11, depth_map,
-                                                     svn_depth_unknown);
-            }
+            *depth = column_token_err(&err, stmt_info, 11, depth_map);
         }
       if (checksum)
         {
@@ -8666,10 +9118,8 @@ read_info(svn_wc__db_status_t *status,
     err = svn_error_compose_create(err, svn_sqlite__reset(stmt_act));
 
   if (err && err->apr_err != SVN_ERR_WC_PATH_NOT_FOUND)
-    err = svn_error_quick_wrap(err,
-                               apr_psprintf(scratch_pool,
-                                            "Error reading node '%s'",
-                                            local_relpath));
+    err = svn_error_quick_wrapf(err, _("Error reading node '%s'"),
+                                local_relpath);
 
   SVN_ERR(svn_error_compose_create(err, svn_sqlite__reset(stmt_info)));
 
@@ -8773,9 +9223,9 @@ svn_wc__db_read_info(svn_wc__db_status_t *status,
                     have_base, have_more_work, have_work,
                     wcroot, local_relpath, result_pool, scratch_pool),
           svn_wc__db_fetch_repos_info(repos_root_url, repos_uuid,
-                                      wcroot->sdb, repos_id, result_pool),
+                                      wcroot, repos_id, result_pool),
           svn_wc__db_fetch_repos_info(original_root_url, original_uuid,
-                                      wcroot->sdb, original_repos_id,
+                                      wcroot, original_repos_id,
                                       result_pool),
         SVN_NO_ERROR,
         wcroot);
@@ -8789,6 +9239,27 @@ is_wclocked(svn_boolean_t *locked,
             const char *dir_relpath,
             apr_pool_t *scratch_pool);
 
+/* Helper for read_children_info and single variant */
+static svn_error_t *
+find_conflict_descendants(svn_boolean_t *conflict_exists,
+                          svn_wc__db_wcroot_t *wcroot,
+                          const char *local_relpath,
+                          apr_pool_t *scratch_pool)
+{
+  svn_sqlite__stmt_t *stmt;
+
+  /* Only used on files, so certainly not wcroot*/
+  assert(local_relpath[0] != '\0');
+
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                    STMT_FIND_CONFLICT_DESCENDANT));
+
+  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
+  SVN_ERR(svn_sqlite__step(conflict_exists, stmt));
+
+  return svn_error_trace(svn_sqlite__reset(stmt));
+}
+
 /* What we really want to store about a node.  This relies on the
    offset of svn_wc__db_info_t being zero. */
 struct read_children_info_item_t
@@ -8796,13 +9267,16 @@ struct read_children_info_item_t
   struct svn_wc__db_info_t info;
   int op_depth;
   int nr_layers;
+  svn_boolean_t was_dir;
 };
 
+/* Implementation of svn_wc__db_read_children_info */
 static svn_error_t *
 read_children_info(svn_wc__db_wcroot_t *wcroot,
                    const char *dir_relpath,
                    apr_hash_t *conflicts,
                    apr_hash_t *nodes,
+                   svn_boolean_t base_tree_only,
                    apr_pool_t *result_pool,
                    apr_pool_t *scratch_pool)
 {
@@ -8811,9 +9285,12 @@ read_children_info(svn_wc__db_wcroot_t *wcroot,
   const char *repos_root_url = NULL;
   const char *repos_uuid = NULL;
   apr_int64_t last_repos_id = INVALID_REPOS_ID;
+  const char *last_repos_root_url = NULL;
 
   SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                    STMT_SELECT_NODE_CHILDREN_INFO));
+                                    (base_tree_only
+                                     ? STMT_SELECT_BASE_NODE_CHILDREN_INFO
+                                     : STMT_SELECT_NODE_CHILDREN_INFO)));
   SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, dir_relpath));
   SVN_ERR(svn_sqlite__step(&have_row, stmt));
 
@@ -8828,7 +9305,7 @@ read_children_info(svn_wc__db_wcroot_t *wcroot,
       int op_depth;
       svn_boolean_t new_child;
 
-      child_item = svn_hash_gets(nodes, name);
+      child_item = (base_tree_only ? NULL : svn_hash_gets(nodes, name));
       if (child_item)
         new_child = FALSE;
       else
@@ -8840,7 +9317,7 @@ read_children_info(svn_wc__db_wcroot_t *wcroot,
       op_depth = svn_sqlite__column_int(stmt, 0);
 
       /* Do we have new or better information? */
-      if (new_child || op_depth > child_item->op_depth)
+      if (new_child)
         {
           struct svn_wc__db_info_t *child = &child_item->info;
           child_item->op_depth = op_depth;
@@ -8875,8 +9352,6 @@ read_children_info(svn_wc__db_wcroot_t *wcroot,
             }
           else
             {
-              const char *last_repos_root_url = NULL;
-
               apr_int64_t repos_id = svn_sqlite__column_int64(stmt, 1);
               if (!repos_root_url ||
                   (last_repos_id != INVALID_REPOS_ID &&
@@ -8885,7 +9360,7 @@ read_children_info(svn_wc__db_wcroot_t *wcroot,
                   last_repos_root_url = repos_root_url;
                   err = svn_wc__db_fetch_repos_info(&repos_root_url,
                                                     &repos_uuid,
-                                                    wcroot->sdb, repos_id,
+                                                    wcroot, repos_id,
                                                     result_pool);
                   if (err)
                     SVN_ERR(svn_error_compose_create(err,
@@ -8923,11 +9398,19 @@ read_children_info(svn_wc__db_wcroot_t *wcroot,
             child->depth = svn_depth_unknown;
           else
             {
+              child->has_descendants = TRUE;
+              child_item->was_dir = TRUE;
               child->depth = svn_sqlite__column_token_null(stmt, 11, depth_map,
                                                            svn_depth_unknown);
               if (new_child)
-                SVN_ERR(is_wclocked(&child->locked, wcroot, child_relpath,
-                                    scratch_pool));
+                {
+                  err = is_wclocked(&child->locked, wcroot, child_relpath,
+                                    scratch_pool);
+
+                  if (err)
+                    SVN_ERR(svn_error_compose_create(err,
+                                                     svn_sqlite__reset(stmt)));
+                }
             }
 
           child->recorded_time = svn_sqlite__column_int64(stmt, 13);
@@ -8958,6 +9441,17 @@ read_children_info(svn_wc__db_wcroot_t *wcroot,
 
           if (new_child)
             svn_hash_sets(nodes, apr_pstrdup(result_pool, name), child);
+        }
+      else if (!child_item->was_dir
+               && svn_sqlite__column_token(stmt, 4, kind_map) == svn_node_dir)
+        {
+          child_item->was_dir = TRUE;
+
+          err = find_conflict_descendants(&child_item->info.has_descendants,
+                                          wcroot, child_relpath,
+                                          scratch_pool);
+          if (err)
+            SVN_ERR(svn_error_compose_create(err, svn_sqlite__reset(stmt)));
         }
 
       if (op_depth == 0)
@@ -8990,22 +9484,14 @@ read_children_info(svn_wc__db_wcroot_t *wcroot,
               struct svn_wc__db_moved_to_info_t *moved_to;
               struct svn_wc__db_moved_to_info_t **next;
               const char *shadow_op_relpath;
-              int cur_op_depth;
 
               moved_to = apr_pcalloc(result_pool, sizeof(*moved_to));
               moved_to->moved_to_abspath = svn_dirent_join(wcroot->abspath,
                                                            moved_to_relpath,
                                                            result_pool);
 
-              cur_op_depth = relpath_depth(child_relpath);
-              shadow_op_relpath = child_relpath;
-
-              while (cur_op_depth > op_depth)
-                {
-                  shadow_op_relpath = svn_relpath_dirname(shadow_op_relpath,
-                                                          scratch_pool);
-                  cur_op_depth--;
-                }
+              shadow_op_relpath = svn_relpath_prefix(child_relpath, op_depth,
+                                                     scratch_pool);
 
               moved_to->shadow_op_root_abspath =
                         svn_dirent_join(wcroot->abspath, shadow_op_relpath,
@@ -9028,54 +9514,58 @@ read_children_info(svn_wc__db_wcroot_t *wcroot,
 
   SVN_ERR(svn_sqlite__reset(stmt));
 
-  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                    STMT_SELECT_ACTUAL_CHILDREN_INFO));
-  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, dir_relpath));
-  SVN_ERR(svn_sqlite__step(&have_row, stmt));
-
-  while (have_row)
+  if (!base_tree_only)
     {
-      struct read_children_info_item_t *child_item;
-      struct svn_wc__db_info_t *child;
-      const char *child_relpath = svn_sqlite__column_text(stmt, 0, NULL);
-      const char *name = svn_relpath_basename(child_relpath, NULL);
+      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                        STMT_SELECT_ACTUAL_CHILDREN_INFO));
+      SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, dir_relpath));
+      SVN_ERR(svn_sqlite__step(&have_row, stmt));
 
-      child_item = svn_hash_gets(nodes, name);
-      if (!child_item)
+      while (have_row)
         {
-          child_item = apr_pcalloc(result_pool, sizeof(*child_item));
-          child_item->info.status = svn_wc__db_status_not_present;
-        }
+          struct read_children_info_item_t *child_item;
+          struct svn_wc__db_info_t *child;
+          const char *child_relpath = svn_sqlite__column_text(stmt, 0, NULL);
+          const char *name = svn_relpath_basename(child_relpath, NULL);
 
-      child = &child_item->info;
+          child_item = svn_hash_gets(nodes, name);
+          if (!child_item)
+            {
+              child_item = apr_pcalloc(result_pool, sizeof(*child_item));
+              child_item->info.status = svn_wc__db_status_not_present;
+            }
 
-      child->changelist = svn_sqlite__column_text(stmt, 1, result_pool);
+          child = &child_item->info;
 
-      child->props_mod = !svn_sqlite__column_is_null(stmt, 2);
+          child->changelist = svn_sqlite__column_text(stmt, 1, result_pool);
+
+          child->props_mod = !svn_sqlite__column_is_null(stmt, 2);
 #ifdef HAVE_SYMLINK
-      if (child->props_mod)
-        {
-          svn_error_t *err;
-          apr_hash_t *properties;
+          if (child->props_mod)
+            {
+              svn_error_t *err;
+              apr_hash_t *properties;
 
-          err = svn_sqlite__column_properties(&properties, stmt, 2,
-                                              scratch_pool, scratch_pool);
-          if (err)
-            SVN_ERR(svn_error_compose_create(err, svn_sqlite__reset(stmt)));
-          child->special = (NULL != svn_hash_gets(properties,
-                                                  SVN_PROP_SPECIAL));
-        }
+              err = svn_sqlite__column_properties(&properties, stmt, 2,
+                                                  scratch_pool, scratch_pool);
+              if (err)
+                SVN_ERR(svn_error_compose_create(err, svn_sqlite__reset(stmt)));
+              child->special = (NULL != svn_hash_gets(properties,
+                                                      SVN_PROP_SPECIAL));
+            }
 #endif
 
-      child->conflicted = !svn_sqlite__column_is_null(stmt, 3); /* conflict */
+          /* conflict */
+          child->conflicted = !svn_sqlite__column_is_null(stmt, 3);
 
-      if (child->conflicted)
-        svn_hash_sets(conflicts, apr_pstrdup(result_pool, name), "");
+          if (child->conflicted)
+            svn_hash_sets(conflicts, apr_pstrdup(result_pool, name), "");
 
-      SVN_ERR(svn_sqlite__step(&have_row, stmt));
+          SVN_ERR(svn_sqlite__step(&have_row, stmt));
+        }
+
+      SVN_ERR(svn_sqlite__reset(stmt));
     }
-
-  SVN_ERR(svn_sqlite__reset(stmt));
 
   return SVN_NO_ERROR;
 }
@@ -9085,6 +9575,7 @@ svn_wc__db_read_children_info(apr_hash_t **nodes,
                               apr_hash_t **conflicts,
                               svn_wc__db_t *db,
                               const char *dir_abspath,
+                              svn_boolean_t base_tree_only,
                               apr_pool_t *result_pool,
                               apr_pool_t *scratch_pool)
 {
@@ -9102,23 +9593,29 @@ svn_wc__db_read_children_info(apr_hash_t **nodes,
 
   SVN_WC__DB_WITH_TXN(
     read_children_info(wcroot, dir_relpath, *conflicts, *nodes,
-                       result_pool, scratch_pool),
+                       base_tree_only, result_pool, scratch_pool),
     wcroot);
 
   return SVN_NO_ERROR;
 }
 
-static svn_error_t *
-db_read_props(apr_hash_t **props,
-              svn_wc__db_wcroot_t *wcroot,
-              const char *local_relpath,
-              apr_pool_t *result_pool,
-              apr_pool_t *scratch_pool);
+/* Implementation of svn_wc__db_read_single_info.
 
+   ### This function is very similar to a lot of code inside
+   read_children_info, but that performs some tricks to re-use data between
+   different siblings.
+
+   ### We read the same few NODES records a few times via different helper
+   functions, so this could be optimized bit, but everything is within
+   a sqlite transaction and all queries are backed by an index, so generally
+   everything (including the used indexes) should be in the sqlite page cache
+   after the first query.
+*/
 static svn_error_t *
 read_single_info(const struct svn_wc__db_info_t **info,
                  svn_wc__db_wcroot_t *wcroot,
                  const char *local_relpath,
+                 svn_boolean_t base_tree_only,
                  apr_pool_t *result_pool,
                  apr_pool_t *scratch_pool)
 {
@@ -9127,27 +9624,43 @@ read_single_info(const struct svn_wc__db_info_t **info,
   const svn_checksum_t *checksum;
   const char *original_repos_relpath;
   svn_boolean_t have_work;
+  apr_hash_t *properties;
 
   mtb = apr_pcalloc(result_pool, sizeof(*mtb));
 
-  SVN_ERR(read_info(&mtb->status, &mtb->kind, &mtb->revnum,
-                    &mtb->repos_relpath, &repos_id, &mtb->changed_rev,
-                    &mtb->changed_date, &mtb->changed_author, &mtb->depth,
-                    &checksum, NULL, &original_repos_relpath, NULL, NULL,
-                    &mtb->lock, &mtb->recorded_size, &mtb->recorded_time,
-                    &mtb->changelist, &mtb->conflicted, &mtb->op_root,
-                    &mtb->had_props, &mtb->props_mod, &mtb->have_base,
-                    &mtb->have_more_work, &have_work,
-                    wcroot, local_relpath,
-                    result_pool, scratch_pool));
+  if (!base_tree_only)
+    SVN_ERR(read_info(&mtb->status, &mtb->kind, &mtb->revnum,
+                      &mtb->repos_relpath, &repos_id, &mtb->changed_rev,
+                      &mtb->changed_date, &mtb->changed_author, &mtb->depth,
+                      &checksum, NULL, &original_repos_relpath, NULL, NULL,
+                      &mtb->lock, &mtb->recorded_size, &mtb->recorded_time,
+                      &mtb->changelist, &mtb->conflicted, &mtb->op_root,
+                      &mtb->had_props, &mtb->props_mod, &mtb->have_base,
+                      &mtb->have_more_work, &have_work,
+                      wcroot, local_relpath, result_pool, scratch_pool));
+  else
+    {
+      svn_boolean_t update_root;
+
+      have_work = FALSE;
+      original_repos_relpath = NULL;
+
+      SVN_ERR(svn_wc__db_base_get_info_internal(
+                  &mtb->status, &mtb->kind, &mtb->revnum, &mtb->repos_relpath,
+                  &repos_id, &mtb->changed_rev, &mtb->changed_date,
+                  &mtb->changed_author, &mtb->depth, &checksum, NULL,
+                  &mtb->lock, &mtb->had_props, &properties, &update_root,
+                  wcroot, local_relpath, scratch_pool, scratch_pool));
+
+      mtb->have_base = TRUE;
+      mtb->file_external = (update_root && mtb->kind == svn_node_file);
+    }
 
   /* Query the same rows in the database again for move information */
   if (have_work && (mtb->have_base || mtb->have_more_work))
     {
       svn_sqlite__stmt_t *stmt;
       svn_boolean_t have_row;
-      const char *cur_relpath = NULL;
-      int cur_op_depth;
 
       SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
                                         STMT_SELECT_MOVED_TO_NODE));
@@ -9160,22 +9673,16 @@ read_single_info(const struct svn_wc__db_info_t **info,
           struct svn_wc__db_moved_to_info_t *move;
           int op_depth = svn_sqlite__column_int(stmt, 0);
           const char *moved_to_relpath = svn_sqlite__column_text(stmt, 1, NULL);
+          const char *cur_relpath;
 
           move = apr_pcalloc(result_pool, sizeof(*move));
           move->moved_to_abspath = svn_dirent_join(wcroot->abspath,
                                                    moved_to_relpath,
                                                    result_pool);
 
-          if (!cur_relpath)
-            {
-              cur_relpath = local_relpath;
-              cur_op_depth = relpath_depth(cur_relpath);
-            }
-          while (cur_op_depth > op_depth)
-            {
-              cur_relpath = svn_relpath_dirname(cur_relpath, scratch_pool);
-              cur_op_depth--;
-            }
+          cur_relpath = svn_relpath_prefix(local_relpath, op_depth,
+                                           scratch_pool);
+
           move->shadow_op_root_abspath = svn_dirent_join(wcroot->abspath,
                                                          cur_relpath,
                                                          result_pool);
@@ -9192,7 +9699,8 @@ read_single_info(const struct svn_wc__db_info_t **info,
   /* Maybe we have to get some shadowed lock from BASE to make our test suite
      happy... (It might be completely unrelated, but...)
      This queries the same BASE row again, joined to the lock table */
-  if (mtb->have_base && (have_work || mtb->kind == svn_node_file))
+  if (!base_tree_only && mtb->have_base
+      && (have_work || mtb->kind == svn_node_file))
     {
       svn_boolean_t update_root;
       svn_wc__db_lock_t **lock_arg = NULL;
@@ -9225,18 +9733,20 @@ read_single_info(const struct svn_wc__db_info_t **info,
 
 #ifdef HAVE_SYMLINK
   if (mtb->kind == svn_node_file
-      && (mtb->had_props || mtb->props_mod))
+      && (mtb->had_props || mtb->props_mod
+          || (base_tree_only && properties)))
     {
-      apr_hash_t *properties;
-
-      if (mtb->props_mod)
-        SVN_ERR(db_read_props(&properties,
-                              wcroot, local_relpath,
-                              scratch_pool, scratch_pool));
-      else
-        SVN_ERR(db_read_pristine_props(&properties, wcroot, local_relpath,
-                                       TRUE /* deleted_ok */,
-                                       scratch_pool, scratch_pool));
+      if (!base_tree_only)
+        {
+          if (mtb->props_mod)
+            SVN_ERR(svn_wc__db_read_props_internal(&properties,
+                                                   wcroot, local_relpath,
+                                                   scratch_pool, scratch_pool));
+          else
+            SVN_ERR(db_read_pristine_props(&properties, wcroot, local_relpath,
+                                           TRUE /* deleted_ok */,
+                                           scratch_pool, scratch_pool));
+        }
 
       mtb->special = (NULL != svn_hash_gets(properties, SVN_PROP_SPECIAL));
     }
@@ -9246,10 +9756,16 @@ read_single_info(const struct svn_wc__db_info_t **info,
   mtb->copied = (original_repos_relpath != NULL);
 
   SVN_ERR(svn_wc__db_fetch_repos_info(&mtb->repos_root_url, &mtb->repos_uuid,
-                                      wcroot->sdb, repos_id, result_pool));
+                                      wcroot, repos_id, result_pool));
+
+  if (!base_tree_only && mtb->kind == svn_node_dir)
+    SVN_ERR(is_wclocked(&mtb->locked, wcroot, local_relpath, scratch_pool));
 
   if (mtb->kind == svn_node_dir)
-    SVN_ERR(is_wclocked(&mtb->locked, wcroot, local_relpath, scratch_pool));
+    mtb->has_descendants = TRUE;
+  else
+    SVN_ERR(find_conflict_descendants(&mtb->has_descendants,
+                                      wcroot, local_relpath, scratch_pool));
 
   *info = mtb;
 
@@ -9260,6 +9776,7 @@ svn_error_t *
 svn_wc__db_read_single_info(const struct svn_wc__db_info_t **info,
                             svn_wc__db_t *db,
                             const char *local_abspath,
+                            svn_boolean_t base_tree_only,
                             apr_pool_t *result_pool,
                             apr_pool_t *scratch_pool)
 {
@@ -9274,6 +9791,7 @@ svn_wc__db_read_single_info(const struct svn_wc__db_info_t **info,
   VERIFY_USABLE_WCROOT(wcroot);
 
   SVN_WC__DB_WITH_TXN(read_single_info(info, wcroot, local_relpath,
+                                       base_tree_only,
                                        result_pool, scratch_pool),
                       wcroot);
 
@@ -9443,7 +9961,7 @@ svn_wc__db_read_pristine_info(svn_wc__db_status_t *status,
 }
 
 svn_error_t *
-svn_wc__db_read_children_walker_info(apr_hash_t **nodes,
+svn_wc__db_read_children_walker_info(const apr_array_header_t **items,
                                      svn_wc__db_t *db,
                                      const char *dir_abspath,
                                      apr_pool_t *result_pool,
@@ -9453,6 +9971,7 @@ svn_wc__db_read_children_walker_info(apr_hash_t **nodes,
   const char *dir_relpath;
   svn_sqlite__stmt_t *stmt;
   svn_boolean_t have_row;
+  apr_array_header_t *nodes;
 
   SVN_ERR_ASSERT(svn_dirent_is_absolute(dir_abspath));
 
@@ -9466,16 +9985,18 @@ svn_wc__db_read_children_walker_info(apr_hash_t **nodes,
   SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, dir_relpath));
   SVN_ERR(svn_sqlite__step(&have_row, stmt));
 
-  *nodes = apr_hash_make(result_pool);
+  nodes = apr_array_make(result_pool, 16,
+                          sizeof(struct svn_wc__db_walker_info_t *));
   while (have_row)
     {
       struct svn_wc__db_walker_info_t *child;
       const char *child_relpath = svn_sqlite__column_text(stmt, 0, NULL);
-      const char *name = svn_relpath_basename(child_relpath, NULL);
+      const char *name = svn_relpath_basename(child_relpath, result_pool);
       int op_depth = svn_sqlite__column_int(stmt, 1);
       svn_error_t *err;
 
       child = apr_palloc(result_pool, sizeof(*child));
+      child->name = name;
       child->status = svn_sqlite__column_token(stmt, 2, presence_map);
       if (op_depth > 0)
         {
@@ -9484,12 +10005,15 @@ svn_wc__db_read_children_walker_info(apr_hash_t **nodes,
             SVN_ERR(svn_error_compose_create(err, svn_sqlite__reset(stmt)));
         }
       child->kind = svn_sqlite__column_token(stmt, 3, kind_map);
-      svn_hash_sets(*nodes, apr_pstrdup(result_pool, name), child);
+
+      APR_ARRAY_PUSH(nodes, struct svn_wc__db_walker_info_t *) = child;
 
       SVN_ERR(svn_sqlite__step(&have_row, stmt));
     }
 
   SVN_ERR(svn_sqlite__reset(stmt));
+
+  *items = nodes;
 
   return SVN_NO_ERROR;
 }
@@ -9545,7 +10069,7 @@ svn_wc__db_read_node_install_info(const char **wcroot_abspath,
 
   if (have_row)
     {
-      if (!err && sha1_checksum)
+      if (sha1_checksum)
         err = svn_sqlite__column_checksum(sha1_checksum, stmt, 6, result_pool);
 
       if (!err && pristine_props)
@@ -9574,68 +10098,48 @@ svn_wc__db_read_node_install_info(const char **wcroot_abspath,
 
 
 
-/* The body of svn_wc__db_read_url().
+/* The body of svn_wc__db_read_repos_info().
  */
 static svn_error_t *
-read_url_txn(const char **url,
-             svn_wc__db_wcroot_t *wcroot,
-             const char *local_relpath,
-             apr_pool_t *result_pool,
-             apr_pool_t *scratch_pool)
+db_read_repos_info(svn_revnum_t *revision,
+                   const char **repos_relpath,
+                   apr_int64_t *repos_id,
+                   svn_wc__db_wcroot_t *wcroot,
+                   const char *local_relpath,
+                   apr_pool_t *result_pool,
+                   apr_pool_t *scratch_pool)
 {
   svn_wc__db_status_t status;
-  const char *repos_relpath;
-  const char *repos_root_url;
-  apr_int64_t repos_id;
-  svn_boolean_t have_base;
 
-  SVN_ERR(read_info(&status, NULL, NULL, &repos_relpath, &repos_id, NULL,
+  SVN_ERR(read_info(&status, NULL, revision, repos_relpath, repos_id, NULL,
                     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                    &have_base, NULL, NULL,
-                    wcroot, local_relpath, scratch_pool, scratch_pool));
+                    NULL, NULL, NULL,
+                    wcroot, local_relpath, result_pool, scratch_pool));
 
-  if (repos_relpath == NULL)
+  if ((repos_relpath && !*repos_relpath)
+      || (repos_id && *repos_id == INVALID_REPOS_ID))
     {
       if (status == svn_wc__db_status_added)
         {
-          SVN_ERR(scan_addition(NULL, NULL, &repos_relpath, &repos_id, NULL,
+          SVN_ERR(scan_addition(NULL, NULL, repos_relpath, repos_id, NULL,
                                 NULL, NULL, NULL, NULL, NULL,
                                 wcroot, local_relpath,
-                                scratch_pool, scratch_pool));
+                                result_pool, scratch_pool));
         }
       else if (status == svn_wc__db_status_deleted)
         {
           const char *base_del_relpath;
           const char *work_del_relpath;
 
-          SVN_ERR(scan_deletion_txn(&base_del_relpath, NULL,
-                                    &work_del_relpath,
-                                    NULL, wcroot,
-                                    local_relpath,
-                                    scratch_pool,
-                                    scratch_pool));
+          SVN_ERR(scan_deletion(&base_del_relpath, NULL,
+                                &work_del_relpath,
+                                NULL, wcroot,
+                                local_relpath,
+                                scratch_pool,
+                                scratch_pool));
 
-          if (base_del_relpath)
-            {
-              SVN_ERR(svn_wc__db_base_get_info_internal(NULL, NULL, NULL,
-                                                        &repos_relpath,
-                                                        &repos_id,
-                                                        NULL, NULL, NULL,
-                                                        NULL, NULL, NULL,
-                                                        NULL, NULL, NULL, NULL,
-                                                        wcroot,
-                                                        base_del_relpath,
-                                                        scratch_pool,
-                                                        scratch_pool));
-
-              repos_relpath = svn_relpath_join(
-                                    repos_relpath,
-                                    svn_dirent_skip_ancestor(base_del_relpath,
-                                                             local_relpath),
-                                    scratch_pool);
-            }
-          else
+          if (work_del_relpath)
             {
               /* The parent of the WORKING delete, must be an addition */
               const char *work_relpath = NULL;
@@ -9648,34 +10152,57 @@ read_url_txn(const char **url,
               work_relpath = svn_relpath_dirname(work_del_relpath,
                                                  scratch_pool);
 
-              SVN_ERR(scan_addition(NULL, NULL, &repos_relpath, &repos_id,
+              SVN_ERR(scan_addition(NULL, NULL, repos_relpath, repos_id,
                                     NULL, NULL, NULL, NULL, NULL, NULL,
                                     wcroot, work_relpath,
                                     scratch_pool, scratch_pool));
 
-              repos_relpath = svn_relpath_join(
-                                    repos_relpath,
+              if (repos_relpath)
+                *repos_relpath = svn_relpath_join(
+                                    *repos_relpath,
                                     svn_dirent_skip_ancestor(work_relpath,
                                                              local_relpath),
-                                    scratch_pool);
+                                    result_pool);
+            }
+          else
+            {
+              SVN_ERR(svn_wc__db_base_get_info_internal(NULL, NULL, revision,
+                                                        repos_relpath,
+                                                        repos_id,
+                                                        NULL, NULL, NULL,
+                                                        NULL, NULL, NULL,
+                                                        NULL, NULL, NULL, NULL,
+                                                        wcroot,
+                                                        base_del_relpath,
+                                                        scratch_pool,
+                                                        scratch_pool));
+
+              if (repos_relpath)
+                *repos_relpath = svn_relpath_join(
+                                    *repos_relpath,
+                                    svn_dirent_skip_ancestor(base_del_relpath,
+                                                             local_relpath),
+                                    result_pool);
             }
         }
       else if (status == svn_wc__db_status_excluded)
         {
           const char *parent_relpath;
           const char *name;
-          const char *url2;
 
-          /* Set 'url' to the *full URL* of the parent WC dir,
-           * and 'name' to the *single path component* that is the
-           * basename of this WC directory, so that joining them will result
-           * in the correct full URL. */
+          /* A BASE excluded would have had repository information, so
+             we have a working exclude, which must be below an addition */
+
           svn_relpath_split(&parent_relpath, &name, local_relpath,
                             scratch_pool);
-          SVN_ERR(read_url_txn(&url2, wcroot, parent_relpath,
-                               scratch_pool, scratch_pool));
+          SVN_ERR(scan_addition(NULL, NULL, repos_relpath, repos_id, NULL,
+                                NULL, NULL, NULL, NULL, NULL,
+                                wcroot, parent_relpath,
+                                scratch_pool, scratch_pool));
 
-          *url = svn_path_url_add_component2(url2, name, result_pool);
+          if (repos_relpath)
+            *repos_relpath = svn_relpath_join(*repos_relpath, name,
+                                              result_pool);
 
           return SVN_NO_ERROR;
         }
@@ -9687,26 +10214,23 @@ read_url_txn(const char **url,
         }
     }
 
-  SVN_ERR(svn_wc__db_fetch_repos_info(&repos_root_url, NULL, wcroot->sdb,
-                                      repos_id, scratch_pool));
-
-  SVN_ERR_ASSERT(repos_root_url != NULL && repos_relpath != NULL);
-  *url = svn_path_url_add_component2(repos_root_url, repos_relpath,
-                                     result_pool);
-
   return SVN_NO_ERROR;
 }
 
 
 svn_error_t *
-svn_wc__db_read_url(const char **url,
-                    svn_wc__db_t *db,
-                    const char *local_abspath,
-                    apr_pool_t *result_pool,
-                    apr_pool_t *scratch_pool)
+svn_wc__db_read_repos_info(svn_revnum_t *revision,
+                           const char **repos_relpath,
+                           const char **repos_root_url,
+                           const char **repos_uuid,
+                           svn_wc__db_t *db,
+                           const char *local_abspath,
+                           apr_pool_t *result_pool,
+                           apr_pool_t *scratch_pool)
 {
   svn_wc__db_wcroot_t *wcroot;
   const char *local_relpath;
+  apr_int64_t repos_id = INVALID_REPOS_ID;
 
   SVN_ERR_ASSERT(svn_dirent_is_absolute(local_abspath));
 
@@ -9715,9 +10239,17 @@ svn_wc__db_read_url(const char **url,
                                                 scratch_pool, scratch_pool));
   VERIFY_USABLE_WCROOT(wcroot);
 
-  SVN_WC__DB_WITH_TXN(read_url_txn(url, wcroot, local_relpath,
-                                   result_pool, scratch_pool),
-                      wcroot);
+  SVN_WC__DB_WITH_TXN4(db_read_repos_info(revision, repos_relpath,
+                                          (repos_root_url || repos_uuid)
+                                            ? &repos_id : NULL,
+                                          wcroot, local_relpath,
+                                          result_pool, scratch_pool),
+                       svn_wc__db_fetch_repos_info(repos_root_url,
+                                                   repos_uuid,
+                                                   wcroot, repos_id,
+                                                   result_pool),
+                       SVN_NO_ERROR, SVN_NO_ERROR,
+                       wcroot);
 
   return SVN_NO_ERROR;
 }
@@ -9861,12 +10393,12 @@ svn_wc__db_read_props_streamily(svn_wc__db_t *db,
 
 /* Helper for svn_wc__db_read_props().
  */
-static svn_error_t *
-db_read_props(apr_hash_t **props,
-              svn_wc__db_wcroot_t *wcroot,
-              const char *local_relpath,
-              apr_pool_t *result_pool,
-              apr_pool_t *scratch_pool)
+svn_error_t *
+svn_wc__db_read_props_internal(apr_hash_t **props,
+                               svn_wc__db_wcroot_t *wcroot,
+                               const char *local_relpath,
+                               apr_pool_t *result_pool,
+                               apr_pool_t *scratch_pool)
 {
   svn_sqlite__stmt_t *stmt;
   svn_boolean_t have_row;
@@ -9923,8 +10455,10 @@ svn_wc__db_read_props(apr_hash_t **props,
                               local_abspath, scratch_pool, scratch_pool));
   VERIFY_USABLE_WCROOT(wcroot);
 
-  SVN_WC__DB_WITH_TXN(db_read_props(props, wcroot, local_relpath,
-                                    result_pool, scratch_pool),
+  SVN_WC__DB_WITH_TXN(svn_wc__db_read_props_internal(props, wcroot,
+                                                     local_relpath,
+                                                     result_pool,
+                                                     scratch_pool),
                       wcroot);
 
   return SVN_NO_ERROR;
@@ -10155,7 +10689,7 @@ filter_unwanted_props(apr_hash_t *prop_hash,
        hi;
        hi = apr_hash_next(hi))
     {
-      const char *ipropname = svn__apr_hash_index_key(hi);
+      const char *ipropname = apr_hash_this_key(hi);
 
       if (strcmp(ipropname, propname) != 0)
         svn_hash_sets(prop_hash, ipropname, NULL);
@@ -10329,7 +10863,7 @@ db_read_inherited_props(apr_array_header_t **inherited_props,
 
                   iprop_elt->prop_hash = node_props;
                   /* Build the output array in depth-first order. */
-                  svn_sort__array_insert(&iprop_elt, iprops, 0);
+                  svn_sort__array_insert(iprops, &iprop_elt, 0);
                 }
             }
         }
@@ -10365,7 +10899,7 @@ db_read_inherited_props(apr_array_header_t **inherited_props,
 
           /* If we didn't filter everything then keep this iprop. */
           if (apr_hash_count(cached_iprop->prop_hash))
-            svn_sort__array_insert(&cached_iprop, iprops, 0);
+            svn_sort__array_insert(iprops, &cached_iprop, 0);
         }
     }
 
@@ -10479,7 +11013,7 @@ get_children_with_cached_iprops(apr_hash_t **iprop_paths,
            hi;
            hi = apr_hash_next(hi))
         {
-          const char *child_abspath = svn__apr_hash_index_key(hi);
+          const char *child_abspath = apr_hash_this_key(hi);
           const char *child_relpath;
           svn_node_kind_t child_kind;
 
@@ -10557,8 +11091,34 @@ svn_wc__db_read_children_of_working_node(const apr_array_header_t **children,
                                              scratch_pool, scratch_pool));
   VERIFY_USABLE_WCROOT(wcroot);
 
-  return gather_children2(children, wcroot, local_relpath,
-                          result_pool, scratch_pool);
+  return svn_error_trace(
+          gather_children(children, wcroot, local_relpath,
+                          STMT_SELECT_WORKING_CHILDREN, -1,
+                          result_pool, scratch_pool));
+}
+
+svn_error_t *
+svn_wc__db_base_read_not_present_children(
+                                const apr_array_header_t **children,
+                                svn_wc__db_t *db,
+                                const char *local_abspath,
+                                apr_pool_t *result_pool,
+                                apr_pool_t *scratch_pool)
+{
+  svn_wc__db_wcroot_t *wcroot;
+  const char *local_relpath;
+
+  SVN_ERR_ASSERT(svn_dirent_is_absolute(local_abspath));
+
+  SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_relpath, db,
+                                             local_abspath,
+                                             scratch_pool, scratch_pool));
+  VERIFY_USABLE_WCROOT(wcroot);
+
+  return svn_error_trace(
+          gather_children(children, wcroot, local_relpath,
+                          STMT_SELECT_BASE_NOT_PRESENT_CHILDREN, -1,
+                          result_pool, scratch_pool));
 }
 
 /* Helper for svn_wc__db_node_check_replace().
@@ -10745,75 +11305,27 @@ svn_wc__db_read_children(const apr_array_header_t **children,
   VERIFY_USABLE_WCROOT(wcroot);
 
   return gather_children(children, wcroot, local_relpath,
+                         STMT_SELECT_NODE_CHILDREN, -1,
                          result_pool, scratch_pool);
 }
 
 
-/* */
+/* Implementation of svn_wc__db_global_relocate */
 static svn_error_t *
 relocate_txn(svn_wc__db_wcroot_t *wcroot,
              const char *local_relpath,
              const char *repos_root_url,
-             const char *repos_uuid,
-             svn_boolean_t have_base_node,
-             apr_int64_t old_repos_id,
              apr_pool_t *scratch_pool)
 {
   svn_sqlite__stmt_t *stmt;
   apr_int64_t new_repos_id;
-
-  /* This function affects all the children of the given local_relpath,
-     but the way that it does this is through the repos inheritance mechanism.
-     So, we only need to rewrite the repos_id of the given local_relpath,
-     as well as any children with a non-null repos_id, as well as various
-     repos_id fields in the locks and working_node tables.
-   */
-
-  /* Get the repos_id for the new repository. */
-  SVN_ERR(create_repos_id(&new_repos_id, repos_root_url, repos_uuid,
-                          wcroot->sdb, scratch_pool));
-
-  /* Set the (base and working) repos_ids and clear the dav_caches */
-  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                    STMT_RECURSIVE_UPDATE_NODE_REPO));
-  SVN_ERR(svn_sqlite__bindf(stmt, "isii", wcroot->wc_id, local_relpath,
-                            old_repos_id, new_repos_id));
-  SVN_ERR(svn_sqlite__step_done(stmt));
-
-  if (have_base_node)
-    {
-      /* Update any locks for the root or its children. */
-      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                        STMT_UPDATE_LOCK_REPOS_ID));
-      SVN_ERR(svn_sqlite__bindf(stmt, "ii", old_repos_id, new_repos_id));
-      SVN_ERR(svn_sqlite__step_done(stmt));
-    }
-
-  return SVN_NO_ERROR;
-}
-
-
-svn_error_t *
-svn_wc__db_global_relocate(svn_wc__db_t *db,
-                           const char *local_dir_abspath,
-                           const char *repos_root_url,
-                           apr_pool_t *scratch_pool)
-{
-  svn_wc__db_wcroot_t *wcroot;
-  const char *local_relpath;
   const char *local_dir_relpath;
   svn_wc__db_status_t status;
   const char *repos_uuid;
   svn_boolean_t have_base_node;
   apr_int64_t old_repos_id;
 
-  SVN_ERR_ASSERT(svn_dirent_is_absolute(local_dir_abspath));
-  /* ### assert that we were passed a directory?  */
-
-  SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_dir_relpath,
-                           db, local_dir_abspath, scratch_pool, scratch_pool));
-  VERIFY_USABLE_WCROOT(wcroot);
-  local_relpath = local_dir_relpath;
+  local_dir_relpath = local_relpath;
 
   SVN_ERR(read_info(&status,
                     NULL, NULL, NULL, &old_repos_id,
@@ -10852,11 +11364,11 @@ svn_wc__db_global_relocate(svn_wc__db_t *db,
         {
           const char *work_del_relpath;
 
-          SVN_ERR(scan_deletion_txn(NULL, NULL,
-                                    &work_del_relpath, NULL,
-                                    wcroot, local_dir_relpath,
-                                    scratch_pool,
-                                    scratch_pool));
+          SVN_ERR(scan_deletion(NULL, NULL,
+                                &work_del_relpath, NULL,
+                                wcroot, local_dir_relpath,
+                                scratch_pool,
+                                scratch_pool));
           if (work_del_relpath)
             {
               /* Deleted within a copy/move */
@@ -10884,14 +11396,61 @@ svn_wc__db_global_relocate(svn_wc__db_t *db,
                                                   scratch_pool, scratch_pool));
     }
 
-  SVN_ERR(svn_wc__db_fetch_repos_info(NULL, &repos_uuid, wcroot->sdb,
+  SVN_ERR(svn_wc__db_fetch_repos_info(NULL, &repos_uuid, wcroot,
                                       old_repos_id, scratch_pool));
-  SVN_ERR_ASSERT(repos_uuid);
+  SVN_ERR_ASSERT(repos_uuid);  /* This function affects all the children of the given local_relpath,
+     but the way that it does this is through the repos inheritance mechanism.
+     So, we only need to rewrite the repos_id of the given local_relpath,
+     as well as any children with a non-null repos_id, as well as various
+     repos_id fields in the locks and working_node tables.
+   */
+
+  /* Get the repos_id for the new repository. */
+  SVN_ERR(create_repos_id(&new_repos_id, repos_root_url, repos_uuid,
+                          wcroot->sdb, scratch_pool));
+
+  /* Set the (base and working) repos_ids and clear the dav_caches */
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                    STMT_RECURSIVE_UPDATE_NODE_REPO));
+  SVN_ERR(svn_sqlite__bindf(stmt, "isii", wcroot->wc_id, local_relpath,
+                            old_repos_id, new_repos_id));
+  SVN_ERR(svn_sqlite__step_done(stmt));
+
+  if (have_base_node)
+    {
+      /* Update any locks for the root or its children. */
+      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                        STMT_UPDATE_LOCK_REPOS_ID));
+      SVN_ERR(svn_sqlite__bindf(stmt, "ii", old_repos_id, new_repos_id));
+      SVN_ERR(svn_sqlite__step_done(stmt));
+    }
+
+  return SVN_NO_ERROR;
+}
+
+
+svn_error_t *
+svn_wc__db_global_relocate(svn_wc__db_t *db,
+                           const char *local_dir_abspath,
+                           const char *repos_root_url,
+                           apr_pool_t *scratch_pool)
+{
+  svn_wc__db_wcroot_t *wcroot;
+  const char *local_relpath;
+
+  SVN_ERR_ASSERT(svn_dirent_is_absolute(local_dir_abspath));
+  /* ### assert that we were passed a directory?  */
+
+  SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_relpath,
+                           db, local_dir_abspath, scratch_pool, scratch_pool));
+  VERIFY_USABLE_WCROOT(wcroot);
 
   SVN_WC__DB_WITH_TXN(
-    relocate_txn(wcroot, local_relpath, repos_root_url, repos_uuid,
-                 have_base_node, old_repos_id, scratch_pool),
+    relocate_txn(wcroot, local_relpath, repos_root_url, scratch_pool),
     wcroot);
+
+  SVN_ERR(flush_entries(wcroot, local_dir_abspath, svn_depth_infinity,
+                        scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -10979,6 +11538,48 @@ determine_commit_repos_info(apr_int64_t *repos_id,
   return svn_error_trace(svn_sqlite__reset(stmt));
 }
 
+static svn_error_t *
+moved_descendant_collect(apr_hash_t **map,
+                        svn_wc__db_wcroot_t *wcroot,
+                        const char *local_relpath,
+                        int op_depth,
+                        apr_pool_t *result_pool,
+                        apr_pool_t *scratch_pool)
+{
+  svn_sqlite__stmt_t *stmt;
+  svn_boolean_t have_row;
+
+  *map = NULL;
+
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                    STMT_SELECT_MOVED_DESCENDANTS_SRC));
+  SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id,
+                                         local_relpath,
+                                         op_depth));
+
+  SVN_ERR(svn_sqlite__step(&have_row, stmt));
+  if (! have_row)
+    return svn_error_trace(svn_sqlite__reset(stmt));
+
+  /* Find all moved descendants. Key them on target, because that is
+     always unique */
+  while (have_row)
+    {
+      const char *src_relpath = svn_sqlite__column_text(stmt, 1, result_pool);
+      const char *to_relpath = svn_sqlite__column_text(stmt, 4, result_pool);
+
+      if (!*map)
+        *map = apr_hash_make(result_pool);
+
+      svn_hash_sets(*map, to_relpath, src_relpath);
+
+      SVN_ERR(svn_sqlite__step(&have_row, stmt));
+    }
+  SVN_ERR(svn_sqlite__reset(stmt));
+
+  return SVN_NO_ERROR;
+}
+
 /* Helper for svn_wc__db_global_commit()
 
    Makes local_relpath and all its descendants at the same op-depth represent
@@ -10990,49 +11591,25 @@ determine_commit_repos_info(apr_int64_t *repos_id,
    Assumptions:
      * local_relpath is not the working copy root (can't be moved)
      * repos_relpath is not the repository root (can't be moved)
-   */
+ */
 static svn_error_t *
 moved_descendant_commit(svn_wc__db_wcroot_t *wcroot,
                         const char *local_relpath,
-                        int op_depth,
                         apr_int64_t repos_id,
                         const char *repos_relpath,
                         svn_revnum_t revision,
+                        apr_hash_t *children,
                         apr_pool_t *scratch_pool)
 {
-  apr_hash_t *children;
   apr_pool_t *iterpool;
   svn_sqlite__stmt_t *stmt;
-  svn_boolean_t have_row;
   apr_hash_index_t *hi;
 
   SVN_ERR_ASSERT(*local_relpath != '\0'
                  && *repos_relpath != '\0');
 
-  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                    STMT_SELECT_MOVED_DESCENDANTS));
-  SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id,
-                                         local_relpath,
-                                         op_depth));
-
-  SVN_ERR(svn_sqlite__step(&have_row, stmt));
-  if (! have_row)
-    return svn_error_trace(svn_sqlite__reset(stmt));
-
-  children = apr_hash_make(scratch_pool);
-
-  /* First, obtain all moved children */
-  /* To keep error handling simple, first cache them in a hashtable */
-  while (have_row)
-    {
-      const char *src_relpath = svn_sqlite__column_text(stmt, 0, scratch_pool);
-      const char *to_relpath = svn_sqlite__column_text(stmt, 1, scratch_pool);
-
-      svn_hash_sets(children, src_relpath, to_relpath);
-
-      SVN_ERR(svn_sqlite__step(&have_row, stmt));
-    }
-  SVN_ERR(svn_sqlite__reset(stmt));
+  if (!children)
+    return SVN_NO_ERROR;
 
   /* Then update them */
   SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
@@ -11041,11 +11618,12 @@ moved_descendant_commit(svn_wc__db_wcroot_t *wcroot,
   iterpool = svn_pool_create(scratch_pool);
   for (hi = apr_hash_first(scratch_pool, children); hi; hi = apr_hash_next(hi))
     {
-      const char *src_relpath = svn__apr_hash_index_key(hi);
-      const char *to_relpath = svn__apr_hash_index_val(hi);
+      const char *src_relpath = apr_hash_this_val(hi);
+      const char *to_relpath = apr_hash_this_key(hi);
       const char *new_repos_relpath;
       int to_op_depth = relpath_depth(to_relpath);
       int affected;
+      apr_hash_t *map;
 
       svn_pool_clear(iterpool);
 
@@ -11072,9 +11650,11 @@ moved_descendant_commit(svn_wc__db_wcroot_t *wcroot,
       SVN_ERR_ASSERT(affected >= 1); /* If this fails there is no move dest */
 #endif
 
-      SVN_ERR(moved_descendant_commit(wcroot, to_relpath, to_op_depth,
+      SVN_ERR(moved_descendant_collect(&map, wcroot, to_relpath, to_op_depth,
+                                       iterpool, iterpool));
+      SVN_ERR(moved_descendant_commit(wcroot, to_relpath,
                                       repos_id, new_repos_relpath, revision,
-                                      iterpool));
+                                      map, iterpool));
     }
 
   svn_pool_destroy(iterpool);
@@ -11133,7 +11713,6 @@ commit_node(svn_wc__db_wcroot_t *wcroot,
             apr_time_t changed_date,
             const char *changed_author,
             const svn_checksum_t *new_checksum,
-            const apr_array_header_t *new_children,
             apr_hash_t *new_dav_cache,
             svn_boolean_t keep_changelist,
             svn_boolean_t no_unlock,
@@ -11155,6 +11734,7 @@ commit_node(svn_wc__db_wcroot_t *wcroot,
   const char *repos_relpath;
   int op_depth;
   svn_wc__db_status_t old_presence;
+  svn_boolean_t moved_here;
 
     /* If we are adding a file or directory, then we need to get
      repository information from the parent node since "this node" does
@@ -11184,6 +11764,7 @@ commit_node(svn_wc__db_wcroot_t *wcroot,
 
   /* Figure out the new node's kind. It will be whatever is in WORKING_NODE,
      or there will be a BASE_NODE that has it.  */
+  old_presence = svn_sqlite__column_token(stmt_info, 3, presence_map);
   new_kind = svn_sqlite__column_token(stmt_info, 4, kind_map);
 
   /* What will the new depth be?  */
@@ -11202,26 +11783,35 @@ commit_node(svn_wc__db_wcroot_t *wcroot,
                             svn_sqlite__column_text(stmt_info, 2, NULL)) == 0);
     }
 
-  /* Find the appropriate new properties -- ACTUAL overrides any properties
-     in WORKING that arrived as part of a copy/move.
+  if (old_presence != svn_wc__db_status_base_deleted)
+    {
+      /* Find the appropriate new properties -- ACTUAL overrides any properties
+         in WORKING that arrived as part of a copy/move.
 
-     Note: we'll keep them as a big blob of data, rather than
-     deserialize/serialize them.  */
-  if (have_act)
-    prop_blob.data = svn_sqlite__column_blob(stmt_act, 1, &prop_blob.len,
-                                             scratch_pool);
-  if (prop_blob.data == NULL)
-    prop_blob.data = svn_sqlite__column_blob(stmt_info, 14, &prop_blob.len,
-                                             scratch_pool);
+         Note: we'll keep them as a big blob of data, rather than
+         deserialize/serialize them.  */
+      if (have_act)
+        prop_blob.data = svn_sqlite__column_blob(stmt_act, 1, &prop_blob.len,
+                                                 scratch_pool);
+      if (prop_blob.data == NULL)
+        prop_blob.data = svn_sqlite__column_blob(stmt_info, 14, &prop_blob.len,
+                                                 scratch_pool);
 
-  inherited_prop_blob.data = svn_sqlite__column_blob(stmt_info, 16,
-                                                     &inherited_prop_blob.len,
-                                                     scratch_pool);
+      inherited_prop_blob.data = svn_sqlite__column_blob(
+                                            stmt_info, 16,
+                                            &inherited_prop_blob.len,
+                                            scratch_pool);
 
-  if (keep_changelist && have_act)
-    changelist = svn_sqlite__column_text(stmt_act, 0, scratch_pool);
+      if (keep_changelist && have_act)
+        changelist = svn_sqlite__column_text(stmt_act, 0, scratch_pool);
 
-  old_presence = svn_sqlite__column_token(stmt_info, 3, presence_map);
+      moved_here = svn_sqlite__column_int(stmt_info, 15);
+    }
+  else
+    {
+      moved_here = FALSE;
+      changelist = NULL;
+    }
 
   /* ### other stuff?  */
 
@@ -11231,6 +11821,24 @@ commit_node(svn_wc__db_wcroot_t *wcroot,
   if (op_depth > 0)
     {
       int affected_rows;
+
+      SVN_ERR_ASSERT(op_depth == relpath_depth(local_relpath));
+
+      /* First clear the moves that we are going to delete in a bit */
+      {
+        apr_hash_t *old_moves;
+        apr_hash_index_t *hi;
+        SVN_ERR(moved_descendant_collect(&old_moves, wcroot, local_relpath, 0,
+                                         scratch_pool, scratch_pool));
+
+        if (old_moves)
+          for (hi = apr_hash_first(scratch_pool, old_moves);
+                hi; hi = apr_hash_next(hi))
+            {
+              SVN_ERR(clear_moved_here(wcroot, apr_hash_this_key(hi),
+                                        scratch_pool));
+            }
+      }
 
       /* This removes all layers of this node and at the same time determines
          if we need to remove shadowed layers below our descendants. */
@@ -11264,26 +11872,40 @@ commit_node(svn_wc__db_wcroot_t *wcroot,
          be integrated, they really affect a different op-depth and
          completely different nodes (via a different recursion pattern). */
 
-      /* Collapse descendants of the current op_depth in layer 0 */
-      SVN_ERR(descendant_commit(wcroot, local_relpath, op_depth,
-                                repos_id, repos_relpath, new_revision,
-                                scratch_pool));
+      if (old_presence != svn_wc__db_status_base_deleted)
+        {
+          /* Collapse descendants of the current op_depth to layer 0,
+             this includes moved-from/to clearing */
+          SVN_ERR(descendant_commit(wcroot, local_relpath, op_depth,
+                                    repos_id, repos_relpath, new_revision,
+                                    scratch_pool));
+        }
 
-      /* And make the recorded local moves represent moves of the node we just
-         committed. */
-      SVN_ERR(moved_descendant_commit(wcroot, local_relpath, 0,
+      if (old_presence != svn_wc__db_status_base_deleted)
+        {
+          apr_hash_t *moves = NULL;
+
+          SVN_ERR(moved_descendant_collect(&moves, wcroot, local_relpath, 0,
+                                           scratch_pool, scratch_pool));
+
+          /* And make the recorded local moves represent moves of the node we
+             just committed. */
+          SVN_ERR(moved_descendant_commit(wcroot, local_relpath,
                                       repos_id, repos_relpath, new_revision,
-                                      scratch_pool));
+                                      moves, scratch_pool));
+        }
 
-      /* This node is no longer modified, so no node was moved here */
-      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                        STMT_CLEAR_MOVED_TO_FROM_DEST));
-      SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id,
-                                            local_relpath));
+      if (moved_here)
+        {
+          /* This node is no longer modified, so no node was moved here */
+          SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                            STMT_CLEAR_MOVED_TO_FROM_DEST));
+          SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id,
+                                                local_relpath));
 
-      SVN_ERR(svn_sqlite__step_done(stmt));
+          SVN_ERR(svn_sqlite__step_done(stmt));
+        }
     }
-
   /* Update or add the BASE_NODE row with all the new information.  */
 
   if (*local_relpath == '\0')
@@ -11292,38 +11914,56 @@ commit_node(svn_wc__db_wcroot_t *wcroot,
     parent_relpath = svn_relpath_dirname(local_relpath, scratch_pool);
 
   /* Preserve any incomplete status */
-  new_presence = (old_presence == svn_wc__db_status_incomplete
-                  ? svn_wc__db_status_incomplete
-                  : svn_wc__db_status_normal);
-
-  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                    STMT_APPLY_CHANGES_TO_BASE_NODE));
-  /* symlink_target not yet used */
-  SVN_ERR(svn_sqlite__bindf(stmt, "issisrtstrisnbn",
-                            wcroot->wc_id, local_relpath,
-                            parent_relpath,
-                            repos_id,
-                            repos_relpath,
-                            new_revision,
-                            presence_map, new_presence,
-                            new_depth_str,
-                            kind_map, new_kind,
-                            changed_rev,
-                            changed_date,
-                            changed_author,
-                            prop_blob.data, prop_blob.len));
-
-  SVN_ERR(svn_sqlite__bind_checksum(stmt, 13, new_checksum,
-                                    scratch_pool));
-  SVN_ERR(svn_sqlite__bind_properties(stmt, 15, new_dav_cache,
-                                      scratch_pool));
-  if (inherited_prop_blob.data != NULL)
+  if (old_presence != svn_wc__db_status_base_deleted)
     {
-      SVN_ERR(svn_sqlite__bind_blob(stmt, 17, inherited_prop_blob.data,
-                                    inherited_prop_blob.len));
-    }
+      new_presence = (old_presence == svn_wc__db_status_incomplete
+                      ? svn_wc__db_status_incomplete
+                      : svn_wc__db_status_normal);
 
-  SVN_ERR(svn_sqlite__step_done(stmt));
+      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                        STMT_APPLY_CHANGES_TO_BASE_NODE));
+      /* symlink_target not yet used */
+      SVN_ERR(svn_sqlite__bindf(stmt, "issisrtstrisnbn",
+                                wcroot->wc_id, local_relpath,
+                                parent_relpath,
+                                repos_id,
+                                repos_relpath,
+                                new_revision,
+                                presence_map, new_presence,
+                                new_depth_str,
+                                kind_map, new_kind,
+                                changed_rev,
+                                changed_date,
+                                changed_author,
+                                prop_blob.data, prop_blob.len));
+
+      SVN_ERR(svn_sqlite__bind_checksum(stmt, 13, new_checksum,
+                                        scratch_pool));
+      SVN_ERR(svn_sqlite__bind_properties(stmt, 15, new_dav_cache,
+                                          scratch_pool));
+      if (inherited_prop_blob.data != NULL)
+        {
+          SVN_ERR(svn_sqlite__bind_blob(stmt, 17, inherited_prop_blob.data,
+                                        inherited_prop_blob.len));
+        }
+
+      SVN_ERR(svn_sqlite__step_done(stmt));
+    }
+  else
+    {
+      struct insert_base_baton_t ibb;
+      blank_ibb(&ibb);
+
+      ibb.repos_id = repos_id;
+      ibb.status = svn_wc__db_status_not_present;
+      ibb.kind = new_kind;
+      ibb.repos_relpath = repos_relpath;
+      ibb.revision = new_revision;
+
+      SVN_ERR(insert_base_node(&ibb, wcroot, local_relpath, scratch_pool));
+
+      keep_changelist = FALSE; /* Nothing there */
+    }
 
   if (have_act)
     {
@@ -11351,23 +11991,21 @@ commit_node(svn_wc__db_wcroot_t *wcroot,
         }
     }
 
-  if (new_kind == svn_node_dir)
-    {
-      /* When committing a directory, we should have its new children.  */
-      /* ### one day. just not today.  */
-#if 0
-      SVN_ERR_ASSERT(new_children != NULL);
-#endif
-
-      /* ### process the children  */
-    }
-
   if (!no_unlock)
     {
       svn_sqlite__stmt_t *lock_stmt;
+      svn_boolean_t op_root = (op_depth > 0
+                               && (relpath_depth(local_relpath) == op_depth));
 
+      /* If we are committing an add of a delete, we can assume we own
+         all locks at or below REPOS_RELPATH (or the server would have
+         denied the commit). As we must have passed these to the server
+         we can now safely remove them.
+       */
       SVN_ERR(svn_sqlite__get_statement(&lock_stmt, wcroot->sdb,
-                                        STMT_DELETE_LOCK_RECURSIVELY));
+                                        op_root
+                                          ? STMT_DELETE_LOCK_RECURSIVELY
+                                          : STMT_DELETE_LOCK));
       SVN_ERR(svn_sqlite__bindf(lock_stmt, "is", repos_id, repos_relpath));
       SVN_ERR(svn_sqlite__step_done(lock_stmt));
     }
@@ -11387,7 +12025,6 @@ svn_wc__db_global_commit(svn_wc__db_t *db,
                          apr_time_t changed_date,
                          const char *changed_author,
                          const svn_checksum_t *new_checksum,
-                         const apr_array_header_t *new_children,
                          apr_hash_t *new_dav_cache,
                          svn_boolean_t keep_changelist,
                          svn_boolean_t no_unlock,
@@ -11399,7 +12036,6 @@ svn_wc__db_global_commit(svn_wc__db_t *db,
 
   SVN_ERR_ASSERT(svn_dirent_is_absolute(local_abspath));
   SVN_ERR_ASSERT(SVN_IS_VALID_REVNUM(new_revision));
-  SVN_ERR_ASSERT(new_checksum == NULL || new_children == NULL);
 
   SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_relpath, db,
                               local_abspath, scratch_pool, scratch_pool));
@@ -11408,7 +12044,7 @@ svn_wc__db_global_commit(svn_wc__db_t *db,
   SVN_WC__DB_WITH_TXN(
     commit_node(wcroot, local_relpath,
                 new_revision, changed_revision, changed_date, changed_author,
-                new_checksum, new_children, new_dav_cache, keep_changelist,
+                new_checksum, new_dav_cache, keep_changelist,
                 no_unlock, work_items, scratch_pool),
     wcroot);
 
@@ -11543,6 +12179,9 @@ db_op_set_rev_repos_relpath_iprops(svn_wc__db_wcroot_t *wcroot,
  * non-NULL update the entry to the new url specified by NEW_REPOS_RELPATH,
  * NEW_REPOS_ID.  If NEW_REV is valid, make this the node's working revision.
  *
+ * NODE_STATUS, NODE_KIND, NODE_REVISION and NODE_REPOS_RELPATH represent the
+ * values as stored currently in WCROOT for LOCAL_RELPATH.
+ *
  * If WCROOT_IPROPS is not NULL it is a hash mapping const char * absolute
  * working copy paths to depth-first ordered arrays of
  * svn_prop_inherited_item_t * structures.  If the absolute path equivalent
@@ -11555,6 +12194,10 @@ db_op_set_rev_repos_relpath_iprops(svn_wc__db_wcroot_t *wcroot,
 static svn_error_t *
 bump_node_revision(svn_wc__db_wcroot_t *wcroot,
                    const char *local_relpath,
+                   svn_wc__db_status_t node_status,
+                   svn_node_kind_t node_kind,
+                   svn_revnum_t node_revision,
+                   const char *node_repos_relpath,
                    apr_int64_t new_repos_id,
                    const char *new_repos_relpath,
                    svn_revnum_t new_rev,
@@ -11567,56 +12210,14 @@ bump_node_revision(svn_wc__db_wcroot_t *wcroot,
                    apr_pool_t *scratch_pool)
 {
   apr_pool_t *iterpool;
-  const apr_array_header_t *children;
-  int i;
-  svn_wc__db_status_t status;
-  svn_node_kind_t db_kind;
-  svn_revnum_t revision;
-  const char *repos_relpath;
-  apr_int64_t repos_id;
+  apr_hash_t *children;
+  apr_hash_index_t *hi;
   svn_boolean_t set_repos_relpath = FALSE;
-  svn_boolean_t update_root;
   svn_depth_t depth_below_here = depth;
   apr_array_header_t *iprops = NULL;
 
-  /* Skip an excluded path and its descendants. */
-  if (svn_hash_gets(exclude_relpaths, local_relpath))
-    return SVN_NO_ERROR;
-
-  SVN_ERR(svn_wc__db_base_get_info_internal(&status, &db_kind, &revision,
-                                            &repos_relpath, &repos_id,
-                                            NULL, NULL, NULL, NULL, NULL,
-                                            NULL, NULL, NULL, NULL, &update_root,
-                                            wcroot, local_relpath,
-                                            scratch_pool, scratch_pool));
-
-  /* Skip file externals */
-  if (update_root
-      && db_kind == svn_node_file
-      && !is_root)
-    return SVN_NO_ERROR;
-
-  if (skip_when_dir && db_kind == svn_node_dir)
-    return SVN_NO_ERROR;
-
-  /* If the node is still marked 'not-present', then the server did not
-     re-add it.  So it's really gone in this revision, thus we remove the node.
-
-     If the node is still marked 'server-excluded' and yet is not the same
-     revision as new_rev, then the server did not re-add it, nor
-     re-server-exclude it, so we can remove the node. */
-  if (!is_root
-      && (status == svn_wc__db_status_not_present
-          || (status == svn_wc__db_status_server_excluded &&
-              revision != new_rev)))
-    {
-      return svn_error_trace(db_base_remove(wcroot, local_relpath,
-                                            db, FALSE, FALSE, FALSE,
-                                            SVN_INVALID_REVNUM,
-                                            NULL, NULL, scratch_pool));
-    }
-
-  if (new_repos_relpath != NULL && strcmp(repos_relpath, new_repos_relpath))
+  if (new_repos_relpath != NULL
+      && strcmp(node_repos_relpath, new_repos_relpath))
     set_repos_relpath = TRUE;
 
   if (wcroot_iprops)
@@ -11626,7 +12227,7 @@ bump_node_revision(svn_wc__db_wcroot_t *wcroot,
 
   if (iprops
       || set_repos_relpath
-      || (SVN_IS_VALID_REVNUM(new_rev) && new_rev != revision))
+      || (SVN_IS_VALID_REVNUM(new_rev) && new_rev != node_revision))
     {
       SVN_ERR(db_op_set_rev_repos_relpath_iprops(wcroot, local_relpath,
                                                  iprops, new_rev,
@@ -11638,10 +12239,10 @@ bump_node_revision(svn_wc__db_wcroot_t *wcroot,
 
   /* Early out */
   if (depth <= svn_depth_empty
-      || db_kind != svn_node_dir
-      || status == svn_wc__db_status_server_excluded
-      || status == svn_wc__db_status_excluded
-      || status == svn_wc__db_status_not_present)
+      || node_kind != svn_node_dir
+      || node_status == svn_wc__db_status_server_excluded
+      || node_status == svn_wc__db_status_excluded
+      || node_status == svn_wc__db_status_not_present)
     return SVN_NO_ERROR;
 
   /* And now recurse over the children */
@@ -11653,25 +12254,62 @@ bump_node_revision(svn_wc__db_wcroot_t *wcroot,
 
   iterpool = svn_pool_create(scratch_pool);
 
-  SVN_ERR(gather_repo_children(&children, wcroot, local_relpath, 0,
-                               scratch_pool, iterpool));
-  for (i = 0; i < children->nelts; i++)
+  SVN_ERR(base_get_children_info(&children, wcroot, local_relpath, 0,
+                                 scratch_pool, iterpool));
+  for (hi = apr_hash_first(scratch_pool, children); hi; hi = apr_hash_next(hi))
     {
-      const char *child_basename = APR_ARRAY_IDX(children, i, const char *);
+      const char *child_basename = apr_hash_this_key(hi);
+      const struct svn_wc__db_base_info_t *child_info;
       const char *child_local_relpath;
       const char *child_repos_relpath = NULL;
 
       svn_pool_clear(iterpool);
+
+      child_info = apr_hash_this_val(hi);
+
+      if (child_info->update_root && child_info->kind == svn_node_file)
+        continue; /* Skip file externals */
+
+      if (depth < svn_depth_immediates && child_info->kind == svn_node_dir)
+          continue; /* Skip directories */
+
+      child_local_relpath = svn_relpath_join(local_relpath, child_basename,
+                                             iterpool);
+
+      /* Don't touch nodes that can't be touched via the exclude list */
+      if (svn_hash_gets(exclude_relpaths, child_local_relpath))
+          continue;
+
+      /* If the node is still marked 'not-present', then the server did not
+          re-add it.  So it's really gone in this revision, thus we remove the
+          node.
+
+          If the node is still marked 'server-excluded' and yet is not the same
+          revision as new_rev, then the server did not re-add it, nor
+          re-server-exclude it, so we can remove the node. */
+      if (child_info->status == svn_wc__db_status_not_present
+          || (child_info->status == svn_wc__db_status_server_excluded &&
+              child_info->revnum != new_rev))
+        {
+          svn_sqlite__stmt_t *stmt;
+          SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                    STMT_DELETE_BASE_NODE));
+          SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, child_local_relpath));
+          SVN_ERR(svn_sqlite__step_done(stmt));
+          continue;
+        }
 
       /* Derive the new URL for the current (child) entry */
       if (new_repos_relpath)
         child_repos_relpath = svn_relpath_join(new_repos_relpath,
                                                child_basename, iterpool);
 
-      child_local_relpath = svn_relpath_join(local_relpath, child_basename,
-                                             iterpool);
-
-      SVN_ERR(bump_node_revision(wcroot, child_local_relpath, new_repos_id,
+      SVN_ERR(bump_node_revision(wcroot, child_local_relpath,
+                                 child_info->status,
+                                 child_info->kind,
+                                 child_info->revnum,
+                                 child_info->repos_relpath,
+                                 new_repos_id,
                                  child_repos_relpath, new_rev,
                                  depth_below_here,
                                  exclude_relpaths, wcroot_iprops,
@@ -11699,6 +12337,7 @@ bump_revisions_post_update(svn_wc__db_wcroot_t *wcroot,
                            svn_revnum_t new_revision,
                            apr_hash_t *exclude_relpaths,
                            apr_hash_t *wcroot_iprops,
+                           svn_boolean_t empty_update,
                            svn_wc_notify_func2_t notify_func,
                            void *notify_baton,
                            apr_pool_t *scratch_pool)
@@ -11707,8 +12346,11 @@ bump_revisions_post_update(svn_wc__db_wcroot_t *wcroot,
   svn_node_kind_t kind;
   svn_error_t *err;
   apr_int64_t new_repos_id = INVALID_REPOS_ID;
+  svn_revnum_t revision;
+  const char *repos_relpath;
 
-  err = svn_wc__db_base_get_info_internal(&status, &kind, NULL, NULL, NULL,
+  err = svn_wc__db_base_get_info_internal(&status, &kind, &revision,
+                                          &repos_relpath, NULL,
                                           NULL, NULL, NULL, NULL, NULL, NULL,
                                           NULL, NULL, NULL, NULL,
                                           wcroot, local_relpath,
@@ -11738,13 +12380,16 @@ bump_revisions_post_update(svn_wc__db_wcroot_t *wcroot,
                             new_repos_uuid,
                             wcroot->sdb, scratch_pool));
 
-  SVN_ERR(bump_node_revision(wcroot, local_relpath, new_repos_id,
+  SVN_ERR(bump_node_revision(wcroot, local_relpath,
+                             status, kind,  revision, repos_relpath,
+                             new_repos_id,
                              new_repos_relpath, new_revision,
                              depth, exclude_relpaths,
                              wcroot_iprops,
                              TRUE /* is_root */, FALSE, db,
                              scratch_pool));
 
+  /* ### TODO: Use empty_update flag for change knowledge */
   SVN_ERR(svn_wc__db_bump_moved_away(wcroot, local_relpath, depth, db,
                                      scratch_pool));
 
@@ -11765,6 +12410,7 @@ svn_wc__db_op_bump_revisions_post_update(svn_wc__db_t *db,
                                          svn_revnum_t new_revision,
                                          apr_hash_t *exclude_relpaths,
                                          apr_hash_t *wcroot_iprops,
+                                         svn_boolean_t empty_update,
                                          svn_wc_notify_func2_t notify_func,
                                          void *notify_baton,
                                          apr_pool_t *scratch_pool)
@@ -11787,7 +12433,7 @@ svn_wc__db_op_bump_revisions_post_update(svn_wc__db_t *db,
     bump_revisions_post_update(wcroot, local_relpath, db,
                                depth, new_repos_relpath, new_repos_root_url,
                                new_repos_uuid, new_revision,
-                               exclude_relpaths, wcroot_iprops,
+                               exclude_relpaths, wcroot_iprops, empty_update,
                                notify_func, notify_baton, scratch_pool),
     wcroot);
 
@@ -11864,6 +12510,7 @@ svn_wc__db_lock_add(svn_wc__db_t *db,
 static svn_error_t *
 lock_remove_txn(svn_wc__db_wcroot_t *wcroot,
                 const char *local_relpath,
+                svn_skel_t *work_items,
                 apr_pool_t *scratch_pool)
 {
   const char *repos_relpath;
@@ -11883,6 +12530,8 @@ lock_remove_txn(svn_wc__db_wcroot_t *wcroot,
 
   SVN_ERR(svn_sqlite__step_done(stmt));
 
+  SVN_ERR(add_work_items(wcroot->sdb, work_items, scratch_pool));
+
   return SVN_NO_ERROR;
 }
 
@@ -11890,6 +12539,7 @@ lock_remove_txn(svn_wc__db_wcroot_t *wcroot,
 svn_error_t *
 svn_wc__db_lock_remove(svn_wc__db_t *db,
                        const char *local_abspath,
+                       svn_skel_t *work_items,
                        apr_pool_t *scratch_pool)
 {
   svn_wc__db_wcroot_t *wcroot;
@@ -11902,7 +12552,7 @@ svn_wc__db_lock_remove(svn_wc__db_t *db,
   VERIFY_USABLE_WCROOT(wcroot);
 
   SVN_WC__DB_WITH_TXN(
-    lock_remove_txn(wcroot, local_relpath, scratch_pool),
+    lock_remove_txn(wcroot, local_relpath, work_items, scratch_pool),
     wcroot);
 
   /* There may be some entries, and the lock info is now out of date.  */
@@ -11910,39 +12560,6 @@ svn_wc__db_lock_remove(svn_wc__db_t *db,
 
   return SVN_NO_ERROR;
 }
-
-
-svn_error_t *
-svn_wc__db_scan_base_repos(const char **repos_relpath,
-                           const char **repos_root_url,
-                           const char **repos_uuid,
-                           svn_wc__db_t *db,
-                           const char *local_abspath,
-                           apr_pool_t *result_pool,
-                           apr_pool_t *scratch_pool)
-{
-  svn_wc__db_wcroot_t *wcroot;
-  const char *local_relpath;
-  apr_int64_t repos_id;
-
-  SVN_ERR_ASSERT(svn_dirent_is_absolute(local_abspath));
-
-  SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_relpath, db,
-                              local_abspath, scratch_pool, scratch_pool));
-  VERIFY_USABLE_WCROOT(wcroot);
-
-  SVN_ERR(svn_wc__db_base_get_info_internal(NULL, NULL, NULL,
-                                            repos_relpath, &repos_id,
-                                            NULL, NULL, NULL, NULL, NULL,
-                                            NULL, NULL, NULL, NULL, NULL,
-                                            wcroot, local_relpath,
-                                            result_pool, scratch_pool));
-  SVN_ERR(svn_wc__db_fetch_repos_info(repos_root_url, repos_uuid, wcroot->sdb,
-                                      repos_id, result_pool));
-
-  return SVN_NO_ERROR;
-}
-
 
 /* A helper for scan_addition().
  * Compute moved-from information for the node at LOCAL_RELPATH which
@@ -12042,23 +12659,26 @@ get_moved_from_info(const char **moved_from_relpath,
   return SVN_NO_ERROR;
 }
 
-/* The body of scan_addition().
- */
+/* Like svn_wc__db_scan_addition(), but with WCROOT+LOCAL_RELPATH instead of
+   DB+LOCAL_ABSPATH.
+
+   The output value of *ORIGINAL_REPOS_ID will be INVALID_REPOS_ID if there
+   is no 'copy-from' repository.  */
 static svn_error_t *
-scan_addition_txn(svn_wc__db_status_t *status,
-                  const char **op_root_relpath_p,
-                  const char **repos_relpath,
-                  apr_int64_t *repos_id,
-                  const char **original_repos_relpath,
-                  apr_int64_t *original_repos_id,
-                  svn_revnum_t *original_revision,
-                  const char **moved_from_relpath,
-                  const char **moved_from_op_root_relpath,
-                  int *moved_from_op_depth,
-                  svn_wc__db_wcroot_t *wcroot,
-                  const char *local_relpath,
-                  apr_pool_t *result_pool,
-                  apr_pool_t *scratch_pool)
+scan_addition(svn_wc__db_status_t *status,
+              const char **op_root_relpath_p,
+              const char **repos_relpath,
+              apr_int64_t *repos_id,
+              const char **original_repos_relpath,
+              apr_int64_t *original_repos_id,
+              svn_revnum_t *original_revision,
+              const char **moved_from_relpath,
+              const char **moved_from_op_root_relpath,
+              int *moved_from_op_depth,
+              svn_wc__db_wcroot_t *wcroot,
+              const char *local_relpath,
+              apr_pool_t *result_pool,
+              apr_pool_t *scratch_pool)
 {
   const char *op_root_relpath;
   const char *build_relpath = "";
@@ -12087,8 +12707,7 @@ scan_addition_txn(svn_wc__db_status_t *status,
     svn_boolean_t have_row;
     svn_wc__db_status_t presence;
     int op_depth;
-    const char *repos_prefix_path = "";
-    int i;
+    const char *repos_prefix_path;
 
     /* ### is it faster to fetch fewer columns? */
     SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
@@ -12137,17 +12756,10 @@ scan_addition_txn(svn_wc__db_status_t *status,
 
 
     /* Calculate the op root local path components */
-    op_root_relpath = local_relpath;
-
-    for (i = relpath_depth(local_relpath); i > op_depth; --i)
-      {
-        /* Calculate the path of the operation root */
-        repos_prefix_path =
-          svn_relpath_join(svn_relpath_basename(op_root_relpath, NULL),
-                           repos_prefix_path,
-                           scratch_pool);
-        op_root_relpath = svn_relpath_dirname(op_root_relpath, scratch_pool);
-      }
+    op_root_relpath = svn_relpath_prefix(local_relpath, op_depth,
+                                         scratch_pool);
+    repos_prefix_path = svn_relpath_skip_ancestor(op_root_relpath,
+                                                  local_relpath);
 
     if (op_root_relpath_p)
       *op_root_relpath_p = apr_pstrdup(result_pool, op_root_relpath);
@@ -12239,39 +12851,37 @@ scan_addition_txn(svn_wc__db_status_t *status,
       {
         const char *base_relpath;
 
-    while (TRUE)
-      {
-
-        SVN_ERR(svn_sqlite__reset(stmt));
-
-        /* Pointing at op_depth, look at the parent */
-        repos_prefix_path =
-          svn_relpath_join(svn_relpath_basename(op_root_relpath, NULL),
-                           repos_prefix_path,
-                           scratch_pool);
-        op_root_relpath = svn_relpath_dirname(op_root_relpath, scratch_pool);
-
-
-        SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, op_root_relpath));
-        SVN_ERR(svn_sqlite__step(&have_row, stmt));
-
-        if (! have_row)
-          break;
-
-        op_depth = svn_sqlite__column_int(stmt, 0);
-
-        /* Skip to op_depth */
-        for (i = relpath_depth(op_root_relpath); i > op_depth; i--)
+        while (TRUE)
           {
-            /* Calculate the path of the operation root */
+            const char *tmp;
+
+            SVN_ERR(svn_sqlite__reset(stmt));
+
+            /* Pointing at op_depth, look at the parent */
             repos_prefix_path =
-              svn_relpath_join(svn_relpath_basename(op_root_relpath, NULL),
-                               repos_prefix_path,
-                               scratch_pool);
-            op_root_relpath =
-              svn_relpath_dirname(op_root_relpath, scratch_pool);
+                svn_relpath_join(svn_relpath_basename(op_root_relpath, NULL),
+                                 repos_prefix_path,
+                                 scratch_pool);
+            op_root_relpath = svn_relpath_dirname(op_root_relpath, scratch_pool);
+
+
+            SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, op_root_relpath));
+            SVN_ERR(svn_sqlite__step(&have_row, stmt));
+
+            if (! have_row)
+              break;
+
+            op_depth = svn_sqlite__column_int(stmt, 0);
+
+            /* Skip to op_depth */
+            tmp = op_root_relpath;
+
+            op_root_relpath = svn_relpath_prefix(op_root_relpath, op_depth,
+                                                 scratch_pool);
+            repos_prefix_path = svn_relpath_join(
+                                                 svn_relpath_skip_ancestor(op_root_relpath, tmp),
+                                                 repos_prefix_path, scratch_pool);
           }
-      }
 
       SVN_ERR(svn_sqlite__reset(stmt));
 
@@ -12331,38 +12941,26 @@ scan_addition_txn(svn_wc__db_status_t *status,
   return SVN_NO_ERROR;
 }
 
-
-/* Like svn_wc__db_scan_addition(), but with WCROOT+LOCAL_RELPATH instead of
-   DB+LOCAL_ABSPATH.
-
-   The output value of *ORIGINAL_REPOS_ID will be INVALID_REPOS_ID if there
-   is no 'copy-from' repository.  */
-static svn_error_t *
-scan_addition(svn_wc__db_status_t *status,
-              const char **op_root_relpath,
+svn_error_t *
+svn_wc__db_scan_addition_internal(
+              svn_wc__db_status_t *status,
+              const char **op_root_relpath_p,
               const char **repos_relpath,
               apr_int64_t *repos_id,
               const char **original_repos_relpath,
               apr_int64_t *original_repos_id,
               svn_revnum_t *original_revision,
-              const char **moved_from_relpath,
-              const char **moved_from_op_root_relpath,
-              int *moved_from_op_depth,
               svn_wc__db_wcroot_t *wcroot,
               const char *local_relpath,
               apr_pool_t *result_pool,
               apr_pool_t *scratch_pool)
 {
-  SVN_WC__DB_WITH_TXN(
-    scan_addition_txn(status, op_root_relpath, repos_relpath, repos_id,
-                      original_repos_relpath, original_repos_id,
-                      original_revision, moved_from_relpath,
-                      moved_from_op_root_relpath, moved_from_op_depth,
-                      wcroot, local_relpath, result_pool, scratch_pool),
-    wcroot);
-  return SVN_NO_ERROR;
+  return svn_error_trace(
+      scan_addition(status, op_root_relpath_p, repos_relpath, repos_id,
+                    original_repos_relpath, original_repos_id,
+                    original_revision, NULL, NULL, NULL,
+                    wcroot, local_relpath, result_pool, scratch_pool));
 }
-
 
 svn_error_t *
 svn_wc__db_scan_addition(svn_wc__db_status_t *status,
@@ -12395,7 +12993,8 @@ svn_wc__db_scan_addition(svn_wc__db_status_t *status,
                               local_abspath, scratch_pool, scratch_pool));
   VERIFY_USABLE_WCROOT(wcroot);
 
-  SVN_ERR(scan_addition(status,
+  SVN_WC__DB_WITH_TXN4(
+          scan_addition(status,
                         op_root_abspath
                                 ? &op_root_relpath
                                 : NULL,
@@ -12403,19 +13002,20 @@ svn_wc__db_scan_addition(svn_wc__db_status_t *status,
                         original_repos_relpath, original_repos_id_p,
                         original_revision,
                         NULL, NULL, NULL,
-                        wcroot, local_relpath, result_pool, scratch_pool));
+                        wcroot, local_relpath, result_pool, scratch_pool),
+          svn_wc__db_fetch_repos_info(repos_root_url, repos_uuid, wcroot,
+                                      repos_id, result_pool),
+          svn_wc__db_fetch_repos_info(original_root_url, original_uuid,
+                                      wcroot, original_repos_id,
+                                      result_pool),
+          SVN_NO_ERROR,
+          wcroot);
 
   if (op_root_abspath)
     *op_root_abspath = svn_dirent_join(wcroot->abspath, op_root_relpath,
                                        result_pool);
   /* REPOS_ID must be valid if requested; ORIGINAL_REPOS_ID need not be. */
   SVN_ERR_ASSERT(repos_id_p == NULL || repos_id != INVALID_REPOS_ID);
-
-  SVN_ERR(svn_wc__db_fetch_repos_info(repos_root_url, repos_uuid, wcroot->sdb,
-                                      repos_id, result_pool));
-  SVN_ERR(svn_wc__db_fetch_repos_info(original_root_url, original_uuid,
-                                      wcroot->sdb, original_repos_id,
-                                      result_pool));
 
   return SVN_NO_ERROR;
 }
@@ -12444,7 +13044,8 @@ svn_wc__db_scan_moved(const char **moved_from_abspath,
                               local_abspath, scratch_pool, scratch_pool));
   VERIFY_USABLE_WCROOT(wcroot);
 
-  SVN_ERR(scan_addition(&status,
+  SVN_WC__DB_WITH_TXN(
+          scan_addition(&status,
                         op_root_abspath
                                 ? &op_root_relpath
                                 : NULL,
@@ -12460,7 +13061,8 @@ svn_wc__db_scan_moved(const char **moved_from_abspath,
                         moved_from_delete_abspath
                             ? &moved_from_op_depth
                             : NULL,
-                        wcroot, local_relpath, scratch_pool, scratch_pool));
+                        wcroot, local_relpath, scratch_pool, scratch_pool),
+          wcroot);
 
   if (status != svn_wc__db_status_moved_here || !moved_from_relpath)
     return svn_error_createf(SVN_ERR_WC_PATH_UNEXPECTED_STATUS, NULL,
@@ -12484,12 +13086,8 @@ svn_wc__db_scan_moved(const char **moved_from_abspath,
   /* The deleted node is either where we moved from, or one of its ancestors */
   if (moved_from_delete_abspath)
     {
-      const char *tmp = moved_from_op_root_relpath;
-
-      SVN_ERR_ASSERT(moved_from_op_depth >= 0);
-
-      while (relpath_depth(tmp) > moved_from_op_depth)
-        tmp = svn_relpath_dirname(tmp, scratch_pool);
+      const char *tmp = svn_relpath_prefix(moved_from_op_root_relpath,
+                                           moved_from_op_depth, scratch_pool);
 
       *moved_from_delete_abspath = svn_dirent_join(wcroot->abspath, tmp,
                                                    scratch_pool);
@@ -12498,26 +13096,25 @@ svn_wc__db_scan_moved(const char **moved_from_abspath,
   return SVN_NO_ERROR;
 }
 
-/* ###
+/* ### Recursive helper for svn_wc__db_follow_moved_to()
  */
 static svn_error_t *
-follow_moved_to(apr_array_header_t **moved_tos,
-                int op_depth,
-                const char *repos_path,
-                svn_revnum_t revision,
-                svn_wc__db_wcroot_t *wcroot,
+follow_moved_to(svn_wc__db_wcroot_t *wcroot,
                 const char *local_relpath,
+                int op_depth,
+                apr_array_header_t **moved_tos,
                 apr_pool_t *result_pool,
                 apr_pool_t *scratch_pool)
 {
   svn_sqlite__stmt_t *stmt;
   svn_boolean_t have_row;
-  int working_op_depth;
-  const char *ancestor_relpath, *node_moved_to = NULL;
+  int shadowing_op_depth;
+  const char *ancestor_relpath;
+  const char *node_moved_to = NULL;
   int i;
 
-  SVN_ERR_ASSERT((!op_depth && !repos_path) || (op_depth && repos_path));
-
+  /* Obtain the depth of the node directly shadowing local_relpath
+     as it exists at OP_DEPTH, and perhaps moved to info */
   SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
                                     STMT_SELECT_OP_DEPTH_MOVED_TO));
   SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, local_relpath,
@@ -12525,57 +13122,35 @@ follow_moved_to(apr_array_header_t **moved_tos,
   SVN_ERR(svn_sqlite__step(&have_row, stmt));
   if (have_row)
     {
-      working_op_depth = svn_sqlite__column_int(stmt, 0);
+      shadowing_op_depth = svn_sqlite__column_int(stmt, 0);
       node_moved_to = svn_sqlite__column_text(stmt, 1, result_pool);
-      if (!repos_path)
+
+      if (node_moved_to)
         {
-          SVN_ERR(svn_sqlite__step(&have_row, stmt));
-          if (!have_row || svn_sqlite__column_revnum(stmt, 0))
-            return svn_error_createf(SVN_ERR_WC_PATH_NOT_FOUND,
-                                     svn_sqlite__reset(stmt),
-                                     _("The base node '%s' was not found."),
-                                     path_for_error_message(wcroot,
-                                                            local_relpath,
-                                                            scratch_pool));
-          repos_path = svn_sqlite__column_text(stmt, 2, scratch_pool);
-          revision = svn_sqlite__column_revnum(stmt, 3);
+          struct svn_wc__db_moved_to_t *moved_to;
+
+          moved_to = apr_palloc(result_pool, sizeof(*moved_to));
+          moved_to->op_depth = shadowing_op_depth;
+          moved_to->local_relpath = node_moved_to;
+          APR_ARRAY_PUSH(*moved_tos, struct svn_wc__db_moved_to_t *) = moved_to;
         }
     }
+
   SVN_ERR(svn_sqlite__reset(stmt));
 
-  if (node_moved_to)
+  if (!have_row)
     {
-      svn_boolean_t have_row2;
-
-      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                        STMT_SELECT_MOVED_HERE));
-      SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, node_moved_to,
-                                relpath_depth(node_moved_to)));
-      SVN_ERR(svn_sqlite__step(&have_row2, stmt));
-      if (!have_row2 || !svn_sqlite__column_int(stmt, 0)
-          || revision != svn_sqlite__column_revnum(stmt, 3)
-          || strcmp(repos_path, svn_sqlite__column_text(stmt, 2, NULL)))
-        node_moved_to = NULL;
-      SVN_ERR(svn_sqlite__reset(stmt));
+      /* Node is not shadowed, so not moved */
+      return SVN_NO_ERROR;
     }
-
-  if (node_moved_to)
+  else if (node_moved_to)
     {
-      struct svn_wc__db_moved_to_t *moved_to;
-
-      moved_to = apr_palloc(result_pool, sizeof(*moved_to));
-      moved_to->op_depth = working_op_depth;
-      moved_to->local_relpath = node_moved_to;
-      APR_ARRAY_PUSH(*moved_tos, struct svn_wc__db_moved_to_t *) = moved_to;
+      /* Moved directly, so we have the final location */
+      return SVN_NO_ERROR;
     }
-
-  /* A working row with moved_to, or no working row, and we are done. */
-  if (node_moved_to || !have_row)
-    return SVN_NO_ERROR;
-
   /* Need to handle being moved via an ancestor. */
   ancestor_relpath = local_relpath;
-  for (i = relpath_depth(local_relpath); i > working_op_depth; --i)
+  for (i = relpath_depth(local_relpath); i > shadowing_op_depth; --i)
     {
       const char *ancestor_moved_to;
 
@@ -12584,56 +13159,30 @@ follow_moved_to(apr_array_header_t **moved_tos,
       SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
                                         STMT_SELECT_MOVED_TO));
       SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, ancestor_relpath,
-                                working_op_depth));
-      SVN_ERR(svn_sqlite__step(&have_row, stmt));
-      SVN_ERR_ASSERT(have_row);
+                                shadowing_op_depth));
+      SVN_ERR(svn_sqlite__step_row(stmt));
+
       ancestor_moved_to = svn_sqlite__column_text(stmt, 0, scratch_pool);
       SVN_ERR(svn_sqlite__reset(stmt));
       if (ancestor_moved_to)
         {
-          node_moved_to
-            = svn_relpath_join(ancestor_moved_to,
-                               svn_relpath_skip_ancestor(ancestor_relpath,
-                                                         local_relpath),
-                               result_pool);
-
-          SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                            STMT_SELECT_MOVED_HERE));
-          SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, node_moved_to,
-                                    relpath_depth(ancestor_moved_to)));
-          SVN_ERR(svn_sqlite__step(&have_row, stmt));
-          if (!have_row)
-            ancestor_moved_to = NULL;
-          else if (!svn_sqlite__column_int(stmt, 0))
-            {
-              svn_wc__db_status_t presence
-                = svn_sqlite__column_token(stmt, 1, presence_map);
-              if (presence != svn_wc__db_status_not_present)
-                ancestor_moved_to = NULL;
-              else
-                {
-                  SVN_ERR(svn_sqlite__step(&have_row, stmt));
-                  if (!have_row && !svn_sqlite__column_int(stmt, 0))
-                    ancestor_moved_to = NULL;
-                }
-            }
-          SVN_ERR(svn_sqlite__reset(stmt));
-          if (!ancestor_moved_to)
-            break;
-          /* verify repos_path points back? */
-        }
-      if (ancestor_moved_to)
-        {
           struct svn_wc__db_moved_to_t *moved_to;
 
+          node_moved_to
+              = svn_relpath_join(ancestor_moved_to,
+                                 svn_relpath_skip_ancestor(ancestor_relpath,
+                                                           local_relpath),
+                                 result_pool);
+
           moved_to = apr_palloc(result_pool, sizeof(*moved_to));
-          moved_to->op_depth = working_op_depth;
+          moved_to->op_depth = shadowing_op_depth;
           moved_to->local_relpath = node_moved_to;
           APR_ARRAY_PUSH(*moved_tos, struct svn_wc__db_moved_to_t *) = moved_to;
 
-          SVN_ERR(follow_moved_to(moved_tos, relpath_depth(ancestor_moved_to),
-                                  repos_path, revision, wcroot, node_moved_to,
-                                  result_pool, scratch_pool));
+          SVN_ERR(follow_moved_to(wcroot, node_moved_to,
+                                  relpath_depth(ancestor_moved_to),
+                                  moved_tos, result_pool, scratch_pool));
+
           break;
         }
     }
@@ -12661,96 +13210,91 @@ svn_wc__db_follow_moved_to(apr_array_header_t **moved_tos,
                               sizeof(struct svn_wc__db_moved_to_t *));
 
   /* ### Wrap in a transaction */
-  SVN_ERR(follow_moved_to(moved_tos, 0, NULL, SVN_INVALID_REVNUM,
-                          wcroot, local_relpath,
-                          result_pool, scratch_pool));
+  SVN_WC__DB_WITH_TXN(follow_moved_to(wcroot, local_relpath, 0, moved_tos,
+                                      result_pool, scratch_pool),
+                      wcroot);
 
   /* ### Convert moved_to to abspath */
 
   return SVN_NO_ERROR;
 }
 
-/* Extract the moved-to information for LOCAL_RELPATH at OP-DEPTH by
-   examining the lowest working node above OP_DEPTH.  The output paths
-   are NULL if there is no move, otherwise:
-
-   *MOVE_DST_RELPATH: the moved-to destination of LOCAL_RELPATH.
-
-   *MOVE_DST_OP_ROOT_RELPATH: the moved-to destination of the root of
-   the move of LOCAL_RELPATH. This may be equal to *MOVE_DST_RELPATH
-   if LOCAL_RELPATH is the root of the move.
-
-   *MOVE_SRC_ROOT_RELPATH: the root of the move source.  For moves
-   inside a delete this will be different from *MOVE_SRC_OP_ROOT_RELPATH.
-
-   *MOVE_SRC_OP_ROOT_RELPATH: the root of the source layer that
-   contains the move.  For moves inside deletes this is the root of
-   the delete, for other moves this is the root of the move.
-
-   Given a path A/B/C with A/B moved to X then for A/B/C
-
-     MOVE_DST_RELPATH is X/C
-     MOVE_DST_OP_ROOT_RELPATH is X
-     MOVE_SRC_ROOT_RELPATH is A/B
-     MOVE_SRC_OP_ROOT_RELPATH is A/B
-
-   If A is then deleted the MOVE_DST_RELPATH, MOVE_DST_OP_ROOT_RELPATH
-   and MOVE_SRC_ROOT_RELPATH remain the same but MOVE_SRC_OP_ROOT_RELPATH
-   changes to A.
-
-   ### Think about combining with scan_deletion?  Also with
-   ### scan_addition to get moved-to for replaces?  Do we need to
-   ### return the op-root of the move source, i.e. A/B in the example
-   ### above?  */
 svn_error_t *
-svn_wc__db_op_depth_moved_to(const char **move_dst_relpath,
-                             const char **move_dst_op_root_relpath,
-                             const char **move_src_root_relpath,
-                             const char **move_src_op_root_relpath,
-                             int op_depth,
-                             svn_wc__db_wcroot_t *wcroot,
-                             const char *local_relpath,
-                             apr_pool_t *result_pool,
-                             apr_pool_t *scratch_pool)
+svn_wc__db_scan_moved_to_internal(const char **move_src_relpath,
+                                  const char **move_dst_relpath,
+                                  const char **delete_relpath,
+                                  svn_wc__db_wcroot_t *wcroot,
+                                  const char *local_relpath,
+                                  int op_depth,
+                                  apr_pool_t *result_pool,
+                                  apr_pool_t *scratch_pool)
 {
   svn_sqlite__stmt_t *stmt;
   svn_boolean_t have_row;
   int delete_op_depth;
   const char *relpath = local_relpath;
+  const char *dst_relpath;
 
-  *move_dst_relpath = *move_dst_op_root_relpath = NULL;
-  *move_src_root_relpath = *move_src_op_root_relpath = NULL;
+  SVN_ERR_ASSERT(local_relpath[0]); /* Not valid on the WC root */
 
-  do
+  if (move_src_relpath)
+    *move_src_relpath = NULL;
+  if (move_dst_relpath)
+    *move_dst_relpath = NULL;
+  if (delete_relpath)
+    *delete_relpath = NULL;
+
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                    STMT_SELECT_OP_DEPTH_MOVED_TO));
+  SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, relpath, op_depth));
+
+  SVN_ERR(svn_sqlite__step(&have_row, stmt));
+
+  if (!have_row)
     {
-      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                        STMT_SELECT_LOWEST_WORKING_NODE));
-      SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, relpath, op_depth));
-      SVN_ERR(svn_sqlite__step(&have_row, stmt));
-      if (have_row)
-        {
-          delete_op_depth = svn_sqlite__column_int(stmt, 0);
-          *move_dst_op_root_relpath = svn_sqlite__column_text(stmt, 3,
-                                                              result_pool);
-          if (*move_dst_op_root_relpath)
-            *move_src_root_relpath = apr_pstrdup(result_pool, relpath);
-        }
-      SVN_ERR(svn_sqlite__reset(stmt));
-      if (!*move_dst_op_root_relpath)
-        relpath = svn_relpath_dirname(relpath, scratch_pool);
+      return svn_error_createf(SVN_ERR_WC_PATH_NOT_FOUND,
+                               svn_sqlite__reset(stmt),
+                               _("Node '%s' is not shadowed"),
+                               path_for_error_message(wcroot, local_relpath,
+                                                      scratch_pool));
     }
-  while (!*move_dst_op_root_relpath
-        && have_row && delete_op_depth <= relpath_depth(relpath));
 
-  if (*move_dst_op_root_relpath)
+  delete_op_depth = svn_sqlite__column_int(stmt, 0);
+  dst_relpath = svn_sqlite__column_text(stmt, 1, scratch_pool);
+
+  SVN_ERR(svn_sqlite__reset(stmt));
+
+  while (!dst_relpath && have_row)
     {
-      *move_dst_relpath
-        = svn_relpath_join(*move_dst_op_root_relpath,
-                           svn_relpath_skip_ancestor(relpath, local_relpath),
-                           result_pool);
-      while (delete_op_depth < relpath_depth(relpath))
-        relpath = svn_relpath_dirname(relpath, scratch_pool);
-      *move_src_op_root_relpath = apr_pstrdup(result_pool, relpath);
+      relpath = svn_relpath_dirname(relpath, scratch_pool);
+
+      if (relpath_depth(relpath) < delete_op_depth)
+        break;
+
+      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                        STMT_SELECT_DEPTH_NODE));
+      SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, relpath,
+                                delete_op_depth));
+
+      SVN_ERR(svn_sqlite__step(&have_row, stmt));
+
+      if (have_row)
+        dst_relpath = svn_sqlite__column_text(stmt, 13, scratch_pool);
+
+      SVN_ERR(svn_sqlite__reset(stmt));
+    }
+
+  if (dst_relpath)
+    {
+      if (move_src_relpath)
+        *move_src_relpath = apr_pstrdup(result_pool, relpath);
+
+      if (move_dst_relpath)
+        *move_dst_relpath = apr_pstrdup(result_pool, dst_relpath);
+
+      if (delete_relpath)
+        *delete_relpath = svn_relpath_prefix(local_relpath, delete_op_depth,
+                                             result_pool);
     }
 
   return SVN_NO_ERROR;
@@ -12763,7 +13307,7 @@ svn_error_t *
 svn_wc__db_base_moved_to(const char **move_dst_abspath,
                          const char **move_dst_op_root_abspath,
                          const char **move_src_root_abspath,
-                         const char **move_src_op_root_abspath,
+                         const char **delete_abspath,
                          svn_wc__db_t *db,
                          const char *local_abspath,
                          apr_pool_t *result_pool,
@@ -12771,47 +13315,54 @@ svn_wc__db_base_moved_to(const char **move_dst_abspath,
 {
   svn_wc__db_wcroot_t *wcroot;
   const char *local_relpath;
-  const char *move_dst_relpath, *move_dst_op_root_relpath;
-  const char *move_src_root_relpath, *move_src_op_root_relpath;
+  const char *dst_root_relpath;
+  const char *src_root_relpath, *delete_relpath;
 
   SVN_ERR_ASSERT(svn_dirent_is_absolute(local_abspath));
+
 
   SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_relpath, db,
                               local_abspath, scratch_pool, scratch_pool));
   VERIFY_USABLE_WCROOT(wcroot);
 
-  SVN_WC__DB_WITH_TXN(svn_wc__db_op_depth_moved_to(&move_dst_relpath,
-                                                   &move_dst_op_root_relpath,
-                                                   &move_src_root_relpath,
-                                                   &move_src_op_root_relpath,
-                                                   0 /* BASE op-depth */,
-                                                   wcroot, local_relpath,
-                                                   scratch_pool, scratch_pool),
+  SVN_WC__DB_WITH_TXN(svn_wc__db_scan_moved_to_internal(&src_root_relpath,
+                                                        &dst_root_relpath,
+                                                        &delete_relpath,
+                                                        wcroot, local_relpath,
+                                                        0 /* BASE */,
+                                                        scratch_pool,
+                                                        scratch_pool),
                       wcroot);
 
   if (move_dst_abspath)
-    *move_dst_abspath
-      = move_dst_relpath
-      ? svn_dirent_join(wcroot->abspath, move_dst_relpath, result_pool)
-      : NULL;
+    *move_dst_abspath =
+        dst_root_relpath
+          ? svn_dirent_join(wcroot->abspath,
+                            svn_dirent_join(
+                                    dst_root_relpath,
+                                    svn_relpath_skip_ancestor(src_root_relpath,
+                                                              local_relpath),
+                                    scratch_pool),
+                            result_pool)
+          : NULL;
 
   if (move_dst_op_root_abspath)
-    *move_dst_op_root_abspath
-      = move_dst_op_root_relpath
-      ? svn_dirent_join(wcroot->abspath, move_dst_op_root_relpath, result_pool)
-      : NULL;
+    *move_dst_op_root_abspath =
+          dst_root_relpath
+              ? svn_dirent_join(wcroot->abspath, dst_root_relpath, result_pool)
+              : NULL;
 
   if (move_src_root_abspath)
-    *move_src_root_abspath
-      = move_src_root_relpath
-      ? svn_dirent_join(wcroot->abspath, move_src_root_relpath, result_pool)
-      : NULL;
+    *move_src_root_abspath =
+          src_root_relpath
+              ? svn_dirent_join(wcroot->abspath, src_root_relpath, result_pool)
+              : NULL;
 
-  if (move_src_op_root_abspath)
-    *move_src_op_root_abspath
-      = move_src_op_root_relpath
-      ? svn_dirent_join(wcroot->abspath, move_src_op_root_relpath, result_pool)
-      : NULL;
+  if (delete_abspath)
+    *delete_abspath =
+          delete_relpath
+              ? svn_dirent_join(wcroot->abspath, delete_relpath, result_pool)
+              : NULL;
 
   return SVN_NO_ERROR;
 }
@@ -12834,6 +13385,7 @@ svn_wc__db_upgrade_begin(svn_sqlite__db_t **sdb,
                     SDB_FILE,
                     NULL, SVN_INVALID_REVNUM, svn_depth_unknown,
                     TRUE /* exclusive */,
+                    0 /* timeout */,
                     wc_db->state_pool, scratch_pool));
 
   SVN_ERR(svn_wc__db_pdh_create_wcroot(&wcroot,
@@ -12841,196 +13393,10 @@ svn_wc__db_upgrade_begin(svn_sqlite__db_t **sdb,
                                                    dir_abspath),
                                        *sdb, *wc_id, FORMAT_FROM_SDB,
                                        FALSE /* auto-upgrade */,
-                                       FALSE /* enforce_empty_wq */,
                                        wc_db->state_pool, scratch_pool));
 
   /* The WCROOT is complete. Stash it into DB.  */
   svn_hash_sets(wc_db->dir_data, wcroot->abspath, wcroot);
-
-  return SVN_NO_ERROR;
-}
-
-
-svn_error_t *
-svn_wc__db_upgrade_apply_dav_cache(svn_sqlite__db_t *sdb,
-                                   const char *dir_relpath,
-                                   apr_hash_t *cache_values,
-                                   apr_pool_t *scratch_pool)
-{
-  apr_pool_t *iterpool = svn_pool_create(scratch_pool);
-  apr_int64_t wc_id;
-  apr_hash_index_t *hi;
-  svn_sqlite__stmt_t *stmt;
-
-  SVN_ERR(svn_wc__db_util_fetch_wc_id(&wc_id, sdb, iterpool));
-
-  SVN_ERR(svn_sqlite__get_statement(&stmt, sdb,
-                                    STMT_UPDATE_BASE_NODE_DAV_CACHE));
-
-  /* Iterate over all the wcprops, writing each one to the wc_db. */
-  for (hi = apr_hash_first(scratch_pool, cache_values);
-       hi;
-       hi = apr_hash_next(hi))
-    {
-      const char *name = svn__apr_hash_index_key(hi);
-      apr_hash_t *props = svn__apr_hash_index_val(hi);
-      const char *local_relpath;
-
-      svn_pool_clear(iterpool);
-
-      local_relpath = svn_relpath_join(dir_relpath, name, iterpool);
-
-      SVN_ERR(svn_sqlite__bindf(stmt, "is", wc_id, local_relpath));
-      SVN_ERR(svn_sqlite__bind_properties(stmt, 3, props, iterpool));
-      SVN_ERR(svn_sqlite__step_done(stmt));
-    }
-
-  svn_pool_destroy(iterpool);
-
-  return SVN_NO_ERROR;
-}
-
-
-svn_error_t *
-svn_wc__db_upgrade_apply_props(svn_sqlite__db_t *sdb,
-                               const char *dir_abspath,
-                               const char *local_relpath,
-                               apr_hash_t *base_props,
-                               apr_hash_t *revert_props,
-                               apr_hash_t *working_props,
-                               int original_format,
-                               apr_int64_t wc_id,
-                               apr_pool_t *scratch_pool)
-{
-  svn_sqlite__stmt_t *stmt;
-  svn_boolean_t have_row;
-  int top_op_depth = -1;
-  int below_op_depth = -1;
-  svn_wc__db_status_t top_presence;
-  svn_wc__db_status_t below_presence;
-  int affected_rows;
-
-  /* ### working_props: use set_props_txn.
-     ### if working_props == NULL, then skip. what if they equal the
-     ### pristine props? we should probably do the compare here.
-     ###
-     ### base props go into WORKING_NODE if avail, otherwise BASE.
-     ###
-     ### revert only goes into BASE. (and WORKING better be there!)
-
-     Prior to 1.4.0 (ORIGINAL_FORMAT < 8), REVERT_PROPS did not exist. If a
-     file was deleted, then a copy (potentially with props) was disallowed
-     and could not replace the deletion. An addition *could* be performed,
-     but that would never bring its own props.
-
-     1.4.0 through 1.4.5 created the concept of REVERT_PROPS, but had a
-     bug in svn_wc_add_repos_file2() whereby a copy-with-props did NOT
-     construct a REVERT_PROPS if the target had no props. Thus, reverting
-     the delete/copy would see no REVERT_PROPS to restore, leaving the
-     props from the copy source intact, and appearing as if they are (now)
-     the base props for the previously-deleted file. (wc corruption)
-
-     1.4.6 ensured that an empty REVERT_PROPS would be established at all
-     times. See issue 2530, and r861670 as starting points.
-
-     We will use ORIGINAL_FORMAT and SVN_WC__NO_REVERT_FILES to determine
-     the handling of our inputs, relative to the state of this node.
-  */
-
-  SVN_ERR(svn_sqlite__get_statement(&stmt, sdb, STMT_SELECT_NODE_INFO));
-  SVN_ERR(svn_sqlite__bindf(stmt, "is", wc_id, local_relpath));
-  SVN_ERR(svn_sqlite__step(&have_row, stmt));
-  if (have_row)
-    {
-      top_op_depth = svn_sqlite__column_int(stmt, 0);
-      top_presence = svn_sqlite__column_token(stmt, 3, presence_map);
-      SVN_ERR(svn_sqlite__step(&have_row, stmt));
-      if (have_row)
-        {
-          below_op_depth = svn_sqlite__column_int(stmt, 0);
-          below_presence = svn_sqlite__column_token(stmt, 3, presence_map);
-        }
-    }
-  SVN_ERR(svn_sqlite__reset(stmt));
-
-  /* Detect the buggy scenario described above. We cannot upgrade this
-     working copy if we have no idea where BASE_PROPS should go.  */
-  if (original_format > SVN_WC__NO_REVERT_FILES
-      && revert_props == NULL
-      && top_op_depth != -1
-      && top_presence == svn_wc__db_status_normal
-      && below_op_depth != -1
-      && below_presence != svn_wc__db_status_not_present)
-    {
-      /* There should be REVERT_PROPS, so it appears that we just ran into
-         the described bug. Sigh.  */
-      return svn_error_createf(SVN_ERR_WC_CORRUPT, NULL,
-                               _("The properties of '%s' are in an "
-                                 "indeterminate state and cannot be "
-                                 "upgraded. See issue #2530."),
-                               svn_dirent_local_style(
-                                 svn_dirent_join(dir_abspath, local_relpath,
-                                                 scratch_pool), scratch_pool));
-    }
-
-  /* Need at least one row, or two rows if there are revert props */
-  if (top_op_depth == -1
-      || (below_op_depth == -1 && revert_props))
-    return svn_error_createf(SVN_ERR_WC_CORRUPT, NULL,
-                             _("Insufficient NODES rows for '%s'"),
-                             svn_dirent_local_style(
-                               svn_dirent_join(dir_abspath, local_relpath,
-                                               scratch_pool), scratch_pool));
-
-  /* one row, base props only: upper row gets base props
-     two rows, base props only: lower row gets base props
-     two rows, revert props only: lower row gets revert props
-     two rows, base and revert props: upper row gets base, lower gets revert */
-
-
-  if (revert_props || below_op_depth == -1)
-    {
-      SVN_ERR(svn_sqlite__get_statement(&stmt, sdb,
-                                        STMT_UPDATE_NODE_PROPS));
-      SVN_ERR(svn_sqlite__bindf(stmt, "isd",
-                                wc_id, local_relpath, top_op_depth));
-      SVN_ERR(svn_sqlite__bind_properties(stmt, 4, base_props, scratch_pool));
-      SVN_ERR(svn_sqlite__update(&affected_rows, stmt));
-
-      SVN_ERR_ASSERT(affected_rows == 1);
-    }
-
-  if (below_op_depth != -1)
-    {
-      apr_hash_t *props = revert_props ? revert_props : base_props;
-
-      SVN_ERR(svn_sqlite__get_statement(&stmt, sdb,
-                                        STMT_UPDATE_NODE_PROPS));
-      SVN_ERR(svn_sqlite__bindf(stmt, "isd",
-                                wc_id, local_relpath, below_op_depth));
-      SVN_ERR(svn_sqlite__bind_properties(stmt, 4, props, scratch_pool));
-      SVN_ERR(svn_sqlite__update(&affected_rows, stmt));
-
-      SVN_ERR_ASSERT(affected_rows == 1);
-    }
-
-  /* If there are WORKING_PROPS, then they always go into ACTUAL_NODE.  */
-  if (working_props != NULL
-      && base_props != NULL)
-    {
-      apr_array_header_t *diffs;
-
-      SVN_ERR(svn_prop_diffs(&diffs, working_props, base_props, scratch_pool));
-
-      if (diffs->nelts == 0)
-        working_props = NULL; /* No differences */
-    }
-
-  if (working_props != NULL)
-    {
-      SVN_ERR(set_actual_props(wc_id, local_relpath, working_props,
-                               sdb, scratch_pool));
-    }
 
   return SVN_NO_ERROR;
 }
@@ -13110,27 +13476,14 @@ svn_wc__db_upgrade_insert_external(svn_wc__db_t *db,
 }
 
 svn_error_t *
-svn_wc__db_upgrade_get_repos_id(apr_int64_t *repos_id,
-                                svn_sqlite__db_t *sdb,
-                                const char *repos_root_url,
-                                apr_pool_t *scratch_pool)
+svn_wc__db_wq_add_internal(svn_wc__db_wcroot_t *wcroot,
+                           const svn_skel_t *work_item,
+                           apr_pool_t *scratch_pool)
 {
-  svn_sqlite__stmt_t *stmt;
-  svn_boolean_t have_row;
-
-  SVN_ERR(svn_sqlite__get_statement(&stmt, sdb, STMT_SELECT_REPOSITORY));
-  SVN_ERR(svn_sqlite__bindf(stmt, "s", repos_root_url));
-  SVN_ERR(svn_sqlite__step(&have_row, stmt));
-
-  if (!have_row)
-    return svn_error_createf(SVN_ERR_WC_DB_ERROR, svn_sqlite__reset(stmt),
-                             _("Repository '%s' not found in the database"),
-                             repos_root_url);
-
-  *repos_id = svn_sqlite__column_int64(stmt, 0);
-  return svn_error_trace(svn_sqlite__reset(stmt));
+  /* Add the work item(s) to the WORK_QUEUE.  */
+  return svn_error_trace(add_work_items(wcroot->sdb, work_item,
+                                        scratch_pool));
 }
-
 
 svn_error_t *
 svn_wc__db_wq_add(svn_wc__db_t *db,
@@ -13244,8 +13597,8 @@ wq_record(svn_wc__db_wcroot_t *wcroot,
   for (hi = apr_hash_first(scratch_pool, record_map); hi;
        hi = apr_hash_next(hi))
     {
-      const char *local_abspath = svn__apr_hash_index_key(hi);
-      const svn_io_dirent2_t *dirent = svn__apr_hash_index_val(hi);
+      const char *local_abspath = apr_hash_this_key(hi);
+      const svn_io_dirent2_t *dirent = apr_hash_this_val(hi);
       const char *local_relpath = svn_dirent_skip_ancestor(wcroot->abspath,
                                                            local_abspath);
 
@@ -13458,7 +13811,7 @@ svn_wc__db_temp_get_all_access(svn_wc__db_t *db,
        hi;
        hi = apr_hash_next(hi))
     {
-      const svn_wc__db_wcroot_t *wcroot = svn__apr_hash_index_val(hi);
+      const svn_wc__db_wcroot_t *wcroot = apr_hash_this_val(hi);
 
       /* This is highly redundant, 'cause the same WCROOT will appear many
          times in dir_data. */
@@ -13645,6 +13998,8 @@ svn_wc__db_get_conflict_marker_files(apr_hash_t **marker_files,
 
 svn_error_t *
 svn_wc__db_read_conflict(svn_skel_t **conflict,
+                         svn_node_kind_t *kind,
+                         apr_hash_t **props,
                          svn_wc__db_t *db,
                          const char *local_abspath,
                          apr_pool_t *result_pool,
@@ -13658,14 +14013,16 @@ svn_wc__db_read_conflict(svn_skel_t **conflict,
                               local_abspath, scratch_pool, scratch_pool));
   VERIFY_USABLE_WCROOT(wcroot);
 
-  return svn_error_trace(svn_wc__db_read_conflict_internal(conflict, wcroot,
-                                                           local_relpath,
+  return svn_error_trace(svn_wc__db_read_conflict_internal(conflict, kind, props,
+                                                           wcroot, local_relpath,
                                                            result_pool,
                                                            scratch_pool));
 }
 
 svn_error_t *
 svn_wc__db_read_conflict_internal(svn_skel_t **conflict,
+                                  svn_node_kind_t *kind,
+                                  apr_hash_t **props,
                                   svn_wc__db_wcroot_t *wcroot,
                                   const char *local_relpath,
                                   apr_pool_t *result_pool,
@@ -13674,6 +14031,11 @@ svn_wc__db_read_conflict_internal(svn_skel_t **conflict,
   svn_sqlite__stmt_t *stmt;
   svn_boolean_t have_row;
 
+  if (kind)
+    *kind = svn_node_none;
+  if (props)
+    *props = NULL;
+
   /* Check if we have a conflict in ACTUAL */
   SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
                                     STMT_SELECT_ACTUAL_NODE));
@@ -13681,58 +14043,91 @@ svn_wc__db_read_conflict_internal(svn_skel_t **conflict,
 
   SVN_ERR(svn_sqlite__step(&have_row, stmt));
 
-  if (! have_row)
+  if (have_row)
     {
-      /* Do this while stmt is still open to avoid closing the sqlite
-         transaction and then reopening. */
-      svn_sqlite__stmt_t *stmt_node;
-      svn_error_t *err;
+      apr_size_t cfl_len;
+      const void *cfl_data;
 
-      err = svn_sqlite__get_statement(&stmt_node, wcroot->sdb,
-                                      STMT_SELECT_NODE_INFO);
+      /* svn_skel__parse doesn't copy data, so store in result_pool */
+      cfl_data = svn_sqlite__column_blob(stmt, 2, &cfl_len, result_pool);
 
-      if (err)
-        stmt_node = NULL;
+      if (cfl_data)
+        *conflict = svn_skel__parse(cfl_data, cfl_len, result_pool);
       else
-        err = svn_sqlite__bindf(stmt_node, "is", wcroot->wc_id,
-                                local_relpath);
+        *conflict = NULL;
 
-      if (!err)
-        err = svn_sqlite__step(&have_row, stmt_node);
+      if (props)
+        {
+          svn_error_t *err;
 
-      if (stmt_node)
-        err = svn_error_compose_create(err,
-                                       svn_sqlite__reset(stmt_node));
+          err = svn_error_trace(svn_sqlite__column_properties(props, stmt, 1,
+                                                              result_pool,
+                                                              scratch_pool));
+
+          if (err)
+            return svn_error_compose_create(err, svn_sqlite__reset(stmt));
+        }
+    }
+  else
+    *conflict = NULL;
+
+  SVN_ERR(svn_sqlite__reset(stmt));
+
+  if (!have_row || kind || (props && !*props))
+    {
+      svn_error_t *err = NULL;
+      svn_boolean_t have_info = FALSE;
+
+      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                        STMT_SELECT_NODE_INFO));
+
+      SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id,
+                                local_relpath));
+
+      SVN_ERR(svn_sqlite__step(&have_info, stmt));
+
+      if (have_info)
+        {
+          if (kind)
+            {
+              svn_wc__db_status_t status;
+              int op_depth = svn_sqlite__column_int(stmt, 0);
+
+              status = svn_sqlite__column_token(stmt, 3, presence_map);
+
+              if (op_depth > 0)
+                err = convert_to_working_status(&status, status);
+
+              if (!err && (status == svn_wc__db_status_normal
+                           || status == svn_wc__db_status_added
+                           || status == svn_wc__db_status_deleted
+                           || status == svn_wc__db_status_incomplete))
+                {
+                  *kind = svn_sqlite__column_token(stmt, 4, kind_map);
+                }
+            }
+
+          /* Need props, and no props in ACTUAL? */
+          if (!err && (props && !*props))
+            {
+              err = svn_sqlite__column_properties(props, stmt, 14,
+                                                  result_pool, scratch_pool);
+            }
+        }
 
       SVN_ERR(svn_error_compose_create(err, svn_sqlite__reset(stmt)));
 
-      if (have_row)
+      if (!have_row && !have_info)
         {
-          *conflict = NULL;
-          return SVN_NO_ERROR;
-        }
-
-      return svn_error_createf(SVN_ERR_WC_PATH_NOT_FOUND, NULL,
-                               _("The node '%s' was not found."),
+          return svn_error_createf(SVN_ERR_WC_PATH_NOT_FOUND, NULL,
+                                   _("The node '%s' was not found."),
                                    path_for_error_message(wcroot,
                                                           local_relpath,
                                                           scratch_pool));
+        }
     }
 
-  {
-    apr_size_t cfl_len;
-    const void *cfl_data;
-
-    /* svn_skel__parse doesn't copy data, so store in result_pool */
-    cfl_data = svn_sqlite__column_blob(stmt, 2, &cfl_len, result_pool);
-
-    if (cfl_data)
-      *conflict = svn_skel__parse(cfl_data, cfl_len, result_pool);
-    else
-      *conflict = NULL;
-
-    return svn_error_trace(svn_sqlite__reset(stmt));
-  }
+  return SVN_NO_ERROR;
 }
 
 
@@ -13749,6 +14144,7 @@ svn_wc__db_read_kind(svn_node_kind_t *kind,
   const char *local_relpath;
   svn_sqlite__stmt_t *stmt_info;
   svn_boolean_t have_info;
+  svn_wc__db_status_t status;
 
   SVN_ERR_ASSERT(svn_dirent_is_absolute(local_abspath));
 
@@ -13780,12 +14176,27 @@ svn_wc__db_read_kind(svn_node_kind_t *kind,
         }
     }
 
+  status = svn_sqlite__column_token(stmt_info, 3, presence_map);
+
+  if (show_deleted && status == svn_wc__db_status_base_deleted)
+    {
+      /* Let's return the kind of what is really deleted insead of what
+         we have cached in the base-deleted record */
+
+      SVN_ERR(svn_sqlite__step(&have_info, stmt_info));
+
+      if (!have_info)
+        {
+          /* No lower layer deleted? Database inconsistency! */
+          *kind = svn_node_none;
+          return svn_error_trace(svn_sqlite__reset(stmt_info));
+        }
+    }
+
   if (!(show_deleted && show_hidden))
     {
       int op_depth = svn_sqlite__column_int(stmt_info, 0);
       svn_boolean_t report_none = FALSE;
-      svn_wc__db_status_t status = svn_sqlite__column_token(stmt_info, 3,
-                                                            presence_map);
 
       if (op_depth > 0)
         SVN_ERR(convert_to_working_status(&status, status));
@@ -13820,38 +14231,6 @@ svn_wc__db_read_kind(svn_node_kind_t *kind,
 
   return svn_error_trace(svn_sqlite__reset(stmt_info));
 }
-
-
-svn_error_t *
-svn_wc__db_node_hidden(svn_boolean_t *hidden,
-                       svn_wc__db_t *db,
-                       const char *local_abspath,
-                       apr_pool_t *scratch_pool)
-{
-  svn_wc__db_wcroot_t *wcroot;
-  const char *local_relpath;
-  svn_wc__db_status_t status;
-
-  SVN_ERR_ASSERT(svn_dirent_is_absolute(local_abspath));
-
-  SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_relpath, db,
-                              local_abspath, scratch_pool, scratch_pool));
-  VERIFY_USABLE_WCROOT(wcroot);
-
-  SVN_ERR(read_info(&status, NULL, NULL, NULL, NULL, NULL,
-                    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                    NULL, NULL, NULL,
-                    wcroot, local_relpath,
-                    scratch_pool, scratch_pool));
-
-  *hidden = (status == svn_wc__db_status_server_excluded
-             || status == svn_wc__db_status_not_present
-             || status == svn_wc__db_status_excluded);
-
-  return SVN_NO_ERROR;
-}
-
 
 svn_error_t *
 svn_wc__db_is_wcroot(svn_boolean_t *is_wcroot,
@@ -14017,7 +14396,7 @@ svn_wc__db_temp_wcroot_tempdir(const char **temp_dir_abspath,
                                            wcroot->abspath,
                                            svn_wc_get_adm_dir(scratch_pool),
                                            WCROOT_TEMPDIR_RELPATH,
-                                           NULL);
+                                           SVN_VA_NULL);
   return SVN_NO_ERROR;
 }
 
@@ -14046,6 +14425,7 @@ wclock_obtain_cb(svn_wc__db_wcroot_t *wcroot,
                  const char *local_relpath,
                  int levels_to_lock,
                  svn_boolean_t steal_lock,
+                 svn_boolean_t enforce_empty_wq,
                  apr_pool_t *scratch_pool)
 {
   svn_sqlite__stmt_t *stmt;
@@ -14075,6 +14455,9 @@ wclock_obtain_cb(svn_wc__db_wcroot_t *wcroot,
                                                         scratch_pool));
     }
 
+  if (enforce_empty_wq)
+    SVN_ERR(svn_wc__db_verify_no_work(wcroot->sdb));
+
   /* Check if there are nodes locked below the new lock root */
   SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb, STMT_FIND_WC_LOCK));
   SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
@@ -14101,8 +14484,9 @@ wclock_obtain_cb(svn_wc__db_wcroot_t *wcroot,
 
       /* Check if we are the lock owner, because we should be able to
          extend our lock. */
-      err = wclock_owns_lock(&own_lock, wcroot, lock_relpath,
-                             TRUE, scratch_pool);
+      err = svn_wc__db_wclock_owns_lock_internal(&own_lock, wcroot,
+                                                 lock_relpath,
+                                                 TRUE, scratch_pool);
 
       if (err)
         SVN_ERR(svn_error_compose_create(err, svn_sqlite__reset(stmt)));
@@ -14190,7 +14574,7 @@ wclock_obtain_cb(svn_wc__db_wcroot_t *wcroot,
   err = svn_sqlite__insert(NULL, stmt);
   if (err)
     return svn_error_createf(SVN_ERR_WC_LOCKED, err,
-                             _("Working copy '%s' locked"),
+                             _("Failed to lock working copy '%s'."),
                              path_for_error_message(wcroot,
                                                     local_relpath,
                                                     scratch_pool));
@@ -14249,7 +14633,7 @@ svn_wc__db_wclock_obtain(svn_wc__db_t *db,
 
   SVN_WC__DB_WITH_TXN(
     wclock_obtain_cb(wcroot, local_relpath, levels_to_lock, steal_lock,
-                     scratch_pool),
+                     db->enforce_empty_wq, scratch_pool),
     wcroot);
   return SVN_NO_ERROR;
 }
@@ -14440,12 +14824,12 @@ svn_wc__db_wclock_release(svn_wc__db_t *db,
 
 /* Like svn_wc__db_wclock_owns_lock() but taking WCROOT+LOCAL_RELPATH instead
    of DB+LOCAL_ABSPATH.  */
-static svn_error_t *
-wclock_owns_lock(svn_boolean_t *own_lock,
-                 svn_wc__db_wcroot_t *wcroot,
-                 const char *local_relpath,
-                 svn_boolean_t exact,
-                 apr_pool_t *scratch_pool)
+svn_error_t *
+svn_wc__db_wclock_owns_lock_internal(svn_boolean_t *own_lock,
+                                     svn_wc__db_wcroot_t *wcroot,
+                                     const char *local_relpath,
+                                     svn_boolean_t exact,
+                                     apr_pool_t *scratch_pool)
 {
   apr_array_header_t *owned_locks;
   int lock_level;
@@ -14512,8 +14896,8 @@ svn_wc__db_wclock_owns_lock(svn_boolean_t *own_lock,
 
   VERIFY_USABLE_WCROOT(wcroot);
 
-  SVN_ERR(wclock_owns_lock(own_lock, wcroot, local_relpath, exact,
-                           scratch_pool));
+  SVN_ERR(svn_wc__db_wclock_owns_lock_internal(own_lock, wcroot, local_relpath,
+                                               exact, scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -14629,6 +15013,87 @@ svn_wc__db_temp_op_start_directory_update(svn_wc__db_t *db,
   return SVN_NO_ERROR;
 }
 
+/* Helper for svn_wc__db_op_make_copy_internal */
+static svn_error_t *
+db_move_moved_to(svn_wc__db_wcroot_t *wcroot,
+                 const char *src1_relpath,
+                 int src1_op_depth,
+                 const char *src2_relpath,
+                 int src2_op_depth,
+                 const char *dst_relpath,
+                 apr_pool_t *scratch_pool)
+{
+  svn_sqlite__stmt_t *stmt;
+  int affected_rows;
+
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                     STMT_UPDATE_MOVED_TO_RELPATH));
+  SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id,
+                            src1_relpath, src1_op_depth));
+  SVN_ERR(svn_sqlite__update(&affected_rows, stmt));
+
+  if (affected_rows == 1)
+    {
+      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                     STMT_UPDATE_MOVED_TO_RELPATH));
+      SVN_ERR(svn_sqlite__bindf(stmt, "isds", wcroot->wc_id,
+                                src2_relpath, src2_op_depth,
+                                dst_relpath));
+      SVN_ERR(svn_sqlite__update(&affected_rows, stmt));
+    }
+  if (affected_rows != 1)
+    return svn_error_create(SVN_ERR_WC_PATH_NOT_FOUND, NULL, NULL);
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+db_move_moved_to_down_recursive(svn_wc__db_wcroot_t *wcroot,
+                                const char *local_relpath,
+                                int new_shadow_layer,
+                                apr_pool_t *scratch_pool)
+{
+  svn_sqlite__stmt_t *stmt;
+  svn_boolean_t have_row;
+  apr_pool_t *iterpool = svn_pool_create(scratch_pool);
+
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                        STMT_SELECT_MOVED_DESCENDANTS_SRC));
+  SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, local_relpath,
+                            new_shadow_layer));
+  SVN_ERR(svn_sqlite__step(&have_row, stmt));
+
+  while (have_row)
+    {
+      int del_op_depth;
+      const char *src_relpath;
+      const char *dst_relpath;
+      svn_error_t *err;
+
+      svn_pool_clear(iterpool);
+
+      del_op_depth = svn_sqlite__column_int(stmt, 0);
+      src_relpath = svn_sqlite__column_text(stmt, 1, iterpool);
+      dst_relpath = svn_sqlite__column_text(stmt, 4, iterpool);
+
+      err = svn_error_trace(
+               db_move_moved_to(
+                             wcroot,
+                             src_relpath, del_op_depth,
+                             src_relpath, new_shadow_layer,
+                             dst_relpath, iterpool));
+
+      if (err)
+        return svn_error_compose_create(err, svn_sqlite__reset(stmt));
+
+      SVN_ERR(svn_sqlite__step(&have_row, stmt));
+    }
+
+  SVN_ERR(svn_sqlite__reset(stmt));
+
+  return SVN_NO_ERROR;
+}
+
 
 /* The body of svn_wc__db_temp_op_make_copy().  This is
    used by the update editor when deleting a base node tree would be a
@@ -14666,104 +15131,224 @@ svn_wc__db_temp_op_start_directory_update(svn_wc__db_t *db,
 static svn_error_t *
 make_copy_txn(svn_wc__db_wcroot_t *wcroot,
               const char *local_relpath,
-              int op_depth,
-              const svn_skel_t *conflicts,
-              const svn_skel_t *work_items,
+              apr_int64_t last_repos_id,
+              const char *last_repos_relpath,
+              svn_revnum_t last_revision,
+              int last_op_depth,
+              svn_boolean_t shadowed,
+              int root_shadow_depth,
               apr_pool_t *scratch_pool)
 {
   svn_sqlite__stmt_t *stmt;
-  svn_boolean_t have_row;
-  svn_boolean_t add_working_base_deleted = FALSE;
-  svn_boolean_t remove_working = FALSE;
-  const apr_array_header_t *children;
-  apr_pool_t *iterpool = svn_pool_create(scratch_pool);
-  int i;
+  svn_boolean_t have_row = FALSE;
+  svn_revnum_t revision;
+  apr_int64_t repos_id;
+  const char *repos_relpath;
+  svn_node_kind_t kind;
+  int op_depth = relpath_depth(local_relpath);
 
-  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                    STMT_SELECT_LOWEST_WORKING_NODE));
-  SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, local_relpath, 0));
-  SVN_ERR(svn_sqlite__step(&have_row, stmt));
-
-  if (have_row)
+  if (last_op_depth != op_depth)
     {
-      svn_wc__db_status_t working_status;
-      int working_op_depth;
-
-      working_status = svn_sqlite__column_token(stmt, 1, presence_map);
-      working_op_depth = svn_sqlite__column_int(stmt, 0);
+      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                        STMT_SELECT_DEPTH_NODE));
+      SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, local_relpath,
+                                op_depth));
+      SVN_ERR(svn_sqlite__step(&have_row, stmt));
       SVN_ERR(svn_sqlite__reset(stmt));
+      if (have_row)
+        shadowed = TRUE;
+    }
 
-      SVN_ERR_ASSERT(working_status == svn_wc__db_status_normal
-                     || working_status == svn_wc__db_status_base_deleted
-                     || working_status == svn_wc__db_status_not_present
-                     || working_status == svn_wc__db_status_incomplete);
+  SVN_ERR(svn_wc__db_base_get_info_internal(NULL, &kind, &revision,
+                                            &repos_relpath, &repos_id, NULL,
+                                            NULL, NULL, NULL, NULL, NULL, NULL,
+                                            NULL, NULL, NULL,
+                                            wcroot, local_relpath,
+                                            scratch_pool, scratch_pool));
 
-      /* Only change nodes in the layers where we are creating the copy.
-         Deletes in higher layers will just apply to the copy */
-      if (working_op_depth <= op_depth)
+  if (last_repos_relpath
+      && repos_id == last_repos_id
+      && revision == last_revision)
+    {
+      const char *name = svn_relpath_skip_ancestor(last_repos_relpath,
+                                                   repos_relpath);
+
+      if (name && strcmp(name, svn_relpath_basename(local_relpath, NULL)) == 0)
+        op_depth = last_op_depth;
+    }
+
+  /* Can we add a new copy node at the wanted op-depth? */
+  if (!have_row || op_depth == last_op_depth)
+    {
+      int i;
+
+      SVN_ERR(svn_sqlite__get_statement(
+                    &stmt, wcroot->sdb,
+                    STMT_INSERT_WORKING_NODE_FROM_BASE_COPY));
+      SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, local_relpath,
+                                op_depth));
+      SVN_ERR(svn_sqlite__step_done(stmt));
+
+      if (shadowed)
+        SVN_ERR(db_extend_parent_delete(wcroot, local_relpath, kind,
+                                        op_depth, scratch_pool));
+
+      if (kind == svn_node_dir)
         {
-          add_working_base_deleted = TRUE;
+          const apr_array_header_t *children;
+          apr_pool_t *iterpool = svn_pool_create(scratch_pool);
 
-          if (working_status == svn_wc__db_status_base_deleted)
-            remove_working = TRUE;
+          SVN_ERR(gather_children(&children, wcroot, local_relpath,
+                                  STMT_SELECT_OP_DEPTH_CHILDREN, 0,
+                                  scratch_pool, iterpool));
+
+          for (i = 0; i < children->nelts; i++)
+            {
+              const char *name = APR_ARRAY_IDX(children, i, const char *);
+              const char *copy_relpath;
+
+              svn_pool_clear(iterpool);
+
+              copy_relpath = svn_relpath_join(local_relpath, name, iterpool);
+
+              SVN_ERR(make_copy_txn(wcroot, copy_relpath,
+                                    repos_id, repos_relpath, revision,
+                                    op_depth, shadowed, root_shadow_depth,
+                                    scratch_pool));
+            }
+          svn_pool_destroy(iterpool);
         }
     }
   else
-    SVN_ERR(svn_sqlite__reset(stmt));
-
-  if (remove_working)
     {
+      /* Auch... we can't make a copy of whatever comes deeper, as this
+         op-depth is already filled by something else. Let's hope
+         the user doesn't mind.
+
+         Luckily we know that the moves are already moved to the shadowing
+         layer, so we can just remove dangling base-deletes if there are
+         any.
+       */
+      /* BASE_DELETED may be at op_depth, so let's use last_op_depth! */
+      SVN_ERR(db_move_moved_to_down_recursive(wcroot, local_relpath,
+                                              root_shadow_depth,
+                                              scratch_pool));
+
       SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                        STMT_DELETE_LOWEST_WORKING_NODE));
-      SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
+                    STMT_DELETE_WORKING_BASE_DELETE));
+      SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, local_relpath,
+                                last_op_depth));
+      SVN_ERR(svn_sqlite__step_done(stmt));
+      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                    STMT_DELETE_WORKING_BASE_DELETE_RECURSIVE));
+      SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, local_relpath,
+                                last_op_depth));
       SVN_ERR(svn_sqlite__step_done(stmt));
     }
 
-  if (add_working_base_deleted)
+  /* Insert a not-present node to mark that we don't know what exists here.
+
+     We do this last (after recursing), to allow the move fix-up code to
+     see the original moves. */
+  if (last_op_depth > 0 && last_op_depth != op_depth)
     {
+      insert_working_baton_t iwb;
+
+      blank_iwb(&iwb);
+      iwb.presence = svn_wc__db_status_not_present;
+      iwb.op_depth = last_op_depth;
+
+      iwb.original_repos_id = repos_id;
+      iwb.original_repos_relpath = repos_relpath;
+      iwb.original_revnum = revision;
+      iwb.kind = kind;
+
+      SVN_ERR(insert_working_node(&iwb, wcroot, local_relpath, scratch_pool));
+    }
+
+  return SVN_NO_ERROR;
+}
+
+
+svn_error_t *
+svn_wc__db_op_make_copy_internal(svn_wc__db_wcroot_t *wcroot,
+                                 const char *local_relpath,
+                                 svn_boolean_t move_move_info,
+                                 const svn_skel_t *conflicts,
+                                 const svn_skel_t *work_items,
+                                 apr_pool_t *scratch_pool)
+{
+  svn_sqlite__stmt_t *stmt;
+  svn_boolean_t have_row;
+  int op_depth = -1;
+
+  /* The update editor is supposed to call this function when there is
+     no working node for LOCAL_ABSPATH. */
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
+                                    STMT_SELECT_WORKING_NODE));
+  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
+  SVN_ERR(svn_sqlite__step(&have_row, stmt));
+  if (have_row)
+    op_depth = svn_sqlite__column_int(stmt, 0);
+  SVN_ERR(svn_sqlite__reset(stmt));
+
+  if (have_row)
+    {
+      if (op_depth == relpath_depth(local_relpath))
+        return svn_error_createf(SVN_ERR_WC_PATH_UNEXPECTED_STATUS, NULL,
+                             _("Modification of '%s' already exists"),
+                             path_for_error_message(wcroot,
+                                                    local_relpath,
+                                                    scratch_pool));
+
+      /* We have a working layer, but not one at the op-depth of local-relpath,
+         so we can create a copy by just copying the lower layer */
+
       SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                        STMT_INSERT_DELETE_FROM_BASE));
-      SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, local_relpath,
-                                op_depth));
+                                        STMT_COPY_OP_DEPTH_RECURSIVE));
+      SVN_ERR(svn_sqlite__bindf(stmt, "isdd", wcroot->wc_id, local_relpath,
+                                op_depth, relpath_depth(local_relpath)));
       SVN_ERR(svn_sqlite__step_done(stmt));
     }
   else
     {
-      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                      STMT_INSERT_WORKING_NODE_FROM_BASE_COPY));
-      SVN_ERR(svn_sqlite__bindf(stmt, "isd", wcroot->wc_id, local_relpath,
-                                op_depth));
-      SVN_ERR(svn_sqlite__step_done(stmt));
+      int affected_rows;
+
+      op_depth = relpath_depth(local_relpath);
+      /* We don't allow copies to contain server-excluded nodes;
+         the update editor is going to have to bail out. */
+      SVN_ERR(catch_copy_of_server_excluded(wcroot, local_relpath,
+                                            scratch_pool));
+
+      /* Insert a shadowing layer */
+      SVN_ERR(svn_sqlite__get_statement(
+                        &stmt, wcroot->sdb,
+                        STMT_INSERT_DELETE_FROM_NODE_RECURSIVE));
+
+      /* As we are keeping whatever is below, move the*/
+
+      SVN_ERR(svn_sqlite__bindf(stmt, "isdd",
+                                wcroot->wc_id, local_relpath,
+                                0, op_depth));
+      SVN_ERR(svn_sqlite__update(&affected_rows, stmt));
+      SVN_ERR_ASSERT(affected_rows > 0);
+
+      if (!move_move_info)
+        SVN_ERR(db_move_moved_to_down_recursive(wcroot, local_relpath,
+                                                op_depth, scratch_pool));
+
+
+      SVN_ERR(make_copy_txn(wcroot, local_relpath,
+                            INVALID_REPOS_ID, NULL, SVN_INVALID_REVNUM,
+                            op_depth, FALSE, op_depth,
+                            scratch_pool));
     }
-
-  /* Get the BASE children, as WORKING children don't need modifications */
-  SVN_ERR(gather_repo_children(&children, wcroot, local_relpath,
-                               0, scratch_pool, iterpool));
-
-  for (i = 0; i < children->nelts; i++)
-    {
-      const char *name = APR_ARRAY_IDX(children, i, const char *);
-      const char *copy_relpath;
-
-      svn_pool_clear(iterpool);
-
-      copy_relpath = svn_relpath_join(local_relpath, name, iterpool);
-
-      SVN_ERR(make_copy_txn(wcroot, copy_relpath, op_depth, NULL, NULL,
-                            iterpool));
-    }
-
-  SVN_ERR(flush_entries(wcroot, svn_dirent_join(wcroot->abspath, local_relpath,
-                                                iterpool),
-                                                svn_depth_empty, iterpool));
 
   if (conflicts)
     SVN_ERR(svn_wc__db_mark_conflict_internal(wcroot, local_relpath,
-                                              conflicts, iterpool));
+                                              conflicts, scratch_pool));
 
-  SVN_ERR(add_work_items(wcroot->sdb, work_items, iterpool));
-
-  svn_pool_destroy(iterpool);
+  SVN_ERR(add_work_items(wcroot->sdb, work_items, scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -14778,8 +15363,6 @@ svn_wc__db_op_make_copy(svn_wc__db_t *db,
 {
   svn_wc__db_wcroot_t *wcroot;
   const char *local_relpath;
-  svn_sqlite__stmt_t *stmt;
-  svn_boolean_t have_row;
 
   SVN_ERR_ASSERT(svn_dirent_is_absolute(local_abspath));
 
@@ -14787,29 +15370,14 @@ svn_wc__db_op_make_copy(svn_wc__db_t *db,
                               local_abspath, scratch_pool, scratch_pool));
   VERIFY_USABLE_WCROOT(wcroot);
 
-  /* The update editor is supposed to call this function when there is
-     no working node for LOCAL_ABSPATH. */
-  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                    STMT_SELECT_WORKING_NODE));
-  SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
-  SVN_ERR(svn_sqlite__step(&have_row, stmt));
-  SVN_ERR(svn_sqlite__reset(stmt));
-  if (have_row)
-    return svn_error_createf(SVN_ERR_WC_PATH_UNEXPECTED_STATUS, NULL,
-                             _("Modification of '%s' already exists"),
-                             path_for_error_message(wcroot,
-                                                    local_relpath,
-                                                    scratch_pool));
-
-  /* We don't allow copies to contain server-excluded nodes;
-     the update editor is going to have to bail out. */
-  SVN_ERR(catch_copy_of_server_excluded(wcroot, local_relpath, scratch_pool));
-
   SVN_WC__DB_WITH_TXN(
-    make_copy_txn(wcroot, local_relpath,
-                  relpath_depth(local_relpath), conflicts, work_items,
-                  scratch_pool),
+    svn_wc__db_op_make_copy_internal(wcroot, local_relpath, FALSE,
+                                     conflicts, work_items,
+                                     scratch_pool),
     wcroot);
+
+  SVN_ERR(flush_entries(wcroot, local_abspath,
+                        svn_depth_infinity, scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -15017,7 +15585,7 @@ has_switched_subtrees(svn_boolean_t *is_switched,
          does not match the given trailing URL then the whole working
          copy is switched. */
 
-      SVN_ERR(svn_wc__db_fetch_repos_info(&repos_root_url, NULL, wcroot->sdb,
+      SVN_ERR(svn_wc__db_fetch_repos_info(&repos_root_url, NULL, wcroot,
                                           repos_id, scratch_pool));
       url = svn_path_url_add_component2(repos_root_url, repos_relpath,
                                         scratch_pool);
@@ -15108,17 +15676,14 @@ svn_wc__db_get_excluded_subtrees(apr_hash_t **excluded_subtrees,
   return SVN_NO_ERROR;
 }
 
-/* Like svn_wc__db_has_local_mods(),
+/* Like svn_wc__db_has_db_mods(),
  * but accepts a WCROOT/LOCAL_RELPATH pair.
  * ### This needs a DB as well as a WCROOT/RELPATH pair... */
 static svn_error_t *
-has_local_mods(svn_boolean_t *is_modified,
-               svn_wc__db_wcroot_t *wcroot,
-               const char *local_relpath,
-               svn_wc__db_t *db,
-               svn_cancel_func_t cancel_func,
-               void *cancel_baton,
-               apr_pool_t *scratch_pool)
+has_db_mods(svn_boolean_t *is_modified,
+            svn_wc__db_wcroot_t *wcroot,
+            const char *local_relpath,
+            apr_pool_t *scratch_pool)
 {
   svn_sqlite__stmt_t *stmt;
 
@@ -15130,9 +15695,6 @@ has_local_mods(svn_boolean_t *is_modified,
   SVN_ERR(svn_sqlite__step(is_modified, stmt));
   SVN_ERR(svn_sqlite__reset(stmt));
 
-  if (cancel_func)
-    SVN_ERR(cancel_func(cancel_baton));
-
   if (! *is_modified)
     {
       /* Check for property modifications. */
@@ -15142,96 +15704,6 @@ has_local_mods(svn_boolean_t *is_modified,
       /* If this query returns a row, the working copy is modified. */
       SVN_ERR(svn_sqlite__step(is_modified, stmt));
       SVN_ERR(svn_sqlite__reset(stmt));
-
-      if (cancel_func)
-        SVN_ERR(cancel_func(cancel_baton));
-    }
-
-  if (! *is_modified)
-    {
-      apr_pool_t *iterpool = NULL;
-      svn_boolean_t have_row;
-
-      /* Check for text modifications. */
-      SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb,
-                                        STMT_SELECT_BASE_FILES_RECURSIVE));
-      SVN_ERR(svn_sqlite__bindf(stmt, "is", wcroot->wc_id, local_relpath));
-      SVN_ERR(svn_sqlite__step(&have_row, stmt));
-      if (have_row)
-        iterpool = svn_pool_create(scratch_pool);
-      while (have_row)
-        {
-          const char *node_abspath;
-          svn_filesize_t recorded_size;
-          apr_time_t recorded_time;
-          svn_boolean_t skip_check = FALSE;
-          svn_error_t *err;
-
-          if (cancel_func)
-            {
-              err = cancel_func(cancel_baton);
-              if (err)
-                return svn_error_trace(svn_error_compose_create(
-                                                    err,
-                                                    svn_sqlite__reset(stmt)));
-            }
-
-          svn_pool_clear(iterpool);
-
-          node_abspath = svn_dirent_join(wcroot->abspath,
-                                         svn_sqlite__column_text(stmt, 0,
-                                                                 iterpool),
-                                         iterpool);
-
-          recorded_size = get_recorded_size(stmt, 1);
-          recorded_time = svn_sqlite__column_int64(stmt, 2);
-
-          if (recorded_size != SVN_INVALID_FILESIZE
-              && recorded_time != 0)
-            {
-              const svn_io_dirent2_t *dirent;
-
-              err = svn_io_stat_dirent2(&dirent, node_abspath, FALSE, TRUE,
-                                        iterpool, iterpool);
-              if (err)
-                return svn_error_trace(svn_error_compose_create(
-                                                    err,
-                                                    svn_sqlite__reset(stmt)));
-
-              if (dirent->kind != svn_node_file)
-                {
-                  *is_modified = TRUE; /* Missing or obstruction */
-                  break;
-                }
-              else if (dirent->filesize == recorded_size
-                       && dirent->mtime == recorded_time)
-                {
-                  /* The file is not modified */
-                  skip_check = TRUE;
-                }
-            }
-
-          if (! skip_check)
-            {
-              err = svn_wc__internal_file_modified_p(is_modified,
-                                                     db, node_abspath,
-                                                     FALSE, iterpool);
-
-              if (err)
-                return svn_error_trace(svn_error_compose_create(
-                                                    err,
-                                                    svn_sqlite__reset(stmt)));
-
-              if (*is_modified)
-                break;
-            }
-
-          SVN_ERR(svn_sqlite__step(&have_row, stmt));
-        }
-      if (iterpool)
-        svn_pool_destroy(iterpool);
-
-      SVN_ERR(svn_sqlite__reset(stmt));
     }
 
   return SVN_NO_ERROR;
@@ -15239,12 +15711,10 @@ has_local_mods(svn_boolean_t *is_modified,
 
 
 svn_error_t *
-svn_wc__db_has_local_mods(svn_boolean_t *is_modified,
-                          svn_wc__db_t *db,
-                          const char *local_abspath,
-                          svn_cancel_func_t cancel_func,
-                          void *cancel_baton,
-                          apr_pool_t *scratch_pool)
+svn_wc__db_has_db_mods(svn_boolean_t *is_modified,
+                       svn_wc__db_t *db,
+                       const char *local_abspath,
+                       apr_pool_t *scratch_pool)
 {
   svn_wc__db_wcroot_t *wcroot;
   const char *local_relpath;
@@ -15256,9 +15726,8 @@ svn_wc__db_has_local_mods(svn_boolean_t *is_modified,
                                                 scratch_pool, scratch_pool));
   VERIFY_USABLE_WCROOT(wcroot);
 
-  return svn_error_trace(has_local_mods(is_modified, wcroot, local_relpath,
-                                        db, cancel_func, cancel_baton,
-                                        scratch_pool));
+  return svn_error_trace(has_db_mods(is_modified, wcroot, local_relpath,
+                                     scratch_pool));
 }
 
 
@@ -15275,8 +15744,6 @@ revision_status_txn(svn_revnum_t *min_revision,
                     svn_wc__db_t *db,
                     const char *trail_url,
                     svn_boolean_t committed,
-                    svn_cancel_func_t cancel_func,
-                    void *cancel_baton,
                     apr_pool_t *scratch_pool)
 {
   svn_error_t *err;
@@ -15296,15 +15763,9 @@ revision_status_txn(svn_revnum_t *min_revision,
   SVN_ERR(get_min_max_revisions(min_revision, max_revision, wcroot,
                                 local_relpath, committed, scratch_pool));
 
-  if (cancel_func)
-    SVN_ERR(cancel_func(cancel_baton));
-
   /* Determine sparseness. */
   SVN_ERR(is_sparse_checkout_internal(is_sparse_checkout, wcroot,
                                       local_relpath, scratch_pool));
-
-  if (cancel_func)
-    SVN_ERR(cancel_func(cancel_baton));
 
   /* Check for switched nodes. */
   {
@@ -15321,12 +15782,8 @@ revision_status_txn(svn_revnum_t *min_revision,
       }
   }
 
-  if (cancel_func)
-    SVN_ERR(cancel_func(cancel_baton));
-
-  /* Check for local mods. */
-  SVN_ERR(has_local_mods(is_modified, wcroot, local_relpath, db,
-                         cancel_func, cancel_baton, scratch_pool));
+  /* Check for db mods. */
+  SVN_ERR(has_db_mods(is_modified, wcroot, local_relpath, scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -15342,8 +15799,6 @@ svn_wc__db_revision_status(svn_revnum_t *min_revision,
                            const char *local_abspath,
                            const char *trail_url,
                            svn_boolean_t committed,
-                           svn_cancel_func_t cancel_func,
-                           void *cancel_baton,
                            apr_pool_t *scratch_pool)
 {
   svn_wc__db_wcroot_t *wcroot;
@@ -15360,7 +15815,7 @@ svn_wc__db_revision_status(svn_revnum_t *min_revision,
     revision_status_txn(min_revision, max_revision,
                         is_sparse_checkout, is_modified, is_switched,
                         wcroot, local_relpath, db,
-                        trail_url, committed, cancel_func, cancel_baton,
+                        trail_url, committed,
                         scratch_pool),
     wcroot);
   return SVN_NO_ERROR;
@@ -15406,7 +15861,7 @@ svn_wc__db_base_get_lock_tokens_recursive(apr_hash_t **lock_tokens,
       if (child_repos_id != last_repos_id)
         {
           svn_error_t *err = svn_wc__db_fetch_repos_info(&last_repos_root_url,
-                                                         NULL, wcroot->sdb,
+                                                         NULL, wcroot,
                                                          child_repos_id,
                                                          scratch_pool);
 
@@ -15529,6 +15984,69 @@ svn_wc__db_verify(svn_wc__db_t *db,
   return SVN_NO_ERROR;
 }
 
+
+svn_error_t *
+svn_wc__db_verify_db_full_internal(svn_wc__db_wcroot_t *wcroot,
+                                   svn_wc__db_verify_cb_t callback,
+                                   void *baton,
+                                   apr_pool_t *scratch_pool)
+{
+  svn_sqlite__stmt_t *stmt;
+  svn_boolean_t have_row;
+  svn_error_t *err = NULL;
+  apr_pool_t *iterpool = svn_pool_create(scratch_pool);
+
+  SVN_ERR(svn_sqlite__get_statement(&stmt, wcroot->sdb, STMT_STATIC_VERIFY));
+  SVN_ERR(svn_sqlite__step(&have_row, stmt));
+
+  while (have_row)
+    {
+      const char *local_relpath;
+      int op_depth = svn_sqlite__column_int(stmt, 1);
+      int id = svn_sqlite__column_int(stmt, 2);
+      const char *msg;
+
+      svn_pool_clear(iterpool);
+
+      local_relpath =  svn_sqlite__column_text(stmt, 0, iterpool);
+      msg = svn_sqlite__column_text(stmt, 3, scratch_pool);
+
+      err = callback(baton, wcroot->abspath, local_relpath, op_depth,
+                     id, msg, iterpool);
+
+      if (err)
+        break;
+
+      SVN_ERR(svn_sqlite__step(&have_row, stmt));
+    }
+
+  svn_pool_destroy(iterpool);
+
+  return svn_error_trace(
+            svn_error_compose_create(err, svn_sqlite__reset(stmt)));
+}
+
+svn_error_t *
+svn_wc__db_verify_db_full(svn_wc__db_t *db,
+                          const char *wri_abspath,
+                          svn_wc__db_verify_cb_t callback,
+                          void *baton,
+                          apr_pool_t *scratch_pool)
+{
+  svn_wc__db_wcroot_t *wcroot;
+  const char *local_relpath;
+
+  SVN_ERR_ASSERT(svn_dirent_is_absolute(wri_abspath));
+
+  SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_relpath, db,
+                              wri_abspath, scratch_pool, scratch_pool));
+  VERIFY_USABLE_WCROOT(wcroot);
+
+  return svn_error_trace(
+            svn_wc__db_verify_db_full_internal(wcroot, callback, baton,
+                                               scratch_pool));
+}
+
 svn_error_t *
 svn_wc__db_bump_format(int *result_format,
                        svn_boolean_t *bumped_format,
@@ -15549,6 +16067,7 @@ svn_wc__db_bump_format(int *result_format,
   err = svn_wc__db_util_open_db(&sdb, wcroot_abspath, SDB_FILE,
                                 svn_sqlite__mode_readwrite,
                                 TRUE, /* exclusive */
+                                0, /* default timeout */
                                 NULL, /* my statements */
                                 scratch_pool, scratch_pool);
   if (err)
@@ -15605,6 +16124,507 @@ svn_wc__db_vacuum(svn_wc__db_t *db,
                                                 db, local_abspath,
                                                 scratch_pool, scratch_pool));
   SVN_ERR(svn_sqlite__exec_statements(wcroot->sdb, STMT_VACUUM));
+
+  return SVN_NO_ERROR;
+}
+
+/* Item queued with svn_wc__db_commit_queue_add */
+typedef struct commit_queue_item_t
+{
+  const char *local_relpath;
+  svn_boolean_t recurse; /* Use legacy recursion */
+  svn_boolean_t committed; /* Process the node as committed */
+  svn_boolean_t remove_lock; /* Remove existing lock on node */
+  svn_boolean_t remove_changelist; /* Remove changelist on node */
+
+  /* The pristine text checksum. NULL if the old value should be kept
+     and for directories */
+  const svn_checksum_t *new_sha1_checksum;
+
+  apr_hash_t *new_dav_cache; /* New DAV cache for the node */
+} commit_queue_item_t;
+
+/* The queue definition for vn_wc__db_create_commit_queue,
+   svn_wc__db_commit_queue_add and finally svn_wc__db_process_commit_queue */
+struct svn_wc__db_commit_queue_t
+{
+  svn_wc__db_wcroot_t *wcroot; /* Wcroot for ITEMS */
+  apr_array_header_t *items; /* List of commit_queue_item_t* */
+  svn_boolean_t have_recurse; /* Is one or more item[x]->recurse TRUE? */
+};
+
+/* Create a new svn_wc__db_commit_queue_t instance in RESULT_POOL for the
+   working copy specified with WRI_ABSPATH */
+svn_error_t *
+svn_wc__db_create_commit_queue(svn_wc__db_commit_queue_t **queue,
+                               svn_wc__db_t *db,
+                               const char *wri_abspath,
+                               apr_pool_t *result_pool,
+                               apr_pool_t *scratch_pool)
+{
+  svn_wc__db_wcroot_t *wcroot;
+  const char *local_relpath;
+  svn_wc__db_commit_queue_t *q;
+
+  SVN_ERR_ASSERT(svn_dirent_is_absolute(wri_abspath));
+
+  SVN_ERR(svn_wc__db_wcroot_parse_local_abspath(&wcroot, &local_relpath, db,
+                              wri_abspath, result_pool, scratch_pool));
+  VERIFY_USABLE_WCROOT(wcroot);
+
+  q = apr_pcalloc(result_pool, sizeof(*q));
+
+  SVN_ERR_ASSERT(wcroot->sdb);
+
+  q->wcroot = wcroot;
+  q->items = apr_array_make(result_pool, 64,
+                            sizeof(commit_queue_item_t*));
+  q->have_recurse = FALSE;
+
+  *queue = q;
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_wc__db_commit_queue_add(svn_wc__db_commit_queue_t *queue,
+                            const char *local_abspath,
+                            svn_boolean_t recurse,
+                            svn_boolean_t is_commited,
+                            svn_boolean_t remove_lock,
+                            svn_boolean_t remove_changelist,
+                            const svn_checksum_t *new_sha1_checksum,
+                            apr_hash_t *new_dav_cache,
+                            apr_pool_t *result_pool,
+                            apr_pool_t *scratch_pool)
+{
+  commit_queue_item_t *cqi;
+  const char *local_relpath;
+
+  local_relpath = svn_dirent_skip_ancestor(queue->wcroot->abspath,
+                                           local_abspath);
+
+  if (! local_relpath)
+    return svn_error_createf(
+                SVN_ERR_WC_PATH_NOT_FOUND, NULL,
+                _("The path '%s' is not in the working copy '%s'"),
+                svn_dirent_local_style(local_abspath, scratch_pool),
+                svn_dirent_local_style(queue->wcroot->abspath, scratch_pool));
+
+  cqi = apr_pcalloc(result_pool, sizeof(*cqi));
+  cqi->local_relpath = local_relpath;
+  cqi->recurse = recurse;
+  cqi->committed = is_commited;
+  cqi->remove_lock = remove_lock;
+  cqi->remove_changelist = remove_changelist;
+  cqi->new_sha1_checksum = new_sha1_checksum;
+  cqi->new_dav_cache = new_dav_cache;
+
+  queue->have_recurse |= recurse;
+
+  APR_ARRAY_PUSH(queue->items, commit_queue_item_t *) = cqi;
+  return SVN_NO_ERROR;
+}
+
+/*** Finishing updates and commits. ***/
+
+/* Post process an item that is committed in the repository. Collapse layers into
+ * BASE. Queue work items that will finish a commit of the file or directory
+ * LOCAL_ABSPATH in DB:
+ */
+static svn_error_t *
+process_committed_leaf(svn_wc__db_t *db,
+                       svn_wc__db_wcroot_t *wcroot,
+                       const char *local_relpath,
+                       svn_boolean_t via_recurse,
+                       svn_wc__db_status_t status,
+                       svn_node_kind_t kind,
+                       svn_boolean_t prop_mods,
+                       const svn_checksum_t *old_checksum,
+                       svn_revnum_t new_revnum,
+                       apr_time_t new_changed_date,
+                       const char *new_changed_author,
+                       apr_hash_t *new_dav_cache,
+                       svn_boolean_t remove_lock,
+                       svn_boolean_t remove_changelist,
+                       const svn_checksum_t *checksum,
+                       apr_pool_t *scratch_pool)
+{
+  svn_revnum_t new_changed_rev = new_revnum;
+  svn_skel_t *work_item = NULL;
+
+  {
+    const char *lock_relpath;
+    svn_boolean_t locked;
+
+    if (kind == svn_node_dir)
+      lock_relpath = local_relpath;
+    else
+      lock_relpath = svn_relpath_dirname(local_relpath, scratch_pool);
+
+    SVN_ERR(svn_wc__db_wclock_owns_lock_internal(&locked, wcroot,
+                                                 lock_relpath, FALSE,
+                                                 scratch_pool));
+
+    if (!locked)
+      return svn_error_createf(SVN_ERR_WC_NOT_LOCKED, NULL,
+                             _("No write-lock in '%s'"),
+                             path_for_error_message(wcroot, local_relpath,
+                                                    scratch_pool));
+
+    SVN_ERR(flush_entries(wcroot, lock_relpath, svn_depth_empty,
+                          scratch_pool));
+  }
+
+  if (status == svn_wc__db_status_not_present)
+    {
+      /* We are committing the leaf of a copy operation.
+         We leave the not-present marker to allow pulling in excluded
+         children of a copy.
+
+         The next update will remove the not-present marker. */
+
+      return SVN_NO_ERROR;
+    }
+
+  SVN_ERR_ASSERT(status == svn_wc__db_status_normal
+                 || status == svn_wc__db_status_incomplete
+                 || status == svn_wc__db_status_added
+                 || status == svn_wc__db_status_deleted);
+
+  if (kind != svn_node_dir
+      && status != svn_wc__db_status_deleted)
+    {
+      /* If we sent a delta (meaning: post-copy modification),
+         then this file will appear in the queue and so we should have
+         its checksum already. */
+      if (checksum == NULL)
+        {
+          /* It was copied and not modified. We must have a text
+             base for it. And the node should have a checksum. */
+          SVN_ERR_ASSERT(old_checksum != NULL);
+
+          checksum = old_checksum;
+
+          /* Is the node completely unmodified and are we recursing? */
+          if (via_recurse && !prop_mods)
+            {
+              /* If a copied node itself is not modified, but the op_root of
+                 the copy is committed we have to make sure that changed_rev,
+                 changed_date and changed_author don't change or the working
+                 copy used for committing will show different last modified
+                 information then a clean checkout of exactly the same
+                 revisions. (Issue #3676) */
+
+              SVN_ERR(svn_wc__db_read_info_internal(
+                                           NULL, NULL, NULL, NULL, NULL,
+                                           &new_changed_rev,
+                                           &new_changed_date,
+                                           &new_changed_author, NULL, NULL,
+                                           NULL, NULL, NULL, NULL, NULL,
+                                           NULL, NULL, NULL, NULL,
+                                           NULL, NULL, NULL, NULL,
+                                           NULL, NULL,
+                                           wcroot, local_relpath,
+                                           scratch_pool, scratch_pool));
+            }
+        }
+
+      SVN_ERR(svn_wc__wq_build_file_commit(&work_item,
+                                           db, svn_dirent_join(wcroot->abspath,
+                                                               local_relpath,
+                                                               scratch_pool),
+                                           prop_mods,
+                                           scratch_pool, scratch_pool));
+    }
+
+  /* The new text base will be found in the pristine store by its checksum. */
+  SVN_ERR(commit_node(wcroot, local_relpath,
+                      new_revnum, new_changed_rev,
+                      new_changed_date, new_changed_author,
+                      checksum,
+                      new_dav_cache,
+                      !remove_changelist,
+                      !remove_lock,
+                      work_item,
+                      scratch_pool));
+
+  return SVN_NO_ERROR;
+}
+
+/** Internal helper for svn_wc_process_committed_queue2().
+ * Bump a commit item, collapsing local changes with the new repository
+ * information to a new BASE node.
+ *
+ * @a new_date is the (server-side) date of the new revision, or 0.
+ *
+ * @a rev_author is the (server-side) author of the new
+ * revision; it may be @c NULL.
+ *
+ * @a new_dav_cache is a hash of all the new dav properties for LOCAL_RELPATH.
+ *
+ * If @a remove_lock is set, release any user locks on @a
+ * local_abspath; otherwise keep them during processing.
+ *
+ * If @a remove_changelist is set, clear any changeset assignments
+ * from @a local_abspath; otherwise, keep such assignments.
+ *
+ * If @a new_sha1_checksum is non-NULL, use it to identify the node's pristine
+ * text.
+ *
+ * Set TOP_OF_RECURSE to TRUE to show that this the top of a possibly
+ * recursive commit operation. (Part of the legacy recurse handling)
+ */
+static svn_error_t *
+process_committed_internal(svn_wc__db_t *db,
+                           svn_wc__db_wcroot_t *wcroot,
+                           const char *local_relpath,
+                           svn_boolean_t recurse,
+                           svn_boolean_t top_of_recurse,
+                           svn_revnum_t new_revnum,
+                           apr_time_t new_date,
+                           const char *rev_author,
+                           apr_hash_t *new_dav_cache,
+                           svn_boolean_t remove_lock,
+                           svn_boolean_t remove_changelist,
+                           const svn_checksum_t *new_sha1_checksum,
+                           apr_hash_t *items_by_relpath,
+                           apr_pool_t *scratch_pool)
+{
+  svn_wc__db_status_t status;
+  svn_node_kind_t kind;
+  const svn_checksum_t *old_checksum;
+  svn_boolean_t prop_mods;
+
+  SVN_ERR(svn_wc__db_read_info_internal(&status, &kind, NULL, NULL, NULL, NULL, NULL,
+                                        NULL, NULL, &old_checksum, NULL, NULL,
+                                        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                                        NULL, &prop_mods, NULL, NULL, NULL,
+                                        wcroot, local_relpath,
+                                        scratch_pool, scratch_pool));
+
+  /* NOTE: be wary of making crazy semantic changes in this function, since
+     svn_wc_process_committed4() calls this.  */
+
+  SVN_ERR(process_committed_leaf(db, wcroot, local_relpath, !top_of_recurse,
+                                 status, kind, prop_mods, old_checksum,
+                                 new_revnum, new_date, rev_author,
+                                 new_dav_cache,
+                                 remove_lock, remove_changelist,
+                                 new_sha1_checksum,
+                                 scratch_pool));
+
+  /* Only check for recursion on nodes that have children */
+  if (kind != svn_node_dir
+      || status == svn_wc__db_status_not_present
+      || status == svn_wc__db_status_excluded
+      || status == svn_wc__db_status_server_excluded
+      /* Node deleted -> then no longer a directory */
+      || status == svn_wc__db_status_deleted)
+    {
+      return SVN_NO_ERROR;
+    }
+
+  if (recurse)
+    {
+      const apr_array_header_t *children;
+      apr_pool_t *iterpool = svn_pool_create(scratch_pool);
+      int i;
+
+      /* Read PATH's entries;  this is the absolute path. */
+      SVN_ERR(gather_children(&children, wcroot, local_relpath,
+                              STMT_SELECT_NODE_CHILDREN, -1,
+                              scratch_pool, iterpool));
+
+      /* Recursively loop over all children. */
+      for (i = 0; i < children->nelts; i++)
+        {
+          const char *name = APR_ARRAY_IDX(children, i, const char *);
+          const char *this_relpath;
+          const commit_queue_item_t *cqi;
+
+          svn_pool_clear(iterpool);
+
+          this_relpath = svn_dirent_join(local_relpath, name, iterpool);
+
+          new_sha1_checksum = NULL;
+          cqi = svn_hash_gets(items_by_relpath, this_relpath);
+
+          if (cqi != NULL)
+            new_sha1_checksum = cqi->new_sha1_checksum;
+
+          /* Recurse.  Pass NULL for NEW_DAV_CACHE, because the
+             ones present in the current call are only applicable to
+             this one committed item. */
+          SVN_ERR(process_committed_internal(
+                    db, wcroot, this_relpath,
+                    TRUE /* recurse */,
+                    FALSE /* top_of_recurse */,
+                    new_revnum, new_date,
+                    rev_author,
+                    NULL /* new_dav_cache */,
+                    FALSE /* remove_lock */,
+                    remove_changelist,
+                    new_sha1_checksum,
+                    items_by_relpath,
+                    iterpool));
+        }
+
+      svn_pool_destroy(iterpool);
+    }
+
+  return SVN_NO_ERROR;
+}
+
+/* Return TRUE if any item of QUEUE is a parent of ITEM and will be
+   processed recursively, return FALSE otherwise.
+
+   The algorithmic complexity of this search implementation is O(queue
+   length), but it's quite quick.
+*/
+static svn_boolean_t
+have_recursive_parent(const apr_array_header_t *all_items,
+                      const commit_queue_item_t *item,
+                      apr_pool_t *scratch_pool)
+{
+  const char *local_relpath = item->local_relpath;
+  int i;
+
+  for (i = 0; i < all_items->nelts; i++)
+    {
+      const commit_queue_item_t *qi
+        = APR_ARRAY_IDX(all_items, i, const commit_queue_item_t *);
+
+      if (qi == item)
+        continue;
+
+      if (qi->recurse && svn_relpath_skip_ancestor(qi->local_relpath,
+                                                   local_relpath))
+        {
+          return TRUE;
+        }
+    }
+
+  return FALSE;
+}
+
+/* Compare function for svn_sort__array */
+static int
+compare_queue_items(const void *v1,
+                    const void *v2)
+{
+  const commit_queue_item_t *cqi1
+              = *(const commit_queue_item_t **)v1;
+  const commit_queue_item_t *cqi2
+              = *(const commit_queue_item_t **)v2;
+
+  return svn_path_compare_paths(cqi1->local_relpath, cqi2->local_relpath);
+}
+
+/* Internal, locked version of svn_wc__db_process_commit_queue */
+static svn_error_t *
+db_process_commit_queue(svn_wc__db_t *db,
+                        svn_wc__db_commit_queue_t *queue,
+                        svn_revnum_t new_revnum,
+                        apr_time_t new_date,
+                        const char *new_author,
+                        apr_pool_t *scratch_pool)
+{
+  apr_hash_t *items_by_relpath = NULL;
+  int j;
+  apr_pool_t *iterpool = svn_pool_create(scratch_pool);
+
+  svn_sort__array(queue->items, compare_queue_items);
+
+  if (queue->have_recurse)
+    {
+      items_by_relpath = apr_hash_make(scratch_pool);
+
+      for (j = 0; j < queue->items->nelts; j++)
+        {
+          commit_queue_item_t *cqi
+            = APR_ARRAY_IDX(queue->items, j, commit_queue_item_t *);
+
+          svn_hash_sets(items_by_relpath, cqi->local_relpath, cqi);
+        }
+    }
+
+  for (j = 0; j < queue->items->nelts; j++)
+    {
+      commit_queue_item_t *cqi
+        = APR_ARRAY_IDX(queue->items, j, commit_queue_item_t *);
+
+      svn_pool_clear(iterpool);
+
+      /* Skip this item if it is a child of a recursive item, because it has
+         been (or will be) accounted for when that recursive item was (or
+         will be) processed. */
+      if (queue->have_recurse && have_recursive_parent(queue->items, cqi,
+                                                       iterpool))
+        continue;
+
+      if (!cqi->committed)
+        {
+          if (cqi->remove_lock)
+            {
+              svn_skel_t *work_item;
+
+              SVN_ERR(svn_wc__wq_build_sync_file_flags(
+                                                    &work_item,
+                                                    db,
+                                                    svn_dirent_join(
+                                                        queue->wcroot->abspath,
+                                                        cqi->local_relpath,
+                                                        iterpool),
+                                                    iterpool, iterpool));
+
+              lock_remove_txn(queue->wcroot, cqi->local_relpath, work_item,
+                              iterpool);
+            }
+          if (cqi->remove_changelist)
+            SVN_ERR(svn_wc__db_op_set_changelist(db,
+                                                 svn_dirent_join(
+                                                        queue->wcroot->abspath,
+                                                        cqi->local_relpath,
+                                                        iterpool),
+                                                 NULL, NULL,
+                                                 svn_depth_empty,
+                                                 NULL, NULL, /* notify */
+                                                 NULL, NULL, /* cancel */
+                                                 iterpool));
+        }
+      else
+        {
+          SVN_ERR(process_committed_internal(
+                                  db, queue->wcroot, cqi->local_relpath,
+                                  cqi->recurse,
+                                  TRUE /* top_of_recurse */,
+                                  new_revnum, new_date, new_author,
+                                  cqi->new_dav_cache,
+                                  cqi->remove_lock,
+                                  cqi->remove_changelist,
+                                  cqi->new_sha1_checksum,
+                                  items_by_relpath,
+                                  iterpool));
+        }
+    }
+
+  svn_pool_destroy(iterpool);
+
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_wc__db_process_commit_queue(svn_wc__db_t *db,
+                                svn_wc__db_commit_queue_t *queue,
+                                svn_revnum_t new_revnum,
+                                apr_time_t new_date,
+                                const char *new_author,
+                                apr_pool_t *scratch_pool)
+{
+  SVN_WC__DB_WITH_TXN(db_process_commit_queue(db, queue,
+                                              new_revnum, new_date,
+                                              new_author, scratch_pool),
+                        queue->wcroot);
 
   return SVN_NO_ERROR;
 }

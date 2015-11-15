@@ -67,6 +67,10 @@
 			status = "okay";
 		};
 
+		gmac@01c50000 {
+			status = "okay";
+		};
+
 		ahci: sata@01c18000 {
 			status = "okay";
 		};

@@ -94,6 +94,7 @@ serialization::getDefinitiveDeclContext(const DeclContext *DC) {
   switch (DC->getDeclKind()) {
   // These entities may have multiple definitions.
   case Decl::TranslationUnit:
+  case Decl::ExternCContext:
   case Decl::Namespace:
   case Decl::LinkageSpec:
     return nullptr;
@@ -149,7 +150,11 @@ serialization::getDefinitiveDeclContext(const DeclContext *DC) {
 
 bool serialization::isRedeclarableDeclKind(unsigned Kind) {
   switch (static_cast<Decl::Kind>(Kind)) {
-  case Decl::TranslationUnit: // Special case of a "merged" declaration.
+  case Decl::TranslationUnit:
+  case Decl::ExternCContext:
+    // Special case of a "merged" declaration.
+    return true;
+
   case Decl::Namespace:
   case Decl::NamespaceAlias:
   case Decl::Typedef:
@@ -216,6 +221,7 @@ bool serialization::isRedeclarableDeclKind(unsigned Kind) {
   // redeclarable.
   case Decl::ImplicitParam:
   case Decl::ParmVar:
+  case Decl::ObjCTypeParam:
     return false;
   }
 
@@ -223,6 +229,24 @@ bool serialization::isRedeclarableDeclKind(unsigned Kind) {
 }
 
 bool serialization::needsAnonymousDeclarationNumber(const NamedDecl *D) {
+  // Friend declarations in dependent contexts aren't anonymous in the usual
+  // sense, but they cannot be found by name lookup in their semantic context
+  // (or indeed in any context), so we treat them as anonymous.
+  //
+  // This doesn't apply to friend tag decls; Sema makes those available to name
+  // lookup in the surrounding context.
+  if (D->getFriendObjectKind() &&
+      D->getLexicalDeclContext()->isDependentContext() && !isa<TagDecl>(D)) {
+    // For function templates and class templates, the template is numbered and
+    // not its pattern.
+    if (auto *FD = dyn_cast<FunctionDecl>(D))
+      return !FD->getDescribedFunctionTemplate();
+    if (auto *RD = dyn_cast<CXXRecordDecl>(D))
+      return !RD->getDescribedClassTemplate();
+    return true;
+  }
+
+  // Otherwise, we only care about anonymous class members.
   if (D->getDeclName() || !isa<CXXRecordDecl>(D->getLexicalDeclContext()))
     return false;
   return isa<TagDecl>(D) || isa<FieldDecl>(D);

@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2014
+.Dd October 29, 2015
 .Dt ISP 4
 .Os
 .Sh NAME
@@ -60,8 +60,7 @@ devices.
 SCSI features include support for Ultra SCSI and wide mode transactions
 for
 .Tn SCSI ,
-Ultra2 LVD (for the ISP1080 and ISP1280), and Ultra3 LVD (for the
-ISP12160).
+Ultra2 LVD (ISP1080, ISP1280), and Ultra3 LVD (ISP12160).
 .Pp
 Fibre Channel support uses FCP SCSI profile for
 .Tn FibreChannel ,
@@ -69,15 +68,13 @@ and utilizes Class 3 and Class 2 connections (Qlogic 2100 is Class
 3 only, minor patches to the Qlogic 2200 to force Class 2 mode).
 Support is available for Public and Private loops, and for
 point-to-point connections (Qlogic 2200 only).
-The newer 2-Gigabit cards (2300, 2312, 2322) and 4-Gigabit (2422, 2432)
-are also supported.
-Command tagging is
-supported for all (in fact,
+The newer 2-Gigabit cards (2300, 2312, 2322), 4-Gigabit (2422, 2432)
+and 8-Gigabit (2532) are also supported.
+Command tagging is supported for all (in fact,
 .Tn FibreChannel
 requires tagging).
 Fabric support is enabled by default for other than 2100 cards.
-Fabric
-support for 2100 cards has been so problematic and these cards are so
+Fabric support for 2100 cards has been so problematic and these cards are so
 old now that it is just not worth your time to try it.
 .Sh FIRMWARE
 Firmware is available if the
@@ -103,15 +100,16 @@ Qlogic 1020 Fast Wide and Differential Fast Wide PCI cards.
 .It ISP1040
 Qlogic 1040 Ultra Wide and Differential Ultra Wide PCI cards.
 Also known as the DEC KZPBA-CA (single ended) and KZPBA-CB (HVD differential).
-.It Qlogic 1240
-Qlogic 1240 Dual Bus Ultra Wide and Differential Ultra Wide PCI
-cards.
 .It Qlogic 1020
 Qlogic 1020 SCSI cards.
 .It Qlogic 1040
 Qlogic 1040 Ultra SCSI cards.
 .It Qlogic 1080
-Qlogic 1280 LVD Ultra2 Wide PCI cards.
+Qlogic 1080 LVD Ultra2 Wide SCSI cards.
+.It Qlogic 10160
+Qlogic 10160 LVD Ultra3 Wide PCI cards.
+.It Qlogic 1240
+Qlogic 1240 Dual Bus Ultra Wide and Differential Ultra Wide PCI cards.
 .It Qlogic 1280
 Qlogic 1280 Dual Bus LVD Ultra2 Wide PCI cards.
 .It Qlogic 12160
@@ -123,21 +121,21 @@ Loop (single, dual).
 Qlogic 2200 Copper and Optical Fibre Channel Arbitrated Loop PCI
 cards (single, dual, quad).
 .It Qlogic 2300
-Qlogic 2300 Optical Fibre Channel PCI cards.
+Qlogic 2300 Optical 2Gb Fibre Channel PCI cards.
 .It Qlogic 2312
-Qlogic 2312 Optical Fibre Channel PCI cards.
+Qlogic 2312 Optical 2Gb Fibre Channel PCI cards.
 .It Qlogic 234X
-Qlogic 234X Optical Fibre Channel PCI cards (2312 chipset, single and dual attach).
+Qlogic 234X Optical 2Gb Fibre Channel PCI cards (2312 chipset, single and dual attach).
 .It Qlogic 2322
-Qlogic 2322 Optical Fibre Channel PCIe cards.
+Qlogic 2322 Optical 2Gb Fibre Channel PCIe cards.
 .It Qlogic 200
-Dell Branded version of the QLogic 2312 Fibre Channel PCI cards.
+Dell branded version of the QLogic 2312.
 .It Qlogic 2422
-Qlogic 2422 Optical Fibre Channel PCI cards (4 Gigabit)
+Qlogic 2422 Optical 4Gb Fibre Channel PCI cards.
 .It Qlogic 2432
-Qlogic 2432 Optical Fibre Channel PCIe cards (4 Gigabit)
-.It Qlogic 2432
-Qlogic 2532 Optical Fibre Channel PCIe cards (8 Gigabit)
+Qlogic 2432 Optical 4Gb Fibre Channel PCIe cards.
+.It Qlogic 2532
+Qlogic 2532 Optical 8Gb Fibre Channel PCIe cards.
 .El
 .Sh CONFIGURATION OPTIONS
 Target mode support may be enabled with the
@@ -232,13 +230,11 @@ The
 .Nm
 driver was written by
 .An Matthew Jacob
-originally for NetBSD at
-NASA/Ames Research Center.
+originally for NetBSD at NASA/Ames Research Center.
+Some later improvement was done by
+.An Alexander Motin Aq Mt mav@FreeBSD.org .
 .Sh BUGS
 The driver currently ignores some NVRAM settings.
 .Pp
-Target mode support is not completely reliable yet.
-It works reasonably
-well for Fibre Channel, somewhat well for Qlogic 1040 cards, but
-does not yet work for the other cards (due to last minute unannounced
-changes in firmware interfaces).
+Target mode support works reasonably well for 23xx and above Fibre Channel
+cards, but not really tested on older ones.

@@ -118,19 +118,19 @@ static std::string formatSymbol(const Dumper::Context &Ctx,
   std::string Buffer;
   raw_string_ostream OS(Buffer);
 
-  StringRef Name;
   SymbolRef Symbol;
-  if (Ctx.ResolveSymbol(Section, Offset, Symbol, Ctx.UserData) ||
-      Symbol.getName(Name)) {
-    OS << format(" (0x%" PRIX64 ")", Offset);
-    return OS.str();
+  if (!Ctx.ResolveSymbol(Section, Offset, Symbol, Ctx.UserData)) {
+    if (ErrorOr<StringRef> Name = Symbol.getName()) {
+      OS << *Name;
+      if (Displacement > 0)
+        OS << format(" +0x%X (0x%" PRIX64 ")", Displacement, Offset);
+      else
+        OS << format(" (0x%" PRIX64 ")", Offset);
+      return OS.str();
+    }
   }
 
-  OS << Name;
-  if (Displacement > 0)
-    OS << format(" +0x%X (0x%" PRIX64 ")", Displacement, Offset);
-  else
-    OS << format(" (0x%" PRIX64 ")", Offset);
+  OS << format(" (0x%" PRIX64 ")", Offset);
   return OS.str();
 }
 
@@ -144,15 +144,17 @@ static std::error_code resolveRelocation(const Dumper::Context &Ctx,
           Ctx.ResolveSymbol(Section, Offset, Symbol, Ctx.UserData))
     return EC;
 
-  if (std::error_code EC = Symbol.getAddress(ResolvedAddress))
+  ErrorOr<uint64_t> ResolvedAddressOrErr = Symbol.getAddress();
+  if (std::error_code EC = ResolvedAddressOrErr.getError())
     return EC;
+  ResolvedAddress = *ResolvedAddressOrErr;
 
   section_iterator SI = Ctx.COFF.section_begin();
   if (std::error_code EC = Symbol.getSection(SI))
     return EC;
 
   ResolvedSection = Ctx.COFF.getCOFFSection(*SI);
-  return object_error::success;
+  return std::error_code();
 }
 
 namespace llvm {

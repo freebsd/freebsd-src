@@ -77,6 +77,9 @@ int	getentropy(void *buf, size_t len);
 extern int main(int, char *argv[]);
 #endif
 static int gotdata(char *buf, size_t len);
+#ifdef SYS_getrandom
+static int getentropy_getrandom(void *buf, size_t len);
+#endif
 static int getentropy_urandom(void *buf, size_t len);
 #ifdef SYS__sysctl
 static int getentropy_sysctl(void *buf, size_t len);
@@ -94,11 +97,15 @@ getentropy(void *buf, size_t len)
 	}
 
 #ifdef SYS_getrandom
-	/* try to use getrandom syscall introduced with kernel 3.17 */
-	ret = syscall(SYS_getrandom, buf, len, 0);
+	/*
+	 * Try descriptor-less getrandom()
+	 */
+	ret = getentropy_getrandom(buf, len);
 	if (ret != -1)
 		return (ret);
-#endif /* SYS_getrandom */
+	if (errno != ENOSYS)
+		return (-1);
+#endif
 
 	/*
 	 * Try to get entropy with /dev/urandom
@@ -185,6 +192,25 @@ gotdata(char *buf, size_t len)
 	return 0;
 }
 
+#ifdef SYS_getrandom
+static int
+getentropy_getrandom(void *buf, size_t len)
+{
+	int pre_errno = errno;
+	int ret;
+	if (len > 256)
+		return (-1);
+	do {
+		ret = syscall(SYS_getrandom, buf, len, 0);
+	} while (ret == -1 && errno == EINTR);
+
+	if (ret != (int)len)
+		return (-1);
+	errno = pre_errno;
+	return (0);
+}
+#endif
+
 static int
 getentropy_urandom(void *buf, size_t len)
 {
@@ -258,7 +284,7 @@ getentropy_sysctl(void *buf, size_t len)
 		struct __sysctl_args args = {
 			.name = mib,
 			.nlen = 3,
-			.oldval = buf + i,
+			.oldval = (char *)buf + i,
 			.oldlenp = &chunk,
 		};
 		if (syscall(SYS__sysctl, &args) != 0)

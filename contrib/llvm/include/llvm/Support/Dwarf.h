@@ -20,6 +20,7 @@
 #ifndef LLVM_SUPPORT_DWARF_H
 #define LLVM_SUPPORT_DWARF_H
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
 
@@ -36,15 +37,11 @@ namespace dwarf {
 // enumeration base type.
 
 enum LLVMConstants : uint32_t {
-  // llvm mock tags
-  DW_TAG_invalid = ~0U, // Tag for invalid results.
+  // LLVM mock tags (see also llvm/Support/Dwarf.def).
+  DW_TAG_invalid = ~0U,        // Tag for invalid results.
+  DW_VIRTUALITY_invalid = ~0U, // Virtuality for invalid results.
 
-  DW_TAG_auto_variable = 0x100, // Tag for local (auto) variables.
-  DW_TAG_arg_variable = 0x101,  // Tag for argument variables.
-  DW_TAG_expression = 0x102,    // Tag for complex address expressions.
-
-  DW_TAG_user_base = 0x1000, // Recommended base for user tags.
-
+  // Other constants.
   DWARF_VERSION = 4,       // Default dwarf version we output.
   DW_PUBTYPES_VERSION = 2, // Section version number for .debug_pubtypes.
   DW_PUBNAMES_VERSION = 2, // Section version number for .debug_pubnames.
@@ -57,82 +54,11 @@ const uint32_t DW_CIE_ID = UINT32_MAX;
 const uint64_t DW64_CIE_ID = UINT64_MAX;
 
 enum Tag : uint16_t {
-  DW_TAG_array_type = 0x01,
-  DW_TAG_class_type = 0x02,
-  DW_TAG_entry_point = 0x03,
-  DW_TAG_enumeration_type = 0x04,
-  DW_TAG_formal_parameter = 0x05,
-  DW_TAG_imported_declaration = 0x08,
-  DW_TAG_label = 0x0a,
-  DW_TAG_lexical_block = 0x0b,
-  DW_TAG_member = 0x0d,
-  DW_TAG_pointer_type = 0x0f,
-  DW_TAG_reference_type = 0x10,
-  DW_TAG_compile_unit = 0x11,
-  DW_TAG_string_type = 0x12,
-  DW_TAG_structure_type = 0x13,
-  DW_TAG_subroutine_type = 0x15,
-  DW_TAG_typedef = 0x16,
-  DW_TAG_union_type = 0x17,
-  DW_TAG_unspecified_parameters = 0x18,
-  DW_TAG_variant = 0x19,
-  DW_TAG_common_block = 0x1a,
-  DW_TAG_common_inclusion = 0x1b,
-  DW_TAG_inheritance = 0x1c,
-  DW_TAG_inlined_subroutine = 0x1d,
-  DW_TAG_module = 0x1e,
-  DW_TAG_ptr_to_member_type = 0x1f,
-  DW_TAG_set_type = 0x20,
-  DW_TAG_subrange_type = 0x21,
-  DW_TAG_with_stmt = 0x22,
-  DW_TAG_access_declaration = 0x23,
-  DW_TAG_base_type = 0x24,
-  DW_TAG_catch_block = 0x25,
-  DW_TAG_const_type = 0x26,
-  DW_TAG_constant = 0x27,
-  DW_TAG_enumerator = 0x28,
-  DW_TAG_file_type = 0x29,
-  DW_TAG_friend = 0x2a,
-  DW_TAG_namelist = 0x2b,
-  DW_TAG_namelist_item = 0x2c,
-  DW_TAG_packed_type = 0x2d,
-  DW_TAG_subprogram = 0x2e,
-  DW_TAG_template_type_parameter = 0x2f,
-  DW_TAG_template_value_parameter = 0x30,
-  DW_TAG_thrown_type = 0x31,
-  DW_TAG_try_block = 0x32,
-  DW_TAG_variant_part = 0x33,
-  DW_TAG_variable = 0x34,
-  DW_TAG_volatile_type = 0x35,
-  DW_TAG_dwarf_procedure = 0x36,
-  DW_TAG_restrict_type = 0x37,
-  DW_TAG_interface_type = 0x38,
-  DW_TAG_namespace = 0x39,
-  DW_TAG_imported_module = 0x3a,
-  DW_TAG_unspecified_type = 0x3b,
-  DW_TAG_partial_unit = 0x3c,
-  DW_TAG_imported_unit = 0x3d,
-  DW_TAG_condition = 0x3f,
-  DW_TAG_shared_type = 0x40,
-  DW_TAG_type_unit = 0x41,
-  DW_TAG_rvalue_reference_type = 0x42,
-  DW_TAG_template_alias = 0x43,
-
-  // New in DWARF 5:
-  DW_TAG_coarray_type = 0x44,
-  DW_TAG_generic_subrange = 0x45,
-  DW_TAG_dynamic_type = 0x46,
-
-  DW_TAG_MIPS_loop = 0x4081,
-  DW_TAG_format_label = 0x4101,
-  DW_TAG_function_template = 0x4102,
-  DW_TAG_class_template = 0x4103,
-  DW_TAG_GNU_template_template_param = 0x4106,
-  DW_TAG_GNU_template_parameter_pack = 0x4107,
-  DW_TAG_GNU_formal_parameter_pack = 0x4108,
+#define HANDLE_DW_TAG(ID, NAME) DW_TAG_##NAME = ID,
+#include "llvm/Support/Dwarf.def"
   DW_TAG_lo_user = 0x4080,
-  DW_TAG_APPLE_property = 0x4200,
-  DW_TAG_hi_user = 0xffff
+  DW_TAG_hi_user = 0xffff,
+  DW_TAG_user_base = 0x1000 // Recommended base for user tags.
 };
 
 inline bool isType(Tag T) {
@@ -313,6 +239,11 @@ enum Attribute : uint16_t {
   DW_AT_GNU_pubnames = 0x2134,
   DW_AT_GNU_pubtypes = 0x2135,
 
+  // LLVM project extensions.
+  DW_AT_LLVM_include_path = 0x3e00,
+  DW_AT_LLVM_config_macros = 0x3e01,
+  DW_AT_LLVM_isysroot = 0x3e02,
+
   // Apple extensions.
   DW_AT_APPLE_optimized = 0x3fe1,
   DW_AT_APPLE_flags = 0x3fe2,
@@ -359,194 +290,23 @@ enum Form : uint16_t {
 
   // Extensions for Fission proposal
   DW_FORM_GNU_addr_index = 0x1f01,
-  DW_FORM_GNU_str_index = 0x1f02
+  DW_FORM_GNU_str_index = 0x1f02,
+
+  // Alternate debug sections proposal (output of "dwz" tool).
+  DW_FORM_GNU_ref_alt = 0x1f20,
+  DW_FORM_GNU_strp_alt = 0x1f21
 };
 
 enum LocationAtom {
-  // Operation encodings
-  DW_OP_addr = 0x03,
-  DW_OP_deref = 0x06,
-  DW_OP_const1u = 0x08,
-  DW_OP_const1s = 0x09,
-  DW_OP_const2u = 0x0a,
-  DW_OP_const2s = 0x0b,
-  DW_OP_const4u = 0x0c,
-  DW_OP_const4s = 0x0d,
-  DW_OP_const8u = 0x0e,
-  DW_OP_const8s = 0x0f,
-  DW_OP_constu = 0x10,
-  DW_OP_consts = 0x11,
-  DW_OP_dup = 0x12,
-  DW_OP_drop = 0x13,
-  DW_OP_over = 0x14,
-  DW_OP_pick = 0x15,
-  DW_OP_swap = 0x16,
-  DW_OP_rot = 0x17,
-  DW_OP_xderef = 0x18,
-  DW_OP_abs = 0x19,
-  DW_OP_and = 0x1a,
-  DW_OP_div = 0x1b,
-  DW_OP_minus = 0x1c,
-  DW_OP_mod = 0x1d,
-  DW_OP_mul = 0x1e,
-  DW_OP_neg = 0x1f,
-  DW_OP_not = 0x20,
-  DW_OP_or = 0x21,
-  DW_OP_plus = 0x22,
-  DW_OP_plus_uconst = 0x23,
-  DW_OP_shl = 0x24,
-  DW_OP_shr = 0x25,
-  DW_OP_shra = 0x26,
-  DW_OP_xor = 0x27,
-  DW_OP_skip = 0x2f,
-  DW_OP_bra = 0x28,
-  DW_OP_eq = 0x29,
-  DW_OP_ge = 0x2a,
-  DW_OP_gt = 0x2b,
-  DW_OP_le = 0x2c,
-  DW_OP_lt = 0x2d,
-  DW_OP_ne = 0x2e,
-  DW_OP_lit0 = 0x30,
-  DW_OP_lit1 = 0x31,
-  DW_OP_lit2 = 0x32,
-  DW_OP_lit3 = 0x33,
-  DW_OP_lit4 = 0x34,
-  DW_OP_lit5 = 0x35,
-  DW_OP_lit6 = 0x36,
-  DW_OP_lit7 = 0x37,
-  DW_OP_lit8 = 0x38,
-  DW_OP_lit9 = 0x39,
-  DW_OP_lit10 = 0x3a,
-  DW_OP_lit11 = 0x3b,
-  DW_OP_lit12 = 0x3c,
-  DW_OP_lit13 = 0x3d,
-  DW_OP_lit14 = 0x3e,
-  DW_OP_lit15 = 0x3f,
-  DW_OP_lit16 = 0x40,
-  DW_OP_lit17 = 0x41,
-  DW_OP_lit18 = 0x42,
-  DW_OP_lit19 = 0x43,
-  DW_OP_lit20 = 0x44,
-  DW_OP_lit21 = 0x45,
-  DW_OP_lit22 = 0x46,
-  DW_OP_lit23 = 0x47,
-  DW_OP_lit24 = 0x48,
-  DW_OP_lit25 = 0x49,
-  DW_OP_lit26 = 0x4a,
-  DW_OP_lit27 = 0x4b,
-  DW_OP_lit28 = 0x4c,
-  DW_OP_lit29 = 0x4d,
-  DW_OP_lit30 = 0x4e,
-  DW_OP_lit31 = 0x4f,
-  DW_OP_reg0 = 0x50,
-  DW_OP_reg1 = 0x51,
-  DW_OP_reg2 = 0x52,
-  DW_OP_reg3 = 0x53,
-  DW_OP_reg4 = 0x54,
-  DW_OP_reg5 = 0x55,
-  DW_OP_reg6 = 0x56,
-  DW_OP_reg7 = 0x57,
-  DW_OP_reg8 = 0x58,
-  DW_OP_reg9 = 0x59,
-  DW_OP_reg10 = 0x5a,
-  DW_OP_reg11 = 0x5b,
-  DW_OP_reg12 = 0x5c,
-  DW_OP_reg13 = 0x5d,
-  DW_OP_reg14 = 0x5e,
-  DW_OP_reg15 = 0x5f,
-  DW_OP_reg16 = 0x60,
-  DW_OP_reg17 = 0x61,
-  DW_OP_reg18 = 0x62,
-  DW_OP_reg19 = 0x63,
-  DW_OP_reg20 = 0x64,
-  DW_OP_reg21 = 0x65,
-  DW_OP_reg22 = 0x66,
-  DW_OP_reg23 = 0x67,
-  DW_OP_reg24 = 0x68,
-  DW_OP_reg25 = 0x69,
-  DW_OP_reg26 = 0x6a,
-  DW_OP_reg27 = 0x6b,
-  DW_OP_reg28 = 0x6c,
-  DW_OP_reg29 = 0x6d,
-  DW_OP_reg30 = 0x6e,
-  DW_OP_reg31 = 0x6f,
-  DW_OP_breg0 = 0x70,
-  DW_OP_breg1 = 0x71,
-  DW_OP_breg2 = 0x72,
-  DW_OP_breg3 = 0x73,
-  DW_OP_breg4 = 0x74,
-  DW_OP_breg5 = 0x75,
-  DW_OP_breg6 = 0x76,
-  DW_OP_breg7 = 0x77,
-  DW_OP_breg8 = 0x78,
-  DW_OP_breg9 = 0x79,
-  DW_OP_breg10 = 0x7a,
-  DW_OP_breg11 = 0x7b,
-  DW_OP_breg12 = 0x7c,
-  DW_OP_breg13 = 0x7d,
-  DW_OP_breg14 = 0x7e,
-  DW_OP_breg15 = 0x7f,
-  DW_OP_breg16 = 0x80,
-  DW_OP_breg17 = 0x81,
-  DW_OP_breg18 = 0x82,
-  DW_OP_breg19 = 0x83,
-  DW_OP_breg20 = 0x84,
-  DW_OP_breg21 = 0x85,
-  DW_OP_breg22 = 0x86,
-  DW_OP_breg23 = 0x87,
-  DW_OP_breg24 = 0x88,
-  DW_OP_breg25 = 0x89,
-  DW_OP_breg26 = 0x8a,
-  DW_OP_breg27 = 0x8b,
-  DW_OP_breg28 = 0x8c,
-  DW_OP_breg29 = 0x8d,
-  DW_OP_breg30 = 0x8e,
-  DW_OP_breg31 = 0x8f,
-  DW_OP_regx = 0x90,
-  DW_OP_fbreg = 0x91,
-  DW_OP_bregx = 0x92,
-  DW_OP_piece = 0x93,
-  DW_OP_deref_size = 0x94,
-  DW_OP_xderef_size = 0x95,
-  DW_OP_nop = 0x96,
-  DW_OP_push_object_address = 0x97,
-  DW_OP_call2 = 0x98,
-  DW_OP_call4 = 0x99,
-  DW_OP_call_ref = 0x9a,
-  DW_OP_form_tls_address = 0x9b,
-  DW_OP_call_frame_cfa = 0x9c,
-  DW_OP_bit_piece = 0x9d,
-  DW_OP_implicit_value = 0x9e,
-  DW_OP_stack_value = 0x9f,
+#define HANDLE_DW_OP(ID, NAME) DW_OP_##NAME = ID,
+#include "llvm/Support/Dwarf.def"
   DW_OP_lo_user = 0xe0,
-  DW_OP_hi_user = 0xff,
-
-  // Extensions for GNU-style thread-local storage.
-  DW_OP_GNU_push_tls_address = 0xe0,
-
-  // Extensions for Fission proposal.
-  DW_OP_GNU_addr_index = 0xfb,
-  DW_OP_GNU_const_index = 0xfc
+  DW_OP_hi_user = 0xff
 };
 
 enum TypeKind {
-  // Encoding attribute values
-  DW_ATE_address = 0x01,
-  DW_ATE_boolean = 0x02,
-  DW_ATE_complex_float = 0x03,
-  DW_ATE_float = 0x04,
-  DW_ATE_signed = 0x05,
-  DW_ATE_signed_char = 0x06,
-  DW_ATE_unsigned = 0x07,
-  DW_ATE_unsigned_char = 0x08,
-  DW_ATE_imaginary_float = 0x09,
-  DW_ATE_packed_decimal = 0x0a,
-  DW_ATE_numeric_string = 0x0b,
-  DW_ATE_edited = 0x0c,
-  DW_ATE_signed_fixed = 0x0d,
-  DW_ATE_unsigned_fixed = 0x0e,
-  DW_ATE_decimal_float = 0x0f,
-  DW_ATE_UTF = 0x10,
+#define HANDLE_DW_ATE(ID, NAME) DW_ATE_##NAME = ID,
+#include "llvm/Support/Dwarf.def"
   DW_ATE_lo_user = 0x80,
   DW_ATE_hi_user = 0xff
 };
@@ -584,45 +344,15 @@ enum VisibilityAttribute {
 };
 
 enum VirtualityAttribute {
-  // Virtuality codes
-  DW_VIRTUALITY_none = 0x00,
-  DW_VIRTUALITY_virtual = 0x01,
-  DW_VIRTUALITY_pure_virtual = 0x02
+#define HANDLE_DW_VIRTUALITY(ID, NAME) DW_VIRTUALITY_##NAME = ID,
+#include "llvm/Support/Dwarf.def"
+  DW_VIRTUALITY_max = 0x02
 };
 
 enum SourceLanguage {
-  // Language names
-  DW_LANG_C89 = 0x0001,
-  DW_LANG_C = 0x0002,
-  DW_LANG_Ada83 = 0x0003,
-  DW_LANG_C_plus_plus = 0x0004,
-  DW_LANG_Cobol74 = 0x0005,
-  DW_LANG_Cobol85 = 0x0006,
-  DW_LANG_Fortran77 = 0x0007,
-  DW_LANG_Fortran90 = 0x0008,
-  DW_LANG_Pascal83 = 0x0009,
-  DW_LANG_Modula2 = 0x000a,
-  DW_LANG_Java = 0x000b,
-  DW_LANG_C99 = 0x000c,
-  DW_LANG_Ada95 = 0x000d,
-  DW_LANG_Fortran95 = 0x000e,
-  DW_LANG_PLI = 0x000f,
-  DW_LANG_ObjC = 0x0010,
-  DW_LANG_ObjC_plus_plus = 0x0011,
-  DW_LANG_UPC = 0x0012,
-  DW_LANG_D = 0x0013,
-  // New in DWARF 5:
-  DW_LANG_Python = 0x0014,
-  DW_LANG_OpenCL = 0x0015,
-  DW_LANG_Go = 0x0016,
-  DW_LANG_Modula3 = 0x0017,
-  DW_LANG_Haskell = 0x0018,
-  DW_LANG_C_plus_plus_03 = 0x0019,
-  DW_LANG_C_plus_plus_11 = 0x001a,
-  DW_LANG_OCaml = 0x001b,
-
+#define HANDLE_DW_LANG(ID, NAME) DW_LANG_##NAME = ID,
+#include "llvm/Support/Dwarf.def"
   DW_LANG_lo_user = 0x8000,
-  DW_LANG_Mips_Assembler = 0x8001,
   DW_LANG_hi_user = 0xffff
 };
 
@@ -857,6 +587,22 @@ const char *ApplePropertyString(unsigned);
 const char *AtomTypeString(unsigned Atom);
 const char *GDBIndexEntryKindString(GDBIndexEntryKind Kind);
 const char *GDBIndexEntryLinkageString(GDBIndexEntryLinkage Linkage);
+/// @}
+
+/// \defgroup DwarfConstantsParsing Dwarf constants parsing functions
+///
+/// These functions map their strings back to the corresponding enumeration
+/// value or return 0 if there is none, except for these exceptions:
+///
+/// \li \a getTag() returns \a DW_TAG_invalid on invalid input.
+/// \li \a getVirtuality() returns \a DW_VIRTUALITY_invalid on invalid input.
+///
+/// @{
+unsigned getTag(StringRef TagString);
+unsigned getOperationEncoding(StringRef OperationEncodingString);
+unsigned getVirtuality(StringRef VirtualityString);
+unsigned getLanguage(StringRef LanguageString);
+unsigned getAttributeEncoding(StringRef EncodingString);
 /// @}
 
 /// \brief Returns the symbolic string representing Val when used as a value

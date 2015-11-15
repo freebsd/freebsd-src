@@ -236,6 +236,12 @@ class ASTContext : public RefCountedBase<ASTContext> {
   QualType ObjCClassRedefinitionType;
   QualType ObjCSelRedefinitionType;
 
+  /// The identifier 'NSObject'.
+  IdentifierInfo *NSObjectName = nullptr;
+
+  /// The identifier 'NSCopying'.
+  IdentifierInfo *NSCopyingName = nullptr;
+
   QualType ObjCConstantStringType;
   mutable RecordDecl *CFConstantStringTypeDecl;
   
@@ -283,6 +289,11 @@ class ASTContext : public RefCountedBase<ASTContext> {
   /// merged with other declarations to the canonical declaration that they were
   /// merged into.
   llvm::DenseMap<Decl*, Decl*> MergedDecls;
+
+  /// \brief A mapping from a defining declaration to a list of modules (other
+  /// than the owning module of the declaration) that contain merged
+  /// definitions of that entity.
+  llvm::DenseMap<NamedDecl*, llvm::TinyPtrVector<Module*>> MergedDefModules;
 
 public:
   /// \brief A type synonym for the TemplateOrInstantiation mapping.
@@ -383,6 +394,7 @@ private:
   ImportDecl *LastLocalImport;
   
   TranslationUnitDecl *TUDecl;
+  mutable ExternCContextDecl *ExternCContext;
 
   /// \brief The associated SourceManager object.a
   SourceManager &SourceMgr;
@@ -780,8 +792,26 @@ public:
     MergedDecls[D] = Primary;
   }
 
+  /// \brief Note that the definition \p ND has been merged into module \p M,
+  /// and should be visible whenever \p M is visible.
+  void mergeDefinitionIntoModule(NamedDecl *ND, Module *M,
+                                 bool NotifyListeners = true);
+  /// \brief Clean up the merged definition list. Call this if you might have
+  /// added duplicates into the list.
+  void deduplicateMergedDefinitonsFor(NamedDecl *ND);
+
+  /// \brief Get the additional modules in which the definition \p Def has
+  /// been merged.
+  ArrayRef<Module*> getModulesWithMergedDefinition(NamedDecl *Def) {
+    auto MergedIt = MergedDefModules.find(Def);
+    if (MergedIt == MergedDefModules.end())
+      return None;
+    return MergedIt->second;
+  }
+
   TranslationUnitDecl *getTranslationUnitDecl() const { return TUDecl; }
 
+  ExternCContextDecl *getExternCContextDecl() const;
 
   // Builtin Types.
   CanQualType VoidTy;
@@ -1165,9 +1195,15 @@ public:
   QualType getObjCInterfaceType(const ObjCInterfaceDecl *Decl,
                                 ObjCInterfaceDecl *PrevDecl = nullptr) const;
 
+  /// Legacy interface: cannot provide type arguments or __kindof.
   QualType getObjCObjectType(QualType Base,
                              ObjCProtocolDecl * const *Protocols,
                              unsigned NumProtocols) const;
+
+  QualType getObjCObjectType(QualType Base,
+                             ArrayRef<QualType> typeArgs,
+                             ArrayRef<ObjCProtocolDecl *> protocols,
+                             bool isKindOf) const;
   
   bool ObjCObjectAdoptsQTypeProtocols(QualType QT, ObjCInterfaceDecl *Decl);
   /// QIdProtocolsAdoptObjCObjectProtocols - Checks that protocols in
@@ -1325,6 +1361,24 @@ public:
   /// \brief Set the user-written type that redefines 'SEL'.
   void setObjCSelRedefinitionType(QualType RedefType) {
     ObjCSelRedefinitionType = RedefType;
+  }
+
+  /// Retrieve the identifier 'NSObject'.
+  IdentifierInfo *getNSObjectName() {
+    if (!NSObjectName) {
+      NSObjectName = &Idents.get("NSObject");
+    }
+
+    return NSObjectName;
+  }
+
+  /// Retrieve the identifier 'NSCopying'.
+  IdentifierInfo *getNSCopyingName() {
+    if (!NSCopyingName) {
+      NSCopyingName = &Idents.get("NSCopying");
+    }
+
+    return NSCopyingName;
   }
 
   /// \brief Retrieve the Objective-C "instancetype" type, if already known;
@@ -1640,6 +1694,9 @@ public:
   TypeInfo getTypeInfo(const Type *T) const;
   TypeInfo getTypeInfo(QualType T) const { return getTypeInfo(T.getTypePtr()); }
 
+  /// \brief Get default simd alignment of the specified complete type in bits.
+  unsigned getOpenMPDefaultSimdAlign(QualType T) const;
+
   /// \brief Return the size of the specified (complete) type \p T, in bits.
   uint64_t getTypeSize(QualType T) const { return getTypeInfo(T).Width; }
   uint64_t getTypeSize(const Type *T) const { return getTypeInfo(T).Width; }
@@ -1688,6 +1745,10 @@ public:
   /// This can be different than the ABI alignment in cases where it is
   /// beneficial for performance to overalign a data type.
   unsigned getPreferredTypeAlign(const Type *T) const;
+
+  /// \brief Return the default alignment for __attribute__((aligned)) on
+  /// this target, to be used if no alignment value is specified.
+  unsigned getTargetDefaultAlignForAttributeAligned(void) const;
 
   /// \brief Return the alignment in bits that should be given to a
   /// global variable with type \p T.
@@ -1751,6 +1812,17 @@ public:
   ///
   /// \param method should be the declaration from the class definition
   void setNonKeyFunction(const CXXMethodDecl *method);
+
+  /// Loading virtual member pointers using the virtual inheritance model
+  /// always results in an adjustment using the vbtable even if the index is
+  /// zero.
+  ///
+  /// This is usually OK because the first slot in the vbtable points
+  /// backwards to the top of the MDC.  However, the MDC might be reusing a
+  /// vbptr from an nv-base.  In this case, the first slot in the vbtable
+  /// points to the start of the nv-base which introduced the vbptr and *not*
+  /// the MDC.  Modify the NonVirtualBaseAdjustment to account for this.
+  CharUnits getOffsetOfBaseWithVBPtr(const CXXRecordDecl *RD) const;
 
   /// Get the offset of a FieldDecl or IndirectFieldDecl, in bits.
   uint64_t getFieldOffset(const ValueDecl *FD) const;
@@ -1824,6 +1896,36 @@ public:
   bool hasSameUnqualifiedType(QualType T1, QualType T2) const {
     return getCanonicalType(T1).getTypePtr() ==
            getCanonicalType(T2).getTypePtr();
+  }
+
+  bool hasSameNullabilityTypeQualifier(QualType SubT, QualType SuperT,
+                                       bool IsParam) const {
+    auto SubTnullability = SubT->getNullability(*this);
+    auto SuperTnullability = SuperT->getNullability(*this);
+    if (SubTnullability.hasValue() == SuperTnullability.hasValue()) {
+      // Neither has nullability; return true
+      if (!SubTnullability)
+        return true;
+      // Both have nullability qualifier.
+      if (*SubTnullability == *SuperTnullability ||
+          *SubTnullability == NullabilityKind::Unspecified ||
+          *SuperTnullability == NullabilityKind::Unspecified)
+        return true;
+      
+      if (IsParam) {
+        // Ok for the superclass method parameter to be "nonnull" and the subclass
+        // method parameter to be "nullable"
+        return (*SuperTnullability == NullabilityKind::NonNull &&
+                *SubTnullability == NullabilityKind::Nullable);
+      }
+      else {
+        // For the return type, it's okay for the superclass method to specify
+        // "nullable" and the subclass method specify "nonnull"
+        return (*SuperTnullability == NullabilityKind::Nullable &&
+                *SubTnullability == NullabilityKind::NonNull);
+      }
+    }
+    return true;
   }
 
   bool ObjCMethodsAreEqual(const ObjCMethodDecl *MethodDecl,
@@ -1935,6 +2037,8 @@ public:
   /// of a function, decaying array and function types and removing top-level
   /// cv-qualifiers.
   QualType getSignatureParameterType(QualType T) const;
+  
+  QualType getExceptionObjectType(QualType T) const;
   
   /// \brief Return the properly qualified result of decaying the specified
   /// array type to a pointer.
@@ -2191,6 +2295,18 @@ public:
   /// it is not used.
   bool DeclMustBeEmitted(const Decl *D);
 
+  const CXXConstructorDecl *
+  getCopyConstructorForExceptionObject(CXXRecordDecl *RD);
+
+  void addCopyConstructorForExceptionObject(CXXRecordDecl *RD,
+                                            CXXConstructorDecl *CD);
+
+  void addDefaultArgExprForConstructor(const CXXConstructorDecl *CD,
+                                       unsigned ParmIdx, Expr *DAE);
+
+  Expr *getDefaultArgExprForConstructor(const CXXConstructorDecl *CD,
+                                        unsigned ParmIdx);
+
   void setManglingNumber(const NamedDecl *ND, unsigned Number);
   unsigned getManglingNumber(const NamedDecl *ND) const;
 
@@ -2263,8 +2379,8 @@ public:
   static unsigned NumImplicitDestructorsDeclared;
   
 private:
-  ASTContext(const ASTContext &) LLVM_DELETED_FUNCTION;
-  void operator=(const ASTContext &) LLVM_DELETED_FUNCTION;
+  ASTContext(const ASTContext &) = delete;
+  void operator=(const ASTContext &) = delete;
 
 public:
   /// \brief Initialize built-in types.

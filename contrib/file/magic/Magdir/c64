@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: c64,v 1.5 2009/09/19 16:28:08 christos Exp $
+# $File: c64,v 1.6 2015/08/24 05:17:42 christos Exp $
 # c64:  file(1) magic for various commodore 64 related files
 #
 # From: Dirk Jagdmann <doj@cubic.org>
@@ -41,3 +41,9 @@
 >32	leshort		x		Version:0x%x
 >36	leshort		!0		Entries:%i
 >40	string		x		Name:%.24s
+
+# Raw tape file format (.tap files)
+# Esa Hyyti <esa@netlab.tkk.fi>
+0	string		C64-TAPE-RAW	C64 Raw Tape File (.tap),
+>0x0c	byte		x		Version:%u,
+>0x10   lelong		x		Length:%u cycles

@@ -157,7 +157,6 @@ SYSINIT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp);
 
 int vm_pages_needed;		/* Event on which pageout daemon sleeps */
 int vm_pageout_deficit;		/* Estimated number of pages deficit */
-int vm_pageout_pages_needed;	/* flag saying that the pageout daemon needs pages */
 int vm_pageout_wakeup_thresh;
 
 #if !defined(NO_SWAPPING)
@@ -293,11 +292,21 @@ vm_pageout_fallback_object_lock(vm_page_t m, vm_page_t *next)
 	vm_page_lock(m);
 	vm_pagequeue_lock(pq);
 
-	/* Page queue might have changed. */
+	/*
+	 * The page's object might have changed, and/or the page might
+	 * have moved from its original position in the queue.  If the
+	 * page's object has changed, then the caller should abandon
+	 * processing the page because the wrong object lock was
+	 * acquired.  Use the marker's plinks.q, not the page's, to
+	 * determine if the page has been moved.  The state of the
+	 * page's plinks.q can be indeterminate; whereas, the marker's
+	 * plinks.q must be valid.
+	 */
 	*next = TAILQ_NEXT(&marker, plinks.q);
-	unchanged = (m->queue == queue &&
-		     m->object == object &&
-		     &marker == TAILQ_NEXT(m, plinks.q));
+	unchanged = m->object == object &&
+	    m == TAILQ_PREV(&marker, pglist, plinks.q);
+	KASSERT(!unchanged || m->queue == queue,
+	    ("page %p queue %d %d", m, queue, m->queue));
 	TAILQ_REMOVE(&pq->pq_pl, &marker, plinks.q);
 	return (unchanged);
 }
@@ -334,7 +343,9 @@ vm_pageout_page_lock(vm_page_t m, vm_page_t *next)
 
 	/* Page queue might have changed. */
 	*next = TAILQ_NEXT(&marker, plinks.q);
-	unchanged = (m->queue == queue && &marker == TAILQ_NEXT(m, plinks.q));
+	unchanged = m == TAILQ_PREV(&marker, pglist, plinks.q);
+	KASSERT(!unchanged || m->queue == queue,
+	    ("page %p queue %d %d", m, queue, m->queue));
 	TAILQ_REMOVE(&pq->pq_pl, &marker, plinks.q);
 	return (unchanged);
 }
@@ -1178,12 +1189,8 @@ unlock_page:
 		 * Invalid pages can be easily freed. They cannot be
 		 * mapped, vm_page_free() asserts this.
 		 */
-		if (m->valid == 0) {
-			vm_page_free(m);
-			PCPU_INC(cnt.v_dfree);
-			--page_shortage;
-			goto drop_page;
-		}
+		if (m->valid == 0)
+			goto free_page;
 
 		/*
 		 * If the page has been referenced and the object is not dead,
@@ -1214,12 +1221,8 @@ unlock_page:
  				 */
 				m->act_count += act_delta + ACT_ADVANCE;
 				goto drop_page;
-			} else if ((object->flags & OBJ_DEAD) == 0) {
-				vm_pagequeue_lock(pq);
-				queues_locked = TRUE;
-				vm_page_requeue_locked(m);
-				goto drop_page;
-			}
+			} else if ((object->flags & OBJ_DEAD) == 0)
+				goto requeue_page;
 		}
 
 		/*
@@ -1240,6 +1243,7 @@ unlock_page:
 			/*
 			 * Clean pages can be freed.
 			 */
+free_page:
 			vm_page_free(m);
 			PCPU_INC(cnt.v_dfree);
 			--page_shortage;
@@ -1266,6 +1270,7 @@ unlock_page:
 			 * the thrash point for a heavily loaded machine.
 			 */
 			m->flags |= PG_WINATCFLS;
+requeue_page:
 			vm_pagequeue_lock(pq);
 			queues_locked = TRUE;
 			vm_page_requeue_locked(m);
@@ -1287,12 +1292,8 @@ unlock_page:
 				pageout_ok = vm_page_count_min();
 			else
 				pageout_ok = TRUE;
-			if (!pageout_ok) {
-				vm_pagequeue_lock(pq);
-				queues_locked = TRUE;
-				vm_page_requeue_locked(m);
-				goto drop_page;
-			}
+			if (!pageout_ok)
+				goto requeue_page;
 			error = vm_pageout_clean(m);
 			/*
 			 * Decrement page_shortage on success to account for
@@ -1629,6 +1630,9 @@ vm_pageout_worker(void *arg)
 	KASSERT(domain->vmd_segs != 0, ("domain without segments"));
 	domain->vmd_last_active_scan = ticks;
 	vm_pageout_init_marker(&domain->vmd_marker, PQ_INACTIVE);
+	vm_pageout_init_marker(&domain->vmd_inacthead, PQ_INACTIVE);
+	TAILQ_INSERT_HEAD(&domain->vmd_pagequeues[PQ_INACTIVE].pq_pl,
+	    &domain->vmd_inacthead, plinks.q);
 
 	/*
 	 * The pageout daemon worker is never done, so loop forever.
@@ -1648,9 +1652,15 @@ vm_pageout_worker(void *arg)
 		}
 		if (vm_pages_needed) {
 			/*
-			 * Still not done, take a second pass without waiting
-			 * (unlimited dirty cleaning), otherwise sleep a bit
-			 * and try again.
+			 * We're still not done.  Either vm_pages_needed was
+			 * set by another thread during the previous scan
+			 * (typically, this happens during a level 0 scan) or
+			 * vm_pages_needed was already set and the scan failed
+			 * to free enough pages.  If we haven't yet performed
+			 * a level >= 2 scan (unlimited dirty cleaning), then
+			 * upgrade the level and scan again now.  Otherwise,
+			 * sleep a bit and try again later.  While sleeping,
+			 * vm_pages_needed can be cleared.
 			 */
 			if (domain->vmd_pass > 1)
 				msleep(&vm_pages_needed,
@@ -1661,15 +1671,14 @@ vm_pageout_worker(void *arg)
 			 * Good enough, sleep until required to refresh
 			 * stats.
 			 */
-			domain->vmd_pass = 0;
 			msleep(&vm_pages_needed, &vm_page_queue_free_mtx,
 			    PVM, "psleep", hz);
-
 		}
 		if (vm_pages_needed) {
 			vm_cnt.v_pdwakeups++;
 			domain->vmd_pass++;
-		}
+		} else
+			domain->vmd_pass = 0;
 		mtx_unlock(&vm_page_queue_free_mtx);
 		vm_pageout_scan(domain, domain->vmd_pass);
 	}

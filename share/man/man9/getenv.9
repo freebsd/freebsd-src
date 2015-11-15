@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2013
+.Dd October 22, 2015
 .Dt GETENV 9
 .Os
 .Sh NAME
@@ -78,7 +78,6 @@ function obtains the current value of the kernel environment variable
 .Fa name
 and returns a pointer to the string value.
 The caller should not modify the string pointed to by the return value.
-.Pp
 The
 .Fn getenv
 function may allocate temporary storage,
@@ -88,12 +87,24 @@ function must be called to release any allocated resources when the value
 returned by
 .Fn getenv
 is no longer needed.
+.Pp
+The
+.Fn freeenv
+function is used to release the resources allocated by a previous call to
+.Fn getenv .
 The
 .Fa env
 argument passed to
 .Fn freeenv
 is the pointer returned by the earlier call to
 .Fn getenv .
+Like
+.Xr free 3 ,
+the
+.Fa env
+argument can be
+.Va NULL ,
+in which case no action occurs.
 .Pp
 The
 .Fn setenv
@@ -156,7 +167,8 @@ Otherwise,
 the value is interpreted as decimal.
 The value may contain a single character suffix specifying a unit for
 the value.
-The interpreted value is multipled by the unit's magnitude before being returned.
+The interpreted value is multiplied by the unit's magnitude before being
+returned.
 The following unit suffixes are supported:
 .Bl -column -offset indent ".Sy Unit" ".Sy Magnitude"
 .It Sy Unit Ta Sy Magnitude
@@ -179,7 +191,7 @@ zero is returned.
 If the variable exists,
 up to
 .Fa size - 1
-characters of it's value are copied to the buffer pointed to by
+characters of its value are copied to the buffer pointed to by
 .Fa data
 followed by a null character and a non-zero value is returned.
 .Sh RETURN VALUES

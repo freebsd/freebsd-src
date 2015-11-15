@@ -15,7 +15,7 @@
 
 namespace lldb {
 
-class SBFrame
+class LLDB_API SBFrame
 {
 public:
     SBFrame ();
@@ -25,7 +25,7 @@ public:
     const lldb::SBFrame &
     operator =(const lldb::SBFrame &rhs);
 
-   ~SBFrame();
+    ~SBFrame();
 
     bool
     IsEqual (const lldb::SBFrame &that) const;
@@ -35,6 +35,9 @@ public:
 
     uint32_t
     GetFrameID () const;
+
+    lldb::addr_t
+    GetCFA () const;
 
     lldb::addr_t
     GetPC () const;
@@ -87,13 +90,23 @@ public:
     /// See also IsInlined().
     const char *
     GetFunctionName();
+    
+    // Get an appropriate function name for this frame that is suitable for display to a user
+    const char *
+    GetDisplayFunctionName ();
+
+    const char *
+    GetFunctionName() const;
 
     /// Return true if this frame represents an inlined function.
     ///
     /// See also GetFunctionName().
     bool
     IsInlined();
-    
+
+    bool
+    IsInlined() const;
+
     /// The version that doesn't supply a 'use_dynamic' value will use the
     /// target's default.
     lldb::SBValue
@@ -157,6 +170,9 @@ public:
                   lldb::DynamicValueType  use_dynamic);
 
     lldb::SBValueList
+    GetVariables (const lldb::SBVariablesOptions& options);
+    
+    lldb::SBValueList
     GetRegisters ();
 
     lldb::SBValue
@@ -210,9 +226,6 @@ protected:
     friend class SBInstruction;
     friend class SBThread;
     friend class SBValue;
-#ifndef LLDB_DISABLE_PYTHON
-    friend class lldb_private::ScriptInterpreterPython;
-#endif
 
     lldb::StackFrameSP
     GetFrameSP() const;

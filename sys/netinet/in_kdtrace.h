@@ -34,6 +34,12 @@
 	SDT_PROBE5(udp, , , probe, arg0, arg1, arg2, arg3, arg4)
 #define	TCP_PROBE1(probe, arg0) \
 	SDT_PROBE1(tcp, , , probe, arg0)
+#define	TCP_PROBE2(probe, arg0, arg1)		\
+	SDT_PROBE2(tcp, , , probe, arg0, arg1)
+#define	TCP_PROBE3(probe, arg0, arg1, arg2)		\
+	SDT_PROBE3(tcp, , , probe, arg0, arg1, arg2)
+#define	TCP_PROBE4(probe, arg0, arg1, arg2, arg3)	\
+	SDT_PROBE4(tcp, , , probe, arg0, arg1, arg2, arg3)
 #define	TCP_PROBE5(probe, arg0, arg1, arg2, arg3, arg4)			\
 	SDT_PROBE5(tcp, , , probe, arg0, arg1, arg2, arg3, arg4)
 #define	TCP_PROBE6(probe, arg0, arg1, arg2, arg3, arg4, arg5)		\
@@ -55,6 +61,10 @@ SDT_PROBE_DECLARE(tcp, , , receive);
 SDT_PROBE_DECLARE(tcp, , , send);
 SDT_PROBE_DECLARE(tcp, , , siftr);
 SDT_PROBE_DECLARE(tcp, , , state__change);
+SDT_PROBE_DECLARE(tcp, , , debug__input);
+SDT_PROBE_DECLARE(tcp, , , debug__output);
+SDT_PROBE_DECLARE(tcp, , , debug__user);
+SDT_PROBE_DECLARE(tcp, , , debug__drop);
 
 SDT_PROBE_DECLARE(udp, , , receive);
 SDT_PROBE_DECLARE(udp, , , send);

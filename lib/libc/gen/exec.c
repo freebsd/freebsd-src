@@ -131,9 +131,7 @@ execlp(const char *name, const char *arg, ...)
 }
 
 int
-execv(name, argv)
-	const char *name;
-	char * const *argv;
+execv(const char *name, char * const *argv)
 {
 	(void)_execve(name, argv, environ);
 	return (-1);

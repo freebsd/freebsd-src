@@ -10,12 +10,14 @@ SRCS=	CommandCompletions.cpp \
 	CommandObjectArgs.cpp \
 	CommandObjectBreakpoint.cpp \
 	CommandObjectBreakpointCommand.cpp \
+	CommandObjectBugreport.cpp \
 	CommandObjectCommands.cpp \
 	CommandObjectDisassemble.cpp \
 	CommandObjectExpression.cpp \
 	CommandObjectFrame.cpp \
 	CommandObjectGUI.cpp \
 	CommandObjectHelp.cpp \
+	CommandObjectLanguage.cpp \
 	CommandObjectLog.cpp \
 	CommandObjectMemory.cpp \
 	CommandObjectMultiword.cpp \

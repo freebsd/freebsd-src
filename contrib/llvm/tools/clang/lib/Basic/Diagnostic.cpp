@@ -24,6 +24,27 @@
 
 using namespace clang;
 
+const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
+                                           DiagNullabilityKind nullability) {
+  StringRef string;
+  switch (nullability.first) {
+  case NullabilityKind::NonNull:
+    string = nullability.second ? "'nonnull'" : "'_Nonnull'";
+    break;
+
+  case NullabilityKind::Nullable:
+    string = nullability.second ? "'nullable'" : "'_Nullable'";
+    break;
+
+  case NullabilityKind::Unspecified:
+    string = nullability.second ? "'null_unspecified'" : "'_Null_unspecified'";
+    break;
+  }
+
+  DB.AddString(string);
+  return DB;
+}
+
 static void DummyArgToStringFn(DiagnosticsEngine::ArgumentKind AK, intptr_t QT,
                             StringRef Modifier, StringRef Argument,
                             ArrayRef<DiagnosticsEngine::ArgumentValue> PrevArgs,
@@ -112,7 +133,7 @@ void DiagnosticsEngine::Reset() {
 
   // Create a DiagState and DiagStatePoint representing diagnostic changes
   // through command-line.
-  DiagStates.push_back(DiagState());
+  DiagStates.emplace_back();
   DiagStatePoints.push_back(DiagStatePoint(&DiagStates.back(), FullSourceLoc()));
 }
 
@@ -321,18 +342,10 @@ void DiagnosticsEngine::Report(const StoredDiagnostic &storedDiag) {
   NumDiagArgs = 0;
 
   DiagRanges.clear();
-  DiagRanges.reserve(storedDiag.range_size());
-  for (StoredDiagnostic::range_iterator
-         RI = storedDiag.range_begin(),
-         RE = storedDiag.range_end(); RI != RE; ++RI)
-    DiagRanges.push_back(*RI);
+  DiagRanges.append(storedDiag.range_begin(), storedDiag.range_end());
 
   DiagFixItHints.clear();
-  DiagFixItHints.reserve(storedDiag.fixit_size());
-  for (StoredDiagnostic::fixit_iterator
-         FI = storedDiag.fixit_begin(),
-         FE = storedDiag.fixit_end(); FI != FE; ++FI)
-    DiagFixItHints.push_back(*FI);
+  DiagFixItHints.append(storedDiag.fixit_begin(), storedDiag.fixit_end());
 
   assert(Client && "DiagnosticConsumer not set!");
   Level DiagLevel = storedDiag.getLevel();
@@ -633,7 +646,8 @@ FormatDiagnostic(const char *DiagStr, const char *DiagEnd,
   // When the diagnostic string is only "%0", the entire string is being given
   // by an outside source.  Remove unprintable characters from this string
   // and skip all the other string processing.
-  if (DiagEnd - DiagStr == 2 && DiagStr[0] == '%' && DiagStr[1] == '0' &&
+  if (DiagEnd - DiagStr == 2 &&
+      StringRef(DiagStr, DiagEnd - DiagStr).equals("%0") &&
       getArgKind(0) == DiagnosticsEngine::ak_std_string) {
     const std::string &S = getArgStdStr(0);
     for (char c : S) {
@@ -948,14 +962,8 @@ StoredDiagnostic::StoredDiagnostic(DiagnosticsEngine::Level Level,
   SmallString<64> Message;
   Info.FormatDiagnostic(Message);
   this->Message.assign(Message.begin(), Message.end());
-
-  Ranges.reserve(Info.getNumRanges());
-  for (unsigned I = 0, N = Info.getNumRanges(); I != N; ++I)
-    Ranges.push_back(Info.getRange(I));
-
-  FixIts.reserve(Info.getNumFixItHints());
-  for (unsigned I = 0, N = Info.getNumFixItHints(); I != N; ++I)
-    FixIts.push_back(Info.getFixItHint(I));
+  this->Ranges.assign(Info.getRanges().begin(), Info.getRanges().end());
+  this->FixIts.assign(Info.getFixItHints().begin(), Info.getFixItHints().end());
 }
 
 StoredDiagnostic::StoredDiagnostic(DiagnosticsEngine::Level Level, unsigned ID,

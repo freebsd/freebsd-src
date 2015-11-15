@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "MCJIT.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/ExecutionEngine/JITEventListener.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
@@ -15,18 +16,16 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Mangler.h"
 #include "llvm/IR/Module.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/ObjectFile.h"
-#include "llvm/PassManager.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/MutexGuard.h"
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
 
@@ -43,26 +42,35 @@ static struct RegisterJIT {
 extern "C" void LLVMLinkInMCJIT() {
 }
 
-ExecutionEngine *MCJIT::createJIT(std::unique_ptr<Module> M,
-                                  std::string *ErrorStr,
-                                  std::unique_ptr<RTDyldMemoryManager> MemMgr,
-                                  std::unique_ptr<TargetMachine> TM) {
+ExecutionEngine*
+MCJIT::createJIT(std::unique_ptr<Module> M,
+                 std::string *ErrorStr,
+                 std::shared_ptr<MCJITMemoryManager> MemMgr,
+                 std::shared_ptr<RuntimeDyld::SymbolResolver> Resolver,
+                 std::unique_ptr<TargetMachine> TM) {
   // Try to register the program as a source of symbols to resolve against.
   //
   // FIXME: Don't do this here.
   sys::DynamicLibrary::LoadLibraryPermanently(nullptr, nullptr);
 
-  std::unique_ptr<RTDyldMemoryManager> MM = std::move(MemMgr);
-  if (!MM)
-    MM = std::unique_ptr<SectionMemoryManager>(new SectionMemoryManager());
+  if (!MemMgr || !Resolver) {
+    auto RTDyldMM = std::make_shared<SectionMemoryManager>();
+    if (!MemMgr)
+      MemMgr = RTDyldMM;
+    if (!Resolver)
+      Resolver = RTDyldMM;
+  }
 
-  return new MCJIT(std::move(M), std::move(TM), std::move(MM));
+  return new MCJIT(std::move(M), std::move(TM), std::move(MemMgr),
+                   std::move(Resolver));
 }
 
 MCJIT::MCJIT(std::unique_ptr<Module> M, std::unique_ptr<TargetMachine> tm,
-             std::unique_ptr<RTDyldMemoryManager> MM)
+             std::shared_ptr<MCJITMemoryManager> MemMgr,
+             std::shared_ptr<RuntimeDyld::SymbolResolver> Resolver)
     : ExecutionEngine(std::move(M)), TM(std::move(tm)), Ctx(nullptr),
-      MemMgr(this, std::move(MM)), Dyld(&MemMgr), ObjCache(nullptr) {
+      MemMgr(std::move(MemMgr)), Resolver(*this, std::move(Resolver)),
+      Dyld(*this->MemMgr, this->Resolver), ObjCache(nullptr) {
   // FIXME: We are managing our modules, so we do not want the base class
   // ExecutionEngine to manage them as well. To avoid double destruction
   // of the first (and only) module added in ExecutionEngine constructor
@@ -77,7 +85,7 @@ MCJIT::MCJIT(std::unique_ptr<Module> M, std::unique_ptr<TargetMachine> tm,
   Modules.clear();
 
   OwnedModules.addModule(std::move(First));
-  setDataLayout(TM->getSubtargetImpl()->getDataLayout());
+  setDataLayout(TM->getDataLayout());
   RegisterJITEventListener(JITEventListener::createGDBRegistrationListener());
 }
 
@@ -137,10 +145,7 @@ std::unique_ptr<MemoryBuffer> MCJIT::emitObject(Module *M) {
   // MCJIT instance, since these conditions are tested by our caller,
   // generateCodeForModule.
 
-  PassManager PM;
-
-  M->setDataLayout(TM->getSubtargetImpl()->getDataLayout());
-  PM.add(new DataLayoutPass());
+  legacy::PassManager PM;
 
   // The RuntimeDyld will take ownership of this shortly
   SmallVector<char, 4096> ObjBufferSV;
@@ -188,6 +193,8 @@ void MCJIT::generateCodeForModule(Module *M) {
   if (ObjCache)
     ObjectToLoad = ObjCache->getObject(M);
 
+  M->setDataLayout(*TM->getDataLayout());
+
   // If the cache did not contain a suitable object, compile the object
   if (!ObjectToLoad) {
     ObjectToLoad = emitObject(M);
@@ -224,7 +231,7 @@ void MCJIT::finalizeLoadedModules() {
   Dyld.registerEHFrames();
 
   // Set page permissions.
-  MemMgr.finalizeMemory();
+  MemMgr->finalizeMemory();
 }
 
 // FIXME: Rename this.
@@ -256,11 +263,16 @@ void MCJIT::finalizeModule(Module *M) {
   finalizeLoadedModules();
 }
 
-uint64_t MCJIT::getExistingSymbolAddress(const std::string &Name) {
-  Mangler Mang(TM->getSubtargetImpl()->getDataLayout());
+RuntimeDyld::SymbolInfo MCJIT::findExistingSymbol(const std::string &Name) {
   SmallString<128> FullName;
-  Mang.getNameWithPrefix(FullName, Name);
-  return Dyld.getSymbolLoadAddress(FullName);
+  Mangler::getNameWithPrefix(FullName, Name, *TM->getDataLayout());
+
+  if (void *Addr = getPointerToGlobalIfAvailable(FullName))
+    return RuntimeDyld::SymbolInfo(static_cast<uint64_t>(
+                                     reinterpret_cast<uintptr_t>(Addr)),
+                                   JITSymbolFlags::Exported);
+
+  return Dyld.getSymbol(FullName);
 }
 
 Module *MCJIT::findModuleForSymbol(const std::string &Name,
@@ -287,14 +299,17 @@ Module *MCJIT::findModuleForSymbol(const std::string &Name,
 }
 
 uint64_t MCJIT::getSymbolAddress(const std::string &Name,
-                                 bool CheckFunctionsOnly)
-{
+                                 bool CheckFunctionsOnly) {
+  return findSymbol(Name, CheckFunctionsOnly).getAddress();
+}
+
+RuntimeDyld::SymbolInfo MCJIT::findSymbol(const std::string &Name,
+                                          bool CheckFunctionsOnly) {
   MutexGuard locked(lock);
 
   // First, check to see if we already have this symbol.
-  uint64_t Addr = getExistingSymbolAddress(Name);
-  if (Addr)
-    return Addr;
+  if (auto Sym = findExistingSymbol(Name))
+    return Sym;
 
   for (object::OwningBinary<object::Archive> &OB : Archives) {
     object::Archive *A = OB.getBinary();
@@ -313,9 +328,8 @@ uint64_t MCJIT::getSymbolAddress(const std::string &Name,
         // This causes the object file to be loaded.
         addObjectFile(std::move(OF));
         // The address should be here now.
-        Addr = getExistingSymbolAddress(Name);
-        if (Addr)
-          return Addr;
+        if (auto Sym = findExistingSymbol(Name))
+          return Sym;
       }
     }
   }
@@ -326,15 +340,18 @@ uint64_t MCJIT::getSymbolAddress(const std::string &Name,
     generateCodeForModule(M);
 
     // Check the RuntimeDyld table again, it should be there now.
-    return getExistingSymbolAddress(Name);
+    return findExistingSymbol(Name);
   }
 
   // If a LazyFunctionCreator is installed, use it to get/create the function.
   // FIXME: Should we instead have a LazySymbolCreator callback?
-  if (LazyFunctionCreator)
-    Addr = (uint64_t)LazyFunctionCreator(Name);
+  if (LazyFunctionCreator) {
+    auto Addr = static_cast<uint64_t>(
+                  reinterpret_cast<uintptr_t>(LazyFunctionCreator(Name)));
+    return RuntimeDyld::SymbolInfo(Addr, JITSymbolFlags::Exported);
+  }
 
-  return Addr;
+  return nullptr;
 }
 
 uint64_t MCJIT::getGlobalValueAddress(const std::string &Name) {
@@ -357,7 +374,7 @@ uint64_t MCJIT::getFunctionAddress(const std::string &Name) {
 void *MCJIT::getPointerToFunction(Function *F) {
   MutexGuard locked(lock);
 
-  Mangler Mang(TM->getSubtargetImpl()->getDataLayout());
+  Mangler Mang;
   SmallString<128> Name;
   TM->getNameWithPrefix(Name, F, Mang);
 
@@ -386,7 +403,7 @@ void *MCJIT::getPointerToFunction(Function *F) {
   //
   // This is the accessor for the target address, so make sure to check the
   // load address of the symbol, not the local address.
-  return (void*)Dyld.getSymbolLoadAddress(Name);
+  return (void*)Dyld.getSymbol(Name).getAddress();
 }
 
 void MCJIT::runStaticConstructorsDestructorsInModulePtrSet(
@@ -410,11 +427,25 @@ Function *MCJIT::FindFunctionNamedInModulePtrSet(const char *FnName,
                                                  ModulePtrSet::iterator I,
                                                  ModulePtrSet::iterator E) {
   for (; I != E; ++I) {
-    if (Function *F = (*I)->getFunction(FnName))
+    Function *F = (*I)->getFunction(FnName);
+    if (F && !F->isDeclaration())
       return F;
   }
   return nullptr;
 }
+
+GlobalVariable *MCJIT::FindGlobalVariableNamedInModulePtrSet(const char *Name,
+                                                             bool AllowInternal,
+                                                             ModulePtrSet::iterator I,
+                                                             ModulePtrSet::iterator E) {
+  for (; I != E; ++I) {
+    GlobalVariable *GV = (*I)->getGlobalVariable(Name, AllowInternal);
+    if (GV && !GV->isDeclaration())
+      return GV;
+  }
+  return nullptr;
+}
+
 
 Function *MCJIT::FindFunctionNamed(const char *FnName) {
   Function *F = FindFunctionNamedInModulePtrSet(
@@ -428,8 +459,19 @@ Function *MCJIT::FindFunctionNamed(const char *FnName) {
   return F;
 }
 
-GenericValue MCJIT::runFunction(Function *F,
-                                const std::vector<GenericValue> &ArgValues) {
+GlobalVariable *MCJIT::FindGlobalVariableNamed(const char *Name, bool AllowInternal) {
+  GlobalVariable *GV = FindGlobalVariableNamedInModulePtrSet(
+      Name, AllowInternal, OwnedModules.begin_added(), OwnedModules.end_added());
+  if (!GV)
+    GV = FindGlobalVariableNamedInModulePtrSet(Name, AllowInternal, OwnedModules.begin_loaded(),
+                                        OwnedModules.end_loaded());
+  if (!GV)
+    GV = FindGlobalVariableNamedInModulePtrSet(Name, AllowInternal, OwnedModules.begin_finalized(),
+                                        OwnedModules.end_finalized());
+  return GV;
+}
+
+GenericValue MCJIT::runFunction(Function *F, ArrayRef<GenericValue> ArgValues) {
   assert(F && "Function *F was null at entry to run()");
 
   void *FPtr = getPointerToFunction(F);
@@ -530,7 +572,9 @@ GenericValue MCJIT::runFunction(Function *F,
 
 void *MCJIT::getPointerToNamedFunction(StringRef Name, bool AbortOnFailure) {
   if (!isSymbolSearchingDisabled()) {
-    void *ptr = MemMgr.getPointerToNamedFunction(Name, false);
+    void *ptr =
+      reinterpret_cast<void*>(
+        static_cast<uintptr_t>(Resolver.findSymbol(Name).getAddress()));
     if (ptr)
       return ptr;
   }
@@ -568,7 +612,7 @@ void MCJIT::UnregisterJITEventListener(JITEventListener *L) {
 void MCJIT::NotifyObjectEmitted(const object::ObjectFile& Obj,
                                 const RuntimeDyld::LoadedObjectInfo &L) {
   MutexGuard locked(lock);
-  MemMgr.notifyObjectLoaded(this, Obj);
+  MemMgr->notifyObjectLoaded(this, Obj);
   for (unsigned I = 0, S = EventListeners.size(); I < S; ++I) {
     EventListeners[I]->NotifyObjectEmitted(Obj, L);
   }
@@ -580,15 +624,16 @@ void MCJIT::NotifyFreeingObject(const object::ObjectFile& Obj) {
     L->NotifyFreeingObject(Obj);
 }
 
-uint64_t LinkingMemoryManager::getSymbolAddress(const std::string &Name) {
-  uint64_t Result = ParentEngine->getSymbolAddress(Name, false);
+RuntimeDyld::SymbolInfo
+LinkingSymbolResolver::findSymbol(const std::string &Name) {
+  auto Result = ParentEngine.findSymbol(Name, false);
   // If the symbols wasn't found and it begins with an underscore, try again
   // without the underscore.
   if (!Result && Name[0] == '_')
-    Result = ParentEngine->getSymbolAddress(Name.substr(1), false);
+    Result = ParentEngine.findSymbol(Name.substr(1), false);
   if (Result)
     return Result;
-  if (ParentEngine->isSymbolSearchingDisabled())
-    return 0;
-  return ClientMM->getSymbolAddress(Name);
+  if (ParentEngine.isSymbolSearchingDisabled())
+    return nullptr;
+  return ClientResolver->findSymbol(Name);
 }

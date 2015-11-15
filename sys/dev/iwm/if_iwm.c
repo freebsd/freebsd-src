@@ -717,7 +717,7 @@ iwm_dma_contig_alloc(bus_dma_tag_t tag, struct iwm_dma_info *dma,
 
 	error = bus_dma_tag_create(tag, alignment,
             0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
-            1, size, BUS_DMA_NOWAIT, NULL, NULL, &dma->tag);
+            1, size, 0, NULL, NULL, &dma->tag);
         if (error != 0)
                 goto fail;
 
@@ -851,8 +851,7 @@ iwm_alloc_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
         /* Create RX buffer DMA tag. */
         error = bus_dma_tag_create(sc->sc_dmat, 1, 0,
             BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-            IWM_RBUF_SIZE, 1, IWM_RBUF_SIZE, BUS_DMA_NOWAIT, NULL, NULL,
-            &ring->data_dmat);
+            IWM_RBUF_SIZE, 1, IWM_RBUF_SIZE, 0, NULL, NULL, &ring->data_dmat);
         if (error != 0) {
                 device_printf(sc->sc_dev,
                     "%s: could not create RX buf DMA tag, error %d\n",
@@ -884,7 +883,9 @@ iwm_reset_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 		(void) iwm_pcie_rx_stop(sc);
 		iwm_nic_unlock(sc);
 	}
+	/* Reset the ring state */
 	ring->cur = 0;
+	memset(sc->rxq.stat, 0, sizeof(*sc->rxq.stat));
 }
 
 static void
@@ -955,8 +956,7 @@ iwm_alloc_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring, int qid)
 
 	error = bus_dma_tag_create(sc->sc_dmat, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-            IWM_MAX_SCATTER - 1, MCLBYTES, BUS_DMA_NOWAIT, NULL, NULL,
-            &ring->data_dmat);
+            IWM_MAX_SCATTER - 1, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create TX buf DMA tag\n");
 		goto fail;
@@ -2081,7 +2081,7 @@ iwm_run_init_mvm_ucode(struct iwm_softc *sc, int justnvm)
 			device_printf(sc->sc_dev, "failed to read nvm\n");
 			return error;
 		}
-		IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, &sc->sc_nvm.hw_addr);
+		IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, sc->sc_nvm.hw_addr);
 
 		sc->sc_scan_cmd_len = sizeof(struct iwm_scan_cmd)
 		    + sc->sc_capa_max_probe_len
@@ -2875,7 +2875,6 @@ iwm_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	    "->%s begin\n", __func__);
 
 	if ((sc->sc_flags & IWM_FLAG_HW_INITED) == 0) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		IWM_DPRINTF(sc, IWM_DEBUG_XMIT,
 		    "<-%s not RUNNING\n", __func__);
@@ -2888,10 +2887,6 @@ iwm_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		error = iwm_tx(sc, m, ni, 0);
 	} else {
 		error = iwm_tx(sc, m, ni, 0);
-	}
-	if (error != 0) {
-		/* NB: m is reclaimed on tx failure */
-		ieee80211_free_node(ni);
 	}
 	sc->sc_tx_timer = 5;
 	IWM_UNLOCK(sc);

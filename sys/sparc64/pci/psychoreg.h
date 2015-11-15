@@ -73,7 +73,6 @@
  */
 
 #define	PSYCHO_NINTR		6
-#define	PSYCHO_NRANGE		4
 
 /*
  * Psycho register offsets
@@ -121,7 +120,7 @@
 #define	PSR_PWRMGT_INT_MAP	0x1090	/* power mgmt wake interrupt map reg */
 #define	PSR_FFB0_INT_MAP	0x1098	/* FFB0 graphics interrupt map reg */
 #define	PSR_FFB1_INT_MAP	0x10a0	/* FFB1 graphics interrupt map reg */
-/* Note: clear interrupt 0 registers are not really used */
+/* Note: Clear interrupt 0 registers are not really used. */
 #define	PSR_PCIA0_INT_CLR	0x1400	/* PCI a slot 0 clear int regs 0..3 */
 #define	PSR_PCIA1_INT_CLR	0x1420	/* PCI a slot 1 clear int regs 0..3 */
 #define	PSR_PCIA2_INT_CLR	0x1440	/* PCI a slot 2 clear int regs 0..3 */
@@ -165,6 +164,7 @@
 #define	PSR_PCI_INT_DIAG	0xa800	/* PCI int state diag reg */
 #define	PSR_OBIO_INT_DIAG	0xa808	/* OBIO and misc int state diag reg */
 #define	PSR_STRBUF_DIAG		0xb000	/* Streaming buffer diag regs */
+
 /*
  * Here is the rest of the map, which we're not specifying:
  *
@@ -176,7 +176,7 @@
  * 1ff.0000.0000 - 1ff.7fff.ffff	PCI A memory space
  * 1ff.8000.0000 - 1ff.ffff.ffff	PCI B memory space
  *
- * NB: config and I/O space can use 1-4 byte accesses, not 8 byte
+ * NB: Config and I/O space can use 1-4 byte accesses, not 8 byte
  * accesses.  Memory space can use any sized accesses.
  *
  * Note that the SUNW,sabre/SUNW,simba combinations found on the

@@ -126,6 +126,9 @@ jemalloc_mb.po: jemalloc_mb.c
 jemalloc_mutex.So: jemalloc_mutex.c
 jemalloc_mutex.o: jemalloc_mutex.c
 jemalloc_mutex.po: jemalloc_mutex.c
+jemalloc_pages.So: jemalloc_pages.c
+jemalloc_pages.o: jemalloc_pages.c
+jemalloc_pages.po: jemalloc_pages.c
 jemalloc_prof.So: jemalloc_prof.c
 jemalloc_prof.o: jemalloc_prof.c
 jemalloc_prof.po: jemalloc_prof.c

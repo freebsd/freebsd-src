@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/usr.bin/sed
-
 TAP_TESTS_SH=	legacy_test
 TAP_TESTS_SH+=	multi_test
 TEST_METADATA.multi_test+=	required_files="/usr/share/dict/words"

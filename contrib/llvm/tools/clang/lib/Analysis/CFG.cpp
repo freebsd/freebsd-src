@@ -156,7 +156,7 @@ public:
       return !(*this == rhs);
     }
 
-    LLVM_EXPLICIT operator bool() const {
+    explicit operator bool() const {
       return *this != const_iterator();
     }
 
@@ -203,9 +203,9 @@ int LocalScope::const_iterator::distance(LocalScope::const_iterator L) {
   return D;
 }
 
-/// BlockScopePosPair - Structure for specifying position in CFG during its
-/// build process. It consists of CFGBlock that specifies position in CFG graph
-/// and  LocalScope::const_iterator that specifies position in LocalScope graph.
+/// Structure for specifying position in CFG during its build process. It
+/// consists of CFGBlock that specifies position in CFG and
+/// LocalScope::const_iterator that specifies position in LocalScope graph.
 struct BlockScopePosPair {
   BlockScopePosPair() : block(nullptr) {}
   BlockScopePosPair(CFGBlock *b, LocalScope::const_iterator scopePos)
@@ -270,9 +270,8 @@ reverse_children::reverse_children(Stmt *S) {
   }
 
   // Default case for all other statements.
-  for (Stmt::child_range I = S->children(); I; ++I) {
-    childrenBuf.push_back(*I);
-  }
+  for (Stmt *SubStmt : S->children())
+    childrenBuf.push_back(SubStmt);
 
   // This needs to be done *after* childrenBuf has been populated.
   children = childrenBuf;
@@ -454,7 +453,7 @@ private:
           TerminatorExpr(nullptr) {}
 
     /// Returns whether we need to start a new branch for a temporary destructor
-    /// call. This is the case when the the temporary destructor is
+    /// call. This is the case when the temporary destructor is
     /// conditionally executed, and it is the first one we encounter while
     /// visiting a subexpression - other temporary destructors at the same level
     /// will be added to the same block and are executed under the same
@@ -841,12 +840,12 @@ private:
             // must be false.
             llvm::APSInt IntVal;
             if (Bop->getLHS()->EvaluateAsInt(IntVal, *Context)) {
-              if (IntVal.getBoolValue() == false) {
+              if (!IntVal.getBoolValue()) {
                 return TryResult(false);
               }
             }
             if (Bop->getRHS()->EvaluateAsInt(IntVal, *Context)) {
-              if (IntVal.getBoolValue() == false) {
+              if (!IntVal.getBoolValue()) {
                 return TryResult(false);
               }
             }
@@ -1095,6 +1094,19 @@ CFGBlock *CFGBuilder::addInitializer(CXXCtorInitializer *I) {
       // generating destructors for the second time.
       return Visit(cast<ExprWithCleanups>(Init)->getSubExpr());
     }
+    if (BuildOpts.AddCXXDefaultInitExprInCtors) {
+      if (CXXDefaultInitExpr *Default = dyn_cast<CXXDefaultInitExpr>(Init)) {
+        // In general, appending the expression wrapped by a CXXDefaultInitExpr
+        // may cause the same Expr to appear more than once in the CFG. Doing it
+        // here is safe because there's only one initializer per field.
+        autoCreateBlock();
+        appendStmt(Block, Default);
+        if (Stmt *Child = Default->getExpr())
+          if (CFGBlock *R = Visit(Child))
+            Block = R;
+        return Block;
+      }
+    }
     return Visit(Init);
   }
 
@@ -1179,8 +1191,7 @@ void CFGBuilder::addAutomaticObjDtors(LocalScope::const_iterator B,
     }
     Ty = Context->getBaseElementType(Ty);
 
-    const CXXDestructorDecl *Dtor = Ty->getAsCXXRecordDecl()->getDestructor();
-    if (Dtor->isNoReturn())
+    if (Ty->getAsCXXRecordDecl()->isAnyDestructorNoReturn())
       Block = createNoReturnBlock();
     else
       autoCreateBlock();
@@ -3629,11 +3640,11 @@ CFGBlock *CFGBuilder::VisitChildrenForTemporaryDtors(Stmt *E,
   // bottom-up, this means we visit them in their natural order, which
   // reverses them in the CFG.
   CFGBlock *B = Block;
-  for (Stmt::child_range I = E->children(); I; ++I) {
-    if (Stmt *Child = *I)
+  for (Stmt *Child : E->children())
+    if (Child)
       if (CFGBlock *R = VisitForTemporaryDtors(Child, false, Context))
         B = R;
-  }
+
   return B;
 }
 
@@ -3682,7 +3693,7 @@ CFGBlock *CFGBuilder::VisitCXXBindTemporaryExprForTemporaryDtors(
 
     const CXXDestructorDecl *Dtor = E->getTemporary()->getDestructor();
 
-    if (Dtor->isNoReturn()) {
+    if (Dtor->getParent()->isAnyDestructorNoReturn()) {
       // If the destructor is marked as a no-return destructor, we need to
       // create a new block for the destructor which does not have as a
       // successor anything built thus far. Control won't flow out of this
@@ -3950,9 +3961,8 @@ public:
       }
     }
   }
-  
 
-  virtual ~StmtPrinterHelper() {}
+  ~StmtPrinterHelper() override {}
 
   const LangOptions &getLangOpts() const { return LangOpts; }
   void setBlockID(signed i) { currentBlock = i; }

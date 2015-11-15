@@ -26,11 +26,12 @@ using namespace llvm::object;
 
 namespace {
 
-class LoadedMachOObjectInfo : public RuntimeDyld::LoadedObjectInfo {
+class LoadedMachOObjectInfo
+    : public RuntimeDyld::LoadedObjectInfoHelper<LoadedMachOObjectInfo> {
 public:
   LoadedMachOObjectInfo(RuntimeDyldImpl &RTDyld, unsigned BeginIdx,
                         unsigned EndIdx)
-    : RuntimeDyld::LoadedObjectInfo(RTDyld, BeginIdx, EndIdx) {}
+      : LoadedObjectInfoHelper(RTDyld, BeginIdx, EndIdx) {}
 
   OwningBinary<ObjectFile>
   getObjectForDebug(const ObjectFile &Obj) const override {
@@ -62,19 +63,22 @@ RelocationValueRef RuntimeDyldMachO::getRelocationValueRef(
   bool IsExternal = Obj.getPlainRelocationExternal(RelInfo);
   if (IsExternal) {
     symbol_iterator Symbol = RI->getSymbol();
-    StringRef TargetName;
-    Symbol->getName(TargetName);
-    SymbolTableMap::const_iterator SI =
+    ErrorOr<StringRef> TargetNameOrErr = Symbol->getName();
+    if (std::error_code EC = TargetNameOrErr.getError())
+      report_fatal_error(EC.message());
+    StringRef TargetName = *TargetNameOrErr;
+    RTDyldSymbolTable::const_iterator SI =
       GlobalSymbolTable.find(TargetName.data());
     if (SI != GlobalSymbolTable.end()) {
-      Value.SectionID = SI->second.first;
-      Value.Offset = SI->second.second + RE.Addend;
+      const auto &SymInfo = SI->second;
+      Value.SectionID = SymInfo.getSectionID();
+      Value.Offset = SymInfo.getOffset() + RE.Addend;
     } else {
       Value.SymbolName = TargetName.data();
       Value.Offset = RE.Addend;
     }
   } else {
-    SectionRef Sec = Obj.getRelocationSection(RelInfo);
+    SectionRef Sec = Obj.getAnyRelocationSection(RelInfo);
     bool IsCode = Sec.isText();
     Value.SectionID = findOrEmitSection(Obj, Sec, IsCode, ObjSectionToID);
     uint64_t Addr = Sec.getAddress();
@@ -85,20 +89,11 @@ RelocationValueRef RuntimeDyldMachO::getRelocationValueRef(
 }
 
 void RuntimeDyldMachO::makeValueAddendPCRel(RelocationValueRef &Value,
-                                            const ObjectFile &BaseTObj,
                                             const relocation_iterator &RI,
                                             unsigned OffsetToNextPC) {
-  const MachOObjectFile &Obj =
-      static_cast<const MachOObjectFile &>(BaseTObj);
-  MachO::any_relocation_info RelInfo =
-      Obj.getRelocation(RI->getRawDataRefImpl());
-
-  bool IsPCRel = Obj.getAnyRelocationPCRel(RelInfo);
-  if (IsPCRel) {
-    uint64_t RelocAddr = 0;
-    RI->getAddress(RelocAddr);
-    Value.Offset += RelocAddr + OffsetToNextPC;
-  }
+  auto &O = *cast<MachOObjectFile>(RI->getObject());
+  section_iterator SecI = O.getRelocationRelocatedSection(RI);
+  Value.Offset += RI->getOffset() + OffsetToNextPC + SecI->getAddress();
 }
 
 void RuntimeDyldMachO::dumpRelocationToResolve(const RelocationEntry &RE,
@@ -161,8 +156,10 @@ void RuntimeDyldMachO::populateIndirectSymbolPointersSection(
     unsigned SymbolIndex =
       Obj.getIndirectSymbolTableEntry(DySymTabCmd, FirstIndirectSymbol + i);
     symbol_iterator SI = Obj.getSymbolByIndex(SymbolIndex);
-    StringRef IndirectSymbolName;
-    SI->getName(IndirectSymbolName);
+    ErrorOr<StringRef> IndirectSymbolNameOrErr = SI->getName();
+    if (std::error_code EC = IndirectSymbolNameOrErr.getError())
+      report_fatal_error(EC.message());
+    StringRef IndirectSymbolName = *IndirectSymbolNameOrErr;
     DEBUG(dbgs() << "  " << IndirectSymbolName << ": index " << SymbolIndex
           << ", PT offset: " << PTEntryOffset << "\n");
     RelocationEntry RE(PTSectionID, PTEntryOffset,
@@ -252,8 +249,6 @@ static int64_t computeDelta(SectionEntry *A, SectionEntry *B) {
 template <typename Impl>
 void RuntimeDyldMachOCRTPBase<Impl>::registerEHFrames() {
 
-  if (!MemMgr)
-    return;
   for (int i = 0, e = UnregisteredEHFrameSections.size(); i != e; ++i) {
     EHFrameRelatedSections &SectionInfo = UnregisteredEHFrameSections[i];
     if (SectionInfo.EHFrameSID == RTDYLD_INVALID_SECTION_ID ||
@@ -276,22 +271,28 @@ void RuntimeDyldMachOCRTPBase<Impl>::registerEHFrames() {
       P = processFDE(P, DeltaForText, DeltaForEH);
     } while (P != End);
 
-    MemMgr->registerEHFrames(EHFrame->Address, EHFrame->LoadAddress,
-                             EHFrame->Size);
+    MemMgr.registerEHFrames(EHFrame->Address, EHFrame->LoadAddress,
+                            EHFrame->Size);
   }
   UnregisteredEHFrameSections.clear();
 }
 
 std::unique_ptr<RuntimeDyldMachO>
-RuntimeDyldMachO::create(Triple::ArchType Arch, RTDyldMemoryManager *MM) {
+RuntimeDyldMachO::create(Triple::ArchType Arch,
+                         RuntimeDyld::MemoryManager &MemMgr,
+                         RuntimeDyld::SymbolResolver &Resolver) {
   switch (Arch) {
   default:
     llvm_unreachable("Unsupported target for RuntimeDyldMachO.");
     break;
-  case Triple::arm: return make_unique<RuntimeDyldMachOARM>(MM);
-  case Triple::aarch64: return make_unique<RuntimeDyldMachOAArch64>(MM);
-  case Triple::x86: return make_unique<RuntimeDyldMachOI386>(MM);
-  case Triple::x86_64: return make_unique<RuntimeDyldMachOX86_64>(MM);
+  case Triple::arm:
+    return make_unique<RuntimeDyldMachOARM>(MemMgr, Resolver);
+  case Triple::aarch64:
+    return make_unique<RuntimeDyldMachOAArch64>(MemMgr, Resolver);
+  case Triple::x86:
+    return make_unique<RuntimeDyldMachOI386>(MemMgr, Resolver);
+  case Triple::x86_64:
+    return make_unique<RuntimeDyldMachOX86_64>(MemMgr, Resolver);
   }
 }
 

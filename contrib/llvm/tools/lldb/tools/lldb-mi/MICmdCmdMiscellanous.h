@@ -7,9 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdCmdMiscellanous.h
-//
 // Overview:    CMICmdCmdGdbExit                interface.
 //              CMICmdCmdListThreadGroups       interface.
 //              CMICmdCmdInterpreterExec        interface.
@@ -23,18 +20,11 @@
 //                  MICmdCmd.h / .cpp
 //              For an introduction to adding a new command see CMICmdCmdSupportInfoMiCmdQuery
 //              command class as an example.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
 
 #pragma once
 
 // Third party headers:
-#include <lldb/API/SBCommandReturnObject.h>
+#include "lldb/API/SBCommandReturnObject.h"
 
 // In-house headers:
 #include "MICmdBase.h"
@@ -62,10 +52,10 @@ class CMICmdCmdGdbExit : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdGdbExit(void);
+    /* dtor */ ~CMICmdCmdGdbExit(void) override;
 };
 
 //++ ============================================================================
@@ -91,11 +81,11 @@ class CMICmdCmdListThreadGroups : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
-    virtual bool ParseArgs(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
+    bool ParseArgs(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdListThreadGroups(void);
+    /* dtor */ ~CMICmdCmdListThreadGroups(void) override;
 
     // Typedefs:
   private:
@@ -134,11 +124,11 @@ class CMICmdCmdInterpreterExec : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
-    virtual bool ParseArgs(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
+    bool ParseArgs(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdInterpreterExec(void);
+    /* dtor */ ~CMICmdCmdInterpreterExec(void) override;
 
     // Attributes:
   private:
@@ -168,8 +158,8 @@ class CMICmdCmdInferiorTtySet : public CMICmdBase
     // Overridden:
   public:
     // From CMICmdInvoker::ICmd
-    virtual bool Execute(void);
-    virtual bool Acknowledge(void);
+    bool Execute(void) override;
+    bool Acknowledge(void) override;
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmdCmdInferiorTtySet(void);
+    /* dtor */ ~CMICmdCmdInferiorTtySet(void) override;
 };

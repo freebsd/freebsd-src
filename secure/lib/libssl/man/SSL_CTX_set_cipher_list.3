@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_set_cipher_list 3"
-.TH SSL_CTX_set_cipher_list 3 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH SSL_CTX_set_cipher_list 3 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -177,7 +177,7 @@ A \s-1RSA\s0 cipher can only be chosen, when a \s-1RSA\s0 certificate is availab
 a temporary 512 bit \s-1RSA\s0 key, as typically the supplied key has a length
 of 1024 bit (see
 \&\fISSL_CTX_set_tmp_rsa_callback\fR\|(3)).
-\&\s-1RSA\s0 ciphers using \s-1EDH\s0 need a certificate and key and additional DH-parameters
+\&\s-1RSA\s0 ciphers using \s-1DHE\s0 need a certificate and key and additional DH-parameters
 (see \fISSL_CTX_set_tmp_dh_callback\fR\|(3)).
 .PP
 A \s-1DSA\s0 cipher can only be chosen, when a \s-1DSA\s0 certificate is available.

@@ -379,7 +379,7 @@ int	in_scrubprefix(struct in_ifaddr *, u_int);
 void	ip_input(struct mbuf *);
 void	ip_direct_input(struct mbuf *);
 void	in_ifadown(struct ifaddr *ifa, int);
-struct	mbuf	*ip_fastforward(struct mbuf *);
+struct	mbuf	*ip_tryforward(struct mbuf *);
 void	*in_domifattach(struct ifnet *);
 void	in_domifdetach(struct ifnet *, void *);
 
@@ -387,8 +387,6 @@ void	in_domifdetach(struct ifnet *, void *);
 /* XXX */
 void	 in_rtredirect(struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct sockaddr *, u_int);
-int	 in_rtrequest(int, struct sockaddr *,
-	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
 #if 0
 int	 in_rt_getifa(struct rt_addrinfo *, u_int fibnum);
 int	 in_rtioctl(u_long, caddr_t, u_int);

@@ -261,7 +261,8 @@ int wpa_write_rsn_ie(struct wpa_auth_config *conf, u8 *buf, size_t len,
 	}
 
 #ifdef CONFIG_IEEE80211W
-	if (conf->ieee80211w != NO_MGMT_FRAME_PROTECTION) {
+	if (conf->ieee80211w != NO_MGMT_FRAME_PROTECTION &&
+	    conf->group_mgmt_cipher != WPA_CIPHER_AES_128_CMAC) {
 		if (pos + 2 + 4 > buf + len)
 			return -1;
 		if (pmkid == NULL) {
@@ -376,6 +377,23 @@ int wpa_auth_gen_wpa_ie(struct wpa_authenticator *wpa_auth)
 {
 	u8 *pos, buf[128];
 	int res;
+
+#ifdef CONFIG_TESTING_OPTIONS
+	if (wpa_auth->conf.own_ie_override_len) {
+		wpa_hexdump(MSG_DEBUG, "WPA: Forced own IE(s) for testing",
+			    wpa_auth->conf.own_ie_override,
+			    wpa_auth->conf.own_ie_override_len);
+		os_free(wpa_auth->wpa_ie);
+		wpa_auth->wpa_ie =
+			os_malloc(wpa_auth->conf.own_ie_override_len);
+		if (wpa_auth->wpa_ie == NULL)
+			return -1;
+		os_memcpy(wpa_auth->wpa_ie, wpa_auth->conf.own_ie_override,
+			  wpa_auth->conf.own_ie_override_len);
+		wpa_auth->wpa_ie_len = wpa_auth->conf.own_ie_override_len;
+		return 0;
+	}
+#endif /* CONFIG_TESTING_OPTIONS */
 
 	pos = buf;
 

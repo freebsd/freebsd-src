@@ -85,7 +85,7 @@ struct DOTGraphTraits<BlockFrequencyInfo*> : public DefaultDOTGraphTraits {
     std::string Result;
     raw_string_ostream OS(Result);
 
-    OS << Node->getName().str() << ":";
+    OS << Node->getName() << ":";
     switch (ViewBlockFreqPropagationDAG) {
     case GVDT_Fraction:
       Graph->printBlockFreq(OS, Node);
@@ -108,7 +108,7 @@ struct DOTGraphTraits<BlockFrequencyInfo*> : public DefaultDOTGraphTraits {
 INITIALIZE_PASS_BEGIN(BlockFrequencyInfo, "block-freq",
                       "Block Frequency Analysis", true, true)
 INITIALIZE_PASS_DEPENDENCY(BranchProbabilityInfo)
-INITIALIZE_PASS_DEPENDENCY(LoopInfo)
+INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
 INITIALIZE_PASS_END(BlockFrequencyInfo, "block-freq",
                     "Block Frequency Analysis", true, true)
 
@@ -123,13 +123,13 @@ BlockFrequencyInfo::~BlockFrequencyInfo() {}
 
 void BlockFrequencyInfo::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<BranchProbabilityInfo>();
-  AU.addRequired<LoopInfo>();
+  AU.addRequired<LoopInfoWrapperPass>();
   AU.setPreservesAll();
 }
 
 bool BlockFrequencyInfo::runOnFunction(Function &F) {
   BranchProbabilityInfo &BPI = getAnalysis<BranchProbabilityInfo>();
-  LoopInfo &LI = getAnalysis<LoopInfo>();
+  LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
   if (!BFI)
     BFI.reset(new ImplType);
   BFI->doFunction(&F, &BPI, &LI);

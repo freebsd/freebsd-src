@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 11, 2014
+.Dd November 5, 2015
 .Dt RCTL 8
 .Os
 .Sh NAME
@@ -38,19 +38,19 @@
 .Op Ar filter
 .Nm
 .Fl a
-.Op Ar rule
+.Ar rule
 .Nm
 .Fl l
 .Op Fl h
 .Op Fl n
-.Op Ar filter
+.Ar filter
 .Nm
 .Fl r
-.Op Ar filter
+.Ar filter
 .Nm
 .Fl u
 .Op Fl h
-.Op Ar filter
+.Ar filter
 .Pp
 .Nm
 requires the kernel to be compiled with:
@@ -193,7 +193,7 @@ resource would be
 .It Sy openfiles Ta "file descriptor table size"
 .It Sy vmemoryuse Ta "address space limit, in bytes"
 .It Sy pseudoterminals Ta "number of PTYs"
-.It Sy swapuse Ta "swap usage, in bytes"
+.It Sy swapuse Ta "swap space that may be reserved or used, in bytes"
 .It Sy nthr Ta "number of threads"
 .It Sy msgqqueued Ta "number of queued SysV messages"
 .It Sy msgqsize Ta "SysV message queue size, in bytes"

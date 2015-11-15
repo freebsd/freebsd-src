@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
  */
 
 int
-getpagesize()
+getpagesize(void)
 {
 	int mib[2]; 
 	static int value;

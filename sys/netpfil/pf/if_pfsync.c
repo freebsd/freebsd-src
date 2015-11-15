@@ -352,7 +352,7 @@ pfsync_clone_destroy(struct ifnet *ifp)
 
 		TAILQ_REMOVE(&sc->sc_deferrals, pd, pd_entry);
 		sc->sc_deferred--;
-		if (callout_stop(&pd->pd_tmo)) {
+		if (callout_stop(&pd->pd_tmo) > 0) {
 			pf_release_state(pd->pd_st);
 			m_freem(pd->pd_m);
 			free(pd, M_PFSYNC);
@@ -1775,7 +1775,7 @@ pfsync_undefer_state(struct pf_state *st, int drop)
 
 	TAILQ_FOREACH(pd, &sc->sc_deferrals, pd_entry) {
 		 if (pd->pd_st == st) {
-			if (callout_stop(&pd->pd_tmo))
+			if (callout_stop(&pd->pd_tmo) > 0)
 				pfsync_undefer(pd, drop);
 			return;
 		}

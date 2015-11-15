@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdArgValOptionShort.h
-//
-// Overview:    CMICmdArgValOptionShort interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // In-house headers:
@@ -56,11 +44,11 @@ class CMICmdArgValOptionShort : public CMICmdArgValOptionLong
     // Overridden:
   public:
     // From CMICmdArgValBase
-    /* dtor */ virtual ~CMICmdArgValOptionShort(void);
+    /* dtor */ ~CMICmdArgValOptionShort(void) override;
 
     // Overridden:
   private:
     // From CMICmdArgValOptionLong
-    virtual bool IsArgOptionCorrect(const CMIUtilString &vrTxt) const;
-    virtual bool ArgNameMatch(const CMIUtilString &vrTxt) const;
+    bool IsArgOptionCorrect(const CMIUtilString &vrTxt) const override;
+    bool ArgNameMatch(const CMIUtilString &vrTxt) const override;
 };

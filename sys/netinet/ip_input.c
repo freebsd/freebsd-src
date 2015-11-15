@@ -80,6 +80,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_carp.h>
 #ifdef IPSEC
 #include <netinet/ip_ipsec.h>
+#include <netipsec/ipsec.h>
+#include <netipsec/key.h>
 #endif /* IPSEC */
 #include <netinet/in_rss.h>
 
@@ -161,7 +163,7 @@ static struct netisr_handler ip_direct_nh = {
 	.nh_name = "ip_direct",
 	.nh_handler = ip_direct_input,
 	.nh_proto = NETISR_IP_DIRECT,
-	.nh_m2cpuid = rss_m2cpuid,
+	.nh_m2cpuid = rss_soft_m2cpuid_v4,
 	.nh_policy = NETISR_POLICY_CPU,
 	.nh_dispatch = NETISR_DISPATCH_HYBRID,
 };
@@ -501,12 +503,22 @@ tooshort:
 			m_adj(m, ip_len - m->m_pkthdr.len);
 	}
 
+	/* Try to forward the packet, but if we fail continue */
 #ifdef IPSEC
+	/* For now we do not handle IPSEC in tryforward. */
+	if (!key_havesp(IPSEC_DIR_INBOUND) && !key_havesp(IPSEC_DIR_OUTBOUND) &&
+	    (V_ipforwarding == 1))
+		if (ip_tryforward(m) == NULL)
+			return;
 	/*
 	 * Bypass packet filtering for packets previously handled by IPsec.
 	 */
 	if (ip_ipsec_filtertunnel(m))
 		goto passin;
+#else
+	if (V_ipforwarding == 1)
+		if (ip_tryforward(m) == NULL)
+			return;
 #endif /* IPSEC */
 
 	/*

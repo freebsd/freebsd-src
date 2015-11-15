@@ -491,10 +491,44 @@ ieee80211_process_callback(struct ieee80211_node *ni,
 }
 
 /*
- * Transmit a frame to the parent interface.
+ * Add RX parameters to the given mbuf.
  *
- * TODO: if the transmission fails, make sure the parent node is freed
- *   (the callers will first need modifying.)
+ * Returns 1 if OK, 0 on error.
+ */
+int
+ieee80211_add_rx_params(struct mbuf *m, const struct ieee80211_rx_stats *rxs)
+{
+	struct m_tag *mtag;
+	struct ieee80211_rx_params *rx;
+
+	mtag = m_tag_alloc(MTAG_ABI_NET80211, NET80211_TAG_RECV_PARAMS,
+	    sizeof(struct ieee80211_rx_stats), M_NOWAIT);
+	if (mtag == NULL)
+		return (0);
+
+	rx = (struct ieee80211_rx_params *)(mtag + 1);
+	memcpy(&rx->params, rxs, sizeof(*rxs));
+	m_tag_prepend(m, mtag);
+	return (1);
+}
+
+int
+ieee80211_get_rx_params(struct mbuf *m, struct ieee80211_rx_stats *rxs)
+{
+	struct m_tag *mtag;
+	struct ieee80211_rx_params *rx;
+
+	mtag = m_tag_locate(m, MTAG_ABI_NET80211, NET80211_TAG_RECV_PARAMS,
+	    NULL);
+	if (mtag == NULL)
+		return (-1);
+	rx = (struct ieee80211_rx_params *)(mtag + 1);
+	memcpy(rxs, &rx->params, sizeof(*rxs));
+	return (0);
+}
+
+/*
+ * Transmit a frame to the parent interface.
  */
 int
 ieee80211_parent_xmitpkt(struct ieee80211com *ic, struct mbuf *m)
@@ -507,8 +541,16 @@ ieee80211_parent_xmitpkt(struct ieee80211com *ic, struct mbuf *m)
 	 */
 	IEEE80211_TX_LOCK_ASSERT(ic);
 	error = ic->ic_transmit(ic, m);
-	if (error)
-		m_freem(m);
+	if (error) {
+		struct ieee80211_node *ni;
+
+		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
+
+		/* XXX number of fragments */
+		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
+		ieee80211_free_node(ni);
+		ieee80211_free_mbuf(m);
+	}
 	return (error);
 }
 

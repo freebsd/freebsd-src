@@ -243,6 +243,16 @@ static void _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
     struct spglist *free);
 static int pmap_unuse_l3(pmap_t, vm_offset_t, pd_entry_t, struct spglist *);
 
+/*
+ * These load the old table data and store the new value.
+ * They need to be atomic as the System MMU may write to the table at
+ * the same time as the CPU.
+ */
+#define	pmap_load_store(table, entry) atomic_swap_64(table, entry)
+#define	pmap_set(table, mask) atomic_set_64(table, mask)
+#define	pmap_load_clear(table) atomic_swap_64(table, 0)
+#define	pmap_load(table) (*table)
+
 /********************/
 /* Inline functions */
 /********************/
@@ -277,7 +287,7 @@ pmap_l1_to_l2(pd_entry_t *l1, vm_offset_t va)
 {
 	pd_entry_t *l2;
 
-	l2 = (pd_entry_t *)PHYS_TO_DMAP(*l1 & ~ATTR_MASK);
+	l2 = (pd_entry_t *)PHYS_TO_DMAP(pmap_load(l1) & ~ATTR_MASK);
 	return (&l2[pmap_l2_index(va)]);
 }
 
@@ -287,7 +297,7 @@ pmap_l2(pmap_t pmap, vm_offset_t va)
 	pd_entry_t *l1;
 
 	l1 = pmap_l1(pmap, va);
-	if ((*l1 & ATTR_DESCR_MASK) != L1_TABLE)
+	if ((pmap_load(l1) & ATTR_DESCR_MASK) != L1_TABLE)
 		return (NULL);
 
 	return (pmap_l1_to_l2(l1, va));
@@ -298,7 +308,7 @@ pmap_l2_to_l3(pd_entry_t *l2, vm_offset_t va)
 {
 	pt_entry_t *l3;
 
-	l3 = (pd_entry_t *)PHYS_TO_DMAP(*l2 & ~ATTR_MASK);
+	l3 = (pd_entry_t *)PHYS_TO_DMAP(pmap_load(l2) & ~ATTR_MASK);
 	return (&l3[pmap_l3_index(va)]);
 }
 
@@ -308,7 +318,7 @@ pmap_l3(pmap_t pmap, vm_offset_t va)
 	pd_entry_t *l2;
 
 	l2 = pmap_l2(pmap, va);
-	if (l2 == NULL || (*l2 & ATTR_DESCR_MASK) != L2_TABLE)
+	if (l2 == NULL || (pmap_load(l2) & ATTR_DESCR_MASK) != L2_TABLE)
 		return (NULL);
 
 	return (pmap_l2_to_l3(l2, va));
@@ -326,19 +336,19 @@ pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l1, pd_entry_t **l2,
 	l1p = pmap_l1(pmap, va);
 	*l1 = l1p;
 
-	if ((*l1p & ATTR_DESCR_MASK) == L1_BLOCK) {
+	if ((pmap_load(l1p) & ATTR_DESCR_MASK) == L1_BLOCK) {
 		*l2 = NULL;
 		*l3 = NULL;
 		return (true);
 	}
 
-	if ((*l1p & ATTR_DESCR_MASK) != L1_TABLE)
+	if ((pmap_load(l1p) & ATTR_DESCR_MASK) != L1_TABLE)
 		return (false);
 
 	l2p = pmap_l1_to_l2(l1p, va);
 	*l2 = l2p;
 
-	if ((*l2p & ATTR_DESCR_MASK) == L2_BLOCK) {
+	if ((pmap_load(l2p) & ATTR_DESCR_MASK) == L2_BLOCK) {
 		*l3 = NULL;
 		return (true);
 	}
@@ -347,16 +357,6 @@ pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l1, pd_entry_t **l2,
 
 	return (true);
 }
-
-/*
- * These load the old table data and store the new value.
- * They need to be atomic as the System MMU may write to the table at
- * the same time as the CPU.
- */
-#define	pmap_load_store(table, entry) atomic_swap_64(table, entry)
-#define	pmap_set(table, mask) atomic_set_64(table, mask)
-#define	pmap_load_clear(table) atomic_swap_64(table, 0)
-#define	pmap_load(table) (*table)
 
 static __inline int
 pmap_is_current(pmap_t pmap)
@@ -799,11 +799,11 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	 */
 	l2p = pmap_l2(pmap, va);
 	if (l2p != NULL) {
-		l2 = *l2p;
+		l2 = pmap_load(l2p);
 		if ((l2 & ATTR_DESCR_MASK) == L2_TABLE) {
 			l3p = pmap_l2_to_l3(l2p, va);
 			if (l3p != NULL) {
-				l3 = *l3p;
+				l3 = pmap_load(l3p);
 
 				if ((l3 & ATTR_DESCR_MASK) == L3_PAGE)
 					pa = (l3 & ~ATTR_MASK) |
@@ -852,23 +852,25 @@ retry:
 vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
-	pd_entry_t *l2;
+	pd_entry_t *l2p, l2;
 	pt_entry_t *l3;
 	vm_paddr_t pa;
 
 	if (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS) {
 		pa = DMAP_TO_PHYS(va);
 	} else {
-		l2 = pmap_l2(kernel_pmap, va);
-		if (l2 == NULL)
+		l2p = pmap_l2(kernel_pmap, va);
+		if (l2p == NULL)
 			panic("pmap_kextract: No l2");
-		if ((*l2 & ATTR_DESCR_MASK) == L2_BLOCK)
-			return ((*l2 & ~ATTR_MASK) | (va & L2_OFFSET));
+		l2 = pmap_load(l2p);
+		if ((l2 & ATTR_DESCR_MASK) == L2_BLOCK)
+			return ((l2 & ~ATTR_MASK) |
+			    (va & L2_OFFSET));
 
-		l3 = pmap_l2_to_l3(l2, va);
+		l3 = pmap_l2_to_l3(l2p, va);
 		if (l3 == NULL)
 			panic("pmap_kextract: No l3...");
-		pa = (*l3 & ~ATTR_MASK) | (va & PAGE_MASK);
+		pa = (pmap_load(l3) & ~ATTR_MASK) | (va & PAGE_MASK);
 	}
 	return (pa);
 }
@@ -1242,11 +1244,11 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 				return (NULL);
 			}
 		} else {
-			pdpg = PHYS_TO_VM_PAGE(*l1 & ~ATTR_MASK);
+			pdpg = PHYS_TO_VM_PAGE(pmap_load(l1) & ~ATTR_MASK);
 			pdpg->wire_count++;
 		}
 
-		l2 = (pd_entry_t *)PHYS_TO_DMAP(*l1 & ~ATTR_MASK);
+		l2 = (pd_entry_t *)PHYS_TO_DMAP(pmap_load(l1) & ~ATTR_MASK);
 		l2 = &l2[ptepindex & Ln_ADDR_MASK];
 		pmap_load_store(l2, VM_PAGE_TO_PHYS(m) | L2_TABLE);
 		PTE_SYNC(l2);
@@ -1517,7 +1519,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 	dump_drop_page(m->phys_addr);
-	vm_page_unwire(m, PQ_INACTIVE);
+	vm_page_unwire(m, PQ_NONE);
 	vm_page_free(m);
 }
 
@@ -1738,7 +1740,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		if (l2 == NULL)
 			continue;
 
-		l3_paddr = *l2;
+		l3_paddr = pmap_load(l2);
 
 		/*
 		 * Weed out invalid mappings.
@@ -1805,7 +1807,7 @@ pmap_remove_all(vm_page_t m)
 	pv_entry_t pv;
 	pmap_t pmap;
 	pt_entry_t *l3, tl3;
-	pd_entry_t *l2;
+	pd_entry_t *l2, tl2;
 	struct spglist free;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
@@ -1817,7 +1819,9 @@ pmap_remove_all(vm_page_t m)
 		PMAP_LOCK(pmap);
 		pmap_resident_count_dec(pmap, 1);
 		l2 = pmap_l2(pmap, pv->pv_va);
-		KASSERT((*l2 & ATTR_DESCR_MASK) == L2_TABLE,
+		KASSERT(l2 != NULL, ("pmap_remove_all: no l2 table found"));
+		tl2 = pmap_load(l2);
+		KASSERT((tl2 & ATTR_DESCR_MASK) == L2_TABLE,
 		    ("pmap_remove_all: found a table when expecting "
 		     "a block in %p's pv list", m));
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
@@ -1837,7 +1841,7 @@ pmap_remove_all(vm_page_t m)
 		 */
 		if (pmap_page_dirty(tl3))
 			vm_page_dirty(m);
-		pmap_unuse_l3(pmap, pv->pv_va, *l2, &free);
+		pmap_unuse_l3(pmap, pv->pv_va, tl2, &free);
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 		m->md.pv_gen++;
 		free_pv_entry(pmap, pv);
@@ -1883,7 +1887,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			va_next = eva;
 
 		l2 = pmap_l1_to_l2(l1, sva);
-		if (l2 == NULL || (*l2 & ATTR_DESCR_MASK) != L2_TABLE)
+		if (l2 == NULL || (pmap_load(l2) & ATTR_DESCR_MASK) != L2_TABLE)
 			continue;
 
 		if (va_next > eva)
@@ -2345,7 +2349,7 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 				continue;
 			if ((pmap_load(l3) & ATTR_SW_WIRED) == 0)
 				panic("pmap_unwire: l3 %#jx is missing "
-				    "ATTR_SW_WIRED", (uintmax_t)*l3);
+				    "ATTR_SW_WIRED", (uintmax_t)pmap_load(l3));
 
 			/*
 			 * PG_W must be cleared atomically.  Although the pmap
@@ -2836,7 +2840,7 @@ retry_pv_loop:
 		}
 		l3 = pmap_l3(pmap, pv->pv_va);
 retry:
-		oldl3 = *l3;
+		oldl3 = pmap_load(l3);
 		if ((oldl3 & ATTR_AP_RW_BIT) == ATTR_AP(ATTR_AP_RW)) {
 			if (!atomic_cmpset_long(l3, oldl3,
 			    oldl3 | ATTR_AP(ATTR_AP_RO)))
@@ -2879,7 +2883,7 @@ pmap_ts_referenced(vm_page_t m)
 	pv_entry_t pv, pvf;
 	pmap_t pmap;
 	struct rwlock *lock;
-	pd_entry_t *l2;
+	pd_entry_t *l2p, l2;
 	pt_entry_t *l3;
 	vm_paddr_t pa;
 	int cleared, md_gen, not_cleared;
@@ -2912,12 +2916,14 @@ retry:
 				goto retry;
 			}
 		}
-		l2 = pmap_l2(pmap, pv->pv_va);
-		KASSERT((*l2 & ATTR_DESCR_MASK) == L2_TABLE,
+		l2p = pmap_l2(pmap, pv->pv_va);
+		KASSERT(l2p != NULL, ("pmap_ts_referenced: no l2 table found"));
+		l2 = pmap_load(l2p);
+		KASSERT((l2 & ATTR_DESCR_MASK) == L2_TABLE,
 		    ("pmap_ts_referenced: found an invalid l2 table"));
-		l3 = pmap_l2_to_l3(l2, pv->pv_va);
+		l3 = pmap_l2_to_l3(l2p, pv->pv_va);
 		if ((pmap_load(l3) & ATTR_AF) != 0) {
-			if (safe_to_clear_referenced(pmap, *l3)) {
+			if (safe_to_clear_referenced(pmap, pmap_load(l3))) {
 				/*
 				 * TODO: We don't handle the access flag
 				 * at all. We need to be able to set it in
@@ -2931,8 +2937,8 @@ retry:
 				 * them is wasted effort. We do the
 				 * hard work for unwired pages only.
 				 */
-				pmap_remove_l3(pmap, l3, pv->pv_va,
-				    *l2, &free, &lock);
+				pmap_remove_l3(pmap, l3, pv->pv_va, l2,
+				    &free, &lock);
 				pmap_invalidate_page(pmap, pv->pv_va);
 				cleared++;
 				if (pvf == pv)
@@ -3032,8 +3038,74 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 int
 pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 {
+	pd_entry_t *l1p, l1;
+	pd_entry_t *l2p, l2;
+	pt_entry_t *l3p, l3;
+	vm_paddr_t pa;
+	bool managed;
+	int val;
 
-	panic("ARM64TODO: pmap_mincore");
+	PMAP_LOCK(pmap);
+retry:
+	pa = 0;
+	val = 0;
+	managed = false;
+
+	l1p = pmap_l1(pmap, addr);
+	if (l1p == NULL) /* No l1 */
+		goto done;
+	l1 = pmap_load(l1p);
+	if ((l1 & ATTR_DESCR_MASK) == L1_BLOCK) {
+		pa = (l1 & ~ATTR_MASK) | (addr & L1_OFFSET);
+		managed = (l1 & ATTR_SW_MANAGED) == ATTR_SW_MANAGED;
+		val = MINCORE_SUPER | MINCORE_INCORE;
+		if (pmap_page_dirty(l1))
+			val |= MINCORE_MODIFIED | MINCORE_MODIFIED_OTHER;
+		if ((l1 & ATTR_AF) == ATTR_AF)
+			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
+		goto done;
+	}
+
+	l2p = pmap_l1_to_l2(l1p, addr);
+	if (l2p == NULL) /* No l2 */
+		goto done;
+	l2 = pmap_load(l2p);
+	if ((l2 & ATTR_DESCR_MASK) == L2_BLOCK) {
+		pa = (l2 & ~ATTR_MASK) | (addr & L2_OFFSET);
+		managed = (l2 & ATTR_SW_MANAGED) == ATTR_SW_MANAGED;
+		val = MINCORE_SUPER | MINCORE_INCORE;
+		if (pmap_page_dirty(l2))
+			val |= MINCORE_MODIFIED | MINCORE_MODIFIED_OTHER;
+		if ((l2 & ATTR_AF) == ATTR_AF)
+			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
+		goto done;
+	}
+
+	l3p = pmap_l2_to_l3(l2p, addr);
+	if (l3p == NULL) /* No l3 */
+		goto done;
+	l3 = pmap_load(l2p);
+	if ((l3 & ATTR_DESCR_MASK) == L3_PAGE) {
+		pa = (l3 & ~ATTR_MASK) | (addr & L3_OFFSET);
+		managed = (l3 & ATTR_SW_MANAGED) == ATTR_SW_MANAGED;
+		val = MINCORE_INCORE;
+		if (pmap_page_dirty(l3))
+			val |= MINCORE_MODIFIED | MINCORE_MODIFIED_OTHER;
+		if ((l3 & ATTR_AF) == ATTR_AF)
+			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
+	}
+
+done:
+	if ((val & (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER)) !=
+	    (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER) && managed) {
+		/* Ensure that "PHYS_TO_VM_PAGE(pa)->object" doesn't change. */
+		if (vm_page_pa_tryrelock(pmap, pa, locked_pa))
+			goto retry;
+	} else
+		PA_UNLOCK_COND(*locked_pa);
+	PMAP_UNLOCK(pmap);
+
+	return (val);
 }
 
 void

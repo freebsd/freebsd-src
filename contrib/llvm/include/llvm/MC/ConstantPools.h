@@ -73,21 +73,18 @@ class AssemblerConstantPools {
   // sections in a stable order to ensure that we have print the
   // constant pools in a deterministic order when printing an assembly
   // file.
-  typedef MapVector<const MCSection *, ConstantPool> ConstantPoolMapTy;
+  typedef MapVector<MCSection *, ConstantPool> ConstantPoolMapTy;
   ConstantPoolMapTy ConstantPools;
 
 public:
-  AssemblerConstantPools() {}
-  ~AssemblerConstantPools() {}
-
   void emitAll(MCStreamer &Streamer);
   void emitForCurrentSection(MCStreamer &Streamer);
   const MCExpr *addEntry(MCStreamer &Streamer, const MCExpr *Expr,
                          unsigned Size);
 
 private:
-  ConstantPool *getConstantPool(const MCSection *Section);
-  ConstantPool &getOrCreateConstantPool(const MCSection *Section);
+  ConstantPool *getConstantPool(MCSection *Section);
+  ConstantPool &getOrCreateConstantPool(MCSection *Section);
 };
 } // end namespace llvm
 

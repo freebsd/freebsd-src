@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/Target/StopInfo.h"
 
 // C Includes
@@ -24,6 +22,7 @@
 #include "lldb/Breakpoint/Watchpoint.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/StreamString.h"
+#include "lldb/Core/ValueObject.h"
 #include "lldb/Expression/ClangUserExpression.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
@@ -39,6 +38,7 @@ StopInfo::StopInfo (Thread &thread, uint64_t value) :
     m_stop_id (thread.GetProcess()->GetStopID()),
     m_resume_id (thread.GetProcess()->GetResumeID()),
     m_value (value),
+    m_description (),
     m_override_should_notify (eLazyBoolCalculate),
     m_override_should_stop (eLazyBoolCalculate),
     m_extended_info()
@@ -111,7 +111,6 @@ class StopInfoBreakpoint : public StopInfo
 public:
     StopInfoBreakpoint (Thread &thread, break_id_t break_id) :
         StopInfo (thread, break_id),
-        m_description(),
         m_should_stop (false),
         m_should_stop_is_valid (false),
         m_should_perform_action (true),
@@ -124,7 +123,6 @@ public:
 
     StopInfoBreakpoint (Thread &thread, break_id_t break_id, bool should_stop) :
         StopInfo (thread, break_id),
-        m_description(),
         m_should_stop (should_stop),
         m_should_stop_is_valid (true),
         m_should_perform_action (true),
@@ -160,6 +158,19 @@ public:
 
     virtual ~StopInfoBreakpoint ()
     {
+    }
+
+    virtual bool
+    IsValidForOperatingSystemThread (Thread &thread)
+    {
+        ProcessSP process_sp (thread.GetProcess());
+        if (process_sp)
+        {
+            BreakpointSiteSP bp_site_sp (process_sp->GetBreakpointSiteList().FindByID (m_value));
+            if (bp_site_sp)
+                return bp_site_sp->ValidForThisThread (&thread);
+        }
+        return false;
     }
 
     virtual StopReason
@@ -335,6 +346,7 @@ protected:
             }
 
             BreakpointSiteSP bp_site_sp (thread_sp->GetProcess()->GetBreakpointSiteList().FindByID (m_value));
+            std::unordered_set<break_id_t> precondition_breakpoints;
 
             if (bp_site_sp)
             {
@@ -346,7 +358,9 @@ protected:
                 }
                 else
                 {
-                    // We go through each location, and test first its condition.  If the condition says to stop,
+                    // We go through each location, and test first its precondition - this overrides everything.  Note,
+                    // we only do this once per breakpoint - not once per location...
+                    // Then check the condition.  If the condition says to stop,
                     // then we run the callback for that location.  If that callback says to stop as well, then 
                     // we set m_should_stop to true; we are going to stop.
                     // But we still want to give all the breakpoints whose conditions say we are going to stop a
@@ -442,7 +456,19 @@ protected:
                             }
                             continue;
                         }
-                        // First run the condition for the breakpoint.  If that says we should stop, then we'll run
+
+                        // First run the precondition, but since the precondition is per breakpoint, only run it once
+                        // per breakpoint.
+                        std::pair<std::unordered_set<break_id_t>::iterator, bool> result
+                                = precondition_breakpoints.insert(bp_loc_sp->GetBreakpoint().GetID());
+                        if (!result.second)
+                            continue;
+
+                        bool precondition_result = bp_loc_sp->GetBreakpoint().EvaluatePrecondition(context);
+                        if (!precondition_result)
+                            continue;
+
+                        // Next run the condition for the breakpoint.  If that says we should stop, then we'll run
                         // the callback for the breakpoint.  If the callback says we shouldn't stop that will win.                    
 
                         if (bp_loc_sp->GetConditionText() != NULL)
@@ -479,7 +505,12 @@ protected:
                                                  condition_says_stop);
                                 }
                                 if (!condition_says_stop)
+                                {
+                                    // We don't want to increment the hit count of breakpoints if the condition fails.
+                                    // We've already bumped it by the time we get here, so undo the bump:
+                                    bp_loc_sp->UndoBumpHitCount();
                                     continue;
+                                }
                             }
                         }
 
@@ -534,7 +565,6 @@ protected:
     }
 
 private:
-    std::string m_description;
     bool m_should_stop;
     bool m_should_stop_is_valid;
     bool m_should_perform_action; // Since we are trying to preserve the "state" of the system even if we run functions
@@ -585,11 +615,11 @@ public:
         Watchpoint *watchpoint;
     };
 
-    StopInfoWatchpoint (Thread &thread, break_id_t watch_id) :
+    StopInfoWatchpoint (Thread &thread, break_id_t watch_id, lldb::addr_t watch_hit_addr) :
         StopInfo(thread, watch_id),
-        m_description(),
         m_should_stop(false),
-        m_should_stop_is_valid(false)
+        m_should_stop_is_valid(false),
+        m_watch_hit_addr(watch_hit_addr)
     {
     }
     
@@ -716,6 +746,21 @@ protected:
                     }
                 }
 
+                /*
+                 * MIPS: Last 3bits of the watchpoint address are masked by the kernel. For example:
+                 * 'n' is at 0x120010d00 and 'm' is 0x120010d04. When a watchpoint is set at 'm', then
+                 * watch exception is generated even when 'n' is read/written. To handle this case,
+                 * server emulates the instruction at PC and finds the base address of the load/store
+                 * instruction and appends it in the description of the stop-info packet. If watchpoint
+                 * is not set on this address by user then this do not stop.
+                */
+                if (m_watch_hit_addr != LLDB_INVALID_ADDRESS)
+                {
+                    WatchpointSP wp_hit_sp = thread_sp->CalculateTarget()->GetWatchpointList().FindByAddress(m_watch_hit_addr);
+                    if (!wp_hit_sp)
+                        m_should_stop = false;
+                }
+                
                 if (m_should_stop && wp_sp->GetConditionText() != NULL)
                 {
                     // We need to make sure the user sees any parse errors in their condition, so we'll hook the
@@ -826,9 +871,9 @@ protected:
     }
         
 private:
-    std::string m_description;
     bool m_should_stop;
     bool m_should_stop_is_valid;
+    lldb::addr_t m_watch_hit_addr;
 };
 
 
@@ -841,9 +886,10 @@ class StopInfoUnixSignal : public StopInfo
 {
 public:
 
-    StopInfoUnixSignal (Thread &thread, int signo) :
+    StopInfoUnixSignal (Thread &thread, int signo, const char *description) :
         StopInfo (thread, signo)
     {
+        SetDescription (description);
     }
     
     virtual ~StopInfoUnixSignal ()
@@ -862,7 +908,7 @@ public:
     {
         ThreadSP thread_sp (m_thread_wp.lock());
         if (thread_sp)
-            return thread_sp->GetProcess()->GetUnixSignals().GetShouldStop (m_value);
+            return thread_sp->GetProcess()->GetUnixSignals()->GetShouldStop(m_value);
         return false;
     }
 
@@ -871,7 +917,7 @@ public:
     {
         ThreadSP thread_sp (m_thread_wp.lock());
         if (thread_sp)
-            return thread_sp->GetProcess()->GetUnixSignals().GetShouldStop (m_value);
+            return thread_sp->GetProcess()->GetUnixSignals()->GetShouldStop(m_value);
         return false;
     }
     
@@ -883,13 +929,13 @@ public:
         ThreadSP thread_sp (m_thread_wp.lock());
         if (thread_sp)
         {
-            bool should_notify = thread_sp->GetProcess()->GetUnixSignals().GetShouldNotify (m_value);
+            bool should_notify = thread_sp->GetProcess()->GetUnixSignals()->GetShouldNotify(m_value);
             if (should_notify)
             {
                 StreamString strm;
                 strm.Printf ("thread %d received signal: %s",
                              thread_sp->GetIndexID(),
-                             thread_sp->GetProcess()->GetUnixSignals().GetSignalAsCString (m_value));
+                             thread_sp->GetProcess()->GetUnixSignals()->GetSignalAsCString(m_value));
                 Process::ProcessEventData::AddRestartedReason(event_ptr, strm.GetData());
             }
             return should_notify;
@@ -904,7 +950,7 @@ public:
         ThreadSP thread_sp (m_thread_wp.lock());
         if (thread_sp)
         {
-            if (thread_sp->GetProcess()->GetUnixSignals().GetShouldSuppress(m_value) == false)
+            if (thread_sp->GetProcess()->GetUnixSignals()->GetShouldSuppress(m_value) == false)
                 thread_sp->SetResumeSignal(m_value);
         }
     }
@@ -918,7 +964,7 @@ public:
             if (thread_sp)
             {
                 StreamString strm;
-                const char *signal_name = thread_sp->GetProcess()->GetUnixSignals().GetSignalAsCString (m_value);
+                const char *signal_name = thread_sp->GetProcess()->GetUnixSignals()->GetSignalAsCString(m_value);
                 if (signal_name)
                     strm.Printf("signal %s", signal_name);
                 else
@@ -1125,15 +1171,15 @@ StopInfo::CreateStopReasonWithBreakpointSiteID (Thread &thread, break_id_t break
 }
 
 StopInfoSP
-StopInfo::CreateStopReasonWithWatchpointID (Thread &thread, break_id_t watch_id)
+StopInfo::CreateStopReasonWithWatchpointID (Thread &thread, break_id_t watch_id, lldb::addr_t watch_hit_addr)
 {
-    return StopInfoSP (new StopInfoWatchpoint (thread, watch_id));
+    return StopInfoSP (new StopInfoWatchpoint (thread, watch_id, watch_hit_addr));
 }
 
 StopInfoSP
-StopInfo::CreateStopReasonWithSignal (Thread &thread, int signo)
+StopInfo::CreateStopReasonWithSignal (Thread &thread, int signo, const char *description)
 {
-    return StopInfoSP (new StopInfoUnixSignal (thread, signo));
+    return StopInfoSP (new StopInfoUnixSignal (thread, signo, description));
 }
 
 StopInfoSP

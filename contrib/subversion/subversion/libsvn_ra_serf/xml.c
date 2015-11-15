@@ -24,6 +24,7 @@
 
 
 #include <apr_uri.h>
+#include <expat.h>
 #include <serf.h>
 
 #include "svn_hash.h"
@@ -42,13 +43,35 @@
 #include "ra_serf.h"
 
 
+/* Fix for older expat 1.95.x's that do not define
+ * XML_STATUS_OK/XML_STATUS_ERROR
+ */
+#ifndef XML_STATUS_OK
+#define XML_STATUS_OK    1
+#define XML_STATUS_ERROR 0
+#endif
+
+#ifndef XML_VERSION_AT_LEAST
+#define XML_VERSION_AT_LEAST(major,minor,patch)                  \
+(((major) < XML_MAJOR_VERSION)                                       \
+ || ((major) == XML_MAJOR_VERSION && (minor) < XML_MINOR_VERSION)    \
+ || ((major) == XML_MAJOR_VERSION && (minor) == XML_MINOR_VERSION && \
+     (patch) <= XML_MICRO_VERSION))
+#endif /* XML_VERSION_AT_LEAST */
+
+/* Read/write chunks of this size into the spillbuf.  */
+#define PARSE_CHUNK_SIZE 8000
+
+
 struct svn_ra_serf__xml_context_t {
   /* Current state information.  */
   svn_ra_serf__xml_estate_t *current;
 
-  /* If WAITING.NAMESPACE != NULL, wait for NAMESPACE:NAME element to be
-     closed before looking for transitions from CURRENT->STATE.  */
-  svn_ra_serf__dav_props_t waiting;
+  /* If WAITING >= then we are waiting for an element to close before
+     resuming events. The number stored here is the amount of nested
+     elements open. The Xml parser will make sure the document is well
+     formed. */
+  int waiting;
 
   /* The transition table.  */
   const svn_ra_serf__xml_transition_t *ttable;
@@ -83,6 +106,16 @@ struct svn_ra_serf__xml_context_t {
 
 };
 
+/* Structure which represents an XML namespace. */
+typedef struct svn_ra_serf__ns_t {
+  /* The assigned name. */
+  const char *xmlns;
+  /* The full URL for this namespace. */
+  const char *url;
+  /* The next namespace in our list. */
+  struct svn_ra_serf__ns_t *next;
+} svn_ra_serf__ns_t;
+
 struct svn_ra_serf__xml_estate_t {
   /* The current state value.  */
   int state;
@@ -114,6 +147,19 @@ struct svn_ra_serf__xml_estate_t {
 
 };
 
+struct expat_ctx_t {
+  svn_ra_serf__xml_context_t *xmlctx;
+  XML_Parser parser;
+  svn_ra_serf__handler_t *handler;
+  const int *expected_status;
+
+  svn_error_t *inner_error;
+
+  /* Do not use this pool for allocation. It is merely recorded for running
+     the cleanup handler.  */
+  apr_pool_t *cleanup_pool;
+};
+
 
 static void
 define_namespaces(svn_ra_serf__ns_t **ns_list,
@@ -140,7 +186,7 @@ define_namespaces(svn_ra_serf__ns_t **ns_list,
           /* Have we already defined this ns previously? */
           for (cur_ns = *ns_list; cur_ns; cur_ns = cur_ns->next)
             {
-              if (strcmp(cur_ns->namespace, prefix) == 0)
+              if (strcmp(cur_ns->xmlns, prefix) == 0)
                 {
                   found = TRUE;
                   break;
@@ -157,7 +203,7 @@ define_namespaces(svn_ra_serf__ns_t **ns_list,
               else
                 pool = baton;
               new_ns = apr_palloc(pool, sizeof(*new_ns));
-              new_ns->namespace = apr_pstrdup(pool, prefix);
+              new_ns->xmlns = apr_pstrdup(pool, prefix);
               new_ns->url = apr_pstrdup(pool, tmp_attrs[1]);
 
               /* Push into the front of NS_LIST. Parent states will point
@@ -170,22 +216,15 @@ define_namespaces(svn_ra_serf__ns_t **ns_list,
     }
 }
 
-
-void
-svn_ra_serf__define_ns(svn_ra_serf__ns_t **ns_list,
-                       const char *const *attrs,
-                       apr_pool_t *result_pool)
-{
-  define_namespaces(ns_list, attrs, NULL /* get_pool */, result_pool);
-}
-
-
 /*
- * Look up NAME in the NS_LIST list for previously declared namespace
- * definitions and return a DAV_PROPS_T-tuple that has values.
+ * Look up @a name in the @a ns_list list for previously declared namespace
+ * definitions.
+ *
+ * Return (in @a *returned_prop_name) a #svn_ra_serf__dav_props_t tuple
+ * representing the expanded name.
  */
-void
-svn_ra_serf__expand_ns(svn_ra_serf__dav_props_t *returned_prop_name,
+static void
+expand_ns(svn_ra_serf__dav_props_t *returned_prop_name,
                        const svn_ra_serf__ns_t *ns_list,
                        const char *name)
 {
@@ -198,9 +237,9 @@ svn_ra_serf__expand_ns(svn_ra_serf__dav_props_t *returned_prop_name,
 
       for (ns = ns_list; ns; ns = ns->next)
         {
-          if (strncmp(ns->namespace, name, colon - name) == 0)
+          if (strncmp(ns->xmlns, name, colon - name) == 0)
             {
-              returned_prop_name->namespace = ns->url;
+              returned_prop_name->xmlns = ns->url;
               returned_prop_name->name = colon + 1;
               return;
             }
@@ -212,9 +251,9 @@ svn_ra_serf__expand_ns(svn_ra_serf__dav_props_t *returned_prop_name,
 
       for (ns = ns_list; ns; ns = ns->next)
         {
-          if (! ns->namespace[0])
+          if (! ns->xmlns[0])
             {
-              returned_prop_name->namespace = ns->url;
+              returned_prop_name->xmlns = ns->url;
               returned_prop_name->name = name;
               return;
             }
@@ -223,7 +262,7 @@ svn_ra_serf__expand_ns(svn_ra_serf__dav_props_t *returned_prop_name,
 
   /* If the prefix is not found, then the name is NOT within a
      namespace.  */
-  returned_prop_name->namespace = "";
+  returned_prop_name->xmlns = "";
   returned_prop_name->name = name;
 }
 
@@ -281,6 +320,49 @@ svn_ra_serf__add_open_tag_buckets(serf_bucket_t *agg_bucket,
   va_end(ap);
 
   tmp = SERF_BUCKET_SIMPLE_STRING_LEN(">", 1, bkt_alloc);
+  serf_bucket_aggregate_append(agg_bucket, tmp);
+}
+
+void
+svn_ra_serf__add_empty_tag_buckets(serf_bucket_t *agg_bucket,
+                                   serf_bucket_alloc_t *bkt_alloc,
+                                   const char *tag, ...)
+{
+  va_list ap;
+  const char *key;
+  serf_bucket_t *tmp;
+
+  tmp = SERF_BUCKET_SIMPLE_STRING_LEN("<", 1, bkt_alloc);
+  serf_bucket_aggregate_append(agg_bucket, tmp);
+
+  tmp = SERF_BUCKET_SIMPLE_STRING(tag, bkt_alloc);
+  serf_bucket_aggregate_append(agg_bucket, tmp);
+
+  va_start(ap, tag);
+  while ((key = va_arg(ap, char *)) != NULL)
+    {
+      const char *val = va_arg(ap, const char *);
+      if (val)
+        {
+          tmp = SERF_BUCKET_SIMPLE_STRING_LEN(" ", 1, bkt_alloc);
+          serf_bucket_aggregate_append(agg_bucket, tmp);
+
+          tmp = SERF_BUCKET_SIMPLE_STRING(key, bkt_alloc);
+          serf_bucket_aggregate_append(agg_bucket, tmp);
+
+          tmp = SERF_BUCKET_SIMPLE_STRING_LEN("=\"", 2, bkt_alloc);
+          serf_bucket_aggregate_append(agg_bucket, tmp);
+
+          tmp = SERF_BUCKET_SIMPLE_STRING(val, bkt_alloc);
+          serf_bucket_aggregate_append(agg_bucket, tmp);
+
+          tmp = SERF_BUCKET_SIMPLE_STRING_LEN("\"", 1, bkt_alloc);
+          serf_bucket_aggregate_append(agg_bucket, tmp);
+        }
+    }
+  va_end(ap);
+
+  tmp = SERF_BUCKET_SIMPLE_STRING_LEN("/>", 2, bkt_alloc);
   serf_bucket_aggregate_append(agg_bucket, tmp);
 }
 
@@ -368,7 +450,7 @@ void svn_ra_serf__add_tag_buckets(serf_bucket_t *agg_bucket, const char *tag,
                                   const char *value,
                                   serf_bucket_alloc_t *bkt_alloc)
 {
-  svn_ra_serf__add_open_tag_buckets(agg_bucket, bkt_alloc, tag, NULL);
+  svn_ra_serf__add_open_tag_buckets(agg_bucket, bkt_alloc, tag, SVN_VA_NULL);
 
   if (value)
     {
@@ -378,54 +460,6 @@ void svn_ra_serf__add_tag_buckets(serf_bucket_t *agg_bucket, const char *tag,
 
   svn_ra_serf__add_close_tag_buckets(agg_bucket, bkt_alloc, tag);
 }
-
-void
-svn_ra_serf__xml_push_state(svn_ra_serf__xml_parser_t *parser,
-                            int state)
-{
-  svn_ra_serf__xml_state_t *new_state;
-
-  if (!parser->free_state)
-    {
-      new_state = apr_palloc(parser->pool, sizeof(*new_state));
-      new_state->pool = svn_pool_create(parser->pool);
-    }
-  else
-    {
-      new_state = parser->free_state;
-      parser->free_state = parser->free_state->prev;
-
-      svn_pool_clear(new_state->pool);
-    }
-
-  if (parser->state)
-    {
-      new_state->private = parser->state->private;
-      new_state->ns_list = parser->state->ns_list;
-    }
-  else
-    {
-      new_state->private = NULL;
-      new_state->ns_list = NULL;
-    }
-
-  new_state->current_state = state;
-
-  /* Add it to the state chain. */
-  new_state->prev = parser->state;
-  parser->state = new_state;
-}
-
-void svn_ra_serf__xml_pop_state(svn_ra_serf__xml_parser_t *parser)
-{
-  svn_ra_serf__xml_state_t *cur_state;
-
-  cur_state = parser->state;
-  parser->state = cur_state->prev;
-  cur_state->prev = parser->free_state;
-  parser->free_state = cur_state;
-}
-
 
 /* Return a pool for XES to use for self-alloc (and other specifics).  */
 static apr_pool_t *
@@ -458,11 +492,50 @@ lazy_create_pool(void *baton)
   return xes->state_pool;
 }
 
-void
-svn_ra_serf__xml_context_destroy(
-  svn_ra_serf__xml_context_t *xmlctx)
+svn_error_t *
+svn_ra_serf__xml_context_done(svn_ra_serf__xml_context_t *xmlctx)
 {
+  if (xmlctx->current->prev)
+    {
+      /* Probably unreachable as this would be an xml parser error */
+      return svn_error_createf(SVN_ERR_XML_MALFORMED, NULL,
+                               _("XML stream truncated: closing '%s' missing"),
+                               xmlctx->current->tag.name);
+    }
+  else if (! xmlctx->free_states)
+    {
+      /* If we have no items on the free_states list, we didn't push anything,
+         which tells us that we found an empty xml body */
+      const svn_ra_serf__xml_transition_t *scan;
+      const svn_ra_serf__xml_transition_t *document = NULL;
+      const char *msg;
+
+      for (scan = xmlctx->ttable; scan->ns != NULL; ++scan)
+        {
+          if (scan->from_state == XML_STATE_INITIAL)
+            {
+              if (document != NULL)
+                {
+                  document = NULL; /* Multiple document elements defined */
+                  break;
+                }
+              document = scan;
+            }
+        }
+
+      if (document)
+        msg = apr_psprintf(xmlctx->scratch_pool, "'%s' element not found",
+                            document->name);
+      else
+        msg = _("document element not found");
+
+      return svn_error_createf(SVN_ERR_XML_MALFORMED, NULL,
+                               _("XML stream truncated: %s"),
+                               msg);
+    }
+
   svn_pool_destroy(xmlctx->scratch_pool);
+  return SVN_NO_ERROR;
 }
 
 svn_ra_serf__xml_context_t *
@@ -577,10 +650,10 @@ svn_ra_serf__xml_state_pool(svn_ra_serf__xml_estate_t *xes)
 }
 
 
-svn_error_t *
-svn_ra_serf__xml_cb_start(svn_ra_serf__xml_context_t *xmlctx,
-                          const char *raw_name,
-                          const char *const *attrs)
+static svn_error_t *
+xml_cb_start(svn_ra_serf__xml_context_t *xmlctx,
+             const char *raw_name,
+             const char *const *attrs)
 {
   svn_ra_serf__xml_estate_t *current = xmlctx->current;
   svn_ra_serf__dav_props_t elemname;
@@ -590,14 +663,17 @@ svn_ra_serf__xml_cb_start(svn_ra_serf__xml_context_t *xmlctx,
 
   /* If we're waiting for an element to close, then just ignore all
      other element-opens.  */
-  if (xmlctx->waiting.namespace != NULL)
-    return SVN_NO_ERROR;
+  if (xmlctx->waiting > 0)
+    {
+      xmlctx->waiting++;
+      return SVN_NO_ERROR;
+    }
 
   /* Look for xmlns: attributes. Lazily create the state pool if any
      were found.  */
   define_namespaces(&current->ns_list, attrs, lazy_create_pool, current);
 
-  svn_ra_serf__expand_ns(&elemname, current->ns_list, raw_name);
+  expand_ns(&elemname, current->ns_list, raw_name);
 
   for (scan = xmlctx->ttable; scan->ns != NULL; ++scan)
     {
@@ -610,21 +686,20 @@ svn_ra_serf__xml_cb_start(svn_ra_serf__xml_context_t *xmlctx,
 
       /* Found a specific transition.  */
       if (strcmp(elemname.name, scan->name) == 0
-          && strcmp(elemname.namespace, scan->ns) == 0)
+          && strcmp(elemname.xmlns, scan->ns) == 0)
         break;
     }
   if (scan->ns == NULL)
     {
-      if (current->state == 0)
+      if (current->state == XML_STATE_INITIAL)
         {
           return svn_error_createf(
-                        SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
+                        SVN_ERR_XML_UNEXPECTED_ELEMENT, NULL,
                         _("XML Parsing failed: Unexpected root element '%s'"),
                         elemname.name);
         }
 
-      xmlctx->waiting = elemname;
-      /* ### return?  */
+      xmlctx->waiting++; /* Start waiting for the close tag */
       return SVN_NO_ERROR;
     }
 
@@ -677,10 +752,11 @@ svn_ra_serf__xml_cb_start(svn_ra_serf__xml_context_t *xmlctx,
                   name = *saveattr;
                   value = svn_xml_get_attr_value(name, attrs);
                   if (value == NULL)
-                    return svn_error_createf(SVN_ERR_XML_ATTRIB_NOT_FOUND,
-                                             NULL,
-                                             _("Missing XML attribute: '%s'"),
-                                             name);
+                    return svn_error_createf(
+                                SVN_ERR_XML_ATTRIB_NOT_FOUND,
+                                NULL,
+                                _("Missing XML attribute '%s' on '%s' element"),
+                                name, scan->name);
                 }
 
               if (value)
@@ -699,7 +775,7 @@ svn_ra_serf__xml_cb_start(svn_ra_serf__xml_context_t *xmlctx,
   /* Some basic copies to set up the new estate.  */
   new_xes->state = scan->to_state;
   new_xes->tag.name = apr_pstrdup(new_pool, elemname.name);
-  new_xes->tag.namespace = apr_pstrdup(new_pool, elemname.namespace);
+  new_xes->tag.xmlns = apr_pstrdup(new_pool, elemname.xmlns);
   new_xes->custom_close = scan->custom_close;
 
   /* Start with the parent's namespace set.  */
@@ -723,38 +799,17 @@ svn_ra_serf__xml_cb_start(svn_ra_serf__xml_context_t *xmlctx,
 }
 
 
-svn_error_t *
-svn_ra_serf__xml_cb_end(svn_ra_serf__xml_context_t *xmlctx,
-                        const char *raw_name)
+static svn_error_t *
+xml_cb_end(svn_ra_serf__xml_context_t *xmlctx,
+           const char *raw_name)
 {
   svn_ra_serf__xml_estate_t *xes = xmlctx->current;
-  svn_ra_serf__dav_props_t elemname;
 
-  svn_ra_serf__expand_ns(&elemname, xes->ns_list, raw_name);
-
-  if (xmlctx->waiting.namespace != NULL)
+  if (xmlctx->waiting > 0)
     {
-      /* If this element is not the closer, then keep waiting... */
-      if (strcmp(elemname.name, xmlctx->waiting.name) != 0
-          || strcmp(elemname.namespace, xmlctx->waiting.namespace) != 0)
-        return SVN_NO_ERROR;
-
-      /* Found it. Stop waiting, and go back for more.  */
-      xmlctx->waiting.namespace = NULL;
+      xmlctx->waiting--;
       return SVN_NO_ERROR;
     }
-
-  /* We should be looking at the same tag that opened the current state.
-
-     Unknown elements are simply skipped, so we wouldn't reach this check.
-
-     Known elements push a new state for a given tag. Some other elemname
-     would imply closing an ancestor tag (where did ours go?) or a spurious
-     tag closure.  */
-  if (strcmp(elemname.name, xes->tag.name) != 0
-      || strcmp(elemname.namespace, xes->tag.namespace) != 0)
-    return svn_error_create(SVN_ERR_XML_MALFORMED, NULL,
-                            _("The response contains invalid XML"));
 
   if (xes->custom_close)
     {
@@ -799,14 +854,14 @@ svn_ra_serf__xml_cb_end(svn_ra_serf__xml_context_t *xmlctx,
 }
 
 
-svn_error_t *
-svn_ra_serf__xml_cb_cdata(svn_ra_serf__xml_context_t *xmlctx,
-                          const char *data,
-                          apr_size_t len)
+static svn_error_t *
+xml_cb_cdata(svn_ra_serf__xml_context_t *xmlctx,
+             const char *data,
+             apr_size_t len)
 {
   /* If we are waiting for a closing tag, then we are uninterested in
      the cdata. Just return.  */
-  if (xmlctx->waiting.namespace != NULL)
+  if (xmlctx->waiting > 0)
     return SVN_NO_ERROR;
 
   /* If the current state is collecting cdata, then copy the cdata.  */
@@ -831,3 +886,226 @@ svn_ra_serf__xml_cb_cdata(svn_ra_serf__xml_context_t *xmlctx,
   return SVN_NO_ERROR;
 }
 
+/* svn_error_t * wrapper around XML_Parse */
+static APR_INLINE svn_error_t *
+parse_xml(struct expat_ctx_t *ectx, const char *data, apr_size_t len, svn_boolean_t is_final)
+{
+  int xml_status = XML_Parse(ectx->parser, data, (int)len, is_final);
+  const char *msg;
+  int xml_code;
+
+  if (xml_status == XML_STATUS_OK)
+    return ectx->inner_error;
+
+  xml_code = XML_GetErrorCode(ectx->parser);
+
+#if XML_VERSION_AT_LEAST(1, 95, 8)
+  /* If we called XML_StopParser() expat will return an abort error. If we
+     have a better error stored we should ignore it as it will not help
+     the end-user to store it in the error chain. */
+  if (xml_code == XML_ERROR_ABORTED && ectx->inner_error)
+    return ectx->inner_error;
+#endif
+
+  msg = XML_ErrorString(xml_code);
+
+  return svn_error_compose_create(
+            ectx->inner_error,
+            svn_error_create(SVN_ERR_RA_DAV_MALFORMED_DATA,
+                             svn_error_createf(SVN_ERR_XML_MALFORMED, NULL,
+                                               _("Malformed XML: %s"),
+                                               msg),
+                             _("The XML response contains invalid XML")));
+}
+
+/* Apr pool cleanup handler to release an XML_Parser in success and error
+   conditions */
+static apr_status_t
+xml_parser_cleanup(void *baton)
+{
+  XML_Parser *xmlp = baton;
+
+  if (*xmlp)
+    {
+      (void) XML_ParserFree(*xmlp);
+      *xmlp = NULL;
+    }
+
+  return APR_SUCCESS;
+}
+
+/* Conforms to Expat's XML_StartElementHandler  */
+static void
+expat_start(void *userData, const char *raw_name, const char **attrs)
+{
+  struct expat_ctx_t *ectx = userData;
+
+  if (ectx->inner_error != NULL)
+    return;
+
+  ectx->inner_error = svn_error_trace(xml_cb_start(ectx->xmlctx,
+                                                   raw_name, attrs));
+
+#if XML_VERSION_AT_LEAST(1, 95, 8)
+  if (ectx->inner_error)
+    (void) XML_StopParser(ectx->parser, 0 /* resumable */);
+#endif
+}
+
+
+/* Conforms to Expat's XML_EndElementHandler  */
+static void
+expat_end(void *userData, const char *raw_name)
+{
+  struct expat_ctx_t *ectx = userData;
+
+  if (ectx->inner_error != NULL)
+    return;
+
+  ectx->inner_error = svn_error_trace(xml_cb_end(ectx->xmlctx, raw_name));
+
+#if XML_VERSION_AT_LEAST(1, 95, 8)
+  if (ectx->inner_error)
+    (void) XML_StopParser(ectx->parser, 0 /* resumable */);
+#endif
+}
+
+
+/* Conforms to Expat's XML_CharacterDataHandler  */
+static void
+expat_cdata(void *userData, const char *data, int len)
+{
+  struct expat_ctx_t *ectx = userData;
+
+  if (ectx->inner_error != NULL)
+    return;
+
+  ectx->inner_error = svn_error_trace(xml_cb_cdata(ectx->xmlctx, data, len));
+
+#if XML_VERSION_AT_LEAST(1, 95, 8)
+  if (ectx->inner_error)
+    (void) XML_StopParser(ectx->parser, 0 /* resumable */);
+#endif
+}
+
+
+/* Implements svn_ra_serf__response_handler_t */
+static svn_error_t *
+expat_response_handler(serf_request_t *request,
+                       serf_bucket_t *response,
+                       void *baton,
+                       apr_pool_t *scratch_pool)
+{
+  struct expat_ctx_t *ectx = baton;
+  svn_boolean_t got_expected_status;
+
+  if (ectx->expected_status)
+    {
+      const int *status = ectx->expected_status;
+      got_expected_status = FALSE;
+
+      while (*status && ectx->handler->sline.code != *status)
+        status++;
+
+      got_expected_status = (*status) != 0;
+    }
+  else
+    got_expected_status = (ectx->handler->sline.code == 200);
+
+  if (!ectx->handler->server_error
+      && ((ectx->handler->sline.code < 200) || (ectx->handler->sline.code >= 300)
+          || ! got_expected_status))
+    {
+      /* By deferring to expect_empty_body(), it will make a choice on
+         how to handle the body. Whatever the decision, the core handler
+         will take over, and we will not be called again.  */
+
+      /* ### This handles xml bodies as svn-errors (returned via serf context
+         ### loop), but ignores non-xml errors.
+
+         Current code depends on this behavior and checks itself while other
+         continues, and then verifies if work has been performed.
+
+         ### TODO: Make error checking consistent */
+
+      /* ### If !GOT_EXPECTED_STATUS, this should always produce an error */
+      return svn_error_trace(svn_ra_serf__expect_empty_body(
+                               request, response, ectx->handler,
+                               scratch_pool));
+    }
+
+  if (!ectx->parser)
+    {
+      ectx->parser = XML_ParserCreate(NULL);
+      apr_pool_cleanup_register(ectx->cleanup_pool, &ectx->parser,
+                                xml_parser_cleanup, apr_pool_cleanup_null);
+      XML_SetUserData(ectx->parser, ectx);
+      XML_SetElementHandler(ectx->parser, expat_start, expat_end);
+      XML_SetCharacterDataHandler(ectx->parser, expat_cdata);
+    }
+
+  while (1)
+    {
+      apr_status_t status;
+      const char *data;
+      apr_size_t len;
+      svn_error_t *err;
+      svn_boolean_t at_eof = FALSE;
+
+      status = serf_bucket_read(response, PARSE_CHUNK_SIZE, &data, &len);
+      if (SERF_BUCKET_READ_ERROR(status))
+        return svn_ra_serf__wrap_err(status, NULL);
+      else if (APR_STATUS_IS_EOF(status))
+        at_eof = TRUE;
+
+      err = parse_xml(ectx, data, len, at_eof /* isFinal */);
+
+      if (at_eof || err)
+        {
+          /* Release xml parser state/tables. */
+          apr_pool_cleanup_run(ectx->cleanup_pool, &ectx->parser,
+                               xml_parser_cleanup);
+        }
+
+      SVN_ERR(err);
+
+      /* The parsing went fine. What has the bucket told us?  */
+      if (at_eof)
+        {
+          /* Make sure we actually got xml and clean up after parsing */
+          SVN_ERR(svn_ra_serf__xml_context_done(ectx->xmlctx));
+        }
+
+      if (status && !SERF_BUCKET_READ_ERROR(status))
+        {
+          return svn_ra_serf__wrap_err(status, NULL);
+        }
+    }
+
+  /* NOTREACHED */
+}
+
+
+svn_ra_serf__handler_t *
+svn_ra_serf__create_expat_handler(svn_ra_serf__session_t *session,
+                                  svn_ra_serf__xml_context_t *xmlctx,
+                                  const int *expected_status,
+                                  apr_pool_t *result_pool)
+{
+  svn_ra_serf__handler_t *handler;
+  struct expat_ctx_t *ectx;
+
+  ectx = apr_pcalloc(result_pool, sizeof(*ectx));
+  ectx->xmlctx = xmlctx;
+  ectx->parser = NULL;
+  ectx->expected_status = expected_status;
+  ectx->cleanup_pool = result_pool;
+
+  handler = svn_ra_serf__create_handler(session, result_pool);
+  handler->response_handler = expat_response_handler;
+  handler->response_baton = ectx;
+
+  ectx->handler = handler;
+
+  return handler;
+}

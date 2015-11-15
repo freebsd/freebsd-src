@@ -39,7 +39,7 @@ _INTERNALLIBS=	\
 		netbsd \
 		ntp \
 		ntpevent \
-		ohash \
+		openbsd \
 		opts \
 		parse \
 		readline \
@@ -57,6 +57,7 @@ _LIBRARIES=	\
 		archive \
 		asn1 \
 		auditd \
+		avl \
 		begemot \
 		bluetooth \
 		bsdxml \
@@ -239,6 +240,7 @@ _DP_vmmapi=	util
 _DP_ctf=	z
 _DP_proc=	rtld_db util
 _DP_dtrace=	rtld_db pthread
+_DP_xo=		util
 
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
@@ -298,9 +300,6 @@ DPADD_gssapi_krb5+=	${DPADD_pthread}
 LDADD_gssapi_krb5+=	${LDADD_pthread}
 
 .for _l in ${LIBADD}
-.if ${_PRIVATELIBS:M${_l}}
-USEPRIVATELIB+=	${_l}
-.endif
 DPADD+=		${DPADD_${_l}:Umissing-dpadd_${_l}}
 LDADD+=		${LDADD_${_l}}
 .endfor
@@ -315,8 +314,8 @@ LIBELFTC?=	${LIBELFTCDIR}/libelftc.a
 LIBREADLINEDIR=	${ROOTOBJDIR}/gnu/lib/libreadline/readline
 LIBREADLINE?=	${LIBREADLINEDIR}/libreadline.a
 
-LIBOHASHDIR=	${ROOTOBJDIR}/lib/libohash
-LIBOHASH?=	${LIBOHASHDIR}/libohash.a
+LIBOPENBSDDIR=	${ROOTOBJDIR}/lib/libopenbsd
+LIBOPENBSD?=	${LIBOPENBSDDIR}/libopenbsd.a
 
 LIBSMDIR=	${ROOTOBJDIR}/lib/libsm
 LIBSM?=		${LIBSMDIR}/libsm.a

@@ -107,8 +107,7 @@ public:
     iterator erase_after(const_iterator first, const_iterator last);
 
     void swap(forward_list& x)
-        noexcept(!allocator_type::propagate_on_container_swap::value ||
-                 __is_nothrow_swappable<allocator_type>::value);
+        noexcept(allocator_traits<allocator_type>::is_always_equal::value);  // C++17
 
     void resize(size_type n);
     void resize(size_type n, const value_type& v);
@@ -218,7 +217,7 @@ struct __forward_list_node
     value_type __value_;
 };
 
-template<class _Tp, class _Alloc> class _LIBCPP_TYPE_VIS_ONLY forward_list;
+template <class _Tp, class _Alloc = allocator<_Tp> > class _LIBCPP_TYPE_VIS_ONLY forward_list;
 template<class _NodeConstPtr> class _LIBCPP_TYPE_VIS_ONLY __forward_list_const_iterator;
 
 template <class _NodePtr>
@@ -365,24 +364,12 @@ protected:
     typedef typename allocator_traits<allocator_type>::void_pointer  void_pointer;
     typedef __forward_list_node<value_type, void_pointer>            __node;
     typedef typename __begin_node_of<value_type, void_pointer>::type __begin_node;
-    typedef typename allocator_traits<allocator_type>::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-                rebind_alloc<__node>
-#else
-                rebind_alloc<__node>::other
-#endif
-                                                      __node_allocator;
+    typedef typename __rebind_alloc_helper<allocator_traits<allocator_type>, __node>::type __node_allocator;
     typedef allocator_traits<__node_allocator>        __node_traits;
     typedef typename __node_traits::pointer           __node_pointer;
     typedef typename __node_traits::pointer           __node_const_pointer;
 
-    typedef typename allocator_traits<allocator_type>::template
-#ifndef _LIBCPP_HAS_NO_TEMPLATE_ALIASES
-                rebind_alloc<__begin_node>
-#else
-                rebind_alloc<__begin_node>::other
-#endif
-                                                      __begin_node_allocator;
+    typedef typename __rebind_alloc_helper<allocator_traits<allocator_type>, __begin_node>::type __begin_node_allocator;
     typedef typename allocator_traits<__begin_node_allocator>::pointer __begin_node_pointer;
 
     __compressed_pair<__begin_node, __node_allocator> __before_begin_;
@@ -443,8 +430,12 @@ protected:
 
 public:
     void swap(__forward_list_base& __x)
-        _NOEXCEPT_(!__node_traits::propagate_on_container_swap::value ||
-                   __is_nothrow_swappable<__node_allocator>::value);
+#if _LIBCPP_STD_VER >= 14
+        _NOEXCEPT;
+#else
+        _NOEXCEPT_(!__node_traits::propagate_on_container_move_assignment::value || 
+                    __is_nothrow_swappable<__node_allocator>::value);
+#endif
 protected:
     void clear() _NOEXCEPT;
 
@@ -466,26 +457,6 @@ private:
     void __move_assign_alloc(__forward_list_base& __x, true_type)
         _NOEXCEPT_(is_nothrow_move_assignable<__node_allocator>::value)
         {__alloc() = _VSTD::move(__x.__alloc());}
-
-    _LIBCPP_INLINE_VISIBILITY
-    static void __swap_alloc(__node_allocator& __x, __node_allocator& __y)
-        _NOEXCEPT_(!__node_traits::propagate_on_container_swap::value ||
-                   __is_nothrow_swappable<__node_allocator>::value)
-        {__swap_alloc(__x, __y, integral_constant<bool,
-                         __node_traits::propagate_on_container_swap::value>());}
-    _LIBCPP_INLINE_VISIBILITY
-    static void __swap_alloc(__node_allocator& __x, __node_allocator& __y,
-                                                                     false_type)
-        _NOEXCEPT
-        {}
-    _LIBCPP_INLINE_VISIBILITY
-    static void __swap_alloc(__node_allocator& __x, __node_allocator& __y,
-                                                                      true_type)
-        _NOEXCEPT_(__is_nothrow_swappable<__node_allocator>::value)
-        {
-            using _VSTD::swap;
-            swap(__x, __y);
-        }
 };
 
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
@@ -524,10 +495,15 @@ template <class _Tp, class _Alloc>
 inline _LIBCPP_INLINE_VISIBILITY
 void
 __forward_list_base<_Tp, _Alloc>::swap(__forward_list_base& __x)
-        _NOEXCEPT_(!__node_traits::propagate_on_container_swap::value ||
-                   __is_nothrow_swappable<__node_allocator>::value)
+#if _LIBCPP_STD_VER >= 14
+        _NOEXCEPT
+#else
+        _NOEXCEPT_(!__node_traits::propagate_on_container_move_assignment::value || 
+                    __is_nothrow_swappable<__node_allocator>::value)
+#endif
 {
-    __swap_alloc(__alloc(), __x.__alloc());
+    __swap_allocator(__alloc(), __x.__alloc(), 
+            integral_constant<bool, __node_traits::propagate_on_container_swap::value>());
     using _VSTD::swap;
     swap(__before_begin()->__next_, __x.__before_begin()->__next_);
 }
@@ -547,7 +523,7 @@ __forward_list_base<_Tp, _Alloc>::clear() _NOEXCEPT
     __before_begin()->__next_ = nullptr;
 }
 
-template <class _Tp, class _Alloc = allocator<_Tp> >
+template <class _Tp, class _Alloc /*= allocator<_Tp>*/>
 class _LIBCPP_TYPE_VIS_ONLY forward_list
     : private __forward_list_base<_Tp, _Alloc>
 {
@@ -715,8 +691,12 @@ public:
 
     _LIBCPP_INLINE_VISIBILITY
     void swap(forward_list& __x)
+#if _LIBCPP_STD_VER >= 14
+        _NOEXCEPT
+#else
         _NOEXCEPT_(!__node_traits::propagate_on_container_swap::value ||
                    __is_nothrow_swappable<__node_allocator>::value)
+#endif
         {base::swap(__x);}
 
     void resize(size_type __n);

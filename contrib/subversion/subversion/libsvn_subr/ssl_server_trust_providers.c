@@ -35,12 +35,6 @@
 /* File provider                                                         */
 /*-----------------------------------------------------------------------*/
 
-/* The keys that will be stored on disk.  These serve the same role as
-   similar constants in other providers. */
-#define AUTHN_ASCII_CERT_KEY            "ascii_cert"
-#define AUTHN_FAILURES_KEY              "failures"
-
-
 /* retrieve ssl server CA failure overrides (if any) from servers
    config */
 static svn_error_t *
@@ -73,18 +67,12 @@ ssl_server_trust_file_first_credentials(void **credentials,
       svn_string_t *trusted_cert, *this_cert, *failstr;
       apr_uint32_t last_failures = 0;
 
-      trusted_cert = svn_hash_gets(creds_hash, AUTHN_ASCII_CERT_KEY);
+      trusted_cert = svn_hash_gets(creds_hash, SVN_CONFIG_AUTHN_ASCII_CERT_KEY);
       this_cert = svn_string_create(cert_info->ascii_cert, pool);
-      failstr = svn_hash_gets(creds_hash, AUTHN_FAILURES_KEY);
+      failstr = svn_hash_gets(creds_hash, SVN_CONFIG_AUTHN_FAILURES_KEY);
 
       if (failstr)
-        {
-          char *endptr;
-          unsigned long tmp_ulong = strtoul(failstr->data, &endptr, 10);
-
-          if (*endptr == '\0')
-            last_failures = (apr_uint32_t) tmp_ulong;
-        }
+        SVN_ERR(svn_cstring_atoui(&last_failures, failstr->data));
 
       /* If the cert is trusted and there are no new failures, we
        * accept it by clearing all failures. */
@@ -130,10 +118,9 @@ ssl_server_trust_file_save_credentials(svn_boolean_t *saved,
   cert_info = svn_hash_gets(parameters, SVN_AUTH_PARAM_SSL_SERVER_CERT_INFO);
 
   creds_hash = apr_hash_make(pool);
-  svn_hash_sets(creds_hash, AUTHN_ASCII_CERT_KEY,
+  svn_hash_sets(creds_hash, SVN_CONFIG_AUTHN_ASCII_CERT_KEY,
                 svn_string_create(cert_info->ascii_cert, pool));
-  svn_hash_sets(creds_hash,
-                AUTHN_FAILURES_KEY,
+  svn_hash_sets(creds_hash, SVN_CONFIG_AUTHN_FAILURES_KEY,
                 svn_string_createf(pool, "%lu",
                                    (unsigned long)creds->accepted_failures));
 
@@ -149,9 +136,9 @@ ssl_server_trust_file_save_credentials(svn_boolean_t *saved,
 
 static const svn_auth_provider_t ssl_server_trust_file_provider = {
   SVN_AUTH_CRED_SSL_SERVER_TRUST,
-  &ssl_server_trust_file_first_credentials,
+  ssl_server_trust_file_first_credentials,
   NULL,
-  &ssl_server_trust_file_save_credentials,
+  ssl_server_trust_file_save_credentials,
 };
 
 

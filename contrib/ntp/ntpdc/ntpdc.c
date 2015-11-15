@@ -240,7 +240,7 @@ static	FILE *current_output;
  */
 extern struct xcmd opcmds[];
 
-char *progname;
+char const *progname;
 
 #ifdef NO_MAIN_ALLOWED
 CALL(ntpdc,"ntpdc",ntpdcmain);
@@ -1443,7 +1443,7 @@ getnetnum(
 				    LENHOSTNAME, NULL, 0, 0);
 		return 1;
 	} else if (getaddrinfo(hname, "ntp", &hints, &ai) == 0) {
-		NTP_INSIST(sizeof(*num) >= ai->ai_addrlen);
+		INSIST(sizeof(*num) >= ai->ai_addrlen);
 		memcpy(num, ai->ai_addr, ai->ai_addrlen);
 		if (fullhost != NULL) {
 			if (ai->ai_canonname != NULL)

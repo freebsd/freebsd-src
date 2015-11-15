@@ -19,6 +19,7 @@
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "clang/Frontend/Utils.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/IR/DataLayout.h"
@@ -160,70 +161,68 @@ bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
 
   const unsigned IncludedFlagsBitmask = options::CC1AsOption;
   unsigned MissingArgIndex, MissingArgCount;
-  std::unique_ptr<InputArgList> Args(
-      OptTbl->ParseArgs(Argv.begin(), Argv.end(), MissingArgIndex, MissingArgCount,
-                        IncludedFlagsBitmask));
+  InputArgList Args = OptTbl->ParseArgs(Argv, MissingArgIndex, MissingArgCount,
+                                        IncludedFlagsBitmask);
 
   // Check for missing argument error.
   if (MissingArgCount) {
     Diags.Report(diag::err_drv_missing_argument)
-        << Args->getArgString(MissingArgIndex) << MissingArgCount;
+        << Args.getArgString(MissingArgIndex) << MissingArgCount;
     Success = false;
   }
 
   // Issue errors on unknown arguments.
-  for (arg_iterator it = Args->filtered_begin(OPT_UNKNOWN),
-                    ie = Args->filtered_end();
-       it != ie; ++it) {
-    Diags.Report(diag::err_drv_unknown_argument) << (*it)->getAsString(*Args);
+  for (const Arg *A : Args.filtered(OPT_UNKNOWN)) {
+    Diags.Report(diag::err_drv_unknown_argument) << A->getAsString(Args);
     Success = false;
   }
 
   // Construct the invocation.
 
   // Target Options
-  Opts.Triple = llvm::Triple::normalize(Args->getLastArgValue(OPT_triple));
-  Opts.CPU = Args->getLastArgValue(OPT_target_cpu);
-  Opts.Features = Args->getAllArgValues(OPT_target_feature);
+  Opts.Triple = llvm::Triple::normalize(Args.getLastArgValue(OPT_triple));
+  Opts.CPU = Args.getLastArgValue(OPT_target_cpu);
+  Opts.Features = Args.getAllArgValues(OPT_target_feature);
 
   // Use the default target triple if unspecified.
   if (Opts.Triple.empty())
     Opts.Triple = llvm::sys::getDefaultTargetTriple();
 
   // Language Options
-  Opts.IncludePaths = Args->getAllArgValues(OPT_I);
-  Opts.NoInitialTextSection = Args->hasArg(OPT_n);
-  Opts.SaveTemporaryLabels = Args->hasArg(OPT_msave_temp_labels);
-  Opts.GenDwarfForAssembly = Args->hasArg(OPT_g_Flag);
-  Opts.CompressDebugSections = Args->hasArg(OPT_compress_debug_sections);
-  if (Args->hasArg(OPT_gdwarf_2))
+  Opts.IncludePaths = Args.getAllArgValues(OPT_I);
+  Opts.NoInitialTextSection = Args.hasArg(OPT_n);
+  Opts.SaveTemporaryLabels = Args.hasArg(OPT_msave_temp_labels);
+  Opts.GenDwarfForAssembly = Args.hasArg(OPT_g_Flag);
+  Opts.CompressDebugSections = Args.hasArg(OPT_compress_debug_sections);
+  if (Args.hasArg(OPT_gdwarf_2))
     Opts.DwarfVersion = 2;
-  if (Args->hasArg(OPT_gdwarf_3))
+  if (Args.hasArg(OPT_gdwarf_3))
     Opts.DwarfVersion = 3;
-  if (Args->hasArg(OPT_gdwarf_4))
+  if (Args.hasArg(OPT_gdwarf_4))
     Opts.DwarfVersion = 4;
-  Opts.DwarfDebugFlags = Args->getLastArgValue(OPT_dwarf_debug_flags);
-  Opts.DwarfDebugProducer = Args->getLastArgValue(OPT_dwarf_debug_producer);
-  Opts.DebugCompilationDir = Args->getLastArgValue(OPT_fdebug_compilation_dir);
-  Opts.MainFileName = Args->getLastArgValue(OPT_main_file_name);
+  Opts.DwarfDebugFlags = Args.getLastArgValue(OPT_dwarf_debug_flags);
+  Opts.DwarfDebugProducer = Args.getLastArgValue(OPT_dwarf_debug_producer);
+  Opts.DebugCompilationDir = Args.getLastArgValue(OPT_fdebug_compilation_dir);
+  Opts.MainFileName = Args.getLastArgValue(OPT_main_file_name);
 
   // Frontend Options
-  if (Args->hasArg(OPT_INPUT)) {
+  if (Args.hasArg(OPT_INPUT)) {
     bool First = true;
-    for (arg_iterator it = Args->filtered_begin(OPT_INPUT),
-           ie = Args->filtered_end(); it != ie; ++it, First=false) {
+    for (arg_iterator it = Args.filtered_begin(OPT_INPUT),
+                      ie = Args.filtered_end();
+         it != ie; ++it, First = false) {
       const Arg *A = it;
       if (First)
         Opts.InputFile = A->getValue();
       else {
-        Diags.Report(diag::err_drv_unknown_argument) << A->getAsString(*Args);
+        Diags.Report(diag::err_drv_unknown_argument) << A->getAsString(Args);
         Success = false;
       }
     }
   }
-  Opts.LLVMArgs = Args->getAllArgValues(OPT_mllvm);
-  Opts.OutputPath = Args->getLastArgValue(OPT_o);
-  if (Arg *A = Args->getLastArg(OPT_filetype)) {
+  Opts.LLVMArgs = Args.getAllArgValues(OPT_mllvm);
+  Opts.OutputPath = Args.getLastArgValue(OPT_o);
+  if (Arg *A = Args.getLastArg(OPT_filetype)) {
     StringRef Name = A->getValue();
     unsigned OutputType = StringSwitch<unsigned>(Name)
       .Case("asm", FT_Asm)
@@ -231,32 +230,31 @@ bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
       .Case("obj", FT_Obj)
       .Default(~0U);
     if (OutputType == ~0U) {
-      Diags.Report(diag::err_drv_invalid_value)
-        << A->getAsString(*Args) << Name;
+      Diags.Report(diag::err_drv_invalid_value) << A->getAsString(Args) << Name;
       Success = false;
     } else
       Opts.OutputType = FileType(OutputType);
   }
-  Opts.ShowHelp = Args->hasArg(OPT_help);
-  Opts.ShowVersion = Args->hasArg(OPT_version);
+  Opts.ShowHelp = Args.hasArg(OPT_help);
+  Opts.ShowVersion = Args.hasArg(OPT_version);
 
   // Transliterate Options
   Opts.OutputAsmVariant =
-      getLastArgIntValue(*Args.get(), OPT_output_asm_variant, 0, Diags);
-  Opts.ShowEncoding = Args->hasArg(OPT_show_encoding);
-  Opts.ShowInst = Args->hasArg(OPT_show_inst);
+      getLastArgIntValue(Args, OPT_output_asm_variant, 0, Diags);
+  Opts.ShowEncoding = Args.hasArg(OPT_show_encoding);
+  Opts.ShowInst = Args.hasArg(OPT_show_inst);
 
   // Assemble Options
-  Opts.RelaxAll = Args->hasArg(OPT_mrelax_all);
-  Opts.NoExecStack = Args->hasArg(OPT_mno_exec_stack);
-  Opts.FatalWarnings =  Args->hasArg(OPT_massembler_fatal_warnings);
+  Opts.RelaxAll = Args.hasArg(OPT_mrelax_all);
+  Opts.NoExecStack = Args.hasArg(OPT_mno_exec_stack);
+  Opts.FatalWarnings = Args.hasArg(OPT_massembler_fatal_warnings);
 
   return Success;
 }
 
-static formatted_raw_ostream *GetOutputStream(AssemblerInvocation &Opts,
-                                              DiagnosticsEngine &Diags,
-                                              bool Binary) {
+static std::unique_ptr<raw_fd_ostream>
+getOutputStream(AssemblerInvocation &Opts, DiagnosticsEngine &Diags,
+                bool Binary) {
   if (Opts.OutputPath.empty())
     Opts.OutputPath = "-";
 
@@ -266,16 +264,15 @@ static formatted_raw_ostream *GetOutputStream(AssemblerInvocation &Opts,
     sys::RemoveFileOnSignal(Opts.OutputPath);
 
   std::error_code EC;
-  raw_fd_ostream *Out = new raw_fd_ostream(
+  auto Out = llvm::make_unique<raw_fd_ostream>(
       Opts.OutputPath, EC, (Binary ? sys::fs::F_None : sys::fs::F_Text));
   if (EC) {
     Diags.Report(diag::err_fe_unable_to_open_output) << Opts.OutputPath
                                                      << EC.message();
-    delete Out;
     return nullptr;
   }
 
-  return new formatted_raw_ostream(*Out, formatted_raw_ostream::DELETE_STREAM);
+  return Out;
 }
 
 static bool ExecuteAssembler(AssemblerInvocation &Opts,
@@ -315,9 +312,8 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts,
     MAI->setCompressDebugSections(true);
 
   bool IsBinary = Opts.OutputType == AssemblerInvocation::FT_Obj;
-  std::unique_ptr<formatted_raw_ostream> Out(
-      GetOutputStream(Opts, Diags, IsBinary));
-  if (!Out)
+  std::unique_ptr<raw_fd_ostream> FDOS = getOutputStream(Opts, Diags, IsBinary);
+  if (!FDOS)
     return true;
 
   // FIXME: This is not pretty. MCContext has a ptr to MCObjectFileInfo and
@@ -326,8 +322,8 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts,
 
   MCContext Ctx(MAI.get(), MRI.get(), MOFI.get(), &SrcMgr);
   // FIXME: Assembler behavior can change with -static.
-  MOFI->InitMCObjectFileInfo(Opts.Triple,
-                             Reloc::Default, CodeModel::Default, Ctx);
+  MOFI->InitMCObjectFileInfo(Triple(Opts.Triple), Reloc::Default,
+                             CodeModel::Default, Ctx);
   if (Opts.SaveTemporaryLabels)
     Ctx.setAllowTemporaryLabels(false);
   if (Opts.GenDwarfForAssembly)
@@ -356,31 +352,40 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts,
   std::unique_ptr<MCSubtargetInfo> STI(
       TheTarget->createMCSubtargetInfo(Opts.Triple, Opts.CPU, FS));
 
+  raw_pwrite_stream *Out = FDOS.get();
+  std::unique_ptr<buffer_ostream> BOS;
+
   // FIXME: There is a bit of code duplication with addPassesToEmitFile.
   if (Opts.OutputType == AssemblerInvocation::FT_Asm) {
-    MCInstPrinter *IP =
-      TheTarget->createMCInstPrinter(Opts.OutputAsmVariant, *MAI, *MCII, *MRI,
-                                     *STI);
+    MCInstPrinter *IP = TheTarget->createMCInstPrinter(
+        llvm::Triple(Opts.Triple), Opts.OutputAsmVariant, *MAI, *MCII, *MRI);
     MCCodeEmitter *CE = nullptr;
     MCAsmBackend *MAB = nullptr;
     if (Opts.ShowEncoding) {
-      CE = TheTarget->createMCCodeEmitter(*MCII, *MRI, *STI, Ctx);
+      CE = TheTarget->createMCCodeEmitter(*MCII, *MRI, Ctx);
       MAB = TheTarget->createMCAsmBackend(*MRI, Opts.Triple, Opts.CPU);
     }
-    Str.reset(TheTarget->createAsmStreamer(Ctx, *Out, /*asmverbose*/true,
-                                           /*useDwarfDirectory*/ true,
-                                           IP, CE, MAB,
-                                           Opts.ShowInst));
+    auto FOut = llvm::make_unique<formatted_raw_ostream>(*Out);
+    Str.reset(TheTarget->createAsmStreamer(
+        Ctx, std::move(FOut), /*asmverbose*/ true,
+        /*useDwarfDirectory*/ true, IP, CE, MAB, Opts.ShowInst));
   } else if (Opts.OutputType == AssemblerInvocation::FT_Null) {
     Str.reset(createNullStreamer(Ctx));
   } else {
     assert(Opts.OutputType == AssemblerInvocation::FT_Obj &&
            "Invalid file type!");
-    MCCodeEmitter *CE = TheTarget->createMCCodeEmitter(*MCII, *MRI, *STI, Ctx);
+    if (!FDOS->supportsSeeking()) {
+      BOS = make_unique<buffer_ostream>(*FDOS);
+      Out = BOS.get();
+    }
+
+    MCCodeEmitter *CE = TheTarget->createMCCodeEmitter(*MCII, *MRI, Ctx);
     MCAsmBackend *MAB = TheTarget->createMCAsmBackend(*MRI, Opts.Triple,
                                                       Opts.CPU);
-    Str.reset(TheTarget->createMCObjectStreamer(Opts.Triple, Ctx, *MAB, *Out,
-                                                CE, *STI, Opts.RelaxAll));
+    Triple T(Opts.Triple);
+    Str.reset(TheTarget->createMCObjectStreamer(T, Ctx, *MAB, *Out, CE, *STI,
+                                                Opts.RelaxAll,
+                                                /*DWARFMustBeAtTheEnd*/ true));
     Str.get()->InitSections(Opts.NoExecStack);
   }
 
@@ -401,8 +406,12 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts,
     Failed = Parser->Run(Opts.NoInitialTextSection);
   }
 
+  // Close Streamer first.
+  // It might have a reference to the output stream.
+  Str.reset();
   // Close the output stream early.
-  Out.reset();
+  BOS.reset();
+  FDOS.reset();
 
   // Delete output file if there were errors.
   if (Failed && Opts.OutputPath != "-")

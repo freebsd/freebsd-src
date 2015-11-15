@@ -121,8 +121,7 @@ int	arpresolve_fast(struct ifnet *ifp, struct in_addr dst, u_int mflags,
 void	arprequest(struct ifnet *, const struct in_addr *,
 	    const struct in_addr *, u_char *);
 void	arp_ifinit(struct ifnet *, struct ifaddr *);
-void	arp_ifinit2(struct ifnet *, struct ifaddr *, u_char *);
-void	arp_ifscrub(struct ifnet *, uint32_t);
+void	arp_announce_ifaddr(struct ifnet *, struct in_addr addr, u_char *);
 #endif
 
 #endif

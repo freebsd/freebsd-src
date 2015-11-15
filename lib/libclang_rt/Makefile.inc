@@ -5,7 +5,7 @@
 CRTARCH=${MACHINE_CPUARCH:C/amd64/x86_64/}
 CRTSRC=${.CURDIR}/../../../contrib/compiler-rt
 
-LIBDIR=/usr/lib/clang/3.6.1/lib/freebsd
+LIBDIR=/usr/lib/clang/3.7.0/lib/freebsd
 
 NO_PIC=
 MK_PROFILE=no
@@ -18,6 +18,9 @@ CFLAGS+=${PICFLAG}
 CFLAGS+=-fno-builtin
 CFLAGS+=-fno-exceptions
 CFLAGS+=-fno-rtti
+.if ${COMPILER_VERSION} >= 30700
+CFLAGS+=-fno-sanitize=safe-stack
+.endif
 CFLAGS+=-fno-stack-protector
 CFLAGS+=-funwind-tables
 CFLAGS+=-fvisibility-inlines-hidden

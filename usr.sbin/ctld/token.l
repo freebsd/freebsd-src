@@ -54,10 +54,13 @@ backend			{ return BACKEND; }
 blocksize		{ return BLOCKSIZE; }
 chap			{ return CHAP; }
 chap-mutual		{ return CHAP_MUTUAL; }
+ctl-lun			{ return CTL_LUN; }
 debug			{ return DEBUG; }
 device-id		{ return DEVICE_ID; }
+device-type		{ return DEVICE_TYPE; }
 discovery-auth-group	{ return DISCOVERY_AUTH_GROUP; }
 discovery-filter	{ return DISCOVERY_FILTER; }
+foreign			{ return FOREIGN; }
 initiator-name		{ return INITIATOR_NAME; }
 initiator-portal	{ return INITIATOR_PORTAL; }
 listen			{ return LISTEN; }
@@ -76,6 +79,7 @@ portal-group		{ return PORTAL_GROUP; }
 redirect		{ return REDIRECT; }
 serial			{ return SERIAL; }
 size			{ return SIZE; }
+tag			{ return TAG; }
 target			{ return TARGET; }
 timeout			{ return TIMEOUT; }
 \"[^"]+\"		{ yylval.str = strndup(yytext + 1,

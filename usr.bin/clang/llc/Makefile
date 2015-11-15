@@ -7,7 +7,9 @@ PROG_CXX=llc
 SRCDIR=	tools/llc
 SRCS=	llc.cpp
 
-LIBDEPS=llvmirreader \
+TGHDRS=	Intrinsics
+LIBDEPS=llvmmirparser \
+	llvmirreader \
 	llvmasmparser \
 	llvmaarch64disassembler \
 	llvmaarch64codegen \
@@ -46,13 +48,14 @@ LIBDEPS=llvmirreader \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmcodegen \
+	llvmtarget \
 	llvmscalaropts \
 	llvmprofiledata \
 	llvminstcombine \
+	llvminstrumentation \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmtarget \
 	llvmx86desc \
 	llvmobject \
 	llvmmcparser \

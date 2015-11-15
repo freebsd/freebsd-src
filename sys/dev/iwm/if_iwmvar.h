@@ -496,14 +496,12 @@ struct iwm_softc {
 		uint8_t	pad[IEEE80211_RADIOTAP_HDRLEN];
 	} sc_rxtapu;
 #define sc_rxtap	sc_rxtapu.th
-	int			sc_rxtap_len;
 
 	union {
 		struct iwm_tx_radiotap_header th;
 		uint8_t	pad[IEEE80211_RADIOTAP_HDRLEN];
 	} sc_txtapu;
 #define sc_txtap	sc_txtapu.th
-	int			sc_txtap_len;
 
 	int		sc_max_rssi;
 };

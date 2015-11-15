@@ -274,7 +274,7 @@ determinestyle(char *date, int *flags,
 
 	/* If both the month and date are specified as numbers */
 	if (isonlydigits(p1, 1) && isonlydigits(p2, 0)) {
-		/* Now who wants to be this ambigious? :-( */
+		/* Now who wants to be this ambiguous? :-( */
 		int m, d;
 
 		if (strchr(p2, '*') != NULL)

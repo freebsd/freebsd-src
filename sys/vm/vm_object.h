@@ -304,10 +304,10 @@ void vm_object_terminate (vm_object_t);
 void vm_object_set_writeable_dirty (vm_object_t);
 void vm_object_init (void);
 void vm_object_madvise(vm_object_t, vm_pindex_t, vm_pindex_t, int);
-void vm_object_page_cache(vm_object_t object, vm_pindex_t start,
-    vm_pindex_t end);
 boolean_t vm_object_page_clean(vm_object_t object, vm_ooffset_t start,
     vm_ooffset_t end, int flags);
+void vm_object_page_noreuse(vm_object_t object, vm_pindex_t start,
+    vm_pindex_t end);
 void vm_object_page_remove(vm_object_t object, vm_pindex_t start,
     vm_pindex_t end, int options);
 boolean_t vm_object_populate(vm_object_t, vm_pindex_t, vm_pindex_t);

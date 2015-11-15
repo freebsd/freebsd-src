@@ -56,7 +56,8 @@
 //  I   -> Required to constant fold to an integer constant expression.
 //
 // Types may be postfixed with the following modifiers:
-// * -> pointer (optionally followed by an address space number)
+// * -> pointer (optionally followed by an address space number, if no address
+//               space is specified than any address space will be accepted)
 // & -> reference (optionally followed by an address space number)
 // C -> const
 // D -> volatile
@@ -692,19 +693,29 @@ BUILTIN(__builtin_index, "c*cC*i", "Fn")
 BUILTIN(__builtin_rindex, "c*cC*i", "Fn")
 
 // Microsoft builtins.  These are only active with -fms-extensions.
-LANGBUILTIN(_alloca,      "v*z", "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(__assume,     "vb",  "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(__noop,       "i.",  "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(__debugbreak, "v",   "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(__va_start,   "vc**.", "nt", ALL_MS_LANGUAGES)
+LANGBUILTIN(_alloca,          "v*z", "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(__assume,         "vb",  "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(__debugbreak,     "v",   "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(__exception_code, "ULi", "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(_exception_code,  "ULi", "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(__exception_info, "v*",  "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(_exception_info,  "v*",  "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(__abnormal_termination, "i", "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(_abnormal_termination,  "i", "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(__GetExceptionInfo, "v*.", "ntu", ALL_MS_LANGUAGES)
 LANGBUILTIN(_InterlockedCompareExchange, "LiLiD*LiLi", "n", ALL_MS_LANGUAGES)
 LANGBUILTIN(_InterlockedCompareExchangePointer, "v*v*D*v*v*", "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(_InterlockedIncrement, "LiLiD*", "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(_InterlockedDecrement, "LiLiD*", "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(_InterlockedExchangeAdd, "LiLiD*Li", "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(_InterlockedExchangePointer, "v*v*D*v*", "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(_InterlockedExchange, "LiLiD*Li", "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(__readfsdword, "ULiULi", "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(_InterlockedDecrement,       "LiLiD*",     "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(_InterlockedExchangeAdd,     "LiLiD*Li",   "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(_InterlockedExchange,        "LiLiD*Li",   "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(_InterlockedExchangePointer, "v*v*D*v*",   "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(_InterlockedIncrement,       "LiLiD*",     "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(__noop,           "i.",  "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(__readfsdword,    "ULiULi", "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(__va_start,       "vc**.", "nt", ALL_MS_LANGUAGES)
+
+// Microsoft library builtins.
+LIBBUILTIN(_setjmpex, "iJ", "fj",   "setjmpex.h", ALL_MS_LANGUAGES)
 
 // C99 library functions
 // C99 stdlib.h
@@ -1228,6 +1239,10 @@ BUILTIN(__builtin_smulll_overflow, "bSLLiCSLLiCSLLi*", "n")
 BUILTIN(__builtin_addressof, "v*v&", "nct")
 BUILTIN(__builtin_operator_new, "v*z", "c")
 BUILTIN(__builtin_operator_delete, "vv*", "n")
+
+// Safestack builtins
+BUILTIN(__builtin___get_unsafe_stack_start, "v*", "Fn")
+BUILTIN(__builtin___get_unsafe_stack_ptr, "v*", "Fn")
 
 #undef BUILTIN
 #undef LIBBUILTIN

@@ -49,9 +49,7 @@ __FBSDID("$FreeBSD$");
 #define ATTEMPT(xdr_op) if (!(xdr_op)) return (FALSE)
 
 bool_t
-xdr_authdes_cred(xdrs, cred)
-	XDR *xdrs;
-	struct authdes_cred *cred;
+xdr_authdes_cred(XDR *xdrs, struct authdes_cred *cred)
 {
 	enum authdes_namekind *padc_namekind = &cred->adc_namekind;
 	/*
@@ -78,9 +76,7 @@ xdr_authdes_cred(xdrs, cred)
 
 
 bool_t
-xdr_authdes_verf(xdrs, verf)
-	XDR *xdrs;
-	struct authdes_verf *verf;	
+xdr_authdes_verf(XDR *xdrs, struct authdes_verf *verf)
 {
 	/*
  	 * Unrolled xdr

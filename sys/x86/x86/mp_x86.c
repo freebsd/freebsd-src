@@ -120,7 +120,7 @@ struct cpu_ops cpu_ops;
  * Local data and functions.
  */
 
-static volatile cpuset_t ipi_nmi_pending;
+static volatile cpuset_t ipi_stop_nmi_pending;
 
 /* used to hold the AP's until we are ready to release them */
 struct mtx ap_boot_mtx;
@@ -425,18 +425,11 @@ cpu_mp_setmaxid(void)
 {
 
 	/*
-	 * mp_maxid should be already set by calls to cpu_add().
-	 * Just sanity check its value here.
+	 * mp_ncpus and mp_maxid should be already set by calls to cpu_add().
+	 * If there were no calls to cpu_add() assume this is a UP system.
 	 */
 	if (mp_ncpus == 0)
-		KASSERT(mp_maxid == 0,
-		    ("%s: mp_ncpus is zero, but mp_maxid is not", __func__));
-	else if (mp_ncpus == 1)
-		mp_maxid = 0;
-	else
-		KASSERT(mp_maxid >= mp_ncpus - 1,
-		    ("%s: counters out of sync: max %d, count %d", __func__,
-			mp_maxid, mp_ncpus));
+		mp_ncpus = 1;
 }
 
 int
@@ -448,28 +441,7 @@ cpu_mp_probe(void)
 	 * correctly.
 	 */
 	CPU_SETOF(0, &all_cpus);
-	if (mp_ncpus == 0) {
-		/*
-		 * No CPUs were found, so this must be a UP system.  Setup
-		 * the variables to represent a system with a single CPU
-		 * with an id of 0.
-		 */
-		mp_ncpus = 1;
-		return (0);
-	}
-
-	/* At least one CPU was found. */
-	if (mp_ncpus == 1) {
-		/*
-		 * One CPU was found, so this must be a UP system with
-		 * an I/O APIC.
-		 */
-		mp_maxid = 0;
-		return (0);
-	}
-
-	/* At least two CPUs were found. */
-	return (1);
+	return (mp_ncpus > 1);
 }
 
 /*
@@ -894,7 +866,7 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		CPU_OR_ATOMIC(&ipi_nmi_pending, &cpus);
+		CPU_OR_ATOMIC(&ipi_stop_nmi_pending, &cpus);
 
 	while ((cpu = CPU_FFS(&cpus)) != 0) {
 		cpu--;
@@ -917,7 +889,7 @@ ipi_cpu(int cpu, u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		CPU_SET_ATOMIC(cpu, &ipi_nmi_pending);
+		CPU_SET_ATOMIC(cpu, &ipi_stop_nmi_pending);
 
 	CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);
 	ipi_send_cpu(cpu, ipi);
@@ -944,7 +916,7 @@ ipi_all_but_self(u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		CPU_OR_ATOMIC(&ipi_nmi_pending, &other_cpus);
+		CPU_OR_ATOMIC(&ipi_stop_nmi_pending, &other_cpus);
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
@@ -962,10 +934,10 @@ ipi_nmi_handler()
 	 * and should be handled.
 	 */
 	cpuid = PCPU_GET(cpuid);
-	if (!CPU_ISSET(cpuid, &ipi_nmi_pending))
+	if (!CPU_ISSET(cpuid, &ipi_stop_nmi_pending))
 		return (1);
 
-	CPU_CLR_ATOMIC(cpuid, &ipi_nmi_pending);
+	CPU_CLR_ATOMIC(cpuid, &ipi_stop_nmi_pending);
 	cpustop_handler();
 	return (0);
 }

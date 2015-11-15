@@ -1,19 +1,19 @@
-/* A Bison parser, made by GNU Bison 2.7.12-4996.  */
+/* A Bison parser, made by GNU Bison 3.0.2.  */
 
 /* Bison interface for Yacc-like parsers in C
-   
-      Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
-   
+
+   Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
+
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation, either version 3 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
@@ -26,13 +26,13 @@
    special exception, which will cause the skeleton and the resulting
    Bison output files to be licensed under the GNU General Public
    License without this special exception.
-   
+
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
-#ifndef YY_YY_NTP_PARSER_H_INCLUDED
-# define YY_YY_NTP_PARSER_H_INCLUDED
-/* Enabling traces.  */
+#ifndef YY_YY__NTPD_NTP_PARSER_H_INCLUDED
+# define YY_YY__NTPD_NTP_PARSER_H_INCLUDED
+/* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 1
 #endif
@@ -40,204 +40,203 @@
 extern int yydebug;
 #endif
 
-/* Tokens.  */
+/* Token type.  */
 #ifndef YYTOKENTYPE
 # define YYTOKENTYPE
-   /* Put the tokens into the symbol table, so that GDB and other debuggers
-      know about them.  */
-   enum yytokentype {
-     T_Abbrev = 258,
-     T_Age = 259,
-     T_All = 260,
-     T_Allan = 261,
-     T_Allpeers = 262,
-     T_Auth = 263,
-     T_Autokey = 264,
-     T_Automax = 265,
-     T_Average = 266,
-     T_Bclient = 267,
-     T_Beacon = 268,
-     T_Broadcast = 269,
-     T_Broadcastclient = 270,
-     T_Broadcastdelay = 271,
-     T_Burst = 272,
-     T_Calibrate = 273,
-     T_Ceiling = 274,
-     T_Clockstats = 275,
-     T_Cohort = 276,
-     T_ControlKey = 277,
-     T_Crypto = 278,
-     T_Cryptostats = 279,
-     T_Ctl = 280,
-     T_Day = 281,
-     T_Default = 282,
-     T_Digest = 283,
-     T_Disable = 284,
-     T_Discard = 285,
-     T_Dispersion = 286,
-     T_Double = 287,
-     T_Driftfile = 288,
-     T_Drop = 289,
-     T_Dscp = 290,
-     T_Ellipsis = 291,
-     T_Enable = 292,
-     T_End = 293,
-     T_False = 294,
-     T_File = 295,
-     T_Filegen = 296,
-     T_Filenum = 297,
-     T_Flag1 = 298,
-     T_Flag2 = 299,
-     T_Flag3 = 300,
-     T_Flag4 = 301,
-     T_Flake = 302,
-     T_Floor = 303,
-     T_Freq = 304,
-     T_Fudge = 305,
-     T_Host = 306,
-     T_Huffpuff = 307,
-     T_Iburst = 308,
-     T_Ident = 309,
-     T_Ignore = 310,
-     T_Incalloc = 311,
-     T_Incmem = 312,
-     T_Initalloc = 313,
-     T_Initmem = 314,
-     T_Includefile = 315,
-     T_Integer = 316,
-     T_Interface = 317,
-     T_Intrange = 318,
-     T_Io = 319,
-     T_Ipv4 = 320,
-     T_Ipv4_flag = 321,
-     T_Ipv6 = 322,
-     T_Ipv6_flag = 323,
-     T_Kernel = 324,
-     T_Key = 325,
-     T_Keys = 326,
-     T_Keysdir = 327,
-     T_Kod = 328,
-     T_Mssntp = 329,
-     T_Leapfile = 330,
-     T_Leapsmearinterval = 331,
-     T_Limited = 332,
-     T_Link = 333,
-     T_Listen = 334,
-     T_Logconfig = 335,
-     T_Logfile = 336,
-     T_Loopstats = 337,
-     T_Lowpriotrap = 338,
-     T_Manycastclient = 339,
-     T_Manycastserver = 340,
-     T_Mask = 341,
-     T_Maxage = 342,
-     T_Maxclock = 343,
-     T_Maxdepth = 344,
-     T_Maxdist = 345,
-     T_Maxmem = 346,
-     T_Maxpoll = 347,
-     T_Mdnstries = 348,
-     T_Mem = 349,
-     T_Memlock = 350,
-     T_Minclock = 351,
-     T_Mindepth = 352,
-     T_Mindist = 353,
-     T_Minimum = 354,
-     T_Minpoll = 355,
-     T_Minsane = 356,
-     T_Mode = 357,
-     T_Mode7 = 358,
-     T_Monitor = 359,
-     T_Month = 360,
-     T_Mru = 361,
-     T_Multicastclient = 362,
-     T_Nic = 363,
-     T_Nolink = 364,
-     T_Nomodify = 365,
-     T_Nomrulist = 366,
-     T_None = 367,
-     T_Nonvolatile = 368,
-     T_Nopeer = 369,
-     T_Noquery = 370,
-     T_Noselect = 371,
-     T_Noserve = 372,
-     T_Notrap = 373,
-     T_Notrust = 374,
-     T_Ntp = 375,
-     T_Ntpport = 376,
-     T_NtpSignDsocket = 377,
-     T_Orphan = 378,
-     T_Orphanwait = 379,
-     T_Panic = 380,
-     T_Peer = 381,
-     T_Peerstats = 382,
-     T_Phone = 383,
-     T_Pid = 384,
-     T_Pidfile = 385,
-     T_Pool = 386,
-     T_Port = 387,
-     T_Preempt = 388,
-     T_Prefer = 389,
-     T_Protostats = 390,
-     T_Pw = 391,
-     T_Randfile = 392,
-     T_Rawstats = 393,
-     T_Refid = 394,
-     T_Requestkey = 395,
-     T_Reset = 396,
-     T_Restrict = 397,
-     T_Revoke = 398,
-     T_Rlimit = 399,
-     T_Saveconfigdir = 400,
-     T_Server = 401,
-     T_Setvar = 402,
-     T_Source = 403,
-     T_Stacksize = 404,
-     T_Statistics = 405,
-     T_Stats = 406,
-     T_Statsdir = 407,
-     T_Step = 408,
-     T_Stepback = 409,
-     T_Stepfwd = 410,
-     T_Stepout = 411,
-     T_Stratum = 412,
-     T_String = 413,
-     T_Sys = 414,
-     T_Sysstats = 415,
-     T_Tick = 416,
-     T_Time1 = 417,
-     T_Time2 = 418,
-     T_Timer = 419,
-     T_Timingstats = 420,
-     T_Tinker = 421,
-     T_Tos = 422,
-     T_Trap = 423,
-     T_True = 424,
-     T_Trustedkey = 425,
-     T_Ttl = 426,
-     T_Type = 427,
-     T_U_int = 428,
-     T_Unconfig = 429,
-     T_Unpeer = 430,
-     T_Version = 431,
-     T_WanderThreshold = 432,
-     T_Week = 433,
-     T_Wildcard = 434,
-     T_Xleave = 435,
-     T_Year = 436,
-     T_Flag = 437,
-     T_EOC = 438,
-     T_Simulate = 439,
-     T_Beep_Delay = 440,
-     T_Sim_Duration = 441,
-     T_Server_Offset = 442,
-     T_Duration = 443,
-     T_Freq_Offset = 444,
-     T_Wander = 445,
-     T_Jitter = 446,
-     T_Prop_Delay = 447,
-     T_Proc_Delay = 448
-   };
+  enum yytokentype
+  {
+    T_Abbrev = 258,
+    T_Age = 259,
+    T_All = 260,
+    T_Allan = 261,
+    T_Allpeers = 262,
+    T_Auth = 263,
+    T_Autokey = 264,
+    T_Automax = 265,
+    T_Average = 266,
+    T_Bclient = 267,
+    T_Beacon = 268,
+    T_Broadcast = 269,
+    T_Broadcastclient = 270,
+    T_Broadcastdelay = 271,
+    T_Burst = 272,
+    T_Calibrate = 273,
+    T_Ceiling = 274,
+    T_Clockstats = 275,
+    T_Cohort = 276,
+    T_ControlKey = 277,
+    T_Crypto = 278,
+    T_Cryptostats = 279,
+    T_Ctl = 280,
+    T_Day = 281,
+    T_Default = 282,
+    T_Digest = 283,
+    T_Disable = 284,
+    T_Discard = 285,
+    T_Dispersion = 286,
+    T_Double = 287,
+    T_Driftfile = 288,
+    T_Drop = 289,
+    T_Dscp = 290,
+    T_Ellipsis = 291,
+    T_Enable = 292,
+    T_End = 293,
+    T_False = 294,
+    T_File = 295,
+    T_Filegen = 296,
+    T_Filenum = 297,
+    T_Flag1 = 298,
+    T_Flag2 = 299,
+    T_Flag3 = 300,
+    T_Flag4 = 301,
+    T_Flake = 302,
+    T_Floor = 303,
+    T_Freq = 304,
+    T_Fudge = 305,
+    T_Host = 306,
+    T_Huffpuff = 307,
+    T_Iburst = 308,
+    T_Ident = 309,
+    T_Ignore = 310,
+    T_Incalloc = 311,
+    T_Incmem = 312,
+    T_Initalloc = 313,
+    T_Initmem = 314,
+    T_Includefile = 315,
+    T_Integer = 316,
+    T_Interface = 317,
+    T_Intrange = 318,
+    T_Io = 319,
+    T_Ipv4 = 320,
+    T_Ipv4_flag = 321,
+    T_Ipv6 = 322,
+    T_Ipv6_flag = 323,
+    T_Kernel = 324,
+    T_Key = 325,
+    T_Keys = 326,
+    T_Keysdir = 327,
+    T_Kod = 328,
+    T_Mssntp = 329,
+    T_Leapfile = 330,
+    T_Leapsmearinterval = 331,
+    T_Limited = 332,
+    T_Link = 333,
+    T_Listen = 334,
+    T_Logconfig = 335,
+    T_Logfile = 336,
+    T_Loopstats = 337,
+    T_Lowpriotrap = 338,
+    T_Manycastclient = 339,
+    T_Manycastserver = 340,
+    T_Mask = 341,
+    T_Maxage = 342,
+    T_Maxclock = 343,
+    T_Maxdepth = 344,
+    T_Maxdist = 345,
+    T_Maxmem = 346,
+    T_Maxpoll = 347,
+    T_Mdnstries = 348,
+    T_Mem = 349,
+    T_Memlock = 350,
+    T_Minclock = 351,
+    T_Mindepth = 352,
+    T_Mindist = 353,
+    T_Minimum = 354,
+    T_Minpoll = 355,
+    T_Minsane = 356,
+    T_Mode = 357,
+    T_Mode7 = 358,
+    T_Monitor = 359,
+    T_Month = 360,
+    T_Mru = 361,
+    T_Multicastclient = 362,
+    T_Nic = 363,
+    T_Nolink = 364,
+    T_Nomodify = 365,
+    T_Nomrulist = 366,
+    T_None = 367,
+    T_Nonvolatile = 368,
+    T_Nopeer = 369,
+    T_Noquery = 370,
+    T_Noselect = 371,
+    T_Noserve = 372,
+    T_Notrap = 373,
+    T_Notrust = 374,
+    T_Ntp = 375,
+    T_Ntpport = 376,
+    T_NtpSignDsocket = 377,
+    T_Orphan = 378,
+    T_Orphanwait = 379,
+    T_Panic = 380,
+    T_Peer = 381,
+    T_Peerstats = 382,
+    T_Phone = 383,
+    T_Pid = 384,
+    T_Pidfile = 385,
+    T_Pool = 386,
+    T_Port = 387,
+    T_Preempt = 388,
+    T_Prefer = 389,
+    T_Protostats = 390,
+    T_Pw = 391,
+    T_Randfile = 392,
+    T_Rawstats = 393,
+    T_Refid = 394,
+    T_Requestkey = 395,
+    T_Reset = 396,
+    T_Restrict = 397,
+    T_Revoke = 398,
+    T_Rlimit = 399,
+    T_Saveconfigdir = 400,
+    T_Server = 401,
+    T_Setvar = 402,
+    T_Source = 403,
+    T_Stacksize = 404,
+    T_Statistics = 405,
+    T_Stats = 406,
+    T_Statsdir = 407,
+    T_Step = 408,
+    T_Stepback = 409,
+    T_Stepfwd = 410,
+    T_Stepout = 411,
+    T_Stratum = 412,
+    T_String = 413,
+    T_Sys = 414,
+    T_Sysstats = 415,
+    T_Tick = 416,
+    T_Time1 = 417,
+    T_Time2 = 418,
+    T_Timer = 419,
+    T_Timingstats = 420,
+    T_Tinker = 421,
+    T_Tos = 422,
+    T_Trap = 423,
+    T_True = 424,
+    T_Trustedkey = 425,
+    T_Ttl = 426,
+    T_Type = 427,
+    T_U_int = 428,
+    T_Unconfig = 429,
+    T_Unpeer = 430,
+    T_Version = 431,
+    T_WanderThreshold = 432,
+    T_Week = 433,
+    T_Wildcard = 434,
+    T_Xleave = 435,
+    T_Year = 436,
+    T_Flag = 437,
+    T_EOC = 438,
+    T_Simulate = 439,
+    T_Beep_Delay = 440,
+    T_Sim_Duration = 441,
+    T_Server_Offset = 442,
+    T_Duration = 443,
+    T_Freq_Offset = 444,
+    T_Wander = 445,
+    T_Jitter = 446,
+    T_Prop_Delay = 447,
+    T_Proc_Delay = 448
+  };
 #endif
 /* Tokens.  */
 #define T_Abbrev 258
@@ -432,13 +431,12 @@ extern int yydebug;
 #define T_Prop_Delay 447
 #define T_Proc_Delay 448
 
-
-
+/* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef union YYSTYPE
+typedef union YYSTYPE YYSTYPE;
+union YYSTYPE
 {
-/* Line 2053 of yacc.c  */
-#line 51 "../../ntpd/ntp_parser.y"
+#line 51 "../../ntpd/ntp_parser.y" /* yacc.c:1909  */
 
 	char *			String;
 	double			Double;
@@ -457,29 +455,15 @@ typedef union YYSTYPE
 	script_info *		Sim_script;
 	script_info_fifo *	Sim_script_fifo;
 
-
-/* Line 2053 of yacc.c  */
-#line 463 "ntp_parser.h"
-} YYSTYPE;
+#line 459 "../../ntpd/ntp_parser.h" /* yacc.c:1909  */
+};
 # define YYSTYPE_IS_TRIVIAL 1
-# define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
 #endif
 
+
 extern YYSTYPE yylval;
 
-#ifdef YYPARSE_PARAM
-#if defined __STDC__ || defined __cplusplus
-int yyparse (void *YYPARSE_PARAM);
-#else
-int yyparse ();
-#endif
-#else /* ! YYPARSE_PARAM */
-#if defined __STDC__ || defined __cplusplus
 int yyparse (void);
-#else
-int yyparse ();
-#endif
-#endif /* ! YYPARSE_PARAM */
 
-#endif /* !YY_YY_NTP_PARSER_H_INCLUDED  */
+#endif /* !YY_YY__NTPD_NTP_PARSER_H_INCLUDED  */

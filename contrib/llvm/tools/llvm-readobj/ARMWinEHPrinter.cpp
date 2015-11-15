@@ -198,18 +198,13 @@ Decoder::getSectionContaining(const COFFObjectFile &COFF, uint64_t VA) {
 ErrorOr<object::SymbolRef> Decoder::getSymbol(const COFFObjectFile &COFF,
                                               uint64_t VA, bool FunctionOnly) {
   for (const auto &Symbol : COFF.symbols()) {
-    if (FunctionOnly) {
-      SymbolRef::Type Type;
-      if (std::error_code EC = Symbol.getType(Type))
-        return EC;
-      if (Type != SymbolRef::ST_Function)
-        continue;
-    }
+    if (FunctionOnly && Symbol.getType() != SymbolRef::ST_Function)
+      continue;
 
-    uint64_t Address;
-    if (std::error_code EC = Symbol.getAddress(Address))
+    ErrorOr<uint64_t> Address = Symbol.getAddress();
+    if (std::error_code EC = Address.getError())
       return EC;
-    if (Address == VA)
+    if (*Address == VA)
       return Symbol;
   }
   return readobj_error::unknown_symbol;
@@ -219,9 +214,7 @@ ErrorOr<SymbolRef> Decoder::getRelocatedSymbol(const COFFObjectFile &,
                                                const SectionRef &Section,
                                                uint64_t Offset) {
   for (const auto &Relocation : Section.relocations()) {
-    uint64_t RelocationOffset;
-    if (auto Error = Relocation.getOffset(RelocationOffset))
-      return Error;
+    uint64_t RelocationOffset = Relocation.getOffset();
     if (RelocationOffset == Offset)
       return *Relocation.getSymbol();
   }
@@ -574,12 +567,12 @@ bool Decoder::dumpXDataRecord(const COFFObjectFile &COFF,
     if (!Symbol)
       Symbol = getSymbol(COFF, Address, /*FunctionOnly=*/true);
 
-    StringRef Name;
-    if (Symbol)
-      Symbol->getName(Name);
+    ErrorOr<StringRef> Name = Symbol->getName();
+    if (std::error_code EC = Name.getError())
+      report_fatal_error(EC.message());
 
     ListScope EHS(SW, "ExceptionHandler");
-    SW.printString("Routine", formatSymbol(Name, Address));
+    SW.printString("Routine", formatSymbol(*Name, Address));
     SW.printHex("Parameter", Parameter);
   }
 
@@ -608,8 +601,14 @@ bool Decoder::dumpUnpackedEntry(const COFFObjectFile &COFF,
   StringRef FunctionName;
   uint64_t FunctionAddress;
   if (Function) {
-    Function->getName(FunctionName);
-    Function->getAddress(FunctionAddress);
+    ErrorOr<StringRef> FunctionNameOrErr = Function->getName();
+    if (std::error_code EC = FunctionNameOrErr.getError())
+      report_fatal_error(EC.message());
+    FunctionName = *FunctionNameOrErr;
+    ErrorOr<uint64_t> FunctionAddressOrErr = Function->getAddress();
+    if (std::error_code EC = FunctionAddressOrErr.getError())
+      report_fatal_error(EC.message());
+    FunctionAddress = *FunctionAddressOrErr;
   } else {
     const pe32_header *PEHeader;
     if (COFF.getPE32Header(PEHeader))
@@ -620,13 +619,16 @@ bool Decoder::dumpUnpackedEntry(const COFFObjectFile &COFF,
   SW.printString("Function", formatSymbol(FunctionName, FunctionAddress));
 
   if (XDataRecord) {
-    StringRef Name;
-    uint64_t Address;
+    ErrorOr<StringRef> Name = XDataRecord->getName();
+    if (std::error_code EC = Name.getError())
+      report_fatal_error(EC.message());
 
-    XDataRecord->getName(Name);
-    XDataRecord->getAddress(Address);
+    ErrorOr<uint64_t> AddressOrErr = XDataRecord->getAddress();
+    if (std::error_code EC = AddressOrErr.getError())
+      report_fatal_error(EC.message());
+    uint64_t Address = *AddressOrErr;
 
-    SW.printString("ExceptionRecord", formatSymbol(Name, Address));
+    SW.printString("ExceptionRecord", formatSymbol(*Name, Address));
 
     section_iterator SI = COFF.section_end();
     if (XDataRecord->getSection(SI))
@@ -665,8 +667,12 @@ bool Decoder::dumpPackedEntry(const object::COFFObjectFile &COFF,
   StringRef FunctionName;
   uint64_t FunctionAddress;
   if (Function) {
-    Function->getName(FunctionName);
-    Function->getAddress(FunctionAddress);
+    ErrorOr<StringRef> FunctionNameOrErr = Function->getName();
+    if (std::error_code EC = FunctionNameOrErr.getError())
+      report_fatal_error(EC.message());
+    FunctionName = *FunctionNameOrErr;
+    ErrorOr<uint64_t> FunctionAddressOrErr = Function->getAddress();
+    FunctionAddress = *FunctionAddressOrErr;
   } else {
     const pe32_header *PEHeader;
     if (COFF.getPE32Header(PEHeader))

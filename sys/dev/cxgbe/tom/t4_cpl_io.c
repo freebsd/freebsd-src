@@ -675,7 +675,6 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			}
 		}
 
-		shove = m == NULL && !(tp->t_flags & TF_MORETOCOME);
 		space = sbspace(sb);
 
 		if (space <= sb->sb_hiwat * 3 / 8 &&
@@ -712,6 +711,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		if (__predict_false(toep->flags & TPF_FIN_SENT))
 			panic("%s: excess tx.", __func__);
 
+		shove = m == NULL && !(tp->t_flags & TF_MORETOCOME);
 		if (plen <= max_imm) {
 
 			/* Immediate data tx */

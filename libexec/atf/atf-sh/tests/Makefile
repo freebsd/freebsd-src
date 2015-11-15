@@ -2,9 +2,7 @@
 
 .include <bsd.init.mk>
 
-TESTSDIR=	${TESTSBASE}/libexec/atf/atf-sh
-
-ATF=		${.CURDIR:H:H:H:H}/contrib/atf
+ATF=		${SRCTOP}/contrib/atf
 .PATH:		${ATF}/atf-sh
 
 ATF_TESTS_SH+=	atf_check_test

@@ -10,7 +10,8 @@
 // This file defines the TokenKind database.  This includes normal tokens like
 // tok::ampamp (corresponding to the && token) as well as keywords for various
 // languages.  Users of this file must optionally #define the TOK, KEYWORD,
-// ALIAS, or PPKEYWORD macros to make use of this file.
+// CXX11_KEYWORD, CONCEPTS_KEYWORD, ALIAS, or PPKEYWORD macros to make use of
+// this file.
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,6 +23,12 @@
 #endif
 #ifndef KEYWORD
 #define KEYWORD(X,Y) TOK(kw_ ## X)
+#endif
+#ifndef CXX11_KEYWORD
+#define CXX11_KEYWORD(X,Y) KEYWORD(X,KEYCXX11|(Y))
+#endif
+#ifndef CONCEPTS_KEYWORD
+#define CONCEPTS_KEYWORD(X) KEYWORD(X,KEYCONCEPTS)
 #endif
 #ifndef TYPE_TRAIT
 #define TYPE_TRAIT(N,I,K) KEYWORD(I,K)
@@ -223,12 +230,17 @@ PUNCTUATOR(greatergreatergreater, ">>>")
 //              implementation namespace
 //   KEYNOCXX - This is a keyword in every non-C++ dialect.
 //   KEYCXX11 - This is a C++ keyword introduced to C++ in C++11
+//   KEYCONCEPTS - This is a keyword if the C++ extensions for concepts
+//                 are enabled.
 //   KEYGNU   - This is a keyword if GNU extensions are enabled
 //   KEYMS    - This is a keyword if Microsoft extensions are enabled
-//   KEYNOMS  - This is a keyword that must never be enabled under
-//              Microsoft mode
+//   KEYNOMS18 - This is a keyword that must never be enabled under
+//               MSVC <= v18.
 //   KEYOPENCL  - This is a keyword in OpenCL
+//   KEYNOOPENCL  - This is a keyword that is not supported in OpenCL
 //   KEYALTIVEC - This is a keyword in AltiVec
+//   KEYZVECTOR - This is a keyword for the System z vector extensions,
+//                which are heavily based on AltiVec
 //   KEYBORLAND - This is a keyword if Borland extensions are enabled
 //   BOOLSUPPORT - This is a keyword if 'bool' is a built-in type
 //   HALFSUPPORT - This is a keyword if 'half' is a built-in type
@@ -270,7 +282,7 @@ KEYWORD(volatile                    , KEYALL)
 KEYWORD(while                       , KEYALL)
 KEYWORD(_Alignas                    , KEYALL)
 KEYWORD(_Alignof                    , KEYALL)
-KEYWORD(_Atomic                     , KEYALL|KEYNOMS)
+KEYWORD(_Atomic                     , KEYALL|KEYNOMS18|KEYNOOPENCL)
 KEYWORD(_Bool                       , KEYNOCXX)
 KEYWORD(_Complex                    , KEYALL)
 KEYWORD(_Generic                    , KEYALL)
@@ -329,16 +341,20 @@ CXX_KEYWORD_OPERATOR(xor     , caret)
 CXX_KEYWORD_OPERATOR(xor_eq  , caretequal)
 
 // C++11 keywords
-KEYWORD(alignas                     , KEYCXX11)
-KEYWORD(alignof                     , KEYCXX11)
-KEYWORD(char16_t                    , KEYCXX11|KEYNOMS)
-KEYWORD(char32_t                    , KEYCXX11|KEYNOMS)
-KEYWORD(constexpr                   , KEYCXX11)
-KEYWORD(decltype                    , KEYCXX11)
-KEYWORD(noexcept                    , KEYCXX11)
-KEYWORD(nullptr                     , KEYCXX11)
-KEYWORD(static_assert               , KEYCXX11)
-KEYWORD(thread_local                , KEYCXX11)
+CXX11_KEYWORD(alignas               , 0)
+CXX11_KEYWORD(alignof               , 0)
+CXX11_KEYWORD(char16_t              , KEYNOMS18)
+CXX11_KEYWORD(char32_t              , KEYNOMS18)
+CXX11_KEYWORD(constexpr             , 0)
+CXX11_KEYWORD(decltype              , 0)
+CXX11_KEYWORD(noexcept              , 0)
+CXX11_KEYWORD(nullptr               , 0)
+CXX11_KEYWORD(static_assert         , 0)
+CXX11_KEYWORD(thread_local          , 0)
+
+// C++ concepts TS keywords
+CONCEPTS_KEYWORD(concept)
+CONCEPTS_KEYWORD(requires)
 
 // GNU Extensions (in impl-reserved namespace)
 KEYWORD(_Decimal32                  , KEYALL)
@@ -454,7 +470,7 @@ KEYWORD(__private_extern__          , KEYALL)
 KEYWORD(__module_private__          , KEYALL)
 
 // Microsoft Extension.
-KEYWORD(__declspec                  , KEYALL)
+KEYWORD(__declspec                  , KEYMS|KEYBORLAND)
 KEYWORD(__cdecl                     , KEYALL)
 KEYWORD(__stdcall                   , KEYALL)
 KEYWORD(__fastcall                  , KEYALL)
@@ -487,15 +503,18 @@ ALIAS("write_only", __write_only    , KEYOPENCL)
 ALIAS("read_write", __read_write    , KEYOPENCL)
 // OpenCL builtins
 KEYWORD(__builtin_astype            , KEYOPENCL)
-KEYWORD(vec_step                    , KEYOPENCL|KEYALTIVEC)
+KEYWORD(vec_step                    , KEYOPENCL|KEYALTIVEC|KEYZVECTOR)
+
+// OpenMP Type Traits
+KEYWORD(__builtin_omp_required_simd_align, KEYALL)
 
 // Borland Extensions.
 KEYWORD(__pascal                    , KEYALL)
 
 // Altivec Extension.
-KEYWORD(__vector                    , KEYALTIVEC)
+KEYWORD(__vector                    , KEYALTIVEC|KEYZVECTOR)
 KEYWORD(__pixel                     , KEYALTIVEC)
-KEYWORD(__bool                      , KEYALTIVEC)
+KEYWORD(__bool                      , KEYALTIVEC|KEYZVECTOR)
 
 // ARM NEON extensions.
 ALIAS("__fp16", half                , KEYALL)
@@ -508,6 +527,11 @@ KEYWORD(__bridge                     , KEYARC)
 KEYWORD(__bridge_transfer            , KEYARC)
 KEYWORD(__bridge_retained            , KEYARC)
 KEYWORD(__bridge_retain              , KEYARC)
+
+// Objective-C keywords.
+KEYWORD(__covariant                  , KEYOBJC2)
+KEYWORD(__contravariant              , KEYOBJC2)
+KEYWORD(__kindof                     , KEYOBJC2)
 
 // Alternate spelling for various tokens.  There are GCC extensions in all
 // languages, but should not be disabled in strict conformance mode.
@@ -533,6 +557,11 @@ ALIAS("__typeof"     , typeof     , KEYALL)
 ALIAS("__typeof__"   , typeof     , KEYALL)
 ALIAS("__volatile"   , volatile   , KEYALL)
 ALIAS("__volatile__" , volatile   , KEYALL)
+
+// Type nullability.
+KEYWORD(_Nonnull                 , KEYALL)
+KEYWORD(_Nullable                , KEYALL)
+KEYWORD(_Null_unspecified        , KEYALL)
 
 // Microsoft extensions which should be disabled in strict conformance mode
 KEYWORD(__ptr64                       , KEYMS)
@@ -734,6 +763,8 @@ ANNOTATION(module_end)
 #undef TYPE_TRAIT_2
 #undef TYPE_TRAIT_1
 #undef TYPE_TRAIT
+#undef CONCEPTS_KEYWORD
+#undef CXX11_KEYWORD
 #undef KEYWORD
 #undef PUNCTUATOR
 #undef TOK

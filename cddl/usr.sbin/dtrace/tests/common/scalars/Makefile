@@ -14,6 +14,8 @@ TESTFILES= \
      err.D_OP_INCOMPAT.dupltype.d  \
      err.D_OP_INCOMPAT.dupttype.d  \
      err.D_SYNTAX.declare.d  \
+     err.bigglobal.d  \
+     err.biglocal.d  \
      tst.basicvar.d  \
      tst.basicvar.d.out  \
      tst.localvar.d  \

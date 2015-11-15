@@ -22,6 +22,9 @@
 /* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
 #undef HAVE_DOPRNT
 
+/* Define to 1 if you have the `getpid' function. */
+#undef HAVE_GETPID
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
@@ -45,6 +48,9 @@
 
 /* Define to 1 if you have the <serf.h> header file. */
 #undef HAVE_SERF_H
+
+/* Define to 1 if you have the <stdbool.h> header file. */
+#undef HAVE_STDBOOL_H
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -115,14 +121,11 @@
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
-/* Defined to allow building against httpd 2.4 with broken auth */
+/* Defined to build against httpd 2.4 with broken auth */
 #undef SVN_ALLOW_BROKEN_HTTPD_AUTH
 
 /* Define to the Python/C API format character suitable for apr_int64_t */
 #undef SVN_APR_INT64_T_PYCFMT
-
-/* Define if circular linkage is not possible on this platform. */
-#undef SVN_AVOID_CIRCULAR_LINKAGE_AT_ALL_COSTS_HACK
 
 /* Defined to be the path to the installed binaries */
 #undef SVN_BINDIR
@@ -202,6 +205,9 @@
 /* Defined if libsvn_fs should link against libsvn_fs_fs */
 #undef SVN_LIBSVN_FS_LINKS_FS_FS
 
+/* Defined if libsvn_fs should link against libsvn_fs_x */
+#undef SVN_LIBSVN_FS_LINKS_FS_X
+
 /* Defined to be the path to the installed locale dirs */
 #undef SVN_LOCALE_DIR
 
@@ -219,6 +225,9 @@
 
 /* Defined if svn should try to load DSOs */
 #undef SVN_USE_DSO
+
+/* Defined to build with patched httpd 2.4 and working auth */
+#undef SVN_USE_FORCE_AUTHN
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
@@ -256,4 +265,28 @@
 #define gettext(x) (x)
 #define dgettext(domain, x) (x)
 #endif
+
+/* compiler hints */
+#if defined(__GNUC__) && (__GNUC__ >= 3)
+# define SVN__PREDICT_FALSE(x) (__builtin_expect(x, 0))
+# define SVN__PREDICT_TRUE(x) (__builtin_expect(!!(x), 1))
+#else
+# define SVN__PREDICT_FALSE(x) (x)
+# define SVN__PREDICT_TRUE(x) (x)
+#endif
+
+#if defined(SVN_DEBUG)
+# define SVN__FORCE_INLINE
+# define SVN__PREVENT_INLINE
+#elif defined(__GNUC__)
+# define SVN__FORCE_INLINE APR_INLINE __attribute__ ((always_inline))
+# define SVN__PREVENT_INLINE __attribute__ ((noinline))
+#else
+# define SVN__FORCE_INLINE APR_INLINE
+# define SVN__PREVENT_INLINE
+#endif
+
+/* Macro used to specify that a variable is intentionally left unused.
+   Supresses compiler warnings about the variable being unused.  */
+#define SVN_UNUSED(v) ( (void)(v) )
 

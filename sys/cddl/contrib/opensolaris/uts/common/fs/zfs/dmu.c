@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  */
 /* Copyright (c) 2013 by Saso Kiselkov. All rights reserved. */
 /* Copyright (c) 2013, Joyent, Inc. All rights reserved. */
@@ -389,7 +389,7 @@ dmu_spill_hold_by_bonus(dmu_buf_t *bonus, void *tag, dmu_buf_t **dbp)
  */
 static int
 dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
-    int read, void *tag, int *numbufsp, dmu_buf_t ***dbpp, uint32_t flags)
+    boolean_t read, void *tag, int *numbufsp, dmu_buf_t ***dbpp, uint32_t flags)
 {
 	dmu_buf_t **dbp;
 	uint64_t blkid, nblks, i;
@@ -399,15 +399,19 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 
 	ASSERT(length <= DMU_MAX_ACCESS);
 
-	dbuf_flags = DB_RF_CANFAIL | DB_RF_NEVERWAIT | DB_RF_HAVESTRUCT;
-	if (flags & DMU_READ_NO_PREFETCH || length > zfetch_array_rd_sz)
-		dbuf_flags |= DB_RF_NOPREFETCH;
+	/*
+	 * Note: We directly notify the prefetch code of this read, so that
+	 * we can tell it about the multi-block read.  dbuf_read() only knows
+	 * about the one block it is accessing.
+	 */
+	dbuf_flags = DB_RF_CANFAIL | DB_RF_NEVERWAIT | DB_RF_HAVESTRUCT |
+	    DB_RF_NOPREFETCH;
 
 	rw_enter(&dn->dn_struct_rwlock, RW_READER);
 	if (dn->dn_datablkshift) {
 		int blkshift = dn->dn_datablkshift;
-		nblks = (P2ROUNDUP(offset+length, 1ULL<<blkshift) -
-		    P2ALIGN(offset, 1ULL<<blkshift)) >> blkshift;
+		nblks = (P2ROUNDUP(offset + length, 1ULL << blkshift) -
+		    P2ALIGN(offset, 1ULL << blkshift)) >> blkshift;
 	} else {
 		if (offset + length > dn->dn_datablksz) {
 			zfs_panic_recover("zfs: accessing past end of object "
@@ -426,13 +430,14 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 	zio = zio_root(dn->dn_objset->os_spa, NULL, NULL, ZIO_FLAG_CANFAIL);
 	blkid = dbuf_whichblock(dn, 0, offset);
 	for (i = 0; i < nblks; i++) {
-		dmu_buf_impl_t *db = dbuf_hold(dn, blkid+i, tag);
+		dmu_buf_impl_t *db = dbuf_hold(dn, blkid + i, tag);
 		if (db == NULL) {
 			rw_exit(&dn->dn_struct_rwlock);
 			dmu_buf_rele_array(dbp, nblks, tag);
 			zio_nowait(zio);
 			return (SET_ERROR(EIO));
 		}
+
 		/* initiate async i/o */
 		if (read)
 			(void) dbuf_read(db, zio, dbuf_flags);
@@ -441,6 +446,11 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 			curthread->td_ru.ru_oublock++;
 #endif
 		dbp[i] = &db->db;
+	}
+
+	if ((flags & DMU_READ_NO_PREFETCH) == 0 && read &&
+	    length <= zfetch_array_rd_sz) {
+		dmu_zfetch(&dn->dn_zfetch, blkid, nblks);
 	}
 	rw_exit(&dn->dn_struct_rwlock);
 
@@ -495,7 +505,8 @@ dmu_buf_hold_array(objset_t *os, uint64_t object, uint64_t offset,
 
 int
 dmu_buf_hold_array_by_bonus(dmu_buf_t *db_fake, uint64_t offset,
-    uint64_t length, int read, void *tag, int *numbufsp, dmu_buf_t ***dbpp)
+    uint64_t length, boolean_t read, void *tag, int *numbufsp,
+    dmu_buf_t ***dbpp)
 {
 	dmu_buf_impl_t *db = (dmu_buf_impl_t *)db_fake;
 	dnode_t *dn;
@@ -542,9 +553,6 @@ dmu_prefetch(objset_t *os, uint64_t object, int64_t level, uint64_t offset,
 	dnode_t *dn;
 	uint64_t blkid;
 	int nblks, err;
-
-	if (zfs_prefetch_disable)
-		return;
 
 	if (len == 0) {  /* they're interested in the bonus buffer */
 		dn = DMU_META_DNODE(os);
@@ -1485,7 +1493,8 @@ dmu_sync_done(zio_t *zio, arc_buf_t *buf, void *varg)
 
 			ASSERT(BP_EQUAL(bp, bp_orig));
 			ASSERT(zio->io_prop.zp_compress != ZIO_COMPRESS_OFF);
-			ASSERT(zio_checksum_table[chksum].ci_dedup);
+			ASSERT(zio_checksum_table[chksum].ci_flags &
+			    ZCHECKSUM_FLAG_NOPWRITE);
 		}
 		dr->dt.dl.dr_overridden_by = *zio->io_bp;
 		dr->dt.dl.dr_override_state = DR_OVERRIDDEN;
@@ -1730,7 +1739,7 @@ dmu_sync(zio_t *pio, uint64_t txg, dmu_sync_cb_t *done, zgd_t *zgd)
 
 int
 dmu_object_set_blocksize(objset_t *os, uint64_t object, uint64_t size, int ibs,
-	dmu_tx_t *tx)
+    dmu_tx_t *tx)
 {
 	dnode_t *dn;
 	int err;
@@ -1745,7 +1754,7 @@ dmu_object_set_blocksize(objset_t *os, uint64_t object, uint64_t size, int ibs,
 
 void
 dmu_object_set_checksum(objset_t *os, uint64_t object, uint8_t checksum,
-	dmu_tx_t *tx)
+    dmu_tx_t *tx)
 {
 	dnode_t *dn;
 
@@ -1765,7 +1774,7 @@ dmu_object_set_checksum(objset_t *os, uint64_t object, uint8_t checksum,
 
 void
 dmu_object_set_compress(objset_t *os, uint64_t object, uint8_t compress,
-	dmu_tx_t *tx)
+    dmu_tx_t *tx)
 {
 	dnode_t *dn;
 
@@ -1832,8 +1841,10 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 		 * as well.  Otherwise, the metadata checksum defaults
 		 * to fletcher4.
 		 */
-		if (zio_checksum_table[checksum].ci_correctable < 1 ||
-		    zio_checksum_table[checksum].ci_eck)
+		if (!(zio_checksum_table[checksum].ci_flags &
+		    ZCHECKSUM_FLAG_METADATA) ||
+		    (zio_checksum_table[checksum].ci_flags &
+		    ZCHECKSUM_FLAG_EMBEDDED))
 			checksum = ZIO_CHECKSUM_FLETCHER_4;
 
 		if (os->os_redundant_metadata == ZFS_REDUNDANT_METADATA_ALL ||
@@ -1872,17 +1883,20 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 		 */
 		if (dedup_checksum != ZIO_CHECKSUM_OFF) {
 			dedup = (wp & WP_DMU_SYNC) ? B_FALSE : B_TRUE;
-			if (!zio_checksum_table[checksum].ci_dedup)
+			if (!(zio_checksum_table[checksum].ci_flags &
+			    ZCHECKSUM_FLAG_DEDUP))
 				dedup_verify = B_TRUE;
 		}
 
 		/*
-		 * Enable nopwrite if we have a cryptographically secure
-		 * checksum that has no known collisions (i.e. SHA-256)
-		 * and compression is enabled.  We don't enable nopwrite if
-		 * dedup is enabled as the two features are mutually exclusive.
+		 * Enable nopwrite if we have secure enough checksum
+		 * algorithm (see comment in zio_nop_write) and
+		 * compression is enabled.  We don't enable nopwrite if
+		 * dedup is enabled as the two features are mutually
+		 * exclusive.
 		 */
-		nopwrite = (!dedup && zio_checksum_table[checksum].ci_dedup &&
+		nopwrite = (!dedup && (zio_checksum_table[checksum].ci_flags &
+		    ZCHECKSUM_FLAG_NOPWRITE) &&
 		    compress != ZIO_COMPRESS_OFF && zfs_nopwrite_enabled);
 	}
 
@@ -1930,7 +1944,8 @@ dmu_offset_next(objset_t *os, uint64_t object, boolean_t hole, uint64_t *off)
  * ID and wait for that to be synced.
  */
 int
-dmu_object_wait_synced(objset_t *os, uint64_t object) {
+dmu_object_wait_synced(objset_t *os, uint64_t object)
+{
 	dnode_t *dn;
 	int error, i;
 

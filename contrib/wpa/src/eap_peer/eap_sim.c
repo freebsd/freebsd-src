@@ -1042,7 +1042,7 @@ static struct wpabuf * eap_sim_process(struct eap_sm *sm, void *priv,
 	}
 
 	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_SIM, reqData, &len);
-	if (pos == NULL || len < 1) {
+	if (pos == NULL || len < 3) {
 		ret->ignore = TRUE;
 		return NULL;
 	}

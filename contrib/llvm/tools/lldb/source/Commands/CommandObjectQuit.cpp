@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "CommandObjectQuit.h"
 
 // C Includes
@@ -17,6 +15,7 @@
 // Project includes
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
+#include "lldb/Target/Process.h"
 
 using namespace lldb;
 using namespace lldb_private;

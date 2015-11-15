@@ -113,6 +113,11 @@ Please do not run
 .Nm Cm fetch
 from crontab or similar using this flag, see:
 .Nm Cm cron
+.It Fl -currently-running Ar release
+Don't detect the currently-running release; instead, assume that the
+system is running the specified
+.Ar release .
+This is most likely to be useful when upgrading jails.
 .El
 .Sh COMMANDS
 The

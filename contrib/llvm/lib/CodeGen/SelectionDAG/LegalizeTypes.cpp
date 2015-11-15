@@ -259,6 +259,10 @@ bool DAGTypeLegalizer::run() {
         WidenVectorResult(N, i);
         Changed = true;
         goto NodeDone;
+      case TargetLowering::TypePromoteFloat:
+        PromoteFloatResult(N, i);
+        Changed = true;
+        goto NodeDone;
       }
     }
 
@@ -306,6 +310,10 @@ ScanOperands:
         break;
       case TargetLowering::TypeWidenVector:
         NeedsReanalyzing = WidenVectorOperand(N, i);
+        Changed = true;
+        break;
+      case TargetLowering::TypePromoteFloat:
+        NeedsReanalyzing = PromoteFloatOperand(N, i);
         Changed = true;
         break;
       }
@@ -753,6 +761,17 @@ void DAGTypeLegalizer::SetSoftenedFloat(SDValue Op, SDValue Result) {
   OpEntry = Result;
 }
 
+void DAGTypeLegalizer::SetPromotedFloat(SDValue Op, SDValue Result) {
+  assert(Result.getValueType() ==
+         TLI.getTypeToTransformTo(*DAG.getContext(), Op.getValueType()) &&
+         "Invalid type for promoted float");
+  AnalyzeNewValue(Result);
+
+  SDValue &OpEntry = PromotedFloats[Op];
+  assert(!OpEntry.getNode() && "Node is already promoted!");
+  OpEntry = Result;
+}
+
 void DAGTypeLegalizer::SetScalarizedVector(SDValue Op, SDValue Result) {
   // Note that in some cases vector operation operands may be greater than
   // the vector element type. For example BUILD_VECTOR of type <1 x i1> with
@@ -978,22 +997,22 @@ void DAGTypeLegalizer::GetPairElements(SDValue Pair,
   SDLoc dl(Pair);
   EVT NVT = TLI.getTypeToTransformTo(*DAG.getContext(), Pair.getValueType());
   Lo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, NVT, Pair,
-                   DAG.getIntPtrConstant(0));
+                   DAG.getIntPtrConstant(0, dl));
   Hi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, NVT, Pair,
-                   DAG.getIntPtrConstant(1));
+                   DAG.getIntPtrConstant(1, dl));
 }
 
 SDValue DAGTypeLegalizer::GetVectorElementPointer(SDValue VecPtr, EVT EltVT,
                                                   SDValue Index) {
   SDLoc dl(Index);
   // Make sure the index type is big enough to compute in.
-  Index = DAG.getZExtOrTrunc(Index, dl, TLI.getPointerTy());
+  Index = DAG.getZExtOrTrunc(Index, dl, TLI.getPointerTy(DAG.getDataLayout()));
 
   // Calculate the element offset and add it to the pointer.
   unsigned EltSize = EltVT.getSizeInBits() / 8; // FIXME: should be ABI size.
 
   Index = DAG.getNode(ISD::MUL, dl, Index.getValueType(), Index,
-                      DAG.getConstant(EltSize, Index.getValueType()));
+                      DAG.getConstant(EltSize, dl, Index.getValueType()));
   return DAG.getNode(ISD::ADD, dl, Index.getValueType(), Index, VecPtr);
 }
 
@@ -1010,7 +1029,8 @@ SDValue DAGTypeLegalizer::JoinIntegers(SDValue Lo, SDValue Hi) {
   Lo = DAG.getNode(ISD::ZERO_EXTEND, dlLo, NVT, Lo);
   Hi = DAG.getNode(ISD::ANY_EXTEND, dlHi, NVT, Hi);
   Hi = DAG.getNode(ISD::SHL, dlHi, NVT, Hi,
-                   DAG.getConstant(LVT.getSizeInBits(), TLI.getPointerTy()));
+                   DAG.getConstant(LVT.getSizeInBits(), dlHi,
+                                   TLI.getPointerTy(DAG.getDataLayout())));
   return DAG.getNode(ISD::OR, dlHi, NVT, Lo, Hi);
 }
 
@@ -1059,7 +1079,7 @@ DAGTypeLegalizer::ExpandChainLibCall(RTLIB::Libcall LC,
     Args.push_back(Entry);
   }
   SDValue Callee = DAG.getExternalSymbol(TLI.getLibcallName(LC),
-                                         TLI.getPointerTy());
+                                         TLI.getPointerTy(DAG.getDataLayout()));
 
   Type *RetTy = Node->getValueType(0).getTypeForEVT(*DAG.getContext());
 
@@ -1096,7 +1116,8 @@ void DAGTypeLegalizer::SplitInteger(SDValue Op,
          Op.getValueType().getSizeInBits() && "Invalid integer splitting!");
   Lo = DAG.getNode(ISD::TRUNCATE, dl, LoVT, Op);
   Hi = DAG.getNode(ISD::SRL, dl, Op.getValueType(), Op,
-                   DAG.getConstant(LoVT.getSizeInBits(), TLI.getPointerTy()));
+                   DAG.getConstant(LoVT.getSizeInBits(), dl,
+                                   TLI.getPointerTy(DAG.getDataLayout())));
   Hi = DAG.getNode(ISD::TRUNCATE, dl, HiVT, Hi);
 }
 

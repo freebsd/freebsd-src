@@ -115,8 +115,14 @@ public:
     /// This scope corresponds to an enum.
     EnumScope = 0x40000,
 
-    /// This scope corresponds to a SEH try.
+    /// This scope corresponds to an SEH try.
     SEHTryScope = 0x80000,
+
+    /// This scope corresponds to an SEH except.
+    SEHExceptScope = 0x100000,
+
+    /// We are currently in the filter expression of an SEH except block.
+    SEHFilterScope = 0x200000,
   };
 private:
   /// The parent scope for this scope.  This is null for the translation-unit
@@ -133,7 +139,9 @@ private:
 
   /// \brief Declarations with static linkage are mangled with the number of
   /// scopes seen as a component.
-  unsigned short MSLocalManglingNumber;
+  unsigned short MSLastManglingNumber;
+
+  unsigned short MSCurManglingNumber;
 
   /// PrototypeDepth - This is the number of function prototype scopes
   /// enclosing this scope, including this scope.
@@ -146,7 +154,7 @@ private:
   /// FnParent - If this scope has a parent scope that is a function body, this
   /// pointer is non-null and points to it.  This is used for label processing.
   Scope *FnParent;
-  Scope *MSLocalManglingParent;
+  Scope *MSLastManglingParent;
 
   /// BreakParent/ContinueParent - This is a direct link to the innermost
   /// BreakScope/ContinueScope which contains the contents of this scope
@@ -212,10 +220,10 @@ public:
   const Scope *getFnParent() const { return FnParent; }
   Scope *getFnParent() { return FnParent; }
 
-  const Scope *getMSLocalManglingParent() const {
-    return MSLocalManglingParent;
+  const Scope *getMSLastManglingParent() const {
+    return MSLastManglingParent;
   }
-  Scope *getMSLocalManglingParent() { return MSLocalManglingParent; }
+  Scope *getMSLastManglingParent() { return MSLastManglingParent; }
 
   /// getContinueParent - Return the closest scope that a continue statement
   /// would be affected by.
@@ -269,20 +277,28 @@ public:
     DeclsInScope.erase(D);
   }
 
-  void incrementMSLocalManglingNumber() {
-    if (Scope *MSLMP = getMSLocalManglingParent())
-      MSLMP->MSLocalManglingNumber += 1;
+  void incrementMSManglingNumber() {
+    if (Scope *MSLMP = getMSLastManglingParent()) {
+      MSLMP->MSLastManglingNumber += 1;
+      MSCurManglingNumber += 1;
+    }
   }
 
-  void decrementMSLocalManglingNumber() {
-    if (Scope *MSLMP = getMSLocalManglingParent())
-      MSLMP->MSLocalManglingNumber -= 1;
+  void decrementMSManglingNumber() {
+    if (Scope *MSLMP = getMSLastManglingParent()) {
+      MSLMP->MSLastManglingNumber -= 1;
+      MSCurManglingNumber -= 1;
+    }
   }
 
-  unsigned getMSLocalManglingNumber() const {
-    if (const Scope *MSLMP = getMSLocalManglingParent())
-      return MSLMP->MSLocalManglingNumber;
+  unsigned getMSLastManglingNumber() const {
+    if (const Scope *MSLMP = getMSLastManglingParent())
+      return MSLMP->MSLastManglingNumber;
     return 1;
+  }
+
+  unsigned getMSCurManglingNumber() const {
+    return MSCurManglingNumber;
   }
 
   /// isDeclScope - Return true if this is the scope that the specified decl is
@@ -406,6 +422,15 @@ public:
 
   /// \brief Determine whether this scope is a SEH '__try' block.
   bool isSEHTryScope() const { return getFlags() & Scope::SEHTryScope; }
+
+  /// \brief Determine whether this scope is a SEH '__except' block.
+  bool isSEHExceptScope() const { return getFlags() & Scope::SEHExceptScope; }
+
+  /// \brief Returns if rhs has a higher scope depth than this.
+  ///
+  /// The caller is responsible for calling this only if one of the two scopes
+  /// is an ancestor of the other.
+  bool Contains(const Scope& rhs) const { return Depth < rhs.Depth; }
 
   /// containedInPrototypeScope - Return true if this or a parent scope
   /// is a FunctionPrototypeScope.

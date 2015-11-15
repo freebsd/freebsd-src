@@ -1,11 +1,24 @@
 #AUTOMAKE_OPTIONS = foreign 2.9 subdir-objects
+
 NULL =
 BUILT_SOURCES =
 CLEANFILES =
 
+std_unity_list = 						\
+	$(top_srcdir)/sntp/unity/auto/generate_test_runner.rb	\
+	$(NULL)
+
 run_unity =	cd $(srcdir) && ruby ../../sntp/unity/auto/generate_test_runner.rb
 
-check_PROGRAMS = bug-2803 first-test second-test smeartest
+check_PROGRAMS =	\
+	first-test	\
+	smeartest	\
+	$(NULL)
+
+EXTRA_PROGRAMS =	\
+	bug-2803	\
+	second-test	\
+	$(NULL)
 
 # HMS: we may not need some of these:
 LDADD =					\
@@ -23,13 +36,15 @@ AM_CPPFLAGS	= $(NTP_INCS)
 AM_CPPFLAGS += -I$(top_srcdir)/sntp/unity
 AM_CPPFLAGS += -I$(top_srcdir)/include
 AM_CPPFLAGS += $(CPPFLAGS_NTP)
+AM_CPPFLAGS += -DUNITY_INCLUDE_CONFIG_H
+AM_CPPFLAGS += -I$(top_srcdir)/sntp/unity
 
 AM_LDFLAGS = $(LDFLAGS_NTP)
 
-bug_2803_SOURCES =			\
-	bug-2803.c			\
-	run-ut-2803.c			\
-	ut-2803.c			\
+bug_2803_SOURCES =		\
+	bug-2803.c		\
+	run-ut-2803.c		\
+	ut-2803.c		\
 	$(NULL)
 
 $(srcdir)/run-ut-2803.c: $(srcdir)/ut-2803.c $(std_unity_list)

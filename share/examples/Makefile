@@ -255,13 +255,12 @@ SUBDIR+=ipfilter
 .if ${MK_PF} != "no"
 SUBDIR+=pf
 .endif
-.if ${MK_DMAGENT} != "no"
-SUBDIR+=dma
-.endif
 .endif
 
 .if ${MK_TESTS} != "no"
 SUBDIR+=tests
 .endif
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

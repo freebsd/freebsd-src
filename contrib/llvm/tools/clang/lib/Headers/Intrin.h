@@ -39,6 +39,9 @@
 #include <setjmp.h>
 #endif
 
+/* Define the default attributes for the functions in this file. */
+#define __DEFAULT_FN_ATTRS __attribute__((__always_inline__, __nodebug__))
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -177,8 +180,6 @@ unsigned long __cdecl _byteswap_ulong(unsigned long);
 unsigned short __cdecl _byteswap_ushort(unsigned short);
 void __cdecl _disable(void);
 void __cdecl _enable(void);
-void __cdecl _fxrstor(void const *);
-void __cdecl _fxsave(void *);
 long _InterlockedAddLargeStatistic(__int64 volatile *_Addend, long _Value);
 static __inline__
 long _InterlockedAnd(long volatile *_Value, long _Mask);
@@ -289,6 +290,7 @@ void _WriteBarrier(void);
 unsigned __int32 xbegin(void);
 void _xend(void);
 static __inline__
+#define _XCR_XFEATURE_ENABLED_MASK 0
 unsigned __int64 __cdecl _xgetbv(unsigned int);
 void __cdecl _xrstor(void const *, unsigned __int64);
 void __cdecl _xsave(void *, unsigned __int64);
@@ -354,8 +356,6 @@ unsigned char _bittestandreset64(__int64 *, __int64);
 static __inline__
 unsigned char _bittestandset64(__int64 *, __int64);
 unsigned __int64 __cdecl _byteswap_uint64(unsigned __int64);
-void __cdecl _fxrstor64(void const *);
-void __cdecl _fxsave64(void *);
 long _InterlockedAnd_np(long volatile *_Value, long _Mask);
 short _InterlockedAnd16_np(short volatile *_Value, short _Mask);
 __int64 _InterlockedAnd64_np(__int64 volatile *_Value, __int64 _Mask);
@@ -420,7 +420,7 @@ unsigned __int64 _shrx_u64(unsigned __int64, unsigned int);
  * Multiply two 64-bit integers and obtain a 64-bit result.
  * The low-half is returned directly and the high half is in an out parameter.
  */
-static __inline__ unsigned __int64 __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned __int64 __DEFAULT_FN_ATTRS
 _umul128(unsigned __int64 _Multiplier, unsigned __int64 _Multiplicand,
          unsigned __int64 *_HighProduct) {
   unsigned __int128 _FullProduct =
@@ -428,7 +428,7 @@ _umul128(unsigned __int64 _Multiplier, unsigned __int64 _Multiplicand,
   *_HighProduct = _FullProduct >> 64;
   return _FullProduct;
 }
-static __inline__ unsigned __int64 __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned __int64 __DEFAULT_FN_ATTRS
 __umulh(unsigned __int64 _Multiplier, unsigned __int64 _Multiplicand) {
   unsigned __int128 _FullProduct =
       (unsigned __int128)_Multiplier * (unsigned __int128)_Multiplicand;
@@ -443,54 +443,54 @@ void __cdecl _xsaveopt64(void *, unsigned __int64);
 /*----------------------------------------------------------------------------*\
 |* Bit Twiddling
 \*----------------------------------------------------------------------------*/
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
 _rotl8(unsigned char _Value, unsigned char _Shift) {
   _Shift &= 0x7;
   return _Shift ? (_Value << _Shift) | (_Value >> (8 - _Shift)) : _Value;
 }
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
 _rotr8(unsigned char _Value, unsigned char _Shift) {
   _Shift &= 0x7;
   return _Shift ? (_Value >> _Shift) | (_Value << (8 - _Shift)) : _Value;
 }
-static __inline__ unsigned short __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned short __DEFAULT_FN_ATTRS
 _rotl16(unsigned short _Value, unsigned char _Shift) {
   _Shift &= 0xf;
   return _Shift ? (_Value << _Shift) | (_Value >> (16 - _Shift)) : _Value;
 }
-static __inline__ unsigned short __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned short __DEFAULT_FN_ATTRS
 _rotr16(unsigned short _Value, unsigned char _Shift) {
   _Shift &= 0xf;
   return _Shift ? (_Value >> _Shift) | (_Value << (16 - _Shift)) : _Value;
 }
-static __inline__ unsigned int __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned int __DEFAULT_FN_ATTRS
 _rotl(unsigned int _Value, int _Shift) {
   _Shift &= 0x1f;
   return _Shift ? (_Value << _Shift) | (_Value >> (32 - _Shift)) : _Value;
 }
-static __inline__ unsigned int __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned int __DEFAULT_FN_ATTRS
 _rotr(unsigned int _Value, int _Shift) {
   _Shift &= 0x1f;
   return _Shift ? (_Value >> _Shift) | (_Value << (32 - _Shift)) : _Value;
 }
-static __inline__ unsigned long __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned long __DEFAULT_FN_ATTRS
 _lrotl(unsigned long _Value, int _Shift) {
   _Shift &= 0x1f;
   return _Shift ? (_Value << _Shift) | (_Value >> (32 - _Shift)) : _Value;
 }
-static __inline__ unsigned long __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned long __DEFAULT_FN_ATTRS
 _lrotr(unsigned long _Value, int _Shift) {
   _Shift &= 0x1f;
   return _Shift ? (_Value >> _Shift) | (_Value << (32 - _Shift)) : _Value;
 }
 static
-__inline__ unsigned __int64 __attribute__((__always_inline__, __nodebug__))
+__inline__ unsigned __int64 __DEFAULT_FN_ATTRS
 _rotl64(unsigned __int64 _Value, int _Shift) {
   _Shift &= 0x3f;
   return _Shift ? (_Value << _Shift) | (_Value >> (64 - _Shift)) : _Value;
 }
 static
-__inline__ unsigned __int64 __attribute__((__always_inline__, __nodebug__))
+__inline__ unsigned __int64 __DEFAULT_FN_ATTRS
 _rotr64(unsigned __int64 _Value, int _Shift) {
   _Shift &= 0x3f;
   return _Shift ? (_Value >> _Shift) | (_Value << (64 - _Shift)) : _Value;
@@ -498,71 +498,64 @@ _rotr64(unsigned __int64 _Value, int _Shift) {
 /*----------------------------------------------------------------------------*\
 |* Bit Counting and Testing
 \*----------------------------------------------------------------------------*/
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
 _BitScanForward(unsigned long *_Index, unsigned long _Mask) {
   if (!_Mask)
     return 0;
   *_Index = __builtin_ctzl(_Mask);
   return 1;
 }
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
 _BitScanReverse(unsigned long *_Index, unsigned long _Mask) {
   if (!_Mask)
     return 0;
   *_Index = 31 - __builtin_clzl(_Mask);
   return 1;
 }
-static __inline__ unsigned short __attribute__((__always_inline__, __nodebug__))
-__popcnt16(unsigned short value) {
-  return __builtin_popcount((int)value);
+static __inline__ unsigned short __DEFAULT_FN_ATTRS
+__popcnt16(unsigned short _Value) {
+  return __builtin_popcount((int)_Value);
 }
-static __inline__ unsigned int __attribute__((__always_inline__, __nodebug__))
-__popcnt(unsigned int value) {
-  return __builtin_popcount(value);
+static __inline__ unsigned int __DEFAULT_FN_ATTRS
+__popcnt(unsigned int _Value) {
+  return __builtin_popcount(_Value);
 }
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
-_bittest(long const *a, long b) {
-  return (*a >> b) & 1;
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
+_bittest(long const *_BitBase, long _BitPos) {
+  return (*_BitBase >> _BitPos) & 1;
 }
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
-_bittestandcomplement(long *a, long b) {
-  unsigned char x = (*a >> b) & 1;
-  *a = *a ^ (1 << b);
-  return x;
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
+_bittestandcomplement(long *_BitBase, long _BitPos) {
+  unsigned char _Res = (*_BitBase >> _BitPos) & 1;
+  *_BitBase = *_BitBase ^ (1 << _BitPos);
+  return _Res;
 }
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
-_bittestandreset(long *a, long b) {
-  unsigned char x = (*a >> b) & 1;
-  *a = *a & ~(1 << b);
-  return x;
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
+_bittestandreset(long *_BitBase, long _BitPos) {
+  unsigned char _Res = (*_BitBase >> _BitPos) & 1;
+  *_BitBase = *_BitBase & ~(1 << _BitPos);
+  return _Res;
 }
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
-_bittestandset(long *a, long b) {
-  unsigned char x = (*a >> b) & 1;
-  *a = *a | (1 << b);
-  return x;
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
+_bittestandset(long *_BitBase, long _BitPos) {
+  unsigned char _Res = (*_BitBase >> _BitPos) & 1;
+  *_BitBase = *_BitBase | (1 << _BitPos);
+  return _Res;
 }
-#if defined(__i386__) || defined(__x86_64__)
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
-_interlockedbittestandset(long volatile *__BitBase, long __BitPos) {
-  unsigned char __Res;
-  __asm__ ("xor %0, %0\n"
-           "lock bts %2, %1\n"
-           "setc %0\n"
-           : "=r" (__Res), "+m"(*__BitBase)
-           : "Ir"(__BitPos));
-  return __Res;
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
+_interlockedbittestandset(long volatile *_BitBase, long _BitPos) {
+  long _PrevVal = __atomic_fetch_or(_BitBase, 1l << _BitPos, __ATOMIC_SEQ_CST);
+  return (_PrevVal >> _BitPos) & 1;
 }
-#endif
 #ifdef __x86_64__
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
 _BitScanForward64(unsigned long *_Index, unsigned __int64 _Mask) {
   if (!_Mask)
     return 0;
   *_Index = __builtin_ctzll(_Mask);
   return 1;
 }
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
 _BitScanReverse64(unsigned long *_Index, unsigned __int64 _Mask) {
   if (!_Mask)
     return 0;
@@ -570,233 +563,232 @@ _BitScanReverse64(unsigned long *_Index, unsigned __int64 _Mask) {
   return 1;
 }
 static __inline__
-unsigned __int64 __attribute__((__always_inline__, __nodebug__))
- __popcnt64(unsigned __int64 value) {
-  return __builtin_popcountll(value);
+unsigned __int64 __DEFAULT_FN_ATTRS
+__popcnt64(unsigned __int64 _Value) {
+  return __builtin_popcountll(_Value);
 }
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
-_bittest64(__int64 const *a, __int64 b) {
-  return (*a >> b) & 1;
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
+_bittest64(__int64 const *_BitBase, __int64 _BitPos) {
+  return (*_BitBase >> _BitPos) & 1;
 }
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
-_bittestandcomplement64(__int64 *a, __int64 b) {
-  unsigned char x = (*a >> b) & 1;
-  *a = *a ^ (1ll << b);
-  return x;
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
+_bittestandcomplement64(__int64 *_BitBase, __int64 _BitPos) {
+  unsigned char _Res = (*_BitBase >> _BitPos) & 1;
+  *_BitBase = *_BitBase ^ (1ll << _BitPos);
+  return _Res;
 }
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
-_bittestandreset64(__int64 *a, __int64 b) {
-  unsigned char x = (*a >> b) & 1;
-  *a = *a & ~(1ll << b);
-  return x;
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
+_bittestandreset64(__int64 *_BitBase, __int64 _BitPos) {
+  unsigned char _Res = (*_BitBase >> _BitPos) & 1;
+  *_BitBase = *_BitBase & ~(1ll << _BitPos);
+  return _Res;
 }
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
-_bittestandset64(__int64 *a, __int64 b) {
-  unsigned char x = (*a >> b) & 1;
-  *a = *a | (1ll << b);
-  return x;
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
+_bittestandset64(__int64 *_BitBase, __int64 _BitPos) {
+  unsigned char _Res = (*_BitBase >> _BitPos) & 1;
+  *_BitBase = *_BitBase | (1ll << _BitPos);
+  return _Res;
 }
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
-_interlockedbittestandset64(__int64 volatile *__BitBase, __int64 __BitPos) {
-  unsigned char __Res;
-  __asm__ ("xor %0, %0\n"
-           "lock bts %2, %1\n"
-           "setc %0\n"
-           : "=r" (__Res), "+m"(*__BitBase)
-           : "Ir"(__BitPos));
-  return __Res;
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
+_interlockedbittestandset64(__int64 volatile *_BitBase, __int64 _BitPos) {
+  long long _PrevVal =
+      __atomic_fetch_or(_BitBase, 1ll << _BitPos, __ATOMIC_SEQ_CST);
+  return (_PrevVal >> _BitPos) & 1;
 }
 #endif
 /*----------------------------------------------------------------------------*\
 |* Interlocked Exchange Add
 \*----------------------------------------------------------------------------*/
-static __inline__ char __attribute__((__always_inline__, __nodebug__))
+static __inline__ char __DEFAULT_FN_ATTRS
 _InterlockedExchangeAdd8(char volatile *_Addend, char _Value) {
-  return __atomic_add_fetch(_Addend, _Value, 0) - _Value;
+  return __atomic_fetch_add(_Addend, _Value, __ATOMIC_SEQ_CST);
 }
-static __inline__ short __attribute__((__always_inline__, __nodebug__))
+static __inline__ short __DEFAULT_FN_ATTRS
 _InterlockedExchangeAdd16(short volatile *_Addend, short _Value) {
-  return __atomic_add_fetch(_Addend, _Value, 0) - _Value;
+  return __atomic_fetch_add(_Addend, _Value, __ATOMIC_SEQ_CST);
 }
 #ifdef __x86_64__
-static __inline__ __int64 __attribute__((__always_inline__, __nodebug__))
+static __inline__ __int64 __DEFAULT_FN_ATTRS
 _InterlockedExchangeAdd64(__int64 volatile *_Addend, __int64 _Value) {
-  return __atomic_add_fetch(_Addend, _Value, 0) - _Value;
+  return __atomic_fetch_add(_Addend, _Value, __ATOMIC_SEQ_CST);
 }
 #endif
 /*----------------------------------------------------------------------------*\
 |* Interlocked Exchange Sub
 \*----------------------------------------------------------------------------*/
-static __inline__ char __attribute__((__always_inline__, __nodebug__))
+static __inline__ char __DEFAULT_FN_ATTRS
 _InterlockedExchangeSub8(char volatile *_Subend, char _Value) {
-  return __atomic_sub_fetch(_Subend, _Value, 0) + _Value;
+  return __atomic_fetch_sub(_Subend, _Value, __ATOMIC_SEQ_CST);
 }
-static __inline__ short __attribute__((__always_inline__, __nodebug__))
+static __inline__ short __DEFAULT_FN_ATTRS
 _InterlockedExchangeSub16(short volatile *_Subend, short _Value) {
-  return __atomic_sub_fetch(_Subend, _Value, 0) + _Value;
+  return __atomic_fetch_sub(_Subend, _Value, __ATOMIC_SEQ_CST);
 }
-static __inline__ long __attribute__((__always_inline__, __nodebug__))
+static __inline__ long __DEFAULT_FN_ATTRS
 _InterlockedExchangeSub(long volatile *_Subend, long _Value) {
-  return __atomic_sub_fetch(_Subend, _Value, 0) + _Value;
+  return __atomic_fetch_sub(_Subend, _Value, __ATOMIC_SEQ_CST);
 }
 #ifdef __x86_64__
-static __inline__ __int64 __attribute__((__always_inline__, __nodebug__))
+static __inline__ __int64 __DEFAULT_FN_ATTRS
 _InterlockedExchangeSub64(__int64 volatile *_Subend, __int64 _Value) {
-  return __atomic_sub_fetch(_Subend, _Value, 0) + _Value;
+  return __atomic_fetch_sub(_Subend, _Value, __ATOMIC_SEQ_CST);
 }
 #endif
 /*----------------------------------------------------------------------------*\
 |* Interlocked Increment
 \*----------------------------------------------------------------------------*/
-static __inline__ short __attribute__((__always_inline__, __nodebug__))
+static __inline__ short __DEFAULT_FN_ATTRS
 _InterlockedIncrement16(short volatile *_Value) {
-  return __atomic_add_fetch(_Value, 1, 0);
+  return __atomic_add_fetch(_Value, 1, __ATOMIC_SEQ_CST);
 }
 #ifdef __x86_64__
-static __inline__ __int64 __attribute__((__always_inline__, __nodebug__))
+static __inline__ __int64 __DEFAULT_FN_ATTRS
 _InterlockedIncrement64(__int64 volatile *_Value) {
-  return __atomic_add_fetch(_Value, 1, 0);
+  return __atomic_add_fetch(_Value, 1, __ATOMIC_SEQ_CST);
 }
 #endif
 /*----------------------------------------------------------------------------*\
 |* Interlocked Decrement
 \*----------------------------------------------------------------------------*/
-static __inline__ short __attribute__((__always_inline__, __nodebug__))
+static __inline__ short __DEFAULT_FN_ATTRS
 _InterlockedDecrement16(short volatile *_Value) {
-  return __atomic_sub_fetch(_Value, 1, 0);
+  return __atomic_sub_fetch(_Value, 1, __ATOMIC_SEQ_CST);
 }
 #ifdef __x86_64__
-static __inline__ __int64 __attribute__((__always_inline__, __nodebug__))
+static __inline__ __int64 __DEFAULT_FN_ATTRS
 _InterlockedDecrement64(__int64 volatile *_Value) {
-  return __atomic_sub_fetch(_Value, 1, 0);
+  return __atomic_sub_fetch(_Value, 1, __ATOMIC_SEQ_CST);
 }
 #endif
 /*----------------------------------------------------------------------------*\
 |* Interlocked And
 \*----------------------------------------------------------------------------*/
-static __inline__ char __attribute__((__always_inline__, __nodebug__))
+static __inline__ char __DEFAULT_FN_ATTRS
 _InterlockedAnd8(char volatile *_Value, char _Mask) {
-  return __atomic_and_fetch(_Value, _Mask, 0);
+  return __atomic_and_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
-static __inline__ short __attribute__((__always_inline__, __nodebug__))
+static __inline__ short __DEFAULT_FN_ATTRS
 _InterlockedAnd16(short volatile *_Value, short _Mask) {
-  return __atomic_and_fetch(_Value, _Mask, 0);
+  return __atomic_and_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
-static __inline__ long __attribute__((__always_inline__, __nodebug__))
+static __inline__ long __DEFAULT_FN_ATTRS
 _InterlockedAnd(long volatile *_Value, long _Mask) {
-  return __atomic_and_fetch(_Value, _Mask, 0);
+  return __atomic_and_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 #ifdef __x86_64__
-static __inline__ __int64 __attribute__((__always_inline__, __nodebug__))
+static __inline__ __int64 __DEFAULT_FN_ATTRS
 _InterlockedAnd64(__int64 volatile *_Value, __int64 _Mask) {
-  return __atomic_and_fetch(_Value, _Mask, 0);
+  return __atomic_and_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 #endif
 /*----------------------------------------------------------------------------*\
 |* Interlocked Or
 \*----------------------------------------------------------------------------*/
-static __inline__ char __attribute__((__always_inline__, __nodebug__))
+static __inline__ char __DEFAULT_FN_ATTRS
 _InterlockedOr8(char volatile *_Value, char _Mask) {
-  return __atomic_or_fetch(_Value, _Mask, 0);
+  return __atomic_or_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
-static __inline__ short __attribute__((__always_inline__, __nodebug__))
+static __inline__ short __DEFAULT_FN_ATTRS
 _InterlockedOr16(short volatile *_Value, short _Mask) {
-  return __atomic_or_fetch(_Value, _Mask, 0);
+  return __atomic_or_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
-static __inline__ long __attribute__((__always_inline__, __nodebug__))
+static __inline__ long __DEFAULT_FN_ATTRS
 _InterlockedOr(long volatile *_Value, long _Mask) {
-  return __atomic_or_fetch(_Value, _Mask, 0);
+  return __atomic_or_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 #ifdef __x86_64__
-static __inline__ __int64 __attribute__((__always_inline__, __nodebug__))
+static __inline__ __int64 __DEFAULT_FN_ATTRS
 _InterlockedOr64(__int64 volatile *_Value, __int64 _Mask) {
-  return __atomic_or_fetch(_Value, _Mask, 0);
+  return __atomic_or_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 #endif
 /*----------------------------------------------------------------------------*\
 |* Interlocked Xor
 \*----------------------------------------------------------------------------*/
-static __inline__ char __attribute__((__always_inline__, __nodebug__))
+static __inline__ char __DEFAULT_FN_ATTRS
 _InterlockedXor8(char volatile *_Value, char _Mask) {
-  return __atomic_xor_fetch(_Value, _Mask, 0);
+  return __atomic_xor_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
-static __inline__ short __attribute__((__always_inline__, __nodebug__))
+static __inline__ short __DEFAULT_FN_ATTRS
 _InterlockedXor16(short volatile *_Value, short _Mask) {
-  return __atomic_xor_fetch(_Value, _Mask, 0);
+  return __atomic_xor_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
-static __inline__ long __attribute__((__always_inline__, __nodebug__))
+static __inline__ long __DEFAULT_FN_ATTRS
 _InterlockedXor(long volatile *_Value, long _Mask) {
-  return __atomic_xor_fetch(_Value, _Mask, 0);
+  return __atomic_xor_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 #ifdef __x86_64__
-static __inline__ __int64 __attribute__((__always_inline__, __nodebug__))
+static __inline__ __int64 __DEFAULT_FN_ATTRS
 _InterlockedXor64(__int64 volatile *_Value, __int64 _Mask) {
-  return __atomic_xor_fetch(_Value, _Mask, 0);
+  return __atomic_xor_fetch(_Value, _Mask, __ATOMIC_SEQ_CST);
 }
 #endif
 /*----------------------------------------------------------------------------*\
 |* Interlocked Exchange
 \*----------------------------------------------------------------------------*/
-static __inline__ char __attribute__((__always_inline__, __nodebug__))
+static __inline__ char __DEFAULT_FN_ATTRS
 _InterlockedExchange8(char volatile *_Target, char _Value) {
-  __atomic_exchange(_Target, &_Value, &_Value, 0);
+  __atomic_exchange(_Target, &_Value, &_Value, __ATOMIC_SEQ_CST);
   return _Value;
 }
-static __inline__ short __attribute__((__always_inline__, __nodebug__))
+static __inline__ short __DEFAULT_FN_ATTRS
 _InterlockedExchange16(short volatile *_Target, short _Value) {
-  __atomic_exchange(_Target, &_Value, &_Value, 0);
+  __atomic_exchange(_Target, &_Value, &_Value, __ATOMIC_SEQ_CST);
   return _Value;
 }
 #ifdef __x86_64__
-static __inline__ __int64 __attribute__((__always_inline__, __nodebug__))
+static __inline__ __int64 __DEFAULT_FN_ATTRS
 _InterlockedExchange64(__int64 volatile *_Target, __int64 _Value) {
-  __atomic_exchange(_Target, &_Value, &_Value, 0);
+  __atomic_exchange(_Target, &_Value, &_Value, __ATOMIC_SEQ_CST);
   return _Value;
 }
 #endif
 /*----------------------------------------------------------------------------*\
 |* Interlocked Compare Exchange
 \*----------------------------------------------------------------------------*/
-static __inline__ char __attribute__((__always_inline__, __nodebug__))
+static __inline__ char __DEFAULT_FN_ATTRS
 _InterlockedCompareExchange8(char volatile *_Destination,
                              char _Exchange, char _Comparand) {
-  __atomic_compare_exchange(_Destination, &_Comparand, &_Exchange, 0, 0, 0);
+  __atomic_compare_exchange(_Destination, &_Comparand, &_Exchange, 0,
+                            __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
   return _Comparand;
 }
-static __inline__ short __attribute__((__always_inline__, __nodebug__))
+static __inline__ short __DEFAULT_FN_ATTRS
 _InterlockedCompareExchange16(short volatile *_Destination,
                               short _Exchange, short _Comparand) {
-  __atomic_compare_exchange(_Destination, &_Comparand, &_Exchange, 0, 0, 0);
+  __atomic_compare_exchange(_Destination, &_Comparand, &_Exchange, 0,
+                            __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
   return _Comparand;
 }
-static __inline__ __int64 __attribute__((__always_inline__, __nodebug__))
+static __inline__ __int64 __DEFAULT_FN_ATTRS
 _InterlockedCompareExchange64(__int64 volatile *_Destination,
                               __int64 _Exchange, __int64 _Comparand) {
-  __atomic_compare_exchange(_Destination, &_Comparand, &_Exchange, 0, 0, 0);
+  __atomic_compare_exchange(_Destination, &_Comparand, &_Exchange, 0,
+                            __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
   return _Comparand;
 }
 /*----------------------------------------------------------------------------*\
 |* Barriers
 \*----------------------------------------------------------------------------*/
 #if defined(__i386__) || defined(__x86_64__)
-static __inline__ void __attribute__((__always_inline__, __nodebug__))
-__attribute__((deprecated("use other intrinsics or C++11 atomics instead")))
+static __inline__ void __DEFAULT_FN_ATTRS
+__attribute__((__deprecated__("use other intrinsics or C++11 atomics instead")))
 _ReadWriteBarrier(void) {
   __asm__ volatile ("" : : : "memory");
 }
-static __inline__ void __attribute__((__always_inline__, __nodebug__))
-__attribute__((deprecated("use other intrinsics or C++11 atomics instead")))
+static __inline__ void __DEFAULT_FN_ATTRS
+__attribute__((__deprecated__("use other intrinsics or C++11 atomics instead")))
 _ReadBarrier(void) {
   __asm__ volatile ("" : : : "memory");
 }
-static __inline__ void __attribute__((__always_inline__, __nodebug__))
-__attribute__((deprecated("use other intrinsics or C++11 atomics instead")))
+static __inline__ void __DEFAULT_FN_ATTRS
+__attribute__((__deprecated__("use other intrinsics or C++11 atomics instead")))
 _WriteBarrier(void) {
   __asm__ volatile ("" : : : "memory");
 }
 #endif
 #ifdef __x86_64__
-static __inline__ void __attribute__((__always_inline__, __nodebug__))
+static __inline__ void __DEFAULT_FN_ATTRS
 __faststorefence(void) {
   __asm__ volatile("lock orq $0, (%%rsp)" : : : "memory");
 }
@@ -811,33 +803,33 @@ __faststorefence(void) {
     (__offset))
 
 #ifdef __i386__
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
 __readfsbyte(unsigned long __offset) {
   return *__ptr_to_addr_space(257, unsigned char, __offset);
 }
-static __inline__ unsigned __int64 __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned __int64 __DEFAULT_FN_ATTRS
 __readfsqword(unsigned long __offset) {
   return *__ptr_to_addr_space(257, unsigned __int64, __offset);
 }
-static __inline__ unsigned short __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned short __DEFAULT_FN_ATTRS
 __readfsword(unsigned long __offset) {
   return *__ptr_to_addr_space(257, unsigned short, __offset);
 }
 #endif
 #ifdef __x86_64__
-static __inline__ unsigned char __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned char __DEFAULT_FN_ATTRS
 __readgsbyte(unsigned long __offset) {
   return *__ptr_to_addr_space(256, unsigned char, __offset);
 }
-static __inline__ unsigned long __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned long __DEFAULT_FN_ATTRS
 __readgsdword(unsigned long __offset) {
   return *__ptr_to_addr_space(256, unsigned long, __offset);
 }
-static __inline__ unsigned __int64 __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned __int64 __DEFAULT_FN_ATTRS
 __readgsqword(unsigned long __offset) {
   return *__ptr_to_addr_space(256, unsigned __int64, __offset);
 }
-static __inline__ unsigned short __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned short __DEFAULT_FN_ATTRS
 __readgsword(unsigned long __offset) {
   return *__ptr_to_addr_space(256, unsigned short, __offset);
 }
@@ -847,44 +839,44 @@ __readgsword(unsigned long __offset) {
 |* movs, stos
 \*----------------------------------------------------------------------------*/
 #if defined(__i386__) || defined(__x86_64__)
-static __inline__ void __attribute__((__always_inline__, __nodebug__))
+static __inline__ void __DEFAULT_FN_ATTRS
 __movsb(unsigned char *__dst, unsigned char const *__src, size_t __n) {
   __asm__("rep movsb" : : "D"(__dst), "S"(__src), "c"(__n)
                         : "%edi", "%esi", "%ecx");
 }
-static __inline__ void __attribute__((__always_inline__, __nodebug__))
+static __inline__ void __DEFAULT_FN_ATTRS
 __movsd(unsigned long *__dst, unsigned long const *__src, size_t __n) {
   __asm__("rep movsl" : : "D"(__dst), "S"(__src), "c"(__n)
                         : "%edi", "%esi", "%ecx");
 }
-static __inline__ void __attribute__((__always_inline__, __nodebug__))
+static __inline__ void __DEFAULT_FN_ATTRS
 __movsw(unsigned short *__dst, unsigned short const *__src, size_t __n) {
   __asm__("rep movsh" : : "D"(__dst), "S"(__src), "c"(__n)
                         : "%edi", "%esi", "%ecx");
 }
-static __inline__ void __attribute__((__always_inline__, __nodebug__))
+static __inline__ void __DEFAULT_FN_ATTRS
 __stosb(unsigned char *__dst, unsigned char __x, size_t __n) {
   __asm__("rep stosb" : : "D"(__dst), "a"(__x), "c"(__n)
                         : "%edi", "%ecx");
 }
-static __inline__ void __attribute__((__always_inline__, __nodebug__))
+static __inline__ void __DEFAULT_FN_ATTRS
 __stosd(unsigned long *__dst, unsigned long __x, size_t __n) {
   __asm__("rep stosl" : : "D"(__dst), "a"(__x), "c"(__n)
                         : "%edi", "%ecx");
 }
-static __inline__ void __attribute__((__always_inline__, __nodebug__))
+static __inline__ void __DEFAULT_FN_ATTRS
 __stosw(unsigned short *__dst, unsigned short __x, size_t __n) {
   __asm__("rep stosh" : : "D"(__dst), "a"(__x), "c"(__n)
                         : "%edi", "%ecx");
 }
 #endif
 #ifdef __x86_64__
-static __inline__ void __attribute__((__always_inline__, __nodebug__))
+static __inline__ void __DEFAULT_FN_ATTRS
 __movsq(unsigned long long *__dst, unsigned long long const *__src, size_t __n) {
   __asm__("rep movsq" : : "D"(__dst), "S"(__src), "c"(__n)
                         : "%edi", "%esi", "%ecx");
 }
-static __inline__ void __attribute__((__always_inline__, __nodebug__))
+static __inline__ void __DEFAULT_FN_ATTRS
 __stosq(unsigned __int64 *__dst, unsigned __int64 __x, size_t __n) {
   __asm__("rep stosq" : : "D"(__dst), "a"(__x), "c"(__n)
                         : "%edi", "%ecx");
@@ -894,32 +886,32 @@ __stosq(unsigned __int64 *__dst, unsigned __int64 __x, size_t __n) {
 /*----------------------------------------------------------------------------*\
 |* Misc
 \*----------------------------------------------------------------------------*/
-static __inline__ void * __attribute__((__always_inline__, __nodebug__))
+static __inline__ void * __DEFAULT_FN_ATTRS
 _AddressOfReturnAddress(void) {
   return (void*)((char*)__builtin_frame_address(0) + sizeof(void*));
 }
-static __inline__ void * __attribute__((__always_inline__, __nodebug__))
+static __inline__ void * __DEFAULT_FN_ATTRS
 _ReturnAddress(void) {
   return __builtin_return_address(0);
 }
 #if defined(__i386__) || defined(__x86_64__)
-static __inline__ void __attribute__((__always_inline__, __nodebug__))
+static __inline__ void __DEFAULT_FN_ATTRS
 __cpuid(int __info[4], int __level) {
   __asm__ ("cpuid" : "=a"(__info[0]), "=b" (__info[1]), "=c"(__info[2]), "=d"(__info[3])
                    : "a"(__level));
 }
-static __inline__ void __attribute__((__always_inline__, __nodebug__))
+static __inline__ void __DEFAULT_FN_ATTRS
 __cpuidex(int __info[4], int __level, int __ecx) {
   __asm__ ("cpuid" : "=a"(__info[0]), "=b" (__info[1]), "=c"(__info[2]), "=d"(__info[3])
                    : "a"(__level), "c"(__ecx));
 }
-static __inline__ unsigned __int64 __cdecl __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned __int64 __cdecl __DEFAULT_FN_ATTRS
 _xgetbv(unsigned int __xcr_no) {
   unsigned int __eax, __edx;
   __asm__ ("xgetbv" : "=a" (__eax), "=d" (__edx) : "c" (__xcr_no));
   return ((unsigned __int64)__edx << 32) | __eax;
 }
-static __inline__ void __attribute__((__always_inline__, __nodebug__))
+static __inline__ void __DEFAULT_FN_ATTRS
 __halt(void) {
   __asm__ volatile ("hlt");
 }
@@ -929,7 +921,7 @@ __halt(void) {
 |* Privileged intrinsics
 \*----------------------------------------------------------------------------*/
 #if defined(__i386__) || defined(__x86_64__)
-static __inline__ unsigned __int64 __attribute__((__always_inline__, __nodebug__))
+static __inline__ unsigned __int64 __DEFAULT_FN_ATTRS
 __readmsr(unsigned long __register) {
   // Loads the contents of a 64-bit model specific register (MSR) specified in
   // the ECX register into registers EDX:EAX. The EDX register is loaded with
@@ -943,14 +935,14 @@ __readmsr(unsigned long __register) {
   return (((unsigned __int64)__edx) << 32) | (unsigned __int64)__eax;
 }
 
-static __inline__ unsigned long __attribute__((always_inline, __nodebug__))
+static __inline__ unsigned long __DEFAULT_FN_ATTRS
 __readcr3(void) {
   unsigned long __cr3_val;
   __asm__ __volatile__ ("mov %%cr3, %0" : "=q"(__cr3_val) : : "memory");
   return __cr3_val;
 }
 
-static __inline__ void __attribute__((always_inline, __nodebug__))
+static __inline__ void __DEFAULT_FN_ATTRS
 __writecr3(unsigned int __cr3_val) {
   __asm__ ("mov %0, %%cr3" : : "q"(__cr3_val) : "memory");
 }
@@ -959,6 +951,8 @@ __writecr3(unsigned int __cr3_val) {
 #ifdef __cplusplus
 }
 #endif
+
+#undef __DEFAULT_FN_ATTRS
 
 #endif /* __INTRIN_H */
 #endif /* _MSC_VER */

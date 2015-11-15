@@ -219,12 +219,19 @@ ABISP
 ABIMacOSX_arm64::CreateInstance (const ArchSpec &arch)
 {
     static ABISP g_abi_sp;
-    if (arch.GetTriple().getArch() == llvm::Triple::aarch64)
+    const llvm::Triple::ArchType arch_type = arch.GetTriple().getArch();
+    const llvm::Triple::VendorType vendor_type = arch.GetTriple().getVendor();
+
+    if (vendor_type == llvm::Triple::Apple)
     {
-        if (!g_abi_sp)
-            g_abi_sp.reset (new ABIMacOSX_arm64);
-        return g_abi_sp;
+	    if (arch_type == llvm::Triple::aarch64)
+        {
+            if (!g_abi_sp)
+                g_abi_sp.reset (new ABIMacOSX_arm64);
+            return g_abi_sp;
+        }
     }
+
     return ABISP();
 }
 
@@ -322,11 +329,11 @@ ABIMacOSX_arm64::GetArgumentValues (Thread &thread, ValueList &values) const
             size_t bit_width = 0;
             if (value_type.IsIntegerType (is_signed))
             {
-                bit_width = value_type.GetBitSize();
+                bit_width = value_type.GetBitSize(&thread);
             }
             else if (value_type.IsPointerOrReferenceType ())
             {
-                bit_width = value_type.GetBitSize();
+                bit_width = value_type.GetBitSize(&thread);
             }
             else
             {
@@ -562,7 +569,7 @@ ABIMacOSX_arm64::CreateFunctionEntryUnwindPlan (UnwindPlan &unwind_plan)
     UnwindPlan::RowSP row(new UnwindPlan::Row);
     
     // Our previous Call Frame Address is the stack pointer
-    row->SetCFARegister (sp_reg_num);
+    row->GetCFAValue().SetIsRegisterPlusOffset (sp_reg_num, 0);
     
     // Our previous PC is in the LR
     row->SetRegisterLocationToRegister(pc_reg_num, lr_reg_num, true);
@@ -589,8 +596,7 @@ ABIMacOSX_arm64::CreateDefaultUnwindPlan (UnwindPlan &unwind_plan)
     UnwindPlan::RowSP row(new UnwindPlan::Row);    
     const int32_t ptr_size = 8;
     
-    row->SetCFARegister (fp_reg_num);
-    row->SetCFAOffset (2 * ptr_size);
+    row->GetCFAValue().SetIsRegisterPlusOffset (fp_reg_num, 2 * ptr_size);
     row->SetOffset (0);
     
     row->SetRegisterLocationToAtCFAPlusOffset(fp_reg_num, ptr_size * -2, true);
@@ -709,7 +715,7 @@ LoadValueFromConsecutiveGPRRegisters (ExecutionContext &exe_ctx,
                                       uint32_t &NSRN,       // NSRN (see ABI documentation)
                                       DataExtractor &data)
 {
-    const size_t byte_size = value_type.GetByteSize();
+    const size_t byte_size = value_type.GetByteSize(nullptr);
     
     if (byte_size == 0)
         return false;
@@ -728,7 +734,7 @@ LoadValueFromConsecutiveGPRRegisters (ExecutionContext &exe_ctx,
         {
             if (!base_type)
                 return false;
-            const size_t base_byte_size = base_type.GetByteSize();
+            const size_t base_byte_size = base_type.GetByteSize(nullptr);
             printf ("ClangASTContext::IsHomogeneousAggregate() => base_byte_size = %" PRIu64 "\n", (uint64_t) base_byte_size);
             uint32_t data_offset = 0;
 
@@ -871,7 +877,7 @@ ABIMacOSX_arm64::GetReturnValueObjectImpl (Thread &thread, ClangASTType &return_
     if (!reg_ctx)
         return return_valobj_sp;
     
-    const size_t byte_size = return_clang_type.GetByteSize();
+    const size_t byte_size = return_clang_type.GetByteSize(nullptr);
 
     const uint32_t type_flags = return_clang_type.GetTypeInfo (NULL);
     if (type_flags & eTypeIsScalar ||

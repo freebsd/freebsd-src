@@ -133,19 +133,21 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_COMP_add_compression_method 3"
-.TH SSL_COMP_add_compression_method 3 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH SSL_COMP_add_compression_method 3 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_COMP_add_compression_method \- handle SSL/TLS integrated compression methods
+SSL_COMP_add_compression_method, SSL_COMP_free_compression_methods \- handle SSL/TLS integrated compression methods
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/ssl.h>
 \&
 \& int SSL_COMP_add_compression_method(int id, COMP_METHOD *cm);
+\&
+\& +void SSL_COMP_free_compression_methods(void);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -153,6 +155,10 @@ SSL_COMP_add_compression_method \- handle SSL/TLS integrated compression methods
 the identifier \fBid\fR to the list of available compression methods. This
 list is globally maintained for all \s-1SSL\s0 operations within this application.
 It cannot be set for specific \s-1SSL_CTX\s0 or \s-1SSL\s0 objects.
+.PP
+\&\fISSL_COMP_free_compression_methods()\fR frees the internal table of
+compression methods that were built internally, and possibly
+augmented by adding \fISSL_COMP_add_compression_method()\fR.
 .SH "NOTES"
 .IX Header "NOTES"
 The \s-1TLS\s0 standard (or SSLv3) allows the integration of compression methods
@@ -174,8 +180,8 @@ its own compression methods and will unconditionally activate compression
 when a matching identifier is found. There is no way to restrict the list
 of compression methods supported on a per connection basis.
 .PP
-The OpenSSL library has the compression methods \fB\f(BICOMP_rle()\fB\fR and (when
-especially enabled during compilation) \fB\f(BICOMP_zlib()\fB\fR available.
+If enabled during compilation, the OpenSSL library will have the
+\&\fICOMP_zlib()\fR compression method available.
 .SH "WARNINGS"
 .IX Header "WARNINGS"
 Once the identities of the compression methods for the \s-1TLS\s0 protocol have

@@ -27,6 +27,10 @@
 
 /*** Includes. ***/
 
+/* We define this here to remove any further warnings about the usage of
+   deprecated functions in this file. */
+#define SVN_DEPRECATED
+
 #include "svn_auth.h"
 #include "svn_client.h"
 

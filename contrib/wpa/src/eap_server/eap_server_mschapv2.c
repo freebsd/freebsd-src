@@ -360,6 +360,19 @@ static void eap_mschapv2_process_response(struct eap_sm *sm,
 		}
 	}
 
+#ifdef CONFIG_TESTING_OPTIONS
+	{
+		u8 challenge[8];
+
+		if (challenge_hash(peer_challenge, data->auth_challenge,
+				   username, username_len, challenge) == 0) {
+			eap_server_mschap_rx_callback(sm, "EAP-MSCHAPV2",
+						      username, username_len,
+						      challenge, nt_response);
+		}
+	}
+#endif /* CONFIG_TESTING_OPTIONS */
+
 	if (username_len != user_len ||
 	    os_memcmp(username, user, username_len) != 0) {
 		wpa_printf(MSG_DEBUG, "EAP-MSCHAPV2: Mismatch in user names");

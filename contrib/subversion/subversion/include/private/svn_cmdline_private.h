@@ -88,11 +88,15 @@ typedef struct svn_cmdline__config_argument_t
  * containing svn_cmdline__config_argument_t* elements, allocating the option
  * data in @a pool
  *
+ * [Since 1.9/1.10:] If the file, section, or option value is not recognized,
+ * warn to @c stderr, using @a prefix as in svn_handle_warning2().
+ *
  * @since New in 1.7.
  */
 svn_error_t *
 svn_cmdline__parse_config_option(apr_array_header_t *config_options,
                                  const char *opt_arg,
+                                 const char *prefix,
                                  apr_pool_t *pool);
 
 /** Sets the config options in @a config_options, an apr array containing
@@ -220,6 +224,20 @@ svn_boolean_t
 svn_cmdline__be_interactive(svn_boolean_t non_interactive,
                             svn_boolean_t force_interactive);
 
+/* Parses the argument value of '--trust-server-cert-failures' OPT_ARG into
+ * the expected booleans for passing to svn_cmdline_create_auth_baton2()
+ *
+ * @since New in 1.9.
+ */
+svn_error_t *
+svn_cmdline__parse_trust_options(
+                        svn_boolean_t *trust_server_cert_unknown_ca,
+                        svn_boolean_t *trust_server_cert_cn_mismatch,
+                        svn_boolean_t *trust_server_cert_expired,
+                        svn_boolean_t *trust_server_cert_not_yet_valid,
+                        svn_boolean_t *trust_server_cert_other_failure,
+                        const char *opt_arg,
+                        apr_pool_t *scratch_pool);
 
 #ifdef __cplusplus
 }

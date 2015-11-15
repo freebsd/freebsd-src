@@ -14,8 +14,12 @@
 #include "LLVMSymbolize.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Config/config.h"
+#include "llvm/DebugInfo/DWARF/DWARFContext.h"
+#include "llvm/DebugInfo/PDB/PDB.h"
+#include "llvm/DebugInfo/PDB/PDBContext.h"
 #include "llvm/Object/ELFObjectFile.h"
 #include "llvm/Object/MachO.h"
+#include "llvm/Object/SymbolSize.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compression.h"
 #include "llvm/Support/DataExtractor.h"
@@ -25,6 +29,12 @@
 #include "llvm/Support/Path.h"
 #include <sstream>
 #include <stdlib.h>
+
+#if defined(_MSC_VER)
+#include <Windows.h>
+#include <DbgHelp.h>
+#pragma comment(lib, "dbghelp.lib")
+#endif
 
 namespace llvm {
 namespace symbolize {
@@ -63,31 +73,21 @@ ModuleInfo::ModuleInfo(ObjectFile *Obj, DIContext *DICtx)
       }
     }
   }
-  for (const SymbolRef &Symbol : Module->symbols()) {
-    addSymbol(Symbol, OpdExtractor.get(), OpdAddress);
-  }
-  bool NoSymbolTable = (Module->symbol_begin() == Module->symbol_end());
-  if (NoSymbolTable && Module->isELF()) {
-    // Fallback to dynamic symbol table, if regular symbol table is stripped.
-    std::pair<symbol_iterator, symbol_iterator> IDyn =
-        getELFDynamicSymbolIterators(Module);
-    for (symbol_iterator si = IDyn.first, se = IDyn.second; si != se; ++si) {
-      addSymbol(*si, OpdExtractor.get(), OpdAddress);
-    }
-  }
+  std::vector<std::pair<SymbolRef, uint64_t>> Symbols =
+      computeSymbolSizes(*Module);
+  for (auto &P : Symbols)
+    addSymbol(P.first, P.second, OpdExtractor.get(), OpdAddress);
 }
 
-void ModuleInfo::addSymbol(const SymbolRef &Symbol, DataExtractor *OpdExtractor,
-                           uint64_t OpdAddress) {
-  SymbolRef::Type SymbolType;
-  if (error(Symbol.getType(SymbolType)))
-    return;
+void ModuleInfo::addSymbol(const SymbolRef &Symbol, uint64_t SymbolSize,
+                           DataExtractor *OpdExtractor, uint64_t OpdAddress) {
+  SymbolRef::Type SymbolType = Symbol.getType();
   if (SymbolType != SymbolRef::ST_Function && SymbolType != SymbolRef::ST_Data)
     return;
-  uint64_t SymbolAddress;
-  if (error(Symbol.getAddress(SymbolAddress)) ||
-      SymbolAddress == UnknownAddressOrSize)
+  ErrorOr<uint64_t> SymbolAddressOrErr = Symbol.getAddress();
+  if (error(SymbolAddressOrErr.getError()))
     return;
+  uint64_t SymbolAddress = *SymbolAddressOrErr;
   if (OpdExtractor) {
     // For big-endian PowerPC64 ELF, symbols in the .opd section refer to
     // function descriptors. The first word of the descriptor is a pointer to
@@ -100,17 +100,10 @@ void ModuleInfo::addSymbol(const SymbolRef &Symbol, DataExtractor *OpdExtractor,
         OpdExtractor->isValidOffsetForAddress(OpdOffset32))
       SymbolAddress = OpdExtractor->getAddress(&OpdOffset32);
   }
-  uint64_t SymbolSize;
-  // Getting symbol size is linear for Mach-O files, so assume that symbol
-  // occupies the memory range up to the following symbol.
-  if (isa<MachOObjectFile>(Module))
-    SymbolSize = 0;
-  else if (error(Symbol.getSize(SymbolSize)) ||
-           SymbolSize == UnknownAddressOrSize)
+  ErrorOr<StringRef> SymbolNameOrErr = Symbol.getName();
+  if (error(SymbolNameOrErr.getError()))
     return;
-  StringRef SymbolName;
-  if (error(Symbol.getName(SymbolName)))
-    return;
+  StringRef SymbolName = *SymbolNameOrErr;
   // Mach-O symbol table names have leading underscore, skip it.
   if (Module->isMachO() && SymbolName.size() > 0 && SymbolName[0] == '_')
     SymbolName = SymbolName.drop_front();
@@ -163,6 +156,7 @@ DILineInfo ModuleInfo::symbolizeCode(
 DIInliningInfo ModuleInfo::symbolizeInlinedCode(
     uint64_t ModuleOffset, const LLVMSymbolizer::Options &Opts) const {
   DIInliningInfo InlinedContext;
+
   if (DebugInfoContext) {
     InlinedContext = DebugInfoContext->getInliningInfoForAddress(
         ModuleOffset, getDILineInfoSpecifier(Opts));
@@ -425,7 +419,7 @@ LLVMSymbolizer::getObjectFileFromBinary(Binary *Bin,
     if (I != ObjectFileForArch.end())
       return I->second;
     ErrorOr<std::unique_ptr<ObjectFile>> ParsedObj =
-        UB->getObjectForArch(Triple(ArchName).getArch());
+        UB->getObjectForArch(ArchName);
     if (ParsedObj) {
       Res = ParsedObj.get().get();
       ParsedBinariesAndObjects.push_back(std::move(ParsedObj.get()));
@@ -460,7 +454,20 @@ LLVMSymbolizer::getOrCreateModuleInfo(const std::string &ModuleName) {
     Modules.insert(make_pair(ModuleName, (ModuleInfo *)nullptr));
     return nullptr;
   }
-  DIContext *Context = DIContext::getDWARFContext(*Objects.second);
+  DIContext *Context = nullptr;
+  if (auto CoffObject = dyn_cast<COFFObjectFile>(Objects.first)) {
+    // If this is a COFF object, assume it contains PDB debug information.  If
+    // we don't find any we will fall back to the DWARF case.
+    std::unique_ptr<IPDBSession> Session;
+    PDB_ErrorCode Error = loadDataForEXE(PDB_ReaderType::DIA,
+                                         Objects.first->getFileName(), Session);
+    if (Error == PDB_ErrorCode::Success) {
+      Context = new PDBContext(*CoffObject, std::move(Session),
+                               Opts.RelativeAddresses);
+    }
+  }
+  if (!Context)
+    Context = new DWARFContextInMemory(*Objects.second);
   assert(Context);
   ModuleInfo *Info = new ModuleInfo(Objects.first, Context);
   Modules.insert(make_pair(ModuleName, Info));
@@ -507,7 +514,17 @@ std::string LLVMSymbolizer::DemangleName(const std::string &Name) {
   free(DemangledName);
   return Result;
 #else
-  return Name;
+  char DemangledName[1024] = {0};
+  DWORD result = ::UnDecorateSymbolName(
+      Name.c_str(), DemangledName, 1023,
+      UNDNAME_NO_ACCESS_SPECIFIERS |       // Strip public, private, protected
+          UNDNAME_NO_ALLOCATION_LANGUAGE | // Strip __thiscall, __stdcall, etc
+          UNDNAME_NO_THROW_SIGNATURES |    // Strip throw() specifications
+          UNDNAME_NO_MEMBER_TYPE |      // Strip virtual, static, etc specifiers
+          UNDNAME_NO_MS_KEYWORDS |      // Strip all MS extension keywords
+          UNDNAME_NO_FUNCTION_RETURNS); // Strip function return types
+
+  return (result == 0) ? Name : std::string(DemangledName);
 #endif
 }
 

@@ -249,6 +249,17 @@ static int wpa_supplicant_get_pmk(struct wpa_sm *sm,
 					"RSN: the new PMK matches with the "
 					"PMKID");
 				abort_cached = 0;
+			} else if (sa && !sm->cur_pmksa && pmkid) {
+				/*
+				 * It looks like the authentication server
+				 * derived mismatching MSK. This should not
+				 * really happen, but bugs happen.. There is not
+				 * much we can do here without knowing what
+				 * exactly caused the server to misbehave.
+				 */
+				wpa_dbg(sm->ctx->msg_ctx, MSG_INFO,
+					"RSN: PMKID mismatch - authentication server may have derived different MSK?!");
+				return -1;
 			}
 
 			if (!sm->cur_pmksa)
@@ -1281,8 +1292,8 @@ static int wpa_supplicant_process_1_of_2_rsn(struct wpa_sm *sm,
 					      &gd->key_rsc_len, &gd->alg))
 		return -1;
 
-	wpa_hexdump(MSG_DEBUG, "RSN: received GTK in group key handshake",
-		    ie.gtk, ie.gtk_len);
+	wpa_hexdump_key(MSG_DEBUG, "RSN: received GTK in group key handshake",
+			ie.gtk, ie.gtk_len);
 	gd->keyidx = ie.gtk[0] & 0x3;
 	gd->tx = wpa_supplicant_gtk_tx_bit_workaround(sm,
 						      !!(ie.gtk[0] & BIT(2)));
@@ -1333,6 +1344,11 @@ static int wpa_supplicant_process_1_of_2_wpa(struct wpa_sm *sm,
 	gd->keyidx = (key_info & WPA_KEY_INFO_KEY_INDEX_MASK) >>
 		WPA_KEY_INFO_KEY_INDEX_SHIFT;
 	if (ver == WPA_KEY_INFO_TYPE_HMAC_MD5_RC4 && sm->ptk.kek_len == 16) {
+#ifdef CONFIG_NO_RC4
+		wpa_msg(sm->ctx->msg_ctx, MSG_WARNING,
+			"WPA: RC4 not supported in the build");
+		return -1;
+#else /* CONFIG_NO_RC4 */
 		u8 ek[32];
 		if (key_data_len > sizeof(gd->gtk)) {
 			wpa_msg(sm->ctx->msg_ctx, MSG_WARNING,
@@ -1350,6 +1366,7 @@ static int wpa_supplicant_process_1_of_2_wpa(struct wpa_sm *sm,
 			return -1;
 		}
 		os_memset(ek, 0, sizeof(ek));
+#endif /* CONFIG_NO_RC4 */
 	} else if (ver == WPA_KEY_INFO_TYPE_HMAC_SHA1_AES) {
 		if (maxkeylen % 8) {
 			wpa_msg(sm->ctx->msg_ctx, MSG_WARNING,
@@ -1564,6 +1581,11 @@ static int wpa_supplicant_decrypt_key_data(struct wpa_sm *sm,
 	/* Decrypt key data here so that this operation does not need
 	 * to be implemented separately for each message type. */
 	if (ver == WPA_KEY_INFO_TYPE_HMAC_MD5_RC4 && sm->ptk.kek_len == 16) {
+#ifdef CONFIG_NO_RC4
+		wpa_msg(sm->ctx->msg_ctx, MSG_WARNING,
+			"WPA: RC4 not supported in the build");
+		return -1;
+#else /* CONFIG_NO_RC4 */
 		u8 ek[32];
 		os_memcpy(ek, key->key_iv, 16);
 		os_memcpy(ek + 16, sm->ptk.kek, sm->ptk.kek_len);
@@ -1574,6 +1596,7 @@ static int wpa_supplicant_decrypt_key_data(struct wpa_sm *sm,
 			return -1;
 		}
 		os_memset(ek, 0, sizeof(ek));
+#endif /* CONFIG_NO_RC4 */
 	} else if (ver == WPA_KEY_INFO_TYPE_HMAC_SHA1_AES ||
 		   ver == WPA_KEY_INFO_TYPE_AES_128_CMAC ||
 		   sm->key_mgmt == WPA_KEY_MGMT_OSEN ||

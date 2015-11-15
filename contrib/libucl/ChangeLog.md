@@ -32,3 +32,8 @@
 ### Libucl 0.7.2
 
 - Fixed serious bugs in schema and arrays iteration
+
+### Libucl 0.7.3
+
+- Fixed a bug with macroes that come after an empty object
+- Fixed a bug in include processing when an incorrect variable has been destroyed (use-after-free)

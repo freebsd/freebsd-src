@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/usr.bin/mkimg
-
 ATF_TESTS_SH=	mkimg
 
 SOURCES!=	cd ${.CURDIR}; echo *.uu

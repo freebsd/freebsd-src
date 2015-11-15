@@ -343,7 +343,6 @@ void	rt_flushifroutes(struct ifnet *ifp);
 
 /* XXX MRT COMPAT VERSIONS THAT SET UNIVERSE to 0 */
 /* Thes are used by old code not yet converted to use multiple FIBS */
-int	 rt_getifa(struct rt_addrinfo *);
 void	 rtalloc_ign_fib(struct route *ro, u_long ignflags, u_int fibnum);
 struct rtentry *rtalloc1(struct sockaddr *, int, u_long);
 int	 rtinit(struct ifaddr *, int, int);

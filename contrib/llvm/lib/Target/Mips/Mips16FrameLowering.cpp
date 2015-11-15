@@ -32,11 +32,12 @@ using namespace llvm;
 Mips16FrameLowering::Mips16FrameLowering(const MipsSubtarget &STI)
     : MipsFrameLowering(STI, STI.stackAlignment()) {}
 
-void Mips16FrameLowering::emitPrologue(MachineFunction &MF) const {
-  MachineBasicBlock &MBB = MF.front();
+void Mips16FrameLowering::emitPrologue(MachineFunction &MF,
+                                       MachineBasicBlock &MBB) const {
+  assert(&MF.front() == &MBB && "Shrink-wrapping not yet supported");
   MachineFrameInfo *MFI = MF.getFrameInfo();
   const Mips16InstrInfo &TII =
-      *static_cast<const Mips16InstrInfo *>(MF.getSubtarget().getInstrInfo());
+      *static_cast<const Mips16InstrInfo *>(STI.getInstrInfo());
   MachineBasicBlock::iterator MBBI = MBB.begin();
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
   uint64_t StackSize = MFI->getStackSize();
@@ -84,7 +85,7 @@ void Mips16FrameLowering::emitEpilogue(MachineFunction &MF,
   MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
   MachineFrameInfo *MFI = MF.getFrameInfo();
   const Mips16InstrInfo &TII =
-      *static_cast<const Mips16InstrInfo *>(MF.getSubtarget().getInstrInfo());
+      *static_cast<const Mips16InstrInfo *>(STI.getInstrInfo());
   DebugLoc dl = MBBI->getDebugLoc();
   uint64_t StackSize = MFI->getStackSize();
 
@@ -143,25 +144,6 @@ bool Mips16FrameLowering::restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
   return true;
 }
 
-// Eliminate ADJCALLSTACKDOWN, ADJCALLSTACKUP pseudo instructions
-void Mips16FrameLowering::
-eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
-                              MachineBasicBlock::iterator I) const {
-  if (!hasReservedCallFrame(MF)) {
-    int64_t Amount = I->getOperand(0).getImm();
-
-    if (I->getOpcode() == Mips::ADJCALLSTACKDOWN)
-      Amount = -Amount;
-
-    const Mips16InstrInfo &TII =
-        *static_cast<const Mips16InstrInfo *>(MF.getSubtarget().getInstrInfo());
-
-    TII.adjustStackPtr(Mips::SP, Amount, MBB, I);
-  }
-
-  MBB.erase(I);
-}
-
 bool
 Mips16FrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
@@ -170,18 +152,19 @@ Mips16FrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
   return isInt<15>(MFI->getMaxCallFrameSize()) && !MFI->hasVarSizedObjects();
 }
 
-void Mips16FrameLowering::
-processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
-                                     RegScavenger *RS) const {
+void Mips16FrameLowering::determineCalleeSaves(MachineFunction &MF,
+                                               BitVector &SavedRegs,
+                                               RegScavenger *RS) const {
+  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
   const Mips16InstrInfo &TII =
-      *static_cast<const Mips16InstrInfo *>(MF.getSubtarget().getInstrInfo());
+      *static_cast<const Mips16InstrInfo *>(STI.getInstrInfo());
   const MipsRegisterInfo &RI = TII.getRegisterInfo();
   const BitVector Reserved = RI.getReservedRegs(MF);
   bool SaveS2 = Reserved[Mips::S2];
   if (SaveS2)
-    MF.getRegInfo().setPhysRegUsed(Mips::S2);
+    SavedRegs.set(Mips::S2);
   if (hasFP(MF))
-    MF.getRegInfo().setPhysRegUsed(Mips::S0);
+    SavedRegs.set(Mips::S0);
 }
 
 const MipsFrameLowering *

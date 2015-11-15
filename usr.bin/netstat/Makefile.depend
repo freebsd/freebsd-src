@@ -21,4 +21,14 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
+main.o: nl_defs.h
+main.po: nl_defs.h
+mroute.o: nl_defs.h
+mroute.po: nl_defs.h
+netisr.o: nl_defs.h
+netisr.po: nl_defs.h
+nl_symbols.o: nl_symbols.c
+nl_symbols.po: nl_symbols.c
+route.o: nl_defs.h
+route.po: nl_defs.h
 .endif

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_add_extra_chain_cert 3"
-.TH SSL_CTX_add_extra_chain_cert 3 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH SSL_CTX_add_extra_chain_cert 3 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -167,7 +167,8 @@ Only one set of extra chain certificates can be specified per \s-1SSL_CTX\s0
 structure. Different chains for different certificates (for example if both
 \&\s-1RSA\s0 and \s-1DSA\s0 certificates are specified by the same server) or different \s-1SSL\s0
 structures with the same parent \s-1SSL_CTX\s0 cannot be specified using this
-function.
+function. For more flexibility functions such as \fISSL_add1_chain_cert()\fR should
+be used instead.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fISSL_CTX_add_extra_chain_cert()\fR returns 1 on success. Check out the
@@ -178,3 +179,13 @@ error stack to find out the reason for failure otherwise.
 \&\fISSL_CTX_use_certificate\fR\|(3),
 \&\fISSL_CTX_set_client_cert_cb\fR\|(3),
 \&\fISSL_CTX_load_verify_locations\fR\|(3)
+\&\fISSL_CTX_set0_chain\fR\|(3)
+\&\fISSL_CTX_set1_chain\fR\|(3)
+\&\fISSL_CTX_add0_chain_cert\fR\|(3)
+\&\fISSL_CTX_add1_chain_cert\fR\|(3)
+\&\fISSL_set0_chain\fR\|(3)
+\&\fISSL_set1_chain\fR\|(3)
+\&\fISSL_add0_chain_cert\fR\|(3)
+\&\fISSL_add1_chain_cert\fR\|(3)
+\&\fISSL_CTX_build_cert_chain\fR\|(3)
+\&\fISSL_build_cert_chain\fR\|(3)

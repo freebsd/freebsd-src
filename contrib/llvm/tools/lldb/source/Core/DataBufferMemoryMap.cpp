@@ -26,7 +26,6 @@
 #include "lldb/Host/FileSpec.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Core/Log.h"
-#include "lldb/lldb-private-log.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -91,7 +90,8 @@ DataBufferMemoryMap::Clear()
     {
         Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_MMAP));
         if (log)
-            log->Printf("DataBufferMemoryMap::Clear() m_mmap_addr = %p, m_mmap_size = %" PRIu64 "", m_mmap_addr, (uint64_t)m_mmap_size);
+            log->Printf("DataBufferMemoryMap::Clear() m_mmap_addr = %p, m_mmap_size = %" PRIu64 "", (void *)m_mmap_addr,
+                        (uint64_t)m_mmap_size);
 #ifdef _WIN32
         UnmapViewOfFile(m_mmap_addr);
 #else
@@ -284,9 +284,9 @@ DataBufferMemoryMap::MemoryMapFromFileDescriptor (int fd,
 
                                     // Save the actual mmap'ed size
                                     m_mmap_size = length + page_offset;
-                                    // Our data is at an offset into the the mapped data
+                                    // Our data is at an offset into the mapped data
                                     m_data = m_mmap_addr + page_offset;
-                                    // Our pretend size is the size that was requestd
+                                    // Our pretend size is the size that was requested
                                     m_size = length;
                                 }
                             }
@@ -307,8 +307,10 @@ DataBufferMemoryMap::MemoryMapFromFileDescriptor (int fd,
                     
                     if (log)
                     {
-                        log->Printf("DataBufferMemoryMap::MemoryMapFromFileSpec() m_mmap_addr = %p, m_mmap_size = %" PRIu64 ", error = %s",
-                                    m_mmap_addr, (uint64_t)m_mmap_size, error.AsCString());
+                        log->Printf(
+                            "DataBufferMemoryMap::MemoryMapFromFileSpec() m_mmap_addr = %p, m_mmap_size = %" PRIu64
+                            ", error = %s",
+                            (void *)m_mmap_addr, (uint64_t)m_mmap_size, error.AsCString());
                     }
                 }
             }

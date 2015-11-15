@@ -63,6 +63,16 @@ svn_cl__get_human_readable_tree_conflict_description(
   const svn_wc_conflict_description2_t *conflict,
   apr_pool_t *pool);
 
+/* Like svn_cl__get_human_readable_tree_conflict_description but
+   for other conflict types */
+svn_error_t *
+svn_cl__get_human_readable_action_description(
+        const char **desc,
+        svn_wc_conflict_action_t action,
+        svn_wc_operation_t operation,
+        svn_node_kind_t kind,
+        apr_pool_t *pool);
+
 /**
  * Append to @a str an XML representation of the conflict data
  * for @a conflict, in a format suitable for 'svn info --xml'.

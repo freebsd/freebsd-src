@@ -12,10 +12,9 @@
 namespace clang {
 namespace ast_matchers {
 namespace dynamic {
-
 Diagnostics::ArgStream Diagnostics::pushContextFrame(ContextType Type,
                                                      SourceRange Range) {
-  ContextStack.push_back(ContextFrame());
+  ContextStack.emplace_back();
   ContextFrame& data = ContextStack.back();
   data.Type = Type;
   data.Range = Range;
@@ -66,16 +65,16 @@ Diagnostics::ArgStream &Diagnostics::ArgStream::operator<<(const Twine &Arg) {
 
 Diagnostics::ArgStream Diagnostics::addError(const SourceRange &Range,
                                              ErrorType Error) {
-  Errors.push_back(ErrorContent());
+  Errors.emplace_back();
   ErrorContent &Last = Errors.back();
   Last.ContextStack = ContextStack;
-  Last.Messages.push_back(ErrorContent::Message());
+  Last.Messages.emplace_back();
   Last.Messages.back().Range = Range;
   Last.Messages.back().Type = Error;
   return ArgStream(&Last.Messages.back().Args);
 }
 
-StringRef contextTypeToFormatString(Diagnostics::ContextType Type) {
+static StringRef contextTypeToFormatString(Diagnostics::ContextType Type) {
   switch (Type) {
     case Diagnostics::CT_MatcherConstruct:
       return "Error building matcher $0.";
@@ -85,7 +84,7 @@ StringRef contextTypeToFormatString(Diagnostics::ContextType Type) {
   llvm_unreachable("Unknown ContextType value.");
 }
 
-StringRef errorTypeToFormatString(Diagnostics::ErrorType Type) {
+static StringRef errorTypeToFormatString(Diagnostics::ErrorType Type) {
   switch (Type) {
   case Diagnostics::ET_RegistryMatcherNotFound:
     return "Matcher not found: $0";
@@ -130,8 +129,9 @@ StringRef errorTypeToFormatString(Diagnostics::ErrorType Type) {
   llvm_unreachable("Unknown ErrorType value.");
 }
 
-void formatErrorString(StringRef FormatString, ArrayRef<std::string> Args,
-                       llvm::raw_ostream &OS) {
+static void formatErrorString(StringRef FormatString,
+                              ArrayRef<std::string> Args,
+                              llvm::raw_ostream &OS) {
   while (!FormatString.empty()) {
     std::pair<StringRef, StringRef> Pieces = FormatString.split("$");
     OS << Pieces.first.str();

@@ -9,6 +9,8 @@
 
 #include "ProcessGDBRemoteLog.h"
 
+#include <mutex>
+
 #include "lldb/Interpreter/Args.h"
 #include "lldb/Core/StreamFile.h"
 
@@ -16,6 +18,7 @@
 
 using namespace lldb;
 using namespace lldb_private;
+using namespace lldb_private::process_gdb_remote;
 
 
 // We want to avoid global constructors where code needs to be run so here we
@@ -32,6 +35,22 @@ GetLog ()
     return g_log;
 }
 
+void
+ProcessGDBRemoteLog::Initialize()
+{
+    static ConstString g_name("gdb-remote");
+    static std::once_flag g_once_flag;
+
+    std::call_once(g_once_flag, [](){
+        Log::Callbacks log_callbacks = {
+            DisableLog,
+            EnableLog,
+            ListLogCategories
+        };
+
+        Log::RegisterLogChannel (g_name, log_callbacks);
+    });
+}
 
 Log *
 ProcessGDBRemoteLog::GetLogIfAllCategoriesSet (uint32_t mask)

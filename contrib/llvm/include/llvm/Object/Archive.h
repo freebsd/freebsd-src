@@ -41,6 +41,9 @@ struct ArchiveMemberHeader {
 
   sys::fs::perms getAccessMode() const;
   sys::TimeValue getLastModified() const;
+  llvm::StringRef getRawLastModified() const {
+    return StringRef(LastModified, sizeof(LastModified)).rtrim(" ");
+  }
   unsigned getUID() const;
   unsigned getGID() const;
 };
@@ -78,6 +81,9 @@ public:
     sys::TimeValue getLastModified() const {
       return getHeader()->getLastModified();
     }
+    StringRef getRawLastModified() const {
+      return getHeader()->getRawLastModified();
+    }
     unsigned getUID() const { return getHeader()->getUID(); }
     unsigned getGID() const { return getHeader()->getGID(); }
     sys::fs::perms getAccessMode() const {
@@ -85,10 +91,11 @@ public:
     }
     /// \return the size of the archive member without the header or padding.
     uint64_t getSize() const;
+    /// \return the size in the archive header for this member.
+    uint64_t getRawSize() const;
 
-    StringRef getBuffer() const {
-      return StringRef(Data.data() + StartOfFile, getSize());
-    }
+    ErrorOr<StringRef> getBuffer() const;
+    uint64_t getChildOffset() const;
 
     ErrorOr<MemoryBufferRef> getMemoryBufferRef() const;
 
@@ -146,9 +153,8 @@ public:
     Symbol symbol;
   public:
     symbol_iterator(const Symbol &s) : symbol(s) {}
-    const Symbol *operator->() const {
-      return &symbol;
-    }
+    const Symbol *operator->() const { return &symbol; }
+    const Symbol &operator*() const { return symbol; }
 
     bool operator==(const symbol_iterator &other) const {
       return symbol == other.symbol;
@@ -169,11 +175,13 @@ public:
 
   enum Kind {
     K_GNU,
+    K_MIPS64,
     K_BSD,
     K_COFF
   };
 
   Kind kind() const { return (Kind)Format; }
+  bool isThin() const { return IsThin; }
 
   child_iterator child_begin(bool SkipInternal = true) const;
   child_iterator child_end() const;
@@ -184,6 +192,9 @@ public:
 
   symbol_iterator symbol_begin() const;
   symbol_iterator symbol_end() const;
+  iterator_range<symbol_iterator> symbols() const {
+    return iterator_range<symbol_iterator>(symbol_begin(), symbol_end());
+  }
 
   // Cast methods.
   static inline bool classof(Binary const *v) {
@@ -194,6 +205,13 @@ public:
   child_iterator findSym(StringRef name) const;
 
   bool hasSymbolTable() const;
+  child_iterator getSymbolTableChild() const { return SymbolTable; }
+  StringRef getSymbolTable() const {
+    // We know that the symbol table is not an external file,
+    // so we just assert there is no error.
+    return *SymbolTable->getBuffer();
+  }
+  uint32_t getNumberOfSymbols() const;
 
 private:
   child_iterator SymbolTable;
@@ -201,6 +219,7 @@ private:
   child_iterator FirstRegular;
   unsigned Format : 2;
   unsigned IsThin : 1;
+  mutable std::vector<std::unique_ptr<MemoryBuffer>> ThinBuffers;
 };
 
 }

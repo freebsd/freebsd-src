@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "ctld.h"
 
 struct keys *
@@ -136,7 +137,7 @@ keys_save(struct keys *keys, struct pdu *pdu)
 		if (keys->keys_names[i] == NULL)
 			break;
 		data += sprintf(data, "%s=%s",
-		        keys->keys_names[i], keys->keys_values[i]);
+		    keys->keys_names[i], keys->keys_values[i]);
 		data += 1; /* for '\0'. */
 	}
 }

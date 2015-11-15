@@ -12,21 +12,24 @@
 
 #include "XCoreTargetMachine.h"
 #include "XCoreTargetObjectFile.h"
+#include "XCoreTargetTransformInfo.h"
 #include "XCore.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/IR/Module.h"
-#include "llvm/PassManager.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Support/TargetRegistry.h"
 using namespace llvm;
 
 /// XCoreTargetMachine ctor - Create an ILP32 architecture model
 ///
-XCoreTargetMachine::XCoreTargetMachine(const Target &T, StringRef TT,
+XCoreTargetMachine::XCoreTargetMachine(const Target &T, const Triple &TT,
                                        StringRef CPU, StringRef FS,
                                        const TargetOptions &Options,
                                        Reloc::Model RM, CodeModel::Model CM,
                                        CodeGenOpt::Level OL)
-    : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
+    : LLVMTargetMachine(
+          T, "e-m:e-p:32:32-i1:8:32-i8:8:32-i16:16:32-i64:32-f64:32-a:0:32-n32",
+          TT, CPU, FS, Options, RM, CM, OL),
       TLOF(make_unique<XCoreTargetObjectFile>()),
       Subtarget(TT, CPU, FS, *this) {
   initAsmInfo();
@@ -81,10 +84,8 @@ extern "C" void LLVMInitializeXCoreTarget() {
   RegisterTargetMachine<XCoreTargetMachine> X(TheXCoreTarget);
 }
 
-void XCoreTargetMachine::addAnalysisPasses(PassManagerBase &PM) {
-  // Add first the target-independent BasicTTI pass, then our XCore pass. This
-  // allows the XCore pass to delegate to the target independent layer when
-  // appropriate.
-  PM.add(createBasicTargetTransformInfoPass(this));
-  PM.add(createXCoreTargetTransformInfoPass(this));
+TargetIRAnalysis XCoreTargetMachine::getTargetIRAnalysis() {
+  return TargetIRAnalysis([this](Function &F) {
+    return TargetTransformInfo(XCoreTTIImpl(this, F));
+  });
 }

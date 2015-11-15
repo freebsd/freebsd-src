@@ -115,6 +115,8 @@ static void	ixv_save_stats(struct adapter *);
 static void	ixv_init_stats(struct adapter *);
 static void	ixv_update_stats(struct adapter *);
 static void	ixv_add_stats_sysctls(struct adapter *);
+static void	ixv_set_sysctl_value(struct adapter *, const char *,
+		    const char *, int *, int);
 
 /* The MSI/X Interrupt handlers */
 static void	ixv_msix_que(void *);
@@ -324,6 +326,15 @@ ixv_attach(device_t dev)
 		error = ENXIO;
 		goto err_out;
 	}
+
+	/* Sysctls for limiting the amount of work done in the taskqueues */
+	ixv_set_sysctl_value(adapter, "rx_processing_limit",
+	    "max number of rx packets to process",
+	    &adapter->rx_process_limit, ixv_rx_process_limit);
+
+	ixv_set_sysctl_value(adapter, "tx_processing_limit",
+	    "max number of tx packets to process",
+	    &adapter->tx_process_limit, ixv_tx_process_limit);
 
 	/* Do descriptor calc and sanity checks */
 	if (((ixv_txd * sizeof(union ixgbe_adv_tx_desc)) % DBA_ALIGN) != 0 ||
@@ -1600,9 +1611,6 @@ ixv_initialize_transmit_units(struct adapter *adapter)
 		/* Set Tx Tail register */
 		txr->tail = IXGBE_VFTDT(i);
 
-		/* Set the processing limit */
-		txr->process_limit = ixv_tx_process_limit;
-
 		/* Set Ring parameters */
 		IXGBE_WRITE_REG(hw, IXGBE_VFTDBAL(i),
 		       (tdba & 0x00000000ffffffffULL));
@@ -1690,9 +1698,6 @@ ixv_initialize_receive_units(struct adapter *adapter)
 		reg |= bufsz;
 		reg |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
 		IXGBE_WRITE_REG(hw, IXGBE_VFSRRCTL(i), reg);
-
-		/* Set the processing limit */
-		rxr->process_limit = ixv_rx_process_limit;
 
 		/* Capture Rx Tail index */
 		rxr->tail = IXGBE_VFRDT(rxr->me);
@@ -2120,6 +2125,16 @@ ixv_add_stats_sysctls(struct adapter *adapter)
 	SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_no_desc",
 			CTLFLAG_RD, &(txr->no_desc_avail),
 			"# of times not enough descriptors were available during TX");
+}
+
+static void
+ixv_set_sysctl_value(struct adapter *adapter, const char *name,
+	const char *description, int *limit, int value)
+{
+	*limit = value;
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(adapter->dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(adapter->dev)),
+	    OID_AUTO, name, CTLFLAG_RW, limit, value, description);
 }
 
 /**********************************************************************

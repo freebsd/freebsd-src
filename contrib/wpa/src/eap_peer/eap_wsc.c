@@ -557,6 +557,9 @@ send_msg:
 		if (data->out_buf == NULL) {
 			wpa_printf(MSG_DEBUG, "EAP-WSC: Failed to receive "
 				   "message from WPS");
+			eap_wsc_state(data, FAIL);
+			ret->methodState = METHOD_DONE;
+			ret->decision = DECISION_FAIL;
 			return NULL;
 		}
 		data->out_used = 0;

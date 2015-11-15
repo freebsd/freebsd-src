@@ -1963,15 +1963,15 @@ skipmemq:
 }
 
 /*
- *	vm_object_page_cache:
+ *	vm_object_page_noreuse:
  *
- *	For the given object, attempt to move the specified clean
- *	pages to the cache queue.  If a page is wired for any reason,
- *	then it will not be changed.  Pages are specified by the given
- *	range ["start", "end").  As a special case, if "end" is zero,
- *	then the range extends from "start" to the end of the object.
- *	Any mappings to the specified pages are removed before the
- *	pages are moved to the cache queue.
+ *	For the given object, attempt to move the specified pages to
+ *	the head of the inactive queue.  This bypasses regular LRU
+ *	operation and allows the pages to be reused quickly under memory
+ *	pressure.  If a page is wired for any reason, then it will not
+ *	be queued.  Pages are specified by the range ["start", "end").
+ *	As a special case, if "end" is zero, then the range extends from
+ *	"start" to the end of the object.
  *
  *	This operation should only be performed on objects that
  *	contain non-fictitious, managed pages.
@@ -1979,14 +1979,14 @@ skipmemq:
  *	The object must be locked.
  */
 void
-vm_object_page_cache(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
+vm_object_page_noreuse(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 {
 	struct mtx *mtx, *new_mtx;
 	vm_page_t p, next;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((object->flags & (OBJ_FICTITIOUS | OBJ_UNMANAGED)) == 0,
-	    ("vm_object_page_cache: illegal object %p", object));
+	    ("vm_object_page_noreuse: illegal object %p", object));
 	if (object->resident_page_count == 0)
 		return;
 	p = vm_page_find_least(object, start);
@@ -2009,7 +2009,7 @@ vm_object_page_cache(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 			mtx = new_mtx;
 			mtx_lock(mtx);
 		}
-		vm_page_try_to_cache(p);
+		vm_page_deactivate_noreuse(p);
 	}
 	if (mtx != NULL)
 		mtx_unlock(mtx);

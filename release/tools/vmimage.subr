@@ -108,7 +108,7 @@ vm_copy_base() {
 
 	umount_loop /dev/${mdnew}
 	rmdir ${DESTDIR}/new
-	tunefs -j enable /dev/${mdnew}
+	tunefs -n enable /dev/${mdnew}
 	mdconfig -d -u ${mdnew}
 	mv ${VMBASE}.tmp ${VMBASE}
 }

@@ -562,13 +562,20 @@ rtredirect_fib(struct sockaddr *dst,
 	 * we have a routing loop, perhaps as a result of an interface
 	 * going down recently.
 	 */
-	if (!(flags & RTF_DONE) && rt &&
-	     (!sa_equal(src, rt->rt_gateway) || rt->rt_ifa != ifa))
-		error = EINVAL;
-	else if (ifa_ifwithaddr_check(gateway))
+	if (!(flags & RTF_DONE) && rt) {
+		if (!sa_equal(src, rt->rt_gateway)) {
+			error = EINVAL;
+			goto done;
+		}
+		if (rt->rt_ifa != ifa && ifa->ifa_addr->sa_family != AF_LINK) {
+			error = EINVAL;
+			goto done;
+		}
+	}
+	if ((flags & RTF_GATEWAY) && ifa_ifwithaddr_check(gateway)) {
 		error = EHOSTUNREACH;
-	if (error)
 		goto done;
+	}
 	/*
 	 * Create a new entry if we just got back a wildcard entry
 	 * or the lookup failed.  This is necessary for hosts
@@ -591,7 +598,7 @@ rtredirect_fib(struct sockaddr *dst,
 			rt0 = rt;
 			rt = NULL;
 		
-			flags |=  RTF_GATEWAY | RTF_DYNAMIC;
+			flags |= RTF_DYNAMIC;
 			bzero((caddr_t)&info, sizeof(info));
 			info.rti_info[RTAX_DST] = dst;
 			info.rti_info[RTAX_GATEWAY] = gateway;
@@ -618,6 +625,8 @@ rtredirect_fib(struct sockaddr *dst,
 			 * Smash the current notion of the gateway to
 			 * this destination.  Should check about netmask!!!
 			 */
+			if ((flags & RTF_GATEWAY) == 0)
+				rt->rt_flags &= ~RTF_GATEWAY;
 			rt->rt_flags |= RTF_MODIFIED;
 			flags |= RTF_MODIFIED;
 			stat = &V_rtstat.rts_newgateway;
@@ -633,7 +642,8 @@ rtredirect_fib(struct sockaddr *dst,
 			RIB_WUNLOCK(rh);
 			RIB_CFG_WUNLOCK(rh);
 			EVENTHANDLER_INVOKE(route_redirect_event, rt, gwrt, dst);
-			RTFREE_LOCKED(gwrt);
+			if (gwrt)
+				RTFREE_LOCKED(gwrt);
 		}
 	} else
 		error = EHOSTUNREACH;
@@ -814,7 +824,7 @@ rt_foreach_fib_walk(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f,
 			if (rh == NULL)
 				continue;
 			if (setwa_f != NULL)
-				setwa_f(rh, fibnum, i, arg);
+				setwa_f(rh, fibnum, AF_UNSPEC, arg);
 
 			RIB_CFG_WLOCK(rh);
 			/* Do runtime locking for now */
@@ -905,13 +915,6 @@ rt_flushifroutes(struct ifnet *ifp)
 #define	ifaaddr	info->rti_info[RTAX_IFA]
 #define	ifpaddr	info->rti_info[RTAX_IFP]
 #define	flags	info->rti_flags
-
-int
-rt_getifa(struct rt_addrinfo *info)
-{
-
-	return (rt_getifa_fib(info, RT_DEFAULT_FIB));
-}
 
 /*
  * Look up rt_addrinfo for a specific fib.  Note that if rti_ifa is defined,

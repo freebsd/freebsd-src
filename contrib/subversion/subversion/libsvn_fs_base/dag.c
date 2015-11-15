@@ -1028,12 +1028,14 @@ svn_fs_base__dag_delete_if_mutable(svn_fs_t *fs,
               void *val;
               svn_fs_dirent_t *dirent;
 
+              svn_pool_clear(subpool);
               apr_hash_this(hi, NULL, NULL, &val);
               dirent = val;
               SVN_ERR(svn_fs_base__dag_delete_if_mutable(fs, dirent->id,
                                                          txn_id, trail,
                                                          subpool));
             }
+          svn_pool_destroy(subpool);
         }
     }
 
@@ -1342,7 +1344,7 @@ svn_fs_base__dag_finalize_edits(dag_node_t *file,
 
 
 dag_node_t *
-svn_fs_base__dag_dup(dag_node_t *node,
+svn_fs_base__dag_dup(const dag_node_t *node,
                      apr_pool_t *pool)
 {
   /* Allocate our new node. */
@@ -1579,10 +1581,10 @@ svn_fs_base__dag_commit_txn(svn_revnum_t *new_rev,
                             apr_pool_t *pool)
 {
   revision_t revision;
-  svn_string_t date;
   apr_hash_t *txnprops;
   svn_fs_t *fs = txn->fs;
   const char *txn_id = txn->id;
+  const svn_string_t *client_date;
 
   /* Remove any temporary transaction properties initially created by
      begin_txn().  */
@@ -1601,16 +1603,27 @@ svn_fs_base__dag_commit_txn(svn_revnum_t *new_rev,
     SVN_ERR(svn_fs_base__set_txn_prop
             (fs, txn_id, SVN_FS__PROP_TXN_CHECK_LOCKS, NULL, trail, pool));
 
+  client_date = svn_hash_gets(txnprops, SVN_FS__PROP_TXN_CLIENT_DATE);
+  if (client_date)
+    SVN_ERR(svn_fs_base__set_txn_prop
+            (fs, txn_id, SVN_FS__PROP_TXN_CLIENT_DATE, NULL, trail, pool));
+
   /* Promote the unfinished transaction to a committed one. */
   SVN_ERR(svn_fs_base__txn_make_committed(fs, txn_id, *new_rev,
                                           trail, pool));
 
-  /* Set a date on the commit.  We wait until now to fetch the date,
-     so it's definitely newer than any previous revision's date. */
-  date.data = svn_time_to_cstring(apr_time_now(), pool);
-  date.len = strlen(date.data);
-  return svn_fs_base__set_rev_prop(fs, *new_rev, SVN_PROP_REVISION_DATE,
-                                   NULL, &date, trail, pool);
+  if (!client_date || strcmp(client_date->data, "1"))
+    {
+      /* Set a date on the commit if requested.  We wait until now to fetch the
+         date, so it's definitely newer than any previous revision's date. */
+      svn_string_t date;
+      date.data = svn_time_to_cstring(apr_time_now(), pool);
+      date.len = strlen(date.data);
+      SVN_ERR(svn_fs_base__set_rev_prop(fs, *new_rev, SVN_PROP_REVISION_DATE,
+                                        NULL, &date, trail, pool));
+    }
+
+  return SVN_NO_ERROR;
 }
 
 
@@ -1644,14 +1657,8 @@ svn_fs_base__things_different(svn_boolean_t *props_changed,
 
   /* Compare contents keys and their (optional) uniquifiers. */
   if (contents_changed != NULL)
-    *contents_changed =
-      (! (svn_fs_base__same_keys(noderev1->data_key,
-                                 noderev2->data_key)
-          /* Technically, these uniquifiers aren't used and "keys",
-             but keys are base-36 stringified numbers, so we'll take
-             this liberty. */
-          && (svn_fs_base__same_keys(noderev1->data_key_uniquifier,
-                                     noderev2->data_key_uniquifier))));
+    *contents_changed = (! svn_fs_base__same_keys(noderev1->data_key,
+                                                  noderev2->data_key));
 
   return SVN_NO_ERROR;
 }

@@ -32,12 +32,8 @@ CFLAGS+=	-DHAVE_ICONV=1 -DHAVE_ICONV_H=1 -DICONV_CONST=const
 SYMLINKS=bsdcpio ${BINDIR}/cpio
 MLINKS= bsdcpio.1 cpio.1
 
-.PHONY: check test clean-test
-
-check test: $(PROG) bsdcpio.1.gz
-	cd ${.CURDIR}/test && make obj && make test
-
-clean-test:
-	cd ${.CURDIR}/test && make clean
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.prog.mk>

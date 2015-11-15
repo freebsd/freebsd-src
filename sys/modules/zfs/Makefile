@@ -4,7 +4,7 @@ SYSDIR?=${.CURDIR}/../..
 
 KMOD=	zfs
 
-SRCS=	bus_if.h device_if.h vnode_if.h opt_kstack_pages.h opt_random.h
+SRCS=	bus_if.h device_if.h vnode_if.h opt_kstack_pages.h
 
 SUNW=	${SYSDIR}/cddl/contrib/opensolaris
 

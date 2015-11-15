@@ -49,6 +49,7 @@
 #include "ra_serf.h"
 #include "../libsvn_ra/ra_loader.h"
 
+
 
 /*
  * This enum represents the current state of our XML parsing for a REPORT.
@@ -63,22 +64,179 @@
  * the tag is 'closed', the pool will be reused.
  */
 typedef enum report_state_e {
-    NONE = 0,
-    INITIAL = 0,
-    UPDATE_REPORT,
-    TARGET_REVISION,
-    OPEN_DIR,
-    ADD_DIR,
-    ABSENT_DIR,
-    OPEN_FILE,
-    ADD_FILE,
-    ABSENT_FILE,
-    PROP,
-    IGNORE_PROP_NAME,
-    NEED_PROP_NAME,
-    TXDELTA
+  INITIAL = XML_STATE_INITIAL /* = 0 */,
+  UPDATE_REPORT,
+  TARGET_REVISION,
+
+  OPEN_DIR,
+  ADD_DIR,
+
+  OPEN_FILE,
+  ADD_FILE,
+
+  DELETE_ENTRY,
+  ABSENT_DIR,
+  ABSENT_FILE,
+
+  SET_PROP,
+  REMOVE_PROP,
+
+  PROP,
+
+  FETCH_FILE,
+  FETCH_PROPS,
+  TXDELTA,
+
+  CHECKED_IN,
+  CHECKED_IN_HREF,
+
+  MD5_CHECKSUM,
+
+  VERSION_NAME,
+  CREATIONDATE,
+  CREATOR_DISPLAYNAME
 } report_state_e;
 
+
+#define D_ "DAV:"
+#define S_ SVN_XML_NAMESPACE
+#define V_ SVN_DAV_PROP_NS_DAV
+static const svn_ra_serf__xml_transition_t update_ttable[] = {
+  { INITIAL, S_, "update-report", UPDATE_REPORT,
+    FALSE, { "?inline-props", "?send-all", NULL }, TRUE },
+
+  { UPDATE_REPORT, S_, "target-revision", TARGET_REVISION,
+    FALSE, { "rev", NULL }, TRUE },
+
+  { UPDATE_REPORT, S_, "open-directory", OPEN_DIR,
+    FALSE, { "rev", NULL }, TRUE },
+
+  { OPEN_DIR, S_, "open-directory", OPEN_DIR,
+    FALSE, { "rev", "name", NULL }, TRUE },
+
+  { ADD_DIR, S_, "open-directory", OPEN_DIR,
+    FALSE, { "rev", "name", NULL }, TRUE },
+
+  { OPEN_DIR, S_, "add-directory", ADD_DIR,
+    FALSE, { "name", "?copyfrom-path", "?copyfrom-rev", /*"?bc-url",*/
+              NULL }, TRUE },
+
+  { ADD_DIR, S_, "add-directory", ADD_DIR,
+    FALSE, { "name", "?copyfrom-path", "?copyfrom-rev", /*"?bc-url",*/
+              NULL }, TRUE },
+
+  { OPEN_DIR, S_, "open-file", OPEN_FILE,
+    FALSE, { "rev", "name", NULL }, TRUE },
+
+  { ADD_DIR, S_, "open-file", OPEN_FILE,
+    FALSE, { "rev", "name", NULL }, TRUE },
+
+  { OPEN_DIR, S_, "add-file", ADD_FILE,
+    FALSE, { "name", "?copyfrom-path", "?copyfrom-rev",
+             "?sha1-checksum", NULL }, TRUE },
+
+  { ADD_DIR, S_, "add-file", ADD_FILE,
+    FALSE, { "name", "?copyfrom-path", "?copyfrom-rev",
+             "?sha1-checksum", NULL }, TRUE },
+
+  { OPEN_DIR, S_, "delete-entry", DELETE_ENTRY,
+    FALSE, { "?rev", "name", NULL }, TRUE },
+
+  { ADD_DIR, S_, "delete-entry", DELETE_ENTRY,
+    FALSE, { "?rev", "name", NULL }, TRUE },
+
+  { OPEN_DIR, S_, "absent-directory", ABSENT_DIR,
+    FALSE, { "name", NULL }, TRUE },
+
+  { ADD_DIR, S_, "absent-directory", ABSENT_DIR,
+    FALSE, { "name", NULL }, TRUE },
+
+  { OPEN_DIR, S_, "absent-file", ABSENT_FILE,
+    FALSE, { "name", NULL }, TRUE },
+
+  { ADD_DIR, S_, "absent-file", ABSENT_FILE,
+    FALSE, { "name", NULL }, TRUE },
+
+
+  { OPEN_DIR, D_, "checked-in", CHECKED_IN,
+    FALSE, { NULL }, FALSE },
+
+  { ADD_DIR, D_, "checked-in", CHECKED_IN,
+    FALSE, { NULL }, FALSE },
+
+  { OPEN_FILE, D_, "checked-in", CHECKED_IN,
+    FALSE, { NULL }, FALSE },
+
+  { ADD_FILE, D_, "checked-in", CHECKED_IN,
+    FALSE, { NULL }, FALSE },
+
+
+  { OPEN_DIR, S_, "set-prop", SET_PROP,
+    TRUE, { "name", "?encoding", NULL }, TRUE },
+
+  { ADD_DIR, S_, "set-prop", SET_PROP,
+    TRUE, { "name", "?encoding", NULL }, TRUE },
+
+  { OPEN_FILE, S_, "set-prop", SET_PROP,
+    TRUE, { "name", "?encoding", NULL }, TRUE },
+
+  { ADD_FILE, S_, "set-prop", SET_PROP,
+    TRUE, { "name", "?encoding", NULL }, TRUE },
+
+
+  { OPEN_DIR, S_, "remove-prop", REMOVE_PROP,
+    TRUE, { "name", NULL }, TRUE },
+
+  { ADD_DIR, S_, "remove-prop", REMOVE_PROP,
+    TRUE, { "name", NULL }, TRUE },
+
+  { OPEN_FILE, S_, "remove-prop", REMOVE_PROP,
+    TRUE, { "name", NULL }, TRUE },
+
+  { ADD_FILE, S_, "remove-prop", REMOVE_PROP,
+    TRUE, { "name", NULL }, TRUE },
+
+  { OPEN_FILE, S_, "prop", PROP,
+    FALSE, { NULL }, FALSE },
+  { OPEN_DIR, S_, "prop", PROP,
+    FALSE, { NULL }, FALSE },
+  { ADD_FILE, S_, "prop", PROP,
+    FALSE, { NULL }, FALSE },
+  { ADD_DIR, S_, "prop", PROP,
+    FALSE, { NULL }, FALSE },
+
+  { OPEN_FILE, S_, "txdelta", TXDELTA,
+    FALSE, { "?base-checksum" }, TRUE },
+
+  { ADD_FILE, S_, "txdelta", TXDELTA,
+    FALSE, { "?base-checksum" }, TRUE },
+
+  { OPEN_FILE, S_, "fetch-file", FETCH_FILE,
+    FALSE, { "?base-checksum", "?sha1-checksum", NULL }, TRUE},
+
+  { ADD_FILE, S_, "fetch-file", FETCH_FILE,
+    FALSE, { "?base-checksum", "?sha1-checksum", NULL }, TRUE },
+
+  { CHECKED_IN, D_, "href", CHECKED_IN_HREF,
+    TRUE, { NULL }, TRUE },
+
+  { PROP, V_, "md5-checksum", MD5_CHECKSUM,
+    TRUE, { NULL }, TRUE },
+
+  /* These are only reported for <= 1.6.x mod_dav_svn */
+  { OPEN_DIR, S_, "fetch-props", FETCH_PROPS,
+    FALSE, { NULL }, FALSE },
+  { OPEN_FILE, S_, "fetch-props", FETCH_PROPS,
+    FALSE, { NULL }, FALSE },
+
+  { PROP, D_, "version-name", VERSION_NAME,
+    TRUE, { NULL }, TRUE },
+  { PROP, D_, "creationdate", CREATIONDATE,
+    TRUE, { NULL }, TRUE },
+  { PROP, D_, "creator-displayname", CREATOR_DISPLAYNAME,
+    TRUE, { NULL }, TRUE },
+  { 0 }
+};
 
 /* While we process the REPORT response, we will queue up GET and PROPFIND
    requests. For a very large checkout, it is very easy to queue requests
@@ -97,175 +255,120 @@ typedef enum report_state_e {
 #define REQUEST_COUNT_TO_PAUSE 50
 #define REQUEST_COUNT_TO_RESUME 40
 
+#define SPILLBUF_BLOCKSIZE 4096
+#define SPILLBUF_MAXBUFFSIZE 131072
+
+#define PARSE_CHUNK_SIZE 8000 /* Copied from xml.c ### Needs tuning */
 
 /* Forward-declare our report context. */
 typedef struct report_context_t report_context_t;
-
+typedef struct body_create_baton_t body_create_baton_t;
 /*
  * This structure represents the information for a directory.
  */
-typedef struct report_dir_t
+typedef struct dir_baton_t
 {
-  /* Our parent directory.
-   *
-   * This value is NULL when we are the root.
-   */
-  struct report_dir_t *parent_dir;
+  struct dir_baton_t *parent_dir;       /* NULL when root */
 
-  apr_pool_t *pool;
+  apr_pool_t *pool;                     /* Subpool for this directory */
 
   /* Pointer back to our original report context. */
-  report_context_t *report_context;
+  report_context_t *ctx;
 
-  /* Our name sans any parents. */
-  const char *base_name;
-
-  /* the expanded directory name (including all parent names) */
-  const char *name;
+  const char *relpath;                  /* session relative path */
+  const char *base_name;                /* Name of item "" for root */
 
   /* the canonical url for this directory after updating. (received) */
   const char *url;
 
-  /* The original repos_relpath of this url (from the working copy)
-     or NULL if the repos_relpath can be calculated from the edit root. */
+  /* The original repos_relpath of this url (via the reporter)
+  directly, or via an ancestor. */
   const char *repos_relpath;
 
-  /* Our base revision - SVN_INVALID_REVNUM if we're adding this dir. */
-  svn_revnum_t base_rev;
+  svn_revnum_t base_rev;                /* base revision or NULL for Add */
+
+  const char *copyfrom_path;            /* NULL for open */
+  svn_revnum_t copyfrom_rev;            /* SVN_INVALID_REVNUM for open */
 
   /* controlling dir baton - this is only created in ensure_dir_opened() */
+  svn_boolean_t dir_opened;
   void *dir_baton;
-  apr_pool_t *dir_baton_pool;
 
   /* How many references to this directory do we still have open? */
   apr_size_t ref_count;
 
-  /* Namespace list allocated out of this ->pool. */
-  svn_ra_serf__ns_t *ns_list;
-
-  /* hashtable for all of the properties (shared within a dir) */
-  apr_hash_t *props;
-
-  /* hashtable for all to-be-removed properties (shared within a dir) */
-  apr_hash_t *removed_props;
-
-  /* The propfind request for our current directory */
+  svn_boolean_t fetch_props;                 /* Use PROPFIND request? */
   svn_ra_serf__handler_t *propfind_handler;
+  apr_hash_t *remove_props;
 
-  /* Has the server told us to fetch the dir props? */
-  svn_boolean_t fetch_props;
-
-  /* Have we closed the directory tag (meaning no more additions)? */
-  svn_boolean_t tag_closed;
-
-  /* The children of this directory  */
-  struct report_dir_t *children;
-
-  /* The next sibling of this directory */
-  struct report_dir_t *sibling;
-} report_dir_t;
+} dir_baton_t;
 
 /*
- * This structure represents the information for a file.
- *
- * A directory may have a report_info_t associated with it as well.
- *
- * This structure is created as we parse the REPORT response and
- * once the element is completed, we create a report_fetch_t structure
- * to give to serf to retrieve this file.
- */
-typedef struct report_info_t
+* This structure represents the information for a file.
+*
+* This structure is created as we parse the REPORT response and
+* once the element is completed, we may create a fetch_ctx_t structure
+* to give to serf to retrieve this file.
+*/
+typedef struct file_baton_t
 {
-  apr_pool_t *pool;
+  dir_baton_t *parent_dir;              /* The parent */
+  apr_pool_t *pool;                     /* Subpool for this file*/
 
-  /* The enclosing directory.
-   *
-   * If this structure refers to a directory, the dir it points to will be
-   * itself.
-   */
-  report_dir_t *dir;
-
-  /* Our name sans any directory info. */
+  const char *relpath;                  /* session relative path */
   const char *base_name;
 
-  /* the expanded file name (including all parent directory names) */
-  const char *name;
-
-  /* the canonical url for this file. */
+  /* the canonical url for this directory after updating. (received) */
   const char *url;
+
+  /* The original repos_relpath of this url as reported. */
+  const char *repos_relpath;
 
   /* lock token, if we had one to start off with. */
   const char *lock_token;
 
-  /* Our base revision - SVN_INVALID_REVNUM if we're adding this file. */
-  svn_revnum_t base_rev;
+  svn_revnum_t base_rev;                /* SVN_INVALID_REVNUM for Add */
 
-  /* our delta base, if present (NULL if we're adding the file) */
-  const char *delta_base;
+  const char *copyfrom_path;            /* NULL for open */
+  svn_revnum_t copyfrom_rev;            /* SVN_INVALID_REVNUM for open */
 
-  /* Path of original item if add with history */
-  const char *copyfrom_path;
+  /* controlling dir baton - this is only created in ensure_file_opened() */
+  svn_boolean_t file_opened;
+  void *file_baton;
 
-  /* Revision of original item if add with history */
-  svn_revnum_t copyfrom_rev;
-
-  /* The propfind request for our current file (if present) */
+  svn_boolean_t fetch_props;            /* Use PROPFIND request? */
   svn_ra_serf__handler_t *propfind_handler;
-
-  /* Has the server told us to fetch the file props? */
-  svn_boolean_t fetch_props;
+  svn_boolean_t found_lock_prop;
+  apr_hash_t *remove_props;
 
   /* Has the server told us to go fetch - only valid if we had it already */
   svn_boolean_t fetch_file;
 
-  /* The properties for this file */
-  apr_hash_t *props;
-
-  /* pool passed to update->add_file, etc. */
-  apr_pool_t *editor_pool;
-
   /* controlling file_baton and textdelta handler */
-  void *file_baton;
-  const char *base_checksum;
-  const char *final_sha1_checksum;
-  svn_txdelta_window_handler_t textdelta;
-  void *textdelta_baton;
-  svn_stream_t *svndiff_decoder;
-  svn_stream_t *base64_decoder;
+  svn_txdelta_window_handler_t txdelta;
+  void *txdelta_baton;
 
-  /* Checksum for close_file */
-  const char *final_checksum;
+  svn_checksum_t *base_md5_checksum;
+  svn_checksum_t *final_md5_checksum;
+  svn_checksum_t *final_sha1_checksum;
 
-  /* Stream containing file contents already cached in the working
-     copy (which may be used to avoid a GET request for the same). */
-  svn_stream_t *cached_contents;
-
-  /* temporary property for this file which is currently being parsed
-   * It will eventually be stored in our parent directory's property hash.
-   */
-  const char *prop_ns;
-  const char *prop_name;
-  svn_stringbuf_t *prop_value;
-  const char *prop_encoding;
-} report_info_t;
+  svn_stream_t *txdelta_stream;         /* Stream that feeds windows when
+                                           written to within txdelta*/
+} file_baton_t;
 
 /*
  * This structure represents a single request to GET (fetch) a file with
  * its associated Serf session/connection.
  */
-typedef struct report_fetch_t {
+typedef struct fetch_ctx_t {
 
   /* The handler representing this particular fetch.  */
   svn_ra_serf__handler_t *handler;
 
-  /* The session we should use to fetch the file. */
-  svn_ra_serf__session_t *sess;
-
-  /* The connection we should use to fetch file. */
-  svn_ra_serf__connection_t *conn;
+  svn_boolean_t using_compression;
 
   /* Stores the information for the file we want to fetch. */
-  report_info_t *info;
+  file_baton_t *file;
 
   /* Have we read our response headers yet? */
   svn_boolean_t read_headers;
@@ -279,22 +382,13 @@ typedef struct report_fetch_t {
   /* This is the amount of data that we have read so far. */
   apr_off_t read_size;
 
-  /* If we're receiving an svndiff, this will be non-NULL. */
-  svn_stream_t *delta_stream;
-
   /* If we're writing this file to a stream, this will be non-NULL. */
-  svn_stream_t *target_stream;
+  svn_stream_t *result_stream;
 
-  /* Are we done fetching this file? */
-  svn_boolean_t done;
+  /* The base-rev header  */
+  const char *delta_base;
 
-  /* Discard the rest of the content? */
-  svn_boolean_t discard;
-
-  svn_ra_serf__list_t **done_list;
-  svn_ra_serf__list_t done_item;
-
-} report_fetch_t;
+} fetch_ctx_t;
 
 /*
  * The master structure for a REPORT request and response.
@@ -303,7 +397,6 @@ struct report_context_t {
   apr_pool_t *pool;
 
   svn_ra_serf__session_t *sess;
-  svn_ra_serf__connection_t *conn;
 
   /* Source path and destination path */
   const char *source;
@@ -314,6 +407,10 @@ struct report_context_t {
 
   /* What is the target revision that we want for this REPORT? */
   svn_revnum_t target_rev;
+
+  /* Where are we (used while parsing) */
+  dir_baton_t *cur_dir;
+  file_baton_t *cur_file;
 
   /* Have we been asked to ignore ancestry or textdeltas? */
   svn_boolean_t ignore_ancestry;
@@ -332,45 +429,23 @@ struct report_context_t {
   /* Path -> const char *repos_relpath mapping */
   apr_hash_t *switched_paths;
 
-  /* Boolean indicating whether "" is switched.
-     (This indicates that the we are updating a single file) */
-  svn_boolean_t root_is_switched;
-
   /* Our master update editor and baton. */
-  const svn_delta_editor_t *update_editor;
-  void *update_baton;
+  const svn_delta_editor_t *editor;
+  void *editor_baton;
 
   /* The file holding request body for the REPORT.
    *
    * ### todo: It will be better for performance to store small
    * request bodies (like 4k) in memory and bigger bodies on disk.
    */
-  apr_file_t *body_file;
-
-  /* root directory object */
-  report_dir_t *root_dir;
+  svn_stream_t *body_template;
+  body_create_baton_t *body;
 
   /* number of pending GET requests */
   unsigned int num_active_fetches;
 
-  /* completed fetches (contains report_fetch_t) */
-  svn_ra_serf__list_t *done_fetches;
-
   /* number of pending PROPFIND requests */
   unsigned int num_active_propfinds;
-
-  /* completed PROPFIND requests (contains svn_ra_serf__handler_t) */
-  svn_ra_serf__list_t *done_propfinds;
-  svn_ra_serf__list_t *done_dir_propfinds;
-
-  /* list of outstanding prop changes (contains report_dir_t) */
-  svn_ra_serf__list_t *active_dir_propfinds;
-
-  /* list of files that only have prop changes (contains report_info_t) */
-  svn_ra_serf__list_t *file_propchanges_only;
-
-  /* The path to the REPORT request */
-  const char *path;
 
   /* Are we done parsing the REPORT response? */
   svn_boolean_t done;
@@ -378,2277 +453,239 @@ struct report_context_t {
   /* Did we receive all data from the network? */
   svn_boolean_t report_received;
 
-  /* Did we get a complete (non-truncated) report? */
-  svn_boolean_t report_completed;
-
-  /* The XML parser context for the REPORT response.  */
-  svn_ra_serf__xml_parser_t *parser_ctx;
-
   /* Did we close the root directory? */
   svn_boolean_t closed_root;
 };
 
+/* Baton for collecting REPORT body. Depending on the size this
+   work is backed by a memory buffer (via serf buckets) or by
+   a file */
+struct body_create_baton_t
+{
+  apr_pool_t *result_pool;
+  apr_size_t total_bytes;
 
-#ifdef NOT_USED_YET
+  apr_pool_t *scratch_pool;
 
-#define D_ "DAV:"
-#define S_ SVN_XML_NAMESPACE
-static const svn_ra_serf__xml_transition_t update_ttable[] = {
-  { INITIAL, S_, "update-report", UPDATE_REPORT,
-    FALSE, { NULL }, FALSE },
+  serf_bucket_alloc_t *alloc;
+  serf_bucket_t *collect_bucket;
 
-  { UPDATE_REPORT, S_, "target-revision", TARGET_REVISION,
-    FALSE, { "rev", NULL }, TRUE },
-
-  { UPDATE_REPORT, S_, "open-directory", OPEN_DIR,
-    FALSE, { "rev", NULL }, TRUE },
-
-  { OPEN_DIR, S_, "open-directory", OPEN_DIR,
-    FALSE, { "rev", "name", NULL }, TRUE },
-
-  { OPEN_DIR, S_, "add-directory", ADD_DIR,
-    FALSE, { "rev", "name", "?copyfrom-path", "?copyfrom-rev", NULL }, TRUE },
-
-  { ADD_DIR, S_, "add-directory", ADD_DIR,
-    FALSE, { "rev", "name", "?copyfrom-path", "?copyfrom-rev", NULL }, TRUE },
-
-  { OPEN_DIR, S_, "open-file", OPEN_FILE,
-    FALSE, { "rev", "name", NULL }, TRUE },
-
-  { OPEN_DIR, S_, "add-file", ADD_FILE,
-    FALSE, { "rev", "name", "?copyfrom-path", "?copyfrom-rev", NULL }, TRUE },
-
-  { ADD_DIR, S_, "add-file", ADD_FILE,
-    FALSE, { "rev", "name", "?copyfrom-path", "?copyfrom-rev", NULL }, TRUE },
-
-  { OPEN_DIR, S_, "delete-entry", OPEN_FILE,
-    FALSE, { "?rev", "name", NULL }, TRUE },
-
-  { OPEN_DIR, S_, "absent-directory", ABSENT_DIR,
-    FALSE, { "name", NULL }, TRUE },
-
-  { ADD_DIR, S_, "absent-directory", ABSENT_DIR,
-    FALSE, { "name", NULL }, TRUE },
-
-  { OPEN_DIR, S_, "absent-file", ABSENT_FILE,
-    FALSE, { "name", NULL }, TRUE },
-
-  { ADD_DIR, S_, "absent-file", ABSENT_FILE,
-    FALSE, { "name", NULL }, TRUE },
-
-  { 0 }
+  const void *all_data;
+  apr_file_t *file;
 };
 
 
+#define MAX_BODY_IN_RAM (256*1024)
 
-/* Conforms to svn_ra_serf__xml_opened_t  */
-static svn_error_t *
-update_opened(svn_ra_serf__xml_estate_t *xes,
-              void *baton,
-              int entered_state,
-              const svn_ra_serf__dav_props_t *tag,
-              apr_pool_t *scratch_pool)
+/* Fold all previously collected data in a single buffer allocated in
+   RESULT_POOL and clear all intermediate state */
+static const char *
+body_allocate_all(body_create_baton_t *body,
+                  apr_pool_t *result_pool)
 {
-  report_context_t *ctx = baton;
+  char *buffer = apr_pcalloc(result_pool, body->total_bytes);
+  const char *data;
+  apr_size_t sz;
+  apr_status_t s;
+  apr_size_t remaining = body->total_bytes;
+  char *next = buffer;
 
-  return SVN_NO_ERROR;
-}
-
-
-
-/* Conforms to svn_ra_serf__xml_closed_t  */
-static svn_error_t *
-update_closed(svn_ra_serf__xml_estate_t *xes,
-              void *baton,
-              int leaving_state,
-              const svn_string_t *cdata,
-              apr_hash_t *attrs,
-              apr_pool_t *scratch_pool)
-{
-  report_context_t *ctx = baton;
-
-  if (leaving_state == TARGET_REVISION)
+  while (!(s = serf_bucket_read(body->collect_bucket, remaining, &data, &sz)))
     {
-      const char *rev = svn_hash_gets(attrs, "rev");
+      memcpy(next, data, sz);
+      remaining -= sz;
+      next += sz;
 
-      SVN_ERR(ctx->update_editor->set_target_revision(ctx->update_baton,
-                                                      SVN_STR_TO_REV(rev),
-                                                      ctx->sess->pool));
+      if (! remaining)
+        break;
     }
 
-  return SVN_NO_ERROR;
-}
-
-
-/* Conforms to svn_ra_serf__xml_cdata_t  */
-static svn_error_t *
-update_cdata(svn_ra_serf__xml_estate_t *xes,
-             void *baton,
-             int current_state,
-             const char *data,
-             apr_size_t len,
-             apr_pool_t *scratch_pool)
-{
-  report_context_t *ctx = baton;
-
-  return SVN_NO_ERROR;
-}
-
-#endif /* NOT_USED_YET */
-
-
-/* Returns best connection for fetching files/properties. */
-static svn_ra_serf__connection_t *
-get_best_connection(report_context_t *ctx)
-{
-  svn_ra_serf__connection_t *conn;
-  int first_conn = 1;
-
-  /* Skip the first connection if the REPORT response hasn't been completely
-     received yet or if we're being told to limit our connections to
-     2 (because this could be an attempt to ensure that we do all our
-     auxiliary GETs/PROPFINDs on a single connection).
-
-     ### FIXME: This latter requirement (max_connections > 2) is
-     ### really just a hack to work around the fact that some update
-     ### editor implementations (such as svnrdump's dump editor)
-     ### simply can't handle the way ra_serf violates the editor v1
-     ### drive ordering requirements.
-     ###
-     ### See http://subversion.tigris.org/issues/show_bug.cgi?id=4116.
-  */
-  if (ctx->report_received && (ctx->sess->max_connections > 2))
-    first_conn = 0;
-
-  /* Currently, we just cycle connections.  In the future we could
-     store the number of pending requests on each connection, or
-     perform other heuristics, to achieve better connection usage.
-     (As an optimization, if there's only one available auxiliary
-     connection to use, don't bother doing all the cur_conn math --
-     just return that one connection.)  */
-  if (ctx->sess->num_conns - first_conn == 1)
+  if (!SERF_BUCKET_READ_ERROR(s))
     {
-      conn = ctx->sess->conns[first_conn];
+      memcpy(next, data, sz);
+    }
+
+  serf_bucket_destroy(body->collect_bucket);
+  body->collect_bucket = NULL;
+
+  return (s != APR_EOF) ? NULL : buffer;
+}
+
+/* Noop function. Make serf take care of freeing in error situations */
+static void serf_free_no_error(void *unfreed_baton, void *block) {}
+
+/* Stream write function for body creation */
+static svn_error_t *
+body_write_fn(void *baton,
+              const char *data,
+              apr_size_t *len)
+{
+  body_create_baton_t *bcb = baton;
+
+  if (!bcb->scratch_pool)
+    bcb->scratch_pool = svn_pool_create(bcb->result_pool);
+
+  if (bcb->file)
+    {
+      SVN_ERR(svn_io_file_write_full(bcb->file, data, *len, NULL,
+                                     bcb->scratch_pool));
+      svn_pool_clear(bcb->scratch_pool);
+
+      bcb->total_bytes += *len;
+    }
+  else if (*len + bcb->total_bytes > MAX_BODY_IN_RAM)
+    {
+      SVN_ERR(svn_io_open_unique_file3(&bcb->file, NULL, NULL,
+                                       svn_io_file_del_on_pool_cleanup,
+                                       bcb->result_pool, bcb->scratch_pool));
+
+      if (bcb->total_bytes)
+        {
+          const char *all = body_allocate_all(bcb, bcb->scratch_pool);
+
+          SVN_ERR(svn_io_file_write_full(bcb->file, all, bcb->total_bytes,
+                                         NULL, bcb->scratch_pool));
+        }
+
+      SVN_ERR(svn_io_file_write_full(bcb->file, data, *len, NULL,
+                                     bcb->scratch_pool));
+      bcb->total_bytes += *len;
     }
   else
     {
-      conn = ctx->sess->conns[ctx->sess->cur_conn];
-      ctx->sess->cur_conn++;
-      if (ctx->sess->cur_conn >= ctx->sess->num_conns)
-        ctx->sess->cur_conn = first_conn;
-    }
-  return conn;
-}
+      if (!bcb->alloc)
+        bcb->alloc = serf_bucket_allocator_create(bcb->scratch_pool,
+                                                  serf_free_no_error, NULL);
 
-
-/** Report state management helper **/
+      if (!bcb->collect_bucket)
+        bcb->collect_bucket = serf_bucket_aggregate_create(bcb->alloc);
 
-static report_info_t *
-push_state(svn_ra_serf__xml_parser_t *parser,
-           report_context_t *ctx,
-           report_state_e state)
-{
-  report_info_t *info;
-  apr_pool_t *info_parent_pool;
+      serf_bucket_aggregate_append(bcb->collect_bucket,
+                                   serf_bucket_simple_copy_create(data, *len,
+                                                                  bcb->alloc));
 
-  svn_ra_serf__xml_push_state(parser, state);
-
-  info = parser->state->private;
-
-  /* Our private pool needs to be disjoint from the state pool. */
-  if (!info)
-    {
-      info_parent_pool = ctx->pool;
-    }
-  else
-    {
-      info_parent_pool = info->pool;
+      bcb->total_bytes += *len;
     }
 
-  if (state == OPEN_DIR || state == ADD_DIR)
-    {
-      report_info_t *new_info;
-
-      new_info = apr_pcalloc(info_parent_pool, sizeof(*new_info));
-      new_info->pool = svn_pool_create(info_parent_pool);
-      new_info->lock_token = NULL;
-      new_info->prop_value = svn_stringbuf_create_empty(new_info->pool);
-
-      new_info->dir = apr_pcalloc(new_info->pool, sizeof(*new_info->dir));
-      new_info->dir->pool = new_info->pool;
-
-      /* Create the root property tree. */
-      new_info->dir->props = apr_hash_make(new_info->pool);
-      new_info->props = new_info->dir->props;
-      new_info->dir->removed_props = apr_hash_make(new_info->pool);
-
-      new_info->dir->report_context = ctx;
-
-      if (info)
-        {
-          info->dir->ref_count++;
-
-          new_info->dir->parent_dir = info->dir;
-
-          /* Point our ns_list at our parents to try to reuse it. */
-          new_info->dir->ns_list = info->dir->ns_list;
-
-          /* Add ourselves to our parent's list */
-          new_info->dir->sibling = info->dir->children;
-          info->dir->children = new_info->dir;
-        }
-      else
-        {
-          /* Allow us to be found later. */
-          ctx->root_dir = new_info->dir;
-        }
-
-      parser->state->private = new_info;
-    }
-  else if (state == OPEN_FILE || state == ADD_FILE)
-    {
-      report_info_t *new_info;
-
-      new_info = apr_pcalloc(info_parent_pool, sizeof(*new_info));
-      new_info->pool = svn_pool_create(info_parent_pool);
-      new_info->file_baton = NULL;
-      new_info->lock_token = NULL;
-      new_info->fetch_file = FALSE;
-      new_info->prop_value = svn_stringbuf_create_empty(new_info->pool);
-
-      /* Point at our parent's directory state. */
-      new_info->dir = info->dir;
-      info->dir->ref_count++;
-
-      new_info->props = apr_hash_make(new_info->pool);
-
-      parser->state->private = new_info;
-    }
-
-  return parser->state->private;
-}
-
-
-/** Wrappers around our various property walkers **/
-
-static svn_error_t *
-set_file_props(void *baton,
-               const char *ns,
-               const char *name,
-               const svn_string_t *val,
-               apr_pool_t *scratch_pool)
-{
-  report_info_t *info = baton;
-  const svn_delta_editor_t *editor = info->dir->report_context->update_editor;
-  const char *prop_name;
-
-  prop_name = svn_ra_serf__svnname_from_wirename(ns, name, scratch_pool);
-  if (prop_name != NULL)
-    return svn_error_trace(editor->change_file_prop(info->file_baton,
-                                                    prop_name,
-                                                    val,
-                                                    scratch_pool));
   return SVN_NO_ERROR;
 }
 
-
+/* Stream close function for collecting body */
 static svn_error_t *
-set_dir_props(void *baton,
-              const char *ns,
-              const char *name,
-              const svn_string_t *val,
-              apr_pool_t *scratch_pool)
+body_done_fn(void *baton)
 {
-  report_dir_t *dir = baton;
-  const svn_delta_editor_t *editor = dir->report_context->update_editor;
-  const char *prop_name;
+  body_create_baton_t *bcb = baton;
+  if (bcb->file)
+    {
+      /* We need to flush the file, make it unbuffered (so that it can be
+        * zero-copied via mmap), and reset the position before attempting
+        * to deliver the file.
+        *
+        * N.B. If we have APR 1.3+, we can unbuffer the file to let us use
+        * mmap and zero-copy the PUT body.  However, on older APR versions,
+        * we can't check the buffer status; but serf will fall through and
+        * create a file bucket for us on the buffered handle.
+        */
 
-  prop_name = svn_ra_serf__svnname_from_wirename(ns, name, scratch_pool);
-  if (prop_name != NULL)
-    return svn_error_trace(editor->change_dir_prop(dir->dir_baton,
-                                                   prop_name,
-                                                   val,
-                                                   scratch_pool));
+      SVN_ERR(svn_io_file_flush(bcb->file, bcb->scratch_pool));
+      apr_file_buffer_set(bcb->file, NULL, 0);
+    }
+  else if (bcb->collect_bucket)
+    bcb->all_data = body_allocate_all(bcb, bcb->result_pool);
+
+  if (bcb->scratch_pool)
+    svn_pool_destroy(bcb->scratch_pool);
+
   return SVN_NO_ERROR;
 }
 
-
 static svn_error_t *
-remove_file_props(void *baton,
-                  const char *ns,
-                  const char *name,
-                  const svn_string_t *val,
-                  apr_pool_t *scratch_pool)
-{
-  report_info_t *info = baton;
-  const svn_delta_editor_t *editor = info->dir->report_context->update_editor;
-  const char *prop_name;
-
-  prop_name = svn_ra_serf__svnname_from_wirename(ns, name, scratch_pool);
-  if (prop_name != NULL)
-    return svn_error_trace(editor->change_file_prop(info->file_baton,
-                                                    prop_name,
-                                                    NULL,
-                                                    scratch_pool));
-  return SVN_NO_ERROR;
-}
-
-
-static svn_error_t *
-remove_dir_props(void *baton,
-                 const char *ns,
+create_dir_baton(dir_baton_t **new_dir,
+                 report_context_t *ctx,
                  const char *name,
-                 const svn_string_t *val,
                  apr_pool_t *scratch_pool)
 {
-  report_dir_t *dir = baton;
-  const svn_delta_editor_t *editor = dir->report_context->update_editor;
-  const char *prop_name;
+  dir_baton_t *parent = ctx->cur_dir;
+  apr_pool_t *dir_pool;
+  dir_baton_t *dir;
 
-  prop_name = svn_ra_serf__svnname_from_wirename(ns, name, scratch_pool);
-  if (prop_name != NULL)
-    return svn_error_trace(editor->change_dir_prop(dir->dir_baton,
-                                                   prop_name,
-                                                   NULL,
-                                                   scratch_pool));
-  return SVN_NO_ERROR;
-}
-
-
-/** Helpers to open and close directories */
-
-static svn_error_t*
-ensure_dir_opened(report_dir_t *dir)
-{
-  report_context_t *ctx = dir->report_context;
-
-  /* if we're already open, return now */
-  if (dir->dir_baton)
-    {
-      return SVN_NO_ERROR;
-    }
-
-  if (dir->base_name[0] == '\0')
-    {
-      dir->dir_baton_pool = svn_pool_create(dir->pool);
-
-      if (ctx->destination
-          && ctx->sess->wc_callbacks->invalidate_wc_props)
-        {
-          SVN_ERR(ctx->sess->wc_callbacks->invalidate_wc_props(
-                      ctx->sess->wc_callback_baton,
-                      ctx->update_target,
-                      SVN_RA_SERF__WC_CHECKED_IN_URL, dir->pool));
-        }
-
-      SVN_ERR(ctx->update_editor->open_root(ctx->update_baton, dir->base_rev,
-                                            dir->dir_baton_pool,
-                                            &dir->dir_baton));
-    }
+  if (parent)
+    dir_pool = svn_pool_create(parent->pool);
   else
+    dir_pool = svn_pool_create(ctx->pool);
+
+  dir = apr_pcalloc(dir_pool, sizeof(*dir));
+  dir->pool = dir_pool;
+  dir->ctx = ctx;
+
+  if (parent)
     {
-      SVN_ERR(ensure_dir_opened(dir->parent_dir));
+      dir->parent_dir = parent;
+      parent->ref_count++;
+    }
 
-      dir->dir_baton_pool = svn_pool_create(dir->parent_dir->dir_baton_pool);
+  dir->relpath = parent ? svn_relpath_join(parent->relpath, name, dir_pool)
+                        : apr_pstrdup(dir_pool, name);
+  dir->base_name = svn_relpath_basename(dir->relpath, NULL);
 
-      if (SVN_IS_VALID_REVNUM(dir->base_rev))
-        {
-          SVN_ERR(ctx->update_editor->open_directory(dir->name,
-                                                     dir->parent_dir->dir_baton,
-                                                     dir->base_rev,
-                                                     dir->dir_baton_pool,
-                                                     &dir->dir_baton));
-        }
+  dir->repos_relpath = svn_hash_gets(ctx->switched_paths, dir->relpath);
+  if (!dir->repos_relpath)
+    {
+      if (parent)
+        dir->repos_relpath = svn_relpath_join(parent->repos_relpath, name,
+                                              dir_pool);
       else
-        {
-          SVN_ERR(ctx->update_editor->add_directory(dir->name,
-                                                    dir->parent_dir->dir_baton,
-                                                    NULL, SVN_INVALID_REVNUM,
-                                                    dir->dir_baton_pool,
-                                                    &dir->dir_baton));
-        }
+        dir->repos_relpath = svn_uri_skip_ancestor(ctx->sess->repos_root_str,
+                                                   ctx->sess->session_url_str,
+                                                   dir_pool);
     }
 
+  dir->base_rev = SVN_INVALID_REVNUM;
+  dir->copyfrom_rev = SVN_INVALID_REVNUM;
+
+  dir->ref_count = 1;
+
+  ctx->cur_dir = dir;
+
+  *new_dir = dir;
   return SVN_NO_ERROR;
 }
 
 static svn_error_t *
-close_dir(report_dir_t *dir)
-{
-  report_dir_t *prev;
-  report_dir_t *sibling;
-
-  /* ### is there a better pool... this is tossed at end-of-func  */
-  apr_pool_t *scratch_pool = dir->dir_baton_pool;
-
-  SVN_ERR_ASSERT(! dir->ref_count);
-
-  SVN_ERR(svn_ra_serf__walk_all_props(dir->props, dir->base_name,
-                                      dir->base_rev,
-                                      set_dir_props, dir,
-                                      scratch_pool));
-
-  SVN_ERR(svn_ra_serf__walk_all_props(dir->removed_props, dir->base_name,
-                                      dir->base_rev, remove_dir_props, dir,
-                                      scratch_pool));
-
-  if (dir->fetch_props)
-    {
-      SVN_ERR(svn_ra_serf__walk_all_props(dir->props, dir->url,
-                                          dir->report_context->target_rev,
-                                          set_dir_props, dir,
-                                          scratch_pool));
-    }
-
-  SVN_ERR(dir->report_context->update_editor->close_directory(
-            dir->dir_baton, scratch_pool));
-
-  /* remove us from our parent's children list */
-  if (dir->parent_dir)
-    {
-      prev = NULL;
-      sibling = dir->parent_dir->children;
-
-      while (sibling != dir)
-        {
-          prev = sibling;
-          sibling = sibling->sibling;
-          if (!sibling)
-            SVN_ERR_MALFUNCTION();
-        }
-
-      if (!prev)
-        {
-          dir->parent_dir->children = dir->sibling;
-        }
-      else
-        {
-          prev->sibling = dir->sibling;
-        }
-    }
-
-  svn_pool_destroy(dir->dir_baton_pool);
-  svn_pool_destroy(dir->pool);
-
-  return SVN_NO_ERROR;
-}
-
-static svn_error_t *close_all_dirs(report_dir_t *dir)
-{
-  while (dir->children)
-    {
-      SVN_ERR(close_all_dirs(dir->children));
-      dir->ref_count--;
-    }
-
-  SVN_ERR_ASSERT(! dir->ref_count);
-
-  SVN_ERR(ensure_dir_opened(dir));
-
-  return close_dir(dir);
-}
-
-
-/** Routines called when we are fetching a file */
-
-/* This function works around a bug in some older versions of
- * mod_dav_svn in that it will not send remove-prop in the update
- * report when a lock property disappears when send-all is false.
- *
- * Therefore, we'll try to look at our properties and see if there's
- * an active lock.  If not, then we'll assume there isn't a lock
- * anymore.
- */
-static void
-check_lock(report_info_t *info)
-{
-  const char *lock_val;
-
-  lock_val = svn_ra_serf__get_ver_prop(info->props, info->url,
-                                       info->dir->report_context->target_rev,
-                                       "DAV:", "lockdiscovery");
-
-  if (lock_val)
-    {
-      char *new_lock;
-      new_lock = apr_pstrdup(info->editor_pool, lock_val);
-      apr_collapse_spaces(new_lock, new_lock);
-      lock_val = new_lock;
-    }
-
-  if (!lock_val || lock_val[0] == '\0')
-    {
-      svn_string_t *str;
-
-      str = svn_string_ncreate("", 1, info->editor_pool);
-
-      svn_ra_serf__set_ver_prop(info->dir->removed_props, info->base_name,
-                                info->base_rev, "DAV:", "lock-token",
-                                str, info->dir->pool);
-    }
-}
-
-static svn_error_t *
-headers_fetch(serf_bucket_t *headers,
-              void *baton,
-              apr_pool_t *pool)
-{
-  report_fetch_t *fetch_ctx = baton;
-
-  /* note that we have old VC URL */
-  if (SVN_IS_VALID_REVNUM(fetch_ctx->info->base_rev) &&
-      fetch_ctx->info->delta_base)
-    {
-      serf_bucket_headers_setn(headers, SVN_DAV_DELTA_BASE_HEADER,
-                               fetch_ctx->info->delta_base);
-      serf_bucket_headers_setn(headers, "Accept-Encoding",
-                               "svndiff1;q=0.9,svndiff;q=0.8");
-    }
-  else if (fetch_ctx->sess->using_compression)
-    {
-      serf_bucket_headers_setn(headers, "Accept-Encoding", "gzip");
-    }
-
-  return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-cancel_fetch(serf_request_t *request,
-             serf_bucket_t *response,
-             int status_code,
-             void *baton)
-{
-  report_fetch_t *fetch_ctx = baton;
-
-  /* Uh-oh.  Our connection died on us.
-   *
-   * The core ra_serf layer will requeue our request - we just need to note
-   * that we got cut off in the middle of our song.
-   */
-  if (!response)
-    {
-      /* If we already started the fetch and opened the file handle, we need
-       * to hold subsequent read() ops until we get back to where we were
-       * before the close and we can then resume the textdelta() calls.
-       */
-      if (fetch_ctx->read_headers)
-        {
-          if (!fetch_ctx->aborted_read && fetch_ctx->read_size)
-            {
-              fetch_ctx->aborted_read = TRUE;
-              fetch_ctx->aborted_read_size = fetch_ctx->read_size;
-            }
-          fetch_ctx->read_size = 0;
-        }
-
-      return SVN_NO_ERROR;
-    }
-
-  /* We have no idea what went wrong. */
-  SVN_ERR_MALFUNCTION();
-}
-
-static svn_error_t *
-error_fetch(serf_request_t *request,
-            report_fetch_t *fetch_ctx,
-            svn_error_t *err)
-{
-  fetch_ctx->done = TRUE;
-
-  fetch_ctx->done_item.data = fetch_ctx;
-  fetch_ctx->done_item.next = *fetch_ctx->done_list;
-  *fetch_ctx->done_list = &fetch_ctx->done_item;
-
-  /* Discard the rest of this request
-     (This makes sure it doesn't error when the request is aborted later) */
-  serf_request_set_handler(request,
-                           svn_ra_serf__response_discard_handler, NULL);
-
-  /* Some errors would be handled by serf; make sure they really make
-     the update fail by wrapping it in a different error. */
-  if (!SERF_BUCKET_READ_ERROR(err->apr_err))
-    return svn_error_create(SVN_ERR_RA_SERF_WRAPPED_ERROR, err, NULL);
-
-  return err;
-}
-
-/* Wield the editor referenced by INFO to open (or add) the file
-   file also associated with INFO, setting properties on the file and
-   calling the editor's apply_textdelta() function on it if necessary
-   (or if FORCE_APPLY_TEXTDELTA is set).
-
-   Callers will probably want to also see the function that serves
-   the opposite purpose of this one, close_updated_file().  */
-static svn_error_t *
-open_updated_file(report_info_t *info,
-                  svn_boolean_t force_apply_textdelta,
+create_file_baton(file_baton_t **new_file,
+                  report_context_t *ctx,
+                  const char *name,
                   apr_pool_t *scratch_pool)
 {
-  report_context_t *ctx = info->dir->report_context;
-  const svn_delta_editor_t *update_editor = ctx->update_editor;
+  dir_baton_t *parent = ctx->cur_dir;
+  apr_pool_t *file_pool;
+  file_baton_t *file;
 
-  /* Ensure our parent is open. */
-  SVN_ERR(ensure_dir_opened(info->dir));
-  info->editor_pool = svn_pool_create(info->dir->dir_baton_pool);
+  file_pool = svn_pool_create(parent->pool);
 
-  /* Expand our full name now if we haven't done so yet. */
-  if (!info->name)
-    {
-      info->name = svn_relpath_join(info->dir->name, info->base_name,
-                                    info->editor_pool);
-    }
+  file = apr_pcalloc(file_pool, sizeof(*file));
+  file->pool = file_pool;
 
-  /* Open (or add) the file. */
-  if (SVN_IS_VALID_REVNUM(info->base_rev))
-    {
-      SVN_ERR(update_editor->open_file(info->name,
-                                       info->dir->dir_baton,
-                                       info->base_rev,
-                                       info->editor_pool,
-                                       &info->file_baton));
-    }
-  else
-    {
-      SVN_ERR(update_editor->add_file(info->name,
-                                      info->dir->dir_baton,
-                                      info->copyfrom_path,
-                                      info->copyfrom_rev,
-                                      info->editor_pool,
-                                      &info->file_baton));
-    }
+  file->parent_dir = parent;
+  parent->ref_count++;
 
-  /* Check for lock information. */
-  if (info->lock_token)
-    check_lock(info);
+  file->relpath = svn_relpath_join(parent->relpath, name, file_pool);
+  file->base_name = svn_relpath_basename(file->relpath, NULL);
 
-  /* Get (maybe) a textdelta window handler for transmitting file
-     content changes. */
-  if (info->fetch_file || force_apply_textdelta)
-    {
-      SVN_ERR(update_editor->apply_textdelta(info->file_baton,
-                                             info->base_checksum,
-                                             info->editor_pool,
-                                             &info->textdelta,
-                                             &info->textdelta_baton));
-    }
+  file->repos_relpath = svn_hash_gets(ctx->switched_paths, file->relpath);
+  if (!file->repos_relpath)
+    file->repos_relpath = svn_relpath_join(parent->repos_relpath, name,
+                                           file_pool);
+
+  /* Sane defaults */
+  file->base_rev = SVN_INVALID_REVNUM;
+  file->copyfrom_rev = SVN_INVALID_REVNUM;
+
+  *new_file = file;
+
+  ctx->cur_file = file;
 
   return SVN_NO_ERROR;
-}
-
-/* Close the file associated with INFO->file_baton, and cleanup other
-   bits of that structure managed by open_updated_file(). */
-static svn_error_t *
-close_updated_file(report_info_t *info,
-                   apr_pool_t *scratch_pool)
-{
-  report_context_t *ctx = info->dir->report_context;
-
-  /* Set all of the properties we received */
-  SVN_ERR(svn_ra_serf__walk_all_props(info->props,
-                                      info->base_name,
-                                      info->base_rev,
-                                      set_file_props, info,
-                                      scratch_pool));
-  SVN_ERR(svn_ra_serf__walk_all_props(info->dir->removed_props,
-                                      info->base_name,
-                                      info->base_rev,
-                                      remove_file_props, info,
-                                      scratch_pool));
-  if (info->fetch_props)
-    {
-      SVN_ERR(svn_ra_serf__walk_all_props(info->props,
-                                          info->url,
-                                          ctx->target_rev,
-                                          set_file_props, info,
-                                          scratch_pool));
-    }
-
-  /* Close the file via the editor. */
-  SVN_ERR(info->dir->report_context->update_editor->close_file(
-            info->file_baton, info->final_checksum, scratch_pool));
-
-  /* We're done with our editor pool. */
-  svn_pool_destroy(info->editor_pool);
-
-  return SVN_NO_ERROR;
-}
-
-/* Implements svn_ra_serf__response_handler_t */
-static svn_error_t *
-handle_fetch(serf_request_t *request,
-             serf_bucket_t *response,
-             void *handler_baton,
-             apr_pool_t *pool)
-{
-  const char *data;
-  apr_size_t len;
-  apr_status_t status;
-  report_fetch_t *fetch_ctx = handler_baton;
-  svn_error_t *err;
-
-  /* ### new field. make sure we didn't miss some initialization.  */
-  SVN_ERR_ASSERT(fetch_ctx->handler != NULL);
-
-  if (!fetch_ctx->read_headers)
-    {
-      serf_bucket_t *hdrs;
-      const char *val;
-      report_info_t *info;
-
-      hdrs = serf_bucket_response_get_headers(response);
-      val = serf_bucket_headers_get(hdrs, "Content-Type");
-      info = fetch_ctx->info;
-
-      if (val && svn_cstring_casecmp(val, SVN_SVNDIFF_MIME_TYPE) == 0)
-        {
-          fetch_ctx->delta_stream =
-              svn_txdelta_parse_svndiff(info->textdelta,
-                                        info->textdelta_baton,
-                                        TRUE, info->editor_pool);
-
-          /* Validate the delta base claimed by the server matches
-             what we asked for! */
-          val = serf_bucket_headers_get(hdrs, SVN_DAV_DELTA_BASE_HEADER);
-          if (val && (strcmp(val, info->delta_base) != 0))
-            {
-              err = svn_error_createf(SVN_ERR_RA_DAV_REQUEST_FAILED, NULL,
-                                      _("GET request returned unexpected "
-                                        "delta base: %s"), val);
-              return error_fetch(request, fetch_ctx, err);
-            }
-        }
-      else
-        {
-          fetch_ctx->delta_stream = NULL;
-        }
-
-      fetch_ctx->read_headers = TRUE;
-    }
-
-  /* If the error code wasn't 200, something went wrong. Don't use the returned
-     data as its probably an error message. Just bail out instead. */
-  if (fetch_ctx->handler->sline.code != 200)
-    {
-      err = svn_error_createf(SVN_ERR_RA_DAV_REQUEST_FAILED, NULL,
-                              _("GET request failed: %d %s"),
-                              fetch_ctx->handler->sline.code,
-                              fetch_ctx->handler->sline.reason);
-      return error_fetch(request, fetch_ctx, err);
-    }
-
-  while (1)
-    {
-      svn_txdelta_window_t delta_window = { 0 };
-      svn_txdelta_op_t delta_op;
-      svn_string_t window_data;
-
-      status = serf_bucket_read(response, 8000, &data, &len);
-      if (SERF_BUCKET_READ_ERROR(status))
-        {
-          return svn_ra_serf__wrap_err(status, NULL);
-        }
-
-      fetch_ctx->read_size += len;
-
-      if (fetch_ctx->aborted_read)
-        {
-          apr_off_t skip;
-          /* We haven't caught up to where we were before. */
-          if (fetch_ctx->read_size < fetch_ctx->aborted_read_size)
-            {
-              /* Eek.  What did the file shrink or something? */
-              if (APR_STATUS_IS_EOF(status))
-                {
-                  SVN_ERR_MALFUNCTION();
-                }
-
-              /* Skip on to the next iteration of this loop. */
-              if (APR_STATUS_IS_EAGAIN(status))
-                {
-                  return svn_ra_serf__wrap_err(status, NULL);
-                }
-              continue;
-            }
-
-          /* Woo-hoo.  We're back. */
-          fetch_ctx->aborted_read = FALSE;
-
-          /* Update data and len to just provide the new data. */
-          skip = len - (fetch_ctx->read_size - fetch_ctx->aborted_read_size);
-          data += skip;
-          len -= skip;
-        }
-
-      if (fetch_ctx->delta_stream)
-        {
-          err = svn_stream_write(fetch_ctx->delta_stream, data, &len);
-          if (err)
-            {
-              return error_fetch(request, fetch_ctx, err);
-            }
-        }
-      /* otherwise, manually construct the text delta window. */
-      else if (len)
-        {
-          window_data.data = data;
-          window_data.len = len;
-
-          delta_op.action_code = svn_txdelta_new;
-          delta_op.offset = 0;
-          delta_op.length = len;
-
-          delta_window.tview_len = len;
-          delta_window.num_ops = 1;
-          delta_window.ops = &delta_op;
-          delta_window.new_data = &window_data;
-
-          /* write to the file located in the info. */
-          err = fetch_ctx->info->textdelta(&delta_window,
-                                           fetch_ctx->info->textdelta_baton);
-          if (err)
-            {
-              return error_fetch(request, fetch_ctx, err);
-            }
-        }
-
-      if (APR_STATUS_IS_EOF(status))
-        {
-          report_info_t *info = fetch_ctx->info;
-
-          if (fetch_ctx->delta_stream)
-            err = svn_error_trace(svn_stream_close(fetch_ctx->delta_stream));
-          else
-            err = svn_error_trace(info->textdelta(NULL,
-                                                  info->textdelta_baton));
-          if (err)
-            {
-              return error_fetch(request, fetch_ctx, err);
-            }
-
-          err = close_updated_file(info, info->pool);
-          if (err)
-            {
-              return svn_error_trace(error_fetch(request, fetch_ctx, err));
-            }
-
-          fetch_ctx->done = TRUE;
-
-          fetch_ctx->done_item.data = fetch_ctx;
-          fetch_ctx->done_item.next = *fetch_ctx->done_list;
-          *fetch_ctx->done_list = &fetch_ctx->done_item;
-
-          /* We're done with our pool. */
-          svn_pool_destroy(info->pool);
-
-          if (status)
-            return svn_ra_serf__wrap_err(status, NULL);
-        }
-      if (APR_STATUS_IS_EAGAIN(status))
-        {
-          return svn_ra_serf__wrap_err(status, NULL);
-        }
-    }
-  /* not reached */
-}
-
-/* Implements svn_ra_serf__response_handler_t */
-static svn_error_t *
-handle_stream(serf_request_t *request,
-              serf_bucket_t *response,
-              void *handler_baton,
-              apr_pool_t *pool)
-{
-  report_fetch_t *fetch_ctx = handler_baton;
-  svn_error_t *err;
-  apr_status_t status;
-
-  /* ### new field. make sure we didn't miss some initialization.  */
-  SVN_ERR_ASSERT(fetch_ctx->handler != NULL);
-
-  err = svn_ra_serf__error_on_status(fetch_ctx->handler->sline,
-                                     fetch_ctx->info->name,
-                                     fetch_ctx->handler->location);
-  if (err)
-    {
-      fetch_ctx->handler->done = TRUE;
-
-      err = svn_error_compose_create(
-                  err,
-                  svn_ra_serf__handle_discard_body(request, response, NULL, pool));
-
-      return svn_error_trace(err);
-    }
-
-  while (1)
-    {
-      const char *data;
-      apr_size_t len;
-
-      status = serf_bucket_read(response, 8000, &data, &len);
-      if (SERF_BUCKET_READ_ERROR(status))
-        {
-          return svn_ra_serf__wrap_err(status, NULL);
-        }
-
-      fetch_ctx->read_size += len;
-
-      if (fetch_ctx->aborted_read)
-        {
-          /* We haven't caught up to where we were before. */
-          if (fetch_ctx->read_size < fetch_ctx->aborted_read_size)
-            {
-              /* Eek.  What did the file shrink or something? */
-              if (APR_STATUS_IS_EOF(status))
-                {
-                  SVN_ERR_MALFUNCTION();
-                }
-
-              /* Skip on to the next iteration of this loop. */
-              if (APR_STATUS_IS_EAGAIN(status))
-                {
-                  return svn_ra_serf__wrap_err(status, NULL);
-                }
-              continue;
-            }
-
-          /* Woo-hoo.  We're back. */
-          fetch_ctx->aborted_read = FALSE;
-
-          /* Increment data and len by the difference. */
-          data += fetch_ctx->read_size - fetch_ctx->aborted_read_size;
-          len += fetch_ctx->read_size - fetch_ctx->aborted_read_size;
-        }
-
-      if (len)
-        {
-          apr_size_t written_len;
-
-          written_len = len;
-
-          SVN_ERR(svn_stream_write(fetch_ctx->target_stream, data,
-                                   &written_len));
-        }
-
-      if (APR_STATUS_IS_EOF(status))
-        {
-          fetch_ctx->done = TRUE;
-        }
-
-      if (status)
-        {
-          return svn_ra_serf__wrap_err(status, NULL);
-        }
-    }
-  /* not reached */
-}
-
-/* Close the directory represented by DIR -- and any suitable parents
-   thereof -- if we are able to do so.  This is the case whenever:
-
-     - there are no remaining open items within the directory, and
-     - the directory's XML close tag has been processed (so we know
-       there are no more children to worry about in the future), and
-     - either:
-         - we aren't fetching properties for this directory, or
-         - we've already finished fetching those properties.
-*/
-static svn_error_t *
-maybe_close_dir_chain(report_dir_t *dir)
-{
-  report_dir_t *cur_dir = dir;
-
-  SVN_ERR(ensure_dir_opened(cur_dir));
-
-  while (cur_dir
-         && !cur_dir->ref_count
-         && cur_dir->tag_closed
-         && (!cur_dir->fetch_props || cur_dir->propfind_handler->done))
-    {
-      report_dir_t *parent = cur_dir->parent_dir;
-      report_context_t *report_context = cur_dir->report_context;
-      svn_boolean_t propfind_in_done_list = FALSE;
-      svn_ra_serf__list_t *done_list;
-
-      /* Make sure there are no references to this dir in the
-         active_dir_propfinds list.  If there are, don't close the
-         directory -- which would delete the pool from which the
-         relevant active_dir_propfinds list item is allocated -- and
-         of course don't crawl upward to check the parents for
-         a closure opportunity, either.  */
-      done_list = report_context->active_dir_propfinds;
-      while (done_list)
-        {
-          if (done_list->data == cur_dir)
-            {
-              propfind_in_done_list = TRUE;
-              break;
-            }
-          done_list = done_list->next;
-        }
-      if (propfind_in_done_list)
-        break;
-
-      SVN_ERR(close_dir(cur_dir));
-      if (parent)
-        {
-          parent->ref_count--;
-        }
-      else
-        {
-          report_context->closed_root = TRUE;
-        }
-      cur_dir = parent;
-    }
-
-  return SVN_NO_ERROR;
-}
-
-/* Open the file associated with INFO for editing, pass along any
-   propchanges we've recorded for it, and then close the file. */
-static svn_error_t *
-handle_propchange_only(report_info_t *info,
-                       apr_pool_t *scratch_pool)
-{
-  SVN_ERR(open_updated_file(info, FALSE, scratch_pool));
-  SVN_ERR(close_updated_file(info, scratch_pool));
-
-  /* We're done with our pool. */
-  svn_pool_destroy(info->pool);
-
-  info->dir->ref_count--;
-
-  /* See if the parent directory of this file (and perhaps even
-     parents of that) can be closed now.  */
-  SVN_ERR(maybe_close_dir_chain(info->dir));
-
-  return SVN_NO_ERROR;
-}
-
-/* "Fetch" a file whose contents were made available via the
-   get_wc_contents() callback (as opposed to requiring a GET to the
-   server), and feed the information through the associated update
-   editor.  In editor-speak, this will add/open the file, transmit any
-   property changes, handle the contents, and then close the file.  */
-static svn_error_t *
-handle_local_content(report_info_t *info,
-                     apr_pool_t *scratch_pool)
-{
-  SVN_ERR(svn_txdelta_send_stream(info->cached_contents, info->textdelta,
-                                  info->textdelta_baton, NULL, scratch_pool));
-  SVN_ERR(svn_stream_close(info->cached_contents));
-  info->cached_contents = NULL;
-  SVN_ERR(close_updated_file(info, scratch_pool));
-
-  /* We're done with our pool. */
-  svn_pool_destroy(info->pool);
-
-  info->dir->ref_count--;
-
-  /* See if the parent directory of this fetched item (and
-     perhaps even parents of that) can be closed now. */
-  SVN_ERR(maybe_close_dir_chain(info->dir));
-
-  return SVN_NO_ERROR;
-}
-
-/* --------------------------------------------------------- */
-
-static svn_error_t *
-fetch_file(report_context_t *ctx, report_info_t *info)
-{
-  svn_ra_serf__connection_t *conn;
-  svn_ra_serf__handler_t *handler;
-
-  /* What connection should we go on? */
-  conn = get_best_connection(ctx);
-
-  /* If needed, create the PROPFIND to retrieve the file's properties. */
-  info->propfind_handler = NULL;
-  if (info->fetch_props)
-    {
-      SVN_ERR(svn_ra_serf__deliver_props(&info->propfind_handler, info->props,
-                                         ctx->sess, conn, info->url,
-                                         ctx->target_rev, "0", all_props,
-                                         &ctx->done_propfinds,
-                                         info->dir->pool));
-      SVN_ERR_ASSERT(info->propfind_handler);
-
-      /* Create a serf request for the PROPFIND.  */
-      svn_ra_serf__request_create(info->propfind_handler);
-
-      ctx->num_active_propfinds++;
-    }
-
-  /* If we've been asked to fetch the file or it's an add, do so.
-   * Otherwise, handle the case where only the properties changed.
-   */
-  if (info->fetch_file && ctx->text_deltas)
-    {
-      svn_stream_t *contents = NULL;
-
-      /* Open the file for editing. */
-      SVN_ERR(open_updated_file(info, FALSE, info->pool));
-
-      if (info->textdelta == svn_delta_noop_window_handler)
-        {
-          /* There is nobody looking for an actual stream.
-
-             Just report an empty stream instead of fetching
-             to be ingored data */
-          info->cached_contents = svn_stream_empty(info->pool);
-        }
-      else if (ctx->sess->wc_callbacks->get_wc_contents
-               && info->final_sha1_checksum)
-        {
-          svn_error_t *err = NULL;
-          svn_checksum_t *checksum = NULL;
-
-          /* Parse the optional SHA1 checksum (1.7+) */
-          err = svn_checksum_parse_hex(&checksum, svn_checksum_sha1,
-                                       info->final_sha1_checksum,
-                                       info->pool);
-
-          /* Okay so far?  Let's try to get a stream on some readily
-             available matching content. */
-          if (!err && checksum)
-            {
-              err = ctx->sess->wc_callbacks->get_wc_contents(
-                        ctx->sess->wc_callback_baton, &contents,
-                        checksum, info->pool);
-
-              if (! err)
-                info->cached_contents = contents;
-            }
-
-          if (err)
-            {
-              /* Meh.  Maybe we'll care one day why we're in an
-                 errorful state, but this codepath is optional.  */
-              svn_error_clear(err);
-            }
-        }
-
-      /* If the working copy can provide cached contents for this
-         file, we don't have to fetch them from the server. */
-      if (info->cached_contents)
-        {
-          /* If we'll be doing a PROPFIND for this file... */
-          if (info->propfind_handler)
-            {
-              /* ... then we'll just leave ourselves a little "todo"
-                 about that fact (and we'll deal with the file content
-                 stuff later, after we've handled that PROPFIND
-                 response. */
-              svn_ra_serf__list_t *list_item;
-
-              list_item = apr_pcalloc(info->dir->pool, sizeof(*list_item));
-              list_item->data = info;
-              list_item->next = ctx->file_propchanges_only;
-              ctx->file_propchanges_only = list_item;
-            }
-          else
-            {
-              /* Otherwise, if we've no PROPFIND to do, we might as
-                 well take care of those locally accessible file
-                 contents now. */
-              SVN_ERR(handle_local_content(info, info->pool));
-            }
-        }
-      else
-        {
-          /* Otherwise, we use a GET request for the file's contents. */
-          report_fetch_t *fetch_ctx;
-
-          fetch_ctx = apr_pcalloc(info->dir->pool, sizeof(*fetch_ctx));
-          fetch_ctx->info = info;
-          fetch_ctx->done_list = &ctx->done_fetches;
-          fetch_ctx->sess = ctx->sess;
-          fetch_ctx->conn = conn;
-
-          handler = apr_pcalloc(info->dir->pool, sizeof(*handler));
-
-          handler->handler_pool = info->dir->pool;
-          handler->method = "GET";
-          handler->path = fetch_ctx->info->url;
-
-          handler->conn = conn;
-          handler->session = ctx->sess;
-
-          handler->custom_accept_encoding = TRUE;
-          handler->header_delegate = headers_fetch;
-          handler->header_delegate_baton = fetch_ctx;
-
-          handler->response_handler = handle_fetch;
-          handler->response_baton = fetch_ctx;
-
-          handler->response_error = cancel_fetch;
-          handler->response_error_baton = fetch_ctx;
-
-          fetch_ctx->handler = handler;
-
-          svn_ra_serf__request_create(handler);
-
-          ctx->num_active_fetches++;
-        }
-    }
-  else if (info->propfind_handler)
-    {
-      svn_ra_serf__list_t *list_item;
-
-      list_item = apr_pcalloc(info->dir->pool, sizeof(*list_item));
-      list_item->data = info;
-      list_item->next = ctx->file_propchanges_only;
-      ctx->file_propchanges_only = list_item;
-    }
-  else
-    {
-      /* No propfind or GET request.  Just handle the prop changes now. */
-      SVN_ERR(handle_propchange_only(info, info->pool));
-    }
-
-  if (ctx->num_active_fetches + ctx->num_active_propfinds
-      > REQUEST_COUNT_TO_PAUSE)
-    ctx->parser_ctx->paused = TRUE;
-
-  return SVN_NO_ERROR;
-}
-
-
-/** XML callbacks for our update-report response parsing */
-
-static svn_error_t *
-start_report(svn_ra_serf__xml_parser_t *parser,
-             svn_ra_serf__dav_props_t name,
-             const char **attrs,
-             apr_pool_t *scratch_pool)
-{
-  report_context_t *ctx = parser->user_data;
-  report_state_e state;
-
-  state = parser->state->current_state;
-
-  if (state == NONE && strcmp(name.name, "update-report") == 0)
-    {
-      const char *val;
-
-      val = svn_xml_get_attr_value("inline-props", attrs);
-      if (val && (strcmp(val, "true") == 0))
-        ctx->add_props_included = TRUE;
-
-      val = svn_xml_get_attr_value("send-all", attrs);
-      if (val && (strcmp(val, "true") == 0))
-        {
-          ctx->send_all_mode = TRUE;
-
-          /* All properties are included in send-all mode. */
-          ctx->add_props_included = TRUE;
-        }
-    }
-  else if (state == NONE && strcmp(name.name, "target-revision") == 0)
-    {
-      const char *rev;
-
-      rev = svn_xml_get_attr_value("rev", attrs);
-
-      if (!rev)
-        {
-          return svn_error_create(
-            SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-            _("Missing revision attr in target-revision element"));
-        }
-
-      SVN_ERR(ctx->update_editor->set_target_revision(ctx->update_baton,
-                                                      SVN_STR_TO_REV(rev),
-                                                      ctx->sess->pool));
-    }
-  else if (state == NONE && strcmp(name.name, "open-directory") == 0)
-    {
-      const char *rev;
-      report_info_t *info;
-
-      rev = svn_xml_get_attr_value("rev", attrs);
-
-      if (!rev)
-        {
-          return svn_error_create(
-            SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-            _("Missing revision attr in open-directory element"));
-        }
-
-      info = push_state(parser, ctx, OPEN_DIR);
-
-      info->base_rev = SVN_STR_TO_REV(rev);
-      info->dir->base_rev = info->base_rev;
-      info->fetch_props = TRUE;
-
-      info->dir->base_name = "";
-      info->dir->name = "";
-
-      info->base_name = info->dir->base_name;
-      info->name = info->dir->name;
-
-      info->dir->repos_relpath = svn_hash_gets(ctx->switched_paths, "");
-
-      if (!info->dir->repos_relpath)
-        SVN_ERR(svn_ra_serf__get_relative_path(&info->dir->repos_relpath,
-                                               ctx->sess->session_url.path,
-                                               ctx->sess, ctx->conn,
-                                               info->dir->pool));
-    }
-  else if (state == NONE)
-    {
-      /* do nothing as we haven't seen our valid start tag yet. */
-    }
-  else if ((state == OPEN_DIR || state == ADD_DIR) &&
-           strcmp(name.name, "open-directory") == 0)
-    {
-      const char *rev, *dirname;
-      report_dir_t *dir;
-      report_info_t *info;
-
-      rev = svn_xml_get_attr_value("rev", attrs);
-
-      if (!rev)
-        {
-          return svn_error_create(
-            SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-            _("Missing revision attr in open-directory element"));
-        }
-
-      dirname = svn_xml_get_attr_value("name", attrs);
-
-      if (!dirname)
-        {
-          return svn_error_create(
-            SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-            _("Missing name attr in open-directory element"));
-        }
-
-      info = push_state(parser, ctx, OPEN_DIR);
-
-      dir = info->dir;
-
-      info->base_rev = SVN_STR_TO_REV(rev);
-      dir->base_rev = info->base_rev;
-
-      info->fetch_props = FALSE;
-
-      dir->base_name = apr_pstrdup(dir->pool, dirname);
-      info->base_name = dir->base_name;
-
-      /* Expand our name. */
-      dir->name = svn_relpath_join(dir->parent_dir->name, dir->base_name,
-                                   dir->pool);
-      info->name = dir->name;
-
-      dir->repos_relpath = svn_hash_gets(ctx->switched_paths, dir->name);
-
-      if (!dir->repos_relpath)
-        dir->repos_relpath = svn_relpath_join(dir->parent_dir->repos_relpath,
-                                               dir->base_name, dir->pool);
-    }
-  else if ((state == OPEN_DIR || state == ADD_DIR) &&
-           strcmp(name.name, "add-directory") == 0)
-    {
-      const char *dir_name, *cf, *cr;
-      report_dir_t *dir;
-      report_info_t *info;
-
-      dir_name = svn_xml_get_attr_value("name", attrs);
-      if (!dir_name)
-        {
-          return svn_error_create(
-            SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-            _("Missing name attr in add-directory element"));
-        }
-      cf = svn_xml_get_attr_value("copyfrom-path", attrs);
-      cr = svn_xml_get_attr_value("copyfrom-rev", attrs);
-
-      info = push_state(parser, ctx, ADD_DIR);
-
-      dir = info->dir;
-
-      dir->base_name = apr_pstrdup(dir->pool, dir_name);
-      info->base_name = dir->base_name;
-
-      /* Expand our name. */
-      dir->name = svn_relpath_join(dir->parent_dir->name, dir->base_name,
-                                   dir->pool);
-      info->name = dir->name;
-
-      info->copyfrom_path = cf ? apr_pstrdup(info->pool, cf) : NULL;
-      info->copyfrom_rev = cr ? SVN_STR_TO_REV(cr) : SVN_INVALID_REVNUM;
-
-      /* Mark that we don't have a base. */
-      info->base_rev = SVN_INVALID_REVNUM;
-      dir->base_rev = info->base_rev;
-
-      /* If the server isn't included properties for added items,
-         we'll need to fetch them ourselves. */
-      if (! ctx->add_props_included)
-        dir->fetch_props = TRUE;
-
-      dir->repos_relpath = svn_relpath_join(dir->parent_dir->repos_relpath,
-                                            dir->base_name, dir->pool);
-    }
-  else if ((state == OPEN_DIR || state == ADD_DIR) &&
-           strcmp(name.name, "open-file") == 0)
-    {
-      const char *file_name, *rev;
-      report_info_t *info;
-
-      file_name = svn_xml_get_attr_value("name", attrs);
-
-      if (!file_name)
-        {
-          return svn_error_create(
-            SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-            _("Missing name attr in open-file element"));
-        }
-
-      rev = svn_xml_get_attr_value("rev", attrs);
-
-      if (!rev)
-        {
-          return svn_error_create(
-            SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-            _("Missing revision attr in open-file element"));
-        }
-
-      info = push_state(parser, ctx, OPEN_FILE);
-
-      info->base_rev = SVN_STR_TO_REV(rev);
-      info->fetch_props = FALSE;
-
-      info->base_name = apr_pstrdup(info->pool, file_name);
-      info->name = NULL;
-    }
-  else if ((state == OPEN_DIR || state == ADD_DIR) &&
-           strcmp(name.name, "add-file") == 0)
-    {
-      const char *file_name, *cf, *cr;
-      report_info_t *info;
-
-      file_name = svn_xml_get_attr_value("name", attrs);
-      cf = svn_xml_get_attr_value("copyfrom-path", attrs);
-      cr = svn_xml_get_attr_value("copyfrom-rev", attrs);
-
-      if (!file_name)
-        {
-          return svn_error_create(
-            SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-            _("Missing name attr in add-file element"));
-        }
-
-      info = push_state(parser, ctx, ADD_FILE);
-
-      info->base_rev = SVN_INVALID_REVNUM;
-
-      /* If the server isn't in "send-all" mode, we should expect to
-         fetch contents for added files. */
-      if (! ctx->send_all_mode)
-        info->fetch_file = TRUE;
-
-      /* If the server isn't included properties for added items,
-         we'll need to fetch them ourselves. */
-      if (! ctx->add_props_included)
-        info->fetch_props = TRUE;
-
-      info->base_name = apr_pstrdup(info->pool, file_name);
-      info->name = NULL;
-
-      info->copyfrom_path = cf ? apr_pstrdup(info->pool, cf) : NULL;
-      info->copyfrom_rev = cr ? SVN_STR_TO_REV(cr) : SVN_INVALID_REVNUM;
-
-      info->final_sha1_checksum =
-        svn_xml_get_attr_value("sha1-checksum", attrs);
-      if (info->final_sha1_checksum)
-        info->final_sha1_checksum = apr_pstrdup(info->pool,
-                                                info->final_sha1_checksum);
-    }
-  else if ((state == OPEN_DIR || state == ADD_DIR) &&
-           strcmp(name.name, "delete-entry") == 0)
-    {
-      const char *file_name;
-      const char *rev_str;
-      report_info_t *info;
-      apr_pool_t *tmppool;
-      const char *full_path;
-      svn_revnum_t delete_rev = SVN_INVALID_REVNUM;
-
-      file_name = svn_xml_get_attr_value("name", attrs);
-
-      if (!file_name)
-        {
-          return svn_error_create(
-            SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-            _("Missing name attr in delete-entry element"));
-        }
-
-      rev_str = svn_xml_get_attr_value("rev", attrs);
-      if (rev_str) /* Not available on older repositories! */
-        delete_rev = SVN_STR_TO_REV(rev_str);
-
-      info = parser->state->private;
-
-      SVN_ERR(ensure_dir_opened(info->dir));
-
-      tmppool = svn_pool_create(info->dir->dir_baton_pool);
-
-      full_path = svn_relpath_join(info->dir->name, file_name, tmppool);
-
-      SVN_ERR(ctx->update_editor->delete_entry(full_path,
-                                               delete_rev,
-                                               info->dir->dir_baton,
-                                               tmppool));
-
-      svn_pool_destroy(tmppool);
-    }
-  else if ((state == OPEN_DIR || state == ADD_DIR) &&
-           strcmp(name.name, "absent-directory") == 0)
-    {
-      const char *file_name;
-      report_info_t *info;
-
-      file_name = svn_xml_get_attr_value("name", attrs);
-
-      if (!file_name)
-        {
-          return svn_error_create(
-            SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-            _("Missing name attr in absent-directory element"));
-        }
-
-      info = parser->state->private;
-
-      SVN_ERR(ensure_dir_opened(info->dir));
-
-      SVN_ERR(ctx->update_editor->absent_directory(
-                                        svn_relpath_join(info->name, file_name,
-                                                         info->dir->pool),
-                                        info->dir->dir_baton,
-                                        info->dir->pool));
-    }
-  else if ((state == OPEN_DIR || state == ADD_DIR) &&
-           strcmp(name.name, "absent-file") == 0)
-    {
-      const char *file_name;
-      report_info_t *info;
-
-      file_name = svn_xml_get_attr_value("name", attrs);
-
-      if (!file_name)
-        {
-          return svn_error_create(
-            SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-            _("Missing name attr in absent-file element"));
-        }
-
-      info = parser->state->private;
-
-      SVN_ERR(ensure_dir_opened(info->dir));
-
-      SVN_ERR(ctx->update_editor->absent_file(
-                                        svn_relpath_join(info->name, file_name,
-                                                         info->dir->pool),
-                                        info->dir->dir_baton,
-                                        info->dir->pool));
-    }
-  else if (state == OPEN_DIR || state == ADD_DIR)
-    {
-      report_info_t *info;
-
-      if (strcmp(name.name, "checked-in") == 0)
-        {
-          info = push_state(parser, ctx, IGNORE_PROP_NAME);
-          info->prop_ns = name.namespace;
-          info->prop_name = apr_pstrdup(parser->state->pool, name.name);
-          info->prop_encoding = NULL;
-          svn_stringbuf_setempty(info->prop_value);
-        }
-      else if (strcmp(name.name, "set-prop") == 0 ||
-               strcmp(name.name, "remove-prop") == 0)
-        {
-          const char *full_prop_name;
-          const char *colon;
-
-          info = push_state(parser, ctx, PROP);
-
-          full_prop_name = svn_xml_get_attr_value("name", attrs);
-          if (!full_prop_name)
-            {
-              return svn_error_createf(SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-                                       _("Missing name attr in %s element"),
-                                       name.name);
-            }
-
-          colon = strchr(full_prop_name, ':');
-
-          if (colon)
-            colon++;
-          else
-            colon = full_prop_name;
-
-          info->prop_ns = apr_pstrmemdup(info->dir->pool, full_prop_name,
-                                         colon - full_prop_name);
-          info->prop_name = apr_pstrdup(parser->state->pool, colon);
-          info->prop_encoding = svn_xml_get_attr_value("encoding", attrs);
-          svn_stringbuf_setempty(info->prop_value);
-        }
-      else if (strcmp(name.name, "prop") == 0)
-        {
-          /* need to fetch it. */
-          push_state(parser, ctx, NEED_PROP_NAME);
-        }
-      else if (strcmp(name.name, "fetch-props") == 0)
-        {
-          info = parser->state->private;
-
-          info->dir->fetch_props = TRUE;
-        }
-      else
-        {
-          return svn_error_createf(SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-                                   _("Unknown tag '%s' while at state %d"),
-                                   name.name, state);
-        }
-
-    }
-  else if (state == OPEN_FILE || state == ADD_FILE)
-    {
-      report_info_t *info;
-
-      if (strcmp(name.name, "checked-in") == 0)
-        {
-          info = push_state(parser, ctx, IGNORE_PROP_NAME);
-          info->prop_ns = name.namespace;
-          info->prop_name = apr_pstrdup(parser->state->pool, name.name);
-          info->prop_encoding = NULL;
-          svn_stringbuf_setempty(info->prop_value);
-        }
-      else if (strcmp(name.name, "prop") == 0)
-        {
-          /* need to fetch it. */
-          push_state(parser, ctx, NEED_PROP_NAME);
-        }
-      else if (strcmp(name.name, "fetch-props") == 0)
-        {
-          info = parser->state->private;
-
-          info->fetch_props = TRUE;
-        }
-      else if (strcmp(name.name, "fetch-file") == 0)
-        {
-          info = parser->state->private;
-          info->base_checksum = svn_xml_get_attr_value("base-checksum", attrs);
-
-          if (info->base_checksum)
-            info->base_checksum = apr_pstrdup(info->pool, info->base_checksum);
-
-          info->final_sha1_checksum =
-            svn_xml_get_attr_value("sha1-checksum", attrs);
-          if (info->final_sha1_checksum)
-            info->final_sha1_checksum = apr_pstrdup(info->pool,
-                                                    info->final_sha1_checksum);
-
-          info->fetch_file = TRUE;
-        }
-      else if (strcmp(name.name, "set-prop") == 0 ||
-               strcmp(name.name, "remove-prop") == 0)
-        {
-          const char *full_prop_name;
-          const char *colon;
-
-          info = push_state(parser, ctx, PROP);
-
-          full_prop_name = svn_xml_get_attr_value("name", attrs);
-          if (!full_prop_name)
-            {
-              return svn_error_createf(SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-                                       _("Missing name attr in %s element"),
-                                       name.name);
-            }
-          colon = strchr(full_prop_name, ':');
-
-          if (colon)
-            colon++;
-          else
-            colon = full_prop_name;
-
-          info->prop_ns = apr_pstrmemdup(info->dir->pool, full_prop_name,
-                                         colon - full_prop_name);
-          info->prop_name = apr_pstrdup(parser->state->pool, colon);
-          info->prop_encoding = svn_xml_get_attr_value("encoding", attrs);
-          svn_stringbuf_setempty(info->prop_value);
-        }
-      else if (strcmp(name.name, "txdelta") == 0)
-        {
-          /* Pre 1.2, mod_dav_svn was using <txdelta> tags (in
-             addition to <fetch-file>s and such) when *not* in
-             "send-all" mode.  As a client, we're smart enough to know
-             that's wrong, so we'll just ignore these tags. */
-          if (ctx->send_all_mode)
-            {
-              const svn_delta_editor_t *update_editor = ctx->update_editor;
-
-              info = push_state(parser, ctx, TXDELTA);
-
-              if (! info->file_baton)
-                {
-                  SVN_ERR(open_updated_file(info, FALSE, info->pool));
-                }
-
-              info->base_checksum = svn_xml_get_attr_value("base-checksum",
-                                                           attrs);
-              SVN_ERR(update_editor->apply_textdelta(info->file_baton,
-                                                     info->base_checksum,
-                                                     info->editor_pool,
-                                                     &info->textdelta,
-                                                     &info->textdelta_baton));
-              info->svndiff_decoder = svn_txdelta_parse_svndiff(
-                                          info->textdelta,
-                                          info->textdelta_baton,
-                                          TRUE, info->pool);
-              info->base64_decoder = svn_base64_decode(info->svndiff_decoder,
-                                                       info->pool);
-            }
-        }
-      else
-        {
-          return svn_error_createf(SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-                                   _("Unknown tag '%s' while at state %d"),
-                                   name.name, state);
-        }
-    }
-  else if (state == IGNORE_PROP_NAME)
-    {
-      report_info_t *info = push_state(parser, ctx, PROP);
-      info->prop_encoding = svn_xml_get_attr_value("encoding", attrs);
-    }
-  else if (state == NEED_PROP_NAME)
-    {
-      report_info_t *info;
-
-      info = push_state(parser, ctx, PROP);
-
-      info->prop_ns = name.namespace;
-      info->prop_name = apr_pstrdup(parser->state->pool, name.name);
-      info->prop_encoding = svn_xml_get_attr_value("encoding", attrs);
-      svn_stringbuf_setempty(info->prop_value);
-    }
-
-  return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-end_report(svn_ra_serf__xml_parser_t *parser,
-           svn_ra_serf__dav_props_t name,
-           apr_pool_t *scratch_pool)
-{
-  report_context_t *ctx = parser->user_data;
-  report_state_e state;
-
-  state = parser->state->current_state;
-
-  if (state == NONE)
-    {
-      if (strcmp(name.name, "update-report") == 0)
-        {
-          ctx->report_completed = TRUE;
-        }
-      else
-        {
-          /* nothing to close yet. */
-          return SVN_NO_ERROR;
-        }
-    }
-
-  if (((state == OPEN_DIR && (strcmp(name.name, "open-directory") == 0)) ||
-       (state == ADD_DIR && (strcmp(name.name, "add-directory") == 0))))
-    {
-      const char *checked_in_url;
-      report_info_t *info = parser->state->private;
-
-      /* We've now closed this directory; note it. */
-      info->dir->tag_closed = TRUE;
-
-      /* go fetch info->file_name from DAV:checked-in */
-      checked_in_url =
-          svn_ra_serf__get_ver_prop(info->dir->props, info->base_name,
-                                    info->base_rev, "DAV:", "checked-in");
-
-      /* If we were expecting to have the properties and we aren't able to
-       * get it, bail.
-       */
-      if (!checked_in_url &&
-          (!SVN_IS_VALID_REVNUM(info->dir->base_rev) || info->dir->fetch_props))
-        {
-          return svn_error_create(SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-                                  _("The REPORT or PROPFIND response did not "
-                                    "include the requested checked-in value"));
-        }
-
-      info->dir->url = checked_in_url;
-
-      /* At this point, we should have the checked-in href.
-       * If needed, create the PROPFIND to retrieve the dir's properties.
-       */
-      if (info->dir->fetch_props)
-        {
-          svn_ra_serf__list_t *list_item;
-
-          SVN_ERR(svn_ra_serf__deliver_props(&info->dir->propfind_handler,
-                                             info->dir->props, ctx->sess,
-                                             get_best_connection(ctx),
-                                             info->dir->url,
-                                             ctx->target_rev, "0",
-                                             all_props,
-                                             &ctx->done_dir_propfinds,
-                                             info->dir->pool));
-          SVN_ERR_ASSERT(info->dir->propfind_handler);
-
-          /* Create a serf request for the PROPFIND.  */
-          svn_ra_serf__request_create(info->dir->propfind_handler);
-
-          ctx->num_active_propfinds++;
-
-          list_item = apr_pcalloc(info->dir->pool, sizeof(*list_item));
-          list_item->data = info->dir;
-          list_item->next = ctx->active_dir_propfinds;
-          ctx->active_dir_propfinds = list_item;
-
-          if (ctx->num_active_fetches + ctx->num_active_propfinds
-              > REQUEST_COUNT_TO_PAUSE)
-            ctx->parser_ctx->paused = TRUE;
-        }
-      else
-        {
-          info->dir->propfind_handler = NULL;
-        }
-
-      /* See if this directory (and perhaps even parents of that) can
-         be closed now.  This is likely to be the case only if we
-         didn't need to contact the server for supplemental
-         information required to handle any of this directory's
-         children.  */
-      SVN_ERR(maybe_close_dir_chain(info->dir));
-      svn_ra_serf__xml_pop_state(parser);
-    }
-  else if (state == OPEN_FILE && strcmp(name.name, "open-file") == 0)
-    {
-      report_info_t *info = parser->state->private;
-
-      /* Expand our full name now if we haven't done so yet. */
-      if (!info->name)
-        {
-          info->name = svn_relpath_join(info->dir->name, info->base_name,
-                                        info->pool);
-        }
-
-      if (info->lock_token && !info->fetch_props)
-        info->fetch_props = TRUE;
-
-      /* If possible, we'd like to fetch only a delta against a
-       * version of the file we already have in our working copy,
-       * rather than fetching a fulltext.
-       *
-       * In HTTP v2, we can simply construct the URL we need given the
-       * repos_relpath and base revision number.
-       */
-      if (SVN_RA_SERF__HAVE_HTTPV2_SUPPORT(ctx->sess))
-        {
-          const char *repos_relpath;
-
-          /* If this file is switched vs the editor root we should provide
-             its real url instead of the one calculated from the session root.
-           */
-          repos_relpath = svn_hash_gets(ctx->switched_paths, info->name);
-
-          if (!repos_relpath)
-            {
-              if (ctx->root_is_switched)
-                {
-                  /* We are updating a direct target (most likely a file)
-                     that is switched vs its parent url */
-                  SVN_ERR_ASSERT(*svn_relpath_dirname(info->name, info->pool)
-                                    == '\0');
-
-                  repos_relpath = svn_hash_gets(ctx->switched_paths, "");
-                }
-              else
-                repos_relpath = svn_relpath_join(info->dir->repos_relpath,
-                                                 info->base_name, info->pool);
-            }
-
-          info->delta_base = apr_psprintf(info->pool, "%s/%ld/%s",
-                                          ctx->sess->rev_root_stub,
-                                          info->base_rev,
-                                          svn_path_uri_encode(repos_relpath,
-                                                              info->pool));
-        }
-      else if (ctx->sess->wc_callbacks->get_wc_prop)
-        {
-          /* If we have a WC, we might be able to dive all the way into the WC
-           * to get the previous URL so we can do a differential GET with the
-           * base URL.
-           */
-          const svn_string_t *value = NULL;
-          SVN_ERR(ctx->sess->wc_callbacks->get_wc_prop(
-            ctx->sess->wc_callback_baton, info->name,
-            SVN_RA_SERF__WC_CHECKED_IN_URL, &value, info->pool));
-
-          info->delta_base = value ? value->data : NULL;
-        }
-
-      /* go fetch info->name from DAV:checked-in */
-      info->url = svn_ra_serf__get_ver_prop(info->props, info->base_name,
-                                            info->base_rev, "DAV:", "checked-in");
-      if (!info->url)
-        {
-          return svn_error_create(SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-                                  _("The REPORT or PROPFIND response did not "
-                                    "include the requested checked-in value"));
-        }
-
-      /* If the server is in "send-all" mode, we might have opened the
-         file when we started seeing content for it.  If we didn't get
-         any content for it, we still need to open the file.  But in
-         any case, we can then immediately close it.  */
-      if (ctx->send_all_mode)
-        {
-          if (! info->file_baton)
-            {
-              SVN_ERR(open_updated_file(info, FALSE, info->pool));
-            }
-          SVN_ERR(close_updated_file(info, info->pool));
-          info->dir->ref_count--;
-        }
-      /* Otherwise, if the server is *not* in "send-all" mode, we
-         should be at a point where we can queue up any auxiliary
-         content-fetching requests.  */
-      else
-        {
-          SVN_ERR(fetch_file(ctx, info));
-        }
-
-      svn_ra_serf__xml_pop_state(parser);
-    }
-  else if (state == ADD_FILE && strcmp(name.name, "add-file") == 0)
-    {
-      report_info_t *info = parser->state->private;
-
-      /* go fetch info->name from DAV:checked-in */
-      info->url = svn_ra_serf__get_ver_prop(info->props, info->base_name,
-                                            info->base_rev, "DAV:", "checked-in");
-      if (!info->url)
-        {
-          return svn_error_create(SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-                                  _("The REPORT or PROPFIND response did not "
-                                    "include the requested checked-in value"));
-        }
-
-      /* If the server is in "send-all" mode, we might have opened the
-         file when we started seeing content for it.  If we didn't get
-         any content for it, we still need to open the file.  But in
-         any case, we can then immediately close it.  */
-      if (ctx->send_all_mode)
-        {
-          if (! info->file_baton)
-            {
-              SVN_ERR(open_updated_file(info, FALSE, info->pool));
-            }
-          SVN_ERR(close_updated_file(info, info->pool));
-          info->dir->ref_count--;
-        }
-      /* Otherwise, if the server is *not* in "send-all" mode, we
-         should be at a point where we can queue up any auxiliary
-         content-fetching requests.  */
-      else
-        {
-          SVN_ERR(fetch_file(ctx, info));
-        }
-
-      svn_ra_serf__xml_pop_state(parser);
-    }
-  else if (state == TXDELTA && strcmp(name.name, "txdelta") == 0)
-    {
-      report_info_t *info = parser->state->private;
-
-      /* Pre 1.2, mod_dav_svn was using <txdelta> tags (in addition to
-         <fetch-file>s and such) when *not* in "send-all" mode.  As a
-         client, we're smart enough to know that's wrong, so when not
-         in "receiving-all" mode, we'll ignore these tags. */
-      if (ctx->send_all_mode)
-        {
-          SVN_ERR(svn_stream_close(info->base64_decoder));
-        }
-
-      svn_ra_serf__xml_pop_state(parser);
-    }
-  else if (state == PROP)
-    {
-      /* We need to move the prop_ns, prop_name, and prop_value into the
-       * same lifetime as the dir->pool.
-       */
-      svn_ra_serf__ns_t *ns, *ns_name_match;
-      svn_boolean_t found = FALSE;
-      report_info_t *info;
-      report_dir_t *dir;
-      apr_hash_t *props;
-      const svn_string_t *set_val_str;
-      apr_pool_t *pool;
-
-      info = parser->state->private;
-      dir = info->dir;
-
-      /* We're going to be slightly tricky.  We don't care what the ->url
-       * field is here at this point.  So, we're going to stick a single
-       * copy of the property name inside of the ->url field.
-       */
-      ns_name_match = NULL;
-      for (ns = dir->ns_list; ns; ns = ns->next)
-        {
-          if (strcmp(ns->namespace, info->prop_ns) == 0)
-            {
-              ns_name_match = ns;
-              if (strcmp(ns->url, info->prop_name) == 0)
-                {
-                  found = TRUE;
-                  break;
-                }
-            }
-        }
-
-      if (!found)
-        {
-          ns = apr_palloc(dir->pool, sizeof(*ns));
-          if (!ns_name_match)
-            {
-              ns->namespace = apr_pstrdup(dir->pool, info->prop_ns);
-            }
-          else
-            {
-              ns->namespace = ns_name_match->namespace;
-            }
-          ns->url = apr_pstrdup(dir->pool, info->prop_name);
-
-          ns->next = dir->ns_list;
-          dir->ns_list = ns;
-        }
-
-      if (strcmp(name.name, "remove-prop") != 0)
-        {
-          props = info->props;
-          pool = info->pool;
-        }
-      else
-        {
-          props = dir->removed_props;
-          pool = dir->pool;
-          svn_stringbuf_setempty(info->prop_value);
-        }
-
-      if (info->prop_encoding)
-        {
-          if (strcmp(info->prop_encoding, "base64") == 0)
-            {
-              svn_string_t tmp;
-
-              /* Don't use morph_info_string cuz we need prop_value to
-                 remain usable.  */
-              tmp.data = info->prop_value->data;
-              tmp.len = info->prop_value->len;
-
-              set_val_str = svn_base64_decode_string(&tmp, pool);
-            }
-          else
-            {
-              return svn_error_createf(SVN_ERR_RA_DAV_MALFORMED_DATA,
-                                       NULL,
-                                       _("Got unrecognized encoding '%s'"),
-                                       info->prop_encoding);
-            }
-        }
-      else
-        {
-          set_val_str = svn_string_create_from_buf(info->prop_value, pool);
-        }
-
-      svn_ra_serf__set_ver_prop(props, info->base_name, info->base_rev,
-                                ns->namespace, ns->url, set_val_str, pool);
-
-      /* Advance handling:  if we spotted the md5-checksum property on
-         the wire, remember it's value. */
-      if (strcmp(ns->url, "md5-checksum") == 0
-          && strcmp(ns->namespace, SVN_DAV_PROP_NS_DAV) == 0)
-        info->final_checksum = apr_pstrdup(info->pool, set_val_str->data);
-
-      svn_ra_serf__xml_pop_state(parser);
-    }
-  else if (state == IGNORE_PROP_NAME || state == NEED_PROP_NAME)
-    {
-      svn_ra_serf__xml_pop_state(parser);
-    }
-
-  return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-cdata_report(svn_ra_serf__xml_parser_t *parser,
-             const char *data,
-             apr_size_t len,
-             apr_pool_t *scratch_pool)
-{
-  report_context_t *ctx = parser->user_data;
-
-  UNUSED_CTX(ctx);
-
-  if (parser->state->current_state == PROP)
-    {
-      report_info_t *info = parser->state->private;
-
-      svn_stringbuf_appendbytes(info->prop_value, data, len);
-    }
-  else if (parser->state->current_state == TXDELTA)
-    {
-      /* Pre 1.2, mod_dav_svn was using <txdelta> tags (in addition to
-         <fetch-file>s and such) when *not* in "send-all" mode.  As a
-         client, we're smart enough to know that's wrong, so when not
-         in "receiving-all" mode, we'll ignore these tags. */
-      if (ctx->send_all_mode)
-        {
-          apr_size_t nlen = len;
-          report_info_t *info = parser->state->private;
-
-          SVN_ERR(svn_stream_write(info->base64_decoder, data, &nlen));
-          if (nlen != len)
-            {
-              /* Short write without associated error?  "Can't happen." */
-              return svn_error_createf(SVN_ERR_STREAM_UNEXPECTED_EOF, NULL,
-                                       _("Error writing to '%s': unexpected EOF"),
-                                       info->name);
-            }
-        }
-    }
-
-  return SVN_NO_ERROR;
-}
-
-
-/** Editor callbacks given to callers to create request body */
-
-/* Helper to create simple xml tag without attributes. */
-static void
-make_simple_xml_tag(svn_stringbuf_t **buf_p,
-                    const char *tagname,
-                    const char *cdata,
-                    apr_pool_t *pool)
-{
-  svn_xml_make_open_tag(buf_p, pool, svn_xml_protect_pcdata, tagname, NULL);
-  svn_xml_escape_cdata_cstring(buf_p, cdata, pool);
-  svn_xml_make_close_tag(buf_p, pool, tagname);
-}
-
-static svn_error_t *
-set_path(void *report_baton,
-         const char *path,
-         svn_revnum_t revision,
-         svn_depth_t depth,
-         svn_boolean_t start_empty,
-         const char *lock_token,
-         apr_pool_t *pool)
-{
-  report_context_t *report = report_baton;
-  svn_stringbuf_t *buf = NULL;
-
-  svn_xml_make_open_tag(&buf, pool, svn_xml_protect_pcdata, "S:entry",
-                        "rev", apr_ltoa(pool, revision),
-                        "lock-token", lock_token,
-                        "depth", svn_depth_to_word(depth),
-                        "start-empty", start_empty ? "true" : NULL,
-                        NULL);
-  svn_xml_escape_cdata_cstring(&buf, path, pool);
-  svn_xml_make_close_tag(&buf, pool, "S:entry");
-
-  SVN_ERR(svn_io_file_write_full(report->body_file, buf->data, buf->len,
-                                 NULL, pool));
-
-  return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-delete_path(void *report_baton,
-            const char *path,
-            apr_pool_t *pool)
-{
-  report_context_t *report = report_baton;
-  svn_stringbuf_t *buf = NULL;
-
-  make_simple_xml_tag(&buf, "S:missing", path, pool);
-
-  SVN_ERR(svn_io_file_write_full(report->body_file, buf->data, buf->len,
-                                 NULL, pool));
-
-  return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-link_path(void *report_baton,
-          const char *path,
-          const char *url,
-          svn_revnum_t revision,
-          svn_depth_t depth,
-          svn_boolean_t start_empty,
-          const char *lock_token,
-          apr_pool_t *pool)
-{
-  report_context_t *report = report_baton;
-  const char *link, *report_target;
-  apr_uri_t uri;
-  apr_status_t status;
-  svn_stringbuf_t *buf = NULL;
-
-  /* We need to pass in the baseline relative path.
-   *
-   * TODO Confirm that it's on the same server?
-   */
-  status = apr_uri_parse(pool, url, &uri);
-  if (status)
-    {
-      return svn_error_createf(SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
-                               _("Unable to parse URL '%s'"), url);
-    }
-
-  SVN_ERR(svn_ra_serf__report_resource(&report_target, report->sess,
-                                       NULL, pool));
-  SVN_ERR(svn_ra_serf__get_relative_path(&link, uri.path, report->sess,
-                                         NULL, pool));
-
-  link = apr_pstrcat(pool, "/", link, (char *)NULL);
-
-  svn_xml_make_open_tag(&buf, pool, svn_xml_protect_pcdata, "S:entry",
-                        "rev", apr_ltoa(pool, revision),
-                        "lock-token", lock_token,
-                        "depth", svn_depth_to_word(depth),
-                        "linkpath", link,
-                        "start-empty", start_empty ? "true" : NULL,
-                        NULL);
-  svn_xml_escape_cdata_cstring(&buf, path, pool);
-  svn_xml_make_close_tag(&buf, pool, "S:entry");
-
-  SVN_ERR(svn_io_file_write_full(report->body_file, buf->data, buf->len,
-                                 NULL, pool));
-
-  /* Store the switch roots to allow generating repos_relpaths from just
-     the working copy paths. (Needed for HTTPv2) */
-  path = apr_pstrdup(report->pool, path);
-  svn_hash_sets(report->switched_paths,
-                path, apr_pstrdup(report->pool, link + 1));
-
-  if (!*path)
-    report->root_is_switched = TRUE;
-
-  return APR_SUCCESS;
 }
 
 /** Minimum nr. of outstanding requests needed before a new connection is
@@ -2692,20 +729,1608 @@ open_connection_if_needed(svn_ra_serf__session_t *sess, int num_active_reqs)
   return SVN_NO_ERROR;
 }
 
-/* Serf callback to create update request body bucket. */
+/* Returns best connection for fetching files/properties. */
+static svn_ra_serf__connection_t *
+get_best_connection(report_context_t *ctx)
+{
+  svn_ra_serf__connection_t *conn;
+  int first_conn = 1;
+
+  /* Skip the first connection if the REPORT response hasn't been completely
+     received yet or if we're being told to limit our connections to
+     2 (because this could be an attempt to ensure that we do all our
+     auxiliary GETs/PROPFINDs on a single connection).
+
+     ### FIXME: This latter requirement (max_connections > 2) is
+     ### really just a hack to work around the fact that some update
+     ### editor implementations (such as svnrdump's dump editor)
+     ### simply can't handle the way ra_serf violates the editor v1
+     ### drive ordering requirements.
+     ###
+     ### See http://subversion.tigris.org/issues/show_bug.cgi?id=4116.
+  */
+  if (ctx->report_received && (ctx->sess->max_connections > 2))
+    first_conn = 0;
+
+  /* If there's only one available auxiliary connection to use, don't bother
+     doing all the cur_conn math -- just return that one connection.  */
+  if (ctx->sess->num_conns - first_conn == 1)
+    {
+      conn = ctx->sess->conns[first_conn];
+    }
+  else
+    {
+#if SERF_VERSION_AT_LEAST(1, 4, 0)
+      /* Often one connection is slower than others, e.g. because the server
+         process/thread has to do more work for the particular set of requests.
+         In the worst case, when REQUEST_COUNT_TO_RESUME requests are queued
+         on such a slow connection, ra_serf will completely stop sending
+         requests.
+
+         The method used here selects the connection with the least amount of
+         pending requests, thereby giving more work to lightly loaded server
+         processes.
+       */
+      int i, best_conn = first_conn;
+      unsigned int min = INT_MAX;
+      for (i = first_conn; i < ctx->sess->num_conns; i++)
+        {
+          serf_connection_t *sc = ctx->sess->conns[i]->conn;
+          unsigned int pending = serf_connection_pending_requests(sc);
+          if (pending < min)
+            {
+              min = pending;
+              best_conn = i;
+            }
+        }
+      conn = ctx->sess->conns[best_conn];
+#else
+    /* We don't know how many requests are pending per connection, so just
+       cycle them. */
+      conn = ctx->sess->conns[ctx->sess->cur_conn];
+      ctx->sess->cur_conn++;
+      if (ctx->sess->cur_conn >= ctx->sess->num_conns)
+        ctx->sess->cur_conn = first_conn;
+#endif
+    }
+  return conn;
+}
+
+/** Helpers to open and close directories */
+
+static svn_error_t*
+ensure_dir_opened(dir_baton_t *dir,
+                  apr_pool_t *scratch_pool)
+{
+  report_context_t *ctx = dir->ctx;
+
+  if (dir->dir_opened)
+    return SVN_NO_ERROR;
+
+  if (dir->base_name[0] == '\0')
+    {
+      if (ctx->destination
+          && ctx->sess->wc_callbacks->invalidate_wc_props)
+        {
+          SVN_ERR(ctx->sess->wc_callbacks->invalidate_wc_props(
+                      ctx->sess->wc_callback_baton,
+                      ctx->update_target,
+                      SVN_RA_SERF__WC_CHECKED_IN_URL, scratch_pool));
+        }
+
+      SVN_ERR(ctx->editor->open_root(ctx->editor_baton, dir->base_rev,
+                                     dir->pool,
+                                     &dir->dir_baton));
+    }
+  else
+    {
+      SVN_ERR(ensure_dir_opened(dir->parent_dir, scratch_pool));
+
+      if (SVN_IS_VALID_REVNUM(dir->base_rev))
+        {
+          SVN_ERR(ctx->editor->open_directory(dir->relpath,
+                                              dir->parent_dir->dir_baton,
+                                              dir->base_rev,
+                                              dir->pool,
+                                              &dir->dir_baton));
+        }
+      else
+        {
+          SVN_ERR(ctx->editor->add_directory(dir->relpath,
+                                             dir->parent_dir->dir_baton,
+                                             dir->copyfrom_path,
+                                             dir->copyfrom_rev,
+                                             dir->pool,
+                                             &dir->dir_baton));
+        }
+    }
+
+  dir->dir_opened = TRUE;
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+maybe_close_dir(dir_baton_t *dir)
+{
+  apr_pool_t *scratch_pool = dir->pool;
+  dir_baton_t *parent = dir->parent_dir;
+  report_context_t *ctx = dir->ctx;
+
+  if (--dir->ref_count)
+    {
+      return SVN_NO_ERROR;
+    }
+
+  SVN_ERR(ensure_dir_opened(dir, dir->pool));
+
+  if (dir->remove_props)
+    {
+      apr_hash_index_t *hi;
+
+      for (hi = apr_hash_first(scratch_pool, dir->remove_props);
+           hi;
+           hi = apr_hash_next(hi))
+        {
+          SVN_ERR(ctx->editor->change_file_prop(dir->dir_baton,
+                                                apr_hash_this_key(hi),
+                                                NULL /* value */,
+                                                scratch_pool));
+        }
+    }
+
+  SVN_ERR(dir->ctx->editor->close_directory(dir->dir_baton, scratch_pool));
+
+  svn_pool_destroy(dir->pool /* scratch_pool */);
+
+  if (parent)
+    return svn_error_trace(maybe_close_dir(parent));
+  else
+    return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+ensure_file_opened(file_baton_t *file,
+                   apr_pool_t *scratch_pool)
+{
+  const svn_delta_editor_t *editor = file->parent_dir->ctx->editor;
+
+  if (file->file_opened)
+    return SVN_NO_ERROR;
+
+  /* Ensure our parent is open. */
+  SVN_ERR(ensure_dir_opened(file->parent_dir, scratch_pool));
+
+  /* Open (or add) the file. */
+  if (SVN_IS_VALID_REVNUM(file->base_rev))
+    {
+      SVN_ERR(editor->open_file(file->relpath,
+                                file->parent_dir->dir_baton,
+                                file->base_rev,
+                                file->pool,
+                                &file->file_baton));
+    }
+  else
+    {
+      SVN_ERR(editor->add_file(file->relpath,
+                               file->parent_dir->dir_baton,
+                               file->copyfrom_path,
+                               file->copyfrom_rev,
+                               file->pool,
+                               &file->file_baton));
+    }
+
+  file->file_opened = TRUE;
+
+  return SVN_NO_ERROR;
+}
+
+
+/** Routines called when we are fetching a file */
+
+static svn_error_t *
+headers_fetch(serf_bucket_t *headers,
+              void *baton,
+              apr_pool_t *pool /* request pool */,
+              apr_pool_t *scratch_pool)
+{
+  fetch_ctx_t *fetch_ctx = baton;
+
+  /* note that we have old VC URL */
+  if (fetch_ctx->delta_base)
+    {
+      serf_bucket_headers_setn(headers, SVN_DAV_DELTA_BASE_HEADER,
+                               fetch_ctx->delta_base);
+      serf_bucket_headers_setn(headers, "Accept-Encoding",
+                               "svndiff1;q=0.9,svndiff;q=0.8");
+    }
+  else if (fetch_ctx->using_compression)
+    {
+      serf_bucket_headers_setn(headers, "Accept-Encoding", "gzip");
+    }
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+cancel_fetch(serf_request_t *request,
+             serf_bucket_t *response,
+             int status_code,
+             void *baton)
+{
+  fetch_ctx_t *fetch_ctx = baton;
+
+  /* Uh-oh.  Our connection died on us.
+   *
+   * The core ra_serf layer will requeue our request - we just need to note
+   * that we got cut off in the middle of our song.
+   */
+  if (!response)
+    {
+      /* If we already started the fetch and opened the file handle, we need
+       * to hold subsequent read() ops until we get back to where we were
+       * before the close and we can then resume the textdelta() calls.
+       */
+      if (fetch_ctx->read_headers)
+        {
+          if (!fetch_ctx->aborted_read && fetch_ctx->read_size)
+            {
+              fetch_ctx->aborted_read = TRUE;
+              fetch_ctx->aborted_read_size = fetch_ctx->read_size;
+            }
+          fetch_ctx->read_size = 0;
+        }
+
+      return SVN_NO_ERROR;
+    }
+
+  /* We have no idea what went wrong. */
+  SVN_ERR_MALFUNCTION();
+}
+
+/* Wield the editor referenced by INFO to open (or add) the file
+   file also associated with INFO, setting properties on the file and
+   calling the editor's apply_textdelta() function on it if necessary
+   (or if FORCE_APPLY_TEXTDELTA is set).
+
+   Callers will probably want to also see the function that serves
+   the opposite purpose of this one, close_updated_file().  */
+static svn_error_t *
+open_file_txdelta(file_baton_t *file,
+                  apr_pool_t *scratch_pool)
+{
+  const svn_delta_editor_t *editor = file->parent_dir->ctx->editor;
+
+  SVN_ERR_ASSERT(file->txdelta == NULL);
+
+  SVN_ERR(ensure_file_opened(file, scratch_pool));
+
+  /* Get (maybe) a textdelta window handler for transmitting file
+     content changes. */
+  SVN_ERR(editor->apply_textdelta(file->file_baton,
+                                  svn_checksum_to_cstring(
+                                                  file->base_md5_checksum,
+                                                  scratch_pool),
+                                  file->pool,
+                                  &file->txdelta,
+                                  &file->txdelta_baton));
+
+  return SVN_NO_ERROR;
+}
+
+/* Close the file, handling loose ends and cleanup */
+static svn_error_t *
+close_file(file_baton_t *file,
+           apr_pool_t *scratch_pool)
+{
+  dir_baton_t *parent_dir = file->parent_dir;
+  report_context_t *ctx = parent_dir->ctx;
+
+  SVN_ERR(ensure_file_opened(file, scratch_pool));
+
+  /* Set all of the properties we received */
+  if (file->remove_props)
+    {
+      apr_hash_index_t *hi;
+
+      for (hi = apr_hash_first(scratch_pool, file->remove_props);
+           hi;
+           hi = apr_hash_next(hi))
+        {
+          SVN_ERR(ctx->editor->change_file_prop(file->file_baton,
+                                                apr_hash_this_key(hi),
+                                                NULL /* value */,
+                                                scratch_pool));
+        }
+    }
+
+  /* Check for lock information. */
+
+  /* This works around a bug in some older versions of mod_dav_svn in that it
+   * will not send remove-prop in the update report when a lock property
+   * disappears when send-all is false.
+
+   ### Given that we only fetch props on additions, is this really necessary?
+       Or is it covering up old local copy bugs where we copied locks to other
+       paths? */
+  if (!ctx->add_props_included
+      && file->lock_token && !file->found_lock_prop
+      && SVN_IS_VALID_REVNUM(file->base_rev) /* file_is_added */)
+    {
+      SVN_ERR(ctx->editor->change_file_prop(file->file_baton,
+                                            SVN_PROP_ENTRY_LOCK_TOKEN,
+                                            NULL,
+                                            scratch_pool));
+    }
+
+  if (file->url)
+    {
+      SVN_ERR(ctx->editor->change_file_prop(file->file_baton,
+                                            SVN_RA_SERF__WC_CHECKED_IN_URL,
+                                            svn_string_create(file->url,
+                                                              scratch_pool),
+                                            scratch_pool));
+    }
+
+  /* Close the file via the editor. */
+  SVN_ERR(ctx->editor->close_file(file->file_baton,
+                                  svn_checksum_to_cstring(
+                                        file->final_md5_checksum,
+                                        scratch_pool),
+                                  scratch_pool));
+
+  svn_pool_destroy(file->pool);
+
+  SVN_ERR(maybe_close_dir(parent_dir)); /* Remove reference */
+
+  return SVN_NO_ERROR;
+}
+
+/* Implements svn_ra_serf__response_handler_t */
+static svn_error_t *
+handle_fetch(serf_request_t *request,
+             serf_bucket_t *response,
+             void *handler_baton,
+             apr_pool_t *pool)
+{
+  const char *data;
+  apr_size_t len;
+  apr_status_t status;
+  fetch_ctx_t *fetch_ctx = handler_baton;
+  file_baton_t *file = fetch_ctx->file;
+
+  /* ### new field. make sure we didn't miss some initialization.  */
+  SVN_ERR_ASSERT(fetch_ctx->handler != NULL);
+
+  if (!fetch_ctx->read_headers)
+    {
+      serf_bucket_t *hdrs;
+      const char *val;
+
+      /* If the error code wasn't 200, something went wrong. Don't use the
+       * returned data as its probably an error message. Just bail out instead.
+       */
+      if (fetch_ctx->handler->sline.code != 200)
+        {
+          fetch_ctx->handler->discard_body = TRUE;
+          return SVN_NO_ERROR; /* Will return an error in the DONE handler */
+        }
+
+      hdrs = serf_bucket_response_get_headers(response);
+      val = serf_bucket_headers_get(hdrs, "Content-Type");
+
+      if (val && svn_cstring_casecmp(val, SVN_SVNDIFF_MIME_TYPE) == 0)
+        {
+          fetch_ctx->result_stream =
+              svn_txdelta_parse_svndiff(file->txdelta,
+                                        file->txdelta_baton,
+                                        TRUE, file->pool);
+
+          /* Validate the delta base claimed by the server matches
+             what we asked for! */
+          val = serf_bucket_headers_get(hdrs, SVN_DAV_DELTA_BASE_HEADER);
+          if (val && fetch_ctx->delta_base == NULL)
+            {
+              /* We recieved response with delta base header while we didn't
+                 requested it -- report it as error. */
+              return svn_error_createf(SVN_ERR_RA_DAV_REQUEST_FAILED, NULL,
+                                       _("GET request returned unexpected "
+                                         "delta base: %s"), val);
+            }
+          else if (val && (strcmp(val, fetch_ctx->delta_base) != 0))
+            {
+              return svn_error_createf(SVN_ERR_RA_DAV_REQUEST_FAILED, NULL,
+                                       _("GET request returned unexpected "
+                                         "delta base: %s"), val);
+            }
+        }
+      else
+        {
+          fetch_ctx->result_stream = NULL;
+        }
+
+      fetch_ctx->read_headers = TRUE;
+    }
+
+  while (TRUE)
+    {
+      svn_txdelta_window_t delta_window = { 0 };
+      svn_txdelta_op_t delta_op;
+      svn_string_t window_data;
+
+      status = serf_bucket_read(response, 8000, &data, &len);
+      if (SERF_BUCKET_READ_ERROR(status))
+        {
+          return svn_ra_serf__wrap_err(status, NULL);
+        }
+
+      fetch_ctx->read_size += len;
+
+      if (fetch_ctx->aborted_read)
+        {
+          apr_off_t skip;
+          /* We haven't caught up to where we were before. */
+          if (fetch_ctx->read_size < fetch_ctx->aborted_read_size)
+            {
+              /* Eek.  What did the file shrink or something? */
+              if (APR_STATUS_IS_EOF(status))
+                {
+                  SVN_ERR_MALFUNCTION();
+                }
+
+              /* Skip on to the next iteration of this loop. */
+              if (status /* includes EAGAIN */)
+                return svn_ra_serf__wrap_err(status, NULL);
+
+              continue;
+            }
+
+          /* Woo-hoo.  We're back. */
+          fetch_ctx->aborted_read = FALSE;
+
+          /* Update data and len to just provide the new data. */
+          skip = len - (fetch_ctx->read_size - fetch_ctx->aborted_read_size);
+          data += skip;
+          len -= (apr_size_t)skip;
+        }
+
+      if (fetch_ctx->result_stream)
+        SVN_ERR(svn_stream_write(fetch_ctx->result_stream, data, &len));
+
+      /* otherwise, manually construct the text delta window. */
+      else if (len)
+        {
+          window_data.data = data;
+          window_data.len = len;
+
+          delta_op.action_code = svn_txdelta_new;
+          delta_op.offset = 0;
+          delta_op.length = len;
+
+          delta_window.tview_len = len;
+          delta_window.num_ops = 1;
+          delta_window.ops = &delta_op;
+          delta_window.new_data = &window_data;
+
+          /* write to the file located in the info. */
+          SVN_ERR(file->txdelta(&delta_window, file->txdelta_baton));
+        }
+
+      if (APR_STATUS_IS_EOF(status))
+        {
+          if (fetch_ctx->result_stream)
+            SVN_ERR(svn_stream_close(fetch_ctx->result_stream));
+          else
+            SVN_ERR(file->txdelta(NULL, file->txdelta_baton));
+        }
+
+      /* Report EOF, EEAGAIN and other special errors to serf */
+      if (status)
+        return svn_ra_serf__wrap_err(status, NULL);
+    }
+}
+
+/* --------------------------------------------------------- */
+
+/** Wrappers around our various property walkers **/
+
+/* Implements svn_ra_serf__prop_func */
+static svn_error_t *
+set_file_props(void *baton,
+               const char *path,
+               const char *ns,
+               const char *name,
+               const svn_string_t *val,
+               apr_pool_t *scratch_pool)
+{
+  file_baton_t *file = baton;
+  report_context_t *ctx = file->parent_dir->ctx;
+  const char *prop_name;
+
+  prop_name = svn_ra_serf__svnname_from_wirename(ns, name, scratch_pool);
+
+  if (!prop_name)
+    {
+      /* This works around a bug in some older versions of
+       * mod_dav_svn in that it will not send remove-prop in the update
+       * report when a lock property disappears when send-all is false.
+       *
+       * Therefore, we'll try to look at our properties and see if there's
+       * an active lock.  If not, then we'll assume there isn't a lock
+       * anymore.
+       */
+      /* assert(!ctx->add_props_included); // Or we wouldn't be here */
+      if (file->lock_token
+          && !file->found_lock_prop
+          && val
+          && strcmp(ns, "DAV:") == 0
+          && strcmp(name, "lockdiscovery") == 0)
+        {
+          char *new_lock;
+          new_lock = apr_pstrdup(scratch_pool, val->data);
+          apr_collapse_spaces(new_lock, new_lock);
+
+          if (new_lock[0] != '\0')
+            file->found_lock_prop = TRUE;
+        }
+
+      return SVN_NO_ERROR;
+    }
+
+  SVN_ERR(ensure_file_opened(file, scratch_pool));
+
+  SVN_ERR(ctx->editor->change_file_prop(file->file_baton,
+                                        prop_name, val,
+                                        scratch_pool));
+
+  return SVN_NO_ERROR;
+}
+
+/* Implements svn_ra_serf__response_done_delegate_t */
+static svn_error_t *
+file_props_done(serf_request_t *request,
+                void *baton,
+                apr_pool_t *scratch_pool)
+{
+  file_baton_t *file = baton;
+  svn_ra_serf__handler_t *handler = file->propfind_handler;
+
+  if (handler->server_error)
+      return svn_error_trace(svn_ra_serf__server_error_create(handler,
+                                                              scratch_pool));
+
+  if (handler->sline.code != 207)
+    return svn_error_trace(svn_ra_serf__unexpected_status(handler));
+
+  file->parent_dir->ctx->num_active_propfinds--;
+
+  file->fetch_props = FALSE;
+
+  if (file->fetch_file)
+    return SVN_NO_ERROR; /* Still processing file request */
+
+  /* Closing the file will automatically deliver the propfind props.
+   *
+   * Note that closing the directory may dispose the pool containing the
+   * handler, which is only a valid operation in this callback, as only
+   * after this callback our serf plumbing assumes the request is done. */
+
+  return svn_error_trace(close_file(file, scratch_pool));
+}
+
+static svn_error_t *
+file_fetch_done(serf_request_t *request,
+                void *baton,
+                apr_pool_t *scratch_pool)
+{
+  fetch_ctx_t *fetch_ctx = baton;
+  file_baton_t *file = fetch_ctx->file;
+  svn_ra_serf__handler_t *handler = fetch_ctx->handler;
+
+  if (handler->server_error)
+      return svn_error_trace(svn_ra_serf__server_error_create(handler,
+                                                              scratch_pool));
+
+  if (handler->sline.code != 200)
+    return svn_error_trace(svn_ra_serf__unexpected_status(handler));
+
+  file->parent_dir->ctx->num_active_fetches--;
+
+  file->fetch_file = FALSE;
+
+  if (file->fetch_props)
+    return SVN_NO_ERROR; /* Still processing PROPFIND request */
+
+  /* Closing the file will automatically deliver the propfind props.
+   *
+   * Note that closing the directory may dispose the pool containing the
+   * handler, fetch_ctx, etc. which is only a valid operation in this
+   * callback, as only after this callback our serf plumbing assumes the
+   * request is done. */
+  return svn_error_trace(close_file(file, scratch_pool));
+}
+
+/* Initiates additional requests needed for a file when not in "send-all" mode.
+ */
+static svn_error_t *
+fetch_for_file(file_baton_t *file,
+               apr_pool_t *scratch_pool)
+{
+  report_context_t *ctx = file->parent_dir->ctx;
+  svn_ra_serf__connection_t *conn;
+  svn_ra_serf__handler_t *handler;
+
+  /* Open extra connections if we have enough requests to send. */
+  if (ctx->sess->num_conns < ctx->sess->max_connections)
+    SVN_ERR(open_connection_if_needed(ctx->sess, ctx->num_active_fetches +
+                                                 ctx->num_active_propfinds));
+
+  /* What connection should we go on? */
+  conn = get_best_connection(ctx);
+
+  /* Note that we (still) use conn for both requests.. Should we send
+     them out on different connections? */
+
+  if (file->fetch_file)
+    {
+      SVN_ERR(open_file_txdelta(file, scratch_pool));
+
+      if (!ctx->text_deltas
+          || file->txdelta == svn_delta_noop_window_handler)
+        {
+          SVN_ERR(file->txdelta(NULL, file->txdelta_baton));
+          file->fetch_file = FALSE;
+        }
+
+      if (file->fetch_file
+          && file->final_sha1_checksum
+          && ctx->sess->wc_callbacks->get_wc_contents)
+        {
+          svn_error_t *err;
+          svn_stream_t *cached_contents = NULL;
+
+          err = ctx->sess->wc_callbacks->get_wc_contents(
+                                                ctx->sess->wc_callback_baton,
+                                                &cached_contents,
+                                                file->final_sha1_checksum,
+                                                scratch_pool);
+
+          if (err || !cached_contents)
+            svn_error_clear(err); /* ### Can we return some/most errors? */
+          else
+            {
+              /* ### For debugging purposes we could validate the md5 here,
+                     but our implementations in libsvn_client already do that
+                     for us... */
+              SVN_ERR(svn_txdelta_send_stream(cached_contents,
+                                              file->txdelta,
+                                              file->txdelta_baton,
+                                              NULL, scratch_pool));
+              SVN_ERR(svn_stream_close(cached_contents));
+              file->fetch_file = FALSE;
+            }
+        }
+
+      if (file->fetch_file)
+        {
+          fetch_ctx_t *fetch_ctx;
+
+          /* Let's fetch the file with a GET request... */
+          SVN_ERR_ASSERT(file->url && file->repos_relpath);
+
+          /* Otherwise, we use a GET request for the file's contents. */
+
+          fetch_ctx = apr_pcalloc(file->pool, sizeof(*fetch_ctx));
+          fetch_ctx->file = file;
+          fetch_ctx->using_compression = ctx->sess->using_compression;
+
+          /* Can we somehow get away with just obtaining a DIFF? */
+          if (SVN_RA_SERF__HAVE_HTTPV2_SUPPORT(ctx->sess))
+            {
+              /* If this file is switched vs the editor root we should provide
+                 its real url instead of the one calculated from the session root.
+              */
+              if (SVN_IS_VALID_REVNUM(file->base_rev))
+                {
+                  fetch_ctx->delta_base = apr_psprintf(file->pool, "%s/%ld/%s",
+                                                       ctx->sess->rev_root_stub,
+                                                       file->base_rev,
+                                                       svn_path_uri_encode(
+                                                          file->repos_relpath,
+                                                          scratch_pool));
+                }
+              else if (file->copyfrom_path)
+                {
+                  SVN_ERR_ASSERT(SVN_IS_VALID_REVNUM(file->copyfrom_rev));
+
+                  fetch_ctx->delta_base = apr_psprintf(file->pool, "%s/%ld/%s",
+                                                       ctx->sess->rev_root_stub,
+                                                       file->copyfrom_rev,
+                                                       svn_path_uri_encode(
+                                                          file->copyfrom_path+1,
+                                                          scratch_pool));
+                }
+            }
+          else if (ctx->sess->wc_callbacks->get_wc_prop)
+            {
+              /* If we have a WC, we might be able to dive all the way into the WC
+              * to get the previous URL so we can do a differential GET with the
+              * base URL.
+              */
+              const svn_string_t *value = NULL;
+              SVN_ERR(ctx->sess->wc_callbacks->get_wc_prop(
+                                                ctx->sess->wc_callback_baton,
+                                                file->relpath,
+                                                SVN_RA_SERF__WC_CHECKED_IN_URL,
+                                                &value, scratch_pool));
+
+              fetch_ctx->delta_base = value
+                                        ? apr_pstrdup(file->pool, value->data)
+                                        : NULL;
+            }
+
+          handler = svn_ra_serf__create_handler(ctx->sess, file->pool);
+
+          handler->method = "GET";
+          handler->path = file->url;
+
+          handler->conn = conn; /* Explicit scheduling */
+
+          handler->custom_accept_encoding = TRUE;
+          handler->no_dav_headers = TRUE;
+          handler->header_delegate = headers_fetch;
+          handler->header_delegate_baton = fetch_ctx;
+
+          handler->response_handler = handle_fetch;
+          handler->response_baton = fetch_ctx;
+
+          handler->response_error = cancel_fetch;
+          handler->response_error_baton = fetch_ctx;
+
+          handler->done_delegate = file_fetch_done;
+          handler->done_delegate_baton = fetch_ctx;
+
+          fetch_ctx->handler = handler;
+
+          svn_ra_serf__request_create(handler);
+
+          ctx->num_active_fetches++;
+        }
+    }
+
+  /* If needed, create the PROPFIND to retrieve the file's properties. */
+  if (file->fetch_props)
+    {
+      SVN_ERR(svn_ra_serf__create_propfind_handler(&file->propfind_handler,
+                                                   ctx->sess, file->url,
+                                                   ctx->target_rev, "0",
+                                                   all_props,
+                                                   set_file_props, file,
+                                                   file->pool));
+      file->propfind_handler->conn = conn; /* Explicit scheduling */
+
+      file->propfind_handler->done_delegate = file_props_done;
+      file->propfind_handler->done_delegate_baton = file;
+
+      /* Create a serf request for the PROPFIND.  */
+      svn_ra_serf__request_create(file->propfind_handler);
+
+      ctx->num_active_propfinds++;
+    }
+
+  if (file->fetch_props || file->fetch_file)
+      return SVN_NO_ERROR;
+
+
+  /* Somehow we are done; probably via the local cache.
+     Close the file and release memory, etc. */
+
+  return svn_error_trace(close_file(file, scratch_pool));
+}
+
+/* Implements svn_ra_serf__prop_func */
+static svn_error_t *
+set_dir_prop(void *baton,
+             const char *path,
+             const char *ns,
+             const char *name,
+             const svn_string_t *val,
+             apr_pool_t *scratch_pool)
+{
+  dir_baton_t *dir = baton;
+  report_context_t *ctx = dir->ctx;
+  const char *prop_name;
+
+  prop_name = svn_ra_serf__svnname_from_wirename(ns, name, scratch_pool);
+  if (prop_name == NULL)
+    return SVN_NO_ERROR;
+
+  SVN_ERR(ensure_dir_opened(dir, scratch_pool));
+
+  SVN_ERR(ctx->editor->change_dir_prop(dir->dir_baton,
+                                       prop_name, val,
+                                       scratch_pool));
+  return SVN_NO_ERROR;
+}
+
+/* Implements svn_ra_serf__response_done_delegate_t */
+static svn_error_t *
+dir_props_done(serf_request_t *request,
+               void *baton,
+               apr_pool_t *scratch_pool)
+{
+  dir_baton_t *dir = baton;
+  svn_ra_serf__handler_t *handler = dir->propfind_handler;
+
+  if (handler->server_error)
+    return svn_ra_serf__server_error_create(handler, scratch_pool);
+
+  if (handler->sline.code != 207)
+    return svn_error_trace(svn_ra_serf__unexpected_status(handler));
+
+  dir->ctx->num_active_propfinds--;
+
+  /* Closing the directory will automatically deliver the propfind props.
+   *
+   * Note that closing the directory may dispose the pool containing the
+   * handler, which is only a valid operation in this callback, as after
+   * this callback serf assumes the request is done. */
+
+  return svn_error_trace(maybe_close_dir(dir));
+}
+
+/* Initiates additional requests needed for a directory when not in "send-all"
+ * mode */
+static svn_error_t *
+fetch_for_dir(dir_baton_t *dir,
+              apr_pool_t *scratch)
+{
+  report_context_t *ctx = dir->ctx;
+  svn_ra_serf__connection_t *conn;
+
+  /* Open extra connections if we have enough requests to send. */
+  if (ctx->sess->num_conns < ctx->sess->max_connections)
+    SVN_ERR(open_connection_if_needed(ctx->sess, ctx->num_active_fetches +
+                                                 ctx->num_active_propfinds));
+
+  /* What connection should we go on? */
+  conn = get_best_connection(ctx);
+
+  /* If needed, create the PROPFIND to retrieve the file's properties. */
+  if (dir->fetch_props)
+    {
+      SVN_ERR(svn_ra_serf__create_propfind_handler(&dir->propfind_handler,
+                                                   ctx->sess, dir->url,
+                                                   ctx->target_rev, "0",
+                                                   all_props,
+                                                   set_dir_prop, dir,
+                                                   dir->pool));
+
+      dir->propfind_handler->conn = conn;
+      dir->propfind_handler->done_delegate = dir_props_done;
+      dir->propfind_handler->done_delegate_baton = dir;
+
+      /* Create a serf request for the PROPFIND.  */
+      svn_ra_serf__request_create(dir->propfind_handler);
+
+      ctx->num_active_propfinds++;
+    }
+  else
+    SVN_ERR_MALFUNCTION();
+
+  return SVN_NO_ERROR;
+}
+
+
+/** XML callbacks for our update-report response parsing */
+
+/* Conforms to svn_ra_serf__xml_opened_t  */
+static svn_error_t *
+update_opened(svn_ra_serf__xml_estate_t *xes,
+              void *baton,
+              int entered_state,
+              const svn_ra_serf__dav_props_t *tag,
+              apr_pool_t *scratch_pool)
+{
+  report_context_t *ctx = baton;
+  apr_hash_t *attrs;
+
+  switch (entered_state)
+    {
+      case UPDATE_REPORT:
+        {
+          const char *val;
+
+          attrs = svn_ra_serf__xml_gather_since(xes, UPDATE_REPORT);
+          val = svn_hash_gets(attrs, "inline-props");
+
+          if (val && (strcmp(val, "true") == 0))
+            ctx->add_props_included = TRUE;
+
+          val = svn_hash_gets(attrs, "send-all");
+
+          if (val && (strcmp(val, "true") == 0))
+            {
+              ctx->send_all_mode = TRUE;
+
+              /* All properties are included in send-all mode. */
+              ctx->add_props_included = TRUE;
+            }
+        }
+        break;
+
+      case OPEN_DIR:
+      case ADD_DIR:
+        {
+          dir_baton_t *dir;
+          const char *name;
+          attrs = svn_ra_serf__xml_gather_since(xes, entered_state);
+
+          name = svn_hash_gets(attrs, "name");
+          if (!name)
+            name = "";
+
+          SVN_ERR(create_dir_baton(&dir, ctx, name, scratch_pool));
+
+          if (entered_state == OPEN_DIR)
+            {
+              apr_int64_t base_rev;
+
+              SVN_ERR(svn_cstring_atoi64(&base_rev,
+                                         svn_hash_gets(attrs, "rev")));
+              dir->base_rev = (svn_revnum_t)base_rev;
+            }
+          else
+            {
+              dir->copyfrom_path = svn_hash_gets(attrs, "copyfrom-path");
+
+              if (dir->copyfrom_path)
+                {
+                  apr_int64_t copyfrom_rev;
+                  const char *copyfrom_rev_str;
+                  dir->copyfrom_path = svn_fspath__canonicalize(
+                                                        dir->copyfrom_path,
+                                                        dir->pool);
+
+                  copyfrom_rev_str = svn_hash_gets(attrs, "copyfrom-rev");
+
+                  if (!copyfrom_rev_str)
+                    return svn_error_createf(SVN_ERR_XML_ATTRIB_NOT_FOUND,
+                                             NULL,
+                                            _("Missing '%s' attribute"),
+                                            "copyfrom-rev");
+
+                  SVN_ERR(svn_cstring_atoi64(&copyfrom_rev, copyfrom_rev_str));
+
+                  dir->copyfrom_rev = (svn_revnum_t)copyfrom_rev;
+                }
+
+              if (! ctx->add_props_included)
+                dir->fetch_props = TRUE;
+            }
+        }
+        break;
+      case OPEN_FILE:
+      case ADD_FILE:
+        {
+          file_baton_t *file;
+
+          attrs = svn_ra_serf__xml_gather_since(xes, entered_state);
+
+          SVN_ERR(create_file_baton(&file, ctx, svn_hash_gets(attrs, "name"),
+                                    scratch_pool));
+
+          if (entered_state == OPEN_FILE)
+            {
+              apr_int64_t base_rev;
+
+              SVN_ERR(svn_cstring_atoi64(&base_rev,
+                                         svn_hash_gets(attrs, "rev")));
+              file->base_rev = (svn_revnum_t)base_rev;
+            }
+          else
+            {
+              const char *sha1_checksum;
+              file->copyfrom_path = svn_hash_gets(attrs, "copyfrom-path");
+
+              if (file->copyfrom_path)
+                {
+                  apr_int64_t copyfrom_rev;
+                  const char *copyfrom_rev_str;
+
+                  file->copyfrom_path = svn_fspath__canonicalize(
+                                                        file->copyfrom_path,
+                                                        file->pool);
+
+                  copyfrom_rev_str = svn_hash_gets(attrs, "copyfrom-rev");
+
+                  if (!copyfrom_rev_str)
+                    return svn_error_createf(SVN_ERR_XML_ATTRIB_NOT_FOUND,
+                                             NULL,
+                                            _("Missing '%s' attribute"),
+                                            "copyfrom-rev");
+
+                  SVN_ERR(svn_cstring_atoi64(&copyfrom_rev, copyfrom_rev_str));
+
+                  file->copyfrom_rev = (svn_revnum_t)copyfrom_rev;
+                }
+
+              sha1_checksum = svn_hash_gets(attrs, "sha1-checksum");
+              if (sha1_checksum)
+                {
+                  SVN_ERR(svn_checksum_parse_hex(&file->final_sha1_checksum,
+                                                 svn_checksum_sha1,
+                                                 sha1_checksum,
+                                                 file->pool));
+                }
+
+              /* If the server isn't in "send-all" mode, we should expect to
+                 fetch contents for added files. */
+              if (! ctx->send_all_mode)
+                file->fetch_file = TRUE;
+
+              /* If the server isn't included properties for added items,
+                 we'll need to fetch them ourselves. */
+              if (! ctx->add_props_included)
+                file->fetch_props = TRUE;
+            }
+        }
+        break;
+
+      case TXDELTA:
+        {
+          file_baton_t *file = ctx->cur_file;
+          const char *base_checksum;
+
+          /* Pre 1.2, mod_dav_svn was using <txdelta> tags (in
+             addition to <fetch-file>s and such) when *not* in
+             "send-all" mode.  As a client, we're smart enough to know
+             that's wrong, so we'll just ignore these tags. */
+          if (! ctx->send_all_mode)
+            break;
+
+          file->fetch_file = FALSE;
+
+          attrs = svn_ra_serf__xml_gather_since(xes, entered_state);
+          base_checksum = svn_hash_gets(attrs, "base-checksum");
+
+          if (base_checksum)
+            SVN_ERR(svn_checksum_parse_hex(&file->base_md5_checksum,
+                                           svn_checksum_md5, base_checksum,
+                                           file->pool));
+
+          SVN_ERR(open_file_txdelta(ctx->cur_file, scratch_pool));
+
+          if (ctx->cur_file->txdelta != svn_delta_noop_window_handler)
+            {
+              svn_stream_t *decoder;
+
+              decoder = svn_txdelta_parse_svndiff(file->txdelta,
+                                                  file->txdelta_baton,
+                                                  TRUE /* error early close*/,
+                                                  file->pool);
+
+              file->txdelta_stream = svn_base64_decode(decoder, file->pool);
+            }
+        }
+        break;
+
+      case FETCH_PROPS:
+        {
+          /* Subversion <= 1.6 servers will return a fetch-props element on
+             open-file and open-dir when non entry props were changed in
+             !send-all mode. In turn we fetch the full set of properties
+             and send all of those as *changes* to the editor. So these
+             editors have to be aware that they receive-non property changes.
+             (In case of incomplete directories they have to be aware anyway)
+
+             In r1063337 this behavior was changed in mod_dav_svn to always
+             send property changes inline in these cases. (See issue #3657)
+
+             Note that before that change the property changes to the last_*
+             entry props were already inlined via specific xml elements. */
+          if (ctx->cur_file)
+            ctx->cur_file->fetch_props = TRUE;
+          else if (ctx->cur_dir)
+            ctx->cur_dir->fetch_props = TRUE;
+        }
+        break;
+    }
+
+  return SVN_NO_ERROR;
+}
+
+
+
+/* Conforms to svn_ra_serf__xml_closed_t  */
+static svn_error_t *
+update_closed(svn_ra_serf__xml_estate_t *xes,
+              void *baton,
+              int leaving_state,
+              const svn_string_t *cdata,
+              apr_hash_t *attrs,
+              apr_pool_t *scratch_pool)
+{
+  report_context_t *ctx = baton;
+
+  switch (leaving_state)
+    {
+      case UPDATE_REPORT:
+        ctx->done = TRUE;
+        break;
+      case TARGET_REVISION:
+        {
+          const char *revstr = svn_hash_gets(attrs, "rev");
+          apr_int64_t rev;
+
+          SVN_ERR(svn_cstring_atoi64(&rev, revstr));
+
+          SVN_ERR(ctx->editor->set_target_revision(ctx->editor_baton,
+                                                   (svn_revnum_t)rev,
+                                                   scratch_pool));
+        }
+        break;
+
+      case CHECKED_IN_HREF:
+        if (ctx->cur_file)
+          ctx->cur_file->url = apr_pstrdup(ctx->cur_file->pool, cdata->data);
+        else
+          ctx->cur_dir->url = apr_pstrdup(ctx->cur_dir->pool, cdata->data);
+        break;
+
+      case SET_PROP:
+      case REMOVE_PROP:
+        {
+          const char *name = svn_hash_gets(attrs, "name");
+          const char *encoding;
+          const svn_string_t *value;
+
+          if (leaving_state == REMOVE_PROP)
+            value = NULL;
+          else if ((encoding = svn_hash_gets(attrs, "encoding")))
+            {
+              if (strcmp(encoding, "base64") != 0)
+                return svn_error_createf(SVN_ERR_XML_UNKNOWN_ENCODING, NULL,
+                                         _("Got unrecognized encoding '%s'"),
+                                         encoding);
+
+              value = svn_base64_decode_string(cdata, scratch_pool);
+            }
+          else
+            value = cdata;
+
+          if (ctx->cur_file)
+            {
+              file_baton_t *file = ctx->cur_file;
+
+              if (value
+                  || ctx->add_props_included
+                  || SVN_IS_VALID_REVNUM(file->base_rev))
+                {
+                  SVN_ERR(ensure_file_opened(file, scratch_pool));
+
+                  SVN_ERR(ctx->editor->change_file_prop(file->file_baton,
+                                                        name,
+                                                        value,
+                                                        scratch_pool));
+                }
+              else
+                {
+                  if (!file->remove_props)
+                    file->remove_props = apr_hash_make(file->pool);
+
+                  svn_hash_sets(file->remove_props,
+                                apr_pstrdup(file->pool, name),
+                                "");
+                }
+            }
+          else
+            {
+              dir_baton_t *dir = ctx->cur_dir;
+
+              if (value
+                  || ctx->add_props_included
+                  || SVN_IS_VALID_REVNUM(dir->base_rev))
+                {
+                  SVN_ERR(ensure_dir_opened(dir, scratch_pool));
+
+                  SVN_ERR(ctx->editor->change_dir_prop(dir->dir_baton,
+                                                       name,
+                                                       value,
+                                                       scratch_pool));
+                }
+              else
+                {
+                  if (!dir->remove_props)
+                    dir->remove_props = apr_hash_make(dir->pool);
+
+                  svn_hash_sets(dir->remove_props,
+                                apr_pstrdup(dir->pool, name),
+                                "");
+                }
+            }
+        }
+        break;
+
+      case OPEN_DIR:
+      case ADD_DIR:
+        {
+          dir_baton_t *dir = ctx->cur_dir;
+          ctx->cur_dir = ctx->cur_dir->parent_dir;
+
+          if (dir->fetch_props && ! dir->url)
+            {
+              return svn_error_create(SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
+                                      _("The REPORT response did not "
+                                        "include the requested checked-in "
+                                        "value"));
+            }
+
+          if (!dir->fetch_props)
+            {
+              SVN_ERR(maybe_close_dir(dir));
+              break; /* dir potentially no longer valid */
+            }
+          else
+            {
+              /* Otherwise, if the server is *not* in "send-all" mode, we
+                 are at a point where we can queue up the PROPFIND request */
+              SVN_ERR(fetch_for_dir(dir, scratch_pool));
+            }
+        }
+        break;
+
+      case OPEN_FILE:
+      case ADD_FILE:
+        {
+          file_baton_t *file = ctx->cur_file;
+
+          ctx->cur_file = NULL;
+          /* go fetch info->name from DAV:checked-in */
+
+          if ((file->fetch_file || file->fetch_props) && ! file->url)
+            {
+              return svn_error_create(SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
+                                      _("The REPORT response did not "
+                                        "include the requested checked-in "
+                                        "value"));
+            }
+
+          /* If the server is in "send-all" mode or didn't get further work,
+             we can now close the file */
+          if (! file->fetch_file && ! file->fetch_props)
+            {
+              SVN_ERR(close_file(file, scratch_pool));
+              break; /* file is no longer valid */
+            }
+          else
+            {
+              /* Otherwise, if the server is *not* in "send-all" mode, we
+                 should be at a point where we can queue up any auxiliary
+                 content-fetching requests. */
+              SVN_ERR(fetch_for_file(file, scratch_pool));
+            }
+        }
+        break;
+
+      case MD5_CHECKSUM:
+        SVN_ERR(svn_checksum_parse_hex(&ctx->cur_file->final_md5_checksum,
+                                       svn_checksum_md5,
+                                       cdata->data,
+                                       ctx->cur_file->pool));
+        break;
+
+      case FETCH_FILE:
+        {
+          file_baton_t *file = ctx->cur_file;
+          const char *base_checksum = svn_hash_gets(attrs, "base-checksum");
+          const char *sha1_checksum = svn_hash_gets(attrs, "sha1-checksum");
+
+          if (base_checksum)
+            SVN_ERR(svn_checksum_parse_hex(&file->base_md5_checksum,
+                                           svn_checksum_md5, base_checksum,
+                                           file->pool));
+
+          /* Property is duplicated between add-file and fetch-file */
+          if (sha1_checksum && !file->final_sha1_checksum)
+            SVN_ERR(svn_checksum_parse_hex(&file->final_sha1_checksum,
+                                           svn_checksum_sha1,
+                                           sha1_checksum,
+                                           file->pool));
+
+          /* Some 0.3x mod_dav_svn wrote both txdelta and fetch-file
+             elements in send-all mode. (See neon for history) */
+          if (! ctx->send_all_mode)
+            file->fetch_file = TRUE;
+        }
+        break;
+
+      case DELETE_ENTRY:
+        {
+          const char *name = svn_hash_gets(attrs, "name");
+          const char *revstr;
+          apr_int64_t delete_rev;
+
+          SVN_ERR(ensure_dir_opened(ctx->cur_dir, scratch_pool));
+
+          revstr = svn_hash_gets(attrs, "rev");
+
+          if (revstr)
+            SVN_ERR(svn_cstring_atoi64(&delete_rev, revstr));
+          else
+            delete_rev = SVN_INVALID_REVNUM;
+
+          SVN_ERR(ctx->editor->delete_entry(
+                                    svn_relpath_join(ctx->cur_dir->relpath,
+                                                     name,
+                                                     scratch_pool),
+                                    (svn_revnum_t)delete_rev,
+                                    ctx->cur_dir->dir_baton,
+                                    scratch_pool));
+        }
+        break;
+
+      case ABSENT_DIR:
+        {
+          const char *name = svn_hash_gets(attrs, "name");
+
+          SVN_ERR(ensure_dir_opened(ctx->cur_dir, scratch_pool));
+
+          SVN_ERR(ctx->editor->absent_directory(
+                                    svn_relpath_join(ctx->cur_dir->relpath,
+                                                     name, scratch_pool),
+                                    ctx->cur_dir->dir_baton,
+                                    scratch_pool));
+        }
+        break;
+     case ABSENT_FILE:
+        {
+          const char *name = svn_hash_gets(attrs, "name");
+
+          SVN_ERR(ensure_dir_opened(ctx->cur_dir, scratch_pool));
+
+          SVN_ERR(ctx->editor->absent_file(
+                                    svn_relpath_join(ctx->cur_dir->relpath,
+                                                     name, scratch_pool),
+                                    ctx->cur_dir->dir_baton,
+                                    scratch_pool));
+        }
+        break;
+
+      case TXDELTA:
+        {
+          file_baton_t *file = ctx->cur_file;
+
+          if (file->txdelta_stream)
+            {
+              SVN_ERR(svn_stream_close(file->txdelta_stream));
+              file->txdelta_stream = NULL;
+            }
+        }
+        break;
+
+      case VERSION_NAME:
+      case CREATIONDATE:
+      case CREATOR_DISPLAYNAME:
+        {
+          /* Subversion <= 1.6 servers would return a fetch-props element on
+             open-file and open-dir when non entry props were changed in
+             !send-all mode. In turn we fetch the full set of properties and
+             send those as *changes* to the editor. So these editors have to
+             be aware that they receive non property changes.
+             (In case of incomplete directories they have to be aware anyway)
+
+             In that case the last_* entry props are posted as 3 specific xml
+             elements, which we handle here.
+
+             In r1063337 this behavior was changed in mod_dav_svn to always
+             send property changes inline in these cases. (See issue #3657)
+           */
+
+          const char *propname;
+
+          if (ctx->cur_file)
+            SVN_ERR(ensure_file_opened(ctx->cur_file, scratch_pool));
+          else if (ctx->cur_dir)
+            SVN_ERR(ensure_dir_opened(ctx->cur_dir, scratch_pool));
+          else
+            break;
+
+          switch (leaving_state)
+            {
+              case VERSION_NAME:
+                propname = SVN_PROP_ENTRY_COMMITTED_REV;
+                break;
+              case CREATIONDATE:
+                propname = SVN_PROP_ENTRY_COMMITTED_DATE;
+                break;
+              case CREATOR_DISPLAYNAME:
+                propname = SVN_PROP_ENTRY_LAST_AUTHOR;
+                break;
+              default:
+                SVN_ERR_MALFUNCTION(); /* Impossible to reach */
+            }
+
+          if (ctx->cur_file)
+            SVN_ERR(ctx->editor->change_file_prop(ctx->cur_file->file_baton,
+                                                  propname, cdata,
+                                                  scratch_pool));
+          else
+            SVN_ERR(ctx->editor->change_dir_prop(ctx->cur_dir->dir_baton,
+                                                  propname, cdata,
+                                                  scratch_pool));
+        }
+        break;
+    }
+
+  return SVN_NO_ERROR;
+}
+
+
+/* Conforms to svn_ra_serf__xml_cdata_t  */
+static svn_error_t *
+update_cdata(svn_ra_serf__xml_estate_t *xes,
+             void *baton,
+             int current_state,
+             const char *data,
+             apr_size_t len,
+             apr_pool_t *scratch_pool)
+{
+  report_context_t *ctx = baton;
+
+  if (current_state == TXDELTA && ctx->cur_file
+      && ctx->cur_file->txdelta_stream)
+    {
+      SVN_ERR(svn_stream_write(ctx->cur_file->txdelta_stream, data, &len));
+    }
+
+  return SVN_NO_ERROR;
+}
+
+
+/** Editor callbacks given to callers to create request body */
+
+/* Helper to create simple xml tag without attributes. */
+static void
+make_simple_xml_tag(svn_stringbuf_t **buf_p,
+                    const char *tagname,
+                    const char *cdata,
+                    apr_pool_t *pool)
+{
+  svn_xml_make_open_tag(buf_p, pool, svn_xml_protect_pcdata, tagname,
+                        SVN_VA_NULL);
+  svn_xml_escape_cdata_cstring(buf_p, cdata, pool);
+  svn_xml_make_close_tag(buf_p, pool, tagname);
+}
+
+static svn_error_t *
+set_path(void *report_baton,
+         const char *path,
+         svn_revnum_t revision,
+         svn_depth_t depth,
+         svn_boolean_t start_empty,
+         const char *lock_token,
+         apr_pool_t *pool)
+{
+  report_context_t *report = report_baton;
+  svn_stringbuf_t *buf = NULL;
+
+  svn_xml_make_open_tag(&buf, pool, svn_xml_protect_pcdata, "S:entry",
+                        "rev", apr_ltoa(pool, revision),
+                        "lock-token", lock_token,
+                        "depth", svn_depth_to_word(depth),
+                        "start-empty", start_empty ? "true" : NULL,
+                        SVN_VA_NULL);
+  svn_xml_escape_cdata_cstring(&buf, path, pool);
+  svn_xml_make_close_tag(&buf, pool, "S:entry");
+
+  SVN_ERR(svn_stream_write(report->body_template, buf->data, &buf->len));
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+delete_path(void *report_baton,
+            const char *path,
+            apr_pool_t *pool)
+{
+  report_context_t *report = report_baton;
+  svn_stringbuf_t *buf = NULL;
+
+  make_simple_xml_tag(&buf, "S:missing", path, pool);
+
+  SVN_ERR(svn_stream_write(report->body_template, buf->data, &buf->len));
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+link_path(void *report_baton,
+          const char *path,
+          const char *url,
+          svn_revnum_t revision,
+          svn_depth_t depth,
+          svn_boolean_t start_empty,
+          const char *lock_token,
+          apr_pool_t *pool)
+{
+  report_context_t *report = report_baton;
+  const char *link, *report_target;
+  apr_uri_t uri;
+  apr_status_t status;
+  svn_stringbuf_t *buf = NULL;
+
+  /* We need to pass in the baseline relative path.
+   *
+   * TODO Confirm that it's on the same server?
+   */
+  status = apr_uri_parse(pool, url, &uri);
+  if (status)
+    {
+      return svn_error_createf(SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
+                               _("Unable to parse URL '%s'"), url);
+    }
+
+  SVN_ERR(svn_ra_serf__report_resource(&report_target, report->sess, pool));
+  SVN_ERR(svn_ra_serf__get_relative_path(&link, uri.path, report->sess, pool));
+
+  link = apr_pstrcat(pool, "/", link, SVN_VA_NULL);
+
+  svn_xml_make_open_tag(&buf, pool, svn_xml_protect_pcdata, "S:entry",
+                        "rev", apr_ltoa(pool, revision),
+                        "lock-token", lock_token,
+                        "depth", svn_depth_to_word(depth),
+                        "linkpath", link,
+                        "start-empty", start_empty ? "true" : NULL,
+                        SVN_VA_NULL);
+  svn_xml_escape_cdata_cstring(&buf, path, pool);
+  svn_xml_make_close_tag(&buf, pool, "S:entry");
+
+  SVN_ERR(svn_stream_write(report->body_template, buf->data, &buf->len));
+
+  /* Store the switch roots to allow generating repos_relpaths from just
+     the working copy paths. (Needed for HTTPv2) */
+  path = apr_pstrdup(report->pool, path);
+  link = apr_pstrdup(report->pool, link + 1);
+  svn_hash_sets(report->switched_paths, path, link);
+
+  if (!path[0] && report->update_target[0])
+    {
+      /* The update root is switched. Make sure we store it the way
+         we expect it to find */
+      svn_hash_sets(report->switched_paths, report->update_target, link);
+    }
+
+  return APR_SUCCESS;
+}
+
+/* Serf callback to create update request body bucket.
+   Implements svn_ra_serf__request_body_delegate_t */
 static svn_error_t *
 create_update_report_body(serf_bucket_t **body_bkt,
                           void *baton,
                           serf_bucket_alloc_t *alloc,
-                          apr_pool_t *pool)
+                          apr_pool_t *pool /* request pool */,
+                          apr_pool_t *scratch_pool)
 {
   report_context_t *report = baton;
-  apr_off_t offset;
+  body_create_baton_t *body = report->body;
 
-  offset = 0;
-  apr_file_seek(report->body_file, APR_SET, &offset);
+  if (body->file)
+    {
+      apr_off_t offset;
 
-  *body_bkt = serf_bucket_file_create(report->body_file, alloc);
+      offset = 0;
+      SVN_ERR(svn_io_file_seek(body->file, APR_SET, &offset, pool));
+
+      *body_bkt = serf_bucket_file_create(report->body->file, alloc);
+    }
+  else
+    {
+      *body_bkt = serf_bucket_simple_create(body->all_data,
+                                            body->total_bytes,
+                                            NULL, NULL, alloc);
+    }
 
   return SVN_NO_ERROR;
 }
@@ -2714,7 +2339,8 @@ create_update_report_body(serf_bucket_t **body_bkt,
 static svn_error_t *
 setup_update_report_headers(serf_bucket_t *headers,
                             void *baton,
-                            apr_pool_t *pool)
+                            apr_pool_t *pool /* request pool */,
+                            apr_pool_t *scratch_pool)
 {
   report_context_t *report = baton;
 
@@ -2732,73 +2358,238 @@ setup_update_report_headers(serf_bucket_t *headers,
   return SVN_NO_ERROR;
 }
 
-static svn_error_t *
-finish_report(void *report_baton,
-              apr_pool_t *pool)
+/* Baton for update_delay_handler */
+typedef struct update_delay_baton_t
 {
-  report_context_t *report = report_baton;
-  svn_ra_serf__session_t *sess = report->sess;
-  svn_ra_serf__handler_t *handler;
-  svn_ra_serf__xml_parser_t *parser_ctx;
-  const char *report_target;
-  svn_stringbuf_t *buf = NULL;
-  apr_pool_t *iterpool = svn_pool_create(pool);
+  report_context_t *report;
+  svn_spillbuf_t *spillbuf;
+  svn_ra_serf__response_handler_t inner_handler;
+  void *inner_handler_baton;
+} update_delay_baton_t;
+
+/* Helper for update_delay_handler() and process_pending() to
+   call UDB->INNER_HANDLER with buffer pointed by DATA. */
+static svn_error_t *
+process_buffer(update_delay_baton_t *udb,
+               serf_request_t *request,
+               const void *data,
+               apr_size_t len,
+               svn_boolean_t at_eof,
+               serf_bucket_alloc_t *alloc,
+               apr_pool_t *pool)
+{
+  serf_bucket_t *tmp_bucket;
   svn_error_t *err;
+
+  /* ### This code (and the eagain bucket code) can probably be
+      ### simplified by using a bit of aggregate bucket magic.
+      ### See mail from Ivan to dev@s.a.o. */
+  if (at_eof)
+  {
+      tmp_bucket = serf_bucket_simple_create(data, len, NULL, NULL,
+                                             alloc);
+  }
+  else
+  {
+      tmp_bucket = svn_ra_serf__create_bucket_with_eagain(data, len,
+                                                          alloc);
+  }
+
+  /* If not at EOF create a bucket that finishes with EAGAIN, otherwise
+      use a standard bucket with default EOF handling */
+  err = udb->inner_handler(request, tmp_bucket,
+                           udb->inner_handler_baton, pool);
+
+  /* And free the bucket explicitly to avoid growing request allocator
+     storage (in a loop) */
+  serf_bucket_destroy(tmp_bucket);
+
+  return svn_error_trace(err);
+}
+
+
+/* Delaying wrapping reponse handler, to avoid creating too many
+   requests to deliver efficiently */
+static svn_error_t *
+update_delay_handler(serf_request_t *request,
+                     serf_bucket_t *response,
+                     void *handler_baton,
+                     apr_pool_t *scratch_pool)
+{
+  update_delay_baton_t *udb = handler_baton;
+  apr_status_t status;
+  apr_pool_t *iterpool = NULL;
+
+  if (! udb->spillbuf)
+    {
+      if (udb->report->send_all_mode)
+        {
+          /* Easy out... We only have one request, so avoid everything and just
+             call the inner handler.
+
+             We will always get in the loop (below) on the first chunk, as only
+             the server can get us in true send-all mode */
+
+          return svn_error_trace(udb->inner_handler(request, response,
+                                                    udb->inner_handler_baton,
+                                                    scratch_pool));
+        }
+
+      while ((udb->report->num_active_fetches + udb->report->num_active_propfinds)
+                 < REQUEST_COUNT_TO_RESUME)
+        {
+          const char *data;
+          apr_size_t len;
+          svn_boolean_t at_eof = FALSE;
+          svn_error_t *err;
+
+          status = serf_bucket_read(response, PARSE_CHUNK_SIZE, &data, &len);
+          if (SERF_BUCKET_READ_ERROR(status))
+            return svn_ra_serf__wrap_err(status, NULL);
+          else if (APR_STATUS_IS_EOF(status))
+            udb->report->report_received = at_eof = TRUE;
+
+          if (!iterpool)
+            iterpool = svn_pool_create(scratch_pool);
+          else
+            svn_pool_clear(iterpool);
+
+          if (len == 0 && !at_eof)
+            return svn_ra_serf__wrap_err(status, NULL);
+
+          err = process_buffer(udb, request, data, len, at_eof,
+                               serf_request_get_alloc(request),
+                               iterpool);
+
+          if (err && SERF_BUCKET_READ_ERROR(err->apr_err))
+            return svn_error_trace(err);
+          else if (err && APR_STATUS_IS_EAGAIN(err->apr_err))
+            {
+              svn_error_clear(err); /* Throttling is working ok */
+            }
+          else if (err && (APR_STATUS_IS_EOF(err->apr_err)))
+            {
+              svn_pool_destroy(iterpool);
+              return svn_error_trace(err); /* No buffering was necessary */
+            }
+          else
+            {
+              /* SERF_ERROR_WAIT_CONN should be impossible? */
+              return svn_error_trace(err);
+            }
+        }
+
+      /* Let's start using the spill infrastructure */
+      udb->spillbuf = svn_spillbuf__create(SPILLBUF_BLOCKSIZE,
+                                           SPILLBUF_MAXBUFFSIZE,
+                                           udb->report->pool);
+    }
+
+  /* Read everything we can to a spillbuffer */
+  do
+    {
+      const char *data;
+      apr_size_t len;
+
+      /* ### What blocksize should we pass? */
+      status = serf_bucket_read(response, 8*PARSE_CHUNK_SIZE, &data, &len);
+
+      if (!SERF_BUCKET_READ_ERROR(status))
+        SVN_ERR(svn_spillbuf__write(udb->spillbuf, data, len, scratch_pool));
+    }
+  while (status == APR_SUCCESS);
+
+  if (APR_STATUS_IS_EOF(status))
+    udb->report->report_received = TRUE;
+
+  /* We handle feeding the data from the main context loop, which will be right
+     after processing the pending data */
+
+  if (status)
+    return svn_ra_serf__wrap_err(status, NULL);
+  else
+    return SVN_NO_ERROR;
+}
+
+/* Process pending data from the update report, if any */
+static svn_error_t *
+process_pending(update_delay_baton_t *udb,
+                apr_pool_t *scratch_pool)
+{
+  apr_pool_t *iterpool = NULL;
+  serf_bucket_alloc_t *alloc = NULL;
+
+  while ((udb->report->num_active_fetches + udb->report->num_active_propfinds)
+            < REQUEST_COUNT_TO_RESUME)
+    {
+      const char *data;
+      apr_size_t len;
+      svn_boolean_t at_eof;
+      svn_error_t *err;
+
+      if (!iterpool)
+        {
+          iterpool = svn_pool_create(scratch_pool);
+          alloc = serf_bucket_allocator_create(scratch_pool, NULL, NULL);
+        }
+      else
+        svn_pool_clear(iterpool);
+
+      SVN_ERR(svn_spillbuf__read(&data, &len, udb->spillbuf, iterpool));
+
+      if (data == NULL && !udb->report->report_received)
+        break;
+      else if (data == NULL)
+        at_eof = TRUE;
+      else
+        at_eof = FALSE;
+
+      err = process_buffer(udb, NULL /* allowed? */, data, len,
+                           at_eof, alloc, iterpool);
+
+      if (err && APR_STATUS_IS_EAGAIN(err->apr_err))
+        {
+          svn_error_clear(err); /* Throttling is working */
+        }
+      else if (err && APR_STATUS_IS_EOF(err->apr_err))
+        {
+          svn_error_clear(err);
+
+          svn_pool_destroy(iterpool);
+          udb->spillbuf = NULL;
+          return SVN_NO_ERROR;
+        }
+      else if (err)
+        return svn_error_trace(err);
+    }
+
+  if (iterpool)
+    svn_pool_destroy(iterpool);
+
+  return SVN_NO_ERROR;
+}
+
+/* Process the 'update' editor report */
+static svn_error_t *
+process_editor_report(report_context_t *ctx,
+                      svn_ra_serf__handler_t *handler,
+                      apr_pool_t *scratch_pool)
+{
+  svn_ra_serf__session_t *sess = ctx->sess;
+  apr_pool_t *iterpool = svn_pool_create(scratch_pool);
   apr_interval_time_t waittime_left = sess->timeout;
+  update_delay_baton_t *ud;
 
-  svn_xml_make_close_tag(&buf, iterpool, "S:update-report");
-  SVN_ERR(svn_io_file_write_full(report->body_file, buf->data, buf->len,
-                                 NULL, iterpool));
+  /* Now wrap the response handler with delay support to avoid sending
+     out too many requests at once */
+  ud = apr_pcalloc(scratch_pool, sizeof(*ud));
+  ud->report = ctx;
 
-  /* We need to flush the file, make it unbuffered (so that it can be
-   * zero-copied via mmap), and reset the position before attempting to
-   * deliver the file.
-   *
-   * N.B. If we have APR 1.3+, we can unbuffer the file to let us use mmap
-   * and zero-copy the PUT body.  However, on older APR versions, we can't
-   * check the buffer status; but serf will fall through and create a file
-   * bucket for us on the buffered svndiff handle.
-   */
-  apr_file_flush(report->body_file);
-#if APR_VERSION_AT_LEAST(1, 3, 0)
-  apr_file_buffer_set(report->body_file, NULL, 0);
-#endif
+  ud->inner_handler = handler->response_handler;
+  ud->inner_handler_baton = handler->response_baton;
 
-  SVN_ERR(svn_ra_serf__report_resource(&report_target, sess, NULL, pool));
-
-  /* create and deliver request */
-  report->path = report_target;
-
-  handler = apr_pcalloc(pool, sizeof(*handler));
-
-  handler->handler_pool = pool;
-  handler->method = "REPORT";
-  handler->path = report->path;
-  handler->body_delegate = create_update_report_body;
-  handler->body_delegate_baton = report;
-  handler->body_type = "text/xml";
-  handler->custom_accept_encoding = TRUE;
-  handler->header_delegate = setup_update_report_headers;
-  handler->header_delegate_baton = report;
-  handler->conn = sess->conns[0];
-  handler->session = sess;
-
-  parser_ctx = apr_pcalloc(pool, sizeof(*parser_ctx));
-
-  parser_ctx->pool = pool;
-  parser_ctx->response_type = "update-report";
-  parser_ctx->user_data = report;
-  parser_ctx->start = start_report;
-  parser_ctx->end = end_report;
-  parser_ctx->cdata = cdata_report;
-  parser_ctx->done = &report->done;
-
-  handler->response_handler = svn_ra_serf__handle_xml_parser;
-  handler->response_baton = parser_ctx;
-
-  report->parser_ctx = parser_ctx;
-
-  svn_ra_serf__request_create(handler);
+  handler->response_handler = update_delay_handler;
+  handler->response_baton = ud;
 
   /* Open the first extra connection. */
   SVN_ERR(open_connection_if_needed(sess, 0));
@@ -2810,260 +2601,31 @@ finish_report(void *report_baton,
      network or because we've spooled the entire response into our "pending"
      content of the XML parser. The DONE flag will get set when all the
      XML content has been received *and* parsed.  */
-  while (!report->done
-         || report->num_active_fetches
-         || report->num_active_propfinds)
+  while (!handler->done
+         || ctx->num_active_fetches
+         || ctx->num_active_propfinds
+         || !ctx->done)
     {
-      apr_pool_t *iterpool_inner;
-      svn_ra_serf__list_t *done_list;
+      svn_error_t *err;
       int i;
-      apr_status_t status;
 
-      /* Note: this throws out the old ITERPOOL_INNER.  */
       svn_pool_clear(iterpool);
 
-      if (sess->cancel_func)
-        SVN_ERR(sess->cancel_func(sess->cancel_baton));
+      err = svn_ra_serf__context_run(sess, &waittime_left, iterpool);
 
-      /* We need to be careful between the outer and inner ITERPOOLs,
-         and what items are allocated within.  */
-      iterpool_inner = svn_pool_create(iterpool);
-
-      status = serf_context_run(sess->context,
-                                SVN_RA_SERF__CONTEXT_RUN_DURATION,
-                                iterpool_inner);
-
-      err = sess->pending_error;
-      sess->pending_error = SVN_NO_ERROR;
-
-      if (!err && handler->done && handler->server_error)
-        {
-          err = handler->server_error->error;
-        }
-
-      /* If the context duration timeout is up, we'll subtract that
-         duration from the total time alloted for such things.  If
-         there's no time left, we fail with a message indicating that
-         the connection timed out.  */
-      if (APR_STATUS_IS_TIMEUP(status))
+      if (handler->done && handler->server_error)
         {
           svn_error_clear(err);
-          err = SVN_NO_ERROR;
-          status = 0;
+          err = svn_ra_serf__server_error_create(handler, iterpool);
 
-          if (sess->timeout)
-            {
-              if (waittime_left > SVN_RA_SERF__CONTEXT_RUN_DURATION)
-                {
-                  waittime_left -= SVN_RA_SERF__CONTEXT_RUN_DURATION;
-                }
-              else
-                {
-                  return svn_error_create(SVN_ERR_RA_DAV_CONN_TIMEOUT, NULL,
-                                          _("Connection timed out"));
-                }
-            }
-        }
-      else
-        {
-          waittime_left = sess->timeout;
+          SVN_ERR_ASSERT(err != NULL);
         }
 
-      if (status && handler->sline.code != 200)
-        {
-          return svn_error_trace(
-                    svn_error_compose_create(
-                        svn_ra_serf__error_on_status(handler->sline,
-                                                     handler->path,
-                                                     handler->location),
-                        err));
-        }
       SVN_ERR(err);
-      if (status)
-        {
-          return svn_ra_serf__wrap_err(status, _("Error retrieving REPORT"));
-        }
 
-      /* Open extra connections if we have enough requests to send. */
-      if (sess->num_conns < sess->max_connections)
-        SVN_ERR(open_connection_if_needed(sess, report->num_active_fetches +
-                                          report->num_active_propfinds));
-
-      /* Prune completed file PROPFINDs. */
-      done_list = report->done_propfinds;
-      while (done_list)
-        {
-          svn_ra_serf__list_t *next_done = done_list->next;
-
-          svn_pool_clear(iterpool_inner);
-
-          report->num_active_propfinds--;
-
-          /* If we have some files that we won't be fetching the content
-           * for, ensure that we update the file with any altered props.
-           */
-          if (report->file_propchanges_only)
-            {
-              svn_ra_serf__list_t *cur, *prev;
-
-              prev = NULL;
-              cur = report->file_propchanges_only;
-
-              while (cur)
-                {
-                  report_info_t *item = cur->data;
-
-                  if (item->propfind_handler == done_list->data)
-                    {
-                      break;
-                    }
-
-                  prev = cur;
-                  cur = cur->next;
-                }
-
-              /* If we found a match, set the new props and remove this
-               * propchange from our list.
-               */
-              if (cur)
-                {
-                  report_info_t *info = cur->data;
-
-                  if (!prev)
-                    {
-                      report->file_propchanges_only = cur->next;
-                    }
-                  else
-                    {
-                      prev->next = cur->next;
-                    }
-
-                  /* If we've got cached file content for this file,
-                     take care of the locally collected properties and
-                     file content at once.  Otherwise, just deal with
-                     the collected properties.
-
-                     NOTE:  These functions below could delete
-                     info->dir->pool (via maybe_close_dir_chain()),
-                     from which is allocated the list item in
-                     report->file_propchanges_only.
-                  */
-                  if (info->cached_contents)
-                    {
-                      SVN_ERR(handle_local_content(info, iterpool_inner));
-                    }
-                  else
-                    {
-                      SVN_ERR(handle_propchange_only(info, iterpool_inner));
-                    }
-                }
-            }
-
-          done_list = next_done;
-        }
-      report->done_propfinds = NULL;
-
-      /* Prune completed fetches from our list. */
-      done_list = report->done_fetches;
-      while (done_list)
-        {
-          report_fetch_t *done_fetch = done_list->data;
-          svn_ra_serf__list_t *next_done = done_list->next;
-          report_dir_t *cur_dir;
-
-          /* Decrease the refcount in the parent directory of the file
-             whose fetch has completed. */
-          cur_dir = done_fetch->info->dir;
-          cur_dir->ref_count--;
-
-          /* Decrement our active fetch count. */
-          report->num_active_fetches--;
-
-          /* See if the parent directory of this fetched item (and
-             perhaps even parents of that) can be closed now.
-
-             NOTE:  This could delete cur_dir->pool, from which is
-             allocated the list item in report->done_fetches.
-          */
-          SVN_ERR(maybe_close_dir_chain(cur_dir));
-
-          done_list = next_done;
-        }
-      report->done_fetches = NULL;
-
-      /* Prune completed directory PROPFINDs. */
-      done_list = report->done_dir_propfinds;
-      while (done_list)
-        {
-          svn_ra_serf__list_t *next_done = done_list->next;
-
-          report->num_active_propfinds--;
-
-          if (report->active_dir_propfinds)
-            {
-              svn_ra_serf__list_t *cur, *prev;
-
-              prev = NULL;
-              cur = report->active_dir_propfinds;
-
-              while (cur)
-                {
-                  report_dir_t *item = cur->data;
-
-                  if (item->propfind_handler == done_list->data)
-                    {
-                      break;
-                    }
-
-                  prev = cur;
-                  cur = cur->next;
-                }
-              SVN_ERR_ASSERT(cur); /* we expect to find a matching propfind! */
-
-              /* If we found a match, set the new props and remove this
-               * propchange from our list.
-               */
-              if (cur)
-                {
-                  report_dir_t *cur_dir = cur->data;
-
-                  if (!prev)
-                    {
-                      report->active_dir_propfinds = cur->next;
-                    }
-                  else
-                    {
-                      prev->next = cur->next;
-                    }
-
-                  /* See if this directory (and perhaps even parents of that)
-                     can be closed now.
-
-                     NOTE:  This could delete cur_dir->pool, from which is
-                     allocated the list item in report->active_dir_propfinds.
-                  */
-                  SVN_ERR(maybe_close_dir_chain(cur_dir));
-                }
-            }
-
-          done_list = next_done;
-        }
-      report->done_dir_propfinds = NULL;
-
-      /* If the parser is paused, and the number of active requests has
-         dropped far enough, then resume parsing.  */
-      if (parser_ctx->paused
-          && (report->num_active_fetches + report->num_active_propfinds
-              < REQUEST_COUNT_TO_RESUME))
-        parser_ctx->paused = FALSE;
-
-      /* If we have not paused the parser and it looks like data MAY be
-         present (we can't know for sure because of the private structure),
-         then go process the pending content.  */
-      if (!parser_ctx->paused && parser_ctx->pending != NULL)
-        SVN_ERR(svn_ra_serf__process_pending(parser_ctx,
-                                             &report->report_received,
-                                             iterpool_inner));
+      /* If there is pending REPORT data, process it now. */
+      if (ud->spillbuf)
+        SVN_ERR(process_pending(ud, iterpool));
 
       /* Debugging purposes only! */
       for (i = 0; i < sess->num_conns; i++)
@@ -3072,28 +2634,71 @@ finish_report(void *report_baton,
         }
     }
 
+  svn_pool_clear(iterpool);
+
   /* If we got a complete report, close the edit.  Otherwise, abort it. */
-  if (report->report_completed)
-    {
-      /* Ensure that we opened and closed our root dir and that we closed
-       * all of our children. */
-      if (!report->closed_root && report->root_dir != NULL)
-        {
-          SVN_ERR(close_all_dirs(report->root_dir));
-        }
-
-      err = report->update_editor->close_edit(report->update_baton, iterpool);
-    }
+  if (ctx->done)
+    SVN_ERR(ctx->editor->close_edit(ctx->editor_baton, iterpool));
   else
-    {
-      /* Tell the editor that something failed */
-      err = report->update_editor->abort_edit(report->update_baton, iterpool);
-
-      err = svn_error_create(SVN_ERR_RA_DAV_MALFORMED_DATA, err,
-                             _("Missing update-report close tag"));
-    }
+    return svn_error_create(SVN_ERR_RA_DAV_MALFORMED_DATA, NULL,
+                            _("Missing update-report close tag"));
 
   svn_pool_destroy(iterpool);
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+finish_report(void *report_baton,
+              apr_pool_t *pool)
+{
+  report_context_t *report = report_baton;
+  svn_ra_serf__session_t *sess = report->sess;
+  svn_ra_serf__handler_t *handler;
+  svn_ra_serf__xml_context_t *xmlctx;
+  const char *report_target;
+  svn_stringbuf_t *buf = NULL;
+  apr_pool_t *scratch_pool = svn_pool_create(pool);
+  svn_error_t *err;
+
+  svn_xml_make_close_tag(&buf, scratch_pool, "S:update-report");
+  SVN_ERR(svn_stream_write(report->body_template, buf->data, &buf->len));
+  SVN_ERR(svn_stream_close(report->body_template));
+
+  SVN_ERR(svn_ra_serf__report_resource(&report_target, sess,  scratch_pool));
+
+  xmlctx = svn_ra_serf__xml_context_create(update_ttable,
+                                           update_opened, update_closed,
+                                           update_cdata,
+                                           report,
+                                           scratch_pool);
+  handler = svn_ra_serf__create_expat_handler(sess, xmlctx, NULL,
+                                              scratch_pool);
+
+  handler->method = "REPORT";
+  handler->path = report_target;
+  handler->body_delegate = create_update_report_body;
+  handler->body_delegate_baton = report;
+  handler->body_type = "text/xml";
+  handler->custom_accept_encoding = TRUE;
+  handler->header_delegate = setup_update_report_headers;
+  handler->header_delegate_baton = report;
+
+  svn_ra_serf__request_create(handler);
+
+  err = process_editor_report(report, handler, scratch_pool);
+
+  if (err)
+    {
+      err = svn_error_trace(err);
+      err = svn_error_compose_create(
+                err,
+                svn_error_trace(
+                    report->editor->abort_edit(report->editor_baton,
+                                               scratch_pool)));
+    }
+
+  svn_pool_destroy(scratch_pool);
+
   return svn_error_trace(err);
 }
 
@@ -3162,7 +2767,7 @@ make_update_reporter(svn_ra_session_t *ra_session,
                                             update_editor,
                                             update_baton,
                                             depth, has_target,
-                                            sess->pool));
+                                            result_pool));
       update_editor = filter_editor;
       update_baton = filter_baton;
     }
@@ -3170,7 +2775,6 @@ make_update_reporter(svn_ra_session_t *ra_session,
   report = apr_pcalloc(result_pool, sizeof(*report));
   report->pool = result_pool;
   report->sess = sess;
-  report->conn = report->sess->conns[0];
   report->target_rev = revision;
   report->ignore_ancestry = ignore_ancestry;
   report->send_copyfrom_args = send_copyfrom_args;
@@ -3181,16 +2785,18 @@ make_update_reporter(svn_ra_session_t *ra_session,
   report->destination = dest_path;
   report->update_target = update_target;
 
-  report->update_editor = update_editor;
-  report->update_baton = update_baton;
+  report->editor = update_editor;
+  report->editor_baton = update_baton;
   report->done = FALSE;
 
   *reporter = &ra_serf_reporter;
   *report_baton = report;
 
-  SVN_ERR(svn_io_open_unique_file3(&report->body_file, NULL, NULL,
-                                   svn_io_file_del_on_pool_cleanup,
-                                   report->pool, scratch_pool));
+  report->body = apr_pcalloc(report->pool, sizeof(*report->body));
+  report->body->result_pool = report->pool;
+  report->body_template = svn_stream_create(report->body, report->pool);
+  svn_stream_set_write(report->body_template, body_write_fn);
+  svn_stream_set_close(report->body_template, body_done_fn);
 
   if (sess->bulk_updates == svn_tristate_true)
     {
@@ -3231,6 +2837,14 @@ make_update_reporter(svn_ra_session_t *ra_session,
              supports inlining properties in update editor report. */
           if (sess->supports_inline_props)
             {
+              /* NOTE: both inlined properties and server->allows_bulk_update
+                 (flag SVN_DAV_ALLOW_BULK_UPDATES) were added in 1.8.0, so
+                 this code is never reached with a released version of
+                 mod_dav_svn.
+
+                 Basically by default a 1.8.0 client connecting to a 1.7.x or
+                 older server will always use bulk updates. */
+
               /* Inline props supported: do not use bulk updates. */
               use_bulk_updates = FALSE;
             }
@@ -3248,14 +2862,14 @@ make_update_reporter(svn_ra_session_t *ra_session,
       svn_xml_make_open_tag(&buf, scratch_pool, svn_xml_normal,
                             "S:update-report",
                             "xmlns:S", SVN_XML_NAMESPACE, "send-all", "true",
-                            NULL);
+                            SVN_VA_NULL);
     }
   else
     {
       svn_xml_make_open_tag(&buf, scratch_pool, svn_xml_normal,
                             "S:update-report",
                             "xmlns:S", SVN_XML_NAMESPACE,
-                            NULL);
+                            SVN_VA_NULL);
       /* Subversion 1.8+ servers can be told to send properties for newly
          added items inline even when doing a skelta response. */
       make_simple_xml_tag(&buf, "S:include-props", "yes", scratch_pool);
@@ -3315,8 +2929,7 @@ make_update_reporter(svn_ra_session_t *ra_session,
 
   make_simple_xml_tag(&buf, "S:depth", svn_depth_to_word(depth), scratch_pool);
 
-  SVN_ERR(svn_io_file_write_full(report->body_file, buf->data, buf->len,
-                                 NULL, scratch_pool));
+  SVN_ERR(svn_stream_write(report->body_template, buf->data, &buf->len));
 
   return SVN_NO_ERROR;
 }
@@ -3367,7 +2980,8 @@ svn_ra_serf__do_diff(svn_ra_session_t *ra_session,
   SVN_ERR(make_update_reporter(ra_session, reporter, report_baton,
                                revision,
                                session->session_url.path, versus_url, diff_target,
-                               depth, ignore_ancestry, text_deltas, FALSE,
+                               depth, ignore_ancestry, text_deltas,
+                               FALSE /* send_copyfrom */,
                                diff_editor, diff_baton,
                                pool, scratch_pool));
   svn_pool_destroy(scratch_pool);
@@ -3425,196 +3039,4 @@ svn_ra_serf__do_switch(svn_ra_session_t *ra_session,
                               send_copyfrom_args,
                               switch_editor, switch_baton,
                               result_pool, scratch_pool);
-}
-
-/* Helper svn_ra_serf__get_file(). Attempts to fetch file contents
- * using SESSION->wc_callbacks->get_wc_contents() if sha1 property is
- * present in PROPS.
- *
- * Sets *FOUND_P to TRUE if file contents was successfuly fetched.
- *
- * Performs all temporary allocations in POOL.
- */
-static svn_error_t *
-try_get_wc_contents(svn_boolean_t *found_p,
-                    svn_ra_serf__session_t *session,
-                    apr_hash_t *props,
-                    svn_stream_t *dst_stream,
-                    apr_pool_t *pool)
-{
-  apr_hash_t *svn_props;
-  const char *sha1_checksum_prop;
-  svn_checksum_t *checksum;
-  svn_stream_t *wc_stream;
-  svn_error_t *err;
-
-  /* No contents found by default. */
-  *found_p = FALSE;
-
-  if (!session->wc_callbacks->get_wc_contents)
-    {
-      /* No callback, nothing to do. */
-      return SVN_NO_ERROR;
-    }
-
-
-  svn_props = svn_hash_gets(props, SVN_DAV_PROP_NS_DAV);
-  if (!svn_props)
-    {
-      /* No properties -- therefore no checksum property -- in response. */
-      return SVN_NO_ERROR;
-    }
-
-  sha1_checksum_prop = svn_prop_get_value(svn_props, "sha1-checksum");
-  if (sha1_checksum_prop == NULL)
-    {
-      /* No checksum property in response. */
-      return SVN_NO_ERROR;
-    }
-
-  SVN_ERR(svn_checksum_parse_hex(&checksum, svn_checksum_sha1,
-                                 sha1_checksum_prop, pool));
-
-  err = session->wc_callbacks->get_wc_contents(
-          session->wc_callback_baton, &wc_stream, checksum, pool);
-
-  if (err)
-    {
-      svn_error_clear(err);
-
-      /* Ignore errors for now. */
-      return SVN_NO_ERROR;
-    }
-
-  if (wc_stream)
-    {
-        SVN_ERR(svn_stream_copy3(wc_stream,
-                                 svn_stream_disown(dst_stream, pool),
-                                 NULL, NULL, pool));
-      *found_p = TRUE;
-    }
-
-  return SVN_NO_ERROR;
-}
-
-svn_error_t *
-svn_ra_serf__get_file(svn_ra_session_t *ra_session,
-                      const char *path,
-                      svn_revnum_t revision,
-                      svn_stream_t *stream,
-                      svn_revnum_t *fetched_rev,
-                      apr_hash_t **props,
-                      apr_pool_t *pool)
-{
-  svn_ra_serf__session_t *session = ra_session->priv;
-  svn_ra_serf__connection_t *conn;
-  const char *fetch_url;
-  apr_hash_t *fetch_props;
-  svn_node_kind_t res_kind;
-  const svn_ra_serf__dav_props_t *which_props;
-
-  /* What connection should we go on? */
-  conn = session->conns[session->cur_conn];
-
-  /* Fetch properties. */
-
-  fetch_url = svn_path_url_add_component2(session->session_url.path, path, pool);
-
-  /* The simple case is if we want HEAD - then a GET on the fetch_url is fine.
-   *
-   * Otherwise, we need to get the baseline version for this particular
-   * revision and then fetch that file.
-   */
-  if (SVN_IS_VALID_REVNUM(revision) || fetched_rev)
-    {
-      SVN_ERR(svn_ra_serf__get_stable_url(&fetch_url, fetched_rev,
-                                          session, conn,
-                                          fetch_url, revision,
-                                          pool, pool));
-      revision = SVN_INVALID_REVNUM;
-    }
-  /* REVISION is always SVN_INVALID_REVNUM  */
-  SVN_ERR_ASSERT(!SVN_IS_VALID_REVNUM(revision));
-
-  if (props)
-    {
-      which_props = all_props;
-    }
-  else if (stream && session->wc_callbacks->get_wc_contents)
-    {
-      which_props = type_and_checksum_props;
-    }
-  else
-    {
-      which_props = check_path_props;
-    }
-
-  SVN_ERR(svn_ra_serf__fetch_node_props(&fetch_props, conn, fetch_url,
-                                        SVN_INVALID_REVNUM,
-                                        which_props,
-                                        pool, pool));
-
-  /* Verify that resource type is not collection. */
-  SVN_ERR(svn_ra_serf__get_resource_type(&res_kind, fetch_props));
-  if (res_kind != svn_node_file)
-    {
-      return svn_error_create(SVN_ERR_FS_NOT_FILE, NULL,
-                              _("Can't get text contents of a directory"));
-    }
-
-  /* TODO Filter out all of our props into a usable format. */
-  if (props)
-    {
-      /* ### flatten_props() does not copy PROPVALUE, but fetch_node_props()
-         ### put them into POOL, so we're okay.  */
-      SVN_ERR(svn_ra_serf__flatten_props(props, fetch_props,
-                                         pool, pool));
-    }
-
-  if (stream)
-    {
-      svn_boolean_t found;
-      SVN_ERR(try_get_wc_contents(&found, session, fetch_props, stream, pool));
-
-      /* No contents found in the WC, let's fetch from server. */
-      if (!found)
-        {
-          report_fetch_t *stream_ctx;
-          svn_ra_serf__handler_t *handler;
-
-          /* Create the fetch context. */
-          stream_ctx = apr_pcalloc(pool, sizeof(*stream_ctx));
-          stream_ctx->target_stream = stream;
-          stream_ctx->sess = session;
-          stream_ctx->conn = conn;
-          stream_ctx->info = apr_pcalloc(pool, sizeof(*stream_ctx->info));
-          stream_ctx->info->name = fetch_url;
-
-          handler = apr_pcalloc(pool, sizeof(*handler));
-
-          handler->handler_pool = pool;
-          handler->method = "GET";
-          handler->path = fetch_url;
-          handler->conn = conn;
-          handler->session = session;
-
-          handler->custom_accept_encoding = TRUE;
-          handler->header_delegate = headers_fetch;
-          handler->header_delegate_baton = stream_ctx;
-
-          handler->response_handler = handle_stream;
-          handler->response_baton = stream_ctx;
-
-          handler->response_error = cancel_fetch;
-          handler->response_error_baton = stream_ctx;
-
-          stream_ctx->handler = handler;
-
-          svn_ra_serf__request_create(handler);
-
-          SVN_ERR(svn_ra_serf__context_run_wait(&stream_ctx->done, session, pool));
-        }
-    }
-
-  return SVN_NO_ERROR;
 }

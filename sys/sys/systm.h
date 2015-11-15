@@ -46,6 +46,7 @@
 #include <sys/stdint.h>		/* for people using printf mainly */
 
 extern int cold;		/* nonzero if we are doing a cold boot */
+extern int suspend_blocked;	/* block suspend due to pending shutdown */
 extern int rebooting;		/* kern_reboot() has been called. */
 extern const char *panicstr;	/* panic message */
 extern char version[];		/* system version */
@@ -82,12 +83,12 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #ifdef	INVARIANTS		/* The option is always available */
 #define	KASSERT(exp,msg) do {						\
 	if (__predict_false(!(exp)))					\
-		kassert_panic msg;						\
+		kassert_panic msg;					\
 } while (0)
 #define	VNASSERT(exp, vp, msg) do {					\
 	if (__predict_false(!(exp))) {					\
 		vn_printf(vp, "VNASSERT failed\n");			\
-		kassert_panic msg;						\
+		kassert_panic msg;					\
 	}								\
 } while (0)
 #else
@@ -411,7 +412,6 @@ struct root_hold_token;
 
 struct root_hold_token *root_mount_hold(const char *identifier);
 void root_mount_rel(struct root_hold_token *h);
-void root_mount_wait(void);
 int root_mounted(void);
 
 

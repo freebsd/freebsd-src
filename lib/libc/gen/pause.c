@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 
 #include "libc_private.h"
 
+int __pause(void);
+
 /*
  * Backwards compatible pause.
  */

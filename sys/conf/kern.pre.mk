@@ -128,7 +128,7 @@ CFLAGS+=	${CONF_CFLAGS}
 LINTFLAGS=	${LINTOBJKERNFLAGS}
 
 NORMAL_C= ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
-NORMAL_S= ${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
+NORMAL_S= ${CC:N${CCACHE_BIN}} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
 PROFILE_C= ${CC} -c ${CFLAGS} ${WERROR} ${.IMPSRC}
 NORMAL_C_NOWERROR= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
 
@@ -177,9 +177,13 @@ NORMAL_CTFCONVERT=	@:
 
 NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 
+# Linux Kernel Programming Interface C-flags
+LINUXKPI_INCLUDES=	-I$S/compat/linuxkpi/common/include
+LINUXKPI_C=		${NORMAL_C} ${LINUXKPI_INCLUDES}
+
 # Infiniband C flags.  Correct include paths and omit errors that linux
 # does not honor.
-OFEDINCLUDES=	-I$S/ofed/include/
+OFEDINCLUDES=	-I$S/ofed/include ${LINUXKPI_INCLUDES}
 OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith
 OFEDCFLAGS=	${CFLAGS:N-I*} ${OFEDINCLUDES} ${CFLAGS:M-I*} ${OFEDNOERR}
 OFED_C_NOIMP=	${CC} -c -o ${.TARGET} ${OFEDCFLAGS} ${WERROR} ${PROF}

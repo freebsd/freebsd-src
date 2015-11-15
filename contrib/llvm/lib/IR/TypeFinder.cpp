@@ -50,6 +50,9 @@ void TypeFinder::run(const Module &M, bool onlyNamed) {
     if (FI->hasPrologueData())
       incorporateValue(FI->getPrologueData());
 
+    if (FI->hasPersonalityFn())
+      incorporateValue(FI->getPersonalityFn());
+
     // First incorporate the arguments.
     for (Function::const_arg_iterator AI = FI->arg_begin(),
            AE = FI->arg_end(); AI != AE; ++AI)
@@ -68,7 +71,7 @@ void TypeFinder::run(const Module &M, bool onlyNamed) {
         // instructions with this loop.)
         for (User::const_op_iterator OI = I.op_begin(), OE = I.op_end();
              OI != OE; ++OI)
-          if (!isa<Instruction>(OI))
+          if (*OI && !isa<Instruction>(OI))
             incorporateValue(*OI);
 
         // Incorporate types hiding in metadata.

@@ -112,17 +112,17 @@ static bool processInstruction(Loop &L, Instruction &Inst, DominatorTree &DT,
     if (SSAUpdate.HasValueForBlock(ExitBB))
       continue;
 
-    PHINode *PN = PHINode::Create(Inst.getType(), PredCache.GetNumPreds(ExitBB),
+    PHINode *PN = PHINode::Create(Inst.getType(), PredCache.size(ExitBB),
                                   Inst.getName() + ".lcssa", ExitBB->begin());
 
     // Add inputs from inside the loop for this PHI.
-    for (BasicBlock **PI = PredCache.GetPreds(ExitBB); *PI; ++PI) {
-      PN->addIncoming(&Inst, *PI);
+    for (BasicBlock *Pred : PredCache.get(ExitBB)) {
+      PN->addIncoming(&Inst, Pred);
 
       // If the exit block has a predecessor not within the loop, arrange for
       // the incoming value use corresponding to that predecessor to be
       // rewritten in terms of a different LCSSA PHI.
-      if (!L.contains(*PI))
+      if (!L.contains(Pred))
         UsesToRewrite.push_back(
             &PN->getOperandUse(PN->getOperandNumForIncomingValue(
                  PN->getNumIncomingValues() - 1)));
@@ -294,21 +294,18 @@ struct LCSSA : public FunctionPass {
     AU.setPreservesCFG();
 
     AU.addRequired<DominatorTreeWrapperPass>();
-    AU.addRequired<LoopInfo>();
+    AU.addRequired<LoopInfoWrapperPass>();
     AU.addPreservedID(LoopSimplifyID);
     AU.addPreserved<AliasAnalysis>();
     AU.addPreserved<ScalarEvolution>();
   }
-
-private:
-  void verifyAnalysis() const override;
 };
 }
 
 char LCSSA::ID = 0;
 INITIALIZE_PASS_BEGIN(LCSSA, "lcssa", "Loop-Closed SSA Form Pass", false, false)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(LoopInfo)
+INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
 INITIALIZE_PASS_END(LCSSA, "lcssa", "Loop-Closed SSA Form Pass", false, false)
 
 Pass *llvm::createLCSSAPass() { return new LCSSA(); }
@@ -318,7 +315,7 @@ char &llvm::LCSSAID = LCSSA::ID;
 /// Process all loops in the function, inner-most out.
 bool LCSSA::runOnFunction(Function &F) {
   bool Changed = false;
-  LI = &getAnalysis<LoopInfo>();
+  LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
   SE = getAnalysisIfAvailable<ScalarEvolution>();
 
@@ -329,18 +326,3 @@ bool LCSSA::runOnFunction(Function &F) {
   return Changed;
 }
 
-static void verifyLoop(Loop &L, DominatorTree &DT) {
-  // Recurse depth-first through inner loops.
-  for (Loop::iterator LI = L.begin(), LE = L.end(); LI != LE; ++LI)
-    verifyLoop(**LI, DT);
-
-  // Check the special guarantees that LCSSA makes.
-  //assert(L.isLCSSAForm(DT) && "LCSSA form not preserved!");
-}
-
-void LCSSA::verifyAnalysis() const {
-  // Verify each loop nest in the function, assuming LI still points at that
-  // function's loop info.
-  for (LoopInfo::iterator I = LI->begin(), E = LI->end(); I != E; ++I)
-    verifyLoop(**I, *DT);
-}

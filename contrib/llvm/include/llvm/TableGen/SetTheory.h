@@ -47,9 +47,10 @@
 #ifndef LLVM_TABLEGEN_SETTHEORY_H
 #define LLVM_TABLEGEN_SETTHEORY_H
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/StringMap.h"
-#include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/SMLoc.h"
 #include <map>
 #include <vector>
 
@@ -58,7 +59,6 @@ namespace llvm {
 class DagInit;
 class Init;
 class Record;
-class RecordKeeper;
 
 class SetTheory {
 public:
@@ -95,17 +95,17 @@ private:
   ExpandMap Expansions;
 
   // Known DAG operators by name.
-  StringMap<Operator*> Operators;
+  StringMap<std::unique_ptr<Operator>> Operators;
 
   // Typed expanders by class name.
-  StringMap<Expander*> Expanders;
+  StringMap<std::unique_ptr<Expander>> Expanders;
 
 public:
   /// Create a SetTheory instance with only the standard operators.
   SetTheory();
 
   /// addExpander - Add an expander for Records with the named super class.
-  void addExpander(StringRef ClassName, Expander*);
+  void addExpander(StringRef ClassName, std::unique_ptr<Expander>);
 
   /// addFieldExpander - Add an expander for ClassName that simply evaluates
   /// FieldName in the Record to get the set elements.  That is all that is
@@ -118,7 +118,7 @@ public:
   void addFieldExpander(StringRef ClassName, StringRef FieldName);
 
   /// addOperator - Add a DAG operator.
-  void addOperator(StringRef Name, Operator*);
+  void addOperator(StringRef Name, std::unique_ptr<Operator>);
 
   /// evaluate - Evaluate Expr and append the resulting set to Elts.
   void evaluate(Init *Expr, RecSet &Elts, ArrayRef<SMLoc> Loc);

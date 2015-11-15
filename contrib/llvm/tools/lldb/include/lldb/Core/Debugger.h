@@ -14,21 +14,16 @@
 
 #include <stdint.h>
 
-#include <stack>
-
 #include "lldb/lldb-public.h"
 #include "lldb/Core/Broadcaster.h"
-#include "lldb/Core/Communication.h"
+#include "lldb/Core/FormatEntity.h"
 #include "lldb/Core/IOHandler.h"
 #include "lldb/Core/Listener.h"
 #include "lldb/Core/SourceManager.h"
 #include "lldb/Core/UserID.h"
 #include "lldb/Core/UserSettingsController.h"
-#include "lldb/DataFormatters/FormatManager.h"
 #include "lldb/Host/HostThread.h"
 #include "lldb/Host/Terminal.h"
-#include "lldb/Interpreter/OptionValueProperties.h"
-#include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Platform.h"
 #include "lldb/Target/TargetList.h"
 
@@ -60,10 +55,6 @@ friend class SourceManager;  // For GetSourceFileCache.
 
 public:
 
-    typedef llvm::sys::DynamicLibrary (*LoadPluginCallbackType) (const lldb::DebuggerSP &debugger_sp,
-                                                                 const FileSpec& spec,
-                                                                 Error& error);
-
     static lldb::DebuggerSP
     CreateInstance (lldb::LogOutputCallback log_callback = NULL, void *baton = NULL);
 
@@ -74,10 +65,10 @@ public:
     FindTargetWithProcess (Process *process);
 
     static void
-    Initialize (LoadPluginCallbackType load_plugin_callback);
+    Initialize(LoadPluginCallbackType load_plugin_callback);
     
-    static void 
-    Terminate ();
+    static void
+    Terminate();
     
     static void
     SettingsInitialize ();
@@ -158,8 +149,6 @@ public:
     // To get the target's source manager, call GetSourceManager on the target instead.
     SourceManager &
     GetSourceManager ();
-
-public:
     
     lldb::TargetSP
     GetSelectedTarget ()
@@ -221,14 +210,17 @@ public:
     bool
     IsTopIOHandler (const lldb::IOHandlerSP& reader_sp);
 
+    void
+    PrintAsync (const char *s, size_t len, bool is_stdout);
+
     ConstString
     GetTopIOHandlerControlSequence(char ch);
 
-    bool
-    HideTopIOHandler();
+    const char *
+    GetIOHandlerCommandPrefix();
 
-    void
-    RefreshTopIOHandler();
+    const char *
+    GetIOHandlerHelpPrologue();
 
     static lldb::DebuggerSP
     FindDebuggerWithID (lldb::user_id_t id);
@@ -243,15 +235,7 @@ public:
     GetDebuggerAtIndex (size_t index);
 
     static bool
-    FormatPrompt (const char *format,
-                  const SymbolContext *sc,
-                  const ExecutionContext *exe_ctx,
-                  const Address *addr,
-                  Stream &s,
-                  ValueObject* valobj = NULL);
-
-    static bool
-    FormatDisassemblerAddress (const char *format,
+    FormatDisassemblerAddress (const FormatEntity::Entry *format,
                                const SymbolContext *sc,
                                const SymbolContext *prev_sc,
                                const ExecutionContext *exe_ctx,
@@ -260,9 +244,6 @@ public:
 
     void
     ClearIOHandlers ();
-
-    static int
-    TestDebuggerRefCount ();
 
     bool
     GetCloseInputOnEOF () const;
@@ -296,13 +277,13 @@ public:
     bool
     GetAutoConfirm () const;
 
-    const char *
+    const FormatEntity::Entry *
     GetDisassemblyFormat() const;
 
-    const char *
+    const FormatEntity::Entry *
     GetFrameFormat() const;
 
-    const char *
+    const FormatEntity::Entry *
     GetThreadFormat() const;
     
     lldb::ScriptLanguage
@@ -352,7 +333,6 @@ public:
     
     bool
     GetNotifyVoid () const;
-
     
     const ConstString &
     GetInstanceName()
@@ -364,7 +344,7 @@ public:
     LoadPlugin (const FileSpec& spec, Error& error);
 
     void
-    ExecuteIOHanders();
+    ExecuteIOHandlers();
     
     bool
     IsForwardingEvents ();

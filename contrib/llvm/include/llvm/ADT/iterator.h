@@ -150,7 +150,7 @@ class iterator_adaptor_base
 protected:
   WrappedIteratorT I;
 
-  iterator_adaptor_base() {}
+  iterator_adaptor_base() = default;
 
   template <typename U>
   explicit iterator_adaptor_base(
@@ -161,6 +161,8 @@ protected:
                            DerivedT>::value,
           int>::type = 0)
       : I(std::forward<U &&>(u)) {}
+
+  const WrappedIteratorT &wrapped() const { return I; }
 
 public:
   typedef DifferenceTypeT difference_type;
@@ -231,7 +233,7 @@ struct pointee_iterator
           pointee_iterator<WrappedIteratorT>, WrappedIteratorT,
           typename std::iterator_traits<WrappedIteratorT>::iterator_category,
           T> {
-  pointee_iterator() {}
+  pointee_iterator() = default;
   template <typename U>
   pointee_iterator(U &&u)
       : pointee_iterator::iterator_adaptor_base(std::forward<U &&>(u)) {}

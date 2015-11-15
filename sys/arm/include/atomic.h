@@ -82,34 +82,6 @@ atomic_store_long(volatile u_long *dst, u_long src)
 	*dst = src;
 }
 
-static __inline void
-atomic_thread_fence_acq(void)
-{
-
-	dmb();
-}
-
-static __inline void
-atomic_thread_fence_rel(void)
-{
-
-	dmb();
-}
-
-static __inline void
-atomic_thread_fence_acq_rel(void)
-{
-
-	dmb();
-}
-
-static __inline void
-atomic_thread_fence_seq_cst(void)
-{
-
-	dmb();
-}
-
 #define atomic_clear_ptr		atomic_clear_32
 #define atomic_set_ptr			atomic_set_32
 #define atomic_cmpset_ptr		atomic_cmpset_32

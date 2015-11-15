@@ -20,6 +20,7 @@
 #ifndef LLVM_SUPPORT_COMMANDLINE_H
 #define LLVM_SUPPORT_COMMANDLINE_H
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/Twine.h"
@@ -31,6 +32,9 @@
 #include <vector>
 
 namespace llvm {
+
+class BumpPtrStringSaver;
+class StringSaver;
 
 /// cl Namespace - This namespace contains all of the command line option
 /// processing machinery.  It is intentionally a short name to make qualified
@@ -72,8 +76,17 @@ void AddExtraVersionPrinter(void (*func)());
 // (Currently not perfect, but best-effort.)
 void PrintOptionValues();
 
-// MarkOptionsChanged - Internal helper function.
-void MarkOptionsChanged();
+// Forward declaration - AddLiteralOption needs to be up here to make gcc happy.
+class Option;
+
+/// \brief Adds a new option for parsing and provides the option it refers to.
+///
+/// \param O pointer to the option
+/// \param Name the string name for the option to handle during parsing
+///
+/// Literal options are used by some parsers to register special option values.
+/// This is how the PassNameParser registers pass names for opt.
+void AddLiteralOption(Option &O, const char *Name);
 
 //===----------------------------------------------------------------------===//
 // Flags permitted to be passed to command line arguments
@@ -191,13 +204,13 @@ class Option {
   unsigned Misc : 3;
   unsigned Position;       // Position of last occurrence of the option
   unsigned AdditionalVals; // Greater than 0 for multi-valued option.
-  Option *NextRegistered;  // Singly linked list of registered options.
 
 public:
   const char *ArgStr;   // The argument string itself (ex: "help", "o")
   const char *HelpStr;  // The descriptive text message for -help
   const char *ValueStr; // String describing what the value of this option is
   OptionCategory *Category; // The Category this option belongs to
+  bool FullyInitialized;    // Has addArguemnt been called?
 
   inline enum NumOccurrencesFlag getNumOccurrencesFlag() const {
     return (enum NumOccurrencesFlag)Occurrences;
@@ -221,7 +234,7 @@ public:
   //-------------------------------------------------------------------------===
   // Accessor functions set by OptionModifiers
   //
-  void setArgStr(const char *S) { ArgStr = S; }
+  void setArgStr(const char *S);
   void setDescription(const char *S) { HelpStr = S; }
   void setValueStr(const char *S) { ValueStr = S; }
   void setNumOccurrencesFlag(enum NumOccurrencesFlag Val) { Occurrences = Val; }
@@ -237,8 +250,8 @@ protected:
                   enum OptionHidden Hidden)
       : NumOccurrences(0), Occurrences(OccurrencesFlag), Value(0),
         HiddenFlag(Hidden), Formatting(NormalFormatting), Misc(0), Position(0),
-        AdditionalVals(0), NextRegistered(nullptr), ArgStr(""), HelpStr(""),
-        ValueStr(""), Category(&GeneralCategory) {}
+        AdditionalVals(0), ArgStr(""), HelpStr(""), ValueStr(""),
+        Category(&GeneralCategory), FullyInitialized(false) {}
 
   inline void setNumAdditionalVals(unsigned n) { AdditionalVals = n; }
 
@@ -252,8 +265,6 @@ public:
   /// This option must have been the last option registered.
   /// For testing purposes only.
   void removeArgument();
-
-  Option *getNextRegisteredOption() const { return NextRegistered; }
 
   // Return the width of the option tag for printing...
   virtual size_t getOptionWidth() const = 0;
@@ -344,8 +355,13 @@ struct cat {
 
 // Support value comparison outside the template.
 struct GenericOptionValue {
-  virtual ~GenericOptionValue() {}
   virtual bool compare(const GenericOptionValue &V) const = 0;
+
+protected:
+  ~GenericOptionValue() = default;
+  GenericOptionValue() = default;
+  GenericOptionValue(const GenericOptionValue&) = default;
+  GenericOptionValue &operator=(const GenericOptionValue &) = default;
 
 private:
   virtual void anchor();
@@ -372,12 +388,20 @@ struct OptionValueBase : public GenericOptionValue {
   bool compare(const GenericOptionValue & /*V*/) const override {
     return false;
   }
+
+protected:
+  ~OptionValueBase() = default;
 };
 
 // Simple copy of the option value.
 template <class DataType> class OptionValueCopy : public GenericOptionValue {
   DataType Value;
   bool Valid;
+
+protected:
+  ~OptionValueCopy() = default;
+  OptionValueCopy(const OptionValueCopy&) = default;
+  OptionValueCopy &operator=(const OptionValueCopy&) = default;
 
 public:
   OptionValueCopy() : Valid(false) {}
@@ -409,12 +433,19 @@ public:
 template <class DataType>
 struct OptionValueBase<DataType, false> : OptionValueCopy<DataType> {
   typedef DataType WrapperType;
+
+protected:
+  ~OptionValueBase() = default;
+  OptionValueBase() = default;
+  OptionValueBase(const OptionValueBase&) = default;
+  OptionValueBase &operator=(const OptionValueBase&) = default;
 };
 
 // Top-level option class.
 template <class DataType>
-struct OptionValue : OptionValueBase<DataType, std::is_class<DataType>::value> {
-  OptionValue() {}
+struct OptionValue final
+    : OptionValueBase<DataType, std::is_class<DataType>::value> {
+  OptionValue() = default;
 
   OptionValue(const DataType &V) { this->setValue(V); }
   // Some options may take their value from a different data type.
@@ -427,7 +458,8 @@ struct OptionValue : OptionValueBase<DataType, std::is_class<DataType>::value> {
 // Other safe-to-copy-by-value common option types.
 enum boolOrDefault { BOU_UNSET, BOU_TRUE, BOU_FALSE };
 template <>
-struct OptionValue<cl::boolOrDefault> : OptionValueCopy<cl::boolOrDefault> {
+struct OptionValue<cl::boolOrDefault> final
+    : OptionValueCopy<cl::boolOrDefault> {
   typedef cl::boolOrDefault WrapperType;
 
   OptionValue() {}
@@ -442,7 +474,8 @@ private:
   void anchor() override;
 };
 
-template <> struct OptionValue<std::string> : OptionValueCopy<std::string> {
+template <>
+struct OptionValue<std::string> final : OptionValueCopy<std::string> {
   typedef StringRef WrapperType;
 
   OptionValue() {}
@@ -531,6 +564,8 @@ protected:
   };
 
 public:
+  generic_parser_base(Option &O) : Owner(O) {}
+
   virtual ~generic_parser_base() {} // Base class should have virtual-dtor
 
   // getNumOptions - Virtual function implemented by generic subclass to
@@ -569,18 +604,13 @@ public:
     printGenericOptionDiff(O, V, Default, GlobalWidth);
   }
 
-  void initialize(Option &O) {
-    // All of the modifiers for the option have been processed by now, so the
-    // argstr field should be stable, copy it down now.
-    //
-    hasArgStr = O.hasArgStr();
-  }
+  void initialize() {}
 
   void getExtraOptionNames(SmallVectorImpl<const char *> &OptionNames) {
     // If there has been no argstr specified, that means that we need to add an
     // argument for every possible option.  This ensures that our options are
     // vectored to us.
-    if (!hasArgStr)
+    if (!Owner.hasArgStr())
       for (unsigned i = 0, e = getNumOptions(); i != e; ++i)
         OptionNames.push_back(getOption(i));
   }
@@ -597,7 +627,7 @@ public:
     //
     // If this is the case, we cannot allow a value.
     //
-    if (hasArgStr)
+    if (Owner.hasArgStr())
       return ValueRequired;
     else
       return ValueDisallowed;
@@ -609,7 +639,7 @@ public:
   unsigned findOption(const char *Name);
 
 protected:
-  bool hasArgStr;
+  Option &Owner;
 };
 
 // Default parser implementation - This implementation depends on having a
@@ -629,6 +659,7 @@ protected:
   SmallVector<OptionInfo, 8> Values;
 
 public:
+  parser(Option &O) : generic_parser_base(O) {}
   typedef DataType parser_data_type;
 
   // Implement virtual functions needed by generic_parser_base
@@ -646,7 +677,7 @@ public:
   // parse - Return true on error.
   bool parse(Option &O, StringRef ArgName, StringRef Arg, DataType &V) {
     StringRef ArgVal;
-    if (hasArgStr)
+    if (Owner.hasArgStr())
       ArgVal = Arg;
     else
       ArgVal = ArgName;
@@ -667,7 +698,7 @@ public:
     assert(findOption(Name) == Values.size() && "Option already exists!");
     OptionInfo X(Name, static_cast<DataType>(V), HelpStr);
     Values.push_back(X);
-    MarkOptionsChanged();
+    AddLiteralOption(Owner, Name);
   }
 
   /// removeLiteralOption - Remove the specified option.
@@ -684,7 +715,8 @@ public:
 //
 class basic_parser_impl { // non-template implementation of basic_parser<t>
 public:
-  virtual ~basic_parser_impl() {}
+  basic_parser_impl(Option &O) {}
+
 
   enum ValueExpected getValueExpectedFlagDefault() const {
     return ValueRequired;
@@ -692,7 +724,7 @@ public:
 
   void getExtraOptionNames(SmallVectorImpl<const char *> &) {}
 
-  void initialize(Option &) {}
+  void initialize() {}
 
   // Return the width of the option tag for printing...
   size_t getOptionWidth(const Option &O) const;
@@ -713,6 +745,7 @@ public:
   virtual void anchor();
 
 protected:
+  ~basic_parser_impl() = default;
   // A helper for basic_parser::printOptionDiff.
   void printOptionName(const Option &O, size_t GlobalWidth) const;
 };
@@ -722,21 +755,26 @@ protected:
 //
 template <class DataType> class basic_parser : public basic_parser_impl {
 public:
+  basic_parser(Option &O) : basic_parser_impl(O) {}
   typedef DataType parser_data_type;
   typedef OptionValue<DataType> OptVal;
+
+protected:
+  // Workaround Clang PR22793
+  ~basic_parser() {}
 };
 
 //--------------------------------------------------
 // parser<bool>
 //
-template <> class parser<bool> : public basic_parser<bool> {
-  const char *ArgStr;
-
+template <> class parser<bool> final : public basic_parser<bool> {
 public:
+  parser(Option &O) : basic_parser(O) {}
+
   // parse - Return true on error.
   bool parse(Option &O, StringRef ArgName, StringRef Arg, bool &Val);
 
-  template <class Opt> void initialize(Opt &O) { ArgStr = O.ArgStr; }
+  void initialize() {}
 
   enum ValueExpected getValueExpectedFlagDefault() const {
     return ValueOptional;
@@ -752,12 +790,15 @@ public:
   void anchor() override;
 };
 
-EXTERN_TEMPLATE_INSTANTIATION(class basic_parser<bool>);
+extern template class basic_parser<bool>;
 
 //--------------------------------------------------
 // parser<boolOrDefault>
-template <> class parser<boolOrDefault> : public basic_parser<boolOrDefault> {
+template <>
+class parser<boolOrDefault> final : public basic_parser<boolOrDefault> {
 public:
+  parser(Option &O) : basic_parser(O) {}
+
   // parse - Return true on error.
   bool parse(Option &O, StringRef ArgName, StringRef Arg, boolOrDefault &Val);
 
@@ -775,13 +816,15 @@ public:
   void anchor() override;
 };
 
-EXTERN_TEMPLATE_INSTANTIATION(class basic_parser<boolOrDefault>);
+extern template class basic_parser<boolOrDefault>;
 
 //--------------------------------------------------
 // parser<int>
 //
-template <> class parser<int> : public basic_parser<int> {
+template <> class parser<int> final : public basic_parser<int> {
 public:
+  parser(Option &O) : basic_parser(O) {}
+
   // parse - Return true on error.
   bool parse(Option &O, StringRef ArgName, StringRef Arg, int &Val);
 
@@ -795,13 +838,15 @@ public:
   void anchor() override;
 };
 
-EXTERN_TEMPLATE_INSTANTIATION(class basic_parser<int>);
+extern template class basic_parser<int>;
 
 //--------------------------------------------------
 // parser<unsigned>
 //
-template <> class parser<unsigned> : public basic_parser<unsigned> {
+template <> class parser<unsigned> final : public basic_parser<unsigned> {
 public:
+  parser(Option &O) : basic_parser(O) {}
+
   // parse - Return true on error.
   bool parse(Option &O, StringRef ArgName, StringRef Arg, unsigned &Val);
 
@@ -815,14 +860,17 @@ public:
   void anchor() override;
 };
 
-EXTERN_TEMPLATE_INSTANTIATION(class basic_parser<unsigned>);
+extern template class basic_parser<unsigned>;
 
 //--------------------------------------------------
 // parser<unsigned long long>
 //
 template <>
-class parser<unsigned long long> : public basic_parser<unsigned long long> {
+class parser<unsigned long long> final
+    : public basic_parser<unsigned long long> {
 public:
+  parser(Option &O) : basic_parser(O) {}
+
   // parse - Return true on error.
   bool parse(Option &O, StringRef ArgName, StringRef Arg,
              unsigned long long &Val);
@@ -837,13 +885,15 @@ public:
   void anchor() override;
 };
 
-EXTERN_TEMPLATE_INSTANTIATION(class basic_parser<unsigned long long>);
+extern template class basic_parser<unsigned long long>;
 
 //--------------------------------------------------
 // parser<double>
 //
-template <> class parser<double> : public basic_parser<double> {
+template <> class parser<double> final : public basic_parser<double> {
 public:
+  parser(Option &O) : basic_parser(O) {}
+
   // parse - Return true on error.
   bool parse(Option &O, StringRef ArgName, StringRef Arg, double &Val);
 
@@ -857,13 +907,15 @@ public:
   void anchor() override;
 };
 
-EXTERN_TEMPLATE_INSTANTIATION(class basic_parser<double>);
+extern template class basic_parser<double>;
 
 //--------------------------------------------------
 // parser<float>
 //
-template <> class parser<float> : public basic_parser<float> {
+template <> class parser<float> final : public basic_parser<float> {
 public:
+  parser(Option &O) : basic_parser(O) {}
+
   // parse - Return true on error.
   bool parse(Option &O, StringRef ArgName, StringRef Arg, float &Val);
 
@@ -877,13 +929,15 @@ public:
   void anchor() override;
 };
 
-EXTERN_TEMPLATE_INSTANTIATION(class basic_parser<float>);
+extern template class basic_parser<float>;
 
 //--------------------------------------------------
 // parser<std::string>
 //
-template <> class parser<std::string> : public basic_parser<std::string> {
+template <> class parser<std::string> final : public basic_parser<std::string> {
 public:
+  parser(Option &O) : basic_parser(O) {}
+
   // parse - Return true on error.
   bool parse(Option &, StringRef, StringRef Arg, std::string &Value) {
     Value = Arg.str();
@@ -900,13 +954,15 @@ public:
   void anchor() override;
 };
 
-EXTERN_TEMPLATE_INSTANTIATION(class basic_parser<std::string>);
+extern template class basic_parser<std::string>;
 
 //--------------------------------------------------
 // parser<char>
 //
-template <> class parser<char> : public basic_parser<char> {
+template <> class parser<char> final : public basic_parser<char> {
 public:
+  parser(Option &O) : basic_parser(O) {}
+
   // parse - Return true on error.
   bool parse(Option &, StringRef, StringRef Arg, char &Value) {
     Value = Arg[0];
@@ -923,7 +979,7 @@ public:
   void anchor() override;
 };
 
-EXTERN_TEMPLATE_INSTANTIATION(class basic_parser<char>);
+extern template class basic_parser<char>;
 
 //--------------------------------------------------
 // PrintOptionDiff
@@ -942,7 +998,7 @@ void printOptionDiff(const Option &O, const generic_parser_base &P, const DT &V,
 // This is instantiated for basic parsers when the parsed value has a different
 // type than the option value. e.g. HelpPrinter.
 template <class ParserDT, class ValDT> struct OptionDiffPrinter {
-  void print(const Option &O, const parser<ParserDT> P, const ValDT & /*V*/,
+  void print(const Option &O, const parser<ParserDT> &P, const ValDT & /*V*/,
              const OptionValue<ValDT> & /*Default*/, size_t GlobalWidth) {
     P.printOptionNoValue(O, GlobalWidth);
   }
@@ -951,7 +1007,7 @@ template <class ParserDT, class ValDT> struct OptionDiffPrinter {
 // This is instantiated for basic parsers when the parsed value has the same
 // type as the option value.
 template <class DT> struct OptionDiffPrinter<DT, DT> {
-  void print(const Option &O, const parser<DT> P, const DT &V,
+  void print(const Option &O, const parser<DT> &P, const DT &V,
              const OptionValue<DT> &Default, size_t GlobalWidth) {
     P.printOptionDiff(O, V, Default, GlobalWidth);
   }
@@ -1015,8 +1071,14 @@ template <> struct applicator<MiscFlags> {
   static void opt(MiscFlags MF, Option &O) { O.setMiscFlag(MF); }
 };
 
-// apply method - Apply a modifier to an option in a type safe way.
-template <class Mod, class Opt> void apply(const Mod &M, Opt *O) {
+// apply method - Apply modifiers to an option in a type safe way.
+template <class Opt, class Mod, class... Mods>
+void apply(Opt *O, const Mod &M, const Mods &... Ms) {
+  applicator<Mod>::opt(M, *O);
+  apply(O, Ms...);
+}
+
+template <class Opt, class Mod> void apply(Opt *O, const Mod &M) {
   applicator<Mod>::opt(M, *O);
 }
 
@@ -1166,8 +1228,12 @@ class opt : public Option,
 
   void done() {
     addArgument();
-    Parser.initialize(*this);
+    Parser.initialize();
   }
+
+  // Command line options should not be copyable
+  opt(const opt &) = delete;
+  opt &operator=(const opt &) = delete;
 
 public:
   // setInitialValue - Used by the cl::init modifier...
@@ -1180,104 +1246,19 @@ public:
     return this->getValue();
   }
 
-  // One option...
-  template <class M0t>
-  explicit opt(const M0t &M0)
-      : Option(Optional, NotHidden) {
-    apply(M0, this);
-    done();
-  }
-
-  // Two options...
-  template <class M0t, class M1t>
-  opt(const M0t &M0, const M1t &M1)
-      : Option(Optional, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    done();
-  }
-
-  // Three options...
-  template <class M0t, class M1t, class M2t>
-  opt(const M0t &M0, const M1t &M1, const M2t &M2)
-      : Option(Optional, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    done();
-  }
-  // Four options...
-  template <class M0t, class M1t, class M2t, class M3t>
-  opt(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3)
-      : Option(Optional, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    apply(M3, this);
-    done();
-  }
-  // Five options...
-  template <class M0t, class M1t, class M2t, class M3t, class M4t>
-  opt(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3, const M4t &M4)
-      : Option(Optional, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    apply(M3, this);
-    apply(M4, this);
-    done();
-  }
-  // Six options...
-  template <class M0t, class M1t, class M2t, class M3t, class M4t, class M5t>
-  opt(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3, const M4t &M4,
-      const M5t &M5)
-      : Option(Optional, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    apply(M3, this);
-    apply(M4, this);
-    apply(M5, this);
-    done();
-  }
-  // Seven options...
-  template <class M0t, class M1t, class M2t, class M3t, class M4t, class M5t,
-            class M6t>
-  opt(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3, const M4t &M4,
-      const M5t &M5, const M6t &M6)
-      : Option(Optional, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    apply(M3, this);
-    apply(M4, this);
-    apply(M5, this);
-    apply(M6, this);
-    done();
-  }
-  // Eight options...
-  template <class M0t, class M1t, class M2t, class M3t, class M4t, class M5t,
-            class M6t, class M7t>
-  opt(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3, const M4t &M4,
-      const M5t &M5, const M6t &M6, const M7t &M7)
-      : Option(Optional, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    apply(M3, this);
-    apply(M4, this);
-    apply(M5, this);
-    apply(M6, this);
-    apply(M7, this);
+  template <class... Mods>
+  explicit opt(const Mods &... Ms)
+      : Option(Optional, NotHidden), Parser(*this) {
+    apply(this, Ms...);
     done();
   }
 };
 
-EXTERN_TEMPLATE_INSTANTIATION(class opt<unsigned>);
-EXTERN_TEMPLATE_INSTANTIATION(class opt<int>);
-EXTERN_TEMPLATE_INSTANTIATION(class opt<std::string>);
-EXTERN_TEMPLATE_INSTANTIATION(class opt<char>);
-EXTERN_TEMPLATE_INSTANTIATION(class opt<bool>);
+extern template class opt<unsigned>;
+extern template class opt<int>;
+extern template class opt<std::string>;
+extern template class opt<char>;
+extern template class opt<bool>;
 
 //===----------------------------------------------------------------------===//
 // list_storage class
@@ -1306,24 +1287,81 @@ public:
   }
 };
 
-// Define how to hold a class type object, such as a string.  Since we can
-// inherit from a class, we do so.  This makes us exactly compatible with the
-// object in all cases that it is used.
+// Define how to hold a class type object, such as a string.
+// Originally this code inherited from std::vector. In transitioning to a new
+// API for command line options we should change this. The new implementation
+// of this list_storage specialization implements the minimum subset of the
+// std::vector API required for all the current clients.
 //
-template <class DataType>
-class list_storage<DataType, bool> : public std::vector<DataType> {
+// FIXME: Reduce this API to a more narrow subset of std::vector
+//
+template <class DataType> class list_storage<DataType, bool> {
+  std::vector<DataType> Storage;
+
 public:
-  template <class T> void addValue(const T &V) {
-    std::vector<DataType>::push_back(V);
+  typedef typename std::vector<DataType>::iterator iterator;
+
+  iterator begin() { return Storage.begin(); }
+  iterator end() { return Storage.end(); }
+
+  typedef typename std::vector<DataType>::const_iterator const_iterator;
+  const_iterator begin() const { return Storage.begin(); }
+  const_iterator end() const { return Storage.end(); }
+
+  typedef typename std::vector<DataType>::size_type size_type;
+  size_type size() const { return Storage.size(); }
+
+  bool empty() const { return Storage.empty(); }
+
+  void push_back(const DataType &value) { Storage.push_back(value); }
+  void push_back(DataType &&value) { Storage.push_back(value); }
+
+  typedef typename std::vector<DataType>::reference reference;
+  typedef typename std::vector<DataType>::const_reference const_reference;
+  reference operator[](size_type pos) { return Storage[pos]; }
+  const_reference operator[](size_type pos) const { return Storage[pos]; }
+
+  iterator erase(const_iterator pos) { return Storage.erase(pos); }
+  iterator erase(const_iterator first, const_iterator last) {
+    return Storage.erase(first, last);
   }
+
+  iterator erase(iterator pos) { return Storage.erase(pos); }
+  iterator erase(iterator first, iterator last) {
+    return Storage.erase(first, last);
+  }
+
+  iterator insert(const_iterator pos, const DataType &value) {
+    return Storage.insert(pos, value);
+  }
+  iterator insert(const_iterator pos, DataType &&value) {
+    return Storage.insert(pos, value);
+  }
+
+  iterator insert(iterator pos, const DataType &value) {
+    return Storage.insert(pos, value);
+  }
+  iterator insert(iterator pos, DataType &&value) {
+    return Storage.insert(pos, value);
+  }
+
+  reference front() { return Storage.front(); }
+  const_reference front() const { return Storage.front(); }
+
+  operator std::vector<DataType>&() { return Storage; }
+  operator ArrayRef<DataType>() { return Storage; }
+  std::vector<DataType> *operator&() { return &Storage; }
+  const std::vector<DataType> *operator&() const { return &Storage; }
+
+  template <class T> void addValue(const T &V) { Storage.push_back(V); }
 };
 
 //===----------------------------------------------------------------------===//
 // list - A list of command line options.
 //
-template <class DataType, class Storage = bool,
+template <class DataType, class StorageClass = bool,
           class ParserClass = parser<DataType>>
-class list : public Option, public list_storage<DataType, Storage> {
+class list : public Option, public list_storage<DataType, StorageClass> {
   std::vector<unsigned> Positions;
   ParserClass Parser;
 
@@ -1341,7 +1379,7 @@ class list : public Option, public list_storage<DataType, Storage> {
         typename ParserClass::parser_data_type();
     if (Parser.parse(*this, ArgName, Arg, Val))
       return true; // Parse Error!
-    list_storage<DataType, Storage>::addValue(Val);
+    list_storage<DataType, StorageClass>::addValue(Val);
     setPosition(pos);
     Positions.push_back(pos);
     return false;
@@ -1361,8 +1399,12 @@ class list : public Option, public list_storage<DataType, Storage> {
 
   void done() {
     addArgument();
-    Parser.initialize(*this);
+    Parser.initialize();
   }
+
+  // Command line options should not be copyable
+  list(const list &) = delete;
+  list &operator=(const list &) = delete;
 
 public:
   ParserClass &getParser() { return Parser; }
@@ -1374,94 +1416,10 @@ public:
 
   void setNumAdditionalVals(unsigned n) { Option::setNumAdditionalVals(n); }
 
-  // One option...
-  template <class M0t>
-  explicit list(const M0t &M0)
-      : Option(ZeroOrMore, NotHidden) {
-    apply(M0, this);
-    done();
-  }
-  // Two options...
-  template <class M0t, class M1t>
-  list(const M0t &M0, const M1t &M1)
-      : Option(ZeroOrMore, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    done();
-  }
-  // Three options...
-  template <class M0t, class M1t, class M2t>
-  list(const M0t &M0, const M1t &M1, const M2t &M2)
-      : Option(ZeroOrMore, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    done();
-  }
-  // Four options...
-  template <class M0t, class M1t, class M2t, class M3t>
-  list(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3)
-      : Option(ZeroOrMore, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    apply(M3, this);
-    done();
-  }
-  // Five options...
-  template <class M0t, class M1t, class M2t, class M3t, class M4t>
-  list(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3,
-       const M4t &M4)
-      : Option(ZeroOrMore, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    apply(M3, this);
-    apply(M4, this);
-    done();
-  }
-  // Six options...
-  template <class M0t, class M1t, class M2t, class M3t, class M4t, class M5t>
-  list(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3,
-       const M4t &M4, const M5t &M5)
-      : Option(ZeroOrMore, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    apply(M3, this);
-    apply(M4, this);
-    apply(M5, this);
-    done();
-  }
-  // Seven options...
-  template <class M0t, class M1t, class M2t, class M3t, class M4t, class M5t,
-            class M6t>
-  list(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3,
-       const M4t &M4, const M5t &M5, const M6t &M6)
-      : Option(ZeroOrMore, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    apply(M3, this);
-    apply(M4, this);
-    apply(M5, this);
-    apply(M6, this);
-    done();
-  }
-  // Eight options...
-  template <class M0t, class M1t, class M2t, class M3t, class M4t, class M5t,
-            class M6t, class M7t>
-  list(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3,
-       const M4t &M4, const M5t &M5, const M6t &M6, const M7t &M7)
-      : Option(ZeroOrMore, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    apply(M3, this);
-    apply(M4, this);
-    apply(M5, this);
-    apply(M6, this);
-    apply(M7, this);
+  template <class... Mods>
+  explicit list(const Mods &... Ms)
+      : Option(ZeroOrMore, NotHidden), Parser(*this) {
+    apply(this, Ms...);
     done();
   }
 };
@@ -1581,8 +1539,12 @@ class bits : public Option, public bits_storage<DataType, Storage> {
 
   void done() {
     addArgument();
-    Parser.initialize(*this);
+    Parser.initialize();
   }
+
+  // Command line options should not be copyable
+  bits(const bits &) = delete;
+  bits &operator=(const bits &) = delete;
 
 public:
   ParserClass &getParser() { return Parser; }
@@ -1592,94 +1554,10 @@ public:
     return Positions[optnum];
   }
 
-  // One option...
-  template <class M0t>
-  explicit bits(const M0t &M0)
-      : Option(ZeroOrMore, NotHidden) {
-    apply(M0, this);
-    done();
-  }
-  // Two options...
-  template <class M0t, class M1t>
-  bits(const M0t &M0, const M1t &M1)
-      : Option(ZeroOrMore, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    done();
-  }
-  // Three options...
-  template <class M0t, class M1t, class M2t>
-  bits(const M0t &M0, const M1t &M1, const M2t &M2)
-      : Option(ZeroOrMore, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    done();
-  }
-  // Four options...
-  template <class M0t, class M1t, class M2t, class M3t>
-  bits(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3)
-      : Option(ZeroOrMore, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    apply(M3, this);
-    done();
-  }
-  // Five options...
-  template <class M0t, class M1t, class M2t, class M3t, class M4t>
-  bits(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3,
-       const M4t &M4)
-      : Option(ZeroOrMore, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    apply(M3, this);
-    apply(M4, this);
-    done();
-  }
-  // Six options...
-  template <class M0t, class M1t, class M2t, class M3t, class M4t, class M5t>
-  bits(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3,
-       const M4t &M4, const M5t &M5)
-      : Option(ZeroOrMore, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    apply(M3, this);
-    apply(M4, this);
-    apply(M5, this);
-    done();
-  }
-  // Seven options...
-  template <class M0t, class M1t, class M2t, class M3t, class M4t, class M5t,
-            class M6t>
-  bits(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3,
-       const M4t &M4, const M5t &M5, const M6t &M6)
-      : Option(ZeroOrMore, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    apply(M3, this);
-    apply(M4, this);
-    apply(M5, this);
-    apply(M6, this);
-    done();
-  }
-  // Eight options...
-  template <class M0t, class M1t, class M2t, class M3t, class M4t, class M5t,
-            class M6t, class M7t>
-  bits(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3,
-       const M4t &M4, const M5t &M5, const M6t &M6, const M7t &M7)
-      : Option(ZeroOrMore, NotHidden) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    apply(M3, this);
-    apply(M4, this);
-    apply(M5, this);
-    apply(M6, this);
-    apply(M7, this);
+  template <class... Mods>
+  explicit bits(const Mods &... Ms)
+      : Option(ZeroOrMore, NotHidden), Parser(*this) {
+    apply(this, Ms...);
     done();
   }
 };
@@ -1718,6 +1596,10 @@ class alias : public Option {
     addArgument();
   }
 
+  // Command line options should not be copyable
+  alias(const alias &) = delete;
+  alias &operator=(const alias &) = delete;
+
 public:
   void setAliasFor(Option &O) {
     if (AliasFor)
@@ -1725,38 +1607,10 @@ public:
     AliasFor = &O;
   }
 
-  // One option...
-  template <class M0t>
-  explicit alias(const M0t &M0)
+  template <class... Mods>
+  explicit alias(const Mods &... Ms)
       : Option(Optional, Hidden), AliasFor(nullptr) {
-    apply(M0, this);
-    done();
-  }
-  // Two options...
-  template <class M0t, class M1t>
-  alias(const M0t &M0, const M1t &M1)
-      : Option(Optional, Hidden), AliasFor(nullptr) {
-    apply(M0, this);
-    apply(M1, this);
-    done();
-  }
-  // Three options...
-  template <class M0t, class M1t, class M2t>
-  alias(const M0t &M0, const M1t &M1, const M2t &M2)
-      : Option(Optional, Hidden), AliasFor(nullptr) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    done();
-  }
-  // Four options...
-  template <class M0t, class M1t, class M2t, class M3t>
-  alias(const M0t &M0, const M1t &M1, const M2t &M2, const M3t &M3)
-      : Option(Optional, Hidden), AliasFor(nullptr) {
-    apply(M0, this);
-    apply(M1, this);
-    apply(M2, this);
-    apply(M3, this);
+    apply(this, Ms...);
     done();
   }
 };
@@ -1795,9 +1649,7 @@ void PrintHelpMessage(bool Hidden = false, bool Categorized = false);
 /// \brief Use this to get a StringMap to all registered named options
 /// (e.g. -help). Note \p Map Should be an empty StringMap.
 ///
-/// \param [out] Map will be filled with mappings where the key is the
-/// Option argument string (e.g. "help") and value is the corresponding
-/// Option*.
+/// \return A reference to the StringMap used by the cl APIs to parse options.
 ///
 /// Access to unnamed arguments (i.e. positional) are not provided because
 /// it is expected that the client already has access to these.
@@ -1805,8 +1657,7 @@ void PrintHelpMessage(bool Hidden = false, bool Categorized = false);
 /// Typical usage:
 /// \code
 /// main(int argc,char* argv[]) {
-/// StringMap<llvm::cl::Option*> opts;
-/// llvm::cl::getRegisteredOptions(opts);
+/// StringMap<llvm::cl::Option*> &opts = llvm::cl::getRegisteredOptions();
 /// assert(opts.count("help") == 1)
 /// opts["help"]->setDescription("Show alphabetical help information")
 /// // More code
@@ -1818,21 +1669,15 @@ void PrintHelpMessage(bool Hidden = false, bool Categorized = false);
 /// This interface is useful for modifying options in libraries that are out of
 /// the control of the client. The options should be modified before calling
 /// llvm::cl::ParseCommandLineOptions().
-void getRegisteredOptions(StringMap<Option *> &Map);
+///
+/// Hopefully this API can be depricated soon. Any situation where options need
+/// to be modified by tools or libraries should be handled by sane APIs rather
+/// than just handing around a global list.
+StringMap<Option *> &getRegisteredOptions();
 
 //===----------------------------------------------------------------------===//
 // Standalone command line processing utilities.
 //
-
-/// \brief Saves strings in the inheritor's stable storage and returns a stable
-/// raw character pointer.
-class StringSaver {
-  virtual void anchor();
-
-public:
-  virtual const char *SaveString(const char *Str) = 0;
-  virtual ~StringSaver(){}; // Pacify -Wnon-virtual-dtor.
-};
 
 /// \brief Tokenizes a command line that can contain escapes and quotes.
 //
@@ -1888,6 +1733,24 @@ typedef void (*TokenizerCallback)(StringRef Source, StringSaver &Saver,
 bool ExpandResponseFiles(StringSaver &Saver, TokenizerCallback Tokenizer,
                          SmallVectorImpl<const char *> &Argv,
                          bool MarkEOLs = false);
+
+/// \brief Mark all options not part of this category as cl::ReallyHidden.
+///
+/// \param Category the category of options to keep displaying
+///
+/// Some tools (like clang-format) like to be able to hide all options that are
+/// not specific to the tool. This function allows a tool to specify a single
+/// option category to display in the -help output.
+void HideUnrelatedOptions(cl::OptionCategory &Category);
+
+/// \brief Mark all options not part of the categories as cl::ReallyHidden.
+///
+/// \param Categories the categories of options to keep displaying.
+///
+/// Some tools (like clang-format) like to be able to hide all options that are
+/// not specific to the tool. This function allows a tool to specify a single
+/// option category to display in the -help output.
+void HideUnrelatedOptions(ArrayRef<const cl::OptionCategory *> Categories);
 
 } // End namespace cl
 

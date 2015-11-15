@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/API/SBThread.h"
 
 #include "lldb/API/SBSymbolContext.h"
@@ -20,13 +18,15 @@
 #include "lldb/Core/Stream.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Core/StructuredData.h"
+#include "lldb/Core/ValueObject.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
+#include "lldb/Symbol/SymbolContext.h"
+#include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Target/SystemRuntime.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Queue.h"
-#include "lldb/Symbol/SymbolContext.h"
-#include "lldb/Symbol/CompileUnit.h"
+#include "lldb/Target/UnixSignals.h"
 #include "lldb/Target/StopInfo.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/ThreadPlan.h"
@@ -114,13 +114,13 @@ SBThread::GetQueue () const
         else
         {
             if (log)
-                log->Printf ("SBThread(%p)::GetQueueKind() => error: process is running",
+                log->Printf ("SBThread(%p)::GetQueue() => error: process is running",
                              static_cast<void*>(exe_ctx.GetThreadPtr()));
         }
     }
 
     if (log)
-        log->Printf ("SBThread(%p)::GetQueueKind () => SBQueue(%p)",
+        log->Printf ("SBThread(%p)::GetQueue () => SBQueue(%p)",
                      static_cast<void*>(exe_ctx.GetThreadPtr()), static_cast<void*>(queue_sp.get()));
 
     return sb_queue;
@@ -392,7 +392,7 @@ SBThread::GetStopDescription (char *dst, size_t dst_len)
 
                     case eStopReasonSignal:
                         {
-                            stop_desc = exe_ctx.GetProcessPtr()->GetUnixSignals ().GetSignalAsCString (stop_info_sp->GetValue());
+                            stop_desc = exe_ctx.GetProcessPtr()->GetUnixSignals()->GetSignalAsCString(stop_info_sp->GetValue());
                             if (stop_desc == NULL || stop_desc[0] == '\0')
                             {
                                 static char signal_desc[] = "signal";
@@ -1491,7 +1491,8 @@ SBThread::GetDescription (SBStream &description) const
     ExecutionContext exe_ctx (m_opaque_sp.get());
     if (exe_ctx.HasThreadScope())
     {
-        strm.Printf("SBThread: tid = 0x%4.4" PRIx64, exe_ctx.GetThreadPtr()->GetID());
+        exe_ctx.GetThreadPtr()->DumpUsingSettingsFormat(strm, LLDB_INVALID_THREAD_ID);
+        //strm.Printf("SBThread: tid = 0x%4.4" PRIx64, exe_ctx.GetThreadPtr()->GetID());
     }
     else
         strm.PutCString ("No value");

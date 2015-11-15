@@ -165,7 +165,7 @@ private:
   void gather(Instruction *, const ValueVector &);
   bool canTransferMetadata(unsigned Kind);
   void transferMetadata(Instruction *, const ValueVector &);
-  bool getVectorLayout(Type *, unsigned, VectorLayout &);
+  bool getVectorLayout(Type *, unsigned, VectorLayout &, const DataLayout &);
   bool finish();
 
   template<typename T> bool splitBinary(Instruction &, const T &);
@@ -173,7 +173,6 @@ private:
   ScatterMap Scattered;
   GatherList Gathered;
   unsigned ParallelLoopAccessMDKind;
-  const DataLayout *DL;
   bool ScalarizeLoadStore;
 };
 
@@ -214,7 +213,7 @@ Value *Scatterer::operator[](unsigned I) {
       CV[0] = Builder.CreateBitCast(V, Ty, V->getName() + ".i0");
     }
     if (I != 0)
-      CV[I] = Builder.CreateConstGEP1_32(CV[0], I,
+      CV[I] = Builder.CreateConstGEP1_32(nullptr, CV[0], I,
                                          V->getName() + ".i" + Twine(I));
   } else {
     // Search through a chain of InsertElementInsts looking for element I.
@@ -228,10 +227,16 @@ Value *Scatterer::operator[](unsigned I) {
       if (!Idx)
         break;
       unsigned J = Idx->getZExtValue();
-      CV[J] = Insert->getOperand(1);
       V = Insert->getOperand(0);
-      if (I == J)
+      if (I == J) {
+        CV[J] = Insert->getOperand(1);
         return CV[J];
+      } else if (!CV[J]) {
+        // Only cache the first entry we find for each index we're not actively
+        // searching for. This prevents us from going too far up the chain and
+        // caching incorrect entries.
+        CV[J] = Insert->getOperand(1);
+      }
     }
     CV[I] = Builder.CreateExtractElement(V, Builder.getInt32(I),
                                          V->getName() + ".i" + Twine(I));
@@ -248,8 +253,6 @@ bool Scalarizer::doInitialization(Module &M) {
 }
 
 bool Scalarizer::runOnFunction(Function &F) {
-  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
-  DL = DLP ? &DLP->getDataLayout() : nullptr;
   for (Function::iterator BBI = F.begin(), BBE = F.end(); BBI != BBE; ++BBI) {
     BasicBlock *BB = BBI;
     for (BasicBlock::iterator II = BB->begin(), IE = BB->end(); II != IE;) {
@@ -345,10 +348,7 @@ void Scalarizer::transferMetadata(Instruction *Op, const ValueVector &CV) {
 // Try to fill in Layout from Ty, returning true on success.  Alignment is
 // the alignment of the vector, or 0 if the ABI default should be used.
 bool Scalarizer::getVectorLayout(Type *Ty, unsigned Alignment,
-                                 VectorLayout &Layout) {
-  if (!DL)
-    return false;
-
+                                 VectorLayout &Layout, const DataLayout &DL) {
   // Make sure we're dealing with a vector.
   Layout.VecTy = dyn_cast<VectorType>(Ty);
   if (!Layout.VecTy)
@@ -356,15 +356,15 @@ bool Scalarizer::getVectorLayout(Type *Ty, unsigned Alignment,
 
   // Check that we're dealing with full-byte elements.
   Layout.ElemTy = Layout.VecTy->getElementType();
-  if (DL->getTypeSizeInBits(Layout.ElemTy) !=
-      DL->getTypeStoreSizeInBits(Layout.ElemTy))
+  if (DL.getTypeSizeInBits(Layout.ElemTy) !=
+      DL.getTypeStoreSizeInBits(Layout.ElemTy))
     return false;
 
   if (Alignment)
     Layout.VecAlign = Alignment;
   else
-    Layout.VecAlign = DL->getABITypeAlignment(Layout.VecTy);
-  Layout.ElemSize = DL->getTypeStoreSize(Layout.ElemTy);
+    Layout.VecAlign = DL.getABITypeAlignment(Layout.VecTy);
+  Layout.ElemSize = DL.getTypeStoreSize(Layout.ElemTy);
   return true;
 }
 
@@ -456,7 +456,7 @@ bool Scalarizer::visitGetElementPtrInst(GetElementPtrInst &GEPI) {
     Indices.resize(NumIndices);
     for (unsigned J = 0; J < NumIndices; ++J)
       Indices[J] = Ops[J][I];
-    Res[I] = Builder.CreateGEP(Base[I], Indices,
+    Res[I] = Builder.CreateGEP(GEPI.getSourceElementType(), Base[I], Indices,
                                GEPI.getName() + ".i" + Twine(I));
     if (GEPI.isInBounds())
       if (GetElementPtrInst *NewGEPI = dyn_cast<GetElementPtrInst>(Res[I]))
@@ -595,7 +595,8 @@ bool Scalarizer::visitLoadInst(LoadInst &LI) {
     return false;
 
   VectorLayout Layout;
-  if (!getVectorLayout(LI.getType(), LI.getAlignment(), Layout))
+  if (!getVectorLayout(LI.getType(), LI.getAlignment(), Layout,
+                       LI.getModule()->getDataLayout()))
     return false;
 
   unsigned NumElems = Layout.VecTy->getNumElements();
@@ -619,7 +620,8 @@ bool Scalarizer::visitStoreInst(StoreInst &SI) {
 
   VectorLayout Layout;
   Value *FullValue = SI.getValueOperand();
-  if (!getVectorLayout(FullValue->getType(), SI.getAlignment(), Layout))
+  if (!getVectorLayout(FullValue->getType(), SI.getAlignment(), Layout,
+                       SI.getModule()->getDataLayout()))
     return false;
 
   unsigned NumElems = Layout.VecTy->getNumElements();

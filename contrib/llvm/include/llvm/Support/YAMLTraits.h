@@ -46,6 +46,10 @@ struct MappingTraits {
   // static void mapping(IO &io, T &fields);
   // Optionally may provide:
   // static StringRef validate(IO &io, T &fields);
+  //
+  // The optional flow flag will cause generated YAML to use a flow mapping
+  // (e.g. { a: 0, b: 1 }):
+  // static const bool flow = true;
 };
 
 
@@ -114,6 +118,35 @@ struct ScalarTraits {
   //
   // Function to determine if the value should be quoted.
   //static bool mustQuote(StringRef);
+};
+
+
+/// This class should be specialized by type that requires custom conversion
+/// to/from a YAML literal block scalar. For example:
+///
+///    template <>
+///    struct BlockScalarTraits<MyType> {
+///      static void output(const MyType &Value, void*, llvm::raw_ostream &Out)
+///      {
+///        // stream out custom formatting
+///        Out << Val;
+///      }
+///      static StringRef input(StringRef Scalar, void*, MyType &Value) {
+///        // parse scalar and set `value`
+///        // return empty string on success, or error string
+///        return StringRef();
+///      }
+///    };
+template <typename T>
+struct BlockScalarTraits {
+  // Must provide:
+  //
+  // Function to write the value as a string:
+  // static void output(const T &Value, void *ctx, llvm::raw_ostream &Out);
+  //
+  // Function to convert a string to a value.  Returns the empty
+  // StringRef on success or an error string if string is malformed:
+  // static StringRef input(StringRef Scalar, void *ctxt, T &Value);
 };
 
 
@@ -217,6 +250,26 @@ struct has_ScalarTraits
 public:
   static bool const value =
       (sizeof(test<ScalarTraits<T>>(nullptr, nullptr, nullptr)) == 1);
+};
+
+
+// Test if BlockScalarTraits<T> is defined on type T.
+template <class T>
+struct has_BlockScalarTraits
+{
+  typedef StringRef (*Signature_input)(StringRef, void *, T &);
+  typedef void (*Signature_output)(const T &, void *, llvm::raw_ostream &);
+
+  template <typename U>
+  static char test(SameType<Signature_input, &U::input> *,
+                   SameType<Signature_output, &U::output> *);
+
+  template <typename U>
+  static double test(...);
+
+public:
+  static bool const value =
+      (sizeof(test<BlockScalarTraits<T>>(nullptr, nullptr)) == 1);
 };
 
 
@@ -406,6 +459,7 @@ struct missingTraits : public std::integral_constant<bool,
                                          !has_ScalarEnumerationTraits<T>::value
                                       && !has_ScalarBitSetTraits<T>::value
                                       && !has_ScalarTraits<T>::value
+                                      && !has_BlockScalarTraits<T>::value
                                       && !has_MappingTraits<T>::value
                                       && !has_SequenceTraits<T>::value
                                       && !has_DocumentListTraits<T>::value >  {};
@@ -445,8 +499,12 @@ public:
   virtual bool preflightKey(const char*, bool, bool, bool &, void *&) = 0;
   virtual void postflightKey(void*) = 0;
 
+  virtual void beginFlowMapping() = 0;
+  virtual void endFlowMapping() = 0;
+
   virtual void beginEnumScalar() = 0;
   virtual bool matchEnumScalar(const char*, bool) = 0;
+  virtual bool matchEnumFallback() = 0;
   virtual void endEnumScalar() = 0;
 
   virtual bool beginBitSetScalar(bool &) = 0;
@@ -454,6 +512,7 @@ public:
   virtual void endBitSetScalar() = 0;
 
   virtual void scalarString(StringRef &, bool) = 0;
+  virtual void blockScalarString(StringRef &) = 0;
 
   virtual void setError(const Twine &) = 0;
 
@@ -469,6 +528,16 @@ public:
   void enumCase(T &Val, const char* Str, const uint32_t ConstVal) {
     if ( matchEnumScalar(Str, outputting() && Val == static_cast<T>(ConstVal)) ) {
       Val = ConstVal;
+    }
+  }
+
+  template <typename FBT, typename T>
+  void enumFallback(T &Val) {
+    if ( matchEnumFallback() ) {
+      // FIXME: Force integral conversion to allow strong typedefs to convert.
+      FBT Res = (uint64_t)Val;
+      yamlize(*this, Res, true);
+      Val = (uint64_t)Res;
     }
   }
 
@@ -532,7 +601,7 @@ public:
   void mapOptional(const char* Key, T& Val, const T& Default) {
     this->processKeyWithDefault(Key, Val, Default, false);
   }
-  
+
 private:
   template <typename T>
   void processKeyWithDefault(const char *Key, Optional<T> &Val,
@@ -628,11 +697,32 @@ yamlize(IO &io, T &Val, bool) {
   }
 }
 
+template <typename T>
+typename std::enable_if<has_BlockScalarTraits<T>::value, void>::type
+yamlize(IO &YamlIO, T &Val, bool) {
+  if (YamlIO.outputting()) {
+    std::string Storage;
+    llvm::raw_string_ostream Buffer(Storage);
+    BlockScalarTraits<T>::output(Val, YamlIO.getContext(), Buffer);
+    StringRef Str = Buffer.str();
+    YamlIO.blockScalarString(Str);
+  } else {
+    StringRef Str;
+    YamlIO.blockScalarString(Str);
+    StringRef Result =
+        BlockScalarTraits<T>::input(Str, YamlIO.getContext(), Val);
+    if (!Result.empty())
+      YamlIO.setError(llvm::Twine(Result));
+  }
+}
 
 template<typename T>
 typename std::enable_if<validatedMappingTraits<T>::value, void>::type
 yamlize(IO &io, T &Val, bool) {
-  io.beginMapping();
+  if (has_FlowTraits<MappingTraits<T>>::value)
+    io.beginFlowMapping();
+  else
+    io.beginMapping();
   if (io.outputting()) {
     StringRef Err = MappingTraits<T>::validate(io, Val);
     if (!Err.empty()) {
@@ -646,15 +736,24 @@ yamlize(IO &io, T &Val, bool) {
     if (!Err.empty())
       io.setError(Err);
   }
-  io.endMapping();
+  if (has_FlowTraits<MappingTraits<T>>::value)
+    io.endFlowMapping();
+  else
+    io.endMapping();
 }
 
 template<typename T>
 typename std::enable_if<unvalidatedMappingTraits<T>::value, void>::type
 yamlize(IO &io, T &Val, bool) {
-  io.beginMapping();
-  MappingTraits<T>::mapping(io, Val);
-  io.endMapping();
+  if (has_FlowTraits<MappingTraits<T>>::value) {
+    io.beginFlowMapping();
+    MappingTraits<T>::mapping(io, Val);
+    io.endFlowMapping();
+  } else {
+    io.beginMapping();
+    MappingTraits<T>::mapping(io, Val);
+    io.endMapping();
+  }
 }
 
 template<typename T>
@@ -706,7 +805,7 @@ struct ScalarTraits<StringRef> {
   static StringRef input(StringRef, void*, StringRef &);
   static bool mustQuote(StringRef S) { return needsQuotes(S); }
 };
- 
+
 template<>
 struct ScalarTraits<std::string> {
   static void output(const std::string &, void*, llvm::raw_ostream &);
@@ -877,7 +976,7 @@ public:
         void *Ctxt = nullptr,
         SourceMgr::DiagHandlerTy DiagHandler = nullptr,
         void *DiagHandlerCtxt = nullptr);
-  ~Input();
+  ~Input() override;
 
   // Check if there was an syntax or semantic error during parsing.
   std::error_code error();
@@ -889,6 +988,8 @@ private:
   void endMapping() override;
   bool preflightKey(const char *, bool, bool, bool &, void *&) override;
   void postflightKey(void *) override;
+  void beginFlowMapping() override;
+  void endFlowMapping() override;
   unsigned beginSequence() override;
   void endSequence() override;
   bool preflightElement(unsigned index, void *&) override;
@@ -899,11 +1000,13 @@ private:
   void endFlowSequence() override;
   void beginEnumScalar() override;
   bool matchEnumScalar(const char*, bool) override;
+  bool matchEnumFallback() override;
   void endEnumScalar() override;
   bool beginBitSetScalar(bool &) override;
   bool bitSetMatch(const char *, bool ) override;
   void endBitSetScalar() override;
   void scalarString(StringRef &, bool) override;
+  void blockScalarString(StringRef &) override;
   void setError(const Twine &message) override;
   bool canElideEmptySequence() override;
 
@@ -935,7 +1038,8 @@ private:
     StringRef value() const { return _value; }
 
     static inline bool classof(const HNode *n) {
-      return ScalarNode::classof(n->_node);
+      return ScalarNode::classof(n->_node) ||
+             BlockScalarNode::classof(n->_node);
     }
     static inline bool classof(const ScalarHNode *) { return true; }
   protected:
@@ -943,7 +1047,7 @@ private:
   };
 
   class MapHNode : public HNode {
-    virtual void anchor();
+    void anchor() override;
 
   public:
     MapHNode(Node *n) : HNode(n) { }
@@ -962,7 +1066,7 @@ private:
   };
 
   class SequenceHNode : public HNode {
-    virtual void anchor();
+    void anchor() override;
 
   public:
     SequenceHNode(Node *n) : HNode(n) { }
@@ -986,6 +1090,9 @@ public:
   bool setCurrentDocument();
   bool nextDocument();
 
+  /// Returns the current node that's being parsed by the YAML Parser.
+  const Node *getCurrentNode() const;
+
 private:
   llvm::SourceMgr                     SrcMgr; // must be before Strm
   std::unique_ptr<llvm::yaml::Stream> Strm;
@@ -1007,8 +1114,8 @@ private:
 ///
 class Output : public IO {
 public:
-  Output(llvm::raw_ostream &, void *Ctxt=nullptr);
-  virtual ~Output();
+  Output(llvm::raw_ostream &, void *Ctxt = nullptr, int WrapColumn = 70);
+  ~Output() override;
 
   bool outputting() override;
   bool mapTag(StringRef, bool) override;
@@ -1016,6 +1123,8 @@ public:
   void endMapping() override;
   bool preflightKey(const char *key, bool, bool, bool &, void *&) override;
   void postflightKey(void *) override;
+  void beginFlowMapping() override;
+  void endFlowMapping() override;
   unsigned beginSequence() override;
   void endSequence() override;
   bool preflightElement(unsigned, void *&) override;
@@ -1026,11 +1135,13 @@ public:
   void endFlowSequence() override;
   void beginEnumScalar() override;
   bool matchEnumScalar(const char*, bool) override;
+  bool matchEnumFallback() override;
   void endEnumScalar() override;
   bool beginBitSetScalar(bool &) override;
   bool bitSetMatch(const char *, bool ) override;
   void endBitSetScalar() override;
   void scalarString(StringRef &, bool) override;
+  void blockScalarString(StringRef &) override;
   void setError(const Twine &message) override;
   bool canElideEmptySequence() override;
 public:
@@ -1047,13 +1158,23 @@ private:
   void newLineCheck();
   void outputNewLine();
   void paddedKey(StringRef key);
+  void flowKey(StringRef Key);
 
-  enum InState { inSeq, inFlowSeq, inMapFirstKey, inMapOtherKey };
+  enum InState {
+    inSeq,
+    inFlowSeq,
+    inMapFirstKey,
+    inMapOtherKey,
+    inFlowMapFirstKey,
+    inFlowMapOtherKey
+  };
 
   llvm::raw_ostream       &Out;
+  int                      WrapColumn;
   SmallVector<InState, 8>  StateStack;
   int                      Column;
   int                      ColumnAtFlowStart;
+  int                      ColumnAtMapFlowStart;
   bool                     NeedBitValueComma;
   bool                     NeedFlowSequenceComma;
   bool                     EnumerationMatchFound;
@@ -1163,6 +1284,16 @@ operator>>(Input &yin, T &docSeq) {
   return yin;
 }
 
+// Define non-member operator>> so that Input can stream in a block scalar.
+template <typename T>
+inline
+typename std::enable_if<has_BlockScalarTraits<T>::value, Input &>::type
+operator>>(Input &In, T &Val) {
+  if (In.setCurrentDocument())
+    yamlize(In, Val, true);
+  return In;
+}
+
 // Provide better error message about types missing a trait specialization
 template <typename T>
 inline
@@ -1216,6 +1347,20 @@ operator<<(Output &yout, T &seq) {
   }
   yout.endDocuments();
   return yout;
+}
+
+// Define non-member operator<< so that Output can stream out a block scalar.
+template <typename T>
+inline
+typename std::enable_if<has_BlockScalarTraits<T>::value, Output &>::type
+operator<<(Output &Out, T &Val) {
+  Out.beginDocuments();
+  if (Out.preflightDocument(0)) {
+    yamlize(Out, Val, true);
+    Out.postflightDocument();
+  }
+  Out.endDocuments();
+  return Out;
 }
 
 // Provide better error message about types missing a trait specialization

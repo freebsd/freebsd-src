@@ -2,8 +2,6 @@
 
 .include <src.opts.mk>
 
-TESTSDIR=	${TESTSBASE}/lib/libc
-
 SUBDIR=		tls_dso
 
 TESTS_SUBDIRS=	c063
@@ -13,6 +11,7 @@ TESTS_SUBDIRS+=	hash
 TESTS_SUBDIRS+=	inet
 TESTS_SUBDIRS+=	net
 TESTS_SUBDIRS+=	regex
+TESTS_SUBDIRS+=	rpc
 TESTS_SUBDIRS+=	stdio
 TESTS_SUBDIRS+=	stdlib
 TESTS_SUBDIRS+=	string

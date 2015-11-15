@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 void
-abort()
+abort(void)
 {
 	struct sigaction act;
 

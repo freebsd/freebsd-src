@@ -65,17 +65,17 @@ MCOperand XCoreMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
       llvm_unreachable("<unknown operand type>");
   }
 
-  const MCSymbolRefExpr *MCSym = MCSymbolRefExpr::Create(Symbol, Kind, *Ctx);
+  const MCSymbolRefExpr *MCSym = MCSymbolRefExpr::create(Symbol, Kind, *Ctx);
 
   if (!Offset)
-    return MCOperand::CreateExpr(MCSym);
+    return MCOperand::createExpr(MCSym);
 
   // Assume offset is never negative.
   assert(Offset > 0);
 
-  const MCConstantExpr *OffsetExpr =  MCConstantExpr::Create(Offset, *Ctx);
-  const MCBinaryExpr *Add = MCBinaryExpr::CreateAdd(MCSym, OffsetExpr, *Ctx);
-  return MCOperand::CreateExpr(Add);
+  const MCConstantExpr *OffsetExpr =  MCConstantExpr::create(Offset, *Ctx);
+  const MCBinaryExpr *Add = MCBinaryExpr::createAdd(MCSym, OffsetExpr, *Ctx);
+  return MCOperand::createExpr(Add);
 }
 
 MCOperand XCoreMCInstLower::LowerOperand(const MachineOperand &MO,
@@ -87,9 +87,9 @@ MCOperand XCoreMCInstLower::LowerOperand(const MachineOperand &MO,
     case MachineOperand::MO_Register:
       // Ignore all implicit register operands.
       if (MO.isImplicit()) break;
-      return MCOperand::CreateReg(MO.getReg());
+      return MCOperand::createReg(MO.getReg());
     case MachineOperand::MO_Immediate:
-      return MCOperand::CreateImm(MO.getImm() + offset);
+      return MCOperand::createImm(MO.getImm() + offset);
     case MachineOperand::MO_MachineBasicBlock:
     case MachineOperand::MO_GlobalAddress:
     case MachineOperand::MO_ExternalSymbol:

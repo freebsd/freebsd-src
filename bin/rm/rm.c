@@ -155,8 +155,7 @@ main(int argc, char *argv[])
 	}
 
 	checkdot(argv);
-	if (getenv("POSIXLY_CORRECT") == NULL)
-		checkslash(argv);
+	checkslash(argv);
 	uid = geteuid();
 
 	(void)signal(SIGINFO, siginfo);

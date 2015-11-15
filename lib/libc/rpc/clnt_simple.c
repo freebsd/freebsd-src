@@ -107,17 +107,19 @@ rpc_call_key_init(void)
  * the future calls to same prog, vers, host and nettype combination.
  *
  * The total time available is 25 seconds.
+ *
+ * host    - host name 
+ * prognum - program number 
+ * versnum - version number 
+ * procnum - procedure number 
+ * inproc, outproc -  in/out XDR procedures 
+ * in, out - recv/send data 
+ * nettype - nettype
  */
 enum clnt_stat
-rpc_call(host, prognum, versnum, procnum, inproc, in, outproc, out, nettype)
-	const char *host;			/* host name */
-	rpcprog_t prognum;			/* program number */
-	rpcvers_t versnum;			/* version number */
-	rpcproc_t procnum;			/* procedure number */
-	xdrproc_t inproc, outproc;	/* in/out XDR procedures */
-	const char *in;
-	char  *out;			/* recv/send data */
-	const char *nettype;			/* nettype */
+rpc_call(const char *host, const rpcprog_t prognum, const rpcvers_t versnum,
+    const rpcproc_t procnum, const xdrproc_t inproc, const char *in,
+    const xdrproc_t outproc, char *out, const char *nettype)
 {
 	struct rpc_call_private *rcp = (struct rpc_call_private *) 0;
 	enum clnt_stat clnt_stat;

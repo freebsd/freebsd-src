@@ -107,8 +107,10 @@ mkdir_home_parents(int dfd, const char *dir)
 		errx(EX_UNAVAILABLE, "out of memory");
 
 	tmp = strrchr(dirs, '/');
-	if (tmp == NULL)
+	if (tmp == NULL) {
+		free(dirs);
 		return;
+	}
 	tmp[0] = '\0';
 
 	/*
@@ -280,9 +282,10 @@ pw_userlock(char *arg1, int mode)
 	if (arg1 == NULL)
 		errx(EX_DATAERR, "username or id required");
 
-	if (arg1[strspn(arg1, "0123456789")] == '\0')
+	if (arg1[strspn(arg1, "0123456789")] == '\0') {
 		id = pw_checkid(arg1, UID_MAX);
-	else
+		name = NULL;
+	} else
 		name = arg1;
 
 	pwd = (name != NULL) ? GETPWNAM(pw_checkname(name, 0)) : GETPWUID(id);
@@ -804,7 +807,7 @@ pw_user_show(int argc, char **argv, char *arg1)
 		case 'a':
 			all = true;
 			break;
-		case 7:
+		case '7':
 			v7 = true;
 			break;
 		}
@@ -1694,6 +1697,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 
 	if (homedir && strcmp(pwd->pw_dir, homedir) != 0) {
 		pwd->pw_dir = homedir;
+		edited = true;
 		if (fstatat(conf.rootfd, pwd->pw_dir, &st, 0) == -1) {
 			if (!createhome)
 				warnx("WARNING: home `%s' does not exist",

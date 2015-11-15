@@ -57,11 +57,11 @@
 #include "services/mesh.h"
 #include "services/cache/rrset.h"
 #include "validator/val_kcache.h"
-#include "ldns/sbuffer.h"
-#include "ldns/wire2str.h"
-#include "ldns/str2wire.h"
-#include "ldns/keyraw.h"
-#include "ldns/rrdef.h"
+#include "sldns/sbuffer.h"
+#include "sldns/wire2str.h"
+#include "sldns/str2wire.h"
+#include "sldns/keyraw.h"
+#include "sldns/rrdef.h"
 #include <stdarg.h>
 #include <ctype.h>
 
@@ -1184,7 +1184,7 @@ void autr_write_file(struct module_env* env, struct trust_anchor* tp)
 	verbose(VERB_ALGO, "autotrust: write to disk: %s", tempf);
 	out = fopen(tempf, "w");
 	if(!out) {
-		log_err("could not open autotrust file for writing, %s: %s",
+		fatal_exit("could not open autotrust file for writing, %s: %s",
 			tempf, strerror(errno));
 		return;
 	}
@@ -1192,11 +1192,11 @@ void autr_write_file(struct module_env* env, struct trust_anchor* tp)
 		/* failed to write contents (completely) */
 		fclose(out);
 		unlink(tempf);
-		log_err("could not completely write: %s", fname);
+		fatal_exit("could not completely write: %s", fname);
 		return;
 	}
 	if(fclose(out) != 0) {
-		log_err("could not complete write: %s: %s",
+		fatal_exit("could not complete write: %s: %s",
 			fname, strerror(errno));
 		unlink(tempf);
 		return;
@@ -1207,7 +1207,7 @@ void autr_write_file(struct module_env* env, struct trust_anchor* tp)
 	(void)unlink(fname); /* windows does not replace file with rename() */
 #endif
 	if(rename(tempf, fname) < 0) {
-		log_err("rename(%s to %s): %s", tempf, fname, strerror(errno));
+		fatal_exit("rename(%s to %s): %s", tempf, fname, strerror(errno));
 	}
 }
 
@@ -1225,7 +1225,7 @@ verify_dnskey(struct module_env* env, struct val_env* ve,
 {
 	char* reason = NULL;
 	uint8_t sigalg[ALGO_NEEDS_MAX+1];
-	int downprot = 1;
+	int downprot = env->cfg->harden_algo_downgrade;
 	enum sec_status sec = val_verify_DNSKEY_with_TA(env, ve, rrset,
 		tp->ds_rrset, tp->dnskey_rrset, downprot?sigalg:NULL, &reason);
 	/* sigalg is ignored, it returns algorithms signalled to exist, but
@@ -1447,9 +1447,11 @@ set_tp_times(struct trust_anchor* tp, time_t rrsig_exp_interval,
 	if(rrsig_exp_interval/2 < x)
 		x = rrsig_exp_interval/2;
 	/* MAX(1hr, x) */
-	if(x < 3600)
-		tp->autr->query_interval = 3600;
-	else	tp->autr->query_interval = x;
+	if(!autr_permit_small_holddown) {
+		if(x < 3600)
+			tp->autr->query_interval = 3600;
+		else	tp->autr->query_interval = x;
+	}	else    tp->autr->query_interval = x;
 
 	/* x= MIN(1day, ttl/10, expire/10) */
 	x = 24 * 3600;
@@ -1458,9 +1460,11 @@ set_tp_times(struct trust_anchor* tp, time_t rrsig_exp_interval,
 	if(rrsig_exp_interval/10 < x)
 		x = rrsig_exp_interval/10;
 	/* MAX(1hr, x) */
-	if(x < 3600)
-		tp->autr->retry_time = 3600;
-	else	tp->autr->retry_time = x;
+	if(!autr_permit_small_holddown) {
+		if(x < 3600)
+			tp->autr->retry_time = 3600;
+		else	tp->autr->retry_time = x;
+	}	else    tp->autr->retry_time = x;
 
 	if(qi != tp->autr->query_interval || rt != tp->autr->retry_time) {
 		*changed = 1;
@@ -1959,8 +1963,12 @@ calc_next_probe(struct module_env* env, time_t wait)
 {
 	/* make it random, 90-100% */
 	time_t rnd, rest;
-	if(wait < 3600)
-		wait = 3600;
+	if(!autr_permit_small_holddown) {
+		if(wait < 3600)
+			wait = 3600;
+	} else {
+		if(wait == 0) wait = 1;
+	}
 	rnd = wait/10;
 	rest = wait-rnd;
 	rnd = (time_t)ub_random_max(env->rnd, (long int)rnd);
@@ -2349,6 +2357,8 @@ todo_probe(struct module_env* env, time_t* next)
 	if( (el=rbtree_first(&env->anchors->autr->probe)) == RBTREE_NULL) {
 		/* in case of revoked anchors */
 		lock_basic_unlock(&env->anchors->lock);
+		/* signal that there are no anchors to probe */
+		*next = 0;
 		return NULL;
 	}
 	tp = (struct trust_anchor*)el->key;
@@ -2378,6 +2388,7 @@ autr_probe_timer(struct module_env* env)
 	struct trust_anchor* tp;
 	time_t next_probe = 3600;
 	int num = 0;
+	if(autr_permit_small_holddown) next_probe = 1;
 	verbose(VERB_ALGO, "autotrust probe timer callback");
 	/* while there are still anchors to probe */
 	while( (tp = todo_probe(env, &next_probe)) ) {
@@ -2386,7 +2397,7 @@ autr_probe_timer(struct module_env* env)
 		num++;
 	}
 	regional_free_all(env->scratch);
-	if(num == 0)
+	if(next_probe == 0)
 		return 0; /* no trust points to probe */
 	verbose(VERB_ALGO, "autotrust probe timer %d callbacks done", num);
 	return next_probe;

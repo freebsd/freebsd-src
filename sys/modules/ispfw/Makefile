@@ -39,9 +39,7 @@ SUBDIR += isp_2200
 SUBDIR += isp_2300
 SUBDIR += isp_2322
 SUBDIR += isp_2400
-SUBDIR += isp_2400_multi
 SUBDIR += isp_2500
-SUBDIR += isp_2500_multi
 .if ${MACHINE} == "sparc64"
 SUBDIR += isp_1000
 .endif

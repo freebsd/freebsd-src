@@ -26,7 +26,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: dwarf_sections.c 3036 2014-05-05 19:19:31Z kaiwang27 $");
+ELFTC_VCSID("$Id: dwarf_sections.c 3226 2015-06-23 13:00:16Z emaste $");
 
 #define	SET(N, V)				\
 	do {					\

@@ -45,6 +45,7 @@ int vchiu_queue_init(VCHIU_QUEUE_T *queue, int size)
 	queue->size = size;
 	queue->read = 0;
 	queue->write = 0;
+	queue->initialized = 1;
 
 	_sema_init(&queue->pop, 0);
 	_sema_init(&queue->push, 0);
@@ -75,6 +76,9 @@ int vchiu_queue_is_full(VCHIU_QUEUE_T *queue)
 
 void vchiu_queue_push(VCHIU_QUEUE_T *queue, VCHIQ_HEADER_T *header)
 {
+	if (!queue->initialized)
+		return;
+
 	while (queue->write == queue->read + queue->size) {
 		if (down_interruptible(&queue->pop) != 0) {
 			flush_signals(current);

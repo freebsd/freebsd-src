@@ -56,6 +56,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/Pass.h"
 #include <map>
@@ -229,8 +230,9 @@ public:
   /// \brief Adds a function to the list of functions called by this one.
   void addCalledFunction(CallSite CS, CallGraphNode *M) {
     assert(!CS.getInstruction() || !CS.getCalledFunction() ||
-           !CS.getCalledFunction()->isIntrinsic());
-    CalledFunctions.push_back(std::make_pair(CS.getInstruction(), M));
+           !CS.getCalledFunction()->isIntrinsic() ||
+           !Intrinsic::isLeaf(CS.getCalledFunction()->getIntrinsicID()));
+    CalledFunctions.emplace_back(CS.getInstruction(), M);
     M->AddRef();
   }
 
@@ -273,8 +275,8 @@ private:
   /// CalledFunctions array of this or other CallGraphNodes.
   unsigned NumReferences;
 
-  CallGraphNode(const CallGraphNode &) LLVM_DELETED_FUNCTION;
-  void operator=(const CallGraphNode &) LLVM_DELETED_FUNCTION;
+  CallGraphNode(const CallGraphNode &) = delete;
+  void operator=(const CallGraphNode &) = delete;
 
   void DropRef() { --NumReferences; }
   void AddRef() { ++NumReferences; }
@@ -318,7 +320,7 @@ public:
   static char ID; // Class identification, replacement for typeinfo
 
   CallGraphWrapperPass();
-  virtual ~CallGraphWrapperPass();
+  ~CallGraphWrapperPass() override;
 
   /// \brief The internal \c CallGraph around which the rest of this interface
   /// is wrapped.

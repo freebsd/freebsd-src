@@ -26,18 +26,32 @@
 namespace llvm {
 
 class HexagonMCCodeEmitter : public MCCodeEmitter {
-  MCSubtargetInfo const &MST;
   MCContext &MCT;
+  MCInstrInfo const &MCII;
+  std::unique_ptr<unsigned> Addend;
+  std::unique_ptr<bool> Extended;
+  std::unique_ptr<MCInst const *> CurrentBundle;
+
+  // helper routine for getMachineOpValue()
+  unsigned getExprOpValue(const MCInst &MI, const MCOperand &MO,
+                          const MCExpr *ME, SmallVectorImpl<MCFixup> &Fixups,
+                          const MCSubtargetInfo &STI) const;
 
 public:
-  HexagonMCCodeEmitter(MCInstrInfo const &aMII, MCSubtargetInfo const &aMST,
-                       MCContext &aMCT);
+  HexagonMCCodeEmitter(MCInstrInfo const &aMII, MCContext &aMCT);
 
-  MCSubtargetInfo const &getSubtargetInfo() const;
+  // Return parse bits for instruction `MCI' inside bundle `MCB'
+  uint32_t parseBits(size_t Instruction, size_t Last, MCInst const &MCB,
+                    MCInst const &MCI) const;
 
-  void EncodeInstruction(MCInst const &MI, raw_ostream &OS,
+  void encodeInstruction(MCInst const &MI, raw_ostream &OS,
                          SmallVectorImpl<MCFixup> &Fixups,
                          MCSubtargetInfo const &STI) const override;
+
+  void EncodeSingleInstruction(const MCInst &MI, raw_ostream &OS,
+                               SmallVectorImpl<MCFixup> &Fixups,
+                               const MCSubtargetInfo &STI,
+                               uint32_t Parse, size_t Index) const;
 
   // \brief TableGen'erated function for getting the
   // binary encoding for an instruction.
@@ -49,10 +63,6 @@ public:
   unsigned getMachineOpValue(MCInst const &MI, MCOperand const &MO,
                              SmallVectorImpl<MCFixup> &Fixups,
                              MCSubtargetInfo const &STI) const;
-
-private:
-  HexagonMCCodeEmitter(HexagonMCCodeEmitter const &) LLVM_DELETED_FUNCTION;
-  void operator=(HexagonMCCodeEmitter const &) LLVM_DELETED_FUNCTION;
 }; // class HexagonMCCodeEmitter
 
 } // namespace llvm

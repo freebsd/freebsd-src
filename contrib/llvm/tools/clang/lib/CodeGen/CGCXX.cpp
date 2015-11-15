@@ -182,8 +182,8 @@ bool CodeGenModule::TryEmitDefinitionAsAlias(GlobalDecl AliasDecl,
     return true;
 
   // Create the alias with no name.
-  auto *Alias = llvm::GlobalAlias::create(AliasType->getElementType(), 0,
-                                          Linkage, "", Aliasee, &getModule());
+  auto *Alias =
+      llvm::GlobalAlias::create(AliasType, Linkage, "", Aliasee, &getModule());
 
   // Switch any previous uses to the alias.
   if (Entry) {
@@ -218,6 +218,8 @@ llvm::Function *CodeGenModule::codegenCXXStructor(const CXXMethodDecl *MD,
   }
 
   setFunctionLinkage(GD, Fn);
+  setFunctionDLLStorageClass(GD, Fn);
+
   CodeGenFunction(*this).GenerateCode(GD, Fn, FnInfo);
   setFunctionDefinitionAttributes(MD, Fn);
   SetLLVMFunctionAttributesForDefinition(MD, Fn);
@@ -231,8 +233,7 @@ llvm::GlobalValue *CodeGenModule::getAddrOfCXXStructor(
   if (auto *CD = dyn_cast<CXXConstructorDecl>(MD)) {
     GD = GlobalDecl(CD, toCXXCtorType(Type));
   } else {
-    auto *DD = dyn_cast<CXXDestructorDecl>(MD);
-    GD = GlobalDecl(DD, toCXXDtorType(Type));
+    GD = GlobalDecl(cast<CXXDestructorDecl>(MD), toCXXDtorType(Type));
   }
 
   StringRef Name = getMangledName(GD);

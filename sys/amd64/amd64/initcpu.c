@@ -211,12 +211,17 @@ initializecpucache(void)
 	 * CPUID_SS feature even though the native CPU supports it.
 	 */
 	TUNABLE_INT_FETCH("hw.clflush_disable", &hw_clflush_disable);
-	if (vm_guest != VM_GUEST_NO && hw_clflush_disable == -1)
+	if (vm_guest != VM_GUEST_NO && hw_clflush_disable == -1) {
 		cpu_feature &= ~CPUID_CLFSH;
+		cpu_stdext_feature &= ~CPUID_STDEXT_CLFLUSHOPT;
+	}
+
 	/*
-	 * Allow to disable CLFLUSH feature manually by
-	 * hw.clflush_disable tunable.
+	 * The kernel's use of CLFLUSH{,OPT} can be disabled manually
+	 * by setting the hw.clflush_disable tunable.
 	 */
-	if (hw_clflush_disable == 1)
+	if (hw_clflush_disable == 1) {
 		cpu_feature &= ~CPUID_CLFSH;
+		cpu_stdext_feature &= ~CPUID_STDEXT_CLFLUSHOPT;
+	}
 }

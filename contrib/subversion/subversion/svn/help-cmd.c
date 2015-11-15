@@ -30,8 +30,8 @@
 #include "svn_hash.h"
 #include "svn_string.h"
 #include "svn_config.h"
+#include "svn_dirent_uri.h"
 #include "svn_error.h"
-#include "svn_version.h"
 #include "cl.h"
 
 #include "svn_private_config.h"
@@ -47,11 +47,11 @@ svn_cl__help(apr_getopt_t *os,
 {
   svn_cl__opt_state_t *opt_state = NULL;
   svn_stringbuf_t *version_footer = NULL;
+  const char *config_path;
 
-  /* xgettext: the %s is for SVN_VER_NUMBER. */
-  char help_header_template[] =
+  char help_header[] =
   N_("usage: svn <subcommand> [options] [args]\n"
-     "Subversion command-line client, version %s.\n"
+     "Subversion command-line client.\n"
      "Type 'svn help <subcommand>' for help on a specific subcommand.\n"
      "Type 'svn --version' to see the program version and RA modules\n"
      "  or 'svn --version --quiet' to see just the version number.\n"
@@ -65,9 +65,6 @@ svn_cl__help(apr_getopt_t *os,
   char help_footer[] =
   N_("Subversion is a tool for version control.\n"
      "For additional information, see http://subversion.apache.org/\n");
-
-  char *help_header =
-    apr_psprintf(pool, _(help_header_template), SVN_VER_NUMBER);
 
   const char *ra_desc_start
     = _("The following repository access (RA) modules are available:\n\n");
@@ -137,6 +134,46 @@ svn_cl__help(apr_getopt_t *os,
   if (!version_footer)
     version_footer = svn_stringbuf_create(ra_desc_start, pool);
   SVN_ERR(svn_ra_print_modules(version_footer, pool));
+
+  /*
+   * Show auth creds storage providers.
+   */
+  SVN_ERR(svn_config_get_user_config_path(&config_path,
+                                          opt_state ? opt_state->config_dir
+                                                    : NULL,
+                                          NULL,
+                                          pool));
+  svn_stringbuf_appendcstr(version_footer,
+                           _("\nThe following authentication credential caches are available:\n\n"));
+
+  /*### There is no API to query available providers at run time. */
+#if (defined(WIN32) && !defined(__MINGW32__))
+  version_footer =
+    svn_stringbuf_create(apr_psprintf(pool, _("%s* Wincrypt cache in %s\n"),
+                                      version_footer->data,
+                                      svn_dirent_local_style(config_path,
+                                                             pool)),
+                         pool);
+#elif !defined(SVN_DISABLE_PLAINTEXT_PASSWORD_STORAGE)
+  version_footer =
+    svn_stringbuf_create(apr_psprintf(pool, _("%s* Plaintext cache in %s\n"),
+                                      version_footer->data,
+                                      svn_dirent_local_style(config_path,
+                                                             pool)),
+                         pool);
+#endif
+#ifdef SVN_HAVE_GNOME_KEYRING
+  svn_stringbuf_appendcstr(version_footer, "* Gnome Keyring\n");
+#endif
+#ifdef SVN_HAVE_GPG_AGENT
+  svn_stringbuf_appendcstr(version_footer, "* GPG-Agent\n");
+#endif
+#ifdef SVN_HAVE_KEYCHAIN_SERVICES
+  svn_stringbuf_appendcstr(version_footer, "* Mac OS X Keychain\n");
+#endif
+#ifdef SVN_HAVE_KWALLET
+  svn_stringbuf_appendcstr(version_footer, "* KWallet (KDE)\n");
+#endif
 
   return svn_opt_print_help4(os,
                              "svn",   /* ### erm, derive somehow? */

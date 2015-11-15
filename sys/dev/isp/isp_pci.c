@@ -59,9 +59,9 @@ static uint32_t isp_pci_rd_reg_1080(ispsoftc_t *, int);
 static void isp_pci_wr_reg_1080(ispsoftc_t *, int, uint32_t);
 static uint32_t isp_pci_rd_reg_2400(ispsoftc_t *, int);
 static void isp_pci_wr_reg_2400(ispsoftc_t *, int, uint32_t);
-static int isp_pci_rd_isr(ispsoftc_t *, uint32_t *, uint16_t *, uint16_t *);
-static int isp_pci_rd_isr_2300(ispsoftc_t *, uint32_t *, uint16_t *, uint16_t *);
-static int isp_pci_rd_isr_2400(ispsoftc_t *, uint32_t *, uint16_t *, uint16_t *);
+static int isp_pci_rd_isr(ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
+static int isp_pci_rd_isr_2300(ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
+static int isp_pci_rd_isr_2400(ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
 static int isp_pci_mbxdma(ispsoftc_t *);
 static int isp_pci_dmasetup(ispsoftc_t *, XS_T *, void *);
 
@@ -489,9 +489,6 @@ isp_get_generic_options(device_t dev, ispsoftc_t *isp)
 	if (tval > 0 && tval < 127) {
 		isp_nvports = tval;
 	}
-	tval = 1;
-	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "autoconfig", &tval);
-	isp_autoconfig = tval;
 	tval = 7;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "quickboot_time", &tval);
 	isp_quickboot_time = tval;
@@ -899,9 +896,6 @@ isp_pci_attach(device_t dev)
 	if (IS_SCSI(isp) && (ISP_SPI_PC(isp, 0)->def_role & ISP_ROLE_TARGET)) {
 		snprintf(fwname, sizeof (fwname), "isp_%04x_it", did);
 		isp->isp_osinfo.fw = firmware_get(fwname);
-	} else if (IS_24XX(isp)) {
-		snprintf(fwname, sizeof (fwname), "isp_%04x_multi", did);
-		isp->isp_osinfo.fw = firmware_get(fwname);
 	}
 	if (isp->isp_osinfo.fw == NULL) {
 		snprintf(fwname, sizeof (fwname), "isp_%04x", did);
@@ -997,14 +991,9 @@ isp_pci_attach(device_t dev)
 	 * Make sure we're in reset state.
 	 */
 	ISP_LOCK(isp);
-	isp_reset(isp, 1);
-	if (isp->isp_state != ISP_RESETSTATE) {
+	if (isp_reinit(isp, 1) != 0) {
 		ISP_UNLOCK(isp);
 		goto bad;
-	}
-	isp_init(isp);
-	if (isp->isp_state == ISP_INITSTATE) {
-		isp->isp_state = ISP_RUNSTATE;
 	}
 	ISP_UNLOCK(isp);
 	if (isp_attach(isp)) {
@@ -1115,7 +1104,7 @@ isp_pci_rd_debounced(ispsoftc_t *isp, int off, uint16_t *rp)
 }
 
 static int
-isp_pci_rd_isr(ispsoftc_t *isp, uint32_t *isrp, uint16_t *semap, uint16_t *mbp)
+isp_pci_rd_isr(ispsoftc_t *isp, uint16_t *isrp, uint16_t *semap, uint16_t *info)
 {
 	uint16_t isr, sema;
 
@@ -1139,21 +1128,20 @@ isp_pci_rd_isr(ispsoftc_t *isp, uint32_t *isrp, uint16_t *semap, uint16_t *mbp)
 	*isrp = isr;
 	if ((*semap = sema) != 0) {
 		if (IS_2100(isp)) {
-			if (isp_pci_rd_debounced(isp, OUTMAILBOX0, mbp)) {
+			if (isp_pci_rd_debounced(isp, OUTMAILBOX0, info)) {
 				return (0);
 			}
 		} else {
-			*mbp = BXR2(isp, IspVirt2Off(isp, OUTMAILBOX0));
+			*info = BXR2(isp, IspVirt2Off(isp, OUTMAILBOX0));
 		}
 	}
 	return (1);
 }
 
 static int
-isp_pci_rd_isr_2300(ispsoftc_t *isp, uint32_t *isrp, uint16_t *semap, uint16_t *mbox0p)
+isp_pci_rd_isr_2300(ispsoftc_t *isp, uint16_t *isrp, uint16_t *semap, uint16_t *info)
 {
-	uint32_t hccr;
-	uint32_t r2hisr;
+	uint32_t hccr, r2hisr;
 
 	if (!(BXR2(isp, IspVirt2Off(isp, BIU_ISR) & BIU2100_ISR_RISC_INT))) {
 		*isrp = 0;
@@ -1165,36 +1153,29 @@ isp_pci_rd_isr_2300(ispsoftc_t *isp, uint32_t *isrp, uint16_t *semap, uint16_t *
 		*isrp = 0;
 		return (0);
 	}
-	switch (r2hisr & BIU_R2HST_ISTAT_MASK) {
+	switch ((*isrp = r2hisr & BIU_R2HST_ISTAT_MASK)) {
 	case ISPR2HST_ROM_MBX_OK:
 	case ISPR2HST_ROM_MBX_FAIL:
 	case ISPR2HST_MBX_OK:
 	case ISPR2HST_MBX_FAIL:
 	case ISPR2HST_ASYNC_EVENT:
-		*isrp = r2hisr & 0xffff;
-		*mbox0p = (r2hisr >> 16);
 		*semap = 1;
-		return (1);
+		break;
 	case ISPR2HST_RIO_16:
-		*isrp = r2hisr & 0xffff;
-		*mbox0p = ASYNC_RIO16_1;
+		*info = ASYNC_RIO16_1;
 		*semap = 1;
 		return (1);
 	case ISPR2HST_FPOST:
-		*isrp = r2hisr & 0xffff;
-		*mbox0p = ASYNC_CMD_CMPLT;
+		*info = ASYNC_CMD_CMPLT;
 		*semap = 1;
 		return (1);
 	case ISPR2HST_FPOST_CTIO:
-		*isrp = r2hisr & 0xffff;
-		*mbox0p = ASYNC_CTIO_DONE;
+		*info = ASYNC_CTIO_DONE;
 		*semap = 1;
 		return (1);
 	case ISPR2HST_RSPQ_UPDATE:
-		*isrp = r2hisr & 0xffff;
-		*mbox0p = 0;
 		*semap = 0;
-		return (1);
+		break;
 	default:
 		hccr = ISP_READ(isp, HCCR);
 		if (hccr & HCCR_PAUSE) {
@@ -1206,41 +1187,43 @@ isp_pci_rd_isr_2300(ispsoftc_t *isp, uint32_t *isrp, uint16_t *semap, uint16_t *
 		}
 		return (0);
 	}
+	*info = (r2hisr >> 16);
+	return (1);
 }
 
 static int
-isp_pci_rd_isr_2400(ispsoftc_t *isp, uint32_t *isrp, uint16_t *semap, uint16_t *mbox0p)
+isp_pci_rd_isr_2400(ispsoftc_t *isp, uint16_t *isrp, uint16_t *semap, uint16_t *info)
 {
 	uint32_t r2hisr;
 
 	r2hisr = BXR4(isp, IspVirt2Off(isp, BIU2400_R2HSTSLO));
 	isp_prt(isp, ISP_LOGDEBUG3, "RISC2HOST ISR 0x%x", r2hisr);
-	if ((r2hisr & BIU2400_R2HST_INTR) == 0) {
+	if ((r2hisr & BIU_R2HST_INTR) == 0) {
 		*isrp = 0;
 		return (0);
 	}
-	switch (r2hisr & BIU2400_R2HST_ISTAT_MASK) {
-	case ISP2400R2HST_ROM_MBX_OK:
-	case ISP2400R2HST_ROM_MBX_FAIL:
-	case ISP2400R2HST_MBX_OK:
-	case ISP2400R2HST_MBX_FAIL:
-	case ISP2400R2HST_ASYNC_EVENT:
-		*isrp = r2hisr & 0xffff;
-		*mbox0p = (r2hisr >> 16);
+	switch ((*isrp = r2hisr & BIU_R2HST_ISTAT_MASK)) {
+	case ISPR2HST_ROM_MBX_OK:
+	case ISPR2HST_ROM_MBX_FAIL:
+	case ISPR2HST_MBX_OK:
+	case ISPR2HST_MBX_FAIL:
+	case ISPR2HST_ASYNC_EVENT:
 		*semap = 1;
-		return (1);
-	case ISP2400R2HST_RSPQ_UPDATE:
-	case ISP2400R2HST_ATIO_RSPQ_UPDATE:
-	case ISP2400R2HST_ATIO_RQST_UPDATE:
-		*isrp = r2hisr & 0xffff;
-		*mbox0p = 0;
+		break;
+	case ISPR2HST_RSPQ_UPDATE:
+	case ISPR2HST_RSPQ_UPDATE2:
+	case ISPR2HST_ATIO_UPDATE:
+	case ISPR2HST_ATIO_RSPQ_UPDATE:
+	case ISPR2HST_ATIO_UPDATE2:
 		*semap = 0;
-		return (1);
+		break;
 	default:
 		ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_CLEAR_RISC_INT);
 		isp_prt(isp, ISP_LOGERR, "unknown interrupt 0x%x\n", r2hisr);
 		return (0);
 	}
+	*info = (r2hisr >> 16);
+	return (1);
 }
 
 static uint32_t

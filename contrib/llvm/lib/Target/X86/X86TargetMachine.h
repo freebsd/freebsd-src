@@ -24,22 +24,18 @@ class StringRef;
 
 class X86TargetMachine final : public LLVMTargetMachine {
   std::unique_ptr<TargetLoweringObjectFile> TLOF;
-  X86Subtarget       Subtarget;
+  X86Subtarget Subtarget;
 
   mutable StringMap<std::unique_ptr<X86Subtarget>> SubtargetMap;
 
 public:
-  X86TargetMachine(const Target &T, StringRef TT,
-                   StringRef CPU, StringRef FS, const TargetOptions &Options,
-                   Reloc::Model RM, CodeModel::Model CM,
-                   CodeGenOpt::Level OL);
+  X86TargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+                   StringRef FS, const TargetOptions &Options, Reloc::Model RM,
+                   CodeModel::Model CM, CodeGenOpt::Level OL);
   ~X86TargetMachine() override;
-
-  const X86Subtarget *getSubtargetImpl() const override { return &Subtarget; }
   const X86Subtarget *getSubtargetImpl(const Function &F) const override;
 
-  /// \brief Register X86 analysis passes with a pass manager.
-  void addAnalysisPasses(PassManagerBase &PM) override;
+  TargetIRAnalysis getTargetIRAnalysis() override;
 
   // Set up the pass pipeline.
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;

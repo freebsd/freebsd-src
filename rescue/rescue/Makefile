@@ -221,5 +221,10 @@ CRUNCH_ALIAS_chown= chgrp
 ##################################################################
 CRUNCH_LIBS+= -lm
 
+.if ${MK_ISCSI} != "no"
+CRUNCH_PROGS_usr.bin+=	iscsictl
+CRUNCH_PROGS_usr.sbin+=	iscsid
+.endif
+
 .include <bsd.crunchgen.mk>
 .include <bsd.prog.mk>

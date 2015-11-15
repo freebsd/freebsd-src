@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: netscape,v 1.6 2009/09/19 16:28:11 christos Exp $
+# $File: netscape,v 1.7 2015/08/24 05:20:52 christos Exp $
 # netscape:  file(1) magic for Netscape files
 # "H. Nanosecond" <aldomel@ix.netcom.com>
 # version 3 and 4 I think
@@ -22,4 +22,5 @@
 
 #
 #This is files ending in .art, FIXME add more rules
-0       string          JG\004\016\0\0\0\0      ART
+0	string	JG\004\016\0\0\0\0	AOL ART image
+0	string	JG\003\016\0\0\0\0	AOL ART image

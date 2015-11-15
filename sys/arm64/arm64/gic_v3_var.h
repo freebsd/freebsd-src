@@ -232,6 +232,8 @@ struct gic_v3_its_softc {
 
 	struct mtx		its_mtx;
 	struct mtx		its_spin_mtx;
+
+	uint32_t		its_socket;	/* Socket number ITS is attached to */
 };
 
 /* Stuff that is specific to the vendor's implementation */

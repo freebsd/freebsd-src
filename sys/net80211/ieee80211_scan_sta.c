@@ -737,12 +737,6 @@ sta_cancel(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 	return 0;
 }
 
-/* unaligned little endian access */     
-#define LE_READ_2(p)					\
-	((uint16_t)					\
-	 ((((const uint8_t *)(p))[0]      ) |		\
-	  (((const uint8_t *)(p))[1] <<  8)))
- 
 /*
  * Demote any supplied 11g channel to 11b.  There should
  * always be an 11b channel but we check anyway...
@@ -876,7 +870,6 @@ static int
 check_rate(struct ieee80211vap *vap, const struct ieee80211_channel *chan,
     const struct ieee80211_scan_entry *se)
 {
-#define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	const struct ieee80211_rateset *srs;
 	int i, j, nrs, r, okrate, badrate, fixedrate, ucastrate;
 	const uint8_t *rs;
@@ -891,7 +884,7 @@ check_rate(struct ieee80211vap *vap, const struct ieee80211_channel *chan,
 	fixedrate = IEEE80211_FIXED_RATE_NONE;
 again:
 	for (i = 0; i < nrs; i++) {
-		r = RV(rs[i]);
+		r = IEEE80211_RV(rs[i]);
 		badrate = r;
 		/*
 		 * Check any fixed rate is included. 
@@ -902,7 +895,7 @@ again:
 		 * Check against our supported rates.
 		 */
 		for (j = 0; j < srs->rs_nrates; j++)
-			if (r == RV(srs->rs_rates[j])) {
+			if (r == IEEE80211_RV(srs->rs_rates[j])) {
 				if (r > okrate)		/* NB: track max */
 					okrate = r;
 				break;
@@ -928,8 +921,7 @@ back:
 	if (okrate == 0 || ucastrate != fixedrate)
 		return badrate | IEEE80211_RATE_BASIC;
 	else
-		return RV(okrate);
-#undef RV
+		return IEEE80211_RV(okrate);
 }
 
 static __inline int

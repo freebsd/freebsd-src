@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sysctl.h>
 
 #include <netinet/in.h>
 
@@ -546,6 +547,29 @@ main(int argc, char *argv[])
 	xo_close_container("statistics");
 	xo_finish();
 	exit(0);
+}
+
+int
+fetch_stats(const char *sysctlname, u_long off, void *stats, size_t len,
+    int (*kreadfn)(u_long, void *, size_t))
+{
+	int error;
+
+	if (live) {
+		memset(stats, 0, len);
+		if (zflag)
+			error = sysctlbyname(sysctlname, NULL, NULL, stats,
+			    len);
+		else
+			error = sysctlbyname(sysctlname, stats, &len, NULL, 0);
+		if (error == -1 && errno != ENOENT)
+			xo_warn("sysctl %s", sysctlname);
+	} else {
+		if (off == 0)
+			return (1);
+		error = kreadfn(off, stats, len);
+	}
+	return (error);
 }
 
 /*

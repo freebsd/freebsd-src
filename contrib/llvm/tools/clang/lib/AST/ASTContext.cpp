@@ -738,9 +738,9 @@ ASTContext::ASTContext(LangOptions &LOpts, SourceManager &SM,
       FILEDecl(nullptr), jmp_bufDecl(nullptr), sigjmp_bufDecl(nullptr),
       ucontext_tDecl(nullptr), BlockDescriptorType(nullptr),
       BlockDescriptorExtendedType(nullptr), cudaConfigureCallDecl(nullptr),
-      FirstLocalImport(), LastLocalImport(),
+      FirstLocalImport(), LastLocalImport(), ExternCContext(nullptr),
       SourceMgr(SM), LangOpts(LOpts),
-      SanitizerBL(new SanitizerBlacklist(LangOpts.SanitizerBlacklistFile, SM)),
+      SanitizerBL(new SanitizerBlacklist(LangOpts.SanitizerBlacklistFiles, SM)),
       AddrSpaceMap(nullptr), Target(nullptr), PrintingPolicy(LOpts),
       Idents(idents), Selectors(sels), BuiltinInfo(builtins),
       DeclarationNames(*this), ExternalSource(nullptr), Listener(nullptr),
@@ -866,6 +866,38 @@ void ASTContext::PrintStats() const {
   BumpAlloc.PrintStats();
 }
 
+void ASTContext::mergeDefinitionIntoModule(NamedDecl *ND, Module *M,
+                                           bool NotifyListeners) {
+  if (NotifyListeners)
+    if (auto *Listener = getASTMutationListener())
+      Listener->RedefinedHiddenDefinition(ND, M);
+
+  if (getLangOpts().ModulesLocalVisibility)
+    MergedDefModules[ND].push_back(M);
+  else
+    ND->setHidden(false);
+}
+
+void ASTContext::deduplicateMergedDefinitonsFor(NamedDecl *ND) {
+  auto It = MergedDefModules.find(ND);
+  if (It == MergedDefModules.end())
+    return;
+
+  auto &Merged = It->second;
+  llvm::DenseSet<Module*> Found;
+  for (Module *&M : Merged)
+    if (!Found.insert(M).second)
+      M = nullptr;
+  Merged.erase(std::remove(Merged.begin(), Merged.end(), nullptr), Merged.end());
+}
+
+ExternCContextDecl *ASTContext::getExternCContextDecl() const {
+  if (!ExternCContext)
+    ExternCContext = ExternCContextDecl::Create(*this, getTranslationUnitDecl());
+
+  return ExternCContext;
+}
+
 RecordDecl *ASTContext::buildImplicitRecord(StringRef Name,
                                             RecordDecl::TagKind TK) const {
   SourceLocation Loc;
@@ -877,6 +909,8 @@ RecordDecl *ASTContext::buildImplicitRecord(StringRef Name,
     NewDecl = RecordDecl::Create(*this, TK, getTranslationUnitDecl(), Loc, Loc,
                                  &Idents.get(Name));
   NewDecl->setImplicit();
+  NewDecl->addAttr(TypeVisibilityAttr::CreateImplicit(
+      const_cast<ASTContext &>(*this), TypeVisibilityAttr::Default));
   return NewDecl;
 }
 
@@ -1326,7 +1360,7 @@ CharUnits ASTContext::getDeclAlign(const Decl *D, bool ForAlignof) const {
       }
       Align = std::max(Align, getPreferredTypeAlign(T.getTypePtr()));
       if (const VarDecl *VD = dyn_cast<VarDecl>(D)) {
-        if (VD->hasGlobalStorage())
+        if (VD->hasGlobalStorage() && !ForAlignof)
           Align = std::max(Align, getTargetInfo().getMinGlobalAlign());
       }
     }
@@ -1669,13 +1703,23 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
       break;
     }
 
-    if (const EnumType *ET = dyn_cast<EnumType>(TT))
-      return getTypeInfo(ET->getDecl()->getIntegerType());
+    if (const EnumType *ET = dyn_cast<EnumType>(TT)) {
+      const EnumDecl *ED = ET->getDecl();
+      TypeInfo Info =
+          getTypeInfo(ED->getIntegerType()->getUnqualifiedDesugaredType());
+      if (unsigned AttrAlign = ED->getMaxAlignment()) {
+        Info.Align = AttrAlign;
+        Info.AlignIsRequired = true;
+      }
+      return Info;
+    }
 
     const RecordType *RT = cast<RecordType>(TT);
-    const ASTRecordLayout &Layout = getASTRecordLayout(RT->getDecl());
+    const RecordDecl *RD = RT->getDecl();
+    const ASTRecordLayout &Layout = getASTRecordLayout(RD);
     Width = toBits(Layout.getSize());
     Align = toBits(Layout.getAlignment());
+    AlignIsRequired = RD->hasAttr<AlignedAttr>();
     break;
   }
 
@@ -1742,6 +1786,17 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
   return TypeInfo(Width, Align, AlignIsRequired);
 }
 
+unsigned ASTContext::getOpenMPDefaultSimdAlign(QualType T) const {
+  unsigned SimdAlign = getTargetInfo().getSimdDefaultAlign();
+  // Target ppc64 with QPX: simd default alignment for pointer to double is 32.
+  if ((getTargetInfo().getTriple().getArch() == llvm::Triple::ppc64 ||
+       getTargetInfo().getTriple().getArch() == llvm::Triple::ppc64le) &&
+      getTargetInfo().getABI() == "elfv1-qpx" &&
+      T->isSpecificBuiltinType(BuiltinType::Double))
+    SimdAlign = 256;
+  return SimdAlign;
+}
+
 /// toCharUnitsFromBits - Convert a size in bits to a size in characters.
 CharUnits ASTContext::toCharUnitsFromBits(int64_t BitSize) const {
   return CharUnits::fromQuantity(BitSize / getCharWidth());
@@ -1778,13 +1833,20 @@ unsigned ASTContext::getPreferredTypeAlign(const Type *T) const {
   TypeInfo TI = getTypeInfo(T);
   unsigned ABIAlign = TI.Align;
 
+  T = T->getBaseElementTypeUnsafe();
+
+  // The preferred alignment of member pointers is that of a pointer.
+  if (T->isMemberPointerType())
+    return getPreferredTypeAlign(getPointerDiffType().getTypePtr());
+
   if (Target->getTriple().getArch() == llvm::Triple::xcore)
     return ABIAlign;  // Never overalign on XCore.
 
   // Double and long long should be naturally aligned if possible.
-  T = T->getBaseElementTypeUnsafe();
   if (const ComplexType *CT = T->getAs<ComplexType>())
     T = CT->getElementType().getTypePtr();
+  if (const EnumType *ET = T->getAs<EnumType>())
+    T = ET->getDecl()->getIntegerType().getTypePtr();
   if (T->isSpecificBuiltinType(BuiltinType::Double) ||
       T->isSpecificBuiltinType(BuiltinType::LongLong) ||
       T->isSpecificBuiltinType(BuiltinType::ULongLong))
@@ -1794,6 +1856,13 @@ unsigned ASTContext::getPreferredTypeAlign(const Type *T) const {
       return std::max(ABIAlign, (unsigned)getTypeSize(T));
 
   return ABIAlign;
+}
+
+/// getTargetDefaultAlignForAttributeAligned - Return the default alignment
+/// for __attribute__((aligned)) on this target, to be used if no alignment
+/// value is specified.
+unsigned ASTContext::getTargetDefaultAlignForAttributeAligned(void) const {
+  return getTargetInfo().getDefaultAlignForAttributeAligned();
 }
 
 /// getAlignOfGlobalVar - Return the alignment in bits that should be given
@@ -1806,6 +1875,16 @@ unsigned ASTContext::getAlignOfGlobalVar(QualType T) const {
 /// should be given to a global variable of the specified type.
 CharUnits ASTContext::getAlignOfGlobalVarInChars(QualType T) const {
   return toCharUnitsFromBits(getAlignOfGlobalVar(T));
+}
+
+CharUnits ASTContext::getOffsetOfBaseWithVBPtr(const CXXRecordDecl *RD) const {
+  CharUnits Offset = CharUnits::Zero();
+  const ASTRecordLayout *Layout = &getASTRecordLayout(RD);
+  while (const CXXRecordDecl *Base = Layout->getBaseSharingVBPtr()) {
+    Offset += Layout->getBaseClassOffset(Base);
+    Layout = &getASTRecordLayout(Base);
+  }
+  return Offset;
 }
 
 /// DeepCollectObjCIvars -
@@ -1838,11 +1917,7 @@ void ASTContext::CollectInheritedProtocols(const Decl *CDecl,
     // We can use protocol_iterator here instead of
     // all_referenced_protocol_iterator since we are walking all categories.    
     for (auto *Proto : OI->all_referenced_protocols()) {
-      Protocols.insert(Proto->getCanonicalDecl());
-      for (auto *P : Proto->protocols()) {
-        Protocols.insert(P->getCanonicalDecl());
-        CollectInheritedProtocols(P, Protocols);
-      }
+      CollectInheritedProtocols(Proto, Protocols);
     }
     
     // Categories of this Interface.
@@ -1856,16 +1931,16 @@ void ASTContext::CollectInheritedProtocols(const Decl *CDecl,
       }
   } else if (const ObjCCategoryDecl *OC = dyn_cast<ObjCCategoryDecl>(CDecl)) {
     for (auto *Proto : OC->protocols()) {
-      Protocols.insert(Proto->getCanonicalDecl());
-      for (const auto *P : Proto->protocols())
-        CollectInheritedProtocols(P, Protocols);
+      CollectInheritedProtocols(Proto, Protocols);
     }
   } else if (const ObjCProtocolDecl *OP = dyn_cast<ObjCProtocolDecl>(CDecl)) {
-    for (auto *Proto : OP->protocols()) {
-      Protocols.insert(Proto->getCanonicalDecl());
-      for (const auto *P : Proto->protocols())
-        CollectInheritedProtocols(P, Protocols);
-    }
+    // Insert the protocol.
+    if (!Protocols.insert(
+          const_cast<ObjCProtocolDecl *>(OP->getCanonicalDecl())).second)
+      return;
+
+    for (auto *Proto : OP->protocols())
+      CollectInheritedProtocols(Proto, Protocols);
   }
 }
 
@@ -3337,7 +3412,7 @@ ASTContext::getElaboratedType(ElaboratedTypeKeyword Keyword,
     (void)CheckT;
   }
 
-  T = new (*this) ElaboratedType(Keyword, NNS, NamedType, Canon);
+  T = new (*this, TypeAlignment) ElaboratedType(Keyword, NNS, NamedType, Canon);
   Types.push_back(T);
   ElaboratedTypes.InsertNode(T, InsertPos);
   return QualType(T, 0);
@@ -3361,7 +3436,7 @@ ASTContext::getParenType(QualType InnerType) const {
     (void)CheckT;
   }
 
-  T = new (*this) ParenType(InnerType, Canon);
+  T = new (*this, TypeAlignment) ParenType(InnerType, Canon);
   Types.push_back(T);
   ParenTypes.InsertNode(T, InsertPos);
   return QualType(T, 0);
@@ -3390,7 +3465,7 @@ QualType ASTContext::getDependentNameType(ElaboratedTypeKeyword Keyword,
   if (T)
     return QualType(T, 0);
 
-  T = new (*this) DependentNameType(Keyword, NNS, Name, Canon);
+  T = new (*this, TypeAlignment) DependentNameType(Keyword, NNS, Name, Canon);
   Types.push_back(T);
   DependentNameTypes.InsertNode(T, InsertPos);
   return QualType(T, 0);
@@ -3492,7 +3567,8 @@ QualType ASTContext::getPackExpansionType(QualType Pattern,
     }
   }
 
-  T = new (*this) PackExpansionType(Pattern, Canon, NumExpansions);
+  T = new (*this, TypeAlignment)
+      PackExpansionType(Pattern, Canon, NumExpansions);
   Types.push_back(T);
   PackExpansionTypes.InsertNode(T, InsertPos);
   return QualType(T, 0);
@@ -3500,9 +3576,9 @@ QualType ASTContext::getPackExpansionType(QualType Pattern,
 
 /// CmpProtocolNames - Comparison predicate for sorting protocols
 /// alphabetically.
-static bool CmpProtocolNames(const ObjCProtocolDecl *LHS,
-                            const ObjCProtocolDecl *RHS) {
-  return LHS->getDeclName() < RHS->getDeclName();
+static int CmpProtocolNames(ObjCProtocolDecl *const *LHS,
+                            ObjCProtocolDecl *const *RHS) {
+  return DeclarationName::compare((*LHS)->getDeclName(), (*RHS)->getDeclName());
 }
 
 static bool areSortedAndUniqued(ObjCProtocolDecl * const *Protocols,
@@ -3513,7 +3589,7 @@ static bool areSortedAndUniqued(ObjCProtocolDecl * const *Protocols,
     return false;
   
   for (unsigned i = 1; i != NumProtocols; ++i)
-    if (!CmpProtocolNames(Protocols[i-1], Protocols[i]) ||
+    if (CmpProtocolNames(&Protocols[i - 1], &Protocols[i]) >= 0 ||
         Protocols[i]->getCanonicalDecl() != Protocols[i])
       return false;
   return true;
@@ -3524,7 +3600,7 @@ static void SortAndUniqueProtocols(ObjCProtocolDecl **Protocols,
   ObjCProtocolDecl **ProtocolsEnd = Protocols+NumProtocols;
 
   // Sort protocols, keyed by name.
-  std::sort(Protocols, Protocols+NumProtocols, CmpProtocolNames);
+  llvm::array_pod_sort(Protocols, ProtocolsEnd, CmpProtocolNames);
 
   // Canonicalize.
   for (unsigned I = 0, N = NumProtocols; I != N; ++I)
@@ -3538,45 +3614,89 @@ static void SortAndUniqueProtocols(ObjCProtocolDecl **Protocols,
 QualType ASTContext::getObjCObjectType(QualType BaseType,
                                        ObjCProtocolDecl * const *Protocols,
                                        unsigned NumProtocols) const {
-  // If the base type is an interface and there aren't any protocols
-  // to add, then the interface type will do just fine.
-  if (!NumProtocols && isa<ObjCInterfaceType>(BaseType))
-    return BaseType;
+  return getObjCObjectType(BaseType, { },
+                           llvm::makeArrayRef(Protocols, NumProtocols),
+                           /*isKindOf=*/false);
+}
+
+QualType ASTContext::getObjCObjectType(
+           QualType baseType,
+           ArrayRef<QualType> typeArgs,
+           ArrayRef<ObjCProtocolDecl *> protocols,
+           bool isKindOf) const {
+  // If the base type is an interface and there aren't any protocols or
+  // type arguments to add, then the interface type will do just fine.
+  if (typeArgs.empty() && protocols.empty() && !isKindOf &&
+      isa<ObjCInterfaceType>(baseType))
+    return baseType;
 
   // Look in the folding set for an existing type.
   llvm::FoldingSetNodeID ID;
-  ObjCObjectTypeImpl::Profile(ID, BaseType, Protocols, NumProtocols);
+  ObjCObjectTypeImpl::Profile(ID, baseType, typeArgs, protocols, isKindOf);
   void *InsertPos = nullptr;
   if (ObjCObjectType *QT = ObjCObjectTypes.FindNodeOrInsertPos(ID, InsertPos))
     return QualType(QT, 0);
 
-  // Build the canonical type, which has the canonical base type and
-  // a sorted-and-uniqued list of protocols.
-  QualType Canonical;
-  bool ProtocolsSorted = areSortedAndUniqued(Protocols, NumProtocols);
-  if (!ProtocolsSorted || !BaseType.isCanonical()) {
-    if (!ProtocolsSorted) {
-      SmallVector<ObjCProtocolDecl*, 8> Sorted(Protocols,
-                                                     Protocols + NumProtocols);
-      unsigned UniqueCount = NumProtocols;
+  // Determine the type arguments to be used for canonicalization,
+  // which may be explicitly specified here or written on the base
+  // type.
+  ArrayRef<QualType> effectiveTypeArgs = typeArgs;
+  if (effectiveTypeArgs.empty()) {
+    if (auto baseObject = baseType->getAs<ObjCObjectType>())
+      effectiveTypeArgs = baseObject->getTypeArgs();
+  }
 
-      SortAndUniqueProtocols(&Sorted[0], UniqueCount);
-      Canonical = getObjCObjectType(getCanonicalType(BaseType),
-                                    &Sorted[0], UniqueCount);
+  // Build the canonical type, which has the canonical base type and a
+  // sorted-and-uniqued list of protocols and the type arguments
+  // canonicalized.
+  QualType canonical;
+  bool typeArgsAreCanonical = std::all_of(effectiveTypeArgs.begin(),
+                                          effectiveTypeArgs.end(),
+                                          [&](QualType type) {
+                                            return type.isCanonical();
+                                          });
+  bool protocolsSorted = areSortedAndUniqued(protocols.data(),
+                                             protocols.size());
+  if (!typeArgsAreCanonical || !protocolsSorted || !baseType.isCanonical()) {
+    // Determine the canonical type arguments.
+    ArrayRef<QualType> canonTypeArgs;
+    SmallVector<QualType, 4> canonTypeArgsVec;
+    if (!typeArgsAreCanonical) {
+      canonTypeArgsVec.reserve(effectiveTypeArgs.size());
+      for (auto typeArg : effectiveTypeArgs)
+        canonTypeArgsVec.push_back(getCanonicalType(typeArg));
+      canonTypeArgs = canonTypeArgsVec;
     } else {
-      Canonical = getObjCObjectType(getCanonicalType(BaseType),
-                                    Protocols, NumProtocols);
+      canonTypeArgs = effectiveTypeArgs;
     }
+
+    ArrayRef<ObjCProtocolDecl *> canonProtocols;
+    SmallVector<ObjCProtocolDecl*, 8> canonProtocolsVec;
+    if (!protocolsSorted) {
+      canonProtocolsVec.insert(canonProtocolsVec.begin(),
+                               protocols.begin(), 
+                               protocols.end());
+      unsigned uniqueCount = protocols.size();
+      SortAndUniqueProtocols(&canonProtocolsVec[0], uniqueCount);
+      canonProtocols = llvm::makeArrayRef(&canonProtocolsVec[0], uniqueCount);
+    } else {
+      canonProtocols = protocols;
+    }
+
+    canonical = getObjCObjectType(getCanonicalType(baseType), canonTypeArgs,
+                                  canonProtocols, isKindOf);
 
     // Regenerate InsertPos.
     ObjCObjectTypes.FindNodeOrInsertPos(ID, InsertPos);
   }
 
-  unsigned Size = sizeof(ObjCObjectTypeImpl);
-  Size += NumProtocols * sizeof(ObjCProtocolDecl *);
-  void *Mem = Allocate(Size, TypeAlignment);
+  unsigned size = sizeof(ObjCObjectTypeImpl);
+  size += typeArgs.size() * sizeof(QualType);
+  size += protocols.size() * sizeof(ObjCProtocolDecl *);
+  void *mem = Allocate(size, TypeAlignment);
   ObjCObjectTypeImpl *T =
-    new (Mem) ObjCObjectTypeImpl(Canonical, BaseType, Protocols, NumProtocols);
+    new (mem) ObjCObjectTypeImpl(canonical, baseType, typeArgs, protocols,
+                                 isKindOf);
 
   Types.push_back(T);
   ObjCObjectTypes.InsertNode(T, InsertPos);
@@ -4325,6 +4445,19 @@ QualType ASTContext::getSignatureParameterType(QualType T) const {
   return T.getUnqualifiedType();
 }
 
+QualType ASTContext::getExceptionObjectType(QualType T) const {
+  // C++ [except.throw]p3:
+  //   A throw-expression initializes a temporary object, called the exception
+  //   object, the type of which is determined by removing any top-level
+  //   cv-qualifiers from the static type of the operand of throw and adjusting
+  //   the type from "array of T" or "function returning T" to "pointer to T"
+  //   or "pointer to function returning T", [...]
+  T = getVariableArrayDecayedType(T);
+  if (T->isArrayType() || T->isFunctionType())
+    T = getDecayedType(T);
+  return T.getUnqualifiedType();
+}
+
 /// getArrayDecayedType - Return the properly qualified result of decaying the
 /// specified array type to a pointer.  This operation is non-trivial when
 /// handling typedefs etc.  The canonical type of "T" must be an array type,
@@ -4859,7 +4992,7 @@ CharUnits ASTContext::getObjCEncodingTypeSize(QualType type) const {
 bool ASTContext::isMSStaticDataMemberInlineDefinition(const VarDecl *VD) const {
   return getLangOpts().MSVCCompat && VD->isStaticDataMember() &&
          VD->getType()->isIntegralOrEnumerationType() &&
-         !VD->getFirstDecl()->isOutOfLine() && VD->getFirstDecl()->hasInit();
+         VD->isFirstDecl() && !VD->isOutOfLine() && VD->hasInit();
 }
 
 static inline 
@@ -5530,16 +5663,10 @@ void ASTContext::getObjCEncodingForTypeImpl(QualType T, std::string& S,
   
   case Type::ObjCInterface: {
     // Ignore protocol qualifiers when mangling at this level.
-    T = T->castAs<ObjCObjectType>()->getBaseType();
-
-    // The assumption seems to be that this assert will succeed
-    // because nested levels will have filtered out 'id' and 'Class'.
-    const ObjCInterfaceType *OIT = T->castAs<ObjCInterfaceType>();
     // @encode(class_name)
-    ObjCInterfaceDecl *OI = OIT->getDecl();
+    ObjCInterfaceDecl *OI = T->castAs<ObjCObjectType>()->getInterface();
     S += '{';
-    const IdentifierInfo *II = OI->getIdentifier();
-    S += II->getName();
+    S += OI->getObjCRuntimeNameAsString();
     S += '=';
     SmallVector<const ObjCIvarDecl*, 32> Ivars;
     DeepCollectObjCIvars(OI, true, Ivars);
@@ -5582,7 +5709,7 @@ void ASTContext::getObjCEncodingForTypeImpl(QualType T, std::string& S,
         S += '"';
         for (const auto *I : OPT->quals()) {
           S += '<';
-          S += I->getNameAsString();
+          S += I->getObjCRuntimeNameAsString();
           S += '>';
         }
         S += '"';
@@ -5606,7 +5733,7 @@ void ASTContext::getObjCEncodingForTypeImpl(QualType T, std::string& S,
         for (unsigned i = 0, e = Ivars.size(); i != e; ++i) {
           if (cast<FieldDecl>(Ivars[i]) == FD) {
             S += '{';
-            S += OI->getIdentifier()->getName();
+            S += OI->getObjCRuntimeNameAsString();
             S += '}';
             return;
           }
@@ -5624,10 +5751,10 @@ void ASTContext::getObjCEncodingForTypeImpl(QualType T, std::string& S,
     if (OPT->getInterfaceDecl() && 
         (FD || EncodingProperty || EncodeClassNames)) {
       S += '"';
-      S += OPT->getInterfaceDecl()->getIdentifier()->getName();
+      S += OPT->getInterfaceDecl()->getObjCRuntimeNameAsString();
       for (const auto *I : OPT->quals()) {
         S += '<';
-        S += I->getNameAsString();
+        S += I->getObjCRuntimeNameAsString();
         S += '>';
       }
       S += '"';
@@ -5829,7 +5956,7 @@ void ASTContext::getObjCEncodingForTypeQualifier(Decl::ObjCDeclQualifier QT,
 
 TypedefDecl *ASTContext::getObjCIdDecl() const {
   if (!ObjCIdDecl) {
-    QualType T = getObjCObjectType(ObjCBuiltinIdTy, nullptr, 0);
+    QualType T = getObjCObjectType(ObjCBuiltinIdTy, { }, { });
     T = getObjCObjectPointerType(T);
     ObjCIdDecl = buildImplicitTypedef(T, "id");
   }
@@ -5846,7 +5973,7 @@ TypedefDecl *ASTContext::getObjCSelDecl() const {
 
 TypedefDecl *ASTContext::getObjCClassDecl() const {
   if (!ObjCClassDecl) {
-    QualType T = getObjCObjectType(ObjCBuiltinClassTy, nullptr, 0);
+    QualType T = getObjCObjectType(ObjCBuiltinClassTy, { }, { });
     T = getObjCObjectPointerType(T);
     ObjCClassDecl = buildImplicitTypedef(T, "Class");
   }
@@ -5859,6 +5986,7 @@ ObjCInterfaceDecl *ASTContext::getObjCProtocolDecl() const {
       = ObjCInterfaceDecl::Create(*this, getTranslationUnitDecl(), 
                                   SourceLocation(),
                                   &Idents.get("Protocol"),
+                                  /*typeParamList=*/nullptr,
                                   /*PrevDecl=*/nullptr,
                                   SourceLocation(), true);    
   }
@@ -6651,18 +6779,36 @@ bool ASTContext::canAssignObjCInterfaces(const ObjCObjectPointerType *LHSOPT,
       RHS->isObjCUnqualifiedIdOrClass())
     return true;
 
-  if (LHS->isObjCQualifiedId() || RHS->isObjCQualifiedId())
-    return ObjCQualifiedIdTypesAreCompatible(QualType(LHSOPT,0),
-                                             QualType(RHSOPT,0),
-                                             false);
+  // Function object that propagates a successful result or handles
+  // __kindof types.
+  auto finish = [&](bool succeeded) -> bool {
+    if (succeeded)
+      return true;
+
+    if (!RHS->isKindOfType())
+      return false;
+
+    // Strip off __kindof and protocol qualifiers, then check whether
+    // we can assign the other way.
+    return canAssignObjCInterfaces(RHSOPT->stripObjCKindOfTypeAndQuals(*this),
+                                   LHSOPT->stripObjCKindOfTypeAndQuals(*this));
+  };
+
+  if (LHS->isObjCQualifiedId() || RHS->isObjCQualifiedId()) {
+    return finish(ObjCQualifiedIdTypesAreCompatible(QualType(LHSOPT,0),
+                                                    QualType(RHSOPT,0),
+                                                    false));
+  }
   
-  if (LHS->isObjCQualifiedClass() && RHS->isObjCQualifiedClass())
-    return ObjCQualifiedClassTypesAreCompatible(QualType(LHSOPT,0),
-                                                QualType(RHSOPT,0));
+  if (LHS->isObjCQualifiedClass() && RHS->isObjCQualifiedClass()) {
+    return finish(ObjCQualifiedClassTypesAreCompatible(QualType(LHSOPT,0),
+                                                       QualType(RHSOPT,0)));
+  }
   
   // If we have 2 user-defined types, fall into that path.
-  if (LHS->getInterface() && RHS->getInterface())
-    return canAssignObjCInterfaces(LHS, RHS);
+  if (LHS->getInterface() && RHS->getInterface()) {
+    return finish(canAssignObjCInterfaces(LHS, RHS));
+  }
 
   return false;
 }
@@ -6676,26 +6822,46 @@ bool ASTContext::canAssignObjCInterfacesInBlockPointer(
                                          const ObjCObjectPointerType *LHSOPT,
                                          const ObjCObjectPointerType *RHSOPT,
                                          bool BlockReturnType) {
+
+  // Function object that propagates a successful result or handles
+  // __kindof types.
+  auto finish = [&](bool succeeded) -> bool {
+    if (succeeded)
+      return true;
+
+    const ObjCObjectPointerType *Expected = BlockReturnType ? RHSOPT : LHSOPT;
+    if (!Expected->isKindOfType())
+      return false;
+
+    // Strip off __kindof and protocol qualifiers, then check whether
+    // we can assign the other way.
+    return canAssignObjCInterfacesInBlockPointer(
+             RHSOPT->stripObjCKindOfTypeAndQuals(*this),
+             LHSOPT->stripObjCKindOfTypeAndQuals(*this),
+             BlockReturnType);
+  };
+
   if (RHSOPT->isObjCBuiltinType() || LHSOPT->isObjCIdType())
     return true;
   
   if (LHSOPT->isObjCBuiltinType()) {
-    return RHSOPT->isObjCBuiltinType() || RHSOPT->isObjCQualifiedIdType();
+    return finish(RHSOPT->isObjCBuiltinType() ||
+                  RHSOPT->isObjCQualifiedIdType());
   }
   
   if (LHSOPT->isObjCQualifiedIdType() || RHSOPT->isObjCQualifiedIdType())
-    return ObjCQualifiedIdTypesAreCompatible(QualType(LHSOPT,0),
-                                             QualType(RHSOPT,0),
-                                             false);
+    return finish(ObjCQualifiedIdTypesAreCompatible(QualType(LHSOPT,0),
+                                                    QualType(RHSOPT,0),
+                                                    false));
   
   const ObjCInterfaceType* LHS = LHSOPT->getInterfaceType();
   const ObjCInterfaceType* RHS = RHSOPT->getInterfaceType();
   if (LHS && RHS)  { // We have 2 user-defined types.
     if (LHS != RHS) {
       if (LHS->getDecl()->isSuperClassOf(RHS->getDecl()))
-        return BlockReturnType;
+        return finish(BlockReturnType);
       if (RHS->getDecl()->isSuperClassOf(LHS->getDecl()))
-        return !BlockReturnType;
+        return finish(!BlockReturnType);
     }
     else
       return true;
@@ -6703,78 +6869,253 @@ bool ASTContext::canAssignObjCInterfacesInBlockPointer(
   return false;
 }
 
+/// Comparison routine for Objective-C protocols to be used with
+/// llvm::array_pod_sort.
+static int compareObjCProtocolsByName(ObjCProtocolDecl * const *lhs,
+                                      ObjCProtocolDecl * const *rhs) {
+  return (*lhs)->getName().compare((*rhs)->getName());
+
+}
+
 /// getIntersectionOfProtocols - This routine finds the intersection of set
-/// of protocols inherited from two distinct objective-c pointer objects.
+/// of protocols inherited from two distinct objective-c pointer objects with
+/// the given common base.
 /// It is used to build composite qualifier list of the composite type of
 /// the conditional expression involving two objective-c pointer objects.
 static 
 void getIntersectionOfProtocols(ASTContext &Context,
+                                const ObjCInterfaceDecl *CommonBase,
                                 const ObjCObjectPointerType *LHSOPT,
                                 const ObjCObjectPointerType *RHSOPT,
-      SmallVectorImpl<ObjCProtocolDecl *> &IntersectionOfProtocols) {
+      SmallVectorImpl<ObjCProtocolDecl *> &IntersectionSet) {
   
   const ObjCObjectType* LHS = LHSOPT->getObjectType();
   const ObjCObjectType* RHS = RHSOPT->getObjectType();
   assert(LHS->getInterface() && "LHS must have an interface base");
   assert(RHS->getInterface() && "RHS must have an interface base");
-  
-  llvm::SmallPtrSet<ObjCProtocolDecl *, 8> InheritedProtocolSet;
-  unsigned LHSNumProtocols = LHS->getNumProtocols();
-  if (LHSNumProtocols > 0)
-    InheritedProtocolSet.insert(LHS->qual_begin(), LHS->qual_end());
-  else {
-    llvm::SmallPtrSet<ObjCProtocolDecl *, 8> LHSInheritedProtocols;
-    Context.CollectInheritedProtocols(LHS->getInterface(),
-                                      LHSInheritedProtocols);
-    InheritedProtocolSet.insert(LHSInheritedProtocols.begin(), 
-                                LHSInheritedProtocols.end());
+
+  // Add all of the protocols for the LHS.
+  llvm::SmallPtrSet<ObjCProtocolDecl *, 8> LHSProtocolSet;
+
+  // Start with the protocol qualifiers.
+  for (auto proto : LHS->quals()) {
+    Context.CollectInheritedProtocols(proto, LHSProtocolSet);
   }
-  
-  unsigned RHSNumProtocols = RHS->getNumProtocols();
-  if (RHSNumProtocols > 0) {
-    ObjCProtocolDecl **RHSProtocols =
-      const_cast<ObjCProtocolDecl **>(RHS->qual_begin());
-    for (unsigned i = 0; i < RHSNumProtocols; ++i)
-      if (InheritedProtocolSet.count(RHSProtocols[i]))
-        IntersectionOfProtocols.push_back(RHSProtocols[i]);
-  } else {
-    llvm::SmallPtrSet<ObjCProtocolDecl *, 8> RHSInheritedProtocols;
-    Context.CollectInheritedProtocols(RHS->getInterface(),
-                                      RHSInheritedProtocols);
-    for (ObjCProtocolDecl *ProtDecl : RHSInheritedProtocols)
-      if (InheritedProtocolSet.count(ProtDecl))
-        IntersectionOfProtocols.push_back(ProtDecl);
+
+  // Also add the protocols associated with the LHS interface.
+  Context.CollectInheritedProtocols(LHS->getInterface(), LHSProtocolSet);
+
+  // Add all of the protocls for the RHS.
+  llvm::SmallPtrSet<ObjCProtocolDecl *, 8> RHSProtocolSet;
+
+  // Start with the protocol qualifiers.
+  for (auto proto : RHS->quals()) {
+    Context.CollectInheritedProtocols(proto, RHSProtocolSet);
   }
+
+  // Also add the protocols associated with the RHS interface.
+  Context.CollectInheritedProtocols(RHS->getInterface(), RHSProtocolSet);
+
+  // Compute the intersection of the collected protocol sets.
+  for (auto proto : LHSProtocolSet) {
+    if (RHSProtocolSet.count(proto))
+      IntersectionSet.push_back(proto);
+  }
+
+  // Compute the set of protocols that is implied by either the common type or
+  // the protocols within the intersection.
+  llvm::SmallPtrSet<ObjCProtocolDecl *, 8> ImpliedProtocols;
+  Context.CollectInheritedProtocols(CommonBase, ImpliedProtocols);
+
+  // Remove any implied protocols from the list of inherited protocols.
+  if (!ImpliedProtocols.empty()) {
+    IntersectionSet.erase(
+      std::remove_if(IntersectionSet.begin(),
+                     IntersectionSet.end(),
+                     [&](ObjCProtocolDecl *proto) -> bool {
+                       return ImpliedProtocols.count(proto) > 0;
+                     }),
+      IntersectionSet.end());
+  }
+
+  // Sort the remaining protocols by name.
+  llvm::array_pod_sort(IntersectionSet.begin(), IntersectionSet.end(),
+                       compareObjCProtocolsByName);
 }
 
-/// areCommonBaseCompatible - Returns common base class of the two classes if
-/// one found. Note that this is O'2 algorithm. But it will be called as the
-/// last type comparison in a ?-exp of ObjC pointer types before a 
-/// warning is issued. So, its invokation is extremely rare.
+/// Determine whether the first type is a subtype of the second.
+static bool canAssignObjCObjectTypes(ASTContext &ctx, QualType lhs,
+                                     QualType rhs) {
+  // Common case: two object pointers.
+  const ObjCObjectPointerType *lhsOPT = lhs->getAs<ObjCObjectPointerType>();
+  const ObjCObjectPointerType *rhsOPT = rhs->getAs<ObjCObjectPointerType>();
+  if (lhsOPT && rhsOPT)
+    return ctx.canAssignObjCInterfaces(lhsOPT, rhsOPT);
+
+  // Two block pointers.
+  const BlockPointerType *lhsBlock = lhs->getAs<BlockPointerType>();
+  const BlockPointerType *rhsBlock = rhs->getAs<BlockPointerType>();
+  if (lhsBlock && rhsBlock)
+    return ctx.typesAreBlockPointerCompatible(lhs, rhs);
+
+  // If either is an unqualified 'id' and the other is a block, it's
+  // acceptable.
+  if ((lhsOPT && lhsOPT->isObjCIdType() && rhsBlock) ||
+      (rhsOPT && rhsOPT->isObjCIdType() && lhsBlock))
+    return true;
+
+  return false;
+}
+
+// Check that the given Objective-C type argument lists are equivalent.
+static bool sameObjCTypeArgs(ASTContext &ctx,
+                             const ObjCInterfaceDecl *iface,
+                             ArrayRef<QualType> lhsArgs,
+                             ArrayRef<QualType> rhsArgs,
+                             bool stripKindOf) {
+  if (lhsArgs.size() != rhsArgs.size())
+    return false;
+
+  ObjCTypeParamList *typeParams = iface->getTypeParamList();
+  for (unsigned i = 0, n = lhsArgs.size(); i != n; ++i) {
+    if (ctx.hasSameType(lhsArgs[i], rhsArgs[i]))
+      continue;
+
+    switch (typeParams->begin()[i]->getVariance()) {
+    case ObjCTypeParamVariance::Invariant:
+      if (!stripKindOf ||
+          !ctx.hasSameType(lhsArgs[i].stripObjCKindOfType(ctx),
+                           rhsArgs[i].stripObjCKindOfType(ctx))) {
+        return false;
+      }
+      break;
+
+    case ObjCTypeParamVariance::Covariant:
+      if (!canAssignObjCObjectTypes(ctx, lhsArgs[i], rhsArgs[i]))
+        return false;
+      break;
+
+    case ObjCTypeParamVariance::Contravariant:
+      if (!canAssignObjCObjectTypes(ctx, rhsArgs[i], lhsArgs[i]))
+        return false;
+      break;
+    }
+  }
+
+  return true;
+}
+
 QualType ASTContext::areCommonBaseCompatible(
-                                          const ObjCObjectPointerType *Lptr,
-                                          const ObjCObjectPointerType *Rptr) {
+           const ObjCObjectPointerType *Lptr,
+           const ObjCObjectPointerType *Rptr) {
   const ObjCObjectType *LHS = Lptr->getObjectType();
   const ObjCObjectType *RHS = Rptr->getObjectType();
   const ObjCInterfaceDecl* LDecl = LHS->getInterface();
   const ObjCInterfaceDecl* RDecl = RHS->getInterface();
-  if (!LDecl || !RDecl || (declaresSameEntity(LDecl, RDecl)))
-    return QualType();
-  
-  do {
-    LHS = cast<ObjCInterfaceType>(getObjCInterfaceType(LDecl));
-    if (canAssignObjCInterfaces(LHS, RHS)) {
-      SmallVector<ObjCProtocolDecl *, 8> Protocols;
-      getIntersectionOfProtocols(*this, Lptr, Rptr, Protocols);
 
-      QualType Result = QualType(LHS, 0);
+  if (!LDecl || !RDecl)
+    return QualType();
+
+  // Follow the left-hand side up the class hierarchy until we either hit a
+  // root or find the RHS. Record the ancestors in case we don't find it.
+  llvm::SmallDenseMap<const ObjCInterfaceDecl *, const ObjCObjectType *, 4>
+    LHSAncestors;
+  while (true) {
+    // Record this ancestor. We'll need this if the common type isn't in the
+    // path from the LHS to the root.
+    LHSAncestors[LHS->getInterface()->getCanonicalDecl()] = LHS;
+
+    if (declaresSameEntity(LHS->getInterface(), RDecl)) {
+      // Get the type arguments.
+      ArrayRef<QualType> LHSTypeArgs = LHS->getTypeArgsAsWritten();
+      bool anyChanges = false;
+      if (LHS->isSpecialized() && RHS->isSpecialized()) {
+        // Both have type arguments, compare them.
+        if (!sameObjCTypeArgs(*this, LHS->getInterface(),
+                              LHS->getTypeArgs(), RHS->getTypeArgs(),
+                              /*stripKindOf=*/true))
+          return QualType();
+      } else if (LHS->isSpecialized() != RHS->isSpecialized()) {
+        // If only one has type arguments, the result will not have type
+        // arguments.
+        LHSTypeArgs = { };
+        anyChanges = true;
+      }
+
+      // Compute the intersection of protocols.
+      SmallVector<ObjCProtocolDecl *, 8> Protocols;
+      getIntersectionOfProtocols(*this, LHS->getInterface(), Lptr, Rptr,
+                                 Protocols);
       if (!Protocols.empty())
-        Result = getObjCObjectType(Result, Protocols.data(), Protocols.size());
-      Result = getObjCObjectPointerType(Result);
-      return Result;
+        anyChanges = true;
+
+      // If anything in the LHS will have changed, build a new result type.
+      if (anyChanges) {
+        QualType Result = getObjCInterfaceType(LHS->getInterface());
+        Result = getObjCObjectType(Result, LHSTypeArgs, Protocols,
+                                   LHS->isKindOfType());
+        return getObjCObjectPointerType(Result);
+      }
+
+      return getObjCObjectPointerType(QualType(LHS, 0));
     }
-  } while ((LDecl = LDecl->getSuperClass()));
-    
+
+    // Find the superclass.
+    QualType LHSSuperType = LHS->getSuperClassType();
+    if (LHSSuperType.isNull())
+      break;
+
+    LHS = LHSSuperType->castAs<ObjCObjectType>();
+  }
+
+  // We didn't find anything by following the LHS to its root; now check
+  // the RHS against the cached set of ancestors.
+  while (true) {
+    auto KnownLHS = LHSAncestors.find(RHS->getInterface()->getCanonicalDecl());
+    if (KnownLHS != LHSAncestors.end()) {
+      LHS = KnownLHS->second;
+
+      // Get the type arguments.
+      ArrayRef<QualType> RHSTypeArgs = RHS->getTypeArgsAsWritten();
+      bool anyChanges = false;
+      if (LHS->isSpecialized() && RHS->isSpecialized()) {
+        // Both have type arguments, compare them.
+        if (!sameObjCTypeArgs(*this, LHS->getInterface(),
+                              LHS->getTypeArgs(), RHS->getTypeArgs(),
+                              /*stripKindOf=*/true))
+          return QualType();
+      } else if (LHS->isSpecialized() != RHS->isSpecialized()) {
+        // If only one has type arguments, the result will not have type
+        // arguments.
+        RHSTypeArgs = { };
+        anyChanges = true;
+      }
+
+      // Compute the intersection of protocols.
+      SmallVector<ObjCProtocolDecl *, 8> Protocols;
+      getIntersectionOfProtocols(*this, RHS->getInterface(), Lptr, Rptr,
+                                 Protocols);
+      if (!Protocols.empty())
+        anyChanges = true;
+
+      if (anyChanges) {
+        QualType Result = getObjCInterfaceType(RHS->getInterface());
+        Result = getObjCObjectType(Result, RHSTypeArgs, Protocols,
+                                   RHS->isKindOfType());
+        return getObjCObjectPointerType(Result);
+      }
+
+      return getObjCObjectPointerType(QualType(RHS, 0));
+    }
+
+    // Find the superclass of the RHS.
+    QualType RHSSuperType = RHS->getSuperClassType();
+    if (RHSSuperType.isNull())
+      break;
+
+    RHS = RHSSuperType->castAs<ObjCObjectType>();
+  }
+
   return QualType();
 }
 
@@ -6785,21 +7126,15 @@ bool ASTContext::canAssignObjCInterfaces(const ObjCObjectType *LHS,
 
   // Verify that the base decls are compatible: the RHS must be a subclass of
   // the LHS.
-  if (!LHS->getInterface()->isSuperClassOf(RHS->getInterface()))
+  ObjCInterfaceDecl *LHSInterface = LHS->getInterface();
+  bool IsSuperClass = LHSInterface->isSuperClassOf(RHS->getInterface());
+  if (!IsSuperClass)
     return false;
 
-  // RHS must have a superset of the protocols in the LHS.  If the LHS is not
-  // protocol qualified at all, then we are good.
-  if (LHS->getNumProtocols() == 0)
-    return true;
-
-  // Okay, we know the LHS has protocol qualifiers. But RHS may or may not.
-  // More detailed analysis is required.
-  // OK, if LHS is same or a superclass of RHS *and*
-  // this LHS, or as RHS's super class is assignment compatible with LHS.
-  bool IsSuperClass =
-    LHS->getInterface()->isSuperClassOf(RHS->getInterface());
-  if (IsSuperClass) {
+  // If the LHS has protocol qualifiers, determine whether all of them are
+  // satisfied by the RHS (i.e., the RHS has a superset of the protocols in the
+  // LHS).
+  if (LHS->getNumProtocols() > 0) {
     // OK if conversion of LHS to SuperClass results in narrowing of types
     // ; i.e., SuperClass may implement at least one of the protocols
     // in LHS's protocol list. Example, SuperObj<P1> = lhs<P1,P2> is ok.
@@ -6809,7 +7144,7 @@ bool ASTContext::canAssignObjCInterfaces(const ObjCObjectType *LHS,
     // Also, if RHS has explicit quelifiers, include them for comparing with LHS's
     // qualifiers.
     for (auto *RHSPI : RHS->quals())
-      SuperClassInheritedProtocols.insert(RHSPI->getCanonicalDecl());
+      CollectInheritedProtocols(RHSPI, SuperClassInheritedProtocols);
     // If there is no protocols associated with RHS, it is not a match.
     if (SuperClassInheritedProtocols.empty())
       return false;
@@ -6824,9 +7159,26 @@ bool ASTContext::canAssignObjCInterfaces(const ObjCObjectType *LHS,
       if (!SuperImplementsProtocol)
         return false;
     }
-    return true;
   }
-  return false;
+
+  // If the LHS is specialized, we may need to check type arguments.
+  if (LHS->isSpecialized()) {
+    // Follow the superclass chain until we've matched the LHS class in the
+    // hierarchy. This substitutes type arguments through.
+    const ObjCObjectType *RHSSuper = RHS;
+    while (!declaresSameEntity(RHSSuper->getInterface(), LHSInterface))
+      RHSSuper = RHSSuper->getSuperClassType()->castAs<ObjCObjectType>();
+
+    // If the RHS is specializd, compare type arguments.
+    if (RHSSuper->isSpecialized() &&
+        !sameObjCTypeArgs(*this, LHS->getInterface(),
+                          LHS->getTypeArgs(), RHSSuper->getTypeArgs(),
+                          /*stripKindOf=*/true)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 bool ASTContext::areComparableObjCPointerTypes(QualType LHS, QualType RHS) {
@@ -7544,7 +7896,7 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Context,
       break;
     case 'U':
       assert(!Signed && "Can't use both 'S' and 'U' modifiers!");
-      assert(!Unsigned && "Can't use 'S' modifier multiple times!");
+      assert(!Unsigned && "Can't use 'U' modifier multiple times!");
       Unsigned = true;
       break;
     case 'L':
@@ -7579,7 +7931,7 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Context,
     break;
   case 'h':
     assert(HowLong == 0 && !Signed && !Unsigned &&
-           "Bad modifiers used with 'f'!");
+           "Bad modifiers used with 'h'!");
     Type = Context.HalfTy;
     break;
   case 'f':
@@ -7806,6 +8158,9 @@ QualType ASTContext::GetBuiltinType(unsigned Id,
     ArgTypes.push_back(Ty);
   }
 
+  if (Id == Builtin::BI__GetExceptionInfo)
+    return QualType();
+
   assert((TypeStr[0] != '.' || TypeStr[1] == 0) &&
          "'.' should only occur at end of builtin type list!");
 
@@ -7909,7 +8264,7 @@ static GVALinkage basicGVALinkageForVariable(const ASTContext &Context,
     while (LexicalContext && !isa<FunctionDecl>(LexicalContext))
       LexicalContext = LexicalContext->getLexicalParent();
 
-    // Let the static local variable inherit it's linkage from the nearest
+    // Let the static local variable inherit its linkage from the nearest
     // enclosing function.
     if (LexicalContext)
       StaticLocalLinkage =
@@ -8042,7 +8397,9 @@ CallingConv ASTContext::getDefaultCallingConvention(bool IsVariadic,
   if (IsCXXMethod)
     return ABI->getDefaultMethodCallConv(IsVariadic);
 
-  return (LangOpts.MRTD && !IsVariadic) ? CC_X86StdCall : CC_C;
+  if (LangOpts.MRTD && !IsVariadic) return CC_X86StdCall;
+
+  return Target->getDefaultCallingConv(TargetInfo::CCMT_Unknown);
 }
 
 bool ASTContext::isNearlyEmpty(const CXXRecordDecl *RD) const {
@@ -8159,6 +8516,31 @@ ASTContext::getManglingNumberContext(const DeclContext *DC) {
 
 MangleNumberingContext *ASTContext::createMangleNumberingContext() const {
   return ABI->createMangleNumberingContext();
+}
+
+const CXXConstructorDecl *
+ASTContext::getCopyConstructorForExceptionObject(CXXRecordDecl *RD) {
+  return ABI->getCopyConstructorForExceptionObject(
+      cast<CXXRecordDecl>(RD->getFirstDecl()));
+}
+
+void ASTContext::addCopyConstructorForExceptionObject(CXXRecordDecl *RD,
+                                                      CXXConstructorDecl *CD) {
+  return ABI->addCopyConstructorForExceptionObject(
+      cast<CXXRecordDecl>(RD->getFirstDecl()),
+      cast<CXXConstructorDecl>(CD->getFirstDecl()));
+}
+
+void ASTContext::addDefaultArgExprForConstructor(const CXXConstructorDecl *CD,
+                                                 unsigned ParmIdx, Expr *DAE) {
+  ABI->addDefaultArgExprForConstructor(
+      cast<CXXConstructorDecl>(CD->getFirstDecl()), ParmIdx, DAE);
+}
+
+Expr *ASTContext::getDefaultArgExprForConstructor(const CXXConstructorDecl *CD,
+                                                  unsigned ParmIdx) {
+  return ABI->getDefaultArgExprForConstructor(
+      cast<CXXConstructorDecl>(CD->getFirstDecl()), ParmIdx);
 }
 
 void ASTContext::setParameterIndex(const ParmVarDecl *D, unsigned int index) {

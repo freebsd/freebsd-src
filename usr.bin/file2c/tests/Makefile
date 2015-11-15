@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/usr.bin/file2c
-
 TAP_TESTS_SH=	legacy_test
 
 FILESDIR=	${TESTSDIR}

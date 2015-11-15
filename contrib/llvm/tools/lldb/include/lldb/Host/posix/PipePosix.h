@@ -16,7 +16,7 @@
 namespace lldb_private {
 
 //----------------------------------------------------------------------
-/// @class PipePosix PipePosix	.h "lldb/Host/posix/PipePosix.h"
+/// @class PipePosix PipePosix.h "lldb/Host/posix/PipePosix.h"
 /// @brief A posix-based implementation of Pipe, a class that abtracts
 ///        unix style pipes.
 ///
@@ -28,6 +28,11 @@ public:
     static int kInvalidDescriptor;
 
     PipePosix();
+    PipePosix(int read_fd, int write_fd);
+    PipePosix(const PipePosix &) = delete;
+    PipePosix(PipePosix &&pipe_posix);
+    PipePosix &operator=(const PipePosix &) = delete;
+    PipePosix &operator=(PipePosix &&pipe_posix);
 
     ~PipePosix() override;
 
@@ -35,6 +40,8 @@ public:
     CreateNew(bool child_process_inherit) override;
     Error
     CreateNew(llvm::StringRef name, bool child_process_inherit) override;
+    Error
+    CreateWithUniqueName(llvm::StringRef prefix, bool child_process_inherit, llvm::SmallVectorImpl<char>& name) override;
     Error
     OpenAsReader(llvm::StringRef name, bool child_process_inherit) override;
     Error
@@ -53,6 +60,11 @@ public:
     ReleaseReadFileDescriptor() override;
     int
     ReleaseWriteFileDescriptor() override;
+    void
+    CloseReadFileDescriptor() override;
+    void
+    CloseWriteFileDescriptor() override;
+
 
     // Close both descriptors
     void
@@ -67,11 +79,6 @@ public:
     ReadWithTimeout(void *buf, size_t size, const std::chrono::microseconds &timeout, size_t &bytes_read) override;
 
 private:
-    void
-    CloseReadFileDescriptor();
-    void
-    CloseWriteFileDescriptor();
-
     int m_fds[2];
 };
 

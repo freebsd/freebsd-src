@@ -1,3 +1,48 @@
+2015-10-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20151020
+	
+	* dirdeps.mk: Add logic for 
+	  make -f dirdeps.mk some/dir.${TARGET_SPEC}
+
+2015-10-14  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20151010
+
+2015-10-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* meta.stage.mk: use staging: ${STAGE_TARGETS:...
+	  to have stage_lins run last in non-jobs mode.
+	  Use .ORDER only for jobs mode.
+
+2015-09-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* rst2htm.mk: allow for per target flags etc.
+
+2015-09-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20150901
+
+	* doc.mk: create dir if needed use DOC_INSTALL_OWN
+
+2015-06-15  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20150615
+	
+	* auto.obj.mk: allow use of MAKEOBJDIRPREFIX too.
+	  Follow make's normal precedence rules.
+	
+	* gendirdeps.mk: allow customization of the header.
+	  eg. for FreeBSD: 
+	  GENDIRDEPS_HEADER= echo '\# ${FreeBSD:L:@v@$$$v$$ @:M*F*}';
+
+	* meta.autodep.mk: ignore dirdeps.cache*
+	
+	* meta.stage.mk: when bootstrapping options it can be handy to
+	  throw warnings rather than errors for staging conflicts.
+
+	* meta.sys.mk: include local.meta.sys.mk for customization
+
 2015-06-06  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20150606

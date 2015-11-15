@@ -991,7 +991,7 @@ CXXMethodDecl* CXXRecordDecl::getLambdaCallOperator() const {
   if (!isLambda()) return nullptr;
   DeclarationName Name = 
     getASTContext().DeclarationNames.getCXXOperatorName(OO_Call);
-  DeclContext::lookup_const_result Calls = lookup(Name);
+  DeclContext::lookup_result Calls = lookup(Name);
 
   assert(!Calls.empty() && "Missing lambda call operator!");
   assert(Calls.size() == 1 && "More than one lambda call operator!"); 
@@ -1008,7 +1008,7 @@ CXXMethodDecl* CXXRecordDecl::getLambdaStaticInvoker() const {
   if (!isLambda()) return nullptr;
   DeclarationName Name = 
     &getASTContext().Idents.get(getLambdaStaticInvokerName());
-  DeclContext::lookup_const_result Invoker = lookup(Name);
+  DeclContext::lookup_result Invoker = lookup(Name);
   if (Invoker.empty()) return nullptr;
   assert(Invoker.size() == 1 && "More than one static invoker operator!");  
   NamedDecl *InvokerFun = Invoker.front();
@@ -1173,7 +1173,7 @@ static void CollectVisibleConversions(ASTContext &Context,
 
 /// getVisibleConversionFunctions - get all conversion functions visible
 /// in current class; including conversion function templates.
-std::pair<CXXRecordDecl::conversion_iterator,CXXRecordDecl::conversion_iterator>
+llvm::iterator_range<CXXRecordDecl::conversion_iterator>
 CXXRecordDecl::getVisibleConversionFunctions() {
   ASTContext &Ctx = getASTContext();
 
@@ -1189,7 +1189,7 @@ CXXRecordDecl::getVisibleConversionFunctions() {
       data().ComputedVisibleConversions = true;
     }
   }
-  return std::make_pair(Set->begin(), Set->end());
+  return llvm::make_range(Set->begin(), Set->end());
 }
 
 void CXXRecordDecl::removeConversion(const NamedDecl *ConvDecl) {
@@ -1272,7 +1272,7 @@ const CXXRecordDecl *CXXRecordDecl::getTemplateInstantiationPattern() const {
           break;
         CTD = NewCTD;
       }
-      return CTD->getTemplatedDecl();
+      return CTD->getTemplatedDecl()->getDefinition();
     }
     if (auto *CTPSD =
             From.dyn_cast<ClassTemplatePartialSpecializationDecl *>()) {
@@ -1281,7 +1281,7 @@ const CXXRecordDecl *CXXRecordDecl::getTemplateInstantiationPattern() const {
           break;
         CTPSD = NewCTPSD;
       }
-      return CTPSD;
+      return CTPSD->getDefinition();
     }
   }
 
@@ -1290,7 +1290,7 @@ const CXXRecordDecl *CXXRecordDecl::getTemplateInstantiationPattern() const {
       const CXXRecordDecl *RD = this;
       while (auto *NewRD = RD->getInstantiatedFromMemberClass())
         RD = NewRD;
-      return RD;
+      return RD->getDefinition();
     }
   }
 
@@ -1307,12 +1307,34 @@ CXXDestructorDecl *CXXRecordDecl::getDestructor() const {
     = Context.DeclarationNames.getCXXDestructorName(
                                           Context.getCanonicalType(ClassType));
 
-  DeclContext::lookup_const_result R = lookup(Name);
+  DeclContext::lookup_result R = lookup(Name);
   if (R.empty())
     return nullptr;
 
   CXXDestructorDecl *Dtor = cast<CXXDestructorDecl>(R.front());
   return Dtor;
+}
+
+bool CXXRecordDecl::isAnyDestructorNoReturn() const {
+  // Destructor is noreturn.
+  if (const CXXDestructorDecl *Destructor = getDestructor())
+    if (Destructor->isNoReturn())
+      return true;
+
+  // Check base classes destructor for noreturn.
+  for (const auto &Base : bases())
+    if (Base.getType()->getAsCXXRecordDecl()->isAnyDestructorNoReturn())
+      return true;
+
+  // Check fields for noreturn.
+  for (const auto *Field : fields())
+    if (const CXXRecordDecl *RD =
+            Field->getType()->getBaseElementTypeUnsafe()->getAsCXXRecordDecl())
+      if (RD->isAnyDestructorNoReturn())
+        return true;
+
+  // All destructors are not noreturn.
+  return false;
 }
 
 void CXXRecordDecl::completeDefinition() {
@@ -1418,9 +1440,8 @@ CXXMethodDecl::getCorrespondingMethodInClass(const CXXRecordDecl *RD,
     return nullptr;
   }
 
-  lookup_const_result Candidates = RD->lookup(getDeclName());
-  for (NamedDecl * const * I = Candidates.begin(); I != Candidates.end(); ++I) {
-    CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(*I);
+  for (auto *ND : RD->lookup(getDeclName())) {
+    CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(ND);
     if (!MD)
       continue;
     if (recursivelyOverrides(MD, this))
@@ -1491,8 +1512,8 @@ bool CXXMethodDecl::isUsualDeallocationFunction() const {
                  
   // This function is a usual deallocation function if there are no 
   // single-parameter deallocation functions of the same kind.
-  DeclContext::lookup_const_result R = getDeclContext()->lookup(getDeclName());
-  for (DeclContext::lookup_const_result::iterator I = R.begin(), E = R.end();
+  DeclContext::lookup_result R = getDeclContext()->lookup(getDeclName());
+  for (DeclContext::lookup_result::iterator I = R.begin(), E = R.end();
        I != E; ++I) {
     if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(*I))
       if (FD->getNumParams() == 1)
@@ -1740,6 +1761,10 @@ CXXConstructorDecl::Create(ASTContext &C, CXXRecordDecl *RD,
                                         isImplicitlyDeclared, isConstexpr);
 }
 
+CXXConstructorDecl::init_const_iterator CXXConstructorDecl::init_begin() const {
+  return CtorInitializers.get(getASTContext().getExternalSource());
+}
+
 CXXConstructorDecl *CXXConstructorDecl::getTargetConstructor() const {
   assert(isDelegatingConstructor() && "Not a delegating constructor!");
   Expr *E = (*init_begin())->getInit()->IgnoreImplicit();
@@ -1885,6 +1910,15 @@ CXXDestructorDecl::Create(ASTContext &C, CXXRecordDecl *RD,
          "Name must refer to a destructor");
   return new (C, RD) CXXDestructorDecl(C, RD, StartLoc, NameInfo, T, TInfo,
                                        isInline, isImplicitlyDeclared);
+}
+
+void CXXDestructorDecl::setOperatorDelete(FunctionDecl *OD) {
+  auto *First = cast<CXXDestructorDecl>(getFirstDecl());
+  if (OD && !First->OperatorDelete) {
+    First->OperatorDelete = OD;
+    if (auto *L = getASTMutationListener())
+      L->ResolvedOperatorDelete(First, OD);
+  }
 }
 
 void CXXConversionDecl::anchor() { }

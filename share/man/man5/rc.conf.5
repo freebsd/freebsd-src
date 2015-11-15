@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 23, 2015
+.Dd October 9, 2015
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -4465,6 +4465,82 @@ ruleset to load for
 A space-separated list of configuration files used by
 .Xr iovctl 8 .
 The default value is an empty string.
+.It Va autofs_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+start the
+.Xr automount 8
+utility and the
+.Xr automountd 8
+and
+.Xr autounmountd 8
+daemons at boot time.
+.It Va automount_flags
+.Pq Vt str
+If
+.Va autofs_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr automount 8
+program.
+By default no flags are passed.
+.It Va automountd_flags
+.Pq Vt str
+If
+.Va autofs_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr automountd 8
+daemon.
+By default no flags are passed.
+.It Va autounmountd_flags
+.Pq Vt str
+If
+.Va autofs_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr autounmountd 8
+daemon.
+By default no flags are passed.
+.It Va ctld_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+start the
+.Xr ctld 8
+daemon at boot time.
+.It Va iscsid_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+start the
+.Xr iscsid 8
+daemon at boot time.
+.It Va iscsictl_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+start the
+.Xr iscsictl 8
+utility at boot time.
+.It Va iscsictl_flags
+.Pq Vt str
+If
+.Va iscsictl_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr iscsictl 8
+program.
+The default is
+.Dq Li -Aa ,
+which configures sessions based on the
+.Pa /etc/iscsi.conf
+configuration file.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact

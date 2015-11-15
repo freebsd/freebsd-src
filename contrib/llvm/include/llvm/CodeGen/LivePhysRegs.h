@@ -44,8 +44,8 @@ class LivePhysRegs {
   const TargetRegisterInfo *TRI;
   SparseSet<unsigned> LiveRegs;
 
-  LivePhysRegs(const LivePhysRegs&) LLVM_DELETED_FUNCTION;
-  LivePhysRegs &operator=(const LivePhysRegs&) LLVM_DELETED_FUNCTION;
+  LivePhysRegs(const LivePhysRegs&) = delete;
+  LivePhysRegs &operator=(const LivePhysRegs&) = delete;
 public:
   /// \brief Constructs a new empty LivePhysRegs set.
   LivePhysRegs() : TRI(nullptr), LiveRegs() {}
@@ -57,9 +57,9 @@ public:
   }
 
   /// \brief Clear and initialize the LivePhysRegs set.
-  void init(const TargetRegisterInfo *_TRI) {
-    assert(_TRI && "Invalid TargetRegisterInfo pointer.");
-    TRI = _TRI;
+  void init(const TargetRegisterInfo *TRI) {
+    assert(TRI && "Invalid TargetRegisterInfo pointer.");
+    this->TRI = TRI;
     LiveRegs.clear();
     LiveRegs.setUniverse(TRI->getNumRegs());
   }
@@ -93,7 +93,8 @@ public:
   }
 
   /// \brief Removes physical registers clobbered by the regmask operand @p MO.
-  void removeRegsInMask(const MachineOperand &MO);
+  void removeRegsInMask(const MachineOperand &MO,
+        SmallVectorImpl<std::pair<unsigned, const MachineOperand*>> *Clobbers);
 
   /// \brief Returns true if register @p Reg is contained in the set. This also
   /// works if only the super register of @p Reg has been defined, because we
@@ -109,21 +110,21 @@ public:
   /// instruction(bundle): Remove killed-uses, add defs. This is the not
   /// recommended way, because it depends on accurate kill flags. If possible
   /// use stepBackwards() instead of this function.
-  void stepForward(const MachineInstr &MI);
+  /// The clobbers set will be the list of registers either defined or clobbered
+  /// by a regmask.  The operand will identify whether this is a regmask or
+  /// register operand.
+  void stepForward(const MachineInstr &MI,
+        SmallVectorImpl<std::pair<unsigned, const MachineOperand*>> &Clobbers);
 
-  /// \brief Adds all live-in registers of basic block @p MBB.
-  void addLiveIns(const MachineBasicBlock *MBB) {
-    for (MachineBasicBlock::livein_iterator LI = MBB->livein_begin(),
-         LE = MBB->livein_end(); LI != LE; ++LI)
-      addReg(*LI);
-  }
+  /// \brief Adds all live-in registers of basic block @p MBB; After prologue/
+  /// epilogue insertion \p AddPristines should be set to true to insert the
+  /// pristine registers.
+  void addLiveIns(const MachineBasicBlock *MBB, bool AddPristines = false);
 
-  /// \brief Adds all live-out registers of basic block @p MBB.
-  void addLiveOuts(const MachineBasicBlock *MBB) {
-    for (MachineBasicBlock::const_succ_iterator SI = MBB->succ_begin(),
-         SE = MBB->succ_end(); SI != SE; ++SI)
-      addLiveIns(*SI);
-  }
+  /// \brief Adds all live-out registers of basic block @p MBB; After prologue/
+  /// epilogue insertion \p AddPristines should be set to true to insert the
+  /// pristine registers.
+  void addLiveOuts(const MachineBasicBlock *MBB, bool AddPristines = false);
 
   typedef SparseSet<unsigned>::const_iterator const_iterator;
   const_iterator begin() const { return LiveRegs.begin(); }

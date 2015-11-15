@@ -419,6 +419,7 @@ svn_wc__conflict_create_markers(svn_skel_t **work_item,
 svn_error_t *
 svn_wc__conflict_invoke_resolver(svn_wc__db_t *db,
                                  const char *local_abspath,
+                                 svn_node_kind_t kind,
                                  const svn_skel_t *conflict_skel,
                                  const apr_array_header_t *merge_options,
                                  svn_wc_conflict_resolver_func2_t resolver_func,
@@ -432,6 +433,8 @@ svn_wc__conflict_invoke_resolver(svn_wc__db_t *db,
 svn_error_t *
 svn_wc__mark_resolved_text_conflict(svn_wc__db_t *db,
                                     const char *local_abspath,
+                                    svn_cancel_func_t cancel_func,
+                                    void *cancel_baton,
                                     apr_pool_t *scratch_pool);
 
 /* Mark as resolved any prop conflicts on the node at DB/LOCAL_ABSPATH.  */

@@ -23,8 +23,9 @@ public:
 
   typedef uint64_t TargetPtrT;
 
-  RuntimeDyldMachOAArch64(RTDyldMemoryManager *MM)
-      : RuntimeDyldMachOCRTPBase(MM) {}
+  RuntimeDyldMachOAArch64(RuntimeDyld::MemoryManager &MM,
+                          RuntimeDyld::SymbolResolver &Resolver)
+      : RuntimeDyldMachOCRTPBase(MM, Resolver) {}
 
   unsigned getMaxStubSize() override { return 8; }
 
@@ -283,7 +284,7 @@ public:
 
     bool IsExtern = Obj.getPlainRelocationExternal(RelInfo);
     if (!IsExtern && RE.IsPCRel)
-      makeValueAddendPCRel(Value, Obj, RelI, 1 << RE.Size);
+      makeValueAddendPCRel(Value, RelI, 1 << RE.Size);
 
     RE.Addend = Value.Offset;
 

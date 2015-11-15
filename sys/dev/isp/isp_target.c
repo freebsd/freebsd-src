@@ -953,6 +953,9 @@ isp_got_msg_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 	/* nt_tgt set in outer layers */
 	if (ISP_CAP_SCCFW(isp)) {
 		notify.nt_lun = inp->in_scclun;
+#if __FreeBSD_version < 1000700
+		notify.nt_lun &= 0x3fff;
+#endif
 	} else {
 		notify.nt_lun = inp->in_lun;
 	}
@@ -1024,12 +1027,18 @@ isp_got_tmf_24xx(ispsoftc_t *isp, at7_entry_t *aep)
 	notify.nt_sid = sid;
 	notify.nt_did = did;
 	notify.nt_channel = chan;
-	if (aep->at_cmnd.fcp_cmnd_task_management & FCP_CMND_TMF_ABORT_TASK_SET) {
+	if (aep->at_cmnd.fcp_cmnd_task_management & FCP_CMND_TMF_QUERY_TASK_SET) {
+		isp_prt(isp, ISP_LOGINFO, f1, "QUERY TASK SET", sid, notify.nt_lun, aep->at_rxid);
+		notify.nt_ncode = NT_QUERY_TASK_SET;
+	} else if (aep->at_cmnd.fcp_cmnd_task_management & FCP_CMND_TMF_ABORT_TASK_SET) {
 		isp_prt(isp, ISP_LOGINFO, f1, "ABORT TASK SET", sid, notify.nt_lun, aep->at_rxid);
 		notify.nt_ncode = NT_ABORT_TASK_SET;
 	} else if (aep->at_cmnd.fcp_cmnd_task_management & FCP_CMND_TMF_CLEAR_TASK_SET) {
 		isp_prt(isp, ISP_LOGINFO, f1, "CLEAR TASK SET", sid, notify.nt_lun, aep->at_rxid);
 		notify.nt_ncode = NT_CLEAR_TASK_SET;
+	} else if (aep->at_cmnd.fcp_cmnd_task_management & FCP_CMND_TMF_QUERY_ASYNC_EVENT) {
+		isp_prt(isp, ISP_LOGINFO, f1, "QUERY ASYNC EVENT", sid, notify.nt_lun, aep->at_rxid);
+		notify.nt_ncode = NT_QUERY_ASYNC_EVENT;
 	} else if (aep->at_cmnd.fcp_cmnd_task_management & FCP_CMND_TMF_LUN_RESET) {
 		isp_prt(isp, ISP_LOGINFO, f1, "LUN RESET", sid, notify.nt_lun, aep->at_rxid);
 		notify.nt_ncode = NT_LUN_RESET;
@@ -1079,6 +1088,7 @@ isp_notify_ack(ispsoftc_t *isp, void *arg)
 			na->na_flags = in->in_flags;
 			na->na_status = in->in_status;
 			na->na_status_subcode = in->in_status_subcode;
+			na->na_fwhandle = in->in_fwhandle;
 			na->na_rxid = in->in_rxid;
 			na->na_oxid = in->in_oxid;
 			na->na_vpidx = in->in_vpidx;
@@ -1323,6 +1333,9 @@ isp_handle_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 
 	if (ISP_CAP_SCCFW(isp)) {
 		lun = aep->at_scclun;
+#if __FreeBSD_version < 1000700
+		lun &= 0x3fff;
+#endif
 	} else {
 		lun = aep->at_lun;
 	}
@@ -1350,7 +1363,7 @@ isp_handle_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 		/*
 		 * ATIO rejected by the firmware due to disabled lun.
 		 */
-		isp_prt(isp, ISP_LOGERR, "rejected ATIO2 for disabled lun %d", lun);
+		isp_prt(isp, ISP_LOGERR, "rejected ATIO2 for disabled lun %x", lun);
 		break;
 	case AT_NOCAP:
 		/*
@@ -1358,7 +1371,7 @@ isp_handle_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 		 * We sent an ATIO that overflowed the firmware's
 		 * command resource count.
 		 */
-		isp_prt(isp, ISP_LOGERR, "rejected ATIO2 for lun %d- command count overflow", lun);
+		isp_prt(isp, ISP_LOGERR, "rejected ATIO2 for lun %x- command count overflow", lun);
 		break;
 
 	case AT_BDR_MSG:
@@ -1395,7 +1408,7 @@ isp_handle_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 
 
 	default:
-		isp_prt(isp, ISP_LOGERR, "Unknown ATIO2 status 0x%x from loopid %d for lun %d", aep->at_status, iid, lun);
+		isp_prt(isp, ISP_LOGERR, "Unknown ATIO2 status 0x%x from loopid %d for lun %x", aep->at_status, iid, lun);
 		(void) isp_target_put_atio(isp, aep);
 		break;
 	}
@@ -1876,6 +1889,8 @@ isp_handle_24xx_inotify(ispsoftc_t *isp, in_fcentry_24xx_t *inot_24xx)
 	}
 	isp_prt(isp, ISP_LOGTDEBUG1, "%s: Immediate Notify Channels %d..%d status=0x%x seqid=0x%x", __func__, lochan, hichan-1, inot_24xx->in_status, inot_24xx->in_rxid);
 	for (chan = lochan; chan < hichan; chan++) {
+		if (FCPARAM(isp, chan)->role == ISP_ROLE_NONE)
+			continue;
 		switch (inot_24xx->in_status) {
 		case IN24XX_LIP_RESET:
 		case IN24XX_LINK_RESET:

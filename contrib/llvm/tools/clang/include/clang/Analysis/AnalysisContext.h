@@ -173,8 +173,8 @@ public:
 
   typedef const VarDecl * const * referenced_decls_iterator;
 
-  std::pair<referenced_decls_iterator, referenced_decls_iterator>
-    getReferencedBlockVars(const BlockDecl *BD);
+  llvm::iterator_range<referenced_decls_iterator>
+  getReferencedBlockVars(const BlockDecl *BD);
 
   /// Return the ImplicitParamDecl* associated with 'self' if this
   /// AnalysisDeclContext wraps an ObjCMethodDecl.  Returns NULL otherwise.
@@ -289,7 +289,7 @@ class StackFrameContext : public LocationContext {
       Block(blk), Index(idx) {}
 
 public:
-  ~StackFrameContext() {}
+  ~StackFrameContext() override {}
 
   const Stmt *getCallSite() const { return CallSite; }
 
@@ -324,7 +324,7 @@ class ScopeContext : public LocationContext {
     : LocationContext(Scope, ctx, parent), Enter(s) {}
 
 public:
-  ~ScopeContext() {}
+  ~ScopeContext() override {}
 
   void Profile(llvm::FoldingSetNodeID &ID) override;
 
@@ -352,7 +352,7 @@ class BlockInvocationContext : public LocationContext {
     : LocationContext(Block, ctx, parent), BD(bd), ContextData(contextData) {}
 
 public:
-  ~BlockInvocationContext() {}
+  ~BlockInvocationContext() override {}
 
   const BlockDecl *getBlockDecl() const { return BD; }
   

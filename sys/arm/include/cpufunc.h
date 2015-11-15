@@ -47,6 +47,7 @@
 #ifdef _KERNEL
 
 #include <sys/types.h>
+#include <machine/armreg.h>
 #include <machine/cpuconf.h>
 #include <machine/katelib.h> /* For in[bwl] and out[bwl] */
 
@@ -59,7 +60,7 @@ breakpoint(void)
 struct cpu_functions {
 
 	/* CPU functions */
-	
+
 	u_int	(*cf_id)		(void);
 	void	(*cf_cpwait)		(void);
 
@@ -73,12 +74,12 @@ struct cpu_functions {
 
 	/* TLB functions */
 
-	void	(*cf_tlb_flushID)	(void);	
-	void	(*cf_tlb_flushID_SE)	(u_int va);	
+	void	(*cf_tlb_flushID)	(void);
+	void	(*cf_tlb_flushID_SE)	(u_int va);
 	void	(*cf_tlb_flushI)	(void);
-	void	(*cf_tlb_flushI_SE)	(u_int va);	
+	void	(*cf_tlb_flushI_SE)	(u_int va);
 	void	(*cf_tlb_flushD)	(void);
-	void	(*cf_tlb_flushD_SE)	(u_int va);	
+	void	(*cf_tlb_flushD_SE)	(u_int va);
 
 	/*
 	 * Cache operations:
@@ -109,7 +110,7 @@ struct cpu_functions {
 	 *		It is used to intialize the MMU when it is in an unknown
 	 *		state (such as when it may have lines tagged as valid
 	 *		that belong to a previous set of mappings).
-	 *                                          
+	 *
 	 *	I-cache Synch (all or range):
 	 *		The goal is to synchronize the instruction stream,
 	 *		so you may beed to write-back dirty D-cache blocks
@@ -520,45 +521,54 @@ void	xscalec3_context_switch	(void);
 /*
  * Macros for manipulating CPU interrupts
  */
-static __inline u_int32_t __set_cpsr_c(u_int bic, u_int eor) __attribute__((__unused__));
+#if __ARM_ARCH < 6
+#define	__ARM_INTR_BITS		(PSR_I | PSR_F)
+#else
+#define	__ARM_INTR_BITS		(PSR_I | PSR_F | PSR_A)
+#endif
 
-static __inline u_int32_t
-__set_cpsr_c(u_int bic, u_int eor)
+static __inline uint32_t
+__set_cpsr(uint32_t bic, uint32_t eor)
 {
-	u_int32_t	tmp, ret;
+	uint32_t	tmp, ret;
 
 	__asm __volatile(
-		"mrs     %0, cpsr\n"	/* Get the CPSR */
-		"bic	 %1, %0, %2\n"	/* Clear bits */
-		"eor	 %1, %1, %3\n"	/* XOR bits */
-		"msr     cpsr_c, %1\n"	/* Set the control field of CPSR */
+		"mrs     %0, cpsr\n"		/* Get the CPSR */
+		"bic	 %1, %0, %2\n"		/* Clear bits */
+		"eor	 %1, %1, %3\n"		/* XOR bits */
+		"msr     cpsr_xc, %1\n"		/* Set the CPSR */
 	: "=&r" (ret), "=&r" (tmp)
 	: "r" (bic), "r" (eor) : "memory");
 
 	return ret;
 }
 
-#define	ARM_CPSR_F32	(1 << 6)	/* FIQ disable */
-#define	ARM_CPSR_I32	(1 << 7)	/* IRQ disable */
+static __inline uint32_t
+disable_interrupts(uint32_t mask)
+{
 
-#define disable_interrupts(mask)					\
-	(__set_cpsr_c((mask) & (ARM_CPSR_I32 | ARM_CPSR_F32),		\
-		      (mask) & (ARM_CPSR_I32 | ARM_CPSR_F32)))
+	return (__set_cpsr(mask & __ARM_INTR_BITS, mask & __ARM_INTR_BITS));
+}
 
-#define enable_interrupts(mask)						\
-	(__set_cpsr_c((mask) & (ARM_CPSR_I32 | ARM_CPSR_F32), 0))
+static __inline uint32_t
+enable_interrupts(uint32_t mask)
+{
 
-#define restore_interrupts(old_cpsr)					\
-	(__set_cpsr_c((ARM_CPSR_I32 | ARM_CPSR_F32),			\
-		      (old_cpsr) & (ARM_CPSR_I32 | ARM_CPSR_F32)))
+	return (__set_cpsr(mask & __ARM_INTR_BITS, 0));
+}
+
+static __inline uint32_t
+restore_interrupts(uint32_t old_cpsr)
+{
+
+	return (__set_cpsr(__ARM_INTR_BITS, old_cpsr & __ARM_INTR_BITS));
+}
 
 static __inline register_t
 intr_disable(void)
 {
-	register_t s;
 
-	s = disable_interrupts(ARM_CPSR_I32 | ARM_CPSR_F32);
-	return (s);
+	return (disable_interrupts(PSR_I | PSR_F));
 }
 
 static __inline void
@@ -567,10 +577,7 @@ intr_restore(register_t s)
 
 	restore_interrupts(s);
 }
-
-/* Functions to manipulate the CPSR. */
-u_int	SetCPSR(u_int bic, u_int eor);
-u_int	GetCPSR(void);
+#undef __ARM_INTR_BITS
 
 /*
  * Functions to manipulate cpu r13

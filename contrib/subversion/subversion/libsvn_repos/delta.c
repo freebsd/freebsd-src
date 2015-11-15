@@ -196,17 +196,6 @@ authz_root_check(svn_fs_root_t *root,
 }
 
 
-static svn_error_t *
-not_a_dir_error(const char *role,
-                const char *path)
-{
-  return svn_error_createf
-    (SVN_ERR_FS_NOT_DIRECTORY, 0,
-     "Invalid %s directory '%s'",
-     role, path ? path : "(null)");
-}
-
-
 /* Public interface to computing directory deltas.  */
 svn_error_t *
 svn_repos_dir_delta2(svn_fs_root_t *src_root,
@@ -227,17 +216,17 @@ svn_repos_dir_delta2(svn_fs_root_t *src_root,
   void *root_baton = NULL;
   struct context c;
   const char *src_fullpath;
-  const svn_fs_id_t *src_id, *tgt_id;
   svn_node_kind_t src_kind, tgt_kind;
   svn_revnum_t rootrev;
-  int distance;
+  svn_fs_node_relation_t relation;
   const char *authz_root_path;
 
   /* SRC_PARENT_DIR must be valid. */
   if (src_parent_dir)
     src_parent_dir = svn_relpath_canonicalize(src_parent_dir, pool);
   else
-    return not_a_dir_error("source parent", src_parent_dir);
+    return svn_error_create(SVN_ERR_FS_NOT_DIRECTORY, 0,
+                            "Invalid source parent directory '(null)'");
 
   /* TGT_FULLPATH must be valid. */
   if (tgt_fullpath)
@@ -329,11 +318,10 @@ svn_repos_dir_delta2(svn_fs_root_t *src_root,
     }
 
   /* Get and compare the node IDs for the source and target. */
-  SVN_ERR(svn_fs_node_id(&tgt_id, tgt_root, tgt_fullpath, pool));
-  SVN_ERR(svn_fs_node_id(&src_id, src_root, src_fullpath, pool));
-  distance = svn_fs_compare_ids(src_id, tgt_id);
+  SVN_ERR(svn_fs_node_relation(&relation, tgt_root, tgt_fullpath,
+                               src_root, src_fullpath, pool));
 
-  if (distance == 0)
+  if (relation == svn_fs_node_unchanged)
     {
       /* They are the same node!  No-op (you gotta love those). */
       goto cleanup;
@@ -344,7 +332,7 @@ svn_repos_dir_delta2(svn_fs_root_t *src_root,
          add the other.  Also, if they are completely unrelated and
          our caller is interested in relatedness, we do the same thing. */
       if ((src_kind != tgt_kind)
-          || ((distance == -1) && (! ignore_ancestry)))
+          || ((relation == svn_fs_node_unrelated) && (! ignore_ancestry)))
         {
           SVN_ERR(authz_root_check(tgt_root, authz_root_path,
                                    authz_read_func, authz_read_baton, pool));
@@ -535,8 +523,8 @@ delta_proplists(struct context *c,
       svn_boolean_t changed;
 
       /* Is this deltification worth our time? */
-      SVN_ERR(svn_fs_props_changed(&changed, c->target_root, target_path,
-                                   c->source_root, source_path, subpool));
+      SVN_ERR(svn_fs_props_different(&changed, c->target_root, target_path,
+                                     c->source_root, source_path, subpool));
       if (! changed)
         goto cleanup;
 
@@ -616,62 +604,8 @@ svn_repos__compare_files(svn_boolean_t *changed_p,
                          const char *path2,
                          apr_pool_t *pool)
 {
-  svn_filesize_t size1, size2;
-  svn_checksum_t *checksum1, *checksum2;
-  svn_stream_t *stream1, *stream2;
-  svn_boolean_t same;
-
-  /* If the filesystem claims the things haven't changed, then they
-     haven't changed. */
-  SVN_ERR(svn_fs_contents_changed(changed_p, root1, path1,
-                                  root2, path2, pool));
-  if (!*changed_p)
-    return SVN_NO_ERROR;
-
-  /* If the SHA1 checksums match for these things, we'll claim they
-     have the same contents.  (We don't give quite as much weight to
-     MD5 checksums.)  */
-  SVN_ERR(svn_fs_file_checksum(&checksum1, svn_checksum_sha1,
-                               root1, path1, FALSE, pool));
-  SVN_ERR(svn_fs_file_checksum(&checksum2, svn_checksum_sha1,
-                               root2, path2, FALSE, pool));
-  if (checksum1 && checksum2)
-    {
-      *changed_p = !svn_checksum_match(checksum1, checksum2);
-      return SVN_NO_ERROR;
-    }
-
-  /* From this point on, our default answer is "Nothing's changed". */
-  *changed_p = FALSE;
-
-  /* Different filesizes means the contents are different. */
-  SVN_ERR(svn_fs_file_length(&size1, root1, path1, pool));
-  SVN_ERR(svn_fs_file_length(&size2, root2, path2, pool));
-  if (size1 != size2)
-    {
-      *changed_p = TRUE;
-      return SVN_NO_ERROR;
-    }
-
-  /* Different MD5 checksums means the contents are different. */
-  SVN_ERR(svn_fs_file_checksum(&checksum1, svn_checksum_md5, root1, path1,
-                               FALSE, pool));
-  SVN_ERR(svn_fs_file_checksum(&checksum2, svn_checksum_md5, root2, path2,
-                               FALSE, pool));
-  if (! svn_checksum_match(checksum1, checksum2))
-    {
-      *changed_p = TRUE;
-      return SVN_NO_ERROR;
-    }
-
-  /* And finally, different contents means the ... uh ... contents are
-     different. */
-  SVN_ERR(svn_fs_file_contents(&stream1, root1, path1, pool));
-  SVN_ERR(svn_fs_file_contents(&stream2, root2, path2, pool));
-  SVN_ERR(svn_stream_contents_same2(&same, stream1, stream2, pool));
-  *changed_p = !same;
-
-  return SVN_NO_ERROR;
+  return svn_error_trace(svn_fs_contents_different(changed_p, root1, path1,
+                                                   root2, path2, pool));
 }
 
 
@@ -698,19 +632,7 @@ delta_files(struct context *c,
 
   if (source_path)
     {
-      /* Is this delta calculation worth our time?  If we are ignoring
-         ancestry, then our editor implementor isn't concerned by the
-         theoretical differences between "has contents which have not
-         changed with respect to" and "has the same actual contents
-         as".  We'll do everything we can to avoid transmitting even
-         an empty text-delta in that case.  */
-      if (c->ignore_ancestry)
-        SVN_ERR(svn_repos__compare_files(&changed,
-                                         c->target_root, target_path,
-                                         c->source_root, source_path,
-                                         subpool));
-      else
-        SVN_ERR(svn_fs_contents_changed(&changed,
+      SVN_ERR(svn_fs_contents_different(&changed,
                                         c->target_root, target_path,
                                         c->source_root, source_path,
                                         subpool));
@@ -953,10 +875,10 @@ delta_dirs(struct context *c,
      from the target tree. */
   for (hi = apr_hash_first(pool, t_entries); hi; hi = apr_hash_next(hi))
     {
-      const svn_fs_dirent_t *s_entry, *t_entry;
-      const void *key;
-      void *val;
-      apr_ssize_t klen;
+      const void *key = apr_hash_this_key(hi);
+      apr_ssize_t klen = apr_hash_this_key_len(hi);
+      const svn_fs_dirent_t *t_entry = apr_hash_this_val(hi);
+      const svn_fs_dirent_t *s_entry;
       const char *t_fullpath;
       const char *e_fullpath;
       const char *s_fullpath;
@@ -965,9 +887,6 @@ delta_dirs(struct context *c,
       /* Clear out our subpool for the next iteration... */
       svn_pool_clear(subpool);
 
-      /* KEY is the entry name in target, VAL the dirent */
-      apr_hash_this(hi, &key, &klen, &val);
-      t_entry = val;
       tgt_kind = t_entry->kind;
       t_fullpath = svn_relpath_join(target_path, t_entry->name, subpool);
       e_fullpath = svn_relpath_join(edit_path, t_entry->name, subpool);
@@ -1042,17 +961,13 @@ delta_dirs(struct context *c,
     {
       for (hi = apr_hash_first(pool, s_entries); hi; hi = apr_hash_next(hi))
         {
-          const svn_fs_dirent_t *s_entry;
-          void *val;
+          const svn_fs_dirent_t *s_entry = apr_hash_this_val(hi);
           const char *e_fullpath;
           svn_node_kind_t src_kind;
 
           /* Clear out our subpool for the next iteration... */
           svn_pool_clear(subpool);
 
-          /* KEY is the entry name in source, VAL the dirent */
-          apr_hash_this(hi, NULL, NULL, &val);
-          s_entry = val;
           src_kind = s_entry->kind;
           e_fullpath = svn_relpath_join(edit_path, s_entry->name, subpool);
 

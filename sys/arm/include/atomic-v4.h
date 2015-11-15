@@ -116,7 +116,7 @@ static __inline u_int32_t
 atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_int32_t newval)
 {
 	int ret;
-	
+
 	__with_interrupts_disabled(
 	 {
 	    	if (*p == cmpval) {
@@ -133,7 +133,7 @@ static __inline u_int64_t
 atomic_cmpset_64(volatile u_int64_t *p, volatile u_int64_t cmpval, volatile u_int64_t newval)
 {
 	int ret;
-	
+
 	__with_interrupts_disabled(
 	 {
 	    	if (*p == cmpval) {
@@ -437,6 +437,39 @@ atomic_subtract_long(volatile u_long *p, u_long v)
 {
 
 	atomic_subtract_32((volatile uint32_t *)p, v);
+}
+
+/*
+ * ARMv5 does not support SMP.  For both kernel and user modes, only a
+ * compiler barrier is needed for fences, since CPU is always
+ * self-consistent.
+ */
+static __inline void
+atomic_thread_fence_acq(void)
+{
+
+	__compiler_membar();
+}
+
+static __inline void
+atomic_thread_fence_rel(void)
+{
+
+	__compiler_membar();
+}
+
+static __inline void
+atomic_thread_fence_acq_rel(void)
+{
+
+	__compiler_membar();
+}
+
+static __inline void
+atomic_thread_fence_seq_cst(void)
+{
+
+	__compiler_membar();
 }
 
 #endif /* _MACHINE_ATOMIC_H_ */

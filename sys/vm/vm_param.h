@@ -79,8 +79,8 @@
 #define VM_V_FREE_TARGET	4	/* vm_cnt.v_free_target */
 #define VM_V_FREE_RESERVED	5	/* vm_cnt.v_free_reserved */
 #define VM_V_INACTIVE_TARGET	6	/* vm_cnt.v_inactive_target */
-#define	VM_V_CACHE_MIN		7	/* vm_cnt.v_cache_min */
-#define	VM_V_CACHE_MAX		8	/* vm_cnt.v_cache_max */
+#define	VM_OBSOLETE_7		7	/* unused, formerly v_cache_min */
+#define	VM_OBSOLETE_8		8	/* unused, formerly v_cache_max */
 #define VM_V_PAGEOUT_FREE_MIN	9	/* vm_cnt.v_pageout_free_min */
 #define	VM_OBSOLETE_10		10	/* pageout algorithm */
 #define VM_SWAPPING_ENABLED	11	/* swapping enabled */

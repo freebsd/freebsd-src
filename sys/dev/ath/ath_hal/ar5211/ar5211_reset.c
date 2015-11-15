@@ -154,6 +154,7 @@ static void ar5211SetOperatingMode(struct ath_hal *, int opmode);
 HAL_BOOL
 ar5211Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	struct ieee80211_channel *chan, HAL_BOOL bChannelChange,
+	HAL_RESET_TYPE resetType,
 	HAL_STATUS *status)
 {
 uint32_t softLedCfg, softLedState;

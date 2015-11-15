@@ -70,6 +70,12 @@ SYSCTL_INT(_debug, OID_AUTO, kld_debug, CTLFLAG_RWTUN,
     &kld_debug, 0, "Set various levels of KLD debug");
 #endif
 
+/* These variables are used by kernel debuggers to enumerate loaded files. */
+const int kld_off_address = offsetof(struct linker_file, address);
+const int kld_off_filename = offsetof(struct linker_file, filename);
+const int kld_off_pathname = offsetof(struct linker_file, pathname);
+const int kld_off_next = offsetof(struct linker_file, link.tqe_next);
+
 /*
  * static char *linker_search_path(const char *name, struct mod_depend
  * *verinfo);
@@ -292,10 +298,10 @@ linker_file_register_sysctls(linker_file_t lf)
 		return;
 
 	sx_xunlock(&kld_sx);
-	sysctl_xlock();
+	sysctl_wlock();
 	for (oidp = start; oidp < stop; oidp++)
 		sysctl_register_oid(*oidp);
-	sysctl_xunlock();
+	sysctl_wunlock();
 	sx_xlock(&kld_sx);
 }
 
@@ -313,10 +319,10 @@ linker_file_unregister_sysctls(linker_file_t lf)
 		return;
 
 	sx_xunlock(&kld_sx);
-	sysctl_xlock();
+	sysctl_wlock();
 	for (oidp = start; oidp < stop; oidp++)
 		sysctl_unregister_oid(*oidp);
-	sysctl_xunlock();
+	sysctl_wunlock();
 	sx_xlock(&kld_sx);
 }
 

@@ -8,63 +8,67 @@
 //===----------------------------------------------------------------------===//
 
 #include "DwarfStringPool.h"
+#include "llvm/CodeGen/AsmPrinter.h"
+#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCStreamer.h"
 
 using namespace llvm;
 
-static std::pair<MCSymbol *, unsigned> &
-getEntry(AsmPrinter &Asm,
-         StringMap<std::pair<MCSymbol *, unsigned>, BumpPtrAllocator &> &Pool,
-         StringRef Prefix, StringRef Str) {
-  std::pair<MCSymbol *, unsigned> &Entry = Pool[Str];
-  if (!Entry.first) {
-    Entry.second = Pool.size() - 1;
-    Entry.first = Asm.GetTempSymbol(Prefix, Entry.second);
+DwarfStringPool::DwarfStringPool(BumpPtrAllocator &A, AsmPrinter &Asm,
+                                 StringRef Prefix)
+    : Pool(A), Prefix(Prefix),
+      ShouldCreateSymbols(Asm.MAI->doesDwarfUseRelocationsAcrossSections()) {}
+
+DwarfStringPool::EntryRef DwarfStringPool::getEntry(AsmPrinter &Asm,
+                                                    StringRef Str) {
+  auto I = Pool.insert(std::make_pair(Str, EntryTy()));
+  if (I.second) {
+    auto &Entry = I.first->second;
+    Entry.Index = Pool.size() - 1;
+    Entry.Offset = NumBytes;
+    Entry.Symbol = ShouldCreateSymbols ? Asm.createTempSymbol(Prefix) : nullptr;
+
+    NumBytes += Str.size() + 1;
+    assert(NumBytes > Entry.Offset && "Unexpected overflow");
   }
-  return Entry;
+  return EntryRef(*I.first);
 }
 
-MCSymbol *DwarfStringPool::getSymbol(AsmPrinter &Asm, StringRef Str) {
-  return getEntry(Asm, Pool, Prefix, Str).first;
-}
-
-unsigned DwarfStringPool::getIndex(AsmPrinter &Asm, StringRef Str) {
-  return getEntry(Asm, Pool, Prefix, Str).second;
-}
-
-void DwarfStringPool::emit(AsmPrinter &Asm, const MCSection *StrSection,
-                           const MCSection *OffsetSection) {
+void DwarfStringPool::emit(AsmPrinter &Asm, MCSection *StrSection,
+                           MCSection *OffsetSection) {
   if (Pool.empty())
     return;
 
   // Start the dwarf str section.
-  Asm.OutStreamer.SwitchSection(StrSection);
+  Asm.OutStreamer->SwitchSection(StrSection);
 
   // Get all of the string pool entries and put them in an array by their ID so
   // we can sort them.
-  SmallVector<const StringMapEntry<std::pair<MCSymbol *, unsigned>> *, 64>
-  Entries(Pool.size());
+  SmallVector<const StringMapEntry<EntryTy> *, 64> Entries(Pool.size());
 
   for (const auto &E : Pool)
-    Entries[E.getValue().second] = &E;
+    Entries[E.getValue().Index] = &E;
 
   for (const auto &Entry : Entries) {
+    assert(ShouldCreateSymbols == static_cast<bool>(Entry->getValue().Symbol) &&
+           "Mismatch between setting and entry");
+
     // Emit a label for reference from debug information entries.
-    Asm.OutStreamer.EmitLabel(Entry->getValue().first);
+    if (ShouldCreateSymbols)
+      Asm.OutStreamer->EmitLabel(Entry->getValue().Symbol);
 
     // Emit the string itself with a terminating null byte.
-    Asm.OutStreamer.EmitBytes(
+    Asm.OutStreamer->AddComment("string offset=" +
+                                Twine(Entry->getValue().Offset));
+    Asm.OutStreamer->EmitBytes(
         StringRef(Entry->getKeyData(), Entry->getKeyLength() + 1));
   }
 
   // If we've got an offset section go ahead and emit that now as well.
   if (OffsetSection) {
-    Asm.OutStreamer.SwitchSection(OffsetSection);
-    unsigned offset = 0;
+    Asm.OutStreamer->SwitchSection(OffsetSection);
     unsigned size = 4; // FIXME: DWARF64 is 8.
-    for (const auto &Entry : Entries) {
-      Asm.OutStreamer.EmitIntValue(offset, size);
-      offset += Entry->getKeyLength() + 1;
-    }
+    for (const auto &Entry : Entries)
+      Asm.OutStreamer->EmitIntValue(Entry->getValue().Offset, size);
   }
 }

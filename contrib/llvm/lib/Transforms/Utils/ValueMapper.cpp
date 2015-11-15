@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/ValueMapper.h"
+#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InlineAsm.h"
@@ -155,13 +156,12 @@ static Metadata *mapToSelf(ValueToValueMapTy &VM, const Metadata *MD) {
 }
 
 static Metadata *MapMetadataImpl(const Metadata *MD,
-                                 SmallVectorImpl<UniquableMDNode *> &Cycles,
+                                 SmallVectorImpl<MDNode *> &Cycles,
                                  ValueToValueMapTy &VM, RemapFlags Flags,
                                  ValueMapTypeRemapper *TypeMapper,
                                  ValueMaterializer *Materializer);
 
-static Metadata *mapMetadataOp(Metadata *Op,
-                               SmallVectorImpl<UniquableMDNode *> &Cycles,
+static Metadata *mapMetadataOp(Metadata *Op, SmallVectorImpl<MDNode *> &Cycles,
                                ValueToValueMapTy &VM, RemapFlags Flags,
                                ValueMapTypeRemapper *TypeMapper,
                                ValueMaterializer *Materializer) {
@@ -182,157 +182,85 @@ static Metadata *mapMetadataOp(Metadata *Op,
   return nullptr;
 }
 
-static Metadata *cloneMDTuple(const MDTuple *Node,
-                              SmallVectorImpl<UniquableMDNode *> &Cycles,
-                              ValueToValueMapTy &VM, RemapFlags Flags,
-                              ValueMapTypeRemapper *TypeMapper,
-                              ValueMaterializer *Materializer,
-                              bool IsDistinct) {
-  // Distinct MDTuples have their own code path.
-  assert(!IsDistinct && "Unexpected distinct tuple");
-  (void)IsDistinct;
+/// \brief Remap nodes.
+///
+/// Insert \c NewNode in the value map, and then remap \c OldNode's operands.
+/// Assumes that \c NewNode is already a clone of \c OldNode.
+///
+/// \pre \c NewNode is a clone of \c OldNode.
+static bool remap(const MDNode *OldNode, MDNode *NewNode,
+                  SmallVectorImpl<MDNode *> &Cycles, ValueToValueMapTy &VM,
+                  RemapFlags Flags, ValueMapTypeRemapper *TypeMapper,
+                  ValueMaterializer *Materializer) {
+  assert(OldNode->getNumOperands() == NewNode->getNumOperands() &&
+         "Expected nodes to match");
+  assert(OldNode->isResolved() && "Expected resolved node");
+  assert(!NewNode->isUniqued() && "Expected non-uniqued node");
 
-  SmallVector<Metadata *, 4> Elts;
-  Elts.reserve(Node->getNumOperands());
-  for (unsigned I = 0, E = Node->getNumOperands(); I != E; ++I)
-    Elts.push_back(mapMetadataOp(Node->getOperand(I), Cycles, VM, Flags,
-                                 TypeMapper, Materializer));
+  // Map the node upfront so it's available for cyclic references.
+  mapToMetadata(VM, OldNode, NewNode);
+  bool AnyChanged = false;
+  for (unsigned I = 0, E = OldNode->getNumOperands(); I != E; ++I) {
+    Metadata *Old = OldNode->getOperand(I);
+    assert(NewNode->getOperand(I) == Old &&
+           "Expected old operands to already be in place");
 
-  return MDTuple::get(Node->getContext(), Elts);
-}
-
-static Metadata *cloneMDLocation(const MDLocation *Node,
-                                 SmallVectorImpl<UniquableMDNode *> &Cycles,
-                                 ValueToValueMapTy &VM, RemapFlags Flags,
-                                 ValueMapTypeRemapper *TypeMapper,
-                                 ValueMaterializer *Materializer,
-                                 bool IsDistinct) {
-  return (IsDistinct ? MDLocation::getDistinct : MDLocation::get)(
-      Node->getContext(), Node->getLine(), Node->getColumn(),
-      mapMetadataOp(Node->getScope(), Cycles, VM, Flags, TypeMapper,
-                    Materializer),
-      mapMetadataOp(Node->getInlinedAt(), Cycles, VM, Flags, TypeMapper,
-                    Materializer));
-}
-
-static Metadata *cloneMDNode(const UniquableMDNode *Node,
-                             SmallVectorImpl<UniquableMDNode *> &Cycles,
-                             ValueToValueMapTy &VM, RemapFlags Flags,
-                             ValueMapTypeRemapper *TypeMapper,
-                             ValueMaterializer *Materializer, bool IsDistinct) {
-  switch (Node->getMetadataID()) {
-  default:
-    llvm_unreachable("Invalid UniquableMDNode subclass");
-#define HANDLE_UNIQUABLE_LEAF(CLASS)                                           \
-  case Metadata::CLASS##Kind:                                                  \
-    return clone##CLASS(cast<CLASS>(Node), Cycles, VM, Flags, TypeMapper,      \
-                        Materializer, IsDistinct);
-#include "llvm/IR/Metadata.def"
+    Metadata *New = mapMetadataOp(OldNode->getOperand(I), Cycles, VM, Flags,
+                                  TypeMapper, Materializer);
+    if (Old != New) {
+      AnyChanged = true;
+      NewNode->replaceOperandWith(I, New);
+    }
   }
-}
 
-static void
-trackCyclesUnderDistinct(const UniquableMDNode *Node,
-                         SmallVectorImpl<UniquableMDNode *> &Cycles) {
-  // Track any cycles beneath this node.
-  for (Metadata *Op : Node->operands())
-    if (auto *N = dyn_cast_or_null<UniquableMDNode>(Op))
-      if (!N->isResolved())
-        Cycles.push_back(N);
+  return AnyChanged;
 }
 
 /// \brief Map a distinct MDNode.
 ///
 /// Distinct nodes are not uniqued, so they must always recreated.
-static Metadata *mapDistinctNode(const UniquableMDNode *Node,
-                                 SmallVectorImpl<UniquableMDNode *> &Cycles,
+static Metadata *mapDistinctNode(const MDNode *Node,
+                                 SmallVectorImpl<MDNode *> &Cycles,
                                  ValueToValueMapTy &VM, RemapFlags Flags,
                                  ValueMapTypeRemapper *TypeMapper,
                                  ValueMaterializer *Materializer) {
   assert(Node->isDistinct() && "Expected distinct node");
 
-  // Optimization for MDTuples.
-  if (isa<MDTuple>(Node)) {
-    // Create the node first so it's available for cyclical references.
-    SmallVector<Metadata *, 4> EmptyOps(Node->getNumOperands());
-    MDTuple *NewMD = MDTuple::getDistinct(Node->getContext(), EmptyOps);
-    mapToMetadata(VM, Node, NewMD);
+  MDNode *NewMD = MDNode::replaceWithDistinct(Node->clone());
+  remap(Node, NewMD, Cycles, VM, Flags, TypeMapper, Materializer);
 
-    // Fix the operands.
-    for (unsigned I = 0, E = Node->getNumOperands(); I != E; ++I)
-      NewMD->replaceOperandWith(I,
-                                mapMetadataOp(Node->getOperand(I), Cycles, VM,
-                                              Flags, TypeMapper, Materializer));
+  // Track any cycles beneath this node.
+  for (Metadata *Op : NewMD->operands())
+    if (auto *Node = dyn_cast_or_null<MDNode>(Op))
+      if (!Node->isResolved())
+        Cycles.push_back(Node);
 
-    trackCyclesUnderDistinct(NewMD, Cycles);
-    return NewMD;
-  }
-
-  // In general we need a dummy node, since whether the operands are null can
-  // affect the size of the node.
-  std::unique_ptr<MDNodeFwdDecl> Dummy(
-      MDNode::getTemporary(Node->getContext(), None));
-  mapToMetadata(VM, Node, Dummy.get());
-  auto *NewMD = cast<UniquableMDNode>(cloneMDNode(Node, Cycles, VM, Flags,
-                                                  TypeMapper, Materializer,
-                                                  /* IsDistinct */ true));
-  Dummy->replaceAllUsesWith(NewMD);
-  trackCyclesUnderDistinct(NewMD, Cycles);
-  return mapToMetadata(VM, Node, NewMD);
-}
-
-/// \brief Check whether a uniqued node needs to be remapped.
-///
-/// Check whether a uniqued node needs to be remapped (due to any operands
-/// changing).
-static bool shouldRemapUniquedNode(const UniquableMDNode *Node,
-                                   SmallVectorImpl<UniquableMDNode *> &Cycles,
-                                   ValueToValueMapTy &VM, RemapFlags Flags,
-                                   ValueMapTypeRemapper *TypeMapper,
-                                   ValueMaterializer *Materializer) {
-  // Check all operands to see if any need to be remapped.
-  for (unsigned I = 0, E = Node->getNumOperands(); I != E; ++I) {
-    Metadata *Op = Node->getOperand(I);
-    if (Op != mapMetadataOp(Op, Cycles, VM, Flags, TypeMapper, Materializer))
-      return true;
-  }
-  return false;
+  return NewMD;
 }
 
 /// \brief Map a uniqued MDNode.
 ///
 /// Uniqued nodes may not need to be recreated (they may map to themselves).
-static Metadata *mapUniquedNode(const UniquableMDNode *Node,
-                                SmallVectorImpl<UniquableMDNode *> &Cycles,
+static Metadata *mapUniquedNode(const MDNode *Node,
+                                SmallVectorImpl<MDNode *> &Cycles,
                                 ValueToValueMapTy &VM, RemapFlags Flags,
                                 ValueMapTypeRemapper *TypeMapper,
                                 ValueMaterializer *Materializer) {
-  assert(!Node->isDistinct() && "Expected uniqued node");
+  assert(Node->isUniqued() && "Expected uniqued node");
 
-  // Create a dummy node in case we have a metadata cycle.
-  MDNodeFwdDecl *Dummy = MDNode::getTemporary(Node->getContext(), None);
-  mapToMetadata(VM, Node, Dummy);
+  // Create a temporary node upfront in case we have a metadata cycle.
+  auto ClonedMD = Node->clone();
+  if (!remap(Node, ClonedMD.get(), Cycles, VM, Flags, TypeMapper, Materializer))
+    // No operands changed, so use the identity mapping.
+    return mapToSelf(VM, Node);
 
-  // Check all operands to see if any need to be remapped.
-  if (!shouldRemapUniquedNode(Node, Cycles, VM, Flags, TypeMapper,
-                              Materializer)) {
-    // Use an identity mapping.
-    mapToSelf(VM, Node);
-    MDNode::deleteTemporary(Dummy);
-    return const_cast<Metadata *>(static_cast<const Metadata *>(Node));
-  }
-
-  // At least one operand needs remapping.
-  Metadata *NewMD =
-      cloneMDNode(Node, Cycles, VM, Flags, TypeMapper, Materializer,
-                  /* IsDistinct */ false);
-  Dummy->replaceAllUsesWith(NewMD);
-  MDNode::deleteTemporary(Dummy);
-  return mapToMetadata(VM, Node, NewMD);
+  // At least one operand has changed, so uniquify the cloned node.
+  return mapToMetadata(VM, Node,
+                       MDNode::replaceWithUniqued(std::move(ClonedMD)));
 }
 
 static Metadata *MapMetadataImpl(const Metadata *MD,
-                                 SmallVectorImpl<UniquableMDNode *> &Cycles,
+                                 SmallVectorImpl<MDNode *> &Cycles,
                                  ValueToValueMapTy &VM, RemapFlags Flags,
                                  ValueMapTypeRemapper *TypeMapper,
                                  ValueMaterializer *Materializer) {
@@ -364,13 +292,17 @@ static Metadata *MapMetadataImpl(const Metadata *MD,
     return nullptr;
   }
 
-  const UniquableMDNode *Node = cast<UniquableMDNode>(MD);
-  assert(Node->isResolved() && "Unexpected unresolved node");
+  // Note: this cast precedes the Flags check so we always get its associated
+  // assertion.
+  const MDNode *Node = cast<MDNode>(MD);
 
   // If this is a module-level metadata and we know that nothing at the
   // module level is changing, then use an identity mapping.
   if (Flags & RF_NoModuleLevelChanges)
     return mapToSelf(VM, MD);
+
+  // Require resolved nodes whenever metadata might be remapped.
+  assert(Node->isResolved() && "Unexpected unresolved node");
 
   if (Node->isDistinct())
     return mapDistinctNode(Node, Cycles, VM, Flags, TypeMapper, Materializer);
@@ -381,17 +313,19 @@ static Metadata *MapMetadataImpl(const Metadata *MD,
 Metadata *llvm::MapMetadata(const Metadata *MD, ValueToValueMapTy &VM,
                             RemapFlags Flags, ValueMapTypeRemapper *TypeMapper,
                             ValueMaterializer *Materializer) {
-  SmallVector<UniquableMDNode *, 8> Cycles;
+  SmallVector<MDNode *, 8> Cycles;
   Metadata *NewMD =
       MapMetadataImpl(MD, Cycles, VM, Flags, TypeMapper, Materializer);
 
   // Resolve cycles underneath MD.
   if (NewMD && NewMD != MD) {
-    if (auto *N = dyn_cast<UniquableMDNode>(NewMD))
-      N->resolveCycles();
+    if (auto *N = dyn_cast<MDNode>(NewMD))
+      if (!N->isResolved())
+        N->resolveCycles();
 
-    for (UniquableMDNode *N : Cycles)
-      N->resolveCycles();
+    for (MDNode *N : Cycles)
+      if (!N->isResolved())
+        N->resolveCycles();
   } else {
     // Shouldn't get unresolved cycles if nothing was remapped.
     assert(Cycles.empty() && "Expected no unresolved cycles");
@@ -450,7 +384,27 @@ void llvm::RemapInstruction(Instruction *I, ValueToValueMapTy &VMap,
       I->setMetadata(MI->first, New);
   }
   
+  if (!TypeMapper)
+    return;
+
   // If the instruction's type is being remapped, do so now.
-  if (TypeMapper)
-    I->mutateType(TypeMapper->remapType(I->getType()));
+  if (auto CS = CallSite(I)) {
+    SmallVector<Type *, 3> Tys;
+    FunctionType *FTy = CS.getFunctionType();
+    Tys.reserve(FTy->getNumParams());
+    for (Type *Ty : FTy->params())
+      Tys.push_back(TypeMapper->remapType(Ty));
+    CS.mutateFunctionType(FunctionType::get(
+        TypeMapper->remapType(I->getType()), Tys, FTy->isVarArg()));
+    return;
+  }
+  if (auto *AI = dyn_cast<AllocaInst>(I))
+    AI->setAllocatedType(TypeMapper->remapType(AI->getAllocatedType()));
+  if (auto *GEP = dyn_cast<GetElementPtrInst>(I)) {
+    GEP->setSourceElementType(
+        TypeMapper->remapType(GEP->getSourceElementType()));
+    GEP->setResultElementType(
+        TypeMapper->remapType(GEP->getResultElementType()));
+  }
+  I->mutateType(TypeMapper->remapType(I->getType()));
 }

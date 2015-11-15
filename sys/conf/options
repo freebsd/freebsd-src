@@ -86,7 +86,7 @@ COMPAT_FREEBSD7	opt_compat.h
 COMPAT_FREEBSD9	opt_compat.h
 COMPAT_FREEBSD10	opt_compat.h
 COMPAT_CLOUDABI64	opt_dontuse.h
-COMPAT_LINUXAPI	opt_compat.h
+COMPAT_LINUXKPI	opt_compat.h
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
@@ -436,6 +436,7 @@ ROUTETABLES		opt_route.h
 RSS			opt_rss.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
+TCPPCAP		opt_global.h
 SIFTR
 TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
 TCP_SIGNATURE		opt_inet.h
@@ -947,11 +948,11 @@ RCTL		opt_global.h
 # Random number generator(s)
 # Which CSPRNG hash we get.
 # If Yarrow is not chosen, Fortuna is selected.
-RANDOM_YARROW	opt_random.h
+RANDOM_YARROW	opt_global.h
 # With this, no entropy processor is loaded, but the entropy
 # harvesting infrastructure is present. This means an entropy
 # processor may be loaded as a module.
-RANDOM_LOADABLE	opt_random.h
+RANDOM_LOADABLE	opt_global.h
 # This turns on high-rate and potentially expensive harvesting in
 # the uma slab allocator.
 RANDOM_ENABLE_UMA	opt_global.h

@@ -58,8 +58,8 @@
 #include "util/regional.h"
 #include "util/config_file.h"
 #include "util/fptr_wlist.h"
-#include "ldns/rrdef.h"
-#include "ldns/wire2str.h"
+#include "sldns/rrdef.h"
+#include "sldns/wire2str.h"
 
 /* forward decl for cache response and normal super inform calls of a DS */
 static void process_ds_response(struct module_qstate* qstate, 
@@ -226,6 +226,8 @@ val_new_getmsg(struct module_qstate* qstate, struct val_qstate* vq)
 		sizeof(struct reply_info) - sizeof(struct rrset_ref));
 	if(!vq->chase_reply)
 		return NULL;
+	if(vq->orig_msg->rep->rrset_count > RR_COUNT_MAX)
+		return NULL; /* protect against integer overflow */
 	vq->chase_reply->rrsets = regional_alloc_init(qstate->region,
 		vq->orig_msg->rep->rrsets, sizeof(struct ub_packed_rrset_key*)
 			* vq->orig_msg->rep->rrset_count);
@@ -517,8 +519,8 @@ validate_msg_signatures(struct module_qstate* qstate, struct module_env* env,
 				"has failed AUTHORITY rrset:", s->rk.dname,
 				ntohs(s->rk.type), ntohs(s->rk.rrset_class));
 			errinf(qstate, reason);
-			errinf_rrset(qstate, s);
 			errinf_origin(qstate, qstate->reply_origin);
+			errinf_rrset(qstate, s);
 			chase_reply->security = sec_status_bogus;
 			return 0;
 		}
@@ -1813,6 +1815,8 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 
 /**
  * Init DLV check.
+ * DLV is going to be decommissioned, but the code is still here for some time.
+ *
  * Called when a query is determined by other trust anchors to be insecure
  * (or indeterminate).  Then we look if there is a key in the DLV.
  * Performs aggressive negative cache check to see if there is no key.
@@ -2352,7 +2356,7 @@ primeResponseToKE(struct ub_packed_rrset_key* dnskey_rrset,
 	struct key_entry_key* kkey = NULL;
 	enum sec_status sec = sec_status_unchecked;
 	char* reason = NULL;
-	int downprot = 1;
+	int downprot = qstate->env->cfg->harden_algo_downgrade;
 
 	if(!dnskey_rrset) {
 		log_nametypeclass(VERB_OPS, "failed to prime trust anchor -- "
@@ -2765,7 +2769,7 @@ process_dnskey_response(struct module_qstate* qstate, struct val_qstate* vq,
 		vq->state = VAL_VALIDATE_STATE;
 		return;
 	}
-	downprot = 1;
+	downprot = qstate->env->cfg->harden_algo_downgrade;
 	vq->key_entry = val_verify_new_DNSKEYs(qstate->region, qstate->env,
 		ve, dnskey, vq->ds_rrset, downprot, &reason);
 

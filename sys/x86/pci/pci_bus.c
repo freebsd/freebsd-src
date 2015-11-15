@@ -524,7 +524,7 @@ legacy_pcib_attach(device_t dev)
 			device_probe_and_attach(pir);
 	}
 #endif
-	device_add_child(dev, "pci", bus);
+	device_add_child(dev, "pci", -1);
 	return bus_generic_attach(dev);
 }
 
