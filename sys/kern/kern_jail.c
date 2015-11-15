@@ -4480,15 +4480,20 @@ SYSCTL_JAIL_PARAM(_allow_mount, zfs, CTLTYPE_INT | CTLFLAG_RW,
 #ifdef RACCT
 void
 prison_racct_foreach(void (*callback)(struct racct *racct,
-    void *arg2, void *arg3), void *arg2, void *arg3)
+    void *arg2, void *arg3), void (*pre)(void), void (*post)(void),
+    void *arg2, void *arg3)
 {
 	struct prison_racct *prr;
 
 	ASSERT_RACCT_ENABLED();
 
 	sx_slock(&allprison_lock);
+	if (pre != NULL)
+		(pre)();
 	LIST_FOREACH(prr, &allprison_racct, prr_next)
 		(callback)(prr->prr_racct, arg2, arg3);
+	if (post != NULL)
+		(post)();
 	sx_sunlock(&allprison_lock);
 }
 
