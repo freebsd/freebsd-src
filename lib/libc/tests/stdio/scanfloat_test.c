@@ -58,7 +58,6 @@ ATF_TC_BODY(normalized_numbers, tc)
 	long double ld = 0.0;
 	double d = 0.0;
 	float f = 0.0;
-	char *endp;
 
 	buf[0] = '\0';
 	ATF_REQUIRE(setlocale(LC_NUMERIC, ""));
@@ -157,7 +156,6 @@ ATF_TC_BODY(infinities_and_nans, tc)
 	long double ld = 0.0;
 	double d = 0.0;
 	float f = 0.0;
-	char *endp;
 
 	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
 
@@ -205,11 +203,8 @@ ATF_TC_BODY(infinities_and_nans, tc)
 ATF_TC_WITHOUT_HEAD(rounding_tests);
 ATF_TC_BODY(rounding_tests, tc)
 {
-	char buf[128];
 	long double ld = 0.0;
 	double d = 0.0;
-	float f = 0.0;
-	char *endp;
 
 	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
 
@@ -287,10 +282,6 @@ ATF_TC_BODY(rounding_tests, tc)
 ATF_TC_WITHOUT_HEAD(strtod);
 ATF_TC_BODY(strtod, tc)
 {
-	char buf[128];
-	long double ld = 0.0;
-	double d = 0.0;
-	float f = 0.0;
 	char *endp;
 
 	ATF_REQUIRE(setlocale(LC_NUMERIC, "C"));
