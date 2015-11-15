@@ -156,7 +156,8 @@ void	 uihashinit(void);
 void	 uihold(struct uidinfo *uip);
 #ifdef	RACCT
 void	 ui_racct_foreach(void (*callback)(struct racct *racct,
-	    void *arg2, void *arg3), void *arg2, void *arg3);
+	    void *arg2, void *arg3), void (*pre)(void), void (*post)(void),
+	    void *arg2, void *arg3);
 #endif
 
 #endif /* _KERNEL */
