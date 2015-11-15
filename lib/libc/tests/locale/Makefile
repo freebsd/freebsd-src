@@ -39,6 +39,8 @@ SRCS.wctomb_2_test=	wctomb_test.c
 
 CFLAGS.t_wctomb.c+=	-Wno-stack-protector
 
+WARNS?=		2
+
 .include "../Makefile.netbsd-tests"
 
 .include <bsd.test.mk>
