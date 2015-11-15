@@ -46,9 +46,8 @@ __FBSDID("$FreeBSD$");
 ATF_TC_WITHOUT_HEAD(mbtowc_test);
 ATF_TC_BODY(mbtowc_test, tc)
 {
-	size_t len;
-	wchar_t wc;
 	char buf[MB_LEN_MAX + 1];
+	wchar_t wc;
 
 	/* C/POSIX locale. */
 
