@@ -193,7 +193,7 @@ subelement contains the following elements:
 .Bd -literal -offset indent
 struct devinfo {
 	struct devstat	*devices;
-	u_int8_t	*mem_ptr;
+	uint8_t		*mem_ptr;
 	long		generation;
 	int		numdevs;
 };
@@ -472,7 +472,7 @@ structure to calculate statistics over
 For each statistics to be calculated, the user should supply the proper
 enumerated type (listed below), and a variable of the indicated type.
 All statistics are either integer values, for which a
-.Vt u_int64_t
+.Vt uint64_t
 is used,
 or floating point, for which a
 .Vt "long double"
@@ -489,7 +489,7 @@ be the last argument passed to
 It is an argument list terminator.
 .It Dv DSM_TOTAL_BYTES
 type:
-.Vt "u_int64_t *"
+.Vt "uint64_t *"
 .Pp
 The total number of bytes transferred between the acquisition of
 .Fa previous
@@ -499,7 +499,7 @@ and
 .It Dv DSM_TOTAL_BYTES_WRITE
 .It Dv DSM_TOTAL_BYTES_FREE
 type:
-.Vt "u_int64_t *"
+.Vt "uint64_t *"
 .Pp
 The total number of bytes in transactions of the specified type
 between the acquisition of
@@ -508,7 +508,7 @@ and
 .Fa current .
 .It Dv DSM_TOTAL_TRANSFERS
 type:
-.Vt "u_int64_t *"
+.Vt "uint64_t *"
 .Pp
 The total number of transfers between the acquisition of
 .Fa previous
@@ -519,7 +519,7 @@ and
 .It Dv DSM_TOTAL_TRANSFERS_WRITE
 .It Dv DSM_TOTAL_TRANSFERS_FREE
 type:
-.Vt "u_int64_t *"
+.Vt "uint64_t *"
 .Pp
 The total number of transactions of the specified type between
 the acquisition of
@@ -528,7 +528,7 @@ and
 .Fa current .
 .It Dv DSM_TOTAL_BLOCKS
 type:
-.Vt "u_int64_t *"
+.Vt "uint64_t *"
 .Pp
 The total number of blocks transferred between the acquisition of
 .Fa previous
@@ -541,7 +541,7 @@ blocksize of 512 bytes will be used in the calculation.
 .It Dv DSM_TOTAL_BLOCKS_WRITE
 .It Dv DSM_TOTAL_BLOCKS_FREE
 type:
-.Vt "u_int64_t *"
+.Vt "uint64_t *"
 .Pp
 The total number of blocks of the specified type between the acquisition of
 .Fa previous
@@ -665,7 +665,7 @@ and
 .Fa current .
 .It Dv DSM_QUEUE_LENGTH
 type:
-.Vt "u_int64_t *"
+.Vt "uint64_t *"
 .Pp
 The number of not yet completed transactions at the time when
 .Fa current

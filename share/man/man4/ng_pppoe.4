@@ -148,7 +148,7 @@ The three commands above use a common data structure:
 .Bd -literal -offset 4n
 struct ngpppoe_init_data {
     char       hook[NG_HOOKSIZ];       /* hook to monitor on */
-    u_int16_t  data_len;               /* service name length */
+    uint16_t   data_len;               /* service name length */
     char       data[0];                /* init data goes here */
 };
 .Ed
@@ -359,8 +359,8 @@ setup(char *ethername, char *service, char *sessname,
 	 * The following is available about the node:
 	 * ninfo->name		(string)
 	 * ninfo->type		(string)
-	 * ninfo->id		(u_int32_t)
-	 * ninfo->hooks		(u_int32_t) (count of hooks)
+	 * ninfo->id		(uint32_t)
+	 * ninfo->hooks		(uint32_t) (count of hooks)
 	 * check it is the correct type. and get it's ID for use
 	 * with mkpeer later.
 	 */
@@ -380,8 +380,8 @@ setup(char *ethername, char *service, char *sessname,
 		 * link->peerhook	(string)
 		 * peer->name		(string)
 		 * peer->type		(string)
-		 * peer->id		(u_int32_t)
-		 * peer->hooks		(u_int32_t)
+		 * peer->id		(uint32_t)
+		 * peer->hooks		(uint32_t)
 		 */
 		link = &hlist->link[k];
 		peer = &hlist->link[k].nodeinfo;

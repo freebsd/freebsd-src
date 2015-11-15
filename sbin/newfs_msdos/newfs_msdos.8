@@ -180,27 +180,27 @@ For reference purposes, this structure is presented
 below.
 .Bd -literal
 struct bsbpb {
-    u_int16_t	bpbBytesPerSec;		/* [-S] bytes per sector */
-    u_int8_t	bpbSecPerClust;		/* [-c] sectors per cluster */
-    u_int16_t	bpbResSectors;		/* [-r] reserved sectors */
-    u_int8_t	bpbFATs;		/* [-n] number of FATs */
-    u_int16_t	bpbRootDirEnts;		/* [-e] root directory entries */
-    u_int16_t	bpbSectors;		/* [-s] total sectors */
-    u_int8_t	bpbMedia;		/* [-m] media descriptor */
-    u_int16_t	bpbFATsecs;		/* [-a] sectors per FAT */
-    u_int16_t	bpbSecPerTrack;		/* [-u] sectors per track */
-    u_int16_t	bpbHeads;		/* [-h] drive heads */
-    u_int32_t	bpbHiddenSecs;		/* [-o] hidden sectors */
-    u_int32_t	bpbHugeSectors;		/* [-s] big total sectors */
+    uint16_t	bpbBytesPerSec;		/* [-S] bytes per sector */
+    uint8_t	bpbSecPerClust;		/* [-c] sectors per cluster */
+    uint16_t	bpbResSectors;		/* [-r] reserved sectors */
+    uint8_t	bpbFATs;		/* [-n] number of FATs */
+    uint16_t	bpbRootDirEnts;		/* [-e] root directory entries */
+    uint16_t	bpbSectors;		/* [-s] total sectors */
+    uint8_t	bpbMedia;		/* [-m] media descriptor */
+    uint16_t	bpbFATsecs;		/* [-a] sectors per FAT */
+    uint16_t	bpbSecPerTrack;		/* [-u] sectors per track */
+    uint16_t	bpbHeads;		/* [-h] drive heads */
+    uint32_t	bpbHiddenSecs;		/* [-o] hidden sectors */
+    uint32_t	bpbHugeSectors;		/* [-s] big total sectors */
 };
 /* FAT32 extensions */
 struct bsxbpb {
-    u_int32_t	bpbBigFATsecs;		/* [-a] big sectors per FAT */
-    u_int16_t	bpbExtFlags;		/* control flags */
-    u_int16_t	bpbFSVers;		/* file system version */
-    u_int32_t	bpbRootClust;		/* root directory start cluster */
-    u_int16_t	bpbFSInfo;		/* [-i] file system info sector */
-    u_int16_t	bpbBackup;		/* [-k] backup boot sector */
+    uint32_t	bpbBigFATsecs;		/* [-a] big sectors per FAT */
+    uint16_t	bpbExtFlags;		/* control flags */
+    uint16_t	bpbFSVers;		/* file system version */
+    uint32_t	bpbRootClust;		/* root directory start cluster */
+    uint16_t	bpbFSInfo;		/* [-i] file system info sector */
+    uint16_t	bpbBackup;		/* [-k] backup boot sector */
 };
 .Ed
 .Sh LIMITATION

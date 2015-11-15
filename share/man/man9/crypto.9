@@ -26,29 +26,29 @@
 .Sh SYNOPSIS
 .In opencrypto/cryptodev.h
 .Ft int32_t
-.Fn crypto_get_driverid u_int8_t
+.Fn crypto_get_driverid uint8_t
 .Ft int
-.Fn crypto_register u_int32_t int u_int16_t u_int32_t "int \*[lp]*\*[rp]\*[lp]void *, u_int32_t *, struct cryptoini *\*[rp]" "int \*[lp]*\*[rp]\*[lp]void *, u_int64_t\*[rp]" "int \*[lp]*\*[rp]\*[lp]void *, struct cryptop *\*[rp]" "void *"
+.Fn crypto_register uint32_t int uint16_t uint32_t "int \*[lp]*\*[rp]\*[lp]void *, uint32_t *, struct cryptoini *\*[rp]" "int \*[lp]*\*[rp]\*[lp]void *, uint64_t\*[rp]" "int \*[lp]*\*[rp]\*[lp]void *, struct cryptop *\*[rp]" "void *"
 .Ft int
-.Fn crypto_kregister u_int32_t int u_int32_t "int \*[lp]*\*[rp]\*[lp]void *, struct cryptkop *\*[rp]" "void *"
+.Fn crypto_kregister uint32_t int uint32_t "int \*[lp]*\*[rp]\*[lp]void *, struct cryptkop *\*[rp]" "void *"
 .Ft int
-.Fn crypto_unregister u_int32_t int
+.Fn crypto_unregister uint32_t int
 .Ft int
-.Fn crypto_unregister_all u_int32_t
+.Fn crypto_unregister_all uint32_t
 .Ft void
 .Fn crypto_done "struct cryptop *"
 .Ft void
 .Fn crypto_kdone "struct cryptkop *"
 .Ft int
-.Fn crypto_newsession "u_int64_t *" "struct cryptoini *" int
+.Fn crypto_newsession "uint64_t *" "struct cryptoini *" int
 .Ft int
-.Fn crypto_freesession u_int64_t
+.Fn crypto_freesession uint64_t
 .Ft int
 .Fn crypto_dispatch "struct cryptop *"
 .Ft int
 .Fn crypto_kdispatch "struct cryptkop *"
 .Ft int
-.Fn crypto_unblock u_int32_t int
+.Fn crypto_unblock uint32_t int
 .Ft "struct cryptop *"
 .Fn crypto_getreq int
 .Ft void
@@ -64,7 +64,7 @@ struct cryptoini {
 	int                cri_klen;
 	int                cri_mlen;
 	caddr_t            cri_key;
-	u_int8_t           cri_iv[EALG_MAX_BLOCK_LEN];
+	uint8_t            cri_iv[EALG_MAX_BLOCK_LEN];
 	struct cryptoini  *cri_next;
 };
 
@@ -83,7 +83,7 @@ struct cryptodesc {
 
 struct cryptop {
 	TAILQ_ENTRY(cryptop) crp_next;
-	u_int64_t          crp_sid;
+	uint64_t           crp_sid;
 	int                crp_ilen;
 	int                crp_olen;
 	int                crp_etype;
@@ -108,7 +108,7 @@ struct cryptkop {
         u_int              krp_status;     /* return status */
         u_short            krp_iparams;    /* # of input parameters */
         u_short            krp_oparams;    /* # of output parameters */
-	u_int32_t	   krp_hid;
+        uint32_t           krp_hid;
         struct crparam     krp_param[CRK_MAXPARAM];
         int               (*krp_callback)(struct cryptkop *);
 };
@@ -524,10 +524,10 @@ The calling convention for the three driver-supplied routines is:
 .Bl -item -compact
 .It
 .Ft int
-.Fn \*[lp]*newsession\*[rp] "void *" "u_int32_t *" "struct cryptoini *" ;
+.Fn \*[lp]*newsession\*[rp] "void *" "uint32_t *" "struct cryptoini *" ;
 .It
 .Ft int
-.Fn \*[lp]*freesession\*[rp] "void *" "u_int64_t" ;
+.Fn \*[lp]*freesession\*[rp] "void *" "uint64_t" ;
 .It
 .Ft int
 .Fn \*[lp]*process\*[rp] "void *" "struct cryptop *" ;
