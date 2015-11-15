@@ -1156,6 +1156,7 @@ racct_decay_resource(struct racct *racct, void * res, void* dummy)
 	int64_t r_old, r_new;
 
 	ASSERT_RACCT_ENABLED();
+	mtx_assert(&racct_lock, MA_OWNED);
 
 	resource = *(int *)res;
 	r_old = racct->r_resources[resource];
@@ -1164,9 +1165,21 @@ racct_decay_resource(struct racct *racct, void * res, void* dummy)
 	if (r_old <= 0)
 		return;
 
-	mtx_lock(&racct_lock);
 	r_new = r_old * RACCT_DECAY_FACTOR / FSCALE;
 	racct->r_resources[resource] = r_new;
+}
+
+static void
+racct_decay_pre(void)
+{
+
+	mtx_lock(&racct_lock);
+}
+
+static void
+racct_decay_post(void)
+{
+
 	mtx_unlock(&racct_lock);
 }
 
@@ -1176,9 +1189,12 @@ racct_decay(int resource)
 
 	ASSERT_RACCT_ENABLED();
 
-	ui_racct_foreach(racct_decay_resource, &resource, NULL);
-	loginclass_racct_foreach(racct_decay_resource, &resource, NULL);
-	prison_racct_foreach(racct_decay_resource, &resource, NULL);
+	ui_racct_foreach(racct_decay_resource, racct_decay_pre,
+	    racct_decay_post, &resource, NULL);
+	loginclass_racct_foreach(racct_decay_resource, racct_decay_pre,
+	    racct_decay_post, &resource, NULL);
+	prison_racct_foreach(racct_decay_resource, racct_decay_pre,
+	    racct_decay_post, &resource, NULL);
 }
 
 static void
