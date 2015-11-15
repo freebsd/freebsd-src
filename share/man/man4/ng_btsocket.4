@@ -154,7 +154,7 @@ The Bluetooth L2CAP socket address is defined as follows:
 struct sockaddr_l2cap {
         u_char    l2cap_len;    /* total length */
         u_char    l2cap_family; /* address family */
-        u_int16_t l2cap_psm;    /* Protocol/Service Multiplexor */
+        uint16_t  l2cap_psm;    /* Protocol/Service Multiplexor */
         bdaddr_t  l2cap_bdaddr; /* address */
 };
 .Ed
@@ -272,7 +272,7 @@ struct sockaddr_rfcomm {
         u_char   rfcomm_len;     /* total length */
         u_char   rfcomm_family;  /* address family */
         bdaddr_t rfcomm_bdaddr;  /* address */
-        u_int8_t rfcomm_channel; /* channel */
+        uint8_t  rfcomm_channel; /* channel */
 };
 .Ed
 .Ss Dv SOCK_STREAM Ss RFCOMM sockets

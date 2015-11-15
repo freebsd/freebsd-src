@@ -140,13 +140,13 @@ This header corresponds to the
 structure and has the following definition:
 .Bd -literal -offset indent
 struct icmp6_hdr {
-	u_int8_t	icmp6_type;	/* type field */
-	u_int8_t	icmp6_code;	/* code field */
-	u_int16_t	icmp6_cksum;	/* checksum field */
+	uint8_t  icmp6_type;	/* type field */
+	uint8_t  icmp6_code;	/* code field */
+	uint16_t icmp6_cksum;	/* checksum field */
 	union {
-		u_int32_t icmp6_un_data32[1]; /* type-specific */
-		u_int16_t icmp6_un_data16[2]; /* type-specific */
-		u_int8_t  icmp6_un_data8[4];  /* type-specific */
+		uint32_t icmp6_un_data32[1]; /* type-specific */
+		uint16_t icmp6_un_data16[2]; /* type-specific */
+		uint8_t  icmp6_un_data8[4];  /* type-specific */
 	} icmp6_dataun;
 } __packed;
 

@@ -357,14 +357,14 @@ struct ng_ppp_link_conf {
   u_char    enableLink;     /* enable this link */
   u_char    enableProtoComp;/* enable protocol field compression */
   u_char    enableACFComp;  /* enable addr/ctrl field compression */
-  u_int16_t mru;            /* peer MRU */
-  u_int32_t latency;        /* link latency (in milliseconds) */
-  u_int32_t bandwidth;      /* link bandwidth (in bytes/second) */
+  uint16_t  mru;            /* peer MRU */
+  uint32_t  latency;        /* link latency (in milliseconds) */
+  uint32_t  bandwidth;      /* link bandwidth (in bytes/second) */
 };
 
 /* Bundle config structure */
 struct ng_ppp_bund_conf {
-  u_int16_t mrru;                   /* multilink peer MRRU */
+  uint16_t  mrru;                   /* multilink peer MRRU */
   u_char    enableMultilink;        /* enable multilink */
   u_char    recvShortSeq;           /* recv multilink short seq # */
   u_char    xmitShortSeq;           /* xmit multilink short seq # */
