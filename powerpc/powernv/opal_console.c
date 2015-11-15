@@ -138,8 +138,8 @@ uart_opal_real_map_outbuffer(uint64_t *bufferp, uint64_t *lenp)
 {
 
 	if (!mtx_initialized(&escapehatch.mtx))
-		mtx_init(&escapehatch.mtx, "uart_opal", NULL, MTX_SPIN | MTX_QUIET |
-		    MTX_NOWITNESS);
+		mtx_init(&escapehatch.mtx, "uart_opal", NULL,
+		    MTX_SPIN | MTX_QUIET | MTX_NOWITNESS);
 
 	if (!pmap_bootstrapped)
 		return;
@@ -148,7 +148,8 @@ uart_opal_real_map_outbuffer(uint64_t *bufferp, uint64_t *lenp)
 		escapehatch.size = *(uint64_t *)(*lenp) =
 		    min(sizeof(escapehatch.tmpbuf), *(uint64_t *)(*lenp));
 		mtx_lock_spin(&escapehatch.mtx);
-		memcpy(escapehatch.tmpbuf, (void *)(*bufferp), *(uint64_t *)(*lenp));
+		memcpy(escapehatch.tmpbuf, (void *)(*bufferp),
+		    *(uint64_t *)(*lenp));
 		*bufferp = (uint64_t)escapehatch.tmpbuf;
 		*lenp = (uint64_t)&escapehatch.size;
 	}
