@@ -275,7 +275,6 @@ MAN=	aac.4 \
 	ng_atm.4 \
 	ngatmbase.4 \
 	ng_atmllc.4 \
-	ng_bluetooth.4 \
 	ng_bpf.4 \
 	ng_bridge.4 \
 	ng_bt3c.4 \
@@ -749,6 +748,10 @@ _nvram2env.4=	nvram2env.4
 
 .if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
 SUBDIR=	man4.${MACHINE_CPUARCH}
+.endif
+
+.if ${MK_BLUETOOTH} != "no"
+MAN+=		ng_bluetooth.4
 .endif
 
 .if ${MK_CCD} != "no"
