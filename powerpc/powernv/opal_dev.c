@@ -37,6 +37,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
+#include <sys/endian.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -104,9 +108,19 @@ opaldev_attach(device_t dev)
 {
 	phandle_t child;
 	device_t cdev;
+	uint64_t junk;
+	int rv;
 	struct ofw_bus_devinfo *dinfo;
 
-	if (0 /* XXX NOT YET TEST FOR RTC */)
+	/* Test for RTC support and register clock if it works */
+	rv = opal_call(OPAL_RTC_READ, vtophys(&junk), vtophys(&junk));
+	do {
+		rv = opal_call(OPAL_RTC_READ, vtophys(&junk), vtophys(&junk));
+		if (rv == OPAL_BUSY_EVENT)
+			rv = opal_call(OPAL_POLL_EVENTS, 0);
+	} while (rv == OPAL_BUSY_EVENT);
+
+	if (rv == OPAL_SUCCESS)
 		clock_register(dev, 2000);
 	
 	EVENTHANDLER_REGISTER(shutdown_final, opal_shutdown, NULL,
@@ -134,13 +148,56 @@ opaldev_attach(device_t dev)
 }
 
 static int
-opal_gettime(device_t dev, struct timespec *ts) {
-	return (ENXIO);
+bcd2bin32(int bcd)
+{
+	int out = 0;
+
+	out += bcd2bin(bcd & 0xff);
+	out += 100*bcd2bin((bcd & 0x0000ff00) >> 8);
+	out += 10000*bcd2bin((bcd & 0x00ff0000) >> 16);
+	out += 1000000*bcd2bin((bcd & 0xffff0000) >> 24);
+
+	return (out);
+}
+
+static int
+opal_gettime(device_t dev, struct timespec *ts)
+{
+	int rv;
+	struct clocktime ct;
+	uint32_t ymd;
+	uint64_t hmsm;
+
+	do {
+		rv = opal_call(OPAL_RTC_READ, vtophys(&ymd), vtophys(&hmsm));
+		if (rv == OPAL_BUSY_EVENT) {
+			rv = opal_call(OPAL_POLL_EVENTS, 0);
+			pause("opalrtc", 1);
+		}
+	} while (rv == OPAL_BUSY_EVENT);
+
+	if (rv != OPAL_SUCCESS)
+		return (ENXIO);
+
+	hmsm = be64toh(hmsm);
+	ymd = be32toh(ymd);
+
+	ct.nsec	= bcd2bin32((hmsm & 0x000000ffffff0000) >> 16) * 1000;
+	ct.sec	= bcd2bin((hmsm & 0x0000ff0000000000) >> 40);
+	ct.min	= bcd2bin((hmsm & 0x00ff000000000000) >> 48);
+	ct.hour	= bcd2bin((hmsm & 0xff00000000000000) >> 56);
+
+	ct.day	= bcd2bin((ymd & 0x000000ff) >> 0);
+	ct.mon	= bcd2bin((ymd & 0x0000ff00) >> 8);
+	ct.year	= bcd2bin32((ymd & 0xffff0000) >> 16);
+	
+	return (clock_ct_to_ts(&ct, ts));
 }
 
 static int
 opal_settime(device_t dev, struct timespec *ts)
 {
+
 	return (0);
 }
 

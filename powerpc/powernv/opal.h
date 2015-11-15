@@ -40,8 +40,11 @@ int opal_call(uint64_t token, ...);
 
 #define OPAL_CONSOLE_WRITE		1
 #define OPAL_CONSOLE_READ		2
+#define OPAL_RTC_READ			3
+#define OPAL_RTC_WRITE			4
 #define	OPAL_CEC_POWER_DOWN		5
 #define	OPAL_CEC_REBOOT			6
+#define	OPAL_POLL_EVENTS		10
 #define	OPAL_PCI_CONFIG_READ_BYTE	13
 #define	OPAL_PCI_CONFIG_READ_HALF_WORD	14
 #define	OPAL_PCI_CONFIG_READ_WORD	15
@@ -51,7 +54,7 @@ int opal_call(uint64_t token, ...);
 #define	OPAL_SET_XIVE			19
 #define	OPAL_GET_XIVE			20
 #define	OPAL_PCI_SET_PE			31
-#define OPAL_START_CPU			41
+#define	OPAL_START_CPU			41
 #define	OPAL_PCI_MAP_PE_DMA_WINDOW_REAL	45
 
 /* For OPAL_PCI_SET_PE */
