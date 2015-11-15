@@ -65,7 +65,7 @@ ATF_TC_BODY(ether_line_bad_1, tc)
 	char hostname[256];
 
 	ATF_REQUIRE_MSG(ether_line(ether_line_bad_1_string, &e, hostname) != 0,
-	    "ether_line succeeded unexpectedly", errno);
+	    "ether_line succeeded unexpectedly; errno=%d", errno);
 }
 
 static const char *ether_line_bad_2_string = "x x";
@@ -77,7 +77,7 @@ ATF_TC_BODY(ether_line_bad_2, tc)
 	char hostname[256];
 
 	ATF_REQUIRE_MSG(ether_line(ether_line_bad_2_string, &e, hostname) != 0,
-	    "ether_line succeeded unexpectedly", errno);
+	    "ether_line succeeded unexpectedly; errno=%d", errno);
 }
 
 static const char *ether_aton_string = "01:23:45:67:89:ab";
@@ -92,7 +92,7 @@ ATF_TC_BODY(ether_aton_r, tc)
 
 	ep = ether_aton_r(ether_aton_string, &e);
 
-	ATF_REQUIRE_MSG(ep != NULL, "ether_aton_r failed", errno);
+	ATF_REQUIRE_MSG(ep != NULL, "ether_aton_r failed; errno=%d", errno);
 	ATF_REQUIRE_MSG(ep == &e,
 	    "ether_aton_r returned different pointers; %p != %p", ep, &e);
 }
