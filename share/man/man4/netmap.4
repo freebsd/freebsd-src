@@ -210,7 +210,6 @@ A
 on the file descriptor removes the binding,
 and returns the NIC to normal mode (reconnecting the data path
 to the host stack), or destroys the virtual port.
-.Pp
 .Sh DATA STRUCTURES
 The data structures in the mmapped memory region are detailed in
 .Xr sys/net/netmap.h ,
@@ -390,7 +389,6 @@ Below is an example of the evolution of a TX ring:
                     v          v
      TX  [..........aaaaaaaaaaa........]
 .Ed
-.Pp
 select() and poll() wlll block if there is no space in the ring, i.e.
 .Dl ring->cur == ring->tail
 and return when new slots have become available.
