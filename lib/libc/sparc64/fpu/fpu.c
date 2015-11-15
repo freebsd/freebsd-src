@@ -270,7 +270,7 @@ __fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn,
     u_long tstate)
 {
 	struct fpn *fp;
-	int opf, rs1, rs2, rd, type, mask, cx, cond;
+	int opf, rs1, rs2, rd, type, mask, cx, cond __unused;
 	u_long reg, fsr;
 	u_int space[4];
 
