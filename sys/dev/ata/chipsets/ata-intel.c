@@ -422,7 +422,7 @@ ata_intel_reset(device_t dev)
 		mask |= (1 << smap[1]);
 	pci_write_config(parent, 0x92,
 	    pci_read_config(parent, 0x92, 2) & ~mask, 2);
-	DELAY(10);
+	DELAY(100);
 	pci_write_config(parent, 0x92,
 	    pci_read_config(parent, 0x92, 2) | mask, 2);
 
