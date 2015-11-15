@@ -45,16 +45,18 @@
 
 #include "test_regex.h"
 
+#ifdef __NetBSD__
 static void s_print(struct re_guts *, FILE *);
 static char *regchar(int);
+#endif
 
+#ifdef __NetBSD__
 /*
  * regprint - print a regexp for debugging
  */
 void
 regprint(regex_t *r, FILE *d)
 {
-#ifdef __NetBSD__
 	struct re_guts *g = r->re_g;
 	int c;
 	int last;
@@ -116,7 +118,6 @@ regprint(regex_t *r, FILE *d)
 				}
 			fprintf(d, "\n");
 		}
-#endif
 }
 
 /*
@@ -126,15 +127,11 @@ static void
 s_print(struct re_guts *g, FILE *d)
 {
 	sop *s;
-#ifdef __NetBSD__
 	cset *cs;
-#endif
 	int done = 0;
 	sop opnd;
 	int col = 0;
-#ifdef __NetBSD__
 	ssize_t last;
-#endif
 	sopno offset = 2;
 #	define	GAP()	{	if (offset % 5 == 0) { \
 					if (col > 40) { \
@@ -181,7 +178,6 @@ s_print(struct re_guts *g, FILE *d)
 			break;
 		case OANYOF:
 			fprintf(d, "[(%ld)", (long)opnd);
-#ifdef __NetBSD__
 			cs = &g->sets[opnd];
 			last = -1;
 			for (size_t i = 0; i < g->csetsize+1; i++)	/* +1 flushes */
@@ -198,7 +194,6 @@ s_print(struct re_guts *g, FILE *d)
 						last = -1;
 					}
 				}
-#endif
 			fprintf(d, "]");
 			break;
 		case OBACK_:
@@ -254,11 +249,7 @@ s_print(struct re_guts *g, FILE *d)
 			fprintf(d, ">");
 			break;
 		default:
-#ifdef __FreeBSD__
-			fprintf(d, "!%ld(%ld)!", OP(*s), opnd);
-#else
 			fprintf(d, "!%d(%d)!", OP(*s), opnd);
-#endif
 			break;
 		}
 		if (!done)
@@ -280,3 +271,10 @@ regchar(int ch)
 		sprintf(buf, "\\%o", ch);
 	return(buf);
 }
+#else
+void
+regprint(regex_t *r, FILE *d)
+{
+
+}
+#endif
