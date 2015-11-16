@@ -949,17 +949,12 @@ main(int argc, char *argv[])
 	struct sockaddr_in serv;
 	struct sockaddr from;
 	socklen_t fromlen;
-	int sfd, tmpsfd;
+	int ch, sfd, tmpsfd;
 	unsigned port;
 
 	bindaddr = htonl(INADDR_ANY);
 	port = G_GATE_PORT;
-	for (;;) {
-		int ch;
-
-		ch = getopt(argc, argv, "a:hnp:R:S:v");
-		if (ch == -1)
-			break;
+	while ((ch = getopt(argc, argv, "a:hnp:R:S:v")) != -1) {
 		switch (ch) {
 		case 'a':
 			bindaddr = g_gate_str2ip(optarg);
