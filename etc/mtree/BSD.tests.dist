@@ -373,6 +373,8 @@
         file
         ..
         kern
+            acct
+            ..
             execve
             ..
         ..
