@@ -631,13 +631,10 @@ rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
 	}			/* The giant for loop */
 
 done_broad:
-	if (inbuf)
-		(void) free(inbuf);
-	if (outbuf)
-		(void) free(outbuf);
+	free(inbuf);
+	free(outbuf);
 #ifdef PORTMAP
-	if (outbuf_pmap)
-		(void) free(outbuf_pmap);
+	free(outbuf_pmap);
 #endif				/* PORTMAP */
 	for (i = 0; i < fdlistno; i++) {
 		(void)_close(fdlist[i].fd);
