@@ -82,13 +82,12 @@ yp_disable_events(void)
 void
 yp_enable_events(void)
 {
-	int		 i;
-	extern fd_set	*__svc_fdset;
-	extern int	 __svc_fdsetsize;
+	int i;
+	extern fd_set	svc_fdset;
 	struct yp_event	*ye;
 
-	for (i = 0; i < __svc_fdsetsize; i++) {
-		if (FD_ISSET(i, __svc_fdset)) {
+	for (i = 0; i < getdtablesize(); i++) {
+		if (FD_ISSET(i, &svc_fdset)) {
 			if ((ye = calloc(1, sizeof(*ye))) == NULL)
 				fatal(NULL);
 			event_set(&ye->ye_event, i, EV_READ, yp_fd_event, NULL);
