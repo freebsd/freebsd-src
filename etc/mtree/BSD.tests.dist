@@ -377,6 +377,8 @@
             ..
             execve
             ..
+            pipe
+            ..
         ..
         kqueue
         ..
