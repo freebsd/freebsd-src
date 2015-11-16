@@ -13,6 +13,7 @@ LDADD.unix_seqpacket_test+=		-lpthread
 
 WARNS?=	5
 
+TESTS_SUBDIRS+=	acct
 TESTS_SUBDIRS+=	execve
 
 .include <bsd.test.mk>
