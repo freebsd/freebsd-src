@@ -1510,6 +1510,65 @@ vm_pageout_mightbe_oom(struct vm_domain *vmd, int pass)
 	atomic_subtract_int(&vm_pageout_oom_vote, 1);
 }
 
+/*
+ * The OOM killer is the page daemon's action of last resort when
+ * memory allocation requests have been stalled for a prolonged period
+ * of time because it cannot reclaim memory.  This function computes
+ * the approximate number of physical pages that could be reclaimed if
+ * the specified address space is destroyed.
+ *
+ * Private, anonymous memory owned by the address space is the
+ * principal resource that we expect to recover after an OOM kill.
+ * Since the physical pages mapped by the address space's COW entries
+ * are typically shared pages, they are unlikely to be released and so
+ * they are not counted.
+ *
+ * To get to the point where the page daemon runs the OOM killer, its
+ * efforts to write-back vnode-backed pages may have stalled.  This
+ * could be caused by a memory allocation deadlock in the write path
+ * that might be resolved by an OOM kill.  Therefore, physical pages
+ * belonging to vnode-backed objects are counted, because they might
+ * be freed without being written out first if the address space holds
+ * the last reference to an unlinked vnode.
+ *
+ * Similarly, physical pages belonging to OBJT_PHYS objects are
+ * counted because the address space might hold the last reference to
+ * the object.
+ */
+static long
+vm_pageout_oom_pagecount(struct vmspace *vmspace)
+{
+	vm_map_t map;
+	vm_map_entry_t entry;
+	vm_object_t obj;
+	long res;
+
+	map = &vmspace->vm_map;
+	KASSERT(!map->system_map, ("system map"));
+	sx_assert(&map->lock, SA_LOCKED);
+	res = 0;
+	for (entry = map->header.next; entry != &map->header;
+	    entry = entry->next) {
+		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0)
+			continue;
+		obj = entry->object.vm_object;
+		if (obj == NULL)
+			continue;
+		if ((entry->eflags & MAP_ENTRY_NEEDS_COPY) != 0 &&
+		    obj->ref_count != 1)
+			continue;
+		switch (obj->type) {
+		case OBJT_DEFAULT:
+		case OBJT_SWAP:
+		case OBJT_PHYS:
+		case OBJT_VNODE:
+			res += obj->resident_page_count;
+			break;
+		}
+	}
+	return (res);
+}
+
 void
 vm_pageout_oom(int shortage)
 {
@@ -1583,12 +1642,13 @@ vm_pageout_oom(int shortage)
 		}
 		PROC_UNLOCK(p);
 		size = vmspace_swap_count(vm);
-		vm_map_unlock_read(&vm->vm_map);
 		if (shortage == VM_OOM_MEM)
-			size += vmspace_resident_count(vm);
+			size += vm_pageout_oom_pagecount(vm);
+		vm_map_unlock_read(&vm->vm_map);
 		vmspace_free(vm);
+
 		/*
-		 * if the this process is bigger than the biggest one
+		 * If this process is bigger than the biggest one,
 		 * remember it.
 		 */
 		if (size > bigsize) {
