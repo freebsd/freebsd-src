@@ -26,8 +26,10 @@
  * DAMAGE.
  */
 
+#include <sys/param.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 /*
  * $FreeBSD$
@@ -35,13 +37,16 @@
  * that using up all pipe memory doesn't cause a panic.
  */
 
-int main (void)
-
+int
+main(void)
 {
-	int i, returnval;
-	int pipes[10000];
-	for (i = 0; i < 10000; i++) {
+	int pipes[10000], returnval;
+	unsigned int i;
+
+	for (i = 0; i < nitems(pipes); i++) {
 		returnval = pipe(&pipes[i]);
 	}
 	printf("PASS\n");
+
+	exit(0);
 }
