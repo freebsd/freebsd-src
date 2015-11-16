@@ -4,20 +4,20 @@ TESTSDIR=	${TESTSBASE}/lib/libc/c063
 
 #TODO: t_o_search, t_utimensat
 
-NETBSD_ATF_TESTS_C=	faccessat
-NETBSD_ATF_TESTS_C+=	fchmodat
-NETBSD_ATF_TESTS_C+=	fchownat
-NETBSD_ATF_TESTS_C+=	fexecve
-NETBSD_ATF_TESTS_C+=	fstatat
-NETBSD_ATF_TESTS_C+=	linkat
-NETBSD_ATF_TESTS_C+=	mkdirat
-NETBSD_ATF_TESTS_C+=	mkfifoat
-NETBSD_ATF_TESTS_C+=	mknodat
-NETBSD_ATF_TESTS_C+=	openat
-NETBSD_ATF_TESTS_C+=	readlinkat
-NETBSD_ATF_TESTS_C+=	renameat
-NETBSD_ATF_TESTS_C+=	symlinkat
-NETBSD_ATF_TESTS_C+=	unlinkat
+NETBSD_ATF_TESTS_C=	faccessat_test
+NETBSD_ATF_TESTS_C+=	fchmodat_test
+NETBSD_ATF_TESTS_C+=	fchownat_test
+NETBSD_ATF_TESTS_C+=	fexecve_test
+NETBSD_ATF_TESTS_C+=	fstatat_test
+NETBSD_ATF_TESTS_C+=	linkat_test
+NETBSD_ATF_TESTS_C+=	mkdirat_test
+NETBSD_ATF_TESTS_C+=	mkfifoat_test
+NETBSD_ATF_TESTS_C+=	mknodat_test
+NETBSD_ATF_TESTS_C+=	openat_test
+NETBSD_ATF_TESTS_C+=	readlinkat_test
+NETBSD_ATF_TESTS_C+=	renameat_test
+NETBSD_ATF_TESTS_C+=	symlinkat_test
+NETBSD_ATF_TESTS_C+=	unlinkat_test
 
 CFLAGS+= -D_INCOMPLETE_XOPEN_C063
 
