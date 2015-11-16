@@ -26,32 +26,32 @@
  * $FreeBSD$
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <pthread.h>
 #include <sys/param.h>
-#include <sys/queue.h>
+#include <sys/bio.h>
+#include <sys/disk.h>
 #include <sys/endian.h>
-#include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/queue.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/disk.h>
-#include <sys/bio.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <signal.h>
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
-#include <string.h>
+#include <fcntl.h>
 #include <libgen.h>
-#include <syslog.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
 
 #include "ggate.h"
 
