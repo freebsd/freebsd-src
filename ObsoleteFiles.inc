@@ -53,7 +53,6 @@ OLD_FILES+=usr/tests/lib/libc/c063/readlinkat
 OLD_FILES+=usr/tests/lib/libc/c063/renameat
 OLD_FILES+=usr/tests/lib/libc/c063/symlinkat
 OLD_FILES+=usr/tests/lib/libc/c063/unlinkat
-OLD_FILES+=usr/tests/lib/libc/c063/utimensat
 OLD_FILES+=usr/tests/lib/libc/string/memchr
 OLD_FILES+=usr/tests/lib/libc/string/memcpy
 OLD_FILES+=usr/tests/lib/libc/string/memmem
