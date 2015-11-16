@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
+#include <time.h>
 
 void		 log_init(int);
 void		 log_warn(const char *, ...);
