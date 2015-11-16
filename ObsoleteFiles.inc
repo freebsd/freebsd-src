@@ -38,6 +38,37 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20151115: added missing _test suffix on multiple tests in lib/libc
+OLD_FILES+=usr/tests/lib/libc/c063/faccessat
+OLD_FILES+=usr/tests/lib/libc/c063/fchmodat
+OLD_FILES+=usr/tests/lib/libc/c063/fchownat
+OLD_FILES+=usr/tests/lib/libc/c063/fexecve
+OLD_FILES+=usr/tests/lib/libc/c063/fstatat
+OLD_FILES+=usr/tests/lib/libc/c063/linkat
+OLD_FILES+=usr/tests/lib/libc/c063/mkdirat
+OLD_FILES+=usr/tests/lib/libc/c063/mkfifoat
+OLD_FILES+=usr/tests/lib/libc/c063/mknodat
+OLD_FILES+=usr/tests/lib/libc/c063/openat
+OLD_FILES+=usr/tests/lib/libc/c063/readlinkat
+OLD_FILES+=usr/tests/lib/libc/c063/renameat
+OLD_FILES+=usr/tests/lib/libc/c063/symlinkat
+OLD_FILES+=usr/tests/lib/libc/c063/unlinkat
+OLD_FILES+=usr/tests/lib/libc/c063/utimensat
+OLD_FILES+=usr/tests/lib/libc/string/memchr
+OLD_FILES+=usr/tests/lib/libc/string/memcpy
+OLD_FILES+=usr/tests/lib/libc/string/memmem
+OLD_FILES+=usr/tests/lib/libc/string/memset
+OLD_FILES+=usr/tests/lib/libc/string/strcat
+OLD_FILES+=usr/tests/lib/libc/string/strchr
+OLD_FILES+=usr/tests/lib/libc/string/strcmp
+OLD_FILES+=usr/tests/lib/libc/string/strcpy
+OLD_FILES+=usr/tests/lib/libc/string/strcspn
+OLD_FILES+=usr/tests/lib/libc/string/strerror
+OLD_FILES+=usr/tests/lib/libc/string/strlen
+OLD_FILES+=usr/tests/lib/libc/string/strpbrk
+OLD_FILES+=usr/tests/lib/libc/string/strrchr
+OLD_FILES+=usr/tests/lib/libc/string/strspn
+OLD_FILES+=usr/tests/lib/libc/string/swab
 # 20151025: remove links to removed/unimplemented mbuf(9) macros
 OLD_FILES+=usr/share/man/man9/MEXT_ADD_REF.9.gz
 OLD_FILES+=usr/share/man/man9/MEXTFREE.9.gz
