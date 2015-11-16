@@ -154,7 +154,7 @@ MALLOC_DEFINE(M_XDATA, "xform", "xform data buffers");
 struct enc_xform enc_xform_null = {
 	CRYPTO_NULL_CBC, "NULL",
 	/* NB: blocksize of 4 is to generate a properly aligned ESP header */
-	NULL_BLOCK_LEN, NULL_BLOCK_LEN, NULL_MIN_KEY, NULL_MAX_KEY, 
+	NULL_BLOCK_LEN, 0, NULL_MIN_KEY, NULL_MAX_KEY, 
 	null_encrypt,
 	null_decrypt,
 	null_setkey,

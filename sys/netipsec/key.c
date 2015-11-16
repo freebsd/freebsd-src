@@ -6706,7 +6706,7 @@ key_register(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 				continue;
 			alg = (struct sadb_alg *)(mtod(n, caddr_t) + off);
 			alg->sadb_alg_id = i;
-			alg->sadb_alg_ivlen = ealgo->blocksize;
+			alg->sadb_alg_ivlen = ealgo->ivsize;
 			alg->sadb_alg_minbits = _BITS(ealgo->minkey);
 			alg->sadb_alg_maxbits = _BITS(ealgo->maxkey);
 			off += PFKEY_ALIGN8(sizeof(struct sadb_alg));
