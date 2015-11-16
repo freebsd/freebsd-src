@@ -102,6 +102,9 @@ trylocks(int id)
 		(void)fcntl(fd, F_SETLKW, &fl);
 
 		if (usleep(sleeptime) < 0) 
+#if defined(__FreeBSD__)
+		  if (errno != EINTR)
+#endif
 		  err(1, "usleep");
 	}
 	printf("%d: done\n", id);
