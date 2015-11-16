@@ -37,9 +37,11 @@ geom_test_cleanup()
 {
 	local test_md
 
-	while read test_md; do
-		# The "#" tells the TAP parser this is a comment
-		echo "# Removing test memory disk: $test_md"
-		mdconfig -d -u $test_md
-	done < $TEST_MDS_FILE
+	if [ -f $TEST_MDS_FILE ]; then
+		while read test_md; do
+			# The "#" tells the TAP parser this is a comment
+			echo "# Removing test memory disk: $test_md"
+			mdconfig -d -u $test_md
+		done < $TEST_MDS_FILE
+	fi
 }
