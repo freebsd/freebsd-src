@@ -3791,8 +3791,8 @@ wpi_set_pslevel(struct wpi_softc *sc, uint8_t dtim, int level, int async)
 	if (level != 0)	/* not CAM */
 		cmd.flags |= htole16(WPI_PS_ALLOW_SLEEP);
 	/* Retrieve PCIe Active State Power Management (ASPM). */
-	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
-	if (!(reg & 0x1))	/* L0s Entry disabled. */
+	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + PCIER_LINK_CTL, 1);
+	if (!(reg & PCIEM_LINK_CTL_ASPMC_L0S))	/* L0s Entry disabled. */
 		cmd.flags |= htole16(WPI_PS_PCI_PMGT);
 
 	cmd.rxtimeout = htole32(pmgt->rxtimeout * IEEE80211_DUR_TU);
@@ -5126,9 +5126,9 @@ wpi_apm_init(struct wpi_softc *sc)
 	WPI_SETBITS(sc, WPI_DBG_HPET_MEM, 0xffff0000);
 
 	/* Retrieve PCIe Active State Power Management (ASPM). */
-	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
+	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + PCIER_LINK_CTL, 1);
 	/* Workaround for HW instability in PCIe L0->L0s->L1 transition. */
-	if (reg & 0x02)	/* L1 Entry enabled. */
+	if (reg & PCIEM_LINK_CTL_ASPMC_L1)	/* L1 Entry enabled. */
 		WPI_SETBITS(sc, WPI_GIO, WPI_GIO_L0S_ENA);
 	else
 		WPI_CLRBITS(sc, WPI_GIO, WPI_GIO_L0S_ENA);
