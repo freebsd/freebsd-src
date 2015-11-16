@@ -1500,14 +1500,24 @@ main(int argc, char **argv)
 			    "ERROR: Cannot retrieve driver statistics");
 		if (ds_start.pm_intr_bufferfull != ds_end.pm_intr_bufferfull &&
 		    args.pa_verbosity > 0)
-			warnx("WARNING: some samples were dropped.\n"
-"Please consider tuning the \"kern.hwpmc.nsamples\" tunable."
+			warnx(
+"WARNING: sampling was paused at least %u time%s.\n"
+"Please consider tuning the \"kern.hwpmc.nsamples\" tunable.",
+			    ds_end.pm_intr_bufferfull -
+			    ds_start.pm_intr_bufferfull,
+			    ((ds_end.pm_intr_bufferfull -
+			    ds_start.pm_intr_bufferfull) != 1) ? "s" : ""
 			    );
 		if (ds_start.pm_buffer_requests_failed !=
 		    ds_end.pm_buffer_requests_failed &&
 		    args.pa_verbosity > 0)
-			warnx("WARNING: some events were discarded.\n"
-"Please consider tuning the \"kern.hwpmc.nbuffers\" tunable."
+			warnx(
+"WARNING: at least %u event%s were discarded while running.\n"
+"Please consider tuning the \"kern.hwpmc.nbuffers\" tunable.",
+	 		    ds_end.pm_buffer_requests_failed -
+			    ds_start.pm_buffer_requests_failed,
+			    ((ds_end.pm_buffer_requests_failed -
+			    ds_start.pm_buffer_requests_failed) != 1) ? "s" : ""
 			    );
 	}
 
