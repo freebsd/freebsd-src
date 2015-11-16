@@ -9,13 +9,12 @@ SRCS=		parse.y ypldap.c log.c	\
 
 MAN=		ypldap.8 ypldap.conf.5
 
-DPADD=		${LIBEVENT} ${LIBUTIL} ${LIBRPCSVC}
-LDADD=		-levent -lutil -lrpcsvc
-CFLAGS+=	-I${.CURDIR}
-CFLAGS+=	-Wall
-CFLAGS+=	-Wstrict-prototypes -Wmissing-prototypes
-CFLAGS+=	-Wmissing-declarations
-CFLAGS+=	-Wshadow -Wpointer-arith -Wcast-qual
-CFLAGS+=	-Wsign-compare
+LIBADD=		openbsd event util rpcsvc
+
+CFLAGS+=-I${.CURDIR}
+CFLAGS+=-I${.CURDIR}/../../contrib/pf/libevent
+CFLAGS+=-I${.CURDIR}/../../lib/libopenbsd
+
+WARNS=	2
 
 .include <bsd.prog.mk>
