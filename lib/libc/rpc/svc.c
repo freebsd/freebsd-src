@@ -201,8 +201,7 @@ svc_reg(xprt, prog, vers, dispatch, nconf)
 
 	rwlock_wrlock(&svc_lock);
 	if ((s = svc_find(prog, vers, &prev, netid)) != NULL) {
-		if (netid)
-			free(netid);
+		free(netid);
 		if (s->sc_dispatch == dispatch)
 			goto rpcb_it; /* he is registering another xptr */
 		rwlock_unlock(&svc_lock);
@@ -210,8 +209,7 @@ svc_reg(xprt, prog, vers, dispatch, nconf)
 	}
 	s = mem_alloc(sizeof (struct svc_callout));
 	if (s == NULL) {
-		if (netid)
-			free(netid);
+		free(netid);
 		rwlock_unlock(&svc_lock);
 		return (FALSE);
 	}

@@ -408,10 +408,8 @@ __svc_vc_dodestroy(xprt)
 		mem_free(xprt->xp_rtaddr.buf, xprt->xp_rtaddr.maxlen);
 	if (xprt->xp_ltaddr.buf)
 		mem_free(xprt->xp_ltaddr.buf, xprt->xp_ltaddr.maxlen);
-	if (xprt->xp_tp)
-		free(xprt->xp_tp);
-	if (xprt->xp_netid)
-		free(xprt->xp_netid);
+	free(xprt->xp_tp);
+	free(xprt->xp_netid);
 	svc_xprt_free(xprt);
 }
 

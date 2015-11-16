@@ -164,8 +164,7 @@ __nc_error()
 	if ((nc_addr = (int *)thr_getspecific(nc_key)) == NULL) {
 		nc_addr = (int *)malloc(sizeof (int));
 		if (thr_setspecific(nc_key, (void *) nc_addr) != 0) {
-			if (nc_addr)
-				free(nc_addr);
+			free(nc_addr);
 			return (&nc_error);
 		}
 		*nc_addr = 0;
@@ -419,7 +418,7 @@ void *handlep;
 
     while (q != NULL) {
 	p = q->next;
-	if (q->ncp->nc_lookups != NULL) free(q->ncp->nc_lookups);
+	free(q->ncp->nc_lookups);
 	free(q->ncp);
 	free(q->linep);
 	free(q);
@@ -541,8 +540,7 @@ freenetconfigent(netconfigp)
 {
     if (netconfigp != NULL) {
 	free(netconfigp->nc_netid);	/* holds all netconfigp's strings */
-	if (netconfigp->nc_lookups != NULL)
-	    free(netconfigp->nc_lookups);
+	free(netconfigp->nc_lookups);
 	free(netconfigp);
     }
     return;
@@ -631,8 +629,7 @@ struct netconfig *ncp;	/* where to put results */
     } else {
 	char *cp;	    /* tmp string */
 
-	if (ncp->nc_lookups != NULL)	/* from last visit */
-	    free(ncp->nc_lookups);
+	free(ncp->nc_lookups); /* from last visit */
 	ncp->nc_lookups = NULL;
 	ncp->nc_nlookups = 0;
 	while ((cp = tokenp) != NULL) {
