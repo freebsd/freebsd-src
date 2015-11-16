@@ -63,7 +63,7 @@ fi
 # the remaining arguments are assumed to be files/dirs only.
 if [ -n "${linkmode}" ]; then
 	if [ "${linkmode}" = "symbolic" ]; then
-		ln -fsh "$@"
+		ln -fsn "$@"
 	else
 		ln -f "$@"
 	fi
