@@ -148,6 +148,11 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(drop_synfin), 0,
     "Drop TCP packets with SYN+FIN set");
 
+VNET_DEFINE(int, tcp_do_rfc6675_pipe) = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc6675_pipe, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(tcp_do_rfc6675_pipe), 0,
+    "Use calculated pipe/in-flight bytes per RFC 6675");
+
 VNET_DEFINE(int, tcp_do_rfc3042) = 1;
 #define	V_tcp_do_rfc3042	VNET(tcp_do_rfc3042)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_VNET | CTLFLAG_RW,
@@ -159,13 +164,10 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc3390), 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
 
-SYSCTL_NODE(_net_inet_tcp, OID_AUTO, experimental, CTLFLAG_RW, 0,
-    "Experimental TCP extensions");
-
-VNET_DEFINE(int, tcp_do_initcwnd10) = 1;
-SYSCTL_INT(_net_inet_tcp_experimental, OID_AUTO, initcwnd10, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(tcp_do_initcwnd10), 0,
-    "Enable RFC 6928 (Increasing initial CWND to 10)");
+VNET_DEFINE(int, tcp_initcwnd_segments) = 10;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, initcwnd_segments,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(tcp_initcwnd_segments), 0,
+    "Slow-start flight size (initial congestion window) in number of segments");
 
 VNET_DEFINE(int, tcp_do_rfc3465) = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3465, CTLFLAG_VNET | CTLFLAG_RW,
@@ -364,6 +366,7 @@ cc_conn_init(struct tcpcb *tp)
 	 * RFC5681 Section 3.1 specifies the default conservative values.
 	 * RFC3390 specifies slightly more aggressive values.
 	 * RFC6928 increases it to ten segments.
+	 * Support for user specified value for initial flight size.
 	 *
 	 * If a SYN or SYN/ACK was lost and retransmitted, we have to
 	 * reduce the initial CWND to one segment as congestion is likely
@@ -371,9 +374,9 @@ cc_conn_init(struct tcpcb *tp)
 	 */
 	if (tp->snd_cwnd == 1)
 		tp->snd_cwnd = tp->t_maxseg;		/* SYN(-ACK) lost */
-	else if (V_tcp_do_initcwnd10)
-		tp->snd_cwnd = min(10 * tp->t_maxseg,
-		    max(2 * tp->t_maxseg, 14600));
+	else if (V_tcp_initcwnd_segments)
+		tp->snd_cwnd = min(V_tcp_initcwnd_segments * tp->t_maxseg,
+		    max(2 * tp->t_maxseg, V_tcp_initcwnd_segments * 1460));
 	else if (V_tcp_do_rfc3390)
 		tp->snd_cwnd = min(4 * tp->t_maxseg,
 		    max(2 * tp->t_maxseg, 4380));
@@ -2422,6 +2425,12 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		    ((to.to_flags & TOF_SACK) ||
 		     !TAILQ_EMPTY(&tp->snd_holes)))
 			tcp_sack_doack(tp, &to, th->th_ack);
+		else
+			/*
+			 * Reset the value so that previous (valid) value
+			 * from the last ack with SACK doesn't get used.
+			 */
+			tp->sackhint.sacked_bytes = 0;
 
 		/* Run HHOOK_TCP_ESTABLISHED_IN helper hooks. */
 		hhook_run_tcp_est_in(tp, th, &to);
@@ -2485,8 +2494,12 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						 * we have less than 1/2 the original window's
 						 * worth of data in flight.
 						 */
-						awnd = (tp->snd_nxt - tp->snd_fack) +
-							tp->sackhint.sack_bytes_rexmit;
+						if (V_tcp_do_rfc6675_pipe)
+							awnd = tcp_compute_pipe(tp);
+						else
+							awnd = (tp->snd_nxt - tp->snd_fack) +
+								tp->sackhint.sack_bytes_rexmit;
+
 						if (awnd < tp->snd_ssthresh) {
 							tp->snd_cwnd += tp->t_maxseg;
 							if (tp->snd_cwnd > tp->snd_ssthresh)
@@ -3730,4 +3743,12 @@ tcp_newreno_partial_ack(struct tcpcb *tp, struct tcphdr *th)
 	else
 		tp->snd_cwnd = 0;
 	tp->snd_cwnd += tp->t_maxseg;
+}
+
+int
+tcp_compute_pipe(struct tcpcb *tp)
+{
+	return (tp->snd_max - tp->snd_una +
+		tp->sackhint.sack_bytes_rexmit -
+		tp->sackhint.sacked_bytes);
 }

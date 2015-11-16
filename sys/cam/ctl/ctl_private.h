@@ -356,10 +356,7 @@ struct ctl_devid {
 	uint8_t		data[];
 };
 
-/*
- * For report target port groups.
- */
-#define NUM_TARGET_PORT_GROUPS	2
+#define NUM_HA_SHELVES		2
 
 #define CTL_WRITE_BUFFER_SIZE	262144
 

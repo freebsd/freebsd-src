@@ -11,6 +11,7 @@
 #include "utils/common.h"
 #include "common/ieee802_11_defs.h"
 #include "common/sae.h"
+#include "common/wpa_ctrl.h"
 #include "eapol_auth/eapol_auth_sm.h"
 #include "eapol_auth/eapol_auth_sm_i.h"
 #include "eap_server/eap.h"
@@ -53,8 +54,8 @@ static void hostapd_wpa_auth_conf(struct hostapd_bss_config *conf,
 #endif /* CONFIG_IEEE80211W */
 #ifdef CONFIG_IEEE80211R
 	wconf->ssid_len = conf->ssid.ssid_len;
-	if (wconf->ssid_len > SSID_LEN)
-		wconf->ssid_len = SSID_LEN;
+	if (wconf->ssid_len > SSID_MAX_LEN)
+		wconf->ssid_len = SSID_MAX_LEN;
 	os_memcpy(wconf->ssid, conf->ssid.ssid, wconf->ssid_len);
 	os_memcpy(wconf->mobility_domain, conf->mobility_domain,
 		  MOBILITY_DOMAIN_ID_LEN);
@@ -91,6 +92,13 @@ static void hostapd_wpa_auth_conf(struct hostapd_bss_config *conf,
 #ifdef CONFIG_TESTING_OPTIONS
 	wconf->corrupt_gtk_rekey_mic_probability =
 		iconf->corrupt_gtk_rekey_mic_probability;
+	if (conf->own_ie_override &&
+	    wpabuf_len(conf->own_ie_override) <= MAX_OWN_IE_OVERRIDE) {
+		wconf->own_ie_override_len = wpabuf_len(conf->own_ie_override);
+		os_memcpy(wconf->own_ie_override,
+			  wpabuf_head(conf->own_ie_override),
+			  wconf->own_ie_override_len);
+	}
 #endif /* CONFIG_TESTING_OPTIONS */
 #ifdef CONFIG_P2P
 	os_memcpy(wconf->ip_addr_go, conf->ip_addr_go, 4);
@@ -141,6 +149,14 @@ static int hostapd_wpa_auth_mic_failure_report(void *ctx, const u8 *addr)
 {
 	struct hostapd_data *hapd = ctx;
 	return michael_mic_failure(hapd, addr, 0);
+}
+
+
+static void hostapd_wpa_auth_psk_failure_report(void *ctx, const u8 *addr)
+{
+	struct hostapd_data *hapd = ctx;
+	wpa_msg(hapd->msg_ctx, MSG_INFO, AP_STA_POSSIBLE_PSK_MISMATCH MACSTR,
+		MAC2STR(addr));
 }
 
 
@@ -579,6 +595,7 @@ int hostapd_setup_wpa(struct hostapd_data *hapd)
 	cb.logger = hostapd_wpa_auth_logger;
 	cb.disconnect = hostapd_wpa_auth_disconnect;
 	cb.mic_failure_report = hostapd_wpa_auth_mic_failure_report;
+	cb.psk_failure_report = hostapd_wpa_auth_psk_failure_report;
 	cb.set_eapol = hostapd_wpa_auth_set_eapol;
 	cb.get_eapol = hostapd_wpa_auth_get_eapol;
 	cb.get_psk = hostapd_wpa_auth_get_psk;
@@ -620,7 +637,8 @@ int hostapd_setup_wpa(struct hostapd_data *hapd)
 	}
 
 #ifdef CONFIG_IEEE80211R
-	if (!hostapd_drv_none(hapd)) {
+	if (!hostapd_drv_none(hapd) && hapd->conf->ft_over_ds &&
+	    wpa_key_mgmt_ft(hapd->conf->wpa_key_mgmt)) {
 		hapd->l2 = l2_packet_init(hapd->conf->bridge[0] ?
 					  hapd->conf->bridge :
 					  hapd->conf->iface, NULL, ETH_P_RRB,

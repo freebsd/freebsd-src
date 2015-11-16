@@ -259,7 +259,7 @@ pw_group_next(int argc, char **argv, char *arg1 __unused)
 	struct userconf *cnf;
 	const char *cfg = NULL;
 	int ch;
-	bool quiet;
+	bool quiet = false;
 
 	while ((ch = getopt(argc, argv, "Cq")) != -1) {
 		switch (ch) {

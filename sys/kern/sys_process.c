@@ -96,7 +96,7 @@ struct ptrace_lwpinfo32 {
 	sigset_t	pl_siglist;	/* LWP pending signal */
 	struct siginfo32 pl_siginfo;	/* siginfo for signal */
 	char	pl_tdname[MAXCOMLEN + 1];	/* LWP name. */
-	int	pl_child_pid;		/* New child pid */
+	pid_t	pl_child_pid;		/* New child pid */
 	u_int		pl_syscall_code;
 	u_int		pl_syscall_narg;
 };
@@ -251,8 +251,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	 * curthread but we can't assert that.)  This keeps the process
 	 * from exiting out from under us until this operation completes.
 	 */
-	KASSERT(p->p_lock >= 1, ("%s: process %p (pid %d) not held", __func__,
-	    p, p->p_pid));
+	PROC_ASSERT_HELD(p);
 
 	/*
 	 * The map we want...
@@ -443,7 +442,7 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 }
 
 #ifdef COMPAT_FREEBSD32
-static int      
+static int
 ptrace_vm_entry32(struct thread *td, struct proc *p,
     struct ptrace_vm_entry32 *pve32)
 {
@@ -744,12 +743,23 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	 */
 	switch (req) {
 	case PT_TRACE_ME:
-		/* Always legal. */
+		/*
+		 * Always legal, when there is a parent process which
+		 * could trace us.  Otherwise, reject.
+		 */
+		if ((p->p_flag & P_TRACED) != 0) {
+			error = EBUSY;
+			goto fail;
+		}
+		if (p->p_pptr == initproc) {
+			error = EPERM;
+			goto fail;
+		}
 		break;
 
 	case PT_ATTACH:
 		/* Self */
-		if (p->p_pid == td->td_proc->p_pid) {
+		if (p == td->td_proc) {
 			error = EINVAL;
 			goto fail;
 		}

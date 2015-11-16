@@ -41,12 +41,6 @@
                 private
                 ..
             ..
-            lib32
-                i18n
-                ..
-                private
-                ..
-            ..
             libexec
                 bsdinstall
                 ..

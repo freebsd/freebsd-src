@@ -469,7 +469,13 @@ typedef struct {
 typedef struct {
 	u_int16_t	con_handle; /* connection handle */
 } ng_hci_lp_qos_ind_ep;
-
+/*Encryption Change event*/
+#define NGM_HCI_LP_ENC_CHG 			10 /* HCI->Upper*/
+typedef struct {
+	uint16_t con_handle;
+	uint8_t status;
+	uint8_t link_type; 
+}ng_hci_lp_enc_change_ep;
 /**************************************************************************
  **************************************************************************
  **                    HCI node command/event parameters

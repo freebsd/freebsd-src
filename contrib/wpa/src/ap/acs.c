@@ -479,16 +479,10 @@ static int acs_usable_chan(struct hostapd_channel_data *chan)
 static int is_in_chanlist(struct hostapd_iface *iface,
 			  struct hostapd_channel_data *chan)
 {
-	int *entry;
-
-	if (!iface->conf->chanlist)
+	if (!iface->conf->acs_ch_list.num)
 		return 1;
 
-	for (entry = iface->conf->chanlist; *entry != -1; entry++) {
-		if (*entry == chan->chan)
-			return 1;
-	}
-	return 0;
+	return freq_range_list_includes(&iface->conf->acs_ch_list, chan->chan);
 }
 
 
@@ -898,6 +892,9 @@ static int acs_request_scan(struct hostapd_iface *iface)
 	for (i = 0; i < iface->current_mode->num_channels; i++) {
 		chan = &iface->current_mode->channels[i];
 		if (chan->flag & HOSTAPD_CHAN_DISABLED)
+			continue;
+
+		if (!is_in_chanlist(iface, chan))
 			continue;
 
 		*freq++ = chan->freq;

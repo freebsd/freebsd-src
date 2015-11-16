@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BN_BLINDING_new 3"
-.TH BN_BLINDING_new 3 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH BN_BLINDING_new 3 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -141,7 +141,7 @@
 .SH "NAME"
 BN_BLINDING_new, BN_BLINDING_free, BN_BLINDING_update, BN_BLINDING_convert, 
 BN_BLINDING_invert, BN_BLINDING_convert_ex, BN_BLINDING_invert_ex, 
-BN_BLINDING_get_thread_id, BN_BLINDING_set_thread_id, BN_BLINDING_get_flags,
+BN_BLINDING_get_thread_id, BN_BLINDING_set_thread_id, BN_BLINDING_thread_id, BN_BLINDING_get_flags,
 BN_BLINDING_set_flags, BN_BLINDING_create_param \- blinding related BIGNUM
 functions.
 .SH "SYNOPSIS"
@@ -220,7 +220,7 @@ or \s-1NULL\s0 in case of an error.
 .PP
 \&\fIBN_BLINDING_update()\fR, \fIBN_BLINDING_convert()\fR, \fIBN_BLINDING_invert()\fR,
 \&\fIBN_BLINDING_convert_ex()\fR and \fIBN_BLINDING_invert_ex()\fR return 1 on
-success and 0 if an error occured.
+success and 0 if an error occurred.
 .PP
 \&\fIBN_BLINDING_thread_id()\fR returns a pointer to the thread id object
 within a \fB\s-1BN_BLINDING\s0\fR object.

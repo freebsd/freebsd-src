@@ -1973,9 +1973,9 @@ pf_addr_wrap_neq(struct pf_addr_wrap *aw1, struct pf_addr_wrap *aw2)
 	switch (aw1->type) {
 	case PF_ADDR_ADDRMASK:
 	case PF_ADDR_RANGE:
-		if (PF_ANEQ(&aw1->v.a.addr, &aw2->v.a.addr, 0))
+		if (PF_ANEQ(&aw1->v.a.addr, &aw2->v.a.addr, AF_INET6))
 			return (1);
-		if (PF_ANEQ(&aw1->v.a.mask, &aw2->v.a.mask, 0))
+		if (PF_ANEQ(&aw1->v.a.mask, &aw2->v.a.mask, AF_INET6))
 			return (1);
 		return (0);
 	case PF_ADDR_DYNIFTL:
@@ -5262,9 +5262,6 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
 		in_rtalloc_ign((struct route *)&ro, 0, rtableid);
 		break;
 #endif
-	default:
-		rtalloc_ign((struct route *)&ro, 0);	/* No/default FIB. */
-		break;
 	}
 
 	if (ro.ro_rt != NULL) {
@@ -5577,6 +5574,13 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	if (ifp->if_flags & IFF_LOOPBACK)
 		m0->m_flags |= M_SKIP_FIREWALL;
 
+	if (m0->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6 &
+	    ~ifp->if_hwassist) {
+		uint32_t plen = m0->m_pkthdr.len - sizeof(*ip6);
+		in6_delayed_cksum(m0, plen, sizeof(struct ip6_hdr));
+		m0->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
+	}
+
 	/*
 	 * If the packet is too large for the outgoing interface,
 	 * send back an icmp6 error.
@@ -5584,7 +5588,7 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	if (IN6_IS_SCOPE_EMBED(&dst.sin6_addr))
 		dst.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
 	if ((u_long)m0->m_pkthdr.len <= ifp->if_mtu)
-		nd6_output_ifp(ifp, ifp, m0, &dst);
+		nd6_output_ifp(ifp, ifp, m0, &dst, NULL);
 	else {
 		in6_ifstat_inc(ifp, ifs6_in_toobig);
 		if (r->rt != PF_DUPTO)

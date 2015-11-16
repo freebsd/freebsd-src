@@ -158,6 +158,10 @@ int
 ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
 {
 	struct secpolicy *sp;
+
+	if (!key_havesp(IPSEC_DIR_OUTBOUND))
+		return 0;
+
 	/*
 	 * Check the security policy (SP) for the packet and, if
 	 * required, do IPsec-related processing.  There are two

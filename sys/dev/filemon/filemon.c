@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
@@ -195,9 +194,6 @@ filemon_open(struct cdev *dev, int oflags __unused, int devtype __unused,
 	if (filemon == NULL) {
 		filemon = malloc(sizeof(struct filemon), M_FILEMON,
 		    M_WAITOK | M_ZERO);
-
-		filemon->fp = NULL;
-
 		sx_init(&filemon->lock, "filemon");
 	}
 

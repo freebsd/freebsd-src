@@ -20,14 +20,14 @@ MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm
 # Some options we need now
 __DEFAULT_NO_OPTIONS= \
 	DIRDEPS_CACHE \
+	DIRDEPS_BUILD \
 	META_MODE \
-	META_FILES \
 
 
 __DEFAULT_DEPENDENT_OPTIONS= \
-	AUTO_OBJ/META_MODE \
-	STAGING/META_MODE \
-	SYSROOT/META_MODE
+	AUTO_OBJ/DIRDEPS_BUILD \
+	STAGING/DIRDEPS_BUILD \
+	SYSROOT/DIRDEPS_BUILD
 
 __ENV_ONLY_OPTIONS:= \
 	${__DEFAULT_NO_OPTIONS} \
@@ -43,9 +43,9 @@ __ENV_ONLY_OPTIONS:= \
 
 .include <bsd.mkopt.mk>
 
-.if ${MK_META_MODE} == "yes"
+.if ${MK_DIRDEPS_BUILD} == "yes"
 .sinclude <meta.sys.mk>
-.elif ${MK_META_FILES} == "yes" && defined(.MAKEFLAGS)
+.elif ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS)
 .if ${.MAKEFLAGS:M-B} == ""
 .MAKE.MODE= meta verbose
 .endif
@@ -317,11 +317,11 @@ YFLAGS		?=	-d
 	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .S.o:
-	${CC} ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC:N${CCACHE_BIN}} ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .asm.o:
-	${CC} -x assembler-with-cpp ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
+	${CC:N${CCACHE_BIN}} -x assembler-with-cpp ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
 	    -o ${.TARGET}
 	${CTFCONVERT_CMD}
 

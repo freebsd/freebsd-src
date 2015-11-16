@@ -261,7 +261,8 @@ fbsdrun_addcpu(struct vmctx *ctx, int fromcpu, int newcpu, uint64_t rip)
 	 * with vm_suspend().
 	 */
 	error = vm_activate_cpu(ctx, newcpu);
-	assert(error == 0);
+	if (error != 0)
+		err(EX_OSERR, "could not activate CPU %d", newcpu);
 
 	CPU_SET_ATOMIC(newcpu, &cpumask);
 

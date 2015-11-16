@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 13, 2014
+.Dd October 27, 2015
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -454,6 +454,17 @@ code.
 For this reason, we use 200ms of slop and a near-0
 minimum, which gives us an effective minimum of 200ms (similar to
 .Tn Linux ) .
+.It Va initcwnd_segments
+Enable the ability to specify initial congestion window in number of segments.
+The default value is 10 as suggested by RFC 6928.
+Changing the value on fly would not affect connections using congestion window
+from the hostcache.
+Caution:
+This regulates the burst of packets allowed to be sent in the first RTT.
+The value should be relative to the link capacity.
+Start with small values for lower-capacity links.
+Large bursts can cause buffer overruns and packet drops if routers have small
+buffers or the link is experiencing congestion.
 .It Va rfc3042
 Enable the Limited Transmit algorithm as described in RFC 3042.
 It helps avoid timeouts on lossy links and also when the congestion window

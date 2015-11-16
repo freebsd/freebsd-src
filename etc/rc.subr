@@ -1316,8 +1316,10 @@ run_rc_script()
 }
 
 #
-# load_rc_config name
-#	Source in the configuration file for a given name.
+# load_rc_config [service]
+#	Source in the configuration file(s) for a given service.
+#	If no service is specified, only the global configuration
+#	file(s) will be loaded.
 #
 load_rc_config()
 {

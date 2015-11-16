@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2015
+.Dd October 20, 2015
 .Dt BITSET 9
 .Os
 .Sh NAME
@@ -352,16 +352,9 @@ myset = BITSET_T_INITIALIZER(BITSET_FSET(__bitset_words(MYSETSIZE)));
 myset = BITSET_T_INITIALIZER(0x1);
 .Ed
 .Sh SEE ALSO
-The older
-.Xr bitstring 3 .
+.Xr bitstring 3 ,
+.Xr cpuset 9
 .Sh HISTORY
-.In sys/cpuset.h
-first appeared in
-.Fx 7.1 ,
-released in January 2009, and in
-.Fx 8.0 ,
-released in November 2009 .
-.Pp
 The
 .Nm
 macros first appeared in
@@ -377,11 +370,9 @@ This manual page first appeared in
 .An -nosplit
 The
 .Nm
-macros were written for
+macros were generalized and pulled out of
 .In sys/cpuset.h
-by
-.An Jeff Roberson Aq Mt jeff@FreeBSD.org ;
-they were generalized and pulled out as
+as
 .In sys/_bitset.h
 and
 .In sys/bitset.h

@@ -16,6 +16,6 @@ llib-lstdc.ln: llib-lstdc
 
 .include <bsd.prog.mk>
 
-.if ${MK_META_MODE} == "yes"
+.if ${MK_DIRDEPS_BUILD} == "yes"
 LINTFLAGS+= -I${STAGE_INCLUDEDIR}
 .endif

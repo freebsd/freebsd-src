@@ -27,6 +27,9 @@ hints	"TP-MR3020.hints"
 # Board memory - 32MB
 options	AR71XX_REALMEM=(32*1024*1024)
 
+# Disable support for paging
+options		NO_SWAPPING
+
 # i2c GPIO bus
 device	gpioiic
 device	iicbb
@@ -43,9 +46,6 @@ device	arswitch
 # Enable the uboot environment stuff rather then the
 # redboot stuff.
 options	AR71XX_ENV_UBOOT
-
-# uzip - to boot natively from flash
-device	geom_uncompress
 
 # Used for the static uboot partition map
 device	geom_map

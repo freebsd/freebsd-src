@@ -88,6 +88,8 @@ __FBSDID("$FreeBSD$");
 
 static int parse_mount(char **);
 static struct mntarg *parse_mountroot_options(struct mntarg *, const char *);
+static int sysctl_vfs_root_mount_hold(SYSCTL_HANDLER_ARGS);
+static int vfs_mountroot_wait_if_neccessary(const char *fs, const char *dev);
 
 /*
  * The vnode of the system's root (/ in the filesystem, without chroot
@@ -128,6 +130,35 @@ static int root_mount_complete;
 /* By default wait up to 3 seconds for devices to appear. */
 static int root_mount_timeout = 3;
 TUNABLE_INT("vfs.mountroot.timeout", &root_mount_timeout);
+
+SYSCTL_PROC(_vfs, OID_AUTO, root_mount_hold,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_vfs_root_mount_hold, "A",
+    "List of root mount hold tokens");
+
+static int
+sysctl_vfs_root_mount_hold(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sb;
+	struct root_hold_token *h;
+	int error;
+
+	sbuf_new(&sb, NULL, 256, SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
+
+	mtx_lock(&root_holds_mtx);
+	LIST_FOREACH(h, &root_holds, list) {
+		if (h != LIST_FIRST(&root_holds))
+			sbuf_putc(&sb, ' ');
+		sbuf_printf(&sb, "%s", h->who);
+	}
+	mtx_unlock(&root_holds_mtx);
+
+	error = sbuf_finish(&sb);
+	if (error == 0)
+		error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
+	sbuf_delete(&sb);
+	return (error);
+}
 
 struct root_hold_token *
 root_mount_hold(const char *identifier)
@@ -673,7 +704,7 @@ parse_mount(char **conf)
 	char *errmsg;
 	struct mntarg *ma;
 	char *dev, *fs, *opts, *tok;
-	int delay, error, timeout;
+	int error;
 
 	error = parse_token(conf, &tok);
 	if (error)
@@ -710,20 +741,9 @@ parse_mount(char **conf)
 		goto out;
 	}
 
-	if (strcmp(fs, "zfs") != 0 && strstr(fs, "nfs") == NULL && 
-	    dev[0] != '\0' && !parse_mount_dev_present(dev)) {
-		printf("mountroot: waiting for device %s ...\n", dev);
-		delay = hz / 10;
-		timeout = root_mount_timeout * hz;
-		do {
-			pause("rmdev", delay);
-			timeout -= delay;
-		} while (timeout > 0 && !parse_mount_dev_present(dev));
-		if (timeout <= 0) {
-			error = ENODEV;
-			goto out;
-		}
-	}
+	error = vfs_mountroot_wait_if_neccessary(fs, dev);
+	if (error != 0)
+		goto out;
 
 	ma = NULL;
 	ma = mount_arg(ma, "fstype", fs, -1);
@@ -931,6 +951,51 @@ vfs_mountroot_wait(void)
 	}
 }
 
+static int
+vfs_mountroot_wait_if_neccessary(const char *fs, const char *dev)
+{
+	int delay, timeout;
+
+	/*
+	 * In case of ZFS and NFS we don't have a way to wait for
+	 * specific device.
+	 */
+	if (strcmp(fs, "zfs") == 0 || strstr(fs, "nfs") != NULL ||
+	    dev[0] == '\0') {
+		vfs_mountroot_wait();
+		return (0);
+	}
+
+	/*
+	 * Otherwise, no point in waiting if the device is already there.
+	 * Note that we must wait for GEOM to finish reconfiguring itself,
+	 * eg for geom_part(4) to finish tasting.
+	 */
+	DROP_GIANT();
+	g_waitidle();
+	PICKUP_GIANT();
+	if (parse_mount_dev_present(dev))
+		return (0);
+
+	/*
+	 * No luck.  Let's wait.  This code looks weird, but it's that way
+	 * to behave exactly as it used to work before.
+	 */
+	vfs_mountroot_wait();
+	printf("mountroot: waiting for device %s...\n", dev);
+	delay = hz / 10;
+	timeout = root_mount_timeout * hz;
+	do {
+		pause("rmdev", delay);
+		timeout -= delay;
+	} while (timeout > 0 && !parse_mount_dev_present(dev));
+
+	if (timeout <= 0)
+		return (ENODEV);
+
+	return (0);
+}
+
 void
 vfs_mountroot(void)
 {
@@ -941,8 +1006,6 @@ vfs_mountroot(void)
 	int error;
 
 	td = curthread;
-
-	vfs_mountroot_wait();
 
 	sb = sbuf_new_auto();
 	vfs_mountroot_conf0(sb);

@@ -845,7 +845,7 @@ rt_foreach_fib_walk(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f,
 			if (rnh == NULL)
 				continue;
 			if (setwa_f != NULL)
-				setwa_f(rnh, fibnum, i, arg);
+				setwa_f(rnh, fibnum, af, arg);
 
 			RADIX_NODE_HEAD_LOCK(rnh);
 			rnh->rnh_walktree(rnh, (walktree_f_t *)wa_f, arg);

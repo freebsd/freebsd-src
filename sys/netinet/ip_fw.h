@@ -107,6 +107,7 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_NAT44_XGETLOG	115	/* Get log from NAT44 instance */
 
 #define	IP_FW_DUMP_SOPTCODES	116	/* Dump available sopts/versions */
+#define	IP_FW_DUMP_SRVOBJECTS	117	/* Dump existing named objects */
 
 /*
  * The kernel representation of ipfw rules is made of a list of

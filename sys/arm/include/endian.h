@@ -92,7 +92,7 @@ __bswap32_var(__uint32_t v)
 			"mov %0, %0, ror #8\n"
 			"eor %0, %0, %1, lsr #8\n"
 			 : "+r" (v), "=r" (t1));
-	
+
 	return (v);
 }
 
@@ -106,9 +106,9 @@ __bswap16_var(__uint16_t v)
 	    "orr    %0, %0, %0, lsr #16\n"
 	    "bic    %0, %0, %0, lsl #16"
 	    : "+r" (ret));
-	
+
 	return ((__uint16_t)ret);
-}		
+}
 
 #ifdef __OPTIMIZE__
 

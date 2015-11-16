@@ -512,6 +512,7 @@ DIRDEPS+= \
 	usr.sbin/fifolog/fifolog_writer \
 	usr.sbin/fifolog/fifolog_reader \
 	usr.sbin/flowctl \
+	usr.sbin/fmtree \
 	usr.sbin/freebsd-update \
 	usr.sbin/fwcontrol \
 	usr.sbin/genrandom \
@@ -564,9 +565,9 @@ DIRDEPS+= \
 	usr.sbin/mlxcontrol \
 	usr.sbin/mountd \
 	usr.sbin/moused \
+	usr.sbin/mpsutil \
 	usr.sbin/mptutil \
 	usr.sbin/mtest \
-	usr.sbin/mtree \
 	usr.sbin/named \
 	usr.sbin/named-checkconf \
 	usr.sbin/named-checkzone \
@@ -580,6 +581,7 @@ DIRDEPS+= \
 	usr.sbin/nfsuserd \
 	usr.sbin/ngctl \
 	usr.sbin/nghook \
+	usr.sbin/nmtree \
 	usr.sbin/nologin \
 	usr.sbin/nscd \
 	usr.sbin/nsec3hash \

@@ -81,6 +81,22 @@ int hostapd_build_ap_extra_ies(struct hostapd_data *hapd,
 		wpabuf_put_data(proberesp, buf, pos - buf);
 	}
 
+#ifdef CONFIG_FST
+	if (hapd->iface->fst_ies) {
+		size_t add = wpabuf_len(hapd->iface->fst_ies);
+
+		if (wpabuf_resize(&beacon, add) < 0)
+			goto fail;
+		wpabuf_put_buf(beacon, hapd->iface->fst_ies);
+		if (wpabuf_resize(&proberesp, add) < 0)
+			goto fail;
+		wpabuf_put_buf(proberesp, hapd->iface->fst_ies);
+		if (wpabuf_resize(&assocresp, add) < 0)
+			goto fail;
+		wpabuf_put_buf(assocresp, hapd->iface->fst_ies);
+	}
+#endif /* CONFIG_FST */
+
 	if (hapd->wps_beacon_ie) {
 		if (wpabuf_resize(&beacon, wpabuf_len(hapd->wps_beacon_ie)) <
 		    0)
@@ -217,6 +233,15 @@ void hostapd_free_ap_extra_ies(struct hostapd_data *hapd,
 }
 
 
+int hostapd_reset_ap_wps_ie(struct hostapd_data *hapd)
+{
+	if (hapd->driver == NULL || hapd->driver->set_ap_wps_ie == NULL)
+		return 0;
+
+	return hapd->driver->set_ap_wps_ie(hapd->drv_priv, NULL, NULL, NULL);
+}
+
+
 int hostapd_set_ap_wps_ie(struct hostapd_data *hapd)
 {
 	struct wpabuf *beacon, *proberesp, *assocresp;
@@ -281,8 +306,14 @@ int hostapd_set_drv_ieee8021x(struct hostapd_data *hapd, const char *ifname,
 		params.wpa = hapd->conf->wpa;
 		params.ieee802_1x = hapd->conf->ieee802_1x;
 		params.wpa_group = hapd->conf->wpa_group;
-		params.wpa_pairwise = hapd->conf->wpa_pairwise |
-			hapd->conf->rsn_pairwise;
+		if ((hapd->conf->wpa & (WPA_PROTO_WPA | WPA_PROTO_RSN)) ==
+		    (WPA_PROTO_WPA | WPA_PROTO_RSN))
+			params.wpa_pairwise = hapd->conf->wpa_pairwise |
+				hapd->conf->rsn_pairwise;
+		else if (hapd->conf->wpa & WPA_PROTO_RSN)
+			params.wpa_pairwise = hapd->conf->rsn_pairwise;
+		else if (hapd->conf->wpa & WPA_PROTO_WPA)
+			params.wpa_pairwise = hapd->conf->wpa_pairwise;
 		params.wpa_key_mgmt = hapd->conf->wpa_key_mgmt;
 		params.rsn_preauth = hapd->conf->rsn_preauth;
 #ifdef CONFIG_IEEE80211W
@@ -618,7 +649,7 @@ int hostapd_drv_send_mlme(struct hostapd_data *hapd,
 {
 	if (hapd->driver == NULL || hapd->driver->send_mlme == NULL)
 		return 0;
-	return hapd->driver->send_mlme(hapd->drv_priv, msg, len, noack);
+	return hapd->driver->send_mlme(hapd->drv_priv, msg, len, noack, 0);
 }
 
 
@@ -712,16 +743,100 @@ int hostapd_drv_set_qos_map(struct hostapd_data *hapd,
 }
 
 
+static void hostapd_get_hw_mode_any_channels(struct hostapd_data *hapd,
+					     struct hostapd_hw_modes *mode,
+					     int acs_ch_list_all,
+					     int **freq_list)
+{
+	int i;
+
+	for (i = 0; i < mode->num_channels; i++) {
+		struct hostapd_channel_data *chan = &mode->channels[i];
+
+		if ((acs_ch_list_all ||
+		     freq_range_list_includes(&hapd->iface->conf->acs_ch_list,
+					      chan->chan)) &&
+		    !(chan->flag & HOSTAPD_CHAN_DISABLED))
+			int_array_add_unique(freq_list, chan->freq);
+	}
+}
+
+
 int hostapd_drv_do_acs(struct hostapd_data *hapd)
 {
 	struct drv_acs_params params;
+	int ret, i, acs_ch_list_all = 0;
+	u8 *channels = NULL;
+	unsigned int num_channels = 0;
+	struct hostapd_hw_modes *mode;
+	int *freq_list = NULL;
 
 	if (hapd->driver == NULL || hapd->driver->do_acs == NULL)
 		return 0;
+
 	os_memset(&params, 0, sizeof(params));
 	params.hw_mode = hapd->iface->conf->hw_mode;
+
+	/*
+	 * If no chanlist config parameter is provided, include all enabled
+	 * channels of the selected hw_mode.
+	 */
+	if (!hapd->iface->conf->acs_ch_list.num)
+		acs_ch_list_all = 1;
+
+	mode = hapd->iface->current_mode;
+	if (mode) {
+		channels = os_malloc(mode->num_channels);
+		if (channels == NULL)
+			return -1;
+
+		for (i = 0; i < mode->num_channels; i++) {
+			struct hostapd_channel_data *chan = &mode->channels[i];
+			if (!acs_ch_list_all &&
+			    !freq_range_list_includes(
+				    &hapd->iface->conf->acs_ch_list,
+				    chan->chan))
+				continue;
+			if (!(chan->flag & HOSTAPD_CHAN_DISABLED)) {
+				channels[num_channels++] = chan->chan;
+				int_array_add_unique(&freq_list, chan->freq);
+			}
+		}
+	} else {
+		for (i = 0; i < hapd->iface->num_hw_features; i++) {
+			mode = &hapd->iface->hw_features[i];
+			hostapd_get_hw_mode_any_channels(hapd, mode,
+							 acs_ch_list_all,
+							 &freq_list);
+		}
+	}
+
+	params.ch_list = channels;
+	params.ch_list_len = num_channels;
+	params.freq_list = freq_list;
+
 	params.ht_enabled = !!(hapd->iface->conf->ieee80211n);
 	params.ht40_enabled = !!(hapd->iface->conf->ht_capab &
 				 HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET);
-	return hapd->driver->do_acs(hapd->drv_priv, &params);
+	params.vht_enabled = !!(hapd->iface->conf->ieee80211ac);
+	params.ch_width = 20;
+	if (hapd->iface->conf->ieee80211n && params.ht40_enabled)
+		params.ch_width = 40;
+
+	/* Note: VHT20 is defined by combination of ht_capab & vht_oper_chwidth
+	 */
+	if (hapd->iface->conf->ieee80211ac && params.ht40_enabled) {
+		if (hapd->iface->conf->vht_oper_chwidth == VHT_CHANWIDTH_80MHZ)
+			params.ch_width = 80;
+		else if (hapd->iface->conf->vht_oper_chwidth ==
+			 VHT_CHANWIDTH_160MHZ ||
+			 hapd->iface->conf->vht_oper_chwidth ==
+			 VHT_CHANWIDTH_80P80MHZ)
+			params.ch_width = 160;
+	}
+
+	ret = hapd->driver->do_acs(hapd->drv_priv, &params);
+	os_free(channels);
+
+	return ret;
 }

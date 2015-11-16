@@ -266,6 +266,7 @@ compat/cloudabi/cloudabi_random.c	optional compat_cloudabi64
 compat/cloudabi/cloudabi_sock.c		optional compat_cloudabi64
 compat/cloudabi/cloudabi_thread.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_fd.c	optional compat_cloudabi64
+compat/cloudabi64/cloudabi64_module.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_poll.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_sock.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_syscalls.c	optional compat_cloudabi64
@@ -1397,8 +1398,8 @@ dev/etherswitch/ip17x/ip175c.c		optional ip17x
 dev/etherswitch/ip17x/ip175d.c		optional ip17x
 dev/etherswitch/ip17x/ip17x_phy.c	optional ip17x
 dev/etherswitch/ip17x/ip17x_vlans.c	optional ip17x
-dev/etherswitch/mdio_if.m		optional miiproxy
-dev/etherswitch/mdio.c			optional miiproxy
+dev/etherswitch/mdio_if.m		optional miiproxy | mdio
+dev/etherswitch/mdio.c			optional miiproxy | mdio
 dev/etherswitch/miiproxy.c		optional miiproxy
 dev/etherswitch/rtl8366/rtl8366rb.c	optional rtl8366rb
 dev/etherswitch/ukswitch/ukswitch.c	optional ukswitch
@@ -2573,7 +2574,6 @@ dev/usb/storage/ustorage_fs.c	optional usfs
 # USB core
 #
 dev/usb/usb_busdma.c		optional usb
-dev/usb/usb_compat_linux.c	optional usb
 dev/usb/usb_core.c		optional usb
 dev/usb/usb_debug.c		optional usb
 dev/usb/usb_dev.c		optional usb
@@ -3795,17 +3795,20 @@ nlm/nlm_prot_svc.c		optional nfslockd | nfsd
 nlm/nlm_prot_xdr.c		optional nfslockd | nfsd
 nlm/sm_inter_xdr.c		optional nfslockd | nfsd
 
-# Linux Kernel Compatibility API
-ofed/include/linux/linux_kmod.c			optional ofed | compat_linuxapi \
-	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_compat.c		optional ofed | compat_linuxapi \
-	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_pci.c			optional ofed | compat_linuxapi \
-	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_idr.c			optional ofed | compat_linuxapi \
-	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_radix.c		optional ofed | compat_linuxapi \
-	no-depend compile-with "${OFED_C}"
+# Linux Kernel Programming Interface
+compat/linuxkpi/common/src/linux_kmod.c		optional compat_linuxkpi \
+	no-depend compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_compat.c	optional compat_linuxkpi \
+	no-depend compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_pci.c		optional compat_linuxkpi pci \
+	no-depend compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_idr.c		optional compat_linuxkpi \
+	no-depend compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_radix.c	optional compat_linuxkpi \
+	no-depend compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_usb.c		optional compat_linuxkpi usb \
+	no-depend compile-with "${LINUXKPI_C}"
+
 # OpenFabrics Enterprise Distribution (Infiniband)
 ofed/drivers/infiniband/core/addr.c		optional ofed		\
 	no-depend							\

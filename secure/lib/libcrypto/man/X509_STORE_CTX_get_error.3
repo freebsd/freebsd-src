@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_STORE_CTX_get_error 3"
-.TH X509_STORE_CTX_get_error 3 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH X509_STORE_CTX_get_error 3 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -169,7 +169,7 @@ checks.
 .PP
 \&\fIX509_STORE_CTX_get_error_depth()\fR returns the \fBdepth\fR of the error. This is a
 non-negative integer representing where in the certificate chain the error
-occurred. If it is zero it occured in the end entity certificate, one if
+occurred. If it is zero it occurred in the end entity certificate, one if
 it is the certificate which signed the end entity certificate and so on.
 .PP
 \&\fIX509_STORE_CTX_get_current_cert()\fR returns the certificate in \fBctx\fR which
@@ -342,10 +342,10 @@ The only CRLs that could be found did not match the scope of the certificate.
 Some feature of a certificate extension is not supported. Unused.
 .IP "\fBX509_V_ERR_PERMITTED_VIOLATION: permitted subtree violation\fR" 4
 .IX Item "X509_V_ERR_PERMITTED_VIOLATION: permitted subtree violation"
-A name constraint violation occured in the permitted subtrees.
+A name constraint violation occurred in the permitted subtrees.
 .IP "\fBX509_V_ERR_EXCLUDED_VIOLATION: excluded subtree violation\fR" 4
 .IX Item "X509_V_ERR_EXCLUDED_VIOLATION: excluded subtree violation"
-A name constraint violation occured in the excluded subtrees.
+A name constraint violation occurred in the excluded subtrees.
 .IP "\fBX509_V_ERR_SUBTREE_MINMAX: name constraints minimum and maximum not supported\fR" 4
 .IX Item "X509_V_ERR_SUBTREE_MINMAX: name constraints minimum and maximum not supported"
 A certificate name constraints extension included a minimum or maximum field:
@@ -361,7 +361,7 @@ address format of a form not mentioned in \s-1RFC3280.\s0 This could be caused b
 a garbage extension or some new feature not currently supported.
 .IP "\fBX509_V_ERR_CRL_PATH_VALIDATION_ERROR: \s-1CRL\s0 path validation error\fR" 4
 .IX Item "X509_V_ERR_CRL_PATH_VALIDATION_ERROR: CRL path validation error"
-An error occured when attempting to verify the \s-1CRL\s0 path. This error can only
+An error occurred when attempting to verify the \s-1CRL\s0 path. This error can only
 happen if extended \s-1CRL\s0 checking is enabled.
 .IP "\fBX509_V_ERR_APPLICATION_VERIFICATION: application verification failure\fR" 4
 .IX Item "X509_V_ERR_APPLICATION_VERIFICATION: application verification failure"

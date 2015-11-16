@@ -24,6 +24,7 @@ int hostapd_build_ap_extra_ies(struct hostapd_data *hapd,
 void hostapd_free_ap_extra_ies(struct hostapd_data *hapd, struct wpabuf *beacon,
 			       struct wpabuf *proberesp,
 			       struct wpabuf *assocresp);
+int hostapd_reset_ap_wps_ie(struct hostapd_data *hapd);
 int hostapd_set_ap_wps_ie(struct hostapd_data *hapd);
 int hostapd_set_authorized(struct hostapd_data *hapd,
 			   struct sta_info *sta, int authorized);

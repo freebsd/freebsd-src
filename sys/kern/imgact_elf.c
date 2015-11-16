@@ -1270,9 +1270,11 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	struct note_info *ninfo;
 	void *hdr, *tmpbuf;
 	size_t hdrsize, notesz, coresize;
+#ifdef GZIO
 	boolean_t compress;
 
 	compress = (flags & IMGACT_CORE_COMPRESS) != 0;
+#endif
 	hdr = NULL;
 	tmpbuf = NULL;
 	TAILQ_INIT(&notelst);
