@@ -8,6 +8,7 @@ ALIASES=	zh_Hans_CN.GB18030 zh_CN.GB18030 \
 		zh_Hans_CN.GB2312 zh_CN.GB2312 \
 		zh_Hans_CN.GBK zh_CN.GBK \
 		zh_Hans_CN.eucCN zh_CN.eucCN \
+		zh_Hans_CN.UTF-8 zh_CN.UTF-8 \
 		zh_Hant_HK.Big5HKSCS zh_HK.Big5HKSCS \
 		zh_Hant_HK.UTF-8 zh_HK.UTF-8 \
 		zh_Hant_TW.Big5 zh_TW.Big5 \
