@@ -40,7 +40,7 @@
 
 #include "ypldap.h"
 
-__dead void	 usage(void);
+__dead2 void	 usage(void);
 int		 check_child(pid_t, const char *);
 void		 main_sig_handler(int, short, void *);
 void		 main_shutdown(void);
