@@ -70,6 +70,8 @@ sys/dev/e1000	erj	Pre-commit phabricator review requested.
 sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
 sys/dev/ixl	erj	Pre-commit phabricator review requested.
 usr.sbin/pkg	pkg@	Please coordinate behavior or flag changes with pkg team.
+lpr		gad	Pre-commit review requested, particularly for
+			lpd/recvjob.c and lpd/printjob.c.
 ---- OLD ----
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
@@ -100,8 +102,6 @@ etc/mail	gshapiro	Pre-commit review requested.
 				Keep in sync with -STABLE.
 etc/sendmail	gshapiro	Pre-commit review requested.
 				Keep in sync with -STABLE.
-lpr		gad	Pre-commit review requested, particularly for
-			lpd/recvjob.c and lpd/printjob.c.
 nvi		peter	Try not to break it.
 libz		peter	Try not to break it.
 groff		ru	Recommends pre-commit review.
