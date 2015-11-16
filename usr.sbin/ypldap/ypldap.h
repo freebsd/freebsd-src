@@ -187,8 +187,8 @@ void		 log_info(const char *, ...);
 void		 log_debug(const char *, ...);
 void		 logit(int, const char *, ...);
 void		 vlog(int, const char *, va_list);
-__dead void	 fatal(const char *);
-__dead void	 fatalx(const char *);
+__dead2 void	 fatal(const char *);
+__dead2 void	 fatalx(const char *);
 
 /* parse.y */
 int		 parse_config(struct env *, const char *, int);
