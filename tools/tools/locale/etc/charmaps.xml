@@ -28,7 +28,7 @@
 
 	-->
 	<language name="af"
-		encoding="ISO8859-1"
+		encoding="ISO8859-1 ISO8859-15"
 		countries="ZA" />
 	<language name="am"
 		countries="ET" />		<!-- UTF-8 only -->
@@ -60,7 +60,7 @@
 		encoding="ISO8859-1 ISO8859-15 US-ASCII"
 		countries="GB" />
 	<language name="en"
-		encoding="ISO8859-1 US-ASCII"
+		encoding="ISO8859-1 ISO8859-15 US-ASCII"
 		countries="AU CA NZ US ZA" />
 	<language name="en"
 		encoding="ISO8859-1 ISO8859-15"
@@ -91,7 +91,7 @@
 		encoding="ISO8859-1 ISO8859-15"
 		countries="BE CH FR" />
 	<language name="fr"
-		encoding="ISO8859-1"
+		encoding="ISO8859-1 ISO8859-15"
 		countries="CA" />
 	<language name="he"
 		countries="IL" />
