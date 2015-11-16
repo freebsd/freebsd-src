@@ -15,7 +15,7 @@ ALIASES=	zh_Hans_CN.GB18030 zh_CN.GB18030 \
 
 .for from to in ${ALIASES}
 .for f in ${LC_FILES}
-SYMLINKS+=	${from}/${f} ${LOCALEDIR}/${to}/${f}
+SYMLINKS+=	../${from}/${f} ${LOCALEDIR}/${to}/${f}
 .endfor
 .endfor
 
