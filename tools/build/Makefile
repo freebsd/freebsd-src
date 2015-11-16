@@ -9,7 +9,7 @@ INCS=
 
 BOOTSTRAPPING?=	0
 
-_WITH_PWCACHEDB!= grep -c pwcache_groupdb /usr/include/grp.h || true
+_WITH_PWCACHEDB!= grep -c pwcache_groupdb /usr/include/grp.h 2>/dev/null || echo 0
 .if ${_WITH_PWCACHEDB} == 0
 .PATH: ${.CURDIR}/../../contrib/libc-pwcache
 CFLAGS+=	-I${.CURDIR}/../../contrib/libc-pwcache \
@@ -17,7 +17,7 @@ CFLAGS+=	-I${.CURDIR}/../../contrib/libc-pwcache \
 SRCS+=		pwcache.c
 .endif
 
-_WITH_STRSVIS!=	grep -c strsvis /usr/include/vis.h || true
+_WITH_STRSVIS!=	grep -c strsvis /usr/include/vis.h 2>/dev/null || echo 0
 .if ${_WITH_STRSVIS} == 0
 .PATH: ${.CURDIR}/../../contrib/libc-vis
 SRCS+=		vis.c
@@ -25,7 +25,7 @@ CFLAGS+=	-I${.CURDIR}/../../contrib/libc-vis \
 		-I${.CURDIR}/../../lib/libc/include
 .endif
 
-_WITH_REALLOCARRAY!= grep -c reallocarray /usr/include/stdlib.h || true
+_WITH_REALLOCARRAY!= grep -c reallocarray /usr/include/stdlib.h 2>/dev/null || echo 0
 .if ${_WITH_REALLOCARRAY} == 0
 .PATH: ${.CURDIR}/../../lib/libc/stdlib
 INCS+=		stdlib.h
