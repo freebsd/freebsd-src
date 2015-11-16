@@ -1,0 +1,18 @@
+# $FreeBSD$
+
+TESTS_SUBDIRS+=	concat
+TESTS_SUBDIRS+=	eli
+TESTS_SUBDIRS+=	gate
+TESTS_SUBDIRS+=	gpt
+TESTS_SUBDIRS+=	mirror
+TESTS_SUBDIRS+=	nop
+TESTS_SUBDIRS+=	raid3
+TESTS_SUBDIRS+=	shsec
+TESTS_SUBDIRS+=	stripe
+TESTS_SUBDIRS+=	uzip
+
+BINDIR=		${TESTSBASE}/sbin/geom/class
+
+FILES+=		geom_subr.sh
+
+.include <bsd.test.mk>

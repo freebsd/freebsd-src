@@ -336,6 +336,42 @@
         ..
         devd
         ..
+        geom
+            class
+                concat
+                ..
+                eli
+                ..
+                gate
+                ..
+                gpt
+                ..
+                mirror
+                ..
+                nop
+                ..
+                raid3
+                ..
+                shsec
+                ..
+                stripe
+                ..
+                uzip
+                    etalon
+                    ..
+                ..
+            ..
+            core
+                ConfCmp
+                ..
+                Data
+                ..
+                MdLoad
+                ..
+                Ref
+                ..
+            ..
+        ..
         growfs
         ..
         ifconfig
