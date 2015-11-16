@@ -26,17 +26,17 @@
  * $FreeBSD$
  */
 
-#include	<sys/select.h>
+#include <sys/select.h>
 
-#include	<err.h>
-#include	<stdio.h>
-#include	<unistd.h>
+#include <err.h>
+#include <stdio.h>
+#include <unistd.h>
 
 /*
  * Check that pipes can be selected for writing in the reverse direction.
  */
 int
-main(int argc, char *argv[])
+main(void)
 {
 	int pip[2];
 	fd_set set;
