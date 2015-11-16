@@ -71,14 +71,14 @@ client_aldap_open(struct ypldap_addr *addr)
 		char			 hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
 		struct sockaddr		*sa = (struct sockaddr *)&p->ss;
 
-		if (getnameinfo(sa, SA_LEN(sa), hbuf, sizeof(hbuf), sbuf,
+		if (getnameinfo(sa, sa->sa_len, hbuf, sizeof(hbuf), sbuf,
 			sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV))
 				errx(1, "could not get numeric hostname");
 
 		if ((fd = socket(sa->sa_family, SOCK_STREAM, 0)) < 0)
 			return NULL;
 
-		if (connect(fd, sa, SA_LEN(sa)) == 0)
+		if (connect(fd, sa, sa->sa_len) == 0)
 			break;
 
 		warn("connect to %s port %s (%s) failed", hbuf, sbuf, "tcp");
