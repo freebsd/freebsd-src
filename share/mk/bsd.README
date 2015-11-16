@@ -448,6 +448,12 @@ It has seven targets:
 
 	all:
 		build the test programs.
+	check:
+		runs the test programs from the object directory; if the
+		Makefile does not itself define the target test, the
+		targets beforecheck and aftercheck may also be used to
+		cause actions immediately before and after the test
+		target is executed.
 	clean:
 		remove the test programs and any object files.
 	cleandir:
@@ -464,12 +470,6 @@ It has seven targets:
                 install target is executed.
 	lint:
 		run lint on the source files.
-	regress:
-		runs the test programs from the object directory; if the
-		Makefile does not itself define the target test, the
-		targets beforeregress and afterregress may also be used to
-		cause actions immediately before and after the test
-		target is executed.
 	tags:
 		create a tags file for the source files.
 

@@ -36,10 +36,10 @@
 .if !target(__<bsd.subdir.mk>__)
 __<bsd.subdir.mk>__:
 
-ALL_SUBDIR_TARGETS= all all-man buildconfig checkdpadd clean cleandepend \
+ALL_SUBDIR_TARGETS= all all-man buildconfig check checkdpadd clean cleandepend \
 		    cleandir cleanilinks cleanobj depend distribute \
 		    installconfig lint maninstall manlint obj objlink \
-		    realinstall regress tags \
+		    realinstall tags \
 		    ${SUBDIR_TARGETS}
 
 # Described above.

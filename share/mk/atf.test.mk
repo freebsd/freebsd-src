@@ -25,7 +25,7 @@ ATF_TESTS_SH?=
 # Path to the prefix of the installed ATF tools, if any.
 #
 # If atf-run and atf-report are installed from ports, we automatically define a
-# realregress target below to run the tests using these tools.  The tools are
+# realcheck target below to run the tests using these tools.  The tools are
 # searched for in the hierarchy specified by this variable.
 ATF_PREFIX?= /usr/local
 
