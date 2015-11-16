@@ -149,7 +149,7 @@ circleq_dnsentry *yp_malloc_dnsent(void)
 {
 	register struct circleq_dnsentry *q;
 
-	q = (struct circleq_dnsentry *)malloc(sizeof(struct circleq_dnsentry));
+	q = malloc(sizeof(struct circleq_dnsentry));
 
 	if (q == NULL) {
 		yp_error("failed to malloc() circleq dns entry");
