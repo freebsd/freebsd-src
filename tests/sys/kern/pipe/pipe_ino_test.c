@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Adrian Chadd
+ * Copyright (c) 2011 Giovanni Trematerra <giovanni.trematerra@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,34 +24,42 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/*
+ * $FreeBSD$
+ * Test conformance to stat(2) SUSv4 description:
+ *  "For all other file types defined in this volume of POSIX.1-2008, the
+ *  structure members st_mode, st_ino, st_dev, st_uid, st_gid, st_atim,
+ *  st_ctim, and st_mtim shall have meaningful values ...".
+ * Check that st_dev and st_ino are meaningful.
+ */
 
-#ifndef	__AR71XX_SETUP_H__
-#define	__AR71XX_SETUP_H__
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <err.h>
+#include <stdio.h>
+#include <unistd.h>
 
-enum ar71xx_soc_type {
-	AR71XX_SOC_UNKNOWN,
-	AR71XX_SOC_AR7130,
-	AR71XX_SOC_AR7141,
-	AR71XX_SOC_AR7161,
-	AR71XX_SOC_AR7240,
-	AR71XX_SOC_AR7241,
-	AR71XX_SOC_AR7242,
-	AR71XX_SOC_AR9130,
-	AR71XX_SOC_AR9132,
-	AR71XX_SOC_AR9330,
-	AR71XX_SOC_AR9331,
-	AR71XX_SOC_AR9341,
-	AR71XX_SOC_AR9342,
-	AR71XX_SOC_AR9344,
-	AR71XX_SOC_QCA9556,
-	AR71XX_SOC_QCA9558,
-	AR71XX_SOC_QCA9533,
-	AR71XX_SOC_QCA9533_V2,
-};
-extern enum ar71xx_soc_type ar71xx_soc;
+int
+main(void)
+{
+	int pipefd[2];
+	struct stat st1, st2;
 
-extern void ar71xx_detect_sys_type(void);
-extern const char *ar71xx_get_system_type(void);
+	if (pipe(pipefd) == -1)
+		err(1, "FAIL: pipe");
 
-#endif
+	if (fstat(pipefd[0], &st1) == -1)
+		err(1, "FAIL: fstat st1");
+	if (fstat(pipefd[1], &st2) == -1)
+		err(1, "FAIL: fstat st2");
+	if (st1.st_dev != st2.st_dev || st1.st_dev == 0 || st2.st_dev == 0)
+		errx(1, "FAIL: wrong dev number %d %d", st1.st_dev, st2.st_dev);
+	if (st1.st_ino == st2.st_ino)
+		errx(1, "FAIL: inode numbers are equal: %d", st1.st_ino);
+
+	close(pipefd[0]);
+	close(pipefd[1]);
+	printf("PASS\n");
+
+	return (0);
+}
