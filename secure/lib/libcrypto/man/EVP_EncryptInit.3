@@ -157,7 +157,7 @@ EVP_CIPHER_CTX_set_padding,  EVP_enc_null, EVP_des_cbc, EVP_des_ecb,
 EVP_des_cfb, EVP_des_ofb, EVP_des_ede_cbc, EVP_des_ede, EVP_des_ede_ofb,
 EVP_des_ede_cfb, EVP_des_ede3_cbc, EVP_des_ede3, EVP_des_ede3_ofb,
 EVP_des_ede3_cfb, EVP_desx_cbc, EVP_rc4, EVP_rc4_40, EVP_idea_cbc,
-EVP_idea_ecb, EVP_idea_cfb, EVP_idea_ofb, EVP_idea_cbc, EVP_rc2_cbc,
+EVP_idea_ecb, EVP_idea_cfb, EVP_idea_ofb, EVP_rc2_cbc,
 EVP_rc2_ecb, EVP_rc2_cfb, EVP_rc2_ofb, EVP_rc2_40_cbc, EVP_rc2_64_cbc,
 EVP_bf_cbc, EVP_bf_ecb, EVP_bf_cfb, EVP_bf_ofb, EVP_cast5_cbc,
 EVP_cast5_ecb, EVP_cast5_cfb, EVP_cast5_ofb, EVP_rc5_32_12_16_cbc,
@@ -440,8 +440,8 @@ Three key triple \s-1DES\s0 in \s-1CBC, ECB, CFB\s0 and \s-1OFB\s0 modes respect
 .IX Item "EVP_rc4_40(void)"
 \&\s-1RC4\s0 stream cipher with 40 bit key length. This is obsolete and new code should use \fIEVP_rc4()\fR
 and the \fIEVP_CIPHER_CTX_set_key_length()\fR function.
-.IP "\fIEVP_idea_cbc()\fR EVP_idea_ecb(void), EVP_idea_cfb(void), EVP_idea_ofb(void), EVP_idea_cbc(void)" 4
-.IX Item "EVP_idea_cbc() EVP_idea_ecb(void), EVP_idea_cfb(void), EVP_idea_ofb(void), EVP_idea_cbc(void)"
+.IP "\fIEVP_idea_cbc()\fR EVP_idea_ecb(void), EVP_idea_cfb(void), EVP_idea_ofb(void)" 4
+.IX Item "EVP_idea_cbc() EVP_idea_ecb(void), EVP_idea_cfb(void), EVP_idea_ofb(void)"
 \&\s-1IDEA\s0 encryption algorithm in \s-1CBC, ECB, CFB\s0 and \s-1OFB\s0 modes respectively.
 .IP "EVP_rc2_cbc(void), EVP_rc2_ecb(void), EVP_rc2_cfb(void), EVP_rc2_ofb(void)" 4
 .IX Item "EVP_rc2_cbc(void), EVP_rc2_ecb(void), EVP_rc2_cfb(void), EVP_rc2_ofb(void)"
