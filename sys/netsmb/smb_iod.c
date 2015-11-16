@@ -659,6 +659,11 @@ smb_iod_thread(void *arg)
 			break;
 		tsleep(&iod->iod_flags, PWAIT, "90idle", iod->iod_sleeptimo);
 	}
+
+	/* We can now safely destroy the mutexes and free the iod structure. */
+	smb_sl_destroy(&iod->iod_rqlock);
+	smb_sl_destroy(&iod->iod_evlock);
+	free(iod, M_SMBIOD);
 	mtx_unlock(&Giant);
 	kproc_exit(0);
 }
@@ -695,9 +700,6 @@ int
 smb_iod_destroy(struct smbiod *iod)
 {
 	smb_iod_request(iod, SMBIOD_EV_SHUTDOWN | SMBIOD_EV_SYNC, NULL);
-	smb_sl_destroy(&iod->iod_rqlock);
-	smb_sl_destroy(&iod->iod_evlock);
-	free(iod, M_SMBIOD);
 	return 0;
 }
 
