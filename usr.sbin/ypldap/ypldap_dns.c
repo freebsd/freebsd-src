@@ -215,7 +215,7 @@ host_dns(const char *s, struct ypldap_addr **hn)
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_DGRAM; /* DUMMY */
 	error = getaddrinfo(s, NULL, &hints, &res0);
-	if (error == EAI_AGAIN || error == EAI_NODATA || error == EAI_NONAME)
+	if (error == EAI_AGAIN || error == EAI_NONAME)
 			return (0);
 	if (error) {
 		log_warnx("could not parse \"%s\": %s", s,
