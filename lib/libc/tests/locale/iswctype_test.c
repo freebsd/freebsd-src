@@ -34,6 +34,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <errno.h>
 #include <locale.h>
 #include <stdio.h>
 #include <string.h>
@@ -42,31 +44,45 @@ __FBSDID("$FreeBSD$");
 
 #include <atf-c.h>
 
-ATF_TC_WITHOUT_HEAD(iswctype_test);
-ATF_TC_BODY(iswctype_test, tc)
+static void
+require_lc_ctype(const char *locale_name)
 {
-	wctype_t t;
-	int i, j;
-	struct {
-		const char *name;
-		int (*func)(wint_t);
-	} cls[] = {
-		{ "alnum", iswalnum },
-		{ "alpha", iswalpha },
-		{ "blank", iswblank },
-		{ "cntrl", iswcntrl },
-		{ "digit", iswdigit },
-		{ "graph", iswgraph },
-		{ "lower", iswlower },
-		{ "print", iswprint },
-		{ "punct", iswpunct },
-		{ "space", iswspace },
-		{ "upper", iswupper },
-		{ "xdigit", iswxdigit }
-	};
+	char *lc_ctype_set;
 
-	/* C/POSIX locale. */
-	for (i = 0; i < sizeof(cls) / sizeof(*cls); i++) {
+	lc_ctype_set = setlocale(LC_CTYPE, locale_name);
+	if (lc_ctype_set == NULL)
+		atf_tc_fail("setlocale(LC_CTYPE, \"%s\") failed; errno=%d",
+		    locale_name, errno);
+
+	ATF_REQUIRE(strcmp(lc_ctype_set, locale_name) == 0);
+}
+
+static wctype_t t;
+static int i, j;
+static struct {
+	const char *name;
+	int (*func)(wint_t);
+} cls[] = {
+	{ "alnum", iswalnum },
+	{ "alpha", iswalpha },
+	{ "blank", iswblank },
+	{ "cntrl", iswcntrl },
+	{ "digit", iswdigit },
+	{ "graph", iswgraph },
+	{ "lower", iswlower },
+	{ "print", iswprint },
+	{ "punct", iswpunct },
+	{ "space", iswspace },
+	{ "upper", iswupper },
+	{ "xdigit", iswxdigit }
+};
+
+ATF_TC_WITHOUT_HEAD(iswctype_c_locale_test);
+ATF_TC_BODY(iswctype_c_locale_test, tc)
+{
+
+	require_lc_ctype("C");
+	for (i = 0; i < nitems(cls); i++) {
 		t = wctype(cls[i].name);
 		ATF_REQUIRE(t != 0);
 		for (j = 0; j < 256; j++)
@@ -76,10 +92,15 @@ ATF_TC_BODY(iswctype_test, tc)
 	ATF_REQUIRE(t == 0);
 	for (i = 0; i < 256; i++)
 		ATF_REQUIRE(iswctype(i, t) == 0);
+}
 
-	/* Japanese (EUC) locale. */
-	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
-	for (i = 0; i < sizeof(cls) / sizeof(*cls); i++) {
+ATF_TC_WITHOUT_HEAD(iswctype_euc_jp_test);
+ATF_TC_BODY(iswctype_euc_jp_test, tc)
+{
+
+	require_lc_ctype("ja_JP.eucJP");
+
+	for (i = 0; i < nitems(cls); i++) {
 		t = wctype(cls[i].name);
 		ATF_REQUIRE(t != 0);
 		for (j = 0; j < 65536; j++)
@@ -94,7 +115,8 @@ ATF_TC_BODY(iswctype_test, tc)
 ATF_TP_ADD_TCS(tp)
 {
 
-	ATF_TP_ADD_TC(tp, iswctype_test);
+	ATF_TP_ADD_TC(tp, iswctype_c_locale_test);
+	ATF_TP_ADD_TC(tp, iswctype_euc_jp_test);
 
 	return (atf_no_error());
 }

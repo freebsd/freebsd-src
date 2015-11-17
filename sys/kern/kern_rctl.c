@@ -1150,16 +1150,29 @@ rctl_rule_add(struct rctl_rule *rule)
 }
 
 static void
+rctl_rule_pre_callback(void)
+{
+
+	rw_wlock(&rctl_lock);
+}
+
+static void
+rctl_rule_post_callback(void)
+{
+
+	rw_wunlock(&rctl_lock);
+}
+
+static void
 rctl_rule_remove_callback(struct racct *racct, void *arg2, void *arg3)
 {
 	struct rctl_rule *filter = (struct rctl_rule *)arg2;
 	int found = 0;
 
 	ASSERT_RACCT_ENABLED();
+	rw_assert(&rctl_lock, RA_WLOCKED);
 
-	rw_wlock(&rctl_lock);
 	found += rctl_racct_remove_rules(racct, filter);
-	rw_wunlock(&rctl_lock);
 
 	*((int *)arg3) += found;
 }
@@ -1186,12 +1199,15 @@ rctl_rule_remove(struct rctl_rule *filter)
 		return (ESRCH);
 	}
 
-	loginclass_racct_foreach(rctl_rule_remove_callback, filter,
-	    (void *)&found);
-	ui_racct_foreach(rctl_rule_remove_callback, filter,
-	    (void *)&found);
-	prison_racct_foreach(rctl_rule_remove_callback, filter,
-	    (void *)&found);
+	loginclass_racct_foreach(rctl_rule_remove_callback,
+	    rctl_rule_pre_callback, rctl_rule_post_callback,
+	    filter, (void *)&found);
+	ui_racct_foreach(rctl_rule_remove_callback,
+	    rctl_rule_pre_callback, rctl_rule_post_callback,
+	    filter, (void *)&found);
+	prison_racct_foreach(rctl_rule_remove_callback,
+	    rctl_rule_pre_callback, rctl_rule_post_callback,
+	    filter, (void *)&found);
 
 	sx_assert(&allproc_lock, SA_LOCKED);
 	rw_wlock(&rctl_lock);
@@ -1425,15 +1441,14 @@ rctl_get_rules_callback(struct racct *racct, void *arg2, void *arg3)
 	struct sbuf *sb = (struct sbuf *)arg3;
 
 	ASSERT_RACCT_ENABLED();
+	rw_assert(&rctl_lock, RA_LOCKED);
 
-	rw_rlock(&rctl_lock);
 	LIST_FOREACH(link, &racct->r_rule_links, rrl_next) {
 		if (!rctl_rule_matches(link->rrl_rule, filter))
 			continue;
 		rctl_rule_to_sbuf(sb, link->rrl_rule);
 		sbuf_printf(sb, ",");
 	}
-	rw_runlock(&rctl_lock);
 }
 
 int
@@ -1494,9 +1509,15 @@ sys_rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
 		rw_runlock(&rctl_lock);
 	}
 
-	loginclass_racct_foreach(rctl_get_rules_callback, filter, sb);
-	ui_racct_foreach(rctl_get_rules_callback, filter, sb);
-	prison_racct_foreach(rctl_get_rules_callback, filter, sb);
+	loginclass_racct_foreach(rctl_get_rules_callback,
+	    rctl_rule_pre_callback, rctl_rule_post_callback,
+	    filter, sb);
+	ui_racct_foreach(rctl_get_rules_callback,
+	    rctl_rule_pre_callback, rctl_rule_post_callback,
+	    filter, sb);
+	prison_racct_foreach(rctl_get_rules_callback,
+	    rctl_rule_pre_callback, rctl_rule_post_callback,
+	    filter, sb);
 	if (sbuf_error(sb) == ENOMEM) {
 		error = ERANGE;
 		goto out;

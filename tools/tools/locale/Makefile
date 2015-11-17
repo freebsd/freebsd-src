@@ -41,15 +41,15 @@ install:
 .for t in ${TYPES}
 .  if ${KNOWN:M${t}}
 	rm -rf ${.CURDIR}/${t}.draft
-	rm -rf ${DESTDIR}/usr/src/share/${t}
-	mv ${.CURDIR}/${t} ${DESTDIR}/usr/src/share/
+	rm -rf ${.CURDIR}/../../../share/${t}
+	mv ${.CURDIR}/${t} ${.CURDIR}/../../../share/${t}
 .  endif
 .endfor
 
 post-install:
 .for t in ${TYPES}
 .  if ${KNOWN:M${t}}
-	(cd ${DESTDIR}/usr/src/share/${t} && \
+	(cd ${.CURDIR}/../../../share/${t} && \
 		make && make install && make clean)
 .  endif
 .endfor

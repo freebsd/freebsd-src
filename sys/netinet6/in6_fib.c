@@ -319,7 +319,7 @@ fib6_sendmbuf(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 		gw_out.sin6_scope_id = ifp->if_index;
 		sa6_embedscope(&gw_out, 0);
 
-		error = nd6_output_ifp(ifp, origifp, m, &gw_out);
+		error = nd6_output_ifp(ifp, origifp, m, &gw_out, NULL);
 	}
 
 	return (error);

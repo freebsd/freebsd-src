@@ -1909,7 +1909,7 @@ nd6_grab_holdchain(struct llentry *ln, struct mbuf **chain,
 
 int
 nd6_output_ifp(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
-    struct sockaddr_in6 *dst)
+    struct sockaddr_in6 *dst, struct route *ro)
 {
 	int error;
 	int ip6len;
@@ -2196,7 +2196,7 @@ nd6_flush_holdchain(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *chain
 	while (m_head) {
 		m = m_head;
 		m_head = m_head->m_nextpkt;
-		error = nd6_output_ifp(ifp, origifp, m, dst);
+		error = nd6_output_ifp(ifp, origifp, m, dst, NULL);
 	}
 
 	/*

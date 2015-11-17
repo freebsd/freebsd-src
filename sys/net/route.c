@@ -824,7 +824,7 @@ rt_foreach_fib_walk(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f,
 			if (rh == NULL)
 				continue;
 			if (setwa_f != NULL)
-				setwa_f(rh, fibnum, AF_UNSPEC, arg);
+				setwa_f(rh, fibnum, af, arg);
 
 			RIB_CFG_WLOCK(rh);
 			/* Do runtime locking for now */

@@ -1,9 +1,6 @@
 /*-
- * Copyright (c) 2011 The FreeBSD Foundation
+ * Copyright (c) 2015 Craig Rodrigues
  * All rights reserved.
- *
- * This software was developed by Edward Tomasz Napierala under sponsorship
- * from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,30 +22,37 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <stddef.h>
+
+int getdtablecount(void);
+
+/* 
+ * Return the count of open file descriptors for this process.
  *
- * $FreeBSD$
  */
+int
+getdtablecount(void)
+{
+	int mib[4];
+	int error;
+	int nfds;
+	size_t len;
 
-#ifndef _SYS_LOGINCLASS_H_
-#define	_SYS_LOGINCLASS_H_
+	len = sizeof(nfds);
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_NFDS;
+	mib[3] = 0;
 
-struct racct;
-
-/*
- * Exactly one of these structures exists per login class.
- */
-struct loginclass {
-	LIST_ENTRY(loginclass)	lc_next;
-	char			lc_name[MAXLOGNAME];
-	u_int			lc_refcount;
-	struct racct		*lc_racct;
-};
-
-void	loginclass_hold(struct loginclass *lc);
-void	loginclass_free(struct loginclass *lc);
-struct loginclass	*loginclass_find(const char *name);
-void	loginclass_racct_foreach(void (*callback)(struct racct *racct,
-	    void *arg2, void *arg3), void (*pre)(void), void (*post)(void),
-	    void *arg2, void *arg3);
-
-#endif /* !_SYS_LOGINCLASS_H_ */
+	error = sysctl(mib, 4, &nfds, &len, NULL, 0);
+	if (error)
+		return (-1);
+	return (nfds);
+}

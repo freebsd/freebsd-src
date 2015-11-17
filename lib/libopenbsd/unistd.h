@@ -1,9 +1,6 @@
 /*-
- * Copyright (c) 2011 The FreeBSD Foundation
+ * Copyright (c) 2015 Craig Rodrigues
  * All rights reserved.
- *
- * This software was developed by Edward Tomasz Napierala under sponsorship
- * from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,26 +26,11 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_LOGINCLASS_H_
-#define	_SYS_LOGINCLASS_H_
+#ifndef _LIBOPENBSD_UNISTD_H_
+#define _LIBOPENBSD_UNISTD_H_
 
-struct racct;
+#include_next <unistd.h>
 
-/*
- * Exactly one of these structures exists per login class.
- */
-struct loginclass {
-	LIST_ENTRY(loginclass)	lc_next;
-	char			lc_name[MAXLOGNAME];
-	u_int			lc_refcount;
-	struct racct		*lc_racct;
-};
+int	 getdtablecount(void);
 
-void	loginclass_hold(struct loginclass *lc);
-void	loginclass_free(struct loginclass *lc);
-struct loginclass	*loginclass_find(const char *name);
-void	loginclass_racct_foreach(void (*callback)(struct racct *racct,
-	    void *arg2, void *arg3), void (*pre)(void), void (*post)(void),
-	    void *arg2, void *arg3);
-
-#endif /* !_SYS_LOGINCLASS_H_ */
+#endif
