@@ -186,7 +186,7 @@ uart_opal_probe_node(struct uart_opal_softc *sc)
 		return (ENXIO);
 
 	reg = -1;
-	OF_getprop(node, "reg", &reg, sizeof(reg));
+	OF_getencprop(node, "reg", &reg, sizeof(reg));
 	if (reg == -1)
 		return (ENXIO);
 	sc->vtermid = reg;

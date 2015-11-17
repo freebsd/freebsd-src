@@ -140,7 +140,7 @@ powernv_timebase_freq(platform_t plat, struct cpuref *cpuref)
 
 	phandle = cpuref->cr_hwref;
 
-	OF_getprop(phandle, "timebase-frequency", &ticks, sizeof(ticks));
+	OF_getencprop(phandle, "timebase-frequency", &ticks, sizeof(ticks));
 
 	if (ticks <= 0)
 		panic("Unable to determine timebase frequency!");
@@ -186,10 +186,10 @@ powernv_smp_first_cpu(platform_t plat, struct cpuref *cpuref)
 		return (ENOENT);
 
 	cpuref->cr_hwref = cpu;
-	res = OF_getprop(cpu, "ibm,ppc-interrupt-server#s", &cpuid,
+	res = OF_getencprop(cpu, "ibm,ppc-interrupt-server#s", &cpuid,
 	    sizeof(cpuid));
 	if (res <= 0)
-		res = OF_getprop(cpu, "reg", &cpuid, sizeof(cpuid));
+		res = OF_getencprop(cpu, "reg", &cpuid, sizeof(cpuid));
 	if (res <= 0)
 		cpuid = 0;
 	cpuref->cr_cpuid = cpuid;
@@ -208,7 +208,7 @@ powernv_smp_next_cpu(platform_t plat, struct cpuref *cpuref)
 	res = OF_getproplen(cpuref->cr_hwref, "ibm,ppc-interrupt-server#s");
 	if (res > 0) {
 		cell_t interrupt_servers[res/sizeof(cell_t)];
-		OF_getprop(cpuref->cr_hwref, "ibm,ppc-interrupt-server#s",
+		OF_getencprop(cpuref->cr_hwref, "ibm,ppc-interrupt-server#s",
 		    interrupt_servers, res);
 		for (i = 0; i < res/sizeof(cell_t) - 1; i++) {
 			if (interrupt_servers[i] == cpuref->cr_cpuid) {
@@ -230,10 +230,10 @@ powernv_smp_next_cpu(platform_t plat, struct cpuref *cpuref)
 		return (ENOENT);
 
 	cpuref->cr_hwref = cpu;
-	res = OF_getprop(cpu, "ibm,ppc-interrupt-server#s", &cpuid,
+	res = OF_getencprop(cpu, "ibm,ppc-interrupt-server#s", &cpuid,
 	    sizeof(cpuid));
 	if (res <= 0)
-		res = OF_getprop(cpu, "reg", &cpuid, sizeof(cpuid));
+		res = OF_getencprop(cpu, "reg", &cpuid, sizeof(cpuid));
 	if (res <= 0)
 		cpuid = 0;
 	cpuref->cr_cpuid = cpuid;
