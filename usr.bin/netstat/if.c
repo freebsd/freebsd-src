@@ -358,7 +358,7 @@ intpr(void (*pfunc)(char *), int af)
 		} else
 			xname = name;
 
-		xo_emit("{etk:name/%s}{e:flags/0x%x}{d:/%-*.*s}",
+		xo_emit("{etk:name/%s}{eq:flags/0x%x}{d:/%-*.*s}",
 		    name, ifa->ifa_flags, ifn_len_max, ifn_len_max, xname);
 
 #define IFA_MTU(ifa)	(((struct if_data *)(ifa)->ifa_data)->ifi_mtu)
