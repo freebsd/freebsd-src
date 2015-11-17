@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2015
+.Dd November 17, 2015
 .Dt MPSUTIL 8
 .Os
 .Sh NAME
@@ -60,6 +60,16 @@
 .Nm
 .Op Fl u Ar unit
 .Cm show iocfacts
+.Nm
+.Op Fl u Ar unit
+.Cm flash save
+.Op Ar firmware Ns | Ns Ar bios
+.Op Ar file
+.Nm
+.Op Fl u Ar unit
+.Cm flash update
+.Op Ar firmware Ns | Ns Ar bios
+.Ar file
 .Sh DESCRIPTION
 The
 .Nm
@@ -94,7 +104,9 @@ then unit 0 is used.
 .Pp
 The
 .Nm
-utility currently only supports informational commands.
+utility supports several different groups of commands.
+The first group of commands provide information about the controller.
+The second group of commands are used to manager controller-wide operations.
 .Pp
 The informational commands include:
 .Bl -tag -width indent
@@ -119,8 +131,32 @@ Displays IOC Facts messages.
 .It Cm show cfgpage page Oo Ar num Oc Op Ar addr
 Show IOC Facts Message
 .El
+.Pp
+Controller management commands include:
+.Bl -tag -width indent
+.It Cm flash save Oo Ar firmware Ns | Ns Ar bios Oc Op Ar file
+Save the
+.Ar firmware
+or
+.Ar bios
+from the controller into a local
+.Ar file .
+If no
+.Ar file
+is specified then the file will be named
+.Pa firmware
+or
+.Pa bios .
+.It Cm flash update Oo Ar firmware Ns | Ns Ar bios Oc Ar file
+Replace the
+.Ar firmware
+or
+.Ar bios
+from the controller with the one specified via
+.Ar file .
+.El
 .Sh SEE ALSO
-.Xr mpr 4
+.Xr mpr 4 ,
 .Xr mps 4
 .Sh HISTORY
 The

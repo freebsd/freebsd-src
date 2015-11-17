@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	mpsutil
-SRCS=	mpsutil.c mps_cmd.c mps_show.c
+SRCS=	mps_cmd.c mps_flash.c mps_show.c mpsutil.c
 MAN=	mpsutil.8
 
 WARNS?= 3

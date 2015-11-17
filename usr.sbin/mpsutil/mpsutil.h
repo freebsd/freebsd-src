@@ -35,6 +35,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/linker_set.h>
+#include <stdbool.h>
 
 #include <dev/mps/mpi/mpi2_type.h>
 #include <dev/mps/mpi/mpi2.h>
@@ -122,6 +123,8 @@ void	*mps_read_extended_config_page(int fd, U8 ExtPageType, U8 PageVersion,
 int	mps_map_btdh(int fd, uint16_t *devhandle, uint16_t *bus,
     uint16_t *target);
 const char *mps_ioc_status(U16 IOCStatus);
+int	mps_firmware_send(int fd, unsigned char *buf, uint32_t len, bool bios);
+int	mps_firmware_get(int fd, unsigned char **buf, bool bios);
 
 static __inline void *
 mps_read_man_page(int fd, U8 PageNumber, U16 *IOCStatus)

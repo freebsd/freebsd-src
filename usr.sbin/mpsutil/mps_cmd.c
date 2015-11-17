@@ -1,4 +1,6 @@
 /*-
+ * Copyright (c) 2015 Baptiste Daroussin <bapt@FreeBSD.org>
+ *
  * Copyright (c) 2015 Netflix, Inc.
  * All rights reserved.
  * Written by: Scott Long <scottl@freebsd.org>
@@ -440,6 +442,62 @@ mps_read_extended_config_page(int fd, U8 ExtPageType, U8 PageVersion,
 		return (NULL);
 	}
 	return (buf);
+}
+
+int
+mps_firmware_send(int fd, unsigned char *fw, uint32_t len, bool bios)
+{
+	MPI2_FW_DOWNLOAD_REQUEST req;
+	MPI2_FW_DOWNLOAD_REPLY reply;
+
+	bzero(&req, sizeof(req));
+	bzero(&reply, sizeof(reply));
+	req.Function = MPI2_FUNCTION_FW_DOWNLOAD;
+	req.ImageType = bios ? MPI2_FW_DOWNLOAD_ITYPE_BIOS : MPI2_FW_DOWNLOAD_ITYPE_FW;
+	req.TotalImageSize = len;
+	req.MsgFlags = MPI2_FW_DOWNLOAD_MSGFLGS_LAST_SEGMENT;
+
+	if (mps_user_command(fd, &req, sizeof(req), &reply, sizeof(reply),
+	    fw, len, 0)) {
+		return (-1);
+	}
+	return (0);
+}
+
+int
+mps_firmware_get(int fd, unsigned char **firmware, bool bios)
+{
+	MPI2_FW_UPLOAD_REQUEST req;
+	MPI2_FW_UPLOAD_REPLY reply;
+	int size;
+
+	*firmware = NULL;
+	bzero(&req, sizeof(req));
+	bzero(&reply, sizeof(reply));
+	req.Function = MPI2_FUNCTION_FW_UPLOAD;
+	req.ImageType = bios ? MPI2_FW_DOWNLOAD_ITYPE_BIOS : MPI2_FW_DOWNLOAD_ITYPE_FW;
+
+	if (mps_user_command(fd, &req, sizeof(req), &reply, sizeof(reply),
+	    NULL, 0, 0)) {
+		return (-1);
+	}
+	if (reply.ActualImageSize == 0) {
+		return (-1);
+	}
+
+	size = reply.ActualImageSize;
+	*firmware = calloc(1, sizeof(char) * size);
+	if (*firmware == NULL) {
+		warn("calloc");
+		return (-1);
+	}
+	if (mps_user_command(fd, &req, sizeof(req), &reply, sizeof(reply),
+	    *firmware, size, 0)) {
+		free(*firmware);
+		return (-1);
+	}
+
+	return (size);
 }
 
 #else
