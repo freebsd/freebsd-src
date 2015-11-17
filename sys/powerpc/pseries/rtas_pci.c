@@ -133,7 +133,7 @@ rtaspci_attach(device_t dev)
 	sc->ex_write_pci_config = rtas_token_lookup("ibm,write-pci-config");
 
 	sc->sc_extended_config = 0;
-	OF_getprop(ofw_bus_get_node(dev), "ibm,pci-config-space-type",
+	OF_getencprop(ofw_bus_get_node(dev), "ibm,pci-config-space-type",
 	    &sc->sc_extended_config, sizeof(sc->sc_extended_config));
 
 	return (ofw_pci_attach(dev));

@@ -142,11 +142,11 @@ mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
                 node = OF_peer(node);
         }
 
-	res = OF_getprop(node, "ibm,pft-size", prop, sizeof(prop));
+	res = OF_getencprop(node, "ibm,pft-size", prop, sizeof(prop));
 	if (res <= 0)
 		panic("mmu_phyp: unknown PFT size");
 	final_pteg_count = 1 << prop[1];
-	res = OF_getprop(node, "ibm,slb-size", prop, sizeof(prop[0]));
+	res = OF_getencprop(node, "ibm,slb-size", prop, sizeof(prop[0]));
 	if (res > 0)
 		n_slbs = prop[0];
 

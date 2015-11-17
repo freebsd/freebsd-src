@@ -156,7 +156,8 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 	node = ofw_bus_get_node(dev);
 
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		if (OF_getprop(child, "reg", &pcir, sizeof(pcir)) == -1)
+		if (OF_getencprop(child, "reg", (pcell_t *)&pcir,
+		    sizeof(pcir)) == -1)
 			continue;
 		slot = OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi);
 		func = OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi);
@@ -305,11 +306,12 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	 */
 
 	iparent = -1;
-	if (OF_getprop(node, "interrupt-parent", &iparent, sizeof(iparent)) < 0)
+	if (OF_getencprop(node, "interrupt-parent", &iparent,
+	    sizeof(iparent)) < 0)
 		iparent = -1;
 	icells = 1;
 	if (iparent != -1)
-		OF_getprop(OF_node_from_xref(iparent), "#interrupt-cells",
+		OF_getencprop(OF_node_from_xref(iparent), "#interrupt-cells",
 		    &icells, sizeof(icells));
 	
 	/*
@@ -317,12 +319,12 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	 * fully specified (i.e. does not need routing)
 	 */
 
-	isz = OF_getprop(node, "AAPL,interrupts", intr, sizeof(intr));
+	isz = OF_getencprop(node, "AAPL,interrupts", intr, sizeof(intr));
 	if (isz == sizeof(intr[0])*icells)
 		return ((iparent == -1) ? intr[0] : ofw_bus_map_intr(dev,
 		    iparent, icells, intr));
 
-	isz = OF_getprop(node, "interrupts", intr, sizeof(intr));
+	isz = OF_getencprop(node, "interrupts", intr, sizeof(intr));
 	if (isz == sizeof(intr[0])*icells) {
 		if (iparent != -1)
 			intr[0] = ofw_bus_map_intr(dev, iparent, icells, intr);
