@@ -39,7 +39,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	Databases administrators will need to reindex their databases given
 	collation results will be different.
 
-	Due to a bug in install(1) it is recommanded to remove the ancient
+	Due to a bug in install(1) it is recommended to remove the ancient
 	locales before running make installworld
 
 	rm -rf /usr/share/locale
