@@ -1,4 +1,4 @@
-name = "FreeBSD-tests"
+name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
 comment = "%COMMENT%"

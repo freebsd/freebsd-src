@@ -1,4 +1,4 @@
-name = "FreeBSD-bsnmp-profile"
+name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
 comment = "SNMP libraries (profiling)"
@@ -9,5 +9,5 @@ prefix = "/"
 licenselogic = "single"
 licenses = [ BSD2CLAUSE ]
 desc = <<EOD
-TODO
+%DESC%
 EOD

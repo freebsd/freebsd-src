@@ -1,4 +1,4 @@
-name = "FreeBSD-ssh-lib32"
+name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
 comment = "Secure SHell 32bits libraries"
@@ -9,5 +9,5 @@ prefix = "/"
 licenselogic = "single"
 licenses = [ ISCL ]
 desc = <<EOD
-TODO
+%DESC%
 EOD

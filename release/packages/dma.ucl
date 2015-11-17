@@ -1,4 +1,4 @@
-name = "FreeBSD-dma"
+name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
 comment = "DragonFly Mail Agent"

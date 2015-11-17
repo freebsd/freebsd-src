@@ -1,4 +1,4 @@
-name = "FreeBSD-at"
+name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
 comment = "at(1) and related utilities"
@@ -9,5 +9,5 @@ prefix = "/"
 licenselogic = "single"
 licenses = [ BSD2CLAUSE ]
 desc = <<EOD
-TODO
+%DESC%
 EOD

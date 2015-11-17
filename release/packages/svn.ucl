@@ -1,4 +1,4 @@
-name = "FreeBSD-svn"
+name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
 comment = "Version control system"
