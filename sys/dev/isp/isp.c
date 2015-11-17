@@ -6192,12 +6192,32 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 static int
 isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *optrp)
 {
+	isp_ridacq_t rid;
+	int chan, c;
+
 	switch (type) {
 	case RQSTYPE_STATUS_CONT:
 		isp_prt(isp, ISP_LOG_WARN1, "Ignored Continuation Response");
 		return (1);
 	case RQSTYPE_MARKER:
 		isp_prt(isp, ISP_LOG_WARN1, "Marker Response");
+		return (1);
+	case RQSTYPE_RPT_ID_ACQ:
+		isp_get_ridacq(isp, (isp_ridacq_t *)hp, &rid);
+		if (rid.ridacq_format == 0) {
+			for (chan = 0; chan < isp->isp_nchan; chan++) {
+				fcparam *fcp = FCPARAM(isp, chan);
+				if (fcp->role == ISP_ROLE_NONE)
+					continue;
+				c = (chan == 0) ? 127 : (chan - 1);
+				if (rid.ridacq_map[c / 16] & (1 << (c % 16)))
+					isp_async(isp, ISPASYNC_CHANGE_NOTIFY,
+					    chan, ISPASYNC_CHANGE_OTHER);
+			}
+		} else {
+			isp_async(isp, ISPASYNC_CHANGE_NOTIFY,
+			    rid.ridacq_vp_index, ISPASYNC_CHANGE_OTHER);
+		}
 		return (1);
 	case RQSTYPE_ATIO:
 	case RQSTYPE_CTIO:
@@ -6218,15 +6238,6 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 			return (1);
 		}
 #endif
-		/* FALLTHROUGH */
-	case RQSTYPE_RPT_ID_ACQ:
-		if (IS_24XX(isp)) {
-			isp_ridacq_t rid;
-			isp_get_ridacq(isp, (isp_ridacq_t *)hp, &rid);
-			if (rid.ridacq_format == 0) {
-			}
-			return (1);
-		}
 		/* FALLTHROUGH */
 	case RQSTYPE_REQUEST:
 	default:
