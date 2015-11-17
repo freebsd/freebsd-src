@@ -2187,7 +2187,7 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		size_t amt = 0;
 		uint8_t *off;
 
-		vpinfo.vp_global_options = 0;
+		vpinfo.vp_global_options = ICB2400_VPGOPT_GEN_RIDA;
 		if (ISP_CAP_VP0(isp)) {
 			vpinfo.vp_global_options |= ICB2400_VPGOPT_VP0_DECOUPLE;
 			vpinfo.vp_count = isp->isp_nchan;
@@ -2207,7 +2207,8 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 			ISP_MEMZERO(&pi, sizeof (pi));
 			fcp2 = FCPARAM(isp, chan);
 			if (fcp2->role != ISP_ROLE_NONE) {
-				pi.vp_port_options = ICB2400_VPOPT_ENABLED;
+				pi.vp_port_options = ICB2400_VPOPT_ENABLED |
+				    ICB2400_VPOPT_ENA_SNSLOGIN;
 				if (fcp2->role & ISP_ROLE_INITIATOR)
 					pi.vp_port_options |= ICB2400_VPOPT_INI_ENABLE;
 				if ((fcp2->role & ISP_ROLE_TARGET) == 0)
@@ -2914,16 +2915,7 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 			} else {
 				fcp->isp_fabric_params = 0;
 			}
-			if (chan) {
-				fcp->isp_sns_hdl = NPH_RESERVED - chan;
-				r = isp_plogx(isp, chan, fcp->isp_sns_hdl, SNS_PORT_ID, PLOGX_FLG_CMD_PLOGI | PLOGX_FLG_COND_PLOGI | PLOGX_FLG_SKIP_PRLI, 0);
-				if (r) {
-					isp_prt(isp, ISP_LOGWARN, "%s: Chan %d cannot log into SNS", __func__, chan);
-					return (-1);
-				}
-			} else {
-				fcp->isp_sns_hdl = NPH_SNS_ID;
-			}
+			fcp->isp_sns_hdl = NPH_SNS_ID;
 			r = isp_register_fc4_type_24xx(isp, chan);
 		} else {
 			fcp->isp_sns_hdl = SNS_ID;
@@ -3167,7 +3159,7 @@ fail:
 		 * Don't scan "special" ids.
 		 */
 		if (ISP_CAP_2KLOGIN(isp)) {
-			if (handle >= NPH_RESERVED - isp->isp_nchan)
+			if (handle >= NPH_RESERVED)
 				continue;
 		} else {
 			if (handle >= FL_ID && handle <= SNS_ID)
@@ -4276,7 +4268,7 @@ isp_next_handle(ispsoftc_t *isp, uint16_t *ohp)
 	handle = *ohp;
 	if (ISP_CAP_2KLOGIN(isp)) {
 		minh = 0;
-		maxh = NPH_RESERVED - isp->isp_nchan; /* Reserve for SNS */
+		maxh = NPH_RESERVED - 1;
 	} else {
 		minh = SNS_ID + 1;
 		maxh = NPH_MAX - 1;
@@ -6192,12 +6184,32 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 static int
 isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *optrp)
 {
+	isp_ridacq_t rid;
+	int chan, c;
+
 	switch (type) {
 	case RQSTYPE_STATUS_CONT:
 		isp_prt(isp, ISP_LOG_WARN1, "Ignored Continuation Response");
 		return (1);
 	case RQSTYPE_MARKER:
 		isp_prt(isp, ISP_LOG_WARN1, "Marker Response");
+		return (1);
+	case RQSTYPE_RPT_ID_ACQ:
+		isp_get_ridacq(isp, (isp_ridacq_t *)hp, &rid);
+		if (rid.ridacq_format == 0) {
+			for (chan = 0; chan < isp->isp_nchan; chan++) {
+				fcparam *fcp = FCPARAM(isp, chan);
+				if (fcp->role == ISP_ROLE_NONE)
+					continue;
+				c = (chan == 0) ? 127 : (chan - 1);
+				if (rid.ridacq_map[c / 16] & (1 << (c % 16)))
+					isp_async(isp, ISPASYNC_CHANGE_NOTIFY,
+					    chan, ISPASYNC_CHANGE_OTHER);
+			}
+		} else {
+			isp_async(isp, ISPASYNC_CHANGE_NOTIFY,
+			    rid.ridacq_vp_index, ISPASYNC_CHANGE_OTHER);
+		}
 		return (1);
 	case RQSTYPE_ATIO:
 	case RQSTYPE_CTIO:
@@ -6218,15 +6230,6 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 			return (1);
 		}
 #endif
-		/* FALLTHROUGH */
-	case RQSTYPE_RPT_ID_ACQ:
-		if (IS_24XX(isp)) {
-			isp_ridacq_t rid;
-			isp_get_ridacq(isp, (isp_ridacq_t *)hp, &rid);
-			if (rid.ridacq_format == 0) {
-			}
-			return (1);
-		}
 		/* FALLTHROUGH */
 	case RQSTYPE_REQUEST:
 	default:

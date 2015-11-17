@@ -1282,8 +1282,16 @@ pmc_process_csw_in(struct thread *td)
 		 */
 		if (PMC_TO_MODE(pm) == PMC_MODE_TS) {
 			mtx_pool_lock_spin(pmc_mtxpool, pm);
+
+			/*
+			 * Use the saved value calculated after the most recent
+			 * thread switch out to start this counter.  Reset
+			 * the saved count in case another thread from this
+			 * process switches in before any threads switch out.
+			 */
 			newvalue = PMC_PCPU_SAVED(cpu,ri) =
 			    pp->pp_pmcs[ri].pp_pmcval;
+			pp->pp_pmcs[ri].pp_pmcval = pm->pm_sc.pm_reloadcount;
 			mtx_pool_unlock_spin(pmc_mtxpool, pm);
 		} else {
 			KASSERT(PMC_TO_MODE(pm) == PMC_MODE_TC,
@@ -1431,31 +1439,43 @@ pmc_process_csw_out(struct thread *td)
 
 			pcd->pcd_read_pmc(cpu, adjri, &newvalue);
 
-			tmp = newvalue - PMC_PCPU_SAVED(cpu,ri);
-
-			PMCDBG3(CSW,SWO,1,"cpu=%d ri=%d tmp=%jd", cpu, ri,
-			    tmp);
-
 			if (mode == PMC_MODE_TS) {
+				PMCDBG3(CSW,SWO,1,"cpu=%d ri=%d tmp=%jd (samp)",
+				    cpu, ri, PMC_PCPU_SAVED(cpu,ri) - newvalue);
 
 				/*
 				 * For sampling process-virtual PMCs,
-				 * we expect the count to be
-				 * decreasing as the 'value'
-				 * programmed into the PMC is the
-				 * number of events to be seen till
-				 * the next sampling interrupt.
+				 * newvalue is the number of events to be seen
+				 * until the next sampling interrupt.
+				 * We can just add the events left from this
+				 * invocation to the counter, then adjust
+				 * in case we overflow our range.
+				 *
+				 * (Recall that we reload the counter every
+				 * time we use it.)
 				 */
-				if (tmp < 0)
-					tmp += pm->pm_sc.pm_reloadcount;
 				mtx_pool_lock_spin(pmc_mtxpool, pm);
-				pp->pp_pmcs[ri].pp_pmcval -= tmp;
-				if ((int64_t) pp->pp_pmcs[ri].pp_pmcval <= 0)
-					pp->pp_pmcs[ri].pp_pmcval +=
+
+				pp->pp_pmcs[ri].pp_pmcval += newvalue;
+				if (pp->pp_pmcs[ri].pp_pmcval >
+				    pm->pm_sc.pm_reloadcount)
+					pp->pp_pmcs[ri].pp_pmcval -=
 					    pm->pm_sc.pm_reloadcount;
+				KASSERT(pp->pp_pmcs[ri].pp_pmcval > 0 &&
+				    pp->pp_pmcs[ri].pp_pmcval <=
+				    pm->pm_sc.pm_reloadcount,
+				    ("[pmc,%d] pp_pmcval outside of expected "
+				    "range cpu=%d ri=%d pp_pmcval=%jx "
+				    "pm_reloadcount=%jx", __LINE__, cpu, ri,
+				    pp->pp_pmcs[ri].pp_pmcval,
+				    pm->pm_sc.pm_reloadcount));
 				mtx_pool_unlock_spin(pmc_mtxpool, pm);
 
 			} else {
+				tmp = newvalue - PMC_PCPU_SAVED(cpu,ri);
+
+				PMCDBG3(CSW,SWO,1,"cpu=%d ri=%d tmp=%jd (count)",
+				    cpu, ri, tmp);
 
 				/*
 				 * For counting process-virtual PMCs,

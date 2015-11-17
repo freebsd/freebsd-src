@@ -35,8 +35,10 @@ INTERFACE hdmi;
 HEADER {
 	#include <sys/eventhandler.h>
 
-	typedef void (*hdmi_event_hook)(void *, int);
+	typedef void (*hdmi_event_hook)(void *, device_t, int);
 	EVENTHANDLER_DECLARE(hdmi_event, hdmi_event_hook);
+
+	#define HDMI_EVENT_CONNECTED	0
 }
 
 #

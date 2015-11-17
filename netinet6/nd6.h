@@ -422,7 +422,7 @@ int nd6_flush_holdchain(struct ifnet *, struct ifnet *, struct mbuf *,
 int nd6_add_ifa_lle(struct in6_ifaddr *);
 void nd6_rem_ifa_lle(struct in6_ifaddr *, int);
 int nd6_output_ifp(struct ifnet *, struct ifnet *, struct mbuf *,
-    struct sockaddr_in6 *);
+    struct sockaddr_in6 *, struct route *);
 
 /* nd6_nbr.c */
 void nd6_na_input(struct mbuf *, int, int);
