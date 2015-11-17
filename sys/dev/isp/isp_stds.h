@@ -139,6 +139,20 @@ typedef struct {
 } rft_id_t;
 
 /*
+ * RFF_ID Requet CT_IU
+ *
+ * Source: INCITS 463-2010 Generic Services 6 Section 5.2.5.34
+ */
+typedef struct {
+	ct_hdr_t	rffid_hdr;
+	uint8_t		rffid_reserved;
+	uint8_t		rffid_portid[3];
+	uint16_t	rffid_reserved2;
+	uint8_t		rffid_fc4features;
+	uint8_t		rffid_fc4type;
+} rff_id_t;
+
+/*
  * FCP Response IU and bits of interest
  * Source: NCITS T10, Project 1828D, Revision 02b (aka FCP4r02b)
  */
