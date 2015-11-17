@@ -153,3 +153,4 @@ filemon		obrien		Pre-commit review preferred.
 sysdoc		trhodes		Pre-commit review preferred.
 nanobsd		imp	Pre-commit review requested for coordination.
 vmm(4)		neel,grehan	Pre-commit review requested.
+nis(8), yp(8)	araujo	Pre-commit review requested.
