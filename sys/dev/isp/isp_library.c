@@ -1733,6 +1733,10 @@ isp_get_ridacq(ispsoftc_t *isp, isp_ridacq_t *src, isp_ridacq_t *dst)
 	int i;
 	isp_get_hdr(isp, &src->ridacq_hdr, &dst->ridacq_hdr);
 	ISP_IOXGET_32(isp, &src->ridacq_handle, dst->ridacq_handle);
+	ISP_IOXGET_8(isp, &src->ridacq_vp_acquired, dst->ridacq_vp_acquired);
+	ISP_IOXGET_8(isp, &src->ridacq_vp_setup, dst->ridacq_vp_setup);
+	ISP_IOXGET_8(isp, &src->ridacq_vp_index, dst->ridacq_vp_index);
+	ISP_IOXGET_8(isp, &src->ridacq_vp_status, dst->ridacq_vp_status);
 	ISP_IOXGET_16(isp, &src->ridacq_vp_port_lo, dst->ridacq_vp_port_lo);
 	ISP_IOXGET_8(isp, &src->ridacq_vp_port_hi, dst->ridacq_vp_port_hi);
 	ISP_IOXGET_8(isp, &src->ridacq_format, dst->ridacq_format);
@@ -1741,17 +1745,6 @@ isp_get_ridacq(ispsoftc_t *isp, isp_ridacq_t *src, isp_ridacq_t *dst)
 	}
 	for (i = 0; i < sizeof (src->ridacq_reserved1) / sizeof (src->ridacq_reserved1[0]); i++) {
 		ISP_IOXGET_16(isp, &src->ridacq_reserved1[i], dst->ridacq_reserved1[i]);
-	}
-	if (dst->ridacq_format == 0) {
-		ISP_IOXGET_8(isp, &src->un.type0.ridacq_vp_acquired, dst->un.type0.ridacq_vp_acquired);
-		ISP_IOXGET_8(isp, &src->un.type0.ridacq_vp_setup, dst->un.type0.ridacq_vp_setup);
-		ISP_IOXGET_16(isp, &src->un.type0.ridacq_reserved0, dst->un.type0.ridacq_reserved0);
-	} else if (dst->ridacq_format == 1) {
-		ISP_IOXGET_16(isp, &src->un.type1.ridacq_vp_count, dst->un.type1.ridacq_vp_count);
-		ISP_IOXGET_8(isp, &src->un.type1.ridacq_vp_index, dst->un.type1.ridacq_vp_index);
-		ISP_IOXGET_8(isp, &src->un.type1.ridacq_vp_status, dst->un.type1.ridacq_vp_status);
-	} else {
-		ISP_MEMZERO(&dst->un, sizeof (dst->un));
 	}
 }
 
