@@ -17,8 +17,8 @@ trap test_cleanup ABRT EXIT INT TERM
 work=$(attach_md -t malloc -s 1M)
 src=$(attach_md -t malloc -s 1M)
 
-dd if=/dev/random of=/dev/$work bs=1m count=1 >/dev/null 2>&1
-dd if=/dev/random of=/dev/$src bs=1m count=1 >/dev/null 2>&1
+dd if=/dev/random of=/dev/$work bs=1m count=1 conv=sync
+dd if=/dev/random of=/dev/$src bs=1m count=1 conv=sync
 src_checksum=$(md5 -q /dev/$src)
 
 if ! ggatel create -u $us /dev/$work; then
@@ -27,7 +27,7 @@ if ! ggatel create -u $us /dev/$work; then
 	exit 1
 fi
 
-dd if=/dev/${src} of=/dev/ggate${us} bs=1m count=1 >/dev/null 2>&1
+dd if=/dev/${src} of=/dev/ggate${us} bs=1m count=1 conv=sync
 sleep 1
 
 echo '1..2'

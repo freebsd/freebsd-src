@@ -20,8 +20,8 @@ test_cleanup()
 }
 trap test_cleanup ABRT EXIT INT TERM
 
-dd if=/dev/random of=/dev/$work bs=1m count=1 >/dev/null 2>&1
-dd if=/dev/random of=/dev/$src bs=1m count=1 >/dev/null 2>&1
+dd if=/dev/random of=/dev/$work bs=1m count=1 conv=sync
+dd if=/dev/random of=/dev/$src bs=1m count=1 conv=sync
 src_checksum=$(md5 -q /dev/$src)
 
 echo "127.0.0.1 RW /dev/$work" > $conf
@@ -37,7 +37,7 @@ if ! ggatec create -p $port -u $us 127.0.0.1 /dev/$work; then
 	exit 1
 fi
 
-dd if=/dev/${src} of=/dev/ggate${us} bs=1m count=1 >/dev/null 2>&1
+dd if=/dev/${src} of=/dev/ggate${us} bs=1m count=1
 sleep 1
 
 echo '1..2'
