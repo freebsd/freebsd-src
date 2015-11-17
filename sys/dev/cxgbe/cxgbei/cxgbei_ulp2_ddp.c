@@ -52,11 +52,13 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_fsm.h>
 
-#include <common/common.h>
-#include <common/t4_msg.h>
-#include <common/t4_regs.h>     /* for PCIE_MEM_ACCESS */
-#include <tom/t4_tom.h>
+#include <dev/iscsi/icl.h>
+#include <dev/iscsi/iscsi_proto.h>
 
+#include "common/common.h"
+#include "common/t4_msg.h"
+#include "common/t4_regs.h"     /* for PCIE_MEM_ACCESS */
+#include "tom/t4_tom.h"
 #include "cxgbei.h"
 #include "cxgbei_ulp2_ddp.h"
 
@@ -293,7 +295,7 @@ cxgbei_ulp2_ddp_release_gl(struct cxgbei_data *ci,
  * return 0 if success, < 0 otherwise.
  */
 int
-cxgbei_ulp2_ddp_tag_reserve(struct cxgbei_data *ci, void *isock, u_int tid,
+cxgbei_ulp2_ddp_tag_reserve(struct cxgbei_data *ci, void *icc, u_int tid,
     struct cxgbei_ulp2_tag_format *tformat, u32 *tagp,
     struct cxgbei_ulp2_gather_list *gl, int gfp, int reply)
 {
@@ -338,7 +340,7 @@ cxgbei_ulp2_ddp_tag_reserve(struct cxgbei_data *ci, void *isock, u_int tid,
 	hdr.maxoffset = htonl(gl->length);
 	hdr.pgoffset = htonl(gl->offset);
 
-	rc = t4_ddp_set_map(ci, isock, &hdr, idx, npods, gl, reply);
+	rc = t4_ddp_set_map(ci, icc, &hdr, idx, npods, gl, reply);
 	if (rc < 0)
 		goto unmark_entries;
 
@@ -359,12 +361,12 @@ unmark_entries:
  */
 void
 cxgbei_ulp2_ddp_tag_release(struct cxgbei_data *ci, uint32_t tag,
-    struct iscsi_socket *isock)
+    struct icl_cxgbei_conn *icc)
 {
 	uint32_t idx;
 
 	MPASS(ci != NULL);
-	MPASS(isock != NULL);
+	MPASS(icc != NULL);
 
 	idx = (tag >> IPPOD_IDX_SHIFT) & ci->idx_mask;
 	CTR3(KTR_CXGBE, "tag:0x%x idx:0x%x nppods:0x%x",
@@ -382,7 +384,7 @@ cxgbei_ulp2_ddp_tag_release(struct cxgbei_data *ci, uint32_t tag,
 		npods = (gl->nelem + IPPOD_PAGES_MAX - 1) >> IPPOD_PAGES_SHIFT;
 		CTR3(KTR_CXGBE, "ddp tag 0x%x, release idx 0x%x, npods %u.",
 			      tag, idx, npods);
-		t4_ddp_clear_map(ci, gl, tag, idx, npods, isock);
+		t4_ddp_clear_map(ci, gl, tag, idx, npods, icc);
 		ddp_unmark_entries(ci, idx, npods);
 		cxgbei_ulp2_ddp_release_gl(ci, gl);
 	} else
