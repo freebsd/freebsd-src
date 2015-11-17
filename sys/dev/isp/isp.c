@@ -125,6 +125,7 @@ static int isp_scan_fabric(ispsoftc_t *, int);
 static int isp_login_device(ispsoftc_t *, int, uint32_t, isp_pdb_t *, uint16_t *);
 static int isp_register_fc4_type(ispsoftc_t *, int);
 static int isp_register_fc4_type_24xx(ispsoftc_t *, int);
+static int isp_register_fc4_features_24xx(ispsoftc_t *, int);
 static uint16_t isp_next_handle(ispsoftc_t *, uint16_t *);
 static int isp_fw_state(ispsoftc_t *, int);
 static void isp_mboxcmd_qnw(ispsoftc_t *, mbreg_t *, int);
@@ -2927,6 +2928,8 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 			}
 			fcp->isp_sns_hdl = NPH_SNS_ID;
 			r = isp_register_fc4_type_24xx(isp, chan);
+			if (r == 0)
+				isp_register_fc4_features_24xx(isp, chan);
 		} else {
 			fcp->isp_sns_hdl = SNS_ID;
 			r = isp_register_fc4_type(isp, chan);
@@ -4213,6 +4216,125 @@ isp_register_fc4_type_24xx(ispsoftc_t *isp, int chan)
 		return (0);
 	} else {
 		isp_prt(isp, ISP_LOGWARN, "Chan %d Register FC4 Type: 0x%x", chan, ct->ct_cmd_resp);
+		return (-1);
+	}
+}
+
+static int
+isp_register_fc4_features_24xx(ispsoftc_t *isp, int chan)
+{
+	mbreg_t mbs;
+	fcparam *fcp = FCPARAM(isp, chan);
+	union {
+		isp_ct_pt_t plocal;
+		rff_id_t clocal;
+		uint8_t q[QENTRY_LEN];
+	} un;
+	isp_ct_pt_t *pt;
+	ct_hdr_t *ct;
+	rff_id_t *rp;
+	uint8_t *scp = fcp->isp_scratch;
+
+	if (FC_SCRATCH_ACQUIRE(isp, chan)) {
+		isp_prt(isp, ISP_LOGERR, sacq);
+		return (-1);
+	}
+
+	/*
+	 * Build a Passthrough IOCB in memory.
+	 */
+	ISP_MEMZERO(un.q, QENTRY_LEN);
+	pt = &un.plocal;
+	pt->ctp_header.rqs_entry_count = 1;
+	pt->ctp_header.rqs_entry_type = RQSTYPE_CT_PASSTHRU;
+	pt->ctp_handle = 0xffffffff;
+	pt->ctp_nphdl = fcp->isp_sns_hdl;
+	pt->ctp_cmd_cnt = 1;
+	pt->ctp_vpidx = ISP_GET_VPIDX(isp, chan);
+	pt->ctp_time = 1;
+	pt->ctp_rsp_cnt = 1;
+	pt->ctp_rsp_bcnt = sizeof (ct_hdr_t);
+	pt->ctp_cmd_bcnt = sizeof (rff_id_t);
+	pt->ctp_dataseg[0].ds_base = DMA_LO32(fcp->isp_scdma+XTXOFF);
+	pt->ctp_dataseg[0].ds_basehi = DMA_HI32(fcp->isp_scdma+XTXOFF);
+	pt->ctp_dataseg[0].ds_count = sizeof (rff_id_t);
+	pt->ctp_dataseg[1].ds_base = DMA_LO32(fcp->isp_scdma+IGPOFF);
+	pt->ctp_dataseg[1].ds_basehi = DMA_HI32(fcp->isp_scdma+IGPOFF);
+	pt->ctp_dataseg[1].ds_count = sizeof (ct_hdr_t);
+	isp_put_ct_pt(isp, pt, (isp_ct_pt_t *) &scp[CTXOFF]);
+	if (isp->isp_dblev & ISP_LOGDEBUG1) {
+		isp_print_bytes(isp, "IOCB CT Request", QENTRY_LEN, pt);
+	}
+
+	/*
+	 * Build the CT header and command in memory.
+	 *
+	 * Note that the CT header has to end up as Big Endian format in memory.
+	 */
+	ISP_MEMZERO(&un.clocal, sizeof (un.clocal));
+	ct = &un.clocal.rffid_hdr;
+	ct->ct_revision = CT_REVISION;
+	ct->ct_fcs_type = CT_FC_TYPE_FC;
+	ct->ct_fcs_subtype = CT_FC_SUBTYPE_NS;
+	ct->ct_cmd_resp = SNS_RFF_ID;
+	ct->ct_bcnt_resid = (sizeof (rff_id_t) - sizeof (ct_hdr_t)) >> 2;
+	rp = &un.clocal;
+	rp->rffid_portid[0] = fcp->isp_portid >> 16;
+	rp->rffid_portid[1] = fcp->isp_portid >> 8;
+	rp->rffid_portid[2] = fcp->isp_portid;
+	rp->rffid_fc4features = 0;
+	if (fcp->role & ISP_ROLE_TARGET)
+		rp->rffid_fc4features |= 1;
+	if (fcp->role & ISP_ROLE_INITIATOR)
+		rp->rffid_fc4features |= 2;
+	rp->rffid_fc4type = FC4_SCSI;
+	isp_put_rff_id(isp, rp, (rff_id_t *) &scp[XTXOFF]);
+	if (isp->isp_dblev & ISP_LOGDEBUG1) {
+		isp_print_bytes(isp, "CT Header", QENTRY_LEN, &scp[XTXOFF]);
+	}
+
+	ISP_MEMZERO(&scp[ZTXOFF], sizeof (ct_hdr_t));
+
+	MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 1000000);
+	mbs.param[1] = QENTRY_LEN;
+	mbs.param[2] = DMA_WD1(fcp->isp_scdma + CTXOFF);
+	mbs.param[3] = DMA_WD0(fcp->isp_scdma + CTXOFF);
+	mbs.param[6] = DMA_WD3(fcp->isp_scdma + CTXOFF);
+	mbs.param[7] = DMA_WD2(fcp->isp_scdma + CTXOFF);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, XTXOFF, 2 * QENTRY_LEN, chan);
+	isp_mboxcmd(isp, &mbs);
+	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+		FC_SCRATCH_RELEASE(isp, chan);
+		return (-1);
+	}
+	MEMORYBARRIER(isp, SYNC_SFORCPU, ZTXOFF, QENTRY_LEN, chan);
+	pt = &un.plocal;
+	isp_get_ct_pt(isp, (isp_ct_pt_t *) &scp[ZTXOFF], pt);
+	if (isp->isp_dblev & ISP_LOGDEBUG1) {
+		isp_print_bytes(isp, "IOCB response", QENTRY_LEN, pt);
+	}
+	if (pt->ctp_status) {
+		FC_SCRATCH_RELEASE(isp, chan);
+		isp_prt(isp, ISP_LOGWARN,
+		    "Chan %d Register FC4 Features CT Passthrough returned 0x%x",
+		    chan, pt->ctp_status);
+		return (1);
+	}
+
+	isp_get_ct_hdr(isp, (ct_hdr_t *) &scp[IGPOFF], ct);
+	FC_SCRATCH_RELEASE(isp, chan);
+
+	if (ct->ct_cmd_resp == LS_RJT) {
+		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOG_WARN1,
+		    "Chan %d Register FC4 Features rejected", chan);
+		return (-1);
+	} else if (ct->ct_cmd_resp == LS_ACC) {
+		isp_prt(isp, ISP_LOG_SANCFG,
+		    "Chan %d Register FC4 Features accepted", chan);
+		return (0);
+	} else {
+		isp_prt(isp, ISP_LOGWARN,
+		    "Chan %d Register FC4 Features: 0x%x", chan, ct->ct_cmd_resp);
 		return (-1);
 	}
 }
