@@ -122,7 +122,7 @@ static device_method_t ehci_methods[] = {
 static driver_t ehci_driver = {
 	"ehci",
 	ehci_methods,
-	sizeof(ehci_softc_t)
+	sizeof(struct exynos_ehci_softc)
 };
 
 static devclass_t ehci_devclass;
