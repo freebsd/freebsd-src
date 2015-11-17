@@ -159,7 +159,7 @@ llan_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	OF_getprop(node, "local-mac-address", sc->mac_address,
 	    sizeof(sc->mac_address));
-	OF_getprop(node, "reg", &sc->unit, sizeof(sc->unit));
+	OF_getencprop(node, "reg", &sc->unit, sizeof(sc->unit));
 
 	mtx_init(&sc->io_lock, "llan", NULL, MTX_DEF);
 
