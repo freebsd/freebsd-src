@@ -39,6 +39,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	Databases administrators will need to reindex their databases given
 	collation results will be different.
 
+	Due to a bug in install(1) it is recommanded to remove the ancient
+	locales before running make installworld
+
+	rm -rf /usr/share/locale
+
 20151030:
 	The OpenSSL has been upgraded to 1.0.2d.  Any binaries requiring
 	libcrypto.so.7 or libssl.so.7 must be recompiled.
