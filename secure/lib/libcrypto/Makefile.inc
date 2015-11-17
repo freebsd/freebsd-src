@@ -72,13 +72,13 @@ man-makefile-update:
 	    ${.CURDIR}/Makefile.man
 	for i in ${LCRYPTO_DOC}/${_docs}/*.pod; do \
 		fn=`basename $$i .pod`; \
-		if ! echo ' ${_skip} ' | grep -q " $$fn "; then \
+		if ! echo '${_skip}' | grep -qw "$$fn"; then \
 		${ECHO} "MAN+= $$fn.${_sec}" >> ${.CURDIR}/Makefile.man; \
 		fi; \
 	done
 	for i in ${LCRYPTO_DOC}/${_docs}/*.pod; do \
 		fn=`basename $$i .pod`; \
-		if ! echo ' ${_skip} ' | grep -q " $$fn "; then \
+		if ! echo '${_skip}' | grep -qw "$$fn"; then \
 		perl ${LCRYPTO_SRC}/util/extract-names.pl < $$i | \
 		  awk "/^$$fn\$$/ { next; } \
 		  { print \"MLINKS+= $$fn.${_sec} \" \$$1 \".${_sec}\" }" >> \
