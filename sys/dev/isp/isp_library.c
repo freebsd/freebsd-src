@@ -400,31 +400,24 @@ isp_fc_runstate(ispsoftc_t *isp, int chan, int tval)
         if (fcp->role == ISP_ROLE_NONE) {
 		return (0);
 	}
-	if (fcp->isp_fwstate < FW_READY || fcp->isp_loopstate < LOOP_PDB_RCVD) {
-		if (isp_control(isp, ISPCTL_FCLINK_TEST, chan, tval) != 0) {
-			isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: linktest failed for channel %d", chan);
-			return (-1);
-		}
-		if (fcp->isp_fwstate != FW_READY || fcp->isp_loopstate < LOOP_PDB_RCVD) {
-			isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: f/w not ready for channel %d", chan);
-			return (-1);
-		}
+	if (isp_control(isp, ISPCTL_FCLINK_TEST, chan, tval) != 0) {
+		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: linktest failed for channel %d", chan);
+		return (-1);
 	}
-
 	if (isp_control(isp, ISPCTL_SCAN_LOOP, chan) != 0) {
-		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: scan loop fails on channel %d", chan);
-		return (LOOP_PDB_RCVD);
+		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: scan loop failed on channel %d", chan);
+		return (LOOP_LTEST_DONE);
 	}
 	if (isp_control(isp, ISPCTL_SCAN_FABRIC, chan) != 0) {
-		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: scan fabric fails on channel %d", chan);
+		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: scan fabric failed on channel %d", chan);
 		return (LOOP_LSCAN_DONE);
 	}
 	if (isp_control(isp, ISPCTL_PDB_SYNC, chan) != 0) {
-		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: pdb_sync fails on channel %d", chan);
+		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: pdb_sync failed on channel %d", chan);
 		return (LOOP_FSCAN_DONE);
 	}
-	if (fcp->isp_fwstate != FW_READY || fcp->isp_loopstate != LOOP_READY) {
-		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: f/w not ready again on channel %d", chan);
+	if (fcp->isp_loopstate != LOOP_READY) {
+		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: not ready again on channel %d", chan);
 		return (-1);
 	}
 	return (0);
@@ -536,7 +529,7 @@ isp_fc_fw_statename(int state)
 {
 	switch (state) {
 	case FW_CONFIG_WAIT:	return "Config Wait";
-	case FW_WAIT_AL_PA:	return "Waiting for AL_PA";
+	case FW_WAIT_LINK:	return "Wait Link";
 	case FW_WAIT_LOGIN:	return "Wait Login";
 	case FW_READY:		return "Ready";
 	case FW_LOSS_OF_SYNC:	return "Loss Of Sync";
@@ -552,9 +545,9 @@ isp_fc_loop_statename(int state)
 {
 	switch (state) {
 	case LOOP_NIL:                  return "NIL";
-	case LOOP_LIP_RCVD:             return "LIP Received";
-	case LOOP_PDB_RCVD:             return "PDB Received";
-	case LOOP_SCANNING_LOOP:        return "Scanning";
+	case LOOP_TESTING_LINK:         return "Testing Link";
+	case LOOP_LTEST_DONE:           return "Link Test Done";
+	case LOOP_SCANNING_LOOP:        return "Scanning Loop";
 	case LOOP_LSCAN_DONE:           return "Loop Scan Done";
 	case LOOP_SCANNING_FABRIC:      return "Scanning Fabric";
 	case LOOP_FSCAN_DONE:           return "Fabric Scan Done";
@@ -568,7 +561,7 @@ const char *
 isp_fc_toponame(fcparam *fcp)
 {
 
-	if (fcp->isp_fwstate != FW_READY) {
+	if (fcp->isp_loopstate < LOOP_LTEST_DONE) {
 		return "Unavailable";
 	}
 	switch (fcp->isp_topo) {
@@ -2527,7 +2520,8 @@ isp_find_chan_by_did(ispsoftc_t *isp, uint32_t did, uint16_t *cp)
 	*cp = ISP_NOCHAN;
 	for (chan = 0; chan < isp->isp_nchan; chan++) {
 		fcparam *fcp = FCPARAM(isp, chan);
-		if ((fcp->role & ISP_ROLE_TARGET) == 0 || fcp->isp_fwstate != FW_READY || fcp->isp_loopstate < LOOP_PDB_RCVD) {
+		if ((fcp->role & ISP_ROLE_TARGET) == 0 ||
+		    fcp->isp_loopstate < LOOP_LTEST_DONE) {
 			continue;
 		}
 		if (fcp->isp_portid == did) {
