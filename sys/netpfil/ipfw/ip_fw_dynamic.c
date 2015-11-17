@@ -735,6 +735,9 @@ ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
 		id.fib = M_GETFIB(args->m);
 
 		if (IS_IP6_FLOW_ID (&(args->f_id))) {
+			bzero(&id.src_ip6, sizeof(id.src_ip6));
+			bzero(&id.dst_ip6, sizeof(id.dst_ip6));
+
 			if (limit_mask & DYN_SRC_ADDR)
 				id.src_ip6 = args->f_id.src_ip6;
 			if (limit_mask & DYN_DST_ADDR)
