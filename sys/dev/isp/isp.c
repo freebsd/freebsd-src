@@ -2802,7 +2802,9 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 	 * If we haven't gone to 'ready' state, return.
 	 */
 	if (fcp->isp_fwstate != FW_READY) {
-		isp_prt(isp, ISP_LOG_SANCFG, "%s: chan %d not at FW_READY state", __func__, chan);
+		isp_prt(isp, ISP_LOG_SANCFG,
+		    "Chan %d Firmware is not ready (%s)",
+		    chan, isp_fc_fw_statename(fcp->isp_fwstate));
 		return (-1);
 	}
 
