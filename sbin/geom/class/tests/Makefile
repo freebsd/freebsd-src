@@ -3,6 +3,7 @@
 TESTS_SUBDIRS+=	concat
 TESTS_SUBDIRS+=	eli
 TESTS_SUBDIRS+=	gate
+# XXX: might not work due to geom(4) changes; more investigation's needed
 #TESTS_SUBDIRS+=	gpt
 TESTS_SUBDIRS+=	mirror
 TESTS_SUBDIRS+=	nop
