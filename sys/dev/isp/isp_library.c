@@ -604,7 +604,8 @@ isp_fc_enable_vp(ispsoftc_t *isp, int chan)
 	vp->vp_mod_cnt = 1;
 	vp->vp_mod_idx0 = chan;
 	vp->vp_mod_cmd = VP_MODIFY_ENA;
-	vp->vp_mod_ports[0].options = ICB2400_VPOPT_ENABLED;
+	vp->vp_mod_ports[0].options = ICB2400_VPOPT_ENABLED |
+	    ICB2400_VPOPT_ENA_SNSLOGIN;
 	if (fcp->role & ISP_ROLE_INITIATOR) {
 		vp->vp_mod_ports[0].options |= ICB2400_VPOPT_INI_ENABLE;
 	}
