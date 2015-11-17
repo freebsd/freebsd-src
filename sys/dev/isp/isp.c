@@ -4268,7 +4268,7 @@ isp_next_handle(ispsoftc_t *isp, uint16_t *ohp)
 	handle = *ohp;
 	if (ISP_CAP_2KLOGIN(isp)) {
 		minh = 0;
-		maxh = NPH_RESERVED;
+		maxh = NPH_RESERVED - 1;
 	} else {
 		minh = SNS_ID + 1;
 		maxh = NPH_MAX - 1;
