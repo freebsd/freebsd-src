@@ -29,42 +29,46 @@
 
 #include <dev/iscsi/icl.h>
 
-struct iscsi_socket {
-	u_char  s_dcrc_len;
-	void   *s_conn;	/* ic_conn pointer */
-	struct toepcb *toep;
-
-	/*
-	 * XXXNP: locks on the same line.
-	 * XXXNP: are the locks even needed?  Why not use so_snd/so_rcv mtx to
-	 * guard the write and rcv queues?
-	 */
-	struct mbufq iscsi_rcvq;	/* rx - ULP mbufs */
-	struct mtx iscsi_rcvq_lock;
-
-	struct mbufq ulp2_writeq;	/* tx - ULP mbufs */
-	struct mtx ulp2_writeq_lock;
-
-	struct mbufq ulp2_wrq;		/* tx wr- ULP mbufs */
-	struct mtx ulp2_wrq_lock;
-
-	struct mbuf *mbuf_ulp_lhdr;
-	struct mbuf *mbuf_ulp_ldata;
-};
+#define CXGBEI_CONN_SIGNATURE 0x56788765
 
 struct icl_cxgbei_conn {
 	struct icl_conn ic;
 
 	/* cxgbei specific stuff goes here. */
 	uint32_t icc_signature;
+	int ulp_submode;
+	struct adapter *sc;
+	struct toepcb *toep;
+
+	/* PDU currently being assembled. */
+	/* XXXNP: maybe just use ic->ic_receive_pdu instead? */
+	struct icl_cxgbei_pdu *icp;
+	uint32_t pdu_seq;		/* For debug only */
 };
+
+static inline struct icl_cxgbei_conn *
+ic_to_icc(struct icl_conn *ic)
+{
+
+	return (__containerof(ic, struct icl_cxgbei_conn, ic));
+}
+
+#define CXGBEI_PDU_SIGNATURE 0x12344321
 
 struct icl_cxgbei_pdu {
 	struct icl_pdu ip;
 
 	/* cxgbei specific stuff goes here. */
 	uint32_t icp_signature;
+	u_int pdu_flags;
 };
+
+static inline struct icl_cxgbei_pdu *
+ip_to_icp(struct icl_pdu *ip)
+{
+
+	return (__containerof(ip, struct icl_cxgbei_pdu, ip));
+}
 
 struct cxgbei_sgl {
         int     sg_flag;
@@ -90,18 +94,6 @@ struct cxgbei_sgl {
 #define SBUF_ULP_FLAG_DCRC_ERROR        0x20
 #define SBUF_ULP_FLAG_PAD_ERROR         0x40
 #define SBUF_ULP_FLAG_DATA_DDPED        0x80
-
-/*
- * Similar to tcp_skb_cb but with ULP elements added to support DDP, iSCSI,
- * etc.
- */
-struct ulp_mbuf_cb {
-	uint8_t ulp_mode;	/* ULP mode/submode of sk_buff */
-	uint8_t flags;		/* TCP-like flags */
-	uint32_t ddigest;	/* ULP rx_data_ddp selected field*/
-	uint32_t pdulen;	/* ULP rx_data_ddp selected field*/
-	void *pdu;		/* pdu pointer */
-};
 
 /* private data for each scsi task */
 struct cxgbei_task_data {
@@ -137,18 +129,14 @@ struct cxgbei_data {
 	struct cxgbei_ulp2_tag_format tag_format;
 };
 
-struct ulp_mbuf_cb *get_ulp_mbuf_cb(struct mbuf *);
-int cxgbei_conn_handoff(struct icl_conn *);
-int cxgbei_conn_close(struct icl_conn *);
 void cxgbei_conn_task_reserve_itt(void *, void **, void *, unsigned int *);
 void cxgbei_conn_transfer_reserve_ttt(void *, void **, void *, unsigned int *);
 void cxgbei_cleanup_task(void *, void *);
-int cxgbei_conn_xmit_pdu(struct icl_conn *, struct icl_pdu *);
 
 struct cxgbei_ulp2_pagepod_hdr;
 int t4_ddp_set_map(struct cxgbei_data *, void *,
     struct cxgbei_ulp2_pagepod_hdr *, u_int, u_int,
     struct cxgbei_ulp2_gather_list *, int);
 void t4_ddp_clear_map(struct cxgbei_data *, struct cxgbei_ulp2_gather_list *,
-    u_int, u_int, u_int, struct iscsi_socket *);
+    u_int, u_int, u_int, struct icl_cxgbei_conn *);
 #endif

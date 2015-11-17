@@ -199,7 +199,7 @@ int cxgbei_ulp2_ddp_tag_reserve(struct cxgbei_data *, void *, unsigned int,
     struct cxgbei_ulp2_tag_format *, uint32_t *,
     struct cxgbei_ulp2_gather_list *, int , int );
 void cxgbei_ulp2_ddp_tag_release(struct cxgbei_data *, uint32_t,
-    struct iscsi_socket *);
+    struct icl_cxgbei_conn *);
 
 struct cxgbei_ulp2_gather_list *cxgbei_ulp2_ddp_make_gl_from_iscsi_sgvec(u_int,
     struct cxgbei_sgl *, u_int, struct cxgbei_data *, int);

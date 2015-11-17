@@ -60,13 +60,17 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <vm/uma.h>
 #include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #include <netinet/tcp.h>
+#include <netinet/tcp_var.h>
+#include <netinet/toecore.h>
 
 #include <dev/iscsi/icl.h>
 #include <dev/iscsi/iscsi_proto.h>
 #include <icl_conn_if.h>
 
 #include "common/common.h"
+#include "tom/t4_tom.h"
 #include "cxgbei.h"
 
 SYSCTL_NODE(_kern_icl, OID_AUTO, cxgbei, CTLFLAG_RD, 0, "Chelsio iSCSI offload");
@@ -84,7 +88,6 @@ static int recvspace = 1048576;
 SYSCTL_INT(_kern_icl_cxgbei, OID_AUTO, recvspace, CTLFLAG_RWTUN,
     &recvspace, 0, "Default receive socket buffer size");
 
-static uma_zone_t icl_cxgbei_pdu_zone;
 static uma_zone_t icl_transfer_zone;
 
 static volatile u_int icl_cxgbei_ncons;
@@ -129,59 +132,30 @@ static kobj_method_t icl_cxgbei_methods[] = {
 
 DEFINE_CLASS(icl_cxgbei, icl_cxgbei_methods, sizeof(struct icl_cxgbei_conn));
 
-struct icl_pdu * icl_pdu_new_empty(struct icl_conn *ic, int flags);
-void icl_pdu_free(struct icl_pdu *ip);
-
-#define CXGBEI_PDU_SIGNATURE 0x12344321
-
-struct icl_pdu *
-icl_pdu_new_empty(struct icl_conn *ic, int flags)
-{
-	struct icl_cxgbei_pdu *icp;
-	struct icl_pdu *ip;
-
-#ifdef DIAGNOSTIC
-	refcount_acquire(&ic->ic_outstanding_pdus);
-#endif
-	icp = uma_zalloc(icl_cxgbei_pdu_zone, flags | M_ZERO);
-	if (icp == NULL) {
-#ifdef DIAGNOSTIC
-		refcount_release(&ic->ic_outstanding_pdus);
-#endif
-		return (NULL);
-	}
-	icp->icp_signature = CXGBEI_PDU_SIGNATURE;
-
-	ip = &icp->ip;
-	ip->ip_conn = ic;
-
-	return (ip);
-}
-
-void
-icl_pdu_free(struct icl_pdu *ip)
-{
-	struct icl_conn *ic;
-	struct icl_cxgbei_pdu *icp;
-
-	icp = (void *)ip;
-	MPASS(icp->icp_signature == CXGBEI_PDU_SIGNATURE);
-	ic = ip->ip_conn;
-
-	m_freem(ip->ip_bhs_mbuf);
-	m_freem(ip->ip_ahs_mbuf);
-	m_freem(ip->ip_data_mbuf);
-	uma_zfree(icl_cxgbei_pdu_zone, ip);
-#ifdef DIAGNOSTIC
-	refcount_release(&ic->ic_outstanding_pdus);
-#endif
-}
+/*
+ * Subtract another 256 for AHS from MAX_DSL if AHS could be used.
+ */
+#define CXGBEI_MAX_PDU 16224
+#define CXGBEI_MAX_DSL (CXGBEI_MAX_PDU - sizeof(struct iscsi_bhs) - 8)
 
 void
 icl_cxgbei_conn_pdu_free(struct icl_conn *ic, struct icl_pdu *ip)
 {
+#ifdef INVARIANTS
+	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
+#endif
 
-	icl_pdu_free(ip);
+	MPASS(icp->icp_signature == CXGBEI_PDU_SIGNATURE);
+	MPASS(ic == ip->ip_conn);
+	MPASS(ip->ip_bhs_mbuf != NULL);
+
+	m_freem(ip->ip_ahs_mbuf);
+	m_freem(ip->ip_data_mbuf);
+	m_freem(ip->ip_bhs_mbuf);	/* storage for icl_cxgbei_pdu itself */
+
+#ifdef DIAGNOSTIC
+	refcount_release(&ic->ic_outstanding_pdus);
+#endif
 }
 
 /*
@@ -190,23 +164,41 @@ icl_cxgbei_conn_pdu_free(struct icl_conn *ic, struct icl_pdu *ip)
 struct icl_pdu *
 icl_cxgbei_conn_new_pdu(struct icl_conn *ic, int flags)
 {
+	struct icl_cxgbei_pdu *icp;
 	struct icl_pdu *ip;
+	struct mbuf *m;
+	uintptr_t a;
 
-	ip = icl_pdu_new_empty(ic, flags);
-	if (ip == NULL)
+	m = m_gethdr(flags, MT_DATA);
+	if (m == NULL)
 		return (NULL);
 
-	ip->ip_bhs_mbuf = m_getm2(NULL, sizeof(struct iscsi_bhs),
-	    flags, MT_DATA, M_PKTHDR);
-	if (ip->ip_bhs_mbuf == NULL) {
-		ICL_WARN("failed to allocate %zd bytes", sizeof(*ip));
-		icl_pdu_free(ip);
-		return (NULL);
-	}
-	ip->ip_bhs = mtod(ip->ip_bhs_mbuf, struct iscsi_bhs *);
-	memset(ip->ip_bhs, 0, sizeof(struct iscsi_bhs));
-	ip->ip_bhs_mbuf->m_len = sizeof(struct iscsi_bhs);
+	a = roundup2(mtod(m, uintptr_t), _Alignof(struct icl_cxgbei_pdu));
+	icp = (struct icl_cxgbei_pdu *)a;
+	bzero(icp, sizeof(*icp));
 
+	icp->icp_signature = CXGBEI_PDU_SIGNATURE;
+	ip = &icp->ip;
+	ip->ip_conn = ic;
+	ip->ip_bhs_mbuf = m;
+
+	a = roundup2((uintptr_t)(icp + 1), _Alignof(struct iscsi_bhs *));
+	ip->ip_bhs = (struct iscsi_bhs *)a;
+#ifdef INVARIANTS
+	/* Everything must fit entirely in the mbuf. */
+	a = (uintptr_t)(ip->ip_bhs + 1);
+	MPASS(a <= (uintptr_t)m + MSIZE);
+#endif
+	bzero(ip->ip_bhs, sizeof(*ip->ip_bhs));
+
+	m->m_data = (void *)ip->ip_bhs;
+	m->m_len = sizeof(struct iscsi_bhs);
+	m->m_pkthdr.len = m->m_len;
+
+
+#ifdef DIAGNOSTIC
+	refcount_acquire(&ic->ic_outstanding_pdus);
+#endif
 	return (ip);
 }
 
@@ -232,194 +224,165 @@ icl_cxgbei_conn_pdu_data_segment_length(struct icl_conn *ic,
 	return (icl_pdu_data_segment_length(request));
 }
 
-static void
-icl_pdu_set_data_segment_length(struct icl_pdu *response, uint32_t len)
-{
-
-	response->ip_bhs->bhs_data_segment_len[2] = len;
-	response->ip_bhs->bhs_data_segment_len[1] = len >> 8;
-	response->ip_bhs->bhs_data_segment_len[0] = len >> 16;
-}
-
-static size_t
-icl_pdu_padding(const struct icl_pdu *ip)
-{
-
-	if ((ip->ip_data_len % 4) != 0)
-		return (4 - (ip->ip_data_len % 4));
-
-	return (0);
-}
-
-static size_t
-icl_pdu_size(const struct icl_pdu *response)
-{
-	size_t len;
-
-	KASSERT(response->ip_ahs_len == 0, ("responding with AHS"));
-
-	len = sizeof(struct iscsi_bhs) + response->ip_data_len +
-	    icl_pdu_padding(response);
-
-	return (len);
-}
-
 static uint32_t
 icl_conn_build_tasktag(struct icl_conn *ic, uint32_t tag)
 {
 	return tag;
 }
 
-static int
-icl_soupcall_receive(struct socket *so, void *arg, int waitflag)
+static struct mbuf *
+finalize_pdu(struct icl_cxgbei_conn *icc, struct icl_cxgbei_pdu *icp)
 {
-	struct icl_conn *ic;
+	struct icl_pdu *ip = &icp->ip;
+	uint8_t ulp_submode, padding;
+	struct mbuf *m, *last;
+	struct iscsi_bhs *bhs;
 
-	if (!soreadable(so))
-		return (SU_OK);
+	/*
+	 * Fix up the data segment mbuf first.
+	 */
+	m = ip->ip_data_mbuf;
+	ulp_submode = icc->ulp_submode;
+	if (m) {
+		last = m_last(m);
 
-	ic = arg;
-	cv_signal(&ic->ic_receive_cv);
-	return (SU_OK);
-}
-
-static int
-icl_pdu_finalize(struct icl_pdu *request)
-{
-	size_t padding, pdu_len;
-	uint32_t zero = 0;
-	int ok;
-	struct icl_conn *ic;
-
-	ic = request->ip_conn;
-
-	icl_pdu_set_data_segment_length(request, request->ip_data_len);
-
-	pdu_len = icl_pdu_size(request);
-
-	if (request->ip_data_len != 0) {
-		padding = icl_pdu_padding(request);
-		if (padding > 0) {
-			ok = m_append(request->ip_data_mbuf, padding,
-			    (void *)&zero);
-			if (ok != 1) {
-				ICL_WARN("failed to append padding");
-				return (1);
-			}
+		/*
+		 * Round up the data segment to a 4B boundary.  Pad with 0 if
+		 * necessary.  There will definitely be room in the mbuf.
+		 */
+		padding = roundup2(ip->ip_data_len, 4) - ip->ip_data_len;
+		if (padding) {
+			bzero(mtod(last, uint8_t *) + last->m_len, padding);
+			last->m_len += padding;
 		}
-
-		m_cat(request->ip_bhs_mbuf, request->ip_data_mbuf);
-		request->ip_data_mbuf = NULL;
-	}
-
-	request->ip_bhs_mbuf->m_pkthdr.len = pdu_len;
-
-	return (0);
-}
-
-static int
-icl_soupcall_send(struct socket *so, void *arg, int waitflag)
-{
-	struct icl_conn *ic;
-
-	if (!sowriteable(so))
-		return (SU_OK);
-
-	ic = arg;
-
-	ICL_CONN_LOCK(ic);
-	ic->ic_check_send_space = true;
-	ICL_CONN_UNLOCK(ic);
-
-	cv_signal(&ic->ic_send_cv);
-
-	return (SU_OK);
-}
-
-static int
-icl_pdu_append_data(struct icl_pdu *request, const void *addr, size_t len,
-    int flags)
-{
-	struct mbuf *mb, *newmb;
-	size_t copylen, off = 0;
-
-	KASSERT(len > 0, ("len == 0"));
-
-	newmb = m_getm2(NULL, len, flags, MT_DATA, M_PKTHDR);
-	if (newmb == NULL) {
-		ICL_WARN("failed to allocate mbuf for %zd bytes", len);
-		return (ENOMEM);
-	}
-
-	for (mb = newmb; mb != NULL; mb = mb->m_next) {
-		copylen = min(M_TRAILINGSPACE(mb), len - off);
-		memcpy(mtod(mb, char *), (const char *)addr + off, copylen);
-		mb->m_len = copylen;
-		off += copylen;
-	}
-	KASSERT(off == len, ("%s: off != len", __func__));
-
-	if (request->ip_data_mbuf == NULL) {
-		request->ip_data_mbuf = newmb;
-		request->ip_data_len = len;
 	} else {
-		m_cat(request->ip_data_mbuf, newmb);
-		request->ip_data_len += len;
+		MPASS(ip->ip_data_len == 0);
+		ulp_submode &= ~ULP_CRC_DATA;
+		padding = 0;
 	}
 
-	return (0);
+	/*
+	 * Now the header mbuf that has the BHS.
+	 */
+	m = ip->ip_bhs_mbuf;
+	MPASS(m->m_pkthdr.len == sizeof(struct iscsi_bhs));
+	MPASS(m->m_len == sizeof(struct iscsi_bhs));
+
+	bhs = ip->ip_bhs;
+	bhs->bhs_data_segment_len[2] = ip->ip_data_len;
+	bhs->bhs_data_segment_len[1] = ip->ip_data_len >> 8;
+	bhs->bhs_data_segment_len[0] = ip->ip_data_len >> 16;
+
+	/* "Convert" PDU to mbuf chain.  Do not use icp/ip after this. */
+	m->m_pkthdr.len = sizeof(struct iscsi_bhs) + ip->ip_data_len + padding;
+	m->m_next = ip->ip_data_mbuf;
+	set_mbuf_ulp_submode(m, ulp_submode);
+#ifdef INVARIANTS
+	bzero(icp, sizeof(*icp));
+#endif
+#ifdef DIAGNOSTIC
+	refcount_release(&icc->ic.ic_outstanding_pdus);
+#endif
+
+	return (m);
 }
 
 int
-icl_cxgbei_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *request,
+icl_cxgbei_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *ip,
     const void *addr, size_t len, int flags)
 {
+	struct mbuf *m;
+#ifdef INVARIANTS
+	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
+#endif
 
-	return (icl_pdu_append_data(request, addr, len, flags));
-}
+	MPASS(icp->icp_signature == CXGBEI_PDU_SIGNATURE);
+	MPASS(ic == ip->ip_conn);
+	KASSERT(len > 0, ("%s: len is %jd", __func__, (intmax_t)len));
 
-static void
-icl_pdu_get_data(struct icl_pdu *ip, size_t off, void *addr, size_t len)
-{
-	/* data is DDP'ed, no need to copy */
-	if (ip->ip_ofld_prv0) return;
-	m_copydata(ip->ip_data_mbuf, off, len, addr);
+	/*
+	 * XXXNP: add assertions here, after fixing the problems around
+	 * max_data_segment_length:
+	 * a) len should not cause the max_data_segment_length to be exceeded.
+	 * b) all data should fit in a single jumbo16.  The hardware limit just
+	 * happens to be within jumbo16 so this is very convenient.
+	 */
+
+	m = ip->ip_data_mbuf;
+	if (m == NULL) {
+		m = m_getjcl(M_NOWAIT, MT_DATA, 0, MJUM16BYTES);
+		if (__predict_false(m == NULL))
+			return (ENOMEM);
+
+		ip->ip_data_mbuf = m;
+	}
+
+	if (__predict_true(m_append(m, len, addr) != 0)) {
+		ip->ip_data_len += len;
+		MPASS(ip->ip_data_len <= CXGBEI_MAX_DSL);
+		return (0);
+	} else {
+	    	if (flags & M_WAITOK) {
+			CXGBE_UNIMPLEMENTED("fail safe append");
+		}
+		ip->ip_data_len = m_length(m, NULL);
+		return (1);
+	}
 }
 
 void
 icl_cxgbei_conn_pdu_get_data(struct icl_conn *ic, struct icl_pdu *ip,
     size_t off, void *addr, size_t len)
 {
+	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
 
-	return (icl_pdu_get_data(ip, off, addr, len));
-}
-
-static void
-icl_pdu_queue(struct icl_pdu *ip)
-{
-	struct icl_conn *ic;
-
-	ic = ip->ip_conn;
-
-	ICL_CONN_LOCK_ASSERT(ic);
-
-	if (ic->ic_disconnecting || ic->ic_socket == NULL) {
-		ICL_DEBUG("icl_pdu_queue on closed connection");
-		icl_pdu_free(ip);
-		return;
-	}
-	icl_pdu_finalize(ip);
-	cxgbei_conn_xmit_pdu(ic, ip);
+	if (icp->pdu_flags & SBUF_ULP_FLAG_DATA_DDPED)
+		return; /* data is DDP'ed, no need to copy */
+	m_copydata(ip->ip_data_mbuf, off, len, addr);
 }
 
 void
 icl_cxgbei_conn_pdu_queue(struct icl_conn *ic, struct icl_pdu *ip)
 {
+	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
+	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
+	struct socket *so = ic->ic_socket;
+	struct toepcb *toep = icc->toep;
+	struct inpcb *inp;
+	struct mbuf *m;
 
-	icl_pdu_queue(ip);
+	MPASS(ic == ip->ip_conn);
+	MPASS(ip->ip_bhs_mbuf != NULL);
+	/* The kernel doesn't generate PDUs with AHS. */
+	MPASS(ip->ip_ahs_mbuf == NULL && ip->ip_ahs_len == 0);
+
+	ICL_CONN_LOCK_ASSERT(ic);
+	/* NOTE: sowriteable without so_snd lock is a mostly harmless race. */
+	if (ic->ic_disconnecting || so == NULL || !sowriteable(so)) {
+		icl_cxgbei_conn_pdu_free(ic, ip);
+		return;
+	}
+
+	m = finalize_pdu(icc, icp);
+	M_ASSERTPKTHDR(m);
+	MPASS((m->m_pkthdr.len & 3) == 0);
+	MPASS(m->m_pkthdr.len + 8 <= CXGBEI_MAX_PDU);
+
+	/*
+	 * Do not get inp from toep->inp as the toepcb might have detached
+	 * already.
+	 */
+	inp = sotoinpcb(so);
+	INP_WLOCK(inp);
+	if (__predict_false(inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) ||
+	    __predict_false((toep->flags & TPF_ATTACHED) == 0))
+		m_freem(m);
+	else {
+		mbufq_enqueue(&toep->ulp_pduq, m);
+		t4_push_pdus(icc->sc, toep, 0);
+	}
+	INP_WUNLOCK(inp);
 }
-
-#define CXGBEI_CONN_SIGNATURE 0x56788765
 
 static struct icl_conn *
 icl_cxgbei_new_conn(const char *name, struct mtx *lock)
@@ -434,16 +397,20 @@ icl_cxgbei_new_conn(const char *name, struct mtx *lock)
 	icc->icc_signature = CXGBEI_CONN_SIGNATURE;
 
 	ic = &icc->ic;
-	STAILQ_INIT(&ic->ic_to_send);
 	ic->ic_lock = lock;
+
+	/* XXXNP: review.  Most of these icl_conn fields aren't really used */
+	STAILQ_INIT(&ic->ic_to_send);
 	cv_init(&ic->ic_send_cv, "icl_cxgbei_tx");
 	cv_init(&ic->ic_receive_cv, "icl_cxgbei_rx");
 #ifdef DIAGNOSTIC
 	refcount_init(&ic->ic_outstanding_pdus, 0);
 #endif
-	ic->ic_max_data_segment_length = ICL_MAX_DATA_SEGMENT_LENGTH;
+	ic->ic_max_data_segment_length = CXGBEI_MAX_DSL;
 	ic->ic_name = name;
 	ic->ic_offload = "cxgbei";
+
+	CTR2(KTR_CXGBE, "%s: icc %p", __func__, icc);
 
 	return (ic);
 }
@@ -451,39 +418,25 @@ icl_cxgbei_new_conn(const char *name, struct mtx *lock)
 void
 icl_cxgbei_conn_free(struct icl_conn *ic)
 {
-	struct icl_cxgbei_conn *icc = (void *)ic;
+	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
 
 	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
 
+	CTR2(KTR_CXGBE, "%s: icc %p", __func__, icc);
+
 	cv_destroy(&ic->ic_send_cv);
 	cv_destroy(&ic->ic_receive_cv);
+
 	kobj_delete((struct kobj *)icc, M_CXGBE);
 	refcount_release(&icl_cxgbei_ncons);
 }
 
-/* XXXNP: what is this for?  There's no conn_start method. */
 static int
-icl_conn_start(struct icl_conn *ic)
+icl_cxgbei_setsockopt(struct icl_conn *ic, struct socket *so)
 {
 	size_t minspace;
 	struct sockopt opt;
 	int error, one = 1;
-
-	ICL_CONN_LOCK(ic);
-
-	/*
-	 * XXX: Ugly hack.
-	 */
-	if (ic->ic_socket == NULL) {
-		ICL_CONN_UNLOCK(ic);
-		return (EINVAL);
-	}
-
-	ic->ic_receive_state = ICL_CONN_STATE_BHS;
-	ic->ic_receive_len = sizeof(struct iscsi_bhs);
-	ic->ic_disconnecting = false;
-
-	ICL_CONN_UNLOCK(ic);
 
 	/*
 	 * For sendspace, this is required because the current code cannot
@@ -496,25 +449,22 @@ icl_conn_start(struct icl_conn *ic)
 	 */
 	minspace = sizeof(struct iscsi_bhs) + ic->ic_max_data_segment_length +
 	    ISCSI_HEADER_DIGEST_SIZE + ISCSI_DATA_DIGEST_SIZE + 4;
-	if (sendspace < minspace) {
-		ICL_WARN("kern.icl.sendspace too low; must be at least %zd",
-		    minspace);
+	if (sendspace < minspace)
 		sendspace = minspace;
-	}
-	if (recvspace < minspace) {
-		ICL_WARN("kern.icl.recvspace too low; must be at least %zd",
-		    minspace);
+	if (recvspace < minspace)
 		recvspace = minspace;
-	}
 
-	error = soreserve(ic->ic_socket, sendspace, recvspace);
+	error = soreserve(so, sendspace, recvspace);
 	if (error != 0) {
-		ICL_WARN("soreserve failed with error %d", error);
 		icl_cxgbei_conn_close(ic);
 		return (error);
 	}
-	ic->ic_socket->so_snd.sb_flags |= SB_AUTOSIZE;
-	ic->ic_socket->so_rcv.sb_flags |= SB_AUTOSIZE;
+	SOCKBUF_LOCK(&so->so_snd);
+	so->so_snd.sb_flags |= SB_AUTOSIZE;
+	SOCKBUF_UNLOCK(&so->so_snd);
+	SOCKBUF_LOCK(&so->so_rcv);
+	so->so_rcv.sb_flags |= SB_AUTOSIZE;
+	SOCKBUF_UNLOCK(&so->so_rcv);
 
 	/*
 	 * Disable Nagle.
@@ -525,35 +475,90 @@ icl_conn_start(struct icl_conn *ic)
 	opt.sopt_name = TCP_NODELAY;
 	opt.sopt_val = &one;
 	opt.sopt_valsize = sizeof(one);
-	error = sosetopt(ic->ic_socket, &opt);
+	error = sosetopt(so, &opt);
 	if (error != 0) {
-		ICL_WARN("disabling TCP_NODELAY failed with error %d", error);
 		icl_cxgbei_conn_close(ic);
 		return (error);
 	}
 
-	/*
-	 * Register socket upcall, to get notified about incoming PDUs
-	 * and free space to send outgoing ones.
-	 */
-	SOCKBUF_LOCK(&ic->ic_socket->so_snd);
-	soupcall_set(ic->ic_socket, SO_SND, icl_soupcall_send, ic);
-	SOCKBUF_UNLOCK(&ic->ic_socket->so_snd);
-	SOCKBUF_LOCK(&ic->ic_socket->so_rcv);
-	soupcall_set(ic->ic_socket, SO_RCV, icl_soupcall_receive, ic);
-	SOCKBUF_UNLOCK(&ic->ic_socket->so_rcv);
-
 	return (0);
 }
 
+/*
+ * Request/response structure used to find out the adapter offloading a socket.
+ */
+struct find_ofld_adapter_rr {
+	struct socket *so;
+	struct adapter *sc;	/* result */
+};
+
+static void
+find_offload_adapter(struct adapter *sc, void *arg)
+{
+	struct find_ofld_adapter_rr *fa = arg;
+	struct socket *so = fa->so;
+	struct tom_data *td = sc->tom_softc;
+	struct tcpcb *tp;
+	struct inpcb *inp;
+
+	/* Non-TCP were filtered out earlier. */
+	MPASS(so->so_proto->pr_protocol == IPPROTO_TCP);
+
+	if (fa->sc != NULL)
+		return;	/* Found already. */
+
+	if (td == NULL)
+		return;	/* TOE not enabled on this adapter. */
+
+	inp = sotoinpcb(so);
+	INP_WLOCK(inp);
+	if ((inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) == 0) {
+		tp = intotcpcb(inp);
+		if (tp->t_flags & TF_TOE && tp->tod == &td->tod)
+			fa->sc = sc;	/* Found. */
+	}
+	INP_WUNLOCK(inp);
+}
+
+static void
+set_ulp_mode_iscsi(struct adapter *sc, struct toepcb *toep, int hcrc, int dcrc)
+{
+	uint64_t val = 0;
+
+	if (hcrc)
+		val |= ULP_CRC_HEADER;
+	if (dcrc)
+		val |= ULP_CRC_DATA;
+	val <<= 4;
+	val |= ULP_MODE_ISCSI;
+
+	CTR4(KTR_CXGBE, "%s: tid %u, ULP_MODE_ISCSI, CRC hdr=%d data=%d",
+	    __func__, toep->tid, hcrc, dcrc);
+
+	t4_set_tcb_field(sc, toep, 1, 0, 0xfff, val);
+}
+
+/*
+ * XXXNP: Who is responsible for cleaning up the socket if this returns with an
+ * error?  Review all error paths.
+ *
+ * XXXNP: What happens to the socket's fd reference if the operation is
+ * successful, and how does that affect the socket's life cycle?
+ */
 int
 icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 {
+	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
+	struct find_ofld_adapter_rr fa;
 	struct file *fp;
 	struct socket *so;
+	struct inpcb *inp;
+	struct tcpcb *tp;
+	struct toepcb *toep;
 	cap_rights_t rights;
 	int error;
 
+	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
 	ICL_CONN_LOCK_ASSERT_NOT(ic);
 
 	/*
@@ -568,28 +573,66 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 		return (EINVAL);
 	}
 	so = fp->f_data;
-	if (so->so_type != SOCK_STREAM) {
+	if (so->so_type != SOCK_STREAM ||
+	    so->so_proto->pr_protocol != IPPROTO_TCP) {
 		fdrop(fp, curthread);
 		return (EINVAL);
 	}
 
 	ICL_CONN_LOCK(ic);
-
 	if (ic->ic_socket != NULL) {
 		ICL_CONN_UNLOCK(ic);
 		fdrop(fp, curthread);
 		return (EBUSY);
 	}
-
-	ic->ic_socket = fp->f_data;
+	ic->ic_disconnecting = false;
+	ic->ic_socket = so;
 	fp->f_ops = &badfileops;
 	fp->f_data = NULL;
 	fdrop(fp, curthread);
 	ICL_CONN_UNLOCK(ic);
 
-	error = icl_conn_start(ic);
-	if (!error)
-		cxgbei_conn_handoff(ic);
+	/* Find the adapter offloading this socket. */
+	fa.sc = NULL;
+	fa.so = so;
+	t4_iterate(find_offload_adapter, &fa);
+	if (fa.sc == NULL)
+		return (EINVAL);
+	icc->sc = fa.sc;
+
+	error = icl_cxgbei_setsockopt(ic, so);
+	if (error)
+		return (error);
+
+	inp = sotoinpcb(so);
+	INP_WLOCK(inp);
+	tp = intotcpcb(inp);
+	if (inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT))
+		error = EBUSY;
+	else {
+		/*
+		 * socket could not have been "unoffloaded" if here.
+		 */
+		MPASS(tp->t_flags & TF_TOE);
+		MPASS(tp->tod != NULL);
+		MPASS(tp->t_toe != NULL);
+
+		toep = tp->t_toe;
+		icc->toep = toep;
+		icc->ulp_submode = 0;
+		if (ic->ic_header_crc32c)
+			icc->ulp_submode |= ULP_CRC_HEADER;
+		if (ic->ic_data_crc32c)
+			icc->ulp_submode |= ULP_CRC_DATA;
+		so->so_options |= SO_NO_DDP;
+		toep->ulp_mode = ULP_MODE_ISCSI;
+		toep->ulpcb = icc;
+
+		set_ulp_mode_iscsi(icc->sc, toep, ic->ic_header_crc32c,
+		    ic->ic_data_crc32c);
+		error = 0;
+	}
+	INP_WUNLOCK(inp);
 
 	return (error);
 }
@@ -597,72 +640,43 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 void
 icl_cxgbei_conn_close(struct icl_conn *ic)
 {
-	struct icl_pdu *pdu;
+	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
+	struct socket *so;
+	struct toepcb *toep = icc->toep;
 
+	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
 	ICL_CONN_LOCK_ASSERT_NOT(ic);
 
+	CTR3(KTR_CXGBE, "%s: tid %u, icc %p", __func__, toep->tid, icc);
+
 	ICL_CONN_LOCK(ic);
-	if (ic->ic_socket == NULL) {
+	so = ic->ic_socket;
+	if (so == NULL) {
 		ICL_CONN_UNLOCK(ic);
 		return;
 	}
-
-	/*
-	 * Deregister socket upcalls.
-	 */
-	ICL_CONN_UNLOCK(ic);
-	SOCKBUF_LOCK(&ic->ic_socket->so_snd);
-	if (ic->ic_socket->so_snd.sb_upcall != NULL)
-		soupcall_clear(ic->ic_socket, SO_SND);
-	SOCKBUF_UNLOCK(&ic->ic_socket->so_snd);
-	SOCKBUF_LOCK(&ic->ic_socket->so_rcv);
-	if (ic->ic_socket->so_rcv.sb_upcall != NULL)
-		soupcall_clear(ic->ic_socket, SO_RCV);
-	SOCKBUF_UNLOCK(&ic->ic_socket->so_rcv);
-	ICL_CONN_LOCK(ic);
-
+	ic->ic_socket = NULL;
 	ic->ic_disconnecting = true;
 
-	/*
-	 * Wake up the threads, so they can properly terminate.
-	 */
-	while (ic->ic_receive_running || ic->ic_send_running) {
-		//ICL_DEBUG("waiting for send/receive threads to terminate");
-		cv_signal(&ic->ic_receive_cv);
-		cv_signal(&ic->ic_send_cv);
-		cv_wait(&ic->ic_send_cv, ic->ic_lock);
-	}
-	//ICL_DEBUG("send/receive threads terminated");
+	mbufq_drain(&toep->ulp_pduq);
 
-	ICL_CONN_UNLOCK(ic);
-	cxgbei_conn_close(ic);
-	soclose(ic->ic_socket);
-	ICL_CONN_LOCK(ic);
-	ic->ic_socket = NULL;
+	/* These are unused in this driver right now. */
+	MPASS(STAILQ_EMPTY(&ic->ic_to_send));
+	MPASS(ic->ic_receive_pdu == NULL);
 
-	if (ic->ic_receive_pdu != NULL) {
-		//ICL_DEBUG("freeing partially received PDU");
-		icl_pdu_free(ic->ic_receive_pdu);
-		ic->ic_receive_pdu = NULL;
-	}
-
-	/*
-	 * Remove any outstanding PDUs from the send queue.
-	 */
-	while (!STAILQ_EMPTY(&ic->ic_to_send)) {
-		pdu = STAILQ_FIRST(&ic->ic_to_send);
-		STAILQ_REMOVE_HEAD(&ic->ic_to_send, ip_next);
-		icl_pdu_free(pdu);
-	}
-
-	KASSERT(STAILQ_EMPTY(&ic->ic_to_send),
-	    ("destroying session with non-empty send queue"));
 #ifdef DIAGNOSTIC
 	KASSERT(ic->ic_outstanding_pdus == 0,
 	    ("destroying session with %d outstanding PDUs",
 	     ic->ic_outstanding_pdus));
 #endif
 	ICL_CONN_UNLOCK(ic);
+
+	/*
+	 * XXXNP: we should send RST instead of FIN when PDUs held in various
+	 * queues were purged instead of delivered reliably but soabort isn't
+	 * really general purpose and wouldn't do the right thing here.
+	 */
+	soclose(so);
 }
 
 int
@@ -722,44 +736,16 @@ static int
 icl_cxgbei_limits(size_t *limitp)
 {
 
-	*limitp = 8 * 1024;
+	*limitp = CXGBEI_MAX_DSL;
 
 	return (0);
 }
-
-#ifdef ICL_KERNEL_PROXY
-int
-icl_conn_handoff_sock(struct icl_conn *ic, struct socket *so)
-{
-	int error;
-
-	ICL_CONN_LOCK_ASSERT_NOT(ic);
-
-	if (so->so_type != SOCK_STREAM)
-		return (EINVAL);
-
-	ICL_CONN_LOCK(ic);
-	if (ic->ic_socket != NULL) {
-		ICL_CONN_UNLOCK(ic);
-		return (EBUSY);
-	}
-	ic->ic_socket = so;
-	ICL_CONN_UNLOCK(ic);
-
-	error = icl_conn_start(ic);
-
-	return (error);
-}
-#endif /* ICL_KERNEL_PROXY */
 
 static int
 icl_cxgbei_load(void)
 {
 	int error;
 
-	icl_cxgbei_pdu_zone = uma_zcreate("icl_cxgbei_pdu",
-	    sizeof(struct icl_cxgbei_pdu), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
 	icl_transfer_zone = uma_zcreate("icl_transfer",
 	    16 * 1024, NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
@@ -782,7 +768,6 @@ icl_cxgbei_unload(void)
 
 	icl_unregister("cxgbei");
 
-	uma_zdestroy(icl_cxgbei_pdu_zone);
 	uma_zdestroy(icl_transfer_zone);
 
 	return (0);
