@@ -1,4 +1,4 @@
-name = "FreeBSD-unbound"
+name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
 comment = "Validating, recursive, and caching DNS resolver"

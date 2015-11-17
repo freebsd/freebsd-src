@@ -1,4 +1,4 @@
-name = "FreeBSD-bhyve"
+name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
 comment = "The BSD Hypervisor"

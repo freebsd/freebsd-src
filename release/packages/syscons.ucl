@@ -1,4 +1,4 @@
-name = "FreeBSD-syscons"
+name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
 comment = "syscons(4) support files"

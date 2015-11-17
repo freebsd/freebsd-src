@@ -1,4 +1,4 @@
-name = "FreeBSD-ssh"
+name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
 comment = "Secure SHell"
@@ -9,5 +9,5 @@ prefix = "/"
 licenselogic = "single"
 licenses = [ ISCL ]
 desc = <<EOD
-TODO
+%DESC%
 EOD

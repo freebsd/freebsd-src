@@ -1,4 +1,4 @@
-name = "FreeBSD-binutils"
+name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
 comment = "GNU binutils"
@@ -9,5 +9,5 @@ prefix = "/"
 licenselogic = "single"
 licenses = [ GPLv2 ]
 desc = <<EOD
-TODO
+%DESC%
 EOD

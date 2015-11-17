@@ -1,4 +1,4 @@
-name = "FreeBSD-lib32-development"
+name = "FreeBSD-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
 comment = "32bits libraries"
@@ -9,5 +9,5 @@ prefix = "/"
 licenselogic = "single"
 licenses = [ BSD2CLAUSE ]
 desc = <<EOD
-TODO
+%DESC%
 EOD
