@@ -1,0 +1,3 @@
+GEOM_CLASS=		${.CURDIR:T}
+
+TESTSDIR=		${TESTSBASE}/sbin/geom/class/${GEOM_CLASS}
