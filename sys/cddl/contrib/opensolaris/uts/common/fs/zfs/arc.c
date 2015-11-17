@@ -825,6 +825,19 @@ static void l2arc_decompress_zio(zio_t *zio, arc_buf_hdr_t *hdr,
     enum zio_compress c);
 static void l2arc_release_cdata_buf(arc_buf_hdr_t *ab);
 
+static void
+l2arc_trim(const l2arc_buf_hdr_t *l2hdr)
+{
+	ASSERT(MUTEX_HELD(&l2arc_buflist_mtx));
+
+	if (l2hdr->b_asize != 0) {
+		trim_map_free(l2hdr->b_dev->l2ad_vdev, l2hdr->b_daddr,
+		    l2hdr->b_asize, 0);
+	} else {
+		ASSERT3U(l2hdr->b_compress, ==, ZIO_COMPRESS_EMPTY);
+	}
+}
+
 static uint64_t
 buf_hash(uint64_t spa, const dva_t *dva, uint64_t birth)
 {
@@ -1739,8 +1752,7 @@ arc_hdr_destroy(arc_buf_hdr_t *hdr)
 		}
 
 		if (l2hdr != NULL) {
-			trim_map_free(l2hdr->b_dev->l2ad_vdev, l2hdr->b_daddr,
-			    l2hdr->b_asize, 0);
+			l2arc_trim(l2hdr);
 			list_remove(l2hdr->b_dev->l2ad_buflist, hdr);
 			ARCSTAT_INCR(arcstat_l2_size, -hdr->b_size);
 			ARCSTAT_INCR(arcstat_l2_asize, -l2hdr->b_asize);
@@ -3674,8 +3686,7 @@ arc_release(arc_buf_t *buf, void *tag)
 
 	if (l2hdr) {
 		ARCSTAT_INCR(arcstat_l2_asize, -l2hdr->b_asize);
-		trim_map_free(l2hdr->b_dev->l2ad_vdev, l2hdr->b_daddr,
-		    l2hdr->b_asize, 0);
+		l2arc_trim(l2hdr);
 		kmem_free(l2hdr, sizeof (l2arc_buf_hdr_t));
 		ARCSTAT_INCR(arcstat_l2_size, -buf_size);
 		mutex_exit(&l2arc_buflist_mtx);
@@ -4623,8 +4634,7 @@ l2arc_write_done(zio_t *zio)
 			list_remove(buflist, ab);
 			ARCSTAT_INCR(arcstat_l2_asize, -abl2->b_asize);
 			ab->b_l2hdr = NULL;
-			trim_map_free(abl2->b_dev->l2ad_vdev, abl2->b_daddr,
-			    abl2->b_asize, 0);
+			l2arc_trim(abl2);
 			kmem_free(abl2, sizeof (l2arc_buf_hdr_t));
 			ARCSTAT_INCR(arcstat_l2_size, -ab->b_size);
 		}
