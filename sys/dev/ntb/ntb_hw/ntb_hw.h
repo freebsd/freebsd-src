@@ -77,7 +77,8 @@ void ntb_clear_ctx(struct ntb_softc *);
 
 uint8_t ntb_mw_count(struct ntb_softc *);
 int ntb_mw_get_range(struct ntb_softc *, unsigned mw_idx, vm_paddr_t *base,
-    caddr_t *vbase, size_t *size, size_t *align, size_t *align_size);
+    caddr_t *vbase, size_t *size, size_t *align, size_t *align_size,
+    bus_addr_t *plimit);
 int ntb_mw_set_trans(struct ntb_softc *, unsigned mw_idx, bus_addr_t, size_t);
 int ntb_mw_clear_trans(struct ntb_softc *, unsigned mw_idx);
 
