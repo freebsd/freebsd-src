@@ -376,7 +376,7 @@ symlinks:
 	@touch ${.OBJDIR}/${.TARGET}
 .endif
 
-.if ${MACHINE} == "host"
+.if ${MACHINE} == "host" && !defined(_SKIP_BUILD)
 # we're here because we are building a sysroot...
 # we need MACHINE et al set correctly
 HOST_MACHINE!= uname -m
