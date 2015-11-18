@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 
 #define NTB_HB_TIMEOUT		1 /* second */
 #define ATOM_LINK_RECOVERY_TIME	500 /* ms */
+#define BAR_HIGH_MASK		(~((1ull << 12) - 1))
 
 #define DEVICE2SOFTC(dev) ((struct ntb_softc *) device_get_softc(dev))
 
@@ -2560,14 +2561,14 @@ ntb_mw_set_trans(struct ntb_softc *ntb, unsigned idx, bus_addr_t addr,
 
 	limit = 0;
 	if (bar_is_64bit(ntb, bar_num)) {
-		base = ntb_reg_read(8, base_reg);
+		base = ntb_reg_read(8, base_reg) & BAR_HIGH_MASK;
 
 		if (limit_reg != 0 && size != mw_size)
 			limit = base + size;
 
 		/* Set and verify translation address */
 		ntb_reg_write(8, xlat_reg, addr);
-		reg_val = ntb_reg_read(8, xlat_reg);
+		reg_val = ntb_reg_read(8, xlat_reg) & BAR_HIGH_MASK;
 		if (reg_val != addr) {
 			ntb_reg_write(8, xlat_reg, 0);
 			return (EIO);
@@ -2575,7 +2576,7 @@ ntb_mw_set_trans(struct ntb_softc *ntb, unsigned idx, bus_addr_t addr,
 
 		/* Set and verify the limit */
 		ntb_reg_write(8, limit_reg, limit);
-		reg_val = ntb_reg_read(8, limit_reg);
+		reg_val = ntb_reg_read(8, limit_reg) & BAR_HIGH_MASK;
 		if (reg_val != limit) {
 			ntb_reg_write(8, limit_reg, base);
 			ntb_reg_write(8, xlat_reg, 0);
@@ -2589,14 +2590,14 @@ ntb_mw_set_trans(struct ntb_softc *ntb, unsigned idx, bus_addr_t addr,
 		if (((addr + size) & UINT32_MAX) != (addr + size))
 			return (EINVAL);
 
-		base = ntb_reg_read(4, base_reg);
+		base = ntb_reg_read(4, base_reg) & BAR_HIGH_MASK;
 
 		if (limit_reg != 0 && size != mw_size)
 			limit = base + size;
 
 		/* Set and verify translation address */
 		ntb_reg_write(4, xlat_reg, addr);
-		reg_val = ntb_reg_read(4, xlat_reg);
+		reg_val = ntb_reg_read(4, xlat_reg) & BAR_HIGH_MASK;
 		if (reg_val != addr) {
 			ntb_reg_write(4, xlat_reg, 0);
 			return (EIO);
@@ -2604,7 +2605,7 @@ ntb_mw_set_trans(struct ntb_softc *ntb, unsigned idx, bus_addr_t addr,
 
 		/* Set and verify the limit */
 		ntb_reg_write(4, limit_reg, limit);
-		reg_val = ntb_reg_read(4, limit_reg);
+		reg_val = ntb_reg_read(4, limit_reg) & BAR_HIGH_MASK;
 		if (reg_val != limit) {
 			ntb_reg_write(4, limit_reg, base);
 			ntb_reg_write(4, xlat_reg, 0);
