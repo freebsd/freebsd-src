@@ -1125,17 +1125,11 @@ syscallcheri_helper_unregister(struct syscall_helper_data *sd)
 }
 #endif
 
-/*
- * XXXRW: Here, we really want to take the desired permissions as an argument
- * so we can copy out a capability with suitable permissions.  But will we
- * always know what those are?
- */
-#define sucap(uaddr, base, length)					\
+#define sucap(uaddr, base, length, perms)				\
 	do {								\
 		struct chericap	_tmpcap;				\
-		cheri_capability_set(					\
-		    &_tmpcap, CHERI_CAP_USER_DATA_PERMS,		\
-		    NULL, (base), (length), 0);				\
+		cheri_capability_set(&_tmpcap, (perms), NULL, (base),	\
+		    (length), 0);					\
 		copyoutcap(&_tmpcap, uaddr, sizeof(_tmpcap));		\
 	} while(0)
 
@@ -1253,14 +1247,16 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
 	sucap(&arginfo->ps_argvstr, vectp,
-	    arginfo->ps_nargvstr * sizeof(struct chericap));
+	    arginfo->ps_nargvstr * sizeof(struct chericap),
+	    CHERI_CAP_USER_DATA_PERMS);
 	suword32(&arginfo->ps_nargvstr, argc);
 
 	/*
 	 * Fill in argument portion of vector table.
 	 */
 	for (; argc > 0; --argc) {
-		sucap(vectp++, (void *)destp, strlen(stringp) + 1);
+		sucap(vectp++, (void *)destp, strlen(stringp) + 1,
+		    CHERI_CAP_USER_DATA_PERMS);
 		while (*stringp++ != 0)
 			destp++;
 		destp++;
@@ -1271,14 +1267,16 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	suword(vectp++, 0);
 
 	sucap(&arginfo->ps_envstr, vectp,
-	    arginfo->ps_nenvstr * sizeof(struct chericap));
+	    arginfo->ps_nenvstr * sizeof(struct chericap),
+	    CHERI_CAP_USER_DATA_PERMS);
 	suword32(&arginfo->ps_nenvstr, envc);
 
 	/*
 	 * Fill in environment portion of vector table.
 	 */
 	for (; envc > 0; --envc) {
-		sucap(vectp++, (void *)destp, strlen(stringp) + 1);
+		sucap(vectp++, (void *)destp, strlen(stringp) + 1,
+		    CHERI_CAP_USER_DATA_PERMS);
 		while (*stringp++ != 0)
 			destp++;
 		destp++;
