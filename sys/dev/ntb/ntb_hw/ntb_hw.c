@@ -2485,21 +2485,30 @@ ntb_peer_spad_read(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
  */
 int
 ntb_mw_get_range(struct ntb_softc *ntb, unsigned mw_idx, vm_paddr_t *base,
-    caddr_t *vbase, size_t *size, size_t *align, size_t *align_size)
+    caddr_t *vbase, size_t *size, size_t *align, size_t *align_size,
+    bus_addr_t *plimit)
 {
 	struct ntb_pci_bar_info *bar;
+	bus_addr_t limit;
 	size_t bar_b2b_off;
+	enum ntb_bar bar_num;
 
 	if (mw_idx >= ntb_mw_count(ntb))
 		return (EINVAL);
 
-	bar = &ntb->bar_info[ntb_mw_to_bar(ntb, mw_idx)];
+	bar_num = ntb_mw_to_bar(ntb, mw_idx);
+	bar = &ntb->bar_info[bar_num];
 	bar_b2b_off = 0;
 	if (mw_idx == ntb->b2b_mw_idx) {
 		KASSERT(ntb->b2b_off != 0,
 		    ("user shouldn't get non-shared b2b mw"));
 		bar_b2b_off = ntb->b2b_off;
 	}
+
+	if (bar_is_64bit(ntb, bar_num))
+		limit = BUS_SPACE_MAXADDR;
+	else
+		limit = BUS_SPACE_MAXADDR_32BIT;
 
 	if (base != NULL)
 		*base = bar->pbase + bar_b2b_off;
@@ -2511,6 +2520,8 @@ ntb_mw_get_range(struct ntb_softc *ntb, unsigned mw_idx, vm_paddr_t *base,
 		*align = bar->size;
 	if (align_size != NULL)
 		*align_size = 1;
+	if (plimit != NULL)
+		*plimit = limit;
 	return (0);
 }
 
@@ -2524,7 +2535,9 @@ ntb_mw_get_range(struct ntb_softc *ntb, unsigned mw_idx, vm_paddr_t *base,
  * Set the translation of a memory window.  The peer may access local memory
  * through the window starting at the address, up to the size.  The address
  * must be aligned to the alignment specified by ntb_mw_get_range().  The size
- * must be aligned to the size alignment specified by ntb_mw_get_range().
+ * must be aligned to the size alignment specified by ntb_mw_get_range().  The
+ * address must be below the plimit specified by ntb_mw_get_range() (i.e. for
+ * 32-bit BARs).
  *
  * Return: Zero on success, otherwise an error number.
  */
@@ -2586,9 +2599,9 @@ ntb_mw_set_trans(struct ntb_softc *ntb, unsigned idx, bus_addr_t addr,
 		/* Configure 32-bit (split) BAR MW */
 
 		if ((addr & UINT32_MAX) != addr)
-			return (EINVAL);
+			return (ERANGE);
 		if (((addr + size) & UINT32_MAX) != (addr + size))
-			return (EINVAL);
+			return (ERANGE);
 
 		base = ntb_reg_read(4, base_reg) & BAR_HIGH_MASK;
 
