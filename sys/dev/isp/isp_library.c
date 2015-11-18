@@ -2483,7 +2483,7 @@ isp_find_pdb_by_wwn(ispsoftc_t *isp, int chan, uint64_t wwn, fcportdb_t **lptr)
 #ifdef	ISP_TARGET_MODE
 
 int
-isp_find_pdb_by_handle(ispsoftc_t *isp, int chan, uint32_t handle, fcportdb_t **lptr)
+isp_find_pdb_by_handle(ispsoftc_t *isp, int chan, uint16_t handle, fcportdb_t **lptr)
 {
 	fcparam *fcp;
 	int i;

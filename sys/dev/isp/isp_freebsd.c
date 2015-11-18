@@ -604,7 +604,7 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 	{
 		int needmarker;
 		struct isp_fc_tsk_mgmt *fct = (struct isp_fc_tsk_mgmt *) addr;
-		uint16_t loopid;
+		uint16_t nphdl;
 		mbreg_t mbs;
 
 		if (IS_SCSI(isp)) {
@@ -618,7 +618,7 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 		}
 
 		needmarker = retval = 0;
-		loopid = fct->loopid;
+		nphdl = fct->loopid;
 		ISP_LOCK(isp);
 		if (IS_24XX(isp)) {
 			uint8_t local[QENTRY_LEN];
@@ -630,7 +630,7 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 
 			for (i = 0; i < MAX_FC_TARG; i++) {
 				lp = &fcp->portdb[i];
-				if (lp->handle == loopid) {
+				if (lp->handle == nphdl) {
 					break;
 				}
 			}
@@ -714,34 +714,34 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 		} else {
 			MBSINIT(&mbs, 0, MBLOGALL, 0);
 			if (ISP_CAP_2KLOGIN(isp) == 0) {
-				loopid <<= 8;
+				nphdl <<= 8;
 			}
 			switch (fct->action) {
 			case IPT_CLEAR_ACA:
 				mbs.param[0] = MBOX_CLEAR_ACA;
-				mbs.param[1] = loopid;
+				mbs.param[1] = nphdl;
 				mbs.param[2] = fct->lun;
 				break;
 			case IPT_TARGET_RESET:
 				mbs.param[0] = MBOX_TARGET_RESET;
-				mbs.param[1] = loopid;
+				mbs.param[1] = nphdl;
 				needmarker = 1;
 				break;
 			case IPT_LUN_RESET:
 				mbs.param[0] = MBOX_LUN_RESET;
-				mbs.param[1] = loopid;
+				mbs.param[1] = nphdl;
 				mbs.param[2] = fct->lun;
 				needmarker = 1;
 				break;
 			case IPT_CLEAR_TASK_SET:
 				mbs.param[0] = MBOX_CLEAR_TASK_SET;
-				mbs.param[1] = loopid;
+				mbs.param[1] = nphdl;
 				mbs.param[2] = fct->lun;
 				needmarker = 1;
 				break;
 			case IPT_ABORT_TASK_SET:
 				mbs.param[0] = MBOX_ABORT_TASK_SET;
-				mbs.param[1] = loopid;
+				mbs.param[1] = nphdl;
 				mbs.param[2] = fct->lun;
 				needmarker = 1;
 				break;
@@ -1107,7 +1107,7 @@ isp_dump_atpd(ispsoftc_t *isp, tstate_t *tptr)
 	const char *states[8] = { "Free", "ATIO", "CAM", "CTIO", "LAST_CTIO", "PDON", "?6", "7" };
 
 	for (atp = tptr->atpool; atp < &tptr->atpool[ATPDPSIZE]; atp++) {
-		xpt_print(tptr->owner, "ATP: [0x%x] origdlen %u bytes_xfrd %u lun %u nphdl 0x%04x s_id 0x%06x d_id 0x%06x oxid 0x%04x state %s\n",
+		xpt_print(tptr->owner, "ATP: [0x%x] origdlen %u bytes_xfrd %u lun %x nphdl 0x%04x s_id 0x%06x d_id 0x%06x oxid 0x%04x state %s\n",
 		    atp->tag, atp->orig_datalen, atp->bytes_xfered, atp->lun, atp->nphdl, atp->sid, atp->portid, atp->oxid, states[atp->state & 0x7]);
 	}
 }
@@ -2295,7 +2295,7 @@ isp_handle_platform_atio(ispsoftc_t *isp, at_entry_t *aep)
 		 * should, in fact, get this, is in the case that we've
 		 * run out of ATIOS.
 		 */
-		xpt_print(tptr->owner, "no %s for lun %d from initiator %d\n", (atp == NULL && atiop == NULL)? "ATIOs *or* ATPS" :
+		xpt_print(tptr->owner, "no %s for lun %x from initiator %d\n", (atp == NULL && atiop == NULL)? "ATIOs *or* ATPS" :
 		    ((atp == NULL)? "ATPs" : "ATIOs"), aep->at_lun, aep->at_iid);
 		isp_endcmd(isp, aep, SCSI_STATUS_BUSY, 0);
 		if (atp) {
@@ -2347,7 +2347,7 @@ isp_handle_platform_atio(ispsoftc_t *isp, at_entry_t *aep)
 	atp->cdb0 = atiop->cdb_io.cdb_bytes[0];
 	atp->tattr = aep->at_tag_type;
 	atp->state = ATPD_STATE_CAM;
-	isp_prt(isp, ISP_LOGTDEBUG0, "ATIO[0x%x] CDB=0x%x lun %d", aep->at_tag_val, atp->cdb0, atp->lun);
+	isp_prt(isp, ISP_LOGTDEBUG0, "ATIO[0x%x] CDB=0x%x lun %x", aep->at_tag_val, atp->cdb0, atp->lun);
 	rls_lun_statep(isp, tptr);
 }
 
@@ -3103,8 +3103,8 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 	case IN_ABORT_TASK:
 	{
 		tstate_t *tptr;
-		uint16_t lun;
-		uint32_t loopid, sid;
+		uint16_t nphdl, lun;
+		uint32_t sid;
 		uint64_t wwn;
 		atio_private_data_t *atp;
 		fcportdb_t *lp;
@@ -3119,11 +3119,11 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 			lun = inp->in_lun;
 		}
 		if (ISP_CAP_2KLOGIN(isp)) {
-			loopid = ((in_fcentry_e_t *)inp)->in_iid;
+			nphdl = ((in_fcentry_e_t *)inp)->in_iid;
 		} else {
-			loopid = inp->in_iid;
+			nphdl = inp->in_iid;
 		}
-		if (isp_find_pdb_by_handle(isp, 0, loopid, &lp)) {
+		if (isp_find_pdb_by_handle(isp, 0, nphdl, &lp)) {
 			wwn = lp->port_wwn;
 			sid = lp->portid;
 		} else {
@@ -3134,7 +3134,7 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 		if (tptr == NULL) {
 			tptr = get_lun_statep(isp, 0, CAM_LUN_WILDCARD);
 			if (tptr == NULL) {
-				isp_prt(isp, ISP_LOGWARN, "ABORT TASK for lun %u- but no tstate", lun);
+				isp_prt(isp, ISP_LOGWARN, "ABORT TASK for lun %x, but no tstate", lun);
 				return;
 			}
 		}
@@ -3159,7 +3159,7 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
     			nt->nt_hba = isp;
 			nt->nt_tgt = FCPARAM(isp, 0)->isp_wwpn;
 			nt->nt_wwn = wwn;
-			nt->nt_nphdl = loopid;
+			nt->nt_nphdl = nphdl;
 			nt->nt_sid = sid;
 			nt->nt_did = PORT_ANY;
     			nt->nt_lun = lun;

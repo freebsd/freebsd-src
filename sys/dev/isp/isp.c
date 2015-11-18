@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
  */
 static const char fconf[] = "Chan %d PortDB[%d] changed:\n current =(0x%x@0x%06x 0x%08x%08x 0x%08x%08x)\n database=(0x%x@0x%06x 0x%08x%08x 0x%08x%08x)";
 static const char notresp[] = "Not RESPONSE in RESPONSE Queue (type 0x%x) @ idx %d (next %d) nlooked %d";
-static const char topology[] = "Chan %d WWPN 0x%08x%08x PortID 0x%06x handle 0x%x, Connection '%s'";
+static const char topology[] = "Chan %d WWPN 0x%08x%08x PortID 0x%06x LoopID 0x%x Connection '%s'";
 static const char bun[] = "bad underrun (count %d, resid %d, status %s)";
 static const char lipd[] = "Chan %d LIP destroyed %d active commands";
 static const char sacq[] = "unable to acquire scratch area";
@@ -2689,7 +2689,7 @@ static void
 isp_dump_chip_portdb(ispsoftc_t *isp, int chan, int dolock)
 {
 	isp_pdb_t pdb;
-	int lim, loopid;
+	uint16_t lim, nphdl;
 
 	isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGINFO, "Chan %d chip port dump", chan);
 	if (ISP_CAP_2KLOGIN(isp)) {
@@ -2697,20 +2697,20 @@ isp_dump_chip_portdb(ispsoftc_t *isp, int chan, int dolock)
 	} else {
 		lim = NPH_MAX;
 	}
-	for (loopid = 0; loopid != lim; loopid++) {
-		if (isp_getpdb(isp, chan, loopid, &pdb, dolock)) {
+	for (nphdl = 0; nphdl != lim; nphdl++) {
+		if (isp_getpdb(isp, chan, nphdl, &pdb, dolock)) {
 			continue;
 		}
-		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGINFO, "Chan %d Loopid 0x%04x "
+		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGINFO, "Chan %d Handle 0x%04x "
 		    "PortID 0x%06x WWPN 0x%02x%02x%02x%02x%02x%02x%02x%02x",
-		    chan, loopid, pdb.portid, pdb.portname[0], pdb.portname[1],
+		    chan, nphdl, pdb.portid, pdb.portname[0], pdb.portname[1],
 		    pdb.portname[2], pdb.portname[3], pdb.portname[4],
 		    pdb.portname[5], pdb.portname[6], pdb.portname[7]);
 	}
 }
 
 static uint64_t
-isp_get_wwn(ispsoftc_t *isp, int chan, int loopid, int nodename)
+isp_get_wwn(ispsoftc_t *isp, int chan, int nphdl, int nodename)
 {
 	uint64_t wwn = INI_NONE;
 	mbreg_t mbs;
@@ -2718,14 +2718,14 @@ isp_get_wwn(ispsoftc_t *isp, int chan, int loopid, int nodename)
 	MBSINIT(&mbs, MBOX_GET_PORT_NAME,
 	    MBLOGALL & ~MBLOGMASK(MBOX_COMMAND_PARAM_ERROR), 500000);
 	if (ISP_CAP_2KLOGIN(isp)) {
-		mbs.param[1] = loopid;
+		mbs.param[1] = nphdl;
 		if (nodename) {
 			mbs.param[10] = 1;
 		}
 		mbs.param[9] = chan;
 	} else {
 		mbs.ibitm = 3;
-		mbs.param[1] = loopid << 8;
+		mbs.param[1] = nphdl << 8;
 		if (nodename) {
 			mbs.param[1] |= 1;
 		}
@@ -2767,7 +2767,7 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 {
 	mbreg_t mbs;
 	int check_for_fabric, r;
-	int loopid;
+	uint16_t nphdl;
 	fcparam *fcp;
 	fcportdb_t *lp;
 	isp_pdb_t pdb;
@@ -2880,12 +2880,12 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 
 
 	if (IS_24XX(isp)) { /* XXX SHOULDN'T THIS BE FOR 2K F/W? XXX */
-		loopid = NPH_FL_ID;
+		nphdl = NPH_FL_ID;
 	} else {
-		loopid = FL_ID;
+		nphdl = FL_ID;
 	}
 	if (check_for_fabric) {
-		r = isp_getpdb(isp, chan, loopid, &pdb, 1);
+		r = isp_getpdb(isp, chan, nphdl, &pdb, 1);
 		if (r && (fcp->isp_topo == TOPO_F_PORT || fcp->isp_topo == TOPO_FL_PORT)) {
 			isp_prt(isp, ISP_LOGWARN, "fabric topology but cannot get info about fabric controller (0x%x)", r);
 			fcp->isp_topo = TOPO_PTP_STUB;
@@ -3494,7 +3494,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 {
 	fcparam *fcp = FCPARAM(isp, chan);
 	uint32_t portid;
-	uint16_t handle, loopid;
+	uint16_t nphdl;
 	isp_pdb_t pdb;
 	int portidx, portlim, r;
 	sns_gid_ft_rsp_t *rs0, *rs1;
@@ -3533,11 +3533,11 @@ abort:
 	 * Make sure we still are logged into the fabric controller.
 	 */
 	if (IS_24XX(isp)) {	/* XXX SHOULDN'T THIS BE TRUE FOR 2K F/W? XXX */
-		loopid = NPH_FL_ID;
+		nphdl = NPH_FL_ID;
 	} else {
-		loopid = FL_ID;
+		nphdl = FL_ID;
 	}
-	r = isp_getpdb(isp, chan, loopid, &pdb, 0);
+	r = isp_getpdb(isp, chan, nphdl, &pdb, 0);
 	if ((r & 0xffff) == MBOX_NOT_LOGGED_IN) {
 		isp_dump_chip_portdb(isp, chan, 0);
 	}
@@ -3898,7 +3898,7 @@ abort:
 			goto abort;
 		}
 
-		handle = pdb.handle;
+		nphdl = pdb.handle;
 		MAKE_WWN_FROM_NODE_NAME(wwnn, pdb.nodename);
 		MAKE_WWN_FROM_NODE_NAME(wwpn, pdb.portname);
 		nr = pdb.prli_word3;
@@ -3921,7 +3921,7 @@ abort:
 
 		if (dbidx == MAX_FC_TARG) {
 			ISP_MEMZERO(lp, sizeof (fcportdb_t));
-			lp->handle = handle;
+			lp->handle = nphdl;
 			lp->node_wwn = wwnn;
 			lp->port_wwn = wwpn;
 			lp->new_portid = portid;
@@ -3951,7 +3951,7 @@ abort:
 		 * are different, it maybe a changed device.
 		 */
 		lp = &fcp->portdb[dbidx];
-		lp->handle = handle;
+		lp->handle = nphdl;
 		lp->node_wwn = wwnn;
 		lp->new_portid = portid;
 		lp->new_prli_word3 = nr;
@@ -4033,7 +4033,7 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p, uint1
 				i = lim;
 			break;
 		} else if ((r & 0xffff) == MBOX_LOOP_ID_USED) {
-			/* Try the next loop id. */
+			/* Try the next handle. */
 			handle = isp_next_handle(isp, ohp);
 		} else {
 			/* Give up. */
