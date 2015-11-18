@@ -461,7 +461,7 @@ class SourceStats(Toplevel):
 			if (event.type == "pad"):
 				continue
 			duration = event.duration
-			if (eventtypes.has_key(event.name)):
+			if (event.name in eventtypes):
 				(c, d) = eventtypes[event.name]
 				c += 1
 				d += duration
@@ -1069,7 +1069,7 @@ class KTRFile:
 
 	def makeid(self, group, id, type):
 		tag = group + id
-		if (self.taghash.has_key(tag)):
+		if (tag in self.taghash):
 			return self.taghash[tag]
 		if (type == "counter"):
 			source = Counter(group, id)
