@@ -130,7 +130,7 @@ class Cache(object):
             self.stats = stats
 
     def get(self, id):
-        if self.enabled and self.items.has_key(id):
+        if self.enabled and id in self.items:
             self.stats.hit += 1
             return self.items[id]
         else:
@@ -139,7 +139,7 @@ class Cache(object):
 
     def put(self, id, obj):
         if self.enabled:
-            if self.items.has_key(id) and obj is not self.items[id]:
+            if id in self.items and obj is not self.items[id]:
                 #raise ValueError("Item is already cached: %d (%s, %s)" %
                 #        (id, self.items[id], obj))
                 warn(Config.w_cached, "Item is already cached: %d (%s, %s)" % \
@@ -148,7 +148,7 @@ class Cache(object):
 
     def replace(self, id, obj):
         if self.enabled:
-            assert self.items.has_key(id)
+            assert id in self.items
             self.items[id] = obj
 
 class ListDiff(object):
@@ -226,7 +226,7 @@ class VersionMap(object):
         self.symbols = {}
 
     def append(self, symbol):
-        if (self.symbols.has_key(symbol.name)):
+        if (symbol.name in self.symbols):
             raise ValueError("Symbol is already defined %s@%s" %
                     (symbol.name, self.name))
         self.symbols[symbol.name] = symbol
@@ -250,7 +250,7 @@ class Def(object):
         self.attrs = kwargs
 
     def __getattr__(self, attr):
-        if not self.attrs.has_key(attr):
+        if attr not in self.attrs:
             raise AttributeError('%s in %s' % (attr, str(self)))
         return self.attrs[attr]
 
@@ -645,7 +645,7 @@ class Shlib(object):
             if not Config.symbol_filter.match(p['symbol']):
                 continue
             sym = Symbol(p['symbol'], p['offset'], vername, self)
-            if not self.versions.has_key(vername):
+            if vername not in self.versions:
                 self.versions[vername] = VersionMap(vername)
             self.versions[vername].append(sym)
         if Config.alias_prefixes:
@@ -655,7 +655,7 @@ class Shlib(object):
                     if not p['symbol'].startswith(prefix):
                         continue
                     alias = SymbolAlias(p['symbol'], prefix, p['offset'])
-                    if self.alias_syms.has_key(alias.name):
+                    if alias.name in self.alias_syms:
                         prevalias = self.alias_syms[alias.name]
                         if alias.name != prevalias.name or \
                                 alias.offset != prevalias.offset:
@@ -676,7 +676,7 @@ class Shlib(object):
                     localnames = self.local_offsetmap[sym.offset]
                     localnames.sort(key=lambda x: -len(x))
                     for localname in localnames:
-                        if not self.alias_syms.has_key(localname):
+                        if localname not in self.alias_syms:
                             continue
                         alias = self.alias_syms[localname]
                         raw = dwarfdump.offsetmap[alias.offset]
@@ -753,7 +753,7 @@ class ObjdumpParser(Parser):
             return
         table.append(symbol)
         if offsetmap != None:
-            if not offsetmap.has_key(offset):
+            if offset not in offsetmap:
                 offsetmap[offset] = [symbol['symbol']]
             else:
                 offsetmap[offset].append(symbol['symbol'])
@@ -921,9 +921,9 @@ class DwarfdumpParser(Parser):
             args = self.parse_arg(tag, args)
         tag.unit.tags[tag.id] = tag
         def parse_offset(tag):
-            if tag.args.has_key('DW_AT_low_pc'):
+            if 'DW_AT_low_pc' in tag.args:
                 return int(tag.args['DW_AT_low_pc'], 16)
-            elif tag.args.has_key('DW_AT_location'):
+            elif 'DW_AT_location' in tag.args:
                 location = tag.args['DW_AT_location']
                 if location.startswith('DW_OP_addr'):
                     return int(location.replace('DW_OP_addr', ''), 16)
@@ -931,9 +931,9 @@ class DwarfdumpParser(Parser):
         offset = parse_offset(tag)
         if offset is not None and \
                 (tag.tag not in DwarfdumpParser.skip_tags or \
-                (tag.args.has_key('DW_AT_external') and \
+                ('DW_AT_external' in tag.args and \
                 tag.tag in DwarfdumpParser.external_tags)):
-            if self.offsetmap.has_key(offset):
+            if offset in self.offsetmap:
                 raise ValueError("Dwarf dump parse error: " +
                         "symbol is aleady defined at offset 0x%x" % offset)
             self.offsetmap[offset] = tag
