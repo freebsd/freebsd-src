@@ -326,6 +326,10 @@ SYSCTL_UINT(_hw_ntb, OID_AUTO, debug_level, CTLFLAG_RWTUN,
 	}							\
 } while (0)
 
+static unsigned g_ntb_enable_wc = 1;
+SYSCTL_UINT(_hw_ntb, OID_AUTO, enable_writecombine, CTLFLAG_RDTUN,
+    &g_ntb_enable_wc, 0, "Set to 1 to map memory windows write combining");
+
 static struct ntb_hw_info pci_ids[] = {
 	/* XXX: PS/SS IDs left out until they are supported. */
 	{ 0x0C4E8086, "BWD Atom Processor S1200 Non-Transparent Bridge B2B",
@@ -766,10 +770,13 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 		save_bar_parameters(bar);
 	}
 
+	print_map_success(ntb, bar, "mw");
+	if (g_ntb_enable_wc == 0)
+		return (0);
+
 	/* Mark bar region as write combining to improve performance. */
 	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size,
 	    VM_MEMATTR_WRITE_COMBINING);
-	print_map_success(ntb, bar, "mw");
 	if (rc == 0)
 		device_printf(ntb->device,
 		    "Marked BAR%d v:[%p-%p] p:[%p-%p] as "
