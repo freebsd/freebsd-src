@@ -1319,12 +1319,21 @@ int
 cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp)
 {
 	struct chericap *base;
+#if 0
 	Elf_Addr *pos;
+#endif
 
 	base = (struct chericap *)*stack_base;
+#if 0
+	/*
+	 * XXXBD: correct computation of the location and writing out
+	 * the right data required.  The standard set_auxargs won't work
+	 * as Elf_Auxargs contain pointers.
+	 */
 	pos = (Elf_Addr *)(base + (imgp->args->argc + imgp->args->envc + 2));
 
 	__elfN(set_auxargs)(pos, imgp);
+#endif
 
 	base--;
 	suword(base, (long)imgp->args->argc);
