@@ -690,6 +690,9 @@ smb_iod_create(struct smb_vc *vcp)
 	    RFNOWAIT, 0, "smbiod%d", iod->iod_id);
 	if (error) {
 		SMBERROR("can't start smbiod: %d", error);
+		vcp->vc_iod = NULL;
+		smb_sl_destroy(&iod->iod_rqlock);
+		smb_sl_destroy(&iod->iod_evlock);
 		free(iod, M_SMBIOD);
 		return error;
 	}
