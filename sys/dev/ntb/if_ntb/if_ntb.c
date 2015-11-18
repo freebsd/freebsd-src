@@ -207,6 +207,7 @@ struct ntb_transport_mw {
 	size_t		phys_size;
 	size_t		xlat_align;
 	size_t		xlat_align_size;
+	bus_addr_t	addr_limit;
 	/* Tx buff is off vbase / phys_addr */
 	caddr_t		vbase;
 	size_t		xlat_size;
@@ -576,7 +577,8 @@ ntb_transport_probe(struct ntb_softc *ntb)
 		mw = &nt->mw_vec[i];
 
 		rc = ntb_mw_get_range(ntb, i, &mw->phys_addr, &mw->vbase,
-		    &mw->phys_size, &mw->xlat_align, &mw->xlat_align_size);
+		    &mw->phys_size, &mw->xlat_align, &mw->xlat_align_size,
+		    &mw->addr_limit);
 		if (rc != 0)
 			goto err;
 
@@ -1306,7 +1308,7 @@ ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw, size_t size)
 	mw->buff_size = buff_size;
 
 	mw->virt_addr = contigmalloc(mw->buff_size, M_NTB_IF, M_ZERO, 0,
-	    BUS_SPACE_MAXADDR, mw->xlat_align, 0);
+	    mw->addr_limit, mw->xlat_align, 0);
 	if (mw->virt_addr == NULL) {
 		mw->xlat_size = 0;
 		mw->buff_size = 0;
