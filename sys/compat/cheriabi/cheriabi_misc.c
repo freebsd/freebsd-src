@@ -1213,22 +1213,16 @@ cheriabi_copyout_strings(struct image_params *imgp)
 		 */
 		imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size
 			: (AT_COUNT * 2);
-		/*
-		 * The '+ 2' is for the null pointers at the end of each of
-		 * the arg and env vector sets,and imgp->auxarg_size is room
-		 * for argument of Runtime loader.
-		 */
-		vectp = (struct chericap *) (destp - (imgp->args->argc +
-		    imgp->args->envc + 2 + imgp->auxarg_size + execpath_len) *
-		    sizeof(struct chericap));
-	} else {
-		/*
-		 * The '+ 2' is for the null pointers at the end of each of
-		 * the arg and env vector sets
-		 */
-		vectp = (struct chericap *)(destp - (imgp->args->argc +
-		    imgp->args->envc + 2) * sizeof(struct chericap));
-	}
+	} else
+		imgp->auxarg_size = 0;
+	/*
+	 * The '+ 2' is for the null pointers at the end of each of
+	 * the arg and env vector sets, and imgp->auxarg_size is room
+	 * for argument of runtime loader if any.
+	 */
+	vectp = (struct chericap *)(destp - (imgp->args->argc +
+	    imgp->args->envc + 2 + imgp->auxarg_size) *
+	    sizeof(struct chericap));
 
 	/*
 	 * vectp also becomes our initial stack base
