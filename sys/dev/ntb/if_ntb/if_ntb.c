@@ -164,7 +164,6 @@ struct ntb_transport_qp {
 	    void *data, int len);
 	struct ntb_queue_list	rx_post_q;
 	struct ntb_queue_list	rx_pend_q;
-	struct ntb_queue_list	rx_free_q;
 	/* ntb_rx_q_lock: synchronize access to rx_XXXX_q */
 	struct mtx		ntb_rx_q_lock;
 	struct task		rx_completion_task;
@@ -718,7 +717,6 @@ ntb_transport_init_queue(struct ntb_transport_ctx *nt, unsigned int qp_num)
 
 	STAILQ_INIT(&qp->rx_post_q);
 	STAILQ_INIT(&qp->rx_pend_q);
-	STAILQ_INIT(&qp->rx_free_q);
 	STAILQ_INIT(&qp->tx_free_q);
 
 	callout_reset(&qp->link_work, 0, ntb_qp_link_work, qp);
@@ -742,9 +740,6 @@ ntb_transport_free_queue(struct ntb_transport_qp *qp)
 	qp->rx_handler = NULL;
 	qp->tx_handler = NULL;
 	qp->event_handler = NULL;
-
-	while ((entry = ntb_list_rm(&qp->ntb_rx_q_lock, &qp->rx_free_q)))
-		free(entry, M_NTB_IF);
 
 	while ((entry = ntb_list_rm(&qp->ntb_rx_q_lock, &qp->rx_pend_q)))
 		free(entry, M_NTB_IF);
@@ -910,8 +905,11 @@ ntb_process_tx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry)
 	if (entry->len > qp->tx_max_frame - sizeof(struct ntb_payload_header)) {
 		if (qp->tx_handler != NULL)
 			qp->tx_handler(qp, qp->cb_data, entry->buf,
-				       EIO);
+			    EIO);
+		else
+			m_freem(entry->buf);
 
+		entry->buf = NULL;
 		ntb_list_add(&qp->ntb_tx_free_q_lock, entry, &qp->tx_free_q);
 		CTR1(KTR_NTB,
 		    "TX: frame too big. returning entry %p to tx_free_q",
@@ -969,8 +967,11 @@ ntb_memcpy_tx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry,
 		qp->tx_bytes += entry->len;
 
 		if (qp->tx_handler)
-			qp->tx_handler(qp, qp->cb_data, entry->cb_data,
-				       entry->len);
+			qp->tx_handler(qp, qp->cb_data, entry->buf,
+			    entry->len);
+		else
+			m_freem(entry->buf);
+		entry->buf = NULL;
 	}
 
 	CTR3(KTR_NTB,
@@ -1146,17 +1147,28 @@ ntb_complete_rxc(void *arg, int pending)
 		entry->x_hdr->flags = 0;
 		iowrite32(entry->index, &qp->rx_info->entry);
 
+		STAILQ_REMOVE_HEAD(&qp->rx_post_q, entry);
+
 		len = entry->len;
 		m = entry->buf;
 
-		STAILQ_REMOVE_HEAD(&qp->rx_post_q, entry);
-		STAILQ_INSERT_TAIL(&qp->rx_free_q, entry, entry);
+		/*
+		 * Re-initialize queue_entry for reuse; rx_handler takes
+		 * ownership of the mbuf.
+		 */
+		entry->buf = NULL;
+		entry->len = transport_mtu;
+		entry->cb_data = qp->transport->ifp;
+
+		STAILQ_INSERT_TAIL(&qp->rx_pend_q, entry, entry);
 
 		mtx_unlock_spin(&qp->ntb_rx_q_lock);
 
 		CTR2(KTR_NTB, "RX: completing entry %p, mbuf %p", entry, m);
 		if (qp->rx_handler != NULL && qp->client_ready)
 			qp->rx_handler(qp, qp->cb_data, m, len);
+		else
+			m_freem(m);
 
 		mtx_lock_spin(&qp->ntb_rx_q_lock);
 	}
