@@ -81,6 +81,9 @@ int ntb_mw_get_range(struct ntb_softc *, unsigned mw_idx, vm_paddr_t *base,
 int ntb_mw_set_trans(struct ntb_softc *, unsigned mw_idx, bus_addr_t, size_t);
 int ntb_mw_clear_trans(struct ntb_softc *, unsigned mw_idx);
 
+int ntb_mw_get_wc(struct ntb_softc *, unsigned mw_idx, bool *wc);
+int ntb_mw_set_wc(struct ntb_softc *, unsigned mw_idx, bool wc);
+
 uint8_t ntb_get_max_spads(struct ntb_softc *ntb);
 int ntb_spad_write(struct ntb_softc *ntb, unsigned int idx, uint32_t val);
 int ntb_spad_read(struct ntb_softc *ntb, unsigned int idx, uint32_t *val);
