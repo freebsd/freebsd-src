@@ -58,14 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/interface/vcpu.h>
 
 /*--------------------------- Forward Declarations ---------------------------*/
-#ifdef SMP
-static void xen_hvm_cpu_resume(void);
-#endif
 static void xen_hvm_cpu_init(void);
-
-/*---------------------------- Extern Declarations ---------------------------*/
-/* Variables used by mp_machdep to perform the bitmap IPI */
-extern volatile u_int cpu_ipi_pending[MAXCPU];
 
 /*-------------------------------- Local Types -------------------------------*/
 enum xen_hvm_init_type {
@@ -80,7 +73,7 @@ enum xen_domain_type xen_domain_type = XEN_NATIVE;
 #ifdef SMP
 struct cpu_ops xen_hvm_cpu_ops = {
 	.cpu_init	= xen_hvm_cpu_init,
-	.cpu_resume	= xen_hvm_cpu_resume
+	.cpu_resume	= xen_hvm_cpu_init
 };
 #endif
 
@@ -107,23 +100,6 @@ int xen_disable_pv_nics = 0;
 TUNABLE_INT("hw.xen.disable_pv_disks", &xen_disable_pv_disks);
 TUNABLE_INT("hw.xen.disable_pv_nics", &xen_disable_pv_nics);
 
-#ifdef SMP
-/*---------------------- XEN diverged cpu operations -------------------------*/
-static void
-xen_hvm_cpu_resume(void)
-{
-	u_int cpuid = PCPU_GET(cpuid);
-
-	/*
-	 * Reset pending bitmap IPIs, because Xen doesn't preserve pending
-	 * event channels on migration.
-	 */
-	cpu_ipi_pending[cpuid] = 0;
-
-	/* register vcpu_info area */
-	xen_hvm_cpu_init();
-}
-#endif
 /*---------------------- XEN Hypervisor Probe and Setup ----------------------*/
 static uint32_t
 xen_hvm_cpuid_base(void)
