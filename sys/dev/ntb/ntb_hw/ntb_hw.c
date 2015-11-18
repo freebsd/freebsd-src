@@ -2575,9 +2575,9 @@ ntb_mw_set_trans(struct ntb_softc *ntb, unsigned idx, bus_addr_t addr,
 	} else {
 		/* Configure 32-bit (split) BAR MW */
 
-		if ((addr & ~UINT32_MAX) != 0)
+		if ((addr & UINT32_MAX) != addr)
 			return (EINVAL);
-		if (((addr + size) & ~UINT32_MAX) != 0)
+		if (((addr + size) & UINT32_MAX) != (addr + size))
 			return (EINVAL);
 
 		base = ntb_reg_read(4, base_reg);
