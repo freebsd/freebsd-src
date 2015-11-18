@@ -148,6 +148,7 @@ void isp_get_fc_hdr(ispsoftc_t *, fc_hdr_t *, fc_hdr_t *);
 void isp_put_fc_hdr(ispsoftc_t *, fc_hdr_t *, fc_hdr_t *);
 void isp_get_fcp_cmnd_iu(ispsoftc_t *, fcp_cmnd_iu_t *, fcp_cmnd_iu_t *);
 void isp_put_rft_id(ispsoftc_t *, rft_id_t *, rft_id_t *);
+void isp_put_rff_id(ispsoftc_t *, rff_id_t *, rff_id_t *);
 void isp_get_ct_hdr(ispsoftc_t *isp, ct_hdr_t *, ct_hdr_t *);
 void isp_put_ct_hdr(ispsoftc_t *isp, ct_hdr_t *, ct_hdr_t *);
 void isp_put_fcp_rsp_iu(ispsoftc_t *isp, fcp_rsp_iu_t *, fcp_rsp_iu_t *);
@@ -172,7 +173,7 @@ void isp_destroy_tgt_handle(ispsoftc_t *, uint32_t);
 #endif
 int isp_find_pdb_by_wwn(ispsoftc_t *, int, uint64_t, fcportdb_t **);
 #ifdef ISP_TARGET_MODE
-int isp_find_pdb_by_handle(ispsoftc_t *, int, uint32_t, fcportdb_t **);
+int isp_find_pdb_by_handle(ispsoftc_t *, int, uint16_t, fcportdb_t **);
 int isp_find_pdb_by_sid(ispsoftc_t *, int, uint32_t, fcportdb_t **);
 void isp_find_chan_by_did(ispsoftc_t *, uint32_t, uint16_t *);
 void isp_add_wwn_entry(ispsoftc_t *, int, uint64_t, uint64_t, uint16_t, uint32_t, uint16_t);

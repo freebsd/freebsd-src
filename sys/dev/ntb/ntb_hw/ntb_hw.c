@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 
 #define NTB_HB_TIMEOUT		1 /* second */
 #define ATOM_LINK_RECOVERY_TIME	500 /* ms */
+#define BAR_HIGH_MASK		(~((1ull << 12) - 1))
 
 #define DEVICE2SOFTC(dev) ((struct ntb_softc *) device_get_softc(dev))
 
@@ -113,6 +114,7 @@ struct ntb_pci_bar_info {
 	vm_paddr_t		pbase;
 	caddr_t			vbase;
 	vm_size_t		size;
+	bool			mapped_wc : 1;
 
 	/* Configuration register offsets */
 	uint32_t		psz_off;
@@ -325,6 +327,10 @@ SYSCTL_UINT(_hw_ntb, OID_AUTO, debug_level, CTLFLAG_RWTUN,
 		device_printf(ntb->device, __VA_ARGS__);	\
 	}							\
 } while (0)
+
+static unsigned g_ntb_enable_wc = 1;
+SYSCTL_UINT(_hw_ntb, OID_AUTO, enable_writecombine, CTLFLAG_RDTUN,
+    &g_ntb_enable_wc, 0, "Set to 1 to map memory windows write combining");
 
 static struct ntb_hw_info pci_ids[] = {
 	/* XXX: PS/SS IDs left out until they are supported. */
@@ -766,18 +772,22 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 		save_bar_parameters(bar);
 	}
 
+	print_map_success(ntb, bar, "mw");
+	if (g_ntb_enable_wc == 0)
+		return (0);
+
 	/* Mark bar region as write combining to improve performance. */
 	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size,
 	    VM_MEMATTR_WRITE_COMBINING);
-	print_map_success(ntb, bar, "mw");
-	if (rc == 0)
+	if (rc == 0) {
+		bar->mapped_wc = true;
 		device_printf(ntb->device,
 		    "Marked BAR%d v:[%p-%p] p:[%p-%p] as "
 		    "WRITE_COMBINING.\n",
 		    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
 		    (char *)bar->vbase + bar->size - 1,
 		    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1));
-	else
+	} else
 		device_printf(ntb->device,
 		    "Unable to mark BAR%d v:[%p-%p] p:[%p-%p] as "
 		    "WRITE_COMBINING: %d\n",
@@ -2475,21 +2485,30 @@ ntb_peer_spad_read(struct ntb_softc *ntb, unsigned int idx, uint32_t *val)
  */
 int
 ntb_mw_get_range(struct ntb_softc *ntb, unsigned mw_idx, vm_paddr_t *base,
-    caddr_t *vbase, size_t *size, size_t *align, size_t *align_size)
+    caddr_t *vbase, size_t *size, size_t *align, size_t *align_size,
+    bus_addr_t *plimit)
 {
 	struct ntb_pci_bar_info *bar;
+	bus_addr_t limit;
 	size_t bar_b2b_off;
+	enum ntb_bar bar_num;
 
 	if (mw_idx >= ntb_mw_count(ntb))
 		return (EINVAL);
 
-	bar = &ntb->bar_info[ntb_mw_to_bar(ntb, mw_idx)];
+	bar_num = ntb_mw_to_bar(ntb, mw_idx);
+	bar = &ntb->bar_info[bar_num];
 	bar_b2b_off = 0;
 	if (mw_idx == ntb->b2b_mw_idx) {
 		KASSERT(ntb->b2b_off != 0,
 		    ("user shouldn't get non-shared b2b mw"));
 		bar_b2b_off = ntb->b2b_off;
 	}
+
+	if (bar_is_64bit(ntb, bar_num))
+		limit = BUS_SPACE_MAXADDR;
+	else
+		limit = BUS_SPACE_MAXADDR_32BIT;
 
 	if (base != NULL)
 		*base = bar->pbase + bar_b2b_off;
@@ -2501,6 +2520,8 @@ ntb_mw_get_range(struct ntb_softc *ntb, unsigned mw_idx, vm_paddr_t *base,
 		*align = bar->size;
 	if (align_size != NULL)
 		*align_size = 1;
+	if (plimit != NULL)
+		*plimit = limit;
 	return (0);
 }
 
@@ -2514,7 +2535,9 @@ ntb_mw_get_range(struct ntb_softc *ntb, unsigned mw_idx, vm_paddr_t *base,
  * Set the translation of a memory window.  The peer may access local memory
  * through the window starting at the address, up to the size.  The address
  * must be aligned to the alignment specified by ntb_mw_get_range().  The size
- * must be aligned to the size alignment specified by ntb_mw_get_range().
+ * must be aligned to the size alignment specified by ntb_mw_get_range().  The
+ * address must be below the plimit specified by ntb_mw_get_range() (i.e. for
+ * 32-bit BARs).
  *
  * Return: Zero on success, otherwise an error number.
  */
@@ -2551,14 +2574,14 @@ ntb_mw_set_trans(struct ntb_softc *ntb, unsigned idx, bus_addr_t addr,
 
 	limit = 0;
 	if (bar_is_64bit(ntb, bar_num)) {
-		base = ntb_reg_read(8, base_reg);
+		base = ntb_reg_read(8, base_reg) & BAR_HIGH_MASK;
 
 		if (limit_reg != 0 && size != mw_size)
 			limit = base + size;
 
 		/* Set and verify translation address */
 		ntb_reg_write(8, xlat_reg, addr);
-		reg_val = ntb_reg_read(8, xlat_reg);
+		reg_val = ntb_reg_read(8, xlat_reg) & BAR_HIGH_MASK;
 		if (reg_val != addr) {
 			ntb_reg_write(8, xlat_reg, 0);
 			return (EIO);
@@ -2566,7 +2589,7 @@ ntb_mw_set_trans(struct ntb_softc *ntb, unsigned idx, bus_addr_t addr,
 
 		/* Set and verify the limit */
 		ntb_reg_write(8, limit_reg, limit);
-		reg_val = ntb_reg_read(8, limit_reg);
+		reg_val = ntb_reg_read(8, limit_reg) & BAR_HIGH_MASK;
 		if (reg_val != limit) {
 			ntb_reg_write(8, limit_reg, base);
 			ntb_reg_write(8, xlat_reg, 0);
@@ -2575,19 +2598,19 @@ ntb_mw_set_trans(struct ntb_softc *ntb, unsigned idx, bus_addr_t addr,
 	} else {
 		/* Configure 32-bit (split) BAR MW */
 
-		if ((addr & ~UINT32_MAX) != 0)
-			return (EINVAL);
-		if (((addr + size) & ~UINT32_MAX) != 0)
-			return (EINVAL);
+		if ((addr & UINT32_MAX) != addr)
+			return (ERANGE);
+		if (((addr + size) & UINT32_MAX) != (addr + size))
+			return (ERANGE);
 
-		base = ntb_reg_read(4, base_reg);
+		base = ntb_reg_read(4, base_reg) & BAR_HIGH_MASK;
 
 		if (limit_reg != 0 && size != mw_size)
 			limit = base + size;
 
 		/* Set and verify translation address */
 		ntb_reg_write(4, xlat_reg, addr);
-		reg_val = ntb_reg_read(4, xlat_reg);
+		reg_val = ntb_reg_read(4, xlat_reg) & BAR_HIGH_MASK;
 		if (reg_val != addr) {
 			ntb_reg_write(4, xlat_reg, 0);
 			return (EIO);
@@ -2595,7 +2618,7 @@ ntb_mw_set_trans(struct ntb_softc *ntb, unsigned idx, bus_addr_t addr,
 
 		/* Set and verify the limit */
 		ntb_reg_write(4, limit_reg, limit);
-		reg_val = ntb_reg_read(4, limit_reg);
+		reg_val = ntb_reg_read(4, limit_reg) & BAR_HIGH_MASK;
 		if (reg_val != limit) {
 			ntb_reg_write(4, limit_reg, base);
 			ntb_reg_write(4, xlat_reg, 0);
@@ -2620,6 +2643,60 @@ ntb_mw_clear_trans(struct ntb_softc *ntb, unsigned mw_idx)
 {
 
 	return (ntb_mw_set_trans(ntb, mw_idx, 0, 0));
+}
+
+/*
+ * ntb_mw_get_wc - Get the write-combine status of a memory window
+ *
+ * Returns:  Zero on success, setting *wc; otherwise an error number (e.g. if
+ * idx is an invalid memory window).
+ */
+int
+ntb_mw_get_wc(struct ntb_softc *ntb, unsigned idx, bool *wc)
+{
+	struct ntb_pci_bar_info *bar;
+
+	if (idx >= ntb_mw_count(ntb))
+		return (EINVAL);
+
+	bar = &ntb->bar_info[ntb_mw_to_bar(ntb, idx)];
+	*wc = bar->mapped_wc;
+	return (0);
+}
+
+/*
+ * ntb_mw_set_wc - Set the write-combine status of a memory window
+ *
+ * If 'wc' matches the current status, this does nothing and succeeds.
+ *
+ * Returns:  Zero on success, setting the caching attribute on the virtual
+ * mapping of the BAR; otherwise an error number (e.g. if idx is an invalid
+ * memory window, or if changing the caching attribute fails).
+ */
+int
+ntb_mw_set_wc(struct ntb_softc *ntb, unsigned idx, bool wc)
+{
+	struct ntb_pci_bar_info *bar;
+	vm_memattr_t attr;
+	int rc;
+
+	if (idx >= ntb_mw_count(ntb))
+		return (EINVAL);
+
+	bar = &ntb->bar_info[ntb_mw_to_bar(ntb, idx)];
+	if (bar->mapped_wc == wc)
+		return (0);
+
+	if (wc)
+		attr = VM_MEMATTR_WRITE_COMBINING;
+	else
+		attr = VM_MEMATTR_DEFAULT;
+
+	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size, attr);
+	if (rc == 0)
+		bar->mapped_wc = wc;
+
+	return (rc);
 }
 
 /**

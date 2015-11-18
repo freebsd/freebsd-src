@@ -482,7 +482,7 @@ typedef struct {
 } fcparam;
 
 #define	FW_CONFIG_WAIT		0
-#define	FW_WAIT_AL_PA		1
+#define	FW_WAIT_LINK		1
 #define	FW_WAIT_LOGIN		2
 #define	FW_READY		3
 #define	FW_LOSS_OF_SYNC		4
@@ -491,8 +491,8 @@ typedef struct {
 #define	FW_NON_PART		7
 
 #define	LOOP_NIL		0
-#define	LOOP_LIP_RCVD		1
-#define	LOOP_PDB_RCVD		2
+#define	LOOP_TESTING_LINK	1
+#define	LOOP_LTEST_DONE		2
 #define	LOOP_SCANNING_LOOP	3
 #define	LOOP_LSCAN_DONE		4
 #define	LOOP_SCANNING_FABRIC	5
@@ -861,10 +861,10 @@ void isp_done(XS_T *);
  *        Update any operating parameters (speed, etc.)
  * ... ISPCTL_FCLINK_TEST, int channel);
  *        Test FC link status on this channel
- * ... ISPCTL_SCAN_FABRIC, int channel);
- *        Scan fabric on this channel
  * ... ISPCTL_SCAN_LOOP, int channel);
  *        Scan local loop on this channel
+ * ... ISPCTL_SCAN_FABRIC, int channel);
+ *        Scan fabric on this channel
  * ... ISPCTL_PDB_SYNC, int channel);
  *        Synchronize port database on this channel
  * ... ISPCTL_SEND_LIP, int channel);
@@ -881,12 +881,11 @@ void isp_done(XS_T *);
  *        Change role of specified channel
  *
  * ISPCTL_PDB_SYNC is somewhat misnamed. It actually is the final step, in
- * order, of ISPCTL_FCLINK_TEST, ISPCTL_SCAN_FABRIC, and ISPCTL_SCAN_LOOP.
+ * order, of ISPCTL_FCLINK_TEST, ISPCTL_SCAN_LOOP, and ISPCTL_SCAN_FABRIC.
  * The main purpose of ISPCTL_PDB_SYNC is to complete management of logging
  * and logging out of fabric devices (if one is on a fabric) and then marking
  * the 'loop state' as being ready to now be used for sending commands to
- * devices. Originally fabric name server and local loop scanning were
- * part of this function. It's now been separated to allow for finer control.
+ * devices.
  */
 typedef enum {
 	ISPCTL_RESET_BUS,

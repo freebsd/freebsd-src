@@ -200,16 +200,10 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 		return EINVAL;
 	}
 
-	/*
-	 * NB: The null xform needs a non-zero blocksize to keep the
-	 *      crypto code happy but if we use it to set ivlen then
-	 *      the ESP header will be processed incorrectly.  The
-	 *      compromise is to force it to zero here.
-	 */
 	if (SAV_ISCTRORGCM(sav))
 		sav->ivlen = 8;	/* RFC4106 3.1 and RFC3686 3.1 */
 	else
-		sav->ivlen = (txform == &enc_xform_null ? 0 : txform->ivsize);
+		sav->ivlen = txform->ivsize;
 
 	/*
 	 * Setup AH-related state.

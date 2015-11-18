@@ -1458,9 +1458,6 @@ ${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd ${_bt}-lib/libsqlite3
 _makewhatis=usr.bin/makewhatis
 .endif
 
-# Rebuild up-to-date libmd for xinstall
-${_bt}-usr.bin/xinstall: ${_bt}-lib/libmd
-
 bootstrap-tools: .PHONY
 
 #	Please document (add comment) why something is in 'bootstrap-tools'.
@@ -1483,7 +1480,6 @@ bootstrap-tools: .PHONY
     ${_yacc} \
     ${_m4} \
     ${_lex} \
-    lib/libmd \
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config \
