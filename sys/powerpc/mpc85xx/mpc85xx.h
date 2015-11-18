@@ -48,14 +48,35 @@ extern vm_offset_t		ccsrbar_va;
 /*
  * Local access registers
  */
-#define	OCP85XX_LAWBAR(n)	(CCSRBAR_VA + 0xc08 + 0x20 * (n))
-#define	OCP85XX_LAWSR(n)	(CCSRBAR_VA + 0xc10 + 0x20 * (n))
+#if defined(QORIQ_DPAA)
+/* Write order: OCP_LAWBARH -> OCP_LAWBARL -> OCP_LAWSR */
+#define	OCP85XX_LAWBARH(n)	(CCSRBAR_VA + 0xc00 + 0x10 * (n))
+#define	OCP85XX_LAWBARL(n)	(CCSRBAR_VA + 0xc04 + 0x10 * (n))
+#define	OCP85XX_LAWSR(n)	(CCSRBAR_VA + 0xc08 + 0x10 * (n))
+#else
+#define	OCP85XX_LAWBAR(n)	(CCSRBAR_VA + 0xc08 + 0x10 * (n))
+#define	OCP85XX_LAWSR(n)	(CCSRBAR_VA + 0xc10 + 0x10 * (n))
+#endif
 
-#define	OCP85XX_TGTIF_LBC	4
-#define	OCP85XX_TGTIF_RAM_INTL	11
-#define	OCP85XX_TGTIF_RIO	12
-#define	OCP85XX_TGTIF_RAM1	15
-#define	OCP85XX_TGTIF_RAM2	22
+/* Attribute register */
+#define	OCP85XX_ENA_MASK	0x80000000
+#define	OCP85XX_DIS_MASK	0x7fffffff
+
+#if defined(QORIQ_DPAA)
+#define	OCP85XX_TGTIF_LBC	0x1f
+#define	OCP85XX_TGTIF_RAM_INTL	0x14
+#define	OCP85XX_TGTIF_RAM1	0x10
+#define	OCP85XX_TGTIF_RAM2	0x11
+#define	OCP85XX_TGTIF_BMAN	0x18
+#define	OCP85XX_TGTIF_QMAN	0x3C
+#define	OCP85XX_TRGT_SHIFT	20
+#else
+#define	OCP85XX_TGTIF_LBC	0x04
+#define	OCP85XX_TGTIF_RAM_INTL	0x0b
+#define	OCP85XX_TGTIF_RIO	0x0c
+#define	OCP85XX_TGTIF_RAM1	0x0f
+#define	OCP85XX_TGTIF_RAM2	0x16
+#endif
 
 /*
  * L2 cache registers
@@ -81,8 +102,8 @@ extern vm_offset_t		ccsrbar_va;
  */
 uint32_t ccsr_read4(uintptr_t addr);
 void ccsr_write4(uintptr_t addr, uint32_t val);
-int law_enable(int trgt, u_long addr, u_long size);
-int law_disable(int trgt, u_long addr, u_long size);
+int law_enable(int trgt, uint64_t bar, uint32_t size);
+int law_disable(int trgt, uint64_t bar, uint32_t size);
 int law_getmax(void);
 int law_pci_target(struct resource *, int *, int *);
 
