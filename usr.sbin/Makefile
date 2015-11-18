@@ -48,7 +48,6 @@ SUBDIR=	adduser \
 	mpsutil \
 	mptutil \
 	mtest \
-	${_mtree} \
 	newsyslog \
 	nfscbd \
 	nfsd \
@@ -57,7 +56,6 @@ SUBDIR=	adduser \
 	nfsuserd \
 	nmtree \
 	nologin \
-	${_pc_sysinstall} \
 	pciconf \
 	periodic \
 	powerd \
@@ -100,254 +98,111 @@ SUBDIR=	adduser \
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_ACCT} != "no"
-SUBDIR+=	accton
-SUBDIR+=	sa
-.endif
-
-.if ${MK_AMD} != "no"
-SUBDIR+=	amd
-.endif
-
-.if ${MK_AUDIT} != "no"
-SUBDIR+=	audit
-SUBDIR+=	auditd
+SUBDIR.${MK_ACCT}+=	accton
+SUBDIR.${MK_ACCT}+=	sa
+SUBDIR.${MK_AMD}+=	amd
+SUBDIR.${MK_AUDIT}+=	audit
+SUBDIR.${MK_AUDIT}+=	auditd
 .if ${MK_OPENSSL} != "no"
-SUBDIR+=	auditdistd
+SUBDIR.${MK_AUDIT}+=	auditdistd
 .endif
-SUBDIR+=	auditreduce
-SUBDIR+=	praudit
-.endif
-
-.if ${MK_AUTHPF} != "no"
-SUBDIR+=	authpf
-.endif
-
-.if ${MK_AUTOFS} != "no"
-SUBDIR+=	autofs
-.endif
-
-.if ${MK_BLUETOOTH} != "no"
-SUBDIR+=	bluetooth
-.endif
-
-.if ${MK_BOOTPARAMD} != "no"
-SUBDIR+=	bootparamd
-.endif
-
-.if ${MK_BSDINSTALL} != "no"
-SUBDIR+=	bsdinstall
-.endif
-
-.if ${MK_BSNMP} != "no"
-SUBDIR+=	bsnmpd
-.endif
-
-.if ${MK_CTM} != "no"
-SUBDIR+=	ctm
-.endif
-
-.if ${MK_FLOPPY} != "no"
-SUBDIR+=	fdcontrol
-SUBDIR+=	fdformat
-SUBDIR+=	fdread
-SUBDIR+=	fdwrite
-.endif
-
-.if ${MK_FMTREE} != "no"
-SUBDIR+=	fmtree
-.endif
-
-.if ${MK_FREEBSD_UPDATE} != "no"
-SUBDIR+=	freebsd-update
-.endif
-
-.if ${MK_GSSAPI} != "no"
-SUBDIR+=	gssd
-.endif
-
-.if ${MK_GPIO} != "no"
-SUBDIR+=	gpioctl
-.endif
-
-.if ${MK_INET6} != "no"
-SUBDIR+=	ip6addrctl
-SUBDIR+=	mld6query
-SUBDIR+=	ndp
-SUBDIR+=	rip6query
-SUBDIR+=	route6d
-SUBDIR+=	rrenumd
-SUBDIR+=	rtadvctl
-SUBDIR+=	rtadvd
-SUBDIR+=	rtsold
-SUBDIR+=	traceroute6
-.endif
-
-.if ${MK_INETD} != "no"
-SUBDIR+=	inetd
-.endif
-
-.if ${MK_IPFW} != "no"
-SUBDIR+=	ipfwpcap
-.endif
-
-.if ${MK_ISCSI} != "no"
-SUBDIR+=	iscsid
-.endif
-
-.if ${MK_JAIL} != "no"
-SUBDIR+=	jail
-SUBDIR+=	jexec
-SUBDIR+=	jls
-.endif
-
+SUBDIR.${MK_AUDIT}+=	auditreduce
+SUBDIR.${MK_AUDIT}+=	praudit
+SUBDIR.${MK_AUTHPF}+=	authpf
+SUBDIR.${MK_AUTOFS}+=	autofs
+SUBDIR.${MK_BLUETOOTH}+=	bluetooth
+SUBDIR.${MK_BOOTPARAMD}+=	bootparamd
+SUBDIR.${MK_BSDINSTALL}+=	bsdinstall
+SUBDIR.${MK_BSNMP}+=	bsnmpd
+SUBDIR.${MK_CTM}+=	ctm
+SUBDIR.${MK_FLOPPY}+=	fdcontrol
+SUBDIR.${MK_FLOPPY}+=	fdformat
+SUBDIR.${MK_FLOPPY}+=	fdread
+SUBDIR.${MK_FLOPPY}+=	fdwrite
+SUBDIR.${MK_FMTREE}+=	fmtree
+SUBDIR.${MK_FREEBSD_UPDATE}+=	freebsd-update
+SUBDIR.${MK_GSSAPI}+=	gssd
+SUBDIR.${MK_GPIO}+=	gpioctl
+SUBDIR.${MK_INET6}+=	ip6addrctl
+SUBDIR.${MK_INET6}+=	mld6query
+SUBDIR.${MK_INET6}+=	ndp
+SUBDIR.${MK_INET6}+=	rip6query
+SUBDIR.${MK_INET6}+=	route6d
+SUBDIR.${MK_INET6}+=	rrenumd
+SUBDIR.${MK_INET6}+=	rtadvctl
+SUBDIR.${MK_INET6}+=	rtadvd
+SUBDIR.${MK_INET6}+=	rtsold
+SUBDIR.${MK_INET6}+=	traceroute6
+SUBDIR.${MK_INETD}+=	inetd
+SUBDIR.${MK_IPFW}+=	ipfwpcap
+SUBDIR.${MK_ISCSI}+=	iscsid
+SUBDIR.${MK_JAIL}+=	jail
+SUBDIR.${MK_JAIL}+=	jexec
+SUBDIR.${MK_JAIL}+=	jls
 # XXX MK_SYSCONS
-.if ${MK_LEGACY_CONSOLE} != "no"
-SUBDIR+=	kbdcontrol
-SUBDIR+=	kbdmap
-SUBDIR+=	moused
-SUBDIR+=	vidcontrol
-.endif
-
+SUBDIR.${MK_LEGACY_CONSOLE}+=	kbdcontrol
+SUBDIR.${MK_LEGACY_CONSOLE}+=	kbdmap
+SUBDIR.${MK_LEGACY_CONSOLE}+=	moused
+SUBDIR.${MK_LEGACY_CONSOLE}+=	vidcontrol
 .if ${MK_LIBTHR} != "no" || ${MK_LIBPTHREAD} != "no"
-.if ${MK_PPP} != "no"
-SUBDIR+=	pppctl
+SUBDIR.${MK_PPP}+=	pppctl
+SUBDIR.${MK_NS_CACHING}+=	nscd
 .endif
-.if ${MK_NS_CACHING} != "no"
-SUBDIR+=	nscd
-.endif
-.endif
+SUBDIR.${MK_LPR}+=	lpr
+SUBDIR.${MK_MAN_UTILS}+=	manctl
+SUBDIR.${MK_NAND}+=	nandsim
+SUBDIR.${MK_NAND}+=	nandtool
+SUBDIR.${MK_NETGRAPH}+=	flowctl
+SUBDIR.${MK_NETGRAPH}+=	lmcconfig
+SUBDIR.${MK_NETGRAPH}+=	ngctl
+SUBDIR.${MK_NETGRAPH}+=	nghook
+SUBDIR.${MK_NIS}+=	rpc.yppasswdd
+SUBDIR.${MK_NIS}+=	rpc.ypupdated
+SUBDIR.${MK_NIS}+=	rpc.ypxfrd
+SUBDIR.${MK_NIS}+=	ypbind
+SUBDIR.${MK_NIS}+=	yp_mkdb
+SUBDIR.${MK_NIS}+=	yppoll
+SUBDIR.${MK_NIS}+=	yppush
+SUBDIR.${MK_NIS}+=	ypserv
+SUBDIR.${MK_NIS}+=	ypset
+SUBDIR.${MK_NTP}+=	ntp
+SUBDIR.${MK_OPENSSL}+=	keyserv
+SUBDIR.${MK_PC_SYSINSTALL}+=	pc-sysinstall
+SUBDIR.${MK_PF}+=	ftp-proxy
+SUBDIR.${MK_PKGBOOTSTRAP}+=	pkg
+SUBDIR.${MK_PMC}+=	pmcannotate
+SUBDIR.${MK_PMC}+=	pmccontrol
+SUBDIR.${MK_PMC}+=	pmcstat
+SUBDIR.${MK_PORTSNAP}+=	portsnap
+SUBDIR.${MK_PPP}+=	ppp
+SUBDIR.${MK_QUOTAS}+=	edquota
+SUBDIR.${MK_QUOTAS}+=	quotaon
+SUBDIR.${MK_QUOTAS}+=	repquota
+SUBDIR.${MK_RCMDS}+=	rwhod
+SUBDIR.${MK_RCS}+=	etcupdate
+SUBDIR.${MK_SENDMAIL}+=	editmap
+SUBDIR.${MK_SENDMAIL}+=	mailstats
+SUBDIR.${MK_SENDMAIL}+=	makemap
+SUBDIR.${MK_SENDMAIL}+=	praliases
+SUBDIR.${MK_SENDMAIL}+=	sendmail
+SUBDIR.${MK_TCP_WRAPPERS}+=	tcpdchk
+SUBDIR.${MK_TCP_WRAPPERS}+=	tcpdmatch
+SUBDIR.${MK_TIMED}+=	timed
+SUBDIR.${MK_TOOLCHAIN}+=	config
+SUBDIR.${MK_TOOLCHAIN}+=	crunch
+SUBDIR.${MK_UNBOUND}+=	unbound
+SUBDIR.${MK_USB}+=	uathload
+SUBDIR.${MK_USB}+=	uhsoctl
+SUBDIR.${MK_USB}+=	usbconfig
+SUBDIR.${MK_USB}+=	usbdump
+SUBDIR.${MK_UTMPX}+=	ac
+SUBDIR.${MK_UTMPX}+=	lastlogin
+SUBDIR.${MK_UTMPX}+=	utx
+SUBDIR.${MK_WIRELESS}+=	ancontrol
+SUBDIR.${MK_WIRELESS}+=	wlandebug
+SUBDIR.${MK_WIRELESS}+=	wpa
 
-.if ${MK_LPR} != "no"
-SUBDIR+=	lpr
-.endif
-
-.if ${MK_MAN_UTILS} != "no"
-SUBDIR+=	manctl
-.endif
-
-.if ${MK_NAND} != "no"
-SUBDIR+=	nandsim
-SUBDIR+=	nandtool
-.endif
-
-.if ${MK_NETGRAPH} != "no"
-SUBDIR+=	flowctl
-SUBDIR+=	lmcconfig
-SUBDIR+=	ngctl
-SUBDIR+=	nghook
-.endif
-
-.if ${MK_NIS} != "no"
-SUBDIR+=	rpc.yppasswdd
-SUBDIR+=	rpc.ypupdated
-SUBDIR+=	rpc.ypxfrd
-SUBDIR+=	ypbind
-SUBDIR+=	yp_mkdb
-SUBDIR+=	yppoll
-SUBDIR+=	yppush
-SUBDIR+=	ypserv
-SUBDIR+=	ypset
-.endif
-
-.if ${MK_NTP} != "no"
-SUBDIR+=	ntp
-.endif
-
-.if ${MK_OPENSSL} != "no"
-SUBDIR+=	keyserv
-.endif
-
-.if ${MK_PC_SYSINSTALL} != "no"
-_pc_sysinstall=	pc-sysinstall
-.endif
-
-.if ${MK_PF} != "no"
-SUBDIR+=	ftp-proxy
-.endif
-
-.if ${MK_PKGBOOTSTRAP} != "no"
-SUBDIR+=	pkg
-.endif
-
-# XXX MK_TOOLCHAIN?
-.if ${MK_PMC} != "no"
-SUBDIR+=	pmcannotate
-SUBDIR+=	pmccontrol
-SUBDIR+=	pmcstat
-SUBDIR+=	pmcstudy
-.endif
-
-.if ${MK_PORTSNAP} != "no"
-SUBDIR+=	portsnap
-.endif
-
-.if ${MK_PPP} != "no"
-SUBDIR+=	ppp
-.endif
-
-.if ${MK_QUOTAS} != "no"
-SUBDIR+=	edquota
-SUBDIR+=	quotaon
-SUBDIR+=	repquota
-.endif
-
-.if ${MK_RCMDS} != "no"
-SUBDIR+=	rwhod
-.endif
-
-.if ${MK_RCS} != "no"
-SUBDIR+=	etcupdate
-.endif
-
-.if ${MK_SENDMAIL} != "no"
-SUBDIR+=	editmap
-SUBDIR+=	mailstats
-SUBDIR+=	makemap
-SUBDIR+=	praliases
-SUBDIR+=	sendmail
-.endif
-
-.if ${MK_TCP_WRAPPERS} != "no"
-SUBDIR+=	tcpdchk
-SUBDIR+=	tcpdmatch
-.endif
-
-.if ${MK_TESTS} != "no"
-SUBDIR+=	tests
-.endif
-
-.if ${MK_TIMED} != "no"
-SUBDIR+=	timed
-.endif
-
-.if ${MK_TOOLCHAIN} != "no"
-SUBDIR+=	config
-SUBDIR+=	crunch
-.endif
-
-.if ${MK_UNBOUND} != "no"
-SUBDIR+=	unbound
-.endif
-
-.if ${MK_USB} != "no"
-SUBDIR+=	uathload
-SUBDIR+=	uhsoctl
-SUBDIR+=	usbconfig
-SUBDIR+=	usbdump
-.endif
-
-.if ${MK_UTMPX} != "no"
-SUBDIR+=	ac
-SUBDIR+=	lastlogin
-SUBDIR+=	utx
-.endif
-
-.if ${MK_WIRELESS} != "no"
-SUBDIR+=	ancontrol
-SUBDIR+=	wlandebug
-SUBDIR+=	wpa
-.endif
+SUBDIR.${MK_TESTS}+=	tests
 
 .include <bsd.arch.inc.mk>
 
