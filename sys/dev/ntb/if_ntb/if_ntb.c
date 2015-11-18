@@ -116,7 +116,7 @@ SYSCTL_UINT(_hw_if_ntb, OID_AUTO, max_num_clients, CTLFLAG_RDTUN,
 
 STAILQ_HEAD(ntb_queue_list, ntb_queue_entry);
 
-typedef unsigned ntb_q_idx_t;
+typedef uint32_t ntb_q_idx_t;
 
 struct ntb_queue_entry {
 	/* ntb_queue list reference */
@@ -125,8 +125,8 @@ struct ntb_queue_entry {
 	/* info on data to be transferred */
 	void		*cb_data;
 	void		*buf;
-	unsigned	len;
-	unsigned	flags;
+	uint32_t	len;
+	uint32_t	flags;
 
 	struct ntb_transport_qp		*qp;
 	struct ntb_payload_header	*x_hdr;
@@ -245,9 +245,9 @@ enum {
 };
 
 struct ntb_payload_header {
-	uint64_t ver;
-	uint64_t len;
-	uint64_t flags;
+	ntb_q_idx_t ver;
+	uint32_t len;
+	uint32_t flags;
 };
 
 enum {
@@ -337,6 +337,14 @@ static const struct ntb_ctx_ops ntb_transport_ops = {
 };
 
 MALLOC_DEFINE(M_NTB_IF, "if_ntb", "ntb network driver");
+
+static inline void
+iowrite32(uint32_t val, void *addr)
+{
+
+	bus_space_write_4(X86_BUS_SPACE_MEM, 0/* HACK */, (uintptr_t)addr,
+	    val);
+}
 
 /* Module setup and teardown */
 static int
@@ -887,9 +895,9 @@ ntb_process_tx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry)
 {
 	void *offset;
 
-	offset = (char *)qp->tx_mw + qp->tx_max_frame * qp->tx_index;
+	offset = qp->tx_mw + qp->tx_max_frame * qp->tx_index;
 	CTR3(KTR_NTB,
-	    "TX: process_tx: tx_pkts=%u, tx_index=%u, remote entry=%u",
+	    "TX: process_tx: tx_pkts=%lu, tx_index=%u, remote entry=%u",
 	    qp->tx_pkts, qp->tx_index, qp->remote_rx_info->entry);
 	if (qp->tx_index == qp->remote_rx_info->entry) {
 		CTR0(KTR_NTB, "TX: ring full");
@@ -929,8 +937,8 @@ ntb_memcpy_tx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry,
 	hdr = (struct ntb_payload_header *)((char *)offset + qp->tx_max_frame -
 	    sizeof(struct ntb_payload_header));
 	entry->x_hdr = hdr;
-	hdr->len = entry->len; /* TODO: replace with bus_space_write */
-	hdr->ver = qp->tx_pkts; /* TODO: replace with bus_space_write */
+	iowrite32(entry->len, &hdr->len);
+	iowrite32(qp->tx_pkts, &hdr->ver);
 
 	/* This piece is ntb_memcpy_tx() */
 	CTR2(KTR_NTB, "TX: copying %d bytes to offset %p", entry->len, offset);
@@ -945,8 +953,8 @@ ntb_memcpy_tx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry,
 	}
 
 	/* The rest is ntb_tx_copy_callback() */
-	/* TODO: replace with bus_space_write */
-	hdr->flags = entry->flags | IF_NTB_DESC_DONE_FLAG;
+	iowrite32(entry->flags | IF_NTB_DESC_DONE_FLAG, &hdr->flags);
+	CTR1(KTR_NTB, "TX: hdr %p set DESC_DONE", hdr);
 
 	ntb_peer_db_set(qp->ntb, 1ull << qp->qp_num);
 
@@ -963,9 +971,9 @@ ntb_memcpy_tx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry,
 				       entry->len);
 	}
 
-	CTR2(KTR_NTB,
-	    "TX: entry %p sent. hdr->ver = %d, Returning to tx_free_q", entry,
-	    hdr->ver);
+	CTR3(KTR_NTB,
+	    "TX: entry %p sent. hdr->ver = %u, hdr->flags = 0x%x, Returning "
+	    "to tx_free_q", entry, hdr->ver, hdr->flags);
 	ntb_list_add(&qp->ntb_tx_free_q_lock, entry, &qp->tx_free_q);
 }
 
@@ -1021,13 +1029,11 @@ ntb_process_rxc(struct ntb_transport_qp *qp)
 {
 	struct ntb_payload_header *hdr;
 	struct ntb_queue_entry *entry;
-	void *offset;
+	caddr_t offset;
 
-	offset = (void *)
-	    ((char *)qp->rx_buff + qp->rx_max_frame * qp->rx_index);
-	hdr = (void *)
-	    ((char *)offset + qp->rx_max_frame -
-		sizeof(struct ntb_payload_header));
+	offset = qp->rx_buff + qp->rx_max_frame * qp->rx_index;
+	hdr = (void *)(offset + qp->rx_max_frame -
+	    sizeof(struct ntb_payload_header));
 
 	CTR1(KTR_NTB, "RX: process_rxc rx_index = %u", qp->rx_index);
 	if ((hdr->flags & IF_NTB_DESC_DONE_FLAG) == 0) {
@@ -1045,7 +1051,7 @@ ntb_process_rxc(struct ntb_transport_qp *qp)
 
 	if (hdr->ver != (uint32_t)qp->rx_pkts) {
 		CTR2(KTR_NTB,"RX: ver != rx_pkts (%x != %lx). "
-		    "Returning entry %p to rx_pend_q", hdr->ver, qp->rx_pkts);
+		    "Returning entry to rx_pend_q", hdr->ver, qp->rx_pkts);
 		qp->rx_err_ver++;
 		return (EIO);
 	}
@@ -1136,8 +1142,7 @@ ntb_complete_rxc(void *arg, int pending)
 			break;
 
 		entry->x_hdr->flags = 0;
-		/* XXX bus_space_write */
-		qp->rx_info->entry = entry->index;
+		iowrite32(entry->index, &qp->rx_info->entry);
 
 		len = entry->len;
 		m = entry->buf;
