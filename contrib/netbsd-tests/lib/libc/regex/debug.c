@@ -126,11 +126,15 @@ static void
 s_print(struct re_guts *g, FILE *d)
 {
 	sop *s;
+#ifdef __NetBSD__
 	cset *cs;
+#endif
 	int done = 0;
 	sop opnd;
 	int col = 0;
+#ifdef __NetBSD__
 	ssize_t last;
+#endif
 	sopno offset = 2;
 #	define	GAP()	{	if (offset % 5 == 0) { \
 					if (col > 40) { \
