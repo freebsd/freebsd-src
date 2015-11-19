@@ -130,6 +130,35 @@ usbd_get_page(struct usb_page_cache *pc, usb_frlength_t offset,
 }
 
 /*------------------------------------------------------------------------*
+ *  usb_pc_buffer_is_aligned - verify alignment
+ * 
+ * This function is used to check if a page cache buffer is properly
+ * aligned to reduce the use of bounce buffers in PIO mode.
+ *------------------------------------------------------------------------*/
+uint8_t
+usb_pc_buffer_is_aligned(struct usb_page_cache *pc, usb_frlength_t offset,
+    usb_frlength_t len, usb_frlength_t mask)
+{
+	struct usb_page_search buf_res;
+
+	while (len != 0) {
+
+		usbd_get_page(pc, offset, &buf_res);
+
+		if (buf_res.length > len)
+			buf_res.length = len;
+		if (USB_P2U(buf_res.buffer) & mask)
+			return (0);
+		if (buf_res.length & mask)
+			return (0);
+
+		offset += buf_res.length;
+		len -= buf_res.length;
+	}
+	return (1);
+}
+
+/*------------------------------------------------------------------------*
  *  usbd_copy_in - copy directly to DMA-able memory
  *------------------------------------------------------------------------*/
 void
