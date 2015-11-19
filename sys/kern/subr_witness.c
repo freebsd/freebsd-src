@@ -2640,12 +2640,6 @@ restart:
 	    "\nLock order reversal between \"%s\"(%s) and \"%s\"(%s)!\n",
 			    tmp_w1->w_name, tmp_w1->w_class->lc_name, 
 			    tmp_w2->w_name, tmp_w2->w_class->lc_name);
-#if 0
- 			sbuf_printf(sb,
-			"w_rmatrix[%s][%s] == %x, w_rmatrix[%s][%s] == %x\n",
- 			    tmp_w1->name, tmp_w2->w_name, w_rmatrix1,
- 			    tmp_w2->name, tmp_w1->w_name, w_rmatrix2);
-#endif
 			if (data1) {
 				sbuf_printf(sb,
 			"Lock order \"%s\"(%s) -> \"%s\"(%s) first seen at:\n",
