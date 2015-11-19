@@ -11,6 +11,7 @@ MAN=	accept_filter.9 \
 	altq.9 \
 	atomic.9 \
 	bios.9 \
+	bitset.9 \
 	boot.9 \
 	bpf.9 \
 	buf.9 \
@@ -56,6 +57,7 @@ MAN=	accept_filter.9 \
 	contigmalloc.9 \
 	copy.9 \
 	counter.9 \
+	cpuset.9 \
 	cr_cansee.9 \
 	critical_enter.9 \
 	cr_seeothergids.9 \
@@ -155,6 +157,7 @@ MAN=	accept_filter.9 \
 	intro.9 \
 	ithread.9 \
 	KASSERT.9 \
+	kern_testfrwk.9 \
 	kernacc.9 \
 	kernel_mount.9 \
 	khelp.9 \
@@ -207,6 +210,7 @@ MAN=	accept_filter.9 \
 	pfind.9 \
 	pget.9 \
 	pgfind.9 \
+	PHOLD.9 \
 	physio.9 \
 	pmap.9 \
 	pmap_activate.9 \
@@ -429,6 +433,32 @@ MLINKS+=atomic.9 atomic_add.9 \
 	atomic.9 atomic_subtract.9 \
 	atomic.9 atomic_swap.9 \
 	atomic.9 atomic_testandset.9
+MLINKS+=bitset.9 BITSET_DEFINE.9 \
+	bitset.9 BITSET_T_INITIALIZER.9 \
+	bitset.9 BITSET_FSET.9 \
+	bitset.9 BIT_CLR.9 \
+	bitset.9 BIT_COPY.9 \
+	bitset.9 BIT_ISSET.9 \
+	bitset.9 BIT_SET.9 \
+	bitset.9 BIT_ZERO.9 \
+	bitset.9 BIT_FILL.9 \
+	bitset.9 BIT_SETOF.9 \
+	bitset.9 BIT_EMPTY.9 \
+	bitset.9 BIT_ISFULLSET.9 \
+	bitset.9 BIT_FFS.9 \
+	bitset.9 BIT_COUNT.9 \
+	bitset.9 BIT_SUBSET.9 \
+	bitset.9 BIT_OVERLAP.9 \
+	bitset.9 BIT_CMP.9 \
+	bitset.9 BIT_OR.9 \
+	bitset.9 BIT_AND.9 \
+	bitset.9 BIT_NAND.9 \
+	bitset.9 BIT_CLR_ATOMIC.9 \
+	bitset.9 BIT_SET_ATOMIC.9 \
+	bitset.9 BIT_SET_ATOMIC_ACQ.9 \
+	bitset.9 BIT_AND_ATOMIC.9 \
+	bitset.9 BIT_OR_ATOMIC.9 \
+	bitset.9 BIT_COPY_STORE_REL.9
 MLINKS+=bpf.9 bpfattach.9 \
 	bpf.9 bpfattach2.9 \
 	bpf.9 bpfdetach.9 \
@@ -609,6 +639,31 @@ MLINKS+=counter.9 counter_u64_alloc.9 \
 	counter.9 counter_u64_add_protected.9 \
 	counter.9 counter_u64_fetch.9 \
 	counter.9 counter_u64_zero.9
+MLINKS+=cpuset.9 CPUSET_T_INITIALIZER.9 \
+	cpuset.9 CPUSET_FSET.9 \
+	cpuset.9 CPU_CLR.9 \
+	cpuset.9 CPU_COPY.9 \
+	cpuset.9 CPU_ISSET.9 \
+	cpuset.9 CPU_SET.9 \
+	cpuset.9 CPU_ZERO.9 \
+	cpuset.9 CPU_FILL.9 \
+	cpuset.9 CPU_SETOF.9 \
+	cpuset.9 CPU_EMPTY.9 \
+	cpuset.9 CPU_ISFULLSET.9 \
+	cpuset.9 CPU_FFS.9 \
+	cpuset.9 CPU_COUNT.9 \
+	cpuset.9 CPU_SUBSET.9 \
+	cpuset.9 CPU_OVERLAP.9 \
+	cpuset.9 CPU_CMP.9 \
+	cpuset.9 CPU_OR.9 \
+	cpuset.9 CPU_AND.9 \
+	cpuset.9 CPU_NAND.9 \
+	cpuset.9 CPU_CLR_ATOMIC.9 \
+	cpuset.9 CPU_SET_ATOMIC.9 \
+	cpuset.9 CPU_SET_ATOMIC_ACQ.9 \
+	cpuset.9 CPU_AND_ATOMIC.9 \
+	cpuset.9 CPU_OR_ATOMIC.9 \
+	cpuset.9 CPU_COPY_STORE_REL.9
 MLINKS+=critical_enter.9 critical.9 \
 	critical_enter.9 critical_exit.9
 MLINKS+=crypto.9 crypto_dispatch.9 \
@@ -1221,6 +1276,7 @@ MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_find_device.9 \
 	pci.9 pci_find_extcap.9 \
 	pci.9 pci_find_htcap.9 \
+	pci.9 pci_find_pcie_root_port.9 \
 	pci.9 pci_get_max_read_req.9 \
 	pci.9 pci_get_powerstate.9 \
 	pci.9 pci_get_vpd_ident.9 \
@@ -1237,7 +1293,10 @@ MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_save_state.9 \
 	pci.9 pci_set_powerstate.9 \
 	pci.9 pci_set_max_read_req.9 \
-	pci.9 pci_write_config.9
+	pci.9 pci_write_config.9 \
+	pci.9 pcie_adjust_config.9 \
+	pci.9 pcie_read_config.9 \
+	pci.9 pcie_write_config.9
 MLINKS+=pci_iov_schema.9 pci_iov_schema_alloc_node.9 \
 	pci_iov_schema.9 pci_iov_schema_add_bool.9 \
 	pci_iov_schema.9 pci_iov_schema_add_string.9 \
@@ -1257,6 +1316,11 @@ MLINKS+=pfil.9 pfil_add_hook.9 \
 	pfil.9 pfil_wlock.9 \
 	pfil.9 pfil_wunlock.9
 MLINKS+=pfind.9 zpfind.9
+MLINKS+=PHOLD.9 PRELE.9 \
+	PHOLD.9 _PHOLD.9 \
+	PHOLD.9 _PRELE.9 \
+	PHOLD.9 PROC_ASSERT_HELD.9 \
+	PHOLD.9 PROC_ASSERT_NOT_HELD.9
 MLINKS+=pmap_copy.9 pmap_copy_page.9
 MLINKS+=pmap_extract.9 pmap_extract_and_hold.9
 MLINKS+=pmap_init.9 pmap_init2.9
@@ -1574,8 +1638,16 @@ MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_ADD_PROC.9 \
 	sysctl.9 SYSCTL_ADD_QUAD.9 \
 	sysctl.9 SYSCTL_ADD_ROOT_NODE.9 \
+	sysctl.9 SYSCTL_ADD_S8.9 \
+	sysctl.9 SYSCTL_ADD_S16.9 \
+	sysctl.9 SYSCTL_ADD_S32.9 \
+	sysctl.9 SYSCTL_ADD_S64.9 \
 	sysctl.9 SYSCTL_ADD_STRING.9 \
 	sysctl.9 SYSCTL_ADD_STRUCT.9 \
+	sysctl.9 SYSCTL_ADD_U8.9 \
+	sysctl.9 SYSCTL_ADD_U16.9 \
+	sysctl.9 SYSCTL_ADD_U32.9 \
+	sysctl.9 SYSCTL_ADD_U64.9 \
 	sysctl.9 SYSCTL_ADD_UAUTO.9 \
 	sysctl.9 SYSCTL_ADD_UINT.9 \
 	sysctl.9 SYSCTL_ADD_ULONG.9 \
@@ -1591,8 +1663,16 @@ MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_PROC.9 \
 	sysctl.9 SYSCTL_QUAD.9 \
 	sysctl.9 SYSCTL_ROOT_NODE.9 \
+	sysctl.9 SYSCTL_S8.9 \
+	sysctl.9 SYSCTL_S16.9 \
+	sysctl.9 SYSCTL_S32.9 \
+	sysctl.9 SYSCTL_S64.9 \
 	sysctl.9 SYSCTL_STRING.9 \
 	sysctl.9 SYSCTL_STRUCT.9 \
+	sysctl.9 SYSCTL_U8.9 \
+	sysctl.9 SYSCTL_U16.9 \
+	sysctl.9 SYSCTL_U32.9 \
+	sysctl.9 SYSCTL_U64.9 \
 	sysctl.9 SYSCTL_UINT.9 \
 	sysctl.9 SYSCTL_ULONG.9 \
 	sysctl.9 SYSCTL_UQUAD.9
@@ -1635,6 +1715,7 @@ MLINKS+=time.9 boottime.9 \
 	time.9 time_uptime.9
 MLINKS+=timeout.9 callout.9 \
 	timeout.9 callout_active.9 \
+	timeout.9 callout_async_drain.9 \
 	timeout.9 callout_deactivate.9 \
 	timeout.9 callout_drain.9 \
 	timeout.9 callout_handle_init.9 \

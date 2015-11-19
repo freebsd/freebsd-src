@@ -69,7 +69,7 @@ struct wpa_bss {
 	/** HESSID */
 	u8 hessid[ETH_ALEN];
 	/** SSID */
-	u8 ssid[32];
+	u8 ssid[SSID_MAX_LEN];
 	/** Length of SSID */
 	size_t ssid_len;
 	/** Frequency of the channel in MHz (e.g., 2412 = channel 1) */

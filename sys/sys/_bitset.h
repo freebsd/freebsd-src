@@ -50,7 +50,7 @@
 #define	BITSET_DEFINE(t, _s)						\
 struct t {								\
         long    __bits[__bitset_words((_s))];				\
-};
+}
 
 #define	BITSET_T_INITIALIZER(x)						\
 	{ .__bits = { x } }

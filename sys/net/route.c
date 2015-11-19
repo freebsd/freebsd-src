@@ -845,7 +845,7 @@ rt_foreach_fib_walk(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f,
 			if (rnh == NULL)
 				continue;
 			if (setwa_f != NULL)
-				setwa_f(rnh, fibnum, i, arg);
+				setwa_f(rnh, fibnum, af, arg);
 
 			RADIX_NODE_HEAD_LOCK(rnh);
 			rnh->rnh_walktree(rnh, (walktree_f_t *)wa_f, arg);
@@ -930,13 +930,6 @@ rt_flushifroutes(struct ifnet *ifp)
 #define	ifaaddr	info->rti_info[RTAX_IFA]
 #define	ifpaddr	info->rti_info[RTAX_IFP]
 #define	flags	info->rti_flags
-
-int
-rt_getifa(struct rt_addrinfo *info)
-{
-
-	return (rt_getifa_fib(info, RT_DEFAULT_FIB));
-}
 
 /*
  * Look up rt_addrinfo for a specific fib.  Note that if rti_ifa is defined,

@@ -122,22 +122,20 @@ void
 platform_mp_init_secondary(void)
 {
 
-	arm_init_secondary_ic();
+	arm_pic_init_secondary();
 }
 
 void
 platform_mp_setmaxid(void)
 {
-	int core_cnt;
 
-	core_cnt = platform_mp_get_core_cnt();
-	mp_maxid = core_cnt - 1;
+	mp_ncpus = platform_mp_get_core_cnt();
+	mp_maxid = mp_ncpus - 1;
 }
 
 int
 platform_mp_probe(void)
 {
-	mp_ncpus = platform_mp_get_core_cnt();
 	return (1);
 }
 

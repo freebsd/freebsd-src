@@ -4,6 +4,10 @@
 
 #include "unity.h"
 
+void setUp(void);
+void test_Initialization(void);
+void test_GetAndFree(void);
+void test_GetAndFill(void);
 
 void
 setUp(void)

@@ -210,21 +210,22 @@ __TT=${MACHINE}
 .endif
 
 .include <bsd.compiler.mk>
-.if !${COMPILER_FEATURES:Mc++11}
-# If the compiler is not C++11 capable, disable clang and use gcc instead.
-__DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
-__DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
-.elif ${__T} == "aarch64" || ${__T} == "amd64" || ${__TT} == "arm" || \
-    ${__T} == "i386"
-# On x86 and arm, clang is enabled, and will be installed as the default cc.
+# If the compiler is not C++11 capable, disable Clang and use GCC instead.
+# This means that architectures that have GCC 4.2 as default can not
+# build Clang without using an external compiler.
+
+.if ${COMPILER_FEATURES:Mc++11} && (${__T} == "aarch64" || \
+    ${__T} == "amd64" || ${__TT} == "arm" || ${__T} == "i386")
+# Clang is enabled, and will be installed as the default /usr/bin/cc.
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
 __DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
-.elif ${__T:Mpowerpc*}
-# On powerpc, clang is enabled, but gcc is installed as the default cc.
+.elif ${COMPILER_FEATURES:Mc++11} && ${__T:Mpowerpc*}
+# On powerpc, if an external compiler that supports C++11 is used as ${CC},
+# then Clang is enabled, but GCC is installed as the default /usr/bin/cc.
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL GCC GCC_BOOTSTRAP GNUCXX
 __DEFAULT_NO_OPTIONS+=CLANG_BOOTSTRAP CLANG_IS_CC
 .else
-# Everything else disables clang, and uses gcc instead.
+# Everything else disables Clang, and uses GCC instead.
 __DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
 __DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
 .endif

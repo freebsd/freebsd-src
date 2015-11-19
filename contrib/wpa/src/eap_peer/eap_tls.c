@@ -156,20 +156,6 @@ static struct wpabuf * eap_tls_failure(struct eap_sm *sm,
 	ret->methodState = METHOD_DONE;
 	ret->decision = DECISION_FAIL;
 
-	if (res == -1) {
-		struct eap_peer_config *config = eap_get_config(sm);
-		if (config) {
-			/*
-			 * The TLS handshake failed. So better forget the old
-			 * PIN. It may be wrong, we cannot be sure but trying
-			 * the wrong one again might block it on the card--so
-			 * better ask the user again.
-			 */
-			os_free(config->pin);
-			config->pin = NULL;
-		}
-	}
-
 	if (resp) {
 		/*
 		 * This is likely an alert message, so send it instead of just
@@ -228,6 +214,7 @@ static struct wpabuf * eap_tls_process(struct eap_sm *sm, void *priv,
 	u8 flags, id;
 	const u8 *pos;
 	struct eap_tls_data *data = priv;
+	struct wpabuf msg;
 
 	pos = eap_peer_tls_process_init(sm, &data->ssl, data->eap_type, ret,
 					reqData, &left, &flags);
@@ -242,8 +229,9 @@ static struct wpabuf * eap_tls_process(struct eap_sm *sm, void *priv,
 	}
 
 	resp = NULL;
+	wpabuf_set(&msg, pos, left);
 	res = eap_peer_tls_process_helper(sm, &data->ssl, data->eap_type, 0,
-					  id, pos, left, &resp);
+					  id, &msg, &resp);
 
 	if (res < 0) {
 		return eap_tls_failure(sm, data, ret, res, resp, id);

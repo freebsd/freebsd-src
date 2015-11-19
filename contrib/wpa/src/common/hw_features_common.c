@@ -88,8 +88,8 @@ int allowed_ht40_channel_pair(struct hostapd_hw_modes *mode, int pri_chan,
 			      int sec_chan)
 {
 	int ok, j, first;
-	int allowed[] = { 36, 44, 52, 60, 100, 108, 116, 124, 132, 149, 157,
-			  184, 192 };
+	int allowed[] = { 36, 44, 52, 60, 100, 108, 116, 124, 132, 140,
+			  149, 157, 184, 192 };
 	size_t k;
 
 	if (pri_chan == sec_chan || !sec_chan)
@@ -152,8 +152,7 @@ void get_pri_sec_chan(struct wpa_scan_res *bss, int *pri_chan, int *sec_chan)
 	*pri_chan = *sec_chan = 0;
 
 	ieee802_11_parse_elems((u8 *) (bss + 1), bss->ie_len, &elems, 0);
-	if (elems.ht_operation &&
-	    elems.ht_operation_len >= sizeof(*oper)) {
+	if (elems.ht_operation) {
 		oper = (struct ieee80211_ht_operation *) elems.ht_operation;
 		*pri_chan = oper->primary_chan;
 		if (oper->ht_param & HT_INFO_HT_PARAM_STA_CHNL_WIDTH) {
@@ -177,10 +176,8 @@ int check_40mhz_5g(struct hostapd_hw_modes *mode,
 	size_t i;
 	int match;
 
-	if (!mode || !scan_res || !pri_chan || !sec_chan)
-		return 0;
-
-	if (pri_chan == sec_chan)
+	if (!mode || !scan_res || !pri_chan || !sec_chan ||
+	    pri_chan == sec_chan)
 		return 0;
 
 	pri_freq = hw_get_freq(mode, pri_chan);
@@ -238,7 +235,8 @@ int check_40mhz_5g(struct hostapd_hw_modes *mode,
 }
 
 
-int check_20mhz_bss(struct wpa_scan_res *bss, int pri_freq, int start, int end)
+static int check_20mhz_bss(struct wpa_scan_res *bss, int pri_freq, int start,
+			   int end)
 {
 	struct ieee802_11_elems elems;
 	struct ieee80211_ht_operation *oper;
@@ -253,8 +251,7 @@ int check_20mhz_bss(struct wpa_scan_res *bss, int pri_freq, int start, int end)
 		return 1;
 	}
 
-	if (elems.ht_operation &&
-	    elems.ht_operation_len >= sizeof(*oper)) {
+	if (elems.ht_operation) {
 		oper = (struct ieee80211_ht_operation *) elems.ht_operation;
 		if (oper->ht_param & HT_INFO_HT_PARAM_SECONDARY_CHNL_OFF_MASK)
 			return 0;
@@ -275,10 +272,8 @@ int check_40mhz_2g4(struct hostapd_hw_modes *mode,
 	int affected_start, affected_end;
 	size_t i;
 
-	if (!mode || !scan_res || !pri_chan || !sec_chan)
-		return 0;
-
-	if (pri_chan == sec_chan)
+	if (!mode || !scan_res || !pri_chan || !sec_chan ||
+	    pri_chan == sec_chan)
 		return 0;
 
 	pri_freq = hw_get_freq(mode, pri_chan);
@@ -335,9 +330,7 @@ int check_40mhz_2g4(struct hostapd_hw_modes *mode,
 
 		ieee802_11_parse_elems((u8 *) (bss + 1), bss->ie_len, &elems,
 				       0);
-		if (elems.ht_capabilities &&
-		    elems.ht_capabilities_len >=
-		    sizeof(struct ieee80211_ht_capabilities)) {
+		if (elems.ht_capabilities) {
 			struct ieee80211_ht_capabilities *ht_cap =
 				(struct ieee80211_ht_capabilities *)
 				elems.ht_capabilities;
@@ -363,8 +356,6 @@ int hostapd_set_freq_params(struct hostapd_freq_params *data,
 			    int vht_oper_chwidth, int center_segment0,
 			    int center_segment1, u32 vht_caps)
 {
-	int tmp;
-
 	os_memset(data, 0, sizeof(*data));
 	data->mode = mode;
 	data->freq = freq;
@@ -378,11 +369,10 @@ int hostapd_set_freq_params(struct hostapd_freq_params *data,
 
 	if (data->vht_enabled) switch (vht_oper_chwidth) {
 	case VHT_CHANWIDTH_USE_HT:
-		if (center_segment1)
-			return -1;
-		if (center_segment0 != 0 &&
-		    5000 + center_segment0 * 5 != data->center_freq1 &&
-		    2407 + center_segment0 * 5 != data->center_freq1)
+		if (center_segment1 ||
+		    (center_segment0 != 0 &&
+		     5000 + center_segment0 * 5 != data->center_freq1 &&
+		     2407 + center_segment0 * 5 != data->center_freq1))
 			return -1;
 		break;
 	case VHT_CHANWIDTH_80P80MHZ:
@@ -398,19 +388,38 @@ int hostapd_set_freq_params(struct hostapd_freq_params *data,
 		/* fall through */
 	case VHT_CHANWIDTH_80MHZ:
 		data->bandwidth = 80;
-		if (vht_oper_chwidth == 1 && center_segment1)
+		if ((vht_oper_chwidth == 1 && center_segment1) ||
+		    (vht_oper_chwidth == 3 && !center_segment1) ||
+		    !sec_channel_offset)
 			return -1;
-		if (vht_oper_chwidth == 3 && !center_segment1)
-			return -1;
-		if (!sec_channel_offset)
-			return -1;
-		/* primary 40 part must match the HT configuration */
-		tmp = (30 + freq - 5000 - center_segment0 * 5) / 20;
-		tmp /= 2;
-		if (data->center_freq1 != 5000 +
-		    center_segment0 * 5 - 20 + 40 * tmp)
-			return -1;
-		data->center_freq1 = 5000 + center_segment0 * 5;
+		if (!center_segment0) {
+			if (channel <= 48)
+				center_segment0 = 42;
+			else if (channel <= 64)
+				center_segment0 = 58;
+			else if (channel <= 112)
+				center_segment0 = 106;
+			else if (channel <= 128)
+				center_segment0 = 122;
+			else if (channel <= 144)
+				center_segment0 = 138;
+			else if (channel <= 161)
+				center_segment0 = 155;
+			data->center_freq1 = 5000 + center_segment0 * 5;
+		} else {
+			/*
+			 * Note: HT/VHT config and params are coupled. Check if
+			 * HT40 channel band is in VHT80 Pri channel band
+			 * configuration.
+			 */
+			if (center_segment0 == channel + 6 ||
+			    center_segment0 == channel + 2 ||
+			    center_segment0 == channel - 2 ||
+			    center_segment0 == channel - 6)
+				data->center_freq1 = 5000 + center_segment0 * 5;
+			else
+				return -1;
+		}
 		break;
 	case VHT_CHANWIDTH_160MHZ:
 		data->bandwidth = 160;
@@ -424,13 +433,21 @@ int hostapd_set_freq_params(struct hostapd_freq_params *data,
 			return -1;
 		if (!sec_channel_offset)
 			return -1;
-		/* primary 40 part must match the HT configuration */
-		tmp = (70 + freq - 5000 - center_segment0 * 5) / 20;
-		tmp /= 2;
-		if (data->center_freq1 != 5000 +
-		    center_segment0 * 5 - 60 + 40 * tmp)
+		/*
+		 * Note: HT/VHT config and params are coupled. Check if
+		 * HT40 channel band is in VHT160 channel band configuration.
+		 */
+		if (center_segment0 == channel + 14 ||
+		    center_segment0 == channel + 10 ||
+		    center_segment0 == channel + 6 ||
+		    center_segment0 == channel + 2 ||
+		    center_segment0 == channel - 2 ||
+		    center_segment0 == channel - 6 ||
+		    center_segment0 == channel - 10 ||
+		    center_segment0 == channel - 14)
+			data->center_freq1 = 5000 + center_segment0 * 5;
+		else
 			return -1;
-		data->center_freq1 = 5000 + center_segment0 * 5;
 		break;
 	}
 

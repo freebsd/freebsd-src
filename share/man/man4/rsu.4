@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd November 19, 2014
+.Dd October 15, 2015
 .Dt RSU 4
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@ if_rsu_load="YES"
 .Ed
 .Pp
 After you have read the license in
-.Pa /usr/share/doc/legal/realtek
+.Pa /usr/share/doc/legal/realtek.LICENSE
 you will want to add the following lines to
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
@@ -175,7 +175,10 @@ driver was written by
 .An Damien Bergamini Aq Mt damien@openbsd.org
 and ported by
 .An Rui Paulo Aq Mt rpaulo@freebsd.org .
+The 802.11n support was added by
+.An Adrian Chadd Aq Mt adrian@freebsd.org .
 .Sh CAVEATS
 The
 .Nm
-driver only supports 1T1R 802.11n operation.
+driver currently does not support 802.11n transmit aggregation,
+either A-MSDU or A-MPDU.

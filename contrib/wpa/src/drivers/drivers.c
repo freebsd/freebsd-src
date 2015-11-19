@@ -47,7 +47,7 @@ extern struct wpa_driver_ops wpa_driver_none_ops; /* driver_none.c */
 #endif /* CONFIG_DRIVER_NONE */
 
 
-struct wpa_driver_ops *wpa_drivers[] =
+const struct wpa_driver_ops *const wpa_drivers[] =
 {
 #ifdef CONFIG_DRIVER_NL80211
 	&wpa_driver_nl80211_ops,

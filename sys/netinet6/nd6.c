@@ -508,7 +508,7 @@ nd6_llinfo_settimer_locked(struct llentry *ln, long tick)
 			    nd6_llinfo_timer, ln);
 		}
 	}
-	if (canceled)
+	if (canceled > 0)
 		LLE_REMREF(ln);
 }
 
@@ -1738,10 +1738,8 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		 * Since we already know all the data for the new entry,
 		 * fill it before insertion.
 		 */
-		if (lladdr != NULL) {
-			bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
-			ln->la_flags |= LLE_VALID;
-		}
+		if (lladdr != NULL)
+			lltable_set_entry_addr(ifp, ln, lladdr);
 		IF_AFDATA_WLOCK(ifp);
 		LLE_WLOCK(ln);
 		/* Prefer any existing lle over newly-created one */
@@ -1799,8 +1797,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		 * Record source link-layer address
 		 * XXX is it dependent to ifp->if_type?
 		 */
-		bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
-		ln->la_flags |= LLE_VALID;
+		lltable_set_entry_addr(ifp, ln, lladdr);
 		nd6_llinfo_setstate(ln, ND6_LLINFO_STALE);
 
 		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
@@ -1908,7 +1905,7 @@ nd6_grab_holdchain(struct llentry *ln, struct mbuf **chain,
 
 int
 nd6_output_ifp(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
-    struct sockaddr_in6 *dst)
+    struct sockaddr_in6 *dst, struct route *ro)
 {
 	int error;
 	int ip6len;
@@ -1947,7 +1944,7 @@ nd6_output_ifp(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 	if ((ifp->if_flags & IFF_LOOPBACK) == 0)
 		origifp = ifp;
 
-	error = (*ifp->if_output)(origifp, m, (struct sockaddr *)dst, NULL);
+	error = (*ifp->if_output)(origifp, m, (struct sockaddr *)dst, ro);
 	return (error);
 }
 
@@ -2195,7 +2192,7 @@ nd6_flush_holdchain(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *chain
 	while (m_head) {
 		m = m_head;
 		m_head = m_head->m_nextpkt;
-		error = nd6_output_ifp(ifp, origifp, m, dst);
+		error = nd6_output_ifp(ifp, origifp, m, dst, NULL);
 	}
 
 	/*

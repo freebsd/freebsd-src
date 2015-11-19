@@ -172,7 +172,7 @@ parse_drconf_memory(struct mem_region *ofmem, int *msz,
 	vm_offset_t base;
 	int i, idx, len, lasz, lmsz, res;
 	uint32_t flags, lmb_size[2];
-	uint64_t *dmem;
+	uint32_t *dmem;
 
 	lmsz = *msz;
 	lasz = *asz;
@@ -182,7 +182,8 @@ parse_drconf_memory(struct mem_region *ofmem, int *msz,
 		/* No drconf node, return. */
 		return (0);
 
-	res = OF_getprop(phandle, "ibm,lmb-size", lmb_size, sizeof(lmb_size));
+	res = OF_getencprop(phandle, "ibm,lmb-size", lmb_size,
+	    sizeof(lmb_size));
 	if (res == -1)
 		return (0);
 	printf("Logical Memory Block size: %d MB\n", lmb_size[1] >> 20);
@@ -207,8 +208,8 @@ parse_drconf_memory(struct mem_region *ofmem, int *msz,
 		*/
 		cell_t arr[len/sizeof(cell_t)];
 
-		res = OF_getprop(phandle, "ibm,dynamic-memory", &arr,
-				 sizeof(arr));
+		res = OF_getencprop(phandle, "ibm,dynamic-memory", arr,
+		    sizeof(arr));
 		if (res == -1)
 			return (0);
 
@@ -216,12 +217,12 @@ parse_drconf_memory(struct mem_region *ofmem, int *msz,
 		idx = arr[0];
 
 		/* First address, in arr[1], arr[2]*/
-		dmem = (uint64_t*)&arr[1];
+		dmem = &arr[1];
 	
 		for (i = 0; i < idx; i++) {
-			base = *dmem;
-			dmem += 2;
-			flags = *dmem;
+			base = ((uint64_t)dmem[0] << 32) + dmem[1];
+			dmem += 4;
+			flags = dmem[1];
 			/* Use region only if available and not reserved. */
 			if ((flags & 0x8) && !(flags & 0x80)) {
 				ofmem[lmsz].mr_start = base;
@@ -231,7 +232,7 @@ parse_drconf_memory(struct mem_region *ofmem, int *msz,
 				lmsz++;
 				lasz++;
 			}
-			dmem++;
+			dmem += 2;
 		}
 	}
 
@@ -281,7 +282,7 @@ chrp_timebase_freq(platform_t plat, struct cpuref *cpuref)
 
 	phandle = cpuref->cr_hwref;
 
-	OF_getprop(phandle, "timebase-frequency", &ticks, sizeof(ticks));
+	OF_getencprop(phandle, "timebase-frequency", &ticks, sizeof(ticks));
 
 	if (ticks <= 0)
 		panic("Unable to determine timebase frequency!");
@@ -327,10 +328,10 @@ chrp_smp_first_cpu(platform_t plat, struct cpuref *cpuref)
 		return (ENOENT);
 
 	cpuref->cr_hwref = cpu;
-	res = OF_getprop(cpu, "ibm,ppc-interrupt-server#s", &cpuid,
+	res = OF_getencprop(cpu, "ibm,ppc-interrupt-server#s", &cpuid,
 	    sizeof(cpuid));
 	if (res <= 0)
-		res = OF_getprop(cpu, "reg", &cpuid, sizeof(cpuid));
+		res = OF_getencprop(cpu, "reg", &cpuid, sizeof(cpuid));
 	if (res <= 0)
 		cpuid = 0;
 	cpuref->cr_cpuid = cpuid;
@@ -349,7 +350,7 @@ chrp_smp_next_cpu(platform_t plat, struct cpuref *cpuref)
 	res = OF_getproplen(cpuref->cr_hwref, "ibm,ppc-interrupt-server#s");
 	if (res > 0) {
 		cell_t interrupt_servers[res/sizeof(cell_t)];
-		OF_getprop(cpuref->cr_hwref, "ibm,ppc-interrupt-server#s",
+		OF_getencprop(cpuref->cr_hwref, "ibm,ppc-interrupt-server#s",
 		    interrupt_servers, res);
 		for (i = 0; i < res/sizeof(cell_t) - 1; i++) {
 			if (interrupt_servers[i] == cpuref->cr_cpuid) {
@@ -371,10 +372,10 @@ chrp_smp_next_cpu(platform_t plat, struct cpuref *cpuref)
 		return (ENOENT);
 
 	cpuref->cr_hwref = cpu;
-	res = OF_getprop(cpu, "ibm,ppc-interrupt-server#s", &cpuid,
+	res = OF_getencprop(cpu, "ibm,ppc-interrupt-server#s", &cpuid,
 	    sizeof(cpuid));
 	if (res <= 0)
-		res = OF_getprop(cpu, "reg", &cpuid, sizeof(cpuid));
+		res = OF_getencprop(cpu, "reg", &cpuid, sizeof(cpuid));
 	if (res <= 0)
 		cpuid = 0;
 	cpuref->cr_cpuid = cpuid;
@@ -393,7 +394,7 @@ chrp_smp_get_bsp(platform_t plat, struct cpuref *cpuref)
 	if (chosen == 0)
 		return (ENXIO);
 
-	res = OF_getprop(chosen, "cpu", &inst, sizeof(inst));
+	res = OF_getencprop(chosen, "cpu", &inst, sizeof(inst));
 	if (res < 0)
 		return (ENXIO);
 
@@ -401,10 +402,10 @@ chrp_smp_get_bsp(platform_t plat, struct cpuref *cpuref)
 
 	/* Pick the primary thread. Can it be any other? */
 	cpuref->cr_hwref = bsp;
-	res = OF_getprop(bsp, "ibm,ppc-interrupt-server#s", &cpuid,
+	res = OF_getencprop(bsp, "ibm,ppc-interrupt-server#s", &cpuid,
 	    sizeof(cpuid));
 	if (res <= 0)
-		res = OF_getprop(bsp, "reg", &cpuid, sizeof(cpuid));
+		res = OF_getencprop(bsp, "reg", &cpuid, sizeof(cpuid));
 	if (res <= 0)
 		cpuid = 0;
 	cpuref->cr_cpuid = cpuid;

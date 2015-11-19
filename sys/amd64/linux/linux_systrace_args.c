@@ -73,8 +73,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* poll */
 	case 7: {
 		struct poll_args *p = params;
-		iarg[0] = p->*; /* struct pollfd */
-		uarg[1] = p->nfds; /* unsigned int */
+		uarg[0] = (intptr_t) p->fds; /* struct pollfd * */
+		uarg[1] = p->nfds; /* u_int */
 		iarg[2] = p->timeout; /* int */
 		*n_args = 3;
 		break;
@@ -591,7 +591,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->semid; /* l_int */
 		iarg[1] = p->semnum; /* l_int */
 		iarg[2] = p->cmd; /* l_int */
-		uarg[3] = p->arg; /* union l_semun */
+		uarg[3] = p->arg.buf; /* union l_semun */
 		*n_args = 4;
 		break;
 	}
@@ -1327,7 +1327,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* settimeofday */
 	case 164: {
 		struct settimeofday_args *p = params;
-		uarg[0] = (intptr_t) p->tp; /* struct l_timeval * */
+		uarg[0] = (intptr_t) p->tv; /* struct l_timeval * */
 		uarg[1] = (intptr_t) p->tzp; /* struct timezone * */
 		*n_args = 2;
 		break;
@@ -2380,10 +2380,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 7:
 		switch(ndx) {
 		case 0:
-			p = "struct pollfd";
+			p = "struct pollfd *";
 			break;
 		case 1:
-			p = "unsigned int";
+			p = "u_int";
 			break;
 		case 2:
 			p = "int";

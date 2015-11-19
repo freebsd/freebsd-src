@@ -28,7 +28,7 @@
 .\"     @(#)resolver.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2013
+.Dd October 12, 2015
 .Dt RESOLVER 5
 .Os
 .Sh NAME
@@ -175,6 +175,19 @@ the resolver from obeying the standard
 and
 .Sy search
 rules with the given name.
+.It Sy reload-period: Ns Ar n
+The resolver checks the modification time of
+.Pa /etc/resolv.conf
+every
+.Ar n
+seconds.
+If
+.Pa /etc/resolv.conf
+has changed, it is automatically reloaded.
+The default for
+.Ar n
+is two seconds.
+Setting it to zero disables the file check.
 .El
 .Pp
 Options may also be specified as a space or tab separated list using the
@@ -191,8 +204,7 @@ If more than one instance of these keywords is present,
 the last instance will override.
 .Pp
 The keyword and value must appear on a single line, and the keyword
-(e.g.\&
-.Sy nameserver )
+.Pq for example, Sy nameserver
 must start the line.
 The value follows the keyword, separated by white space.
 .Sh FILES

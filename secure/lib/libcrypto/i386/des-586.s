@@ -1001,7 +1001,7 @@ DES_encrypt1:
 	call	.L000pic_point
 .L000pic_point:
 	popl	%ebp
-	leal	DES_SPtrans-.L000pic_point(%ebp),%ebp
+	leal	.Ldes_sptrans-.L000pic_point(%ebp),%ebp
 	movl	24(%esp),%ecx
 	cmpl	$0,%ebx
 	je	.L001decrypt
@@ -1078,7 +1078,7 @@ DES_encrypt2:
 	call	.L003pic_point
 .L003pic_point:
 	popl	%ebp
-	leal	DES_SPtrans-.L003pic_point(%ebp),%ebp
+	leal	.Ldes_sptrans-.L003pic_point(%ebp),%ebp
 	movl	24(%esp),%ecx
 	cmpl	$0,%ebx
 	je	.L004decrypt
@@ -1708,6 +1708,7 @@ DES_ede3_cbc_encrypt:
 .size	DES_ede3_cbc_encrypt,.-.L_DES_ede3_cbc_encrypt_begin
 .align	64
 DES_SPtrans:
+.Ldes_sptrans:
 .long	34080768,524288,33554434,34080770
 .long	33554432,526338,524290,33554434
 .long	526338,34080768,34078720,2050

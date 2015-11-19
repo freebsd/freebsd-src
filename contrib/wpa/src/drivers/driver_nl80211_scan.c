@@ -221,6 +221,9 @@ int wpa_driver_nl80211_scan(struct i802_bss *bss,
 	wpa_dbg(drv->ctx, MSG_DEBUG, "nl80211: scan request");
 	drv->scan_for_auth = 0;
 
+	if (TEST_FAIL())
+		return -1;
+
 	msg = nl80211_scan_common(bss, NL80211_CMD_TRIGGER_SCAN, params);
 	if (!msg)
 		return -1;
@@ -433,7 +436,7 @@ int wpa_driver_nl80211_stop_sched_scan(void *priv)
 }
 
 
-static const u8 * nl80211_get_ie(const u8 *ies, size_t ies_len, u8 ie)
+const u8 * nl80211_get_ie(const u8 *ies, size_t ies_len, u8 ie)
 {
 	const u8 *end, *pos;
 
@@ -583,6 +586,11 @@ int bss_info_handler(struct nl_msg *msg, void *arg)
 		r->flags |= WPA_SCAN_LEVEL_INVALID | WPA_SCAN_QUAL_INVALID;
 	if (bss[NL80211_BSS_TSF])
 		r->tsf = nla_get_u64(bss[NL80211_BSS_TSF]);
+	if (bss[NL80211_BSS_BEACON_TSF]) {
+		u64 tsf = nla_get_u64(bss[NL80211_BSS_BEACON_TSF]);
+		if (tsf > r->tsf)
+			r->tsf = tsf;
+	}
 	if (bss[NL80211_BSS_SEEN_MS_AGO])
 		r->age = nla_get_u32(bss[NL80211_BSS_SEEN_MS_AGO]);
 	r->ie_len = ie_len;

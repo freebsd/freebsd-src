@@ -122,7 +122,8 @@ getnameinfo(const struct sockaddr *sa, socklen_t salen,
 	afd = find_afd(sa->sa_family);
 	if (afd == NULL)
 		return (EAI_FAMILY);
-	if (sa->sa_family == PF_LOCAL) {
+	switch (sa->sa_family) {
+	case PF_LOCAL:
 		/*
 		 * PF_LOCAL uses variable sa->sa_len depending on the
 		 * content length of sun_path.  Require 1 byte in
@@ -132,8 +133,17 @@ getnameinfo(const struct sockaddr *sa, socklen_t salen,
 		    salen <= afd->a_socklen -
 			sizeofmember(struct sockaddr_un, sun_path))
 			return (EAI_FAIL);
-	} else if (salen != afd->a_socklen)
-		return (EAI_FAIL);
+		break;
+	case PF_LINK:
+		if (salen <= afd->a_socklen -
+			sizeofmember(struct sockaddr_dl, sdl_data))
+			return (EAI_FAIL);
+		break;
+	default:
+		if (salen != afd->a_socklen)
+			return (EAI_FAIL);
+		break;
+	}
 
 	return ((*afd->a_func)(afd, sa, salen, host, hostlen,
 	    serv, servlen, flags));

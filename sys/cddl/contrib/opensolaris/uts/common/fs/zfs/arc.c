@@ -1131,6 +1131,24 @@ static boolean_t l2arc_compress_buf(arc_buf_hdr_t *);
 static void l2arc_decompress_zio(zio_t *, arc_buf_hdr_t *, enum zio_compress);
 static void l2arc_release_cdata_buf(arc_buf_hdr_t *);
 
+static void
+l2arc_trim(const arc_buf_hdr_t *hdr)
+{
+	l2arc_dev_t *dev = hdr->b_l2hdr.b_dev;
+
+	ASSERT(HDR_HAS_L2HDR(hdr));
+	ASSERT(MUTEX_HELD(&dev->l2ad_mtx));
+
+	if (hdr->b_l2hdr.b_daddr == L2ARC_ADDR_UNSET)
+		return;
+	if (hdr->b_l2hdr.b_asize != 0) {
+		trim_map_free(dev->l2ad_vdev, hdr->b_l2hdr.b_daddr,
+		    hdr->b_l2hdr.b_asize, 0);
+	} else {
+		ASSERT3U(hdr->b_l2hdr.b_compress, ==, ZIO_COMPRESS_EMPTY);
+	}
+}
+
 static uint64_t
 buf_hash(uint64_t spa, const dva_t *dva, uint64_t birth)
 {
@@ -1552,7 +1570,7 @@ arc_cksum_verify(arc_buf_t *buf)
 		mutex_exit(&buf->b_hdr->b_l1hdr.b_freeze_lock);
 		return;
 	}
-	fletcher_2_native(buf->b_data, buf->b_hdr->b_size, &zc);
+	fletcher_2_native(buf->b_data, buf->b_hdr->b_size, NULL, &zc);
 	if (!ZIO_CHECKSUM_EQUAL(*buf->b_hdr->b_freeze_cksum, zc))
 		panic("buffer modified while frozen!");
 	mutex_exit(&buf->b_hdr->b_l1hdr.b_freeze_lock);
@@ -1565,7 +1583,7 @@ arc_cksum_equal(arc_buf_t *buf)
 	int equal;
 
 	mutex_enter(&buf->b_hdr->b_l1hdr.b_freeze_lock);
-	fletcher_2_native(buf->b_data, buf->b_hdr->b_size, &zc);
+	fletcher_2_native(buf->b_data, buf->b_hdr->b_size, NULL, &zc);
 	equal = ZIO_CHECKSUM_EQUAL(*buf->b_hdr->b_freeze_cksum, zc);
 	mutex_exit(&buf->b_hdr->b_l1hdr.b_freeze_lock);
 
@@ -1585,7 +1603,7 @@ arc_cksum_compute(arc_buf_t *buf, boolean_t force)
 	}
 	buf->b_hdr->b_freeze_cksum = kmem_alloc(sizeof (zio_cksum_t), KM_SLEEP);
 	fletcher_2_native(buf->b_data, buf->b_hdr->b_size,
-	    buf->b_hdr->b_freeze_cksum);
+	    NULL, buf->b_hdr->b_freeze_cksum);
 	mutex_exit(&buf->b_hdr->b_l1hdr.b_freeze_lock);
 #ifdef illumos
 	arc_buf_watch(buf);
@@ -2403,10 +2421,7 @@ arc_hdr_destroy(arc_buf_hdr_t *hdr)
 		 * want to re-destroy the header's L2 portion.
 		 */
 		if (HDR_HAS_L2HDR(hdr)) {
-			if (hdr->b_l2hdr.b_daddr != L2ARC_ADDR_UNSET)
-				trim_map_free(dev->l2ad_vdev,
-				    hdr->b_l2hdr.b_daddr,
-				    hdr->b_l2hdr.b_asize, 0);
+			l2arc_trim(hdr);
 			arc_hdr_l2hdr_destroy(hdr);
 		}
 
@@ -4776,10 +4791,7 @@ arc_release(arc_buf_t *buf, void *tag)
 		 * to acquire the l2ad_mtx.
 		 */
 		if (HDR_HAS_L2HDR(hdr)) {
-			if (hdr->b_l2hdr.b_daddr != L2ARC_ADDR_UNSET)
-				trim_map_free(hdr->b_l2hdr.b_dev->l2ad_vdev,
-				    hdr->b_l2hdr.b_daddr,
-				    hdr->b_l2hdr.b_asize, 0);
+			l2arc_trim(hdr);
 			arc_hdr_l2hdr_destroy(hdr);
 		}
 
@@ -5294,6 +5306,16 @@ arc_init(void)
 	else
 		arc_c_max = arc_c_min;
 	arc_c_max = MAX(arc_c * 5, arc_c_max);
+
+	/*
+	 * In userland, there's only the memory pressure that we artificially
+	 * create (see arc_available_memory()).  Don't let arc_c get too
+	 * small, because it can cause transactions to be larger than
+	 * arc_c, causing arc_tempreserve_space() to fail.
+	 */
+#ifndef _KERNEL
+	arc_c_min = arc_c_max / 2;
+#endif
 
 #ifdef _KERNEL
 	/*
@@ -5956,8 +5978,7 @@ top:
 			 * Error - drop L2ARC entry.
 			 */
 			list_remove(buflist, hdr);
-			trim_map_free(hdr->b_l2hdr.b_dev->l2ad_vdev,
-			    hdr->b_l2hdr.b_daddr, hdr->b_l2hdr.b_asize, 0);
+			l2arc_trim(hdr);
 			hdr->b_flags &= ~ARC_FLAG_HAS_L2HDR;
 
 			ARCSTAT_INCR(arcstat_l2_asize, -hdr->b_l2hdr.b_asize);
@@ -6243,7 +6264,8 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
     boolean_t *headroom_boost)
 {
 	arc_buf_hdr_t *hdr, *hdr_prev, *head;
-	uint64_t write_asize, write_sz, headroom, buf_compress_minsz;
+	uint64_t write_asize, write_sz, headroom,
+	    buf_compress_minsz;
 	void *buf_data;
 	boolean_t full;
 	l2arc_write_callback_t *cb;
@@ -6405,6 +6427,7 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
 			 * using it to denote the header's state change.
 			 */
 			hdr->b_l2hdr.b_daddr = L2ARC_ADDR_UNSET;
+
 			hdr->b_flags |= ARC_FLAG_HAS_L2HDR;
 
 			mutex_enter(&dev->l2ad_mtx);

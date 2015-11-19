@@ -10,6 +10,8 @@
 #ifndef IEEE802_11_DEFS_H
 #define IEEE802_11_DEFS_H
 
+#include <utils/common.h>
+
 /* IEEE 802.11 defines */
 
 #define WLAN_FC_PVER		0x0003
@@ -163,7 +165,10 @@
 #define WLAN_STATUS_ANTI_CLOGGING_TOKEN_REQ 76
 #define WLAN_STATUS_FINITE_CYCLIC_GROUP_NOT_SUPPORTED 77
 #define WLAN_STATUS_TRANSMISSION_FAILURE 79
+#define WLAN_STATUS_REJECTED_WITH_SUGGESTED_BSS_TRANSITION 82
+#define WLAN_STATUS_PENDING_ADMITTING_FST_SESSION 86
 #define WLAN_STATUS_QUERY_RESP_OUTSTANDING 95
+#define WLAN_STATUS_DENIED_WITH_SUGGESTED_BAND_AND_CHANNEL 99
 #define WLAN_STATUS_ASSOC_DENIED_NO_VHT 104
 
 /* Reason codes (IEEE 802.11-2007, 7.3.1.7, Table 7-22) */
@@ -269,6 +274,8 @@
 #define WLAN_EID_AMPE 139
 #define WLAN_EID_MIC 140
 #define WLAN_EID_CCKM 156
+#define WLAN_EID_MULTI_BAND 158
+#define WLAN_EID_SESSION_TRANSITION 164
 #define WLAN_EID_VHT_CAP 191
 #define WLAN_EID_VHT_OPERATION 192
 #define WLAN_EID_VHT_EXTENDED_BSS_LOAD 193
@@ -297,6 +304,7 @@
 #define WLAN_ACTION_TDLS 12
 #define WLAN_ACTION_SELF_PROTECTED 15
 #define WLAN_ACTION_WMM 17 /* WMM Specification 1.1 */
+#define WLAN_ACTION_FST 18
 #define WLAN_ACTION_VENDOR_SPECIFIC 127
 
 /* Public action codes */
@@ -470,35 +478,35 @@ struct ieee80211_mgmt {
 			le16 auth_transaction;
 			le16 status_code;
 			/* possibly followed by Challenge text */
-			u8 variable[0];
+			u8 variable[];
 		} STRUCT_PACKED auth;
 		struct {
 			le16 reason_code;
-			u8 variable[0];
+			u8 variable[];
 		} STRUCT_PACKED deauth;
 		struct {
 			le16 capab_info;
 			le16 listen_interval;
 			/* followed by SSID and Supported rates */
-			u8 variable[0];
+			u8 variable[];
 		} STRUCT_PACKED assoc_req;
 		struct {
 			le16 capab_info;
 			le16 status_code;
 			le16 aid;
 			/* followed by Supported rates */
-			u8 variable[0];
+			u8 variable[];
 		} STRUCT_PACKED assoc_resp, reassoc_resp;
 		struct {
 			le16 capab_info;
 			le16 listen_interval;
 			u8 current_ap[6];
 			/* followed by SSID and Supported rates */
-			u8 variable[0];
+			u8 variable[];
 		} STRUCT_PACKED reassoc_req;
 		struct {
 			le16 reason_code;
-			u8 variable[0];
+			u8 variable[];
 		} STRUCT_PACKED disassoc;
 		struct {
 			u8 timestamp[8];
@@ -506,7 +514,7 @@ struct ieee80211_mgmt {
 			le16 capab_info;
 			/* followed by some of SSID, Supported rates,
 			 * FH Params, DS Params, CF Params, IBSS Params, TIM */
-			u8 variable[0];
+			u8 variable[];
 		} STRUCT_PACKED beacon;
 		struct {
 			/* only variable items: SSID, Supported rates */
@@ -518,7 +526,7 @@ struct ieee80211_mgmt {
 			le16 capab_info;
 			/* followed by some of SSID, Supported rates,
 			 * FH Params, DS Params, CF Params, IBSS Params */
-			u8 variable[0];
+			u8 variable[];
 		} STRUCT_PACKED probe_resp;
 		struct {
 			u8 category;
@@ -527,7 +535,7 @@ struct ieee80211_mgmt {
 					u8 action_code;
 					u8 dialog_token;
 					u8 status_code;
-					u8 variable[0];
+					u8 variable[];
 				} STRUCT_PACKED wmm_action;
 				struct{
 					u8 action_code;
@@ -541,14 +549,14 @@ struct ieee80211_mgmt {
 					u8 action;
 					u8 sta_addr[ETH_ALEN];
 					u8 target_ap_addr[ETH_ALEN];
-					u8 variable[0]; /* FT Request */
+					u8 variable[]; /* FT Request */
 				} STRUCT_PACKED ft_action_req;
 				struct {
 					u8 action;
 					u8 sta_addr[ETH_ALEN];
 					u8 target_ap_addr[ETH_ALEN];
 					le16 status_code;
-					u8 variable[0]; /* FT Request */
+					u8 variable[]; /* FT Request */
 				} STRUCT_PACKED ft_action_resp;
 				struct {
 					u8 action;
@@ -561,23 +569,23 @@ struct ieee80211_mgmt {
 				struct {
 					u8 action;
 					u8 dialogtoken;
-					u8 variable[0];
+					u8 variable[];
 				} STRUCT_PACKED wnm_sleep_req;
 				struct {
 					u8 action;
 					u8 dialogtoken;
 					le16 keydata_len;
-					u8 variable[0];
+					u8 variable[];
 				} STRUCT_PACKED wnm_sleep_resp;
 				struct {
 					u8 action;
-					u8 variable[0];
+					u8 variable[];
 				} STRUCT_PACKED public_action;
 				struct {
 					u8 action; /* 9 */
 					u8 oui[3];
 					/* Vendor-specific content */
-					u8 variable[0];
+					u8 variable[];
 				} STRUCT_PACKED vs_public_action;
 				struct {
 					u8 action; /* 7 */
@@ -589,7 +597,7 @@ struct ieee80211_mgmt {
 					 * Session Information URL (optional),
 					 * BSS Transition Candidate List
 					 * Entries */
-					u8 variable[0];
+					u8 variable[];
 				} STRUCT_PACKED bss_tm_req;
 				struct {
 					u8 action; /* 8 */
@@ -599,7 +607,7 @@ struct ieee80211_mgmt {
 					/* Target BSSID (optional),
 					 * BSS Transition Candidate List
 					 * Entries (optional) */
-					u8 variable[0];
+					u8 variable[];
 				} STRUCT_PACKED bss_tm_resp;
 				struct {
 					u8 action; /* 6 */
@@ -607,12 +615,16 @@ struct ieee80211_mgmt {
 					u8 query_reason;
 					/* BSS Transition Candidate List
 					 * Entries (optional) */
-					u8 variable[0];
+					u8 variable[];
 				} STRUCT_PACKED bss_tm_query;
 				struct {
 					u8 action; /* 15 */
-					u8 variable[0];
+					u8 variable[];
 				} STRUCT_PACKED slf_prot_action;
+				struct {
+					u8 action;
+					u8 variable[];
+				} STRUCT_PACKED fst_action;
 			} u;
 		} STRUCT_PACKED action;
 	} u;
@@ -1065,6 +1077,15 @@ enum p2p_attr_id {
 #define P2P_GROUP_CAPAB_GROUP_FORMATION BIT(6)
 #define P2P_GROUP_CAPAB_IP_ADDR_ALLOCATION BIT(7)
 
+/* P2PS Coordination Protocol Transport Bitmap */
+#define P2PS_FEATURE_CAPAB_UDP_TRANSPORT BIT(0)
+#define P2PS_FEATURE_CAPAB_MAC_TRANSPORT BIT(1)
+
+struct p2ps_feature_capab {
+	u8 cpt;
+	u8 reserved;
+} STRUCT_PACKED;
+
 /* Invitation Flags */
 #define P2P_INVITATION_FLAGS_TYPE BIT(0)
 
@@ -1353,5 +1374,63 @@ struct rrm_link_measurement_report {
 	u8 rsni;
 	u8 variable[0];
 } STRUCT_PACKED;
+
+#define SSID_MAX_LEN 32
+
+/* IEEE Std 802.11ad-2012 - Multi-band element */
+struct multi_band_ie {
+	u8 eid; /* WLAN_EID_MULTI_BAND */
+	u8 len;
+	u8 mb_ctrl;
+	u8 band_id;
+	u8 op_class;
+	u8 chan;
+	u8 bssid[ETH_ALEN];
+	le16 beacon_int;
+	u8 tsf_offs[8];
+	u8 mb_connection_capability;
+	u8 fst_session_tmout;
+	/* Optional:
+	 *   STA MAC Address
+	 *   Pairwise Cipher Suite Count
+	 *   Pairwise Cipher Suite List
+	 */
+	u8 variable[0];
+} STRUCT_PACKED;
+
+enum mb_ctrl_sta_role {
+	MB_STA_ROLE_AP = 0,
+	MB_STA_ROLE_TDLS_STA = 1,
+	MB_STA_ROLE_IBSS_STA = 2,
+	MB_STA_ROLE_PCP = 3,
+	MB_STA_ROLE_NON_PCP_NON_AP = 4
+};
+
+#define MB_CTRL_ROLE_MASK (BIT(0) | BIT(1) | BIT(2))
+#define MB_CTRL_ROLE(ctrl) ((u8) ((ctrl) & MB_CTRL_ROLE_MASK))
+#define MB_CTRL_STA_MAC_PRESENT ((u8) (BIT(3)))
+#define MB_CTRL_PAIRWISE_CIPHER_SUITE_PRESENT ((u8) (BIT(4)))
+
+enum mb_band_id {
+	MB_BAND_ID_WIFI_2_4GHZ = 2, /* 2.4 GHz */
+	MB_BAND_ID_WIFI_5GHZ = 4, /* 4.9 and 5 GHz */
+	MB_BAND_ID_WIFI_60GHZ = 5, /* 60 GHz */
+};
+
+#define MB_CONNECTION_CAPABILITY_AP ((u8) (BIT(0)))
+#define MB_CONNECTION_CAPABILITY_PCP ((u8) (BIT(1)))
+#define MB_CONNECTION_CAPABILITY_DLS ((u8) (BIT(2)))
+#define MB_CONNECTION_CAPABILITY_TDLS ((u8) (BIT(3)))
+#define MB_CONNECTION_CAPABILITY_IBSS ((u8) (BIT(4)))
+
+/* IEEE Std 802.11ad-2014 - FST Action field */
+enum fst_action {
+	FST_ACTION_SETUP_REQUEST = 0,
+	FST_ACTION_SETUP_RESPONSE = 1,
+	FST_ACTION_TEAR_DOWN = 2,
+	FST_ACTION_ACK_REQUEST = 3,
+	FST_ACTION_ACK_RESPONSE = 4,
+	FST_ACTION_ON_CHANNEL_TUNNEL = 5,
+};
 
 #endif /* IEEE802_11_DEFS_H */

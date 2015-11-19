@@ -141,10 +141,10 @@ static void	in_arpinput(struct mbuf *);
 
 static void arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr,
     struct ifnet *ifp, int bridged, struct llentry *la);
-static void arp_update_lle(struct arphdr *ah, struct ifnet *ifp,
-    struct llentry *la);
 static void arp_mark_lle_reachable(struct llentry *la);
+static void arp_iflladdr(void *arg __unused, struct ifnet *ifp);
 
+static eventhandler_tag iflladdr_tag;
 
 static const struct netisr_handler arp_nh = {
 	.nh_name = "arp",
@@ -820,7 +820,7 @@ match:
 		la = lltable_alloc_entry(LLTABLE(ifp), 0, dst);
 		if (la == NULL)
 			goto drop;
-		arp_update_lle(ah, ifp, la);
+		lltable_set_entry_addr(ifp, la, ar_sha(ah));
 
 		IF_AFDATA_WLOCK(ifp);
 		LLE_WLOCK(la);
@@ -1038,7 +1038,7 @@ arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp
 		}
 
 		/* Update data */
-		arp_update_lle(ah, ifp, la);
+		lltable_set_entry_addr(ifp, la, ar_sha(ah));
 
 		IF_AFDATA_WUNLOCK(ifp);
 		LLE_REMREF(la);
@@ -1070,17 +1070,6 @@ arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp
 		LLE_WUNLOCK(la);
 }
 
-/*
- * Updates @la fields used by fast path code.
- */
-static void
-arp_update_lle(struct arphdr *ah, struct ifnet *ifp, struct llentry *la)
-{
-
-	memcpy(&la->ll_addr, ar_sha(ah), ifp->if_addrlen);
-	la->la_flags |= LLE_VALID;
-}
-
 static void
 arp_mark_lle_reachable(struct llentry *la)
 {
@@ -1102,26 +1091,13 @@ arp_mark_lle_reachable(struct llentry *la)
 	la->la_preempt = V_arp_maxtries;
 }
 
-void
-arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
+/*
+ * Add pernament link-layer record for given interface address.
+ */
+static __noinline void
+arp_add_ifa_lle(struct ifnet *ifp, const struct sockaddr *dst)
 {
 	struct llentry *lle, *lle_tmp;
-	struct sockaddr_in *dst_in;
-	struct sockaddr *dst;
-
-	if (ifa->ifa_carp != NULL)
-		return;
-
-	ifa->ifa_rtrequest = NULL;
-
-	dst_in = IA_SIN(ifa);
-	dst = (struct sockaddr *)dst_in;
-
-	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) == INADDR_ANY)
-		return;
-
-	arprequest(ifp, &IA_SIN(ifa)->sin_addr,
-			&IA_SIN(ifa)->sin_addr, IF_LLADDR(ifp));
 
 	/*
 	 * Interface address LLE record is considered static
@@ -1155,12 +1131,56 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 }
 
 void
-arp_ifinit2(struct ifnet *ifp, struct ifaddr *ifa, u_char *enaddr)
+arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 {
-	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) != INADDR_ANY)
-		arprequest(ifp, &IA_SIN(ifa)->sin_addr,
-				&IA_SIN(ifa)->sin_addr, enaddr);
-	ifa->ifa_rtrequest = NULL;
+	const struct sockaddr_in *dst_in;
+	const struct sockaddr *dst;
+
+	if (ifa->ifa_carp != NULL)
+		return;
+
+	dst = ifa->ifa_addr;
+	dst_in = (const struct sockaddr_in *)dst;
+
+	if (ntohl(dst_in->sin_addr.s_addr) == INADDR_ANY)
+		return;
+	arp_announce_ifaddr(ifp, dst_in->sin_addr, IF_LLADDR(ifp));
+
+	arp_add_ifa_lle(ifp, dst);
+}
+
+void
+arp_announce_ifaddr(struct ifnet *ifp, struct in_addr addr, u_char *enaddr)
+{
+
+	if (ntohl(addr.s_addr) != INADDR_ANY)
+		arprequest(ifp, &addr, &addr, enaddr);
+}
+
+/*
+ * Sends gratuitous ARPs for each ifaddr to notify other
+ * nodes about the address change.
+ */
+static __noinline void
+arp_handle_ifllchange(struct ifnet *ifp)
+{
+	struct ifaddr *ifa;
+
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family == AF_INET)
+			arp_ifinit(ifp, ifa);
+	}
+}
+
+/*
+ * A handler for interface link layer address change event.
+ */
+static __noinline void
+arp_iflladdr(void *arg __unused, struct ifnet *ifp)
+{
+
+	if ((ifp->if_flags & IFF_UP) != 0)
+		arp_handle_ifllchange(ifp);
 }
 
 static void
@@ -1168,5 +1188,8 @@ arp_init(void)
 {
 
 	netisr_register(&arp_nh);
+	if (IS_DEFAULT_VNET(curvnet))
+		iflladdr_tag = EVENTHANDLER_REGISTER(iflladdr_event,
+		    arp_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
 }
 SYSINIT(arp, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, arp_init, 0);

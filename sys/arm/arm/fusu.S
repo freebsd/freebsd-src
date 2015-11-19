@@ -53,49 +53,51 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * fuword(caddr_t uaddr);
- * Fetch an int from the user's address space.
+ * casueword32(volatile uint32_t *base, uint32_t oldval, uint32_t *oldvalp,
+ *    uint32_t newval);
  */
 
-ENTRY(casuword)
-EENTRY_NP(casuword32)
-	GET_PCB(r3)
-	ldr	r3, [r3]
+ENTRY(casueword)
+EENTRY_NP(casueword32)
+	stmfd	sp!, {r4, r5, r6}
+
+	ldr	r4, =(VM_MAXUSER_ADDRESS-3)
+	cmp	r0, r4
+	mvncs	r0, #0
+	bcs	2f
+
+	GET_PCB(r6)
+	ldr	r6, [r6]
 
 #ifdef DIAGNOSTIC
-	teq	r3, #0x00000000
+	teq	r6, #0x00000000
+	ldmfdeq	sp!, {r4, r5, r6}
 	beq	.Lfusupcbfault
 #endif
-	stmfd	sp!, {r4, r5}
+
 	adr	r4, .Lcasuwordfault
-	str	r4, [r3, #PCB_ONFAULT]
+	str	r4, [r6, #PCB_ONFAULT]
+
 #if __ARM_ARCH >= 6
 1:
-	cmp     r0, #KERNBASE
-	mvnhs   r0, #0
-	bhs     2f
-
-	ldrex   r5, [r0]
-	cmp     r5, r1
-	movne   r0, r5
-	bne     2f
-	strex   r5, r2, [r0]
-	cmp     r5, #0
-	bne     1b
+	ldrex	r4, [r0]
+	cmp	r4, r1
+	strexeq	r5, r3, [r0]
+	cmpeq	r5, #1
+	beq	1b
 #else
-	ldrt	r5, [r0]
-	cmp	r5, r1
-	movne	r0, r5
-	strteq	r2, [r0]
+	ldrt	r4, [r0]
+	cmp	r4, r1
+	strteq	r3, [r0]
 #endif
-	moveq	r0, r1
+	str	r4, [r2]
+	mov	r0, #0
+	str	r0, [r6, #PCB_ONFAULT]
 2:
-	ldmfd	sp!, {r4, r5}
-	mov	r1, #0x00000000
-	str	r1, [r3, #PCB_ONFAULT]
+	ldmfd	sp!, {r4, r5, r6}
 	RET
-EEND(casuword32)
-END(casuword)
+EEND(casueword32)
+END(casueword)
 
 /*
  * Handle faults from casuword.  Clean up and return -1.
@@ -103,18 +105,23 @@ END(casuword)
 
 .Lcasuwordfault:
 	mov	r0, #0x00000000
-	str	r0, [r3, #PCB_ONFAULT]
-	mvn	r0, #0x00000000
-	ldmfd	sp!, {r4, r5}
+	str	r0, [r6, #PCB_ONFAULT]
+	mvn	r0, #0
+	ldmfd	sp!, {r4, r5, r6}
 	RET
 
 /*
- * fuword(caddr_t uaddr);
+ * fueword(caddr_t uaddr, long *val);
  * Fetch an int from the user's address space.
  */
 
-ENTRY(fuword)
-EENTRY_NP(fuword32)
+ENTRY(fueword)
+EENTRY_NP(fueword32)
+	ldr	r3, =(VM_MAXUSER_ADDRESS-3)
+	cmp	r0, r3
+	mvncs	r0, #0
+	RETc(cs)
+
 	GET_PCB(r2)
 	ldr	r2, [r2]
 
@@ -123,14 +130,14 @@ EENTRY_NP(fuword32)
 	beq	.Lfusupcbfault
 #endif
 
-	adr	r1, .Lfusufault
-	str	r1, [r2, #PCB_ONFAULT]
+	adr	r3, .Lfusufault
+	str	r3, [r2, #PCB_ONFAULT]
 
 	ldrt	r3, [r0]
+	str	r3, [r1]
 
-	mov	r1, #0x00000000
-	str	r1, [r2, #PCB_ONFAULT]
-	mov	r0, r3
+	mov	r0, #0x00000000
+	str	r0, [r2, #PCB_ONFAULT]
 	RET
 EEND(fuword32)
 END(fuword)
@@ -141,6 +148,11 @@ END(fuword)
  */
 
 ENTRY(fusword)
+	ldr	r3, =(VM_MAXUSER_ADDRESS-1)
+	cmp	r0, r3
+	mvncs	r0, #0
+	RETc(cs)
+
 	GET_PCB(r2)
 	ldr	r2, [r2]
 
@@ -171,6 +183,11 @@ END(fusword)
  */
 
 ENTRY(fuswintr)
+	ldr	r3, =(VM_MAXUSER_ADDRESS-1)
+	cmp	r0, r3
+	mvncs	r0, #0
+	RETc(cs)
+
 	ldr	r2, Lblock_userspace_access
 	ldr	r2, [r2]
 	teq	r2, #0
@@ -217,6 +234,11 @@ _C_LABEL(block_userspace_access):
  */
 
 ENTRY(fubyte)
+	ldr	r3, =VM_MAXUSER_ADDRESS
+	cmp	r0, r3
+	mvncs	r0, #0
+	RETc(cs)
+
 	GET_PCB(r2)
 	ldr	r2, [r2]
 
@@ -282,6 +304,11 @@ fusupcbfaulttext:
 
 ENTRY(suword)
 EENTRY_NP(suword32)
+	ldr	r3, =(VM_MAXUSER_ADDRESS-3)
+	cmp	r0, r3
+	mvncs	r0, #0
+	RETc(cs)
+
 	GET_PCB(r2)
 	ldr	r2, [r2]
 
@@ -308,6 +335,11 @@ END(suword)
  */
 
 ENTRY(suswintr)
+	ldr	r3, =(VM_MAXUSER_ADDRESS-1)
+	cmp	r0, r3
+	mvncs	r0, #0
+	RETc(cs)
+
 	ldr	r2, Lblock_userspace_access
 	ldr	r2, [r2]
 	teq	r2, #0
@@ -345,6 +377,11 @@ END(suswintr)
  */
 
 ENTRY(susword)
+	ldr	r3, =(VM_MAXUSER_ADDRESS-1)
+	cmp	r0, r3
+	mvncs	r0, #0
+	RETc(cs)
+
 	GET_PCB(r2)
 	ldr	r2, [r2]
 
@@ -376,6 +413,11 @@ END(susword)
  */
 
 ENTRY(subyte)
+	ldr	r3, =VM_MAXUSER_ADDRESS
+	cmp	r0, r3
+	mvncs	r0, #0
+	RETc(cs)
+
 	GET_PCB(r2)
 	ldr	r2, [r2]
 

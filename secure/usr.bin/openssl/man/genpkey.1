@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "GENPKEY 1"
-.TH GENPKEY 1 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH GENPKEY 1 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -232,6 +232,14 @@ The number of bits in the prime parameter \fBp\fR.
 .IP "\fBdh_paramgen_generator:value\fR" 4
 .IX Item "dh_paramgen_generator:value"
 The value to use for the generator \fBg\fR.
+.IP "\fBdh_rfc5114:num\fR" 4
+.IX Item "dh_rfc5114:num"
+If this option is set then the appropriate \s-1RFC5114\s0 parameters are used
+instead of generating new parameters. The value \fBnum\fR can take the
+values 1, 2 or 3 corresponding to \s-1RFC5114 DH\s0 parameters consisting of
+1024 bit group with 160 bit subgroup, 2048 bit group with 224 bit subgroup
+and 2048 bit group with 256 bit subgroup as mentioned in \s-1RFC5114\s0 sections
+2.1, 2.2 and 2.3 respectively.
 .SH "EC PARAMETER GENERATION OPTIONS"
 .IX Header "EC PARAMETER GENERATION OPTIONS"
 .IP "\fBec_paramgen_curve:curve\fR" 4
@@ -306,6 +314,12 @@ Generate 1024 bit \s-1DH\s0 parameters:
 .Vb 2
 \& openssl genpkey \-genparam \-algorithm DH \-out dhp.pem \e
 \&                                        \-pkeyopt dh_paramgen_prime_len:1024
+.Ve
+.PP
+Output \s-1RFC5114 2048\s0 bit \s-1DH\s0 parameters with 224 bit subgroup:
+.PP
+.Vb 1
+\& openssl genpkey \-genparam \-algorithm DH \-out dhp.pem \-pkeyopt dh_rfc5114:2
 .Ve
 .PP
 Generate \s-1DH\s0 key from parameters:

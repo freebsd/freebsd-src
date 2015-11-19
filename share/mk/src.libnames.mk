@@ -39,7 +39,7 @@ _INTERNALLIBS=	\
 		netbsd \
 		ntp \
 		ntpevent \
-		ohash \
+		openbsd \
 		opts \
 		parse \
 		readline \
@@ -57,6 +57,7 @@ _LIBRARIES=	\
 		archive \
 		asn1 \
 		auditd \
+		avl \
 		begemot \
 		bluetooth \
 		bsdxml \
@@ -239,6 +240,7 @@ _DP_vmmapi=	util
 _DP_ctf=	z
 _DP_proc=	rtld_db util
 _DP_dtrace=	rtld_db pthread
+_DP_xo=		util
 
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
@@ -312,8 +314,8 @@ LIBELFTC?=	${LIBELFTCDIR}/libelftc.a
 LIBREADLINEDIR=	${ROOTOBJDIR}/gnu/lib/libreadline/readline
 LIBREADLINE?=	${LIBREADLINEDIR}/libreadline.a
 
-LIBOHASHDIR=	${ROOTOBJDIR}/lib/libohash
-LIBOHASH?=	${LIBOHASHDIR}/libohash.a
+LIBOPENBSDDIR=	${ROOTOBJDIR}/lib/libopenbsd
+LIBOPENBSD?=	${LIBOPENBSDDIR}/libopenbsd.a
 
 LIBSMDIR=	${ROOTOBJDIR}/lib/libsm
 LIBSM?=		${LIBSMDIR}/libsm.a

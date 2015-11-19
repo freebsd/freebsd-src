@@ -64,7 +64,7 @@ struct arm_lbabi_core
 	uint32_t pagesize;
 	uint32_t rootdev;
 };
-		
+
 /*
  * ATAG_MEM data -- Can be more than one to describe different
  * banks.
@@ -75,7 +75,7 @@ struct arm_lbabi_mem32
 	uint32_t start;			/* start of physical memory */
 };
 
-/* 
+/*
  * ATAG_INITRD2 - Compressed ramdisk image details
  */
 struct arm_lbabi_initrd
@@ -92,7 +92,7 @@ struct arm_lbabi_serial_number
 	uint32_t low;
 	uint32_t high;
 };
-	
+
 /*
  * ATAG_REVISION - board revision
  */
@@ -100,7 +100,7 @@ struct arm_lbabi_revision
 {
 	uint32_t rev;
 };
-	
+
 /*
  * ATAG_CMDLINE - Command line from uboot
  */
@@ -109,7 +109,7 @@ struct arm_lbabi_command_line
 	char command[1];		/* Minimum command length */
 };
 
-struct arm_lbabi_tag 
+struct arm_lbabi_tag
 {
 	struct arm_lbabi_header tag_hdr;
 	union {

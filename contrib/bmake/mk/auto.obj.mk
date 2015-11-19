@@ -1,4 +1,4 @@
-# $Id: auto.obj.mk,v 1.10 2015/04/16 16:59:00 sjg Exp $
+# $Id: auto.obj.mk,v 1.11 2015/06/16 06:28:21 sjg Exp $
 #
 #	@(#) Copyright (c) 2004, Simon J. Gerraty
 #
@@ -40,7 +40,10 @@ MKOBJDIRS= auto
 .if !defined(NOOBJ) && !defined(NO_OBJ) && ${MKOBJDIRS:Uno} == auto
 # Use __objdir here so it is easier to tweak without impacting
 # the logic.
-__objdir?= ${MAKEOBJDIR}
+.if !empty(MAKEOBJDIRPREFIX) && exists(${MAKEOBJDIRPREFIX})
+__objdir?= ${MAKEOBJDIRPREFIX}${.CURDIR}
+.endif
+__objdir?= ${MAKEOBJDIR:Uobj}
 __objdir:= ${__objdir:tA}
 .if ${.OBJDIR} != ${__objdir}
 # We need to chdir, make the directory if needed

@@ -517,16 +517,16 @@ racct_adjust_resource(struct racct *racct, int resource,
 	
 	/*
 	 * There are some cases where the racct %cpu resource would grow
-	 * beyond 100%.
-	 * For example in racct_proc_exit() we add the process %cpu usage
-	 * to the ucred racct containers.  If too many processes terminated
-	 * in a short time span, the ucred %cpu resource could grow too much.
-	 * Also, the 4BSD scheduler sometimes returns for a thread more than
-	 * 100% cpu usage.  So we set a boundary here to 100%.
+	 * beyond 100% per core.  For example in racct_proc_exit() we add
+	 * the process %cpu usage to the ucred racct containers.  If too
+	 * many processes terminated in a short time span, the ucred %cpu
+	 * resource could grow too much.  Also, the 4BSD scheduler sometimes
+	 * returns for a thread more than 100% cpu usage. So we set a sane
+	 * boundary here to 100% * the maxumum number of CPUs.
 	 */
 	if ((resource == RACCT_PCTCPU) &&
-	    (racct->r_resources[RACCT_PCTCPU] > 100 * 1000000))
-		racct->r_resources[RACCT_PCTCPU] = 100 * 1000000;
+	    (racct->r_resources[RACCT_PCTCPU] > 100 * 1000000 * (int64_t)MAXCPU))
+		racct->r_resources[RACCT_PCTCPU] = 100 * 1000000 * (int64_t)MAXCPU;
 }
 
 static int
@@ -1156,6 +1156,7 @@ racct_decay_resource(struct racct *racct, void * res, void* dummy)
 	int64_t r_old, r_new;
 
 	ASSERT_RACCT_ENABLED();
+	mtx_assert(&racct_lock, MA_OWNED);
 
 	resource = *(int *)res;
 	r_old = racct->r_resources[resource];
@@ -1164,9 +1165,21 @@ racct_decay_resource(struct racct *racct, void * res, void* dummy)
 	if (r_old <= 0)
 		return;
 
-	mtx_lock(&racct_lock);
 	r_new = r_old * RACCT_DECAY_FACTOR / FSCALE;
 	racct->r_resources[resource] = r_new;
+}
+
+static void
+racct_decay_pre(void)
+{
+
+	mtx_lock(&racct_lock);
+}
+
+static void
+racct_decay_post(void)
+{
+
 	mtx_unlock(&racct_lock);
 }
 
@@ -1176,9 +1189,12 @@ racct_decay(int resource)
 
 	ASSERT_RACCT_ENABLED();
 
-	ui_racct_foreach(racct_decay_resource, &resource, NULL);
-	loginclass_racct_foreach(racct_decay_resource, &resource, NULL);
-	prison_racct_foreach(racct_decay_resource, &resource, NULL);
+	ui_racct_foreach(racct_decay_resource, racct_decay_pre,
+	    racct_decay_post, &resource, NULL);
+	loginclass_racct_foreach(racct_decay_resource, racct_decay_pre,
+	    racct_decay_post, &resource, NULL);
+	prison_racct_foreach(racct_decay_resource, racct_decay_pre,
+	    racct_decay_post, &resource, NULL);
 }
 
 static void

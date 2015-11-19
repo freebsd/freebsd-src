@@ -734,14 +734,10 @@ in_scrubprefixlle(struct in_ifaddr *ia, int all, u_int flags)
 	struct sockaddr *saddr, *smask;
 	struct ifnet *ifp;
 
-	/*
-	 * remove all L2 entries on the given prefix
-	 */
 	saddr = (struct sockaddr *)&addr;
 	bzero(&addr, sizeof(addr));
 	addr.sin_len = sizeof(addr);
 	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = ntohl(ia->ia_addr.sin_addr.s_addr);
 	smask = (struct sockaddr *)&mask;
 	bzero(&mask, sizeof(mask));
 	mask.sin_len = sizeof(mask);
@@ -749,10 +745,21 @@ in_scrubprefixlle(struct in_ifaddr *ia, int all, u_int flags)
 	mask.sin_addr.s_addr = ia->ia_subnetmask;
 	ifp = ia->ia_ifp;
 
-	if (all)
+	if (all) {
+
+		/*
+		 * Remove all L2 entries matching given prefix.
+		 * Convert address to host representation to avoid
+		 * doing this on every callback. ia_subnetmask is already
+		 * stored in host representation.
+		 */
+		addr.sin_addr.s_addr = ntohl(ia->ia_addr.sin_addr.s_addr);
 		lltable_prefix_free(AF_INET, saddr, smask, flags);
-	else
+	} else {
+		/* Remove interface address only */
+		addr.sin_addr.s_addr = ia->ia_addr.sin_addr.s_addr;
 		lltable_delete_addr(LLTABLE(ifp), LLE_IFADDR, saddr);
+	}
 }
 
 /*
@@ -808,6 +815,14 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 		fibnum = V_rt_add_addr_allfibs ? RT_ALL_FIBS :
 			target->ia_ifp->if_fib;
 		rt_addrmsg(RTM_DELETE, &target->ia_ifa, fibnum);
+	
+		/*
+		 * Removing address from !IFF_UP interface or
+		 * prefix which exists on other interface (along with route).
+		 * No entries should exist here except target addr.
+		 * Given that, delete this entry only.
+		 */
+		in_scrubprefixlle(target, 0, flags);
 		return (0);
 	}
 
@@ -1078,7 +1093,7 @@ in_lltable_free_entry(struct lltable *llt, struct llentry *lle)
 	}
 
 	/* cancel timer */
-	if (callout_stop(&lle->lle_timer))
+	if (callout_stop(&lle->lle_timer) > 0)
 		LLE_REMREF(lle);
 
 	/* Drop hold queue */
@@ -1243,8 +1258,8 @@ in_lltable_alloc(struct lltable *llt, u_int flags, const struct sockaddr *l3addr
 	}
 	lle->la_flags = flags;
 	if ((flags & LLE_IFADDR) == LLE_IFADDR) {
-		bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
-		lle->la_flags |= (LLE_VALID | LLE_STATIC);
+		lltable_set_entry_addr(ifp, lle, IF_LLADDR(ifp));
+		lle->la_flags |= LLE_STATIC;
 	}
 
 	return (lle);

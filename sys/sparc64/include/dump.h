@@ -35,7 +35,6 @@
 #define	KERNELDUMP_ARCH_VERSION	KERNELDUMP_SPARC64_VERSION
 #define	EM_VALUE		EM_SPARCV9
 
-void dumpsys_pa_init(void);
 int dumpsys(struct dumperinfo *);
 
 static inline struct dump_pa *
@@ -57,13 +56,6 @@ dumpsys_unmap_chunk(vm_paddr_t pa, size_t s, void *va)
 {
 
 	dumpsys_gen_unmap_chunk(pa, s, va);
-}
-
-static inline int
-dumpsys_write_aux_headers(struct dumperinfo *di)
-{
-
-	return (dumpsys_gen_write_aux_headers(di));
 }
 
 static inline int

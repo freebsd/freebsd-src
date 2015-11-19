@@ -515,8 +515,8 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	 */
 	inm = malloc(sizeof(*inm), M_IPMADDR, M_NOWAIT | M_ZERO);
 	if (inm == NULL) {
-		if_delmulti_ifma(ifma);
 		IF_ADDR_WUNLOCK(ifp);
+		if_delmulti_ifma(ifma);
 		return (ENOMEM);
 	}
 	inm->inm_addr = *group;

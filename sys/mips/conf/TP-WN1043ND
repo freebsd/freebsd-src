@@ -4,6 +4,8 @@
 # $FreeBSD$
 #
 
+#NO_UNIVERSE
+
 # Include the default AR913x parameters common to all AR913x SoC users.
 include         "AR91XX_BASE"
 

@@ -28,6 +28,8 @@ _IPv6=	IPv6
 _roffdocs=	papers psd smm usd
 .endif
 
+SUBDIR_PARALLEL=
+
 # Default output format for troff documents is ascii.
 # To generate postscript versions of troff documents, use:
 #  make PRINTERDEVICE=ps

@@ -35,7 +35,7 @@
  */
 #define RADIUS_MAX_MSG_LEN 3000
 
-static struct eapol_callbacks radius_server_eapol_cb;
+static const struct eapol_callbacks radius_server_eapol_cb;
 
 struct radius_client;
 struct radius_server_data;
@@ -264,6 +264,8 @@ struct radius_server_data {
 	const char *erp_domain;
 
 	struct dl_list erp_keys; /* struct eap_server_erp_key */
+
+	unsigned int tls_session_lifetime;
 
 	/**
 	 * wps - Wi-Fi Protected Setup context
@@ -688,6 +690,7 @@ radius_server_get_new_session(struct radius_server_data *data,
 	eap_conf.server_id = (const u8 *) data->server_id;
 	eap_conf.server_id_len = os_strlen(data->server_id);
 	eap_conf.erp = data->erp;
+	eap_conf.tls_session_lifetime = data->tls_session_lifetime;
 	radius_server_testing_options(sess, &eap_conf);
 	sess->eap = eap_server_sm_init(sess, &radius_server_eapol_cb,
 				       &eap_conf);
@@ -1711,8 +1714,10 @@ radius_server_init(struct radius_server_conf *conf)
 	data->ipv6 = conf->ipv6;
 	if (conf->pac_opaque_encr_key) {
 		data->pac_opaque_encr_key = os_malloc(16);
-		os_memcpy(data->pac_opaque_encr_key, conf->pac_opaque_encr_key,
-			  16);
+		if (data->pac_opaque_encr_key) {
+			os_memcpy(data->pac_opaque_encr_key,
+				  conf->pac_opaque_encr_key, 16);
+		}
 	}
 	if (conf->eap_fast_a_id) {
 		data->eap_fast_a_id = os_malloc(conf->eap_fast_a_id_len);
@@ -1743,6 +1748,7 @@ radius_server_init(struct radius_server_conf *conf)
 	}
 	data->erp = conf->erp;
 	data->erp_domain = conf->erp_domain;
+	data->tls_session_lifetime = conf->tls_session_lifetime;
 
 	if (conf->subscr_remediation_url) {
 		data->subscr_remediation_url =
@@ -2035,6 +2041,12 @@ static int radius_server_get_eap_user(void *ctx, const u8 *identity,
 		sess->remediation = user->remediation;
 		sess->macacl = user->macacl;
 	}
+
+	if (ret) {
+		RADIUS_DEBUG("%s: User-Name not found from user database",
+			     __func__);
+	}
+
 	return ret;
 }
 
@@ -2095,7 +2107,7 @@ static int radius_server_erp_add_key(void *ctx, struct eap_server_erp_key *erp)
 #endif /* CONFIG_ERP */
 
 
-static struct eapol_callbacks radius_server_eapol_cb =
+static const struct eapol_callbacks radius_server_eapol_cb =
 {
 	.get_eap_user = radius_server_get_eap_user,
 	.get_eap_req_id_text = radius_server_get_eap_req_id_text,

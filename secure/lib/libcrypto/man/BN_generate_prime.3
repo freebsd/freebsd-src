@@ -133,18 +133,38 @@
 .\" ========================================================================
 .\"
 .IX Title "BN_generate_prime 3"
-.TH BN_generate_prime 3 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH BN_generate_prime 3 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-BN_generate_prime, BN_is_prime, BN_is_prime_fasttest \- generate primes and test for primality
+BN_generate_prime_ex, BN_is_prime_ex, BN_is_prime_fasttest_ex, BN_GENCB_call,
+BN_GENCB_set_old, BN_GENCB_set, BN_generate_prime, BN_is_prime,
+BN_is_prime_fasttest \- generate primes and test for primality
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/bn.h>
 \&
+\& int BN_generate_prime_ex(BIGNUM *ret,int bits,int safe, const BIGNUM *add,
+\&     const BIGNUM *rem, BN_GENCB *cb);
+\&
+\& int BN_is_prime_ex(const BIGNUM *p,int nchecks, BN_CTX *ctx, BN_GENCB *cb);
+\&
+\& int BN_is_prime_fasttest_ex(const BIGNUM *p,int nchecks, BN_CTX *ctx,
+\&     int do_trial_division, BN_GENCB *cb);
+\&
+\& int BN_GENCB_call(BN_GENCB *cb, int a, int b);
+\&
+\& #define BN_GENCB_set_old(gencb, callback, cb_arg) ...
+\&
+\& #define BN_GENCB_set(gencb, callback, cb_arg) ...
+.Ve
+.PP
+Deprecated:
+.PP
+.Vb 2
 \& BIGNUM *BN_generate_prime(BIGNUM *ret, int num, int safe, BIGNUM *add,
 \&     BIGNUM *rem, void (*callback)(int, int, void *), void *cb_arg);
 \&
@@ -157,19 +177,19 @@ BN_generate_prime, BN_is_prime, BN_is_prime_fasttest \- generate primes and test
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fIBN_generate_prime()\fR generates a pseudo-random prime number of \fBnum\fR
-bits.
+\&\fIBN_generate_prime_ex()\fR generates a pseudo-random prime number of
+bit length \fBbits\fR.
 If \fBret\fR is not \fB\s-1NULL\s0\fR, it will be used to store the number.
 .PP
-If \fBcallback\fR is not \fB\s-1NULL\s0\fR, it is called as follows:
+If \fBcb\fR is not \fB\s-1NULL\s0\fR, it is used as follows:
 .IP "\(bu" 4
-\&\fBcallback(0, i, cb_arg)\fR is called after generating the i\-th
+\&\fBBN_GENCB_call(cb, 0, i)\fR is called after generating the i\-th
 potential prime number.
 .IP "\(bu" 4
-While the number is being tested for primality, \fBcallback(1, j,
-cb_arg)\fR is called as described below.
+While the number is being tested for primality,
+\&\fBBN_GENCB_call(cb, 1, j)\fR is called as described below.
 .IP "\(bu" 4
-When a prime has been found, \fBcallback(2, i, cb_arg)\fR is called.
+When a prime has been found, \fBBN_GENCB_call(cb, 2, i)\fR is called.
 .PP
 The prime may have to fulfill additional requirements for use in
 Diffie-Hellman key exchange:
@@ -181,36 +201,65 @@ generator.
 If \fBsafe\fR is true, it will be a safe prime (i.e. a prime p so
 that (p\-1)/2 is also prime).
 .PP
-The \s-1PRNG\s0 must be seeded prior to calling \fIBN_generate_prime()\fR.
+The \s-1PRNG\s0 must be seeded prior to calling \fIBN_generate_prime_ex()\fR.
 The prime number generation has a negligible error probability.
 .PP
-\&\fIBN_is_prime()\fR and \fIBN_is_prime_fasttest()\fR test if the number \fBa\fR is
+\&\fIBN_is_prime_ex()\fR and \fIBN_is_prime_fasttest_ex()\fR test if the number \fBp\fR is
 prime.  The following tests are performed until one of them shows that
-\&\fBa\fR is composite; if \fBa\fR passes all these tests, it is considered
+\&\fBp\fR is composite; if \fBp\fR passes all these tests, it is considered
 prime.
 .PP
-\&\fIBN_is_prime_fasttest()\fR, when called with \fBdo_trial_division == 1\fR,
+\&\fIBN_is_prime_fasttest_ex()\fR, when called with \fBdo_trial_division == 1\fR,
 first attempts trial division by a number of small primes;
-if no divisors are found by this test and \fBcallback\fR is not \fB\s-1NULL\s0\fR,
-\&\fBcallback(1, \-1, cb_arg)\fR is called.
+if no divisors are found by this test and \fBcb\fR is not \fB\s-1NULL\s0\fR,
+\&\fBBN_GENCB_call(cb, 1, \-1)\fR is called.
 If \fBdo_trial_division == 0\fR, this test is skipped.
 .PP
-Both \fIBN_is_prime()\fR and \fIBN_is_prime_fasttest()\fR perform a Miller-Rabin
-probabilistic primality test with \fBchecks\fR iterations. If
-\&\fBchecks == BN_prime_checks\fR, a number of iterations is used that
+Both \fIBN_is_prime_ex()\fR and \fIBN_is_prime_fasttest_ex()\fR perform a Miller-Rabin
+probabilistic primality test with \fBnchecks\fR iterations. If
+\&\fBnchecks == BN_prime_checks\fR, a number of iterations is used that
 yields a false positive rate of at most 2^\-80 for random input.
 .PP
-If \fBcallback\fR is not \fB\s-1NULL\s0\fR, \fBcallback(1, j, cb_arg)\fR is called
+If \fBcb\fR is not \fB\s-1NULL\s0\fR, \fBBN_GENCB_call(cb, 1, j)\fR is called
 after the j\-th iteration (j = 0, 1, ...). \fBctx\fR is a
 pre-allocated \fB\s-1BN_CTX\s0\fR (to save the overhead of allocating and
 freeing the structure in a loop), or \fB\s-1NULL\s0\fR.
+.PP
+BN_GENCB_call calls the callback function held in the \fB\s-1BN_GENCB\s0\fR structure
+and passes the ints \fBa\fR and \fBb\fR as arguments. There are two types of
+\&\fB\s-1BN_GENCB\s0\fR structure that are supported: \*(L"new\*(R" style and \*(L"old\*(R" style. New
+programs should prefer the \*(L"new\*(R" style, whilst the \*(L"old\*(R" style is provided
+for backwards compatibility purposes.
+.PP
+For \*(L"new\*(R" style callbacks a \s-1BN_GENCB\s0 structure should be initialised with a
+call to BN_GENCB_set, where \fBgencb\fR is a \fB\s-1BN_GENCB\s0 *\fR, \fBcallback\fR is of
+type \fBint (*callback)(int, int, \s-1BN_GENCB\s0 *)\fR and \fBcb_arg\fR is a \fBvoid *\fR.
+\&\*(L"Old\*(R" style callbacks are the same except they are initialised with a call
+to BN_GENCB_set_old and \fBcallback\fR is of type
+\&\fBvoid (*callback)(int, int, void *)\fR.
+.PP
+A callback is invoked through a call to \fBBN_GENCB_call\fR. This will check
+the type of the callback and will invoke \fBcallback(a, b, gencb)\fR for new
+style callbacks or \fBcallback(a, b, cb_arg)\fR for old style.
+.PP
+BN_generate_prime (deprecated) works in the same way as
+BN_generate_prime_ex but expects an old style callback function
+directly in the \fBcallback\fR parameter, and an argument to pass to it in
+the \fBcb_arg\fR. Similarly BN_is_prime and BN_is_prime_fasttest are
+deprecated and can be compared to BN_is_prime_ex and
+BN_is_prime_fasttest_ex respectively.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
+\&\fIBN_generate_prime_ex()\fR return 1 on success or 0 on error.
+.PP
+\&\fIBN_is_prime_ex()\fR, \fIBN_is_prime_fasttest_ex()\fR, \fIBN_is_prime()\fR and
+\&\fIBN_is_prime_fasttest()\fR return 0 if the number is composite, 1 if it is
+prime with an error probability of less than 0.25^\fBnchecks\fR, and
+\&\-1 on error.
+.PP
 \&\fIBN_generate_prime()\fR returns the prime number on success, \fB\s-1NULL\s0\fR otherwise.
 .PP
-\&\fIBN_is_prime()\fR returns 0 if the number is composite, 1 if it is
-prime with an error probability of less than 0.25^\fBchecks\fR, and
-\&\-1 on error.
+Callback functions should return 1 on success or 0 on error.
 .PP
 The error codes can be obtained by \fIERR_get_error\fR\|(3).
 .SH "SEE ALSO"

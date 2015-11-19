@@ -1594,6 +1594,10 @@ elf_lookup(linker_file_t lf, Elf_Size symidx, int deps, Elf_Addr *res)
 	}
 
 	addr = ((Elf_Addr)linker_file_lookup_symbol(lf, symbol, deps));
+	if (addr == 0 && ELF_ST_BIND(sym->st_info) != STB_WEAK) {
+		*res = 0;
+		return (EINVAL);
+	}
 
 	if (elf_set_find(&set_pcpu_list, addr, &start, &base))
 		addr = addr - start + base;

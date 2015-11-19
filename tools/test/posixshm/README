@@ -1,4 +1,0 @@
-$FreeBSD$
-
-This is a simple program to test/demonstrate the POSIX Shared Memory
-Objects feature set.  `make shm_test' to build.

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/condvar.h>
+#include <sys/endian.h>
 #include <sys/file.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -416,62 +417,6 @@ cfiscsi_pdu_queue(struct icl_pdu *response)
 	CFISCSI_SESSION_UNLOCK(cs);
 }
 
-static uint32_t
-cfiscsi_decode_lun(uint64_t encoded)
-{
-	uint8_t lun[8];
-	uint32_t result;
-
-	/*
-	 * The LUN field in iSCSI PDUs may look like an ordinary 64 bit number,
-	 * but is in fact an evil, multidimensional structure defined
-	 * in SCSI Architecture Model 5 (SAM-5), section 4.6.
-	 */
-	memcpy(lun, &encoded, sizeof(lun));
-	switch (lun[0] & 0xC0) {
-	case 0x00:
-		if ((lun[0] & 0x3f) != 0 || lun[2] != 0 || lun[3] != 0 ||
-		    lun[4] != 0 || lun[5] != 0 || lun[6] != 0 || lun[7] != 0) {
-			CFISCSI_WARN("malformed LUN "
-			    "(peripheral device addressing method): 0x%jx",
-			    (uintmax_t)encoded);
-			result = 0xffffffff;
-			break;
-		}
-		result = lun[1];
-		break;
-	case 0x40:
-		if (lun[2] != 0 || lun[3] != 0 || lun[4] != 0 || lun[5] != 0 ||
-		    lun[6] != 0 || lun[7] != 0) {
-			CFISCSI_WARN("malformed LUN "
-			    "(flat address space addressing method): 0x%jx",
-			    (uintmax_t)encoded);
-			result = 0xffffffff;
-			break;
-		}
-		result = ((lun[0] & 0x3f) << 8) + lun[1];
-		break;
-	case 0xC0:
-		if (lun[0] != 0xD2 || lun[4] != 0 || lun[5] != 0 ||
-		    lun[6] != 0 || lun[7] != 0) {
-			CFISCSI_WARN("malformed LUN (extended flat "
-			    "address space addressing method): 0x%jx",
-			    (uintmax_t)encoded);
-			result = 0xffffffff;
-			break;
-		}
-		result = (lun[1] << 16) + (lun[2] << 8) + lun[3];
-		break;
-	default:
-		CFISCSI_WARN("unsupported LUN format 0x%jx",
-		    (uintmax_t)encoded);
-		result = 0xffffffff;
-		break;
-	}
-
-	return (result);
-}
-
 static void
 cfiscsi_pdu_handle_nop_out(struct icl_pdu *request)
 {
@@ -566,7 +511,7 @@ cfiscsi_pdu_handle_scsi_command(struct icl_pdu *request)
 	io->io_hdr.io_type = CTL_IO_SCSI;
 	io->io_hdr.nexus.initid = cs->cs_ctl_initid;
 	io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
-	io->io_hdr.nexus.targ_lun = cfiscsi_decode_lun(bhssc->bhssc_lun);
+	io->io_hdr.nexus.targ_lun = ctl_decode_lun(be64toh(bhssc->bhssc_lun));
 	io->scsiio.tag_num = bhssc->bhssc_initiator_task_tag;
 	switch ((bhssc->bhssc_flags & BHSSC_FLAGS_ATTR)) {
 	case BHSSC_FLAGS_ATTR_UNTAGGED:
@@ -622,7 +567,7 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 	io->io_hdr.io_type = CTL_IO_TASK;
 	io->io_hdr.nexus.initid = cs->cs_ctl_initid;
 	io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
-	io->io_hdr.nexus.targ_lun = cfiscsi_decode_lun(bhstmr->bhstmr_lun);
+	io->io_hdr.nexus.targ_lun = ctl_decode_lun(be64toh(bhstmr->bhstmr_lun));
 	io->taskio.tag_type = CTL_TAG_SIMPLE; /* XXX */
 
 	switch (bhstmr->bhstmr_function & ~0x80) {

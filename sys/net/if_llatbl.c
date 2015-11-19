@@ -277,6 +277,15 @@ lltable_drop_entry_queue(struct llentry *lle)
 	return (pkts_dropped);
 }
 
+void
+lltable_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
+    const char *lladdr)
+{
+
+	bcopy(lladdr, &lle->ll_addr, ifp->if_addrlen);
+	lle->la_flags |= LLE_VALID;
+}
+
 /*
  *
  * Performes generic cleanup routines and frees lle.
@@ -385,7 +394,7 @@ lltable_free(struct lltable *llt)
 	IF_AFDATA_WUNLOCK(llt->llt_ifp);
 
 	LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next) {
-		if (callout_stop(&lle->lle_timer))
+		if (callout_stop(&lle->lle_timer) > 0)
 			LLE_REMREF(lle);
 		llentry_free(lle);
 	}

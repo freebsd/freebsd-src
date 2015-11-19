@@ -6,7 +6,7 @@ SUBDIR=		engines
 .include <bsd.own.mk>
 
 LIB=		crypto
-SHLIB_MAJOR=	7
+SHLIB_MAJOR=	8
 ALLOW_SHARED_TEXTREL=
 
 NO_LINT=
@@ -14,11 +14,11 @@ NO_LINT=
 .if exists(Makefile.man)
 .include "Makefile.man"
 .endif
+.include "Makefile.inc"
+
 .if defined(NOTYET)
 MAN+=	config.5 des_modes.7
 .endif
-
-.include "Makefile.inc"
 
 # base sources
 SRCS=	cpt_err.c cryptlib.c cversion.c ex_data.c mem.c mem_dbg.c o_dir.c \
@@ -35,8 +35,8 @@ INCS+=	crypto.h ebcdic.h opensslv.h ossl_typ.h symhacks.h ../e_os2.h
 # aes
 SRCS+=	aes_cfb.c aes_ctr.c aes_ecb.c aes_ige.c aes_misc.c aes_ofb.c aes_wrap.c
 .if ${MACHINE_CPUARCH} == "amd64"
-SRCS+=	aes-x86_64.S aesni-sha1-x86_64.S aesni-x86_64.S bsaes-x86_64.S \
-	vpaes-x86_64.S
+SRCS+=	aes-x86_64.S aesni-mb-x86_64.S aesni-sha1-x86_64.S \
+	aesni-sha256-x86_64.S aesni-x86_64.S bsaes-x86_64.S vpaes-x86_64.S
 .elif ${MACHINE_CPUARCH} == "i386"
 SRCS+=	aes-586.s aesni-x86.s vpaes-x86.s
 .else
@@ -84,8 +84,8 @@ SRCS+=	bn_add.c bn_blind.c bn_const.c bn_ctx.c bn_depr.c bn_div.c bn_err.c \
 	bn_mont.c bn_mpi.c bn_mul.c bn_nist.c bn_prime.c bn_print.c bn_rand.c \
 	bn_recp.c bn_shift.c bn_sqr.c bn_sqrt.c bn_word.c bn_x931p.c
 .if ${MACHINE_CPUARCH} == "amd64"
-SRCS+=	modexp512-x86_64.S x86_64-gcc.c x86_64-gf2m.S x86_64-mont.S \
-	x86_64-mont5.S
+SRCS+=	rsaz-avx2.S rsaz-x86_64.S rsaz_exp.c x86_64-gcc.c x86_64-gf2m.S \
+	x86_64-mont.S x86_64-mont5.S
 .elif ${MACHINE_CPUARCH} == "i386"
 SRCS+=	bn-586.s co-586.s x86-gf2m.s x86-mont.s
 .else
@@ -118,7 +118,8 @@ INCS+=	cmac.h
 
 # cms
 SRCS+=	cms_asn1.c cms_att.c cms_dd.c cms_enc.c cms_env.c cms_err.c \
-	cms_ess.c cms_io.c cms_lib.c cms_pwri.c cms_sd.c cms_smime.c
+	cms_ess.c cms_io.c cms_kari.c cms_lib.c cms_pwri.c cms_sd.c \
+	cms_smime.c
 INCS+=	cms.h
 
 # comp
@@ -143,8 +144,8 @@ SRCS+=	des_enc.c fcrypt_b.c
 INCS+=	des.h des_old.h
 
 # dh
-SRCS+=	dh_ameth.c dh_asn1.c dh_check.c dh_depr.c dh_err.c dh_gen.c dh_key.c \
-	dh_lib.c dh_pmeth.c dh_prn.c
+SRCS+=	dh_ameth.c dh_asn1.c dh_check.c dh_depr.c dh_err.c dh_gen.c dh_kdf.c \
+	dh_key.c dh_lib.c dh_pmeth.c dh_prn.c dh_rfc5114.c
 INCS+=	dh.h
 
 # dsa
@@ -161,10 +162,13 @@ SRCS+=	ec2_mult.c ec2_oct.c ec2_smpl.c ec_ameth.c ec_asn1.c ec_check.c \
 	ec_curve.c ec_cvt.c ec_err.c ec_key.c ec_lib.c ec_mult.c ec_oct.c \
 	ec_pmeth.c ec_print.c eck_prn.c ecp_mont.c ecp_nist.c ecp_oct.c \
 	ecp_smpl.c
+.if ${MACHINE_CPUARCH} == "amd64"
+SRCS+=	ecp_nistz256.c ecp_nistz256-x86_64.S
+.endif
 INCS+=	ec.h
 
 # ecdh
-SRCS+=	ech_err.c ech_key.c ech_lib.c ech_ossl.c
+SRCS+=	ech_err.c ech_kdf.c ech_key.c ech_lib.c ech_ossl.c
 INCS+=	ecdh.h
 
 # ecdsa
@@ -174,9 +178,8 @@ INCS+=	ecdsa.h
 # engine
 SRCS+=	eng_all.c eng_cnf.c eng_cryptodev.c eng_ctrl.c eng_dyn.c eng_err.c \
 	eng_fat.c eng_init.c eng_lib.c eng_list.c eng_openssl.c eng_pkey.c \
-	eng_rdrand.c eng_rsax.c eng_table.c tb_asnmth.c tb_cipher.c tb_dh.c \
-	tb_digest.c tb_dsa.c tb_ecdh.c tb_ecdsa.c tb_pkmeth.c tb_rand.c \
-	tb_rsa.c tb_store.c
+	eng_rdrand.c eng_table.c tb_asnmth.c tb_cipher.c tb_dh.c tb_digest.c \
+	tb_dsa.c tb_ecdh.c tb_ecdsa.c tb_pkmeth.c tb_rand.c tb_rsa.c tb_store.c
 INCS+=	engine.h
 
 # err
@@ -185,14 +188,14 @@ INCS+=	err.h
 
 # evp
 SRCS+=	bio_b64.c bio_enc.c bio_md.c bio_ok.c c_all.c c_allc.c c_alld.c \
-	digest.c e_aes.c e_aes_cbc_hmac_sha1.c e_bf.c e_camellia.c e_cast.c \
-	e_des.c e_des3.c e_idea.c e_null.c e_old.c e_rc2.c e_rc4.c \
-	e_rc4_hmac_md5.c e_rc5.c e_seed.c e_xcbc_d.c encode.c evp_acnf.c \
-	evp_cnf.c evp_enc.c evp_err.c evp_key.c evp_lib.c evp_pbe.c \
-	evp_pkey.c m_dss.c m_dss1.c m_ecdsa.c m_md4.c m_md5.c m_mdc2.c \
-	m_null.c m_ripemd.c m_sha.c m_sha1.c m_sigver.c m_wp.c names.c \
-	p5_crpt.c p5_crpt2.c p_dec.c p_enc.c p_lib.c p_open.c p_seal.c \
-	p_sign.c p_verify.c pmeth_fn.c pmeth_gn.c pmeth_lib.c
+	digest.c e_aes.c e_aes_cbc_hmac_sha1.c e_aes_cbc_hmac_sha256.c e_bf.c \
+	e_camellia.c e_cast.c e_des.c e_des3.c e_idea.c e_null.c e_old.c \
+	e_rc2.c e_rc4.c e_rc4_hmac_md5.c e_rc5.c e_seed.c e_xcbc_d.c encode.c \
+	evp_acnf.c evp_cnf.c evp_enc.c evp_err.c evp_key.c evp_lib.c \
+	evp_pbe.c evp_pkey.c m_dss.c m_dss1.c m_ecdsa.c m_md4.c m_md5.c \
+	m_mdc2.c m_null.c m_ripemd.c m_sha.c m_sha1.c m_sigver.c m_wp.c \
+	names.c p5_crpt.c p5_crpt2.c p_dec.c p_enc.c p_lib.c p_open.c \
+	p_seal.c p_sign.c p_verify.c pmeth_fn.c pmeth_gn.c pmeth_lib.c
 INCS+=	evp.h
 
 # hmac
@@ -228,9 +231,10 @@ SRCS+=	mdc2_one.c mdc2dgst.c
 INCS+=	mdc2.h
 
 # modes
-SRCS+=	cbc128.c ccm128.c cfb128.c ctr128.c cts128.c gcm128.c ofb128.c xts128.c
+SRCS+=	cbc128.c ccm128.c cfb128.c ctr128.c cts128.c gcm128.c ofb128.c \
+	wrap128.c xts128.c
 .if ${MACHINE_CPUARCH} == "amd64" 
-SRCS+=	ghash-x86_64.S
+SRCS+=	aesni-gcm-x86_64.S ghash-x86_64.S
 .elif ${MACHINE_CPUARCH} == "i386"
 SRCS+=	ghash-x86.s
 .endif
@@ -314,7 +318,8 @@ INCS+=	seed.h
 # sha
 SRCS+=	sha1_one.c sha1dgst.c sha256.c sha512.c sha_dgst.c sha_one.c
 .if ${MACHINE_CPUARCH} == "amd64" 
-SRCS+=	sha1-x86_64.S sha256-x86_64.S sha512-x86_64.S
+SRCS+=	sha1-mb-x86_64.S sha1-x86_64.S sha256-mb-x86_64.S sha256-x86_64.S \
+	sha512-x86_64.S
 .elif ${MACHINE_CPUARCH} == "i386"
 SRCS+=	sha1-586.s sha256-586.s sha512-586.s
 .endif
@@ -366,7 +371,7 @@ SRCS+=	pcy_cache.c pcy_data.c pcy_lib.c pcy_map.c pcy_node.c pcy_tree.c \
 	v3_bitst.c v3_conf.c v3_cpols.c v3_crld.c v3_enum.c v3_extku.c \
 	v3_genn.c v3_ia5.c v3_info.c v3_int.c v3_lib.c v3_ncons.c v3_ocsp.c \
 	v3_pci.c v3_pcia.c v3_pcons.c v3_pku.c v3_pmaps.c v3_prn.c v3_purp.c \
-	v3_skey.c v3_sxnet.c v3_utl.c v3err.c
+	v3_scts.c v3_skey.c v3_sxnet.c v3_utl.c v3err.c
 INCS+=	x509v3.h
 
 SRCS+=	buildinf.h
@@ -375,6 +380,8 @@ INCSDIR=	${INCLUDEDIR}/openssl
 
 CSTD=	gnu89
 
+CFLAGS+=	-I${.OBJDIR}
+CFLAGS+=	-I${LCRYPTO_SRC}/crypto
 CFLAGS+=	-I${LCRYPTO_SRC}/crypto/asn1
 CFLAGS+=	-I${LCRYPTO_SRC}/crypto/evp
 CFLAGS+=	-I${LCRYPTO_SRC}/crypto/modes
@@ -386,32 +393,32 @@ AFLAGS+=	--noexecstack
 ACFLAGS+=	-Wa,--noexecstack
 .endif
 
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+OPENSSLCONF_H=	opensslconf-x86.h
+.else
+OPENSSLCONF_H=	opensslconf-${MACHINE_CPUARCH}.h
+.endif
+
 CLEANFILES=	buildinf.h opensslconf.h
 
-buildinf.h: ${.CURDIR}/Makefile
+buildinf.h: Makefile
 	( echo "#ifndef MK1MF_BUILD"; \
 	echo "    /* auto-generated by util/mkbuildinf.pl for crypto/cversion.c */"; \
 	echo "    #define CFLAGS \"compiler: ${COMPILER_TYPE}\""; \
 	echo "    #define PLATFORM \"platform: FreeBSD-${MACHINE_ARCH}\""; \
 	echo "#endif" ) > ${.TARGET}
 
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
-opensslconf.h: opensslconf-x86.h
-.else
-opensslconf.h: opensslconf-${MACHINE_CPUARCH}.h
-.endif
+opensslconf.h: ${OPENSSLCONF_H}
 	${CP} ${.ALLSRC} ${.TARGET}
 
 .include <bsd.lib.mk>
 
 .if ${MACHINE_CPUARCH} == "amd64"
-.PATH: ${.CURDIR}/amd64
-.elif ${MACHINE_CPUARCH} == "i386"
-.PATH: ${.CURDIR}/i386
+_bn_asmpath=	${LCRYPTO_SRC}/crypto/bn/asm
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64"
-_bn_asmpath=	${LCRYPTO_SRC}/crypto/bn/asm
+.if exists(${.CURDIR}/${MACHINE_CPUARCH})
+.PATH:	${.CURDIR}/${MACHINE_CPUARCH}
 .endif
 
 .PATH:	${LCRYPTO_SRC}/crypto \

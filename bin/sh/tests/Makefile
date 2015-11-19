@@ -10,4 +10,6 @@ TESTS_SUBDIRS+=	parameters
 TESTS_SUBDIRS+=	parser
 TESTS_SUBDIRS+=	set-e
 
+SUBDIR_PARALLEL=
+
 .include <bsd.test.mk>

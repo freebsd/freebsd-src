@@ -6,7 +6,7 @@
 #
 # EDIT THIS FILE WITH CAUTION  (invoke-ntp.conf.texi)
 #
-# It has been AutoGen-ed  June 29, 2015 at 04:30:28 PM by AutoGen 5.18.5
+# It has been AutoGen-ed  October 21, 2015 at 12:38:16 PM by AutoGen 5.18.5
 # From the definitions    ntp.conf.def
 # and the template file   agtexi-file.tpl
 @end ignore
@@ -1837,7 +1837,7 @@ re-associate accordingly.
 Some administrators prefer to avoid running
 @code{ntpd(1ntpdmdoc)}
 continuously and run either
-@code{ntpdate(8)}
+@code{sntp(1sntpmdoc)}
 or
 @code{ntpd(1ntpdmdoc)}
 @code{-q}
@@ -1921,7 +1921,7 @@ peers remaining.
 This value defaults to 1, but can be changed
 to any number from 1 to 15.
 @item @code{minclock} @kbd{minclock}
-The clustering algorithm repeatedly casts out outlyer
+The clustering algorithm repeatedly casts out outlier
 associations until no more than
 @code{minclock}
 associations remain.
@@ -2578,12 +2578,15 @@ pulses will not be suppressed.
 @item @code{rlimit} @code{[@code{memlock} @kbd{Nmegabytes} | @code{stacksize} @kbd{N4kPages} @code{filenum} @kbd{Nfiledescriptors}]}
 @table @asis
 @item @code{memlock} @kbd{Nmegabytes}
-Specify the number of megabytes of memory that can be allocated.
-Probably only available under Linux, this option is useful
+Specify the number of megabytes of memory that should be
+allocated and locked.
+Probably only available under Linux, this option may be useful
 when dropping root (the
 @code{-i}
 option).
-The default is 32 megabytes. Setting this to zero will prevent any attemp to lock memory.
+The default is 32 megabytes on non-Linux machines, and -1 under Linux.
+-1 means "do not lock the process into memory".
+0 means "lock whatever memory the process wants into memory".
 @item @code{stacksize} @kbd{N4kPages}
 Specifies the maximum size of the process stack on systems with the
 @code{mlockall()}

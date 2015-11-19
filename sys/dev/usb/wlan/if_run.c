@@ -381,7 +381,6 @@ static struct ieee80211_node *run_node_alloc(struct ieee80211vap *,
 static int	run_media_change(struct ifnet *);
 static int	run_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static int	run_wme_update(struct ieee80211com *);
-static void	run_wme_update_cb(void *);
 static void	run_key_set_cb(void *);
 static int	run_key_set(struct ieee80211vap *, struct ieee80211_key *);
 static void	run_key_delete_cb(void *);
@@ -2174,19 +2173,16 @@ run_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	return(rvp->newstate(vap, nstate, arg));
 }
 
-/* ARGSUSED */
-static void
-run_wme_update_cb(void *arg)
+static int
+run_wme_update(struct ieee80211com *ic)
 {
-	struct ieee80211com *ic = arg;
 	struct run_softc *sc = ic->ic_softc;
 	const struct wmeParams *ac =
 	    ic->ic_wme.wme_chanParams.cap_wmeParams;
 	int aci, error = 0;
 
-	RUN_LOCK_ASSERT(sc, MA_OWNED);
-
 	/* update MAC TX configuration registers */
+	RUN_LOCK(sc);
 	for (aci = 0; aci < WME_NUM_AC; aci++) {
 		error = run_write(sc, RT2860_EDCA_AC_CFG(aci),
 		    ac[aci].wmep_logcwmax << 16 |
@@ -2224,33 +2220,11 @@ run_wme_update_cb(void *arg)
 	    ac[WME_AC_VI].wmep_txopLimit);
 
 err:
+	RUN_UNLOCK(sc);
 	if (error)
 		DPRINTF("WME update failed\n");
 
-	return;
-}
-
-static int
-run_wme_update(struct ieee80211com *ic)
-{
-	struct run_softc *sc = ic->ic_softc;
-
-	/* sometime called wothout lock */
-	if (mtx_owned(&ic->ic_comlock.mtx)) {
-		uint32_t i = RUN_CMDQ_GET(&sc->cmdq_store);
-		DPRINTF("cmdq_store=%d\n", i);
-		sc->cmdq[i].func = run_wme_update_cb;
-		sc->cmdq[i].arg0 = ic;
-		ieee80211_runtask(ic, &sc->cmdq_task);
-		return (0);
-	}
-
-	RUN_LOCK(sc);
-	run_wme_update_cb(ic);
-	RUN_UNLOCK(sc);
-
-	/* return whatever, upper layer doesn't care anyway */
-	return (0);
+	return (error);
 }
 
 static void
@@ -2847,13 +2821,6 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 
 	m->m_pkthdr.len = m->m_len = len;
 
-	if (ni != NULL) {
-		(void)ieee80211_input(ni, m, rssi, nf);
-		ieee80211_free_node(ni);
-	} else {
-		(void)ieee80211_input_all(ic, m, rssi, nf);
-	}
-
 	if (__predict_false(ieee80211_radiotap_active(ic))) {
 		struct run_rx_radiotap_header *tap = &sc->sc_rxtap;
 		uint16_t phy;
@@ -2891,6 +2858,13 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 			}
 			break;
 		}
+	}
+
+	if (ni != NULL) {
+		(void)ieee80211_input(ni, m, rssi, nf);
+		ieee80211_free_node(ni);
+	} else {
+		(void)ieee80211_input_all(ic, m, rssi, nf);
 	}
 }
 
@@ -3030,20 +3004,11 @@ static void
 run_tx_free(struct run_endpoint_queue *pq,
     struct run_tx_data *data, int txerr)
 {
-	if (data->m != NULL) {
-		if (data->m->m_flags & M_TXCB)
-			ieee80211_process_callback(data->ni, data->m,
-			    txerr ? ETIMEDOUT : 0);
-		m_freem(data->m);
-		data->m = NULL;
 
-		if (data->ni == NULL) {
-			DPRINTF("no node\n");
-		} else {
-			ieee80211_free_node(data->ni);
-			data->ni = NULL;
-		}
-	}
+	ieee80211_tx_complete(data->ni, data->m, txerr);
+
+	data->m = NULL;
+	data->ni = NULL;
 
 	STAILQ_INSERT_TAIL(&pq->tx_fh, data, next);
 	pq->tx_nfree++;

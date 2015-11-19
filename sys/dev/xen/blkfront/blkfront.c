@@ -293,8 +293,12 @@ xbd_queue_request(struct xbd_softc *sc, struct xbd_command *cm)
 {
 	int error;
 
-	error = bus_dmamap_load(sc->xbd_io_dmat, cm->cm_map, cm->cm_data,
-	    cm->cm_datalen, xbd_queue_cb, cm, 0);
+	if (cm->cm_bp != NULL)
+		error = bus_dmamap_load_bio(sc->xbd_io_dmat, cm->cm_map,
+		    cm->cm_bp, xbd_queue_cb, cm, 0);
+	else
+		error = bus_dmamap_load(sc->xbd_io_dmat, cm->cm_map,
+		    cm->cm_data, cm->cm_datalen, xbd_queue_cb, cm, 0);
 	if (error == EINPROGRESS) {
 		/*
 		 * Maintain queuing order by freezing the queue.  The next
@@ -354,8 +358,6 @@ xbd_bio_command(struct xbd_softc *sc)
 	}
 
 	cm->cm_bp = bp;
-	cm->cm_data = bp->bio_data;
-	cm->cm_datalen = bp->bio_bcount;
 	cm->cm_sector_number = (blkif_sector_t)bp->bio_pblkno;
 
 	switch (bp->bio_cmd) {
@@ -1009,7 +1011,7 @@ xbd_instance_create(struct xbd_softc *sc, blkif_sector_t sectors,
 
 	sc->xbd_disk->d_mediasize = sectors * sector_size;
 	sc->xbd_disk->d_maxsize = sc->xbd_max_request_size;
-	sc->xbd_disk->d_flags = 0;
+	sc->xbd_disk->d_flags = DISKFLAG_UNMAPPED_BIO;
 	if ((sc->xbd_flags & (XBDF_FLUSH|XBDF_BARRIER)) != 0) {
 		sc->xbd_disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
 		device_printf(sc->xbd_dev,

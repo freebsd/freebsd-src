@@ -97,7 +97,6 @@ NEED_SIM_COMMON=y
 .if defined(NEED_SIM_COMMON)
 SRCS+=	eap_sim_common.c \
 	eap_sim_db.c
-NEED_AES_CBC=y
 NEED_FIPS186_2_PRF=y
 .endif
 

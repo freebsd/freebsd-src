@@ -122,7 +122,8 @@ static void vm_pageout_init(void);
 static int vm_pageout_clean(vm_page_t m);
 static int vm_pageout_cluster(vm_page_t m);
 static void vm_pageout_scan(struct vm_domain *vmd, int pass);
-static void vm_pageout_mightbe_oom(struct vm_domain *vmd, int pass);
+static void vm_pageout_mightbe_oom(struct vm_domain *vmd, int page_shortage,
+    int starting_page_shortage);
 
 SYSINIT(pagedaemon_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, vm_pageout_init,
     NULL);
@@ -158,6 +159,7 @@ SYSINIT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp);
 int vm_pages_needed;		/* Event on which pageout daemon sleeps */
 int vm_pageout_deficit;		/* Estimated number of pages deficit */
 int vm_pageout_wakeup_thresh;
+static int vm_pageout_oom_seq = 12;
 
 #if !defined(NO_SWAPPING)
 static int vm_pageout_req_swapout;	/* XXX */
@@ -222,6 +224,10 @@ SYSCTL_INT(_vm, OID_AUTO, disable_swapspace_pageouts,
 static int pageout_lock_miss;
 SYSCTL_INT(_vm, OID_AUTO, pageout_lock_miss,
 	CTLFLAG_RD, &pageout_lock_miss, 0, "vget() lock misses during pageout");
+
+SYSCTL_INT(_vm, OID_AUTO, pageout_oom_seq,
+	CTLFLAG_RW, &vm_pageout_oom_seq, 0,
+	"back-to-back calls to oom detector to start OOM");
 
 #define VM_PAGEOUT_PAGE_COUNT 16
 int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
@@ -292,11 +298,21 @@ vm_pageout_fallback_object_lock(vm_page_t m, vm_page_t *next)
 	vm_page_lock(m);
 	vm_pagequeue_lock(pq);
 
-	/* Page queue might have changed. */
+	/*
+	 * The page's object might have changed, and/or the page might
+	 * have moved from its original position in the queue.  If the
+	 * page's object has changed, then the caller should abandon
+	 * processing the page because the wrong object lock was
+	 * acquired.  Use the marker's plinks.q, not the page's, to
+	 * determine if the page has been moved.  The state of the
+	 * page's plinks.q can be indeterminate; whereas, the marker's
+	 * plinks.q must be valid.
+	 */
 	*next = TAILQ_NEXT(&marker, plinks.q);
-	unchanged = (m->queue == queue &&
-		     m->object == object &&
-		     &marker == TAILQ_NEXT(m, plinks.q));
+	unchanged = m->object == object &&
+	    m == TAILQ_PREV(&marker, pglist, plinks.q);
+	KASSERT(!unchanged || m->queue == queue,
+	    ("page %p queue %d %d", m, queue, m->queue));
 	TAILQ_REMOVE(&pq->pq_pl, &marker, plinks.q);
 	return (unchanged);
 }
@@ -333,7 +349,9 @@ vm_pageout_page_lock(vm_page_t m, vm_page_t *next)
 
 	/* Page queue might have changed. */
 	*next = TAILQ_NEXT(&marker, plinks.q);
-	unchanged = (m->queue == queue && &marker == TAILQ_NEXT(m, plinks.q));
+	unchanged = m == TAILQ_PREV(&marker, pglist, plinks.q);
+	KASSERT(!unchanged || m->queue == queue,
+	    ("page %p queue %d %d", m, queue, m->queue));
 	TAILQ_REMOVE(&pq->pq_pl, &marker, plinks.q);
 	return (unchanged);
 }
@@ -1029,7 +1047,8 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	vm_object_t object;
 	long min_scan;
 	int act_delta, addl_page_shortage, deficit, error, maxlaunder, maxscan;
-	int page_shortage, scan_tick, scanned, vnodes_skipped;
+	int page_shortage, scan_tick, scanned, starting_page_shortage;
+	int vnodes_skipped;
 	boolean_t pageout_ok, queues_locked;
 
 	/*
@@ -1068,6 +1087,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		page_shortage = vm_paging_target() + deficit;
 	} else
 		page_shortage = deficit = 0;
+	starting_page_shortage = page_shortage;
 
 	/*
 	 * maxlaunder limits the number of dirty pages we flush per scan.
@@ -1331,6 +1351,12 @@ relock_queues:
 		(void)speedup_syncer();
 
 	/*
+	 * If the inactive queue scan fails repeatedly to meet its
+	 * target, kill the largest process.
+	 */
+	vm_pageout_mightbe_oom(vmd, page_shortage, starting_page_shortage);
+
+	/*
 	 * Compute the number of pages we want to try to move from the
 	 * active queue to the inactive queue.
 	 */
@@ -1441,15 +1467,6 @@ relock_queues:
 		}
 	}
 #endif
-
-	/*
-	 * If we are critically low on one of RAM or swap and low on
-	 * the other, kill the largest process.  However, we avoid
-	 * doing this on the first pass in order to give ourselves a
-	 * chance to flush out dirty vnode-backed pages and to allow
-	 * active pages to be moved to the inactive queue and reclaimed.
-	 */
-	vm_pageout_mightbe_oom(vmd, pass);
 }
 
 static int vm_pageout_oom_vote;
@@ -1460,18 +1477,29 @@ static int vm_pageout_oom_vote;
  * failed to reach free target is premature.
  */
 static void
-vm_pageout_mightbe_oom(struct vm_domain *vmd, int pass)
+vm_pageout_mightbe_oom(struct vm_domain *vmd, int page_shortage,
+    int starting_page_shortage)
 {
 	int old_vote;
 
-	if (pass <= 1 || !((swap_pager_avail < 64 && vm_page_count_min()) ||
-	    (swap_pager_full && vm_paging_target() > 0))) {
+	if (starting_page_shortage <= 0 || starting_page_shortage !=
+	    page_shortage)
+		vmd->vmd_oom_seq = 0;
+	else
+		vmd->vmd_oom_seq++;
+	if (vmd->vmd_oom_seq < vm_pageout_oom_seq) {
 		if (vmd->vmd_oom) {
 			vmd->vmd_oom = FALSE;
 			atomic_subtract_int(&vm_pageout_oom_vote, 1);
 		}
 		return;
 	}
+
+	/*
+	 * Do not follow the call sequence until OOM condition is
+	 * cleared.
+	 */
+	vmd->vmd_oom_seq = 0;
 
 	if (vmd->vmd_oom)
 		return;
@@ -1496,6 +1524,65 @@ vm_pageout_mightbe_oom(struct vm_domain *vmd, int pass)
 	 */
 	vmd->vmd_oom = FALSE;
 	atomic_subtract_int(&vm_pageout_oom_vote, 1);
+}
+
+/*
+ * The OOM killer is the page daemon's action of last resort when
+ * memory allocation requests have been stalled for a prolonged period
+ * of time because it cannot reclaim memory.  This function computes
+ * the approximate number of physical pages that could be reclaimed if
+ * the specified address space is destroyed.
+ *
+ * Private, anonymous memory owned by the address space is the
+ * principal resource that we expect to recover after an OOM kill.
+ * Since the physical pages mapped by the address space's COW entries
+ * are typically shared pages, they are unlikely to be released and so
+ * they are not counted.
+ *
+ * To get to the point where the page daemon runs the OOM killer, its
+ * efforts to write-back vnode-backed pages may have stalled.  This
+ * could be caused by a memory allocation deadlock in the write path
+ * that might be resolved by an OOM kill.  Therefore, physical pages
+ * belonging to vnode-backed objects are counted, because they might
+ * be freed without being written out first if the address space holds
+ * the last reference to an unlinked vnode.
+ *
+ * Similarly, physical pages belonging to OBJT_PHYS objects are
+ * counted because the address space might hold the last reference to
+ * the object.
+ */
+static long
+vm_pageout_oom_pagecount(struct vmspace *vmspace)
+{
+	vm_map_t map;
+	vm_map_entry_t entry;
+	vm_object_t obj;
+	long res;
+
+	map = &vmspace->vm_map;
+	KASSERT(!map->system_map, ("system map"));
+	sx_assert(&map->lock, SA_LOCKED);
+	res = 0;
+	for (entry = map->header.next; entry != &map->header;
+	    entry = entry->next) {
+		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0)
+			continue;
+		obj = entry->object.vm_object;
+		if (obj == NULL)
+			continue;
+		if ((entry->eflags & MAP_ENTRY_NEEDS_COPY) != 0 &&
+		    obj->ref_count != 1)
+			continue;
+		switch (obj->type) {
+		case OBJT_DEFAULT:
+		case OBJT_SWAP:
+		case OBJT_PHYS:
+		case OBJT_VNODE:
+			res += obj->resident_page_count;
+			break;
+		}
+	}
+	return (res);
 }
 
 void
@@ -1542,7 +1629,8 @@ vm_pageout_oom(int shortage)
 			if (!TD_ON_RUNQ(td) &&
 			    !TD_IS_RUNNING(td) &&
 			    !TD_IS_SLEEPING(td) &&
-			    !TD_IS_SUSPENDED(td)) {
+			    !TD_IS_SUSPENDED(td) &&
+			    !TD_IS_SWAPPED(td)) {
 				thread_unlock(td);
 				breakout = 1;
 				break;
@@ -1570,12 +1658,13 @@ vm_pageout_oom(int shortage)
 		}
 		PROC_UNLOCK(p);
 		size = vmspace_swap_count(vm);
-		vm_map_unlock_read(&vm->vm_map);
 		if (shortage == VM_OOM_MEM)
-			size += vmspace_resident_count(vm);
+			size += vm_pageout_oom_pagecount(vm);
+		vm_map_unlock_read(&vm->vm_map);
 		vmspace_free(vm);
+
 		/*
-		 * if the this process is bigger than the biggest one
+		 * If this process is bigger than the biggest one,
 		 * remember it.
 		 */
 		if (size > bigsize) {
@@ -1618,6 +1707,9 @@ vm_pageout_worker(void *arg)
 	KASSERT(domain->vmd_segs != 0, ("domain without segments"));
 	domain->vmd_last_active_scan = ticks;
 	vm_pageout_init_marker(&domain->vmd_marker, PQ_INACTIVE);
+	vm_pageout_init_marker(&domain->vmd_inacthead, PQ_INACTIVE);
+	TAILQ_INSERT_HEAD(&domain->vmd_pagequeues[PQ_INACTIVE].pq_pl,
+	    &domain->vmd_inacthead, plinks.q);
 
 	/*
 	 * The pageout daemon worker is never done, so loop forever.

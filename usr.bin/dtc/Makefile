@@ -6,6 +6,8 @@ MAN=	dtc.1
 
 WARNS?=	3
 
+CXXFLAGS+=	-std=c++11
+
 NO_SHARED?=NO
 
 .include <bsd.prog.mk>

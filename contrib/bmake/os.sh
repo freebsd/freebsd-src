@@ -17,7 +17,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.46 2014/05/19 16:38:09 sjg Exp $
+#	$Id: os.sh,v 1.47 2015/09/10 05:53:10 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -137,7 +137,10 @@ SunOS)
 	# NetBSD at least has good backward compatibility
 	# so NetBSD/i386 is good enough
 	case $OS in
-	NetBSD) SHARE_ARCH=$OS/${MACHINE_ARCH:-$MACHINE};;
+	NetBSD)
+		HOST_ARCH=$MACHINE
+		SHARE_ARCH=$OS/$HOST
+		;;
 	OpenBSD)
 	        arch=`Which arch /usr/bin:/usr/ucb:$PATH`
                 MACHINE_ARCH=`$arch -s`
@@ -203,13 +206,14 @@ esac
 
 TMP_DIRS=${TMP_DIRS:-"/tmp /var/tmp"}
 MACHINE_ARCH=${MACHINE_ARCH:-$MACHINE}
+HOST_ARCH=${HOST_ARCH:-$MACHINE_ARCH}
 # we mount server:/share/arch/$SHARE_ARCH as /usr/local
-SHARE_ARCH=${SHARE_ARCH:-$OS/$OSMAJOR.X/$MACHINE_ARCH}
+SHARE_ARCH=${SHARE_ARCH:-$OS/$OSMAJOR.X/$HOST_ARCH}
 LN=${LN:-ln}
 TR=${TR:-tr}
 
 # Some people like have /share/$HOST_TARGET/bin etc.
-HOST_TARGET=`echo ${OS}${OSMAJOR}-${MACHINE_ARCH} | toLower`
+HOST_TARGET=`echo ${OS}${OSMAJOR}-$HOST_ARCH | toLower`
 export HOST_TARGET
 
 case `echo -n .` in -n*) N=; C="\c";; *) N=-n; C=;; esac

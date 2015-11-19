@@ -50,8 +50,7 @@ fi
 if test -d ldscripts; then
   true
 else
-  rm -f ldscripts
-  mkdir ldscripts
+  mkdir -p ldscripts
 fi
 
 # Set some flags for the emultempl scripts.  USE_LIBPATH will

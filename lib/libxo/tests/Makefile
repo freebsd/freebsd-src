@@ -242,8 +242,7 @@ PROGS+= test_11
 
 CFLAGS+=	-I${LIBXOSRC}/libxo
 
-DPADD=		${LIBXO} ${LIBUTIL}
-LDADD=		-lxo -lutil
+LIBADD=		xo
 
 SUBDIR+=	encoder
 

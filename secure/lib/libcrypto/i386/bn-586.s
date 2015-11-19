@@ -1519,4 +1519,4 @@ bn_sub_part_words:
 	popl	%ebp
 	ret
 .size	bn_sub_part_words,.-.L_bn_sub_part_words_begin
-.comm	OPENSSL_ia32cap_P,8,4
+.comm	OPENSSL_ia32cap_P,16,4

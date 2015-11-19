@@ -14,4 +14,6 @@ SUBDIR+=scp sftp ssh ssh-add ssh-agent ssh-keygen ssh-keyscan
 SUBDIR+=tests
 .endif
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>
