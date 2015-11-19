@@ -134,6 +134,7 @@ _CPUCFLAGS = -march=${CPUTYPE}
 #	4kc, 24kc, 34kc, 74kc, 1004kc, octeon, octeon+, octeon2, octeon3,
 #	sb1, xlp, xlr
 _CPUCFLAGS = -march=${CPUTYPE:S/^mips//}
+. endif
 . elif ${MACHINE_ARCH} == "sparc64"
 .  if ${CPUTYPE} == "v9"
 _CPUCFLAGS = -mcpu=v9
