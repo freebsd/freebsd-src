@@ -251,8 +251,9 @@ mlx5e_get_eeprom_info(struct mlx5e_priv *priv, struct mlx5e_eeprom *eeprom)
 		eeprom->len = MLX5E_ETH_MODULE_SFF_8472_LEN;
 		break;
 	default:
-		if_printf(priv->ifp, "%s:%d: Not recognized cable type = 0x%x\n",
-		    __func__, __LINE__, data & MLX5_EEPROM_IDENTIFIER_BYTE_MASK);
+		if_printf(priv->ifp, "%s:%d: Not recognized cable type = 0x%x(%s)\n",
+		    __func__, __LINE__, data & MLX5_EEPROM_IDENTIFIER_BYTE_MASK,
+		    sff_8024_id[data & MLX5_EEPROM_IDENTIFIER_BYTE_MASK]);
 		return (EINVAL);
 	}
 	return (0);
