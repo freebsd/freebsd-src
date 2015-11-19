@@ -122,19 +122,18 @@ _CPUCFLAGS = -mcpu=${CPUTYPE} -mno-powerpc64
 . elif ${MACHINE_ARCH} == "powerpc64"
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 . elif ${MACHINE_CPUARCH} == "mips"
-.  if ${CPUTYPE} == "mips32"
-_CPUCFLAGS = -march=mips32
-.  elif ${CPUTYPE} == "mips32r2"
-_CPUCFLAGS = -march=mips32r2
-.  elif ${CPUTYPE} == "mips64"
-_CPUCFLAGS = -march=mips64
-.  elif ${CPUTYPE} == "mips64r2"
-_CPUCFLAGS = -march=mips64r2
-.  elif ${CPUTYPE} == "mips4kc"
-_CPUCFLAGS = -march=4kc
-.  elif ${CPUTYPE} == "mips24kc"
-_CPUCFLAGS = -march=24kc
-.  endif
+# mips[1234], mips32, mips64, and all later releases need to have mips
+# preserved (releases later than r2 require external toolchain)
+.  if ${CPUTYPE:Mmips32*} != "" || ${CPUTYPE:Mmips64*} != "" || \
+	${CPUTYPE:Mmips[1234]} != ""
+_CPUCFLAGS = -march=${CPUTYPE}
+. else
+# Default -march to the CPUTYPE passed in, with mips stripped off so we
+# accept either mips4kc or 4kc, mostly for historical reasons
+# Typical values for cores:
+#	4kc, 24kc, 34kc, 74kc, 1004kc, octeon, octeon+, octeon2, octeon3,
+#	sb1, xlp, xlr
+_CPUCFLAGS = -march=${CPUTYPE:S/^mips//}
 . elif ${MACHINE_ARCH} == "sparc64"
 .  if ${CPUTYPE} == "v9"
 _CPUCFLAGS = -mcpu=v9
@@ -254,6 +253,9 @@ MACHINE_CPU = ssse3 sse3
 MACHINE_CPU = sse3
 .  endif
 MACHINE_CPU += amd64 sse2 sse mmx
+########## Mips
+. elif ${MACHINE_CPUARCH} == "mips"
+MACHINE_CPU = mips
 ########## powerpc
 . elif ${MACHINE_ARCH} == "powerpc"
 .  if ${CPUTYPE} == "e500"
