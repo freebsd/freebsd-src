@@ -1303,7 +1303,9 @@ svc_new_thread(SVCGROUP *grp)
 	SVCPOOL *pool = grp->sg_pool;
 	struct thread *td;
 
+	mtx_lock(&grp->sg_lock);
 	grp->sg_threadcount++;
+	mtx_unlock(&grp->sg_lock);
 	kthread_add(svc_thread_start, grp, pool->sp_proc, &td, 0, 0,
 	    "%s: service", pool->sp_name);
 }
@@ -1336,12 +1338,12 @@ svc_run(SVCPOOL *pool)
 	}
 
 	/* Starting threads */
+	pool->sp_groups[0].sg_threadcount++;
 	for (g = 0; g < pool->sp_groupcount; g++) {
 		grp = &pool->sp_groups[g];
 		for (i = ((g == 0) ? 1 : 0); i < grp->sg_minthreads; i++)
 			svc_new_thread(grp);
 	}
-	pool->sp_groups[0].sg_threadcount++;
 	svc_run_internal(&pool->sp_groups[0], TRUE);
 
 	/* Waiting for threads to stop. */
