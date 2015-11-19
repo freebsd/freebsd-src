@@ -385,8 +385,8 @@ dtrace_getarg(int arg, int aframes)
 			 * we're seeking is passed in regsiters, we can just
 			 * load it directly.
 			 */
-			struct trapframe *tf =
-			    (struct trapframe *)((uintptr_t)&fp[1]);
+			struct trapframe *tf = (struct trapframe *)
+			    ((uintptr_t)&fp[1] + sizeof(uintptr_t));
 
 			if (arg <= inreg) {
 				switch (arg) {
