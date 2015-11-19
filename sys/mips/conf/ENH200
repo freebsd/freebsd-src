@@ -12,6 +12,8 @@
 
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 include		"AR724X_BASE"
 ident		"ENH200"
 hints		"ENH200.hints"

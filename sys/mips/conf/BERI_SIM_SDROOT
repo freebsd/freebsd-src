@@ -5,6 +5,8 @@
 # $FreeBSD$
 #
 
+#NO_UNIVERSE
+
 include "BERI_SIM_BASE"
 
 ident		BERI_SIM_SDROOT
