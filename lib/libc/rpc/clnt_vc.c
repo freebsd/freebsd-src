@@ -666,8 +666,7 @@ clnt_vc_destroy(cl)
 		(void)_close(ct->ct_fd);
 	}
 	XDR_DESTROY(&(ct->ct_xdrs));
-	if (ct->ct_addr.buf)
-		free(ct->ct_addr.buf);
+	free(ct->ct_addr.buf);
 	mem_free(ct, sizeof(struct ct_data));
 	if (cl->cl_netid && cl->cl_netid[0])
 		mem_free(cl->cl_netid, strlen(cl->cl_netid) +1);
