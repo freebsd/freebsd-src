@@ -54,7 +54,7 @@ BOOT_MACHINE_DIR.amd64 = boot/i386
 MACHINE_ARCH.host = ${_HOST_ARCH}
 
 # the list of machines we support
-ALL_MACHINE_LIST?= amd64 arm arm64 i386 ia64 mips pc98 powerpc sparc64
+ALL_MACHINE_LIST?= amd64 arm arm64 i386 mips pc98 powerpc sparc64
 .for m in ${ALL_MACHINE_LIST:O:u}
 MACHINE_ARCH_LIST.$m?= ${TARGET_ARCHES_${m}:U$m}
 MACHINE_ARCH.$m?= ${MACHINE_ARCH_LIST.$m:[1]}

@@ -42,7 +42,6 @@ DIRDEPS.amd64= \
 
 DIRDEPS.arm= sys/boot/fdt sys/boot/uboot
 DIRDEPS.i386= ${DIRDEPS.x86sys} sys/boot/efi/libefi sys/boot/zfs
-DIRDEPS.ia64= sys/boot/efi/libefi sys/boot/zfs
 DIRDEPS.powerpc= sys/boot/fdt sys/boot/ofw sys/boot/uboot
 DIRDEPS.sparc64= sys/boot/ofw sys/boot/zfs
 

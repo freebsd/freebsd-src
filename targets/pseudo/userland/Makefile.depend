@@ -759,12 +759,6 @@ DIRDEPS.i386= \
 	usr.sbin/boot0cfg \
 	usr.sbin/wlconfig
 
-DIRDEPS.ia64= \
-	sbin/mca \
-	usr.sbin/acpi \
-	usr.sbin/kgmon \
-	usr.sbin/zzz
-
 DIRDEPS.mips= \
 	sbin/bsdlabel \
 	sbin/fdisk
