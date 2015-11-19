@@ -2149,6 +2149,10 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 		    "uma_zalloc_arg: zone \"%s\"", zone->uz_name);
 	}
+
+	KASSERT(curthread->td_critnest == 0,
+	    ("uma_zalloc_arg: called with spinlock or critical section held"));
+
 #ifdef DEBUG_MEMGUARD
 	if (memguard_cmp_zone(zone)) {
 		item = memguard_alloc(zone->uz_size, flags);
@@ -2685,6 +2689,9 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 #endif
 	CTR2(KTR_UMA, "uma_zfree_arg thread %x zone %s", curthread,
 	    zone->uz_name);
+
+	KASSERT(curthread->td_critnest == 0,
+	    ("uma_zfree_arg: called with spinlock or critical section held"));
 
         /* uma_zfree(..., NULL) does nothing, to match free(9). */
         if (item == NULL)
