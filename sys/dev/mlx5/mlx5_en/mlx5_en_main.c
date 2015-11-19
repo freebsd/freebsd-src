@@ -378,7 +378,7 @@ mlx5e_update_stats_work(struct work_struct *work)
 	u64 sw_lro_flushed = 0;
 	u64 rx_csum_none = 0;
 	u64 rx_wqe_err = 0;
-	u32 out_of_rx_buffer = 0;
+	u32 rx_out_of_buffer = 0;
 	int i;
 	int j;
 
@@ -440,6 +440,16 @@ mlx5e_update_stats_work(struct work_struct *work)
 
 	memset(out, 0, outlen);
 
+	/* get number of out-of-buffer drops first */
+	if (mlx5_vport_query_out_of_rx_buffer(mdev, priv->counter_set_id,
+	    &rx_out_of_buffer))
+		goto free_out;
+
+	/* accumulate difference into a 64-bit counter */
+	s->rx_out_of_buffer += (u64)(u32)(rx_out_of_buffer - s->rx_out_of_buffer_prev);
+	s->rx_out_of_buffer_prev = rx_out_of_buffer;
+
+	/* get port statistics */
 	if (mlx5_cmd_exec(mdev, in, sizeof(in), out, outlen))
 		goto free_out;
 
@@ -485,7 +495,8 @@ mlx5e_update_stats_work(struct work_struct *work)
 	s->rx_packets =
 	    s->rx_unicast_packets +
 	    s->rx_multicast_packets +
-	    s->rx_broadcast_packets;
+	    s->rx_broadcast_packets -
+	    s->rx_out_of_buffer;
 	s->rx_bytes =
 	    s->rx_unicast_bytes +
 	    s->rx_multicast_bytes +
@@ -503,10 +514,14 @@ mlx5e_update_stats_work(struct work_struct *work)
 	s->tx_csum_offload = s->tx_packets - tx_offload_none;
 	s->rx_csum_good = s->rx_packets - s->rx_csum_none;
 
+	/* Update per port counters */
+	mlx5e_update_pport_counters(priv);
+
 #if (__FreeBSD_version < 1100000)
 	/* no get_counters interface in fbsd 10 */
 	ifp->if_ipackets = s->rx_packets;
 	ifp->if_ierrors  = s->rx_error_packets;
+	ifp->if_iqdrops = s->rx_out_of_buffer;
 	ifp->if_opackets = s->tx_packets;
 	ifp->if_oerrors = s->tx_error_packets;
 	ifp->if_snd.ifq_drops = s->tx_queue_dropped;
@@ -514,12 +529,6 @@ mlx5e_update_stats_work(struct work_struct *work)
 	ifp->if_obytes = s->tx_bytes;
 #endif
 
-	mlx5_vport_query_out_of_rx_buffer(mdev, priv->counter_set_id,
-	    &out_of_rx_buffer);
-
-	/* Update per port counters */
-	mlx5e_update_pport_counters(priv);
-	priv->stats.pport.out_of_rx_buffer = (u64)out_of_rx_buffer;
 free_out:
 	kvfree(out);
 	PRIV_UNLOCK(priv);
@@ -2177,6 +2186,9 @@ mlx5e_get_counter(struct ifnet *ifp, ift_counter cnt)
 		break;
 	case IFCOUNTER_IERRORS:
 		retval = priv->stats.vport.rx_error_packets;
+		break;
+	case IFCOUNTER_IQDROPS:
+		retval = priv->stats.vport.rx_out_of_buffer;
 		break;
 	case IFCOUNTER_OPACKETS:
 		retval = priv->stats.vport.tx_packets;

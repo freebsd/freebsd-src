@@ -141,6 +141,7 @@ typedef void (mlx5e_cq_comp_t)(struct mlx5_core_cq *);
   m(+1, u64 rx_broadcast_bytes, "rx_broadcast_bytes", "Received broadcast bytes") \
   m(+1, u64 tx_broadcast_packets, "tx_broadcast_packets", "Transmitted broadcast packets") \
   m(+1, u64 tx_broadcast_bytes, "tx_broadcast_bytes", "Transmitted broadcast bytes") \
+  m(+1, u64 rx_out_of_buffer, "rx_out_of_buffer", "Receive out of buffer, no recv wqes events") \
   /* SW counters */							\
   m(+1, u64 tso_packets, "tso_packets", "Transmitted TSO packets")	\
   m(+1, u64 tso_bytes, "tso_bytes", "Transmitted TSO bytes")		\
@@ -161,6 +162,7 @@ struct mlx5e_vport_stats {
 	struct sysctl_ctx_list ctx;
 	u64	arg [0];
 	MLX5E_VPORT_STATS(MLX5E_STATS_VAR)
+	u32	rx_out_of_buffer_prev;
 };
 
 #define	MLX5E_PPORT_IEEE802_3_STATS(m)					\
@@ -265,17 +267,13 @@ struct mlx5e_vport_stats {
   m(+1, u64 rs_corrected_symbols_lane3, "rs_corrected_symbols_lane3",			\
 			"FEC corrected symbol counter lane 3")				\
 
-#define MLX5E_PPORT_Q_CONTERS(m)                                         \
-  m(+1, u64 out_of_rx_buffer, "out_of_rx_buffer", "out of rx buffers aka no recv wqes events")
-
 /*
  * Make sure to update mlx5e_update_pport_counters()
  * when adding a new MLX5E_PPORT_STATS block
  */
 #define	MLX5E_PPORT_STATS(m)			\
   MLX5E_PPORT_IEEE802_3_STATS(m)		\
-  MLX5E_PPORT_RFC2819_STATS(m)			\
-  MLX5E_PPORT_Q_CONTERS(m)
+  MLX5E_PPORT_RFC2819_STATS(m)
 
 #define	MLX5E_PORT_STATS_DEBUG(m)		\
   MLX5E_PPORT_RFC2819_STATS_DEBUG(m)		\
