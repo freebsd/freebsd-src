@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 8, 2006
+.Dd November 18, 2015
 .Dt PRINTF 9
 .Os
 .Sh NAME
@@ -41,9 +41,13 @@
 .Fn tprintf "struct proc *p" "int pri" "const char *fmt" ...
 .Ft int
 .Fn uprintf "const char *fmt" ...
+.Ft int
+.Fn vprintf "const char *fmt" "va_list ap"
 .In sys/syslog.h
 .Ft void
 .Fn log "int pri" "const char *fmt" ...
+.Ft void
+.Fn vlog "int pri" "const char *fmt" "va_list ap"
 .Sh DESCRIPTION
 The
 .Xr printf 9
