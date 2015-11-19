@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/pmap.h>
 
+#include <netinet/in.h>
+#include <netinet/ip.h>
+
 #include "../ntb_hw/ntb_hw.h"
 
 /*
@@ -101,7 +104,7 @@ SYSCTL_UINT(_hw_if_ntb, OID_AUTO, debug_level, CTLFLAG_RWTUN,
 	}						\
 } while (0)
 
-static unsigned transport_mtu = 0x10000 + ETHER_HDR_LEN + ETHER_CRC_LEN;
+static unsigned transport_mtu = IP_MAXPACKET + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
 static uint64_t max_mw_size;
 SYSCTL_UQUAD(_hw_if_ntb, OID_AUTO, max_mw_size, CTLFLAG_RDTUN, &max_mw_size, 0,
@@ -435,6 +438,8 @@ ntb_setup_interface(void)
 	ether_ifattach(ifp, net_softc.eaddr);
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_JUMBO_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
+	ifp->if_mtu = ntb_transport_max_size(net_softc.qp) - ETHER_HDR_LEN -
+	    ETHER_CRC_LEN;
 
 	ntb_transport_link_up(net_softc.qp);
 	net_softc.bufsize = ntb_transport_max_size(net_softc.qp) +
