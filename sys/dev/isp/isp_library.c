@@ -565,11 +565,11 @@ isp_fc_toponame(fcparam *fcp)
 		return "Unavailable";
 	}
 	switch (fcp->isp_topo) {
-	case TOPO_NL_PORT:      return "Private Loop";
-	case TOPO_FL_PORT:      return "FL Port";
-	case TOPO_N_PORT:       return "N-Port to N-Port";
-	case TOPO_F_PORT:       return "F Port";
-	case TOPO_PTP_STUB:     return "F Port (no FLOGI_ACC response)";
+	case TOPO_NL_PORT:      return "Private Loop (NL_Port)";
+	case TOPO_FL_PORT:      return "Public Loop (FL_Port)";
+	case TOPO_N_PORT:       return "Point-to-Point (N_Port)";
+	case TOPO_F_PORT:       return "Fabric (F_Port)";
+	case TOPO_PTP_STUB:     return "Point-to-Point (no response)";
 	default:                return "?????";
 	}
 }
@@ -2459,20 +2459,15 @@ isp_destroy_tgt_handle(ispsoftc_t *isp, uint32_t handle)
  * Find port database entries
  */
 int
-isp_find_pdb_by_wwn(ispsoftc_t *isp, int chan, uint64_t wwn, fcportdb_t **lptr)
+isp_find_pdb_empty(ispsoftc_t *isp, int chan, fcportdb_t **lptr)
 {
-	fcparam *fcp;
+	fcparam *fcp = FCPARAM(isp, chan);
 	int i;
 
-	if (chan >= isp->isp_nchan)
-		return (0);
-	fcp = FCPARAM(isp, chan);
 	for (i = 0; i < MAX_FC_TARG; i++) {
 		fcportdb_t *lp = &fcp->portdb[i];
 
-		if (lp->state == FC_PORTDB_STATE_NIL)
-			continue;
-		if (lp->port_wwn == wwn) {
+		if (lp->state == FC_PORTDB_STATE_NIL) {
 			*lptr = lp;
 			return (1);
 		}
@@ -2480,17 +2475,32 @@ isp_find_pdb_by_wwn(ispsoftc_t *isp, int chan, uint64_t wwn, fcportdb_t **lptr)
 	return (0);
 }
 
-#ifdef	ISP_TARGET_MODE
-
 int
-isp_find_pdb_by_handle(ispsoftc_t *isp, int chan, uint16_t handle, fcportdb_t **lptr)
+isp_find_pdb_by_wwpn(ispsoftc_t *isp, int chan, uint64_t wwpn, fcportdb_t **lptr)
 {
-	fcparam *fcp;
+	fcparam *fcp = FCPARAM(isp, chan);
 	int i;
 
-	if (chan >= isp->isp_nchan)
-		return (0);
-	fcp = FCPARAM(isp, chan);
+	for (i = 0; i < MAX_FC_TARG; i++) {
+		fcportdb_t *lp = &fcp->portdb[i];
+
+		if (lp->state == FC_PORTDB_STATE_NIL)
+			continue;
+		if (lp->port_wwn == wwpn) {
+			*lptr = lp;
+			return (1);
+		}
+	}
+	return (0);
+}
+
+int
+isp_find_pdb_by_handle(ispsoftc_t *isp, int chan, uint16_t handle,
+    fcportdb_t **lptr)
+{
+	fcparam *fcp = FCPARAM(isp, chan);
+	int i;
+
 	for (i = 0; i < MAX_FC_TARG; i++) {
 		fcportdb_t *lp = &fcp->portdb[i];
 
@@ -2505,20 +2515,18 @@ isp_find_pdb_by_handle(ispsoftc_t *isp, int chan, uint16_t handle, fcportdb_t **
 }
 
 int
-isp_find_pdb_by_sid(ispsoftc_t *isp, int chan, uint32_t sid, fcportdb_t **lptr)
+isp_find_pdb_by_portid(ispsoftc_t *isp, int chan, uint32_t portid,
+    fcportdb_t **lptr)
 {
-	fcparam *fcp;
+	fcparam *fcp = FCPARAM(isp, chan);
 	int i;
 
-	if (chan >= isp->isp_nchan)
-		return (0);
-	fcp = FCPARAM(isp, chan);
 	for (i = 0; i < MAX_FC_TARG; i++) {
 		fcportdb_t *lp = &fcp->portdb[i];
 
 		if (lp->state == FC_PORTDB_STATE_NIL)
 			continue;
-		if (lp->portid == sid) {
+		if (lp->portid == portid) {
 			*lptr = lp;
 			return (1);
 		}
@@ -2526,6 +2534,7 @@ isp_find_pdb_by_sid(ispsoftc_t *isp, int chan, uint32_t sid, fcportdb_t **lptr)
 	return (0);
 }
 
+#ifdef	ISP_TARGET_MODE
 void
 isp_find_chan_by_did(ispsoftc_t *isp, uint32_t did, uint16_t *cp)
 {
@@ -2570,8 +2579,8 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t wwpn, uint64_t wwnn,
 	 * with new parameters.  Some cases of update can be suspicious,
 	 * so log them verbosely and dump the whole port database.
 	 */
-	if ((VALID_INI(wwpn) && isp_find_pdb_by_wwn(isp, chan, wwpn, &lp)) ||
-	    (s_id != PORT_NONE && isp_find_pdb_by_sid(isp, chan, s_id, &lp))) {
+	if ((VALID_INI(wwpn) && isp_find_pdb_by_wwpn(isp, chan, wwpn, &lp)) ||
+	    (s_id != PORT_NONE && isp_find_pdb_by_portid(isp, chan, s_id, &lp))) {
 		change = 0;
 		lp->new_portid = lp->portid;
 		lp->new_prli_word3 = lp->prli_word3;
@@ -2656,8 +2665,6 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t wwpn, uint64_t wwnn,
 			isp_async(isp, ISPASYNC_DEV_CHANGED, chan, lp);
 			lp->portid = lp->new_portid;
 			lp->prli_word3 = lp->new_prli_word3;
-			lp->new_prli_word3 = 0;
-			lp->new_portid = 0;
 		} else {
 			isp_prt(isp, ISP_LOGTINFO,
 			    "Chan %d WWPN 0x%016llx PortID 0x%06x "
@@ -2798,13 +2805,13 @@ isp_del_wwn_entries(ispsoftc_t *isp, isp_notify_t *mp)
 		}
 	}
 	if (mp->nt_wwn != INI_ANY) {
-		if (isp_find_pdb_by_wwn(isp, mp->nt_channel, mp->nt_wwn, &lp)) {
+		if (isp_find_pdb_by_wwpn(isp, mp->nt_channel, mp->nt_wwn, &lp)) {
 			isp_del_wwn_entry(isp, mp->nt_channel, lp->port_wwn, lp->handle, lp->portid);
 			return;
 		}
 	}
 	if (mp->nt_sid != PORT_ANY && mp->nt_sid != PORT_NONE) {
-		if (isp_find_pdb_by_sid(isp, mp->nt_channel, mp->nt_sid, &lp)) {
+		if (isp_find_pdb_by_portid(isp, mp->nt_channel, mp->nt_sid, &lp)) {
 			isp_del_wwn_entry(isp, mp->nt_channel, lp->port_wwn, lp->handle, lp->portid);
 			return;
 		}
