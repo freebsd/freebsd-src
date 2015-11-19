@@ -623,7 +623,7 @@ void	*cheri_memcpy(void *dst, void *src, size_t len);
  */
 
 const char	*cheri_exccode_string(uint8_t exccode);
-void	cheri_exec_setregs(struct thread *td);
+void	cheri_exec_setregs(struct thread *td, u_long entry_addr);
 void	cheri_log_cheri_frame(struct cheri_frame *cheriframe);
 void	cheri_log_exception(struct trapframe *frame, int trap_type);
 void	cheri_log_exception_registers(struct trapframe *frame);

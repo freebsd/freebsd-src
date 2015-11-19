@@ -103,6 +103,8 @@ SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sigprot, CTLFLAG_RW,
 static void	cheri_capability_set_user_c0(struct chericap *);
 static void	cheri_capability_set_user_stack(struct chericap *);
 static void	cheri_capability_set_user_pcc(struct chericap *);
+static void	cheri_capability_set_user_entry(struct chericap *,
+		    unsigned long);
 static void	cheri_capability_set_user_sigcode(struct chericap *,
 		   struct sysentvec *);
 
@@ -261,6 +263,19 @@ cheri_capability_set_user_pcc(struct chericap *cp)
 }
 
 static void
+cheri_capability_set_user_entry(struct chericap *cp, unsigned long entry_addr)
+{
+
+	/*
+	 * Set the jump target regigster for the pure capability calling
+	 * convention.
+	 */
+	cheri_capability_set(cp, CHERI_CAP_USER_CODE_PERMS,
+	    CHERI_CAP_USER_CODE_OTYPE, CHERI_CAP_USER_CODE_BASE,
+	    CHERI_CAP_USER_CODE_LENGTH, entry_addr);
+}
+
+static void
 cheri_capability_set_user_sigcode(struct chericap *cp, struct sysentvec *se)
 {
 	uintptr_t base;
@@ -309,7 +324,7 @@ cheri_context_copy(struct pcb *dst, struct pcb *src)
 }
 
 void
-cheri_exec_setregs(struct thread *td)
+cheri_exec_setregs(struct thread *td, unsigned long entry_addr)
 {
 	struct cheri_frame *cfp;
 	struct cheri_signal *csigp;
@@ -326,6 +341,7 @@ cheri_exec_setregs(struct thread *td)
 	cheri_capability_set_user_stack(&cfp->cf_c11);
 	cheri_capability_set_user_idc(&cfp->cf_idc);
 	cheri_capability_set_user_pcc(&cfp->cf_pcc);
+	cheri_capability_set_user_entry(&cfp->cf_c12, entry_addr);
 
 	/*
 	 * Also initialise signal-handling state; this can't yet be modified
