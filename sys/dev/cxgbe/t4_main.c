@@ -570,6 +570,33 @@ t5_probe(device_t dev)
 	return (ENXIO);
 }
 
+static void
+t5_attribute_workaround(device_t dev)
+{
+	device_t root_port;
+	uint32_t v;
+
+	/*
+	 * The T5 chips do not properly echo the No Snoop and Relaxed
+	 * Ordering attributes when replying to a TLP from a Root
+	 * Port.  As a workaround, find the parent Root Port and
+	 * disable No Snoop and Relaxed Ordering.  Note that this
+	 * affects all devices under this root port.
+	 */
+	root_port = pci_find_pcie_root_port(dev);
+	if (root_port == NULL) {
+		device_printf(dev, "Unable to find parent root port\n");
+		return;
+	}
+
+	v = pcie_adjust_config(root_port, PCIER_DEVICE_CTL,
+	    PCIEM_CTL_RELAXED_ORD_ENABLE | PCIEM_CTL_NOSNOOP_ENABLE, 0, 2);
+	if ((v & (PCIEM_CTL_RELAXED_ORD_ENABLE | PCIEM_CTL_NOSNOOP_ENABLE)) !=
+	    0)
+		device_printf(dev, "Disabled No Snoop/Relaxed Ordering on %s\n",
+		    device_get_nameunit(root_port));
+}
+
 static int
 t4_attach(device_t dev)
 {
@@ -588,6 +615,8 @@ t4_attach(device_t dev)
 	sc->dev = dev;
 	TUNABLE_INT_FETCH("hw.cxgbe.debug_flags", &sc->debug_flags);
 
+	if ((pci_get_device(dev) & 0xff00) == 0x5400)
+		t5_attribute_workaround(dev);
 	pci_enable_busmaster(dev);
 	if (pci_find_cap(dev, PCIY_EXPRESS, &i) == 0) {
 		uint32_t v;
