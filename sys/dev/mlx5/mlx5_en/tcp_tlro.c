@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, tlro,
     CTLFLAG_RW, 0, "TCP turbo LRO parameters");
 
-static	MALLOC_DEFINE(M_TLRO, "TLRO", "Turbo LRO");
+static MALLOC_DEFINE(M_TLRO, "TLRO", "Turbo LRO");
 
 static int tlro_min_rate = 20;		/* Hz */
 
@@ -124,7 +124,7 @@ tcp_tlro_info_save_timestamp(struct tlro_mbuf_data *pinfo)
 	    (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP))
 		return (0);
 
-	/* save timestamps */
+	/* Save timestamps */
 	pinfo->tcp_ts = ts_ptr[1];
 	pinfo->tcp_ts_reply = ts_ptr[2];
 	return (1);
@@ -145,7 +145,7 @@ tcp_tlro_info_restore_timestamp(struct tlro_mbuf_data *pinfoa,
 	    (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP))
 		return;
 
-	/* restore timestamps */
+	/* Restore timestamps */
 	ts_ptr[1] = pinfob->tcp_ts;
 	ts_ptr[2] = pinfob->tcp_ts_reply;
 }
@@ -167,7 +167,7 @@ tcp_tlro_extract_header(struct tlro_mbuf_data *pinfo, struct mbuf *m, int seq)
 	int diff;
 	int off;
 
-	/* fill in information */
+	/* Fill in information */
 	pinfo->head = m;
 	pinfo->last_tick = ticks;
 	pinfo->sequence = seq;
@@ -274,31 +274,31 @@ tcp_tlro_extract_header(struct tlro_mbuf_data *pinfo, struct mbuf *m, int seq)
 	    sizeof(tcp->th_dport));
 	phdr += sizeof(tcp->th_sport) +
 	    sizeof(tcp->th_dport);
-	/* store TCP header length */
+	/* Store TCP header length */
 	*phdr++ = tcp->th_off;
 	if (tcp->th_off < (sizeof(*tcp) >> 2))
 		goto error;
 
-	/* compute offset to data payload */
+	/* Compute offset to data payload */
 	pinfo->tcp_len = (tcp->th_off << 2);
 	off += pinfo->tcp_len;
 
-	/* store more info */
+	/* Store more info */
 	pinfo->data_off = off;
 	pinfo->tcp = tcp;
 
-	/* try to save timestamp, if any */
+	/* Try to save timestamp, if any */
 	*phdr++ = tcp_tlro_info_save_timestamp(pinfo);
 
-	/* verify offset and IP/TCP length */
+	/* Verify offset and IP/TCP length */
 	if (off > m->m_pkthdr.len ||
 	    pinfo->ip_len < pinfo->tcp_len)
 		goto error;
 
-	/* compute data payload length */
+	/* Compute data payload length */
 	pinfo->data_len = (pinfo->ip_len - pinfo->tcp_len - pinfo->ip_hdrlen);
 
-	/* trim any padded data */
+	/* Trim any padded data */
 	diff = (m->m_pkthdr.len - off) - pinfo->data_len;
 	if (diff != 0) {
 		if (diff < 0)
@@ -306,9 +306,9 @@ tcp_tlro_extract_header(struct tlro_mbuf_data *pinfo, struct mbuf *m, int seq)
 		else
 			m_adj(m, -diff);
 	}
-	/* compute header length */
+	/* Compute header length */
 	pinfo->buf_length = phdr - (uint8_t *)pinfo->buf;
-	/* zero-pad rest of buffer */
+	/* Zero-pad rest of buffer */
 	memset(phdr, 0, TLRO_MAX_HEADER - pinfo->buf_length);
 	return;
 error:
@@ -422,47 +422,47 @@ tcp_tlro_combine(struct tlro_ctrl *tlro, int force)
 				break;
 		}
 		if (pinfoa->buf_length == 0) {
-			/* forward traffic which cannot be combined */
+			/* Forward traffic which cannot be combined */
 			for (z = y; z != x; z++) {
-				/* just forward packets */
+				/* Just forward packets */
 				pinfob = tlro->mbuf[z].data;
 
 				m = pinfob->head;
 
-				/* reset info structure */
+				/* Reset info structure */
 				pinfob->head = NULL;
 				pinfob->buf_length = 0;
 
-				/* do stats */
+				/* Do stats */
 				tlro->lro_flushed++;
 
-				/* input packet to network layer */
+				/* Input packet to network layer */
 				(*tlro->ifp->if_input) (tlro->ifp, m);
 			}
 			y = z;
 			continue;
 		}
 
-		/* compute current checksum subtracted some header parts */
+		/* Compute current checksum subtracted some header parts */
 		temp = (pinfoa->ip_len - pinfoa->ip_hdrlen);
 		cs = ((temp & 0xFF) << 8) + ((temp & 0xFF00) >> 8) +
 		    tcp_tlro_csum((uint32_p_t *)pinfoa->tcp, pinfoa->tcp_len);
 
-		/* append all fragments into one block */
+		/* Append all fragments into one block */
 		for (z = y + 1; z != x; z++) {
 
 			pinfob = tlro->mbuf[z].data;
 
-			/* check for command packets */
+			/* Check for command packets */
 			if ((pinfoa->tcp->th_flags & ~(TH_ACK | TH_PUSH)) ||
 			    (pinfob->tcp->th_flags & ~(TH_ACK | TH_PUSH)))
 				break;
 
-			/* check if there is enough space */
+			/* Check if there is enough space */
 			if ((pinfoa->ip_len + pinfob->data_len) > tlro_max_packet)
 				break;
 
-			/* try to append the new segment */
+			/* Try to append the new segment */
 			temp = ntohl(pinfoa->tcp->th_seq) + pinfoa->data_len;
 			if (temp != (int)ntohl(pinfob->tcp->th_seq))
 				break;
@@ -470,7 +470,7 @@ tcp_tlro_combine(struct tlro_ctrl *tlro, int force)
 			temp = pinfob->ip_len - pinfob->ip_hdrlen;
 			cs += ((temp & 0xFF) << 8) + ((temp & 0xFF00) >> 8) +
 			    tcp_tlro_csum((uint32_p_t *)pinfob->tcp, pinfob->tcp_len);
-			/* remove fields which appear twice */
+			/* Remove fields which appear twice */
 			cs += (IPPROTO_TCP << 8);
 			if (pinfob->ip_version == 4) {
 				cs += tcp_tlro_csum((uint32_p_t *)&pinfob->ip.v4->ip_src, 4);
@@ -479,45 +479,45 @@ tcp_tlro_combine(struct tlro_ctrl *tlro, int force)
 				cs += tcp_tlro_csum((uint32_p_t *)&pinfob->ip.v6->ip6_src, 16);
 				cs += tcp_tlro_csum((uint32_p_t *)&pinfob->ip.v6->ip6_dst, 16);
 			}
-			/* remainder computation */
+			/* Remainder computation */
 			while (cs > 0xffff)
 				cs = (cs >> 16) + (cs & 0xffff);
 
-			/* update window and ack sequence number */
+			/* Update window and ack sequence number */
 			pinfoa->tcp->th_ack = pinfob->tcp->th_ack;
 			pinfoa->tcp->th_win = pinfob->tcp->th_win;
 
-			/* check if we should restore the timestamp */
+			/* Check if we should restore the timestamp */
 			tcp_tlro_info_restore_timestamp(pinfoa, pinfob);
 
-			/* accumulate TCP flags */
+			/* Accumulate TCP flags */
 			pinfoa->tcp->th_flags |= pinfob->tcp->th_flags;
 
 			/* update lengths */
 			pinfoa->ip_len += pinfob->data_len;
 			pinfoa->data_len += pinfob->data_len;
 
-			/* clear mbuf pointer - packet is accumulated */
+			/* Clear mbuf pointer - packet is accumulated */
 			m = pinfob->head;
 
-			/* reset info structure */
+			/* Reset info structure */
 			pinfob->head = NULL;
 			pinfob->buf_length = 0;
 
-			/* append data to mbuf [y] */
+			/* Append data to mbuf [y] */
 			m_adj(m, pinfob->data_off);
-			/* delete mbuf tags, if any */
+			/* Delete mbuf tags, if any */
 			m_tag_delete_chain(m, NULL);
-			/* clear packet header flag */
+			/* Clear packet header flag */
 			m->m_flags &= ~M_PKTHDR;
 
-			/* concat mbuf(s) to end of list */
+			/* Concat mbuf(s) to end of list */
 			pinfoa->pprev[0] = m;
 			m = m_last(m);
 			pinfoa->pprev = &m->m_next;
 			pinfoa->head->m_pkthdr.len += pinfob->data_len;
 		}
-		/* compute new TCP header checksum */
+		/* Compute new TCP header checksum */
 		pinfoa->tcp->th_sum = 0;
 
 		temp = pinfoa->ip_len - pinfoa->ip_hdrlen;
@@ -525,14 +525,14 @@ tcp_tlro_combine(struct tlro_ctrl *tlro, int force)
 		    tcp_tlro_csum((uint32_p_t *)pinfoa->tcp, pinfoa->tcp_len) +
 		    ((temp & 0xFF) << 8) + ((temp & 0xFF00) >> 8);
 
-		/* remainder computation */
+		/* Remainder computation */
 		while (cs > 0xffff)
 			cs = (cs >> 16) + (cs & 0xffff);
 
-		/* update new checksum */
+		/* Update new checksum */
 		pinfoa->tcp->th_sum = ~htole16(cs);
 
-		/* update IP length, if any */
+		/* Update IP length, if any */
 		if (pinfoa->ip_version == 4) {
 			if (pinfoa->ip_len > IP_MAXPACKET) {
 				M_HASHTYPE_SET(pinfoa->head, M_HASHTYPE_LRO_TCP);
@@ -551,34 +551,34 @@ tcp_tlro_combine(struct tlro_ctrl *tlro, int force)
 		}
 
 		temp = curr_ticks - pinfoa->last_tick;
-		/* check if packet should be forwarded */
+		/* Check if packet should be forwarded */
 		if (force != 0 || z != x || temp >= ticks_limit ||
 		    pinfoa->data_len == 0) {
 
-			/* compute new IPv4 header checksum */
+			/* Compute new IPv4 header checksum */
 			if (pinfoa->ip_version == 4) {
 				pinfoa->ip.v4->ip_sum = 0;
 				cs = tcp_tlro_csum((uint32_p_t *)pinfoa->ip.v4,
 				    sizeof(*pinfoa->ip.v4));
 				pinfoa->ip.v4->ip_sum = ~htole16(cs);
 			}
-			/* forward packet */
+			/* Forward packet */
 			m = pinfoa->head;
 
-			/* reset info structure */
+			/* Reset info structure */
 			pinfoa->head = NULL;
 			pinfoa->buf_length = 0;
 
-			/* do stats */
+			/* Do stats */
 			tlro->lro_flushed++;
 
-			/* input packet to network layer */
+			/* Input packet to network layer */
 			(*tlro->ifp->if_input) (tlro->ifp, m);
 		}
 		y = z;
 	}
 
-	/* cleanup all NULL heads */
+	/* Cleanup all NULL heads */
 	for (y = 0; y != tlro->curr; y++) {
 		if (tlro->mbuf[y].data->head == NULL) {
 			for (z = y + 1; z != tlro->curr; z++) {
@@ -622,23 +622,23 @@ tcp_tlro_init(struct tlro_ctrl *tlro, struct ifnet *ifp,
 	ssize_t size;
 	uint32_t x;
 
-	/* set zero defaults */
+	/* Set zero defaults */
 	memset(tlro, 0, sizeof(*tlro));
 
-	/* compute size needed for data */
+	/* Compute size needed for data */
 	size = (sizeof(struct tlro_mbuf_ptr) * max_mbufs) +
 	    (sizeof(struct tlro_mbuf_data) * max_mbufs);
 
-	/* range check */
+	/* Range check */
 	if (max_mbufs <= 0 || size <= 0 || ifp == NULL)
 		return (EINVAL);
 
-	/* setup tlro control structure */
+	/* Setup tlro control structure */
 	tlro->mbuf = malloc(size, M_TLRO, M_WAITOK | M_ZERO);
 	tlro->max = max_mbufs;
 	tlro->ifp = ifp;
 
-	/* setup pointer array */
+	/* Setup pointer array */
 	for (x = 0; x != tlro->max; x++) {
 		tlro->mbuf[x].data = ((struct tlro_mbuf_data *)
 		    &tlro->mbuf[max_mbufs]) + x;
@@ -653,24 +653,24 @@ tcp_tlro_free(struct tlro_ctrl *tlro)
 	struct mbuf *m;
 	uint32_t y;
 
-	/* check if not setup */
+	/* Check if not setup */
 	if (tlro->mbuf == NULL)
 		return;
-	/* free MBUF array and any leftover MBUFs */
+	/* Free MBUF array and any leftover MBUFs */
 	for (y = 0; y != tlro->max; y++) {
 
 		pinfo = tlro->mbuf[y].data;
 
 		m = pinfo->head;
 
-		/* reset info structure */
+		/* Reset info structure */
 		pinfo->head = NULL;
 		pinfo->buf_length = 0;
 
 		m_freem(m);
 	}
 	free(tlro->mbuf, M_TLRO);
-	/* reset buffer */
+	/* Reset buffer */
 	memset(tlro, 0, sizeof(*tlro));
 }
 

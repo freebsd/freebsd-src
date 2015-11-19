@@ -270,7 +270,6 @@ mlx5e_add_eth_addr_rule_sub(struct mlx5e_priv *priv,
 		}
 		ai->tt_vec |= (1 << MLX5E_TT_ANY);
 	}
-
 	match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	MLX5_SET_TO_ONES(fte_match_param, match_criteria,
 	    outer_headers.ethertype);
@@ -288,7 +287,6 @@ mlx5e_add_eth_addr_rule_sub(struct mlx5e_priv *priv,
 		}
 		ai->tt_vec |= (1 << MLX5E_TT_IPV4);
 	}
-
 	if (tt_vec & (1 << MLX5E_TT_IPV6)) {
 		MLX5_SET(fte_match_param, match_value, outer_headers.ethertype,
 		    ETHERTYPE_IPV6);
@@ -381,7 +379,6 @@ mlx5e_add_eth_addr_rule(struct mlx5e_priv *priv,
 		err = -ENOMEM;
 		goto add_eth_addr_rule_out;
 	}
-
 	err = mlx5e_add_eth_addr_rule_sub(priv, ai, type, flow_context,
 	    match_criteria);
 	if (err)
@@ -423,12 +420,12 @@ mlx5e_add_vlan_rule(struct mlx5e_priv *priv,
 	dest = MLX5_ADDR_OF(flow_context, flow_context, destination);
 
 	MLX5_SET(flow_context, flow_context, action,
-		 MLX5_FLOW_CONTEXT_ACTION_FWD_DEST);
+	    MLX5_FLOW_CONTEXT_ACTION_FWD_DEST);
 	MLX5_SET(flow_context, flow_context, destination_list_size, 1);
 	MLX5_SET(dest_format_struct, dest, destination_type,
-		 MLX5_FLOW_CONTEXT_DEST_TYPE_FLOW_TABLE);
+	    MLX5_FLOW_CONTEXT_DEST_TYPE_FLOW_TABLE);
 	MLX5_SET(dest_format_struct, dest, destination_id,
-		 mlx5_get_flow_table_id(priv->ft.main));
+	    mlx5_get_flow_table_id(priv->ft.main));
 
 	match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	MLX5_SET_TO_ONES(fte_match_param, match_criteria,

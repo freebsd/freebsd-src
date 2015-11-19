@@ -95,7 +95,7 @@ mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 }
 
 static void
-mlx5e_lro_update_hdr(struct mbuf* mb, struct mlx5_cqe64 *cqe)
+mlx5e_lro_update_hdr(struct mbuf *mb, struct mlx5_cqe64 *cqe)
 {
 	/* TODO: consider vlans, ip options, ... */
 	struct ether_header *eh;
@@ -109,8 +109,8 @@ mlx5e_lro_update_hdr(struct mbuf* mb, struct mlx5_cqe64 *cqe)
 	eh_type = ntohs(eh->ether_type);
 
 	u8 l4_hdr_type = get_cqe_l4_hdr_type(cqe);
-	int tcp_ack = ((CQE_L4_HDR_TYPE_TCP_ACK_NO_DATA  == l4_hdr_type) ||
-			(CQE_L4_HDR_TYPE_TCP_ACK_AND_DATA == l4_hdr_type));
+	int tcp_ack = ((CQE_L4_HDR_TYPE_TCP_ACK_NO_DATA == l4_hdr_type) ||
+	    (CQE_L4_HDR_TYPE_TCP_ACK_AND_DATA == l4_hdr_type));
 
 	/* TODO: consider vlan */
 	u16 tot_len = be32_to_cpu(cqe->byte_cnt) - ETHER_HDR_LEN;
@@ -131,15 +131,16 @@ mlx5e_lro_update_hdr(struct mbuf* mb, struct mlx5_cqe64 *cqe)
 	ts_ptr = (uint32_t *)(th + 1);
 
 	if (get_cqe_lro_tcppsh(cqe))
-		th->th_flags	|= TH_PUSH;
+		th->th_flags |= TH_PUSH;
 
 	if (tcp_ack) {
-		th->th_flags	|= TH_ACK;
-		th->th_ack	= cqe->lro_ack_seq_num;
-		th->th_win	= cqe->lro_tcp_win;
+		th->th_flags |= TH_ACK;
+		th->th_ack = cqe->lro_ack_seq_num;
+		th->th_win = cqe->lro_tcp_win;
 
-		/* FreeBSD handles only 32bit aligned timestamp
-		 * right after the TCP hdr
+		/*
+		 * FreeBSD handles only 32bit aligned timestamp right after
+		 * the TCP hdr
 		 * +--------+--------+--------+--------+
 		 * |   NOP  |  NOP   |  TSopt |   10   |
 		 * +--------+--------+--------+--------+
@@ -152,7 +153,8 @@ mlx5e_lro_update_hdr(struct mbuf* mb, struct mlx5_cqe64 *cqe)
 		    (__predict_true(*ts_ptr) == ntohl(TCPOPT_NOP << 24 |
 		    TCPOPT_NOP << 16 | TCPOPT_TIMESTAMP << 8 |
 		    TCPOLEN_TIMESTAMP))) {
-			/* cqe->timestamp is 64bit long.
+			/*
+			 * cqe->timestamp is 64bit long.
 			 * [0-31] - timestamp.
 			 * [32-64] - timestamp echo replay.
 			 */
@@ -160,15 +162,14 @@ mlx5e_lro_update_hdr(struct mbuf* mb, struct mlx5_cqe64 *cqe)
 			ts_ptr[2] = *((uint32_t *)&cqe->timestamp + 1);
 		}
 	}
-
 	if (ip4) {
-		ip4->ip_ttl	= cqe->lro_min_ttl;
-		ip4->ip_len	= cpu_to_be16(tot_len);
-		ip4->ip_sum	= 0;
-		ip4->ip_sum	= in_cksum(mb, ip4->ip_hl << 2);
+		ip4->ip_ttl = cqe->lro_min_ttl;
+		ip4->ip_len = cpu_to_be16(tot_len);
+		ip4->ip_sum = 0;
+		ip4->ip_sum = in_cksum(mb, ip4->ip_hl << 2);
 	} else {
-		ip6->ip6_hlim	= cqe->lro_min_ttl;
-		ip6->ip6_plen	= cpu_to_be16(tot_len -
+		ip6->ip6_hlim = cqe->lro_min_ttl;
+		ip6->ip6_plen = cpu_to_be16(tot_len -
 		    sizeof(struct ip6_hdr));
 	}
 	/* TODO: handle tcp checksum */
@@ -180,7 +181,7 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
     u32 cqe_bcnt)
 {
 	struct ifnet *ifp = rq->ifp;
-	int lro_num_seg; /* HW LRO session aggregated packets counter */
+	int lro_num_seg;	/* HW LRO session aggregated packets counter */
 
 	lro_num_seg = be32_to_cpu(cqe->srqn) >> 24;
 	if (lro_num_seg > 1) {
@@ -195,6 +196,7 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
 		mb->m_pkthdr.flowid = be32_to_cpu(cqe->rss_hash_result);
 	else
 		mb->m_pkthdr.flowid = rq->ix;
+
 	M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE);
 	mb->m_pkthdr.rcvif = ifp;
 
@@ -306,6 +308,7 @@ mlx5e_rx_cq_comp(struct mlx5_core_cq *mcq)
 
 #ifdef HAVE_PER_CQ_EVENT_PACKET
 	struct mbuf *mb = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, rq->wqe_sz);
+
 	if (mb != NULL) {
 		/* this code is used for debugging purpose only */
 		mb->m_pkthdr.len = mb->m_len = 15;
