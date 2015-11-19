@@ -64,6 +64,8 @@
 #include <machine/pcb.h>
 #include <machine/sigframe.h>
 
+#include <sys/cheriabi.h>
+
 #include <compat/cheriabi/cheriabi_proto.h>
 #include <compat/cheriabi/cheriabi_syscall.h>
 #include <compat/cheriabi/cheriabi_sysargmap.h>
@@ -79,6 +81,8 @@ static int	cheriabi_fetch_syscall_args(struct thread *td,
 		    struct syscall_args *sa);
 static void	cheriabi_set_syscall_retval(struct thread *td, int error);
 static void	cheriabi_sendsig(sig_t, ksiginfo_t *, sigset_t *);
+static void	cheriabi_exec_setregs(struct thread *, struct image_params *,
+		    u_long);
 
 extern const char *cheriabi_syscallnames[];
 
@@ -106,7 +110,7 @@ struct sysentvec elf_freebsd_cheriabi_sysvec = {
 	.sv_psstrings	= CHERIABI_PS_STRINGS,
 	.sv_stackprot	= VM_PROT_ALL,
 	.sv_copyout_strings = cheriabi_copyout_strings,
-	.sv_setregs	= exec_setregs,
+	.sv_setregs	= cheriabi_exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
 	.sv_flags	= SV_ABI_FREEBSD | SV_LP64 | SV_CHERI,
@@ -617,4 +621,44 @@ cheriabi_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	    &td->td_pcb->pcb_cherisignal.csig_sigcode);
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
+}
+
+static void
+cheriabi_exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
+{
+	struct cheri_frame *cfp;
+
+	bzero((caddr_t)td->td_frame, sizeof(struct trapframe));
+
+	KASSERT(stack % sizeof(struct chericap) == 0,
+	    ("CheriABI stack pointer not properly aligned"));
+
+	td->td_frame->sp = stack;
+	td->td_frame->pc = imgp->entry_addr;
+	td->td_frame->sr = MIPS_SR_KSU_USER | MIPS_SR_EXL | MIPS_SR_INT_IE |
+	    (mips_rd_status() & MIPS_SR_INT_MASK) |
+	    MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_COP_2_BIT;
+	cheri_exec_setregs(td, imgp->entry_addr);
+	cheri_stack_init(td->td_pcb);
+
+	/*
+	 * XXXBD: sp should be is relative to c11's base and should be adjusted
+	 * accordingly once c11 isn't c0.
+	 */
+
+	/*
+	 * Pass a pointer to the struct cheriabi_execdata at the top of the
+	 * stack.
+	 *
+	 * XXXBD: should likely be read only
+	 */
+	cfp = &td->td_pcb->pcb_cheriframe;
+	cheri_capability_set(&cfp->cf_c3, CHERI_CAP_USER_DATA_PERMS,
+	    CHERI_CAP_USER_DATA_OTYPE, (void *)stack,
+	    sizeof(struct cheriabi_execdata), 0);
+
+	td->td_md.md_flags &= ~MDTD_FPUSED;
+	if (PCPU_GET(fpcurthread) == td)
+		PCPU_SET(fpcurthread, (struct thread *)0);
+	td->td_md.md_ss_addr = 0;
 }

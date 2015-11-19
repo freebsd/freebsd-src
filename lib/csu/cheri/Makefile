@@ -19,7 +19,10 @@ CFLAGS+=-mxgot
 NEED_CHERI=	pure
 
 .if defined(LIBCHERI)
-FILES+=	crtbegin.o				\
+CFLAGS+=	-I${.CURDIR}/../common		\
+		-I${.CURDIR}/../../libc/include
+FILES+=	crt1.o					\
+	crtbegin.o				\
 	crtbeginT.o				\
 	crtend.o
 

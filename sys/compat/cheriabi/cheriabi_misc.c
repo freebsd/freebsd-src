@@ -113,6 +113,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/cheriabi/cheriabi_signal.h>
 #include <compat/cheriabi/cheriabi_proto.h>
 
+#include <sys/cheriabi.h>
+
 MALLOC_DECLARE(M_KQUEUE);
 
 FEATURE(compat_cheri_abi, "Compatible CHERI system call ABI");
@@ -1145,6 +1147,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	char canary[sizeof(long) * 8];
 	size_t execpath_len;
 	int szsigcode, szps;
+	struct cheriabi_execdata ce;
 
 	szps = sizeof(pagesizes[0]) * MAXPAGESIZES;
 	/*
@@ -1202,6 +1205,13 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	destp -= ARG_MAX - imgp->args->stringspace;
 	destp = rounddown2(destp, sizeof(struct chericap));
 
+	/* Clear execdata */
+	memset(&ce, 0, sizeof(ce));
+	ce.ce_len = sizeof(ce);
+	ce.ce_argc = imgp->args->argc;
+	cheri_capability_set(&ce.ce_ps_strings, CHERI_CAP_USER_DATA_PERMS, NULL,
+	    arginfo, sizeof(struct ps_strings), 0);
+
 	/*
 	 * If we have a valid auxargs ptr, prepare some room
 	 * on the stack.
@@ -1248,6 +1258,8 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/*
 	 * Fill in argument portion of vector table.
 	 */
+	cheri_capability_set(&ce.ce_argv, CHERI_CAP_USER_DATA_PERMS, NULL,
+	    vectp, (argc + 1) * sizeof(struct chericap), 0);
 	for (; argc > 0; --argc) {
 		sucap(vectp++, (void *)destp, strlen(stringp) + 1,
 		    CHERI_CAP_USER_DATA_PERMS);
@@ -1268,6 +1280,8 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/*
 	 * Fill in environment portion of vector table.
 	 */
+	cheri_capability_set(&ce.ce_envp, CHERI_CAP_USER_DATA_PERMS, NULL,
+	    vectp, (envc + 1) * sizeof(struct chericap), 0);
 	for (; envc > 0; --envc) {
 		sucap(vectp++, (void *)destp, strlen(stringp) + 1,
 		    CHERI_CAP_USER_DATA_PERMS);
@@ -1279,6 +1293,12 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/* end of vector table is a null pointer */
 	/* XXX: suword clears the tag */
 	suword(vectp, 0);
+
+	cheri_capability_set(&ce.ce_auxargs, CHERI_CAP_USER_DATA_PERMS, NULL,
+	    vectp, imgp->auxarg_size * sizeof(struct chericap), 0);
+
+	stack_base -= sizeof(ce) / sizeof(*stack_base);
+	copyoutcap(&ce, stack_base, sizeof(ce));
 
 	return ((register_t *)stack_base);
 }
@@ -1318,13 +1338,10 @@ convert_sigevent_c(struct sigevent_c *sig_c, struct sigevent *sig)
 int
 cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp)
 {
-	struct chericap *base;
 #if 0
 	Elf_Addr *pos;
-#endif
 
-	base = (struct chericap *)*stack_base;
-#if 0
+	base = (struct cheriabi_execdata *)*stack_base;
 	/*
 	 * XXXBD: correct computation of the location and writing out
 	 * the right data required.  The standard set_auxargs won't work
@@ -1335,8 +1352,5 @@ cheriabi_elf_fixup(register_t **stack_base, struct image_params *imgp)
 	__elfN(set_auxargs)(pos, imgp);
 #endif
 
-	base--;
-	suword(base, (long)imgp->args->argc);
-	*stack_base = (register_t *)base;
 	return (0);
 }
