@@ -167,12 +167,13 @@
 #define		MBGSD_GET_RATE		0
 #define		MBGSD_SET_RATE		1
 #define		MBGSD_SET_RATE_NOW	2	/* 24XX only */
-#define		MBGSD_ONEGB	0
-#define		MBGSD_TWOGB	1
-#define		MBGSD_AUTO	2
-#define		MBGSD_FOURGB	3		/* 24XX only */
-#define		MBGSD_EIGHTGB	4		/* 25XX only */
-
+#define		MBGSD_1GB	0x00
+#define		MBGSD_2GB	0x01
+#define		MBGSD_AUTO	0x02
+#define		MBGSD_4GB	0x03		/* 24XX only */
+#define		MBGSD_8GB	0x04		/* 25XX only */
+#define		MBGSD_16GB	0x05		/* 26XX only */
+#define		MBGSD_10GB	0x13		/* 26XX only */
 
 #define	ISP2100_SET_PCI_PARAM		0x00ff
 

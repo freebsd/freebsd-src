@@ -399,8 +399,9 @@ typedef struct {
 	 */
 	uint16_t	prli_word3;		/* PRLI parameters */
 	uint16_t	new_prli_word3;		/* Incoming new PRLI parameters */
-	uint16_t			: 12,
+	uint16_t			: 11,
 			autologin	: 1,	/* F/W does PLOGI/PLOGO */
+			probational	: 1,
 			state		: 3;
 	uint32_t			: 6,
 			is_target	: 1,
@@ -414,14 +415,12 @@ typedef struct {
 	uint32_t	gone_timer;
 } fcportdb_t;
 
-#define	FC_PORTDB_STATE_NIL		0
-#define	FC_PORTDB_STATE_PROBATIONAL	1
-#define	FC_PORTDB_STATE_DEAD		2
-#define	FC_PORTDB_STATE_CHANGED		3
-#define	FC_PORTDB_STATE_NEW		4
-#define	FC_PORTDB_STATE_PENDING_VALID	5
-#define	FC_PORTDB_STATE_ZOMBIE		6
-#define	FC_PORTDB_STATE_VALID		7
+#define	FC_PORTDB_STATE_NIL		0	/* Empty DB slot */
+#define	FC_PORTDB_STATE_DEAD		1	/* Was valid, but no more. */
+#define	FC_PORTDB_STATE_CHANGED		2	/* Was valid, but changed. */
+#define	FC_PORTDB_STATE_NEW		3	/* Logged in, not announced. */
+#define	FC_PORTDB_STATE_ZOMBIE		4	/* Invalid, but announced. */
+#define	FC_PORTDB_STATE_VALID		5	/* Valid */
 
 #define	FC_PORTDB_TGT(isp, bus, pdb)		(int)(lp - FCPARAM(isp, bus)->portdb)
 
@@ -505,6 +504,8 @@ typedef struct {
 #define	TOPO_N_PORT		2
 #define	TOPO_F_PORT		3
 #define	TOPO_PTP_STUB		4
+
+#define TOPO_IS_FABRIC(x)	((x) == TOPO_FL_PORT || (x) == TOPO_F_PORT)
 
 /*
  * Soft Structure per host adapter
