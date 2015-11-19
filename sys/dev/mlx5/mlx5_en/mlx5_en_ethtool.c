@@ -184,6 +184,13 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		}
 		if (priv->ifp->if_capenable & IFCAP_LRO)
 			priv->params.hw_lro_en = !!MLX5_CAP_ETH(priv->mdev, lro_cap);
+		else {
+			/* set the correct (0) value to params_ethtool.hw_lro, issue a warning and return error */
+			priv->params_ethtool.hw_lro = 0;
+			error = EINVAL;
+			if_printf(priv->ifp, "Can't set HW_LRO to a device with LRO turned off");
+			goto done;
+		}
 	}
 	else {
 		priv->params.hw_lro_en = false;
