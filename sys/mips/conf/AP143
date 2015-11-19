@@ -9,6 +9,8 @@
 # $FreeBSD$
 #
 
+#NO_UNIVERSE
+
 # Include the default QCA953x parameters
 include         "QCA953X_BASE"
 
