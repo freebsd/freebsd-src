@@ -9,6 +9,8 @@
 # $FreeBSD$
 #
 
+#NO_UNIVERSE
+
 # Include the default AR933x parameters
 include         "AR933X_BASE"
 
