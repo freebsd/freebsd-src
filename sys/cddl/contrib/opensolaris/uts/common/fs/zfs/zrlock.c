@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2014, 2015 by Delphix. All rights reserved.
  */
 
 /*
@@ -69,11 +69,7 @@ zrl_destroy(zrlock_t *zrl)
 }
 
 void
-#ifdef	ZFS_DEBUG
-zrl_add_debug(zrlock_t *zrl, const char *zc)
-#else
-zrl_add(zrlock_t *zrl)
-#endif
+zrl_add_impl(zrlock_t *zrl, const char *zc)
 {
 	uint32_t n = (uint32_t)zrl->zr_refcount;
 

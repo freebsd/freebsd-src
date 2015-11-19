@@ -481,7 +481,7 @@ kill \-HUP `cat @UNBOUND_PIDFILE@`
 .fi
 triggers a reload,
 .nf
-kill \-QUIT `cat @UNBOUND_PIDFILE@` 
+kill \-TERM `cat @UNBOUND_PIDFILE@` 
 .fi
 gracefully terminates.
 .TP

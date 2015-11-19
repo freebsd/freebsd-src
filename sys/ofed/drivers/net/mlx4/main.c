@@ -604,7 +604,7 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	if (dev_cap->min_page_sz > PAGE_SIZE) {
 		mlx4_err(dev, "HCA minimum page size of %d bigger than "
 			 "kernel PAGE_SIZE of %d, aborting.\n",
-			 dev_cap->min_page_sz, PAGE_SIZE);
+			 dev_cap->min_page_sz, (int)PAGE_SIZE);
 		return -ENODEV;
 	}
 	if (dev_cap->num_ports > MLX4_MAX_PORTS) {
@@ -975,7 +975,7 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	if (page_size > PAGE_SIZE) {
 		mlx4_err(dev, "HCA minimum page size of %d bigger than "
 			 "kernel PAGE_SIZE of %d, aborting.\n",
-			 page_size, PAGE_SIZE);
+			 page_size, (int)PAGE_SIZE);
 		return -ENODEV;
 	}
 
@@ -985,7 +985,7 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	/* TODO: relax this assumption */
 	if (dev->caps.uar_page_size != PAGE_SIZE) {
 		mlx4_err(dev, "UAR size:%d != kernel PAGE_SIZE of %d\n",
-			 dev->caps.uar_page_size, PAGE_SIZE);
+			 dev->caps.uar_page_size, (int)PAGE_SIZE);
 		return -ENODEV;
 	}
 
@@ -3809,5 +3809,5 @@ static moduledata_t mlx4_mod = {
 };
 MODULE_VERSION(mlx4, 1);
 DECLARE_MODULE(mlx4, mlx4_mod, SI_SUB_OFED_PREINIT, SI_ORDER_ANY);
-MODULE_DEPEND(mlx4, linuxapi, 1, 1, 1);
+MODULE_DEPEND(mlx4, linuxkpi, 1, 1, 1);
 

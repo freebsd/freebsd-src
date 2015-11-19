@@ -58,7 +58,7 @@
  */
 typedef struct ispsoftc ispsoftc_t;
 struct ispmdvec {
-	int		(*dv_rd_isr) (ispsoftc_t *, uint32_t *, uint16_t *, uint16_t *);
+	int		(*dv_rd_isr) (ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
 	uint32_t	(*dv_rd_reg) (ispsoftc_t *, int);
 	void		(*dv_wr_reg) (ispsoftc_t *, int, uint32_t);
 	int		(*dv_mbxdma) (ispsoftc_t *);
@@ -86,8 +86,8 @@ struct ispmdvec {
  * Macros to access ISP registers through bus specific layers-
  * mostly wrappers to vector through the mdvec structure.
  */
-#define	ISP_READ_ISR(isp, isrp, semap, mbox0p)	\
-	(*(isp)->isp_mdvec->dv_rd_isr)(isp, isrp, semap, mbox0p)
+#define	ISP_READ_ISR(isp, isrp, semap, info)	\
+	(*(isp)->isp_mdvec->dv_rd_isr)(isp, isrp, semap, info)
 
 #define	ISP_READ(isp, reg)	\
 	(*(isp)->isp_mdvec->dv_rd_reg)((isp), (reg))
@@ -244,16 +244,13 @@ typedef struct {
 #define	SNS_ID			0x80	/* SNS Server Special ID */
 #define	NPH_MAX			0xfe
 
-/* Use this handle for the base for multi-id firmware SNS logins */
-#define	NPH_SNS_HDLBASE		0x400
-
 /* These are for 2K Login Firmware cards */
 #define	NPH_RESERVED		0x7F0	/* begin of reserved N-port handles */
 #define	NPH_MGT_ID		0x7FA	/* Management Server Special ID */
 #define	NPH_SNS_ID		0x7FC	/* SNS Server Special ID */
 #define	NPH_FABRIC_CTLR		0x7FD	/* Fabric Controller (0xFFFFFD) */
 #define	NPH_FL_ID		0x7FE	/* F Port Special ID (0xFFFFFE) */
-#define	NPH_IP_BCST		0x7ff	/* IP Broadcast Special ID (0xFFFFFF) */
+#define	NPH_IP_BCST		0x7FF	/* IP Broadcast Special ID (0xFFFFFF) */
 #define	NPH_MAX_2K		0x800
 
 /*
@@ -436,20 +433,18 @@ typedef struct {
  */
 
 typedef struct {
-	uint32_t
+	int			isp_gbspeed;		/* Connection speed */
+	int			isp_linkstate;		/* Link state */
+	int			isp_fwstate;		/* ISP F/W state */
+	int			isp_loopstate;		/* Loop State */
+	int			isp_topo;		/* Connection Type */
+
+	uint32_t				: 3,
 				fctape_enabled	: 1,
-				link_active	: 1,
 				sendmarker	: 1,
+				loop_seen_once	: 1,
 				role		: 2,
-				isp_gbspeed	: 4,
-				isp_loopstate	: 4,	/* Current Loop State */
-				isp_fwstate	: 4,	/* ISP F/W state */
-				isp_topo	: 3,	/* Connection Type */
-				loop_seen_once	: 1;
-
-	uint32_t				: 8,
 				isp_portid	: 24;	/* S_ID */
-
 
 	uint16_t		isp_fwoptions;
 	uint16_t		isp_xfwoptions;
@@ -487,7 +482,7 @@ typedef struct {
 } fcparam;
 
 #define	FW_CONFIG_WAIT		0
-#define	FW_WAIT_AL_PA		1
+#define	FW_WAIT_LINK		1
 #define	FW_WAIT_LOGIN		2
 #define	FW_READY		3
 #define	FW_LOSS_OF_SYNC		4
@@ -496,8 +491,8 @@ typedef struct {
 #define	FW_NON_PART		7
 
 #define	LOOP_NIL		0
-#define	LOOP_LIP_RCVD		1
-#define	LOOP_PDB_RCVD		2
+#define	LOOP_TESTING_LINK	1
+#define	LOOP_LTEST_DONE		2
 #define	LOOP_SCANNING_LOOP	3
 #define	LOOP_LSCAN_DONE		4
 #define	LOOP_SCANNING_FABRIC	5
@@ -831,7 +826,7 @@ int isp_reinit(ispsoftc_t *, int);
  * semaphore register and first mailbox register (if appropriate). This also
  * means that most spurious/bogus interrupts not for us can be filtered first.
  */
-void isp_intr(ispsoftc_t *, uint32_t, uint16_t, uint16_t);
+void isp_intr(ispsoftc_t *, uint16_t, uint16_t, uint16_t);
 
 
 /*
@@ -866,10 +861,10 @@ void isp_done(XS_T *);
  *        Update any operating parameters (speed, etc.)
  * ... ISPCTL_FCLINK_TEST, int channel);
  *        Test FC link status on this channel
- * ... ISPCTL_SCAN_FABRIC, int channel);
- *        Scan fabric on this channel
  * ... ISPCTL_SCAN_LOOP, int channel);
  *        Scan local loop on this channel
+ * ... ISPCTL_SCAN_FABRIC, int channel);
+ *        Scan fabric on this channel
  * ... ISPCTL_PDB_SYNC, int channel);
  *        Synchronize port database on this channel
  * ... ISPCTL_SEND_LIP, int channel);
@@ -886,12 +881,11 @@ void isp_done(XS_T *);
  *        Change role of specified channel
  *
  * ISPCTL_PDB_SYNC is somewhat misnamed. It actually is the final step, in
- * order, of ISPCTL_FCLINK_TEST, ISPCTL_SCAN_FABRIC, and ISPCTL_SCAN_LOOP.
+ * order, of ISPCTL_FCLINK_TEST, ISPCTL_SCAN_LOOP, and ISPCTL_SCAN_FABRIC.
  * The main purpose of ISPCTL_PDB_SYNC is to complete management of logging
  * and logging out of fabric devices (if one is on a fabric) and then marking
  * the 'loop state' as being ready to now be used for sending commands to
- * devices. Originally fabric name server and local loop scanning were
- * part of this function. It's now been separated to allow for finer control.
+ * devices.
  */
 typedef enum {
 	ISPCTL_RESET_BUS,

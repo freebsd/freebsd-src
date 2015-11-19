@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
 #include <sys/kernel.h>
 #include <sys/rman.h>
 #include <sys/module.h>
@@ -47,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
+#include <dev/pci/pci_private.h>
 #include <machine/cpu.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
@@ -95,6 +98,15 @@ struct thunder_pcie_softc {
 	int			ecam;
 	device_t		dev;
 };
+
+/*
+ * ThunderX supports up to 4 ethernet interfaces, so it's good
+ * value to use as default for numbers of VFs, since each eth
+ * interface represents separate virtual function.
+ */
+static int thunder_pcie_max_vfs = 4;
+SYSCTL_INT(_hw, OID_AUTO, thunder_pcie_max_vfs, CTLFLAG_RWTUN,
+    &thunder_pcie_max_vfs, 0, "Max VFs supported by ThunderX internal PCIe");
 
 /* Forward prototypes */
 static struct resource *thunder_pcie_alloc_resource(device_t,
@@ -424,6 +436,7 @@ thunder_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct thunder_pcie_softc *sc = device_get_softc(dev);
 	struct rman *rm = NULL;
 	struct resource *res;
+	pci_addr_t map, testval;
 
 	switch (type) {
 	case SYS_RES_IOPORT:
@@ -438,9 +451,32 @@ thunder_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	};
 
 	if ((start == 0UL) && (end == ~0UL)) {
-		device_printf(dev,
-		    "Cannot allocate resource with unspecified range\n");
-		goto fail;
+
+		/* Read BAR manually to get resource address and size */
+		pci_read_bar(child, *rid, &map, &testval, NULL);
+
+		/* Mask the information bits */
+		if (PCI_BAR_MEM(map))
+			map &= PCIM_BAR_MEM_BASE;
+		else
+			map &= PCIM_BAR_IO_BASE;
+
+		if (PCI_BAR_MEM(testval))
+			testval &= PCIM_BAR_MEM_BASE;
+		else
+			testval &= PCIM_BAR_IO_BASE;
+
+		start = map;
+		count = (~testval) + 1;
+		/*
+		 * Internal ThunderX devices supports up to 3 64-bit BARs.
+		 * If we're allocating anything above, that means upper layer
+		 * wants us to allocate VF-BAR. In that case reserve bigger
+		 * slice to make a room for other VFs adjacent to this one.
+		 */
+		if (*rid > PCIR_BAR(5))
+			count = count * thunder_pcie_max_vfs;
+		end = start + count - 1;
 	}
 
 	/* Convert input BUS address to required PHYS */

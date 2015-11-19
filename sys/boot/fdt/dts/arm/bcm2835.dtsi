@@ -474,11 +474,12 @@
 			reg-shift = <2>;
 		};
 
-		vchiq {
+		vchiq: vchiq {
 			compatible = "broadcom,bcm2835-vchiq";
 			reg = <0xB800 0x50>;
 			interrupts = <2>;
 			interrupt-parent = <&intc>;
+			cache-line-size = <32>;
 		};
 
 		usb {

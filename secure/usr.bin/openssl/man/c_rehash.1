@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "C_REHASH 1"
-.TH C_REHASH 1 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH C_REHASH 1 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -143,12 +143,18 @@ c_rehash \- Create symbolic links to files named by the hash values
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 \&\fBc_rehash\fR
+\&\fB[\-old]\fR
+\&\fB[\-h]\fR
+\&\fB[\-n]\fR
+\&\fB[\-v]\fR
 [ \fIdirectory\fR...]
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fBc_rehash\fR scans directories and calculates a hash value of each \f(CW\*(C`.pem\*(C'\fR
+\&\fBc_rehash\fR scans directories and calculates a hash value of each
+\&\f(CW\*(C`.pem\*(C'\fR, \f(CW\*(C`.crt\*(C'\fR, \f(CW\*(C`.cer\*(C'\fR, or \f(CW\*(C`.crl\*(C'\fR
 file in the specified directory list and creates symbolic links
 for each file, where the name of the link is the hash value.
+(If the platform does not support symbolic links, a copy is made.)
 This utility is useful as many programs that use OpenSSL require
 directories to be set up like this in order to find certificates.
 .PP
@@ -166,6 +172,7 @@ is a hexadecimal character and \fBD\fR is a single decimal digit.
 When processing a directory, \fBc_rehash\fR will first remove all links
 that have a name in that syntax. If you have links in that format
 used for other purposes, they will be removed.
+To skip the removal step, use the \fB\-n\fR flag.
 Hashes for \s-1CRL\s0's look similar except the letter \fBr\fR appears after
 the period, like this: \f(CW\*(C`HHHHHHHH.rD\*(C'\fR.
 .PP
@@ -174,7 +181,7 @@ incrementing the \fBD\fR value. Duplicates are found by comparing the
 full \s-1SHA\-1\s0 fingerprint. A warning will be displayed if a duplicate
 is found.
 .PP
-A warning will also be displayed if there are \fB.pem\fR files that
+A warning will also be displayed if there are files that
 cannot be parsed as either a certificate or a \s-1CRL.\s0
 .PP
 The program uses the \fBopenssl\fR program to compute the hashes and
@@ -184,13 +191,31 @@ Any program can be used, it will be invoked as follows for either
 a certificate or \s-1CRL:\s0
 .PP
 .Vb 2
-\&  $OPENSSL x509 \-hash \-fingerprint \-noout \-in FFFFFF
-\&  $OPENSSL crl \-hash \-fingerprint \-noout \-in FFFFFF
+\&  $OPENSSL x509 \-hash \-fingerprint \-noout \-in FILENAME
+\&  $OPENSSL crl \-hash \-fingerprint \-noout \-in FILENAME
 .Ve
 .PP
-where \fB\s-1FFFFFF\s0\fR is the filename. It must output the hash of the
+where \fB\s-1FILENAME\s0\fR is the filename. It must output the hash of the
 file on the first line, and the fingerprint on the second,
 optionally prefixed with some text and an equals sign.
+.SH "OPTIONS"
+.IX Header "OPTIONS"
+.IP "\fB\-old\fR" 4
+.IX Item "-old"
+Use old-style hashing (\s-1MD5,\s0 as opposed to \s-1SHA\-1\s0) for generating
+links for releases before 1.0.0.  Note that current versions will
+not use the old style.
+.IP "\fB\-h\fR" 4
+.IX Item "-h"
+Display a brief usage message.
+.IP "\fB\-n\fR" 4
+.IX Item "-n"
+Do not remove existing links.
+This is needed when keeping new and old-style links in the same directory.
+.IP "\fB\-v\fR" 4
+.IX Item "-v"
+Print messages about old links removed and new links created.
+By default, \fBc_rehash\fR only lists each directory as it is processed.
 .SH "ENVIRONMENT"
 .IX Header "ENVIRONMENT"
 .IP "\fB\s-1OPENSSL\s0\fR" 4

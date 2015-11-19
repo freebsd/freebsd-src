@@ -168,9 +168,7 @@ static u8 * wpa_ft_gen_req_ies(struct wpa_sm *sm, size_t *len,
 	pos = (u8 *) (rsnie + 1);
 
 	/* Group Suite Selector */
-	if (sm->group_cipher != WPA_CIPHER_CCMP &&
-	    sm->group_cipher != WPA_CIPHER_GCMP &&
-	    sm->group_cipher != WPA_CIPHER_TKIP) {
+	if (!wpa_cipher_valid_group(sm->group_cipher)) {
 		wpa_printf(MSG_WARNING, "FT: Invalid group cipher (%d)",
 			   sm->group_cipher);
 		os_free(buf);

@@ -24,14 +24,25 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 24, 2015
+.Dd October 31, 2015
 .Dt IOAT 4
 .Os
 .Sh NAME
 .Nm I/OAT
 .Nd Intel I/O Acceleration Technology
 .Sh SYNOPSIS
+To compile this driver into your kernel,
+place the following line in your kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device ioat"
+.Ed
+.Pp
+Or, to load the driver as a module at boot, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ioat_load="YES"
+.Ed
+.Pp
 In
 .Xr loader.conf 5 :
 .Pp
@@ -46,10 +57,12 @@ In
 (only critical errors; maximum of 3)
 .Pp
 .Ft typedef void
-.Fn (*bus_dmaengine_callback_t) "void *arg"
+.Fn (*bus_dmaengine_callback_t) "void *arg" "int error"
 .Pp
 .Ft bus_dmaengine_t
 .Fn ioat_get_dmaengine "uint32_t channel_index"
+.Ft void
+.Fn ioat_put_dmaengine "bus_dmaengine_t dmaengine"
 .Ft void
 .Fn ioat_acquire "bus_dmaengine_t dmaengine"
 .Ft void
@@ -59,6 +72,16 @@ In
 .Fa "bus_dmaengine_t dmaengine"
 .Fa "bus_addr_t dst"
 .Fa "bus_addr_t src"
+.Fa "bus_size_t len"
+.Fa "bus_dmaengine_callback_t callback_fn"
+.Fa "void *callback_arg"
+.Fa "uint32_t flags"
+.Fc
+.Ft struct bus_dmadesc *
+.Fo ioat_blockfill
+.Fa "bus_dmaengine_t dmaengine"
+.Fa "bus_addr_t dst"
+.Fa "uint64_t fillpattern"
 .Fa "bus_size_t len"
 .Fa "bus_dmaengine_callback_t callback_fn"
 .Fa "void *callback_arg"
@@ -82,7 +105,9 @@ There is a number of DMA channels per CPU package.
 Each may be used independently.
 Operations on a single channel proceed sequentially.
 .Pp
-Copy operations may be used to offload memory copies to the DMA engines.
+Blockfill operations can be used to write a 64-bit pattern to memory.
+.Pp
+Copy operations can be used to offload memory copies to the DMA engines.
 .Pp
 Null operations do nothing, but may be used to test the interrupt and callback
 mechanism.
@@ -92,6 +117,26 @@ All operations can optionally trigger an interrupt at completion with the
 flag.
 For example, a user might submit multiple operations to the same channel and
 only enable an interrupt and callback for the last operation.
+.Pp
+All operations are safe to use in a non-blocking context with the
+.Ar DMA_NO_WAIT
+flag.
+(Of course, allocations may fail and operations requested with
+.Ar DMA_NO_WAIT
+may return NULL.)
+.Pp
+All operations, as well as
+.Fn ioat_get_dmaengine ,
+can return NULL in special circumstances.
+For example, if the
+.Nm
+driver is being unloaded, or the administrator has induced a hardware reset, or
+a usage error has resulted in a hardware error state that needs to be recovered
+from.
+.Pp
+It is invalid to attempt to submit new DMA operations in a
+.Fa bus_dmaengine_callback_t
+context.
 .Sh USAGE
 A typical user will lookup the DMA engine object for a given channel with
 .Fn ioat_get_dmaengine .
@@ -101,10 +146,11 @@ the
 .Ar bus_dmaengine_t
 object for exclusive access to enqueue operations on that channel.
 Then, they will submit one or more operations using
-.Fn ioat_copy
+.Fn ioat_blockfill ,
+.Fn ioat_copy ,
 or
 .Fn ioat_null .
-Finally, they will
+After queueing one or more individual DMA operations, they will
 .Fn ioat_release
 the
 .Ar bus_dmaengine_t
@@ -114,6 +160,19 @@ The routine they provided for the
 argument will be invoked with the provided
 .Fa callback_arg
 when the operation is complete.
+When they are finished with the
+.Ar bus_dmaengine_t ,
+the user should
+.Fn ioat_put_dmaengine .
+.Pp
+Users MUST NOT block between
+.Fn ioat_acquire
+and
+.Fn ioat_release .
+Users SHOULD NOT hold
+.Ar bus_dmaengine_t
+references for a very long time to enable fault recovery and kernel module
+unload.
 .Pp
 For an example of usage, see
 .Pa src/sys/dev/ioat/ioat_test.c .
@@ -135,19 +194,23 @@ The
 .Nm
 driver was developed by
 .An \&Jim Harris Aq Mt jimharris@FreeBSD.org ,
+.An \&Carl Delsey Aq Mt carl.r.delsey@intel.com ,
 and
-.An \&Carl Delsey Aq Mt carl.r.delsey@intel.com .
+.An \&Conrad Meyer Aq Mt cem@FreeBSD.org .
 This manual page was written by
 .An \&Conrad Meyer Aq Mt cem@FreeBSD.org .
 .Sh CAVEATS
 Copy operation takes bus addresses as parameters, not virtual addresses.
 .Pp
-Copies larger than max transfer size (1MB) are not supported.
+Buffers for individual copy operations must be physically contiguous.
+.Pp
+Copies larger than max transfer size (1MB, but may vary by hardware) are not
+supported.
 Future versions will likely support this by breaking up the transfer into
 smaller sizes.
 .Sh BUGS
 The
 .Nm
-driver only supports copy and null operations at this time.
+driver only supports blockfill, copy, and null operations at this time.
 The driver does not yet support advanced DMA modes, such as XOR, that some
 I/OAT devices support.

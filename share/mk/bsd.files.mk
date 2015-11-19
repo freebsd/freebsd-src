@@ -30,13 +30,12 @@ ${group}DIR?=	${BINDIR}
 STAGE_SETS+=	${group}
 .endif
 STAGE_DIR.${group}= ${STAGE_OBJTOP}${${group}DIR}
-STAGE_SYMLINKS_DIR.${group}= ${STAGE_OBJTOP}
 
 _${group}FILES=
 .for file in ${${group}}
 .if defined(${group}OWN_${file:T}) || defined(${group}GRP_${file:T}) || \
     defined(${group}MODE_${file:T}) || defined(${group}DIR_${file:T}) || \
-    defined(${group}NAME_${file:T})
+    defined(${group}NAME_${file:T}) || defined(${group}NAME)
 ${group}OWN_${file:T}?=	${${group}OWN}
 ${group}GRP_${file:T}?=	${${group}GRP}
 ${group}MODE_${file:T}?=	${${group}MODE}
@@ -75,7 +74,7 @@ _${group}INS: ${_${group}FILES}
 	    ${DESTDIR}${${group}DIR}/${${group}NAME}
 .else
 	${INSTALL} -o ${${group}OWN} -g ${${group}GRP} \
-	    -m ${${group}MODE} ${.ALLSRC} ${DESTDIR}${${group}DIR}
+	    -m ${${group}MODE} ${.ALLSRC} ${DESTDIR}${${group}DIR}/
 .endif
 .endif
 

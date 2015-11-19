@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_EncryptInit 3"
-.TH EVP_EncryptInit 3 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH EVP_EncryptInit 3 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -153,7 +153,17 @@ EVP_CIPHER_CTX_nid, EVP_CIPHER_CTX_block_size, EVP_CIPHER_CTX_key_length,
 EVP_CIPHER_CTX_iv_length, EVP_CIPHER_CTX_get_app_data,
 EVP_CIPHER_CTX_set_app_data, EVP_CIPHER_CTX_type, EVP_CIPHER_CTX_flags,
 EVP_CIPHER_CTX_mode, EVP_CIPHER_param_to_asn1, EVP_CIPHER_asn1_to_param,
-EVP_CIPHER_CTX_set_padding \- EVP cipher routines
+EVP_CIPHER_CTX_set_padding,  EVP_enc_null, EVP_des_cbc, EVP_des_ecb,
+EVP_des_cfb, EVP_des_ofb, EVP_des_ede_cbc, EVP_des_ede, EVP_des_ede_ofb,
+EVP_des_ede_cfb, EVP_des_ede3_cbc, EVP_des_ede3, EVP_des_ede3_ofb,
+EVP_des_ede3_cfb, EVP_desx_cbc, EVP_rc4, EVP_rc4_40, EVP_idea_cbc,
+EVP_idea_ecb, EVP_idea_cfb, EVP_idea_ofb, EVP_rc2_cbc,
+EVP_rc2_ecb, EVP_rc2_cfb, EVP_rc2_ofb, EVP_rc2_40_cbc, EVP_rc2_64_cbc,
+EVP_bf_cbc, EVP_bf_ecb, EVP_bf_cfb, EVP_bf_ofb, EVP_cast5_cbc,
+EVP_cast5_ecb, EVP_cast5_cfb, EVP_cast5_ofb, EVP_rc5_32_12_16_cbc,
+EVP_rc5_32_12_16_ecb, EVP_rc5_32_12_16_cfb, EVP_rc5_32_12_16_ofb, 
+EVP_aes_128_gcm, EVP_aes_192_gcm, EVP_aes_256_gcm, EVP_aes_128_ccm,
+EVP_aes_192_ccm, EVP_aes_256_ccm \- EVP cipher routines
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -368,8 +378,7 @@ or the parameters cannot be set (for example the \s-1RC2\s0 effective key length
 is not supported.
 .PP
 \&\fIEVP_CIPHER_CTX_ctrl()\fR allows various cipher specific parameters to be determined
-and set. Currently only the \s-1RC2\s0 effective key length and the number of rounds of
-\&\s-1RC5\s0 can be set.
+and set.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fIEVP_EncryptInit_ex()\fR, \fIEVP_EncryptUpdate()\fR and \fIEVP_EncryptFinal_ex()\fR
@@ -431,8 +440,8 @@ Three key triple \s-1DES\s0 in \s-1CBC, ECB, CFB\s0 and \s-1OFB\s0 modes respect
 .IX Item "EVP_rc4_40(void)"
 \&\s-1RC4\s0 stream cipher with 40 bit key length. This is obsolete and new code should use \fIEVP_rc4()\fR
 and the \fIEVP_CIPHER_CTX_set_key_length()\fR function.
-.IP "\fIEVP_idea_cbc()\fR EVP_idea_ecb(void), EVP_idea_cfb(void), EVP_idea_ofb(void), EVP_idea_cbc(void)" 4
-.IX Item "EVP_idea_cbc() EVP_idea_ecb(void), EVP_idea_cfb(void), EVP_idea_ofb(void), EVP_idea_cbc(void)"
+.IP "\fIEVP_idea_cbc()\fR EVP_idea_ecb(void), EVP_idea_cfb(void), EVP_idea_ofb(void)" 4
+.IX Item "EVP_idea_cbc() EVP_idea_ecb(void), EVP_idea_cfb(void), EVP_idea_ofb(void)"
 \&\s-1IDEA\s0 encryption algorithm in \s-1CBC, ECB, CFB\s0 and \s-1OFB\s0 modes respectively.
 .IP "EVP_rc2_cbc(void), EVP_rc2_ecb(void), EVP_rc2_cfb(void), EVP_rc2_ofb(void)" 4
 .IX Item "EVP_rc2_cbc(void), EVP_rc2_ecb(void), EVP_rc2_cfb(void), EVP_rc2_ofb(void)"
@@ -457,6 +466,92 @@ length cipher.
 \&\s-1RC5\s0 encryption algorithm in \s-1CBC, ECB, CFB\s0 and \s-1OFB\s0 modes respectively. This is a variable key length
 cipher with an additional \*(L"number of rounds\*(R" parameter. By default the key length is set to 128
 bits and 12 rounds.
+.IP "EVP_aes_128_gcm(void), EVP_aes_192_gcm(void), EVP_aes_256_gcm(void)" 4
+.IX Item "EVP_aes_128_gcm(void), EVP_aes_192_gcm(void), EVP_aes_256_gcm(void)"
+\&\s-1AES\s0 Galois Counter Mode (\s-1GCM\s0) for 128, 192 and 256 bit keys respectively.
+These ciphers require additional control operations to function correctly: see
+\&\*(L"\s-1GCM\s0 mode\*(R" section below for details.
+.IP "EVP_aes_128_ccm(void), EVP_aes_192_ccm(void), EVP_aes_256_ccm(void)" 4
+.IX Item "EVP_aes_128_ccm(void), EVP_aes_192_ccm(void), EVP_aes_256_ccm(void)"
+\&\s-1AES\s0 Counter with CBC-MAC Mode (\s-1CCM\s0) for 128, 192 and 256 bit keys respectively.
+These ciphers require additional control operations to function correctly: see
+\&\s-1CCM\s0 mode section below for details.
+.SH "GCM Mode"
+.IX Header "GCM Mode"
+For \s-1GCM\s0 mode ciphers the behaviour of the \s-1EVP\s0 interface is subtly altered and
+several \s-1GCM\s0 specific ctrl operations are supported.
+.PP
+To specify any additional authenticated data (\s-1AAD\s0) a call to \fIEVP_CipherUpdate()\fR,
+\&\fIEVP_EncryptUpdate()\fR or \fIEVP_DecryptUpdate()\fR should be made with the output 
+parameter \fBout\fR set to \fB\s-1NULL\s0\fR.
+.PP
+When decrypting the return value of \fIEVP_DecryptFinal()\fR or \fIEVP_CipherFinal()\fR
+indicates if the operation was successful. If it does not indicate success
+the authentication operation has failed and any output data \fB\s-1MUST NOT\s0\fR
+be used as it is corrupted.
+.PP
+The following ctrls are supported in \s-1GCM\s0 mode:
+.PP
+.Vb 1
+\& EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, ivlen, NULL);
+.Ve
+.PP
+Sets the \s-1GCM IV\s0 length: this call can only be made before specifying an \s-1IV.\s0 If
+not called a default \s-1IV\s0 length is used (96 bits for \s-1AES\s0).
+.PP
+.Vb 1
+\& EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, taglen, tag);
+.Ve
+.PP
+Writes \fBtaglen\fR bytes of the tag value to the buffer indicated by \fBtag\fR.
+This call can only be made when encrypting data and \fBafter\fR all data has been
+processed (e.g. after an \fIEVP_EncryptFinal()\fR call).
+.PP
+.Vb 1
+\& EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, taglen, tag);
+.Ve
+.PP
+Sets the expected tag to \fBtaglen\fR bytes from \fBtag\fR. This call is only legal
+when decrypting data and must be made \fBbefore\fR any data is processed (e.g.
+before any \fIEVP_DecryptUpdate()\fR call).
+.PP
+See \s-1EXAMPLES\s0 below for an example of the use of \s-1GCM\s0 mode.
+.SH "CCM Mode"
+.IX Header "CCM Mode"
+The behaviour of \s-1CCM\s0 mode ciphers is similar to \s-1CCM\s0 mode but with a few
+additional requirements and different ctrl values.
+.PP
+Like \s-1GCM\s0 mode any additional authenticated data (\s-1AAD\s0) is passed by calling
+\&\fIEVP_CipherUpdate()\fR, \fIEVP_EncryptUpdate()\fR or \fIEVP_DecryptUpdate()\fR with the output 
+parameter \fBout\fR set to \fB\s-1NULL\s0\fR. Additionally the total plaintext or ciphertext
+length \fB\s-1MUST\s0\fR be passed to \fIEVP_CipherUpdate()\fR, \fIEVP_EncryptUpdate()\fR or
+\&\fIEVP_DecryptUpdate()\fR with the output and input parameters (\fBin\fR and \fBout\fR) 
+set to \fB\s-1NULL\s0\fR and the length passed in the \fBinl\fR parameter.
+.PP
+The following ctrls are supported in \s-1CCM\s0 mode:
+.PP
+.Vb 1
+\& EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_TAG, taglen, tag);
+.Ve
+.PP
+This call is made to set the expected \fB\s-1CCM\s0\fR tag value when decrypting or
+the length of the tag (with the \fBtag\fR parameter set to \s-1NULL\s0) when encrypting.
+The tag length is often referred to as \fBM\fR. If not set a default value is
+used (12 for \s-1AES\s0).
+.PP
+.Vb 1
+\& EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_L, ivlen, NULL);
+.Ve
+.PP
+Sets the \s-1CCM \s0\fBL\fR value. If not set a default is used (8 for \s-1AES\s0).
+.PP
+.Vb 1
+\& EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_IVLEN, ivlen, NULL);
+.Ve
+.PP
+Sets the \s-1CCM\s0 nonce (\s-1IV\s0) length: this call can only be made before specifying
+an nonce value. The nonce length is given by \fB15 \- L\fR so it is 7 by default
+for \s-1AES.\s0
 .SH "NOTES"
 .IX Header "NOTES"
 Where possible the \fB\s-1EVP\s0\fR interface to symmetric ciphers should be used in

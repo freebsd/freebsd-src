@@ -2,7 +2,7 @@
 
 # local configuration specific to meta mode
 # XXX some of this should be in meta.sys.mk
-# we assume that MK_META_MODE=yes
+# we assume that MK_DIRDEPS_BUILD=yes
 
 # we need this until there is an alternative
 MK_INSTALL_AS_USER= yes
@@ -186,12 +186,6 @@ UPDATE_DEPENDFILE= NO
 # define the list of places that contain files we are responsible for
 .MAKE.META.BAILIWICK = ${SB} ${OBJROOT} ${STAGE_ROOT}
 
-.if defined(CCACHE_DIR)
-CCACHE_DIR := ${CCACHE_DIR:tA}
-.MAKE.META.IGNORE_PATHS += ${CCACHE_DIR}
-.export CCACHE_DIR
-.endif
-
 CSU_DIR.${MACHINE_ARCH} ?= csu/${MACHINE_ARCH}
 CSU_DIR := ${CSU_DIR.${MACHINE_ARCH}}
 
@@ -222,6 +216,15 @@ CPP?=		${HOST_CPP}
 .export HOST_CC CC HOST_CXX CXX HOST_CPP CPP
 .endif
 .endif
+.endif
+
+.if ${MACHINE} == "host"
+HOST_CC?=	/usr/bin/cc
+CC=		${HOST_CC}
+HOST_CXX?=	/usr/bin/c++
+CXX=		${HOST_CXX}
+HOST_CPP?=	/usr/bin/cpp
+CPP=		${HOST_CPP}
 .endif
 
 .if ${MACHINE:Nhost:Ncommon} != "" && ${MACHINE} != ${HOST_MACHINE}

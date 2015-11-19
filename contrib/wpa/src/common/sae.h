@@ -18,6 +18,9 @@
 #define SAE_COMMIT_MAX_LEN (2 + 3 * SAE_MAX_PRIME_LEN)
 #define SAE_CONFIRM_MAX_LEN (2 + SAE_MAX_PRIME_LEN)
 
+/* Special value returned by sae_parse_commit() */
+#define SAE_SILENTLY_DISCARD 65535
+
 struct sae_temporary_data {
 	u8 kck[SAE_KCK_LEN];
 	struct crypto_bignum *own_commit_scalar;

@@ -3650,7 +3650,6 @@ ipf_state_del(softc, is, why)
 	if (is->is_ref > 0) {
 		int refs;
 
-		is->is_ref--;
 		refs = is->is_ref;
 		MUTEX_EXIT(&is->is_lock);
 		if (!orphan)
@@ -3667,7 +3666,7 @@ ipf_state_del(softc, is, why)
 		}
 	}
 
-	is->is_ref = 0;
+	ASSERT(is->is_ref == 0);
 	MUTEX_EXIT(&is->is_lock);
 
 	if (is->is_tqehead[0] != NULL) {

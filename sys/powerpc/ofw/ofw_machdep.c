@@ -154,17 +154,17 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 	 * be found.
 	 */
 	phandle = OF_finddevice("/");
-	if (OF_getprop(phandle, "#address-cells", &address_cells, 
+	if (OF_getencprop(phandle, "#address-cells", &address_cells, 
 	    sizeof(address_cells)) < (ssize_t)sizeof(address_cells))
 		address_cells = 1;
-	if (OF_getprop(phandle, "#size-cells", &size_cells, 
+	if (OF_getencprop(phandle, "#size-cells", &size_cells, 
 	    sizeof(size_cells)) < (ssize_t)sizeof(size_cells))
 		size_cells = 1;
 
 	/*
 	 * Get memory.
 	 */
-	if (node == -1 || (sz = OF_getprop(node, prop,
+	if (node == -1 || (sz = OF_getencprop(node, prop,
 	    OFmem, sizeof(OFmem))) <= 0)
 		panic("Physical memory map not found");
 
@@ -572,10 +572,10 @@ OF_get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep, int *pcip)
 	uint32_t addr, size;
 	int pci, res;
 
-	res = OF_getprop(node, "#address-cells", &addr, sizeof(addr));
+	res = OF_getencprop(node, "#address-cells", &addr, sizeof(addr));
 	if (res == -1)
 		addr = 2;
-	res = OF_getprop(node, "#size-cells", &size, sizeof(size));
+	res = OF_getencprop(node, "#size-cells", &size, sizeof(size));
 	if (res == -1)
 		size = 1;
 	pci = 0;
@@ -624,7 +624,7 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	OF_get_addr_props(bridge, &naddr, &nsize, &pci);
 	if (pci)
 		*tag = &bs_le_tag;
-	res = OF_getprop(dev, (pci) ? "assigned-addresses" : "reg",
+	res = OF_getencprop(dev, (pci) ? "assigned-addresses" : "reg",
 	    cell, sizeof(cell));
 	if (res == -1)
 		return (ENXIO);
@@ -653,7 +653,7 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 		OF_get_addr_props(parent, &nbridge, NULL, &pcib);
 		if (pcib)
 			*tag = &bs_le_tag;
-		res = OF_getprop(bridge, "ranges", cell, sizeof(cell));
+		res = OF_getencprop(bridge, "ranges", cell, sizeof(cell));
 		if (res == -1)
 			goto next;
 		if (res % sizeof(cell[0]))

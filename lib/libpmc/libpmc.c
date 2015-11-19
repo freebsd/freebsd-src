@@ -388,7 +388,7 @@ PMC_CLASS_TABLE_DESC(tsc, TSC, tsc, tsc);
 #if	defined(__XSCALE__)
 PMC_CLASS_TABLE_DESC(xscale, XSCALE, xscale, xscale);
 #endif
-PMC_CLASS_TABLE_DESC(cortex_a8, ARMV7, cortex_a9, armv7);
+PMC_CLASS_TABLE_DESC(cortex_a8, ARMV7, cortex_a8, armv7);
 PMC_CLASS_TABLE_DESC(cortex_a9, ARMV7, cortex_a9, armv7);
 #endif
 #if	defined(__aarch64__)

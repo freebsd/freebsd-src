@@ -133,15 +133,13 @@
 .\" ========================================================================
 .\"
 .IX Title "CMS_get0_SignerInfos 3"
-.TH CMS_get0_SignerInfos 3 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH CMS_get0_SignerInfos 3 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-.Vb 1
-\& CMS_get0_SignerInfos, CMS_SignerInfo_get0_signer_id, CMS_SignerInfo_cert_cmp, CMS_set1_signer_certs \- CMS signedData signer functions.
-.Ve
+CMS_get0_SignerInfos, CMS_SignerInfo_get0_signer_id, CMS_SignerInfo_get0_signature, CMS_SignerInfo_cert_cmp, CMS_set1_signer_cert \- CMS signedData signer functions.
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -150,6 +148,7 @@
 \& STACK_OF(CMS_SignerInfo) *CMS_get0_SignerInfos(CMS_ContentInfo *cms);
 \&
 \& int CMS_SignerInfo_get0_signer_id(CMS_SignerInfo *si, ASN1_OCTET_STRING **keyid, X509_NAME **issuer, ASN1_INTEGER **sno);
+\& ASN1_OCTET_STRING *CMS_SignerInfo_get0_signature(CMS_SignerInfo *si);
 \& int CMS_SignerInfo_cert_cmp(CMS_SignerInfo *si, X509 *cert);
 \& void CMS_SignerInfo_set1_signer_cert(CMS_SignerInfo *si, X509 *signer);
 .Ve
@@ -162,6 +161,11 @@ associated with a \s-1CMS\s0 signedData structure.
 associated with a specific CMS_SignerInfo structure \fBsi\fR. Either the
 keyidentifier will be set in \fBkeyid\fR or \fBboth\fR issuer name and serial number
 in \fBissuer\fR and \fBsno\fR.
+.PP
+\&\fICMS_SignerInfo_get0_signature()\fR retrieves the signature associated with 
+\&\fBsi\fR in a pointer to an \s-1ASN1_OCTET_STRING\s0 structure. This pointer returned
+corresponds to the internal signature value if \fBsi\fR so it may be read or
+modified.
 .PP
 \&\fICMS_SignerInfo_cert_cmp()\fR compares the certificate \fBcert\fR against the signer
 identifier \fBsi\fR. It returns zero if the comparison is successful and non zero

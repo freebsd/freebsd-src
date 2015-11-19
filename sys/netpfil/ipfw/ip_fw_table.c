@@ -115,6 +115,7 @@ static int dump_table_xentry(void *e, void *arg);
 static int swap_tables(struct ip_fw_chain *ch, struct tid_info *a,
     struct tid_info *b);
 
+static int check_table_name(const char *name);
 static int check_table_space(struct ip_fw_chain *ch, struct tableop_state *ts,
     struct table_config *tc, struct table_info *ti, uint32_t count);
 static int destroy_table(struct ip_fw_chain *ch, struct tid_info *ti);
@@ -1794,7 +1795,7 @@ modify_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	 * Check for null-terminated/zero-length strings/
 	 */
 	tname = oh->ntlv.name;
-	if (ipfw_check_table_name(tname) != 0)
+	if (check_table_name(tname) != 0)
 		return (EINVAL);
 
 	objheader_to_ti(oh, &ti);
@@ -1851,7 +1852,7 @@ create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	 */
 	tname = oh->ntlv.name;
 	aname = i->algoname;
-	if (ipfw_check_table_name(tname) != 0 ||
+	if (check_table_name(tname) != 0 ||
 	    strnlen(aname, sizeof(i->algoname)) == sizeof(i->algoname))
 		return (EINVAL);
 
@@ -2915,25 +2916,14 @@ static struct opcode_obj_rewrite opcodes[] = {
  *
  * Returns 0 if name is considered valid.
  */
-int
-ipfw_check_table_name(char *name)
+static int
+check_table_name(const char *name)
 {
-	int nsize;
-	ipfw_obj_ntlv *ntlv = NULL;
-
-	nsize = sizeof(ntlv->name);
-
-	if (strnlen(name, nsize) == nsize)
-		return (EINVAL);
-
-	if (name[0] == '\0')
-		return (EINVAL);
 
 	/*
 	 * TODO: do some more complicated checks
 	 */
-
-	return (0);
+	return (ipfw_check_object_name_generic(name));
 }
 
 /*
@@ -2965,7 +2955,7 @@ find_name_tlv(void *tlvs, int len, uint16_t uidx)
 		if (ntlv->idx != uidx)
 			continue;
 
-		if (ipfw_check_table_name(ntlv->name) != 0)
+		if (check_table_name(ntlv->name) != 0)
 			return (NULL);
 		
 		return (ntlv);
@@ -3398,17 +3388,14 @@ ref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule,
 		IPFW_UH_WUNLOCK(ch);
 		return (error);
 	}
-
 	IPFW_UH_WUNLOCK(ch);
-
-	found = pidx - oib;
-	KASSERT(found == ci->object_opcodes,
-	    ("refcount inconsistency: found: %d total: %d",
-	    found, ci->object_opcodes));
 
 	/* Perform auto-creation for non-existing objects */
 	if (numnew != 0)
 		error = create_objects_compat(ch, rule->cmd, oib, pidx, ti);
+
+	/* Calculate real number of dynamic objects */
+	ci->object_opcodes = (uint16_t)(pidx - oib);
 
 	return (error);
 }
@@ -3441,7 +3428,6 @@ ipfw_rewrite_rule_uidx(struct ip_fw_chain *chain,
 		pidx_first = malloc(ci->object_opcodes * sizeof(struct obj_idx),
 		    M_IPFW, M_WAITOK | M_ZERO);
 
-	pidx_last = pidx_first + ci->object_opcodes;
 	error = 0;
 	type = 0;
 	memset(&ti, 0, sizeof(ti));
@@ -3460,9 +3446,14 @@ ipfw_rewrite_rule_uidx(struct ip_fw_chain *chain,
 	error = ref_rule_objects(chain, ci->krule, ci, pidx_first, &ti);
 	if (error != 0)
 		goto free;
+	/*
+	 * Note that ref_rule_objects() might have updated ci->object_opcodes
+	 * to reflect actual number of object opcodes.
+	 */
 
 	/* Perform rule rewrite */
 	p = pidx_first;
+	pidx_last = pidx_first + ci->object_opcodes;
 	for (p = pidx_first; p < pidx_last; p++) {
 		cmd = ci->krule->cmd + p->off;
 		update_opcode_kidx(cmd, p->kidx);

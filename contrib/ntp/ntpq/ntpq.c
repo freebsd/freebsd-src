@@ -405,7 +405,7 @@ FILE *current_output;
  */
 extern struct xcmd opcmds[];
 
-char *progname;
+char const *progname;
 
 #ifdef NO_MAIN_ALLOWED
 #ifndef BUILD_AS_LIB
@@ -489,7 +489,7 @@ ntpqmain(
 	    builtins[icmd].desc[0] = "md5";
 	    fmt = "set key type to use for authenticated requests (%s)";
 #endif
-	    msg = malloc(strlen(fmt) + strlen(list) - strlen("%s") +1);
+	    msg = emalloc(strlen(fmt) + strlen(list) - strlen("%s") +1);
 	    sprintf(msg, fmt, list);
 	    builtins[icmd].comment = msg;
 	    free(list);
@@ -3206,7 +3206,6 @@ tstflags(
 	register const char *sep;
 
 	sep = "";
-	i = 0;
 	s = cp = circ_buf[nextcb];
 	if (++nextcb >= NUMCB)
 		nextcb = 0;
@@ -3362,12 +3361,17 @@ cookedprint(
 		}
 
 		if (output_raw != 0) {
+			/* TALOS-CAN-0063: avoid buffer overrun */
 			atoascii(name, MAXVARLEN, bn, sizeof(bn));
-			atoascii(value, MAXVALLEN, bv, sizeof(bv));
 			if (output_raw != '*') {
+				atoascii(value, MAXVALLEN,
+					 bv, sizeof(bv) - 1);
 				len = strlen(bv);
 				bv[len] = output_raw;
 				bv[len+1] = '\0';
+			} else {
+				atoascii(value, MAXVALLEN,
+					 bv, sizeof(bv));
 			}
 			output(fp, bn, bv);
 		}
@@ -3503,7 +3507,7 @@ static void list_md_fn(const EVP_MD *m, const char *from, const char *to, void *
         if (!strcmp(*seen, name))
 	    return;
     n = (seen - hstate->seen) + 2;
-    hstate->seen = realloc(hstate->seen, n * sizeof(*seen));
+    hstate->seen = erealloc(hstate->seen, n * sizeof(*seen));
     hstate->seen[n-2] = name;
     hstate->seen[n-1] = NULL;
 
@@ -3521,10 +3525,10 @@ static void list_md_fn(const EVP_MD *m, const char *from, const char *to, void *
     len += (hstate->idx >= K_PER_LINE)? strlen(K_NL_PFX_STR): strlen(K_DELIM_STR);
 
     if (hstate->list == NULL) {
-	hstate->list = (char *)malloc(len);
+	hstate->list = (char *)emalloc(len);
 	hstate->list[0] = '\0';
     } else
-	hstate->list = (char *)realloc(hstate->list, len);
+	hstate->list = (char *)erealloc(hstate->list, len);
 
     sprintf(hstate->list + strlen(hstate->list), "%s%s",
 	    ((hstate->idx >= K_PER_LINE)? K_NL_PFX_STR : K_DELIM_STR),
@@ -3545,18 +3549,18 @@ static char *list_digest_names(void)
 # ifdef HAVE_EVP_MD_DO_ALL_SORTED
     struct hstate hstate = { NULL, NULL, K_PER_LINE+1 };
 
-    hstate.seen = (const char **)calloc(1, sizeof( const char * ));
+    hstate.seen = (const char **) emalloc_zero(1*sizeof( const char * )); // replaces -> calloc(1, sizeof( const char * ));
 
     INIT_SSL();
     EVP_MD_do_all_sorted(list_md_fn, &hstate);
     list = hstate.list;
     free(hstate.seen);
 # else
-    list = (char *)malloc(sizeof("md5, others (upgrade to OpenSSL-1.0 for full list)"));
+    list = (char *)emalloc(sizeof("md5, others (upgrade to OpenSSL-1.0 for full list)"));
     strcpy(list, "md5, others (upgrade to OpenSSL-1.0 for full list)");
 # endif
 #else
-    list = (char *)malloc(sizeof("md5"));
+    list = (char *)emalloc(sizeof("md5"));
     strcpy(list, "md5");
 #endif
 

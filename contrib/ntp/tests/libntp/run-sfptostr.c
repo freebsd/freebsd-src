@@ -22,11 +22,12 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include "config.h"
+#include "ntp_fp.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
 extern void tearDown(void);
-void resetTest(void);
 extern void test_PositiveInteger(void);
 extern void test_NegativeInteger(void);
 extern void test_PositiveIntegerPositiveFraction(void);
@@ -38,29 +39,29 @@ extern void test_SingleDecimalRounding(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
-char *progname;
+char const *progname;
 
 
 //=======MAIN=====
 int main(int argc, char *argv[])
 {
   progname = argv[0];
-  Unity.TestFile = "sfptostr.c";
   UnityBegin("sfptostr.c");
   RUN_TEST(test_PositiveInteger, 11);
-  RUN_TEST(test_NegativeInteger, 19);
-  RUN_TEST(test_PositiveIntegerPositiveFraction, 27);
-  RUN_TEST(test_NegativeIntegerNegativeFraction, 35);
-  RUN_TEST(test_PositiveIntegerNegativeFraction, 43);
-  RUN_TEST(test_NegativeIntegerPositiveFraction, 51);
-  RUN_TEST(test_SingleDecimalInteger, 59);
-  RUN_TEST(test_SingleDecimalRounding, 67);
+  RUN_TEST(test_NegativeInteger, 12);
+  RUN_TEST(test_PositiveIntegerPositiveFraction, 13);
+  RUN_TEST(test_NegativeIntegerNegativeFraction, 14);
+  RUN_TEST(test_PositiveIntegerNegativeFraction, 15);
+  RUN_TEST(test_NegativeIntegerPositiveFraction, 16);
+  RUN_TEST(test_SingleDecimalInteger, 17);
+  RUN_TEST(test_SingleDecimalRounding, 18);
 
   return (UnityEnd());
 }

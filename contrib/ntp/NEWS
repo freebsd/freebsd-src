@@ -1,4 +1,499 @@
 ---
+NTP 4.2.8p4
+
+Focus: Security, Bug fies, enhancements.
+
+Severity: MEDIUM
+
+In addition to bug fixes and enhancements, this release fixes the
+following 13 low- and medium-severity vulnerabilities:
+
+* Incomplete vallen (value length) checks in ntp_crypto.c, leading
+  to potential crashes or potential code injection/information leakage.
+
+    References: Sec 2899, Sec 2671, CVE-2015-7691, CVE-2015-7692, CVE-2015-7702
+    Affects: All ntp-4 releases up to, but not including 4.2.8p4,
+    	and 4.3.0 up to, but not including 4.3.77
+    CVSS: (AV:N/AC:H/Au:M/C:N/I:N/A:C) Base Score: 4.6
+    Summary: The fix for CVE-2014-9750 was incomplete in that there were
+    	certain code paths where a packet with particular autokey operations
+	that contained malicious data was not always being completely
+	validated. Receipt of these packets can cause ntpd to crash.
+    Mitigation:
+        Don't use autokey.
+	Upgrade to 4.2.8p4, or later, from the NTP Project Download
+	    Page or the NTP Public Services Project Download Page
+	Monitor your ntpd instances. 
+	Credit: This weakness was discovered by Tenable Network Security. 
+
+* Clients that receive a KoD should validate the origin timestamp field.
+
+    References: Sec 2901 / CVE-2015-7704, CVE-2015-7705
+    Affects: All ntp-4 releases up to, but not including 4.2.8p4,
+	and 4.3.0 up to, but not including 4.3.77
+    CVSS: (AV:N/AC:M/Au:N/C:N/I:N/A:P) Base Score: 4.3-5.0 at worst
+    Summary: An ntpd client that honors Kiss-of-Death responses will honor
+    	KoD messages that have been forged by an attacker, causing it to
+	delay or stop querying its servers for time updates. Also, an
+	attacker can forge packets that claim to be from the target and
+	send them to servers often enough that a server that implements
+	KoD rate limiting will send the target machine a KoD response to
+	attempt to reduce the rate of incoming packets, or it may also
+	trigger a firewall block at the server for packets from the target
+	machine. For either of these attacks to succeed, the attacker must
+	know what servers the target is communicating with. An attacker
+	can be anywhere on the Internet and can frequently learn the
+	identity of the target's time source by sending the target a
+	time query.
+    Mitigation:
+        Implement BCP-38.
+	Upgrade to 4.2.8p4, or later, from the NTP Project Download Page
+	    or the NTP Public Services Project Download Page
+	If you can't upgrade, restrict who can query ntpd to learn who
+	    its servers are, and what IPs are allowed to ask your system
+	    for the time. This mitigation is heavy-handed.
+	Monitor your ntpd instances. 
+    Note:
+    	4.2.8p4 protects against the first attack. For the second attack,
+    	all we can do is warn when it is happening, which we do in 4.2.8p4.
+    Credit: This weakness was discovered by Aanchal Malhotra,
+    	Issac E. Cohen, and Sharon Goldberg of Boston University. 
+
+* configuration directives to change "pidfile" and "driftfile" should
+  only be allowed locally. 
+
+  References: Sec 2902 / CVE-2015-5196
+  Affects: All ntp-4 releases up to, but not including 4.2.8p4,
+	and 4.3.0 up to, but not including 4.3.77
+   CVSS: (AV:N/AC:H/Au:M/C:N/I:C/A:C) Base Score: 6.2 worst case
+   Summary: If ntpd is configured to allow for remote configuration,
+	and if the (possibly spoofed) source IP address is allowed to
+	send remote configuration requests, and if the attacker knows
+	the remote configuration password, it's possible for an attacker
+	to use the "pidfile" or "driftfile" directives to potentially
+	overwrite other files.
+   Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p4, or later, from the NTP Project Download
+	    Page or the NTP Public Services Project Download Page
+	If you cannot upgrade, don't enable remote configuration.
+	If you must enable remote configuration and cannot upgrade,
+	    remote configuration of NTF's ntpd requires:
+	    - an explicitly configured trustedkey, and you should also
+	    	configure a controlkey.
+	    - access from a permitted IP. You choose the IPs.
+	    - authentication. Don't disable it. Practice secure key safety. 
+	Monitor your ntpd instances. 
+   Credit: This weakness was discovered by Miroslav Lichvar of Red Hat. 
+
+* Slow memory leak in CRYPTO_ASSOC 
+
+  References: Sec 2909 / CVE-2015-7701
+  Affects: All ntp-4 releases that use autokey up to, but not
+    including 4.2.8p4, and 4.3.0 up to, but not including 4.3.77
+  CVSS: (AV:N/AC:H/Au:M/C:N/I:N/A:C) Base Score: 0.0 best/usual case,
+  	4.6 otherwise
+  Summary: If ntpd is configured to use autokey, then an attacker can
+	send packets to ntpd that will, after several days of ongoing
+	attack, cause it to run out of memory.
+  Mitigation:
+	Don't use autokey.
+	Upgrade to 4.2.8p4, or later, from the NTP Project Download
+	    Page or the NTP Public Services Project Download Page
+	Monitor your ntpd instances. 
+  Credit: This weakness was discovered by Tenable Network Security. 
+
+* mode 7 loop counter underrun
+
+  References:  Sec 2913 / CVE-2015-7848 / TALOS-CAN-0052
+  Affects: All ntp-4 releases up to, but not including 4.2.8p4,
+  	and 4.3.0 up to, but not including 4.3.77
+  CVSS: (AV:N/AC:H/Au:M/C:N/I:N/A:C) Base Score: 4.6
+  Summary: If ntpd is configured to enable mode 7 packets, and if the
+	use of mode 7 packets is not properly protected thru the use of
+	the available mode 7 authentication and restriction mechanisms,
+	and if the (possibly spoofed) source IP address is allowed to
+	send mode 7 queries, then an attacker can send a crafted packet
+	to ntpd that will cause it to crash.
+  Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p4, or later, from the NTP Project Download
+	    Page or the NTP Public Services Project Download Page.
+	      If you are unable to upgrade:
+	In ntp-4.2.8, mode 7 is disabled by default. Don't enable it.
+	If you must enable mode 7:
+	    configure the use of a requestkey to control who can issue
+		mode 7 requests.
+	    configure restrict noquery to further limit mode 7 requests
+		to trusted sources. 
+	Monitor your ntpd instances. 
+Credit: This weakness was discovered by Aleksandar Nikolic of Cisco Talos. 
+
+* memory corruption in password store
+
+  References: Sec 2916 / CVE-2015-7849 / TALOS-CAN-0054
+  Affects: All ntp-4 releases up to, but not including 4.2.8p4, and 4.3.0 up to, but not including 4.3.77
+  CVSS: (AV:N/AC:H/Au:M/C:N/I:C/A:C) Base Score: 6.8, worst case
+  Summary: If ntpd is configured to allow remote configuration, and if
+	the (possibly spoofed) source IP address is allowed to send
+	remote configuration requests, and if the attacker knows the
+	remote configuration password or if ntpd was configured to
+	disable authentication, then an attacker can send a set of
+	packets to ntpd that may cause a crash or theoretically
+	perform a code injection attack.
+  Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p4, or later, from the NTP Project Download
+	    Page or the NTP Public Services Project Download Page.
+	If you are unable to upgrade, remote configuration of NTF's
+	    ntpd requires:
+		an explicitly configured "trusted" key. Only configure
+			this if you need it.
+		access from a permitted IP address. You choose the IPs.
+		authentication. Don't disable it. Practice secure key safety. 
+	Monitor your ntpd instances. 
+  Credit: This weakness was discovered by Yves Younan of Cisco Talos. 
+
+* Infinite loop if extended logging enabled and the logfile and
+  keyfile are the same.
+
+    References: Sec 2917 / CVE-2015-7850 / TALOS-CAN-0055
+    Affects: All ntp-4 releases up to, but not including 4.2.8p4,
+	and 4.3.0 up to, but not including 4.3.77
+    CVSS: (AV:N/AC:H/Au:M/C:N/I:N/A:C) Base Score: 4.6, worst case
+    Summary: If ntpd is configured to allow remote configuration, and if
+	the (possibly spoofed) source IP address is allowed to send
+	remote configuration requests, and if the attacker knows the
+	remote configuration password or if ntpd was configured to
+	disable authentication, then an attacker can send a set of
+	packets to ntpd that will cause it to crash and/or create a
+	potentially huge log file. Specifically, the attacker could
+	enable extended logging, point the key file at the log file,
+	and cause what amounts to an infinite loop.
+    Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p4, or later, from the NTP Project Download
+	    Page or the NTP Public Services Project Download Page.
+	If you are unable to upgrade, remote configuration of NTF's ntpd
+	  requires:
+            an explicitly configured "trusted" key. Only configure this
+	    	if you need it.
+            access from a permitted IP address. You choose the IPs.
+            authentication. Don't disable it. Practice secure key safety. 
+        Monitor your ntpd instances. 
+    Credit: This weakness was discovered by Yves Younan of Cisco Talos. 
+
+* Potential path traversal vulnerability in the config file saving of
+  ntpd on VMS.
+
+  References: Sec 2918 / CVE-2015-7851 / TALOS-CAN-0062
+  Affects: All ntp-4 releases running under VMS up to, but not
+	including 4.2.8p4, and 4.3.0 up to, but not including 4.3.77
+  CVSS: (AV:N/AC:H/Au:M/C:N/I:P/A:C) Base Score: 5.2, worst case
+  Summary: If ntpd is configured to allow remote configuration, and if
+	the (possibly spoofed) IP address is allowed to send remote
+	configuration requests, and if the attacker knows the remote
+	configuration password or if ntpd was configured to disable
+	authentication, then an attacker can send a set of packets to
+	ntpd that may cause ntpd to overwrite files.
+  Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p4, or later, from the NTP Project Download
+	    Page or the NTP Public Services Project Download Page.
+	If you are unable to upgrade, remote configuration of NTF's ntpd
+	    requires:
+		an explicitly configured "trusted" key. Only configure
+			this if you need it.
+		access from permitted IP addresses. You choose the IPs.
+		authentication. Don't disable it. Practice key security safety. 
+        Monitor your ntpd instances. 
+    Credit: This weakness was discovered by Yves Younan of Cisco Talos. 
+
+* ntpq atoascii() potential memory corruption
+
+  References: Sec 2919 / CVE-2015-7852 / TALOS-CAN-0063
+  Affects: All ntp-4 releases running up to, but not including 4.2.8p4,
+	and 4.3.0 up to, but not including 4.3.77
+  CVSS: (AV:N/AC:H/Au:N/C:N/I:P/A:P) Base Score: 4.0, worst case
+  Summary: If an attacker can figure out the precise moment that ntpq
+	is listening for data and the port number it is listening on or
+	if the attacker can provide a malicious instance ntpd that
+	victims will connect to then an attacker can send a set of
+	crafted mode 6 response packets that, if received by ntpq,
+	can cause ntpq to crash.
+  Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p4, or later, from the NTP Project Download
+	    Page or the NTP Public Services Project Download Page.
+	If you are unable to upgrade and you run ntpq against a server
+	    and ntpq crashes, try again using raw mode. Build or get a
+	    patched ntpq and see if that fixes the problem. Report new
+	    bugs in ntpq or abusive servers appropriately.
+	If you use ntpq in scripts, make sure ntpq does what you expect
+	    in your scripts. 
+  Credit: This weakness was discovered by Yves Younan and
+  	Aleksander Nikolich of Cisco Talos. 
+
+* Invalid length data provided by a custom refclock driver could cause
+  a buffer overflow. 
+
+  References: Sec 2920 / CVE-2015-7853 / TALOS-CAN-0064
+  Affects: Potentially all ntp-4 releases running up to, but not
+	including 4.2.8p4, and 4.3.0 up to, but not including 4.3.77
+	that have custom refclocks
+  CVSS: (AV:L/AC:H/Au:M/C:C/I:C/A:C) Base Score: 0.0 usual case,
+	5.9 unusual worst case
+  Summary: A negative value for the datalen parameter will overflow a
+	data buffer. NTF's ntpd driver implementations always set this
+	value to 0 and are therefore not vulnerable to this weakness.
+	If you are running a custom refclock driver in ntpd and that
+	driver supplies a negative value for datalen (no custom driver
+	of even minimal competence would do this) then ntpd would
+	overflow a data buffer. It is even hypothetically possible
+	in this case that instead of simply crashing ntpd the attacker
+	could effect a code injection attack.
+  Mitigation:
+	Upgrade to 4.2.8p4, or later, from the NTP Project Download
+	    Page or the NTP Public Services Project Download Page.
+	If you are unable to upgrade:
+		If you are running custom refclock drivers, make sure
+			the signed datalen value is either zero or positive. 
+	Monitor your ntpd instances. 
+  Credit: This weakness was discovered by Yves Younan of Cisco Talos. 
+
+* Password Length Memory Corruption Vulnerability
+
+  References: Sec 2921 / CVE-2015-7854 / TALOS-CAN-0065
+  Affects: All ntp-4 releases up to, but not including 4.2.8p4, and
+  	4.3.0 up to, but not including 4.3.77
+  CVSS: (AV:N/AC:H/Au:M/C:C/I:C/A:C) Base Score: 0.0 best case,
+  	1.7 usual case, 6.8, worst case
+  Summary: If ntpd is configured to allow remote configuration, and if
+	the (possibly spoofed) source IP address is allowed to send
+	remote configuration requests, and if the attacker knows the
+	remote configuration password or if ntpd was (foolishly)
+	configured to disable authentication, then an attacker can
+	send a set of packets to ntpd that may cause it to crash,
+	with the hypothetical possibility of a small code injection.
+  Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p4, or later, from the NTP Project Download
+	    Page or the NTP Public Services Project Download Page.
+	If you are unable to upgrade, remote configuration of NTF's
+	    ntpd requires:
+		an explicitly configured "trusted" key. Only configure
+			this if you need it.
+		access from a permitted IP address. You choose the IPs.
+		authentication. Don't disable it. Practice secure key safety. 
+	Monitor your ntpd instances. 
+  Credit: This weakness was discovered by Yves Younan and
+  	Aleksander Nikolich of Cisco Talos. 
+
+* decodenetnum() will ASSERT botch instead of returning FAIL on some
+  bogus values.
+
+  References: Sec 2922 / CVE-2015-7855
+  Affects: All ntp-4 releases up to, but not including 4.2.8p4, and
+	4.3.0 up to, but not including 4.3.77
+  CVSS: (AV:N/AC:H/Au:M/C:N/I:N/A:C) Base Score: 4.6, worst case
+  Summary: If ntpd is fed a crafted mode 6 or mode 7 packet containing
+	an unusually long data value where a network address is expected,
+	the decodenetnum() function will abort with an assertion failure
+	instead of simply returning a failure condition.
+  Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p4, or later, from the NTP Project Download
+	    Page or the NTP Public Services Project Download Page.
+	If you are unable to upgrade:
+		mode 7 is disabled by default. Don't enable it.
+		Use restrict noquery to limit who can send mode 6
+			and mode 7 requests.
+		Configure and use the controlkey and requestkey
+			authentication directives to limit who can
+			send mode 6 and mode 7 requests. 
+	Monitor your ntpd instances. 
+  Credit: This weakness was discovered by John D "Doug" Birdwell of IDA.org. 
+
+* NAK to the Future: Symmetric association authentication bypass via
+  crypto-NAK.
+
+  References: Sec 2941 / CVE-2015-7871
+  Affects: All ntp-4 releases between 4.2.5p186 up to but not including
+  	4.2.8p4, and 4.3.0 up to but not including 4.3.77
+  CVSS: (AV:N/AC:L/Au:N/C:N/I:P/A:P) Base Score: 6.4
+  Summary: Crypto-NAK packets can be used to cause ntpd to accept time
+	from unauthenticated ephemeral symmetric peers by bypassing the
+	authentication required to mobilize peer associations. This
+	vulnerability appears to have been introduced in ntp-4.2.5p186
+	when the code handling mobilization of new passive symmetric
+	associations (lines 1103-1165) was refactored.
+  Mitigation:
+	Implement BCP-38.
+	Upgrade to 4.2.8p4, or later, from the NTP Project Download
+	    Page or the NTP Public Services Project Download Page.
+	If you are unable to upgrade:
+		Apply the patch to the bottom of the "authentic" check
+			block around line 1136 of ntp_proto.c. 
+	Monitor your ntpd instances. 
+  Credit: This weakness was discovered by Stephen Gray <stepgray@cisco.com>. 
+
+Backward-Incompatible changes:
+* [Bug 2817] Default on Linux is now "rlimit memlock -1".
+While the general default of 32M is still the case, under Linux
+the default value has been changed to -1 (do not lock ntpd into
+  memory).  A value of 0 means "lock ntpd into memory with whatever
+  memory it needs." If your ntp.conf file has an explicit "rlimit memlock"
+  value in it, that value will continue to be used.
+
+* [Bug 2886] Misspelling: "outlyer" should be "outlier".
+  If you've written a script that looks for this case in, say, the
+  output of ntpq, you probably want to change your regex matches
+  from 'outlyer' to 'outl[iy]er'.
+
+New features in this release:
+* 'rlimit memlock' now has finer-grained control.  A value of -1 means
+  "don't lock ntpd into memore".  This is the default for Linux boxes.
+  A value of 0 means "lock ntpd into memory" with no limits.  Otherwise
+  the value is the number of megabytes of memory to lock.  The default
+  is 32 megabytes.
+
+* The old Google Test framework has been replaced with a new framework,
+  based on http://www.throwtheswitch.org/unity/ .
+
+Bug Fixes and Improvements:
+* [Bug 2332] (reopened) Exercise thread cancellation once before dropping
+  privileges and limiting resources in NTPD removes the need to link
+  forcefully against 'libgcc_s' which does not always work. J.Perlinger
+* [Bug 2595] ntpdate man page quirks.  Hal Murray, Harlan Stenn.
+* [Bug 2625] Deprecate flag1 in local refclock.  Hal Murray, Harlan Stenn.
+* [Bug 2817] Stop locking ntpd into memory by default under Linux.  H.Stenn.
+* [Bug 2821] minor build issues: fixed refclock_gpsdjson.c.  perlinger@ntp.org
+* [Bug 2823] ntpsweep with recursive peers option doesn't work.  H.Stenn.
+* [Bug 2849] Systems with more than one default route may never
+  synchronize.  Brian Utterback.  Note that this patch might need to
+  be reverted once Bug 2043 has been fixed.
+* [Bug 2864] 4.2.8p3 fails to compile on Windows. Juergen Perlinger
+* [Bug 2866] segmentation fault at initgroups().  Harlan Stenn.
+* [Bug 2867] ntpd with autokey active crashed by 'ntpq -crv'. J.Perlinger
+* [Bug 2873] libevent should not include .deps/ in the tarball.  H.Stenn
+* [Bug 2874] Don't distribute generated sntp/tests/fileHandlingTest.h. H.Stenn
+* [Bug 2875] sntp/Makefile.am: Get rid of DIST_SUBDIRS.  libevent must
+  be configured for the distribution targets.  Harlan Stenn.
+* [Bug 2883] ntpd crashes on exit with empty driftfile.  Miroslav Lichvar.
+* [Bug 2886] Mis-spelling: "outlyer" should be "outlier".  dave@horsfall.org
+* [Bug 2888] streamline calendar functions.  perlinger@ntp.org
+* [Bug 2889] ntp-dev-4.3.67 does not build on Windows.  perlinger@ntp.org
+* [Bug 2890] Ignore ENOBUFS on routing netlink socket.  Konstantin Khlebnikov.
+* [Bug 2906] make check needs better support for pthreads.  Harlan Stenn.
+* [Bug 2907] dist* build targets require our libevent/ to be enabled.  HStenn.
+* [Bug 2912] no munlockall() under Windows.  David Taylor, Harlan Stenn.
+* libntp/emalloc.c: Remove explicit include of stdint.h.  Harlan Stenn.
+* Put Unity CPPFLAGS items in unity_config.h.  Harlan Stenn.
+* tests/ntpd/g_leapsec.cpp typo fix.  Harlan Stenn.
+* Phase 1 deprecation of google test in sntp/tests/.  Harlan Stenn.
+* On some versions of HP-UX, inttypes.h does not include stdint.h.  H.Stenn.
+* top_srcdir can change based on ntp v. sntp.  Harlan Stenn.
+* sntp/tests/ function parameter list cleanup.  Damir Tomić.
+* tests/libntp/ function parameter list cleanup.  Damir Tomić.
+* tests/ntpd/ function parameter list cleanup.  Damir Tomić.
+* sntp/unity/unity_config.h: handle stdint.h.  Harlan Stenn.
+* sntp/unity/unity_internals.h: handle *INTPTR_MAX on old Solaris.  H.Stenn.
+* tests/libntp/timevalops.c and timespecops.c fixed error printing.  D.Tomić.
+* tests/libntp/ improvements in code and fixed error printing.  Damir Tomić.
+* tests/libntp: a_md5encrypt.c, authkeys.c, buftvtots.c, calendar.c, caljulian.c,
+  caltontp.c, clocktime.c, humandate.c, hextolfp.c, decodenetnum.c - fixed
+  formatting; first declaration, then code (C90); deleted unnecessary comments;
+  changed from sprintf to snprintf; fixed order of includes. Tomasz Flendrich
+* tests/libntp/lfpfunc.c remove unnecessary include, remove old comments,
+  fix formatting, cleanup. Tomasz Flendrich
+* tests/libntp/lfptostr.c remove unnecessary include, add consts, fix formatting.
+  Tomasz Flendrich
+* tests/libntp/statestr.c remove empty functions, remove unnecessary include,
+  fix formatting. Tomasz Flendrich
+* tests/libntp/modetoa.c fixed formatting. Tomasz Flendrich
+* tests/libntp/msyslog.c fixed formatting. Tomasz Flendrich
+* tests/libntp/numtoa.c deleted unnecessary empty functions, fixed formatting.
+  Tomasz Flendrich
+* tests/libntp/numtohost.c added const, fixed formatting. Tomasz Flendrich
+* tests/libntp/refnumtoa.c fixed formatting. Tomasz Flendrich
+* tests/libntp/ssl_init.c fixed formatting. Tomasz Flendrich
+* tests/libntp/tvtots.c fixed a bug, fixed formatting. Tomasz Flendrich
+* tests/libntp/uglydate.c removed an unnecessary include. Tomasz Flendrich
+* tests/libntp/vi64ops.c removed an unnecessary comment, fixed formatting.
+* tests/libntp/ymd3yd.c removed an empty function and an unnecessary include,
+fixed formatting. Tomasz Flendrich
+* tests/libntp/timespecops.c fixed formatting, fixed the order of includes,
+  removed unnecessary comments, cleanup. Tomasz Flendrich
+* tests/libntp/timevalops.c fixed the order of includes, deleted unnecessary
+  comments, cleanup. Tomasz Flendrich
+* tests/libntp/sockaddrtest.h making it agree to NTP's conventions of formatting.
+  Tomasz Flendrich
+* tests/libntp/lfptest.h cleanup. Tomasz Flendrich
+* tests/libntp/test-libntp.c fix formatting. Tomasz Flendrich
+* sntp/tests/crypto.c is now using proper Unity's assertions, fixed formatting.
+  Tomasz Flendrich
+* sntp/tests/kodDatabase.c added consts, deleted empty function,
+  fixed formatting. Tomasz Flendrich
+* sntp/tests/kodFile.c cleanup, fixed formatting. Tomasz Flendrich
+* sntp/tests/packetHandling.c is now using proper Unity's assertions,
+  fixed formatting, deleted unused variable. Tomasz Flendrich
+* sntp/tests/keyFile.c is now using proper Unity's assertions, fixed formatting.
+  Tomasz Flendrich
+* sntp/tests/packetProcessing.c changed from sprintf to snprintf,
+  fixed formatting. Tomasz Flendrich
+* sntp/tests/utilities.c is now using proper Unity's assertions, changed
+  the order of includes, fixed formatting, removed unnecessary comments.
+  Tomasz Flendrich
+* sntp/tests/sntptest.h fixed formatting. Tomasz Flendrich
+* sntp/tests/fileHandlingTest.h.in fixed a possible buffer overflow problem,
+  made one function do its job, deleted unnecessary prints, fixed formatting.
+  Tomasz Flendrich
+* sntp/unity/Makefile.am added a missing header. Tomasz Flendrich
+* sntp/unity/unity_config.h: Distribute it.  Harlan Stenn.
+* sntp/libevent/evconfig-private.h: remove generated filefrom SCM.  H.Stenn.
+* sntp/unity/Makefile.am: fix some broken paths.  Harlan Stenn.
+* sntp/unity/unity.c: Clean up a printf().  Harlan Stenn.
+* Phase 1 deprecation of google test in tests/libntp/.  Harlan Stenn.
+* Don't build sntp/libevent/sample/.  Harlan Stenn.
+* tests/libntp/test_caltontp needs -lpthread.  Harlan Stenn.
+* br-flock: --enable-local-libevent.  Harlan Stenn.
+* Wrote tests for ntpd/ntp_prio_q.c. Tomasz Flendrich
+* scripts/lib/NTP/Util.pm: stratum output is version-dependent.  Harlan Stenn.
+* Get rid of the NTP_ prefix on our assertion macros.  Harlan Stenn.
+* Code cleanup.  Harlan Stenn.
+* libntp/icom.c: Typo fix.  Harlan Stenn.
+* util/ntptime.c: initialization nit.  Harlan Stenn.
+* ntpd/ntp_peer.c:newpeer(): added a DEBUG_REQUIRE(srcadr).  Harlan Stenn.
+* Add std_unity_tests to various Makefile.am files.  Harlan Stenn.
+* ntpd/ntp_restrict.c: added a few assertions, created tests for this file.
+  Tomasz Flendrich
+* Changed progname to be const in many files - now it's consistent. Tomasz
+  Flendrich
+* Typo fix for GCC warning suppression.  Harlan Stenn.
+* Added tests/ntpd/ntp_scanner.c test. Damir Tomić.
+* Added declarations to all Unity tests, and did minor fixes to them.
+  Reduced the number of warnings by half. Damir Tomić.
+* Updated generate_test_runner.rb and updated the sntp/unity/auto directory
+  with the latest Unity updates from Mark. Damir Tomić.
+* Retire google test - phase I.  Harlan Stenn.
+* Unity test cleanup: move declaration of 'initializing'.  Harlan Stenn.
+* Update the NEWS file.  Harlan Stenn.
+* Autoconf cleanup.  Harlan Stenn.
+* Unit test dist cleanup. Harlan Stenn.
+* Cleanup various test Makefile.am files.  Harlan Stenn.
+* Pthread autoconf macro cleanup.  Harlan Stenn.
+* Fix progname definition in unity runner scripts.  Harlan Stenn.
+* Clean trailing whitespace in tests/ntpd/Makefile.am.  Harlan Stenn.
+* Update the patch for bug 2817.  Harlan Stenn.
+* More updates for bug 2817.  Harlan Stenn.
+* Fix bugs in tests/ntpd/ntp_prio_q.c.  Harlan Stenn.
+* gcc on older HPUX may need +allowdups.  Harlan Stenn.
+* Adding missing MCAST protection.  Harlan Stenn.
+* Disable certain test programs on certain platforms.  Harlan Stenn.
+* Implement --enable-problem-tests (on by default).  Harlan Stenn.
+* build system tweaks.  Harlan Stenn.
+
+---
 NTP 4.2.8p3 (Harlan Stenn <stenn@ntp.org>, 2015/06/29) 
 
 Focus: 1 Security fix.  Bug fixes and enhancements.  Leap-second improvements.

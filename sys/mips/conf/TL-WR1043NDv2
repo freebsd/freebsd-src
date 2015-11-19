@@ -7,6 +7,8 @@
 # $FreeBSD$
 #
 
+#NO_UNIVERSE
+
 # Include the default QCA955x parameters
 include         "QCA955X_BASE"
 

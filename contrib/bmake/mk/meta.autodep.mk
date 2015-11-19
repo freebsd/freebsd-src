@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.36 2014/08/02 23:10:29 sjg Exp $
+# $Id: meta.autodep.mk,v 1.37 2015/06/16 06:29:17 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -97,6 +97,8 @@ UPDATE_DEPENDFILE = no
 # for example the result of running configure
 # just make sure this is not empty
 META_FILE_FILTER ?= N.meta
+# never consider these
+META_FILE_FILTER += Ndirdeps.cache*
 
 .if !empty(DPADD)
 # if we have any non-libs in DPADD, 

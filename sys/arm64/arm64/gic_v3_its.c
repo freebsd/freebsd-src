@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
 
+#define	GIC_V3_ITS_QUIRK_THUNDERX_PEM_BUS_OFFSET	144
+
 #include "pic_if.h"
 
 /* Device and PIC methods */
@@ -187,7 +189,7 @@ gic_v3_its_attach(device_t dev)
 	 */
 	if (device_get_unit(dev) != 0) {
 		device_printf(dev,
-		    "Only single instance of ITS is supported, exitting...\n");
+		    "Only single instance of ITS is supported, exiting...\n");
 		return (ENXIO);
 	}
 	sc->its_socket = 0;
@@ -1475,8 +1477,8 @@ its_get_devid_thunder(device_t pci_dev)
 	bsf = PCI_RID(pci_get_bus(pci_dev), pci_get_slot(pci_dev),
 	    pci_get_function(pci_dev));
 
-	/* ECAM is on bus=0 */
-	if (bus == 0) {
+	/* Check if accessing internal PCIe (low bus numbers) */
+	if (bus < GIC_V3_ITS_QUIRK_THUNDERX_PEM_BUS_OFFSET) {
 		return ((pci_get_domain(pci_dev) << PCI_RID_DOMAIN_SHIFT) |
 		    bsf);
 	/* PEM otherwise */

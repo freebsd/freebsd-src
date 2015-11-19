@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include "truss.h"
 
-#include "linux_syscalls.h"
+#include "i386-linux_syscalls.h"
 
 static int
 i386_linux_fetch_args(struct trussinfo *trussinfo, u_int narg)
@@ -131,8 +131,8 @@ i386_linux_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 
 static struct procabi i386_linux = {
 	"Linux ELF32",
-	linux_syscallnames,
-	nitems(linux_syscallnames),
+	syscallnames,
+	nitems(syscallnames),
 	i386_linux_fetch_args,
 	i386_linux_fetch_retval
 };

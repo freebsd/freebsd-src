@@ -22,7 +22,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2014
+.Dd October 15, 2015
 .Dt URTWNFW 4
 .Os
 .Sh NAME
@@ -61,14 +61,14 @@ It may be
 statically linked into the kernel, or loaded as a module.
 .Pp
 For the loaded firmware to be enabled for use the license at
-.Pa /usr/share/doc/legal/realtek
+.Pa /usr/share/doc/legal/realtek.LICENSE
 must be agreed to by adding the following line to
 .Xr loader.conf 5 :
 .Pp
 .Dl "legal.realtek.license_ack=1"
 .Sh FILES
-.Bl -tag -width ".Pa /usr/share/doc/legal/realtek" -compact
-.It Pa /usr/share/doc/legal/realtek
+.Bl -tag -width ".Pa /usr/share/doc/legal/realtek.LICENSE" -compact
+.It Pa /usr/share/doc/legal/realtek.LICENSE
 .Nm
 firmware license
 .El

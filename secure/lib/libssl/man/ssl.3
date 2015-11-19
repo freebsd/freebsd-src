@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "ssl 3"
-.TH ssl 3 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH ssl 3 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -467,6 +467,10 @@ session instead of a context.
 .IX Item "int SSL_CTX_use_certificate_ASN1(SSL_CTX *ctx, int len, unsigned char *d);"
 .IP "int \fBSSL_CTX_use_certificate_file\fR(\s-1SSL_CTX\s0 *ctx, char *file, int type);" 4
 .IX Item "int SSL_CTX_use_certificate_file(SSL_CTX *ctx, char *file, int type);"
+.IP "X509 *\fBSSL_CTX_get0_certificate\fR(const \s-1SSL_CTX\s0 *ctx);" 4
+.IX Item "X509 *SSL_CTX_get0_certificate(const SSL_CTX *ctx);"
+.IP "\s-1EVP_PKEY\s0 *\fBSSL_CTX_get0_privatekey\fR(const \s-1SSL_CTX\s0 *ctx);" 4
+.IX Item "EVP_PKEY *SSL_CTX_get0_privatekey(const SSL_CTX *ctx);"
 .IP "void \fBSSL_CTX_set_psk_client_callback\fR(\s-1SSL_CTX\s0 *ctx, unsigned int (*callback)(\s-1SSL\s0 *ssl, const char *hint, char *identity, unsigned int max_identity_len, unsigned char *psk, unsigned int max_psk_len));" 4
 .IX Item "void SSL_CTX_set_psk_client_callback(SSL_CTX *ctx, unsigned int (*callback)(SSL *ssl, const char *hint, char *identity, unsigned int max_identity_len, unsigned char *psk, unsigned int max_psk_len));"
 .IP "int \fBSSL_CTX_use_psk_identity_hint\fR(\s-1SSL_CTX\s0 *ctx, const char *hint);" 4
@@ -591,8 +595,8 @@ connection defined in the \fB\s-1SSL\s0\fR structure.
 .IX Item "STACK *SSL_get_peer_cert_chain(const SSL *ssl);"
 .IP "X509 *\fBSSL_get_peer_certificate\fR(const \s-1SSL\s0 *ssl);" 4
 .IX Item "X509 *SSL_get_peer_certificate(const SSL *ssl);"
-.IP "\s-1EVP_PKEY\s0 *\fBSSL_get_privatekey\fR(\s-1SSL\s0 *ssl);" 4
-.IX Item "EVP_PKEY *SSL_get_privatekey(SSL *ssl);"
+.IP "\s-1EVP_PKEY\s0 *\fBSSL_get_privatekey\fR(const \s-1SSL\s0 *ssl);" 4
+.IX Item "EVP_PKEY *SSL_get_privatekey(const SSL *ssl);"
 .IP "int \fBSSL_get_quiet_shutdown\fR(const \s-1SSL\s0 *ssl);" 4
 .IX Item "int SSL_get_quiet_shutdown(const SSL *ssl);"
 .IP "\s-1BIO\s0 *\fBSSL_get_rbio\fR(const \s-1SSL\s0 *ssl);" 4

@@ -30,6 +30,8 @@ hints		"PANDABOARD.hints"
 include 	"std.armv6"
 include 	"../ti/omap4/pandaboard/std.pandaboard"
 
+options		ARM_INTRNG		# new interrupt framework
+
 options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	PLATFORM

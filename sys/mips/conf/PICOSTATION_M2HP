@@ -12,6 +12,8 @@
 
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 include		"AR724X_BASE"
 ident		"PICOSTATION_M2HP"
 hints		"PICOSTATION_M2HP.hints"

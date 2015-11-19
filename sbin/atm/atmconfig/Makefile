@@ -10,7 +10,7 @@
 PROG=	atmconfig
 SRCS=	main.c diag.c natm.c
 MAN=	atmconfig.8
-# CFLAGS+= -DPATH_HELP='".:/usr/share/doc/atm:/usr/local/share/doc/atm"'
+# CFLAGS+= -DPATH_HELP='".:${SHAREDIR}/doc/atm:/usr/local/share/doc/atm"'
 
 CFLAGS+= -I${.OBJDIR}
 
@@ -31,7 +31,7 @@ WARNS?= 3
 .endif
 
 FILES=	atmconfig.help atmconfig_device.help
-FILESDIR= /usr/share/doc/atm
+FILESDIR= ${SHAREDIR}/doc/atm
 
 SNMP_ATM_DEF= ${.CURDIR}/../../../contrib/ngatm/snmp_atm/atm_tree.def	\
 	${.CURDIR}/../../../usr.sbin/bsnmpd/modules/snmp_atm/atm_freebsd.def

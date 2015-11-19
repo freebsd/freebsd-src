@@ -94,6 +94,15 @@ ENTRY(copyin)
 	moveq	r0, #0
 	RETeq
 
+	adds	r3, r0, r2
+	movcs	r0, #EFAULT
+	RETc(cs)
+
+	ldr	r12, =(VM_MAXUSER_ADDRESS + 1)
+	cmp	r3, r12
+	movcs	r0, #EFAULT
+	RETc(cs)
+
 	ldr	r3, .L_arm_memcpy
 	ldr	r3, [r3]
 	cmp	r3, #0
@@ -331,6 +340,15 @@ ENTRY(copyout)
 	teq	r2, #0
 	moveq	r0, #0
 	RETeq
+
+	adds	r3, r1, r2
+	movcs	r0, #EFAULT
+	RETc(cs)
+
+	ldr	r12, =(VM_MAXUSER_ADDRESS + 1)
+	cmp	r3, r12
+	movcs	r0, #EFAULT
+	RETc(cs)
 
 	ldr	r3, .L_arm_memcpy
 	ldr	r3, [r3]

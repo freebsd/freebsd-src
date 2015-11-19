@@ -191,6 +191,9 @@ void ctl_clr_ua_all(struct ctl_lun *lun, uint32_t except, ctl_ua_type ua);
 void ctl_clr_ua_allluns(struct ctl_softc *ctl_softc, uint32_t initidx,
     ctl_ua_type ua_type);
 
+uint32_t ctl_decode_lun(uint64_t encoded);
+uint64_t ctl_encode_lun(uint32_t decoded);
+
 void ctl_isc_announce_lun(struct ctl_lun *lun);
 void ctl_isc_announce_port(struct ctl_port *port);
 void ctl_isc_announce_iid(struct ctl_port *port, int iid);

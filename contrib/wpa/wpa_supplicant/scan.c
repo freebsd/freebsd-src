@@ -418,22 +418,6 @@ static void wpa_supplicant_optimize_freqs(
 static void wpas_add_interworking_elements(struct wpa_supplicant *wpa_s,
 					   struct wpabuf *buf)
 {
-	if (wpa_s->conf->interworking == 0)
-		return;
-
-	wpabuf_put_u8(buf, WLAN_EID_EXT_CAPAB);
-	wpabuf_put_u8(buf, 6);
-	wpabuf_put_u8(buf, 0x00);
-	wpabuf_put_u8(buf, 0x00);
-	wpabuf_put_u8(buf, 0x00);
-	wpabuf_put_u8(buf, 0x80); /* Bit 31 - Interworking */
-	wpabuf_put_u8(buf, 0x00);
-#ifdef CONFIG_HS20
-	wpabuf_put_u8(buf, 0x40); /* Bit 46 - WNM-Notification */
-#else /* CONFIG_HS20 */
-	wpabuf_put_u8(buf, 0x00);
-#endif /* CONFIG_HS20 */
-
 	wpabuf_put_u8(buf, WLAN_EID_INTERWORKING);
 	wpabuf_put_u8(buf, is_zero_ether_addr(wpa_s->conf->hessid) ? 1 :
 		      1 + ETH_ALEN);
@@ -448,10 +432,18 @@ static void wpas_add_interworking_elements(struct wpa_supplicant *wpa_s,
 static struct wpabuf * wpa_supplicant_extra_ies(struct wpa_supplicant *wpa_s)
 {
 	struct wpabuf *extra_ie = NULL;
+	u8 ext_capab[18];
+	int ext_capab_len;
 #ifdef CONFIG_WPS
 	int wps = 0;
 	enum wps_request_type req_type = WPS_REQ_ENROLLEE_INFO;
 #endif /* CONFIG_WPS */
+
+	ext_capab_len = wpas_build_ext_capab(wpa_s, ext_capab,
+					     sizeof(ext_capab));
+	if (ext_capab_len > 0 &&
+	    wpabuf_resize(&extra_ie, ext_capab_len) == 0)
+		wpabuf_put_data(extra_ie, ext_capab, ext_capab_len);
 
 #ifdef CONFIG_INTERWORKING
 	if (wpa_s->conf->interworking &&
@@ -492,6 +484,12 @@ static struct wpabuf * wpa_supplicant_extra_ies(struct wpa_supplicant *wpa_s)
 	if (wpa_s->conf->hs20 && wpabuf_resize(&extra_ie, 7) == 0)
 		wpas_hs20_add_indication(extra_ie, -1);
 #endif /* CONFIG_HS20 */
+
+#ifdef CONFIG_FST
+	if (wpa_s->fst_ies &&
+	    wpabuf_resize(&extra_ie, wpabuf_len(wpa_s->fst_ies)) == 0)
+		wpabuf_put_buf(extra_ie, wpa_s->fst_ies);
+#endif /* CONFIG_FST */
 
 	return extra_ie;
 }
@@ -622,6 +620,37 @@ static void wpa_set_scan_ssids(struct wpa_supplicant *wpa_s,
 }
 
 
+static int wpa_set_ssids_from_scan_req(struct wpa_supplicant *wpa_s,
+				       struct wpa_driver_scan_params *params,
+				       size_t max_ssids)
+{
+	unsigned int i;
+
+	if (wpa_s->ssids_from_scan_req == NULL ||
+	    wpa_s->num_ssids_from_scan_req == 0)
+		return 0;
+
+	if (wpa_s->num_ssids_from_scan_req > max_ssids) {
+		wpa_s->num_ssids_from_scan_req = max_ssids;
+		wpa_printf(MSG_DEBUG, "Over max scan SSIDs from scan req: %u",
+			   (unsigned int) max_ssids);
+	}
+
+	for (i = 0; i < wpa_s->num_ssids_from_scan_req; i++) {
+		params->ssids[i].ssid = wpa_s->ssids_from_scan_req[i].ssid;
+		params->ssids[i].ssid_len =
+			wpa_s->ssids_from_scan_req[i].ssid_len;
+		wpa_hexdump_ascii(MSG_DEBUG, "specific SSID",
+				  params->ssids[i].ssid,
+				  params->ssids[i].ssid_len);
+	}
+
+	params->num_ssids = wpa_s->num_ssids_from_scan_req;
+	wpa_s->num_ssids_from_scan_req = 0;
+	return 1;
+}
+
+
 static void wpa_supplicant_scan(void *eloop_ctx, void *timeout_ctx)
 {
 	struct wpa_supplicant *wpa_s = eloop_ctx;
@@ -734,6 +763,12 @@ static void wpa_supplicant_scan(void *eloop_ctx, void *timeout_ctx)
 		goto scan;
 	}
 
+	if (wpa_s->last_scan_req == MANUAL_SCAN_REQ &&
+	    wpa_set_ssids_from_scan_req(wpa_s, &params, max_ssids)) {
+		wpa_printf(MSG_DEBUG, "Use specific SSIDs from SCAN command");
+		goto ssid_list_set;
+	}
+
 #ifdef CONFIG_P2P
 	if ((wpa_s->p2p_in_provisioning || wpa_s->show_group_started) &&
 	    wpa_s->go_params && !wpa_s->conf->passive_scan) {
@@ -773,6 +808,9 @@ static void wpa_supplicant_scan(void *eloop_ctx, void *timeout_ctx)
 	}
 
 	if (wpa_s->last_scan_req != MANUAL_SCAN_REQ &&
+#ifdef CONFIG_AP
+	    !wpa_s->ap_iface &&
+#endif /* CONFIG_AP */
 	    wpa_s->conf->ap_scan == 2) {
 		wpa_s->connect_without_scan = NULL;
 		wpa_s->prev_scan_wildcard = 0;
@@ -899,10 +937,8 @@ static void wpa_supplicant_scan(void *eloop_ctx, void *timeout_ctx)
 		wpa_dbg(wpa_s, MSG_DEBUG, "Starting AP scan for wildcard "
 			"SSID");
 	}
-#ifdef CONFIG_P2P
-ssid_list_set:
-#endif /* CONFIG_P2P */
 
+ssid_list_set:
 	wpa_supplicant_optimize_freqs(wpa_s, &params);
 	extra_ie = wpa_supplicant_extra_ies(wpa_s);
 
@@ -1652,7 +1688,7 @@ static int wpa_scan_result_compar(const void *a, const void *b)
 		snr_a_full = wa->snr;
 		snr_a = MIN(wa->snr, GREAT_SNR);
 		snr_b_full = wb->snr;
-		snr_b = MIN(wa->snr, GREAT_SNR);
+		snr_b = MIN(wb->snr, GREAT_SNR);
 	} else {
 		/* Level is not in dBm, so we can't calculate
 		 * SNR. Just use raw level (units unknown). */

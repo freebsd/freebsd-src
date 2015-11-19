@@ -4,6 +4,15 @@
 #include "ntp_calendar.h"
 #include "unity.h"
 
+void test_RegularPositive(void);
+void test_RegularNegative(void);
+void test_PositiveOverflowBoundary(void);
+void test_NegativeOverflowBoundary(void);
+void test_PositiveOverflowBig(void); 
+void test_IllegalCharacter(void);
+
+
+
 void test_RegularPositive(void) {
         const char *str = "17";
         long val;

@@ -229,6 +229,7 @@ static int
 iicoc_detach(device_t dev)
 {
 	bus_generic_detach(dev);
+	device_delete_children(dev);
 
 	return (0);
 }

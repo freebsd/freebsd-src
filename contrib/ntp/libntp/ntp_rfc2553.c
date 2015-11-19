@@ -221,7 +221,7 @@ copy_addrinfo_common(
 		}
 		++ai_cpy;
 	}
-	NTP_ENSURE(pcanon == ((char *)dst + octets));
+	ENSURE(pcanon == ((char *)dst + octets));
 
 	return dst;
 }

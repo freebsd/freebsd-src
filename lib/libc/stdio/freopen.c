@@ -187,6 +187,7 @@ finish:
 	fp->_lb._size = 0;
 	fp->_orientation = 0;
 	memset(&fp->_mbstate, 0, sizeof(mbstate_t));
+	fp->_flags2 = 0;
 
 	if (f < 0) {			/* did not get it after all */
 		if (isopen)
@@ -240,8 +241,10 @@ finish:
 	 * we can do about this.  (We could set __SAPP and check in
 	 * fseek and ftell.)
 	 */
-	if (oflags & O_APPEND)
+	if (oflags & O_APPEND) {
+		fp->_flags2 |= __S2OAP;
 		(void) _sseek(fp, (fpos_t)0, SEEK_END);
+	}
 	FUNLOCKFILE(fp);
 	return (fp);
 }

@@ -14,7 +14,7 @@ all:
 	@echo "make links or tags only"
 
 # Directories in which to place amd64 tags links
-DAMD64=	acpica amd64 ia32 include isa linux32 pci
+DAMD64=	acpica amd64 ia32 include linux linux32 pci vmm
 
 links::
 	-for i in ${COMMDIR1}; do \
@@ -26,8 +26,9 @@ links::
 
 SAMD64=	${SYS}/amd64/acpica/*.[ch] \
 	${SYS}/amd64/amd64/*.[ch] ${SYS}/amd64/ia32/*.[ch] \
-	${SYS}/amd64/include/*.[ch] ${SYS}/amd64/isa/*.[ch] \
-	${SYS}/amd64/linux32/*.[ch] ${SYS}/amd64/pci/*.[ch]
+	${SYS}/amd64/include/*.[ch] ${SYS}/amd64/linux/*.[ch] \
+	${SYS}/amd64/linux32/*.[ch] ${SYS}/amd64/pci/*.[ch] \
+	${SYS}/amd64/vmm/*.[ch]
 AAMD64=	${SYS}/amd64/amd64/*.S
 
 tags::

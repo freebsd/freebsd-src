@@ -15,7 +15,7 @@ stop_cmd=sync
 
 mountcritlocal_start()
 {
-	local err
+	local err holders waited
 
 	# Set up the list of network filesystem types for which mounting
 	# should be delayed until after network initialization.
@@ -35,8 +35,42 @@ mountcritlocal_start()
 		mount_excludes="${mount_excludes}${fstype},"
 	done
 	mount_excludes=${mount_excludes%,}
+
+	# Originally, root mount hold had to be released before mounting the root
+	# filesystem.  This delayed the boot, so it was changed to only wait if
+	# the root device isn't readily available.  This can result in this script
+	# executing before all the devices - such as graid(8) - are available.
+	# Thus, should the mount fail, we will wait for the root mount hold release
+	# and retry.
 	mount -a -t ${mount_excludes}
 	err=$?
+	if [ $? -ne 0 ]; then
+		echo
+		echo 'Mounting /etc/fstab filesystems failed,' \
+		    'will retry after root mount hold release'
+
+		waited=0
+		while [ ${waited} -lt ${root_hold_delay} ]; do
+			holders="$(sysctl -n vfs.root_mount_hold)"
+			if [ -z "${holders}" ]; then
+				break;
+			fi
+			if [ ${waited} -eq 0 ]; then
+				echo -n "Waiting ${root_hold_delay}s" \
+				"for the root mount holders: ${holders}"
+			else
+				echo -n .
+			fi
+			if [ ${waited} -eq ${root_hold_delay} ]; then
+				break 2
+			fi
+			sleep 1
+			waited=$(($waited + 1))
+		done
+		mount -a -t ${mount_excludes}
+		err=$?
+	fi
+
 	check_startmsgs && echo '.'
 
 	case ${err} in
@@ -44,7 +78,7 @@ mountcritlocal_start()
 		;;
 	*)
 		echo 'Mounting /etc/fstab filesystems failed,' \
-		    ' startup aborted'
+		    'startup aborted'
 		stop_boot true
 		;;
 	esac

@@ -82,22 +82,22 @@
 // UNITY_INT_WIDTH.
 #ifndef UNITY_POINTER_WIDTH
   #ifdef UINTPTR_MAX
-    #if (UINTPTR_MAX <= 0xFFFF)
+    #if (UINTPTR_MAX+0 <= 0xFFFF)
       #define UNITY_POINTER_WIDTH (16)
-    #elif (UINTPTR_MAX <= 0xFFFFFFFF)
+    #elif (UINTPTR_MAX+0 <= 0xFFFFFFFF)
       #define UNITY_POINTER_WIDTH (32)
-    #elif (UINTPTR_MAX <= 0xFFFFFFFFFFFFFFFF)
+    #elif (UINTPTR_MAX+0 <= 0xFFFFFFFFFFFFFFFF)
       #define UNITY_POINTER_WIDTH (64)
     #endif
   #endif
 #endif
 #ifndef UNITY_POINTER_WIDTH
   #ifdef INTPTR_MAX
-    #if (INTPTR_MAX <= 0x7FFF)
+    #if (INTPTR_MAX+0 <= 0x7FFF)
       #define UNITY_POINTER_WIDTH (16)
-    #elif (INTPTR_MAX <= 0x7FFFFFFF)
+    #elif (INTPTR_MAX+0 <= 0x7FFFFFFF)
       #define UNITY_POINTER_WIDTH (32)
-    #elif (INTPTR_MAX <= 0x7FFFFFFFFFFFFFFF)
+    #elif (INTPTR_MAX+0 <= 0x7FFFFFFFFFFFFFFF)
       #define UNITY_POINTER_WIDTH (64)
     #endif
   #endif

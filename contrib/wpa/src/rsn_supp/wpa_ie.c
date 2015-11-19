@@ -30,6 +30,9 @@ int wpa_parse_wpa_ie(const u8 *wpa_ie, size_t wpa_ie_len,
 {
 	if (wpa_ie_len >= 1 && wpa_ie[0] == WLAN_EID_RSN)
 		return wpa_parse_wpa_ie_rsn(wpa_ie, wpa_ie_len, data);
+	if (wpa_ie_len >= 6 && wpa_ie[0] == WLAN_EID_VENDOR_SPECIFIC &&
+	    wpa_ie[1] >= 4 && WPA_GET_BE32(&wpa_ie[2]) == OSEN_IE_VENDOR_TYPE)
+		return wpa_parse_wpa_ie_rsn(wpa_ie, wpa_ie_len, data);
 	else
 		return wpa_parse_wpa_ie_wpa(wpa_ie, wpa_ie_len, data);
 }
@@ -508,12 +511,14 @@ int wpa_supplicant_parse_ies(const u8 *buf, size_t len,
 			ie->rsn_ie_len = pos[1] + 2;
 			wpa_hexdump(MSG_DEBUG, "WPA: RSN IE in EAPOL-Key",
 				    ie->rsn_ie, ie->rsn_ie_len);
-		} else if (*pos == WLAN_EID_MOBILITY_DOMAIN) {
+		} else if (*pos == WLAN_EID_MOBILITY_DOMAIN &&
+			   pos[1] >= sizeof(struct rsn_mdie)) {
 			ie->mdie = pos;
 			ie->mdie_len = pos[1] + 2;
 			wpa_hexdump(MSG_DEBUG, "WPA: MDIE in EAPOL-Key",
 				    ie->mdie, ie->mdie_len);
-		} else if (*pos == WLAN_EID_FAST_BSS_TRANSITION) {
+		} else if (*pos == WLAN_EID_FAST_BSS_TRANSITION &&
+			   pos[1] >= sizeof(struct rsn_ftie)) {
 			ie->ftie = pos;
 			ie->ftie_len = pos[1] + 2;
 			wpa_hexdump(MSG_DEBUG, "WPA: FTIE in EAPOL-Key",
@@ -548,15 +553,16 @@ int wpa_supplicant_parse_ies(const u8 *buf, size_t len,
 		} else if (*pos == WLAN_EID_EXT_SUPP_RATES) {
 			ie->ext_supp_rates = pos;
 			ie->ext_supp_rates_len = pos[1] + 2;
-		} else if (*pos == WLAN_EID_HT_CAP) {
+		} else if (*pos == WLAN_EID_HT_CAP &&
+			   pos[1] >= sizeof(struct ieee80211_ht_capabilities)) {
 			ie->ht_capabilities = pos + 2;
-			ie->ht_capabilities_len = pos[1];
 		} else if (*pos == WLAN_EID_VHT_AID) {
 			if (pos[1] >= 2)
 				ie->aid = WPA_GET_LE16(pos + 2) & 0x3fff;
-		} else if (*pos == WLAN_EID_VHT_CAP) {
+		} else if (*pos == WLAN_EID_VHT_CAP &&
+			   pos[1] >= sizeof(struct ieee80211_vht_capabilities))
+		{
 			ie->vht_capabilities = pos + 2;
-			ie->vht_capabilities_len = pos[1];
 		} else if (*pos == WLAN_EID_QOS && pos[1] >= 1) {
 			ie->qosinfo = pos[2];
 		} else if (*pos == WLAN_EID_SUPPORTED_CHANNELS) {

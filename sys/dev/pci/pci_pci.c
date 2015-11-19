@@ -57,7 +57,7 @@ static int		pcib_resume(device_t dev);
 static int		pcib_power_for_sleep(device_t pcib, device_t dev,
 			    int *pstate);
 static uint16_t		pcib_ari_get_rid(device_t pcib, device_t dev);
-static uint32_t		pcib_read_config(device_t dev, u_int b, u_int s, 
+static uint32_t		pcib_read_config(device_t dev, u_int b, u_int s,
     u_int f, u_int reg, int width);
 static void		pcib_write_config(device_t dev, u_int b, u_int s,
     u_int f, u_int reg, uint32_t val, int width);
@@ -266,7 +266,7 @@ pcib_add_window_resources(struct pcib_window *w, struct resource **res,
 	free(w->res, M_DEVBUF);
 	w->res = newarray;
 	w->count += count;
-	
+
 	for (i = 0; i < count; i++) {
 		error = rman_manage_region(&w->rman, rman_get_start(res[i]),
 		    rman_get_end(res[i]));
@@ -783,7 +783,7 @@ pcib_get_mem_decode(struct pcib_softc *sc)
 		sc->pmembase = PCI_PPBMEMBASE(0, pmemlow);
 
 	pmemlow = pci_read_config(dev, PCIR_PMLIMITL_1, 2);
-	if ((pmemlow & PCIM_BRPM_MASK) == PCIM_BRPM_64)	
+	if ((pmemlow & PCIM_BRPM_MASK) == PCIM_BRPM_64)
 		sc->pmemlimit = PCI_PPBMEMLIMIT(
 		    pci_read_config(dev, PCIR_PMLIMITH_1, 4), pmemlow);
 	else
@@ -1126,7 +1126,7 @@ int
 pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
     struct pcib_softc	*sc = device_get_softc(dev);
-    
+
     switch (which) {
     case PCIB_IVAR_DOMAIN:
 	*result = sc->domain;
@@ -1243,9 +1243,9 @@ pcib_alloc_new_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 				return (0);
 			}
 		}
-		return (ENOSPC);		
+		return (ENOSPC);
 	}
-	
+
 	wmask = (1ul << w->step) - 1;
 	if (RF_ALIGNMENT(flags) < w->step) {
 		flags &= ~RF_ALIGNMENT_MASK;
@@ -1337,7 +1337,7 @@ pcib_expand_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 		KASSERT(w->base == rman_get_start(res),
 		    ("existing resource mismatch"));
 		force_64k_base = 0;
-	}	
+	}
 
 	error = bus_adjust_resource(sc->dev, type, res, force_64k_base ?
 	    rman_get_start(res) : base, limit);
@@ -1657,7 +1657,7 @@ pcib_release_resource(device_t dev, device_t child, int type, int rid,
  * is set up to, or capable of handling them.
  */
 struct resource *
-pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 
+pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
 	struct pcib_softc	*sc = device_get_softc(dev);
@@ -1928,7 +1928,7 @@ pcib_route_interrupt(device_t pcib, device_t dev, int pin)
     int		parent_intpin;
     int		intnum;
 
-    /*	
+    /*
      *
      * The PCI standard defines a swizzle of the child-side device/intpin to
      * the parent-side intpin as follows.
@@ -2116,4 +2116,3 @@ pcib_try_enable_ari(device_t pcib, device_t dev)
 
 	return (0);
 }
-

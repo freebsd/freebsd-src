@@ -481,6 +481,58 @@ out:
 	return (error);
 } /* ng_l2cap_qos_ind */
 
+int
+ng_l2cap_lp_enc_change(ng_l2cap_p l2cap, struct ng_mesg *msg)
+{
+	ng_hci_lp_enc_change_ep	*ep = NULL;
+	ng_l2cap_con_p		 con = NULL;
+	int			 error = 0;
+	ng_l2cap_chan_p 	 ch = NULL;
+	/* Check message */
+	if (msg->header.arglen != sizeof(*ep)) {
+		NG_L2CAP_ALERT(
+"%s: %s - invalid LP_ENCChange message size\n",
+			__func__, NG_NODE_NAME(l2cap->node));
+		error = EMSGSIZE;
+		goto out;
+	}
+
+	ep = (ng_hci_lp_enc_change_ep *) (msg->data);
+
+	/* Check if we have this connection */
+	con = ng_l2cap_con_by_handle(l2cap, ep->con_handle);
+	if (con == NULL) {
+		NG_L2CAP_ERR(
+"%s: %s - unexpected LP_Enc Change Event. " \
+"Connection does not exist, con_handle=%d\n",
+			__func__, NG_NODE_NAME(l2cap->node), ep->con_handle);
+		error = ENOENT;
+		goto out;
+	}
+
+	/* Verify connection state */
+	if (con->state != NG_L2CAP_CON_OPEN) {
+		NG_L2CAP_ERR(
+"%s: %s - unexpected ENC_CHANGE event. " \
+"Invalid connection state, state=%d, con_handle=%d\n",
+			__func__, NG_NODE_NAME(l2cap->node), con->state, 
+			con->con_handle);
+		error = EINVAL;
+		goto out;
+	}
+
+	con->encryption = ep->status;
+	
+	LIST_FOREACH(ch, &l2cap->chan_list, next){
+		if((ch->con->con_handle == ep->con_handle) &&
+		   (ch->con->linktype == ep->link_type))
+			ng_l2cap_l2ca_encryption_change(ch, ep->status);
+	}
+	
+out:
+	return (error);
+} /* ng_l2cap_enc_change */
+
 /*
  * Prepare L2CAP packet. Prepend packet with L2CAP packet header and then 
  * segment it according to HCI MTU.

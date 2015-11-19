@@ -70,7 +70,7 @@ options 	DDB			# Enable the kernel debugger
 #options 	BOOTP_NFSROOT
 #options 	BOOTP_COMPAT
 #options 	BOOTP_NFSV3
-#options 	BOOTP_WIRED_TO=ate0
+#options 	BOOTP_WIRED_TO=macb0
 
 options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s1a\"
 
@@ -87,7 +87,7 @@ device		bpf			# Berkeley packet filter
 
 # Ethernet
 device		mii			# Minimal MII support
-device		ate			# Atmel AT91 Ethernet driver
+device		macb			# Atmel AT91 Ethernet driver
 device		lxtphy
 
 # I2C

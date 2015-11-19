@@ -125,6 +125,9 @@ void ieee802_1x_set_sta_authorized(struct hostapd_data *hapd,
 }
 
 
+#ifndef CONFIG_FIPS
+#ifndef CONFIG_NO_RC4
+
 static void ieee802_1x_tx_key_one(struct hostapd_data *hapd,
 				  struct sta_info *sta,
 				  int idx, int broadcast,
@@ -204,7 +207,7 @@ static void ieee802_1x_tx_key_one(struct hostapd_data *hapd,
 }
 
 
-void ieee802_1x_tx_key(struct hostapd_data *hapd, struct sta_info *sta)
+static void ieee802_1x_tx_key(struct hostapd_data *hapd, struct sta_info *sta)
 {
 	struct eapol_authenticator *eapol = hapd->eapol_auth;
 	struct eapol_state_machine *sm = sta->eapol_sm;
@@ -258,6 +261,9 @@ void ieee802_1x_tx_key(struct hostapd_data *hapd, struct sta_info *sta)
 		os_free(ikey);
 	}
 }
+
+#endif /* CONFIG_NO_RC4 */
+#endif /* CONFIG_FIPS */
 
 
 const char *radius_mode_txt(struct hostapd_data *hapd)
@@ -346,7 +352,8 @@ static int add_common_radius_sta_attr_rsn(struct hostapd_data *hapd,
 		return -1;
 	}
 
-	suite = wpa_cipher_to_suite((hapd->conf->wpa & 0x2) ?
+	suite = wpa_cipher_to_suite(((hapd->conf->wpa & 0x2) ||
+				     hapd->conf->osen) ?
 				    WPA_PROTO_RSN : WPA_PROTO_WPA,
 				    hapd->conf->wpa_group);
 	if (!hostapd_config_get_radius_attr(req_attr,
@@ -453,7 +460,7 @@ static int add_common_radius_sta_attr(struct hostapd_data *hapd,
 	}
 #endif /* CONFIG_IEEE80211R */
 
-	if (hapd->conf->wpa && sta->wpa_sm &&
+	if ((hapd->conf->wpa || hapd->conf->osen) && sta->wpa_sm &&
 	    add_common_radius_sta_attr_rsn(hapd, req_attr, sta, msg) < 0)
 		return -1;
 
@@ -599,7 +606,7 @@ static void ieee802_1x_encapsulate_radius(struct hostapd_data *hapd,
 		goto fail;
 	}
 
-	if (eap && !radius_msg_add_eap(msg, eap, len)) {
+	if (!radius_msg_add_eap(msg, eap, len)) {
 		wpa_printf(MSG_INFO, "Could not add EAP-Message");
 		goto fail;
 	}
@@ -1108,8 +1115,6 @@ void ieee802_1x_new_station(struct hostapd_data *hapd, struct sta_info *sta)
 
 	pmksa = wpa_auth_sta_get_pmksa(sta->wpa_sm);
 	if (pmksa) {
-		int old_vlanid;
-
 		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE8021X,
 			       HOSTAPD_LEVEL_DEBUG,
 			       "PMK from PMKSA cache - skip IEEE 802.1X/EAP");
@@ -1123,11 +1128,8 @@ void ieee802_1x_new_station(struct hostapd_data *hapd, struct sta_info *sta)
 		sta->eapol_sm->authFail = FALSE;
 		if (sta->eapol_sm->eap)
 			eap_sm_notify_cached(sta->eapol_sm->eap);
-		old_vlanid = sta->vlan_id;
 		pmksa_cache_to_eapol_data(pmksa, sta->eapol_sm);
-		if (sta->ssid->dynamic_vlan == DYNAMIC_VLAN_DISABLED)
-			sta->vlan_id = 0;
-		ap_sta_bind_vlan(hapd, sta, old_vlanid);
+		ap_sta_bind_vlan(hapd, sta);
 	} else {
 		if (reassoc) {
 			/*
@@ -1290,7 +1292,7 @@ static void ieee802_1x_store_radius_class(struct hostapd_data *hapd,
 					  struct sta_info *sta,
 					  struct radius_msg *msg)
 {
-	u8 *class;
+	u8 *attr_class;
 	size_t class_len;
 	struct eapol_state_machine *sm = sta->eapol_sm;
 	int count, i;
@@ -1312,12 +1314,12 @@ static void ieee802_1x_store_radius_class(struct hostapd_data *hapd,
 
 	nclass_count = 0;
 
-	class = NULL;
+	attr_class = NULL;
 	for (i = 0; i < count; i++) {
 		do {
 			if (radius_msg_get_attr_ptr(msg, RADIUS_ATTR_CLASS,
-						    &class, &class_len,
-						    class) < 0) {
+						    &attr_class, &class_len,
+						    attr_class) < 0) {
 				i = count;
 				break;
 			}
@@ -1327,7 +1329,7 @@ static void ieee802_1x_store_radius_class(struct hostapd_data *hapd,
 		if (nclass[nclass_count].data == NULL)
 			break;
 
-		os_memcpy(nclass[nclass_count].data, class, class_len);
+		os_memcpy(nclass[nclass_count].data, attr_class, class_len);
 		nclass[nclass_count].len = class_len;
 		nclass_count++;
 	}
@@ -1590,7 +1592,7 @@ ieee802_1x_receive_auth(struct radius_msg *msg, struct radius_msg *req,
 	struct hostapd_data *hapd = data;
 	struct sta_info *sta;
 	u32 session_timeout = 0, termination_action, acct_interim_interval;
-	int session_timeout_set, old_vlanid = 0;
+	int session_timeout_set, vlan_id = 0;
 	struct eapol_state_machine *sm;
 	int override_eapReq = 0;
 	struct radius_hdr *hdr = radius_msg_get_hdr(msg);
@@ -1657,20 +1659,27 @@ ieee802_1x_receive_auth(struct radius_msg *msg, struct radius_msg *req,
 
 	switch (hdr->code) {
 	case RADIUS_CODE_ACCESS_ACCEPT:
-		if (sta->ssid->dynamic_vlan == DYNAMIC_VLAN_DISABLED)
-			sta->vlan_id = 0;
+		if (hapd->conf->ssid.dynamic_vlan == DYNAMIC_VLAN_DISABLED)
+			vlan_id = 0;
 #ifndef CONFIG_NO_VLAN
-		else {
-			old_vlanid = sta->vlan_id;
-			sta->vlan_id = radius_msg_get_vlanid(msg);
-		}
-		if (sta->vlan_id > 0 &&
-		    hostapd_vlan_id_valid(hapd->conf->vlan, sta->vlan_id)) {
+		else
+			vlan_id = radius_msg_get_vlanid(msg);
+		if (vlan_id > 0 &&
+		    hostapd_vlan_id_valid(hapd->conf->vlan, vlan_id)) {
 			hostapd_logger(hapd, sta->addr,
 				       HOSTAPD_MODULE_RADIUS,
 				       HOSTAPD_LEVEL_INFO,
-				       "VLAN ID %d", sta->vlan_id);
-		} else if (sta->ssid->dynamic_vlan == DYNAMIC_VLAN_REQUIRED) {
+				       "VLAN ID %d", vlan_id);
+		} else if (vlan_id > 0) {
+			sta->eapol_sm->authFail = TRUE;
+			hostapd_logger(hapd, sta->addr,
+				       HOSTAPD_MODULE_RADIUS,
+				       HOSTAPD_LEVEL_INFO,
+				       "Invalid VLAN ID %d received from RADIUS server",
+				       vlan_id);
+			break;
+		} else if (hapd->conf->ssid.dynamic_vlan ==
+			   DYNAMIC_VLAN_REQUIRED) {
 			sta->eapol_sm->authFail = TRUE;
 			hostapd_logger(hapd, sta->addr,
 				       HOSTAPD_MODULE_IEEE8021X,
@@ -1681,7 +1690,9 @@ ieee802_1x_receive_auth(struct radius_msg *msg, struct radius_msg *req,
 		}
 #endif /* CONFIG_NO_VLAN */
 
-		if (ap_sta_bind_vlan(hapd, sta, old_vlanid) < 0)
+		sta->vlan_id = vlan_id;
+		if ((sta->flags & WLAN_STA_ASSOC) &&
+		    ap_sta_bind_vlan(hapd, sta) < 0)
 			break;
 
 		sta->session_timeout_set = !!session_timeout_set;
@@ -1926,10 +1937,11 @@ static int ieee802_1x_get_eap_user(void *ctx, const u8 *identity,
 	struct hostapd_data *hapd = ctx;
 	const struct hostapd_eap_user *eap_user;
 	int i;
+	int rv = -1;
 
 	eap_user = hostapd_get_eap_user(hapd, identity, identity_len, phase2);
 	if (eap_user == NULL)
-		return -1;
+		goto out;
 
 	os_memset(user, 0, sizeof(*user));
 	user->phase2 = phase2;
@@ -1941,7 +1953,7 @@ static int ieee802_1x_get_eap_user(void *ctx, const u8 *identity,
 	if (eap_user->password) {
 		user->password = os_malloc(eap_user->password_len);
 		if (user->password == NULL)
-			return -1;
+			goto out;
 		os_memcpy(user->password, eap_user->password,
 			  eap_user->password_len);
 		user->password_len = eap_user->password_len;
@@ -1951,8 +1963,13 @@ static int ieee802_1x_get_eap_user(void *ctx, const u8 *identity,
 	user->macacl = eap_user->macacl;
 	user->ttls_auth = eap_user->ttls_auth;
 	user->remediation = eap_user->remediation;
+	rv = 0;
 
-	return 0;
+out:
+	if (rv)
+		wpa_printf(MSG_DEBUG, "%s: Failed to find user", __func__);
+
+	return rv;
 }
 
 
@@ -2012,9 +2029,13 @@ static void _ieee802_1x_abort_auth(void *ctx, void *sta_ctx)
 
 static void _ieee802_1x_tx_key(void *ctx, void *sta_ctx)
 {
+#ifndef CONFIG_FIPS
+#ifndef CONFIG_NO_RC4
 	struct hostapd_data *hapd = ctx;
 	struct sta_info *sta = sta_ctx;
 	ieee802_1x_tx_key(hapd, sta);
+#endif /* CONFIG_NO_RC4 */
+#endif /* CONFIG_FIPS */
 }
 
 
@@ -2085,6 +2106,7 @@ int ieee802_1x_init(struct hostapd_data *hapd)
 	conf.erp_send_reauth_start = hapd->conf->erp_send_reauth_start;
 	conf.erp_domain = hapd->conf->erp_domain;
 	conf.erp = hapd->conf->eap_server_erp;
+	conf.tls_session_lifetime = hapd->conf->tls_session_lifetime;
 	conf.pac_opaque_encr_key = hapd->conf->pac_opaque_encr_key;
 	conf.eap_fast_a_id = hapd->conf->eap_fast_a_id;
 	conf.eap_fast_a_id_len = hapd->conf->eap_fast_a_id_len;
@@ -2332,9 +2354,9 @@ void ieee802_1x_notify_pre_auth(struct eapol_state_machine *sm, int pre_auth)
 }
 
 
-static const char * bool_txt(Boolean bool)
+static const char * bool_txt(Boolean val)
 {
-	return bool ? "TRUE" : "FALSE";
+	return val ? "TRUE" : "FALSE";
 }
 
 

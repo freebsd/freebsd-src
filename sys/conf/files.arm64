@@ -53,6 +53,7 @@ arm64/arm64/vm_machdep.c	standard
 arm64/cavium/thunder_pcie.c	optional	soc_cavm_thunderx pci fdt
 arm64/cavium/thunder_pcie_pem.c	optional	soc_cavm_thunderx pci
 arm64/cavium/thunder_pcie_common.c	optional soc_cavm_thunderx pci
+arm64/cloudabi64/cloudabi64_sysvec.c	optional compat_cloudabi64
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/acpica/acpi_if.m		optional	acpi
@@ -68,17 +69,26 @@ dev/psci/psci_arm64.S		optional	psci
 dev/uart/uart_cpu_fdt.c		optional	uart fdt
 dev/uart/uart_dev_pl011.c	optional	uart pl011
 dev/usb/controller/dwc_otg_hisi.c optional	dwcotg soc_hisi_hi6220
+dev/vnic/nic_main.c		optional	vnic pci
+dev/vnic/nicvf_main.c		optional	vnic pci pci_iov
+dev/vnic/nicvf_queues.c		optional	vnic pci pci_iov
+dev/vnic/thunder_bgx_fdt.c	optional	vnic fdt
+dev/vnic/thunder_bgx.c		optional	vnic pci
+dev/vnic/thunder_mdio_fdt.c	optional	vnic fdt
+dev/vnic/thunder_mdio.c		optional	vnic
+dev/vnic/lmac_if.m		optional	vnic
 kern/kern_clocksource.c		standard
 kern/subr_dummy_vdso_tc.c	standard
 libkern/bcmp.c			standard
 libkern/ffs.c			standard
 libkern/ffsl.c			standard
+libkern/ffsll.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard
 libkern/memmove.c		standard
 libkern/memset.c		standard
-cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional zfs | dtrace compile-with "${CDDL_C}"
+cddl/contrib/opensolaris/common/atomic/aarch64/opensolaris_atomic.S	optional zfs | dtrace compile-with "${CDDL_C}"
 cddl/dev/dtrace/aarch64/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/aarch64/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/aarch64/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
