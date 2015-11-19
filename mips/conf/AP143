@@ -1,21 +1,26 @@
 #
-# DB120 - the AR9344 SoC reference design
+# AP143 - the AP143 reference board from Qualcomm Atheros includes:
+#
+# * AR9330 SoC
+# * 32MB RAM
+# * 4MB flash
+# * Integrated 1x1 2GHz wifi and 10/100 bridge
 #
 # $FreeBSD$
 #
 
-# Include the default AR934x parameters
-include         "AR934X_BASE"
-
 #NO_UNIVERSE
 
-ident           DB120
+# Include the default QCA953x parameters
+include         "QCA953X_BASE"
+
+ident           AP143
 
 # Override hints with board values
-hints           "DB120.hints"
+hints           "AP143.hints"
 
-# Force the board memory - the base DB120 has 128MB RAM
-options         AR71XX_REALMEM=(128*1024*1024)
+# Force the board memory - the base AP121 only has 16MB RAM
+options         AR71XX_REALMEM=(32*1024*1024)
 
 # i2c GPIO bus
 #device		gpioiic
@@ -43,12 +48,6 @@ options 	GEOM_UNCOMPRESS
 
 # Used for the static uboot partition map
 device          geom_map
-
-# yes, this board has a PCI connected atheros device
-device		ath_pci
-options 	AR71XX_ATH_EEPROM
-device		firmware		# Used by the above
-options 	ATH_EEPROM_FIRMWARE
 
 # Boot off of the rootfs, as defined in the geom_map setup.
 options 	ROOTDEVNAME=\"ufs:map/rootfs.uncompress\"

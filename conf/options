@@ -650,6 +650,7 @@ BKTR_NEW_MSP34XX_DRIVER		opt_bktr.h
 # Options for uart(4)
 UART_PPS_ON_CTS		opt_uart.h
 UART_POLL_FREQ		opt_uart.h
+UART_DEV_TOLERANCE_PCT	opt_uart.h
 
 # options for bus/device framework
 BUS_DEBUG		opt_bus.h

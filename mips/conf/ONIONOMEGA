@@ -1,21 +1,28 @@
 #
-# DB120 - the AR9344 SoC reference design
+# Onion Omega - an AR9330 based SoC
+#
+# https://onion.io/omega/
+#
+# * AR9330 SoC
+# * 64MB RAM
+# * 16MB flash
+# * Integrated 1x1 2GHz wifi and optional 10/100 ethernet
 #
 # $FreeBSD$
 #
 
-# Include the default AR934x parameters
-include         "AR934X_BASE"
-
 #NO_UNIVERSE
 
-ident           DB120
+# Include the default AR933x parameters
+include         "AR933X_BASE"
+
+ident           ONIONOMEGA
 
 # Override hints with board values
-hints           "DB120.hints"
+hints           "ONIONOMEGA.hints"
 
-# Force the board memory - the base DB120 has 128MB RAM
-options         AR71XX_REALMEM=(128*1024*1024)
+# Board memory - 64MB
+options         AR71XX_REALMEM=(64*1024*1024)
 
 # i2c GPIO bus
 #device		gpioiic
@@ -43,12 +50,6 @@ options 	GEOM_UNCOMPRESS
 
 # Used for the static uboot partition map
 device          geom_map
-
-# yes, this board has a PCI connected atheros device
-device		ath_pci
-options 	AR71XX_ATH_EEPROM
-device		firmware		# Used by the above
-options 	ATH_EEPROM_FIRMWARE
 
 # Boot off of the rootfs, as defined in the geom_map setup.
 options 	ROOTDEVNAME=\"ufs:map/rootfs.uncompress\"
