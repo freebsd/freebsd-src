@@ -57,12 +57,12 @@ will run on Domain 0 and the netfront driver will run on a guest domain.
 However, it is also possible to run
 .Nm
 on a guest domain.
-It may be bridged or routed to provide the netfront's
+It may be bridged or routed to provide the netfront
 domain access to other guest domains or to a physical network.
 .Pp
 In most respects, the
 .Nm
-device appears to the OS as an other Ethernet device.
+device appears to the OS as any other Ethernet device.
 It can be configured at runtime entirely with
 .Xr ifconfig 8 .
 In particular, it supports MAC changing, arbitrary MTU sizes, checksum
@@ -100,11 +100,8 @@ device driver first appeared in
 The
 .Nm
 driver was written by
-.An Alan Somers
-.Aq alans@spectralogic.com
-and
-.An John Suykerbuyk
-.Aq johns@spectralogic.com .
+.An Alan Somers Aq Mt asomers@FreeBSD.org
+and John Suykerbuyk.
 .Sh CAVEATS
 Packets sent through Xennet pass over shared memory, so the protocol includes
 no form of link-layer checksum or CRC.
