@@ -103,6 +103,9 @@ uint64_t ntb_db_read(struct ntb_softc *);
 void ntb_db_set_mask(struct ntb_softc *, uint64_t bits);
 void ntb_peer_db_set(struct ntb_softc *, uint64_t bits);
 
+#define XEON_SPAD_COUNT		16
+#define ATOM_SPAD_COUNT		16
+
 /* Hardware owns the low 16 bits of features. */
 #define NTB_BAR_SIZE_4K		(1 << 0)
 #define NTB_SDOORBELL_LOCKUP	(1 << 1)
