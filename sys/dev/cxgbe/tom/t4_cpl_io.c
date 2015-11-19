@@ -1656,11 +1656,8 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 				sbdrop_locked(sb, min(sbu, plen));
 				plen -= min(sbu, plen);
 			}
-			/* XXXNP: sowwakeup_locked causes a LOR. */
-			SOCKBUF_UNLOCK(sb);
-
-			if (__predict_true(plen > 0))
-				cxgbei_fw4_ack(toep, plen);
+			sowwakeup_locked(so);	/* unlocks so_snd */
+			rqdrop_locked(&toep->ulp_pdu_reclaimq, plen);
 		} else {
 			sbdrop_locked(sb, plen);
 			sowwakeup_locked(so);	/* unlocks so_snd */
