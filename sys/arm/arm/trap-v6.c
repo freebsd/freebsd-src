@@ -302,8 +302,8 @@ abort_handler(struct trapframe *tf, int prefetch)
 	if (usermode)
 		td->td_frame = tf;
 
-	CTR4(KTR_TRAP, "abort_handler: fsr %#x (idx %u) far %#x prefetch %u",
-	fsr, idx, far, prefetch);
+	CTR6(KTR_TRAP, "%s: fsr %#x (idx %u) far %#x prefetch %u usermode %d",
+	    __func__, fsr, idx, far, prefetch, usermode);
 
 	/*
 	 * Firstly, handle aborts that are not directly related to mapping.
