@@ -385,7 +385,11 @@ p_rtentry_sysctl(const char *name, struct rt_msghdr *rtm)
 			strlcpy(prettyname, "---", sizeof(prettyname));
 	}
 
-	xo_emit("{t:interface-name/%*.*s}", wid_if, wid_if, prettyname);
+	if (Wflag)
+		xo_emit("{t:interface-name/%*s}", wid_if, prettyname);
+	else
+		xo_emit("{t:interface-name/%*.*s}", wid_if, wid_if,
+		    prettyname);
 	if (rtm->rtm_rmx.rmx_expire) {
 		time_t expire_time;
 
