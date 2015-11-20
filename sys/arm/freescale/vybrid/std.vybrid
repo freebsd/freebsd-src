@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-makeoption	ARM_LITTLE_ENDIAN
-
 cpu		CPU_CORTEXA
 machine		arm armv6
 makeoptions	CONF_CFLAGS="-march=armv7a"
