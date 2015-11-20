@@ -822,12 +822,10 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		return (VM_PAGER_ERROR);
 
 		/*
-		 * if the blocksize is smaller than a page size, then use
-		 * special small filesystem code.  NFS sometimes has a small
-		 * blocksize, but it can handle large reads itself.
+		 * If the blocksize is smaller than a page size, then use
+		 * special small filesystem code.
 		 */
-	} else if ((PAGE_SIZE / bsize) > 1 &&
-	    (vp->v_mount->mnt_stat.f_type != nfs_mount_type)) {
+	} else if ((PAGE_SIZE / bsize) > 1) {
 		relpbuf(bp, freecnt);
 		vm_pager_free_nonreq(object, m, reqpage, count, FALSE);
 		PCPU_INC(cnt.v_vnodein);
