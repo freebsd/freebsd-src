@@ -892,7 +892,7 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 	vm_offset_t datavaddr, tempvaddr;
 	bus_size_t datacount1, datacount2;
 
-	if ((bpage = STAILQ_FIRST(&map->bpages)) == NULL)
+	if (map == NULL || (bpage = STAILQ_FIRST(&map->bpages)) == NULL)
 		return;
 
 	/*
