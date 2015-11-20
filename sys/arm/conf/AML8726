@@ -61,6 +61,8 @@ device		mmcsd			# mmc/sd flash cards
 # Boot device is 2nd slice on MMC/SD card
 options 	ROOTDEVNAME=\"ufs:mmcsd0s2\"
 
+device		pl310			# PL310 L2 cache controller
+
 # GPIO
 device		gpio
 device		gpioled
