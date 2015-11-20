@@ -151,6 +151,8 @@ _CPUCFLAGS = -mcpu=ultrasparc
 .  elif ${CPUTYPE} == "ultrasparc3"
 _CPUCFLAGS = -mcpu=ultrasparc3
 .  endif
+. elif ${MACHINE_CPUARCH} == "aarch64"
+_CPUCFLAGS = -mcpu=${CPUTYPE}
 . endif
 
 # Set up the list of CPU features based on the CPU type.  This is an
