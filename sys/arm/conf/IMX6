@@ -62,6 +62,8 @@ options 	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
 
 # Interrupt controller
 device		gic
+# Cache controller
+device		pl310			# PL310 L2 cache controller
 
 # Pseudo devices.
 device		loop			# Network loopback
