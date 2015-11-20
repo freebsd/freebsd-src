@@ -5475,7 +5475,8 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	oma = m->md.pat_mode;
 	m->md.pat_mode = ma;
 
-	CTR5(KTR_PMAP, "%s: page %p - 0x%08X oma: %d, ma: %d, phys: 0x%08X", __func__, m, VM_PAGE_TO_PHYS(m), oma, ma);
+	CTR5(KTR_PMAP, "%s: page %p - 0x%08X oma: %d, ma: %d", __func__, m,
+	    VM_PAGE_TO_PHYS(m), oma, ma);
 	if ((m->flags & PG_FICTITIOUS) != 0)
 		return;
 #if 0
