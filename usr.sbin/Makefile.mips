@@ -3,5 +3,5 @@
 SUBDIR+=	ofwdump
 # uathload broken for n32 and n64 due to toolchain issues, only build for o32
 .if ${MACHINE_ARCH} != "mips" && ${MACHINE_ARCH} != "mipsel"
-SUBDIR:=	${SUBDIR:Nuathload}
+SUBDIR.yes:=	${SUBDIR.yes:Nuathload}
 .endif
