@@ -161,10 +161,15 @@ NANO_SLICE_DATA=s4
 #######################################################################
 # Architecture to build.  Corresponds to TARGET_ARCH in a buildworld.
 # Unfortunately, there's no way to set TARGET at this time, and it
-# conflates the two, so architectures where TARGET != TARGET_ARCH do
-# not work.  This defaults to the arch of the current machine.
+# conflates the two, so architectures where TARGET != TARGET_ARCH and
+# TARGET can't be guessed from TARGET_ARCH do not work.  This defaults
+# to the arch of the current machine.
 
 NANO_ARCH=`uname -p`
+
+# CPUTYPE defaults to "" which is the default when CPUTYPE isn't
+# defined.
+NANO_CPUTYPE=""
 
 # Directory to populate /cfg from
 NANO_CFGDIR=""
@@ -235,7 +240,7 @@ build_world ( ) (
 	pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.bw"
 
 	cd ${NANO_SRC}
-	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} \
+	env TARGET_ARCH=${NANO_ARCH} TARGET_CPUTYPE=${NANO_CPUTYPE} ${NANO_PMAKE} \
 		SRCCONF=${SRCCONF} \
 		__MAKE_CONF=${NANO_MAKE_CONF_BUILD} buildworld \
 		> ${MAKEOBJDIRPREFIX}/_.bw 2>&1
@@ -256,9 +261,6 @@ build_kernel ( ) (
 	fi
 
 	cd ${NANO_SRC};
-	# unset these just in case to avoid compiler complaints
-	# when cross-building
-	unset TARGET_CPUTYPE
 	# Note: We intentionally build all modules, not only the ones in
 	# NANO_MODULES so the built world can be reused by multiple images.
 	eval "TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} buildkernel \
@@ -299,7 +301,7 @@ install_world ( ) (
 	pprint 3 "log: ${NANO_OBJ}/_.iw"
 
 	cd ${NANO_SRC}
-	env TARGET_ARCH=${NANO_ARCH} \
+	env TARGET_ARCH=${NANO_ARCH} TARGET_CPUTYPE=${NANO_CPUTYPE} \
 	${NANO_MAKE} SRCCONF=${SRCCONF} \
 		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} installworld \
 		DESTDIR=${NANO_WORLDDIR} \
@@ -313,7 +315,7 @@ install_etc ( ) (
 	pprint 3 "log: ${NANO_OBJ}/_.etc"
 
 	cd ${NANO_SRC}
-	env TARGET_ARCH=${NANO_ARCH} \
+	env TARGET_ARCH=${NANO_ARCH} TARGET_CPUTYPE=${NANO_CPUTYPE} \
 	${NANO_MAKE} SRCCONF=${SRCCONF} \
 		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} distribution \
 		DESTDIR=${NANO_WORLDDIR} \
@@ -344,7 +346,8 @@ install_kernel ( ) (
 	fi
 
 	cd ${NANO_SRC}
-	eval "TARGET_ARCH=${NANO_ARCH} ${NANO_MAKE} installkernel \
+	eval "TARGET_ARCH=${NANO_ARCH} TARGET_CPUTYPE=${NANO_CPUTYPE} \
+		${NANO_MAKE} installkernel \
 		DESTDIR='${NANO_WORLDDIR}' \
 		SRCCONF='${SRCCONF}' \
 		__MAKE_CONF='${NANO_MAKE_CONF_INSTALL}' \
@@ -358,7 +361,7 @@ native_xtools ( ) (
 	pprint 3 "log: ${NANO_OBJ}/_.native_xtools"
 
 	cd ${NANO_SRC}
-	env TARGET_ARCH=${NANO_ARCH} \
+	env TARGET_ARCH=${NANO_ARCH} TARGET_CPUTYPE=${NANO_CPUTYPE} \
 	${NANO_MAKE} SRCCONF=${SRCCONF} \
 		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} native-xtools \
 		DESTDIR=${NANO_WORLDDIR} \
