@@ -3,7 +3,7 @@
 
 PROG=	vmstat
 MAN=	vmstat.8
-LIBADD=	devstat kvm memstat util
+LIBADD=	devstat kvm memstat xo util
 
 WARNS?=	1
 
