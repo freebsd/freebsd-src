@@ -32,7 +32,7 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#include "e1000_api.h"
+#include "igb_api.h"
 
 /**
  *  e1000_init_mac_params - Initialize MAC function pointers
@@ -41,7 +41,7 @@
  *  This function initializes the function pointers for the MAC
  *  set of functions.  Called by drivers or by e1000_setup_init_funcs.
  **/
-s32 e1000_init_mac_params(struct e1000_hw *hw)
+s32 igb_init_mac_params(struct e1000_hw *hw)
 {
 	s32 ret_val = E1000_SUCCESS;
 
@@ -67,7 +67,7 @@ out:
  *  This function initializes the function pointers for the NVM
  *  set of functions.  Called by drivers or by e1000_setup_init_funcs.
  **/
-s32 e1000_init_nvm_params(struct e1000_hw *hw)
+s32 igb_init_nvm_params(struct e1000_hw *hw)
 {
 	s32 ret_val = E1000_SUCCESS;
 
@@ -93,7 +93,7 @@ out:
  *  This function initializes the function pointers for the PHY
  *  set of functions.  Called by drivers or by e1000_setup_init_funcs.
  **/
-s32 e1000_init_phy_params(struct e1000_hw *hw)
+s32 igb_init_phy_params(struct e1000_hw *hw)
 {
 	s32 ret_val = E1000_SUCCESS;
 
@@ -119,7 +119,7 @@ out:
  *  This function initializes the function pointers for the PHY
  *  set of functions.  Called by drivers or by e1000_setup_init_funcs.
  **/
-s32 e1000_init_mbx_params(struct e1000_hw *hw)
+s32 igb_init_mbx_params(struct e1000_hw *hw)
 {
 	s32 ret_val = E1000_SUCCESS;
 
@@ -147,7 +147,7 @@ out:
  *  MUST BE FIRST FUNCTION CALLED (explicitly or through
  *  e1000_setup_init_funcs()).
  **/
-s32 e1000_set_mac_type(struct e1000_hw *hw)
+s32 igb_set_mac_type(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	s32 ret_val = E1000_SUCCESS;
@@ -381,12 +381,12 @@ s32 e1000_set_mac_type(struct e1000_hw *hw)
  *  This function must be called by a driver in order to use the rest
  *  of the 'shared' code files. Called by drivers only.
  **/
-s32 e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device)
+s32 igb_setup_init_funcs(struct e1000_hw *hw, bool init_device)
 {
 	s32 ret_val;
 
 	/* Can't do much good without knowing the MAC type. */
-	ret_val = e1000_set_mac_type(hw);
+	ret_val = igb_set_mac_type(hw);
 	if (ret_val) {
 		DEBUGOUT("ERROR: MAC type could not be set properly.\n");
 		goto out;
@@ -402,10 +402,10 @@ s32 e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device)
 	 * Init function pointers to generic implementations. We do this first
 	 * allowing a driver module to override it afterward.
 	 */
-	e1000_init_mac_ops_generic(hw);
-	e1000_init_phy_ops_generic(hw);
-	e1000_init_nvm_ops_generic(hw);
-	e1000_init_mbx_ops_generic(hw);
+	igb_init_mac_ops_generic(hw);
+	igb_init_phy_ops_generic(hw);
+	igb_init_nvm_ops_generic(hw);
+	igb_init_mbx_ops_generic(hw);
 
 	/*
 	 * Set up the init function pointers. These are functions within the
@@ -413,49 +413,22 @@ s32 e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device)
 	 * the functions in that family.
 	 */
 	switch (hw->mac.type) {
-	case e1000_82542:
-		e1000_init_function_pointers_82542(hw);
+	case e1000_82575:
+	case e1000_82576:
+	case e1000_82580:
+	case e1000_i350:
+	case e1000_i354:
+		igb_init_function_pointers_82575(hw);
 		break;
-	case e1000_82543:
-	case e1000_82544:
-		e1000_init_function_pointers_82543(hw);
-		break;
-	case e1000_82540:
-	case e1000_82545:
-	case e1000_82545_rev_3:
-	case e1000_82546:
-	case e1000_82546_rev_3:
-		e1000_init_function_pointers_82540(hw);
-		break;
-	case e1000_82541:
-	case e1000_82541_rev_2:
-	case e1000_82547:
-	case e1000_82547_rev_2:
-		e1000_init_function_pointers_82541(hw);
-		break;
-	case e1000_82571:
-	case e1000_82572:
-	case e1000_82573:
-	case e1000_82574:
-	case e1000_82583:
-		e1000_init_function_pointers_82571(hw);
-		break;
-	case e1000_80003es2lan:
-		e1000_init_function_pointers_80003es2lan(hw);
-		break;
-	case e1000_ich8lan:
-	case e1000_ich9lan:
-	case e1000_ich10lan:
-	case e1000_pchlan:
-	case e1000_pch2lan:
-	case e1000_pch_lpt:
-		e1000_init_function_pointers_ich8lan(hw);
+	case e1000_i210:
+	case e1000_i211:
+		igb_init_function_pointers_i210(hw);
 		break;
 	case e1000_vfadapt:
-		e1000_init_function_pointers_vf(hw);
+		igb_init_function_pointers_vf(hw);
 		break;
 	case e1000_vfadapt_i350:
-		e1000_init_function_pointers_vf(hw);
+		igb_init_function_pointers_vf(hw);
 		break;
 	default:
 		DEBUGOUT("Hardware not supported\n");
@@ -468,19 +441,19 @@ s32 e1000_setup_init_funcs(struct e1000_hw *hw, bool init_device)
 	 * register reads/writes in some cases.
 	 */
 	if (!(ret_val) && init_device) {
-		ret_val = e1000_init_mac_params(hw);
+		ret_val = igb_init_mac_params(hw);
 		if (ret_val)
 			goto out;
 
-		ret_val = e1000_init_nvm_params(hw);
+		ret_val = igb_init_nvm_params(hw);
 		if (ret_val)
 			goto out;
 
-		ret_val = e1000_init_phy_params(hw);
+		ret_val = igb_init_phy_params(hw);
 		if (ret_val)
 			goto out;
 
-		ret_val = e1000_init_mbx_params(hw);
+		ret_val = igb_init_mbx_params(hw);
 		if (ret_val)
 			goto out;
 	}
@@ -497,7 +470,7 @@ out:
  *  adapter is attached and stores it in the hw structure. This is a
  *  function pointer entry point called by drivers.
  **/
-s32 e1000_get_bus_info(struct e1000_hw *hw)
+s32 igb_get_bus_info(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.get_bus_info)
 		return hw->mac.ops.get_bus_info(hw);
@@ -512,7 +485,7 @@ s32 e1000_get_bus_info(struct e1000_hw *hw)
  *  This clears the VLAN filter table on the adapter. This is a function
  *  pointer entry point called by drivers.
  **/
-void e1000_clear_vfta(struct e1000_hw *hw)
+void igb_clear_vfta(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.clear_vfta)
 		hw->mac.ops.clear_vfta(hw);
@@ -527,7 +500,7 @@ void e1000_clear_vfta(struct e1000_hw *hw)
  *  This writes a 32-bit value to a 32-bit offset in the VLAN filter
  *  table. This is a function pointer entry point called by drivers.
  **/
-void e1000_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
+void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
 {
 	if (hw->mac.ops.write_vfta)
 		hw->mac.ops.write_vfta(hw, offset, value);
@@ -542,7 +515,7 @@ void e1000_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
  *  Updates the Multicast Table Array.
  *  The caller must have a packed mc_addr_list of multicast addresses.
  **/
-void e1000_update_mc_addr_list(struct e1000_hw *hw, u8 *mc_addr_list,
+void igb_update_mc_addr_list(struct e1000_hw *hw, u8 *mc_addr_list,
 			       u32 mc_addr_count)
 {
 	if (hw->mac.ops.update_mc_addr_list)
@@ -558,9 +531,9 @@ void e1000_update_mc_addr_list(struct e1000_hw *hw, u8 *mc_addr_list,
  *  and all implementations are handled in the generic version of this
  *  function.
  **/
-s32 e1000_force_mac_fc(struct e1000_hw *hw)
+s32 igb_force_mac_fc(struct e1000_hw *hw)
 {
-	return e1000_force_mac_fc_generic(hw);
+	return igb_force_mac_fc_generic(hw);
 }
 
 /**
@@ -571,7 +544,7 @@ s32 e1000_force_mac_fc(struct e1000_hw *hw)
  *  results in the hw->mac structure. This is a function pointer entry
  *  point called by drivers.
  **/
-s32 e1000_check_for_link(struct e1000_hw *hw)
+s32 igb_check_for_link(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.check_for_link)
 		return hw->mac.ops.check_for_link(hw);
@@ -586,7 +559,7 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
  *  This checks if the adapter has manageability enabled.
  *  This is a function pointer entry point called by drivers.
  **/
-bool e1000_check_mng_mode(struct e1000_hw *hw)
+bool igb_check_mng_mode(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.check_mng_mode)
 		return hw->mac.ops.check_mng_mode(hw);
@@ -602,9 +575,9 @@ bool e1000_check_mng_mode(struct e1000_hw *hw)
  *
  *  Writes the DHCP information to the host interface.
  **/
-s32 e1000_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer, u16 length)
+s32 igb_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer, u16 length)
 {
-	return e1000_mng_write_dhcp_info_generic(hw, buffer, length);
+	return igb_mng_write_dhcp_info_generic(hw, buffer, length);
 }
 
 /**
@@ -614,7 +587,7 @@ s32 e1000_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer, u16 length)
  *  This resets the hardware into a known state. This is a function pointer
  *  entry point called by drivers.
  **/
-s32 e1000_reset_hw(struct e1000_hw *hw)
+s32 igb_reset_hw(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.reset_hw)
 		return hw->mac.ops.reset_hw(hw);
@@ -629,7 +602,7 @@ s32 e1000_reset_hw(struct e1000_hw *hw)
  *  This inits the hardware readying it for operation. This is a function
  *  pointer entry point called by drivers.
  **/
-s32 e1000_init_hw(struct e1000_hw *hw)
+s32 igb_init_hw(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.init_hw)
 		return hw->mac.ops.init_hw(hw);
@@ -645,7 +618,7 @@ s32 e1000_init_hw(struct e1000_hw *hw)
  *  is a function pointer entry point called by drivers. While modules can
  *  also call this, they probably call their own version of this function.
  **/
-s32 e1000_setup_link(struct e1000_hw *hw)
+s32 igb_setup_link(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.setup_link)
 		return hw->mac.ops.setup_link(hw);
@@ -663,7 +636,7 @@ s32 e1000_setup_link(struct e1000_hw *hw)
  *  variables passed in. This is a function pointer entry point called
  *  by drivers.
  **/
-s32 e1000_get_speed_and_duplex(struct e1000_hw *hw, u16 *speed, u16 *duplex)
+s32 igb_get_speed_and_duplex(struct e1000_hw *hw, u16 *speed, u16 *duplex)
 {
 	if (hw->mac.ops.get_link_up_info)
 		return hw->mac.ops.get_link_up_info(hw, speed, duplex);
@@ -679,7 +652,7 @@ s32 e1000_get_speed_and_duplex(struct e1000_hw *hw, u16 *speed, u16 *duplex)
  *  of the LED so it can be later restored. This is a function pointer entry
  *  point called by drivers.
  **/
-s32 e1000_setup_led(struct e1000_hw *hw)
+s32 igb_setup_led(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.setup_led)
 		return hw->mac.ops.setup_led(hw);
@@ -694,7 +667,7 @@ s32 e1000_setup_led(struct e1000_hw *hw)
  *  This restores the SW controllable LED to the value saved off by
  *  e1000_setup_led. This is a function pointer entry point called by drivers.
  **/
-s32 e1000_cleanup_led(struct e1000_hw *hw)
+s32 igb_cleanup_led(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.cleanup_led)
 		return hw->mac.ops.cleanup_led(hw);
@@ -710,7 +683,7 @@ s32 e1000_cleanup_led(struct e1000_hw *hw)
  *  and cleaned up after. This is a function pointer entry point called by
  *  drivers.
  **/
-s32 e1000_blink_led(struct e1000_hw *hw)
+s32 igb_blink_led(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.blink_led)
 		return hw->mac.ops.blink_led(hw);
@@ -725,7 +698,7 @@ s32 e1000_blink_led(struct e1000_hw *hw)
  *  Initializes the LED config in SW. This is a function pointer entry point
  *  called by drivers.
  **/
-s32 e1000_id_led_init(struct e1000_hw *hw)
+s32 igb_id_led_init(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.id_led_init)
 		return hw->mac.ops.id_led_init(hw);
@@ -740,7 +713,7 @@ s32 e1000_id_led_init(struct e1000_hw *hw)
  *  Turns the SW defined LED on. This is a function pointer entry point
  *  called by drivers.
  **/
-s32 e1000_led_on(struct e1000_hw *hw)
+s32 igb_led_on(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.led_on)
 		return hw->mac.ops.led_on(hw);
@@ -755,7 +728,7 @@ s32 e1000_led_on(struct e1000_hw *hw)
  *  Turns the SW defined LED off. This is a function pointer entry point
  *  called by drivers.
  **/
-s32 e1000_led_off(struct e1000_hw *hw)
+s32 igb_led_off(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.led_off)
 		return hw->mac.ops.led_off(hw);
@@ -770,9 +743,9 @@ s32 e1000_led_off(struct e1000_hw *hw)
  *  Resets the adaptive IFS. Currently no func pointer exists and all
  *  implementations are handled in the generic version of this function.
  **/
-void e1000_reset_adaptive(struct e1000_hw *hw)
+void igb_reset_adaptive(struct e1000_hw *hw)
 {
-	e1000_reset_adaptive_generic(hw);
+	igb_reset_adaptive_generic(hw);
 }
 
 /**
@@ -782,9 +755,9 @@ void e1000_reset_adaptive(struct e1000_hw *hw)
  *  Updates adapter IFS. Currently no func pointer exists and all
  *  implementations are handled in the generic version of this function.
  **/
-void e1000_update_adaptive(struct e1000_hw *hw)
+void igb_update_adaptive(struct e1000_hw *hw)
 {
-	e1000_update_adaptive_generic(hw);
+	igb_update_adaptive_generic(hw);
 }
 
 /**
@@ -795,9 +768,9 @@ void e1000_update_adaptive(struct e1000_hw *hw)
  *  requests. Currently no func pointer exists and all implementations are
  *  handled in the generic version of this function.
  **/
-s32 e1000_disable_pcie_master(struct e1000_hw *hw)
+s32 igb_disable_pcie_master(struct e1000_hw *hw)
 {
-	return e1000_disable_pcie_master_generic(hw);
+	return igb_disable_pcie_master_generic(hw);
 }
 
 /**
@@ -807,7 +780,7 @@ s32 e1000_disable_pcie_master(struct e1000_hw *hw)
  *  Configures the collision distance to the default value and is used
  *  during link setup.
  **/
-void e1000_config_collision_dist(struct e1000_hw *hw)
+void igb_config_collision_dist(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.config_collision_dist)
 		hw->mac.ops.config_collision_dist(hw);
@@ -821,7 +794,7 @@ void e1000_config_collision_dist(struct e1000_hw *hw)
  *
  *  Sets a Receive Address Register (RAR) to the specified address.
  **/
-int e1000_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
+int igb_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 {
 	if (hw->mac.ops.rar_set)
 		return hw->mac.ops.rar_set(hw, addr, index);
@@ -835,7 +808,7 @@ int e1000_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
  *
  *  Ensures that the MDI/MDIX SW state is valid.
  **/
-s32 e1000_validate_mdi_setting(struct e1000_hw *hw)
+s32 igb_validate_mdi_setting(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.validate_mdi_setting)
 		return hw->mac.ops.validate_mdi_setting(hw);
@@ -852,9 +825,9 @@ s32 e1000_validate_mdi_setting(struct e1000_hw *hw)
  *  table. Currently no func pointer exists and all implementations
  *  are handled in the generic version of this function.
  **/
-u32 e1000_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
+u32 igb_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
 {
-	return e1000_hash_mc_addr_generic(hw, mc_addr);
+	return igb_hash_mc_addr_generic(hw, mc_addr);
 }
 
 /**
@@ -866,9 +839,9 @@ u32 e1000_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
  *  Currently no func pointer exists and all implementations are handled in the
  *  generic version of this function.
  **/
-bool e1000_enable_tx_pkt_filtering(struct e1000_hw *hw)
+bool igb_enable_tx_pkt_filtering(struct e1000_hw *hw)
 {
-	return e1000_enable_tx_pkt_filtering_generic(hw);
+	return igb_enable_tx_pkt_filtering_generic(hw);
 }
 
 /**
@@ -883,10 +856,10 @@ bool e1000_enable_tx_pkt_filtering(struct e1000_hw *hw)
  *  It also does alignment considerations to do the writes in most efficient
  *  way.  Also fills up the sum of the buffer in *buffer parameter.
  **/
-s32 e1000_mng_host_if_write(struct e1000_hw *hw, u8 *buffer, u16 length,
+s32 igb_mng_host_if_write(struct e1000_hw *hw, u8 *buffer, u16 length,
 			    u16 offset, u8 *sum)
 {
-	return e1000_mng_host_if_write_generic(hw, buffer, length, offset, sum);
+	return igb_mng_host_if_write_generic(hw, buffer, length, offset, sum);
 }
 
 /**
@@ -896,10 +869,10 @@ s32 e1000_mng_host_if_write(struct e1000_hw *hw, u8 *buffer, u16 length,
  *
  *  Writes the command header after does the checksum calculation.
  **/
-s32 e1000_mng_write_cmd_header(struct e1000_hw *hw,
+s32 igb_mng_write_cmd_header(struct e1000_hw *hw,
 			       struct e1000_host_mng_command_header *hdr)
 {
-	return e1000_mng_write_cmd_header_generic(hw, hdr);
+	return igb_mng_write_cmd_header_generic(hw, hdr);
 }
 
 /**
@@ -912,9 +885,9 @@ s32 e1000_mng_write_cmd_header(struct e1000_hw *hw,
  *  and also checks whether the previous command is completed.  It busy waits
  *  in case of previous command is not completed.
  **/
-s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
+s32 igb_mng_enable_host_if(struct e1000_hw *hw)
 {
-	return e1000_mng_enable_host_if_generic(hw);
+	return igb_mng_enable_host_if_generic(hw);
 }
 
 /**
@@ -924,7 +897,7 @@ s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
  *
  *  Set the OBFF timer based on the given interrupt rate.
  **/
-s32 e1000_set_obff_timer(struct e1000_hw *hw, u32 itr)
+s32 igb_set_obff_timer(struct e1000_hw *hw, u32 itr)
 {
 	if (hw->mac.ops.set_obff_timer)
 		return hw->mac.ops.set_obff_timer(hw, itr);
@@ -939,7 +912,7 @@ s32 e1000_set_obff_timer(struct e1000_hw *hw, u32 itr)
  *  Checks if the PHY is in a state that can be reset or if manageability
  *  has it tied up. This is a function pointer entry point called by drivers.
  **/
-s32 e1000_check_reset_block(struct e1000_hw *hw)
+s32 igb_check_reset_block(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.check_reset_block)
 		return hw->phy.ops.check_reset_block(hw);
@@ -956,7 +929,7 @@ s32 e1000_check_reset_block(struct e1000_hw *hw)
  *  Reads the PHY register and returns the value in data.
  *  This is a function pointer entry point called by drivers.
  **/
-s32 e1000_read_phy_reg(struct e1000_hw *hw, u32 offset, u16 *data)
+s32 igb_read_phy_reg(struct e1000_hw *hw, u32 offset, u16 *data)
 {
 	if (hw->phy.ops.read_reg)
 		return hw->phy.ops.read_reg(hw, offset, data);
@@ -973,7 +946,7 @@ s32 e1000_read_phy_reg(struct e1000_hw *hw, u32 offset, u16 *data)
  *  Writes the PHY register at offset with the value in data.
  *  This is a function pointer entry point called by drivers.
  **/
-s32 e1000_write_phy_reg(struct e1000_hw *hw, u32 offset, u16 data)
+s32 igb_write_phy_reg(struct e1000_hw *hw, u32 offset, u16 data)
 {
 	if (hw->phy.ops.write_reg)
 		return hw->phy.ops.write_reg(hw, offset, data);
@@ -988,7 +961,7 @@ s32 e1000_write_phy_reg(struct e1000_hw *hw, u32 offset, u16 data)
  *  Return if silicon family does not require a semaphore when accessing the
  *  PHY.
  **/
-void e1000_release_phy(struct e1000_hw *hw)
+void igb_release_phy(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.release)
 		hw->phy.ops.release(hw);
@@ -1001,7 +974,7 @@ void e1000_release_phy(struct e1000_hw *hw)
  *  Return success if silicon family does not require a semaphore when
  *  accessing the PHY.
  **/
-s32 e1000_acquire_phy(struct e1000_hw *hw)
+s32 igb_acquire_phy(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.acquire)
 		return hw->phy.ops.acquire(hw);
@@ -1013,7 +986,7 @@ s32 e1000_acquire_phy(struct e1000_hw *hw)
  *  e1000_cfg_on_link_up - Configure PHY upon link up
  *  @hw: pointer to the HW structure
  **/
-s32 e1000_cfg_on_link_up(struct e1000_hw *hw)
+s32 igb_cfg_on_link_up(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.cfg_on_link_up)
 		return hw->phy.ops.cfg_on_link_up(hw);
@@ -1031,9 +1004,9 @@ s32 e1000_cfg_on_link_up(struct e1000_hw *hw)
  *  exists and all implementations are handled in the generic version of
  *  this function.
  **/
-s32 e1000_read_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 *data)
+s32 igb_read_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 *data)
 {
-	return e1000_read_kmrn_reg_generic(hw, offset, data);
+	return igb_read_kmrn_reg_generic(hw, offset, data);
 }
 
 /**
@@ -1046,9 +1019,9 @@ s32 e1000_read_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 *data)
  *  exists and all implementations are handled in the generic version of
  *  this function.
  **/
-s32 e1000_write_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 data)
+s32 igb_write_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 data)
 {
-	return e1000_write_kmrn_reg_generic(hw, offset, data);
+	return igb_write_kmrn_reg_generic(hw, offset, data);
 }
 
 /**
@@ -1059,7 +1032,7 @@ s32 e1000_write_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 data)
  *  hw->phy.min_length and hw->phy.max_length. This is a function pointer
  *  entry point called by drivers.
  **/
-s32 e1000_get_cable_length(struct e1000_hw *hw)
+s32 igb_get_cable_length(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.get_cable_length)
 		return hw->phy.ops.get_cable_length(hw);
@@ -1075,7 +1048,7 @@ s32 e1000_get_cable_length(struct e1000_hw *hw)
  *  populates hw->phy values with it. This is a function pointer entry
  *  point called by drivers.
  **/
-s32 e1000_get_phy_info(struct e1000_hw *hw)
+s32 igb_get_phy_info(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.get_info)
 		return hw->phy.ops.get_info(hw);
@@ -1090,7 +1063,7 @@ s32 e1000_get_phy_info(struct e1000_hw *hw)
  *  Performs a hard PHY reset. This is a function pointer entry point called
  *  by drivers.
  **/
-s32 e1000_phy_hw_reset(struct e1000_hw *hw)
+s32 igb_phy_hw_reset(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.reset)
 		return hw->phy.ops.reset(hw);
@@ -1105,7 +1078,7 @@ s32 e1000_phy_hw_reset(struct e1000_hw *hw)
  *  Performs a soft PHY reset on those that apply. This is a function pointer
  *  entry point called by drivers.
  **/
-s32 e1000_phy_commit(struct e1000_hw *hw)
+s32 igb_phy_commit(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.commit)
 		return hw->phy.ops.commit(hw);
@@ -1127,7 +1100,7 @@ s32 e1000_phy_commit(struct e1000_hw *hw)
  *  During driver activity, SmartSpeed should be enabled so performance is
  *  maintained.  This is a function pointer entry point called by drivers.
  **/
-s32 e1000_set_d0_lplu_state(struct e1000_hw *hw, bool active)
+s32 igb_set_d0_lplu_state(struct e1000_hw *hw, bool active)
 {
 	if (hw->phy.ops.set_d0_lplu_state)
 		return hw->phy.ops.set_d0_lplu_state(hw, active);
@@ -1149,7 +1122,7 @@ s32 e1000_set_d0_lplu_state(struct e1000_hw *hw, bool active)
  *  During driver activity, SmartSpeed should be enabled so performance is
  *  maintained.  This is a function pointer entry point called by drivers.
  **/
-s32 e1000_set_d3_lplu_state(struct e1000_hw *hw, bool active)
+s32 igb_set_d3_lplu_state(struct e1000_hw *hw, bool active)
 {
 	if (hw->phy.ops.set_d3_lplu_state)
 		return hw->phy.ops.set_d3_lplu_state(hw, active);
@@ -1165,12 +1138,12 @@ s32 e1000_set_d3_lplu_state(struct e1000_hw *hw, bool active)
  *  Currently no func pointer exists and all implementations are handled in the
  *  generic version of this function.
  **/
-s32 e1000_read_mac_addr(struct e1000_hw *hw)
+s32 igb_read_mac_addr(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.read_mac_addr)
 		return hw->mac.ops.read_mac_addr(hw);
 
-	return e1000_read_mac_addr_generic(hw);
+	return igb_read_mac_addr_generic(hw);
 }
 
 /**
@@ -1184,9 +1157,9 @@ s32 e1000_read_mac_addr(struct e1000_hw *hw)
  *  Currently no func pointer exists and all implementations are handled in the
  *  generic version of this function.
  **/
-s32 e1000_read_pba_string(struct e1000_hw *hw, u8 *pba_num, u32 pba_num_size)
+s32 igb_read_pba_string(struct e1000_hw *hw, u8 *pba_num, u32 pba_num_size)
 {
-	return e1000_read_pba_string_generic(hw, pba_num, pba_num_size);
+	return igb_read_pba_string_generic(hw, pba_num, pba_num_size);
 }
 
 /**
@@ -1199,9 +1172,9 @@ s32 e1000_read_pba_string(struct e1000_hw *hw, u8 *pba_num, u32 pba_num_size)
  *  Currently no func pointer exists and all implementations are handled in the
  *  generic version of this function.
  **/
-s32 e1000_read_pba_length(struct e1000_hw *hw, u32 *pba_num_size)
+s32 igb_read_pba_length(struct e1000_hw *hw, u32 *pba_num_size)
 {
-	return e1000_read_pba_length_generic(hw, pba_num_size);
+	return igb_read_pba_length_generic(hw, pba_num_size);
 }
 
 /**
@@ -1211,7 +1184,7 @@ s32 e1000_read_pba_length(struct e1000_hw *hw, u32 *pba_num_size)
  *  Validates the NVM checksum is correct. This is a function pointer entry
  *  point called by drivers.
  **/
-s32 e1000_validate_nvm_checksum(struct e1000_hw *hw)
+s32 igb_validate_nvm_checksum(struct e1000_hw *hw)
 {
 	if (hw->nvm.ops.validate)
 		return hw->nvm.ops.validate(hw);
@@ -1226,7 +1199,7 @@ s32 e1000_validate_nvm_checksum(struct e1000_hw *hw)
  *  Updates the NVM checksum. Currently no func pointer exists and all
  *  implementations are handled in the generic version of this function.
  **/
-s32 e1000_update_nvm_checksum(struct e1000_hw *hw)
+s32 igb_update_nvm_checksum(struct e1000_hw *hw)
 {
 	if (hw->nvm.ops.update)
 		return hw->nvm.ops.update(hw);
@@ -1241,7 +1214,7 @@ s32 e1000_update_nvm_checksum(struct e1000_hw *hw)
  *  Reloads the EEPROM by setting the "Reinitialize from EEPROM" bit in the
  *  extended control register.
  **/
-void e1000_reload_nvm(struct e1000_hw *hw)
+void igb_reload_nvm(struct e1000_hw *hw)
 {
 	if (hw->nvm.ops.reload)
 		hw->nvm.ops.reload(hw);
@@ -1257,7 +1230,7 @@ void e1000_reload_nvm(struct e1000_hw *hw)
  *  Reads 16-bit chunks of data from the NVM (EEPROM). This is a function
  *  pointer entry point called by drivers.
  **/
-s32 e1000_read_nvm(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
+s32 igb_read_nvm(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 {
 	if (hw->nvm.ops.read)
 		return hw->nvm.ops.read(hw, offset, words, data);
@@ -1275,7 +1248,7 @@ s32 e1000_read_nvm(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
  *  Writes 16-bit chunks of data to the NVM (EEPROM). This is a function
  *  pointer entry point called by drivers.
  **/
-s32 e1000_write_nvm(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
+s32 igb_write_nvm(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 {
 	if (hw->nvm.ops.write)
 		return hw->nvm.ops.write(hw, offset, words, data);
@@ -1293,10 +1266,10 @@ s32 e1000_write_nvm(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
  *  Writes the PHY register at offset with the value in data.
  *  This is a function pointer entry point called by drivers.
  **/
-s32 e1000_write_8bit_ctrl_reg(struct e1000_hw *hw, u32 reg, u32 offset,
+s32 igb_write_8bit_ctrl_reg(struct e1000_hw *hw, u32 reg, u32 offset,
 			      u8 data)
 {
-	return e1000_write_8bit_ctrl_reg_generic(hw, reg, offset, data);
+	return igb_write_8bit_ctrl_reg_generic(hw, reg, offset, data);
 }
 
 /**
@@ -1306,12 +1279,12 @@ s32 e1000_write_8bit_ctrl_reg(struct e1000_hw *hw, u32 reg, u32 offset,
  * The phy may be powered down to save power, to turn off link when the
  * driver is unloaded, or wake on lan is not enabled (among others).
  **/
-void e1000_power_up_phy(struct e1000_hw *hw)
+void igb_power_up_phy(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.power_up)
 		hw->phy.ops.power_up(hw);
 
-	e1000_setup_link(hw);
+	igb_setup_link(hw);
 }
 
 /**
@@ -1321,7 +1294,7 @@ void e1000_power_up_phy(struct e1000_hw *hw)
  * The phy may be powered down to save power, to turn off link when the
  * driver is unloaded, or wake on lan is not enabled (among others).
  **/
-void e1000_power_down_phy(struct e1000_hw *hw)
+void igb_power_down_phy(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.power_down)
 		hw->phy.ops.power_down(hw);
@@ -1333,7 +1306,7 @@ void e1000_power_down_phy(struct e1000_hw *hw)
  *
  *  Power on the optics and PCS.
  **/
-void e1000_power_up_fiber_serdes_link(struct e1000_hw *hw)
+void igb_power_up_fiber_serdes_link(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.power_up_serdes)
 		hw->mac.ops.power_up_serdes(hw);
@@ -1345,7 +1318,7 @@ void e1000_power_up_fiber_serdes_link(struct e1000_hw *hw)
  *
  *  Shutdown the optics and PCS on driver unload.
  **/
-void e1000_shutdown_fiber_serdes_link(struct e1000_hw *hw)
+void igb_shutdown_fiber_serdes_link(struct e1000_hw *hw)
 {
 	if (hw->mac.ops.shutdown_serdes)
 		hw->mac.ops.shutdown_serdes(hw);

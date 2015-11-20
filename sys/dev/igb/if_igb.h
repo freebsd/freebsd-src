@@ -88,8 +88,8 @@
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
-#include "e1000_api.h"
-#include "e1000_82575.h"
+#include "igb_api.h"
+#include "igb_82575.h"
 
 /* Tunables */
 /*

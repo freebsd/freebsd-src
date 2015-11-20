@@ -445,13 +445,13 @@ igb_attach(device_t dev)
 	}
 
 	/* Do Shared Code initialization */
-	if (e1000_setup_init_funcs(&adapter->hw, TRUE)) {
+	if (igb_setup_init_funcs(&adapter->hw, TRUE)) {
 		device_printf(dev, "Setup of Shared code failed\n");
 		error = ENXIO;
 		goto err_pci;
 	}
 
-	e1000_get_bus_info(&adapter->hw);
+	igb_get_bus_info(&adapter->hw);
 
 	/* Sysctl for limiting the amount of work done in the taskqueue */
 	igb_set_sysctl_value(adapter, "rx_processing_limit",
@@ -541,9 +541,9 @@ igb_attach(device_t dev)
 		    "Disable Energy Efficient Ethernet");
 		if (adapter->hw.phy.media_type == e1000_media_type_copper) {
 			if (adapter->hw.mac.type == e1000_i354)
-				e1000_set_eee_i354(&adapter->hw);
+				igb_set_eee_i354(&adapter->hw);
 			else
-				e1000_set_eee_i350(&adapter->hw);
+				igb_set_eee_i350(&adapter->hw);
 		}
 	}
 
@@ -552,18 +552,18 @@ igb_attach(device_t dev)
 	** important in reading the nvm and
 	** mac from that.
 	*/
-	e1000_reset_hw(&adapter->hw);
+	igb_reset_hw(&adapter->hw);
 
 	/* Make sure we have a good EEPROM before we read from it */
 	if (((adapter->hw.mac.type != e1000_i210) &&
 	    (adapter->hw.mac.type != e1000_i211)) &&
-	    (e1000_validate_nvm_checksum(&adapter->hw) < 0)) {
+	    (igb_validate_nvm_checksum(&adapter->hw) < 0)) {
 		/*
 		** Some PCI-E parts fail the first check due to
 		** the link being in sleep state, call it again,
 		** if it fails a second time its a real issue.
 		*/
-		if (e1000_validate_nvm_checksum(&adapter->hw) < 0) {
+		if (igb_validate_nvm_checksum(&adapter->hw) < 0) {
 			device_printf(dev,
 			    "The EEPROM Checksum Is Not Valid\n");
 			error = EIO;
@@ -574,7 +574,7 @@ igb_attach(device_t dev)
 	/*
 	** Copy the permanent MAC address out of the EEPROM
 	*/
-	if (e1000_read_mac_addr(&adapter->hw) < 0) {
+	if (igb_read_mac_addr(&adapter->hw) < 0) {
 		device_printf(dev, "EEPROM read error while reading MAC"
 		    " address\n");
 		error = EIO;
@@ -601,12 +601,12 @@ igb_attach(device_t dev)
 	igb_update_link_status(adapter);
 
 	/* Indicate SOL/IDER usage */
-	if (e1000_check_reset_block(&adapter->hw))
+	if (igb_check_reset_block(&adapter->hw))
 		device_printf(dev,
 		    "PHY reset is blocked due to SOL/IDER session.\n");
 
 	/* Determine if we have to control management hardware */
-	adapter->has_manage = e1000_enable_mng_pass_thru(&adapter->hw);
+	adapter->has_manage = igb_enable_mng_pass_thru(&adapter->hw);
 
 	/*
 	 * Setup Wake-on-Lan
@@ -702,7 +702,7 @@ igb_detach(device_t dev)
 	igb_stop(adapter);
 	IGB_CORE_UNLOCK(adapter);
 
-	e1000_phy_hw_reset(&adapter->hw);
+	igb_phy_hw_reset(&adapter->hw);
 
 	/* Give control back to firmware */
 	igb_release_manageability(adapter);
@@ -1135,7 +1135,7 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFMEDIA:
 		/* Check SOL/IDER usage */
 		IGB_CORE_LOCK(adapter);
-		if (e1000_check_reset_block(&adapter->hw)) {
+		if (igb_check_reset_block(&adapter->hw)) {
 			IGB_CORE_UNLOCK(adapter);
 			device_printf(adapter->dev, "Media change is"
 			    " blocked due to SOL/IDER session.\n");
@@ -1246,7 +1246,7 @@ igb_init_locked(struct adapter *adapter)
               ETHER_ADDR_LEN);
 
 	/* Put the address into the Receive Address Array */
-	e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
+	igb_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
 
 	igb_reset(adapter);
 	igb_update_link_status(adapter);
@@ -1294,7 +1294,7 @@ igb_init_locked(struct adapter *adapter)
 		return;
 	}
 	igb_initialize_receive_units(adapter);
-	e1000_rx_fifo_flush_82575(&adapter->hw);
+	igb_rx_fifo_flush_82575(&adapter->hw);
 
         /* Enable VLAN support */
 	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
@@ -1307,7 +1307,7 @@ igb_init_locked(struct adapter *adapter)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	callout_reset(&adapter->timer, hz, igb_local_timer, adapter);
-	e1000_clear_hw_cntrs_base_generic(&adapter->hw);
+	igb_clear_hw_cntrs_base_generic(&adapter->hw);
 
 	if (adapter->msix > 1) /* Set up queue routing */
 		igb_configure_queues(adapter);
@@ -1331,9 +1331,9 @@ igb_init_locked(struct adapter *adapter)
 	/* Set Energy Efficient Ethernet */
 	if (adapter->hw.phy.media_type == e1000_media_type_copper) {
 		if (adapter->hw.mac.type == e1000_i354)
-			e1000_set_eee_i354(&adapter->hw);
+			igb_set_eee_i354(&adapter->hw);
 		else
-			e1000_set_eee_i350(&adapter->hw);
+			igb_set_eee_i350(&adapter->hw);
 	}
 }
 
@@ -1925,7 +1925,7 @@ igb_set_promisc(struct adapter *adapter)
 	u32		reg;
 
 	if (adapter->vf_ifp) {
-		e1000_promisc_set_vf(hw, e1000_promisc_enabled);
+		igb_promisc_set_vf(hw, e1000_promisc_enabled);
 		return;
 	}
 
@@ -1949,7 +1949,7 @@ igb_disable_promisc(struct adapter *adapter)
 	int		mcnt = 0;
 
 	if (adapter->vf_ifp) {
-		e1000_promisc_set_vf(hw, e1000_promisc_disabled);
+		igb_promisc_set_vf(hw, e1000_promisc_disabled);
 		return;
 	}
 	reg = E1000_READ_REG(hw, E1000_RCTL);
@@ -2033,7 +2033,7 @@ igb_set_multi(struct adapter *adapter)
 		reg_rctl |= E1000_RCTL_MPE;
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 	} else
-		e1000_update_mc_addr_list(&adapter->hw, mta, mcnt);
+		igb_update_mc_addr_list(&adapter->hw, mta, mcnt);
 }
 
 
@@ -2121,23 +2121,23 @@ igb_update_link_status(struct adapter *adapter)
         case e1000_media_type_copper:
                 if (hw->mac.get_link_status) {
 			/* Do the work to read phy */
-                        e1000_check_for_link(hw);
+                        igb_check_for_link(hw);
                         link_check = !hw->mac.get_link_status;
                 } else
                         link_check = TRUE;
                 break;
         case e1000_media_type_fiber:
-                e1000_check_for_link(hw);
+                igb_check_for_link(hw);
                 link_check = (E1000_READ_REG(hw, E1000_STATUS) &
                                  E1000_STATUS_LU);
                 break;
         case e1000_media_type_internal_serdes:
-                e1000_check_for_link(hw);
+                igb_check_for_link(hw);
                 link_check = adapter->hw.mac.serdes_has_link;
                 break;
 	/* VF device is type_unknown */
         case e1000_media_type_unknown:
-                e1000_check_for_link(hw);
+                igb_check_for_link(hw);
 		link_check = !hw->mac.get_link_status;
 		/* Fall thru */
         default:
@@ -2169,7 +2169,7 @@ igb_update_link_status(struct adapter *adapter)
 
 	/* Now we check if a transition has happened */
 	if (link_check && (adapter->link_active == 0)) {
-		e1000_get_speed_and_duplex(&adapter->hw, 
+		igb_get_speed_and_duplex(&adapter->hw, 
 		    &adapter->link_speed, &adapter->link_duplex);
 		if (bootverbose)
 			device_printf(dev, "Link is up %d Mbps %s,"
@@ -2245,11 +2245,11 @@ igb_stop(void *arg)
 		IGB_TX_UNLOCK(txr);
 	}
 
-	e1000_reset_hw(&adapter->hw);
+	igb_reset_hw(&adapter->hw);
 	E1000_WRITE_REG(&adapter->hw, E1000_WUC, 0);
 
-	e1000_led_off(&adapter->hw);
-	e1000_cleanup_led(&adapter->hw);
+	igb_led_off(&adapter->hw);
+	igb_cleanup_led(&adapter->hw);
 }
 
 
@@ -2277,7 +2277,7 @@ igb_identify_hardware(struct adapter *adapter)
 	    pci_read_config(dev, PCIR_SUBDEV_0, 2);
 
 	/* Set MAC type early for PCI setup */
-	e1000_set_mac_type(&adapter->hw);
+	igb_set_mac_type(&adapter->hw);
 
 	/* Are we a VF device? */
 	if ((adapter->hw.mac.type == e1000_vfadapt) ||
@@ -3016,7 +3016,7 @@ igb_reset(struct adapter *adapter)
 	case e1000_i354:
 	case e1000_vfadapt_i350:
 		pba = E1000_READ_REG(hw, E1000_RXPBS);
-		pba = e1000_rxpbs_adjust_82580(pba);
+		pba = igb_rxpbs_adjust_82580(pba);
 		break;
 	case e1000_i210:
 	case e1000_i211:
@@ -3081,25 +3081,25 @@ igb_reset(struct adapter *adapter)
 		fc->requested_mode = e1000_fc_default;
 
 	/* Issue a global reset */
-	e1000_reset_hw(hw);
+	igb_reset_hw(hw);
 	E1000_WRITE_REG(hw, E1000_WUC, 0);
 
 	/* Reset for AutoMediaDetect */
 	if (adapter->flags & IGB_MEDIA_RESET) {
-		e1000_setup_init_funcs(hw, TRUE);
-		e1000_get_bus_info(hw);
+		igb_setup_init_funcs(hw, TRUE);
+		igb_get_bus_info(hw);
 		adapter->flags &= ~IGB_MEDIA_RESET;
 	}
 
-	if (e1000_init_hw(hw) < 0)
+	if (igb_init_hw(hw) < 0)
 		device_printf(dev, "Hardware Initialization Failed\n");
 
 	/* Setup DMA Coalescing */
 	igb_init_dmac(adapter, pba);
 
 	E1000_WRITE_REG(&adapter->hw, E1000_VET, ETHERTYPE_VLAN);
-	e1000_get_phy_info(hw);
-	e1000_check_for_link(hw);
+	igb_get_phy_info(hw);
+	igb_check_for_link(hw);
 	return;
 }
 
@@ -3621,7 +3621,7 @@ igb_initialize_transmit_units(struct adapter *adapter)
 	if (adapter->vf_ifp)
 		return;
 
-	e1000_config_collision_dist(hw);
+	igb_config_collision_dist(hw);
 
 	/* Program the Transmit Control Register */
 	tctl = E1000_READ_REG(hw, E1000_TCTL);
@@ -5266,7 +5266,7 @@ igb_setup_vlan_hw_support(struct adapter *adapter)
 	u32             reg;
 
 	if (adapter->vf_ifp) {
-		e1000_rlpml_set_vf(hw,
+		igb_rlpml_set_vf(hw,
 		    adapter->max_frame_size + VLAN_TAG_SIZE);
 		return;
 	}
@@ -5298,10 +5298,10 @@ igb_setup_vlan_hw_support(struct adapter *adapter)
 	for (int i = 0; i < IGB_VFTA_SIZE; i++)
                 if (adapter->shadow_vfta[i] != 0) {
 			if (adapter->vf_ifp)
-				e1000_vfta_set_vf(hw,
+				igb_vfta_set_vf(hw,
 				    adapter->shadow_vfta[i], TRUE);
 			else
-				e1000_write_vfta(hw,
+				igb_write_vfta(hw,
 				    i, adapter->shadow_vfta[i]);
 		}
 }
@@ -5464,11 +5464,11 @@ igb_led_func(void *arg, int onoff)
 
 	IGB_CORE_LOCK(adapter);
 	if (onoff) {
-		e1000_setup_led(&adapter->hw);
-		e1000_led_on(&adapter->hw);
+		igb_setup_led(&adapter->hw);
+		igb_led_on(&adapter->hw);
 	} else {
-		e1000_led_off(&adapter->hw);
-		e1000_cleanup_led(&adapter->hw);
+		igb_led_off(&adapter->hw);
+		igb_cleanup_led(&adapter->hw);
 	}
 	IGB_CORE_UNLOCK(adapter);
 }
@@ -6252,7 +6252,7 @@ igb_print_nvm_info(struct adapter *adapter)
 			j = 0; ++row;
 			printf("\n0x00%x0  ",row);
 		}
-		e1000_read_nvm(&adapter->hw, i, 1, &eeprom_data);
+		igb_read_nvm(&adapter->hw, i, 1, &eeprom_data);
 		printf("%04x ", eeprom_data);
 	}
 	printf("\n");
@@ -6302,7 +6302,7 @@ igb_set_flowcntl(SYSCTL_HANDLER_ARGS)
 	}
 
 	adapter->hw.fc.current_mode = adapter->hw.fc.requested_mode;
-	e1000_force_mac_fc(&adapter->hw);
+	igb_force_mac_fc(&adapter->hw);
 	/* XXX TODO: update DROP_EN on each RX queue if appropriate */
 	return (error);
 }
