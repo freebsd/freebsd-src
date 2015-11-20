@@ -40,7 +40,11 @@
 
 #ifdef __mips_n64
 #define	__PRI64		"l"
+#ifndef __CHERI_SANDBOX__
 #define	__PRIptr	"l"
+#else
+#define	__PRIptr	"P"
+#endif
 #else
 #define	__PRI64		"ll"
 #define	__PRIptr

@@ -489,14 +489,16 @@ __vfwprintf(FILE *fp, locale_t locale, const wchar_t *fmt0, va_list ap)
 	    flags&SHORTINT ? (u_long)(u_short)GETARG(int) : \
 	    flags&CHARINT ? (u_long)(u_char)GETARG(int) : \
 	    (u_long)GETARG(u_int))
-#define	INTMAX_SIZE	(INTMAXT|SIZET|PTRDIFFT|LLONGINT)
+#define	INTMAX_SIZE	(INTMAXT|INTPTRT|SIZET|PTRDIFFT|LLONGINT)
 #define SJARG() \
 	(flags&INTMAXT ? GETARG(intmax_t) : \
+	    flags&INTPTRT ? (intmax_t)GETARG(intptr_t) : \
 	    flags&SIZET ? (intmax_t)GETARG(ssize_t) : \
 	    flags&PTRDIFFT ? (intmax_t)GETARG(ptrdiff_t) : \
 	    (intmax_t)GETARG(long long))
 #define	UJARG() \
 	(flags&INTMAXT ? GETARG(uintmax_t) : \
+	    flags&INTPTRT ? (uintmax_t)GETARG(uintptr_t) : \
 	    flags&SIZET ? (uintmax_t)GETARG(size_t) : \
 	    flags&PTRDIFFT ? (uintmax_t)GETARG(ptrdiff_t) : \
 	    (uintmax_t)GETARG(unsigned long long))
@@ -670,6 +672,9 @@ reswitch:	switch (ch) {
 				flags |= LLONGINT;
 			} else
 				flags |= LONGINT;
+			goto rflag;
+		case 'P':
+			flags |= INTPTRT;
 			goto rflag;
 		case 'q':
 			flags |= LLONGINT;	/* not necessarily */
@@ -850,6 +855,8 @@ fp_common:
 				*GETARG(ptrdiff_t *) = ret;
 			else if (flags & INTMAXT)
 				*GETARG(intmax_t *) = ret;
+			else if (flags & INTPTRT)
+				*GETARG(intptr_t *) = ret;
 			else if (flags & LONGINT)
 				*GETARG(long *) = ret;
 			else if (flags & SHORTINT)

@@ -62,7 +62,8 @@ enum typeid {
 	T_UNUSED, TP_SHORT, T_INT, T_U_INT, TP_INT,
 	T_LONG, T_U_LONG, TP_LONG, T_LLONG, T_U_LLONG, TP_LLONG,
 	T_PTRDIFFT, TP_PTRDIFFT, T_SSIZET, T_SIZET, TP_SSIZET,
-	T_INTMAXT, T_UINTMAXT, TP_INTMAXT, TP_VOID, TP_CHAR, TP_SCHAR,
+	T_INTMAXT, T_UINTMAXT, TP_INTMAXT, T_INTPTRT, T_UINTPTRT, TP_INTPTRT,
+	TP_VOID, TP_CHAR, TP_SCHAR,
 	T_DOUBLE, T_LONG_DOUBLE, T_WINT, TP_WCHAR
 };
 
@@ -144,6 +145,8 @@ addsarg(struct typetable *types, int flags)
 		return (-1);
 	if (flags & INTMAXT)
 		types->table[types->nextarg++] = T_INTMAXT;
+	else if (flags & INTPTRT)
+		types->table[types->nextarg++] = T_INTPTRT;
 	else if (flags & SIZET)
 		types->table[types->nextarg++] = T_SSIZET;
 	else if (flags & PTRDIFFT)
@@ -165,6 +168,8 @@ adduarg(struct typetable *types, int flags)
 		return (-1);
 	if (flags & INTMAXT)
 		types->table[types->nextarg++] = T_UINTMAXT;
+	else if (flags & INTPTRT)
+		types->table[types->nextarg++] = T_UINTPTRT;
 	else if (flags & SIZET)
 		types->table[types->nextarg++] = T_SIZET;
 	else if (flags & PTRDIFFT)
@@ -325,6 +330,9 @@ reswitch:	switch (ch) {
 			} else
 				flags |= LONGINT;
 			goto rflag;
+		case 'P':
+			flags |= INTPTRT;
+			goto rflag;
 		case 'q':
 			flags |= LLONGINT;	/* not necessarily */
 			goto rflag;
@@ -368,6 +376,8 @@ reswitch:	switch (ch) {
 		case 'n':
 			if (flags & INTMAXT)
 				error = addtype(&types, TP_INTMAXT);
+			else if (flags & INTPTRT)
+				error = addtype(&types, TP_INTPTRT);
 			else if (flags & PTRDIFFT)
 				error = addtype(&types, TP_PTRDIFFT);
 			else if (flags & SIZET)
@@ -512,6 +522,9 @@ reswitch:	switch (ch) {
 				flags |= LLONGINT;
 			} else
 				flags |= LONGINT;
+			goto rflag;
+		case 'P':
+			flags |= INTPTRT;
 			goto rflag;
 		case 'q':
 			flags |= LLONGINT;	/* not necessarily */
@@ -724,6 +737,15 @@ build_arg_table(struct typetable *types, va_list ap, union arg **argtable)
 			break;
 		    case TP_INTMAXT:
 			(*argtable) [n].pintmaxarg = va_arg (ap, intmax_t *);
+			break;
+		    case T_INTPTRT:
+			(*argtable) [n].intptrarg = va_arg (ap, intptr_t);
+			break;
+		    case T_UINTPTRT:
+			(*argtable) [n].uintptrarg = va_arg (ap, uintptr_t);
+			break;
+		    case TP_INTPTRT:
+			(*argtable) [n].pintptrarg = va_arg (ap, intptr_t *);
 			break;
 		    case T_DOUBLE:
 #ifndef NO_FLOATING_POINT
