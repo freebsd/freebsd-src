@@ -59,7 +59,10 @@ __DEFAULT_NO_OPTIONS = \
 
 # Things that don't work based on the CPU
 .if ${MACHINE_CPUARCH} == "arm"
-BROKEN_OPTIONS+= CDDL ZFS
+BROKEN_OPTIONS+= ZFS
+. if ${MACHINE_ARCH:Marmv6*} == ""
+BROKEN_OPTIONS+= CDDL
+. endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
