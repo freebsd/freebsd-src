@@ -179,12 +179,6 @@ SYSCTL_ULONG(_vfs, OID_AUTO, free_owe_inact, CTLFLAG_RD, &free_owe_inact, 0,
     "Number of times free vnodes kept on active list due to VFS "
     "owing inactivation");
 
-/*
- * Cache for the mount type id assigned to NFS.  This is used for
- * special checks in nfs/nfs_nqlease.c and vm/vnode_pager.c.
- */
-int	nfs_mount_type = -1;
-
 /* To keep more than one thread at a time from running vfs_getnewfsid */
 static struct mtx mntid_mtx;
 
