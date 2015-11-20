@@ -358,8 +358,8 @@ intpr(void (*pfunc)(char *), int af)
 		} else
 			xname = name;
 
-		xo_emit("{etk:name/%s}{eq:flags/0x%x}{d:/%-*.*s}",
-		    name, ifa->ifa_flags, ifn_len_max, ifn_len_max, xname);
+		xo_emit("{d:/%-*.*s}{etk:name}{eq:flags/0x%x}",
+		    ifn_len_max, ifn_len_max, xname, name, ifa->ifa_flags);
 
 #define IFA_MTU(ifa)	(((struct if_data *)(ifa)->ifa_data)->ifi_mtu)
 		show_stat("lu", 6, "mtu", IFA_MTU(ifa), IFA_MTU(ifa), 0);
@@ -379,15 +379,13 @@ intpr(void (*pfunc)(char *), int af)
 			nn = netname(ifa->ifa_addr, ifa->ifa_netmask);
 			rn = routename(ifa->ifa_addr, numeric_addr);
 			if (Wflag) {
-				xo_emit("{et:network/%s}{d:/%-*s} ",
-				    nn, net_len, nn);
-				xo_emit("{et:address/%s}{d:/%-*s} ",
-				    rn, addr_len, rn);
+				xo_emit("{t:network/%-*s} ", net_len, nn);
+				xo_emit("{t:address/%-*s} ", addr_len, rn);
 			} else {
-				xo_emit("{et:network/%s}{d:/%-*.*s} ",
-				    nn, net_len, net_len, nn);
-				xo_emit("{et:address/%s}{d:/%-*.*s} ",
-				    rn, addr_len, addr_len, rn);
+				xo_emit("{d:network/%-*.*s}{et:network} ",
+				    net_len, net_len, nn, nn);
+				xo_emit("{d:address/%-*.*s}{et:address} ",
+				    addr_len, addr_len, rn, rn);
 			}
 
 			network = true;
