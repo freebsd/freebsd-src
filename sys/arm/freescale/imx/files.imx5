@@ -1,5 +1,4 @@
 # $FreeBSD$
-arm/arm/bus_space_asm_generic.S		standard
 arm/arm/bus_space_generic.c		standard
 kern/kern_clocksource.c			standard
 
