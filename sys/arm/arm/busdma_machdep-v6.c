@@ -654,8 +654,8 @@ allocate_bz_and_pages(bus_dma_tag_t dmat, bus_dmamap_t mapp)
 		maxpages = MAX_BPAGES;
 	else
 		maxpages = 2 * bz->map_count;
-	if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0 ||
-	    (bz->map_count > 0 && bz->total_bpages < maxpages)) {
+	if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0 &&
+	    bz->map_count > 0 && bz->total_bpages < maxpages) {
 		int pages;
 
 		pages = atop(roundup2(dmat->maxsize, PAGE_SIZE)) + 1;
