@@ -135,6 +135,7 @@ int nfsrv_checksequence(struct nfsrv_descript *, uint32_t, uint32_t *,
     uint32_t *, int, uint32_t *, NFSPROC_T *);
 int nfsrv_checkreclaimcomplete(struct nfsrv_descript *);
 void nfsrv_cache_session(uint8_t *, uint32_t, int, struct mbuf **);
+void nfsrv_freeallbackchannel_xprts(void);
 
 /* nfs_nfsdserv.c */
 int nfsrvd_access(struct nfsrv_descript *, int,
