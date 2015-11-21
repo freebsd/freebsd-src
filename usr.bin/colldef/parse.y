@@ -32,12 +32,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <err.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sysexits.h>
-#include "collate.h"
 #include "common.h"
 
 extern FILE *yyin;
