@@ -486,7 +486,7 @@ isp_get_generic_options(device_t dev, ispsoftc_t *isp)
 	}
 	tval = -1;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "vports", &tval);
-	if (tval > 0 && tval < 127) {
+	if (tval > 0 && tval <= 254) {
 		isp_nvports = tval;
 	}
 	tval = 7;
