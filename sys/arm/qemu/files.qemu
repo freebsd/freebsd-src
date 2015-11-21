@@ -3,8 +3,6 @@
 #
 # Standard ARM support.
 #
-arm/arm/bus_space_base.c		standard
-arm/arm/bus_space_generic.c		standard
 kern/kern_clocksource.c			standard
 
 #
