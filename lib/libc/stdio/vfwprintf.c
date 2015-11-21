@@ -53,6 +53,11 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <sys/types.h>
 
+#ifdef __CHERI_SANDBOX__
+#include <machine/cheri.h>
+#include <machine/cheric.h>
+#endif
+
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
@@ -378,7 +383,12 @@ vfwprintf(FILE * __restrict fp, const wchar_t * __restrict fmt0, va_list ap)
  * write a uintmax_t in octal (plus one byte).
  */
 #if UINTMAX_MAX <= UINT64_MAX
+#ifndef __CHERI_SANDBOX__
 #define	BUF	32
+#else
+/* For the CHERI sandbox ABI we need enough space to print a capability dump */
+#define	BUF	84
+#endif
 #else
 #error "BUF must be large enough to format a uintmax_t"
 #endif
@@ -444,6 +454,9 @@ __vfwprintf(FILE *fp, locale_t locale, const wchar_t *fmt0, va_list ap)
 	int nextarg;		/* 1-based argument index */
 	va_list orgap;		/* original argument pointer */
 	wchar_t *convbuf;	/* multibyte to wide conversion result */
+#ifdef __CHERI_SANDBOX__
+	void *pointer;
+#endif
 
 	static const char xdigs_lower[16] = "0123456789abcdef";
 	static const char xdigs_upper[16] = "0123456789ABCDEF";
@@ -884,7 +897,20 @@ fp_common:
 			 * defined manner.''
 			 *	-- ANSI X3J11
 			 */
+#ifndef __CHERI_SANDBOX__
 			ujval = (uintmax_t)(uintptr_t)GETARG(void *);
+#else
+			pointer = GETARG(void *);
+			if (flags & ALT) {
+				cp = buf + BUF;
+				cp = __cheri_ptr_alt(pointer, cp,
+				xdigs_lower);
+				size = buf + BUF - cp;
+				break;
+			}
+			ujval = cheri_getbase(pointer) +
+			    cheri_getoffset(pointer);
+#endif
 			base = 16;
 			xdigs = xdigs_lower;
 			flags = flags | INTMAXT;

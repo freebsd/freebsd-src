@@ -266,6 +266,78 @@ __ujtoa(uintmax_t val, CHAR *endp, int base, int octzero, const char *xdigs)
 	return (cp);
 }
 
+#ifdef __CHERI_SANDBOX__
+/*
+ * Print the pointer details.  Format matches the kernel register dump format:
+ * v:0 s:0 p:00000000 b:0000000000000000 l:0000000000000000 o:0 t:0
+ *  v	tag (valid)
+ *  s	sealed
+ *  p	permissions
+ *  b	base
+ *  l	length
+ *  o	offset
+ *  t	type
+ */
+static CHAR *
+__cheri_ptr_alt(void *pointer, CHAR *cp, const char *xdigs)
+{
+	uintmax_t ujval;
+	CHAR *scp;
+
+	ujval = cheri_gettype(pointer);
+	cp = __ujtoa(ujval, cp, 16, 0, xdigs);
+	*--cp = ':';
+	*--cp = 't';
+	*--cp = ' ';
+
+	ujval = cheri_getoffset(pointer);
+	cp = __ujtoa(ujval, cp, 16, 0, xdigs);
+	*--cp = ':';
+	*--cp = 'o';
+	*--cp = ' ';
+
+	scp = cp;
+	ujval = cheri_getlen(pointer);
+	cp = __ujtoa(ujval, cp, 16, 0, xdigs);
+	while (scp - cp < 16)
+		*--cp = '0';
+	*--cp = ':';
+	*--cp = 'l';
+	*--cp = ' ';
+
+	scp = cp;
+	ujval = cheri_getbase(pointer);
+	cp = __ujtoa(ujval, cp, 16, 0, xdigs);
+	while (scp - cp < 16)
+		*--cp = '0';
+	*--cp = ':';
+	*--cp = 'b';
+	*--cp = ' ';
+
+	scp = cp;
+	ujval = cheri_getperm(pointer);
+	cp = __ujtoa(ujval, cp, 16, 0, xdigs);
+	while (scp - cp < 8)
+		*--cp = '0';
+	*--cp = ':';
+	*--cp = 'b';
+	*--cp = ' ';
+
+	ujval = cheri_getsealed(pointer);
+	*--cp = ujval ? '1' : '0';
+	*--cp = ':';
+	*--cp = 's';
+	*--cp = ' ';
+
+	ujval = cheri_gettag(pointer);
+	*--cp = ujval ? '1' : '0';
+	*--cp = ':';
+	*--cp = 'v';
+
+	return (cp);
+}
+#endif /* __CHERI_SANDBOX__ */
+
 #ifndef NO_FLOATING_POINT
 
 static int

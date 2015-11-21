@@ -33,7 +33,7 @@
 .\" FreeBSD: src/lib/libc/stdio/printf.3,v 1.47 2002/09/06 11:23:55 tjr Exp
 .\" $FreeBSD$
 .\"
-.Dd July 5, 2003
+.Dd November 20, 2015
 .Dt WPRINTF 3
 .Os
 .Sh NAME
@@ -137,7 +137,7 @@ Zero or more of the following flags:
 The value should be converted to an
 .Dq alternate form .
 For
-.Cm c , d , i , n , p , s ,
+.Cm c , d , i , n , s ,
 and
 .Cm u
 conversions, this option has no effect.
@@ -146,6 +146,13 @@ For
 conversions, the precision of the number is increased to force the first
 character of the output string to a zero (except if a zero value is printed
 with an explicit precision of zero).
+For
+.Cm p
+conversions, it has no effect on conventional architectures where pointers are
+integers.
+On architectures with more complex pointer representations,
+.Cm #
+many cause a more detailed, architure specific format to be printed.
 For
 .Cm x
 and

@@ -301,7 +301,12 @@ vfprintf(FILE * __restrict fp, const char * __restrict fmt0, va_list ap)
  * write a uintmax_t in octal (plus one byte).
  */
 #if UINTMAX_MAX <= UINT64_MAX
+#ifndef __CHERI_SANDBOX__
 #define	BUF	32
+#else
+/* For the CHERI sandbox ABI we need enough space to print a capability dump */
+#define BUF	84
+#endif
 #else
 #error "BUF must be large enough to format a uintmax_t"
 #endif
@@ -830,6 +835,12 @@ fp_common:
 			ujval = (uintmax_t)(uintptr_t)GETARG(void *);
 #else
 			pointer = GETARG(void *);
+			if (flags & ALT) {
+				cp = buf + BUF;
+				cp = __cheri_ptr_alt(pointer, cp, xdigs_lower);
+				size = buf + BUF - cp;
+				break;
+			}
 			ujval = cheri_getbase(pointer) +
 			    cheri_getoffset(pointer);
 #endif
