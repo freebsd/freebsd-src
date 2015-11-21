@@ -2342,7 +2342,7 @@ isp_handle_platform_atio(ispsoftc_t *isp, at_entry_t *aep)
 	atp->bytes_xfered = 0;
 	atp->lun = aep->at_lun;
 	atp->nphdl = aep->at_iid;
-	atp->portid = PORT_NONE;
+	atp->portid = PORT_ANY;
 	atp->oxid = 0;
 	atp->cdb0 = atiop->cdb_io.cdb_bytes[0];
 	atp->tattr = aep->at_tag_type;

@@ -2580,12 +2580,12 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t wwpn, uint64_t wwnn,
 	 * so log them verbosely and dump the whole port database.
 	 */
 	if ((VALID_INI(wwpn) && isp_find_pdb_by_wwpn(isp, chan, wwpn, &lp)) ||
-	    (s_id != PORT_NONE && isp_find_pdb_by_portid(isp, chan, s_id, &lp))) {
+	    (VALID_PORT(s_id) && isp_find_pdb_by_portid(isp, chan, s_id, &lp))) {
 		change = 0;
 		lp->new_portid = lp->portid;
 		lp->new_prli_word3 = lp->prli_word3;
-		if (s_id != PORT_NONE && lp->portid != s_id) {
-			if (lp->portid == PORT_NONE) {
+		if (VALID_PORT(s_id) && lp->portid != s_id) {
+			if (!VALID_PORT(lp->portid)) {
 				isp_prt(isp, ISP_LOGTINFO,
 				    "Chan %d WWPN 0x%016llx handle 0x%x "
 				    "gets PortID 0x%06x",
@@ -2804,13 +2804,13 @@ isp_del_wwn_entries(ispsoftc_t *isp, isp_notify_t *mp)
 			return;
 		}
 	}
-	if (mp->nt_wwn != INI_ANY) {
+	if (VALID_INI(mp->nt_wwn)) {
 		if (isp_find_pdb_by_wwpn(isp, mp->nt_channel, mp->nt_wwn, &lp)) {
 			isp_del_wwn_entry(isp, mp->nt_channel, lp->port_wwn, lp->handle, lp->portid);
 			return;
 		}
 	}
-	if (mp->nt_sid != PORT_ANY && mp->nt_sid != PORT_NONE) {
+	if (VALID_PORT(mp->nt_sid)) {
 		if (isp_find_pdb_by_portid(isp, mp->nt_channel, mp->nt_sid, &lp)) {
 			isp_del_wwn_entry(isp, mp->nt_channel, lp->port_wwn, lp->handle, lp->portid);
 			return;

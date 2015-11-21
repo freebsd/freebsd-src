@@ -282,6 +282,7 @@ typedef struct {
 #define	FABRIC_PORT_ID		0xFFFFFE
 #define	PORT_ANY		0xFFFFFF
 #define	PORT_NONE		0
+#define	VALID_PORT(port)	(port != PORT_NONE && port != PORT_ANY)
 #define	DOMAIN_CONTROLLER_BASE	0xFFFC00
 #define	DOMAIN_CONTROLLER_END	0xFFFCFF
 
