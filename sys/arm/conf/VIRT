@@ -46,6 +46,8 @@ options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, require
 
 # Interrupt controller
 device		gic
+# ARM Generic Timer
+device		generic_timer
 
 device		bpf
 device		loop

@@ -39,6 +39,7 @@ arm/arm/fiq.c			standard
 arm/arm/fiq_subr.S		standard
 arm/arm/fusu.S			standard
 arm/arm/gdb_machdep.c		optional	gdb
+arm/arm/generic_timer.c		optional	generic_timer
 arm/arm/gic.c			optional	gic
 arm/arm/identcpu.c		standard
 arm/arm/in_cksum.c		optional	inet | inet6
@@ -50,6 +51,7 @@ arm/arm/machdep.c		standard
 arm/arm/mem.c			optional	mem
 arm/arm/minidump_machdep.c	optional	mem
 arm/arm/mp_machdep.c		optional	smp
+arm/arm/mpcore_timer.c		optional	mpcore_timer
 arm/arm/nexus.c			standard
 arm/arm/physmem.c		standard
 arm/arm/pic_if.m		optional	arm_intrng

@@ -87,6 +87,8 @@ device		dwmmc
 
 # Interrupt controller
 device		gic
+# ARM Generic Timer
+device		generic_timer
 
 # Pseudo devices
 

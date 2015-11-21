@@ -64,6 +64,8 @@ options 	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
 device		gic
 # Cache controller
 device		pl310			# PL310 L2 cache controller
+# ARM MPCore timer
+device		mpcore_timer
 
 # Pseudo devices.
 device		loop			# Network loopback
