@@ -1113,7 +1113,7 @@ dosum(void)
 	nchtotal = lnchstats.ncs_goodhits + lnchstats.ncs_neghits +
 	    lnchstats.ncs_badhits + lnchstats.ncs_falsehits +
 	    lnchstats.ncs_miss + lnchstats.ncs_long;
-	xo_emit(":total-name-lookups/%9ld} {N:total name lookups}\n",
+	xo_emit("{:total-name-lookups/%9ld} {N:total name lookups}\n",
 	        nchtotal);
 	xo_emit("{P:/%9s} {N:cache hits} "
 	        "({:positive-cache-hits/%ld}% pos + "
