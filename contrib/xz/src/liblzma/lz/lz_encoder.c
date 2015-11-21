@@ -139,7 +139,7 @@ fill_window(lzma_coder *coder, const lzma_allocator *allocator,
 			&& coder->mf.read_pos < coder->mf.read_limit) {
 		// Match finder may update coder->pending and expects it to
 		// start from zero, so use a temporary variable.
-		const size_t pending = coder->mf.pending;
+		const uint32_t pending = coder->mf.pending;
 		coder->mf.pending = 0;
 
 		// Rewind read_pos so that the match finder can hash
