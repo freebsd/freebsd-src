@@ -1,4 +1,4 @@
-/*	$OpenBSD: extern.h,v 1.54 2014/05/12 19:11:19 espie Exp $ */
+/*	$OpenBSD: extern.h,v 1.54 2014/05/12 19:11:19 espie Exp $	*/
 /*	$NetBSD: extern.h,v 1.3 1996/01/13 23:25:24 pk Exp $	*/
 
 /*-
@@ -112,7 +112,7 @@ extern void	usage(void);
 extern void	resizedivs(int);
 extern size_t	buffer_mark(void);
 extern void	dump_buffer(FILE *, size_t);
-extern void	m4errx(int, const char *, ...);
+extern void	__dead m4errx(int, const char *, ...);
 
 extern int	obtain_char(struct input_file *);
 extern void	set_input(struct input_file *, FILE *, const char *);
