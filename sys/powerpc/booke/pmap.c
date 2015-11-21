@@ -3298,7 +3298,7 @@ pmap_early_io_map(vm_paddr_t pa, vm_size_t size)
 			return (tlb1[i].virt + (pa - tlb1[i].phys));
 	}
 
-	pa_base = trunc_page(pa);
+	pa_base = rounddown(pa, PAGE_SIZE);
 	size = roundup(size + (pa - pa_base), PAGE_SIZE);
 	tlb1_map_base = roundup2(tlb1_map_base, 1 << (ilog2(size) & ~1));
 	va = tlb1_map_base + (pa - pa_base);
