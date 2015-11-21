@@ -464,7 +464,7 @@ length_encoder_reset(lzma_length_encoder *lencoder,
 	bittree_reset(lencoder->high, LEN_HIGH_BITS);
 
 	if (!fast_mode)
-		for (size_t pos_state = 0; pos_state < num_pos_states;
+		for (uint32_t pos_state = 0; pos_state < num_pos_states;
 				++pos_state)
 			length_update_prices(lencoder, pos_state);
 

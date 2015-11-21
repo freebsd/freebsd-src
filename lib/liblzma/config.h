@@ -188,9 +188,6 @@
 /* Define to 1 if getopt.h declares extern int optreset. */
 #define HAVE_OPTRESET 1
 
-/* Define to 1 if you have the `pipe2' function. */
-#define HAVE_PIPE2 1
-
 /* Define to 1 if you have the `posix_fadvise' function. */
 #define HAVE_POSIX_FADVISE 1
 
@@ -326,7 +323,7 @@
 #define PACKAGE_NAME "XZ Utils"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "XZ Utils 5.2.1"
+#define PACKAGE_STRING "XZ Utils 5.2.2"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "xz"
@@ -335,7 +332,7 @@
 #define PACKAGE_URL "http://tukaani.org/xz/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "5.2.1"
+#define PACKAGE_VERSION "5.2.2"
 
 /* Define to necessary symbol if this constant uses a non-standard name on
    your system. */
@@ -419,7 +416,7 @@
 
 
 /* Version number of package */
-#define VERSION "5.2.1"
+#define VERSION "5.2.2"
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
