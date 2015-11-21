@@ -1,5 +1,4 @@
 # $FreeBSD$
-arm/arm/bus_space_generic.c	standard
 arm/at91/at91_machdep.c		standard
 arm/at91/at91_aic.c		standard
 arm/at91/at91.c			standard

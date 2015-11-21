@@ -16,9 +16,6 @@ arm/broadcom/bcm2835/bcm2835_vcio.c		standard
 arm/broadcom/bcm2835/bcm2835_wdog.c		standard
 arm/broadcom/bcm2835/bcm283x_dwc_fdt.c		optional dwcotg fdt
 
-arm/arm/bus_space_base.c			standard
-arm/arm/bus_space_generic.c                     standard
-
 kern/kern_clocksource.c                         standard
 
 dev/mbox/mbox_if.m				standard

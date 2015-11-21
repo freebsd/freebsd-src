@@ -12,9 +12,6 @@
 # - JTAG/ICE
 # - Vector Floating Point (VFP) unit
 #
-arm/arm/bus_space_base.c	standard
-arm/arm/bus_space_generic.c	standard
-
 arm/mv/gpio.c			standard
 arm/mv/mv_common.c		standard
 arm/mv/mv_localbus.c		standard

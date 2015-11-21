@@ -4,6 +4,8 @@ arm/arm/bcopy_page.S		standard
 arm/arm/bcopyinout.S		standard
 arm/arm/blockio.S		standard
 arm/arm/bus_space_asm_generic.S	standard
+arm/arm/bus_space_base.c	optional	fdt
+arm/arm/bus_space_generic.c	standard
 arm/arm/busdma_machdep.c 	optional	!armv6
 arm/arm/busdma_machdep-v6.c 	optional	armv6
 arm/arm/copystr.S		standard
