@@ -537,9 +537,10 @@ try_again:
 				SCTP_INP_WUNLOCK(inp);
 			}
 		}
+		so->so_pcb = NULL;
 		return (error);
 	}
-#endif				/* IPSEC */
+#endif
 	SCTP_INP_WUNLOCK(inp);
 	return (0);
 }
