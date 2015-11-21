@@ -72,16 +72,14 @@ imx_wdog_cpu_reset(vm_offset_t wdcr_physaddr)
 	volatile uint16_t * pcr;
 
 	/*
-	 * The deceptively simple write of WDOG_CR_WDE enables the watchdog,
-	 * sets the timeout to its minimum value (half a second), and also
-	 * clears the SRS bit which results in the SFTW (software-requested
-	 * reset) bit being set in the watchdog status register after the reset.
-	 * This is how software can distinguish a reset from a wdog timeout.
+	 * Trigger an immediate reset by clearing the SRS bit in the watchdog
+	 * control register.  The reset happens on the next cycle of the wdog
+	 * 32KHz clock, so hang out in a spin loop until the reset takes effect.
 	 */
 	if ((pcr = arm_devmap_ptov(wdcr_physaddr, sizeof(*pcr))) == NULL) {
 		printf("cpu_reset() can't find its control register... locking up now.");
 	} else {
-		*pcr = WDOG_CR_WDE;
+		*pcr &= ~WDOG_CR_SRS;
 	}
 	for (;;)
 		continue;
