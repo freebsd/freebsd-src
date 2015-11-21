@@ -1,4 +1,4 @@
-/*	$OpenBSD: main.c,v 1.84 2014/12/21 09:33:12 espie Exp $	*/
+/*	$OpenBSD: main.c,v 1.86 2015/11/03 16:21:47 deraadt Exp $	*/
 /*	$NetBSD: main.c,v 1.12 1997/02/08 23:54:49 cgd Exp $	*/
 
 /*-
@@ -133,13 +133,7 @@ static struct keyblk keywrds[] = {	/* m4 keywords to be installed */
 	{ "traceon",	  TRACEONTYPE | NOARGS },
 	{ "traceoff",	  TRACEOFFTYPE | NOARGS },
 
-#if defined(unix) || defined(__unix__)
 	{ "unix",         SELFTYPE | NOARGS },
-#else
-#ifdef vms
-	{ "vms",          SELFTYPE | NOARGS },
-#endif
-#endif
 };
 
 #define MAXKEYS	(sizeof(keywrds)/sizeof(struct keyblk))
@@ -477,14 +471,14 @@ macro(void)
 
 		default:
 			if (LOOK_AHEAD(t, scommt)) {
-				char *cp;
-				for (cp = scommt; *cp; cp++)
-					chrsave(*cp);
+				char *p;
+				for (p = scommt; *p; p++)
+					chrsave(*p);
 				for(;;) {
 					t = gpbc();
 					if (LOOK_AHEAD(t, ecommt)) {
-						for (cp = ecommt; *cp; cp++)
-							chrsave(*cp);
+						for (p = ecommt; *p; p++)
+							chrsave(*p);
 						break;
 					}
 					if (t == EOF)
