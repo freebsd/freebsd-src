@@ -15,7 +15,7 @@ typedef struct {
 	char **arg_names;
 
 	/// Number of filenames from command line
-	size_t arg_count;
+	unsigned int arg_count;
 
 	/// Name of the file from which to read filenames. This is NULL
 	/// if --files or --files0 was not used.
