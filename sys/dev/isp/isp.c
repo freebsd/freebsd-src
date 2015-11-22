@@ -5800,7 +5800,10 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		    ISPASYNC_CHANGE_SNS, portid);
 		break;
 	}
-
+	case ASYNC_ERR_LOGGING_DISABLED:
+		isp_prt(isp, ISP_LOGWARN, "Error logging disabled (reason 0x%x)",
+		    ISP_READ(isp, OUTMAILBOX1));
+		break;
 	case ASYNC_CONNMODE:
 		/*
 		 * This only applies to 2100 amd 2200 cards
@@ -5843,7 +5846,10 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		FCPARAM(isp, chan)->isp_loopstate = LOOP_NIL;
 		isp_async(isp, ISPASYNC_CHANGE_NOTIFY, chan, ISPASYNC_CHANGE_OTHER);
 		break;
-
+	case ASYNC_P2P_INIT_ERR:
+		isp_prt(isp, ISP_LOGWARN, "P2P init error (reason 0x%x)",
+		    ISP_READ(isp, OUTMAILBOX1));
+		break;
 	case ASYNC_RCV_ERR:
 		if (IS_24XX(isp)) {
 			isp_prt(isp, ISP_LOGWARN, "Receive Error");
@@ -5855,11 +5861,23 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		if (IS_24XX(isp)) {
 			isp_prt(isp, ISP_LOGTDEBUG0, "LS_RJT sent");
 			break;
-		} else if (IS_2200(isp)) {
+		} else {
 			isp_prt(isp, ISP_LOGTDEBUG0, "QFULL sent");
 			break;
 		}
-		/* FALLTHROUGH */
+	case ASYNC_FW_RESTART_COMPLETE:
+		isp_prt(isp, ISP_LOGDEBUG0, "FW restart complete");
+		break;
+	case ASYNC_TEMPERATURE_ALERT:
+		isp_prt(isp, ISP_LOGERR, "Temperature alert (subcode 0x%x)",
+		    ISP_READ(isp, OUTMAILBOX1));
+		break;
+	case ASYNC_AUTOLOAD_FW_COMPLETE:
+		isp_prt(isp, ISP_LOGDEBUG0, "Autoload FW init complete");
+		break;
+	case ASYNC_AUTOLOAD_FW_FAILURE:
+		isp_prt(isp, ISP_LOGERR, "Autoload FW init failure");
+		break;
 	default:
 		isp_prt(isp, ISP_LOGWARN, "Unknown Async Code 0x%x", mbox);
 		break;
