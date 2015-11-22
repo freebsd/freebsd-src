@@ -177,7 +177,7 @@ mips_init(unsigned long memsize, uint64_t ememsize)
 {
 	int i;
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < PHYS_AVAIL_ENTRIES; i++) {
 		phys_avail[i] = 0;
 	}
 
