@@ -1338,11 +1338,32 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 }
 
 /*
+ * Clean firmware shutdown.
+ */
+static int
+isp_deinit(ispsoftc_t *isp)
+{
+	mbreg_t mbs;
+
+	isp->isp_state = ISP_NILSTATE;
+	MBSINIT(&mbs, MBOX_STOP_FIRMWARE, MBLOGALL, 500000);
+	mbs.param[1] = 0;
+	mbs.param[2] = 0;
+	mbs.param[3] = 0;
+	mbs.param[4] = 0;
+	mbs.param[5] = 0;
+	mbs.param[6] = 0;
+	mbs.param[7] = 0;
+	mbs.param[8] = 0;
+	isp_mboxcmd(isp, &mbs);
+	return (mbs.param[0] == MBOX_COMMAND_COMPLETE ? 0 : mbs.param[0]);
+}
+
+/*
  * Initialize Parameters of Hardware to a known state.
  *
  * Locks are held before coming here.
  */
-
 void
 isp_init(ispsoftc_t *isp)
 {
@@ -6799,7 +6820,7 @@ static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x2f, 0x21),	/* 0x11: MBOX_INIT_RES_QUEUE */
 	ISP_FC_OPMAP(0x0f, 0x01),	/* 0x12: MBOX_EXECUTE_IOCB */
 	ISP_FC_OPMAP(0x03, 0x03),	/* 0x13: MBOX_WAKE_UP	*/
-	ISP_FC_OPMAP(0x01, 0xff),	/* 0x14: MBOX_STOP_FIRMWARE */
+	ISP_FC_OPMAP_HALF(0x1, 0xff, 0x0, 0x03),	/* 0x14: MBOX_STOP_FIRMWARE */
 	ISP_FC_OPMAP(0x4f, 0x01),	/* 0x15: MBOX_ABORT */
 	ISP_FC_OPMAP(0x07, 0x01),	/* 0x16: MBOX_ABORT_DEVICE */
 	ISP_FC_OPMAP(0x07, 0x01),	/* 0x17: MBOX_ABORT_TARGET */
@@ -7621,6 +7642,8 @@ isp_reinit(ispsoftc_t *isp, int do_load_defaults)
 {
 	int i, res = 0;
 
+	if (isp->isp_state == ISP_RUNSTATE)
+		isp_deinit(isp);
 	if (isp->isp_state != ISP_RESETSTATE)
 		isp_reset(isp, do_load_defaults);
 	if (isp->isp_state != ISP_RESETSTATE) {
