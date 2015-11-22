@@ -770,7 +770,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	struct bufobj *bo;
 	struct buf *bp;
 	daddr_t firstaddr, reqblock;
-	off_t foff;
+	off_t foff, pib;
 	int pbefore, pafter, i, size, bsize, first, last, *freecnt;
 	int count, error, before, after, secmask;
 
@@ -864,8 +864,9 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		VM_OBJECT_WUNLOCK(object);
 	}
 
-	pbefore = (daddr_t)before * bsize / PAGE_SIZE;
-	pafter = (daddr_t)after * bsize / PAGE_SIZE;
+	pib = IDX_TO_OFF(m[reqpage]->pindex) % bsize;
+	pbefore = ((daddr_t)before * bsize + pib) / PAGE_SIZE;
+	pafter = ((daddr_t)(after + 1) * bsize - pib) / PAGE_SIZE - 1;
 	first = reqpage < pbefore ? 0 : reqpage - pbefore;
 	last = reqpage + pafter >= count ? count - 1 : reqpage + pafter;
 	if (first > 0 || last + 1 < count) {
@@ -887,7 +888,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	 * here on direct device I/O
 	 */
 	firstaddr = reqblock;
-	firstaddr += (IDX_TO_OFF(m[reqpage]->pindex) % bsize) / DEV_BSIZE;
+	firstaddr += pib / DEV_BSIZE;
 	firstaddr -= IDX_TO_OFF(reqpage - first) / DEV_BSIZE;
 
 	/*
