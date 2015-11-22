@@ -246,14 +246,15 @@
 #define	ASYNC_HUNG_SCSI			0x800C
 #define	ASYNC_KILLED_BUS		0x800D
 #define	ASYNC_BUS_TRANSIT		0x800E	/* LVD -> HVD, eg. */
-#define	ASYNC_LIP_OCCURRED		0x8010
+#define	ASYNC_LIP_OCCURRED		0x8010	/* FC only */
 #define	ASYNC_LOOP_UP			0x8011
 #define	ASYNC_LOOP_DOWN			0x8012
-#define	ASYNC_LOOP_RESET		0x8013
+#define	ASYNC_LOOP_RESET		0x8013	/* FC only */
 #define	ASYNC_PDB_CHANGED		0x8014
 #define	ASYNC_CHANGE_NOTIFY		0x8015
-#define	ASYNC_LIP_F8			0x8016
-#define	ASYNC_LIP_ERROR			0x8017
+#define	ASYNC_LIP_F8			0x8016	/* FC only */
+#define	ASYNC_LIP_ERROR			0x8017	/* FC only */
+#define	ASYNC_AUTO_PLOGI_RJT		0x8018
 #define	ASYNC_SECURITY_UPDATE		0x801B
 #define	ASYNC_CMD_CMPLT			0x8020
 #define	ASYNC_CTIO_DONE			0x8021
@@ -265,7 +266,8 @@
 #define	ASYNC_IP_RCVQ_LOW		0x8025
 #define	ASYNC_IP_RCVQ_EMPTY		0x8026
 #define	ASYNC_IP_RECV_DONE_ALIGNED	0x8027
-#define	ASYNC_PTPMODE			0x8030
+#define	ASYNC_ERR_LOGGING_DISABLED	0x8029
+#define	ASYNC_PTPMODE			0x8030	/* FC only */
 #define	ASYNC_RIO16_1			0x8031
 #define	ASYNC_RIO16_2			0x8032
 #define	ASYNC_RIO16_3			0x8033
@@ -277,9 +279,25 @@
 #define		ISP_CONN_BADLIP		3
 #define		ISP_CONN_FATAL		4
 #define		ISP_CONN_LOOPBACK	5
+#define	ASYNC_P2P_INIT_ERR		0x8037
 #define	ASYNC_RIOZIO_STALL		0x8040	/* there's a RIO/ZIO entry that hasn't been serviced */
 #define	ASYNC_RIO32_2_2200		0x8042	/* same as ASYNC_RIO32_2, but for 2100/2200 */
 #define	ASYNC_RCV_ERR			0x8048
+/*
+ * 2.01.31 2200 Only. Need Bit 13 in Mailbox 1 for Set Firmware Options
+ * mailbox command to enable this.
+ */
+#define	ASYNC_QFULL_SENT		0x8049
+#define	ASYNC_RJT_SENT			0x8049	/* 24XX only */
+#define	ASYNC_SEL_CLASS2_P_RJT_SENT	0x804f
+#define	ASYNC_FW_RESTART_COMPLETE	0x8060
+#define	ASYNC_TEMPERATURE_ALERT		0x8070
+#define	ASYNC_INTER_DRIVER_COMP		0x8100	/* FCoE only */
+#define	ASYNC_INTER_DRIVER_NOTIFY	0x8101	/* FCoE only */
+#define	ASYNC_INTER_DRIVER_TIME_EXT	0x8102	/* FCoE only */
+#define	ASYNC_NIC_FW_STATE_CHANGE	0x8200	/* FCoE only */
+#define	ASYNC_AUTOLOAD_FW_COMPLETE	0x8400
+#define	ASYNC_AUTOLOAD_FW_FAILURE	0x8401
 
 /*
  * Firmware Options. There are a lot of them.
@@ -303,20 +321,6 @@
 
 #define	IFCOPT3_NOPRLI		(1 << 4)	/* disable automatic sending of PRLI on local loops */
 #define	IFCOPT3_RNDASYNC	(1 << 1)
-/*
- * 2.01.31 2200 Only. Need Bit 13 in Mailbox 1 for Set Firmware Options
- * mailbox command to enable this.
- */
-#define	ASYNC_QFULL_SENT		0x8049
-
-/*
- * Needs to be enabled
- */
-#define	ASYNC_AUTO_PLOGI_RJT		0x8018
-/*
- * 24XX only
- */
-#define	ASYNC_RJT_SENT			0x8049
 
 /*
  * All IOCB Queue entries are this size
