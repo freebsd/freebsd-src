@@ -1125,7 +1125,7 @@ main(int argc, char *argv[])
 	int ch, i;
 
 	init();
-	setlinebuf(stdout);
+	setvbuf(stdout, NULL, _IOLBF, 0);
 
 	sargv = malloc(argc * sizeof(char *));
 	if (sargv == NULL)
