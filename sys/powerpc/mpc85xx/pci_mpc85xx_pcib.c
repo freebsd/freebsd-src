@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 static int
 fsl_pcib_rc_probe(device_t dev)
 {
+
 	if (pci_get_vendor(dev) != 0x1957)
 		return (ENXIO);
 	if (pci_get_progif(dev) != 0)
@@ -71,28 +72,8 @@ fsl_pcib_rc_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-static int
-fsl_pcib_rc_attach(device_t dev)
-{
-	struct pcib_softc *sc;
-	device_t child;
-
-	pcib_bridge_init(dev);
-	pcib_attach_common(dev);
-
-	sc = device_get_softc(dev);
-	if (sc->bus.sec != 0) {
-		child = device_add_child(dev, "pci", -1);
-		if (child != NULL)
-			return (bus_generic_attach(dev));
-	}
-
-	return (0);
-}
-
 static device_method_t fsl_pcib_rc_methods[] = {
 	DEVMETHOD(device_probe,		fsl_pcib_rc_probe),
-	DEVMETHOD(device_attach,	fsl_pcib_rc_attach),
 	DEVMETHOD_END
 };
 
