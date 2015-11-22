@@ -122,6 +122,7 @@ static int isp_gid_ft_sns(ispsoftc_t *, int);
 static int isp_gid_ft_ct_passthru(ispsoftc_t *, int);
 static int isp_scan_fabric(ispsoftc_t *, int);
 static int isp_login_device(ispsoftc_t *, int, uint32_t, isp_pdb_t *, uint16_t *);
+static int isp_send_change_request(ispsoftc_t *, int);
 static int isp_register_fc4_type(ispsoftc_t *, int);
 static int isp_register_fc4_type_24xx(ispsoftc_t *, int);
 static int isp_register_fc4_features_24xx(ispsoftc_t *, int);
@@ -2904,6 +2905,8 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 		} else {
 			fcp->isp_sns_hdl = SNS_ID;
 			r = isp_register_fc4_type(isp, chan);
+			if (r == 0 && fcp->role == ISP_ROLE_TARGET)
+				isp_send_change_request(isp, chan);
 		}
 		if (r) {
 			isp_prt(isp, ISP_LOGWARN|ISP_LOG_SANCFG, "%s: register fc4 type failed", __func__);
@@ -3730,6 +3733,18 @@ isp_login_device(ispsoftc_t *isp, int chan, uint32_t portid, isp_pdb_t *p, uint1
 		return (-1);
 	}
 	return (0);
+}
+
+static int
+isp_send_change_request(ispsoftc_t *isp, int chan)
+{
+	mbreg_t mbs;
+
+	MBSINIT(&mbs, MBOX_SEND_CHANGE_REQUEST, MBLOGALL, 500000);
+	mbs.param[1] = 0x03;
+	mbs.param[9] = chan;
+	isp_mboxcmd(isp, &mbs);
+	return (mbs.param[0] == MBOX_COMMAND_COMPLETE ? 0 : -1);
 }
 
 static int
@@ -5815,8 +5830,8 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 		fcp = FCPARAM(isp, chan);
 		if (fcp->role == ISP_ROLE_NONE)
 			break;
-		if (fcp->isp_loopstate > LOOP_LSCAN_DONE)
-			fcp->isp_loopstate = LOOP_LSCAN_DONE;
+		if (fcp->isp_loopstate > LOOP_LTEST_DONE)
+			fcp->isp_loopstate = LOOP_LTEST_DONE;
 		isp_async(isp, ISPASYNC_CHANGE_NOTIFY, chan,
 		    ISPASYNC_CHANGE_SNS, portid);
 		break;
@@ -6912,7 +6927,7 @@ static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x6d: */
 	ISP_FC_OPMAP(0xcf, 0x03),	/* 0x6e: MBOX_SEND_SNS */
 	ISP_FC_OPMAP(0x0f, 0x07),	/* 0x6f: MBOX_FABRIC_LOGIN */
-	ISP_FC_OPMAP(0x03, 0x01),	/* 0x70: MBOX_SEND_CHANGE_REQUEST */
+	ISP_FC_OPMAP_HALF(0x02, 0x03, 0x00, 0x03),	/* 0x70: MBOX_SEND_CHANGE_REQUEST */
 	ISP_FC_OPMAP(0x03, 0x03),	/* 0x71: MBOX_FABRIC_LOGOUT */
 	ISP_FC_OPMAP(0x0f, 0x0f),	/* 0x72: MBOX_INIT_LIP_LOGIN */
 	ISP_FC_OPMAP(0x00, 0x00),	/* 0x73: */
