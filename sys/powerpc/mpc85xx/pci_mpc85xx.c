@@ -284,7 +284,6 @@ fsl_pcib_attach(device_t dev)
 	return (ofw_pci_attach(dev));
 
 err:
-	//panic("Because I said so\n");
 	return (ENXIO);
 }
 
