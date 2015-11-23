@@ -551,6 +551,9 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 		isp->isp_confopts |= ISP_CFG_OWNLOOPID;
 	}
 
+	if (IS_SCSI(isp))
+		return;
+
 	tval = -1;
 	snprintf(name, sizeof(name), "%srole", prefix);
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
@@ -569,11 +572,6 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 	}
 	if (tval == -1) {
 		tval = ISP_DEFAULT_ROLES;
-	}
-
-	if (IS_SCSI(isp)) {
-		ISP_SPI_PC(isp, chan)->def_role = tval;
-		return;
 	}
 	ISP_FC_PC(isp, chan)->def_role = tval;
 
@@ -889,14 +887,7 @@ isp_pci_attach(device_t dev)
 		isp_get_specific_options(dev, i, isp);
 	}
 
-	/*
-	 * The 'it' suffix really only matters for SCSI cards in target mode.
-	 */
 	isp->isp_osinfo.fw = NULL;
-	if (IS_SCSI(isp) && (ISP_SPI_PC(isp, 0)->def_role & ISP_ROLE_TARGET)) {
-		snprintf(fwname, sizeof (fwname), "isp_%04x_it", did);
-		isp->isp_osinfo.fw = firmware_get(fwname);
-	}
 	if (isp->isp_osinfo.fw == NULL) {
 		snprintf(fwname, sizeof (fwname), "isp_%04x", did);
 		isp->isp_osinfo.fw = firmware_get(fwname);
@@ -1587,17 +1578,6 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	} else {
 		nsegs = ISP_NSEG_MAX;
 	}
-#ifdef	ISP_TARGET_MODE
-	/*
-	 * XXX: We don't really support 64 bit target mode for parallel scsi yet
-	 */
-	if (IS_SCSI(isp) && isp->isp_osinfo.sixtyfourbit) {
-		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
-		isp_prt(isp, ISP_LOGERR, "we cannot do DAC for SPI cards yet");
-		ISP_LOCK(isp);
-		return (1);
-	}
-#endif
 
 	if (isp_dma_tag_create(BUS_DMA_ROOTARG(ISP_PCD(isp)), 1, slim, llim, hlim, NULL, NULL, BUS_SPACE_MAXSIZE, nsegs, slim, 0, &isp->isp_osinfo.dmat)) {
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
