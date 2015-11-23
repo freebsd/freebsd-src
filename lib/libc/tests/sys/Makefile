@@ -4,6 +4,8 @@
 
 TESTSDIR=		${TESTSBASE}/lib/libc/sys
 
+ATF_TESTS_C+=			queue_test
+
 # TODO: clone, lwp_create, lwp_ctl, posix_fadvise, recvmmsg,
 # swapcontext
 NETBSD_ATF_TESTS_C+=		access_test
