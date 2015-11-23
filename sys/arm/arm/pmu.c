@@ -89,7 +89,7 @@ static struct ofw_compat_data compat_data[] = {
 static struct resource_spec pmu_spec[] = {
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	/* We don't currently handle pmu events, other than on cpu 0 */
-#if notyet
+#ifdef notyet
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE | RF_OPTIONAL },
 	{ SYS_RES_IRQ,		2,	RF_ACTIVE | RF_OPTIONAL },
 	{ SYS_RES_IRQ,		3,	RF_ACTIVE | RF_OPTIONAL },
