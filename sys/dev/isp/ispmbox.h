@@ -481,7 +481,8 @@ typedef struct {
 	uint16_t	req_target;
 	uint16_t	req_scclun;
 	uint16_t	req_flags;
-	uint16_t	req_reserved;
+	uint8_t		req_crn;
+	uint8_t		req_reserved;
 	uint16_t	req_time;
 	uint16_t	req_seg_count;
 	uint8_t		req_cdb[16];
@@ -1010,6 +1011,7 @@ typedef struct {
 #define	ICBZOPT_RATE_AUTO	0x8000
 #define	ICBZOPT_RATE_TWOGB	0x4000
 #define	ICBZOPT_50_OHM		0x2000
+#define	ICBZOPT_NO_LOCAL_PLOGI	0x0080
 #define	ICBZOPT_ENA_OOF		0x0040	/* out of order frame handling */
 #define	ICBZOPT_RSPSZ_MASK	0x0030
 #define	ICBZOPT_RSPSZ_24	0x0000

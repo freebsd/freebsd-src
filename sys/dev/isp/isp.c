@@ -1733,7 +1733,12 @@ isp_fibre_init(ispsoftc_t *isp)
 		icbp->icb_fwoptions &= ~ICBOPT_TGT_ENABLE;
 	}
 
-	if (fcp->role & ISP_ROLE_INITIATOR) {
+	/*
+	 * For some reason my 2200 does not generate ATIOs in target mode
+	 * if initiator is disabled.  Extra logins are better then target
+	 * not working at all.
+	 */
+	if ((fcp->role & ISP_ROLE_INITIATOR) || IS_2100(isp) || IS_2200(isp)) {
 		icbp->icb_fwoptions &= ~ICBOPT_INI_DISABLE;
 	} else {
 		icbp->icb_fwoptions |= ICBOPT_INI_DISABLE;
@@ -1954,6 +1959,8 @@ isp_fibre_init(ispsoftc_t *isp)
 	}
 	isp_prt(isp, ISP_LOGDEBUG0, "isp_fibre_init: fwopt 0x%x xfwopt 0x%x zfwopt 0x%x",
 	    icbp->icb_fwoptions, icbp->icb_xfwoptions, icbp->icb_zfwoptions);
+	if (isp->isp_dblev & ISP_LOGDEBUG1)
+		isp_print_bytes(isp, "isp_fibre_init", sizeof (*icbp), icbp);
 
 	isp_put_icb(isp, icbp, (isp_icb_t *)fcp->isp_scratch);
 
@@ -1966,17 +1973,14 @@ isp_fibre_init(ispsoftc_t *isp)
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
-	mbs.logval = MBLOGALL;
 	isp_prt(isp, ISP_LOGDEBUG0, "INIT F/W from %p (%08x%08x)",
 	    fcp->isp_scratch, (uint32_t) ((uint64_t)fcp->isp_scdma >> 32),
 	    (uint32_t) fcp->isp_scdma);
 	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof (*icbp), 0);
 	isp_mboxcmd(isp, &mbs);
 	FC_SCRATCH_RELEASE(isp, 0);
-	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-		isp_print_bytes(isp, "isp_fibre_init", sizeof (*icbp), icbp);
+	if (mbs.param[0] != MBOX_COMMAND_COMPLETE)
 		return;
-	}
 	isp->isp_reqidx = 0;
 	isp->isp_reqodx = 0;
 	isp->isp_residx = 0;

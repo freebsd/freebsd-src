@@ -4947,7 +4947,7 @@ isp_fcp_next_crn(ispsoftc_t *isp, uint8_t *crnp, XS_T *cmd)
 	struct isp_nexus *nxp;
 	int idx;
 
-	if (isp->isp_type < ISP_HA_FC_2300)
+	if (IS_2100(isp))
 		return (0);
 
 	chan = XS_CHANNEL(cmd);
