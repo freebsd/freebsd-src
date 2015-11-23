@@ -26,10 +26,6 @@ CFLAGS+= -include krb5_config.h
 LIBADD+=	gssapi
 .endif
 
-.if ${MK_OPENSSH_NONE_CIPHER} != "no"
-CFLAGS+= -DNONE_CIPHER_ENABLED
-.endif
-
 LIBADD+=	crypto
 
 .if defined(LOCALBASE)
