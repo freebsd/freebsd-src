@@ -220,6 +220,8 @@ SUBDIR=	\
 	${_mlx4} \
 	${_mlx4ib} \
 	${_mlxen} \
+	${_mlx5} \
+	${_mlx5en} \
 	${_mly} \
 	mmc \
 	mmcsd \
@@ -545,6 +547,11 @@ _mlx4ib=	mlx4ib
 _mlxen=		mlxen
 _mthca=		mthca
 .endif
+_mlx5=		mlx5
+.if (${MK_INET_SUPPORT} != "no" && ${MK_INET6_SUPPORT} != "no") || \
+	defined(ALL_MODULES)
+_mlx5en=	mlx5en
+.endif
 _ncv=		ncv
 _ndis=		ndis
 _nsp=		nsp
@@ -748,6 +755,11 @@ _mlx4=		mlx4
 _mlx4ib=	mlx4ib
 _mlxen=		mlxen
 _mthca=		mthca
+.endif
+_mlx5=		mlx5
+.if (${MK_INET_SUPPORT} != "no" && ${MK_INET6_SUPPORT} != "no") || \
+	defined(ALL_MODULES)
+_mlx5en=	mlx5en
 .endif
 _ndis=		ndis
 _nfe=		nfe

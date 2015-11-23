@@ -3639,11 +3639,11 @@ nlm/nlm_prot_xdr.c		optional nfslockd | nfsd
 nlm/sm_inter_xdr.c		optional nfslockd | nfsd
 
 # OpenFabrics Enterprise Distribution (Infiniband)
-ofed/include/linux/linux_compat.c		optional ofed		\
+ofed/include/linux/linux_compat.c		optional ofed | compat_linuxkpi	\
 	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_idr.c			optional ofed		\
+ofed/include/linux/linux_idr.c			optional ofed | compat_linuxkpi	\
 	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_radix.c		optional ofed		\
+ofed/include/linux/linux_radix.c		optional ofed | compat_linuxkpi \
 	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/addr.c		optional ofed		\
 	no-depend							\
@@ -3889,6 +3889,60 @@ ofed/drivers/net/mlx4/en_rx.c			optional mlxen		\
 ofed/drivers/net/mlx4/en_tx.c			optional mlxen		\
 	no-depend obj-prefix "mlx4_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
+
+dev/mlx5/mlx5_core/mlx5_alloc.c			optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_cmd.c			optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_cq.c			optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_eq.c			optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_flow_table.c		optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_fw.c			optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_health.c		optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_mad.c			optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_main.c			optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_mcg.c			optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_mr.c			optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_pagealloc.c		optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_pd.c			optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_port.c			optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_qp.c			optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_srq.c			optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_transobj.c		optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_uar.c			optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_vport.c			optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_wq.c			optional mlx5 pci	\
+	no-depend compile-with "${OFED_C}"
+
+dev/mlx5/mlx5_en/mlx5_en_ethtool.c		optional mlx5en pci inet inet6	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_main.c			optional mlx5en pci inet inet6	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_tx.c			optional mlx5en pci inet inet6	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_flow_table.c		optional mlx5en pci inet inet6	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_rx.c			optional mlx5en pci inet inet6	\
+	no-depend compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_txrx.c			optional mlx5en pci inet inet6	\
+	no-depend compile-with "${OFED_C}"
 
 ofed/drivers/infiniband/hw/mthca/mthca_allocator.c	optional mthca	\
 	no-depend compile-with "${OFED_C}"
