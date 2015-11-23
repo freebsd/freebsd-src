@@ -142,10 +142,6 @@ OLD_FILES+=usr/share/locale/sr_YU.UTF-8/LC_TIME
 OLD_FILES+=usr/share/locale/sr_YU.UTF-8/LC_NUMERIC
 OLD_FILES+=usr/share/locale/sr_YU.UTF-8/LC_MESSAGES
 OLD_DIRS+=usr/share/locale/sr_YU.UTF-8
-OLD_FILES+=usr/bin/colldef
-OLD_FILES+=usr/share/man/man1/colldef.1.gz
-OLD_FILES+=usr/bin/mklocale
-OLD_FILES+=usr/share/man/man1/mklocale.1.gz
 # 20151101: added missing _test suffix on multiple tests in lib/libc
 OLD_FILES+=usr/tests/lib/libc/c063/faccessat
 OLD_FILES+=usr/tests/lib/libc/c063/fchmodat
