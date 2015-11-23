@@ -564,7 +564,12 @@ typedef struct named_object *(ipfw_obj_fidx_cb)(struct ip_fw_chain *ch,
  */
 typedef int (ipfw_obj_create_cb)(struct ip_fw_chain *ch, struct tid_info *ti,
     uint16_t *pkidx);
-
+/*
+ * Object destroy callback. Intended to free resources allocated by
+ * create_object callback.
+ */
+typedef void (ipfw_obj_destroy_cb)(struct ip_fw_chain *ch,
+    struct named_object *no);
 
 struct opcode_obj_rewrite {
 	uint32_t		opcode;		/* Opcode to act upon */
@@ -574,6 +579,7 @@ struct opcode_obj_rewrite {
 	ipfw_obj_fname_cb	*find_byname;	/* Find named object by name */
 	ipfw_obj_fidx_cb	*find_bykidx;	/* Find named object by kidx */
 	ipfw_obj_create_cb	*create_object;	/* Create named object */
+	ipfw_obj_destroy_cb	*destroy_object;/* Destroy named object */
 };
 
 #define	IPFW_ADD_OBJ_REWRITER(f, c)	do {	\
