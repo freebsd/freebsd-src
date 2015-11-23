@@ -1488,7 +1488,7 @@ imc(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	segs->ds_addr += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(imushp->isp));
 	imushp->vbase += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(imushp->isp));
 
-	if (imushp->isp->isp_type >= ISP_HA_FC_2300) {
+	if (imushp->isp->isp_type >= ISP_HA_FC_2200) {
         imushp->isp->isp_osinfo.ecmd_dma = segs->ds_addr;
         imushp->isp->isp_osinfo.ecmd_free = (isp_ecmd_t *)imushp->vbase;
         imushp->isp->isp_osinfo.ecmd_base = imushp->isp->isp_osinfo.ecmd_free;
@@ -1627,7 +1627,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		len += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
 	}
 #endif
-	if (isp->isp_type >= ISP_HA_FC_2300) {
+	if (isp->isp_type >= ISP_HA_FC_2200) {
 		len += (N_XCMDS * XCMD_SIZE);
 	}
 
@@ -1689,7 +1689,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 				bus_dma_tag_destroy(fc->tdmat);
 				goto bad;
 			}
-			if (isp->isp_type >= ISP_HA_FC_2300) {
+			if (!IS_2100(isp)) {
 				for (i = 0; i < INITIAL_NEXUS_COUNT; i++) {
 					struct isp_nexus *n = malloc(sizeof (struct isp_nexus), M_DEVBUF, M_NOWAIT | M_ZERO);
 					if (n == NULL) {
