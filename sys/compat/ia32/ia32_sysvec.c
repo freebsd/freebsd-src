@@ -125,7 +125,7 @@ struct sysentvec ia32_freebsd_sysvec = {
 	.sv_maxssiz	= &ia32_maxssiz,
 	.sv_flags	= SV_ABI_FREEBSD | SV_IA32 | SV_ILP32 |
 #ifdef __amd64__
-		SV_SHP
+		SV_SHP | SV_TIMEKEEP
 #else
 		0
 #endif
