@@ -54,8 +54,6 @@
 #define KEEPALIVE_VER 1
 #define KEEPALIVE_VER_MIN KEEPALIVE_VER
 
-MALLOC_DEFINE(M_VCHIQ, "vchiq_cdev", "VideoCore cdev memroy");
-
 /* Run time control of log level, based on KERN_XXX level. */
 int vchiq_arm_log_level = VCHIQ_LOG_DEFAULT;
 int vchiq_susp_log_level = VCHIQ_LOG_ERROR;
@@ -1143,7 +1141,7 @@ static void
 instance_dtr(void *data)
 {
 
-   free(data, M_VCHIQ);
+	kfree(data);
 }
 
 /****************************************************************************
