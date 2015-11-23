@@ -311,7 +311,6 @@ struct isposinfo {
 		timer_active	: 1,
 		autoconf	: 1,
 		ehook_active	: 1,
-		disabled	: 1,
 		mbox_sleeping	: 1,
 		mbox_sleep_ok	: 1,
 		mboxcmd_done	: 1,

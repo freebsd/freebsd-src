@@ -155,19 +155,6 @@ isp_sbus_attach(device_t dev)
 	sbs->sbus_dev = dev;
 	sbs->sbus_mdvec = mdvec;
 
-	/*
-	 * Figure out if we're supposed to skip this one.
-	 * If we are, we actually go to ISP_ROLE_NONE.
-	 */
-
-	tval = 0;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "disable", &tval) == 0 && tval) {
-		device_printf(dev, "device is disabled\n");
-		/* but return 0 so the !$)$)*!$*) unit isn't reused */
-		return (0);
-	}
-	
 	role = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "role", &role) == 0 &&
