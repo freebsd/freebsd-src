@@ -40,7 +40,7 @@
 #include <unistd.h>
 
 int
-main(int argc, char **argv)
+main(void)
 {
 	int pipefd[2];
 	struct stat st1, st2;
@@ -52,12 +52,11 @@ main(int argc, char **argv)
 		err(1, "FAIL: fstat st1");
 	if (fstat(pipefd[1], &st2) == -1)
 		err(1, "FAIL: fstat st2");
-	if (st1.st_dev != st2.st_dev || st1.st_dev == 0 || st2.st_dev == 0) {
-		errx(1, "FAIL: wrong dev number %d %d",
-		    st1.st_dev, st2.st_dev);
-	}
+	if (st1.st_dev != st2.st_dev || st1.st_dev == 0 || st2.st_dev == 0)
+		errx(1, "FAIL: wrong dev number %d %d", st1.st_dev, st2.st_dev);
 	if (st1.st_ino == st2.st_ino)
 		errx(1, "FAIL: inode numbers are equal: %d", st1.st_ino);
+
 	close(pipefd[0]);
 	close(pipefd[1]);
 	printf("PASS\n");
