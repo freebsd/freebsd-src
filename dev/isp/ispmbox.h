@@ -48,7 +48,7 @@
 #define	MBOX_LOAD_RISC_RAM_2100		0x0009
 					/*   a */
 #define	MBOX_LOAD_RISC_RAM		0x000b
-					/*   c */
+#define	MBOX_DUMP_RISC_RAM		0x000c
 #define MBOX_WRITE_RAM_WORD_EXTENDED	0x000d
 #define MBOX_CHECK_FIRMWARE		0x000e
 #define	MBOX_READ_RAM_WORD_EXTENDED	0x000f
@@ -122,22 +122,60 @@
 #define	MBOX_GET_TARGET_STATUS		0x0056
 
 /* These are for the ISP2X00 FC cards */
+#define	MBOX_WRITE_FC_SERDES_REG	0x0003	/* FC only */
+#define	MBOX_READ_FC_SERDES_REG		0x0004	/* FC only */
+#define	MBOX_GET_IO_STATUS		0x0012
+#define	MBOX_SET_TRANSMIT_PARAMS	0x0019
+#define	MBOX_SET_PORT_PARAMS		0x001a
+#define	MBOX_LOAD_OP_FW_PARAMS		0x001b
+#define	MBOX_INIT_MULTIPLE_QUEUE	0x001f
 #define	MBOX_GET_LOOP_ID		0x0020
 /* for 24XX cards, outgoing mailbox 7 has these values for F or FL topologies */
 #define		ISP24XX_INORDER		0x0100
 #define		ISP24XX_NPIV_SAN	0x0400
 #define		ISP24XX_VSAN_SAN	0x1000
 #define		ISP24XX_FC_SP_SAN	0x2000
-
+#define	MBOX_GET_TIMEOUT_PARAMS		0x0022
 #define	MBOX_GET_FIRMWARE_OPTIONS	0x0028
+#define	MBOX_GENERATE_SYSTEM_ERROR	0x002a
+#define	MBOX_WRITE_SFP			0x0030
+#define	MBOX_READ_SFP			0x0031
+#define	MBOX_SET_TIMEOUT_PARAMS		0x0032
 #define	MBOX_SET_FIRMWARE_OPTIONS	0x0038
+#define	MBOX_GET_SET_FC_LED_CONF	0x003b
+#define	MBOX_RESTART_NIC_FIRMWARE	0x003d	/* FCoE only */
+#define	MBOX_ACCESS_CONTROL		0x003e
+#define	MBOX_LOOP_PORT_BYPASS		0x0040	/* FC only */
+#define	MBOX_LOOP_PORT_ENABLE		0x0041	/* FC only */
 #define	MBOX_GET_RESOURCE_COUNT		0x0042
 #define	MBOX_REQUEST_OFFLINE_MODE	0x0043
+#define	MBOX_DIAGNOSTIC_ECHO_TEST	0x0044
+#define	MBOX_DIAGNOSTIC_LOOPBACK	0x0045
 #define	MBOX_ENHANCED_GET_PDB		0x0047
 #define	MBOX_INIT_FIRMWARE_MULTI_ID	0x0048	/* 2400 only */
 #define	MBOX_GET_VP_DATABASE		0x0049	/* 2400 only */
 #define	MBOX_GET_VP_DATABASE_ENTRY	0x004a	/* 2400 only */
+#define	MBOX_GET_FCF_LIST		0x0050	/* FCoE only */
+#define	MBOX_GET_DCBX_PARAMETERS	0x0051	/* FCoE only */
+#define	MBOX_HOST_MEMORY_COPY		0x0053
 #define	MBOX_EXEC_COMMAND_IOCB_A64	0x0054
+#define	MBOX_SEND_RNID			0x0057
+#define	MBOX_SET_PARAMETERS		0x0059
+#define	MBOX_GET_PARAMETERS		0x005a
+#define	MBOX_DRIVER_HEARTBEAT		0x005B	/* FC only */
+#define	MBOX_FW_HEARTBEAT		0x005C
+#define	MBOX_GET_SET_DATA_RATE		0x005D	/* >=23XX only */
+#define		MBGSD_GET_RATE		0
+#define		MBGSD_SET_RATE		1
+#define		MBGSD_SET_RATE_NOW	2	/* 24XX only */
+#define		MBGSD_1GB	0x00
+#define		MBGSD_2GB	0x01
+#define		MBGSD_AUTO	0x02
+#define		MBGSD_4GB	0x03		/* 24XX only */
+#define		MBGSD_8GB	0x04		/* 25XX only */
+#define		MBGSD_16GB	0x05		/* 26XX only */
+#define		MBGSD_10GB	0x13		/* 26XX only */
+#define	MBOX_SEND_RNFT			0x005e
 #define	MBOX_INIT_FIRMWARE		0x0060
 #define	MBOX_GET_INIT_CONTROL_BLOCK	0x0061
 #define	MBOX_INIT_LIP			0x0062
@@ -151,28 +189,18 @@
 #define	MBOX_GET_PORT_NAME		0x006A
 #define	MBOX_GET_LINK_STATUS		0x006B
 #define	MBOX_INIT_LIP_RESET		0x006C
+#define	MBOX_GET_LINK_STAT_PR_DATA_CNT	0x006D
 #define	MBOX_SEND_SNS			0x006E
 #define	MBOX_FABRIC_LOGIN		0x006F
 #define	MBOX_SEND_CHANGE_REQUEST	0x0070
 #define	MBOX_FABRIC_LOGOUT		0x0071
 #define	MBOX_INIT_LIP_LOGIN		0x0072
 #define	MBOX_GET_PORT_NODE_NAME_LIST	0x0075
+#define	MBOX_SET_VENDOR_ID		0x0076
+#define	MBOX_GET_XGMAC_STATS		0x007a
 #define	MBOX_GET_ID_LIST		0x007C
+#define	MBOX_SEND_LFA			0x007d
 #define	MBOX_LUN_RESET			0x007E
-
-#define	MBOX_DRIVER_HEARTBEAT		0x005B
-#define	MBOX_FW_HEARTBEAT		0x005C
-
-#define	MBOX_GET_SET_DATA_RATE		0x005D	/* 24XX/23XX only */
-#define		MBGSD_GET_RATE		0
-#define		MBGSD_SET_RATE		1
-#define		MBGSD_SET_RATE_NOW	2	/* 24XX only */
-#define		MBGSD_ONEGB	0
-#define		MBGSD_TWOGB	1
-#define		MBGSD_AUTO	2
-#define		MBGSD_FOURGB	3		/* 24XX only */
-#define		MBGSD_EIGHTGB	4		/* 25XX only */
-
 
 #define	ISP2100_SET_PCI_PARAM		0x00ff
 
@@ -218,14 +246,15 @@
 #define	ASYNC_HUNG_SCSI			0x800C
 #define	ASYNC_KILLED_BUS		0x800D
 #define	ASYNC_BUS_TRANSIT		0x800E	/* LVD -> HVD, eg. */
-#define	ASYNC_LIP_OCCURRED		0x8010
+#define	ASYNC_LIP_OCCURRED		0x8010	/* FC only */
 #define	ASYNC_LOOP_UP			0x8011
 #define	ASYNC_LOOP_DOWN			0x8012
-#define	ASYNC_LOOP_RESET		0x8013
+#define	ASYNC_LOOP_RESET		0x8013	/* FC only */
 #define	ASYNC_PDB_CHANGED		0x8014
 #define	ASYNC_CHANGE_NOTIFY		0x8015
-#define	ASYNC_LIP_F8			0x8016
-#define	ASYNC_LIP_ERROR			0x8017
+#define	ASYNC_LIP_F8			0x8016	/* FC only */
+#define	ASYNC_LIP_ERROR			0x8017	/* FC only */
+#define	ASYNC_AUTO_PLOGI_RJT		0x8018
 #define	ASYNC_SECURITY_UPDATE		0x801B
 #define	ASYNC_CMD_CMPLT			0x8020
 #define	ASYNC_CTIO_DONE			0x8021
@@ -237,7 +266,8 @@
 #define	ASYNC_IP_RCVQ_LOW		0x8025
 #define	ASYNC_IP_RCVQ_EMPTY		0x8026
 #define	ASYNC_IP_RECV_DONE_ALIGNED	0x8027
-#define	ASYNC_PTPMODE			0x8030
+#define	ASYNC_ERR_LOGGING_DISABLED	0x8029
+#define	ASYNC_PTPMODE			0x8030	/* FC only */
 #define	ASYNC_RIO16_1			0x8031
 #define	ASYNC_RIO16_2			0x8032
 #define	ASYNC_RIO16_3			0x8033
@@ -249,9 +279,25 @@
 #define		ISP_CONN_BADLIP		3
 #define		ISP_CONN_FATAL		4
 #define		ISP_CONN_LOOPBACK	5
+#define	ASYNC_P2P_INIT_ERR		0x8037
 #define	ASYNC_RIOZIO_STALL		0x8040	/* there's a RIO/ZIO entry that hasn't been serviced */
 #define	ASYNC_RIO32_2_2200		0x8042	/* same as ASYNC_RIO32_2, but for 2100/2200 */
 #define	ASYNC_RCV_ERR			0x8048
+/*
+ * 2.01.31 2200 Only. Need Bit 13 in Mailbox 1 for Set Firmware Options
+ * mailbox command to enable this.
+ */
+#define	ASYNC_QFULL_SENT		0x8049
+#define	ASYNC_RJT_SENT			0x8049	/* 24XX only */
+#define	ASYNC_SEL_CLASS2_P_RJT_SENT	0x804f
+#define	ASYNC_FW_RESTART_COMPLETE	0x8060
+#define	ASYNC_TEMPERATURE_ALERT		0x8070
+#define	ASYNC_INTER_DRIVER_COMP		0x8100	/* FCoE only */
+#define	ASYNC_INTER_DRIVER_NOTIFY	0x8101	/* FCoE only */
+#define	ASYNC_INTER_DRIVER_TIME_EXT	0x8102	/* FCoE only */
+#define	ASYNC_NIC_FW_STATE_CHANGE	0x8200	/* FCoE only */
+#define	ASYNC_AUTOLOAD_FW_COMPLETE	0x8400
+#define	ASYNC_AUTOLOAD_FW_FAILURE	0x8401
 
 /*
  * Firmware Options. There are a lot of them.
@@ -275,20 +321,6 @@
 
 #define	IFCOPT3_NOPRLI		(1 << 4)	/* disable automatic sending of PRLI on local loops */
 #define	IFCOPT3_RNDASYNC	(1 << 1)
-/*
- * 2.01.31 2200 Only. Need Bit 13 in Mailbox 1 for Set Firmware Options
- * mailbox command to enable this.
- */
-#define	ASYNC_QFULL_SENT		0x8049
-
-/*
- * Needs to be enabled
- */
-#define	ASYNC_AUTO_PLOGI_RJT		0x8018
-/*
- * 24XX only
- */
-#define	ASYNC_RJT_SENT			0x8049
 
 /*
  * All IOCB Queue entries are this size
@@ -449,7 +481,8 @@ typedef struct {
 	uint16_t	req_target;
 	uint16_t	req_scclun;
 	uint16_t	req_flags;
-	uint16_t	req_reserved;
+	uint8_t		req_crn;
+	uint8_t		req_reserved;
 	uint16_t	req_time;
 	uint16_t	req_seg_count;
 	uint8_t		req_cdb[16];
@@ -978,6 +1011,7 @@ typedef struct {
 #define	ICBZOPT_RATE_AUTO	0x8000
 #define	ICBZOPT_RATE_TWOGB	0x4000
 #define	ICBZOPT_50_OHM		0x2000
+#define	ICBZOPT_NO_LOCAL_PLOGI	0x0080
 #define	ICBZOPT_ENA_OOF		0x0040	/* out of order frame handling */
 #define	ICBZOPT_RSPSZ_MASK	0x0030
 #define	ICBZOPT_RSPSZ_24	0x0000

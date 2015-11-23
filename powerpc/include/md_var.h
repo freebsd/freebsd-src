@@ -37,8 +37,8 @@ extern	char	sigcode32[];
 extern	int	szsigcode32;
 
 #ifdef __powerpc64__
-extern	char	sigcode64[];
-extern	int	szsigcode64;
+extern	char	sigcode64[], sigcode64_elfv2[];
+extern	int	szsigcode64, szsigcode64_elfv2;
 #endif
 
 extern	long	Maxmem;

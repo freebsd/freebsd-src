@@ -42,7 +42,7 @@ struct tlro_mbuf_data {
 #ifdef INET6
 		struct ip6_hdr *v6;
 #endif
-	}	ip;
+	} ip;
 	struct tcphdr *tcp;
 	struct mbuf *head;
 	struct mbuf **pprev;
@@ -56,7 +56,7 @@ struct tlro_mbuf_data {
 	uint32_t tcp_ts_reply;
 	uint16_t tcp_len;
 	uint8_t	ip_version;
-	uint8_t buf_length;	/* in 32-bit words */
+	uint8_t	buf_length;		/* in 32-bit words */
 	uint64_t buf[TLRO_MAX_HEADER / 8];
 } __aligned(256);
 
