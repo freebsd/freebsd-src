@@ -25,8 +25,8 @@
  */
 
 /*
- * Test program for wctomb(), as specified by IEEE Std. 1003.1-2001 and
- * ISO/IEC 9899:1999.
+ * Test program for mbtowc(), as specified by IEEE Std. 1003.1-2001 and
+ * ISO/IEC 9899:1990.
  *
  * The function is tested with both the "C" ("POSIX") LC_CTYPE setting and
  * "ja_JP.eucJP". Other encodings are not tested.
@@ -35,78 +35,88 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
-#include <errno.h>
 #include <limits.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-int
-main(int argc, char *argv[])
+#include <atf-c.h>
+
+ATF_TC_WITHOUT_HEAD(mbtowc_test);
+ATF_TC_BODY(mbtowc_test, tc)
 {
-	size_t len;
 	char buf[MB_LEN_MAX + 1];
+	wchar_t wc;
 
-	/*
-	 * C/POSIX locale.
-	 */
+	/* C/POSIX locale. */
 
-	printf("1..1\n");
-
-	assert(MB_CUR_MAX == 1);
+	ATF_REQUIRE(MB_CUR_MAX == 1);
 
 	/* No shift states in C locale. */
-	assert(wctomb(NULL, L'\0') == 0);
+	ATF_REQUIRE(mbtowc(NULL, NULL, 0) == 0);
 
 	/* Null wide character. */
-	memset(buf, 0xcc, sizeof(buf));
-	len = wctomb(buf, L'\0');
-	assert(len == 1);
-	assert((unsigned char)buf[0] == 0 && (unsigned char)buf[1] == 0xcc);
+	wc = 0xcccc;
+	memset(buf, 0, sizeof(buf));
+	ATF_REQUIRE(mbtowc(&wc, buf, 1) == 0);
+	ATF_REQUIRE(wc == 0);
 
 	/* Latin letter A. */
+	buf[0] = 'A';
+	ATF_REQUIRE(mbtowc(&wc, buf, 1) == 1);
+	ATF_REQUIRE(wc == L'A');
+
+	/* Incomplete character sequence. */
+	wc = L'z';
+	buf[0] = '\0';
+	ATF_REQUIRE(mbtowc(&wc, buf, 0) == -1);
+	ATF_REQUIRE(wc == L'z');
+	ATF_REQUIRE(mbtowc(NULL, NULL, 0) == 0);
+
+	/* Japanese (EUC) locale. */
+
+	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
+	ATF_REQUIRE(MB_CUR_MAX > 1);
+
+	/* Null wide character */
 	memset(buf, 0xcc, sizeof(buf));
-	len = wctomb(buf, L'A');
-	assert(len == 1);
-	assert((unsigned char)buf[0] == 'A' && (unsigned char)buf[1] == 0xcc);
-
-	/* Invalid code. */
-	assert(wctomb(buf, UCHAR_MAX + 1) == -1);
-	assert(wctomb(NULL, 0) == 0);
-
-	/*
-	 * Japanese (EUC) locale.
-	 */
-
-	assert(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
-	assert(MB_CUR_MAX == 3);
-
-	/* No shift states in EUC encoding. */
-	assert(wctomb(NULL, L'\0') == 0);
-
-	/* Null wide character. */
-	memset(buf, 0xcc, sizeof(buf));
-	len = wctomb(buf, L'\0');
-	assert(len == 1);
-	assert((unsigned char)buf[0] == 0 && (unsigned char)buf[1] == 0xcc);
+	buf[0] = 0;
+	wc = 0xcccc;
+	ATF_REQUIRE(mbtowc(&wc, buf, 1) == 0);
+	ATF_REQUIRE(wc == 0);
 
 	/* Latin letter A. */
+	buf[0] = 'A';
+	ATF_REQUIRE(mbtowc(&wc, buf, 1) == 1);
+	ATF_REQUIRE(wc == L'A');
+
+	/* Incomplete character sequence (zero length). */
+	wc = L'z';
+	buf[0] = '\0';
+	ATF_REQUIRE(mbtowc(&wc, buf, 0) == -1);
+	ATF_REQUIRE(wc == L'z');
+	ATF_REQUIRE(mbtowc(NULL, NULL, 0) == 0);
+
+	/* Incomplete character sequence (truncated double-byte). */
 	memset(buf, 0xcc, sizeof(buf));
-	len = wctomb(buf, L'A');
-	assert(len == 1);
-	assert((unsigned char)buf[0] == 'A' && (unsigned char)buf[1] == 0xcc);
+	buf[0] = 0xa3;
+	buf[1] = 0x00;
+	wc = L'z';
+	ATF_REQUIRE(mbtowc(&wc, buf, 1) == -1);
+	ATF_REQUIRE(wc == L'z');
+	ATF_REQUIRE(mbtowc(NULL, NULL, 0) == 0);
 
-	/* Full width letter A. */
-	memset(buf, 0xcc, sizeof(buf));
-	len = wctomb(buf, 0xa3c1);
-	assert(len == 2);
-	assert((unsigned char)buf[0] == 0xa3 &&
-		(unsigned char)buf[1] == 0xc1 &&
-		(unsigned char)buf[2] == 0xcc);
+	/* Same as above, but complete. */
+	buf[1] = 0xc1;
+	ATF_REQUIRE(mbtowc(&wc, buf, 2) == 2);
+	ATF_REQUIRE(wc == 0xa3c1);
+}
 
-	printf("ok 1 - wctomb()\n");
+ATF_TP_ADD_TCS(tp)
+{
 
-	return (0);
+	ATF_TP_ADD_TC(tp, mbtowc_test);
+
+	return (atf_no_error());
 }

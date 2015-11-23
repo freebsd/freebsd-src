@@ -25,7 +25,7 @@
  */
 
 /*
- * Test program for wcrtomb(), as specified by IEEE Std. 1003.1-2001 and
+ * Test program for mbrlen(), as specified by IEEE Std. 1003.1-2001 and
  * ISO/IEC 9899:1999.
  *
  * The function is tested with both the "C" ("POSIX") LC_CTYPE setting and
@@ -35,7 +35,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <errno.h>
 #include <limits.h>
 #include <locale.h>
@@ -44,91 +43,84 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <wchar.h>
 
-int
-main(int argc, char *argv[])
+#include <atf-c.h>
+
+ATF_TC_WITHOUT_HEAD(mbrlen_test);
+ATF_TC_BODY(mbrlen_test, tc)
 {
 	mbstate_t s;
-	size_t len;
 	char buf[MB_LEN_MAX + 1];
 
-	/*
-	 * C/POSIX locale.
-	 */
+	/* C/POSIX locale. */
+	ATF_REQUIRE(MB_CUR_MAX == 1);
 
-	printf("1..1\n");
-
-	assert(MB_CUR_MAX == 1);
-
-	/*
-	 * If the buffer argument is NULL, wc is implicitly L'\0',
-	 * wcrtomb() resets its internal state.
-	 */
-	assert(wcrtomb(NULL, L'\0', NULL) == 1);
-	assert(wcrtomb(NULL, UCHAR_MAX + 1, NULL) == 1);
+	/* Null wide character, internal state. */
+	memset(buf, 0xcc, sizeof(buf));
+	buf[0] = 0;
+	ATF_REQUIRE(mbrlen(buf, 1, NULL) == 0);
 
 	/* Null wide character. */
 	memset(&s, 0, sizeof(s));
-	memset(buf, 0xcc, sizeof(buf));
-	len = wcrtomb(buf, L'\0', &s);
-	assert(len == 1);
-	assert((unsigned char)buf[0] == 0 && (unsigned char)buf[1] == 0xcc);
+	ATF_REQUIRE(mbrlen(buf, 1, &s) == 0);
 
 	/* Latin letter A, internal state. */
-	assert(wcrtomb(NULL, L'\0', NULL) == 1);
-	assert(wcrtomb(NULL, L'A', NULL) == 1);
+	ATF_REQUIRE(mbrlen(NULL, 0, NULL) == 0);
+	buf[0] = 'A';
+	ATF_REQUIRE(mbrlen(buf, 1, NULL) == 1);
 
 	/* Latin letter A. */
 	memset(&s, 0, sizeof(s));
+	ATF_REQUIRE(mbrlen(buf, 1, &s) == 1);
+
+	/* Incomplete character sequence. */
+	memset(&s, 0, sizeof(s));
+	ATF_REQUIRE(mbrlen(buf, 0, &s) == (size_t)-2);
+
+	/* Japanese (EUC) locale. */
+
+	ATF_REQUIRE(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
+	ATF_REQUIRE(MB_CUR_MAX > 1);
+
+	/* Null wide character, internal state. */
+	ATF_REQUIRE(mbrlen(NULL, 0, NULL) == 0);
 	memset(buf, 0xcc, sizeof(buf));
-	len = wcrtomb(buf, L'A', &s);
-	assert(len == 1);
-	assert((unsigned char)buf[0] == 'A' && (unsigned char)buf[1] == 0xcc);
-
-	/* Invalid code. */
-	assert(wcrtomb(buf, UCHAR_MAX + 1, NULL) == (size_t)-1);
-	assert(errno == EILSEQ);
-
-	/*
-	 * Japanese (EUC) locale.
-	 */
-
-	assert(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
-	assert(MB_CUR_MAX == 3);
-
-	/*
-	 * If the buffer argument is NULL, wc is implicitly L'\0',
-	 * wcrtomb() resets its internal state.
-	 */
-	assert(wcrtomb(NULL, L'\0', NULL) == 1);
+	buf[0] = 0;
+	ATF_REQUIRE(mbrlen(buf, 1, NULL) == 0);
 
 	/* Null wide character. */
 	memset(&s, 0, sizeof(s));
-	memset(buf, 0xcc, sizeof(buf));
-	len = wcrtomb(buf, L'\0', &s);
-	assert(len == 1);
-	assert((unsigned char)buf[0] == 0 && (unsigned char)buf[1] == 0xcc);
+	ATF_REQUIRE(mbrlen(buf, 1, &s) == 0);
 
 	/* Latin letter A, internal state. */
-	assert(wcrtomb(NULL, L'\0', NULL) == 1);
-	assert(wcrtomb(NULL, L'A', NULL) == 1);
+	ATF_REQUIRE(mbrlen(NULL, 0, NULL) == 0);
+	buf[0] = 'A';
+	ATF_REQUIRE(mbrlen(buf, 1, NULL) == 1);
 
 	/* Latin letter A. */
 	memset(&s, 0, sizeof(s));
-	memset(buf, 0xcc, sizeof(buf));
-	len = wcrtomb(buf, L'A', &s);
-	assert(len == 1);
-	assert((unsigned char)buf[0] == 'A' && (unsigned char)buf[1] == 0xcc);
+	ATF_REQUIRE(mbrlen(buf, 1, &s) == 1);
 
-	/* Full width letter A. */
+	/* Incomplete character sequence (zero length). */
 	memset(&s, 0, sizeof(s));
+	ATF_REQUIRE(mbrlen(buf, 0, &s) == (size_t)-2);
+
+	/* Incomplete character sequence (truncated double-byte). */
 	memset(buf, 0xcc, sizeof(buf));
-	len = wcrtomb(buf, 0xa3c1, &s);
-	assert(len == 2);
-	assert((unsigned char)buf[0] == 0xa3 &&
-		(unsigned char)buf[1] == 0xc1 &&
-		(unsigned char)buf[2] == 0xcc);
+	buf[0] = 0xa3;
+	buf[1] = 0x00;
+	memset(&s, 0, sizeof(s));
+	ATF_REQUIRE(mbrlen(buf, 1, &s) == (size_t)-2);
 
-	printf("ok 1 - wcrtomb()\n");
+	/* Same as above, but complete. */
+	buf[1] = 0xc1;
+	memset(&s, 0, sizeof(s));
+	ATF_REQUIRE(mbrlen(buf, 2, &s) == 2);
+}
 
-	return (0);
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, mbrlen_test);
+
+	return (atf_no_error());
 }
