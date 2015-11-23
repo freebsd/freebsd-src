@@ -2987,7 +2987,7 @@ static int
 witness_output_drain(void *arg __unused, const char *data, int len)
 {
 
-	witness_output("%s", data);
+	witness_output("%.*s", len, data);
 	return (len);
 }
 
