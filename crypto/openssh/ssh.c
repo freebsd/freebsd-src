@@ -782,15 +782,6 @@ main(int ac, char **av)
 			break;
 		case 'T':
 			options.request_tty = REQUEST_TTY_NO;
-#ifdef	NONE_CIPHER_ENABLED
-			/*
-			 * Ensure that the user does not try to backdoor a
-			 * NONE cipher switch on an interactive session by
-			 * explicitly disabling it if the user asks for a
-			 * session without a tty.
-			 */
-			options.none_switch = 0;
-#endif
 			break;
 		case 'o':
 			line = xstrdup(optarg);

@@ -1,9 +1,0 @@
-.\" $FreeBSD$
-Set to include the "None" cipher support in OpenSSH and its libraries.
-Additional adjustments may need to be done to system configuration
-files, such as
-.Xr sshd_config 5 ,
-to enable this cipher.
-Please see
-.Pa /usr/src/crypto/openssh/README.hpn
-for full details.
