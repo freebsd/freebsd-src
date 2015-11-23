@@ -3335,7 +3335,7 @@ ti_ifmedia_upd(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 	TI_LOCK(sc);
-	error = ti_ifmedia_upd(ifp);
+	error = ti_ifmedia_upd_locked(sc);
 	TI_UNLOCK(sc);
 
 	return (error);
