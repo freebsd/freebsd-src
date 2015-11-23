@@ -1,7 +1,6 @@
-.\"     $NetBSD: isp.4,v 1.5 1999/12/18 18:33:05 mjacob Exp $
-.\"
-.\" Copyright (c) 1998, 1999, 2001
-.\"     Matthew Jacob, for NASA/Ames Research Center
+.\" Copyright (c) 2009-2015 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2006 Marcus Alves Grando
+.\" Copyright (c) 1998-2001 Matthew Jacob, for NASA/Ames Research Center
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,8 +24,6 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" Additional Copyright (c) 2006 by Marcus Alves Grando
-.\"
 .\" $FreeBSD$
 .\"
 .Dd November 22, 2015
@@ -34,7 +31,7 @@
 .Os
 .Sh NAME
 .Nm isp
-.Nd Qlogic based SCSI and FibreChannel SCSI Host Adapters
+.Nd Qlogic based SPI and FibreChannel SCSI Host Adapters
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -52,23 +49,19 @@ isp_load="YES"
 .Ed
 .Sh DESCRIPTION
 This driver provides access to
-.Tn SCSI
+.Tn SPI
 or
 .Tn FibreChannel
-devices.
+SCSI devices.
 .Pp
-SCSI features include support for Ultra SCSI and wide mode transactions
-for
+SPI supports initiator mode for Ultra SCSI and wide mode transactions for
 .Tn SCSI ,
 Ultra2 LVD (1080, 1280), and Ultra3 LVD (10160, 12160).
 .Pp
-Fibre Channel support uses FCP SCSI profile for
-.Tn FibreChannel ,
-and utilizes Class 3 and Class 2 (2200 and later) connections.
+Fibre Channel supports initiator and target modes of FCP SCSI profile,
+utilizing Class 3 and Class 2 (2200 and later) connections.
 Support is available for Public and Private loops, Point-to-Point
 and Fabric connections.
-The newer 2-Gigabit cards (2300, 2312, 2322), 4-Gigabit (2422, 2432)
-and 8-Gigabit (2532) are supported in both initiator and target modes.
 .Sh FIRMWARE
 Firmware loading is supported if the
 .Xr ispfw 4
@@ -120,8 +113,7 @@ Optical 4Gb Fibre Channel PCIe cards.
 Optical 8Gb Fibre Channel PCIe cards.
 .El
 .Sh CONFIGURATION OPTIONS
-Target mode support for 23xx and above Fibre Channel adapters may be
-enabled with the
+Target mode support for Fibre Channel adapters may be enabled with the
 .Pp
 .Cd options ISP_TARGET_MODE
 .Pp

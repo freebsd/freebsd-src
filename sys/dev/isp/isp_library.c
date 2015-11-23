@@ -963,7 +963,8 @@ isp_put_request_t2(ispsoftc_t *isp, ispreqt2_t *src, ispreqt2_t *dst)
 	ISP_IOXPUT_8(isp, src->req_target, &dst->req_target);
 	ISP_IOXPUT_16(isp, src->req_scclun, &dst->req_scclun);
 	ISP_IOXPUT_16(isp, src->req_flags,  &dst->req_flags);
-	ISP_IOXPUT_16(isp, src->req_reserved, &dst->req_reserved);
+	ISP_IOXPUT_8(isp, src->req_crn, &dst->req_crn);
+	ISP_IOXPUT_8(isp, src->req_reserved, &dst->req_reserved);
 	ISP_IOXPUT_16(isp, src->req_time, &dst->req_time);
 	ISP_IOXPUT_16(isp, src->req_seg_count, &dst->req_seg_count);
 	for (i = 0; i < ASIZE(src->req_cdb); i++) {
@@ -985,7 +986,8 @@ isp_put_request_t2e(ispsoftc_t *isp, ispreqt2e_t *src, ispreqt2e_t *dst)
 	ISP_IOXPUT_16(isp, src->req_target, &dst->req_target);
 	ISP_IOXPUT_16(isp, src->req_scclun, &dst->req_scclun);
 	ISP_IOXPUT_16(isp, src->req_flags,  &dst->req_flags);
-	ISP_IOXPUT_16(isp, src->req_reserved, &dst->req_reserved);
+	ISP_IOXPUT_8(isp, src->req_crn, &dst->req_crn);
+	ISP_IOXPUT_8(isp, src->req_reserved, &dst->req_reserved);
 	ISP_IOXPUT_16(isp, src->req_time, &dst->req_time);
 	ISP_IOXPUT_16(isp, src->req_seg_count, &dst->req_seg_count);
 	for (i = 0; i < ASIZE(src->req_cdb); i++) {
