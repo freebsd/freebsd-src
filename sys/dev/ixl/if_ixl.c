@@ -4676,17 +4676,9 @@ ixl_sysctl_hw_res_alloc(SYSCTL_HANDLER_ARGS)
 	}
 
 	error = sbuf_finish(buf);
-	if (error) {
-		device_printf(dev, "Error finishing sbuf: %d\n", error);
-		sbuf_delete(buf);
-		return error;
-	}
-
-	error = sysctl_handle_string(oidp, sbuf_data(buf), sbuf_len(buf), req);
-	if (error)
-		device_printf(dev, "sysctl error: %d\n", error);
 	sbuf_delete(buf);
-	return error;
+
+	return (error);
 }
 
 /*
@@ -4789,15 +4781,6 @@ ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(nmbuf);
 
 	error = sbuf_finish(buf);
-	if (error) {
-		device_printf(dev, "Error finishing sbuf: %d\n", error);
-		sbuf_delete(buf);
-		return error;
-	}
-
-	error = sysctl_handle_string(oidp, sbuf_data(buf), sbuf_len(buf), req);
-	if (error)
-		device_printf(dev, "sysctl error: %d\n", error);
 	sbuf_delete(buf);
 
 	return (error);
