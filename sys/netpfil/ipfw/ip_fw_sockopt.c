@@ -2348,7 +2348,10 @@ unref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule)
 		KASSERT(no->refcnt > 0, ("refcount for table %d is %d",
 		    kidx, no->refcnt));
 
-		no->refcnt--;
+		if (no->refcnt == 1 && rw->destroy_object != NULL)
+			rw->destroy_object(ch, no);
+		else
+			no->refcnt--;
 	}
 }
 
