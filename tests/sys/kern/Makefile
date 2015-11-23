@@ -14,6 +14,11 @@ LDADD.ptrace_test+=			-lpthread
 LDADD.unix_seqpacket_test+=		-lpthread
 
 NETBSD_ATF_TESTS_C+=	lockf_test
+NETBSD_ATF_TESTS_C+=	mqueue_test
+
+CFLAGS.mqueue_test+=	-I${SRCTOP}/tests
+DPADD.mqueue_test+=	${LIBRT}
+LDADD.mqueue_test+=	-lrt
 
 WARNS?=	5
 
