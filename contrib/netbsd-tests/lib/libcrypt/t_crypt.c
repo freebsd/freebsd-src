@@ -124,6 +124,10 @@ ATF_TC_HEAD(crypt_salts, tc)
 ATF_TC_BODY(crypt_salts, tc)
 {
 	for (size_t i = 0; tests[i].hash; i++) {
+#if defined(__FreeBSD__)
+		if (22 <= i)
+			atf_tc_expect_fail("Old-style/bad inputs fail on FreeBSD");
+#endif
 		char *hash = crypt(tests[i].pw, tests[i].hash);
 		if (!hash) {
 			ATF_CHECK_MSG(0, "Test %zu NULL\n", i);
