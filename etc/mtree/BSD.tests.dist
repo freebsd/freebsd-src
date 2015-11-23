@@ -201,6 +201,8 @@
             ..
             execve
             ..
+            pipe
+            ..
         ..
         kqueue
         ..

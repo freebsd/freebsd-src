@@ -26,9 +26,13 @@
  * DAMAGE.
  */
 
+#include <sys/param.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
+#include <unistd.h>
 
 /*
  * $FreeBSD$
@@ -37,15 +41,21 @@
  * limit for that user has been exceeded.
  */
 
-int main (int argc, void *argv[])
-
+int
+main(void)
 {
-	int i, returnval, lastfd;
-	int pipes[10000];
+	char template[] = "pipe.XXXXXXXXXX";
+	int lastfd, pipes[10000], returnval;
+	unsigned int i;
 
-	for (i = 0; i < 100000; i++) {
-		returnval = open(argv[0], O_RDONLY);
-		if (returnval < 1)
+	lastfd = -1;
+
+	if (mkstemp(template) == -1)
+		err(1, "mkstemp failed");
+
+	for (i = 0; i < nitems(pipes); i++) {
+		returnval = open(template, O_RDONLY);
+		if (returnval == -1 && (errno == ENFILE || errno == EMFILE))
 			break; /* All descriptors exhausted. */
 		else
 			lastfd = returnval;
@@ -66,4 +76,8 @@ int main (int argc, void *argv[])
 		returnval = pipe(&pipes[i]);
 	}
 	printf("PASS\n");
+
+	unlink(template);
+
+	exit(0);
 }
