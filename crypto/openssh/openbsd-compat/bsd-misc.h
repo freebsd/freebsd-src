@@ -20,7 +20,6 @@
 #define _BSD_MISC_H
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
 
 char *ssh_get_progname(char *);
 

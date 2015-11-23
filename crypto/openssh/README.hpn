@@ -1,14 +1,5 @@
 Notes:
 
-NONE CIPHER:
-  To use the NONE option you must have the NoneEnabled switch set on the server
-  and you MUST have *both* NoneEnabled and NoneSwitch set to yes on the client.
-  The NONE feature works with ALL ssh subsystems (as far as we can tell)
-  as long as there is no tty allocated.
-  If a user uses the -T switch to prevent a tty being created the NONE cipher
-  will be disabled. 
-
-
 PERFORMANCE:
   The performance increase will only be as good as the network and TCP stack
   tuning on the reciever side of the connection allows.  As a rule of thumb a
@@ -92,22 +83,6 @@ HPN SPECIFIC CONFIGURATION OPTIONS:
   this to artifically limit the transfer rate of the connection.  In these cases
   the throughput will be no more than n/RTT.  The minimum buffer size is 1KB. 
   Default is the current system wide TCP receive buffer size.
-
-- NoneEnabled=[yes/no] client/server
-  Enable or disable the use of the None cipher.  Care must always be used when
-  enabling this as it will allow users to send data in the clear.  However, it
-  is important to note that authentication information remains encrypted even
-  if this option is enabled.  Set to no by default.
-
-- NoneSwitch=[yes/no] client
-  Switch the encryption cipher being used to the None cipher after
-  authentication takes place.  NoneEnabled must be enabled on both the client
-  and server side of the connection.  When the connection switches to the NONE
-  cipher a warning is sent to STDERR.  The connection attempt will fail with an
-  error if a client requests a NoneSwitch from the server that does not
-  explicitly have NoneEnabled set to yes.
-  Note: The NONE cipher cannot be used in interactive (shell) sessions and it
-  will fail silently.  Set to no by default.
 
 
 CREDITS:

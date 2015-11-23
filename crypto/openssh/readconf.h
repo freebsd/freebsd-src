@@ -1,5 +1,4 @@
 /* $OpenBSD: readconf.h,v 1.101 2014/02/23 20:11:36 djm Exp $ */
-/* $FreeBSD$ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -165,10 +164,6 @@ typedef struct {
 					 * transfer. */
 	int	tcp_rcv_buf;	/* User switch to set tcp recv buffer. */
 
-#ifdef	NONE_CIPHER_ENABLED
-	int	none_enabled;	/* Allow none to be used */
-	int	none_switch;	/* Use none cipher */
-#endif
 }       Options;
 
 #define SSH_CANONICALISE_NO	0
