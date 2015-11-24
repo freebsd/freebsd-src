@@ -204,7 +204,7 @@ _set(uint8_t *eaddr)
 		if (gflag == 0)
 			eaddr[0] |= 2;
 		else
-			eaddr[1] &= ~2;
+			eaddr[0] &= ~2;
 	} else {
 		int e;
 
