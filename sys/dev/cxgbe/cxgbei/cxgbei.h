@@ -29,7 +29,26 @@
 
 #include <dev/iscsi/icl.h>
 
+enum {
+	CWT_SLEEPING	= 1,
+	CWT_RUNNING	= 2,
+	CWT_STOP	= 3,
+	CWT_STOPPED	= 4,
+};
+
+struct cxgbei_worker_thread_softc {
+	struct mtx	cwt_lock;
+	struct cv	cwt_cv;
+	volatile int	cwt_state;
+
+	TAILQ_HEAD(, icl_cxgbei_conn) rx_head;
+} __aligned(CACHE_LINE_SIZE);
+
 #define CXGBEI_CONN_SIGNATURE 0x56788765
+
+enum {
+	RXF_ACTIVE	= 1 << 0,	/* In the worker thread's queue */
+};
 
 struct icl_cxgbei_conn {
 	struct icl_conn ic;
@@ -40,10 +59,11 @@ struct icl_cxgbei_conn {
 	struct adapter *sc;
 	struct toepcb *toep;
 
-	/* PDU currently being assembled. */
-	/* XXXNP: maybe just use ic->ic_receive_pdu instead? */
-	struct icl_cxgbei_pdu *icp;
-	uint32_t pdu_seq;		/* For debug only */
+	/* Receive related. */
+	u_int rx_flags;				/* protected by so_rcv lock */
+	STAILQ_HEAD(, icl_pdu) rcvd_pdus;	/* protected by so_rcv lock */
+	TAILQ_ENTRY(icl_cxgbei_conn) rx_link;	/* protected by cwt lock */
+	struct cxgbei_worker_thread_softc *cwt;
 };
 
 static inline struct icl_cxgbei_conn *
@@ -60,6 +80,7 @@ struct icl_cxgbei_pdu {
 
 	/* cxgbei specific stuff goes here. */
 	uint32_t icp_signature;
+	uint32_t pdu_seq;	/* For debug only */
 	u_int pdu_flags;
 };
 
