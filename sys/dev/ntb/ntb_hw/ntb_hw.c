@@ -264,11 +264,13 @@ bus_space_write_8(bus_space_tag_t tag, bus_space_handle_t handle,
 static int ntb_probe(device_t device);
 static int ntb_attach(device_t device);
 static int ntb_detach(device_t device);
+static unsigned ntb_user_mw_to_idx(struct ntb_softc *, unsigned uidx);
 static inline enum ntb_bar ntb_mw_to_bar(struct ntb_softc *, unsigned mw);
 static inline bool bar_is_64bit(struct ntb_softc *, enum ntb_bar);
 static inline void bar_get_xlat_params(struct ntb_softc *, enum ntb_bar,
     uint32_t *base, uint32_t *xlat, uint32_t *lmt);
 static int ntb_map_pci_bars(struct ntb_softc *ntb);
+static int ntb_mw_set_wc_internal(struct ntb_softc *, unsigned idx, bool wc);
 static void print_map_success(struct ntb_softc *, struct ntb_pci_bar_info *,
     const char *);
 static int map_mmr_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar);
@@ -331,6 +333,14 @@ SYSCTL_UINT(_hw_ntb, OID_AUTO, debug_level, CTLFLAG_RWTUN,
 static unsigned g_ntb_enable_wc = 1;
 SYSCTL_UINT(_hw_ntb, OID_AUTO, enable_writecombine, CTLFLAG_RDTUN,
     &g_ntb_enable_wc, 0, "Set to 1 to map memory windows write combining");
+
+static int g_ntb_mw_idx = -1;
+SYSCTL_INT(_hw_ntb, OID_AUTO, b2b_mw_idx, CTLFLAG_RDTUN, &g_ntb_mw_idx,
+    0, "Use this memory window to access the peer NTB registers.  A "
+    "non-negative value starts from the first MW index; a negative value "
+    "starts from the last MW index.  The default is -1, i.e., the last "
+    "available memory window.  Both sides of the NTB MUST set the same "
+    "value here!  (Applies on Xeon platforms with SDOORBELL_LOCKUP errata.)");
 
 static struct ntb_hw_info pci_ids[] = {
 	/* XXX: PS/SS IDs left out until they are supported. */
@@ -579,11 +589,6 @@ ntb_detach(device_t device)
 	mtx_destroy(&ntb->db_mask_lock);
 	mtx_destroy(&ntb->ctx_lock);
 
-	/*
-	 * Redetect total MWs so we unmap properly -- in case we lowered the
-	 * maximum to work around Xeon errata.
-	 */
-	ntb_detect_max_mw(ntb);
 	ntb_unmap_pci_bar(ntb);
 
 	return (0);
@@ -596,8 +601,7 @@ static inline enum ntb_bar
 ntb_mw_to_bar(struct ntb_softc *ntb, unsigned mw)
 {
 
-	KASSERT(mw < ntb->mw_count ||
-	    (mw != B2B_MW_DISABLED && mw == ntb->b2b_mw_idx),
+	KASSERT(mw < ntb->mw_count,
 	    ("%s: mw:%u > count:%u", __func__, mw, (unsigned)ntb->mw_count));
 	KASSERT(ntb->reg->mw_bar[mw] != 0, ("invalid mw"));
 
@@ -668,11 +672,9 @@ ntb_map_pci_bars(struct ntb_softc *ntb)
 	ntb->bar_info[NTB_B2B_BAR_1].pbarxlat_off = XEON_PBAR2XLAT_OFFSET;
 
 	ntb->bar_info[NTB_B2B_BAR_2].pci_resource_id = PCIR_BAR(4);
-	/* XXX Are shared MW B2Bs write-combining? */
-	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP) && !HAS_FEATURE(NTB_SPLIT_BAR))
-		rc = map_mmr_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_2]);
-	else
-		rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_2]);
+	rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_2]);
+	if (rc != 0)
+		goto out;
 	ntb->bar_info[NTB_B2B_BAR_2].psz_off = XEON_PBAR4SZ_OFFSET;
 	ntb->bar_info[NTB_B2B_BAR_2].ssz_off = XEON_SBAR4SZ_OFFSET;
 	ntb->bar_info[NTB_B2B_BAR_2].pbarxlat_off = XEON_PBAR4XLAT_OFFSET;
@@ -681,10 +683,7 @@ ntb_map_pci_bars(struct ntb_softc *ntb)
 		goto out;
 
 	ntb->bar_info[NTB_B2B_BAR_3].pci_resource_id = PCIR_BAR(5);
-	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP))
-		rc = map_mmr_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_3]);
-	else
-		rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_3]);
+	rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_3]);
 	ntb->bar_info[NTB_B2B_BAR_3].psz_off = XEON_PBAR5SZ_OFFSET;
 	ntb->bar_info[NTB_B2B_BAR_3].ssz_off = XEON_SBAR5SZ_OFFSET;
 	ntb->bar_info[NTB_B2B_BAR_3].pbarxlat_off = XEON_PBAR5XLAT_OFFSET;
@@ -1264,14 +1263,18 @@ ntb_xeon_init_dev(struct ntb_softc *ntb)
 	/*
 	 * There is a Xeon hardware errata related to writes to SDOORBELL or
 	 * B2BDOORBELL in conjunction with inbound access to NTB MMIO space,
-	 * which may hang the system.  To workaround this use the second memory
+	 * which may hang the system.  To workaround this, use a memory
 	 * window to access the interrupt and scratch pad registers on the
 	 * remote system.
 	 */
-	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP))
-		/* Use the last MW for mapping remote spad */
-		ntb->b2b_mw_idx = ntb->mw_count - 1;
-	else if (HAS_FEATURE(NTB_B2BDOORBELL_BIT14))
+	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP)) {
+		ntb->b2b_mw_idx = (ntb->mw_count + g_ntb_mw_idx) %
+		    ntb->mw_count;
+		ntb_printf(2, "Setting up b2b mw idx %d means %u\n",
+		    g_ntb_mw_idx, ntb->b2b_mw_idx);
+		rc = ntb_mw_set_wc_internal(ntb, ntb->b2b_mw_idx, false);
+		KASSERT(rc == 0, ("shouldn't fail"));
+	} else if (HAS_FEATURE(NTB_B2BDOORBELL_BIT14))
 		/*
 		 * HW Errata on bit 14 of b2bdoorbell register.  Writes will not be
 		 * mirrored to the remote system.  Shrink the number of bits by one,
@@ -1481,7 +1484,6 @@ xeon_setup_b2b_mw(struct ntb_softc *ntb, const struct ntb_b2b_addr *addr,
 			ntb->b2b_off = bar_size >> 1;
 		else if (bar_size >= XEON_B2B_MIN_SIZE) {
 			ntb->b2b_off = 0;
-			ntb->mw_count--;
 		} else {
 			device_printf(ntb->device,
 			    "B2B bar size is too small!\n");
@@ -1999,7 +2001,7 @@ ntb_sysctl_init(struct ntb_softc *ntb)
 	    "A", "Link status");
 
 	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "mw_count", CTLFLAG_RD,
-	    &ntb->mw_count, 0, "MW count (excl. non-shared B2B register BAR)");
+	    &ntb->mw_count, 0, "MW count");
 	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "spad_count", CTLFLAG_RD,
 	    &ntb->spad_count, 0, "Scratchpad count");
 	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "db_count", CTLFLAG_RD,
@@ -2341,6 +2343,16 @@ sysctl_handle_register(SYSCTL_HANDLER_ARGS)
 	return (EINVAL);
 }
 
+static unsigned
+ntb_user_mw_to_idx(struct ntb_softc *ntb, unsigned uidx)
+{
+
+	if (ntb->b2b_mw_idx != B2B_MW_DISABLED && ntb->b2b_off == 0 &&
+	    uidx >= ntb->b2b_mw_idx)
+		return (uidx + 1);
+	return (uidx);
+}
+
 /*
  * Public API to the rest of the OS
  */
@@ -2361,10 +2373,18 @@ ntb_get_max_spads(struct ntb_softc *ntb)
 	return (ntb->spad_count);
 }
 
+/*
+ * ntb_mw_count() - Get the number of memory windows available for KPI
+ * consumers.
+ *
+ * (Excludes any MW wholly reserved for register access.)
+ */
 uint8_t
 ntb_mw_count(struct ntb_softc *ntb)
 {
 
+	if (ntb->b2b_mw_idx != B2B_MW_DISABLED && ntb->b2b_off == 0)
+		return (ntb->mw_count - 1);
 	return (ntb->mw_count);
 }
 
@@ -2495,6 +2515,7 @@ ntb_mw_get_range(struct ntb_softc *ntb, unsigned mw_idx, vm_paddr_t *base,
 
 	if (mw_idx >= ntb_mw_count(ntb))
 		return (EINVAL);
+	mw_idx = ntb_user_mw_to_idx(ntb, mw_idx);
 
 	bar_num = ntb_mw_to_bar(ntb, mw_idx);
 	bar = &ntb->bar_info[bar_num];
@@ -2553,6 +2574,7 @@ ntb_mw_set_trans(struct ntb_softc *ntb, unsigned idx, bus_addr_t addr,
 
 	if (idx >= ntb_mw_count(ntb))
 		return (EINVAL);
+	idx = ntb_user_mw_to_idx(ntb, idx);
 
 	bar_num = ntb_mw_to_bar(ntb, idx);
 	bar = &ntb->bar_info[bar_num];
@@ -2658,6 +2680,7 @@ ntb_mw_get_wc(struct ntb_softc *ntb, unsigned idx, bool *wc)
 
 	if (idx >= ntb_mw_count(ntb))
 		return (EINVAL);
+	idx = ntb_user_mw_to_idx(ntb, idx);
 
 	bar = &ntb->bar_info[ntb_mw_to_bar(ntb, idx)];
 	*wc = bar->mapped_wc;
@@ -2676,12 +2699,20 @@ ntb_mw_get_wc(struct ntb_softc *ntb, unsigned idx, bool *wc)
 int
 ntb_mw_set_wc(struct ntb_softc *ntb, unsigned idx, bool wc)
 {
-	struct ntb_pci_bar_info *bar;
-	vm_memattr_t attr;
-	int rc;
 
 	if (idx >= ntb_mw_count(ntb))
 		return (EINVAL);
+
+	idx = ntb_user_mw_to_idx(ntb, idx);
+	return (ntb_mw_set_wc_internal(ntb, idx, wc));
+}
+
+static int
+ntb_mw_set_wc_internal(struct ntb_softc *ntb, unsigned idx, bool wc)
+{
+	struct ntb_pci_bar_info *bar;
+	vm_memattr_t attr;
+	int rc;
 
 	bar = &ntb->bar_info[ntb_mw_to_bar(ntb, idx)];
 	if (bar->mapped_wc == wc)
@@ -2741,9 +2772,6 @@ ntb_get_peer_db_addr(struct ntb_softc *ntb, vm_size_t *sz_out)
 		bar = &ntb->bar_info[NTB_CONFIG_BAR];
 		regoff = ntb->peer_reg->db_bell;
 	} else {
-		KASSERT((HAS_FEATURE(NTB_SPLIT_BAR) && ntb->mw_count == 2) ||
-		    (!HAS_FEATURE(NTB_SPLIT_BAR) && ntb->mw_count == 1),
-		    ("mw_count invalid after setup"));
 		KASSERT(ntb->b2b_mw_idx != B2B_MW_DISABLED,
 		    ("invalid b2b idx"));
 
