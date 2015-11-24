@@ -97,6 +97,9 @@ static volatile u_int icl_cxgbei_ncons;
 #define ICL_CONN_LOCK_ASSERT(X)		mtx_assert(X->ic_lock, MA_OWNED)
 #define ICL_CONN_LOCK_ASSERT_NOT(X)	mtx_assert(X->ic_lock, MA_NOTOWNED)
 
+struct icl_pdu *icl_cxgbei_new_pdu(int);
+void icl_cxgbei_new_pdu_set_conn(struct icl_pdu *, struct icl_conn *);
+
 static icl_conn_new_pdu_t	icl_cxgbei_conn_new_pdu;
 static icl_conn_pdu_free_t	icl_cxgbei_conn_pdu_free;
 static icl_conn_pdu_data_segment_length_t
@@ -138,7 +141,7 @@ DEFINE_CLASS(icl_cxgbei, icl_cxgbei_methods, sizeof(struct icl_cxgbei_conn));
 #define CXGBEI_MAX_PDU 16224
 #define CXGBEI_MAX_DSL (CXGBEI_MAX_PDU - sizeof(struct iscsi_bhs) - 8)
 
-void
+static void
 icl_cxgbei_conn_pdu_free(struct icl_conn *ic, struct icl_pdu *ip)
 {
 #ifdef INVARIANTS
@@ -154,15 +157,13 @@ icl_cxgbei_conn_pdu_free(struct icl_conn *ic, struct icl_pdu *ip)
 	m_freem(ip->ip_bhs_mbuf);	/* storage for icl_cxgbei_pdu itself */
 
 #ifdef DIAGNOSTIC
-	refcount_release(&ic->ic_outstanding_pdus);
+	if (ic != NULL)
+		refcount_release(&ic->ic_outstanding_pdus);
 #endif
 }
 
-/*
- * Allocate icl_pdu with empty BHS to fill up by the caller.
- */
 struct icl_pdu *
-icl_cxgbei_conn_new_pdu(struct icl_conn *ic, int flags)
+icl_cxgbei_new_pdu(int flags)
 {
 	struct icl_cxgbei_pdu *icp;
 	struct icl_pdu *ip;
@@ -170,7 +171,7 @@ icl_cxgbei_conn_new_pdu(struct icl_conn *ic, int flags)
 	uintptr_t a;
 
 	m = m_gethdr(flags, MT_DATA);
-	if (m == NULL)
+	if (__predict_false(m == NULL))
 		return (NULL);
 
 	a = roundup2(mtod(m, uintptr_t), _Alignof(struct icl_cxgbei_pdu));
@@ -179,7 +180,6 @@ icl_cxgbei_conn_new_pdu(struct icl_conn *ic, int flags)
 
 	icp->icp_signature = CXGBEI_PDU_SIGNATURE;
 	ip = &icp->ip;
-	ip->ip_conn = ic;
 	ip->ip_bhs_mbuf = m;
 
 	a = roundup2((uintptr_t)(icp + 1), _Alignof(struct iscsi_bhs *));
@@ -195,10 +195,32 @@ icl_cxgbei_conn_new_pdu(struct icl_conn *ic, int flags)
 	m->m_len = sizeof(struct iscsi_bhs);
 	m->m_pkthdr.len = m->m_len;
 
+	return (ip);
+}
 
+void
+icl_cxgbei_new_pdu_set_conn(struct icl_pdu *ip, struct icl_conn *ic)
+{
+
+	ip->ip_conn = ic;
 #ifdef DIAGNOSTIC
 	refcount_acquire(&ic->ic_outstanding_pdus);
 #endif
+}
+
+/*
+ * Allocate icl_pdu with empty BHS to fill up by the caller.
+ */
+static struct icl_pdu *
+icl_cxgbei_conn_new_pdu(struct icl_conn *ic, int flags)
+{
+	struct icl_pdu *ip;
+
+	ip = icl_cxgbei_new_pdu(flags);
+	if (__predict_false(ip == NULL))
+		return (NULL);
+	icl_cxgbei_new_pdu_set_conn(ip, ic);
+
 	return (ip);
 }
 
