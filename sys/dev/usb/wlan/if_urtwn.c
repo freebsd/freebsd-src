@@ -214,12 +214,19 @@ static void		urtwn_r88e_rf_write(struct urtwn_softc *, int,
 static uint32_t		urtwn_rf_read(struct urtwn_softc *, int, uint8_t);
 static int		urtwn_llt_write(struct urtwn_softc *, uint32_t,
 			    uint32_t);
-static uint8_t		urtwn_efuse_read_1(struct urtwn_softc *, uint16_t);
-static void		urtwn_efuse_read(struct urtwn_softc *);
+static int		urtwn_efuse_read_next(struct urtwn_softc *, uint8_t *);
+static int		urtwn_efuse_read_data(struct urtwn_softc *, uint8_t *,
+			    uint8_t, uint8_t);
+#ifdef URTWN_DEBUG
+static void		urtwn_dump_rom_contents(struct urtwn_softc *,
+			    uint8_t *, uint16_t);
+#endif
+static int		urtwn_efuse_read(struct urtwn_softc *, uint8_t *,
+			    uint16_t);
 static void		urtwn_efuse_switch_power(struct urtwn_softc *);
 static int		urtwn_read_chipid(struct urtwn_softc *);
-static void		urtwn_read_rom(struct urtwn_softc *);
-static void		urtwn_r88e_read_rom(struct urtwn_softc *);
+static int		urtwn_read_rom(struct urtwn_softc *);
+static int		urtwn_r88e_read_rom(struct urtwn_softc *);
 static int		urtwn_ra_init(struct urtwn_softc *);
 static void		urtwn_init_beacon(struct urtwn_softc *,
 			    struct urtwn_vap *);
@@ -431,9 +438,15 @@ urtwn_attach(device_t self)
 	}
 
 	if (sc->chip & URTWN_CHIP_88E)
-		urtwn_r88e_read_rom(sc);
+		error = urtwn_r88e_read_rom(sc);
 	else
-		urtwn_read_rom(sc);
+		error = urtwn_read_rom(sc);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "%s: cannot read rom, error %d\n",
+		    __func__, error);
+		URTWN_UNLOCK(sc);
+		goto detach;
+	}
 
 	device_printf(sc->sc_dev, "MAC/BB RTL%s, RF 6052 %dT%dR\n",
 	    (sc->chip & URTWN_CHIP_92C) ? "8192CU" :
@@ -1224,68 +1237,137 @@ urtwn_llt_write(struct urtwn_softc *sc, uint32_t addr, uint32_t data)
 	return (ETIMEDOUT);
 }
 
-static uint8_t
-urtwn_efuse_read_1(struct urtwn_softc *sc, uint16_t addr)
+static int
+urtwn_efuse_read_next(struct urtwn_softc *sc, uint8_t *val)
 {
 	uint32_t reg;
 	int ntries;
 
+	if (sc->last_rom_addr >= URTWN_EFUSE_MAX_LEN)
+		return (EFAULT);
+
 	reg = urtwn_read_4(sc, R92C_EFUSE_CTRL);
-	reg = RW(reg, R92C_EFUSE_CTRL_ADDR, addr);
+	reg = RW(reg, R92C_EFUSE_CTRL_ADDR, sc->last_rom_addr);
 	reg &= ~R92C_EFUSE_CTRL_VALID;
+
 	urtwn_write_4(sc, R92C_EFUSE_CTRL, reg);
 	/* Wait for read operation to complete. */
 	for (ntries = 0; ntries < 100; ntries++) {
 		reg = urtwn_read_4(sc, R92C_EFUSE_CTRL);
 		if (reg & R92C_EFUSE_CTRL_VALID)
-			return (MS(reg, R92C_EFUSE_CTRL_DATA));
+			break;
 		urtwn_ms_delay(sc);
 	}
-	device_printf(sc->sc_dev,
-	    "could not read efuse byte at address 0x%x\n", addr);
-	return (0xff);
+	if (ntries == 100) {
+		device_printf(sc->sc_dev,
+		    "could not read efuse byte at address 0x%x\n",
+		    sc->last_rom_addr);
+		return (ETIMEDOUT);
+	}
+
+	*val = MS(reg, R92C_EFUSE_CTRL_DATA);
+	sc->last_rom_addr++;
+
+	return (0);
 }
 
-static void
-urtwn_efuse_read(struct urtwn_softc *sc)
+static int
+urtwn_efuse_read_data(struct urtwn_softc *sc, uint8_t *rom, uint8_t off,
+    uint8_t msk)
 {
-	uint8_t *rom = (uint8_t *)&sc->rom;
-	uint16_t addr = 0;
-	uint32_t reg;
-	uint8_t off, msk;
+	uint8_t reg;
+	int i, error;
+
+	for (i = 0; i < 4; i++) {
+		if (msk & (1 << i))
+			continue;
+		error = urtwn_efuse_read_next(sc, &reg);
+		if (error != 0)
+			return (error);
+		DPRINTF("rom[0x%03X] == 0x%02X\n", off * 8 + i * 2, reg);
+		rom[off * 8 + i * 2 + 0] = reg;
+
+		error = urtwn_efuse_read_next(sc, &reg);
+		if (error != 0)
+			return (error);
+		DPRINTF("rom[0x%03X] == 0x%02X\n", off * 8 + i * 2 + 1, reg);
+		rom[off * 8 + i * 2 + 1] = reg;
+	}
+
+	return (0);
+}
+
+#ifdef URTWN_DEBUG
+static void
+urtwn_dump_rom_contents(struct urtwn_softc *sc, uint8_t *rom, uint16_t size)
+{
 	int i;
+
+	/* Dump ROM contents. */
+	device_printf(sc->sc_dev, "%s:", __func__);
+	for (i = 0; i < size; i++) {
+		if (i % 32 == 0)
+			printf("\n%03X: ", i);
+		else if (i % 4 == 0)
+			printf(" ");
+
+		printf("%02X", rom[i]);
+	}
+	printf("\n");
+}
+#endif
+
+static int
+urtwn_efuse_read(struct urtwn_softc *sc, uint8_t *rom, uint16_t size)
+{
+#define URTWN_CHK(res) do {	\
+	if ((error = res) != 0)	\
+		goto end;	\
+} while(0)
+	uint8_t msk, off, reg;
+	int error;
 
 	urtwn_efuse_switch_power(sc);
 
-	memset(&sc->rom, 0xff, sizeof(sc->rom));
-	while (addr < 512) {
-		reg = urtwn_efuse_read_1(sc, addr);
-		if (reg == 0xff)
-			break;
-		addr++;
-		off = reg >> 4;
-		msk = reg & 0xf;
-		for (i = 0; i < 4; i++) {
-			if (msk & (1 << i))
+	/* Read full ROM image. */
+	sc->last_rom_addr = 0;
+	memset(rom, 0xff, size);
+
+	URTWN_CHK(urtwn_efuse_read_next(sc, &reg));
+	while (reg != 0xff) {
+		/* check for extended header */
+		if ((sc->chip & URTWN_CHIP_88E) && (reg & 0x1f) == 0x0f) {
+			off = reg >> 5;
+			URTWN_CHK(urtwn_efuse_read_next(sc, &reg));
+
+			if ((reg & 0x0f) != 0x0f)
+				off = ((reg & 0xf0) >> 1) | off;
+			else
 				continue;
-			rom[off * 8 + i * 2 + 0] =
-			    urtwn_efuse_read_1(sc, addr);
-			addr++;
-			rom[off * 8 + i * 2 + 1] =
-			    urtwn_efuse_read_1(sc, addr);
-			addr++;
-		}
+		} else
+			off = reg >> 4;
+		msk = reg & 0xf;
+
+		URTWN_CHK(urtwn_efuse_read_data(sc, rom, off, msk));
+		URTWN_CHK(urtwn_efuse_read_next(sc, &reg));
 	}
+
+end:
+
 #ifdef URTWN_DEBUG
-	if (urtwn_debug >= 2) {
-		/* Dump ROM content. */
-		printf("\n");
-		for (i = 0; i < sizeof(sc->rom); i++)
-			printf("%02x:", rom[i]);
-		printf("\n");
-	}
+	if (urtwn_debug >= 2)
+		urtwn_dump_rom_contents(sc, rom, size);
 #endif
+
 	urtwn_write_1(sc, R92C_EFUSE_ACCESS, R92C_EFUSE_ACCESS_OFF);
+
+	if (error != 0) {
+		device_printf(sc->sc_dev, "%s: error while reading ROM\n",
+		    __func__);
+	}
+
+	return (error);
+#undef URTWN_CHK
 }
 
 static void
@@ -1341,16 +1423,22 @@ urtwn_read_chipid(struct urtwn_softc *sc)
 	return (0);
 }
 
-static void
+static int
 urtwn_read_rom(struct urtwn_softc *sc)
 {
-	struct r92c_rom *rom = &sc->rom;
+	struct r92c_rom *rom = &sc->rom.r92c_rom;
+	int error;
 
 	/* Read full ROM image. */
-	urtwn_efuse_read(sc);
+	error = urtwn_efuse_read(sc, (uint8_t *)rom, sizeof(*rom));
+	if (error != 0)
+		return (error);
 
 	/* XXX Weird but this is what the vendor driver does. */
-	sc->pa_setting = urtwn_efuse_read_1(sc, 0x1fa);
+	sc->last_rom_addr = 0x1fa;
+	error = urtwn_efuse_read_next(sc, &sc->pa_setting);
+	if (error != 0)
+		return (error);
 	DPRINTF("PA setting=0x%x\n", sc->pa_setting);
 
 	sc->board_type = MS(rom->rf_opt1, R92C_ROM_RF1_BOARD_TYPE);
@@ -1362,67 +1450,40 @@ urtwn_read_rom(struct urtwn_softc *sc)
 	sc->sc_rf_write = urtwn_r92c_rf_write;
 	sc->sc_power_on = urtwn_r92c_power_on;
 	sc->sc_dma_init = urtwn_r92c_dma_init;
+
+	return (0);
 }
 
-static void
+static int
 urtwn_r88e_read_rom(struct urtwn_softc *sc)
 {
-	uint8_t *rom = sc->r88e_rom;
-	uint16_t addr = 0;
-	uint32_t reg;
-	uint8_t off, msk, tmp;
-	int i;
+	uint8_t *rom = sc->rom.r88e_rom;
+	uint16_t addr;
+	int error, i;
 
-	off = 0;
-	urtwn_efuse_switch_power(sc);
-
-	/* Read full ROM image. */
-	memset(&sc->r88e_rom, 0xff, sizeof(sc->r88e_rom));
-	while (addr < 512) {
-		reg = urtwn_efuse_read_1(sc, addr);
-		if (reg == 0xff)
-			break;
-		addr++;
-		if ((reg & 0x1f) == 0x0f) {
-			tmp = (reg & 0xe0) >> 5;
-			reg = urtwn_efuse_read_1(sc, addr);
-			if ((reg & 0x0f) != 0x0f)
-				off = ((reg & 0xf0) >> 1) | tmp;
-			addr++;
-		} else
-			off = reg >> 4;
-		msk = reg & 0xf;
-		for (i = 0; i < 4; i++) {
-			if (msk & (1 << i))
-				continue;
-			rom[off * 8 + i * 2 + 0] =
-			    urtwn_efuse_read_1(sc, addr);
-			addr++;
-			rom[off * 8 + i * 2 + 1] =
-			    urtwn_efuse_read_1(sc, addr);
-			addr++;
-		}
-	}
-
-	urtwn_write_1(sc, R92C_EFUSE_ACCESS, R92C_EFUSE_ACCESS_OFF);
+	error = urtwn_efuse_read(sc, rom, sizeof(sc->rom.r88e_rom));
+	if (error != 0)
+		return (error);
 
 	addr = 0x10;
 	for (i = 0; i < 6; i++)
-		sc->cck_tx_pwr[i] = sc->r88e_rom[addr++];
+		sc->cck_tx_pwr[i] = rom[addr++];
 	for (i = 0; i < 5; i++)
-		sc->ht40_tx_pwr[i] = sc->r88e_rom[addr++];
-	sc->bw20_tx_pwr_diff = (sc->r88e_rom[addr] & 0xf0) >> 4;
+		sc->ht40_tx_pwr[i] = rom[addr++];
+	sc->bw20_tx_pwr_diff = (rom[addr] & 0xf0) >> 4;
 	if (sc->bw20_tx_pwr_diff & 0x08)
 		sc->bw20_tx_pwr_diff |= 0xf0;
-	sc->ofdm_tx_pwr_diff = (sc->r88e_rom[addr] & 0xf);
+	sc->ofdm_tx_pwr_diff = (rom[addr] & 0xf);
 	if (sc->ofdm_tx_pwr_diff & 0x08)
 		sc->ofdm_tx_pwr_diff |= 0xf0;
-	sc->regulatory = MS(sc->r88e_rom[0xc1], R92C_ROM_RF1_REGULATORY);
-	IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, &sc->r88e_rom[0xd7]);
+	sc->regulatory = MS(rom[0xc1], R92C_ROM_RF1_REGULATORY);
+	IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, &rom[0xd7]);
 
 	sc->sc_rf_write = urtwn_r88e_rf_write;
 	sc->sc_power_on = urtwn_r88e_power_on;
 	sc->sc_dma_init = urtwn_r88e_dma_init;
+
+	return (0);
 }
 
 /*
@@ -2944,7 +3005,7 @@ urtwn_bb_init(struct urtwn_softc *sc)
 		urtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(0), 0x69553420);
 		urtwn_ms_delay(sc);
 
-		crystalcap = sc->r88e_rom[0xb9];
+		crystalcap = sc->rom.r88e_rom[0xb9];
 		if (crystalcap == 0xff)
 			crystalcap = 0x20;
 		crystalcap &= 0x3f;
@@ -3210,7 +3271,7 @@ urtwn_get_txpower(struct urtwn_softc *sc, int chain,
     uint16_t power[URTWN_RIDX_COUNT])
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct r92c_rom *rom = &sc->rom;
+	struct r92c_rom *rom = &sc->rom.r92c_rom;
 	uint16_t cckpow, ofdmpow, htpow, diff, max;
 	const struct urtwn_txpwr *base;
 	int ridx, chan, group;

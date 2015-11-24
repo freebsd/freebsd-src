@@ -938,6 +938,8 @@ struct r92c_rom {
 	uint8_t		curstomer_id;
 } __packed;
 
+#define	URTWN_EFUSE_MAX_LEN		512
+
 /* Rx MAC descriptor. */
 struct r92c_rx_stat {
 	uint32_t	rxdw0;
