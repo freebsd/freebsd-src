@@ -12,7 +12,6 @@ DIRDEPS = \
 	lib/libsm \
 	lib/libsmdb \
 	lib/libsmutil \
-	lib/libutil \
 
 
 .include <dirdeps.mk>
