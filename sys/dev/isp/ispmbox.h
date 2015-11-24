@@ -252,7 +252,7 @@
 #define	ASYNC_LOOP_RESET		0x8013	/* FC only */
 #define	ASYNC_PDB_CHANGED		0x8014
 #define	ASYNC_CHANGE_NOTIFY		0x8015
-#define	ASYNC_LIP_F8			0x8016	/* FC only */
+#define	ASYNC_LIP_NOS_OLS_RECV		0x8016	/* FC only */
 #define	ASYNC_LIP_ERROR			0x8017	/* FC only */
 #define	ASYNC_AUTO_PLOGI_RJT		0x8018
 #define	ASYNC_SECURITY_UPDATE		0x801B
