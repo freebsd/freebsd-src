@@ -44,7 +44,11 @@ static inline int
 sf_buf_unmap(struct sf_buf *sf)
 {
 
+#ifdef ARM_NEW_PMAP
+	pmap_qremove(sf->kva, 1);
+#else
 	pmap_kremove(sf->kva);
+#endif
 	return (1);
 }
 #endif /* !_MACHINE_SF_BUF_H_ */
