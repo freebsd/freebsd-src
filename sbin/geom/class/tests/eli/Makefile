@@ -26,7 +26,7 @@ TEST_METADATA.init_test+=	timeout="300"
 TEST_METADATA.integrity_copy_test+=	timeout="1200"
 TEST_METADATA.integrity_data_test+=	timeout="600"
 TEST_METADATA.integrity_hmac_test+=	timeout="600"
-TEST_METADATA.onetime_test+=	timeout="300"
-TEST_METADATA.onetime_a_test+=	timeout="300"
+TEST_METADATA.onetime_a_test+=	timeout="600"
+TEST_METADATA.onetime_test+=	timeout="600"
 
 .include <bsd.test.mk>
