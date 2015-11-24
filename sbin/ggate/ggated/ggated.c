@@ -112,8 +112,8 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: %s [-nv] [-a address] [-p port] [-R rcvbuf] "
-	    "[-S sndbuf] [exports file]\n", getprogname());
+	fprintf(stderr, "usage: %s [-nv] [-a address] [-F pidfile] [-p port] "
+	    "[-R rcvbuf] [-S sndbuf] [exports file]\n", getprogname());
 	exit(EXIT_FAILURE);
 }
 
