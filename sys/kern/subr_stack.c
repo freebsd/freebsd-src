@@ -141,7 +141,7 @@ stack_print_ddb(const struct stack *st)
 	}
 }
 
-#ifdef DDB
+#if defined(DDB) || defined(WITNESS)
 void
 stack_print_short_ddb(const struct stack *st)
 {
@@ -182,7 +182,7 @@ stack_sbuf_print(struct sbuf *sb, const struct stack *st)
 	}
 }
 
-#ifdef DDB
+#if defined(DDB) || defined(WITNESS)
 void
 stack_sbuf_print_ddb(struct sbuf *sb, const struct stack *st)
 {

@@ -315,7 +315,7 @@ print_disk_probe_info()
 	else
 		strcpy(slice, "<auto>");
 
-	if (currdev.d_disk.partition > 0)
+	if (currdev.d_disk.partition >= 0)
 		sprintf(partition, "%d", currdev.d_disk.partition);
 	else
 		strcpy(partition, "<auto>");
@@ -382,7 +382,7 @@ probe_disks(int devidx, int load_type, int load_unit, int load_slice,
 		printf("\n");
 	}
 
-	printf("  Requested disk type/unit not found\n");
+	printf("  Requested disk type/unit/slice/partition not found\n");
 	return (-1);
 }
 
@@ -392,7 +392,7 @@ main(void)
 	struct api_signature *sig = NULL;
 	int load_type, load_unit, load_slice, load_partition;
 	int i;
-	const char * loaderdev;
+	const char *ldev;
 
 	/*
 	 * If we can't find the magic signature and related info, exit with a
@@ -485,10 +485,10 @@ main(void)
 		return (0xbadef1ce);
 	}
 
-	env_setenv("currdev", EV_VOLATILE, uboot_fmtdev(&currdev),
-	    uboot_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, uboot_fmtdev(&currdev),
-	    env_noset, env_nounset);
+	ldev = uboot_fmtdev(&currdev);
+	env_setenv("currdev", EV_VOLATILE, ldev, uboot_setcurrdev, env_nounset);
+	env_setenv("loaddev", EV_VOLATILE, ldev, env_noset, env_nounset);
+	printf("Booting from %s %\n", ldev);
 
 	setenv("LINES", "24", 1);		/* optional */
 	setenv("prompt", "loader>", 1);

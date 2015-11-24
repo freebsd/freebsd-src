@@ -456,16 +456,6 @@ isp_get_generic_options(device_t dev, ispsoftc_t *isp)
 {
 	int tval;
 
-	/*
-	 * Figure out if we're supposed to skip this one.
-	 */
-	tval = 0;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "disable", &tval) == 0 && tval) {
-		device_printf(dev, "disabled at user request\n");
-		isp->isp_osinfo.disabled = 1;
-		return;
-	}
-	
 	tval = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "fwload_disable", &tval) == 0 && tval != 0) {
 		isp->isp_confopts |= ISP_CFG_NORELOAD;
@@ -486,7 +476,7 @@ isp_get_generic_options(device_t dev, ispsoftc_t *isp)
 	}
 	tval = -1;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "vports", &tval);
-	if (tval > 0 && tval < 127) {
+	if (tval > 0 && tval <= 254) {
 		isp_nvports = tval;
 	}
 	tval = 7;
@@ -551,6 +541,9 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 		isp->isp_confopts |= ISP_CFG_OWNLOOPID;
 	}
 
+	if (IS_SCSI(isp))
+		return;
+
 	tval = -1;
 	snprintf(name, sizeof(name), "%srole", prefix);
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
@@ -569,11 +562,6 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 	}
 	if (tval == -1) {
 		tval = ISP_DEFAULT_ROLES;
-	}
-
-	if (IS_SCSI(isp)) {
-		ISP_SPI_PC(isp, chan)->def_role = tval;
-		return;
 	}
 	ISP_FC_PC(isp, chan)->def_role = tval;
 
@@ -710,16 +698,6 @@ isp_pci_attach(device_t dev)
 	 */
 	isp_nvports = 0;
 	isp_get_generic_options(dev, isp);
-
-	/*
-	 * Check to see if options have us disabled
-	 */
-	if (isp->isp_osinfo.disabled) {
-		/*
-		 * But return zero to preserve unit numbering
-		 */
-		return (0);
-	}
 
 	/*
 	 * Get PCI options- which in this case are just mapping preferences.
@@ -889,14 +867,7 @@ isp_pci_attach(device_t dev)
 		isp_get_specific_options(dev, i, isp);
 	}
 
-	/*
-	 * The 'it' suffix really only matters for SCSI cards in target mode.
-	 */
 	isp->isp_osinfo.fw = NULL;
-	if (IS_SCSI(isp) && (ISP_SPI_PC(isp, 0)->def_role & ISP_ROLE_TARGET)) {
-		snprintf(fwname, sizeof (fwname), "isp_%04x_it", did);
-		isp->isp_osinfo.fw = firmware_get(fwname);
-	}
 	if (isp->isp_osinfo.fw == NULL) {
 		snprintf(fwname, sizeof (fwname), "isp_%04x", did);
 		isp->isp_osinfo.fw = firmware_get(fwname);
@@ -1497,7 +1468,7 @@ imc(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	segs->ds_addr += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(imushp->isp));
 	imushp->vbase += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(imushp->isp));
 
-	if (imushp->isp->isp_type >= ISP_HA_FC_2300) {
+	if (imushp->isp->isp_type >= ISP_HA_FC_2200) {
         imushp->isp->isp_osinfo.ecmd_dma = segs->ds_addr;
         imushp->isp->isp_osinfo.ecmd_free = (isp_ecmd_t *)imushp->vbase;
         imushp->isp->isp_osinfo.ecmd_base = imushp->isp->isp_osinfo.ecmd_free;
@@ -1587,17 +1558,6 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	} else {
 		nsegs = ISP_NSEG_MAX;
 	}
-#ifdef	ISP_TARGET_MODE
-	/*
-	 * XXX: We don't really support 64 bit target mode for parallel scsi yet
-	 */
-	if (IS_SCSI(isp) && isp->isp_osinfo.sixtyfourbit) {
-		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
-		isp_prt(isp, ISP_LOGERR, "we cannot do DAC for SPI cards yet");
-		ISP_LOCK(isp);
-		return (1);
-	}
-#endif
 
 	if (isp_dma_tag_create(BUS_DMA_ROOTARG(ISP_PCD(isp)), 1, slim, llim, hlim, NULL, NULL, BUS_SPACE_MAXSIZE, nsegs, slim, 0, &isp->isp_osinfo.dmat)) {
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
@@ -1647,7 +1607,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		len += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
 	}
 #endif
-	if (isp->isp_type >= ISP_HA_FC_2300) {
+	if (isp->isp_type >= ISP_HA_FC_2200) {
 		len += (N_XCMDS * XCMD_SIZE);
 	}
 
@@ -1709,7 +1669,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 				bus_dma_tag_destroy(fc->tdmat);
 				goto bad;
 			}
-			if (isp->isp_type >= ISP_HA_FC_2300) {
+			if (!IS_2100(isp)) {
 				for (i = 0; i < INITIAL_NEXUS_COUNT; i++) {
 					struct isp_nexus *n = malloc(sizeof (struct isp_nexus), M_DEVBUF, M_NOWAIT | M_ZERO);
 					if (n == NULL) {

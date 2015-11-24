@@ -1,5 +1,5 @@
 .\"	$NetBSD: m4.1,v 1.23 2012/04/08 22:00:39 wiz Exp $
-.\"	@(#) $OpenBSD: m4.1,v 1.62 2014/04/14 07:00:47 jmc Exp $
+.\"	@(#) $OpenBSD: m4.1,v 1.63 2015/09/14 20:06:58 schwarze Exp $
 .\"
 .\" Copyright (c) 1989, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd $Mdocdate: April 14 2014 $
+.Dd $Mdocdate: September 14 2015 $
 .Dt M4 1
 .Os
 .Sh NAME
@@ -98,9 +98,7 @@ recognized as special when not followed by an open parenthesis.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl D Ns Ar name Ns Oo
-.Pf = Ns Ar value
-.Oc
+.It Fl D Ns Ar name Ns Op = Ns Ar value
 Define the symbol
 .Ar name
 to have some value (or

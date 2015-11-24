@@ -419,7 +419,7 @@ lint: ${SRCS:M*.c}
 
 .if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
 .if defined(LIB) && !empty(LIB)
-.if ${MK_FAST_DEPEND} == "no"
+.if !exists(${.OBJDIR}/${DEPENDFILE})
 ${OBJS} ${STATICOBJS} ${POBJS}: ${SRCS:M*.h}
 .endif
 .for _S in ${SRCS:N*.[hly]}
