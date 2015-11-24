@@ -302,6 +302,10 @@ static const struct ukbd_mods ukbd_mods[UKBD_NMOD] = {
  * 0x68: F13
  * 0x69: F14
  * 0x6a: F15
+ * 
+ * USB Apple Keyboard JIS generates:
+ * 0x90: Kana
+ * 0x91: Eisu
  */
 static const uint8_t ukbd_trtab[256] = {
 	0, 0, 0, 0, 30, 48, 46, 32,	/* 00 - 07 */
@@ -322,7 +326,7 @@ static const uint8_t ukbd_trtab[256] = {
 	109, 110, 112, 118, 114, 116, 117, 119,	/* 78 - 7F */
 	121, 120, NN, NN, NN, NN, NN, 123,	/* 80 - 87 */
 	124, 125, 126, 127, 128, NN, NN, NN,	/* 88 - 8F */
-	NN, NN, NN, NN, NN, NN, NN, NN,	/* 90 - 97 */
+	129, 130, NN, NN, NN, NN, NN, NN,	/* 90 - 97 */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* 98 - 9F */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* A0 - A7 */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* A8 - AF */
@@ -2070,7 +2074,7 @@ ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 		0x166,	/* Sun Type 6 Find */
 		0x167,	/* Sun Type 6 Cut */
 		0x125,	/* Sun Type 6 Mute */
-		/* 120 - 128 */
+		/* 120 - 130 */
 		0x11f,	/* Sun Type 6 VolumeDown */
 		0x11e,	/* Sun Type 6 VolumeUp */
 		0x120,	/* Sun Type 6 PowerDown */
@@ -2082,6 +2086,8 @@ ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 		0x79,	/* Keyboard Intl' 4 (Henkan) */
 		0x7b,	/* Keyboard Intl' 5 (Muhenkan) */
 		0x5c,	/* Keyboard Intl' 6 (Keypad ,) (For PC-9821 layout) */
+		0x71,   /* Apple Keyboard JIS (Kana) */
+		0x72,   /* Apple Keyboard JIS (Eisu) */
 	};
 
 	if ((code >= 89) && (code < (int)(89 + (sizeof(scan) / sizeof(scan[0]))))) {
