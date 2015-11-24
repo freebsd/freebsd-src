@@ -377,9 +377,19 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 			return (0);
 		}
 		if (hdr.elf.e_type == ET_DYN) {
-			if (hdr.elf.e_ident[EI_OSABI] == ELFOSABI_FREEBSD) {
+			switch (hdr.elf.e_ident[EI_OSABI]) {
+			case ELFOSABI_FREEBSD:
 				*is_shlib = 1;
 				return (1);
+#ifdef __ARM_EABI__
+			case ELFOSABI_NONE:
+				if (hdr.elf.e_machine != EM_ARM)
+					break;
+				if (((hdr.elf.e_flags & 0xff000000) >> 24) < 4)
+					break;
+				*is_shlib = 1;
+				return (1);
+#endif
 			}
 			warnx("%s: not a FreeBSD ELF shared object", fname);
 			return (0);
