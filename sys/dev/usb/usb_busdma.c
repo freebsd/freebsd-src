@@ -439,9 +439,13 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 	pc->page_offset_buf = rem;
 	pc->page_offset_end += rem;
 #ifdef USB_DEBUG
-	if (rem != (USB_P2U(pc->buffer) & (USB_PAGE_SIZE - 1))) {
+	if (nseg > 1 &&
+	    ((segs->ds_addr + segs->ds_len) & (USB_PAGE_SIZE - 1)) !=
+	    ((segs + 1)->ds_addr & (USB_PAGE_SIZE - 1))) {
 		/*
-		 * This check verifies that the physical address is correct:
+		 * This check verifies there is no page offset hole
+		 * between the first and second segment. See the
+		 * BUS_DMA_KEEP_PG_OFFSET flag.
 		 */
 		DPRINTFN(0, "Page offset was not preserved\n");
 		error = 1;
