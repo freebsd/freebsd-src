@@ -69,6 +69,8 @@ extern int eprol;
 extern int etext;
 #endif
 
+struct ps_strings *__ps_strings;
+
 struct capreloc
 {
 	uint64_t capability_location;
@@ -140,6 +142,7 @@ __start(struct cheriabi_execdata *ce,
 	argc = ce->ce_argc;
 	argv = ce->ce_argv;
 	env = ce->ce_envp;
+	__ps_strings = ce->ce_ps_strings;
 	handle_argv(argc, argv, env);
 
 	if (&_DYNAMIC != NULL)
