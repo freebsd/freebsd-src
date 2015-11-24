@@ -296,10 +296,10 @@ outfunc(FILE *cfile, int calcsize)
 	else
 		fputs("	    return NULL;\n", cfile);
 	if (calcsize)
-		fputs("      funcblocksize += nodesize[n->type];\n", cfile);
+		fputs("      result->blocksize += nodesize[n->type];\n", cfile);
 	else {
-		fputs("      new = funcblock;\n", cfile);
-		fputs("      funcblock = (char *)funcblock + nodesize[n->type];\n", cfile);
+		fputs("      new = state->block;\n", cfile);
+		fputs("      state->block = (char *)state->block + nodesize[n->type];\n", cfile);
 	}
 	fputs("      switch (n->type) {\n", cfile);
 	for (sp = str ; sp < &str[nstr] ; sp++) {
@@ -313,33 +313,33 @@ outfunc(FILE *cfile, int calcsize)
 			case T_NODE:
 				if (calcsize) {
 					indent(12, cfile);
-					fprintf(cfile, "calcsize(n->%s.%s);\n",
+					fprintf(cfile, "calcsize(n->%s.%s, result);\n",
 						sp->tag, fp->name);
 				} else {
 					indent(12, cfile);
-					fprintf(cfile, "new->%s.%s = copynode(n->%s.%s);\n",
+					fprintf(cfile, "new->%s.%s = copynode(n->%s.%s, state);\n",
 						sp->tag, fp->name, sp->tag, fp->name);
 				}
 				break;
 			case T_NODELIST:
 				if (calcsize) {
 					indent(12, cfile);
-					fprintf(cfile, "sizenodelist(n->%s.%s);\n",
+					fprintf(cfile, "sizenodelist(n->%s.%s, result);\n",
 						sp->tag, fp->name);
 				} else {
 					indent(12, cfile);
-					fprintf(cfile, "new->%s.%s = copynodelist(n->%s.%s);\n",
+					fprintf(cfile, "new->%s.%s = copynodelist(n->%s.%s, state);\n",
 						sp->tag, fp->name, sp->tag, fp->name);
 				}
 				break;
 			case T_STRING:
 				if (calcsize) {
 					indent(12, cfile);
-					fprintf(cfile, "funcstringsize += strlen(n->%s.%s) + 1;\n",
+					fprintf(cfile, "result->stringsize += strlen(n->%s.%s) + 1;\n",
 						sp->tag, fp->name);
 				} else {
 					indent(12, cfile);
-					fprintf(cfile, "new->%s.%s = nodesavestr(n->%s.%s);\n",
+					fprintf(cfile, "new->%s.%s = nodesavestr(n->%s.%s, state);\n",
 						sp->tag, fp->name, sp->tag, fp->name);
 				}
 				break;
