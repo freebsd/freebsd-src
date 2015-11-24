@@ -37,6 +37,12 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 /*
+ * For compatibility with old versions of crt1 that didn't define __ps_strings,
+ * define it as a common here.
+ */
+struct ps_strings *__ps_strings;
+
+/*
  * Older FreeBSD 2.0, 2.1 and 2.2 had different ps_strings structures and
  * in different locations.
  * 1: old_ps_strings at the very top of the stack.
@@ -131,11 +137,19 @@ setproctitle(const char *fmt, ...)
 	sysctl(oid, 4, 0, 0, kbuf, strlen(kbuf) + 1);
 
 	if (ps_strings == NULL) {
-		len = sizeof(ul_ps_strings);
-		if (sysctlbyname("kern.ps_strings", &ul_ps_strings, &len, NULL,
-		    0) == -1)
-			ul_ps_strings = PS_STRINGS;
-		ps_strings = (struct ps_strings *)ul_ps_strings;
+		if (__ps_strings != NULL) {
+			ps_strings = __ps_strings;
+#ifndef __CHERI_SANDBOX__
+		} else {
+			len = sizeof(ul_ps_strings);
+			if (sysctlbyname("kern.ps_strings", &ul_ps_strings,
+			    &len, NULL, 0) == -1)
+				ul_ps_strings = PS_STRINGS;
+			ps_strings = (struct ps_strings *)ul_ps_strings;
+#else
+			assert(__ps_strings != NULL);
+#endif
+		}
 	}
 
 	/*
