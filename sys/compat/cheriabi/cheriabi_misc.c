@@ -1250,8 +1250,7 @@ cheriabi_copyout_strings(struct image_params *imgp)
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
-	sucap(&arginfo->ps_argvstr, vectp,
-	    arginfo->ps_nargvstr * sizeof(struct chericap),
+	sucap(&arginfo->ps_argvstr, vectp, argc * sizeof(struct chericap),
 	    CHERI_CAP_USER_DATA_PERMS);
 	suword32(&arginfo->ps_nargvstr, argc);
 
