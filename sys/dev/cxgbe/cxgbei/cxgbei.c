@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 /* XXXNP some header instead. */
 struct icl_pdu *icl_cxgbei_new_pdu(int);
 void icl_cxgbei_new_pdu_set_conn(struct icl_pdu *, struct icl_conn *);
+void icl_cxgbei_conn_pdu_free(struct icl_conn *, struct icl_pdu *);
 
 /*
  * Direct Data Placement -
@@ -530,27 +531,23 @@ do_rx_iscsi_hdr(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct cpl_iscsi_hdr *cpl = mtod(m, struct cpl_iscsi_hdr *);
 	u_int tid = GET_TID(cpl);
 	struct toepcb *toep = lookup_tid(sc, tid);
-	struct icl_cxgbei_conn *icc = toep->ulpcb;
 	struct icl_pdu *ip;
 	struct icl_cxgbei_pdu *icp;
 
-	MPASS(icc != NULL);
-	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
 	M_ASSERTPKTHDR(m);
 
 	ip = icl_cxgbei_new_pdu(M_NOWAIT);
 	if (ip == NULL)
 		CXGBE_UNIMPLEMENTED("PDU allocation failure");
-	icl_cxgbei_new_pdu_set_conn(ip, &icc->ic);
 	icp = ip_to_icp(ip);
 	bcopy(mtod(m, caddr_t) + sizeof(*cpl), icp->ip.ip_bhs, sizeof(struct
 	    iscsi_bhs));
+	icp->pdu_seq = ntohl(cpl->seq);
 	icp->pdu_flags = SBUF_ULP_FLAG_HDR_RCVD;
 
 	/* This is the start of a new PDU.  There should be no old state. */
-	MPASS(icc->icp == NULL);
-	icc->icp = icp;
-	icc->pdu_seq = ntohl(cpl->seq);
+	MPASS(toep->ulpcb2 == NULL);
+	toep->ulpcb2 = icp;
 
 #if 0
 	CTR4(KTR_CXGBE, "%s: tid %u, cpl->len hlen %u, m->m_len hlen %u",
@@ -568,11 +565,8 @@ do_rx_iscsi_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m
 	struct cpl_iscsi_data *cpl =  mtod(m, struct cpl_iscsi_data *);
 	u_int tid = GET_TID(cpl);
 	struct toepcb *toep = lookup_tid(sc, tid);
-	struct icl_cxgbei_conn *icc = toep->ulpcb;
-	struct icl_cxgbei_pdu *icp = icc->icp;
+	struct icl_cxgbei_pdu *icp = toep->ulpcb2;
 
-	MPASS(icc != NULL);
-	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
 	M_ASSERTPKTHDR(m);
 
 	/* Must already have received the header (but not the data). */
@@ -603,29 +597,49 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	u_int tid = GET_TID(cpl);
 	struct toepcb *toep = lookup_tid(sc, tid);
 	struct inpcb *inp = toep->inp;
+	struct socket *so;
+	struct sockbuf *sb;
 	struct tcpcb *tp;
-	struct icl_cxgbei_conn *icc = toep->ulpcb;
-	struct icl_conn *ic = &icc->ic;
-	struct icl_cxgbei_pdu *icp = icc->icp;
+	struct icl_cxgbei_conn *icc;
+	struct icl_conn *ic;
+	struct icl_cxgbei_pdu *icp = toep->ulpcb2;
+	struct icl_pdu *ip;
 	u_int pdu_len, val;
 
-	MPASS(icc != NULL);
-	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
 	MPASS(m == NULL);
 
 	/* Must already be assembling a PDU. */
 	MPASS(icp != NULL);
 	MPASS(icp->pdu_flags & SBUF_ULP_FLAG_HDR_RCVD);	/* Data is optional. */
-
+	ip = &icp->ip;
 	icp->pdu_flags |= SBUF_ULP_FLAG_STATUS_RCVD;
-
+	val = ntohl(cpl->ddpvld);
+	if (val & F_DDP_PADDING_ERR)
+		icp->pdu_flags |= SBUF_ULP_FLAG_PAD_ERROR;
+	if (val & F_DDP_HDRCRC_ERR)
+		icp->pdu_flags |= SBUF_ULP_FLAG_HCRC_ERROR;
+	if (val & F_DDP_DATACRC_ERR)
+		icp->pdu_flags |= SBUF_ULP_FLAG_DCRC_ERROR;
+	if (ip->ip_data_mbuf == NULL) {
+		/* XXXNP: what should ip->ip_data_len be, and why? */
+		icp->pdu_flags |= SBUF_ULP_FLAG_DATA_DDPED;
+	}
 	pdu_len = ntohs(cpl->len);	/* includes everything. */
 
 	INP_WLOCK(inp);
-	/* XXXNP: check inp for dropped etc., and toep for abort in progress. */
+	if (__predict_false(inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT))) {
+		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), inp_flags 0x%x",
+		    __func__, tid, pdu_len, inp->inp_flags);
+		INP_WUNLOCK(inp);
+		icl_cxgbei_conn_pdu_free(NULL, ip);
+#ifdef INVARIANTS
+		toep->ulpcb2 = NULL;
+#endif
+		return (0);
+	}
 
 	tp = intotcpcb(inp);
-	MPASS(icc->pdu_seq == tp->rcv_nxt);
+	MPASS(icp->pdu_seq == tp->rcv_nxt);
 	MPASS(tp->rcv_wnd >= pdu_len);
 	tp->rcv_nxt += pdu_len;
 	tp->rcv_wnd -= pdu_len;
@@ -634,25 +648,93 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	/* update rx credits */
 	toep->rx_credits += pdu_len;
 	t4_rcvd(&toep->td->tod, tp);	/* XXX: sc->tom_softc.tod */
-	INP_WUNLOCK(inp);
 
-	val = ntohl(cpl->ddpvld);
-	if (val & F_DDP_PADDING_ERR)
-		icp->pdu_flags |= SBUF_ULP_FLAG_PAD_ERROR;
-	if (val & F_DDP_HDRCRC_ERR)
-		icp->pdu_flags |= SBUF_ULP_FLAG_HCRC_ERROR;
-	if (val & F_DDP_DATACRC_ERR)
-		icp->pdu_flags |= SBUF_ULP_FLAG_DCRC_ERROR;
-	if (icp->ip.ip_data_mbuf == NULL)
-		icp->pdu_flags |= SBUF_ULP_FLAG_DATA_DDPED;
+	so = inp->inp_socket;
+	sb = &so->so_rcv;
+	SOCKBUF_LOCK(sb);
+
+	icc = toep->ulpcb;
+	if (__predict_false(icc == NULL || sb->sb_state & SBS_CANTRCVMORE)) {
+		CTR5(KTR_CXGBE,
+		    "%s: tid %u, excess rx (%d bytes), icc %p, sb_state 0x%x",
+		    __func__, tid, pdu_len, icc, sb->sb_state);
+		SOCKBUF_UNLOCK(sb);
+		INP_WUNLOCK(inp);
+
+		INP_INFO_RLOCK(&V_tcbinfo);
+		INP_WLOCK(inp);
+		tp = tcp_drop(tp, ECONNRESET);
+		if (tp)
+			INP_WUNLOCK(inp);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
+
+		icl_cxgbei_conn_pdu_free(NULL, ip);
+#ifdef INVARIANTS
+		toep->ulpcb2 = NULL;
+#endif
+		return (0);
+	}
+	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
+	ic = &icc->ic;
+	icl_cxgbei_new_pdu_set_conn(ip, ic);
+
+	MPASS(m == NULL); /* was unused, we'll use it now. */
+	m = sbcut_locked(sb, sbused(sb)); /* XXXNP: toep->sb_cc accounting? */
+	if (__predict_false(m != NULL)) {
+		int len = m_length(m, NULL);
+
+		/*
+		 * PDUs were received before the tid transitioned to ULP mode.
+		 * Convert them to icl_cxgbei_pdus and send them to ICL before
+		 * the PDU in icp/ip.
+		 */
+		CTR3(KTR_CXGBE, "%s: tid %u, %u bytes in so_rcv", __func__, tid,
+		    len);
+
+		/* XXXNP: needs to be rewritten. */
+		if (len == sizeof(struct iscsi_bhs) || len == 4 + sizeof(struct
+		    iscsi_bhs)) {
+			struct icl_cxgbei_pdu *icp0;
+			struct icl_pdu *ip0;
+
+			ip0 = icl_cxgbei_new_pdu(M_NOWAIT);
+			icl_cxgbei_new_pdu_set_conn(ip0, ic);
+			if (ip0 == NULL)
+				CXGBE_UNIMPLEMENTED("PDU allocation failure");
+			icp0 = ip_to_icp(ip0);
+			icp0->pdu_seq = 0; /* XXX */
+			icp0->pdu_flags = SBUF_ULP_FLAG_HDR_RCVD |
+			    SBUF_ULP_FLAG_STATUS_RCVD;
+			m_copydata(m, 0, sizeof(struct iscsi_bhs), (void *)ip0->ip_bhs);
+			STAILQ_INSERT_TAIL(&icc->rcvd_pdus, ip0, ip_next);
+		}
+		m_freem(m);
+	}
 
 #if 0
 	CTR4(KTR_CXGBE, "%s: tid %u, pdu_len %u, pdu_flags 0x%x",
 	    __func__, tid, pdu_len, icp->pdu_flags);
 #endif
 
-	icc->icp = NULL;
-	ic->ic_receive(&icp->ip);
+	STAILQ_INSERT_TAIL(&icc->rcvd_pdus, ip, ip_next);
+	if ((icc->rx_flags & RXF_ACTIVE) == 0) {
+		struct cxgbei_worker_thread_softc *cwt = icc->cwt;
+
+		mtx_lock(&cwt->cwt_lock);
+		icc->rx_flags |= RXF_ACTIVE;
+		TAILQ_INSERT_TAIL(&cwt->rx_head, icc, rx_link);
+		if (cwt->cwt_state == CWT_SLEEPING) {
+			cwt->cwt_state = CWT_RUNNING;
+			cv_signal(&cwt->cwt_cv);
+		}
+		mtx_unlock(&cwt->cwt_lock);
+	}
+	SOCKBUF_UNLOCK(sb);
+	INP_WUNLOCK(inp);
+
+#ifdef INVARIANTS
+	toep->ulpcb2 = NULL;
+#endif
 
 	return (0);
 }
@@ -802,19 +884,7 @@ static struct uld_info cxgbei_uld_info = {
 	.deactivate = cxgbei_deactivate,
 };
 
-enum {
-	CWT_RUNNING = 1,
-	CWT_STOP = 2,
-	CWT_STOPPED = 3,
-};
-
-struct cxgbei_worker_thread_softc {
-	struct mtx	cwt_lock;
-	struct cv	cwt_cv;
-	volatile int	cwt_state;
-} __aligned(CACHE_LINE_SIZE);
-
-int worker_thread_count;
+static int worker_thread_count;
 static struct cxgbei_worker_thread_softc *cwt_softc;
 static struct proc *cxgbei_proc;
 
@@ -822,6 +892,11 @@ static void
 cwt_main(void *arg)
 {
 	struct cxgbei_worker_thread_softc *cwt = arg;
+	struct icl_cxgbei_conn *icc = NULL;
+	struct icl_conn *ic;
+	struct icl_pdu *ip;
+	struct sockbuf *sb;
+	STAILQ_HEAD(, icl_pdu) rx_pdus = STAILQ_HEAD_INITIALIZER(rx_pdus);
 
 	MPASS(cwt != NULL);
 
@@ -829,12 +904,61 @@ cwt_main(void *arg)
 	MPASS(cwt->cwt_state == 0);
 	cwt->cwt_state = CWT_RUNNING;
 	cv_signal(&cwt->cwt_cv);
-	for (;;) {
-		cv_wait(&cwt->cwt_cv, &cwt->cwt_lock);
-		if (cwt->cwt_state == CWT_STOP)
+
+	while (__predict_true(cwt->cwt_state != CWT_STOP)) {
+		cwt->cwt_state = CWT_RUNNING;
+		while ((icc = TAILQ_FIRST(&cwt->rx_head)) != NULL) {
+			TAILQ_REMOVE(&cwt->rx_head, icc, rx_link);
+			mtx_unlock(&cwt->cwt_lock);
+
+			ic = &icc->ic;
+			sb = &ic->ic_socket->so_rcv;
+
+			SOCKBUF_LOCK(sb);
+			MPASS(icc->rx_flags & RXF_ACTIVE);
+			if (__predict_true(!(sb->sb_state & SBS_CANTRCVMORE))) {
+				MPASS(STAILQ_EMPTY(&rx_pdus));
+				STAILQ_SWAP(&icc->rcvd_pdus, &rx_pdus, icl_pdu);
+				SOCKBUF_UNLOCK(sb);
+
+				/* Hand over PDUs to ICL. */
+				while ((ip = STAILQ_FIRST(&rx_pdus)) != NULL) {
+					STAILQ_REMOVE_HEAD(&rx_pdus, ip_next);
+					ic->ic_receive(ip);
+				}
+
+				SOCKBUF_LOCK(sb);
+				MPASS(STAILQ_EMPTY(&rx_pdus));
+			}
+			MPASS(icc->rx_flags & RXF_ACTIVE);
+			if (STAILQ_EMPTY(&icc->rcvd_pdus) ||
+			    __predict_false(sb->sb_state & SBS_CANTRCVMORE)) {
+				icc->rx_flags &= ~RXF_ACTIVE;
+			} else {
+				/*
+				 * More PDUs were received while we were busy
+				 * handing over the previous batch to ICL.
+				 * Re-add this connection to the end of the
+				 * queue.
+				 */
+				mtx_lock(&cwt->cwt_lock);
+				TAILQ_INSERT_TAIL(&cwt->rx_head, icc,
+				    rx_link);
+				mtx_unlock(&cwt->cwt_lock);
+			}
+			SOCKBUF_UNLOCK(sb);
+
+			mtx_lock(&cwt->cwt_lock);
+		}
+
+		/* Inner loop doesn't check for CWT_STOP, do that first. */
+		if (__predict_false(cwt->cwt_state == CWT_STOP))
 			break;
+		cwt->cwt_state = CWT_SLEEPING;
+		cv_wait(&cwt->cwt_cv, &cwt->cwt_lock);
 	}
 
+	MPASS(TAILQ_FIRST(&cwt->rx_head) == NULL);
 	mtx_assert(&cwt->cwt_lock, MA_OWNED);
 	cwt->cwt_state = CWT_STOPPED;
 	cv_signal(&cwt->cwt_cv);
@@ -856,6 +980,7 @@ start_worker_threads(void)
 	for (i = 0, cwt = &cwt_softc[0]; i < worker_thread_count; i++, cwt++) {
 		mtx_init(&cwt->cwt_lock, "cwt lock", NULL, MTX_DEF);
 		cv_init(&cwt->cwt_cv, "cwt cv");
+		TAILQ_INIT(&cwt->rx_head);
 		rc = kproc_kthread_add(cwt_main, cwt, &cxgbei_proc, NULL, 0, 0,
 		    "cxgbei", "%d", i);
 		if (rc != 0) {
@@ -879,7 +1004,7 @@ start_worker_threads(void)
 
 		/* Wait for thread to start before moving on to the next one. */
 		mtx_lock(&cwt->cwt_lock);
-		while (cwt->cwt_state != CWT_RUNNING)
+		while (cwt->cwt_state == 0)
 			cv_wait(&cwt->cwt_cv, &cwt->cwt_lock);
 		mtx_unlock(&cwt->cwt_lock);
 	}
@@ -899,7 +1024,8 @@ stop_worker_threads(void)
 
 	for (i = 0, cwt = &cwt_softc[0]; i < worker_thread_count; i++, cwt++) {
 		mtx_lock(&cwt->cwt_lock);
-		MPASS(cwt->cwt_state == CWT_RUNNING);
+		MPASS(cwt->cwt_state == CWT_RUNNING ||
+		    cwt->cwt_state == CWT_SLEEPING);
 		cwt->cwt_state = CWT_STOP;
 		cv_signal(&cwt->cwt_cv);
 		do {

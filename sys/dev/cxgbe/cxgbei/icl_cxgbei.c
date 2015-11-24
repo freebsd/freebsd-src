@@ -101,7 +101,7 @@ struct icl_pdu *icl_cxgbei_new_pdu(int);
 void icl_cxgbei_new_pdu_set_conn(struct icl_pdu *, struct icl_conn *);
 
 static icl_conn_new_pdu_t	icl_cxgbei_conn_new_pdu;
-static icl_conn_pdu_free_t	icl_cxgbei_conn_pdu_free;
+icl_conn_pdu_free_t	icl_cxgbei_conn_pdu_free;
 static icl_conn_pdu_data_segment_length_t
 				    icl_cxgbei_conn_pdu_data_segment_length;
 static icl_conn_pdu_append_data_t	icl_cxgbei_conn_pdu_append_data;
@@ -141,7 +141,7 @@ DEFINE_CLASS(icl_cxgbei, icl_cxgbei_methods, sizeof(struct icl_cxgbei_conn));
 #define CXGBEI_MAX_PDU 16224
 #define CXGBEI_MAX_DSL (CXGBEI_MAX_PDU - sizeof(struct iscsi_bhs) - 8)
 
-static void
+void
 icl_cxgbei_conn_pdu_free(struct icl_conn *ic, struct icl_pdu *ip)
 {
 #ifdef INVARIANTS
@@ -157,7 +157,7 @@ icl_cxgbei_conn_pdu_free(struct icl_conn *ic, struct icl_pdu *ip)
 	m_freem(ip->ip_bhs_mbuf);	/* storage for icl_cxgbei_pdu itself */
 
 #ifdef DIAGNOSTIC
-	if (ic != NULL)
+	if (__predict_true(ic != NULL))
 		refcount_release(&ic->ic_outstanding_pdus);
 #endif
 }
@@ -417,6 +417,7 @@ icl_cxgbei_new_conn(const char *name, struct mtx *lock)
 	icc = (struct icl_cxgbei_conn *)kobj_create(&icl_cxgbei_class, M_CXGBE,
 	    M_WAITOK | M_ZERO);
 	icc->icc_signature = CXGBEI_CONN_SIGNATURE;
+	STAILQ_INIT(&icc->rcvd_pdus);
 
 	ic = &icc->ic;
 	ic->ic_lock = lock;
@@ -560,6 +561,9 @@ set_ulp_mode_iscsi(struct adapter *sc, struct toepcb *toep, int hcrc, int dcrc)
 	t4_set_tcb_field(sc, toep, 1, 0, 0xfff, val);
 }
 
+/* XXXNP */
+extern struct cxgbei_worker_thread_softc *cwt_softc;
+
 /*
  * XXXNP: Who is responsible for cleaning up the socket if this returns with an
  * error?  Review all error paths.
@@ -641,6 +645,7 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 
 		toep = tp->t_toe;
 		icc->toep = toep;
+		icc->cwt = &cwt_softc[0]; /* XXXNP */
 		icc->ulp_submode = 0;
 		if (ic->ic_header_crc32c)
 			icc->ulp_submode |= ULP_CRC_HEADER;
@@ -663,24 +668,24 @@ void
 icl_cxgbei_conn_close(struct icl_conn *ic)
 {
 	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
+	struct icl_pdu *ip;
 	struct socket *so;
+	struct sockbuf *sb;
+	struct inpcb *inp;
 	struct toepcb *toep = icc->toep;
 
 	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
 	ICL_CONN_LOCK_ASSERT_NOT(ic);
 
-	CTR3(KTR_CXGBE, "%s: tid %u, icc %p", __func__, toep->tid, icc);
-
 	ICL_CONN_LOCK(ic);
 	so = ic->ic_socket;
-	if (so == NULL) {
+	if (ic->ic_disconnecting || so == NULL) {
+		CTR4(KTR_CXGBE, "%s: icc %p (disconnecting = %d), so %p",
+		    __func__, icc, ic->ic_disconnecting, so);
 		ICL_CONN_UNLOCK(ic);
 		return;
 	}
-	ic->ic_socket = NULL;
 	ic->ic_disconnecting = true;
-
-	mbufq_drain(&toep->ulp_pduq);
 
 	/* These are unused in this driver right now. */
 	MPASS(STAILQ_EMPTY(&ic->ic_to_send));
@@ -691,6 +696,41 @@ icl_cxgbei_conn_close(struct icl_conn *ic)
 	    ("destroying session with %d outstanding PDUs",
 	     ic->ic_outstanding_pdus));
 #endif
+	ICL_CONN_UNLOCK(ic);
+
+	CTR3(KTR_CXGBE, "%s: tid %d, icc %p", __func__, toep ? toep->tid : -1,
+	    icc);
+	inp = sotoinpcb(so);
+	sb = &so->so_rcv;
+	INP_WLOCK(inp);
+	if (toep != NULL) {	/* NULL if connection was never offloaded. */
+		toep->ulpcb = NULL;
+		mbufq_drain(&toep->ulp_pduq);
+		SOCKBUF_LOCK(sb);
+		if (icc->rx_flags & RXF_ACTIVE) {
+			volatile u_int *p = &icc->rx_flags;
+
+			SOCKBUF_UNLOCK(sb);
+			INP_WUNLOCK(inp);
+
+			while (*p & RXF_ACTIVE)
+				pause("conclo", 1);
+
+			INP_WLOCK(inp);
+			SOCKBUF_LOCK(sb);
+		}
+
+		while (!STAILQ_EMPTY(&icc->rcvd_pdus)) {
+			ip = STAILQ_FIRST(&icc->rcvd_pdus);
+			STAILQ_REMOVE_HEAD(&icc->rcvd_pdus, ip_next);
+			icl_cxgbei_conn_pdu_free(ic, ip);
+		}
+		SOCKBUF_UNLOCK(sb);
+	}
+	INP_WUNLOCK(inp);
+
+	ICL_CONN_LOCK(ic);
+	ic->ic_socket = NULL;
 	ICL_CONN_UNLOCK(ic);
 
 	/*

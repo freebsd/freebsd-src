@@ -116,6 +116,7 @@ struct toepcb {
 
 	u_int ulp_mode;	/* ULP mode */
 	void *ulpcb;
+	void *ulpcb2;
 	struct mbufq ulp_pduq;	/* PDUs waiting to be sent out. */
 	struct mbufq ulp_pdu_reclaimq;
 
