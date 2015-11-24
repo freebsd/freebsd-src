@@ -242,6 +242,8 @@ main(int argc, char *argv[])
 	af = AF_UNSPEC;
 
 	argc = xo_parse_args(argc, argv);
+	if (argc < 0)
+		exit(EXIT_FAILURE);
 
 	while ((ch = getopt(argc, argv, "46AaBbdF:f:ghI:iLlM:mN:np:Qq:RrSTsuWw:xz"))
 	    != -1)
