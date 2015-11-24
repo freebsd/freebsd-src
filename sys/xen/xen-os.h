@@ -52,6 +52,11 @@ void force_evtchn_callback(void);
 
 extern shared_info_t *HYPERVISOR_shared_info;
 
+#ifdef XENHVM
+extern int xen_disable_pv_disks;
+extern int xen_disable_pv_nics;
+#endif
+
 enum xen_domain_type {
 	XEN_NATIVE,             /* running on bare hardware    */
 	XEN_PV_DOMAIN,          /* running in a PV domain      */

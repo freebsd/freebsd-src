@@ -451,6 +451,11 @@ static int
 netfront_probe(device_t dev)
 {
 
+#ifdef XENHVM
+	if (xen_disable_pv_nics != 0)
+		return (ENXIO);
+#endif
+
 	if (!strcmp(xenbus_get_type(dev), "vif")) {
 		device_set_desc(dev, "Virtual Network Interface");
 		return (0);

@@ -152,6 +152,13 @@ DPCPU_DEFINE(xen_intr_handle_t, ipi_handle[nitems(xen_ipis)]);
 char *hypercall_stubs;
 shared_info_t *HYPERVISOR_shared_info;
 
+
+/*------------------------------ Sysctl tunables -----------------------------*/
+int xen_disable_pv_disks = 0;
+int xen_disable_pv_nics = 0;
+TUNABLE_INT("hw.xen.disable_pv_disks", &xen_disable_pv_disks);
+TUNABLE_INT("hw.xen.disable_pv_nics", &xen_disable_pv_nics);
+
 #ifdef SMP
 /*---------------------------- XEN PV IPI Handlers ---------------------------*/
 /*
@@ -303,7 +310,7 @@ xen_ipi_vectored(u_int vector, int dest)
 	}
 }
 
-/* XEN diverged cpu operations */
+/*---------------------- XEN diverged cpu operations -------------------------*/
 static void
 xen_hvm_cpu_resume(void)
 {
@@ -503,12 +510,24 @@ enum {
 static void
 xen_hvm_disable_emulated_devices(void)
 {
+	u_short disable_devs = 0;
+
 	if (inw(XEN_MAGIC_IOPORT) != XMI_MAGIC)
 		return;
 
-	if (bootverbose)
-		printf("XEN: Disabling emulated block and network devices\n");
-	outw(XEN_MAGIC_IOPORT, XMI_UNPLUG_IDE_DISKS|XMI_UNPLUG_NICS);
+	if (xen_disable_pv_disks == 0) {
+		if (bootverbose)
+			printf("XEN: disabling emulated disks\n");
+		disable_devs |= XMI_UNPLUG_IDE_DISKS;
+	}
+	if (xen_disable_pv_nics == 0) {
+		if (bootverbose)
+			printf("XEN: disabling emulated nics\n");
+		disable_devs |= XMI_UNPLUG_NICS;
+	}
+
+	if (disable_devs != 0)
+		outw(XEN_MAGIC_IOPORT, disable_devs);
 }
 
 static void
