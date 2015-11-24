@@ -35,22 +35,23 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/queue.h>
+#include <sys/sbuf.h>
+#include <sys/stat.h>
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <paths.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <stdint.h>
 #include <string.h>
-#include <ctype.h>
-#include <errno.h>
-#include <paths.h>
-#include <fcntl.h>
-#include <err.h>
+
 #include <bsdxml.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/queue.h>
-#include <sys/sbuf.h>
-#include <sys/mman.h>
 
 struct sector {
 	LIST_ENTRY(sector)	sectors;
@@ -216,9 +217,12 @@ g_simdisk_xml_load(const char *file)
 
 	fd = open(file, O_RDONLY);
 	if (fd < 0)
-		err(1, "%s", file);
-	fstat(fd, &st);
+		err(1, "%s: opening %s failed", __func__, file);
+	if (fstat(fd, &st) == -1)
+		err(1, "%s: fstat'ing %s failed", __func__, file);
 	p = mmap(NULL, st.st_size, PROT_READ, MAP_NOCORE|MAP_PRIVATE, fd, 0);
+	if (p == MAP_FAILED)
+		err(1, "%s: mmap'ing %s failed", __func__, file);
 	i = XML_Parse(parser, p, st.st_size, 1);
 	if (i != 1)
 		errx(1, "XML_Parse complains: return %d", i);
@@ -252,7 +256,7 @@ main(int argc, char **argv)
 	sprintf(buf + strlen(buf), " -u %s", argv[1]);
 	error = system(buf);
 	if (error)
-		return (error);
+		err(1, "calling `%s` failed; status=%d", buf, error);
 	fd = open(argv[1], O_RDWR);
 	if (fd < 0 && errno == ENOENT) {
 		sprintf(buf, "%s%s", _PATH_DEV, argv[1]);
