@@ -2,49 +2,60 @@
 # $FreeBSD$
 
 MD=34
-TMP=/tmp/$$
+: ${TMPDIR=/tmp}
+TMP=$TMPDIR/$$
+
+# The testcases seem to have been broken when the geom_sim provider was removed
+echo "# these tests need to be rewritten; they were broken in r113434"
+echo "1..0 # SKIP"
+exit 0
 
 set -e
 
 # Start from the right directory so we can find all our data files.
-cd `dirname $0`
-
-(cd MdLoad && make) > /dev/null 2>&1
+testsdir=$(realpath $(dirname $0))
 
 # Print the test header
-echo -n '1..'
-echo `ls -1 Data/disk.*.xml | wc -l`
+set -- $testsdir/Data/disk.*.xml
+echo "1..$#"
+data_files="$@"
 
-for f in Data/disk.*.xml
-do
+trap "rm -f $TMP; mdconfig -d -u $MD" EXIT INT TERM
+
+set +e
+
+refdir=$(realpath $(mktemp -d Ref.XXXXXX))
+for f in $data_files; do
 	b=`basename $f`
-	mdconfig -d -u $MD > /dev/null 2>&1 || true
-	if [ -c /dev/md$MD ] ; then
+	mdconfig -d -u $MD
+
+	i=0
+	while [ $i -lt 2 -a -c /dev/md$MD ]; do
 		sleep 1
-	fi
-	if [ -c /dev/md$MD ] ; then
-		sleep 1
-	fi
+		: $(( i += 1 ))
+	done
 	if [ -c /dev/md$MD ] ; then
 		echo "Bail out!"
 		echo "/dev/md$MD is busy"
 		exit 1
 	fi
-	MdLoad/MdLoad md${MD} $f
-	if [ -f Ref/$b ] ; then
-		if diskinfo /dev/md${MD}* | 
-		   diff -I '$FreeBSD' -u Ref/$b - > $TMP; then
-			echo "ok - $b"
+	if ! $testsdir/MdLoad/MdLoad md${MD} $f; then
+		echo "not ok - $b # MdLoad failed"
+		continue
+	fi
+	if [ ! -f $refdir/$b ]; then
+		if [ -f $testsdir/Ref/$b ] ; then
+			grep -v '\$FreeBSD.*\$' $testsdir/Ref/$b > $refdir/$b
 		else
-			echo "not ok - $b" 
-			sed 's/^/# /' $TMP
+			diskinfo /dev/md${MD}* > $refdir/$b
+			continue
 		fi
+	fi
+	diskinfo /dev/md${MD}* | diff -u $refdir/$b - > $TMP
+	if [ $? -eq 0 ]; then
+		echo "ok - $b"
 	else
-		diskinfo /dev/md${MD}* > Ref/`basename $f`
+		echo "not ok - $b"
+		sed 's/^/# /' $TMP
 	fi
 done
-
-mdconfig -d -u $MD > /dev/null 2>&1 || true
-rm -f $TMP
-
-exit 0
