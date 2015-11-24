@@ -1432,7 +1432,8 @@ static void
 do_nologin(struct passwd *pw)
 {
 	FILE *f = NULL;
-	char buf[1024], *nl, *def_nl = _PATH_NOLOGIN;
+	char buf[1024], *def_nl = _PATH_NOLOGIN;
+	const char *nl;
 	struct stat sb;
 
 #ifdef HAVE_LOGIN_CAP
