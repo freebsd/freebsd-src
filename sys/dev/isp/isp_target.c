@@ -639,7 +639,7 @@ isp_target_async(ispsoftc_t *isp, int bus, int event)
 		isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
 		break;
 	case ASYNC_LIP_ERROR:
-	case ASYNC_LIP_F8:
+	case ASYNC_LIP_NOS_OLS_RECV:
 	case ASYNC_LIP_OCCURRED:
 	case ASYNC_LOOP_RESET:
 		isp_prt(isp, ISP_LOGTDEBUG0, "%s: LIP RESET", __func__);
