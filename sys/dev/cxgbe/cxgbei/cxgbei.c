@@ -90,9 +90,9 @@ __FBSDID("$FreeBSD$");
 #include "cxgbei.h"
 #include "cxgbei_ulp2_ddp.h"
 
-/* XXX some header instead. */
-struct icl_pdu *icl_cxgbei_conn_new_pdu(struct icl_conn *, int);
-void icl_cxgbei_conn_pdu_free(struct icl_conn *, struct icl_pdu *);
+/* XXXNP some header instead. */
+struct icl_pdu *icl_cxgbei_new_pdu(int);
+void icl_cxgbei_new_pdu_set_conn(struct icl_pdu *, struct icl_conn *);
 
 /*
  * Direct Data Placement -
@@ -538,9 +538,10 @@ do_rx_iscsi_hdr(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
 	M_ASSERTPKTHDR(m);
 
-	ip = icl_cxgbei_conn_new_pdu(&icc->ic, M_NOWAIT);
+	ip = icl_cxgbei_new_pdu(M_NOWAIT);
 	if (ip == NULL)
 		CXGBE_UNIMPLEMENTED("PDU allocation failure");
+	icl_cxgbei_new_pdu_set_conn(ip, &icc->ic);
 	icp = ip_to_icp(ip);
 	bcopy(mtod(m, caddr_t) + sizeof(*cpl), icp->ip.ip_bhs, sizeof(struct
 	    iscsi_bhs));
