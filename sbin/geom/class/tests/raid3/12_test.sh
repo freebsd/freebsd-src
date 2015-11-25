@@ -36,5 +36,3 @@ if [ $ec -eq 0 ]; then
 else
 	echo "ok 1"
 fi
-
-graid3 stop $name

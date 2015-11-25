@@ -29,5 +29,4 @@ else
 	echo "ok 1"
 fi
 
-graid3 stop $name
 rm -f ${src} ${dst}

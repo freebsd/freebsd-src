@@ -26,5 +26,3 @@ if [ $sectorsize -eq 1024 ]; then
 else
 	echo "not ok 2"
 fi
-
-graid3 stop $name
