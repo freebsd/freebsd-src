@@ -5,7 +5,7 @@
 
 .include <src.opts.mk>
 
-CLEANFILES= osreldate.h version vers.c
+CLEANFILES= osreldate.h version
 SUBDIR= arpa protocols rpcsvc rpc xlocale
 SUBDIR_PARALLEL=
 INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
@@ -104,12 +104,8 @@ NEWVERS_SH=		${SYSDIR}/conf/newvers.sh
 PARAM_H=		${SYSDIR}/sys/param.h
 MK_OSRELDATE_SH=	${.CURDIR}/mk-osreldate.sh
 
-osreldate.h vers.c: ${NEWVERS_SH} ${PARAM_H} ${MK_OSRELDATE_SH}
-	env ECHO="${ECHO}" \
-	    MAKE="${MAKE}" \
-	    NEWVERS_SH=${NEWVERS_SH} \
-	    PARAM_H=${PARAM_H} \
-	    SYSDIR=${SYSDIR} \
+osreldate.h: ${NEWVERS_SH} ${PARAM_H} ${MK_OSRELDATE_SH}
+	env NEWVERS_SH=${NEWVERS_SH} PARAMFILE=${PARAM_H} SYSDIR=${SYSDIR} \
 	    sh ${MK_OSRELDATE_SH}
 
 .for i in ${LHDRS}

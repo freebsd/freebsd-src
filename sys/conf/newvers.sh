@@ -84,6 +84,12 @@ fi
 COPYRIGHT="$COPYRIGHT
 "
 
+# VARS_ONLY means no files should be generated, this is just being
+# included.
+if [ -n "$VARS_ONLY" ]; then
+	return 0
+fi
+
 LC_ALL=C; export LC_ALL
 if [ ! -r version ]
 then
