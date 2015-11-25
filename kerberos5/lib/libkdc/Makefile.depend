@@ -22,7 +22,6 @@ DIRDEPS = \
 	lib/libthr \
 	lib/libutil \
 	secure/lib/libcrypto \
-	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

@@ -13,7 +13,6 @@ DIRDEPS = \
 	lib/libcxxrt \
 	lib/libelf \
 	lib/libutil \
-	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>
