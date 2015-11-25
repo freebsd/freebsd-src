@@ -4,7 +4,10 @@
 . `dirname $0`/conf.sh
 
 base=`basename $0`
-us=45
+us=0
+while [ -c /dev/ggate${us} ]; do
+	: $(( us += 1 ))
+done
 conf=`mktemp $base.XXXXXX` || exit 1
 pidfile=ggated.pid
 port=33080
