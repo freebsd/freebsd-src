@@ -21,7 +21,7 @@ CLEANFILES+= ${INSTALLED_HEADERS}
 DPSRCS+= ${INSTALLED_HEADERS}
 
 .for _h in ${INSTALLED_HEADERS}
-${_h}:	${SRCDIR}/${_h}
+${_h}:	${SRCDIR}/${_h} .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 .endfor
 
