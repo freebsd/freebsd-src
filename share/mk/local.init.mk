@@ -9,20 +9,19 @@
 .endif
 .endif
 
+# XXX: This should be combined with external compiler support in Makefile.inc1
+# and local.meta.sys.mk (CROSS_TARGET_FLAGS)
 .if ${MK_SYSROOT} == "yes" && !empty(SYSROOT) && ${MACHINE} != "host"
 CFLAGS_LAST+= --sysroot=${SYSROOT}
 CXXFLAGS_LAST+= --sysroot=${SYSROOT}
 LDADD+= --sysroot=${SYSROOT}
 .elif ${MK_STAGING} == "yes"
-CFLAGS+= -nostdinc
-CFLAGS+= -I${STAGE_INCLUDEDIR}
+CFLAGS+= -isystem ${STAGE_INCLUDEDIR}
+# XXX: May be needed for GCC to build with libc++ rather than libstdc++. See Makefile.inc1
+#CXXFLAGS+= -std=gnu++11
+#LDADD+= -L${STAGE_LIBDIR}/libc++
+#CXXFLAGS+= -I${STAGE_INCLUDEDIR}/usr/include/c++/v1
 LDADD+= -L${STAGE_LIBDIR}
-.endif
-.if ${MACHINE} == "host"
-# we cheat?
-LDADD+= -B/usr/lib
-CFLAGS_LAST+= -I/usr/include
-CXXFLAGS_LAST+= -I/usr/include
 .endif
 
 .if ${MACHINE} == "host"
