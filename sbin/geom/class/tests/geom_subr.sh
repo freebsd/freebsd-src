@@ -22,6 +22,7 @@ devwait()
 # failing will cause the other tests to bomb out, or a test failing will leave
 # a large number of md(4) devices lingering around
 : ${TMPDIR=/tmp}
+export TMPDIR
 TEST_MDS_FILE=${TMPDIR}/test_mds
 
 attach_md()
