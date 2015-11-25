@@ -256,7 +256,6 @@ Checkers.inc.h: ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td
 .endif
 
 SRCS+=		${TGHDRS:C/$/.inc.h/}
-DPSRCS+=	${TGHDRS:C/$/.inc.h/}
 CLEANFILES+=	${TGHDRS:C/$/.inc.h/} ${TGHDRS:C/$/.inc.d/}
 
 # if we are not doing explicit 'make depend', there is 

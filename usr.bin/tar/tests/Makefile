@@ -75,8 +75,6 @@ SRCS.bsdtar_test=	\
 	list.h		\
 	main.c
 
-DPSRCS.bsdtar_test+=	list.h
-
 .PATH: ${LIBARCHIVEDIR}/test_utils
 SRCS.bsdtar_test+=	test_utils.c
 
