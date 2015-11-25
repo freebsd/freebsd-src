@@ -21,7 +21,8 @@ BSENV= \
 	TARGET=${HOST_MACHINE} TARGET_ARCH=${HOST_MACHINE_ARCH} \
 	WITHOUT_STAGING=1 STAGE_ROOT= BOOTSTRAPPING_TOOLS=1 \
 	WORLDTMP=${BTOOLSDIR} LEGACY_TOOLS=${LEGACY_TOOLS} \
-	INSTALL="sh ${SRCTOP}/tools/install.sh"
+	INSTALL="sh ${SRCTOP}/tools/install.sh" \
+	PATH=${LEGACY_TOOLS}/usr/sbin:${LEGACY_TOOLS}/usr/bin:${LEGACY_TOOLS}/bin:${PATH}
 
 .if !defined(OSRELDATE)
 ord_h= /usr/include/osreldate.h
