@@ -4,6 +4,7 @@
 
 DIRDEPS = \
 	share/atf \
+	share/ctypedef \
 	share/colldef \
 	share/dict \
 	share/doc/IPv6 \
