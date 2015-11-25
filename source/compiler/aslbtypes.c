@@ -78,7 +78,6 @@ AnMapArgTypeToBtype (
 
     switch (ArgType)
     {
-
     /* Simple types */
 
     case ARGI_ANYTYPE:
@@ -221,7 +220,6 @@ AnMapEtypeToBtype (
     UINT32                  Etype)
 {
 
-
     if (Etype == ACPI_TYPE_ANY)
     {
         return (ACPI_BTYPE_OBJECTS_AND_REFS);
@@ -328,7 +326,6 @@ AnFormatBtype (
 
 
     *Buffer = 0;
-
     if (Btype == 0)
     {
         strcat (Buffer, "NoReturnValue");
@@ -343,6 +340,7 @@ AnFormatBtype (
             {
                 strcat (Buffer, "|");
             }
+
             First = FALSE;
             strcat (Buffer, AcpiUtGetTypeName (Type));
         }
@@ -355,6 +353,7 @@ AnFormatBtype (
         {
             strcat (Buffer, "|");
         }
+
         First = FALSE;
         strcat (Buffer, "Reference");
     }
@@ -366,6 +365,7 @@ AnFormatBtype (
         {
             strcat (Buffer, "|");
         }
+
         First = FALSE;
         strcat (Buffer, "Resource");
     }
@@ -409,7 +409,8 @@ AnGetBtype (
         if (!Node)
         {
             DbgPrint (ASL_DEBUG_OUTPUT,
-                "No attached Nsnode: [%s] at line %u name [%s], ignoring typecheck\n",
+                "No attached Nsnode: [%s] at line %u name [%s], "
+                "ignoring typecheck\n",
                 Op->Asl.ParseOpName, Op->Asl.LineNumber,
                 Op->Asl.ExternalName);
             return (ACPI_UINT32_MAX);
@@ -456,6 +457,7 @@ AnGetBtype (
 
     return (ThisNodeBtype);
 }
+
 
 /*******************************************************************************
  *

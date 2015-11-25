@@ -52,6 +52,18 @@ ApIsExistingFile (
     char                    *Pathname);
 
 
+/******************************************************************************
+ *
+ * FUNCTION:    ApIsExistingFile
+ *
+ * PARAMETERS:  Pathname            - Output filename
+ *
+ * RETURN:      0 on success
+ *
+ * DESCRIPTION: Query for file overwrite if it already exists.
+ *
+ ******************************************************************************/
+
 static int
 ApIsExistingFile (
     char                    *Pathname)
@@ -159,6 +171,7 @@ ApWriteToBinaryFile (
     {
         ACPI_MOVE_NAME (Filename, Table->Signature);
     }
+
     Filename[0] = (char) tolower ((int) Filename[0]);
     Filename[1] = (char) tolower ((int) Filename[1]);
     Filename[2] = (char) tolower ((int) Filename[2]);

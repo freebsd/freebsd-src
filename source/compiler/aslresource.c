@@ -396,6 +396,7 @@ RsGetStringDataLength (
         {
             return ((UINT16) (strlen (InitializerOp->Asl.Value.String) + 1));
         }
+
         InitializerOp = ASL_GET_PEER_NODE (InitializerOp);
     }
 
@@ -431,7 +432,6 @@ RsAllocateResourceNode (
 
     Rnode->Buffer = UtLocalCalloc (Size);
     Rnode->BufferLength = Size;
-
     return (Rnode);
 }
 
@@ -466,7 +466,6 @@ RsCreateResourceField (
 
     Op->Asl.ExternalName = Name;
     Op->Asl.CompileFlags |= NODE_IS_RESOURCE_FIELD;
-
 
     Op->Asl.Value.Tag.BitOffset = (ByteOffset * 8) + BitOffset;
     Op->Asl.Value.Tag.BitLength = BitLength;
@@ -888,7 +887,7 @@ RsDoOneResourceDescriptor (
     default:
 
         printf ("Unknown resource descriptor type [%s]\n",
-                    Info->DescriptorTypeOp->Asl.ParseOpName);
+            Info->DescriptorTypeOp->Asl.ParseOpName);
         break;
     }
 
@@ -904,7 +903,8 @@ RsDoOneResourceDescriptor (
     if (Rnode)
     {
         Info->DescriptorTypeOp->Asl.FinalAmlLength = Rnode->BufferLength;
-        Info->DescriptorTypeOp->Asl.Extra = ((AML_RESOURCE *) Rnode->Buffer)->DescriptorType;
+        Info->DescriptorTypeOp->Asl.Extra =
+            ((AML_RESOURCE *) Rnode->Buffer)->DescriptorType;
     }
 
     return (Rnode);

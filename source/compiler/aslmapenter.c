@@ -239,7 +239,7 @@ MpCreateGpioInfo (
     /* Sort on source DeviceName first */
 
     while (NextGpio &&
-            (strcmp (DeviceName, NextGpio->DeviceName) > 0))
+        (strcmp (DeviceName, NextGpio->DeviceName) > 0))
     {
         PrevGpio = NextGpio;
         NextGpio = NextGpio->Next;
@@ -248,8 +248,8 @@ MpCreateGpioInfo (
     /* Now sort on the PinNumber */
 
     while (NextGpio &&
-            (NextGpio->PinNumber < PinNumber) &&
-            !strcmp (DeviceName, NextGpio->DeviceName))
+        (NextGpio->PinNumber < PinNumber) &&
+        !strcmp (DeviceName, NextGpio->DeviceName))
     {
         PrevGpio = NextGpio;
         NextGpio = NextGpio->Next;

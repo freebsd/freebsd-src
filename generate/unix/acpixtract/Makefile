@@ -29,6 +29,7 @@ HEADERS = \
 OBJECTS = \
     $(OBJDIR)/acpixtract.o\
     $(OBJDIR)/axmain.o\
+    $(OBJDIR)/axutils.o\
     $(OBJDIR)/getopt.o\
     $(OBJDIR)/oslibcfs.o\
     $(OBJDIR)/osunixxf.o\

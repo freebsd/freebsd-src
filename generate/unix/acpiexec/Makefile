@@ -40,6 +40,7 @@ HEADERS = \
 
 OBJECTS = \
 	$(OBJDIR)/acgetline.o\
+	$(OBJDIR)/acfileio.o\
 	$(OBJDIR)/aeexec.o\
 	$(OBJDIR)/aehandlers.o\
 	$(OBJDIR)/aeinitfile.o\
@@ -127,6 +128,7 @@ OBJECTS = \
 	$(OBJDIR)/exstoren.o\
 	$(OBJDIR)/exstorob.o\
 	$(OBJDIR)/exsystem.o\
+	$(OBJDIR)/extrace.o\
 	$(OBJDIR)/exutils.o\
 	$(OBJDIR)/getopt.o\
 	$(OBJDIR)/hwacpi.o\
@@ -207,7 +209,6 @@ OBJECTS = \
 	$(OBJDIR)/uterror.o\
 	$(OBJDIR)/uteval.o\
 	$(OBJDIR)/utexcep.o\
-	$(OBJDIR)/utfileio.o\
 	$(OBJDIR)/utglobal.o\
 	$(OBJDIR)/uthex.o\
 	$(OBJDIR)/utids.o\

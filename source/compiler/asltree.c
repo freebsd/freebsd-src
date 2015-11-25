@@ -340,6 +340,11 @@ TrPrintNodeCompileFlags (
             FlagName = "NODE_METHOD_TYPED";
             break;
 
+        case NODE_COULD_NOT_REDUCE:
+
+            FlagName = "NODE_COULD_NOT_REDUCE";
+            break;
+
         case NODE_COMPILE_TIME_CONST:
 
             FlagName = "NODE_COMPILE_TIME_CONST";
@@ -489,7 +494,7 @@ TrSetEndLineNumber (
         return;
     }
 
-    Op->Asl.EndLine        = Gbl_CurrentLineNumber;
+    Op->Asl.EndLine = Gbl_CurrentLineNumber;
     Op->Asl.EndLogicalLine = Gbl_LogicalLineNumber;
 }
 
@@ -753,7 +758,8 @@ TrCreateConstantLeafNode (
     }
 
     DbgPrint (ASL_PARSE_OUTPUT,
-        "\nCreateConstantLeafNode  Ln/Col %u/%u NewNode %p  Op %s  Value %8.8X%8.8X  \n",
+        "\nCreateConstantLeafNode  Ln/Col %u/%u NewNode %p  "
+        "Op %s  Value %8.8X%8.8X  \n",
         Op->Asl.LineNumber, Op->Asl.Column, Op, UtGetOpName (ParseOpcode),
         ACPI_FORMAT_UINT64 (Op->Asl.Value.Integer));
     return (Op);
@@ -860,7 +866,8 @@ TrCreateValuedLeafNode (
     Op = TrAllocateNode (ParseOpcode);
 
     DbgPrint (ASL_PARSE_OUTPUT,
-        "\nCreateValuedLeafNode  Ln/Col %u/%u NewNode %p  Op %s  Value %8.8X%8.8X  ",
+        "\nCreateValuedLeafNode  Ln/Col %u/%u NewNode %p  "
+        "Op %s  Value %8.8X%8.8X  ",
         Op->Asl.LineNumber, Op->Asl.Column, Op, UtGetOpName(ParseOpcode),
         ACPI_FORMAT_UINT64 (Value));
     Op->Asl.Value.Integer = Value;
@@ -946,15 +953,22 @@ TrCreateNode (
 
     DbgPrint (ASL_PARSE_OUTPUT,
         "\nCreateNode  Ln/Col %u/%u NewParent %p Child %u Op %s  ",
-        Op->Asl.LineNumber, Op->Asl.Column, Op, NumChildren, UtGetOpName(ParseOpcode));
+        Op->Asl.LineNumber, Op->Asl.Column, Op,
+        NumChildren, UtGetOpName(ParseOpcode));
 
     /* Some extra debug output based on the parse opcode */
 
     switch (ParseOpcode)
     {
-    case PARSEOP_DEFINITIONBLOCK:
+    case PARSEOP_ASL_CODE:
 
         RootNode = Op;
+        Op->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
+        DbgPrint (ASL_PARSE_OUTPUT, "ASLCODE (Tree Completed)->");
+        break;
+
+    case PARSEOP_DEFINITION_BLOCK:
+
         DbgPrint (ASL_PARSE_OUTPUT, "DEFINITION_BLOCK (Tree Completed)->");
         break;
 
@@ -1075,9 +1089,15 @@ TrLinkChildren (
 
     switch (Op->Asl.ParseOpcode)
     {
-    case PARSEOP_DEFINITIONBLOCK:
+    case PARSEOP_ASL_CODE:
 
         RootNode = Op;
+        Op->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
+        DbgPrint (ASL_PARSE_OUTPUT, "ASLCODE (Tree Completed)->");
+        break;
+
+    case PARSEOP_DEFINITION_BLOCK:
+
         DbgPrint (ASL_PARSE_OUTPUT, "DEFINITION_BLOCK (Tree Completed)->");
         break;
 
@@ -1155,6 +1175,7 @@ TrLinkChildren (
             Child = Child->Asl.Next;
             Child->Asl.Parent = Op;
         }
+
         PrevChild = Child;
     }
 

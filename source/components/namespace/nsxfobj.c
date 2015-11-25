@@ -81,10 +81,8 @@ AcpiGetType (
         return (AE_BAD_PARAMETER);
     }
 
-    /*
-     * Special case for the predefined Root Node
-     * (return type ANY)
-     */
+    /* Special case for the predefined Root Node (return type ANY) */
+
     if (Handle == ACPI_ROOT_OBJECT)
     {
         *RetType = ACPI_TYPE_ANY;
@@ -107,7 +105,6 @@ AcpiGetType (
     }
 
     *RetType = Node->Type;
-
 
     Status = AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
     return (Status);

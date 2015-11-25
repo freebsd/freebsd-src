@@ -248,9 +248,9 @@ AcpiEvPciConfigRegionSetup (
                 /* Install a handler for this PCI root bridge */
 
                 Status = AcpiInstallAddressSpaceHandler (
-                            (ACPI_HANDLE) PciRootNode,
-                            ACPI_ADR_SPACE_PCI_CONFIG,
-                            ACPI_DEFAULT_HANDLER, NULL, NULL);
+                    (ACPI_HANDLE) PciRootNode,
+                    ACPI_ADR_SPACE_PCI_CONFIG,
+                    ACPI_DEFAULT_HANDLER, NULL, NULL);
                 if (ACPI_FAILURE (Status))
                 {
                     if (Status == AE_SAME_HANDLER)
@@ -324,7 +324,7 @@ AcpiEvPciConfigRegionSetup (
      * contained in the parent's scope.
      */
     Status = AcpiUtEvaluateNumericObject (METHOD_NAME__ADR,
-                PciDeviceNode, &PciValue);
+        PciDeviceNode, &PciValue);
 
     /*
      * The default is zero, and since the allocation above zeroed the data,
@@ -339,7 +339,7 @@ AcpiEvPciConfigRegionSetup (
     /* The PCI segment number comes from the _SEG method */
 
     Status = AcpiUtEvaluateNumericObject (METHOD_NAME__SEG,
-                PciRootNode, &PciValue);
+        PciRootNode, &PciValue);
     if (ACPI_SUCCESS (Status))
     {
         PciId->Segment = ACPI_LOWORD (PciValue);
@@ -348,7 +348,7 @@ AcpiEvPciConfigRegionSetup (
     /* The PCI bus number comes from the _BBN method */
 
     Status = AcpiUtEvaluateNumericObject (METHOD_NAME__BBN,
-                PciRootNode, &PciValue);
+        PciRootNode, &PciValue);
     if (ACPI_SUCCESS (Status))
     {
         PciId->Bus = ACPI_LOWORD (PciValue);
@@ -604,7 +604,7 @@ AcpiEvInitializeRegion (
     /* Find any "_REG" method associated with this region definition */
 
     Status = AcpiNsSearchOneScope (
-                *RegNamePtr, Node, ACPI_TYPE_METHOD, &MethodNode);
+        *RegNamePtr, Node, ACPI_TYPE_METHOD, &MethodNode);
     if (ACPI_SUCCESS (Status))
     {
         /*
@@ -680,7 +680,7 @@ AcpiEvInitializeRegion (
                         HandlerObj, RegionObj, ObjDesc));
 
                     Status = AcpiEvAttachRegion (HandlerObj, RegionObj,
-                                AcpiNsLocked);
+                        AcpiNsLocked);
 
                     /*
                      * Tell all users that this region is usable by

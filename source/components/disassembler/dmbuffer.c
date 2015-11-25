@@ -254,7 +254,8 @@ AcpiDmByteList (
     {
     case ACPI_DASM_RESOURCE:
 
-        AcpiDmResourceTemplate (Info, Op->Common.Parent, ByteData, ByteCount);
+        AcpiDmResourceTemplate (
+            Info, Op->Common.Parent, ByteData, ByteCount);
         break;
 
     case ACPI_DASM_STRING:
@@ -751,13 +752,17 @@ AcpiDmPldBuffer (
     AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "PLD_Lid", PldInfo->Lid);
     AcpiOsPrintf (ACPI_PLD_OUTPUTSTR, "PLD_Panel",
         AcpiDmFindNameByIndex(PldInfo->Panel, DmPanelList));
+
     AcpiOsPrintf (ACPI_PLD_OUTPUTSTR, "PLD_VerticalPosition",
         AcpiDmFindNameByIndex(PldInfo->VerticalPosition, DmVerticalPositionList));
+
     AcpiOsPrintf (ACPI_PLD_OUTPUTSTR, "PLD_HorizontalPosition",
         AcpiDmFindNameByIndex(PldInfo->HorizontalPosition, DmHorizontalPositionList));
+
     AcpiOsPrintf (ACPI_PLD_OUTPUTSTR, "PLD_Shape",
         AcpiDmFindNameByIndex(PldInfo->Shape, DmShapeList));
     AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "PLD_GroupOrientation", PldInfo->GroupOrientation);
+
     AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "PLD_GroupToken", PldInfo->GroupToken);
     AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "PLD_GroupPosition", PldInfo->GroupPosition);
     AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "PLD_Bay", PldInfo->Bay);

@@ -199,7 +199,6 @@ UtBeginEvent (
     AslGbl_Events[AslGbl_NextEvent].StartTime = AcpiOsGetTimer ();
     AslGbl_Events[AslGbl_NextEvent].EventName = Name;
     AslGbl_Events[AslGbl_NextEvent].Valid = TRUE;
-
     return (AslGbl_NextEvent++);
 }
 
@@ -806,6 +805,7 @@ UtPadNameWithUnderscores (
         {
             *PaddedNameSeg = '_';
         }
+
         PaddedNameSeg++;
     }
 }
@@ -1090,7 +1090,7 @@ stroul64 (
         /* Check to see if value is out of range: */
 
         if (ReturnValue > ((ACPI_UINT64_MAX - (UINT64) Index) /
-                            (UINT64) Base))
+            (UINT64) Base))
         {
             goto ErrorExit;
         }

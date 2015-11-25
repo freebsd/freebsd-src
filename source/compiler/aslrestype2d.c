@@ -91,11 +91,11 @@ RsDoDwordIoDescriptor (
     CurrentByteOffset = Info->CurrentByteOffset;
 
     Rnode = RsAllocateResourceNode (
-                sizeof (AML_RESOURCE_ADDRESS32) + 1 + StringLength);
+        sizeof (AML_RESOURCE_ADDRESS32) + 1 + StringLength);
 
     Descriptor = Rnode->Buffer;
     Descriptor->Address32.DescriptorType = ACPI_RESOURCE_NAME_ADDRESS32;
-    Descriptor->Address32.ResourceType   = ACPI_ADDRESS_TYPE_IO_RANGE;
+    Descriptor->Address32.ResourceType  = ACPI_ADDRESS_TYPE_IO_RANGE;
 
     /*
      * Initial descriptor length -- may be enlarged if there are
@@ -325,7 +325,7 @@ RsDoDwordMemoryDescriptor (
 
     Descriptor = Rnode->Buffer;
     Descriptor->Address32.DescriptorType = ACPI_RESOURCE_NAME_ADDRESS32;
-    Descriptor->Address32.ResourceType   = ACPI_ADDRESS_TYPE_MEMORY_RANGE;
+    Descriptor->Address32.ResourceType  = ACPI_ADDRESS_TYPE_MEMORY_RANGE;
 
     /*
      * Initial descriptor length -- may be enlarged if there are
@@ -556,7 +556,7 @@ RsDoDwordSpaceDescriptor (
     CurrentByteOffset = Info->CurrentByteOffset;
 
     Rnode = RsAllocateResourceNode (
-                sizeof (AML_RESOURCE_ADDRESS32) + 1 + StringLength);
+        sizeof (AML_RESOURCE_ADDRESS32) + 1 + StringLength);
 
     Descriptor = Rnode->Buffer;
     Descriptor->Address32.DescriptorType = ACPI_RESOURCE_NAME_ADDRESS32;

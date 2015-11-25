@@ -118,6 +118,14 @@ typedef struct acpi_rw_lock
 
 #define ACPI_MUTEX_NOT_ACQUIRED         (ACPI_THREAD_ID) -1
 
+/* This Thread ID means an invalid thread ID */
+
+#ifdef ACPI_OS_INVALID_THREAD_ID
+#define ACPI_INVALID_THREAD_ID          ACPI_OS_INVALID_THREAD_ID
+#else
+#define ACPI_INVALID_THREAD_ID          ((ACPI_THREAD_ID) 0xFFFFFFFF)
+#endif
+
 /* Table for the global mutexes */
 
 typedef struct acpi_mutex_info
@@ -234,6 +242,16 @@ typedef struct acpi_table_list
 #define ACPI_ROOT_ORIGIN_UNKNOWN        (0)     /* ~ORIGIN_ALLOCATED */
 #define ACPI_ROOT_ORIGIN_ALLOCATED      (1)
 #define ACPI_ROOT_ALLOW_RESIZE          (2)
+
+
+/* List to manage incoming ACPI tables */
+
+typedef struct acpi_new_table_desc
+{
+    ACPI_TABLE_HEADER               *Table;
+    struct acpi_new_table_desc      *Next;
+
+} ACPI_NEW_TABLE_DESC;
 
 
 /* Predefined table indexes */

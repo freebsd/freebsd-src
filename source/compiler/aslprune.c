@@ -63,6 +63,8 @@ PrPrintObjectAtLevel (
     const char              *ObjectName);
 
 
+/* Structure used for the pruning parse tree walk */
+
 typedef struct acpi_prune_info
 {
     UINT32                  PruneLevel;

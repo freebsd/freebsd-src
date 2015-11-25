@@ -259,8 +259,8 @@ AcpiNsDeleteSubtree (
 
 
     ParentHandle = StartHandle;
-    ChildHandle  = NULL;
-    Level        = 1;
+    ChildHandle = NULL;
+    Level = 1;
 
     /*
      * Traverse the tree of objects until we bubble back up
@@ -271,7 +271,7 @@ AcpiNsDeleteSubtree (
         /* Attempt to get the next object in this scope */
 
         Status = AcpiGetNextObject (ACPI_TYPE_ANY, ParentHandle,
-                                    ChildHandle, &NextChildHandle);
+            ChildHandle, &NextChildHandle);
 
         ChildHandle = NextChildHandle;
 
@@ -282,7 +282,7 @@ AcpiNsDeleteSubtree (
             /* Check if this object has any children */
 
             if (ACPI_SUCCESS (AcpiGetNextObject (ACPI_TYPE_ANY, ChildHandle,
-                                    NULL, &Dummy)))
+                NULL, &Dummy)))
             {
                 /*
                  * There is at least one child of this object,
@@ -360,7 +360,6 @@ AcpiNsUnloadNamespace (
     /* This function does the real work */
 
     Status = AcpiNsDeleteSubtree (Handle);
-
     return_ACPI_STATUS (Status);
 }
 #endif

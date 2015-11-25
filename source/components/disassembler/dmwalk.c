@@ -464,7 +464,7 @@ AcpiDmDescendingOp (
         if (Info->WalkState)
         {
             AmlOffset = (UINT32) ACPI_PTR_DIFF (Op->Common.Aml,
-                            Info->WalkState->ParserState.AmlStart);
+                Info->WalkState->ParserState.AmlStart);
             if (AcpiGbl_DmOpt_Verbose)
             {
                 AcpiOsPrintf (DB_FULL_OP_INFO,
@@ -487,8 +487,8 @@ AcpiDmDescendingOp (
         }
     }
     else if ((AcpiDmBlockType (Op->Common.Parent) & BLOCK_BRACE) &&
-             (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)) &&
-             (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
+         (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)) &&
+         (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
     {
             /*
              * This is a first-level element of a term list,
@@ -906,8 +906,8 @@ AcpiDmAscendingOp (
         if (!AcpiDmCommaIfListMember (Op))
         {
             if ((AcpiDmBlockType (Op->Common.Parent) & BLOCK_BRACE) &&
-                     (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)) &&
-                     (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
+                 (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)) &&
+                 (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
             {
                 /*
                  * This is a first-level element of a term list
@@ -968,8 +968,8 @@ AcpiDmAscendingOp (
         if (!AcpiDmCommaIfListMember (Op))
         {
             if ((AcpiDmBlockType (Op->Common.Parent) & BLOCK_BRACE) &&
-                     (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)) &&
-                     (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
+                 (!(Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)) &&
+                 (Op->Common.AmlOpcode != AML_INT_BYTELIST_OP))
             {
                 /*
                  * This is a first-level element of a term list

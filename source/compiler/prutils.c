@@ -122,8 +122,10 @@ PrGetNextToken (
             {
                 *Next = NULL;
             }
+
             return (TokenStart);
         }
+
         Buffer++;
     }
 

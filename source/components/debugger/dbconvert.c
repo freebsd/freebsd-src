@@ -198,7 +198,7 @@ AcpiDbConvertToBuffer (
         }
 
         j++;
-        i+=2;
+        i += 2;
         while (String[i] &&
               ((String[i] == ',') || (String[i] == ' ')))
         {

@@ -123,7 +123,7 @@ AsDoWildcard (
                 /* If we actually have a dir, process the subtree */
 
                 if (!AsCheckForDirectory (SourcePath, TargetPath, Filename,
-                        &SourceDirPath, &TargetDirPath))
+                    &SourceDirPath, &TargetDirPath))
                 {
                     VERBOSE_PRINT (("Subdirectory: %s\n", Filename));
 
@@ -140,7 +140,7 @@ AsDoWildcard (
                 VERBOSE_PRINT (("File: %s\n", Filename));
 
                 AsProcessOneFile (ConversionTable, SourcePath, TargetPath,
-                        MaxPathLength, Filename, FileType);
+                    MaxPathLength, Filename, FileType);
                 break;
 
             default:
@@ -197,32 +197,32 @@ AsProcessTree (
     /* Do the C source files */
 
     AsDoWildcard (ConversionTable, SourcePath, TargetPath, MaxPathLength,
-            FILE_TYPE_SOURCE, "*.c");
+        FILE_TYPE_SOURCE, "*.c");
 
     /* Do the C header files */
 
     AsDoWildcard (ConversionTable, SourcePath, TargetPath, MaxPathLength,
-            FILE_TYPE_HEADER, "*.h");
+        FILE_TYPE_HEADER, "*.h");
 
     /* Do the Lex file(s) */
 
     AsDoWildcard (ConversionTable, SourcePath, TargetPath, MaxPathLength,
-            FILE_TYPE_SOURCE, "*.l");
+        FILE_TYPE_SOURCE, "*.l");
 
     /* Do the yacc file(s) */
 
     AsDoWildcard (ConversionTable, SourcePath, TargetPath, MaxPathLength,
-            FILE_TYPE_SOURCE, "*.y");
+        FILE_TYPE_SOURCE, "*.y");
 
     /* Do any ASL files */
 
     AsDoWildcard (ConversionTable, SourcePath, TargetPath, MaxPathLength,
-            FILE_TYPE_HEADER, "*.asl");
+        FILE_TYPE_HEADER, "*.asl");
 
     /* Do any subdirectories */
 
     AsDoWildcard (ConversionTable, SourcePath, TargetPath, MaxPathLength,
-            FILE_TYPE_DIRECTORY, "*");
+        FILE_TYPE_DIRECTORY, "*");
 
     return (0);
 }
@@ -259,6 +259,7 @@ AsDetectLoneLineFeeds (
             {
                 LfCount++;
             }
+
             LineCount++;
         }
         i++;
@@ -278,6 +279,7 @@ AsDetectLoneLineFeeds (
         {
             printf ("%s: %u lone linefeeds in file\n", Filename, LfCount);
         }
+
         return (TRUE);
     }
 
@@ -365,7 +367,7 @@ AsConvertFile (
         for (i = 0; ConversionTable->LowerCaseTable[i].Identifier; i++)
         {
             AsLowerCaseString (ConversionTable->LowerCaseTable[i].Identifier,
-                                FileBuffer);
+                FileBuffer);
         }
     }
 
@@ -376,7 +378,7 @@ AsConvertFile (
         for (i = 0; StringTable[i].Target; i++)
         {
             AsReplaceString (StringTable[i].Target, StringTable[i].Replacement,
-                    StringTable[i].Type, FileBuffer);
+                StringTable[i].Type, FileBuffer);
         }
     }
 
@@ -410,7 +412,8 @@ AsConvertFile (
     {
         for (i = 0; StructTable[i].Identifier; i++)
         {
-            AsInsertPrefix (FileBuffer, StructTable[i].Identifier, StructTable[i].Type);
+            AsInsertPrefix (FileBuffer, StructTable[i].Identifier,
+                StructTable[i].Type);
         }
     }
 
@@ -610,7 +613,8 @@ AsProcessOneFile (
         {
             /* Generate the target pathname and write the file */
 
-            OutPathname = calloc (MaxPathLength + strlen (Filename) + 2 + strlen (TargetPath), 1);
+            OutPathname = calloc (MaxPathLength +
+                strlen (Filename) + 2 + strlen (TargetPath), 1);
             if (!OutPathname)
             {
                 printf ("Could not allocate buffer for file pathnames\n");

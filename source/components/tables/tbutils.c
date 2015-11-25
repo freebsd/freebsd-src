@@ -86,16 +86,16 @@ AcpiTbInitializeFacs (
         return (AE_OK);
     }
     else if (AcpiGbl_FADT.XFacs &&
-             (!AcpiGbl_FADT.Facs || !AcpiGbl_Use32BitFacsAddresses))
+         (!AcpiGbl_FADT.Facs || !AcpiGbl_Use32BitFacsAddresses))
     {
         (void) AcpiGetTableByIndex (AcpiGbl_XFacsIndex,
-                    ACPI_CAST_INDIRECT_PTR (ACPI_TABLE_HEADER, &Facs));
+            ACPI_CAST_INDIRECT_PTR (ACPI_TABLE_HEADER, &Facs));
         AcpiGbl_FACS = Facs;
     }
     else if (AcpiGbl_FADT.Facs)
     {
         (void) AcpiGetTableByIndex (AcpiGbl_FacsIndex,
-                    ACPI_CAST_INDIRECT_PTR (ACPI_TABLE_HEADER, &Facs));
+            ACPI_CAST_INDIRECT_PTR (ACPI_TABLE_HEADER, &Facs));
         AcpiGbl_FACS = Facs;
     }
 
@@ -104,33 +104,6 @@ AcpiTbInitializeFacs (
     return (AE_OK);
 }
 #endif /* !ACPI_REDUCED_HARDWARE */
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiTbTablesLoaded
- *
- * PARAMETERS:  None
- *
- * RETURN:      TRUE if required ACPI tables are loaded
- *
- * DESCRIPTION: Determine if the minimum required ACPI tables are present
- *              (FADT, FACS, DSDT)
- *
- ******************************************************************************/
-
-BOOLEAN
-AcpiTbTablesLoaded (
-    void)
-{
-
-    if (AcpiGbl_RootTableList.CurrentTableCount >= 4)
-    {
-        return (TRUE);
-    }
-
-    return (FALSE);
-}
 
 
 /*******************************************************************************
@@ -160,6 +133,7 @@ AcpiTbCheckDsdtHeader (
         ACPI_BIOS_ERROR ((AE_INFO,
             "The DSDT has been corrupted or replaced - "
             "old, new headers below"));
+
         AcpiTbPrintTableHeader (0, &AcpiGbl_OriginalDsdtHeader);
         AcpiTbPrintTableHeader (0, AcpiGbl_DSDT);
 
@@ -208,8 +182,8 @@ AcpiTbCopyDsdt (
 
     AcpiTbInitTableDescriptor (
         &AcpiGbl_RootTableList.Tables[AcpiGbl_DsdtIndex],
-        ACPI_PTR_TO_PHYSADDR (NewTable), ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL,
-        NewTable);
+        ACPI_PTR_TO_PHYSADDR (NewTable),
+        ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL, NewTable);
 
     ACPI_INFO ((AE_INFO,
         "Forced DSDT copy: length 0x%05X copied locally, original unmapped",
@@ -254,7 +228,8 @@ AcpiTbGetRootTableEntry (
          * 32-bit platform, RSDT: Return 32-bit table entry
          * 64-bit platform, RSDT: Expand 32-bit to 64-bit and return
          */
-        return ((ACPI_PHYSICAL_ADDRESS) (*ACPI_CAST_PTR (UINT32, TableEntry)));
+        return ((ACPI_PHYSICAL_ADDRESS) (*ACPI_CAST_PTR (
+            UINT32, TableEntry)));
     }
     else
     {
@@ -420,10 +395,12 @@ AcpiTbParseRootTable (
             ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL, FALSE, TRUE, &TableIndex);
 
         if (ACPI_SUCCESS (Status) &&
-            ACPI_COMPARE_NAME (&AcpiGbl_RootTableList.Tables[TableIndex].Signature,
+            ACPI_COMPARE_NAME (
+                &AcpiGbl_RootTableList.Tables[TableIndex].Signature,
                 ACPI_SIG_FADT))
         {
-            AcpiTbParseFadt (TableIndex);
+            AcpiGbl_FadtIndex = TableIndex;
+            AcpiTbParseFadt ();
         }
 
 NextTable:
@@ -432,7 +409,6 @@ NextTable:
     }
 
     AcpiOsUnmapMemory (Table, Length);
-
     return_ACPI_STATUS (AE_OK);
 }
 

@@ -827,6 +827,7 @@ AhPrintOneField (
         {
             printf ("\n%*s", (int) Indent, " ");
         }
+
         printf ("%s", This);
     }
 }
@@ -1014,7 +1015,8 @@ AhDecodeException (
     if (!HexString)
     {
         printf ("All defined ACPICA exception codes:\n\n");
-        AH_DISPLAY_EXCEPTION (0, "AE_OK                        (No error occurred)");
+        AH_DISPLAY_EXCEPTION (0,
+            "AE_OK                        (No error occurred)");
 
         /* Display codes in each block of exception types */
 
@@ -1028,6 +1030,7 @@ AhDecodeException (
                 {
                     AH_DISPLAY_EXCEPTION_TEXT (Status, ExceptionInfo);
                 }
+
                 Status++;
 
             } while (ExceptionInfo);

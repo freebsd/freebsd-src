@@ -158,7 +158,7 @@ AfInstallGpeBlock (
     /* _GPE should always exist */
 
     Status = AcpiGetHandle (NULL, "\\_GPE", &Handle);
-    AE_CHECK_OK (AcpiGetHandle, Status);
+    ACPI_CHECK_OK (AcpiGetHandle, Status);
     if (ACPI_FAILURE (Status))
     {
         return;
@@ -181,29 +181,29 @@ AfInstallGpeBlock (
         }
 
         Status = AcpiInstallGpeBlock (Handle, &BlockAddress, 7, 8);
-        AE_CHECK_OK (AcpiInstallGpeBlock, Status);
+        ACPI_CHECK_OK (AcpiInstallGpeBlock, Status);
 
         Status = AcpiInstallGpeHandler (Handle, 8,
             ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-        AE_CHECK_OK (AcpiInstallGpeHandler, Status);
+        ACPI_CHECK_OK (AcpiInstallGpeHandler, Status);
 
         Status = AcpiEnableGpe (Handle, 8);
-        AE_CHECK_OK (AcpiEnableGpe, Status);
+        ACPI_CHECK_OK (AcpiEnableGpe, Status);
 
         Status = AcpiGetGpeDevice (0x30, &GpeDevice);
-        AE_CHECK_OK (AcpiGetGpeDevice, Status);
+        ACPI_CHECK_OK (AcpiGetGpeDevice, Status);
 
         Status = AcpiGetGpeDevice (0x42, &GpeDevice);
-        AE_CHECK_OK (AcpiGetGpeDevice, Status);
+        ACPI_CHECK_OK (AcpiGetGpeDevice, Status);
 
         Status = AcpiGetGpeDevice (AcpiCurrentGpeCount-1, &GpeDevice);
-        AE_CHECK_OK (AcpiGetGpeDevice, Status);
+        ACPI_CHECK_OK (AcpiGetGpeDevice, Status);
 
         Status = AcpiGetGpeDevice (AcpiCurrentGpeCount, &GpeDevice);
-        AE_CHECK_STATUS (AcpiGetGpeDevice, Status, AE_NOT_EXIST);
+        ACPI_CHECK_STATUS (AcpiGetGpeDevice, Status, AE_NOT_EXIST);
 
         Status = AcpiRemoveGpeHandler (Handle, 8, AeGpeHandler);
-        AE_CHECK_OK (AcpiRemoveGpeHandler, Status);
+        ACPI_CHECK_OK (AcpiRemoveGpeHandler, Status);
     }
 
     /* Attempt to install a GPE block on GPE3 (if present) */
@@ -219,7 +219,7 @@ AfInstallGpeBlock (
         }
 
         Status = AcpiInstallGpeBlock (Handle, &BlockAddress, 8, 11);
-        AE_CHECK_OK (AcpiInstallGpeBlock, Status);
+        ACPI_CHECK_OK (AcpiInstallGpeBlock, Status);
     }
 }
 #endif /* !ACPI_REDUCED_HARDWARE */
@@ -233,10 +233,12 @@ AeTestBufferArgument (
 {
     ACPI_OBJECT_LIST        Params;
     ACPI_OBJECT             BufArg;
-    UINT8                   Buffer[] = {
+    UINT8                   Buffer[] =
+    {
         0,0,0,0,
         4,0,0,0,
-        1,2,3,4};
+        1,2,3,4
+    };
 
 
     BufArg.Type = ACPI_TYPE_BUFFER;
@@ -359,7 +361,8 @@ ExecuteOSI (
 
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("Could not execute _OSI method, %s\n",
+        AcpiOsPrintf (
+            "Could not execute _OSI method, %s\n",
             AcpiFormatException (Status));
         return (Status);
     }
@@ -368,7 +371,8 @@ ExecuteOSI (
 
     if (ReturnValue.Length < sizeof (ACPI_OBJECT))
     {
-        AcpiOsPrintf ("Return value from _OSI method too small, %.8X\n",
+        AcpiOsPrintf (
+            "Return value from _OSI method too small, %.8X\n",
             ReturnValue.Length);
         goto ErrorExit;
     }
@@ -376,13 +380,15 @@ ExecuteOSI (
     Obj = ReturnValue.Pointer;
     if (Obj->Type != ACPI_TYPE_INTEGER)
     {
-        AcpiOsPrintf ("Invalid return type from _OSI method, %.2X\n", Obj->Type);
+        AcpiOsPrintf (
+            "Invalid return type from _OSI method, %.2X\n", Obj->Type);
         goto ErrorExit;
     }
 
     if (Obj->Integer.Value != ExpectedResult)
     {
-        AcpiOsPrintf ("Invalid return value from _OSI, expected %.8X found %.8X\n",
+        AcpiOsPrintf (
+            "Invalid return value from _OSI, expected %.8X found %.8X\n",
             ExpectedResult, (UINT32) Obj->Integer.Value);
         goto ErrorExit;
     }
@@ -398,7 +404,6 @@ ErrorExit:
     /* Free a buffer created via ACPI_ALLOCATE_BUFFER */
 
     AcpiOsFree (ReturnValue.Pointer);
-
     return (Status);
 }
 
@@ -427,20 +432,20 @@ AeGenericRegisters (
     GenericRegister.SpaceId = ACPI_ADR_SPACE_SYSTEM_IO;
 
     Status = AcpiRead (&Value, &GenericRegister);
-    AE_CHECK_OK (AcpiRead, Status);
+    ACPI_CHECK_OK (AcpiRead, Status);
 
     Status = AcpiWrite (Value, &GenericRegister);
-    AE_CHECK_OK (AcpiWrite, Status);
+    ACPI_CHECK_OK (AcpiWrite, Status);
 
     GenericRegister.Address = 0x12345678;
     GenericRegister.BitOffset = 0;
     GenericRegister.SpaceId = ACPI_ADR_SPACE_SYSTEM_MEMORY;
 
     Status = AcpiRead (&Value, &GenericRegister);
-    AE_CHECK_OK (AcpiRead, Status);
+    ACPI_CHECK_OK (AcpiRead, Status);
 
     Status = AcpiWrite (Value, &GenericRegister);
-    AE_CHECK_OK (AcpiWrite, Status);
+    ACPI_CHECK_OK (AcpiWrite, Status);
 }
 
 
@@ -468,7 +473,7 @@ AeMutexInterfaces (
         return;
     }
 
-    AE_CHECK_OK (AcpiGetHandle, Status);
+    ACPI_CHECK_OK (AcpiGetHandle, Status);
     if (ACPI_FAILURE (Status))
     {
         return;
@@ -477,7 +482,7 @@ AeMutexInterfaces (
     /* Acquire the  mutex */
 
     Status = AcpiAcquireMutex (NULL, "\\MTX1", 0xFFFF);
-    AE_CHECK_OK (AcpiAcquireMutex, Status);
+    ACPI_CHECK_OK (AcpiAcquireMutex, Status);
     if (ACPI_FAILURE (Status))
     {
         return;
@@ -486,7 +491,7 @@ AeMutexInterfaces (
     /* Release mutex with different parameters */
 
     Status = AcpiReleaseMutex (MutexHandle, NULL);
-    AE_CHECK_OK (AcpiReleaseMutex, Status);
+    ACPI_CHECK_OK (AcpiReleaseMutex, Status);
 }
 
 
@@ -516,29 +521,29 @@ AeHardwareInterfaces (
     }
 
     Status = AcpiWriteBitRegister (ACPI_BITREG_WAKE_STATUS, 1);
-    AE_CHECK_OK (AcpiWriteBitRegister, Status);
+    ACPI_CHECK_OK (AcpiWriteBitRegister, Status);
 
     Status = AcpiWriteBitRegister (ACPI_BITREG_GLOBAL_LOCK_ENABLE, 1);
-    AE_CHECK_OK (AcpiWriteBitRegister, Status);
+    ACPI_CHECK_OK (AcpiWriteBitRegister, Status);
 
     Status = AcpiWriteBitRegister (ACPI_BITREG_SLEEP_ENABLE, 1);
-    AE_CHECK_OK (AcpiWriteBitRegister, Status);
+    ACPI_CHECK_OK (AcpiWriteBitRegister, Status);
 
     Status = AcpiWriteBitRegister (ACPI_BITREG_ARB_DISABLE, 1);
-    AE_CHECK_OK (AcpiWriteBitRegister, Status);
+    ACPI_CHECK_OK (AcpiWriteBitRegister, Status);
 
 
     Status = AcpiReadBitRegister (ACPI_BITREG_WAKE_STATUS, &Value);
-    AE_CHECK_OK (AcpiReadBitRegister, Status);
+    ACPI_CHECK_OK (AcpiReadBitRegister, Status);
 
     Status = AcpiReadBitRegister (ACPI_BITREG_GLOBAL_LOCK_ENABLE, &Value);
-    AE_CHECK_OK (AcpiReadBitRegister, Status);
+    ACPI_CHECK_OK (AcpiReadBitRegister, Status);
 
     Status = AcpiReadBitRegister (ACPI_BITREG_SLEEP_ENABLE, &Value);
-    AE_CHECK_OK (AcpiReadBitRegister, Status);
+    ACPI_CHECK_OK (AcpiReadBitRegister, Status);
 
     Status = AcpiReadBitRegister (ACPI_BITREG_ARB_DISABLE, &Value);
-    AE_CHECK_OK (AcpiReadBitRegister, Status);
+    ACPI_CHECK_OK (AcpiReadBitRegister, Status);
 
 #endif /* !ACPI_REDUCED_HARDWARE */
 }
@@ -563,14 +568,15 @@ AeMiscellaneousTests (
     ACPI_HANDLE             Handle;
 
 #if (!ACPI_REDUCED_HARDWARE)
-    ACPI_VENDOR_UUID        Uuid = {0, {ACPI_INIT_UUID (0,0,0,0,0,0,0,0,0,0,0)}};
     UINT32                  LockHandle1;
     UINT32                  LockHandle2;
+    ACPI_VENDOR_UUID        Uuid =
+        {0, {ACPI_INIT_UUID (0,0,0,0,0,0,0,0,0,0,0)}};
 #endif /* !ACPI_REDUCED_HARDWARE */
 
 
     Status = AcpiGetHandle (NULL, "\\", &Handle);
-    AE_CHECK_OK (AcpiGetHandle, Status);
+    ACPI_CHECK_OK (AcpiGetHandle, Status);
 
     if (AcpiGbl_DoInterfaceTests)
     {
@@ -581,42 +587,42 @@ AeMiscellaneousTests (
         /* Attempt unload of DSDT, should fail */
 
         Status = AcpiGetHandle (NULL, "\\_SB_", &Handle);
-        AE_CHECK_OK (AcpiGetHandle, Status);
+        ACPI_CHECK_OK (AcpiGetHandle, Status);
 
         Status = AcpiUnloadParentTable (Handle);
-        AE_CHECK_STATUS (AcpiUnloadParentTable, Status, AE_TYPE);
+        ACPI_CHECK_STATUS (AcpiUnloadParentTable, Status, AE_TYPE);
 
         /* Load and unload SSDT4 */
 
         Status = AcpiLoadTable ((ACPI_TABLE_HEADER *) Ssdt4Code);
-        AE_CHECK_OK (AcpiLoadTable, Status);
+        ACPI_CHECK_OK (AcpiLoadTable, Status);
 
         Status = AcpiGetHandle (NULL, "\\_T96", &Handle);
-        AE_CHECK_OK (AcpiGetHandle, Status);
+        ACPI_CHECK_OK (AcpiGetHandle, Status);
 
         Status = AcpiUnloadParentTable (Handle);
-        AE_CHECK_OK (AcpiUnloadParentTable, Status);
+        ACPI_CHECK_OK (AcpiUnloadParentTable, Status);
 
         /* Re-load SSDT4 */
 
         Status = AcpiLoadTable ((ACPI_TABLE_HEADER *) Ssdt4Code);
-        AE_CHECK_OK (AcpiLoadTable, Status);
+        ACPI_CHECK_OK (AcpiLoadTable, Status);
 
         /* Unload and re-load SSDT2 (SSDT2 is in the XSDT) */
 
         Status = AcpiGetHandle (NULL, "\\_T99", &Handle);
-        AE_CHECK_OK (AcpiGetHandle, Status);
+        ACPI_CHECK_OK (AcpiGetHandle, Status);
 
         Status = AcpiUnloadParentTable (Handle);
-        AE_CHECK_OK (AcpiUnloadParentTable, Status);
+        ACPI_CHECK_OK (AcpiUnloadParentTable, Status);
 
         Status = AcpiLoadTable ((ACPI_TABLE_HEADER *) Ssdt2Code);
-        AE_CHECK_OK (AcpiLoadTable, Status);
+        ACPI_CHECK_OK (AcpiLoadTable, Status);
 
         /* Load OEM9 table (causes table override) */
 
         Status = AcpiLoadTable ((ACPI_TABLE_HEADER *) Ssdt3Code);
-        AE_CHECK_OK (AcpiLoadTable, Status);
+        ACPI_CHECK_OK (AcpiLoadTable, Status);
     }
 
     AeHardwareInterfaces ();
@@ -630,36 +636,36 @@ AeMiscellaneousTests (
     /* Test _OSI install/remove */
 
     Status = AcpiInstallInterface ("");
-    AE_CHECK_STATUS (AcpiInstallInterface, Status, AE_BAD_PARAMETER);
+    ACPI_CHECK_STATUS (AcpiInstallInterface, Status, AE_BAD_PARAMETER);
 
     Status = AcpiInstallInterface ("TestString");
-    AE_CHECK_OK (AcpiInstallInterface, Status);
+    ACPI_CHECK_OK (AcpiInstallInterface, Status);
 
     Status = AcpiInstallInterface ("TestString");
-    AE_CHECK_STATUS (AcpiInstallInterface, Status, AE_ALREADY_EXISTS);
+    ACPI_CHECK_STATUS (AcpiInstallInterface, Status, AE_ALREADY_EXISTS);
 
     Status = AcpiRemoveInterface ("Windows 2006");
-    AE_CHECK_OK (AcpiRemoveInterface, Status);
+    ACPI_CHECK_OK (AcpiRemoveInterface, Status);
 
     Status = AcpiRemoveInterface ("TestString");
-    AE_CHECK_OK (AcpiRemoveInterface, Status);
+    ACPI_CHECK_OK (AcpiRemoveInterface, Status);
 
     Status = AcpiRemoveInterface ("XXXXXX");
-    AE_CHECK_STATUS (AcpiRemoveInterface, Status, AE_NOT_EXIST);
+    ACPI_CHECK_STATUS (AcpiRemoveInterface, Status, AE_NOT_EXIST);
 
     Status = AcpiInstallInterface ("AnotherTestString");
-    AE_CHECK_OK (AcpiInstallInterface, Status);
+    ACPI_CHECK_OK (AcpiInstallInterface, Status);
 
     /* Test _OSI execution */
 
     Status = ExecuteOSI ("Extended Address Space Descriptor", 0xFFFFFFFF);
-    AE_CHECK_OK (ExecuteOSI, Status);
+    ACPI_CHECK_OK (ExecuteOSI, Status);
 
     Status = ExecuteOSI ("Windows 2001", 0xFFFFFFFF);
-    AE_CHECK_OK (ExecuteOSI, Status);
+    ACPI_CHECK_OK (ExecuteOSI, Status);
 
     Status = ExecuteOSI ("MichiganTerminalSystem", 0);
-    AE_CHECK_OK (ExecuteOSI, Status);
+    ACPI_CHECK_OK (ExecuteOSI, Status);
 
 
     ReturnBuf.Length = 32;
@@ -667,21 +673,21 @@ AeMiscellaneousTests (
 
     Status = AcpiGetName (ACPI_ROOT_OBJECT,
         ACPI_FULL_PATHNAME_NO_TRAILING, &ReturnBuf);
-    AE_CHECK_OK (AcpiGetName, Status);
+    ACPI_CHECK_OK (AcpiGetName, Status);
 
     /* Get Devices */
 
     Status = AcpiGetDevices (NULL, AeGetDevices, NULL, NULL);
-    AE_CHECK_OK (AcpiGetDevices, Status);
+    ACPI_CHECK_OK (AcpiGetDevices, Status);
 
     Status = AcpiGetStatistics (&Stats);
-    AE_CHECK_OK (AcpiGetStatistics, Status);
+    ACPI_CHECK_OK (AcpiGetStatistics, Status);
 
 
 #if (!ACPI_REDUCED_HARDWARE)
 
     Status = AcpiInstallGlobalEventHandler (AeGlobalEventHandler, NULL);
-    AE_CHECK_OK (AcpiInstallGlobalEventHandler, Status);
+    ACPI_CHECK_OK (AcpiInstallGlobalEventHandler, Status);
 
     /* If Hardware Reduced flag is set, we are all done */
 
@@ -691,98 +697,107 @@ AeMiscellaneousTests (
     }
 
     Status = AcpiEnableEvent (ACPI_EVENT_GLOBAL, 0);
-    AE_CHECK_OK (AcpiEnableEvent, Status);
+    ACPI_CHECK_OK (AcpiEnableEvent, Status);
 
     /*
      * GPEs: Handlers, enable/disable, etc.
      */
-    Status = AcpiInstallGpeHandler (NULL, 0, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-    AE_CHECK_OK (AcpiInstallGpeHandler, Status);
+    Status = AcpiInstallGpeHandler (NULL, 0,
+        ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
+    ACPI_CHECK_OK (AcpiInstallGpeHandler, Status);
 
     Status = AcpiEnableGpe (NULL, 0);
-    AE_CHECK_OK (AcpiEnableGpe, Status);
+    ACPI_CHECK_OK (AcpiEnableGpe, Status);
 
     Status = AcpiRemoveGpeHandler (NULL, 0, AeGpeHandler);
-    AE_CHECK_OK (AcpiRemoveGpeHandler, Status);
+    ACPI_CHECK_OK (AcpiRemoveGpeHandler, Status);
 
-    Status = AcpiInstallGpeHandler (NULL, 0, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-    AE_CHECK_OK (AcpiInstallGpeHandler, Status);
+    Status = AcpiInstallGpeHandler (NULL, 0,
+        ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
+    ACPI_CHECK_OK (AcpiInstallGpeHandler, Status);
 
     Status = AcpiEnableGpe (NULL, 0);
-    AE_CHECK_OK (AcpiEnableGpe, Status);
+    ACPI_CHECK_OK (AcpiEnableGpe, Status);
 
     Status = AcpiSetGpe (NULL, 0, ACPI_GPE_DISABLE);
-    AE_CHECK_OK (AcpiSetGpe, Status);
+    ACPI_CHECK_OK (AcpiSetGpe, Status);
 
     Status = AcpiSetGpe (NULL, 0, ACPI_GPE_ENABLE);
-    AE_CHECK_OK (AcpiSetGpe, Status);
+    ACPI_CHECK_OK (AcpiSetGpe, Status);
 
 
-    Status = AcpiInstallGpeHandler (NULL, 1, ACPI_GPE_EDGE_TRIGGERED, AeGpeHandler, NULL);
-    AE_CHECK_OK (AcpiInstallGpeHandler, Status);
+    Status = AcpiInstallGpeHandler (NULL, 1,
+        ACPI_GPE_EDGE_TRIGGERED, AeGpeHandler, NULL);
+    ACPI_CHECK_OK (AcpiInstallGpeHandler, Status);
 
     Status = AcpiEnableGpe (NULL, 1);
-    AE_CHECK_OK (AcpiEnableGpe, Status);
+    ACPI_CHECK_OK (AcpiEnableGpe, Status);
 
 
-    Status = AcpiInstallGpeHandler (NULL, 2, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-    AE_CHECK_OK (AcpiInstallGpeHandler, Status);
+    Status = AcpiInstallGpeHandler (NULL, 2,
+        ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
+    ACPI_CHECK_OK (AcpiInstallGpeHandler, Status);
 
     Status = AcpiEnableGpe (NULL, 2);
-    AE_CHECK_OK (AcpiEnableGpe, Status);
+    ACPI_CHECK_OK (AcpiEnableGpe, Status);
 
 
-    Status = AcpiInstallGpeHandler (NULL, 3, ACPI_GPE_EDGE_TRIGGERED, AeGpeHandler, NULL);
-    AE_CHECK_OK (AcpiInstallGpeHandler, Status);
+    Status = AcpiInstallGpeHandler (NULL, 3,
+        ACPI_GPE_EDGE_TRIGGERED, AeGpeHandler, NULL);
+    ACPI_CHECK_OK (AcpiInstallGpeHandler, Status);
 
-    Status = AcpiInstallGpeHandler (NULL, 4, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-    AE_CHECK_OK (AcpiInstallGpeHandler, Status);
+    Status = AcpiInstallGpeHandler (NULL, 4,
+        ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
+    ACPI_CHECK_OK (AcpiInstallGpeHandler, Status);
 
-    Status = AcpiInstallGpeHandler (NULL, 5, ACPI_GPE_EDGE_TRIGGERED, AeGpeHandler, NULL);
-    AE_CHECK_OK (AcpiInstallGpeHandler, Status);
+    Status = AcpiInstallGpeHandler (NULL, 5,
+        ACPI_GPE_EDGE_TRIGGERED, AeGpeHandler, NULL);
+    ACPI_CHECK_OK (AcpiInstallGpeHandler, Status);
 
     Status = AcpiGetHandle (NULL, "\\_SB", &Handle);
-    AE_CHECK_OK (AcpiGetHandle, Status);
+    ACPI_CHECK_OK (AcpiGetHandle, Status);
 
     Status = AcpiSetupGpeForWake (Handle, NULL, 5);
-    AE_CHECK_OK (AcpiSetupGpeForWake, Status);
+    ACPI_CHECK_OK (AcpiSetupGpeForWake, Status);
 
     Status = AcpiSetGpeWakeMask (NULL, 5, ACPI_GPE_ENABLE);
-    AE_CHECK_OK (AcpiSetGpeWakeMask, Status);
+    ACPI_CHECK_OK (AcpiSetGpeWakeMask, Status);
 
     Status = AcpiSetupGpeForWake (Handle, NULL, 6);
-    AE_CHECK_OK (AcpiSetupGpeForWake, Status);
+    ACPI_CHECK_OK (AcpiSetupGpeForWake, Status);
 
     Status = AcpiSetupGpeForWake (ACPI_ROOT_OBJECT, NULL, 6);
-    AE_CHECK_OK (AcpiSetupGpeForWake, Status);
+    ACPI_CHECK_OK (AcpiSetupGpeForWake, Status);
 
     Status = AcpiSetupGpeForWake (Handle, NULL, 9);
-    AE_CHECK_OK (AcpiSetupGpeForWake, Status);
+    ACPI_CHECK_OK (AcpiSetupGpeForWake, Status);
 
-    Status = AcpiInstallGpeHandler (NULL, 0x19, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-    AE_CHECK_OK (AcpiInstallGpeHandler, Status);
+    Status = AcpiInstallGpeHandler (NULL, 0x19,
+        ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
+    ACPI_CHECK_OK (AcpiInstallGpeHandler, Status);
 
     Status = AcpiEnableGpe (NULL, 0x19);
-    AE_CHECK_OK (AcpiEnableGpe, Status);
+    ACPI_CHECK_OK (AcpiEnableGpe, Status);
 
 
     /* GPE block 1 */
 
-    Status = AcpiInstallGpeHandler (NULL, 101, ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
-    AE_CHECK_OK (AcpiInstallGpeHandler, Status);
+    Status = AcpiInstallGpeHandler (NULL, 101,
+        ACPI_GPE_LEVEL_TRIGGERED, AeGpeHandler, NULL);
+    ACPI_CHECK_OK (AcpiInstallGpeHandler, Status);
 
     Status = AcpiEnableGpe (NULL, 101);
-    AE_CHECK_OK (AcpiEnableGpe, Status);
+    ACPI_CHECK_OK (AcpiEnableGpe, Status);
 
     Status = AcpiDisableGpe (NULL, 101);
-    AE_CHECK_OK (AcpiDisableGpe, Status);
+    ACPI_CHECK_OK (AcpiDisableGpe, Status);
 
     AfInstallGpeBlock ();
 
     /* Here is where the GPEs are actually "enabled" */
 
     Status = AcpiUpdateAllGpes ();
-    AE_CHECK_OK (AcpiUpdateAllGpes, Status);
+    ACPI_CHECK_OK (AcpiUpdateAllGpes, Status);
 
     Status = AcpiGetHandle (NULL, "RSRC", &Handle);
     if (ACPI_SUCCESS (Status))
@@ -799,16 +814,16 @@ AeMiscellaneousTests (
     /* Test global lock */
 
     Status = AcpiAcquireGlobalLock (0xFFFF, &LockHandle1);
-    AE_CHECK_OK (AcpiAcquireGlobalLock, Status);
+    ACPI_CHECK_OK (AcpiAcquireGlobalLock, Status);
 
     Status = AcpiAcquireGlobalLock (0x5, &LockHandle2);
-    AE_CHECK_OK (AcpiAcquireGlobalLock, Status);
+    ACPI_CHECK_OK (AcpiAcquireGlobalLock, Status);
 
     Status = AcpiReleaseGlobalLock (LockHandle1);
-    AE_CHECK_OK (AcpiReleaseGlobalLock, Status);
+    ACPI_CHECK_OK (AcpiReleaseGlobalLock, Status);
 
     Status = AcpiReleaseGlobalLock (LockHandle2);
-    AE_CHECK_OK (AcpiReleaseGlobalLock, Status);
+    ACPI_CHECK_OK (AcpiReleaseGlobalLock, Status);
 
 #endif /* !ACPI_REDUCED_HARDWARE */
 }

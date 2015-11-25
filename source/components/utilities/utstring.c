@@ -147,6 +147,7 @@ AcpiUtPrintString (
             break;
         }
     }
+
     AcpiOsPrintf ("\"");
 
     if (i == MaxLength && String[i])

@@ -241,6 +241,7 @@ AsMixedCaseToUnderscores (
 
                 SubBuffer++;
             }
+
             SubBuffer++;
             continue;
         }
@@ -260,6 +261,7 @@ AsMixedCaseToUnderscores (
                     LineNumber, Filename);
                 return;
             }
+
             continue;
         }
 
@@ -535,6 +537,7 @@ AsLowerCaseIdentifiers (
                     SubBuffer++;
                     break;
                 }
+
                 SubBuffer++;
             }
         }

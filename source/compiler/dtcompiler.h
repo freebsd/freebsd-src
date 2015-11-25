@@ -172,6 +172,12 @@ DtCompileTable (
     BOOLEAN                 Required);
 
 ACPI_STATUS
+DtCompileTwoSubtables (
+    void                    **List,
+    ACPI_DMTABLE_INFO       *TableInfo1,
+    ACPI_DMTABLE_INFO       *TableInfo2);
+
+ACPI_STATUS
 DtCompilePadding (
     UINT32                  Length,
     DT_SUBTABLE             **RetSubtable);

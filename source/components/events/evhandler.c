@@ -122,8 +122,8 @@ AcpiEvInstallRegionHandlers (
     for (i = 0; i < ACPI_NUM_DEFAULT_SPACES; i++)
     {
         Status = AcpiEvInstallSpaceHandler (AcpiGbl_RootNode,
-                    AcpiGbl_DefaultAddressSpaces[i],
-                    ACPI_DEFAULT_HANDLER, NULL, NULL);
+            AcpiGbl_DefaultAddressSpaces[i],
+            ACPI_DEFAULT_HANDLER, NULL, NULL);
         switch (Status)
         {
         case AE_OK:
@@ -184,7 +184,7 @@ AcpiEvHasDefaultHandler (
             if (HandlerObj->AddressSpace.SpaceId == SpaceId)
             {
                 if (HandlerObj->AddressSpace.HandlerFlags &
-                        ACPI_ADDR_HANDLER_DEFAULT_INSTALLED)
+                    ACPI_ADDR_HANDLER_DEFAULT_INSTALLED)
                 {
                     return (TRUE);
                 }
@@ -282,7 +282,7 @@ AcpiEvInstallHandler (
             /* Found a handler, is it for the same address space? */
 
             if (NextHandlerObj->AddressSpace.SpaceId ==
-                    HandlerObj->AddressSpace.SpaceId)
+                HandlerObj->AddressSpace.SpaceId)
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
                     "Found handler for region [%s] in device %p(%p) "
@@ -574,8 +574,8 @@ AcpiEvInstallSpaceHandler (
      * of the branch
      */
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, Node, ACPI_UINT32_MAX,
-                ACPI_NS_WALK_UNLOCK, AcpiEvInstallHandler, NULL,
-                HandlerObj, NULL);
+        ACPI_NS_WALK_UNLOCK, AcpiEvInstallHandler, NULL,
+        HandlerObj, NULL);
 
 UnlockAndExit:
     return_ACPI_STATUS (Status);

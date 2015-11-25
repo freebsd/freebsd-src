@@ -181,9 +181,9 @@ AcpiExLoadTableOp (
     /* Find the ACPI table in the RSDT/XSDT */
 
     Status = AcpiTbFindTable (
-                Operand[0]->String.Pointer,
-                Operand[1]->String.Pointer,
-                Operand[2]->String.Pointer, &TableIndex);
+        Operand[0]->String.Pointer,
+        Operand[1]->String.Pointer,
+        Operand[2]->String.Pointer, &TableIndex);
     if (ACPI_FAILURE (Status))
     {
         if (Status != AE_NOT_FOUND)
@@ -217,7 +217,7 @@ AcpiExLoadTableOp (
          * location within the namespace where the table will be loaded.
          */
         Status = AcpiNsGetNode (StartNode, Operand[3]->String.Pointer,
-                    ACPI_NS_SEARCH_PARENT, &ParentNode);
+            ACPI_NS_SEARCH_PARENT, &ParentNode);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -241,7 +241,7 @@ AcpiExLoadTableOp (
         /* Find the node referenced by the ParameterPathString */
 
         Status = AcpiNsGetNode (StartNode, Operand[4]->String.Pointer,
-                    ACPI_NS_SEARCH_PARENT, &ParameterNode);
+            ACPI_NS_SEARCH_PARENT, &ParameterNode);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -263,8 +263,7 @@ AcpiExLoadTableOp (
         /* Store the parameter data into the optional parameter object */
 
         Status = AcpiExStore (Operand[5],
-                    ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, ParameterNode),
-                    WalkState);
+            ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, ParameterNode), WalkState);
         if (ACPI_FAILURE (Status))
         {
             (void) AcpiExUnloadTable (DdbHandle);
@@ -286,7 +285,7 @@ AcpiExLoadTableOp (
     if (AcpiGbl_TableHandler)
     {
         (void) AcpiGbl_TableHandler (ACPI_TABLE_EVENT_LOAD, Table,
-                    AcpiGbl_TableHandlerContext);
+            AcpiGbl_TableHandlerContext);
     }
 
     *ReturnDesc = DdbHandle;
@@ -326,7 +325,7 @@ AcpiExRegionRead (
     for (i = 0; i < Length; i++)
     {
         Status = AcpiEvAddressSpaceDispatch (ObjDesc, NULL, ACPI_READ,
-                    RegionOffset, 8, &Value);
+            RegionOffset, 8, &Value);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -396,8 +395,8 @@ AcpiExLoadOp (
         }
 
         /*
-         * If the Region Address and Length have not been previously evaluated,
-         * evaluate them now and save the results.
+         * If the Region Address and Length have not been previously
+         * evaluated, evaluate them now and save the results.
          */
         if (!(ObjDesc->Common.Flags & AOPOBJ_DATA_VALID))
         {
@@ -417,7 +416,7 @@ AcpiExLoadOp (
         }
 
         Status = AcpiExRegionRead (ObjDesc, sizeof (ACPI_TABLE_HEADER),
-                    ACPI_CAST_PTR (UINT8, TableHeader));
+            ACPI_CAST_PTR (UINT8, TableHeader));
         Length = TableHeader->Length;
         ACPI_FREE (TableHeader);
 
@@ -460,7 +459,7 @@ AcpiExLoadOp (
         /* Read the entire table */
 
         Status = AcpiExRegionRead (ObjDesc, Length,
-                    ACPI_CAST_PTR (UINT8, Table));
+            ACPI_CAST_PTR (UINT8, Table));
         if (ACPI_FAILURE (Status))
         {
             ACPI_FREE (Table);
@@ -482,7 +481,8 @@ AcpiExLoadOp (
 
         /* Get the actual table length from the table header */
 
-        TableHeader = ACPI_CAST_PTR (ACPI_TABLE_HEADER, ObjDesc->Buffer.Pointer);
+        TableHeader = ACPI_CAST_PTR (
+            ACPI_TABLE_HEADER, ObjDesc->Buffer.Pointer);
         Length = TableHeader->Length;
 
         /* Table cannot extend beyond the buffer */
@@ -497,8 +497,8 @@ AcpiExLoadOp (
         }
 
         /*
-         * Copy the table from the buffer because the buffer could be modified
-         * or even deleted in the future
+         * Copy the table from the buffer because the buffer could be
+         * modified or even deleted in the future
          */
         Table = ACPI_ALLOCATE (Length);
         if (!Table)
@@ -520,8 +520,8 @@ AcpiExLoadOp (
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
 
     Status = AcpiTbInstallStandardTable (ACPI_PTR_TO_PHYSADDR (Table),
-                ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL, TRUE, TRUE,
-                &TableIndex);
+        ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL, TRUE, TRUE,
+        &TableIndex);
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
     if (ACPI_FAILURE (Status))
@@ -536,7 +536,8 @@ AcpiExLoadOp (
      * Note: Now table is "INSTALLED", it must be validated before
      * loading.
      */
-    Status = AcpiTbValidateTable (&AcpiGbl_RootTableList.Tables[TableIndex]);
+    Status = AcpiTbValidateTable (
+        &AcpiGbl_RootTableList.Tables[TableIndex]);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -579,7 +580,7 @@ AcpiExLoadOp (
     if (AcpiGbl_TableHandler)
     {
         (void) AcpiGbl_TableHandler (ACPI_TABLE_EVENT_LOAD, Table,
-                    AcpiGbl_TableHandlerContext);
+            AcpiGbl_TableHandlerContext);
     }
 
     return_ACPI_STATUS (Status);
@@ -656,7 +657,7 @@ AcpiExUnloadTable (
         if (ACPI_SUCCESS (Status))
         {
             (void) AcpiGbl_TableHandler (ACPI_TABLE_EVENT_UNLOAD, Table,
-                        AcpiGbl_TableHandlerContext);
+                AcpiGbl_TableHandlerContext);
         }
     }
 

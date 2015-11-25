@@ -210,6 +210,7 @@ AcpiTbLoadNamespace (
         {
             ACPI_EXCEPTION ((AE_INFO, Status, "(%4.4s:%8.8s) while loading table",
                 Table->Signature.Ascii, Table->Pointer->OemTableId));
+
             TablesFailed++;
 
             ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
@@ -227,7 +228,7 @@ AcpiTbLoadNamespace (
     if (!TablesFailed)
     {
         ACPI_INFO ((AE_INFO,
-            "%u ACPI AML tables successfully acquired and loaded",
+            "%u ACPI AML tables successfully acquired and loaded\n",
             TablesLoaded));
     }
     else
@@ -343,8 +344,8 @@ AcpiLoadTable (
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
 
     Status = AcpiTbInstallStandardTable (ACPI_PTR_TO_PHYSADDR (Table),
-                ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL, TRUE, FALSE,
-                &TableIndex);
+        ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL, TRUE, FALSE,
+        &TableIndex);
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
     if (ACPI_FAILURE (Status))
@@ -356,7 +357,8 @@ AcpiLoadTable (
      * Note: Now table is "INSTALLED", it must be validated before
      * using.
      */
-    Status = AcpiTbValidateTable (&AcpiGbl_RootTableList.Tables[TableIndex]);
+    Status = AcpiTbValidateTable (
+        &AcpiGbl_RootTableList.Tables[TableIndex]);
     if (ACPI_FAILURE (Status))
     {
         goto UnlockAndExit;
@@ -369,7 +371,7 @@ AcpiLoadTable (
     if (AcpiGbl_TableHandler)
     {
         (void) AcpiGbl_TableHandler (ACPI_TABLE_EVENT_LOAD, Table,
-                    AcpiGbl_TableHandlerContext);
+            AcpiGbl_TableHandlerContext);
     }
 
 UnlockAndExit:
@@ -452,8 +454,8 @@ AcpiUnloadParentTable (
          * that can create namespace objects.
          */
         if (ACPI_COMPARE_NAME (
-            AcpiGbl_RootTableList.Tables[i].Signature.Ascii,
-            ACPI_SIG_DSDT))
+                AcpiGbl_RootTableList.Tables[i].Signature.Ascii,
+                ACPI_SIG_DSDT))
         {
             Status = AE_TYPE;
             break;
@@ -472,8 +474,8 @@ AcpiUnloadParentTable (
         if (AcpiGbl_TableHandler)
         {
             (void) AcpiGbl_TableHandler (ACPI_TABLE_EVENT_UNLOAD,
-                        AcpiGbl_RootTableList.Tables[i].Pointer,
-                        AcpiGbl_TableHandlerContext);
+                AcpiGbl_RootTableList.Tables[i].Pointer,
+                AcpiGbl_TableHandlerContext);
         }
 
         /*

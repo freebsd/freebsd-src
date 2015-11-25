@@ -102,7 +102,8 @@ AcpiOsOpenDirectory (
 
     /* Allocate space for the full wildcard path */
 
-    FullWildcardSpec = calloc (strlen (DirPathname) + strlen (WildcardSpec) + 2, 1);
+    FullWildcardSpec = calloc (
+        strlen (DirPathname) + strlen (WildcardSpec) + 2, 1);
     if (!FullWildcardSpec)
     {
         printf ("Could not allocate buffer for wildcard pathname\n");

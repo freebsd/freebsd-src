@@ -82,6 +82,7 @@ OBJECTS = \
 	$(OBJDIR)/exstoren.o\
 	$(OBJDIR)/exstorob.o\
 	$(OBJDIR)/exsystem.o\
+	$(OBJDIR)/extrace.o\
 	$(OBJDIR)/exutils.o\
 	$(OBJDIR)/hwpci.o\
 	$(OBJDIR)/nsaccess.o\

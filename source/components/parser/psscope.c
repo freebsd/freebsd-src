@@ -236,9 +236,9 @@ AcpiPsPopScope (
 
         /* Return to parsing previous op */
 
-        *Op                 = Scope->ParseScope.Op;
-        *ArgList            = Scope->ParseScope.ArgList;
-        *ArgCount           = Scope->ParseScope.ArgCount;
+        *Op = Scope->ParseScope.Op;
+        *ArgList = Scope->ParseScope.ArgList;
+        *ArgCount = Scope->ParseScope.ArgCount;
         ParserState->PkgEnd = Scope->ParseScope.PkgEnd;
 
         /* All done with this scope state structure */
@@ -249,8 +249,8 @@ AcpiPsPopScope (
     {
         /* Empty parse stack, prepare to fetch next opcode */
 
-        *Op       = NULL;
-        *ArgList  = 0;
+        *Op = NULL;
+        *ArgList = 0;
         *ArgCount = 0;
     }
 

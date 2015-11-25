@@ -56,7 +56,6 @@ FlOpenIncludeWithPrefix (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Filename);
 
-
 #ifdef ACPI_OBSOLETE_FUNCTIONS
 ACPI_STATUS
 FlParseInputPathname (
@@ -262,7 +261,8 @@ FlMergePathnames (
     /* Build the final merged pathname */
 
 ConcatenatePaths:
-    Pathname = UtStringCacheCalloc (strlen (CommonPath) + strlen (FilePathname) + 2);
+    Pathname = UtStringCacheCalloc (
+        strlen (CommonPath) + strlen (FilePathname) + 2);
     if (LastElement && *CommonPath)
     {
         strcpy (Pathname, CommonPath);
@@ -422,7 +422,8 @@ FlOpenIncludeFile (
      *
      * Construct the file pathname from the global directory name.
      */
-    IncludeFile = FlOpenIncludeWithPrefix (Gbl_DirectoryPath, Op, Op->Asl.Value.String);
+    IncludeFile = FlOpenIncludeWithPrefix (
+        Gbl_DirectoryPath, Op, Op->Asl.Value.String);
     if (IncludeFile)
     {
         return;
@@ -435,7 +436,8 @@ FlOpenIncludeFile (
     NextDir = Gbl_IncludeDirList;
     while (NextDir)
     {
-        IncludeFile = FlOpenIncludeWithPrefix (NextDir->Dir, Op, Op->Asl.Value.String);
+        IncludeFile = FlOpenIncludeWithPrefix (
+            NextDir->Dir, Op, Op->Asl.Value.String);
         if (IncludeFile)
         {
             return;

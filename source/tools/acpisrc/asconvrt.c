@@ -252,6 +252,7 @@ AsMatchValidToken (
             {
                 SubBuffer++;
             }
+
             SubBuffer++;
             continue;
         }
@@ -283,6 +284,7 @@ AsMatchValidToken (
                 {
                     SubBuffer++;
                 }
+
                 SubBuffer++;
             }
 
@@ -1154,6 +1156,7 @@ AsTabify8 (
                     LastLineTabCount = TabCount;
                     TabCount = 0;
                 }
+
                 FirstNonBlank = NULL;
                 LastLineColumnStart = ThisColumnStart;
                 SubBuffer++;
@@ -1190,6 +1193,7 @@ AsTabify8 (
                     LastLineTabCount = TabCount;
                     TabCount = 0;
                 }
+
                 FirstNonBlank = NULL;
                 LastLineColumnStart = ThisColumnStart;
             }
@@ -1208,6 +1212,7 @@ AsTabify8 (
             {
                 return;
             }
+
             SpaceCount = 0;
         }
 
@@ -1396,8 +1401,8 @@ AsCountSourceLines (
             /* Find end of comment */
 
             while (SubBuffer[0] && SubBuffer[1] &&
-                    !(((SubBuffer[0] == '*') &&
-                      (SubBuffer[1] == '/'))))
+                !(((SubBuffer[0] == '*') &&
+                    (SubBuffer[1] == '/'))))
             {
                 if (SubBuffer[0] == '\n')
                 {
