@@ -28,15 +28,20 @@ DIRDEPS_FILTER+= N*.host
 .for m in host common
 M_dep_qual_fixes += C;($m),[^/.,]*$$;\1;
 .endfor
-
 #.info M_dep_qual_fixes=${M_dep_qual_fixes}
-# we want to supress these dependencies for host tools
-# but some libs are sadly needed.
-_need_host_libs= \
-	lib/libc++ \
-	lib/libcxxrt \
-	lib/libdwarf \
-	lib/libmd \
+
+# Cheat for including src.libnames.mk
+__<bsd.init.mk>__:
+# Pull in _INTERNALLIBS
+.include <src.libnames.mk>
+
+# Host libraries should mostly be excluded from the build so the
+# host version in /usr/lib is used.  Internal libraries need to be
+# allowed to be built though since they are never installed.
+_need_host_libs=
+.for lib in ${_INTERNALLIBS}
+_need_host_libs+= ${LIB${lib:tu}DIR:S,^${ROOTOBJDIR}/,,}
+.endfor
 
 N_host_libs:= ${cd ${SRCTOP} && echo lib/lib*:L:sh:${_need_host_libs:${M_ListToSkip}}:${M_ListToSkip}}
 DIRDEPS_FILTER.host = \
