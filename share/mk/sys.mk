@@ -272,7 +272,7 @@ YFLAGS		?=	-d
 
 # non-Posix rule set
 
-.sh:
+.sh: .NOMETA
 	cp -fp ${.IMPSRC} ${.TARGET}
 	chmod a+x ${.TARGET}
 
