@@ -11,6 +11,7 @@ DIRDEPS = \
 	usr.bin/clang/clang.host \
 	usr.bin/clang/tblgen.host \
 	usr.bin/lex/lib.host \
+	usr.bin/localedef.host \
 	usr.bin/mkcsmapper_static.host \
 	usr.bin/mkesdb_static.host \
 	usr.bin/mkuzip.host \
