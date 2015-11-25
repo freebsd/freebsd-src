@@ -3,7 +3,6 @@
 
 class="uzip"
 base=`basename $0`
-mntpoint=$(mktemp -d tmp.XXXXXX) || exit
 
 uzip_test_cleanup()
 {
@@ -14,3 +13,6 @@ uzip_test_cleanup()
 trap uzip_test_cleanup ABRT EXIT INT TERM
 
 . `dirname $0`/../geom_subr.sh
+
+# NOTE: make sure $TMPDIR has been set by geom_subr.sh if unset [by kyua, etc]
+mntpoint=$(mktemp -d tmp.XXXXXX) || exit
