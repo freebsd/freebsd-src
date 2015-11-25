@@ -7,6 +7,9 @@
 .error src.libnames.mk cannot be included directly.
 .endif
 
+.if !target(__<src.libnames.mk>__)
+__<src.libnames.mk>__:
+
 .include <src.opts.mk>
 
 .if ${.OBJDIR:S,${.CURDIR},,} != ${.OBJDIR}
@@ -368,3 +371,4 @@ LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 LIBAMUDIR=	${ROOTOBJDIR}/usr.sbin/amd/libamu
 LIBAMU?=	${LIBAMUDIR}/libamu/libamu.a
 
+.endif	# !target(__<src.libnames.mk>__)
