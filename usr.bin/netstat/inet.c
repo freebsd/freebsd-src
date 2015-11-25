@@ -498,6 +498,8 @@ protopr(u_long off, const char *name, int af1, int proto)
 				    "{:sent-zero-window/%6u} ",
 				    tp->t_sndrexmitpack, tp->t_rcvoopack,
 				    tp->t_sndzerowin);
+			else
+				xo_emit("{P:/%21s}", "");
 		} else {
 			xo_emit("{:receive-bytes-waiting/%6u} "
 			    "{:send-bytes-waiting/%6u} ",
