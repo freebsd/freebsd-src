@@ -28,7 +28,7 @@ FILESGROUPS=	FILES etalon
 etalon+=	etalon/etalon.txt
 etalonDIR=	${TESTSDIR}/etalon
 
-PLAIN_TESTS_SH+=	1
-PLAIN_TESTS_SH+=	2
+PLAIN_TESTS_SH+=	1_test
+PLAIN_TESTS_SH+=	2_test
 
 .include <bsd.test.mk>
