@@ -331,7 +331,8 @@ AslDoOptions (
             Status = AcpiDmAddToExternalFileList (argv[AcpiGbl_Optind]);
             if (ACPI_FAILURE (Status))
             {
-                printf ("Could not add %s to external list\n", argv[AcpiGbl_Optind]);
+                printf ("Could not add %s to external list\n",
+                    argv[AcpiGbl_Optind]);
                 return (-1);
             }
 

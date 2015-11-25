@@ -64,34 +64,6 @@
 #include <string.h>
 #include <signal.h>
 
-extern BOOLEAN              AcpiGbl_IgnoreErrors;
-extern UINT8                AcpiGbl_RegionFillValue;
-extern UINT8                AcpiGbl_UseHwReducedFadt;
-extern BOOLEAN              AcpiGbl_DisplayRegionAccess;
-extern BOOLEAN              AcpiGbl_DoInterfaceTests;
-extern BOOLEAN              AcpiGbl_LoadTestTables;
-extern FILE                 *AcpiGbl_NamespaceInitFile;
-extern ACPI_CONNECTION_INFO AeMyContext;
-
-/* Check for unexpected exceptions */
-
-#define AE_CHECK_STATUS(Name, Status, Expected) \
-    if (Status != Expected) \
-    { \
-        AcpiOsPrintf ("Unexpected %s from %s (%s-%d)\n", \
-            AcpiFormatException (Status), #Name, _AcpiModuleName, __LINE__); \
-    }
-
-/* Check for unexpected non-AE_OK errors */
-
-#define AE_CHECK_OK(Name, Status)   AE_CHECK_STATUS (Name, Status, AE_OK);
-
-typedef struct ae_table_desc
-{
-    ACPI_TABLE_HEADER       *Table;
-    struct ae_table_desc    *Next;
-
-} AE_TABLE_DESC;
 
 /*
  * Debug Regions
@@ -114,6 +86,16 @@ typedef struct ae_debug_regions
 } AE_DEBUG_REGIONS;
 
 
+extern BOOLEAN              AcpiGbl_IgnoreErrors;
+extern UINT8                AcpiGbl_RegionFillValue;
+extern UINT8                AcpiGbl_UseHwReducedFadt;
+extern BOOLEAN              AcpiGbl_DisplayRegionAccess;
+extern BOOLEAN              AcpiGbl_DoInterfaceTests;
+extern BOOLEAN              AcpiGbl_LoadTestTables;
+extern FILE                 *AcpiGbl_NamespaceInitFile;
+extern ACPI_CONNECTION_INFO AeMyContext;
+
+
 #define TEST_OUTPUT_LEVEL(lvl)          if ((lvl) & OutputLevel)
 
 #define OSD_PRINT(lvl,fp)               TEST_OUTPUT_LEVEL(lvl) {\
@@ -125,8 +107,7 @@ AeCtrlCHandler (
 
 ACPI_STATUS
 AeBuildLocalTables (
-    UINT32                  TableCount,
-    AE_TABLE_DESC           *TableList);
+    ACPI_NEW_TABLE_DESC     *TableList);
 
 ACPI_STATUS
 AeInstallTables (

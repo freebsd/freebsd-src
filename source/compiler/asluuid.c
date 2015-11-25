@@ -47,7 +47,7 @@
         ACPI_MODULE_NAME    ("asluuid")
 
 
-extern UINT8    AcpiGbl_MapToUuidOffset[UUID_BUFFER_LENGTH];
+extern UINT8                AcpiGbl_MapToUuidOffset[UUID_BUFFER_LENGTH];
 
 
 /*******************************************************************************
@@ -90,11 +90,10 @@ AuValidateUuid (
                 return (AE_BAD_PARAMETER);
             }
         }
-
-        /* All other positions must contain hex digits */
-
         else
         {
+            /* All other positions must contain hex digits */
+
             if (!isxdigit ((int) InString[i]))
             {
                 return (AE_BAD_PARAMETER);

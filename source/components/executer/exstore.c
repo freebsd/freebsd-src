@@ -117,8 +117,8 @@ AcpiExStore (
          * Storing an object into a Named node.
          */
         Status = AcpiExStoreObjectToNode (SourceDesc,
-                    (ACPI_NAMESPACE_NODE *) DestDesc, WalkState,
-                    ACPI_IMPLICIT_CONVERSION);
+            (ACPI_NAMESPACE_NODE *) DestDesc, WalkState,
+            ACPI_IMPLICIT_CONVERSION);
 
         return_ACPI_STATUS (Status);
     }
@@ -168,8 +168,8 @@ AcpiExStore (
         /* Storing an object into a Name "container" */
 
         Status = AcpiExStoreObjectToNode (SourceDesc,
-                    RefDesc->Reference.Object,
-                    WalkState, ACPI_IMPLICIT_CONVERSION);
+            RefDesc->Reference.Object,
+            WalkState, ACPI_IMPLICIT_CONVERSION);
         break;
 
     case ACPI_REFCLASS_INDEX:
@@ -185,7 +185,7 @@ AcpiExStore (
         /* Store to a method local/arg  */
 
         Status = AcpiDsStoreObjectToLocal (RefDesc->Reference.Class,
-                    RefDesc->Reference.Value, SourceDesc, WalkState);
+            RefDesc->Reference.Value, SourceDesc, WalkState);
         break;
 
     case ACPI_REFCLASS_DEBUG:
@@ -274,7 +274,8 @@ AcpiExStoreObjectToIndex (
         {
             /* Normal object, copy it */
 
-            Status = AcpiUtCopyIobjectToIobject (SourceDesc, &NewDesc, WalkState);
+            Status = AcpiUtCopyIobjectToIobject (
+                SourceDesc, &NewDesc, WalkState);
             if (ACPI_FAILURE (Status))
             {
                 return_ACPI_STATUS (Status);
@@ -487,7 +488,8 @@ AcpiExStoreObjectToNode (
         case ACPI_TYPE_THERMAL:
 
             ACPI_ERROR ((AE_INFO,
-                "Target must be [Buffer/Integer/String/Reference], found [%s] (%4.4s)",
+                "Target must be [Buffer/Integer/String/Reference]"
+                ", found [%s] (%4.4s)",
                 AcpiUtGetTypeName (Node->Type), Node->Name.Ascii));
 
             return_ACPI_STATUS (AE_AML_TARGET_TYPE);
@@ -527,8 +529,7 @@ AcpiExStoreObjectToNode (
              * an implicit conversion, as per the ACPI specification.
              * A direct store is performed instead.
              */
-            Status = AcpiExStoreDirectToNode (SourceDesc, Node,
-                WalkState);
+            Status = AcpiExStoreDirectToNode (SourceDesc, Node, WalkState);
             break;
         }
 
@@ -552,8 +553,8 @@ AcpiExStoreObjectToNode (
              * store has been performed such that the node/object type
              * has been changed.
              */
-            Status = AcpiNsAttachObject (Node, NewDesc,
-                NewDesc->Common.Type);
+            Status = AcpiNsAttachObject (
+                Node, NewDesc, NewDesc->Common.Type);
 
             ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
                 "Store type [%s] into [%s] via Convert/Attach\n",
@@ -585,8 +586,7 @@ AcpiExStoreObjectToNode (
          * operator. (Note, for this default case, all normal
          * Store/Target operations exited above with an error).
          */
-        Status = AcpiExStoreDirectToNode (SourceDesc, Node,
-            WalkState);
+        Status = AcpiExStoreDirectToNode (SourceDesc, Node, WalkState);
         break;
     }
 

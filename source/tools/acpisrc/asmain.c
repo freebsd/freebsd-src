@@ -221,7 +221,8 @@ AsDisplayStats (
     if ((Gbl_CommentLines + Gbl_NonAnsiComments) > 0)
     {
         printf ("%8.1f Ratio of code to comments\n",
-            ((float) Gbl_SourceLines / (float) (Gbl_CommentLines + Gbl_NonAnsiComments)));
+            ((float) Gbl_SourceLines /
+            (float) (Gbl_CommentLines + Gbl_NonAnsiComments)));
     }
 
     if (!Gbl_TotalLines)
@@ -456,15 +457,18 @@ main (
 
         if (strstr (SourcePath, ".h"))
         {
-            AsProcessOneFile (ConversionTable, NULL, TargetPath, 0, SourcePath, FILE_TYPE_HEADER);
+            AsProcessOneFile (ConversionTable, NULL, TargetPath, 0,
+                SourcePath, FILE_TYPE_HEADER);
         }
         else if (strstr (SourcePath, ".c"))
         {
-            AsProcessOneFile (ConversionTable, NULL, TargetPath, 0, SourcePath, FILE_TYPE_SOURCE);
+            AsProcessOneFile (ConversionTable, NULL, TargetPath, 0,
+                SourcePath, FILE_TYPE_SOURCE);
         }
         else if (strstr (SourcePath, ".patch"))
         {
-            AsProcessOneFile (ConversionTable, NULL, TargetPath, 0, SourcePath, FILE_TYPE_PATCH);
+            AsProcessOneFile (ConversionTable, NULL, TargetPath, 0,
+                SourcePath, FILE_TYPE_PATCH);
         }
         else
         {
@@ -475,6 +479,5 @@ main (
     /* Always display final summary and stats */
 
     AsDisplayStats ();
-
     return (0);
 }

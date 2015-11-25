@@ -169,7 +169,7 @@ AeInitializeTableHeader (
  * FUNCTION:    AeBuildLocalTables
  *
  * PARAMETERS:  TableCount      - Number of tables on the command line
- *              TableList       - List of actual tables from files
+ *              ListHead        - List of actual tables from files
  *
  * RETURN:      Status
  *
@@ -180,12 +180,12 @@ AeInitializeTableHeader (
 
 ACPI_STATUS
 AeBuildLocalTables (
-    UINT32                  TableCount,
-    AE_TABLE_DESC           *TableList)
+    ACPI_NEW_TABLE_DESC     *ListHead)
 {
+    UINT32                  TableCount = 1;
     ACPI_PHYSICAL_ADDRESS   DsdtAddress = 0;
     UINT32                  XsdtSize;
-    AE_TABLE_DESC           *NextTable;
+    ACPI_NEW_TABLE_DESC     *NextTable;
     UINT32                  NextIndex;
     ACPI_TABLE_FADT         *ExternalFadt = NULL;
 
@@ -195,18 +195,20 @@ AeBuildLocalTables (
      * For the FADT, this table is already accounted for since we usually
      * install a local FADT.
      */
-    NextTable = TableList;
+    NextTable = ListHead;
     while (NextTable)
     {
-        if (ACPI_COMPARE_NAME (NextTable->Table->Signature, ACPI_SIG_DSDT) ||
-            ACPI_COMPARE_NAME (NextTable->Table->Signature, ACPI_SIG_FADT))
+        if (!ACPI_COMPARE_NAME (NextTable->Table->Signature, ACPI_SIG_DSDT) &&
+            !ACPI_COMPARE_NAME (NextTable->Table->Signature, ACPI_SIG_FADT))
         {
-            TableCount--;
+            TableCount++;
         }
+
         NextTable = NextTable->Next;
     }
 
-    XsdtSize = (((TableCount + 1) * sizeof (UINT64)) + sizeof (ACPI_TABLE_HEADER));
+    XsdtSize = (((TableCount + 1) * sizeof (UINT64)) +
+        sizeof (ACPI_TABLE_HEADER));
     if (AcpiGbl_LoadTestTables)
     {
         XsdtSize += BASE_XSDT_SIZE;
@@ -231,7 +233,7 @@ AeBuildLocalTables (
      * Note: The tables are loaded in reverse order from the incoming
      * input, which makes it match the command line order.
      */
-    NextTable = TableList;
+    NextTable = ListHead;
     while (NextTable)
     {
         /*
@@ -489,10 +491,10 @@ AeInstallTables (
 
 
     Status = AcpiInitializeTables (NULL, ACPI_MAX_INIT_TABLES, TRUE);
-    AE_CHECK_OK (AcpiInitializeTables, Status);
+    ACPI_CHECK_OK (AcpiInitializeTables, Status);
 
     Status = AcpiLoadTables ();
-    AE_CHECK_OK (AcpiLoadTables, Status);
+    ACPI_CHECK_OK (AcpiLoadTables, Status);
 
     /*
      * Test run-time control method installation. Do it twice to test code
@@ -517,24 +519,24 @@ AeInstallTables (
         /* Test multiple table/UEFI support. First, get the headers */
 
         Status = AcpiGetTableHeader (ACPI_SIG_UEFI, 1, &Header);
-        AE_CHECK_OK (AcpiGetTableHeader, Status);
+        ACPI_CHECK_OK (AcpiGetTableHeader, Status);
 
         Status = AcpiGetTableHeader (ACPI_SIG_UEFI, 2, &Header);
-        AE_CHECK_OK (AcpiGetTableHeader, Status);
+        ACPI_CHECK_OK (AcpiGetTableHeader, Status);
 
         Status = AcpiGetTableHeader (ACPI_SIG_UEFI, 3, &Header);
-        AE_CHECK_STATUS (AcpiGetTableHeader, Status, AE_NOT_FOUND);
+        ACPI_CHECK_STATUS (AcpiGetTableHeader, Status, AE_NOT_FOUND);
 
         /* Now get the actual tables */
 
         Status = AcpiGetTable (ACPI_SIG_UEFI, 1, &Table);
-        AE_CHECK_OK (AcpiGetTable, Status);
+        ACPI_CHECK_OK (AcpiGetTable, Status);
 
         Status = AcpiGetTable (ACPI_SIG_UEFI, 2, &Table);
-        AE_CHECK_OK (AcpiGetTable, Status);
+        ACPI_CHECK_OK (AcpiGetTable, Status);
 
         Status = AcpiGetTable (ACPI_SIG_UEFI, 3, &Table);
-        AE_CHECK_STATUS (AcpiGetTable, Status, AE_NOT_FOUND);
+        ACPI_CHECK_STATUS (AcpiGetTable, Status, AE_NOT_FOUND);
     }
 
     /* Check that we can get all of the ACPI tables */
@@ -546,7 +548,8 @@ AeInstallTables (
         {
             break;
         }
-        AE_CHECK_OK (AcpiGetTableByIndex, Status);
+
+        ACPI_CHECK_OK (AcpiGetTableByIndex, Status);
     }
 
     return (AE_OK);

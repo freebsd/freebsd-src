@@ -102,6 +102,7 @@ ACPI_OS_SEMAPHORE_INFO          AcpiGbl_Semaphores[ACPI_OS_MAX_SEMAPHORES];
 
 BOOLEAN                         AcpiGbl_DebugTimeout = FALSE;
 
+
 /******************************************************************************
  *
  * FUNCTION:    AcpiOsTerminate
@@ -554,6 +555,7 @@ AcpiOsGetLine (
     {
         *BytesRead = i;
     }
+
     return (AE_OK);
 }
 
@@ -777,7 +779,8 @@ AcpiOsCreateSemaphore (
     if (i >= ACPI_OS_MAX_SEMAPHORES)
     {
         ACPI_EXCEPTION ((AE_INFO, AE_LIMIT,
-            "Reached max semaphores (%u), could not create", ACPI_OS_MAX_SEMAPHORES));
+            "Reached max semaphores (%u), could not create",
+            ACPI_OS_MAX_SEMAPHORES));
         return (AE_LIMIT);
     }
 
@@ -794,8 +797,9 @@ AcpiOsCreateSemaphore (
     AcpiGbl_Semaphores[i].CurrentUnits = (UINT16) InitialUnits;
     AcpiGbl_Semaphores[i].OsHandle = Mutex;
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX, "Handle=%u, Max=%u, Current=%u, OsHandle=%p\n",
-            i, MaxUnits, InitialUnits, Mutex));
+    ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX,
+        "Handle=%u, Max=%u, Current=%u, OsHandle=%p\n",
+        i, MaxUnits, InitialUnits, Mutex));
 
     *OutHandle = (void *) i;
     return (AE_OK);
@@ -890,7 +894,8 @@ AcpiOsWaitSemaphore (
         OsTimeout += 10;
     }
 
-    WaitStatus = WaitForSingleObject (AcpiGbl_Semaphores[Index].OsHandle, OsTimeout);
+    WaitStatus = WaitForSingleObject (
+        AcpiGbl_Semaphores[Index].OsHandle, OsTimeout);
     if (WaitStatus == WAIT_TIMEOUT)
     {
         if (AcpiGbl_DebugTimeout)
@@ -899,12 +904,14 @@ AcpiOsWaitSemaphore (
                 "Debug timeout on semaphore 0x%04X (%ums)\n",
                 Index, ACPI_OS_DEBUG_TIMEOUT));
         }
+
         return (AE_TIME);
     }
 
     if (AcpiGbl_Semaphores[Index].CurrentUnits == 0)
     {
-        ACPI_ERROR ((AE_INFO, "%s - No unit received. Timeout 0x%X, OS_Status 0x%X",
+        ACPI_ERROR ((AE_INFO,
+            "%s - No unit received. Timeout 0x%X, OS_Status 0x%X",
             AcpiUtGetMutexName (Index), Timeout, WaitStatus));
 
         return (AE_OK);
@@ -1533,7 +1540,6 @@ AcpiOsExecute (
 {
 
     Function (Context);
-
     return (AE_OK);
 }
 
@@ -1557,5 +1563,6 @@ void
 AcpiOsWaitEventsComplete (
     void)
 {
+
     return;
 }

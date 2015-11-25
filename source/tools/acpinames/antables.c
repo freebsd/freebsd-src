@@ -49,7 +49,7 @@
 /* Local prototypes */
 
 static void
-AeInitializeTableHeader (
+AnInitializeTableHeader (
     ACPI_TABLE_HEADER       *Header,
     char                    *Signature,
     UINT32                  Length);
@@ -79,7 +79,7 @@ static ACPI_TABLE_XSDT          *LocalXSDT;
 
 /******************************************************************************
  *
- * FUNCTION:    AeInitializeTableHeader
+ * FUNCTION:    AnInitializeTableHeader
  *
  * PARAMETERS:  Header          - A valid standard ACPI table header
  *              Signature       - Signature to insert
@@ -92,7 +92,7 @@ static ACPI_TABLE_XSDT          *LocalXSDT;
  *****************************************************************************/
 
 static void
-AeInitializeTableHeader (
+AnInitializeTableHeader (
     ACPI_TABLE_HEADER       *Header,
     char                    *Signature,
     UINT32                  Length)
@@ -117,7 +117,7 @@ AeInitializeTableHeader (
 
 /******************************************************************************
  *
- * FUNCTION:    AeBuildLocalTables
+ * FUNCTION:    AnBuildLocalTables
  *
  * PARAMETERS:  TableCount      - Number of tables on the command line
  *              TableList       - List of actual tables from files
@@ -130,13 +130,13 @@ AeInitializeTableHeader (
  *****************************************************************************/
 
 ACPI_STATUS
-AeBuildLocalTables (
-    UINT32                  TableCount,
-    AE_TABLE_DESC           *TableList)
+AnBuildLocalTables (
+    ACPI_NEW_TABLE_DESC     *TableList)
 {
+    UINT32                  TableCount = 0;
     ACPI_PHYSICAL_ADDRESS   DsdtAddress = 0;
     UINT32                  XsdtSize;
-    AE_TABLE_DESC           *NextTable;
+    ACPI_NEW_TABLE_DESC     *NextTable;
     UINT32                  NextIndex;
     ACPI_TABLE_FADT         *ExternalFadt = NULL;
 
@@ -149,11 +149,12 @@ AeBuildLocalTables (
     NextTable = TableList;
     while (NextTable)
     {
-        if (ACPI_COMPARE_NAME (NextTable->Table->Signature, ACPI_SIG_DSDT) ||
-            ACPI_COMPARE_NAME (NextTable->Table->Signature, ACPI_SIG_FADT))
+        if (!ACPI_COMPARE_NAME (NextTable->Table->Signature, ACPI_SIG_DSDT) &&
+            !ACPI_COMPARE_NAME (NextTable->Table->Signature, ACPI_SIG_FADT))
         {
-            TableCount--;
+            TableCount++;
         }
+
         NextTable = NextTable->Next;
     }
 
@@ -199,8 +200,10 @@ AeBuildLocalTables (
         }
         else if (ACPI_COMPARE_NAME (NextTable->Table->Signature, ACPI_SIG_FADT))
         {
-            ExternalFadt = ACPI_CAST_PTR (ACPI_TABLE_FADT, NextTable->Table);
-            LocalXSDT->TableOffsetEntry[0] = ACPI_PTR_TO_PHYSADDR (NextTable->Table);
+            ExternalFadt =
+                ACPI_CAST_PTR (ACPI_TABLE_FADT, NextTable->Table);
+            LocalXSDT->TableOffsetEntry[0] =
+                ACPI_PTR_TO_PHYSADDR (NextTable->Table);
         }
         else
         {
@@ -226,7 +229,7 @@ AeBuildLocalTables (
 
     /* Set checksums for both XSDT and RSDP */
 
-    AeInitializeTableHeader ((void *) LocalXSDT, ACPI_SIG_XSDT, XsdtSize);
+    AnInitializeTableHeader ((void *) LocalXSDT, ACPI_SIG_XSDT, XsdtSize);
 
     LocalRSDP.Checksum = 0;
     LocalRSDP.Checksum = (UINT8) -AcpiTbChecksum (
@@ -317,7 +320,7 @@ AeBuildLocalTables (
             ACPI_MUL_8 (LocalFADT.Pm1EventLength);
     }
 
-    AeInitializeTableHeader ((void *) &LocalFADT,
+    AnInitializeTableHeader ((void *) &LocalFADT,
         ACPI_SIG_FADT, sizeof (ACPI_TABLE_FADT));
 
     /* Build a FACS */

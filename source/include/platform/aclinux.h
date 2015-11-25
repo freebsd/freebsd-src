@@ -64,10 +64,14 @@
 
 #define ACPI_USE_SYSTEM_INTTYPES
 
-/* Compile for reduced hardware mode only with this kernel config */
+/* Kernel specific ACPICA configuration */
 
 #ifdef CONFIG_ACPI_REDUCED_HARDWARE_ONLY
 #define ACPI_REDUCED_HARDWARE 1
+#endif
+
+#ifdef CONFIG_ACPI_DEBUGGER
+#define ACPI_DEBUGGER
 #endif
 
 #include <linux/string.h>
@@ -152,7 +156,6 @@
  * OSL interfaces used by utilities
  */
 #define ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsRedirectOutput
-#define ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsGetLine
 #define ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsGetTableByName
 #define ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsGetTableByIndex
 #define ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsGetTableByAddress

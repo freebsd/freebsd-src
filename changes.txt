@@ -1,4 +1,85 @@
 ----------------------------------------
+24 November 2015. Summary of changes for version 20151124:
+
+This release is available at https://acpica.org/downloads
+
+
+1) ACPICA kernel-resident subsystem:
+
+Fixed a possible regression for a previous update to FADT handling. The 
+FADT no longer has a fixed table ID, causing some issues with code that 
+was hardwired to a specific ID. Lv Zheng.
+
+Fixed a problem where the method auto-serialization could interfere with 
+the current SyncLevel. This change makes the auto-serialization support 
+transparent to the SyncLevel support and management.
+
+Removed support for the _SUB predefined name in AcpiGetObjectInfo. This 
+interface is intended for early access to the namespace during the 
+initial namespace device discovery walk. The _SUB method has been seen to 
+access operation regions in some cases, causing errors because the 
+operation regions are not fully initialized.
+
+AML Debugger: Fixed some issues with the terminate/quit/exit commands 
+that can cause faults. Lv Zheng.
+
+AML Debugger: Add thread ID support so that single-step mode only applies 
+to the AML Debugger thread. This prevents runtime errors within some 
+kernels. Lv Zheng. 
+
+Eliminated extraneous warnings from AcpiGetSleepTypeData. Since the _Sx 
+methods that are invoked by this interface are optional, removed warnings 
+emitted for the case where one or more of these methods do not exist. 
+ACPICA BZ 1208, original change by Prarit Bhargava.
+
+Made a major pass through the entire ACPICA source code base to 
+standardize formatting that has diverged a bit over time. There are no 
+functional changes, but this will of course cause quite a few code 
+differences from the previous ACPICA release.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version: 102.0K Code, 28.3K Data, 130.3K Total
+    Debug Version:     199.6K Code, 81.8K Data, 281.4K Total
+  Previous Release:
+    Non-Debug Version: 101.7K Code, 27.9K Data, 129.6K Total
+    Debug Version:     199.3K Code, 81.4K Data, 280.7K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL/acpiexec/acpixtract/disassembler: Added support to allow multiple 
+definition blocks within a single ASL file and the resulting AML file. 
+Support for this type of file was also added to the various tools that 
+use binary AML files: acpiexec, acpixtract, and the AML disassembler. The 
+example code below shows two definition blocks within the same file:
+
+    DefinitionBlock ("dsdt.aml", "DSDT", 2, "Intel", "Template", 
+0x12345678)
+    {
+    }
+    DefinitionBlock ("", "SSDT", 2, "Intel", "Template", 0xABCDEF01)
+    {
+    }
+
+iASL: Enhanced typechecking for the Name() operator. All expressions for 
+the value of the named object must be reduced/folded to a single constant 
+at compile time, as per the ACPI specification (the AML definition of 
+Name()).
+
+iASL: Fixed some code indentation issues for the -ic and -ia options (C 
+and assembly headers). Now all emitted code correctly begins in column 1.
+
+iASL: Added an error message for an attempt to open a Scope() on an 
+object defined in an SSDT. The DSDT is always loaded into the namespace 
+first, so any attempt to open a Scope on an SSDT object will fail at 
+runtime.
+
+----------------------------------------
 30 September 2015. Summary of changes for version 20150930:
 
 1) ACPICA kernel-resident subsystem:

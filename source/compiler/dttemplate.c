@@ -189,7 +189,6 @@ GetTemplate:
 
     Status = DtCreateOneTemplate (Signature, TableData);
 
-
     /* Shutdown ACPICA subsystem */
 
     (void) AcpiTerminate ();
@@ -235,7 +234,7 @@ DtCreateAllTemplates (
         if (TableData->Template)
         {
             Status = DtCreateOneTemplate (TableData->Signature,
-                        TableData);
+                TableData);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);

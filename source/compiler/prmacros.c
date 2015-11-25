@@ -387,7 +387,8 @@ PrAddMacro (
             {
                 UseCount = Args[i].UseCount;
 
-                Args[i].Offset[UseCount] = (Token - Gbl_MainTokenBuffer) - MacroBodyOffset;
+                Args[i].Offset[UseCount] =
+                    (Token - Gbl_MainTokenBuffer) - MacroBodyOffset;
 
                 DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
                     "Macro Arg #%u: %s UseCount %u Offset %u \n",

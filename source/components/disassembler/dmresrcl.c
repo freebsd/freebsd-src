@@ -307,7 +307,8 @@ AcpiDmAddressCommon (
 
     if ((ResourceType > 2) && (ResourceType < 0xC0))
     {
-        AcpiOsPrintf ("/**** Invalid Resource Type: 0x%X ****/", ResourceType);
+        AcpiOsPrintf (
+            "/**** Invalid Resource Type: 0x%X ****/", ResourceType);
         return;
     }
 
@@ -327,7 +328,8 @@ AcpiDmAddressCommon (
 
     /* This is either a Memory, IO, or BusNumber descriptor (0,1,2) */
 
-    AcpiOsPrintf ("%s (", AcpiGbl_WordDecode [ACPI_GET_2BIT_FLAG (ResourceType)]);
+    AcpiOsPrintf ("%s (",
+        AcpiGbl_WordDecode [ACPI_GET_2BIT_FLAG (ResourceType)]);
 
     /* Decode the general and type-specific flags */
 
@@ -340,7 +342,8 @@ AcpiDmAddressCommon (
         AcpiDmIoFlags (Flags);
         if (ResourceType == ACPI_IO_RANGE)
         {
-            AcpiOsPrintf (" %s,", AcpiGbl_RngDecode [ACPI_GET_2BIT_FLAG (SpecificFlags)]);
+            AcpiOsPrintf (" %s,",
+                AcpiGbl_RngDecode [ACPI_GET_2BIT_FLAG (SpecificFlags)]);
         }
     }
 }
@@ -735,7 +738,8 @@ AcpiDmExtendedDescriptor (
 
     /* Dump resource name and flags */
 
-    AcpiDmAddressCommon (Resource, ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64, Level);
+    AcpiDmAddressCommon (
+        Resource, ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64, Level);
 
     /* Dump the 5 contiguous QWORD values */
 
@@ -871,10 +875,12 @@ AcpiDmFixedMemory32Descriptor (
         AcpiGbl_RwDecode [ACPI_GET_1BIT_FLAG (Resource->FixedMemory32.Flags)]);
 
     AcpiDmIndent (Level + 1);
-    AcpiDmDumpInteger32 (Resource->FixedMemory32.Address, "Address Base");
+    AcpiDmDumpInteger32 (Resource->FixedMemory32.Address,
+        "Address Base");
 
     AcpiDmIndent (Level + 1);
-    AcpiDmDumpInteger32 (Resource->FixedMemory32.AddressLength, "Address Length");
+    AcpiDmDumpInteger32 (Resource->FixedMemory32.AddressLength,
+        "Address Length");
 
     /* Insert a descriptor name */
 

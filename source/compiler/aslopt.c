@@ -53,7 +53,7 @@
         ACPI_MODULE_NAME    ("aslopt")
 
 
-static UINT32 OptTotal = 0;
+static UINT32               OptTotal = 0;
 
 /* Local prototypes */
 
@@ -132,15 +132,15 @@ OptSearchToRoot (
      * name in the search path before the one we want, the nodes will
      * not match, and we cannot use this optimization.
      */
-    Path = &(((char *) TargetPath->Pointer)[TargetPath->Length -
-                                            ACPI_NAME_SIZE]),
+    Path = &(((char *) TargetPath->Pointer)[
+        TargetPath->Length - ACPI_NAME_SIZE]),
     ScopeInfo.Scope.Node = CurrentNode;
 
     /* Lookup the NameSeg using SEARCH_PARENT (search-to-root) */
 
     Status = AcpiNsLookup (&ScopeInfo, Path, ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
-                    ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
-                    WalkState, &(Node));
+        ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
+        WalkState, &(Node));
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -172,8 +172,8 @@ OptSearchToRoot (
 
     if (strncmp (*NewPath, "_T_", 3))
     {
-        AslError (ASL_OPTIMIZATION, ASL_MSG_SINGLE_NAME_OPTIMIZATION, Op,
-                *NewPath);
+        AslError (ASL_OPTIMIZATION, ASL_MSG_SINGLE_NAME_OPTIMIZATION,
+            Op, *NewPath);
     }
 
     return (AE_OK);
@@ -292,7 +292,7 @@ OptBuildShortestPath (
     /* Determine how many prefix Carats are required */
 
     NumCarats = (CurrentPath->Length / ACPI_PATH_SEGMENT_LENGTH) -
-                NumCommonSegments;
+        NumCommonSegments;
 
     /*
      * Construct a new target string
@@ -373,8 +373,8 @@ OptBuildShortestPath (
      * path that has been created.
      */
     Status = AcpiNsLookup (&ScopeInfo,  NewPath,
-                    ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
-                    ACPI_NS_DONT_OPEN_SCOPE, WalkState, &(Node));
+        ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
+        ACPI_NS_DONT_OPEN_SCOPE, WalkState, &(Node));
     if (ACPI_SUCCESS (Status))
     {
         /* Found the namepath, but make sure the node is correct */
@@ -446,7 +446,7 @@ OptOptimizeNameDeclaration (
 
 
     if (((CurrentNode == AcpiGbl_RootNode) ||
-        (Op->Common.Parent->Asl.ParseOpcode == PARSEOP_DEFINITIONBLOCK)) &&
+        (Op->Common.Parent->Asl.ParseOpcode == PARSEOP_DEFINITION_BLOCK)) &&
             (ACPI_IS_ROOT_PREFIX (AmlNameString[0])))
     {
         /*
@@ -458,7 +458,7 @@ OptOptimizeNameDeclaration (
         /* Debug output */
 
         Status = AcpiNsExternalizeName (ACPI_UINT32_MAX, *NewPath,
-                    NULL, &NewPathExternal);
+            NULL, &NewPathExternal);
         if (ACPI_FAILURE (Status))
         {
             AslCoreSubsystemError (Op, Status, "Externalizing NamePath",
@@ -474,8 +474,8 @@ OptOptimizeNameDeclaration (
          * We know that we are at the root, so NULL is used for the scope.
          */
         Status = AcpiNsLookup (NULL, *NewPath,
-                        ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
-                        ACPI_NS_DONT_OPEN_SCOPE, WalkState, &(Node));
+            ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
+            ACPI_NS_DONT_OPEN_SCOPE, WalkState, &(Node));
         if (ACPI_SUCCESS (Status))
         {
             /* Found the namepath, but make sure the node is correct */
@@ -633,6 +633,7 @@ OptOptimizeNamePath (
         {
             NextOp = NextOp->Asl.Parent;
         }
+
         if (NextOp && NextOp->Asl.Node)
         {
             CurrentNode = NextOp->Asl.Node;
@@ -662,6 +663,7 @@ OptOptimizeNamePath (
             ASL_NO_ABORT);
         return_VOID;
     }
+
     TargetPath.Length--;    /* Subtract one for null terminator */
 
     /* CurrentPath is the path to this scope (where we are in the namespace) */
@@ -674,12 +676,13 @@ OptOptimizeNamePath (
             ASL_NO_ABORT);
         return_VOID;
     }
+
     CurrentPath.Length--;   /* Subtract one for null terminator */
 
     /* Debug output only */
 
     Status = AcpiNsExternalizeName (ACPI_UINT32_MAX, AmlNameString,
-                NULL, &ExternalNameString);
+        NULL, &ExternalNameString);
     if (ACPI_FAILURE (Status))
     {
         AslCoreSubsystemError (Op, Status, "Externalizing NamePath",
@@ -705,7 +708,7 @@ OptOptimizeNamePath (
          * a reference.
          */
         Status = OptOptimizeNameDeclaration (Op, WalkState, CurrentNode,
-                    TargetNode, AmlNameString, &NewPath);
+            TargetNode, AmlNameString, &NewPath);
         if (ACPI_FAILURE (Status))
         {
             /*
@@ -713,8 +716,8 @@ OptOptimizeNamePath (
              *    optimize the namestring with carats (up-arrow)
              */
             Status = OptBuildShortestPath (Op, WalkState, CurrentNode,
-                            TargetNode, &CurrentPath, &TargetPath,
-                            AmlNameStringLength, 1, &NewPath);
+                TargetNode, &CurrentPath, &TargetPath,
+                AmlNameStringLength, 1, &NewPath);
         }
     }
     else
@@ -726,7 +729,7 @@ OptOptimizeNamePath (
          *    NameSeg of the NamePath
          */
         Status = OptSearchToRoot (Op, WalkState, CurrentNode,
-                        TargetNode, &TargetPath, &NewPath);
+            TargetNode, &TargetPath, &NewPath);
         if (ACPI_FAILURE (Status))
         {
             /*
@@ -734,8 +737,8 @@ OptOptimizeNamePath (
              *    optimize the namestring with carats (up-arrow)
              */
             Status = OptBuildShortestPath (Op, WalkState, CurrentNode,
-                            TargetNode, &CurrentPath, &TargetPath,
-                            AmlNameStringLength, 0, &NewPath);
+                TargetNode, &CurrentPath, &TargetPath,
+                AmlNameStringLength, 0, &NewPath);
         }
     }
 

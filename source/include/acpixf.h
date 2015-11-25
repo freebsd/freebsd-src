@@ -46,7 +46,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20150930
+#define ACPI_CA_VERSION                 0x20151124
 
 #include "acconfig.h"
 #include "actypes.h"
@@ -375,6 +375,30 @@ ACPI_GLOBAL (BOOLEAN,               AcpiGbl_SystemAwakeAndRunning);
     static ACPI_INLINE Prototype {return;}
 
 #endif /* ACPI_APPLICATION */
+
+
+/*
+ * Debugger prototypes
+ *
+ * All interfaces used by debugger will be configured
+ * out of the ACPICA build unless the ACPI_DEBUGGER
+ * flag is defined.
+ */
+#ifdef ACPI_DEBUGGER
+#define ACPI_DBR_DEPENDENT_RETURN_OK(Prototype) \
+    ACPI_EXTERNAL_RETURN_OK(Prototype)
+
+#define ACPI_DBR_DEPENDENT_RETURN_VOID(Prototype) \
+    ACPI_EXTERNAL_RETURN_VOID(Prototype)
+
+#else
+#define ACPI_DBR_DEPENDENT_RETURN_OK(Prototype) \
+    static ACPI_INLINE Prototype {return(AE_OK);}
+
+#define ACPI_DBR_DEPENDENT_RETURN_VOID(Prototype) \
+    static ACPI_INLINE Prototype {return;}
+
+#endif /* ACPI_DEBUGGER */
 
 
 /*****************************************************************************
@@ -1215,5 +1239,9 @@ AcpiInitializeDebugger (
 void
 AcpiTerminateDebugger (
     void);
+
+void
+AcpiSetDebuggerThreadId (
+    ACPI_THREAD_ID          ThreadId);
 
 #endif /* __ACXFACE_H__ */

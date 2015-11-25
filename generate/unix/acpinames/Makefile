@@ -34,6 +34,7 @@ HEADERS = \
     $(wildcard $(ACPINAMES)/*.h)
 
 OBJECTS = \
+	$(OBJDIR)/acfileio.o\
 	$(OBJDIR)/anmain.o\
 	$(OBJDIR)/anstubs.o\
 	$(OBJDIR)/antables.o\
@@ -103,7 +104,6 @@ OBJECTS = \
 	$(OBJDIR)/uterror.o\
 	$(OBJDIR)/uteval.o\
 	$(OBJDIR)/utexcep.o\
-	$(OBJDIR)/utfileio.o\
 	$(OBJDIR)/utglobal.o\
 	$(OBJDIR)/uthex.o\
 	$(OBJDIR)/utids.o\

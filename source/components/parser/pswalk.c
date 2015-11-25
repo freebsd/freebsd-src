@@ -106,6 +106,7 @@ AcpiPsDeleteParseTree (
         {
             return_VOID;
         }
+
         if (Next)
         {
             Op = Next;

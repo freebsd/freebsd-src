@@ -124,7 +124,7 @@ NoEcho('
 %token <i> PARSEOP_DECREMENT
 %token <i> PARSEOP_DEFAULT
 %token <i> PARSEOP_DEFAULT_ARG
-%token <i> PARSEOP_DEFINITIONBLOCK
+%token <i> PARSEOP_DEFINITION_BLOCK
 %token <i> PARSEOP_DEREFOF
 %token <i> PARSEOP_DEVICE
 %token <i> PARSEOP_DEVICEPOLARITY_HIGH
@@ -463,6 +463,9 @@ NoEcho('
 /* Specific parentheses tokens are not used at this time */
            /* PARSEOP_EXP_PAREN_OPEN */
            /* PARSEOP_EXP_PAREN_CLOSE */
+
+
+%token <i> PARSEOP_ASL_CODE
 
 /*
  * Special functions. These should probably stay at the end of this

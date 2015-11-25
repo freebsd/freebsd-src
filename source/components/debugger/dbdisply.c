@@ -413,14 +413,13 @@ AcpiDbDisplayMethodInfo (
     }
 
     ObjDesc = WalkState->MethodDesc;
-    Node    = WalkState->MethodNode;
+    Node = WalkState->MethodNode;
 
     AcpiOsPrintf ("Currently executing control method is [%4.4s]\n",
-            AcpiUtGetNodeName (Node));
+        AcpiUtGetNodeName (Node));
     AcpiOsPrintf ("%X Arguments, SyncLevel = %X\n",
-            (UINT32) ObjDesc->Method.ParamCount,
-            (UINT32) ObjDesc->Method.SyncLevel);
-
+        (UINT32) ObjDesc->Method.ParamCount,
+        (UINT32) ObjDesc->Method.SyncLevel);
 
     RootOp = StartOp;
     while (RootOp->Common.Parent)
@@ -581,7 +580,7 @@ AcpiDbDisplayResults (
     }
 
     ObjDesc = WalkState->MethodDesc;
-    Node    = WalkState->MethodNode;
+    Node  = WalkState->MethodNode;
 
     if (WalkState->Results)
     {
@@ -657,7 +656,7 @@ AcpiDbDisplayCallingTree (
  *
  * FUNCTION:    AcpiDbDisplayObjectType
  *
- * PARAMETERS:  Name            - User entered NS node handle or name
+ * PARAMETERS:  ObjectArg       - User entered NS node handle
  *
  * RETURN:      None
  *
@@ -667,21 +666,17 @@ AcpiDbDisplayCallingTree (
 
 void
 AcpiDbDisplayObjectType (
-    char                    *Name)
+    char                    *ObjectArg)
 {
-    ACPI_NAMESPACE_NODE     *Node;
+    ACPI_HANDLE             Handle;
     ACPI_DEVICE_INFO        *Info;
     ACPI_STATUS             Status;
     UINT32                  i;
 
 
-    Node = AcpiDbConvertToNode (Name);
-    if (!Node)
-    {
-        return;
-    }
+    Handle = ACPI_TO_POINTER (strtoul (ObjectArg, NULL, 16));
 
-    Status = AcpiGetObjectInfo (ACPI_CAST_PTR (ACPI_HANDLE, Node), &Info);
+    Status = AcpiGetObjectInfo (Handle, &Info);
     if (ACPI_FAILURE (Status))
     {
         AcpiOsPrintf ("Could not get object info, %s\n",
@@ -689,25 +684,18 @@ AcpiDbDisplayObjectType (
         return;
     }
 
-    if (Info->Valid & ACPI_VALID_ADR)
-    {
-        AcpiOsPrintf ("ADR: %8.8X%8.8X, STA: %8.8X, Flags: %X\n",
-            ACPI_FORMAT_UINT64 (Info->Address),
-            Info->CurrentStatus, Info->Flags);
-    }
-    if (Info->Valid & ACPI_VALID_SXDS)
-    {
-        AcpiOsPrintf ("S1D-%2.2X S2D-%2.2X S3D-%2.2X S4D-%2.2X\n",
-            Info->HighestDstates[0], Info->HighestDstates[1],
-            Info->HighestDstates[2], Info->HighestDstates[3]);
-    }
-    if (Info->Valid & ACPI_VALID_SXWS)
-    {
-        AcpiOsPrintf ("S0W-%2.2X S1W-%2.2X S2W-%2.2X S3W-%2.2X S4W-%2.2X\n",
-            Info->LowestDstates[0], Info->LowestDstates[1],
-            Info->LowestDstates[2], Info->LowestDstates[3],
-            Info->LowestDstates[4]);
-    }
+    AcpiOsPrintf ("ADR: %8.8X%8.8X, STA: %8.8X, Flags: %X\n",
+        ACPI_FORMAT_UINT64 (Info->Address),
+        Info->CurrentStatus, Info->Flags);
+
+    AcpiOsPrintf ("S1D-%2.2X S2D-%2.2X S3D-%2.2X S4D-%2.2X\n",
+        Info->HighestDstates[0], Info->HighestDstates[1],
+        Info->HighestDstates[2], Info->HighestDstates[3]);
+
+    AcpiOsPrintf ("S0W-%2.2X S1W-%2.2X S2W-%2.2X S3W-%2.2X S4W-%2.2X\n",
+        Info->LowestDstates[0], Info->LowestDstates[1],
+        Info->LowestDstates[2], Info->LowestDstates[3],
+        Info->LowestDstates[4]);
 
     if (Info->Valid & ACPI_VALID_HID)
     {
@@ -717,11 +705,6 @@ AcpiDbDisplayObjectType (
     if (Info->Valid & ACPI_VALID_UID)
     {
         AcpiOsPrintf ("UID: %s\n", Info->UniqueId.String);
-    }
-
-    if (Info->Valid & ACPI_VALID_SUB)
-    {
-        AcpiOsPrintf ("SUB: %s\n", Info->SubsystemId.String);
     }
 
     if (Info->Valid & ACPI_VALID_CID)
@@ -760,6 +743,13 @@ AcpiDbDisplayResultObject (
     ACPI_WALK_STATE         *WalkState)
 {
 
+#ifndef ACPI_APPLICATION
+    if (AcpiGbl_DbThreadId != AcpiOsGetThreadId())
+    {
+        return;
+    }
+#endif
+
     /* Only display if single stepping */
 
     if (!AcpiGbl_CmSingleStep)
@@ -791,6 +781,13 @@ AcpiDbDisplayArgumentObject (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     ACPI_WALK_STATE         *WalkState)
 {
+
+#ifndef ACPI_APPLICATION
+    if (AcpiGbl_DbThreadId != AcpiOsGetThreadId())
+    {
+        return;
+    }
+#endif
 
     if (!AcpiGbl_CmSingleStep)
     {
@@ -1171,7 +1168,7 @@ AcpiDbDisplayNonRootHandlers (
         return (AE_OK);
     }
 
-    Pathname = AcpiNsGetExternalPathname (Node);
+    Pathname = AcpiNsGetNormalizedPathname (Node, TRUE);
     if (!Pathname)
     {
         return (AE_OK);

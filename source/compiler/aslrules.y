@@ -54,10 +54,11 @@ NoEcho('
  * Root term. Allow multiple #line directives before the definition block
  * to handle output from preprocessors
  */
-ASLCode
-    : DefinitionBlockTerm
+AslCode
+    : DefinitionBlockList           {$<n>$ = TrLinkChildren (TrCreateLeafNode (PARSEOP_ASL_CODE),1, $1);}
     | error                         {YYABORT; $$ = NULL;}
     ;
+
 
 /*
  * Note concerning support for "module-level code".
@@ -75,7 +76,7 @@ ASLCode
  * of Type1 and Type2 opcodes at module level.
  */
 DefinitionBlockTerm
-    : PARSEOP_DEFINITIONBLOCK '('   {$<n>$ = TrCreateLeafNode (PARSEOP_DEFINITIONBLOCK);}
+    : PARSEOP_DEFINITION_BLOCK '('  {$<n>$ = TrCreateLeafNode (PARSEOP_DEFINITION_BLOCK);}
         String ','
         String ','
         ByteConst ','
@@ -84,6 +85,12 @@ DefinitionBlockTerm
         DWordConst
         ')'                         {TrSetEndLineNumber ($<n>3);}
             '{' TermList '}'        {$$ = TrLinkChildren ($<n>3,7,$4,$6,$8,$10,$12,$14,$18);}
+    ;
+
+DefinitionBlockList
+    : DefinitionBlockTerm
+    | DefinitionBlockTerm
+        DefinitionBlockList         {$$ = TrLinkPeerNodes (2, $1,$2);}
     ;
 
 SuperName

@@ -206,7 +206,7 @@ AcpiUtInitGlobals (
 
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
-char *
+const char *
 AcpiUtGetMutexName (
     UINT32                  MutexId);
 
@@ -216,15 +216,15 @@ AcpiUtGetNotifyName (
     ACPI_OBJECT_TYPE        Type);
 #endif
 
-char *
+const char *
 AcpiUtGetTypeName (
     ACPI_OBJECT_TYPE        Type);
 
-char *
+const char *
 AcpiUtGetNodeName (
     void                    *Object);
 
-char *
+const char *
 AcpiUtGetDescriptorName (
     void                    *Object);
 
@@ -232,15 +232,15 @@ const char *
 AcpiUtGetReferenceName (
     ACPI_OPERAND_OBJECT     *Object);
 
-char *
+const char *
 AcpiUtGetObjectTypeName (
     ACPI_OPERAND_OBJECT     *ObjDesc);
 
-char *
+const char *
 AcpiUtGetRegionName (
     UINT8                   SpaceId);
 
-char *
+const char *
 AcpiUtGetEventName (
     UINT32                  EventId);
 
@@ -484,17 +484,6 @@ AcpiUtExecutePowerMethods (
 
 
 /*
- * utfileio - file operations
- */
-#ifdef ACPI_APPLICATION
-ACPI_STATUS
-AcpiUtReadTableFromFile (
-    char                    *Filename,
-    ACPI_TABLE_HEADER       **Table);
-#endif
-
-
-/*
  * utids - device ID support
  */
 ACPI_STATUS
@@ -504,11 +493,6 @@ AcpiUtExecute_HID (
 
 ACPI_STATUS
 AcpiUtExecute_UID (
-    ACPI_NAMESPACE_NODE     *DeviceNode,
-    ACPI_PNP_DEVICE_ID      **ReturnId);
-
-ACPI_STATUS
-AcpiUtExecute_SUB (
     ACPI_NAMESPACE_NODE     *DeviceNode,
     ACPI_PNP_DEVICE_ID      **ReturnId);
 

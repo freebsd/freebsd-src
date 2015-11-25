@@ -112,7 +112,7 @@ AcpiNsSearchOneScope (
     {
         char                *ScopeName;
 
-        ScopeName = AcpiNsGetExternalPathname (ParentNode);
+        ScopeName = AcpiNsGetNormalizedPathname (ParentNode, TRUE);
         if (ScopeName)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
@@ -248,7 +248,7 @@ AcpiNsSearchParentTree (
          * the actual name we are searching for. Typechecking comes later.
          */
         Status = AcpiNsSearchOneScope (
-                    TargetName, ParentNode, ACPI_TYPE_ANY, ReturnNode);
+            TargetName, ParentNode, ACPI_TYPE_ANY, ReturnNode);
         if (ACPI_SUCCESS (Status))
         {
             return_ACPI_STATUS (Status);

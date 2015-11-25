@@ -42,6 +42,7 @@
  */
 
 #include "aecommon.h"
+#include "errno.h"
 
 #define _COMPONENT          ACPI_TOOLS
         ACPI_MODULE_NAME    ("aemain")
@@ -93,7 +94,6 @@ BOOLEAN                     AcpiGbl_LoadTestTables = FALSE;
 BOOLEAN                     AcpiGbl_AeLoadOnly = FALSE;
 static UINT8                AcpiGbl_ExecutionMode = AE_MODE_COMMAND_LOOP;
 static char                 BatchBuffer[AE_BUFFER_SIZE];    /* Batch command buffer */
-static AE_TABLE_DESC        *AeTableListHead = NULL;
 
 #define ACPIEXEC_NAME               "AML Execution/Debug Utility"
 #define AE_SUPPORTED_OPTIONS        "?b:d:e:f^ghi:lm^rv^:x:"
@@ -440,11 +440,9 @@ main (
     int                     argc,
     char                    **argv)
 {
+    ACPI_NEW_TABLE_DESC     *ListHead = NULL;
     ACPI_STATUS             Status;
     UINT32                  InitFlags;
-    ACPI_TABLE_HEADER       *Table = NULL;
-    UINT32                  TableCount;
-    AE_TABLE_DESC           *TableDesc;
     int                     ExitCode = 0;
 
 
@@ -459,7 +457,7 @@ main (
     /* Init ACPICA and start debugger thread */
 
     Status = AcpiInitializeSubsystem ();
-    AE_CHECK_OK (AcpiInitializeSubsystem, Status);
+    ACPI_CHECK_OK (AcpiInitializeSubsystem, Status);
     if (ACPI_FAILURE (Status))
     {
         goto ErrorExit;
@@ -473,7 +471,7 @@ main (
     /* Initialize the AML debugger */
 
     Status = AcpiInitializeDebugger ();
-    AE_CHECK_OK (AcpiInitializeDebugger, Status);
+    ACPI_CHECK_OK (AcpiInitializeDebugger, Status);
     if (ACPI_FAILURE (Status))
     {
         goto ErrorExit;
@@ -496,6 +494,7 @@ main (
         {
             ExitCode = 0;
         }
+
         goto ErrorExit;
     }
 
@@ -507,42 +506,19 @@ main (
     }
 
     AcpiGbl_CstyleDisassembly = FALSE; /* Not supported for AcpiExec */
-    TableCount = 0;
 
     /* Get each of the ACPI table files on the command line */
 
     while (argv[AcpiGbl_Optind])
     {
-        /* Get one entire table */
+        /* Get all ACPI AML tables in this file */
 
-        Status = AcpiUtReadTableFromFile (argv[AcpiGbl_Optind], &Table);
+        Status = AcpiAcGetAllTablesFromFile (argv[AcpiGbl_Optind],
+            ACPI_GET_ONLY_AML_TABLES, &ListHead);
         if (ACPI_FAILURE (Status))
         {
-            fprintf (stderr, "**** Could not get table from file %s, %s\n",
-                argv[AcpiGbl_Optind], AcpiFormatException (Status));
+            ExitCode = -1;
             goto ErrorExit;
-        }
-
-        /* Ignore non-AML tables, we can't use them. Except for an FADT */
-
-        if (!ACPI_COMPARE_NAME (Table->Signature, ACPI_SIG_FADT) &&
-            !AcpiUtIsAmlTable (Table))
-        {
-            fprintf (stderr, "    %s: [%4.4s] is not an AML table - ignoring\n",
-                 argv[AcpiGbl_Optind], Table->Signature);
-
-            AcpiOsFree (Table);
-        }
-        else
-        {
-            /* Allocate and link a table descriptor */
-
-            TableDesc = AcpiOsAllocate (sizeof (AE_TABLE_DESC));
-            TableDesc->Table = Table;
-            TableDesc->Next = AeTableListHead;
-            AeTableListHead = TableDesc;
-
-            TableCount++;
         }
 
         AcpiGbl_Optind++;
@@ -552,7 +528,7 @@ main (
 
     /* Build a local RSDT with all tables and let ACPICA process the RSDT */
 
-    Status = AeBuildLocalTables (TableCount, AeTableListHead);
+    Status = AeBuildLocalTables (ListHead);
     if (ACPI_FAILURE (Status))
     {
         goto ErrorExit;

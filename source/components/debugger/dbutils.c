@@ -199,6 +199,7 @@ AcpiDbDumpExternalObject (
             {
                 AcpiOsPrintf ("\n");
             }
+
             AcpiUtDebugDumpBuffer (
                 ACPI_CAST_PTR (UINT8, ObjDesc->Buffer.Pointer),
                 ObjDesc->Buffer.Length, DB_BYTE_DISPLAY, _COMPONENT);

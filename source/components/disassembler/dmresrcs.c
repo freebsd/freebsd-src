@@ -171,7 +171,8 @@ AcpiDmFixedDmaDescriptor (
     }
     else
     {
-        AcpiOsPrintf ("%X /* INVALID DMA WIDTH */, ", Resource->FixedDma.Width);
+        AcpiOsPrintf ("%X /* INVALID DMA WIDTH */, ",
+            Resource->FixedDma.Width);
     }
 
     /* Insert a descriptor name */

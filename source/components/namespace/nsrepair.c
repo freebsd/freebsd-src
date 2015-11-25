@@ -222,7 +222,7 @@ AcpiNsSimpleRepair (
                     ACPI_WARN_ALWAYS, "Found unexpected NULL package element"));
 
                 Status = AcpiNsRepairNullElement (Info, ExpectedBtypes,
-                            PackageIndex, ReturnObjectPtr);
+                    PackageIndex, ReturnObjectPtr);
                 if (ACPI_SUCCESS (Status))
                 {
                     return (AE_OK); /* Repair was successful */
@@ -380,6 +380,7 @@ AcpiNsMatchSimpleRepair (
 
             return (NULL);
         }
+
         ThisName++;
     }
 
@@ -464,11 +465,13 @@ AcpiNsRepairNullElement (
 
     /* Set the reference count according to the parent Package object */
 
-    NewObject->Common.ReferenceCount = Info->ParentPackage->Common.ReferenceCount;
+    NewObject->Common.ReferenceCount =
+        Info->ParentPackage->Common.ReferenceCount;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
         "%s: Converted NULL package element to expected %s at index %u\n",
-         Info->FullPathname, AcpiUtGetObjectTypeName (NewObject), PackageIndex));
+        Info->FullPathname, AcpiUtGetObjectTypeName (NewObject),
+        PackageIndex));
 
     *ReturnObjectPtr = NewObject;
     Info->ReturnFlags |= ACPI_OBJECT_REPAIRED;
@@ -551,6 +554,7 @@ AcpiNsRemoveNullElements (
             *Dest = *Source;
             Dest++;
         }
+
         Source++;
     }
 
@@ -607,8 +611,8 @@ AcpiNsWrapWithPackage (
 
 
     /*
-     * Create the new outer package and populate it. The new package will
-     * have a single element, the lone sub-object.
+     * Create the new outer package and populate it. The new
+     * package will have a single element, the lone sub-object.
      */
     PkgObjDesc = AcpiUtCreatePackageObject (1);
     if (!PkgObjDesc)

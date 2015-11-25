@@ -545,6 +545,7 @@ AcpiRsOutString (
     char                    *Title,
     char                    *Value)
 {
+
     AcpiOsPrintf ("%27s : %s", Title, Value);
     if (!*Value)
     {
@@ -566,6 +567,7 @@ AcpiRsOutInteger16 (
     char                    *Title,
     UINT16                  Value)
 {
+
     AcpiOsPrintf ("%27s : %4.4X\n", Title, Value);
 }
 
@@ -574,6 +576,7 @@ AcpiRsOutInteger32 (
     char                    *Title,
     UINT32                  Value)
 {
+
     AcpiOsPrintf ("%27s : %8.8X\n", Title, Value);
 }
 
@@ -582,6 +585,7 @@ AcpiRsOutInteger64 (
     char                    *Title,
     UINT64                  Value)
 {
+
     AcpiOsPrintf ("%27s : %8.8X%8.8X\n", Title,
         ACPI_FORMAT_UINT64 (Value));
 }
@@ -590,6 +594,7 @@ static void
 AcpiRsOutTitle (
     char                    *Title)
 {
+
     AcpiOsPrintf ("%27s : ", Title);
 }
 
@@ -617,8 +622,7 @@ AcpiRsDumpByteList (
 
     for (i = 0; i < Length; i++)
     {
-        AcpiOsPrintf ("%25s%2.2X : %2.2X\n",
-            "Byte", i, Data[i]);
+        AcpiOsPrintf ("%25s%2.2X : %2.2X\n", "Byte", i, Data[i]);
     }
 }
 
@@ -634,6 +638,7 @@ AcpiRsDumpShortByteList (
     {
         AcpiOsPrintf ("%X ", Data[i]);
     }
+
     AcpiOsPrintf ("\n");
 }
 
@@ -647,8 +652,7 @@ AcpiRsDumpDwordList (
 
     for (i = 0; i < Length; i++)
     {
-        AcpiOsPrintf ("%25s%2.2X : %8.8X\n",
-            "Dword", i, Data[i]);
+        AcpiOsPrintf ("%25s%2.2X : %8.8X\n", "Dword", i, Data[i]);
     }
 }
 
@@ -662,7 +666,6 @@ AcpiRsDumpWordList (
 
     for (i = 0; i < Length; i++)
     {
-        AcpiOsPrintf ("%25s%2.2X : %4.4X\n",
-            "Word", i, Data[i]);
+        AcpiOsPrintf ("%25s%2.2X : %4.4X\n", "Word", i, Data[i]);
     }
 }

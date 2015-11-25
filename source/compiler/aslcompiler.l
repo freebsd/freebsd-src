@@ -210,7 +210,7 @@ NamePathTail                [.]{NameSeg}
 "Debug"                     { count (1); return (PARSEOP_DEBUG); }
 "Decrement"                 { count (3); return (PARSEOP_DECREMENT); }
 "Default"                   { count (3); return (PARSEOP_DEFAULT); }
-"DefinitionBlock"           { count (1); return (PARSEOP_DEFINITIONBLOCK); }
+"DefinitionBlock"           { count (1); return (PARSEOP_DEFINITION_BLOCK); }
 "DeRefOf"                   { count (3); return (PARSEOP_DEREFOF); }
 "Device"                    { count (2); return (PARSEOP_DEVICE); }
 "Divide"                    { count (3); return (PARSEOP_DIVIDE); }
