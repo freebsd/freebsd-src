@@ -1,8 +1,9 @@
 #!/bin/sh
 # $FreeBSD$
 
+. $(dirname $0)/conf.sh
+
 base=`basename $0`
-no=45
 sectors=100
 keyfile0=`mktemp $base.XXXXXX` || exit 1
 keyfile1=`mktemp $base.XXXXXX` || exit 1
@@ -122,5 +123,4 @@ for iter in -1 0 64; do
 	echo "ok ${i}"; i=$((i+1))
 done
 
-mdconfig -d -u $no
 rm -f ${keyfile0} ${keyfile1} ${passfile0} ${passfile1}

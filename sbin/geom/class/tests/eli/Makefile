@@ -29,4 +29,8 @@ TEST_METADATA.integrity_hmac_test+=	timeout="600"
 TEST_METADATA.onetime_a_test+=	timeout="600"
 TEST_METADATA.onetime_test+=	timeout="600"
 
+FILES+=		conf.sh
+FILESNAME_conf.sh=	conf.sh
+FILESDIR=	${TESTSDIR}
+
 .include <bsd.test.mk>

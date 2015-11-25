@@ -1,8 +1,9 @@
 #!/bin/sh
 # $FreeBSD$
 
+. $(dirname $0)/conf.sh
+
 base=`basename $0`
-no=45
 sectors=100
 keyfile=`mktemp $base.XXXXXX` || exit 1
 mdconfig -a -t malloc -s `expr $sectors + 1` -u $no || exit 1
@@ -34,5 +35,4 @@ else
 	echo "not ok 3"
 fi
 
-mdconfig -d -u $no
 rm -f $keyfile

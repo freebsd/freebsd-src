@@ -1,8 +1,9 @@
 #!/bin/sh
 # $FreeBSD$
 
+. $(dirname $0)/conf.sh
+
 base=`basename $0`
-no=45
 sectors=100
 rnd=`mktemp $base.XXXXXX` || exit 1
 keyfile1=`mktemp $base.XXXXXX` || exit 1
@@ -152,5 +153,4 @@ else
 	echo "not ok 16"
 fi
 
-mdconfig -d -u $no
 rm -f $keyfile1 $keyfile2 $keyfile3 $keyfile4 $keyfile5

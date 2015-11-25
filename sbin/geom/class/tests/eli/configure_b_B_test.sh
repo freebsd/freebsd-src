@@ -1,8 +1,9 @@
 #!/bin/sh
 # $FreeBSD$
 
+. $(dirname $0)/conf.sh
+
 base=`basename $0`
-no=45
 sectors=100
 mdconfig -a -t malloc -s `expr $sectors + 1` -u $no || exit 1
 
@@ -126,5 +127,3 @@ if [ $? -eq 0 ]; then
 else
 	echo "not ok 17"
 fi
-
-mdconfig -d -u $no
