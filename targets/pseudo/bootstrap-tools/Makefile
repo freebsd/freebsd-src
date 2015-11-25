@@ -62,7 +62,7 @@ cross-tools build-tools bootstrap-tools: .MAKE .META
 	touch $@
 
 # MAKELEVEL=0 so that dirdeps.mk does its thing
-# LEGACY_TOOLS lets us use the bootstaped stuff above
+# LEGACY_TOOLS lets us use the bootstrapped stuff above
 # TARGET* is so that MK_CLANG gets set correctly.
 BSTCENV= \
 	MAKELEVEL=0 \
