@@ -10,7 +10,6 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libelf \
-	lib/libproc \
 	lib/libutil \
 
 

@@ -10,5 +10,7 @@ SRCS=		rtld_db.c
 INCS=		rtld_db.h
 
 CFLAGS+= -I${.CURDIR}
+# Avoid circular dependency, we only need the libproc.h header here.
+CFLAGS+= -I${.CURDIR:H}/libproc
 
 .include <bsd.lib.mk>
