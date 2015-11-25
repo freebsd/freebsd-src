@@ -1,37 +1,22 @@
 #!/bin/sh
-#
 # $FreeBSD$
-#
 
-mntpoint="/mnt/test-1"
+testsdir=$(dirname $0)
+. $testsdir/conf.sh
 
-#
-# prepare
-kldload geom_uzip
-UUE=$(dirname $0)/1.img.uzip.uue
+echo "1..1"
+
+UUE=$testsdir/1.img.uzip.uue
 uudecode $UUE
-num=`mdconfig -an -f $(basename $UUE .uue)` || exit 1
+us0=$(attach_md -f $(basename $UUE .uue)) || exit 1
 sleep 1
 
-#
-# mount
-mkdir -p "${mntpoint}"
-mount -o ro /dev/md${num}.uzip "${mntpoint}" || exit 1
+mount -o ro /dev/${us0}.uzip "${mntpoint}" || exit 1
 
-#
-# compare
 #cat "${mntpoint}/etalon.txt"
-diff -u etalon/etalon.txt "${mntpoint}/etalon.txt"
+diff -I '\$FreeBSD.*\$' -u $testsdir/etalon/etalon.txt "${mntpoint}/etalon.txt"
 if [ $? -eq 0 ]; then
-	echo "PASS"
+	echo "ok 1"
 else
-	echo "FAIL"
+	echo "not ok 1"
 fi
-
-#
-# cleanup
-umount "${mntpoint}"
-rmdir "${mntpoint}"
-mdconfig -d -u ${num}
-sleep 1
-kldunload geom_uzip

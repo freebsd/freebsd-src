@@ -21,6 +21,9 @@ ${UZIMAGE}: ${IMAGE} ${ZIMAGE}
 	printf "FreeBSD$$\n#\n\n" >> ${.TARGET}
 	uuencode ${ZIMAGE} ${ZIMAGE} >>${.TARGET}
 
+FILES+=		conf.sh
+FILESNAME_conf.sh=	conf.sh
+
 FILES+=		${UZIMAGE}
 FILESDIR=	${TESTSDIR}
 
@@ -28,6 +31,6 @@ FILESGROUPS=	FILES etalon
 etalon+=	etalon/etalon.txt
 etalonDIR=	${TESTSDIR}/etalon
 
-PLAIN_TESTS_SH+=	1_test
+TAP_TESTS_SH+=	1_test
 
 .include <bsd.test.mk>
