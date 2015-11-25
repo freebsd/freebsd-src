@@ -102,7 +102,10 @@ _PROGS_ALL_SRCS+=	${s}
 .endfor
 .endfor
 .if !empty(_PROGS_COMMON_SRCS)
-_PROGS_COMMON_OBJS=	${_PROGS_COMMON_SRCS:N*.h:R:S/$/.o/g}
+_PROGS_COMMON_OBJS=	${_PROGS_COMMON_SRCS:M*.h}
+.if !empty(_PROGS_COMMON_SRCS:N*.h)
+_PROGS_COMMON_OBJS+=	${_PROGS_COMMON_SRCS:N*.h:R:S/$/.o/g}
+.endif
 ${PROGS}: ${_PROGS_COMMON_OBJS}
 .endif
 
