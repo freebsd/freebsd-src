@@ -21,4 +21,8 @@ SUBDIR+=shsec
 SUBDIR+=stripe
 SUBDIR+=virstor
 
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
+
 .include <bsd.subdir.mk>
