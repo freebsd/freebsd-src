@@ -33,6 +33,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/hhook.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -44,6 +45,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_enc.h>
 #include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
