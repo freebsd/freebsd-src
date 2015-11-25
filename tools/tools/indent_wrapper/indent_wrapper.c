@@ -354,13 +354,15 @@ usage(void)
 	    "\t" "-v        Increase verbosity\n"
 	    "\t" "-d        Check output from git diff\n"
 	    "\t" "-D        Check output from svn diff\n"
+	    "\t" "-c <cmd>  Set custom command to produce diff\n"
 	    "\t" "-g <hash> Check output from git hash\n"
 	    "\t" "-s <rev>  Check output from svn revision\n"
 	    "\t" "-t <tool> Launch external diff tool\n"
 	    "\n"
 	    "Examples:\n"
 	    "\t" "indent_wrapper -D\n"
-	    "\t" "indent_wrapper -D -t meld\n");
+	    "\t" "indent_wrapper -D -t meld\n"
+	    "\t" "indent_wrapper -D -t \"diff -u\"\n");
 	exit(EX_SOFTWARE);
 }
 
