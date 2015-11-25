@@ -16,7 +16,7 @@ h_testbits_xdr.c: ${RPCSRC} h_testbits.h
 
 CLEANFILES+=	${RPCSRC:.x=.h} ${RPCSRC:.x=.c} h_testbits_xdr.c
 CFLAGS+=	-I${.OBJDIR}
-DPSRCS+=	h_testbits.h
+SRCS+=		h_testbits.h
 
 LDADD+=		-lrpcsvc -lutil
 DPADD+=		${LIBRPCSVC} ${LIBUTIL}
