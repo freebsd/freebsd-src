@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-TESTS=	test-fopen \
+TESTS=	test-fdopen \
+	test-fopen \
+	test-freopen \
 	test-getdelim \
 	test-mkostemp \
 	test-open_memstream \
