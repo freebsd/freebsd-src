@@ -3466,7 +3466,7 @@ net/if_dead.c			standard
 net/if_debug.c			optional ddb
 net/if_disc.c			optional disc
 net/if_edsc.c			optional edsc
-net/if_enc.c			optional enc ipsec inet | enc ipsec inet6
+net/if_enc.c			optional enc inet | enc inet6
 net/if_epair.c			optional epair
 net/if_ethersubr.c		optional ether
 net/if_fddisubr.c		optional fddi
