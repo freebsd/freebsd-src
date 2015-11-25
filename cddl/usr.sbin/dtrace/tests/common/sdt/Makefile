@@ -14,4 +14,4 @@ CFILES= \
      tst.sdtargs.c  \
 
 
-.include "../../Makefile.inc1"
+.include "../../dtrace.test.mk"

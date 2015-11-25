@@ -38,4 +38,4 @@ CFILES= \
 
 WITH_CTF=YES
 
-.include "../../Makefile.inc1"
+.include "../../dtrace.test.mk"
