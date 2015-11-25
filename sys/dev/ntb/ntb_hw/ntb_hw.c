@@ -114,7 +114,7 @@ struct ntb_pci_bar_info {
 	vm_paddr_t		pbase;
 	caddr_t			vbase;
 	vm_size_t		size;
-	bool			mapped_wc : 1;
+	vm_memattr_t		map_mode;
 
 	/* Configuration register offsets */
 	uint32_t		psz_off;
@@ -270,7 +270,8 @@ static inline bool bar_is_64bit(struct ntb_softc *, enum ntb_bar);
 static inline void bar_get_xlat_params(struct ntb_softc *, enum ntb_bar,
     uint32_t *base, uint32_t *xlat, uint32_t *lmt);
 static int ntb_map_pci_bars(struct ntb_softc *ntb);
-static int ntb_mw_set_wc_internal(struct ntb_softc *, unsigned idx, bool wc);
+static int ntb_mw_set_wc_internal(struct ntb_softc *, unsigned idx,
+    vm_memattr_t);
 static void print_map_success(struct ntb_softc *, struct ntb_pci_bar_info *,
     const char *);
 static int map_mmr_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar);
@@ -718,6 +719,7 @@ map_mmr_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 		return (ENXIO);
 
 	save_bar_parameters(bar);
+	bar->map_mode = VM_MEMATTR_UNCACHEABLE;
 	print_map_success(ntb, bar, "mmr");
 	return (0);
 }
@@ -726,6 +728,7 @@ static int
 map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 {
 	int rc;
+	vm_memattr_t mapmode;
 	uint8_t bar_size_bits = 0;
 
 	bar->pci_resource = bus_alloc_resource_any(ntb->device, SYS_RES_MEMORY,
@@ -771,29 +774,34 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 		save_bar_parameters(bar);
 	}
 
+	bar->map_mode = VM_MEMATTR_UNCACHEABLE;
 	print_map_success(ntb, bar, "mw");
-	if (g_ntb_enable_wc == 0)
-		return (0);
 
 	/* Mark bar region as write combining to improve performance. */
-	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size,
-	    VM_MEMATTR_WRITE_COMBINING);
+	mapmode = VM_MEMATTR_WRITE_COMBINING;
+	if (g_ntb_enable_wc == 0)
+		mapmode = VM_MEMATTR_WRITE_BACK;
+
+	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size, mapmode);
 	if (rc == 0) {
-		bar->mapped_wc = true;
+		bar->map_mode = mapmode;
 		device_printf(ntb->device,
 		    "Marked BAR%d v:[%p-%p] p:[%p-%p] as "
-		    "WRITE_COMBINING.\n",
-		    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
-		    (char *)bar->vbase + bar->size - 1,
-		    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1));
-	} else
-		device_printf(ntb->device,
-		    "Unable to mark BAR%d v:[%p-%p] p:[%p-%p] as "
-		    "WRITE_COMBINING: %d\n",
+		    "%s.\n",
 		    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
 		    (char *)bar->vbase + bar->size - 1,
 		    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1),
-		    rc);
+		    (mapmode == VM_MEMATTR_WRITE_COMBINING) ? "WRITE_COMBINING"
+		    : "WRITE_BACK");
+	} else
+		device_printf(ntb->device,
+		    "Unable to mark BAR%d v:[%p-%p] p:[%p-%p] as "
+		    "%s: %d\n",
+		    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
+		    (char *)bar->vbase + bar->size - 1,
+		    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1),
+		    (mapmode == VM_MEMATTR_WRITE_COMBINING) ? "WRITE_COMBINING"
+		    : "WRITE_BACK", rc);
 		/* Proceed anyway */
 	return (0);
 }
@@ -1272,7 +1280,7 @@ ntb_xeon_init_dev(struct ntb_softc *ntb)
 		    ntb->mw_count;
 		ntb_printf(2, "Setting up b2b mw idx %d means %u\n",
 		    g_ntb_mw_idx, ntb->b2b_mw_idx);
-		rc = ntb_mw_set_wc_internal(ntb, ntb->b2b_mw_idx, false);
+		rc = ntb_mw_set_wc_internal(ntb, ntb->b2b_mw_idx, VM_MEMATTR_UNCACHEABLE);
 		KASSERT(rc == 0, ("shouldn't fail"));
 	} else if (HAS_FEATURE(NTB_B2BDOORBELL_BIT14))
 		/*
@@ -2672,9 +2680,11 @@ ntb_mw_clear_trans(struct ntb_softc *ntb, unsigned mw_idx)
  *
  * Returns:  Zero on success, setting *wc; otherwise an error number (e.g. if
  * idx is an invalid memory window).
+ *
+ * Mode is a VM_MEMATTR_* type.
  */
 int
-ntb_mw_get_wc(struct ntb_softc *ntb, unsigned idx, bool *wc)
+ntb_mw_get_wc(struct ntb_softc *ntb, unsigned idx, vm_memattr_t *mode)
 {
 	struct ntb_pci_bar_info *bar;
 
@@ -2683,49 +2693,48 @@ ntb_mw_get_wc(struct ntb_softc *ntb, unsigned idx, bool *wc)
 	idx = ntb_user_mw_to_idx(ntb, idx);
 
 	bar = &ntb->bar_info[ntb_mw_to_bar(ntb, idx)];
-	*wc = bar->mapped_wc;
+	*mode = bar->map_mode;
 	return (0);
 }
 
 /*
  * ntb_mw_set_wc - Set the write-combine status of a memory window
  *
- * If 'wc' matches the current status, this does nothing and succeeds.
+ * If 'mode' matches the current status, this does nothing and succeeds.  Mode
+ * is a VM_MEMATTR_* type.
  *
  * Returns:  Zero on success, setting the caching attribute on the virtual
  * mapping of the BAR; otherwise an error number (e.g. if idx is an invalid
  * memory window, or if changing the caching attribute fails).
  */
 int
-ntb_mw_set_wc(struct ntb_softc *ntb, unsigned idx, bool wc)
+ntb_mw_set_wc(struct ntb_softc *ntb, unsigned idx, vm_memattr_t mode)
 {
 
 	if (idx >= ntb_mw_count(ntb))
 		return (EINVAL);
 
 	idx = ntb_user_mw_to_idx(ntb, idx);
-	return (ntb_mw_set_wc_internal(ntb, idx, wc));
+	return (ntb_mw_set_wc_internal(ntb, idx, mode));
 }
 
 static int
-ntb_mw_set_wc_internal(struct ntb_softc *ntb, unsigned idx, bool wc)
+ntb_mw_set_wc_internal(struct ntb_softc *ntb, unsigned idx, vm_memattr_t mode)
 {
 	struct ntb_pci_bar_info *bar;
-	vm_memattr_t attr;
 	int rc;
 
 	bar = &ntb->bar_info[ntb_mw_to_bar(ntb, idx)];
-	if (bar->mapped_wc == wc)
+	if (bar->map_mode == mode)
 		return (0);
 
-	if (wc)
-		attr = VM_MEMATTR_WRITE_COMBINING;
-	else
-		attr = VM_MEMATTR_DEFAULT;
+	if (mode != VM_MEMATTR_UNCACHEABLE && mode != VM_MEMATTR_DEFAULT &&
+	    mode != VM_MEMATTR_WRITE_COMBINING)
+		return (EINVAL);
 
-	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size, attr);
+	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size, mode);
 	if (rc == 0)
-		bar->mapped_wc = wc;
+		bar->map_mode = mode;
 
 	return (rc);
 }
