@@ -183,6 +183,10 @@ static void	if_detach_internal(struct ifnet *, int, struct if_clone **);
 extern void	nd6_setmtu(struct ifnet *);
 #endif
 
+/* ipsec helper hooks */
+VNET_DEFINE(struct hhook_head *, ipsec_hhh_in[HHOOK_IPSEC_COUNT]);
+VNET_DEFINE(struct hhook_head *, ipsec_hhh_out[HHOOK_IPSEC_COUNT]);
+
 VNET_DEFINE(int, if_index);
 int	ifqmaxlen = IFQ_MAXLEN;
 VNET_DEFINE(struct ifnethead, ifnet);	/* depend on static init XXX */

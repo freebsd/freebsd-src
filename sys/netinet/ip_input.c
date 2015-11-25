@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/hhook.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/domain.h>
@@ -318,6 +319,17 @@ ip_init(void)
 		printf("%s: WARNING: unable to register pfil hook, "
 			"error %d\n", __func__, i);
 
+	if (hhook_head_register(HHOOK_TYPE_IPSEC_IN, AF_INET,
+	    &V_ipsec_hhh_in[HHOOK_IPSEC_INET],
+	    HHOOK_WAITOK | HHOOK_HEADISINVNET) != 0)
+		printf("%s: WARNING: unable to register input helper hook\n",
+		    __func__);
+	if (hhook_head_register(HHOOK_TYPE_IPSEC_OUT, AF_INET,
+	    &V_ipsec_hhh_out[HHOOK_IPSEC_INET],
+	    HHOOK_WAITOK | HHOOK_HEADISINVNET) != 0)
+		printf("%s: WARNING: unable to register output helper hook\n",
+		    __func__);
+
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
@@ -352,12 +364,24 @@ ip_init(void)
 void
 ip_destroy(void)
 {
-	int i;
+	int error;
 
-	if ((i = pfil_head_unregister(&V_inet_pfil_hook)) != 0)
+	if ((error = pfil_head_unregister(&V_inet_pfil_hook)) != 0)
 		printf("%s: WARNING: unable to unregister pfil hook, "
-		    "error %d\n", __func__, i);
+		    "error %d\n", __func__, error);
 
+	error = hhook_head_deregister(V_ipsec_hhh_in[HHOOK_IPSEC_INET]);
+	if (error != 0) {
+		printf("%s: WARNING: unable to deregister input helper hook "
+		    "type HHOOK_TYPE_IPSEC_IN, id HHOOK_IPSEC_INET: "
+		    "error %d returned\n", __func__, error);
+	}
+	error = hhook_head_deregister(V_ipsec_hhh_out[HHOOK_IPSEC_INET]);
+	if (error != 0) {
+		printf("%s: WARNING: unable to deregister output helper hook "
+		    "type HHOOK_TYPE_IPSEC_OUT, id HHOOK_IPSEC_INET: "
+		    "error %d returned\n", __func__, error);
+	}
 	/* Cleanup in_ifaddr hash table; should be empty. */
 	hashdestroy(V_in_ifaddrhashtbl, M_IFADDR, V_in_ifaddrhmask);
 
