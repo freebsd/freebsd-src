@@ -51,11 +51,9 @@ __ENV_ONLY_OPTIONS:= \
 .endif
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
-# Don't do this if just running 'make -V' (but do when inspecting .OBJDIR) or
-# 'make showconfig' (during makeman which enables all options when meta mode
-# is not expected)
-.if (${.MAKEFLAGS:M-V} == "" || ${.MAKEFLAGS:M.OBJDIR} != "") && \
-    !make(showconfig)
+# Don't do this for 'make showconfig' as it enables all options where meta mode
+# is not expected.
+.if !make(showconfig)
 .sinclude <auto.obj.mk>
 .endif
 .endif
