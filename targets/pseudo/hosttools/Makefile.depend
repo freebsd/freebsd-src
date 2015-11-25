@@ -15,7 +15,9 @@ DIRDEPS = \
 	usr.bin/mkcsmapper_static.host \
 	usr.bin/mkesdb_static.host \
 	usr.bin/mkuzip.host \
+	usr.bin/yacc.host \
 	usr.bin/xinstall.host \
+	usr.bin/xlint/xlint.host \
 	usr.sbin/config.host \
 
 
