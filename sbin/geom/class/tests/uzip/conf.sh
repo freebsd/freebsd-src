@@ -3,7 +3,7 @@
 
 class="uzip"
 base=`basename $0`
-mntpoint=$(mktemp -d $TMPDIR/tmp.XXXXXX) || exit
+mntpoint=$(mktemp -d tmp.XXXXXX) || exit
 
 uzip_test_cleanup()
 {

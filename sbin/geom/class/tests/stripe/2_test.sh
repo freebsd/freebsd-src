@@ -6,8 +6,8 @@
 echo "1..1"
 
 tsize=3
-src=`mktemp $TMPDIR/$base.XXXXXX` || exit 1
-dst=`mktemp $TMPDIR/$base.XXXXXX` || exit 1
+src=`mktemp $base.XXXXXX` || exit 1
+dst=`mktemp $base.XXXXXX` || exit 1
 
 dd if=/dev/random of=${src} bs=1m count=$tsize >/dev/null 2>&1
 

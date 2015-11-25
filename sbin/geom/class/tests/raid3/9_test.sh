@@ -8,8 +8,8 @@ echo "1..1"
 ddbs=2048
 nblocks1=1024
 nblocks2=`expr $nblocks1 / \( $ddbs / 512 \)`
-src=`mktemp $TMPDIR/$base.XXXXXX` || exit 1
-dst=`mktemp $TMPDIR/$base.XXXXXX` || exit 1
+src=`mktemp $base.XXXXXX` || exit 1
+dst=`mktemp $base.XXXXXX` || exit 1
 
 us0=$(attach_md -t malloc -s $(expr $nblocks1 + 1)) || exit 1
 us1=$(attach_md -t malloc -s $(expr $nblocks1 + 1)) || exit 1

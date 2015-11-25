@@ -7,8 +7,8 @@ echo "1..4"
 
 nblocks1=1024
 nblocks2=`expr $nblocks1 + 1`
-src=`mktemp $TMPDIR/$base.XXXXXX` || exit 1
-dst=`mktemp $TMPDIR/$base.XXXXXX` || exit 1
+src=`mktemp $base.XXXXXX` || exit 1
+dst=`mktemp $base.XXXXXX` || exit 1
 
 dd if=/dev/random of=${src} count=$nblocks1 >/dev/null 2>&1
 
