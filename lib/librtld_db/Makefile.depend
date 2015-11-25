@@ -12,7 +12,6 @@ DIRDEPS = \
 	lib/libelf \
 	lib/libproc \
 	lib/libutil \
-	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

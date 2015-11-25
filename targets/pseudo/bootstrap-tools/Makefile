@@ -20,7 +20,8 @@ BSENV= \
 	MAKESYSPATH=${SRCTOP}/tools/build/mk:${SRCTOP}/share/mk \
 	TARGET=${HOST_MACHINE} TARGET_ARCH=${HOST_MACHINE_ARCH} \
 	WITHOUT_STAGING=1 STAGE_ROOT= BOOTSTRAPPING_TOOLS=1 \
-	WORLDTMP=${BTOOLSDIR} LEGACY_TOOLS=${LEGACY_TOOLS}
+	WORLDTMP=${BTOOLSDIR} LEGACY_TOOLS=${LEGACY_TOOLS} \
+	INSTALL="sh ${SRCTOP}/tools/install.sh"
 
 .if !defined(OSRELDATE)
 ord_h= /usr/include/osreldate.h
@@ -41,11 +42,12 @@ BSARGS= 	DESTDIR= \
 		MK_LLDB=no MK_TESTS=no \
 		MK_INCLUDES=yes
 
+DISTRIB_ENV=	INSTALL="sh ${SRCTOP}/tools/install.sh" NO_FSCHG=1
 legacy: .MAKE .META
 	mkdir -p ${LEGACY_TOOLS}
-	${MAKE} -C ${SRCTOP}/etc distrib-dirs -DNO_FSCHG DESTDIR=${BTOOLSDIR} \
-	    > $@.distrib-dirs_btoolsdir
-	${MAKE} -C ${SRCTOP}/etc distrib-dirs -DNO_FSCHG \
+	${DISTRIB_ENV} ${MAKE} -C ${SRCTOP}/etc distrib-dirs \
+	    DESTDIR=${BTOOLSDIR} > $@.distrib-dirs_btoolsdir
+	${DISTRIB_ENV} ${MAKE} -C ${SRCTOP}/etc distrib-dirs \
 	    DESTDIR=${LEGACY_TOOLS} > $@.distrib-dirs_legacy_tools
 	${BSENV} ${MAKE} -C ${SRCTOP} -f Makefile.inc1 ${BSARGS} $@
 	touch $@

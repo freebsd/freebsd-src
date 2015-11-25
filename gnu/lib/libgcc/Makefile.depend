@@ -7,7 +7,6 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
-	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

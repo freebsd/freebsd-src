@@ -10,7 +10,6 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/ncurses/ncursesw \
-	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

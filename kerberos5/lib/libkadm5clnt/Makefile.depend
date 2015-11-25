@@ -16,7 +16,6 @@ DIRDEPS = \
 	lib/libcom_err \
 	lib/libcompiler_rt \
 	lib/libthr \
-	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

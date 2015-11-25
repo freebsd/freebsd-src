@@ -15,7 +15,6 @@ DIRDEPS = \
 	lib/libproc \
 	lib/librtld_db \
 	lib/libthr \
-	usr.bin/xinstall.host \
 	usr.bin/yacc.host \
 
 
