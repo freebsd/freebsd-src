@@ -67,8 +67,8 @@ ldemul-list.h:
 	echo "${EMXFR}" > ${.TARGET}
 	echo "#define EMULATION_LIST ${EMLST} 0" >> ${.TARGET}
 
-stringify.sed:
-	ln -sf ${SRCDIR}/ld/emultempl/astring.sed ${.TARGET}
+stringify.sed: ${SRCDIR}/ld/emultempl/astring.sed .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 GENDIRDEPS_FILTER.host+= Nusr.bin/yacc
 

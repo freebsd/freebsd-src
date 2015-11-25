@@ -93,9 +93,9 @@ CLEANFILES=	${GENSRCS}
 CLEANDIRS=	sys
 CFLAGS+=	-I. -I${SRCDIR} -I${TOP}/common -I${TOP}/libelf
 
-sys/elf32.h sys/elf64.h sys/elf_common.h: ${.CURDIR}/../../sys/${.TARGET}
+sys/elf32.h sys/elf64.h sys/elf_common.h: ${.CURDIR}/../../sys/${.TARGET} .NOMETA
 	mkdir -p ${.OBJDIR}/sys
-	ln -sf ${.CURDIR}/../../sys/${.TARGET} ${.TARGET}
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 LIBADD+=	elf
 

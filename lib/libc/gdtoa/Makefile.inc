@@ -15,6 +15,6 @@ CFLAGS+=-I${LIBC_SRCTOP}/../../contrib/gdtoa
 .for src in ${GDTOASRCS}
 MISRCS+=gdtoa_${src}
 CLEANFILES+=gdtoa_${src}
-gdtoa_${src}:
-	ln -sf ${LIBC_SRCTOP}/../../contrib/gdtoa/${src} ${.TARGET}
+gdtoa_${src}: ${LIBC_SRCTOP}/../../contrib/gdtoa/${src} .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
 .endfor
