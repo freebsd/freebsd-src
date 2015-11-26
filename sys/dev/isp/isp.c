@@ -2810,6 +2810,8 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 
 	fcp = FCPARAM(isp, chan);
 
+	if (fcp->isp_loopstate < LOOP_HAVE_LINK)
+		return (-1);
 	if (fcp->isp_loopstate >= LOOP_LTEST_DONE)
 		return (0);
 
@@ -2825,15 +2827,13 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 		if (fcp->isp_fwstate == FW_READY) {
 			break;
 		}
+		if (fcp->isp_loopstate < LOOP_TESTING_LINK)
+			goto abort;
 		GET_NANOTIME(&hrb);
 		if ((NANOTIME_SUB(&hrb, &hra) / 1000 + 1000 >= usdelay))
 			break;
 		ISP_SLEEP(isp, 1000);
 	}
-
-	/*
-	 * If we haven't gone to 'ready' state, return.
-	 */
 	if (fcp->isp_fwstate != FW_READY) {
 		isp_prt(isp, ISP_LOG_SANCFG,
 		    "Chan %d Firmware is not ready (%s)",
@@ -2938,6 +2938,12 @@ not_on_fabric:
 		}
 	}
 
+	if (fcp->isp_loopstate < LOOP_TESTING_LINK) {
+abort:
+		isp_prt(isp, ISP_LOG_SANCFG,
+		    "Chan %d FC link test aborted", chan);
+		return (1);
+	}
 	fcp->isp_loopstate = LOOP_LTEST_DONE;
 	isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGCONFIG,
 	    "Chan %d WWPN %016jx WWNN %016jx",
@@ -2968,12 +2974,10 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 	fcportdb_t *lp;
 	uint16_t dbidx;
 
-	if (fcp->isp_loopstate < LOOP_FSCAN_DONE) {
+	if (fcp->isp_loopstate < LOOP_FSCAN_DONE)
 		return (-1);
-	}
-	if (fcp->isp_loopstate > LOOP_SYNCING_PDB) {
+	if (fcp->isp_loopstate >= LOOP_READY)
 		return (0);
-	}
 
 	isp_prt(isp, ISP_LOG_SANCFG, "Chan %d FC PDB sync", chan);
 
@@ -3025,12 +3029,12 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 		}
 	}
 
-	/*
-	 * If we get here, we've for sure seen not only a valid loop
-	 * but know what is or isn't on it, so mark this for usage
-	 * in isp_start.
-	 */
-	fcp->loop_seen_once = 1;
+	if (fcp->isp_loopstate < LOOP_SYNCING_PDB) {
+		isp_prt(isp, ISP_LOG_SANCFG,
+		    "Chan %d FC PDB sync aborted", chan);
+		return (1);
+	}
+
 	fcp->isp_loopstate = LOOP_READY;
 	isp_prt(isp, ISP_LOG_SANCFG, "Chan %d FC PDB sync done", chan);
 	return (0);
@@ -3154,12 +3158,11 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 	uint16_t handles[LOCAL_LOOP_LIM];
 	uint16_t handle;
 
-	if (fcp->isp_loopstate < LOOP_LTEST_DONE) {
+	if (fcp->isp_loopstate < LOOP_LTEST_DONE)
 		return (-1);
-	}
-	if (fcp->isp_loopstate > LOOP_SCANNING_LOOP) {
+	if (fcp->isp_loopstate >= LOOP_LSCAN_DONE)
 		return (0);
-	}
+
 	isp_prt(isp, ISP_LOG_SANCFG, "Chan %d FC loop scan", chan);
 	fcp->isp_loopstate = LOOP_SCANNING_LOOP;
 	if (TOPO_IS_FABRIC(fcp->isp_topo)) {
@@ -3214,8 +3217,8 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 			if (fcp->isp_loopstate < LOOP_SCANNING_LOOP) {
 abort:
 				isp_prt(isp, ISP_LOG_SANCFG,
-				    "Chan %d FC loop scan done (abort)", chan);
-				return (-1);
+				    "Chan %d FC loop scan aborted", chan);
+				return (1);
 			}
 			if (node_wwn == INI_NONE) {
 				continue;
@@ -3424,12 +3427,11 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 	int portidx, portlim, r;
 	sns_gid_ft_rsp_t *rs0, *rs1;
 
-	if (fcp->isp_loopstate < LOOP_LSCAN_DONE) {
+	if (fcp->isp_loopstate < LOOP_LSCAN_DONE)
 		return (-1);
-	}
-	if (fcp->isp_loopstate > LOOP_SCANNING_FABRIC) {
+	if (fcp->isp_loopstate >= LOOP_FSCAN_DONE)
 		return (0);
-	}
+
 	isp_prt(isp, ISP_LOG_SANCFG, "Chan %d FC fabric scan", chan);
 	fcp->isp_loopstate = LOOP_SCANNING_FABRIC;
 	if (!TOPO_IS_FABRIC(fcp->isp_topo)) {
@@ -3450,8 +3452,8 @@ fail:
 abort:
 		FC_SCRATCH_RELEASE(isp, chan);
 		isp_prt(isp, ISP_LOG_SANCFG,
-		    "Chan %d FC fabric scan done (abort)", chan);
-		return (-1);
+		    "Chan %d FC fabric scan aborted", chan);
+		return (1);
 	}
 
 	/*
@@ -3478,11 +3480,11 @@ abort:
 	if (r > 0) {
 		fcp->isp_loopstate = LOOP_FSCAN_DONE;
 		FC_SCRATCH_RELEASE(isp, chan);
-		return (0);
+		return (-1);
 	} else if (r < 0) {
 		fcp->isp_loopstate = LOOP_LTEST_DONE;	/* try again */
 		FC_SCRATCH_RELEASE(isp, chan);
-		return (0);
+		return (-1);
 	}
 
 	MEMORYBARRIER(isp, SYNC_SFORCPU, IGPOFF, GIDLEN, chan);
@@ -3504,7 +3506,7 @@ abort:
 		    rs1->snscb_cthdr.ct_explanation);
 		FC_SCRATCH_RELEASE(isp, chan);
 		fcp->isp_loopstate = LOOP_FSCAN_DONE;
-		return (0);
+		return (-1);
 	}
 
 	/* Check our buffer was big enough to get the full list. */
@@ -5657,11 +5659,10 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			fcp = FCPARAM(isp, chan);
 			int topo = fcp->isp_topo;
 
-			if (fcp->role == ISP_ROLE_NONE) {
+			if (fcp->role == ISP_ROLE_NONE)
 				continue;
-			}
-
-			fcp->isp_loopstate = LOOP_NIL;
+			if (fcp->isp_loopstate > LOOP_HAVE_LINK)
+				fcp->isp_loopstate = LOOP_HAVE_LINK;
 			ISP_SET_SENDMARKER(isp, chan, 1);
 			isp_async(isp, ISPASYNC_LIP, chan);
 #ifdef	ISP_TARGET_MODE
@@ -5714,6 +5715,9 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			fcp = FCPARAM(isp, chan);
 			if (fcp->role == ISP_ROLE_NONE)
 				continue;
+			fcp->isp_linkstate = 1;
+			if (fcp->isp_loopstate < LOOP_HAVE_LINK)
+				fcp->isp_loopstate = LOOP_HAVE_LINK;
 			ISP_SET_SENDMARKER(isp, chan, 1);
 			isp_async(isp, ISPASYNC_LOOP_UP, chan);
 #ifdef	ISP_TARGET_MODE
@@ -5734,6 +5738,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			if (fcp->role == ISP_ROLE_NONE)
 				continue;
 			ISP_SET_SENDMARKER(isp, chan, 1);
+			fcp->isp_linkstate = 0;
 			fcp->isp_loopstate = LOOP_NIL;
 			isp_async(isp, ISPASYNC_LOOP_DOWN, chan);
 #ifdef	ISP_TARGET_MODE
@@ -5754,7 +5759,8 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			if (fcp->role == ISP_ROLE_NONE)
 				continue;
 			ISP_SET_SENDMARKER(isp, chan, 1);
-			fcp->isp_loopstate = LOOP_NIL;
+			if (fcp->isp_loopstate > LOOP_HAVE_LINK)
+				fcp->isp_loopstate = LOOP_HAVE_LINK;
 			isp_async(isp, ISPASYNC_LOOP_RESET, chan);
 #ifdef	ISP_TARGET_MODE
 			if (isp_target_async(isp, chan, mbox)) {
@@ -5797,6 +5803,8 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 				continue;
 			if (fcp->isp_loopstate > LOOP_LTEST_DONE)
 				fcp->isp_loopstate = LOOP_LTEST_DONE;
+			else if (fcp->isp_loopstate < LOOP_HAVE_LINK)
+				fcp->isp_loopstate = LOOP_HAVE_LINK;
 			isp_async(isp, ISPASYNC_CHANGE_NOTIFY, chan,
 			    ISPASYNC_CHANGE_PDB, nphdl, nlstate, reason);
 		}
@@ -5820,6 +5828,8 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			break;
 		if (fcp->isp_loopstate > LOOP_LTEST_DONE)
 			fcp->isp_loopstate = LOOP_LTEST_DONE;
+		else if (fcp->isp_loopstate < LOOP_HAVE_LINK)
+			fcp->isp_loopstate = LOOP_HAVE_LINK;
 		isp_async(isp, ISPASYNC_CHANGE_NOTIFY, chan,
 		    ISPASYNC_CHANGE_SNS, portid);
 		break;
@@ -5867,7 +5877,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			break;
 		}
 		ISP_SET_SENDMARKER(isp, chan, 1);
-		FCPARAM(isp, chan)->isp_loopstate = LOOP_NIL;
+		FCPARAM(isp, chan)->isp_loopstate = LOOP_HAVE_LINK;
 		isp_async(isp, ISPASYNC_CHANGE_NOTIFY, chan, ISPASYNC_CHANGE_OTHER);
 		break;
 	case ASYNC_P2P_INIT_ERR:
@@ -5939,16 +5949,29 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 				if (fcp->role == ISP_ROLE_NONE)
 					continue;
 				c = (chan == 0) ? 127 : (chan - 1);
-				if (rid.ridacq_map[c / 16] & (1 << (c % 16))) {
-					fcp->isp_loopstate = LOOP_NIL;
+				if (rid.ridacq_map[c / 16] & (1 << (c % 16)) ||
+				    chan == 0) {
+					fcp->isp_loopstate = LOOP_HAVE_LINK;
 					isp_async(isp, ISPASYNC_CHANGE_NOTIFY,
 					    chan, ISPASYNC_CHANGE_OTHER);
+				} else {
+					fcp->isp_loopstate = LOOP_NIL;
+					isp_async(isp, ISPASYNC_LOOP_DOWN,
+					    chan);
 				}
 			}
 		} else {
-			FCPARAM(isp, rid.ridacq_vp_index)->isp_loopstate = LOOP_NIL;
-			isp_async(isp, ISPASYNC_CHANGE_NOTIFY,
-			    rid.ridacq_vp_index, ISPASYNC_CHANGE_OTHER);
+			fcparam *fcp = FCPARAM(isp, rid.ridacq_vp_index);
+			if (rid.ridacq_vp_status == RIDACQ_STS_COMPLETE ||
+			    rid.ridacq_vp_status == RIDACQ_STS_CHANGED) {
+				fcp->isp_loopstate = LOOP_HAVE_LINK;
+				isp_async(isp, ISPASYNC_CHANGE_NOTIFY,
+				    rid.ridacq_vp_index, ISPASYNC_CHANGE_OTHER);
+			} else {
+				fcp->isp_loopstate = LOOP_NIL;
+				isp_async(isp, ISPASYNC_LOOP_DOWN,
+				    rid.ridacq_vp_index);
+			}
 		}
 		return (1);
 	case RQSTYPE_ATIO:
