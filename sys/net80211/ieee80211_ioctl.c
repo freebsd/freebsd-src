@@ -2807,6 +2807,9 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		/* XXX verify ciphers available */
 		flags = vap->iv_flags & ~IEEE80211_F_WPA;
 		switch (ireq->i_val) {
+		case 0:
+			/* wpa_supplicant calls this to clear the WPA config */
+			break;
 		case 1:
 			if (!(vap->iv_caps & IEEE80211_C_WPA1))
 				return EOPNOTSUPP;
