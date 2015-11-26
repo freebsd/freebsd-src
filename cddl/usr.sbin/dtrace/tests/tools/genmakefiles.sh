@@ -63,7 +63,7 @@ CFILES= \\
 $tcfiles
 
 $special
-.include "../../Makefile.inc1"
+.include "../../dtrace.test.mk"
 __EOF__
 
     mv -f $makefile ${ORIGINDIR}/../common/${basedir}/Makefile

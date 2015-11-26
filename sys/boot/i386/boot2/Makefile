@@ -107,8 +107,8 @@ boot2.h: boot1.out
 .if ${MACHINE_CPUARCH} == "amd64"
 beforedepend boot2.s: machine
 CLEANFILES+=	machine
-machine:
-	ln -sf ${.CURDIR}/../../../i386/include machine
+machine: ${.CURDIR}/../../../i386/include .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
 .endif
 
 .include <bsd.prog.mk>

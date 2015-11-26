@@ -9,6 +9,7 @@ CFLAGS+=	-I${.OBJDIR}
 CLEANFILES+=	convert.c convert.c.tmp
 
 DPSRCS.acct_test=	convert.c
+acct_test.o: convert.c
 
 convert.c: ${SRCTOP}/sys/kern/kern_acct.c
 	sed -n -e 's/log(/syslog(/g' \

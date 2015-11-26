@@ -7,8 +7,6 @@ MAN=		ipmon.8
 CFLAGS+=	-DLOGFAC=LOG_LOCAL0 -I.
 
 GENHDRS+=	ipmon_l.h ipmon_y.h
-DPSRCS+=	${GENHDRS}
-
 CLEANFILES+=	${GENHDRS} ipmon_y.c ipmon_l.c
 
 ipmon_y.c: ipmon_y.y

@@ -20,7 +20,9 @@ BSENV= \
 	MAKESYSPATH=${SRCTOP}/tools/build/mk:${SRCTOP}/share/mk \
 	TARGET=${HOST_MACHINE} TARGET_ARCH=${HOST_MACHINE_ARCH} \
 	WITHOUT_STAGING=1 STAGE_ROOT= BOOTSTRAPPING_TOOLS=1 \
-	WORLDTMP=${BTOOLSDIR} LEGACY_TOOLS=${LEGACY_TOOLS}
+	WORLDTMP=${BTOOLSDIR} LEGACY_TOOLS=${LEGACY_TOOLS} \
+	INSTALL="sh ${SRCTOP}/tools/install.sh" \
+	PATH=${LEGACY_TOOLS}/usr/sbin:${LEGACY_TOOLS}/usr/bin:${LEGACY_TOOLS}/bin:${PATH}
 
 .if !defined(OSRELDATE)
 ord_h= /usr/include/osreldate.h
@@ -41,11 +43,12 @@ BSARGS= 	DESTDIR= \
 		MK_LLDB=no MK_TESTS=no \
 		MK_INCLUDES=yes
 
+DISTRIB_ENV=	INSTALL="sh ${SRCTOP}/tools/install.sh" NO_FSCHG=1 MK_TESTS=no
 legacy: .MAKE .META
 	mkdir -p ${LEGACY_TOOLS}
-	${MAKE} -C ${SRCTOP}/etc distrib-dirs -DNO_FSCHG DESTDIR=${BTOOLSDIR} \
-	    > $@.distrib-dirs_btoolsdir
-	${MAKE} -C ${SRCTOP}/etc distrib-dirs -DNO_FSCHG \
+	${DISTRIB_ENV} ${MAKE} -C ${SRCTOP}/etc distrib-dirs \
+	    DESTDIR=${BTOOLSDIR} > $@.distrib-dirs_btoolsdir
+	${DISTRIB_ENV} ${MAKE} -C ${SRCTOP}/etc distrib-dirs \
 	    DESTDIR=${LEGACY_TOOLS} > $@.distrib-dirs_legacy_tools
 	${BSENV} ${MAKE} -C ${SRCTOP} -f Makefile.inc1 ${BSARGS} $@
 	touch $@
@@ -59,7 +62,7 @@ cross-tools build-tools bootstrap-tools: .MAKE .META
 	touch $@
 
 # MAKELEVEL=0 so that dirdeps.mk does its thing
-# LEGACY_TOOLS lets us use the bootstaped stuff above
+# LEGACY_TOOLS lets us use the bootstrapped stuff above
 # TARGET* is so that MK_CLANG gets set correctly.
 BSTCENV= \
 	MAKELEVEL=0 \
@@ -76,4 +79,4 @@ BSTCARGS= \
 
 # finally we build toolchain leveraging the above.
 bootstrap-toolchain:	.MAKE cross-tools
-	${BSTCENV} ${MAKE} -C ${.CURDIR:H:H} ${BSTCARGS} toolchain
+	${BSTCENV} ${MAKE} -C ${.CURDIR:H:H} ${BSTCARGS:NDESTDIR=} toolchain

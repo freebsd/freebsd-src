@@ -2615,9 +2615,9 @@ dev/usb/net/if_udav.c		optional udav
 dev/usb/net/if_usie.c		optional usie
 dev/usb/net/if_urndis.c		optional urndis
 dev/usb/net/ruephy.c		optional rue
-dev/usb/net/usb_ethernet.c	optional aue | axe | axge | cdce | cue | kue | \
-					 mos | rue | smsc | udav | ipheth | \
-					 urndis
+dev/usb/net/usb_ethernet.c	optional uether | aue | axe | axge | cdce | \
+					 cue | ipheth | kue | mos | rue | \
+					 smsc | udav | urndis
 dev/usb/net/uhso.c		optional uhso
 #
 # USB WLAN drivers
@@ -3466,7 +3466,7 @@ net/if_dead.c			standard
 net/if_debug.c			optional ddb
 net/if_disc.c			optional disc
 net/if_edsc.c			optional edsc
-net/if_enc.c			optional enc ipsec inet | enc ipsec inet6
+net/if_enc.c			optional enc inet | enc inet6
 net/if_epair.c			optional epair
 net/if_ethersubr.c		optional ether
 net/if_fddisubr.c		optional fddi

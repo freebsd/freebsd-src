@@ -14,6 +14,7 @@ GENDIRDEPS_FILTER+= \
 	Ntargets/pseudo/stage* \
 	Ntools/*
 
+# Exclude toolchain which is handled special.
 .if ${RELDIR:Mtargets*} == ""
 .if ${RELDIR:Nusr.bin/clang/*:Ngnu/usr.bin/cc/*:Nlib/clang*} != ""
 GENDIRDEPS_FILTER.host+= \
@@ -22,7 +23,17 @@ GENDIRDEPS_FILTER.host+= \
 
 .endif
 GENDIRDEPS_FILTER+= \
+	Nlib/clang/include.host \
+	Nusr.bin/addr2line.host \
+	Nusr.bin/ar.host \
 	Nusr.bin/clang/clang.host \
+	Nusr.bin/elfcopy.host \
+	Nusr.bin/elfdump.host \
+	Nusr.bin/nm.host \
+	Nusr.bin/readelf.host \
+	Nusr.bin/size.host \
+	Nusr.bin/strings.host \
+	Nusr.bin/strip.host \
 	Ngnu/usr.bin/cc* \
 	Ngnu/usr.bin/binutils*.host \
 

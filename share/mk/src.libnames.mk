@@ -7,6 +7,9 @@
 .error src.libnames.mk cannot be included directly.
 .endif
 
+.if !target(__<src.libnames.mk>__)
+__<src.libnames.mk>__:
+
 .include <src.opts.mk>
 
 .if ${.OBJDIR:S,${.CURDIR},,} != ${.OBJDIR}
@@ -368,3 +371,67 @@ LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 LIBAMUDIR=	${ROOTOBJDIR}/usr.sbin/amd/libamu
 LIBAMU?=	${LIBAMUDIR}/libamu/libamu.a
 
+# Define a directory for each library.  This is useful for adding -L in when
+# not using a --sysroot or for meta mode bootstrapping when there is no
+# Makefile.depend.  These are sorted by directory.
+LIBAVLDIR=	${ROOTOBJDIR}/cddl/lib/libavl
+LIBCTFDIR=	${ROOTOBJDIR}/cddl/lib/libctf
+LIBDTRACEDIR=	${ROOTOBJDIR}/cddl/lib/libdtrace
+LIBNVPAIRDIR=	${ROOTOBJDIR}/cddl/lib/libnvpair
+LIBUMEMDIR=	${ROOTOBJDIR}/cddl/lib/libumem
+LIBUUTILDIR=	${ROOTOBJDIR}/cddl/lib/libuutil
+LIBZFSDIR=	${ROOTOBJDIR}/cddl/lib/libzfs
+LIBZFS_COREDIR=	${ROOTOBJDIR}/cddl/lib/libzfs_core
+LIBZPOOLDIR=	${ROOTOBJDIR}/cddl/lib/libzpool
+LIBDIALOGDIR=	${ROOTOBJDIR}/gnu/lib/libdialog
+LIBGCOVDIR=	${ROOTOBJDIR}/gnu/lib/libgcov
+LIBGOMPDIR=	${ROOTOBJDIR}/gnu/lib/libgomp
+LIBGNUREGEXDIR=	${ROOTOBJDIR}/gnu/lib/libregex
+LIBSSPDIR=	${ROOTOBJDIR}/gnu/lib/libssp
+LIBSSP_NONSHAREDDIR=	${ROOTOBJDIR}/gnu/lib/libssp/libssp_nonshared
+LIBSUPCPLUSPLUSDIR=	${ROOTOBJDIR}/gnu/lib/libsupc++
+LIBASN1DIR=	${ROOTOBJDIR}/kerberos5/lib/libasn1
+LIBGSSAPI_KRB5DIR=	${ROOTOBJDIR}/kerberos5/lib/libgssapi_krb5
+LIBGSSAPI_NTLMDIR=	${ROOTOBJDIR}/kerberos5/lib/libgssapi_ntlm
+LIBGSSAPI_SPNEGODIR=	${ROOTOBJDIR}/kerberos5/lib/libgssapi_spnego
+LIBHDBDIR=	${ROOTOBJDIR}/kerberos5/lib/libhdb
+LIBHEIMBASEDIR=	${ROOTOBJDIR}/kerberos5/lib/libheimbase
+LIBHEIMIPCCDIR=	${ROOTOBJDIR}/kerberos5/lib/libheimipcc
+LIBHEIMIPCSDIR=	${ROOTOBJDIR}/kerberos5/lib/libheimipcs
+LIBHEIMNTLMDIR=	${ROOTOBJDIR}/kerberos5/lib/libheimntlm
+LIBHX509DIR=	${ROOTOBJDIR}/kerberos5/lib/libhx509
+LIBKADM5CLNTDIR=	${ROOTOBJDIR}/kerberos5/lib/libkadm5clnt
+LIBKADM5SRVDIR=	${ROOTOBJDIR}/kerberos5/lib/libkadm5srv
+LIBKAFS5DIR=	${ROOTOBJDIR}/kerberos5/lib/libkafs5
+LIBKDCDIR=	${ROOTOBJDIR}/kerberos5/lib/libkdc
+LIBKRB5DIR=	${ROOTOBJDIR}/kerberos5/lib/libkrb5
+LIBROKENDIR=	${ROOTOBJDIR}/kerberos5/lib/libroken
+LIBWINDDIR=	${ROOTOBJDIR}/kerberos5/lib/libwind
+LIBALIASDIR=	${ROOTOBJDIR}/lib/libalias/libalias
+LIBBLOCKSRUNTIMEDIR=	${ROOTOBJDIR}/lib/libblocksruntime
+LIBBSNMPDIR=	${ROOTOBJDIR}/lib/libbsnmp/libbsnmp
+LIBBSDXMLDIR=	${ROOTOBJDIR}/lib/libexpat
+LIBKVMDIR=	${ROOTOBJDIR}/lib/libkvm
+LIBPTHREADDIR=	${ROOTOBJDIR}/lib/libthr
+LIBMDIR=	${ROOTOBJDIR}/lib/msun
+LIBFORMDIR=	${ROOTOBJDIR}/lib/ncurses/form
+LIBFORMLIBWDIR=	${ROOTOBJDIR}/lib/ncurses/formw
+LIBMENUDIR=	${ROOTOBJDIR}/lib/ncurses/menu
+LIBMENULIBWDIR=	${ROOTOBJDIR}/lib/ncurses/menuw
+LIBTERMCAPDIR=	${ROOTOBJDIR}/lib/ncurses/ncurses
+LIBTERMCAPWDIR=	${ROOTOBJDIR}/lib/ncurses/ncursesw
+LIBPANELDIR=	${ROOTOBJDIR}/lib/ncurses/panel
+LIBPANELWDIR=	${ROOTOBJDIR}/lib/ncurses/panelw
+LIBCRYPTODIR=	${ROOTOBJDIR}/secure/lib/libcrypto
+LIBSSHDIR=	${ROOTOBJDIR}/secure/lib/libssh
+LIBSSLDIR=	${ROOTOBJDIR}/secure/lib/libssl
+LIBTEKENDIR=	${ROOTOBJDIR}/sys/teken/libteken
+LIBEGACYDIR=	${ROOTOBJDIR}/tools/build
+LIBLNDIR=	${ROOTOBJDIR}/usr.bin/lex/lib
+
+# Default other library directories to lib/libNAME.
+.for lib in ${_LIBRARIES}
+LIB${lib:tu}DIR?=	${ROOTOBJDIR}/lib/lib${lib}
+.endfor
+
+.endif	# !target(__<src.libnames.mk>__)

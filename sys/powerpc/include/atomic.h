@@ -48,7 +48,7 @@
  */
 
 #ifdef __powerpc64__
-#define mb()		__asm __volatile("lwsync" : : : "memory")
+#define mb()		__asm __volatile("sync" : : : "memory")
 #define rmb()		__asm __volatile("lwsync" : : : "memory")
 #define wmb()		__asm __volatile("lwsync" : : : "memory")
 #define __ATOMIC_REL()	__asm __volatile("lwsync" : : : "memory")
@@ -60,6 +60,17 @@
 #define __ATOMIC_REL()	__asm __volatile("sync" : : : "memory")
 #define __ATOMIC_ACQ()	__asm __volatile("isync" : : : "memory")
 #endif
+
+static __inline void
+powerpc_lwsync(void)
+{
+
+#ifdef __powerpc64__
+	__asm __volatile("lwsync" : : : "memory");
+#else
+	__asm __volatile("sync" : : : "memory");
+#endif
+}
 
 /*
  * atomic_add(p, v)
@@ -506,7 +517,8 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)			\
 static __inline void						\
 atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)	\
 {								\
-	mb();							\
+								\
+	powerpc_lwsync();					\
 	*p = v;							\
 }
 
@@ -734,34 +746,21 @@ static __inline void
 atomic_thread_fence_acq(void)
 {
 
-	/* See above comment about lwsync being broken on Book-E. */
-#ifdef __powerpc64__
-	__asm __volatile("lwsync" : : : "memory");
-#else
-	__asm __volatile("sync" : : : "memory");
-#endif
+	powerpc_lwsync();
 }
 
 static __inline void
 atomic_thread_fence_rel(void)
 {
 
-#ifdef __powerpc64__
-	__asm __volatile("lwsync" : : : "memory");
-#else
-	__asm __volatile("sync" : : : "memory");
-#endif
+	powerpc_lwsync();
 }
 
 static __inline void
 atomic_thread_fence_acq_rel(void)
 {
 
-#ifdef __powerpc64__
-	__asm __volatile("lwsync" : : : "memory");
-#else
-	__asm __volatile("sync" : : : "memory");
-#endif
+	powerpc_lwsync();
 }
 
 static __inline void
