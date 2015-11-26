@@ -638,16 +638,6 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 		}
 	}
 
-	tval = 0;
-	snprintf(name, sizeof(name), "%shysteresis", prefix);
-	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "name", &tval);
-	if (tval >= 0 && tval < 256) {
-		ISP_FC_PC(isp, chan)->hysteresis = tval;
-	} else {
-		ISP_FC_PC(isp, chan)->hysteresis = isp_fabric_hysteresis;
-	}
-
 	tval = -1;
 	snprintf(name, sizeof(name), "%sloop_down_limit", prefix);
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),

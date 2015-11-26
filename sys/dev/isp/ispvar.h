@@ -438,10 +438,9 @@ typedef struct {
 	int			isp_loopstate;		/* Loop State */
 	int			isp_topo;		/* Connection Type */
 
-	uint32_t				: 3,
+	uint32_t				: 4,
 				fctape_enabled	: 1,
 				sendmarker	: 1,
-				loop_seen_once	: 1,
 				role		: 2,
 				isp_portid	: 24;	/* S_ID */
 
@@ -490,14 +489,15 @@ typedef struct {
 #define	FW_NON_PART		7
 
 #define	LOOP_NIL		0
-#define	LOOP_TESTING_LINK	1
-#define	LOOP_LTEST_DONE		2
-#define	LOOP_SCANNING_LOOP	3
-#define	LOOP_LSCAN_DONE		4
-#define	LOOP_SCANNING_FABRIC	5
-#define	LOOP_FSCAN_DONE		6
-#define	LOOP_SYNCING_PDB	7
-#define	LOOP_READY		8
+#define	LOOP_HAVE_LINK		1
+#define	LOOP_TESTING_LINK	2
+#define	LOOP_LTEST_DONE		3
+#define	LOOP_SCANNING_LOOP	4
+#define	LOOP_LSCAN_DONE		5
+#define	LOOP_SCANNING_FABRIC	6
+#define	LOOP_FSCAN_DONE		7
+#define	LOOP_SYNCING_PDB	8
+#define	LOOP_READY		9
 
 #define	TOPO_NL_PORT		0
 #define	TOPO_FL_PORT		1
