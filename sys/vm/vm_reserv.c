@@ -971,7 +971,7 @@ vm_reserv_reclaim_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
 {
 	vm_paddr_t pa, size;
 	vm_reserv_t rv;
-	int hi, i, lo, next_free;
+	int hi, i, lo, low_index, next_free;
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	if (npages > VM_LEVEL_0_NPAGES - 1)
@@ -990,8 +990,9 @@ vm_reserv_reclaim_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
 		}
 		if (pa < low) {
 			/* Start the search for free pages at "low". */
-			i = (low - pa) / NBPOPMAP;
-			hi = (low - pa) % NBPOPMAP;
+			low_index = (low + PAGE_MASK - pa) >> PAGE_SHIFT;
+			i = low_index / NBPOPMAP;
+			hi = low_index % NBPOPMAP;
 		} else
 			i = hi = 0;
 		do {
