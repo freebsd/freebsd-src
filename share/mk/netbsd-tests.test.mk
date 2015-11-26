@@ -3,8 +3,6 @@
 .if !target(__netbsd_tests.test.mk__)
 __netbsd_tests.test.mk__:
 
-OBJTOP?=	${.OBJDIR:S/${RELDIR}//}
-
 TESTSRC?=	${SRCTOP}/contrib/netbsd-tests/${RELDIR:H}
 
 .if !exists(${TESTSRC}/)
