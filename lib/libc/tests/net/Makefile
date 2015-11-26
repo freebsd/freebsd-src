@@ -29,7 +29,7 @@ DPADD.h_nsd_recurse+=	${LIBPTHREAD}
 LDADD.h_nsd_recurse+=	-lpthread
 
 CLEANFILES+=	aton_ether_subr.c
-aton_ether_subr.c: gen_ether_subr ${SRCTOP}/sys/net/if_ethersubr.c
+aton_ether_subr.c: gen_ether_subr ${.CURDIR:H:H:H:H}/sys/net/if_ethersubr.c
 	${HOST_SH} ${.ALLSRC} ${.TARGET}
 
 .include "../Makefile.netbsd-tests"
