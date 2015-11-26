@@ -1102,6 +1102,13 @@ wpa_driver_bsd_associate(void *priv, struct wpa_driver_associate_params *params)
 			  params->wpa_ie[0] == WLAN_EID_RSN ? 2 : 1) < 0)
 		return -1;
 
+	/*
+	 * NB: interface must be marked UP for association
+	 * or scanning (ap_scan=2)
+	 */
+	if (bsd_ctrl_iface(drv, 1) < 0)
+		return -1;
+
 	os_memset(&mlme, 0, sizeof(mlme));
 	mlme.im_op = IEEE80211_MLME_ASSOC;
 	if (params->ssid != NULL)
