@@ -88,6 +88,4 @@ FILES=	INDEX.keymaps \
 
 FILESDIR= ${SHAREDIR}/vt/keymaps
 
-NO_OBJ=
-
 .include <bsd.prog.mk>

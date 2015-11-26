@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-NO_OBJ=
-
 SUBDIR= include
 
 FILESDIR=	${LIBEXECDIR}/bsdconfig/includes

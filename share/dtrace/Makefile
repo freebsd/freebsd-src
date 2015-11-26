@@ -26,6 +26,4 @@ SCRIPTS=	blocking \
 
 SCRIPTSDIR= ${SHAREDIR}/dtrace
 
-NO_OBJ=
-
 .include <bsd.prog.mk>

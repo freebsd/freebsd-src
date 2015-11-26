@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-NO_OBJ=
-
 FILES=	pkg.freebsd.org.2013102301
 
 FILESDIR=	${SHAREDIR}/keys/pkg/trusted

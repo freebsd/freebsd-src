@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-NO_OBJ=
 FILESDIR= ${SHAREDIR}/examples/smbfs
 FILES=	dot.nsmbrc
 
