@@ -64,8 +64,6 @@ static void isp_poll(struct cam_sim *);
 static timeout_t isp_watchdog;
 static timeout_t isp_gdt;
 static task_fn_t isp_gdt_task;
-static timeout_t isp_ldt;
-static task_fn_t isp_ldt_task;
 static void isp_kthread(void *);
 static void isp_action(struct cam_sim *, union ccb *);
 static int isp_timer_count;
