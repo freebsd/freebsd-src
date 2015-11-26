@@ -67,29 +67,29 @@ IMPLEMENT_TEST_DATA(usershell)
 IMPLEMENT_TEST_FILE_SNAPSHOT(usershell)
 IMPLEMENT_2PASS_TEST(usershell)
 
-static void 
+static void
 clone_usershell(struct usershell *dest, struct usershell const *src)
 {
 	assert(dest != NULL);
 	assert(src != NULL);
-	
+
 	if (src->path != NULL) {
 		dest->path = strdup(src->path);
 		assert(dest->path != NULL);
 	}
 }
 
-static int 
+static int
 compare_usershell(struct usershell *us1, struct usershell *us2, void *mdata)
 {
 	int rv;
-	
+
 	assert(us1 != NULL);
 	assert(us2 != NULL);
-	
+
 	dump_usershell(us1);
 	dump_usershell(us2);
-	
+
 	if (us1 == us2)
 		return (0);
 
@@ -99,17 +99,17 @@ compare_usershell(struct usershell *us1, struct usershell *us2, void *mdata)
 		dump_usershell(us1);
 		dump_usershell(us2);
 	}
-	
+
 	return (rv);
 }
 
-static void 
+static void
 free_usershell(struct usershell *us)
 {
 	free(us->path);
 }
 
-static void 
+static void
 sdump_usershell(struct usershell *us, char *buffer, size_t buflen)
 {
 	snprintf(buffer, buflen, "%s", us->path);
@@ -126,12 +126,12 @@ dump_usershell(struct usershell *us)
 		printf("(null)\n");
 }
 
-static int 
+static int
 usershell_read_snapshot_func(struct usershell *us, char *line)
 {
 	us->path = strdup(line);
 	assert(us->path != NULL);
-	
+
 	return (0);
 }
 
@@ -152,7 +152,7 @@ main(int argc, char **argv)
 	char *snapshot_file;
 	int rv;
 	int c;
-	
+
 	if (argc < 2)
 		usage();
 
@@ -170,10 +170,10 @@ main(int argc, char **argv)
 			usage();
 		}
 	}
-	
+
 	TEST_DATA_INIT(usershell, &td, clone_usershell, free_usershell);
 	TEST_DATA_INIT(usershell, &td_snap, clone_usershell, free_usershell);
-			
+
 	setusershell();
 	while ((ushell.path = getusershell()) != NULL) {
 		if (debug) {
@@ -183,17 +183,17 @@ main(int argc, char **argv)
 		TEST_DATA_APPEND(usershell, &td, &ushell);
 	}
 	endusershell();
-	
-	
+
+
 	if (snapshot_file != NULL) {
-		if (access(snapshot_file, W_OK | R_OK) != 0) {		
+		if (access(snapshot_file, W_OK | R_OK) != 0) {
 			if (errno == ENOENT)
 				method = TEST_BUILD_SNAPSHOT;
 			else {
 				if (debug)
 				    printf("can't access the snapshot file %s\n",
 				    snapshot_file);
-			
+
 				rv = -1;
 				goto fin;
 			}
@@ -207,7 +207,7 @@ main(int argc, char **argv)
 			}
 		}
 	}
-		
+
 	switch (method) {
 	case TEST_GETUSERSHELL:
 		if (snapshot_file != NULL) {
@@ -217,7 +217,7 @@ main(int argc, char **argv)
 		break;
 	case TEST_BUILD_SNAPSHOT:
 		if (snapshot_file != NULL) {
-		    rv = TEST_SNAPSHOT_FILE_WRITE(usershell, snapshot_file, &td, 
+		    rv = TEST_SNAPSHOT_FILE_WRITE(usershell, snapshot_file, &td,
 			sdump_usershell);
 		}
 		break;
