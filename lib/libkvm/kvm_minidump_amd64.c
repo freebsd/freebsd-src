@@ -27,7 +27,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * AMD64 machine dependent routines for kvm and minidumps. 
+ * AMD64 machine dependent routines for kvm and minidumps.
  */
 
 #include <sys/param.h>

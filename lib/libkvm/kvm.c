@@ -91,7 +91,7 @@ kvm_fdnlist(int fd, struct nlist *list)
 	ps_err_e pserr;
 	int nfail;
 
-	nfail = 0; 
+	nfail = 0;
 	while (list->n_name != NULL && list->n_name[0] != '\0') {
 		list->n_other = 0;
 		list->n_desc = 0;
