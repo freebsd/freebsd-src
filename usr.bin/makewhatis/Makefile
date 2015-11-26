@@ -4,7 +4,7 @@ PROG=		makewhatis
 LIBADD=		z
 SCRIPTS=	makewhatis.local.sh
 MAN=		makewhatis.1 makewhatis.local.8
-SCRIPTSDIR=	/usr/libexec
+SCRIPTSDIR=	${LIBEXECDIR}
 LINKS=		${SCRIPTSDIR}/makewhatis.local ${SCRIPTSDIR}/catman.local
 MLINKS=		makewhatis.local.8 catman.local.8
 
