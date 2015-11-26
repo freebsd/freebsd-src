@@ -2,10 +2,6 @@
 
 kern/kern_clocksource.c				standard
 
-arm/arm/bus_space_base.c			standard
-arm/arm/bus_space_generic.c			standard
-
-arm/arm/pl310.c					standard
 arm/amlogic/aml8726/aml8726_l2cache.c		standard
 
 arm/amlogic/aml8726/aml8726_machdep.c		standard

@@ -114,7 +114,7 @@ struct ntb_pci_bar_info {
 	vm_paddr_t		pbase;
 	caddr_t			vbase;
 	vm_size_t		size;
-	bool			mapped_wc : 1;
+	vm_memattr_t		map_mode;
 
 	/* Configuration register offsets */
 	uint32_t		psz_off;
@@ -264,11 +264,14 @@ bus_space_write_8(bus_space_tag_t tag, bus_space_handle_t handle,
 static int ntb_probe(device_t device);
 static int ntb_attach(device_t device);
 static int ntb_detach(device_t device);
+static unsigned ntb_user_mw_to_idx(struct ntb_softc *, unsigned uidx);
 static inline enum ntb_bar ntb_mw_to_bar(struct ntb_softc *, unsigned mw);
 static inline bool bar_is_64bit(struct ntb_softc *, enum ntb_bar);
 static inline void bar_get_xlat_params(struct ntb_softc *, enum ntb_bar,
     uint32_t *base, uint32_t *xlat, uint32_t *lmt);
 static int ntb_map_pci_bars(struct ntb_softc *ntb);
+static int ntb_mw_set_wc_internal(struct ntb_softc *, unsigned idx,
+    vm_memattr_t);
 static void print_map_success(struct ntb_softc *, struct ntb_pci_bar_info *,
     const char *);
 static int map_mmr_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar);
@@ -331,6 +334,14 @@ SYSCTL_UINT(_hw_ntb, OID_AUTO, debug_level, CTLFLAG_RWTUN,
 static unsigned g_ntb_enable_wc = 1;
 SYSCTL_UINT(_hw_ntb, OID_AUTO, enable_writecombine, CTLFLAG_RDTUN,
     &g_ntb_enable_wc, 0, "Set to 1 to map memory windows write combining");
+
+static int g_ntb_mw_idx = -1;
+SYSCTL_INT(_hw_ntb, OID_AUTO, b2b_mw_idx, CTLFLAG_RDTUN, &g_ntb_mw_idx,
+    0, "Use this memory window to access the peer NTB registers.  A "
+    "non-negative value starts from the first MW index; a negative value "
+    "starts from the last MW index.  The default is -1, i.e., the last "
+    "available memory window.  Both sides of the NTB MUST set the same "
+    "value here!  (Applies on Xeon platforms with SDOORBELL_LOCKUP errata.)");
 
 static struct ntb_hw_info pci_ids[] = {
 	/* XXX: PS/SS IDs left out until they are supported. */
@@ -579,11 +590,6 @@ ntb_detach(device_t device)
 	mtx_destroy(&ntb->db_mask_lock);
 	mtx_destroy(&ntb->ctx_lock);
 
-	/*
-	 * Redetect total MWs so we unmap properly -- in case we lowered the
-	 * maximum to work around Xeon errata.
-	 */
-	ntb_detect_max_mw(ntb);
 	ntb_unmap_pci_bar(ntb);
 
 	return (0);
@@ -596,8 +602,7 @@ static inline enum ntb_bar
 ntb_mw_to_bar(struct ntb_softc *ntb, unsigned mw)
 {
 
-	KASSERT(mw < ntb->mw_count ||
-	    (mw != B2B_MW_DISABLED && mw == ntb->b2b_mw_idx),
+	KASSERT(mw < ntb->mw_count,
 	    ("%s: mw:%u > count:%u", __func__, mw, (unsigned)ntb->mw_count));
 	KASSERT(ntb->reg->mw_bar[mw] != 0, ("invalid mw"));
 
@@ -668,11 +673,9 @@ ntb_map_pci_bars(struct ntb_softc *ntb)
 	ntb->bar_info[NTB_B2B_BAR_1].pbarxlat_off = XEON_PBAR2XLAT_OFFSET;
 
 	ntb->bar_info[NTB_B2B_BAR_2].pci_resource_id = PCIR_BAR(4);
-	/* XXX Are shared MW B2Bs write-combining? */
-	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP) && !HAS_FEATURE(NTB_SPLIT_BAR))
-		rc = map_mmr_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_2]);
-	else
-		rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_2]);
+	rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_2]);
+	if (rc != 0)
+		goto out;
 	ntb->bar_info[NTB_B2B_BAR_2].psz_off = XEON_PBAR4SZ_OFFSET;
 	ntb->bar_info[NTB_B2B_BAR_2].ssz_off = XEON_SBAR4SZ_OFFSET;
 	ntb->bar_info[NTB_B2B_BAR_2].pbarxlat_off = XEON_PBAR4XLAT_OFFSET;
@@ -681,10 +684,7 @@ ntb_map_pci_bars(struct ntb_softc *ntb)
 		goto out;
 
 	ntb->bar_info[NTB_B2B_BAR_3].pci_resource_id = PCIR_BAR(5);
-	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP))
-		rc = map_mmr_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_3]);
-	else
-		rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_3]);
+	rc = map_memory_window_bar(ntb, &ntb->bar_info[NTB_B2B_BAR_3]);
 	ntb->bar_info[NTB_B2B_BAR_3].psz_off = XEON_PBAR5SZ_OFFSET;
 	ntb->bar_info[NTB_B2B_BAR_3].ssz_off = XEON_SBAR5SZ_OFFSET;
 	ntb->bar_info[NTB_B2B_BAR_3].pbarxlat_off = XEON_PBAR5XLAT_OFFSET;
@@ -719,6 +719,7 @@ map_mmr_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 		return (ENXIO);
 
 	save_bar_parameters(bar);
+	bar->map_mode = VM_MEMATTR_UNCACHEABLE;
 	print_map_success(ntb, bar, "mmr");
 	return (0);
 }
@@ -727,6 +728,7 @@ static int
 map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 {
 	int rc;
+	vm_memattr_t mapmode;
 	uint8_t bar_size_bits = 0;
 
 	bar->pci_resource = bus_alloc_resource_any(ntb->device, SYS_RES_MEMORY,
@@ -772,29 +774,34 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 		save_bar_parameters(bar);
 	}
 
+	bar->map_mode = VM_MEMATTR_UNCACHEABLE;
 	print_map_success(ntb, bar, "mw");
-	if (g_ntb_enable_wc == 0)
-		return (0);
 
 	/* Mark bar region as write combining to improve performance. */
-	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size,
-	    VM_MEMATTR_WRITE_COMBINING);
+	mapmode = VM_MEMATTR_WRITE_COMBINING;
+	if (g_ntb_enable_wc == 0)
+		mapmode = VM_MEMATTR_WRITE_BACK;
+
+	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size, mapmode);
 	if (rc == 0) {
-		bar->mapped_wc = true;
+		bar->map_mode = mapmode;
 		device_printf(ntb->device,
 		    "Marked BAR%d v:[%p-%p] p:[%p-%p] as "
-		    "WRITE_COMBINING.\n",
-		    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
-		    (char *)bar->vbase + bar->size - 1,
-		    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1));
-	} else
-		device_printf(ntb->device,
-		    "Unable to mark BAR%d v:[%p-%p] p:[%p-%p] as "
-		    "WRITE_COMBINING: %d\n",
+		    "%s.\n",
 		    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
 		    (char *)bar->vbase + bar->size - 1,
 		    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1),
-		    rc);
+		    (mapmode == VM_MEMATTR_WRITE_COMBINING) ? "WRITE_COMBINING"
+		    : "WRITE_BACK");
+	} else
+		device_printf(ntb->device,
+		    "Unable to mark BAR%d v:[%p-%p] p:[%p-%p] as "
+		    "%s: %d\n",
+		    PCI_RID2BAR(bar->pci_resource_id), bar->vbase,
+		    (char *)bar->vbase + bar->size - 1,
+		    (void *)bar->pbase, (void *)(bar->pbase + bar->size - 1),
+		    (mapmode == VM_MEMATTR_WRITE_COMBINING) ? "WRITE_COMBINING"
+		    : "WRITE_BACK", rc);
 		/* Proceed anyway */
 	return (0);
 }
@@ -1264,14 +1271,18 @@ ntb_xeon_init_dev(struct ntb_softc *ntb)
 	/*
 	 * There is a Xeon hardware errata related to writes to SDOORBELL or
 	 * B2BDOORBELL in conjunction with inbound access to NTB MMIO space,
-	 * which may hang the system.  To workaround this use the second memory
+	 * which may hang the system.  To workaround this, use a memory
 	 * window to access the interrupt and scratch pad registers on the
 	 * remote system.
 	 */
-	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP))
-		/* Use the last MW for mapping remote spad */
-		ntb->b2b_mw_idx = ntb->mw_count - 1;
-	else if (HAS_FEATURE(NTB_B2BDOORBELL_BIT14))
+	if (HAS_FEATURE(NTB_SDOORBELL_LOCKUP)) {
+		ntb->b2b_mw_idx = (ntb->mw_count + g_ntb_mw_idx) %
+		    ntb->mw_count;
+		ntb_printf(2, "Setting up b2b mw idx %d means %u\n",
+		    g_ntb_mw_idx, ntb->b2b_mw_idx);
+		rc = ntb_mw_set_wc_internal(ntb, ntb->b2b_mw_idx, VM_MEMATTR_UNCACHEABLE);
+		KASSERT(rc == 0, ("shouldn't fail"));
+	} else if (HAS_FEATURE(NTB_B2BDOORBELL_BIT14))
 		/*
 		 * HW Errata on bit 14 of b2bdoorbell register.  Writes will not be
 		 * mirrored to the remote system.  Shrink the number of bits by one,
@@ -1481,7 +1492,6 @@ xeon_setup_b2b_mw(struct ntb_softc *ntb, const struct ntb_b2b_addr *addr,
 			ntb->b2b_off = bar_size >> 1;
 		else if (bar_size >= XEON_B2B_MIN_SIZE) {
 			ntb->b2b_off = 0;
-			ntb->mw_count--;
 		} else {
 			device_printf(ntb->device,
 			    "B2B bar size is too small!\n");
@@ -1999,7 +2009,7 @@ ntb_sysctl_init(struct ntb_softc *ntb)
 	    "A", "Link status");
 
 	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "mw_count", CTLFLAG_RD,
-	    &ntb->mw_count, 0, "MW count (excl. non-shared B2B register BAR)");
+	    &ntb->mw_count, 0, "MW count");
 	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "spad_count", CTLFLAG_RD,
 	    &ntb->spad_count, 0, "Scratchpad count");
 	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "db_count", CTLFLAG_RD,
@@ -2341,6 +2351,16 @@ sysctl_handle_register(SYSCTL_HANDLER_ARGS)
 	return (EINVAL);
 }
 
+static unsigned
+ntb_user_mw_to_idx(struct ntb_softc *ntb, unsigned uidx)
+{
+
+	if (ntb->b2b_mw_idx != B2B_MW_DISABLED && ntb->b2b_off == 0 &&
+	    uidx >= ntb->b2b_mw_idx)
+		return (uidx + 1);
+	return (uidx);
+}
+
 /*
  * Public API to the rest of the OS
  */
@@ -2361,10 +2381,18 @@ ntb_get_max_spads(struct ntb_softc *ntb)
 	return (ntb->spad_count);
 }
 
+/*
+ * ntb_mw_count() - Get the number of memory windows available for KPI
+ * consumers.
+ *
+ * (Excludes any MW wholly reserved for register access.)
+ */
 uint8_t
 ntb_mw_count(struct ntb_softc *ntb)
 {
 
+	if (ntb->b2b_mw_idx != B2B_MW_DISABLED && ntb->b2b_off == 0)
+		return (ntb->mw_count - 1);
 	return (ntb->mw_count);
 }
 
@@ -2495,6 +2523,7 @@ ntb_mw_get_range(struct ntb_softc *ntb, unsigned mw_idx, vm_paddr_t *base,
 
 	if (mw_idx >= ntb_mw_count(ntb))
 		return (EINVAL);
+	mw_idx = ntb_user_mw_to_idx(ntb, mw_idx);
 
 	bar_num = ntb_mw_to_bar(ntb, mw_idx);
 	bar = &ntb->bar_info[bar_num];
@@ -2553,6 +2582,7 @@ ntb_mw_set_trans(struct ntb_softc *ntb, unsigned idx, bus_addr_t addr,
 
 	if (idx >= ntb_mw_count(ntb))
 		return (EINVAL);
+	idx = ntb_user_mw_to_idx(ntb, idx);
 
 	bar_num = ntb_mw_to_bar(ntb, idx);
 	bar = &ntb->bar_info[bar_num];
@@ -2650,51 +2680,61 @@ ntb_mw_clear_trans(struct ntb_softc *ntb, unsigned mw_idx)
  *
  * Returns:  Zero on success, setting *wc; otherwise an error number (e.g. if
  * idx is an invalid memory window).
+ *
+ * Mode is a VM_MEMATTR_* type.
  */
 int
-ntb_mw_get_wc(struct ntb_softc *ntb, unsigned idx, bool *wc)
+ntb_mw_get_wc(struct ntb_softc *ntb, unsigned idx, vm_memattr_t *mode)
 {
 	struct ntb_pci_bar_info *bar;
 
 	if (idx >= ntb_mw_count(ntb))
 		return (EINVAL);
+	idx = ntb_user_mw_to_idx(ntb, idx);
 
 	bar = &ntb->bar_info[ntb_mw_to_bar(ntb, idx)];
-	*wc = bar->mapped_wc;
+	*mode = bar->map_mode;
 	return (0);
 }
 
 /*
  * ntb_mw_set_wc - Set the write-combine status of a memory window
  *
- * If 'wc' matches the current status, this does nothing and succeeds.
+ * If 'mode' matches the current status, this does nothing and succeeds.  Mode
+ * is a VM_MEMATTR_* type.
  *
  * Returns:  Zero on success, setting the caching attribute on the virtual
  * mapping of the BAR; otherwise an error number (e.g. if idx is an invalid
  * memory window, or if changing the caching attribute fails).
  */
 int
-ntb_mw_set_wc(struct ntb_softc *ntb, unsigned idx, bool wc)
+ntb_mw_set_wc(struct ntb_softc *ntb, unsigned idx, vm_memattr_t mode)
 {
-	struct ntb_pci_bar_info *bar;
-	vm_memattr_t attr;
-	int rc;
 
 	if (idx >= ntb_mw_count(ntb))
 		return (EINVAL);
 
+	idx = ntb_user_mw_to_idx(ntb, idx);
+	return (ntb_mw_set_wc_internal(ntb, idx, mode));
+}
+
+static int
+ntb_mw_set_wc_internal(struct ntb_softc *ntb, unsigned idx, vm_memattr_t mode)
+{
+	struct ntb_pci_bar_info *bar;
+	int rc;
+
 	bar = &ntb->bar_info[ntb_mw_to_bar(ntb, idx)];
-	if (bar->mapped_wc == wc)
+	if (bar->map_mode == mode)
 		return (0);
 
-	if (wc)
-		attr = VM_MEMATTR_WRITE_COMBINING;
-	else
-		attr = VM_MEMATTR_DEFAULT;
+	if (mode != VM_MEMATTR_UNCACHEABLE && mode != VM_MEMATTR_DEFAULT &&
+	    mode != VM_MEMATTR_WRITE_COMBINING)
+		return (EINVAL);
 
-	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size, attr);
+	rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size, mode);
 	if (rc == 0)
-		bar->mapped_wc = wc;
+		bar->map_mode = mode;
 
 	return (rc);
 }
@@ -2741,9 +2781,6 @@ ntb_get_peer_db_addr(struct ntb_softc *ntb, vm_size_t *sz_out)
 		bar = &ntb->bar_info[NTB_CONFIG_BAR];
 		regoff = ntb->peer_reg->db_bell;
 	} else {
-		KASSERT((HAS_FEATURE(NTB_SPLIT_BAR) && ntb->mw_count == 2) ||
-		    (!HAS_FEATURE(NTB_SPLIT_BAR) && ntb->mw_count == 1),
-		    ("mw_count invalid after setup"));
 		KASSERT(ntb->b2b_mw_idx != B2B_MW_DISABLED,
 		    ("invalid b2b idx"));
 

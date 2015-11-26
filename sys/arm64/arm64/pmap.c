@@ -215,6 +215,8 @@ struct msgbuf *msgbufp = NULL;
 
 static struct rwlock_padalign pvh_global_lock;
 
+vm_paddr_t dmap_phys_base;	/* The start of the dmap region */
+
 /*
  * Data for the pv entry allocation mechanism
  */
@@ -446,18 +448,19 @@ pmap_early_vtophys(vm_offset_t l1pt, vm_offset_t va)
 }
 
 static void
-pmap_bootstrap_dmap(vm_offset_t l1pt)
+pmap_bootstrap_dmap(vm_offset_t l1pt, vm_paddr_t kernstart)
 {
 	vm_offset_t va;
 	vm_paddr_t pa;
 	pd_entry_t *l1;
 	u_int l1_slot;
 
+	pa = dmap_phys_base = kernstart & ~L1_OFFSET;
 	va = DMAP_MIN_ADDRESS;
 	l1 = (pd_entry_t *)l1pt;
 	l1_slot = pmap_l1_index(DMAP_MIN_ADDRESS);
 
-	for (pa = 0; va < DMAP_MAX_ADDRESS;
+	for (; va < DMAP_MAX_ADDRESS;
 	    pa += L1_SIZE, va += L1_SIZE, l1_slot++) {
 		KASSERT(l1_slot < Ln_ENTRIES, ("Invalid L1 index"));
 
@@ -548,7 +551,8 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	pt_entry_t *l2;
 	vm_offset_t va, freemempos;
 	vm_offset_t dpcpu, msgbufpv;
-	vm_paddr_t pa;
+	vm_paddr_t pa, min_pa;
+	int i;
 
 	kern_delta = KERNBASE - kernstart;
 	physmem = 0;
@@ -566,8 +570,23 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	 */
 	rw_init(&pvh_global_lock, "pmap pv global");
 
+	/* Assume the address we were loaded to is a valid physical address */
+	min_pa = KERNBASE - kern_delta;
+
+	/*
+	 * Find the minimum physical address. physmap is sorted,
+	 * but may contain empty ranges.
+	 */
+	for (i = 0; i < (physmap_idx * 2); i += 2) {
+		if (physmap[i] == physmap[i + 1])
+			continue;
+		if (physmap[i] <= min_pa)
+			min_pa = physmap[i];
+		break;
+	}
+
 	/* Create a direct map region early so we can use it for pa -> va */
-	pmap_bootstrap_dmap(l1pt);
+	pmap_bootstrap_dmap(l1pt, min_pa);
 
 	va = KERNBASE;
 	pa = KERNBASE - kern_delta;

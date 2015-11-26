@@ -82,8 +82,8 @@ int ntb_mw_get_range(struct ntb_softc *, unsigned mw_idx, vm_paddr_t *base,
 int ntb_mw_set_trans(struct ntb_softc *, unsigned mw_idx, bus_addr_t, size_t);
 int ntb_mw_clear_trans(struct ntb_softc *, unsigned mw_idx);
 
-int ntb_mw_get_wc(struct ntb_softc *, unsigned mw_idx, bool *wc);
-int ntb_mw_set_wc(struct ntb_softc *, unsigned mw_idx, bool wc);
+int ntb_mw_get_wc(struct ntb_softc *, unsigned mw_idx, vm_memattr_t *mode);
+int ntb_mw_set_wc(struct ntb_softc *, unsigned mw_idx, vm_memattr_t mode);
 
 uint8_t ntb_get_max_spads(struct ntb_softc *ntb);
 int ntb_spad_write(struct ntb_softc *ntb, unsigned int idx, uint32_t val);
@@ -102,6 +102,9 @@ void ntb_db_clear_mask(struct ntb_softc *, uint64_t bits);
 uint64_t ntb_db_read(struct ntb_softc *);
 void ntb_db_set_mask(struct ntb_softc *, uint64_t bits);
 void ntb_peer_db_set(struct ntb_softc *, uint64_t bits);
+
+#define XEON_SPAD_COUNT		16
+#define ATOM_SPAD_COUNT		16
 
 /* Hardware owns the low 16 bits of features. */
 #define NTB_BAR_SIZE_4K		(1 << 0)

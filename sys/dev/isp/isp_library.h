@@ -171,25 +171,22 @@ void *isp_find_xs_tgt(ispsoftc_t *, uint32_t);
 uint32_t isp_find_tgt_handle(ispsoftc_t *, void *);
 void isp_destroy_tgt_handle(ispsoftc_t *, uint32_t);
 #endif
-int isp_find_pdb_by_wwn(ispsoftc_t *, int, uint64_t, fcportdb_t **);
-#ifdef ISP_TARGET_MODE
+int isp_find_pdb_empty(ispsoftc_t *, int, fcportdb_t **);
+int isp_find_pdb_by_wwpn(ispsoftc_t *, int, uint64_t, fcportdb_t **);
 int isp_find_pdb_by_handle(ispsoftc_t *, int, uint16_t, fcportdb_t **);
-int isp_find_pdb_by_sid(ispsoftc_t *, int, uint32_t, fcportdb_t **);
+int isp_find_pdb_by_portid(ispsoftc_t *, int, uint32_t, fcportdb_t **);
+#ifdef ISP_TARGET_MODE
 void isp_find_chan_by_did(ispsoftc_t *, uint32_t, uint16_t *);
 void isp_add_wwn_entry(ispsoftc_t *, int, uint64_t, uint64_t, uint16_t, uint32_t, uint16_t);
 void isp_del_wwn_entry(ispsoftc_t *, int, uint64_t, uint16_t, uint32_t);
 void isp_del_all_wwn_entries(ispsoftc_t *, int);
 void isp_del_wwn_entries(ispsoftc_t *, isp_notify_t *);
 
-void isp_put_atio(ispsoftc_t *, at_entry_t *, at_entry_t *);
-void isp_get_atio(ispsoftc_t *, at_entry_t *, at_entry_t *);
 void isp_put_atio2(ispsoftc_t *, at2_entry_t *, at2_entry_t *);
 void isp_put_atio2e(ispsoftc_t *, at2e_entry_t *, at2e_entry_t *);
 void isp_get_atio2(ispsoftc_t *, at2_entry_t *, at2_entry_t *);
 void isp_get_atio2e(ispsoftc_t *, at2e_entry_t *, at2e_entry_t *);
 void isp_get_atio7(ispsoftc_t *isp, at7_entry_t *, at7_entry_t *);
-void isp_put_ctio(ispsoftc_t *, ct_entry_t *, ct_entry_t *);
-void isp_get_ctio(ispsoftc_t *, ct_entry_t *, ct_entry_t *);
 void isp_put_ctio2(ispsoftc_t *, ct2_entry_t *, ct2_entry_t *);
 void isp_put_ctio2e(ispsoftc_t *, ct2e_entry_t *, ct2e_entry_t *);
 void isp_put_ctio7(ispsoftc_t *, ct7_entry_t *, ct7_entry_t *);
@@ -198,16 +195,12 @@ void isp_get_ctio2e(ispsoftc_t *, ct2e_entry_t *, ct2e_entry_t *);
 void isp_get_ctio7(ispsoftc_t *, ct7_entry_t *, ct7_entry_t *);
 void isp_put_enable_lun(ispsoftc_t *, lun_entry_t *, lun_entry_t *);
 void isp_get_enable_lun(ispsoftc_t *, lun_entry_t *, lun_entry_t *);
-void isp_put_notify(ispsoftc_t *, in_entry_t *, in_entry_t *);
-void isp_get_notify(ispsoftc_t *, in_entry_t *, in_entry_t *);
 void isp_put_notify_fc(ispsoftc_t *, in_fcentry_t *, in_fcentry_t *);
 void isp_put_notify_fc_e(ispsoftc_t *, in_fcentry_e_t *, in_fcentry_e_t *);
 void isp_put_notify_24xx(ispsoftc_t *, in_fcentry_24xx_t *, in_fcentry_24xx_t *);
 void isp_get_notify_fc(ispsoftc_t *, in_fcentry_t *, in_fcentry_t *);
 void isp_get_notify_fc_e(ispsoftc_t *, in_fcentry_e_t *, in_fcentry_e_t *);
 void isp_get_notify_24xx(ispsoftc_t *, in_fcentry_24xx_t *, in_fcentry_24xx_t *);
-void isp_put_notify_ack(ispsoftc_t *, na_entry_t *, na_entry_t *);
-void isp_get_notify_ack(ispsoftc_t *, na_entry_t *, na_entry_t *);
 void isp_put_notify_24xx_ack(ispsoftc_t *, na_fcentry_24xx_t *, na_fcentry_24xx_t *);
 void isp_put_notify_ack_fc(ispsoftc_t *, na_fcentry_t *, na_fcentry_t *);
 void isp_put_notify_ack_fc_e(ispsoftc_t *, na_fcentry_e_t *, na_fcentry_e_t *);

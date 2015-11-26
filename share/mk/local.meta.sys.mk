@@ -54,7 +54,7 @@ BOOT_MACHINE_DIR.amd64 = boot/i386
 MACHINE_ARCH.host = ${_HOST_ARCH}
 
 # the list of machines we support
-ALL_MACHINE_LIST?= amd64 arm arm64 i386 ia64 mips pc98 powerpc sparc64
+ALL_MACHINE_LIST?= amd64 arm arm64 i386 mips pc98 powerpc sparc64
 .for m in ${ALL_MACHINE_LIST:O:u}
 MACHINE_ARCH_LIST.$m?= ${TARGET_ARCHES_${m}:U$m}
 MACHINE_ARCH.$m?= ${MACHINE_ARCH_LIST.$m:[1]}
@@ -149,6 +149,13 @@ STAGE_MACHINE:= ${TARGET_OBJ_SPEC}
 STAGE_OBJTOP:= ${STAGE_ROOT}/${STAGE_MACHINE}
 STAGE_COMMON_OBJTOP:= ${STAGE_ROOT}/common
 STAGE_HOST_OBJTOP:= ${STAGE_ROOT}/${HOST_TARGET}
+
+# Use tools/install.sh which can avoid the need for xinstall for simple cases.
+INSTALL?=	sh ${SRCTOP}/tools/install.sh
+# This is for stage-install to pickup from the environment.
+REAL_INSTALL:=	${INSTALL}
+.export REAL_INSTALL
+STAGE_INSTALL=	sh ${.PARSEDIR:tA}/stage-install.sh OBJDIR=${.OBJDIR:tA}
 
 STAGE_LIBDIR= ${STAGE_OBJTOP}${_LIBDIR:U${LIBDIR:U/lib}}
 STAGE_INCLUDEDIR= ${STAGE_OBJTOP}${INCLUDEDIR:U/usr/include}

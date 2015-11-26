@@ -62,6 +62,8 @@ options 	DDB			# Enable the kernel debugger
 device		fdt_pinctrl
 # Interrupt controller
 device		gic
+# ARM MPCore timer
+device		mpcore_timer
 
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus

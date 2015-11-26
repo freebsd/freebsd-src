@@ -48,7 +48,6 @@
 
 #include "assym.s"
 
-#include "opt_kdtrace.h"
 #include <machine/acle-compat.h>
 #include <machine/asm.h>
 #include <machine/armreg.h>

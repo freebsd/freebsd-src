@@ -169,11 +169,9 @@ typedef struct tstate {
 	struct isp_ccbq waitq;		/* waiting CCBs */
 	struct ccb_hdr_slist atios;
 	struct ccb_hdr_slist inots;
-	uint32_t hold;
-	uint32_t
-		enabled		: 1,
-		atio_count	: 15,
-		inot_count	: 15;
+	uint32_t		hold;
+	uint16_t		atio_count;
+	uint16_t		inot_count;
 	inot_private_data_t *	restart_queue;
 	inot_private_data_t *	ntfree;
 	inot_private_data_t	ntpool[ATPDPSIZE];
@@ -239,11 +237,6 @@ struct isp_fc {
 	struct isp_nexus *nexus_hash[NEXUS_HASH_WIDTH];
 	struct isp_nexus *nexus_free_list;
 	uint32_t
-#ifdef	ISP_TARGET_MODE
-		tm_luns_enabled	: 1,
-		tm_enable_defer	: 1,
-		tm_enabled	: 1,
-#endif
 		simqfrozen	: 3,
 		default_id	: 8,
 		hysteresis	: 8,
@@ -269,13 +262,7 @@ struct isp_spi {
 	struct cam_sim *sim;
 	struct cam_path *path;
 	uint32_t
-#ifdef	ISP_TARGET_MODE
-		tm_luns_enabled	: 1,
-		tm_enable_defer	: 1,
-		tm_enabled	: 1,
-#endif
 		simqfrozen	: 3,
-		def_role	: 2,
 		iid		: 4;
 #ifdef	ISP_TARGET_MODE
 	struct tslist lun_hash[LUN_HASH_SIZE];
@@ -324,7 +311,6 @@ struct isposinfo {
 		timer_active	: 1,
 		autoconf	: 1,
 		ehook_active	: 1,
-		disabled	: 1,
 		mbox_sleeping	: 1,
 		mbox_sleep_ok	: 1,
 		mboxcmd_done	: 1,
@@ -338,10 +324,6 @@ struct isposinfo {
 	int			framesize;
 	int			exec_throttle;
 	int			cont_max;
-
-#ifdef	ISP_TARGET_MODE
-	cam_status *		rptr;
-#endif
 
 	bus_addr_t		ecmd_dma;
 	isp_ecmd_t *		ecmd_base;
@@ -617,14 +599,8 @@ default:							\
 #define	DEFAULT_FRAMESIZE(isp)		isp->isp_osinfo.framesize
 #define	DEFAULT_EXEC_THROTTLE(isp)	isp->isp_osinfo.exec_throttle
 
-#define	GET_DEFAULT_ROLE(isp, chan)	\
-	(IS_FC(isp)? ISP_FC_PC(isp, chan)->def_role : ISP_SPI_PC(isp, chan)->def_role)
-#define	SET_DEFAULT_ROLE(isp, chan, val)		\
-	if (IS_FC(isp)) { 				\
-		ISP_FC_PC(isp, chan)->def_role = val;	\
-	} else {					\
-		ISP_SPI_PC(isp, chan)->def_role = val;	\
-	}
+#define	DEFAULT_ROLE(isp, chan)	\
+	(IS_FC(isp)? ISP_FC_PC(isp, chan)->def_role : ISP_ROLE_INITIATOR)
 
 #define	DEFAULT_IID(isp, chan)		isp->isp_osinfo.pc.spi[chan].iid
 

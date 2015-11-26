@@ -32,7 +32,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_enc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -41,11 +40,12 @@
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/errno.h>
+#include <sys/hhook.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_enc.h>
 #include <net/if_var.h>
-#include <net/pfil.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -87,11 +87,6 @@
 #ifdef IPSEC_NAT_T
 #include <netinet/udp.h>
 #endif
-
-#ifdef DEV_ENC
-#include <net/if_enc.h>
-#endif
-
 
 int
 ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
@@ -531,6 +526,7 @@ int
 ipsec4_process_packet(struct mbuf *m, struct ipsecrequest *isr)
 {
 	char sbuf[INET6_ADDRSTRLEN], dbuf[INET6_ADDRSTRLEN];
+	struct ipsec_ctx_data ctx;
 	union sockaddr_union *dst;
 	struct secasindex saidx;
 	struct secasvar *sav;
@@ -555,19 +551,13 @@ ipsec4_process_packet(struct mbuf *m, struct ipsecrequest *isr)
 		error = ENOBUFS;
 		goto bad;
 	}
+
+	IPSEC_INIT_CTX(&ctx, &m, sav, AF_INET, IPSEC_ENC_BEFORE);
+	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_OUT)) != 0)
+		goto bad;
+
 	ip = mtod(m, struct ip *);
 	dst = &sav->sah->saidx.dst;
-#ifdef DEV_ENC
-	if_inc_counter(encif, IFCOUNTER_OPACKETS, 1);
-	if_inc_counter(encif, IFCOUNTER_OBYTES, m->m_pkthdr.len);
-
-	/* pass the mbuf to enc0 for bpf processing */
-	ipsec_bpf(m, sav, AF_INET, ENC_OUT|ENC_BEFORE);
-	/* pass the mbuf to enc0 for packet filtering */
-	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_BEFORE)) != 0)
-		goto bad;
-	ip = mtod(m, struct ip *);
-#endif
 	/* Do the appropriate encapsulation, if necessary */
 	if (isr->saidx.mode == IPSEC_MODE_TUNNEL || /* Tunnel requ'd */
 	    dst->sa.sa_family != AF_INET ||	    /* PF mismatch */
@@ -589,13 +579,10 @@ ipsec4_process_packet(struct mbuf *m, struct ipsecrequest *isr)
 			goto bad;
 		}
 	}
-#ifdef DEV_ENC
-	/* pass the mbuf to enc0 for bpf processing */
-	ipsec_bpf(m, sav, sav->sah->saidx.dst.sa.sa_family, ENC_OUT|ENC_AFTER);
-	/* pass the mbuf to enc0 for packet filtering */
-	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_AFTER)) != 0)
+
+	IPSEC_INIT_CTX(&ctx, &m, sav, dst->sa.sa_family, IPSEC_ENC_AFTER);
+	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_OUT)) != 0)
 		goto bad;
-#endif
 
 	/*
 	 * Dispatch to the appropriate IPsec transform logic.  The
@@ -657,6 +644,7 @@ int
 ipsec6_process_packet(struct mbuf *m, struct ipsecrequest *isr)
 {
 	char sbuf[INET6_ADDRSTRLEN], dbuf[INET6_ADDRSTRLEN];
+	struct ipsec_ctx_data ctx;
 	struct secasindex saidx;
 	struct secasvar *sav;
 	struct ip6_hdr *ip6;
@@ -677,19 +665,12 @@ ipsec6_process_packet(struct mbuf *m, struct ipsecrequest *isr)
 	sav = isr->sav;
 	dst = &sav->sah->saidx.dst;
 
+	IPSEC_INIT_CTX(&ctx, &m, sav, AF_INET6, IPSEC_ENC_BEFORE);
+	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_OUT)) != 0)
+		goto bad;
+
 	ip6 = mtod(m, struct ip6_hdr *);
 	ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
-#ifdef DEV_ENC
-	if_inc_counter(encif, IFCOUNTER_OPACKETS, 1);
-	if_inc_counter(encif, IFCOUNTER_OBYTES, m->m_pkthdr.len);
-
-	/* pass the mbuf to enc0 for bpf processing */
-	ipsec_bpf(m, isr->sav, AF_INET6, ENC_OUT|ENC_BEFORE);
-	/* pass the mbuf to enc0 for packet filtering */
-	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_BEFORE)) != 0)
-		goto bad;
-	ip6 = mtod(m, struct ip6_hdr *);
-#endif /* DEV_ENC */
 
 	/* Do the appropriate encapsulation, if necessary */
 	if (isr->saidx.mode == IPSEC_MODE_TUNNEL || /* Tunnel requ'd */
@@ -715,12 +696,9 @@ ipsec6_process_packet(struct mbuf *m, struct ipsecrequest *isr)
 		}
 	}
 
-#ifdef DEV_ENC
-	ipsec_bpf(m, isr->sav, dst->sa.sa_family, ENC_OUT|ENC_AFTER);
-	/* pass the mbuf to enc0 for packet filtering */
-	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_AFTER)) != 0)
+	IPSEC_INIT_CTX(&ctx, &m, sav, dst->sa.sa_family, IPSEC_ENC_AFTER);
+	if ((error = ipsec_run_hhooks(&ctx, HHOOK_TYPE_IPSEC_OUT)) != 0)
 		goto bad;
-#endif /* DEV_ENC */
 
 	switch(dst->sa.sa_family) {
 #ifdef INET
@@ -741,14 +719,13 @@ ipsec6_process_packet(struct mbuf *m, struct ipsecrequest *isr)
 		DPRINTF(("%s: unsupported protocol family %u\n",
 				 __func__, dst->sa.sa_family));
 		error = EPFNOSUPPORT;
-		IPSEC6STAT_INC(ips_out_inval);
 		goto bad;
 	}
 	error = (*sav->tdb_xform->xf_output)(m, isr, NULL, i, off);
 	IPSECREQUEST_UNLOCK(isr);
 	return error;
 bad:
-
+	IPSEC6STAT_INC(ips_out_inval);
 	if (isr)
 		IPSECREQUEST_UNLOCK(isr);
 	if (m)

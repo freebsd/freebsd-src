@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/pmap.h>
 
+#include <netinet/in.h>
+#include <netinet/ip.h>
+
 #include "../ntb_hw/ntb_hw.h"
 
 /*
@@ -101,7 +104,7 @@ SYSCTL_UINT(_hw_if_ntb, OID_AUTO, debug_level, CTLFLAG_RWTUN,
 	}						\
 } while (0)
 
-static unsigned transport_mtu = 0x10000 + ETHER_HDR_LEN + ETHER_CRC_LEN;
+static unsigned transport_mtu = IP_MAXPACKET + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
 static uint64_t max_mw_size;
 SYSCTL_UQUAD(_hw_if_ntb, OID_AUTO, max_mw_size, CTLFLAG_RDTUN, &max_mw_size, 0,
@@ -113,6 +116,11 @@ SYSCTL_UINT(_hw_if_ntb, OID_AUTO, max_num_clients, CTLFLAG_RDTUN,
     &max_num_clients, 0, "Maximum number of NTB transport clients.  "
     "0 (default) - use all available NTB memory windows; "
     "positive integer N - Limit to N memory windows.");
+
+static unsigned enable_xeon_watchdog;
+SYSCTL_UINT(_hw_if_ntb, OID_AUTO, enable_xeon_watchdog, CTLFLAG_RDTUN,
+    &enable_xeon_watchdog, 0, "If non-zero, write a register every second to "
+    "keep a watchdog from tearing down the NTB link");
 
 STAILQ_HEAD(ntb_queue_list, ntb_queue_entry);
 
@@ -227,6 +235,7 @@ struct ntb_transport_ctx {
 	unsigned		qp_count;
 	volatile bool		link_is_up;
 	struct callout		link_work;
+	struct callout		link_watchdog;
 	struct task		link_cleanup;
 	uint64_t		bufsize;
 	u_char			eaddr[ETHER_ADDR_LEN];
@@ -268,7 +277,17 @@ enum {
 	IF_NTB_MW1_SZ_HIGH,
 	IF_NTB_MW1_SZ_LOW,
 	IF_NTB_MAX_SPAD,
+
+	/*
+	 * Some NTB-using hardware have a watchdog to work around NTB hangs; if
+	 * a register or doorbell isn't written every few seconds, the link is
+	 * torn down.  Write an otherwise unused register every few seconds to
+	 * work around this watchdog.
+	 */
+	IF_NTB_WATCHDOG_SPAD = 15
 };
+CTASSERT(IF_NTB_WATCHDOG_SPAD < XEON_SPAD_COUNT &&
+    IF_NTB_WATCHDOG_SPAD < ATOM_SPAD_COUNT);
 
 #define QP_TO_MW(nt, qp)	((qp) % nt->mw_count)
 #define NTB_QP_DEF_NUM_ENTRIES	100
@@ -330,6 +349,7 @@ static struct ntb_queue_entry *ntb_list_mv(struct mtx *lock,
     struct ntb_queue_list *from, struct ntb_queue_list *to);
 static void create_random_local_eui48(u_char *eaddr);
 static unsigned int ntb_transport_max_size(struct ntb_transport_qp *qp);
+static void xeon_link_watchdog_hb(void *);
 
 static const struct ntb_ctx_ops ntb_transport_ops = {
 	.link_event = ntb_transport_event_callback,
@@ -418,6 +438,8 @@ ntb_setup_interface(void)
 	ether_ifattach(ifp, net_softc.eaddr);
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_JUMBO_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
+	ifp->if_mtu = ntb_transport_max_size(net_softc.qp) - ETHER_HDR_LEN -
+	    ETHER_CRC_LEN;
 
 	ntb_transport_link_up(net_softc.qp);
 	net_softc.bufsize = ntb_transport_max_size(net_softc.qp) +
@@ -562,6 +584,16 @@ ntb_net_event_handler(void *data, enum ntb_link_event status)
 
 /* Transport Init and teardown */
 
+static void
+xeon_link_watchdog_hb(void *arg)
+{
+	struct ntb_transport_ctx *nt;
+
+	nt = arg;
+	ntb_spad_write(nt->ntb, IF_NTB_WATCHDOG_SPAD, 0);
+	callout_reset(&nt->link_watchdog, 1 * hz, xeon_link_watchdog_hb, nt);
+}
+
 static int
 ntb_transport_probe(struct ntb_softc *ntb)
 {
@@ -611,6 +643,7 @@ ntb_transport_probe(struct ntb_softc *ntb)
 	}
 
 	callout_init(&nt->link_work, 0);
+	callout_init(&nt->link_watchdog, 0);
 	TASK_INIT(&nt->link_cleanup, 0, ntb_transport_link_cleanup_work, nt);
 
 	rc = ntb_set_ctx(ntb, nt, &ntb_transport_ops);
@@ -622,6 +655,8 @@ ntb_transport_probe(struct ntb_softc *ntb)
 	ntb_link_event(ntb);
 
 	callout_reset(&nt->link_work, 0, ntb_transport_link_work, nt);
+	if (enable_xeon_watchdog != 0)
+		callout_reset(&nt->link_watchdog, 0, xeon_link_watchdog_hb, nt);
 	return (0);
 
 err:
@@ -640,6 +675,7 @@ ntb_transport_free(struct ntb_transport_ctx *nt)
 	ntb_transport_link_cleanup(nt);
 	taskqueue_drain(taskqueue_swi, &nt->link_cleanup);
 	callout_drain(&nt->link_work);
+	callout_drain(&nt->link_watchdog);
 
 	BIT_COPY(QP_SETSIZE, &nt->qp_bitmap, &qp_bitmap_alloc);
 	BIT_NAND(QP_SETSIZE, &qp_bitmap_alloc, &nt->qp_bitmap_free);

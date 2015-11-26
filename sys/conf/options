@@ -707,7 +707,6 @@ ISAPNP			opt_isa.h
 # various 'device presence' options.
 DEV_BPF			opt_bpf.h
 DEV_CARP		opt_carp.h
-DEV_ENC			opt_enc.h
 DEV_MCA			opt_mca.h
 DEV_NETMAP		opt_global.h
 DEV_PCI			opt_pci.h

@@ -126,9 +126,8 @@ version.h: ${PCAP_DISTDIR}/VERSION
 	@rm -f $@
 	sed 's/.*/char pcap_version_string[] = "libpcap version &";/' ${PCAP_DISTDIR}/VERSION > $@
 
-tokdefs.h: grammar.h
-	ln -sf grammar.h tokdefs.h
-
+tokdefs.h: grammar.h .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 #
 # Magic to convert the man pages to something non Solarish

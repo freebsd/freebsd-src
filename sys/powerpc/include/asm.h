@@ -85,7 +85,9 @@
 	.section ".toc","aw"; \
 	TOC_REF(name): \
         .tc name[TC],name
+#endif
 
+#if defined(__powerpc64__) && (!defined(_CALL_ELF) || _CALL_ELF == 1)
 #define	_ENTRY(name) \
 	.section ".text"; \
 	.p2align 2; \

@@ -111,6 +111,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_rx.h>
 #include <dev/ath/if_ath_beacon.h>
 #include <dev/ath/if_athdfs.h>
+#include <dev/ath/if_ath_descdma.h>
 
 #ifdef ATH_TX99_DIAG
 #include <dev/ath/ath_tx99/ath_tx99.h>
@@ -171,9 +172,14 @@ ath_calcrxfilter(struct ath_softc *sc)
 	 *
 	 * Otherwise we only really need to hear beacons from
 	 * our own BSSID.
+	 *
+	 * IBSS? software beacon miss? Just receive all beacons.
+	 * We need to hear beacons/probe requests from everyone so
+	 * we can merge ibss.
 	 */
-	if (ic->ic_opmode == IEEE80211_M_STA ||
-	    ic->ic_opmode == IEEE80211_M_IBSS || sc->sc_swbmiss) {
+	if (ic->ic_opmode == IEEE80211_M_IBSS || sc->sc_swbmiss) {
+		rfilt |= HAL_RX_FILTER_BEACON;
+	} else if (ic->ic_opmode == IEEE80211_M_STA) {
 		if (sc->sc_do_mybeacon && ! sc->sc_scanning) {
 			rfilt |= HAL_RX_FILTER_MYBEACON;
 		} else { /* scanning, non-mybeacon chips */
@@ -429,7 +435,6 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 			ath_beacon_config(sc, vap);
 			sc->sc_syncbeacon = 0;
 		}
-
 
 		/* fall thru... */
 	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
