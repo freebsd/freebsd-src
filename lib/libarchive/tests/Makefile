@@ -244,9 +244,7 @@ BROKEN_TESTS+=			test_fuzz_rar
 SRCS.libarchive_test=		\
 	${TESTS_SRCS}		\
 	main.c			\
-	read_open_memory.c
-
-DPSRCS.libarchive_test= \
+	read_open_memory.c	\
 	list.h
 
 LIBADD.libarchive_test=	archive

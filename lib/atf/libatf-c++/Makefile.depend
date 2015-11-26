@@ -13,7 +13,6 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libcxxrt \
 	lib/msun \
-	usr.bin/xinstall.host \
 
 
 .include <dirdeps.mk>

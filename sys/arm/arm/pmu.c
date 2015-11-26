@@ -58,7 +58,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#ifdef notyet
 #define	MAX_RLEN	8
+#else
+#define	MAX_RLEN	1
+#endif
 
 struct pmu_softc {
 	struct resource		*res[MAX_RLEN];
@@ -84,6 +88,8 @@ static struct ofw_compat_data compat_data[] = {
 
 static struct resource_spec pmu_spec[] = {
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
+	/* We don't currently handle pmu events, other than on cpu 0 */
+#ifdef notyet
 	{ SYS_RES_IRQ,		1,	RF_ACTIVE | RF_OPTIONAL },
 	{ SYS_RES_IRQ,		2,	RF_ACTIVE | RF_OPTIONAL },
 	{ SYS_RES_IRQ,		3,	RF_ACTIVE | RF_OPTIONAL },
@@ -91,6 +97,7 @@ static struct resource_spec pmu_spec[] = {
 	{ SYS_RES_IRQ,		5,	RF_ACTIVE | RF_OPTIONAL },
 	{ SYS_RES_IRQ,		6,	RF_ACTIVE | RF_OPTIONAL },
 	{ SYS_RES_IRQ,		7,	RF_ACTIVE | RF_OPTIONAL },
+#endif
 	{ -1, 0 }
 };
 

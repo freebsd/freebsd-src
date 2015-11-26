@@ -7,13 +7,10 @@
 .error src.libnames.mk cannot be included directly.
 .endif
 
-.include <src.opts.mk>
+.if !target(__<src.libnames.mk>__)
+__<src.libnames.mk>__:
 
-.if ${.OBJDIR:S,${.CURDIR},,} != ${.OBJDIR}
-ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
-.elif defined(OBJTOP) && ${.OBJDIR:M${OBJTOP}*} != ""
-ROOTOBJDIR=	${OBJTOP}
-.endif
+.include <src.opts.mk>
 
 _PRIVATELIBS=	\
 		atf_c \
@@ -308,63 +305,127 @@ LDADD+=		${LDADD_${_l}}
 .error Missing ${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/DPADD_/} variable add "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//}" to _LIBRARIES, _INTERNALLIBS, or _PRIVATELIBS and define "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/LIB/:tu}".
 .endif
 
-LIBELFTCDIR=	${ROOTOBJDIR}/lib/libelftc
+LIBELFTCDIR=	${OBJTOP}/lib/libelftc
 LIBELFTC?=	${LIBELFTCDIR}/libelftc.a
 
-LIBREADLINEDIR=	${ROOTOBJDIR}/gnu/lib/libreadline/readline
+LIBREADLINEDIR=	${OBJTOP}/gnu/lib/libreadline/readline
 LIBREADLINE?=	${LIBREADLINEDIR}/libreadline.a
 
-LIBOPENBSDDIR=	${ROOTOBJDIR}/lib/libopenbsd
+LIBOPENBSDDIR=	${OBJTOP}/lib/libopenbsd
 LIBOPENBSD?=	${LIBOPENBSDDIR}/libopenbsd.a
 
-LIBSMDIR=	${ROOTOBJDIR}/lib/libsm
+LIBSMDIR=	${OBJTOP}/lib/libsm
 LIBSM?=		${LIBSMDIR}/libsm.a
 
-LIBSMDBDIR=	${ROOTOBJDIR}/lib/libsmdb
+LIBSMDBDIR=	${OBJTOP}/lib/libsmdb
 LIBSMDB?=	${LIBSMDBDIR}/libsmdb.a
 
-LIBSMUTILDIR=	${ROOTOBJDIR}/lib/libsmutil
+LIBSMUTILDIR=	${OBJTOP}/lib/libsmutil
 LIBSMUTIL?=	${LIBSMDBDIR}/libsmutil.a
 
-LIBNETBSDDIR?=	${ROOTOBJDIR}/lib/libnetbsd
+LIBNETBSDDIR?=	${OBJTOP}/lib/libnetbsd
 LIBNETBSD?=	${LIBNETBSDDIR}/libnetbsd.a
 
-LIBVERSDIR?=	${ROOTOBJDIR}/kerberos5/lib/libvers
+LIBVERSDIR?=	${OBJTOP}/kerberos5/lib/libvers
 LIBVERS?=	${LIBVERSDIR}/libvers.a
 
-LIBSLDIR=	${ROOTOBJDIR}/kerberos5/lib/libsl
+LIBSLDIR=	${OBJTOP}/kerberos5/lib/libsl
 LIBSL?=		${LIBSLDIR}/libsl.a
 
-LIBIPFDIR=	${ROOTOBJDIR}/sbin/ipf/libipf
+LIBIPFDIR=	${OBJTOP}/sbin/ipf/libipf
 LIBIPF?=	${LIBIPFDIR}/libipf.a
 
-LIBTELNETDIR=	${ROOTOBJDIR}/lib/libtelnet
+LIBTELNETDIR=	${OBJTOP}/lib/libtelnet
 LIBTELNET?=	${LIBTELNETDIR}/libtelnet.a
 
-LIBCRONDIR=	${ROOTOBJDIR}/usr.sbin/cron/lib
+LIBCRONDIR=	${OBJTOP}/usr.sbin/cron/lib
 LIBCRON?=	${LIBCRONDIR}/libcron.a
 
-LIBNTPDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libntp
+LIBNTPDIR=	${OBJTOP}/usr.sbin/ntp/libntp
 LIBNTP?=	${LIBNTPDIR}/libntp.a
 
-LIBNTPEVENTDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libntpevent
+LIBNTPEVENTDIR=	${OBJTOP}/usr.sbin/ntp/libntpevent
 LIBNTPEVENT?=	${LIBNTPEVENTDIR}/libntpevent.a
 
-LIBOPTSDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libopts
+LIBOPTSDIR=	${OBJTOP}/usr.sbin/ntp/libopts
 LIBOTPS?=	${LIBOPTSDIR}/libopts.a
 
-LIBPARSEDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libparse
+LIBPARSEDIR=	${OBJTOP}/usr.sbin/ntp/libparse
 LIBPARSE?=	${LIBPARSEDIR}/libparse.a
 
-LIBLPRDIR=	${ROOTOBJDIR}/usr.sbin/lpr/common_source
+LIBLPRDIR=	${OBJTOP}/usr.sbin/lpr/common_source
 LIBLPR?=	${LIBOPTSDIR}/liblpr.a
 
-LIBFIFOLOGDIR=	${ROOTOBJDIR}/usr.sbin/fifolog/lib
+LIBFIFOLOGDIR=	${OBJTOP}/usr.sbin/fifolog/lib
 LIBFIFOLOG?=	${LIBOPTSDIR}/libfifolog.a
 
-LIBBSNMPTOOLSDIR=	${ROOTOBJDIR}/usr.sbin/bsnmpd/tools/libbsnmptools
+LIBBSNMPTOOLSDIR=	${OBJTOP}/usr.sbin/bsnmpd/tools/libbsnmptools
 LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 
-LIBAMUDIR=	${ROOTOBJDIR}/usr.sbin/amd/libamu
+LIBAMUDIR=	${OBJTOP}/usr.sbin/amd/libamu
 LIBAMU?=	${LIBAMUDIR}/libamu/libamu.a
 
+# Define a directory for each library.  This is useful for adding -L in when
+# not using a --sysroot or for meta mode bootstrapping when there is no
+# Makefile.depend.  These are sorted by directory.
+LIBAVLDIR=	${OBJTOP}/cddl/lib/libavl
+LIBCTFDIR=	${OBJTOP}/cddl/lib/libctf
+LIBDTRACEDIR=	${OBJTOP}/cddl/lib/libdtrace
+LIBNVPAIRDIR=	${OBJTOP}/cddl/lib/libnvpair
+LIBUMEMDIR=	${OBJTOP}/cddl/lib/libumem
+LIBUUTILDIR=	${OBJTOP}/cddl/lib/libuutil
+LIBZFSDIR=	${OBJTOP}/cddl/lib/libzfs
+LIBZFS_COREDIR=	${OBJTOP}/cddl/lib/libzfs_core
+LIBZPOOLDIR=	${OBJTOP}/cddl/lib/libzpool
+LIBDIALOGDIR=	${OBJTOP}/gnu/lib/libdialog
+LIBGCOVDIR=	${OBJTOP}/gnu/lib/libgcov
+LIBGOMPDIR=	${OBJTOP}/gnu/lib/libgomp
+LIBGNUREGEXDIR=	${OBJTOP}/gnu/lib/libregex
+LIBSSPDIR=	${OBJTOP}/gnu/lib/libssp
+LIBSSP_NONSHAREDDIR=	${OBJTOP}/gnu/lib/libssp/libssp_nonshared
+LIBSUPCPLUSPLUSDIR=	${OBJTOP}/gnu/lib/libsupc++
+LIBASN1DIR=	${OBJTOP}/kerberos5/lib/libasn1
+LIBGSSAPI_KRB5DIR=	${OBJTOP}/kerberos5/lib/libgssapi_krb5
+LIBGSSAPI_NTLMDIR=	${OBJTOP}/kerberos5/lib/libgssapi_ntlm
+LIBGSSAPI_SPNEGODIR=	${OBJTOP}/kerberos5/lib/libgssapi_spnego
+LIBHDBDIR=	${OBJTOP}/kerberos5/lib/libhdb
+LIBHEIMBASEDIR=	${OBJTOP}/kerberos5/lib/libheimbase
+LIBHEIMIPCCDIR=	${OBJTOP}/kerberos5/lib/libheimipcc
+LIBHEIMIPCSDIR=	${OBJTOP}/kerberos5/lib/libheimipcs
+LIBHEIMNTLMDIR=	${OBJTOP}/kerberos5/lib/libheimntlm
+LIBHX509DIR=	${OBJTOP}/kerberos5/lib/libhx509
+LIBKADM5CLNTDIR=	${OBJTOP}/kerberos5/lib/libkadm5clnt
+LIBKADM5SRVDIR=	${OBJTOP}/kerberos5/lib/libkadm5srv
+LIBKAFS5DIR=	${OBJTOP}/kerberos5/lib/libkafs5
+LIBKDCDIR=	${OBJTOP}/kerberos5/lib/libkdc
+LIBKRB5DIR=	${OBJTOP}/kerberos5/lib/libkrb5
+LIBROKENDIR=	${OBJTOP}/kerberos5/lib/libroken
+LIBWINDDIR=	${OBJTOP}/kerberos5/lib/libwind
+LIBALIASDIR=	${OBJTOP}/lib/libalias/libalias
+LIBBLOCKSRUNTIMEDIR=	${OBJTOP}/lib/libblocksruntime
+LIBBSNMPDIR=	${OBJTOP}/lib/libbsnmp/libbsnmp
+LIBBSDXMLDIR=	${OBJTOP}/lib/libexpat
+LIBKVMDIR=	${OBJTOP}/lib/libkvm
+LIBPTHREADDIR=	${OBJTOP}/lib/libthr
+LIBMDIR=	${OBJTOP}/lib/msun
+LIBFORMDIR=	${OBJTOP}/lib/ncurses/form
+LIBFORMLIBWDIR=	${OBJTOP}/lib/ncurses/formw
+LIBMENUDIR=	${OBJTOP}/lib/ncurses/menu
+LIBMENULIBWDIR=	${OBJTOP}/lib/ncurses/menuw
+LIBTERMCAPDIR=	${OBJTOP}/lib/ncurses/ncurses
+LIBTERMCAPWDIR=	${OBJTOP}/lib/ncurses/ncursesw
+LIBPANELDIR=	${OBJTOP}/lib/ncurses/panel
+LIBPANELWDIR=	${OBJTOP}/lib/ncurses/panelw
+LIBCRYPTODIR=	${OBJTOP}/secure/lib/libcrypto
+LIBSSHDIR=	${OBJTOP}/secure/lib/libssh
+LIBSSLDIR=	${OBJTOP}/secure/lib/libssl
+LIBTEKENDIR=	${OBJTOP}/sys/teken/libteken
+LIBEGACYDIR=	${OBJTOP}/tools/build
+LIBLNDIR=	${OBJTOP}/usr.bin/lex/lib
+
+# Default other library directories to lib/libNAME.
+.for lib in ${_LIBRARIES}
+LIB${lib:tu}DIR?=	${OBJTOP}/lib/lib${lib}
+.endfor
+
+.endif	# !target(__<src.libnames.mk>__)

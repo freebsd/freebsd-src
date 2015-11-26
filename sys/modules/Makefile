@@ -142,6 +142,7 @@ SUBDIR=	\
 	if_bridge \
 	if_disc \
 	if_edsc \
+	${_if_enc} \
 	if_epair \
 	${_if_gif} \
 	${_if_gre} \
@@ -403,7 +404,8 @@ _autofs=	autofs
 .endif
 
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
-.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips" && \
+.if (${MACHINE_CPUARCH} != "arm" || ${MACHINE_ARCH:Marmv6*} != "") && \
+	${MACHINE_CPUARCH} != "mips" && \
 	${MACHINE_CPUARCH} != "sparc64"
 SUBDIR+=	dtrace
 .endif
@@ -428,6 +430,7 @@ SUBDIR+=	cuse
 	defined(ALL_MODULES)
 _carp=		carp
 _toecore=	toecore
+_if_enc=	if_enc
 _if_gif=	if_gif
 _if_gre=	if_gre
 .endif

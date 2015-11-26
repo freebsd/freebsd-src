@@ -2,12 +2,6 @@
 
 kern/kern_clocksource.c				standard
 
-arm/arm/bus_space_generic.c			standard
-arm/arm/bus_space_asm_generic.S			standard
-
-arm/arm/bus_space_base.c			standard
-arm/arm/generic_timer.c				standard
-
 arm/samsung/exynos/exynos5_mct.c		standard
 arm/samsung/exynos/exynos5_mp.c			optional	smp
 arm/samsung/exynos/exynos5_common.c		standard

@@ -10,6 +10,8 @@
 
 .sinclude <src.libnames.mk>
 
+# Src directory locations are also defined in src.libnames.mk.
+
 LIBCRT0?=	${DESTDIR}${LIBDIR}/crt0.o
 
 LIBALIAS?=	${DESTDIR}${LIBDIR}/libalias.a

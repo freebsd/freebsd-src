@@ -212,7 +212,7 @@ main(int argc, char **argv)
 
 	// Process the files given on the command line. Note that if no names
 	// were given, args_parse() gave us a fake "-" filename.
-	for (size_t i = 0; i < args.arg_count && !user_abort; ++i) {
+	for (unsigned i = 0; i < args.arg_count && !user_abort; ++i) {
 		if (strcmp("-", args.arg_names[i]) == 0) {
 			// Processing from stdin to stdout. Check that we
 			// aren't writing compressed data to a terminal or

@@ -160,6 +160,7 @@ SUBDIR.${MK_NIS}+=	rpc.yppasswdd
 SUBDIR.${MK_NIS}+=	rpc.ypupdated
 SUBDIR.${MK_NIS}+=	rpc.ypxfrd
 SUBDIR.${MK_NIS}+=	ypbind
+SUBDIR.${MK_NIS}+=	ypldap
 SUBDIR.${MK_NIS}+=	yp_mkdb
 SUBDIR.${MK_NIS}+=	yppoll
 SUBDIR.${MK_NIS}+=	yppush

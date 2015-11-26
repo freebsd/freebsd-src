@@ -770,7 +770,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	struct bufobj *bo;
 	struct buf *bp;
 	daddr_t firstaddr, reqblock;
-	off_t foff;
+	off_t foff, pib;
 	int pbefore, pafter, i, size, bsize, first, last, *freecnt;
 	int count, error, before, after, secmask;
 
@@ -822,12 +822,10 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		return (VM_PAGER_ERROR);
 
 		/*
-		 * if the blocksize is smaller than a page size, then use
-		 * special small filesystem code.  NFS sometimes has a small
-		 * blocksize, but it can handle large reads itself.
+		 * If the blocksize is smaller than a page size, then use
+		 * special small filesystem code.
 		 */
-	} else if ((PAGE_SIZE / bsize) > 1 &&
-	    (vp->v_mount->mnt_stat.f_type != nfs_mount_type)) {
+	} else if ((PAGE_SIZE / bsize) > 1) {
 		relpbuf(bp, freecnt);
 		vm_pager_free_nonreq(object, m, reqpage, count, FALSE);
 		PCPU_INC(cnt.v_vnodein);
@@ -866,8 +864,9 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		VM_OBJECT_WUNLOCK(object);
 	}
 
-	pbefore = (daddr_t)before * bsize / PAGE_SIZE;
-	pafter = (daddr_t)after * bsize / PAGE_SIZE;
+	pib = IDX_TO_OFF(m[reqpage]->pindex) % bsize;
+	pbefore = ((daddr_t)before * bsize + pib) / PAGE_SIZE;
+	pafter = ((daddr_t)(after + 1) * bsize - pib) / PAGE_SIZE - 1;
 	first = reqpage < pbefore ? 0 : reqpage - pbefore;
 	last = reqpage + pafter >= count ? count - 1 : reqpage + pafter;
 	if (first > 0 || last + 1 < count) {
@@ -889,7 +888,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	 * here on direct device I/O
 	 */
 	firstaddr = reqblock;
-	firstaddr += (IDX_TO_OFF(m[reqpage]->pindex) % bsize) / DEV_BSIZE;
+	firstaddr += pib / DEV_BSIZE;
 	firstaddr -= IDX_TO_OFF(reqpage - first) / DEV_BSIZE;
 
 	/*
@@ -1083,7 +1082,7 @@ vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 	/*
 	 * Force synchronous operation if we are extremely low on memory
 	 * to prevent a low-memory deadlock.  VOP operations often need to
-	 * allocate more memory to initiate the I/O ( i.e. do a BMAP 
+	 * allocate more memory to initiate the I/O ( i.e. do a BMAP
 	 * operation ).  The swapper handles the case by limiting the amount
 	 * of asynchronous I/O, but that sort of solution doesn't scale well
 	 * for the vnode pager without a lot of work.

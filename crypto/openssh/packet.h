@@ -1,5 +1,4 @@
 /* $OpenBSD: packet.h,v 1.59 2013/07/12 00:19:59 djm Exp $ */
-/* $FreeBSD$ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -39,9 +38,6 @@ void     packet_set_interactive(int, int, int);
 int      packet_is_interactive(void);
 void     packet_set_server(void);
 void     packet_set_authenticated(void);
-#ifdef	NONE_CIPHER_ENABLED
-int      packet_get_authentication_state(void);
-#endif
 
 void     packet_start(u_char);
 void     packet_put_char(int ch);
@@ -119,9 +115,6 @@ do { \
 } while (0)
 
 int	 packet_need_rekeying(void);
-#ifdef	NONE_CIPHER_ENABLED
-void	 packet_request_rekeying(void);
-#endif
 void	 packet_set_rekey_limits(u_int32_t, time_t);
 time_t	 packet_get_rekey_timeout(void);
 

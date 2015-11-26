@@ -1,10 +1,19 @@
 src/tests: The FreeBSD test suite
 =================================
 
-This file describes the build infrastructure of the FreeBSD test suite.
-If you are only interested in using the test suite itself, please refer
-to tests(7) instead.
+To run the FreeBSD test suite:
+(1)  Make sure that kyua is installed:
+       pkg install kyua
+(2)  To run the tests:
+       kyua test -k /usr/tests/Kyuafile
+(3)  To see the test results:
+       kyua report  
 
+For further information on using the test suite, read tests(7):
+       man tests
+
+Description of FreeBSD test suite
+=================================
 The build of the test suite is organized in the following manner:
 
 * The build of all test artifacts is protected by the MK_TESTS knob.

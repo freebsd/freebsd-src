@@ -50,7 +50,7 @@ FILES=		${LDSCRIPTS:S|^|ldscripts/|}
 FILESDIR=	${SCRIPTDIR}
 
 HOST=		${TARGET_TUPLE}
-LIBSEARCHPATH=	\"${TOOLS_PREFIX}/lib\":\"${TOOLS_PREFIX}/usr/lib\"
+LIBSEARCHPATH=	\"=/lib\":\"=/usr/lib\"
 .for ext in ${ELF_SCR_EXT}
 LDSCRIPTS+=	${NATIVE_EMULATION}.${ext}
 ldscripts/${NATIVE_EMULATION}.${ext}: e${NATIVE_EMULATION}.c
@@ -67,8 +67,8 @@ ldemul-list.h:
 	echo "${EMXFR}" > ${.TARGET}
 	echo "#define EMULATION_LIST ${EMLST} 0" >> ${.TARGET}
 
-stringify.sed:
-	ln -sf ${SRCDIR}/ld/emultempl/astring.sed ${.TARGET}
+stringify.sed: ${SRCDIR}/ld/emultempl/astring.sed .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 GENDIRDEPS_FILTER.host+= Nusr.bin/yacc
 

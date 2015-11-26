@@ -15,7 +15,6 @@ DIRDEPS = \
 	lib/libkvm \
 	lib/libmemstat \
 	lib/msun \
-	usr.bin/xinstall.host \
 	usr.sbin/bsnmpd/modules \
 	usr.sbin/bsnmpd/modules/snmp_mibII \
 
