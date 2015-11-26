@@ -27,7 +27,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * AMD64 machine dependent routines for kvm and minidumps. 
+ * AMD64 machine dependent routines for kvm and minidumps.
  */
 
 #include <sys/param.h>
@@ -286,6 +286,6 @@ _kvm_minidump_kvatop(kvm_t *kd, u_long va, off_t *pa)
 	}
 	if (kd->vmst->hdr.paemode)
 		return (_kvm_minidump_vatop_pae(kd, va, pa));
-	else	
+	else
 		return (_kvm_minidump_vatop(kd, va, pa));
 }

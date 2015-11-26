@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -77,7 +77,7 @@ static int  getsysctl(kvm_t *, const char *, void *, size_t);
 		_kvm_err(kd, kd->program, "cannot read %s", msg);	\
 		return (-1);						\
 	}
-	
+
 #define GETSWDEVNAME(dev, str, flags)					\
 	if (dev == NODEV) {						\
 		strlcpy(str, "[NFS swap]", sizeof(str));		\
@@ -231,7 +231,7 @@ nlist_init(kvm_t *kd)
 		_kvm_err(kd, kd->program, "unable to find swtailq");
 		return (0);
 	}
-		
+
 	if (kvm_swap_nl[NL_DMMAX].n_value == 0) {
 		_kvm_err(kd, kd->program, "unable to find dmmax");
 		return (0);
