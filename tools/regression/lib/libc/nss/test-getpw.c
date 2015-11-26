@@ -68,7 +68,7 @@ static int passwd_test_correctness(struct passwd *, void *);
 static int passwd_test_getpwnam(struct passwd *, void *);
 static int passwd_test_getpwuid(struct passwd *, void *);
 static int passwd_test_getpwent(struct passwd *, void *);
-	
+
 static void usage(void)  __attribute__((__noreturn__));
 
 IMPLEMENT_TEST_DATA(passwd)
@@ -76,12 +76,12 @@ IMPLEMENT_TEST_FILE_SNAPSHOT(passwd)
 IMPLEMENT_1PASS_TEST(passwd)
 IMPLEMENT_2PASS_TEST(passwd)
 
-static void 
+static void
 clone_passwd(struct passwd *dest, struct passwd const *src)
 {
 	assert(dest != NULL);
 	assert(src != NULL);
-	
+
 	memcpy(dest, src, sizeof(struct passwd));
 	if (src->pw_name != NULL)
 		dest->pw_name = strdup(src->pw_name);
@@ -97,15 +97,15 @@ clone_passwd(struct passwd *dest, struct passwd const *src)
 		dest->pw_shell = strdup(dest->pw_shell);
 }
 
-static int 
+static int
 compare_passwd(struct passwd *pwd1, struct passwd *pwd2, void *mdata)
 {
 	assert(pwd1 != NULL);
 	assert(pwd2 != NULL);
-	
+
 	if (pwd1 == pwd2)
 		return (0);
-	
+
 	if ((pwd1->pw_uid != pwd2->pw_uid) ||
 		(pwd1->pw_gid != pwd2->pw_gid) ||
 		(pwd1->pw_change != pwd2->pw_change) ||
@@ -116,14 +116,14 @@ compare_passwd(struct passwd *pwd1, struct passwd *pwd2, void *mdata)
 		(strcmp(pwd1->pw_class, pwd2->pw_class) != 0) ||
 		(strcmp(pwd1->pw_gecos, pwd2->pw_gecos) != 0) ||
 		(strcmp(pwd1->pw_dir, pwd2->pw_dir) != 0) ||
-		(strcmp(pwd1->pw_shell, pwd2->pw_shell) != 0)	
+		(strcmp(pwd1->pw_shell, pwd2->pw_shell) != 0)
 		)
 		return (-1);
 	else
 		return (0);
 }
 
-static void 
+static void
 free_passwd(struct passwd *pwd)
 {
 	free(pwd->pw_name);
@@ -134,7 +134,7 @@ free_passwd(struct passwd *pwd)
 	free(pwd->pw_shell);
 }
 
-static void 
+static void
 sdump_passwd(struct passwd *pwd, char *buffer, size_t buflen)
 {
 	snprintf(buffer, buflen, "%s:%s:%d:%d:%d:%s:%s:%s:%s:%d:%d",
@@ -154,7 +154,7 @@ dump_passwd(struct passwd *pwd)
 		printf("(null)\n");
 }
 
-static int 
+static int
 passwd_read_snapshot_func(struct passwd *pwd, char *line)
 {
 	char *s, *ps, *ts;
@@ -162,7 +162,7 @@ passwd_read_snapshot_func(struct passwd *pwd, char *line)
 
 	if (debug)
 		printf("1 line read from snapshot:\n%s\n", line);
-	
+
 	i = 0;
 	ps = line;
 	memset(pwd, 0, sizeof(struct passwd));
@@ -174,7 +174,7 @@ passwd_read_snapshot_func(struct passwd *pwd, char *line)
 			break;
 			case 1:
 				pwd->pw_passwd = strdup(s);
-				assert(pwd->pw_passwd != NULL);				
+				assert(pwd->pw_passwd != NULL);
 			break;
 			case 2:
 				pwd->pw_uid = (uid_t)strtol(s, &ts, 10);
@@ -218,7 +218,7 @@ passwd_read_snapshot_func(struct passwd *pwd, char *line)
 					goto fin;
 			break;
 			default:
-			break;			
+			break;
 		};
 		++i;
 	}
@@ -229,7 +229,7 @@ fin:
 		memset(pwd, 0, sizeof(struct passwd));
 		return (-1);
 	}
-	
+
 	return (0);
 }
 
@@ -237,7 +237,7 @@ static int
 passwd_fill_test_data(struct passwd_test_data *td)
 {
 	struct passwd *pwd;
-		
+
 	setpassent(1);
 	while ((pwd = getpwent()) != NULL) {
 		if (passwd_test_correctness(pwd, NULL) == 0)
@@ -246,7 +246,7 @@ passwd_fill_test_data(struct passwd_test_data *td)
 			return (-1);
 	}
 	endpwent();
-	
+
 	return (0);
 }
 
@@ -257,9 +257,9 @@ passwd_test_correctness(struct passwd *pwd, void *mdata)
 		printf("testing correctness with the following data:\n");
 		dump_passwd(pwd);
 	}
-	
+
 	if (pwd == NULL)
-		return (-1);	
+		return (-1);
 
 	if (pwd->pw_name == NULL)
 		goto errfin;
@@ -278,25 +278,25 @@ passwd_test_correctness(struct passwd *pwd, void *mdata)
 
 	if (pwd->pw_shell == NULL)
 		goto errfin;
-	
+
 	if (debug)
 		printf("correct\n");
-	
-	return (0);	
+
+	return (0);
 errfin:
 	if (debug)
 		printf("incorrect\n");
-	
+
 	return (-1);
 }
 
 /* passwd_check_ambiguity() is needed here because when doing the getpwent()
- * calls sequence, records from different nsswitch sources can be different, 
+ * calls sequence, records from different nsswitch sources can be different,
  * though having the same pw_name/pw_uid */
 static int
 passwd_check_ambiguity(struct passwd_test_data *td, struct passwd *pwd)
 {
-	
+
 	return (TEST_DATA_FIND(passwd, td, pwd, compare_passwd,
 		NULL) != NULL ? 0 : -1);
 }
@@ -305,7 +305,7 @@ static int
 passwd_test_getpwnam(struct passwd *pwd_model, void *mdata)
 {
 	struct passwd *pwd;
-		
+
 	if (debug) {
 		printf("testing getpwnam() with the following data:\n");
 		dump_passwd(pwd_model);
@@ -314,20 +314,20 @@ passwd_test_getpwnam(struct passwd *pwd_model, void *mdata)
 	pwd = getpwnam(pwd_model->pw_name);
 	if (passwd_test_correctness(pwd, NULL) != 0)
 		goto errfin;
-	
+
 	if ((compare_passwd(pwd, pwd_model, NULL) != 0) &&
-	    (passwd_check_ambiguity((struct passwd_test_data *)mdata, pwd) 
+	    (passwd_check_ambiguity((struct passwd_test_data *)mdata, pwd)
 	    !=0))
 	    goto errfin;
-		
+
 	if (debug)
 		printf("ok\n");
 	return (0);
-	
+
 errfin:
 	if (debug)
 		printf("not ok\n");
-	
+
 	return (-1);
 }
 
@@ -335,14 +335,14 @@ static int
 passwd_test_getpwuid(struct passwd *pwd_model, void *mdata)
 {
 	struct passwd *pwd;
-		
+
 	if (debug) {
 		printf("testing getpwuid() with the following data...\n");
 		dump_passwd(pwd_model);
-	}	
-	
+	}
+
 	pwd = getpwuid(pwd_model->pw_uid);
-	if ((passwd_test_correctness(pwd, NULL) != 0) || 
+	if ((passwd_test_correctness(pwd, NULL) != 0) ||
 	    ((compare_passwd(pwd, pwd_model, NULL) != 0) &&
 	    (passwd_check_ambiguity((struct passwd_test_data *)mdata, pwd)
 	    != 0))) {
@@ -356,7 +356,7 @@ passwd_test_getpwuid(struct passwd *pwd_model, void *mdata)
 	}
 }
 
-static int 
+static int
 passwd_test_getpwent(struct passwd *pwd, void *mdata)
 {
 	/* Only correctness can be checked when doing 1-pass test for
@@ -380,10 +380,10 @@ main(int argc, char **argv)
 	char *snapshot_file;
 	int rv;
 	int c;
-	
+
 	if (argc < 2)
 		usage();
-		
+
 	snapshot_file = NULL;
 	while ((c = getopt(argc, argv, "nue2ds:")) != -1)
 		switch (c) {
@@ -408,18 +408,18 @@ main(int argc, char **argv)
 		default:
 			usage();
 		}
-	
+
 	TEST_DATA_INIT(passwd, &td, clone_passwd, free_passwd);
 	TEST_DATA_INIT(passwd, &td_snap, clone_passwd, free_passwd);
 	if (snapshot_file != NULL) {
-		if (access(snapshot_file, W_OK | R_OK) != 0) {		
+		if (access(snapshot_file, W_OK | R_OK) != 0) {
 			if (errno == ENOENT)
 				method = TEST_BUILD_SNAPSHOT;
 			else {
 				if (debug)
 					printf("can't access the file %s\n",
 				snapshot_file);
-			
+
 				rv = -1;
 				goto fin;
 			}
@@ -428,23 +428,23 @@ main(int argc, char **argv)
 				rv = 0;
 				goto fin;
 			}
-			
+
 			TEST_SNAPSHOT_FILE_READ(passwd, snapshot_file,
 				&td_snap, passwd_read_snapshot_func);
 		}
 	}
-		
+
 	rv = passwd_fill_test_data(&td);
 	if (rv == -1)
 		return (-1);
-	
+
 	switch (method) {
 	case TEST_GETPWNAM:
 		if (snapshot_file == NULL)
 			rv = DO_1PASS_TEST(passwd, &td,
 				passwd_test_getpwnam, (void *)&td);
 		else
-			rv = DO_1PASS_TEST(passwd, &td_snap, 
+			rv = DO_1PASS_TEST(passwd, &td_snap,
 				passwd_test_getpwnam, (void *)&td_snap);
 		break;
 	case TEST_GETPWUID:
@@ -452,7 +452,7 @@ main(int argc, char **argv)
 			rv = DO_1PASS_TEST(passwd, &td,
 				passwd_test_getpwuid, (void *)&td);
 		else
-			rv = DO_1PASS_TEST(passwd, &td_snap, 
+			rv = DO_1PASS_TEST(passwd, &td_snap,
 				passwd_test_getpwuid, (void *)&td_snap);
 		break;
 	case TEST_GETPWENT:
@@ -465,7 +465,7 @@ main(int argc, char **argv)
 		break;
 	case TEST_GETPWENT_2PASS:
 			TEST_DATA_INIT(passwd, &td_2pass, clone_passwd, free_passwd);
-			rv = passwd_fill_test_data(&td_2pass);			
+			rv = passwd_fill_test_data(&td_2pass);
 			if (rv != -1)
 				rv = DO_2PASS_TEST(passwd, &td, &td_2pass,
 					compare_passwd, NULL);
@@ -473,7 +473,7 @@ main(int argc, char **argv)
 		break;
 	case TEST_BUILD_SNAPSHOT:
 		if (snapshot_file != NULL)
-		    rv = TEST_SNAPSHOT_FILE_WRITE(passwd, snapshot_file, &td, 
+		    rv = TEST_SNAPSHOT_FILE_WRITE(passwd, snapshot_file, &td,
 			sdump_passwd);
 		break;
 	default:
@@ -484,6 +484,6 @@ main(int argc, char **argv)
 fin:
 	TEST_DATA_DESTROY(passwd, &td_snap);
 	TEST_DATA_DESTROY(passwd, &td);
-	free(snapshot_file);	
+	free(snapshot_file);
 	return (rv);
 }

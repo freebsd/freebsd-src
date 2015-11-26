@@ -63,14 +63,14 @@ static void free_rpcent(struct rpcent *);
 static void sdump_rpcent(struct rpcent *, char *, size_t);
 static int rpcent_read_snapshot_func(struct rpcent *, char *);
 
-static int rpcent_check_ambiguity(struct rpcent_test_data *, 
+static int rpcent_check_ambiguity(struct rpcent_test_data *,
 	struct rpcent *);
 static int rpcent_fill_test_data(struct rpcent_test_data *);
 static int rpcent_test_correctness(struct rpcent *, void *);
 static int rpcent_test_getrpcbyname(struct rpcent *, void *);
 static int rpcent_test_getrpcbynumber(struct rpcent *, void *);
 static int rpcent_test_getrpcent(struct rpcent *, void *);
-	
+
 static void usage(void)  __attribute__((__noreturn__));
 
 IMPLEMENT_TEST_DATA(rpcent)
@@ -83,28 +83,28 @@ clone_rpcent(struct rpcent *dest, struct rpcent const *src)
 {
 	assert(dest != NULL);
 	assert(src != NULL);
-	
+
 	char **cp;
 	int aliases_num;
-		
+
 	memset(dest, 0, sizeof(struct rpcent));
-	
+
 	if (src->r_name != NULL) {
 		dest->r_name = strdup(src->r_name);
 		assert(dest->r_name != NULL);
 	}
-	
+
 	dest->r_number = src->r_number;
-	
+
 	if (src->r_aliases != NULL) {
 		aliases_num = 0;
 		for (cp = src->r_aliases; *cp; ++cp)
 			++aliases_num;
-	
+
 		dest->r_aliases = (char **)malloc((aliases_num+1) * (sizeof(char *)));
 		assert(dest->r_aliases != NULL);
 		memset(dest->r_aliases, 0, (aliases_num+1) * (sizeof(char *)));
-	
+
 		for (cp = src->r_aliases; *cp; ++cp) {
 			dest->r_aliases[cp - src->r_aliases] = strdup(*cp);
 			assert(dest->r_aliases[cp - src->r_aliases] != NULL);
@@ -112,50 +112,50 @@ clone_rpcent(struct rpcent *dest, struct rpcent const *src)
 	}
 }
 
-static void 
+static void
 free_rpcent(struct rpcent *rpc)
 {
 	char **cp;
-	
+
 	assert(rpc != NULL);
-	
+
 	free(rpc->r_name);
-	
+
 	for (cp = rpc->r_aliases; *cp; ++cp)
 		free(*cp);
 	free(rpc->r_aliases);
 }
 
-static  int 
+static  int
 compare_rpcent(struct rpcent *rpc1, struct rpcent *rpc2, void *mdata)
 {
 	char **c1, **c2;
-        
+
 	if (rpc1 == rpc2)
 		return 0;
-        
+
 	if ((rpc1 == NULL) || (rpc2 == NULL))
 		goto errfin;
-        
+
 	if ((strcmp(rpc1->r_name, rpc2->r_name) != 0) ||
 		(rpc1->r_number != rpc2->r_number))
 			goto errfin;
-        
+
 	c1 = rpc1->r_aliases;
 	c2 = rpc2->r_aliases;
-	
+
 	if ((rpc1->r_aliases == NULL) || (rpc2->r_aliases == NULL))
 		goto errfin;
-	
+
 	for (;*c1 && *c2; ++c1, ++c2)
 		if (strcmp(*c1, *c2) != 0)
 			goto errfin;
-                
+
 	if ((*c1 != '\0') || (*c2 != '\0'))
 		goto errfin;
-        
+
 	return 0;
-	
+
 errfin:
 	if ((debug) && (mdata == NULL)) {
 		printf("following structures are not equal:\n");
@@ -171,14 +171,14 @@ sdump_rpcent(struct rpcent *rpc, char *buffer, size_t buflen)
 {
 	char **cp;
 	int written;
-	
+
 	written = snprintf(buffer, buflen, "%s %d",
-		rpc->r_name, rpc->r_number);	
+		rpc->r_name, rpc->r_number);
 	buffer += written;
 	if (written > buflen)
 		return;
 	buflen -= written;
-			
+
 	if (rpc->r_aliases != NULL) {
 		if (*(rpc->r_aliases) != '\0') {
 			for (cp = rpc->r_aliases; *cp; ++cp) {
@@ -187,9 +187,9 @@ sdump_rpcent(struct rpcent *rpc, char *buffer, size_t buflen)
 				if (written > buflen)
 					return;
 				buflen -= written;
-				
+
 				if (buflen == 0)
-					return;				
+					return;
 			}
 		} else
 			snprintf(buffer, buflen, " noaliases");
@@ -206,7 +206,7 @@ rpcent_read_snapshot_func(struct rpcent *rpc, char *line)
 
 	if (debug)
 		printf("1 line read from snapshot:\n%s\n", line);
-	
+
 	i = 0;
 	sl = NULL;
 	ps = line;
@@ -230,10 +230,10 @@ rpcent_read_snapshot_func(struct rpcent *rpc, char *line)
 				if (sl == NULL) {
 					if (strcmp(s, "(null)") == 0)
 						return (0);
-										
+
 					sl = sl_init();
 					assert(sl != NULL);
-					
+
 					if (strcmp(s, "noaliases") != 0) {
 						ts = strdup(s);
 						assert(ts != NULL);
@@ -244,7 +244,7 @@ rpcent_read_snapshot_func(struct rpcent *rpc, char *line)
 					assert(ts != NULL);
 					sl_add(sl, ts);
 				}
-			break;			
+			break;
 		};
 		++i;
 	}
@@ -254,16 +254,16 @@ rpcent_read_snapshot_func(struct rpcent *rpc, char *line)
 		memset(rpc, 0, sizeof(struct rpcent));
 		return (-1);
 	}
-	
+
 	sl_add(sl, NULL);
 	rpc->r_aliases = sl->sl_str;
 
 	/* NOTE: is it a dirty hack or not? */
-	free(sl);	
+	free(sl);
 	return (0);
 }
 
-static void 
+static void
 dump_rpcent(struct rpcent *result)
 {
 	if (result != NULL) {
@@ -278,7 +278,7 @@ static int
 rpcent_fill_test_data(struct rpcent_test_data *td)
 {
 	struct rpcent *rpc;
-		
+
 	setrpcent(1);
 	while ((rpc = getrpcent()) != NULL) {
 		if (rpcent_test_correctness(rpc, NULL) == 0)
@@ -287,7 +287,7 @@ rpcent_fill_test_data(struct rpcent_test_data *td)
 			return (-1);
 	}
 	endrpcent();
-	
+
 	return (0);
 }
 
@@ -298,39 +298,39 @@ rpcent_test_correctness(struct rpcent *rpc, void *mdata)
 		printf("testing correctness with the following data:\n");
 		dump_rpcent(rpc);
 	}
-	
+
 	if (rpc == NULL)
 		goto errfin;
-	
+
 	if (rpc->r_name == NULL)
 		goto errfin;
-	
+
 	if (rpc->r_number < 0)
 		goto errfin;
-	
+
 	if (rpc->r_aliases == NULL)
 		goto errfin;
-	
+
 	if (debug)
 		printf("correct\n");
-	
-	return (0);	
+
+	return (0);
 errfin:
 	if (debug)
 		printf("incorrect\n");
-	
+
 	return (-1);
 }
 
 /* rpcent_check_ambiguity() is needed when one port+rpc is associated with
  * more than one peice (these cases are usually marked as PROBLEM in
- * /etc/peices. This functions is needed also when one peice+rpc is 
+ * /etc/peices. This functions is needed also when one peice+rpc is
  * associated with several ports. We have to check all the rpcent structures
  * to make sure that rpc really exists and correct */
 static int
 rpcent_check_ambiguity(struct rpcent_test_data *td, struct rpcent *rpc)
 {
-	
+
 	return (TEST_DATA_FIND(rpcent, td, rpc, compare_rpcent,
 		NULL) != NULL ? 0 : -1);
 }
@@ -340,7 +340,7 @@ rpcent_test_getrpcbyname(struct rpcent *rpc_model, void *mdata)
 {
 	char **alias;
 	struct rpcent *rpc;
-		
+
 	if (debug) {
 		printf("testing getrpcbyname() with the following data:\n");
 		dump_rpcent(rpc_model);
@@ -349,32 +349,32 @@ rpcent_test_getrpcbyname(struct rpcent *rpc_model, void *mdata)
 	rpc = getrpcbyname(rpc_model->r_name);
 	if (rpcent_test_correctness(rpc, NULL) != 0)
 		goto errfin;
-	
+
 	if ((compare_rpcent(rpc, rpc_model, NULL) != 0) &&
-	    (rpcent_check_ambiguity((struct rpcent_test_data *)mdata, rpc) 
+	    (rpcent_check_ambiguity((struct rpcent_test_data *)mdata, rpc)
 	    !=0))
 	    goto errfin;
-	
+
 	for (alias = rpc_model->r_aliases; *alias; ++alias) {
 		rpc = getrpcbyname(*alias);
-		
+
 		if (rpcent_test_correctness(rpc, NULL) != 0)
 			goto errfin;
-		
+
 		if ((compare_rpcent(rpc, rpc_model, NULL) != 0) &&
 		    (rpcent_check_ambiguity(
 		    (struct rpcent_test_data *)mdata, rpc) != 0))
 		    goto errfin;
 	}
-	
+
 	if (debug)
 		printf("ok\n");
 	return (0);
-	
+
 errfin:
 	if (debug)
 		printf("not ok\n");
-	
+
 	return (-1);
 }
 
@@ -382,14 +382,14 @@ static int
 rpcent_test_getrpcbynumber(struct rpcent *rpc_model, void *mdata)
 {
 	struct rpcent *rpc;
-		
+
 	if (debug) {
 		printf("testing getrpcbyport() with the following data...\n");
 		dump_rpcent(rpc_model);
-	}	
-	
+	}
+
 	rpc = getrpcbynumber(rpc_model->r_number);
-	if ((rpcent_test_correctness(rpc, NULL) != 0) || 
+	if ((rpcent_test_correctness(rpc, NULL) != 0) ||
 	    ((compare_rpcent(rpc, rpc_model, NULL) != 0) &&
 	    (rpcent_check_ambiguity((struct rpcent_test_data *)mdata, rpc)
 	    != 0))) {
@@ -403,7 +403,7 @@ rpcent_test_getrpcbynumber(struct rpcent *rpc_model, void *mdata)
 	}
 }
 
-static int 
+static int
 rpcent_test_getrpcent(struct rpcent *rpc, void *mdata)
 {
 	/* Only correctness can be checked when doing 1-pass test for
@@ -427,10 +427,10 @@ main(int argc, char **argv)
 	char *snapshot_file;
 	int rv;
 	int c;
-	
+
 	if (argc < 2)
 		usage();
-		
+
 	snapshot_file = NULL;
 	while ((c = getopt(argc, argv, "nve2ds:")) != -1)
 		switch (c) {
@@ -455,18 +455,18 @@ main(int argc, char **argv)
 		default:
 			usage();
 		}
-	
+
 	TEST_DATA_INIT(rpcent, &td, clone_rpcent, free_rpcent);
 	TEST_DATA_INIT(rpcent, &td_snap, clone_rpcent, free_rpcent);
 	if (snapshot_file != NULL) {
-		if (access(snapshot_file, W_OK | R_OK) != 0) {		
+		if (access(snapshot_file, W_OK | R_OK) != 0) {
 			if (errno == ENOENT)
 				method = TEST_BUILD_SNAPSHOT;
 			else {
 				if (debug)
 					printf("can't access the file %s\n",
 				snapshot_file);
-			
+
 				rv = -1;
 				goto fin;
 			}
@@ -475,12 +475,12 @@ main(int argc, char **argv)
 				rv = 0;
 				goto fin;
 			}
-			
+
 			TEST_SNAPSHOT_FILE_READ(rpcent, snapshot_file,
 				&td_snap, rpcent_read_snapshot_func);
 		}
 	}
-		
+
 	rv = rpcent_fill_test_data(&td);
 	if (rv == -1)
 		return (-1);
@@ -490,7 +490,7 @@ main(int argc, char **argv)
 			rv = DO_1PASS_TEST(rpcent, &td,
 				rpcent_test_getrpcbyname, (void *)&td);
 		else
-			rv = DO_1PASS_TEST(rpcent, &td_snap, 
+			rv = DO_1PASS_TEST(rpcent, &td_snap,
 				rpcent_test_getrpcbyname, (void *)&td_snap);
 		break;
 	case TEST_GETRPCBYNUMBER:
@@ -498,7 +498,7 @@ main(int argc, char **argv)
 			rv = DO_1PASS_TEST(rpcent, &td,
 				rpcent_test_getrpcbynumber, (void *)&td);
 		else
-			rv = DO_1PASS_TEST(rpcent, &td_snap, 
+			rv = DO_1PASS_TEST(rpcent, &td_snap,
 				rpcent_test_getrpcbynumber, (void *)&td_snap);
 		break;
 	case TEST_GETRPCENT:
@@ -511,7 +511,7 @@ main(int argc, char **argv)
 		break;
 	case TEST_GETRPCENT_2PASS:
 			TEST_DATA_INIT(rpcent, &td_2pass, clone_rpcent, free_rpcent);
-			rv = rpcent_fill_test_data(&td_2pass);			
+			rv = rpcent_fill_test_data(&td_2pass);
 			if (rv != -1)
 				rv = DO_2PASS_TEST(rpcent, &td, &td_2pass,
 					compare_rpcent, NULL);
@@ -519,7 +519,7 @@ main(int argc, char **argv)
 		break;
 	case TEST_BUILD_SNAPSHOT:
 		if (snapshot_file != NULL)
-		    rv = TEST_SNAPSHOT_FILE_WRITE(rpcent, snapshot_file, &td, 
+		    rv = TEST_SNAPSHOT_FILE_WRITE(rpcent, snapshot_file, &td,
 			sdump_rpcent);
 		break;
 	default:
@@ -530,6 +530,6 @@ main(int argc, char **argv)
 fin:
 	TEST_DATA_DESTROY(rpcent, &td_snap);
 	TEST_DATA_DESTROY(rpcent, &td);
-	free(snapshot_file);	
+	free(snapshot_file);
 	return (rv);
 }

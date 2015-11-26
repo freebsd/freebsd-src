@@ -63,14 +63,14 @@ static void free_protoent(struct protoent *);
 static void sdump_protoent(struct protoent *, char *, size_t);
 static int protoent_read_snapshot_func(struct protoent *, char *);
 
-static int protoent_check_ambiguity(struct protoent_test_data *, 
+static int protoent_check_ambiguity(struct protoent_test_data *,
 	struct protoent *);
 static int protoent_fill_test_data(struct protoent_test_data *);
 static int protoent_test_correctness(struct protoent *, void *);
 static int protoent_test_getprotobyname(struct protoent *, void *);
 static int protoent_test_getprotobynumber(struct protoent *, void *);
 static int protoent_test_getprotoent(struct protoent *, void *);
-	
+
 static void usage(void)  __attribute__((__noreturn__));
 
 IMPLEMENT_TEST_DATA(protoent)
@@ -83,28 +83,28 @@ clone_protoent(struct protoent *dest, struct protoent const *src)
 {
 	assert(dest != NULL);
 	assert(src != NULL);
-	
+
 	char **cp;
 	int aliases_num;
-		
+
 	memset(dest, 0, sizeof(struct protoent));
-	
+
 	if (src->p_name != NULL) {
 		dest->p_name = strdup(src->p_name);
 		assert(dest->p_name != NULL);
 	}
-	
+
 	dest->p_proto = src->p_proto;
-	
+
 	if (src->p_aliases != NULL) {
 		aliases_num = 0;
 		for (cp = src->p_aliases; *cp; ++cp)
 			++aliases_num;
-	
+
 		dest->p_aliases = (char **)malloc((aliases_num+1) * (sizeof(char *)));
 		assert(dest->p_aliases != NULL);
 		memset(dest->p_aliases, 0, (aliases_num+1) * (sizeof(char *)));
-	
+
 		for (cp = src->p_aliases; *cp; ++cp) {
 			dest->p_aliases[cp - src->p_aliases] = strdup(*cp);
 			assert(dest->p_aliases[cp - src->p_aliases] != NULL);
@@ -112,50 +112,50 @@ clone_protoent(struct protoent *dest, struct protoent const *src)
 	}
 }
 
-static void 
+static void
 free_protoent(struct protoent *pe)
 {
 	char **cp;
-	
+
 	assert(pe != NULL);
-	
+
 	free(pe->p_name);
-	
+
 	for (cp = pe->p_aliases; *cp; ++cp)
 		free(*cp);
 	free(pe->p_aliases);
 }
 
-static  int 
+static  int
 compare_protoent(struct protoent *pe1, struct protoent *pe2, void *mdata)
 {
 	char **c1, **c2;
-        
+
 	if (pe1 == pe2)
 		return 0;
-        
+
 	if ((pe1 == NULL) || (pe2 == NULL))
 		goto errfin;
-        
+
 	if ((strcmp(pe1->p_name, pe2->p_name) != 0) ||
 		(pe1->p_proto != pe2->p_proto))
 			goto errfin;
-        
+
 	c1 = pe1->p_aliases;
 	c2 = pe2->p_aliases;
-	
+
 	if ((pe1->p_aliases == NULL) || (pe2->p_aliases == NULL))
 		goto errfin;
-	
+
 	for (;*c1 && *c2; ++c1, ++c2)
 		if (strcmp(*c1, *c2) != 0)
 			goto errfin;
-                
+
 	if ((*c1 != '\0') || (*c2 != '\0'))
 		goto errfin;
-        
+
 	return 0;
-	
+
 errfin:
 	if ((debug) && (mdata == NULL)) {
 		printf("following structures are not equal:\n");
@@ -171,14 +171,14 @@ sdump_protoent(struct protoent *pe, char *buffer, size_t buflen)
 {
 	char **cp;
 	int written;
-	
+
 	written = snprintf(buffer, buflen, "%s %d",
-		pe->p_name, pe->p_proto);	
+		pe->p_name, pe->p_proto);
 	buffer += written;
 	if (written > buflen)
 		return;
 	buflen -= written;
-			
+
 	if (pe->p_aliases != NULL) {
 		if (*(pe->p_aliases) != '\0') {
 			for (cp = pe->p_aliases; *cp; ++cp) {
@@ -187,9 +187,9 @@ sdump_protoent(struct protoent *pe, char *buffer, size_t buflen)
 				if (written > buflen)
 					return;
 				buflen -= written;
-				
+
 				if (buflen == 0)
-					return;				
+					return;
 			}
 		} else
 			snprintf(buffer, buflen, " noaliases");
@@ -206,7 +206,7 @@ protoent_read_snapshot_func(struct protoent *pe, char *line)
 
 	if (debug)
 		printf("1 line read from snapshot:\n%s\n", line);
-	
+
 	i = 0;
 	sl = NULL;
 	ps = line;
@@ -230,10 +230,10 @@ protoent_read_snapshot_func(struct protoent *pe, char *line)
 				if (sl == NULL) {
 					if (strcmp(s, "(null)") == 0)
 						return (0);
-										
+
 					sl = sl_init();
 					assert(sl != NULL);
-					
+
 					if (strcmp(s, "noaliases") != 0) {
 						ts = strdup(s);
 						assert(ts != NULL);
@@ -244,7 +244,7 @@ protoent_read_snapshot_func(struct protoent *pe, char *line)
 					assert(ts != NULL);
 					sl_add(sl, ts);
 				}
-			break;			
+			break;
 		};
 		++i;
 	}
@@ -254,16 +254,16 @@ protoent_read_snapshot_func(struct protoent *pe, char *line)
 		memset(pe, 0, sizeof(struct protoent));
 		return (-1);
 	}
-	
+
 	sl_add(sl, NULL);
 	pe->p_aliases = sl->sl_str;
 
 	/* NOTE: is it a dirty hack or not? */
-	free(sl);	
+	free(sl);
 	return (0);
 }
 
-static void 
+static void
 dump_protoent(struct protoent *result)
 {
 	if (result != NULL) {
@@ -278,7 +278,7 @@ static int
 protoent_fill_test_data(struct protoent_test_data *td)
 {
 	struct protoent *pe;
-		
+
 	setprotoent(1);
 	while ((pe = getprotoent()) != NULL) {
 		if (protoent_test_correctness(pe, NULL) == 0)
@@ -287,7 +287,7 @@ protoent_fill_test_data(struct protoent_test_data *td)
 			return (-1);
 	}
 	endprotoent();
-	
+
 	return (0);
 }
 
@@ -298,39 +298,39 @@ protoent_test_correctness(struct protoent *pe, void *mdata)
 		printf("testing correctness with the following data:\n");
 		dump_protoent(pe);
 	}
-	
+
 	if (pe == NULL)
 		goto errfin;
-	
+
 	if (pe->p_name == NULL)
 		goto errfin;
-	
+
 	if (pe->p_proto < 0)
 		goto errfin;
-	
+
 	if (pe->p_aliases == NULL)
 		goto errfin;
-	
+
 	if (debug)
 		printf("correct\n");
-	
-	return (0);	
+
+	return (0);
 errfin:
 	if (debug)
 		printf("incorrect\n");
-	
+
 	return (-1);
 }
 
 /* protoent_check_ambiguity() is needed when one port+proto is associated with
  * more than one peice (these cases are usually marked as PROBLEM in
- * /etc/peices. This functions is needed also when one peice+proto is 
+ * /etc/peices. This functions is needed also when one peice+proto is
  * associated with several ports. We have to check all the protoent structures
  * to make sure that pe really exists and correct */
 static int
 protoent_check_ambiguity(struct protoent_test_data *td, struct protoent *pe)
 {
-	
+
 	return (TEST_DATA_FIND(protoent, td, pe, compare_protoent,
 		NULL) != NULL ? 0 : -1);
 }
@@ -340,7 +340,7 @@ protoent_test_getprotobyname(struct protoent *pe_model, void *mdata)
 {
 	char **alias;
 	struct protoent *pe;
-		
+
 	if (debug) {
 		printf("testing getprotobyname() with the following data:\n");
 		dump_protoent(pe_model);
@@ -349,32 +349,32 @@ protoent_test_getprotobyname(struct protoent *pe_model, void *mdata)
 	pe = getprotobyname(pe_model->p_name);
 	if (protoent_test_correctness(pe, NULL) != 0)
 		goto errfin;
-	
+
 	if ((compare_protoent(pe, pe_model, NULL) != 0) &&
-	    (protoent_check_ambiguity((struct protoent_test_data *)mdata, pe) 
+	    (protoent_check_ambiguity((struct protoent_test_data *)mdata, pe)
 	    !=0))
 	    goto errfin;
-	
+
 	for (alias = pe_model->p_aliases; *alias; ++alias) {
 		pe = getprotobyname(*alias);
-		
+
 		if (protoent_test_correctness(pe, NULL) != 0)
 			goto errfin;
-		
+
 		if ((compare_protoent(pe, pe_model, NULL) != 0) &&
 		    (protoent_check_ambiguity(
 		    (struct protoent_test_data *)mdata, pe) != 0))
 		    goto errfin;
 	}
-	
+
 	if (debug)
 		printf("ok\n");
 	return (0);
-	
+
 errfin:
 	if (debug)
 		printf("not ok\n");
-	
+
 	return (-1);
 }
 
@@ -382,14 +382,14 @@ static int
 protoent_test_getprotobynumber(struct protoent *pe_model, void *mdata)
 {
 	struct protoent *pe;
-		
+
 	if (debug) {
 		printf("testing getprotobyport() with the following data...\n");
 		dump_protoent(pe_model);
-	}	
-	
+	}
+
 	pe = getprotobynumber(pe_model->p_proto);
-	if ((protoent_test_correctness(pe, NULL) != 0) || 
+	if ((protoent_test_correctness(pe, NULL) != 0) ||
 	    ((compare_protoent(pe, pe_model, NULL) != 0) &&
 	    (protoent_check_ambiguity((struct protoent_test_data *)mdata, pe)
 	    != 0))) {
@@ -403,7 +403,7 @@ protoent_test_getprotobynumber(struct protoent *pe_model, void *mdata)
 	}
 }
 
-static int 
+static int
 protoent_test_getprotoent(struct protoent *pe, void *mdata)
 {
 	/* Only correctness can be checked when doing 1-pass test for
@@ -427,10 +427,10 @@ main(int argc, char **argv)
 	char *snapshot_file;
 	int rv;
 	int c;
-	
+
 	if (argc < 2)
 		usage();
-		
+
 	snapshot_file = NULL;
 	while ((c = getopt(argc, argv, "nve2ds:")) != -1)
 		switch (c) {
@@ -455,18 +455,18 @@ main(int argc, char **argv)
 		default:
 			usage();
 		}
-	
+
 	TEST_DATA_INIT(protoent, &td, clone_protoent, free_protoent);
 	TEST_DATA_INIT(protoent, &td_snap, clone_protoent, free_protoent);
 	if (snapshot_file != NULL) {
-		if (access(snapshot_file, W_OK | R_OK) != 0) {		
+		if (access(snapshot_file, W_OK | R_OK) != 0) {
 			if (errno == ENOENT)
 				method = TEST_BUILD_SNAPSHOT;
 			else {
 				if (debug)
 					printf("can't access the file %s\n",
 				snapshot_file);
-			
+
 				rv = -1;
 				goto fin;
 			}
@@ -475,12 +475,12 @@ main(int argc, char **argv)
 				rv = 0;
 				goto fin;
 			}
-			
+
 			TEST_SNAPSHOT_FILE_READ(protoent, snapshot_file,
 				&td_snap, protoent_read_snapshot_func);
 		}
 	}
-		
+
 	rv = protoent_fill_test_data(&td);
 	if (rv == -1)
 		return (-1);
@@ -490,7 +490,7 @@ main(int argc, char **argv)
 			rv = DO_1PASS_TEST(protoent, &td,
 				protoent_test_getprotobyname, (void *)&td);
 		else
-			rv = DO_1PASS_TEST(protoent, &td_snap, 
+			rv = DO_1PASS_TEST(protoent, &td_snap,
 				protoent_test_getprotobyname, (void *)&td_snap);
 		break;
 	case TEST_GETPROTOBYNUMBER:
@@ -498,12 +498,12 @@ main(int argc, char **argv)
 			rv = DO_1PASS_TEST(protoent, &td,
 				protoent_test_getprotobynumber, (void *)&td);
 		else
-			rv = DO_1PASS_TEST(protoent, &td_snap, 
+			rv = DO_1PASS_TEST(protoent, &td_snap,
 				protoent_test_getprotobynumber, (void *)&td_snap);
 		break;
 	case TEST_GETPROTOENT:
 		if (snapshot_file == NULL)
-			rv = DO_1PASS_TEST(protoent, &td, 
+			rv = DO_1PASS_TEST(protoent, &td,
 				protoent_test_getprotoent, (void *)&td);
 		else
 			rv = DO_2PASS_TEST(protoent, &td, &td_snap,
@@ -520,7 +520,7 @@ main(int argc, char **argv)
 		break;
 	case TEST_BUILD_SNAPSHOT:
 		if (snapshot_file != NULL)
-		    rv = TEST_SNAPSHOT_FILE_WRITE(protoent, snapshot_file, &td, 
+		    rv = TEST_SNAPSHOT_FILE_WRITE(protoent, snapshot_file, &td,
 			sdump_protoent);
 		break;
 	default:
@@ -531,6 +531,6 @@ main(int argc, char **argv)
 fin:
 	TEST_DATA_DESTROY(protoent, &td_snap);
 	TEST_DATA_DESTROY(protoent, &td);
-	free(snapshot_file);	
+	free(snapshot_file);
 	return (rv);
 }
