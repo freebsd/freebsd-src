@@ -87,6 +87,8 @@ load(const char *fname)
 	if ((fp = fopen(fname, "r")) == NULL)
 		err(1, "Cannot open `%s'", fname);
 	while ((line = fgetln(fp, &len)) != NULL) {
+		if (line[0] == '#')
+			continue;
 		char c = line[len];
 		char *ptr;
 		line[len] = '\0';
