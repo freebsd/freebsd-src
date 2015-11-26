@@ -1273,6 +1273,9 @@ ipsec46_in_reject(struct mbuf *m, struct inpcb *inp)
 	int error;
 	int result;
 
+	if (!key_havesp(IPSEC_DIR_INBOUND))
+		return 0;
+
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 
 	/*
@@ -1404,6 +1407,9 @@ ipsec_hdrsiz(struct mbuf *m, u_int dir, struct inpcb *inp)
 	struct secpolicy *sp;
 	int error;
 	size_t size;
+
+	if (!key_havesp(dir))
+		return 0;
 
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 

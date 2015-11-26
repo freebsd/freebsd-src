@@ -230,6 +230,10 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
 	struct secpolicy *sp = NULL;
 	struct tdb_ident *tdbi;
 	struct m_tag *mtag;
+
+	if (!key_havesp(IPSEC_DIR_OUTBOUND))
+		return 0;
+
 	/*
 	 * Check the security policy (SP) for the packet and, if
 	 * required, do IPsec-related processing.  There are two

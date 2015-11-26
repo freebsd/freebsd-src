@@ -1947,7 +1947,8 @@ ipsec_hdrsiz_tcp(struct tcpcb *tp)
 #endif
 	struct tcphdr *th;
 
-	if ((tp == NULL) || ((inp = tp->t_inpcb) == NULL))
+	if ((tp == NULL) || ((inp = tp->t_inpcb) == NULL) ||
+		(!key_havesp(IPSEC_DIR_OUTBOUND)))
 		return (0);
 	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (!m)
