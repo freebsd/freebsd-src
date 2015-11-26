@@ -2390,15 +2390,19 @@ static void
 ParseTrackInput(const char *name)
 {
     char *old;
+    char *ep;
     char *fp = NULL;
     size_t name_len = strlen(name);
     
     old = Var_Value(MAKE_MAKEFILES, VAR_GLOBAL, &fp);
     if (old) {
+	ep = old + strlen(old) - name_len;
 	/* does it contain name? */
 	for (; old != NULL; old = strchr(old, ' ')) {
 	    if (*old == ' ')
 		old++;
+	    if (old >= ep)
+		break;			/* cannot contain name */
 	    if (memcmp(old, name, name_len) == 0
 		    && (old[name_len] == 0 || old[name_len] == ' '))
 		goto cleanup;
