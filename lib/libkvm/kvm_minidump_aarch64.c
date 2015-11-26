@@ -29,7 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * ARM64 (AArch64) machine dependent routines for kvm and minidumps. 
+ * ARM64 (AArch64) machine dependent routines for kvm and minidumps.
  */
 
 #include <sys/param.h>

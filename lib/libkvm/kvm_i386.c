@@ -269,7 +269,7 @@ _kvm_vatop(kvm_t *kd, u_long va, off_t *pa)
 	if (PTD == 0) {
 		s = _kvm_pa2off(kd, va, pa);
 		if (s == 0) {
-			_kvm_err(kd, kd->program, 
+			_kvm_err(kd, kd->program,
 			    "_kvm_vatop: bootstrap data not in dump");
 			goto invalid;
 		} else
@@ -365,7 +365,7 @@ _kvm_vatop_pae(kvm_t *kd, u_long va, off_t *pa)
 	if (PTD == 0) {
 		s = _kvm_pa2off(kd, va, pa);
 		if (s == 0) {
-			_kvm_err(kd, kd->program, 
+			_kvm_err(kd, kd->program,
 			    "_kvm_vatop_pae: bootstrap data not in dump");
 			goto invalid;
 		} else

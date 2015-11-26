@@ -60,7 +60,7 @@ static struct nlist kvm_pcpu_nl[] = {
 
 /*
  * Kernel per-CPU data state.  We cache this stuff on the first
- * access.	
+ * access.
  *
  * XXXRW: Possibly, this (and kvmpcpu_nl) should be per-kvm_t, in case the
  * consumer has multiple handles in flight to differently configured
