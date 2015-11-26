@@ -1055,7 +1055,14 @@ wpa_driver_bsd_associate(void *priv, struct wpa_driver_associate_params *params)
 		mode = 0 /* STA */;
 		break;
 	case IEEE80211_MODE_IBSS:
+		/*
+		 * Ref bin/203086 - FreeBSD's net80211 currently uses
+		 * IFM_IEEE80211_ADHOC.
+		 */
+#if 0
 		mode = IFM_IEEE80211_IBSS;
+#endif
+		mode = IFM_IEEE80211_ADHOC;
 		break;
 	case IEEE80211_MODE_AP:
 		mode = IFM_IEEE80211_HOSTAP;
