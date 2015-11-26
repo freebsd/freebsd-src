@@ -51,7 +51,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libdwarf \
 	libedit \
 	${_libelftc} \
-	${_libevent} \
+	libevent \
 	libexecinfo \
 	libexpat \
 	libfetch \
@@ -262,10 +262,6 @@ _libnetgraph=	libnetgraph
 
 .if ${MK_NIS} != "no"
 _libypclnt=	libypclnt
-.endif
-
-.if ${MK_PF} != "no"
-_libevent=	libevent
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
