@@ -692,7 +692,7 @@ menu_read(void)
 		fclose(fp);
 
 	} else
-		printf("Could not open file\n");
+		fprintf(stderr, "Could not open %s for reading\n", filename);
 
 	if (show) {
 		qsort(lang_list->sl_str, lang_list->sl_cur, sizeof(char*),
