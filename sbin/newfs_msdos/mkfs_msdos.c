@@ -223,8 +223,8 @@ static void mklabel(u_int8_t *, const char *);
 static int oklabel(const char *);
 static void setstr(u_int8_t *, const char *, size_t);
 
-int mkfs_msdos(const char *fname, const char *dtype,
-    const struct msdos_options *op)
+int
+mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 {
     char buf[MAXPATHLEN];
     struct sigaction si_sa;
@@ -245,6 +245,10 @@ int mkfs_msdos(const char *fname, const char *dtype,
     int fd, fd1;
     struct msdos_options o = *op;
 
+    if (o.block_size && o.sectors_per_cluster) {
+	warnx("Cannot specify both block size and sectors per cluster");
+	return -1;
+    }
     if (o.OEM_string && strlen(o.OEM_string) > 8) {
 	warnx("%s: bad OEM string", o.OEM_string);
 	return -1;
@@ -304,7 +308,8 @@ int mkfs_msdos(const char *fname, const char *dtype,
 	bpb.bpbHugeSectors = o.size;
     if (o.hidden_sectors_set)
 	bpb.bpbHiddenSecs = o.hidden_sectors;
-    if (!(o.floppy || (o.drive_heads && o.sectors_per_track && o.bytes_per_sector && o.size && o.hidden_sectors_set))) {
+    if (!(o.floppy || (o.drive_heads && o.sectors_per_track &&
+	o.bytes_per_sector && o.size && o.hidden_sectors_set))) {
 	off_t delta;
 	getdiskinfo(fd, fname, dtype, o.hidden_sectors_set, &bpb);
 	bpb.bpbHugeSectors -= (o.offset / bpb.bpbBytesPerSec);
