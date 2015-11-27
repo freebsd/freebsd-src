@@ -82,6 +82,9 @@ umass_attach(device_t dev)
 static int
 umass_detach(device_t dev)
 {
+
+#ifdef USB_DEBUG
 	memset(&umass_uaa, 0, sizeof(umass_uaa));
+#endif
 	return (0);
 }
