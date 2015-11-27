@@ -397,6 +397,8 @@ int	bus_generic_shutdown(device_t dev);
 int	bus_generic_suspend(device_t dev);
 int	bus_generic_print_child(device_t dev, device_t child);
 void	bus_generic_driver_added(device_t dev, driver_t *driver);
+int	bus_space_subregion(bus_space_tag_t t, bus_space_handle_t bsh,
+    bus_size_t offset, bus_size_t size, bus_space_handle_t *nbshp);
 
 /* BUS SPACE API */
 
