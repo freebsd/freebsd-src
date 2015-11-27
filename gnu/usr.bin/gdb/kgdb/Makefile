@@ -9,11 +9,7 @@ BULIBS= ${OBJ_BU}/libbfd/libbfd.a ${OBJ_BU}/libopcodes/libopcodes.a \
 GDBLIBS= ${OBJ_GDB}/libgdb/libgdb.a
 
 DPADD=	${GDBLIBS} ${BULIBS} ${LIBKVM}
-LDADD=	${GDBLIBS} ${BULIBS} -lkvm${GDB_SUFFIX}
+LDADD=	${GDBLIBS} ${BULIBS} -lkvm
 LIBADD+=	m readline ncursesw gnuregex
-
-.if defined(GDB_CROSS_DEBUGGER)
-CFLAGS+= -Wl,-export-dynamic
-.endif
 
 .include <bsd.prog.mk>

@@ -32,11 +32,12 @@
 .\"     @(#)kvm_open.3	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd January 29, 2004
+.Dd November 27, 2015
 .Dt KVM_OPEN 3
 .Os
 .Sh NAME
 .Nm kvm_open ,
+.Nm kvm_open2 ,
 .Nm kvm_openfiles ,
 .Nm kvm_close
 .Nd initialize kernel virtual memory access
@@ -48,12 +49,21 @@
 .Ft kvm_t *
 .Fn kvm_open "const char *execfile" "const char *corefile" "const char *swapfile" "int flags" "const char *errstr"
 .Ft kvm_t *
+.Fo kvm_open2
+.Fa "const char *execfile"
+.Fa "const char *corefile"
+.Fa "int flags"
+.Fa "char *errbuf"
+.Fa "int (*resolver)(const char *name, kvaddr_t *addr)"
+.Fc
+.Ft kvm_t *
 .Fn kvm_openfiles "const char *execfile" "const char *corefile" "const char *swapfile" "int flags" "char *errbuf"
 .Ft int
 .Fn kvm_close "kvm_t *kd"
 .Sh DESCRIPTION
 The functions
-.Fn kvm_open
+.Fn kvm_open ,
+.Fn kvm_open2 ,
 and
 .Fn kvm_openfiles
 return a descriptor used to access kernel virtual memory
@@ -111,10 +121,13 @@ and
 .Dv O_RDWR
 are permitted.
 .Pp
-There are two open routines which differ only with respect to
-the error mechanism.
+The
+.Nm kvm
+library provides two different error reporting mechanisms.
 One provides backward compatibility with the SunOS kvm library, while the
 other provides an improved error reporting framework.
+The mechanism used by a descriptor is determined by the function used to
+open the descriptor.
 .Pp
 The
 .Fn kvm_open
@@ -140,8 +153,10 @@ The string is assumed to persist at least until the corresponding
 call.
 .Pp
 The
+.Fn kvm_open2
+and
 .Fn kvm_openfiles
-function provides
+functions provide
 .Bx
 style error reporting.
 Here, error messages are not printed out by the library.
@@ -160,25 +175,56 @@ on failure,
 .Fn kvm_geterr
 cannot be used to get the error message if open fails.
 Thus,
+.Fn kvm_open2
+and
 .Fn kvm_openfiles
 will place any error message in the
 .Fa errbuf
 argument.
 This buffer should be _POSIX2_LINE_MAX characters large (from
 <limits.h>).
+.Pp
+The
+.Fa resolver
+argument points to a function used by the
+.Nm kvm
+library to map symbol names to kernel virtual addresses.
+When the
+.Fa resolver
+function is called,
+.Fa name
+specifies the requested symbol name.
+If the function is able to resolve the name to an address,
+the address should be set in
+.Fa *addr
+and the function should return zero.
+If the function is not able to resolve the name to an address,
+it should return a non-zero value.
+When opening a native kernel image,
+.Fa resolver
+may be set to
+.Dv NULL
+to use an internal function to resolve symbol names.
+Non-native kernel images
+.Pq such as when cross-debugging a crash dump
+require a valid
+.Fa resolver .
 .Sh RETURN VALUES
 The
-.Fn kvm_open
+.Fn kvm_open ,
+.Fn kvm_open2 ,
 and
 .Fn kvm_openfiles
-functions both return a descriptor to be used
+functions return a descriptor to be used
 in all subsequent kvm library calls.
 The library is fully re-entrant.
 On failure,
 .Dv NULL
 is returned, in which case
+.Fn kvm_open2
+and
 .Fn kvm_openfiles
-writes the error message into
+write the error message into
 .Fa errbuf .
 .Pp
 The
@@ -191,13 +237,14 @@ function returns 0 on success and -1 on failure.
 .Xr kvm_getenvv 3 ,
 .Xr kvm_geterr 3 ,
 .Xr kvm_getprocs 3 ,
+.Xr kvm_native 3 ,
 .Xr kvm_nlist 3 ,
 .Xr kvm_read 3 ,
 .Xr kvm_write 3 ,
 .Xr kmem 4 ,
 .Xr mem 4
 .Sh BUGS
-There should not be two open calls.
+There should not be three open calls.
 The ill-defined error semantics
 of the Sun library and the desire to have a backward-compatible library
 for

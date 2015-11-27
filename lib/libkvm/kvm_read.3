@@ -32,11 +32,12 @@
 .\"     @(#)kvm_read.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd November 27, 2015
 .Dt KVM_READ 3
 .Os
 .Sh NAME
 .Nm kvm_read ,
+.Nm kvm_read2 ,
 .Nm kvm_write
 .Nd read or write kernel virtual memory
 .Sh LIBRARY
@@ -46,23 +47,26 @@
 .Ft ssize_t
 .Fn kvm_read "kvm_t *kd" "unsigned long addr" "void *buf" "size_t nbytes"
 .Ft ssize_t
+.Fn kvm_read2 "kvm_t *kd" "kvaddr_t addr" "void *buf" "size_t nbytes"
+.Ft ssize_t
 .Fn kvm_write "kvm_t *kd" "unsigned long addr" "const void *buf" "size_t nbytes"
 .Sh DESCRIPTION
 The
-.Fn kvm_read
+.Fn kvm_read ,
+.Fn kvm_read2 ,
 and
 .Fn kvm_write
 functions are used to read and write kernel virtual memory (or a crash
 dump file).
 See
 .Fn kvm_open 3
-or
-.Fn kvm_openfiles 3
 for information regarding opening kernel virtual memory and crash dumps.
 .Pp
 The
 .Fn kvm_read
-function transfers
+and
+.Fn kvm_read2
+functions transfer
 .Fa nbytes
 bytes of data from
 the kernel space address
@@ -77,6 +81,16 @@ to
 .Fa addr .
 Unlike their SunOS counterparts, these functions cannot be used to
 read or write process address spaces.
+.Pp
+The
+.Fn kvm_read2
+function uses a different type
+.Pq Vt kvaddr_t
+for the
+.Fa addr
+argument to allow use of addresses larger than
+.Dv ULONG_MAX
+when examining non-native kernel images.
 .Sh RETURN VALUES
 Upon success, the number of bytes actually transferred is returned.
 Otherwise, -1 is returned.

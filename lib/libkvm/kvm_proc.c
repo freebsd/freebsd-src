@@ -582,6 +582,12 @@ liveout:
 		nl[5].n_name = "_cpu_tick_frequency";
 		nl[6].n_name = 0;
 
+		if (!kd->arch->ka_native(kd)) {
+			_kvm_err(kd, kd->program,
+			    "cannot read procs from non-native core");
+			return (0);
+		}
+
 		if (kvm_nlist(kd, nl) != 0) {
 			for (p = nl; p->n_type != 0; ++p)
 				;
