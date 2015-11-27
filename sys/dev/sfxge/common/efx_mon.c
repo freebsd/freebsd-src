@@ -307,7 +307,7 @@ efx_mon_stat_name(
 efx_mon_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values)
+	__inout_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values)
 {
 	efx_mon_t *emp = &(enp->en_mon);
 	efx_mon_ops_t *emop = emp->em_emop;

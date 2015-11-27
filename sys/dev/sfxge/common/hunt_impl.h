@@ -236,7 +236,7 @@ extern	__checkReturn			int
 hunt_mac_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_MAC_NSTATS)	efsys_stat_t *stat,
+	__inout_ecount(EFX_MAC_NSTATS)	efsys_stat_t *stat,
 	__out_opt			uint32_t *generationp);
 
 #endif	/* EFSYS_OPT_MAC_STATS */
@@ -485,7 +485,7 @@ extern	__checkReturn			int
 hunt_phy_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_PHY_NSTATS)	uint32_t *stat);
+	__inout_ecount(EFX_PHY_NSTATS)	uint32_t *stat);
 
 #endif	/* EFSYS_OPT_PHY_STATS */
 
