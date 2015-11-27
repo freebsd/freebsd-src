@@ -2601,7 +2601,7 @@ _vhold(struct vnode *vp, bool locked)
 	mtx_lock(&vnode_free_list_mtx);
 	TAILQ_REMOVE(&vnode_free_list, vp, v_actfreelist);
 	freevnodes--;
-	vp->v_iflag &= ~(VI_FREE|VI_AGE);
+	vp->v_iflag &= ~VI_FREE;
 	KASSERT((vp->v_iflag & VI_ACTIVE) == 0,
 	    ("Activating already active vnode"));
 	vp->v_iflag |= VI_ACTIVE;
@@ -2670,16 +2670,9 @@ _vdrop(struct vnode *vp, bool locked)
 				    v_actfreelist);
 				mp->mnt_activevnodelistsize--;
 			}
-			/* XXX V*AGE hasn't been set since 1997. */
-			if (vp->v_iflag & VI_AGE) {
-				TAILQ_INSERT_HEAD(&vnode_free_list, vp,
-				    v_actfreelist);
-			} else {
-				TAILQ_INSERT_TAIL(&vnode_free_list, vp,
-				    v_actfreelist);
-			}
+			TAILQ_INSERT_TAIL(&vnode_free_list, vp,
+			    v_actfreelist);
 			freevnodes++;
-			vp->v_iflag &= ~VI_AGE;
 			vp->v_iflag |= VI_FREE;
 			mtx_unlock(&vnode_free_list_mtx);
 		} else {
@@ -3190,8 +3183,6 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 	}
 	if (vp->v_iflag & VI_MOUNT)
 		strlcat(buf, "|VI_MOUNT", sizeof(buf));
-	if (vp->v_iflag & VI_AGE)
-		strlcat(buf, "|VI_AGE", sizeof(buf));
 	if (vp->v_iflag & VI_DOOMED)
 		strlcat(buf, "|VI_DOOMED", sizeof(buf));
 	if (vp->v_iflag & VI_FREE)
@@ -3202,7 +3193,7 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VI_DOINGINACT", sizeof(buf));
 	if (vp->v_iflag & VI_OWEINACT)
 		strlcat(buf, "|VI_OWEINACT", sizeof(buf));
-	flags = vp->v_iflag & ~(VI_MOUNT | VI_AGE | VI_DOOMED | VI_FREE |
+	flags = vp->v_iflag & ~(VI_MOUNT | VI_DOOMED | VI_FREE |
 	    VI_ACTIVE | VI_DOINGINACT | VI_OWEINACT);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VI(0x%lx)", flags);
