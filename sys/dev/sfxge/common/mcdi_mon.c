@@ -162,7 +162,7 @@ mcdi_mon_decode_stats(
 	__in					size_t sensor_mask_size,
 	__in_opt				efsys_mem_t *esmp,
 	__out_ecount_opt(sensor_mask_size)	uint32_t *stat_maskp,
-	__out_ecount_opt(EFX_MON_NSTATS)	efx_mon_stat_value_t *stat)
+	__inout_ecount_opt(EFX_MON_NSTATS)	efx_mon_stat_value_t *stat)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	uint16_t port_mask;
@@ -435,7 +435,7 @@ fail1:
 mcdi_mon_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values)
+	__inout_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint32_t size = encp->enc_mon_stat_dma_buf_size;

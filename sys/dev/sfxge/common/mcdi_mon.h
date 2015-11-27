@@ -63,7 +63,7 @@ extern	__checkReturn			int
 mcdi_mon_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values);
+	__inout_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values);
 
 #endif	/* EFSYS_OPT_MON_STATS */
 

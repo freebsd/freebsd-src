@@ -631,7 +631,7 @@ efx_phy_stat_name(
 efx_phy_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_PHY_NSTATS)	uint32_t *stat)
+	__inout_ecount(EFX_PHY_NSTATS)	uint32_t *stat)
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_phy_ops_t *epop = epp->ep_epop;
