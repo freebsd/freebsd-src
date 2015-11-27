@@ -909,6 +909,8 @@ falconsiena_tx_qcreate(
 	}
 
 	/* Set up the new descriptor queue */
+	*addedp = 0;
+
 	EFX_POPULATE_OWORD_6(oword,
 	    FRF_AZ_TX_DESCQ_BUF_BASE_ID, id,
 	    FRF_AZ_TX_DESCQ_EVQ_ID, eep->ee_index,
