@@ -601,7 +601,7 @@ fail1:
 static	__checkReturn	int
 efx_mcdi_free_piobuf(
 	__in		efx_nic_t *enp,
-	__out		efx_piobuf_handle_t handle)
+	__in		efx_piobuf_handle_t handle)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_FREE_PIOBUF_IN_LEN,
