@@ -117,6 +117,12 @@ kvm_getswapinfo_kvm(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max,
 	struct swdevt *sp, swinfo;
 	struct kvm_swap tot;
 
+	if (!kd->arch->ka_native(kd)) {
+		_kvm_err(kd, kd->program,
+		    "cannot read swapinfo from non-native core");
+		return (-1);
+	}
+
 	if (!nlist_init(kd))
 		return (-1);
 

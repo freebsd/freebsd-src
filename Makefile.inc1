@@ -1819,6 +1819,7 @@ _prebuild_libs+= lib/libc++
 .endif
 
 lib/libgeom__L: lib/libexpat__L
+lib/libkvm__L: lib/libelf__L
 
 .if ${MK_LIBTHR} != "no"
 _lib_libthr=	lib/libthr
