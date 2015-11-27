@@ -47,6 +47,7 @@ static int umass_disk_init(void);
 static int umass_disk_open(struct open_file *,...);
 static int umass_disk_close(struct open_file *);
 static void umass_disk_cleanup(void);
+static int umass_disk_ioctl(struct open_file *, u_long, void *);
 static int umass_disk_strategy(void *, int, daddr_t, size_t, char *, size_t *);
 static void umass_disk_print(int);
 
@@ -57,7 +58,7 @@ struct devsw umass_disk = {
 	.dv_strategy = umass_disk_strategy,
 	.dv_open = umass_disk_open,
 	.dv_close = umass_disk_close,
-	.dv_ioctl = noioctl,
+	.dv_ioctl = umass_disk_ioctl,
 	.dv_print = umass_disk_print,
 	.dv_cleanup = umass_disk_cleanup,
 };
@@ -133,6 +134,30 @@ umass_disk_open(struct open_file *f,...)
 	if (dev->d_unit != 0)
 		return (EIO);
 	return (umass_disk_open_sub(dev));
+}
+
+static int
+umass_disk_ioctl(struct open_file *f __unused, u_long cmd, void *buf)
+{
+	uint32_t nblock;
+	uint32_t blocksize;
+
+	switch (cmd) {
+	case IOCTL_GET_BLOCK_SIZE:
+	case IOCTL_GET_BLOCKS:
+		if (usb_msc_read_capacity(umass_uaa.device, 0,
+		    &nblock, &blocksize) != 0)
+			return (EINVAL);
+
+		if (cmd == IOCTL_GET_BLOCKS)
+			*(uint32_t*)buf = nblock;
+		else
+			*(uint32_t*)buf = blocksize;
+
+		return (0);
+	default:
+		return (ENXIO);
+	}
 }
 
 static int
