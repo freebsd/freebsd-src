@@ -235,31 +235,18 @@ argtooff(const char *arg, const char *msg)
 static void
 usage(void)
 {
-	fprintf(stderr,
-	    "usage: newfs_msdos [ -options ] special [disktype]\n"
-	    "where the options are:\n"
-	    "\t-@ create file system at specified offset\n"
-	    "\t-B get bootstrap from file\n"
-	    "\t-C create image file with specified size\n"
-	    "\t-F FAT type (12, 16, or 32)\n"
-	    "\t-I volume ID\n"
-	    "\t-L volume label\n"
-	    "\t-N don't create file system: just print out parameters\n"
-	    "\t-O OEM string\n"
-	    "\t-S bytes/sector\n"
-	    "\t-a sectors/FAT\n"
-	    "\t-b block size\n"
-	    "\t-c sectors/cluster\n"
-	    "\t-e root directory entries\n"
-	    "\t-f standard format\n"
-	    "\t-h drive heads\n"
-	    "\t-i file system info sector\n"
-	    "\t-k backup boot sector\n"
-	    "\t-m media descriptor\n"
-	    "\t-n number of FATs\n"
-	    "\t-o hidden sectors\n"
-	    "\t-r reserved sectors\n"
-	    "\t-s file system size (sectors)\n"
-	    "\t-u sectors/track\n");
-	exit(1);
+    fprintf(stderr,
+	    "usage: %s [ -options ] special [disktype]\n", getprogname());
+    fprintf(stderr, "where the options are:\n");
+static struct {
+    char o;
+    const char *h;
+} opts[] = {
+#define AOPT(_opt, _type, _name, _min, _desc) { _opt, _desc },
+ALLOPTS
+#undef AOPT
+    };
+    for (size_t i = 0; i < nitems(opts); i++)
+	fprintf(stderr, "\t-%c %s\n", opts[i].o, opts[i].h);
+    exit(1);
 }
