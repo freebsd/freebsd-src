@@ -948,19 +948,27 @@ static struct {
 	{
 		EFX_FAMILY_HUNTINGTON,
 		(1 << TLV_PORT_MODE_10G) |
-		(1 << TLV_PORT_MODE_40G) |
 		(1 << TLV_PORT_MODE_10G_10G) |
-		(1 << TLV_PORT_MODE_40G_40G),
+		(1 << TLV_PORT_MODE_10G_10G_10G_10G),
 		1
 	},
 	/* Supported modes requiring 2 outputs per port */
 	{
 		EFX_FAMILY_HUNTINGTON,
-		(1 << TLV_PORT_MODE_10G_10G_10G_10G) |
+		(1 << TLV_PORT_MODE_40G) |
+		(1 << TLV_PORT_MODE_40G_40G) |
 		(1 << TLV_PORT_MODE_40G_10G_10G) |
 		(1 << TLV_PORT_MODE_10G_10G_40G),
 		2
 	}
+	/*
+	 * NOTE: Medford modes will require 4 outputs per port:
+	 *	TLV_PORT_MODE_10G_10G_10G_10G_Q
+	 *	TLV_PORT_MODE_10G_10G_10G_10G_Q2
+	 * The Q2 mode routes outputs to external port 2. Support for this
+	 * will require a new field specifying the number to add after
+	 * scaling by stride. This is fixed at 1 currently.
+	 */
 };
 
 static	__checkReturn	int
