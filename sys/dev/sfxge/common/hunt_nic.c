@@ -1709,10 +1709,22 @@ fail1:
 hunt_nic_fini(
 	__in		efx_nic_t *enp)
 {
+	uint32_t i;
+	int rc;
+
 	(void) efx_mcdi_vadaptor_free(enp, enp->en_vport_id);
 	enp->en_vport_id = 0;
 
-	/* FIXME: do we need to unlink piobufs ? */
+	/* Unlink piobufs from extra VIs in WC mapping */
+	if (enp->en_u.hunt.enu_piobuf_count > 0) {
+		for (i = 0; i < enp->en_u.hunt.enu_piobuf_count; i++) {
+			rc = efx_mcdi_unlink_piobuf(enp,
+			    enp->en_u.hunt.enu_pio_write_vi_base + i);
+			if (rc != 0)
+				break;
+		}
+	}
+
 	hunt_nic_free_piobufs(enp);
 
 	(void) efx_mcdi_free_vis(enp);
