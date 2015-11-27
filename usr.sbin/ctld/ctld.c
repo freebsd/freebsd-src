@@ -615,6 +615,7 @@ portal_group_new(struct conf *conf, const char *name)
 	if (pg == NULL)
 		log_err(1, "calloc");
 	pg->pg_name = checked_strdup(name);
+	TAILQ_INIT(&pg->pg_options);
 	TAILQ_INIT(&pg->pg_portals);
 	TAILQ_INIT(&pg->pg_ports);
 	pg->pg_conf = conf;
@@ -629,6 +630,7 @@ portal_group_delete(struct portal_group *pg)
 {
 	struct portal *portal, *tmp;
 	struct port *port, *tport;
+	struct option *o, *otmp;
 
 	TAILQ_FOREACH_SAFE(port, &pg->pg_ports, p_pgs, tport)
 		port_delete(port);
@@ -636,6 +638,8 @@ portal_group_delete(struct portal_group *pg)
 
 	TAILQ_FOREACH_SAFE(portal, &pg->pg_portals, p_next, tmp)
 		portal_delete(portal);
+	TAILQ_FOREACH_SAFE(o, &pg->pg_options, o_next, otmp)
+		option_delete(&pg->pg_options, o);
 	free(pg->pg_name);
 	free(pg->pg_redirection);
 	free(pg);
@@ -1389,7 +1393,7 @@ void
 lun_delete(struct lun *lun)
 {
 	struct target *targ;
-	struct lun_option *lo, *tmp;
+	struct option *o, *tmp;
 	int i;
 
 	TAILQ_FOREACH(targ, &lun->l_conf->conf_targets, t_next) {
@@ -1400,8 +1404,8 @@ lun_delete(struct lun *lun)
 	}
 	TAILQ_REMOVE(&lun->l_conf->conf_luns, lun, l_next);
 
-	TAILQ_FOREACH_SAFE(lo, &lun->l_options, lo_next, tmp)
-		lun_option_delete(lo);
+	TAILQ_FOREACH_SAFE(o, &lun->l_options, o_next, tmp)
+		option_delete(&lun->l_options, o);
 	free(lun->l_name);
 	free(lun->l_backend);
 	free(lun->l_device_id);
@@ -1487,59 +1491,56 @@ lun_set_ctl_lun(struct lun *lun, uint32_t value)
 	lun->l_ctl_lun = value;
 }
 
-struct lun_option *
-lun_option_new(struct lun *lun, const char *name, const char *value)
+struct option *
+option_new(struct options *options, const char *name, const char *value)
 {
-	struct lun_option *lo;
+	struct option *o;
 
-	lo = lun_option_find(lun, name);
-	if (lo != NULL) {
-		log_warnx("duplicated lun option \"%s\" for lun \"%s\"",
-		    name, lun->l_name);
+	o = option_find(options, name);
+	if (o != NULL) {
+		log_warnx("duplicated option \"%s\"", name);
 		return (NULL);
 	}
 
-	lo = calloc(1, sizeof(*lo));
-	if (lo == NULL)
+	o = calloc(1, sizeof(*o));
+	if (o == NULL)
 		log_err(1, "calloc");
-	lo->lo_name = checked_strdup(name);
-	lo->lo_value = checked_strdup(value);
-	lo->lo_lun = lun;
-	TAILQ_INSERT_TAIL(&lun->l_options, lo, lo_next);
+	o->o_name = checked_strdup(name);
+	o->o_value = checked_strdup(value);
+	TAILQ_INSERT_TAIL(options, o, o_next);
 
-	return (lo);
+	return (o);
 }
 
 void
-lun_option_delete(struct lun_option *lo)
+option_delete(struct options *options, struct option *o)
 {
 
-	TAILQ_REMOVE(&lo->lo_lun->l_options, lo, lo_next);
-
-	free(lo->lo_name);
-	free(lo->lo_value);
-	free(lo);
+	TAILQ_REMOVE(options, o, o_next);
+	free(o->o_name);
+	free(o->o_value);
+	free(o);
 }
 
-struct lun_option *
-lun_option_find(const struct lun *lun, const char *name)
+struct option *
+option_find(const struct options *options, const char *name)
 {
-	struct lun_option *lo;
+	struct option *o;
 
-	TAILQ_FOREACH(lo, &lun->l_options, lo_next) {
-		if (strcmp(lo->lo_name, name) == 0)
-			return (lo);
+	TAILQ_FOREACH(o, options, o_next) {
+		if (strcmp(o->o_name, name) == 0)
+			return (o);
 	}
 
 	return (NULL);
 }
 
 void
-lun_option_set(struct lun_option *lo, const char *value)
+option_set(struct option *o, const char *value)
 {
 
-	free(lo->lo_value);
-	lo->lo_value = checked_strdup(value);
+	free(o->o_value);
+	o->o_value = checked_strdup(value);
 }
 
 static struct connection *
@@ -1578,7 +1579,7 @@ conf_print(struct conf *conf)
 	struct portal *portal;
 	struct target *targ;
 	struct lun *lun;
-	struct lun_option *lo;
+	struct option *o;
 
 	TAILQ_FOREACH(ag, &conf->conf_auth_groups, ag_next) {
 		fprintf(stderr, "auth-group %s {\n", ag->ag_name);
@@ -1603,9 +1604,9 @@ conf_print(struct conf *conf)
 	TAILQ_FOREACH(lun, &conf->conf_luns, l_next) {
 		fprintf(stderr, "\tlun %s {\n", lun->l_name);
 		fprintf(stderr, "\t\tpath %s\n", lun->l_path);
-		TAILQ_FOREACH(lo, &lun->l_options, lo_next)
+		TAILQ_FOREACH(o, &lun->l_options, o_next)
 			fprintf(stderr, "\t\toption %s %s\n",
-			    lo->lo_name, lo->lo_value);
+			    lo->o_name, lo->o_value);
 		fprintf(stderr, "\t}\n");
 	}
 	TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
