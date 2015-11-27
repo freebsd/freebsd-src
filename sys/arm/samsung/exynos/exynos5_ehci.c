@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -59,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "gpio_if.h"
 
 #include "opt_platform.h"
+#endif
 
 /* GPIO control */
 #define	GPIO_OUTPUT	1

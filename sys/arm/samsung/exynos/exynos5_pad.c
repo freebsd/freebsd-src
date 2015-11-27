@@ -28,7 +28,9 @@
  * Samsung Exynos 5 Pad Control
  * Chapter 4, Exynos 5 Dual User's Manual Public Rev 1.00
  */
-
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -55,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 
 #include "gpio_if.h"
+#endif
 
 #include <arm/samsung/exynos/exynos5_combiner.h>
 #include <arm/samsung/exynos/exynos5_pad.h>
