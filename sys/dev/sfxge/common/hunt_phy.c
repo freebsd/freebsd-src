@@ -495,7 +495,7 @@ hunt_phy_oui_get(
 hunt_phy_stats_update(
 	__in					efx_nic_t *enp,
 	__in					efsys_mem_t *esmp,
-	__out_ecount(EFX_PHY_NSTATS)		uint32_t *stat)
+	__inout_ecount(EFX_PHY_NSTATS)		uint32_t *stat)
 {
 	/* TBD: no stats support in firmware yet */
 	_NOTE(ARGUNUSED(enp, esmp))

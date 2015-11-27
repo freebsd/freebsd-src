@@ -466,7 +466,7 @@ siena_phy_decode_stats(
 	__in					uint32_t vmask,
 	__in_opt				efsys_mem_t *esmp,
 	__out_opt				uint64_t *smaskp,
-	__out_ecount_opt(EFX_PHY_NSTATS)	uint32_t *stat)
+	__inout_ecount_opt(EFX_PHY_NSTATS)	uint32_t *stat)
 {
 	uint64_t smask = 0;
 
@@ -550,7 +550,7 @@ siena_phy_decode_stats(
 siena_phy_stats_update(
 	__in					efx_nic_t *enp,
 	__in					efsys_mem_t *esmp,
-	__out_ecount(EFX_PHY_NSTATS)		uint32_t *stat)
+	__inout_ecount(EFX_PHY_NSTATS)		uint32_t *stat)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint32_t vmask = encp->enc_mcdi_phy_stat_mask;
