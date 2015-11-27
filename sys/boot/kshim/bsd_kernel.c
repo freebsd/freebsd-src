@@ -138,6 +138,7 @@ cv_timedwait(struct cv *cv, struct mtx *mtx, int timo)
 {
 	int start = ticks;
 	int delta;
+	int time = 0;
 
 	if (cv->sleeping)
 		return (EWOULDBLOCK);	/* not allowed */
@@ -153,6 +154,14 @@ cv_timedwait(struct cv *cv, struct mtx *mtx, int timo)
 		mtx_unlock(mtx);
 
 		usb_idle();
+
+		if (++time >= (1000000 / hz)) {
+			time = 0;
+			callout_process(1);
+		}
+
+		/* Sleep for 1 us */
+		delay(1);
 
 		mtx_lock(mtx);
 	}
