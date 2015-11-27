@@ -396,7 +396,7 @@ conf_new_from_kernel(void)
 	struct pport *pp;
 	struct port *cp;
 	struct lun *cl;
-	struct lun_option *lo;
+	struct option *o;
 	struct ctl_lun_list list;
 	struct cctl_devlist_data devlist;
 	struct cctl_lun *lun;
@@ -626,8 +626,8 @@ retry_port:
 				lun_set_path(cl, nv->value);
 				continue;
 			}
-			lo = lun_option_new(cl, nv->name, nv->value);
-			if (lo == NULL)
+			o = option_new(&cl->l_options, nv->name, nv->value);
+			if (o == NULL)
 				log_warnx("unable to add CTL lun option %s "
 				    "for CTL lun %ju \"%s\"",
 				    nv->name, (uintmax_t) lun->lun_id,
@@ -652,7 +652,7 @@ str_arg(struct ctl_be_arg *arg, const char *name, const char *value)
 int
 kernel_lun_add(struct lun *lun)
 {
-	struct lun_option *lo;
+	struct option *o;
 	struct ctl_lun_req req;
 	int error, i, num_options;
 
@@ -687,31 +687,31 @@ kernel_lun_add(struct lun *lun)
 	}
 
 	if (lun->l_path != NULL) {
-		lo = lun_option_find(lun, "file");
-		if (lo != NULL) {
-			lun_option_set(lo, lun->l_path);
+		o = option_find(&lun->l_options, "file");
+		if (o != NULL) {
+			option_set(o, lun->l_path);
 		} else {
-			lo = lun_option_new(lun, "file", lun->l_path);
-			assert(lo != NULL);
+			o = option_new(&lun->l_options, "file", lun->l_path);
+			assert(o != NULL);
 		}
 	}
 
-	lo = lun_option_find(lun, "ctld_name");
-	if (lo != NULL) {
-		lun_option_set(lo, lun->l_name);
+	o = option_find(&lun->l_options, "ctld_name");
+	if (o != NULL) {
+		option_set(o, lun->l_name);
 	} else {
-		lo = lun_option_new(lun, "ctld_name", lun->l_name);
-		assert(lo != NULL);
+		o = option_new(&lun->l_options, "ctld_name", lun->l_name);
+		assert(o != NULL);
 	}
 
-	lo = lun_option_find(lun, "scsiname");
-	if (lo == NULL && lun->l_scsiname != NULL) {
-		lo = lun_option_new(lun, "scsiname", lun->l_scsiname);
-		assert(lo != NULL);
+	o = option_find(&lun->l_options, "scsiname");
+	if (o == NULL && lun->l_scsiname != NULL) {
+		o = option_new(&lun->l_options, "scsiname", lun->l_scsiname);
+		assert(o != NULL);
 	}
 
 	num_options = 0;
-	TAILQ_FOREACH(lo, &lun->l_options, lo_next)
+	TAILQ_FOREACH(o, &lun->l_options, o_next)
 		num_options++;
 
 	req.num_be_args = num_options;
@@ -724,8 +724,8 @@ kernel_lun_add(struct lun *lun)
 		}
 
 		i = 0;
-		TAILQ_FOREACH(lo, &lun->l_options, lo_next) {
-			str_arg(&req.be_args[i], lo->lo_name, lo->lo_value);
+		TAILQ_FOREACH(o, &lun->l_options, o_next) {
+			str_arg(&req.be_args[i], o->o_name, o->o_value);
 			i++;
 		}
 		assert(i == num_options);
@@ -760,7 +760,7 @@ kernel_lun_add(struct lun *lun)
 int
 kernel_lun_modify(struct lun *lun)
 {
-	struct lun_option *lo;
+	struct option *o;
 	struct ctl_lun_req req;
 	int error, i, num_options;
 
@@ -773,7 +773,7 @@ kernel_lun_modify(struct lun *lun)
 	req.reqdata.modify.lun_size_bytes = lun->l_size;
 
 	num_options = 0;
-	TAILQ_FOREACH(lo, &lun->l_options, lo_next)
+	TAILQ_FOREACH(o, &lun->l_options, o_next)
 		num_options++;
 
 	req.num_be_args = num_options;
@@ -786,8 +786,8 @@ kernel_lun_modify(struct lun *lun)
 		}
 
 		i = 0;
-		TAILQ_FOREACH(lo, &lun->l_options, lo_next) {
-			str_arg(&req.be_args[i], lo->lo_name, lo->lo_value);
+		TAILQ_FOREACH(o, &lun->l_options, o_next) {
+			str_arg(&req.be_args[i], o->o_name, o->o_value);
 			i++;
 		}
 		assert(i == num_options);
@@ -907,6 +907,7 @@ kernel_handoff(struct connection *conn)
 int
 kernel_port_add(struct port *port)
 {
+	struct option *o;
 	struct ctl_port_entry entry;
 	struct ctl_req req;
 	struct ctl_lun_map lm;
@@ -921,6 +922,8 @@ kernel_port_add(struct port *port)
 		strlcpy(req.driver, "iscsi", sizeof(req.driver));
 		req.reqtype = CTL_REQ_CREATE;
 		req.num_args = 5;
+		TAILQ_FOREACH(o, &pg->pg_options, o_next)
+			req.num_args++;
 		req.args = malloc(req.num_args * sizeof(*req.args));
 		if (req.args == NULL)
 			log_err(1, "malloc");
@@ -936,6 +939,8 @@ kernel_port_add(struct port *port)
 		if (targ->t_alias)
 			str_arg(&req.args[n++], "cfiscsi_target_alias", targ->t_alias);
 		str_arg(&req.args[n++], "ctld_portal_group_name", pg->pg_name);
+		TAILQ_FOREACH(o, &pg->pg_options, o_next)
+			str_arg(&req.args[n++], o->o_name, o->o_value);
 		req.num_args = n;
 		error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
 		free(req.args);
