@@ -664,7 +664,10 @@ p_rtentry_sysctl(struct rt_msghdr *rtm)
 			strlcpy(prettyname, "---", sizeof(prettyname));
 	}
 
-	printf("%*.*s", wid_if, wid_if, prettyname);
+	if (Wflag)
+		printf("%*s", wid_if, prettyname);
+	else
+		printf("%*.*s", wid_if, wid_if, prettyname);
 	if (rtm->rtm_rmx.rmx_expire) {
 		time_t expire_time;
 
