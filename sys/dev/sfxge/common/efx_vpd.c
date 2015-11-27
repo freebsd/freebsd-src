@@ -545,8 +545,10 @@ efx_vpd_hunk_verify(
 
 		for (pos = 0; pos != taglen; pos += 3 + keylen) {
 			/* RV keyword must be the last in the block */
-			if (cksummed)
+			if (cksummed) {
+				rc = EFAULT;
 				goto fail2;
+			}
 
 			if ((rc = efx_vpd_next_keyword(data + offset,
 			    taglen, pos, &keyword, &keylen)) != 0)
