@@ -2618,6 +2618,10 @@ _vhold(struct vnode *vp, bool locked)
  * Drop the hold count of the vnode.  If this is the last reference to
  * the vnode we place it on the free list unless it has been vgone'd
  * (marked VI_DOOMED) in which case we will free it.
+ *
+ * Because the vnode vm object keeps a hold reference on the vnode if
+ * there is at least one resident non-cached page, the vnode cannot
+ * leave the active list without the page cleanup done.
  */
 void
 _vdrop(struct vnode *vp, bool locked)
@@ -2744,11 +2748,13 @@ vinactive(struct vnode *vp, struct thread *td)
 	VI_UNLOCK(vp);
 	/*
 	 * Before moving off the active list, we must be sure that any
-	 * modified pages are on the vnode's dirty list since these will
-	 * no longer be checked once the vnode is on the inactive list.
-	 * Because the vnode vm object keeps a hold reference on the vnode
-	 * if there is at least one resident non-cached page, the vnode
-	 * cannot leave the active list without the page cleanup done.
+	 * modified pages are converted into the vnode's dirty
+	 * buffers, since these will no longer be checked once the
+	 * vnode is on the inactive list.
+	 *
+	 * The write-out of the dirty pages is asynchronous.  At the
+	 * point that VOP_INACTIVE() is called, there could still be
+	 * pending I/O and dirty pages in the object.
 	 */
 	obj = vp->v_object;
 	if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
