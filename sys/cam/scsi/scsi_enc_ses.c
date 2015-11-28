@@ -345,8 +345,9 @@ typedef struct ses_cache {
 	const struct ses_cfg_page		*cfg_page;
 
 	/* References into the config page. */
+	int					 ses_nsubencs;
 	const struct ses_enc_desc * const	*subencs;
-	uint8_t					 ses_ntypes;
+	int					 ses_ntypes;
 	const ses_type_t			*ses_types;
 
 	/* Source for all the status pointers */
@@ -1383,11 +1384,12 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	 * The cast here is not required in C++ but C99 is not so
 	 * sophisticated (see C99 6.5.16.1(1)).
 	 */
+	ses_cache->ses_nsubencs = ses_cfg_page_get_num_subenc(cfg_page);
 	ses_cache->subencs = subencs;
 
 	buf_subenc = cfg_page->subencs;
 	cur_subenc = subencs;
-	last_subenc = &subencs[ses_cfg_page_get_num_subenc(cfg_page) - 1];
+	last_subenc = &subencs[ses_cache->ses_nsubencs - 1];
 	ntype = 0;
 	while (cur_subenc <= last_subenc) {
 
@@ -1421,6 +1423,7 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	 * Type data is const after construction (i.e. when accessed via
 	 * our cache object.
 	 */
+	ses_cache->ses_ntypes = ntype;
 	ses_cache->ses_types = ses_types;
 
 	cur_buf_type = (const struct ses_elm_type_desc *)
@@ -1457,7 +1460,6 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 		err = ENOMEM;
 		goto out;
 	}
-	ses_cache->ses_ntypes = (uint8_t)ntype;
 	enc_cache->nelms = nelm;
 
 	ses_iter_init(enc, enc_cache, &iter);
@@ -2712,9 +2714,22 @@ ses_get_elm_devnames(enc_softc_t *enc, encioc_elm_devnames_t *elmdn)
 static int
 ses_handle_string(enc_softc_t *enc, encioc_string_t *sstr, int ioc)
 {
+	ses_softc_t *ses;
+	enc_cache_t *enc_cache;
+	ses_cache_t *ses_cache;
+	const struct ses_enc_desc *enc_desc;
 	int amt, payload, ret;
 	char cdb[6];
+	char str[32];
+	char vendor[9];
+	char product[17];
+	char rev[5];
 	uint8_t *buf;
+	size_t size, rsize;
+
+	ses = enc->enc_private;
+	enc_cache = &enc->enc_daemon_cache;
+	ses_cache = enc_cache->private;
 
 	/* Implement SES2r20 6.1.6 */
 	if (sstr->bufsiz > 0xffff)
@@ -2739,6 +2754,40 @@ ses_handle_string(enc_softc_t *enc, encioc_string_t *sstr, int ioc)
 		amt = payload;
 		ses_page_cdb(cdb, payload, SesStringIn, CAM_DIR_IN);
 		buf = sstr->buf;
+	} else if (ioc == ENCIOC_GETENCNAME) {
+		if (ses_cache->ses_nsubencs < 1)
+			return (ENODEV);
+		enc_desc = ses_cache->subencs[0];
+		cam_strvis(vendor, enc_desc->vendor_id,
+		    sizeof(enc_desc->vendor_id), sizeof(vendor));
+		cam_strvis(product, enc_desc->product_id,
+		    sizeof(enc_desc->product_id), sizeof(product));
+		cam_strvis(rev, enc_desc->product_rev,
+		    sizeof(enc_desc->product_rev), sizeof(rev));
+		rsize = snprintf(str, sizeof(str), "%s %s %s",
+		    vendor, product, rev) + 1;
+		if (rsize > sizeof(str))
+			rsize = sizeof(str);
+		copyout(&rsize, &sstr->bufsiz, sizeof(rsize));
+		size = rsize;
+		if (size > sstr->bufsiz)
+			size = sstr->bufsiz;
+		copyout(str, sstr->buf, size);
+		return (size == rsize ? 0 : ENOMEM);
+	} else if (ioc == ENCIOC_GETENCID) {
+		if (ses_cache->ses_nsubencs < 1)
+			return (ENODEV);
+		enc_desc = ses_cache->subencs[0];
+		rsize = snprintf(str, sizeof(str), "%16jx",
+		    scsi_8btou64(enc_desc->logical_id)) + 1;
+		if (rsize > sizeof(str))
+			rsize = sizeof(str);
+		copyout(&rsize, &sstr->bufsiz, sizeof(rsize));
+		size = rsize;
+		if (size > sstr->bufsiz)
+			size = sstr->bufsiz;
+		copyout(str, sstr->buf, size);
+		return (size == rsize ? 0 : ENOMEM);
 	} else
 		return EINVAL;
 
