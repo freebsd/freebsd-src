@@ -542,8 +542,7 @@ static int i915_dispatch_batchbuffer(struct drm_device * dev,
 				return ret;
 
 			if (INTEL_INFO(dev)->gen >= 4) {
-				OUT_RING(MI_BATCH_BUFFER_START | (2 << 6) |
-				    MI_BATCH_NON_SECURE_I965);
+				OUT_RING(MI_BATCH_BUFFER_START | (2 << 6) | MI_BATCH_NON_SECURE_I965);
 				OUT_RING(batch->start);
 			} else {
 				OUT_RING(MI_BATCH_BUFFER_START | (2 << 6));
@@ -724,7 +723,8 @@ int i915_cmdbuffer(struct drm_device *dev, void *data,
 		cliprects = malloc(cmdbuf->num_cliprects *
 				    sizeof(struct drm_clip_rect), DRM_MEM_DMA, M_WAITOK | M_ZERO);
 		ret = -copyin(cmdbuf->cliprects, cliprects,
-		    cmdbuf->num_cliprects * sizeof(struct drm_clip_rect));
+				     cmdbuf->num_cliprects *
+				     sizeof(struct drm_clip_rect));
 		if (ret != 0)
 			goto fail_clip_free;
 	}
@@ -1325,7 +1325,7 @@ void i915_master_destroy(struct drm_device *dev, struct drm_master *master)
  */
 int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv;
 	const struct intel_device_info *info;
 	unsigned long base, size;
 	int ret = 0, mmio_bar;
