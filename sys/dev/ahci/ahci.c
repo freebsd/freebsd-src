@@ -1606,10 +1606,15 @@ ahci_execute_transaction(struct ahci_slot *slot)
 		if ((ch->quirks & AHCI_Q_NOBSYRES) == 0 &&
 		    (ch->quirks & AHCI_Q_ATI_PMP_BUG) == 0 &&
 		    softreset == 2 && et == AHCI_ERR_NONE) {
-			while ((val = fis[2]) & ATA_S_BUSY) {
-				DELAY(10);
-				if (count++ >= timeout)
+			for ( ; count < timeout; count++) {
+				bus_dmamap_sync(ch->dma.rfis_tag,
+				    ch->dma.rfis_map, BUS_DMASYNC_POSTREAD);
+				val = fis[2];
+				bus_dmamap_sync(ch->dma.rfis_tag,
+				    ch->dma.rfis_map, BUS_DMASYNC_PREREAD);
+				if ((val & ATA_S_BUSY) == 0)
 					break;
+				DELAY(10);
 			}
 		}
 
