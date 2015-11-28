@@ -363,6 +363,13 @@ atomic_readandclear_32(volatile u_int32_t *p)
 	return (__swp(0, p));
 }
 
+static __inline uint32_t
+atomic_swap_32(volatile u_int32_t *p, u_int32_t v)
+{
+
+	return (__swp(v, p));
+}
+
 #define atomic_cmpset_rel_32	atomic_cmpset_32
 #define atomic_cmpset_acq_32	atomic_cmpset_32
 #define atomic_set_rel_32	atomic_set_32
