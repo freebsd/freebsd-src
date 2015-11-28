@@ -92,8 +92,6 @@ struct sysentvec {
 	int		sv_size;	/* number of entries */
 	struct sysent	*sv_table;	/* pointer to sysent */
 	u_int		sv_mask;	/* optional mask to index */
-	int		sv_sigsize;	/* size of signal translation table */
-	int		*sv_sigtbl;	/* signal translation table */
 	int		sv_errsize;	/* size of errno translation table */
 	int 		*sv_errtbl;	/* errno translation table */
 	int		(*sv_transtrap)(int, int);
@@ -104,8 +102,6 @@ struct sysentvec {
 			    		/* send signal */
 	char 		*sv_sigcode;	/* start of sigtramp code */
 	int 		*sv_szsigcode;	/* size of sigtramp code */
-	void		(*sv_prepsyscall)(struct trapframe *, int *, u_int *,
-			    caddr_t *);
 	char		*sv_name;	/* name of binary type */
 	int		(*sv_coredump)(struct thread *, struct vnode *, off_t, int);
 					/* function to dump core, or NULL */
