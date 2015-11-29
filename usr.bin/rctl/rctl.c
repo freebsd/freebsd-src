@@ -387,20 +387,24 @@ show_limits(const char *filter, int hflag, int nflag)
 	char *outbuf = NULL;
 	size_t outbuflen = RCTL_DEFAULT_BUFSIZE / 4;
 
-	do {
+	for (;;) {
 		outbuflen *= 4;
 		outbuf = realloc(outbuf, outbuflen);
 		if (outbuf == NULL)
 			err(1, "realloc");
+		error = rctl_get_limits(filter, strlen(filter) + 1,
+		    outbuf, outbuflen);
+		if (error == 0)
+			break;
+		if (errno == ERANGE)
+			continue;
+		if (errno == ENOSYS)
+			enosys();
+		warn("rctl_get_limits");
+		free(outbuf);
 
-		error = rctl_get_limits(filter, strlen(filter) + 1, outbuf,
-		    outbuflen);
-		if (error && errno != ERANGE) {
-			if (errno == ENOSYS)
-				enosys();
-			warn("rctl_get_limits");
-		}
-	} while (error && errno == ERANGE);
+		return (error);
+	}
 
 	print_rules(outbuf, hflag, nflag);
 	free(outbuf);
@@ -466,20 +470,24 @@ show_usage(const char *filter, int hflag)
 	char *copy, *outbuf = NULL, *tmp;
 	size_t outbuflen = RCTL_DEFAULT_BUFSIZE / 4;
 
-	do {
+	for (;;) {
 		outbuflen *= 4;
 		outbuf = realloc(outbuf, outbuflen);
 		if (outbuf == NULL)
 			err(1, "realloc");
+		error = rctl_get_racct(filter, strlen(filter) + 1,
+		    outbuf, outbuflen);
+		if (error == 0)
+			break;
+		if (errno == ERANGE)
+			continue;
+		if (errno == ENOSYS)
+			enosys();
+		warn("rctl_get_racct");
+		free(outbuf);
 
-		error = rctl_get_racct(filter, strlen(filter) + 1, outbuf,
-		    outbuflen);
-		if (error && errno != ERANGE) {
-			if (errno == ENOSYS)
-				enosys();
-			warn("rctl_get_racct");
-		}
-	} while (error && errno == ERANGE);
+		return (error);
+	}
 
 	copy = outbuf;
 	while ((tmp = strsep(&copy, ",")) != NULL) {
@@ -512,19 +520,23 @@ show_rules(const char *filter, int hflag, int nflag)
 	else
 		filterlen = 0;
 
-	do {
+	for (;;) {
 		outbuflen *= 4;
 		outbuf = realloc(outbuf, outbuflen);
 		if (outbuf == NULL)
 			err(1, "realloc");
-
 		error = rctl_get_rules(filter, filterlen, outbuf, outbuflen);
-		if (error && errno != ERANGE) {
-			if (errno == ENOSYS)
-				enosys();
-			warn("rctl_get_rules");
-		}
-	} while (error && errno == ERANGE);
+		if (error == 0)
+			break;
+		if (errno == ERANGE)
+			continue;
+		if (errno == ENOSYS)
+			enosys();
+		warn("rctl_get_rules");
+		free(outbuf);
+
+		return (error);
+	}
 
 	print_rules(outbuf, hflag, nflag);
 	free(outbuf);
