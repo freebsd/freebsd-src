@@ -1689,10 +1689,8 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 					goto ouch;
 				}
 			} else if (fetch_netrc_auth(url) == 0) {
-				aparams.user = url->user ?
-				    strdup(url->user) : strdup("");
-				aparams.password = url->pwd ?
-				    strdup(url->pwd) : strdup("");
+				aparams.user = strdup(url->user);
+				aparams.password = strdup(url->pwd);
 			} else if (fetchAuthMethod &&
 				   fetchAuthMethod(url) == 0) {
 				aparams.user = strdup(url->user);
