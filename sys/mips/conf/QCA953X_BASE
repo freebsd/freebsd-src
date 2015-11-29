@@ -100,7 +100,7 @@ option 		AH_DEBUG_ALQ
 device		ath_ar9300		# AR9330 HAL; no need for the others
 option		AH_DEBUG
 option		AH_SUPPORT_AR5416	# 11n HAL support
-option		AH_SUPPORT_AR9330	# Chipset support
+option		AH_SUPPORT_QCA9530	# Chipset support
 option		AH_AR5416_INTERRUPT_MITIGATION
 
 device		mii
