@@ -2970,6 +2970,7 @@ enum {
 
 #define AR_SREV_REVISION_JUPITER_10           0      /* Jupiter 1.0 */
 #define AR_SREV_REVISION_JUPITER_20           2      /* Jupiter 2.0 */
+#define AR_SREV_REVISION_JUPITER_21           3      /* Jupiter 2.1 */
 
 #define AR_SREV_REVISION_APHRODITE_10         0      /* Aphrodite 1.0 */
 
@@ -3012,9 +3013,17 @@ enum {
     ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_JUPITER) && \
      (AH_PRIVATE((_ah))->ah_macRev == AR_SREV_REVISION_JUPITER_20))
 
+#define AR_SREV_JUPITER_21(_ah) \
+    ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_JUPITER) && \
+     (AH_PRIVATE((_ah))->ah_macRev == AR_SREV_REVISION_JUPITER_21))
+
 #define AR_SREV_JUPITER_20_OR_LATER(_ah) \
     ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_JUPITER) && \
      (AH_PRIVATE((_ah))->ah_macRev >= AR_SREV_REVISION_JUPITER_20))
+
+#define AR_SREV_JUPITER_21_OR_LATER(_ah) \
+    ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_JUPITER) && \
+     (AH_PRIVATE((_ah))->ah_macRev >= AR_SREV_REVISION_JUPITER_21))
 
 #define AR_SREV_APHRODITE(_ah) \
     ((AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_APHRODITE))
