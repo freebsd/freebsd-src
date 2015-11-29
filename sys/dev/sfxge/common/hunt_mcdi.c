@@ -76,14 +76,14 @@ typedef enum efx_mcdi_header_type_e {
  */
 
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_mcdi_init(
 	__in		efx_nic_t *enp,
 	__in		const efx_mcdi_transport_t *emtp)
 {
 	efsys_mem_t *esmp = emtp->emt_dma_mem;
 	efx_dword_t dword;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
 	EFSYS_ASSERT(enp->en_features & EFX_FEATURE_MCDI_DMA);
@@ -117,7 +117,7 @@ hunt_mcdi_init(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -271,7 +271,7 @@ hunt_mcdi_request_poll(
 	unsigned int length;
 	size_t offset;
 	int state;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
 
@@ -366,7 +366,7 @@ fail2:
 		EFSYS_PROBE(fail2);
 fail1:
 	if (!emrp->emr_quiet)
-		EFSYS_PROBE1(fail1, int, rc);
+		EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	/* Fill out error state */
 	emrp->emr_rc = rc;
@@ -380,7 +380,7 @@ out:
 	return (B_TRUE);
 }
 
-			int
+			efx_rc_t
 hunt_mcdi_poll_reboot(
 	__in		efx_nic_t *enp)
 {
@@ -388,7 +388,7 @@ hunt_mcdi_poll_reboot(
 	efx_dword_t dword;
 	uint32_t old_status;
 	uint32_t new_status;
-	int rc;
+	efx_rc_t rc;
 
 	old_status = emip->emi_mc_reboot_status;
 
@@ -421,12 +421,12 @@ hunt_mcdi_poll_reboot(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_mcdi_fw_update_supported(
 	__in		efx_nic_t *enp,
 	__out		boolean_t *supportedp)
@@ -443,7 +443,7 @@ hunt_mcdi_fw_update_supported(
 	return (0);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_mcdi_macaddr_change_supported(
 	__in		efx_nic_t *enp,
 	__out		boolean_t *supportedp)
