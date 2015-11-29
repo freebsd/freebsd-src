@@ -43,7 +43,7 @@ extern "C" {
 
 #if EFSYS_OPT_MON_STATS
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 mcdi_mon_cfg_build(
     __in		efx_nic_t *enp);
 
@@ -52,18 +52,18 @@ mcdi_mon_cfg_free(
 	__in		efx_nic_t *enp);
 
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 mcdi_mon_ev(
 	__in				efx_nic_t *enp,
 	__in				efx_qword_t *eqp,
 	__out				efx_mon_stat_t *idp,
 	__out				efx_mon_stat_value_t *valuep);
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 mcdi_mon_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values);
+	__inout_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values);
 
 #endif	/* EFSYS_OPT_MON_STATS */
 

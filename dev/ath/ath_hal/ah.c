@@ -145,6 +145,9 @@ ath_hal_mac_name(struct ath_hal *ah)
 	case AR_SREV_VERSION_QCA9565:
 		/* XXX should say QCA, not AR */
 		return "9565";
+	case AR_SREV_VERSION_QCA9530:
+		/* XXX should say QCA, not AR */
+		return "9530";
 	}
 	return "????";
 }

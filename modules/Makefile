@@ -142,6 +142,7 @@ SUBDIR=	\
 	if_bridge \
 	if_disc \
 	if_edsc \
+	${_if_enc} \
 	if_epair \
 	${_if_gif} \
 	${_if_gre} \
@@ -429,6 +430,7 @@ SUBDIR+=	cuse
 	defined(ALL_MODULES)
 _carp=		carp
 _toecore=	toecore
+_if_enc=	if_enc
 _if_gif=	if_gif
 _if_gre=	if_gre
 .endif
@@ -680,7 +682,7 @@ _cp=		cp
 _elink=		elink
 _glxiic=	glxiic
 _glxsb=		glxsb
-_ibcs2=		ibcs2
+#_ibcs2=		ibcs2
 _ie=		ie
 _mse=		mse
 _ncr=		ncr

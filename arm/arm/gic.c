@@ -68,6 +68,8 @@ __FBSDID("$FreeBSD$");
 #include "pic_if.h"
 #endif
 
+#define GIC_DEBUG_SPURIOUS
+
 /* We are using GICv2 register naming */
 
 /* Distributor Registers */
@@ -135,6 +137,9 @@ struct arm_gic_softc {
 	uint8_t			ver;
 	struct mtx		mutex;
 	uint32_t		nirqs;
+#ifdef GIC_DEBUG_SPURIOUS
+	uint32_t		last_irq[MAXCPU];
+#endif
 };
 
 static struct resource_spec arm_gic_spec[] = {
@@ -287,7 +292,7 @@ arm_gic_init_secondary(device_t dev)
 }
 #endif /* ARM_INTRNG */
 #endif /* SMP */
- 
+
 #ifndef ARM_INTRNG
 int
 gic_decode_fdt(phandle_t iparent, pcell_t *intr, int *interrupt,
@@ -335,11 +340,10 @@ gic_decode_fdt(phandle_t iparent, pcell_t *intr, int *interrupt,
 		 */
 		if (fdt32_to_cpu(intr[2]) & 0x0a) {
 			printf("unsupported trigger/polarity configuration "
-			    "0x%2x\n", fdt32_to_cpu(intr[2]) & 0x0f);
-			return (ENOTSUP);
+			    "0x%02x\n", fdt32_to_cpu(intr[2]) & 0x0f);
 		}
 		*pol  = INTR_POLARITY_CONFORM;
-		if (fdt32_to_cpu(intr[2]) & 0x01)
+		if (fdt32_to_cpu(intr[2]) & 0x03)
 			*trig = INTR_TRIGGER_EDGE;
 		else
 			*trig = INTR_TRIGGER_LEVEL;
@@ -367,6 +371,7 @@ arm_gic_attach(device_t dev)
 	int		i;
 	uint32_t	icciidr;
 #ifdef ARM_INTRNG
+	phandle_t	pxref;
 	intptr_t	xref = gic_xref(dev);
 #endif
 
@@ -456,7 +461,9 @@ arm_gic_attach(device_t dev)
 		goto cleanup;
 	}
 
-	if (sc->gic_res[2] == NULL) {
+	i = OF_getencprop(ofw_bus_get_node(dev), "interrupt-parent",
+	    &pxref, sizeof(pxref));
+	if (i > 0 && xref == pxref) {
 		if (arm_pic_claim_root(dev, xref, arm_gic_intr, sc,
 		    GIC_LAST_SGI - GIC_FIRST_SGI + 1) != 0) {
 			device_printf(dev, "could not set PIC as a root\n");
@@ -472,6 +479,7 @@ arm_gic_attach(device_t dev)
 		}
 	}
 
+	OF_device_register_xref(xref, dev);
 	return (0);
 
 cleanup:
@@ -516,8 +524,11 @@ arm_gic_intr(void *arg)
 	 */
 
 	if (irq >= sc->nirqs) {
-		device_printf(sc->gic_dev, "Spurious interrupt detected\n");
-		gic_c_write_4(sc, GICC_EOIR, irq_active_reg);
+#ifdef GIC_DEBUG_SPURIOUS
+		device_printf(sc->gic_dev,
+		    "Spurious interrupt detected: last irq: %d on CPU%d\n",
+		    sc->last_irq[PCPU_GET(cpuid)], PCPU_GET(cpuid));
+#endif
 		return (FILTER_HANDLED);
 	}
 
@@ -542,12 +553,16 @@ dispatch_irq:
 		arm_ipi_dispatch(isrc, tf);
 		goto next_irq;
 #else
-		printf("SGI %u on UP system detected\n", irq - GIC_FIRST_SGI);
+		device_printf(sc->gic_dev, "SGI %u on UP system detected\n",
+		    irq - GIC_FIRST_SGI);
 		gic_c_write_4(sc, GICC_EOIR, irq_active_reg);
 		goto next_irq;
 #endif
 	}
 
+#ifdef GIC_DEBUG_SPURIOUS
+	sc->last_irq[PCPU_GET(cpuid)] = irq;
+#endif
 	if (isrc->isrc_trig == INTR_TRIGGER_EDGE)
 		gic_c_write_4(sc, GICC_EOIR, irq_active_reg);
 
@@ -729,12 +744,12 @@ gic_map_fdt(struct arm_gic_softc *sc, struct arm_irqsrc *isrc, u_int *irqp)
 		 */
 		tripol = isrc->isrc_cells[2];
 		if (tripol & 0x0a) {
-			printf("unsupported trigger/polarity configuration "
-			    "0x%2x\n", tripol & 0x0f);
-			return (ENOTSUP);
+			device_printf(sc->gic_dev,
+			   "unsupported trigger/polarity configuration "
+			   "0x%02x\n",  tripol & 0x0f);
 		}
 		pol = INTR_POLARITY_CONFORM;
-		if (tripol & 0x01)
+		if (tripol & 0x03)
 			trig = INTR_TRIGGER_EDGE;
 		else
 			trig = INTR_TRIGGER_LEVEL;
@@ -911,7 +926,8 @@ arm_gic_next_irq(struct arm_gic_softc *sc, int last_irq)
 
 	if (active_irq == 0x3FF) {
 		if (last_irq == -1)
-			printf("Spurious interrupt detected\n");
+			device_printf(sc->gic_dev,
+			    "Spurious interrupt detected\n");
 		return -1;
 	}
 

@@ -72,10 +72,9 @@ __FBSDID("$FreeBSD$");
 #include <arm/freescale/fsl_ocotpreg.h>
 #include <arm/freescale/fsl_ocotpvar.h>
 #include <arm/freescale/imx/imx_ccmvar.h>
+#include <arm/freescale/imx/imx_machdep.h>
 #include <arm/freescale/imx/imx6_anatopreg.h>
 #include <arm/freescale/imx/imx6_anatopvar.h>
-
-static SYSCTL_NODE(_hw, OID_AUTO, imx6, CTLFLAG_RW, NULL, "i.MX6 container");
 
 static struct resource_spec imx6_anatop_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
@@ -395,23 +394,23 @@ cpufreq_initialize(struct imx6_anatop_softc *sc)
 	uint32_t cfg3speed;
 	struct oppt * op;
 
-	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
+	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx),
 	    OID_AUTO, "cpu_mhz", CTLFLAG_RD, &sc->cpu_curmhz, 0, 
 	    "CPU frequency");
 
-	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6), 
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx), 
 	    OID_AUTO, "cpu_minmhz", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
 	    sc, 0, cpufreq_sysctl_minmhz, "IU", "Minimum CPU frequency");
 
-	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx),
 	    OID_AUTO, "cpu_maxmhz", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
 	    sc, 0, cpufreq_sysctl_maxmhz, "IU", "Maximum CPU frequency");
 
-	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
+	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx),
 	    OID_AUTO, "cpu_maxmhz_hw", CTLFLAG_RD, &sc->cpu_maxmhz_hw, 0, 
 	    "Maximum CPU frequency allowed by hardware");
 
-	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
+	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx),
 	    OID_AUTO, "cpu_overclock_enable", CTLFLAG_RWTUN, 
 	    &sc->cpu_overclock_enable, 0, 
 	    "Allow setting CPU frequency higher than cpu_maxmhz_hw");
@@ -626,10 +625,10 @@ initialize_tempmon(struct imx6_anatop_softc *sc)
 	callout_reset_sbt(&sc->temp_throttle_callout, sc->temp_throttle_delay, 
 	    0, tempmon_throttle_check, sc, 0);
 
-	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6), 
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx), 
 	    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
 	    temp_sysctl_handler, "IK", "Current die temperature");
-	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6), 
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx), 
 	    OID_AUTO, "throttle_temperature", CTLTYPE_INT | CTLFLAG_RW, sc,
 	    0, temp_throttle_sysctl_handler, "IK", 
 	    "Throttle CPU when exceeding this temperature");

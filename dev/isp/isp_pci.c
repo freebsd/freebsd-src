@@ -456,16 +456,6 @@ isp_get_generic_options(device_t dev, ispsoftc_t *isp)
 {
 	int tval;
 
-	/*
-	 * Figure out if we're supposed to skip this one.
-	 */
-	tval = 0;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "disable", &tval) == 0 && tval) {
-		device_printf(dev, "disabled at user request\n");
-		isp->isp_osinfo.disabled = 1;
-		return;
-	}
-	
 	tval = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "fwload_disable", &tval) == 0 && tval != 0) {
 		isp->isp_confopts |= ISP_CFG_NORELOAD;
@@ -648,16 +638,6 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 		}
 	}
 
-	tval = 0;
-	snprintf(name, sizeof(name), "%shysteresis", prefix);
-	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "name", &tval);
-	if (tval >= 0 && tval < 256) {
-		ISP_FC_PC(isp, chan)->hysteresis = tval;
-	} else {
-		ISP_FC_PC(isp, chan)->hysteresis = isp_fabric_hysteresis;
-	}
-
 	tval = -1;
 	snprintf(name, sizeof(name), "%sloop_down_limit", prefix);
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
@@ -708,16 +688,6 @@ isp_pci_attach(device_t dev)
 	 */
 	isp_nvports = 0;
 	isp_get_generic_options(dev, isp);
-
-	/*
-	 * Check to see if options have us disabled
-	 */
-	if (isp->isp_osinfo.disabled) {
-		/*
-		 * But return zero to preserve unit numbering
-		 */
-		return (0);
-	}
 
 	/*
 	 * Get PCI options- which in this case are just mapping preferences.
