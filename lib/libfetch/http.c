@@ -1658,6 +1658,9 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 					http_seterr(HTTP_NEED_PROXY_AUTH);
 					goto ouch;
 				}
+			} else if (fetch_netrc_auth(purl) == 0) {
+				aparams.user = strdup(purl->user);
+				aparams.password = strdup(purl->pwd);
 			}
 			http_authorize(conn, "Proxy-Authorization",
 				       &proxy_challenges, &aparams, url);
@@ -1685,6 +1688,11 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 					http_seterr(HTTP_NEED_AUTH);
 					goto ouch;
 				}
+			} else if (fetch_netrc_auth(url) == 0) {
+				aparams.user = url->user ?
+				    strdup(url->user) : strdup("");
+				aparams.password = url->pwd ?
+				    strdup(url->pwd) : strdup("");
 			} else if (fetchAuthMethod &&
 				   fetchAuthMethod(url) == 0) {
 				aparams.user = strdup(url->user);
