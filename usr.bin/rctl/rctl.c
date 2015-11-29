@@ -193,7 +193,7 @@ humanize_ids(char *rule)
 	struct passwd *pwd;
 	struct group *grp;
 	const char *subject, *textid, *rest;
-	char *humanized;
+	char *end, *humanized;
 
 	subject = strsep(&rule, ":");
 	textid = strsep(&rule, ":");
@@ -206,12 +206,16 @@ humanize_ids(char *rule)
 
 	/* Replace numerical user and group ids with names. */
 	if (strcasecmp(subject, "user") == 0) {
-		id = parse_user(textid);
+		id = strtod(textid, &end);
+		if ((size_t)(end - textid) != strlen(textid))
+			errx(1, "malformed uid '%s'", textid);
 		pwd = getpwuid(id);
 		if (pwd != NULL)
 			textid = pwd->pw_name;
 	} else if (strcasecmp(subject, "group") == 0) {
-		id = parse_group(textid);
+		id = strtod(textid, &end);
+		if ((size_t)(end - textid) != strlen(textid))
+			errx(1, "malformed gid '%s'", textid);
 		grp = getgrgid(id);
 		if (grp != NULL)
 			textid = grp->gr_name;
