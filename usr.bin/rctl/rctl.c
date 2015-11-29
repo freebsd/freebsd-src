@@ -111,10 +111,10 @@ expand_amount(char *rule)
 {
 	uint64_t num;
 	const char *subject, *subject_id, *resource, *action, *amount, *per;
-	char *copy, *expanded;
+	char *copy, *expanded, *tofree;
 	int ret;
 
-	copy = strdup(rule);
+	tofree = copy = strdup(rule);
 	if (copy == NULL) {
 		warn("strdup");
 		return (NULL);
@@ -128,7 +128,7 @@ expand_amount(char *rule)
 	per = copy;
 
 	if (amount == NULL || strlen(amount) == 0) {
-		free(copy);
+		free(tofree);
 		return (rule);
 	}
 
@@ -139,7 +139,7 @@ expand_amount(char *rule)
 
 	if (expand_number(amount, &num)) {
 		warnx("invalid numeric value '%s'", amount);
-		free(copy);
+		free(tofree);
 		return (NULL);
 	}
 
@@ -153,10 +153,11 @@ expand_amount(char *rule)
 
 	if (ret <= 0) {
 		warn("asprintf");
-		free(copy);
+		free(tofree);
 		return (NULL);
 	}
 
+	free(tofree);
 	return (expanded);
 }
 
@@ -280,10 +281,10 @@ humanize_amount(char *rule)
 {
 	int64_t num;
 	const char *subject, *subject_id, *resource, *action, *amount, *per;
-	char *copy, *humanized, buf[6];
+	char *copy, *humanized, buf[6], *tofree;
 	int ret;
 
-	copy = strdup(rule);
+	tofree = copy = strdup(rule);
 	if (copy == NULL)
 		err(1, "strdup");
 
@@ -296,7 +297,7 @@ humanize_amount(char *rule)
 
 	if (amount == NULL || strlen(amount) == 0 ||
 	    str2int64(amount, &num) != 0) {
-		free(copy);
+		free(tofree);
 		return (rule);
 	}
 
@@ -320,6 +321,7 @@ humanize_amount(char *rule)
 	if (ret <= 0)
 		err(1, "asprintf");
 
+	free(tofree);
 	return (humanized);
 }
 
@@ -426,10 +428,10 @@ humanize_usage_amount(char *usage)
 {
 	int64_t num;
 	const char *resource, *amount;
-	char *copy, *humanized, buf[6];
+	char *copy, *humanized, buf[6], *tofree;
 	int ret;
 
-	copy = strdup(usage);
+	tofree = copy = strdup(usage);
 	if (copy == NULL)
 		err(1, "strdup");
 
@@ -442,7 +444,7 @@ humanize_usage_amount(char *usage)
 	if (str2int64(amount, &num) != 0 || 
 	    humanize_number(buf, sizeof(buf), num, "", HN_AUTOSCALE,
 	    HN_DECIMAL | HN_NOSPACE) == -1) {
-		free(copy);
+		free(tofree);
 		return (usage);
 	}
 
@@ -450,6 +452,7 @@ humanize_usage_amount(char *usage)
 	if (ret <= 0)
 		err(1, "asprintf");
 
+	free(tofree);
 	return (humanized);
 }
 
@@ -460,7 +463,7 @@ static int
 show_usage(const char *filter, int hflag)
 {
 	int error;
-	char *outbuf = NULL, *tmp;
+	char *copy, *outbuf = NULL, *tmp;
 	size_t outbuflen = RCTL_DEFAULT_BUFSIZE / 4;
 
 	do {
@@ -478,7 +481,8 @@ show_usage(const char *filter, int hflag)
 		}
 	} while (error && errno == ERANGE);
 
-	while ((tmp = strsep(&outbuf, ",")) != NULL) {
+	copy = outbuf;
+	while ((tmp = strsep(&copy, ",")) != NULL) {
 		if (tmp[0] == '\0')
 			break; /* XXX */
 
