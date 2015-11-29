@@ -58,7 +58,7 @@
 
 #define ar9462_2p1_pciephy_clkreq_disable_L1 ar9462_2p0_pciephy_clkreq_disable_L1
 
-static const u32 ar9462_2p1_mac_core[][2] = {
+static const uint32_t ar9462_2p1_mac_core[][2] = {
 	/* Addr      allmodes  */
 	{0x00000008, 0x00000000},
 	{0x00000030, 0x000e0085},
@@ -221,7 +221,7 @@ static const u32 ar9462_2p1_mac_core[][2] = {
 	{0x000083d0, 0x000301ff},
 };
 
-static const u32 ar9462_2p1_baseband_postamble[][5] = {
+static const uint32_t ar9462_2p1_baseband_postamble[][5] = {
 	/* Addr      5G_HT20     5G_HT40     2G_HT40     2G_HT20   */
 	{0x00009810, 0xd00a8005, 0xd00a8005, 0xd00a8011, 0xd00a800d},
 	{0x00009820, 0x206a022e, 0x206a022e, 0x206a012e, 0x206a01ae},
@@ -280,7 +280,7 @@ static const u32 ar9462_2p1_baseband_postamble[][5] = {
 	{0x0000b284, 0x00000000, 0x00000000, 0x00000550, 0x00000550},
 };
 
-static const u32 ar9462_2p1_soc_preamble[][2] = {
+static const uint32_t ar9462_2p1_soc_preamble[][2] = {
 	/* Addr      allmodes  */
 	{0x000040a4, 0x00a0c9c9},
 	{0x00007020, 0x00000000},
