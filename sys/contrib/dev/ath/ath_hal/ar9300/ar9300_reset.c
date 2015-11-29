@@ -288,7 +288,7 @@ ar9300_upload_noise_floor(struct ath_hal *ah, int is_2g,
      */
     if (AR_SREV_HORNET(ah) || AR_SREV_POSEIDON(ah) || AR_SREV_APHRODITE(ah)) {
         chainmask = 0x01;
-    } else if (AR_SREV_WASP(ah) || AR_SREV_JUPITER(ah)) {
+    } else if (AR_SREV_WASP(ah) || AR_SREV_JUPITER(ah) || AR_SREV_HONEYBEE(ah)) {
         chainmask = 0x03;
     } else {
         chainmask = 0x07;
@@ -1476,7 +1476,7 @@ ar9300_init_pll(struct ath_hal *ah, struct ieee80211_channel *chan)
 
         OS_REG_WRITE(ah, AR_RTC_PLL_CONTROL, 0x142c);
         OS_DELAY(1000);
-    } else if (AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah)) {
+    } else if (AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah) || AR_SREV_HONEYBEE(ah)) {
 #define SRIF_PLL 1
         u_int32_t regdata, pll2_divint, pll2_divfrac;
 
@@ -1492,9 +1492,15 @@ ar9300_init_pll(struct ath_hal *ah, struct ieee80211_channel *chan)
             pll2_divint = 0x1c;
             pll2_divfrac = 0xa3d7;
 #else
-            pll2_divint = 0x54;
-            pll2_divfrac = 0x1eb85;
-            refdiv = 3;
+            if (AR_SREV_HONEYBEE(ah)) {
+                pll2_divint = 0x1c;
+                pll2_divfrac = 0xa3d2;
+                refdiv = 1;
+            } else {
+                pll2_divint = 0x54;
+                pll2_divfrac = 0x1eb85;
+                refdiv = 3;
+            }
 #endif
         } else {
 #ifndef SRIF_PLL
@@ -1520,7 +1526,11 @@ ar9300_init_pll(struct ath_hal *ah, struct ieee80211_channel *chan)
         OS_DELAY(1000);
         do {
             regdata = OS_REG_READ(ah, AR_PHY_PLL_MODE);
-            regdata = regdata | (0x1 << 16);
+            if (AR_SREV_HONEYBEE(ah)) {
+                regdata = regdata | (0x1 << 22);
+            } else {
+                regdata = regdata | (0x1 << 16);
+            }
             OS_REG_WRITE(ah, AR_PHY_PLL_MODE, regdata); /* PWD_PLL set to 1 */
             OS_DELAY(100);
             /* override int, frac, refdiv */
@@ -1540,6 +1550,12 @@ ar9300_init_pll(struct ath_hal *ah, struct ieee80211_channel *chan)
             if (AR_SREV_WASP(ah)) {
                 regdata = (regdata & 0x80071fff) |
                     (0x1 << 30) | (0x1 << 13) | (0x4 << 26) | (0x18 << 19);
+            } else if (AR_SREV_HONEYBEE(ah)) {
+                /*
+                 * Kd=10, Ki=2, Outdiv=1, Local PLL=0, Phase Shift=4 
+                 */
+                regdata = (regdata & 0x01c00fff) |
+                    (0x1 << 31) | (0x2 << 29) | (0xa << 25) | (0x1 << 19) | (0x6 << 12);
             } else {
                 regdata = (regdata & 0x80071fff) |
                     (0x3 << 30) | (0x1 << 13) | (0x4 << 26) | (0x60 << 19);
@@ -1548,7 +1564,11 @@ ar9300_init_pll(struct ath_hal *ah, struct ieee80211_channel *chan)
             /* Ki, Kd, Local PLL, Outdiv */
             OS_REG_WRITE(ah, AR_PHY_PLL_MODE, regdata);
             regdata = OS_REG_READ(ah, AR_PHY_PLL_MODE);
-            regdata = (regdata & 0xfffeffff);
+            if (AR_SREV_HONEYBEE(ah)) {
+                regdata = (regdata & 0xffbfffff);
+            } else {
+                regdata = (regdata & 0xfffeffff);
+            }
             OS_REG_WRITE(ah, AR_PHY_PLL_MODE, regdata); /* PWD_PLL set to 0 */
             OS_DELAY(1000);
             if (AR_SREV_WASP(ah)) {
@@ -1617,6 +1637,7 @@ ar9300_init_pll(struct ath_hal *ah, struct ieee80211_channel *chan)
     OS_REG_WRITE(ah, AR_RTC_SLEEP_CLK,
         AR_RTC_FORCE_DERIVED_CLK | AR_RTC_PCIE_RST_PWDN_EN);
 
+    /* XXX TODO: honeybee? */
     if (AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah)) {
         if (clk_25mhz) {
             OS_REG_WRITE(ah,
@@ -1950,6 +1971,9 @@ ar9300_phy_disable(struct ath_hal *ah)
         /* Turn off JMPST led */
         REG_WRITE(ATH_GPIO_OUT, (REG_READ(ATH_GPIO_OUT) | (0x1 << 15)));
     }
+    else if (AR_SREV_HONEYBEE(ah)) {
+        REG_WRITE(ATH_GPIO_OE, (REG_READ(ATH_GPIO_OE) | (0x1 << 12)));
+    }
 #undef REG_READ
 #undef REG_WRITE
 #endif
@@ -2207,7 +2231,7 @@ ar9300_load_nf(struct ath_hal *ah, int16_t nf[])
      */
     if (AR_SREV_HORNET(ah) || AR_SREV_POSEIDON(ah) || AR_SREV_APHRODITE(ah)) {
         chainmask = 0x9;
-    } else if (AR_SREV_WASP(ah) || AR_SREV_JUPITER(ah)) {
+    } else if (AR_SREV_WASP(ah) || AR_SREV_JUPITER(ah) || AR_SREV_HONEYBEE(ah)) {
         chainmask = 0x1b;
     } else {
         chainmask = 0x3F;
@@ -2395,7 +2419,7 @@ ar9300_calibration(struct ath_hal *ah, struct ieee80211_channel *chan, u_int8_t 
         HALDEBUG(ah, HAL_DEBUG_CALIBRATE,
             "%s: Chain 1 Rx IQ Cal Correction 0x%08x\n",
             __func__, OS_REG_READ(ah, AR_PHY_RX_IQCAL_CORR_B1));
-        if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah)) {
+        if (!AR_SREV_WASP(ah) && !AR_SREV_JUPITER(ah) && !AR_SREV_HONEYBEE(ah)) {
             HALDEBUG(ah, HAL_DEBUG_CALIBRATE,
                 "%s: Chain 2 Rx IQ Cal Correction 0x%08x\n",
                 __func__, OS_REG_READ(ah, AR_PHY_RX_IQCAL_CORR_B2));
@@ -2855,6 +2879,7 @@ ar9300_process_ini(struct ath_hal *ah, struct ieee80211_channel *chan,
             }
         }
         modes_index = 1;
+        freq_index  = 1;
         break;
 
     case CHANNEL_A_HT40PLUS:
@@ -2869,6 +2894,7 @@ ar9300_process_ini(struct ath_hal *ah, struct ieee80211_channel *chan,
             }
         }
         modes_index = 2;
+        freq_index  = 1;
         break;
 
     case CHANNEL_PUREG:
@@ -2876,20 +2902,27 @@ ar9300_process_ini(struct ath_hal *ah, struct ieee80211_channel *chan,
     case CHANNEL_B:
         if (AR_SREV_SCORPION(ah)){
             modes_txgaintable_index = 8;
-        }
+        }else if (AR_SREV_HONEYBEE(ah)){
+	    modes_txgaintable_index = 1;
+	}
         modes_index = 4;
+        freq_index  = 2;
         break;
 
     case CHANNEL_G_HT40PLUS:
     case CHANNEL_G_HT40MINUS:
         if (AR_SREV_SCORPION(ah)){
             modes_txgaintable_index = 7;
+        }else if (AR_SREV_HONEYBEE(ah)){
+            modes_txgaintable_index = 1;
         }
         modes_index = 3;
+        freq_index  = 2;
         break;
 
     case CHANNEL_108G:
         modes_index = 5;
+        freq_index  = 2;
         break;
 
     default:
@@ -2930,11 +2963,15 @@ ar9300_process_ini(struct ath_hal *ah, struct ieee80211_channel *chan,
         } else if (IEEE80211_IS_CHAN_HT40U(chan) || IEEE80211_IS_CHAN_HT40D(chan)) {
             if (AR_SREV_SCORPION(ah)){
                 modes_txgaintable_index = 7;
+            } else if (AR_SREV_HONEYBEE(ah)){
+                modes_txgaintable_index = 1;
             }
             modes_index = 3;
         } else if (IEEE80211_IS_CHAN_HT20(chan) || IEEE80211_IS_CHAN_G(chan) || IEEE80211_IS_CHAN_B(chan) || IEEE80211_IS_CHAN_PUREG(chan)) {
             if (AR_SREV_SCORPION(ah)){
                 modes_txgaintable_index = 8;
+            } else if (AR_SREV_HONEYBEE(ah)){
+                modes_txgaintable_index = 1;
             }
             modes_index = 4;
         } else
@@ -3045,7 +3082,7 @@ ar9300_process_ini(struct ath_hal *ah, struct ieee80211_channel *chan,
 
 
     /* Write txgain Array Parameters */
-    if (AR_SREV_SCORPION(ah)) {
+    if (AR_SREV_SCORPION(ah) || AR_SREV_HONEYBEE(ah)) {
         REG_WRITE_ARRAY(&ahp->ah_ini_modes_txgain, modes_txgaintable_index, 
             reg_writes);
     }else{
@@ -3510,7 +3547,7 @@ ar9300_init_cal_internal(struct ath_hal *ah, struct ieee80211_channel *chan,
         /* Hornet: 1 x 1 */
         ahp->ah_rx_cal_chainmask = 0x1;
         ahp->ah_tx_cal_chainmask = 0x1;
-    } else if (AR_SREV_WASP(ah) || AR_SREV_JUPITER(ah)) {
+    } else if (AR_SREV_WASP(ah) || AR_SREV_JUPITER(ah) || AR_SREV_HONEYBEE(ah)) {
         /* Wasp/Jupiter: 2 x 2 */
         ahp->ah_rx_cal_chainmask = 0x3;
         ahp->ah_tx_cal_chainmask = 0x3;
@@ -4069,7 +4106,7 @@ ar9300_init_bb(struct ath_hal *ah, struct ieee80211_channel *chan)
     /*
      * There is an issue if the AP starts the calibration before
      * the base band timeout completes.  This could result in the
-     * rx_clear AH_FALSE triggering.  As a workaround we add delay an
+     * rx_clear false triggering.  As a workaround we add delay an
      * extra BASE_ACTIVATE_DELAY usecs to ensure this condition
      * does not happen.
      */
@@ -4438,6 +4475,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
 #ifdef ATH_FORCE_PPM
     u_int32_t               save_force_val, tmp_reg;
 #endif
+    u_int8_t                clk_25mhz = AH9300(ah)->clk_25mhz;
     HAL_BOOL                    stopped, cal_ret;
     HAL_BOOL                    apply_last_iqcorr = AH_FALSE;
 
@@ -4449,7 +4487,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
 
     /*
      * Set the status to "ok" by default to cover the cases
-     * where we return AH_FALSE without going to "bad"
+     * where we return false without going to "bad"
      */
     HALASSERT(status);
     *status = HAL_OK;
@@ -4791,6 +4829,18 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
     ecode = ar9300_process_ini(ah, chan, ichan, macmode);
     if (ecode != HAL_OK) {
         goto bad;
+    }
+ 
+    /*
+     * Configuring WMAC PLL values for 25/40 MHz 
+     */
+    if(AR_SREV_WASP(ah) || AR_SREV_HONEYBEE(ah) || AR_SREV_SCORPION(ah) ) {
+        if(clk_25mhz) {
+            OS_REG_WRITE(ah, AR_RTC_DERIVED_RTC_CLK, (0x17c << 1)); // 32KHz sleep clk
+        } else {
+            OS_REG_WRITE(ah, AR_RTC_DERIVED_RTC_CLK, (0x261 << 1)); // 32KHz sleep clk
+        }
+        OS_DELAY(100);
     }
 
     ahp->ah_immunity_on = AH_FALSE;
@@ -5147,14 +5197,14 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
      * For big endian systems turn on swapping for descriptors
      */
 #if AH_BYTE_ORDER == AH_BIG_ENDIAN
-    if (AR_SREV_HORNET(ah) || AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah)) {
+    if (AR_SREV_HORNET(ah) || AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah) || AR_SREV_HONEYBEE(ah)) {
         OS_REG_RMW(ah, AR_CFG, AR_CFG_SWTB | AR_CFG_SWRB, 0);
     } else {
         ar9300_init_cfg_reg(ah);
     }
 #endif
 
-    if ( AR_SREV_OSPREY(ah) || AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah)) {
+    if ( AR_SREV_OSPREY(ah) || AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah) || AR_SREV_HONEYBEE(ah) ) {
         OS_REG_RMW(ah, AR_CFG_LED, AR_CFG_LED_ASSOC_CTL, AR_CFG_LED_ASSOC_CTL);
     }
 
@@ -5188,6 +5238,10 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
             REG_WRITE(ATH_GPIO_OUT_FUNCTION3, ( REG_READ(ATH_GPIO_OUT_FUNCTION3) & (~(0xff))) | (0x2F) );
     	    REG_WRITE(ATH_GPIO_OE, (( REG_READ(ATH_GPIO_OE) & (~(0x1 << 12) )) | (0x1 << 13)));
         }
+    }
+    else if (AR_SREV_HONEYBEE(ah)) {
+            REG_WRITE(ATH_GPIO_OUT_FUNCTION3, ( REG_READ(ATH_GPIO_OUT_FUNCTION3) & (~(0xff))) | (0x32) );
+            REG_WRITE(ATH_GPIO_OE, (( REG_READ(ATH_GPIO_OE) & (~(0x1 << 12) ))));
     }
 #undef REG_READ
 #undef REG_WRITE
