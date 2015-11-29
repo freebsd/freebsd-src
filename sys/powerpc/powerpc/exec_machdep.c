@@ -972,11 +972,12 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	cf->cf_arg1 = (register_t)tf;
 
 	pcb2->pcb_sp = (register_t)cf;
-	#ifdef __powerpc64__
+	#if defined(__powerpc64__) && (!defined(_CALL_ELF) || _CALL_ELF == 1)
 	pcb2->pcb_lr = ((register_t *)fork_trampoline)[0];
 	pcb2->pcb_toc = ((register_t *)fork_trampoline)[1];
 	#else
 	pcb2->pcb_lr = (register_t)fork_trampoline;
+	pcb2->pcb_context[0] = pcb2->pcb_lr;
 	#endif
 	pcb2->pcb_cpu.aim.usr_vsid = 0;
 

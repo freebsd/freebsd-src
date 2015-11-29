@@ -65,6 +65,10 @@
 #include <machine/param.h>
 #include <machine/asm.h>
 
+#ifdef _CALL_ELF
+.abiversion _CALL_ELF
+#endif
+
 TOC_ENTRY(blocked_lock)
 
 /*

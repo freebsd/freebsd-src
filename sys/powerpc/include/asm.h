@@ -87,7 +87,9 @@
         .tc name[TC],name
 #endif
 
-#if defined(__powerpc64__) && (!defined(_CALL_ELF) || _CALL_ELF == 1)
+#ifdef __powerpc64__
+
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
 #define	_ENTRY(name) \
 	.section ".text"; \
 	.p2align 2; \
@@ -100,6 +102,17 @@
 	.p2align 4; \
 	TYPE_ENTRY(name) \
 DOT_LABEL(name):
+#else
+#define	_ENTRY(name) \
+	.text; \
+	.p2align 4; \
+	.globl	name; \
+	.type	name,@function; \
+name: \
+	addis	%r2, %r12, (.TOC.-name)@ha; \
+	addi	%r2, %r2, (.TOC.-name)@l; \
+	.localentry name, .-name;
+#endif
 
 #define	_END(name) \
 	.long	0; \
