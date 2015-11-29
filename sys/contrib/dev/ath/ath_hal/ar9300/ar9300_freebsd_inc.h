@@ -61,6 +61,9 @@
 #ifdef	AH_SUPPORT_QCA9550
 #define AH_SUPPORT_SCORPION             1
 #endif	/* AH_SUPPORT_QCA9550 */
+#ifdef	AH_SUPPORT_QCA9530
+#define	AH_SUPPORT_HONEYBEE		1
+#endif	/* AH_SUPPORT_QCA9530 */
 #define FIX_NOISE_FLOOR                 1
 
 /* XXX this needs to be removed! No atomics in the HAL! */
