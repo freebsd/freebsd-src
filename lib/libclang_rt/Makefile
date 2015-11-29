@@ -3,7 +3,8 @@
 .include <src.opts.mk>
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-SUBDIR+= asan\
+SUBDIR+= include\
+	 asan\
 	 asan-preinit\
 	 asan_cxx\
 	 safestack\
