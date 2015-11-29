@@ -50,9 +50,7 @@ hint.ath.0.maddr=0x18100000
 hint.ath.0.msize=0x20000
 hint.ath.0.irq=0
 hint.ath.0.vendor_id=0x168c
-# XXX for now this is 0x00ff because there's no HAL support
-# yet for honeybee.
-hint.ath.0.device_id=0x00ff
+hint.ath.0.device_id=0x003d
 # Set this to define where the ath calibration data
 # should be fetched from in physical memory.
 # hint.ath.0.eepromaddr=0x1fff1000
