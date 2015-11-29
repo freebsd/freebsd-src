@@ -65,6 +65,10 @@
 #include <machine/spr.h>
 #include <machine/asm.h>
 
+#ifdef _CALL_ELF
+.abiversion _CALL_ELF
+#endif
+
 /* Locate the per-CPU data structure */
 #define GET_CPUINFO(r)  \
         mfsprg0  r
