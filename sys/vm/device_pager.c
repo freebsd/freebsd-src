@@ -60,10 +60,8 @@ static vm_object_t dev_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
 static void dev_pager_dealloc(vm_object_t);
 static int dev_pager_getpages(vm_object_t, vm_page_t *, int, int);
-static void dev_pager_putpages(vm_object_t, vm_page_t *, int, 
-		boolean_t, int *);
-static boolean_t dev_pager_haspage(vm_object_t, vm_pindex_t, int *,
-		int *);
+static void dev_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
+static boolean_t dev_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 static void dev_pager_free_page(vm_object_t object, vm_page_t m);
 
 /* list of device pager objects */
@@ -101,8 +99,9 @@ static struct cdev_pager_ops old_dev_pager_ops = {
 };
 
 static void
-dev_pager_init()
+dev_pager_init(void)
 {
+
 	TAILQ_INIT(&dev_pager_object_list);
 	mtx_init(&dev_pager_mtx, "dev_pager list", NULL, MTX_DEF);
 }
@@ -233,8 +232,7 @@ dev_pager_free_page(vm_object_t object, vm_page_t m)
 }
 
 static void
-dev_pager_dealloc(object)
-	vm_object_t object;
+dev_pager_dealloc(vm_object_t object)
 {
 	vm_page_t m;
 
@@ -261,7 +259,7 @@ dev_pager_dealloc(object)
 static int
 dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int reqpage)
 {
-	int error, i;
+	int error;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	error = object->un_pager.devp.ops->cdev_pg_fault(object,
@@ -269,13 +267,7 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int reqpage)
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
-	for (i = 0; i < count; i++) {
-		if (i != reqpage) {
-			vm_page_lock(ma[i]);
-			vm_page_free(ma[i]);
-			vm_page_unlock(ma[i]);
-		}
-	}
+	vm_pager_free_nonreq(object, ma, reqpage, count, TRUE);
 
 	if (error == VM_PAGER_OK) {
 		KASSERT((object->type == OBJT_DEVICE &&
@@ -362,24 +354,18 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 }
 
 static void
-dev_pager_putpages(object, m, count, sync, rtvals)
-	vm_object_t object;
-	vm_page_t *m;
-	int count;
-	boolean_t sync;
-	int *rtvals;
+dev_pager_putpages(vm_object_t object, vm_page_t *m, int count, int flags,
+    int *rtvals)
 {
 
 	panic("dev_pager_putpage called");
 }
 
 static boolean_t
-dev_pager_haspage(object, pindex, before, after)
-	vm_object_t object;
-	vm_pindex_t pindex;
-	int *before;
-	int *after;
+dev_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
+    int *after)
 {
+
 	if (before != NULL)
 		*before = 0;
 	if (after != NULL)
