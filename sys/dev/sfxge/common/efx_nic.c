@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "efx_regs.h"
 #include "efx_impl.h"
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_family(
 	__in		uint16_t venid,
 	__in		uint16_t devid,
@@ -100,7 +100,7 @@ efx_family(
  * the hardware family by inspecting the hardware. Obviously the caller
  * must be damn sure they're really talking to a supported device.
  */
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_infer_family(
 	__in		efsys_bar_t *esbp,
 	__out		efx_family_t *efp)
@@ -108,7 +108,7 @@ efx_infer_family(
 	efx_family_t family;
 	efx_oword_t oword;
 	unsigned int portnum;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_BAR_READO(esbp, FR_AZ_CS_DEBUG_REG_OFST, &oword, B_TRUE);
 	portnum = EFX_OWORD_FIELD(oword, FRF_CZ_CS_PORT_NUM);
@@ -151,7 +151,7 @@ efx_infer_family(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -159,12 +159,12 @@ fail1:
 #define	EFX_BIU_MAGIC0	0x01234567
 #define	EFX_BIU_MAGIC1	0xfedcba98
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_nic_biu_test(
 	__in		efx_nic_t *enp)
 {
 	efx_oword_t oword;
-	int rc;
+	efx_rc_t rc;
 
 	/*
 	 * Write magic values to scratch registers 0 and 1, then
@@ -222,7 +222,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -284,7 +284,7 @@ static efx_nic_ops_t	__efx_nic_hunt_ops = {
 
 #endif	/* EFSYS_OPT_HUNTINGTON */
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_nic_create(
 	__in		efx_family_t family,
 	__in		efsys_identifier_t *esip,
@@ -293,7 +293,7 @@ efx_nic_create(
 	__deref_out	efx_nic_t **enpp)
 {
 	efx_nic_t *enp;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(family, >, EFX_FAMILY_INVALID);
 	EFSYS_ASSERT3U(family, <, EFX_FAMILY_NTYPES);
@@ -371,17 +371,17 @@ fail2:
 	EFSYS_KMEM_FREE(esip, sizeof (efx_nic_t), enp);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_nic_probe(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_ops_t *enop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 #if EFSYS_OPT_MCDI
@@ -406,14 +406,14 @@ fail2:
 	enop->eno_unprobe(enp);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 #if EFSYS_OPT_PCIE_TUNE
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_nic_pcie_tune(
 	__in		efx_nic_t *enp,
 	unsigned int	nlanes)
@@ -429,7 +429,7 @@ efx_nic_pcie_tune(
 	return (ENOTSUP);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_nic_pcie_extended_sync(
 	__in		efx_nic_t *enp)
 {
@@ -447,13 +447,13 @@ efx_nic_pcie_extended_sync(
 
 #endif	/* EFSYS_OPT_PCIE_TUNE */
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_nic_set_drv_limits(
 	__inout		efx_nic_t *enp,
 	__in		efx_drv_limits_t *edlp)
 {
 	efx_nic_ops_t *enop = enp->en_enop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -466,12 +466,12 @@ efx_nic_set_drv_limits(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_nic_get_bar_region(
 	__in		efx_nic_t *enp,
 	__in		efx_nic_region_t region,
@@ -479,7 +479,7 @@ efx_nic_get_bar_region(
 	__out		size_t *sizep)
 {
 	efx_nic_ops_t *enop = enp->en_enop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -500,13 +500,13 @@ fail2:
 	EFSYS_PROBE(fail2);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_nic_get_vi_pool(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *evq_countp,
@@ -515,7 +515,7 @@ efx_nic_get_vi_pool(
 {
 	efx_nic_ops_t *enop = enp->en_enop;
 	efx_nic_cfg_t *encp = &enp->en_nic_cfg;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -540,18 +540,18 @@ efx_nic_get_vi_pool(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_nic_init(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_ops_t *enop = enp->en_enop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -571,7 +571,7 @@ efx_nic_init(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -641,13 +641,13 @@ efx_nic_destroy(
 	EFSYS_KMEM_FREE(esip, sizeof (efx_nic_t), enp);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_nic_reset(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_ops_t *enop = enp->en_enop;
 	unsigned int mod_flags;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT(enp->en_mod_flags & EFX_MOD_PROBE);
@@ -678,7 +678,7 @@ efx_nic_reset(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -694,12 +694,12 @@ efx_nic_cfg_get(
 
 #if EFSYS_OPT_DIAG
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_nic_register_test(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_ops_t *enop = enp->en_enop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
@@ -711,12 +711,12 @@ efx_nic_register_test(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_nic_test_registers(
 	__in		efx_nic_t *enp,
 	__in		efx_register_set_t *rsp,
@@ -726,7 +726,7 @@ efx_nic_test_registers(
 	efx_oword_t original;
 	efx_oword_t reg;
 	efx_oword_t buf;
-	int rc;
+	efx_rc_t rc;
 
 	while (count > 0) {
 		/* This function is only suitable for registers */
@@ -785,7 +785,7 @@ efx_nic_test_registers(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	/* Restore the old value */
 	EFSYS_BAR_WRITEO(enp->en_esbp, rsp->address, &original, B_TRUE);
@@ -793,7 +793,7 @@ fail1:
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_nic_test_tables(
 	__in		efx_nic_t *enp,
 	__in		efx_register_set_t *rsp,
@@ -805,7 +805,7 @@ efx_nic_test_tables(
 	unsigned int address;
 	efx_oword_t reg;
 	efx_oword_t buf;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(pattern < EFX_PATTERN_NTYPES);
 	func = __efx_sram_pattern_fns[pattern];
@@ -844,7 +844,7 @@ efx_nic_test_tables(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -955,7 +955,7 @@ efx_loopback_mask(
 	*maskp = mask;
 }
 
-__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_mcdi_get_loopback_modes(
 	__in		efx_nic_t *enp)
 {
@@ -965,7 +965,7 @@ efx_mcdi_get_loopback_modes(
 			    MC_CMD_GET_LOOPBACK_MODES_OUT_LEN)];
 	efx_qword_t mask;
 	efx_qword_t modes;
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_LOOPBACK_MODES;
@@ -1032,7 +1032,7 @@ efx_mcdi_get_loopback_modes(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }

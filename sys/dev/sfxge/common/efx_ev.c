@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_ev_init(
 	__in		efx_nic_t *enp);
 
@@ -64,7 +64,7 @@ static			void
 falconsiena_ev_fini(
 	__in		efx_nic_t *enp);
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_ev_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
@@ -77,7 +77,7 @@ static			void
 falconsiena_ev_qdestroy(
 	__in		efx_evq_t *eep);
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_ev_qprime(
 	__in		efx_evq_t *eep,
 	__in		unsigned int count);
@@ -94,7 +94,7 @@ falconsiena_ev_qpost(
 	__in	efx_evq_t *eep,
 	__in	uint16_t data);
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_ev_qmoderate(
 	__in		efx_evq_t *eep,
 	__in		unsigned int us);
@@ -155,12 +155,12 @@ static efx_ev_ops_t	__efx_ev_hunt_ops = {
 #endif /* EFSYS_OPT_HUNTINGTON */
 
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_ev_init(
 	__in		efx_nic_t *enp)
 {
 	efx_ev_ops_t *eevop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_INTR);
@@ -208,7 +208,7 @@ fail2:
 	EFSYS_PROBE(fail2);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	enp->en_eevop = NULL;
 	enp->en_mod_flags &= ~EFX_MOD_EV;
@@ -235,7 +235,7 @@ efx_ev_fini(
 }
 
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_ev_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
@@ -247,7 +247,7 @@ efx_ev_qcreate(
 	efx_ev_ops_t *eevop = enp->en_eevop;
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_evq_t *eep;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_EV);
@@ -279,7 +279,7 @@ fail2:
 	EFSYS_PROBE(fail2);
 	EFSYS_KMEM_FREE(enp->en_esip, sizeof (efx_evq_t), eep);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
 }
 
@@ -301,14 +301,14 @@ efx_ev_qdestroy(
 	EFSYS_KMEM_FREE(enp->en_esip, sizeof (efx_evq_t), eep);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_ev_qprime(
 	__in		efx_evq_t *eep,
 	__in		unsigned int count)
 {
 	efx_nic_t *enp = eep->ee_enp;
 	efx_ev_ops_t *eevop = enp->en_eevop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(eep->ee_magic, ==, EFX_EVQ_MAGIC);
 
@@ -325,7 +325,7 @@ efx_ev_qprime(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
 }
 
@@ -409,14 +409,14 @@ efx_ev_qpost(
 	eevop->eevo_qpost(eep, data);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_ev_qmoderate(
 	__in		efx_evq_t *eep,
 	__in		unsigned int us)
 {
 	efx_nic_t *enp = eep->ee_enp;
 	efx_ev_ops_t *eevop = enp->en_eevop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(eep->ee_magic, ==, EFX_EVQ_MAGIC);
 
@@ -426,7 +426,7 @@ efx_ev_qmoderate(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
 }
 
@@ -448,7 +448,7 @@ efx_ev_qstats_update(
 
 #if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_ev_init(
 	__in		efx_nic_t *enp)
 {
@@ -990,7 +990,7 @@ falconsiena_ev_mcdi(
 #if EFSYS_OPT_MON_STATS
 		efx_mon_stat_t id;
 		efx_mon_stat_value_t value;
-		int rc;
+		efx_rc_t rc;
 
 		if ((rc = mcdi_mon_ev(enp, eqp, &id, &value)) == 0)
 			should_abort = eecp->eec_monitor(arg, id, value);
@@ -1047,7 +1047,7 @@ out:
 
 #endif	/* EFSYS_OPT_MCDI */
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_ev_qprime(
 	__in		efx_evq_t *eep,
 	__in		unsigned int count)
@@ -1220,7 +1220,7 @@ falconsiena_ev_qpost(
 	EFX_BAR_WRITEO(enp, FR_AZ_DRV_EV_REG, &oword);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_ev_qmoderate(
 	__in		efx_evq_t *eep,
 	__in		unsigned int us)
@@ -1229,7 +1229,7 @@ falconsiena_ev_qmoderate(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	unsigned int locked;
 	efx_dword_t dword;
-	int rc;
+	efx_rc_t rc;
 
 	if (us > encp->enc_evq_timer_max_us) {
 		rc = EINVAL;
@@ -1274,12 +1274,12 @@ falconsiena_ev_qmoderate(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_ev_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
@@ -1291,7 +1291,7 @@ falconsiena_ev_qcreate(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint32_t size;
 	efx_oword_t oword;
-	int rc;
+	efx_rc_t rc;
 
 	EFX_STATIC_ASSERT(ISP2(EFX_EVQ_MAXNEVS));
 	EFX_STATIC_ASSERT(ISP2(EFX_EVQ_MINNEVS));
@@ -1352,7 +1352,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
