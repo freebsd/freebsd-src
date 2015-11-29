@@ -396,11 +396,11 @@ hunt_vpd_write(
 	if ((rc = efx_vpd_hunk_length(data, size, &vpd_length)) != 0)
 		goto fail1;
 
-	/* Store new dynamic VPD in DYNAMIC_CONFIG partition */
-	if ((rc = hunt_nvram_partn_write_tlv(enp,
+	/* Store new dynamic VPD in all segments in DYNAMIC_CONFIG partition */
+	if ((rc = hunt_nvram_partn_write_segment_tlv(enp,
 		    NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,
 		    TLV_TAG_PF_DYNAMIC_VPD(pci_pf),
-		    data, vpd_length)) != 0) {
+		    data, vpd_length, B_TRUE)) != 0) {
 		goto fail2;
 	}
 
