@@ -696,26 +696,22 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	int reqpage;
 {
 	vm_object_t object;
-	vm_offset_t kva;
-	off_t foff, tfoff, nextoff;
-	int i, j, size, bsize, first;
-	daddr_t firstaddr, reqblock;
 	struct bufobj *bo;
-	int runpg;
-	int runend;
 	struct buf *bp;
 	struct mount *mp;
-	int count;
-	int error;
-
-	object = vp->v_object;
-	count = bytecount / PAGE_SIZE;
+	vm_offset_t kva;
+	daddr_t firstaddr, reqblock;
+	off_t foff, nextoff, tfoff, pib;
+	int pbefore, pafter, i, size, bsize, first, last;
+	int count, error, before, after, secmask;
 
 	KASSERT(vp->v_type != VCHR && vp->v_type != VBLK,
 	    ("vnode_pager_generic_getpages does not support devices"));
 	if (vp->v_iflag & VI_DOOMED)
-		return VM_PAGER_BAD;
+		return (VM_PAGER_BAD);
 
+	object = vp->v_object;
+	count = bytecount / PAGE_SIZE;
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 
 	/* get the UNDERLYING device for the file with VOP_BMAP() */
@@ -729,7 +725,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	/*
 	 * if we can't bmap, use old VOP code
 	 */
-	error = VOP_BMAP(vp, foff / bsize, &bo, &reqblock, NULL, NULL);
+	error = VOP_BMAP(vp, IDX_TO_OFF(m[reqpage]->pindex) / bsize, &bo,
+	    &reqblock, &after, &before);
 	if (error == EOPNOTSUPP) {
 		VM_OBJECT_WLOCK(object);
 		
@@ -772,7 +769,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		VM_OBJECT_WUNLOCK(object);
 		PCPU_INC(cnt.v_vnodein);
 		PCPU_INC(cnt.v_vnodepgsin);
-		return vnode_pager_input_smlfs(object, m[reqpage]);
+		return (vnode_pager_input_smlfs(object, m[reqpage]));
 	}
 
 	/*
@@ -807,79 +804,40 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	m[reqpage]->valid = 0;
 	VM_OBJECT_WUNLOCK(object);
 
-	/*
-	 * here on direct device I/O
-	 */
-	firstaddr = -1;
-
-	/*
-	 * calculate the run that includes the required page
-	 */
-	for (first = 0, i = 0; i < count; i = runend) {
-		if (vnode_pager_addr(vp, IDX_TO_OFF(m[i]->pindex), &firstaddr,
-		    &runpg) != 0) {
-			VM_OBJECT_WLOCK(object);
-			for (; i < count; i++)
-				if (i != reqpage) {
-					vm_page_lock(m[i]);
-					vm_page_free(m[i]);
-					vm_page_unlock(m[i]);
-				}
-			VM_OBJECT_WUNLOCK(object);
-			return (VM_PAGER_ERROR);
-		}
-		if (firstaddr == -1) {
-			VM_OBJECT_WLOCK(object);
-			if (i == reqpage && foff < object->un_pager.vnp.vnp_size) {
-				panic("vnode_pager_getpages: unexpected missing page: firstaddr: %jd, foff: 0x%jx%08jx, vnp_size: 0x%jx%08jx",
-				    (intmax_t)firstaddr, (uintmax_t)(foff >> 32),
-				    (uintmax_t)foff,
-				    (uintmax_t)
-				    (object->un_pager.vnp.vnp_size >> 32),
-				    (uintmax_t)object->un_pager.vnp.vnp_size);
-			}
+	pib = IDX_TO_OFF(m[reqpage]->pindex) % bsize;
+	pbefore = ((daddr_t)before * bsize + pib) / PAGE_SIZE;
+	pafter = ((daddr_t)(after + 1) * bsize - pib) / PAGE_SIZE - 1;
+	first = reqpage < pbefore ? 0 : reqpage - pbefore;
+	last = reqpage + pafter >= count ? count - 1 : reqpage + pafter;
+	if (first > 0 || last + 1 < count) {
+		VM_OBJECT_WLOCK(object);
+		for (i = 0; i < first; i++) {
 			vm_page_lock(m[i]);
 			vm_page_free(m[i]);
 			vm_page_unlock(m[i]);
-			VM_OBJECT_WUNLOCK(object);
-			runend = i + 1;
-			first = runend;
-			continue;
 		}
-		runend = i + runpg;
-		if (runend <= reqpage) {
-			VM_OBJECT_WLOCK(object);
-			for (j = i; j < runend; j++) {
-				vm_page_lock(m[j]);
-				vm_page_free(m[j]);
-				vm_page_unlock(m[j]);
-			}
-			VM_OBJECT_WUNLOCK(object);
-		} else {
-			if (runpg < (count - first)) {
-				VM_OBJECT_WLOCK(object);
-				for (i = first + runpg; i < count; i++) {
-					vm_page_lock(m[i]);
-					vm_page_free(m[i]);
-					vm_page_unlock(m[i]);
-				}
-				VM_OBJECT_WUNLOCK(object);
-				count = first + runpg;
-			}
-			break;
+		for (i = last + 1; i < count; i++) {
+			vm_page_lock(m[i]);
+			vm_page_free(m[i]);
+			vm_page_unlock(m[i]);
 		}
-		first = runend;
+		VM_OBJECT_WUNLOCK(object);
 	}
 
 	/*
-	 * the first and last page have been calculated now, move input pages
-	 * to be zero based...
+	 * here on direct device I/O
 	 */
-	if (first != 0) {
-		m += first;
-		count -= first;
-		reqpage -= first;
-	}
+	firstaddr = reqblock;
+	firstaddr += pib / DEV_BSIZE;
+	firstaddr -= IDX_TO_OFF(reqpage - first) / DEV_BSIZE;
+
+	/*
+	 * The first and last page have been calculated now, move
+	 * input pages to be zero based, and adjust the count.
+	 */
+	m += first;
+	reqpage -= first;
+	count = last - first + 1;
 
 	/*
 	 * calculate the file virtual address for the transfer
@@ -898,13 +856,11 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	/*
 	 * round up physical size for real devices.
 	 */
-	if (1) {
-		int secmask = bo->bo_bsize - 1;
-		KASSERT(secmask < PAGE_SIZE && secmask > 0,
-		    ("vnode_pager_generic_getpages: sector size %d too large",
-		    secmask + 1));
-		size = (size + secmask) & ~secmask;
-	}
+	secmask = bo->bo_bsize - 1;
+	KASSERT(secmask < PAGE_SIZE && secmask > 0,
+	    ("vnode_pager_generic_getpages: sector size %d too large",
+	    secmask + 1));
+	size = (size + secmask) & ~secmask;
 
 	bp = getpbuf(&vnode_pbuf_freecnt);
 	kva = (vm_offset_t)bp->b_data;
@@ -1040,7 +996,7 @@ vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 	/*
 	 * Force synchronous operation if we are extremely low on memory
 	 * to prevent a low-memory deadlock.  VOP operations often need to
-	 * allocate more memory to initiate the I/O ( i.e. do a BMAP 
+	 * allocate more memory to initiate the I/O ( i.e. do a BMAP
 	 * operation ).  The swapper handles the case by limiting the amount
 	 * of asynchronous I/O, but that sort of solution doesn't scale well
 	 * for the vnode pager without a lot of work.
