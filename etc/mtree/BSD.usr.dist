@@ -21,6 +21,8 @@
         clang
             3.7.0
                 include
+			sanitizer
+			..
                 ..
                 lib
                     freebsd
