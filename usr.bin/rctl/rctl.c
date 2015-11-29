@@ -112,6 +112,7 @@ expand_amount(char *rule)
 	uint64_t num;
 	const char *subject, *subject_id, *resource, *action, *amount, *per;
 	char *copy, *expanded;
+	int ret;
 
 	copy = strdup(rule);
 	if (copy == NULL) {
@@ -142,14 +143,15 @@ expand_amount(char *rule)
 		return (NULL);
 	}
 
-	if (per == NULL)
-		asprintf(&expanded, "%s:%s:%s:%s=%ju", subject, subject_id,
-		    resource, action, (uintmax_t)num);
-	else
-		asprintf(&expanded, "%s:%s:%s:%s=%ju/%s", subject, subject_id,
-		    resource, action, (uintmax_t)num, per);
+	if (per == NULL) {
+		ret = asprintf(&expanded, "%s:%s:%s:%s=%ju",
+		    subject, subject_id, resource, action, (uintmax_t)num);
+	} else {
+		ret = asprintf(&expanded, "%s:%s:%s:%s=%ju/%s",
+		    subject, subject_id, resource, action, (uintmax_t)num, per);
+	}
 
-	if (expanded == NULL) {
+	if (ret <= 0) {
 		warn("asprintf");
 		free(copy);
 		return (NULL);
@@ -165,7 +167,7 @@ expand_rule(char *rule, bool resolve_ids)
 	id_t id;
 	const char *subject, *textid, *rest;
 	char *resolved;
-	int error;
+	int error, ret;
 
 	subject = strsep(&rule, ":");
 	textid = strsep(&rule, ":");
@@ -196,18 +198,18 @@ expand_rule(char *rule, bool resolve_ids)
 		error = parse_user(textid, &id);
 		if (error != 0)
 			return (NULL);
-		asprintf(&resolved, "%s:%d:%s", subject, (int)id, rest);
+		ret = asprintf(&resolved, "%s:%d:%s", subject, (int)id, rest);
 	} else if (resolve_ids &&
 	    strcasecmp(subject, "group") == 0 && strlen(textid) > 0) {
 		error = parse_group(textid, &id);
 		if (error != 0)
 			return (NULL);
-		asprintf(&resolved, "%s:%d:%s", subject, (int)id, rest);
+		ret = asprintf(&resolved, "%s:%d:%s", subject, (int)id, rest);
 	} else {
-		asprintf(&resolved, "%s:%s:%s", subject, textid, rest);
+		ret = asprintf(&resolved, "%s:%s:%s", subject, textid, rest);
 	}
 
-	if (resolved == NULL) {
+	if (ret <= 0) {
 		warn("asprintf");
 		return (NULL);
 	}
@@ -223,6 +225,7 @@ humanize_ids(char *rule)
 	struct group *grp;
 	const char *subject, *textid, *rest;
 	char *end, *humanized;
+	int ret;
 
 	subject = strsep(&rule, ":");
 	textid = strsep(&rule, ":");
@@ -250,9 +253,8 @@ humanize_ids(char *rule)
 			textid = grp->gr_name;
 	}
 
-	asprintf(&humanized, "%s:%s:%s", subject, textid, rest);
-
-	if (humanized == NULL)
+	ret = asprintf(&humanized, "%s:%s:%s", subject, textid, rest);
+	if (ret <= 0)
 		err(1, "asprintf");
 
 	return (humanized);
@@ -279,6 +281,7 @@ humanize_amount(char *rule)
 	int64_t num;
 	const char *subject, *subject_id, *resource, *action, *amount, *per;
 	char *copy, *humanized, buf[6];
+	int ret;
 
 	copy = strdup(rule);
 	if (copy == NULL)
@@ -306,14 +309,15 @@ humanize_amount(char *rule)
 	    HN_DECIMAL | HN_NOSPACE) == -1)
 		err(1, "humanize_number");
 
-	if (per == NULL)
-		asprintf(&humanized, "%s:%s:%s:%s=%s", subject, subject_id,
-		    resource, action, buf);
-	else
-		asprintf(&humanized, "%s:%s:%s:%s=%s/%s", subject, subject_id,
-		    resource, action, buf, per);
+	if (per == NULL) {
+		ret = asprintf(&humanized, "%s:%s:%s:%s=%s",
+		    subject, subject_id, resource, action, buf);
+	} else {
+		ret = asprintf(&humanized, "%s:%s:%s:%s=%s/%s",
+		    subject, subject_id, resource, action, buf, per);
+	}
 
-	if (humanized == NULL)
+	if (ret <= 0)
 		err(1, "asprintf");
 
 	return (humanized);
@@ -423,6 +427,7 @@ humanize_usage_amount(char *usage)
 	int64_t num;
 	const char *resource, *amount;
 	char *copy, *humanized, buf[6];
+	int ret;
 
 	copy = strdup(usage);
 	if (copy == NULL)
@@ -441,8 +446,8 @@ humanize_usage_amount(char *usage)
 		return (usage);
 	}
 
-	asprintf(&humanized, "%s=%s", resource, buf);
-	if (humanized == NULL)
+	ret = asprintf(&humanized, "%s=%s", resource, buf);
+	if (ret <= 0)
 		err(1, "asprintf");
 
 	return (humanized);
