@@ -134,7 +134,7 @@ ar9300_set_channel(struct ath_hal *ah, struct ieee80211_channel *chan)
             channel_sel = (freq * 4) / 120;
             channel_frac = (((freq * 4) % 120) * 0x20000) / 120;
             channel_sel = (channel_sel << 17) | (channel_frac);
-        } else if (AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah)) {
+        } else if (AR_SREV_WASP(ah) || AR_SREV_SCORPION(ah) || AR_SREV_HONEYBEE(ah)) {
             u_int32_t channel_frac;
             if (clk_25mhz) {
                 /* 
@@ -143,7 +143,7 @@ ar9300_set_channel(struct ath_hal *ah, struct ieee80211_channel *chan)
                  * ndiv = ((chan_mhz * 4) / 3) / freq_ref;
                  * chansel = int(ndiv),  chanfrac = (ndiv - chansel) * 0x20000
                  */
-                if (AR_SREV_SCORPION(ah)) {
+                if (AR_SREV_SCORPION(ah) || AR_SREV_HONEYBEE(ah)) {
                     /* Doubler is off for Scorpion */
                     channel_sel = (freq * 4) / 75;
                     channel_frac = (((freq * 4) % 75) * 0x20000) / 75;
