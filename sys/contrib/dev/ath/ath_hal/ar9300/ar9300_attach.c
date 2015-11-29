@@ -39,6 +39,7 @@
 #include "ar9300/ar9485_1_1.ini"
 #include "ar9300/ar9300_jupiter10.ini"
 #include "ar9300/ar9300_jupiter20.ini"
+#include "ar9300/ar9462_2p1_initvals.h"
 #include "ar9300/ar9580.ini"
 #include "ar9300/ar955x.ini"
 #include "ar9300/ar9300_aphrodite10.ini"
@@ -1598,11 +1599,21 @@ ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
     else if (AR_SREV_JUPITER_20(ah)) {
         /* Jupiter: new INI format (pre, core, post arrays per subsystem) */
 
+        /* FreeBSD: just override the registers for jupiter 2.1 */
+
         /* mac */
         INIT_INI_ARRAY(&ahp->ah_ini_mac[ATH_INI_PRE], NULL, 0, 0);
-        INIT_INI_ARRAY(&ahp->ah_ini_mac[ATH_INI_CORE],
-            ar9300_jupiter_2p0_mac_core, 
-            ARRAY_LENGTH(ar9300_jupiter_2p0_mac_core), 2);
+
+        if (AR_SREV_JUPITER_21(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_mac[ATH_INI_CORE],
+              ar9462_2p1_mac_core,
+              ARRAY_LENGTH(ar9462_2p1_mac_core), 2);
+        } else {
+            INIT_INI_ARRAY(&ahp->ah_ini_mac[ATH_INI_CORE],
+                ar9300_jupiter_2p0_mac_core, 
+                ARRAY_LENGTH(ar9300_jupiter_2p0_mac_core), 2);
+        }
+
         INIT_INI_ARRAY(&ahp->ah_ini_mac[ATH_INI_POST],
             ar9300_jupiter_2p0_mac_postamble,
             ARRAY_LENGTH(ar9300_jupiter_2p0_mac_postamble), 5);
@@ -1612,9 +1623,16 @@ ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
         INIT_INI_ARRAY(&ahp->ah_ini_bb[ATH_INI_CORE],
             ar9300_jupiter_2p0_baseband_core,
             ARRAY_LENGTH(ar9300_jupiter_2p0_baseband_core), 2);
-        INIT_INI_ARRAY(&ahp->ah_ini_bb[ATH_INI_POST],
-            ar9300_jupiter_2p0_baseband_postamble,
-            ARRAY_LENGTH(ar9300_jupiter_2p0_baseband_postamble), 5);
+
+        if (AR_SREV_JUPITER_21(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_bb[ATH_INI_POST],
+                ar9462_2p1_baseband_postamble,
+                ARRAY_LENGTH(ar9462_2p1_baseband_postamble), 5);
+        } else {
+            INIT_INI_ARRAY(&ahp->ah_ini_bb[ATH_INI_POST],
+                ar9300_jupiter_2p0_baseband_postamble,
+                ARRAY_LENGTH(ar9300_jupiter_2p0_baseband_postamble), 5);
+        }
 
         /* radio */
         INIT_INI_ARRAY(&ahp->ah_ini_radio[ATH_INI_PRE], NULL, 0, 0);
@@ -1629,9 +1647,15 @@ ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
             ARRAY_LENGTH(ar9300_jupiter_2p0_radio_postamble_sys2ant), 5);
 
         /* soc */
-        INIT_INI_ARRAY(&ahp->ah_ini_soc[ATH_INI_PRE],
-            ar9300_jupiter_2p0_soc_preamble, 
-            ARRAY_LENGTH(ar9300_jupiter_2p0_soc_preamble), 2);
+        if (AR_SREV_JUPITER_21(ah)) {
+            INIT_INI_ARRAY(&ahp->ah_ini_soc[ATH_INI_PRE],
+              ar9462_2p1_soc_preamble,
+              ARRAY_LENGTH(ar9462_2p1_soc_preamble), 2);
+        } else {
+            INIT_INI_ARRAY(&ahp->ah_ini_soc[ATH_INI_PRE],
+              ar9300_jupiter_2p0_soc_preamble, 
+              ARRAY_LENGTH(ar9300_jupiter_2p0_soc_preamble), 2);
+        }
         INIT_INI_ARRAY(&ahp->ah_ini_soc[ATH_INI_CORE], NULL, 0, 0);
         INIT_INI_ARRAY(&ahp->ah_ini_soc[ATH_INI_POST],
             ar9300_jupiter_2p0_soc_postamble, 
