@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #define	RCTL_DEFAULT_BUFSIZE	128 * 1024
 
 static int
-parse_user(const char *s, id_t *uidp)
+parse_user(const char *s, id_t *uidp, const char *unexpanded_rule)
 {
 	char *end;
 	struct passwd *pwd;
@@ -64,13 +64,15 @@ parse_user(const char *s, id_t *uidp)
 	}
 
 	if (!isnumber(s[0])) {
-		warnx("uknown user '%s'", s);
+		warnx("malformed rule '%s': uknown user '%s'",
+		    unexpanded_rule, s);
 		return (1);
 	}
 
 	*uidp = strtod(s, &end);
 	if ((size_t)(end - s) != strlen(s)) {
-		warnx("trailing characters after numerical id");
+		warnx("malformed rule '%s': trailing characters "
+		    "after numerical id", unexpanded_rule);
 		return (1);
 	}
 
@@ -78,7 +80,7 @@ parse_user(const char *s, id_t *uidp)
 }
 
 static int
-parse_group(const char *s, id_t *gidp)
+parse_group(const char *s, id_t *gidp, const char *unexpanded_rule)
 {
 	char *end;
 	struct group *grp;
@@ -90,13 +92,15 @@ parse_group(const char *s, id_t *gidp)
 	}
 
 	if (!isnumber(s[0])) {
-		warnx("uknown group '%s'", s);
+		warnx("malformed rule '%s': uknown group '%s'",
+		    unexpanded_rule, s);
 		return (1);
 	}
 
 	*gidp = strtod(s, &end);
 	if ((size_t)(end - s) != strlen(s)) {
-		warnx("trailing characters after numerical id");
+		warnx("malformed rule '%s': trailing characters "
+		    "after numerical id", unexpanded_rule);
 		return (1);
 	}
 
@@ -107,30 +111,22 @@ parse_group(const char *s, id_t *gidp)
  * Replace human-readable number with its expanded form.
  */
 static char *
-expand_amount(char *rule)
+expand_amount(char *rule, const char *unexpanded_rule)
 {
 	uint64_t num;
 	const char *subject, *subject_id, *resource, *action, *amount, *per;
-	char *copy, *expanded, *tofree;
+	char *expanded;
 	int ret;
 
-	tofree = copy = strdup(rule);
-	if (copy == NULL) {
-		warn("strdup");
-		return (NULL);
-	}
+	subject = strsep(&rule, ":");
+	subject_id = strsep(&rule, ":");
+	resource = strsep(&rule, ":");
+	action = strsep(&rule, "=/");
+	amount = strsep(&rule, "/");
+	per = rule;
 
-	subject = strsep(&copy, ":");
-	subject_id = strsep(&copy, ":");
-	resource = strsep(&copy, ":");
-	action = strsep(&copy, "=/");
-	amount = strsep(&copy, "/");
-	per = copy;
-
-	if (amount == NULL || strlen(amount) == 0) {
-		free(tofree);
+	if (amount == NULL || strlen(amount) == 0)
 		return (rule);
-	}
 
 	assert(subject != NULL);
 	assert(subject_id != NULL);
@@ -138,8 +134,8 @@ expand_amount(char *rule)
 	assert(action != NULL);
 
 	if (expand_number(amount, &num)) {
-		warnx("invalid numeric value '%s'", amount);
-		free(tofree);
+		warnx("malformed rule '%s': invalid numeric value '%s'",
+		    unexpanded_rule, amount);
 		return (NULL);
 	}
 
@@ -153,31 +149,34 @@ expand_amount(char *rule)
 
 	if (ret <= 0) {
 		warn("asprintf");
-		free(tofree);
 		return (NULL);
 	}
 
-	free(tofree);
 	return (expanded);
 }
 
-
 static char *
-expand_rule(char *rule, bool resolve_ids)
+expand_rule(const char *rule, bool resolve_ids)
 {
 	id_t id;
 	const char *subject, *textid, *rest;
-	char *resolved;
+	char *copy, *expanded, *resolved, *tofree;
 	int error, ret;
 
-	subject = strsep(&rule, ":");
-	textid = strsep(&rule, ":");
-	if (textid == NULL) {
-		warnx("error in rule specification -- no subject");
+	tofree = copy = strdup(rule);
+	if (copy == NULL) {
+		warn("strdup");
 		return (NULL);
 	}
-	if (rule != NULL)
-		rest = rule;
+
+	subject = strsep(&copy, ":");
+	textid = strsep(&copy, ":");
+	if (textid == NULL) {
+		warnx("malformed rule '%s': missing subject", rule);
+		return (NULL);
+	}
+	if (copy != NULL)
+		rest = copy;
 	else
 		rest = "";
 
@@ -196,15 +195,19 @@ expand_rule(char *rule, bool resolve_ids)
 
 	if (resolve_ids &&
 	    strcasecmp(subject, "user") == 0 && strlen(textid) > 0) {
-		error = parse_user(textid, &id);
-		if (error != 0)
+		error = parse_user(textid, &id, rule);
+		if (error != 0) {
+			free(tofree);
 			return (NULL);
+		}
 		ret = asprintf(&resolved, "%s:%d:%s", subject, (int)id, rest);
 	} else if (resolve_ids &&
 	    strcasecmp(subject, "group") == 0 && strlen(textid) > 0) {
-		error = parse_group(textid, &id);
-		if (error != 0)
+		error = parse_group(textid, &id, rule);
+		if (error != 0) {
+			free(tofree);
 			return (NULL);
+		}
 		ret = asprintf(&resolved, "%s:%d:%s", subject, (int)id, rest);
 	} else {
 		ret = asprintf(&resolved, "%s:%s:%s", subject, textid, rest);
@@ -212,10 +215,16 @@ expand_rule(char *rule, bool resolve_ids)
 
 	if (ret <= 0) {
 		warn("asprintf");
+		free(tofree);
 		return (NULL);
 	}
 
-	return (expand_amount(resolved));
+	free(tofree);
+
+	expanded = expand_amount(resolved, rule);
+	free(resolved);
+
+	return (expanded);
 }
 
 static char *
@@ -366,7 +375,7 @@ enosys(void)
 }
 
 static int
-add_rule(const char *rule)
+add_rule(const char *rule, const char *unexpanded_rule)
 {
 	int error;
 
@@ -374,14 +383,15 @@ add_rule(const char *rule)
 	if (error != 0) {
 		if (errno == ENOSYS)
 			enosys();
-		warn("rctl_add_rule");
+		warn("failed to add rule '%s'", unexpanded_rule);
 	}
 
 	return (error);
 }
 
 static int
-show_limits(const char *filter, int hflag, int nflag)
+show_limits(const char *filter, const char *unexpanded_rule,
+    int hflag, int nflag)
 {
 	int error;
 	char *outbuf = NULL;
@@ -400,7 +410,7 @@ show_limits(const char *filter, int hflag, int nflag)
 			continue;
 		if (errno == ENOSYS)
 			enosys();
-		warn("rctl_get_limits");
+		warn("failed to get limits for '%s'", unexpanded_rule);
 		free(outbuf);
 
 		return (error);
@@ -413,7 +423,7 @@ show_limits(const char *filter, int hflag, int nflag)
 }
 
 static int
-remove_rule(const char *filter)
+remove_rule(const char *filter, const char *unexpanded_rule)
 {
 	int error;
 
@@ -421,7 +431,7 @@ remove_rule(const char *filter)
 	if (error != 0) {
 		if (errno == ENOSYS)
 			enosys();
-		warn("rctl_remove_rule");
+		warn("failed to remove rule '%s'", unexpanded_rule);
 	}
 
 	return (error);
@@ -464,7 +474,7 @@ humanize_usage_amount(char *usage)
  * Query the kernel about a resource usage and print it out.
  */
 static int
-show_usage(const char *filter, int hflag)
+show_usage(const char *filter, const char *unexpanded_rule, int hflag)
 {
 	int error;
 	char *copy, *outbuf = NULL, *tmp;
@@ -483,7 +493,8 @@ show_usage(const char *filter, int hflag)
 			continue;
 		if (errno == ENOSYS)
 			enosys();
-		warn("rctl_get_racct");
+		warn("failed to show resource consumption for '%s'",
+		    unexpanded_rule);
 		free(outbuf);
 
 		return (error);
@@ -509,7 +520,8 @@ show_usage(const char *filter, int hflag)
  * Query the kernel about resource limit rules and print them out.
  */
 static int
-show_rules(const char *filter, int hflag, int nflag)
+show_rules(const char *filter, const char *unexpanded_rule,
+    int hflag, int nflag)
 {
 	int error;
 	char *outbuf = NULL;
@@ -532,7 +544,7 @@ show_rules(const char *filter, int hflag, int nflag)
 			continue;
 		if (errno == ENOSYS)
 			enosys();
-		warn("rctl_get_rules");
+		warn("failed to show rules for '%s'", unexpanded_rule);
 		free(outbuf);
 
 		return (error);
@@ -558,8 +570,8 @@ main(int argc __unused, char **argv __unused)
 {
 	int ch, aflag = 0, hflag = 0, nflag = 0, lflag = 0, rflag = 0,
 	    uflag = 0;
-	char *rule = NULL;
-	int i, cumulated_error;
+	char *rule = NULL, *unexpanded_rule;
+	int i, cumulated_error, error;
 
 	while ((ch = getopt(argc, argv, "ahlnru")) != -1) {
 		switch (ch) {
@@ -597,7 +609,7 @@ main(int argc __unused, char **argv __unused)
 	if (argc == 0) {
 		if (aflag + lflag + rflag + uflag == 0) {
 			rule = strdup("::");
-			show_rules(rule, hflag, nflag);
+			show_rules(rule, rule, hflag, nflag);
 
 			return (0);
 		}
@@ -608,7 +620,7 @@ main(int argc __unused, char **argv __unused)
 	cumulated_error = 0;
 
 	for (i = 0; i < argc; i++) {
-		rule = argv[i];
+		unexpanded_rule = argv[i];
 
 		/*
 		 * Skip resolving if passed -n _and_ -a.  Ignore -n otherwise,
@@ -616,26 +628,36 @@ main(int argc __unused, char **argv __unused)
 		 * resolving the UID.
 		 */
 		if (aflag != 0 && nflag != 0)
-			rule = expand_rule(rule, false);
+			rule = expand_rule(unexpanded_rule, false);
 		else
-			rule = expand_rule(rule, true);
+			rule = expand_rule(unexpanded_rule, true);
 
 		if (rule == NULL) {
 			cumulated_error++;
 			continue;
 		}
 
+		/*
+		 * The reason for passing the unexpanded_rule is to make
+		 * it easier for the user to search for the problematic
+		 * rule in the passed input.
+		 */
 		if (aflag) {
-			cumulated_error += add_rule(rule);
+			error = add_rule(rule, unexpanded_rule);
 		} else if (lflag) {
-			cumulated_error += show_limits(rule, hflag, nflag);
+			error = show_limits(rule, unexpanded_rule,
+			    hflag, nflag);
 		} else if (rflag) {
-			cumulated_error += remove_rule(rule);
+			error = remove_rule(rule, unexpanded_rule);
 		} else if (uflag) {
-			cumulated_error += show_usage(rule, hflag);
+			error = show_usage(rule, unexpanded_rule, hflag);
 		} else  {
-			cumulated_error += show_rules(rule, hflag, nflag);
+			error = show_rules(rule, unexpanded_rule,
+			    hflag, nflag);
 		}
+
+		if (error != 0)
+			cumulated_error++;
 
 		free(rule);
 	}
