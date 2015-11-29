@@ -1670,10 +1670,8 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	ip = uma_zalloc(uma_inode, M_WAITOK | M_ZERO);
 
 	/* Allocate a new vnode/inode. */
-	if (fs->fs_magic == FS_UFS1_MAGIC)
-		error = getnewvnode("ufs", mp, &ffs_vnodeops1, &vp);
-	else
-		error = getnewvnode("ufs", mp, &ffs_vnodeops2, &vp);
+	error = getnewvnode("ufs", mp, fs->fs_magic == FS_UFS1_MAGIC ?
+	    &ffs_vnodeops1 : &ffs_vnodeops2, &vp);
 	if (error) {
 		*vpp = NULL;
 		uma_zfree(uma_inode, ip);
