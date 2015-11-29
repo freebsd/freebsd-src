@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <grp.h>
 #include <libutil.h>
 #include <pwd.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,97 +51,60 @@ __FBSDID("$FreeBSD$");
 
 #define	RCTL_DEFAULT_BUFSIZE	128 * 1024
 
-static id_t
-parse_user(const char *s)
+static int
+parse_user(const char *s, id_t *uidp)
 {
-	id_t id;
 	char *end;
 	struct passwd *pwd;
 
 	pwd = getpwnam(s);
-	if (pwd != NULL)
-		return (pwd->pw_uid);
+	if (pwd != NULL) {
+		*uidp = pwd->pw_uid;
+		return (0);
+	}
 
-	if (!isnumber(s[0]))
-		errx(1, "uknown user '%s'", s);
+	if (!isnumber(s[0])) {
+		warnx("uknown user '%s'", s);
+		return (1);
+	}
 
-	id = strtod(s, &end);
-	if ((size_t)(end - s) != strlen(s))
-		errx(1, "trailing characters after numerical id");
+	*uidp = strtod(s, &end);
+	if ((size_t)(end - s) != strlen(s)) {
+		warnx("trailing characters after numerical id");
+		return (1);
+	}
 
-	return (id);
+	return (0);
 }
 
-static id_t
-parse_group(const char *s)
+static int
+parse_group(const char *s, id_t *gidp)
 {
-	id_t id;
 	char *end;
 	struct group *grp;
 
 	grp = getgrnam(s);
-	if (grp != NULL)
-		return (grp->gr_gid);
+	if (grp != NULL) {
+		*gidp = grp->gr_gid;
+		return (0);
+	}
 
-	if (!isnumber(s[0]))
-		errx(1, "uknown group '%s'", s);
+	if (!isnumber(s[0])) {
+		warnx("uknown group '%s'", s);
+		return (1);
+	}
 
-	id = strtod(s, &end);
-	if ((size_t)(end - s) != strlen(s))
-		errx(1, "trailing characters after numerical id");
+	*gidp = strtod(s, &end);
+	if ((size_t)(end - s) != strlen(s)) {
+		warnx("trailing characters after numerical id");
+		return (1);
+	}
 
-	return (id);
+	return (0);
 }
 
 /*
- * This routine replaces user/group name with numeric id.
- */
-static char *
-resolve_ids(char *rule)
-{
-	id_t id;
-	const char *subject, *textid, *rest;
-	char *resolved;
-
-	subject = strsep(&rule, ":");
-	textid = strsep(&rule, ":");
-	if (textid == NULL)
-		errx(1, "error in rule specification -- no subject");
-	if (rule != NULL)
-		rest = rule;
-	else
-		rest = "";
-
-	if (strcasecmp(subject, "u") == 0)
-		subject = "user";
-	else if (strcasecmp(subject, "g") == 0)
-		subject = "group";
-	else if (strcasecmp(subject, "p") == 0)
-		subject = "process";
-	else if (strcasecmp(subject, "l") == 0 ||
-	    strcasecmp(subject, "c") == 0 ||
-	    strcasecmp(subject, "class") == 0)
-		subject = "loginclass";
-	else if (strcasecmp(subject, "j") == 0)
-		subject = "jail";
-
-	if (strcasecmp(subject, "user") == 0 && strlen(textid) > 0) {
-		id = parse_user(textid);
-		asprintf(&resolved, "%s:%d:%s", subject, (int)id, rest);
-	} else if (strcasecmp(subject, "group") == 0 && strlen(textid) > 0) {
-		id = parse_group(textid);
-		asprintf(&resolved, "%s:%d:%s", subject, (int)id, rest);
-	} else
-		asprintf(&resolved, "%s:%s:%s", subject, textid, rest);
-
-	if (resolved == NULL)
-		err(1, "asprintf");
-
-	return (resolved);
-}
-
-/*
- * This routine replaces "human-readable" number with its expanded form.
+ * Replace human-readable number with its expanded form.
  */
 static char *
 expand_amount(char *rule)
@@ -150,8 +114,10 @@ expand_amount(char *rule)
 	char *copy, *expanded;
 
 	copy = strdup(rule);
-	if (copy == NULL)
-		err(1, "strdup");
+	if (copy == NULL) {
+		warn("strdup");
+		return (NULL);
+	}
 
 	subject = strsep(&copy, ":");
 	subject_id = strsep(&copy, ":");
@@ -170,8 +136,11 @@ expand_amount(char *rule)
 	assert(resource != NULL);
 	assert(action != NULL);
 
-	if (expand_number(amount, &num))
-		err(1, "expand_number");
+	if (expand_number(amount, &num)) {
+		warnx("invalid numeric value '%s'", amount);
+		free(copy);
+		return (NULL);
+	}
 
 	if (per == NULL)
 		asprintf(&expanded, "%s:%s:%s:%s=%ju", subject, subject_id,
@@ -180,10 +149,70 @@ expand_amount(char *rule)
 		asprintf(&expanded, "%s:%s:%s:%s=%ju/%s", subject, subject_id,
 		    resource, action, (uintmax_t)num, per);
 
-	if (expanded == NULL)
-		err(1, "asprintf");
+	if (expanded == NULL) {
+		warn("asprintf");
+		free(copy);
+		return (NULL);
+	}
 
 	return (expanded);
+}
+
+
+static char *
+expand_rule(char *rule, bool resolve_ids)
+{
+	id_t id;
+	const char *subject, *textid, *rest;
+	char *resolved;
+	int error;
+
+	subject = strsep(&rule, ":");
+	textid = strsep(&rule, ":");
+	if (textid == NULL) {
+		warnx("error in rule specification -- no subject");
+		return (NULL);
+	}
+	if (rule != NULL)
+		rest = rule;
+	else
+		rest = "";
+
+	if (strcasecmp(subject, "u") == 0)
+		subject = "user";
+	else if (strcasecmp(subject, "g") == 0)
+		subject = "group";
+	else if (strcasecmp(subject, "p") == 0)
+		subject = "process";
+	else if (strcasecmp(subject, "l") == 0 ||
+	    strcasecmp(subject, "c") == 0 ||
+	    strcasecmp(subject, "class") == 0)
+		subject = "loginclass";
+	else if (strcasecmp(subject, "j") == 0)
+		subject = "jail";
+
+	if (resolve_ids &&
+	    strcasecmp(subject, "user") == 0 && strlen(textid) > 0) {
+		error = parse_user(textid, &id);
+		if (error != 0)
+			return (NULL);
+		asprintf(&resolved, "%s:%d:%s", subject, (int)id, rest);
+	} else if (resolve_ids &&
+	    strcasecmp(subject, "group") == 0 && strlen(textid) > 0) {
+		error = parse_group(textid, &id);
+		if (error != 0)
+			return (NULL);
+		asprintf(&resolved, "%s:%d:%s", subject, (int)id, rest);
+	} else {
+		asprintf(&resolved, "%s:%s:%s", subject, textid, rest);
+	}
+
+	if (resolved == NULL) {
+		warn("asprintf");
+		return (NULL);
+	}
+
+	return (expand_amount(resolved));
 }
 
 static char *
@@ -330,8 +359,8 @@ enosys(void)
 		errx(1, "RACCT/RCTL present, but disabled; enable using kern.racct.enable=1 tunable");
 }
 
-static void
-add_rule(char *rule)
+static int
+add_rule(const char *rule)
 {
 	int error;
 
@@ -339,13 +368,14 @@ add_rule(char *rule)
 	if (error != 0) {
 		if (errno == ENOSYS)
 			enosys();
-		err(1, "rctl_add_rule");
+		warn("rctl_add_rule");
 	}
-	free(rule);
+
+	return (error);
 }
 
-static void
-show_limits(char *filter, int hflag, int nflag)
+static int
+show_limits(const char *filter, int hflag, int nflag)
 {
 	int error;
 	char *outbuf = NULL;
@@ -362,17 +392,18 @@ show_limits(char *filter, int hflag, int nflag)
 		if (error && errno != ERANGE) {
 			if (errno == ENOSYS)
 				enosys();
-			err(1, "rctl_get_limits");
+			warn("rctl_get_limits");
 		}
 	} while (error && errno == ERANGE);
 
 	print_rules(outbuf, hflag, nflag);
-	free(filter);
 	free(outbuf);
+
+	return (error);
 }
 
-static void
-remove_rule(char *filter)
+static int
+remove_rule(const char *filter)
 {
 	int error;
 
@@ -380,9 +411,10 @@ remove_rule(char *filter)
 	if (error != 0) {
 		if (errno == ENOSYS)
 			enosys();
-		err(1, "rctl_remove_rule");
+		warn("rctl_remove_rule");
 	}
-	free(filter);
+
+	return (error);
 }
 
 static char *
@@ -419,8 +451,8 @@ humanize_usage_amount(char *usage)
 /*
  * Query the kernel about a resource usage and print it out.
  */
-static void
-show_usage(char *filter, int hflag)
+static int
+show_usage(const char *filter, int hflag)
 {
 	int error;
 	char *outbuf = NULL, *tmp;
@@ -437,7 +469,7 @@ show_usage(char *filter, int hflag)
 		if (error && errno != ERANGE) {
 			if (errno == ENOSYS)
 				enosys();
-			err(1, "rctl_get_racct");
+			warn("rctl_get_racct");
 		}
 	} while (error && errno == ERANGE);
 
@@ -451,15 +483,16 @@ show_usage(char *filter, int hflag)
 		printf("%s\n", tmp);
 	}
 
-	free(filter);
 	free(outbuf);
+
+	return (error);
 }
 
 /*
  * Query the kernel about resource limit rules and print them out.
  */
-static void
-show_rules(char *filter, int hflag, int nflag)
+static int
+show_rules(const char *filter, int hflag, int nflag)
 {
 	int error;
 	char *outbuf = NULL;
@@ -480,12 +513,14 @@ show_rules(char *filter, int hflag, int nflag)
 		if (error && errno != ERANGE) {
 			if (errno == ENOSYS)
 				enosys();
-			err(1, "rctl_get_rules");
+			warn("rctl_get_rules");
 		}
 	} while (error && errno == ERANGE);
 
 	print_rules(outbuf, hflag, nflag);
 	free(outbuf);
+
+	return (error);
 }
 
 static void
@@ -503,30 +538,27 @@ main(int argc __unused, char **argv __unused)
 	int ch, aflag = 0, hflag = 0, nflag = 0, lflag = 0, rflag = 0,
 	    uflag = 0;
 	char *rule = NULL;
+	int i, cumulated_error;
 
-	while ((ch = getopt(argc, argv, "a:hl:nr:u:")) != -1) {
+	while ((ch = getopt(argc, argv, "ahlnru")) != -1) {
 		switch (ch) {
 		case 'a':
 			aflag = 1;
-			rule = strdup(optarg);
 			break;
 		case 'h':
 			hflag = 1;
 			break;
 		case 'l':
 			lflag = 1;
-			rule = strdup(optarg);
 			break;
 		case 'n':
 			nflag = 1;
 			break;
 		case 'r':
 			rflag = 1;
-			rule = strdup(optarg);
 			break;
 		case 'u':
 			uflag = 1;
-			rule = strdup(optarg);
 			break;
 
 		case '?':
@@ -537,44 +569,55 @@ main(int argc __unused, char **argv __unused)
 
 	argc -= optind;
 	argv += optind;
+	
+	if (aflag + lflag + rflag + uflag > 1)
+		errx(1, "at most one of -a, -l, -r, or -u may be specified");
 
-	if (argc > 1)
-		usage();
-
-	if (rule == NULL) {
-		if (argc == 1)
-			rule = strdup(argv[0]);
-		else
+	if (argc == 0) {
+		if (aflag + lflag + rflag + uflag == 0) {
 			rule = strdup("::");
+			show_rules(rule, hflag, nflag);
+
+			return (0);
+		}
+
+		usage();
 	}
 
-	if (aflag + lflag + rflag + uflag + argc > 1)
-		errx(1, "only one flag or argument may be specified "
-		    "at the same time");
+	cumulated_error = 0;
 
-	rule = resolve_ids(rule);
-	rule = expand_amount(rule);
+	for (i = 0; i < argc; i++) {
+		rule = argv[i];
 
-	if (aflag) {
-		add_rule(rule);
-		return (0);
+		/*
+		 * Skip resolving if passed -n _and_ -a.  Ignore -n otherwise,
+		 * so we can still do "rctl -n u:root" and see the rules without
+		 * resolving the UID.
+		 */
+		if (aflag != 0 && nflag != 0)
+			rule = expand_rule(rule, false);
+		else
+			rule = expand_rule(rule, true);
+
+		if (rule == NULL) {
+			cumulated_error++;
+			continue;
+		}
+
+		if (aflag) {
+			cumulated_error += add_rule(rule);
+		} else if (lflag) {
+			cumulated_error += show_limits(rule, hflag, nflag);
+		} else if (rflag) {
+			cumulated_error += remove_rule(rule);
+		} else if (uflag) {
+			cumulated_error += show_usage(rule, hflag);
+		} else  {
+			cumulated_error += show_rules(rule, hflag, nflag);
+		}
+
+		free(rule);
 	}
 
-	if (lflag) {
-		show_limits(rule, hflag, nflag);
-		return (0);
-	}
-
-	if (rflag) {
-		remove_rule(rule);
-		return (0);
-	}
-
-	if (uflag) {
-		show_usage(rule, hflag);
-		return (0);
-	}
-
-	show_rules(rule, hflag, nflag);
-	return (0);
+	return (cumulated_error);
 }
