@@ -86,7 +86,9 @@ ar9300_set_channel(struct ath_hal *ah, struct ieee80211_channel *chan)
     u_int8_t clk_25mhz = AH9300(ah)->clk_25mhz;
     CHAN_CENTERS centers;
     int load_synth_channel;
+#ifdef	AH_DEBUG_ALQ
     HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
+#endif
 
     /*
      * Put this behind AH_DEBUG_ALQ for now until the Hornet
