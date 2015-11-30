@@ -3556,6 +3556,13 @@ wpi_update_promisc(struct ieee80211com *ic)
 {
 	struct wpi_softc *sc = ic->ic_softc;
 
+	WPI_LOCK(sc);
+	if (sc->sc_running == 0) {
+		WPI_UNLOCK(sc);
+		return;
+	}
+	WPI_UNLOCK(sc);
+
 	WPI_RXON_LOCK(sc);
 	wpi_set_promisc(sc);
 
