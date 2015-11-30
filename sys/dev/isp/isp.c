@@ -2508,7 +2508,7 @@ isp_port_login(ispsoftc_t *isp, uint16_t handle, uint32_t portid)
 
 	switch (mbs.param[0]) {
 	case MBOX_PORT_ID_USED:
-		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOG_WARN1, "isp_port_login: portid 0x%06x already logged in as %u", portid, mbs.param[1]);
+		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOG_WARN1, "isp_port_login: portid 0x%06x already logged in as 0x%x", portid, mbs.param[1]);
 		return (MBOX_PORT_ID_USED | (mbs.param[1] << 16));
 
 	case MBOX_LOOP_ID_USED:
@@ -5697,8 +5697,12 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 	{
 		int echan, nphdl, nlstate, reason;
 
-		nphdl = ISP_READ(isp, OUTMAILBOX1);
-		nlstate = ISP_READ(isp, OUTMAILBOX2);
+		if (IS_23XX(isp) || IS_24XX(isp)) {
+			nphdl = ISP_READ(isp, OUTMAILBOX1);
+			nlstate = ISP_READ(isp, OUTMAILBOX2);
+		} else {
+			nphdl = nlstate = 0xffff;
+		}
 		if (IS_24XX(isp))
 			reason = ISP_READ(isp, OUTMAILBOX3) >> 8;
 		else
