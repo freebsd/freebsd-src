@@ -24,14 +24,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2009
+.Dd November 1, 2015
 .Dt NFSUSERD 8
 .Os
 .Sh NAME
 .Nm nfsuserd
 .Nd load user and group information into the kernel for
 .Tn NFSv4
-services
+services plus support manage-gids for all NFS versions
 .Sh SYNOPSIS
 .Nm nfsuserd
 .Op Fl domain Ar domain_name
@@ -39,11 +39,14 @@ services
 .Op Fl usermax Ar max_cache_size
 .Op Fl verbose
 .Op Fl force
+.Op Fl manage-gids
 .Op Ar num_servers
 .Sh DESCRIPTION
 .Nm
 loads user and group information into the kernel for NFSv4.
 It must be running for NFSv4 to function correctly, either client or server.
+It also provides support for manage-gids and must be running on the server if
+this is being used for any version of NFS.
 .Pp
 Upon startup, it loads the machines DNS domain name, plus timeout and
 cache size limit into the kernel. It then preloads the cache with group
@@ -79,6 +82,15 @@ When set, the server logs a bunch of information to syslog.
 This flag option must be set to restart the daemon after it has gone away
 abnormally and refuses to start, because it thinks nfsuserd is already
 running.
+.It Fl manage-gids
+This flag enables manage-gids for the NFS server
+.Xr nfsd 8 .
+When this is enabled, all NFS requests using
+AUTH_SYS authentication take the uid from the RPC request
+and uses the group list for that uid provided by
+.Xr getgrouplist 3
+on the server instead of the list of groups provided in the RPC authenticator.
+This can be used to avoid the 16 group limit for AUTH_SYS.
 .It Ar num_servers
 Specifies how many servers to create (max 20).
 The default of 4 may be sufficient. You should run enough servers, so that
@@ -90,6 +102,7 @@ such as a process table entry and swap space.
 .El
 .Sh SEE ALSO
 .Xr getgrent 3 ,
+.Xr getgrouplist 3 ,
 .Xr getpwent 3 ,
 .Xr nfsv4 4 ,
 .Xr group 5 ,
@@ -103,7 +116,8 @@ utility was introduced with the NFSv4 experimental subsystem in 2009.
 The
 .Nm
 use
-.Xr getgrent 3
+.Xr getgrent 3 ,
+.Xr getgrouplist 3
 and
 .Xr getpwent 3
 library calls to resolve requests and will hang if the servers handling
