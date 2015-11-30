@@ -1414,7 +1414,8 @@ isp_enable_deferred(ispsoftc_t *isp, int bus, lun_id_t lun)
 
 	ISP_GET_PC(isp, bus, tm_luns_enabled, luns_already_enabled);
 	isp_prt(isp, ISP_LOGTINFO, "%s: bus %d lun %u luns_enabled %d", __func__, bus, lun, luns_already_enabled);
-	if (IS_24XX(isp) || (IS_FC(isp) && luns_already_enabled)) {
+	if (IS_23XX(isp) || IS_24XX(isp) ||
+	    (IS_FC(isp) && luns_already_enabled)) {
 		status = CAM_REQ_CMP;
 	} else {
 		int cmd_cnt, not_cnt;
@@ -1485,7 +1486,7 @@ isp_disable_lun(ispsoftc_t *isp, union ccb *ccb)
 	/*
 	 * If we're a 24XX card, we're done.
 	 */
-	if (IS_24XX(isp)) {
+	if (IS_23XX(isp) || IS_24XX(isp)) {
 		status = CAM_REQ_CMP;
 		goto done;
 	}
@@ -1501,7 +1502,7 @@ isp_disable_lun(ispsoftc_t *isp, union ccb *ccb)
 	if (isp_lun_cmd(isp, RQSTYPE_ENABLE_LUN, bus, lun, 0, 0)) {
 		status = CAM_RESRC_UNAVAIL;
 	} else {
-		mtx_sleep(ccb, &isp->isp_lock, PRIBIO, "isp_disable_lun", 0);
+		mtx_sleep(&status, &isp->isp_lock, PRIBIO, "isp_disable_lun", 0);
 	}
 	isp->isp_osinfo.rptr = NULL;
 done:

@@ -1895,7 +1895,7 @@ isp_fibre_init(ispsoftc_t *isp)
 	icbp->icb_logintime = ICB_LOGIN_TOV;
 
 #ifdef	ISP_TARGET_MODE
-	if (ISP_FW_NEWER_THAN(isp, 3, 25, 0) && (icbp->icb_fwoptions & ICBOPT_TGT_ENABLE)) {
+	if (IS_23XX(isp) && (icbp->icb_fwoptions & ICBOPT_TGT_ENABLE)) {
 		icbp->icb_lunenables = 0xffff;
 		icbp->icb_ccnt = DFLT_CMND_CNT;
 		icbp->icb_icnt = DFLT_INOT_CNT;
