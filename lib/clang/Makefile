@@ -41,12 +41,10 @@ SUBDIR=	libclanganalysis \
 	libllvmipa \
 	libllvmipo \
 	libllvmirreader \
-	libllvmlibdriver \
 	libllvmlinker \
 	libllvmmc \
 	libllvmmcdisassembler \
 	libllvmmcparser \
-	libllvmmirparser \
 	libllvmobjcarcopts \
 	libllvmobject \
 	libllvmoption \
@@ -97,7 +95,9 @@ SUBDIR=	libclanganalysis \
 .if ${MK_CLANG_EXTRAS} != "no"
 SUBDIR+=libllvmdebuginfodwarf \
 	libllvmdebuginfopdb \
+	libllvmlibdriver \
 	libllvmlto \
+	libllvmmirparser \
 	libllvmorcjit \
 	libllvmpasses
 .endif # MK_CLANG_EXTRAS
