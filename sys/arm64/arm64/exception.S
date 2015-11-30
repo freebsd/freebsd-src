@@ -116,8 +116,7 @@ __FBSDID("$FreeBSD$");
 	mov	x3, #((TDF_ASTPENDING|TDF_NEEDRESCHED) >> 8)
 	lsl	x3, x3, #8
 	and	x2, x2, x3
-	cmp	x2, #0
-	b.eq	2f
+	cbz	x2, 2f
 
 	/* Restore interrupts */
 	msr	daif, x19
