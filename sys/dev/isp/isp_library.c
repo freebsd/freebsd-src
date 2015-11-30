@@ -1646,6 +1646,44 @@ isp_get_pdb_24xx(ispsoftc_t *isp, isp_pdb_24xx_t *src, isp_pdb_24xx_t *dst)
 	}
 }
 
+void
+isp_get_pnhle_21xx(ispsoftc_t *isp, isp_pnhle_21xx_t *src, isp_pnhle_21xx_t *dst)
+{
+
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_lo, dst->pnhle_port_id_lo);
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_hi_handle, dst->pnhle_port_id_hi_handle);
+}
+
+void
+isp_get_pnhle_23xx(ispsoftc_t *isp, isp_pnhle_23xx_t *src, isp_pnhle_23xx_t *dst)
+{
+
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_lo, dst->pnhle_port_id_lo);
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_hi, dst->pnhle_port_id_hi);
+	ISP_IOXGET_16(isp, &src->pnhle_handle, dst->pnhle_handle);
+}
+
+void
+isp_get_pnhle_24xx(ispsoftc_t *isp, isp_pnhle_24xx_t *src, isp_pnhle_24xx_t *dst)
+{
+
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_lo, dst->pnhle_port_id_lo);
+	ISP_IOXGET_16(isp, &src->pnhle_port_id_hi, dst->pnhle_port_id_hi);
+	ISP_IOXGET_16(isp, &src->pnhle_handle, dst->pnhle_handle);
+	ISP_IOXGET_16(isp, &src->pnhle_reserved, dst->pnhle_reserved);
+}
+
+void
+isp_get_pnnle(ispsoftc_t *isp, isp_pnnle_t *src, isp_pnnle_t *dst)
+{
+	int i;
+
+	for (i = 0; i < 8; i++)
+		ISP_IOXGET_8(isp, &src->pnnle_name[i], dst->pnnle_name[i]);
+	ISP_IOXGET_16(isp, &src->pnnle_handle, dst->pnnle_handle);
+	ISP_IOXGET_16(isp, &src->pnnle_reserved, dst->pnnle_reserved);
+}
+
 /*
  * PLOGI/LOGO IOCB canonicalization
  */
