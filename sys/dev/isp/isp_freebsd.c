@@ -2589,7 +2589,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	/*
 	 * Find the PDB entry for this initiator
 	 */
-	if (isp_find_pdb_by_sid(isp, chan, sid, &lp) == 0) {
+	if (isp_find_pdb_by_portid(isp, chan, sid, &lp) == 0) {
 		/*
 		 * If we're not in the port database terminate the exchange.
 		 */
@@ -3322,7 +3322,7 @@ isp_handle_platform_target_notify_ack(ispsoftc_t *isp, isp_notify_t *mp)
 		uint16_t nphdl;
 
 		sid = (aep->at_hdr.s_id[0] << 16) | (aep->at_hdr.s_id[1] << 8) | aep->at_hdr.s_id[2];
-		if (isp_find_pdb_by_sid(isp, mp->nt_channel, sid, &lp)) {
+		if (isp_find_pdb_by_portid(isp, mp->nt_channel, sid, &lp)) {
 			nphdl = lp->handle;
 		} else {
 			nphdl = NIL_HANDLE;
@@ -3446,7 +3446,7 @@ isp_handle_platform_target_tmf(ispsoftc_t *isp, isp_notify_t *notify)
 		goto bad;
 	}
 
-	if (isp_find_pdb_by_sid(isp, notify->nt_channel, notify->nt_sid, &lp) == 0 &&
+	if (isp_find_pdb_by_portid(isp, notify->nt_channel, notify->nt_sid, &lp) == 0 &&
 	    isp_find_pdb_by_handle(isp, notify->nt_channel, notify->nt_nphdl, &lp) == 0) {
 		inot->initiator_id = CAM_TARGET_WILDCARD;
 	} else {
@@ -4966,15 +4966,17 @@ changed:
 	case ISPASYNC_CHANGE_NOTIFY:
 	{
 		char *msg;
-		int evt, nphdl, nlstate, reason;
+		int evt, nphdl, nlstate, portid, reason;
 
 		va_start(ap, cmd);
 		bus = va_arg(ap, int);
 		evt = va_arg(ap, int);
-		if (IS_24XX(isp) && evt == ISPASYNC_CHANGE_PDB) {
+		if (evt == ISPASYNC_CHANGE_PDB) {
 			nphdl = va_arg(ap, int);
 			nlstate = va_arg(ap, int);
 			reason = va_arg(ap, int);
+		} else if (evt == ISPASYNC_CHANGE_SNS) {
+			portid = va_arg(ap, int);
 		} else {
 			nphdl = NIL_HANDLE;
 			nlstate = reason = 0;
@@ -4984,10 +4986,16 @@ changed:
 
 		if (evt == ISPASYNC_CHANGE_PDB) {
 			msg = "Port Database Changed";
+			isp_prt(isp, ISP_LOGINFO,
+			    "Chan %d %s (nphdl 0x%x state 0x%x reason 0x%x)",
+			    bus, msg, nphdl, nlstate, reason);
 		} else if (evt == ISPASYNC_CHANGE_SNS) {
 			msg = "Name Server Database Changed";
+			isp_prt(isp, ISP_LOGINFO, "Chan %d %s (PortID 0x%06x)",
+			    bus, msg, portid);
 		} else {
 			msg = "Other Change Notify";
+			isp_prt(isp, ISP_LOGINFO, "Chan %d %s", bus, msg);
 		}
 
 		/*
@@ -4997,7 +5005,6 @@ changed:
 			isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "Stopping Loop Down Timer @ %lu", (unsigned long) time_uptime);
 			callout_stop(&fc->ldt);
 		}
-		isp_prt(isp, ISP_LOGINFO, "Chan %d %s", bus, msg);
 		if (FCPARAM(isp, bus)->role & ISP_ROLE_INITIATOR) {
 			isp_freeze_loopdown(isp, bus, msg);
 		}
