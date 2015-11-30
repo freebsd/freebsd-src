@@ -80,7 +80,6 @@ SYSCTL_STRING(_vfs_nfs, OID_AUTO, callback_addr, CTLFLAG_RW,
     "NFSv4 callback addr for server to use");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nfscl_debuglevel,
     0, "Debug level for NFS client");
-TUNABLE_INT("vfs.nfs.userhashsize", &nfsrv_lughashsize);
 SYSCTL_INT(_vfs_nfs, OID_AUTO, userhashsize, CTLFLAG_RDTUN, &nfsrv_lughashsize,
     0, "Size of hash tables for uid/name mapping");
 
