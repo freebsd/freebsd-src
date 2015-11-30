@@ -778,16 +778,11 @@ isp_clear_commands(ispsoftc_t *isp)
 			ctio->ct_syshandle = hdp->handle;
 			ctio->ct_nphdl = CT_HBA_RESET;
 			ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO7;
-		} else if (IS_FC(isp)) {
+		} else {
 			ct2_entry_t *ctio = (ct2_entry_t *) local;
 			ctio->ct_syshandle = hdp->handle;
 			ctio->ct_status = CT_HBA_RESET;
 			ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
-		} else {
-			ct_entry_t *ctio = (ct_entry_t *) local;
-			ctio->ct_syshandle = hdp->handle;
-			ctio->ct_status = CT_HBA_RESET & 0xff;
-			ctio->ct_header.rqs_entry_type = RQSTYPE_CTIO;
 		}
 		isp_async(isp, ISPASYNC_TARGET_ACTION, local);
 	}
@@ -2264,10 +2259,6 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 		 * First, figure out how many pieces of data to transfer and what kind and how many we can put into the first queue entry.
 		 */
 		switch (type) {
-		case RQSTYPE_CTIO:
-			dsp = ((ct_entry_t *)fqe)->ct_dataseg;
-			seglim = ISP_RQDSEG;
-			break;
 		case RQSTYPE_CTIO2:
 			dsp = ((ct2_entry_t *)fqe)->rsp.m0.u.ct_dataseg;
 			seglim = ISP_RQDSEG_T2;
@@ -2355,10 +2346,6 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 	 */
 	((isphdr_t *)fqe)->rqs_entry_count = nqe;
 	switch (type) {
-	case RQSTYPE_CTIO:
-		((ct_entry_t *)fqe)->ct_seg_count = nsegs;
-		isp_put_ctio(isp, fqe, qe0);
-		break;
 	case RQSTYPE_CTIO2:
 	case RQSTYPE_CTIO3:
 		if (((ct2_entry_t *)fqe)->ct_flags & CT2_FLAG_MODE2) {
@@ -2821,76 +2808,6 @@ isp_del_wwn_entries(ispsoftc_t *isp, isp_notify_t *mp)
 }
 
 void
-isp_put_atio(ispsoftc_t *isp, at_entry_t *src, at_entry_t *dst)
-{
-	int i;
-	isp_put_hdr(isp, &src->at_header, &dst->at_header);
-	ISP_IOXPUT_16(isp, src->at_reserved, &dst->at_reserved);
-	ISP_IOXPUT_16(isp, src->at_handle, &dst->at_handle);
-	if (ISP_IS_SBUS(isp)) {
-		ISP_IOXPUT_8(isp, src->at_lun, &dst->at_iid);
-		ISP_IOXPUT_8(isp, src->at_iid, &dst->at_lun);
-		ISP_IOXPUT_8(isp, src->at_cdblen, &dst->at_tgt);
-		ISP_IOXPUT_8(isp, src->at_tgt, &dst->at_cdblen);
-		ISP_IOXPUT_8(isp, src->at_status, &dst->at_scsi_status);
-		ISP_IOXPUT_8(isp, src->at_scsi_status, &dst->at_status);
-		ISP_IOXPUT_8(isp, src->at_tag_val, &dst->at_tag_type);
-		ISP_IOXPUT_8(isp, src->at_tag_type, &dst->at_tag_val);
-	} else {
-		ISP_IOXPUT_8(isp, src->at_lun, &dst->at_lun);
-		ISP_IOXPUT_8(isp, src->at_iid, &dst->at_iid);
-		ISP_IOXPUT_8(isp, src->at_cdblen, &dst->at_cdblen);
-		ISP_IOXPUT_8(isp, src->at_tgt, &dst->at_tgt);
-		ISP_IOXPUT_8(isp, src->at_status, &dst->at_status);
-		ISP_IOXPUT_8(isp, src->at_scsi_status, &dst->at_scsi_status);
-		ISP_IOXPUT_8(isp, src->at_tag_val, &dst->at_tag_val);
-		ISP_IOXPUT_8(isp, src->at_tag_type, &dst->at_tag_type);
-	}
-	ISP_IOXPUT_32(isp, src->at_flags, &dst->at_flags);
-	for (i = 0; i < ATIO_CDBLEN; i++) {
-		ISP_IOXPUT_8(isp, src->at_cdb[i], &dst->at_cdb[i]);
-	}
-	for (i = 0; i < QLTM_SENSELEN; i++) {
-		ISP_IOXPUT_8(isp, src->at_sense[i], &dst->at_sense[i]);
-	}
-}
-
-void
-isp_get_atio(ispsoftc_t *isp, at_entry_t *src, at_entry_t *dst)
-{
-	int i;
-	isp_get_hdr(isp, &src->at_header, &dst->at_header);
-	ISP_IOXGET_16(isp, &src->at_reserved, dst->at_reserved);
-	ISP_IOXGET_16(isp, &src->at_handle, dst->at_handle);
-	if (ISP_IS_SBUS(isp)) {
-		ISP_IOXGET_8(isp, &src->at_lun, dst->at_iid);
-		ISP_IOXGET_8(isp, &src->at_iid, dst->at_lun);
-		ISP_IOXGET_8(isp, &src->at_cdblen, dst->at_tgt);
-		ISP_IOXGET_8(isp, &src->at_tgt, dst->at_cdblen);
-		ISP_IOXGET_8(isp, &src->at_status, dst->at_scsi_status);
-		ISP_IOXGET_8(isp, &src->at_scsi_status, dst->at_status);
-		ISP_IOXGET_8(isp, &src->at_tag_val, dst->at_tag_type);
-		ISP_IOXGET_8(isp, &src->at_tag_type, dst->at_tag_val);
-	} else {
-		ISP_IOXGET_8(isp, &src->at_lun, dst->at_lun);
-		ISP_IOXGET_8(isp, &src->at_iid, dst->at_iid);
-		ISP_IOXGET_8(isp, &src->at_cdblen, dst->at_cdblen);
-		ISP_IOXGET_8(isp, &src->at_tgt, dst->at_tgt);
-		ISP_IOXGET_8(isp, &src->at_status, dst->at_status);
-		ISP_IOXGET_8(isp, &src->at_scsi_status, dst->at_scsi_status);
-		ISP_IOXGET_8(isp, &src->at_tag_val, dst->at_tag_val);
-		ISP_IOXGET_8(isp, &src->at_tag_type, dst->at_tag_type);
-	}
-	ISP_IOXGET_32(isp, &src->at_flags, dst->at_flags);
-	for (i = 0; i < ATIO_CDBLEN; i++) {
-		ISP_IOXGET_8(isp, &src->at_cdb[i], dst->at_cdb[i]);
-	}
-	for (i = 0; i < QLTM_SENSELEN; i++) {
-		ISP_IOXGET_8(isp, &src->at_sense[i], dst->at_sense[i]);
-	}
-}
-
-void
 isp_put_atio2(ispsoftc_t *isp, at2_entry_t *src, at2_entry_t *dst)
 {
 	int i;
@@ -3013,81 +2930,6 @@ isp_get_atio7(ispsoftc_t *isp, at7_entry_t *src, at7_entry_t *dst)
 	ISP_IOXGET_32(isp, &src->at_rxid, dst->at_rxid);
 	isp_get_fc_hdr(isp, &src->at_hdr, &dst->at_hdr);
 	isp_get_fcp_cmnd_iu(isp, &src->at_cmnd, &dst->at_cmnd);
-}
-
-void
-isp_put_ctio(ispsoftc_t *isp, ct_entry_t *src, ct_entry_t *dst)
-{
-	int i;
-	isp_put_hdr(isp, &src->ct_header, &dst->ct_header);
-	ISP_IOXPUT_16(isp, src->ct_syshandle, &dst->ct_syshandle);
-	ISP_IOXPUT_16(isp, src->ct_fwhandle, &dst->ct_fwhandle);
-	if (ISP_IS_SBUS(isp)) {
-		ISP_IOXPUT_8(isp, src->ct_iid, &dst->ct_lun);
-		ISP_IOXPUT_8(isp, src->ct_lun, &dst->ct_iid);
-		ISP_IOXPUT_8(isp, src->ct_tgt, &dst->ct_reserved2);
-		ISP_IOXPUT_8(isp, src->ct_reserved2, &dst->ct_tgt);
-		ISP_IOXPUT_8(isp, src->ct_status, &dst->ct_scsi_status);
-		ISP_IOXPUT_8(isp, src->ct_scsi_status, &dst->ct_status);
-		ISP_IOXPUT_8(isp, src->ct_tag_type, &dst->ct_tag_val);
-		ISP_IOXPUT_8(isp, src->ct_tag_val, &dst->ct_tag_type);
-	} else {
-		ISP_IOXPUT_8(isp, src->ct_iid, &dst->ct_iid);
-		ISP_IOXPUT_8(isp, src->ct_lun, &dst->ct_lun);
-		ISP_IOXPUT_8(isp, src->ct_tgt, &dst->ct_tgt);
-		ISP_IOXPUT_8(isp, src->ct_reserved2, &dst->ct_reserved2);
-		ISP_IOXPUT_8(isp, src->ct_scsi_status,
-		    &dst->ct_scsi_status);
-		ISP_IOXPUT_8(isp, src->ct_status, &dst->ct_status);
-		ISP_IOXPUT_8(isp, src->ct_tag_type, &dst->ct_tag_type);
-		ISP_IOXPUT_8(isp, src->ct_tag_val, &dst->ct_tag_val);
-	}
-	ISP_IOXPUT_32(isp, src->ct_flags, &dst->ct_flags);
-	ISP_IOXPUT_32(isp, src->ct_xfrlen, &dst->ct_xfrlen);
-	ISP_IOXPUT_32(isp, src->ct_resid, &dst->ct_resid);
-	ISP_IOXPUT_16(isp, src->ct_timeout, &dst->ct_timeout);
-	ISP_IOXPUT_16(isp, src->ct_seg_count, &dst->ct_seg_count);
-	for (i = 0; i < ISP_RQDSEG; i++) {
-		ISP_IOXPUT_32(isp, src->ct_dataseg[i].ds_base, &dst->ct_dataseg[i].ds_base);
-		ISP_IOXPUT_32(isp, src->ct_dataseg[i].ds_count, &dst->ct_dataseg[i].ds_count);
-	}
-}
-
-void
-isp_get_ctio(ispsoftc_t *isp, ct_entry_t *src, ct_entry_t *dst)
-{
-	int i;
-	isp_get_hdr(isp, &src->ct_header, &dst->ct_header);
-	ISP_IOXGET_16(isp, &src->ct_syshandle, dst->ct_syshandle);
-	ISP_IOXGET_16(isp, &src->ct_fwhandle, dst->ct_fwhandle);
-	if (ISP_IS_SBUS(isp)) {
-		ISP_IOXGET_8(isp, &src->ct_lun, dst->ct_iid);
-		ISP_IOXGET_8(isp, &src->ct_iid, dst->ct_lun);
-		ISP_IOXGET_8(isp, &src->ct_reserved2, dst->ct_tgt);
-		ISP_IOXGET_8(isp, &src->ct_tgt, dst->ct_reserved2);
-		ISP_IOXGET_8(isp, &src->ct_status, dst->ct_scsi_status);
-		ISP_IOXGET_8(isp, &src->ct_scsi_status, dst->ct_status);
-		ISP_IOXGET_8(isp, &src->ct_tag_val, dst->ct_tag_type);
-		ISP_IOXGET_8(isp, &src->ct_tag_type, dst->ct_tag_val);
-	} else {
-		ISP_IOXGET_8(isp, &src->ct_lun, dst->ct_lun);
-		ISP_IOXGET_8(isp, &src->ct_iid, dst->ct_iid);
-		ISP_IOXGET_8(isp, &src->ct_reserved2, dst->ct_reserved2);
-		ISP_IOXGET_8(isp, &src->ct_tgt, dst->ct_tgt);
-		ISP_IOXGET_8(isp, &src->ct_status, dst->ct_status);
-		ISP_IOXGET_8(isp, &src->ct_scsi_status, dst->ct_scsi_status);
-		ISP_IOXGET_8(isp, &src->ct_tag_val, dst->ct_tag_val);
-		ISP_IOXGET_8(isp, &src->ct_tag_type, dst->ct_tag_type);
-	}
-	ISP_IOXGET_32(isp, &src->ct_flags, dst->ct_flags);
-	ISP_IOXGET_32(isp, &src->ct_xfrlen, dst->ct_xfrlen);
-	ISP_IOXGET_32(isp, &src->ct_resid, dst->ct_resid);
-	ISP_IOXGET_16(isp, &src->ct_timeout, dst->ct_timeout);
-	ISP_IOXGET_16(isp, &src->ct_seg_count, dst->ct_seg_count);
-	for (i = 0; i < ISP_RQDSEG; i++) {
-		ISP_IOXGET_32(isp, &src->ct_dataseg[i].ds_base, dst->ct_dataseg[i].ds_base);
-		ISP_IOXGET_32(isp, &src->ct_dataseg[i].ds_count, dst->ct_dataseg[i].ds_count);
-	}
 }
 
 void
@@ -3508,82 +3350,6 @@ isp_get_enable_lun(ispsoftc_t *isp, lun_entry_t *lesrc, lun_entry_t *ledst)
 }
 
 void
-isp_put_notify(ispsoftc_t *isp, in_entry_t *src, in_entry_t *dst)
-{
-	int i;
-	isp_put_hdr(isp, &src->in_header, &dst->in_header);
-	ISP_IOXPUT_32(isp, src->in_reserved, &dst->in_reserved);
-	if (ISP_IS_SBUS(isp)) {
-		ISP_IOXPUT_8(isp, src->in_lun, &dst->in_iid);
-		ISP_IOXPUT_8(isp, src->in_iid, &dst->in_lun);
-		ISP_IOXPUT_8(isp, src->in_reserved2, &dst->in_tgt);
-		ISP_IOXPUT_8(isp, src->in_tgt, &dst->in_reserved2);
-		ISP_IOXPUT_8(isp, src->in_status, &dst->in_rsvd2);
-		ISP_IOXPUT_8(isp, src->in_rsvd2, &dst->in_status);
-		ISP_IOXPUT_8(isp, src->in_tag_val, &dst->in_tag_type);
-		ISP_IOXPUT_8(isp, src->in_tag_type, &dst->in_tag_val);
-	} else {
-		ISP_IOXPUT_8(isp, src->in_lun, &dst->in_lun);
-		ISP_IOXPUT_8(isp, src->in_iid, &dst->in_iid);
-		ISP_IOXPUT_8(isp, src->in_reserved2, &dst->in_reserved2);
-		ISP_IOXPUT_8(isp, src->in_tgt, &dst->in_tgt);
-		ISP_IOXPUT_8(isp, src->in_status, &dst->in_status);
-		ISP_IOXPUT_8(isp, src->in_rsvd2, &dst->in_rsvd2);
-		ISP_IOXPUT_8(isp, src->in_tag_val, &dst->in_tag_val);
-		ISP_IOXPUT_8(isp, src->in_tag_type, &dst->in_tag_type);
-	}
-	ISP_IOXPUT_32(isp, src->in_flags, &dst->in_flags);
-	ISP_IOXPUT_16(isp, src->in_seqid, &dst->in_seqid);
-	for (i = 0; i < IN_MSGLEN; i++) {
-		ISP_IOXPUT_8(isp, src->in_msg[i], &dst->in_msg[i]);
-	}
-	for (i = 0; i < IN_RSVDLEN; i++) {
-		ISP_IOXPUT_8(isp, src->in_reserved3[i], &dst->in_reserved3[i]);
-	}
-	for (i = 0; i < QLTM_SENSELEN; i++) {
-		ISP_IOXPUT_8(isp, src->in_sense[i], &dst->in_sense[i]);
-	}
-}
-
-void
-isp_get_notify(ispsoftc_t *isp, in_entry_t *src, in_entry_t *dst)
-{
-	int i;
-	isp_get_hdr(isp, &src->in_header, &dst->in_header);
-	ISP_IOXGET_32(isp, &src->in_reserved, dst->in_reserved);
-	if (ISP_IS_SBUS(isp)) {
-		ISP_IOXGET_8(isp, &src->in_lun, dst->in_iid);
-		ISP_IOXGET_8(isp, &src->in_iid, dst->in_lun);
-		ISP_IOXGET_8(isp, &src->in_reserved2, dst->in_tgt);
-		ISP_IOXGET_8(isp, &src->in_tgt, dst->in_reserved2);
-		ISP_IOXGET_8(isp, &src->in_status, dst->in_rsvd2);
-		ISP_IOXGET_8(isp, &src->in_rsvd2, dst->in_status);
-		ISP_IOXGET_8(isp, &src->in_tag_val, dst->in_tag_type);
-		ISP_IOXGET_8(isp, &src->in_tag_type, dst->in_tag_val);
-	} else {
-		ISP_IOXGET_8(isp, &src->in_lun, dst->in_lun);
-		ISP_IOXGET_8(isp, &src->in_iid, dst->in_iid);
-		ISP_IOXGET_8(isp, &src->in_reserved2, dst->in_reserved2);
-		ISP_IOXGET_8(isp, &src->in_tgt, dst->in_tgt);
-		ISP_IOXGET_8(isp, &src->in_status, dst->in_status);
-		ISP_IOXGET_8(isp, &src->in_rsvd2, dst->in_rsvd2);
-		ISP_IOXGET_8(isp, &src->in_tag_val, dst->in_tag_val);
-		ISP_IOXGET_8(isp, &src->in_tag_type, dst->in_tag_type);
-	}
-	ISP_IOXGET_32(isp, &src->in_flags, dst->in_flags);
-	ISP_IOXGET_16(isp, &src->in_seqid, dst->in_seqid);
-	for (i = 0; i < IN_MSGLEN; i++) {
-		ISP_IOXGET_8(isp, &src->in_msg[i], dst->in_msg[i]);
-	}
-	for (i = 0; i < IN_RSVDLEN; i++) {
-		ISP_IOXGET_8(isp, &src->in_reserved3[i], dst->in_reserved3[i]);
-	}
-	for (i = 0; i < QLTM_SENSELEN; i++) {
-		ISP_IOXGET_8(isp, &src->in_sense[i], dst->in_sense[i]);
-	}
-}
-
-void
 isp_put_notify_fc(ispsoftc_t *isp, in_fcentry_t *src, in_fcentry_t *dst)
 {
 	isp_put_hdr(isp, &src->in_header, &dst->in_header);
@@ -3707,52 +3473,6 @@ isp_get_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *src, in_fcentry_24xx_t *
 	ISP_IOXGET_8(isp, &src->in_reserved7, dst->in_reserved7);
 	ISP_IOXGET_16(isp, &src->in_reserved8, dst->in_reserved8);
 	ISP_IOXGET_16(isp, &src->in_oxid, dst->in_oxid);
-}
-
-void
-isp_put_notify_ack(ispsoftc_t *isp, na_entry_t *src,  na_entry_t *dst)
-{
-	int i;
-	isp_put_hdr(isp, &src->na_header, &dst->na_header);
-	ISP_IOXPUT_32(isp, src->na_reserved, &dst->na_reserved);
-	if (ISP_IS_SBUS(isp)) {
-		ISP_IOXPUT_8(isp, src->na_lun, &dst->na_iid);
-		ISP_IOXPUT_8(isp, src->na_iid, &dst->na_lun);
-		ISP_IOXPUT_8(isp, src->na_status, &dst->na_event);
-		ISP_IOXPUT_8(isp, src->na_event, &dst->na_status);
-	} else {
-		ISP_IOXPUT_8(isp, src->na_lun, &dst->na_lun);
-		ISP_IOXPUT_8(isp, src->na_iid, &dst->na_iid);
-		ISP_IOXPUT_8(isp, src->na_status, &dst->na_status);
-		ISP_IOXPUT_8(isp, src->na_event, &dst->na_event);
-	}
-	ISP_IOXPUT_32(isp, src->na_flags, &dst->na_flags);
-	for (i = 0; i < NA_RSVDLEN; i++) {
-		ISP_IOXPUT_16(isp, src->na_reserved3[i], &dst->na_reserved3[i]);
-	}
-}
-
-void
-isp_get_notify_ack(ispsoftc_t *isp, na_entry_t *src, na_entry_t *dst)
-{
-	int i;
-	isp_get_hdr(isp, &src->na_header, &dst->na_header);
-	ISP_IOXGET_32(isp, &src->na_reserved, dst->na_reserved);
-	if (ISP_IS_SBUS(isp)) {
-		ISP_IOXGET_8(isp, &src->na_lun, dst->na_iid);
-		ISP_IOXGET_8(isp, &src->na_iid, dst->na_lun);
-		ISP_IOXGET_8(isp, &src->na_status, dst->na_event);
-		ISP_IOXGET_8(isp, &src->na_event, dst->na_status);
-	} else {
-		ISP_IOXGET_8(isp, &src->na_lun, dst->na_lun);
-		ISP_IOXGET_8(isp, &src->na_iid, dst->na_iid);
-		ISP_IOXGET_8(isp, &src->na_status, dst->na_status);
-		ISP_IOXGET_8(isp, &src->na_event, dst->na_event);
-	}
-	ISP_IOXGET_32(isp, &src->na_flags, dst->na_flags);
-	for (i = 0; i < NA_RSVDLEN; i++) {
-		ISP_IOXGET_16(isp, &src->na_reserved3[i], dst->na_reserved3[i]);
-	}
 }
 
 void

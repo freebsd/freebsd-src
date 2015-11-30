@@ -99,20 +99,11 @@ static int	isp_1000_loaded;
 #if	defined(ISP_1040)
 static int	isp_1040_loaded;
 #endif
-#if	defined(ISP_1040_IT)
-static int	isp_1040_it_loaded;
-#endif
 #if	defined(ISP_1080)
 static int	isp_1080_loaded;
 #endif
-#if	defined(ISP_1080_IT)
-static int	isp_1080_it_loaded;
-#endif
 #if	defined(ISP_12160)
 static int	isp_12160_loaded;
-#endif
-#if	defined(ISP_12160_IT)
-static int	isp_12160_it_loaded;
 #endif
 #if	defined(ISP_2100)
 static int	isp_2100_loaded;
@@ -181,20 +172,11 @@ do_load_fw(void)
 #if	defined(ISP_1040)
 	RMACRO(isp_1040);
 #endif
-#if	defined(ISP_1040_IT)
-	RMACRO(isp_1040_it);
-#endif
 #if	defined(ISP_1080)
 	RMACRO(isp_1080);
 #endif
-#if	defined(ISP_1080_IT)
-	RMACRO(isp_1080_it);
-#endif
 #if	defined(ISP_12160)
 	RMACRO(isp_12160);
-#endif
-#if	defined(ISP_12160_IT)
-	RMACRO(isp_12160_it);
 #endif
 #if	defined(ISP_2100)
 	RMACRO(isp_2100);
@@ -226,20 +208,11 @@ do_unload_fw(void)
 #if	defined(ISP_1040)
 	UMACRO(isp_1040);
 #endif
-#if	defined(ISP_1040_IT)
-	UMACRO(isp_1040_it);
-#endif
 #if	defined(ISP_1080)
 	UMACRO(isp_1080);
 #endif
-#if	defined(ISP_1080_IT)
-	UMACRO(isp_1080_it);
-#endif
 #if	defined(ISP_12160)
 	UMACRO(isp_12160);
-#endif
-#if	defined(ISP_12160_IT)
-	UMACRO(isp_12160_it);
 #endif
 #if	defined(ISP_2100)
 	UMACRO(isp_2100);
@@ -288,16 +261,10 @@ DECLARE_MODULE(ispfw, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 DECLARE_MODULE(isp_1000, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_1040)
 DECLARE_MODULE(isp_1040, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_1040_IT)
-DECLARE_MODULE(isp_1040_it, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_1080)
 DECLARE_MODULE(isp_1080, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_1080_IT)
-DECLARE_MODULE(isp_1080_it, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_12160)
 DECLARE_MODULE(isp_12160, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_12160_IT)
-DECLARE_MODULE(isp_12160_IT, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_2100)
 DECLARE_MODULE(isp_2100, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_2200)
