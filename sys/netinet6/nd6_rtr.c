@@ -88,7 +88,7 @@ static void in6_init_address_ltimes(struct nd_prefix *,
 static int nd6_prefix_onlink(struct nd_prefix *);
 static int nd6_prefix_offlink(struct nd_prefix *);
 
-static int rt6_deleteroute(struct rtentry *, void *);
+static int rt6_deleteroute(const struct rtentry *, void *);
 
 VNET_DECLARE(int, nd6_recalc_reachtm_interval);
 #define	V_nd6_recalc_reachtm_interval	VNET(nd6_recalc_reachtm_interval)
@@ -2073,11 +2073,11 @@ rt6_flush(struct in6_addr *gateway, struct ifnet *ifp)
 		return;
 
 	/* XXX Do we really need to walk any but the default FIB? */
-	rt_foreach_fib_walk(AF_INET6, NULL, rt6_deleteroute, (void *)gateway);
+	rt_foreach_fib_walk_del(AF_INET6, rt6_deleteroute, (void *)gateway);
 }
 
 static int
-rt6_deleteroute(struct rtentry *rt, void *arg)
+rt6_deleteroute(const struct rtentry *rt, void *arg)
 {
 #define SIN6(s)	((struct sockaddr_in6 *)s)
 	struct in6_addr *gate = (struct in6_addr *)arg;
@@ -2104,8 +2104,7 @@ rt6_deleteroute(struct rtentry *rt, void *arg)
 	if ((rt->rt_flags & RTF_HOST) == 0)
 		return (0);
 
-	return (in6_rtrequest(RTM_DELETE, rt_key(rt), rt->rt_gateway,
-	    rt_mask(rt), rt->rt_flags | RTF_RNH_LOCKED, NULL, rt->rt_fibnum));
+	return (1);
 #undef SIN6
 }
 

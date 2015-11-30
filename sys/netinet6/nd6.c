@@ -1307,6 +1307,15 @@ nd6_free(struct llentry *ln, int gc)
 	llentry_free(ln);
 }
 
+static int
+nd6_isdynrte(const struct rtentry *rt, void *xap)
+{
+
+	if (rt->rt_flags == (RTF_UP | RTF_HOST | RTF_DYNAMIC))
+		return (1);
+
+	return (0);
+}
 /*
  * Remove the rtentry for the given llentry,
  * both of which were installed by a redirect.
@@ -1315,26 +1324,16 @@ static void
 nd6_free_redirect(const struct llentry *ln)
 {
 	int fibnum;
-	struct rtentry *rt;
-	struct radix_node_head *rnh;
 	struct sockaddr_in6 sin6;
+	struct rt_addrinfo info;
 
 	lltable_fill_sa_entry(ln, (struct sockaddr *)&sin6);
-	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-		rnh = rt_tables_get_rnh(fibnum, AF_INET6);
-		if (rnh == NULL)
-			continue;
+	memset(&info, 0, sizeof(info));
+	info.rti_info[RTAX_DST] = (struct sockaddr *)&sin6;
+	info.rti_filter = nd6_isdynrte;
 
-		RADIX_NODE_HEAD_LOCK(rnh);
-		rt = in6_rtalloc1((struct sockaddr *)&sin6, 0,
-		    RTF_RNH_LOCKED, fibnum);
-		if (rt) {
-			if (rt->rt_flags == (RTF_UP | RTF_HOST | RTF_DYNAMIC))
-				rt_expunge(rnh, rt);
-			RTFREE_LOCKED(rt);
-		}
-		RADIX_NODE_HEAD_UNLOCK(rnh);
-	}
+	for (fibnum = 0; fibnum < rt_numfibs; fibnum++)
+		rtrequest1_fib(RTM_DELETE, &info, NULL, fibnum);
 }
 
 /*

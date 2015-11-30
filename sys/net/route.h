@@ -128,6 +128,7 @@ struct rtentry {
 #define	rt_endzero	rt_pksent
 	counter_u64_t	rt_pksent;	/* packets sent using this route */
 	struct mtx	rt_mtx;		/* mutex for routing entry */
+	struct rtentry	*rt_chain;	/* pointer to next rtentry to delete */
 };
 #endif /* _KERNEL || _WANT_RTENTRY */
 
@@ -259,14 +260,19 @@ struct rt_msghdr {
 #define RTAX_BRD	7	/* for NEWADDR, broadcast or p-p dest addr */
 #define RTAX_MAX	8	/* size of array to allocate */
 
+typedef int rt_filter_f_t(const struct rtentry *, void *);
+
 struct rt_addrinfo {
-	int	rti_addrs;
-	struct	sockaddr *rti_info[RTAX_MAX];
-	int	rti_flags;
-	struct	ifaddr *rti_ifa;
-	struct	ifnet *rti_ifp;
-	u_long	rti_mflags;
-	struct	rt_metrics *rti_rmx;
+	int	rti_addrs;			/* Route RTF_ flags */
+	int	rti_flags;			/* Route RTF_ flags */
+	struct	sockaddr *rti_info[RTAX_MAX];	/* Sockaddr data */
+	struct	ifaddr *rti_ifa;		/* value of rt_ifa addr */
+	struct	ifnet *rti_ifp;			/* route interface */
+	rt_filter_f_t	*rti_filter;		/* filter function */
+	void	*rti_filterdata;		/* filter paramenters */
+	u_long	rti_mflags;			/* metrics RTV_ flags */
+	u_long	rti_spare;			/* Will be used for fib */
+	struct	rt_metrics *rti_rmx;		/* Pointer to route metrics */
 };
 
 /*
@@ -383,6 +389,7 @@ void	rt_updatemtu(struct ifnet *);
 typedef int rt_walktree_f_t(struct rtentry *, void *);
 typedef void rt_setwarg_t(struct radix_node_head *, uint32_t, int, void *);
 void	rt_foreach_fib_walk(int af, rt_setwarg_t *, rt_walktree_f_t *, void *);
+void	rt_foreach_fib_walk_del(int af, rt_filter_f_t *filter_f, void *arg);
 void	rt_flushifroutes(struct ifnet *ifp);
 
 /* XXX MRT COMPAT VERSIONS THAT SET UNIVERSE to 0 */
