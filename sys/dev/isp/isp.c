@@ -4434,6 +4434,7 @@ isp_start(XS_T *xs)
 			m->mrk_header.rqs_entry_count = 1;
 			m->mrk_header.rqs_entry_type = RQSTYPE_MARKER;
 			m->mrk_modifier = SYNC_ALL;
+			m->mrk_vphdl = XS_CHANNEL(xs);
 			isp_put_marker_24xx(isp, m, qep);
 		} else {
 			isp_marker_t *m = (isp_marker_t *) reqp;
