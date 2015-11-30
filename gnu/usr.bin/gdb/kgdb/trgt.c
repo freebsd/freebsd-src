@@ -88,7 +88,7 @@ kgdb_resolve_symbol(const char *name, kvaddr_t *kva)
 		return (1);
 
 	*kva = SYMBOL_VALUE_ADDRESS (ms);
-	return (0);;
+	return (0);
 }
 
 static CORE_ADDR
