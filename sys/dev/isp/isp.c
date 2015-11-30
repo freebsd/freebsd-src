@@ -3193,16 +3193,16 @@ abort:
  */
 
 /*
- * Take less than half of our scratch area to store Port IDs
+ * Take half of our scratch area to store Port IDs
  */
-#define	GIDLEN	((ISP_FC_SCRLEN >> 1) - 16 - SNS_GID_FT_REQ_SIZE)
+#define	GIDLEN	(ISP_FC_SCRLEN >> 1)
 #define	NGENT	((GIDLEN - 16) >> 2)
 
-#define	IGPOFF	(2 * QENTRY_LEN)
+#define	IGPOFF	(0)
 #define	OGPOFF	(ISP_FC_SCRLEN >> 1)
-#define	ZTXOFF	(ISP_FC_SCRLEN - (1 * QENTRY_LEN))
-#define	CTXOFF	(ISP_FC_SCRLEN - (2 * QENTRY_LEN))
-#define	XTXOFF	(ISP_FC_SCRLEN - (3 * QENTRY_LEN))
+#define	XTXOFF	(ISP_FC_SCRLEN - (3 * QENTRY_LEN))	/* CT request */
+#define	CTXOFF	(ISP_FC_SCRLEN - (2 * QENTRY_LEN))	/* Request IOCB */
+#define	ZTXOFF	(ISP_FC_SCRLEN - (1 * QENTRY_LEN))	/* Response IOCB */
 
 static int
 isp_gid_ft_sns(ispsoftc_t *isp, int chan)
@@ -3213,6 +3213,7 @@ isp_gid_ft_sns(ispsoftc_t *isp, int chan)
 	} un;
 	fcparam *fcp = FCPARAM(isp, chan);
 	sns_gid_ft_req_t *rq = &un._x;
+	uint8_t *scp = fcp->isp_scratch;
 	mbreg_t mbs;
 
 	isp_prt(isp, ISP_LOGDEBUG0, "Chan %d scanning fabric (GID_FT) via SNS", chan);
@@ -3228,16 +3229,16 @@ isp_gid_ft_sns(ispsoftc_t *isp, int chan)
 	rq->snscb_mword_div_2 = NGENT;
 	rq->snscb_fc4_type = FC4_SCSI;
 
-	isp_put_gid_ft_request(isp, rq, fcp->isp_scratch);
+	isp_put_gid_ft_request(isp, rq, (sns_gid_ft_req_t *)&scp[CTXOFF]);
 	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, SNS_GID_FT_REQ_SIZE, chan);
 
 	MBSINIT(&mbs, MBOX_SEND_SNS, MBLOGALL, 10000000);
 	mbs.param[0] = MBOX_SEND_SNS;
 	mbs.param[1] = SNS_GID_FT_REQ_SIZE >> 1;
-	mbs.param[2] = DMA_WD1(fcp->isp_scdma);
-	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
-	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
-	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
+	mbs.param[2] = DMA_WD1(fcp->isp_scdma + CTXOFF);
+	mbs.param[3] = DMA_WD0(fcp->isp_scdma + CTXOFF);
+	mbs.param[6] = DMA_WD3(fcp->isp_scdma + CTXOFF);
+	mbs.param[7] = DMA_WD2(fcp->isp_scdma + CTXOFF);
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		if (mbs.param[0] == MBOX_INVALID_COMMAND) {
@@ -3337,9 +3338,9 @@ isp_gid_ft_ct_passthru(ispsoftc_t *isp, int chan)
 		    chan, pt->ctp_status);
 		return (-1);
 	}
-	MEMORYBARRIER(isp, SYNC_SFORCPU, IGPOFF, GIDLEN + 16, chan);
+	MEMORYBARRIER(isp, SYNC_SFORCPU, IGPOFF, GIDLEN, chan);
 	if (isp->isp_dblev & ISP_LOGDEBUG1) {
-		isp_print_bytes(isp, "CT response", GIDLEN+16, &scp[IGPOFF]);
+		isp_print_bytes(isp, "CT response", GIDLEN, &scp[IGPOFF]);
 	}
 	return (0);
 }
