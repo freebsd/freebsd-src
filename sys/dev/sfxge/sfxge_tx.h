@@ -51,11 +51,13 @@
 
 /* Maximum number of DMA segments needed to map an mbuf chain.  With
  * TSO, the mbuf length may be just over 64K, divided into 2K mbuf
- * clusters.  (The chain could be longer than this initially, but can
- * be shortened with m_collapse().)
+ * clusters taking into account that the first may be not 2K cluster
+ * boundary aligned.
+ * The chain could be longer than this initially, but can be shortened
+ * with m_collapse().
  */
 #define	SFXGE_TX_MAPPING_MAX_SEG					\
-	(1 + howmany(SFXGE_TSO_MAX_SIZE, MCLBYTES))
+	(1 + howmany(SFXGE_TSO_MAX_SIZE, MCLBYTES) + 1)
 
 /*
  * Buffer mapping flags.
