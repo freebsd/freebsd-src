@@ -43,6 +43,9 @@ BSARGS= 	DESTDIR= \
 		MK_LLDB=no MK_TESTS=no \
 		MK_INCLUDES=yes
 
+# Need to override these so OBJTOP uses are proper in the non-meta build.
+BSARGS+= OBJTOP=${BTOOLSDIR}${SRCTOP} OBJROOT='$${OBJTOP}/'
+
 DISTRIB_ENV=	INSTALL="sh ${SRCTOP}/tools/install.sh" NO_FSCHG=1 MK_TESTS=no
 legacy: .MAKE .META
 	mkdir -p ${LEGACY_TOOLS}
@@ -72,11 +75,11 @@ BSTCENV= \
 	TARGET_ARCH=${HOST_MACHINE_ARCH}
 
 BSTCARGS= \
-	${BSARGS} \
+	${BSARGS:NDESTDIR=*:NOBJTOP=*:NOBJROOT=*} \
 	BUILD_DIRDEPS=yes \
 	-DWITH_STAGING \
 	-DWITH_TOOLSDIR
 
 # finally we build toolchain leveraging the above.
 bootstrap-toolchain:	.MAKE cross-tools
-	${BSTCENV} ${MAKE} -C ${.CURDIR:H:H} ${BSTCARGS:NDESTDIR=} toolchain
+	${BSTCENV} ${MAKE} -C ${.CURDIR:H:H} ${BSTCARGS} toolchain
