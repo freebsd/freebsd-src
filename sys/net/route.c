@@ -1365,6 +1365,68 @@ rt_mpath_unlink(struct radix_node_head *rnh, struct rt_addrinfo *info,
 }
 #endif
 
+#ifdef FLOWTABLE
+static struct rtentry *
+rt_flowtable_check_route(struct radix_node_head *rnh, struct rt_addrinfo *info)
+{
+	struct radix_node *rn;
+	struct rtentry *rt0;
+
+	rt0 = NULL;
+	/* "flow-table" only supports IPv6 and IPv4 at the moment. */
+	switch (dst->sa_family) {
+#ifdef INET6
+	case AF_INET6:
+#endif
+#ifdef INET
+	case AF_INET:
+#endif
+#if defined(INET6) || defined(INET)
+		rn = rnh->rnh_matchaddr(dst, rnh);
+		if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
+			struct sockaddr *mask;
+			u_char *m, *n;
+			int len;
+
+			/*
+			 * compare mask to see if the new route is
+			 * more specific than the existing one
+			 */
+			rt0 = RNTORT(rn);
+			RT_LOCK(rt0);
+			RT_ADDREF(rt0);
+			RT_UNLOCK(rt0);
+			/*
+			 * A host route is already present, so
+			 * leave the flow-table entries as is.
+			 */
+			if (rt0->rt_flags & RTF_HOST) {
+				RTFREE(rt0);
+				rt0 = NULL;
+			} else if (!(flags & RTF_HOST) && netmask) {
+				mask = rt_mask(rt0);
+				len = mask->sa_len;
+				m = (u_char *)mask;
+				n = (u_char *)netmask;
+				while (len-- > 0) {
+					if (*n != *m)
+						break;
+					n++;
+					m++;
+				}
+				if (len == 0 || (*n < *m)) {
+					RTFREE(rt0);
+					rt0 = NULL;
+				}
+			}
+		}
+#endif/* INET6 || INET */
+	}
+
+	return (rt0);
+}
+#endif
+
 int
 rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 				u_int fibnum)
@@ -1508,56 +1570,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 #endif
 
 #ifdef FLOWTABLE
-		rt0 = NULL;
-		/* "flow-table" only supports IPv6 and IPv4 at the moment. */
-		switch (dst->sa_family) {
-#ifdef INET6
-		case AF_INET6:
-#endif
-#ifdef INET
-		case AF_INET:
-#endif
-#if defined(INET6) || defined(INET)
-			rn = rnh->rnh_matchaddr(dst, rnh);
-			if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
-				struct sockaddr *mask;
-				u_char *m, *n;
-				int len;
-				
-				/*
-				 * compare mask to see if the new route is
-				 * more specific than the existing one
-				 */
-				rt0 = RNTORT(rn);
-				RT_LOCK(rt0);
-				RT_ADDREF(rt0);
-				RT_UNLOCK(rt0);
-				/*
-				 * A host route is already present, so 
-				 * leave the flow-table entries as is.
-				 */
-				if (rt0->rt_flags & RTF_HOST) {
-					RTFREE(rt0);
-					rt0 = NULL;
-				} else if (!(flags & RTF_HOST) && netmask) {
-					mask = rt_mask(rt0);
-					len = mask->sa_len;
-					m = (u_char *)mask;
-					n = (u_char *)netmask;
-					while (len-- > 0) {
-						if (*n != *m)
-							break;
-						n++;
-						m++;
-					}
-					if (len == 0 || (*n < *m)) {
-						RTFREE(rt0);
-						rt0 = NULL;
-					}
-				}
-			}
-#endif/* INET6 || INET */
-		}
+		rt0 = rt_flowtable_check_route(rnh, info);
 #endif /* FLOWTABLE */
 
 		/* XXX mtu manipulation will be done in rnh_addaddr -- itojun */
