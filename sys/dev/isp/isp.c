@@ -2562,7 +2562,8 @@ isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb, int dolock)
 		isp_pdb_24xx_t bill;
 	} un;
 
-	MBSINIT(&mbs, MBOX_GET_PORT_DB, MBLOGALL & ~MBOX_COMMAND_PARAM_ERROR, 250000);
+	MBSINIT(&mbs, MBOX_GET_PORT_DB,
+	    MBLOGALL & ~MBLOGMASK(MBOX_COMMAND_PARAM_ERROR), 250000);
 	if (IS_24XX(isp)) {
 		mbs.ibits = (1 << 9)|(1 << 10);
 		mbs.param[1] = id;
@@ -2632,7 +2633,7 @@ isp_gethandles(ispsoftc_t *isp, int chan, uint16_t *handles, int *num,
 	uint32_t p;
 	uint16_t h;
 
-	MBSINIT(&mbs, MBOX_GET_ID_LIST, MBLOGALL & ~MBOX_COMMAND_PARAM_ERROR, 250000);
+	MBSINIT(&mbs, MBOX_GET_ID_LIST, MBLOGALL, 250000);
 	if (IS_24XX(isp)) {
 		mbs.param[2] = DMA_WD1(fcp->isp_scdma);
 		mbs.param[3] = DMA_WD0(fcp->isp_scdma);
@@ -2726,7 +2727,8 @@ isp_get_wwn(ispsoftc_t *isp, int chan, int loopid, int nodename)
 	    fcp->isp_loopstate < LOOP_PDB_RCVD) {
 		return (wwn);
 	}
-	MBSINIT(&mbs, MBOX_GET_PORT_NAME, MBLOGALL & ~MBOX_COMMAND_PARAM_ERROR, 500000);
+	MBSINIT(&mbs, MBOX_GET_PORT_NAME,
+	    MBLOGALL & ~MBLOGMASK(MBOX_COMMAND_PARAM_ERROR), 500000);
 	if (ISP_CAP_2KLOGIN(isp)) {
 		mbs.param[1] = loopid;
 		if (nodename) {
@@ -4920,7 +4922,8 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 		} else {
 			mbs.param[1] = (chan << 15) | (tgt << 8) | XS_LUN(xs);
 		}
-		MBSINIT(&mbs, MBOX_ABORT, MBLOGALL & ~MBOX_COMMAND_ERROR, 0);
+		MBSINIT(&mbs, MBOX_ABORT,
+		    MBLOGALL & ~MBLOGMASK(MBOX_COMMAND_ERROR), 0);
 		mbs.param[2] = handle;
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -7431,7 +7434,7 @@ isp_mboxcmd_qnw(ispsoftc_t *isp, mbreg_t *mbp, int nodelay)
 static void
 isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 {
-	const char *cname, *xname;
+	const char *cname, *xname, *sname;
 	char tname[16], mname[16];
 	unsigned int ibits, obits, box, opcode;
 
@@ -7541,57 +7544,58 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 
 	isp->isp_mboxbsy = 0;
 	MBOX_RELEASE(isp);
- out:
-	if (mbp->logval == 0 || opcode == MBOX_EXEC_FIRMWARE) {
+out:
+	if (mbp->logval == 0 || mbp->param[0] == MBOX_COMMAND_COMPLETE)
 		return;
-	}
 
-	/*
-	 * Just to be chatty here...
-	 */
+	if ((mbp->param[0] & 0xbfe0) == 0 &&
+	    (mbp->logval & MBLOGMASK(mbp->param[0])) == 0)
+		return;
+
 	xname = NULL;
+	sname = "";
 	switch (mbp->param[0]) {
-	case MBOX_COMMAND_COMPLETE:
-		break;
 	case MBOX_INVALID_COMMAND:
-		if (mbp->logval & MBLOGMASK(MBOX_COMMAND_COMPLETE)) {
-			xname = "INVALID COMMAND";
-		}
+		xname = "INVALID COMMAND";
 		break;
 	case MBOX_HOST_INTERFACE_ERROR:
-		if (mbp->logval & MBLOGMASK(MBOX_HOST_INTERFACE_ERROR)) {
-			xname = "HOST INTERFACE ERROR";
-		}
+		xname = "HOST INTERFACE ERROR";
 		break;
 	case MBOX_TEST_FAILED:
-		if (mbp->logval & MBLOGMASK(MBOX_TEST_FAILED)) {
-			xname = "TEST FAILED";
-		}
+		xname = "TEST FAILED";
 		break;
 	case MBOX_COMMAND_ERROR:
-		if (mbp->logval & MBLOGMASK(MBOX_COMMAND_ERROR)) {
-			xname = "COMMAND ERROR";
-		}
+		xname = "COMMAND ERROR";
+		ISP_SNPRINTF(mname, sizeof(mname), " subcode 0x%x",
+		    mbp->param[1]);
+		sname = mname;
 		break;
 	case MBOX_COMMAND_PARAM_ERROR:
-		if (mbp->logval & MBLOGMASK(MBOX_COMMAND_PARAM_ERROR)) {
-			xname = "COMMAND PARAMETER ERROR";
-		}
-		break;
-	case MBOX_LOOP_ID_USED:
-		if (mbp->logval & MBLOGMASK(MBOX_LOOP_ID_USED)) {
-			xname = "LOOP ID ALREADY IN USE";
-		}
+		xname = "COMMAND PARAMETER ERROR";
 		break;
 	case MBOX_PORT_ID_USED:
-		if (mbp->logval & MBLOGMASK(MBOX_PORT_ID_USED)) {
-			xname = "PORT ID ALREADY IN USE";
-		}
+		xname = "PORT ID ALREADY IN USE";
+		break;
+	case MBOX_LOOP_ID_USED:
+		xname = "LOOP ID ALREADY IN USE";
 		break;
 	case MBOX_ALL_IDS_USED:
-		if (mbp->logval & MBLOGMASK(MBOX_ALL_IDS_USED)) {
-			xname = "ALL LOOP IDS IN USE";
-		}
+		xname = "ALL LOOP IDS IN USE";
+		break;
+	case MBOX_NOT_LOGGED_IN:
+		xname = "NOT LOGGED IN";
+		break;
+	case MBOX_LINK_DOWN_ERROR:
+		xname = "LINK DOWN ERROR";
+		break;
+	case MBOX_LOOPBACK_ERROR:
+		xname = "LOOPBACK ERROR";
+		break;
+	case MBOX_CHECKSUM_ERROR:
+		xname = "CHECKSUM ERROR";
+		break;
+	case MBOX_INVALID_PRODUCT_KEY:
+		xname = "INVALID PRODUCT KEY";
 		break;
 	case MBOX_REGS_BUSY:
 		xname = "REGISTERS BUSY";
@@ -7605,8 +7609,8 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 		break;
 	}
 	if (xname) {
-		isp_prt(isp, ISP_LOGALL, "Mailbox Command '%s' failed (%s)",
-		    cname, xname);
+		isp_prt(isp, ISP_LOGALL, "Mailbox Command '%s' failed (%s%s)",
+		    cname, xname, sname);
 	}
 }
 
