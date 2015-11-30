@@ -2354,6 +2354,7 @@ isp_handle_platform_atio(ispsoftc_t *isp, at_entry_t *aep)
 static void
 isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 {
+	fcparam *fcp;
 	lun_id_t lun;
 	fcportdb_t *lp;
 	tstate_t *tptr;
@@ -2374,6 +2375,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 		return;
 	}
 
+	fcp = FCPARAM(isp, 0);
 	if (ISP_CAP_SCCFW(isp)) {
 		lun = aep->at_scclun;
 #if __FreeBSD_version < 1000700
@@ -2444,7 +2446,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
 	tptr->atio_count--;
 	isp_prt(isp, ISP_LOGTDEBUG2, "Take FREE ATIO count now %d", tptr->atio_count);
-	atiop->ccb_h.target_id = FCPARAM(isp, 0)->isp_loopid;
+	atiop->ccb_h.target_id = fcp->isp_loopid;
 	atiop->ccb_h.target_lun = lun;
 
 	/*
@@ -2467,6 +2469,10 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 				(((uint64_t) aep->at_wwpn[3]) <<  0);
 			isp_add_wwn_entry(isp, 0, wwpn, INI_NONE,
 			    nphdl, PORT_ANY, 0);
+			if (fcp->isp_loopstate > LOOP_LTEST_DONE)
+				fcp->isp_loopstate = LOOP_LTEST_DONE;
+			isp_async(isp, ISPASYNC_CHANGE_NOTIFY, 0,
+			    ISPASYNC_CHANGE_PDB, nphdl, 0x06, 0xff);
 			isp_find_pdb_by_handle(isp, 0, nphdl, &lp);
 		}
 		atiop->init_id = FC_PORTDB_TGT(isp, 0, lp);
