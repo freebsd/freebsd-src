@@ -1089,12 +1089,8 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 				    (((uint64_t) mbs.param[17]) << 48);
 			}
 		}
-	} else if (IS_SCSI(isp)) {
-#ifndef	ISP_TARGET_MODE
-		isp->isp_fwattr = ISP_FW_ATTR_TMODE;
-#else
+	} else {
 		isp->isp_fwattr = 0;
-#endif
 	}
 
 	isp_prt(isp, ISP_LOGCONFIG, "Board Type %s, Chip Revision 0x%x, %s F/W Revision %d.%d.%d",
@@ -1907,10 +1903,10 @@ isp_fibre_init(ispsoftc_t *isp)
 	icbp->icb_logintime = ICB_LOGIN_TOV;
 
 #ifdef	ISP_TARGET_MODE
-	if (IS_23XX(isp) && (icbp->icb_fwoptions & ICBOPT_TGT_ENABLE)) {
+	if (icbp->icb_fwoptions & ICBOPT_TGT_ENABLE) {
 		icbp->icb_lunenables = 0xffff;
-		icbp->icb_ccnt = DFLT_CMND_CNT;
-		icbp->icb_icnt = DFLT_INOT_CNT;
+		icbp->icb_ccnt = 0xff;
+		icbp->icb_icnt = 0xff;
 		icbp->icb_lunetimeout = ICB_LUN_ENABLE_TOV;
 	}
 #endif
@@ -4144,14 +4140,6 @@ isp_start(XS_T *xs)
 		}
 	} else {
 		sdparam *sdp = SDPARAM(isp, XS_CHANNEL(xs));
-		if ((sdp->role & ISP_ROLE_INITIATOR) == 0) {
-			isp_prt(isp, ISP_LOGDEBUG1,
-			    "%d.%d.%jx I am not an initiator",
-			    XS_CHANNEL(xs), target, (uintmax_t)XS_LUN(xs));
-			XS_SETERR(xs, HBA_SELTIMEOUT);
-			return (CMD_COMPLETE);
-		}
-
 		if (isp->isp_state != ISP_RUNSTATE) {
 			isp_prt(isp, ISP_LOGERR, "Adapter not at RUNSTATE");
 			XS_SETERR(xs, HBA_BOTCH);
@@ -4759,21 +4747,17 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 		return (r);
 	}
 	case ISPCTL_CHANGE_ROLE:
-	{
-		int role, r;
-
-		va_start(ap, ctl);
-		chan = va_arg(ap, int);
-		role = va_arg(ap, int);
-		va_end(ap);
 		if (IS_FC(isp)) {
+			int role, r;
+
+			va_start(ap, ctl);
+			chan = va_arg(ap, int);
+			role = va_arg(ap, int);
+			va_end(ap);
 			r = isp_fc_change_role(isp, chan, role);
-		} else {
-			SDPARAM(isp, chan)->role = role;
-			r = 0;
+			return (r);
 		}
-		return (r);
-	}
+		break;
 	default:
 		isp_prt(isp, ISP_LOGERR, "Unknown Control Opcode 0x%x", ctl);
 		break;
@@ -7446,13 +7430,10 @@ isp_setdfltsdparm(ispsoftc_t *isp)
 	sdparam *sdp, *sdp1;
 
 	sdp = SDPARAM(isp, 0);
-	sdp->role = GET_DEFAULT_ROLE(isp, 0);
-	if (IS_DUALBUS(isp)) {
+	if (IS_DUALBUS(isp))
 		sdp1 = sdp + 1;
-		sdp1->role = GET_DEFAULT_ROLE(isp, 1);
-	} else {
+	else
 		sdp1 = NULL;
-	}
 
 	/*
 	 * Establish some default parameters.
@@ -7586,7 +7567,7 @@ isp_setdfltfcparm(ispsoftc_t *isp, int chan)
 	/*
 	 * Establish some default parameters.
 	 */
-	fcp->role = GET_DEFAULT_ROLE(isp, chan);
+	fcp->role = DEFAULT_ROLE(isp, chan);
 	fcp->isp_maxalloc = ICB_DFLT_ALLOC;
 	fcp->isp_retry_delay = ICB_DFLT_RDELAY;
 	fcp->isp_retry_count = ICB_DFLT_RCOUNT;
