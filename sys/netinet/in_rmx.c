@@ -53,9 +53,6 @@ extern int	in_inithead(void **head, int off);
 extern int	in_detachhead(void **head, int off);
 #endif
 
-static void in_setifarnh(struct radix_node_head *rnh, uint32_t fibnum,
-    int af, void *_arg);
-
 /*
  * Do what we need to do when inserting a route.
  */
