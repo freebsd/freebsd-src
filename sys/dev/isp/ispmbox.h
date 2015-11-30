@@ -191,13 +191,17 @@
 #define	MBOX_LOOP_ID_USED		0x4008
 #define	MBOX_ALL_IDS_USED		0x4009
 #define	MBOX_NOT_LOGGED_IN		0x400A
+#define	MBOX_LINK_DOWN_ERROR		0x400B
+#define	MBOX_LOOPBACK_ERROR		0x400C
+#define	MBOX_CHECKSUM_ERROR		0x4010
+#define	MBOX_INVALID_PRODUCT_KEY	0x4020
 /* pseudo mailbox completion codes */
 #define	MBOX_REGS_BUSY			0x6000	/* registers in use */
 #define	MBOX_TIMEOUT			0x6001	/* command timed out */
 
-#define	MBLOGALL			0x000f
-#define	MBLOGNONE			0x0000
-#define	MBLOGMASK(x)			((x) & 0xf)
+#define	MBLOGALL			0xffffffff
+#define	MBLOGNONE			0x00000000
+#define	MBLOGMASK(x)			(1 << (((x) - 1) & 0x1f))
 
 /*
  * Asynchronous event status codes
