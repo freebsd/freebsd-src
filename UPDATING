@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20151130:
+	r291527 changed the internal interface between the nfsd.ko and
+	nfscommon.ko modules. As such, they must both be upgraded to-gether.
+	__FreeBSD_version has been bumped because of this.
+
 20151108:
 	Add support for unicode collation strings leads to a change of
 	order of files listed by ls(1) for example. To get back to the old
