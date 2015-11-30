@@ -2756,12 +2756,13 @@ static int
 isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 {
 	mbreg_t mbs;
-	int count, check_for_fabric, r;
+	int check_for_fabric, r;
 	uint8_t lwfs;
 	int loopid;
 	fcparam *fcp;
 	fcportdb_t *lp;
 	isp_pdb_t pdb;
+	NANOTIME_T hra, hrb;
 
 	fcp = FCPARAM(isp, chan);
 
@@ -2772,13 +2773,8 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 	 * Wait up to N microseconds for F/W to go to a ready state.
 	 */
 	lwfs = FW_CONFIG_WAIT;
-	count = 0;
-	while (count < usdelay) {
-		uint64_t enano;
-		uint32_t wrk;
-		NANOTIME_T hra, hrb;
-
-		GET_NANOTIME(&hra);
+	GET_NANOTIME(&hra);
+	do {
 		isp_fw_state(isp, chan);
 		if (lwfs != fcp->isp_fwstate) {
 			isp_prt(isp, ISP_LOGCONFIG|ISP_LOG_SANCFG, "Chan %d Firmware State <%s->%s>", chan, isp_fc_fw_statename((int)lwfs), isp_fc_fw_statename((int)fcp->isp_fwstate));
@@ -2787,46 +2783,9 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 		if (fcp->isp_fwstate == FW_READY) {
 			break;
 		}
+		ISP_SLEEP(isp, 1000);
 		GET_NANOTIME(&hrb);
-
-		/*
-		 * Get the elapsed time in nanoseconds.
-		 * Always guaranteed to be non-zero.
-		 */
-		enano = NANOTIME_SUB(&hrb, &hra);
-
-		isp_prt(isp, ISP_LOGDEBUG1, "usec%d: 0x%lx->0x%lx enano 0x%x%08x", count, (long) GET_NANOSEC(&hra), (long) GET_NANOSEC(&hrb), (uint32_t)(enano >> 32), (uint32_t)(enano));
-
-		/*
-		 * If the elapsed time is less than 1 millisecond,
-		 * delay a period of time up to that millisecond of
-		 * waiting.
-		 *
-		 * This peculiar code is an attempt to try and avoid
-		 * invoking uint64_t math support functions for some
-		 * platforms where linkage is a problem.
-		 */
-		if (enano < (1000 * 1000)) {
-			count += 1000;
-			enano = (1000 * 1000) - enano;
-			while (enano > (uint64_t) 4000000000U) {
-				ISP_SLEEP(isp, 4000000);
-				enano -= (uint64_t) 4000000000U;
-			}
-			wrk = enano;
-			wrk /= 1000;
-			ISP_SLEEP(isp, wrk);
-		} else {
-			while (enano > (uint64_t) 4000000000U) {
-				count += 4000000;
-				enano -= (uint64_t) 4000000000U;
-			}
-			wrk = enano;
-			count += (wrk / 1000);
-		}
-	}
-
-
+	} while (NANOTIME_SUB(&hrb, &hra) / 1000 < usdelay);
 
 	/*
 	 * If we haven't gone to 'ready' state, return.
