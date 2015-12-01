@@ -521,6 +521,7 @@ MAN=	aac.4 \
 	tws.4 \
 	tx.4 \
 	txp.4 \
+	ure.4 \
 	vale.4 \
 	vga.4 \
 	vge.4 \
@@ -710,6 +711,7 @@ MLINKS+=tl.4 if_tl.4
 MLINKS+=tun.4 if_tun.4
 MLINKS+=tx.4 if_tx.4
 MLINKS+=txp.4 if_txp.4
+MLINKS+=ure.4 if_ure.4
 MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
 MLINKS+=vxlan.4 if_vxlan.4
