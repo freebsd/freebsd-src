@@ -18,7 +18,9 @@ CFLAGS+=	-DUSE_INET6
 CFLAGS+=	-DNOINET6
 .endif
 
+.if ${.CURDIR:M*/libipf} == ""
 LIBADD+=	ipf
+.endif
 
 CLEANFILES+=	y.tab.c y.tab.h
 
