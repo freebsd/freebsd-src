@@ -225,12 +225,13 @@ CPP?=		${HOST_CPP}
 .endif
 .endif
 
-.if ${MACHINE} == "host"
 HOST_CC?=	/usr/bin/cc
-CC=		${HOST_CC}
 HOST_CXX?=	/usr/bin/c++
-CXX=		${HOST_CXX}
 HOST_CPP?=	/usr/bin/cpp
+
+.if ${MACHINE} == "host"
+CC=		${HOST_CC}
+CXX=		${HOST_CXX}
 CPP=		${HOST_CPP}
 .endif
 
