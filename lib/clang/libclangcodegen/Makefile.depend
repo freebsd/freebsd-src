@@ -16,8 +16,10 @@ DIRDEPS = \
 # local dependencies - needed for -jN in clean tree
 BackendUtil.o: DiagnosticCommonKinds.inc.h
 BackendUtil.o: DiagnosticFrontendKinds.inc.h
+BackendUtil.o: Intrinsics.inc.h
 BackendUtil.po: DiagnosticCommonKinds.inc.h
 BackendUtil.po: DiagnosticFrontendKinds.inc.h
+BackendUtil.po: Intrinsics.inc.h
 CGAtomic.o: AttrList.inc.h
 CGAtomic.o: Attrs.inc.h
 CGAtomic.o: CommentCommandList.inc.h
@@ -127,6 +129,7 @@ CGClass.o: Attrs.inc.h
 CGClass.o: CommentCommandList.inc.h
 CGClass.o: DeclNodes.inc.h
 CGClass.o: DiagnosticCommonKinds.inc.h
+CGClass.o: Intrinsics.inc.h
 CGClass.o: StmtNodes.inc.h
 CGClass.o: arm_neon.inc.h
 CGClass.po: AttrList.inc.h
@@ -134,6 +137,7 @@ CGClass.po: Attrs.inc.h
 CGClass.po: CommentCommandList.inc.h
 CGClass.po: DeclNodes.inc.h
 CGClass.po: DiagnosticCommonKinds.inc.h
+CGClass.po: Intrinsics.inc.h
 CGClass.po: StmtNodes.inc.h
 CGClass.po: arm_neon.inc.h
 CGCleanup.o: AttrList.inc.h
@@ -197,6 +201,7 @@ CGException.o: DeclNodes.inc.h
 CGException.o: DiagnosticCommonKinds.inc.h
 CGException.o: Intrinsics.inc.h
 CGException.o: StmtNodes.inc.h
+CGException.o: arm_neon.inc.h
 CGException.po: AttrList.inc.h
 CGException.po: Attrs.inc.h
 CGException.po: CommentCommandList.inc.h
@@ -204,6 +209,7 @@ CGException.po: DeclNodes.inc.h
 CGException.po: DiagnosticCommonKinds.inc.h
 CGException.po: Intrinsics.inc.h
 CGException.po: StmtNodes.inc.h
+CGException.po: arm_neon.inc.h
 CGExpr.o: AttrList.inc.h
 CGExpr.o: Attrs.inc.h
 CGExpr.o: CommentCommandList.inc.h
@@ -284,6 +290,18 @@ CGExprScalar.po: DeclNodes.inc.h
 CGExprScalar.po: DiagnosticCommonKinds.inc.h
 CGExprScalar.po: Intrinsics.inc.h
 CGExprScalar.po: StmtNodes.inc.h
+CGLoopInfo.o: AttrList.inc.h
+CGLoopInfo.o: AttrParsedAttrList.inc.h
+CGLoopInfo.o: Attrs.inc.h
+CGLoopInfo.o: DeclNodes.inc.h
+CGLoopInfo.o: DiagnosticCommonKinds.inc.h
+CGLoopInfo.o: StmtNodes.inc.h
+CGLoopInfo.po: AttrList.inc.h
+CGLoopInfo.po: AttrParsedAttrList.inc.h
+CGLoopInfo.po: Attrs.inc.h
+CGLoopInfo.po: DeclNodes.inc.h
+CGLoopInfo.po: DiagnosticCommonKinds.inc.h
+CGLoopInfo.po: StmtNodes.inc.h
 CGObjC.o: AttrList.inc.h
 CGObjC.o: Attrs.inc.h
 CGObjC.o: CommentCommandList.inc.h
@@ -555,12 +573,14 @@ MicrosoftCXXABI.o: Attrs.inc.h
 MicrosoftCXXABI.o: CommentCommandList.inc.h
 MicrosoftCXXABI.o: DeclNodes.inc.h
 MicrosoftCXXABI.o: DiagnosticCommonKinds.inc.h
+MicrosoftCXXABI.o: Intrinsics.inc.h
 MicrosoftCXXABI.o: StmtNodes.inc.h
 MicrosoftCXXABI.po: AttrList.inc.h
 MicrosoftCXXABI.po: Attrs.inc.h
 MicrosoftCXXABI.po: CommentCommandList.inc.h
 MicrosoftCXXABI.po: DeclNodes.inc.h
 MicrosoftCXXABI.po: DiagnosticCommonKinds.inc.h
+MicrosoftCXXABI.po: Intrinsics.inc.h
 MicrosoftCXXABI.po: StmtNodes.inc.h
 ModuleBuilder.o: AttrList.inc.h
 ModuleBuilder.o: Attrs.inc.h
@@ -574,6 +594,20 @@ ModuleBuilder.po: CommentCommandList.inc.h
 ModuleBuilder.po: DeclNodes.inc.h
 ModuleBuilder.po: DiagnosticCommonKinds.inc.h
 ModuleBuilder.po: StmtNodes.inc.h
+ObjectFilePCHContainerOperations.o: AttrList.inc.h
+ObjectFilePCHContainerOperations.o: AttrVisitor.inc.h
+ObjectFilePCHContainerOperations.o: Attrs.inc.h
+ObjectFilePCHContainerOperations.o: CommentCommandList.inc.h
+ObjectFilePCHContainerOperations.o: DeclNodes.inc.h
+ObjectFilePCHContainerOperations.o: DiagnosticCommonKinds.inc.h
+ObjectFilePCHContainerOperations.o: StmtNodes.inc.h
+ObjectFilePCHContainerOperations.po: AttrList.inc.h
+ObjectFilePCHContainerOperations.po: AttrVisitor.inc.h
+ObjectFilePCHContainerOperations.po: Attrs.inc.h
+ObjectFilePCHContainerOperations.po: CommentCommandList.inc.h
+ObjectFilePCHContainerOperations.po: DeclNodes.inc.h
+ObjectFilePCHContainerOperations.po: DiagnosticCommonKinds.inc.h
+ObjectFilePCHContainerOperations.po: StmtNodes.inc.h
 SanitizerMetadata.o: AttrList.inc.h
 SanitizerMetadata.o: Attrs.inc.h
 SanitizerMetadata.o: CommentCommandList.inc.h
