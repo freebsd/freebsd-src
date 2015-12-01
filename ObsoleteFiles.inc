@@ -39,7 +39,10 @@
 # done
 
 # 20151130: libelf moved from /usr/lib to /lib (libkvm dependency in r291406)
-OLD_FILES+=usr/lib/libelf.so.2
+OLD_LIBS+=usr/lib/libelf.so.2
+OLD_FILES+=usr/lib/libelf.a
+OLD_FILES+=usr/lib/libelf.so
+OLD_FILES+=usr/lib/libelf_p.a
 # 20151115: Fox bad upgrade scheme
 OLD_FILES+=usr/share/locale/zh_CN.GB18030/zh_Hans_CN.GB18030
 OLD_FILES+=usr/share/locale/zh_CN.GB2312/zh_Hans_CN.GB2312
