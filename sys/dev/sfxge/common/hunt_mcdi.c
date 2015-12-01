@@ -435,7 +435,11 @@ hunt_mcdi_fw_update_supported(
 
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
 
-	/* use privilege mask state at MCDI attach */
+	/*
+	 * Use privilege mask state at MCDI attach.
+	 * Admin privilege must be used prior to introduction of
+	 * specific flag.
+	 */
 	*supportedp = (encp->enc_privilege_mask &
 	    MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN)
 	    == MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN;
@@ -449,13 +453,20 @@ hunt_mcdi_macaddr_change_supported(
 	__out		boolean_t *supportedp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	uint32_t privilege_mask = encp->enc_privilege_mask;
 
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
 
-	/* use privilege mask state at MCDI attach */
-	*supportedp = (encp->enc_privilege_mask &
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING)
-	    == MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING;
+	/*
+	 * Use privilege mask state at MCDI attach.
+	 * Admin privilege must be used prior to introduction of
+	 * specific flag (at v4.6).
+	 */
+	*supportedp =
+	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING) ==
+	    MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING) ||
+	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN) ==
+	    MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN);
 
 	return (0);
 }
