@@ -81,17 +81,16 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	w_cabs.c w_cabsf.c w_drem.c w_dremf.c
 
 # Location of fpmath.h and _fpmath.h
-LIBCDIR=	${.CURDIR}/../libc
-.if exists(${LIBCDIR}/${MACHINE_ARCH})
+.if exists(${LIBCSRCDIR}/${MACHINE_ARCH})
 LIBC_ARCH=${MACHINE_ARCH}
 .else
 LIBC_ARCH=${MACHINE_CPUARCH}
 .endif
-CFLAGS+=	-I${.CURDIR}/src -I${LIBCDIR}/include \
-	-I${LIBCDIR}/${LIBC_ARCH}
+CFLAGS+=	-I${.CURDIR}/src -I${LIBCSRCDIR}/include \
+	-I${LIBCSRCDIR}/${LIBC_ARCH}
 SYM_MAPS+=	${.CURDIR}/Symbol.map
 
-VERSION_DEF=	${LIBCDIR}/Versions.def
+VERSION_DEF=	${LIBCSRCDIR}/Versions.def
 SYMBOL_MAPS=	${SYM_MAPS}
 
 # C99 long double functions

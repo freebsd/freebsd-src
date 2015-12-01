@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
+_LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 ATF_TESTS_SH+=	functional_test
 
@@ -9,14 +9,14 @@ BINDIR=	${TESTSDIR}
 PROGS+=	libarchive_test
 
 CFLAGS+= -I${.CURDIR:H} -I${.OBJDIR}
-CFLAGS+= -I${LIBARCHIVEDIR}/libarchive -I${LIBARCHIVEDIR}/test_utils
+CFLAGS+= -I${_LIBARCHIVEDIR}/libarchive -I${_LIBARCHIVEDIR}/test_utils
 CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
 #CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
 
-.PATH: ${LIBARCHIVEDIR}/libarchive/test
+.PATH: ${_LIBARCHIVEDIR}/libarchive/test
 TESTS_SRCS= \
 	test_acl_freebsd_nfs4.c			\
 	test_acl_freebsd_posix1e.c		\
@@ -249,12 +249,12 @@ SRCS.libarchive_test=		\
 
 LIBADD.libarchive_test=	archive
 
-.PATH: ${LIBARCHIVEDIR}/test_utils
+.PATH: ${_LIBARCHIVEDIR}/test_utils
 SRCS.libarchive_test+=	test_utils.c
 
 # list.h is just a list of all tests, as indicated by DEFINE_TEST macro lines
 list.h: ${TESTS_SRCS} Makefile
-	@(cd ${LIBARCHIVEDIR}/libarchive/test && \
+	@(cd ${_LIBARCHIVEDIR}/libarchive/test && \
 	grep -h DEFINE_TEST ${.ALLSRC:N*Makefile} | \
 	    egrep -v '${BROKEN_TESTS:tW:C/ /|/g}') > ${.TARGET}.tmp
 	@mv ${.TARGET}.tmp ${.TARGET}

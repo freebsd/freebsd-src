@@ -3,8 +3,8 @@
 .include <bsd.own.mk>
 
 DTCDIR=	${.CURDIR}/../../../contrib/dtc
-LIBFDTDIR= ${.CURDIR}/../../../sys/contrib/libfdt
-.PATH: ${DTCDIR} ${LIBFDTDIR}
+_LIBFDTDIR= ${.CURDIR}/../../../sys/contrib/libfdt
+.PATH: ${DTCDIR} ${_LIBFDTDIR}
 
 PROG=	dtc
 
@@ -14,7 +14,7 @@ SRCS=	dtc.c checks.c fstree.c livetree.c treesource.c data.c \
 	fdt_sw.c fdt_wip.c ${DTCVERSIONFILE}
 
 WARNS?=	2
-CFLAGS+= -I. -I${.CURDIR} -I${DTCDIR} -I${LIBFDTDIR}
+CFLAGS+= -I. -I${.CURDIR} -I${DTCDIR} -I${_LIBFDTDIR}
 
 VERSIONMAJ!= awk '/^VERSION =/ { print $$3 }' ${DTCDIR}/Makefile
 VERSIONMIN!= awk '/^PATCHLEVEL =/ { print $$3 }' ${DTCDIR}/Makefile
