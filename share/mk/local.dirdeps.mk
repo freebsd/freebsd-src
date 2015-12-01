@@ -86,10 +86,6 @@ DIRDEPS += \
 
 .endif
 
-.if ${MK_CLANG} == "yes" && ${DEP_RELDIR:Nlib/clang/lib*:Nlib/libc*} == ""
-DIRDEPS+= lib/clang/include
-.endif
-
 .if ${MK_STAGING} == "yes"
 # we need targets/pseudo/stage to prep the stage tree
 .if ${DEP_RELDIR} != "targets/pseudo/stage"
