@@ -85,5 +85,5 @@ beforeinstall:
 SUBDIR+=	tests
 .endif
 
-.include <bsd.symver.mk>
 .include <bsd.prog.mk>
+.include <bsd.symver.mk>
