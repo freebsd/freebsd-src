@@ -1423,13 +1423,40 @@ retry:
 #define	OBSC_COLLAPSE_NOWAIT	0x0002
 #define	OBSC_COLLAPSE_WAIT	0x0004
 
-static int
+static vm_page_t
+vm_object_backing_scan_wait(vm_object_t object, vm_page_t p, vm_page_t next,
+    int op)
+{
+	vm_object_t backing_object;
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	backing_object = object->backing_object;
+	VM_OBJECT_ASSERT_WLOCKED(backing_object);
+
+	KASSERT(p == NULL || vm_page_busied(p), ("unbusy page %p", p));
+	KASSERT(p == NULL || p->object == object || p->object == backing_object,
+	    ("invalid ownership %p %p %p", p, object, backing_object));
+	if ((op & OBSC_COLLAPSE_NOWAIT) != 0)
+		return (next);
+	if (p != NULL)
+		vm_page_lock(p);
+	VM_OBJECT_WUNLOCK(object);
+	VM_OBJECT_WUNLOCK(backing_object);
+	if (p == NULL)
+		VM_WAIT;
+	else
+		vm_page_busy_sleep(p, "vmocol");
+	VM_OBJECT_WLOCK(object);
+	VM_OBJECT_WLOCK(backing_object);
+	return (TAILQ_FIRST(&backing_object->memq));
+}
+
+static bool
 vm_object_backing_scan(vm_object_t object, int op)
 {
-	int r = 1;
-	vm_page_t p;
 	vm_object_t backing_object;
-	vm_pindex_t backing_offset_index;
+	vm_page_t next, p, pp;
+	vm_pindex_t backing_offset_index, new_pindex;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	VM_OBJECT_ASSERT_WLOCKED(object->backing_object);
@@ -1451,7 +1478,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 		 * shadow test may succeed! XXX
 		 */
 		if (backing_object->type != OBJT_DEFAULT) {
-			return (0);
+			return (false);
 		}
 	}
 	if (op & OBSC_COLLAPSE_WAIT) {
@@ -1463,24 +1490,19 @@ vm_object_backing_scan(vm_object_t object, int op)
 	 */
 	p = TAILQ_FIRST(&backing_object->memq);
 	while (p) {
-		vm_page_t next = TAILQ_NEXT(p, listq);
-		vm_pindex_t new_pindex = p->pindex - backing_offset_index;
-
+		next = TAILQ_NEXT(p, listq);
+		new_pindex = p->pindex - backing_offset_index;
 		if (op & OBSC_TEST_ALL_SHADOWED) {
-			vm_page_t pp;
-
 			/*
 			 * Ignore pages outside the parent object's range
 			 * and outside the parent object's mapping of the 
 			 * backing object.
 			 *
-			 * note that we do not busy the backing object's
+			 * Note that we do not busy the backing object's
 			 * page.
 			 */
-			if (
-			    p->pindex < backing_offset_index ||
-			    new_pindex >= object->size
-			) {
+			if (p->pindex < backing_offset_index ||
+			    new_pindex >= object->size) {
 				p = next;
 				continue;
 			}
@@ -1496,55 +1518,26 @@ vm_object_backing_scan(vm_object_t object, int op)
 			 */
 
 			pp = vm_page_lookup(object, new_pindex);
-			if (
-			    (pp == NULL || pp->valid == 0) &&
-			    !vm_pager_has_page(object, new_pindex, NULL, NULL)
-			) {
-				r = 0;
-				break;
-			}
+			if ((pp == NULL || pp->valid == 0) &&
+			    !vm_pager_has_page(object, new_pindex, NULL, NULL))
+				return (false);
 		}
 
 		/*
 		 * Check for busy page
 		 */
 		if (op & (OBSC_COLLAPSE_WAIT | OBSC_COLLAPSE_NOWAIT)) {
-			vm_page_t pp;
-
-			if (op & OBSC_COLLAPSE_NOWAIT) {
-				if (!p->valid || vm_page_busied(p)) {
-					p = next;
-					continue;
-				}
-			} else if (op & OBSC_COLLAPSE_WAIT) {
-				if (vm_page_busied(p)) {
-					VM_OBJECT_WUNLOCK(object);
-					vm_page_lock(p);
-					VM_OBJECT_WUNLOCK(backing_object);
-					vm_page_busy_sleep(p, "vmocol");
-					VM_OBJECT_WLOCK(object);
-					VM_OBJECT_WLOCK(backing_object);
-					/*
-					 * If we slept, anything could have
-					 * happened.  Since the object is
-					 * marked dead, the backing offset
-					 * should not have changed so we
-					 * just restart our scan.
-					 */
-					p = TAILQ_FIRST(&backing_object->memq);
-					continue;
-				}
+			if (vm_page_busied(p)) {
+				p = vm_object_backing_scan_wait(object, p,
+				    next, op);
+				continue;
 			}
 
-			KASSERT(
-			    p->object == backing_object,
-			    ("vm_object_backing_scan: object mismatch")
-			);
+			KASSERT(p->object == backing_object,
+			    ("vm_object_backing_scan: object mismatch"));
 
-			if (
-			    p->pindex < backing_offset_index ||
-			    new_pindex >= object->size
-			) {
+			if (p->pindex < backing_offset_index ||
+			    new_pindex >= object->size) {
 				if (backing_object->type == OBJT_SWAP)
 					swap_pager_freespace(backing_object, 
 					    p->pindex, 1);
@@ -1566,43 +1559,45 @@ vm_object_backing_scan(vm_object_t object, int op)
 			}
 
 			pp = vm_page_lookup(object, new_pindex);
-			if (
-			    (op & OBSC_COLLAPSE_NOWAIT) != 0 &&
-			    (pp != NULL && pp->valid == 0)
-			) {
-				if (backing_object->type == OBJT_SWAP)
-					swap_pager_freespace(backing_object, 
-					    p->pindex, 1);
-
+			if (pp != NULL && vm_page_busied(pp)) {
 				/*
-				 * The page in the parent is not (yet) valid.
-				 * We don't know anything about the state of
-				 * the original page.  It might be mapped,
-				 * so we must avoid the next if here.
+				 * The page in the parent is busy and
+				 * possibly not (yet) valid.  Until
+				 * its state is finalized by the busy
+				 * bit owner, we can't tell whether it
+				 * shadows the original page.
+				 * Therefore, we must either skip it
+				 * and the original (backing_object)
+				 * page or wait for its state to be
+				 * finalized.
 				 *
-				 * This is due to a race in vm_fault() where
-				 * we must unbusy the original (backing_obj)
-				 * page before we can (re)lock the parent.
-				 * Hence we can get here.
+				 * This is due to a race with vm_fault()
+				 * where we must unbusy the original
+				 * (backing_obj) page before we can
+				 * (re)lock the parent.  Hence we can
+				 * get here.
 				 */
-				p = next;
+				p = vm_object_backing_scan_wait(object, pp,
+				    next, op);
 				continue;
 			}
-			if (
-			    pp != NULL ||
-			    vm_pager_has_page(object, new_pindex, NULL, NULL)
-			) {
-				if (backing_object->type == OBJT_SWAP)
-					swap_pager_freespace(backing_object, 
-					    p->pindex, 1);
 
+			KASSERT(pp == NULL || pp->valid != 0,
+			    ("unbusy invalid page %p", pp));
+
+			if (pp != NULL || vm_pager_has_page(object,
+			    new_pindex, NULL, NULL)) {
 				/*
-				 * page already exists in parent OR swap exists
-				 * for this location in the parent.  Destroy 
-				 * the original page from the backing object.
-				 *
-				 * Leave the parent's page alone
+				 * The page already exists in the
+				 * parent OR swap exists for this
+				 * location in the parent.  Leave the
+				 * parent's page alone.  Destroy the
+				 * original page from the backing
+				 * object.
 				 */
+				if (backing_object->type == OBJT_SWAP)
+					swap_pager_freespace(backing_object,
+					    p->pindex, 1);
 				vm_page_lock(p);
 				KASSERT(!pmap_page_is_mapped(p),
 				    ("freeing mapped page %p", p));
@@ -1624,16 +1619,8 @@ vm_object_backing_scan(vm_object_t object, int op)
 			 * vm_page_rename() will handle dirty and cache.
 			 */
 			if (vm_page_rename(p, object, new_pindex)) {
-				if (op & OBSC_COLLAPSE_NOWAIT) {
-					p = next;
-					continue;
-				}
-				VM_OBJECT_WUNLOCK(backing_object);
-				VM_OBJECT_WUNLOCK(object);
-				VM_WAIT;
-				VM_OBJECT_WLOCK(object);
-				VM_OBJECT_WLOCK(backing_object);
-				p = TAILQ_FIRST(&backing_object->memq);
+				p = vm_object_backing_scan_wait(object, NULL,
+				    next, op);
 				continue;
 			}
 
@@ -1652,7 +1639,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 		}
 		p = next;
 	}
-	return (r);
+	return (true);
 }
 
 
@@ -1819,8 +1806,8 @@ vm_object_collapse(vm_object_t object)
 			 * there is nothing we can do so we give up.
 			 */
 			if (object->resident_page_count != object->size &&
-			    vm_object_backing_scan(object,
-			    OBSC_TEST_ALL_SHADOWED) == 0) {
+			    !vm_object_backing_scan(object,
+			    OBSC_TEST_ALL_SHADOWED)) {
 				VM_OBJECT_WUNLOCK(backing_object);
 				break;
 			}
