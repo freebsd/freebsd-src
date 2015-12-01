@@ -1283,7 +1283,7 @@ doxygen: .PHONY
 		echo "You need doxygen (devel/doxygen) to generate the API documentation of the kernel." | /usr/bin/fmt; \
 		exit 1; \
 	fi
-	${_+_}cd ${.CURDIR}/tools/kerneldoc/subsys && ${MAKE} obj all
+	${_+_}cd ${.CURDIR}/tools/kerneldoc/subsys; ${MAKE} obj all
 
 #
 # update
@@ -1303,7 +1303,7 @@ update:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Updating ${.CURDIR} using Subversion"
 	@echo "--------------------------------------------------------------"
-	@(cd ${.CURDIR} && ${SVN} update ${SVNFLAGS})
+	@(cd ${.CURDIR}; ${SVN} update ${SVNFLAGS})
 .endif
 
 #
@@ -1336,11 +1336,11 @@ legacy:
 .endif
 .for _tool in tools/build ${_elftoolchain_libs}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,depend,all,install)"; \
-	    cd ${.CURDIR}/${_tool} && \
-	    ${MAKE} DIRPRFX=${_tool}/ obj && \
-	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy includes && \
-	    ${MAKE} DIRPRFX=${_tool}/ depend && \
-	    ${MAKE} DIRPRFX=${_tool}/ all && \
+	    cd ${.CURDIR}/${_tool}; \
+	    ${MAKE} DIRPRFX=${_tool}/ obj; \
+	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy includes; \
+	    ${MAKE} DIRPRFX=${_tool}/ depend; \
+	    ${MAKE} DIRPRFX=${_tool}/ all; \
 	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
 .endfor
 
@@ -1489,10 +1489,10 @@ bootstrap-tools: .PHONY
     usr.bin/localedef
 ${_bt}-${_tool}: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_tool} && \
-		${MAKE} DIRPRFX=${_tool}/ obj && \
-		${MAKE} DIRPRFX=${_tool}/ depend && \
-		${MAKE} DIRPRFX=${_tool}/ all && \
+		cd ${.CURDIR}/${_tool}; \
+		${MAKE} DIRPRFX=${_tool}/ obj; \
+		${MAKE} DIRPRFX=${_tool}/ depend; \
+		${MAKE} DIRPRFX=${_tool}/ all; \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
 
 bootstrap-tools: ${_bt}-${_tool}
@@ -1529,8 +1529,8 @@ _rescue=rescue/rescue
     usr.bin/vi/catalog
 build-tools_${_tool}: .PHONY
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,build-tools)"; \
-		cd ${.CURDIR}/${_tool} && \
-		${MAKE} DIRPRFX=${_tool}/ obj && \
+		cd ${.CURDIR}/${_tool}; \
+		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ build-tools
 build-tools: build-tools_${_tool}
 .endfor
@@ -1538,9 +1538,9 @@ build-tools: build-tools_${_tool}
     ${_gcc_tools}
 build-tools_${_tool}: .PHONY
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all)"; \
-		cd ${.CURDIR}/${_tool} && \
-		${MAKE} DIRPRFX=${_tool}/ obj && \
-		${MAKE} DIRPRFX=${_tool}/ depend && \
+		cd ${.CURDIR}/${_tool}; \
+		${MAKE} DIRPRFX=${_tool}/ obj; \
+		${MAKE} DIRPRFX=${_tool}/ depend; \
 		${MAKE} DIRPRFX=${_tool}/ all
 build-tools: build-tools_${_tool}
 .endfor
@@ -1620,10 +1620,10 @@ cross-tools: .MAKE .PHONY
     ${_crunchide} \
     ${_usb_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_tool} && \
-		${MAKE} DIRPRFX=${_tool}/ obj && \
-		${MAKE} DIRPRFX=${_tool}/ depend && \
-		${MAKE} DIRPRFX=${_tool}/ all && \
+		cd ${.CURDIR}/${_tool}; \
+		${MAKE} DIRPRFX=${_tool}/ obj; \
+		${MAKE} DIRPRFX=${_tool}/ depend; \
+		${MAKE} DIRPRFX=${_tool}/ all; \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX} install
 .endfor
 
@@ -1652,10 +1652,10 @@ native-xtools: .PHONY
 .if ${MK_GCC_BOOTSTRAP} != "no"
 	mkdir -p ${OBJTREE}/gperf_for_gcc/usr/bin
 	${_+_}@${ECHODIR} "===> ${_gperf} (obj,depend,all,install)"; \
-	cd ${.CURDIR}/${_gperf} && \
-	${NXBMAKE} DIRPRFX=${_gperf}/ obj && \
-	${NXBMAKE} DIRPRFX=${_gperf}/ depend && \
-	${NXBMAKE} DIRPRFX=${_gperf}/ all && \
+	cd ${.CURDIR}/${_gperf}; \
+	${NXBMAKE} DIRPRFX=${_gperf}/ obj; \
+	${NXBMAKE} DIRPRFX=${_gperf}/ depend; \
+	${NXBMAKE} DIRPRFX=${_gperf}/ all; \
 	${NXBMAKE} DIRPRFX=${_gperf}/ DESTDIR=${OBJTREE}/gperf_for_gcc install
 .endif
 	mkdir -p ${NXBDESTDIR}/bin ${NXBDESTDIR}/sbin ${NXBDESTDIR}/usr
@@ -1727,10 +1727,10 @@ native-xtools: .PHONY
     usr.bin/yacc \
     usr.sbin/chown
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_tool} && \
-		${NXBMAKE} DIRPRFX=${_tool}/ obj && \
-		${NXBMAKE} DIRPRFX=${_tool}/ depend && \
-		${NXBMAKE} DIRPRFX=${_tool}/ all && \
+		cd ${.CURDIR}/${_tool}; \
+		${NXBMAKE} DIRPRFX=${_tool}/ obj; \
+		${NXBMAKE} DIRPRFX=${_tool}/ depend; \
+		${NXBMAKE} DIRPRFX=${_tool}/ all; \
 		${NXBMAKE} DIRPRFX=${_tool}/ DESTDIR=${NXBDESTDIR} install
 .endfor
 
@@ -1738,7 +1738,7 @@ native-xtools: .PHONY
 # hierarchy - ensure that all the needed directories are present
 #
 hierarchy hier: .MAKE .PHONY
-	${_+_}cd ${.CURDIR}/etc && ${HMAKE} distrib-dirs
+	${_+_}cd ${.CURDIR}/etc; ${HMAKE} distrib-dirs
 
 #
 # libraries - build all libraries, and install them under ${DESTDIR}.
@@ -1748,10 +1748,10 @@ hierarchy hier: .MAKE .PHONY
 # ${.CURDIR}/tools/make_libdeps.sh script.
 #
 libraries: .MAKE .PHONY
-	${_+_}cd ${.CURDIR} && \
-	    ${MAKE} -f Makefile.inc1 _prereq_libs && \
-	    ${MAKE} -f Makefile.inc1 _startup_libs && \
-	    ${MAKE} -f Makefile.inc1 _prebuild_libs && \
+	${_+_}cd ${.CURDIR}; \
+	    ${MAKE} -f Makefile.inc1 _prereq_libs; \
+	    ${MAKE} -f Makefile.inc1 _startup_libs; \
+	    ${MAKE} -f Makefile.inc1 _prebuild_libs; \
 	    ${MAKE} -f Makefile.inc1 _generic_libs
 
 #
@@ -1957,11 +1957,11 @@ gnu/lib/libdialog__L: lib/msun__L lib/ncurses/ncursesw__L
 ${_lib}__PL: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_lib} && \
-		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj && \
-		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ depend && \
+		cd ${.CURDIR}/${_lib}; \
+		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj; \
+		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ depend; \
 		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
-		    DIRPRFX=${_lib}/ all && \
+		    DIRPRFX=${_lib}/ all; \
 		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
 		    DIRPRFX=${_lib}/ install
 .endif
@@ -1971,10 +1971,10 @@ ${_lib}__PL: .PHONY .MAKE
 ${_lib}__L: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_lib} && \
-		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj && \
-		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ depend && \
-		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ all && \
+		cd ${.CURDIR}/${_lib}; \
+		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj; \
+		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ depend; \
+		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ all; \
 		${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ install
 .endif
 .endfor
@@ -1984,11 +1984,11 @@ ${_lib}__L: .PHONY .MAKE
 # modules.
 lib/libpam__L: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> lib/libpam (obj,depend,all,install)"; \
-		cd ${.CURDIR}/lib/libpam && \
-		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ obj && \
-		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ depend && \
+		cd ${.CURDIR}/lib/libpam; \
+		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ obj; \
+		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ depend; \
 		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ \
-		    -D_NO_LIBPAM_SO_YET all && \
+		    -D_NO_LIBPAM_SO_YET all; \
 		${MAKE} MK_TESTS=no DIRPRFX=lib/libpam/ \
 		    -D_NO_LIBPAM_SO_YET install
 
@@ -2283,10 +2283,10 @@ _xb-bootstrap-tools: .PHONY
     ${_clang_tblgen} \
     ${_gperf}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-	cd ${.CURDIR}/${_tool} && \
-	${CDMAKE} DIRPRFX=${_tool}/ obj && \
-	${CDMAKE} DIRPRFX=${_tool}/ depend && \
-	${CDMAKE} DIRPRFX=${_tool}/ all && \
+	cd ${.CURDIR}/${_tool}; \
+	${CDMAKE} DIRPRFX=${_tool}/ obj; \
+	${CDMAKE} DIRPRFX=${_tool}/ depend; \
+	${CDMAKE} DIRPRFX=${_tool}/ all; \
 	${CDMAKE} DIRPRFX=${_tool}/ DESTDIR=${CDTMP} install
 .endfor
 
@@ -2303,9 +2303,9 @@ _xb-cross-tools: .PHONY
     ${_clang} \
     ${_cc}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,depend,all)"; \
-	cd ${.CURDIR}/${_tool} && \
-	${CDMAKE} DIRPRFX=${_tool}/ obj && \
-	${CDMAKE} DIRPRFX=${_tool}/ depend && \
+	cd ${.CURDIR}/${_tool}; \
+	${CDMAKE} DIRPRFX=${_tool}/ obj; \
+	${CDMAKE} DIRPRFX=${_tool}/ depend; \
 	${CDMAKE} DIRPRFX=${_tool}/ all
 .endfor
 
