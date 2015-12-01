@@ -538,6 +538,9 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 
 	ifp->if_capabilities = SFXGE_CAP;
 	ifp->if_capenable = SFXGE_CAP_ENABLE;
+	ifp->if_hw_tsomax = SFXGE_TSO_MAX_SIZE;
+	ifp->if_hw_tsomaxsegcount = SFXGE_TX_MAPPING_MAX_SEG;
+	ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
 
 #ifdef SFXGE_LRO
 	ifp->if_capabilities |= IFCAP_LRO;
