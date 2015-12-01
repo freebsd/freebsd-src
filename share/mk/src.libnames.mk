@@ -50,6 +50,7 @@ _INTERNALLIBS=	\
 _LIBRARIES=	\
 		${_PRIVATELIBS} \
 		${_INTERNALLIBS} \
+		${LOCAL_LIBRARIES} \
 		80211 \
 		alias \
 		archive \
