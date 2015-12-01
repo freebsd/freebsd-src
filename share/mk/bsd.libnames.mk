@@ -152,3 +152,11 @@ LDADD:=	${LDADD:N-lpthread} -lpthread
 LDADD:=	${LDADD:N-lc} -lc
 .endif
 .endif
+
+# Only do this for src builds.
+.if defined(SRCTOP)
+# Derive LIB*SRCDIR from LIB*DIR
+.for lib in ${_LIBRARIES}
+LIB${lib:tu}SRCDIR?=	${SRCTOP}/${LIB${lib:tu}DIR:S,^${OBJTOP}/,,}
+.endfor
+.endif
