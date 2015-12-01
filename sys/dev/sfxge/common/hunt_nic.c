@@ -1071,17 +1071,17 @@ hunt_board_cfg(
 	/* MAC address for this function */
 	if (EFX_PCI_FUNCTION_IS_PF(encp)) {
 		rc = efx_mcdi_get_mac_address_pf(enp, mac_addr);
+		if ((rc == 0) && (mac_addr[0] & 0x02)) {
+			/*
+			 * If the static config does not include a global MAC
+			 * address pool then the board may return a locally
+			 * administered MAC address (this should only happen on
+			 * incorrectly programmed boards).
+			 */
+			rc = EINVAL;
+		}
 	} else {
 		rc = efx_mcdi_get_mac_address_vf(enp, mac_addr);
-	}
-	if ((rc == 0) && (mac_addr[0] & 0x02)) {
-		/*
-		 * If the static config does not include a global MAC address
-		 * pool then the board may return a locally administered MAC
-		 * address (this should only happen on incorrectly programmed
-		 * boards).
-		 */
-		rc = EINVAL;
 	}
 	if (rc != 0)
 		goto fail4;
