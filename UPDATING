@@ -849,14 +849,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	keep 64-bits counters. Thus all tools, that work with networking
 	statistics, must be rebuilt (netstat(1), bsnmpd(1), etc.)
 
-20130629:
-	Fix targets that run multiple make's to use && rather than ;
-	so that subsequent steps depend on success of previous.
-
-	NOTE: if building 'universe' with -j* on stable/8 or stable/9
-	it would be better to start the build using bmake, to avoid
-	overloading the machine.
-
 20130618:
 	Fix a bug that allowed a tracing process (e.g. gdb) to write
 	to a memory-mapped file in the traced process's address space
