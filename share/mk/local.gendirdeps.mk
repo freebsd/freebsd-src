@@ -9,7 +9,6 @@ GENDIRDEPS_FILTER+= \
 	Nbin/cat.host \
 	Ngnu/lib/libssp/libssp_nonshared \
 	Ncddl/usr.bin/ctf* \
-	Nlib/clang/include \
 	Nlib/libc_nonshared \
 	Ntargets/pseudo/stage* \
 	Ntools/*
