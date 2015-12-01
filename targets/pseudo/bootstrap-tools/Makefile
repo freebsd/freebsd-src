@@ -45,6 +45,8 @@ BSARGS= 	DESTDIR= \
 
 # Need to override these so OBJTOP uses are proper in the non-meta build.
 BSARGS+= OBJTOP=${BTOOLSDIR}${SRCTOP} OBJROOT='$${OBJTOP}/'
+# We will handle building the toolchain and cross-compiler.
+BSARGS+= MK_CROSS_COMPILER=no MK_CLANG=no MK_GCC=no
 
 DISTRIB_ENV=	INSTALL="sh ${SRCTOP}/tools/install.sh" NO_FSCHG=1 MK_TESTS=no
 legacy: .MAKE .META
@@ -75,7 +77,7 @@ BSTCENV= \
 	TARGET_ARCH=${HOST_MACHINE_ARCH}
 
 BSTCARGS= \
-	${BSARGS:NDESTDIR=*:NOBJTOP=*:NOBJROOT=*} \
+	${BSARGS:NDESTDIR=*:NOBJTOP=*:NOBJROOT=*:NMK_CROSS_COMPILER=*:NMK_CLANG=*:NMK_GCC=*} \
 	BUILD_DIRDEPS=yes \
 	-DWITH_STAGING \
 	-DWITH_TOOLSDIR
