@@ -471,6 +471,30 @@ hunt_mcdi_macaddr_change_supported(
 	return (0);
 }
 
+	__checkReturn	efx_rc_t
+hunt_mcdi_link_control_supported(
+	__in		efx_nic_t *enp,
+	__out		boolean_t *supportedp)
+{
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	uint32_t privilege_mask = encp->enc_privilege_mask;
+
+	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+
+	/*
+	 * Use privilege mask state at MCDI attach.
+	 * Admin privilege used prior to introduction of
+	 * specific flag.
+	 */
+	*supportedp =
+	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_LINK) ==
+	    MC_CMD_PRIVILEGE_MASK_IN_GRP_LINK) ||
+	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN) ==
+	    MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN);
+
+	return (0);
+}
+
 #endif	/* EFSYS_OPT_MCDI */
 
 #endif	/* EFSYS_OPT_HUNTINGTON */
