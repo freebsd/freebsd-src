@@ -1,9 +1,11 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+TESTSDIR=	${TESTSBASE}/bin/sh/${.CURDIR:T}
 
-FILESDIR=	${TESTSBASE}/bin/sh/expansion
-KYUAFILE=	no
+.PATH: ${.CURDIR:H}
+ATF_TESTS_SH=	functional_test
+
+FILESDIR=	${TESTSDIR}
 
 FILES=		arith1.0
 FILES+=		arith2.0
