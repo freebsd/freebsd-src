@@ -351,4 +351,16 @@ siena_mcdi_macaddr_change_supported(
 	return (0);
 }
 
+	__checkReturn	efx_rc_t
+siena_mcdi_link_control_supported(
+	__in		efx_nic_t *enp,
+	__out		boolean_t *supportedp)
+{
+	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
+
+	*supportedp = B_TRUE;
+
+	return (0);
+}
+
 #endif	/* EFSYS_OPT_SIENA && EFSYS_OPT_MCDI */
