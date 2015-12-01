@@ -63,7 +63,7 @@ DEPEND_MP?=	-MP
 # Handle OBJS=../somefile.o hacks.  Just replace '/' rather than use :T to
 # avoid collisions.
 DEPEND_FILTER=	C,/,_,g
-DEPEND_CFLAGS+=	-MD -MF${DEPENDFILE}.${.TARGET:${DEPEND_FILTER}}
+DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF${DEPENDFILE}.${.TARGET:${DEPEND_FILTER}}
 DEPEND_CFLAGS+=	-MT${.TARGET}
 CFLAGS+=	${DEPEND_CFLAGS}
 DEPENDOBJS+=	${OBJS} ${POBJS} ${SOBJS}
