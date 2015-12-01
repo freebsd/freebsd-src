@@ -31,8 +31,8 @@ Local.o: Intrinsics.inc.h
 Local.po: Intrinsics.inc.h
 LoopSimplify.o: Intrinsics.inc.h
 LoopSimplify.po: Intrinsics.inc.h
-LowerExpectIntrinsic.o: Intrinsics.inc.h
-LowerExpectIntrinsic.po: Intrinsics.inc.h
+LoopUtils.o: Intrinsics.inc.h
+LoopUtils.po: Intrinsics.inc.h
 PromoteMemoryToRegister.o: Intrinsics.inc.h
 PromoteMemoryToRegister.po: Intrinsics.inc.h
 SSAUpdater.o: Intrinsics.inc.h
