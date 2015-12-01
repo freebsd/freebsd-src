@@ -2,7 +2,7 @@
 
 .include <src.opts.mk>
 
-LIBCXXRTDIR=	${.CURDIR}/../../contrib/libcxxrt
+_LIBCXXRTDIR=	${.CURDIR}/../../contrib/libcxxrt
 HDRDIR=		${.CURDIR}/../../contrib/libc++/include
 SRCDIR=		${.CURDIR}/../../contrib/libc++/src
 CXXINCLUDEDIR=	${INCLUDEDIR}/c++/v${SHLIB_MAJOR}
@@ -52,12 +52,12 @@ CXXRT_SRCS+=	libelftc_dem_gnu3.c\
 
 .for _S in ${CXXRT_SRCS}
 STATICOBJS+=	cxxrt_${_S:R}.o
-cxxrt_${_S}: ${LIBCXXRTDIR}/${_S} .NOMETA
+cxxrt_${_S}: ${_LIBCXXRTDIR}/${_S} .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 .endfor
 
 WARNS=		0
-CFLAGS+=	-I${HDRDIR} -I${LIBCXXRTDIR} -nostdlib -DLIBCXXRT
+CFLAGS+=	-I${HDRDIR} -I${_LIBCXXRTDIR} -nostdlib -DLIBCXXRT
 .if empty(CXXFLAGS:M-std=*)
 CXXFLAGS+=	-std=c++11
 .endif
@@ -172,7 +172,7 @@ STD+=		${HDRDIR}/${hdr}
 INCSLINKS+=	${CXXINCLUDEDIR}/${hdr} ${CXXINCLUDEDIR}/tr1/${hdr}
 .endfor
 .for hdr in ${RT_HEADERS}
-STD+=		${LIBCXXRTDIR}/${hdr}
+STD+=		${_LIBCXXRTDIR}/${hdr}
 .endfor
 STDDIR=		${CXXINCLUDEDIR}
 
