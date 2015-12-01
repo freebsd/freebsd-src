@@ -51,7 +51,7 @@
 #define	AH_SUPPORT_POSEIDON		1
 #define	AH_SUPPORT_AR9300		1
 
-/* These are the embedded boards; we don't currently support these */
+/* These are the embedded boards */
 #ifdef	AH_SUPPORT_AR9330
 #define AH_SUPPORT_HORNET		1
 #endif	/* AH_SUPPORT_AR9330 */
