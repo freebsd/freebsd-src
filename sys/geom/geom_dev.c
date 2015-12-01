@@ -124,6 +124,7 @@ g_dev_fini(struct g_class *mp)
 {
 
 	freeenv(dumpdev);
+	dumpdev = NULL;
 }
 
 static int
@@ -152,10 +153,16 @@ g_dev_setdumpdev(struct cdev *dev, struct thread *td)
 static void
 init_dumpdev(struct cdev *dev)
 {
+	const char *devprefix = "/dev/", *devname;
+	size_t len;
 
 	if (dumpdev == NULL)
 		return;
-	if (strcmp(devtoname(dev), dumpdev) != 0)
+	len = strlen(devprefix);
+	devname = devtoname(dev);
+	if (strcmp(devname, dumpdev) != 0 &&
+	   (strncmp(dumpdev, devprefix, len) != 0 ||
+	    strcmp(devname, dumpdev + len) != 0))
 		return;
 	if (g_dev_setdumpdev(dev, curthread) == 0) {
 		freeenv(dumpdev);
