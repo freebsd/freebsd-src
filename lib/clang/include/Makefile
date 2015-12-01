@@ -67,7 +67,4 @@ INCS=	__stddef_max_align_t.h \
 GENINCS= arm_neon.h
 CLEANFILES= ${GENINCS} ${GENINCS:C/\.h$/.d/}
 
-# avoid a circular dependency
-GENDIRDEPS_FILTER+= Nusr.bin/clang/clang-tblgen.host
-
 .include <bsd.prog.mk>
