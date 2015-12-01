@@ -50,6 +50,7 @@ __<bsd.opts.mk>__:
 
 __DEFAULT_YES_OPTIONS = \
     ASSERT_DEBUG \
+    CHERI_LINKER \
     DOCCOMPRESS \
     INCLUDES \
     INSTALLLIB \
@@ -68,7 +69,6 @@ __DEFAULT_YES_OPTIONS = \
 __DEFAULT_NO_OPTIONS = \
     CHERI128 \
     CHERI256 \
-    CHERI_LINKER \
     CTF \
     DEBUG_FILES \
     INSTALL_AS_USER \
