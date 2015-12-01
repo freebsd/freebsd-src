@@ -162,6 +162,7 @@ _LIBRARIES=	\
 		ypclnt \
 		z
 
+_DP_80211=	sbuf bsdxml
 _DP_archive=	z bz2 lzma bsdxml
 .if ${MK_OPENSSL} != "no"
 _DP_archive+=	crypto
