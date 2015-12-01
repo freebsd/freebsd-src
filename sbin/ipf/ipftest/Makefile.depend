@@ -10,6 +10,7 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
+	lib/libelf \
 	lib/libkvm \
 	sbin/ipf/libipf \
 	usr.bin/yacc.host \

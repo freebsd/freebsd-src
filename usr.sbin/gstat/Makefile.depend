@@ -11,6 +11,7 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libdevstat \
 	lib/libedit \
+	lib/libelf \
 	lib/libexpat \
 	lib/libgeom \
 	lib/libkvm \

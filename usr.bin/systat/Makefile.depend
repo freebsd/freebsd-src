@@ -11,6 +11,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libdevstat \
+	lib/libelf \
 	lib/libkvm \
 	lib/msun \
 	lib/ncurses/ncursesw \
