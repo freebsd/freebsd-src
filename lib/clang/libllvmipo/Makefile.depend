@@ -13,6 +13,8 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
+ArgumentPromotion.o: Intrinsics.inc.h
+ArgumentPromotion.po: Intrinsics.inc.h
 DeadArgumentElimination.o: Intrinsics.inc.h
 DeadArgumentElimination.po: Intrinsics.inc.h
 FunctionAttrs.o: Intrinsics.inc.h
@@ -25,6 +27,10 @@ InlineSimple.o: Intrinsics.inc.h
 InlineSimple.po: Intrinsics.inc.h
 Inliner.o: Intrinsics.inc.h
 Inliner.po: Intrinsics.inc.h
+Internalize.o: Intrinsics.inc.h
+Internalize.po: Intrinsics.inc.h
+LowerBitSets.o: Intrinsics.inc.h
+LowerBitSets.po: Intrinsics.inc.h
 PruneEH.o: Intrinsics.inc.h
 PruneEH.po: Intrinsics.inc.h
 .endif

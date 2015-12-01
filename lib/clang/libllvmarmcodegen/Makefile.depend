@@ -146,9 +146,11 @@ ARMSubtarget.po: ARMGenSubtargetInfo.inc.h
 ARMTargetMachine.o: ARMGenInstrInfo.inc.h
 ARMTargetMachine.o: ARMGenRegisterInfo.inc.h
 ARMTargetMachine.o: ARMGenSubtargetInfo.inc.h
+ARMTargetMachine.o: Intrinsics.inc.h
 ARMTargetMachine.po: ARMGenInstrInfo.inc.h
 ARMTargetMachine.po: ARMGenRegisterInfo.inc.h
 ARMTargetMachine.po: ARMGenSubtargetInfo.inc.h
+ARMTargetMachine.po: Intrinsics.inc.h
 ARMTargetObjectFile.o: ARMGenInstrInfo.inc.h
 ARMTargetObjectFile.o: ARMGenRegisterInfo.inc.h
 ARMTargetObjectFile.o: ARMGenSubtargetInfo.inc.h
@@ -181,12 +183,6 @@ Thumb1InstrInfo.o: ARMGenSubtargetInfo.inc.h
 Thumb1InstrInfo.po: ARMGenInstrInfo.inc.h
 Thumb1InstrInfo.po: ARMGenRegisterInfo.inc.h
 Thumb1InstrInfo.po: ARMGenSubtargetInfo.inc.h
-Thumb1RegisterInfo.o: ARMGenInstrInfo.inc.h
-Thumb1RegisterInfo.o: ARMGenRegisterInfo.inc.h
-Thumb1RegisterInfo.o: ARMGenSubtargetInfo.inc.h
-Thumb1RegisterInfo.po: ARMGenInstrInfo.inc.h
-Thumb1RegisterInfo.po: ARMGenRegisterInfo.inc.h
-Thumb1RegisterInfo.po: ARMGenSubtargetInfo.inc.h
 Thumb2ITBlockPass.o: ARMGenInstrInfo.inc.h
 Thumb2ITBlockPass.o: ARMGenRegisterInfo.inc.h
 Thumb2ITBlockPass.o: ARMGenSubtargetInfo.inc.h
@@ -199,16 +195,16 @@ Thumb2InstrInfo.o: ARMGenSubtargetInfo.inc.h
 Thumb2InstrInfo.po: ARMGenInstrInfo.inc.h
 Thumb2InstrInfo.po: ARMGenRegisterInfo.inc.h
 Thumb2InstrInfo.po: ARMGenSubtargetInfo.inc.h
-Thumb2RegisterInfo.o: ARMGenInstrInfo.inc.h
-Thumb2RegisterInfo.o: ARMGenRegisterInfo.inc.h
-Thumb2RegisterInfo.o: ARMGenSubtargetInfo.inc.h
-Thumb2RegisterInfo.po: ARMGenInstrInfo.inc.h
-Thumb2RegisterInfo.po: ARMGenRegisterInfo.inc.h
-Thumb2RegisterInfo.po: ARMGenSubtargetInfo.inc.h
 Thumb2SizeReduction.o: ARMGenInstrInfo.inc.h
 Thumb2SizeReduction.o: ARMGenRegisterInfo.inc.h
 Thumb2SizeReduction.o: ARMGenSubtargetInfo.inc.h
 Thumb2SizeReduction.po: ARMGenInstrInfo.inc.h
 Thumb2SizeReduction.po: ARMGenRegisterInfo.inc.h
 Thumb2SizeReduction.po: ARMGenSubtargetInfo.inc.h
+ThumbRegisterInfo.o: ARMGenInstrInfo.inc.h
+ThumbRegisterInfo.o: ARMGenRegisterInfo.inc.h
+ThumbRegisterInfo.o: ARMGenSubtargetInfo.inc.h
+ThumbRegisterInfo.po: ARMGenInstrInfo.inc.h
+ThumbRegisterInfo.po: ARMGenRegisterInfo.inc.h
+ThumbRegisterInfo.po: ARMGenSubtargetInfo.inc.h
 .endif

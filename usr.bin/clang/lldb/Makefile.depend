@@ -28,7 +28,13 @@ DIRDEPS = \
 	lib/clang/liblldbHostCommon \
 	lib/clang/liblldbHostFreeBSD \
 	lib/clang/liblldbHostPOSIX \
+	lib/clang/liblldbInitialization \
 	lib/clang/liblldbInterpreter \
+	lib/clang/liblldbPluginABISysV_arm \
+	lib/clang/liblldbPluginABISysV_arm64 \
+	lib/clang/liblldbPluginABISysV_i386 \
+	lib/clang/liblldbPluginABISysV_mips \
+	lib/clang/liblldbPluginABISysV_mips64 \
 	lib/clang/liblldbPluginABISysV_ppc \
 	lib/clang/liblldbPluginABISysV_ppc64 \
 	lib/clang/liblldbPluginABISysV_x86_64 \
@@ -38,6 +44,8 @@ DIRDEPS = \
 	lib/clang/liblldbPluginDynamicLoaderStatic \
 	lib/clang/liblldbPluginInstructionARM \
 	lib/clang/liblldbPluginInstructionARM64 \
+	lib/clang/liblldbPluginInstructionMIPS \
+	lib/clang/liblldbPluginInstructionMIPS64 \
 	lib/clang/liblldbPluginInstrumentationRuntimeAddressSanitizer \
 	lib/clang/liblldbPluginJITLoaderGDB \
 	lib/clang/liblldbPluginMemoryHistoryASan \

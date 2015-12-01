@@ -611,12 +611,14 @@ VTableBuilder.o: AttrList.inc.h
 VTableBuilder.o: Attrs.inc.h
 VTableBuilder.o: CommentCommandList.inc.h
 VTableBuilder.o: DeclNodes.inc.h
+VTableBuilder.o: DiagnosticASTKinds.inc.h
 VTableBuilder.o: DiagnosticCommonKinds.inc.h
 VTableBuilder.o: StmtNodes.inc.h
 VTableBuilder.po: AttrList.inc.h
 VTableBuilder.po: Attrs.inc.h
 VTableBuilder.po: CommentCommandList.inc.h
 VTableBuilder.po: DeclNodes.inc.h
+VTableBuilder.po: DiagnosticASTKinds.inc.h
 VTableBuilder.po: DiagnosticCommonKinds.inc.h
 VTableBuilder.po: StmtNodes.inc.h
 .endif

@@ -13,16 +13,6 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-AddressSanitizerRuntime.o: AttrList.inc.h
-AddressSanitizerRuntime.o: Attrs.inc.h
-AddressSanitizerRuntime.o: CommentCommandList.inc.h
-AddressSanitizerRuntime.o: DeclNodes.inc.h
 AddressSanitizerRuntime.o: DiagnosticCommonKinds.inc.h
-AddressSanitizerRuntime.o: StmtNodes.inc.h
-AddressSanitizerRuntime.po: AttrList.inc.h
-AddressSanitizerRuntime.po: Attrs.inc.h
-AddressSanitizerRuntime.po: CommentCommandList.inc.h
-AddressSanitizerRuntime.po: DeclNodes.inc.h
 AddressSanitizerRuntime.po: DiagnosticCommonKinds.inc.h
-AddressSanitizerRuntime.po: StmtNodes.inc.h
 .endif

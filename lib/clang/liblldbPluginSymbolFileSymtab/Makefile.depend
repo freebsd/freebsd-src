@@ -13,12 +13,8 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-SymbolFileSymtab.o: CommentCommandList.inc.h
 SymbolFileSymtab.o: DeclNodes.inc.h
 SymbolFileSymtab.o: DiagnosticCommonKinds.inc.h
-SymbolFileSymtab.o: StmtNodes.inc.h
-SymbolFileSymtab.po: CommentCommandList.inc.h
 SymbolFileSymtab.po: DeclNodes.inc.h
 SymbolFileSymtab.po: DiagnosticCommonKinds.inc.h
-SymbolFileSymtab.po: StmtNodes.inc.h
 .endif

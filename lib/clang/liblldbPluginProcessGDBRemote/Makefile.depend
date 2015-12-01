@@ -13,24 +13,6 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-GDBRemoteCommunication.o: DiagnosticCommonKinds.inc.h
-GDBRemoteCommunication.po: DiagnosticCommonKinds.inc.h
-GDBRemoteCommunicationClient.o: DiagnosticCommonKinds.inc.h
-GDBRemoteCommunicationClient.po: DiagnosticCommonKinds.inc.h
-GDBRemoteCommunicationServer.o: AttrList.inc.h
-GDBRemoteCommunicationServer.o: Attrs.inc.h
-GDBRemoteCommunicationServer.o: CommentCommandList.inc.h
-GDBRemoteCommunicationServer.o: DeclNodes.inc.h
-GDBRemoteCommunicationServer.o: DiagnosticCommonKinds.inc.h
-GDBRemoteCommunicationServer.o: StmtNodes.inc.h
-GDBRemoteCommunicationServer.po: AttrList.inc.h
-GDBRemoteCommunicationServer.po: Attrs.inc.h
-GDBRemoteCommunicationServer.po: CommentCommandList.inc.h
-GDBRemoteCommunicationServer.po: DeclNodes.inc.h
-GDBRemoteCommunicationServer.po: DiagnosticCommonKinds.inc.h
-GDBRemoteCommunicationServer.po: StmtNodes.inc.h
-GDBRemoteRegisterContext.o: DiagnosticCommonKinds.inc.h
-GDBRemoteRegisterContext.po: DiagnosticCommonKinds.inc.h
 ProcessGDBRemote.o: AttrList.inc.h
 ProcessGDBRemote.o: Attrs.inc.h
 ProcessGDBRemote.o: CommentCommandList.inc.h
@@ -43,8 +25,6 @@ ProcessGDBRemote.po: CommentCommandList.inc.h
 ProcessGDBRemote.po: DeclNodes.inc.h
 ProcessGDBRemote.po: DiagnosticCommonKinds.inc.h
 ProcessGDBRemote.po: StmtNodes.inc.h
-ProcessGDBRemoteLog.o: DiagnosticCommonKinds.inc.h
-ProcessGDBRemoteLog.po: DiagnosticCommonKinds.inc.h
 ThreadGDBRemote.o: DiagnosticCommonKinds.inc.h
 ThreadGDBRemote.po: DiagnosticCommonKinds.inc.h
 .endif

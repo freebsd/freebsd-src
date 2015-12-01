@@ -21,4 +21,10 @@ AArch64Disassembler.po: AArch64GenDisassemblerTables.inc.h
 AArch64Disassembler.po: AArch64GenInstrInfo.inc.h
 AArch64Disassembler.po: AArch64GenRegisterInfo.inc.h
 AArch64Disassembler.po: AArch64GenSubtargetInfo.inc.h
+AArch64ExternalSymbolizer.o: AArch64GenInstrInfo.inc.h
+AArch64ExternalSymbolizer.o: AArch64GenRegisterInfo.inc.h
+AArch64ExternalSymbolizer.o: AArch64GenSubtargetInfo.inc.h
+AArch64ExternalSymbolizer.po: AArch64GenInstrInfo.inc.h
+AArch64ExternalSymbolizer.po: AArch64GenRegisterInfo.inc.h
+AArch64ExternalSymbolizer.po: AArch64GenSubtargetInfo.inc.h
 .endif

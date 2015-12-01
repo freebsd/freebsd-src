@@ -4,7 +4,6 @@
 DIRDEPS = \
 	include \
 	include/xlocale \
-	lib/clang/include.host \
 	lib/libc++ \
 	lib/msun \
 	usr.bin/clang/clang-tblgen.host \

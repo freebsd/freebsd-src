@@ -17,6 +17,8 @@ CallGraph.o: Intrinsics.inc.h
 CallGraph.po: Intrinsics.inc.h
 CallGraphSCCPass.o: Intrinsics.inc.h
 CallGraphSCCPass.po: Intrinsics.inc.h
+CallPrinter.o: Intrinsics.inc.h
+CallPrinter.po: Intrinsics.inc.h
 GlobalsModRef.o: Intrinsics.inc.h
 GlobalsModRef.po: Intrinsics.inc.h
 InlineCost.o: Intrinsics.inc.h

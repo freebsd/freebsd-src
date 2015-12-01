@@ -13,12 +13,6 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-JITLoaderGDB.o: CommentCommandList.inc.h
-JITLoaderGDB.o: DeclNodes.inc.h
 JITLoaderGDB.o: DiagnosticCommonKinds.inc.h
-JITLoaderGDB.o: StmtNodes.inc.h
-JITLoaderGDB.po: CommentCommandList.inc.h
-JITLoaderGDB.po: DeclNodes.inc.h
 JITLoaderGDB.po: DiagnosticCommonKinds.inc.h
-JITLoaderGDB.po: StmtNodes.inc.h
 .endif

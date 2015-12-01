@@ -19,4 +19,6 @@ X86Disassembler.o: X86GenSubtargetInfo.inc.h
 X86Disassembler.po: X86GenInstrInfo.inc.h
 X86Disassembler.po: X86GenRegisterInfo.inc.h
 X86Disassembler.po: X86GenSubtargetInfo.inc.h
+X86DisassemblerDecoder.o: X86GenDisassemblerTables.inc.h
+X86DisassemblerDecoder.po: X86GenDisassemblerTables.inc.h
 .endif

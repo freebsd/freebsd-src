@@ -35,6 +35,8 @@ IntrinsicInst.o: Intrinsics.inc.h
 IntrinsicInst.po: Intrinsics.inc.h
 Statepoint.o: Intrinsics.inc.h
 Statepoint.po: Intrinsics.inc.h
+Value.o: Intrinsics.inc.h
+Value.po: Intrinsics.inc.h
 Verifier.o: Intrinsics.inc.h
 Verifier.po: Intrinsics.inc.h
 .endif
