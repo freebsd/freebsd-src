@@ -165,3 +165,11 @@ LDADD:=	${LDADD:N-lc} -lc
 LDADD:=	${LDADD:N-lmalloc_simple} -lmalloc_simple
 .endif
 .endif
+
+# Only do this for src builds.
+.if defined(SRCTOP)
+# Derive LIB*SRCDIR from LIB*DIR
+.for lib in ${_LIBRARIES}
+LIB${lib:tu}SRCDIR?=	${SRCTOP}/${LIB${lib:tu}DIR:S,^${OBJTOP}/,,}
+.endfor
+.endif
