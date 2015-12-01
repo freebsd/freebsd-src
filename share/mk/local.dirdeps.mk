@@ -84,7 +84,71 @@ DIRDEPS += \
 	cddl/usr.bin/ctfmerge.host
 .endif
 
+# Bootstrap support.  Give hints to DIRDEPS if there is no Makefile.depend*
+# generated yet.  This can be based on things such as SRC files and LIBADD.
+# These hints will not factor into the final Makefile.depend as only what is
+# used will be added in and handled via [local.]gendirdeps.mk.  This is not
+# done for MACHINE=host builds.
+# XXX: Include this in local.autodep.mk as well for gendirdeps without filemon.
+.if ${RELDIR} == ${DEP_RELDIR} # Only do this for main build target
+.for _depfile in ${.MAKE.DEPENDFILE_PREFERENCE:T}
+.if !defined(_have_depfile) && exists(${.CURDIR}/${_depfile})
+_have_depfile=
 .endif
+.endfor
+.if !defined(_have_depfile)
+# Has C files. The C_DIRDEPS are shared with C++ files as well.
+C_DIRDEPS= \
+	gnu/lib/csu \
+	gnu/lib/libgcc \
+	include \
+	include/xlocale \
+	lib/${CSU_DIR} \
+	lib/libc \
+	lib/libcompiler_rt \
+
+.if !empty(SRCS:M*.c)
+DIRDEPS+= ${C_DIRDEPS}
+.endif
+# Has C++ files
+.if !empty(SRCS:M*.cc) || !empty(SRCS:M*.C) || !empty(SRCS:M*.cpp) || \
+    !empty(SRCS:M*.cxx)
+DIRDEPS+= ${C_DIRDEPS}
+.if ${MK_CLANG} == "yes"
+DIRDEPS+= lib/libc++ lib/libcxxrt
+.else
+DIRDEPS+= gnu/lib/libstdc++ gnu/lib/libsupc++
+.endif
+# XXX: Clang and GCC always adds -lm currently, even when not needed.
+DIRDEPS+= lib/msun
+.endif
+# Has yacc files.
+.if !empty(SRCS:M*.y)
+DIRDEPS+=	usr.bin/yacc.host
+.endif
+.if !empty(DPADD)
+# Taken from meta.autodep.mk (where it only does something with
+# BUILD_AT_LEVEL0, which we don't use).
+# This only works for DPADD with full OBJ/SRC paths, which is mostly just
+# _INTERNALLIBS.
+DIRDEPS+= \
+	${DPADD:M${OBJTOP}*:H:C,${OBJTOP}[^/]*/,,:N.:O:u} \
+	${DPADD:M${OBJROOT}*:N${OBJTOP}*:N${STAGE_ROOT}/*:H:S,${OBJROOT},,:C,^([^/]+)/(.*),\2.\1,:S,${HOST_TARGET}$,host,:N.*:O:u}
+.endif
+.if !empty(LIBADD)
+# Also handle LIBADD for non-internal libraries.
+.for _lib in ${LIBADD}
+_lib${_lib}reldir= ${LIB${_lib:tu}DIR:C,${OBJTOP}/,,}
+.if defined(LIB${_lib:tu}DIR) && ${DIRDEPS:M${_lib${_lib}reldir}} == "" && \
+    exists(${SRCTOP}/${_lib${_lib}reldir})
+DIRDEPS+= ${_lib${_lib}reldir}
+.endif
+.endfor
+.endif	# !empty(LIBADD)
+.endif	# no Makefile.depend*
+.endif	# ${RELDIR} == ${DEP_RELDIR}
+
+.endif	# ${DEP_MACHINE} != "host"
 
 .if ${MK_STAGING} == "yes"
 # we need targets/pseudo/stage to prep the stage tree
