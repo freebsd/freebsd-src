@@ -204,35 +204,41 @@ TRACER= ${TIME_STAMP} ${:U}
 .if ${MACHINE} == "host"
 MK_SHARED_TOOLCHAIN= no
 .endif
+TOOLCHAIN_VARS=	AS AR CC CLANG_TBLGEN CXX CPP LD NM OBJDUMP OBJCOPY RANLIB \
+		STRINGS SIZE TBLGEN
+_toolchain_bin_CLANG_TBLGEN=	/usr/bin/clang-tblgen
+_toolchain_bin_CXX=		/usr/bin/c++
 .ifdef WITH_TOOLSDIR
 TOOLSDIR?= ${HOST_OBJTOP}/tools
-.elif defined(STAGE_HOST_OBJTOP) && exists(${STAGE_HOST_OBJTOP}/usr/bin)
+.elif defined(STAGE_HOST_OBJTOP)
 TOOLSDIR?= ${STAGE_HOST_OBJTOP}
 .endif
-.if !empty(TOOLSDIR)
-.if ${.MAKE.LEVEL} == 0 && exists(${TOOLSDIR}/usr/bin)
-PATH:= ${PATH:S,:, ,g:@d@${exists(${TOOLSDIR}$d):?${TOOLSDIR}$d:}@:ts:}:${PATH}
+# Don't use the bootstrap tools logic on itself.
+.if ${.TARGETS:Mbootstrap-tools} == "" && \
+    !defined(BOOTSTRAPPING_TOOLS) && !empty(TOOLSDIR) && ${.MAKE.LEVEL} == 0
+.for dir in /sbin /bin /usr/sbin /usr/bin
+PATH:= ${TOOLSDIR}${dir}:${PATH}
+.endfor
 .export PATH
-.if exists(${TOOLSDIR}/usr/bin/cc)
-HOST_CC?=	${TOOLSDIR}/usr/bin/cc
-CC?=		${HOST_CC}
-HOST_CXX?=	${TOOLSDIR}/usr/bin/c++
-CXX?=		${HOST_CXX}
-HOST_CPP?=	${TOOLSDIR}/usr/bin/cpp
-CPP?=		${HOST_CPP}
-.export HOST_CC CC HOST_CXX CXX HOST_CPP CPP
+# Prefer the TOOLSDIR version of the toolchain if present vs the host version.
+.for var in ${TOOLCHAIN_VARS}
+_toolchain_bin.${var}=	${TOOLSDIR}${_toolchain_bin_${var}:U/usr/bin/${var:tl}}
+.if exists(${_toolchain_bin.${var}})
+HOST_${var}?=	${_toolchain_bin.${var}}
+${var}?=	${HOST_${var}}
+.export		HOST_${var} ${var}
 .endif
-.endif
+.endfor
 .endif
 
-HOST_CC?=	/usr/bin/cc
-HOST_CXX?=	/usr/bin/c++
-HOST_CPP?=	/usr/bin/cpp
+.for var in ${TOOLCHAIN_VARS}
+HOST_${var}?=	${_toolchain_bin_${var}:U/usr/bin/${var:tl}}
+.endfor
 
 .if ${MACHINE} == "host"
-CC=		${HOST_CC}
-CXX=		${HOST_CXX}
-CPP=		${HOST_CPP}
+.for var in ${TOOLCHAIN_VARS}
+${var}=		${HOST_${var}}
+.endfor
 .endif
 
 .if ${MACHINE:Nhost:Ncommon} != "" && ${MACHINE} != ${HOST_MACHINE}
