@@ -40,6 +40,11 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
+/* If defined, parse TX packets directly in if_transmit
+ * for better cache locality and reduced time under TX lock
+ */
+#define SFXGE_TX_PARSE_EARLY 1
+
 /* Maximum size of TSO packet */
 #define	SFXGE_TSO_MAX_SIZE		(65535)
 
