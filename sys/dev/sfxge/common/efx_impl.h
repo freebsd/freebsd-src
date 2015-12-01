@@ -462,6 +462,7 @@ typedef struct efx_mcdi_ops_s {
 	void		(*emco_fini)(efx_nic_t *);
 	efx_rc_t	(*emco_fw_update_supported)(efx_nic_t *, boolean_t *);
 	efx_rc_t	(*emco_macaddr_change_supported)(efx_nic_t *, boolean_t *);
+	efx_rc_t	(*emco_link_control_supported)(efx_nic_t *, boolean_t *);
 } efx_mcdi_ops_t;
 
 typedef struct efx_mcdi_s {
