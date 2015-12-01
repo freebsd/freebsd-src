@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/hhook.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
@@ -201,6 +202,17 @@ ip6_init(void)
 		printf("%s: WARNING: unable to register pfil hook, "
 			"error %d\n", __func__, i);
 
+	if (hhook_head_register(HHOOK_TYPE_IPSEC_IN, AF_INET6,
+	    &V_ipsec_hhh_in[HHOOK_IPSEC_INET6],
+	    HHOOK_WAITOK | HHOOK_HEADISINVNET) != 0)
+		printf("%s: WARNING: unable to register input helper hook\n",
+		    __func__);
+	if (hhook_head_register(HHOOK_TYPE_IPSEC_OUT, AF_INET6,
+	    &V_ipsec_hhh_out[HHOOK_IPSEC_INET6],
+	    HHOOK_WAITOK | HHOOK_HEADISINVNET) != 0)
+		printf("%s: WARNING: unable to register output helper hook\n",
+		    __func__);
+
 	scope6_init();
 	addrsel_policy_init();
 	nd6_init();
@@ -300,11 +312,23 @@ ip6proto_unregister(short ip6proto)
 void
 ip6_destroy()
 {
-	int i;
+	int error;
 
-	if ((i = pfil_head_unregister(&V_inet6_pfil_hook)) != 0)
+	if ((error = pfil_head_unregister(&V_inet6_pfil_hook)) != 0)
 		printf("%s: WARNING: unable to unregister pfil hook, "
-		    "error %d\n", __func__, i);
+		    "error %d\n", __func__, error);
+	error = hhook_head_deregister(V_ipsec_hhh_in[HHOOK_IPSEC_INET6]);
+	if (error != 0) {
+		printf("%s: WARNING: unable to deregister input helper hook "
+		    "type HHOOK_TYPE_IPSEC_IN, id HHOOK_IPSEC_INET6: "
+		    "error %d returned\n", __func__, error);
+	}
+	error = hhook_head_deregister(V_ipsec_hhh_out[HHOOK_IPSEC_INET6]);
+	if (error != 0) {
+		printf("%s: WARNING: unable to deregister output helper hook "
+		    "type HHOOK_TYPE_IPSEC_OUT, id HHOOK_IPSEC_INET6: "
+		    "error %d returned\n", __func__, error);
+	}
 	hashdestroy(V_in6_ifaddrhashtbl, M_IFADDR, V_in6_ifaddrhmask);
 	nd6_destroy();
 	callout_drain(&V_in6_tmpaddrtimer_ch);

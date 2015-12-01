@@ -44,14 +44,14 @@ __FBSDID("$FreeBSD$");
 
 #include "ef10_tlv_layout.h"
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 hunt_vpd_init(
 	__in			efx_nic_t *enp)
 {
 	caddr_t svpd;
 	size_t svpd_size;
 	uint32_t pci_pf;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
@@ -92,17 +92,17 @@ fail2:
 
 	EFSYS_KMEM_FREE(enp->en_esip, svpd_size, svpd);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 hunt_vpd_size(
 	__in			efx_nic_t *enp,
 	__out			size_t *sizep)
 {
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
 
@@ -119,12 +119,12 @@ hunt_vpd_size(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 hunt_vpd_read(
 	__in			efx_nic_t *enp,
 	__out_bcount(size)	caddr_t data,
@@ -133,7 +133,7 @@ hunt_vpd_read(
 	caddr_t dvpd;
 	size_t dvpd_size;
 	uint32_t pci_pf;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
 
@@ -163,12 +163,12 @@ fail2:
 
 	EFSYS_KMEM_FREE(enp->en_esip, dvpd_size, dvpd);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 hunt_vpd_verify(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
@@ -180,7 +180,7 @@ hunt_vpd_verify(
 	efx_vpd_keyword_t dkey;
 	unsigned int scont;
 	unsigned int dcont;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
 
@@ -237,19 +237,19 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 hunt_vpd_reinit(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size)
 {
 	boolean_t wantpid;
-	int rc;
+	efx_rc_t rc;
 
 	/*
 	 * Only create an ID string if the dynamic cfg doesn't have one
@@ -279,12 +279,12 @@ hunt_vpd_reinit(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 hunt_vpd_get(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
@@ -293,7 +293,7 @@ hunt_vpd_get(
 {
 	unsigned int offset;
 	uint8_t length;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
 
@@ -323,19 +323,19 @@ hunt_vpd_get(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 hunt_vpd_set(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size,
 	__in			efx_vpd_value_t *evvp)
 {
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
 
@@ -360,12 +360,12 @@ hunt_vpd_set(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 hunt_vpd_next(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
@@ -378,7 +378,7 @@ hunt_vpd_next(
 	return (ENOTSUP);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 hunt_vpd_write(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
@@ -386,7 +386,7 @@ hunt_vpd_write(
 {
 	size_t vpd_length;
 	uint32_t pci_pf;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
 
@@ -396,11 +396,11 @@ hunt_vpd_write(
 	if ((rc = efx_vpd_hunk_length(data, size, &vpd_length)) != 0)
 		goto fail1;
 
-	/* Store new dynamic VPD in DYNAMIC_CONFIG partition */
-	if ((rc = hunt_nvram_partn_write_tlv(enp,
+	/* Store new dynamic VPD in all segments in DYNAMIC_CONFIG partition */
+	if ((rc = hunt_nvram_partn_write_segment_tlv(enp,
 		    NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,
 		    TLV_TAG_PF_DYNAMIC_VPD(pci_pf),
-		    data, vpd_length)) != 0) {
+		    data, vpd_length, B_TRUE)) != 0) {
 		goto fail2;
 	}
 
@@ -410,7 +410,7 @@ fail2:
 	EFSYS_PROBE(fail2);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }

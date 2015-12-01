@@ -49,7 +49,6 @@ ATF_TC_WITHOUT_HEAD(mbrlen_test);
 ATF_TC_BODY(mbrlen_test, tc)
 {
 	mbstate_t s;
-	size_t len;
 	char buf[MB_LEN_MAX + 1];
 
 	/* C/POSIX locale. */

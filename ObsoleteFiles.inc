@@ -38,6 +38,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20151115: Fox bad upgrade scheme
+OLD_FILES+=usr/share/locale/zh_CN.GB18030/zh_Hans_CN.GB18030
+OLD_FILES+=usr/share/locale/zh_CN.GB2312/zh_Hans_CN.GB2312
+OLD_FILES+=usr/share/locale/zh_CN.GBK/zh_Hans_CN.GBK
+OLD_FILES+=usr/share/locale/zh_CN.UTF-8/zh_Hans_CN.UTF-8
+OLD_FILES+=usr/share/locale/zh_CN.eucCN/zh_Hans_CN.eucCN
+OLD_FILES+=usr/share/locale/zh_TW.Big5/zh_Hant_TW.Big5
+OLD_FILES+=usr/share/locale/zh_TW.UTF-8/zh_Hant_TW.UTF-8
 # 20151107: String collation improvements
 OLD_FILES+=usr/share/locale/UTF-8/LC_CTYPE
 OLD_DIRS+=usr/share/locale/UTF-8
@@ -78,6 +86,13 @@ OLD_FILES+=usr/share/locale/la_LN.US-ASCII/LC_COLLATE
 OLD_FILES+=usr/share/locale/la_LN.US-ASCII/LC_CTYPE
 OLD_FILES+=usr/share/locale/la_LN.US-ASCII/LC_TIME
 OLD_DIRS+=usr/share/locale/la_LN.US-ASCII
+OLD_FILES+=usr/share/locale/lt_LT.ISO8859-4/LC_MESSAGES
+OLD_FILES+=usr/share/locale/lt_LT.ISO8859-4/LC_TIME
+OLD_FILES+=usr/share/locale/lt_LT.ISO8859-4/LC_COLLATE
+OLD_FILES+=usr/share/locale/lt_LT.ISO8859-4/LC_MONETARY
+OLD_FILES+=usr/share/locale/lt_LT.ISO8859-4/LC_CTYPE
+OLD_FILES+=usr/share/locale/lt_LT.ISO8859-4/LC_NUMERIC
+OLD_DIRS+=usr/share/locale/lt_LT.ISO8859-4
 OLD_FILES+=usr/share/locale/mn_MN.UTF-8/LC_COLLATE
 OLD_FILES+=usr/share/locale/mn_MN.UTF-8/LC_CTYPE
 OLD_FILES+=usr/share/locale/mn_MN.UTF-8/LC_MESSAGES
@@ -106,10 +121,27 @@ OLD_FILES+=usr/share/locale/no_NO.UTF-8/LC_MONETARY
 OLD_FILES+=usr/share/locale/no_NO.UTF-8/LC_NUMERIC
 OLD_FILES+=usr/share/locale/no_NO.UTF-8/LC_TIME
 OLD_DIRS+=usr/share/locale/no_NO.UTF-8
-OLD_FILES+=usr/bin/colldef
-OLD_FILES+=usr/share/man/man1/colldef.1.gz
-OLD_FILES+=usr/bin/mklocale
-OLD_FILES+=usr/share/man/man1/mklocale.1.gz
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-2/LC_COLLATE
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-2/LC_TIME
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-2/LC_CTYPE
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-2/LC_MESSAGES
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-2/LC_NUMERIC
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-2/LC_MONETARY
+OLD_DIRS+=usr/share/locale/sr_YU.ISO8859-2
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-5/LC_COLLATE
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-5/LC_MONETARY
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-5/LC_NUMERIC
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-5/LC_CTYPE
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-5/LC_TIME
+OLD_FILES+=usr/share/locale/sr_YU.ISO8859-5/LC_MESSAGES
+OLD_DIRS+=usr/share/locale/sr_YU.ISO8859-5
+OLD_FILES+=usr/share/locale/sr_YU.UTF-8/LC_COLLATE
+OLD_FILES+=usr/share/locale/sr_YU.UTF-8/LC_MONETARY
+OLD_FILES+=usr/share/locale/sr_YU.UTF-8/LC_CTYPE
+OLD_FILES+=usr/share/locale/sr_YU.UTF-8/LC_TIME
+OLD_FILES+=usr/share/locale/sr_YU.UTF-8/LC_NUMERIC
+OLD_FILES+=usr/share/locale/sr_YU.UTF-8/LC_MESSAGES
+OLD_DIRS+=usr/share/locale/sr_YU.UTF-8
 # 20151101: added missing _test suffix on multiple tests in lib/libc
 OLD_FILES+=usr/tests/lib/libc/c063/faccessat
 OLD_FILES+=usr/tests/lib/libc/c063/fchmodat

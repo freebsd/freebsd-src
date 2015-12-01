@@ -39,6 +39,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	Databases administrators will need to reindex their databases given
 	collation results will be different.
 
+	Due to a bug in install(1) it is recommended to remove the ancient
+	locales before running make installworld.
+
+	rm -rf /usr/share/locale/*
+
 20151030:
 	The OpenSSL has been upgraded to 1.0.2d.  Any binaries requiring
 	libcrypto.so.7 or libssl.so.7 must be recompiled.
@@ -191,12 +196,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	like it always used to, and the difference will be irrelevant.
 
 	If you remove 'device random', you get *NO* kernel-processed
-	entopy at all. This may be acceptable to folks building
+	entropy at all. This may be acceptable to folks building
 	embedded systems, but has complications. Carry on reading,
 	and it is assumed you know what you need.
 
 	*PLEASE* read random(4) and random(9) if you are in the
-	habit of tweeking kernel configs, and/or if you are a member
+	habit of tweaking kernel configs, and/or if you are a member
 	of the embedded community, wanting specific and not-usual
 	behaviour from your security subsystems.
 

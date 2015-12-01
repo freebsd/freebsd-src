@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 ATF_TC_WITHOUT_HEAD(mblen_test);
 ATF_TC_BODY(mblen_test, tc)
 {
-	size_t len;
 	char buf[MB_LEN_MAX + 1];
 
 	/*

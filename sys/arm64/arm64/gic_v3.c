@@ -155,7 +155,7 @@ gic_v3_attach(device_t dev)
 	 * One entry for Distributor and all remaining for Re-Distributor.
 	 */
 	sc->gic_res = malloc(
-	    sizeof(sc->gic_res) * (sc->gic_redists.nregions + 1),
+	    sizeof(*sc->gic_res) * (sc->gic_redists.nregions + 1),
 	    M_GIC_V3, M_WAITOK);
 
 	/* Now allocate corresponding resources */

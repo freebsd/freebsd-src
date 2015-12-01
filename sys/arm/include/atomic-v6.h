@@ -641,6 +641,25 @@ atomic_testandset_64(volatile uint64_t *p, u_int v)
 	return (atomic_testandset_32(p32, v));
 }
 
+static __inline uint32_t
+atomic_swap_32(volatile uint32_t *p, uint32_t v)
+{
+	uint32_t ret, exflag;
+
+	__asm __volatile(
+	    "1: ldrex	%[ret], [%[ptr]]		\n"
+	    "   strex	%[exf], %[val], [%[ptr]]	\n"
+	    "   teq	%[exf], #0			\n"
+	    "   it	ne				\n"
+	    "   bne	1b				\n"
+	    : [ret] "=r"  (ret),
+	      [exf] "=&r" (exflag)
+	    : [val] "r"  (v),
+	      [ptr] "r"  (p)
+	    : "cc", "memory");
+	return (ret);
+}
+
 #undef ATOMIC_ACQ_REL
 #undef ATOMIC_ACQ_REL_LONG
 

@@ -716,10 +716,10 @@ build32: .PHONY
 	    build-tools
 .endfor
 	${_+_}cd ${.CURDIR}; \
-	    ${LIB32WMAKE} -f Makefile.inc1 libraries
+	    ${LIB32WMAKE} -f Makefile.inc1 -DNO_FSCHG libraries
 .for _t in obj depend all
 	${_+_}cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32WMAKE} \
-	    DIRPRFX=libexec/rtld-elf/ ${_t}
+	    -DNO_FSCHG DIRPRFX=libexec/rtld-elf/ ${_t}
 	${_+_}cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32WMAKE} \
 	    DIRPRFX=usr.bin/ldd ${_t}
 .endfor
@@ -1458,9 +1458,6 @@ ${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd ${_bt}-lib/libsqlite3
 _makewhatis=usr.bin/makewhatis
 .endif
 
-# Rebuild up-to-date libmd for xinstall
-${_bt}-usr.bin/xinstall: ${_bt}-lib/libmd
-
 bootstrap-tools: .PHONY
 
 #	Please document (add comment) why something is in 'bootstrap-tools'.
@@ -1483,7 +1480,6 @@ bootstrap-tools: .PHONY
     ${_yacc} \
     ${_m4} \
     ${_lex} \
-    lib/libmd \
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config \
@@ -1823,6 +1819,7 @@ _prebuild_libs+= lib/libc++
 .endif
 
 lib/libgeom__L: lib/libexpat__L
+lib/libkvm__L: lib/libelf__L
 
 .if ${MK_LIBTHR} != "no"
 _lib_libthr=	lib/libthr

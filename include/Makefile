@@ -5,7 +5,7 @@
 
 .include <src.opts.mk>
 
-CLEANFILES= osreldate.h version vers.c
+CLEANFILES= osreldate.h version
 SUBDIR= arpa protocols rpcsvc rpc xlocale
 SUBDIR_PARALLEL=
 INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
@@ -104,12 +104,8 @@ NEWVERS_SH=		${SYSDIR}/conf/newvers.sh
 PARAM_H=		${SYSDIR}/sys/param.h
 MK_OSRELDATE_SH=	${.CURDIR}/mk-osreldate.sh
 
-osreldate.h vers.c: ${NEWVERS_SH} ${PARAM_H} ${MK_OSRELDATE_SH}
-	env ECHO="${ECHO}" \
-	    MAKE="${MAKE}" \
-	    NEWVERS_SH=${NEWVERS_SH} \
-	    PARAM_H=${PARAM_H} \
-	    SYSDIR=${SYSDIR} \
+osreldate.h: ${NEWVERS_SH} ${PARAM_H} ${MK_OSRELDATE_SH}
+	env NEWVERS_SH=${NEWVERS_SH} PARAMFILE=${PARAM_H} SYSDIR=${SYSDIR} \
 	    sh ${MK_OSRELDATE_SH}
 
 .for i in ${LHDRS}
@@ -166,7 +162,7 @@ compat:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR} > /dev/null
-.if ${MK_META_MODE} == "yes"
+.if ${MK_DIRDEPS_BUILD} == "yes"
 	@touch ${.TARGET}
 .endif
 
@@ -255,7 +251,7 @@ copies:
 	cd ${.CURDIR}/../sys/teken; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
 	    ${DESTDIR}${INCLUDEDIR}/teken
-.if ${MK_META_MODE} == "yes"
+.if ${MK_DIRDEPS_BUILD} == "yes"
 	@touch ${.OBJDIR}/${.TARGET}
 .endif
 
@@ -372,11 +368,11 @@ symlinks:
 		ln -fs ../../../sys/rpc/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/rpc; \
 	done
-.if ${MK_META_MODE} == "yes"
+.if ${MK_DIRDEPS_BUILD} == "yes"
 	@touch ${.OBJDIR}/${.TARGET}
 .endif
 
-.if ${MACHINE} == "host"
+.if ${MACHINE} == "host" && !defined(_SKIP_BUILD)
 # we're here because we are building a sysroot...
 # we need MACHINE et al set correctly
 HOST_MACHINE!= uname -m

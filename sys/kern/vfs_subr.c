@@ -146,24 +146,38 @@ int vttoif_tab[10] = {
 static TAILQ_HEAD(freelst, vnode) vnode_free_list;
 
 /*
- * Free vnode target.  Free vnodes may simply be files which have been stat'd
- * but not read.  This is somewhat common, and a small cache of such files
- * should be kept to avoid recreation costs.
+ * "Free" vnode target.  Free vnodes are rarely completely free, but are
+ * just ones that are cheap to recycle.  Usually they are for files which
+ * have been stat'd but not read; these usually have inode and namecache
+ * data attached to them.  This target is the preferred minimum size of a
+ * sub-cache consisting mostly of such files. The system balances the size
+ * of this sub-cache with its complement to try to prevent either from
+ * thrashing while the other is relatively inactive.  The targets express
+ * a preference for the best balance.
+ *
+ * "Above" this target there are 2 further targets (watermarks) related
+ * to recyling of free vnodes.  In the best-operating case, the cache is
+ * exactly full, the free list has size between vlowat and vhiwat above the
+ * free target, and recycling from it and normal use maintains this state.
+ * Sometimes the free list is below vlowat or even empty, but this state
+ * is even better for immediate use provided the cache is not full.
+ * Otherwise, vnlru_proc() runs to reclaim enough vnodes (usually non-free
+ * ones) to reach one of these states.  The watermarks are currently hard-
+ * coded as 4% and 9% of the available space higher.  These and the default
+ * of 25% for wantfreevnodes are too large if the memory size is large.
+ * E.g., 9% of 75% of MAXVNODES is more than 566000 vnodes to reclaim
+ * whenever vnlru_proc() becomes active.
  */
 static u_long wantfreevnodes;
-SYSCTL_ULONG(_vfs, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "");
-/* Number of vnodes in the free list. */
+SYSCTL_ULONG(_vfs, OID_AUTO, wantfreevnodes, CTLFLAG_RW,
+    &wantfreevnodes, 0, "Target for minimum number of \"free\" vnodes");
 static u_long freevnodes;
-SYSCTL_ULONG(_vfs, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0,
-    "Number of vnodes in the free list");
-
-static int vlru_allow_cache_src;
-SYSCTL_INT(_vfs, OID_AUTO, vlru_allow_cache_src, CTLFLAG_RW,
-    &vlru_allow_cache_src, 0, "Allow vlru to reclaim source vnode");
+SYSCTL_ULONG(_vfs, OID_AUTO, freevnodes, CTLFLAG_RD,
+    &freevnodes, 0, "Number of \"free\" vnodes");
 
 static u_long recycles_count;
 SYSCTL_ULONG(_vfs, OID_AUTO, recycles, CTLFLAG_RD, &recycles_count, 0,
-    "Number of vnodes recycled to avoid exceding kern.maxvnodes");
+    "Number of vnodes recycled to meet vnode cache targets");
 
 /*
  * Various variables used for debugging the new implementation of
@@ -178,12 +192,6 @@ static u_long free_owe_inact;
 SYSCTL_ULONG(_vfs, OID_AUTO, free_owe_inact, CTLFLAG_RD, &free_owe_inact, 0,
     "Number of times free vnodes kept on active list due to VFS "
     "owing inactivation");
-
-/*
- * Cache for the mount type id assigned to NFS.  This is used for
- * special checks in nfs/nfs_nqlease.c and vm/vnode_pager.c.
- */
-int	nfs_mount_type = -1;
 
 /* To keep more than one thread at a time from running vfs_getnewfsid */
 static struct mtx mntid_mtx;
@@ -273,14 +281,13 @@ static int syncer_worklist_len;
 static enum { SYNCER_RUNNING, SYNCER_SHUTTING_DOWN, SYNCER_FINAL_DELAY }
     syncer_state;
 
-/*
- * Number of vnodes we want to exist at any one time.  This is mostly used
- * to size hash tables in vnode-related code.  It is normally not used in
- * getnewvnode(), as wantfreevnodes is normally nonzero.)
- *
- * XXX desiredvnodes is historical cruft and should not exist.
- */
+/* Target for maximum number of vnodes. */
 int desiredvnodes;
+static int gapvnodes;		/* gap between wanted and desired */
+static int vhiwat;		/* enough extras after expansion */
+static int vlowat;		/* minimal extras before expansion */
+static int vstir;		/* nonzero to stir non-free vnodes */
+static volatile int vsmalltrigger = 8;	/* pref to keep if > this many pages */
 
 static int
 sysctl_update_desiredvnodes(SYSCTL_HANDLER_ARGS)
@@ -291,6 +298,8 @@ sysctl_update_desiredvnodes(SYSCTL_HANDLER_ARGS)
 	if ((error = sysctl_handle_int(oidp, arg1, arg2, req)) != 0)
 		return (error);
 	if (old_desiredvnodes != desiredvnodes) {
+		wantfreevnodes = desiredvnodes / 4;
+		/* XXX locking seems to be incomplete. */
 		vfs_hash_changesize(desiredvnodes);
 		cache_changesize(desiredvnodes);
 	}
@@ -299,9 +308,9 @@ sysctl_update_desiredvnodes(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_kern, KERN_MAXVNODES, maxvnodes,
     CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, &desiredvnodes, 0,
-    sysctl_update_desiredvnodes, "I", "Maximum number of vnodes");
+    sysctl_update_desiredvnodes, "I", "Target for maximum number of vnodes");
 SYSCTL_ULONG(_kern, OID_AUTO, minvnodes, CTLFLAG_RW,
-    &wantfreevnodes, 0, "Minimum number of vnodes (legacy)");
+    &wantfreevnodes, 0, "Old name for vfs.wantfreevnodes (legacy)");
 static int vnlru_nowhere;
 SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
     &vnlru_nowhere, 0, "Number of times the vnlru process ran without success");
@@ -332,11 +341,71 @@ PCTRIE_DEFINE(BUF, buf, b_lblkno, buf_trie_alloc, buf_trie_free);
  *
  * Reevaluate the following cap on the number of vnodes after the physical
  * memory size exceeds 512GB.  In the limit, as the physical memory size
- * grows, the ratio of physical pages to vnodes approaches sixteen to one.
+ * grows, the ratio of the memory size in KB to to vnodes approaches 64:1.
  */
 #ifndef	MAXVNODES_MAX
-#define	MAXVNODES_MAX	(512 * (1024 * 1024 * 1024 / (int)PAGE_SIZE / 16))
+#define	MAXVNODES_MAX	(512 * 1024 * 1024 / 64)	/* 8M */
 #endif
+
+/*
+ * Initialize a vnode as it first enters the zone.
+ */
+static int
+vnode_init(void *mem, int size, int flags)
+{
+	struct vnode *vp;
+	struct bufobj *bo;
+
+	vp = mem;
+	bzero(vp, size);
+	/*
+	 * Setup locks.
+	 */
+	vp->v_vnlock = &vp->v_lock;
+	mtx_init(&vp->v_interlock, "vnode interlock", NULL, MTX_DEF);
+	/*
+	 * By default, don't allow shared locks unless filesystems opt-in.
+	 */
+	lockinit(vp->v_vnlock, PVFS, "vnode", VLKTIMEOUT,
+	    LK_NOSHARE | LK_IS_VNODE);
+	/*
+	 * Initialize bufobj.
+	 */
+	bo = &vp->v_bufobj;
+	bo->__bo_vnode = vp;
+	rw_init(BO_LOCKPTR(bo), "bufobj interlock");
+	bo->bo_private = vp;
+	TAILQ_INIT(&bo->bo_clean.bv_hd);
+	TAILQ_INIT(&bo->bo_dirty.bv_hd);
+	/*
+	 * Initialize namecache.
+	 */
+	LIST_INIT(&vp->v_cache_src);
+	TAILQ_INIT(&vp->v_cache_dst);
+	/*
+	 * Initialize rangelocks.
+	 */
+	rangelock_init(&vp->v_rl);
+	return (0);
+}
+
+/*
+ * Free a vnode when it is cleared from the zone.
+ */
+static void
+vnode_fini(void *mem, int size)
+{
+	struct vnode *vp;
+	struct bufobj *bo;
+
+	vp = mem;
+	rangelock_destroy(&vp->v_rl);
+	lockdestroy(vp->v_vnlock);
+	mtx_destroy(&vp->v_interlock);
+	bo = &vp->v_bufobj;
+	rw_destroy(BO_LOCKPTR(bo));
+}
+
 static void
 vntblinit(void *dummy __unused)
 {
@@ -346,15 +415,16 @@ vntblinit(void *dummy __unused)
 	/*
 	 * Desiredvnodes is a function of the physical memory size and the
 	 * kernel's heap size.  Generally speaking, it scales with the
-	 * physical memory size.  The ratio of desiredvnodes to physical pages
-	 * is one to four until desiredvnodes exceeds 98,304.  Thereafter, the
-	 * marginal ratio of desiredvnodes to physical pages is one to
-	 * sixteen.  However, desiredvnodes is limited by the kernel's heap
+	 * physical memory size.  The ratio of desiredvnodes to the physical
+	 * memory size is 1:16 until desiredvnodes exceeds 98,304.
+	 * Thereafter, the
+	 * marginal ratio of desiredvnodes to the physical memory size is
+	 * 1:64.  However, desiredvnodes is limited by the kernel's heap
 	 * size.  The memory required by desiredvnodes vnodes and vm objects
-	 * may not exceed one seventh of the kernel's heap size.
+	 * must not exceed 1/7th of the kernel's heap size.
 	 */
-	physvnodes = maxproc + vm_cnt.v_page_count / 16 + 3 * min(98304 * 4,
-	    vm_cnt.v_page_count) / 16;
+	physvnodes = maxproc + pgtok(vm_cnt.v_page_count) / 64 +
+	    3 * min(98304 * 16, pgtok(vm_cnt.v_page_count)) / 64;
 	virtvnodes = vm_kmem_size / (7 * (sizeof(struct vm_object) +
 	    sizeof(struct vnode)));
 	desiredvnodes = min(physvnodes, virtvnodes);
@@ -369,7 +439,7 @@ vntblinit(void *dummy __unused)
 	TAILQ_INIT(&vnode_free_list);
 	mtx_init(&vnode_free_list_mtx, "vnode_free_list", NULL, MTX_DEF);
 	vnode_zone = uma_zcreate("VNODE", sizeof (struct vnode), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, 0);
+	    vnode_init, vnode_fini, UMA_ALIGN_PTR, 0);
 	vnodepoll_zone = uma_zcreate("VNODEPOLL", sizeof (struct vpollinfo),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	/*
@@ -743,35 +813,41 @@ vattr_null(struct vattr *vap)
  * you set kern.maxvnodes to.  Do not set kern.maxvnodes too low.
  */
 static int
-vlrureclaim(struct mount *mp)
+vlrureclaim(struct mount *mp, int reclaim_nc_src, int trigger)
 {
 	struct vnode *vp;
-	int done;
-	int trigger;
-	int usevnodes;
-	int count;
+	int count, done, target;
 
-	/*
-	 * Calculate the trigger point, don't allow user
-	 * screwups to blow us up.   This prevents us from
-	 * recycling vnodes with lots of resident pages.  We
-	 * aren't trying to free memory, we are trying to
-	 * free vnodes.
-	 */
-	usevnodes = desiredvnodes;
-	if (usevnodes <= 0)
-		usevnodes = 1;
-	trigger = vm_cnt.v_page_count * 2 / usevnodes;
 	done = 0;
 	vn_start_write(NULL, &mp, V_WAIT);
 	MNT_ILOCK(mp);
-	count = mp->mnt_nvnodelistsize / 10 + 1;
-	while (count != 0) {
+	count = mp->mnt_nvnodelistsize;
+	target = count * (int64_t)gapvnodes / imax(desiredvnodes, 1);
+	target = target / 10 + 1;
+	while (count != 0 && done < target) {
 		vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
 		while (vp != NULL && vp->v_type == VMARKER)
 			vp = TAILQ_NEXT(vp, v_nmntvnodes);
 		if (vp == NULL)
 			break;
+		/*
+		 * XXX LRU is completely broken for non-free vnodes.  First
+		 * by calling here in mountpoint order, then by moving
+		 * unselected vnodes to the end here, and most grossly by
+		 * removing the vlruvp() function that was supposed to
+		 * maintain the order.  (This function was born broken
+		 * since syncer problems prevented it doing anything.)  The
+		 * order is closer to LRC (C = Created).
+		 *
+		 * LRU reclaiming of vnodes seems to have last worked in
+		 * FreeBSD-3 where LRU wasn't mentioned under any spelling.
+		 * Then there was no hold count, and inactive vnodes were
+		 * simply put on the free list in LRU order.  The separate
+		 * lists also break LRU.  We prefer to reclaim from the
+		 * free list for technical reasons.  This tends to thrash
+		 * the free list to keep very unrecently used held vnodes.
+		 * The problem is mitigated by keeping the free list large.
+		 */
 		TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 		TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 		--count;
@@ -780,10 +856,12 @@ vlrureclaim(struct mount *mp)
 		/*
 		 * If it's been deconstructed already, it's still
 		 * referenced, or it exceeds the trigger, skip it.
+		 * Also skip free vnodes.  We are trying to make space
+		 * to expand the free list, not reduce it.
 		 */
 		if (vp->v_usecount ||
-		    (!vlru_allow_cache_src &&
-			!LIST_EMPTY(&(vp)->v_cache_src)) ||
+		    (!reclaim_nc_src && !LIST_EMPTY(&vp->v_cache_src)) ||
+		    ((vp->v_iflag & VI_FREE) != 0) ||
 		    (vp->v_iflag & VI_DOOMED) != 0 || (vp->v_object != NULL &&
 		    vp->v_object->resident_page_count > trigger)) {
 			VI_UNLOCK(vp);
@@ -809,8 +887,8 @@ vlrureclaim(struct mount *mp)
 		 * vnode lock before our VOP_LOCK() call fails.
 		 */
 		if (vp->v_usecount ||
-		    (!vlru_allow_cache_src &&
-			!LIST_EMPTY(&(vp)->v_cache_src)) ||
+		    (!reclaim_nc_src && !LIST_EMPTY(&vp->v_cache_src)) ||
+		    (vp->v_iflag & VI_FREE) != 0 ||
 		    (vp->v_object != NULL &&
 		    vp->v_object->resident_page_count > trigger)) {
 			VOP_UNLOCK(vp, LK_INTERLOCK);
@@ -843,7 +921,7 @@ relock_mnt:
 }
 
 /*
- * Attempt to keep the free list at wantfreevnodes length.
+ * Attempt to reduce the free list by the requested amount.
  */
 static void
 vnlru_free(int count)
@@ -900,6 +978,24 @@ vnlru_free(int count)
 		mtx_lock(&vnode_free_list_mtx);
 	}
 }
+
+/* XXX some names and initialization are bad for limits and watermarks. */
+static int
+vspace(void)
+{
+	int space;
+
+	gapvnodes = imax(desiredvnodes - wantfreevnodes, 100);
+	vhiwat = gapvnodes / 11; /* 9% -- just under the 10% in vlrureclaim() */
+	vlowat = vhiwat / 2;
+	if (numvnodes > desiredvnodes)
+		return (0);
+	space = desiredvnodes - numvnodes;
+	if (freevnodes > wantfreevnodes)
+		space += freevnodes - wantfreevnodes;
+	return (space);
+}
+
 /*
  * Attempt to recycle vnodes in a context that is always safe to block.
  * Calling vlrurecycle() from the bowels of filesystem code has some
@@ -912,18 +1008,36 @@ static void
 vnlru_proc(void)
 {
 	struct mount *mp, *nmp;
-	int done;
-	struct proc *p = vnlruproc;
+	unsigned long ofreevnodes, onumvnodes;
+	int done, force, reclaim_nc_src, trigger, usevnodes;
 
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, p,
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, vnlruproc,
 	    SHUTDOWN_PRI_FIRST);
 
+	force = 0;
 	for (;;) {
-		kproc_suspend_check(p);
+		kproc_suspend_check(vnlruproc);
 		mtx_lock(&vnode_free_list_mtx);
-		if (freevnodes > wantfreevnodes)
-			vnlru_free(freevnodes - wantfreevnodes);
-		if (numvnodes <= desiredvnodes * 9 / 10) {
+		/*
+		 * If numvnodes is too large (due to desiredvnodes being
+		 * adjusted using its sysctl, or emergency growth), first
+		 * try to reduce it by discarding from the free list.
+		 */
+		if (numvnodes > desiredvnodes && freevnodes > 0)
+			vnlru_free(ulmin(numvnodes - desiredvnodes,
+			    freevnodes));
+		/*
+		 * Sleep if the vnode cache is in a good state.  This is
+		 * when it is not over-full and has space for about a 4%
+		 * or 9% expansion (by growing its size or inexcessively
+		 * reducing its free list).  Otherwise, try to reclaim
+		 * space for a 10% expansion.
+		 */
+		if (vstir && force == 0) {
+			force = 1;
+			vstir = 0;
+		}
+		if (vspace() >= vlowat && force == 0) {
 			vnlruproc_sig = 0;
 			wakeup(&vnlruproc_sig);
 			msleep(vnlruproc, &vnode_free_list_mtx,
@@ -932,30 +1046,66 @@ vnlru_proc(void)
 		}
 		mtx_unlock(&vnode_free_list_mtx);
 		done = 0;
+		ofreevnodes = freevnodes;
+		onumvnodes = numvnodes;
+		/*
+		 * Calculate parameters for recycling.  These are the same
+		 * throughout the loop to give some semblance of fairness.
+		 * The trigger point is to avoid recycling vnodes with lots
+		 * of resident pages.  We aren't trying to free memory; we
+		 * are trying to recycle or at least free vnodes.
+		 */
+		if (numvnodes <= desiredvnodes)
+			usevnodes = numvnodes - freevnodes;
+		else
+			usevnodes = numvnodes;
+		if (usevnodes <= 0)
+			usevnodes = 1;
+		/*
+		 * The trigger value is is chosen to give a conservatively
+		 * large value to ensure that it alone doesn't prevent
+		 * making progress.  The value can easily be so large that
+		 * it is effectively infinite in some congested and
+		 * misconfigured cases, and this is necessary.  Normally
+		 * it is about 8 to 100 (pages), which is quite large.
+		 */
+		trigger = vm_cnt.v_page_count * 2 / usevnodes;
+		if (force < 2)
+			trigger = vsmalltrigger;
+		reclaim_nc_src = force >= 3;
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 			if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK)) {
 				nmp = TAILQ_NEXT(mp, mnt_list);
 				continue;
 			}
-			done += vlrureclaim(mp);
+			done += vlrureclaim(mp, reclaim_nc_src, trigger);
 			mtx_lock(&mountlist_mtx);
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			vfs_unbusy(mp);
 		}
 		mtx_unlock(&mountlist_mtx);
+		if (onumvnodes > desiredvnodes && numvnodes <= desiredvnodes)
+			uma_reclaim();
 		if (done == 0) {
-#if 0
-			/* These messages are temporary debugging aids */
-			if (vnlru_nowhere < 5)
-				printf("vnlru process getting nowhere..\n");
-			else if (vnlru_nowhere == 5)
-				printf("vnlru process messages stopped.\n");
-#endif
+			if (force == 0 || force == 1) {
+				force = 2;
+				continue;
+			}
+			if (force == 2) {
+				force = 3;
+				continue;
+			}
+			force = 0;
 			vnlru_nowhere++;
 			tsleep(vnlruproc, PPAUSE, "vlrup", hz * 3);
 		} else
 			kern_yield(PRI_USER);
+		/*
+		 * After becoming active to expand above low water, keep
+		 * active until above high water.
+		 */
+		force = vspace() < vhiwat;
 	}
 }
 
@@ -1029,22 +1179,31 @@ vtryrecycle(struct vnode *vp)
 	return (0);
 }
 
+static void
+vcheckspace(void)
+{
+
+	if (vspace() < vlowat && vnlruproc_sig == 0) {
+		vnlruproc_sig = 1;
+		wakeup(vnlruproc);
+	}
+}
+
 /*
- * Wait for available vnodes.
+ * Wait if necessary for space for a new vnode.
  */
 static int
 getnewvnode_wait(int suspended)
 {
 
 	mtx_assert(&vnode_free_list_mtx, MA_OWNED);
-	if (numvnodes > desiredvnodes) {
+	if (numvnodes >= desiredvnodes) {
 		if (suspended) {
 			/*
-			 * File system is beeing suspended, we cannot risk a
-			 * deadlock here, so allocate new vnode anyway.
+			 * The file system is being suspended.  We cannot
+			 * risk a deadlock here, so allow allocation of
+			 * another vnode even if this would give too many.
 			 */
-			if (freevnodes > wantfreevnodes)
-				vnlru_free(freevnodes - wantfreevnodes);
 			return (0);
 		}
 		if (vnlruproc_sig == 0) {
@@ -1054,18 +1213,34 @@ getnewvnode_wait(int suspended)
 		msleep(&vnlruproc_sig, &vnode_free_list_mtx, PVFS,
 		    "vlruwk", hz);
 	}
-	return (numvnodes > desiredvnodes ? ENFILE : 0);
+	/* Post-adjust like the pre-adjust in getnewvnode(). */
+	if (numvnodes + 1 > desiredvnodes && freevnodes > 1)
+		vnlru_free(1);
+	return (numvnodes >= desiredvnodes ? ENFILE : 0);
 }
 
+/*
+ * This hack is fragile, and probably not needed any more now that the
+ * watermark handling works.
+ */
 void
 getnewvnode_reserve(u_int count)
 {
 	struct thread *td;
 
+	/* Pre-adjust like the pre-adjust in getnewvnode(), with any count. */
+	/* XXX no longer so quick, but this part is not racy. */
+	mtx_lock(&vnode_free_list_mtx);
+	if (numvnodes + count > desiredvnodes && freevnodes > wantfreevnodes)
+		vnlru_free(ulmin(numvnodes + count - desiredvnodes,
+		    freevnodes - wantfreevnodes));
+	mtx_unlock(&vnode_free_list_mtx);
+
 	td = curthread;
 	/* First try to be quick and racy. */
 	if (atomic_fetchadd_long(&numvnodes, count) + count <= desiredvnodes) {
 		td->td_vp_reserv += count;
+		vcheckspace();	/* XXX no longer so quick, but more racy */
 		return;
 	} else
 		atomic_subtract_long(&numvnodes, count);
@@ -1078,9 +1253,18 @@ getnewvnode_reserve(u_int count)
 			atomic_add_long(&numvnodes, 1);
 		}
 	}
+	vcheckspace();
 	mtx_unlock(&vnode_free_list_mtx);
 }
 
+/*
+ * This hack is fragile, especially if desiredvnodes or wantvnodes are
+ * misconfgured or changed significantly.  Reducing desiredvnodes below
+ * the reserved amount should cause bizarre behaviour like reducing it
+ * below the number of active vnodes -- the system will try to reduce
+ * numvnodes to match, but should fail, so the subtraction below should
+ * not overflow.
+ */
 void
 getnewvnode_drop_reserve(void)
 {
@@ -1099,8 +1283,9 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
     struct vnode **vpp)
 {
 	struct vnode *vp;
-	struct bufobj *bo;
 	struct thread *td;
+	struct lock_object *lo;
+	static int cyclecount;
 	int error;
 
 	CTR3(KTR_VFS, "%s: mp %p with tag %s", __func__, mp, tag);
@@ -1111,57 +1296,77 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 		goto alloc;
 	}
 	mtx_lock(&vnode_free_list_mtx);
-	/*
-	 * Lend our context to reclaim vnodes if they've exceeded the max.
-	 */
-	if (freevnodes > wantfreevnodes)
-		vnlru_free(1);
-	error = getnewvnode_wait(mp != NULL && (mp->mnt_kern_flag &
-	    MNTK_SUSPEND));
-#if 0	/* XXX Not all VFS_VGET/ffs_vget callers check returns. */
-	if (error != 0) {
-		mtx_unlock(&vnode_free_list_mtx);
-		return (error);
+	if (numvnodes < desiredvnodes)
+		cyclecount = 0;
+	else if (cyclecount++ >= freevnodes) {
+		cyclecount = 0;
+		vstir = 1;
 	}
+	/*
+	 * Grow the vnode cache if it will not be above its target max
+	 * after growing.  Otherwise, if the free list is nonempty, try
+	 * to reclaim 1 item from it before growing the cache (possibly
+	 * above its target max if the reclamation failed or is delayed).
+	 * Otherwise, wait for some space.  In all cases, schedule
+	 * vnlru_proc() if we are getting short of space.  The watermarks
+	 * should be chosen so that we never wait or even reclaim from
+	 * the free list to below its target minimum.
+	 */
+	if (numvnodes + 1 <= desiredvnodes)
+		;
+	else if (freevnodes > 0)
+		vnlru_free(1);
+	else {
+		error = getnewvnode_wait(mp != NULL && (mp->mnt_kern_flag &
+		    MNTK_SUSPEND));
+#if 0	/* XXX Not all VFS_VGET/ffs_vget callers check returns. */
+		if (error != 0) {
+			mtx_unlock(&vnode_free_list_mtx);
+			return (error);
+		}
 #endif
+	}
+	vcheckspace();
 	atomic_add_long(&numvnodes, 1);
 	mtx_unlock(&vnode_free_list_mtx);
 alloc:
 	atomic_add_long(&vnodes_created, 1);
-	vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK|M_ZERO);
+	vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK);
 	/*
-	 * Setup locks.
+	 * Locks are given the generic name "vnode" when created.
+	 * Follow the historic practice of using the filesystem
+	 * name when they allocated, e.g., "zfs", "ufs", "nfs, etc.
+	 *
+	 * Locks live in a witness group keyed on their name. Thus,
+	 * when a lock is renamed, it must also move from the witness
+	 * group of its old name to the witness group of its new name.
+	 *
+	 * The change only needs to be made when the vnode moves
+	 * from one filesystem type to another. We ensure that each
+	 * filesystem use a single static name pointer for its tag so
+	 * that we can compare pointers rather than doing a strcmp().
 	 */
-	vp->v_vnlock = &vp->v_lock;
-	mtx_init(&vp->v_interlock, "vnode interlock", NULL, MTX_DEF);
+	lo = &vp->v_vnlock->lock_object;
+	if (lo->lo_name != tag) {
+		lo->lo_name = tag;
+		WITNESS_DESTROY(lo);
+		WITNESS_INIT(lo, tag);
+	}
 	/*
-	 * By default, don't allow shared locks unless filesystems
-	 * opt-in.
+	 * By default, don't allow shared locks unless filesystems opt-in.
 	 */
-	lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOSHARE | LK_IS_VNODE);
-	/*
-	 * Initialize bufobj.
-	 */
-	bo = &vp->v_bufobj;
-	bo->__bo_vnode = vp;
-	rw_init(BO_LOCKPTR(bo), "bufobj interlock");
-	bo->bo_ops = &buf_ops_bio;
-	bo->bo_private = vp;
-	TAILQ_INIT(&bo->bo_clean.bv_hd);
-	TAILQ_INIT(&bo->bo_dirty.bv_hd);
-	/*
-	 * Initialize namecache.
-	 */
-	LIST_INIT(&vp->v_cache_src);
-	TAILQ_INIT(&vp->v_cache_dst);
+	vp->v_vnlock->lock_object.lo_flags |= LK_NOSHARE;
 	/*
 	 * Finalize various vnode identity bits.
 	 */
+	KASSERT(vp->v_object == NULL, ("stale v_object %p", vp));
+	KASSERT(vp->v_lockf == NULL, ("stale v_lockf %p", vp));
+	KASSERT(vp->v_pollinfo == NULL, ("stale v_pollinfo %p", vp));
 	vp->v_type = VNON;
 	vp->v_tag = tag;
 	vp->v_op = vops;
 	v_init_counters(vp);
-	vp->v_data = NULL;
+	vp->v_bufobj.bo_ops = &buf_ops_bio;
 #ifdef MAC
 	mac_vnode_init(vp);
 	if (mp != NULL && (mp->mnt_flag & MNT_MULTILABEL) == 0)
@@ -1170,11 +1375,10 @@ alloc:
 		printf("NULL mp in getnewvnode()\n");
 #endif
 	if (mp != NULL) {
-		bo->bo_bsize = mp->mnt_stat.f_iosize;
+		vp->v_bufobj.bo_bsize = mp->mnt_stat.f_iosize;
 		if ((mp->mnt_kern_flag & MNTK_NOKNOTE) != 0)
 			vp->v_vflag |= VV_NOKNOTE;
 	}
-	rangelock_init(&vp->v_rl);
 
 	/*
 	 * For the filesystems which do not use vfs_hash_insert(),
@@ -2458,7 +2662,7 @@ _vhold(struct vnode *vp, bool locked)
 	mtx_lock(&vnode_free_list_mtx);
 	TAILQ_REMOVE(&vnode_free_list, vp, v_actfreelist);
 	freevnodes--;
-	vp->v_iflag &= ~(VI_FREE|VI_AGE);
+	vp->v_iflag &= ~VI_FREE;
 	KASSERT((vp->v_iflag & VI_ACTIVE) == 0,
 	    ("Activating already active vnode"));
 	vp->v_iflag |= VI_ACTIVE;
@@ -2475,6 +2679,10 @@ _vhold(struct vnode *vp, bool locked)
  * Drop the hold count of the vnode.  If this is the last reference to
  * the vnode we place it on the free list unless it has been vgone'd
  * (marked VI_DOOMED) in which case we will free it.
+ *
+ * Because the vnode vm object keeps a hold reference on the vnode if
+ * there is at least one resident non-cached page, the vnode cannot
+ * leave the active list without the page cleanup done.
  */
 void
 _vdrop(struct vnode *vp, bool locked)
@@ -2523,15 +2731,9 @@ _vdrop(struct vnode *vp, bool locked)
 				    v_actfreelist);
 				mp->mnt_activevnodelistsize--;
 			}
-			if (vp->v_iflag & VI_AGE) {
-				TAILQ_INSERT_HEAD(&vnode_free_list, vp,
-				    v_actfreelist);
-			} else {
-				TAILQ_INSERT_TAIL(&vnode_free_list, vp,
-				    v_actfreelist);
-			}
+			TAILQ_INSERT_TAIL(&vnode_free_list, vp,
+			    v_actfreelist);
 			freevnodes++;
-			vp->v_iflag &= ~VI_AGE;
 			vp->v_iflag |= VI_FREE;
 			mtx_unlock(&vnode_free_list_mtx);
 		} else {
@@ -2542,6 +2744,12 @@ _vdrop(struct vnode *vp, bool locked)
 	}
 	/*
 	 * The vnode has been marked for destruction, so free it.
+	 *
+	 * The vnode will be returned to the zone where it will
+	 * normally remain until it is needed for another vnode. We
+	 * need to cleanup (or verify that the cleanup has already
+	 * been done) any residual data left from its current use
+	 * so as not to contaminate the freshly allocated vnode.
 	 */
 	CTR2(KTR_VFS, "%s: destroying the vnode %p", __func__, vp);
 	atomic_subtract_long(&numvnodes, 1);
@@ -2566,16 +2774,17 @@ _vdrop(struct vnode *vp, bool locked)
 #ifdef MAC
 	mac_vnode_destroy(vp);
 #endif
-	if (vp->v_pollinfo != NULL)
+	if (vp->v_pollinfo != NULL) {
 		destroy_vpollinfo(vp->v_pollinfo);
+		vp->v_pollinfo = NULL;
+	}
 #ifdef INVARIANTS
 	/* XXX Elsewhere we detect an already freed vnode via NULL v_op. */
 	vp->v_op = NULL;
 #endif
-	rangelock_destroy(&vp->v_rl);
-	lockdestroy(vp->v_vnlock);
-	mtx_destroy(&vp->v_interlock);
-	rw_destroy(BO_LOCKPTR(bo));
+	vp->v_iflag = 0;
+	vp->v_vflag = 0;
+	bo->bo_flag = 0;
 	uma_zfree(vnode_zone, vp);
 }
 
@@ -2600,11 +2809,13 @@ vinactive(struct vnode *vp, struct thread *td)
 	VI_UNLOCK(vp);
 	/*
 	 * Before moving off the active list, we must be sure that any
-	 * modified pages are on the vnode's dirty list since these will
-	 * no longer be checked once the vnode is on the inactive list.
-	 * Because the vnode vm object keeps a hold reference on the vnode
-	 * if there is at least one resident non-cached page, the vnode
-	 * cannot leave the active list without the page cleanup done.
+	 * modified pages are converted into the vnode's dirty
+	 * buffers, since these will no longer be checked once the
+	 * vnode is on the inactive list.
+	 *
+	 * The write-out of the dirty pages is asynchronous.  At the
+	 * point that VOP_INACTIVE() is called, there could still be
+	 * pending I/O and dirty pages in the object.
 	 */
 	obj = vp->v_object;
 	if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
@@ -2938,6 +3149,7 @@ vgonel(struct vnode *vp)
 	 * Clear the advisory locks and wake up waiting threads.
 	 */
 	(void)VOP_ADVLOCKPURGE(vp);
+	vp->v_lockf = NULL;
 	/*
 	 * Delete from old mount point vnode list.
 	 */
@@ -3040,8 +3252,6 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 	}
 	if (vp->v_iflag & VI_MOUNT)
 		strlcat(buf, "|VI_MOUNT", sizeof(buf));
-	if (vp->v_iflag & VI_AGE)
-		strlcat(buf, "|VI_AGE", sizeof(buf));
 	if (vp->v_iflag & VI_DOOMED)
 		strlcat(buf, "|VI_DOOMED", sizeof(buf));
 	if (vp->v_iflag & VI_FREE)
@@ -3052,7 +3262,7 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VI_DOINGINACT", sizeof(buf));
 	if (vp->v_iflag & VI_OWEINACT)
 		strlcat(buf, "|VI_OWEINACT", sizeof(buf));
-	flags = vp->v_iflag & ~(VI_MOUNT | VI_AGE | VI_DOOMED | VI_FREE |
+	flags = vp->v_iflag & ~(VI_MOUNT | VI_DOOMED | VI_FREE |
 	    VI_ACTIVE | VI_DOINGINACT | VI_OWEINACT);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VI(0x%lx)", flags);

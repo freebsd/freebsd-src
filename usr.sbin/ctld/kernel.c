@@ -515,15 +515,20 @@ retry_port:
 	STAILQ_FOREACH(port, &devlist.port_list, links) {
 		if (strcmp(port->port_frontend, "ha") == 0)
 			continue;
-		if (name)
-			free(name);
-		if (port->pp == 0 && port->vp == 0)
+		free(name);
+		if (port->pp == 0 && port->vp == 0) {
 			name = checked_strdup(port->port_name);
-		else if (port->vp == 0)
-			asprintf(&name, "%s/%d", port->port_name, port->pp);
-		else
-			asprintf(&name, "%s/%d/%d", port->port_name, port->pp,
-			    port->vp);
+		} else if (port->vp == 0) {
+			retval = asprintf(&name, "%s/%d",
+			    port->port_name, port->pp);
+			if (retval <= 0)
+				log_err(1, "asprintf");
+		} else {
+			retval = asprintf(&name, "%s/%d/%d",
+			    port->port_name, port->pp, port->vp);
+			if (retval <= 0)
+				log_err(1, "asprintf");
+		}
 
 		if (port->cfiscsi_target == NULL) {
 			log_debugx("CTL port %u \"%s\" wasn't managed by ctld; ",
@@ -583,8 +588,7 @@ retry_port:
 		}
 		cp->p_ctl_port = port->port_id;
 	}
-	if (name)
-		free(name);
+	free(name);
 
 	STAILQ_FOREACH(lun, &devlist.lun_list, links) {
 		struct cctl_lun_nv *nv;

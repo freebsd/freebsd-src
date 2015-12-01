@@ -48,7 +48,7 @@ static char tmpfil[PATH_MAX];
 ATF_TC_WITHOUT_HEAD(perror_test);
 ATF_TC_BODY(perror_test, tc)
 {
-	char buf[512], lbuf[512];
+	char lbuf[512];
 	int i;
 	char *s;
 

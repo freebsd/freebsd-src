@@ -84,8 +84,7 @@ CPUTYPE = ultrasparc3
 # after /etc/make.conf so it can react to the local value of CPUTYPE
 # defined therein.  Consult:
 #	http://gcc.gnu.org/onlinedocs/gcc/ARM-Options.html
-#	http://gcc.gnu.org/onlinedocs/gcc/IA_002d64-Options.html
-#	http://gcc.gnu.org/onlinedocs/gcc/RS_002f6000-and-PowerPC-Options.html
+#	http://gcc.gnu.org/onlinedocs/gcc/RS-6000-and-PowerPC-Options.html
 #	http://gcc.gnu.org/onlinedocs/gcc/MIPS-Options.html
 #	http://gcc.gnu.org/onlinedocs/gcc/SPARC-Options.html
 #	http://gcc.gnu.org/onlinedocs/gcc/i386-and-x86_002d64-Options.html
@@ -112,6 +111,14 @@ _CPUCFLAGS = -march=${CPUTYPE} -DARM_ARCH_6=1
 . elif ${CPUTYPE} == "cortexa"
 _CPUCFLAGS = -march=armv7 -DARM_ARCH_6=1 -mfpu=vfp
 .  else
+# Common values for FreeBSD
+# arm:
+#	arm920t, arm926ej-s, marvell-pj4, fa526, fa626,
+#	fa606te, fa626te, fa726te
+# armv6:
+# 	arm1176jzf-s, generic-armv7-a, cortex-a5, cortex-a7, cortex-a8,
+#	cortex-a9, cortex-a12, cortex-a15, cortex-a17, cortex-a53, cortex-a57,
+#	cortex-a72, exynos-m1
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 .  endif
 . elif ${MACHINE_ARCH} == "powerpc"
@@ -123,19 +130,19 @@ _CPUCFLAGS = -mcpu=${CPUTYPE} -mno-powerpc64
 . elif ${MACHINE_ARCH} == "powerpc64"
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 . elif ${MACHINE_CPUARCH} == "mips"
-.  if ${CPUTYPE} == "mips32"
-_CPUCFLAGS = -march=mips32
-.  elif ${CPUTYPE} == "mips32r2"
-_CPUCFLAGS = -march=mips32r2
-.  elif ${CPUTYPE} == "mips64"
-_CPUCFLAGS = -march=mips64
-.  elif ${CPUTYPE} == "mips64r2"
-_CPUCFLAGS = -march=mips64r2
-.  elif ${CPUTYPE} == "mips4kc"
-_CPUCFLAGS = -march=4kc
-.  elif ${CPUTYPE} == "mips24kc"
-_CPUCFLAGS = -march=24kc
-.  endif
+# mips[1234], mips32, mips64, and all later releases need to have mips
+# preserved (releases later than r2 require external toolchain)
+.  if ${CPUTYPE:Mmips32*} != "" || ${CPUTYPE:Mmips64*} != "" || \
+	${CPUTYPE:Mmips[1234]} != ""
+_CPUCFLAGS = -march=${CPUTYPE}
+. else
+# Default -march to the CPUTYPE passed in, with mips stripped off so we
+# accept either mips4kc or 4kc, mostly for historical reasons
+# Typical values for cores:
+#	4kc, 24kc, 34kc, 74kc, 1004kc, octeon, octeon+, octeon2, octeon3,
+#	sb1, xlp, xlr
+_CPUCFLAGS = -march=${CPUTYPE:S/^mips//}
+. endif
 . elif ${MACHINE_ARCH} == "sparc64"
 .  if ${CPUTYPE} == "v9"
 _CPUCFLAGS = -mcpu=v9
@@ -144,6 +151,8 @@ _CPUCFLAGS = -mcpu=ultrasparc
 .  elif ${CPUTYPE} == "ultrasparc3"
 _CPUCFLAGS = -mcpu=ultrasparc3
 .  endif
+. elif ${MACHINE_CPUARCH} == "aarch64"
+_CPUCFLAGS = -mcpu=${CPUTYPE}
 . endif
 
 # Set up the list of CPU features based on the CPU type.  This is an
@@ -255,6 +264,9 @@ MACHINE_CPU = ssse3 sse3
 MACHINE_CPU = sse3
 .  endif
 MACHINE_CPU += amd64 sse2 sse mmx
+########## Mips
+. elif ${MACHINE_CPUARCH} == "mips"
+MACHINE_CPU = mips
 ########## powerpc
 . elif ${MACHINE_ARCH} == "powerpc"
 .  if ${CPUTYPE} == "e500"

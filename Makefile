@@ -106,7 +106,7 @@
 
 # Note: we use this awkward construct to be compatible with FreeBSD's
 # old make used in 10.0 and 9.2 and earlier.
-.if defined(MK_META_MODE) && ${MK_META_MODE} == "yes" && !make(showconfig)
+.if defined(MK_DIRDEPS_BUILD) && ${MK_DIRDEPS_BUILD} == "yes" && !make(showconfig)
 # targets/Makefile plays the role of top-level
 .include "targets/Makefile"
 .else
@@ -498,15 +498,15 @@ buildLINT:
 # This makefile does not run in meta mode
 .MAKE.MODE= normal
 # Normally the things we run from here don't either.
-# Using -DWITH_META_FILES
+# Using -DWITH_META_MODE
 # we can buildworld with meta files created which are useful 
 # for debugging, but without any of the rest of a meta mode build.
-MK_META_MODE= no
+MK_DIRDEPS_BUILD= no
 MK_STAGING= no
 # tell meta.autodep.mk to not even think about updating anything.
 UPDATE_DEPENDFILE= NO
 .if !make(showconfig)
-.export MK_META_MODE MK_STAGING UPDATE_DEPENDFILE
+.export MK_DIRDEPS_BUILD MK_STAGING UPDATE_DEPENDFILE
 .endif
 
 .if make(universe)
@@ -516,4 +516,4 @@ MAKE_JOB_ERROR_TOKEN= no
 .endif
 .endif # bmake
 
-.endif				# META_MODE
+.endif				# DIRDEPS_BUILD

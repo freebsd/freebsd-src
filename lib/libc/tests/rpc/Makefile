@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-SRCS.xdr_test=		${RPCSRC:.x=_xdr.c} t_xdr.c ${RPCSRC:.x=.h}
+SRCS.xdr_test=		${RPCSRC:.x=_xdr.c} t_xdr.c ${RPCSRC:.x=.h} \
+			h_testbits.h
 
 NETBSD_ATF_TESTS_C=	rpc_test
 NETBSD_ATF_TESTS_C+=	xdr_test
@@ -16,7 +17,6 @@ h_testbits_xdr.c: ${RPCSRC} h_testbits.h
 
 CLEANFILES+=	${RPCSRC:.x=.h} ${RPCSRC:.x=.c} h_testbits_xdr.c
 CFLAGS+=	-I${.OBJDIR}
-DPSRCS+=	h_testbits.h
 
 LDADD+=		-lrpcsvc -lutil
 DPADD+=		${LIBRPCSVC} ${LIBUTIL}

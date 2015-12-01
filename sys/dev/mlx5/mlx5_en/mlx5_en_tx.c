@@ -166,8 +166,10 @@ mlx5e_get_header_size(struct mbuf *mb)
 	return (eth_hdr_len);
 }
 
-/* The return value is not going back to the stack because of
- * the drbr */
+/*
+ * The return value is not going back to the stack because of
+ * the drbr
+ */
 static int
 mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 {
@@ -184,8 +186,10 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 	u16 pi;
 	u8 opcode;
 
-	/* Return ENOBUFS if the queue is full, this may trigger reinsertion
-	 * of the mbuf into the drbr (see mlx5e_xmit_locked) */
+	/*
+	 * Return ENOBUFS if the queue is full, this may trigger reinsertion
+	 * of the mbuf into the drbr (see mlx5e_xmit_locked)
+	 */
 	if (unlikely(!mlx5e_sq_has_room_for(sq, 2 * MLX5_SEND_WQE_MAX_WQEBBS))) {
 		return (ENOBUFS);
 	}
@@ -193,7 +197,7 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 	/* Align SQ edge with NOPs to avoid WQE wrap around */
 	pi = ((~sq->pc) & sq->wq.sz_m1);
 	if (pi < (MLX5_SEND_WQE_MAX_WQEBBS - 1)) {
-		/* send one multi NOP message instead of many */
+		/* Send one multi NOP message instead of many */
 		mlx5e_send_nop(sq, (pi + 1) * MLX5_SEND_WQEBB_NUM_DS, false);
 		pi = ((~sq->pc) & sq->wq.sz_m1);
 		if (pi < (MLX5_SEND_WQE_MAX_WQEBBS - 1)) {
@@ -209,7 +213,7 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 
 	memset(wqe, 0, sizeof(*wqe));
 
-	/* send a copy of the frame to the BPF listener, if any */
+	/* Send a copy of the frame to the BPF listener, if any */
 	if (ifp != NULL && ifp->if_bpf != NULL)
 		ETHER_BPF_MTAP(ifp, mb);
 
@@ -219,10 +223,9 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 	if (mb->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP | CSUM_UDP_IPV6 | CSUM_TCP_IPV6 | CSUM_TSO)) {
 		wqe->eth.cs_flags |= MLX5_ETH_WQE_L4_CSUM;
 	}
-	if ( wqe->eth.cs_flags == 0 ) {
+	if (wqe->eth.cs_flags == 0) {
 		sq->stats.csum_offload_none++;
 	}
-
 	if (mb->m_pkthdr.csum_flags & CSUM_TSO) {
 		u32 payload_len;
 		u32 mss = mb->m_pkthdr.tso_segsz;
@@ -249,7 +252,8 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 	if (mb->m_flags & M_VLANTAG) {
 		struct ether_vlan_header *eh =
 		    (struct ether_vlan_header *)wqe->eth.inline_hdr_start;
-		/* range checks */
+
+		/* Range checks */
 		if (ihs > (MLX5E_MAX_TX_INLINE - ETHER_VLAN_ENCAP_LEN))
 			ihs = (MLX5E_MAX_TX_INLINE - ETHER_VLAN_ENCAP_LEN);
 		else if (ihs < ETHER_HDR_LEN) {
@@ -258,14 +262,14 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 		}
 		m_copydata(mb, 0, ETHER_HDR_LEN, (caddr_t)eh);
 		m_adj(mb, ETHER_HDR_LEN);
-		/* insert 4 bytes VLAN tag into data stream */
+		/* Insert 4 bytes VLAN tag into data stream */
 		eh->evl_proto = eh->evl_encap_proto;
 		eh->evl_encap_proto = htons(ETHERTYPE_VLAN);
 		eh->evl_tag = htons(mb->m_pkthdr.ether_vtag);
-		/* copy rest of header data, if any */
+		/* Copy rest of header data, if any */
 		m_copydata(mb, 0, ihs - ETHER_HDR_LEN, (caddr_t)(eh + 1));
 		m_adj(mb, ihs - ETHER_HDR_LEN);
-		/* extend header by 4 bytes */
+		/* Extend header by 4 bytes */
 		ihs += ETHER_VLAN_ENCAP_LEN;
 	} else {
 		m_copydata(mb, 0, ihs, wqe->eth.inline_hdr_start);
@@ -281,10 +285,10 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 	}
 	dseg = ((struct mlx5_wqe_data_seg *)&wqe->ctrl) + ds_cnt;
 
-	/* trim off empty mbufs */
+	/* Trim off empty mbufs */
 	while (mb->m_len == 0) {
 		mb = m_free(mb);
-		/* check if all data has been inlined */
+		/* Check if all data has been inlined */
 		if (mb == NULL)
 			goto skip_dma;
 	}
@@ -292,7 +296,10 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 	err = bus_dmamap_load_mbuf_sg(sq->dma_tag, sq->mbuf[pi].dma_map,
 	    mb, segs, &nsegs, BUS_DMA_NOWAIT);
 	if (err == EFBIG) {
-		/* Update *mbp before defrag in case it was trimmed in the loop above */
+		/*
+		 * Update *mbp before defrag in case it was trimmed in the
+		 * loop above
+		 */
 		*mbp = mb;
 		/* Update statistics */
 		sq->stats.defragged++;
@@ -306,7 +313,7 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 		err = bus_dmamap_load_mbuf_sg(sq->dma_tag, sq->mbuf[pi].dma_map,
 		    mb, segs, &nsegs, BUS_DMA_NOWAIT);
 	}
-	/* catch errors */
+	/* Catch errors */
 	if (err != 0) {
 		goto tx_drop;
 	}
@@ -327,12 +334,12 @@ skip_dma:
 	wqe->ctrl.qpn_ds = cpu_to_be32((sq->sqn << 8) | ds_cnt);
 	wqe->ctrl.fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
 
-	/* store pointer to mbuf */
+	/* Store pointer to mbuf */
 	sq->mbuf[pi].mbuf = mb;
 	sq->mbuf[pi].num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
 	sq->pc += sq->mbuf[pi].num_wqebbs;
 
-	/* make sure all mbuf data is written to RAM */
+	/* Make sure all mbuf data is written to RAM */
 	if (mb != NULL)
 		bus_dmamap_sync(sq->dma_tag, sq->mbuf[pi].dma_map, BUS_DMASYNC_PREWRITE);
 
@@ -370,7 +377,7 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 
 		ci = sqcc & sq->wq.sz_m1;
 		mb = sq->mbuf[ci].mbuf;
-		sq->mbuf[ci].mbuf = NULL;	/* safety clear */
+		sq->mbuf[ci].mbuf = NULL;	/* Safety clear */
 
 		if (mb == NULL) {
 			if (sq->mbuf[ci].num_bytes == 0) {
@@ -382,7 +389,7 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(sq->dma_tag, sq->mbuf[ci].dma_map);
 
-			/* free transmitted mbuf */
+			/* Free transmitted mbuf */
 			m_freem(mb);
 		}
 		sqcc += sq->mbuf[ci].num_wqebbs;
@@ -390,7 +397,7 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 
 	mlx5_cqwq_update_db_record(&sq->cq.wq);
 
-	/* ensure cq space is freed before enabling more cqes */
+	/* Ensure cq space is freed before enabling more cqes */
 	wmb();
 
 	sq->cc = sqcc;
@@ -402,37 +409,38 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 static int
 mlx5e_xmit_locked(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
 {
-        struct mbuf *next;
+	struct mbuf *next;
 	int err = 0;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		if (mb)
 			err = drbr_enqueue(ifp, sq->br, mb);
 		return (err);
-        }
+	}
 
-        if (mb != NULL)
-                /* If we can't insert mbuf into drbr, try to xmit anyway.
-                 * We keep the error we got so we could return that after xmit.
-                 */
-                err = drbr_enqueue(ifp, sq->br, mb);
+	if (mb != NULL)
+		/*
+		 * If we can't insert mbuf into drbr, try to xmit anyway.
+		 * We keep the error we got so we could return that after xmit.
+		 */
+		err = drbr_enqueue(ifp, sq->br, mb);
 
-        /* Process the queue */
-        while ((next = drbr_peek(ifp, sq->br)) != NULL) {
-                if (mlx5e_sq_xmit(sq, &next) != 0) {
-                        if (next == NULL) {
-                                drbr_advance(ifp, sq->br);
-                        } else {
-                                drbr_putback(ifp, sq->br, next);
-                                atomic_store_rel_int(&sq->queue_state, MLX5E_SQ_FULL);
-                        }
-                        break;
-               }
-                drbr_advance(ifp, sq->br);
-                if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-                        break;
-        }
-        return (err);
+	/* Process the queue */
+	while ((next = drbr_peek(ifp, sq->br)) != NULL) {
+		if (mlx5e_sq_xmit(sq, &next) != 0) {
+			if (next == NULL) {
+				drbr_advance(ifp, sq->br);
+			} else {
+				drbr_putback(ifp, sq->br, next);
+				atomic_store_rel_int(&sq->queue_state, MLX5E_SQ_FULL);
+			}
+			break;
+		}
+		drbr_advance(ifp, sq->br);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			break;
+	}
+	return (err);
 }
 
 int
@@ -443,17 +451,16 @@ mlx5e_xmit(struct ifnet *ifp, struct mbuf *mb)
 
 	sq = mlx5e_select_queue(ifp, mb);
 	if (unlikely(sq == NULL)) {
-		/* invalid send queue */
+		/* Invalid send queue */
 		m_freem(mb);
 		return (ENXIO);
 	}
-
 	if (mtx_trylock(&sq->lock)) {
 		ret = mlx5e_xmit_locked(ifp, sq, mb);
 		mtx_unlock(&sq->lock);
 	} else {
 		ret = drbr_enqueue(ifp, sq->br, mb);
-                taskqueue_enqueue(sq->sq_tq, &sq->sq_task);
+		taskqueue_enqueue(sq->sq_tq, &sq->sq_task);
 	}
 
 	return (ret);

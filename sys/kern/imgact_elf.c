@@ -286,8 +286,11 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 		if (hdr->e_machine == bi->machine &&
 		    (hdr->e_ident[EI_OSABI] == bi->brand ||
 		    strncmp((const char *)&hdr->e_ident[OLD_EI_BRAND],
-		    bi->compat_3_brand, strlen(bi->compat_3_brand)) == 0))
-			return (bi);
+		    bi->compat_3_brand, strlen(bi->compat_3_brand)) == 0)) {
+			/* Looks good, but give brand a chance to veto */
+			if (!bi->header_supported || bi->header_supported(imgp))
+				return (bi);
+		}
 	}
 
 	/* No known brand, see if the header is recognized by any brand */

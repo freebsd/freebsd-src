@@ -394,7 +394,7 @@ lltable_free(struct lltable *llt)
 	IF_AFDATA_WUNLOCK(llt->llt_ifp);
 
 	LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next) {
-		if (callout_stop(&lle->lle_timer))
+		if (callout_stop(&lle->lle_timer) > 0)
 			LLE_REMREF(lle);
 		llentry_free(lle);
 	}

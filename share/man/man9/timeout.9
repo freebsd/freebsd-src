@@ -302,7 +302,7 @@ If
 .Fa c
 already has a pending callout,
 it is cancelled before the new invocation is scheduled.
-These functions return a non-zero value if a pending callout was cancelled
+These functions return a value of one if a pending callout was cancelled
 and zero if there was no pending callout.
 If the callout has an associated lock,
 then that lock must be held when any of these functions are called.
@@ -804,16 +804,16 @@ The
 .Fn callout_reset
 and
 .Fn callout_schedule
-function families return non-zero if the callout was pending before the new
+function families return a value of one if the callout was pending before the new
 function invocation was scheduled.
 .Pp
 The
 .Fn callout_stop
 and
 .Fn callout_drain
-functions return non-zero if the callout was still pending when it was
-called or zero otherwise.
-The
+functions return a value of one if the callout was still pending when it was
+called, a zero if the callout could not be stopped and a negative one is it
+was either not running or haas already completed. The
 .Fn timeout
 function returns a
 .Ft struct callout_handle

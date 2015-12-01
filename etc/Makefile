@@ -337,9 +337,9 @@ MTREE_FILTER= sed -e 's,\([gu]\)name=,\1id=,g' \
 	-e 's,\(gid=\)[^ ]*$$,\1${_gid},' 
 .else
 MTREE_FILTER= cat
-.endif
 .if !defined(NO_FSCHG)
 MTREE_FSCHG=	-i
+.endif
 .endif
 
 MTREES=		mtree/BSD.root.dist		/		\
@@ -365,7 +365,19 @@ MTREES+=	mtree/BSD.sendmail.dist		/
 MTREES+=	../${mtree}			/
 .endfor
 
-distrib-dirs: ${MTREES:N/*}
+# Clean up some directories that where mistakenly created as files that
+# should not have been as part of the nvi update in r281994.
+# This should be removed after 11.0-RELEASE.
+DISTRIB_CLEANUP_SHARE_FILES=	${SHAREDIR}/doc/usd/10.exref ${SHAREDIR}/doc/usd/11.edit
+DISTRIB_CLEANUP_SHARE_FILES+=	${SHAREDIR}/doc/usd/12.vi ${SHAREDIR}/doc/usd/13.viref
+distrib-cleanup: .PHONY
+	for file in ${DISTRIB_CLEANUP_SHARE_FILES}; do \
+		if [ -f ${DESTDIR}/$${file} ]; then \
+			rm -f ${DESTDIR}/$${file}; \
+		fi; \
+	done
+
+distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 	@set ${MTREES}; \
 	while test $$# -ge 2; do \
 		m=${.CURDIR}/$$1; \
@@ -396,7 +408,7 @@ distrib-dirs: ${MTREES:N/*}
 		    ${METALOG.add} ; \
 	done; true
 .endif
-	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR}/sys
+	${INSTALL_SYMLINK} ${SRCTOP:C/^\///}/sys ${DESTDIR}/sys
 .if ${MK_MAN} != "no"
 	cd ${DESTDIR}${SHAREDIR}/man; \
 	for mandir in man*; do \

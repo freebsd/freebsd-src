@@ -194,13 +194,13 @@ staging stage_libs stage_files stage_as stage_links stage_symlinks:
 DESTDIR= ${STAGE_OBJTOP}
 
 .if commands(beforeinstall)
-.if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"
+.if !empty(_LIBS) || (${MK_STAGING_PROG} != "no" && !defined(INTERNALPROG))
 staging: beforeinstall
 .endif
 .endif
 
 # normally only libs and includes are staged
-.if ${MK_STAGING_PROG} != "no"
+.if ${MK_STAGING_PROG} != "no" && !defined(INTERNALPROG)
 STAGE_DIR.prog= ${STAGE_OBJTOP}${BINDIR}
 
 .if !empty(PROG) || !empty(PROGS)
@@ -265,7 +265,7 @@ STAGE_TARGETS+= $t
 STAGE_TARGETS+= stage_as
 .endif
 
-.if !empty(_LIBS) || ${MK_STAGING_PROG} != "no"
+.if !empty(_LIBS) || (${MK_STAGING_PROG} != "no" && !defined(INTERNALPROG))
 
 .if !empty(LINKS)
 STAGE_TARGETS+= stage_links
@@ -276,8 +276,7 @@ STAGE_SETS+= links
 STAGE_LINKS.links= ${LINKS}
 .endif
 
-# Don't handle SYMLINKS for libraries since stage_libs is already doing so.
-.if !empty(SYMLINKS) && empty(_LIBS)
+.if !empty(SYMLINKS)
 STAGE_TARGETS+= stage_symlinks
 STAGE_SETS+= links
 STAGE_SYMLINKS.links= ${SYMLINKS}

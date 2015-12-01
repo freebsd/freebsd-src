@@ -106,6 +106,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/stack.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/systm.h>
 
 #ifdef DDB
@@ -314,9 +315,6 @@ witness_lock_order_key_equal(const struct witness_lock_order_key *a,
 
 static int	_isitmyx(struct witness *w1, struct witness *w2, int rmask,
 		    const char *fname);
-#ifdef KDB
-static void	_witness_debugger(int cond, const char *msg);
-#endif
 static void	adopt(struct witness *parent, struct witness *child);
 #ifdef BLESSING
 static int	blessed(struct witness *, struct witness *);
@@ -332,6 +330,7 @@ static void	itismychild(struct witness *parent, struct witness *child);
 static int	sysctl_debug_witness_badstacks(SYSCTL_HANDLER_ARGS);
 static int	sysctl_debug_witness_watch(SYSCTL_HANDLER_ARGS);
 static int	sysctl_debug_witness_fullgraph(SYSCTL_HANDLER_ARGS);
+static int	sysctl_debug_witness_channel(SYSCTL_HANDLER_ARGS);
 static void	witness_add_fullgraph(struct sbuf *sb, struct witness *parent);
 #ifdef DDB
 static void	witness_ddb_compute_levels(void);
@@ -343,6 +342,7 @@ static void	witness_ddb_display_list(int(*prnt)(const char *fmt, ...),
 static void	witness_ddb_level_descendants(struct witness *parent, int l);
 static void	witness_ddb_list(struct thread *td);
 #endif
+static void	witness_debugger(int cond, const char *msg);
 static void	witness_free(struct witness *m);
 static struct witness	*witness_get(void);
 static uint32_t	witness_hash_djb2(const uint8_t *key, uint32_t size);
@@ -361,13 +361,9 @@ static struct witness_lock_order_data	*witness_lock_order_get(
 					    struct witness *child);
 static void	witness_list_lock(struct lock_instance *instance,
 		    int (*prnt)(const char *fmt, ...));
+static int	witness_output(const char *fmt, ...) __printflike(1, 2);
+static int	witness_voutput(const char *fmt, va_list ap) __printflike(1, 0);
 static void	witness_setflag(struct lock_object *lock, int flag, int set);
-
-#ifdef KDB
-#define	witness_debugger(c)	_witness_debugger(c, __func__)
-#else
-#define	witness_debugger(c)
-#endif
 
 static SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW, NULL,
     "Witness Locking");
@@ -396,16 +392,18 @@ int	witness_kdb = 1;
 int	witness_kdb = 0;
 #endif
 SYSCTL_INT(_debug_witness, OID_AUTO, kdb, CTLFLAG_RWTUN, &witness_kdb, 0, "");
+#endif /* KDB */
 
+#if defined(DDB) || defined(KDB)
 /*
- * When KDB is enabled and witness_trace is 1, it will cause the system
+ * When DDB or KDB is enabled and witness_trace is 1, it will cause the system
  * to print a stack trace:
  *	- a lock hierarchy violation occurs
  *	- locks are held when going to sleep.
  */
 int	witness_trace = 1;
 SYSCTL_INT(_debug_witness, OID_AUTO, trace, CTLFLAG_RWTUN, &witness_trace, 0, "");
-#endif /* KDB */
+#endif /* DDB || KDB */
 
 #ifdef WITNESS_SKIPSPIN
 int	witness_skipspin = 1;
@@ -419,6 +417,20 @@ int badstack_sbuf_size;
 int witness_count = WITNESS_COUNT;
 SYSCTL_INT(_debug_witness, OID_AUTO, witness_count, CTLFLAG_RDTUN, 
     &witness_count, 0, "");
+
+/*
+ * Output channel for witness messages.  By default we print to the console.
+ */
+enum witness_channel {
+	WITNESS_CONSOLE,
+	WITNESS_LOG,
+	WITNESS_NONE,
+};
+
+static enum witness_channel witness_channel = WITNESS_CONSOLE;
+SYSCTL_PROC(_debug_witness, OID_AUTO, output_channel, CTLTYPE_STRING |
+    CTLFLAG_RWTUN, NULL, 0, sysctl_debug_witness_channel, "A",
+    "Output channel for warnings");
 
 /*
  * Call this to print out the relations between locks.
@@ -1117,19 +1129,19 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	if (lock1 != NULL) {
 		if ((lock1->li_flags & LI_EXCLUSIVE) != 0 &&
 		    (flags & LOP_EXCLUSIVE) == 0) {
-			printf("shared lock of (%s) %s @ %s:%d\n",
+			witness_output("shared lock of (%s) %s @ %s:%d\n",
 			    class->lc_name, lock->lo_name,
 			    fixup_filename(file), line);
-			printf("while exclusively locked from %s:%d\n",
+			witness_output("while exclusively locked from %s:%d\n",
 			    fixup_filename(lock1->li_file), lock1->li_line);
 			kassert_panic("excl->share");
 		}
 		if ((lock1->li_flags & LI_EXCLUSIVE) == 0 &&
 		    (flags & LOP_EXCLUSIVE) != 0) {
-			printf("exclusive lock of (%s) %s @ %s:%d\n",
+			witness_output("exclusive lock of (%s) %s @ %s:%d\n",
 			    class->lc_name, lock->lo_name,
 			    fixup_filename(file), line);
-			printf("while share locked from %s:%d\n",
+			witness_output("while share locked from %s:%d\n",
 			    fixup_filename(lock1->li_file), lock1->li_line);
 			kassert_panic("share->excl");
 		}
@@ -1199,14 +1211,14 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 		    w_rmatrix[i][i] |= WITNESS_REVERSAL;
 			w->w_reversed = 1;
 			mtx_unlock_spin(&w_mtx);
-			printf(
+			witness_output(
 			    "acquiring duplicate lock of same type: \"%s\"\n", 
 			    w->w_name);
-			printf(" 1st %s @ %s:%d\n", plock->li_lock->lo_name,
+			witness_output(" 1st %s @ %s:%d\n", plock->li_lock->lo_name,
 			    fixup_filename(plock->li_file), plock->li_line);
-			printf(" 2nd %s @ %s:%d\n", lock->lo_name,
+			witness_output(" 2nd %s @ %s:%d\n", lock->lo_name,
 			    fixup_filename(file), line);
-			witness_debugger(1);
+			witness_debugger(1, __func__);
 		} else
 			mtx_unlock_spin(&w_mtx);
 		return;
@@ -1328,14 +1340,14 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			 */
 			if (((lock->lo_flags & LO_SLEEPABLE) != 0 &&
 			    (lock1->li_lock->lo_flags & LO_SLEEPABLE) == 0))
-				printf(
+				witness_output(
 		"lock order reversal: (sleepable after non-sleepable)\n");
 			else if ((lock1->li_lock->lo_flags & LO_SLEEPABLE) == 0
 			    && lock == &Giant.lock_object)
-				printf(
+				witness_output(
 		"lock order reversal: (Giant after non-sleepable)\n");
 			else
-				printf("lock order reversal:\n");
+				witness_output("lock order reversal:\n");
 
 			/*
 			 * Try to locate an earlier lock with
@@ -1354,28 +1366,28 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 					i--;
 			} while (i >= 0);
 			if (i < 0) {
-				printf(" 1st %p %s (%s) @ %s:%d\n",
+				witness_output(" 1st %p %s (%s) @ %s:%d\n",
 				    lock1->li_lock, lock1->li_lock->lo_name,
 				    w1->w_name, fixup_filename(lock1->li_file),
 				    lock1->li_line);
-				printf(" 2nd %p %s (%s) @ %s:%d\n", lock,
+				witness_output(" 2nd %p %s (%s) @ %s:%d\n", lock,
 				    lock->lo_name, w->w_name,
 				    fixup_filename(file), line);
 			} else {
-				printf(" 1st %p %s (%s) @ %s:%d\n",
+				witness_output(" 1st %p %s (%s) @ %s:%d\n",
 				    lock2->li_lock, lock2->li_lock->lo_name,
 				    lock2->li_lock->lo_witness->w_name,
 				    fixup_filename(lock2->li_file),
 				    lock2->li_line);
-				printf(" 2nd %p %s (%s) @ %s:%d\n",
+				witness_output(" 2nd %p %s (%s) @ %s:%d\n",
 				    lock1->li_lock, lock1->li_lock->lo_name,
 				    w1->w_name, fixup_filename(lock1->li_file),
 				    lock1->li_line);
-				printf(" 3rd %p %s (%s) @ %s:%d\n", lock,
+				witness_output(" 3rd %p %s (%s) @ %s:%d\n", lock,
 				    lock->lo_name, w->w_name,
 				    fixup_filename(file), line);
 			}
-			witness_debugger(1);
+			witness_debugger(1, __func__);
 			return;
 		}
 	}
@@ -1593,17 +1605,17 @@ found:
 	/* First, check for shared/exclusive mismatches. */
 	if ((instance->li_flags & LI_EXCLUSIVE) != 0 && witness_watch > 0 &&
 	    (flags & LOP_EXCLUSIVE) == 0) {
-		printf("shared unlock of (%s) %s @ %s:%d\n", class->lc_name,
-		    lock->lo_name, fixup_filename(file), line);
-		printf("while exclusively locked from %s:%d\n",
+		witness_output("shared unlock of (%s) %s @ %s:%d\n",
+		    class->lc_name, lock->lo_name, fixup_filename(file), line);
+		witness_output("while exclusively locked from %s:%d\n",
 		    fixup_filename(instance->li_file), instance->li_line);
 		kassert_panic("excl->ushare");
 	}
 	if ((instance->li_flags & LI_EXCLUSIVE) == 0 && witness_watch > 0 &&
 	    (flags & LOP_EXCLUSIVE) != 0) {
-		printf("exclusive unlock of (%s) %s @ %s:%d\n", class->lc_name,
-		    lock->lo_name, fixup_filename(file), line);
-		printf("while share locked from %s:%d\n",
+		witness_output("exclusive unlock of (%s) %s @ %s:%d\n",
+		    class->lc_name, lock->lo_name, fixup_filename(file), line);
+		witness_output("while share locked from %s:%d\n",
 		    fixup_filename(instance->li_file),
 		    instance->li_line);
 		kassert_panic("share->uexcl");
@@ -1618,8 +1630,8 @@ found:
 	}
 	/* The lock is now being dropped, check for NORELEASE flag */
 	if ((instance->li_flags & LI_NORELEASE) != 0 && witness_watch > 0) {
-		printf("forbidden unlock of (%s) %s @ %s:%d\n", class->lc_name,
-		    lock->lo_name, fixup_filename(file), line);
+		witness_output("forbidden unlock of (%s) %s @ %s:%d\n",
+		    class->lc_name, lock->lo_name, fixup_filename(file), line);
 		kassert_panic("lock marked norelease");
 	}
 
@@ -1669,10 +1681,11 @@ witness_thread_exit(struct thread *td)
 		for (n = 0; lle != NULL; lle = lle->ll_next)
 			for (i = lle->ll_count - 1; i >= 0; i--) {
 				if (n == 0)
-		printf("Thread %p exiting with the following locks held:\n",
-					    td);
+					witness_output(
+		    "Thread %p exiting with the following locks held:\n", td);
 				n++;
-				witness_list_lock(&lle->ll_children[i], printf);
+				witness_list_lock(&lle->ll_children[i],
+				    witness_output);
 				
 			}
 		kassert_panic(
@@ -1685,7 +1698,7 @@ witness_thread_exit(struct thread *td)
  * Warn if any locks other than 'lock' are held.  Flags can be passed in to
  * exempt Giant and sleepable locks from the checks as well.  If any
  * non-exempt locks are held, then a supplied message is printed to the
- * console along with a list of the offending locks.  If indicated in the
+ * output channel along with a list of the offending locks.  If indicated in the
  * flags then a failure results in a panic as well.
  */
 int
@@ -1714,15 +1727,15 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 				continue;
 			if (n == 0) {
 				va_start(ap, fmt);
-				vprintf(fmt, ap);
+				witness_voutput(fmt, ap);
 				va_end(ap);
-				printf(" with the following");
-				if (flags & WARN_SLEEPOK)
-					printf(" non-sleepable");
-				printf(" locks held:\n");
+				witness_output(
+				    " with the following %slocks held:\n",
+				    (flags & WARN_SLEEPOK) != 0 ?
+				    "non-sleepable " : "");
 			}
 			n++;
-			witness_list_lock(lock1, printf);
+			witness_list_lock(lock1, witness_output);
 		}
 
 	/*
@@ -1747,19 +1760,17 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 			return (0);
 
 		va_start(ap, fmt);
-		vprintf(fmt, ap);
+		witness_voutput(fmt, ap);
 		va_end(ap);
-		printf(" with the following");
-		if (flags & WARN_SLEEPOK)
-			printf(" non-sleepable");
-		printf(" locks held:\n");
-		n += witness_list_locks(&lock_list, printf);
+		witness_output(" with the following %slocks held:\n",
+		    (flags & WARN_SLEEPOK) != 0 ?  "non-sleepable " : "");
+		n += witness_list_locks(&lock_list, witness_output);
 	} else
 		sched_unpin();
 	if (flags & WARN_PANIC && n)
 		kassert_panic("%s", __func__);
 	else
-		witness_debugger(n);
+		witness_debugger(n, __func__);
 	return (n);
 }
 
@@ -2165,6 +2176,37 @@ witness_list_lock(struct lock_instance *instance,
 	prnt(" r = %d (%p) locked @ %s:%d\n",
 	    instance->li_flags & LI_RECURSEMASK, lock,
 	    fixup_filename(instance->li_file), instance->li_line);
+}
+
+static int
+witness_output(const char *fmt, ...)
+{
+	va_list ap;
+	int ret;
+
+	va_start(ap, fmt);
+	ret = witness_voutput(fmt, ap);
+	va_end(ap);
+	return (ret);
+}
+
+static int
+witness_voutput(const char *fmt, va_list ap)
+{
+	int ret;
+
+	ret = 0;
+	switch (witness_channel) {
+	case WITNESS_CONSOLE:
+		ret = vprintf(fmt, ap);
+		break;
+	case WITNESS_LOG:
+		vlog(LOG_NOTICE, fmt, ap);
+		break;
+	case WITNESS_NONE:
+		break;
+	}
+	return (ret);
 }
 
 #ifdef DDB
@@ -2598,12 +2640,6 @@ restart:
 	    "\nLock order reversal between \"%s\"(%s) and \"%s\"(%s)!\n",
 			    tmp_w1->w_name, tmp_w1->w_class->lc_name, 
 			    tmp_w2->w_name, tmp_w2->w_class->lc_name);
-#if 0
- 			sbuf_printf(sb,
-			"w_rmatrix[%s][%s] == %x, w_rmatrix[%s][%s] == %x\n",
- 			    tmp_w1->name, tmp_w2->w_name, w_rmatrix1,
- 			    tmp_w2->name, tmp_w1->w_name, w_rmatrix2);
-#endif
 			if (data1) {
 				sbuf_printf(sb,
 			"Lock order \"%s\"(%s) -> \"%s\"(%s) first seen at:\n",
@@ -2646,6 +2682,42 @@ restart:
 	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
 	sbuf_delete(sb);
 
+	return (error);
+}
+
+static int
+sysctl_debug_witness_channel(SYSCTL_HANDLER_ARGS)
+{
+	static const struct {
+		enum witness_channel channel;
+		const char *name;
+	} channels[] = {
+		{ WITNESS_CONSOLE, "console" },
+		{ WITNESS_LOG, "log" },
+		{ WITNESS_NONE, "none" },
+	};
+	char buf[16];
+	u_int i;
+	int error;
+
+	buf[0] = '\0';
+	for (i = 0; i < nitems(channels); i++)
+		if (witness_channel == channels[i].channel) {
+			snprintf(buf, sizeof(buf), "%s", channels[i].name);
+			break;
+		}
+
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	error = EINVAL;
+	for (i = 0; i < nitems(channels); i++)
+		if (strcmp(channels[i].name, buf) == 0) {
+			witness_channel = channels[i].channel;
+			error = 0;
+			break;
+		}
 	return (error);
 }
 
@@ -2911,14 +2983,38 @@ witness_increment_graph_generation(void)
 	w_generation++;
 }
 
-#ifdef KDB
-static void
-_witness_debugger(int cond, const char *msg)
+static int
+witness_output_drain(void *arg __unused, const char *data, int len)
 {
 
-	if (witness_trace && cond)
-		kdb_backtrace();
-	if (witness_kdb && cond)
-		kdb_enter(KDB_WHY_WITNESS, msg);
+	witness_output("%.*s", len, data);
+	return (len);
 }
+
+static void
+witness_debugger(int cond, const char *msg)
+{
+	char buf[32];
+	struct sbuf sb;
+	struct stack st;
+
+	if (!cond)
+		return;
+
+	if (witness_trace) {
+		sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
+		sbuf_set_drain(&sb, witness_output_drain, NULL);
+
+		stack_zero(&st);
+		stack_save(&st);
+		witness_output("stack backtrace:\n");
+		stack_sbuf_print_ddb(&sb, &st);
+
+		sbuf_finish(&sb);
+	}
+
+#ifdef KDB
+	if (witness_kdb)
+		kdb_enter(KDB_WHY_WITNESS, msg);
 #endif
+}

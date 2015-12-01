@@ -2,8 +2,6 @@
 #
 # IOP Specific
 # 
-arm/arm/bus_space_base.c		standard
-arm/arm/bus_space_generic.c		standard
 arm/xscale/i80321/i80321.c		standard
 arm/xscale/i80321/i80321_dma.c		optional	dma
 arm/xscale/i80321/i80321_mcu.c		standard

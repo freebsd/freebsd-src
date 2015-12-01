@@ -45,7 +45,7 @@ MANDIR=	${SHAREDIR}/openssl/man/man
 
 .if defined(LIB)
 _docs=	${LIB}
-_skip=	des_modes
+_skip=	SSLeay_version des_modes
 _sec=	3
 .else
 _docs=	apps
@@ -72,13 +72,13 @@ man-makefile-update:
 	    ${.CURDIR}/Makefile.man
 	for i in ${LCRYPTO_DOC}/${_docs}/*.pod; do \
 		fn=`basename $$i .pod`; \
-		if [ "$$fn" != "${_skip}" ]; then \
+		if ! echo '${_skip}' | grep -qw "$$fn"; then \
 		${ECHO} "MAN+= $$fn.${_sec}" >> ${.CURDIR}/Makefile.man; \
 		fi; \
 	done
 	for i in ${LCRYPTO_DOC}/${_docs}/*.pod; do \
 		fn=`basename $$i .pod`; \
-		if [ "$$fn" != "${_skip}" ]; then \
+		if ! echo '${_skip}' | grep -qw "$$fn"; then \
 		perl ${LCRYPTO_SRC}/util/extract-names.pl < $$i | \
 		  awk "/^$$fn\$$/ { next; } \
 		  { print \"MLINKS+= $$fn.${_sec} \" \$$1 \".${_sec}\" }" >> \

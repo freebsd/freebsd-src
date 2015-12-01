@@ -53,8 +53,8 @@ int __##ent##_test_data_compare(struct ent##_test_data *,		\
 	void *), void *);						\
 struct ent *__##ent##_test_data_find(struct ent##_test_data *, struct ent *,\
 	int (*)(struct ent *, struct ent *, void *), void *);		\
-void __##ent##_test_data_clear(struct ent##_test_data *);			
-	
+void __##ent##_test_data_clear(struct ent##_test_data *);
+
 #define TEST_DATA_INIT(ent, td, clonef, freef)\
 	__##ent##_test_data_init(td, clonef, freef)
 #define TEST_DATA_DESTROY(ent, td) __##ent##_test_data_destroy(td)
@@ -191,9 +191,8 @@ __##ent##_test_data_clear(struct ent##_test_data *td)			\
 		td->free_func(&e->data);				\
 		free(e);						\
 	}								\
-}									
+}
 
-									\
 #define DECLARE_TEST_FILE_SNAPSHOT(ent)					\
 struct ent##_snp_param {						\
 	FILE *fp;							\
@@ -204,8 +203,8 @@ int __##ent##_snapshot_write_func(struct ent *, void *);		\
 int __##ent##_snapshot_write(char const *, struct ent##_test_data *,	\
 	void (*)(struct ent *, char *, size_t));			\
 int __##ent##_snapshot_read(char const *, struct ent##_test_data *,	\
-	int (*)(struct ent *, char *));	
-		
+	int (*)(struct ent *, char *));
+
 #define TEST_SNAPSHOT_FILE_WRITE(ent, fname, td, f)			\
 	__##ent##_snapshot_write(fname, td, f)
 #define TEST_SNAPSHOT_FILE_READ(ent, fname, td, f)			\
@@ -294,8 +293,8 @@ fin:									\
 #define DECLARE_1PASS_TEST(ent)						\
 int __##ent##_1pass_test(struct ent##_test_data *, 			\
 	int (*)(struct ent *, void *),					\
-	void *);							
-	
+	void *);
+
 #define DO_1PASS_TEST(ent, td, f, mdata)				\
 	__##ent##_1pass_test(td, f, mdata)
 
@@ -318,7 +317,7 @@ int __##ent##_2pass_test(struct ent##_test_data *, 			\
 
 #define DO_2PASS_TEST(ent, td1, td2, f, mdata)				\
 	__##ent##_2pass_test(td1, td2, f, mdata)
-	
+
 #define IMPLEMENT_2PASS_TEST(ent)					\
 int									\
 __##ent##_2pass_test(struct ent##_test_data *td1,			\

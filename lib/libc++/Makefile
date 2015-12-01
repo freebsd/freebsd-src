@@ -52,8 +52,8 @@ CXXRT_SRCS+=	libelftc_dem_gnu3.c\
 
 .for _S in ${CXXRT_SRCS}
 STATICOBJS+=	cxxrt_${_S:R}.o
-cxxrt_${_S}:
-	ln -sf ${LIBCXXRTDIR}/${_S} ${.TARGET}
+cxxrt_${_S}: ${LIBCXXRTDIR}/${_S} .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
 .endfor
 
 WARNS=		0

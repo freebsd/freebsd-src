@@ -9760,7 +9760,8 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
 	    SVPD_ID_TYPE_TPORTGRP;
 	desc->length = 4;
-	if (softc->is_single || port->status & CTL_PORT_STATUS_HA_SHARED)
+	if (softc->is_single ||
+	    (port && port->status & CTL_PORT_STATUS_HA_SHARED))
 		g = 1;
 	else
 		g = 2 + ctsio->io_hdr.nexus.targ_port / softc->port_cnt;
@@ -11090,6 +11091,8 @@ ctl_check_for_blockage(struct ctl_lun *lun, union ctl_io *pending_io,
 	     __func__, pending_entry->seridx, pending_io->scsiio.cdb[0],
 	     pending_io->scsiio.cdb[1], pending_io));
 	ooa_entry = ctl_get_cmd_entry(&ooa_io->scsiio, NULL);
+	if (ooa_entry->seridx == CTL_SERIDX_INVLD)
+		return (CTL_ACTION_PASS); /* Unsupported command in OOA queue */
 	KASSERT(ooa_entry->seridx < CTL_SERIDX_COUNT,
 	    ("%s: Invalid seridx %d for ooa CDB %02x %02x @ %p",
 	     __func__, ooa_entry->seridx, ooa_io->scsiio.cdb[0],

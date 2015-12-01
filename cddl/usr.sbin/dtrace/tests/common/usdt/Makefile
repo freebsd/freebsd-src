@@ -62,4 +62,4 @@ CFILES= \
      tst.forker.c  \
 
 
-.include "../../Makefile.inc1"
+.include "../../dtrace.test.mk"

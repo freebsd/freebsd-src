@@ -91,9 +91,11 @@ static struct gl_dir d[] = {
 	{ "a/b", b, __arraycount(b), 0 },
 };
 
+#ifndef __FreeBSD__
 static const char *glob_star[] = {
     "a/1", "a/3", "a/4", "a/b", "a/b/w", "a/b/x", "a/b/y", "a/b/z",
 };
+#endif
 
 static const char *glob_star_not[] = {
 	"a/1", "a/3", "a/4", "a/b",
