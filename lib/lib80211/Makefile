@@ -5,7 +5,7 @@ SHLIBDIR?= /lib
 SHLIB_MAJOR= 1
 SRCS=	lib80211_regdomain.c lib80211_ioctl.c
 
-INCSDIR=	${INCLUDEDIR}/lib80211/
+INCSDIR=	${INCLUDEDIR}/lib80211
 INCS=	lib80211_regdomain.h lib80211_ioctl.h
 
 MAN=	lib80211.3
