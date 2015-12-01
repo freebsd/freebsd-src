@@ -28,7 +28,7 @@
 .\"     From: @(#)savecore.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2012
+.Dd December 1, 2015
 .Dt SAVECORE 8
 .Os
 .Sh NAME
@@ -44,6 +44,7 @@
 .Op Fl v
 .Op Ar device ...
 .Nm
+.Op Fl -libxo
 .Op Fl fkvz
 .Op Fl m Ar maxdumps
 .Op Ar directory Op Ar device ...
@@ -61,6 +62,13 @@ the system log.
 .Pp
 The options are as follows:
 .Bl -tag -width ".Fl m Ar maxdumps"
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
 .It Fl C
 Check to see if a dump exists,
 and display a brief message to indicate the status.
@@ -154,6 +162,8 @@ is meant to be called near the end of the initialization file
 .Sh SEE ALSO
 .Xr gzip 1 ,
 .Xr getbootfile 3 ,
+.Xr libxo 3 ,
+.Xr xo_parse_args 3 ,
 .Xr textdump 4 ,
 .Xr tar 5 ,
 .Xr dumpon 8 ,

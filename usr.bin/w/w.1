@@ -28,7 +28,7 @@
 .\"     @(#)w.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2014
+.Dd December 1, 2015
 .Dt W 1
 .Os
 .Sh NAME
@@ -59,6 +59,13 @@ and the name and arguments of the current process.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
 .It Fl d
 dumps out the entire process list on a per controlling
 tty basis, instead of just the top level process.

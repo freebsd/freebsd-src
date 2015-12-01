@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2015
+.Dd December 1, 2015
 .Dt LS 1
 .Os
 .Sh NAME
@@ -69,6 +69,13 @@ lexicographical order.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
 .It Fl A
 Include directory entries whose names begin with a
 dot
