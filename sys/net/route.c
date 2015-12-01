@@ -1369,7 +1369,9 @@ rt_mpath_unlink(struct radix_node_head *rnh, struct rt_addrinfo *info,
 static struct rtentry *
 rt_flowtable_check_route(struct radix_node_head *rnh, struct rt_addrinfo *info)
 {
+#if defined(INET6) || defined(INET)
 	struct radix_node *rn;
+#endif
 	struct rtentry *rt0;
 
 	rt0 = NULL;
