@@ -8,6 +8,7 @@ DIRDEPS = \
 	include/arpa \
 	include/xlocale \
 	lib/${CSU_DIR} \
+	lib/lib80211 \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libexpat \
