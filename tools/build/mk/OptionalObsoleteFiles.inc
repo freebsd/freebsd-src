@@ -4468,6 +4468,7 @@ OLD_FILES+=usr/share/aclocal/atf-common.m4
 OLD_FILES+=usr/share/aclocal/atf-sh.m4
 OLD_DIRS+=usr/share/aclocal
 OLD_FILES+=usr/tests/bin/date/legacy_test
+OLD_FILES+=usr/tests/bin/sh/legacy_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/test_helpers_test
 OLD_FILES+=usr/tests/lib/atf/test-programs/fork_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/application_test
