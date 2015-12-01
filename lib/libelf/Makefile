@@ -7,6 +7,7 @@ SRCDIR=	${TOP}/libelf
 .PATH:	${SRCDIR}
 
 LIB=	elf
+SHLIBDIR?= /lib
 
 SRCS=	elf.c							\
 	elf_begin.c						\
