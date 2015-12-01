@@ -107,7 +107,7 @@ static const char *netname4(in_addr_t, in_addr_t);
 static const char *netname6(struct sockaddr_in6 *, struct sockaddr_in6 *);
 static void p_rtable_sysctl(int, int);
 static void p_rtentry_sysctl(const char *name, struct rt_msghdr *);
-static void p_sockaddr(const char *name, struct sockaddr *, struct sockaddr *,
+static int p_sockaddr(const char *name, struct sockaddr *, struct sockaddr *,
     int, int);
 static const char *fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask,
     int flags);
@@ -352,7 +352,7 @@ p_rtentry_sysctl(const char *name, struct rt_msghdr *rtm)
 	struct sockaddr *sa, *addr[RTAX_MAX];
 	char buffer[128];
 	char prettyname[128];
-	int i;
+	int i, protrusion;
 
 	xo_open_instance(name);
 	sa = (struct sockaddr *)(rtm + 1);
@@ -362,11 +362,13 @@ p_rtentry_sysctl(const char *name, struct rt_msghdr *rtm)
 		sa = (struct sockaddr *)((char *)sa + SA_SIZE(sa));
 	}
 
-	p_sockaddr("destination", addr[RTAX_DST], addr[RTAX_NETMASK],
+	protrusion = p_sockaddr("destination", addr[RTAX_DST],
+	    addr[RTAX_NETMASK],
 	    rtm->rtm_flags, wid_dst);
-	p_sockaddr("gateway", addr[RTAX_GATEWAY], NULL, RTF_HOST, wid_gw);
+	protrusion = p_sockaddr("gateway", addr[RTAX_GATEWAY], NULL, RTF_HOST,
+	    wid_gw - protrusion);
 	snprintf(buffer, sizeof(buffer), "{[:-%d}{:flags/%%s}{]:} ",
-	    wid_flags);
+	    wid_flags - protrusion);
 	p_flags(rtm->rtm_flags, buffer);
 	if (Wflag) {
 		xo_emit("{t:use/%*lu} ", wid_pksent, rtm->rtm_rmx.rmx_pksent);
@@ -402,12 +404,13 @@ p_rtentry_sysctl(const char *name, struct rt_msghdr *rtm)
 	xo_close_instance(name);
 }
 
-static void
+static int
 p_sockaddr(const char *name, struct sockaddr *sa, struct sockaddr *mask,
     int flags, int width)
 {
 	const char *cp;
 	char buf[128];
+	int protrusion;
 
 	cp = fmt_sockaddr(sa, mask, flags);
 
@@ -419,12 +422,17 @@ p_sockaddr(const char *name, struct sockaddr *sa, struct sockaddr *mask,
 			snprintf(buf, sizeof(buf), "{[:%d}{:%s/%%s}{]:} ",
 			    -width, name);
 			xo_emit(buf, cp);
+			protrusion = strlen(cp) - width;
+			if (protrusion < 0)
+				protrusion = 0;
 		} else {
 			snprintf(buf, sizeof(buf), "{[:%d}{:%s/%%-.*s}{]:} ",
 			    -width, name);
 			xo_emit(buf, width, cp);
+			protrusion = 0;
 		}
 	}
+	return (protrusion);
 }
 
 static const char *
