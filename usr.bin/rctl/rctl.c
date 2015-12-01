@@ -64,7 +64,7 @@ parse_user(const char *s, id_t *uidp, const char *unexpanded_rule)
 	}
 
 	if (!isnumber(s[0])) {
-		warnx("malformed rule '%s': uknown user '%s'",
+		warnx("malformed rule '%s': unknown user '%s'",
 		    unexpanded_rule, s);
 		return (1);
 	}
@@ -92,7 +92,7 @@ parse_group(const char *s, id_t *gidp, const char *unexpanded_rule)
 	}
 
 	if (!isnumber(s[0])) {
-		warnx("malformed rule '%s': uknown group '%s'",
+		warnx("malformed rule '%s': unknown group '%s'",
 		    unexpanded_rule, s);
 		return (1);
 	}
