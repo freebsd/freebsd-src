@@ -144,6 +144,7 @@ CLEANDIR=	cleandir
 .endif
 
 LOCAL_TOOL_DIRS?=
+PACKAGEDIR?=	${DESTDIR}/${DISTDIR}
 
 BUILDENV_SHELL?=${SHELL}
 
@@ -1008,11 +1009,11 @@ packageworld:
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
 	    tar cvf - --exclude usr/lib/debug \
 	    @${DESTDIR}/${DISTDIR}/${dist}.meta | \
-	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/${dist}.txz
+	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}.txz
 .else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
 	    tar cvf - --exclude usr/lib/debug . | \
-	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/${dist}.txz
+	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}.txz
 .endif
 .endfor
 
@@ -1020,11 +1021,11 @@ packageworld:
 . if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
 	    tar cvf - @${DESTDIR}/${DISTDIR}/${dist}.debug.meta | \
-	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/${dist}-dbg.txz
+	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}-dbg.txz
 . else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
 	    tar cvLf - usr/lib/debug | \
-	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/${dist}-dbg.txz
+	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}-dbg.txz
 . endif
 .endfor
 
@@ -1252,23 +1253,23 @@ packagekernel:
 .if defined(NO_ROOT)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.meta | \
-	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.txz
+	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.txz
 .if ${BUILDKERNELS:[#]} > 1
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
-	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz
+	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.${_kernel}.txz
 .endfor
 .endif
 .else
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvf - . | \
-	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.txz
+	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.txz
 .if ${BUILDKERNELS:[#]} > 1
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - . | \
-	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz
+	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.${_kernel}.txz
 .endfor
 .endif
 .endif
