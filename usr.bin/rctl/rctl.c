@@ -111,22 +111,38 @@ parse_group(const char *s, id_t *gidp, const char *unexpanded_rule)
  * Replace human-readable number with its expanded form.
  */
 static char *
-expand_amount(char *rule, const char *unexpanded_rule)
+expand_amount(const char *rule, const char *unexpanded_rule)
 {
 	uint64_t num;
 	const char *subject, *subject_id, *resource, *action, *amount, *per;
-	char *expanded;
+	char *copy, *expanded, *tofree;
 	int ret;
 
-	subject = strsep(&rule, ":");
-	subject_id = strsep(&rule, ":");
-	resource = strsep(&rule, ":");
-	action = strsep(&rule, "=/");
-	amount = strsep(&rule, "/");
-	per = rule;
+	tofree = copy = strdup(rule);
+	if (copy == NULL) {
+		warn("strdup");
+		return (NULL);
+	}
 
-	if (amount == NULL || strlen(amount) == 0)
-		return (rule);
+	subject = strsep(&copy, ":");
+	subject_id = strsep(&copy, ":");
+	resource = strsep(&copy, ":");
+	action = strsep(&copy, "=/");
+	amount = strsep(&copy, "/");
+	per = copy;
+
+	if (amount == NULL || strlen(amount) == 0) {
+		/*
+		 * The "copy" has already been tinkered with by strsep().
+		 */
+		free(tofree);
+		copy = strdup(rule);
+		if (copy == NULL) {
+			warn("strdup");
+			return (NULL);
+		}
+		return (copy);
+	}
 
 	assert(subject != NULL);
 	assert(subject_id != NULL);
@@ -136,6 +152,7 @@ expand_amount(char *rule, const char *unexpanded_rule)
 	if (expand_number(amount, &num)) {
 		warnx("malformed rule '%s': invalid numeric value '%s'",
 		    unexpanded_rule, amount);
+		free(tofree);
 		return (NULL);
 	}
 
@@ -149,8 +166,11 @@ expand_amount(char *rule, const char *unexpanded_rule)
 
 	if (ret <= 0) {
 		warn("asprintf");
+		free(tofree);
 		return (NULL);
 	}
+
+	free(tofree);
 
 	return (expanded);
 }
