@@ -150,24 +150,38 @@ g_dev_setdumpdev(struct cdev *dev, struct thread *td)
 	return (error);
 }
 
-static void
+static int
 init_dumpdev(struct cdev *dev)
 {
+	struct g_consumer *cp;
 	const char *devprefix = "/dev/", *devname;
+	int error;
 	size_t len;
 
 	if (dumpdev == NULL)
-		return;
+		return (0);
+
 	len = strlen(devprefix);
 	devname = devtoname(dev);
 	if (strcmp(devname, dumpdev) != 0 &&
 	   (strncmp(dumpdev, devprefix, len) != 0 ||
 	    strcmp(devname, dumpdev + len) != 0))
-		return;
-	if (g_dev_setdumpdev(dev, curthread) == 0) {
+		return (0);
+
+	cp = (struct g_consumer *)dev->si_drv2;
+	error = g_access(cp, 1, 0, 0);
+	if (error != 0)
+		return (error);
+
+	error = g_dev_setdumpdev(dev, curthread);
+	if (error == 0) {
 		freeenv(dumpdev);
 		dumpdev = NULL;
 	}
+
+	(void)g_access(cp, -1, 0, 0);
+
+	return (error);
 }
 
 static void
@@ -329,7 +343,10 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 
 	dev->si_iosize_max = MAXPHYS;
 	dev->si_drv2 = cp;
-	init_dumpdev(dev);
+	error = init_dumpdev(dev);
+	if (error != 0)
+		printf("%s: init_dumpdev() failed (gp->name=%s, error=%d)\n",
+		    __func__, gp->name, error);
 	if (adev != NULL) {
 		adev->si_iosize_max = MAXPHYS;
 		adev->si_drv2 = cp;
