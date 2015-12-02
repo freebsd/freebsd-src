@@ -170,6 +170,7 @@ _DP_archive+=	crypto
 .else
 _DP_archive+=	md
 .endif
+_DP_sqlite3=	pthread
 _DP_ssl=	crypto
 _DP_ssh=	crypto crypt z
 .if ${MK_LDNS} != "no"
@@ -274,9 +275,6 @@ LDADD_${_l}+=	${LDADD_${_d}}
 
 DPADD_atf_cxx+=	${DPADD_atf_c}
 LDADD_atf_cxx+=	${LDADD_atf_c}
-
-DPADD_sqlite3+=	${DPADD_pthread}
-LDADD_sqlite3+=	${LDADD_pthread}
 
 DPADD_fifolog+=	${DPADD_z}
 LDADD_fifolog+=	${LDADD_z}
