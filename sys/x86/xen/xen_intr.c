@@ -711,10 +711,7 @@ xen_intr_resume(struct pic *unused, bool suspend_cancelled)
 				xen_rebind_virq(isrc);
 				break;
 			default:
-				intr_remove_handler(isrc->xi_cookie);
 				isrc->xi_cpu = 0;
-				isrc->xi_type = EVTCHN_TYPE_UNBOUND;
-				isrc->xi_cookie = NULL;
 				break;
 			}
 		}
