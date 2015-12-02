@@ -282,16 +282,6 @@ LDADD_fifolog+=	${LDADD_z}
 DPADD_ipf+=	${DPADD_kvm}
 LDADD_ipf+=	${LDADD_kvm}
 
-# The following depends on libraries which are using pthread
-DPADD_hdb+=	${DPADD_pthread}
-LDADD_hdb+=	${LDADD_pthread}
-DPADD_kadm5srv+=	${DPADD_pthread}
-LDADD_kadm5srv+=	${LDADD_pthread}
-DPADD_krb5+=	${DPADD_pthread}
-LDADD_krb5+=	${LDADD_pthread}
-DPADD_gssapi_krb5+=	${DPADD_pthread}
-LDADD_gssapi_krb5+=	${LDADD_pthread}
-
 .for _l in ${LIBADD}
 DPADD+=		${DPADD_${_l}:Umissing-dpadd_${_l}}
 LDADD+=		${LDADD_${_l}}
