@@ -205,6 +205,7 @@ _DP_proc=	supcplusplus
 .if ${MK_CDDL} != "no"
 _DP_proc+=	ctf
 .endif
+_DP_proc+=	elf rtld_db util
 _DP_mp=	crypto
 _DP_memstat=	kvm
 _DP_magic=	z
@@ -239,7 +240,6 @@ _DP_lzma=	pthread
 _DP_ucl=	m
 _DP_vmmapi=	util
 _DP_ctf=	z
-_DP_proc=	rtld_db util
 _DP_dtrace=	ctf elf proc pthread rtld_db
 _DP_xo=		util
 
