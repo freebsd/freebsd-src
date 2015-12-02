@@ -240,7 +240,7 @@ _DP_ucl=	m
 _DP_vmmapi=	util
 _DP_ctf=	z
 _DP_proc=	rtld_db util
-_DP_dtrace=	rtld_db pthread
+_DP_dtrace=	ctf elf proc pthread rtld_db
 _DP_xo=		util
 
 # Define spacial cases
@@ -283,9 +283,6 @@ LDADD_fifolog+=	${LDADD_z}
 
 DPADD_ipf+=	${DPADD_kvm}
 LDADD_ipf+=	${LDADD_kvm}
-
-DPADD_dtrace+=	${DPADD_ctf} ${DPADD_elf} ${DPADD_proc}
-LDADD_dtrace+=	${LDADD_ctf} ${LDADD_elf} ${LDADD_proc}
 
 # The following depends on libraries which are using pthread
 DPADD_hdb+=	${DPADD_pthread}
