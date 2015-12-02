@@ -371,7 +371,7 @@ cxgbei_task_reserve_itt(struct icl_conn *ic, void **prv,
 	struct cxgbei_sgl *sge = NULL;
 	struct toepcb *toep = icc->toep;
 	struct adapter *sc = td_adapter(toep->td);
-	struct cxgbei_data *ci = sc->iscsi_softc;
+	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
 	int err = -1;
 
 	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
@@ -419,7 +419,7 @@ cxgbei_task_reserve_ttt(struct icl_conn *ic, void **prv, union ctl_io *io,
 	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
 	struct toepcb *toep = icc->toep;
 	struct adapter *sc = td_adapter(toep->td);
-	struct cxgbei_data *ci = sc->iscsi_softc;
+	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
 	struct cxgbei_task_data *tdata = NULL;
 	int xferlen, err = -1;
 	struct cxgbei_sgl *sge = NULL;
@@ -459,7 +459,7 @@ t4_sk_ddp_tag_release(struct icl_cxgbei_conn *icc, unsigned int ddp_tag)
 {
 	struct toepcb *toep = icc->toep;
 	struct adapter *sc = td_adapter(toep->td);
-	struct cxgbei_data *ci = sc->iscsi_softc;
+	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
 
 	cxgbei_ulp2_ddp_tag_release(ci, ddp_tag, icc);
 
@@ -788,7 +788,7 @@ cxgbei_cleanup_task(void *conn, void *ofld_priv)
 	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
 	struct cxgbei_task_data *tdata = ofld_priv;
 	struct adapter *sc = icc->sc;
-	struct cxgbei_data *ci = sc->iscsi_softc;
+	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
 
 	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
 	MPASS(tdata != NULL);
@@ -830,7 +830,7 @@ cxgbei_activate(struct adapter *sc)
 	}
 
 	t4_register_cpl_handler_with_tom(sc);
-	sc->iscsi_softc = ci;
+	sc->iscsi_ulp_softc = ci;
 
 	return (0);
 }
@@ -841,11 +841,11 @@ cxgbei_deactivate(struct adapter *sc)
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
-	if (sc->iscsi_softc != NULL) {
-		cxgbei_ddp_cleanup(sc->iscsi_softc);
+	if (sc->iscsi_ulp_softc != NULL) {
+		cxgbei_ddp_cleanup(sc->iscsi_ulp_softc);
 		t4_unregister_cpl_handler_with_tom(sc);
-		free(sc->iscsi_softc, M_CXGBE);
-		sc->iscsi_softc = NULL;
+		free(sc->iscsi_ulp_softc, M_CXGBE);
+		sc->iscsi_ulp_softc = NULL;
 	}
 
 	return (0);
