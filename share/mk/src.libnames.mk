@@ -208,7 +208,7 @@ _DP_proc+=	ctf
 _DP_mp=	crypto
 _DP_memstat=	kvm
 _DP_magic=	z
-_DP_mt=		bsdxml
+_DP_mt=		sbuf bsdxml
 _DP_ldns=	crypto
 .if ${MK_OPENSSL} != "no"
 _DP_fetch=	ssl crypto
@@ -283,9 +283,6 @@ LDADD_fifolog+=	${LDADD_z}
 
 DPADD_ipf+=	${DPADD_kvm}
 LDADD_ipf+=	${LDADD_kvm}
-
-DPADD_mt+=	${DPADD_sbuf}
-LDADD_mt+=	${LDADD_sbuf}
 
 DPADD_dtrace+=	${DPADD_ctf} ${DPADD_elf} ${DPADD_proc}
 LDADD_dtrace+=	${LDADD_ctf} ${LDADD_elf} ${LDADD_proc}
