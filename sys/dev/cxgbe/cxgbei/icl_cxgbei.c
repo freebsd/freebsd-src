@@ -326,14 +326,6 @@ icl_cxgbei_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *ip,
 	MPASS(ic == ip->ip_conn);
 	KASSERT(len > 0, ("%s: len is %jd", __func__, (intmax_t)len));
 
-	/*
-	 * XXXNP: add assertions here, after fixing the problems around
-	 * max_data_segment_length:
-	 * a) len should not cause the max_data_segment_length to be exceeded.
-	 * b) all data should fit in a single jumbo16.  The hardware limit just
-	 * happens to be within jumbo16 so this is very convenient.
-	 */
-
 	m = ip->ip_data_mbuf;
 	if (m == NULL) {
 		m = m_getjcl(M_NOWAIT, MT_DATA, 0, MJUM16BYTES);
