@@ -1089,6 +1089,7 @@ rt_unlinkrte(struct radix_node_head *rnh, struct rt_addrinfo *info, int *perror)
 	rt = RNTORT(rn);
 	RT_LOCK(rt);
 	RT_ADDREF(rt);
+	rt->rt_flags &= ~RTF_UP;
 
 	*perror = 0;
 
@@ -1099,8 +1100,6 @@ static void
 rt_notifydelete(struct rtentry *rt, struct rt_addrinfo *info)
 {
 	struct ifaddr *ifa;
-
-	rt->rt_flags &= ~RTF_UP;
 
 	/*
 	 * give the protocol a chance to keep things in sync.
@@ -1434,7 +1433,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 				u_int fibnum)
 {
 	int error = 0, needlock = 0;
-	struct rtentry *rt;
+	struct rtentry *rt, *rt_old;
 #ifdef FLOWTABLE
 	struct rtentry *rt0;
 #endif
@@ -1577,6 +1576,26 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 
 		/* XXX mtu manipulation will be done in rnh_addaddr -- itojun */
 		rn = rnh->rnh_addaddr(ndst, netmask, rnh, rt->rt_nodes);
+
+		rt_old = NULL;
+		if (rn == NULL && (info->rti_flags & RTF_PINNED) != 0) {
+
+			/*
+			 * Force removal and re-try addition
+			 * TODO: better multipath&pinned support
+			 */
+			struct sockaddr *info_dst = info->rti_info[RTAX_DST];
+			info->rti_info[RTAX_DST] = ndst;
+			rt_old = rt_unlinkrte(rnh, info, &error);
+			info->rti_info[RTAX_DST] = info_dst;
+			if (rt_old != NULL)
+				rn = rnh->rnh_addaddr(ndst, netmask, rnh,
+				    rt->rt_nodes);
+		}
+
+		if (rt_old != NULL)
+			RT_UNLOCK(rt_old);
+
 		/*
 		 * If it still failed to go into the tree,
 		 * then un-make it (this should be a function)
@@ -1597,6 +1616,11 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			RTFREE(rt0);
 		}
 #endif
+
+		if (rt_old != NULL) {
+			rt_notifydelete(rt_old, info);
+			RTFREE(rt_old);
+		}
 
 		/*
 		 * If this protocol has something to add to this then
@@ -1973,32 +1997,6 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			info.rti_info[RTAX_GATEWAY] = ifa->ifa_addr;
 		info.rti_info[RTAX_NETMASK] = netmask;
 		error = rtrequest1_fib(cmd, &info, &rt, fibnum);
-
-		if ((error == EEXIST) && (cmd == RTM_ADD)) {
-			/*
-			 * Interface route addition failed.
-			 * Atomically delete current prefix generating
-			 * RTM_DELETE message, and retry adding
-			 * interface prefix.
-			 */
-			rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
-			RADIX_NODE_HEAD_LOCK(rnh);
-
-			/* Delete old prefix */
-			info.rti_ifa = NULL;
-			info.rti_flags = RTF_RNH_LOCKED;
-
-			error = rtrequest1_fib(RTM_DELETE, &info, NULL, fibnum);
-			if (error == 0) {
-				info.rti_ifa = ifa;
-				info.rti_flags = flags | RTF_RNH_LOCKED |
-				    (ifa->ifa_flags & ~IFA_RTSELF) | RTF_PINNED;
-				error = rtrequest1_fib(cmd, &info, &rt, fibnum);
-			}
-
-			RADIX_NODE_HEAD_UNLOCK(rnh);
-		}
-
 
 		if (error == 0 && rt != NULL) {
 			/*
