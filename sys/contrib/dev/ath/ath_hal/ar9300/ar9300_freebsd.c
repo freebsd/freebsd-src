@@ -224,6 +224,14 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	ah->ah_isFastClockEnabled	= ar9300_is_fast_clock_enabled;
 	ah->ah_get11nExtBusy	= ar9300_get_11n_ext_busy;
 
+	/* Spectral Scan Functions */
+	ah->ah_spectralConfigure	= ar9300_configure_spectral_scan;
+	ah->ah_spectralGetConfig	= ar9300_get_spectral_params;
+	ah->ah_spectralStart		= ar9300_start_spectral_scan;
+	ah->ah_spectralStop		= ar9300_stop_spectral_scan;
+	ah->ah_spectralIsEnabled	= ar9300_is_spectral_enabled;
+	ah->ah_spectralIsActive		= ar9300_is_spectral_active;
+
 	/* Key cache functions */
 	ah->ah_getKeyCacheSize	= ar9300_get_key_cache_size;
 	ah->ah_resetKeyCacheEntry	= ar9300_reset_key_cache_entry;
