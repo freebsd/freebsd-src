@@ -99,6 +99,7 @@
 #define PCI_DEVICE_ID_ARECA_1170        0x1170 /* Device ID	*/
 #define PCI_DEVICE_ID_ARECA_1200        0x1200 /* Device ID	*/
 #define PCI_DEVICE_ID_ARECA_1201        0x1201 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1203        0x1203 /* Device ID	*/
 #define PCI_DEVICE_ID_ARECA_1210        0x1210 /* Device ID	*/
 #define PCI_DEVICE_ID_ARECA_1212        0x1212 /* Device ID	*/
 #define PCI_DEVICE_ID_ARECA_1214        0x1214 /* Device ID	*/
@@ -131,6 +132,7 @@
 #define PCIDevVenIDARC1170              0x117017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1200              0x120017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1201              0x120117D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1203              0x120317D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1210              0x121017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1212              0x121217D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1213              0x121317D3 /* Vendor Device ID	*/
@@ -188,6 +190,8 @@
 */
 #define CHIP_REG_READ32(s, b, r)	bus_space_read_4(acb->btag[b], acb->bhandle[b], offsetof(struct s, r))
 #define CHIP_REG_WRITE32(s, b, r, d)	bus_space_write_4(acb->btag[b], acb->bhandle[b], offsetof(struct s, r), d)
+#define READ_CHIP_REG32(b, r)		bus_space_read_4(acb->btag[b], acb->bhandle[b], r)
+#define WRITE_CHIP_REG32(b, r, d)	bus_space_write_4(acb->btag[b], acb->bhandle[b], r, d)
 /*
 **********************************************************************************
 **    IOCTL CONTROL Mail Box
@@ -300,6 +304,11 @@ struct CMD_MESSAGE_FIELD {
 #define ARCMSR_DRV2IOP_DOORBELL_MASK            0x00020404
 #define ARCMSR_IOP2DRV_DOORBELL                 0x00020408    /* window of "instruction flags" from iop to driver */
 #define ARCMSR_IOP2DRV_DOORBELL_MASK            0x0002040C
+
+#define ARCMSR_IOP2DRV_DOORBELL_1203            0x00021870    /* window of "instruction flags" from iop to driver */
+#define ARCMSR_IOP2DRV_DOORBELL_MASK_1203       0x00021874
+#define ARCMSR_DRV2IOP_DOORBELL_1203            0x00021878    /* window of "instruction flags" from driver to iop */
+#define ARCMSR_DRV2IOP_DOORBELL_MASK_1203       0x0002187C
 
 /* ARECA FLAG LANGUAGE */
 #define ARCMSR_IOP2DRV_DATA_WRITE_OK            0x00000001        /* ioctl transfer */
@@ -486,6 +495,14 @@ struct HBA_MessageUnit
 ** 
 *********************************************************************
 */
+struct HBB_DOORBELL_1203
+{
+	u_int8_t	doorbell_reserved[ARCMSR_IOP2DRV_DOORBELL_1203]; /*reserved */
+	u_int32_t	iop2drv_doorbell;          /*offset 0x00021870:00,01,02,03: window of "instruction flags" from iop to driver */
+	u_int32_t	iop2drv_doorbell_mask;     /*                  04,05,06,07: doorbell mask */
+	u_int32_t	drv2iop_doorbell;          /*                  08,09,10,11: window of "instruction flags" from driver to iop */
+	u_int32_t	drv2iop_doorbell_mask;     /*                  12,13,14,15: doorbell mask */
+};
 struct HBB_DOORBELL
 {
 	u_int8_t	doorbell_reserved[ARCMSR_DRV2IOP_DOORBELL]; /*reserved */
@@ -520,6 +537,10 @@ struct HBB_MessageUnit
 	int32_t			doneq_index;								   /* done queue index */
 	struct HBB_DOORBELL    *hbb_doorbell;
 	struct HBB_RWBUFFER    *hbb_rwbuffer;
+	bus_size_t		drv2iop_doorbell;          /* window of "instruction flags" from driver to iop */
+	bus_size_t		drv2iop_doorbell_mask;     /* doorbell mask */
+	bus_size_t		iop2drv_doorbell;          /* window of "instruction flags" from iop to driver */
+	bus_size_t		iop2drv_doorbell_mask;     /* doorbell mask */
 };
 
 /*
