@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_intr_init(
 	__in		efx_nic_t *enp,
 	__in		efx_intr_type_t type,
@@ -58,7 +58,7 @@ static			void
 falconsiena_intr_disable_unlocked(
 	__in		efx_nic_t *enp);
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_intr_trigger(
 	__in		efx_nic_t *enp,
 	__in		unsigned int level);
@@ -113,7 +113,7 @@ static efx_intr_ops_t	__efx_intr_hunt_ops = {
 #endif	/* EFSYS_OPT_HUNTINGTON */
 
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_intr_init(
 	__in		efx_nic_t *enp,
 	__in		efx_intr_type_t type,
@@ -121,7 +121,7 @@ efx_intr_init(
 {
 	efx_intr_t *eip = &(enp->en_intr);
 	efx_intr_ops_t *eiop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NIC);
@@ -174,7 +174,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -235,7 +235,7 @@ efx_intr_disable_unlocked(
 }
 
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_intr_trigger(
 	__in		efx_nic_t *enp,
 	__in		unsigned int level)
@@ -336,7 +336,7 @@ efx_intr_fatal(
 
 #if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_intr_init(
 	__in		efx_nic_t *enp,
 	__in		efx_intr_type_t type,
@@ -417,7 +417,7 @@ falconsiena_intr_disable_unlocked(
 	    &oword, B_FALSE);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_intr_trigger(
 	__in		efx_nic_t *enp,
 	__in		unsigned int level)
@@ -426,7 +426,7 @@ falconsiena_intr_trigger(
 	efx_oword_t oword;
 	unsigned int count;
 	uint32_t sel;
-	int rc;
+	efx_rc_t rc;
 
 	/* bug16757: No event queues can be initialized */
 	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_EV));
@@ -480,7 +480,7 @@ falconsiena_intr_trigger(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }

@@ -28,6 +28,7 @@ static const char rcsid[] = "$FreeBSD$";
 
 #include <sys/types.h>
 #include <sys/errno.h>
+#include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/sbuf.h>
 #include <sys/stat.h>
@@ -41,7 +42,7 @@ static const char rcsid[] = "$FreeBSD$";
 
 #include <bsdxml.h>
 
-#include "regdomain.h"
+#include "lib80211_regdomain.h"
 
 #include <net80211/_ieee80211.h>
 
@@ -212,9 +213,9 @@ decode_flag(struct mystate *mt, const char *p, int len)
 		{ "INDOOR",	6,	REQ_INDOOR },
 		{ "OUTDOOR",	7,	REQ_OUTDOOR },
 	};
-	int i;
+	unsigned int i;
 
-	for (i = 0; i < sizeof(flags)/sizeof(flags[0]); i++)
+	for (i = 0; i < nitems(flags); i++)
 		if (len == flags[i].len && iseq(p, flags[i].name))
 			return flags[i].value;
 	warnx("unknown flag \"%.*s\" at line %ld ignored",
@@ -347,7 +348,8 @@ end_element(void *data, const char *name)
 	}
 	/* </country> */
 	if (iseq(name, "country") && mt->country != NULL) {
-		if (mt->country->code == NO_COUNTRY) {
+		/* XXX NO_COUNTRY should be in the net80211 country enum */
+		if ((int) mt->country->code == NO_COUNTRY) {
 			warnx("no ISO cc for country at line %ld",
 			   XML_GetCurrentLineNumber(mt->parser));
 		}
@@ -392,7 +394,7 @@ findid(struct regdata *rdp, const void *id, int type)
 	struct ident *ip;
 
 	for (ip = rdp->ident; ip->id != NULL; ip++)
-		if (ip->type == type && strcasecmp(ip->id, id) == 0)
+		if ((int) ip->type == type && strcasecmp(ip->id, id) == 0)
 			return ip->p;
 	return NULL;
 }

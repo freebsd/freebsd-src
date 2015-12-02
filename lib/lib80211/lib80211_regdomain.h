@@ -24,8 +24,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _LIB80211_H_
-#define _LIB80211_H_
+#ifndef _LIB80211_REGDOMAIN_H_
+#define _LIB80211_REGDOMAIN_H_
 
 #include <sys/cdefs.h>
 #include <sys/queue.h>
@@ -118,4 +118,4 @@ const struct country *lib80211_country_findbyname(const struct regdata *,
 
 __END_DECLS
 
-#endif /* _LIB80211_H_ */
+#endif /* _LIB80211_REGDOMAIN_H_ */

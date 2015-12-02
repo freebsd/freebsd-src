@@ -90,7 +90,9 @@
 #include <stddef.h>		/* NB: for offsetof */
 
 #include "ifconfig.h"
-#include "regdomain.h"
+
+#include <lib80211/lib80211_regdomain.h>
+#include <lib80211/lib80211_ioctl.h>
 
 #ifndef IEEE80211_FIXED_RATE_NONE
 #define	IEEE80211_FIXED_RATE_NONE	0xff
@@ -4886,60 +4888,31 @@ end:
 static int
 get80211(int s, int type, void *data, int len)
 {
-	struct ieee80211req ireq;
 
-	(void) memset(&ireq, 0, sizeof(ireq));
-	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name));
-	ireq.i_type = type;
-	ireq.i_data = data;
-	ireq.i_len = len;
-	return ioctl(s, SIOCG80211, &ireq);
+	return (lib80211_get80211(s, name, type, data, len));
 }
 
 static int
 get80211len(int s, int type, void *data, int len, int *plen)
 {
-	struct ieee80211req ireq;
 
-	(void) memset(&ireq, 0, sizeof(ireq));
-	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name));
-	ireq.i_type = type;
-	ireq.i_len = len;
-	assert(ireq.i_len == len);	/* NB: check for 16-bit truncation */
-	ireq.i_data = data;
-	if (ioctl(s, SIOCG80211, &ireq) < 0)
-		return -1;
-	*plen = ireq.i_len;
-	return 0;
+	return (lib80211_get80211len(s, name, type, data, len, plen));
 }
 
 static int
 get80211val(int s, int type, int *val)
 {
-	struct ieee80211req ireq;
 
-	(void) memset(&ireq, 0, sizeof(ireq));
-	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name));
-	ireq.i_type = type;
-	if (ioctl(s, SIOCG80211, &ireq) < 0)
-		return -1;
-	*val = ireq.i_val;
-	return 0;
+	return (lib80211_get80211val(s, name, type, val));
 }
 
 static void
 set80211(int s, int type, int val, int len, void *data)
 {
-	struct ieee80211req	ireq;
+	int ret;
 
-	(void) memset(&ireq, 0, sizeof(ireq));
-	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name));
-	ireq.i_type = type;
-	ireq.i_val = val;
-	ireq.i_len = len;
-	assert(ireq.i_len == len);	/* NB: check for 16-bit truncation */
-	ireq.i_data = data;
-	if (ioctl(s, SIOCS80211, &ireq) < 0)
+	ret = lib80211_set80211(s, name, type, val, len, data);
+	if (ret < 0)
 		err(1, "SIOCS80211");
 }
 

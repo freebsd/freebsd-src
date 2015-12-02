@@ -228,9 +228,9 @@ struct isp_fc {
 	bus_dmamap_t tdmap;
 	uint64_t def_wwpn;
 	uint64_t def_wwnn;
-	uint32_t loop_down_time;
-	uint32_t loop_down_limit;
-	uint32_t gone_device_time;
+	time_t loop_down_time;
+	int loop_down_limit;
+	int gone_device_time;
 	/*
 	 * Per target/lun info- just to keep a per-ITL nexus crn count
 	 */
@@ -239,15 +239,13 @@ struct isp_fc {
 	uint32_t
 		simqfrozen	: 3,
 		default_id	: 8,
-		hysteresis	: 8,
 		def_role	: 2,	/* default role */
 		gdt_running	: 1,
 		loop_dead	: 1,
+		loop_seen_once	: 1,
 		fcbsy		: 1,
 		ready		: 1;
-	struct callout ldt;	/* loop down timer */
 	struct callout gdt;	/* gone device timer */
-	struct task ltask;
 	struct task gtask;
 #ifdef	ISP_TARGET_MODE
 	struct tslist lun_hash[LUN_HASH_SIZE];
@@ -698,7 +696,6 @@ extern uint64_t isp_default_wwn(ispsoftc_t *, int, int, int);
  * driver global data
  */
 extern int isp_announced;
-extern int isp_fabric_hysteresis;
 extern int isp_loop_down_limit;
 extern int isp_gone_device_time;
 extern int isp_quickboot_time;

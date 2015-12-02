@@ -37,29 +37,32 @@ __FBSDID("$FreeBSD$");
 	mov	x18, sp
 	sub	sp, sp, #128
 .endif
-	stp	x28, x29, [sp, #-16]!
-	stp	x26, x27, [sp, #-16]!
-	stp	x24, x25, [sp, #-16]!
-	stp	x22, x23, [sp, #-16]!
-	stp	x20, x21, [sp, #-16]!
-	stp	x18, x19, [sp, #-16]!
-	stp	x16, x17, [sp, #-16]!
-	stp	x14, x15, [sp, #-16]!
-	stp	x12, x13, [sp, #-16]!
-	stp	x10, x11, [sp, #-16]!
-	stp	x8, x9, [sp, #-16]!
-	stp	x6, x7, [sp, #-16]!
-	stp	x4, x5, [sp, #-16]!
-	stp	x2, x3, [sp, #-16]!
-	stp	x0, x1, [sp, #-16]!
+	sub	sp, sp, #(TF_SIZE + 16)
+	stp	x29, x30, [sp, #(TF_SIZE)]
+	stp	x28, x29, [sp, #(TF_X + 28 * 8)]
+	stp	x26, x27, [sp, #(TF_X + 26 * 8)]
+	stp	x24, x25, [sp, #(TF_X + 24 * 8)]
+	stp	x22, x23, [sp, #(TF_X + 22 * 8)]
+	stp	x20, x21, [sp, #(TF_X + 20 * 8)]
+	stp	x18, x19, [sp, #(TF_X + 18 * 8)]
+	stp	x16, x17, [sp, #(TF_X + 16 * 8)]
+	stp	x14, x15, [sp, #(TF_X + 14 * 8)]
+	stp	x12, x13, [sp, #(TF_X + 12 * 8)]
+	stp	x10, x11, [sp, #(TF_X + 10 * 8)]
+	stp	x8,  x9,  [sp, #(TF_X + 8  * 8)]
+	stp	x6,  x7,  [sp, #(TF_X + 6  * 8)]
+	stp	x4,  x5,  [sp, #(TF_X + 4  * 8)]
+	stp	x2,  x3,  [sp, #(TF_X + 2  * 8)]
+	stp	x0,  x1,  [sp, #(TF_X + 0  * 8)]
 	mrs	x10, elr_el1
 	mrs	x11, spsr_el1
 .if \el == 0
 	mrs	x18, sp_el0
 .endif
-	stp	x10, x11, [sp, #-16]!
-	stp	x18, lr, [sp, #-16]!
+	stp	x10, x11, [sp, #(TF_ELR)]
+	stp	x18,  lr, [sp, #(TF_SP)]
 	mrs	x18, tpidr_el1
+	add	x29, sp, #(TF_SIZE)
 .endm
 
 .macro	restore_registers el
@@ -70,33 +73,35 @@ __FBSDID("$FreeBSD$");
 	 * handler.  For EL0 exceptions, do_ast already did this.
 	 */
 .endif
-	ldp	x18, lr, [sp], #16
-	ldp	x10, x11, [sp], #16
+	ldp	x18,  lr, [sp, #(TF_SP)]
+	ldp	x10, x11, [sp, #(TF_ELR)]
 .if \el == 0
 	msr	sp_el0, x18
 .endif
 	msr	spsr_el1, x11
 	msr	elr_el1, x10
-	ldp	x0, x1, [sp], #16
-	ldp	x2, x3, [sp], #16
-	ldp	x4, x5, [sp], #16
-	ldp	x6, x7, [sp], #16
-	ldp	x8, x9, [sp], #16
-	ldp	x10, x11, [sp], #16
-	ldp	x12, x13, [sp], #16
-	ldp	x14, x15, [sp], #16
-	ldp	x16, x17, [sp], #16
+	ldp	x0,  x1,  [sp, #(TF_X + 0  * 8)]
+	ldp	x2,  x3,  [sp, #(TF_X + 2  * 8)]
+	ldp	x4,  x5,  [sp, #(TF_X + 4  * 8)]
+	ldp	x6,  x7,  [sp, #(TF_X + 6  * 8)]
+	ldp	x8,  x9,  [sp, #(TF_X + 8  * 8)]
+	ldp	x10, x11, [sp, #(TF_X + 10 * 8)]
+	ldp	x12, x13, [sp, #(TF_X + 12 * 8)]
+	ldp	x14, x15, [sp, #(TF_X + 14 * 8)]
+	ldp	x16, x17, [sp, #(TF_X + 16 * 8)]
 .if \el == 0
-	ldp	x18, x19, [sp], #16
+	ldp	x18, x19, [sp, #(TF_X + 18 * 8)]
 .else
-	ldp	xzr, x19, [sp], #16
+	ldr	     x19, [sp, #(TF_X + 19 * 8)]
 .endif
-	ldp	x20, x21, [sp], #16
-	ldp	x22, x23, [sp], #16
-	ldp	x24, x25, [sp], #16
-	ldp	x26, x27, [sp], #16
-	ldp	x28, x29, [sp], #16
-.if \el == 1
+	ldp	x20, x21, [sp, #(TF_X + 20 * 8)]
+	ldp	x22, x23, [sp, #(TF_X + 22 * 8)]
+	ldp	x24, x25, [sp, #(TF_X + 24 * 8)]
+	ldp	x26, x27, [sp, #(TF_X + 26 * 8)]
+	ldp	x28, x29, [sp, #(TF_X + 28 * 8)]
+.if \el == 0
+	add	sp, sp, #(TF_SIZE + 16)
+.else
 	mov	sp, x18
 	mrs	x18, tpidr_el1
 .endif
@@ -116,8 +121,7 @@ __FBSDID("$FreeBSD$");
 	mov	x3, #((TDF_ASTPENDING|TDF_NEEDRESCHED) >> 8)
 	lsl	x3, x3, #8
 	and	x2, x2, x3
-	cmp	x2, #0
-	b.eq	2f
+	cbz	x2, 2f
 
 	/* Restore interrupts */
 	msr	daif, x19

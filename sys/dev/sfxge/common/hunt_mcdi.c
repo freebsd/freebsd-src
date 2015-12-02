@@ -76,14 +76,14 @@ typedef enum efx_mcdi_header_type_e {
  */
 
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_mcdi_init(
 	__in		efx_nic_t *enp,
 	__in		const efx_mcdi_transport_t *emtp)
 {
 	efsys_mem_t *esmp = emtp->emt_dma_mem;
 	efx_dword_t dword;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
 	EFSYS_ASSERT(enp->en_features & EFX_FEATURE_MCDI_DMA);
@@ -117,7 +117,7 @@ hunt_mcdi_init(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -271,7 +271,7 @@ hunt_mcdi_request_poll(
 	unsigned int length;
 	size_t offset;
 	int state;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
 
@@ -366,7 +366,7 @@ fail2:
 		EFSYS_PROBE(fail2);
 fail1:
 	if (!emrp->emr_quiet)
-		EFSYS_PROBE1(fail1, int, rc);
+		EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	/* Fill out error state */
 	emrp->emr_rc = rc;
@@ -380,7 +380,7 @@ out:
 	return (B_TRUE);
 }
 
-			int
+			efx_rc_t
 hunt_mcdi_poll_reboot(
 	__in		efx_nic_t *enp)
 {
@@ -388,7 +388,7 @@ hunt_mcdi_poll_reboot(
 	efx_dword_t dword;
 	uint32_t old_status;
 	uint32_t new_status;
-	int rc;
+	efx_rc_t rc;
 
 	old_status = emip->emi_mc_reboot_status;
 
@@ -421,12 +421,12 @@ hunt_mcdi_poll_reboot(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_mcdi_fw_update_supported(
 	__in		efx_nic_t *enp,
 	__out		boolean_t *supportedp)
@@ -435,7 +435,11 @@ hunt_mcdi_fw_update_supported(
 
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
 
-	/* use privilege mask state at MCDI attach */
+	/*
+	 * Use privilege mask state at MCDI attach.
+	 * Admin privilege must be used prior to introduction of
+	 * specific flag.
+	 */
 	*supportedp = (encp->enc_privilege_mask &
 	    MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN)
 	    == MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN;
@@ -443,19 +447,50 @@ hunt_mcdi_fw_update_supported(
 	return (0);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_mcdi_macaddr_change_supported(
 	__in		efx_nic_t *enp,
 	__out		boolean_t *supportedp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	uint32_t privilege_mask = encp->enc_privilege_mask;
 
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
 
-	/* use privilege mask state at MCDI attach */
-	*supportedp = (encp->enc_privilege_mask &
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING)
-	    == MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING;
+	/*
+	 * Use privilege mask state at MCDI attach.
+	 * Admin privilege must be used prior to introduction of
+	 * specific flag (at v4.6).
+	 */
+	*supportedp =
+	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING) ==
+	    MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING) ||
+	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN) ==
+	    MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN);
+
+	return (0);
+}
+
+	__checkReturn	efx_rc_t
+hunt_mcdi_link_control_supported(
+	__in		efx_nic_t *enp,
+	__out		boolean_t *supportedp)
+{
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	uint32_t privilege_mask = encp->enc_privilege_mask;
+
+	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+
+	/*
+	 * Use privilege mask state at MCDI attach.
+	 * Admin privilege used prior to introduction of
+	 * specific flag.
+	 */
+	*supportedp =
+	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_LINK) ==
+	    MC_CMD_PRIVILEGE_MASK_IN_GRP_LINK) ||
+	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN) ==
+	    MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN);
 
 	return (0);
 }

@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20151130:
+	r291527 changed the internal interface between the nfsd.ko and
+	nfscommon.ko modules. As such, they must both be upgraded to-gether.
+	__FreeBSD_version has been bumped because of this.
+
 20151108:
 	Add support for unicode collation strings leads to a change of
 	order of files listed by ls(1) for example. To get back to the old
@@ -843,14 +848,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	Most of network statistics structures were changed to be able
 	keep 64-bits counters. Thus all tools, that work with networking
 	statistics, must be rebuilt (netstat(1), bsnmpd(1), etc.)
-
-20130629:
-	Fix targets that run multiple make's to use && rather than ;
-	so that subsequent steps depend on success of previous.
-
-	NOTE: if building 'universe' with -j* on stable/8 or stable/9
-	it would be better to start the build using bmake, to avoid
-	overloading the machine.
 
 20130618:
 	Fix a bug that allowed a tracing process (e.g. gdb) to write

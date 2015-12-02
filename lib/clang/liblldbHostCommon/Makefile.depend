@@ -15,32 +15,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-Host.o: AttrList.inc.h
-Host.o: Attrs.inc.h
-Host.o: CommentCommandList.inc.h
-Host.o: DeclNodes.inc.h
-Host.o: DiagnosticCommonKinds.inc.h
-Host.o: StmtNodes.inc.h
-Host.po: AttrList.inc.h
-Host.po: Attrs.inc.h
-Host.po: CommentCommandList.inc.h
-Host.po: DeclNodes.inc.h
-Host.po: DiagnosticCommonKinds.inc.h
-Host.po: StmtNodes.inc.h
-MonitoringProcessLauncher.o: CommentCommandList.inc.h
-MonitoringProcessLauncher.o: DeclNodes.inc.h
-MonitoringProcessLauncher.o: DiagnosticCommonKinds.inc.h
-MonitoringProcessLauncher.o: StmtNodes.inc.h
-MonitoringProcessLauncher.po: CommentCommandList.inc.h
-MonitoringProcessLauncher.po: DeclNodes.inc.h
-MonitoringProcessLauncher.po: DiagnosticCommonKinds.inc.h
-MonitoringProcessLauncher.po: StmtNodes.inc.h
-Symbols.o: CommentCommandList.inc.h
-Symbols.o: DeclNodes.inc.h
-Symbols.o: DiagnosticCommonKinds.inc.h
-Symbols.o: StmtNodes.inc.h
-Symbols.po: CommentCommandList.inc.h
-Symbols.po: DeclNodes.inc.h
-Symbols.po: DiagnosticCommonKinds.inc.h
-Symbols.po: StmtNodes.inc.h
 .endif
