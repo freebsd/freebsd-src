@@ -90,6 +90,10 @@ __FBSDID("$FreeBSD$");
 #include "cxgbei.h"
 #include "cxgbei_ulp2_ddp.h"
 
+static int worker_thread_count;
+static struct cxgbei_worker_thread_softc *cwt_softc;
+static struct proc *cxgbei_proc;
+
 /* XXXNP some header instead. */
 struct icl_pdu *icl_cxgbei_new_pdu(int);
 void icl_cxgbei_new_pdu_set_conn(struct icl_pdu *, struct icl_conn *);
@@ -718,7 +722,7 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	STAILQ_INSERT_TAIL(&icc->rcvd_pdus, ip, ip_next);
 	if ((icc->rx_flags & RXF_ACTIVE) == 0) {
-		struct cxgbei_worker_thread_softc *cwt = icc->cwt;
+		struct cxgbei_worker_thread_softc *cwt = &cwt_softc[icc->cwt];
 
 		mtx_lock(&cwt->cwt_lock);
 		icc->rx_flags |= RXF_ACTIVE;
@@ -884,10 +888,6 @@ static struct uld_info cxgbei_uld_info = {
 	.deactivate = cxgbei_deactivate,
 };
 
-static int worker_thread_count;
-static struct cxgbei_worker_thread_softc *cwt_softc;
-static struct proc *cxgbei_proc;
-
 static void
 cwt_main(void *arg)
 {
@@ -1034,6 +1034,25 @@ stop_worker_threads(void)
 		mtx_unlock(&cwt->cwt_lock);
 	}
 	free(cwt_softc, M_CXGBE);
+}
+
+/* Select a worker thread for a connection. */
+u_int
+cxgbei_select_worker_thread(struct icl_cxgbei_conn *icc)
+{
+	struct adapter *sc = icc->sc;
+	struct toepcb *toep = icc->toep;
+	u_int i, n;
+
+	n = worker_thread_count / sc->sge.nofldrxq;
+	if (n > 0)
+		i = toep->port->port_id * n + arc4random() % n;
+	else
+		i = arc4random() % worker_thread_count;
+
+	CTR3(KTR_CXGBE, "%s: tid %u, cwt %u", __func__, toep->tid, i);
+
+	return (i);
 }
 
 static int

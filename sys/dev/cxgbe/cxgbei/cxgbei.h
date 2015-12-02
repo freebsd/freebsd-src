@@ -61,9 +61,9 @@ struct icl_cxgbei_conn {
 
 	/* Receive related. */
 	u_int rx_flags;				/* protected by so_rcv lock */
+	u_int cwt;
 	STAILQ_HEAD(, icl_pdu) rcvd_pdus;	/* protected by so_rcv lock */
 	TAILQ_ENTRY(icl_cxgbei_conn) rx_link;	/* protected by cwt lock */
-	struct cxgbei_worker_thread_softc *cwt;
 };
 
 static inline struct icl_cxgbei_conn *
@@ -153,6 +153,7 @@ struct cxgbei_data {
 void cxgbei_conn_task_reserve_itt(void *, void **, void *, unsigned int *);
 void cxgbei_conn_transfer_reserve_ttt(void *, void **, void *, unsigned int *);
 void cxgbei_cleanup_task(void *, void *);
+u_int cxgbei_select_worker_thread(struct icl_cxgbei_conn *);
 
 struct cxgbei_ulp2_pagepod_hdr;
 int t4_ddp_set_map(struct cxgbei_data *, void *,
