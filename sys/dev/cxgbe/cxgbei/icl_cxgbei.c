@@ -597,9 +597,6 @@ set_ulp_mode_iscsi(struct adapter *sc, struct toepcb *toep, int hcrc, int dcrc)
 	t4_set_tcb_field(sc, toep, 1, 0, 0xfff, val);
 }
 
-/* XXXNP */
-extern struct cxgbei_worker_thread_softc *cwt_softc;
-
 /*
  * XXXNP: Who is responsible for cleaning up the socket if this returns with an
  * error?  Review all error paths.
@@ -681,7 +678,7 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 		toep = tp->t_toe;
 		MPASS(toep->port->adapter == icc->sc);
 		icc->toep = toep;
-		icc->cwt = &cwt_softc[0]; /* XXXNP */
+		icc->cwt = cxgbei_select_worker_thread(icc);
 		icc->ulp_submode = 0;
 		if (ic->ic_header_crc32c)
 			icc->ulp_submode |= ULP_CRC_HEADER;
