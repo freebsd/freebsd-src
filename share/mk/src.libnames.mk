@@ -171,9 +171,9 @@ _DP_archive+=	crypto
 _DP_archive+=	md
 .endif
 _DP_ssl=	crypto
-_DP_ssh=	crypto crypt
+_DP_ssh=	crypto crypt z
 .if ${MK_LDNS} != "no"
-_DP_ssh+=	ldns z
+_DP_ssh+=	ldns
 .endif
 _DP_edit=	ncursesw
 .if ${MK_OPENSSL} != "no"
