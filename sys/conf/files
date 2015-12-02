@@ -1058,6 +1058,8 @@ contrib/dev/ath/ath_hal/ar9300/ar9300_stub.c optional ath_hal | ath_ar9300 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
 contrib/dev/ath/ath_hal/ar9300/ar9300_stub_funcs.c optional ath_hal | ath_ar9300 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
+contrib/dev/ath/ath_hal/ar9300/ar9300_spectral.c optional ath_hal | ath_ar9300 \
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
 contrib/dev/ath/ath_hal/ar9300/ar9300_timer.c optional ath_hal | ath_ar9300 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
 contrib/dev/ath/ath_hal/ar9300/ar9300_xmit.c optional ath_hal | ath_ar9300 \
