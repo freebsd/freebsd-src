@@ -510,7 +510,7 @@ struct em_buffer {
 ** Find the number of unrefreshed RX descriptors
 */
 static inline u16
-e1000_rx_unrefreshed(struct rx_ring *rxr)
+e1000e_rx_unrefreshed(struct rx_ring *rxr)
 {
 	struct adapter	*adapter = rxr->adapter;
 

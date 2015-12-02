@@ -1335,39 +1335,71 @@ dev/ed/if_ed_pccard.c		optional ed pccard
 dev/ed/if_ed_pci.c		optional ed pci
 dev/eisa/eisa_if.m		standard
 dev/eisa/eisaconf.c		optional eisa
-dev/e1000/if_em.c		optional em \
+
+dev/e1000e/if_em.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000e"
+dev/e1000e/e1000e_ich8lan.c	optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000e"
+dev/e1000e/e1000e_80003es2lan.c	optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000e"
+dev/e1000e/e1000e_82540.c	optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000e"
+dev/e1000e/e1000e_82541.c	optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000e"
+dev/e1000e/e1000e_82542.c	optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000e"
+dev/e1000e/e1000e_82543.c	optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000e"
+dev/e1000e/e1000e_82571.c	optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000e"
+dev/e1000e/e1000e_api.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000e"
+dev/e1000e/e1000e_mac.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000e"
+dev/e1000e/e1000e_manage.c	optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000e"
+dev/e1000e/e1000e_nvm.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000e"
+dev/e1000e/e1000e_phy.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000e"
+dev/e1000e/e1000e_vf.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000e"
+dev/e1000e/e1000e_mbx.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000e"
+dev/e1000e/e1000e_osdep.c	optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000e"
+
+dev/e1000/if_lem.c		optional lem \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/if_lem.c		optional em \
+dev/e1000/e1000_80003es2lan.c	optional lem \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_80003es2lan.c	optional em \
+dev/e1000/e1000_82540.c		optional lem \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_82540.c		optional em \
+dev/e1000/e1000_82541.c		optional lem \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_82541.c		optional em \
+dev/e1000/e1000_82542.c		optional lem \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_82542.c		optional em \
+dev/e1000/e1000_82543.c		optional lem \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_82543.c		optional em \
+dev/e1000/e1000_82571.c		optional lem \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_82571.c		optional em \
+dev/e1000/e1000_api.c		optional lem \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_ich8lan.c	optional em \
+dev/e1000/e1000_mac.c		optional lem \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_api.c		optional em \
+dev/e1000/e1000_manage.c	optional lem \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_mac.c		optional em \
+dev/e1000/e1000_nvm.c		optional lem \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_manage.c	optional em \
+dev/e1000/e1000_phy.c		optional lem \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_nvm.c		optional em \
+dev/e1000/e1000_mbx.c		optional lem \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_phy.c		optional em \
+dev/e1000/e1000_osdep.c		optional lem \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_vf.c		optional em \
+dev/e1000/e1000_vf.c		optional lem \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_mbx.c		optional em \
-	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/e1000_osdep.c		optional em \
+dev/e1000/e1000_ich8lan.c	optional lem \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 
 dev/igb/if_igb.c		optional igb \

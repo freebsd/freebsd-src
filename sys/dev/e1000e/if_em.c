@@ -91,8 +91,8 @@
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
-#include "e1000_api.h"
-#include "e1000_82571.h"
+#include "e1000e_api.h"
+#include "e1000e_82571.h"
 #include "if_em.h"
 
 /*********************************************************************
@@ -577,7 +577,7 @@ em_attach(device_t dev)
 	}
 
 	/* Do Shared Code initialization */
-	if (e1000_setup_init_funcs(hw, TRUE)) {
+	if (e1000e_setup_init_funcs(hw, TRUE)) {
 		device_printf(dev, "Setup of Shared code failed\n");
 		error = ENXIO;
 		goto err_pci;
@@ -588,7 +588,7 @@ em_attach(device_t dev)
 	 */
 	adapter->msix = em_setup_msix(adapter);
 
-	e1000_get_bus_info(hw);
+	e1000e_get_bus_info(hw);
 
 	/* Set up some sysctls for the tunable interrupt delays */
 	em_add_int_delay_sysctl(adapter, "rx_int_delay",
@@ -681,7 +681,7 @@ em_attach(device_t dev)
 	}
 
 	/* Check SOL/IDER usage */
-	if (e1000_check_reset_block(hw))
+	if (e1000e_check_reset_block(hw))
 		device_printf(dev, "PHY reset is blocked"
 		    " due to SOL/IDER session.\n");
 
@@ -698,17 +698,17 @@ em_attach(device_t dev)
 	** important in reading the nvm and
 	** mac from that.
 	*/
-	e1000_reset_hw(hw);
+	e1000e_reset_hw(hw);
 
 
 	/* Make sure we have a good EEPROM before we read from it */
-	if (e1000_validate_nvm_checksum(hw) < 0) {
+	if (e1000e_validate_nvm_checksum(hw) < 0) {
 		/*
 		** Some PCI-E parts fail the first check due to
 		** the link being in sleep state, call it again,
 		** if it fails a second time its a real issue.
 		*/
-		if (e1000_validate_nvm_checksum(hw) < 0) {
+		if (e1000e_validate_nvm_checksum(hw) < 0) {
 			device_printf(dev,
 			    "The EEPROM Checksum Is Not Valid\n");
 			error = EIO;
@@ -717,7 +717,7 @@ em_attach(device_t dev)
 	}
 
 	/* Copy the permanent MAC address out of the EEPROM */
-	if (e1000_read_mac_addr(hw) < 0) {
+	if (e1000e_read_mac_addr(hw) < 0) {
 		device_printf(dev, "EEPROM read error while reading MAC"
 		    " address\n");
 		error = EIO;
@@ -731,7 +731,7 @@ em_attach(device_t dev)
 	}
 
 	/* Disable ULP support */
-	e1000_disable_ulp_lpt_lp(hw, TRUE);
+	e1000e_disable_ulp_lpt_lp(hw, TRUE);
 
 	/*
 	**  Do interrupt configuration
@@ -837,7 +837,7 @@ em_detach(device_t dev)
 	EM_CORE_UNLOCK(adapter);
 	EM_CORE_LOCK_DESTROY(adapter);
 
-	e1000_phy_hw_reset(&adapter->hw);
+	e1000e_phy_hw_reset(&adapter->hw);
 
 	em_release_manageability(adapter);
 	em_release_hw_control(adapter);
@@ -908,7 +908,7 @@ em_resume(device_t dev)
 
 	EM_CORE_LOCK(adapter);
 	if (adapter->hw.mac.type == e1000_pch2lan)
-		e1000_resume_workarounds_pchlan(&adapter->hw);
+		e1000e_resume_workarounds_pchlan(&adapter->hw);
 	em_init_locked(adapter);
 	em_init_manageability(adapter);
 
@@ -1233,7 +1233,7 @@ em_ioctl(if_t ifp, u_long command, caddr_t data)
 	case SIOCSIFMEDIA:
 		/* Check SOL/IDER usage */
 		EM_CORE_LOCK(adapter);
-		if (e1000_check_reset_block(&adapter->hw)) {
+		if (e1000e_check_reset_block(&adapter->hw)) {
 			EM_CORE_UNLOCK(adapter);
 			device_printf(adapter->dev, "Media change is"
 			    " blocked due to SOL/IDER session.\n");
@@ -1344,7 +1344,7 @@ em_init_locked(struct adapter *adapter)
               ETHER_ADDR_LEN);
 
 	/* Put the address into the Receive Address Array */
-	e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
+	e1000e_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
 
 	/*
 	 * With the 82571 adapter, RAR[0] may be overwritten
@@ -1353,8 +1353,8 @@ em_init_locked(struct adapter *adapter)
 	 * the interface continues to function.
 	 */
 	if (adapter->hw.mac.type == e1000_82571) {
-		e1000_set_laa_state_82571(&adapter->hw, TRUE);
-		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr,
+		e1000e_set_laa_state_82571(&adapter->hw, TRUE);
+		e1000e_rar_set(&adapter->hw, adapter->hw.mac.addr,
 		    E1000_RAR_ENTRIES - 1);
 	}
 
@@ -1421,7 +1421,7 @@ em_init_locked(struct adapter *adapter)
 	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 
 	callout_reset(&adapter->timer, hz, em_local_timer, adapter);
-	e1000_clear_hw_cntrs_base_generic(&adapter->hw);
+	e1000e_clear_hw_cntrs_base_generic(&adapter->hw);
 
 	/* MSI/X configuration for 82574 */
 	if (adapter->hw.mac.type == e1000_82574) {
@@ -2244,7 +2244,7 @@ em_set_multi(struct adapter *adapter)
 	    adapter->hw.revision_id == E1000_REVISION_2) {
 		reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
 		if (adapter->hw.bus.pci_cmd_word & CMD_MEM_WRT_INVALIDATE)
-			e1000_pci_clear_mwi(&adapter->hw);
+			e1000e_pci_clear_mwi(&adapter->hw);
 		reg_rctl |= E1000_RCTL_RST;
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 		msec_delay(5);
@@ -2257,7 +2257,7 @@ em_set_multi(struct adapter *adapter)
 		reg_rctl |= E1000_RCTL_MPE;
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 	} else
-		e1000_update_mc_addr_list(&adapter->hw, mta, mcnt);
+		e1000e_update_mc_addr_list(&adapter->hw, mta, mcnt);
 
 	if (adapter->hw.mac.type == e1000_82542 && 
 	    adapter->hw.revision_id == E1000_REVISION_2) {
@@ -2266,7 +2266,7 @@ em_set_multi(struct adapter *adapter)
 		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, reg_rctl);
 		msec_delay(5);
 		if (adapter->hw.bus.pci_cmd_word & CMD_MEM_WRT_INVALIDATE)
-			e1000_pci_set_mwi(&adapter->hw);
+			e1000e_pci_set_mwi(&adapter->hw);
 	}
 }
 
@@ -2294,8 +2294,8 @@ em_local_timer(void *arg)
 
 	/* Reset LAA into RAR[0] on 82571 */
 	if ((adapter->hw.mac.type == e1000_82571) &&
-	    e1000_get_laa_state_82571(&adapter->hw))
-		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
+	    e1000e_get_laa_state_82571(&adapter->hw))
+		e1000e_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
 
 	/* Mask to use in the irq trigger */
 	if (adapter->msix_mem) {
@@ -2351,20 +2351,20 @@ em_update_link_status(struct adapter *adapter)
 	case e1000_media_type_copper:
 		if (hw->mac.get_link_status) {
 			/* Do the work to read phy */
-			e1000_check_for_link(hw);
+			e1000e_check_for_link(hw);
 			link_check = !hw->mac.get_link_status;
 			if (link_check) /* ESB2 fix */
-				e1000_cfg_on_link_up(hw);
+				e1000e_cfg_on_link_up(hw);
 		} else
 			link_check = TRUE;
 		break;
 	case e1000_media_type_fiber:
-		e1000_check_for_link(hw);
+		e1000e_check_for_link(hw);
 		link_check = (E1000_READ_REG(hw, E1000_STATUS) &
                                  E1000_STATUS_LU);
 		break;
 	case e1000_media_type_internal_serdes:
-		e1000_check_for_link(hw);
+		e1000e_check_for_link(hw);
 		link_check = adapter->hw.mac.serdes_has_link;
 		break;
 	default:
@@ -2374,7 +2374,7 @@ em_update_link_status(struct adapter *adapter)
 
 	/* Now check for a transition */
 	if (link_check && (adapter->link_active == 0)) {
-		e1000_get_speed_and_duplex(hw, &adapter->link_speed,
+		e1000e_get_speed_and_duplex(hw, &adapter->link_speed,
 		    &adapter->link_duplex);
 		/* Check if we must disable SPEED_MODE bit on PCI-E */
 		if ((adapter->link_speed != SPEED_1000) &&
@@ -2441,11 +2441,11 @@ em_stop(void *arg)
 		EM_TX_UNLOCK(txr);
 	}
 
-	e1000_reset_hw(&adapter->hw);
+	e1000e_reset_hw(&adapter->hw);
 	E1000_WRITE_REG(&adapter->hw, E1000_WUC, 0);
 
-	e1000_led_off(&adapter->hw);
-	e1000_cleanup_led(&adapter->hw);
+	e1000e_led_off(&adapter->hw);
+	e1000e_cleanup_led(&adapter->hw);
 }
 
 
@@ -2473,7 +2473,7 @@ em_identify_hardware(struct adapter *adapter)
 	    pci_read_config(dev, PCIR_SUBDEV_0, 2);
 
 	/* Do Shared Code Init and Setup */
-	if (e1000_set_mac_type(&adapter->hw)) {
+	if (e1000e_set_mac_type(&adapter->hw)) {
 		device_printf(dev, "Setup init failure\n");
 		return;
 	}
@@ -2883,9 +2883,9 @@ em_reset(struct adapter *adapter)
 		u16 phy_tmp = 0;
 
 		/* Speed up time to link by disabling smart power down. */
-		e1000_read_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT, &phy_tmp);
+		e1000e_read_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT, &phy_tmp);
 		phy_tmp &= ~IGP02E1000_PM_SPD;
-		e1000_write_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT, phy_tmp);
+		e1000e_write_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT, phy_tmp);
 	}
 
 	/*
@@ -3004,18 +3004,18 @@ em_reset(struct adapter *adapter)
 	}
 
 	/* Issue a global reset */
-	e1000_reset_hw(hw);
+	e1000e_reset_hw(hw);
 	E1000_WRITE_REG(hw, E1000_WUC, 0);
 	em_disable_aspm(adapter);
 	/* and a re-init */
-	if (e1000_init_hw(hw) < 0) {
+	if (e1000e_init_hw(hw) < 0) {
 		device_printf(dev, "Hardware Initialization Failed\n");
 		return;
 	}
 
 	E1000_WRITE_REG(hw, E1000_VET, ETHERTYPE_VLAN);
-	e1000_get_phy_info(hw);
-	e1000_check_for_link(hw);
+	e1000e_get_phy_info(hw);
+	e1000e_check_for_link(hw);
 	return;
 }
 
@@ -4520,9 +4520,9 @@ em_initialize_receive_unit(struct adapter *adapter)
 		
 	if (adapter->hw.mac.type >= e1000_pch2lan) {
 		if (if_getmtu(ifp) > ETHERMTU)
-			e1000_lv_jumbo_workaround_ich8lan(hw, TRUE);
+			e1000e_lv_jumbo_workaround_ich8lan(hw, TRUE);
 		else
-			e1000_lv_jumbo_workaround_ich8lan(hw, FALSE);
+			e1000e_lv_jumbo_workaround_ich8lan(hw, FALSE);
 	}
 
 	/* Setup the Receive Control Register */
@@ -4695,7 +4695,7 @@ next_desc:
 	}
 
 	/* Catch any remaining refresh work */
-	if (e1000_rx_unrefreshed(rxr))
+	if (e1000e_rx_unrefreshed(rxr))
 		em_refresh_mbufs(rxr, i);
 
 	rxr->next_to_check = i;
@@ -5043,7 +5043,7 @@ em_get_wakeup(device_t dev)
 	struct adapter	*adapter = device_get_softc(dev);
 	u16		eeprom_data = 0, device_id, apme_mask;
 
-	adapter->has_manage = e1000_enable_mng_pass_thru(&adapter->hw);
+	adapter->has_manage = e1000e_enable_mng_pass_thru(&adapter->hw);
 	apme_mask = EM_EEPROM_APME;
 
 	switch (adapter->hw.mac.type) {
@@ -5055,11 +5055,11 @@ em_get_wakeup(device_t dev)
 	case e1000_82572:
 	case e1000_80003es2lan:
 		if (adapter->hw.bus.func == 1) {
-			e1000_read_nvm(&adapter->hw,
+			e1000e_read_nvm(&adapter->hw,
 			    NVM_INIT_CONTROL3_PORT_B, 1, &eeprom_data);
 			break;
 		} else
-			e1000_read_nvm(&adapter->hw,
+			e1000e_read_nvm(&adapter->hw,
 			    NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
 		break;
 	case e1000_ich8lan:
@@ -5072,7 +5072,7 @@ em_get_wakeup(device_t dev)
 		eeprom_data = E1000_READ_REG(&adapter->hw, E1000_WUC);
 		break;
 	default:
-		e1000_read_nvm(&adapter->hw,
+		e1000e_read_nvm(&adapter->hw,
 		    NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
 		break;
 	}
@@ -5131,7 +5131,7 @@ em_enable_wakeup(device_t dev)
 	    (adapter->hw.mac.type == e1000_pchlan) ||
 	    (adapter->hw.mac.type == e1000_ich9lan) ||
 	    (adapter->hw.mac.type == e1000_ich10lan))
-		e1000_suspend_workarounds_ich8lan(&adapter->hw);
+		e1000e_suspend_workarounds_ich8lan(&adapter->hw);
 
 	/* Keep the laser running on Fiber adapters */
 	if (adapter->hw.phy.media_type == e1000_media_type_fiber ||
@@ -5166,7 +5166,7 @@ em_enable_wakeup(device_t dev)
 	}
 
 	if (adapter->hw.phy.type == e1000_phy_igp_3)
-		e1000_igp3_phy_powerdown_workaround_ich8lan(&adapter->hw);
+		e1000e_igp3_phy_powerdown_workaround_ich8lan(&adapter->hw);
 
         /* Request PME */
         status = pci_read_config(dev, pmc + PCIR_POWER_STATUS, 2);
@@ -5190,18 +5190,18 @@ em_enable_phy_wakeup(struct adapter *adapter)
 	u16 preg;
 
 	/* copy MAC RARs to PHY RARs */
-	e1000_copy_rx_addrs_to_phy_ich8lan(hw);
+	e1000e_copy_rx_addrs_to_phy_ich8lan(hw);
 
 	/* copy MAC MTA to PHY MTA */
 	for (int i = 0; i < adapter->hw.mac.mta_reg_count; i++) {
 		mreg = E1000_READ_REG_ARRAY(hw, E1000_MTA, i);
-		e1000_write_phy_reg(hw, BM_MTA(i), (u16)(mreg & 0xFFFF));
-		e1000_write_phy_reg(hw, BM_MTA(i) + 1,
+		e1000e_write_phy_reg(hw, BM_MTA(i), (u16)(mreg & 0xFFFF));
+		e1000e_write_phy_reg(hw, BM_MTA(i) + 1,
 		    (u16)((mreg >> 16) & 0xFFFF));
 	}
 
 	/* configure PHY Rx Control register */
-	e1000_read_phy_reg(&adapter->hw, BM_RCTL, &preg);
+	e1000e_read_phy_reg(&adapter->hw, BM_RCTL, &preg);
 	mreg = E1000_READ_REG(hw, E1000_RCTL);
 	if (mreg & E1000_RCTL_UPE)
 		preg |= BM_RCTL_UPE;
@@ -5218,7 +5218,7 @@ em_enable_phy_wakeup(struct adapter *adapter)
 	mreg = E1000_READ_REG(hw, E1000_CTRL);
 	if (mreg & E1000_CTRL_RFCE)
 		preg |= BM_RCTL_RFCE;
-	e1000_write_phy_reg(&adapter->hw, BM_RCTL, preg);
+	e1000e_write_phy_reg(&adapter->hw, BM_RCTL, preg);
 
 	/* enable PHY wakeup in MAC register */
 	E1000_WRITE_REG(hw, E1000_WUC,
@@ -5226,8 +5226,8 @@ em_enable_phy_wakeup(struct adapter *adapter)
 	E1000_WRITE_REG(hw, E1000_WUFC, adapter->wol);
 
 	/* configure and enable PHY wakeup in PHY registers */
-	e1000_write_phy_reg(&adapter->hw, BM_WUFC, adapter->wol);
-	e1000_write_phy_reg(&adapter->hw, BM_WUC, E1000_WUC_PME_EN);
+	e1000e_write_phy_reg(&adapter->hw, BM_WUFC, adapter->wol);
+	e1000e_write_phy_reg(&adapter->hw, BM_WUC, E1000_WUC_PME_EN);
 
 	/* activate PHY wakeup */
 	ret = hw->phy.ops.acquire(hw);
@@ -5235,15 +5235,15 @@ em_enable_phy_wakeup(struct adapter *adapter)
 		printf("Could not acquire PHY\n");
 		return ret;
 	}
-	e1000_write_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT,
+	e1000e_write_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT,
 	                         (BM_WUC_ENABLE_PAGE << IGP_PAGE_SHIFT));
-	ret = e1000_read_phy_reg_mdic(hw, BM_WUC_ENABLE_REG, &preg);
+	ret = e1000e_read_phy_reg_mdic(hw, BM_WUC_ENABLE_REG, &preg);
 	if (ret) {
 		printf("Could not read PHY page 769\n");
 		goto out;
 	}
 	preg |= BM_WUC_ENABLE_BIT | BM_WUC_HOST_WU_BIT;
-	ret = e1000_write_phy_reg_mdic(hw, BM_WUC_ENABLE_REG, preg);
+	ret = e1000e_write_phy_reg_mdic(hw, BM_WUC_ENABLE_REG, preg);
 	if (ret)
 		printf("Could not set PHY Host Wakeup bit\n");
 out:
@@ -5259,11 +5259,11 @@ em_led_func(void *arg, int onoff)
  
 	EM_CORE_LOCK(adapter);
 	if (onoff) {
-		e1000_setup_led(&adapter->hw);
-		e1000_led_on(&adapter->hw);
+		e1000e_setup_led(&adapter->hw);
+		e1000e_led_on(&adapter->hw);
 	} else {
-		e1000_led_off(&adapter->hw);
-		e1000_cleanup_led(&adapter->hw);
+		e1000e_led_off(&adapter->hw);
+		e1000e_cleanup_led(&adapter->hw);
 	}
 	EM_CORE_UNLOCK(adapter);
 }
@@ -5772,7 +5772,7 @@ em_print_nvm_info(struct adapter *adapter)
 			j = 0; ++row;
 			printf("\n0x00%x0  ",row);
 		}
-		e1000_read_nvm(&adapter->hw, i, 1, &eeprom_data);
+		e1000e_read_nvm(&adapter->hw, i, 1, &eeprom_data);
 		printf("%04x ", eeprom_data);
 	}
 	printf("\n");
@@ -5883,7 +5883,7 @@ em_set_flowcntl(SYSCTL_HANDLER_ARGS)
         }
 
         adapter->hw.fc.current_mode = adapter->hw.fc.requested_mode;
-        e1000_force_mac_fc(&adapter->hw);
+        e1000e_force_mac_fc(&adapter->hw);
         return (error);
 }
 
@@ -5985,15 +5985,15 @@ em_enable_vectors_82574(struct adapter *adapter)
 	device_t dev = adapter->dev;
 	u16 edata;
 
-	e1000_read_nvm(hw, EM_NVM_PCIE_CTRL, 1, &edata);
+	e1000e_read_nvm(hw, EM_NVM_PCIE_CTRL, 1, &edata);
 	printf("Current cap: %#06x\n", edata);
 	if (((edata & EM_NVM_MSIX_N_MASK) >> EM_NVM_MSIX_N_SHIFT) != 4) {
 		device_printf(dev, "Writing to eeprom: increasing "
 		    "reported MSIX vectors from 3 to 5...\n");
 		edata &= ~(EM_NVM_MSIX_N_MASK);
 		edata |= 4 << EM_NVM_MSIX_N_SHIFT;
-		e1000_write_nvm(hw, EM_NVM_PCIE_CTRL, 1, &edata);
-		e1000_update_nvm_checksum(hw);
+		e1000e_write_nvm(hw, EM_NVM_PCIE_CTRL, 1, &edata);
+		e1000e_update_nvm_checksum(hw);
 		device_printf(dev, "Writing to eeprom: done\n");
 	}
 }

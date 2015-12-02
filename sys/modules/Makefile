@@ -193,6 +193,7 @@ SUBDIR=	\
 	krpc \
 	ksyms \
 	le \
+	${_lem} \
 	lge \
 	libalias \
 	libiconv \
@@ -514,6 +515,7 @@ _cxgb=		cxgb
 .if ${MACHINE_CPUARCH} == "aarch64"
 _em=		em
 _igb=		igb
+_lem=		lem
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
@@ -548,6 +550,7 @@ _ipoib=         ipoib
 .endif
 _ix=		ix
 _ixv=		ixv
+_lem=		lem
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
@@ -745,6 +748,7 @@ _auxio=		auxio
 _em=		em
 _epic=		epic
 _igb=		igb
+_lem=		lem
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
