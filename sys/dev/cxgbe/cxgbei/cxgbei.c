@@ -579,7 +579,7 @@ do_rx_iscsi_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m
 
 	icp->pdu_flags |= SBUF_ULP_FLAG_DATA_RCVD;
 	icp->ip.ip_data_mbuf = m;
-	icp->ip.ip_data_len = m->m_pkthdr.len;	/* XXXNP: round up to 4? */
+	icp->ip.ip_data_len = m->m_pkthdr.len;
 
 #if 0
 	CTR4(KTR_CXGBE, "%s: tid %u, cpl->len dlen %u, m->m_len dlen %u",
