@@ -42,7 +42,6 @@ LIBCRYPT?=	${DESTDIR}${LIBDIR}/libcrypt.a
 LIBCRYPTO?=	${DESTDIR}${LIBDIR}/libcrypto.a
 LIBCTF?=	${DESTDIR}${LIBDIR}/libctf.a
 LIBCURSES?=	${DESTDIR}${LIBDIR}/libcurses.a
-LIBCUSE?=	${DESTDIR}${LIBDIR}/libcuse.a
 LIBDEVCTL?=	${DESTDIR}${LIBDIR}/libdevctl.a
 LIBDEVINFO?=	${DESTDIR}${LIBDIR}/libdevinfo.a
 LIBDEVSTAT?=	${DESTDIR}${LIBDIR}/libdevstat.a
@@ -99,7 +98,6 @@ LIBNVPAIR?=	${DESTDIR}${LIBDIR}/libnvpair.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a
 LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
-LIBPANELW?=	${DESTDIR}${LIBDIR}/libpanelw.a
 LIBPCAP?=	${DESTDIR}${LIBDIR}/libpcap.a
 LIBPJDLOG?=	${DESTDIR}${LIBDIR}/libpjdlog.a
 LIBPMC?=	${DESTDIR}${LIBDIR}/libpmc.a
@@ -119,7 +117,6 @@ LIBSSL?=	${DESTDIR}${LIBDIR}/libssl.a
 LIBSSP_NONSHARED?=	${DESTDIR}${LIBDIR}/libssp_nonshared.a
 LIBSTAND?=	${DESTDIR}${LIBDIR}/libstand.a
 LIBSTDCPLUSPLUS?= ${DESTDIR}${LIBDIR}/libstdc++.a
-LIBSTDTHREADS?=	${DESTDIR}${LIBDIR}/libstdthreads.a
 LIBTACPLUS?=	${DESTDIR}${LIBDIR}/libtacplus.a
 LIBTERMCAP?=	${DESTDIR}${LIBDIR}/libtermcap.a
 LIBTERMCAPW?=	${DESTDIR}${LIBDIR}/libtermcapw.a
@@ -158,13 +155,6 @@ LDADD:=	${LDADD:N-lc} -lc
 
 # Only do this for src builds.
 .if defined(SRCTOP)
-.if defined(_LIBRARIES) && defined(LIB) && \
-    ${_LIBRARIES:M${LIB}} != ""
-.if !defined(LIB${LIB:tu})
-.error ${.CURDIR}: Missing value for LIB${LIB:tu} in ${_this:T}.  Likely should be: LIB${LIB:tu}?= $${DESTDIR}$${LIBDIR}/lib${LIB}.a
-.endif
-.endif
-
 # Derive LIB*SRCDIR from LIB*DIR
 .for lib in ${_LIBRARIES}
 LIB${lib:tu}SRCDIR?=	${SRCTOP}/${LIB${lib:tu}DIR:S,^${OBJTOP}/,,}
