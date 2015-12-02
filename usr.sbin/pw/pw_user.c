@@ -642,7 +642,8 @@ pw_checkname(char *name, int gecos)
 	}
 	if (!reject) {
 		while (*ch) {
-			if (strchr(badchars, *ch) != NULL || *ch < ' ' ||
+			if (strchr(badchars, *ch) != NULL ||
+			    (!gecos && *ch < ' ') ||
 			    *ch == 127) {
 				reject = 1;
 				break;
