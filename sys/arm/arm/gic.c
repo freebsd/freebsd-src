@@ -461,9 +461,13 @@ arm_gic_attach(device_t dev)
 		goto cleanup;
 	}
 
-	i = OF_getencprop(ofw_bus_get_node(dev), "interrupt-parent",
-	    &pxref, sizeof(pxref));
-	if (i > 0 && xref == pxref) {
+	/*
+	 * Controller is root if:
+	 * - doesn't have interrupt parent
+	 * - his interrupt parent is this controller
+	 */
+	pxref = ofw_bus_find_iparent(ofw_bus_get_node(dev));
+	if (pxref == 0 || xref == pxref) {
 		if (arm_pic_claim_root(dev, xref, arm_gic_intr, sc,
 		    GIC_LAST_SGI - GIC_FIRST_SGI + 1) != 0) {
 			device_printf(dev, "could not set PIC as a root\n");
@@ -471,6 +475,12 @@ arm_gic_attach(device_t dev)
 			goto cleanup;
 		}
 	} else {
+		if (sc->gic_res[2] == NULL) {
+			device_printf(dev,
+			    "not root PIC must have defined interrupt\n");
+			arm_pic_unregister(dev, xref);
+			goto cleanup;
+		}
 		if (bus_setup_intr(dev, sc->gic_res[2], INTR_TYPE_CLK,
 		    arm_gic_intr, NULL, sc, &sc->gic_intrhand)) {
 			device_printf(dev, "could not setup irq handler\n");
