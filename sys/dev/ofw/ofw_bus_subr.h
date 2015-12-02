@@ -82,7 +82,7 @@ const char *ofw_bus_get_status(device_t dev);
 int ofw_bus_status_okay(device_t dev);
 
 /* Helper to get node's interrupt parent */
-void	ofw_bus_find_iparent(phandle_t);
+phandle_t ofw_bus_find_iparent(phandle_t);
 
 /* Helper routine for checking compat prop */
 int ofw_bus_is_compatible(device_t, const char *);
