@@ -90,6 +90,7 @@ LIBMENU?=	${DESTDIR}${LIBDIR}/libmenu.a
 LIBMILTER?=	${DESTDIR}${LIBDIR}/libmilter.a
 LIBMP?=		${DESTDIR}${LIBDIR}/libmp.a
 LIBMT?=		${DESTDIR}${LIBDIR}/libmt.a
+LIBNANDFS?=	${DESTDIR}${LIBDIR}/libnandfs.a
 LIBNCURSES?=	${DESTDIR}${LIBDIR}/libncurses.a
 LIBNCURSESW?=	${DESTDIR}${LIBDIR}/libncursesw.a
 LIBNETGRAPH?=	${DESTDIR}${LIBDIR}/libnetgraph.a
