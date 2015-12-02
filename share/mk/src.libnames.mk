@@ -163,6 +163,8 @@ _LIBRARIES=	\
 		ypclnt \
 		z
 
+# Each library's LIBADD needs to be duplicated here for static linkage of
+# 2nd+ order consumers.  Auto-generating this would be better.
 _DP_80211=	sbuf bsdxml
 _DP_archive=	z bz2 lzma bsdxml
 .if ${MK_OPENSSL} != "no"
@@ -188,7 +190,7 @@ _DP_kvm=	elf
 _DP_pjdlog=	util
 _DP_opie=	md
 _DP_usb=	pthread
-_DP_unbound=	pthread
+_DP_unbound=	ssl crypto pthread
 _DP_rt=	pthread
 .if ${MK_OPENSSL} == "no"
 _DP_radius=	md
@@ -219,7 +221,7 @@ _DP_fetch=	md
 .endif
 _DP_execinfo=	elf
 _DP_dwarf=	elf
-_DP_dpv=	dialog figpar util
+_DP_dpv=	dialog figpar util ncursesw
 _DP_dialog=	ncursesw m
 _DP_cuse=	pthread
 _DP_atf_cxx=	atf_c
@@ -234,8 +236,21 @@ _DP_pam+=	ssh
 .if ${MK_NIS} != "no"
 _DP_pam+=	ypclnt
 .endif
-_DP_krb5+=	asn1 com_err crypt crypto hx509 roken wind heimbase heimipcc \
-		pthread
+_DP_readline=	ncursesw
+_DP_roken=	crypt
+_DP_kadm5clnt=	com_err krb5 roken
+_DP_kadm5srv=	com_err hdb krb5 roken
+_DP_heimntlm=	crypto com_err krb5 roken
+_DP_hx509=	asn1 com_err crypto roken wind
+_DP_hdb=	asn1 com_err krb5 roken sqlite3
+_DP_asn1=	com_err roken
+_DP_kdc=	roken hdb hx509 krb5 heimntlm asn1 crypto
+_DP_wind=	com_err roken
+_DP_heimbase=	pthread
+_DP_heimipcc=	heimbase roken pthread
+_DP_heimipcs=	heimbase roken pthread
+_DP_kafs5=	asn1 krb5 roken
+_DP_krb5+=	asn1 com_err crypt crypto hx509 roken wind heimbase heimipcc
 _DP_gssapi_krb5+=	gssapi krb5 crypto roken asn1 com_err
 _DP_lzma=	pthread
 _DP_ucl=	m
@@ -243,6 +258,19 @@ _DP_vmmapi=	util
 _DP_ctf=	z
 _DP_dtrace=	ctf elf proc pthread rtld_db
 _DP_xo=		util
+# The libc dependencies are not strictly needed but are defined to make the
+# assert happy.
+_DP_c=		compiler_rt
+.if ${MK_SSP} != "no"
+_DP_c+=		ssp_nonshared
+.endif
+_DP_stdthreads=	pthread
+_DP_tacplus=	md
+_DP_panel=	ncurses
+_DP_panelw=	ncursesw
+_DP_rpcsec_gss=	gssapi
+_DP_smb=	kiconv
+_DP_ulog=	md
 
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
@@ -273,12 +301,21 @@ LDADD_${_l}+=	${LDADD_${_d}}
 .endif
 .endfor
 
+# These are special cases where the library is broken and anything that uses
+# it needs to add more dependencies.  Many _INTERNALLIBS fall into this
+# category.  Unless the library itself is broken then the proper place to
+# define dependencies is _DP_* above.
+
+# libatf-c++ exposes libatf-c abi hence we need to explicit link to atf_c for
+# atf_cxx
 DPADD_atf_cxx+=	${DPADD_atf_c}
 LDADD_atf_cxx+=	${LDADD_atf_c}
 
+# _INTERNALLIBS.
+# XXX: This should likely be reworked to have LIBADD in them and use normal
+# _DP_ lists just to avoid temptation to add more similar entries here.
 DPADD_fifolog+=	${DPADD_z}
 LDADD_fifolog+=	${LDADD_z}
-
 DPADD_ipf+=	${DPADD_kvm}
 LDADD_ipf+=	${LDADD_kvm}
 
@@ -288,9 +325,10 @@ LDADD+=		${LDADD_${_l}}
 .endfor
 
 .if defined(DPADD) && ${DPADD:Mmissing-dpadd_*}
-.error Missing ${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/DPADD_/} variable add "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//}" to _LIBRARIES, _INTERNALLIBS, or _PRIVATELIBS and define "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/LIB/:tu}".
+.error ${.CURDIR}: Missing ${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/DPADD_/} variable add "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//}" to _LIBRARIES, _INTERNALLIBS, or _PRIVATELIBS and define "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/LIB/:tu}".
 .endif
 
+# INTERNALLIB definitions.
 LIBELFTCDIR=	${OBJTOP}/lib/libelftc
 LIBELFTC?=	${LIBELFTCDIR}/libelftc.a
 
@@ -334,7 +372,7 @@ LIBNTPEVENTDIR=	${OBJTOP}/usr.sbin/ntp/libntpevent
 LIBNTPEVENT?=	${LIBNTPEVENTDIR}/libntpevent.a
 
 LIBOPTSDIR=	${OBJTOP}/usr.sbin/ntp/libopts
-LIBOTPS?=	${LIBOPTSDIR}/libopts.a
+LIBOPTS?=	${LIBOPTSDIR}/libopts.a
 
 LIBPARSEDIR=	${OBJTOP}/usr.sbin/ntp/libparse
 LIBPARSE?=	${LIBPARSEDIR}/libparse.a
@@ -398,8 +436,10 @@ LIBFORMDIR=	${OBJTOP}/lib/ncurses/form
 LIBFORMLIBWDIR=	${OBJTOP}/lib/ncurses/formw
 LIBMENUDIR=	${OBJTOP}/lib/ncurses/menu
 LIBMENULIBWDIR=	${OBJTOP}/lib/ncurses/menuw
-LIBTERMCAPDIR=	${OBJTOP}/lib/ncurses/ncurses
-LIBTERMCAPWDIR=	${OBJTOP}/lib/ncurses/ncursesw
+LIBNCURSESDIR=	${OBJTOP}/lib/ncurses/ncurses
+LIBNCURSESWDIR=	${OBJTOP}/lib/ncurses/ncursesw
+LIBTERMCAPDIR=	${LIBNCURSESDIR}
+LIBTERMCAPWDIR=	${LIBNCURSESWDIR}
 LIBPANELDIR=	${OBJTOP}/lib/ncurses/panel
 LIBPANELWDIR=	${OBJTOP}/lib/ncurses/panelw
 LIBCRYPTODIR=	${OBJTOP}/secure/lib/libcrypto
@@ -413,5 +453,19 @@ LIBLNDIR=	${OBJTOP}/usr.bin/lex/lib
 .for lib in ${_LIBRARIES}
 LIB${lib:tu}DIR?=	${OBJTOP}/lib/lib${lib}
 .endfor
+
+# Sanity check that libraries are defined here properly when building them.
+.if defined(LIB) && ${_LIBRARIES:M${LIB}} != ""
+.if !empty(LIBADD) && \
+    (!defined(_DP_${LIB}) || ${LIBADD:O:u} != ${_DP_${LIB}:O:u})
+.error ${.CURDIR}: Missing or incorrect _DP_${LIB} entry in ${_this:T}.  Should match LIBADD for ${LIB} ('${LIBADD}' vs '${_DP_${LIB}}')
+.endif
+.if !defined(LIB${LIB:tu}DIR) || !exists(${SRCTOP}/${LIB${LIB:tu}DIR:S,^${OBJTOP}/,,})
+.error ${.CURDIR}: Missing or incorrect value for LIB${LIB:tu}DIR in ${_this:T}: ${LIB${LIB:tu}DIR:S,^${OBJTOP}/,,}
+.endif
+.if ${_INTERNALLIBS:M${LIB}} != "" && !defined(LIB${LIB:tu})
+.error ${.CURDIR}: Missing value for LIB${LIB:tu} in ${_this:T}.  Likely should be: LIB${LIB:tu}?= $${LIB${LIB:tu}DIR}/lib${LIB}.a
+.endif
+.endif
 
 .endif	# !target(__<src.libnames.mk>__)
