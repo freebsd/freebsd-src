@@ -653,8 +653,8 @@ struct ispsoftc {
 #define	ISP_CFG_NPORT		0x04	/* prefer {N/F}-Port connection */
 #define	ISP_CFG_NPORT_ONLY	0x08	/* insist on {N/F}-Port connection */
 #define	ISP_CFG_LPORT_ONLY	0x0c	/* insist on {N/F}L-Port connection */
-#define	ISP_CFG_ONEGB		0x10	/* force 1GB connection (23XX only) */
-#define	ISP_CFG_TWOGB		0x20	/* force 2GB connection (23XX only) */
+#define	ISP_CFG_1GB		0x10	/* force 1GB connection (23XX only) */
+#define	ISP_CFG_2GB		0x20	/* force 2GB connection (23XX only) */
 #define	ISP_CFG_NORELOAD	0x80	/* don't download f/w */
 #define	ISP_CFG_NONVRAM		0x40	/* ignore NVRAM */
 #define	ISP_CFG_NOFCTAPE	0x100	/* disable FC-Tape */
@@ -662,9 +662,9 @@ struct ispsoftc {
 #define	ISP_CFG_OWNFSZ		0x400	/* override NVRAM frame size */
 #define	ISP_CFG_OWNLOOPID	0x800	/* override NVRAM loopid */
 #define	ISP_CFG_OWNEXCTHROTTLE	0x1000	/* override NVRAM execution throttle */
-#define	ISP_CFG_FOURGB		0x2000	/* force 4GB connection (24XX only) */
-#define	ISP_CFG_EIGHTGB		0x4000	/* force 8GB connection (25XX only) */
-#define	ISP_CFG_SIXTEENGB	0x8000	/* force 16GB connection (82XX only) */
+#define	ISP_CFG_4GB		0x2000	/* force 4GB connection (24XX only) */
+#define	ISP_CFG_8GB		0x4000	/* force 8GB connection (25XX only) */
+#define	ISP_CFG_16GB		0x8000	/* force 16GB connection (82XX only) */
 
 /*
  * For each channel, the outer layers should know what role that channel
@@ -764,6 +764,7 @@ struct ispsoftc {
 #define	ISP_HA_FC_2322		0x50
 #define	ISP_HA_FC_2400		0x60
 #define	ISP_HA_FC_2500		0x70
+#define	ISP_HA_FC_2600		0x80
 
 #define	IS_SCSI(isp)	(isp->isp_type & ISP_HA_SCSI)
 #define	IS_1020(isp)	(isp->isp_type < ISP_HA_SCSI_1240)
@@ -789,6 +790,7 @@ struct ispsoftc {
 #define	IS_2322(isp)	((isp)->isp_type == ISP_HA_FC_2322)
 #define	IS_24XX(isp)	((isp)->isp_type >= ISP_HA_FC_2400)
 #define	IS_25XX(isp)	((isp)->isp_type >= ISP_HA_FC_2500)
+#define	IS_26XX(isp)	((isp)->isp_type >= ISP_HA_FC_2600)
 
 /*
  * DMA related macros
