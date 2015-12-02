@@ -800,6 +800,15 @@ DIRDEPS+= \
 	${DEP_RELDIR}/secure \
 	${DEP_RELDIR}/share \
 
+.if ${MK_NAND} != "no"
+DIRDEPS+= \
+	sbin/nandfs \
+	sbin/newfs_nandfs \
+	usr.sbin/nandsim \
+	usr.sbin/nandtool \
+
+.endif
+
 DIRDEPS.amd64= \
 	sbin/bsdlabel \
 	sbin/fdisk \
