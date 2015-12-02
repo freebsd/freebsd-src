@@ -20,6 +20,7 @@ DIRDEPS = \
 	cddl/usr.sbin/dtrace \
 	cddl/usr.sbin/dtruss \
 	cddl/usr.sbin/lockstat \
+	cddl/usr.sbin/plockstat \
 
 
 DIRDEPS.ZFS = \
