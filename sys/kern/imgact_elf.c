@@ -273,6 +273,9 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 		if (hdr->e_machine == bi->machine && (bi->flags &
 		    (BI_BRAND_NOTE|BI_BRAND_NOTE_MANDATORY)) != 0) {
 			ret = __elfN(check_note)(imgp, bi->brand_note, osrel);
+			/* Give brand a chance to veto check_note's guess */
+			if (ret && bi->header_supported)
+				ret = bi->header_supported(imgp);
 			if (ret)
 				return (bi);
 		}

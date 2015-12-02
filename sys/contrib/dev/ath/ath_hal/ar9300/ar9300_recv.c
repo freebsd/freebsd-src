@@ -228,7 +228,7 @@ ar9300_set_rx_filter(struct ath_hal *ah, u_int32_t bits)
 {
     u_int32_t phybits;
 
-    if (AR_SREV_SCORPION(ah)) {
+    if (AR_SREV_SCORPION(ah) || AR_SREV_HONEYBEE(ah)) {
         /* Enable Rx for 4 address frames */
         bits |= AR_RX_4ADDRESS;
     }

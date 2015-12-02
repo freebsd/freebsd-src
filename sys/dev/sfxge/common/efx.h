@@ -40,11 +40,21 @@
 extern "C" {
 #endif
 
-#define	EFX_STATIC_ASSERT(_cond) ((void)sizeof(char[(_cond) ? 1 : -1]))
+#define	EFX_STATIC_ASSERT(_cond)		\
+	((void)sizeof(char[(_cond) ? 1 : -1]))
 
-#define	EFX_ARRAY_SIZE(_array) (sizeof(_array) / sizeof((_array)[0]))
+#define	EFX_ARRAY_SIZE(_array)			\
+	(sizeof(_array) / sizeof((_array)[0]))
 
-#define	EFX_FIELD_OFFSET(_type, _field) ((size_t) &(((_type *)0)->_field))
+#define	EFX_FIELD_OFFSET(_type, _field)		\
+	((size_t) &(((_type *)0)->_field))
+
+/* Return codes */
+
+typedef __success(return == 0) int efx_rc_t;
+
+
+/* Chip families */
 
 typedef enum efx_family_e {
 	EFX_FAMILY_INVALID,
@@ -54,13 +64,13 @@ typedef enum efx_family_e {
 	EFX_FAMILY_NTYPES
 } efx_family_t;
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_family(
 	__in		uint16_t venid,
 	__in		uint16_t devid,
 	__out		efx_family_t *efp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_infer_family(
 	__in		efsys_bar_t *esbp,
 	__out		efx_family_t *efp);
@@ -124,7 +134,7 @@ typedef struct efx_nic_s	efx_nic_t;
 #define	EFX_NIC_FUNC_TRUSTED	0x00000004
 
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_nic_create(
 	__in		efx_family_t family,
 	__in		efsys_identifier_t *esip,
@@ -132,34 +142,34 @@ efx_nic_create(
 	__in		efsys_lock_t *eslp,
 	__deref_out	efx_nic_t **enpp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_nic_probe(
 	__in		efx_nic_t *enp);
 
 #if EFSYS_OPT_PCIE_TUNE
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_nic_pcie_tune(
 	__in		efx_nic_t *enp,
 	unsigned int	nlanes);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_nic_pcie_extended_sync(
 	__in		efx_nic_t *enp);
 
 #endif	/* EFSYS_OPT_PCIE_TUNE */
 
-extern 	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_nic_init(
 	__in		efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_nic_reset(
 	__in		efx_nic_t *enp);
 
 #if EFSYS_OPT_DIAG
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_nic_register_test(
 	__in		efx_nic_t *enp);
 
@@ -199,12 +209,12 @@ typedef struct efx_mcdi_transport_s {
 	void		(*emt_exception)(void *, efx_mcdi_exception_t);
 } efx_mcdi_transport_t;
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_mcdi_init(
 	__in		efx_nic_t *enp,
 	__in		const efx_mcdi_transport_t *mtp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_mcdi_reboot(
 	__in		efx_nic_t *enp);
 
@@ -246,7 +256,7 @@ typedef enum efx_intr_type_e {
 
 #define	EFX_INTR_SIZE	(sizeof (efx_oword_t))
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_intr_init(
 	__in		efx_nic_t *enp,
 	__in		efx_intr_type_t type,
@@ -266,7 +276,7 @@ efx_intr_disable_unlocked(
 
 #define	EFX_INTR_NEVQS	32
 
-extern __checkReturn	int
+extern __checkReturn	efx_rc_t
 efx_intr_trigger(
 	__in		efx_nic_t *enp,
 	__in		unsigned int level);
@@ -418,17 +428,17 @@ typedef enum efx_link_mode_e {
 #define	EFX_MAC_PDU_MIN	60
 #define	EFX_MAC_PDU_MAX	EFX_MAC_PDU(EFX_MAC_SDU_MAX)
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_mac_pdu_set(
 	__in		efx_nic_t *enp,
 	__in		size_t pdu);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_mac_addr_set(
 	__in		efx_nic_t *enp,
 	__in		uint8_t *addr);
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 efx_mac_filter_set(
 	__in				efx_nic_t *enp,
 	__in				boolean_t all_unicst,
@@ -436,13 +446,13 @@ efx_mac_filter_set(
 	__in				boolean_t all_mulcst,
 	__in				boolean_t brdcst);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_mac_multicast_list_set(
 	__in				efx_nic_t *enp,
 	__in_ecount(6*count)		uint8_t const *addrs,
 	__in				int count);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_mac_filter_default_rxq_set(
 	__in		efx_nic_t *enp,
 	__in		efx_rxq_t *erp,
@@ -452,12 +462,12 @@ extern			void
 efx_mac_filter_default_rxq_clear(
 	__in		efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_mac_drain(
 	__in		efx_nic_t *enp,
 	__in		boolean_t enabled);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_mac_up(
 	__in		efx_nic_t *enp,
 	__out		boolean_t *mac_upp);
@@ -465,7 +475,7 @@ efx_mac_up(
 #define	EFX_FCNTL_RESPOND	0x00000001
 #define	EFX_FCNTL_GENERATE	0x00000002
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_mac_fcntl_set(
 	__in		efx_nic_t *enp,
 	__in		unsigned int fcntl,
@@ -479,7 +489,7 @@ efx_mac_fcntl_get(
 
 #define	EFX_MAC_HASH_BITS	(1 << 8)
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 efx_pktfilter_init(
 	__in				efx_nic_t *enp);
 
@@ -487,26 +497,26 @@ extern					void
 efx_pktfilter_fini(
 	__in				efx_nic_t *enp);
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 efx_pktfilter_set(
 	__in		efx_nic_t *enp,
 	__in		boolean_t unicst,
 	__in		boolean_t brdcst);
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 efx_mac_hash_set(
 	__in				efx_nic_t *enp,
 	__in_ecount(EFX_MAC_HASH_BITS)	unsigned int const *bucket);
 
 #if EFSYS_OPT_MCAST_FILTER_LIST
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 efx_pktfilter_mcast_list_set(
 	__in				efx_nic_t *enp,
 	__in				uint8_t const *addrs,
 	__in				int count);
 #endif /* EFSYS_OPT_MCAST_FILTER_LIST */
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 efx_pktfilter_mcast_all(
 	__in				efx_nic_t *enp);
 
@@ -536,24 +546,24 @@ efx_mac_stat_name(
  * Thus, drivers should zero this buffer before use, so that not-understood
  * statistics read back as zero.
  */
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 efx_mac_stats_upload(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp);
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 efx_mac_stats_periodic(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
 	__in				uint16_t period_ms,
 	__in				boolean_t events);
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 efx_mac_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
 	__inout_ecount(EFX_MAC_NSTATS)	efsys_stat_t *stat,
-	__out_opt			uint32_t *generationp);
+	__inout_opt			uint32_t *generationp);
 
 #endif	/* EFSYS_OPT_MAC_STATS */
 
@@ -577,7 +587,7 @@ efx_mon_name(
 
 #endif	/* EFSYS_OPT_NAMES */
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_mon_init(
 	__in		efx_nic_t *enp);
 
@@ -684,11 +694,11 @@ efx_mon_stat_name(
 
 #endif	/* EFSYS_OPT_NAMES */
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 efx_mon_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values);
+	__inout_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values);
 
 #endif	/* EFSYS_OPT_MON_STATS */
 
@@ -707,7 +717,7 @@ efx_mon_fini(
 
 #define	MAXMMD		((1 << 5) - 1)
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_phy_verify(
 	__in		efx_nic_t *enp);
 
@@ -721,14 +731,14 @@ typedef enum efx_phy_led_mode_e {
 	EFX_PHY_LED_NMODES
 } efx_phy_led_mode_t;
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_phy_led_set(
 	__in	efx_nic_t *enp,
 	__in	efx_phy_led_mode_t mode);
 
 #endif	/* EFSYS_OPT_PHY_LED_CONTROL */
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_port_init(
 	__in		efx_nic_t *enp);
 
@@ -786,7 +796,7 @@ efx_loopback_mask(
 	__in	efx_loopback_kind_t loopback_kind,
 	__out	efx_qword_t *maskp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_port_loopback_set(
 	__in	efx_nic_t *enp,
 	__in	efx_link_mode_t link_mode,
@@ -803,7 +813,7 @@ efx_loopback_type_name(
 
 #endif	/* EFSYS_OPT_LOOPBACK */
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_port_poll(
 	__in		efx_nic_t *enp,
 	__out_opt	efx_link_mode_t	*link_modep);
@@ -839,7 +849,7 @@ efx_phy_adv_cap_get(
 	__in            uint32_t flag,
 	__out		uint32_t *maskp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_phy_adv_cap_set(
 	__in		efx_nic_t *enp,
 	__in		uint32_t mask);
@@ -849,7 +859,7 @@ efx_phy_lp_cap_get(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *maskp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_phy_oui_get(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *ouip);
@@ -942,11 +952,11 @@ efx_phy_stat_name(
 
 #define	EFX_PHY_STATS_SIZE 0x100
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 efx_phy_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_PHY_NSTATS)	uint32_t *stat);
+	__inout_ecount(EFX_PHY_NSTATS)	uint32_t *stat);
 
 #endif	/* EFSYS_OPT_PHY_STATS */
 
@@ -963,14 +973,14 @@ efx_phy_prop_name(
 
 #define	EFX_PHY_PROP_DEFAULT	0x00000001
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_phy_prop_get(
 	__in		efx_nic_t *enp,
 	__in		unsigned int id,
 	__in		uint32_t flags,
 	__out		uint32_t *valp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_phy_prop_set(
 	__in		efx_nic_t *enp,
 	__in		unsigned int id,
@@ -1030,16 +1040,16 @@ typedef enum efx_bist_value_e {
 	EFX_BIST_NVALUES,
 } efx_bist_value_t;
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_bist_enable_offline(
 	__in			efx_nic_t *enp);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_bist_start(
 	__in			efx_nic_t *enp,
 	__in			efx_bist_type_t type);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_bist_poll(
 	__in			efx_nic_t *enp,
 	__in			efx_bist_type_t type,
@@ -1184,7 +1194,7 @@ typedef struct efx_drv_limits_s
 	uint32_t	edl_max_pio_alloc_count;
 } efx_drv_limits_t;
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_nic_set_drv_limits(
 	__inout		efx_nic_t *enp,
 	__in		efx_drv_limits_t *edlp);
@@ -1194,14 +1204,14 @@ typedef enum efx_nic_region_e {
 	EFX_REGION_PIO_WRITE_VI,	/* Memory BAR WC mapping */
 } efx_nic_region_t;
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_nic_get_bar_region(
 	__in		efx_nic_t *enp,
 	__in		efx_nic_region_t region,
 	__out		uint32_t *offsetp,
 	__out		size_t *sizep);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_nic_get_vi_pool(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *evq_countp,
@@ -1230,48 +1240,48 @@ typedef struct efx_vpd_value_s {
 
 #define	EFX_VPD_KEYWORD(x, y) ((x) | ((y) << 8))
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_vpd_init(
 	__in			efx_nic_t *enp);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_vpd_size(
 	__in			efx_nic_t *enp,
 	__out			size_t *sizep);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_vpd_read(
 	__in			efx_nic_t *enp,
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_vpd_verify(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size);
 
-extern  __checkReturn		int
+extern  __checkReturn		efx_rc_t
 efx_vpd_reinit(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_vpd_get(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size,
 	__inout			efx_vpd_value_t *evvp);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_vpd_set(
 	__in			efx_nic_t *enp,
 	__inout_bcount(size)	caddr_t data,
 	__in			size_t size,
 	__in			efx_vpd_value_t *evvp);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_vpd_next(
 	__in			efx_nic_t *enp,
 	__inout_bcount(size)	caddr_t data,
@@ -1279,7 +1289,7 @@ efx_vpd_next(
 	__out			efx_vpd_value_t *evvp,
 	__inout			unsigned int *contp);
 
-extern __checkReturn		int
+extern __checkReturn		efx_rc_t
 efx_vpd_write(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
@@ -1311,25 +1321,25 @@ typedef enum efx_nvram_type_e {
 	EFX_NVRAM_NTYPES,
 } efx_nvram_type_t;
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_nvram_init(
 	__in			efx_nic_t *enp);
 
 #if EFSYS_OPT_DIAG
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_nvram_test(
 	__in			efx_nic_t *enp);
 
 #endif	/* EFSYS_OPT_DIAG */
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_nvram_size(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__out			size_t *sizep);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_nvram_rw_start(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
@@ -1340,14 +1350,14 @@ efx_nvram_rw_finish(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_nvram_get_version(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__out			uint32_t *subtypep,
 	__out_ecount(4)		uint16_t version[4]);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_nvram_read_chunk(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
@@ -1355,26 +1365,26 @@ efx_nvram_read_chunk(
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_nvram_set_version(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__in_ecount(4)		uint16_t version[4]);
 
 /* Validate contents of TLV formatted partition */
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_nvram_tlv_validate(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
 	__in_bcount(partn_size)	caddr_t partn_data,
 	__in			size_t partn_size);
 
-extern	 __checkReturn		int
+extern	 __checkReturn		efx_rc_t
 efx_nvram_erase(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_nvram_write_chunk(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
@@ -1390,13 +1400,13 @@ efx_nvram_fini(
 
 #if EFSYS_OPT_BOOTCFG
 
-extern				int
+extern				efx_rc_t
 efx_bootcfg_read(
 	__in			efx_nic_t *enp,
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size);
 
-extern				int
+extern				efx_rc_t
 efx_bootcfg_write(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
@@ -1446,34 +1456,34 @@ typedef union efx_lightsout_offload_param_u {
 	} elop_ns;
 } efx_lightsout_offload_param_t;
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_wol_init(
 	__in		efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_wol_filter_clear(
 	__in		efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_wol_filter_add(
 	__in		efx_nic_t *enp,
 	__in		efx_wol_type_t type,
 	__in		efx_wol_param_t *paramp,
 	__out		uint32_t *filter_idp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_wol_filter_remove(
 	__in		efx_nic_t *enp,
 	__in		uint32_t filter_id);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_lightsout_offload_add(
 	__in		efx_nic_t *enp,
 	__in		efx_lightsout_offload_type_t type,
 	__in		efx_lightsout_offload_param_t *paramp,
 	__out		uint32_t *filter_idp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_lightsout_offload_remove(
 	__in		efx_nic_t *enp,
 	__in		efx_lightsout_offload_type_t type,
@@ -1503,14 +1513,14 @@ typedef 		void
 	__in		boolean_t negate,
 	__out		efx_qword_t *eqp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_sram_test(
 	__in		efx_nic_t *enp,
 	__in		efx_pattern_type_t type);
 
 #endif	/* EFSYS_OPT_DIAG */
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_sram_buf_tbl_set(
 	__in		efx_nic_t *enp,
 	__in		uint32_t id,
@@ -1579,7 +1589,7 @@ typedef enum efx_ev_qstat_e {
 
 #endif	/* EFSYS_OPT_QSTATS */
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_ev_init(
 	__in		efx_nic_t *enp);
 
@@ -1593,7 +1603,7 @@ efx_ev_fini(
 #define	EFX_EVQ_SIZE(_nevs)	((_nevs) * sizeof (efx_qword_t))
 #define	EFX_EVQ_NBUFS(_nevs)	(EFX_EVQ_SIZE(_nevs) / EFX_BUF_SIZE)
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_ev_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
@@ -1768,12 +1778,12 @@ efx_ev_qpoll(
 	__in		const efx_ev_callbacks_t *eecp,
 	__in_opt	void *arg);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_ev_qmoderate(
 	__in		efx_evq_t *eep,
 	__in		unsigned int us);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_ev_qprime(
 	__in		efx_evq_t *eep,
 	__in		unsigned int count);
@@ -1802,7 +1812,7 @@ efx_ev_qdestroy(
 
 /* RX */
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_rx_init(
 	__inout		efx_nic_t *enp);
 
@@ -1811,7 +1821,7 @@ efx_rx_fini(
 	__in		efx_nic_t *enp);
 
 #if EFSYS_OPT_RX_HDR_SPLIT
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_rx_hdr_split_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int hdr_buf_size,
@@ -1820,7 +1830,7 @@ efx_rx_hdr_split_enable(
 #endif	/* EFSYS_OPT_RX_HDR_SPLIT */
 
 #if EFSYS_OPT_RX_SCATTER
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_rx_scatter_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int buf_size);
@@ -1855,31 +1865,31 @@ typedef enum efx_rx_scale_support_e {
 	EFX_RX_SCALE_SHARED		/* Read-only key/indirection table */
 } efx_rx_scale_support_t;
 
- extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_rx_hash_support_get(
 	__in		efx_nic_t *enp,
 	__out		efx_rx_hash_support_t *supportp);
 
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_rx_scale_support_get(
 	__in		efx_nic_t *enp,
 	__out		efx_rx_scale_support_t *supportp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_rx_scale_mode_set(
 	__in	efx_nic_t *enp,
 	__in	efx_rx_hash_alg_t alg,
 	__in	efx_rx_hash_type_t type,
 	__in	boolean_t insert);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_rx_scale_key_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	uint8_t *key,
@@ -1893,7 +1903,7 @@ efx_psuedo_hdr_hash_get(
 
 #endif	/* EFSYS_OPT_RX_SCALE */
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_psuedo_hdr_pkt_length_get(
 	__in		efx_nic_t *enp,
 	__in		uint8_t *buffer,
@@ -1915,7 +1925,7 @@ typedef enum efx_rxq_type_e {
 	EFX_RXQ_NTYPES
 } efx_rxq_type_t;
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_rx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
@@ -1952,7 +1962,7 @@ efx_rx_qpush(
 	__in	unsigned int added,
 	__inout	unsigned int *pushedp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_rx_qflush(
 	__in	efx_rxq_t *erp);
 
@@ -1981,7 +1991,7 @@ typedef enum efx_tx_qstat_e {
 
 #endif	/* EFSYS_OPT_QSTATS */
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_tx_init(
 	__in		efx_nic_t *enp);
 
@@ -2004,7 +2014,7 @@ efx_tx_fini(
 
 #define	EFX_TXQ_MAX_BUFS 8 /* Maximum independent of EFX_BUG35388_WORKAROUND. */
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_tx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
@@ -2017,7 +2027,7 @@ efx_tx_qcreate(
 	__deref_out	efx_txq_t **etpp,
 	__out		unsigned int *addedp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_tx_qpost(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_buffer_t *eb,
@@ -2025,7 +2035,7 @@ efx_tx_qpost(
 	__in		unsigned int completed,
 	__inout		unsigned int *addedp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_tx_qpace(
 	__in		efx_txq_t *etp,
 	__in		unsigned int ns);
@@ -2036,7 +2046,7 @@ efx_tx_qpush(
 	__in		unsigned int added,
 	__in		unsigned int pushed);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_tx_qflush(
 	__in		efx_txq_t *etp);
 
@@ -2044,7 +2054,7 @@ extern			void
 efx_tx_qenable(
 	__in		efx_txq_t *etp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_tx_qpio_enable(
 	__in		efx_txq_t *etp);
 
@@ -2052,21 +2062,21 @@ extern			void
 efx_tx_qpio_disable(
 	__in		efx_txq_t *etp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_tx_qpio_write(
 	__in			efx_txq_t *etp,
 	__in_ecount(buf_length)	uint8_t *buffer,
 	__in			size_t buf_length,
 	__in                    size_t pio_buf_offset);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_tx_qpio_post(
 	__in			efx_txq_t *etp,
 	__in			size_t pkt_length,
 	__in			unsigned int completed,
 	__inout			unsigned int *addedp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_tx_qdesc_post(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_desc_t *ed,
@@ -2206,7 +2216,7 @@ typedef struct efx_filter_spec_s {
 #define	EFX_FILTER_SPEC_RX_DMAQ_ID_DROP		0xfff
 #define	EFX_FILTER_SPEC_VID_UNSPEC		0xffff
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_filter_init(
 	__in		efx_nic_t *enp);
 
@@ -2214,21 +2224,21 @@ extern			void
 efx_filter_fini(
 	__in		efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_filter_insert(
 	__in		efx_nic_t *enp,
 	__inout		efx_filter_spec_t *spec);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_filter_remove(
 	__in		efx_nic_t *enp,
 	__inout		efx_filter_spec_t *spec);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_filter_restore(
 	__in		efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_filter_supported_filters(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *list,
@@ -2246,14 +2256,14 @@ efx_filter_spec_init_tx(
 	__inout		efx_filter_spec_t *spec,
 	__in		efx_txq_t *etp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_filter_spec_set_ipv4_local(
 	__inout		efx_filter_spec_t *spec,
 	__in		uint8_t proto,
 	__in		uint32_t host,
 	__in		uint16_t port);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_filter_spec_set_ipv4_full(
 	__inout		efx_filter_spec_t *spec,
 	__in		uint8_t proto,
@@ -2262,17 +2272,17 @@ efx_filter_spec_set_ipv4_full(
 	__in		uint32_t rhost,
 	__in		uint16_t rport);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_filter_spec_set_eth_local(
 	__inout		efx_filter_spec_t *spec,
 	__in		uint16_t vid,
 	__in		const uint8_t *addr);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_filter_spec_set_uc_def(
 	__inout		efx_filter_spec_t *spec);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_filter_spec_set_mc_def(
 	__inout		efx_filter_spec_t *spec);
 

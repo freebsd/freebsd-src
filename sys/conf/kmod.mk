@@ -370,14 +370,18 @@ vnode_if_typedef.h:
 .endif
 
 # Build _if.[ch] from _if.m, and clean them when we're done.
-.if !defined(_MPATH)
+.if !defined(__MPATH)
 __MPATH!=find ${SYSDIR:tA}/ -name \*_if.m
-_MPATH=${__MPATH:H:O:u}
 .endif
+_MFILES=${__MPATH:T:O}
+_MPATH=${__MPATH:H:O:u}
 .PATH.m: ${_MPATH}
 .for _i in ${SRCS:M*_if.[ch]}
-#removes too much, comment out until it's more constrained.
-#CLEANFILES+=	${_i}
+_MATCH=M${_i:R:S/$/.m/}
+_MATCHES=${_MFILES:${_MATCH}}
+.if !empty(_MATCHES)
+CLEANFILES+=	${_i}
+.endif
 .endfor # _i
 .m.c:	${SYSDIR}/tools/makeobjops.awk
 	${AWK} -f ${SYSDIR}/tools/makeobjops.awk ${.IMPSRC} -c

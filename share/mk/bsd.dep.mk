@@ -59,15 +59,19 @@ DEPENDFILE?=	.depend
 DEPENDFILES=	${DEPENDFILE}
 .if ${MK_FAST_DEPEND} == "yes" && ${.MAKE.MODE:Unormal:Mmeta*} == ""
 DEPENDFILES+=	${DEPENDFILE}.*
-DEPEND_CFLAGS+=	-MD -MP -MF${DEPENDFILE}.${.TARGET}
+DEPEND_MP?=	-MP
+# Handle OBJS=../somefile.o hacks.  Just replace '/' rather than use :T to
+# avoid collisions.
+DEPEND_FILTER=	C,/,_,g
+DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF${DEPENDFILE}.${.TARGET:${DEPEND_FILTER}}
 DEPEND_CFLAGS+=	-MT${.TARGET}
 CFLAGS+=	${DEPEND_CFLAGS}
 DEPENDOBJS+=	${OBJS} ${POBJS} ${SOBJS}
 .for __obj in ${DEPENDOBJS:O:u}
 .if ${.MAKEFLAGS:M-V} == ""
-.sinclude "${DEPENDFILE}.${__obj}"
+.sinclude "${DEPENDFILE}.${__obj:${DEPEND_FILTER}}"
 .endif
-DEPENDFILES_OBJS+=	${DEPENDFILE}.${__obj}
+DEPENDFILES_OBJS+=	${DEPENDFILE}.${__obj:${DEPEND_FILTER}}
 .endfor
 .endif	# ${MK_FAST_DEPEND} == "yes"
 

@@ -126,7 +126,7 @@ siena_mcdi_request_copyout(
 	}
 }
 
-			int
+			efx_rc_t
 siena_mcdi_poll_reboot(
 	__in		efx_nic_t *enp)
 {
@@ -174,7 +174,7 @@ siena_mcdi_request_poll(
 	unsigned int seq;
 	unsigned int length;
 	int state;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
 
@@ -266,7 +266,7 @@ fail2:
 		EFSYS_PROBE(fail2);
 fail1:
 	if (!emrp->emr_quiet)
-		EFSYS_PROBE1(fail1, int, rc);
+		EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	/* Fill out error state */
 	emrp->emr_rc = rc;
@@ -280,7 +280,7 @@ out:
 	return (B_TRUE);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_mcdi_init(
 	__in		efx_nic_t *enp,
 	__in		const efx_mcdi_transport_t *mtp)
@@ -288,7 +288,7 @@ siena_mcdi_init(
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_oword_t oword;
 	unsigned int portnum;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_SIENA);
 
@@ -316,7 +316,7 @@ siena_mcdi_init(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -327,7 +327,7 @@ siena_mcdi_fini(
 {
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_mcdi_fw_update_supported(
 	__in		efx_nic_t *enp,
 	__out		boolean_t *supportedp)
@@ -339,8 +339,20 @@ siena_mcdi_fw_update_supported(
 	return (0);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 siena_mcdi_macaddr_change_supported(
+	__in		efx_nic_t *enp,
+	__out		boolean_t *supportedp)
+{
+	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
+
+	*supportedp = B_TRUE;
+
+	return (0);
+}
+
+	__checkReturn	efx_rc_t
+siena_mcdi_link_control_supported(
 	__in		efx_nic_t *enp,
 	__out		boolean_t *supportedp)
 {

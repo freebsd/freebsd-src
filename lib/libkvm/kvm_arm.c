@@ -39,56 +39,25 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/elf32.h>
-#include <sys/mman.h>
-
-#ifndef CROSS_LIBKVM
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-#include <machine/pmap.h>
-#else
-#include "../../sys/arm/include/pte.h"
-#include "../../sys/arm/include/vmparam.h"
-#endif
-
-#include <db.h>
-#include <limits.h>
+#include <sys/endian.h>
 #include <kvm.h>
+#include <limits.h>
+#include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
+#ifdef __arm__
+#include <machine/vmparam.h>
+#endif
+
 #include "kvm_private.h"
+#include "kvm_arm.h"
 
-/* minidump must be the first item! */
 struct vmstate {
-	int minidump;		/* 1 = minidump mode */
-	pd_entry_t *l1pt;
-	void *mmapbase;
-	size_t mmapsize;
+	arm_pd_entry_t *l1pt;
+	size_t phnum;
+	GElf_Phdr *phdr;
 };
-
-static int
-_kvm_maphdrs(kvm_t *kd, size_t sz)
-{
-	struct vmstate *vm = kd->vmst;
-
-	/* munmap() previous mmap(). */
-	if (vm->mmapbase != NULL) {
-		munmap(vm->mmapbase, vm->mmapsize);
-		vm->mmapbase = NULL;
-	}
-
-	vm->mmapsize = sz;
-	vm->mmapbase = mmap(NULL, sz, PROT_READ, MAP_PRIVATE, kd->pmfd, 0);
-	if (vm->mmapbase == MAP_FAILED) {
-		_kvm_err(kd, kd->program, "cannot mmap corefile");
-		return (-1);
-	}
-
-	return (0);
-}
 
 /*
  * Translate a physical memory address to a file-offset in the crash-dump.
@@ -96,10 +65,12 @@ _kvm_maphdrs(kvm_t *kd, size_t sz)
 static size_t
 _kvm_pa2off(kvm_t *kd, uint64_t pa, off_t *ofs, size_t pgsz)
 {
-	Elf32_Ehdr *e = kd->vmst->mmapbase;
-	Elf32_Phdr *p = (Elf32_Phdr*)((char*)e + e->e_phoff);
-	int n = e->e_phnum;
+	struct vmstate *vm = kd->vmst;
+	GElf_Phdr *p;
+	size_t n;
 
+	p = vm->phdr;
+	n = vm->phnum;
 	while (n && (pa < p->p_paddr || pa >= p->p_paddr + p->p_memsz))
 		p++, n--;
 	if (n == 0)
@@ -111,40 +82,38 @@ _kvm_pa2off(kvm_t *kd, uint64_t pa, off_t *ofs, size_t pgsz)
 	return (pgsz - ((size_t)pa & (pgsz - 1)));
 }
 
-void
-_kvm_freevtop(kvm_t *kd)
+static void
+_arm_freevtop(kvm_t *kd)
 {
-	if (kd->vmst != 0) {
-		if (kd->vmst->minidump)
-			return (_kvm_minidump_freevtop(kd));
-		if (kd->vmst->mmapbase != NULL)
-			munmap(kd->vmst->mmapbase, kd->vmst->mmapsize);
-		free(kd->vmst);
-		kd->vmst = NULL;
-	}
+	struct vmstate *vm = kd->vmst;
+
+	free(vm->phdr);
+	free(vm);
+	kd->vmst = NULL;
 }
 
-int
-_kvm_initvtop(kvm_t *kd)
+static int
+_arm_probe(kvm_t *kd)
+{
+
+	return (_kvm_probe_elf_kernel(kd, ELFCLASS32, EM_ARM) &&
+	    !_kvm_is_minidump(kd));
+}
+
+static int
+_arm_initvtop(kvm_t *kd)
 {
 	struct vmstate *vm;
-	struct nlist nl[2];
-	u_long kernbase, physaddr, pa;
-	pd_entry_t *l1pt;
-	Elf32_Ehdr *ehdr;
-	Elf32_Phdr *phdr;
-	size_t hdrsz;
-	char minihdr[8];
-	int found, i;
+	struct kvm_nlist nl[2];
+	kvaddr_t kernbase;
+	arm_physaddr_t physaddr, pa;
+	arm_pd_entry_t *l1pt;
+	size_t i;
+	int found;
 
-	if (!kd->rawdump) {
-		if (pread(kd->pmfd, &minihdr, 8, 0) == 8) {
-			if (memcmp(&minihdr, "minidump", 8) == 0)
-				return (_kvm_minidump_initvtop(kd));
-		} else {
-			_kvm_err(kd, kd->program, "cannot read header");
-			return (-1);
-		}
+	if (kd->rawdump) {
+		_kvm_err(kd, kd->program, "raw dumps not supported on arm");
+		return (-1);
 	}
 
 	vm = _kvm_malloc(kd, sizeof(*vm));
@@ -154,19 +123,15 @@ _kvm_initvtop(kvm_t *kd)
 	}
 	kd->vmst = vm;
 	vm->l1pt = NULL;
-	if (_kvm_maphdrs(kd, sizeof(Elf32_Ehdr)) == -1)
-		return (-1);
-	ehdr = kd->vmst->mmapbase;
-	hdrsz = ehdr->e_phoff + ehdr->e_phentsize * ehdr->e_phnum;
-	if (_kvm_maphdrs(kd, hdrsz) == -1)
+
+	if (_kvm_read_core_phdrs(kd, &vm->phnum, &vm->phdr) == -1)
 		return (-1);
 
-	phdr = (Elf32_Phdr *)((uint8_t *)ehdr + ehdr->e_phoff);
 	found = 0;
-	for (i = 0; i < ehdr->e_phnum; i++) {
-		if (phdr[i].p_type == PT_DUMP_DELTA) {
-			kernbase = phdr[i].p_vaddr;
-			physaddr = phdr[i].p_paddr;
+	for (i = 0; i < vm->phnum; i++) {
+		if (vm->phdr[i].p_type == PT_DUMP_DELTA) {
+			kernbase = vm->phdr[i].p_vaddr;
+			physaddr = vm->phdr[i].p_paddr;
 			found = 1;
 			break;
 		}
@@ -175,30 +140,35 @@ _kvm_initvtop(kvm_t *kd)
 	nl[1].n_name = NULL;
 	if (!found) {
 		nl[0].n_name = "kernbase";
-		if (kvm_nlist(kd, nl) != 0)
+		if (kvm_nlist2(kd, nl) != 0) {
+#ifdef __arm__
 			kernbase = KERNBASE;
-		else
+#else
+		_kvm_err(kd, kd->program, "cannot resolve kernbase");
+		return (-1);
+#endif
+		} else
 			kernbase = nl[0].n_value;
 
 		nl[0].n_name = "physaddr";
-		if (kvm_nlist(kd, nl) != 0) {
+		if (kvm_nlist2(kd, nl) != 0) {
 			_kvm_err(kd, kd->program, "couldn't get phys addr");
 			return (-1);
 		}
 		physaddr = nl[0].n_value;
 	}
 	nl[0].n_name = "kernel_l1pa";
-	if (kvm_nlist(kd, nl) != 0) {
+	if (kvm_nlist2(kd, nl) != 0) {
 		_kvm_err(kd, kd->program, "bad namelist");
 		return (-1);
 	}
-	if (kvm_read(kd, (nl[0].n_value - kernbase + physaddr), &pa,
+	if (kvm_read2(kd, (nl[0].n_value - kernbase + physaddr), &pa,
 	    sizeof(pa)) != sizeof(pa)) {
 		_kvm_err(kd, kd->program, "cannot read kernel_l1pa");
 		return (-1);
 	}
-	l1pt = _kvm_malloc(kd, L1_TABLE_SIZE);
-	if (kvm_read(kd, pa, l1pt, L1_TABLE_SIZE) != L1_TABLE_SIZE) {
+	l1pt = _kvm_malloc(kd, ARM_L1_TABLE_SIZE);
+	if (kvm_read2(kd, pa, l1pt, ARM_L1_TABLE_SIZE) != ARM_L1_TABLE_SIZE) {
 		_kvm_err(kd, kd->program, "cannot read l1pt");
 		free(l1pt);
 		return (-1);
@@ -208,62 +178,51 @@ _kvm_initvtop(kvm_t *kd)
 }
 
 /* from arm/pmap.c */
-#define	L1_IDX(va)		(((vm_offset_t)(va)) >> L1_S_SHIFT)
-/* from arm/pmap.h */
-#define	L1_TYPE_INV	0x00		/* Invalid (fault) */
-#define	L1_TYPE_C	0x01		/* Coarse L2 */
-#define	L1_TYPE_S	0x02		/* Section */
-#define	L1_TYPE_F	0x03		/* Fine L2 */
-#define	L1_TYPE_MASK	0x03		/* mask of type bits */
+#define	ARM_L1_IDX(va)		((va) >> ARM_L1_S_SHIFT)
 
-#define	l1pte_section_p(pde)	(((pde) & L1_TYPE_MASK) == L1_TYPE_S)
+#define	l1pte_section_p(pde)	(((pde) & ARM_L1_TYPE_MASK) == ARM_L1_TYPE_S)
 #define	l1pte_valid(pde)	((pde) != 0)
 #define	l2pte_valid(pte)	((pte) != 0)
-#define l2pte_index(v)		(((v) & L2_ADDR_BITS) >> L2_S_SHIFT)
+#define l2pte_index(v)		(((v) & ARM_L2_ADDR_BITS) >> ARM_L2_S_SHIFT)
 
 
-int
-_kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
+static int
+_arm_kvatop(kvm_t *kd, kvaddr_t va, off_t *pa)
 {
 	struct vmstate *vm = kd->vmst;
-	pd_entry_t pd;
-	pt_entry_t pte;
-	off_t pte_pa;
-
-	if (kd->vmst->minidump)
-		return (_kvm_minidump_kvatop(kd, va, pa));
+	arm_pd_entry_t pd;
+	arm_pt_entry_t pte;
+	arm_physaddr_t pte_pa;
+	off_t pte_off;
 
 	if (vm->l1pt == NULL)
-		return (_kvm_pa2off(kd, va, pa, PAGE_SIZE));
-	pd = vm->l1pt[L1_IDX(va)];
+		return (_kvm_pa2off(kd, va, pa, ARM_PAGE_SIZE));
+	pd = _kvm32toh(kd, vm->l1pt[ARM_L1_IDX(va)]);
 	if (!l1pte_valid(pd))
 		goto invalid;
 	if (l1pte_section_p(pd)) {
 		/* 1MB section mapping. */
-		*pa = ((u_long)pd & L1_S_ADDR_MASK) + (va & L1_S_OFFSET);
-		return  (_kvm_pa2off(kd, *pa, pa, L1_S_SIZE));
+		*pa = (pd & ARM_L1_S_ADDR_MASK) + (va & ARM_L1_S_OFFSET);
+		return  (_kvm_pa2off(kd, *pa, pa, ARM_L1_S_SIZE));
 	}
-	pte_pa = (pd & L1_ADDR_MASK) + l2pte_index(va) * sizeof(pte);
-	_kvm_pa2off(kd, pte_pa, &pte_pa, L1_S_SIZE);
-	if (lseek(kd->pmfd, pte_pa, 0) == -1) {
-		_kvm_syserr(kd, kd->program, "_kvm_kvatop: lseek");
+	pte_pa = (pd & ARM_L1_C_ADDR_MASK) + l2pte_index(va) * sizeof(pte);
+	_kvm_pa2off(kd, pte_pa, &pte_off, ARM_L1_S_SIZE);
+	if (pread(kd->pmfd, &pte, sizeof(pte), pte_off) != sizeof(pte)) {
+		_kvm_syserr(kd, kd->program, "_arm_kvatop: pread");
 		goto invalid;
 	}
-	if (read(kd->pmfd, &pte, sizeof(pte)) != sizeof (pte)) {
-		_kvm_syserr(kd, kd->program, "_kvm_kvatop: read");
-		goto invalid;
-	}
+	pte = _kvm32toh(kd, pte);
 	if (!l2pte_valid(pte)) {
 		goto invalid;
 	}
-	if ((pte & L2_TYPE_MASK) == L2_TYPE_L) {
-		*pa = (pte & L2_L_FRAME) | (va & L2_L_OFFSET);
-		return (_kvm_pa2off(kd, *pa, pa, L2_L_SIZE));
+	if ((pte & ARM_L2_TYPE_MASK) == ARM_L2_TYPE_L) {
+		*pa = (pte & ARM_L2_L_FRAME) | (va & ARM_L2_L_OFFSET);
+		return (_kvm_pa2off(kd, *pa, pa, ARM_L2_L_SIZE));
 	}
-	*pa = (pte & L2_S_FRAME) | (va & L2_S_OFFSET);
-	return (_kvm_pa2off(kd, *pa, pa, PAGE_SIZE));
+	*pa = (pte & ARM_L2_S_FRAME) | (va & ARM_L2_S_OFFSET);
+	return (_kvm_pa2off(kd, *pa, pa, ARM_PAGE_SIZE));
 invalid:
-	_kvm_err(kd, 0, "Invalid address (%lx)", va);
+	_kvm_err(kd, 0, "Invalid address (%jx)", (uintmax_t)va);
 	return 0;
 }
 
@@ -284,3 +243,28 @@ _kvm_mdopen(kvm_t *kd)
 	return (0);
 }
 #endif
+
+int
+_arm_native(kvm_t *kd)
+{
+
+#ifdef __arm__
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+	return (kd->nlehdr.e_ident[EI_DATA] == ELFDATA2LSB);
+#else
+	return (kd->nlehdr.e_ident[EI_DATA] == ELFDATA2MSB);
+#endif
+#else
+	return (0);
+#endif
+}
+
+struct kvm_arch kvm_arm = {
+	.ka_probe = _arm_probe,
+	.ka_initvtop = _arm_initvtop,
+	.ka_freevtop = _arm_freevtop,
+	.ka_kvatop = _arm_kvatop,
+	.ka_native = _arm_native,
+};
+
+KVM_ARCH(kvm_arm);

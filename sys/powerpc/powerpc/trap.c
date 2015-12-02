@@ -401,6 +401,9 @@ static void
 printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 {
 	uint16_t ver;
+#ifdef BOOKE
+	vm_paddr_t pa;
+#endif
 
 	printf("\n");
 	printf("%s %s trap:\n", isfatal ? "fatal" : "handled",
@@ -429,7 +432,10 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 			printf("    msssr0         = 0x%lx\n",
 			    (u_long)mfspr(SPR_MSSSR0));
 #elif defined(BOOKE)
-		printf("   mcsr           = 0x%lx\n", (u_long)mfspr(SPR_MCSR));
+		pa = mfspr(SPR_MCARU);
+		pa = (pa << 32) | mfspr(SPR_MCAR);
+		printf("   mcsr            = 0x%lx\n", (u_long)mfspr(SPR_MCSR));
+		printf("   mcar            = 0x%jx\n", (uintmax_t)pa);
 #endif
 		break;
 	}

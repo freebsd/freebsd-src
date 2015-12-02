@@ -6957,6 +6957,18 @@ sctp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
 	for (last = m; last->m_next; last = last->m_next);
 	last->m_next = sp;
 	m->m_pkthdr.len += sp->m_pkthdr.len;
+	/*
+	 * The CSUM_DATA_VALID flags indicates that the HW checked the UDP
+	 * checksum and it was valid. Since CSUM_DATA_VALID ==
+	 * CSUM_SCTP_VALID this would imply that the HW also verified the
+	 * SCTP checksum. Therefore, clear the bit.
+	 */
+	SCTPDBG(SCTP_DEBUG_CRCOFFLOAD,
+	    "sctp_recv_udp_tunneled_packet(): Packet of length %d received on %s with csum_flags 0x%b.\n",
+	    m->m_pkthdr.len,
+	    if_name(m->m_pkthdr.rcvif),
+	    (int)m->m_pkthdr.csum_flags, CSUM_BITS);
+	m->m_pkthdr.csum_flags &= ~CSUM_DATA_VALID;
 	iph = mtod(m, struct ip *);
 	switch (iph->ip_v) {
 #ifdef INET

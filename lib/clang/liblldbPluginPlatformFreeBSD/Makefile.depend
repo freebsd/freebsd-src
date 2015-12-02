@@ -13,16 +13,4 @@ DIRDEPS = \
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-PlatformFreeBSD.o: AttrList.inc.h
-PlatformFreeBSD.o: Attrs.inc.h
-PlatformFreeBSD.o: CommentCommandList.inc.h
-PlatformFreeBSD.o: DeclNodes.inc.h
-PlatformFreeBSD.o: DiagnosticCommonKinds.inc.h
-PlatformFreeBSD.o: StmtNodes.inc.h
-PlatformFreeBSD.po: AttrList.inc.h
-PlatformFreeBSD.po: Attrs.inc.h
-PlatformFreeBSD.po: CommentCommandList.inc.h
-PlatformFreeBSD.po: DeclNodes.inc.h
-PlatformFreeBSD.po: DiagnosticCommonKinds.inc.h
-PlatformFreeBSD.po: StmtNodes.inc.h
 .endif
