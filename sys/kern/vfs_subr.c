@@ -2782,6 +2782,7 @@ _vdrop(struct vnode *vp, bool locked)
 	/* XXX Elsewhere we detect an already freed vnode via NULL v_op. */
 	vp->v_op = NULL;
 #endif
+	bzero(&vp->v_un, sizeof(vp->v_un));
 	vp->v_iflag = 0;
 	vp->v_vflag = 0;
 	bo->bo_flag = 0;
