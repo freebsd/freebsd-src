@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/cc.h>
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_rss.h>
 #include <netinet/in_systm.h>
@@ -369,6 +370,8 @@ tcp_timer_2msl(void *xtp)
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
+	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
+
 	if (tp != NULL)
 		INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
@@ -454,6 +457,7 @@ tcp_timer_keep(void *xtp)
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
+	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
 	CURVNET_RESTORE();
@@ -468,6 +472,7 @@ dropit:
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
+	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	if (tp != NULL)
 		INP_WUNLOCK(tp->t_inpcb);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
@@ -546,6 +551,7 @@ out:
 	if (tp != NULL && tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
 		tcp_trace(TA_USER, ostate, tp, NULL, NULL, PRU_SLOWTIMO);
 #endif
+	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	if (tp != NULL)
 		INP_WUNLOCK(inp);
 	INP_INFO_RUNLOCK(&V_tcbinfo);
@@ -658,9 +664,15 @@ tcp_timer_rexmt(void * xtp)
 		int isipv6;
 #endif
 
+		/*
+		 * Idea here is that at each stage of mtu probe (usually, 1448
+		 * -> 1188 -> 524) should be given 2 chances to recover before
+		 *  further clamping down. 'tp->t_rxtshift % 2 == 0' should
+		 *  take care of that.
+		 */
 		if (((tp->t_flags2 & (TF2_PLPMTU_PMTUD|TF2_PLPMTU_MAXSEGSNT)) ==
 		    (TF2_PLPMTU_PMTUD|TF2_PLPMTU_MAXSEGSNT)) &&
-		    (tp->t_rxtshift <= 2)) {
+		    (tp->t_rxtshift >= 2 && tp->t_rxtshift % 2 == 0)) {
 			/*
 			 * Enter Path MTU Black-hole Detection mechanism:
 			 * - Disable Path MTU Discovery (IP "DF" bit).
@@ -728,9 +740,11 @@ tcp_timer_rexmt(void * xtp)
 			 * with a lowered MTU, maybe this isn't a blackhole and
 			 * we restore the previous MSS and blackhole detection
 			 * flags.
+			 * The limit '6' is determined by giving each probe
+			 * stage (1448, 1188, 524) 2 chances to recover.
 			 */
 			if ((tp->t_flags2 & TF2_PLPMTU_BLACKHOLE) &&
-			    (tp->t_rxtshift > 4)) {
+			    (tp->t_rxtshift > 6)) {
 				tp->t_flags2 |= TF2_PLPMTU_PMTUD;
 				tp->t_flags2 &= ~TF2_PLPMTU_BLACKHOLE;
 				optlen = tp->t_maxopd - tp->t_maxseg;
@@ -792,6 +806,7 @@ out:
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
+	TCP_PROBE2(debug__user, tp, PRU_SLOWTIMO);
 	if (tp != NULL)
 		INP_WUNLOCK(inp);
 	if (headlocked)
@@ -847,7 +862,7 @@ tcp_timer_activate(struct tcpcb *tp, uint32_t timer_type, u_int delta)
 		}
 	if (delta == 0) {
 		if ((tp->t_timers->tt_flags & timer_type) &&
-		    callout_stop(t_callout) &&
+		    (callout_stop(t_callout) == CALLOUT_RET_CANCELLED) &&
 		    (tp->t_timers->tt_flags & f_reset)) {
 			tp->t_timers->tt_flags &= ~(timer_type | f_reset);
 		}
@@ -934,7 +949,7 @@ tcp_timer_stop(struct tcpcb *tp, uint32_t timer_type)
 		}
 
 	if (tp->t_timers->tt_flags & timer_type) {
-		if (callout_drain_async(t_callout, f_callout, tp) == 0 &&
+		if (callout_async_drain(t_callout, f_callout) != CALLOUT_RET_DRAINING &&
 		    (tp->t_timers->tt_flags & f_reset)) {
 			tp->t_timers->tt_flags &= ~(timer_type | f_reset);
 		} else {

@@ -46,11 +46,16 @@
 #define	CALLOUT_MPSAFE		0x0008 /* deprecated */
 #define	CALLOUT_RETURNUNLOCKED	0x0010 /* handler returns with mtx unlocked */
 #define	CALLOUT_UNUSED_5	0x0020 /* --available-- */
-#define	CALLOUT_DEFRESTART	0x0040 /* callout restart is deferred */
+#define	CALLOUT_UNUSED_6	0x0040 /* --available-- */
 #define	CALLOUT_PROCESSED	0x0080 /* callout in wheel or processing list? */
 #define	CALLOUT_DIRECT 		0x0100 /* allow exec from hw int context */
 #define	CALLOUT_SET_LC(x)	(((x) & 7) << 16) /* set lock class */
 #define	CALLOUT_GET_LC(x)	(((x) >> 16) & 7) /* get lock class */
+
+/* return values for all callout_xxx() functions */
+#define	CALLOUT_RET_DRAINING	0 /* callout cannot be stopped, need drain */
+#define	CALLOUT_RET_CANCELLED	1 /* callout was successfully stopped */
+#define	CALLOUT_RET_STOPPED	-1 /* callout was already stopped */
 
 #define	C_DIRECT_EXEC		0x0001 /* direct execution of callout */
 #define	C_PRELBITS		7
@@ -68,7 +73,7 @@ struct callout_handle {
 #define	callout_active(c)	((c)->c_flags & CALLOUT_ACTIVE)
 #define	callout_deactivate(c)	((c)->c_flags &= ~CALLOUT_ACTIVE)
 int	callout_drain(struct callout *);
-int	callout_drain_async(struct callout *, callout_func_t *, void *);
+int	callout_async_drain(struct callout *, callout_func_t *);
 void	callout_init(struct callout *, int);
 void	_callout_init_lock(struct callout *, struct lock_object *, int);
 #define	callout_init_mtx(c, mtx, flags)					\

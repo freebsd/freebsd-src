@@ -29,14 +29,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2015
+.Dd December 3, 2015
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
 .Nm callout_active ,
 .Nm callout_deactivate ,
+.Nm callout_async_drain ,
 .Nm callout_drain ,
-.Nm callout_drain_async ,
 .Nm callout_handle_init ,
 .Nm callout_init ,
 .Nm callout_init_mtx ,
@@ -66,6 +66,67 @@
 typedef void timeout_t (void *);
 typedef void callout_func_t (void *);
 .Ed
+.Ft int
+.Fn callout_active "struct callout *c"
+.Ft void
+.Fn callout_deactivate "struct callout *c"
+.Ft int
+.Fn callout_async_drain "struct callout *c" "callout_func_t *drain"
+.Ft int
+.Fn callout_drain "struct callout *c"
+.Ft void
+.Fn callout_handle_init "struct callout_handle *handle"
+.Bd -literal
+struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
+.Ed
+.Ft void
+.Fn callout_init "struct callout *c" "int mpsafe"
+.Ft void
+.Fn callout_init_mtx "struct callout *c" "struct mtx *mtx" "int flags"
+.Ft void
+.Fn callout_init_rm "struct callout *c" "struct rmlock *rm" "int flags"
+.Ft void
+.Fn callout_init_rw "struct callout *c" "struct rwlock *rw" "int flags"
+.Ft int
+.Fn callout_pending "struct callout *c"
+.Ft int
+.Fn callout_reset "struct callout *c" "int ticks" "timeout_t *func" "void *arg"
+.Ft int
+.Fn callout_reset_curcpu "struct callout *c" "int ticks" "timeout_t *func" \
+"void *arg"
+.Ft int
+.Fn callout_reset_on "struct callout *c" "int ticks" "timeout_t *func" \
+"void *arg" "int cpu"
+.Ft int
+.Fn callout_reset_sbt "struct callout *c" "sbintime_t sbt" \
+"sbintime_t pr" "timeout_t *func" "void *arg" "int flags"
+.Ft int
+.Fn callout_reset_sbt_curcpu "struct callout *c" "sbintime_t sbt" \
+"sbintime_t pr" "timeout_t *func" "void *arg" "int flags"
+.Ft int
+.Fn callout_reset_sbt_on "struct callout *c" "sbintime_t sbt" \
+"sbintime_t pr" "timeout_t *func" "void *arg" "int cpu" "int flags"
+.Ft int
+.Fn callout_schedule "struct callout *c" "int ticks"
+.Ft int
+.Fn callout_schedule_curcpu "struct callout *c" "int ticks"
+.Ft int
+.Fn callout_schedule_on "struct callout *c" "int ticks" "int cpu"
+.Ft int
+.Fn callout_schedule_sbt "struct callout *c" "sbintime_t sbt" \
+"sbintime_t pr" "int flags"
+.Ft int
+.Fn callout_schedule_sbt_curcpu "struct callout *c" "sbintime_t sbt" \
+"sbintime_t pr" "int flags"
+.Ft int
+.Fn callout_schedule_sbt_on "struct callout *c" "sbintime_t sbt" \
+"sbintime_t pr" "int cpu" "int flags"
+.Ft int
+.Fn callout_stop "struct callout *c"
+.Ft struct callout_handle
+.Fn timeout "timeout_t *func" "void *arg" "int ticks"
+.Ft void
+.Fn untimeout "timeout_t *func" "void *arg" "struct callout_handle handle"
 .Sh DESCRIPTION
 The
 .Nm callout
@@ -80,7 +141,7 @@ stores the full state about any pending function call and
 must be drained by a call to
 .Fn callout_drain
 or
-.Fn callout_drain_async
+.Fn callout_async_drain
 before freeing.
 .Sh INITIALIZATION
 .Ft void
@@ -246,9 +307,11 @@ argument.
 The number of ticks in a second is defined by
 .Dv hz
 and can vary from system to system.
-This function returns a non-zero value if the given callout was pending and
-the callback function was prevented from being called.
-Otherwise, a value of zero is returned.
+This function returns either
+.Dv CALLOUT_RET_STOPPED ,
+.Dv CALLOUT_RET_CANCELLED
+or
+.Dv CALLOUT_RET_DRAINING .
 If a lock is associated with the callout given by the
 .Fa c
 argument and it is exclusivly locked when this function is called, this
@@ -439,7 +502,7 @@ or the
 or the
 .Fn callout_drain
 or the
-.Fn callout_drain_async
+.Fn callout_async_drain
 function is called on the same callout as given by the
 .Fa c
 argument.
@@ -484,9 +547,11 @@ This function is used to stop a timeout function invocation associated with the 
 .Fa c
 argument, in a non-blocking fashion.
 This function can be called multiple times in a row with no side effects, even if the callout is already stopped. This function however should not be called before the callout has been initialized.
-This function returns a non-zero value if the given callout was pending and
-the callback function was prevented from being called.
-Else a value of zero is returned.
+This function returns either
+.Dv CALLOUT_RET_STOPPED ,
+.Dv CALLOUT_RET_CANCELLED
+or
+.Dv CALLOUT_RET_DRAINING .
 If a lock is associated with the callout given by the
 .Fa c
 argument and it is exclusivly locked when this function is called, the
@@ -509,26 +574,50 @@ When this function returns, it is safe to free the callout structure pointed to 
 argument.
 .Pp
 .Ft int
-.Fn callout_drain_async "struct callout *c" "callout_func_t *fn" "void *arg"
+.Fn callout_async_drain "struct callout *c" "callout_func_t *drain"
 This function is non-blocking and works the same like the
 .Fn callout_stop
-function except if it returns non-zero it means the callback function pointed to by the
-.Fa fn
+function except if it returns
+.Dv CALLOUT_RET_DRAINING
+it means the callback function pointed to by the
+.Fa drain
 argument will be called back with the
 .Fa arg
 argument when all references to the callout pointed to by the
 .Fa c
 argument are gone.
-If this function returns non-zero it should not be called again until the callback function has been called.
+If this function returns
+.Dv CALLOUT_RET_DRAINING
+it should not be called again until the callback function has been called.
+Note that when stopping multiple callouts that use the same lock it is possible
+to get multiple return values of
+.Dv CALLOUT_RET_DRAINING
+and multiple calls to the
+.Fa drain
+function, depending upon which CPU's the callouts are running on. The
+.Fa drain
+function itself is called unlocked from the context of the completing
+callout either softclock or hardclock, just like a callout itself.
 If the
 .Fn callout_drain
 or
-.Fn callout_drain_async
+.Fn callout_async_drain
 functions are called while an asynchronous drain is pending,
 previously pending asynchronous drains might get cancelled.
-If this function returns zero, it is safe to free the callout structure pointed to by the
+If this function returns a value different from
+.Dv CALLOUT_RET_DRAINING
+it is safe to free the callout structure pointed to by the
 .Fa c
 argument right away.
+.Sh CALLOUT FUNCTION RETURN VALUES
+.Bl -tag -width ".Dv CALLOUT_RET_CANCELLED"
+.It CALLOUT_RET_DRAINING
+The callout cannot be stopped and needs to be drained.
+.It CALLOUT_RET_CANCELLED
+The callout was successfully stopped.
+.It CALLOUT_RET_STOPPED
+The callout was already stopped.
+.El
 .Sh CALLOUT FUNCTION RESTRICTIONS
 Callout functions must not sleep.
 They may not acquire sleepable locks, wait on condition variables,
@@ -549,7 +638,7 @@ Softclock threads for CPUs other than zero can be pinned to their
 respective CPUs by setting the
 .Va kern.pin_pcpu_swi
 loader tunable to a non-zero value.
-.Sh "AVOIDING RACE CONDITIONS"
+.Sh AVOIDING RACE CONDITIONS
 The callout subsystem invokes callout functions from its own thread
 context.
 Without some kind of synchronization,
@@ -615,7 +704,8 @@ callout function is about to be called.
 For example:
 .Bd -literal -offset indent
 if (sc->sc_flags & SCFLG_CALLOUT_RUNNING) {
-	if (callout_stop(&sc->sc_callout)) {
+	if (callout_stop(&sc->sc_callout) ==
+	    CALLOUT_RET_CANCELLED) {
 		sc->sc_flags &= ~SCFLG_CALLOUT_RUNNING;
 		/* successfully stopped */
 	} else {

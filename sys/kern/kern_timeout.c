@@ -123,10 +123,6 @@ SYSCTL_INT(_kern, OID_AUTO, pin_pcpu_swi, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &pin_
  */
 u_int callwheelsize, callwheelmask;
 
-#define	CALLOUT_RET_NORMAL	0
-#define	CALLOUT_RET_CANCELLED	1
-#define	CALLOUT_RET_DRAINING	2
-
 struct callout_args {
 	sbintime_t time;		/* absolute time for the event */
 	sbintime_t precision;		/* delta allowed wrt opt */
@@ -298,12 +294,10 @@ struct cc_exec {
 	bool cc_cancel;
 	/*
 	 * The "cc_drain_fn" points to a function which shall be
-	 * called with the argument stored in "cc_drain_arg" when an
-	 * asynchronous drain is performed. This field is write
-	 * protected by the "cc_lock" spinlock.
+	 * called when an asynchronous drain is performed. This field
+	 * is write protected by the "cc_lock" spinlock.
 	 */
 	callout_func_t *cc_drain_fn;
-	void *cc_drain_arg;
 	/*
 	 * The following fields are used for callout profiling only:
 	 */
@@ -338,7 +332,6 @@ struct callout_cpu {
 #define	cc_exec_restart(cc, dir)	(cc)->cc_exec_entity[(dir)].cc_restart
 #define	cc_exec_cancel(cc, dir)		(cc)->cc_exec_entity[(dir)].cc_cancel
 #define	cc_exec_drain_fn(cc, dir)	(cc)->cc_exec_entity[(dir)].cc_drain_fn
-#define	cc_exec_drain_arg(cc, dir)	(cc)->cc_exec_entity[(dir)].cc_drain_arg
 #define	cc_exec_depth(cc, dir)		(cc)->cc_exec_entity[(dir)].cc_depth
 #define	cc_exec_mpcalls(cc, dir)	(cc)->cc_exec_entity[(dir)].cc_mpcalls
 #define	cc_exec_lockcalls(cc, dir)	(cc)->cc_exec_entity[(dir)].cc_lockcalls
@@ -691,7 +684,7 @@ callout_cc_add_locked(struct callout *c, struct callout_cpu *cc,
 	CC_LOCK_ASSERT(cc);
 
 	/* update flags before swapping locks, if any */
-	c->c_flags &= ~(CALLOUT_PROCESSED | CALLOUT_DIRECT | CALLOUT_DEFRESTART);
+	c->c_flags &= ~(CALLOUT_PROCESSED | CALLOUT_DIRECT);
 	if (coa->flags & C_DIRECT_EXEC)
 		c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING | CALLOUT_DIRECT);
 	else
@@ -784,7 +777,6 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	cc_exec_curr(cc, direct) = c;
 	cc_exec_restart(cc, direct) = false;
 	cc_exec_drain_fn(cc, direct) = NULL;
-	cc_exec_drain_arg(cc, direct) = NULL;
 
 	if (c_lock != NULL) {
 		cc_exec_cancel(cc, direct) = false;
@@ -836,9 +828,9 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	sbt1 = sbinuptime();
 #endif
 	THREAD_NO_SLEEPING();
-	SDT_PROBE(callout_execute, kernel, , callout__start, c, 0, 0, 0, 0);
+	SDT_PROBE1(callout_execute, kernel, , callout__start, c);
 	c_func(c_arg);
-	SDT_PROBE(callout_execute, kernel, , callout__end, c, 0, 0, 0, 0);
+	SDT_PROBE1(callout_execute, kernel, , callout__end, c);
 	THREAD_SLEEPING_OK();
 #if defined(DIAGNOSTIC) || defined(CALLOUT_PROFILING)
 	sbt2 = sbinuptime();
@@ -879,8 +871,7 @@ skip_cc_locked:
 		 */
 		CC_UNLOCK(cc);
 		/* call drain function unlocked */
-		cc_exec_drain_fn(cc, direct)(
-		    cc_exec_drain_arg(cc, direct));
+		cc_exec_drain_fn(cc, direct)(c_arg);
 		CC_LOCK(cc);
 	} else if (c_flags & CALLOUT_LOCAL_ALLOC) {
 		/* return callout back to freelist */
@@ -1002,12 +993,27 @@ callout_handle_init(struct callout_handle *handle)
 	handle->callout = NULL;
 }
 
+#ifdef KTR
+static const char *
+callout_retvalstring(int retval)
+{
+	switch (retval) {
+	case CALLOUT_RET_DRAINING:
+		return ("callout cannot be stopped and needs drain");
+	case CALLOUT_RET_CANCELLED:
+		return ("callout was successfully stopped");
+	default:
+		return ("callout was already stopped");
+	}
+}
+#endif
+
 static int
 callout_restart_async(struct callout *c, struct callout_args *coa,
-    callout_func_t *drain_fn, void *drain_arg)
+    callout_func_t *drain_fn)
 {
 	struct callout_cpu *cc;
-	int cancelled;
+	int retval;
 	int direct;
 
 	cc = callout_lock(c);
@@ -1022,16 +1028,19 @@ callout_restart_async(struct callout *c, struct callout_args *coa,
 	if (cc_exec_curr(cc, direct) == c) {
 		/*
 		 * Try to prevent the callback from running by setting
-		 * the "cc_cancel" variable to "true". Also check if
-		 * the callout was previously subject to a deferred
-		 * callout restart:
+		 * the "cc_cancel" variable to "true".
 		 */
-		if (cc_exec_cancel(cc, direct) == false ||
-		    (c->c_flags & CALLOUT_DEFRESTART) != 0) {
+		if (drain_fn != NULL) {
+			/* set drain function, if any */
+			cc_exec_drain_fn(cc, direct) = drain_fn;
 			cc_exec_cancel(cc, direct) = true;
-			cancelled = CALLOUT_RET_CANCELLED;
+			retval = CALLOUT_RET_DRAINING;
+		} else if (cc_exec_cancel(cc, direct) == false ||
+		    cc_exec_restart(cc, direct) == true) {
+			cc_exec_cancel(cc, direct) = true;
+			retval = CALLOUT_RET_CANCELLED;
 		} else {
-			cancelled = CALLOUT_RET_NORMAL;
+			retval = CALLOUT_RET_DRAINING;
 		}
 
 		/*
@@ -1041,31 +1050,23 @@ callout_restart_async(struct callout *c, struct callout_args *coa,
 		 */
 		if (cc_exec_drain_fn(cc, direct) != NULL ||
 		    coa == NULL || (c->c_flags & CALLOUT_LOCAL_ALLOC) != 0) {
-			CTR4(KTR_CALLOUT, "%s %p func %p arg %p",
-			    cancelled ? "cancelled and draining" : "draining",
+			CTR4(KTR_CALLOUT, "%s: %p func %p arg %p",
+			    callout_retvalstring(retval),
 			    c, c->c_func, c->c_arg);
 
 			/* clear old flags, if any */
 			c->c_flags &= ~(CALLOUT_ACTIVE | CALLOUT_PENDING |
-			    CALLOUT_DEFRESTART | CALLOUT_PROCESSED);
+			    CALLOUT_PROCESSED);
 
 			/* clear restart flag, if any */
 			cc_exec_restart(cc, direct) = false;
-
-			/* set drain function, if any */
-			if (drain_fn != NULL) {
-				cc_exec_drain_fn(cc, direct) = drain_fn;
-				cc_exec_drain_arg(cc, direct) = drain_arg;
-				cancelled |= CALLOUT_RET_DRAINING;
-			}
 		} else {
-			CTR4(KTR_CALLOUT, "%s %p func %p arg %p",
-			    cancelled ? "cancelled and restarting" : "restarting",
+			CTR4(KTR_CALLOUT, "%s: %p func %p arg %p",
+			    callout_retvalstring(retval),
 			    c, c->c_func, c->c_arg);
 
 			/* get us back into the game */
-			c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING |
-			    CALLOUT_DEFRESTART);
+			c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
 			c->c_flags &= ~CALLOUT_PROCESSED;
 
 			/* enable deferred restart */
@@ -1086,13 +1087,13 @@ callout_restart_async(struct callout *c, struct callout_args *coa,
 			} else {
 				TAILQ_REMOVE(&cc->cc_expireq, c, c_links.tqe);
 			}
-			cancelled = CALLOUT_RET_CANCELLED;
+			retval = CALLOUT_RET_CANCELLED;
 		} else {
-			cancelled = CALLOUT_RET_NORMAL;
+			retval = CALLOUT_RET_STOPPED;
 		}
 
-		CTR4(KTR_CALLOUT, "%s %p func %p arg %p",
-		    cancelled ? "rescheduled" : "scheduled",
+		CTR4(KTR_CALLOUT, "%s: %p func %p arg %p",
+		    callout_retvalstring(retval),
 		    c, c->c_func, c->c_arg);
 
 		/* [re-]schedule callout, if any */
@@ -1101,17 +1102,17 @@ callout_restart_async(struct callout *c, struct callout_args *coa,
 		} else {
 			/* clear old flags, if any */
 			c->c_flags &= ~(CALLOUT_ACTIVE | CALLOUT_PENDING |
-			    CALLOUT_DEFRESTART | CALLOUT_PROCESSED);
+			    CALLOUT_PROCESSED);
 
 			/* return callback to pre-allocated list, if any */
 			if ((c->c_flags & CALLOUT_LOCAL_ALLOC) &&
-			    cancelled != CALLOUT_RET_NORMAL) {
+			    retval != CALLOUT_RET_STOPPED) {
 				callout_cc_del(c, cc);
 			}
 		}
 	}
 	CC_UNLOCK(cc);
-	return (cancelled);
+	return (retval);
 }
 
 /*
@@ -1189,7 +1190,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 	}
 
 	/* get callback started, if any */
-	return (callout_restart_async(c, &coa, NULL, NULL));
+	return (callout_restart_async(c, &coa, NULL));
 }
 
 /*
@@ -1211,27 +1212,26 @@ int
 callout_stop(struct callout *c)
 {
 	/* get callback stopped, if any */
-	return (callout_restart_async(c, NULL, NULL, NULL));
+	return (callout_restart_async(c, NULL, NULL));
 }
 
 static void
 callout_drain_function(void *arg)
 {
-	wakeup(arg);
+	wakeup(&callout_drain_function);
 }
 
 int
-callout_drain_async(struct callout *c, callout_func_t *fn, void *arg)
+callout_async_drain(struct callout *c, callout_func_t *fn)
 {
 	/* get callback stopped, if any */
-	return (callout_restart_async(
-	    c, NULL, fn, arg) & CALLOUT_RET_DRAINING);
+	return (callout_restart_async(c, NULL, fn));
 }
 
 int
 callout_drain(struct callout *c)
 {
-	int cancelled;
+	int retval;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 	    "Draining callout");
@@ -1240,9 +1240,9 @@ callout_drain(struct callout *c)
 
 	/* at this point the "c->c_cpu" field is not changing */
 
-	cancelled = callout_drain_async(c, &callout_drain_function, c);
+	retval = callout_async_drain(c, &callout_drain_function);
 
-	if (cancelled != CALLOUT_RET_NORMAL) {
+	if (retval == CALLOUT_RET_DRAINING) {
 		struct callout_cpu *cc;
 		int direct;
 
@@ -1259,19 +1259,21 @@ callout_drain(struct callout *c)
 		callout_unlock_client(c->c_flags, c->c_lock);
 
 		/* Wait for drain to complete */
-
-		while (cc_exec_curr(cc, direct) == c)
-			msleep_spin(c, (struct mtx *)&cc->cc_lock, "codrain", 0);
+		while (cc_exec_curr(cc, direct) == c) {
+			msleep_spin(&callout_drain_function,
+			    (struct mtx *)&cc->cc_lock, "codrain", 0);
+		}
 
 		CC_UNLOCK(cc);
 	} else {
 		callout_unlock_client(c->c_flags, c->c_lock);
 	}
 
-	CTR3(KTR_CALLOUT, "cancelled %p func %p arg %p",
+	CTR4(KTR_CALLOUT, "%s: %p func %p arg %p",
+	    callout_retvalstring(retval),
 	    c, c->c_func, c->c_arg);
 
-	return (cancelled & CALLOUT_RET_CANCELLED);
+	return (retval);
 }
 
 void
