@@ -289,7 +289,7 @@ _DP_ulog=	md
 
 _DP_helloworld=	cheri
 
-# Define spacial cases
+# Define special cases
 LDADD_supcplusplus=	-lsupc++
 LIBATF_C=	${DESTDIR}${LIBDIR}/libprivateatf-c.a
 LIBATF_CXX=	${DESTDIR}${LIBDIR}/libprivateatf-c++.a
