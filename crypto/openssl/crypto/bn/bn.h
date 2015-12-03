@@ -271,7 +271,7 @@ extern "C" {
 #   define PTR_SIZE_INT int
 #  endif                        /* __INITIAL_POINTER_SIZE == 64 [else] */
 # else                          /* defined(OPENSSL_SYS_VMS) */
-#  define PTR_SIZE_INT size_t
+#  define PTR_SIZE_INT intptr_t
 # endif                         /* defined(OPENSSL_SYS_VMS) [else] */
 
 # define BN_DEFAULT_BITS 1280
