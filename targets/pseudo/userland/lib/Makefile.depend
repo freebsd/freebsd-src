@@ -180,4 +180,8 @@ DIRDEPS+= \
 
 .endif
 
+.if ${MK_NAND} != "no"
+DIRDEPS+= lib/libnandfs
+.endif
+
 .include <dirdeps.mk>

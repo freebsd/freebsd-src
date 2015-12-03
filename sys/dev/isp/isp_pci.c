@@ -172,6 +172,18 @@ static struct ispmdvec mdvec_2500 = {
 	NULL
 };
 
+static struct ispmdvec mdvec_2600 = {
+	isp_pci_rd_isr_2400,
+	isp_pci_rd_reg_2400,
+	isp_pci_wr_reg_2400,
+	isp_pci_mbxdma,
+	isp_pci_dmasetup,
+	isp_common_dmateardown,
+	isp_pci_reset0,
+	isp_pci_reset1,
+	NULL
+};
+
 #ifndef	PCIM_CMD_INVEN
 #define	PCIM_CMD_INVEN			0x10
 #endif
@@ -276,6 +288,10 @@ static struct ispmdvec mdvec_2500 = {
 #define        PCI_PRODUCT_QLOGIC_ISP5432      0x5432
 #endif
 
+#ifndef	PCI_PRODUCT_QLOGIC_ISP2031
+#define	PCI_PRODUCT_QLOGIC_ISP2031	0x2031
+#endif
+
 #define        PCI_QLOGIC_ISP5432      \
        ((PCI_PRODUCT_QLOGIC_ISP5432 << 16) | PCI_VENDOR_QLOGIC)
 
@@ -327,13 +343,13 @@ static struct ispmdvec mdvec_2500 = {
 #define	PCI_QLOGIC_ISP6322	\
 	((PCI_PRODUCT_QLOGIC_ISP6322 << 16) | PCI_VENDOR_QLOGIC)
 
+#define	PCI_QLOGIC_ISP2031	\
+	((PCI_PRODUCT_QLOGIC_ISP2031 << 16) | PCI_VENDOR_QLOGIC)
+
 /*
  * Odd case for some AMI raid cards... We need to *not* attach to this.
  */
 #define	AMI_RAID_SUBVENDOR_ID	0x101e
-
-#define	IO_MAP_REG	0x10
-#define	MEM_MAP_REG	0x14
 
 #define	PCI_DFLT_LTNCY	0x40
 #define	PCI_DFLT_LNSZ	0x10
@@ -434,6 +450,9 @@ isp_pci_probe(device_t dev)
 	case PCI_QLOGIC_ISP6322:
 		device_set_desc(dev, "Qlogic ISP 6322 PCI FC-AL Adapter");
 		break;
+	case PCI_QLOGIC_ISP2031:
+		device_set_desc(dev, "Qlogic ISP 2031 PCI FC-AL Adapter");
+		break;
 	default:
 		return (ENXIO);
 	}
@@ -482,31 +501,6 @@ isp_get_generic_options(device_t dev, ispsoftc_t *isp)
 	tval = 7;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "quickboot_time", &tval);
 	isp_quickboot_time = tval;
-}
-
-static void
-isp_get_pci_options(device_t dev, int *m1, int *m2)
-{
-	int tval;
-	/*
-	 * Which we should try first - memory mapping or i/o mapping?
-	 *
-	 * We used to try memory first followed by i/o on alpha, otherwise
-	 * the reverse, but we should just try memory first all the time now.
-	 */
-	*m1 = PCIM_CMD_MEMEN;
-	*m2 = PCIM_CMD_PORTEN;
-
-	tval = 0;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "prefer_iomap", &tval) == 0 && tval != 0) {
-		*m1 = PCIM_CMD_PORTEN;
-		*m2 = PCIM_CMD_MEMEN;
-	}
-	tval = 0;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "prefer_memmap", &tval) == 0 && tval != 0) {
-		*m1 = PCIM_CMD_MEMEN;
-		*m2 = PCIM_CMD_PORTEN;
-	}
 }
 
 static void
@@ -662,7 +656,7 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 static int
 isp_pci_attach(device_t dev)
 {
-	int i, m1, m2, locksetup = 0;
+	int i, locksetup = 0;
 	uint32_t data, cmd, linesz, did;
 	struct isp_pcisoftc *pcs;
 	ispsoftc_t *isp;
@@ -689,32 +683,9 @@ isp_pci_attach(device_t dev)
 	isp_nvports = 0;
 	isp_get_generic_options(dev, isp);
 
-	/*
-	 * Get PCI options- which in this case are just mapping preferences.
-	 */
-	isp_get_pci_options(dev, &m1, &m2);
-
 	linesz = PCI_DFLT_LNSZ;
 	pcs->irq = pcs->regs = NULL;
 	pcs->rgd = pcs->rtp = pcs->iqd = 0;
-
-	pcs->rtp = (m1 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
-	pcs->rgd = (m1 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
-	pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd, RF_ACTIVE);
-	if (pcs->regs == NULL) {
-		pcs->rtp = (m2 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
-		pcs->rgd = (m2 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
-		pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd, RF_ACTIVE);
-	}
-	if (pcs->regs == NULL) {
-		device_printf(dev, "unable to map any ports\n");
-		goto bad;
-	}
-	if (bootverbose) {
-		device_printf(dev, "using %s space register mapping\n", (pcs->rgd == IO_MAP_REG)? "I/O" : "Memory");
-	}
-	isp->isp_bus_tag = rman_get_bustag(pcs->regs);
-	isp->isp_bus_handle = rman_get_bushandle(pcs->regs);
 
 	pcs->pci_dev = dev;
 	pcs->pci_poff[BIU_BLOCK >> _BLK_REG_SHFT] = BIU_REGS_OFF;
@@ -823,12 +794,47 @@ isp_pci_attach(device_t dev)
 		isp->isp_type = ISP_HA_FC_2500;
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] = PCI_MBOX_REGS2400_OFF;
 		break;
+	case PCI_QLOGIC_ISP2031:
+		did = 0x2600;
+		isp->isp_nchan += isp_nvports;
+		isp->isp_mdvec = &mdvec_2600;
+		isp->isp_type = ISP_HA_FC_2600;
+		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] = PCI_MBOX_REGS2400_OFF;
+		break;
 	default:
 		device_printf(dev, "unknown device type\n");
 		goto bad;
 		break;
 	}
 	isp->isp_revision = pci_get_revid(dev);
+
+	if (IS_26XX(isp)) {
+		pcs->rtp = SYS_RES_MEMORY;
+		pcs->rgd = PCIR_BAR(0);
+		pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd,
+		    RF_ACTIVE);
+	} else {
+		pcs->rtp = SYS_RES_MEMORY;
+		pcs->rgd = PCIR_BAR(1);
+		pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd,
+		    RF_ACTIVE);
+		if (pcs->regs == NULL) {
+			pcs->rtp = SYS_RES_IOPORT;
+			pcs->rgd = PCIR_BAR(0);
+			pcs->regs = bus_alloc_resource_any(dev, pcs->rtp,
+			    &pcs->rgd, RF_ACTIVE);
+		}
+	}
+	if (pcs->regs == NULL) {
+		device_printf(dev, "Unable to map any ports\n");
+		goto bad;
+	}
+	if (bootverbose) {
+		device_printf(dev, "Using %s space register mapping\n",
+		    (pcs->rtp == SYS_RES_IOPORT)? "I/O" : "Memory");
+	}
+	isp->isp_bus_tag = rman_get_bustag(pcs->regs);
+	isp->isp_bus_handle = rman_get_bushandle(pcs->regs);
 
 	if (IS_FC(isp)) {
 		psize = sizeof (fcparam);
