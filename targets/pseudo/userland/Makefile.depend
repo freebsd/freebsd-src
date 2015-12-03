@@ -824,6 +824,7 @@ DIRDEPS.amd64= \
 	usr.sbin/bhyveload \
 	usr.sbin/boot0cfg \
 	usr.sbin/btxld \
+	usr.sbin/camdd \
 	usr.sbin/cpucontrol \
 	usr.sbin/hyperv/tools \
 	usr.sbin/kgmon \
