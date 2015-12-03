@@ -36,8 +36,7 @@ CFLAGS+= -I${.CURDIR}/../../cddl/contrib/opensolaris/head
 
 CFLAGS+=-I${.CURDIR}/../../sys
 
-DPADD=   ${LIBGEOM} ${LIBMD}
-LDADD=   -lgeom -lmd
+LIBADD=	geom md
 
 .if ${MK_ZFS} != "no"
 DPADD += ${LIBNVPAIR} ${LIBZFS}
