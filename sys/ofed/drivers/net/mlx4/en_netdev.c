@@ -1247,7 +1247,6 @@ int mlx4_en_start_port(struct net_device *dev)
 				    PAGE_SIZE);
 	priv->rx_alloc_order = get_order(priv->rx_alloc_size);
 	priv->rx_buf_size = roundup_pow_of_two(priv->rx_mb_size);
-	priv->log_rx_info = ROUNDUP_LOG2(sizeof(struct mlx4_en_rx_buf));
 	en_dbg(DRV, priv, "Rx buf size:%d\n", priv->rx_mb_size);
 
 	/* Configure rx cq's and rings */
@@ -2091,8 +2090,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->port = port;
 	priv->port_up = false;
 	priv->flags = prof->flags;
-        priv->ctrl_flags = cpu_to_be32(MLX4_WQE_CTRL_CQ_UPDATE |
-                        MLX4_WQE_CTRL_SOLICITED);
 
 	priv->num_tx_rings_p_up = mdev->profile.num_tx_rings_p_up;
 	priv->tx_ring_num = prof->tx_ring_num;
@@ -2108,7 +2105,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 		err = -ENOMEM;
 		goto out;
 	}
-        
+
 	priv->rx_ring_num = prof->rx_ring_num;
 	priv->cqe_factor = (mdev->dev->caps.cqe_size == 64) ? 1 : 0;
 	priv->mac_index = -1;
