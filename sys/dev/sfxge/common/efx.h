@@ -201,12 +201,25 @@ typedef enum efx_mcdi_exception_e {
 	EFX_MCDI_EXCEPTION_MC_BADASSERT,
 } efx_mcdi_exception_t;
 
+#if EFSYS_OPT_MCDI_LOGGING
+typedef enum efx_log_msg_e
+{
+	EFX_LOG_INVALID,
+	EFX_LOG_MCDI_REQUEST,
+	EFX_LOG_MCDI_RESPONSE,
+} efx_log_msg_t;
+#endif /* EFSYS_OPT_MCDI_LOGGING */
+
 typedef struct efx_mcdi_transport_s {
 	void		*emt_context;
 	efsys_mem_t	*emt_dma_mem;
 	void		(*emt_execute)(void *, efx_mcdi_req_t *);
 	void		(*emt_ev_cpl)(void *);
 	void		(*emt_exception)(void *, efx_mcdi_exception_t);
+#if EFSYS_OPT_MCDI_LOGGING
+	void		(*emt_logger)(void *, efx_log_msg_t,
+					void *, size_t, void *, size_t);
+#endif /* EFSYS_OPT_MCDI_LOGGING */
 } efx_mcdi_transport_t;
 
 extern	__checkReturn	efx_rc_t
