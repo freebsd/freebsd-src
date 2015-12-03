@@ -315,7 +315,7 @@ static __inline unsigned int _strlen31(const char *str)
 #    undef isxdigit
 #   endif
 #   if defined(_MSC_VER) && !defined(_DLL) && defined(stdin)
-#    if _MSC_VER>=1300
+#    if _MSC_VER>=1300 && _MSC_VER<1600
 #     undef stdin
 #     undef stdout
 #     undef stderr
@@ -323,7 +323,7 @@ FILE *__iob_func();
 #     define stdin  (&__iob_func()[0])
 #     define stdout (&__iob_func()[1])
 #     define stderr (&__iob_func()[2])
-#    elif defined(I_CAN_LIVE_WITH_LNK4049)
+#    elif _MSC_VER<1300 && defined(I_CAN_LIVE_WITH_LNK4049)
 #     undef stdin
 #     undef stdout
 #     undef stderr
@@ -612,7 +612,7 @@ struct servent *PASCAL getservbyname(const char *, const char *);
 #    include <sys/select.h>
 #   endif
 
-#   if defined(sun)
+#   if defined(__sun) || defined(sun)
 #    include <sys/filio.h>
 #   else
 #    ifndef VMS
@@ -654,7 +654,7 @@ struct servent *PASCAL getservbyname(const char *, const char *);
 
 # endif
 
-# if defined(sun) && !defined(__svr4__) && !defined(__SVR4)
+# if (defined(__sun) || defined(sun)) && !defined(__svr4__) && !defined(__SVR4)
   /* include headers first, so our defines don't break it */
 #  include <stdlib.h>
 #  include <string.h>

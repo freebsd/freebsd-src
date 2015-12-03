@@ -87,6 +87,7 @@ MAN+= ssl.3
 MLINKS+= SSL_CIPHER_get_name.3 SSL_CIPHER_get_bits.3
 MLINKS+= SSL_CIPHER_get_name.3 SSL_CIPHER_get_version.3
 MLINKS+= SSL_CIPHER_get_name.3 SSL_CIPHER_description.3
+MLINKS+= SSL_CTX_add_extra_chain_cert.3 SSL_CTX_clear_extra_chain_certs.3
 MLINKS+= SSL_CTX_add_session.3 SSL_add_session.3
 MLINKS+= SSL_CTX_add_session.3 SSL_CTX_remove_session.3
 MLINKS+= SSL_CTX_add_session.3 SSL_remove_session.3
