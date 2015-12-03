@@ -72,7 +72,6 @@ static driver_filter_t xen_cpustop_handler;
 static driver_filter_t xen_cpususpend_handler;
 static driver_filter_t xen_cpustophard_handler;
 static void xen_ipi_vectored(u_int vector, int dest);
-static void xen_hvm_cpu_resume(void);
 #endif
 static void xen_hvm_cpu_init(void);
 
@@ -83,9 +82,6 @@ extern void pmap_lazyfix_action(void);
 #ifdef __amd64__
 extern int pmap_pcid_enabled;
 #endif
-
-/* Variables used by mp_machdep to perform the bitmap IPI */
-extern volatile u_int cpu_ipi_pending[MAXCPU];
 
 /*---------------------------------- Macros ----------------------------------*/
 #define	IPI_TO_IDX(ipi) ((ipi) - APIC_IPI_INTS)
@@ -110,7 +106,7 @@ enum xen_domain_type xen_domain_type = XEN_NATIVE;
 struct cpu_ops xen_hvm_cpu_ops = {
 	.ipi_vectored	= lapic_ipi_vectored,
 	.cpu_init	= xen_hvm_cpu_init,
-	.cpu_resume	= xen_hvm_cpu_resume
+	.cpu_resume	= xen_hvm_cpu_init
 };
 #endif
 
@@ -311,21 +307,6 @@ xen_ipi_vectored(u_int vector, int dest)
 }
 
 /*---------------------- XEN diverged cpu operations -------------------------*/
-static void
-xen_hvm_cpu_resume(void)
-{
-	u_int cpuid = PCPU_GET(cpuid);
-
-	/*
-	 * Reset pending bitmap IPIs, because Xen doesn't preserve pending
-	 * event channels on migration.
-	 */
-	cpu_ipi_pending[cpuid] = 0;
-
-	/* register vcpu_info area */
-	xen_hvm_cpu_init();
-}
-
 static void
 xen_cpu_ipi_init(int cpu)
 {
