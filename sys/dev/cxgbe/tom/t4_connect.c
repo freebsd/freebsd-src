@@ -233,7 +233,7 @@ static uint32_t
 calc_opt2a(struct socket *so, struct toepcb *toep)
 {
 	struct tcpcb *tp = so_sototcpcb(so);
-	struct port_info *pi = toep->port;
+	struct port_info *pi = toep->vi->pi;
 	struct adapter *sc = pi->adapter;
 	uint32_t opt2;
 
@@ -321,7 +321,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	struct toepcb *toep = NULL;
 	struct wrqe *wr = NULL;
 	struct ifnet *rt_ifp = rt->rt_ifp;
-	struct port_info *pi;
+	struct vi_info *vi;
 	int mtu_idx, rscale, qid_atid, rc, isipv6;
 	struct inpcb *inp = sotoinpcb(so);
 	struct tcpcb *tp = intotcpcb(inp);
@@ -332,17 +332,17 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	    ("%s: dest addr %p has family %u", __func__, nam, nam->sa_family));
 
 	if (rt_ifp->if_type == IFT_ETHER)
-		pi = rt_ifp->if_softc;
+		vi = rt_ifp->if_softc;
 	else if (rt_ifp->if_type == IFT_L2VLAN) {
 		struct ifnet *ifp = VLAN_COOKIE(rt_ifp);
 
-		pi = ifp->if_softc;
+		vi = ifp->if_softc;
 	} else if (rt_ifp->if_type == IFT_IEEE8023ADLAG)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOSYS); /* XXX: implement lagg+TOE */
 	else
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOTSUP);
 
-	toep = alloc_toepcb(pi, -1, -1, M_NOWAIT);
+	toep = alloc_toepcb(vi, -1, -1, M_NOWAIT);
 	if (toep == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
@@ -350,7 +350,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 	if (toep->tid < 0)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
-	toep->l2te = t4_l2t_get(pi, rt_ifp,
+	toep->l2te = t4_l2t_get(vi->pi, rt_ifp,
 	    rt->rt_flags & RTF_GATEWAY ? rt->rt_gateway : nam);
 	if (toep->l2te == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
@@ -398,13 +398,13 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 
 		if (is_t4(sc)) {
 			INIT_TP_WR(cpl, 0);
-			cpl->params = select_ntuple(pi, toep->l2te);
+			cpl->params = select_ntuple(vi, toep->l2te);
 		} else {
 			struct cpl_t5_act_open_req6 *c5 = (void *)cpl;
 
 			INIT_TP_WR(c5, 0);
 			c5->iss = htobe32(tp->iss);
-			c5->params = select_ntuple(pi, toep->l2te);
+			c5->params = select_ntuple(vi, toep->l2te);
 		}
 		OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ6,
 		    qid_atid));
@@ -414,7 +414,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		cpl->peer_port = inp->inp_fport;
 		cpl->peer_ip_hi = *(uint64_t *)&inp->in6p_faddr.s6_addr[0];
 		cpl->peer_ip_lo = *(uint64_t *)&inp->in6p_faddr.s6_addr[8];
-		cpl->opt0 = calc_opt0(so, pi, toep->l2te, mtu_idx, rscale,
+		cpl->opt0 = calc_opt0(so, vi, toep->l2te, mtu_idx, rscale,
 		    toep->rx_credits, toep->ulp_mode);
 		cpl->opt2 = calc_opt2a(so, toep);
 	} else {
@@ -422,19 +422,19 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 
 		if (is_t4(sc)) {
 			INIT_TP_WR(cpl, 0);
-			cpl->params = select_ntuple(pi, toep->l2te);
+			cpl->params = select_ntuple(vi, toep->l2te);
 		} else {
 			struct cpl_t5_act_open_req *c5 = (void *)cpl;
 
 			INIT_TP_WR(c5, 0);
 			c5->iss = htobe32(tp->iss);
-			c5->params = select_ntuple(pi, toep->l2te);
+			c5->params = select_ntuple(vi, toep->l2te);
 		}
 		OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ,
 		    qid_atid));
 		inp_4tuple_get(inp, &cpl->local_ip, &cpl->local_port,
 		    &cpl->peer_ip, &cpl->peer_port);
-		cpl->opt0 = calc_opt0(so, pi, toep->l2te, mtu_idx, rscale,
+		cpl->opt0 = calc_opt0(so, vi, toep->l2te, mtu_idx, rscale,
 		    toep->rx_credits, toep->ulp_mode);
 		cpl->opt2 = calc_opt2a(so, toep);
 	}

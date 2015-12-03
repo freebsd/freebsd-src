@@ -104,9 +104,10 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 	struct wrqe *wr;
 	struct fw_flowc_wr *flowc;
 	unsigned int nparams = ftxp ? 8 : 6, flowclen;
-	struct port_info *pi = toep->port;
+	struct vi_info *vi = toep->vi;
+	struct port_info *pi = vi->pi;
 	struct adapter *sc = pi->adapter;
-	unsigned int pfvf = G_FW_VIID_PFN(pi->viid) << S_FW_VIID_PFN;
+	unsigned int pfvf = G_FW_VIID_PFN(vi->viid) << S_FW_VIID_PFN;
 	struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
 
 	KASSERT(!(toep->flags & TPF_FLOWC_WR_SENT),
@@ -513,7 +514,7 @@ write_tx_wr(void *dst, struct toepcb *toep, unsigned int immdlen,
 	if (txalign > 0) {
 		struct tcpcb *tp = intotcpcb(toep->inp);
 
-		if (plen < 2 * tp->t_maxseg || is_10G_port(toep->port))
+		if (plen < 2 * tp->t_maxseg || is_10G_port(toep->vi->pi))
 			txwr->lsodisable_to_flags |=
 			    htobe32(F_FW_OFLD_TX_DATA_WR_LSODISABLE);
 		else
