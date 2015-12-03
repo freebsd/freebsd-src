@@ -505,7 +505,7 @@ invltlb(void)
  * Operations that Invalidate TLBs and Paging-Structure Caches.
  */
 static __inline void
-invltlb_globpcid(void)
+invltlb_glob(void)
 {
 	uint64_t cr4;
 
