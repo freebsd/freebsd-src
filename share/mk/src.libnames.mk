@@ -272,7 +272,7 @@ _DP_rpcsec_gss=	gssapi
 _DP_smb=	kiconv
 _DP_ulog=	md
 
-# Define spacial cases
+# Define special cases
 LDADD_supcplusplus=	-lsupc++
 LIBATF_C=	${DESTDIR}${LIBDIR}/libprivateatf-c.a
 LIBATF_CXX=	${DESTDIR}${LIBDIR}/libprivateatf-c++.a
