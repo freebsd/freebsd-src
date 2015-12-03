@@ -187,6 +187,9 @@ typedef struct Struct_Obj_Entry {
     Elf_Word symtabno;		/* Number of dynamic symbols */
     Elf_Word gotsym;		/* First dynamic symbol in GOT */
 #endif
+#ifdef __powerpc64__
+    Elf_Addr glink;		/* GLINK PLT call stub section */
+#endif
 
     const Elf_Verneed *verneed; /* Required versions. */
     Elf_Word verneednum;	/* Number of entries in verneed table */

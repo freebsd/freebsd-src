@@ -43,11 +43,13 @@
 #include "debug.h"
 #include "rtld.h"
 
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
 struct funcdesc {
 	Elf_Addr addr;
 	Elf_Addr toc;
 	Elf_Addr env;
 };
+#endif
 
 /*
  * Process the R_PPC_COPY relocations
@@ -336,11 +338,14 @@ static int
 reloc_plt_object(Obj_Entry *obj, const Elf_Rela *rela)
 {
 	Elf_Addr *where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
 	Elf_Addr *glink;
+#endif
 	long reloff;
 
 	reloff = rela - obj->pltrela;
 
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
 	if (obj->priv == NULL)
 		obj->priv = xmalloc(obj->pltrelasize);
 	glink = obj->priv + reloff*sizeof(Elf_Addr)*2;
@@ -351,6 +356,10 @@ reloc_plt_object(Obj_Entry *obj, const Elf_Rela *rela)
 	((struct funcdesc *)(where))->env = (Elf_Addr)glink;
 	*(glink++) = (Elf_Addr)obj;
 	*(glink++) = reloff*sizeof(Elf_Rela);
+#else
+	dbg(" reloc_plt_object: where=%p,reloff=%lx,glink=%#lx", (void *)where, reloff, obj->glink);
+	*where = (Elf_Addr)obj->glink + 4*reloff + 32;
+#endif
 
 	return (0);
 }
@@ -416,7 +425,11 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 
 		if (def == &sym_zero) {
 			/* Zero undefined weak symbols */
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
 			bzero(where, sizeof(struct funcdesc));
+#else
+			*where = 0;
+#endif
 		} else {
 			reloc_jmpslot(where, target, defobj, obj,
 			    (const Elf_Rel *) rela);
@@ -436,15 +449,17 @@ Elf_Addr
 reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 	      const Obj_Entry *obj, const Elf_Rel *rel)
 {
-	dbg(" reloc_jmpslot: where=%p, target=%p (%#lx + %#lx)",
-	    (void *)wherep, (void *)target, *(Elf_Addr *)target,
-	    (Elf_Addr)defobj->relocbase);
 
 	/*
 	 * At the PLT entry pointed at by `wherep', construct
 	 * a direct transfer to the now fully resolved function
 	 * address.
 	 */
+
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
+	dbg(" reloc_jmpslot: where=%p, target=%p (%#lx + %#lx)",
+	    (void *)wherep, (void *)target, *(Elf_Addr *)target,
+	    (Elf_Addr)defobj->relocbase);
 
 	memcpy(wherep, (void *)target, sizeof(struct funcdesc));
 	if (((struct funcdesc *)(wherep))->addr < (Elf_Addr)defobj->relocbase) {
@@ -459,8 +474,14 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 		((struct funcdesc *)(wherep))->toc +=
 		    (Elf_Addr)defobj->relocbase;
 	}
+#else
+	dbg(" reloc_jmpslot: where=%p, target=%p", (void *)wherep,
+	    (void *)target);
 
-	__asm __volatile("dcbst 0,%0; sync" :: "r"(wherep) : "memory");
+	*wherep = target;
+#endif
+
+	__asm __volatile("sync" ::: "memory");
 
 	return (target);
 }
@@ -485,6 +506,20 @@ reloc_gnu_ifunc(Obj_Entry *obj, int flags,
 void
 init_pltgot(Obj_Entry *obj)
 {
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+	Elf_Addr *pltcall;
+
+	pltcall = obj->pltgot;
+
+	if (pltcall == NULL) {
+		return;
+	}
+
+	pltcall[0] = (Elf_Addr)&_rtld_bind_start; 
+	pltcall[1] = (Elf_Addr)obj;
+
+	__asm __volatile("sync" ::: "memory");
+#endif
 }
 
 void
