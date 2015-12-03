@@ -127,6 +127,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/_inttypes.h>
 #include <machine/intr_machdep.h>
+#include <machine/apicvar.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -403,6 +404,8 @@ xctrl_suspend()
 	gnttab_resume();
 
 #ifdef SMP
+	/* Send an IPI_BITMAP in case there are pending bitmap IPIs. */
+	lapic_ipi_vectored(IPI_BITMAP_VECTOR, APIC_IPI_DEST_ALL);
 	if (smp_started && !CPU_EMPTY(&cpu_suspend_map)) {
 		/*
 		 * Now that event channels have been initialized,
