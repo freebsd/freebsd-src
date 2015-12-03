@@ -61,17 +61,26 @@
 #define	HIDENAME(asmsym)	__CONCAT(.,asmsym)
 #endif
 
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
 #ifdef _KERNEL
+/* ELFv1 kernel uses global dot symbols */
 #define	DOT_LABEL(name)		__CONCAT(.,name)
 #define	TYPE_ENTRY(name)	.size	name,24; \
 				.type	DOT_LABEL(name),@function; \
 				.globl	DOT_LABEL(name);
 #define	END_SIZE(name)		.size	DOT_LABEL(name),.-DOT_LABEL(name);
 #else /* !_KERNEL */
+/* ELFv1 user code uses local function entry points */
 #define	DOT_LABEL(name)		__CONCAT(.L.,name)
 #define	TYPE_ENTRY(name)	.type	name,@function;
 #define	END_SIZE(name)		.size	name,.-DOT_LABEL(name);
 #endif /* _KERNEL */
+#else
+/* ELFv2 doesn't have any of this complication */
+#define	DOT_LABEL(name)		name
+#define	TYPE_ENTRY(name)	.type	name,@function;
+#define	END_SIZE(name)		.size	name,.-DOT_LABEL(name);
+#endif
 
 #define	_GLOBAL(name) \
 	.data; \
