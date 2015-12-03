@@ -3718,8 +3718,8 @@ setup_intr_handlers(struct adapter *sc)
 					vi->nintr++;
 				}
 			}
-		}
 #endif
+		}
 	}
 	MPASS(irq == &sc->irq[sc->intr_count]);
 
