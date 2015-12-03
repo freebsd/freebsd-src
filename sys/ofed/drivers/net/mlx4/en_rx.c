@@ -49,7 +49,8 @@ static void mlx4_en_init_rx_desc(struct mlx4_en_priv *priv,
 				 struct mlx4_en_rx_ring *ring,
 				 int index)
 {
-	struct mlx4_en_rx_desc *rx_desc = ring->buf + ring->stride * index;
+	struct mlx4_en_rx_desc *rx_desc = (struct mlx4_en_rx_desc *)
+	    (ring->buf + (ring->stride * index));
 	int possible_frags;
 	int i;
 
@@ -102,7 +103,8 @@ static int mlx4_en_alloc_buf(struct mlx4_en_priv *priv,
 static int mlx4_en_prepare_rx_desc(struct mlx4_en_priv *priv,
                                    struct mlx4_en_rx_ring *ring, int index)
 {
-        struct mlx4_en_rx_desc *rx_desc = ring->buf + (index * ring->stride);
+        struct mlx4_en_rx_desc *rx_desc = (struct mlx4_en_rx_desc *)
+		    (ring->buf + (index * ring->stride));
         struct mbuf **mb_list = ring->rx_info + (index << priv->log_rx_info);
         int i;
 
@@ -130,7 +132,8 @@ static void mlx4_en_free_rx_desc(struct mlx4_en_priv *priv,
 	struct mlx4_en_frag_info *frag_info;
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mbuf **mb_list;
-	struct mlx4_en_rx_desc *rx_desc = ring->buf + (index << ring->log_stride);
+	struct mlx4_en_rx_desc *rx_desc = (struct mlx4_en_rx_desc *)
+	    (ring->buf + (index << ring->log_stride));
 	dma_addr_t dma;
 	int nr;
 
@@ -574,7 +577,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	while (XNOR(cqe->owner_sr_opcode & MLX4_CQE_OWNER_MASK,
 		    cons_index & size)) {
 		mb_list = ring->rx_info + (index << priv->log_rx_info);
-		rx_desc = ring->buf + (index << ring->log_stride);
+		rx_desc = (struct mlx4_en_rx_desc *)
+		    (ring->buf + (index << ring->log_stride));
 
 		/*
 		 * make sure we read the CQE after we read the ownership bit
@@ -611,7 +615,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			mb->m_pkthdr.ether_vtag = be16_to_cpu(cqe->sl_vid);
 			mb->m_flags |= M_VLANTAG;
 		}
-		if (likely(dev->if_capabilities & IFCAP_RXCSUM) &&
+		if (likely(dev->if_capenable &
+		    (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) &&
 		    (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPOK)) &&
 		    (cqe->checksum == cpu_to_be16(0xffff))) {
 			priv->port_stats.rx_chksum_good++;
@@ -692,6 +697,7 @@ void mlx4_en_rx_irq(struct mlx4_cq *mcq)
         // Because there is no NAPI in freeBSD
         done = mlx4_en_poll_rx_cq(cq, MLX4_EN_RX_BUDGET);
 	if (priv->port_up  && (done == MLX4_EN_RX_BUDGET) ) {
+		cq->curr_poll_rx_cpu_id = curcpu;
 		taskqueue_enqueue(cq->tq, &cq->cq_task);
         }
 	else {
@@ -702,8 +708,15 @@ void mlx4_en_rx_irq(struct mlx4_cq *mcq)
 void mlx4_en_rx_que(void *context, int pending)
 {
         struct mlx4_en_cq *cq;
+	struct thread *td;
 
         cq = context;
+	td = curthread;
+
+	thread_lock(td);
+	sched_bind(td, cq->curr_poll_rx_cpu_id);
+	thread_unlock(td);
+
         while (mlx4_en_poll_rx_cq(cq, MLX4_EN_RX_BUDGET)
                         == MLX4_EN_RX_BUDGET);
         mlx4_en_arm_cq(cq->dev->if_softc, cq);
@@ -841,8 +854,8 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	else
 		rss_rings = priv->prof->rss_rings;
 
-	ptr = ((void *) &context) + offsetof(struct mlx4_qp_context, pri_path)
-					+ MLX4_RSS_OFFSET_IN_QPC_PRI_PATH;
+	ptr = ((u8 *)&context) + offsetof(struct mlx4_qp_context, pri_path) +
+	    MLX4_RSS_OFFSET_IN_QPC_PRI_PATH;
 	rss_context = ptr;
 	rss_context->base_qpn = cpu_to_be32(ilog2(rss_rings) << 24 |
 					    (rss_map->base_qpn));
