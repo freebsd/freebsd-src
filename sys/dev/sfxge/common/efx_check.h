@@ -146,6 +146,13 @@
 # error "HUNTINGTON requires MCDI"
 #endif
 
+/* Support MCDI logging */
+#if EFSYS_OPT_MCDI_LOGGING
+# if !EFSYS_OPT_MCDI
+#  error "MCDI_LOGGING requires MCDI"
+# endif
+#endif /* EFSYS_OPT_MCDI_LOGGING */
+
 /* Support LM87 monitor */
 #if EFSYS_OPT_MON_LM87
 # if !EFSYS_OPT_FALCON
