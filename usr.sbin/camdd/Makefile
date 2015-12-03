@@ -3,8 +3,7 @@
 PROG=	camdd
 SRCS=	camdd.c
 SDIR=	${.CURDIR}/../../sys
-DPADD=	${LIBCAM} ${LIBMT} ${LIBSBUF} ${LIBBSDXML} ${LIBUTIL} ${LIBTHR}
-LDADD=	-lcam -lmt -lsbuf -lbsdxml -lutil -lthr
+LIBADD=	cam mt sbuf bsdxml util pthread
 NO_WTHREAD_SAFETY=	1
 MAN=	camdd.8
 
