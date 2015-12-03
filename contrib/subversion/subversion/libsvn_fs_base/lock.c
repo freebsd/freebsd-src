@@ -39,6 +39,7 @@
 #include "private/svn_fs_util.h"
 #include "private/svn_subr_private.h"
 #include "private/svn_dep_compat.h"
+#include "revs-txns.h"
 
 
 /* Add LOCK and its associated LOCK_TOKEN (associated with PATH) as
@@ -70,6 +71,7 @@ delete_lock_and_token(const char *lock_token,
 }
 
 
+/* The effective arguments for txn_body_lock() below. */
 struct lock_args
 {
   svn_lock_t **lock_p;
@@ -80,9 +82,19 @@ struct lock_args
   svn_boolean_t steal_lock;
   apr_time_t expiration_date;
   svn_revnum_t current_rev;
+  apr_pool_t *result_pool;
 };
 
 
+/* The body of svn_fs_base__lock(), which see.
+
+   BATON is a 'struct lock_args *' holding the effective arguments.
+   BATON->path is the canonical abspath to lock.  Set *BATON->lock_p
+   to the resulting lock.  For the other arguments, see
+   svn_fs_lock_many().
+
+   This implements the svn_fs_base__retry_txn() 'body' callback type.
+ */
 static svn_error_t *
 txn_body_lock(void *baton, trail_t *trail)
 {
@@ -90,6 +102,8 @@ txn_body_lock(void *baton, trail_t *trail)
   svn_node_kind_t kind = svn_node_file;
   svn_lock_t *existing_lock;
   svn_lock_t *lock;
+
+  *args->lock_p = NULL;
 
   SVN_ERR(svn_fs_base__get_path_kind(&kind, args->path, trail, trail->pool));
 
@@ -194,15 +208,15 @@ txn_body_lock(void *baton, trail_t *trail)
     }
 
   /* Create a new lock, and add it to the tables. */
-  lock = svn_lock_create(trail->pool);
+  lock = svn_lock_create(args->result_pool);
   if (args->token)
-    lock->token = apr_pstrdup(trail->pool, args->token);
+    lock->token = apr_pstrdup(args->result_pool, args->token);
   else
     SVN_ERR(svn_fs_base__generate_lock_token(&(lock->token), trail->fs,
-                                             trail->pool));
-  lock->path = apr_pstrdup(trail->pool, args->path);
-  lock->owner = apr_pstrdup(trail->pool, trail->fs->access_ctx->username);
-  lock->comment = apr_pstrdup(trail->pool, args->comment);
+                                             args->result_pool));
+  lock->path = args->path; /* Already in result_pool. */
+  lock->owner = apr_pstrdup(args->result_pool, trail->fs->access_ctx->username);
+  lock->comment = apr_pstrdup(args->result_pool, args->comment);
   lock->is_dav_comment = args->is_dav_comment;
   lock->creation_date = apr_time_now();
   lock->expiration_date = args->expiration_date;
@@ -215,31 +229,62 @@ txn_body_lock(void *baton, trail_t *trail)
 
 
 svn_error_t *
-svn_fs_base__lock(svn_lock_t **lock,
-                  svn_fs_t *fs,
-                  const char *path,
-                  const char *token,
+svn_fs_base__lock(svn_fs_t *fs,
+                  apr_hash_t *targets,
                   const char *comment,
                   svn_boolean_t is_dav_comment,
                   apr_time_t expiration_date,
-                  svn_revnum_t current_rev,
                   svn_boolean_t steal_lock,
-                  apr_pool_t *pool)
+                  svn_fs_lock_callback_t lock_callback,
+                  void *lock_baton,
+                  apr_pool_t *result_pool,
+                  apr_pool_t *scratch_pool)
 {
-  struct lock_args args;
+  apr_hash_index_t *hi;
+  svn_error_t *cb_err = SVN_NO_ERROR;
+  svn_revnum_t youngest_rev = SVN_INVALID_REVNUM;
+  apr_pool_t *iterpool = svn_pool_create(scratch_pool);
 
   SVN_ERR(svn_fs__check_fs(fs, TRUE));
+  SVN_ERR(svn_fs_base__youngest_rev(&youngest_rev, fs, scratch_pool));
 
-  args.lock_p = lock;
-  args.path = svn_fs__canonicalize_abspath(path, pool);
-  args.token = token;
-  args.comment = comment;
-  args.is_dav_comment = is_dav_comment;
-  args.steal_lock = steal_lock;
-  args.expiration_date = expiration_date;
-  args.current_rev = current_rev;
+  for (hi = apr_hash_first(scratch_pool, targets); hi; hi = apr_hash_next(hi))
+    {
+      struct lock_args args;
+      const char *path = apr_hash_this_key(hi);
+      const svn_fs_lock_target_t *target = apr_hash_this_val(hi);
+      svn_lock_t *lock;
+      svn_error_t *err = NULL;
 
-  return svn_fs_base__retry_txn(fs, txn_body_lock, &args, FALSE, pool);
+      svn_pool_clear(iterpool);
+      args.lock_p = &lock;
+      args.path = svn_fs__canonicalize_abspath(path, result_pool);
+      args.token = target->token;
+      args.comment = comment;
+      args.is_dav_comment = is_dav_comment;
+      args.steal_lock = steal_lock;
+      args.expiration_date = expiration_date;
+      args.current_rev = target->current_rev;
+      args.result_pool = result_pool;
+
+      if (SVN_IS_VALID_REVNUM(target->current_rev))
+        {
+          if (target->current_rev > youngest_rev)
+            err = svn_error_createf(SVN_ERR_FS_NO_SUCH_REVISION, NULL,
+                                    _("No such revision %ld"),
+                                    target->current_rev);
+        }
+
+      if (!err)
+        err = svn_fs_base__retry_txn(fs, txn_body_lock, &args, TRUE,
+                                     iterpool);
+      if (!cb_err && lock_callback)
+        cb_err = lock_callback(lock_baton, args.path, lock, err, iterpool);
+      svn_error_clear(err);
+    }
+  svn_pool_destroy(iterpool);
+
+  return svn_error_trace(cb_err);
 }
 
 
@@ -253,11 +298,12 @@ svn_fs_base__generate_lock_token(const char **token,
      generate a URI that matches the DAV RFC.  We could change this to
      some other URI scheme someday, if we wish. */
   *token = apr_pstrcat(pool, "opaquelocktoken:",
-                       svn_uuid_generate(pool), (char *)NULL);
+                       svn_uuid_generate(pool), SVN_VA_NULL);
   return SVN_NO_ERROR;
 }
 
 
+/* The effective arguments for txn_body_unlock() below. */
 struct unlock_args
 {
   const char *path;
@@ -266,6 +312,14 @@ struct unlock_args
 };
 
 
+/* The body of svn_fs_base__unlock(), which see.
+
+   BATON is a 'struct unlock_args *' holding the effective arguments.
+   BATON->path is the canonical path and BATON->token is the token.
+   For the other arguments, see svn_fs_unlock_many().
+
+   This implements the svn_fs_base__retry_txn() 'body' callback type.
+ */
 static svn_error_t *
 txn_body_unlock(void *baton, trail_t *trail)
 {
@@ -308,19 +362,40 @@ txn_body_unlock(void *baton, trail_t *trail)
 
 svn_error_t *
 svn_fs_base__unlock(svn_fs_t *fs,
-                    const char *path,
-                    const char *token,
+                    apr_hash_t *targets,
                     svn_boolean_t break_lock,
-                    apr_pool_t *pool)
+                    svn_fs_lock_callback_t lock_callback,
+                    void *lock_baton,
+                    apr_pool_t *result_pool,
+                    apr_pool_t *scratch_pool)
 {
-  struct unlock_args args;
+  apr_hash_index_t *hi;
+  svn_error_t *cb_err = SVN_NO_ERROR;
+  apr_pool_t *iterpool = svn_pool_create(scratch_pool);
 
   SVN_ERR(svn_fs__check_fs(fs, TRUE));
 
-  args.path = svn_fs__canonicalize_abspath(path, pool);
-  args.token = token;
-  args.break_lock = break_lock;
-  return svn_fs_base__retry_txn(fs, txn_body_unlock, &args, TRUE, pool);
+  for (hi = apr_hash_first(scratch_pool, targets); hi; hi = apr_hash_next(hi))
+    {
+      struct unlock_args args;
+      const char *path = apr_hash_this_key(hi);
+      const char *token = apr_hash_this_val(hi);
+      svn_error_t *err;
+
+      svn_pool_clear(iterpool);
+      args.path = svn_fs__canonicalize_abspath(path, result_pool);
+      args.token = token;
+      args.break_lock = break_lock;
+
+      err = svn_fs_base__retry_txn(fs, txn_body_unlock, &args, TRUE,
+                                   iterpool);
+      if (!cb_err && lock_callback)
+        cb_err = lock_callback(lock_baton, path, NULL, err, iterpool);
+      svn_error_clear(err);
+    }
+  svn_pool_destroy(iterpool);
+
+  return svn_error_trace(cb_err);
 }
 
 
@@ -465,8 +540,9 @@ svn_fs_base__get_locks(svn_fs_t *fs,
   args.path = svn_fs__canonicalize_abspath(path, pool);
   args.depth = depth;
   /* Enough for 100+ locks if the comments are small. */
-  args.stream = svn_stream__from_spillbuf(4 * 1024  /* blocksize */,
-                                          64 * 1024 /* maxsize */,
+  args.stream = svn_stream__from_spillbuf(svn_spillbuf__create(4 * 1024  /* blocksize */,
+                                                               64 * 1024 /* maxsize */,
+                                                               pool),
                                           pool);
   SVN_ERR(svn_fs_base__retry_txn(fs, txn_body_get_locks, &args, FALSE, pool));
 
@@ -495,12 +571,12 @@ svn_fs_base__get_locks(svn_fs_t *fs,
 
       /* Now read that much into a buffer. */
       skel_buf = apr_palloc(pool, skel_len + 1);
-      SVN_ERR(svn_stream_read(stream, skel_buf, &skel_len));
+      SVN_ERR(svn_stream_read_full(stream, skel_buf, &skel_len));
       skel_buf[skel_len] = '\0';
 
       /* Read the extra newline that follows the skel. */
       len = 1;
-      SVN_ERR(svn_stream_read(stream, &c, &len));
+      SVN_ERR(svn_stream_read_full(stream, &c, &len));
       if (c != '\n')
         return svn_error_create(SVN_ERR_MALFORMED_FILE, NULL, NULL);
 

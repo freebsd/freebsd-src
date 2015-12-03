@@ -1883,6 +1883,18 @@ print_INTEL_TLB(u_int data)
 	case 0x68:
 		printf("1st-level data cache: 32 KB, 4 way set associative, sectored cache, 64 byte line size\n");
 		break;
+	case 0x6a:
+		printf("uTLB: 4KByte pages, 8-way set associative, 64 entries\n");
+		break;
+	case 0x6b:
+		printf("DTLB: 4KByte pages, 8-way set associative, 256 entries\n");
+		break;
+	case 0x6c:
+		printf("DTLB: 2M/4M pages, 8-way set associative, 128 entries\n");
+		break;
+	case 0x6d:
+		printf("DTLB: 1 GByte pages, fully associative, 16 entries\n");
+		break;
 	case 0x70:
 		printf("Trace cache: 12K-uops, 8-way set associative\n");
 		break;

@@ -24,7 +24,6 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetSchedule.h"
-#include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -171,9 +170,12 @@ namespace {
     bool PreRegAlloc;
     bool MadeChange;
     int FnNum;
+    std::function<bool(const Function &)> PredicateFtor;
+
   public:
     static char ID;
-    IfConverter() : MachineFunctionPass(ID), FnNum(-1) {
+    IfConverter(std::function<bool(const Function &)> Ftor = nullptr)
+        : MachineFunctionPass(ID), FnNum(-1), PredicateFtor(Ftor) {
       initializeIfConverterPass(*PassRegistry::getPassRegistry());
     }
 
@@ -195,8 +197,7 @@ namespace {
     bool ValidDiamond(BBInfo &TrueBBI, BBInfo &FalseBBI,
                       unsigned &Dups1, unsigned &Dups2) const;
     void ScanInstructions(BBInfo &BBI);
-    BBInfo &AnalyzeBlock(MachineBasicBlock *BB,
-                         std::vector<IfcvtToken*> &Tokens);
+    void AnalyzeBlock(MachineBasicBlock *MBB, std::vector<IfcvtToken*> &Tokens);
     bool FeasibilityAnalysis(BBInfo &BBI, SmallVectorImpl<MachineOperand> &Cond,
                              bool isTriangle = false, bool RevBranch = false);
     void AnalyzeBlocks(MachineFunction &MF, std::vector<IfcvtToken*> &Tokens);
@@ -247,7 +248,7 @@ namespace {
         return true;
       else if (Incr1 == Incr2) {
         // Favors subsumption.
-        if (C1->NeedSubsumption == false && C2->NeedSubsumption == true)
+        if (!C1->NeedSubsumption && C2->NeedSubsumption)
           return true;
         else if (C1->NeedSubsumption == C2->NeedSubsumption) {
           // Favors diamond over triangle, etc.
@@ -271,15 +272,16 @@ INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfo)
 INITIALIZE_PASS_END(IfConverter, "if-converter", "If Converter", false, false)
 
 bool IfConverter::runOnMachineFunction(MachineFunction &MF) {
-  TLI = MF.getSubtarget().getTargetLowering();
-  TII = MF.getSubtarget().getInstrInfo();
-  TRI = MF.getSubtarget().getRegisterInfo();
+  if (PredicateFtor && !PredicateFtor(*MF.getFunction()))
+    return false;
+
+  const TargetSubtargetInfo &ST = MF.getSubtarget();
+  TLI = ST.getTargetLowering();
+  TII = ST.getInstrInfo();
+  TRI = ST.getRegisterInfo();
   MBFI = &getAnalysis<MachineBlockFrequencyInfo>();
   MBPI = &getAnalysis<MachineBranchProbabilityInfo>();
   MRI = &MF.getRegInfo();
-
-  const TargetSubtargetInfo &ST =
-    MF.getTarget().getSubtarget<TargetSubtargetInfo>();
   SchedModel.init(ST.getSchedModel(), &ST, TII);
 
   if (!TII) return false;
@@ -290,7 +292,7 @@ bool IfConverter::runOnMachineFunction(MachineFunction &MF) {
   if (!PreRegAlloc) {
     // Tail merge tend to expose more if-conversion opportunities.
     BranchFolder BF(true, false, *MBFI, *MBPI);
-    BFChange = BF.OptimizeFunction(MF, TII, MF.getSubtarget().getRegisterInfo(),
+    BFChange = BF.OptimizeFunction(MF, TII, ST.getRegisterInfo(),
                                    getAnalysisIfAvailable<MachineModuleInfo>());
   }
 
@@ -728,6 +730,12 @@ bool IfConverter::FeasibilityAnalysis(BBInfo &BBI,
   if (BBI.IsDone || BBI.IsUnpredicable)
     return false;
 
+  // If it is already predicated but we couldn't analyze its terminator, the
+  // latter might fallthrough, but we can't determine where to.
+  // Conservatively avoid if-converting again.
+  if (BBI.Predicate.size() && !BBI.IsBrAnalyzable)
+    return false;
+
   // If it is already predicated, check if the new predicate subsumes
   // its predicate.
   if (BBI.Predicate.size() && !TII->SubsumesPredicate(Pred, BBI.Predicate))
@@ -755,155 +763,185 @@ bool IfConverter::FeasibilityAnalysis(BBInfo &BBI,
 /// AnalyzeBlock - Analyze the structure of the sub-CFG starting from
 /// the specified block. Record its successors and whether it looks like an
 /// if-conversion candidate.
-IfConverter::BBInfo &IfConverter::AnalyzeBlock(MachineBasicBlock *BB,
-                                             std::vector<IfcvtToken*> &Tokens) {
-  BBInfo &BBI = BBAnalysis[BB->getNumber()];
+void IfConverter::AnalyzeBlock(MachineBasicBlock *MBB,
+                               std::vector<IfcvtToken*> &Tokens) {
+  struct BBState {
+    BBState(MachineBasicBlock *BB) : MBB(BB), SuccsAnalyzed(false) {}
+    MachineBasicBlock *MBB;
 
-  if (BBI.IsAnalyzed || BBI.IsBeingAnalyzed)
-    return BBI;
+    /// This flag is true if MBB's successors have been analyzed.
+    bool SuccsAnalyzed;
+  };
 
-  BBI.BB = BB;
-  BBI.IsBeingAnalyzed = true;
+  // Push MBB to the stack.
+  SmallVector<BBState, 16> BBStack(1, MBB);
 
-  ScanInstructions(BBI);
+  while (!BBStack.empty()) {
+    BBState &State = BBStack.back();
+    MachineBasicBlock *BB = State.MBB;
+    BBInfo &BBI = BBAnalysis[BB->getNumber()];
 
-  // Unanalyzable or ends with fallthrough or unconditional branch, or if is not
-  // considered for ifcvt anymore.
-  if (!BBI.IsBrAnalyzable || BBI.BrCond.empty() || BBI.IsDone) {
-    BBI.IsBeingAnalyzed = false;
-    BBI.IsAnalyzed = true;
-    return BBI;
-  }
+    if (!State.SuccsAnalyzed) {
+      if (BBI.IsAnalyzed || BBI.IsBeingAnalyzed) {
+        BBStack.pop_back();
+        continue;
+      }
 
-  // Do not ifcvt if either path is a back edge to the entry block.
-  if (BBI.TrueBB == BB || BBI.FalseBB == BB) {
-    BBI.IsBeingAnalyzed = false;
-    BBI.IsAnalyzed = true;
-    return BBI;
-  }
+      BBI.BB = BB;
+      BBI.IsBeingAnalyzed = true;
 
-  // Do not ifcvt if true and false fallthrough blocks are the same.
-  if (!BBI.FalseBB) {
-    BBI.IsBeingAnalyzed = false;
-    BBI.IsAnalyzed = true;
-    return BBI;
-  }
+      ScanInstructions(BBI);
 
-  BBInfo &TrueBBI  = AnalyzeBlock(BBI.TrueBB, Tokens);
-  BBInfo &FalseBBI = AnalyzeBlock(BBI.FalseBB, Tokens);
+      // Unanalyzable or ends with fallthrough or unconditional branch, or if is
+      // not considered for ifcvt anymore.
+      if (!BBI.IsBrAnalyzable || BBI.BrCond.empty() || BBI.IsDone) {
+        BBI.IsBeingAnalyzed = false;
+        BBI.IsAnalyzed = true;
+        BBStack.pop_back();
+        continue;
+      }
 
-  if (TrueBBI.IsDone && FalseBBI.IsDone) {
-    BBI.IsBeingAnalyzed = false;
-    BBI.IsAnalyzed = true;
-    return BBI;
-  }
+      // Do not ifcvt if either path is a back edge to the entry block.
+      if (BBI.TrueBB == BB || BBI.FalseBB == BB) {
+        BBI.IsBeingAnalyzed = false;
+        BBI.IsAnalyzed = true;
+        BBStack.pop_back();
+        continue;
+      }
 
-  SmallVector<MachineOperand, 4> RevCond(BBI.BrCond.begin(), BBI.BrCond.end());
-  bool CanRevCond = !TII->ReverseBranchCondition(RevCond);
+      // Do not ifcvt if true and false fallthrough blocks are the same.
+      if (!BBI.FalseBB) {
+        BBI.IsBeingAnalyzed = false;
+        BBI.IsAnalyzed = true;
+        BBStack.pop_back();
+        continue;
+      }
 
-  unsigned Dups = 0;
-  unsigned Dups2 = 0;
-  bool TNeedSub = !TrueBBI.Predicate.empty();
-  bool FNeedSub = !FalseBBI.Predicate.empty();
-  bool Enqueued = false;
+      // Push the False and True blocks to the stack.
+      State.SuccsAnalyzed = true;
+      BBStack.push_back(BBI.FalseBB);
+      BBStack.push_back(BBI.TrueBB);
+      continue;
+    }
 
-  BranchProbability Prediction = MBPI->getEdgeProbability(BB, TrueBBI.BB);
+    BBInfo &TrueBBI = BBAnalysis[BBI.TrueBB->getNumber()];
+    BBInfo &FalseBBI = BBAnalysis[BBI.FalseBB->getNumber()];
 
-  if (CanRevCond && ValidDiamond(TrueBBI, FalseBBI, Dups, Dups2) &&
-      MeetIfcvtSizeLimit(*TrueBBI.BB, (TrueBBI.NonPredSize - (Dups + Dups2) +
-                                       TrueBBI.ExtraCost), TrueBBI.ExtraCost2,
-                         *FalseBBI.BB, (FalseBBI.NonPredSize - (Dups + Dups2) +
+    if (TrueBBI.IsDone && FalseBBI.IsDone) {
+      BBI.IsBeingAnalyzed = false;
+      BBI.IsAnalyzed = true;
+      BBStack.pop_back();
+      continue;
+    }
+
+    SmallVector<MachineOperand, 4>
+        RevCond(BBI.BrCond.begin(), BBI.BrCond.end());
+    bool CanRevCond = !TII->ReverseBranchCondition(RevCond);
+
+    unsigned Dups = 0;
+    unsigned Dups2 = 0;
+    bool TNeedSub = !TrueBBI.Predicate.empty();
+    bool FNeedSub = !FalseBBI.Predicate.empty();
+    bool Enqueued = false;
+
+    BranchProbability Prediction = MBPI->getEdgeProbability(BB, TrueBBI.BB);
+
+    if (CanRevCond && ValidDiamond(TrueBBI, FalseBBI, Dups, Dups2) &&
+        MeetIfcvtSizeLimit(*TrueBBI.BB, (TrueBBI.NonPredSize - (Dups + Dups2) +
+                                         TrueBBI.ExtraCost), TrueBBI.ExtraCost2,
+                           *FalseBBI.BB, (FalseBBI.NonPredSize - (Dups + Dups2) +
                                         FalseBBI.ExtraCost),FalseBBI.ExtraCost2,
                          Prediction) &&
-      FeasibilityAnalysis(TrueBBI, BBI.BrCond) &&
-      FeasibilityAnalysis(FalseBBI, RevCond)) {
-    // Diamond:
-    //   EBB
-    //   / \_
-    //  |   |
-    // TBB FBB
-    //   \ /
-    //  TailBB
-    // Note TailBB can be empty.
-    Tokens.push_back(new IfcvtToken(BBI, ICDiamond, TNeedSub|FNeedSub, Dups,
-                                    Dups2));
-    Enqueued = true;
-  }
-
-  if (ValidTriangle(TrueBBI, FalseBBI, false, Dups, Prediction) &&
-      MeetIfcvtSizeLimit(*TrueBBI.BB, TrueBBI.NonPredSize + TrueBBI.ExtraCost,
-                         TrueBBI.ExtraCost2, Prediction) &&
-      FeasibilityAnalysis(TrueBBI, BBI.BrCond, true)) {
-    // Triangle:
-    //   EBB
-    //   | \_
-    //   |  |
-    //   | TBB
-    //   |  /
-    //   FBB
-    Tokens.push_back(new IfcvtToken(BBI, ICTriangle, TNeedSub, Dups));
-    Enqueued = true;
-  }
-
-  if (ValidTriangle(TrueBBI, FalseBBI, true, Dups, Prediction) &&
-      MeetIfcvtSizeLimit(*TrueBBI.BB, TrueBBI.NonPredSize + TrueBBI.ExtraCost,
-                         TrueBBI.ExtraCost2, Prediction) &&
-      FeasibilityAnalysis(TrueBBI, BBI.BrCond, true, true)) {
-    Tokens.push_back(new IfcvtToken(BBI, ICTriangleRev, TNeedSub, Dups));
-    Enqueued = true;
-  }
-
-  if (ValidSimple(TrueBBI, Dups, Prediction) &&
-      MeetIfcvtSizeLimit(*TrueBBI.BB, TrueBBI.NonPredSize + TrueBBI.ExtraCost,
-                         TrueBBI.ExtraCost2, Prediction) &&
-      FeasibilityAnalysis(TrueBBI, BBI.BrCond)) {
-    // Simple (split, no rejoin):
-    //   EBB
-    //   | \_
-    //   |  |
-    //   | TBB---> exit
-    //   |
-    //   FBB
-    Tokens.push_back(new IfcvtToken(BBI, ICSimple, TNeedSub, Dups));
-    Enqueued = true;
-  }
-
-  if (CanRevCond) {
-    // Try the other path...
-    if (ValidTriangle(FalseBBI, TrueBBI, false, Dups,
-                      Prediction.getCompl()) &&
-        MeetIfcvtSizeLimit(*FalseBBI.BB,
-                           FalseBBI.NonPredSize + FalseBBI.ExtraCost,
-                           FalseBBI.ExtraCost2, Prediction.getCompl()) &&
-        FeasibilityAnalysis(FalseBBI, RevCond, true)) {
-      Tokens.push_back(new IfcvtToken(BBI, ICTriangleFalse, FNeedSub, Dups));
+        FeasibilityAnalysis(TrueBBI, BBI.BrCond) &&
+        FeasibilityAnalysis(FalseBBI, RevCond)) {
+      // Diamond:
+      //   EBB
+      //   / \_
+      //  |   |
+      // TBB FBB
+      //   \ /
+      //  TailBB
+      // Note TailBB can be empty.
+      Tokens.push_back(new IfcvtToken(BBI, ICDiamond, TNeedSub|FNeedSub, Dups,
+                                      Dups2));
       Enqueued = true;
     }
 
-    if (ValidTriangle(FalseBBI, TrueBBI, true, Dups,
-                      Prediction.getCompl()) &&
-        MeetIfcvtSizeLimit(*FalseBBI.BB,
-                           FalseBBI.NonPredSize + FalseBBI.ExtraCost,
+    if (ValidTriangle(TrueBBI, FalseBBI, false, Dups, Prediction) &&
+        MeetIfcvtSizeLimit(*TrueBBI.BB, TrueBBI.NonPredSize + TrueBBI.ExtraCost,
+                           TrueBBI.ExtraCost2, Prediction) &&
+        FeasibilityAnalysis(TrueBBI, BBI.BrCond, true)) {
+      // Triangle:
+      //   EBB
+      //   | \_
+      //   |  |
+      //   | TBB
+      //   |  /
+      //   FBB
+      Tokens.push_back(new IfcvtToken(BBI, ICTriangle, TNeedSub, Dups));
+      Enqueued = true;
+    }
+
+    if (ValidTriangle(TrueBBI, FalseBBI, true, Dups, Prediction) &&
+        MeetIfcvtSizeLimit(*TrueBBI.BB, TrueBBI.NonPredSize + TrueBBI.ExtraCost,
+                           TrueBBI.ExtraCost2, Prediction) &&
+        FeasibilityAnalysis(TrueBBI, BBI.BrCond, true, true)) {
+      Tokens.push_back(new IfcvtToken(BBI, ICTriangleRev, TNeedSub, Dups));
+      Enqueued = true;
+    }
+
+    if (ValidSimple(TrueBBI, Dups, Prediction) &&
+        MeetIfcvtSizeLimit(*TrueBBI.BB, TrueBBI.NonPredSize + TrueBBI.ExtraCost,
+                           TrueBBI.ExtraCost2, Prediction) &&
+        FeasibilityAnalysis(TrueBBI, BBI.BrCond)) {
+      // Simple (split, no rejoin):
+      //   EBB
+      //   | \_
+      //   |  |
+      //   | TBB---> exit
+      //   |
+      //   FBB
+      Tokens.push_back(new IfcvtToken(BBI, ICSimple, TNeedSub, Dups));
+      Enqueued = true;
+    }
+
+    if (CanRevCond) {
+      // Try the other path...
+      if (ValidTriangle(FalseBBI, TrueBBI, false, Dups,
+                        Prediction.getCompl()) &&
+          MeetIfcvtSizeLimit(*FalseBBI.BB,
+                             FalseBBI.NonPredSize + FalseBBI.ExtraCost,
+                             FalseBBI.ExtraCost2, Prediction.getCompl()) &&
+          FeasibilityAnalysis(FalseBBI, RevCond, true)) {
+        Tokens.push_back(new IfcvtToken(BBI, ICTriangleFalse, FNeedSub, Dups));
+        Enqueued = true;
+      }
+
+      if (ValidTriangle(FalseBBI, TrueBBI, true, Dups,
+                        Prediction.getCompl()) &&
+          MeetIfcvtSizeLimit(*FalseBBI.BB,
+                             FalseBBI.NonPredSize + FalseBBI.ExtraCost,
                            FalseBBI.ExtraCost2, Prediction.getCompl()) &&
         FeasibilityAnalysis(FalseBBI, RevCond, true, true)) {
-      Tokens.push_back(new IfcvtToken(BBI, ICTriangleFRev, FNeedSub, Dups));
-      Enqueued = true;
+        Tokens.push_back(new IfcvtToken(BBI, ICTriangleFRev, FNeedSub, Dups));
+        Enqueued = true;
+      }
+
+      if (ValidSimple(FalseBBI, Dups, Prediction.getCompl()) &&
+          MeetIfcvtSizeLimit(*FalseBBI.BB,
+                             FalseBBI.NonPredSize + FalseBBI.ExtraCost,
+                             FalseBBI.ExtraCost2, Prediction.getCompl()) &&
+          FeasibilityAnalysis(FalseBBI, RevCond)) {
+        Tokens.push_back(new IfcvtToken(BBI, ICSimpleFalse, FNeedSub, Dups));
+        Enqueued = true;
+      }
     }
 
-    if (ValidSimple(FalseBBI, Dups, Prediction.getCompl()) &&
-        MeetIfcvtSizeLimit(*FalseBBI.BB,
-                           FalseBBI.NonPredSize + FalseBBI.ExtraCost,
-                           FalseBBI.ExtraCost2, Prediction.getCompl()) &&
-        FeasibilityAnalysis(FalseBBI, RevCond)) {
-      Tokens.push_back(new IfcvtToken(BBI, ICSimpleFalse, FNeedSub, Dups));
-      Enqueued = true;
-    }
+    BBI.IsEnqueued = Enqueued;
+    BBI.IsBeingAnalyzed = false;
+    BBI.IsAnalyzed = true;
+    BBStack.pop_back();
   }
-
-  BBI.IsEnqueued = Enqueued;
-  BBI.IsBeingAnalyzed = false;
-  BBI.IsAnalyzed = true;
-  return BBI;
 }
 
 /// AnalyzeBlocks - Analyze all blocks and find entries for all if-conversion
@@ -971,26 +1009,37 @@ void IfConverter::RemoveExtraEdges(BBInfo &BBI) {
 /// Behaves like LiveRegUnits::StepForward() but also adds implicit uses to all
 /// values defined in MI which are not live/used by MI.
 static void UpdatePredRedefs(MachineInstr *MI, LivePhysRegs &Redefs) {
-  for (ConstMIBundleOperands Ops(MI); Ops.isValid(); ++Ops) {
-    if (!Ops->isReg() || !Ops->isKill())
-      continue;
-    unsigned Reg = Ops->getReg();
-    if (Reg == 0)
-      continue;
-    Redefs.removeReg(Reg);
-  }
-  for (MIBundleOperands Ops(MI); Ops.isValid(); ++Ops) {
-    if (!Ops->isReg() || !Ops->isDef())
-      continue;
-    unsigned Reg = Ops->getReg();
-    if (Reg == 0 || Redefs.contains(Reg))
-      continue;
-    Redefs.addReg(Reg);
+  SmallVector<std::pair<unsigned, const MachineOperand*>, 4> Clobbers;
+  Redefs.stepForward(*MI, Clobbers);
 
-    MachineOperand &Op = *Ops;
-    MachineInstr *MI = Op.getParent();
-    MachineInstrBuilder MIB(*MI->getParent()->getParent(), MI);
-    MIB.addReg(Reg, RegState::Implicit | RegState::Undef);
+  // Now add the implicit uses for each of the clobbered values.
+  for (auto Reg : Clobbers) {
+    // FIXME: Const cast here is nasty, but better than making StepForward
+    // take a mutable instruction instead of const.
+    MachineOperand &Op = const_cast<MachineOperand&>(*Reg.second);
+    MachineInstr *OpMI = Op.getParent();
+    MachineInstrBuilder MIB(*OpMI->getParent()->getParent(), OpMI);
+    if (Op.isRegMask()) {
+      // First handle regmasks.  They clobber any entries in the mask which
+      // means that we need a def for those registers.
+      MIB.addReg(Reg.first, RegState::Implicit | RegState::Undef);
+
+      // We also need to add an implicit def of this register for the later
+      // use to read from.
+      // For the register allocator to have allocated a register clobbered
+      // by the call which is used later, it must be the case that
+      // the call doesn't return.
+      MIB.addReg(Reg.first, RegState::Implicit | RegState::Define);
+      continue;
+    }
+    assert(Op.isReg() && "Register operand required");
+    if (Op.isDead()) {
+      // If we found a dead def, but it needs to be live, then remove the dead
+      // flag.
+      if (Redefs.contains(Op.getReg()))
+        Op.setIsDead(false);
+    }
+    MIB.addReg(Reg.first, RegState::Implicit | RegState::Undef);
   }
 }
 
@@ -1335,15 +1384,9 @@ bool IfConverter::IfConvertDiamond(BBInfo &BBI, IfcvtKind Kind,
   Redefs.addLiveIns(BBI1->BB);
 
   // Remove the duplicated instructions at the beginnings of both paths.
-  MachineBasicBlock::iterator DI1 = BBI1->BB->begin();
-  MachineBasicBlock::iterator DI2 = BBI2->BB->begin();
-  MachineBasicBlock::iterator DIE1 = BBI1->BB->end();
-  MachineBasicBlock::iterator DIE2 = BBI2->BB->end();
   // Skip dbg_value instructions
-  while (DI1 != DIE1 && DI1->isDebugValue())
-    ++DI1;
-  while (DI2 != DIE2 && DI2->isDebugValue())
-    ++DI2;
+  MachineBasicBlock::iterator DI1 = BBI1->BB->getFirstNonDebugInstr();
+  MachineBasicBlock::iterator DI2 = BBI2->BB->getFirstNonDebugInstr();
   BBI1->NonPredSize -= NumDups1;
   BBI2->NonPredSize -= NumDups1;
 
@@ -1370,7 +1413,8 @@ bool IfConverter::IfConvertDiamond(BBInfo &BBI, IfcvtKind Kind,
 
   for (MachineBasicBlock::const_iterator I = BBI1->BB->begin(), E = DI1; I != E;
        ++I) {
-    Redefs.stepForward(*I);
+    SmallVector<std::pair<unsigned, const MachineOperand*>, 4> IgnoredClobbers;
+    Redefs.stepForward(*I, IgnoredClobbers);
   }
   BBI.BB->splice(BBI.BB->end(), BBI1->BB, BBI1->BB->begin(), DI1);
   BBI2->BB->erase(BBI2->BB->begin(), DI2);
@@ -1504,10 +1548,9 @@ bool IfConverter::IfConvertDiamond(BBInfo &BBI, IfcvtKind Kind,
 }
 
 static bool MaySpeculate(const MachineInstr *MI,
-                         SmallSet<unsigned, 4> &LaterRedefs,
-                         const TargetInstrInfo *TII) {
+                         SmallSet<unsigned, 4> &LaterRedefs) {
   bool SawStore = true;
-  if (!MI->isSafeToMove(TII, nullptr, SawStore))
+  if (!MI->isSafeToMove(nullptr, SawStore))
     return false;
 
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
@@ -1538,7 +1581,7 @@ void IfConverter::PredicateBlock(BBInfo &BBI,
     // It may be possible not to predicate an instruction if it's the 'true'
     // side of a diamond and the 'false' side may re-define the instruction's
     // defs.
-    if (MaySpec && MaySpeculate(I, *LaterRedefs, TII)) {
+    if (MaySpec && MaySpeculate(I, *LaterRedefs)) {
       AnyUnpred = true;
       continue;
     }
@@ -1557,7 +1600,7 @@ void IfConverter::PredicateBlock(BBInfo &BBI,
     UpdatePredRedefs(I, Redefs);
   }
 
-  std::copy(Cond.begin(), Cond.end(), std::back_inserter(BBI.Predicate));
+  BBI.Predicate.append(Cond.begin(), Cond.end());
 
   BBI.IsAnalyzed = false;
   BBI.NonPredSize = 0;
@@ -1622,9 +1665,8 @@ void IfConverter::CopyAndPredicateBlock(BBInfo &ToBBI, BBInfo &FromBBI,
     }
   }
 
-  std::copy(FromBBI.Predicate.begin(), FromBBI.Predicate.end(),
-            std::back_inserter(ToBBI.Predicate));
-  std::copy(Cond.begin(), Cond.end(), std::back_inserter(ToBBI.Predicate));
+  ToBBI.Predicate.append(FromBBI.Predicate.begin(), FromBBI.Predicate.end());
+  ToBBI.Predicate.append(Cond.begin(), Cond.end());
 
   ToBBI.ClobbersPred |= FromBBI.ClobbersPred;
   ToBBI.IsAnalyzed = false;
@@ -1663,8 +1705,7 @@ void IfConverter::MergeBlocks(BBInfo &ToBBI, BBInfo &FromBBI, bool AddEdges) {
   if (NBB && !FromBBI.BB->isSuccessor(NBB))
     FromBBI.BB->addSuccessor(NBB);
 
-  std::copy(FromBBI.Predicate.begin(), FromBBI.Predicate.end(),
-            std::back_inserter(ToBBI.Predicate));
+  ToBBI.Predicate.append(FromBBI.Predicate.begin(), FromBBI.Predicate.end());
   FromBBI.Predicate.clear();
 
   ToBBI.NonPredSize += FromBBI.NonPredSize;
@@ -1678,4 +1719,9 @@ void IfConverter::MergeBlocks(BBInfo &ToBBI, BBInfo &FromBBI, bool AddEdges) {
   ToBBI.HasFallThrough = FromBBI.HasFallThrough;
   ToBBI.IsAnalyzed = false;
   FromBBI.IsAnalyzed = false;
+}
+
+FunctionPass *
+llvm::createIfConverter(std::function<bool(const Function &)> Ftor) {
+  return new IfConverter(Ftor);
 }

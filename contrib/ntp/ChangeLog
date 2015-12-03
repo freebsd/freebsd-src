@@ -1,4 +1,159 @@
 ---
+(4.2.8p4) 2015/10/21 Released by Harlan Stenn <stenn@ntp.org>
+(4.2.8p4-RC1) 2015/10/06 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 2899] CVE-2014-9297  perlinger@ntp.org
+* [Sec 2901] Drop invalid packet before checking KoD. Check for all KoD's.
+  Danny Mayer.  Log incoming packets that fail TEST2.  Harlan Stenn.
+* [Sec 2902] configuration directives "pidfile" and "driftfile"
+  should be local-only. perlinger@ntp.org (patch by Miroslav Lichvar)
+* [Sec 2909] added missing call to 'free()' in ntp_crypto.c. perlinger@ntp.org
+* [Sec 2913] TALOS-CAN-0052: crash by loop counter underrun. perlinger@ntp.org
+* [Sec 2916] TALOS-CAN-0054: memory corruption in password store. JPerlinger
+* [Sec 2917] TALOS-CAN-0055: Infinite loop if extended logging enabled and
+  the logfile and keyfile are the same. perlinger@ntp.org
+* [Sec 1918] TALOS-CAN-0062: prevent directory traversal for VMS, too, when
+  using 'saveconfig' command.  perlinger@ntp.org
+* [Bug 2919] TALOS-CAN-0063: avoid buffer overrun in ntpq. perlinger@ntp.org
+* [Sec 2020] TALOS-CAN-0064: signed/unsiged clash could lead to buffer overun
+  and memory corruption. perlinger@ntp.org
+* [Sec 2921] TALOS-CAN-0065: password length memory corruption. JPerlinger.
+* [Sec 2922] decodenetnum() will ASSERT botch instead of returning FAIL
+  on some bogus values.  Harlan Stenn.
+* [Sec 2941] NAK to the Future: Symmetric association authentication
+  bypass via crypto-NAK. Patch applied. perlinger@ntp.org
+* [Bug 2332] (reopened) Exercise thread cancellation once before dropping
+  privileges and limiting resources in NTPD removes the need to link
+  forcefully against 'libgcc_s' which does not always work. J.Perlinger
+* [Bug 2595] ntpdate man page quirks.  Hal Murray, Harlan Stenn.
+* [Bug 2625] Deprecate flag1 in local refclock.  Hal Murray, Harlan Stenn.
+* [Bug 2817] Stop locking ntpd into memory by default under Linux.  H.Stenn.
+* [Bug 2821] minor build issues: fixed refclock_gpsdjson.c.  perlinger@ntp.org
+* [Bug 2823] ntpsweep with recursive peers option doesn't work.  H.Stenn.
+* [Bug 2849] Systems with more than one default route may never
+  synchronize.  Brian Utterback.  Note that this patch might need to
+  be reverted once Bug 2043 has been fixed.
+* [Bug 2864] 4.2.8p3 fails to compile on Windows. Juergen Perlinger
+* [Bug 2866] segmentation fault at initgroups().  Harlan Stenn.
+* [Bug 2867] ntpd with autokey active crashed by 'ntpq -crv'. J.Perlinger
+* [Bug 2873] libevent should not include .deps/ in the tarball.  H.Stenn
+* [Bug 2874] Don't distribute generated sntp/tests/fileHandlingTest.h. H.Stenn
+* [Bug 2875] sntp/Makefile.am: Get rid of DIST_SUBDIRS.  libevent must
+  be configured for the distribution targets.  Harlan Stenn.
+* [Bug 2883] ntpd crashes on exit with empty driftfile.  Miroslav Lichvar.
+* [Bug 2886] Mis-spelling: "outlyer" should be "outlier".  dave@horsfall.org
+* [Bug 2888] streamline calendar functions.  perlinger@ntp.org
+* [Bug 2889] ntp-dev-4.3.67 does not build on Windows.  perlinger@ntp.org
+* [Bug 2890] Ignore ENOBUFS on routing netlink socket.  Konstantin Khlebnikov.
+* [Bug 2906] make check needs better support for pthreads.  Harlan Stenn.
+* [Bug 2907] dist* build targets require our libevent/ to be enabled.  HStenn.
+* [Bug 2912] no munlockall() under Windows.  David Taylor, Harlan Stenn.
+* libntp/emalloc.c: Remove explicit include of stdint.h.  Harlan Stenn.
+* Put Unity CPPFLAGS items in unity_config.h.  Harlan Stenn.
+* tests/ntpd/g_leapsec.cpp typo fix.  Harlan Stenn.
+* Phase 1 deprecation of google test in sntp/tests/.  Harlan Stenn.
+* On some versions of HP-UX, inttypes.h does not include stdint.h.  H.Stenn.
+* top_srcdir can change based on ntp v. sntp.  Harlan Stenn.
+* sntp/tests/ function parameter list cleanup.  Damir Tomić.
+* tests/libntp/ function parameter list cleanup.  Damir Tomić.
+* tests/ntpd/ function parameter list cleanup.  Damir Tomić.
+* sntp/unity/unity_config.h: handle stdint.h.  Harlan Stenn.
+* sntp/unity/unity_internals.h: handle *INTPTR_MAX on old Solaris.  H.Stenn.
+* tests/libntp/timevalops.c and timespecops.c fixed error printing.  D.Tomić.
+* tests/libntp/ improvements in code and fixed error printing.  Damir Tomić.
+* tests/libntp: a_md5encrypt.c, authkeys.c, buftvtots.c, calendar.c, caljulian.c,
+  caltontp.c, clocktime.c, humandate.c, hextolfp.c, decodenetnum.c - fixed
+  formatting; first declaration, then code (C90); deleted unnecessary comments;
+  changed from sprintf to snprintf; fixed order of includes. Tomasz Flendrich
+* tests/libntp/lfpfunc.c remove unnecessary include, remove old comments,
+  fix formatting, cleanup. Tomasz Flendrich
+* tests/libntp/lfptostr.c remove unnecessary include, add consts, fix formatting.
+  Tomasz Flendrich
+* tests/libntp/statestr.c remove empty functions, remove unnecessary include,
+  fix formatting. Tomasz Flendrich
+* tests/libntp/modetoa.c fixed formatting. Tomasz Flendrich
+* tests/libntp/msyslog.c fixed formatting. Tomasz Flendrich
+* tests/libntp/numtoa.c deleted unnecessary empty functions, fixed formatting.
+  Tomasz Flendrich
+* tests/libntp/numtohost.c added const, fixed formatting. Tomasz Flendrich
+* tests/libntp/refnumtoa.c fixed formatting. Tomasz Flendrich
+* tests/libntp/ssl_init.c fixed formatting. Tomasz Flendrich
+* tests/libntp/tvtots.c fixed a bug, fixed formatting. Tomasz Flendrich
+* tests/libntp/uglydate.c removed an unnecessary include. Tomasz Flendrich
+* tests/libntp/vi64ops.c removed an unnecessary comment, fixed formatting.
+* tests/libntp/ymd3yd.c removed an empty function and an unnecessary include,
+fixed formatting. Tomasz Flendrich
+* tests/libntp/timespecops.c fixed formatting, fixed the order of includes,
+  removed unnecessary comments, cleanup. Tomasz Flendrich
+* tests/libntp/timevalops.c fixed the order of includes, deleted unnecessary
+  comments, cleanup. Tomasz Flendrich
+* tests/libntp/sockaddrtest.h making it agree to NTP's conventions of formatting.
+  Tomasz Flendrich
+* tests/libntp/lfptest.h cleanup. Tomasz Flendrich
+* tests/libntp/test-libntp.c fix formatting. Tomasz Flendrich
+* sntp/tests/crypto.c is now using proper Unity's assertions, fixed formatting.
+  Tomasz Flendrich
+* sntp/tests/kodDatabase.c added consts, deleted empty function,
+  fixed formatting. Tomasz Flendrich
+* sntp/tests/kodFile.c cleanup, fixed formatting. Tomasz Flendrich
+* sntp/tests/packetHandling.c is now using proper Unity's assertions,
+  fixed formatting, deleted unused variable. Tomasz Flendrich
+* sntp/tests/keyFile.c is now using proper Unity's assertions, fixed formatting.
+  Tomasz Flendrich
+* sntp/tests/packetProcessing.c changed from sprintf to snprintf,
+  fixed formatting. Tomasz Flendrich
+* sntp/tests/utilities.c is now using proper Unity's assertions, changed
+  the order of includes, fixed formatting, removed unnecessary comments.
+  Tomasz Flendrich
+* sntp/tests/sntptest.h fixed formatting. Tomasz Flendrich
+* sntp/tests/fileHandlingTest.h.in fixed a possible buffer overflow problem,
+  made one function do its job, deleted unnecessary prints, fixed formatting.
+  Tomasz Flendrich
+* sntp/unity/Makefile.am added a missing header. Tomasz Flendrich
+* sntp/unity/unity_config.h: Distribute it.  Harlan Stenn.
+* sntp/libevent/evconfig-private.h: remove generated filefrom SCM.  H.Stenn.
+* sntp/unity/Makefile.am: fix some broken paths.  Harlan Stenn.
+* sntp/unity/unity.c: Clean up a printf().  Harlan Stenn.
+* Phase 1 deprecation of google test in tests/libntp/.  Harlan Stenn.
+* Don't build sntp/libevent/sample/.  Harlan Stenn.
+* tests/libntp/test_caltontp needs -lpthread.  Harlan Stenn.
+* br-flock: --enable-local-libevent.  Harlan Stenn.
+* Wrote tests for ntpd/ntp_prio_q.c. Tomasz Flendrich
+* scripts/lib/NTP/Util.pm: stratum output is version-dependent.  Harlan Stenn.
+* Get rid of the NTP_ prefix on our assertion macros.  Harlan Stenn.
+* Code cleanup.  Harlan Stenn.
+* libntp/icom.c: Typo fix.  Harlan Stenn.
+* util/ntptime.c: initialization nit.  Harlan Stenn.
+* ntpd/ntp_peer.c:newpeer(): added a DEBUG_REQUIRE(srcadr).  Harlan Stenn.
+* Add std_unity_tests to various Makefile.am files.  Harlan Stenn.
+* ntpd/ntp_restrict.c: added a few assertions, created tests for this file.
+  Tomasz Flendrich
+* Changed progname to be const in many files - now it's consistent. Tomasz
+  Flendrich
+* Typo fix for GCC warning suppression.  Harlan Stenn.
+* Added tests/ntpd/ntp_scanner.c test. Damir Tomić.
+* Added declarations to all Unity tests, and did minor fixes to them.
+  Reduced the number of warnings by half. Damir Tomić.
+* Updated generate_test_runner.rb and updated the sntp/unity/auto directory
+  with the latest Unity updates from Mark. Damir Tomić.
+* Retire google test - phase I.  Harlan Stenn.
+* Unity test cleanup: move declaration of 'initializing'.  Harlan Stenn.
+* Update the NEWS file.  Harlan Stenn.
+* Autoconf cleanup.  Harlan Stenn.
+* Unit test dist cleanup. Harlan Stenn.
+* Cleanup various test Makefile.am files.  Harlan Stenn.
+* Pthread autoconf macro cleanup.  Harlan Stenn.
+* Fix progname definition in unity runner scripts.  Harlan Stenn.
+* Clean trailing whitespace in tests/ntpd/Makefile.am.  Harlan Stenn.
+* Update the patch for bug 2817.  Harlan Stenn.
+* More updates for bug 2817.  Harlan Stenn.
+* Fix bugs in tests/ntpd/ntp_prio_q.c.  Harlan Stenn.
+* gcc on older HPUX may need +allowdups.  Harlan Stenn.
+* Adding missing MCAST protection.  Harlan Stenn.
+* Disable certain test programs on certain platforms.  Harlan Stenn.
+* Implement --enable-problem-tests (on by default).  Harlan Stenn.
+* build system tweaks.  Harlan Stenn.
+---
 (4.2.8p3) 2015/06/29 Released by Harlan Stenn <stenn@ntp.org>
 
 * [Sec 2853] Crafted remote config packet can crash some versions of

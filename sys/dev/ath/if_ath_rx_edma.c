@@ -111,6 +111,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_rx.h>
 #include <dev/ath/if_ath_beacon.h>
 #include <dev/ath/if_athdfs.h>
+#include <dev/ath/if_ath_descdma.h>
 
 #ifdef ATH_TX99_DIAG
 #include <dev/ath/ath_tx99/ath_tx99.h>
@@ -579,9 +580,8 @@ static void
 ath_edma_recv_tasklet(void *arg, int npending)
 {
 	struct ath_softc *sc = (struct ath_softc *) arg;
-	struct ifnet *ifp = sc->sc_ifp;
 #ifdef	IEEE80211_SUPPORT_SUPERG
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 #endif
 
 	DPRINTF(sc, ATH_DEBUG_EDMA_RX, "%s: called; npending=%d\n",
@@ -617,14 +617,9 @@ ath_edma_recv_tasklet(void *arg, int npending)
 	ath_power_restore_power_state(sc);
 	ATH_UNLOCK(sc);
 
-	/* XXX inside IF_LOCK ? */
-	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 #ifdef	IEEE80211_SUPPORT_SUPERG
-		ieee80211_ff_age_all(ic, 100);
+	ieee80211_ff_age_all(ic, 100);
 #endif
-		if (! IFQ_IS_EMPTY(&ifp->if_snd))
-			ath_tx_kick(sc);
-	}
 	if (ath_dfs_tasklet_needed(sc, sc->sc_curchan))
 		taskqueue_enqueue(sc->sc_tq, &sc->sc_dfstask);
 

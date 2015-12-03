@@ -33,93 +33,46 @@ using namespace llvm;
 
 // FIXME: Maybe this should be on by default when Mips16 is specified
 //
-static cl::opt<bool> Mixed16_32(
-  "mips-mixed-16-32",
-  cl::init(false),
-  cl::desc("Allow for a mixture of Mips16 "
-           "and Mips32 code in a single source file"),
-  cl::Hidden);
+static cl::opt<bool>
+    Mixed16_32("mips-mixed-16-32", cl::init(false),
+               cl::desc("Allow for a mixture of Mips16 "
+                        "and Mips32 code in a single output file"),
+               cl::Hidden);
 
-static cl::opt<bool> Mips_Os16(
-  "mips-os16",
-  cl::init(false),
-  cl::desc("Compile all functions that don' use "
-           "floating point as Mips 16"),
-  cl::Hidden);
+static cl::opt<bool> Mips_Os16("mips-os16", cl::init(false),
+                               cl::desc("Compile all functions that don't use "
+                                        "floating point as Mips 16"),
+                               cl::Hidden);
+
+static cl::opt<bool> Mips16HardFloat("mips16-hard-float", cl::NotHidden,
+                                     cl::desc("Enable mips16 hard float."),
+                                     cl::init(false));
 
 static cl::opt<bool>
-Mips16HardFloat("mips16-hard-float", cl::NotHidden,
-                cl::desc("MIPS: mips16 hard float enable."),
-                cl::init(false));
+    Mips16ConstantIslands("mips16-constant-islands", cl::NotHidden,
+                          cl::desc("Enable mips16 constant islands."),
+                          cl::init(true));
 
 static cl::opt<bool>
-Mips16ConstantIslands(
-  "mips16-constant-islands", cl::NotHidden,
-  cl::desc("MIPS: mips16 constant islands enable."),
-  cl::init(true));
-
-static cl::opt<bool>
-GPOpt("mgpopt", cl::Hidden,
-      cl::desc("MIPS: Enable gp-relative addressing of small data items"));
-
-/// Select the Mips CPU for the given triple and cpu name.
-/// FIXME: Merge with the copy in MipsMCTargetDesc.cpp
-static StringRef selectMipsCPU(Triple TT, StringRef CPU) {
-  if (CPU.empty() || CPU == "generic") {
-    if (TT.getArch() == Triple::mips || TT.getArch() == Triple::mipsel)
-      CPU = "mips32";
-    else
-      CPU = "mips64";
-  }
-  return CPU;
-}
+    GPOpt("mgpopt", cl::Hidden,
+          cl::desc("Enable gp-relative addressing of mips small data items"));
 
 void MipsSubtarget::anchor() { }
 
-static std::string computeDataLayout(const MipsSubtarget &ST) {
-  std::string Ret = "";
-
-  // There are both little and big endian mips.
-  if (ST.isLittle())
-    Ret += "e";
-  else
-    Ret += "E";
-
-  Ret += "-m:m";
-
-  // Pointers are 32 bit on some ABIs.
-  if (!ST.isABI_N64())
-    Ret += "-p:32:32";
-
-  // 8 and 16 bit integers only need no have natural alignment, but try to
-  // align them to 32 bits. 64 bit integers have natural alignment.
-  Ret += "-i8:8:32-i16:16:32-i64:64";
-
-  // 32 bit registers are always available and the stack is at least 64 bit
-  // aligned. On N64 64 bit registers are also available and the stack is
-  // 128 bit aligned.
-  if (ST.isABI_N64() || ST.isABI_N32())
-    Ret += "-n32:64-S128";
-  else
-    Ret += "-n32-S64";
-
-  return Ret;
-}
-
-MipsSubtarget::MipsSubtarget(const std::string &TT, const std::string &CPU,
+MipsSubtarget::MipsSubtarget(const Triple &TT, const std::string &CPU,
                              const std::string &FS, bool little,
                              const MipsTargetMachine &TM)
     : MipsGenSubtargetInfo(TT, CPU, FS), MipsArchVersion(MipsDefault),
-      ABI(MipsABIInfo::Unknown()), IsLittle(little), IsSingleFloat(false),
-      IsFPXX(false), NoABICalls(false), IsFP64bit(false), UseOddSPReg(true),
+      IsLittle(little), IsSoftFloat(false), IsSingleFloat(false), IsFPXX(false),
+      NoABICalls(false), IsFP64bit(false), UseOddSPReg(true),
       IsNaN2008bit(false), IsGP64bit(false), HasVFPU(false), HasCnMips(false),
       HasMips3_32(false), HasMips3_32r2(false), HasMips4_32(false),
       HasMips4_32r2(false), HasMips5_32r2(false), InMips16Mode(false),
       InMips16HardFloat(Mips16HardFloat), InMicroMipsMode(false), HasDSP(false),
       HasDSPR2(false), AllowMixed16_32(Mixed16_32 | Mips_Os16), Os16(Mips_Os16),
-      HasMSA(false), TM(TM), TargetTriple(TT),
-      DL(computeDataLayout(initializeSubtargetDependencies(CPU, FS, TM))),
-      TSInfo(DL), InstrInfo(MipsInstrInfo::create(*this)),
+      HasMSA(false), TM(TM), TargetTriple(TT), TSInfo(),
+      InstrInfo(
+          MipsInstrInfo::create(initializeSubtargetDependencies(CPU, FS, TM))),
       FrameLowering(MipsFrameLowering::create(*this)),
       TLInfo(MipsTargetLowering::create(TM, *this)) {
 
@@ -134,13 +87,6 @@ MipsSubtarget::MipsSubtarget(const std::string &TT, const std::string &CPU,
     report_fatal_error("Code generation for MIPS-I is not implemented", false);
   if (MipsArchVersion == Mips5)
     report_fatal_error("Code generation for MIPS-V is not implemented", false);
-
-  // Assert exactly one ABI was chosen.
-  assert(ABI.IsKnown());
-  assert((((getFeatureBits() & Mips::FeatureO32) != 0) +
-          ((getFeatureBits() & Mips::FeatureEABI) != 0) +
-          ((getFeatureBits() & Mips::FeatureN32) != 0) +
-          ((getFeatureBits() & Mips::FeatureN64) != 0)) == 1);
 
   // Check if Architecture and ABI are compatible.
   assert(((!isGP64bit() && (isABI_O32() || isABI_EABI())) ||
@@ -180,7 +126,7 @@ MipsSubtarget::MipsSubtarget(const std::string &TT, const std::string &CPU,
 }
 
 /// This overrides the PostRAScheduler bit in the SchedModel for any CPU.
-bool MipsSubtarget::enablePostMachineScheduler() const { return true; }
+bool MipsSubtarget::enablePostRAScheduler() const { return true; }
 
 void MipsSubtarget::getCriticalPathRCs(RegClassVector &CriticalPathRCs) const {
   CriticalPathRCs.clear();
@@ -195,21 +141,17 @@ CodeGenOpt::Level MipsSubtarget::getOptLevelToEnablePostRAScheduler() const {
 MipsSubtarget &
 MipsSubtarget::initializeSubtargetDependencies(StringRef CPU, StringRef FS,
                                                const TargetMachine &TM) {
-  std::string CPUName = selectMipsCPU(TargetTriple, CPU);
-  
+  std::string CPUName = MIPS_MC::selectMipsCPU(TM.getTargetTriple(), CPU);
+
   // Parse features string.
   ParseSubtargetFeatures(CPUName, FS);
   // Initialize scheduling itinerary for the specified CPU.
   InstrItins = getInstrItineraryForCPU(CPUName);
 
-  if (InMips16Mode && !TM.Options.UseSoftFloat)
+  if (InMips16Mode && !IsSoftFloat)
     InMips16HardFloat = true;
 
   return *this;
-}
-
-bool MipsSubtarget::abiUsesSoftFloat() const {
-  return TM.Options.UseSoftFloat && !InMips16HardFloat;
 }
 
 bool MipsSubtarget::useConstantIslands() {
@@ -220,3 +162,9 @@ bool MipsSubtarget::useConstantIslands() {
 Reloc::Model MipsSubtarget::getRelocationModel() const {
   return TM.getRelocationModel();
 }
+
+bool MipsSubtarget::isABI_EABI() const { return getABI().IsEABI(); }
+bool MipsSubtarget::isABI_N64() const { return getABI().IsN64(); }
+bool MipsSubtarget::isABI_N32() const { return getABI().IsN32(); }
+bool MipsSubtarget::isABI_O32() const { return getABI().IsO32(); }
+const MipsABIInfo &MipsSubtarget::getABI() const { return TM.getABI(); }

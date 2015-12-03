@@ -125,12 +125,23 @@ break; \
   if (const PointerType *Ty = QT->getAs<PointerType>()) {
     QT = Context.getPointerType(Desugar(Context, Ty->getPointeeType(),
                                         ShouldAKA));
+  } else if (const auto *Ty = QT->getAs<ObjCObjectPointerType>()) {
+    QT = Context.getObjCObjectPointerType(Desugar(Context, Ty->getPointeeType(),
+                                                  ShouldAKA));
   } else if (const LValueReferenceType *Ty = QT->getAs<LValueReferenceType>()) {
     QT = Context.getLValueReferenceType(Desugar(Context, Ty->getPointeeType(),
                                                 ShouldAKA));
   } else if (const RValueReferenceType *Ty = QT->getAs<RValueReferenceType>()) {
     QT = Context.getRValueReferenceType(Desugar(Context, Ty->getPointeeType(),
                                                 ShouldAKA));
+  } else if (const auto *Ty = QT->getAs<ObjCObjectType>()) {
+    if (Ty->getBaseType().getTypePtr() != Ty && !ShouldAKA) {
+      QualType BaseType = Desugar(Context, Ty->getBaseType(), ShouldAKA);
+      QT = Context.getObjCObjectType(BaseType, Ty->getTypeArgsAsWritten(),
+                                     llvm::makeArrayRef(Ty->qual_begin(),
+                                                        Ty->getNumProtocols()),
+                                     Ty->isKindOfTypeAsWritten());
+    }
   }
 
   return QC.apply(Context, QT);
@@ -181,8 +192,8 @@ ConvertTypeToDiagnosticString(ASTContext &Context, QualType Ty,
     if (CompareCanTy == CanTy)
       continue;  // Same canonical types
     std::string CompareS = CompareTy.getAsString(Context.getPrintingPolicy());
-    bool aka;
-    QualType CompareDesugar = Desugar(Context, CompareTy, aka);
+    bool ShouldAKA = false;
+    QualType CompareDesugar = Desugar(Context, CompareTy, ShouldAKA);
     std::string CompareDesugarStr =
         CompareDesugar.getAsString(Context.getPrintingPolicy());
     if (CompareS != S && CompareDesugarStr != S)

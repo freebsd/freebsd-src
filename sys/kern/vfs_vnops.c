@@ -43,9 +43,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_hwpmc_hooks.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/disk.h>
+#include <sys/fail.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/kdb.h>
@@ -82,6 +85,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vnode_pager.h>
+
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 
 static fo_rdwr_t	vn_read;
 static fo_rdwr_t	vn_write;
@@ -194,7 +201,10 @@ vn_open_cred(struct nameidata *ndp, int *flagp, int cmode, u_int vn_open_flags,
 
 restart:
 	fmode = *flagp;
-	if (fmode & O_CREAT) {
+	if ((fmode & (O_CREAT | O_EXCL | O_DIRECTORY)) == (O_CREAT |
+	    O_EXCL | O_DIRECTORY))
+		return (EINVAL);
+	else if ((fmode & (O_CREAT | O_DIRECTORY)) == O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
 		/*
 		 * Set NOCACHE to avoid flushing the cache when
@@ -766,10 +776,9 @@ vn_read(fp, uio, active_cred, flags, td)
 	struct thread *td;
 {
 	struct vnode *vp;
-	struct mtx *mtxp;
+	off_t orig_offset;
 	int error, ioflag;
 	int advice;
-	off_t offset, start, end;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
@@ -793,7 +802,7 @@ vn_read(fp, uio, active_cred, flags, td)
 		/* Disable read-ahead for random I/O. */
 		break;
 	}
-	offset = uio->uio_offset;
+	orig_offset = uio->uio_offset;
 
 #ifdef MAC
 	error = mac_vnode_check_read(active_cred, fp->f_cred, vp);
@@ -803,39 +812,14 @@ vn_read(fp, uio, active_cred, flags, td)
 	fp->f_nextoff = uio->uio_offset;
 	VOP_UNLOCK(vp, 0);
 	if (error == 0 && advice == POSIX_FADV_NOREUSE &&
-	    offset != uio->uio_offset) {
+	    orig_offset != uio->uio_offset)
 		/*
-		 * Use POSIX_FADV_DONTNEED to flush clean pages and
-		 * buffers for the backing file after a
-		 * POSIX_FADV_NOREUSE read(2).  To optimize the common
-		 * case of using POSIX_FADV_NOREUSE with sequential
-		 * access, track the previous implicit DONTNEED
-		 * request and grow this request to include the
-		 * current read(2) in addition to the previous
-		 * DONTNEED.  With purely sequential access this will
-		 * cause the DONTNEED requests to continously grow to
-		 * cover all of the previously read regions of the
-		 * file.  This allows filesystem blocks that are
-		 * accessed by multiple calls to read(2) to be flushed
-		 * once the last read(2) finishes.
+		 * Use POSIX_FADV_DONTNEED to flush pages and buffers
+		 * for the backing file after a POSIX_FADV_NOREUSE
+		 * read(2).
 		 */
-		start = offset;
-		end = uio->uio_offset - 1;
-		mtxp = mtx_pool_find(mtxpool_sleep, fp);
-		mtx_lock(mtxp);
-		if (fp->f_advice != NULL &&
-		    fp->f_advice->fa_advice == POSIX_FADV_NOREUSE) {
-			if (start != 0 && fp->f_advice->fa_prevend + 1 == start)
-				start = fp->f_advice->fa_prevstart;
-			else if (fp->f_advice->fa_prevstart != 0 &&
-			    fp->f_advice->fa_prevstart == end + 1)
-				end = fp->f_advice->fa_prevend;
-			fp->f_advice->fa_prevstart = start;
-			fp->f_advice->fa_prevend = end;
-		}
-		mtx_unlock(mtxp);
-		error = VOP_ADVISE(vp, start, end, POSIX_FADV_DONTNEED);
-	}
+		error = VOP_ADVISE(vp, orig_offset, uio->uio_offset - 1,
+		    POSIX_FADV_DONTNEED);
 	return (error);
 }
 
@@ -852,10 +836,9 @@ vn_write(fp, uio, active_cred, flags, td)
 {
 	struct vnode *vp;
 	struct mount *mp;
-	struct mtx *mtxp;
+	off_t orig_offset;
 	int error, ioflag, lock_flags;
 	int advice;
-	off_t offset, start, end;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
@@ -898,7 +881,7 @@ vn_write(fp, uio, active_cred, flags, td)
 		/* XXX: Is this correct? */
 		break;
 	}
-	offset = uio->uio_offset;
+	orig_offset = uio->uio_offset;
 
 #ifdef MAC
 	error = mac_vnode_check_write(active_cred, fp->f_cred, vp);
@@ -910,55 +893,14 @@ vn_write(fp, uio, active_cred, flags, td)
 	if (vp->v_type != VCHR)
 		vn_finished_write(mp);
 	if (error == 0 && advice == POSIX_FADV_NOREUSE &&
-	    offset != uio->uio_offset) {
+	    orig_offset != uio->uio_offset)
 		/*
-		 * Use POSIX_FADV_DONTNEED to flush clean pages and
-		 * buffers for the backing file after a
-		 * POSIX_FADV_NOREUSE write(2).  To optimize the
-		 * common case of using POSIX_FADV_NOREUSE with
-		 * sequential access, track the previous implicit
-		 * DONTNEED request and grow this request to include
-		 * the current write(2) in addition to the previous
-		 * DONTNEED.  With purely sequential access this will
-		 * cause the DONTNEED requests to continously grow to
-		 * cover all of the previously written regions of the
-		 * file.
-		 *
-		 * Note that the blocks just written are almost
-		 * certainly still dirty, so this only works when
-		 * VOP_ADVISE() calls from subsequent writes push out
-		 * the data written by this write(2) once the backing
-		 * buffers are clean.  However, as compared to forcing
-		 * IO_DIRECT, this gives much saner behavior.  Write
-		 * clustering is still allowed, and clean pages are
-		 * merely moved to the cache page queue rather than
-		 * outright thrown away.  This means a subsequent
-		 * read(2) can still avoid hitting the disk if the
-		 * pages have not been reclaimed.
-		 *
-		 * This does make POSIX_FADV_NOREUSE largely useless
-		 * with non-sequential access.  However, sequential
-		 * access is the more common use case and the flag is
-		 * merely advisory.
+		 * Use POSIX_FADV_DONTNEED to flush pages and buffers
+		 * for the backing file after a POSIX_FADV_NOREUSE
+		 * write(2).
 		 */
-		start = offset;
-		end = uio->uio_offset - 1;
-		mtxp = mtx_pool_find(mtxpool_sleep, fp);
-		mtx_lock(mtxp);
-		if (fp->f_advice != NULL &&
-		    fp->f_advice->fa_advice == POSIX_FADV_NOREUSE) {
-			if (start != 0 && fp->f_advice->fa_prevend + 1 == start)
-				start = fp->f_advice->fa_prevstart;
-			else if (fp->f_advice->fa_prevstart != 0 &&
-			    fp->f_advice->fa_prevstart == end + 1)
-				end = fp->f_advice->fa_prevend;
-			fp->f_advice->fa_prevstart = start;
-			fp->f_advice->fa_prevend = end;
-		}
-		mtx_unlock(mtxp);
-		error = VOP_ADVISE(vp, start, end, POSIX_FADV_DONTNEED);
-	}
-	
+		error = VOP_ADVISE(vp, orig_offset, uio->uio_offset - 1,
+		    POSIX_FADV_DONTNEED);
 unlock:
 	return (error);
 }
@@ -2379,6 +2321,24 @@ vn_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	return (error);
 }
 
+static inline void
+vn_fill_junk(struct kinfo_file *kif)
+{
+	size_t len, olen;
+
+	/*
+	 * Simulate vn_fullpath returning changing values for a given
+	 * vp during e.g. coredump.
+	 */
+	len = (arc4random() % (sizeof(kif->kf_path) - 2)) + 1;
+	olen = strlen(kif->kf_path);
+	if (len < olen)
+		strcpy(&kif->kf_path[len - 1], "$");
+	else
+		for (; olen < len; olen++)
+			strcpy(&kif->kf_path[olen], "A");
+}
+
 int
 vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif)
 {
@@ -2395,6 +2355,10 @@ vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif)
 	}
 	if (freepath != NULL)
 		free(freepath, M_TEMP);
+
+	KFAIL_POINT_CODE(DEBUG_FP, fill_kinfo_vnode__random_path,
+		vn_fill_junk(kif);
+	);
 
 	/*
 	 * Retrieve vnode attributes.
@@ -2503,7 +2467,7 @@ vn_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size,
 	/* Inform hwpmc(4) if an executable is being mapped. */
 	if (error == 0 && (prot & VM_PROT_EXECUTE) != 0) {
 		pkm.pm_file = vp;
-		pkm.pm_address = (uintptr_t) addr;
+		pkm.pm_address = (uintptr_t) *addr;
 		PMC_CALL_HOOK(td, PMC_FN_MMAP, (void *) &pkm);
 	}
 #endif

@@ -14,7 +14,7 @@ if [ `id -u` -ne 0 ]; then
 	exit 0
 fi
 
-echo "1..3"
+echo "1..4"
 
 sleep=$(pwd)/sleep.txt
 ln -sf /bin/sleep $sleep
@@ -87,5 +87,30 @@ else
 fi
 [ -f ${PWD}/${base}_3_1.pid ] && kill $(cat $PWD/${base}_3_1.pid) 
 [ -f ${PWD}/${base}_3_2.pid ] && kill $(cat $PWD/${base}_3_2.pid) 
+wait
+
+# test 4 is like test 1 except with jname instead of jid.
+name="pgrep -j <jname>"
+sleep_amount=8
+jail -c path=/ name=${base}_4_1 ip4.addr=127.0.0.1 \
+    command=daemon -p ${PWD}/${base}_4_1.pid $sleep $sleep_amount &
+
+jail -c path=/ name=${base}_4_2 ip4.addr=127.0.0.1 \
+    command=daemon -p ${PWD}/${base}_4_2.pid $sleep $sleep_amount &
+
+sleep 0.5
+
+jname="${base}_4_1,${base}_4_2"
+pid1="$(pgrep -f -x -j "$jname" "$sleep $sleep_amount" | sort)"
+pid2=$(printf "%s\n%s" "$(cat ${PWD}/${base}_4_1.pid)" \
+    $(cat ${PWD}/${base}_4_2.pid) | sort)
+if [ "$pid1" = "$pid2" ]; then
+	echo "ok 4 - $name"
+else
+	echo "not ok 4 - $name # pgrep output: '$(echo $pid1)', pidfile output: '$(echo $pid2)'"
+fi
+[ -f ${PWD}/${base}_4_1.pid ] && kill $(cat ${PWD}/${base}_4_1.pid)
+[ -f ${PWD}/${base}_4_2.pid ] && kill $(cat ${PWD}/${base}_4_2.pid)
+wait
 
 rm -f $sleep

@@ -11,7 +11,13 @@ SRCS +=	zfs.c
 
 MAN=	fstyp.8
 
-WARNS?=	0
+WARNS?=	2
+
+.include <src.opts.mk>
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .if ${MK_ZFS} != "no"
 IGNORE_PRAGMA=  YES

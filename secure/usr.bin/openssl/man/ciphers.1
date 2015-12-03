@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CIPHERS 1"
-.TH CIPHERS 1 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH CIPHERS 1 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -281,13 +281,13 @@ cipher suites using \s-1RSA\s0 key exchange.
 .IP "\fBkDHr\fR, \fBkDHd\fR, \fBkDH\fR" 4
 .IX Item "kDHr, kDHd, kDH"
 cipher suites using \s-1DH\s0 key agreement and \s-1DH\s0 certificates signed by CAs with \s-1RSA\s0
-and \s-1DSS\s0 keys or either respectively. Not implemented.
-.IP "\fBkEDH\fR" 4
-.IX Item "kEDH"
+and \s-1DSS\s0 keys or either respectively.
+.IP "\fBkDHE\fR, \fBkEDH\fR" 4
+.IX Item "kDHE, kEDH"
 cipher suites using ephemeral \s-1DH\s0 key agreement, including anonymous cipher
 suites.
-.IP "\fB\s-1EDH\s0\fR" 4
-.IX Item "EDH"
+.IP "\fB\s-1DHE\s0\fR, \fB\s-1EDH\s0\fR" 4
+.IX Item "DHE, EDH"
 cipher suites using authenticated ephemeral \s-1DH\s0 key agreement.
 .IP "\fB\s-1ADH\s0\fR" 4
 .IX Item "ADH"
@@ -300,12 +300,12 @@ cipher suites using \s-1DH,\s0 including anonymous \s-1DH,\s0 ephemeral \s-1DH\s
 .IX Item "kECDHr, kECDHe, kECDH"
 cipher suites using fixed \s-1ECDH\s0 key agreement signed by CAs with \s-1RSA\s0 and \s-1ECDSA\s0
 keys or either respectively.
-.IP "\fBkEECDH\fR" 4
-.IX Item "kEECDH"
+.IP "\fBkECDHE\fR, \fBkEECDH\fR" 4
+.IX Item "kECDHE, kEECDH"
 cipher suites using ephemeral \s-1ECDH\s0 key agreement, including anonymous
 cipher suites.
-.IP "\fB\s-1EECDHE\s0\fR" 4
-.IX Item "EECDHE"
+.IP "\fB\s-1ECDHE\s0\fR, \fB\s-1EECDH\s0\fR" 4
+.IX Item "ECDHE, EECDH"
 cipher suites using authenticated ephemeral \s-1ECDH\s0 key agreement.
 .IP "\fB\s-1AECDH\s0\fR" 4
 .IX Item "AECDH"
@@ -323,7 +323,7 @@ cipher suites using \s-1DSS\s0 authentication, i.e. the certificates carry \s-1D
 .IP "\fBaDH\fR" 4
 .IX Item "aDH"
 cipher suites effectively using \s-1DH\s0 authentication, i.e. the certificates carry
-\&\s-1DH\s0 keys.  Not implemented.
+\&\s-1DH\s0 keys.
 .IP "\fBaECDH\fR" 4
 .IX Item "aECDH"
 cipher suites effectively using \s-1ECDH\s0 authentication, i.e. the certificates
@@ -401,6 +401,17 @@ cipher suites using \s-1GOST 28147\-89 MAC \s0\fBinstead of\fR \s-1HMAC.\s0
 .IP "\fB\s-1PSK\s0\fR" 4
 .IX Item "PSK"
 cipher suites using pre-shared keys (\s-1PSK\s0).
+.IP "\fB\s-1SUITEB128\s0\fR, \fB\s-1SUITEB128ONLY\s0\fR, \fB\s-1SUITEB192\s0\fR" 4
+.IX Item "SUITEB128, SUITEB128ONLY, SUITEB192"
+enables suite B mode operation using 128 (permitting 192 bit mode by peer)
+128 bit (not permitting 192 bit by peer) or 192 bit level of security
+respectively. If used these cipherstrings should appear first in the cipher
+list and anything after them is ignored. Setting Suite B mode has additional
+consequences required to comply with \s-1RFC6460.\s0 In particular the supported
+signature algorithms is reduced to support only \s-1ECDSA\s0 and \s-1SHA256\s0 or \s-1SHA384,\s0
+only the elliptic curves P\-256 and P\-384 can be used and only the two suite B
+compliant ciphersuites (\s-1ECDHE\-ECDSA\-AES128\-GCM\-SHA256\s0 and
+\&\s-1ECDHE\-ECDSA\-AES256\-GCM\-SHA384\s0) are permissible.
 .SH "CIPHER SUITE NAMES"
 .IX Header "CIPHER SUITE NAMES"
 The following lists give the \s-1SSL\s0 or \s-1TLS\s0 cipher suites names from the
@@ -421,12 +432,10 @@ e.g. \s-1DES\-CBC3\-SHA.\s0 In these cases, \s-1RSA\s0 authentication is used.
 \& SSL_RSA_WITH_DES_CBC_SHA                DES\-CBC\-SHA
 \& SSL_RSA_WITH_3DES_EDE_CBC_SHA           DES\-CBC3\-SHA
 \&
-\& SSL_DH_DSS_EXPORT_WITH_DES40_CBC_SHA    Not implemented.
-\& SSL_DH_DSS_WITH_DES_CBC_SHA             Not implemented.
-\& SSL_DH_DSS_WITH_3DES_EDE_CBC_SHA        Not implemented.
-\& SSL_DH_RSA_EXPORT_WITH_DES40_CBC_SHA    Not implemented.
-\& SSL_DH_RSA_WITH_DES_CBC_SHA             Not implemented.
-\& SSL_DH_RSA_WITH_3DES_EDE_CBC_SHA        Not implemented.
+\& SSL_DH_DSS_WITH_DES_CBC_SHA             DH\-DSS\-DES\-CBC\-SHA
+\& SSL_DH_DSS_WITH_3DES_EDE_CBC_SHA        DH\-DSS\-DES\-CBC3\-SHA
+\& SSL_DH_RSA_WITH_DES_CBC_SHA             DH\-RSA\-DES\-CBC\-SHA
+\& SSL_DH_RSA_WITH_3DES_EDE_CBC_SHA        DH\-RSA\-DES\-CBC3\-SHA
 \& SSL_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA   EXP\-EDH\-DSS\-DES\-CBC\-SHA
 \& SSL_DHE_DSS_WITH_DES_CBC_SHA            EDH\-DSS\-CBC\-SHA
 \& SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA       EDH\-DSS\-DES\-CBC3\-SHA
@@ -483,10 +492,10 @@ e.g. \s-1DES\-CBC3\-SHA.\s0 In these cases, \s-1RSA\s0 authentication is used.
 \& TLS_RSA_WITH_AES_128_CBC_SHA            AES128\-SHA
 \& TLS_RSA_WITH_AES_256_CBC_SHA            AES256\-SHA
 \&
-\& TLS_DH_DSS_WITH_AES_128_CBC_SHA         Not implemented.
-\& TLS_DH_DSS_WITH_AES_256_CBC_SHA         Not implemented.
-\& TLS_DH_RSA_WITH_AES_128_CBC_SHA         Not implemented.
-\& TLS_DH_RSA_WITH_AES_256_CBC_SHA         Not implemented.
+\& TLS_DH_DSS_WITH_AES_128_CBC_SHA         DH\-DSS\-AES128\-SHA
+\& TLS_DH_DSS_WITH_AES_256_CBC_SHA         DH\-DSS\-AES256\-SHA
+\& TLS_DH_RSA_WITH_AES_128_CBC_SHA         DH\-RSA\-AES128\-SHA
+\& TLS_DH_RSA_WITH_AES_256_CBC_SHA         DH\-RSA\-AES256\-SHA
 \&
 \& TLS_DHE_DSS_WITH_AES_128_CBC_SHA        DHE\-DSS\-AES128\-SHA
 \& TLS_DHE_DSS_WITH_AES_256_CBC_SHA        DHE\-DSS\-AES256\-SHA
@@ -502,10 +511,10 @@ e.g. \s-1DES\-CBC3\-SHA.\s0 In these cases, \s-1RSA\s0 authentication is used.
 \& TLS_RSA_WITH_CAMELLIA_128_CBC_SHA      CAMELLIA128\-SHA
 \& TLS_RSA_WITH_CAMELLIA_256_CBC_SHA      CAMELLIA256\-SHA
 \&
-\& TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA   Not implemented.
-\& TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA   Not implemented.
-\& TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA   Not implemented.
-\& TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA   Not implemented.
+\& TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA   DH\-DSS\-CAMELLIA128\-SHA
+\& TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA   DH\-DSS\-CAMELLIA256\-SHA
+\& TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA   DH\-RSA\-CAMELLIA128\-SHA
+\& TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA   DH\-RSA\-CAMELLIA256\-SHA
 \&
 \& TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA  DHE\-DSS\-CAMELLIA128\-SHA
 \& TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA  DHE\-DSS\-CAMELLIA256\-SHA
@@ -520,8 +529,8 @@ e.g. \s-1DES\-CBC3\-SHA.\s0 In these cases, \s-1RSA\s0 authentication is used.
 .Vb 1
 \& TLS_RSA_WITH_SEED_CBC_SHA              SEED\-SHA
 \&
-\& TLS_DH_DSS_WITH_SEED_CBC_SHA           Not implemented.
-\& TLS_DH_RSA_WITH_SEED_CBC_SHA           Not implemented.
+\& TLS_DH_DSS_WITH_SEED_CBC_SHA           DH\-DSS\-SEED\-SHA
+\& TLS_DH_RSA_WITH_SEED_CBC_SHA           DH\-RSA\-SEED\-SHA
 \&
 \& TLS_DHE_DSS_WITH_SEED_CBC_SHA          DHE\-DSS\-SEED\-SHA
 \& TLS_DHE_RSA_WITH_SEED_CBC_SHA          DHE\-RSA\-SEED\-SHA
@@ -593,15 +602,15 @@ Note: these ciphers can also be used in \s-1SSL\s0 v3.
 \& TLS_RSA_WITH_AES_128_GCM_SHA256           AES128\-GCM\-SHA256
 \& TLS_RSA_WITH_AES_256_GCM_SHA384           AES256\-GCM\-SHA384
 \&
-\& TLS_DH_RSA_WITH_AES_128_CBC_SHA256        Not implemented.
-\& TLS_DH_RSA_WITH_AES_256_CBC_SHA256        Not implemented.
-\& TLS_DH_RSA_WITH_AES_128_GCM_SHA256        Not implemented.
-\& TLS_DH_RSA_WITH_AES_256_GCM_SHA384        Not implemented.
+\& TLS_DH_RSA_WITH_AES_128_CBC_SHA256        DH\-RSA\-AES128\-SHA256
+\& TLS_DH_RSA_WITH_AES_256_CBC_SHA256        DH\-RSA\-AES256\-SHA256
+\& TLS_DH_RSA_WITH_AES_128_GCM_SHA256        DH\-RSA\-AES128\-GCM\-SHA256
+\& TLS_DH_RSA_WITH_AES_256_GCM_SHA384        DH\-RSA\-AES256\-GCM\-SHA384
 \&
-\& TLS_DH_DSS_WITH_AES_128_CBC_SHA256        Not implemented.
-\& TLS_DH_DSS_WITH_AES_256_CBC_SHA256        Not implemented.
-\& TLS_DH_DSS_WITH_AES_128_GCM_SHA256        Not implemented.
-\& TLS_DH_DSS_WITH_AES_256_GCM_SHA384        Not implemented.
+\& TLS_DH_DSS_WITH_AES_128_CBC_SHA256        DH\-DSS\-AES128\-SHA256
+\& TLS_DH_DSS_WITH_AES_256_CBC_SHA256        DH\-DSS\-AES256\-SHA256
+\& TLS_DH_DSS_WITH_AES_128_GCM_SHA256        DH\-DSS\-AES128\-GCM\-SHA256
+\& TLS_DH_DSS_WITH_AES_256_GCM_SHA384        DH\-DSS\-AES256\-GCM\-SHA384
 \&
 \& TLS_DHE_RSA_WITH_AES_128_CBC_SHA256       DHE\-RSA\-AES128\-SHA256
 \& TLS_DHE_RSA_WITH_AES_256_CBC_SHA256       DHE\-RSA\-AES256\-SHA256
@@ -659,9 +668,6 @@ Note: these ciphers can also be used in \s-1SSL\s0 v3.
 .Ve
 .SH "NOTES"
 .IX Header "NOTES"
-The non-ephemeral \s-1DH\s0 modes are currently unimplemented in OpenSSL
-because there is no support for \s-1DH\s0 certificates.
-.PP
 Some compiled versions of OpenSSL may not include all the ciphers
 listed here because some ciphers were excluded at compile time.
 .SH "EXAMPLES"

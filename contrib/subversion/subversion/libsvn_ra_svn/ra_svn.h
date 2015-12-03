@@ -123,13 +123,16 @@ struct svn_ra_svn__session_baton_t {
   apr_pool_t *pool;
   svn_ra_svn_conn_t *conn;
   svn_boolean_t is_tunneled;
+  svn_auth_baton_t *auth_baton;
   const char *url;
   const char *user;
   const char *hostname; /* The remote hostname. */
   const char *realm_prefix;
+  const char *tunnel_name;
   const char **tunnel_argv;
   const svn_ra_callbacks2_t *callbacks;
   void *callbacks_baton;
+  apr_hash_t *config;
   apr_off_t bytes_read, bytes_written; /* apr_off_t's because that's what
                                           the callback interface uses */
   const char *useragent;
@@ -145,8 +148,8 @@ void svn_ra_svn__set_block_handler(svn_ra_svn_conn_t *conn,
                                    void *baton);
 
 /* Return true if there is input waiting on conn. */
-svn_boolean_t svn_ra_svn__input_waiting(svn_ra_svn_conn_t *conn,
-                                        apr_pool_t *pool);
+svn_error_t *svn_ra_svn__data_available(svn_ra_svn_conn_t *conn,
+                                       svn_boolean_t *data_available);
 
 /* CRAM-MD5 client implementation. */
 svn_error_t *svn_ra_svn__cram_client(svn_ra_svn_conn_t *conn, apr_pool_t *pool,
@@ -169,20 +172,20 @@ svn_error_t *svn_ra_svn__handle_failure_status(const apr_array_header_t *params,
 svn_ra_svn__stream_t *svn_ra_svn__stream_from_sock(apr_socket_t *sock,
                                                    apr_pool_t *pool);
 
-/* Returns a stream that reads from IN_FILE and writes to OUT_FILE.  */
-svn_ra_svn__stream_t *svn_ra_svn__stream_from_files(apr_file_t *in_file,
-                                                    apr_file_t *out_file,
-                                                    apr_pool_t *pool);
+/* Returns a stream that reads from IN_STREAM and writes to OUT_STREAM,
+   creating a timeout callback for OUT_STREAM if possible  */
+svn_ra_svn__stream_t *svn_ra_svn__stream_from_streams(svn_stream_t *in_stream,
+                                                      svn_stream_t *out_stream,
+                                                      apr_pool_t *pool);
 
 /* Create an svn_ra_svn__stream_t using READ_CB, WRITE_CB, TIMEOUT_CB,
  * PENDING_CB, and BATON.
  */
-svn_ra_svn__stream_t *svn_ra_svn__stream_create(void *baton,
-                                                svn_read_fn_t read_cb,
-                                                svn_write_fn_t write_cb,
+svn_ra_svn__stream_t *svn_ra_svn__stream_create(svn_stream_t *in_stream,
+                                                svn_stream_t *out_stream,
+                                                void *timeout_baton,
                                                 ra_svn_timeout_fn_t timeout_cb,
-                                                ra_svn_pending_fn_t pending_cb,
-                                                apr_pool_t *pool);
+                                                apr_pool_t *result_pool);
 
 /* Write *LEN bytes from DATA to STREAM, returning the number of bytes
  * written in *LEN.
@@ -208,7 +211,9 @@ void svn_ra_svn__stream_timeout(svn_ra_svn__stream_t *stream,
                                 apr_interval_time_t interval);
 
 /* Return whether or not there is data pending on STREAM. */
-svn_boolean_t svn_ra_svn__stream_pending(svn_ra_svn__stream_t *stream);
+svn_error_t *
+svn_ra_svn__stream_data_available(svn_ra_svn__stream_t *stream,
+                                  svn_boolean_t *data_available);
 
 /* Respond to an auth request and perform authentication.  Use the Cyrus
  * SASL library for mechanism negotiation and for creating authentication

@@ -5,8 +5,8 @@ FILESGROUPS=	FILES1 FILES2
 FILES1=		dot.cshrc dot.login dot.login_conf dot.mailrc dot.profile \
 		dot.shrc
 FILES2=		dot.mail_aliases dot.rhosts 
-FILES1DIR=	/usr/share/skel
-FILES2DIR=	/usr/share/skel
+FILES1DIR=	${SHAREDIR}/skel
+FILES2DIR=	${SHAREDIR}/skel
 FILES1MODE=	0644
 FILES2MODE=	0600
 

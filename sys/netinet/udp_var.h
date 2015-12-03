@@ -150,13 +150,13 @@ VNET_DECLARE(int, udp_blackhole);
 extern int			udp_log_in_vain;
 
 static __inline struct inpcbinfo *
-get_inpcbinfo(int protocol)
+udp_get_inpcbinfo(int protocol)
 {
 	return (protocol == IPPROTO_UDP) ? &V_udbinfo : &V_ulitecbinfo;
 }
 
 static __inline struct inpcbhead *
-get_pcblist(int protocol)
+udp_get_pcblist(int protocol)
 {
 	return (protocol == IPPROTO_UDP) ? &V_udb : &V_ulitecb;
 }

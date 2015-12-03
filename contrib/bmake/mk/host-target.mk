@@ -1,5 +1,5 @@
 # RCSid:
-#	$Id: host-target.mk,v 1.7 2014/05/16 17:54:52 sjg Exp $
+#	$Id: host-target.mk,v 1.9 2015/09/10 18:42:57 sjg Exp $
 
 # Host platform information; may be overridden
 .if !defined(_HOST_OSNAME)
@@ -10,16 +10,25 @@ _HOST_OSNAME !=	uname -s
 _HOST_OSREL  !=	uname -r
 .export _HOST_OSREL
 .endif
+.if !defined(_HOST_MACHINE)
+_HOST_MACHINE != uname -m
+.export _HOST_MACHINE
+.endif
 .if !defined(_HOST_ARCH)
-_HOST_ARCH   !=	uname -p 2>/dev/null || uname -m
+# for NetBSD prefer $MACHINE (amd64 rather than x86_64)
+.if ${_HOST_OSNAME:NNetBSD} == ""
+_HOST_ARCH := ${_HOST_MACHINE}
+.else
+_HOST_ARCH != uname -p 2> /dev/null || uname -m
 # uname -p may produce garbage on linux
 .if ${_HOST_ARCH:[\#]} > 1
-_HOST_ARCH != uname -m
+_HOST_ARCH := ${_HOST_MACHINE}
+.endif
 .endif
 .export _HOST_ARCH
 .endif
 .if !defined(HOST_MACHINE)
-HOST_MACHINE != uname -m
+HOST_MACHINE := ${_HOST_MACHINE}
 .export HOST_MACHINE
 .endif
 

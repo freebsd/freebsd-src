@@ -1,3 +1,313 @@
+commit 9815cdf6987ef91a85493bfcfd1ce2aaf3b47a0a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-09-29 13:59:35 +0300
+
+    Bump version and soname for 5.2.2.
+
+ src/liblzma/Makefile.am        | 2 +-
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit cbe0cec8476bdd0416c7ca9bc83895c9bea1cf78
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-09-29 13:57:28 +0300
+
+    Update NEWS for 5.2.2.
+
+ NEWS | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+commit 49427ce7eececdd18bbd35dab23c81910d083e1c
+Author: Andre Noll <maan@tuebingen.mpg.de>
+Date:   2015-05-28 15:50:00 +0200
+
+    Fix typo in German translation.
+    
+    As pointed out by Robert Pollak, there's a typo in the German
+    translation of the compression preset option (-0 ... -9) help text.
+    "The compressor" translates to "der Komprimierer", and the genitive
+    form is "des Komprimierers". The old word makes no sense at all.
+
+ po/de.po | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 608d6f06c940e7f28c25de005e8b99bdff42d27c
+Author: Hauke Henningsen <sqrt@entless.org>
+Date:   2015-08-17 04:59:54 +0200
+
+    Update German translation, mostly wrt orthography
+    
+    Provide an update of the German translation.
+    * A lot of compound words were previously written with spaces, while
+      German orthography is relatively clear in that the components
+      should not be separated.
+    * When referring to the actual process of (de)compression rather than the
+      concept, replace “(De-)Kompression” with “(De-)Komprimierung”.
+      Previously, both forms were used in this context and are now used in a
+      manner consistent with “Komprimierung” being more likely to refer to
+      a process.
+    * Consistently translate “standard input”/“output”
+    * Use “Zeichen” instead of false friend “Charakter” for “character”
+    * Insert commas around relative clauses (as required in German)
+    * Some other minor corrections
+    * Capitalize “ß” as “ẞ”
+    * Consistently start option descriptions in --help with capital letters
+    
+    Acked-By: Andre Noll <maan@tuebingen.mpg.de>
+    
+    * Update after msgmerge
+
+ po/de.po | 383 ++++++++++++++++++++++++++++++++-------------------------------
+ 1 file changed, 196 insertions(+), 187 deletions(-)
+
+commit c8988414e5b67b8ef2fe0ba7b1ccdd0ec73c60d3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-08-11 13:23:04 +0300
+
+    Build: Minor Cygwin cleanup.
+    
+    Some tests used "cygwin*" and some used "cygwin". I changed
+    them all to use "cygwin". Shouldn't affect anything in practice.
+
+ configure.ac | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+commit 85a6dfed53477906bfe9a7c0123dd412e391cb48
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-08-11 13:21:52 +0300
+
+    Build: Support building of MSYS2 binaries.
+
+ configure.ac | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)
+
+commit 77f270be8432df2e4516a0c48814b6976d6618c5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-08-09 21:06:26 +0300
+
+    Windows: Define DLL_EXPORT when building liblzma.dll with MSVC.
+    
+    src/liblzma/common/common.h uses it to set __declspec(dllexport)
+    for the API symbols.
+    
+    Thanks to Adam Walling.
+
+ windows/liblzma_dll.vcxproj | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+commit 8c975446c5903090a5a8493b5b96b71003056a88
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-08-09 21:02:20 +0300
+
+    Windows: Omit unneeded header files from MSVC project files.
+
+ windows/liblzma.vcxproj     | 5 -----
+ windows/liblzma_dll.vcxproj | 5 -----
+ 2 files changed, 10 deletions(-)
+
+commit 119a00434954726ca58e4a578e6469f530fca30e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-07-12 20:48:19 +0300
+
+    liblzma: A MSVC-specific hack isn't needed with MSVC 2013 and newer.
+
+ src/liblzma/api/lzma.h | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)
+
+commit d4e7c557fcab353539c9481a8d95cb04bcb15c7c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-06-19 20:38:55 +0300
+
+    Update THANKS.
+
+ THANKS | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit 98001740ca56c894a7bd32eb47e9857a8a7d878d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-06-19 20:21:30 +0300
+
+    Windows: Update the docs.
+
+ INSTALL                     |  29 ++++++----
+ windows/INSTALL-MSVC.txt    |  47 +++++++++++++++
+ windows/INSTALL-MinGW.txt   | 138 ++++++++++++++++++++++++++++++++++++++++++++
+ windows/INSTALL-Windows.txt | 138 --------------------------------------------
+ 4 files changed, 204 insertions(+), 148 deletions(-)
+
+commit 28195e4c877007cc760ecea1d17f740693d66873
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-06-19 17:25:31 +0300
+
+    Windows: Add MSVC project files for building liblzma.
+    
+    Thanks to Adam Walling for creating these files.
+
+ windows/liblzma.vcxproj     | 359 ++++++++++++++++++++++++++++++++++++++++
+ windows/liblzma_dll.vcxproj | 388 ++++++++++++++++++++++++++++++++++++++++++++
+ windows/xz_win.sln          |  48 ++++++
+ 3 files changed, 795 insertions(+)
+
+commit 960440f3230dc628f6966d9f7614fc1b28baf44e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-05-13 20:57:55 +0300
+
+    Tests: Fix a memory leak in test_bcj_exact_size.
+    
+    Thanks to Cristian Rodríguez.
+
+ tests/test_bcj_exact_size.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 68cd35acafbdcdf4e8ea8b5bb843c736939d6f8b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-05-12 18:08:24 +0300
+
+    Fix NEWS about threading in 5.2.0.
+    
+    Thanks to Andy Hochhaus.
+
+ NEWS | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+commit ff96ed6d25786728356017a13baf8c14731b4f1e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-05-11 21:26:16 +0300
+
+    xz: Document that threaded decompression hasn't been implemented yet.
+
+ src/xz/xz.1 | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+commit 00d37b64a64ea8597fd2422d5187afd761ab9531
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-04-20 20:20:29 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit db190a832c49ca3aed6d69cc992fa5583cae7b11
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-04-20 19:59:18 +0300
+
+    Revert "xz: Use pipe2() if available."
+    
+    This reverts commit 7a11c4a8e5e15f13d5fa59233b3172e65428efdd.
+    It is a problem when libc has pipe2() but the kernel is too
+    old to have pipe2() and thus pipe2() fails. In xz it's pointless
+    to have a fallback for non-functioning pipe2(); it's better to
+    avoid pipe2() completely.
+    
+    Thanks to Michael Fox for the bug report.
+
+ configure.ac     | 4 ++--
+ src/xz/file_io.c | 9 +--------
+ 2 files changed, 3 insertions(+), 10 deletions(-)
+
+commit eccd8155e107c5ada03d13e7730675cdf1a44ddc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-03-29 22:14:47 +0300
+
+    Update THANKS.
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 25263fd9e7a8a913395cb93d7c104cd48c2b4a00
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-03-29 22:13:48 +0300
+
+    Fix the detection of installed RAM on QNX.
+    
+    The earlier version compiled but didn't actually work
+    since sysconf(_SC_PHYS_PAGES) always fails (or so I was told).
+    
+    Thanks to Ole André Vadla Ravnås for the patch and testing.
+
+ m4/tuklib_physmem.m4        |  6 +++---
+ src/common/tuklib_physmem.c | 14 +++++++++++++-
+ 2 files changed, 16 insertions(+), 4 deletions(-)
+
+commit 4c544d2410903d38402221cb783ed85585b6a007
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-03-27 22:39:07 +0200
+
+    Fix CPU core count detection on QNX.
+    
+    It tried to use sysctl() on QNX but
+      - it broke the build because sysctl() needs -lsocket on QNX;
+      - sysctl() doesn't work for detecting the core count on QNX
+        even if it compiled.
+    
+    sysconf() works. An alternative would have been to use
+    QNX-specific SYSPAGE_ENTRY(num_cpu) from <sys/syspage.h>.
+    
+    Thanks to Ole André Vadla Ravnås.
+
+ m4/tuklib_cpucores.m4 | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
+
+commit e0ea6737b03e83ccaff4514d00e31bb926f8f0f3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-03-07 22:05:57 +0200
+
+    xz: size_t/uint32_t cleanup in options.c.
+
+ src/xz/options.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+commit 8bcca29a65335fd679c13814b70b35b68fa5daed
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-03-07 22:04:23 +0200
+
+    xz: Fix a comment and silence a warning in message.c.
+
+ src/xz/message.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+commit f243f5f44c6b19a7c289a0ec73a03ee08364cb5b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-03-07 22:01:00 +0200
+
+    liblzma: Silence more uint32_t vs. size_t warnings.
+
+ src/liblzma/lz/lz_encoder.c     | 2 +-
+ src/liblzma/lzma/lzma_encoder.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit 7f0a4c50f4a374c40acf4b86848f301ad1e82d34
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-03-07 19:54:00 +0200
+
+    xz: Make arg_count an unsigned int to silence a warning.
+    
+    Actually the value of arg_count cannot exceed INT_MAX
+    but it's nicer as an unsigned int.
+
+ src/xz/args.h | 2 +-
+ src/xz/main.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit f6ec46801588b1be29c07c9db98558b521304002
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-03-07 19:33:17 +0200
+
+    liblzma: Fix a warning in index.c.
+
+ src/liblzma/common/index.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+commit a24518971cc621315af142dd3bb7614fab04ad27
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2015-02-26 20:46:14 +0200
+
+    Build: Fix a CR+LF problem when running autoreconf -fi on OS/2.
+
+ build-aux/version.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
 commit dec11497a71518423b5ff0e759100cf8aadf6c7b
 Author: Lasse Collin <lasse.collin@tukaani.org>
 Date:   2015-02-26 16:53:44 +0200

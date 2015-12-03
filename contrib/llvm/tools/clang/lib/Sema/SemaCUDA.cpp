@@ -62,6 +62,11 @@ Sema::CUDAFunctionTarget Sema::IdentifyCUDATarget(const FunctionDecl *D) {
 
 bool Sema::CheckCUDATarget(const FunctionDecl *Caller,
                            const FunctionDecl *Callee) {
+  // The CUDADisableTargetCallChecks short-circuits this check: we assume all
+  // cross-target calls are valid.
+  if (getLangOpts().CUDADisableTargetCallChecks)
+    return false;
+
   CUDAFunctionTarget CallerTarget = IdentifyCUDATarget(Caller),
                      CalleeTarget = IdentifyCUDATarget(Callee);
 
@@ -92,9 +97,21 @@ bool Sema::CheckCUDATarget(const FunctionDecl *Caller,
     if (Caller->isImplicit()) return false;
 
     bool InDeviceMode = getLangOpts().CUDAIsDevice;
-    if ((InDeviceMode && CalleeTarget != CFT_Device) ||
-        (!InDeviceMode && CalleeTarget != CFT_Host))
+    if (!InDeviceMode && CalleeTarget != CFT_Host)
+        return true;
+    if (InDeviceMode && CalleeTarget != CFT_Device) {
+      // Allow host device functions to call host functions if explicitly
+      // requested.
+      if (CalleeTarget == CFT_Host &&
+          getLangOpts().CUDAAllowHostCallsFromHostDevice) {
+        Diag(Caller->getLocation(),
+             diag::warn_host_calls_from_host_device)
+            << Callee->getNameAsString() << Caller->getNameAsString();
+        return false;
+      }
+
       return true;
+    }
   }
 
   return false;

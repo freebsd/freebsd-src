@@ -23,6 +23,11 @@ class PPCSubtarget;
 
 class PPCFrameLowering: public TargetFrameLowering {
   const PPCSubtarget &Subtarget;
+  const unsigned ReturnSaveOffset;
+  const unsigned TOCSaveOffset;
+  const unsigned FramePointerSaveOffset;
+  const unsigned LinkageSize;
+  const unsigned BasePointerSaveOffset;
 
 public:
   PPCFrameLowering(const PPCSubtarget &STI);
@@ -33,15 +38,15 @@ public:
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
-  void emitPrologue(MachineFunction &MF) const override;
+  void emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
 
   bool hasFP(const MachineFunction &MF) const override;
   bool needsFP(const MachineFunction &MF) const;
   void replaceFPWithRealFP(MachineFunction &MF) const;
 
-  void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
-                                     RegScavenger *RS = nullptr) const override;
+  void determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs,
+                            RegScavenger *RS = nullptr) const override;
   void processFunctionBeforeFrameFinalized(MachineFunction &MF,
                                      RegScavenger *RS = nullptr) const override;
   void addScavengingSpillSlot(MachineFunction &MF, RegScavenger *RS) const;
@@ -67,56 +72,23 @@ public:
 
   /// getReturnSaveOffset - Return the previous frame offset to save the
   /// return address.
-  static unsigned getReturnSaveOffset(bool isPPC64, bool isDarwinABI) {
-    if (isDarwinABI)
-      return isPPC64 ? 16 : 8;
-    // SVR4 ABI:
-    return isPPC64 ? 16 : 4;
-  }
+  unsigned getReturnSaveOffset() const { return ReturnSaveOffset; }
 
   /// getTOCSaveOffset - Return the previous frame offset to save the
   /// TOC register -- 64-bit SVR4 ABI only.
-  static unsigned getTOCSaveOffset(bool isELFv2ABI) {
-    return isELFv2ABI ? 24 : 40;
-  }
+  unsigned getTOCSaveOffset() const { return TOCSaveOffset; }
 
   /// getFramePointerSaveOffset - Return the previous frame offset to save the
   /// frame pointer.
-  static unsigned getFramePointerSaveOffset(bool isPPC64, bool isDarwinABI) {
-    // For the Darwin ABI:
-    // We cannot use the TOC save slot (offset +20) in the PowerPC linkage area
-    // for saving the frame pointer (if needed.)  While the published ABI has
-    // not used this slot since at least MacOSX 10.2, there is older code
-    // around that does use it, and that needs to continue to work.
-    if (isDarwinABI)
-      return isPPC64 ? -8U : -4U;
-
-    // SVR4 ABI: First slot in the general register save area.
-    return isPPC64 ? -8U : -4U;
-  }
+  unsigned getFramePointerSaveOffset() const { return FramePointerSaveOffset; }
 
   /// getBasePointerSaveOffset - Return the previous frame offset to save the
   /// base pointer.
-  static unsigned getBasePointerSaveOffset(bool isPPC64,
-                                           bool isDarwinABI,
-                                           bool isPIC) {
-    if (isDarwinABI)
-      return isPPC64 ? -16U : -8U;
-
-    // SVR4 ABI: First slot in the general register save area.
-    return isPPC64 ? -16U : isPIC ? -12U : -8U;
-  }
+  unsigned getBasePointerSaveOffset() const { return BasePointerSaveOffset; }
 
   /// getLinkageSize - Return the size of the PowerPC ABI linkage area.
   ///
-  static unsigned getLinkageSize(bool isPPC64, bool isDarwinABI,
-                                 bool isELFv2ABI) {
-    if (isDarwinABI || isPPC64)
-      return (isELFv2ABI ? 4 : 6) * (isPPC64 ? 8 : 4);
-
-    // SVR4 ABI:
-    return 8;
-  }
+  unsigned getLinkageSize() const { return LinkageSize; }
 
   const SpillSlot *
   getCalleeSavedSpillSlots(unsigned &NumEntries) const override;

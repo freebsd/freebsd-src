@@ -120,7 +120,7 @@ static void inline blkif_get_x86_32_req(blkif_request_t *dst, blkif_x86_32_reque
 	dst->handle = src->handle;
 	dst->id = src->id;
 	dst->sector_number = src->sector_number;
-	barrier();
+	__compiler_membar();
 	if (n > dst->nr_segments)
 		n = dst->nr_segments;
 	for (i = 0; i < n; i++)
@@ -135,7 +135,7 @@ static void inline blkif_get_x86_64_req(blkif_request_t *dst, blkif_x86_64_reque
 	dst->handle = src->handle;
 	dst->id = src->id;
 	dst->sector_number = src->sector_number;
-	barrier();
+	__compiler_membar();
 	if (n > dst->nr_segments)
 		n = dst->nr_segments;
 	for (i = 0; i < n; i++)

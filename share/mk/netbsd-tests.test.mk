@@ -3,16 +3,10 @@
 .if !target(__netbsd_tests.test.mk__)
 __netbsd_tests.test.mk__:
 
-.if !defined(OBJTOP)
-.error "Please define OBJTOP to the absolute path of the top of the object tree"
-.endif
+TESTSRC?=	${SRCTOP}/contrib/netbsd-tests/${RELDIR:H}
 
-.if !defined(SRCTOP)
-.error "Please define SRCTOP to the absolute path of the top of the source tree"
-.endif
-
-.if !defined(TESTSRC)
-.error "Please define TESTSRC to the absolute path of the test sources, e.g. contrib/netbsd-tests/lib/libc/stdio"
+.if !exists(${TESTSRC}/)
+.error "Please define TESTSRC to the absolute path of the test sources, e.g. $${SRCTOP}/contrib/netbsd-tests/lib/libc/stdio"
 .endif
 
 .PATH: ${TESTSRC}

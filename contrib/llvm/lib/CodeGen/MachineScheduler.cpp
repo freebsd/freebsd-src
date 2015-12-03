@@ -209,6 +209,11 @@ static MachineSchedRegistry
 DefaultSchedRegistry("default", "Use the target's default scheduler choice.",
                      useDefaultMachineSched);
 
+static cl::opt<bool> EnableMachineSched(
+    "enable-misched",
+    cl::desc("Enable the machine instruction scheduling pass."), cl::init(true),
+    cl::Hidden);
+
 /// Forward declare the standard machine scheduler. This will be used as the
 /// default scheduler if the target does not set a default.
 static ScheduleDAGInstrs *createGenericSchedLive(MachineSchedContext *C);
@@ -304,6 +309,12 @@ ScheduleDAGInstrs *PostMachineScheduler::createPostMachineScheduler() {
 /// design would be to split blocks at scheduling boundaries, but LLVM has a
 /// general bias against block splitting purely for implementation simplicity.
 bool MachineScheduler::runOnMachineFunction(MachineFunction &mf) {
+  if (EnableMachineSched.getNumOccurrences()) {
+    if (!EnableMachineSched)
+      return false;
+  } else if (!mf.getSubtarget().enableMachineScheduler())
+    return false;
+
   DEBUG(dbgs() << "Before MISsched:\n"; mf.print(dbgs()));
 
   // Initialize the context of the pass.
@@ -336,9 +347,7 @@ bool PostMachineScheduler::runOnMachineFunction(MachineFunction &mf) {
   if (skipOptnoneFunction(*mf.getFunction()))
     return false;
 
-  const TargetSubtargetInfo &ST =
-    mf.getTarget().getSubtarget<TargetSubtargetInfo>();
-  if (!ST.enablePostMachineScheduler()) {
+  if (!mf.getSubtarget().enablePostRAScheduler()) {
     DEBUG(dbgs() << "Subtarget disables post-MI-sched.\n");
     return false;
   }
@@ -934,8 +943,9 @@ updateScheduledPressure(const SUnit *SU,
     unsigned Limit = RegClassInfo->getRegPressureSetLimit(ID);
     if (NewMaxPressure[ID] >= Limit - 2) {
       DEBUG(dbgs() << "  " << TRI->getRegPressureSetName(ID) << ": "
-            << NewMaxPressure[ID] << " > " << Limit << "(+ "
-            << BotRPTracker.getLiveThru()[ID] << " livethru)\n");
+            << NewMaxPressure[ID]
+            << ((NewMaxPressure[ID] > Limit) ? " > " : " <= ") << Limit
+            << "(+ " << BotRPTracker.getLiveThru()[ID] << " livethru)\n");
     }
   }
 }
@@ -1027,8 +1037,6 @@ void ScheduleDAGMILive::schedule() {
 
     scheduleMI(SU, IsTopNode);
 
-    updateQueues(SU, IsTopNode);
-
     if (DFSResult) {
       unsigned SubtreeID = DFSResult->getSubtreeID(SU);
       if (!ScheduledTrees.test(SubtreeID)) {
@@ -1040,6 +1048,8 @@ void ScheduleDAGMILive::schedule() {
 
     // Notify the scheduling strategy after updating the DAG.
     SchedImpl->schedNode(SU, IsTopNode);
+
+    updateQueues(SU, IsTopNode);
   }
   assert(CurrentTop == CurrentBottom && "Nonempty unscheduled zone.");
 
@@ -1261,7 +1271,7 @@ void LoadClusterMutation::clusterNeighboringLoads(ArrayRef<SUnit*> Loads,
     SUnit *SU = Loads[Idx];
     unsigned BaseReg;
     unsigned Offset;
-    if (TII->getLdStBaseRegImmOfs(SU->getInstr(), BaseReg, Offset, TRI))
+    if (TII->getMemOpBaseRegImmOfs(SU->getInstr(), BaseReg, Offset, TRI))
       LoadRecords.push_back(LoadInfo(SU, BaseReg, Offset));
   }
   if (LoadRecords.size() < 2)
@@ -1434,12 +1444,15 @@ void CopyConstrain::constrainLocalCopy(SUnit *CopySU, ScheduleDAGMILive *DAG) {
   // Check if either the dest or source is local. If it's live across a back
   // edge, it's not local. Note that if both vregs are live across the back
   // edge, we cannot successfully contrain the copy without cyclic scheduling.
-  unsigned LocalReg = DstReg;
-  unsigned GlobalReg = SrcReg;
+  // If both the copy's source and dest are local live intervals, then we
+  // should treat the dest as the global for the purpose of adding
+  // constraints. This adds edges from source's other uses to the copy.
+  unsigned LocalReg = SrcReg;
+  unsigned GlobalReg = DstReg;
   LiveInterval *LocalLI = &LIS->getInterval(LocalReg);
   if (!LocalLI->isLocal(RegionBeginIdx, RegionEndIdx)) {
-    LocalReg = SrcReg;
-    GlobalReg = DstReg;
+    LocalReg = DstReg;
+    GlobalReg = SrcReg;
     LocalLI = &LIS->getInterval(LocalReg);
     if (!LocalLI->isLocal(RegionBeginIdx, RegionEndIdx))
       return;
@@ -2137,7 +2150,7 @@ void GenericSchedulerBase::setPolicy(CandPolicy &Policy,
                                      bool IsPostRA,
                                      SchedBoundary &CurrZone,
                                      SchedBoundary *OtherZone) {
-  // Apply preemptive heuristics based on the the total latency and resources
+  // Apply preemptive heuristics based on the total latency and resources
   // inside and outside this zone. Potential stalls should be considered before
   // following this policy.
 
@@ -2599,8 +2612,7 @@ void GenericScheduler::tryCandidate(SchedCandidate &Cand,
                  TryCand, Cand, PhysRegCopy))
     return;
 
-  // Avoid exceeding the target's limit. If signed PSetID is negative, it is
-  // invalid; convert it to INT_MAX to give it lowest priority.
+  // Avoid exceeding the target's limit.
   if (DAG->isTrackingPressure() && tryPressure(TryCand.RPDelta.Excess,
                                                Cand.RPDelta.Excess,
                                                TryCand, Cand, RegExcess))

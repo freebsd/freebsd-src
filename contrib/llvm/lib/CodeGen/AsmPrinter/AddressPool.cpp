@@ -24,12 +24,12 @@ unsigned AddressPool::getIndex(const MCSymbol *Sym, bool TLS) {
 }
 
 // Emit addresses into the section given.
-void AddressPool::emit(AsmPrinter &Asm, const MCSection *AddrSection) {
+void AddressPool::emit(AsmPrinter &Asm, MCSection *AddrSection) {
   if (Pool.empty())
     return;
 
   // Start the dwarf addr section.
-  Asm.OutStreamer.SwitchSection(AddrSection);
+  Asm.OutStreamer->SwitchSection(AddrSection);
 
   // Order the address pool entries by ID
   SmallVector<const MCExpr *, 64> Entries(Pool.size());
@@ -38,8 +38,8 @@ void AddressPool::emit(AsmPrinter &Asm, const MCSection *AddrSection) {
     Entries[I.second.Number] =
         I.second.TLS
             ? Asm.getObjFileLowering().getDebugThreadLocalSymbol(I.first)
-            : MCSymbolRefExpr::Create(I.first, Asm.OutContext);
+            : MCSymbolRefExpr::create(I.first, Asm.OutContext);
 
   for (const MCExpr *Entry : Entries)
-    Asm.OutStreamer.EmitValue(Entry, Asm.getDataLayout().getPointerSize());
+    Asm.OutStreamer->EmitValue(Entry, Asm.getDataLayout().getPointerSize());
 }

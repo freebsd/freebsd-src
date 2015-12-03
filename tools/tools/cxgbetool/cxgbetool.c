@@ -28,29 +28,30 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <ctype.h>
-#include <errno.h>
-#include <err.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdio.h>
+#include <sys/param.h>
 #include <sys/ioctl.h>
-#include <limits.h>
 #include <sys/mman.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <net/ethernet.h>
-#include <netinet/in.h>
+
 #include <arpa/inet.h>
+#include <net/ethernet.h>
 #include <net/sff8472.h>
+#include <netinet/in.h>
+
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "t4_ioctl.h"
 
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 #define in_range(val, lo, hi) ( val < 0 || (val <= hi && val >= lo))
 #define	max(x, y) ((x) > (y) ? (x) : (y))
 
@@ -345,7 +346,7 @@ dump_regs_t4(int argc, const char *argv[], const uint32_t *regs)
 		T4_MODREGS(xgmac)
 	};
 
-	return dump_regs_table(argc, argv, regs, t4_mod, ARRAY_SIZE(t4_mod));
+	return dump_regs_table(argc, argv, regs, t4_mod, nitems(t4_mod));
 }
 #undef T4_MODREGS
 
@@ -360,8 +361,7 @@ dump_regs_t4vf(int argc, const char *argv[], const uint32_t *regs)
 		{ "cim", t4vf_cim_regs },
 	};
 
-	return dump_regs_table(argc, argv, regs, t4vf_mod,
-	    ARRAY_SIZE(t4vf_mod));
+	return dump_regs_table(argc, argv, regs, t4vf_mod, nitems(t4vf_mod));
 }
 
 #define T5_MODREGS(name) { #name, t5_##name##_regs }
@@ -398,7 +398,7 @@ dump_regs_t5(int argc, const char *argv[], const uint32_t *regs)
 		{ "hma", t5_hma_t5_regs }
 	};
 
-	return dump_regs_table(argc, argv, regs, t5_mod, ARRAY_SIZE(t5_mod));
+	return dump_regs_table(argc, argv, regs, t5_mod, nitems(t5_mod));
 }
 #undef T5_MODREGS
 

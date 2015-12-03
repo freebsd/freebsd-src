@@ -1249,6 +1249,89 @@ ifscript_down()
 	fi
 }
 
+# wlan_up
+#	Create IEEE802.11 interfaces.
+#
+wlan_up()
+{
+	local _list _iflist parent child_wlans child create_args debug_flags
+	_list=
+	_iflist=$*
+
+	# Parse wlans_$parent="$child ..."
+	for parent in `set | sed -nE 's/wlans_([a-z]+[0-9]+)=.*/\1/p'`; do
+		child_wlans=`get_if_var $parent wlans_IF`
+		for child in ${child_wlans}; do
+			create_args="wlandev $parent `get_if_var $child create_args_IF`"
+			debug_flags="`get_if_var $child wlandebug_IF`"
+			case $_iflist in
+			""|$child|$child\ *|*\ $child\ *|*\ $child)	;;
+			*)	continue ;;
+			esac
+			# Skip if ${child} already exists.
+			if ${IFCONFIG_CMD} $child > /dev/null 2>&1; then
+				continue
+			fi
+			if expr $child : 'wlan[0-9][0-9]*$' >/dev/null 2>&1; then
+				${IFCONFIG_CMD} $child create ${create_args} && cfg=0
+				if [ $? -eq 0 ]; then
+					_list="$_list $child"
+				fi
+				if [ -n "${debug_flags}" ]; then
+					wlandebug -i $child ${debug_flags}
+				fi
+			else
+				i=`${IFCONFIG_CMD} wlan create ${create_args}`
+				# XXXGL: wlandebug should accept any name
+				if [ -n "${debug_flags}" ]; then
+					wlandebug -i $i ${debug_flags}
+				fi
+				${IFCONFIG_CMD} $i name $child && cfg=0
+				if [ $? -eq 0 ]; then
+					_list="$_list $child"
+				fi
+			fi
+		done
+	done
+	if [ -n "${_list# }" ]; then
+		echo "Created wlan(4) interfaces: ${_list# }."
+	fi
+	debug "Created wlan(4)s: ${_list# }"
+}
+
+# wlan_down
+#	Destroy IEEE802.11 interfaces.
+#
+wlan_down()
+{
+	local _list _iflist parent child_wlans child
+	_list=
+	_iflist=$*
+
+	# Parse wlans_$parent="$child ..."
+	for parent in `set | sed -nE 's/wlans_([a-z]+[0-9]+)=.*/\1/p'`; do
+		child_wlans=`get_if_var $parent wlans_IF`
+		for child in ${child_wlans}; do
+			case $_iflist in
+			""|$child|$child\ *|*\ $child\ *|*\ $child)	;;
+			*)	continue ;;
+			esac
+			# Skip if ${child} doesn't exists.
+			if ! ${IFCONFIG_CMD} $child > /dev/null 2>&1; then
+				continue
+			fi
+			${IFCONFIG_CMD} -n ${child} destroy
+			if [ $? -eq 0 ]; then
+				_list="$_list $child"
+			fi
+		done
+	done
+	if [ -n "${_list# }" ]; then
+		echo "Destroyed wlan(4) interfaces: ${_list# }."
+	fi
+	debug "Destroyed wlan(4)s: ${_list# }"
+}
+
 # clone_up
 #	Create cloneable interfaces.
 #
@@ -1397,6 +1480,9 @@ clone_down()
 # childif_create
 #	Create and configure child interfaces.  Return 0 if child
 #	interfaces are created.
+#
+#	XXXGL: the wlan code in this functions is superseded by wlan_up(),
+#	and will go away soon.
 #
 childif_create()
 {

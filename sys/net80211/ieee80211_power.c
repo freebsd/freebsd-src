@@ -418,7 +418,6 @@ pwrsave_flushq(struct ieee80211_node *ni)
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_psq_head *qhead;
-	struct ifnet *parent, *ifp;
 	struct mbuf *parent_q = NULL, *ifp_q = NULL;
 	struct mbuf *m;
 
@@ -429,59 +428,46 @@ pwrsave_flushq(struct ieee80211_node *ni)
 	qhead = &psq->psq_head[0];	/* 802.11 frames */
 	if (qhead->head != NULL) {
 		/* XXX could dispatch through vap and check M_ENCAP */
-		parent = vap->iv_ic->ic_ifp;
 		/* XXX need different driver interface */
 		/* XXX bypasses q max and OACTIVE */
 		parent_q = qhead->head;
 		qhead->head = qhead->tail = NULL;
 		qhead->len = 0;
-	} else
-		parent = NULL;
+	}
 
 	qhead = &psq->psq_head[1];	/* 802.3 frames */
 	if (qhead->head != NULL) {
-		ifp = vap->iv_ifp;
 		/* XXX need different driver interface */
 		/* XXX bypasses q max and OACTIVE */
 		ifp_q = qhead->head;
 		qhead->head = qhead->tail = NULL;
 		qhead->len = 0;
-	} else
-		ifp = NULL;
+	}
 	psq->psq_len = 0;
 	IEEE80211_PSQ_UNLOCK(psq);
 
 	/* NB: do this outside the psq lock */
 	/* XXX packets might get reordered if parent is OACTIVE */
 	/* parent frames, should be encapsulated */
-	if (parent != NULL) {
-		while (parent_q != NULL) {
-			m = parent_q;
-			parent_q = m->m_nextpkt;
-			m->m_nextpkt = NULL;
-			/* must be encapsulated */
-			KASSERT((m->m_flags & M_ENCAP),
-			    ("%s: parentq with non-M_ENCAP frame!\n",
-			    __func__));
-			/*
-			 * For encaped frames, we need to free the node
-			 * reference upon failure.
-			 */
-			if (ieee80211_parent_xmitpkt(ic, m) != 0)
-				ieee80211_free_node(ni);
-		}
+	while (parent_q != NULL) {
+		m = parent_q;
+		parent_q = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+		/* must be encapsulated */
+		KASSERT((m->m_flags & M_ENCAP),
+		    ("%s: parentq with non-M_ENCAP frame!\n",
+		    __func__));
+		(void) ieee80211_parent_xmitpkt(ic, m);
 	}
 
 	/* VAP frames, aren't encapsulated */
-	if (ifp != NULL) {
-		while (ifp_q != NULL) {
-			m = ifp_q;
-			ifp_q = m->m_nextpkt;
-			m->m_nextpkt = NULL;
-			KASSERT((!(m->m_flags & M_ENCAP)),
-			    ("%s: vapq with M_ENCAP frame!\n", __func__));
-			(void) ieee80211_vap_xmitpkt(vap, m);
-		}
+	while (ifp_q != NULL) {
+		m = ifp_q;
+		ifp_q = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+		KASSERT((!(m->m_flags & M_ENCAP)),
+		    ("%s: vapq with M_ENCAP frame!\n", __func__));
+		(void) ieee80211_vap_xmitpkt(vap, m);
 	}
 }
 

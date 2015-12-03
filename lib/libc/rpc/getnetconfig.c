@@ -147,7 +147,7 @@ nc_key_init(void)
 #define MAXNETCONFIGLINE    1000
 
 static int *
-__nc_error()
+__nc_error(void)
 {
 	static int nc_error = 0;
 	int *nc_addr;
@@ -164,8 +164,7 @@ __nc_error()
 	if ((nc_addr = (int *)thr_getspecific(nc_key)) == NULL) {
 		nc_addr = (int *)malloc(sizeof (int));
 		if (thr_setspecific(nc_key, (void *) nc_addr) != 0) {
-			if (nc_addr)
-				free(nc_addr);
+			free(nc_addr);
 			return (&nc_error);
 		}
 		*nc_addr = 0;
@@ -194,7 +193,7 @@ __nc_error()
  * the netconfig database is not present).
  */
 void *
-setnetconfig()
+setnetconfig(void)
 {
     struct netconfig_vars *nc_vars;
 
@@ -240,8 +239,7 @@ setnetconfig()
  */
 
 struct netconfig *
-getnetconfig(handlep)
-void *handlep;
+getnetconfig(void *handlep)
 {
     struct netconfig_vars *ncp = (struct netconfig_vars *)handlep;
     char *stringp;		/* tmp string pointer */
@@ -378,8 +376,7 @@ void *handlep;
  * previously).
  */
 int
-endnetconfig(handlep)
-void *handlep;
+endnetconfig(void *handlep)
 {
     struct netconfig_vars *nc_handlep = (struct netconfig_vars *)handlep;
 
@@ -419,7 +416,7 @@ void *handlep;
 
     while (q != NULL) {
 	p = q->next;
-	if (q->ncp->nc_lookups != NULL) free(q->ncp->nc_lookups);
+	free(q->ncp->nc_lookups);
 	free(q->ncp);
 	free(q->linep);
 	free(q);
@@ -444,8 +441,7 @@ void *handlep;
  */
 
 struct netconfig *
-getnetconfigent(netid)
-	const char *netid;
+getnetconfigent(const char *netid)
 {
     FILE *file;		/* NETCONFIG db's file pointer */
     char *linep;	/* holds current netconfig line */
@@ -536,13 +532,11 @@ getnetconfigent(netid)
  */
 
 void
-freenetconfigent(netconfigp)
-	struct netconfig *netconfigp;
+freenetconfigent(struct netconfig *netconfigp)
 {
     if (netconfigp != NULL) {
 	free(netconfigp->nc_netid);	/* holds all netconfigp's strings */
-	if (netconfigp->nc_lookups != NULL)
-	    free(netconfigp->nc_lookups);
+	free(netconfigp->nc_lookups);
 	free(netconfigp);
     }
     return;
@@ -558,12 +552,13 @@ freenetconfigent(netconfigp)
  * Note that we modify stringp (putting NULLs after tokens) and
  * we set the ncp's string field pointers to point to these tokens within
  * stringp.
+ *
+ * stringp - string to parse
+ * ncp     - where to put results
  */
 
 static int
-parse_ncp(stringp, ncp)
-char *stringp;		/* string to parse */
-struct netconfig *ncp;	/* where to put results */
+parse_ncp(char *stringp, struct netconfig *ncp)
 {
     char    *tokenp;	/* for processing tokens */
     char    *lasts;
@@ -631,8 +626,7 @@ struct netconfig *ncp;	/* where to put results */
     } else {
 	char *cp;	    /* tmp string */
 
-	if (ncp->nc_lookups != NULL)	/* from last visit */
-	    free(ncp->nc_lookups);
+	free(ncp->nc_lookups); /* from last visit */
 	ncp->nc_lookups = NULL;
 	ncp->nc_nlookups = 0;
 	while ((cp = tokenp) != NULL) {
@@ -655,7 +649,7 @@ struct netconfig *ncp;	/* where to put results */
  * Returns a string describing the reason for failure.
  */
 char *
-nc_sperror()
+nc_sperror(void)
 {
     const char *message;
 
@@ -686,8 +680,7 @@ nc_sperror()
  * Prints a message onto standard error describing the reason for failure.
  */
 void
-nc_perror(s)
-	const char *s;
+nc_perror(const char *s)
 {
     fprintf(stderr, "%s: %s\n", s, nc_sperror());
 }
@@ -696,8 +689,7 @@ nc_perror(s)
  * Duplicates the matched netconfig buffer.
  */
 static struct netconfig *
-dup_ncp(ncp)
-struct netconfig	*ncp;
+dup_ncp(struct netconfig *ncp)
 {
     struct netconfig	*p;
     char	*tmp;

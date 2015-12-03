@@ -52,8 +52,6 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
 	.sv_table	= sysent,
 	.sv_mask	= 0,
-	.sv_sigsize	= 0,
-	.sv_sigtbl	= NULL,
 	.sv_errsize	= 0,
 	.sv_errtbl	= NULL,
 	.sv_transtrap	= NULL,
@@ -61,7 +59,6 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_sendsig	= sendsig,
 	.sv_sigcode	= sigcode,
 	.sv_szsigcode	= &szsigcode,
-	.sv_prepsyscall	= NULL,
 	.sv_name	= "FreeBSD ELF32",
 	.sv_coredump	= __elfN(coredump),
 	.sv_imgact_try	= NULL,
@@ -164,6 +161,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	Elf_Word rtype, symidx;
 	const Elf_Rel *rel;
 	const Elf_Rela *rela;
+	int error;
 
 	switch (type) {
 	case ELF_RELOC_REL:
@@ -199,8 +197,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			break;
 
 		case R_ARM_ABS32:
-			addr = lookup(lf, symidx, 1);
-			if (addr == 0)
+			error = lookup(lf, symidx, 1, &addr);
+			if (error != 0)
 				return -1;
 			store_ptr(where, addr + load_ptr(where));
 			break;
@@ -215,8 +213,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			break;
 
 		case R_ARM_JUMP_SLOT:
-			addr = lookup(lf, symidx, 1);
-			if (addr) {
+			error = lookup(lf, symidx, 1, &addr);
+			if (error == 0) {
 				store_ptr(where, addr);
 				return (0);
 			}

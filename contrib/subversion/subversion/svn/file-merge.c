@@ -51,6 +51,10 @@
 #include <fcntl.h>
 #include <stdlib.h>
 
+#if defined(HAVE_TERMIOS_H)
+#include <termios.h>
+#endif
+
 /* Baton for functions in this file which implement svn_diff_output_fns_t. */
 struct file_merge_baton {
   /* The files being merged. */
@@ -75,12 +79,12 @@ struct file_merge_baton {
   /* The client configuration hash. */
   apr_hash_t *config;
 
-  /* Wether the merge should be aborted. */
+  /* Whether the merge should be aborted. */
   svn_boolean_t abort_merge;
 
   /* Pool for temporary allocations. */
   apr_pool_t *scratch_pool;
-} file_merge_baton;
+};
 
 /* Copy LEN lines from SOURCE_FILE to the MERGED_FILE, starting at
  * line START. The CURRENT_LINE is the current line in the source file.
@@ -490,7 +494,7 @@ edit_chunk(apr_array_header_t **merged_chunk,
         return svn_error_create(SVN_ERR_IO_WRITE_ERROR, NULL,
                                 _("Could not write data to temporary file"));
     }
-  SVN_ERR(svn_io_file_flush_to_disk(temp_file, scratch_pool));
+  SVN_ERR(svn_io_file_flush(temp_file, scratch_pool));
 
   err = svn_cmdline__edit_file_externally(temp_file_name, editor_cmd,
                                           config, scratch_pool);
@@ -853,7 +857,8 @@ static svn_diff_output_fns_t file_merge_diff_output_fns = {
 };
 
 svn_error_t *
-svn_cl__merge_file(const char *base_path,
+svn_cl__merge_file(svn_boolean_t *remains_in_conflict,
+                   const char *base_path,
                    const char *their_path,
                    const char *my_path,
                    const char *merged_path,
@@ -861,7 +866,8 @@ svn_cl__merge_file(const char *base_path,
                    const char *path_prefix,
                    const char *editor_cmd,
                    apr_hash_t *config,
-                   svn_boolean_t *remains_in_conflict,
+                   svn_cancel_func_t cancel_func,
+                   void *cancel_baton,
                    apr_pool_t *scratch_pool)
 {
   svn_diff_t *diff;
@@ -918,7 +924,8 @@ svn_cl__merge_file(const char *base_path,
   fmb.abort_merge = FALSE;
   fmb.scratch_pool = scratch_pool;
 
-  SVN_ERR(svn_diff_output(diff, &fmb, &file_merge_diff_output_fns));
+  SVN_ERR(svn_diff_output2(diff, &fmb, &file_merge_diff_output_fns,
+                           cancel_func, cancel_baton));
 
   SVN_ERR(svn_io_file_close(original_file, scratch_pool));
   SVN_ERR(svn_io_file_close(modified_file, scratch_pool));

@@ -1642,14 +1642,12 @@ static int
 vtnet_rxq_merged_eof(struct vtnet_rxq *rxq, struct mbuf *m_head, int nbufs)
 {
 	struct vtnet_softc *sc;
-	struct ifnet *ifp;
 	struct virtqueue *vq;
 	struct mbuf *m, *m_tail;
 	int len;
 
 	sc = rxq->vtnrx_sc;
 	vq = rxq->vtnrx_vq;
-	ifp = sc->vtnet_ifp;
 	m_tail = m_head;
 
 	while (--nbufs > 0) {
@@ -3645,10 +3643,8 @@ vtnet_set_rx_process_limit(struct vtnet_softc *sc)
 static void
 vtnet_set_tx_intr_threshold(struct vtnet_softc *sc)
 {
-	device_t dev;
 	int size, thresh;
 
-	dev = sc->vtnet_dev;
 	size = virtqueue_size(sc->vtnet_txqs[0].vtntx_vq);
 
 	/*

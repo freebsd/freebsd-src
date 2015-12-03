@@ -110,7 +110,7 @@ namespace {
   };
 }
 
-static void AppendTypeQualList(raw_ostream &OS, unsigned TypeQuals) {
+static void AppendTypeQualList(raw_ostream &OS, unsigned TypeQuals, bool C99) {
   bool appendSpace = false;
   if (TypeQuals & Qualifiers::Const) {
     OS << "const";
@@ -123,7 +123,11 @@ static void AppendTypeQualList(raw_ostream &OS, unsigned TypeQuals) {
   }
   if (TypeQuals & Qualifiers::Restrict) {
     if (appendSpace) OS << ' ';
-    OS << "restrict";
+    if (C99) {
+      OS << "restrict";
+    } else {
+      OS << "__restrict";
+    }
   }
 }
 
@@ -432,7 +436,7 @@ void TypePrinter::printConstantArrayAfter(const ConstantArrayType *T,
                                           raw_ostream &OS) {
   OS << '[';
   if (T->getIndexTypeQualifiers().hasQualifiers()) {
-    AppendTypeQualList(OS, T->getIndexTypeCVRQualifiers());
+    AppendTypeQualList(OS, T->getIndexTypeCVRQualifiers(), Policy.LangOpts.C99);
     OS << ' ';
   }
 
@@ -465,7 +469,7 @@ void TypePrinter::printVariableArrayAfter(const VariableArrayType *T,
                                           raw_ostream &OS) {
   OS << '[';
   if (T->getIndexTypeQualifiers().hasQualifiers()) {
-    AppendTypeQualList(OS, T->getIndexTypeCVRQualifiers());
+    AppendTypeQualList(OS, T->getIndexTypeCVRQualifiers(), Policy.LangOpts.C99);
     OS << ' ';
   }
 
@@ -685,9 +689,6 @@ void TypePrinter::printFunctionProtoAfter(const FunctionProtoType *T,
     case CC_AAPCS_VFP:
       OS << " __attribute__((pcs(\"aapcs-vfp\")))";
       break;
-    case CC_PnaclCall:
-      OS << " __attribute__((pnaclcall))";
-      break;
     case CC_IntelOclBicc:
       OS << " __attribute__((intel_ocl_bicc))";
       break;
@@ -696,6 +697,10 @@ void TypePrinter::printFunctionProtoAfter(const FunctionProtoType *T,
       break;
     case CC_X86_64SysV:
       OS << " __attribute__((sysv_abi))";
+      break;
+    case CC_SpirFunction:
+    case CC_SpirKernel:
+      // Do nothing. These CCs are not available as attributes.
       break;
     }
   }
@@ -708,7 +713,7 @@ void TypePrinter::printFunctionProtoAfter(const FunctionProtoType *T,
 
   if (unsigned quals = T->getTypeQuals()) {
     OS << ' ';
-    AppendTypeQualList(OS, quals);
+    AppendTypeQualList(OS, quals, Policy.LangOpts.C99);
   }
 
   switch (T->getRefQualifier()) {
@@ -1124,6 +1129,9 @@ void TypePrinter::printAttributedBefore(const AttributedType *T,
       T->getAttrKind() == AttributedType::attr_objc_ownership)
     return printBefore(T->getEquivalentType(), OS);
 
+  if (T->getAttrKind() == AttributedType::attr_objc_kindof)
+    OS << "__kindof ";
+
   printBefore(T->getModifiedType(), OS);
 
   if (T->isMSTypeSpec()) {
@@ -1136,6 +1144,21 @@ void TypePrinter::printAttributedBefore(const AttributedType *T,
     }
     spaceBeforePlaceHolder(OS);
   }
+
+  // Print nullability type specifiers.
+  if (T->getAttrKind() == AttributedType::attr_nonnull ||
+      T->getAttrKind() == AttributedType::attr_nullable ||
+      T->getAttrKind() == AttributedType::attr_null_unspecified) {
+    if (T->getAttrKind() == AttributedType::attr_nonnull)
+      OS << " _Nonnull";
+    else if (T->getAttrKind() == AttributedType::attr_nullable)
+      OS << " _Nullable";
+    else if (T->getAttrKind() == AttributedType::attr_null_unspecified)
+      OS << " _Null_unspecified";
+    else
+      llvm_unreachable("unhandled nullability");
+    spaceBeforePlaceHolder(OS);
+  }
 }
 
 void TypePrinter::printAttributedAfter(const AttributedType *T,
@@ -1145,15 +1168,40 @@ void TypePrinter::printAttributedAfter(const AttributedType *T,
       T->getAttrKind() == AttributedType::attr_objc_ownership)
     return printAfter(T->getEquivalentType(), OS);
 
+  if (T->getAttrKind() == AttributedType::attr_objc_kindof)
+    return;
+
   // TODO: not all attributes are GCC-style attributes.
   if (T->isMSTypeSpec())
     return;
+
+  // Nothing to print after.
+  if (T->getAttrKind() == AttributedType::attr_nonnull ||
+      T->getAttrKind() == AttributedType::attr_nullable ||
+      T->getAttrKind() == AttributedType::attr_null_unspecified)
+    return printAfter(T->getModifiedType(), OS);
 
   // If this is a calling convention attribute, don't print the implicit CC from
   // the modified type.
   SaveAndRestore<bool> MaybeSuppressCC(InsideCCAttribute, T->isCallingConv());
 
   printAfter(T->getModifiedType(), OS);
+
+  // Print nullability type specifiers that occur after
+  if (T->getAttrKind() == AttributedType::attr_nonnull ||
+      T->getAttrKind() == AttributedType::attr_nullable ||
+      T->getAttrKind() == AttributedType::attr_null_unspecified) {
+    if (T->getAttrKind() == AttributedType::attr_nonnull)
+      OS << " _Nonnull";
+    else if (T->getAttrKind() == AttributedType::attr_nullable)
+      OS << " _Nullable";
+    else if (T->getAttrKind() == AttributedType::attr_null_unspecified)
+      OS << " _Null_unspecified";
+    else
+      llvm_unreachable("unhandled nullability");
+
+    return;
+  }
 
   OS << " __attribute__((";
   switch (T->getAttrKind()) {
@@ -1253,7 +1301,6 @@ void TypePrinter::printAttributedAfter(const AttributedType *T,
    OS << ')';
    break;
   }
-  case AttributedType::attr_pnaclcall: OS << "pnaclcall"; break;
   case AttributedType::attr_inteloclbicc: OS << "inteloclbicc"; break;
   }
   OS << "))";
@@ -1269,59 +1316,61 @@ void TypePrinter::printObjCInterfaceAfter(const ObjCInterfaceType *T,
 
 void TypePrinter::printObjCObjectBefore(const ObjCObjectType *T,
                                         raw_ostream &OS) {
-  if (T->qual_empty())
+  if (T->qual_empty() && T->isUnspecializedAsWritten() &&
+      !T->isKindOfTypeAsWritten())
     return printBefore(T->getBaseType(), OS);
 
+  if (T->isKindOfTypeAsWritten())
+    OS << "__kindof ";
+
   print(T->getBaseType(), OS, StringRef());
-  OS << '<';
-  bool isFirst = true;
-  for (const auto *I : T->quals()) {
-    if (isFirst)
-      isFirst = false;
-    else
-      OS << ',';
-    OS << I->getName();
+
+  if (T->isSpecializedAsWritten()) {
+    bool isFirst = true;
+    OS << '<';
+    for (auto typeArg : T->getTypeArgsAsWritten()) {
+      if (isFirst)
+        isFirst = false;
+      else
+        OS << ",";
+
+      print(typeArg, OS, StringRef());
+    }
+    OS << '>';
   }
-  OS << '>';
+
+  if (!T->qual_empty()) {
+    bool isFirst = true;
+    OS << '<';
+    for (const auto *I : T->quals()) {
+      if (isFirst)
+        isFirst = false;
+      else
+        OS << ',';
+      OS << I->getName();
+    }
+    OS << '>';
+  }
+
   spaceBeforePlaceHolder(OS);
 }
 void TypePrinter::printObjCObjectAfter(const ObjCObjectType *T,
                                         raw_ostream &OS) {
-  if (T->qual_empty())
+  if (T->qual_empty() && T->isUnspecializedAsWritten() &&
+      !T->isKindOfTypeAsWritten())
     return printAfter(T->getBaseType(), OS);
 }
 
 void TypePrinter::printObjCObjectPointerBefore(const ObjCObjectPointerType *T, 
                                                raw_ostream &OS) {
-  T->getPointeeType().getLocalQualifiers().print(OS, Policy,
-                                                /*appendSpaceIfNonEmpty=*/true);
+  printBefore(T->getPointeeType(), OS);
 
-  assert(!T->isObjCSelType());
-
-  if (T->isObjCIdType() || T->isObjCQualifiedIdType())
-    OS << "id";
-  else if (T->isObjCClassType() || T->isObjCQualifiedClassType())
-    OS << "Class";
-  else
-    OS << T->getInterfaceDecl()->getName();
-  
-  if (!T->qual_empty()) {
-    OS << '<';
-    for (ObjCObjectPointerType::qual_iterator I = T->qual_begin(), 
-                                              E = T->qual_end();
-         I != E; ++I) {
-      OS << (*I)->getName();
-      if (I+1 != E)
-        OS << ',';
-    }
-    OS << '>';
-  }
-  
+  // If we need to print the pointer, print it now.
   if (!T->isObjCIdType() && !T->isObjCQualifiedIdType() &&
       !T->isObjCClassType() && !T->isObjCQualifiedClassType()) {
-    OS << " *"; // Don't forget the implicit pointer.
-  } else {
-    spaceBeforePlaceHolder(OS);
+    if (HasEmptyPlaceHolder)
+      OS << ' ';
+    OS << '*';
   }
 }
 void TypePrinter::printObjCObjectPointerAfter(const ObjCObjectPointerType *T, 
@@ -1473,7 +1522,7 @@ void Qualifiers::print(raw_ostream &OS, const PrintingPolicy& Policy,
 
   unsigned quals = getCVRQualifiers();
   if (quals) {
-    AppendTypeQualList(OS, quals);
+    AppendTypeQualList(OS, quals, Policy.LangOpts.C99);
     addSpace = true;
   }
   if (unsigned addrspace = getAddressSpace()) {

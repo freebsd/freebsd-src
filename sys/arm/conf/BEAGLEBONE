@@ -28,11 +28,6 @@ include 	"../ti/am335x/std.am335x"
 
 makeoptions	MODULES_EXTRA="dtb/am335x am335x_dmtpps"
 
-# DTrace support
-options 	KDTRACE_HOOKS		# Kernel DTrace hooks
-options 	DDB_CTF			# all architectures - kernel ELF linker loads CTF data
-makeoptions	WITH_CTF=1
-
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	PLATFORM
@@ -90,6 +85,7 @@ device		random			# Entropy device
 # GPIO
 device		gpio
 device		gpioled
+device		gpiobacklight
 
 # ADC support
 device		ti_adc
@@ -105,6 +101,9 @@ device		ti_pruss
 
 # Mailbox support
 device		ti_mbox
+
+# PMU support (for CCNT).
+device		pmu
 
 # USB support
 device		usb

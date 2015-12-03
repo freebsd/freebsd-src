@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2014
+.Dd October 11, 2015
 .Dt DA 4
 .Os
 .Sh NAME
@@ -133,8 +133,7 @@ variables and
 .Xr loader 8
 tunables:
 .Bl -tag -width 12
-.It kern.cam.da.retry_count
-.Pp
+.It Va kern.cam.da.retry_count
 This variable determines how many times the
 .Nm
 driver will retry a READ or WRITE command.
@@ -143,8 +142,7 @@ the
 .Nm
 driver dump routine.
 This value currently defaults to 4.
-.It kern.cam.da.default_timeout
-.Pp
+.It Va kern.cam.da.default_timeout
 This variable determines how long the
 .Nm
 driver will wait before timing out an outstanding command.
@@ -152,20 +150,31 @@ The units for this value are seconds, and the default is currently 60
 seconds.
 .It Va kern.cam.sort_io_queue
 .It Va kern.cam.da. Ns Ar X Ns Va .sort_io_queue
-.Pp
 These variables determine whether request queue should be sorted trying
 to optimize head seeks.
 Set to 1 to enable sorting, 0 to disable, -1 to leave it as-is.
 The default is sorting enabled for HDDs and disabled for SSDs.
-.It kern.cam.da.%d.minimum_cmd_size
-.Pp
+.It Va kern.cam.da. Ns Ar X Ns Va .delete_method
+This variable specifies method to handle BIO_DELETE requests:
+.Bl -tag
+.It ATA_TRIM
+ATA TRIM via ATA COMMAND PASS THROUGH command,
+.It UNMAP
+UNMAP command,
+.It WS16
+WRITE SAME(16) command with UNMAP flag,
+.It WS10
+WRITE SAME(10) command with UNMAP flag,
+.It ZERO
+WRITE SAME(10) command without UNMAP flag,
+.It DISABLE
+disable BIO_DELETE support.
+.El
+.It Va kern.cam.da. Ns Ar X Ns Va .minimum_cmd_size
 This variable determines what the minimum READ/WRITE CDB size is for a
 given
 .Nm
 unit.
-(The %d above denotes the unit number of the
-.Nm
-driver instance, e.g.\& 1, 2, 4, 8, etc.)
 Valid minimum command size values are 6, 10, 12 and 16 bytes.
 The default is 6 bytes.
 .Pp
@@ -205,8 +214,7 @@ None.
 .Xr ada 4 ,
 .Xr cam 4 ,
 .Xr geom 4 ,
-.Xr bsdlabel 8 ,
-.Xr fdisk 8
+.Xr gpart 8
 .Sh HISTORY
 The
 .Nm

@@ -105,7 +105,7 @@ parse_signal(const char *str)
 	int sig, i;
 	const char *errstr;
 
-	sig = strtonum(str, 0, sys_nsig, &errstr);
+	sig = strtonum(str, 1, sys_nsig - 1, &errstr);
 
 	if (errstr == NULL)
 		return (sig);

@@ -221,9 +221,10 @@ eb_create(int size)
 {
 	struct eb_objects *eb;
 
-	eb = malloc(sizeof(*eb), DRM_I915_GEM, M_WAITOK | M_ZERO);
+	eb = malloc(sizeof(*eb),
+		     DRM_I915_GEM, M_WAITOK | M_ZERO);
 	eb->buckets = hashinit(size, DRM_I915_GEM, &eb->hashmask);
-	return (eb);
+	return eb;
 }
 
 static void
@@ -250,9 +251,10 @@ eb_get_object(struct eb_objects *eb, unsigned long handle)
 
 	LIST_FOREACH(obj, &eb->buckets[handle & eb->hashmask], exec_node) {
 		if (obj->exec_handle == handle)
-			return (obj);
+			return obj;
 	}
-	return (NULL);
+
+	return NULL;
 }
 
 static void
@@ -374,7 +376,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 
 	/* We can't wait for rendering with pagefaults disabled */
 	if (obj->active && (curthread->td_pflags & TDP_NOFAULTING) != 0)
-		return (-EFAULT);
+		return -EFAULT;
 
 	reloc->delta += target_offset;
 	if (use_cpu_reloc(obj)) {
@@ -389,7 +391,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		sf = sf_buf_alloc(obj->pages[OFF_TO_IDX(reloc->offset)],
 		    SFB_NOWAIT);
 		if (sf == NULL)
-			return (-ENOMEM);
+			return -ENOMEM;
 		vaddr = (void *)sf_buf_kva(sf);
 		*(uint32_t *)(vaddr + page_offset) = reloc->delta;
 		sf_buf_free(sf);
@@ -405,10 +407,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		if (ret)
 			return ret;
 
-		/*
-		 * Map the page containing the relocation we're going
-		 * to perform.
-		 */
+		/* Map the page containing the relocation we're going to perform.  */
 		reloc->offset += obj->gtt_offset;
 		reloc_page = pmap_mapdev_attr(dev->agp->base + (reloc->offset &
 		    ~PAGE_MASK), PAGE_SIZE, PAT_WRITE_COMBINING);
@@ -436,7 +435,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 
 static int
 i915_gem_execbuffer_relocate_object(struct drm_i915_gem_object *obj,
-    struct eb_objects *eb)
+				    struct eb_objects *eb)
 {
 #define N_RELOC(x) ((x) / sizeof(struct drm_i915_gem_relocation_entry))
 	struct drm_i915_gem_relocation_entry stack_reloc[N_RELOC(512)];
@@ -459,7 +458,7 @@ i915_gem_execbuffer_relocate_object(struct drm_i915_gem_object *obj,
 
 		do {
 			u64 offset = r->presumed_offset;
- 
+
 			ret = i915_gem_execbuffer_relocate_entry(obj, eb, r);
 			if (ret)
 				return ret;
@@ -475,13 +474,15 @@ i915_gem_execbuffer_relocate_object(struct drm_i915_gem_object *obj,
 			r++;
 		} while (--count);
 	}
+
+	return 0;
 #undef N_RELOC
-	return (0);
 }
 
 static int
 i915_gem_execbuffer_relocate_object_slow(struct drm_i915_gem_object *obj,
-    struct eb_objects *eb, struct drm_i915_gem_relocation_entry *relocs)
+					 struct eb_objects *eb,
+					 struct drm_i915_gem_relocation_entry *relocs)
 {
 	const struct drm_i915_gem_exec_object2 *entry = obj->exec_entry;
 	int i, ret;
@@ -510,21 +511,21 @@ i915_gem_execbuffer_relocate(struct drm_device *dev,
 	i915_gem_retire_requests(dev);
 
 	ret = 0;
-	pflags = vm_fault_disable_pagefaults();
 	/* This is the fast path and we cannot handle a pagefault whilst
 	 * holding the device lock lest the user pass in the relocations
 	 * contained within a mmaped bo. For in such a case we, the page
 	 * fault handler would call i915_gem_fault() and we would try to
 	 * acquire the device lock again. Obviously this is bad.
 	 */
-
+	pflags = vm_fault_disable_pagefaults();
 	list_for_each_entry(obj, objects, exec_list) {
 		ret = i915_gem_execbuffer_relocate_object(obj, eb);
-		if (ret != 0)
+		if (ret)
 			break;
 	}
 	vm_fault_enable_pagefaults(pflags);
-	return (ret);
+
+	return ret;
 }
 
 #define  __EXEC_OBJECT_HAS_FENCE (1<<31)
@@ -583,9 +584,10 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 {
 	drm_i915_private_t *dev_priv;
 	struct drm_i915_gem_object *obj;
-	int ret, retry;
-	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
 	struct list_head ordered_objects;
+	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
+	int retry;
+	int ret;
 
 	dev_priv = ring->dev->dev_private;
 	INIT_LIST_HEAD(&ordered_objects);
@@ -619,12 +621,11 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 	 *
 	 * 1a. Unbind all objects that do not match the GTT constraints for
 	 *     the execbuffer (fenceable, mappable, alignment etc).
-	 * 1b. Increment pin count for already bound objects and obtain
-	 *     a fence register if required.
+	 * 1b. Increment pin count for already bound objects.
 	 * 2.  Bind new objects.
 	 * 3.  Decrement pin count.
 	 *
-	 * This avoid unnecessary unbinding of later objects in order to makr
+	 * This avoid unnecessary unbinding of later objects in order to make
 	 * room for the earlier objects *unless* we need to defragment.
 	 */
 	retry = 0;
@@ -735,9 +736,12 @@ err:
 
 static int
 i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
-    struct drm_file *file, struct intel_ring_buffer *ring,
-    struct list_head *objects, struct eb_objects *eb,
-    struct drm_i915_gem_exec_object2 *exec, int count)
+				  struct drm_file *file,
+				  struct intel_ring_buffer *ring,
+				  struct list_head *objects,
+				  struct eb_objects *eb,
+				  struct drm_i915_gem_exec_object2 *exec,
+				  int count)
 {
 	struct drm_i915_gem_relocation_entry *reloc;
 	struct drm_i915_gem_object *obj;
@@ -812,7 +816,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	list_for_each_entry(obj, objects, exec_list) {
 		int offset = obj->exec_entry - exec;
 		ret = i915_gem_execbuffer_relocate_object_slow(obj, eb,
-		    reloc + reloc_offset[offset]);
+							       reloc + reloc_offset[offset]);
 		if (ret)
 			goto err;
 	}
@@ -939,13 +943,15 @@ i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)
 
 static int
 validate_exec_list(struct drm_i915_gem_exec_object2 *exec, int count,
-    vm_page_t ***map)
+    vm_page_t ***map, int **maplen)
 {
 	vm_page_t *ma;
 	int i, length, page_count;
 
 	/* XXXKIB various limits checking is missing there */
 	*map = malloc(count * sizeof(*ma), DRM_I915_GEM, M_WAITOK | M_ZERO);
+	*maplen = malloc(count * sizeof(*maplen), DRM_I915_GEM, M_WAITOK |
+	    M_ZERO);
 	for (i = 0; i < count; i++) {
 		/* First check for malicious input causing overflow */
 		if (exec[i].relocation_count >
@@ -953,11 +959,12 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec, int count,
 			return -EINVAL;
 
 		length = exec[i].relocation_count *
-		    sizeof(struct drm_i915_gem_relocation_entry);
+			sizeof(struct drm_i915_gem_relocation_entry);
 		if (length == 0) {
 			(*map)[i] = NULL;
 			continue;
 		}
+
 		/*
 		 * Since both start and end of the relocation region
 		 * may be not aligned on the page boundary, be
@@ -967,12 +974,13 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec, int count,
 		page_count = howmany(length, PAGE_SIZE) + 2;
 		ma = (*map)[i] = malloc(page_count * sizeof(vm_page_t),
 		    DRM_I915_GEM, M_WAITOK | M_ZERO);
-		if (vm_fault_quick_hold_pages(&curproc->p_vmspace->vm_map,
-		    exec[i].relocs_ptr, length, VM_PROT_READ | VM_PROT_WRITE,
-		    ma, page_count) == -1) {
+		(*maplen)[i] = vm_fault_quick_hold_pages(
+		    &curproc->p_vmspace->vm_map, exec[i].relocs_ptr, length,
+		    VM_PROT_READ | VM_PROT_WRITE, ma, page_count);
+		if ((*maplen)[i] == -1) {
 			free(ma, DRM_I915_GEM);
 			(*map)[i] = NULL;
-			return (-EFAULT);
+			return -EFAULT;
 		}
 	}
 
@@ -1053,7 +1061,7 @@ i915_gem_fix_mi_batchbuffer_end(struct drm_i915_gem_object *batch_obj,
 	char *mkva;
 	uint64_t po_r, po_w;
 	uint32_t cmd;
-	
+
 	po_r = batch_obj->base.dev->agp->base + batch_obj->gtt_offset +
 	    batch_start_offset + batch_len;
 	if (batch_len > 0)
@@ -1083,7 +1091,7 @@ DRM_DEBUG("batchbuffer does not end by MI_BATCH_BUFFER_END, overwriting last bo 
 
 int i915_fix_mi_batchbuffer_end = 0;
 
- static int
+static int
 i915_reset_gen7_sol_offsets(struct drm_device *dev,
 			    struct intel_ring_buffer *ring)
 {
@@ -1120,12 +1128,13 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *batch_obj;
 	struct drm_clip_rect *cliprects = NULL;
 	struct intel_ring_buffer *ring;
-	vm_page_t **relocs_ma;
 	u32 ctx_id = i915_execbuffer2_get_context_id(*args);
 	u32 exec_start, exec_len;
 	u32 seqno;
 	u32 mask;
 	int ret, mode, i;
+	vm_page_t **relocs_ma;
+	int *relocs_len;
 
 	if (!i915_gem_check_execbuffer(args)) {
 		DRM_DEBUG("execbuf with invalid offset/length\n");
@@ -1135,9 +1144,10 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (args->batch_len == 0)
 		return (0);
 
-	ret = validate_exec_list(exec, args->buffer_count, &relocs_ma);
-	if (ret != 0)
-		goto pre_struct_lock_err;
+	ret = validate_exec_list(exec, args->buffer_count,
+	    &relocs_ma, &relocs_len);
+	if (ret)
+		goto pre_mutex_err;
 
 	switch (args->flags & I915_EXEC_RING_MASK) {
 	case I915_EXEC_DEFAULT:
@@ -1149,7 +1159,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		if (ctx_id != 0) {
 			DRM_DEBUG("Ring %s doesn't support contexts\n",
 				  ring->name);
-			return -EPERM;
+			ret = -EPERM;
+			goto pre_mutex_err;
 		}
 		break;
 	case I915_EXEC_BLT:
@@ -1157,19 +1168,21 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		if (ctx_id != 0) {
 			DRM_DEBUG("Ring %s doesn't support contexts\n",
 				  ring->name);
-			return -EPERM;
+			ret = -EPERM;
+			goto pre_mutex_err;
 		}
 		break;
 	default:
 		DRM_DEBUG("execbuf with unknown ring: %d\n",
 			  (int)(args->flags & I915_EXEC_RING_MASK));
 		ret = -EINVAL;
-		goto pre_struct_lock_err;
+		goto pre_mutex_err;
 	}
 	if (!intel_ring_initialized(ring)) {
 		DRM_DEBUG("execbuf with invalid ring: %d\n",
 			  (int)(args->flags & I915_EXEC_RING_MASK));
-		return -EINVAL;
+		ret = -EINVAL;
+		goto pre_mutex_err;
 	}
 
 	mode = args->flags & I915_EXEC_CONSTANTS_MASK;
@@ -1182,13 +1195,13 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		    mode != dev_priv->relative_constants_mode) {
 			if (INTEL_INFO(dev)->gen < 4) {
 				ret = -EINVAL;
-				goto pre_struct_lock_err;
+				goto pre_mutex_err;
 			}
 
 			if (INTEL_INFO(dev)->gen > 5 &&
 			    mode == I915_EXEC_CONSTANTS_REL_SURFACE) {
 				ret = -EINVAL;
-				goto pre_struct_lock_err;
+				goto pre_mutex_err;
 			}
 
 			/* The HW changed the meaning on this bit on gen6 */
@@ -1199,63 +1212,64 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	default:
 		DRM_DEBUG("execbuf with unknown constants: %d\n", mode);
 		ret = -EINVAL;
-		goto pre_struct_lock_err;
+		goto pre_mutex_err;
 	}
 
 	if (args->buffer_count < 1) {
 		DRM_DEBUG("execbuf with %d buffers\n", args->buffer_count);
 		ret = -EINVAL;
-		goto pre_struct_lock_err;
+		goto pre_mutex_err;
 	}
 
 	if (args->num_cliprects != 0) {
 		if (ring != &dev_priv->rings[RCS]) {
-	DRM_DEBUG("clip rectangles are only valid with the render ring\n");
+			DRM_DEBUG("clip rectangles are only valid with the render ring\n");
 			ret = -EINVAL;
-			goto pre_struct_lock_err;
+			goto pre_mutex_err;
 		}
 
 		if (INTEL_INFO(dev)->gen >= 5) {
 			DRM_DEBUG("clip rectangles are only valid on pre-gen5\n");
 			ret = -EINVAL;
-			goto pre_struct_lock_err;
+			goto pre_mutex_err;
 		}
 
 		if (args->num_cliprects > UINT_MAX / sizeof(*cliprects)) {
 			DRM_DEBUG("execbuf with %u cliprects\n",
 				  args->num_cliprects);
 			ret = -EINVAL;
-			goto pre_struct_lock_err;
+			goto pre_mutex_err;
 		}
-		cliprects = malloc( sizeof(*cliprects) * args->num_cliprects,
-		    DRM_I915_GEM, M_WAITOK | M_ZERO);
+		cliprects = malloc(args->num_cliprects * sizeof(*cliprects),
+				    DRM_I915_GEM, M_WAITOK | M_ZERO);
 		ret = -copyin((void *)(uintptr_t)args->cliprects_ptr, cliprects,
 		    sizeof(*cliprects) * args->num_cliprects);
 		if (ret != 0)
-			goto pre_struct_lock_err;
+			goto pre_mutex_err;
 	}
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
-		goto pre_struct_lock_err;
+		goto pre_mutex_err;
 
 	if (dev_priv->mm.suspended) {
 		DRM_UNLOCK(dev);
 		ret = -EBUSY;
-		goto pre_struct_lock_err;
+		goto pre_mutex_err;
 	}
 
 	eb = eb_create(args->buffer_count);
 	if (eb == NULL) {
 		DRM_UNLOCK(dev);
 		ret = -ENOMEM;
-		goto pre_struct_lock_err;
+		goto pre_mutex_err;
 	}
 
 	/* Look up object handles */
 	INIT_LIST_HEAD(&objects);
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_i915_gem_object *obj;
+
 		obj = to_intel_bo(drm_gem_object_lookup(dev, file,
 							exec[i].handle));
 		if (&obj->base == NULL) {
@@ -1294,7 +1308,9 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ret) {
 		if (ret == -EFAULT) {
 			ret = i915_gem_execbuffer_relocate_slow(dev, file, ring,
-			    &objects, eb, exec,	args->buffer_count);
+								&objects, eb,
+								exec,
+								args->buffer_count);
 			DRM_LOCK_ASSERT(dev);
 		}
 		if (ret)
@@ -1337,7 +1353,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	    mode != dev_priv->relative_constants_mode) {
 		ret = intel_ring_begin(ring, 4);
 		if (ret)
-			goto err;
+				goto err;
 
 		intel_ring_emit(ring, MI_NOOP);
 		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
@@ -1362,26 +1378,27 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		    args->batch_start_offset, args->batch_len);
 	}
 
-	CTR4(KTR_DRM, "ring_dispatch %s %d exec %x %x", ring->name, seqno,
-	    exec_start, exec_len);
-
 	if (cliprects) {
 		for (i = 0; i < args->num_cliprects; i++) {
-			ret = i915_emit_box_p(dev, &cliprects[i],
-			    args->DR1, args->DR4);
+			ret = i915_emit_box(dev, &cliprects[i],
+					    args->DR1, args->DR4);
 			if (ret)
 				goto err;
 
-			ret = ring->dispatch_execbuffer(ring, exec_start,
-			    exec_len);
+			ret = ring->dispatch_execbuffer(ring,
+							exec_start, exec_len);
 			if (ret)
 				goto err;
 		}
 	} else {
-		ret = ring->dispatch_execbuffer(ring, exec_start, exec_len);
+		ret = ring->dispatch_execbuffer(ring,
+						exec_start, exec_len);
 		if (ret)
 			goto err;
 	}
+
+	CTR4(KTR_DRM, "ring_dispatch %s %d exec %x %x", ring->name, seqno,
+	    exec_start, exec_len);
 
 	i915_gem_execbuffer_move_to_active(&objects, ring, seqno);
 	i915_gem_execbuffer_retire_commands(dev, file, ring);
@@ -1391,23 +1408,23 @@ err:
 	while (!list_empty(&objects)) {
 		struct drm_i915_gem_object *obj;
 
-		obj = list_first_entry(&objects, struct drm_i915_gem_object,
-		    exec_list);
+		obj = list_first_entry(&objects,
+				       struct drm_i915_gem_object,
+				       exec_list);
 		list_del_init(&obj->exec_list);
 		drm_gem_object_unreference(&obj->base);
 	}
+
 	DRM_UNLOCK(dev);
 
-pre_struct_lock_err:
+pre_mutex_err:
 	for (i = 0; i < args->buffer_count; i++) {
 		if (relocs_ma[i] != NULL) {
-			vm_page_unhold_pages(relocs_ma[i], howmany(
-			    exec[i].relocation_count *
-			    sizeof(struct drm_i915_gem_relocation_entry),
-			    PAGE_SIZE));
+			vm_page_unhold_pages(relocs_ma[i], relocs_len[i]);
 			free(relocs_ma[i], DRM_I915_GEM);
 		}
 	}
+	free(relocs_len, DRM_I915_GEM);
 	free(relocs_ma, DRM_I915_GEM);
 	free(cliprects, DRM_I915_GEM);
 	return ret;
@@ -1448,7 +1465,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 			  args->buffer_count, ret);
 		free(exec_list, DRM_I915_GEM);
 		free(exec2_list, DRM_I915_GEM);
-		return (ret);
+		return ret;
 	}
 
 	for (i = 0; i < args->buffer_count; i++) {
@@ -1512,15 +1529,15 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 	}
 
 	/* XXXKIB user-controllable malloc size */
-	exec2_list = malloc(sizeof(*exec2_list) * args->buffer_count,
-	    DRM_I915_GEM, M_WAITOK);
+	exec2_list = malloc(sizeof(*exec2_list)*args->buffer_count,
+			     DRM_I915_GEM, M_WAITOK);
 	ret = -copyin((void *)(uintptr_t)args->buffers_ptr, exec2_list,
 	    sizeof(*exec2_list) * args->buffer_count);
 	if (ret != 0) {
 		DRM_DEBUG("copy %d exec entries failed %d\n",
 			  args->buffer_count, ret);
 		free(exec2_list, DRM_I915_GEM);
-		return (ret);
+		return -EFAULT;
 	}
 
 	ret = i915_gem_do_execbuffer(dev, data, file, args, exec2_list);

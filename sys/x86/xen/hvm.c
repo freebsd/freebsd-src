@@ -58,14 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/interface/vcpu.h>
 
 /*--------------------------- Forward Declarations ---------------------------*/
-#ifdef SMP
-static void xen_hvm_cpu_resume(void);
-#endif
 static void xen_hvm_cpu_init(void);
-
-/*---------------------------- Extern Declarations ---------------------------*/
-/* Variables used by mp_machdep to perform the bitmap IPI */
-extern volatile u_int cpu_ipi_pending[MAXCPU];
 
 /*-------------------------------- Local Types -------------------------------*/
 enum xen_hvm_init_type {
@@ -80,7 +73,7 @@ enum xen_domain_type xen_domain_type = XEN_NATIVE;
 #ifdef SMP
 struct cpu_ops xen_hvm_cpu_ops = {
 	.cpu_init	= xen_hvm_cpu_init,
-	.cpu_resume	= xen_hvm_cpu_resume
+	.cpu_resume	= xen_hvm_cpu_init
 };
 #endif
 
@@ -100,23 +93,13 @@ DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
 shared_info_t *HYPERVISOR_shared_info;
 start_info_t *HYPERVISOR_start_info;
 
-#ifdef SMP
-/* XEN diverged cpu operations */
-static void
-xen_hvm_cpu_resume(void)
-{
-	u_int cpuid = PCPU_GET(cpuid);
 
-	/*
-	 * Reset pending bitmap IPIs, because Xen doesn't preserve pending
-	 * event channels on migration.
-	 */
-	cpu_ipi_pending[cpuid] = 0;
+/*------------------------------ Sysctl tunables -----------------------------*/
+int xen_disable_pv_disks = 0;
+int xen_disable_pv_nics = 0;
+TUNABLE_INT("hw.xen.disable_pv_disks", &xen_disable_pv_disks);
+TUNABLE_INT("hw.xen.disable_pv_nics", &xen_disable_pv_nics);
 
-	/* register vcpu_info area */
-	xen_hvm_cpu_init();
-}
-#endif
 /*---------------------- XEN Hypervisor Probe and Setup ----------------------*/
 static uint32_t
 xen_hvm_cpuid_base(void)
@@ -256,21 +239,34 @@ enum {
 static void
 xen_hvm_disable_emulated_devices(void)
 {
+	u_short disable_devs = 0;
 
 	if (xen_pv_domain()) {
 		/*
 		 * No emulated devices in the PV case, so no need to unplug
 		 * anything.
 		 */
+		if (xen_disable_pv_disks != 0 || xen_disable_pv_nics != 0)
+			printf("PV devices cannot be disabled in PV guests\n");
 		return;
 	}
 
 	if (inw(XEN_MAGIC_IOPORT) != XMI_MAGIC)
 		return;
 
-	if (bootverbose)
-		printf("XEN: Disabling emulated block and network devices\n");
-	outw(XEN_MAGIC_IOPORT, XMI_UNPLUG_IDE_DISKS|XMI_UNPLUG_NICS);
+	if (xen_disable_pv_disks == 0) {
+		if (bootverbose)
+			printf("XEN: disabling emulated disks\n");
+		disable_devs |= XMI_UNPLUG_IDE_DISKS;
+	}
+	if (xen_disable_pv_nics == 0) {
+		if (bootverbose)
+			printf("XEN: disabling emulated nics\n");
+		disable_devs |= XMI_UNPLUG_NICS;
+	}
+
+	if (disable_devs != 0)
+		outw(XEN_MAGIC_IOPORT, disable_devs);
 }
 
 static void

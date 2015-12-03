@@ -213,6 +213,11 @@ int	cbq_add_queue(struct pf_altq *);
 int	cbq_remove_queue(struct pf_altq *);
 int	cbq_getqstats(struct pf_altq *, void *, int *);
 
+int	codel_pfattach(struct pf_altq *);
+int	codel_add_altq(struct pf_altq *);
+int	codel_remove_altq(struct pf_altq *);
+int	codel_getqstats(struct pf_altq *, void *, int *);
+
 int	priq_pfattach(struct pf_altq *);
 int	priq_add_altq(struct pf_altq *);
 int	priq_remove_altq(struct pf_altq *);

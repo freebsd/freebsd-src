@@ -21,9 +21,9 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: ar.1 3195 2015-05-12 17:22:19Z emaste $
+.\" $Id: ar.1 3230 2015-07-27 17:11:38Z emaste $
 .\"
-.Dd December 10, 2012
+.Dd July 27, 2015
 .Os
 .Dt AR 1
 .Sh NAME
@@ -66,6 +66,7 @@
 .Op Fl f
 .Op Fl F Ar flavor | Fl -flavor Ar flavor
 .Op Fl s | Fl S
+.Op Fl U
 .Op Fl v
 .Op Fl z
 .Ar archive
@@ -83,6 +84,7 @@
 .Op Fl j
 .Op Fl s | Fl S
 .Op Fl u
+.Op Fl U
 .Op Fl v
 .Op Fl z
 .Ar archive
@@ -91,6 +93,7 @@
 .Fl s
 .Op Fl D
 .Op Fl j
+.Op Fl U
 .Op Fl z
 .Ar archive
 .Nm
@@ -203,6 +206,11 @@ and 0644 instead of file mode from the members named by arguments
 .Ar .
 This ensures that checksums on the resulting archives are reproducible
 when member contents are identical.
+If multiple
+.Fl D
+and
+.Fl U
+options are specified on the command line, the final one takes precedence.
 .It Fl f
 Synonymous with option
 .Fl T .
@@ -335,6 +343,19 @@ option, the members specified by arguments
 .Ar
 will be extracted only if they are newer than the corresponding
 files in the file system.
+.It Fl U
+When used in combination with the
+.Fl r
+or
+.Fl q
+option, insert the real mtime, uid and gid, and file mode values
+from the members named by arguments
+.Ar .
+If multiple
+.Fl D
+and
+.Fl U
+options are specified on the command line, the final one takes precedence.
 .It Fl v
 Provide verbose output.
 When used with the

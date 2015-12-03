@@ -70,7 +70,7 @@ struct eap_ssl_data {
 struct wpabuf * eap_tls_msg_alloc(EapType type, size_t payload_len,
 				  u8 code, u8 identifier);
 int eap_server_tls_ssl_init(struct eap_sm *sm, struct eap_ssl_data *data,
-			    int verify_peer);
+			    int verify_peer, int eap_type);
 void eap_server_tls_ssl_deinit(struct eap_sm *sm, struct eap_ssl_data *data);
 u8 * eap_server_tls_derive_key(struct eap_sm *sm, struct eap_ssl_data *data,
 			       char *label, size_t len);

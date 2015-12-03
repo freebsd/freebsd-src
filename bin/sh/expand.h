@@ -33,15 +33,11 @@
  * $FreeBSD$
  */
 
-struct strlist {
-	struct strlist *next;
-	char *text;
-};
-
-
 struct arglist {
-	struct strlist *list;
-	struct strlist **lastp;
+	char **args;
+	int count;
+	int capacity;
+	char *smallarg[1];
 };
 
 /*
@@ -55,6 +51,8 @@ struct arglist {
 #define EXP_LIT_QUOTED	0x40	/* for EXP_SPLIT_LIT, start off quoted */
 
 
+void emptyarglist(struct arglist *);
+void appendarglist(struct arglist *, char *);
 union node;
 void expandarg(union node *, struct arglist *, int);
 void rmescapes(char *);

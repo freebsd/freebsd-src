@@ -893,6 +893,49 @@ sctp_select_a_tag(struct sctp_inpcb *inp, uint16_t lport, uint16_t rport, int ch
 	return (x);
 }
 
+int32_t
+sctp_map_assoc_state(int kernel_state)
+{
+	int32_t user_state;
+
+	if (kernel_state & SCTP_STATE_WAS_ABORTED) {
+		user_state = SCTP_CLOSED;
+	} else if (kernel_state & SCTP_STATE_SHUTDOWN_PENDING) {
+		user_state = SCTP_SHUTDOWN_PENDING;
+	} else {
+		switch (kernel_state & SCTP_STATE_MASK) {
+		case SCTP_STATE_EMPTY:
+			user_state = SCTP_CLOSED;
+			break;
+		case SCTP_STATE_INUSE:
+			user_state = SCTP_CLOSED;
+			break;
+		case SCTP_STATE_COOKIE_WAIT:
+			user_state = SCTP_COOKIE_WAIT;
+			break;
+		case SCTP_STATE_COOKIE_ECHOED:
+			user_state = SCTP_COOKIE_ECHOED;
+			break;
+		case SCTP_STATE_OPEN:
+			user_state = SCTP_ESTABLISHED;
+			break;
+		case SCTP_STATE_SHUTDOWN_SENT:
+			user_state = SCTP_SHUTDOWN_SENT;
+			break;
+		case SCTP_STATE_SHUTDOWN_RECEIVED:
+			user_state = SCTP_SHUTDOWN_RECEIVED;
+			break;
+		case SCTP_STATE_SHUTDOWN_ACK_SENT:
+			user_state = SCTP_SHUTDOWN_ACK_SENT;
+			break;
+		default:
+			user_state = SCTP_CLOSED;
+			break;
+		}
+	}
+	return (user_state);
+}
+
 int
 sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     uint32_t override_tag, uint32_t vrf_id)
@@ -2080,7 +2123,11 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		if (stcb == NULL) {
 			return;
 		}
-		to_ticks = inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_MAXSHUTDOWN];
+		if (inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_MAXSHUTDOWN] == 0) {
+			to_ticks = 5 * MSEC_TO_TICKS(stcb->asoc.maxrto);
+		} else {
+			to_ticks = inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_MAXSHUTDOWN];
+		}
 		tmr = &stcb->asoc.shut_guard_timer;
 		break;
 	case SCTP_TIMER_TYPE_STRRESET:
@@ -2136,13 +2183,13 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		break;
 	default:
 		SCTPDBG(SCTP_DEBUG_TIMER1, "%s: Unknown timer type %d\n",
-		    __FUNCTION__, t_type);
+		    __func__, t_type);
 		return;
 		break;
 	}
 	if ((to_ticks <= 0) || (tmr == NULL)) {
 		SCTPDBG(SCTP_DEBUG_TIMER1, "%s: %d:software error to_ticks:%d tmr:%p not set ??\n",
-		    __FUNCTION__, t_type, to_ticks, (void *)tmr);
+		    __func__, t_type, to_ticks, (void *)tmr);
 		return;
 	}
 	if (SCTP_OS_TIMER_PENDING(&tmr->timer)) {
@@ -2298,7 +2345,7 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		break;
 	default:
 		SCTPDBG(SCTP_DEBUG_TIMER1, "%s: Unknown timer type %d\n",
-		    __FUNCTION__, t_type);
+		    __func__, t_type);
 		break;
 	}
 	if (tmr == NULL) {
@@ -2620,6 +2667,9 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 
 #endif
 
+	if (stcb == NULL) {
+		return;
+	}
 	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVASSOCEVNT)) {
 		notif_len = sizeof(struct sctp_assoc_change);
 		if (abort != NULL) {
@@ -3727,7 +3777,7 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		break;
 	default:
 		SCTPDBG(SCTP_DEBUG_UTIL1, "%s: unknown notification %xh (%u)\n",
-		    __FUNCTION__, notification, notification);
+		    __func__, notification, notification);
 		break;
 	}			/* end switch */
 }
@@ -5604,20 +5654,20 @@ found_one:
 			s_extra = (struct sctp_extrcvinfo *)sinfo;
 			if ((nxt) &&
 			    (nxt->length)) {
-				s_extra->sreinfo_next_flags = SCTP_NEXT_MSG_AVAIL;
+				s_extra->serinfo_next_flags = SCTP_NEXT_MSG_AVAIL;
 				if (nxt->sinfo_flags & SCTP_UNORDERED) {
-					s_extra->sreinfo_next_flags |= SCTP_NEXT_MSG_IS_UNORDERED;
+					s_extra->serinfo_next_flags |= SCTP_NEXT_MSG_IS_UNORDERED;
 				}
 				if (nxt->spec_flags & M_NOTIFICATION) {
-					s_extra->sreinfo_next_flags |= SCTP_NEXT_MSG_IS_NOTIFICATION;
+					s_extra->serinfo_next_flags |= SCTP_NEXT_MSG_IS_NOTIFICATION;
 				}
-				s_extra->sreinfo_next_aid = nxt->sinfo_assoc_id;
-				s_extra->sreinfo_next_length = nxt->length;
-				s_extra->sreinfo_next_ppid = nxt->sinfo_ppid;
-				s_extra->sreinfo_next_stream = nxt->sinfo_stream;
+				s_extra->serinfo_next_aid = nxt->sinfo_assoc_id;
+				s_extra->serinfo_next_length = nxt->length;
+				s_extra->serinfo_next_ppid = nxt->sinfo_ppid;
+				s_extra->serinfo_next_stream = nxt->sinfo_stream;
 				if (nxt->tail_mbuf != NULL) {
 					if (nxt->end_added) {
-						s_extra->sreinfo_next_flags |= SCTP_NEXT_MSG_ISCOMPLETE;
+						s_extra->serinfo_next_flags |= SCTP_NEXT_MSG_ISCOMPLETE;
 					}
 				}
 			} else {
@@ -5628,11 +5678,11 @@ found_one:
 				 * :-D
 				 */
 				nxt = NULL;
-				s_extra->sreinfo_next_flags = SCTP_NO_NEXT_MSG;
-				s_extra->sreinfo_next_aid = 0;
-				s_extra->sreinfo_next_length = 0;
-				s_extra->sreinfo_next_ppid = 0;
-				s_extra->sreinfo_next_stream = 0;
+				s_extra->serinfo_next_flags = SCTP_NO_NEXT_MSG;
+				s_extra->serinfo_next_aid = 0;
+				s_extra->serinfo_next_length = 0;
+				s_extra->serinfo_next_ppid = 0;
+				s_extra->serinfo_next_stream = 0;
 			}
 		}
 		/*
@@ -6115,7 +6165,7 @@ out:
 		struct sctp_extrcvinfo *s_extra;
 
 		s_extra = (struct sctp_extrcvinfo *)sinfo;
-		s_extra->sreinfo_next_flags = SCTP_NO_NEXT_MSG;
+		s_extra->serinfo_next_flags = SCTP_NO_NEXT_MSG;
 	}
 	if (hold_rlock == 1) {
 		SCTP_INP_READ_UNLOCK(inp);
@@ -6907,6 +6957,18 @@ sctp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
 	for (last = m; last->m_next; last = last->m_next);
 	last->m_next = sp;
 	m->m_pkthdr.len += sp->m_pkthdr.len;
+	/*
+	 * The CSUM_DATA_VALID flags indicates that the HW checked the UDP
+	 * checksum and it was valid. Since CSUM_DATA_VALID ==
+	 * CSUM_SCTP_VALID this would imply that the HW also verified the
+	 * SCTP checksum. Therefore, clear the bit.
+	 */
+	SCTPDBG(SCTP_DEBUG_CRCOFFLOAD,
+	    "sctp_recv_udp_tunneled_packet(): Packet of length %d received on %s with csum_flags 0x%b.\n",
+	    m->m_pkthdr.len,
+	    if_name(m->m_pkthdr.rcvif),
+	    (int)m->m_pkthdr.csum_flags, CSUM_BITS);
+	m->m_pkthdr.csum_flags &= ~CSUM_DATA_VALID;
 	iph = mtod(m, struct ip *);
 	switch (iph->ip_v) {
 #ifdef INET

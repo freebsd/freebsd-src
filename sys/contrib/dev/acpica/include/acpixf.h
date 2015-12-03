@@ -46,7 +46,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20150717
+#define ACPI_CA_VERSION                 0x20150818
 
 #include <contrib/dev/acpica/include/acconfig.h>
 #include <contrib/dev/acpica/include/actypes.h>
@@ -1207,5 +1207,13 @@ void ACPI_INTERNAL_VAR_XFACE
 AcpiLogError (
     const char              *Format,
     ...))
+
+ACPI_STATUS
+AcpiInitializeDebugger (
+    void);
+
+void
+AcpiTerminateDebugger (
+    void);
 
 #endif /* __ACXFACE_H__ */

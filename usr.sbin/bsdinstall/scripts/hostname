@@ -1,6 +1,7 @@
 #!/bin/sh
 #-
 # Copyright (c) 2011 Nathan Whitehorn
+# Copyright (c) 2015 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -43,6 +44,9 @@ if [ $? -eq $DIALOG_CANCEL ]; then exit 1; fi
 exec 3>&-
 
 echo "hostname=\"$HOSTNAME\"" > $BSDINSTALL_TMPETC/rc.conf.hostname
-if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
+retval=$?
+if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
 	hostname -s "$HOSTNAME"
+	retval=$?
 fi
+exit $retval

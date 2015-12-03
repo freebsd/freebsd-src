@@ -459,10 +459,14 @@ int accounting_init(struct hostapd_data *hapd)
 {
 	struct os_time now;
 
-	/* Acct-Session-Id should be unique over reboots. If reliable clock is
-	 * not available, this could be replaced with reboot counter, etc. */
+	/* Acct-Session-Id should be unique over reboots. Using a random number
+	 * is preferred. If that is not available, take the current time. Mix
+	 * in microseconds to make this more likely to be unique. */
 	os_get_time(&now);
-	hapd->acct_session_id_hi = now.sec;
+	if (os_get_random((u8 *) &hapd->acct_session_id_hi,
+			  sizeof(hapd->acct_session_id_hi)) < 0)
+		hapd->acct_session_id_hi = now.sec;
+	hapd->acct_session_id_hi ^= now.usec;
 
 	if (radius_client_register(hapd->radius, RADIUS_ACCT,
 				   accounting_receive, hapd))
@@ -475,7 +479,7 @@ int accounting_init(struct hostapd_data *hapd)
 
 
 /**
- * accounting_deinit: Deinitilize accounting
+ * accounting_deinit: Deinitialize accounting
  * @hapd: hostapd BSS data
  */
 void accounting_deinit(struct hostapd_data *hapd)

@@ -47,3 +47,5 @@ ASENTRY(CERROR)
 	mvn	r1, #0x00000000
 	ldmfd	sp!, {r4, pc}
 END(CERROR)
+
+	.section .note.GNU-stack,"",%progbits

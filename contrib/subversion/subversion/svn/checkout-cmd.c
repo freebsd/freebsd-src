@@ -72,6 +72,7 @@ svn_cl__checkout(apr_getopt_t *os,
   svn_client_ctx_t *ctx = ((svn_cl__cmd_baton_t *) baton)->ctx;
   apr_pool_t *subpool;
   apr_array_header_t *targets;
+  struct svn_cl__check_externals_failed_notify_baton nwb;
   const char *last_target, *local_dir;
   int i;
 
@@ -112,6 +113,12 @@ svn_cl__checkout(apr_getopt_t *os,
 
   if (! opt_state->quiet)
     SVN_ERR(svn_cl__notifier_mark_checkout(ctx->notify_baton2));
+
+  nwb.wrapped_func = ctx->notify_func2;
+  nwb.wrapped_baton = ctx->notify_baton2;
+  nwb.had_externals_error = FALSE;
+  ctx->notify_func2 = svn_cl__check_externals_failed_notify_wrapper;
+  ctx->notify_baton2 = &nwb;
 
   subpool = svn_pool_create(pool);
   for (i = 0; i < targets->nelts; ++i)
@@ -168,6 +175,11 @@ svn_cl__checkout(apr_getopt_t *os,
                ctx, subpool));
     }
   svn_pool_destroy(subpool);
+
+  if (nwb.had_externals_error)
+    return svn_error_create(SVN_ERR_CL_ERROR_PROCESSING_EXTERNALS, NULL,
+                            _("Failure occurred processing one or "
+                              "more externals definitions"));
 
   return SVN_NO_ERROR;
 }

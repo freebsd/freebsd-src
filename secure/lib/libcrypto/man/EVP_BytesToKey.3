@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_BytesToKey 3"
-.TH EVP_BytesToKey 3 "2015-07-09" "1.0.1p" "OpenSSL"
+.TH EVP_BytesToKey 3 "2015-07-09" "1.0.2d" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -172,8 +172,8 @@ If the total key and \s-1IV\s0 length is less than the digest length and
 \&\fB\s-1MD5\s0\fR is used then the derivation algorithm is compatible with PKCS#5 v1.5
 otherwise a non standard extension is used to derive the extra data.
 .PP
-Newer applications should use more standard algorithms such as PKCS#5
-v2.0 for key derivation.
+Newer applications should use a more modern algorithm such as \s-1PBKDF2\s0 as
+defined in PKCS#5v2.1 and provided by \s-1PKCS5_PBKDF2_HMAC.\s0
 .SH "KEY DERIVATION ALGORITHM"
 .IX Header "KEY DERIVATION ALGORITHM"
 The key and \s-1IV\s0 is derived by concatenating D_1, D_2, etc until
@@ -191,7 +191,10 @@ The initial bytes are used for the key and the subsequent bytes for
 the \s-1IV.\s0
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fIEVP_BytesToKey()\fR returns the size of the derived key in bytes.
+If \fBdata\fR is \s-1NULL,\s0 then \fIEVP_BytesToKey()\fR returns the number of bytes
+needed to store the derived key.
+Otherwise, \fIEVP_BytesToKey()\fR returns the size of the derived key in bytes,
+or 0 on error.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIevp\fR\|(3), \fIrand\fR\|(3),

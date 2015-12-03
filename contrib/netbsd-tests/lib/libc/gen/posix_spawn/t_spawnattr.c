@@ -30,6 +30,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/param.h>
 #include <atf-c.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,39 +43,42 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-#define MAX(a, b)	(a) > (b) ? (a) : (b)
-#define MIN(a, b)	(a) > (b) ? (b) : (a)
-
 static int get_different_scheduler(void);
-static int get_different_priority(void);
+static int get_different_priority(int scheduler);
+
+static const int schedulers[] = {
+	SCHED_OTHER,
+	SCHED_FIFO,
+	SCHED_RR
+};
 
 static int
-get_different_scheduler()
+get_different_scheduler(void)
 {
-	int scheduler, max, min, new;
-
-	max = MAX(MAX(SCHED_FIFO, SCHED_OTHER), SCHED_RR);
-	min = MIN(MIN(SCHED_FIFO, SCHED_OTHER), SCHED_RR);
+	u_int i;
+	int scheduler;
 
 	/* get current schedule policy */
 	scheduler = sched_getscheduler(0);
+	for (i = 0; i < nitems(schedulers); i++) {
+		if (schedulers[i] == scheduler)
+			break;
+	}
+	ATF_REQUIRE_MSG(i < nitems(schedulers),
+	    "Unknown current scheduler %d", scheduler);
 					
 	/* new scheduler */
-	new = (scheduler + 1);
-	if (new > max)
-		new = min;
-								
-	return new;
+	i++;
+	if (i >= nitems(schedulers))
+		i = 0;
+	return schedulers[i];
 }
 
 static int
-get_different_priority()
+get_different_priority(int scheduler)
 {
-	int scheduler, max, min, new, priority;
+	int max, min, new, priority;
 	struct sched_param param;
-
-	/* get current schedule policy */
-	scheduler = sched_getscheduler(0);
 
 	max = sched_get_priority_max(scheduler);
 	min = sched_get_priority_min(scheduler);
@@ -82,11 +86,13 @@ get_different_priority()
 	sched_getparam(0, &param);
 	priority = param.sched_priority;
 	
-	/* new schedule policy */
-	new = (priority + 1);
+	/*
+	 * Change numerical value of the priority, to ensure that it
+	 * was set for the spawned child.
+	 */
+	new = priority + 1;
 	if (new > max)
 		new = min;
-	
 	return new;
 }
 
@@ -119,16 +125,15 @@ ATF_TC_BODY(t_spawnattr, tc)
 	posix_spawnattr_init(&attr);
 
 	scheduler = get_different_scheduler();
-	priority = get_different_priority();
+	priority = get_different_priority(scheduler);
 	sp.sched_priority = priority;
 	
 	sigemptyset(&sig);
 	sigaddset(&sig, SIGUSR1);
 
-	posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETSCHEDULER | 
-		POSIX_SPAWN_SETSCHEDPARAM | POSIX_SPAWN_SETPGROUP |
-		POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSIGDEF |
-		POSIX_SPAWN_SETSIGDEF); 
+	posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETSCHEDULER |
+	    POSIX_SPAWN_SETSCHEDPARAM | POSIX_SPAWN_SETPGROUP |
+	    POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSIGDEF);
 	posix_spawnattr_setpgroup(&attr, 0);
 	posix_spawnattr_setschedparam(&attr, &sp);
 	posix_spawnattr_setschedpolicy(&attr, scheduler);

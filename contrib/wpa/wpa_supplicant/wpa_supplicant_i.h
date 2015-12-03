@@ -17,14 +17,14 @@
 #include "config_ssid.h"
 #include "wmm_ac.h"
 
-extern const char *wpa_supplicant_version;
-extern const char *wpa_supplicant_license;
+extern const char *const wpa_supplicant_version;
+extern const char *const wpa_supplicant_license;
 #ifndef CONFIG_NO_STDOUT_DEBUG
-extern const char *wpa_supplicant_full_license1;
-extern const char *wpa_supplicant_full_license2;
-extern const char *wpa_supplicant_full_license3;
-extern const char *wpa_supplicant_full_license4;
-extern const char *wpa_supplicant_full_license5;
+extern const char *const wpa_supplicant_full_license1;
+extern const char *const wpa_supplicant_full_license2;
+extern const char *const wpa_supplicant_full_license3;
+extern const char *const wpa_supplicant_full_license4;
+extern const char *const wpa_supplicant_full_license5;
 #endif /* CONFIG_NO_STDOUT_DEBUG */
 
 struct wpa_sm;
@@ -65,17 +65,6 @@ struct wpa_interface {
 	 * used.
 	 */
 	const char *confanother;
-
-#ifdef CONFIG_P2P
-	/**
-	 * conf_p2p_dev - Configuration file used to hold the
-	 * P2P Device configuration parameters.
-	 *
-	 * This can also be %NULL. In such a case, if a P2P Device dedicated
-	 * interfaces is created, the main configuration file will be used.
-	 */
-	const char *conf_p2p_dev;
-#endif /* CONFIG_P2P */
 
 	/**
 	 * ctrl_interface - Control interface parameter
@@ -227,6 +216,18 @@ struct wpa_params {
 	 * its internal entropy store over restarts.
 	 */
 	char *entropy_file;
+
+#ifdef CONFIG_P2P
+	/**
+	 * conf_p2p_dev - Configuration file used to hold the
+	 * P2P Device configuration parameters.
+	 *
+	 * This can also be %NULL. In such a case, if a P2P Device dedicated
+	 * interfaces is created, the main configuration file will be used.
+	 */
+	char *conf_p2p_dev;
+#endif /* CONFIG_P2P */
+
 };
 
 struct p2p_srv_bonjour {
@@ -366,10 +367,12 @@ struct wps_ap_info {
 	} type;
 	unsigned int tries;
 	struct os_reltime last_attempt;
+	unsigned int pbc_active;
+	u8 uuid[WPS_UUID_LEN];
 };
 
 struct wpa_ssid_value {
-	u8 ssid[32];
+	u8 ssid[SSID_MAX_LEN];
 	size_t ssid_len;
 };
 
@@ -479,7 +482,7 @@ struct wpa_supplicant {
 	struct wpa_ssid_value *disallow_aps_ssid;
 	size_t disallow_aps_ssid_count;
 
-	enum { WPA_SETBAND_AUTO, WPA_SETBAND_5G, WPA_SETBAND_2G } setband;
+	enum set_band setband;
 
 	/* Preferred network for the next connection attempt */
 	struct wpa_ssid *next_ssid;
@@ -518,7 +521,7 @@ struct wpa_supplicant {
 	unsigned int last_scan_res_size;
 	struct os_reltime last_scan;
 
-	struct wpa_driver_ops *driver;
+	const struct wpa_driver_ops *driver;
 	int interface_removed; /* whether the network interface has been
 				* removed */
 	struct wpa_sm *wpa;
@@ -590,6 +593,8 @@ struct wpa_supplicant {
 	} scan_req, last_scan_req;
 	enum wpa_states scan_prev_wpa_state;
 	struct os_reltime scan_trigger_time, scan_start_time;
+	/* Minimum freshness requirement for connection purposes */
+	struct os_reltime scan_min_time;
 	int scan_runs; /* number of scan runs since WPS was started */
 	int *next_scan_freqs;
 	int *manual_scan_freqs;
@@ -608,6 +613,9 @@ struct wpa_supplicant {
 #define MAX_SCAN_ID 16
 	int scan_id[MAX_SCAN_ID];
 	unsigned int scan_id_count;
+
+	struct wpa_ssid_value *ssids_from_scan_req;
+	unsigned int num_ssids_from_scan_req;
 
 	u64 drv_flags;
 	unsigned int drv_enc;
@@ -639,6 +647,7 @@ struct wpa_supplicant {
 	int wps_success; /* WPS success event received */
 	struct wps_er *wps_er;
 	unsigned int wps_run;
+	struct os_reltime wps_pin_start_time;
 	int blacklist_cleared;
 
 	struct wpabuf *pending_eapol_rx;
@@ -648,6 +657,7 @@ struct wpa_supplicant {
 	unsigned int eap_expected_failure:1;
 	unsigned int reattach:1; /* reassociation to the same BSS requested */
 	unsigned int mac_addr_changed:1;
+	unsigned int added_vif:1;
 
 	struct os_reltime last_mac_addr_change;
 	int last_mac_addr_style;
@@ -661,7 +671,7 @@ struct wpa_supplicant {
 
 #ifdef CONFIG_SME
 	struct {
-		u8 ssid[32];
+		u8 ssid[SSID_MAX_LEN];
 		size_t ssid_len;
 		int freq;
 		u8 assoc_req_ie[200];
@@ -736,7 +746,6 @@ struct wpa_supplicant {
 	int p2p_mgmt;
 
 #ifdef CONFIG_P2P
-	struct wpa_supplicant *p2p_dev;
 	struct p2p_go_neg_results *go_params;
 	int create_p2p_iface;
 	u8 pending_interface_addr[ETH_ALEN];
@@ -767,7 +776,7 @@ struct wpa_supplicant {
 	u8 pending_join_iface_addr[ETH_ALEN];
 	u8 pending_join_dev_addr[ETH_ALEN];
 	int pending_join_wps_method;
-	u8 p2p_join_ssid[32];
+	u8 p2p_join_ssid[SSID_MAX_LEN];
 	size_t p2p_join_ssid_len;
 	int p2p_join_scan_count;
 	int auto_pd_scan_retry;
@@ -813,7 +822,8 @@ struct wpa_supplicant {
 	unsigned int p2p_nfc_tag_enabled:1;
 	unsigned int p2p_peer_oob_pk_hash_known:1;
 	unsigned int p2p_disable_ip_addr_req:1;
-	unsigned int p2ps_join_addr_valid:1;
+	unsigned int p2ps_method_config_any:1;
+	unsigned int p2p_cli_probe:1;
 	int p2p_persistent_go_freq;
 	int p2p_persistent_id;
 	int p2p_go_intent;
@@ -969,6 +979,12 @@ struct wpa_supplicant {
 	u8 last_tspecs_count;
 
 	struct rrm_data rrm;
+
+#ifdef CONFIG_FST
+	struct fst_iface *fst;
+	const struct wpabuf *fst_ies;
+	struct wpabuf *received_mb_ies;
+#endif /* CONFIG_FST */
 };
 
 
@@ -1116,13 +1132,13 @@ struct wpa_bss * wpa_supplicant_pick_network(struct wpa_supplicant *wpa_s,
 int eap_register_methods(void);
 
 /**
- * Utility method to tell if a given network is a persistent group
+ * Utility method to tell if a given network is for persistent group storage
  * @ssid: Network object
  * Returns: 1 if network is a persistent group, 0 otherwise
  */
 static inline int network_is_persistent_group(struct wpa_ssid *ssid)
 {
-	return ((ssid->disabled == 2) || ssid->p2p_persistent_group);
+	return ssid->disabled == 2 && ssid->p2p_persistent_group;
 }
 
 int wpas_network_disabled(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid);
@@ -1139,5 +1155,16 @@ int get_shared_radio_freqs_data(struct wpa_supplicant *wpa_s,
 				unsigned int len);
 int get_shared_radio_freqs(struct wpa_supplicant *wpa_s,
 			   int *freq_array, unsigned int len);
+
+void wpas_network_reenabled(void *eloop_ctx, void *timeout_ctx);
+
+#ifdef CONFIG_FST
+
+struct fst_wpa_obj;
+
+void fst_wpa_supplicant_fill_iface_obj(struct wpa_supplicant *wpa_s,
+				       struct fst_wpa_obj *iface_obj);
+
+#endif /* CONFIG_FST */
 
 #endif /* WPA_SUPPLICANT_I_H */

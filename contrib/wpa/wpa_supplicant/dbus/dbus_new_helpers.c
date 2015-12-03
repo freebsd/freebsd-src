@@ -46,8 +46,13 @@ static dbus_bool_t fill_dict_with_properties(
 			goto error;
 
 		/* An error getting a property fails the request entirely */
-		if (!dsc->getter(&entry_iter, error, user_data))
+		if (!dsc->getter(&entry_iter, error, user_data)) {
+			wpa_printf(MSG_INFO,
+				   "dbus: %s dbus_interface=%s dbus_property=%s getter failed",
+				   __func__, dsc->dbus_interface,
+				   dsc->dbus_property);
 			return FALSE;
+		}
 
 		if (!dbus_message_iter_close_container(dict_iter, &entry_iter))
 			goto error;

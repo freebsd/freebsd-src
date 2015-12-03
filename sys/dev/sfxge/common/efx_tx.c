@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_tx_init(
 	__in		efx_nic_t *enp);
 
@@ -57,7 +57,7 @@ static			void
 falconsiena_tx_fini(
 	__in		efx_nic_t *enp);
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_tx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
@@ -74,7 +74,7 @@ static		void
 falconsiena_tx_qdestroy(
 	__in	efx_txq_t *etp);
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_tx_qpost(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_buffer_t *eb,
@@ -88,12 +88,12 @@ falconsiena_tx_qpush(
 	__in	unsigned int added,
 	__in	unsigned int pushed);
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_tx_qpace(
 	__in		efx_txq_t *etp,
 	__in		unsigned int ns);
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_tx_qflush(
 	__in		efx_txq_t *etp);
 
@@ -101,7 +101,7 @@ static			void
 falconsiena_tx_qenable(
 	__in	efx_txq_t *etp);
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 falconsiena_tx_qdesc_post(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_desc_t *ed,
@@ -202,12 +202,12 @@ static efx_tx_ops_t	__efx_tx_hunt_ops = {
 };
 #endif /* EFSYS_OPT_HUNTINGTON */
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_tx_init(
 	__in		efx_nic_t *enp)
 {
 	efx_tx_ops_t *etxop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NIC);
@@ -263,7 +263,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	enp->en_etxop = NULL;
 	enp->en_mod_flags &= ~EFX_MOD_TX;
@@ -287,7 +287,7 @@ efx_tx_fini(
 	enp->en_mod_flags &= ~EFX_MOD_TX;
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_tx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
@@ -303,7 +303,7 @@ efx_tx_qcreate(
 	efx_tx_ops_t *etxop = enp->en_etxop;
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_txq_t *etp;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_TX);
@@ -340,7 +340,7 @@ fail2:
 	EFSYS_PROBE(fail2);
 	EFSYS_KMEM_FREE(enp->en_esip, sizeof (efx_txq_t), etp);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
 }
 
@@ -362,7 +362,7 @@ efx_tx_qdestroy(
 	EFSYS_KMEM_FREE(enp->en_esip, sizeof (efx_txq_t), etp);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_tx_qpost(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_buffer_t *eb,
@@ -372,7 +372,7 @@ efx_tx_qpost(
 {
 	efx_nic_t *enp = etp->et_enp;
 	efx_tx_ops_t *etxop = enp->en_etxop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 
@@ -383,7 +383,7 @@ efx_tx_qpost(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
 }
 
@@ -401,14 +401,14 @@ efx_tx_qpush(
 	etxop->etxo_qpush(etp, added, pushed);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_tx_qpace(
 	__in		efx_txq_t *etp,
 	__in		unsigned int ns)
 {
 	efx_nic_t *enp = etp->et_enp;
 	efx_tx_ops_t *etxop = enp->en_etxop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 
@@ -418,17 +418,17 @@ efx_tx_qpace(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_tx_qflush(
 	__in	efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
 	efx_tx_ops_t *etxop = enp->en_etxop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 
@@ -438,7 +438,7 @@ efx_tx_qflush(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
 }
 
@@ -454,13 +454,13 @@ efx_tx_qenable(
 	etxop->etxo_qenable(etp);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_tx_qpio_enable(
 	__in	efx_txq_t *etp)
 {
 	efx_nic_t *enp = etp->et_enp;
 	efx_tx_ops_t *etxop = enp->en_etxop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 
@@ -482,7 +482,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
 }
 
@@ -499,7 +499,7 @@ efx_tx_qpio_disable(
 		etxop->etxo_qpio_disable(etp);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_tx_qpio_write(
 	__in			efx_txq_t *etp,
 	__in_ecount(buf_length)	uint8_t *buffer,
@@ -508,7 +508,7 @@ efx_tx_qpio_write(
 {
 	efx_nic_t *enp = etp->et_enp;
 	efx_tx_ops_t *etxop = enp->en_etxop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 
@@ -522,11 +522,11 @@ efx_tx_qpio_write(
 	return (ENOTSUP);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_tx_qpio_post(
 	__in			efx_txq_t *etp,
 	__in			size_t pkt_length,
@@ -535,7 +535,7 @@ efx_tx_qpio_post(
 {
 	efx_nic_t *enp = etp->et_enp;
 	efx_tx_ops_t *etxop = enp->en_etxop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 
@@ -549,11 +549,11 @@ efx_tx_qpio_post(
 	return (ENOTSUP);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_tx_qdesc_post(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_desc_t *ed,
@@ -563,7 +563,7 @@ efx_tx_qdesc_post(
 {
 	efx_nic_t *enp = etp->et_enp;
 	efx_tx_ops_t *etxop = enp->en_etxop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 
@@ -574,7 +574,7 @@ efx_tx_qdesc_post(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
 }
 
@@ -646,7 +646,7 @@ efx_tx_qstats_update(
 
 #if EFSYS_OPT_FALCON || EFSYS_OPT_SIENA
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_tx_init(
 	__in		efx_nic_t *enp)
 {
@@ -709,7 +709,7 @@ falconsiena_tx_init(
 		_NOTE(CONSTANTCONDITION)				\
 	} while (B_FALSE)
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_tx_qpost(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_buffer_t *eb,
@@ -742,7 +742,7 @@ falconsiena_tx_qpost(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -778,7 +778,7 @@ falconsiena_tx_qpush(
 #define	EFX_MAX_PACE_VALUE 20
 #define	EFX_TX_PACE_CLOCK_BASE	104
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_tx_qpace(
 	__in		efx_txq_t *etp,
 	__in		unsigned int ns)
@@ -788,7 +788,7 @@ falconsiena_tx_qpace(
 	efx_oword_t oword;
 	unsigned int pace_val;
 	unsigned int timer_period;
-	int rc;
+	efx_rc_t rc;
 
 	if (ns == 0) {
 		pace_val = 0;
@@ -816,12 +816,12 @@ falconsiena_tx_qpace(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_tx_qflush(
 	__in		efx_txq_t *etp)
 {
@@ -865,7 +865,7 @@ falconsiena_tx_qenable(
 			    etp->et_index, &oword, B_TRUE);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 falconsiena_tx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
@@ -881,7 +881,7 @@ falconsiena_tx_qcreate(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_oword_t oword;
 	uint32_t size;
-	int rc;
+	efx_rc_t rc;
 
 	EFX_STATIC_ASSERT(EFX_EV_TX_NLABELS ==
 	    (1 << FRF_AZ_TX_DESCQ_LABEL_WIDTH));
@@ -909,6 +909,8 @@ falconsiena_tx_qcreate(
 	}
 
 	/* Set up the new descriptor queue */
+	*addedp = 0;
+
 	EFX_POPULATE_OWORD_6(oword,
 	    FRF_AZ_TX_DESCQ_BUF_BASE_ID, id,
 	    FRF_AZ_TX_DESCQ_EVQ_ID, eep->ee_index,
@@ -933,12 +935,12 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 falconsiena_tx_qdesc_post(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_desc_t *ed,
@@ -948,7 +950,7 @@ falconsiena_tx_qdesc_post(
 {
 	unsigned int added = *addedp;
 	unsigned int i;
-	int rc;
+	efx_rc_t rc;
 
 	if (added - completed + n > EFX_TXQ_LIMIT(etp->et_mask + 1)) {
 		rc = ENOSPC;
@@ -975,7 +977,7 @@ falconsiena_tx_qdesc_post(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
 }
 

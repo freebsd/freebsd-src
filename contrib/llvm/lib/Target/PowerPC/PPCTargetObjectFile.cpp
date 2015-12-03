@@ -22,7 +22,7 @@ Initialize(MCContext &Ctx, const TargetMachine &TM) {
   InitializeELF(TM.Options.UseInitArray);
 }
 
-const MCSection *PPC64LinuxTargetObjectFile::SelectSectionForGlobal(
+MCSection *PPC64LinuxTargetObjectFile::SelectSectionForGlobal(
     const GlobalValue *GV, SectionKind Kind, Mangler &Mang,
     const TargetMachine &TM) const {
   // Here override ReadOnlySection to DataRelROSection for PPC64 SVR4 ABI
@@ -55,9 +55,9 @@ const MCSection *PPC64LinuxTargetObjectFile::SelectSectionForGlobal(
 const MCExpr *PPC64LinuxTargetObjectFile::
 getDebugThreadLocalSymbol(const MCSymbol *Sym) const {
   const MCExpr *Expr =
-    MCSymbolRefExpr::Create(Sym, MCSymbolRefExpr::VK_PPC_DTPREL, getContext());
-  return MCBinaryExpr::CreateAdd(Expr,
-                                 MCConstantExpr::Create(0x8000, getContext()),
+    MCSymbolRefExpr::create(Sym, MCSymbolRefExpr::VK_PPC_DTPREL, getContext());
+  return MCBinaryExpr::createAdd(Expr,
+                                 MCConstantExpr::create(0x8000, getContext()),
                                  getContext());
 }
 

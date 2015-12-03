@@ -569,7 +569,7 @@ exit1(struct thread *td, int rval, int signo)
 		reason = CLD_DUMPED;
 	else if (WIFSIGNALED(signo))
 		reason = CLD_KILLED;
-	SDT_PROBE(proc, kernel, , exit, reason, 0, 0, 0, 0);
+	SDT_PROBE1(proc, kernel, , exit, reason);
 #endif
 
 	/*
@@ -963,9 +963,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	KASSERT(FIRST_THREAD_IN_PROC(p),
 	    ("proc_reap: no residual thread!"));
 	uma_zfree(proc_zone, p);
-	sx_xlock(&allproc_lock);
-	nprocs--;
-	sx_xunlock(&allproc_lock);
+	atomic_add_int(&nprocs, -1);
 }
 
 static int

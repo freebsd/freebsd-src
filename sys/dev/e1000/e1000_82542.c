@@ -62,7 +62,7 @@ static s32 e1000_init_phy_params_82542(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_init_phy_params_82542");
 
-	phy->type               = e1000_phy_none;
+	phy->type = e1000_phy_none;
 
 	return ret_val;
 }
@@ -77,18 +77,18 @@ static s32 e1000_init_nvm_params_82542(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_init_nvm_params_82542");
 
-	nvm->address_bits       =  6;
-	nvm->delay_usec         = 50;
-	nvm->opcode_bits        =  3;
-	nvm->type               = e1000_nvm_eeprom_microwire;
-	nvm->word_size          = 64;
+	nvm->address_bits	=  6;
+	nvm->delay_usec		= 50;
+	nvm->opcode_bits	=  3;
+	nvm->type		= e1000_nvm_eeprom_microwire;
+	nvm->word_size		= 64;
 
 	/* Function Pointers */
-	nvm->ops.read           = e1000_read_nvm_microwire;
-	nvm->ops.release        = e1000_stop_nvm;
-	nvm->ops.write          = e1000_write_nvm_microwire;
-	nvm->ops.update         = e1000_update_nvm_checksum_generic;
-	nvm->ops.validate       = e1000_validate_nvm_checksum_generic;
+	nvm->ops.read		= e1000_read_nvm_microwire;
+	nvm->ops.release	= e1000_stop_nvm;
+	nvm->ops.write		= e1000_write_nvm_microwire;
+	nvm->ops.update		= e1000_update_nvm_checksum_generic;
+	nvm->ops.validate	= e1000_validate_nvm_checksum_generic;
 
 	return E1000_SUCCESS;
 }
@@ -124,7 +124,8 @@ static s32 e1000_init_mac_params_82542(struct e1000_hw *hw)
 	/* link setup */
 	mac->ops.setup_link = e1000_setup_link_82542;
 	/* phy/fiber/serdes setup */
-	mac->ops.setup_physical_interface = e1000_setup_fiber_serdes_link_generic;
+	mac->ops.setup_physical_interface =
+					e1000_setup_fiber_serdes_link_generic;
 	/* check for link */
 	mac->ops.check_for_link = e1000_check_for_fiber_link_generic;
 	/* multicast address update */
@@ -143,7 +144,8 @@ static s32 e1000_init_mac_params_82542(struct e1000_hw *hw)
 	/* clear hardware counters */
 	mac->ops.clear_hw_cntrs = e1000_clear_hw_cntrs_82542;
 	/* link info */
-	mac->ops.get_link_up_info = e1000_get_speed_and_duplex_fiber_serdes_generic;
+	mac->ops.get_link_up_info =
+				e1000_get_speed_and_duplex_fiber_serdes_generic;
 
 	return E1000_SUCCESS;
 }
@@ -325,7 +327,7 @@ static s32 e1000_setup_link_82542(struct e1000_hw *hw)
 
 	hw->fc.requested_mode &= ~e1000_fc_tx_pause;
 
-	if (mac->report_tx_early == 1)
+	if (mac->report_tx_early)
 		hw->fc.requested_mode &= ~e1000_fc_rx_pause;
 
 	/*
@@ -335,7 +337,7 @@ static s32 e1000_setup_link_82542(struct e1000_hw *hw)
 	hw->fc.current_mode = hw->fc.requested_mode;
 
 	DEBUGOUT1("After fix-ups FlowControl is now = %x\n",
-	                                             hw->fc.current_mode);
+		  hw->fc.current_mode);
 
 	/* Call the necessary subroutine to configure the link. */
 	ret_val = mac->ops.setup_physical_interface(hw);
@@ -419,9 +421,8 @@ static int e1000_rar_set_82542(struct e1000_hw *hw, u8 *addr, u32 index)
 	 * HW expects these in little endian so we reverse the byte order
 	 * from network order (big endian) to little endian
 	 */
-	rar_low = ((u32) addr[0] |
-	           ((u32) addr[1] << 8) |
-	           ((u32) addr[2] << 16) | ((u32) addr[3] << 24));
+	rar_low = ((u32) addr[0] | ((u32) addr[1] << 8) |
+		   ((u32) addr[2] << 16) | ((u32) addr[3] << 24));
 
 	rar_high = ((u32) addr[4] | ((u32) addr[5] << 8));
 
@@ -431,6 +432,7 @@ static int e1000_rar_set_82542(struct e1000_hw *hw, u8 *addr, u32 index)
 
 	E1000_WRITE_REG_ARRAY(hw, E1000_RA, (index << 1), rar_low);
 	E1000_WRITE_REG_ARRAY(hw, E1000_RA, ((index << 1) + 1), rar_high);
+
 	return E1000_SUCCESS;
 }
 

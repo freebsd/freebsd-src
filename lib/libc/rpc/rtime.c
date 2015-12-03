@@ -67,10 +67,8 @@ extern int _rpc_dtablesize( void );
 static void do_close( int );
 
 int
-rtime(addrp, timep, timeout)
-	struct sockaddr_in *addrp;
-	struct timeval *timep;
-	struct timeval *timeout;
+rtime(struct sockaddr_in *addrp, struct timeval *timep,
+    struct timeval *timeout)
 {
 	int s;
 	fd_set readfds;
@@ -148,8 +146,7 @@ rtime(addrp, timep, timeout)
 }
 
 static void
-do_close(s)
-	int s;
+do_close(int s)
 {
 	int save;
 

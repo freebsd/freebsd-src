@@ -48,18 +48,17 @@ EnableIEEERndNear(
     cl::Hidden, cl::ZeroOrMore, cl::init(false),
     cl::desc("Generate non-chopped conversion from fp to int."));
 
+static cl::opt<bool> DisableHexagonMISched("disable-hexagon-misched",
+      cl::Hidden, cl::ZeroOrMore, cl::init(false),
+      cl::desc("Disable Hexagon MI Scheduling"));
+
 HexagonSubtarget &
 HexagonSubtarget::initializeSubtargetDependencies(StringRef CPU, StringRef FS) {
   // If the programmer has not specified a Hexagon version, default to -mv4.
   if (CPUString.empty())
     CPUString = "hexagonv4";
 
-  if (CPUString == "hexagonv2") {
-    HexagonArchVersion = V2;
-  } else if (CPUString == "hexagonv3") {
-    EnableV3 = true;
-    HexagonArchVersion = V3;
-  } else if (CPUString == "hexagonv4") {
+  if (CPUString == "hexagonv4") {
     HexagonArchVersion = V4;
   } else if (CPUString == "hexagonv5") {
     HexagonArchVersion = V5;
@@ -71,12 +70,11 @@ HexagonSubtarget::initializeSubtargetDependencies(StringRef CPU, StringRef FS) {
   return *this;
 }
 
-HexagonSubtarget::HexagonSubtarget(StringRef TT, StringRef CPU, StringRef FS,
-                                   const TargetMachine &TM)
-    : HexagonGenSubtargetInfo(TT, CPU, FS), CPUString(CPU.str()),
-      DL("e-m:e-p:32:32-i1:32-i64:64-a:0-n32"),
-      InstrInfo(initializeSubtargetDependencies(CPU, FS)), TLInfo(TM),
-      TSInfo(DL), FrameLowering() {
+HexagonSubtarget::HexagonSubtarget(const Triple &TT, StringRef CPU,
+                                   StringRef FS, const TargetMachine &TM)
+    : HexagonGenSubtargetInfo(TT, CPU, FS), CPUString(CPU),
+      InstrInfo(initializeSubtargetDependencies(CPU, FS)), TLInfo(TM, *this),
+      FrameLowering() {
 
   // Initialize scheduling itinerary for the specified CPU.
   InstrItins = getInstrItineraryForCPU(CPUString);
@@ -97,3 +95,9 @@ HexagonSubtarget::HexagonSubtarget(StringRef TT, StringRef CPU, StringRef FS,
 
 // Pin the vtable to this file.
 void HexagonSubtarget::anchor() {}
+
+bool HexagonSubtarget::enableMachineScheduler() const {
+  if (DisableHexagonMISched.getNumOccurrences())
+    return !DisableHexagonMISched;
+  return true;
+}

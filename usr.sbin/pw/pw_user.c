@@ -38,6 +38,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <dirent.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
 #include <pwd.h>
@@ -85,10 +86,77 @@ static void	rmat(uid_t uid);
 static void	rmopie(char const * name);
 
 static void
+mkdir_home_parents(int dfd, const char *dir)
+{
+	struct stat st;
+	char *dirs, *tmp;
+
+	if (*dir != '/')
+		errx(EX_DATAERR, "invalid base directory for home '%s'", dir);
+
+	dir++;
+
+	if (fstatat(dfd, dir, &st, 0) != -1) {
+		if (S_ISDIR(st.st_mode))
+			return;
+		errx(EX_OSFILE, "root home `/%s' is not a directory", dir);
+	}
+
+	dirs = strdup(dir);
+	if (dirs == NULL)
+		errx(EX_UNAVAILABLE, "out of memory");
+
+	tmp = strrchr(dirs, '/');
+	if (tmp == NULL) {
+		free(dirs);
+		return;
+	}
+	tmp[0] = '\0';
+
+	/*
+	 * This is a kludge especially for Joerg :)
+	 * If the home directory would be created in the root partition, then
+	 * we really create it under /usr which is likely to have more space.
+	 * But we create a symlink from cnf->home -> "/usr" -> cnf->home
+	 */
+	if (strchr(dirs, '/') == NULL) {
+		asprintf(&tmp, "usr/%s", dirs);
+		if (tmp == NULL)
+			errx(EX_UNAVAILABLE, "out of memory");
+		if (mkdirat(dfd, tmp, _DEF_DIRMODE) != -1 || errno == EEXIST) {
+			fchownat(dfd, tmp, 0, 0, 0);
+			symlinkat(tmp, dfd, dirs);
+		}
+		free(tmp);
+	}
+	tmp = dirs;
+	if (fstatat(dfd, dirs, &st, 0) == -1) {
+		while ((tmp = strchr(tmp + 1, '/')) != NULL) {
+			*tmp = '\0';
+			if (fstatat(dfd, dirs, &st, 0) == -1) {
+				if (mkdirat(dfd, dirs, _DEF_DIRMODE) == -1)
+					err(EX_OSFILE,  "'%s' (root home parent) is not a directory", dirs);
+			}
+			*tmp = '/';
+		}
+	}
+	if (fstatat(dfd, dirs, &st, 0) == -1) {
+		if (mkdirat(dfd, dirs, _DEF_DIRMODE) == -1)
+			err(EX_OSFILE,  "'%s' (root home parent) is not a directory", dirs);
+		fchownat(dfd, dirs, 0, 0, 0);
+	}
+
+	free(dirs);
+}
+
+static void
 create_and_populate_homedir(struct userconf *cnf, struct passwd *pwd,
     const char *skeldir, mode_t homemode, bool update)
 {
 	int skelfd = -1;
+
+	/* Create home parents directories */
+	mkdir_home_parents(conf.rootfd, pwd->pw_dir);
 
 	if (skeldir != NULL && *skeldir != '\0') {
 		if (*skeldir == '/')
@@ -206,7 +274,7 @@ pw_userlock(char *arg1, int mode)
 	char *passtmp = NULL;
 	char *name;
 	bool locked = false;
-	uid_t id;
+	uid_t id = (uid_t)-1;
 
 	if (geteuid() != 0)
 		errx(EX_NOPERM, "you must be root");
@@ -214,15 +282,19 @@ pw_userlock(char *arg1, int mode)
 	if (arg1 == NULL)
 		errx(EX_DATAERR, "username or id required");
 
-	if (arg1[strspn(arg1, "0123456789")] == '\0')
-		id = pw_checkid(arg1, UID_MAX);
-	else
-		name = arg1;
+	name = arg1;
+	if (arg1[strspn(name, "0123456789")] == '\0')
+		id = pw_checkid(name, UID_MAX);
 
-	pwd = (name != NULL) ? GETPWNAM(pw_checkname(name, 0)) : GETPWUID(id);
+	pwd = GETPWNAM(pw_checkname(name, 0));
+	if (pwd == NULL && id != (uid_t)-1) {
+		pwd = GETPWUID(id);
+		if (pwd != NULL)
+			name = pwd->pw_name;
+	}
 	if (pwd == NULL) {
-		if (name == NULL)
-			errx(EX_NOUSER, "no such uid `%ju'", (uintmax_t) id);
+		if (id == (uid_t)-1)
+			errx(EX_NOUSER, "no such name or uid `%ju'", (uintmax_t) id);
 		errx(EX_NOUSER, "no such user `%s'", name);
 	}
 
@@ -570,7 +642,8 @@ pw_checkname(char *name, int gecos)
 	}
 	if (!reject) {
 		while (*ch) {
-			if (strchr(badchars, *ch) != NULL || *ch < ' ' ||
+			if (strchr(badchars, *ch) != NULL ||
+			    (!gecos && *ch < ' ') ||
 			    *ch == 127) {
 				reject = 1;
 				break;
@@ -738,7 +811,7 @@ pw_user_show(int argc, char **argv, char *arg1)
 		case 'a':
 			all = true;
 			break;
-		case 7:
+		case '7':
 			v7 = true;
 			break;
 		}
@@ -1628,6 +1701,7 @@ pw_user_mod(int argc, char **argv, char *arg1)
 
 	if (homedir && strcmp(pwd->pw_dir, homedir) != 0) {
 		pwd->pw_dir = homedir;
+		edited = true;
 		if (fstatat(conf.rootfd, pwd->pw_dir, &st, 0) == -1) {
 			if (!createhome)
 				warnx("WARNING: home `%s' does not exist",

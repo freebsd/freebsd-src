@@ -120,7 +120,7 @@ struct cpu_ops cpu_ops;
  * Local data and functions.
  */
 
-static volatile cpuset_t ipi_nmi_pending;
+static volatile cpuset_t ipi_stop_nmi_pending;
 
 /* used to hold the AP's until we are ready to release them */
 struct mtx ap_boot_mtx;
@@ -425,18 +425,11 @@ cpu_mp_setmaxid(void)
 {
 
 	/*
-	 * mp_maxid should be already set by calls to cpu_add().
-	 * Just sanity check its value here.
+	 * mp_ncpus and mp_maxid should be already set by calls to cpu_add().
+	 * If there were no calls to cpu_add() assume this is a UP system.
 	 */
 	if (mp_ncpus == 0)
-		KASSERT(mp_maxid == 0,
-		    ("%s: mp_ncpus is zero, but mp_maxid is not", __func__));
-	else if (mp_ncpus == 1)
-		mp_maxid = 0;
-	else
-		KASSERT(mp_maxid >= mp_ncpus - 1,
-		    ("%s: counters out of sync: max %d, count %d", __func__,
-			mp_maxid, mp_ncpus));
+		mp_ncpus = 1;
 }
 
 int
@@ -448,28 +441,7 @@ cpu_mp_probe(void)
 	 * correctly.
 	 */
 	CPU_SETOF(0, &all_cpus);
-	if (mp_ncpus == 0) {
-		/*
-		 * No CPUs were found, so this must be a UP system.  Setup
-		 * the variables to represent a system with a single CPU
-		 * with an id of 0.
-		 */
-		mp_ncpus = 1;
-		return (0);
-	}
-
-	/* At least one CPU was found. */
-	if (mp_ncpus == 1) {
-		/*
-		 * One CPU was found, so this must be a UP system with
-		 * an I/O APIC.
-		 */
-		mp_maxid = 0;
-		return (0);
-	}
-
-	/* At least two CPUs were found. */
-	return (1);
+	return (mp_ncpus > 1);
 }
 
 /*
@@ -741,19 +713,6 @@ SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_page, CTLFLAG_RW, &ipi_page, 0, "");
 SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_range, CTLFLAG_RW, &ipi_range, 0, "");
 SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_range_size, CTLFLAG_RW, &ipi_range_size,
     0, "");
-
-u_int ipi_masked_global;
-u_int ipi_masked_page;
-u_int ipi_masked_range;
-u_int ipi_masked_range_size;
-SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_global, CTLFLAG_RW,
-    &ipi_masked_global, 0, "");
-SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_page, CTLFLAG_RW,
-    &ipi_masked_page, 0, "");
-SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_range, CTLFLAG_RW,
-    &ipi_masked_range, 0, "");
-SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_range_size, CTLFLAG_RW,
-    &ipi_masked_range_size, 0, "");
 #endif /* COUNT_XINVLTLB_HITS */
 
 /*
@@ -894,7 +853,7 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		CPU_OR_ATOMIC(&ipi_nmi_pending, &cpus);
+		CPU_OR_ATOMIC(&ipi_stop_nmi_pending, &cpus);
 
 	while ((cpu = CPU_FFS(&cpus)) != 0) {
 		cpu--;
@@ -917,7 +876,7 @@ ipi_cpu(int cpu, u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		CPU_SET_ATOMIC(cpu, &ipi_nmi_pending);
+		CPU_SET_ATOMIC(cpu, &ipi_stop_nmi_pending);
 
 	CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);
 	ipi_send_cpu(cpu, ipi);
@@ -944,7 +903,7 @@ ipi_all_but_self(u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		CPU_OR_ATOMIC(&ipi_nmi_pending, &other_cpus);
+		CPU_OR_ATOMIC(&ipi_stop_nmi_pending, &other_cpus);
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
@@ -962,10 +921,10 @@ ipi_nmi_handler()
 	 * and should be handled.
 	 */
 	cpuid = PCPU_GET(cpuid);
-	if (!CPU_ISSET(cpuid, &ipi_nmi_pending))
+	if (!CPU_ISSET(cpuid, &ipi_stop_nmi_pending))
 		return (1);
 
-	CPU_CLR_ATOMIC(cpuid, &ipi_nmi_pending);
+	CPU_CLR_ATOMIC(cpuid, &ipi_stop_nmi_pending);
 	cpustop_handler();
 	return (0);
 }
@@ -1118,3 +1077,165 @@ mp_ipi_intrcnt(void *dummy)
 }
 SYSINIT(mp_ipi_intrcnt, SI_SUB_INTR, SI_ORDER_MIDDLE, mp_ipi_intrcnt, NULL);
 #endif
+
+/*
+ * Flush the TLB on other CPU's
+ */
+
+/* Variables needed for SMP tlb shootdown. */
+static vm_offset_t smp_tlb_addr1, smp_tlb_addr2;
+pmap_t smp_tlb_pmap;
+volatile int smp_tlb_wait;
+
+#ifdef __amd64__
+#define	read_eflags() read_rflags()
+#endif
+
+static void
+smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
+    vm_offset_t addr1, vm_offset_t addr2)
+{
+	int cpu, ncpu, othercpus;
+
+	othercpus = mp_ncpus - 1;	/* does not shootdown self */
+
+	/*
+	 * Check for other cpus.  Return if none.
+	 */
+	if (CPU_ISFULLSET(&mask)) {
+		if (othercpus < 1)
+			return;
+	} else {
+		CPU_CLR(PCPU_GET(cpuid), &mask);
+		if (CPU_EMPTY(&mask))
+			return;
+	}
+
+	if (!(read_eflags() & PSL_I))
+		panic("%s: interrupts disabled", __func__);
+	mtx_lock_spin(&smp_ipi_mtx);
+	smp_tlb_addr1 = addr1;
+	smp_tlb_addr2 = addr2;
+	smp_tlb_pmap = pmap;
+	smp_tlb_wait =  0;
+	if (CPU_ISFULLSET(&mask)) {
+		ncpu = othercpus;
+		ipi_all_but_self(vector);
+	} else {
+		ncpu = 0;
+		while ((cpu = CPU_FFS(&mask)) != 0) {
+			cpu--;
+			CPU_CLR(cpu, &mask);
+			CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__,
+			    cpu, vector);
+			ipi_send_cpu(cpu, vector);
+			ncpu++;
+		}
+	}
+	while (smp_tlb_wait < ncpu)
+		ia32_pause();
+	mtx_unlock_spin(&smp_ipi_mtx);
+}
+
+void
+smp_masked_invltlb(cpuset_t mask, pmap_t pmap)
+{
+
+	if (smp_started) {
+		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, pmap, 0, 0);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_global++;
+#endif
+	}
+}
+
+void
+smp_masked_invlpg(cpuset_t mask, vm_offset_t addr)
+{
+
+	if (smp_started) {
+		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, NULL, addr, 0);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_page++;
+#endif
+	}
+}
+
+void
+smp_masked_invlpg_range(cpuset_t mask, vm_offset_t addr1, vm_offset_t addr2)
+{
+
+	if (smp_started) {
+		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, NULL,
+		    addr1, addr2);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_range++;
+		ipi_range_size += (addr2 - addr1) / PAGE_SIZE;
+#endif
+	}
+}
+
+void
+smp_cache_flush(void)
+{
+
+	if (smp_started) {
+		smp_targeted_tlb_shootdown(all_cpus, IPI_INVLCACHE, NULL,
+		    0, 0);
+	}
+}
+
+/*
+ * Handlers for TLB related IPIs
+ */
+void
+invltlb_handler(void)
+{
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_gbl[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	if (smp_tlb_pmap == kernel_pmap)
+		invltlb_glob();
+	else
+		invltlb();
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+void
+invlpg_handler(void)
+{
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_pg[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlpg_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	invlpg(smp_tlb_addr1);
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+void
+invlrng_handler(void)
+{
+	vm_offset_t addr;
+
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_rng[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlrng_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	addr = smp_tlb_addr1;
+	do {
+		invlpg(addr);
+		addr += PAGE_SIZE;
+	} while (addr < smp_tlb_addr2);
+
+	atomic_add_int(&smp_tlb_wait, 1);
+}

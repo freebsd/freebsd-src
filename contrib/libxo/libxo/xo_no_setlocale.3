@@ -12,8 +12,7 @@
 .Os
 .Sh NAME
 .Nm xo_no_setlocale
-.Nd prevent implicit call to
-.Fn setlocale
+.Nd prevent implicit call to setlocale
 .Sh LIBRARY
 .Lb libxo
 .Sh SYNOPSIS
@@ -36,33 +35,9 @@ The caller may wish to avoid this behavior, and
 can do so by calling the
 .Fn xo_no_setlocale
 function.
-.Sh ADDITIONAL DOCUMENTATION
-Complete documentation can be found on github:
-.Bd -literal -offset indent
-http://juniper.github.io/libxo/libxo-manual.html
-.Ed
-.Pp
-.Nm libxo
-lives on github as:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo
-.Ed
-.Pp
-The latest release of
-.Nm libxo
-is available at:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo/releases
-.Ed
 .Sh SEE ALSO
 .Xr xo_emit 3 ,
 .Xr xo_open_container 3 ,
 .Xr xo_open_list 3 ,
-.Xr xo_format 5
-.Sh HISTORY
-The
-.Nm libxo
-library was added in
-.Fx 11.0 .
-.Sh AUTHOR
-Phil Shafer
+.Xr xo_format 5 ,
+.Xr libxo 3

@@ -71,7 +71,7 @@ acl_clear_flags_np(acl_flagset_t flagset_d)
 		return (-1);
 	}
 
-	*flagset_d |= 0;
+	*flagset_d = 0;
 
 	return (0);
 }

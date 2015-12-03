@@ -41,7 +41,7 @@
 
 /* The current state of our XML parsing. */
 typedef enum mergeinfo_state_e {
-  INITIAL = 0,
+  INITIAL = XML_STATE_INITIAL,
   MERGEINFO_REPORT,
   MERGEINFO_ITEM,
   MERGEINFO_PATH,
@@ -130,12 +130,13 @@ mergeinfo_closed(svn_ra_serf__xml_estate_t *xes,
   return SVN_NO_ERROR;
 }
 
-
+/* Implements svn_ra_serf__request_body_delegate_t */
 static svn_error_t *
 create_mergeinfo_body(serf_bucket_t **bkt,
                       void *baton,
                       serf_bucket_alloc_t *alloc,
-                      apr_pool_t *pool)
+                      apr_pool_t *pool /* request pool */,
+                      apr_pool_t *scratch_pool)
 {
   mergeinfo_context_t *mergeinfo_ctx = baton;
   serf_bucket_t *body_bkt;
@@ -145,7 +146,7 @@ create_mergeinfo_body(serf_bucket_t **bkt,
   svn_ra_serf__add_open_tag_buckets(body_bkt, alloc,
                                     "S:" SVN_DAV__MERGEINFO_REPORT,
                                     "xmlns:S", SVN_XML_NAMESPACE,
-                                    NULL);
+                                    SVN_VA_NULL);
 
   svn_ra_serf__add_tag_buckets(body_bkt,
                                "S:" SVN_DAV__REVISION,
@@ -191,7 +192,6 @@ svn_ra_serf__get_mergeinfo(svn_ra_session_t *ra_session,
                            svn_boolean_t include_descendants,
                            apr_pool_t *pool)
 {
-  svn_error_t *err;
   mergeinfo_context_t *mergeinfo_ctx;
   svn_ra_serf__session_t *session = ra_session->priv;
   svn_ra_serf__handler_t *handler;
@@ -201,7 +201,7 @@ svn_ra_serf__get_mergeinfo(svn_ra_session_t *ra_session,
   *catalog = NULL;
 
   SVN_ERR(svn_ra_serf__get_stable_url(&path, NULL /* latest_revnum */,
-                                      session, NULL /* conn */,
+                                      session,
                                       NULL /* url */, revision,
                                       pool, pool));
 
@@ -217,24 +217,21 @@ svn_ra_serf__get_mergeinfo(svn_ra_session_t *ra_session,
                                            NULL, mergeinfo_closed, NULL,
                                            mergeinfo_ctx,
                                            pool);
-  handler = svn_ra_serf__create_expat_handler(xmlctx, pool);
+  handler = svn_ra_serf__create_expat_handler(session, xmlctx, NULL, pool);
 
   handler->method = "REPORT";
   handler->path = path;
-  handler->conn = session->conns[0];
-  handler->session = session;
+
   handler->body_delegate = create_mergeinfo_body;
   handler->body_delegate_baton = mergeinfo_ctx;
   handler->body_type = "text/xml";
 
-  err = svn_ra_serf__context_run_one(handler, pool);
+  SVN_ERR(svn_ra_serf__context_run_one(handler, pool));
 
-  SVN_ERR(svn_error_compose_create(
-                svn_ra_serf__error_on_status(handler->sline, handler->path,
-                                             handler->location),
-                err));
+  SVN_ERR(svn_ra_serf__error_on_status(handler->sline, handler->path,
+                                       handler->location));
 
-  if (handler->done && apr_hash_count(mergeinfo_ctx->result_catalog))
+  if (apr_hash_count(mergeinfo_ctx->result_catalog))
     *catalog = mergeinfo_ctx->result_catalog;
 
   return SVN_NO_ERROR;

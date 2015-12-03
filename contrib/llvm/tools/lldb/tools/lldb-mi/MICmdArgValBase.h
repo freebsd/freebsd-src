@@ -1,4 +1,4 @@
-//===-- Platform.h ----------------------------------------------*- C++ -*-===//
+//===-- CMICmdArgValBase.h --------------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -6,18 +6,6 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-
-//++
-// File:        MICmdArgValBase.h
-//
-// Overview:    CMICmdArgValBase interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
 
 #pragma once
 
@@ -55,18 +43,18 @@ class CMICmdArgValBase : public CMICmdArgSet::IArg
 
     // Overrideable:
   public:
-    /* dtor */ virtual ~CMICmdArgValBase(void);
+    /* dtor */ ~CMICmdArgValBase(void) override;
 
     // Overridden:
   public:
     // From CMICmdArgSet::IArg
-    virtual bool GetFound(void) const;
-    virtual bool GetIsHandledByCmd(void) const;
-    virtual bool GetIsMandatory(void) const;
-    virtual bool GetIsMissingOptions(void) const;
-    virtual const CMIUtilString &GetName(void) const;
-    virtual bool GetValid(void) const;
-    virtual bool Validate(CMICmdArgContext &vwArgContext);
+    bool GetFound(void) const override;
+    bool GetIsHandledByCmd(void) const override;
+    bool GetIsMandatory(void) const override;
+    bool GetIsMissingOptions(void) const override;
+    const CMIUtilString &GetName(void) const override;
+    bool GetValid(void) const override;
+    bool Validate(CMICmdArgContext &vwArgContext) override;
 
     // Attributes:
   protected:

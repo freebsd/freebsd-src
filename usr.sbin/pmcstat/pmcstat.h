@@ -55,6 +55,7 @@
 #define	FLAG_DO_ANALYSIS		0x00020000	/* -g or -G or -m or -T */
 #define	FLAGS_HAS_CPUMASK		0x00040000	/* -c */
 #define	FLAG_HAS_DURATION		0x00080000	/* -l secs */
+#define	FLAG_DO_WIDE_GPROF_HC		0x00100000	/* -e */
 
 #define	DEFAULT_SAMPLE_COUNT		65536
 #define	DEFAULT_WAIT_INTERVAL		5.0

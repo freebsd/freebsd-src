@@ -30,6 +30,8 @@ hints		"PANDABOARD.hints"
 include 	"std.armv6"
 include 	"../ti/omap4/pandaboard/std.pandaboard"
 
+options		ARM_INTRNG		# new interrupt framework
+
 options 	HZ=100
 options 	SCHED_ULE		# ULE scheduler
 options 	PLATFORM
@@ -60,6 +62,8 @@ options 	DDB			# Enable the kernel debugger
 device		fdt_pinctrl
 # Interrupt controller
 device		gic
+# ARM MPCore timer
+device		mpcore_timer
 
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus

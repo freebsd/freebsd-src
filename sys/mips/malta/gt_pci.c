@@ -415,7 +415,7 @@ gt_pci_attach(device_t dev)
 	}
 
 	/* Initialize memory and i/o rmans. */
-	device_add_child(dev, "pci", busno);
+	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
 

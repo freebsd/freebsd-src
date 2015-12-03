@@ -737,12 +737,6 @@ sta_cancel(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 	return 0;
 }
 
-/* unaligned little endian access */     
-#define LE_READ_2(p)					\
-	((uint16_t)					\
-	 ((((const uint8_t *)(p))[0]      ) |		\
-	  (((const uint8_t *)(p))[1] <<  8)))
- 
 /*
  * Demote any supplied 11g channel to 11b.  There should
  * always be an 11b channel but we check anyway...
@@ -876,7 +870,6 @@ static int
 check_rate(struct ieee80211vap *vap, const struct ieee80211_channel *chan,
     const struct ieee80211_scan_entry *se)
 {
-#define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	const struct ieee80211_rateset *srs;
 	int i, j, nrs, r, okrate, badrate, fixedrate, ucastrate;
 	const uint8_t *rs;
@@ -891,7 +884,7 @@ check_rate(struct ieee80211vap *vap, const struct ieee80211_channel *chan,
 	fixedrate = IEEE80211_FIXED_RATE_NONE;
 again:
 	for (i = 0; i < nrs; i++) {
-		r = RV(rs[i]);
+		r = IEEE80211_RV(rs[i]);
 		badrate = r;
 		/*
 		 * Check any fixed rate is included. 
@@ -902,7 +895,7 @@ again:
 		 * Check against our supported rates.
 		 */
 		for (j = 0; j < srs->rs_nrates; j++)
-			if (r == RV(srs->rs_rates[j])) {
+			if (r == IEEE80211_RV(srs->rs_rates[j])) {
 				if (r > okrate)		/* NB: track max */
 					okrate = r;
 				break;
@@ -928,8 +921,7 @@ back:
 	if (okrate == 0 || ucastrate != fixedrate)
 		return badrate | IEEE80211_RATE_BASIC;
 	else
-		return RV(okrate);
-#undef RV
+		return IEEE80211_RV(okrate);
 }
 
 static __inline int
@@ -1706,26 +1698,6 @@ static const struct ieee80211_scanner adhoc_default = {
 IEEE80211_SCANNER_ALG(ibss, IEEE80211_M_IBSS, adhoc_default);
 IEEE80211_SCANNER_ALG(ahdemo, IEEE80211_M_AHDEMO, adhoc_default);
 
-static void
-ap_force_promisc(struct ieee80211com *ic)
-{
-	struct ifnet *ifp = ic->ic_ifp;
-
-	IEEE80211_LOCK(ic);
-	/* set interface into promiscuous mode */
-	ifp->if_flags |= IFF_PROMISC;
-	ieee80211_runtask(ic, &ic->ic_promisc_task);
-	IEEE80211_UNLOCK(ic);
-}
-
-static void
-ap_reset_promisc(struct ieee80211com *ic)
-{
-	IEEE80211_LOCK(ic);
-	ieee80211_syncifflag_locked(ic, IFF_PROMISC);
-	IEEE80211_UNLOCK(ic);
-}
-
 static int
 ap_start(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 {
@@ -1741,7 +1713,7 @@ ap_start(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 	st->st_scangen++;
 	st->st_newscan = 1;
 
-	ap_force_promisc(vap->iv_ic);
+	ieee80211_promisc(vap, true);
 	return 0;
 }
 
@@ -1751,7 +1723,7 @@ ap_start(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 static int
 ap_cancel(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 {
-	ap_reset_promisc(vap->iv_ic);
+	ieee80211_promisc(vap, false);
 	return 0;
 }
 
@@ -1825,7 +1797,7 @@ ap_end(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 			return 0;
 		}
 	}
-	ap_reset_promisc(ic);
+	ieee80211_promisc(vap, false);
 	if (ss->ss_flags & (IEEE80211_SCAN_NOPICK | IEEE80211_SCAN_NOJOIN)) {
 		/*
 		 * Manual/background scan, don't select+join the

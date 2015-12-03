@@ -37,10 +37,6 @@
 
 #include "svn_private_config.h"
 
-/* A handy constant */
-static const svn_opt_revision_t unspecified_revision
-  = { svn_opt_revision_unspecified, { 0 } };
-
 
 /*** Code. ***/
 

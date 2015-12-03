@@ -866,7 +866,7 @@ linux_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 
 	if (sa->code >= p->p_sysent->sv_size)
 		/* nosys */
-		sa->callp = &p->p_sysent->sv_table[LINUX_SYS_MAXSYSCALL];
+		sa->callp = &p->p_sysent->sv_table[p->p_sysent->sv_size - 1];
  	else
  		sa->callp = &p->p_sysent->sv_table[sa->code];
 	sa->narg = sa->callp->sy_narg;
@@ -956,8 +956,6 @@ struct sysentvec linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
 	.sv_mask	= 0,
-	.sv_sigsize	= 0,
-	.sv_sigtbl	= NULL,
 	.sv_errsize	= ELAST + 1,
 	.sv_errtbl	= bsd_to_linux_errno,
 	.sv_transtrap	= translate_traps,
@@ -965,7 +963,6 @@ struct sysentvec linux_sysvec = {
 	.sv_sendsig	= linux_sendsig,
 	.sv_sigcode	= &_binary_linux_locore_o_start,
 	.sv_szsigcode	= &linux_szsigcode,
-	.sv_prepsyscall	= NULL,
 	.sv_name	= "Linux a.out",
 	.sv_coredump	= NULL,
 	.sv_imgact_try	= exec_linux_imgact_try,
@@ -995,8 +992,6 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
 	.sv_mask	= 0,
-	.sv_sigsize	= 0,
-	.sv_sigtbl	= NULL,
 	.sv_errsize	= ELAST + 1,
 	.sv_errtbl	= bsd_to_linux_errno,
 	.sv_transtrap	= translate_traps,
@@ -1004,7 +999,6 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_sendsig	= linux_sendsig,
 	.sv_sigcode	= &_binary_linux_locore_o_start,
 	.sv_szsigcode	= &linux_szsigcode,
-	.sv_prepsyscall	= NULL,
 	.sv_name	= "Linux ELF",
 	.sv_coredump	= elf32_coredump,
 	.sv_imgact_try	= exec_linux_imgact_try,

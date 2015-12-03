@@ -6,7 +6,7 @@
 #
 CRUNCH_PROGS_sbin+=	dmesg sysctl init reboot
 CRUNCH_PROGS_bin+=	ls cat dd df cp hostname kill mkdir sleep ps
-CRUNCH_PROGS_bin+=	ln rm hostname kenv mv expr
+CRUNCH_PROGS_bin+=	ln rm kenv mv expr
 CRUNCH_PROGS_usr.bin+=	true false hexdump tail nc w head uname tset
 CRUNCH_PROGS_usr.sbin+=	gpioctl
 CRUNCH_ALIAS_w=		uptime

@@ -205,12 +205,9 @@ initkre(void)
 		return(0);
 	}
 
-	cur.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
-	last.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
-	run.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
-	bzero(cur.dinfo, sizeof(struct devinfo));
-	bzero(last.dinfo, sizeof(struct devinfo));
-	bzero(run.dinfo, sizeof(struct devinfo));
+	cur.dinfo = calloc(1, sizeof(struct devinfo));
+	last.dinfo = calloc(1, sizeof(struct devinfo));
+	run.dinfo = calloc(1, sizeof(struct devinfo));
 
 	if (dsinit(MAXDRIVES, &cur, &last, &run) != 1)
 		return(0);

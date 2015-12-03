@@ -4292,7 +4292,7 @@ pmap_free_pv_chunk(struct pv_chunk *pc)
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
 	pmap_qremove((vm_offset_t)pc, 1);
-	vm_page_unwire(m, PQ_INACTIVE);
+	vm_page_unwire(m, PQ_NONE);
 	vm_page_free(m);
 	pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
 
@@ -5396,12 +5396,6 @@ pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 #endif
 	return (size);
 
-}
-
-int
-pmap_dmap_iscurrent(pmap_t pmap)
-{
-	return(pmap_is_current(pmap));
 }
 
 void

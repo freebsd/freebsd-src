@@ -318,6 +318,9 @@ AcpiPsLinkModuleCode (
     ACPI_NAMESPACE_NODE     *ParentNode;
 
 
+    ACPI_FUNCTION_TRACE (PsLinkModuleCode);
+
+
     /* Get the tail of the list */
 
     Prev = Next = AcpiGbl_ModuleCodeList;
@@ -339,8 +342,11 @@ AcpiPsLinkModuleCode (
         MethodObj = AcpiUtCreateInternalObject (ACPI_TYPE_METHOD);
         if (!MethodObj)
         {
-            return;
+            return_VOID;
         }
+
+        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
+            "Create/Link new code block: %p\n", MethodObj));
 
         if (ParentOp->Common.Node)
         {
@@ -374,8 +380,13 @@ AcpiPsLinkModuleCode (
     }
     else
     {
+        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
+            "Appending to existing code block: %p\n", Prev));
+
         Prev->Method.AmlLength += AmlLength;
     }
+
+    return_VOID;
 }
 
 /*******************************************************************************

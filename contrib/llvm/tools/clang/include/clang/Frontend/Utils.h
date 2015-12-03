@@ -45,6 +45,7 @@ class HeaderSearch;
 class HeaderSearchOptions;
 class IdentifierTable;
 class LangOptions;
+class PCHContainerReader;
 class Preprocessor;
 class PreprocessorOptions;
 class PreprocessorOutputOptions;
@@ -61,8 +62,8 @@ void ApplyHeaderSearchOptions(HeaderSearch &HS,
 
 /// InitializePreprocessor - Initialize the preprocessor getting it and the
 /// environment ready to process a single file.
-void InitializePreprocessor(Preprocessor &PP,
-                            const PreprocessorOptions &PPOpts,
+void InitializePreprocessor(Preprocessor &PP, const PreprocessorOptions &PPOpts,
+                            const PCHContainerReader &PCHContainerRdr,
                             const FrontendOptions &FEOpts);
 
 /// DoPrintPreprocessedInput - Implement -E mode.
@@ -159,9 +160,8 @@ void AttachHeaderIncludeGen(Preprocessor &PP, bool ShowAllHeaders = false,
                             StringRef OutputPath = "",
                             bool ShowDepth = true, bool MSStyle = false);
 
-/// CacheTokens - Cache tokens for use with PCH. Note that this requires
-/// a seekable stream.
-void CacheTokens(Preprocessor &PP, llvm::raw_fd_ostream* OS);
+/// Cache tokens for use with PCH. Note that this requires a seekable stream.
+void CacheTokens(Preprocessor &PP, raw_pwrite_stream *OS);
 
 /// The ChainedIncludesSource class converts headers to chained PCHs in
 /// memory, mainly for testing.

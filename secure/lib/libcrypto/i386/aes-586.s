@@ -101,74 +101,78 @@ _x86_AES_encrypt_compact:
 	xorl	%ecx,%edx
 	movl	%esi,%ecx
 
-	movl	%ecx,%esi
-	andl	$2155905152,%esi
-	movl	%esi,%ebp
-	shrl	$7,%ebp
+	movl	$2155905152,%ebp
+	andl	%ecx,%ebp
 	leal	(%ecx,%ecx,1),%edi
-	subl	%ebp,%esi
+	movl	%ebp,%esi
+	shrl	$7,%ebp
 	andl	$4278124286,%edi
-	andl	$454761243,%esi
+	subl	%ebp,%esi
 	movl	%ecx,%ebp
+	andl	$454761243,%esi
+	rorl	$16,%ebp
 	xorl	%edi,%esi
+	movl	%ecx,%edi
 	xorl	%esi,%ecx
+	rorl	$24,%edi
+	xorl	%ebp,%esi
 	roll	$24,%ecx
+	xorl	%edi,%esi
+	movl	$2155905152,%ebp
 	xorl	%esi,%ecx
-	rorl	$16,%ebp
-	xorl	%ebp,%ecx
-	rorl	$8,%ebp
-	xorl	%ebp,%ecx
-	movl	%edx,%esi
-	andl	$2155905152,%esi
-	movl	%esi,%ebp
-	shrl	$7,%ebp
+	andl	%edx,%ebp
 	leal	(%edx,%edx,1),%edi
-	subl	%ebp,%esi
+	movl	%ebp,%esi
+	shrl	$7,%ebp
 	andl	$4278124286,%edi
-	andl	$454761243,%esi
+	subl	%ebp,%esi
 	movl	%edx,%ebp
+	andl	$454761243,%esi
+	rorl	$16,%ebp
 	xorl	%edi,%esi
+	movl	%edx,%edi
 	xorl	%esi,%edx
+	rorl	$24,%edi
+	xorl	%ebp,%esi
 	roll	$24,%edx
+	xorl	%edi,%esi
+	movl	$2155905152,%ebp
 	xorl	%esi,%edx
-	rorl	$16,%ebp
-	xorl	%ebp,%edx
-	rorl	$8,%ebp
-	xorl	%ebp,%edx
-	movl	%eax,%esi
-	andl	$2155905152,%esi
-	movl	%esi,%ebp
-	shrl	$7,%ebp
+	andl	%eax,%ebp
 	leal	(%eax,%eax,1),%edi
-	subl	%ebp,%esi
-	andl	$4278124286,%edi
-	andl	$454761243,%esi
-	movl	%eax,%ebp
-	xorl	%edi,%esi
-	xorl	%esi,%eax
-	roll	$24,%eax
-	xorl	%esi,%eax
-	rorl	$16,%ebp
-	xorl	%ebp,%eax
-	rorl	$8,%ebp
-	xorl	%ebp,%eax
-	movl	%ebx,%esi
-	andl	$2155905152,%esi
-	movl	%esi,%ebp
+	movl	%ebp,%esi
 	shrl	$7,%ebp
-	leal	(%ebx,%ebx,1),%edi
-	subl	%ebp,%esi
 	andl	$4278124286,%edi
+	subl	%ebp,%esi
+	movl	%eax,%ebp
 	andl	$454761243,%esi
+	rorl	$16,%ebp
+	xorl	%edi,%esi
+	movl	%eax,%edi
+	xorl	%esi,%eax
+	rorl	$24,%edi
+	xorl	%ebp,%esi
+	roll	$24,%eax
+	xorl	%edi,%esi
+	movl	$2155905152,%ebp
+	xorl	%esi,%eax
+	andl	%ebx,%ebp
+	leal	(%ebx,%ebx,1),%edi
+	movl	%ebp,%esi
+	shrl	$7,%ebp
+	andl	$4278124286,%edi
+	subl	%ebp,%esi
 	movl	%ebx,%ebp
+	andl	$454761243,%esi
+	rorl	$16,%ebp
+	xorl	%edi,%esi
+	movl	%ebx,%edi
+	xorl	%esi,%ebx
+	rorl	$24,%edi
+	xorl	%ebp,%esi
+	roll	$24,%ebx
 	xorl	%edi,%esi
 	xorl	%esi,%ebx
-	roll	$24,%ebx
-	xorl	%esi,%ebx
-	rorl	$16,%ebp
-	xorl	%ebp,%ebx
-	rorl	$8,%ebp
-	xorl	%ebp,%ebx
 	movl	20(%esp),%edi
 	movl	28(%esp),%ebp
 	addl	$16,%edi
@@ -290,74 +294,76 @@ _sse_AES_encrypt_compact:
 	pshufw	$13,%mm4,%mm5
 	movd	%mm1,%eax
 	movd	%mm5,%ebx
+	movl	%edi,20(%esp)
 	movzbl	%al,%esi
-	movzbl	-128(%ebp,%esi,1),%ecx
-	pshufw	$13,%mm0,%mm2
 	movzbl	%ah,%edx
+	pshufw	$13,%mm0,%mm2
+	movzbl	-128(%ebp,%esi,1),%ecx
+	movzbl	%bl,%edi
 	movzbl	-128(%ebp,%edx,1),%edx
+	shrl	$16,%eax
 	shll	$8,%edx
-	shrl	$16,%eax
-	movzbl	%bl,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%bh,%edi
 	shll	$16,%esi
-	orl	%esi,%ecx
 	pshufw	$8,%mm4,%mm6
-	movzbl	%bh,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
+	orl	%esi,%ecx
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%ah,%edi
 	shll	$24,%esi
+	shrl	$16,%ebx
 	orl	%esi,%edx
-	shrl	$16,%ebx
-	movzbl	%ah,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%bh,%edi
 	shll	$8,%esi
 	orl	%esi,%ecx
-	movzbl	%bh,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%al,%edi
 	shll	$24,%esi
 	orl	%esi,%ecx
-	movd	%ecx,%mm0
-	movzbl	%al,%esi
-	movzbl	-128(%ebp,%esi,1),%ecx
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%bl,%edi
 	movd	%mm2,%eax
-	movzbl	%bl,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
-	shll	$16,%esi
-	orl	%esi,%ecx
+	movd	%ecx,%mm0
+	movzbl	-128(%ebp,%edi,1),%ecx
+	movzbl	%ah,%edi
+	shll	$16,%ecx
 	movd	%mm6,%ebx
-	movzbl	%ah,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
+	orl	%esi,%ecx
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%bh,%edi
 	shll	$24,%esi
 	orl	%esi,%ecx
-	movzbl	%bh,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%bl,%edi
 	shll	$8,%esi
-	orl	%esi,%ecx
-	movd	%ecx,%mm1
-	movzbl	%bl,%esi
-	movzbl	-128(%ebp,%esi,1),%ecx
 	shrl	$16,%ebx
-	movzbl	%al,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
-	shll	$16,%esi
 	orl	%esi,%ecx
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%al,%edi
 	shrl	$16,%eax
-	punpckldq	%mm1,%mm0
-	movzbl	%ah,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
-	shll	$24,%esi
-	orl	%esi,%ecx
+	movd	%ecx,%mm1
+	movzbl	-128(%ebp,%edi,1),%ecx
+	movzbl	%ah,%edi
+	shll	$16,%ecx
 	andl	$255,%eax
-	movzbl	-128(%ebp,%eax,1),%eax
-	shll	$16,%eax
-	orl	%eax,%edx
-	movzbl	%bh,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
-	shll	$8,%esi
 	orl	%esi,%ecx
-	movd	%ecx,%mm4
+	punpckldq	%mm1,%mm0
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%bh,%edi
+	shll	$24,%esi
 	andl	$255,%ebx
+	movzbl	-128(%ebp,%eax,1),%eax
+	orl	%esi,%ecx
+	shll	$16,%eax
+	movzbl	-128(%ebp,%edi,1),%esi
+	orl	%eax,%edx
+	shll	$8,%esi
 	movzbl	-128(%ebp,%ebx,1),%ebx
+	orl	%esi,%ecx
 	orl	%ebx,%edx
+	movl	20(%esp),%edi
+	movd	%ecx,%mm4
 	movd	%edx,%mm5
 	punpckldq	%mm5,%mm4
 	addl	$16,%edi
@@ -1130,28 +1136,28 @@ _x86_AES_decrypt_compact:
 	movzbl	-128(%ebp,%eax,1),%eax
 	shll	$24,%eax
 	xorl	%eax,%edx
-	movl	%ecx,%esi
-	andl	$2155905152,%esi
-	movl	%esi,%edi
+	movl	$2155905152,%edi
+	andl	%ecx,%edi
+	movl	%edi,%esi
 	shrl	$7,%edi
 	leal	(%ecx,%ecx,1),%eax
 	subl	%edi,%esi
 	andl	$4278124286,%eax
 	andl	$454761243,%esi
-	xorl	%eax,%esi
-	movl	%esi,%eax
-	andl	$2155905152,%esi
-	movl	%esi,%edi
+	xorl	%esi,%eax
+	movl	$2155905152,%edi
+	andl	%eax,%edi
+	movl	%edi,%esi
 	shrl	$7,%edi
 	leal	(%eax,%eax,1),%ebx
 	subl	%edi,%esi
 	andl	$4278124286,%ebx
 	andl	$454761243,%esi
 	xorl	%ecx,%eax
-	xorl	%ebx,%esi
-	movl	%esi,%ebx
-	andl	$2155905152,%esi
-	movl	%esi,%edi
+	xorl	%esi,%ebx
+	movl	$2155905152,%edi
+	andl	%ebx,%edi
+	movl	%edi,%esi
 	shrl	$7,%edi
 	leal	(%ebx,%ebx,1),%ebp
 	subl	%edi,%esi
@@ -1162,39 +1168,39 @@ _x86_AES_decrypt_compact:
 	xorl	%esi,%ebp
 	xorl	%eax,%ecx
 	xorl	%ebp,%eax
-	roll	$24,%eax
 	xorl	%ebx,%ecx
 	xorl	%ebp,%ebx
-	roll	$16,%ebx
+	roll	$24,%eax
 	xorl	%ebp,%ecx
-	roll	$8,%ebp
+	roll	$16,%ebx
 	xorl	%eax,%ecx
+	roll	$8,%ebp
 	xorl	%ebx,%ecx
 	movl	4(%esp),%eax
 	xorl	%ebp,%ecx
 	movl	%ecx,12(%esp)
-	movl	%edx,%esi
-	andl	$2155905152,%esi
-	movl	%esi,%edi
+	movl	$2155905152,%edi
+	andl	%edx,%edi
+	movl	%edi,%esi
 	shrl	$7,%edi
 	leal	(%edx,%edx,1),%ebx
 	subl	%edi,%esi
 	andl	$4278124286,%ebx
 	andl	$454761243,%esi
-	xorl	%ebx,%esi
-	movl	%esi,%ebx
-	andl	$2155905152,%esi
-	movl	%esi,%edi
+	xorl	%esi,%ebx
+	movl	$2155905152,%edi
+	andl	%ebx,%edi
+	movl	%edi,%esi
 	shrl	$7,%edi
 	leal	(%ebx,%ebx,1),%ecx
 	subl	%edi,%esi
 	andl	$4278124286,%ecx
 	andl	$454761243,%esi
 	xorl	%edx,%ebx
-	xorl	%ecx,%esi
-	movl	%esi,%ecx
-	andl	$2155905152,%esi
-	movl	%esi,%edi
+	xorl	%esi,%ecx
+	movl	$2155905152,%edi
+	andl	%ecx,%edi
+	movl	%edi,%esi
 	shrl	$7,%edi
 	leal	(%ecx,%ecx,1),%ebp
 	subl	%edi,%esi
@@ -1205,39 +1211,39 @@ _x86_AES_decrypt_compact:
 	xorl	%esi,%ebp
 	xorl	%ebx,%edx
 	xorl	%ebp,%ebx
-	roll	$24,%ebx
 	xorl	%ecx,%edx
 	xorl	%ebp,%ecx
-	roll	$16,%ecx
+	roll	$24,%ebx
 	xorl	%ebp,%edx
-	roll	$8,%ebp
+	roll	$16,%ecx
 	xorl	%ebx,%edx
+	roll	$8,%ebp
 	xorl	%ecx,%edx
 	movl	8(%esp),%ebx
 	xorl	%ebp,%edx
 	movl	%edx,16(%esp)
-	movl	%eax,%esi
-	andl	$2155905152,%esi
-	movl	%esi,%edi
+	movl	$2155905152,%edi
+	andl	%eax,%edi
+	movl	%edi,%esi
 	shrl	$7,%edi
 	leal	(%eax,%eax,1),%ecx
 	subl	%edi,%esi
 	andl	$4278124286,%ecx
 	andl	$454761243,%esi
-	xorl	%ecx,%esi
-	movl	%esi,%ecx
-	andl	$2155905152,%esi
-	movl	%esi,%edi
+	xorl	%esi,%ecx
+	movl	$2155905152,%edi
+	andl	%ecx,%edi
+	movl	%edi,%esi
 	shrl	$7,%edi
 	leal	(%ecx,%ecx,1),%edx
 	subl	%edi,%esi
 	andl	$4278124286,%edx
 	andl	$454761243,%esi
 	xorl	%eax,%ecx
-	xorl	%edx,%esi
-	movl	%esi,%edx
-	andl	$2155905152,%esi
-	movl	%esi,%edi
+	xorl	%esi,%edx
+	movl	$2155905152,%edi
+	andl	%edx,%edi
+	movl	%edi,%esi
 	shrl	$7,%edi
 	leal	(%edx,%edx,1),%ebp
 	subl	%edi,%esi
@@ -1248,37 +1254,37 @@ _x86_AES_decrypt_compact:
 	xorl	%esi,%ebp
 	xorl	%ecx,%eax
 	xorl	%ebp,%ecx
-	roll	$24,%ecx
 	xorl	%edx,%eax
 	xorl	%ebp,%edx
-	roll	$16,%edx
+	roll	$24,%ecx
 	xorl	%ebp,%eax
-	roll	$8,%ebp
+	roll	$16,%edx
 	xorl	%ecx,%eax
+	roll	$8,%ebp
 	xorl	%edx,%eax
 	xorl	%ebp,%eax
-	movl	%ebx,%esi
-	andl	$2155905152,%esi
-	movl	%esi,%edi
+	movl	$2155905152,%edi
+	andl	%ebx,%edi
+	movl	%edi,%esi
 	shrl	$7,%edi
 	leal	(%ebx,%ebx,1),%ecx
 	subl	%edi,%esi
 	andl	$4278124286,%ecx
 	andl	$454761243,%esi
-	xorl	%ecx,%esi
-	movl	%esi,%ecx
-	andl	$2155905152,%esi
-	movl	%esi,%edi
+	xorl	%esi,%ecx
+	movl	$2155905152,%edi
+	andl	%ecx,%edi
+	movl	%edi,%esi
 	shrl	$7,%edi
 	leal	(%ecx,%ecx,1),%edx
 	subl	%edi,%esi
 	andl	$4278124286,%edx
 	andl	$454761243,%esi
 	xorl	%ebx,%ecx
-	xorl	%edx,%esi
-	movl	%esi,%edx
-	andl	$2155905152,%esi
-	movl	%esi,%edi
+	xorl	%esi,%edx
+	movl	$2155905152,%edi
+	andl	%edx,%edi
+	movl	%edi,%esi
 	shrl	$7,%edi
 	leal	(%edx,%edx,1),%ebp
 	subl	%edi,%esi
@@ -1289,13 +1295,13 @@ _x86_AES_decrypt_compact:
 	xorl	%esi,%ebp
 	xorl	%ecx,%ebx
 	xorl	%ebp,%ecx
-	roll	$24,%ecx
 	xorl	%edx,%ebx
 	xorl	%ebp,%edx
-	roll	$16,%edx
+	roll	$24,%ecx
 	xorl	%ebp,%ebx
-	roll	$8,%ebp
+	roll	$16,%edx
 	xorl	%ecx,%ebx
+	roll	$8,%ebp
 	xorl	%edx,%ebx
 	movl	12(%esp),%ecx
 	xorl	%ebp,%ebx
@@ -1414,77 +1420,79 @@ _sse_AES_decrypt_compact:
 .align	16
 .L007loop:
 	pshufw	$12,%mm0,%mm1
-	movd	%mm1,%eax
 	pshufw	$9,%mm4,%mm5
-	movzbl	%al,%esi
-	movzbl	-128(%ebp,%esi,1),%ecx
+	movd	%mm1,%eax
 	movd	%mm5,%ebx
+	movl	%edi,20(%esp)
+	movzbl	%al,%esi
 	movzbl	%ah,%edx
-	movzbl	-128(%ebp,%edx,1),%edx
-	shll	$8,%edx
 	pshufw	$6,%mm0,%mm2
-	movzbl	%bl,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
-	shll	$16,%esi
-	orl	%esi,%ecx
-	shrl	$16,%eax
-	movzbl	%bh,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
-	shll	$24,%esi
-	orl	%esi,%edx
-	shrl	$16,%ebx
-	pshufw	$3,%mm4,%mm6
-	movzbl	%ah,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
-	shll	$24,%esi
-	orl	%esi,%ecx
-	movzbl	%bh,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
-	shll	$8,%esi
-	orl	%esi,%ecx
-	movd	%ecx,%mm0
-	movzbl	%al,%esi
-	movd	%mm2,%eax
 	movzbl	-128(%ebp,%esi,1),%ecx
-	shll	$16,%ecx
-	movzbl	%bl,%esi
-	movd	%mm6,%ebx
-	movzbl	-128(%ebp,%esi,1),%esi
-	orl	%esi,%ecx
-	movzbl	%al,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
-	orl	%esi,%edx
-	movzbl	%bl,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
-	shll	$16,%esi
-	orl	%esi,%edx
-	movd	%edx,%mm1
-	movzbl	%ah,%esi
-	movzbl	-128(%ebp,%esi,1),%edx
-	shll	$8,%edx
-	movzbl	%bh,%esi
+	movzbl	%bl,%edi
+	movzbl	-128(%ebp,%edx,1),%edx
 	shrl	$16,%eax
-	movzbl	-128(%ebp,%esi,1),%esi
-	shll	$24,%esi
-	orl	%esi,%edx
-	shrl	$16,%ebx
-	punpckldq	%mm1,%mm0
-	movzbl	%bh,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
-	shll	$8,%esi
-	orl	%esi,%ecx
-	andl	$255,%ebx
-	movzbl	-128(%ebp,%ebx,1),%ebx
-	orl	%ebx,%edx
-	movzbl	%al,%esi
-	movzbl	-128(%ebp,%esi,1),%esi
+	shll	$8,%edx
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%bh,%edi
 	shll	$16,%esi
+	pshufw	$3,%mm4,%mm6
+	orl	%esi,%ecx
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%ah,%edi
+	shll	$24,%esi
+	shrl	$16,%ebx
 	orl	%esi,%edx
-	movd	%edx,%mm4
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%bh,%edi
+	shll	$24,%esi
+	orl	%esi,%ecx
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%al,%edi
+	shll	$8,%esi
+	movd	%mm2,%eax
+	orl	%esi,%ecx
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%bl,%edi
+	shll	$16,%esi
+	movd	%mm6,%ebx
+	movd	%ecx,%mm0
+	movzbl	-128(%ebp,%edi,1),%ecx
+	movzbl	%al,%edi
+	orl	%esi,%ecx
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%bl,%edi
+	orl	%esi,%edx
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%ah,%edi
+	shll	$16,%esi
+	shrl	$16,%eax
+	orl	%esi,%edx
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%bh,%edi
+	shrl	$16,%ebx
+	shll	$8,%esi
+	movd	%edx,%mm1
+	movzbl	-128(%ebp,%edi,1),%edx
+	movzbl	%bh,%edi
+	shll	$24,%edx
+	andl	$255,%ebx
+	orl	%esi,%edx
+	punpckldq	%mm1,%mm0
+	movzbl	-128(%ebp,%edi,1),%esi
+	movzbl	%al,%edi
+	shll	$8,%esi
 	movzbl	%ah,%eax
+	movzbl	-128(%ebp,%ebx,1),%ebx
+	orl	%esi,%ecx
+	movzbl	-128(%ebp,%edi,1),%esi
+	orl	%ebx,%edx
+	shll	$16,%esi
 	movzbl	-128(%ebp,%eax,1),%eax
+	orl	%esi,%edx
 	shll	$24,%eax
 	orl	%eax,%ecx
+	movl	20(%esp),%edi
+	movd	%edx,%mm4
 	movd	%ecx,%mm5
 	punpckldq	%mm5,%mm4
 	addl	$16,%edi
@@ -3046,30 +3054,30 @@ private_AES_set_decrypt_key:
 .align	4
 .L056permute:
 	addl	$16,%edi
-	movl	%eax,%esi
-	andl	$2155905152,%esi
-	movl	%esi,%ebp
-	shrl	$7,%ebp
+	movl	$2155905152,%ebp
+	andl	%eax,%ebp
 	leal	(%eax,%eax,1),%ebx
+	movl	%ebp,%esi
+	shrl	$7,%ebp
 	subl	%ebp,%esi
 	andl	$4278124286,%ebx
 	andl	$454761243,%esi
-	xorl	%ebx,%esi
-	movl	%esi,%ebx
-	andl	$2155905152,%esi
-	movl	%esi,%ebp
-	shrl	$7,%ebp
+	xorl	%esi,%ebx
+	movl	$2155905152,%ebp
+	andl	%ebx,%ebp
 	leal	(%ebx,%ebx,1),%ecx
+	movl	%ebp,%esi
+	shrl	$7,%ebp
 	subl	%ebp,%esi
 	andl	$4278124286,%ecx
 	andl	$454761243,%esi
 	xorl	%eax,%ebx
-	xorl	%ecx,%esi
-	movl	%esi,%ecx
-	andl	$2155905152,%esi
-	movl	%esi,%ebp
-	shrl	$7,%ebp
+	xorl	%esi,%ecx
+	movl	$2155905152,%ebp
+	andl	%ecx,%ebp
 	leal	(%ecx,%ecx,1),%edx
+	movl	%ebp,%esi
+	shrl	$7,%ebp
 	xorl	%eax,%ecx
 	subl	%ebp,%esi
 	andl	$4278124286,%edx
@@ -3090,30 +3098,30 @@ private_AES_set_decrypt_key:
 	movl	%ebp,%ebx
 	xorl	%edx,%eax
 	movl	%eax,(%edi)
-	movl	%ebx,%esi
-	andl	$2155905152,%esi
-	movl	%esi,%ebp
-	shrl	$7,%ebp
+	movl	$2155905152,%ebp
+	andl	%ebx,%ebp
 	leal	(%ebx,%ebx,1),%ecx
+	movl	%ebp,%esi
+	shrl	$7,%ebp
 	subl	%ebp,%esi
 	andl	$4278124286,%ecx
 	andl	$454761243,%esi
-	xorl	%ecx,%esi
-	movl	%esi,%ecx
-	andl	$2155905152,%esi
-	movl	%esi,%ebp
-	shrl	$7,%ebp
+	xorl	%esi,%ecx
+	movl	$2155905152,%ebp
+	andl	%ecx,%ebp
 	leal	(%ecx,%ecx,1),%edx
+	movl	%ebp,%esi
+	shrl	$7,%ebp
 	subl	%ebp,%esi
 	andl	$4278124286,%edx
 	andl	$454761243,%esi
 	xorl	%ebx,%ecx
-	xorl	%edx,%esi
-	movl	%esi,%edx
-	andl	$2155905152,%esi
-	movl	%esi,%ebp
-	shrl	$7,%ebp
+	xorl	%esi,%edx
+	movl	$2155905152,%ebp
+	andl	%edx,%ebp
 	leal	(%edx,%edx,1),%eax
+	movl	%ebp,%esi
+	shrl	$7,%ebp
 	xorl	%ebx,%edx
 	subl	%ebp,%esi
 	andl	$4278124286,%eax
@@ -3134,30 +3142,30 @@ private_AES_set_decrypt_key:
 	movl	%ebp,%ecx
 	xorl	%eax,%ebx
 	movl	%ebx,4(%edi)
-	movl	%ecx,%esi
-	andl	$2155905152,%esi
-	movl	%esi,%ebp
-	shrl	$7,%ebp
+	movl	$2155905152,%ebp
+	andl	%ecx,%ebp
 	leal	(%ecx,%ecx,1),%edx
+	movl	%ebp,%esi
+	shrl	$7,%ebp
 	subl	%ebp,%esi
 	andl	$4278124286,%edx
 	andl	$454761243,%esi
-	xorl	%edx,%esi
-	movl	%esi,%edx
-	andl	$2155905152,%esi
-	movl	%esi,%ebp
-	shrl	$7,%ebp
+	xorl	%esi,%edx
+	movl	$2155905152,%ebp
+	andl	%edx,%ebp
 	leal	(%edx,%edx,1),%eax
+	movl	%ebp,%esi
+	shrl	$7,%ebp
 	subl	%ebp,%esi
 	andl	$4278124286,%eax
 	andl	$454761243,%esi
 	xorl	%ecx,%edx
-	xorl	%eax,%esi
-	movl	%esi,%eax
-	andl	$2155905152,%esi
-	movl	%esi,%ebp
-	shrl	$7,%ebp
+	xorl	%esi,%eax
+	movl	$2155905152,%ebp
+	andl	%eax,%ebp
 	leal	(%eax,%eax,1),%ebx
+	movl	%ebp,%esi
+	shrl	$7,%ebp
 	xorl	%ecx,%eax
 	subl	%ebp,%esi
 	andl	$4278124286,%ebx
@@ -3178,30 +3186,30 @@ private_AES_set_decrypt_key:
 	movl	%ebp,%edx
 	xorl	%ebx,%ecx
 	movl	%ecx,8(%edi)
-	movl	%edx,%esi
-	andl	$2155905152,%esi
-	movl	%esi,%ebp
-	shrl	$7,%ebp
+	movl	$2155905152,%ebp
+	andl	%edx,%ebp
 	leal	(%edx,%edx,1),%eax
+	movl	%ebp,%esi
+	shrl	$7,%ebp
 	subl	%ebp,%esi
 	andl	$4278124286,%eax
 	andl	$454761243,%esi
-	xorl	%eax,%esi
-	movl	%esi,%eax
-	andl	$2155905152,%esi
-	movl	%esi,%ebp
-	shrl	$7,%ebp
+	xorl	%esi,%eax
+	movl	$2155905152,%ebp
+	andl	%eax,%ebp
 	leal	(%eax,%eax,1),%ebx
+	movl	%ebp,%esi
+	shrl	$7,%ebp
 	subl	%ebp,%esi
 	andl	$4278124286,%ebx
 	andl	$454761243,%esi
 	xorl	%edx,%eax
-	xorl	%ebx,%esi
-	movl	%esi,%ebx
-	andl	$2155905152,%esi
-	movl	%esi,%ebp
-	shrl	$7,%ebp
+	xorl	%esi,%ebx
+	movl	$2155905152,%ebp
+	andl	%ebx,%ebp
 	leal	(%ebx,%ebx,1),%ecx
+	movl	%ebp,%esi
+	shrl	$7,%ebp
 	xorl	%edx,%ebx
 	subl	%ebp,%esi
 	andl	$4278124286,%ecx
@@ -3234,4 +3242,4 @@ private_AES_set_decrypt_key:
 .byte	65,69,83,32,102,111,114,32,120,56,54,44,32,67,82,89
 .byte	80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114
 .byte	111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
-.comm	OPENSSL_ia32cap_P,8,4
+.comm	OPENSSL_ia32cap_P,16,4

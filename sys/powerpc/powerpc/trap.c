@@ -401,6 +401,9 @@ static void
 printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 {
 	uint16_t ver;
+#ifdef BOOKE
+	vm_paddr_t pa;
+#endif
 
 	printf("\n");
 	printf("%s %s trap:\n", isfatal ? "fatal" : "handled",
@@ -429,7 +432,10 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 			printf("    msssr0         = 0x%lx\n",
 			    (u_long)mfspr(SPR_MSSSR0));
 #elif defined(BOOKE)
-		printf("    mcsr           = 0x%lx\n", (u_long)mfspr(SPR_MCSR));
+		pa = mfspr(SPR_MCARU);
+		pa = (pa << 32) | mfspr(SPR_MCAR);
+		printf("   mcsr            = 0x%lx\n", (u_long)mfspr(SPR_MCSR));
+		printf("   mcar            = 0x%jx\n", (uintmax_t)pa);
 #endif
 		break;
 	}
@@ -704,9 +710,6 @@ trap_pfault(struct trapframe *frame, int user)
 #else
 		if ((eva >> ADDR_SR_SHFT) == (USER_ADDR >> ADDR_SR_SHFT)) {
 #endif
-			if (p->p_vmspace == NULL)
-				return (SIGSEGV);
-
 			map = &p->p_vmspace->vm_map;
 
 #ifdef AIM
@@ -720,31 +723,11 @@ trap_pfault(struct trapframe *frame, int user)
 	}
 	va = trunc_page(eva);
 
-	if (map != kernel_map) {
-		/*
-		 * Keep swapout from messing with us during this
-		 *	critical time.
-		 */
-		PROC_LOCK(p);
-		++p->p_lock;
-		PROC_UNLOCK(p);
-
-		/* Fault in the user page: */
-		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-
-		PROC_LOCK(p);
-		--p->p_lock;
-		PROC_UNLOCK(p);
-		/*
-		 * XXXDTRACE: add dtrace_doubletrap_func here?
-		 */
-	} else {
-		/*
-		 * Don't have to worry about process locking or stacks in the
-		 * kernel.
-		 */
-		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
-	}
+	/* Fault in the page. */
+	rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
+	/*
+	 * XXXDTRACE: add dtrace_doubletrap_func here?
+	 */
 
 	if (rv == KERN_SUCCESS)
 		return (0);
@@ -815,7 +798,7 @@ db_trap_glue(struct trapframe *frame)
 	    && (frame->exc == EXC_TRC || frame->exc == EXC_RUNMODETRC
 #ifdef AIM
 		|| (frame->exc == EXC_PGM
-		    && (frame->srr1 & 0x20000))
+		    && (frame->srr1 & EXC_PGM_TRAP))
 #else
 		|| (frame->exc == EXC_DEBUG)
 #endif
@@ -827,7 +810,7 @@ db_trap_glue(struct trapframe *frame)
 		if (*(uint32_t *)frame->srr0 == EXC_DTRACE)
 			return (0);
 #ifdef AIM
-		if (type == EXC_PGM && (frame->srr1 & 0x20000)) {
+		if (type == EXC_PGM && (frame->srr1 & EXC_PGM_TRAP)) {
 #else
 		if (frame->cpu.booke.esr & ESR_PTR) {
 #endif

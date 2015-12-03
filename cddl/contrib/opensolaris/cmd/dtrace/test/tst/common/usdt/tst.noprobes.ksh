@@ -47,7 +47,7 @@ provider doogle {
 EOF
 
 cc -c test.c
-$dtrace -G -32 -s doogle.d test.o -o doogle.d.o
+$dtrace -G -s doogle.d test.o -o doogle.d.o
 
 if [ $? -eq 0 ]; then
 	print -u2 "dtrace succeeded despite having no probe sites"

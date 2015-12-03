@@ -173,7 +173,7 @@ RValue CodeGenFunction::EmitCXXMemberOrOperatorMemberCallExpr(
     This = EmitLValue(Base).getAddress();
 
 
-  if (MD->isTrivial()) {
+  if (MD->isTrivial() || (MD->isDefaulted() && MD->getParent()->isUnion())) {
     if (isa<CXXDestructorDecl>(MD)) return RValue::get(nullptr);
     if (isa<CXXConstructorDecl>(MD) && 
         cast<CXXConstructorDecl>(MD)->isDefaultConstructor())
@@ -254,8 +254,15 @@ RValue CodeGenFunction::EmitCXXMemberOrOperatorMemberCallExpr(
   if (const CXXConstructorDecl *Ctor = dyn_cast<CXXConstructorDecl>(MD)) {
     Callee = CGM.GetAddrOfFunction(GlobalDecl(Ctor, Ctor_Complete), Ty);
   } else if (UseVirtualCall) {
-    Callee = CGM.getCXXABI().getVirtualFunctionPointer(*this, MD, This, Ty);
+    Callee = CGM.getCXXABI().getVirtualFunctionPointer(*this, MD, This, Ty,
+                                                       CE->getLocStart());
   } else {
+    if (SanOpts.has(SanitizerKind::CFINVCall) &&
+        MD->getParent()->isDynamicClass()) {
+      llvm::Value *VTable = GetVTablePtr(This, Int8PtrTy);
+      EmitVTablePtrCheckForCall(MD, VTable, CFITCK_NVCall, CE->getLocStart());
+    }
+
     if (getLangOpts().AppleKext && MD->isVirtual() && HasQualifier)
       Callee = BuildAppleKextVirtualCall(MD, Qualifier, Ty);
     else if (!DevirtualizedMethod)
@@ -684,7 +691,7 @@ static llvm::Value *EmitCXXNewAllocSize(CodeGenFunction &CGF,
       llvm::Value *tsmV =
         llvm::ConstantInt::get(CGF.SizeTy, typeSizeMultiplier);
       llvm::Value *result =
-        CGF.Builder.CreateCall2(umul_with_overflow, size, tsmV);
+          CGF.Builder.CreateCall(umul_with_overflow, {size, tsmV});
 
       llvm::Value *overflowed = CGF.Builder.CreateExtractValue(result, 1);
       if (hasOverflow)
@@ -723,7 +730,7 @@ static llvm::Value *EmitCXXNewAllocSize(CodeGenFunction &CGF,
 
       llvm::Value *cookieSizeV = llvm::ConstantInt::get(CGF.SizeTy, cookieSize);
       llvm::Value *result =
-        CGF.Builder.CreateCall2(uadd_with_overflow, size, cookieSizeV);
+          CGF.Builder.CreateCall(uadd_with_overflow, {size, cookieSizeV});
 
       llvm::Value *overflowed = CGF.Builder.CreateExtractValue(result, 1);
       if (hasOverflow)
@@ -778,12 +785,10 @@ static void StoreAnyExprIntoOneUnit(CodeGenFunction &CGF, const Expr *Init,
   llvm_unreachable("bad evaluation kind");
 }
 
-void
-CodeGenFunction::EmitNewArrayInitializer(const CXXNewExpr *E,
-                                         QualType ElementType,
-                                         llvm::Value *BeginPtr,
-                                         llvm::Value *NumElements,
-                                         llvm::Value *AllocSizeWithoutCookie) {
+void CodeGenFunction::EmitNewArrayInitializer(
+    const CXXNewExpr *E, QualType ElementType, llvm::Type *ElementTy,
+    llvm::Value *BeginPtr, llvm::Value *NumElements,
+    llvm::Value *AllocSizeWithoutCookie) {
   // If we have a type with trivial initialization and no initializer,
   // there's nothing to do.
   if (!E->hasInitializer())
@@ -809,7 +814,8 @@ CodeGenFunction::EmitNewArrayInitializer(const CXXNewExpr *E,
     if (const ConstantArrayType *CAT = dyn_cast_or_null<ConstantArrayType>(
             AllocType->getAsArrayTypeUnsafe())) {
       unsigned AS = CurPtr->getType()->getPointerAddressSpace();
-      llvm::Type *AllocPtrTy = ConvertTypeForMem(AllocType)->getPointerTo(AS);
+      ElementTy = ConvertTypeForMem(AllocType);
+      llvm::Type *AllocPtrTy = ElementTy->getPointerTo(AS);
       CurPtr = Builder.CreateBitCast(CurPtr, AllocPtrTy);
       InitListElements *= getContext().getConstantArrayElementCount(CAT);
     }
@@ -839,7 +845,8 @@ CodeGenFunction::EmitNewArrayInitializer(const CXXNewExpr *E,
       // initialization loops.
       StoreAnyExprIntoOneUnit(*this, ILE->getInit(i),
                               ILE->getInit(i)->getType(), CurPtr);
-      CurPtr = Builder.CreateConstInBoundsGEP1_32(CurPtr, 1, "array.exp.next");
+      CurPtr = Builder.CreateConstInBoundsGEP1_32(ElementTy, CurPtr, 1,
+                                                  "array.exp.next");
     }
 
     // The remaining elements are filled with the array filler expression.
@@ -952,6 +959,25 @@ CodeGenFunction::EmitNewArrayInitializer(const CXXNewExpr *E,
     if (ILE->getNumInits() == 0 && TryMemsetInitialization())
       return;
 
+  // If we have a struct whose every field is value-initialized, we can
+  // usually use memset.
+  if (auto *ILE = dyn_cast<InitListExpr>(Init)) {
+    if (const RecordType *RType = ILE->getType()->getAs<RecordType>()) {
+      if (RType->getDecl()->isStruct()) {
+        unsigned NumFields = 0;
+        for (auto *Field : RType->getDecl()->fields())
+          if (!Field->isUnnamedBitfield())
+            ++NumFields;
+        if (ILE->getNumInits() == NumFields)
+          for (unsigned i = 0, e = ILE->getNumInits(); i != e; ++i)
+            if (!isa<ImplicitValueInitExpr>(ILE->getInit(i)))
+              --NumFields;
+        if (ILE->getNumInits() == NumFields && TryMemsetInitialization())
+          return;
+      }
+    }
+  }
+
   // Create the loop blocks.
   llvm::BasicBlock *EntryBB = Builder.GetInsertBlock();
   llvm::BasicBlock *LoopBB = createBasicBlock("new.loop");
@@ -1000,7 +1026,7 @@ CodeGenFunction::EmitNewArrayInitializer(const CXXNewExpr *E,
 
   // Advance to the next element by adjusting the pointer type as necessary.
   llvm::Value *NextPtr =
-      Builder.CreateConstInBoundsGEP1_32(CurPtr, 1, "array.next");
+      Builder.CreateConstInBoundsGEP1_32(ElementTy, CurPtr, 1, "array.next");
 
   // Check whether we've gotten to the end of the array and, if so,
   // exit the loop.
@@ -1012,13 +1038,12 @@ CodeGenFunction::EmitNewArrayInitializer(const CXXNewExpr *E,
 }
 
 static void EmitNewInitializer(CodeGenFunction &CGF, const CXXNewExpr *E,
-                               QualType ElementType,
-                               llvm::Value *NewPtr,
-                               llvm::Value *NumElements,
+                               QualType ElementType, llvm::Type *ElementTy,
+                               llvm::Value *NewPtr, llvm::Value *NumElements,
                                llvm::Value *AllocSizeWithoutCookie) {
-  ApplyDebugLocation DL(CGF, E->getStartLoc());
+  ApplyDebugLocation DL(CGF, E);
   if (E->isArray())
-    CGF.EmitNewArrayInitializer(E, ElementType, NewPtr, NumElements,
+    CGF.EmitNewArrayInitializer(E, ElementType, ElementTy, NewPtr, NumElements,
                                 AllocSizeWithoutCookie);
   else if (const Expr *Init = E->getInitializer())
     StoreAnyExprIntoOneUnit(CGF, Init, E->getAllocatedType(), NewPtr);
@@ -1279,10 +1304,9 @@ llvm::Value *CodeGenFunction::EmitCXXNewExpr(const CXXNewExpr *E) {
 
   // Emit a null check on the allocation result if the allocation
   // function is allowed to return null (because it has a non-throwing
-  // exception spec; for this part, we inline
-  // CXXNewExpr::shouldNullCheckAllocation()) and we have an
+  // exception spec or is the reserved placement new) and we have an
   // interesting initializer.
-  bool nullCheck = allocatorType->isNothrow(getContext()) &&
+  bool nullCheck = E->shouldNullCheckAllocation(getContext()) &&
     (!allocType.isPODType(getContext()) || E->hasInitializer());
 
   llvm::BasicBlock *nullCheckBB = nullptr;
@@ -1327,11 +1351,11 @@ llvm::Value *CodeGenFunction::EmitCXXNewExpr(const CXXNewExpr *E) {
                                                        E, allocType);
   }
 
-  llvm::Type *elementPtrTy
-    = ConvertTypeForMem(allocType)->getPointerTo(AS);
+  llvm::Type *elementTy = ConvertTypeForMem(allocType);
+  llvm::Type *elementPtrTy = elementTy->getPointerTo(AS);
   llvm::Value *result = Builder.CreateBitCast(allocation, elementPtrTy);
 
-  EmitNewInitializer(*this, E, allocType, result, numElements,
+  EmitNewInitializer(*this, E, allocType, elementTy, result, numElements,
                      allocSizeWithoutCookie);
   if (E->isArray()) {
     // NewPtr is a pointer to the base element type.  If we're
@@ -1524,7 +1548,8 @@ namespace {
         // The size of an element, multiplied by the number of elements.
         llvm::Value *Size
           = llvm::ConstantInt::get(SizeTy, ElementTypeSize.getQuantity());
-        Size = CGF.Builder.CreateMul(Size, NumElements);
+        if (NumElements)
+          Size = CGF.Builder.CreateMul(Size, NumElements);
 
         // Plus the size of the cookie if applicable.
         if (!CookieSize.isZero()) {

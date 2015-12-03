@@ -2417,7 +2417,7 @@ sctp_is_addr_restricted(struct sctp_tcb *stcb, struct sctp_ifa *ifa)
 	LIST_FOREACH(laddr, &stcb->asoc.sctp_restricted_addrs, sctp_nxt_addr) {
 		if (laddr->ifa == NULL) {
 			SCTPDBG(SCTP_DEBUG_OUTPUT1, "%s: NULL ifa\n",
-			    __FUNCTION__);
+			    __func__);
 			continue;
 		}
 		if (laddr->ifa == ifa) {
@@ -2439,7 +2439,7 @@ sctp_is_addr_in_ep(struct sctp_inpcb *inp, struct sctp_ifa *ifa)
 	LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
 		if (laddr->ifa == NULL) {
 			SCTPDBG(SCTP_DEBUG_OUTPUT1, "%s: NULL ifa\n",
-			    __FUNCTION__);
+			    __func__);
 			continue;
 		}
 		if ((laddr->ifa == ifa) && laddr->action == 0)
@@ -5524,7 +5524,7 @@ do_a_abort:
 		if (op_err == NULL) {
 			char msg[SCTP_DIAG_INFO_LEN];
 
-			snprintf(msg, sizeof(msg), "%s:%d at %s", __FILE__, __LINE__, __FUNCTION__);
+			snprintf(msg, sizeof(msg), "%s:%d at %s", __FILE__, __LINE__, __func__);
 			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 			    msg);
 		}
@@ -6687,7 +6687,7 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 
 				abort_anyway:
 						snprintf(msg, sizeof(msg),
-						    "%s:%d at %s", __FILE__, __LINE__, __FUNCTION__);
+						    "%s:%d at %s", __FILE__, __LINE__, __func__);
 						op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 						    msg);
 						atomic_add_int(&stcb->asoc.refcnt, 1);
@@ -7169,7 +7169,8 @@ one_more_time:
 			}
 			atomic_subtract_int(&asoc->stream_queue_cnt, 1);
 			TAILQ_REMOVE(&strq->outqueue, sp, next);
-			if (strq->state == SCTP_STREAM_RESET_PENDING &&
+			if ((strq->state == SCTP_STREAM_RESET_PENDING) &&
+			    (strq->chunks_on_queues == 0) &&
 			    TAILQ_EMPTY(&strq->outqueue)) {
 				stcb->asoc.trigger_reset = 1;
 			}
@@ -7571,7 +7572,8 @@ dont_do_it:
 			send_lock_up = 1;
 		}
 		TAILQ_REMOVE(&strq->outqueue, sp, next);
-		if (strq->state == SCTP_STREAM_RESET_PENDING &&
+		if ((strq->state == SCTP_STREAM_RESET_PENDING) &&
+		    (strq->chunks_on_queues == 0) &&
 		    TAILQ_EMPTY(&strq->outqueue)) {
 			stcb->asoc.trigger_reset = 1;
 		}
@@ -8850,9 +8852,37 @@ sctp_queue_op_err(struct sctp_tcb *stcb, struct mbuf *op_err)
 	 */
 	struct sctp_chunkhdr *hdr;
 	struct sctp_tmit_chunk *chk;
-	struct mbuf *mat;
+	struct mbuf *mat, *last_mbuf;
+	uint32_t chunk_length;
+	uint16_t padding_length;
 
 	SCTP_TCB_LOCK_ASSERT(stcb);
+	SCTP_BUF_PREPEND(op_err, sizeof(struct sctp_chunkhdr), M_NOWAIT);
+	if (op_err == NULL) {
+		return;
+	}
+	last_mbuf = NULL;
+	chunk_length = 0;
+	for (mat = op_err; mat != NULL; mat = SCTP_BUF_NEXT(mat)) {
+		chunk_length += SCTP_BUF_LEN(mat);
+		if (SCTP_BUF_NEXT(mat) == NULL) {
+			last_mbuf = mat;
+		}
+	}
+	if (chunk_length > SCTP_MAX_CHUNK_LENGTH) {
+		sctp_m_freem(op_err);
+		return;
+	}
+	padding_length = chunk_length % 4;
+	if (padding_length != 0) {
+		padding_length = 4 - padding_length;
+	}
+	if (padding_length != 0) {
+		if (sctp_add_pad_tombuf(last_mbuf, padding_length) == NULL) {
+			sctp_m_freem(op_err);
+			return;
+		}
+	}
 	sctp_alloc_a_chunk(stcb, chk);
 	if (chk == NULL) {
 		/* no memory */
@@ -8860,15 +8890,7 @@ sctp_queue_op_err(struct sctp_tcb *stcb, struct mbuf *op_err)
 		return;
 	}
 	chk->copy_by_ref = 0;
-	SCTP_BUF_PREPEND(op_err, sizeof(struct sctp_chunkhdr), M_NOWAIT);
-	if (op_err == NULL) {
-		sctp_free_a_chunk(stcb, chk, SCTP_SO_NOT_LOCKED);
-		return;
-	}
-	chk->send_size = 0;
-	for (mat = op_err; mat != NULL; mat = SCTP_BUF_NEXT(mat)) {
-		chk->send_size += SCTP_BUF_LEN(mat);
-	}
+	chk->send_size = (uint16_t) chunk_length;
 	chk->sent = SCTP_DATAGRAM_UNSENT;
 	chk->snd_count = 0;
 	chk->asoc = &stcb->asoc;
@@ -8878,9 +8900,7 @@ sctp_queue_op_err(struct sctp_tcb *stcb, struct mbuf *op_err)
 	hdr->chunk_type = SCTP_OPERATION_ERROR;
 	hdr->chunk_flags = 0;
 	hdr->chunk_length = htons(chk->send_size);
-	TAILQ_INSERT_TAIL(&chk->asoc->control_send_queue,
-	    chk,
-	    sctp_next);
+	TAILQ_INSERT_TAIL(&chk->asoc->control_send_queue, chk, sctp_next);
 	chk->asoc->ctrl_queue_cnt++;
 }
 
@@ -9877,7 +9897,6 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 	asoc = &stcb->asoc;
 do_it_again:
 	/* The Nagle algorithm is only applied when handling a send call. */
-	stcb->asoc.trigger_reset = 0;
 	if (from_where == SCTP_OUTPUT_FROM_USR_SEND) {
 		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NODELAY)) {
 			nagle_on = 0;
@@ -9894,7 +9913,8 @@ do_it_again:
 	if ((un_sent <= 0) &&
 	    (TAILQ_EMPTY(&asoc->control_send_queue)) &&
 	    (TAILQ_EMPTY(&asoc->asconf_send_queue)) &&
-	    (asoc->sent_queue_retran_cnt == 0)) {
+	    (asoc->sent_queue_retran_cnt == 0) &&
+	    (asoc->trigger_reset == 0)) {
 		/* Nothing to do unless there is something to be sent left */
 		return;
 	}
@@ -11235,6 +11255,11 @@ sctp_send_hb(struct sctp_tcb *stcb, struct sctp_nets *net, int so_locked
 		break;
 #endif
 	default:
+		if (chk->data) {
+			sctp_m_freem(chk->data);
+			chk->data = NULL;
+		}
+		sctp_free_a_chunk(stcb, chk, so_locked);
 		return;
 		break;
 	}
@@ -11538,7 +11563,8 @@ sctp_add_stream_reset_out(struct sctp_tcb *stcb, struct sctp_tmit_chunk *chk,
 	/* now how long will this param be? */
 	for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 		if ((stcb->asoc.strmout[i].state == SCTP_STREAM_RESET_PENDING) &&
-		    (TAILQ_EMPTY(&stcb->asoc.strmout[i].outqueue))) {
+		    (stcb->asoc.strmout[i].chunks_on_queues == 0) &&
+		    TAILQ_EMPTY(&stcb->asoc.strmout[i].outqueue)) {
 			number_entries++;
 		}
 	}
@@ -11561,7 +11587,8 @@ sctp_add_stream_reset_out(struct sctp_tcb *stcb, struct sctp_tmit_chunk *chk,
 	if (number_entries) {
 		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 			if ((stcb->asoc.strmout[i].state == SCTP_STREAM_RESET_PENDING) &&
-			    (TAILQ_EMPTY(&stcb->asoc.strmout[i].outqueue))) {
+			    (stcb->asoc.strmout[i].chunks_on_queues == 0) &&
+			    TAILQ_EMPTY(&stcb->asoc.strmout[i].outqueue)) {
 				req_out->list_of_streams[at] = htons(i);
 				at++;
 				stcb->asoc.strmout[i].state = SCTP_STREAM_RESET_IN_FLIGHT;
@@ -11858,6 +11885,7 @@ sctp_send_stream_reset_out_if_possible(struct sctp_tcb *stcb, int so_locked)
 	uint32_t seq;
 
 	asoc = &stcb->asoc;
+	asoc->trigger_reset = 0;
 	if (asoc->stream_reset_outstanding) {
 		return (EALREADY);
 	}
@@ -12026,7 +12054,7 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 		oldstream = stcb->asoc.strmout;
 		/* get some more */
 		SCTP_MALLOC(stcb->asoc.strmout, struct sctp_stream_out *,
-		    ((stcb->asoc.streamoutcnt + adding_o) * sizeof(struct sctp_stream_out)),
+		    (stcb->asoc.streamoutcnt + adding_o) * sizeof(struct sctp_stream_out),
 		    SCTP_M_STRMO);
 		if (stcb->asoc.strmout == NULL) {
 			uint8_t x;
@@ -13364,7 +13392,7 @@ dataless_eof:
 						free_cnt_applied = 0;
 					}
 					snprintf(msg, sizeof(msg),
-					    "%s:%d at %s", __FILE__, __LINE__, __FUNCTION__);
+					    "%s:%d at %s", __FILE__, __LINE__, __func__);
 					op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 					    msg);
 					sctp_abort_an_association(stcb->sctp_ep, stcb,

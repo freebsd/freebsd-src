@@ -34,17 +34,18 @@
  * (default interface is wlan0).
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
+
 #include <net/ethernet.h>
 #include <net80211/_ieee80211.h>
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <signal.h>
-#include <unistd.h>
 #include <err.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <strings.h>
+#include <unistd.h>
 
 #include "wlanstats.h"
 
@@ -65,13 +66,11 @@ static struct {
 static const char *
 getfmt(const char *tag)
 {
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
 	int i;
-	for (i = 0; i < N(tags); i++)
+	for (i = 0; i < nitems(tags); i++)
 		if (strcasecmp(tags[i].tag, tag) == 0)
 			return tags[i].fmt;
 	return tag;
-#undef N
 }
 
 static int signalled;

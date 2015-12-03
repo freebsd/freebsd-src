@@ -43,10 +43,6 @@ CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
 CFLAGS+= -include krb5_config.h
 .endif
 
-.if ${MK_OPENSSH_NONE_CIPHER} != "no"
-CFLAGS+= -DNONE_CIPHER_ENABLED
-.endif
-
 NO_LINT=
 
 LIBADD+=	crypto crypt z

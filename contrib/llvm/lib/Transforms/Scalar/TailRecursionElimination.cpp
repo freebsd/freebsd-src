@@ -54,8 +54,8 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/Analysis/CFG.h"
+#include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/Analysis/InlineCost.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/Loads.h"
@@ -87,7 +87,6 @@ STATISTIC(NumAccumAdded, "Number of accumulators introduced");
 namespace {
   struct TailCallElim : public FunctionPass {
     const TargetTransformInfo *TTI;
-    const DataLayout *DL;
 
     static char ID; // Pass identification, replacement for typeid
     TailCallElim() : FunctionPass(ID) {
@@ -126,7 +125,7 @@ namespace {
 char TailCallElim::ID = 0;
 INITIALIZE_PASS_BEGIN(TailCallElim, "tailcallelim",
                       "Tail Call Elimination", false, false)
-INITIALIZE_AG_DEPENDENCY(TargetTransformInfo)
+INITIALIZE_PASS_DEPENDENCY(TargetTransformInfoWrapperPass)
 INITIALIZE_PASS_END(TailCallElim, "tailcallelim",
                     "Tail Call Elimination", false, false)
 
@@ -136,7 +135,7 @@ FunctionPass *llvm::createTailCallEliminationPass() {
 }
 
 void TailCallElim::getAnalysisUsage(AnalysisUsage &AU) const {
-  AU.addRequired<TargetTransformInfo>();
+  AU.addRequired<TargetTransformInfoWrapperPass>();
 }
 
 /// \brief Scan the specified function for alloca instructions.
@@ -159,7 +158,8 @@ bool TailCallElim::runOnFunction(Function &F) {
   if (skipOptnoneFunction(F))
     return false;
 
-  DL = F.getParent()->getDataLayout();
+  if (F.getFnAttribute("disable-tail-calls").getValueAsString() == "true")
+    return false;
 
   bool AllCallsAreTailCalls = false;
   bool Modified = markTails(F, AllCallsAreTailCalls);
@@ -386,16 +386,15 @@ bool TailCallElim::runTRE(Function &F) {
   // right, so don't even try to convert it...
   if (F.getFunctionType()->isVarArg()) return false;
 
-  TTI = &getAnalysis<TargetTransformInfo>();
+  TTI = &getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
   BasicBlock *OldEntry = nullptr;
   bool TailCallsAreMarkedTail = false;
   SmallVector<PHINode*, 8> ArgumentPHIs;
   bool MadeChange = false;
 
-  // CanTRETailMarkedCall - If false, we cannot perform TRE on tail calls
-  // marked with the 'tail' attribute, because doing so would cause the stack
-  // size to increase (real TRE would deallocate variable sized allocas, TRE
-  // doesn't).
+  // If false, we cannot perform TRE on tail calls marked with the 'tail'
+  // attribute, because doing so would cause the stack size to increase (real
+  // TRE would deallocate variable sized allocas, TRE doesn't).
   bool CanTRETailMarkedCall = CanTRE(F);
 
   // Change any tail recursive calls to loops.
@@ -404,27 +403,18 @@ bool TailCallElim::runTRE(Function &F) {
   // alloca' is changed from being a static alloca to being a dynamic alloca.
   // Until this is resolved, disable this transformation if that would ever
   // happen.  This bug is PR962.
-  SmallVector<BasicBlock*, 8> BBToErase;
-  for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
+  for (Function::iterator BBI = F.begin(), E = F.end(); BBI != E; /*in loop*/) {
+    BasicBlock *BB = BBI++; // FoldReturnAndProcessPred may delete BB.
     if (ReturnInst *Ret = dyn_cast<ReturnInst>(BB->getTerminator())) {
       bool Change = ProcessReturningBlock(Ret, OldEntry, TailCallsAreMarkedTail,
                                           ArgumentPHIs, !CanTRETailMarkedCall);
-      if (!Change && BB->getFirstNonPHIOrDbg() == Ret) {
+      if (!Change && BB->getFirstNonPHIOrDbg() == Ret)
         Change = FoldReturnAndProcessPred(BB, Ret, OldEntry,
                                           TailCallsAreMarkedTail, ArgumentPHIs,
                                           !CanTRETailMarkedCall);
-        // FoldReturnAndProcessPred may have emptied some BB. Remember to
-        // erase them.
-        if (Change && BB->empty())
-          BBToErase.push_back(BB);
-
-      }
       MadeChange |= Change;
     }
   }
-
-  for (auto BB: BBToErase)
-    BB->eraseFromParent();
 
   // If we eliminated any tail recursions, it's possible that we inserted some
   // silly PHI nodes which just merge an initial value (the incoming operand)
@@ -435,7 +425,7 @@ bool TailCallElim::runTRE(Function &F) {
     PHINode *PN = ArgumentPHIs[i];
 
     // If the PHI Node is a dynamic constant, replace it with the value it is.
-    if (Value *PNV = SimplifyInstruction(PN)) {
+    if (Value *PNV = SimplifyInstruction(PN, F.getParent()->getDataLayout())) {
       PN->replaceAllUsesWith(PNV);
       PN->eraseFromParent();
     }
@@ -445,7 +435,7 @@ bool TailCallElim::runTRE(Function &F) {
 }
 
 
-/// CanMoveAboveCall - Return true if it is safe to move the specified
+/// Return true if it is safe to move the specified
 /// instruction from after the call to before the call, assuming that all
 /// instructions between the call and this instruction are movable.
 ///
@@ -464,7 +454,7 @@ bool TailCallElim::CanMoveAboveCall(Instruction *I, CallInst *CI) {
       // being loaded from.
       if (CI->mayWriteToMemory() ||
           !isSafeToLoadUnconditionally(L->getPointerOperand(), L,
-                                       L->getAlignment(), DL))
+                                       L->getAlignment()))
         return false;
     }
   }
@@ -480,13 +470,11 @@ bool TailCallElim::CanMoveAboveCall(Instruction *I, CallInst *CI) {
   return true;
 }
 
-// isDynamicConstant - Return true if the specified value is the same when the
-// return would exit as it was when the initial iteration of the recursive
-// function was executed.
-//
-// We currently handle static constants and arguments that are not modified as
-// part of the recursion.
-//
+/// Return true if the specified value is the same when the return would exit
+/// as it was when the initial iteration of the recursive function was executed.
+///
+/// We currently handle static constants and arguments that are not modified as
+/// part of the recursion.
 static bool isDynamicConstant(Value *V, CallInst *CI, ReturnInst *RI) {
   if (isa<Constant>(V)) return true; // Static constants are always dyn consts
 
@@ -518,10 +506,9 @@ static bool isDynamicConstant(Value *V, CallInst *CI, ReturnInst *RI) {
   return false;
 }
 
-// getCommonReturnValue - Check to see if the function containing the specified
-// tail call consistently returns the same runtime-constant value at all exit
-// points except for IgnoreRI.  If so, return the returned value.
-//
+/// Check to see if the function containing the specified tail call consistently
+/// returns the same runtime-constant value at all exit points except for
+/// IgnoreRI. If so, return the returned value.
 static Value *getCommonReturnValue(ReturnInst *IgnoreRI, CallInst *CI) {
   Function *F = CI->getParent()->getParent();
   Value *ReturnedValue = nullptr;
@@ -545,10 +532,9 @@ static Value *getCommonReturnValue(ReturnInst *IgnoreRI, CallInst *CI) {
   return ReturnedValue;
 }
 
-/// CanTransformAccumulatorRecursion - If the specified instruction can be
-/// transformed using accumulator recursion elimination, return the constant
-/// which is the start of the accumulator value.  Otherwise return null.
-///
+/// If the specified instruction can be transformed using accumulator recursion
+/// elimination, return the constant which is the start of the accumulator
+/// value.  Otherwise return null.
 Value *TailCallElim::CanTransformAccumulatorRecursion(Instruction *I,
                                                       CallInst *CI) {
   if (!I->isAssociative() || !I->isCommutative()) return nullptr;
@@ -836,14 +822,11 @@ bool TailCallElim::FoldReturnAndProcessPred(BasicBlock *BB,
       ReturnInst *RI = FoldReturnIntoUncondBranch(Ret, BB, Pred);
 
       // Cleanup: if all predecessors of BB have been eliminated by
-      // FoldReturnIntoUncondBranch, we would like to delete it, but we
-      // can not just nuke it as it is being used as an iterator by our caller.
-      // Just empty it, and the caller will erase it when it is safe to do so.
-      // It is important to empty it, because the ret instruction in there is
-      // still using a value which EliminateRecursiveTailCall will attempt
-      // to remove.
+      // FoldReturnIntoUncondBranch, delete it.  It is important to empty it,
+      // because the ret instruction in there is still using a value which
+      // EliminateRecursiveTailCall will attempt to remove.
       if (!BB->hasAddressTaken() && pred_begin(BB) == pred_end(BB))
-        BB->getInstList().clear();
+        BB->eraseFromParent();
 
       EliminateRecursiveTailCall(CI, RI, OldEntry, TailCallsAreMarkedTail,
                                  ArgumentPHIs,

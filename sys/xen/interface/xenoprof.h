@@ -144,7 +144,7 @@ DEFINE_XEN_GUEST_HANDLE(xenoprof_ibs_counter_t);
 /*
  * Local variables:
  * mode: C
- * c-set-style: "BSD"
+ * c-file-style: "BSD"
  * c-basic-offset: 4
  * tab-width: 4
  * indent-tabs-mode: nil

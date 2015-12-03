@@ -7,21 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MIDriverBase.cpp
-//
-// Overview:    CMIDriverBase implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // Third party headers:
-#include <lldb/API/SBEvent.h>
-#include <lldb/API/SBBroadcaster.h>
+#include "lldb/API/SBEvent.h"
+#include "lldb/API/SBBroadcaster.h"
 
 // In-house headers:
 #include "MIDriverBase.h"
@@ -187,7 +175,7 @@ CMIDriverBase::GetStderr(void) const
 
 //++ ------------------------------------------------------------------------------------
 // Details: Set the MI Driver's exit application flag. The application checks this flag
-//          after every stdin line is read so the exit may not be instantious.
+//          after every stdin line is read so the exit may not be instantaneous.
 //          If vbForceExit is false the MI Driver queries its state and determines if is
 //          should exit or continue operating depending on that running state.
 // Type:    Overrideable.

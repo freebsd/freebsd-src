@@ -280,18 +280,18 @@ lladdropt_fill(struct sockaddr_dl *sdl, struct nd_opt_hdr *ndopt)
 struct sockaddr_dl *
 if_nametosdl(char *name)
 {
-	int mib[6] = {CTL_NET, AF_ROUTE, 0, 0, NET_RT_IFLIST, 0};
+	int mib[] = {CTL_NET, AF_ROUTE, 0, 0, NET_RT_IFLIST, 0};
 	char *buf, *next, *lim;
 	size_t len;
 	struct if_msghdr *ifm;
 	struct sockaddr *sa, *rti_info[RTAX_MAX];
 	struct sockaddr_dl *sdl = NULL, *ret_sdl;
 
-	if (sysctl(mib, 6, NULL, &len, NULL, 0) < 0)
+	if (sysctl(mib, nitems(mib), NULL, &len, NULL, 0) < 0)
 		return(NULL);
 	if ((buf = malloc(len)) == NULL)
 		return(NULL);
-	if (sysctl(mib, 6, buf, &len, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), buf, &len, NULL, 0) < 0) {
 		free(buf);
 		return (NULL);
 	}
@@ -341,7 +341,7 @@ getinet6sysctl(int code)
 
 	mib[3] = code;
 	size = sizeof(value);
-	if (sysctl(mib, sizeof(mib)/sizeof(mib[0]), &value, &size, NULL, 0) < 0)
+	if (sysctl(mib, nitems(mib), &value, &size, NULL, 0) < 0)
 		return (-1);
 	else
 		return (value);
@@ -356,7 +356,7 @@ setinet6sysctl(int code, int newval)
 
 	mib[3] = code;
 	size = sizeof(value);
-	if (sysctl(mib, sizeof(mib)/sizeof(mib[0]), &value, &size,
+	if (sysctl(mib, nitems(mib), &value, &size,
 	    &newval, sizeof(newval)) < 0)
 		return (-1);
 	else

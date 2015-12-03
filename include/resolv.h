@@ -176,7 +176,8 @@ struct __res_state {
 	int	res_h_errno;		/*%< last one set for this context */
 	int	_vcsock;		/*%< PRIVATE: for res_send VC i/o */
 	u_int	_flags;			/*%< PRIVATE: see below */
-	u_int	_pad;			/*%< make _u 64 bit aligned */
+	u_short	reload_period;		/*%< seconds between stat(resolv.conf)*/
+	u_short	_pad;			/*%< make _u 64 bit aligned */
 	union {
 		/* On an 32-bit arch this means 512b total. */
 		char	pad[72 - 4*sizeof (int) - 3*sizeof (void *)];
@@ -188,6 +189,8 @@ struct __res_state {
 		} _ext;
 	} _u;
 	u_char	*_rnd;			/*%< PRIVATE: random state */
+	struct timespec	conf_mtim;	/*%< mod time of loaded resolv.conf */
+	time_t		conf_stat;	/*%< time of last stat(resolv.conf) */
 };
 
 typedef struct __res_state *res_state;

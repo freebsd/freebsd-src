@@ -102,7 +102,7 @@ private:
       Specifier(Other.Specifier) {
   }
 
-  void operator=(const NestedNameSpecifier &) LLVM_DELETED_FUNCTION;
+  void operator=(const NestedNameSpecifier &) = delete;
 
   /// \brief Either find or insert the given nested name specifier
   /// mockup in the given context.
@@ -245,7 +245,7 @@ public:
 
   /// \brief Evalutes true when this nested-name-specifier location is
   /// non-empty.
-  LLVM_EXPLICIT operator bool() const { return Qualifier; }
+  explicit operator bool() const { return Qualifier; }
 
   /// \brief Evalutes true when this nested-name-specifier location is
   /// empty.

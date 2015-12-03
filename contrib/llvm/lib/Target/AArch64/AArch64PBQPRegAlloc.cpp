@@ -235,7 +235,7 @@ bool A57ChainingConstraint::addIntraChainConstraint(PBQPRAGraph &G, unsigned Rd,
           costs[i + 1][j + 1] = sameParityMax + 1.0;
     }
   }
-  G.setEdgeCosts(edge, std::move(costs));
+  G.updateEdgeCosts(edge, std::move(costs));
 
   return true;
 }
@@ -312,14 +312,14 @@ void A57ChainingConstraint::addInterChainConstraint(PBQPRAGraph &G, unsigned Rd,
               costs[i + 1][j + 1] = sameParityMax + 1.0;
         }
       }
-      G.setEdgeCosts(edge, std::move(costs));
+      G.updateEdgeCosts(edge, std::move(costs));
     }
   }
 }
 
 static bool regJustKilledBefore(const LiveIntervals &LIs, unsigned reg,
                                 const MachineInstr &MI) {
-  LiveInterval LI = LIs.getInterval(reg);
+  const LiveInterval &LI = LIs.getInterval(reg);
   SlotIndex SI = LIs.getInstructionIndex(&MI);
   return LI.expiredAt(SI);
 }
@@ -328,7 +328,7 @@ void A57ChainingConstraint::apply(PBQPRAGraph &G) {
   const MachineFunction &MF = G.getMetadata().MF;
   LiveIntervals &LIs = G.getMetadata().LIS;
 
-  TRI = MF.getTarget().getSubtargetImpl()->getRegisterInfo();
+  TRI = MF.getSubtarget().getRegisterInfo();
   DEBUG(MF.dump());
 
   for (const auto &MBB: MF) {

@@ -1511,7 +1511,7 @@ struct x509_certificate * x509_certificate_parse(const u8 *buf, size_t len)
 	if (pos + hdr.length < end) {
 		wpa_hexdump(MSG_MSGDUMP, "X509: Ignoring extra data after DER "
 			    "encoded certificate",
-			    pos + hdr.length, end - pos + hdr.length);
+			    pos + hdr.length, end - (pos + hdr.length));
 		end = pos + hdr.length;
 	}
 

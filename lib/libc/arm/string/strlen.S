@@ -83,3 +83,5 @@ ENTRY(strlen)
 	mov	r0, r1
 	RET
 END(strlen)
+
+	.section .note.GNU-stack,"",%progbits

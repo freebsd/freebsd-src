@@ -236,18 +236,30 @@ AcpiTbCopyDsdt (
 
 void
 AcpiTbInstallTableWithOverride (
-    UINT32                  TableIndex,
     ACPI_TABLE_DESC         *NewTableDesc,
-    BOOLEAN                 Override);
+    BOOLEAN                 Override,
+    UINT32                  *TableIndex);
 
 ACPI_STATUS
 AcpiTbInstallFixedTable (
     ACPI_PHYSICAL_ADDRESS   Address,
     char                    *Signature,
-    UINT32                  TableIndex);
+    UINT32                  *TableIndex);
 
 ACPI_STATUS
 AcpiTbParseRootTable (
     ACPI_PHYSICAL_ADDRESS   RsdpAddress);
+
+BOOLEAN
+AcpiIsValidSignature (
+    char                    *Signature);
+
+
+/*
+ * tbxfload
+ */
+ACPI_STATUS
+AcpiTbLoadNamespace (
+    void);
 
 #endif /* __ACTABLES_H__ */

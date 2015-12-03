@@ -85,6 +85,9 @@ static struct wpabuf * p2p_build_invitation_req(struct p2p_data *p2p,
 	p2p_buf_add_device_info(buf, p2p, peer);
 	p2p_buf_update_ie_hdr(buf, len);
 
+	p2p_buf_add_pref_channel_list(buf, p2p->pref_freq_list,
+				      p2p->num_pref_freq);
+
 #ifdef CONFIG_WIFI_DISPLAY
 	if (wfd_ie)
 		wpabuf_put_buf(buf, wfd_ie);
@@ -134,6 +137,9 @@ static struct wpabuf * p2p_build_invitation_resp(struct p2p_data *p2p,
 		extra = wpabuf_len(wfd_ie);
 #endif /* CONFIG_WIFI_DISPLAY */
 
+	if (p2p->vendor_elem && p2p->vendor_elem[VENDOR_ELEM_P2P_INV_RESP])
+		extra += wpabuf_len(p2p->vendor_elem[VENDOR_ELEM_P2P_INV_RESP]);
+
 	buf = wpabuf_alloc(1000 + extra);
 	if (buf == NULL)
 		return NULL;
@@ -157,6 +163,9 @@ static struct wpabuf * p2p_build_invitation_resp(struct p2p_data *p2p,
 	if (wfd_ie)
 		wpabuf_put_buf(buf, wfd_ie);
 #endif /* CONFIG_WIFI_DISPLAY */
+
+	if (p2p->vendor_elem && p2p->vendor_elem[VENDOR_ELEM_P2P_INV_RESP])
+		wpabuf_put_buf(buf, p2p->vendor_elem[VENDOR_ELEM_P2P_INV_RESP]);
 
 	return buf;
 }
@@ -337,6 +346,12 @@ void p2p_process_invitation_req(struct p2p_data *p2p, const u8 *sa,
 			p2p_reselect_channel(p2p, &intersection);
 		}
 
+		/*
+		 * Use the driver preferred frequency list extension if
+		 * supported.
+		 */
+		p2p_check_pref_chan(p2p, go, dev, &msg);
+
 		op_freq = p2p_channel_to_freq(p2p->op_reg_class,
 					      p2p->op_channel);
 		if (op_freq < 0) {
@@ -387,7 +402,7 @@ fail:
 	} else
 		p2p->inv_group_bssid_ptr = NULL;
 	if (msg.group_id) {
-		if (msg.group_id_len - ETH_ALEN <= 32) {
+		if (msg.group_id_len - ETH_ALEN <= SSID_MAX_LEN) {
 			os_memcpy(p2p->inv_ssid, msg.group_id + ETH_ALEN,
 				  msg.group_id_len - ETH_ALEN);
 			p2p->inv_ssid_len = msg.group_id_len - ETH_ALEN;
@@ -527,6 +542,12 @@ void p2p_process_invitation_resp(struct p2p_data *p2p, const u8 *sa,
 			if (peer_oper_freq < 0)
 				peer_oper_freq = 0;
 		}
+
+		/*
+		 * Use the driver preferred frequency list extension if
+		 * supported.
+		 */
+		p2p_check_pref_chan(p2p, 0, dev, &msg);
 
 		p2p->cfg->invitation_result(p2p->cfg->cb_ctx, *msg.status,
 					    msg.group_bssid, channels, sa,

@@ -9,8 +9,6 @@ SRCS=	llvm-dis.cpp
 
 TGHDRS=	Intrinsics
 LIBDEPS=llvmanalysis \
-	llvmtarget \
-	llvmmc \
 	llvmbitreader \
 	llvmcore \
 	llvmsupport

@@ -136,7 +136,7 @@ int drm_open(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 	sx_xlock(&drm_global_mutex);
 
 	/*
-	 * FIXME Linux<->FreeBSD: On Linux, counter updated outisde
+	 * FIXME Linux<->FreeBSD: On Linux, counter updated outside
 	 * global mutex.
 	 */
 	if (!dev->open_count++)

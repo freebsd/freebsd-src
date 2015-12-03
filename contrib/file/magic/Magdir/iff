@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: iff,v 1.13 2011/09/06 11:00:06 christos Exp $
+# $File: iff,v 1.14 2015/09/07 10:03:21 christos Exp $
 # iff:	file(1) magic for Interchange File Format (see also "audio" & "images")
 #
 # Daniel Quinlan (quinlan@yggdrasil.com) -- IFF was designed by Electronic
@@ -62,6 +62,7 @@
 
 # These go at the end of the iff rules
 #
+# David Griffith <dave@661.org>
 # I don't see why these might collide with anything else.
 #
 # Interactive Fiction related formats
@@ -69,3 +70,4 @@
 >8	string		IFRS		\b, Blorb Interactive Fiction
 >>24	string		Exec		with executable chunk
 >8	string          IFZS		\b, Z-machine or Glulx saved game file (Quetzal)
+!:mime	application/x-blorb

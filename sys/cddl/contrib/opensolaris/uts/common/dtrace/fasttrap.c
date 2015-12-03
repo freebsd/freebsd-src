@@ -29,7 +29,7 @@
  */
 
 /*
- * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2015, Joyent, Inc. All rights reserved.
  */
 
 #include <sys/atomic.h>
@@ -63,6 +63,7 @@
 #ifndef illumos
 #include <sys/dtrace_bsd.h>
 #include <sys/eventhandler.h>
+#include <sys/sysctl.h>
 #include <sys/u8_textprep.h>
 #include <sys/user.h>
 #include <vm/vm.h>
@@ -172,13 +173,14 @@ static volatile uint64_t fasttrap_mod_gen;
 
 /*
  * When the fasttrap provider is loaded, fasttrap_max is set to either
- * FASTTRAP_MAX_DEFAULT or the value for fasttrap-max-probes in the
- * fasttrap.conf file. Each time a probe is created, fasttrap_total is
- * incremented by the number of tracepoints that may be associated with that
- * probe; fasttrap_total is capped at fasttrap_max.
+ * FASTTRAP_MAX_DEFAULT, or the value for fasttrap-max-probes in the
+ * fasttrap.conf file (Illumos), or the value provied in the loader.conf (FreeBSD).
+ * Each time a probe is created, fasttrap_total is incremented by the number
+ * of tracepoints that may be associated with that probe; fasttrap_total is capped
+ * at fasttrap_max.
  */
 #define	FASTTRAP_MAX_DEFAULT		250000
-static uint32_t fasttrap_max;
+static uint32_t fasttrap_max = FASTTRAP_MAX_DEFAULT;
 static uint32_t fasttrap_total;
 
 /*
@@ -224,6 +226,17 @@ static void fasttrap_thread_dtor(void *, struct thread *);
 #ifndef illumos
 static kmutex_t fasttrap_cpuc_pid_lock[MAXCPU];
 static eventhandler_tag fasttrap_thread_dtor_tag;
+#endif
+
+static unsigned long tpoints_hash_size = FASTTRAP_TPOINTS_DEFAULT_SIZE;
+
+#ifdef __FreeBSD__
+SYSCTL_DECL(_kern_dtrace);
+SYSCTL_NODE(_kern_dtrace, OID_AUTO, fasttrap, CTLFLAG_RD, 0, "DTrace fasttrap parameters");
+SYSCTL_UINT(_kern_dtrace_fasttrap, OID_AUTO, max_probes, CTLFLAG_RWTUN, &fasttrap_max,
+    FASTTRAP_MAX_DEFAULT, "Maximum number of fasttrap probes");
+SYSCTL_ULONG(_kern_dtrace_fasttrap, OID_AUTO, tpoints_hash_size, CTLFLAG_RDTUN, &tpoints_hash_size,
+    FASTTRAP_TPOINTS_DEFAULT_SIZE, "Size of the tracepoint hash table");
 #endif
 
 static int
@@ -1190,11 +1203,21 @@ fasttrap_pid_enable(void *arg, dtrace_id_t id, void *parg)
 		mutex_enter(&pidlock);
 		p = prfind(probe->ftp_pid);
 
+		if (p == NULL) {
+			/*
+			 * So it's not that the target process is being born,
+			 * it's that it isn't there at all (and we simply
+			 * happen to be forking).  Anyway, we know that the
+			 * target is definitely gone, so bail out.
+			 */
+			mutex_exit(&pidlock);
+			return (0);
+		}
+
 		/*
 		 * Confirm that curproc is indeed forking the process in which
 		 * we're trying to enable probes.
 		 */
-		ASSERT(p != NULL);
 		ASSERT(p->p_parent == curproc);
 		ASSERT(p->p_stat == SIDL);
 
@@ -2470,8 +2493,6 @@ fasttrap_load(void)
 #ifdef illumos
 	fasttrap_max = ddi_getprop(DDI_DEV_T_ANY, devi, DDI_PROP_DONTPASS,
 	    "fasttrap-max-probes", FASTTRAP_MAX_DEFAULT);
-#else
-	fasttrap_max = FASTTRAP_MAX_DEFAULT;
 #endif
 	fasttrap_total = 0;
 
@@ -2482,11 +2503,13 @@ fasttrap_load(void)
 	nent = ddi_getprop(DDI_DEV_T_ANY, devi, DDI_PROP_DONTPASS,
 	    "fasttrap-hash-size", FASTTRAP_TPOINTS_DEFAULT_SIZE);
 #else
-	nent = FASTTRAP_TPOINTS_DEFAULT_SIZE;
+	nent = tpoints_hash_size;
 #endif
 
 	if (nent == 0 || nent > 0x1000000)
 		nent = FASTTRAP_TPOINTS_DEFAULT_SIZE;
+
+	tpoints_hash_size = nent;
 
 	if (ISP2(nent))
 		fasttrap_tpoints.fth_nent = nent;

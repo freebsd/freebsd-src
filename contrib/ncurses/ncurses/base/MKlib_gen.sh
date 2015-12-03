@@ -2,10 +2,10 @@
 #
 # MKlib_gen.sh -- generate sources from curses.h macro definitions
 #
-# ($Id: MKlib_gen.sh,v 1.46 2011/06/04 19:14:08 tom Exp $)
+# ($Id: MKlib_gen.sh,v 1.50 2015/08/07 00:48:24 tom Exp $)
 #
 ##############################################################################
-# Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2014,2015 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -65,6 +65,23 @@ if test "${LC_COLLATE+set}"  = set; then LC_COLLATE=C;  export LC_COLLATE;  fi
 preprocessor="$1 -DNCURSES_INTERNALS -I../include"
 AWK="$2"
 USE="$3"
+
+# A patch discussed here:
+#	https://gcc.gnu.org/ml/gcc-patches/2014-06/msg02185.html
+# introduces spurious #line markers into the preprocessor output.  The result
+# appears in gcc 5.0 and (with modification) in 5.1, making it necessary to
+# determine if we are using gcc, and if so, what version because the proposed
+# solution uses a nonstandard option.
+PRG=`echo "$1" | $AWK '{ sub(/^[[:space:]]*/,""); sub(/[[:space:]].*$/, ""); print; }' || exit 0`
+FSF=`"$PRG" --version 2>/dev/null || exit 0 | fgrep "Free Software Foundation" | head -n 1`
+ALL=`"$PRG" -dumpversion 2>/dev/null || exit 0`
+ONE=`echo "$ALL" | sed -e 's/\..*$//'`
+if test -n "$FSF" && test -n "$ALL" && test -n "$ONE" ; then
+	if test $ONE -ge 5 ; then
+		echo ".. adding -P option to work around $PRG $ALL" >&2
+		preprocessor="$preprocessor -P"
+	fi
+fi
 
 PID=$$
 ED1=sed1_${PID}.sed

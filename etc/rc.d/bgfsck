@@ -12,17 +12,24 @@
 name="background_fsck"
 rcvar="background_fsck"
 start_cmd="bgfsck_start"
+start_precmd="bgfsck_start_precmd"
 stop_cmd=":"
+
+bgfsck_start_precmd()
+{
+	if [ $($ID -u) != 0 ]; then
+		err 1 "Must be root."
+	fi
+}
 
 bgfsck_start()
 {
-	if [ -z "${rc_force}" ]; then
-		background_fsck_delay=${background_fsck_delay:-0}
-	else
+	: ${background_fsck_delay=0}
+	if [ -n "${rc_force}" ]; then
 		background_fsck_delay=0
 	fi
 	if [ ${background_fsck_delay} -lt 0 ]; then
-		echo "Background file system checks delayed indefinitely"
+		warn "Background file system checks delayed indefinitely"
 		return 0
 	fi
 

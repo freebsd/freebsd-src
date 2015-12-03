@@ -40,6 +40,7 @@
 
 #include <net/altq/altq.h>
 #include <net/altq/altq_classq.h>
+#include <net/altq/altq_codel.h>
 #include <net/altq/altq_red.h>
 #include <net/altq/altq_rio.h>
 #include <net/altq/altq_rmclass.h>
@@ -53,6 +54,7 @@
 #define	FARF_RED		0x0001	/* use RED */
 #define	FARF_ECN		0x0002  /* use RED/ECN */
 #define	FARF_RIO		0x0004  /* use RIO */
+#define	FARF_CODEL		0x0008	/* use CoDel */
 #define	FARF_CLEARDSCP		0x0010  /* clear diffserv codepoint */
 #define	FARF_DEFAULTCLASS	0x1000	/* default class */
 
@@ -74,9 +76,10 @@ struct fairq_classstats {
 	struct pktcntr		xmit_cnt;  /* transmitted packet counter */
 	struct pktcntr		drop_cnt;  /* dropped packet counter */
 
-	/* red and rio related info */
+	/* codel, red and rio related info */
 	int			qtype;
 	struct redstats		red[3];	/* rio has 3 red stats */
+	struct codel_stats	codel;
 };
 
 #ifdef _KERNEL
@@ -98,7 +101,12 @@ struct fairq_class {
 	fairq_bucket_t	*cl_buckets;
 	fairq_bucket_t	*cl_head;	/* head of circular bucket list */
 	fairq_bucket_t	*cl_polled;
-	struct red	*cl_red;	/* RED state */
+	union {
+		struct red	*cl_red;	/* RED state */
+		struct codel	*cl_codel;	/* CoDel state */
+	} cl_aqm;
+#define	cl_red		cl_aqm.cl_red
+#define	cl_codel	cl_aqm.cl_codel
 	u_int		cl_hogs_m1;
 	u_int		cl_lssc_m1;
 	u_int		cl_bandwidth;

@@ -1040,7 +1040,7 @@ AcpiExDumpReferenceObj (
         AcpiOsPrintf (" %p ", ObjDesc->Reference.Node);
 
         Status = AcpiNsHandleToPathname (ObjDesc->Reference.Node,
-                    &RetBuf, FALSE);
+            &RetBuf, TRUE);
         if (ACPI_FAILURE (Status))
         {
             AcpiOsPrintf (" Could not convert name to pathname\n");

@@ -11,7 +11,7 @@
 .Dt LIBXO 3
 .Os
 .Sh NAME
-.Nm xo_emit
+.Nm xo_emit , xo_emit_h , xo_emit_hv
 .Nd emit formatted output based on format string and arguments
 .Sh LIBRARY
 .Lb libxo
@@ -43,30 +43,62 @@ uses an explicit handle.
 accepts a
 .Fa va_list
 for additional flexibility.
-.Sh ADDITIONAL DOCUMENTATION
-Complete documentation can be found on github:
-.Bd -literal -offset indent
-http://juniper.github.io/libxo/libxo-manual.html
+.Sh EXAMPLES
+In this example, a set of four values is emitted using the following
+source code:
+.Bd  -literal -offset indent
+    xo_emit(" {:lines/%7ju} {:words/%7ju} "
+            "{:characters/%7ju} {d:filename/%s}\n",
+            linect, wordct, charct, file);
 .Ed
-.Pp
-.Nm libxo
-lives on github as:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo
+Output can then be generated in various style, using 
+the "--libxo" option:
+.Bd  -literal -offset indent
+    % wc /etc/motd
+          25     165    1140 /etc/motd
+    % wc --libxo xml,pretty,warn /etc/motd
+    <wc>
+      <file>
+        <lines>25</lines>
+        <words>165</words>
+        <characters>1140</characters>
+        <filename>/etc/motd</filename>
+      </file>
+    </wc>
+    % wc --libxo json,pretty,warn /etc/motd
+    {
+      "wc": {
+        "file": [
+          {
+            "lines": 25,
+            "words": 165,
+            "characters": 1140,
+            "filename": "/etc/motd"
+          }
+        ]
+      }
+    }
+    % wc --libxo html,pretty,warn /etc/motd
+    <div class="line">
+      <div class="text"> </div>
+      <div class="data" data-tag="lines">     25</div>
+      <div class="text"> </div>
+      <div class="data" data-tag="words">    165</div>
+      <div class="text"> </div>
+      <div class="data" data-tag="characters">   1140</div>
+      <div class="text"> </div>
+      <div class="data" data-tag="filename">/etc/motd</div>
+    </div>
 .Ed
-.Pp
-The latest release of libxo is available at:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo/releases
-.Ed
+.Sh RETURN CODE
+.Nm
+returns a negative value on error.  If the
+.Nm XOF_COLUMNS
+flag has been turned on for the specific handle using
+.Xr xo_set_flags 3 ,
+then the number of display columns consumed by the output will be returned.
 .Sh SEE ALSO
 .Xr xo_open_container 3 ,
 .Xr xo_open_list 3 ,
-.Xr xo_format 5
-.Sh HISTORY
-The
-.Nm libxo
-library was added in
-.Fx 11.0 .
-.Sh AUTHOR
-Phil Shafer
+.Xr xo_format 5 ,
+.Xr libxo 3

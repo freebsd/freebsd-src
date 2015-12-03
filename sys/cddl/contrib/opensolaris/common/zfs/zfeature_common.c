@@ -117,7 +117,8 @@ zfeature_lookup_name(const char *name, spa_feature_t *res)
 }
 
 boolean_t
-zfeature_depends_on(spa_feature_t fid, spa_feature_t check) {
+zfeature_depends_on(spa_feature_t fid, spa_feature_t check)
+{
 	zfeature_info_t *feature = &spa_feature_table[fid];
 
 	for (int i = 0; feature->fi_depends[i] != SPA_FEATURE_NONE; i++) {
@@ -230,4 +231,19 @@ zpool_feature_init(void)
 	    "org.open-zfs:large_blocks", "large_blocks",
 	    "Support for blocks larger than 128KB.",
 	    ZFEATURE_FLAG_PER_DATASET, large_blocks_deps);
+
+#ifdef illumos
+	zfeature_register(SPA_FEATURE_SHA512,
+	    "org.illumos:sha512", "sha512",
+	    "SHA-512/256 hash algorithm.",
+	    ZFEATURE_FLAG_PER_DATASET, NULL);
+	zfeature_register(SPA_FEATURE_SKEIN,
+	    "org.illumos:skein", "skein",
+	    "Skein hash algorithm.",
+	    ZFEATURE_FLAG_PER_DATASET, NULL);
+	zfeature_register(SPA_FEATURE_EDONR,
+	    "org.illumos:edonr", "edonr",
+	    "Edon-R hash algorithm.",
+	    ZFEATURE_FLAG_PER_DATASET, NULL);
+#endif
 }

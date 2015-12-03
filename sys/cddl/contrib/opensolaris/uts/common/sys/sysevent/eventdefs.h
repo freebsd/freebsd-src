@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  */
 
 #ifndef	_SYS_SYSEVENT_EVENTDEFS_H
@@ -249,9 +249,14 @@ extern "C" {
 #define	ESC_ZFS_RESILVER_START		"ESC_ZFS_resilver_start"
 #define	ESC_ZFS_RESILVER_FINISH		"ESC_ZFS_resilver_finish"
 #define	ESC_ZFS_VDEV_REMOVE		"ESC_ZFS_vdev_remove"
+#define	ESC_ZFS_POOL_CREATE		"ESC_ZFS_pool_create"
 #define	ESC_ZFS_POOL_DESTROY		"ESC_ZFS_pool_destroy"
+#define	ESC_ZFS_POOL_IMPORT		"ESC_ZFS_pool_import"
+#define	ESC_ZFS_VDEV_ADD		"ESC_ZFS_vdev_add"
+#define	ESC_ZFS_VDEV_ATTACH		"ESC_ZFS_vdev_attach"
 #define	ESC_ZFS_VDEV_CLEAR		"ESC_ZFS_vdev_clear"
 #define	ESC_ZFS_VDEV_CHECK		"ESC_ZFS_vdev_check"
+#define	ESC_ZFS_VDEV_ONLINE		"ESC_ZFS_vdev_online"
 #define	ESC_ZFS_CONFIG_SYNC		"ESC_ZFS_config_sync"
 #define	ESC_ZFS_SCRUB_START		"ESC_ZFS_scrub_start"
 #define	ESC_ZFS_SCRUB_FINISH		"ESC_ZFS_scrub_finish"

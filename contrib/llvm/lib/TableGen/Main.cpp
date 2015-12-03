@@ -15,37 +15,35 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/TableGen/Main.h"
 #include "TGParser.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/TableGen/Error.h"
-#include "llvm/TableGen/Main.h"
 #include "llvm/TableGen/Record.h"
 #include <algorithm>
 #include <cstdio>
 #include <system_error>
 using namespace llvm;
 
-namespace {
-  cl::opt<std::string>
-  OutputFilename("o", cl::desc("Output filename"), cl::value_desc("filename"),
-                 cl::init("-"));
+static cl::opt<std::string>
+OutputFilename("o", cl::desc("Output filename"), cl::value_desc("filename"),
+               cl::init("-"));
 
-  cl::opt<std::string>
-  DependFilename("d",
-                 cl::desc("Dependency filename"),
-                 cl::value_desc("filename"),
-                 cl::init(""));
+static cl::opt<std::string>
+DependFilename("d",
+               cl::desc("Dependency filename"),
+               cl::value_desc("filename"),
+               cl::init(""));
 
-  cl::opt<std::string>
-  InputFilename(cl::Positional, cl::desc("<input file>"), cl::init("-"));
+static cl::opt<std::string>
+InputFilename(cl::Positional, cl::desc("<input file>"), cl::init("-"));
 
-  cl::list<std::string>
-  IncludeDirs("I", cl::desc("Directory of include files"),
-              cl::value_desc("directory"), cl::Prefix);
-}
+static cl::list<std::string>
+IncludeDirs("I", cl::desc("Directory of include files"),
+            cl::value_desc("directory"), cl::Prefix);
 
 /// \brief Create a dependency file for `-d` option.
 ///
@@ -72,9 +70,7 @@ static int createDependencyFile(const TGParser &Parser, const char *argv0) {
   return 0;
 }
 
-namespace llvm {
-
-int TableGenMain(char *argv0, TableGenMainFn *MainFn) {
+int llvm::TableGenMain(char *argv0, TableGenMainFn *MainFn) {
   RecordKeeper Records;
 
   // Parse the input file.
@@ -121,6 +117,4 @@ int TableGenMain(char *argv0, TableGenMainFn *MainFn) {
   // Declare success.
   Out.keep();
   return 0;
-}
-
 }

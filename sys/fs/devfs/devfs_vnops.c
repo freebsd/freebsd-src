@@ -65,6 +65,7 @@
 #include <sys/vnode.h>
 
 static struct vop_vector devfs_vnodeops;
+static struct vop_vector devfs_specops;
 static struct fileops devfs_ops_f;
 
 #include <fs/devfs/devfs.h>
@@ -150,7 +151,7 @@ devfs_get_cdevpriv(void **datap)
 }
 
 int
-devfs_set_cdevpriv(void *priv, cdevpriv_dtr_t priv_dtr)
+devfs_set_cdevpriv(void *priv, d_priv_dtor_t *priv_dtr)
 {
 	struct file *fp;
 	struct cdev_priv *cdp;
@@ -1862,7 +1863,7 @@ static struct vop_vector devfs_vnodeops = {
 	.vop_vptocnp =		devfs_vptocnp,
 };
 
-struct vop_vector devfs_specops = {
+static struct vop_vector devfs_specops = {
 	.vop_default =		&default_vnodeops,
 
 	.vop_access =		devfs_access,

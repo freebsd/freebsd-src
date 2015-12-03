@@ -170,7 +170,7 @@ random_kthread(void)
 		/* XXX: FIX!! Increase the high-performance data rate? Need some measurements first. */
 		for (i = 0; i < RANDOM_ACCUM_MAX; i++) {
 			if (harvest_context.hc_entropy_fast_accumulator.buf[i]) {
-				random_harvest_direct(harvest_context.hc_entropy_fast_accumulator.buf + i, sizeof(harvest_context.hc_entropy_fast_accumulator.buf[0]), 4, RANDOM_FAST);
+				random_harvest_direct(harvest_context.hc_entropy_fast_accumulator.buf + i, sizeof(harvest_context.hc_entropy_fast_accumulator.buf[0]), 4, RANDOM_UMA);
 				harvest_context.hc_entropy_fast_accumulator.buf[i] = 0;
 			}
 		}
@@ -211,7 +211,16 @@ random_sources_feed(void)
 	LIST_FOREACH(rrs, &source_list, rrs_entries) {
 		for (i = 0; i < p_random_alg_context->ra_poolcount*(local_read_rate + 1); i++) {
 			n = rrs->rrs_source->rs_read(entropy, sizeof(entropy));
-			KASSERT((n > 0 && n <= sizeof(entropy)), ("very bad return from rs_read (= %d) in %s", n, __func__));
+			KASSERT((n <= sizeof(entropy)), ("%s: rs_read returned too much data (%u > %zu)", __func__, n, sizeof(entropy)));
+			/* It would appear that in some circumstances (e.g. virtualisation),
+			 * the underlying hardware entropy source might not always return
+			 * random numbers. Accept this but make a noise. If too much happens,
+			 * can that source be trusted?
+			 */
+			if (n == 0) {
+				printf("%s: rs_read for hardware device '%s' returned no entropy.\n", __func__, rrs->rrs_source->rs_ident);
+				continue;
+			}
 			random_harvest_direct(entropy, n, (n*8)/2, rrs->rrs_source->rs_source);
 		}
 	}
@@ -261,7 +270,7 @@ static const char *(random_source_descr[]) = {
 	"INTERRUPT",
 	"SWI",
 	"FS_ATIME",
-	"HIGH_PERFORMANCE", /* ENVIRONMENTAL_END */
+	"UMA", /* ENVIRONMENTAL_END */
 	"PURE_OCTEON",
 	"PURE_SAFE",
 	"PURE_GLXSB",

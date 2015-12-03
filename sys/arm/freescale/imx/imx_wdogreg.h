@@ -47,6 +47,7 @@
 #define		WDOG_SR_STEP2		0xaaaa
 
 #define	WDOG_RSR_REG	0x04	/* Reset Status Register */
+#define		WDOG_RSR_POR		(1 << 4) /* Due to Power-On Reset */
 #define		WDOG_RSR_TOUT		(1 << 1) /* Due WDog timeout reset */
 #define		WDOG_RSR_SFTW		(1 << 0) /* Due Soft reset */
 
@@ -59,7 +60,3 @@
 #define	WDOG_MCR_REG	0x08	/* Miscellaneous Control Register */
 #define		WDOG_MCR_PDE		(1 << 0)
 
-#define	READ(_sc, _r)							\
-		bus_space_read_2((_sc)->sc_bst, (_sc)->sc_bsh, (_r))
-#define	WRITE(_sc, _r, _v)						\
-		bus_space_write_2((_sc)->sc_bst, (_sc)->sc_bsh, (_r), (_v))

@@ -1,13 +1,8 @@
 # $FreeBSD$
 
-makeoption	ARM_LITTLE_ENDIAN
-
 cpu		CPU_CORTEXA
 machine 	arm armv6
 makeoptions	CONF_CFLAGS="-march=armv7a -DAL_HAVE_TYPES"
-
-makeoptions	KERNPHYSADDR=0x00200000
-options 	KERNPHYSADDR=0x00200000
 
 makeoptions	KERNVIRTADDR=0xa0200000
 options 	KERNVIRTADDR=0xa0200000

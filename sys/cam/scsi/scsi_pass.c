@@ -77,6 +77,7 @@ struct pass_softc {
 	u_int8_t	 pd_type;
 	union ccb	 saved_ccb;
 	int		 open_count;
+	u_int		 maxio;
 	struct devstat	*device_stats;
 	struct cdev	*dev;
 	struct cdev	*alias_dev;
@@ -365,6 +366,13 @@ passregister(struct cam_periph *periph, void *arg)
 	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
+
+	if (cpi.maxio == 0)
+		softc->maxio = DFLTPHYS;	/* traditional default */
+	else if (cpi.maxio > MAXPHYS)
+		softc->maxio = MAXPHYS;		/* for safety */
+	else
+		softc->maxio = cpi.maxio;	/* real value */
 
 	/*
 	 * We pass in 0 for a blocksize, since we don't 
@@ -657,7 +665,7 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 		 * Dropping it here is reasonably safe.
 		 */
 		cam_periph_unlock(periph);
-		error = cam_periph_mapmem(ccb, &mapinfo); 
+		error = cam_periph_mapmem(ccb, &mapinfo, softc->maxio);
 		cam_periph_lock(periph);
 
 		/*

@@ -27,13 +27,12 @@ class HexagonTargetMachine : public LLVMTargetMachine {
   HexagonSubtarget Subtarget;
 
 public:
-  HexagonTargetMachine(const Target &T, StringRef TT,StringRef CPU,
+  HexagonTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                        StringRef FS, const TargetOptions &Options,
                        Reloc::Model RM, CodeModel::Model CM,
                        CodeGenOpt::Level OL);
   ~HexagonTargetMachine() override;
-
-  const HexagonSubtarget *getSubtargetImpl() const override {
+  const HexagonSubtarget *getSubtargetImpl(const Function &) const override {
     return &Subtarget;
   }
   static unsigned getModuleMatchQuality(const Module &M);

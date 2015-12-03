@@ -17,8 +17,8 @@
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCFixup.h"
 #include "llvm/MC/MCFixupKindInfo.h"
-#include "llvm/MC/MCMachOSymbolFlags.h"
 #include "llvm/MC/MCMachObjectWriter.h"
+#include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCValue.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MachO.h"
@@ -44,20 +44,17 @@ class ARMMachObjectWriter : public MCMachObjectTargetWriter {
 
   bool requiresExternRelocation(MachObjectWriter *Writer,
                                 const MCAssembler &Asm,
-                                const MCFragment &Fragment,
-                                unsigned RelocType, const MCSymbolData *SD,
-                                uint64_t FixedValue);
+                                const MCFragment &Fragment, unsigned RelocType,
+                                const MCSymbol &S, uint64_t FixedValue);
 
 public:
-  ARMMachObjectWriter(bool Is64Bit, uint32_t CPUType,
-                      uint32_t CPUSubtype)
-    : MCMachObjectTargetWriter(Is64Bit, CPUType, CPUSubtype,
-                               /*UseAggressiveSymbolFolding=*/true) {}
+  ARMMachObjectWriter(bool Is64Bit, uint32_t CPUType, uint32_t CPUSubtype)
+      : MCMachObjectTargetWriter(Is64Bit, CPUType, CPUSubtype) {}
 
-  void RecordRelocation(MachObjectWriter *Writer,
-                        const MCAssembler &Asm, const MCAsmLayout &Layout,
-                        const MCFragment *Fragment, const MCFixup &Fixup,
-                        MCValue Target, uint64_t &FixedValue) override;
+  void recordRelocation(MachObjectWriter *Writer, MCAssembler &Asm,
+                        const MCAsmLayout &Layout, const MCFragment *Fragment,
+                        const MCFixup &Fixup, MCValue Target,
+                        uint64_t &FixedValue) override;
 };
 }
 
@@ -88,6 +85,7 @@ static bool getARMFixupKindMachOInfo(unsigned Kind, unsigned &RelocType,
   case ARM::fixup_arm_ldst_pcrel_12:
   case ARM::fixup_arm_pcrel_10:
   case ARM::fixup_arm_adr_pcrel_12:
+  case ARM::fixup_arm_thumb_br:
     return false;
 
     // Handle 24-bit branch kinds.
@@ -99,12 +97,6 @@ static bool getARMFixupKindMachOInfo(unsigned Kind, unsigned &RelocType,
     RelocType = unsigned(MachO::ARM_RELOC_BR24);
     // Report as 'long', even though that is not quite accurate.
     Log2Size = llvm::Log2_32(4);
-    return true;
-
-    // Handle Thumb branches.
-  case ARM::fixup_arm_thumb_br:
-    RelocType = unsigned(MachO::ARM_THUMB_RELOC_BR22);
-    Log2Size = llvm::Log2_32(2);
     return true;
 
   case ARM::fixup_t2_uncondbranch:
@@ -157,31 +149,29 @@ RecordARMScatteredHalfRelocation(MachObjectWriter *Writer,
 
   // See <reloc.h>.
   const MCSymbol *A = &Target.getSymA()->getSymbol();
-  const MCSymbolData *A_SD = &Asm.getSymbolData(*A);
 
-  if (!A_SD->getFragment())
-    Asm.getContext().FatalError(Fixup.getLoc(),
+  if (!A->getFragment())
+    Asm.getContext().reportFatalError(Fixup.getLoc(),
                        "symbol '" + A->getName() +
                        "' can not be undefined in a subtraction expression");
 
-  uint32_t Value = Writer->getSymbolAddress(A_SD, Layout);
+  uint32_t Value = Writer->getSymbolAddress(*A, Layout);
   uint32_t Value2 = 0;
-  uint64_t SecAddr =
-    Writer->getSectionAddress(A_SD->getFragment()->getParent());
+  uint64_t SecAddr = Writer->getSectionAddress(A->getFragment()->getParent());
   FixedValue += SecAddr;
 
   if (const MCSymbolRefExpr *B = Target.getSymB()) {
-    const MCSymbolData *B_SD = &Asm.getSymbolData(B->getSymbol());
+    const MCSymbol *SB = &B->getSymbol();
 
-    if (!B_SD->getFragment())
-      Asm.getContext().FatalError(Fixup.getLoc(),
+    if (!SB->getFragment())
+      Asm.getContext().reportFatalError(Fixup.getLoc(),
                          "symbol '" + B->getSymbol().getName() +
                          "' can not be undefined in a subtraction expression");
 
     // Select the appropriate difference relocation type.
     Type = MachO::ARM_RELOC_HALF_SECTDIFF;
-    Value2 = Writer->getSymbolAddress(B_SD, Layout);
-    FixedValue -= Writer->getSectionAddress(B_SD->getFragment()->getParent());
+    Value2 = Writer->getSymbolAddress(B->getSymbol(), Layout);
+    FixedValue -= Writer->getSectionAddress(SB->getFragment()->getParent());
   }
 
   // Relocations are written out in reverse order, so the PAIR comes first.
@@ -232,7 +222,7 @@ RecordARMScatteredHalfRelocation(MachObjectWriter *Writer,
                    (IsPCRel               << 30) |
                    MachO::R_SCATTERED);
     MRE.r_word1 = Value2;
-    Writer->addRelocation(Fragment->getParent(), MRE);
+    Writer->addRelocation(nullptr, Fragment->getParent(), MRE);
   }
 
   MachO::any_relocation_info MRE;
@@ -243,7 +233,7 @@ RecordARMScatteredHalfRelocation(MachObjectWriter *Writer,
                  (IsPCRel     << 30) |
                  MachO::R_SCATTERED);
   MRE.r_word1 = Value;
-  Writer->addRelocation(Fragment->getParent(), MRE);
+  Writer->addRelocation(nullptr, Fragment->getParent(), MRE);
 }
 
 void ARMMachObjectWriter::RecordARMScatteredRelocation(MachObjectWriter *Writer,
@@ -260,31 +250,30 @@ void ARMMachObjectWriter::RecordARMScatteredRelocation(MachObjectWriter *Writer,
 
   // See <reloc.h>.
   const MCSymbol *A = &Target.getSymA()->getSymbol();
-  const MCSymbolData *A_SD = &Asm.getSymbolData(*A);
 
-  if (!A_SD->getFragment())
-    Asm.getContext().FatalError(Fixup.getLoc(),
+  if (!A->getFragment())
+    Asm.getContext().reportFatalError(Fixup.getLoc(),
                        "symbol '" + A->getName() +
                        "' can not be undefined in a subtraction expression");
 
-  uint32_t Value = Writer->getSymbolAddress(A_SD, Layout);
-  uint64_t SecAddr = Writer->getSectionAddress(A_SD->getFragment()->getParent());
+  uint32_t Value = Writer->getSymbolAddress(*A, Layout);
+  uint64_t SecAddr = Writer->getSectionAddress(A->getFragment()->getParent());
   FixedValue += SecAddr;
   uint32_t Value2 = 0;
 
   if (const MCSymbolRefExpr *B = Target.getSymB()) {
     assert(Type == MachO::ARM_RELOC_VANILLA && "invalid reloc for 2 symbols");
-    const MCSymbolData *B_SD = &Asm.getSymbolData(B->getSymbol());
+    const MCSymbol *SB = &B->getSymbol();
 
-    if (!B_SD->getFragment())
-      Asm.getContext().FatalError(Fixup.getLoc(),
+    if (!SB->getFragment())
+      Asm.getContext().reportFatalError(Fixup.getLoc(),
                          "symbol '" + B->getSymbol().getName() +
                          "' can not be undefined in a subtraction expression");
 
     // Select the appropriate difference relocation type.
     Type = MachO::ARM_RELOC_SECTDIFF;
-    Value2 = Writer->getSymbolAddress(B_SD, Layout);
-    FixedValue -= Writer->getSectionAddress(B_SD->getFragment()->getParent());
+    Value2 = Writer->getSymbolAddress(B->getSymbol(), Layout);
+    FixedValue -= Writer->getSectionAddress(SB->getFragment()->getParent());
   }
 
   // Relocations are written out in reverse order, so the PAIR comes first.
@@ -297,7 +286,7 @@ void ARMMachObjectWriter::RecordARMScatteredRelocation(MachObjectWriter *Writer,
                    (IsPCRel               << 30) |
                    MachO::R_SCATTERED);
     MRE.r_word1 = Value2;
-    Writer->addRelocation(Fragment->getParent(), MRE);
+    Writer->addRelocation(nullptr, Fragment->getParent(), MRE);
   }
 
   MachO::any_relocation_info MRE;
@@ -307,17 +296,17 @@ void ARMMachObjectWriter::RecordARMScatteredRelocation(MachObjectWriter *Writer,
                  (IsPCRel     << 30) |
                  MachO::R_SCATTERED);
   MRE.r_word1 = Value;
-  Writer->addRelocation(Fragment->getParent(), MRE);
+  Writer->addRelocation(nullptr, Fragment->getParent(), MRE);
 }
 
 bool ARMMachObjectWriter::requiresExternRelocation(MachObjectWriter *Writer,
                                                    const MCAssembler &Asm,
                                                    const MCFragment &Fragment,
                                                    unsigned RelocType,
-                                                   const MCSymbolData *SD,
+                                                   const MCSymbol &S,
                                                    uint64_t FixedValue) {
   // Most cases can be identified purely from the symbol.
-  if (Writer->doesSymbolRequireExternRelocation(SD))
+  if (Writer->doesSymbolRequireExternRelocation(S))
     return true;
   int64_t Value = (int64_t)FixedValue;  // The displacement is signed.
   int64_t Range;
@@ -339,9 +328,7 @@ bool ARMMachObjectWriter::requiresExternRelocation(MachObjectWriter *Writer,
   // BL/BLX also use external relocations when an internal relocation
   // would result in the target being out of range. This gives the linker
   // enough information to generate a branch island.
-  const MCSectionData &SymSD = Asm.getSectionData(
-    SD->getSymbol().getSection());
-  Value += Writer->getSectionAddress(&SymSD);
+  Value += Writer->getSectionAddress(&S.getSection());
   Value -= Writer->getSectionAddress(Fragment.getParent());
   // If the resultant value would be out of range for an internal relocation,
   // use an external instead.
@@ -350,12 +337,11 @@ bool ARMMachObjectWriter::requiresExternRelocation(MachObjectWriter *Writer,
   return false;
 }
 
-void ARMMachObjectWriter::RecordRelocation(MachObjectWriter *Writer,
-                                           const MCAssembler &Asm,
+void ARMMachObjectWriter::recordRelocation(MachObjectWriter *Writer,
+                                           MCAssembler &Asm,
                                            const MCAsmLayout &Layout,
                                            const MCFragment *Fragment,
-                                           const MCFixup &Fixup,
-                                           MCValue Target,
+                                           const MCFixup &Fixup, MCValue Target,
                                            uint64_t &FixedValue) {
   unsigned IsPCRel = Writer->isFixupKindPCRel(Asm, Fixup.getKind());
   unsigned Log2Size;
@@ -365,7 +351,7 @@ void ARMMachObjectWriter::RecordRelocation(MachObjectWriter *Writer,
     // relocation type for the fixup kind. This happens when it's a fixup that's
     // expected to always be resolvable at assembly time and not have any
     // relocations needed.
-    Asm.getContext().FatalError(Fixup.getLoc(),
+    Asm.getContext().reportFatalError(Fixup.getLoc(),
                                 "unsupported relocation on symbol");
 
   // If this is a difference or a defined symbol plus an offset, then we need a
@@ -381,9 +367,9 @@ void ARMMachObjectWriter::RecordRelocation(MachObjectWriter *Writer,
   }
 
   // Get the symbol data, if any.
-  const MCSymbolData *SD = nullptr;
+  const MCSymbol *A = nullptr;
   if (Target.getSymA())
-    SD = &Asm.getSymbolData(Target.getSymA()->getSymbol());
+    A = &Target.getSymA()->getSymbol();
 
   // FIXME: For other platforms, we need to use scattered relocations for
   // internal relocations with offsets.  If this is an internal relocation with
@@ -393,7 +379,7 @@ void ARMMachObjectWriter::RecordRelocation(MachObjectWriter *Writer,
   uint32_t Offset = Target.getConstant();
   if (IsPCRel && RelocType == MachO::ARM_RELOC_VANILLA)
     Offset += 1 << Log2Size;
-  if (Offset && SD && !Writer->doesSymbolRequireExternRelocation(SD))
+  if (Offset && A && !Writer->doesSymbolRequireExternRelocation(*A))
     return RecordARMScatteredRelocation(Writer, Asm, Layout, Fragment, Fixup,
                                         Target, RelocType, Log2Size,
                                         FixedValue);
@@ -401,8 +387,8 @@ void ARMMachObjectWriter::RecordRelocation(MachObjectWriter *Writer,
   // See <reloc.h>.
   uint32_t FixupOffset = Layout.getFragmentOffset(Fragment)+Fixup.getOffset();
   unsigned Index = 0;
-  unsigned IsExtern = 0;
   unsigned Type = 0;
+  const MCSymbol *RelSymbol = nullptr;
 
   if (Target.isAbsolute()) { // constant
     // FIXME!
@@ -410,32 +396,30 @@ void ARMMachObjectWriter::RecordRelocation(MachObjectWriter *Writer,
                        "not yet implemented");
   } else {
     // Resolve constant variables.
-    if (SD->getSymbol().isVariable()) {
+    if (A->isVariable()) {
       int64_t Res;
-      if (SD->getSymbol().getVariableValue()->EvaluateAsAbsolute(
-            Res, Layout, Writer->getSectionAddressMap())) {
+      if (A->getVariableValue()->evaluateAsAbsolute(
+              Res, Layout, Writer->getSectionAddressMap())) {
         FixedValue = Res;
         return;
       }
     }
 
     // Check whether we need an external or internal relocation.
-    if (requiresExternRelocation(Writer, Asm, *Fragment, RelocType, SD,
+    if (requiresExternRelocation(Writer, Asm, *Fragment, RelocType, *A,
                                  FixedValue)) {
-      IsExtern = 1;
-      Index = SD->getIndex();
+      RelSymbol = A;
 
       // For external relocations, make sure to offset the fixup value to
       // compensate for the addend of the symbol address, if it was
       // undefined. This occurs with weak definitions, for example.
-      if (!SD->getSymbol().isUndefined())
-        FixedValue -= Layout.getSymbolOffset(SD);
+      if (!A->isUndefined())
+        FixedValue -= Layout.getSymbolOffset(*A);
     } else {
       // The index is the section ordinal (1-based).
-      const MCSectionData &SymSD = Asm.getSectionData(
-        SD->getSymbol().getSection());
-      Index = SymSD.getOrdinal() + 1;
-      FixedValue += Writer->getSectionAddress(&SymSD);
+      const MCSection &Sec = A->getSection();
+      Index = Sec.getOrdinal() + 1;
+      FixedValue += Writer->getSectionAddress(&Sec);
     }
     if (IsPCRel)
       FixedValue -= Writer->getSectionAddress(Fragment->getParent());
@@ -447,11 +431,8 @@ void ARMMachObjectWriter::RecordRelocation(MachObjectWriter *Writer,
   // struct relocation_info (8 bytes)
   MachO::any_relocation_info MRE;
   MRE.r_word0 = FixupOffset;
-  MRE.r_word1 = ((Index     <<  0) |
-                 (IsPCRel   << 24) |
-                 (Log2Size  << 25) |
-                 (IsExtern  << 27) |
-                 (Type      << 28));
+  MRE.r_word1 =
+      (Index << 0) | (IsPCRel << 24) | (Log2Size << 25) | (Type << 28);
 
   // Even when it's not a scattered relocation, movw/movt always uses
   // a PAIR relocation.
@@ -476,15 +457,14 @@ void ARMMachObjectWriter::RecordRelocation(MachObjectWriter *Writer,
                        (Log2Size              << 25) |
                        (MachO::ARM_RELOC_PAIR << 28));
 
-    Writer->addRelocation(Fragment->getParent(), MREPair);
+    Writer->addRelocation(nullptr, Fragment->getParent(), MREPair);
   }
 
-  Writer->addRelocation(Fragment->getParent(), MRE);
+  Writer->addRelocation(RelSymbol, Fragment->getParent(), MRE);
 }
 
-MCObjectWriter *llvm::createARMMachObjectWriter(raw_ostream &OS,
-                                                bool Is64Bit,
-                                                uint32_t CPUType,
+MCObjectWriter *llvm::createARMMachObjectWriter(raw_pwrite_stream &OS,
+                                                bool Is64Bit, uint32_t CPUType,
                                                 uint32_t CPUSubtype) {
   return createMachObjectWriter(new ARMMachObjectWriter(Is64Bit,
                                                         CPUType,

@@ -2,10 +2,9 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=	${TESTSBASE}/cddl/usr.sbin/dtrace
 TESTS_SUBDIRS+=	common
 
-.PATH:		${.CURDIR:H:H:H:H}/tests
+.PATH:		${SRCTOP}/tests
 KYUAFILE=	YES
 
 .PATH:		${.CURDIR}/tools

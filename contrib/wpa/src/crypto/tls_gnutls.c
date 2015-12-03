@@ -708,7 +708,8 @@ int tls_global_set_verify(void *ssl_ctx, int check_crl)
 
 
 int tls_connection_set_verify(void *ssl_ctx, struct tls_connection *conn,
-			      int verify_peer)
+			      int verify_peer, unsigned int flags,
+			      const u8 *session_ctx, size_t session_ctx_len)
 {
 	if (conn == NULL || conn->session == NULL)
 		return -1;
@@ -722,8 +723,8 @@ int tls_connection_set_verify(void *ssl_ctx, struct tls_connection *conn,
 }
 
 
-int tls_connection_get_keys(void *ssl_ctx, struct tls_connection *conn,
-			    struct tls_keys *keys)
+int tls_connection_get_random(void *ssl_ctx, struct tls_connection *conn,
+			    struct tls_random *keys)
 {
 #if GNUTLS_VERSION_NUMBER >= 0x030012
 	gnutls_datum_t client, server;
@@ -747,9 +748,9 @@ int tls_connection_get_keys(void *ssl_ctx, struct tls_connection *conn,
 
 int tls_connection_prf(void *tls_ctx, struct tls_connection *conn,
 		       const char *label, int server_random_first,
-		       u8 *out, size_t out_len)
+		       int skip_keyblock, u8 *out, size_t out_len)
 {
-	if (conn == NULL || conn->session == NULL)
+	if (conn == NULL || conn->session == NULL || skip_keyblock)
 		return -1;
 
 	return gnutls_prf(conn->session, os_strlen(label), label,
@@ -1426,6 +1427,14 @@ int tls_connection_set_cipher_list(void *tls_ctx, struct tls_connection *conn,
 }
 
 
+int tls_get_version(void *ssl_ctx, struct tls_connection *conn,
+		    char *buf, size_t buflen)
+{
+	/* TODO */
+	return -1;
+}
+
+
 int tls_get_cipher(void *ssl_ctx, struct tls_connection *conn,
 		   char *buf, size_t buflen)
 {
@@ -1476,20 +1485,6 @@ int tls_connection_get_write_alerts(void *ssl_ctx, struct tls_connection *conn)
 }
 
 
-int tls_connection_get_keyblock_size(void *tls_ctx,
-				     struct tls_connection *conn)
-{
-	/* TODO */
-	return -1;
-}
-
-
-unsigned int tls_capabilities(void *tls_ctx)
-{
-	return 0;
-}
-
-
 int tls_connection_set_session_ticket_cb(void *tls_ctx,
 					 struct tls_connection *conn,
 					 tls_session_ticket_cb cb, void *ctx)
@@ -1502,4 +1497,27 @@ int tls_get_library_version(char *buf, size_t buf_len)
 {
 	return os_snprintf(buf, buf_len, "GnuTLS build=%s run=%s",
 			   GNUTLS_VERSION, gnutls_check_version(NULL));
+}
+
+
+void tls_connection_set_success_data(struct tls_connection *conn,
+				     struct wpabuf *data)
+{
+}
+
+
+void tls_connection_set_success_data_resumed(struct tls_connection *conn)
+{
+}
+
+
+const struct wpabuf *
+tls_connection_get_success_data(struct tls_connection *conn)
+{
+	return NULL;
+}
+
+
+void tls_connection_remove_session(struct tls_connection *conn)
+{
 }

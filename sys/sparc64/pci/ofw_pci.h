@@ -62,6 +62,8 @@
 #ifndef _SPARC64_PCI_OFW_PCI_H_
 #define	_SPARC64_PCI_OFW_PCI_H_
 
+#include <sys/rman.h>
+
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include "ofw_pci_if.h"
@@ -73,6 +75,7 @@ typedef uint32_t ofw_pci_intr_t;
 #define	OFW_PCI_CS_IO		0x01
 #define	OFW_PCI_CS_MEM32	0x02
 #define	OFW_PCI_CS_MEM64	0x03
+#define	OFW_PCI_NUM_CS		4
 
 /* OFW device types */
 #define	OFW_TYPE_PCI		"pci"
@@ -123,5 +126,45 @@ struct ofw_pci_ranges {
 
 /* default values */
 #define	OFW_PCI_LATENCY	64
+
+/*
+ * Common and generic parts of host-PCI-bridge support
+ */
+
+struct ofw_pci_softc {
+	struct rman		sc_pci_mem_rman;
+	struct rman		sc_pci_io_rman;
+
+	bus_space_handle_t	sc_pci_bh[OFW_PCI_NUM_CS];
+	bus_space_tag_t		sc_pci_cfgt;
+	bus_space_tag_t		sc_pci_iot;
+	bus_dma_tag_t		sc_pci_dmat;
+
+	struct ofw_bus_iinfo	sc_pci_iinfo;
+
+	phandle_t		sc_node;
+
+	uint8_t			sc_pci_secbus;
+	uint8_t			sc_pci_subbus;
+};
+
+int ofw_pci_attach_common(device_t dev, bus_dma_tag_t dmat, u_long iosize,
+    u_long memsize);
+uint32_t ofw_pci_read_config_common(device_t dev, u_int regmax, u_long offset,
+    u_int bus, u_int slot, u_int func, u_int reg, int width);
+void ofw_pci_write_config_common(device_t dev, u_int regmax, u_long offset,
+    u_int bus, u_int slot, u_int func, u_int reg, uint32_t val, int width);
+ofw_pci_intr_t ofw_pci_route_interrupt_common(device_t bridge, device_t dev,
+    int pin);
+
+void ofw_pci_dmamap_sync_stst_order_common(void);
+
+bus_activate_resource_t ofw_pci_activate_resource;
+bus_adjust_resource_t ofw_pci_adjust_resource;
+bus_alloc_resource_t ofw_pci_alloc_resource;
+bus_get_dma_tag_t ofw_pci_get_dma_tag;
+bus_read_ivar_t ofw_pci_read_ivar;
+
+ofw_bus_get_node_t ofw_pci_get_node;
 
 #endif /* ! _SPARC64_PCI_OFW_PCI_H_ */

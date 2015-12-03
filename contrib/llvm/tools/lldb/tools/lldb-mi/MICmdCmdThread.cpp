@@ -7,21 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdCmdThread.cpp
-//
 // Overview:    CMICmdCmdThreadInfo     implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
 
 // Third Party Headers:
-#include <lldb/API/SBBreakpointLocation.h>
-#include <lldb/API/SBThread.h>
+#include "lldb/API/SBBreakpointLocation.h"
+#include "lldb/API/SBThread.h"
 
 // In-house headers:
 #include "MICmdCmdThread.h"
@@ -99,18 +89,18 @@ CMICmdCmdThreadInfo::Execute(void)
     }
 
     CMICmnLLDBDebugSessionInfo &rSessionInfo(CMICmnLLDBDebugSessionInfo::Instance());
-    lldb::SBProcess &rProcess = rSessionInfo.m_lldbProcess;
-    lldb::SBThread thread = rProcess.GetSelectedThread();
+    lldb::SBProcess sbProcess = rSessionInfo.GetProcess();
+    lldb::SBThread thread = sbProcess.GetSelectedThread();
 
     if (m_bSingleThread)
     {
-        thread = rProcess.GetThreadByIndexID(nThreadId);
-        m_bThreadInvalid = thread.IsValid();
-        if (!m_bThreadInvalid)
+        thread = sbProcess.GetThreadByIndexID(nThreadId);
+        m_bThreadInvalid = !thread.IsValid();
+        if (m_bThreadInvalid)
             return MIstatus::success;
 
         CMICmnMIValueTuple miTuple;
-        if (!rSessionInfo.MIResponseFormThreadInfo3(m_cmdData, thread, miTuple))
+        if (!rSessionInfo.MIResponseFormThreadInfo(m_cmdData, thread, CMICmnLLDBDebugSessionInfo::eThreadInfoFormat_AllFrames, miTuple))
             return MIstatus::failure;
 
         m_miValueTupleThread = miTuple;
@@ -120,14 +110,14 @@ CMICmdCmdThreadInfo::Execute(void)
 
     // Multiple threads
     m_vecMIValueTuple.clear();
-    const MIuint nThreads = rProcess.GetNumThreads();
+    const MIuint nThreads = sbProcess.GetNumThreads();
     for (MIuint i = 0; i < nThreads; i++)
     {
-        lldb::SBThread thread = rProcess.GetThreadAtIndex(i);
+        lldb::SBThread thread = sbProcess.GetThreadAtIndex(i);
         if (thread.IsValid())
         {
             CMICmnMIValueTuple miTuple;
-            if (!rSessionInfo.MIResponseFormThreadInfo3(m_cmdData, thread, miTuple))
+            if (!rSessionInfo.MIResponseFormThreadInfo(m_cmdData, thread, CMICmnLLDBDebugSessionInfo::eThreadInfoFormat_AllFrames, miTuple))
                 return MIstatus::failure;
 
             m_vecMIValueTuple.push_back(miTuple);
@@ -151,7 +141,7 @@ CMICmdCmdThreadInfo::Acknowledge(void)
 {
     if (m_bSingleThread)
     {
-        if (!m_bThreadInvalid)
+        if (m_bThreadInvalid)
         {
             const CMICmnMIValueConst miValueConst("invalid thread id");
             const CMICmnMIValueResult miValueResult("msg", miValueConst);

@@ -220,27 +220,27 @@ bool SSAIfConv::canSpeculateInstrs(MachineBasicBlock *MBB) {
 
     // We never speculate stores, so an AA pointer isn't necessary.
     bool DontMoveAcrossStore = true;
-    if (!I->isSafeToMove(TII, nullptr, DontMoveAcrossStore)) {
+    if (!I->isSafeToMove(nullptr, DontMoveAcrossStore)) {
       DEBUG(dbgs() << "Can't speculate: " << *I);
       return false;
     }
 
     // Check for any dependencies on Head instructions.
-    for (MIOperands MO(I); MO.isValid(); ++MO) {
-      if (MO->isRegMask()) {
+    for (const MachineOperand &MO : I->operands()) {
+      if (MO.isRegMask()) {
         DEBUG(dbgs() << "Won't speculate regmask: " << *I);
         return false;
       }
-      if (!MO->isReg())
+      if (!MO.isReg())
         continue;
-      unsigned Reg = MO->getReg();
+      unsigned Reg = MO.getReg();
 
       // Remember clobbered regunits.
-      if (MO->isDef() && TargetRegisterInfo::isPhysicalRegister(Reg))
+      if (MO.isDef() && TargetRegisterInfo::isPhysicalRegister(Reg))
         for (MCRegUnitIterator Units(Reg, TRI); Units.isValid(); ++Units)
           ClobberedRegUnits.set(*Units);
 
-      if (!MO->readsReg() || !TargetRegisterInfo::isVirtualRegister(Reg))
+      if (!MO.readsReg() || !TargetRegisterInfo::isVirtualRegister(Reg))
         continue;
       MachineInstr *DefMI = MRI->getVRegDef(Reg);
       if (!DefMI || DefMI->getParent() != Head)
@@ -284,19 +284,19 @@ bool SSAIfConv::findInsertionPoint() {
     }
 
     // Update live regunits.
-    for (MIOperands MO(I); MO.isValid(); ++MO) {
+    for (const MachineOperand &MO : I->operands()) {
       // We're ignoring regmask operands. That is conservatively correct.
-      if (!MO->isReg())
+      if (!MO.isReg())
         continue;
-      unsigned Reg = MO->getReg();
+      unsigned Reg = MO.getReg();
       if (!TargetRegisterInfo::isPhysicalRegister(Reg))
         continue;
       // I clobbers Reg, so it isn't live before I.
-      if (MO->isDef())
+      if (MO.isDef())
         for (MCRegUnitIterator Units(Reg, TRI); Units.isValid(); ++Units)
           LiveRegUnits.erase(*Units);
       // Unless I reads Reg.
-      if (MO->readsReg())
+      if (MO.readsReg())
         Reads.push_back(Reg);
     }
     // Anything read by I is live before I.
@@ -479,11 +479,20 @@ void SSAIfConv::rewritePHIOperands() {
   // Convert all PHIs to select instructions inserted before FirstTerm.
   for (unsigned i = 0, e = PHIs.size(); i != e; ++i) {
     PHIInfo &PI = PHIs[i];
+    unsigned DstReg = 0;
+    
     DEBUG(dbgs() << "If-converting " << *PI.PHI);
-    unsigned PHIDst = PI.PHI->getOperand(0).getReg();
-    unsigned DstReg = MRI->createVirtualRegister(MRI->getRegClass(PHIDst));
-    TII->insertSelect(*Head, FirstTerm, HeadDL, DstReg, Cond, PI.TReg, PI.FReg);
-    DEBUG(dbgs() << "          --> " << *std::prev(FirstTerm));
+    if (PI.TReg == PI.FReg) {
+      // We do not need the select instruction if both incoming values are
+      // equal.
+      DstReg = PI.TReg;
+    } else {
+      unsigned PHIDst = PI.PHI->getOperand(0).getReg();
+      DstReg = MRI->createVirtualRegister(MRI->getRegClass(PHIDst));
+      TII->insertSelect(*Head, FirstTerm, HeadDL,
+                         DstReg, Cond, PI.TReg, PI.FReg);
+      DEBUG(dbgs() << "          --> " << *std::prev(FirstTerm));
+    }
 
     // Rewrite PHI operands TPred -> (DstReg, Head), remove FPred.
     for (unsigned i = PI.PHI->getNumOperands(); i != 1; i -= 2) {
@@ -777,15 +786,13 @@ bool EarlyIfConverter::runOnMachineFunction(MachineFunction &MF) {
   DEBUG(dbgs() << "********** EARLY IF-CONVERSION **********\n"
                << "********** Function: " << MF.getName() << '\n');
   // Only run if conversion if the target wants it.
-  if (!MF.getTarget()
-           .getSubtarget<TargetSubtargetInfo>()
-           .enableEarlyIfConversion())
+  const TargetSubtargetInfo &STI = MF.getSubtarget();
+  if (!STI.enableEarlyIfConversion())
     return false;
 
-  TII = MF.getSubtarget().getInstrInfo();
-  TRI = MF.getSubtarget().getRegisterInfo();
-  SchedModel =
-    MF.getTarget().getSubtarget<TargetSubtargetInfo>().getSchedModel();
+  TII = STI.getInstrInfo();
+  TRI = STI.getRegisterInfo();
+  SchedModel = STI.getSchedModel();
   MRI = &MF.getRegInfo();
   DomTree = &getAnalysis<MachineDominatorTree>();
   Loops = getAnalysisIfAvailable<MachineLoopInfo>();
@@ -799,9 +806,8 @@ bool EarlyIfConverter::runOnMachineFunction(MachineFunction &MF) {
   // if-conversion in a single pass. The tryConvertIf() function may erase
   // blocks, but only blocks dominated by the head block. This makes it safe to
   // update the dominator tree while the post-order iterator is still active.
-  for (po_iterator<MachineDominatorTree*>
-       I = po_begin(DomTree), E = po_end(DomTree); I != E; ++I)
-    if (tryConvertIf(I->getBlock()))
+  for (auto DomNode : post_order(DomTree))
+    if (tryConvertIf(DomNode->getBlock()))
       Changed = true;
 
   return Changed;

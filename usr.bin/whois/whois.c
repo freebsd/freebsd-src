@@ -454,7 +454,7 @@ done:
 	if (fp == NULL)
 		err(EX_OSERR, "fdopen()");
 	if (strcmp(hostname, GERMNICHOST) == 0) {
-		fprintf(fp, "-T dn,ace -C US-ASCII %s\r\n", query);
+		fprintf(fp, "-T dn,ace -C ISO-8859-1 %s\r\n", query);
 	} else if (strcmp(hostname, "dk" QNICHOST_TAIL) == 0) {
 		fprintf(fp, "--show-handles %s\r\n", query);
 	} else {

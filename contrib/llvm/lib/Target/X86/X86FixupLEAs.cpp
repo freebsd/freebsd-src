@@ -44,7 +44,7 @@ class FixupLEAPass : public MachineFunctionPass {
   /// \brief Given a machine register, look for the instruction
   /// which writes it in the current basic block. If found,
   /// try to replace it with an equivalent LEA instruction.
-  /// If replacement succeeds, then also process the the newly created
+  /// If replacement succeeds, then also process the newly created
   /// instruction.
   void seekLEAFixup(MachineOperand &p, MachineBasicBlock::iterator &I,
                     MachineFunction::iterator MFI);
@@ -88,7 +88,6 @@ public:
 
 private:
   MachineFunction *MF;
-  const TargetMachine *TM;
   const X86InstrInfo *TII; // Machine instruction info.
 };
 char FixupLEAPass::ID = 0;
@@ -150,13 +149,11 @@ FunctionPass *llvm::createX86FixupLEAs() { return new FixupLEAPass(); }
 
 bool FixupLEAPass::runOnMachineFunction(MachineFunction &Func) {
   MF = &Func;
-  TM = &Func.getTarget();
-  const X86Subtarget &ST = TM->getSubtarget<X86Subtarget>();
+  const X86Subtarget &ST = Func.getSubtarget<X86Subtarget>();
   if (!ST.LEAusesAG() && !ST.slowLEA())
     return false;
 
-  TII =
-      static_cast<const X86InstrInfo *>(TM->getSubtargetImpl()->getInstrInfo());
+  TII = ST.getInstrInfo();
 
   DEBUG(dbgs() << "Start X86FixupLEAs\n";);
   // Process all basic blocks.
@@ -219,7 +216,7 @@ FixupLEAPass::searchBackwards(MachineOperand &p, MachineBasicBlock::iterator &I,
       return CurInst;
     }
     InstrDistance += TII->getInstrLatency(
-        TM->getSubtargetImpl()->getInstrItineraryData(), CurInst);
+        MF->getSubtarget().getInstrItineraryData(), CurInst);
     Found = getPreviousInstr(CurInst, MFI);
   }
   return nullptr;
@@ -333,7 +330,7 @@ bool FixupLEAPass::processBasicBlock(MachineFunction &MF,
                                      MachineFunction::iterator MFI) {
 
   for (MachineBasicBlock::iterator I = MFI->begin(); I != MFI->end(); ++I) {
-    if (TM->getSubtarget<X86Subtarget>().isSLM())
+    if (MF.getSubtarget<X86Subtarget>().isSLM())
       processInstructionForSLM(I, MFI);
     else
       processInstruction(I, MFI);

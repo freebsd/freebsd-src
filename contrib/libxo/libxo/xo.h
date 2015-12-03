@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Juniper Networks, Inc.
+ * Copyright (c) 2014-2015, Juniper Networks, Inc.
  * All rights reserved.
  * This SOFTWARE is licensed under the LICENSE provided in the
  * ../Copyright file. By downloading, installing, copying, or otherwise
@@ -12,12 +12,19 @@
  * libxo provides a means of generating text, XML, JSON, and HTML output
  * using a single set of function calls, maximizing the value of output
  * while minimizing the cost/impact on the code.
+ *
+ * Full documentation is available in ./doc/libxo.txt or online at:
+ *   http://juniper.github.io/libxo/libxo-manual.html
  */
 
 #ifndef INCLUDE_XO_H
 #define INCLUDE_XO_H
 
+#include <stdio.h>
 #include <sys/types.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <errno.h>
 
 #ifdef __dead2
 #define NORETURN __dead2
@@ -39,19 +46,21 @@
 #endif /* NO_PRINTFLIKE */
 
 /** Formatting types */
-typedef unsigned xo_style_t;
+typedef unsigned short xo_style_t;
 #define XO_STYLE_TEXT	0	/** Generate text output */
 #define XO_STYLE_XML	1	/** Generate XML output */
 #define XO_STYLE_JSON	2	/** Generate JSON output */
 #define XO_STYLE_HTML	3	/** Generate HTML output */
+#define XO_STYLE_SDPARAMS 4	/* Generate syslog structured data params */
+#define XO_STYLE_ENCODER 5	/* Generate calls to external encoder */
 
 /** Flags for libxo */
 typedef unsigned long long xo_xof_flags_t;
 #define XOF_BIT(_n) ((xo_xof_flags_t) 1 << (_n))
 #define XOF_CLOSE_FP	XOF_BIT(0) /** Close file pointer on xo_close() */
 #define XOF_PRETTY	XOF_BIT(1) /** Make 'pretty printed' output */
-#define XOF_DIV_OPEN	XOF_BIT(2) /** Internal use only: a <div> is open */
-#define XOF_LINE_OPEN	XOF_BIT(3) /** Internal use only: <div class="line"> */
+#define XOF_LOG_SYSLOG	XOF_BIT(2) /** Log (on stderr) our syslog content */
+#define XOF_RESV3	XOF_BIT(3) /* Unused */
 
 #define XOF_WARN	XOF_BIT(4) /** Generate warnings for broken calls */
 #define XOF_XPATH	XOF_BIT(5) /** Emit XPath attributes in HTML  */
@@ -66,12 +75,12 @@ typedef unsigned long long xo_xof_flags_t;
 #define XOF_IGNORE_CLOSE XOF_BIT(12) /** Ignore errors on close tags */
 #define XOF_NOT_FIRST	XOF_BIT(13) /* Not the first item (JSON)  */
 #define XOF_NO_LOCALE	XOF_BIT(14) /** Don't bother with locale */
-#define XOF_TOP_EMITTED	XOF_BIT(15) /* The top JSON braces have been emitted  */
+#define XOF_RESV15	XOF_BIT(15) /* Unused */
 
 #define XOF_NO_TOP	XOF_BIT(16) /** Don't emit the top braces in JSON */
-#define XOF_ANCHOR	XOF_BIT(17) /** An anchor is in place  */
+#define XOF_RESV17	XOF_BIT(17) /* Unused  */
 #define XOF_UNITS	XOF_BIT(18) /** Encode units in XML */
-#define XOF_UNITS_PENDING XOF_BIT(19) /** We have a units-insertion pending */
+#define XOF_RESV19	XOF_BIT(19) /* Unused */
 
 #define XOF_UNDERSCORES	XOF_BIT(20) /** Replace dashes with underscores (JSON)*/
 #define XOF_COLUMNS	XOF_BIT(21) /** xo_emit should return a column count */
@@ -81,6 +90,10 @@ typedef unsigned long long xo_xof_flags_t;
 #define XOF_NO_CLOSE	XOF_BIT(24) /** xo_finish won't close open elements */
 #define XOF_COLOR_ALLOWED XOF_BIT(25) /** Allow color/effects to be enabled */
 #define XOF_COLOR	XOF_BIT(26) /** Enable color and effects */
+#define XOF_NO_HUMANIZE	XOF_BIT(27) /** Block the {h:} modifier */
+
+#define XOF_LOG_GETTEXT	XOF_BIT(28) /** Log (stderr) gettext lookup strings */
+#define XOF_UTF8	XOF_BIT(29) /** Force text output to be UTF8 */
 
 /*
  * The xo_info_t structure provides a mapping between names and
@@ -91,6 +104,8 @@ typedef struct xo_info_s {
     const char *xi_type;	/* Type of field */
     const char *xi_help;	/* Description of field */
 } xo_info_t;
+
+#define XO_INFO_NULL NULL, NULL, NULL /* Use '{ XO_INFO_NULL }' to end lists */
 
 struct xo_handle_s;		/* Opaque structure forward */
 typedef struct xo_handle_s xo_handle_t; /* Handle for XO output */
@@ -164,6 +179,35 @@ xo_emit_h (xo_handle_t *xop, const char *fmt, ...);
 
 int
 xo_emit (const char *fmt, ...);
+
+PRINTFLIKE(2, 0)
+static inline int
+xo_emit_hvp (xo_handle_t *xop, const char *fmt, va_list vap)
+{
+    return xo_emit_hv(xop, fmt, vap);
+}
+
+PRINTFLIKE(2, 3)
+static inline int
+xo_emit_hp (xo_handle_t *xop, const char *fmt, ...)
+{
+    va_list vap;
+    va_start(vap, fmt);
+    int rc = xo_emit_hv(xop, fmt, vap);
+    va_end(vap);
+    return rc;
+}
+
+PRINTFLIKE(1, 2)
+static inline int
+xo_emit_p (const char *fmt, ...)
+{
+    va_list vap;
+    va_start(vap, fmt);
+    int rc = xo_emit_hv(NULL, fmt, vap);
+    va_end(vap);
+    return rc;
+}
 
 int
 xo_open_container_h (xo_handle_t *xop, const char *name);
@@ -280,6 +324,9 @@ int
 xo_finish (void);
 
 void
+xo_finish_atexit (void);
+
+void
 xo_set_leading_xpath (xo_handle_t *xop, const char *path);
 
 void
@@ -304,7 +351,7 @@ void
 xo_errc (int eval, int code, const char *fmt, ...) NORETURN PRINTFLIKE(3, 4);
 
 void
-xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap);
+xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap) PRINTFLIKE(3, 0);
 
 void
 xo_message_hc (xo_handle_t *xop, int code, const char *fmt, ...) PRINTFLIKE(3, 4);
@@ -313,7 +360,122 @@ void
 xo_message_c (int code, const char *fmt, ...) PRINTFLIKE(2, 3);
 
 void
+xo_message_e (const char *fmt, ...) PRINTFLIKE(1, 2);
+
+void
 xo_message (const char *fmt, ...) PRINTFLIKE(1, 2);
+
+void
+xo_emit_warn_hcv (xo_handle_t *xop, int as_warning, int code,
+		  const char *fmt, va_list vap);
+
+void
+xo_emit_warn_hc (xo_handle_t *xop, int code, const char *fmt, ...);
+
+void
+xo_emit_warn_c (int code, const char *fmt, ...);
+
+void
+xo_emit_warn (const char *fmt, ...);
+
+void
+xo_emit_warnx (const char *fmt, ...);
+
+void
+xo_emit_err (int eval, const char *fmt, ...) NORETURN;
+
+void
+xo_emit_errx (int eval, const char *fmt, ...) NORETURN;
+
+void
+xo_emit_errc (int eval, int code, const char *fmt, ...) NORETURN;
+
+PRINTFLIKE(4, 0)
+static inline void
+xo_emit_warn_hcvp (xo_handle_t *xop, int as_warning, int code,
+		  const char *fmt, va_list vap)
+{
+    xo_emit_warn_hcv(xop, as_warning, code, fmt, vap);
+}
+
+PRINTFLIKE(3, 4)
+static inline void
+xo_emit_warn_hcp (xo_handle_t *xop, int code, const char *fmt, ...)
+{
+    va_list vap;
+    va_start(vap, fmt);
+    xo_emit_warn_hcv(xop, 1, code, fmt, vap);
+    va_end(vap);
+}
+
+PRINTFLIKE(2, 3)
+static inline void
+xo_emit_warn_cp (int code, const char *fmt, ...)
+{
+    va_list vap;
+    va_start(vap, fmt);
+    xo_emit_warn_hcv(NULL, 1, code, fmt, vap);
+    va_end(vap);
+}
+
+PRINTFLIKE(1, 2)
+static inline void
+xo_emit_warn_p (const char *fmt, ...)
+{
+    int code = errno;
+    va_list vap;
+    va_start(vap, fmt);
+    xo_emit_warn_hcv(NULL, 1, code, fmt, vap);
+    va_end(vap);
+}
+
+PRINTFLIKE(1, 2)
+static inline void
+xo_emit_warnx_p (const char *fmt, ...)
+{
+    va_list vap;
+    va_start(vap, fmt);
+    xo_emit_warn_hcv(NULL, 1, -1, fmt, vap);
+    va_end(vap);
+}
+
+NORETURN PRINTFLIKE(2, 3)
+static inline void
+xo_emit_err_p (int eval, const char *fmt, ...)
+{
+    int code = errno;
+    va_list vap;
+    va_start(vap, fmt);
+    xo_emit_warn_hcv(NULL, 0, code, fmt, vap);
+    va_end(vap);
+
+    exit(eval);
+}
+
+PRINTFLIKE(2, 3)
+static inline void
+xo_emit_errx_p (int eval, const char *fmt, ...)
+{
+    va_list vap;
+    va_start(vap, fmt);
+    xo_emit_warn_hcv(NULL, 0, -1, fmt, vap);
+    va_end(vap);
+    exit(eval);
+}
+
+PRINTFLIKE(3, 4)
+static inline void
+xo_emit_errc_p (int eval, int code, const char *fmt, ...)
+{
+    va_list vap;
+    va_start(vap, fmt);
+    xo_emit_warn_hcv(NULL, 0, code, fmt, vap);
+    va_end(vap);
+    exit(eval);
+}
+
+void
+xo_emit_err_v (int eval, int code, const char *fmt, va_list vap) NORETURN PRINTFLIKE(3, 0);
 
 void
 xo_no_setlocale (void);
@@ -394,5 +556,41 @@ xo_set_version (const char *version);
  */
 void
 xo_set_version_h (xo_handle_t *xop, const char *version);
+
+void
+xo_open_log (const char *ident, int logopt, int facility);
+
+void
+xo_close_log (void);
+
+int
+xo_set_logmask (int maskpri);
+
+void
+xo_set_unit_test_mode (int value);
+
+void
+xo_syslog (int priority, const char *name, const char *message, ...);
+
+void
+xo_vsyslog (int priority, const char *name, const char *message, va_list args);
+
+typedef void (*xo_syslog_open_t)(void);
+typedef void (*xo_syslog_send_t)(const char *full_msg,
+				 const char *v0_hdr, const char *text_only);
+typedef void (*xo_syslog_close_t)(void);
+
+void
+xo_set_syslog_handler (xo_syslog_open_t open_func, xo_syslog_send_t send_func,
+		       xo_syslog_close_t close_func);
+
+void
+xo_set_syslog_enterprise_id (unsigned short eid);
+
+typedef void (*xo_simplify_field_func_t)(const char *, unsigned, int);
+
+char *
+xo_simplify_format (xo_handle_t *xop, const char *fmt, int with_numbers,
+		    xo_simplify_field_func_t field_cb);
 
 #endif /* INCLUDE_XO_H */

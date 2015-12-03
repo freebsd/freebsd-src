@@ -22,29 +22,33 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include <config.h>
+#include <stdio.h>
+#include <sys/time.h>
+#include <ntp_fp.h>
+#include <timevalops.h>
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
 extern void tearDown(void);
-void resetTest(void);
 extern void test_main(void );
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
-char *progname;
+char const *progname;
 
 
 //=======MAIN=====
 int main(int argc, char *argv[])
 {
   progname = argv[0];
-  Unity.TestFile = "bug-2803.c";
   UnityBegin("bug-2803.c");
   RUN_TEST(test_main, 18);
 

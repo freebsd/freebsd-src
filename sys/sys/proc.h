@@ -174,6 +174,7 @@ struct procdesc;
 struct racct;
 struct sbuf;
 struct sleepqueue;
+struct syscall_args;
 struct td_sched;
 struct thread;
 struct trapframe;
@@ -234,8 +235,6 @@ struct thread {
 	int		td_sqqueue;	/* (t) Sleepqueue queue blocked on. */
 	void		*td_wchan;	/* (t) Sleep address. */
 	const char	*td_wmesg;	/* (t) Reason for sleep. */
-	int		td_lastcpu;	/* (t) Last cpu we were on. */
-	int		td_oncpu;	/* (t) Which cpu we are on. */
 	volatile u_char td_owepreempt;  /* (k*) Preempt on last critical_exit */
 	u_char		td_tsqueue;	/* (t) Turnstile queue blocked on. */
 	short		td_locks;	/* (k) Debug: count of non-spin locks */
@@ -293,6 +292,8 @@ struct thread {
 	u_char		td_pri_class;	/* (t) Scheduling class. */
 	u_char		td_user_pri;	/* (t) User pri from estcpu and nice. */
 	u_char		td_base_user_pri; /* (t) Base user pri */
+	u_int		td_dbg_sc_code;	/* (c) Syscall code to debugger. */
+	u_int		td_dbg_sc_narg;	/* (c) Syscall arg count to debugger.*/
 #define	td_endcopy td_pcb
 
 /*
@@ -333,6 +334,8 @@ struct thread {
 	struct vm_page	**td_ma;	/* (k) uio pages held */
 	int		td_ma_cnt;	/* (k) size of *td_ma */
 	void		*td_emuldata;	/* Emulator state data */
+	int		td_lastcpu;	/* (t) Last cpu we were on. */
+	int		td_oncpu;	/* (t) Which cpu we are on. */
 };
 
 struct mtx *thread_lock_block(struct thread *);
@@ -444,7 +447,7 @@ do {									\
 #define	TDP_RESETSPUR	0x04000000 /* Reset spurious page fault history. */
 #define	TDP_NERRNO	0x08000000 /* Last errno is already in td_errno */
 #define	TDP_UIOHELD	0x10000000 /* Current uio has pages held in td_ma */
-#define	TDP_UNUSED29	0x20000000 /* --available-- */
+#define	TDP_FORKING	0x20000000 /* Thread is being created through fork() */
 #define	TDP_EXECVMSPC	0x40000000 /* Execve destroyed old vmspace */
 
 /*
@@ -822,13 +825,13 @@ extern pid_t pid_max;
 #define	_PHOLD(p) do {							\
 	PROC_LOCK_ASSERT((p), MA_OWNED);				\
 	KASSERT(!((p)->p_flag & P_WEXIT) || (p) == curproc,		\
-	    ("PHOLD of exiting process"));				\
+	    ("PHOLD of exiting process %p", p));			\
 	(p)->p_lock++;							\
 	if (((p)->p_flag & P_INMEM) == 0)				\
 		faultin((p));						\
 } while (0)
-#define PROC_ASSERT_HELD(p) do {					\
-	KASSERT((p)->p_lock > 0, ("process not held"));			\
+#define	PROC_ASSERT_HELD(p) do {					\
+	KASSERT((p)->p_lock > 0, ("process %p not held", p));		\
 } while (0)
 
 #define	PRELE(p) do {							\
@@ -843,8 +846,8 @@ extern pid_t pid_max;
 	if (((p)->p_flag & P_WEXIT) && (p)->p_lock == 0)		\
 		wakeup(&(p)->p_lock);					\
 } while (0)
-#define PROC_ASSERT_NOT_HELD(p) do {					\
-	KASSERT((p)->p_lock == 0, ("process held"));			\
+#define	PROC_ASSERT_NOT_HELD(p) do {					\
+	KASSERT((p)->p_lock == 0, ("process %p held", p));		\
 } while (0)
 
 #define	PROC_UPDATE_COW(p) do {						\
@@ -980,7 +983,6 @@ void	userret(struct thread *, struct trapframe *);
 
 void	cpu_exit(struct thread *);
 void	exit1(struct thread *, int, int) __dead2;
-struct syscall_args;
 int	cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa);
 void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
 void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);

@@ -2,7 +2,9 @@
 # Copyright 2009, Wouter Wijngaards, NLnet Labs.   
 # BSD licensed.
 #
-# Version 26
+# Version 28
+# 2015-08-28 ACX_CHECK_PIE and ACX_CHECK_RELRO_NOW added.
+# 2015-03-17 AHX_CONFIG_REALLOCARRAY added
 # 2013-09-19 FLTO help text improved.
 # 2013-07-18 Enable ACX_CHECK_COMPILER_FLAG to test for -Wstrict-prototypes
 # 2013-06-25 FLTO has --disable-flto option.
@@ -93,6 +95,8 @@
 # ACX_CHECK_MEMCMP_SIGNED	- check if memcmp uses signed characters.
 # AHX_MEMCMP_BROKEN		- replace memcmp func for CHECK_MEMCMP_SIGNED.
 # ACX_CHECK_SS_FAMILY           - check for sockaddr_storage.ss_family
+# ACX_CHECK_PIE			- add --enable-pie option and check if works
+# ACX_CHECK_RELRO_NOW		- add --enable-relro-now option and check it
 #
 
 dnl Escape backslashes as \\, for C:\ paths, for the C preprocessor defines.
@@ -1213,6 +1217,16 @@ struct tm *gmtime_r(const time_t *timep, struct tm *result);
 #endif
 ])
 
+dnl provide reallocarray compat prototype.
+dnl $1: unique name for compat code
+AC_DEFUN([AHX_CONFIG_REALLOCARRAY],
+[
+#ifndef HAVE_REALLOCARRAY
+#define reallocarray reallocarray$1
+void* reallocarray(void *ptr, size_t nmemb, size_t size);
+#endif
+])
+
 dnl provide w32 compat definition for sleep
 AC_DEFUN([AHX_CONFIG_W32_SLEEP],
 [
@@ -1374,5 +1388,47 @@ AC_DEFUN([ACX_CHECK_SS_FAMILY],
 #include <arpa/inet.h>
 #endif
 ]) ])
+
+dnl Check if CC and linker support -fPIE and -pie.
+dnl If so, sets them in CFLAGS / LDFLAGS.
+AC_DEFUN([ACX_CHECK_PIE], [
+    AC_ARG_ENABLE([pie], AS_HELP_STRING([--enable-pie], [Enable Position-Independent Executable (eg. to fully benefit from ASLR, small performance penalty)]))
+    AS_IF([test "x$enable_pie" = "xyes"], [
+	AC_MSG_CHECKING([if $CC supports PIE])
+	BAKLDFLAGS="$LDFLAGS"
+	BAKCFLAGS="$CFLAGS"
+	LDFLAGS="$LDFLAGS -pie"
+	CFLAGS="$CFLAGS -fPIE"
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([], [])], [
+	    if $CC $CFLAGS $LDFLAGS -o conftest conftest.c 2>&1 | grep "warning: no debug symbols in executable" >/dev/null; then
+		LDFLAGS="$BAKLDFLAGS"
+		AC_MSG_RESULT(no)
+	    else
+		AC_MSG_RESULT(yes)
+	    fi
+	    rm -f conftest conftest.c conftest.o
+	], [LDFLAGS="$BAKLDFLAGS" ; CFLAGS="$BAKCFLAGS" ; AC_MSG_RESULT(no)])
+    ])
+])
+
+dnl Check if linker supports -Wl,-z,relro,-z,now.
+dnl If so, adds it to LDFLAGS.
+AC_DEFUN([ACX_CHECK_RELRO_NOW], [
+    AC_ARG_ENABLE([relro_now], AS_HELP_STRING([--enable-relro-now], [Enable full relocation binding at load-time (RELRO NOW, to protect GOT and .dtor areas)]))
+    AS_IF([test "x$enable_relro_now" = "xyes"], [
+	AC_MSG_CHECKING([if $CC supports -Wl,-z,relro,-z,now])
+	BAKLDFLAGS="$LDFLAGS"
+	LDFLAGS="$LDFLAGS -Wl,-z,relro,-z,now"
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([], [])], [
+	    if $CC $CFLAGS $LDFLAGS -o conftest conftest.c 2>&1 | grep "warning: no debug symbols in executable" >/dev/null; then
+		LDFLAGS="$BAKLDFLAGS"
+		AC_MSG_RESULT(no)
+	    else
+		AC_MSG_RESULT(yes)
+	    fi
+	    rm -f conftest conftest.c conftest.o
+	], [LDFLAGS="$BAKLDFLAGS" ; AC_MSG_RESULT(no)])
+    ])
+])
 
 dnl End of file

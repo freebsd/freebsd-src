@@ -65,10 +65,8 @@ extern struct ctl_softc *control_softc;
 int
 ctl_backend_register(struct ctl_backend_driver *be)
 {
-	struct ctl_softc *softc;
+	struct ctl_softc *softc = control_softc;
 	struct ctl_backend_driver *be_tmp;
-
-	softc = control_softc;
 
 	mtx_lock(&softc->ctl_lock);
 	/*
@@ -120,9 +118,7 @@ ctl_backend_register(struct ctl_backend_driver *be)
 int
 ctl_backend_deregister(struct ctl_backend_driver *be)
 {
-	struct ctl_softc *softc;
-
-	softc = control_softc;
+	struct ctl_softc *softc = control_softc;
 
 	mtx_lock(&softc->ctl_lock);
 
@@ -153,20 +149,16 @@ ctl_backend_deregister(struct ctl_backend_driver *be)
 struct ctl_backend_driver *
 ctl_backend_find(char *backend_name)
 {
-	struct ctl_softc *softc;
+	struct ctl_softc *softc = control_softc;
 	struct ctl_backend_driver *be_tmp;
 
-	softc = control_softc;
-
 	mtx_lock(&softc->ctl_lock);
-
 	STAILQ_FOREACH(be_tmp, &softc->be_list, links) {
 		if (strcmp(be_tmp->name, backend_name) == 0) {
 			mtx_unlock(&softc->ctl_lock);
 			return (be_tmp);
 		}
 	}
-
 	mtx_unlock(&softc->ctl_lock);
 
 	return (NULL);
@@ -185,11 +177,44 @@ ctl_init_opts(ctl_options_t *opts, int num_args, struct ctl_be_arg *args)
 		if ((args[i].flags & CTL_BEARG_ASCII) == 0)
 			continue;
 		opt = malloc(sizeof(*opt), M_CTL, M_WAITOK);
-		opt->name = malloc(strlen(args[i].kname) + 1, M_CTL, M_WAITOK);
-		strcpy(opt->name, args[i].kname);
-		opt->value = malloc(strlen(args[i].kvalue) + 1, M_CTL, M_WAITOK);
-		strcpy(opt->value, args[i].kvalue);
+		opt->name = strdup(args[i].kname, M_CTL);
+		opt->value = strdup(args[i].kvalue, M_CTL);
 		STAILQ_INSERT_TAIL(opts, opt, links);
+	}
+}
+
+void
+ctl_update_opts(ctl_options_t *opts, int num_args, struct ctl_be_arg *args)
+{
+	struct ctl_option *opt;
+	int i;
+
+	for (i = 0; i < num_args; i++) {
+		if ((args[i].flags & CTL_BEARG_RD) == 0)
+			continue;
+		if ((args[i].flags & CTL_BEARG_ASCII) == 0)
+			continue;
+		STAILQ_FOREACH(opt, opts, links) {
+			if (strcmp(opt->name, args[i].kname) == 0)
+				break;
+		}
+		if (args[i].kvalue != NULL &&
+		    ((char *)args[i].kvalue)[0] != 0) {
+			if (opt) {
+				free(opt->value, M_CTL);
+				opt->value = strdup(args[i].kvalue, M_CTL);
+			} else {
+				opt = malloc(sizeof(*opt), M_CTL, M_WAITOK);
+				opt->name = strdup(args[i].kname, M_CTL);
+				opt->value = strdup(args[i].kvalue, M_CTL);
+				STAILQ_INSERT_TAIL(opts, opt, links);
+			}
+		} else if (opt) {
+			STAILQ_REMOVE(opts, opt, ctl_option, links);
+			free(opt->name, M_CTL);
+			free(opt->value, M_CTL);
+			free(opt, M_CTL);
+		}
 	}
 }
 

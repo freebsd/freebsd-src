@@ -190,6 +190,7 @@
 #define	  FSL_E500v2		  0x8021
 #define	  FSL_E500mc		  0x8023
 #define	  FSL_E5500		  0x8024
+#define	  FSL_E6500		  0x8040
 
 #define	SPR_IBAT0U		0x210	/* .68 Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0U		0x210	/* .6. Instruction BAT Reg 0 Upper */
@@ -651,7 +652,9 @@
 
 #elif defined(BOOKE)
 
+#define	SPR_MCARU		0x239	/* ..8 Machine Check Address register upper bits */
 #define	SPR_MCSR		0x23c	/* ..8 Machine Check Syndrome register */
+#define	SPR_MCAR		0x23d	/* ..8 Machine Check Address register */
 
 #define	SPR_ESR			0x003e	/* ..8 Exception Syndrome Register */
 #define	  ESR_PIL		  0x08000000 /* Program interrupt - illegal */

@@ -13,21 +13,24 @@
 #ifndef LLVM_CLANG_AST_ASTMUTATIONLISTENER_H
 #define LLVM_CLANG_AST_ASTMUTATIONLISTENER_H
 
-#include "clang/Basic/SourceLocation.h"
-
 namespace clang {
-  class CXXRecordDecl;
+  class Attr;
   class ClassTemplateDecl;
   class ClassTemplateSpecializationDecl;
+  class CXXDestructorDecl;
+  class CXXRecordDecl;
   class Decl;
   class DeclContext;
   class FunctionDecl;
   class FunctionTemplateDecl;
+  class Module;
+  class NamedDecl;
   class ObjCCategoryDecl;
   class ObjCContainerDecl;
   class ObjCInterfaceDecl;
   class ObjCPropertyDecl;
   class QualType;
+  class RecordDecl;
   class TagDecl;
   class VarDecl;
   class VarTemplateDecl;
@@ -72,6 +75,10 @@ public:
   /// \brief A function's return type has been deduced.
   virtual void DeducedReturnType(const FunctionDecl *FD, QualType ReturnType);
 
+  /// \brief A virtual destructor's operator delete has been resolved.
+  virtual void ResolvedOperatorDelete(const CXXDestructorDecl *DD,
+                                      const FunctionDecl *Delete) {}
+
   /// \brief An implicit member got a definition.
   virtual void CompletedImplicitDefinition(const FunctionDecl *D) {}
 
@@ -107,6 +114,21 @@ public:
   ///
   /// \param D the declaration marked OpenMP threadprivate.
   virtual void DeclarationMarkedOpenMPThreadPrivate(const Decl *D) {}
+
+  /// \brief A definition has been made visible by being redefined locally.
+  ///
+  /// \param D The definition that was previously not visible.
+  /// \param M The containing module in which the definition was made visible,
+  ///        if any.
+  virtual void RedefinedHiddenDefinition(const NamedDecl *D, Module *M) {}
+  
+  /// \brief An attribute was added to a RecordDecl
+  ///
+  /// \param Attr The attribute that was added to the Record
+  ///
+  /// \param Record The RecordDecl that got a new attribute
+  virtual void AddedAttributeToRecord(const Attr *Attr, 
+                                      const RecordDecl *Record) {}
 
   // NOTE: If new methods are added they should also be added to
   // MultiplexASTMutationListener.

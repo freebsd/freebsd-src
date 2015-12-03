@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 16, 2011
+.Dd September 10, 2015
 .Dt STACK 9
 .Os
 .Sh NAME
@@ -36,9 +36,11 @@
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/stack.h
+.Pp
 In the kernel configuration file:
 .Cd "options DDB"
 .Cd "options STACK"
+.Pp
 .Ft struct stack *
 .Fn stack_create "void"
 .Ft void
@@ -63,6 +65,10 @@ In the kernel configuration file:
 .Fn stack_sbuf_print_ddb "struct sbuf sb*" "const struct stack *st"
 .Ft void
 .Fn stack_save "struct stack *st"
+.Ft void
+.Fn stack_save_td "struct stack *st" "struct thread *td"
+.Ft int
+.Fn stack_save_td_running "struct stack *st" "struct thread *td"
 .Sh DESCRIPTION
 The
 .Nm
@@ -86,6 +92,16 @@ Memory associated with a trace is freed by calling
 .Pp
 A trace of the current kernel thread's call stack may be captured using
 .Fn stack_save .
+.Fn stack_save_td
+and
+.Fn stack_save_td_running
+can also be used to capture the stack of a caller-specified thread.
+Callers of these functions must own the thread lock of the specified thread.
+.Fn stack_save_td
+can capture the stack of a kernel thread that is not running or
+swapped out at the time of the call.
+.Fn stack_save_td_running
+can capture the stack of a running kernel thread.
 .Pp
 .Fn stack_print
 and
@@ -130,6 +146,23 @@ The utility functions
 and
 .Nm stack_put
 may be used to manipulate stack data structures directly.
+.Sh RETURN VALUES
+.Fn stack_put
+returns 0 on success.
+Otherwise the
+.Dv struct stack
+does not contain space to record additional frames, and a non-zero value is
+returned.
+.Pp
+.Fn stack_save_td_running
+returns 0 when the stack capture was successful and a non-zero error number
+otherwise.
+In particular,
+.Er EAGAIN
+is returned if the thread was running in user mode at the time that the
+capture was attempted, and
+.Er EOPNOTSUPP
+is returned if the operation is not implemented.
 .Sh SEE ALSO
 .Xr ddb 4 ,
 .Xr printf 9 ,

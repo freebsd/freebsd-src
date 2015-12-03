@@ -32,15 +32,15 @@
 /*
  * npe statistics class.
  */
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/sysctl.h>
 
+#include <err.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <signal.h>
 #include <string.h>
 #include <unistd.h>
-#include <err.h>
 
 #include "npestats.h"
 
@@ -251,12 +251,12 @@ BSDSTAT_DEFINE_BOUNCE(npestatfoo)
 struct npestatfoo *
 npestats_new(const char *ifname, const char *fmtstring)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	struct npestatfoo_p *wf;
 
 	wf = calloc(1, sizeof(struct npestatfoo_p));
 	if (wf != NULL) {
-		bsdstat_init(&wf->base.base, "npestats", npestats, N(npestats));
+		bsdstat_init(&wf->base.base, "npestats", npestats,
+		    nitems(npestats));
 		/* override base methods */
 		wf->base.base.collect_cur = npe_collect_cur;
 		wf->base.base.collect_tot = npe_collect_tot;
@@ -274,5 +274,4 @@ npestats_new(const char *ifname, const char *fmtstring)
 		wf->base.setfmt(&wf->base, fmtstring);
 	}
 	return &wf->base;
-#undef N
 }

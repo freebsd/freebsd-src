@@ -1741,7 +1741,7 @@ xbb_dispatch_io(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist)
 		if (__predict_false(map->status != 0)) {
 			DPRINTF("invalid buffer -- could not remap "
 			        "it (%d)\n", map->status);
-			DPRINTF("Mapping(%d): Host Addr 0x%lx, flags "
+			DPRINTF("Mapping(%d): Host Addr 0x%"PRIx64", flags "
 			        "0x%x ref 0x%x, dom %d\n", seg_idx,
 				map->host_addr, map->flags, map->ref,
 				map->dom);
@@ -2245,7 +2245,6 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 	struct xbb_file_data *file_data;
 	u_int                 seg_idx;
 	u_int		      nseg;
-	off_t		      sectors_sent;
 	struct uio            xuio;
 	struct xbb_sg        *xbb_sg;
 	struct iovec         *xiovec;
@@ -2256,7 +2255,6 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 	int                   error;
 
 	file_data = &xbb->backend.file;
-	sectors_sent = 0;
 	error = 0;
 	bzero(&xuio, sizeof(xuio));
 

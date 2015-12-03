@@ -322,7 +322,7 @@ public:
   Stmt &operator*() { return *getStmt(); }
   const Stmt &operator*() const { return *getStmt(); }
 
-  LLVM_EXPLICIT operator bool() const { return getStmt(); }
+  explicit operator bool() const { return getStmt(); }
 };
 
 /// CFGBlock - Represents a single basic block in a source-level CFG.
@@ -493,7 +493,6 @@ public:
     : Elements(C), Label(nullptr), Terminator(nullptr), LoopTarget(nullptr), 
       BlockID(blockid), Preds(C, 1), Succs(C, 1), HasNoReturnElement(false),
       Parent(parent) {}
-  ~CFGBlock() {}
 
   // Statement iterators
   typedef ElementList::iterator                      iterator;
@@ -739,6 +738,7 @@ public:
     bool AddTemporaryDtors;
     bool AddStaticInitBranches;
     bool AddCXXNewAllocator;
+    bool AddCXXDefaultInitExprInCtors;
 
     bool alwaysAdd(const Stmt *stmt) const {
       return alwaysAddMask[stmt->getStmtClass()];
@@ -759,7 +759,7 @@ public:
         PruneTriviallyFalseEdges(true), AddEHEdges(false),
         AddInitializers(false), AddImplicitDtors(false),
         AddTemporaryDtors(false), AddStaticInitBranches(false),
-        AddCXXNewAllocator(false) {}
+        AddCXXNewAllocator(false), AddCXXDefaultInitExprInCtors(false) {}
   };
 
   /// \brief Provides a custom implementation of the iterator class to have the

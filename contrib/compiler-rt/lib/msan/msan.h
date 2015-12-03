@@ -20,9 +20,14 @@
 #include "sanitizer_common/sanitizer_stacktrace.h"
 #include "msan_interface_internal.h"
 #include "msan_flags.h"
+#include "ubsan/ubsan_platform.h"
 
 #ifndef MSAN_REPLACE_OPERATORS_NEW_AND_DELETE
 # define MSAN_REPLACE_OPERATORS_NEW_AND_DELETE 1
+#endif
+
+#ifndef MSAN_CONTAINS_UBSAN
+# define MSAN_CONTAINS_UBSAN CAN_SANITIZE_UB
 #endif
 
 struct MappingDesc {
@@ -46,6 +51,25 @@ const MappingDesc kMemoryLayout[] = {
 
 #define MEM_TO_SHADOW(mem) (((uptr)(mem)) & ~0x4000000000ULL)
 #define SHADOW_TO_ORIGIN(shadow) (((uptr)(shadow)) + 0x002000000000)
+
+#elif SANITIZER_LINUX && defined(__powerpc64__)
+
+const MappingDesc kMemoryLayout[] = {
+    {0x000000000000ULL, 0x000100000000ULL, MappingDesc::APP, "low memory"},
+    {0x000100000000ULL, 0x080000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x080000000000ULL, 0x180100000000ULL, MappingDesc::SHADOW, "shadow"},
+    {0x180100000000ULL, 0x1C0000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x1C0000000000ULL, 0x2C0100000000ULL, MappingDesc::ORIGIN, "origin"},
+    {0x2C0100000000ULL, 0x300000000000ULL, MappingDesc::INVALID, "invalid"},
+    {0x300000000000ULL, 0x400000000000ULL, MappingDesc::APP, "high memory"}};
+
+// Maps low and high app ranges to contiguous space with zero base:
+//   Low:  0000 0000 0000 - 0000 ffff ffff  ->  1000 0000 0000 - 1000 ffff ffff
+//   High: 3000 0000 0000 - 3fff ffff ffff  ->  0000 0000 0000 - 0fff ffff ffff
+#define LINEARIZE_MEM(mem) \
+  (((uptr)(mem) & ~0x200000000000ULL) ^ 0x100000000000ULL)
+#define MEM_TO_SHADOW(mem) (LINEARIZE_MEM((mem)) + 0x080000000000ULL)
+#define SHADOW_TO_ORIGIN(shadow) (((uptr)(shadow)) + 0x140000000000ULL)
 
 #elif SANITIZER_FREEBSD && SANITIZER_WORDSIZE == 64
 
@@ -120,7 +144,7 @@ extern bool msan_init_is_running;
 extern int msan_report_count;
 
 bool ProtectRange(uptr beg, uptr end);
-bool InitShadow(bool map_shadow, bool init_origins);
+bool InitShadow(bool init_origins);
 char *GetProcSelfMaps();
 void InitializeInterceptors();
 
@@ -131,7 +155,6 @@ void *MsanReallocate(StackTrace *stack, void *oldp, uptr size,
 void MsanDeallocate(StackTrace *stack, void *ptr);
 void InstallTrapHandler();
 void InstallAtExitHandler();
-void ReplaceOperatorsNewAndDelete();
 
 const char *GetStackOriginDescr(u32 id, uptr *pc);
 

@@ -1,4 +1,4 @@
-﻿The following people have commit access to the Subversion sources.
+The following people have commit access to the Subversion sources.
 Note that this is not a full list of Subversion's authors, however --
 for that, you'd need to look over the log messages to see all the
 patch contributors.
@@ -58,6 +58,7 @@ Blanket commit access:
        stefan2   Stefan Fuhrmann <stefan.fuhrmann@wandisco.com>
        jcorvel   Johan Corveleyn <jcorvel@gmail.com>
          trent   Trent Nelson <trent@snakebite.org>
+        kotkov   Evgeny Kotkov <evgeny.kotkov@visualsvn.com>
 
 [[END ACTIVE FULL COMMITTERS.  LEAVE THIS LINE HERE; SCRIPTS LOOK FOR IT.]]
 
@@ -96,6 +97,9 @@ Commit access for specific areas:
     jrvernooij   Jelmer Vernooij <jelmer@samba.org>          (Python bindings)
           sage   Sage LaTorra <sagelt@gmail.com>             (Ctypes-Python b.)
           vmpn   Vladimir Berezniker <vmpn@hitechman.com>    (JavaHL bindings)
+       rschupp   Roderich Schupp <roderich.schupp@gmail.com> (Swig bindings)
+        stilor   Alexey Neyman <stilor@att.net>              (Python bindings,
+                                                             svn-vendor.py)
 
   Packages:
 
@@ -157,8 +161,10 @@ Commit access for specific areas:
       artagnon   Ramkumar Ramachandra <artagnon@gmail.com>   (svnrdump, svntest)
          arwin   Arwin Arni <arwin@collab.net>               (svn-bisect)
           joes   Joe Schaefer <joe_schaefer@yahoo.com>       (svnpubsub)
-      prabhugs   Prabhu Gnana Sundar <prabhugs@collab.net>   (verify-keep-going)
-
+     humbedooh   Daniel Gruno <humbedooh@apache.org>         (svnpubsub)
+      prabhugs   Prabhu Gnana Sundar <pprabhugs@gmail.com>   (verify-keep-going)
+        schabi   Markus Schaber <schabi@apache.org>          (testsuite)
+           gbg   Gabriela Gibson <gabriela.gibson@gmail.com> (gtest) 
 
   Translation of message files:
 
@@ -186,6 +192,7 @@ giorgio_valoti   Giorgio Valoti <giorgio_v@mac.com>          (po: it)
                                                              IS BOUNCING]
         fabien   Fabien Coelho <fabien@coelho.net>           (po: fr)
        marcelg   Marcel Gosselin <marcel.gosselin@polymtl.ca> (po: fr)
+      mattiase   Mattias Engdegård <mattiase@acm.org>        (po: sv)
 
   Experimental branches:
 

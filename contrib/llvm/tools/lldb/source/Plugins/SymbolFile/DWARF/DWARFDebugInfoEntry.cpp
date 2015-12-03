@@ -1582,17 +1582,21 @@ DWARFDebugInfoEntry::GetName
     DWARFFormValue form_value;
     if (GetAttributeValue(dwarf2Data, cu, DW_AT_name, form_value))
         return form_value.AsCString(&dwarf2Data->get_debug_str_data());
-    else
+    else if (GetAttributeValue(dwarf2Data, cu, DW_AT_specification, form_value))
     {
-        if (GetAttributeValue(dwarf2Data, cu, DW_AT_specification, form_value))
-        {
-            DWARFCompileUnitSP cu_sp_ptr;
-            const DWARFDebugInfoEntry* die = const_cast<SymbolFileDWARF*>(dwarf2Data)->DebugInfo()->GetDIEPtr(form_value.Reference(), &cu_sp_ptr);
-            if (die)
-                return die->GetName(dwarf2Data, cu_sp_ptr.get());
-        }
+        DWARFCompileUnitSP cu_sp_ptr;
+        const DWARFDebugInfoEntry* die = const_cast<SymbolFileDWARF*>(dwarf2Data)->DebugInfo()->GetDIEPtr(form_value.Reference(), &cu_sp_ptr);
+        if (die)
+            return die->GetName(dwarf2Data, cu_sp_ptr.get());
     }
-    return NULL;
+    else if (GetAttributeValue(dwarf2Data, cu, DW_AT_abstract_origin, form_value))
+    {
+        DWARFCompileUnitSP cu_sp_ptr;
+        const DWARFDebugInfoEntry* die = const_cast<SymbolFileDWARF*>(dwarf2Data)->DebugInfo()->GetDIEPtr(form_value.Reference(), &cu_sp_ptr);
+        if (die)
+            return die->GetName(dwarf2Data, cu_sp_ptr.get());
+    }
+    return nullptr;
 }
 
 
@@ -2294,22 +2298,26 @@ DWARFDebugInfoEntry::GetAbbreviationDeclarationPtr (SymbolFileDWARF* dwarf2Data,
     if (dwarf2Data)
     {
         offset = GetOffset();
-        
-        const DWARFAbbreviationDeclaration* abbrev_decl = cu->GetAbbreviations()->GetAbbreviationDeclaration (m_abbr_idx);
-        if (abbrev_decl)
+
+        const DWARFAbbreviationDeclarationSet *abbrev_set = cu->GetAbbreviations();
+        if (abbrev_set)
         {
-            // Make sure the abbreviation code still matches. If it doesn't and
-            // the DWARF data was mmap'ed, the backing file might have been modified
-            // which is bad news.
-            const uint64_t abbrev_code = dwarf2Data->get_debug_info_data().GetULEB128 (&offset);
-        
-            if (abbrev_decl->Code() == abbrev_code)
-                return abbrev_decl;
+            const DWARFAbbreviationDeclaration* abbrev_decl = abbrev_set->GetAbbreviationDeclaration (m_abbr_idx);
+            if (abbrev_decl)
+            {
+                // Make sure the abbreviation code still matches. If it doesn't and
+                // the DWARF data was mmap'ed, the backing file might have been modified
+                // which is bad news.
+                const uint64_t abbrev_code = dwarf2Data->get_debug_info_data().GetULEB128 (&offset);
             
-            dwarf2Data->GetObjectFile()->GetModule()->ReportErrorIfModifyDetected ("0x%8.8x: the DWARF debug information has been modified (abbrev code was %u, and is now %u)", 
-                                                                                   GetOffset(),
-                                                                                   (uint32_t)abbrev_decl->Code(),
-                                                                                   (uint32_t)abbrev_code);
+                if (abbrev_decl->Code() == abbrev_code)
+                    return abbrev_decl;
+                
+                dwarf2Data->GetObjectFile()->GetModule()->ReportErrorIfModifyDetected ("0x%8.8x: the DWARF debug information has been modified (abbrev code was %u, and is now %u)", 
+                                                                                       GetOffset(),
+                                                                                       (uint32_t)abbrev_decl->Code(),
+                                                                                       (uint32_t)abbrev_code);
+            }
         }
     }
     offset = DW_INVALID_OFFSET;

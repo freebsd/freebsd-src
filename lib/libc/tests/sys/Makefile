@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=		${TESTSBASE}/lib/libc/sys
+ATF_TESTS_C+=			queue_test
 
 # TODO: clone, lwp_create, lwp_ctl, posix_fadvise, recvmmsg,
 # swapcontext
@@ -25,10 +25,7 @@ NETBSD_ATF_TESTS_C+=		kevent_test
 NETBSD_ATF_TESTS_C+=		kill_test
 NETBSD_ATF_TESTS_C+=		link_test
 NETBSD_ATF_TESTS_C+=		listen_test
-# On arm64 triggers panic ARM64TODO: pmap_mincore (PR202307).
-.if ${MACHINE_CPUARCH} != "aarch64"
 NETBSD_ATF_TESTS_C+=		mincore_test
-.endif
 NETBSD_ATF_TESTS_C+=		mkdir_test
 NETBSD_ATF_TESTS_C+=		mkfifo_test
 NETBSD_ATF_TESTS_C+=		mknod_test

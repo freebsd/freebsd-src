@@ -211,11 +211,6 @@ typedef struct pcicfg {
 
 /* additional type 1 device config header information (PCI to PCI bridge) */
 
-#define	PCI_PPBMEMBASE(h,l)  ((((pci_addr_t)(h) << 32) + ((l)<<16)) & ~0xfffff)
-#define	PCI_PPBMEMLIMIT(h,l) ((((pci_addr_t)(h) << 32) + ((l)<<16)) | 0xfffff)
-#define	PCI_PPBIOBASE(h,l)   ((((h)<<16) + ((l)<<8)) & ~0xfff)
-#define	PCI_PPBIOLIMIT(h,l)  ((((h)<<16) + ((l)<<8)) | 0xfff)
-
 typedef struct {
     pci_addr_t	pmembase;	/* base address of prefetchable memory */
     pci_addr_t	pmemlimit;	/* topmost address of prefetchable memory */
@@ -547,10 +542,15 @@ int	pci_msix_device_blacklisted(device_t dev);
 
 void	pci_ht_map_msi(device_t dev, uint64_t addr);
 
+device_t pci_find_pcie_root_port(device_t dev);
 int	pci_get_max_read_req(device_t dev);
 void	pci_restore_state(device_t dev);
 void	pci_save_state(device_t dev);
 int	pci_set_max_read_req(device_t dev, int size);
+uint32_t pcie_read_config(device_t dev, int reg, int width);
+void	pcie_write_config(device_t dev, int reg, uint32_t value, int width);
+uint32_t pcie_adjust_config(device_t dev, int reg, uint32_t mask,
+	    uint32_t value, int width);
 
 
 #ifdef BUS_SPACE_MAXADDR

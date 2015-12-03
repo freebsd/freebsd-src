@@ -180,7 +180,7 @@ EmitRegUnitPressure(raw_ostream &OS, const CodeGenRegBank &RegBank,
      << "getRegClassWeight(const TargetRegisterClass *RC) const {\n"
      << "  static const RegClassWeight RCWeightTable[] = {\n";
   for (const auto &RC : RegBank.getRegClasses()) {
-    const CodeGenRegister::Set &Regs = RC.getMembers();
+    const CodeGenRegister::Vec &Regs = RC.getMembers();
     if (Regs.empty())
       OS << "    {0, 0";
     else {
@@ -233,7 +233,7 @@ EmitRegUnitPressure(raw_ostream &OS, const CodeGenRegBank &RegBank,
   OS << "// Get the name of this register unit pressure set.\n"
      << "const char *" << ClassName << "::\n"
      << "getRegPressureSetName(unsigned Idx) const {\n"
-     << "  static const char *PressureNameTable[] = {\n";
+     << "  static const char *const PressureNameTable[] = {\n";
   unsigned MaxRegUnitWeight = 0;
   for (unsigned i = 0; i < NumSets; ++i ) {
     const RegUnitSet &RegUnits = RegBank.getRegSetAt(i);
@@ -247,7 +247,7 @@ EmitRegUnitPressure(raw_ostream &OS, const CodeGenRegBank &RegBank,
   OS << "// Get the register unit pressure limit for this dimension.\n"
      << "// This limit must be adjusted dynamically for reserved registers.\n"
      << "unsigned " << ClassName << "::\n"
-     << "getRegPressureSetLimit(unsigned Idx) const {\n"
+     << "getRegPressureSetLimit(const MachineFunction &MF, unsigned Idx) const {\n"
      << "  static const " << getMinimalTypeForRange(MaxRegUnitWeight)
      << " PressureLimitTable[] = {\n";
   for (unsigned i = 0; i < NumSets; ++i ) {
@@ -573,11 +573,11 @@ typedef SmallVector<unsigned, 4> MaskVec;
 // Differentially encode a sequence of numbers into V. The starting value and
 // terminating 0 are not added to V, so it will have the same size as List.
 static
-DiffVec &diffEncode(DiffVec &V, unsigned InitVal, ArrayRef<unsigned> List) {
+DiffVec &diffEncode(DiffVec &V, unsigned InitVal, SparseBitVector<> List) {
   assert(V.empty() && "Clear DiffVec before diffEncode.");
   uint16_t Val = uint16_t(InitVal);
-  for (unsigned i = 0; i != List.size(); ++i) {
-    uint16_t Cur = List[i];
+
+  for (uint16_t Cur : List) {
     V.push_back(Cur - Val);
     Val = Cur;
   }
@@ -610,17 +610,19 @@ static void printMask(raw_ostream &OS, unsigned Val) {
 static bool combine(const CodeGenSubRegIndex *Idx,
                     SmallVectorImpl<CodeGenSubRegIndex*> &Vec) {
   const CodeGenSubRegIndex::CompMap &Map = Idx->getComposites();
-  for (CodeGenSubRegIndex::CompMap::const_iterator
-       I = Map.begin(), E = Map.end(); I != E; ++I) {
-    CodeGenSubRegIndex *&Entry = Vec[I->first->EnumValue - 1];
-    if (Entry && Entry != I->second)
+  for (const auto &I : Map) {
+    CodeGenSubRegIndex *&Entry = Vec[I.first->EnumValue - 1];
+    if (Entry && Entry != I.second)
       return false;
   }
 
   // All entries are compatible. Make it so.
-  for (CodeGenSubRegIndex::CompMap::const_iterator
-       I = Map.begin(), E = Map.end(); I != E; ++I)
-    Vec[I->first->EnumValue - 1] = I->second;
+  for (const auto &I : Map) {
+    auto *&Entry = Vec[I.first->EnumValue - 1];
+    assert((!Entry || Entry == I.second) &&
+           "Expected EnumValue to be unique");
+    Entry = I.second;
+  }
   return true;
 }
 
@@ -714,16 +716,7 @@ RegisterInfoEmitter::emitComposeSubRegIndexLaneMask(raw_ostream &OS,
     for (size_t s = 0, se = Sequences.size(); s != se; ++s, SIdx = NextSIdx) {
       SmallVectorImpl<MaskRolPair> &Sequence = Sequences[s];
       NextSIdx = SIdx + Sequence.size() + 1;
-      if (Sequence.size() != IdxSequence.size())
-        continue;
-      bool Identical = true;
-      for (size_t o = 0, oe = Sequence.size(); o != oe; ++o) {
-        if (Sequence[o] != IdxSequence[o]) {
-          Identical = false;
-          break;
-        }
-      }
-      if (Identical) {
+      if (Sequence == IdxSequence) {
         Found = SIdx;
         break;
       }
@@ -759,7 +752,7 @@ RegisterInfoEmitter::emitComposeSubRegIndexLaneMask(raw_ostream &OS,
     Idx += Sequence.size() + 1;
   }
   OS << "  };\n"
-        "  static const MaskRolOp *CompositeSequences[] = {\n";
+        "  static const MaskRolOp *const CompositeSequences[] = {\n";
   for (size_t i = 0, e = SubRegIndices.size(); i != e; ++i) {
     OS << "    ";
     unsigned Idx = SubReg2SequenceIndexMap[i];
@@ -815,7 +808,7 @@ RegisterInfoEmitter::runMCDesc(raw_ostream &OS, CodeGenTarget &Target,
   // Keep track of sub-register names as well. These are not differentially
   // encoded.
   typedef SmallVector<const CodeGenSubRegIndex*, 4> SubRegIdxVec;
-  SequenceToOffsetTable<SubRegIdxVec, CodeGenSubRegIndex::Less> SubRegIdxSeqs;
+  SequenceToOffsetTable<SubRegIdxVec, deref<llvm::less>> SubRegIdxSeqs;
   SmallVector<SubRegIdxVec, 4> SubRegIdxLists(Regs.size());
 
   SequenceToOffsetTable<std::string> RegStrings;
@@ -856,13 +849,13 @@ RegisterInfoEmitter::runMCDesc(raw_ostream &OS, CodeGenTarget &Target,
     //
     // Check the neighboring registers for arithmetic progressions.
     unsigned ScaleA = ~0u, ScaleB = ~0u;
-    ArrayRef<unsigned> RUs = Reg.getNativeRegUnits();
+    SparseBitVector<> RUs = Reg.getNativeRegUnits();
     if (I != Regs.begin() &&
-        std::prev(I)->getNativeRegUnits().size() == RUs.size())
-      ScaleB = RUs.front() - std::prev(I)->getNativeRegUnits().front();
+        std::prev(I)->getNativeRegUnits().count() == RUs.count())
+      ScaleB = *RUs.begin() - *std::prev(I)->getNativeRegUnits().begin();
     if (std::next(I) != Regs.end() &&
-        std::next(I)->getNativeRegUnits().size() == RUs.size())
-      ScaleA = std::next(I)->getNativeRegUnits().front() - RUs.front();
+        std::next(I)->getNativeRegUnits().count() == RUs.count())
+      ScaleA = *std::next(I)->getNativeRegUnits().begin() - *RUs.begin();
     unsigned Scale = std::min(ScaleB, ScaleA);
     // Default the scale to 0 if it can't be encoded in 4 bits.
     if (Scale >= 16)
@@ -1077,6 +1070,8 @@ RegisterInfoEmitter::runTargetHeader(raw_ostream &OS, CodeGenTarget &Target,
 
   OS << "namespace llvm {\n\n";
 
+  OS << "class " << TargetName << "FrameLowering;\n\n";
+
   OS << "struct " << ClassName << " : public TargetRegisterInfo {\n"
      << "  explicit " << ClassName
      << "(unsigned RA, unsigned D = 0, unsigned E = 0, unsigned PC = 0);\n"
@@ -1095,11 +1090,17 @@ RegisterInfoEmitter::runTargetHeader(raw_ostream &OS, CodeGenTarget &Target,
      << "  unsigned getRegUnitWeight(unsigned RegUnit) const override;\n"
      << "  unsigned getNumRegPressureSets() const override;\n"
      << "  const char *getRegPressureSetName(unsigned Idx) const override;\n"
-     << "  unsigned getRegPressureSetLimit(unsigned Idx) const override;\n"
+     << "  unsigned getRegPressureSetLimit(const MachineFunction &MF, unsigned "
+        "Idx) const override;\n"
      << "  const int *getRegClassPressureSets("
      << "const TargetRegisterClass *RC) const override;\n"
      << "  const int *getRegUnitPressureSets("
      << "unsigned RegUnit) const override;\n"
+     << "  ArrayRef<const char *> getRegMaskNames() const override;\n"
+     << "  ArrayRef<const uint32_t *> getRegMasks() const override;\n"
+     << "  /// Devirtualized TargetFrameLowering.\n"
+     << "  static const " << TargetName << "FrameLowering *getFrameLowering(\n"
+     << "      const MachineFunction &MF);\n"
      << "};\n\n";
 
   const auto &RegisterClasses = RegBank.getRegClasses();
@@ -1205,7 +1206,7 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
     // Compress the sub-reg index lists.
     typedef std::vector<const CodeGenSubRegIndex*> IdxList;
     SmallVector<IdxList, 8> SuperRegIdxLists(RegisterClasses.size());
-    SequenceToOffsetTable<IdxList, CodeGenSubRegIndex::Less> SuperRegIdxSeqs;
+    SequenceToOffsetTable<IdxList, deref<llvm::less>> SuperRegIdxSeqs;
     BitVector MaskBV(RegisterClasses.size());
 
     for (const auto &RC : RegisterClasses) {
@@ -1292,7 +1293,10 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
          << "VTLists + " << VTSeqs.get(RC.VTs) << ",\n    " << RC.getName()
          << "SubClassMask,\n    SuperRegIdxSeqs + "
          << SuperRegIdxSeqs.get(SuperRegIdxLists[RC.EnumValue]) << ",\n    "
-         << format("0x%08x,\n    ", RC.LaneMask);
+         << format("0x%08x,\n    ", RC.LaneMask)
+         << (unsigned)RC.AllocationPriority << ",\n    "
+         << (RC.HasDisjunctSubRegs?"true":"false")
+         << ", /* HasDisjunctSubRegs */\n    ";
       if (RC.getSuperClasses().empty())
         OS << "NullRegClasses,\n    ";
       else
@@ -1447,6 +1451,33 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
     OS << "};\n";
   }
   OS << "\n\n";
+
+  OS << "ArrayRef<const uint32_t *> " << ClassName
+     << "::getRegMasks() const {\n";
+  OS << "  static const uint32_t *Masks[] = {\n";
+  for (Record *CSRSet : CSRSets)
+    OS << "    " << CSRSet->getName() << "_RegMask, \n";
+  OS << "    nullptr\n  };\n";
+  OS << "  return ArrayRef<const uint32_t *>(Masks, (size_t)" << CSRSets.size()
+     << ");\n";
+  OS << "}\n\n";
+
+  OS << "ArrayRef<const char *> " << ClassName
+     << "::getRegMaskNames() const {\n";
+  OS << "  static const char *Names[] = {\n";
+  for (Record *CSRSet : CSRSets)
+    OS << "    " << '"' << CSRSet->getName() << '"' << ",\n";
+  OS << "    nullptr\n  };\n";
+  OS << "  return ArrayRef<const char *>(Names, (size_t)" << CSRSets.size()
+     << ");\n";
+  OS << "}\n\n";
+
+  OS << "const " << TargetName << "FrameLowering *"
+     << TargetName << "GenRegisterInfo::\n"
+     << "    getFrameLowering(const MachineFunction &MF) {\n"
+     << "  return static_cast<const " << TargetName << "FrameLowering *>(\n"
+     << "      MF.getSubtarget().getFrameLowering());\n"
+     << "}\n\n";
 
   OS << "} // End llvm namespace\n";
   OS << "#endif // GET_REGINFO_TARGET_DESC\n\n";

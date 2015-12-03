@@ -270,11 +270,11 @@ __atomic_compare_exchange_##N(uintN_t *mem, uintN_t *pexpected,		\
 	}								\
 }
 
-#define	EMIT_FETCH_OP_N(N, uintN_t, ldr, str, name, op)			\
+#define	EMIT_FETCH_OP_N(N, uintN_t, ldr, str, name, op, ret)		\
 uintN_t									\
 __atomic_##name##_##N(uintN_t *mem, uintN_t val, int model __unused)	\
 {									\
-	uint32_t old, temp, ras_start;					\
+	uint32_t old, new, ras_start;					\
 									\
 	ras_start = ARM_RAS_START;					\
 	__asm volatile (						\
@@ -295,9 +295,9 @@ __atomic_##name##_##N(uintN_t *mem, uintN_t val, int model __unused)	\
 		"\tstr   %2, [%5]\n"					\
 		"\tmov   %2, #0xffffffff\n"				\
 		"\tstr   %2, [%5, #4]\n"				\
-		: "=&r" (old), "=m" (*mem), "=&r" (temp)		\
+		: "=&r" (old), "=m" (*mem), "=&r" (new)			\
 		: "r" (val), "m" (*mem), "r" (ras_start));		\
-	return (old);							\
+	return (ret);							\
 }
 
 #define	EMIT_ALL_OPS_N(N, uintN_t, ldr, str, streq)			\
@@ -305,11 +305,16 @@ EMIT_LOAD_N(N, uintN_t)							\
 EMIT_STORE_N(N, uintN_t)						\
 EMIT_EXCHANGE_N(N, uintN_t, ldr, str)					\
 EMIT_COMPARE_EXCHANGE_N(N, uintN_t, ldr, streq)				\
-EMIT_FETCH_OP_N(N, uintN_t, ldr, str, fetch_add, "add")			\
-EMIT_FETCH_OP_N(N, uintN_t, ldr, str, fetch_and, "and")			\
-EMIT_FETCH_OP_N(N, uintN_t, ldr, str, fetch_or, "orr")			\
-EMIT_FETCH_OP_N(N, uintN_t, ldr, str, fetch_sub, "sub")			\
-EMIT_FETCH_OP_N(N, uintN_t, ldr, str, fetch_xor, "eor")
+EMIT_FETCH_OP_N(N, uintN_t, ldr, str, fetch_add, "add", old)		\
+EMIT_FETCH_OP_N(N, uintN_t, ldr, str, fetch_and, "and", old)		\
+EMIT_FETCH_OP_N(N, uintN_t, ldr, str, fetch_or,  "orr", old)		\
+EMIT_FETCH_OP_N(N, uintN_t, ldr, str, fetch_sub, "sub", old)		\
+EMIT_FETCH_OP_N(N, uintN_t, ldr, str, fetch_xor, "eor", old)		\
+EMIT_FETCH_OP_N(N, uintN_t, ldr, str, add_fetch, "add", new)		\
+EMIT_FETCH_OP_N(N, uintN_t, ldr, str, and_fetch, "and", new)		\
+EMIT_FETCH_OP_N(N, uintN_t, ldr, str, or_fetch,  "orr", new)		\
+EMIT_FETCH_OP_N(N, uintN_t, ldr, str, sub_fetch, "sub", new)		\
+EMIT_FETCH_OP_N(N, uintN_t, ldr, str, xor_fetch, "eor", new)
 
 EMIT_ALL_OPS_N(1, uint8_t, "ldrb", "strb", "strbeq")
 EMIT_ALL_OPS_N(2, uint16_t, "ldrh", "strh", "strheq")

@@ -22,47 +22,51 @@
 #include "unity.h"
 #include <setjmp.h>
 #include <stdio.h>
+#include "config.h"
+#include "ntp_stdlib.h"
+#include "ntp_fp.h"
+#include <float.h>
+#include <math.h>
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
 extern void tearDown(void);
-void resetTest(void);
-extern void test_AdditionLR();
-extern void test_AdditionRL();
-extern void test_SubtractionLR();
-extern void test_SubtractionRL();
-extern void test_Negation();
-extern void test_Absolute();
-extern void test_FDF_RoundTrip();
-extern void test_SignedRelOps();
-extern void test_UnsignedRelOps();
+extern void test_AdditionLR(void);
+extern void test_AdditionRL(void);
+extern void test_SubtractionLR(void);
+extern void test_SubtractionRL(void);
+extern void test_Negation(void);
+extern void test_Absolute(void);
+extern void test_FDF_RoundTrip(void);
+extern void test_SignedRelOps(void);
+extern void test_UnsignedRelOps(void);
 
 
 //=======Test Reset Option=====
-void resetTest()
+void resetTest(void);
+void resetTest(void)
 {
   tearDown();
   setUp();
 }
 
-char *progname;
+char const *progname;
 
 
 //=======MAIN=====
 int main(int argc, char *argv[])
 {
   progname = argv[0];
-  Unity.TestFile = "lfpfunc.c";
   UnityBegin("lfpfunc.c");
-  RUN_TEST(test_AdditionLR, 320);
-  RUN_TEST(test_AdditionRL, 339);
-  RUN_TEST(test_SubtractionLR, 358);
-  RUN_TEST(test_SubtractionRL, 373);
-  RUN_TEST(test_Negation, 391);
-  RUN_TEST(test_Absolute, 412);
-  RUN_TEST(test_FDF_RoundTrip, 447);
-  RUN_TEST(test_SignedRelOps, 479);
-  RUN_TEST(test_UnsignedRelOps, 522);
+  RUN_TEST(test_AdditionLR, 50);
+  RUN_TEST(test_AdditionRL, 51);
+  RUN_TEST(test_SubtractionLR, 52);
+  RUN_TEST(test_SubtractionRL, 53);
+  RUN_TEST(test_Negation, 54);
+  RUN_TEST(test_Absolute, 55);
+  RUN_TEST(test_FDF_RoundTrip, 56);
+  RUN_TEST(test_SignedRelOps, 57);
+  RUN_TEST(test_UnsignedRelOps, 58);
 
   return (UnityEnd());
 }

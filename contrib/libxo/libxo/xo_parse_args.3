@@ -11,7 +11,7 @@
 .Dt LIBXO 3
 .Os
 .Sh NAME
-.Nm xo_parse_args
+.Nm xo_parse_args , xo_set_program
 .Nd detect, parse, and remove arguments for libxo
 .Sh LIBRARY
 .Lb libxo
@@ -35,7 +35,7 @@ On failure, a message it emitted and -1 is returned.
 .Bd -literal -offset indent
     argc = xo_parse_args(argc, argv);
     if (argc < 0)
-        exit(1);
+        exit(EXIT_FAILURE);
 .Ed
 .Pp
 Following the call to
@@ -72,6 +72,15 @@ Add info attributes (HTML)
 Emit JSON output
 .It Dv keys
 Emit the key attribute for keys (XML)
+.It Dv log-gettext
+Log (via stderr) each
+.Xr gettext 3
+string lookup
+.It Dv log-syslog
+Log (via stderr) each syslog message (via
+.Xr xo_syslog 3 )
+.If Dv no-humanize
+Ignore the {h:} modifier (TEXT, HTML)
 .It Dv no-locale
 Do not initialize the locale setting
 .It Dv no-top
@@ -82,6 +91,8 @@ Pretend the 1st output item was not 1st (JSON)
 Emit pretty-printed output
 .It Dv text
 Emit TEXT output
+.If Dv underscores
+Replace XML-friendly "-"s with JSON friendly "_"s e
 .It Dv units
 Add the 'units' (XML) or 'data-units (HTML) attribute
 .It Dv warn
@@ -132,30 +143,6 @@ Note that the value is not copied, so the memory passed to
 .Fn xo_parse_args )
 must be maintained by the caller.
 .Pp
-.Sh ADDITIONAL DOCUMENTATION
-Complete documentation can be found on github:
-.Bd -literal -offset indent
-http://juniper.github.io/libxo/libxo-manual.html
-.Ed
-.Pp
-.Nm libxo
-lives on github as:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo
-.Ed
-.Pp
-The latest release of
-.Nm libxo
-is available at:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo/releases
-.Ed
 .Sh SEE ALSO
-.Xr xo_emit 3
-.Sh HISTORY
-The
-.Nm libxo
-library was added in
-.Fx 11.0 .
-.Sh AUTHOR
-Phil Shafer
+.Xr xo_emit 3 ,
+.Xr libxo 3

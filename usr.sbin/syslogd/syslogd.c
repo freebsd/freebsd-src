@@ -324,7 +324,7 @@ static const char *cvthname(struct sockaddr *);
 static void	deadq_enter(pid_t, const char *);
 static int	deadq_remove(pid_t);
 static int	decode(const char *, const CODE *);
-static void	die(int);
+static void	die(int) __dead2;
 static void	dodie(int);
 static void	dofsync(void);
 static void	domark(int);
@@ -341,6 +341,7 @@ static void	printsys(char *);
 static int	p_open(const char *, pid_t *);
 static void	readklog(void);
 static void	reapchild(int);
+static const char *ttymsg_check(struct iovec *, int, char *, int);
 static void	usage(void);
 static int	validate(struct sockaddr *, const char *);
 static void	unmapped(struct sockaddr *);
@@ -1425,7 +1426,7 @@ wallmsg(struct filed *f, struct iovec *iov, const int iovlen)
 			if (!f->f_un.f_uname[i][0])
 				break;
 			if (!strcmp(f->f_un.f_uname[i], ut->ut_user)) {
-				if ((p = ttymsg(iov, iovlen, ut->ut_line,
+				if ((p = ttymsg_check(iov, iovlen, ut->ut_line,
 				    TTYMSGTIME)) != NULL) {
 					errno = 0;	/* already in msg */
 					logerror(p);
@@ -1436,6 +1437,29 @@ wallmsg(struct filed *f, struct iovec *iov, const int iovlen)
 	}
 	endutxent();
 	reenter = 0;
+}
+
+/*
+ * Wrapper routine for ttymsg() that checks the terminal for messages enabled.
+ */
+static const char *
+ttymsg_check(struct iovec *iov, int iovcnt, char *line, int tmout)
+{
+	static char device[1024];
+	static char errbuf[1024];
+	struct stat sb;
+
+	(void) snprintf(device, sizeof(device), "%s%s", _PATH_DEV, line);
+
+	if (stat(device, &sb) < 0) {
+		(void) snprintf(errbuf, sizeof(errbuf),
+		    "%s: %s", device, strerror(errno));
+		return (errbuf);
+	}
+	if ((sb.st_mode & S_IWGRP) == 0)
+		/* Messages disabled. */
+		return (NULL);
+	return ttymsg(iov, iovcnt, line, tmout);
 }
 
 static void

@@ -117,6 +117,10 @@ int	bootverbose = BOOTVERBOSE;
 SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0,
 	"Control the output of verbose kernel messages");
 
+#ifdef INVARIANTS
+FEATURE(invariants, "Kernel compiled with INVARIANTS, may affect performance");
+#endif
+
 /*
  * This ensures that there is at least one entry so that the sysinit_set
  * symbol is not undefined.  A sybsystem ID of SI_SUB_DUMMY is never
@@ -383,8 +387,6 @@ struct sysentvec null_sysvec = {
 	.sv_size	= 0,
 	.sv_table	= NULL,
 	.sv_mask	= 0,
-	.sv_sigsize	= 0,
-	.sv_sigtbl	= NULL,
 	.sv_errsize	= 0,
 	.sv_errtbl	= NULL,
 	.sv_transtrap	= NULL,
@@ -392,7 +394,6 @@ struct sysentvec null_sysvec = {
 	.sv_sendsig	= NULL,
 	.sv_sigcode	= NULL,
 	.sv_szsigcode	= NULL,
-	.sv_prepsyscall	= NULL,
 	.sv_name	= "null",
 	.sv_coredump	= NULL,
 	.sv_imgact_try	= NULL,

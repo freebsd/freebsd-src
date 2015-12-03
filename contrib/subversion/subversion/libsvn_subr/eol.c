@@ -30,14 +30,12 @@
 #include "private/svn_eol_private.h"
 #include "private/svn_dep_compat.h"
 
-/* Machine-word-sized masks used in svn_eol__find_eol_start.
- */
 char *
 svn_eol__find_eol_start(char *buf, apr_size_t len)
 {
 #if !SVN_UNALIGNED_ACCESS_IS_OK
 
-  /* On some systems, we need to make sure that buf is properly aligned
+  /* On some systems, we need to make sure that BUF is properly aligned
    * for chunky data access. This overhead is still justified because
    * only lines tend to be tens of chars long.
    */
@@ -62,8 +60,8 @@ svn_eol__find_eol_start(char *buf, apr_size_t len)
     apr_uintptr_t r_test = chunk ^ SVN__R_MASK;
     apr_uintptr_t n_test = chunk ^ SVN__N_MASK;
 
-    /* A byte in SVN__R_TEST can by < 0x80, iff it has been \0 before
-     * (i.e. \r in *BUF). Dito for SVN__N_TEST. */
+    /* A byte in SVN__R_TEST can only be < 0x80, iff it has been \0 before
+     * (i.e. \r in *BUF). Ditto for SVN__N_TEST. */
     r_test |= (r_test & SVN__LOWER_7BITS_SET) + SVN__LOWER_7BITS_SET;
     n_test |= (n_test & SVN__LOWER_7BITS_SET) + SVN__LOWER_7BITS_SET;
 

@@ -170,6 +170,8 @@ static void	ixgbe_add_device_sysctls(struct adapter *);
 static void     ixgbe_add_hw_stats(struct adapter *);
 
 /* Sysctl handlers */
+static void	ixgbe_set_sysctl_value(struct adapter *, const char *,
+		    const char *, int *, int);
 static int	ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS);
 static int	ixgbe_set_advertise(SYSCTL_HANDLER_ARGS);
 static int	ixgbe_sysctl_thermal_test(SYSCTL_HANDLER_ARGS);
@@ -460,6 +462,15 @@ ixgbe_attach(device_t dev)
 		error = ENXIO;
 		goto err_out;
 	}
+
+	/* Sysctls for limiting the amount of work done in the taskqueues */
+	ixgbe_set_sysctl_value(adapter, "rx_processing_limit",
+	    "max number of rx packets to process",
+	    &adapter->rx_process_limit, ixgbe_rx_process_limit);
+
+	ixgbe_set_sysctl_value(adapter, "tx_processing_limit",
+	    "max number of tx packets to process",
+	&adapter->tx_process_limit, ixgbe_tx_process_limit);
 
 	/* Do descriptor calc and sanity checks */
 	if (((ixgbe_txd * sizeof(union ixgbe_adv_tx_desc)) % DBA_ALIGN) != 0 ||
@@ -2877,9 +2888,6 @@ ixgbe_initialize_transmit_units(struct adapter *adapter)
 		/* Cache the tail address */
 		txr->tail = IXGBE_TDT(j);
 
-		/* Set the processing limit */
-		txr->process_limit = ixgbe_tx_process_limit;
-
 		/* Disable Head Writeback */
 		switch (hw->mac.type) {
 		case ixgbe_mac_82598EB:
@@ -3135,9 +3143,6 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 		/* Setup the HW Rx Head and Tail Descriptor Pointers */
 		IXGBE_WRITE_REG(hw, IXGBE_RDH(j), 0);
 		IXGBE_WRITE_REG(hw, IXGBE_RDT(j), 0);
-
-		/* Set the processing limit */
-		rxr->process_limit = ixgbe_rx_process_limit;
 
 		/* Set the driver rx tail address */
 		rxr->tail =  IXGBE_RDT(rxr->me);
@@ -4456,6 +4461,16 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_1024_1522",
 			CTLFLAG_RD, &stats->ptc1522,
 			"1024-1522 byte frames transmitted");
+}
+
+static void
+ixgbe_set_sysctl_value(struct adapter *adapter, const char *name,
+    const char *description, int *limit, int value)
+{
+	*limit = value;
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(adapter->dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(adapter->dev)),
+	    OID_AUTO, name, CTLFLAG_RW, limit, value, description);
 }
 
 /*

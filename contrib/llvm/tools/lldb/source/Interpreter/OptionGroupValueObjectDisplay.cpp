@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/Interpreter/OptionGroupValueObjectDisplay.h"
 
 // C Includes
@@ -16,6 +14,7 @@
 // Other libraries and framework includes
 // Project includes
 #include "lldb/DataFormatters/ValueObjectPrinter.h"
+#include "lldb/Host/StringConvert.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Utility/Utils.h"
@@ -89,13 +88,13 @@ OptionGroupValueObjectDisplay::SetOptionValue (CommandInterpreter &interpreter,
         case 'A':   ignore_cap   = true;  break;
             
         case 'D':
-            max_depth = Args::StringToUInt32 (option_arg, UINT32_MAX, 0, &success);
+            max_depth = StringConvert::ToUInt32 (option_arg, UINT32_MAX, 0, &success);
             if (!success)
                 error.SetErrorStringWithFormat("invalid max depth '%s'", option_arg);
             break;
             
         case 'P':
-            ptr_depth = Args::StringToUInt32 (option_arg, 0, 0, &success);
+            ptr_depth = StringConvert::ToUInt32 (option_arg, 0, 0, &success);
             if (!success)
                 error.SetErrorStringWithFormat("invalid pointer depth '%s'", option_arg);
             break;
@@ -103,7 +102,7 @@ OptionGroupValueObjectDisplay::SetOptionValue (CommandInterpreter &interpreter,
         case 'Y':
             if (option_arg)
             {
-                no_summary_depth = Args::StringToUInt32 (option_arg, 0, 0, &success);
+                no_summary_depth = StringConvert::ToUInt32 (option_arg, 0, 0, &success);
                 if (!success)
                     error.SetErrorStringWithFormat("invalid pointer depth '%s'", option_arg);
             }

@@ -62,31 +62,6 @@
 
 #include "svn_private_config.h"
 
-/* Forward declaration.  */
-static svn_error_t *
-prop_conflict_from_skel(const svn_string_t **conflict_desc,
-                        const svn_skel_t *skel,
-                        apr_pool_t *result_pool,
-                        apr_pool_t *scratch_pool);
-
-/* Given a *SINGLE* property conflict in PROP_SKEL, generate a description
-   for it, and write it to STREAM, along with a trailing EOL sequence.
-
-   See prop_conflict_from_skel() for details on PROP_SKEL.  */
-static svn_error_t *
-append_prop_conflict(svn_stream_t *stream,
-                     const svn_skel_t *prop_skel,
-                     apr_pool_t *pool)
-{
-  /* TODO:  someday, perhaps prefix each conflict_description with a
-     timestamp or something? */
-  const svn_string_t *conflict_desc;
-
-  SVN_ERR(prop_conflict_from_skel(&conflict_desc, prop_skel, pool, pool));
-
-  return svn_stream_puts(stream, conflict_desc->data);
-}
-
 /*---------------------------------------------------------------------*/
 
 /*** Merging propchanges into the working copy ***/
@@ -352,7 +327,8 @@ svn_wc_merge_props3(svn_wc_notify_state_t *state,
     {
       svn_boolean_t prop_conflicted;
 
-      SVN_ERR(svn_wc__conflict_invoke_resolver(db, local_abspath, conflict_skel,
+      SVN_ERR(svn_wc__conflict_invoke_resolver(db, local_abspath, kind,
+                                               conflict_skel,
                                                NULL /* merge_options */,
                                                conflict_func, conflict_baton,
                                                cancel_func, cancel_baton,
@@ -531,89 +507,96 @@ maybe_prop_value(const svn_skel_t *skel,
 }
 
 
-/* Parse a property conflict description from the provided SKEL.
-   The result includes a descriptive message (see generate_conflict_message)
-   and maybe a diff of property values containing conflict markers.
-   The result will be allocated in RESULT_POOL.
-
-   Note: SKEL is a single property conflict of the form:
-
-   ("prop" ([ORIGINAL]) ([MINE]) ([INCOMING]) ([INCOMING_BASE]))
-
-   See notes/wc-ng/conflict-storage for more information.  */
+/* Create a property rejection description for the specified property.
+   The result will be allocated in RESULT_POOL. */
 static svn_error_t *
-prop_conflict_from_skel(const svn_string_t **conflict_desc,
-                        const svn_skel_t *skel,
-                        apr_pool_t *result_pool,
-                        apr_pool_t *scratch_pool)
+prop_conflict_new(const svn_string_t **conflict_desc,
+                  const char *propname,
+                  const svn_string_t *original,
+                  const svn_string_t *mine,
+                  const svn_string_t *incoming,
+                  const svn_string_t *incoming_base,
+                  svn_cancel_func_t cancel_func,
+                  void *cancel_baton,
+                  apr_pool_t *result_pool,
+                  apr_pool_t *scratch_pool)
 {
-  const svn_string_t *original;
-  const svn_string_t *mine;
-  const svn_string_t *incoming;
-  const svn_string_t *incoming_base;
-  const char *propname;
   svn_diff_t *diff;
   svn_diff_file_options_t *diff_opts;
   svn_stringbuf_t *buf;
-  svn_boolean_t original_is_binary;
+  svn_boolean_t incoming_base_is_binary;
   svn_boolean_t mine_is_binary;
   svn_boolean_t incoming_is_binary;
-
-  /* Navigate to the property name.  */
-  skel = skel->children->next;
-
-  /* We need to copy these into SCRATCH_POOL in order to nul-terminate
-     the values.  */
-  propname = apr_pstrmemdup(scratch_pool, skel->data, skel->len);
-  original = maybe_prop_value(skel->next, scratch_pool);
-  mine = maybe_prop_value(skel->next->next, scratch_pool);
-  incoming = maybe_prop_value(skel->next->next->next, scratch_pool);
-  incoming_base = maybe_prop_value(skel->next->next->next->next, scratch_pool);
 
   buf = generate_conflict_message(propname, original, mine, incoming,
                                   incoming_base, scratch_pool);
 
+  /* Convert deleted or not-yet-added values to empty-string values, for the
+     purposes of diff generation and binary detection. */
   if (mine == NULL)
     mine = svn_string_create_empty(scratch_pool);
   if (incoming == NULL)
     incoming = svn_string_create_empty(scratch_pool);
+  if (incoming_base == NULL)
+    incoming_base = svn_string_create_empty(scratch_pool);
 
-  /* Pick a suitable base for the conflict diff.
-   * The incoming value is always a change,
-   * but the local value might not have changed. */
-  if (original == NULL)
-    {
-      if (incoming_base)
-        original = incoming_base;
-      else
-        original = svn_string_create_empty(scratch_pool);
-    }
-  else if (incoming_base && svn_string_compare(original, mine))
-    original = incoming_base;
+  /* How we render the conflict:
+
+     We have four sides: original, mine, incoming_base, incoming.
+     We render the conflict as a 3-way diff.  A diff3 API has three parts,
+     called:
+
+       <<< - original
+       ||| - modified (or "older")
+       === - latest (or "theirs")
+       >>>
+
+     We fill those parts as follows:
+
+       PART      FILLED BY SKEL MEMBER  USER-FACING ROLE
+       ====      =====================  ================
+       original  mine                   was WORKING tree at conflict creation
+       modified  incoming_base          left-hand side of merge
+       latest    incoming               right-hand side of merge
+       (none)    original               was BASE tree at conflict creation
+
+     An 'update -r rN' is treated like a 'merge -r BASE:rN', i.e., in an
+     'update' operation skel->original and skel->incoming_base coincide.
+
+     Note that the term "original" is used both in the skel and in diff3
+     with different meanings.  Note also that the skel's ORIGINAL value was
+     at some point in the BASE tree, but the BASE tree need not have contained
+     the INCOMING_BASE value.
+
+     Yes, it's confusing. */
 
   /* If any of the property values involved in the diff is binary data,
    * do not generate a diff. */
-  original_is_binary = svn_io_is_binary_data(original->data, original->len);
+  incoming_base_is_binary = svn_io_is_binary_data(incoming_base->data,
+                                                  incoming_base->len);
   mine_is_binary = svn_io_is_binary_data(mine->data, mine->len);
   incoming_is_binary = svn_io_is_binary_data(incoming->data, incoming->len);
 
-  if (!(original_is_binary || mine_is_binary || incoming_is_binary))
+  if (!(incoming_base_is_binary || mine_is_binary || incoming_is_binary))
     {
       diff_opts = svn_diff_file_options_create(scratch_pool);
       diff_opts->ignore_space = svn_diff_file_ignore_space_none;
       diff_opts->ignore_eol_style = FALSE;
       diff_opts->show_c_function = FALSE;
-      SVN_ERR(svn_diff_mem_string_diff3(&diff, original, mine, incoming,
+      /* Pass skel member INCOMING_BASE into the formal parameter ORIGINAL.
+         Ignore the skel member ORIGINAL. */
+      SVN_ERR(svn_diff_mem_string_diff3(&diff, incoming_base, mine, incoming,
                                         diff_opts, scratch_pool));
       if (svn_diff_contains_conflicts(diff))
         {
           svn_stream_t *stream;
           svn_diff_conflict_display_style_t style;
           const char *mine_marker = _("<<<<<<< (local property value)");
-          const char *incoming_marker = _(">>>>>>> (incoming property value)");
+          const char *incoming_marker = _(">>>>>>> (incoming 'changed to' value)");
+          const char *incoming_base_marker = _("||||||| (incoming 'changed from' value)");
           const char *separator = "=======";
-          svn_string_t *original_ascii =
-            svn_string_create(svn_utf_cstring_from_utf8_fuzzy(original->data,
+          svn_string_t *incoming_base_ascii =
+            svn_string_create(svn_utf_cstring_from_utf8_fuzzy(incoming_base->data,
                                                               scratch_pool),
                               scratch_pool);
           svn_string_t *mine_ascii =
@@ -625,16 +608,18 @@ prop_conflict_from_skel(const svn_string_t **conflict_desc,
                                                               scratch_pool),
                               scratch_pool);
 
-          style = svn_diff_conflict_display_modified_latest;
+          style = svn_diff_conflict_display_modified_original_latest;
           stream = svn_stream_from_stringbuf(buf, scratch_pool);
           SVN_ERR(svn_stream_skip(stream, buf->len));
-          SVN_ERR(svn_diff_mem_string_output_merge2(stream, diff,
-                                                    original_ascii,
+          SVN_ERR(svn_diff_mem_string_output_merge3(stream, diff,
+                                                    incoming_base_ascii,
                                                     mine_ascii,
                                                     incoming_ascii,
-                                                    NULL, mine_marker,
+                                                    incoming_base_marker, mine_marker,
                                                     incoming_marker, separator,
-                                                    style, scratch_pool));
+                                                    style,
+                                                    cancel_func, cancel_baton,
+                                                    scratch_pool));
           SVN_ERR(svn_stream_close(stream));
 
           *conflict_desc = svn_string_create_from_buf(buf, result_pool);
@@ -669,6 +654,49 @@ prop_conflict_from_skel(const svn_string_t **conflict_desc,
   return SVN_NO_ERROR;
 }
 
+/* Parse a property conflict description from the provided SKEL.
+   The result includes a descriptive message (see generate_conflict_message)
+   and maybe a diff of property values containing conflict markers.
+   The result will be allocated in RESULT_POOL.
+
+   Note: SKEL is a single property conflict of the form:
+
+   ("prop" ([ORIGINAL]) ([MINE]) ([INCOMING]) ([INCOMING_BASE]))
+
+   Note: This is not the same format as the property conflicts we store in
+   wc.db since 1.8. This is the legacy format used in the Workqueue in 1.7-1.8 */
+static svn_error_t *
+prop_conflict_from_skel(const svn_string_t **conflict_desc,
+                        const svn_skel_t *skel,
+                        svn_cancel_func_t cancel_func,
+                        void *cancel_baton,
+                        apr_pool_t *result_pool,
+                        apr_pool_t *scratch_pool)
+{
+  const svn_string_t *original;
+  const svn_string_t *mine;
+  const svn_string_t *incoming;
+  const svn_string_t *incoming_base;
+  const char *propname;
+
+  /* Navigate to the property name.  */
+  skel = skel->children->next;
+
+  /* We need to copy these into SCRATCH_POOL in order to nul-terminate
+     the values.  */
+  propname = apr_pstrmemdup(scratch_pool, skel->data, skel->len);
+  original = maybe_prop_value(skel->next, scratch_pool);
+  mine = maybe_prop_value(skel->next->next, scratch_pool);
+  incoming = maybe_prop_value(skel->next->next->next, scratch_pool);
+  incoming_base = maybe_prop_value(skel->next->next->next->next, scratch_pool);
+
+  return svn_error_trace(prop_conflict_new(conflict_desc,
+                                           propname,
+                                           original, mine,
+                                           incoming, incoming_base,
+                                           cancel_func, cancel_baton,
+                                           result_pool, scratch_pool));
+}
 
 /* Create a property conflict file at PREJFILE based on the property
    conflicts in CONFLICT_SKEL.  */
@@ -676,7 +704,9 @@ svn_error_t *
 svn_wc__create_prejfile(const char **tmp_prejfile_abspath,
                         svn_wc__db_t *db,
                         const char *local_abspath,
-                        const svn_skel_t *conflict_skel,
+                        const svn_skel_t *prop_conflict_data,
+                        svn_cancel_func_t cancel_func,
+                        void *cancel_baton,
                         apr_pool_t *result_pool,
                         apr_pool_t *scratch_pool)
 {
@@ -694,11 +724,88 @@ svn_wc__create_prejfile(const char **tmp_prejfile_abspath,
                                  tempdir_abspath, svn_io_file_del_none,
                                  scratch_pool, iterpool));
 
-  for (scan = conflict_skel->children->next; scan != NULL; scan = scan->next)
+  if (prop_conflict_data)
     {
-      svn_pool_clear(iterpool);
+      for (scan = prop_conflict_data->children->next;
+            scan != NULL; scan = scan->next)
+        {
+          const svn_string_t *conflict_desc;
 
-      SVN_ERR(append_prop_conflict(stream, scan, iterpool));
+          svn_pool_clear(iterpool);
+
+          SVN_ERR(prop_conflict_from_skel(&conflict_desc, scan,
+                                          cancel_func, cancel_baton,
+                                          iterpool, iterpool));
+
+          SVN_ERR(svn_stream_puts(stream, conflict_desc->data));
+        }
+    }
+  else
+    {
+      svn_wc_operation_t operation;
+      apr_hash_index_t *hi;
+      apr_hash_t *old_props;
+      apr_hash_t *mine_props;
+      apr_hash_t *their_original_props;
+      apr_hash_t *their_props;
+      apr_hash_t *conflicted_props;
+      svn_skel_t *conflicts;
+
+      SVN_ERR(svn_wc__db_read_conflict(&conflicts, NULL, NULL,
+                                       db, local_abspath,
+                                      scratch_pool, scratch_pool));
+
+      SVN_ERR(svn_wc__conflict_read_info(&operation, NULL, NULL, NULL, NULL,
+                                         db, local_abspath,
+                                         conflicts,
+                                         scratch_pool, scratch_pool));
+
+      SVN_ERR(svn_wc__conflict_read_prop_conflict(NULL,
+                                                  &mine_props,
+                                                  &their_original_props,
+                                                  &their_props,
+                                                  &conflicted_props,
+                                                  db, local_abspath,
+                                                  conflicts,
+                                                  scratch_pool,
+                                                  scratch_pool));
+
+      if (operation == svn_wc_operation_merge)
+        SVN_ERR(svn_wc__db_read_pristine_props(&old_props, db, local_abspath,
+                                                scratch_pool, scratch_pool));
+      else
+        old_props = their_original_props;
+
+      /* ### TODO: Sort conflicts? */
+      for (hi = apr_hash_first(scratch_pool, conflicted_props);
+           hi;
+           hi = apr_hash_next(hi))
+        {
+          const svn_string_t *conflict_desc;
+          const char *propname = apr_hash_this_key(hi);
+          const svn_string_t *old_value;
+          const svn_string_t *mine_value;
+          const svn_string_t *their_value;
+          const svn_string_t *their_original_value;
+
+          svn_pool_clear(iterpool);
+
+          old_value = old_props ? svn_hash_gets(old_props, propname) : NULL;
+          mine_value = mine_props ? svn_hash_gets(mine_props, propname) : NULL;
+          their_value = their_props ? svn_hash_gets(their_props, propname)
+                                    : NULL;
+          their_original_value = their_original_props
+                                    ? svn_hash_gets(their_original_props, propname)
+                                    : NULL;
+
+          SVN_ERR(prop_conflict_new(&conflict_desc,
+                                    propname, old_value, mine_value,
+                                    their_value, their_original_value,
+                                    cancel_func, cancel_baton,
+                                    iterpool, iterpool));
+
+          SVN_ERR(svn_stream_puts(stream, conflict_desc->data));
+        }
     }
 
   SVN_ERR(svn_stream_close(stream));
@@ -1167,7 +1274,7 @@ svn_wc__merge_props(svn_skel_t **conflict_skel,
 
       svn_pool_clear(iterpool);
 
-      to_val = to_val ? svn_string_dup(to_val, result_pool) : NULL;
+      to_val = svn_string_dup(to_val, result_pool);
 
       svn_hash_sets(their_props, propname, to_val);
 
@@ -2030,8 +2137,8 @@ svn_wc__canonicalize_props(apr_hash_t **prepared_props,
   for (hi = apr_hash_first(scratch_pool, (apr_hash_t *)props); hi;
        hi = apr_hash_next(hi))
     {
-      const char *name = svn__apr_hash_index_key(hi);
-      const svn_string_t *value = svn__apr_hash_index_val(hi);
+      const char *name = apr_hash_this_key(hi);
+      const svn_string_t *value = apr_hash_this_val(hi);
 
       if (strcmp(name, SVN_PROP_MIME_TYPE) == 0)
         continue;

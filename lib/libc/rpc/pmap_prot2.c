@@ -90,9 +90,7 @@ __FBSDID("$FreeBSD$");
  * this sounds like a job for xdr_reference!
  */
 bool_t
-xdr_pmaplist(xdrs, rp)
-	XDR *xdrs;
-	struct pmaplist **rp;
+xdr_pmaplist(XDR *xdrs, struct pmaplist **rp)
 {
 	/*
 	 * more_elements is pre-computed in case the direction is
@@ -134,9 +132,7 @@ xdr_pmaplist(xdrs, rp)
  * functionality to xdr_pmaplist().
  */
 bool_t
-xdr_pmaplist_ptr(xdrs, rp)
-	XDR *xdrs;
-	struct pmaplist *rp;
+xdr_pmaplist_ptr(XDR *xdrs, struct pmaplist *rp)
 {
 	return xdr_pmaplist(xdrs, (struct pmaplist **)(void *)rp);
 }

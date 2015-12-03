@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "CommandObjectSettings.h"
 
 // C Includes
@@ -18,6 +16,7 @@
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/CommandCompletions.h"
+#include "lldb/Interpreter/OptionValueProperties.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -61,24 +60,25 @@ public:
         m_arguments.push_back (arg2);
         
         SetHelpLong (
-"When setting a dictionary or array variable, you can set multiple entries \n\
-at once by giving the values to the set command.  For example: \n\
-\n\
-(lldb) settings set target.run-args value1 value2 value3 \n\
-(lldb) settings set target.env-vars MYPATH=~/.:/usr/bin  SOME_ENV_VAR=12345 \n\
-\n\
-(lldb) settings show target.run-args \n\
-  [0]: 'value1' \n\
-  [1]: 'value2' \n\
-  [3]: 'value3' \n\
-(lldb) settings show target.env-vars \n\
-  'MYPATH=~/.:/usr/bin'\n\
-  'SOME_ENV_VAR=12345' \n\
-\n\
-Warning:  The 'set' command re-sets the entire array or dictionary.  If you \n\
-just want to add, remove or update individual values (or add something to \n\
-the end), use one of the other settings sub-commands: append, replace, \n\
-insert-before or insert-after.\n");
+"\nWhen setting a dictionary or array variable, you can set multiple entries \
+at once by giving the values to the set command.  For example:" R"(
+
+(lldb) settings set target.run-args value1 value2 value3
+(lldb) settings set target.env-vars MYPATH=~/.:/usr/bin  SOME_ENV_VAR=12345
+
+(lldb) settings show target.run-args
+  [0]: 'value1'
+  [1]: 'value2'
+  [3]: 'value3'
+(lldb) settings show target.env-vars
+  'MYPATH=~/.:/usr/bin'
+  'SOME_ENV_VAR=12345'
+
+)" "Warning:  The 'set' command re-sets the entire array or dictionary.  If you \
+just want to add, remove or update individual values (or add something to \
+the end), use one of the other settings sub-commands: append, replace, \
+insert-before or insert-after."
+        );
 
     }
 
@@ -243,7 +243,7 @@ protected:
         // Split the raw command into var_name and value pair.
         llvm::StringRef raw_str(command);
         std::string var_value_string = raw_str.split(var_name).second.str();
-        const char *var_value_cstr = Args::StripSpaces(var_value_string, true, true, false);
+        const char *var_value_cstr = Args::StripSpaces(var_value_string, true, false, false);
 
         Error error;
         if (m_options.m_global)

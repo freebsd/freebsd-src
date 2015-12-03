@@ -47,7 +47,7 @@
  * This enum represents the current state of our XML parsing for a REPORT.
  */
 typedef enum blame_state_e {
-  INITIAL = 0,
+  INITIAL = XML_STATE_INITIAL,
   FILE_REVS_REPORT,
   FILE_REV,
   REV_PROP,
@@ -111,7 +111,6 @@ static const svn_ra_serf__xml_transition_t blame_ttable[] = {
   { 0 }
 };
 
-
 /* Conforms to svn_ra_serf__xml_opened_t  */
 static svn_error_t *
 blame_opened(svn_ra_serf__xml_estate_t *xes,
@@ -140,17 +139,20 @@ blame_opened(svn_ra_serf__xml_estate_t *xes,
       apr_pool_t *state_pool = svn_ra_serf__xml_state_pool(xes);
       apr_hash_t *gathered = svn_ra_serf__xml_gather_since(xes, FILE_REV);
       const char *path;
-      const char *rev;
+      const char *rev_str;
       const char *merged_revision;
       svn_txdelta_window_handler_t txdelta;
       void *txdelta_baton;
+      apr_int64_t rev;
 
       path = svn_hash_gets(gathered, "path");
-      rev = svn_hash_gets(gathered, "rev");
+      rev_str = svn_hash_gets(gathered, "rev");
+
+      SVN_ERR(svn_cstring_atoi64(&rev, rev_str));
       merged_revision = svn_hash_gets(gathered, "merged-revision");
 
       SVN_ERR(blame_ctx->file_rev(blame_ctx->file_rev_baton,
-                                  path, SVN_STR_TO_REV(rev),
+                                  path, (svn_revnum_t)rev,
                                   blame_ctx->rev_props,
                                   merged_revision != NULL,
                                   &txdelta, &txdelta_baton,
@@ -278,7 +280,8 @@ static svn_error_t *
 create_file_revs_body(serf_bucket_t **body_bkt,
                       void *baton,
                       serf_bucket_alloc_t *alloc,
-                      apr_pool_t *pool)
+                      apr_pool_t *pool /* request pool */,
+                      apr_pool_t *scratch_pool)
 {
   serf_bucket_t *buckets;
   blame_context_t *blame_ctx = baton;
@@ -288,7 +291,7 @@ create_file_revs_body(serf_bucket_t **body_bkt,
   svn_ra_serf__add_open_tag_buckets(buckets, alloc,
                                     "S:file-revs-report",
                                     "xmlns:S", SVN_XML_NAMESPACE,
-                                    NULL);
+                                    SVN_VA_NULL);
 
   svn_ra_serf__add_tag_buckets(buckets,
                                "S:start-revision", apr_ltoa(pool, blame_ctx->start),
@@ -300,9 +303,8 @@ create_file_revs_body(serf_bucket_t **body_bkt,
 
   if (blame_ctx->include_merged_revisions)
     {
-      svn_ra_serf__add_tag_buckets(buckets,
-                                   "S:include-merged-revisions", NULL,
-                                   alloc);
+      svn_ra_serf__add_empty_tag_buckets(buckets, alloc,
+                                         "S:include-merged-revisions", SVN_VA_NULL);
     }
 
   svn_ra_serf__add_tag_buckets(buckets,
@@ -331,7 +333,7 @@ svn_ra_serf__get_file_revs(svn_ra_session_t *ra_session,
   svn_ra_serf__handler_t *handler;
   svn_ra_serf__xml_context_t *xmlctx;
   const char *req_url;
-  svn_error_t *err;
+  svn_revnum_t peg_rev;
 
   blame_ctx = apr_pcalloc(pool, sizeof(*blame_ctx));
   blame_ctx->pool = pool;
@@ -342,9 +344,16 @@ svn_ra_serf__get_file_revs(svn_ra_session_t *ra_session,
   blame_ctx->end = end;
   blame_ctx->include_merged_revisions = include_merged_revisions;
 
+  /* Since Subversion 1.8 we allow retrieving blames backwards. So we can't
+     just unconditionally use end_rev as the peg revision as before */
+  if (end > start)
+    peg_rev = end;
+  else
+    peg_rev = start;
+
   SVN_ERR(svn_ra_serf__get_stable_url(&req_url, NULL /* latest_revnum */,
-                                      session, NULL /* conn */,
-                                      NULL /* url */, end,
+                                      session,
+                                      NULL /* url */, peg_rev,
                                       pool, pool));
 
   xmlctx = svn_ra_serf__xml_context_create(blame_ttable,
@@ -353,23 +362,18 @@ svn_ra_serf__get_file_revs(svn_ra_session_t *ra_session,
                                            blame_cdata,
                                            blame_ctx,
                                            pool);
-  handler = svn_ra_serf__create_expat_handler(xmlctx, pool);
+  handler = svn_ra_serf__create_expat_handler(session, xmlctx, NULL, pool);
 
   handler->method = "REPORT";
   handler->path = req_url;
   handler->body_type = "text/xml";
   handler->body_delegate = create_file_revs_body;
   handler->body_delegate_baton = blame_ctx;
-  handler->conn = session->conns[0];
-  handler->session = session;
 
-  err = svn_ra_serf__context_run_one(handler, pool);
+  SVN_ERR(svn_ra_serf__context_run_one(handler, pool));
 
-  err = svn_error_compose_create(
-            svn_ra_serf__error_on_status(handler->sline,
-                                         handler->path,
-                                         handler->location),
-            err);
+  if (handler->sline.code != 200)
+    return svn_error_trace(svn_ra_serf__unexpected_status(handler));
 
-  return svn_error_trace(err);
+  return SVN_NO_ERROR;
 }

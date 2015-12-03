@@ -25,8 +25,13 @@
  *
  * $FreeBSD$
  */
-#include <stdio.h>
+
 #include <sys/types.h>
+#include <sys/sysctl.h>
+
+#include <err.h>
+#include <stdio.h>
+
 #include "../../../sys/dev/hifn/hifn7751var.h"
 
 /*
@@ -39,7 +44,7 @@ main(int argc, char *argv[])
 	size_t slen;
 
 	slen = sizeof (stats);
-	if (sysctlbyname("hw.hifn.stats", &stats, &slen, NULL, NULL) < 0)
+	if (sysctlbyname("hw.hifn.stats", &stats, &slen, NULL, 0) < 0)
 		err(1, "kern.hifn.stats");
 
 	printf("input %llu bytes %u packets\n",

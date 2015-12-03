@@ -146,16 +146,6 @@ instead of
 .Pa /etc/sysctl.conf .
 The global default is currently 1.
 The per-device default is to leave it as-is (follow global setting).
-.It Va kern.cam.ada.legacy_aliases
-.Pp
-This variable determines whether
-.Pa /dev/ad Ns Ar Y
-symbolic links are created,
-which tries to mimic old
-.Xr ata 4
-numbering.
-Set to 1 to enable legacy aliases symlinks, 0 to disable.
-The default is currently enabled.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/ada*" -compact

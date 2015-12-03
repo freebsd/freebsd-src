@@ -1115,7 +1115,7 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 			LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
 
 				if (laddr->ifa == NULL) {
-					SCTPDBG(SCTP_DEBUG_PCB1, "%s: NULL ifa\n", __FUNCTION__);
+					SCTPDBG(SCTP_DEBUG_PCB1, "%s: NULL ifa\n", __func__);
 					continue;
 				}
 				if (laddr->ifa->localifa_flags & SCTP_BEING_DELETED) {
@@ -1773,7 +1773,7 @@ sctp_endpoint_probe(struct sockaddr *nam, struct sctppcbhead *head,
 		LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
 			if (laddr->ifa == NULL) {
 				SCTPDBG(SCTP_DEBUG_PCB1, "%s: NULL ifa\n",
-				    __FUNCTION__);
+				    __func__);
 				continue;
 			}
 			SCTPDBG(SCTP_DEBUG_PCB1, "Ok laddr->ifa:%p is possible, ",
@@ -2343,7 +2343,7 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int offset,
 	    &parm_buf, sizeof(struct sctp_paramhdr));
 	if (phdr == NULL) {
 		SCTPDBG(SCTP_DEBUG_INPUT3, "%s: failed to get asconf lookup addr\n",
-		    __FUNCTION__);
+		    __func__);
 		return NULL;
 	}
 	ptype = (int)((uint32_t) ntohs(phdr->param_type));
@@ -2363,7 +2363,7 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int offset,
 			    &p6_buf.ph, sizeof(*p6));
 			if (p6 == NULL) {
 				SCTPDBG(SCTP_DEBUG_INPUT3, "%s: failed to get asconf v6 lookup addr\n",
-				    __FUNCTION__);
+				    __func__);
 				return (NULL);
 			}
 			sin6 = &remote_store.sin6;
@@ -2390,7 +2390,7 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int offset,
 			    &p4_buf.ph, sizeof(*p4));
 			if (p4 == NULL) {
 				SCTPDBG(SCTP_DEBUG_INPUT3, "%s: failed to get asconf v4 lookup addr\n",
-				    __FUNCTION__);
+				    __func__);
 				return (NULL);
 			}
 			sin = &remote_store.sin;
@@ -2495,14 +2495,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 		return (ENOBUFS);
 	}
 #ifdef IPSEC
-	{
-		struct inpcbpolicy *pcb_sp = NULL;
-
-		error = ipsec_init_policy(so, &pcb_sp);
-		/* Arrange to share the policy */
-		inp->ip_inp.inp.inp_sp = pcb_sp;
-		((struct in6pcb *)(&inp->ip_inp.inp))->in6p_sp = pcb_sp;
-	}
+	error = ipsec_init_policy(so, &inp->ip_inp.inp.inp_sp);
 	if (error != 0) {
 		crfree(inp->ip_inp.inp.inp_cred);
 		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_ep), inp);
@@ -2536,6 +2529,9 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EOPNOTSUPP);
 		so->so_pcb = NULL;
 		crfree(inp->ip_inp.inp.inp_cred);
+#ifdef IPSEC
+		ipsec_delete_pcbpolicy(&inp->ip_inp.inp);
+#endif
 		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_ep), inp);
 		return (EOPNOTSUPP);
 	}
@@ -2556,6 +2552,9 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, ENOBUFS);
 		so->so_pcb = NULL;
 		crfree(inp->ip_inp.inp.inp_cred);
+#ifdef IPSEC
+		ipsec_delete_pcbpolicy(&inp->ip_inp.inp);
+#endif
 		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_ep), inp);
 		return (ENOBUFS);
 	}
@@ -3640,13 +3639,9 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	 * macro here since le_next will get freed as part of the
 	 * sctp_free_assoc() call.
 	 */
-	if (so) {
 #ifdef IPSEC
-		ipsec_delete_pcbpolicy(ip_pcb);
-#endif				/* IPSEC */
-
-		/* Unlocks not needed since the socket is gone now */
-	}
+	ipsec_delete_pcbpolicy(ip_pcb);
+#endif
 	if (ip_pcb->inp_options) {
 		(void)sctp_m_free(ip_pcb->inp_options);
 		ip_pcb->inp_options = 0;
@@ -5300,7 +5295,7 @@ sctp_update_ep_vflag(struct sctp_inpcb *inp)
 	LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
 		if (laddr->ifa == NULL) {
 			SCTPDBG(SCTP_DEBUG_PCB1, "%s: NULL ifa\n",
-			    __FUNCTION__);
+			    __func__);
 			continue;
 		}
 		if (laddr->ifa->localifa_flags & SCTP_BEING_DELETED) {
@@ -6258,7 +6253,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 							 * abort this guy
 							 */
 							snprintf(msg, sizeof(msg),
-							    "%s:%d at %s", __FILE__, __LINE__, __FUNCTION__);
+							    "%s:%d at %s", __FILE__, __LINE__, __func__);
 							op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 							    msg);
 							sctp_abort_an_association(stcb_tmp->sctp_ep,
@@ -6357,7 +6352,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 							 * abort this guy
 							 */
 							snprintf(msg, sizeof(msg),
-							    "%s:%d at %s", __FILE__, __LINE__, __FUNCTION__);
+							    "%s:%d at %s", __FILE__, __LINE__, __func__);
 							op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 							    msg);
 							sctp_abort_an_association(stcb_tmp->sctp_ep,

@@ -73,13 +73,28 @@ AcpiTbFindTable (
     char                    *OemTableId,
     UINT32                  *TableIndex)
 {
-    UINT32                  i;
     ACPI_STATUS             Status;
     ACPI_TABLE_HEADER       Header;
+    UINT32                  i;
 
 
     ACPI_FUNCTION_TRACE (TbFindTable);
 
+
+    /* Validate the input table signature */
+
+    if (!AcpiIsValidSignature (Signature))
+    {
+        return_ACPI_STATUS (AE_BAD_SIGNATURE);
+    }
+
+    /* Don't allow the OEM strings to be too long */
+
+    if ((strlen (OemId) > ACPI_OEM_ID_SIZE) ||
+        (strlen (OemTableId) > ACPI_OEM_TABLE_ID_SIZE))
+    {
+        return_ACPI_STATUS (AE_AML_STRING_LIMIT);
+    }
 
     /* Normalize the input strings */
 

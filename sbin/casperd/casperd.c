@@ -534,7 +534,7 @@ casper_accept(int lsock)
 }
 
 static void
-main_loop(const char *sockpath, struct pidfh *pfh)
+main_loop(int lqlen, const char *sockpath, struct pidfh *pfh)
 {
 	fd_set fds;
 	struct sockaddr_un sun;
@@ -559,7 +559,7 @@ main_loop(const char *sockpath, struct pidfh *pfh)
 	if (bind(lsock, (struct sockaddr *)&sun, sizeof(sun)) == -1)
 		pjdlog_exit(1, "Unable to bind to %s", sockpath);
 	(void)umask(oldumask);
-	if (listen(lsock, 8) == -1)
+	if (listen(lsock, lqlen) == -1)
 		pjdlog_exit(1, "Unable to listen on %s", sockpath);
 
 	for (;;) {
@@ -627,24 +627,30 @@ main(int argc, char *argv[])
 	struct pidfh *pfh;
 	const char *pidfile, *servconfdir, *sockpath;
 	pid_t otherpid;
-	int ch, debug;
+	int ch, debug, lqlen;
 	bool foreground;
 
 	pjdlog_init(PJDLOG_MODE_STD);
 
 	debug = 0;
 	foreground = false;
+	lqlen = SOMAXCONN;
 	pidfile = CASPERD_PIDFILE;
 	servconfdir = CASPERD_SERVCONFDIR;
 	sockpath = CASPERD_SOCKPATH;
 
-	while ((ch = getopt(argc, argv, "D:FhP:S:v")) != -1) {
+	while ((ch = getopt(argc, argv, "D:Fhl:P:S:v")) != -1) {
 		switch (ch) {
 		case 'D':
 			servconfdir = optarg;
 			break;
 		case 'F':
 			foreground = true;
+			break;
+		case 'l':
+			lqlen = strtol(optarg, NULL, 0);
+			if (lqlen < 1)
+				lqlen = SOMAXCONN;
 			break;
 		case 'P':
 			pidfile = optarg;
@@ -711,5 +717,5 @@ main(int argc, char *argv[])
 	/*
 	 * Wait for connections.
 	 */
-	main_loop(sockpath, pfh);
+	main_loop(lqlen, sockpath, pfh);
 }

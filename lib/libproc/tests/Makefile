@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/lib/libproc
-
 ATF_TESTS_C+=	proc_test
 
 PROGS=		target_prog
@@ -15,7 +13,6 @@ DPADD+=	${LIBELF} ${LIBPROC} ${LIBRTLD_DB} ${LIBUTIL}
 # for testing symbol lookup.
 STRIP=
 
-MAN=
 WARNS?=	6
 
 .include <bsd.test.mk>

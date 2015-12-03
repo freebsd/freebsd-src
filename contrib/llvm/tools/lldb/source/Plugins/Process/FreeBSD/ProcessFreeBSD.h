@@ -18,7 +18,7 @@
 // Other libraries and framework includes
 #include "lldb/Target/Process.h"
 #include "lldb/Target/ThreadList.h"
-#include "ProcessMessage.h"
+#include "Plugins/Process/POSIX/ProcessMessage.h"
 #include "ProcessPOSIX.h"
 
 class ProcessMonitor;

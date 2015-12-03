@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 4, 2015
+.Dd September 12, 2015
 .Dt SYSRC 8
 .Os
 .Sh NAME
@@ -32,16 +32,27 @@
 .Nd safely edit system rc files
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdDeFhinNqvx
+.Op Fl cdDeEFhinNqvx
+.Op Fl s Ar name
 .Op Fl f Ar file
 .Op Fl j Ar jail | Fl R Ar dir
 .Ar name Ns Op Ns Oo +|- Oc Ns = Ns Ar value
 .Ar ...
 .Nm
-.Op Fl cdDeFhinNqvx
+.Op Fl cdDeEFhinNqvx
+.Op Fl s Ar name
 .Op Fl f Ar file
 .Op Fl j Ar jail | Fl R Ar dir
 .Fl a | A
+.Nm
+.Op Fl E
+.Op Fl s Ar name
+.Op Fl f Ar file
+.Fl l
+.Nm
+.Op Fl eEqv
+.Fl L
+.Op Ar name ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -81,6 +92,13 @@ Ignored if either
 or
 .Ql Fl F
 is specified.
+.It Fl E
+When given
+.Sq Fl l
+or
+.Sq Fl L
+to list configuration files, only list those that exist.
+When changing a setting, prefer to modify existing files.
 .It Fl f Ar file
 Operate on the specified file(s) instead of the files obtained by reading the
 .Sq rc_conf_files
@@ -105,6 +123,17 @@ or name of the
 .Ar jail
 to operate within
 .Pq overrides So Fl R Ar dir Sc ; requires Xr jexec 8 .
+.It Fl l
+List configuration files used at startup on stdout and exit.
+.It Fl L
+List all configuration files including rc.conf.d entries on stdout and exit.
+Can be combined with
+.Sq Fl v
+or
+.Sq Fl e
+to show service names.
+.Nm
+exits with success if all named services are installed, failure otherwise.
 .It Fl n
 Show only variable values, not their names.
 .It Fl N
@@ -112,11 +141,40 @@ Show only variable names, not their values.
 .It Fl q
 Quiet.
 Disable verbose and hide certain errors.
+When combined with
+.Sq Fl L
+and one or more
+.Li Ar name
+arguments, provide only exit status and no output.
 .It Fl R Ar dir
 Operate within the root directory
 .Sq Ar dir
 rather than
 .Sq / .
+.It Fl s Ar name
+If an
+.Li rc.d
+script of
+.Ar name
+exists
+.Po
+in
+.Dq /etc/rc.d
+or
+.Li local_startup
+directories
+.Pc ,
+process its
+.Dq rc.conf.d
+entries as potential overrides to
+.Sq rc_conf_files .
+See
+.Xr rc.subr 8
+for additional information on
+.Dq rc.conf.d .
+Can be combined with
+.Sq Fl l
+to list configuration files used by service at startup.
 .It Fl v
 Verbose.
 Print the pathname of the specific
@@ -199,8 +257,8 @@ syntax to add items to existing values,
 the first character of the value is taken as the delimiter separating items
 .Pq usually Qo \  Qc or Qo , Qc .
 For example, in the following statement:
-.Bl -tag -width indent+
-.It \ 
+.Bl -item -offset indent
+.It
 .Nm
 cloned_interfaces+=" gif0"
 .El
@@ -223,25 +281,25 @@ For example, the above and below statements are equivalent since
 .Dq gif0
 starts with an alpha-numeric character
 .Pq the letter Li g :
-.Bl -tag -width indent+
-.It \ 
+.Bl -item -offset indent
+.It
 .Nm
 cloned_interfaces+=gif0
 .El
 .Pp
 Take the following sequence for example:
-.Bl -tag -width indent+
-.It \ 
+.Bl -item -offset indent
+.It
 .Nm
 cloned_interfaces= # start with NULL
-.It \ 
+.It
 .Nm
 cloned_interfaces+=gif0
 .Dl # NULL -> `gif0' Pq NB: no preceding delimiter
-.It \ 
+.It
 .Nm
 cloned_interfaces+=gif0 # no change
-.It \ 
+.It
 .Nm
 cloned_interfaces+="tun0 gif0"
 .Dl # `gif0' -> `gif0 tun0' Pq NB: no duplication
@@ -277,21 +335,21 @@ For example, the above and below statements are equivalent since
 .Dq gif0
 starts with an alpha-numeric character
 .Pq the letter Li g :
-.Bl -tag -width indent+
-.It \ 
+.Bl -item -offset indent
+.It
 .Nm
 cloned_interfaces-=gif0
 .El
 .Pp
 Take the following sequence for example:
-.Bl -tag -width indent+
-.It \ 
+.Bl -item -offset indent
+.It
 .Nm
 foo="bar baz" # start
-.It \ 
+.It
 .Nm
 foo-=bar # `bar baz' -> `baz'
-.It \ 
+.It
 .Nm
 foo-=baz # `baz' -> NULL
 .El
@@ -336,6 +394,10 @@ and
 .It Pa /etc/defaults/rc.conf
 .It Pa /etc/rc.conf
 .It Pa /etc/rc.conf.local
+.It Pa /etc/rc.conf.d/name
+.It Pa /etc/rc.conf.d/name/*
+.It Pa /usr/local/etc/rc.conf.d/name
+.It Pa /usr/local/etc/rc.conf.d/name/*
 .El
 .Sh EXAMPLES
 Below are some simple examples of how
@@ -394,30 +456,10 @@ usbd_flags-"default"
 .Nm
 cloned_interfaces+"alternate"
 .Dl returns "alternate" if $cloned_interfaces is set .
-.Pp
-.Nm
-\&'#kern_securelevel'
-.Dl returns length in characters of $kern_securelevel .
-.Pp
-.Nm
-\&'hostname?'
-.Dl returns NULL and error status 2 if $hostname is unset Pq or if set, returns the value of $hostname with no error status .
-.Pp
-.Nm
-\&'hostname:?'
-.Dl returns NULL and error status 2 if $hostname is unset or NULL Pq or if set and non-NULL, returns value without error status .
-.Sh LIMITATIONS
-The
-.Nm
-utility presently does not support the
-.Ql rc.conf.d
-collection of system configuration files
-.Pq which requires a service name to be known during execution .
-.Pp
-This will be corrected by a future enhancement.
 .Sh SEE ALSO
 .Xr jls 1 ,
 .Xr rc.conf 5 ,
+.Xr rc.subr 8 ,
 .Xr jail 8 ,
 .Xr jexec 8 ,
 .Xr rc 8 ,

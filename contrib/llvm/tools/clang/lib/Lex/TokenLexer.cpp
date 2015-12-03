@@ -185,7 +185,7 @@ void TokenLexer::ExpandFunctionArguments() {
     if (i != 0 && !Tokens[i-1].is(tok::hashhash) && CurTok.hasLeadingSpace())
       NextTokGetsSpace = true;
 
-    if (CurTok.is(tok::hash) || CurTok.is(tok::hashat)) {
+    if (CurTok.isOneOf(tok::hash, tok::hashat)) {
       int ArgNo = Macro->getArgumentNum(Tokens[i+1].getIdentifierInfo());
       assert(ArgNo != -1 && "Token following # is not an argument?");
 
@@ -521,6 +521,13 @@ bool TokenLexer::Lex(Token &Tok) {
 /// are more ## after it, chomp them iteratively.  Return the result as Tok.
 /// If this returns true, the caller should immediately return the token.
 bool TokenLexer::PasteTokens(Token &Tok) {
+  // MSVC: If previous token was pasted, this must be a recovery from an invalid
+  // paste operation. Ignore spaces before this token to mimic MSVC output.
+  // Required for generating valid UUID strings in some MS headers.
+  if (PP.getLangOpts().MicrosoftExt && (CurToken >= 2) &&
+      Tokens[CurToken - 2].is(tok::hashhash))
+    Tok.clearFlag(Token::LeadingSpace);
+  
   SmallString<128> Buffer;
   const char *ResultTokStrPtr = nullptr;
   SourceLocation StartLoc = Tok.getLocation();
@@ -637,7 +644,7 @@ bool TokenLexer::PasteTokens(Token &Tok) {
           // disabling it.
           PP.Diag(Loc, PP.getLangOpts().MicrosoftExt ? diag::ext_pp_bad_paste_ms
                                                      : diag::err_pp_bad_paste)
-              << Buffer.str();
+              << Buffer;
         }
 
         // An error has occurred so exit loop.

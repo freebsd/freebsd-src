@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
-#include <net/if_llc.h>
 #include <net/ethernet.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -71,13 +70,13 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_carp.h>
 #endif
 
-#include <net/if_arc.h>
-#include <net/iso88025.h>
-
 #include <security/mac/mac_framework.h>
 
 #define SIN(s) ((const struct sockaddr_in *)(s))
-#define SDL(s) ((struct sockaddr_dl *)s)
+
+static struct timeval arp_lastlog;
+static int arp_curpps;
+static int arp_maxpps = 1;
 
 SYSCTL_DECL(_net_link_ether);
 static SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
@@ -122,6 +121,16 @@ SYSCTL_VNET_PCPUSTAT(_net_link_ether_arp, OID_AUTO, stats, struct arpstat,
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, maxhold, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(arp_maxhold), 0,
 	"Number of packets to hold per ARP entry");
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_log_per_second,
+	CTLFLAG_RW, &arp_maxpps, 0,
+	"Maximum number of remotely triggered ARP messages that can be "
+	"logged per second");
+
+#define	ARP_LOG(pri, ...)	do {					\
+	if (ppsratecheck(&arp_lastlog, &arp_curpps, arp_maxpps))	\
+		log((pri), "arp: " __VA_ARGS__);			\
+} while (0)
+
 
 static void	arp_init(void);
 static void	arpintr(struct mbuf *);
@@ -132,10 +141,10 @@ static void	in_arpinput(struct mbuf *);
 
 static void arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr,
     struct ifnet *ifp, int bridged, struct llentry *la);
-static void arp_update_lle(struct arphdr *ah, struct ifnet *ifp,
-    struct llentry *la);
 static void arp_mark_lle_reachable(struct llentry *la);
+static void arp_iflladdr(void *arg __unused, struct ifnet *ifp);
 
+static eventhandler_tag iflladdr_tag;
 
 static const struct netisr_handler arp_nh = {
 	.nh_name = "arp",
@@ -143,26 +152,6 @@ static const struct netisr_handler arp_nh = {
 	.nh_proto = NETISR_ARP,
 	.nh_policy = NETISR_POLICY_SOURCE,
 };
-
-#ifdef AF_INET
-/*
- * called by in_scrubprefix() to remove entry from the table when
- * the interface goes away
- */
-void
-arp_ifscrub(struct ifnet *ifp, uint32_t addr)
-{
-	struct sockaddr_in addr4;
-
-	bzero((void *)&addr4, sizeof(addr4));
-	addr4.sin_len    = sizeof(addr4);
-	addr4.sin_family = AF_INET;
-	addr4.sin_addr.s_addr = addr;
-	IF_AFDATA_WLOCK(ifp);
-	lla_delete(LLTABLE(ifp), LLE_IFADDR, (struct sockaddr *)&addr4);
-	IF_AFDATA_WUNLOCK(ifp);
-}
-#endif
 
 /*
  * Timeout routine.  Age arp_tab entries periodically.
@@ -218,16 +207,14 @@ arptimer(void *arg)
 
 	/* Guard against race with other llentry_free(). */
 	if (lle->la_flags & LLE_LINKED) {
-		size_t pkts_dropped;
-
 		LLE_REMREF(lle);
-		pkts_dropped = llentry_free(lle);
-		ARPSTAT_ADD(dropped, pkts_dropped);
-	} else
-		LLE_FREE_LOCKED(lle);
-
+		lltable_unlink_entry(lle->lle_tbl, lle);
+	}
 	IF_AFDATA_UNLOCK(ifp);
 
+	size_t pkts_dropped = llentry_free(lle);
+
+	ARPSTAT_ADD(dropped, pkts_dropped);
 	ARPSTAT_INC(timeouts);
 
 	CURVNET_RESTORE();
@@ -323,7 +310,7 @@ static int
 arpresolve_full(struct ifnet *ifp, int is_gw, int create, struct mbuf *m,
 	const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
 {
-	struct llentry *la = NULL;
+	struct llentry *la = NULL, *la_tmp;
 	struct mbuf *curr = NULL;
 	struct mbuf *next = NULL;
 	int error, renew;
@@ -337,16 +324,28 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int create, struct mbuf *m,
 		IF_AFDATA_RUNLOCK(ifp);
 	}
 	if (la == NULL && (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
-		create = 1;
-		IF_AFDATA_WLOCK(ifp);
-		la = lla_create(LLTABLE(ifp), 0, dst);
-		IF_AFDATA_WUNLOCK(ifp);
-	}
-	if (la == NULL) {
-		if (create != 0)
+		la = lltable_alloc_entry(LLTABLE(ifp), 0, dst);
+		if (la == NULL) {
 			log(LOG_DEBUG,
 			    "arpresolve: can't allocate llinfo for %s on %s\n",
-			    inet_ntoa(SIN(dst)->sin_addr), ifp->if_xname);
+			    inet_ntoa(SIN(dst)->sin_addr), if_name(ifp));
+			m_freem(m);
+			return (EINVAL);
+		}
+
+		IF_AFDATA_WLOCK(ifp);
+		LLE_WLOCK(la);
+		la_tmp = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
+		/* Prefer ANY existing lle over newly-created one */
+		if (la_tmp == NULL)
+			lltable_link_entry(LLTABLE(ifp), la);
+		IF_AFDATA_WUNLOCK(ifp);
+		if (la_tmp != NULL) {
+			lltable_free_entry(LLTABLE(ifp), la);
+			la = la_tmp;
+		}
+	}
+	if (la == NULL) {
 		m_freem(m);
 		return (EINVAL);
 	}
@@ -517,34 +516,76 @@ static void
 arpintr(struct mbuf *m)
 {
 	struct arphdr *ar;
+	struct ifnet *ifp;
+	char *layer;
+	int hlen;
+
+	ifp = m->m_pkthdr.rcvif;
 
 	if (m->m_len < sizeof(struct arphdr) &&
 	    ((m = m_pullup(m, sizeof(struct arphdr))) == NULL)) {
-		log(LOG_NOTICE, "arp: runt packet -- m_pullup failed\n");
+		ARP_LOG(LOG_NOTICE, "packet with short header received on %s\n",
+		    if_name(ifp));
 		return;
 	}
 	ar = mtod(m, struct arphdr *);
 
-	if (ntohs(ar->ar_hrd) != ARPHRD_ETHER &&
-	    ntohs(ar->ar_hrd) != ARPHRD_IEEE802 &&
-	    ntohs(ar->ar_hrd) != ARPHRD_ARCNET &&
-	    ntohs(ar->ar_hrd) != ARPHRD_IEEE1394 &&
-	    ntohs(ar->ar_hrd) != ARPHRD_INFINIBAND) {
-		log(LOG_NOTICE, "arp: unknown hardware address format (0x%2D)"
-		    " (from %*D to %*D)\n", (unsigned char *)&ar->ar_hrd, "",
-		    ETHER_ADDR_LEN, (u_char *)ar_sha(ar), ":",
-		    ETHER_ADDR_LEN, (u_char *)ar_tha(ar), ":");
+	/* Check if length is sufficient */
+	if (m->m_len <  arphdr_len(ar)) {
+		m = m_pullup(m, arphdr_len(ar));
+		if (m == NULL) {
+			ARP_LOG(LOG_NOTICE, "short packet received on %s\n",
+			    if_name(ifp));
+			return;
+		}
+		ar = mtod(m, struct arphdr *);
+	}
+
+	hlen = 0;
+	layer = "";
+	switch (ntohs(ar->ar_hrd)) {
+	case ARPHRD_ETHER:
+		hlen = ETHER_ADDR_LEN; /* RFC 826 */
+		layer = "ethernet";
+		break;
+	case ARPHRD_IEEE802:
+		hlen = 6; /* RFC 1390, FDDI_ADDR_LEN */
+		layer = "fddi";
+		break;
+	case ARPHRD_ARCNET:
+		hlen = 1; /* RFC 1201, ARC_ADDR_LEN */
+		layer = "arcnet";
+		break;
+	case ARPHRD_INFINIBAND:
+		hlen = 20;	/* RFC 4391, INFINIBAND_ALEN */ 
+		layer = "infiniband";
+		break;
+	case ARPHRD_IEEE1394:
+		hlen = 0; /* SHALL be 16 */ /* RFC 2734 */
+		layer = "firewire";
+
+		/*
+		 * Restrict too long harware addresses.
+		 * Currently we are capable of handling 20-byte
+		 * addresses ( sizeof(lle->ll_addr) )
+		 */
+		if (ar->ar_hln >= 20)
+			hlen = 16;
+		break;
+	default:
+		ARP_LOG(LOG_NOTICE,
+		    "packet with unknown harware format 0x%02d received on %s\n",
+		    ntohs(ar->ar_hrd), if_name(ifp));
 		m_freem(m);
 		return;
 	}
 
-	if (m->m_len < arphdr_len(ar)) {
-		if ((m = m_pullup(m, arphdr_len(ar))) == NULL) {
-			log(LOG_NOTICE, "arp: runt packet\n");
-			m_freem(m);
-			return;
-		}
-		ar = mtod(m, struct arphdr *);
+	if (hlen != 0 && hlen != ar->ar_hln) {
+		ARP_LOG(LOG_NOTICE,
+		    "packet with invalid %s address length %d received on %s\n",
+		    layer, ar->ar_hln, if_name(ifp));
+		m_freem(m);
+		return;
 	}
 
 	ARPSTAT_INC(received);
@@ -577,9 +618,6 @@ static int log_arp_wrong_iface = 1;
 static int log_arp_movements = 1;
 static int log_arp_permanent_modify = 1;
 static int allow_multicast = 0;
-static struct timeval arp_lastlog;
-static int arp_curpps;
-static int arp_maxpps = 1;
 
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_wrong_iface, CTLFLAG_RW,
 	&log_arp_wrong_iface, 0,
@@ -592,15 +630,6 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_permanent_modify, CTLFLAG_RW,
 	"log arp replies from MACs different than the one in the permanent arp entry");
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, allow_multicast, CTLFLAG_RW,
 	&allow_multicast, 0, "accept multicast addresses");
-SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_log_per_second,
-	CTLFLAG_RW, &arp_maxpps, 0,
-	"Maximum number of remotely triggered ARP messages that can be "
-	"logged per second");
-
-#define	ARP_LOG(pri, ...)	do {					\
-	if (ppsratecheck(&arp_lastlog, &arp_curpps, arp_maxpps))	\
-		log((pri), "arp: " __VA_ARGS__);			\
-} while (0)
 
 static void
 in_arpinput(struct mbuf *m)
@@ -608,7 +637,7 @@ in_arpinput(struct mbuf *m)
 	struct rm_priotracker in_ifa_tracker;
 	struct arphdr *ah;
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
-	struct llentry *la = NULL;
+	struct llentry *la = NULL, *la_tmp;
 	struct rtentry *rt;
 	struct ifaddr *ifa;
 	struct in_ifaddr *ia;
@@ -616,10 +645,10 @@ in_arpinput(struct mbuf *m)
 	struct in_addr isaddr, itaddr, myaddr;
 	u_int8_t *enaddr = NULL;
 	int op;
-	int req_len;
 	int bridged = 0, is_bridge = 0;
 	int carped;
 	struct sockaddr_in sin;
+	struct sockaddr *dst;
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = 0;
@@ -629,13 +658,12 @@ in_arpinput(struct mbuf *m)
 	if (ifp->if_type == IFT_BRIDGE)
 		is_bridge = 1;
 
-	req_len = arphdr_len2(ifp->if_addrlen, sizeof(struct in_addr));
-	if (m->m_len < req_len && (m = m_pullup(m, req_len)) == NULL) {
-		ARP_LOG(LOG_NOTICE, "runt packet -- m_pullup failed\n");
-		return;
-	}
-
+	/*
+	 * We already have checked that mbuf contains enough contiguous data
+	 * to hold entire arp message according to the arp header.
+	 */
 	ah = mtod(m, struct arphdr *);
+
 	/*
 	 * ARP is only for IPv4 so we can reject packets with
 	 * a protocol length not equal to an IPv4 address.
@@ -778,8 +806,9 @@ match:
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
 	sin.sin_addr = isaddr;
+	dst = (struct sockaddr *)&sin;
 	IF_AFDATA_RLOCK(ifp);
-	la = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, (struct sockaddr *)&sin);
+	la = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
 	IF_AFDATA_RUNLOCK(ifp);
 	if (la != NULL)
 		arp_check_update_lle(ah, isaddr, ifp, bridged, la);
@@ -788,12 +817,47 @@ match:
 		 * Reply to our address, but no lle exists yet.
 		 * do we really have to create an entry?
 		 */
+		la = lltable_alloc_entry(LLTABLE(ifp), 0, dst);
+		if (la == NULL)
+			goto drop;
+		lltable_set_entry_addr(ifp, la, ar_sha(ah));
+
 		IF_AFDATA_WLOCK(ifp);
-		la = lla_create(LLTABLE(ifp), 0, (struct sockaddr *)&sin);
-		arp_update_lle(ah, ifp, la);
+		LLE_WLOCK(la);
+		la_tmp = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
+
+		/*
+		 * Check if lle still does not exists.
+		 * If it does, that means that we either
+		 * 1) have configured it explicitly, via
+		 * 1a) 'arp -s' static entry or
+		 * 1b) interface address static record
+		 * or
+		 * 2) it was the result of sending first packet to-host
+		 * or
+		 * 3) it was another arp reply packet we handled in
+		 * different thread.
+		 *
+		 * In all cases except 3) we definitely need to prefer
+		 * existing lle. For the sake of simplicity, prefer any
+		 * existing lle over newly-create one.
+		 */
+		if (la_tmp == NULL)
+			lltable_link_entry(LLTABLE(ifp), la);
 		IF_AFDATA_WUNLOCK(ifp);
-		arp_mark_lle_reachable(la);
-		LLE_WUNLOCK(la);
+
+		if (la_tmp == NULL) {
+			arp_mark_lle_reachable(la);
+			LLE_WUNLOCK(la);
+		} else {
+			/* Free newly-create entry and handle packet */
+			lltable_free_entry(LLTABLE(ifp), la);
+			la = la_tmp;
+			la_tmp = NULL;
+			arp_check_update_lle(ah, isaddr, ifp, bridged, la);
+			/* arp_check_update_lle() returns @la unlocked */
+		}
+		la = NULL;
 	}
 reply:
 	if (op != ARPOP_REQUEST)
@@ -974,7 +1038,7 @@ arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp
 		}
 
 		/* Update data */
-		arp_update_lle(ah, ifp, la);
+		lltable_set_entry_addr(ifp, la, ar_sha(ah));
 
 		IF_AFDATA_WUNLOCK(ifp);
 		LLE_REMREF(la);
@@ -1006,17 +1070,6 @@ arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp
 		LLE_WUNLOCK(la);
 }
 
-/*
- * Updates @la fields used by fast path code.
- */
-static void
-arp_update_lle(struct arphdr *ah, struct ifnet *ifp, struct llentry *la)
-{
-
-	memcpy(&la->ll_addr, ar_sha(ah), ifp->if_addrlen);
-	la->la_flags |= LLE_VALID;
-}
-
 static void
 arp_mark_lle_reachable(struct llentry *la)
 {
@@ -1038,42 +1091,96 @@ arp_mark_lle_reachable(struct llentry *la)
 	la->la_preempt = V_arp_maxtries;
 }
 
+/*
+ * Add pernament link-layer record for given interface address.
+ */
+static __noinline void
+arp_add_ifa_lle(struct ifnet *ifp, const struct sockaddr *dst)
+{
+	struct llentry *lle, *lle_tmp;
+
+	/*
+	 * Interface address LLE record is considered static
+	 * because kernel code relies on LLE_STATIC flag to check
+	 * if these entries can be rewriten by arp updates.
+	 */
+	lle = lltable_alloc_entry(LLTABLE(ifp), LLE_IFADDR | LLE_STATIC, dst);
+	if (lle == NULL) {
+		log(LOG_INFO, "arp_ifinit: cannot create arp "
+		    "entry for interface address\n");
+		return;
+	}
+
+	IF_AFDATA_WLOCK(ifp);
+	LLE_WLOCK(lle);
+	/* Unlink any entry if exists */
+	lle_tmp = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
+	if (lle_tmp != NULL)
+		lltable_unlink_entry(LLTABLE(ifp), lle_tmp);
+
+	lltable_link_entry(LLTABLE(ifp), lle);
+	IF_AFDATA_WUNLOCK(ifp);
+
+	if (lle_tmp != NULL)
+		EVENTHANDLER_INVOKE(lle_event, lle_tmp, LLENTRY_EXPIRED);
+
+	EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_RESOLVED);
+	LLE_WUNLOCK(lle);
+	if (lle_tmp != NULL)
+		lltable_free_entry(LLTABLE(ifp), lle_tmp);
+}
+
 void
 arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 {
-	struct llentry *lle;
+	const struct sockaddr_in *dst_in;
+	const struct sockaddr *dst;
 
 	if (ifa->ifa_carp != NULL)
 		return;
 
-	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) != INADDR_ANY) {
-		arprequest(ifp, &IA_SIN(ifa)->sin_addr,
-				&IA_SIN(ifa)->sin_addr, IF_LLADDR(ifp));
-		/*
-		 * interface address is considered static entry
-		 * because the output of the arp utility shows
-		 * that L2 entry as permanent
-		 */
-		IF_AFDATA_LOCK(ifp);
-		lle = lla_create(LLTABLE(ifp), LLE_IFADDR | LLE_STATIC,
-				 (struct sockaddr *)IA_SIN(ifa));
-		IF_AFDATA_UNLOCK(ifp);
-		if (lle == NULL)
-			log(LOG_INFO, "arp_ifinit: cannot create arp "
-			    "entry for interface address\n");
-		else
-			LLE_WUNLOCK(lle);
-	}
-	ifa->ifa_rtrequest = NULL;
+	dst = ifa->ifa_addr;
+	dst_in = (const struct sockaddr_in *)dst;
+
+	if (ntohl(dst_in->sin_addr.s_addr) == INADDR_ANY)
+		return;
+	arp_announce_ifaddr(ifp, dst_in->sin_addr, IF_LLADDR(ifp));
+
+	arp_add_ifa_lle(ifp, dst);
 }
 
 void
-arp_ifinit2(struct ifnet *ifp, struct ifaddr *ifa, u_char *enaddr)
+arp_announce_ifaddr(struct ifnet *ifp, struct in_addr addr, u_char *enaddr)
 {
-	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) != INADDR_ANY)
-		arprequest(ifp, &IA_SIN(ifa)->sin_addr,
-				&IA_SIN(ifa)->sin_addr, enaddr);
-	ifa->ifa_rtrequest = NULL;
+
+	if (ntohl(addr.s_addr) != INADDR_ANY)
+		arprequest(ifp, &addr, &addr, enaddr);
+}
+
+/*
+ * Sends gratuitous ARPs for each ifaddr to notify other
+ * nodes about the address change.
+ */
+static __noinline void
+arp_handle_ifllchange(struct ifnet *ifp)
+{
+	struct ifaddr *ifa;
+
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family == AF_INET)
+			arp_ifinit(ifp, ifa);
+	}
+}
+
+/*
+ * A handler for interface link layer address change event.
+ */
+static __noinline void
+arp_iflladdr(void *arg __unused, struct ifnet *ifp)
+{
+
+	if ((ifp->if_flags & IFF_UP) != 0)
+		arp_handle_ifllchange(ifp);
 }
 
 static void
@@ -1081,5 +1188,8 @@ arp_init(void)
 {
 
 	netisr_register(&arp_nh);
+	if (IS_DEFAULT_VNET(curvnet))
+		iflladdr_tag = EVENTHANDLER_REGISTER(iflladdr_event,
+		    arp_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
 }
 SYSINIT(arp, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, arp_init, 0);

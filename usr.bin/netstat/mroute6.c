@@ -186,9 +186,11 @@ mroute6pr()
 			xo_open_instance("multicast-forwarding-cache");
 
 			xo_emit(" {:origin/%-*.*s}", WID_ORG, WID_ORG,
-			    routename6(&mfc.mf6c_origin));
+			    routename(sin6tosa(&mfc.mf6c_origin),
+			    numeric_addr));
 			xo_emit(" {:group/%-*.*s}", WID_GRP, WID_GRP,
-			    routename6(&mfc.mf6c_mcastgrp));
+			    routename(sin6tosa(&mfc.mf6c_mcastgrp),
+			    numeric_addr));
 			xo_emit(" {:total-packets/%9ju}",
 			    (uintmax_t)mfc.mf6c_pkt_cnt);
 
@@ -229,13 +231,10 @@ void
 mrt6_stats()
 {
 	struct mrt6stat mrtstat;
-	size_t len = sizeof mrtstat;
 
-	if (sysctlbyname("net.inet6.ip6.mrt6stat", &mrtstat, &len, NULL, 0) <
-	    0) {
-		xo_warn("sysctl: net.inet6.ip6.mrt6stat");
+	if (fetch_stats("net.inet6.ip6.mrt6stat", 0, &mrtstat,
+	    sizeof(mrtstat), kread_counters) != 0)
 		return;
-	}
 
 	xo_open_container("multicast-statistics");
 	xo_emit("{T:IPv6 multicast forwarding}:\n");

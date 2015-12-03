@@ -74,6 +74,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
+#ifdef TCPPCAP
+#include <netinet/tcp_pcap.h>
+#endif
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
@@ -811,7 +814,8 @@ send:
 			 */
 			if (if_hw_tsomax != 0) {
 				/* compute maximum TSO length */
-				max_len = (if_hw_tsomax - hdrlen);
+				max_len = (if_hw_tsomax - hdrlen -
+				    max_linkhdr);
 				if (max_len <= 0) {
 					len = 0;
 				} else if (len > max_len) {
@@ -826,6 +830,15 @@ send:
 			 */
 			if (if_hw_tsomaxsegcount != 0 &&
 			    if_hw_tsomaxsegsize != 0) {
+				/*
+				 * Subtract one segment for the LINK
+				 * and TCP/IP headers mbuf that will
+				 * be prepended to this mbuf chain
+				 * after the code in this section
+				 * limits the number of mbufs in the
+				 * chain to if_hw_tsomaxsegcount.
+				 */
+				if_hw_tsomaxsegcount -= 1;
 				max_len = 0;
 				mb = sbsndmbuf(&so->so_snd, off, &moff);
 
@@ -1253,6 +1266,7 @@ send:
 		ipov->ih_len = save;
 	}
 #endif /* TCPDEBUG */
+	TCP_PROBE3(debug__input, tp, th, mtod(m, const char *));
 
 	/*
 	 * Fill in IP length and desired time to live and
@@ -1293,6 +1307,11 @@ send:
 			TCP_PROBE5(connect__request, NULL, tp, ip6, tp, th);
 
 		TCP_PROBE5(send, NULL, tp, ip6, tp, th);
+
+#ifdef TCPPCAP
+		/* Save packet, if requested. */
+		tcp_pcap_add(th, m, &(tp->t_outpkts));
+#endif
 
 		/* TODO: IPv6 IP6TOS_ECT bit on */
 		error = ip6_output(m, tp->t_inpcb->in6p_outputopts, &ro,
@@ -1336,6 +1355,11 @@ send:
 		TCP_PROBE5(connect__request, NULL, tp, ip, tp, th);
 
 	TCP_PROBE5(send, NULL, tp, ip, tp, th);
+
+#ifdef TCPPCAP
+	/* Save packet, if requested. */
+	tcp_pcap_add(th, m, &(tp->t_outpkts));
+#endif
 
 	error = ip_output(m, tp->t_inpcb->inp_options, &ro,
 	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,

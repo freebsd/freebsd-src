@@ -10,8 +10,8 @@ uart_bus_ebus=	uart_bus_ebus.c
 uart_dev_lpc=	uart_dev_lpc.c
 .endif
 
-.if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "sparc64" || \
-    ${MACHINE_CPUARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm" || \
+    ${MACHINE_CPUARCH} == "sparc64" || ${MACHINE_CPUARCH} == "powerpc"
 ofw_bus_if=	ofw_bus_if.h
 .endif
 
@@ -34,6 +34,6 @@ SRCS=	uart_bus_acpi.c ${uart_bus_ebus} uart_bus_isa.c uart_bus_pccard.c \
 
 SRCS+=	bus_if.h card_if.h device_if.h isa_if.h ${ofw_bus_if} pci_if.h \
 	power_if.h pccarddevs.h serdev_if.h
-SRCS+=	opt_platform.h
+SRCS+=	opt_platform.h opt_uart.h
 
 .include <bsd.kmod.mk>

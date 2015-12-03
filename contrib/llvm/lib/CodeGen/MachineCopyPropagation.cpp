@@ -54,7 +54,6 @@ namespace {
                                  SourceMap &SrcMap,
                                  DenseMap<unsigned, MachineInstr*> &AvailCopyMap);
     bool CopyPropagateBlock(MachineBasicBlock &MBB);
-    void removeCopy(MachineInstr *MI);
   };
 }
 char MachineCopyPropagation::ID = 0;
@@ -127,13 +126,6 @@ static bool isNopCopy(MachineInstr *CopyMI, unsigned Def, unsigned Src,
   return false;
 }
 
-// Remove MI from the function because it has been determined it is dead.
-// Turn it into a noop KILL instruction as opposed to removing it to
-// maintain imp-use/imp-def chains.
-void MachineCopyPropagation::removeCopy(MachineInstr *MI) {
-  MI->setDesc(TII->get(TargetOpcode::KILL));
-}
-
 bool MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
   SmallSetVector<MachineInstr*, 8> MaybeDeadCopies;  // Candidates for deletion
   DenseMap<unsigned, MachineInstr*> AvailCopyMap;    // Def -> available copies map
@@ -183,7 +175,7 @@ bool MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
           for (MachineBasicBlock::iterator I = CopyMI, E = MI; I != E; ++I)
             I->clearRegisterKills(Def, TRI);
 
-          removeCopy(MI);
+          MI->eraseFromParent();
           Changed = true;
           ++NumDeletes;
           continue;
@@ -266,6 +258,14 @@ bool MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
           MaybeDeadCopies.remove(CI->second);
         }
       }
+      // Treat undef use like defs for copy propagation but not for
+      // dead copy. We would need to do a liveness check to be sure the copy
+      // is dead for undef uses.
+      // The backends are allowed to do whatever they want with undef value
+      // and we cannot be sure this register will not be rewritten to break
+      // some false dependencies for the hardware for instance.
+      if (MO.isUndef())
+        Defs.push_back(Reg);
     }
 
     // The instruction has a register mask operand which means that it clobbers
@@ -283,7 +283,7 @@ bool MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
           continue;
         DEBUG(dbgs() << "MCP: Removing copy due to regmask clobbering: ";
               (*DI)->dump());
-        removeCopy(*DI);
+        (*DI)->eraseFromParent();
         Changed = true;
         ++NumDeletes;
       }
@@ -319,7 +319,7 @@ bool MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
            DI = MaybeDeadCopies.begin(), DE = MaybeDeadCopies.end();
          DI != DE; ++DI) {
       if (!MRI->isReserved((*DI)->getOperand(0).getReg())) {
-        removeCopy(*DI);
+        (*DI)->eraseFromParent();
         Changed = true;
         ++NumDeletes;
       }

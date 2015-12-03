@@ -5,7 +5,7 @@
 
 PROG=	pkill
 
-LIBADD=	kvm
+LIBADD=	kvm jail
 
 LINKS=	${BINDIR}/pkill ${BINDIR}/pgrep
 MLINKS=	pkill.1 pgrep.1

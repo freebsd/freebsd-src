@@ -1621,8 +1621,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 * Use vt(4) by default for UEFI boot (during the sc(4)/vt(4)
 	 * transition).
 	 */
-	if (kmdp != NULL && preload_search_info(kmdp,
-	    MODINFO_METADATA | MODINFOMD_EFI_MAP) != NULL)
+	if (preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_EFI_MAP)
+	    != NULL)
 		vty_set_preferred(VTY_VT);
 
 	identify_cpu();		/* Final stage of CPU initialization */

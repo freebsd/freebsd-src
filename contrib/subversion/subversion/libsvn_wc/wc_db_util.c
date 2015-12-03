@@ -83,7 +83,7 @@ static svn_error_t *
 relpath_depth_sqlite(svn_sqlite__context_t *sctx,
                      int argc,
                      svn_sqlite__value_t *values[],
-                     apr_pool_t *scratch_pool)
+                     void *baton)
 {
   const char *path = NULL;
   apr_int64_t depth;
@@ -115,6 +115,7 @@ svn_wc__db_util_open_db(svn_sqlite__db_t **sdb,
                         const char *sdb_fname,
                         svn_sqlite__mode_t smode,
                         svn_boolean_t exclusive,
+                        apr_int32_t timeout,
                         const char *const *my_statements,
                         apr_pool_t *result_pool,
                         apr_pool_t *scratch_pool)
@@ -139,74 +140,15 @@ svn_wc__db_util_open_db(svn_sqlite__db_t **sdb,
 
   SVN_ERR(svn_sqlite__open(sdb, sdb_abspath, smode,
                            my_statements ? my_statements : statements,
-                           0, NULL, result_pool, scratch_pool));
+                           0, NULL, timeout, result_pool, scratch_pool));
 
   if (exclusive)
     SVN_ERR(svn_sqlite__exec_statements(*sdb, STMT_PRAGMA_LOCKING_MODE));
 
   SVN_ERR(svn_sqlite__create_scalar_function(*sdb, "relpath_depth", 1,
+                                             TRUE /* deterministic */,
                                              relpath_depth_sqlite, NULL));
 
   return SVN_NO_ERROR;
 }
 
-
-/* Some helpful transaction helpers.
-
-   Instead of directly using SQLite transactions, these wrappers
-   relieve the consumer from the need to wrap the wcroot and
-   local_relpath, which are almost always used within the transaction.
-
-   This also means if we later want to implement some wc_db-specific txn
-   handling, we have a convenient place to do it.
-   */
-
-/* A callback which supplies WCROOTs and LOCAL_RELPATHs. */
-typedef svn_error_t *(*db_txn_callback_t)(void *baton,
-                                          svn_wc__db_wcroot_t *wcroot,
-                                          const char *local_relpath,
-                                          apr_pool_t *scratch_pool);
-
-/* Baton for use with run_txn() and with_db_txn(). */
-struct txn_baton_t
-{
-  svn_wc__db_wcroot_t *wcroot;
-  const char *local_relpath;
-
-  db_txn_callback_t cb_func;
-  void *cb_baton;
-};
-
-
-/* Unwrap the sqlite transaction into a wc_db txn.
-   Implements svn_sqlite__transaction_callback_t. */
-static svn_error_t *
-run_txn(void *baton, svn_sqlite__db_t *db, apr_pool_t *scratch_pool)
-{
-  struct txn_baton_t *tb = baton;
-
-  return svn_error_trace(
-    tb->cb_func(tb->cb_baton, tb->wcroot, tb->local_relpath, scratch_pool));
-}
-
-
-/* Run CB_FUNC in a SQLite transaction with CB_BATON, using WCROOT and
-   LOCAL_RELPATH.  If callbacks require additional information, they may
-   provide it using CB_BATON. */
-svn_error_t *
-svn_wc__db_with_txn(svn_wc__db_wcroot_t *wcroot,
-                    const char *local_relpath,
-                    svn_wc__db_txn_callback_t cb_func,
-                    void *cb_baton,
-                    apr_pool_t *scratch_pool)
-{
-  struct txn_baton_t tb;
-
-  tb.wcroot = wcroot;
-  tb.local_relpath = local_relpath;
-  tb.cb_func = cb_func;
-  tb.cb_baton = cb_baton;
-
-  return svn_error_trace(
-    svn_sqlite__with_lock(wcroot->sdb, run_txn, &tb, scratch_pool));
-}

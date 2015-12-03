@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 .\" Man page generated from reStructuredText.
 .
-.TH "LLVM-COV" "1" "2015-04-01" "3.6" "LLVM"
+.TH "LLVM-COV" "1" "2015-05-30" "3.7" "LLVM"
 .SH NAME
 llvm-cov \- emit coverage information
 .
@@ -33,16 +33,39 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 ..
 .SH SYNOPSIS
 .sp
-\fBllvm\-cov\fP [options] SOURCEFILE
+\fBllvm\-cov\fP \fIcommand\fP [\fIargs...\fP]
 .SH DESCRIPTION
 .sp
-The \fBllvm\-cov\fP tool reads code coverage data files and displays the
-coverage information for a specified source file. It is compatible with the
-\fBgcov\fP tool from version 4.2 of \fBGCC\fP and may also be compatible with
-some later versions of \fBgcov\fP\&.
+The \fBllvm\-cov\fP tool shows code coverage information for
+programs that are instrumented to emit profile data. It can be used to
+work with \fBgcov\fP\-style coverage or with \fBclang\fP\(aqs instrumentation
+based profiling.
 .sp
-To use llvm\-cov, you must first build an instrumented version of your
-application that collects coverage data as it runs. Compile with the
+If the program is invoked with a base name of \fBgcov\fP, it will behave as if
+the \fBllvm\-cov gcov\fP command were called. Otherwise, a command should
+be provided.
+.SH COMMANDS
+.INDENT 0.0
+.IP \(bu 2
+\fI\%gcov\fP
+.IP \(bu 2
+\fI\%show\fP
+.IP \(bu 2
+\fI\%report\fP
+.UNINDENT
+.SH GCOV COMMAND
+.SS SYNOPSIS
+.sp
+\fBllvm\-cov gcov\fP [\fIoptions\fP] \fISOURCEFILE\fP
+.SS DESCRIPTION
+.sp
+The \fBllvm\-cov gcov\fP tool reads code coverage data files and displays
+the coverage information for a specified source file. It is compatible with the
+\fBgcov\fP tool from version 4.2 of \fBGCC\fP and may also be compatible with some
+later versions of \fBgcov\fP\&.
+.sp
+To use \fBllvm\-cov gcov\fP, you must first build an instrumented version
+of your application that collects coverage data as it runs. Compile with the
 \fB\-fprofile\-arcs\fP and \fB\-ftest\-coverage\fP options to add the
 instrumentation. (Alternatively, you can use the \fB\-\-coverage\fP option, which
 includes both of those other options.) You should compile with debugging
@@ -66,21 +89,21 @@ directories, the prefix from the \fBGCOV_PREFIX\fP variable is added. These
 environment variables allow you to run the instrumented program on a machine
 where the original object file directories are not accessible, but you will
 then need to copy the \fB\&.gcda\fP files back to the object file directories
-where llvm\-cov expects to find them.
+where \fBllvm\-cov gcov\fP expects to find them.
 .sp
-Once you have generated the coverage data files, run llvm\-cov for each main
-source file where you want to examine the coverage results. This should be run
-from the same directory where you previously ran the compiler. The results for
-the specified source file are written to a file named by appending a \fB\&.gcov\fP
-suffix. A separate output file is also created for each file included by the
-main source file, also with a \fB\&.gcov\fP suffix added.
+Once you have generated the coverage data files, run \fBllvm\-cov gcov\fP
+for each main source file where you want to examine the coverage results. This
+should be run from the same directory where you previously ran the
+compiler. The results for the specified source file are written to a file named
+by appending a \fB\&.gcov\fP suffix. A separate output file is also created for
+each file included by the main source file, also with a \fB\&.gcov\fP suffix added.
 .sp
-The basic content of an llvm\-cov output file is a copy of the source file with
+The basic content of an \fB\&.gcov\fP output file is a copy of the source file with
 an execution count and line number prepended to every line. The execution
 count is shown as \fB\-\fP if a line does not contain any executable code. If
 a line contains code but that code was never executed, the count is displayed
 as \fB#####\fP\&.
-.SH OPTIONS
+.SS OPTIONS
 .INDENT 0.0
 .TP
 .B \-a, \-\-all\-blocks
@@ -153,10 +176,141 @@ option.
 .B \-version
 Display the version of llvm\-cov.
 .UNINDENT
-.SH EXIT STATUS
+.SS EXIT STATUS
 .sp
-\fBllvm\-cov\fP returns 1 if it cannot read input files.  Otherwise, it
-exits with zero.
+\fBllvm\-cov gcov\fP returns 1 if it cannot read input files.  Otherwise,
+it exits with zero.
+.SH SHOW COMMAND
+.SS SYNOPSIS
+.sp
+\fBllvm\-cov show\fP [\fIoptions\fP] \-instr\-profile \fIPROFILE\fP \fIBIN\fP [\fISOURCES\fP]
+.SS DESCRIPTION
+.sp
+The \fBllvm\-cov show\fP command shows line by line coverage of a binary
+\fIBIN\fP using the profile data \fIPROFILE\fP\&. It can optionally be filtered to only
+show the coverage for the files listed in \fISOURCES\fP\&.
+.sp
+To use \fBllvm\-cov show\fP, you need a program that is compiled with
+instrumentation to emit profile and coverage data. To build such a program with
+\fBclang\fP use the \fB\-fprofile\-instr\-generate\fP and \fB\-fcoverage\-mapping\fP
+flags. If linking with the \fBclang\fP driver, pass \fB\-fprofile\-instr\-generate\fP
+to the link stage to make sure the necessary runtime libraries are linked in.
+.sp
+The coverage information is stored in the built executable or library itself,
+and this is what you should pass to \fBllvm\-cov show\fP as the \fIBIN\fP
+argument. The profile data is generated by running this instrumented program
+normally. When the program exits it will write out a raw profile file,
+typically called \fBdefault.profraw\fP, which can be converted to a format that
+is suitable for the \fIPROFILE\fP argument using the \fBllvm\-profdata merge\fP
+tool.
+.SS OPTIONS
+.INDENT 0.0
+.TP
+.B \-show\-line\-counts
+Show the execution counts for each line. This is enabled by default, unless
+another \fB\-show\fP option is used.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-show\-expansions
+Expand inclusions, such as preprocessor macros or textual inclusions, inline
+in the display of the source file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-show\-instantiations
+For source regions that are instantiated multiple times, such as templates in
+\fBC++\fP, show each instantiation separately as well as the combined summary.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-show\-regions
+Show the execution counts for each region by displaying a caret that points to
+the character where the region starts.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-show\-line\-counts\-or\-regions
+Show the execution counts for each line if there is only one region on the
+line, but show the individual regions if there are multiple on the line.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-use\-color[=VALUE]
+Enable or disable color output. By default this is autodetected.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-arch=<name>
+If the covered binary is a universal binary, select the architecture to use.
+It is an error to specify an architecture that is not included in the
+universal binary or to use an architecture that does not match a
+non\-universal binary.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-name=<NAME>
+Show code coverage only for functions with the given name.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-name\-regex=<PATTERN>
+Show code coverage only for functions that match the given regular expression.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-line\-coverage\-gt=<N>
+Show code coverage only for functions with line coverage greater than the
+given threshold.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-line\-coverage\-lt=<N>
+Show code coverage only for functions with line coverage less than the given
+threshold.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-region\-coverage\-gt=<N>
+Show code coverage only for functions with region coverage greater than the
+given threshold.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-region\-coverage\-lt=<N>
+Show code coverage only for functions with region coverage less than the given
+threshold.
+.UNINDENT
+.SH REPORT COMMAND
+.SS SYNOPSIS
+.sp
+\fBllvm\-cov report\fP [\fIoptions\fP] \-instr\-profile \fIPROFILE\fP \fIBIN\fP [\fISOURCES\fP]
+.SS DESCRIPTION
+.sp
+The \fBllvm\-cov report\fP command displays a summary of the coverage of a
+binary \fIBIN\fP using the profile data \fIPROFILE\fP\&. It can optionally be filtered to
+only show the coverage for the files listed in \fISOURCES\fP\&.
+.sp
+If no source files are provided, a summary line is printed for each file in the
+coverage data. If any files are provided, summaries are shown for each function
+in the listed files instead.
+.sp
+For information on compiling programs for coverage and generating profile data,
+see \fI\%SHOW COMMAND\fP\&.
+.SS OPTIONS
+.INDENT 0.0
+.TP
+.B \-use\-color[=VALUE]
+Enable or disable color output. By default this is autodetected.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-arch=<name>
+If the covered binary is a universal binary, select the architecture to use.
+It is an error to specify an architecture that is not included in the
+universal binary or to use an architecture that does not match a
+non\-universal binary.
+.UNINDENT
 .SH AUTHOR
 Maintained by The LLVM Team (http://llvm.org/).
 .SH COPYRIGHT

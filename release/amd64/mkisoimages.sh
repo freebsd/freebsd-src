@@ -34,7 +34,7 @@ if [ "x$1" = "x-b" ]; then
 	mkdir efi
 	mount -t msdosfs /dev/$device efi
 	mkdir -p efi/efi/boot
-	cp ${4}/boot/loader.efi efi/efi/boot/bootx64.efi
+	cp "$4/boot/loader.efi" efi/efi/boot/bootx64.efi
 	umount efi
 	rmdir efi
 	mdconfig -d -u $device
@@ -46,15 +46,15 @@ else
 fi
 
 if [ $# -lt 3 ]; then
-	echo Usage: $0 '[-b] image-label image-name base-bits-dir [extra-bits-dir]'
+	echo "Usage: $0 [-b] image-label image-name base-bits-dir [extra-bits-dir]"
 	exit 1
 fi
 
-LABEL=`echo $1 | tr '[:lower:]' '[:upper:]'`; shift
-NAME=$1; shift
+LABEL=`echo "$1" | tr '[:lower:]' '[:upper:]'`; shift
+NAME="$1"; shift
 
 publisher="The FreeBSD Project.  http://www.FreeBSD.org/"
-echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > $1/etc/fstab
-makefs -t cd9660 $bootable -o rockridge -o label=$LABEL -o publisher="$publisher" $NAME $*
-rm $1/etc/fstab
+echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$1/etc/fstab"
+makefs -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@"
+rm "$1/etc/fstab"
 rm -f efiboot.img

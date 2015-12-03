@@ -11,33 +11,15 @@
 .Dt LIBXO 3
 .Os
 .Sh NAME
-.Nm xo_emit
-.Nd emit formatted output based on format string and arguments
-.Sh LIBRARY
-.Lb libxo
-.Sh SYNOPSIS
-.In libxo/xo.h
-.Sh NAME
-.Nm xo_open_list
-.Nm xo_open_list_h
-.Nm xo_open_list_hd
-.Nm xo_open_list_d
-.Nm xo_open_instance
-.Nm xo_open_instance_h
-.Nm xo_open_instance_hd
-.Nm xo_open_instance_d
-.Nm xo_close_instance
-.Nm xo_close_instance_h
-.Nm xo_close_instance_hd
-.Nm xo_close_instance_d
-.Nm xo_close_list
-.Nm xo_close_list_h
-.Nm xo_close_list_hd
-.Nm xo_close_list_d
+.Nm xo_open_list , xo_open_list_h , xo_open_list_hd , xo_open_list_d
+.Nm xo_open_instance , xo_open_instance_h , xo_open_instance_hd , xo_open_instance_d
+.Nm xo_close_instance , xo_close_instance_h , xo_close_instance_hd , xo_close_instnace_d
+.Nm xo_close_list , xo_close_list_h , xo_close_list_hd , xo_close_list_d
 .Nd open and close lists and instances
 .Sh LIBRARY
 .Lb libxo
 .Sh SYNOPSIS
+.In libxo/xo.h
 .Ft int
 .Fn xo_open_list_h "xo_handle_t *xop" "const char *name"
 .Ft int
@@ -171,30 +153,6 @@ are rendered as multiple leaf elements.
         <item>hammer</item>
         <item>nail</item>
 .Ed
-.Sh ADDITIONAL DOCUMENTATION
-Complete documentation can be found on github:
-.Bd -literal -offset indent
-http://juniper.github.io/libxo/libxo-manual.html
-.Ed
-.Pp
-.Nm libxo
-lives on github as:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo
-.Ed
-.Pp
-The latest release of
-.Nm libxo
-is available at:
-.Bd -literal -offset indent
-https://github.com/Juniper/libxo/releases
-.Ed
 .Sh SEE ALSO
-.Xr xo_emit 3
-.Sh HISTORY
-The
-.Nm libxo
-library was added in
-.Fx 11.0 .
-.Sh AUTHOR
-Phil Shafer
+.Xr xo_emit 3 ,
+.Xr libxo 3

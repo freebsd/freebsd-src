@@ -283,22 +283,6 @@ ath_txfrag_setup(struct ath_softc *sc, ath_bufhead *frags,
 	return !TAILQ_EMPTY(frags);
 }
 
-/*
- * Reclaim mbuf resources.  For fragmented frames we
- * need to claim each frag chained with m_nextpkt.
- */
-void
-ath_freetx(struct mbuf *m)
-{
-	struct mbuf *next;
-
-	do {
-		next = m->m_nextpkt;
-		m->m_nextpkt = NULL;
-		m_freem(m);
-	} while ((m = next) != NULL);
-}
-
 static int
 ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 {
@@ -317,7 +301,7 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 		bf->bf_nseg = ATH_MAX_SCATTER + 1;
 	} else if (error != 0) {
 		sc->sc_stats.ast_tx_busdma++;
-		ath_freetx(m0);
+		ieee80211_free_mbuf(m0);
 		return error;
 	}
 	/*
@@ -329,7 +313,7 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 		sc->sc_stats.ast_tx_linear++;
 		m = m_collapse(m0, M_NOWAIT, ATH_MAX_SCATTER);
 		if (m == NULL) {
-			ath_freetx(m0);
+			ieee80211_free_mbuf(m0);
 			sc->sc_stats.ast_tx_nombuf++;
 			return ENOMEM;
 		}
@@ -339,14 +323,14 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 					     BUS_DMA_NOWAIT);
 		if (error != 0) {
 			sc->sc_stats.ast_tx_busdma++;
-			ath_freetx(m0);
+			ieee80211_free_mbuf(m0);
 			return error;
 		}
 		KASSERT(bf->bf_nseg <= ATH_MAX_SCATTER,
 		    ("too many segments after defrag; nseg %u", bf->bf_nseg));
 	} else if (bf->bf_nseg == 0) {		/* null packet, discard */
 		sc->sc_stats.ast_tx_nodata++;
-		ath_freetx(m0);
+		ieee80211_free_mbuf(m0);
 		return EIO;
 	}
 	DPRINTF(sc, ATH_DEBUG_XMIT, "%s: m %p len %u\n",
@@ -1051,8 +1035,7 @@ ath_tx_calc_protection(struct ath_softc *sc, struct ath_buf *bf)
 	uint16_t flags;
 	int shortPreamble;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	flags = bf->bf_state.bfs_txflags;
 	rix = bf->bf_state.bfs_rc[0].rix;
@@ -1545,8 +1528,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ath_hal *ah = sc->sc_ah;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	const struct chanAccParams *cap = &ic->ic_wme.wme_chanParams;
 	int error, iswep, ismcast, isfrag, ismrr;
 	int keyix, hdrlen, pktlen, try0 = 0;
@@ -1583,7 +1565,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* Handle encryption twiddling if needed */
 	if (! ath_tx_tag_crypto(sc, ni, m0, iswep, isfrag, &hdrlen,
 	    &pktlen, &keyix)) {
-		ath_freetx(m0);
+		ieee80211_free_mbuf(m0);
 		return EIO;
 	}
 
@@ -1695,7 +1677,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		    wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK, __func__);
 		/* XXX statistic */
 		/* XXX free tx dmamap */
-		ath_freetx(m0);
+		ieee80211_free_mbuf(m0);
 		return EIO;
 	}
 
@@ -1751,7 +1733,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		    "%s: discard frame, ACK required w/ TDMA\n", __func__);
 		sc->sc_stats.ast_tdma_ack++;
 		/* XXX free tx dmamap */
-		ath_freetx(m0);
+		ieee80211_free_mbuf(m0);
 		return EIO;
 	}
 #endif
@@ -2074,8 +2056,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	struct ath_buf *bf, struct mbuf *m0,
 	const struct ieee80211_bpf_params *params)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_hal *ah = sc->sc_ah;
 	struct ieee80211vap *vap = ni->ni_vap;
 	int error, ismcast, ismrr;
@@ -2136,7 +2117,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	if (! ath_tx_tag_crypto(sc, ni,
 	    m0, params->ibp_flags & IEEE80211_BPF_CRYPTO, 0,
 	    &hdrlen, &pktlen, &keyix)) {
-		ath_freetx(m0);
+		ieee80211_free_mbuf(m0);
 		return EIO;
 	}
 	/* packet header may have moved, reset our local pointer */
@@ -2340,7 +2321,6 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = ic->ic_ifp;
 	struct ath_softc *sc = ic->ic_softc;
 	struct ath_buf *bf;
 	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
@@ -2364,10 +2344,9 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	ATH_TX_LOCK(sc);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid) {
-		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: discard frame, %s", __func__,
-		    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ?
-			"!running" : "invalid");
+	if (!sc->sc_running || sc->sc_invalid) {
+		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: discard frame, r/i: %d/%d",
+		    __func__, sc->sc_running, sc->sc_invalid);
 		m_freem(m);
 		error = ENETDOWN;
 		goto bad;
@@ -2424,7 +2403,6 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		}
 	}
 	sc->sc_wd_timer = 5;
-	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	sc->sc_stats.ast_tx_raw++;
 
 	/*
@@ -2473,9 +2451,7 @@ bad:
 badbad:
 	ATH_KTR(sc, ATH_KTR_TX, 2, "ath_raw_xmit: bad0: m=%p, params=%p",
 	    m, params);
-	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	sc->sc_stats.ast_tx_raw_fail++;
-	ieee80211_free_node(ni);
 
 	return error;
 }

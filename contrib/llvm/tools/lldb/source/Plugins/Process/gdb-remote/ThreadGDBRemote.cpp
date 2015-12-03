@@ -21,6 +21,7 @@
 #include "lldb/Target/StopInfo.h"
 #include "lldb/Target/SystemRuntime.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Target/UnixSignals.h"
 #include "lldb/Target/Unwind.h"
 
 #include "ProcessGDBRemote.h"
@@ -29,6 +30,7 @@
 
 using namespace lldb;
 using namespace lldb_private;
+using namespace lldb_private::process_gdb_remote;
 
 //----------------------------------------------------------------------
 // Thread Registers
@@ -38,9 +40,11 @@ ThreadGDBRemote::ThreadGDBRemote (Process &process, lldb::tid_t tid) :
     Thread(process, tid),
     m_thread_name (),
     m_dispatch_queue_name (),
-    m_thread_dispatch_qaddr (LLDB_INVALID_ADDRESS)
+    m_thread_dispatch_qaddr (LLDB_INVALID_ADDRESS),
+    m_queue_kind(eQueueKindUnknown),
+    m_queue_serial(0)
 {
-    ProcessGDBRemoteLog::LogIf(GDBR_LOG_THREAD, "%p: ThreadGDBRemote::ThreadGDBRemote (pid = %i, tid = 0x%4.4x)", 
+    ProcessGDBRemoteLog::LogIf(GDBR_LOG_THREAD, "%p: ThreadGDBRemote::ThreadGDBRemote (pid = %i, tid = 0x%4.4x)",
                                this, 
                                process.GetID(),
                                GetID());
@@ -64,10 +68,36 @@ ThreadGDBRemote::GetName ()
     return m_thread_name.c_str();
 }
 
+void
+ThreadGDBRemote::ClearQueueInfo ()
+{
+    m_dispatch_queue_name.clear();
+    m_queue_kind = eQueueKindUnknown;
+    m_queue_serial = 0;
+}
+
+void
+ThreadGDBRemote::SetQueueInfo (std::string &&queue_name, QueueKind queue_kind, uint64_t queue_serial)
+{
+    m_dispatch_queue_name = queue_name;
+    m_queue_kind = queue_kind;
+    m_queue_serial = queue_serial;
+}
+
 
 const char *
 ThreadGDBRemote::GetQueueName ()
 {
+    // If our cached queue info is valid, then someone called ThreadGDBRemote::SetQueueInfo(...)
+    // with valid information that was gleaned from the stop reply packet. In this case we trust
+    // that the info is valid in m_dispatch_queue_name without refetching it
+    if (CachedQueueInfoIsValid())
+    {
+        if (m_dispatch_queue_name.empty())
+            return nullptr;
+        else
+            return m_dispatch_queue_name.c_str();
+    }
     // Always re-fetch the dispatch queue name since it can change
 
     if (m_thread_dispatch_qaddr != 0 || m_thread_dispatch_qaddr != LLDB_INVALID_ADDRESS)
@@ -77,13 +107,12 @@ ThreadGDBRemote::GetQueueName ()
         {
             SystemRuntime *runtime = process_sp->GetSystemRuntime ();
             if (runtime)
-            {
                 m_dispatch_queue_name = runtime->GetQueueNameFromThreadQAddress (m_thread_dispatch_qaddr);
-            }
-            if (m_dispatch_queue_name.length() > 0)
-            {
+            else
+                m_dispatch_queue_name.clear();
+
+            if (!m_dispatch_queue_name.empty())
                 return m_dispatch_queue_name.c_str();
-            }
         }
     }
     return NULL;
@@ -92,6 +121,12 @@ ThreadGDBRemote::GetQueueName ()
 queue_id_t
 ThreadGDBRemote::GetQueueID ()
 {
+    // If our cached queue info is valid, then someone called ThreadGDBRemote::SetQueueInfo(...)
+    // with valid information that was gleaned from the stop reply packet. In this case we trust
+    // that the info is valid in m_dispatch_queue_name without refetching it
+    if (CachedQueueInfoIsValid())
+        return m_queue_serial;
+
     if (m_thread_dispatch_qaddr != 0 || m_thread_dispatch_qaddr != LLDB_INVALID_ADDRESS)
     {
         ProcessSP process_sp (GetProcess());
@@ -147,7 +182,7 @@ ThreadGDBRemote::FetchThreadExtendedInfo ()
 {
     StructuredData::ObjectSP object_sp;
     const lldb::user_id_t tid = GetProtocolID();
-    Log *log(lldb_private::GetLogIfAnyCategoriesSet (GDBR_LOG_THREAD));
+    Log *log(GetLogIfAnyCategoriesSet (GDBR_LOG_THREAD));
     if (log)
         log->Printf ("Fetching extended information for thread %4.4" PRIx64, tid);
     ProcessSP process_sp (GetProcess());
@@ -164,7 +199,7 @@ ThreadGDBRemote::WillResume (StateType resume_state)
 {
     int signo = GetResumeSignal();
     const lldb::user_id_t tid = GetProtocolID();
-    Log *log(lldb_private::GetLogIfAnyCategoriesSet (GDBR_LOG_THREAD));
+    Log *log(GetLogIfAnyCategoriesSet (GDBR_LOG_THREAD));
     if (log)
         log->Printf ("Resuming thread: %4.4" PRIx64 " with state: %s.", tid, StateAsCString(resume_state));
 
@@ -180,14 +215,14 @@ ThreadGDBRemote::WillResume (StateType resume_state)
             break;
 
         case eStateRunning:
-            if (gdb_process->GetUnixSignals().SignalIsValid (signo))
+            if (gdb_process->GetUnixSignals()->SignalIsValid(signo))
                 gdb_process->m_continue_C_tids.push_back(std::make_pair(tid, signo));
             else
                 gdb_process->m_continue_c_tids.push_back(tid);
             break;
 
         case eStateStepping:
-            if (gdb_process->GetUnixSignals().SignalIsValid (signo))
+            if (gdb_process->GetUnixSignals()->SignalIsValid(signo))
                 gdb_process->m_continue_S_tids.push_back(std::make_pair(tid, signo));
             else
                 gdb_process->m_continue_s_tids.push_back(tid);
@@ -282,12 +317,7 @@ ThreadGDBRemote::CalculateStopInfo ()
 {
     ProcessSP process_sp (GetProcess());
     if (process_sp)
-    {
-        StringExtractorGDBRemote stop_packet;
-        ProcessGDBRemote *gdb_process = static_cast<ProcessGDBRemote *>(process_sp.get());
-        if (gdb_process->GetGDBRemote().GetThreadStopInfo(GetProtocolID(), stop_packet))
-            return gdb_process->SetThreadStopInfo (stop_packet) == eStateStopped;
-    }
+        return static_cast<ProcessGDBRemote *>(process_sp.get())->CalculateThreadStopInfo(this);
     return false;
 }
 

@@ -48,12 +48,32 @@ CTAGSFLAGS?=
 GTAGSFLAGS?=	-o
 HTAGSFLAGS?=
 
-.if ${CC} != "cc"
-MKDEPCMD?=	CC='${CC} ${DEPFLAGS}' mkdep
-.else
-MKDEPCMD?=	mkdep
+_MKDEPCC:=	${CC:N${CCACHE_BIN}}
+# XXX: DEPFLAGS can come out once Makefile.inc1 properly passes down
+# CXXFLAGS.
+.if !empty(DEPFLAGS)
+_MKDEPCC+=	${DEPFLAGS}
 .endif
+MKDEPCMD?=	CC='${_MKDEPCC}' mkdep
 DEPENDFILE?=	.depend
+DEPENDFILES=	${DEPENDFILE}
+.if ${MK_FAST_DEPEND} == "yes" && ${.MAKE.MODE:Unormal:Mmeta*} == ""
+DEPENDFILES+=	${DEPENDFILE}.*
+DEPEND_MP?=	-MP
+# Handle OBJS=../somefile.o hacks.  Just replace '/' rather than use :T to
+# avoid collisions.
+DEPEND_FILTER=	C,/,_,g
+DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF${DEPENDFILE}.${.TARGET:${DEPEND_FILTER}}
+DEPEND_CFLAGS+=	-MT${.TARGET}
+CFLAGS+=	${DEPEND_CFLAGS}
+DEPENDOBJS+=	${OBJS} ${POBJS} ${SOBJS}
+.for __obj in ${DEPENDOBJS:O:u}
+.if ${.MAKEFLAGS:M-V} == ""
+.sinclude "${DEPENDFILE}.${__obj:${DEPEND_FILTER}}"
+.endif
+DEPENDFILES_OBJS+=	${DEPENDFILE}.${__obj:${DEPEND_FILTER}}
+.endfor
+.endif	# ${MK_FAST_DEPEND} == "yes"
 
 # Keep `tags' here, before SRCS are mangled below for `depend'.
 .if !target(tags) && defined(SRCS) && !defined(NO_TAGS)
@@ -72,7 +92,7 @@ tags: ${SRCS}
 .if defined(SRCS)
 CLEANFILES?=
 
-.if !exists(${.OBJDIR}/${DEPENDFILE})
+.if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
 .for _S in ${SRCS:N*.[dhly]}
 ${_S:R}.o: ${_S}
 .endfor
@@ -83,7 +103,7 @@ ${_S:R}.o: ${_S}
 .for _LC in ${_LSRC:R}.c
 ${_LC}: ${_LSRC}
 	${LEX} ${LFLAGS} -o${.TARGET} ${.ALLSRC}
-.if !exists(${.OBJDIR}/${DEPENDFILE})
+.if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
 ${_LC:R}.o: ${_LC}
 .endif
 SRCS:=	${SRCS:S/${_LSRC}/${_LC}/}
@@ -114,7 +134,7 @@ CLEANFILES+= ${_YH}
 ${_YC}: ${_YSRC}
 	${YACC} ${YFLAGS} -o ${_YC} ${.ALLSRC}
 .endif
-.if !exists(${.OBJDIR}/${DEPENDFILE})
+.if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
 ${_YC:R}.o: ${_YC}
 .endif
 .endfor
@@ -147,7 +167,7 @@ beforedepend: ${DHDRS}
 beforebuild: ${DHDRS}
 .endif
 
-.if ${MK_META_MODE} == "yes"
+.if ${MK_DIRDEPS_BUILD} == "yes"
 .include <meta.autodep.mk>
 # this depend: bypasses that below
 # the dependency helps when bootstrapping
@@ -161,7 +181,7 @@ afterdepend: beforedepend
 depend: beforedepend ${DEPENDFILE} afterdepend
 
 # Tell bmake not to look for generated files via .PATH
-.NOPATH: ${DEPENDFILE}
+.NOPATH: ${DEPENDFILE} ${DEPENDFILES_OBJS}
 
 # Different types of sources are compiled with slightly different flags.
 # Split up the sources, and filter out headers and non-applicable flags.
@@ -172,6 +192,7 @@ MKDEP_CXXFLAGS=	${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BIDU]*} \
 
 DPSRCS+= ${SRCS}
 ${DEPENDFILE}: ${DPSRCS}
+.if ${MK_FAST_DEPEND} == "no"
 	rm -f ${DEPENDFILE}
 .if !empty(DPSRCS:M*.[cS])
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
@@ -182,7 +203,11 @@ ${DEPENDFILE}: ${DPSRCS}
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
 	    ${MKDEP_CXXFLAGS} \
 	    ${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cpp} ${.ALLSRC:M*.cxx}
+.else
 .endif
+.else
+	: > ${.TARGET}
+.endif	# ${MK_FAST_DEPEND} == "no"
 .if target(_EXTRADEPEND)
 _EXTRADEPEND: .USE
 ${DEPENDFILE}: _EXTRADEPEND
@@ -207,12 +232,12 @@ afterdepend:
 cleandepend:
 .if defined(SRCS)
 .if ${CTAGS:T} == "gtags"
-	rm -f ${DEPENDFILE} GPATH GRTAGS GSYMS GTAGS
+	rm -f ${DEPENDFILES} GPATH GRTAGS GSYMS GTAGS
 .if defined(HTML)
 	rm -rf HTML
 .endif
 .else
-	rm -f ${DEPENDFILE} tags
+	rm -f ${DEPENDFILES} tags
 .endif
 .endif
 .endif

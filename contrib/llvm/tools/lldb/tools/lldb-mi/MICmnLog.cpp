@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnLog.cpp
-//
-// Overview:    CMICmnLog implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // In-house headers:
 #include "MICmnLog.h"
 #include "MICmnLogMediumFile.h"
@@ -73,7 +61,6 @@ CMICmnLog::Initialize(void)
     // Mediums set inside because explicitly initing in MIDriverMain.cpp causes compile errors with CAtlFile
     CMICmnLogMediumFile &rFileLog(CMICmnLogMediumFile::Instance());
     bool bOk = RegisterMedium(rFileLog);
-    bOk = bOk && SetEnabled(true);
     if (bOk)
     {
         // Set the Log trace file's header

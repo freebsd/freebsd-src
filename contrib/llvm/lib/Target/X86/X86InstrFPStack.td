@@ -350,21 +350,21 @@ defm CMOVNP : FPCMov<X86_COND_NP>;
 
 let Predicates = [HasCMov] in {
 // These are not factored because there's no clean way to pass DA/DB.
-def CMOVB_F  : FPI<0xDA, MRM0r, (outs RST:$op), (ins),
+def CMOVB_F  : FPI<0xDA, MRM0r, (outs), (ins RST:$op),
                   "fcmovb\t{$op, %st(0)|st(0), $op}">;
-def CMOVBE_F : FPI<0xDA, MRM2r, (outs RST:$op), (ins),
+def CMOVBE_F : FPI<0xDA, MRM2r, (outs), (ins RST:$op),
                   "fcmovbe\t{$op, %st(0)|st(0), $op}">;
-def CMOVE_F  : FPI<0xDA, MRM1r, (outs RST:$op), (ins),
+def CMOVE_F  : FPI<0xDA, MRM1r, (outs), (ins RST:$op),
                   "fcmove\t{$op, %st(0)|st(0), $op}">;
-def CMOVP_F  : FPI<0xDA, MRM3r, (outs RST:$op), (ins),
+def CMOVP_F  : FPI<0xDA, MRM3r, (outs), (ins RST:$op),
                   "fcmovu\t{$op, %st(0)|st(0), $op}">;
-def CMOVNB_F : FPI<0xDB, MRM0r, (outs RST:$op), (ins),
+def CMOVNB_F : FPI<0xDB, MRM0r, (outs), (ins RST:$op),
                   "fcmovnb\t{$op, %st(0)|st(0), $op}">;
-def CMOVNBE_F: FPI<0xDB, MRM2r, (outs RST:$op), (ins),
+def CMOVNBE_F: FPI<0xDB, MRM2r, (outs), (ins RST:$op),
                   "fcmovnbe\t{$op, %st(0)|st(0), $op}">;
-def CMOVNE_F : FPI<0xDB, MRM1r, (outs RST:$op), (ins),
+def CMOVNE_F : FPI<0xDB, MRM1r, (outs), (ins RST:$op),
                   "fcmovne\t{$op, %st(0)|st(0), $op}">;
-def CMOVNP_F : FPI<0xDB, MRM3r, (outs RST:$op), (ins),
+def CMOVNP_F : FPI<0xDB, MRM3r, (outs), (ins RST:$op),
                   "fcmovnu\t{$op, %st(0)|st(0), $op}">;
 } // Predicates = [HasCMov]
 
@@ -633,16 +633,16 @@ def FRNDINT : I<0xD9, MRM_FC, (outs), (ins), "frndint", [], IIC_FRNDINT>;
 def FSCALE : I<0xD9, MRM_FD, (outs), (ins), "fscale", [], IIC_FSCALE>;
 def FCOMPP : I<0xDE, MRM_D9, (outs), (ins), "fcompp", [], IIC_FCOMPP>;
 
-def FXSAVE : I<0xAE, MRM0m, (outs opaque512mem:$dst), (ins),
-               "fxsave\t$dst", [], IIC_FXSAVE>, TB;
-def FXSAVE64 : RI<0xAE, MRM0m, (outs opaque512mem:$dst), (ins),
-                  "fxsave{q|64}\t$dst", [], IIC_FXSAVE>, TB,
-                  Requires<[In64BitMode]>;
+def FXSAVE : I<0xAE, MRM0m, (outs), (ins opaque512mem:$dst),
+               "fxsave\t$dst", [(int_x86_fxsave addr:$dst)], IIC_FXSAVE>, TB;
+def FXSAVE64 : RI<0xAE, MRM0m, (outs), (ins opaque512mem:$dst),
+                  "fxsave64\t$dst", [(int_x86_fxsave64 addr:$dst)], 
+                  IIC_FXSAVE>, TB, Requires<[In64BitMode]>;
 def FXRSTOR : I<0xAE, MRM1m, (outs), (ins opaque512mem:$src),
-                "fxrstor\t$src", [], IIC_FXRSTOR>, TB;
+              "fxrstor\t$src", [(int_x86_fxrstor addr:$src)], IIC_FXRSTOR>, TB;
 def FXRSTOR64 : RI<0xAE, MRM1m, (outs), (ins opaque512mem:$src),
-                  "fxrstor{q|64}\t$src", [], IIC_FXRSTOR>, TB,
-                  Requires<[In64BitMode]>;
+                   "fxrstor64\t$src", [(int_x86_fxrstor64 addr:$src)],
+                   IIC_FXRSTOR>, TB, Requires<[In64BitMode]>;
 } // SchedRW
 
 //===----------------------------------------------------------------------===//

@@ -58,6 +58,7 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 
 static uint32_t gpio1_node;
 
+#ifndef ARM_INTRNG
 /*
  * Work around the linux workaround for imx6 erratum 006687, in which some
  * ethernet interrupts don't go to the GPC and thus won't wake the system from
@@ -91,6 +92,7 @@ fdt_pic_decode_t fdt_pic_table[] = {
 	&imx6_decode_fdt,
 	NULL
 };
+#endif
 
 static vm_offset_t
 imx6_lastaddr(platform_t plat)
@@ -102,7 +104,6 @@ imx6_lastaddr(platform_t plat)
 static int
 imx6_attach(platform_t plat)
 {
-
 	/* Inform the MPCore timer driver that its clock is variable. */
 	arm_tmr_change_frequency(ARM_TMR_FREQUENCY_VARIES);
 
@@ -112,6 +113,9 @@ imx6_attach(platform_t plat)
 static void
 imx6_late_init(platform_t plat)
 {
+	const uint32_t IMX6_WDOG_SR_PHYS = 0x020bc004;
+
+	imx_wdog_init_last_reset(IMX6_WDOG_SR_PHYS);
 
 	/* Cache the gpio1 node handle for imx6_decode_fdt() workaround code. */
 	gpio1_node = OF_node_from_xref(

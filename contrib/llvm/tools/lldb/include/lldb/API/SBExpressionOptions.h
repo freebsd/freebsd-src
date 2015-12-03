@@ -17,7 +17,7 @@
 namespace lldb {
 
 
-class SBExpressionOptions
+class LLDB_API SBExpressionOptions
 {
 public:
     SBExpressionOptions();
@@ -104,6 +104,12 @@ public:
     
     void
     SetSuppressPersistentResult (bool b = false);
+
+    const char *
+    GetPrefix () const;
+
+    void
+    SetPrefix (const char *prefix);
 
 protected:
 

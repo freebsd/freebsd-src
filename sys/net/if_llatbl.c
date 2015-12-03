@@ -186,7 +186,7 @@ htable_unlink_entry(struct llentry *lle)
 }
 
 struct prefix_match_data {
-	const struct sockaddr *prefix;
+	const struct sockaddr *addr;
 	const struct sockaddr *mask;
 	struct llentries dchain;
 	u_int flags;
@@ -199,7 +199,7 @@ htable_prefix_free_cb(struct lltable *llt, struct llentry *lle, void *farg)
 
 	pmd = (struct prefix_match_data *)farg;
 
-	if (llt->llt_match_prefix(pmd->prefix, pmd->mask, pmd->flags, lle)) {
+	if (llt->llt_match_prefix(pmd->addr, pmd->mask, pmd->flags, lle)) {
 		LLE_WLOCK(lle);
 		LIST_INSERT_HEAD(&pmd->dchain, lle, lle_chain);
 	}
@@ -208,14 +208,14 @@ htable_prefix_free_cb(struct lltable *llt, struct llentry *lle, void *farg)
 }
 
 static void
-htable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
+htable_prefix_free(struct lltable *llt, const struct sockaddr *addr,
     const struct sockaddr *mask, u_int flags)
 {
 	struct llentry *lle, *next;
 	struct prefix_match_data pmd;
 
 	bzero(&pmd, sizeof(pmd));
-	pmd.prefix = prefix;
+	pmd.addr = addr;
 	pmd.mask = mask;
 	pmd.flags = flags;
 	LIST_INIT(&pmd.dchain);
@@ -228,7 +228,7 @@ htable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
 	IF_AFDATA_WUNLOCK(llt->llt_ifp);
 
 	LIST_FOREACH_SAFE(lle, &pmd.dchain, lle_chain, next)
-		llt->llt_free_entry(llt, lle);
+		lltable_free_entry(llt, lle);
 }
 
 static void
@@ -277,28 +277,34 @@ lltable_drop_entry_queue(struct llentry *lle)
 	return (pkts_dropped);
 }
 
+void
+lltable_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
+    const char *lladdr)
+{
+
+	bcopy(lladdr, &lle->ll_addr, ifp->if_addrlen);
+	lle->la_flags |= LLE_VALID;
+}
+
 /*
- * Deletes an address from the address table.
- * This function is called by the timer functions
- * such as arptimer() and nd6_llinfo_timer(), and
- * the caller does the locking.
+ *
+ * Performes generic cleanup routines and frees lle.
+ *
+ * Called for non-linked entries, with callouts and
+ * other AF-specific cleanups performed.
+ *
+ * @lle must be passed WLOCK'ed
  *
  * Returns the number of held packets, if any, that were dropped.
  */
 size_t
 llentry_free(struct llentry *lle)
 {
-	struct lltable *llt;
 	size_t pkts_dropped;
 
 	LLE_WLOCK_ASSERT(lle);
 
-	if ((lle->la_flags & LLE_LINKED) != 0) {
-		llt = lle->lle_tbl;
-
-		IF_AFDATA_WLOCK_ASSERT(llt->llt_ifp);
-		llt->llt_unlink_entry(lle);
-	}
+	KASSERT((lle->la_flags & LLE_LINKED) == 0, ("freeing linked lle"));
 
 	pkts_dropped = lltable_drop_entry_queue(lle);
 
@@ -316,19 +322,33 @@ struct llentry *
 llentry_alloc(struct ifnet *ifp, struct lltable *lt,
     struct sockaddr_storage *dst)
 {
-	struct llentry *la;
+	struct llentry *la, *la_tmp;
 
 	IF_AFDATA_RLOCK(ifp);
 	la = lla_lookup(lt, LLE_EXCLUSIVE, (struct sockaddr *)dst);
 	IF_AFDATA_RUNLOCK(ifp);
-	if ((la == NULL) &&
-	    (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
-		IF_AFDATA_WLOCK(ifp);
-		la = lla_create(lt, 0, (struct sockaddr *)dst);
-		IF_AFDATA_WUNLOCK(ifp);
-	}
 
 	if (la != NULL) {
+		LLE_ADDREF(la);
+		LLE_WUNLOCK(la);
+		return (la);
+	}
+
+	if ((ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
+		la = lltable_alloc_entry(lt, 0, (struct sockaddr *)dst);
+		if (la == NULL)
+			return (NULL);
+		IF_AFDATA_WLOCK(ifp);
+		LLE_WLOCK(la);
+		/* Prefer any existing LLE over newly-created one */
+		la_tmp = lla_lookup(lt, LLE_EXCLUSIVE, (struct sockaddr *)dst);
+		if (la_tmp == NULL)
+			lltable_link_entry(lt, la);
+		IF_AFDATA_WUNLOCK(ifp);
+		if (la_tmp != NULL) {
+			lltable_free_entry(lt, la);
+			la = la_tmp;
+		}
 		LLE_ADDREF(la);
 		LLE_WUNLOCK(la);
 	}
@@ -374,7 +394,7 @@ lltable_free(struct lltable *llt)
 	IF_AFDATA_WUNLOCK(llt->llt_ifp);
 
 	LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next) {
-		if (callout_stop(&lle->lle_timer))
+		if (callout_stop(&lle->lle_timer) > 0)
 			LLE_REMREF(lle);
 		llentry_free(lle);
 	}
@@ -410,8 +430,42 @@ lltable_drain(int af)
 }
 #endif
 
+/*
+ * Deletes an address from given lltable.
+ * Used for userland interaction to remove
+ * individual entries. Skips entries added by OS.
+ */
+int
+lltable_delete_addr(struct lltable *llt, u_int flags,
+    const struct sockaddr *l3addr)
+{
+	struct llentry *lle;
+	struct ifnet *ifp;
+
+	ifp = llt->llt_ifp;
+	IF_AFDATA_WLOCK(ifp);
+	lle = lla_lookup(llt, LLE_EXCLUSIVE, l3addr);
+
+	if (lle == NULL) {
+		IF_AFDATA_WUNLOCK(ifp);
+		return (ENOENT);
+	}
+	if ((lle->la_flags & LLE_IFADDR) != 0 && (flags & LLE_IFADDR) == 0) {
+		IF_AFDATA_WUNLOCK(ifp);
+		LLE_WUNLOCK(lle);
+		return (EPERM);
+	}
+
+	lltable_unlink_entry(llt, lle);
+	IF_AFDATA_WUNLOCK(ifp);
+
+	llt->llt_delete_entry(llt, lle);
+
+	return (0);
+}
+
 void
-lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask,
+lltable_prefix_free(int af, struct sockaddr *addr, struct sockaddr *mask,
     u_int flags)
 {
 	struct lltable *llt;
@@ -421,7 +475,7 @@ lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask,
 		if (llt->llt_af != af)
 			continue;
 
-		llt->llt_prefix_free(llt, prefix, mask, flags);
+		llt->llt_prefix_free(llt, addr, mask, flags);
 	}
 	LLTABLE_RUNLOCK();
 }
@@ -483,6 +537,21 @@ lltable_foreach_lle(struct lltable *llt, llt_foreach_cb_t *f, void *farg)
 	return (llt->llt_foreach_entry(llt, f, farg));
 }
 
+struct llentry *
+lltable_alloc_entry(struct lltable *llt, u_int flags,
+    const struct sockaddr *l3addr)
+{
+
+	return (llt->llt_alloc_entry(llt, flags, l3addr));
+}
+
+void
+lltable_free_entry(struct lltable *llt, struct llentry *lle)
+{
+
+	llt->llt_free_entry(llt, lle);
+}
+
 void
 lltable_link_entry(struct lltable *llt, struct llentry *lle)
 {
@@ -531,7 +600,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	struct sockaddr *dst = (struct sockaddr *)info->rti_info[RTAX_DST];
 	struct ifnet *ifp;
 	struct lltable *llt;
-	struct llentry *lle;
+	struct llentry *lle, *lle_tmp;
 	u_int laflags = 0;
 	int error;
 
@@ -560,37 +629,53 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	switch (rtm->rtm_type) {
 	case RTM_ADD:
 		/* Add static LLE */
-		IF_AFDATA_WLOCK(ifp);
-		lle = lla_create(llt, 0, dst);
-		if (lle == NULL) {
-			IF_AFDATA_WUNLOCK(ifp);
+		laflags = 0;
+		if (rtm->rtm_rmx.rmx_expire == 0)
+			laflags = LLE_STATIC;
+		lle = lltable_alloc_entry(llt, laflags, dst);
+		if (lle == NULL)
 			return (ENOMEM);
-		}
-
 
 		bcopy(LLADDR(dl), &lle->ll_addr, ifp->if_addrlen);
 		if ((rtm->rtm_flags & RTF_ANNOUNCE))
 			lle->la_flags |= LLE_PUB;
 		lle->la_flags |= LLE_VALID;
-#ifdef INET6
-		/*
-		 * ND6
-		 */
-		if (dst->sa_family == AF_INET6)
-			lle->ln_state = ND6_LLINFO_REACHABLE;
-#endif
-		/*
-		 * NB: arp and ndp always set (RTF_STATIC | RTF_HOST)
-		 */
+		lle->la_expire = rtm->rtm_rmx.rmx_expire;
 
-		if (rtm->rtm_rmx.rmx_expire == 0) {
-			lle->la_flags |= LLE_STATIC;
-			lle->la_expire = 0;
-		} else
-			lle->la_expire = rtm->rtm_rmx.rmx_expire;
 		laflags = lle->la_flags;
-		LLE_WUNLOCK(lle);
+
+		/* Try to link new entry */
+		lle_tmp = NULL;
+		IF_AFDATA_WLOCK(ifp);
+		LLE_WLOCK(lle);
+		lle_tmp = lla_lookup(llt, LLE_EXCLUSIVE, dst);
+		if (lle_tmp != NULL) {
+			/* Check if we are trying to replace immutable entry */
+			if ((lle_tmp->la_flags & LLE_IFADDR) != 0) {
+				IF_AFDATA_WUNLOCK(ifp);
+				LLE_WUNLOCK(lle_tmp);
+				lltable_free_entry(llt, lle);
+				return (EPERM);
+			}
+			/* Unlink existing entry from table */
+			lltable_unlink_entry(llt, lle_tmp);
+		}
+		lltable_link_entry(llt, lle);
 		IF_AFDATA_WUNLOCK(ifp);
+
+		if (lle_tmp != NULL) {
+			EVENTHANDLER_INVOKE(lle_event, lle_tmp,LLENTRY_EXPIRED);
+			lltable_free_entry(llt, lle_tmp);
+		}
+
+		/*
+		 * By invoking LLE handler here we might get
+		 * two events on static LLE entry insertion
+		 * in routing socket. However, since we might have
+		 * other subscribers we need to generate this event.
+		 */
+		EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_RESOLVED);
+		LLE_WUNLOCK(lle);
 #ifdef INET
 		/* gratuitous ARP */
 		if ((laflags & LLE_PUB) && dst->sa_family == AF_INET)
@@ -603,10 +688,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 		break;
 
 	case RTM_DELETE:
-		IF_AFDATA_WLOCK(ifp);
-		error = lla_delete(llt, 0, dst);
-		IF_AFDATA_WUNLOCK(ifp);
-		return (error == 0 ? 0 : ENOENT);
+		return (lltable_delete_addr(llt, 0, dst));
 
 	default:
 		error = EINVAL;
@@ -648,7 +730,6 @@ llatbl_lle_show(struct llentry_sa *la)
 	db_printf(" la_flags=0x%04x\n", lle->la_flags);
 	db_printf(" la_asked=%u\n", lle->la_asked);
 	db_printf(" la_preempt=%u\n", lle->la_preempt);
-	db_printf(" ln_byhint=%u\n", lle->ln_byhint);
 	db_printf(" ln_state=%d\n", lle->ln_state);
 	db_printf(" ln_router=%u\n", lle->ln_router);
 	db_printf(" ln_ntick=%ju\n", (uintmax_t)lle->ln_ntick);

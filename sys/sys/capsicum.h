@@ -150,16 +150,16 @@
 #define	CAP_FUTIMES		CAPRIGHT(0, 0x0000000000200000ULL)
 /* Allows for futimens(2), futimes(2), futimesat(2) and utimensat(2). */
 #define	CAP_FUTIMESAT		(CAP_FUTIMES | CAP_LOOKUP)
-/* Allows for linkat(2) and renameat(2) (destination directory descriptor). */
-#define	CAP_LINKAT		(CAP_LOOKUP | 0x0000000000400000ULL)
+/* Allows for linkat(2) (target directory descriptor). */
+#define	CAP_LINKAT_TARGET	(CAP_LOOKUP | 0x0000000000400000ULL)
 /* Allows for mkdirat(2). */
 #define	CAP_MKDIRAT		(CAP_LOOKUP | 0x0000000000800000ULL)
 /* Allows for mkfifoat(2). */
 #define	CAP_MKFIFOAT		(CAP_LOOKUP | 0x0000000001000000ULL)
 /* Allows for mknodat(2). */
 #define	CAP_MKNODAT		(CAP_LOOKUP | 0x0000000002000000ULL)
-/* Allows for renameat(2). */
-#define	CAP_RENAMEAT		(CAP_LOOKUP | 0x0000000004000000ULL)
+/* Allows for renameat(2) (source directory descriptor). */
+#define	CAP_RENAMEAT_SOURCE	(CAP_LOOKUP | 0x0000000004000000ULL)
 /* Allows for symlinkat(2). */
 #define	CAP_SYMLINKAT		(CAP_LOOKUP | 0x0000000008000000ULL)
 /*
@@ -197,6 +197,11 @@
 /* Allows for connectat(2) on a directory descriptor. */
 #define	CAP_CONNECTAT		(CAP_LOOKUP | 0x0000010000000000ULL)
 
+/* Allows for linkat(2) (source directory descriptor). */
+#define	CAP_LINKAT_SOURCE	(CAP_LOOKUP | 0x0000020000000000ULL)
+/* Allows for renameat(2) (target directory descriptor). */
+#define	CAP_RENAMEAT_TARGET	(CAP_LOOKUP | 0x0000040000000000ULL)
+
 #define	CAP_SOCK_CLIENT \
 	(CAP_CONNECT | CAP_GETPEERNAME | CAP_GETSOCKNAME | CAP_GETSOCKOPT | \
 	 CAP_PEELOFF | CAP_RECV | CAP_SEND | CAP_SETSOCKOPT | CAP_SHUTDOWN)
@@ -206,10 +211,10 @@
 	 CAP_SETSOCKOPT | CAP_SHUTDOWN)
 
 /* All used bits for index 0. */
-#define	CAP_ALL0		CAPRIGHT(0, 0x000001FFFFFFFFFFULL)
+#define	CAP_ALL0		CAPRIGHT(0, 0x000007FFFFFFFFFFULL)
 
 /* Available bits for index 0. */
-#define	CAP_UNUSED0_42		CAPRIGHT(0, 0x0000020000000000ULL)
+#define	CAP_UNUSED0_44		CAPRIGHT(0, 0x0000080000000000ULL)
 /* ... */
 #define	CAP_UNUSED0_57		CAPRIGHT(0, 0x0100000000000000ULL)
 

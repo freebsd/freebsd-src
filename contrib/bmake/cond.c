@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.68 2015/05/05 21:51:09 sjg Exp $	*/
+/*	$NetBSD: cond.c,v 1.69 2015/10/11 04:51:24 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: cond.c,v 1.68 2015/05/05 21:51:09 sjg Exp $";
+static char rcsid[] = "$NetBSD: cond.c,v 1.69 2015/10/11 04:51:24 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)cond.c	8.2 (Berkeley) 1/2/94";
 #else
-__RCSID("$NetBSD: cond.c,v 1.68 2015/05/05 21:51:09 sjg Exp $");
+__RCSID("$NetBSD: cond.c,v 1.69 2015/10/11 04:51:24 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -289,7 +289,7 @@ CondGetArg(char **linePtr, char **argPtr, const char *func)
 	    int		len;
 	    void	*freeIt;
 
-	    cp2 = Var_Parse(cp, VAR_CMD, TRUE, &len, &freeIt);
+	    cp2 = Var_Parse(cp, VAR_CMD, TRUE, TRUE, &len, &freeIt);
 	    Buf_AddBytes(&buf, strlen(cp2), cp2);
 	    if (freeIt)
 		free(freeIt);
@@ -571,7 +571,7 @@ CondGetString(Boolean doEval, Boolean *quoted, void **freeIt, Boolean strictLHS)
 	case '$':
 	    /* if we are in quotes, then an undefined variable is ok */
 	    str = Var_Parse(condExpr, VAR_CMD, (qt ? 0 : doEval),
-			    &len, freeIt);
+			    TRUE, &len, freeIt);
 	    if (str == var_Error) {
 		if (*freeIt) {
 		    free(*freeIt);
@@ -823,7 +823,7 @@ get_mpt_arg(char **linePtr, char **argPtr, const char *func MAKE_ATTR_UNUSED)
     /* We do all the work here and return the result as the length */
     *argPtr = NULL;
 
-    val = Var_Parse(cp - 1, VAR_CMD, FALSE, &length, &freeIt);
+    val = Var_Parse(cp - 1, VAR_CMD, FALSE, TRUE, &length, &freeIt);
     /*
      * Advance *linePtr to beyond the closing ). Note that
      * we subtract one because 'length' is calculated from 'cp - 1'.

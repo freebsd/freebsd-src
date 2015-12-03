@@ -1,33 +1,36 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
-TESTSDIR=	${TESTSBASE}/lib/libc/string
+ATF_TESTS_C+=		stpncpy_test
+ATF_TESTS_C+=		strerror2_test
+ATF_TESTS_C+=		wcscasecmp_test
+ATF_TESTS_C+=		wcsnlen_test
 
 # TODO: popcount, stresep
 
-NETBSD_ATF_TESTS_C+=	memchr
-NETBSD_ATF_TESTS_C+=	memcpy
-NETBSD_ATF_TESTS_C+=	memmem
-NETBSD_ATF_TESTS_C+=	memset
-NETBSD_ATF_TESTS_C+=	strcat
-NETBSD_ATF_TESTS_C+=	strchr
-NETBSD_ATF_TESTS_C+=	strcmp
-NETBSD_ATF_TESTS_C+=	strcpy
-NETBSD_ATF_TESTS_C+=	strcspn
-NETBSD_ATF_TESTS_C+=	strerror
-NETBSD_ATF_TESTS_C+=	strlen
-NETBSD_ATF_TESTS_C+=	strpbrk
-NETBSD_ATF_TESTS_C+=	strrchr
-NETBSD_ATF_TESTS_C+=	strspn
-NETBSD_ATF_TESTS_C+=	swab
+NETBSD_ATF_TESTS_C+=	memchr_test
+NETBSD_ATF_TESTS_C+=	memcpy_test
+NETBSD_ATF_TESTS_C+=	memmem_test
+NETBSD_ATF_TESTS_C+=	memset_test
+NETBSD_ATF_TESTS_C+=	strcat_test
+NETBSD_ATF_TESTS_C+=	strchr_test
+NETBSD_ATF_TESTS_C+=	strcmp_test
+NETBSD_ATF_TESTS_C+=	strcpy_test
+NETBSD_ATF_TESTS_C+=	strcspn_test
+NETBSD_ATF_TESTS_C+=	strerror_test
+NETBSD_ATF_TESTS_C+=	strlen_test
+NETBSD_ATF_TESTS_C+=	strpbrk_test
+NETBSD_ATF_TESTS_C+=	strrchr_test
+NETBSD_ATF_TESTS_C+=	strspn_test
+NETBSD_ATF_TESTS_C+=	swab_test
+
+SRCS.strerror2_test=	strerror_test.c
 
 .include "../Makefile.netbsd-tests"
 
-LDADD.memchr+=	-lmd
-DPADD.memchr+=	${LIBMD}
+LDADD.memchr_test+=	-lmd
+DPADD.memchr_test+=	${LIBMD}
 
-LDADD.memcpy+=	-lmd
-DPADD.memcpy+=	${LIBMD}
+LDADD.memcpy_test+=	-lmd
+DPADD.memcpy_test+=	${LIBMD}
 
 .include <bsd.test.mk>

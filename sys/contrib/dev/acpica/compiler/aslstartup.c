@@ -253,7 +253,7 @@ AslDoDisassembly (
 
     /* This is where the disassembly happens */
 
-    AcpiGbl_DbOpt_Disasm = TRUE;
+    AcpiGbl_DmOpt_Disasm = TRUE;
     Status = AdAmlDisassemble (AslToFile,
         Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_OutputFilenamePrefix,
         &Gbl_Files[ASL_FILE_INPUT].Filename);

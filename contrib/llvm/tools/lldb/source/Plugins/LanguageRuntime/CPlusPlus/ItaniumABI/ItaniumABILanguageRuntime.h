@@ -20,6 +20,9 @@
 #include "lldb/Target/CPPLanguageRuntime.h"
 #include "lldb/Core/Value.h"
 
+#include <map>
+#include <vector>
+
 namespace lldb_private {
     
     class ItaniumABILanguageRuntime :
@@ -81,6 +84,9 @@ namespace lldb_private {
         
         virtual lldb::SearchFilterSP
         CreateExceptionSearchFilter ();
+
+        virtual size_t
+        GetAlternateManglings(const ConstString &mangled, std::vector<ConstString> &alternates);
 
     protected:
 

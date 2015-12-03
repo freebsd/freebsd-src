@@ -197,7 +197,6 @@ delete_invite(u_int32_t id_num)
 {
 	TABLE_ENTRY *ptr;
 
-	ptr = table;
 	if (debug)
 		syslog(LOG_DEBUG, "delete_invite(%d)", id_num);
 	for (ptr = table; ptr != NIL; ptr = ptr->next) {

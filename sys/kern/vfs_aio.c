@@ -2494,8 +2494,11 @@ kern_aio_waitcomplete(struct thread *td, struct aiocb **aiocbp,
 
 	ops->store_aiocb(aiocbp, NULL);
 
-	timo = 0;
-	if (ts) {
+	if (ts == NULL) {
+		timo = 0;
+	} else if (ts->tv_sec == 0 && ts->tv_nsec == 0) {
+		timo = -1;
+	} else {
 		if ((ts->tv_nsec < 0) || (ts->tv_nsec >= 1000000000))
 			return (EINVAL);
 
@@ -2513,6 +2516,10 @@ kern_aio_waitcomplete(struct thread *td, struct aiocb **aiocbp,
 	cb = NULL;
 	AIO_LOCK(ki);
 	while ((cb = TAILQ_FIRST(&ki->kaio_done)) == NULL) {
+		if (timo == -1) {
+			error = EWOULDBLOCK;
+			break;
+		}
 		ki->kaio_flags |= KAIO_WAKEUP;
 		error = msleep(&p->p_aioinfo, AIO_MTX(ki), PRIBIO | PCATCH,
 		    "aiowc", timo);

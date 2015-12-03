@@ -51,6 +51,8 @@ struct mdthread {
 	register_t md_spurflt_addr;     /* (k) Spurious page fault address. */
 	int md_ptrace_instr;
 	int md_ptrace_addr;
+	int md_ptrace_instr_alt;
+	int md_ptrace_addr_alt;
 	register_t md_tp;
 	void *md_ras_start;
 	void *md_ras_end;
@@ -69,7 +71,7 @@ struct mdproc {
  * As some syscall arguments may be 64-bit aligned we need to ensure the
  * args value is 64-bit aligned. The ABI will then ensure any 64-bit
  * arguments are already correctly aligned, even if they were passed in
- * via registers, we just need to make sure we copy them to an algned
+ * via registers, we just need to make sure we copy them to an aligned
  * buffer.
  */
 struct syscall_args {

@@ -256,7 +256,7 @@ static int
 iwm_mvm_scan_fill_channels(struct iwm_softc *sc, struct iwm_scan_cmd *cmd,
 	int flags, int n_ssids, int basic_ssid)
 {
-	struct ieee80211com *ic = sc->sc_ic;
+	struct ieee80211com *ic = &sc->sc_ic;
 	uint16_t passive_dwell = iwm_mvm_get_passive_dwell(sc, flags);
 	uint16_t active_dwell = iwm_mvm_get_active_dwell(sc, flags, n_ssids);
 	struct iwm_scan_channel *chan = (struct iwm_scan_channel *)
@@ -419,7 +419,7 @@ iwm_mvm_scan_request(struct iwm_softc *sc, int flags,
 
 	cmd->tx_cmd.len = htole16(iwm_mvm_fill_probe_req(sc,
 			    (struct ieee80211_frame *)cmd->data,
-			    sc->sc_bssid, n_ssids, ssid, ssid_len,
+			    sc->sc_ic.ic_macaddr, n_ssids, ssid, ssid_len,
 			    NULL, 0, sc->sc_capa_max_probe_len));
 
 	cmd->channel_count

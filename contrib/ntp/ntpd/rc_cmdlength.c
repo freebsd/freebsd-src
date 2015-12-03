@@ -1,4 +1,5 @@
 #include <config.h>
+#include <rc_cmdlength.h>
 
 #if HAVE_UNISTD_H
 # include <unistd.h>

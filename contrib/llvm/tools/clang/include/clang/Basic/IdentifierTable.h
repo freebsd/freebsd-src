@@ -49,11 +49,12 @@ class IdentifierInfo {
   // Objective-C keyword ('protocol' in '@protocol') or builtin (__builtin_inf).
   // First NUM_OBJC_KEYWORDS values are for Objective-C, the remaining values
   // are for builtins.
-  unsigned ObjCOrBuiltinID    :11;
+  unsigned ObjCOrBuiltinID    :13;
   bool HasMacro               : 1; // True if there is a #define for this.
   bool HadMacro               : 1; // True if there was a #define for this.
   bool IsExtension            : 1; // True if identifier is a lang extension.
-  bool IsCXX11CompatKeyword   : 1; // True if identifier is a keyword in C++11.
+  bool IsFutureCompatKeyword  : 1; // True if identifier is a keyword in a
+                                   // newer Standard or proposed Standard.
   bool IsPoisoned             : 1; // True if identifier is poisoned.
   bool IsCPPOperatorKeyword   : 1; // True if ident is a C++ operator keyword.
   bool NeedsHandleIdentifier  : 1; // See "RecomputeNeedsHandleIdentifier".
@@ -68,13 +69,13 @@ class IdentifierInfo {
                                    // stored externally.
   bool IsModulesImport        : 1; // True if this is the 'import' contextual
                                    // keyword.
-  // 32-bit word is filled.
+  // 30 bit left in 64-bit word.
 
   void *FETokenInfo;               // Managed by the language front-end.
   llvm::StringMapEntry<IdentifierInfo*> *Entry;
 
-  IdentifierInfo(const IdentifierInfo&) LLVM_DELETED_FUNCTION;
-  void operator=(const IdentifierInfo&) LLVM_DELETED_FUNCTION;
+  IdentifierInfo(const IdentifierInfo&) = delete;
+  void operator=(const IdentifierInfo&) = delete;
 
   friend class IdentifierTable;
   
@@ -124,6 +125,7 @@ public:
   }
 
   /// \brief Return true if this identifier is \#defined to some other value.
+  /// \note The current definition may be in a module and not currently visible.
   bool hasMacroDefinition() const {
     return HasMacro;
   }
@@ -212,13 +214,14 @@ public:
       RecomputeNeedsHandleIdentifier();
   }
 
-  /// is/setIsCXX11CompatKeyword - Initialize information about whether or not
-  /// this language token is a keyword in C++11. This controls compatibility
-  /// warnings, and is only true when not parsing C++11. Once a compatibility
-  /// problem has been diagnosed with this keyword, the flag will be cleared.
-  bool isCXX11CompatKeyword() const { return IsCXX11CompatKeyword; }
-  void setIsCXX11CompatKeyword(bool Val) {
-    IsCXX11CompatKeyword = Val;
+  /// is/setIsFutureCompatKeyword - Initialize information about whether or not
+  /// this language token is a keyword in a newer or proposed Standard. This
+  /// controls compatibility warnings, and is only true when not parsing the
+  /// corresponding Standard. Once a compatibility problem has been diagnosed
+  /// with this keyword, the flag will be cleared.
+  bool isFutureCompatKeyword() const { return IsFutureCompatKeyword; }
+  void setIsFutureCompatKeyword(bool Val) {
+    IsFutureCompatKeyword = Val;
     if (Val)
       NeedsHandleIdentifier = 1;
     else
@@ -308,7 +311,12 @@ public:
     else
       RecomputeNeedsHandleIdentifier();
   }
-  
+
+  /// \brief Provide less than operator for lexicographical sorting.
+  bool operator<(const IdentifierInfo &RHS) const {
+    return getName() < RHS.getName();
+  }
+
 private:
   /// The Preprocessor::HandleIdentifier does several special (but rare)
   /// things to identifiers of various sorts.  For example, it changes the
@@ -319,7 +327,7 @@ private:
   void RecomputeNeedsHandleIdentifier() {
     NeedsHandleIdentifier =
       (isPoisoned() | hasMacroDefinition() | isCPlusPlusOperatorKeyword() |
-       isExtensionToken() | isCXX11CompatKeyword() || isOutOfDate() ||
+       isExtensionToken() | isFutureCompatKeyword() || isOutOfDate() ||
        isModulesImport());
   }
 };
@@ -356,8 +364,8 @@ public:
 /// actual functionality.
 class IdentifierIterator {
 private:
-  IdentifierIterator(const IdentifierIterator &) LLVM_DELETED_FUNCTION;
-  void operator=(const IdentifierIterator &) LLVM_DELETED_FUNCTION;
+  IdentifierIterator(const IdentifierIterator &) = delete;
+  void operator=(const IdentifierIterator &) = delete;
 
 protected:
   IdentifierIterator() { }
@@ -396,19 +404,6 @@ public:
   /// \returns A new iterator into the set of known identifiers. The
   /// caller is responsible for deleting this iterator.
   virtual IdentifierIterator *getIdentifiers();
-};
-
-/// \brief An abstract class used to resolve numerical identifier
-/// references (meaningful only to some external source) into
-/// IdentifierInfo pointers.
-class ExternalIdentifierLookup {
-public:
-  virtual ~ExternalIdentifierLookup();
-
-  /// \brief Return the identifier associated with the given ID number.
-  ///
-  /// The ID 0 is associated with the NULL identifier.
-  virtual IdentifierInfo *GetIdentifier(unsigned ID) = 0;
 };
 
 /// \brief Implements an efficient mapping from strings to IdentifierInfo nodes.
@@ -727,8 +722,8 @@ public:
 /// multi-keyword caching.
 class SelectorTable {
   void *Impl;  // Actually a SelectorTableImpl
-  SelectorTable(const SelectorTable &) LLVM_DELETED_FUNCTION;
-  void operator=(const SelectorTable &) LLVM_DELETED_FUNCTION;
+  SelectorTable(const SelectorTable &) = delete;
+  void operator=(const SelectorTable &) = delete;
 public:
   SelectorTable();
   ~SelectorTable();

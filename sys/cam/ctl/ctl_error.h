@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Silicon Graphics International Corp.
+ * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,6 +58,7 @@ void ctl_sense_to_desc(struct scsi_sense_data_fixed *sense_src,
 void ctl_sense_to_fixed(struct scsi_sense_data_desc *sense_src,
 			struct scsi_sense_data_fixed *sense_dest);
 void ctl_set_ua(struct ctl_scsiio *ctsio, int asc, int ascq);
+ctl_ua_type ctl_build_qae(struct ctl_lun *lun, uint32_t initidx, uint8_t *resp);
 ctl_ua_type ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
     struct scsi_sense_data *sense, scsi_sense_data_type sense_format);
 void ctl_set_overlapped_cmd(struct ctl_scsiio *ctsio);
@@ -67,14 +69,18 @@ void ctl_set_invalid_opcode(struct ctl_scsiio *ctsio);
 void ctl_set_param_len_error(struct ctl_scsiio *ctsio);
 void ctl_set_already_locked(struct ctl_scsiio *ctsio);
 void ctl_set_unsupported_lun(struct ctl_scsiio *ctsio);
+void ctl_set_lun_transit(struct ctl_scsiio *ctsio);
 void ctl_set_lun_standby(struct ctl_scsiio *ctsio);
+void ctl_set_lun_unavail(struct ctl_scsiio *ctsio);
 void ctl_set_internal_failure(struct ctl_scsiio *ctsio, int sks_valid,
 			      uint16_t retry_count);
-void ctl_set_medium_error(struct ctl_scsiio *ctsio);
+void ctl_set_medium_error(struct ctl_scsiio *ctsio, int read);
 void ctl_set_aborted(struct ctl_scsiio *ctsio);
 void ctl_set_lba_out_of_range(struct ctl_scsiio *ctsio);
 void ctl_set_lun_stopped(struct ctl_scsiio *ctsio);
-void ctl_set_lun_not_ready(struct ctl_scsiio *ctsio);
+void ctl_set_lun_int_reqd(struct ctl_scsiio *ctsio);
+void ctl_set_lun_ejected(struct ctl_scsiio *ctsio);
+void ctl_set_lun_no_media(struct ctl_scsiio *ctsio);
 void ctl_set_illegal_pr_release(struct ctl_scsiio *ctsio);
 void ctl_set_medium_format_corrupted(struct ctl_scsiio *ctsio);
 void ctl_set_medium_magazine_inaccessible(struct ctl_scsiio *ctsio);
@@ -83,6 +89,7 @@ void ctl_set_reservation_conflict(struct ctl_scsiio *ctsio);
 void ctl_set_queue_full(struct ctl_scsiio *ctsio);
 void ctl_set_busy(struct ctl_scsiio *ctsio);
 void ctl_set_task_aborted(struct ctl_scsiio *ctsio);
+void ctl_set_hw_write_protected(struct ctl_scsiio *ctsio);
 void ctl_set_space_alloc_fail(struct ctl_scsiio *ctsio);
 void ctl_set_success(struct ctl_scsiio *ctsio);
 

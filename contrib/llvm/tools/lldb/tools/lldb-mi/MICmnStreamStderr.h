@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnStreamStderr.h
-//
-// Overview:    CMICmnStreamStderr interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // In-house headers:
@@ -47,8 +35,8 @@ class CMICmnStreamStderr : public CMICmnBase, public MI::ISingleton<CMICmnStream
 
     // Methods:
   public:
-    bool Initialize(void);
-    bool Shutdown(void);
+    bool Initialize(void) override;
+    bool Shutdown(void) override;
     //
     bool Lock(void);
     bool Unlock(void);
@@ -66,7 +54,7 @@ class CMICmnStreamStderr : public CMICmnBase, public MI::ISingleton<CMICmnStream
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmnStreamStderr(void);
+    /* dtor */ ~CMICmnStreamStderr(void) override;
 
     // Attributes:
   private:

@@ -71,7 +71,7 @@ SUnit *ScheduleDAGSDNodes::newSUnit(SDNode *N) {
   if (!SUnits.empty())
     Addr = &SUnits[0];
 #endif
-  SUnits.push_back(SUnit(N, (unsigned)SUnits.size()));
+  SUnits.emplace_back(N, (unsigned)SUnits.size());
   assert((Addr == nullptr || Addr == &SUnits[0]) &&
          "SUnits std::vector reallocated on the fly!");
   SUnits.back().OrigNode = &SUnits.back();
@@ -137,13 +137,9 @@ static void CheckForPhysRegDependency(SDNode *Def, SDNode *User, unsigned Op,
 }
 
 // Helper for AddGlue to clone node operands.
-static void CloneNodeWithValues(SDNode *N, SelectionDAG *DAG,
-                                SmallVectorImpl<EVT> &VTs,
+static void CloneNodeWithValues(SDNode *N, SelectionDAG *DAG, ArrayRef<EVT> VTs,
                                 SDValue ExtraOper = SDValue()) {
-  SmallVector<SDValue, 8> Ops;
-  for (unsigned I = 0, E = N->getNumOperands(); I != E; ++I)
-    Ops.push_back(N->getOperand(I));
-
+  SmallVector<SDValue, 8> Ops(N->op_begin(), N->op_end());
   if (ExtraOper.getNode())
     Ops.push_back(ExtraOper);
 
@@ -165,7 +161,6 @@ static void CloneNodeWithValues(SDNode *N, SelectionDAG *DAG,
 }
 
 static bool AddGlue(SDNode *N, SDValue Glue, bool AddGlue, SelectionDAG *DAG) {
-  SmallVector<EVT, 4> VTs;
   SDNode *GlueDestNode = Glue.getNode();
 
   // Don't add glue from a node to itself.
@@ -179,9 +174,7 @@ static bool AddGlue(SDNode *N, SDValue Glue, bool AddGlue, SelectionDAG *DAG) {
   // Don't add glue to something that already has a glue value.
   if (N->getValueType(N->getNumValues() - 1) == MVT::Glue) return false;
 
-  for (unsigned I = 0, E = N->getNumValues(); I != E; ++I)
-    VTs.push_back(N->getValueType(I));
-
+  SmallVector<EVT, 4> VTs(N->value_begin(), N->value_end());
   if (AddGlue)
     VTs.push_back(MVT::Glue);
 
@@ -197,11 +190,8 @@ static void RemoveUnusedGlue(SDNode *N, SelectionDAG *DAG) {
           !N->hasAnyUseOfValue(N->getNumValues() - 1)) &&
          "expected an unused glue value");
 
-  SmallVector<EVT, 4> VTs;
-  for (unsigned I = 0, E = N->getNumValues()-1; I != E; ++I)
-    VTs.push_back(N->getValueType(I));
-
-  CloneNodeWithValues(N, DAG, VTs);
+  CloneNodeWithValues(N, DAG,
+                      makeArrayRef(N->value_begin(), N->getNumValues() - 1));
 }
 
 /// ClusterNeighboringLoads - Force nearby loads together by "gluing" them.
@@ -299,9 +289,8 @@ void ScheduleDAGSDNodes::ClusterNeighboringLoads(SDNode *Node) {
 /// ClusterNodes - Cluster certain nodes which should be scheduled together.
 ///
 void ScheduleDAGSDNodes::ClusterNodes() {
-  for (SelectionDAG::allnodes_iterator NI = DAG->allnodes_begin(),
-       E = DAG->allnodes_end(); NI != E; ++NI) {
-    SDNode *Node = &*NI;
+  for (SDNode &NI : DAG->allnodes()) {
+    SDNode *Node = &NI;
     if (!Node || !Node->isMachineOpcode())
       continue;
 
@@ -318,9 +307,8 @@ void ScheduleDAGSDNodes::BuildSchedUnits() {
   // to their associated SUnits by holding SUnits table indices. A value
   // of -1 means the SDNode does not yet have an associated SUnit.
   unsigned NumNodes = 0;
-  for (SelectionDAG::allnodes_iterator NI = DAG->allnodes_begin(),
-       E = DAG->allnodes_end(); NI != E; ++NI) {
-    NI->setNodeId(-1);
+  for (SDNode &NI : DAG->allnodes()) {
+    NI.setNodeId(-1);
     ++NumNodes;
   }
 
@@ -342,9 +330,9 @@ void ScheduleDAGSDNodes::BuildSchedUnits() {
     SDNode *NI = Worklist.pop_back_val();
 
     // Add all operands to the worklist unless they've already been added.
-    for (unsigned i = 0, e = NI->getNumOperands(); i != e; ++i)
-      if (Visited.insert(NI->getOperand(i).getNode()).second)
-        Worklist.push_back(NI->getOperand(i).getNode());
+    for (const SDValue &Op : NI->op_values())
+      if (Visited.insert(Op.getNode()).second)
+        Worklist.push_back(Op.getNode());
 
     if (isPassiveNode(NI))  // Leaf node, e.g. a TargetImmediate.
       continue;

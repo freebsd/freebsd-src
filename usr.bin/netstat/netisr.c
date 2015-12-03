@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr_internal.h>
 
 #include <err.h>
-#include <kvm.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <libxo/xo.h>
 #include "netstat.h"
+#include "nl_defs.h"
 
 /*
  * Print statistics for the kernel netisr subsystem.
@@ -102,41 +102,18 @@ netisr_dispatch_policy_to_string(u_int policy, char *buf,
 	snprintf(buf, buflen, "%s", str);
 }
 
-static void
-netisr_load_kvm_uint(kvm_t *kd, const char *name, u_int *p)
-{
-	struct nlist nl[] = {
-		{ .n_name = name },
-		{ .n_name = NULL },
-	};
-	int ret;
-
-	ret = kvm_nlist(kd, nl);
-	if (ret < 0)
-		xo_errx(-1, "%s: kvm_nlist(%s): %s", __func__, name,
-		    kvm_geterr(kd));
-	if (ret != 0)
-		xo_errx(-1, "%s: kvm_nlist(%s): unresolved symbol", __func__,
-		    name);
-	if (kvm_read(kd, nl[0].n_value, p, sizeof(*p)) != sizeof(*p))
-		xo_errx(-1, "%s: kvm_read(%s): %s", __func__, name,
-		    kvm_geterr(kd));
-}
-
 /*
  * Load a nul-terminated string from KVM up to 'limit', guarantee that the
  * string in local memory is nul-terminated.
  */
 static void
-netisr_load_kvm_string(kvm_t *kd, uintptr_t addr, char *dest, u_int limit)
+netisr_load_kvm_string(uintptr_t addr, char *dest, u_int limit)
 {
 	u_int i;
 
 	for (i = 0; i < limit; i++) {
-		if (kvm_read(kd, addr + i, &dest[i], sizeof(dest[i])) !=
-		    sizeof(dest[i]))
-			xo_err(-1, "%s: kvm_read: %s", __func__,
-			    kvm_geterr(kd));
+		if (kread(addr + i, &dest[i], sizeof(dest[i])) != 0)
+			xo_errx(-1, "%s: kread()", __func__);
 		if (dest[i] == '\0')
 			break;
 	}
@@ -168,18 +145,18 @@ netisr_protoispresent(u_int proto)
 }
 
 static void
-netisr_load_kvm_config(kvm_t *kd)
+netisr_load_kvm_config(void)
 {
 	u_int tmp;
 
-	netisr_load_kvm_uint(kd, "_netisr_bindthreads", &bindthreads);
-	netisr_load_kvm_uint(kd, "_netisr_maxthreads", &maxthreads);
-	netisr_load_kvm_uint(kd, "_nws_count", &numthreads);
+	kread(nl[N_NETISR_BINDTHREADS].n_value, &bindthreads, sizeof(u_int));
+	kread(nl[N_NETISR_MAXTHREADS].n_value, &maxthreads, sizeof(u_int));
+	kread(nl[N_NWS_COUNT].n_value, &numthreads, sizeof(u_int));
+	kread(nl[N_NETISR_DEFAULTQLIMIT].n_value, &defaultqlimit,
+	    sizeof(u_int));
+	kread(nl[N_NETISR_MAXQLIMIT].n_value, &maxqlimit, sizeof(u_int));
+	kread(nl[N_NETISR_DISPATCH_POLICY].n_value, &tmp, sizeof(u_int));
 
-	netisr_load_kvm_uint(kd, "_netisr_defaultqlimit", &defaultqlimit);
-	netisr_load_kvm_uint(kd, "_netisr_maxqlimit", &maxqlimit);
-
-	netisr_load_kvm_uint(kd, "_netisr_dispatch_policy", &tmp);
 	netisr_dispatch_policy_to_string(tmp, dispatch_policy,
 	    sizeof(dispatch_policy));
 }
@@ -223,41 +200,26 @@ netisr_load_sysctl_config(void)
 }
 
 static void
-netisr_load_kvm_proto(kvm_t *kd)
+netisr_load_kvm_proto(void)
 {
-	struct nlist nl[] = {
-#define	NLIST_NETISR_PROTO	0
-		{ .n_name = "_netisr_proto" },
-		{ .n_name = NULL },
-	};
 	struct netisr_proto *np_array, *npp;
 	u_int i, protocount;
 	struct sysctl_netisr_proto *snpp;
 	size_t len;
-	int ret;
 
 	/*
 	 * Kernel compile-time and user compile-time definitions of
 	 * NETISR_MAXPROT must match, as we use that to size work arrays.
 	 */
-	netisr_load_kvm_uint(kd, "_netisr_maxprot", &maxprot);
+	kread(nl[N_NETISR_MAXPROT].n_value, &maxprot, sizeof(u_int));
 	if (maxprot != NETISR_MAXPROT)
 		xo_errx(-1, "%s: NETISR_MAXPROT mismatch", __func__);
 	len = maxprot * sizeof(*np_array);
 	np_array = malloc(len);
 	if (np_array == NULL)
 		xo_err(-1, "%s: malloc", __func__);
-	ret = kvm_nlist(kd, nl);
-	if (ret < 0)
-		xo_errx(-1, "%s: kvm_nlist(_netisr_proto): %s", __func__,
-		    kvm_geterr(kd));
-	if (ret != 0)
-		xo_errx(-1, "%s: kvm_nlist(_netisr_proto): unresolved symbol",
-		    __func__);
-	if (kvm_read(kd, nl[NLIST_NETISR_PROTO].n_value, np_array, len) !=
-	    (ssize_t)len)
-		xo_errx(-1, "%s: kvm_read(_netisr_proto): %s", __func__,
-		    kvm_geterr(kd));
+	if (kread(nl[N_NETISR_PROTO].n_value, np_array, len) != 0)
+		xo_errx(-1, "%s: kread(_netisr_proto)", __func__);
 
 	/*
 	 * Size and allocate memory to hold only live protocols.
@@ -278,7 +240,7 @@ netisr_load_kvm_proto(kvm_t *kd)
 			continue;
 		snpp = &proto_array[protocount];
 		snpp->snp_version = sizeof(*snpp);
-		netisr_load_kvm_string(kd, (uintptr_t)npp->np_name,
+		netisr_load_kvm_string((uintptr_t)npp->np_name,
 		    snpp->snp_name, sizeof(snpp->snp_name));
 		snpp->snp_proto = i;
 		snpp->snp_qlimit = npp->np_qlimit;
@@ -320,35 +282,21 @@ netisr_load_sysctl_proto(void)
 }
 
 static void
-netisr_load_kvm_workstream(kvm_t *kd)
+netisr_load_kvm_workstream(void)
 {
-	struct nlist nl[] = {
-#define	NLIST_NWS_ARRAY		0
-		{ .n_name = "_nws_array" },
-		{ .n_name = NULL },
-	};
 	struct netisr_workstream nws;
 	struct sysctl_netisr_workstream *snwsp;
 	struct sysctl_netisr_work *snwp;
 	struct netisr_work *nwp;
-	struct nlist nl_nws[2];
 	u_int counter, cpuid, proto, wsid;
 	size_t len;
-	int ret;
 
 	len = numthreads * sizeof(*nws_array);
 	nws_array = malloc(len);
 	if (nws_array == NULL)
 		xo_err(-1, "malloc");
-	ret = kvm_nlist(kd, nl);
-	if (ret < 0)
-		xo_errx(-1, "%s: kvm_nlist: %s", __func__, kvm_geterr(kd));
-	if (ret != 0)
-		xo_errx(-1, "%s: kvm_nlist: unresolved symbol", __func__);
-	if (kvm_read(kd, nl[NLIST_NWS_ARRAY].n_value, nws_array, len) !=
-	    (ssize_t)len)
-		xo_errx(-1, "%s: kvm_read(_nws_array): %s", __func__,
-		    kvm_geterr(kd));
+	if (kread(nl[N_NWS_ARRAY].n_value, nws_array, len) != 0)
+		xo_errx(-1, "%s: kread(_nws_array)", __func__);
 	workstream_array = calloc(numthreads, sizeof(*workstream_array));
 	if (workstream_array == NULL)
 		xo_err(-1, "calloc");
@@ -359,22 +307,9 @@ netisr_load_kvm_workstream(kvm_t *kd)
 	counter = 0;
 	for (wsid = 0; wsid < numthreads; wsid++) {
 		cpuid = nws_array[wsid];
-		if (kvm_dpcpu_setcpu(kd, cpuid) < 0)
-			xo_errx(-1, "%s: kvm_dpcpu_setcpu(%u): %s", __func__,
-			    cpuid, kvm_geterr(kd));
-		bzero(nl_nws, sizeof(nl_nws));
-		nl_nws[0].n_name = "_nws";
-		ret = kvm_nlist(kd, nl_nws);
-		if (ret < 0)
-			xo_errx(-1, "%s: kvm_nlist looking up nws on CPU "
-			    "%u: %s", __func__, cpuid, kvm_geterr(kd));
-		if (ret != 0)
-			xo_errx(-1, "%s: kvm_nlist(nws): unresolved symbol on "
-			    "CPU %u", __func__, cpuid);
-		if (kvm_read(kd, nl_nws[0].n_value, &nws, sizeof(nws)) !=
-		    sizeof(nws))
-			xo_errx(-1, "%s: kvm_read(nw): %s", __func__,
-			    kvm_geterr(kd));
+		kset_dpcpu(cpuid);
+		if (kread(nl[N_NWS].n_value, &nws, sizeof(nws)) != 0)
+			xo_errx(-1, "%s: kread(nw)", __func__);
 		snwsp = &workstream_array[wsid];
 		snwsp->snws_version = sizeof(*snwsp);
 		snwsp->snws_wsid = cpuid;
@@ -507,11 +442,10 @@ netisr_print_workstream(struct sysctl_netisr_workstream *snwsp)
 }
 
 void
-netisr_stats(void *kvmd)
+netisr_stats(void)
 {
 	struct sysctl_netisr_workstream *snwsp;
 	struct sysctl_netisr_proto *snpp;
-	kvm_t *kd = kvmd;
 	u_int i;
 
 	if (live) {
@@ -520,11 +454,9 @@ netisr_stats(void *kvmd)
 		netisr_load_sysctl_workstream();
 		netisr_load_sysctl_work();
 	} else {
-		if (kd == NULL)
-			xo_errx(-1, "netisr_stats: !live but !kd");
-		netisr_load_kvm_config(kd);
-		netisr_load_kvm_proto(kd);
-		netisr_load_kvm_workstream(kd);		/* Also does work. */
+		netisr_load_kvm_config();
+		netisr_load_kvm_proto();
+		netisr_load_kvm_workstream();		/* Also does work. */
 	}
 
 	xo_open_container("netisr");

@@ -571,6 +571,9 @@ int ibss_rsn_start(struct ibss_rsn *ibss_rsn, const u8 *addr)
 	struct ibss_rsn_peer *peer;
 	int res;
 
+	if (!ibss_rsn)
+		return -1;
+
 	/* if the peer already exists, exit immediately */
 	peer = ibss_rsn_get_peer(ibss_rsn, addr);
 	if (peer)
@@ -694,7 +697,8 @@ void ibss_rsn_deinit(struct ibss_rsn *ibss_rsn)
 		ibss_rsn_free(prev);
 	}
 
-	wpa_deinit(ibss_rsn->auth_group);
+	if (ibss_rsn->auth_group)
+		wpa_deinit(ibss_rsn->auth_group);
 	os_free(ibss_rsn);
 
 }

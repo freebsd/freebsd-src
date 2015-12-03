@@ -61,6 +61,8 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, u_int8_t *flags, int wait)
 			break;
 	}
 	pa = m->phys_addr;
+	if ((wait & M_NODUMP) == 0)
+		dump_add_page(pa);
 	va = (void *)PHYS_TO_DMAP(pa);
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
 		bzero(va, PAGE_SIZE);
@@ -74,6 +76,7 @@ uma_small_free(void *mem, vm_size_t size, u_int8_t flags)
 	vm_paddr_t pa;
 
 	pa = DMAP_TO_PHYS((vm_offset_t)mem);
+	dump_drop_page(pa);
 	m = PHYS_TO_VM_PAGE(pa);
 	m->wire_count--;
 	vm_page_free(m);

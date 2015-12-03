@@ -1,6 +1,6 @@
 #
 # ZEDBOARD -- Custom configuration for the Xilinx Zynq-7000 based
-#             ZedBoard (www.zedboard.org)
+#             ZedBoard (www.zedboard.org) and similar Zynq boards.
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -52,6 +52,10 @@ options 	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
 
 # Interrupt controller
 device		gic
+# Cache controller
+device		pl310			# PL310 L2 cache controller
+# ARM MPCore timer
+device		mpcore_timer
 
 device		loop
 device		random
@@ -59,6 +63,7 @@ device		ether
 device		cgem			# Zynq-7000 gig ethernet device
 device		mii
 device		e1000phy
+device		rgephy			# Zybo uses Realtek RTL8211E
 device		pty
 device		uart
 device		gpio

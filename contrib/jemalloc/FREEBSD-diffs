@@ -1,8 +1,8 @@
 diff --git a/doc/jemalloc.xml.in b/doc/jemalloc.xml.in
-index 8fc774b..47b453c 100644
+index 26a5e14..2a801b7 100644
 --- a/doc/jemalloc.xml.in
 +++ b/doc/jemalloc.xml.in
-@@ -53,6 +53,17 @@
+@@ -53,11 +53,23 @@
      <para>This manual describes jemalloc @jemalloc_version@.  More information
      can be found at the <ulink
      url="http://www.canonware.com/jemalloc/">jemalloc website</ulink>.</para>
@@ -20,7 +20,14 @@ index 8fc774b..47b453c 100644
    </refsect1>
    <refsynopsisdiv>
      <title>SYNOPSIS</title>
-@@ -2759,4 +2770,18 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
+     <funcsynopsis>
+-      <funcsynopsisinfo>#include &lt;<filename class="headerfile">jemalloc/jemalloc.h</filename>&gt;</funcsynopsisinfo>
++      <funcsynopsisinfo>#include &lt;<filename class="headerfile">stdlib.h</filename>&gt;
++#include &lt;<filename class="headerfile">malloc_np.h</filename>&gt;</funcsynopsisinfo>
+       <refsect2>
+         <title>Standard API</title>
+         <funcprototype>
+@@ -2759,4 +2771,18 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
      <para>The <function>posix_memalign<parameter/></function> function conforms
      to IEEE Std 1003.1-2001 (&ldquo;POSIX.1&rdquo;).</para>
    </refsect1>
@@ -40,7 +47,7 @@ index 8fc774b..47b453c 100644
 +  </refsect1>
  </refentry>
 diff --git a/include/jemalloc/internal/jemalloc_internal.h.in b/include/jemalloc/internal/jemalloc_internal.h.in
-index 7a137b6..b0001e9 100644
+index 654cd08..ad5382d 100644
 --- a/include/jemalloc/internal/jemalloc_internal.h.in
 +++ b/include/jemalloc/internal/jemalloc_internal.h.in
 @@ -8,6 +8,9 @@
@@ -104,10 +111,10 @@ index f051f29..561378f 100644
  
  #endif /* JEMALLOC_H_EXTERNS */
 diff --git a/include/jemalloc/internal/private_symbols.txt b/include/jemalloc/internal/private_symbols.txt
-index dbf6aa7..f87dba8 100644
+index a90021a..34904bf 100644
 --- a/include/jemalloc/internal/private_symbols.txt
 +++ b/include/jemalloc/internal/private_symbols.txt
-@@ -277,7 +277,6 @@ iralloct_realign
+@@ -280,7 +280,6 @@ iralloct_realign
  isalloc
  isdalloct
  isqalloc
@@ -117,10 +124,10 @@ index dbf6aa7..f87dba8 100644
  jemalloc_postfork_child
 diff --git a/include/jemalloc/jemalloc_FreeBSD.h b/include/jemalloc/jemalloc_FreeBSD.h
 new file mode 100644
-index 0000000..c5113b9
+index 0000000..737542e
 --- /dev/null
 +++ b/include/jemalloc/jemalloc_FreeBSD.h
-@@ -0,0 +1,144 @@
+@@ -0,0 +1,142 @@
 +/*
 + * Override settings that were generated in jemalloc_defs.h as necessary.
 + */
@@ -135,7 +142,6 @@ index 0000000..c5113b9
 + * The following are architecture-dependent, so conditionally define them for
 + * each supported architecture.
 + */
-+#undef CPU_SPINWAIT
 +#undef JEMALLOC_TLS_MODEL
 +#undef STATIC_PAGE_SHIFT
 +#undef LG_SIZEOF_PTR
@@ -145,7 +151,6 @@ index 0000000..c5113b9
 +
 +#ifdef __i386__
 +#  define LG_SIZEOF_PTR		2
-+#  define CPU_SPINWAIT		__asm__ volatile("pause")
 +#  define JEMALLOC_TLS_MODEL	__attribute__((tls_model("initial-exec")))
 +#endif
 +#ifdef __ia64__
@@ -157,7 +162,6 @@ index 0000000..c5113b9
 +#endif
 +#ifdef __amd64__
 +#  define LG_SIZEOF_PTR		3
-+#  define CPU_SPINWAIT		__asm__ volatile("pause")
 +#  define JEMALLOC_TLS_MODEL	__attribute__((tls_model("initial-exec")))
 +#endif
 +#ifdef __arm__
@@ -183,14 +187,15 @@ index 0000000..c5113b9
 +#  define JEMALLOC_TLS_MODEL	/* Default. */
 +#endif
 +
-+#ifndef CPU_SPINWAIT
-+#  define CPU_SPINWAIT do {} while (0)
-+#endif
-+
 +#define	STATIC_PAGE_SHIFT	PAGE_SHIFT
 +#define	LG_SIZEOF_INT		2
 +#define	LG_SIZEOF_LONG		LG_SIZEOF_PTR
 +#define	LG_SIZEOF_INTMAX_T	3
++
++#undef CPU_SPINWAIT
++#include <machine/cpu.h>
++#include <machine/cpufunc.h>
++#define	CPU_SPINWAIT		cpu_spinwait()
 +
 +/* Disable lazy-lock machinery, mangle isthreaded, and adjust its type. */
 +#undef JEMALLOC_LAZY_LOCK
@@ -277,7 +282,7 @@ index f943891..47d032c 100755
 +#include "jemalloc_FreeBSD.h"
  EOF
 diff --git a/src/jemalloc.c b/src/jemalloc.c
-index ed7863b..d078a1f 100644
+index 5a2d324..b6cbb79 100644
 --- a/src/jemalloc.c
 +++ b/src/jemalloc.c
 @@ -4,6 +4,10 @@
@@ -291,7 +296,7 @@ index ed7863b..d078a1f 100644
  /* Runtime configuration options. */
  const char	*je_malloc_conf JEMALLOC_ATTR(weak);
  bool	opt_abort =
-@@ -2475,6 +2479,107 @@ je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr)
+@@ -2490,6 +2494,107 @@ je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr)
   */
  /******************************************************************************/
  /*
@@ -399,7 +404,7 @@ index ed7863b..d078a1f 100644
   * The following functions are used by threading libraries for protection of
   * malloc during fork().
   */
-@@ -2575,4 +2680,11 @@ jemalloc_postfork_child(void)
+@@ -2590,4 +2695,11 @@ jemalloc_postfork_child(void)
  	ctl_postfork_child();
  }
  

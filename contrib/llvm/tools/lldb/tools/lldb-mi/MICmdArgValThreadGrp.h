@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdArgValThreadGrp.h
-//
-// Overview:    CMICmdArgValThreadGrp interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // In-house headers:
@@ -51,9 +39,9 @@ class CMICmdArgValThreadGrp : public CMICmdArgValBaseTemplate<MIuint>
     // Overridden:
   public:
     // From CMICmdArgValBase
-    /* dtor */ virtual ~CMICmdArgValThreadGrp(void);
+    /* dtor */ ~CMICmdArgValThreadGrp(void) override;
     // From CMICmdArgSet::IArg
-    virtual bool Validate(CMICmdArgContext &vArgContext);
+    bool Validate(CMICmdArgContext &vArgContext) override;
 
     // Methods:
   private:

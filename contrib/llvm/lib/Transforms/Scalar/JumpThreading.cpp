@@ -23,6 +23,7 @@
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LazyValueInfo.h"
 #include "llvm/Analysis/Loads.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
@@ -32,7 +33,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
@@ -78,7 +78,6 @@ namespace {
   /// revectored to the false side of the second if.
   ///
   class JumpThreading : public FunctionPass {
-    const DataLayout *DL;
     TargetLibraryInfo *TLI;
     LazyValueInfo *LVI;
 #ifdef NDEBUG
@@ -115,7 +114,7 @@ namespace {
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.addRequired<LazyValueInfo>();
       AU.addPreserved<LazyValueInfo>();
-      AU.addRequired<TargetLibraryInfo>();
+      AU.addRequired<TargetLibraryInfoWrapperPass>();
     }
 
     void FindLoopHeaders(Function &F);
@@ -145,7 +144,7 @@ char JumpThreading::ID = 0;
 INITIALIZE_PASS_BEGIN(JumpThreading, "jump-threading",
                 "Jump Threading", false, false)
 INITIALIZE_PASS_DEPENDENCY(LazyValueInfo)
-INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
+INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
 INITIALIZE_PASS_END(JumpThreading, "jump-threading",
                 "Jump Threading", false, false)
 
@@ -159,9 +158,7 @@ bool JumpThreading::runOnFunction(Function &F) {
     return false;
 
   DEBUG(dbgs() << "Jump threading on function '" << F.getName() << "'\n");
-  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
-  DL = DLP ? &DLP->getDataLayout() : nullptr;
-  TLI = &getAnalysis<TargetLibraryInfo>();
+  TLI = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
   LVI = &getAnalysis<LazyValueInfo>();
 
   // Remove unreachable blocks from function as they may result in infinite
@@ -505,6 +502,7 @@ ComputeValueKnownInPredecessors(Value *V, BasicBlock *BB, PredValueInfo &Result,
     assert(Preference == WantInteger && "Compares only produce integers");
     PHINode *PN = dyn_cast<PHINode>(Cmp->getOperand(0));
     if (PN && PN->getParent() == BB) {
+      const DataLayout &DL = PN->getModule()->getDataLayout();
       // We can do this simplification if any comparisons fold to true or false.
       // See if any do.
       for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i) {
@@ -709,7 +707,8 @@ bool JumpThreading::ProcessBlock(BasicBlock *BB) {
   // Run constant folding to see if we can reduce the condition to a simple
   // constant.
   if (Instruction *I = dyn_cast<Instruction>(Condition)) {
-    Value *SimpleVal = ConstantFoldInstruction(I, DL, TLI);
+    Value *SimpleVal =
+        ConstantFoldInstruction(I, BB->getModule()->getDataLayout(), TLI);
     if (SimpleVal) {
       I->replaceAllUsesWith(SimpleVal);
       I->eraseFromParent();
@@ -759,56 +758,33 @@ bool JumpThreading::ProcessBlock(BasicBlock *BB) {
 
 
   if (CmpInst *CondCmp = dyn_cast<CmpInst>(CondInst)) {
-    // For a comparison where the LHS is outside this block, it's possible
-    // that we've branched on it before.  Used LVI to see if we can simplify
-    // the branch based on that.
+    // If we're branching on a conditional, LVI might be able to determine
+    // it's value at the branch instruction.  We only handle comparisons
+    // against a constant at this time.
+    // TODO: This should be extended to handle switches as well.  
     BranchInst *CondBr = dyn_cast<BranchInst>(BB->getTerminator());
     Constant *CondConst = dyn_cast<Constant>(CondCmp->getOperand(1));
-    pred_iterator PI = pred_begin(BB), PE = pred_end(BB);
-    if (CondBr && CondConst && CondBr->isConditional() && PI != PE &&
-        (!isa<Instruction>(CondCmp->getOperand(0)) ||
-         cast<Instruction>(CondCmp->getOperand(0))->getParent() != BB)) {
-      // For predecessor edge, determine if the comparison is true or false
-      // on that edge.  If they're all true or all false, we can simplify the
-      // branch.
-      // FIXME: We could handle mixed true/false by duplicating code.
-      LazyValueInfo::Tristate Baseline =
-        LVI->getPredicateOnEdge(CondCmp->getPredicate(), CondCmp->getOperand(0),
-                                CondConst, *PI, BB, CondCmp);
-      if (Baseline != LazyValueInfo::Unknown) {
-        // Check that all remaining incoming values match the first one.
-        while (++PI != PE) {
-          LazyValueInfo::Tristate Ret =
-            LVI->getPredicateOnEdge(CondCmp->getPredicate(),
-                                    CondCmp->getOperand(0), CondConst, *PI, BB,
-                                    CondCmp);
-          if (Ret != Baseline) break;
-        }
-
-        // If we terminated early, then one of the values didn't match.
-        if (PI == PE) {
-          unsigned ToRemove = Baseline == LazyValueInfo::True ? 1 : 0;
-          unsigned ToKeep = Baseline == LazyValueInfo::True ? 0 : 1;
-          CondBr->getSuccessor(ToRemove)->removePredecessor(BB, true);
-          BranchInst::Create(CondBr->getSuccessor(ToKeep), CondBr);
-          CondBr->eraseFromParent();
-          return true;
-        }
-      }
-
-    } else if (CondBr && CondConst && CondBr->isConditional()) {
-      // There might be an invariant in the same block with the conditional
-      // that can determine the predicate.
-
+    if (CondBr && CondConst && CondBr->isConditional()) {
       LazyValueInfo::Tristate Ret =
         LVI->getPredicateAt(CondCmp->getPredicate(), CondCmp->getOperand(0),
-                            CondConst, CondCmp);
+                            CondConst, CondBr);
       if (Ret != LazyValueInfo::Unknown) {
         unsigned ToRemove = Ret == LazyValueInfo::True ? 1 : 0;
         unsigned ToKeep = Ret == LazyValueInfo::True ? 0 : 1;
         CondBr->getSuccessor(ToRemove)->removePredecessor(BB, true);
         BranchInst::Create(CondBr->getSuccessor(ToKeep), CondBr);
         CondBr->eraseFromParent();
+        if (CondCmp->use_empty())
+          CondCmp->eraseFromParent();
+        else if (CondCmp->getParent() == BB) {
+          // If the fact we just learned is true for all uses of the
+          // condition, replace it with a constant value
+          auto *CI = Ret == LazyValueInfo::True ?
+            ConstantInt::getTrue(CondCmp->getType()) :
+            ConstantInt::getFalse(CondCmp->getType());
+          CondCmp->replaceAllUsesWith(CI);
+          CondCmp->eraseFromParent();
+        }
         return true;
       }
     }
@@ -993,7 +969,7 @@ bool JumpThreading::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
 
     // Split them out to their own block.
     UnavailablePred =
-      SplitBlockPredecessors(LoadBB, PredsToSplit, "thread-pre-split", this);
+      SplitBlockPredecessors(LoadBB, PredsToSplit, "thread-pre-split");
   }
 
   // If the value isn't available in all predecessors, then there will be
@@ -1418,7 +1394,7 @@ bool JumpThreading::ThreadEdge(BasicBlock *BB,
   else {
     DEBUG(dbgs() << "  Factoring out " << PredBBs.size()
           << " common predecessors.\n");
-    PredBB = SplitBlockPredecessors(BB, PredBBs, ".thr_comm", this);
+    PredBB = SplitBlockPredecessors(BB, PredBBs, ".thr_comm");
   }
 
   // And finally, do it!
@@ -1521,7 +1497,7 @@ bool JumpThreading::ThreadEdge(BasicBlock *BB,
   // At this point, the IR is fully up to date and consistent.  Do a quick scan
   // over the new instructions and zap any that are constants or dead.  This
   // frequently happens because of phi translation.
-  SimplifyInstructionsInBlock(NewBB, DL, TLI);
+  SimplifyInstructionsInBlock(NewBB, TLI);
 
   // Threaded an edge!
   ++NumThreads;
@@ -1561,7 +1537,7 @@ bool JumpThreading::DuplicateCondBranchOnPHIIntoPred(BasicBlock *BB,
   else {
     DEBUG(dbgs() << "  Factoring out " << PredBBs.size()
           << " common predecessors.\n");
-    PredBB = SplitBlockPredecessors(BB, PredBBs, ".thr_comm", this);
+    PredBB = SplitBlockPredecessors(BB, PredBBs, ".thr_comm");
   }
 
   // Okay, we decided to do this!  Clone all the instructions in BB onto the end
@@ -1575,7 +1551,7 @@ bool JumpThreading::DuplicateCondBranchOnPHIIntoPred(BasicBlock *BB,
   BranchInst *OldPredBranch = dyn_cast<BranchInst>(PredBB->getTerminator());
 
   if (!OldPredBranch || !OldPredBranch->isUnconditional()) {
-    PredBB = SplitEdge(PredBB, BB, this);
+    PredBB = SplitEdge(PredBB, BB);
     OldPredBranch = cast<BranchInst>(PredBB->getTerminator());
   }
 
@@ -1586,7 +1562,6 @@ bool JumpThreading::DuplicateCondBranchOnPHIIntoPred(BasicBlock *BB,
   BasicBlock::iterator BI = BB->begin();
   for (; PHINode *PN = dyn_cast<PHINode>(BI); ++BI)
     ValueMapping[PN] = PN->getIncomingValueForBlock(PredBB);
-
   // Clone the non-phi instructions of BB into PredBB, keeping track of the
   // mapping and using it to remap operands in the cloned instructions.
   for (; BI != BB->end(); ++BI) {
@@ -1603,7 +1578,8 @@ bool JumpThreading::DuplicateCondBranchOnPHIIntoPred(BasicBlock *BB,
     // If this instruction can be simplified after the operands are updated,
     // just use the simplified value instead.  This frequently happens due to
     // phi translation.
-    if (Value *IV = SimplifyInstruction(New, DL)) {
+    if (Value *IV =
+            SimplifyInstruction(New, BB->getModule()->getDataLayout())) {
       delete New;
       ValueMapping[BI] = IV;
     } else {

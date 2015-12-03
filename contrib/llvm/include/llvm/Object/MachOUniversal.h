@@ -16,6 +16,7 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/Binary.h"
 #include "llvm/Object/MachO.h"
@@ -69,9 +70,8 @@ public:
     ObjectForArch Obj;
   public:
     object_iterator(const ObjectForArch &Obj) : Obj(Obj) {}
-    const ObjectForArch* operator->() const {
-      return &Obj;
-    }
+    const ObjectForArch *operator->() const { return &Obj; }
+    const ObjectForArch &operator*() const { return Obj; }
 
     bool operator==(const object_iterator &Other) const {
       return Obj == Other.Obj;
@@ -97,6 +97,10 @@ public:
     return ObjectForArch(nullptr, 0);
   }
 
+  iterator_range<object_iterator> objects() const {
+    return make_range(begin_objects(), end_objects());
+  }
+
   uint32_t getNumberOfObjects() const { return NumberOfObjects; }
 
   // Cast methods.
@@ -105,7 +109,7 @@ public:
   }
 
   ErrorOr<std::unique_ptr<MachOObjectFile>>
-  getObjectForArch(Triple::ArchType Arch) const;
+  getObjectForArch(StringRef ArchName) const;
 };
 
 }

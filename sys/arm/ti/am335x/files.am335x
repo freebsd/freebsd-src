@@ -17,7 +17,6 @@ arm/ti/am335x/am335x_scm_padconf.c	standard
 arm/ti/am335x/am335x_usbss.c		optional	musb fdt
 arm/ti/am335x/am335x_musb.c		optional	musb fdt
 
-arm/ti/am335x/hdmi_if.m			optional	hdmi
 arm/ti/am335x/tda19988.c		optional	hdmi
 
 arm/ti/ti_edma3.c			standard

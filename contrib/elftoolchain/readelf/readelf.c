@@ -47,7 +47,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: readelf.c 3223 2015-05-25 20:37:57Z emaste $");
+ELFTC_VCSID("$Id: readelf.c 3250 2015-10-06 13:56:15Z emaste $");
 
 /*
  * readelf(1) options.
@@ -332,6 +332,7 @@ static const char *note_type_gnu(unsigned int nt);
 static const char *note_type_netbsd(unsigned int nt);
 static const char *note_type_openbsd(unsigned int nt);
 static const char *note_type_unknown(unsigned int nt);
+static const char *note_type_xen(unsigned int nt);
 static const char *option_kind(uint8_t kind);
 static const char *phdr_type(unsigned int ptype);
 static const char *ppc_abi_fp(uint64_t fp);
@@ -414,8 +415,8 @@ elf_osabi(unsigned int abi)
 	static char s_abi[32];
 
 	switch(abi) {
-	case ELFOSABI_SYSV: return "SYSV";
-	case ELFOSABI_HPUX: return "HPUS";
+	case ELFOSABI_NONE: return "NONE";
+	case ELFOSABI_HPUX: return "HPUX";
 	case ELFOSABI_NETBSD: return "NetBSD";
 	case ELFOSABI_GNU: return "GNU";
 	case ELFOSABI_HURD: return "HURD";
@@ -1295,6 +1296,20 @@ r_type(unsigned int mach, unsigned int type)
 		case 22: return "R_MIPS_GOTLO16";
 		case 30: return "R_MIPS_CALLHI16";
 		case 31: return "R_MIPS_CALLLO16";
+		case 38: return "R_MIPS_TLS_DTPMOD32";
+		case 39: return "R_MIPS_TLS_DTPREL32";
+		case 40: return "R_MIPS_TLS_DTPMOD64";
+		case 41: return "R_MIPS_TLS_DTPREL64";
+		case 42: return "R_MIPS_TLS_GD";
+		case 43: return "R_MIPS_TLS_LDM";
+		case 44: return "R_MIPS_TLS_DTPREL_HI16";
+		case 45: return "R_MIPS_TLS_DTPREL_LO16";
+		case 46: return "R_MIPS_TLS_GOTTPREL";
+		case 47: return "R_MIPS_TLS_TPREL32";
+		case 48: return "R_MIPS_TLS_TPREL64";
+		case 49: return "R_MIPS_TLS_TPREL_HI16";
+		case 50: return "R_MIPS_TLS_TPREL_LO16";
+
 		default: return "";
 		}
 	case EM_PPC:
@@ -1377,6 +1392,51 @@ r_type(unsigned int mach, unsigned int type)
 		case 115: return "R_PPC_EMB_BIT_FLD";
 		case 116: return "R_PPC_EMB_RELSDA";
 		default: return "";
+		}
+	case EM_RISCV:
+		switch(type) {
+		case 0: return "R_RISCV_NONE";
+		case 1: return "R_RISCV_32";
+		case 2: return "R_RISCV_64";
+		case 3: return "R_RISCV_RELATIVE";
+		case 4: return "R_RISCV_COPY";
+		case 5: return "R_RISCV_JUMP_SLOT";
+		case 6: return "R_RISCV_TLS_DTPMOD32";
+		case 7: return "R_RISCV_TLS_DTPMOD64";
+		case 8: return "R_RISCV_TLS_DTPREL32";
+		case 9: return "R_RISCV_TLS_DTPREL64";
+		case 10: return "R_RISCV_TLS_TPREL32";
+		case 11: return "R_RISCV_TLS_TPREL64";
+		case 16: return "R_RISCV_BRANCH";
+		case 17: return "R_RISCV_JAL";
+		case 18: return "R_RISCV_CALL";
+		case 19: return "R_RISCV_CALL_PLT";
+		case 20: return "R_RISCV_GOT_HI20";
+		case 21: return "R_RISCV_TLS_GOT_HI20";
+		case 22: return "R_RISCV_TLS_GD_HI20";
+		case 23: return "R_RISCV_PCREL_HI20";
+		case 24: return "R_RISCV_PCREL_LO12_I";
+		case 25: return "R_RISCV_PCREL_LO12_S";
+		case 26: return "R_RISCV_HI20";
+		case 27: return "R_RISCV_LO12_I";
+		case 28: return "R_RISCV_LO12_S";
+		case 29: return "R_RISCV_TPREL_HI20";
+		case 30: return "R_RISCV_TPREL_LO12_I";
+		case 31: return "R_RISCV_TPREL_LO12_S";
+		case 32: return "R_RISCV_TPREL_ADD";
+		case 33: return "R_RISCV_ADD8";
+		case 34: return "R_RISCV_ADD16";
+		case 35: return "R_RISCV_ADD32";
+		case 36: return "R_RISCV_ADD64";
+		case 37: return "R_RISCV_SUB8";
+		case 38: return "R_RISCV_SUB16";
+		case 39: return "R_RISCV_SUB32";
+		case 40: return "R_RISCV_SUB64";
+		case 41: return "R_RISCV_GNU_VTINHERIT";
+		case 42: return "R_RISCV_GNU_VTENTRY";
+		case 43: return "R_RISCV_ALIGN";
+		case 44: return "R_RISCV_RVC_BRANCH";
+		case 45: return "R_RISCV_RVC_JUMP";
 		}
 	case EM_SPARC:
 	case EM_SPARCV9:
@@ -1526,6 +1586,8 @@ note_type(const char *name, unsigned int et, unsigned int nt)
 		return note_type_netbsd(nt);
 	else if (strcmp(name, "OpenBSD") == 0 && et != ET_CORE)
 		return note_type_openbsd(nt);
+	else if (strcmp(name, "Xen") == 0 && et != ET_CORE)
+		return note_type_xen(nt);
 	return note_type_unknown(nt);
 }
 
@@ -1632,6 +1694,32 @@ note_type_unknown(unsigned int nt)
 	snprintf(s_nt, sizeof(s_nt),
 	    nt >= 0x100 ? "<unknown: 0x%x>" : "<unknown: %u>", nt);
 	return (s_nt);
+}
+
+static const char *
+note_type_xen(unsigned int nt)
+{
+	switch (nt) {
+	case 0: return "XEN_ELFNOTE_INFO";
+	case 1: return "XEN_ELFNOTE_ENTRY";
+	case 2: return "XEN_ELFNOTE_HYPERCALL_PAGE";
+	case 3: return "XEN_ELFNOTE_VIRT_BASE";
+	case 4: return "XEN_ELFNOTE_PADDR_OFFSET";
+	case 5: return "XEN_ELFNOTE_XEN_VERSION";
+	case 6: return "XEN_ELFNOTE_GUEST_OS";
+	case 7: return "XEN_ELFNOTE_GUEST_VERSION";
+	case 8: return "XEN_ELFNOTE_LOADER";
+	case 9: return "XEN_ELFNOTE_PAE_MODE";
+	case 10: return "XEN_ELFNOTE_FEATURES";
+	case 11: return "XEN_ELFNOTE_BSD_SYMTAB";
+	case 12: return "XEN_ELFNOTE_HV_START_LOW";
+	case 13: return "XEN_ELFNOTE_L1_MFN_VALID";
+	case 14: return "XEN_ELFNOTE_SUSPEND_CANCEL";
+	case 15: return "XEN_ELFNOTE_INIT_P2M";
+	case 16: return "XEN_ELFNOTE_MOD_START_PFN";
+	case 17: return "XEN_ELFNOTE_SUPPORTED_FEATURES";
+	default: return (note_type_unknown(nt));
+	}
 }
 
 static struct {
@@ -3179,6 +3267,9 @@ dump_rel(struct readelf *re, struct section *s, Elf_Data *d)
 	uint64_t symval;
 	int i, len;
 
+	if (s->link >= re->shnum)
+		return;
+
 #define	REL_HDR "r_offset", "r_info", "r_type", "st_value", "st_name"
 #define	REL_CT32 (uintmax_t)r.r_offset, (uintmax_t)r.r_info,	    \
 		r_type(re->ehdr.e_machine, ELF32_R_TYPE(r.r_info)), \
@@ -3202,10 +3293,6 @@ dump_rel(struct readelf *re, struct section *s, Elf_Data *d)
 	for (i = 0; i < len; i++) {
 		if (gelf_getrel(d, i, &r) != &r) {
 			warnx("gelf_getrel failed: %s", elf_errmsg(-1));
-			continue;
-		}
-		if (s->link >= re->shnum) {
-			warnx("invalid section link index %u", s->link);
 			continue;
 		}
 		symname = get_symbol_name(re, s->link, GELF_R_SYM(r.r_info));
@@ -3236,6 +3323,9 @@ dump_rela(struct readelf *re, struct section *s, Elf_Data *d)
 	uint64_t symval;
 	int i, len;
 
+	if (s->link >= re->shnum)
+		return;
+
 #define	RELA_HDR "r_offset", "r_info", "r_type", "st_value", \
 		"st_name + r_addend"
 #define	RELA_CT32 (uintmax_t)r.r_offset, (uintmax_t)r.r_info,	    \
@@ -3260,10 +3350,6 @@ dump_rela(struct readelf *re, struct section *s, Elf_Data *d)
 	for (i = 0; i < len; i++) {
 		if (gelf_getrela(d, i, &r) != &r) {
 			warnx("gelf_getrel failed: %s", elf_errmsg(-1));
-			continue;
-		}
-		if (s->link >= re->shnum) {
-			warnx("invalid section link index %u", s->link);
 			continue;
 		}
 		symname = get_symbol_name(re, s->link, GELF_R_SYM(r.r_info));
@@ -3321,9 +3407,13 @@ dump_symtab(struct readelf *re, int i)
 	Elf_Data *d;
 	GElf_Sym sym;
 	const char *name;
-	int elferr, stab, j, len;
+	uint32_t stab;
+	int elferr, j, len;
+	uint16_t vs;
 
 	s = &re->sl[i];
+	if (s->link >= re->shnum)
+		return;
 	stab = s->link;
 	(void) elf_errno();
 	if ((d = elf_getdata(s->scn, NULL)) == NULL) {
@@ -3358,14 +3448,15 @@ dump_symtab(struct readelf *re, int i)
 		/* Append symbol version string for SHT_DYNSYM symbol table. */
 		if (s->type == SHT_DYNSYM && re->ver != NULL &&
 		    re->vs != NULL && re->vs[j] > 1) {
-			if (re->vs[j] & 0x8000 ||
-			    re->ver[re->vs[j] & 0x7fff].type == 0)
-				printf("@%s (%d)",
-				    re->ver[re->vs[j] & 0x7fff].name,
-				    re->vs[j] & 0x7fff);
+			vs = re->vs[j] & VERSYM_VERSION;
+			if (vs >= re->ver_sz || re->ver[vs].name == NULL) {
+				warnx("invalid versym version index %u", vs);
+				break;
+			}
+			if (re->vs[j] & VERSYM_HIDDEN || re->ver[vs].type == 0)
+				printf("@%s (%d)", re->ver[vs].name, vs);
 			else
-				printf("@@%s (%d)", re->ver[re->vs[j]].name,
-				    re->vs[j]);
+				printf("@@%s (%d)", re->ver[vs].name, vs);
 		}
 		putchar('\n');
 	}
@@ -3594,6 +3685,8 @@ dump_gnu_hash(struct readelf *re, struct section *s)
 	symndx = buf[1];
 	maskwords = buf[2];
 	buf += 4;
+	if (s->link >= re->shnum)
+		return;
 	ds = &re->sl[s->link];
 	if (!get_ent_count(ds, &dynsymcount))
 		return;
@@ -3800,6 +3893,8 @@ dump_verdef(struct readelf *re, int dump)
 
 	if ((s = re->vd_s) == NULL)
 		return;
+	if (s->link >= re->shnum)
+		return;
 
 	if (re->ver == NULL) {
 		re->ver_sz = 16;
@@ -3873,6 +3968,8 @@ dump_verneed(struct readelf *re, int dump)
 
 	if ((s = re->vn_s) == NULL)
 		return;
+	if (s->link >= re->shnum)
+		return;
 
 	if (re->ver == NULL) {
 		re->ver_sz = 16;
@@ -3937,6 +4034,7 @@ static void
 dump_versym(struct readelf *re)
 {
 	int i;
+	uint16_t vs;
 
 	if (re->vs_s == NULL || re->ver == NULL || re->vs == NULL)
 		return;
@@ -3947,12 +4045,16 @@ dump_versym(struct readelf *re)
 				putchar('\n');
 			printf("  %03x:", i);
 		}
-		if (re->vs[i] & 0x8000)
-			printf(" %3xh %-12s ", re->vs[i] & 0x7fff,
-			    re->ver[re->vs[i] & 0x7fff].name);
+		vs = re->vs[i] & VERSYM_VERSION;
+		if (vs >= re->ver_sz || re->ver[vs].name == NULL) {
+			warnx("invalid versym version index %u", re->vs[i]);
+			break;
+		}
+		if (re->vs[i] & VERSYM_HIDDEN)
+			printf(" %3xh %-12s ", vs,
+			    re->ver[re->vs[i] & VERSYM_VERSION].name);
 		else
-			printf(" %3x %-12s ", re->vs[i],
-			    re->ver[re->vs[i]].name);
+			printf(" %3x %-12s ", vs, re->ver[re->vs[i]].name);
 	}
 	putchar('\n');
 }
@@ -4031,6 +4133,8 @@ dump_liblist(struct readelf *re)
 		s = &re->sl[i];
 		if (s->type != SHT_GNU_LIBLIST)
 			continue;
+		if (s->link >= re->shnum)
+			continue;
 		(void) elf_errno();
 		if ((d = elf_getdata(s->scn, NULL)) == NULL) {
 			elferr = elf_errno();
@@ -4096,6 +4200,8 @@ dump_section_groups(struct readelf *re)
 	for (i = 0; (size_t) i < re->shnum; i++) {
 		s = &re->sl[i];
 		if (s->type != SHT_GROUP)
+			continue;
+		if (s->link >= re->shnum)
 			continue;
 		(void) elf_errno();
 		if ((d = elf_getdata(s->scn, NULL)) == NULL) {
@@ -6669,7 +6775,8 @@ get_symbol_name(struct readelf *re, int symtab, int i)
 	if (GELF_ST_TYPE(sym.st_info) == STT_SECTION &&
 	    re->sl[sym.st_shndx].name != NULL)
 		return (re->sl[sym.st_shndx].name);
-	if ((name = elf_strptr(re->elf, s->link, sym.st_name)) == NULL)
+	if (s->link >= re->shnum ||
+	    (name = elf_strptr(re->elf, s->link, sym.st_name)) == NULL)
 		return ("");
 
 	return (name);
@@ -6860,6 +6967,9 @@ load_sections(struct readelf *re)
 			warnx("section index of '%s' out of range", name);
 			continue;
 		}
+		if (sh.sh_link >= re->shnum)
+			warnx("section link %llu of '%s' out of range",
+			    (unsigned long long)sh.sh_link, name);
 		s = &re->sl[ndx];
 		s->name = name;
 		s->scn = scn;

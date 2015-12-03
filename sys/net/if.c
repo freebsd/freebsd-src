@@ -183,6 +183,10 @@ static void	if_detach_internal(struct ifnet *, int, struct if_clone **);
 extern void	nd6_setmtu(struct ifnet *);
 #endif
 
+/* ipsec helper hooks */
+VNET_DEFINE(struct hhook_head *, ipsec_hhh_in[HHOOK_IPSEC_COUNT]);
+VNET_DEFINE(struct hhook_head *, ipsec_hhh_out[HHOOK_IPSEC_COUNT]);
+
 VNET_DEFINE(int, if_index);
 int	ifqmaxlen = IFQ_MAXLEN;
 VNET_DEFINE(struct ifnethead, ifnet);	/* depend on static init XXX */
@@ -1545,76 +1549,53 @@ ifa_free(struct ifaddr *ifa)
 	}
 }
 
-int
-ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
+static int
+ifa_maintain_loopback_route(int cmd, const char *otype, struct ifaddr *ifa,
+    struct sockaddr *ia)
 {
-	int error = 0;
-	struct rtentry *rt = NULL;
+	int error;
 	struct rt_addrinfo info;
-	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
+	struct sockaddr_dl null_sdl;
+	struct ifnet *ifp;
+
+	ifp = ifa->ifa_ifp;
 
 	bzero(&info, sizeof(info));
-	info.rti_ifp = V_loif;
+	if (cmd != RTM_DELETE)
+		info.rti_ifp = V_loif;
 	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
 	info.rti_info[RTAX_DST] = ia;
 	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-	error = rtrequest1_fib(RTM_ADD, &info, &rt, ifa->ifa_ifp->if_fib);
+	link_init_sdl(ifp, (struct sockaddr *)&null_sdl, ifp->if_type);
 
-	if (error == 0 && rt != NULL) {
-		RT_LOCK(rt);
-		((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
-			ifa->ifa_ifp->if_type;
-		((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
-			ifa->ifa_ifp->if_index;
-		RT_REMREF(rt);
-		RT_UNLOCK(rt);
-	} else if (error != 0)
-		log(LOG_DEBUG, "%s: insertion failed: %u\n", __func__, error);
+	error = rtrequest1_fib(cmd, &info, NULL, ifp->if_fib);
+
+	if (error != 0)
+		log(LOG_DEBUG, "%s: %s failed for interface %s: %u\n",
+		    __func__, otype, if_name(ifp), error);
 
 	return (error);
+}
+
+int
+ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
+{
+
+	return (ifa_maintain_loopback_route(RTM_ADD, "insertion", ifa, ia));
 }
 
 int
 ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 {
-	int error = 0;
-	struct rt_addrinfo info;
-	struct sockaddr_dl null_sdl;
 
-	bzero(&null_sdl, sizeof(null_sdl));
-	null_sdl.sdl_len = sizeof(null_sdl);
-	null_sdl.sdl_family = AF_LINK;
-	null_sdl.sdl_type = ifa->ifa_ifp->if_type;
-	null_sdl.sdl_index = ifa->ifa_ifp->if_index;
-	bzero(&info, sizeof(info));
-	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
-	info.rti_info[RTAX_DST] = ia;
-	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-	error = rtrequest1_fib(RTM_DELETE, &info, NULL, ifa->ifa_ifp->if_fib);
-
-	if (error != 0)
-		log(LOG_DEBUG, "%s: deletion failed: %u\n", __func__, error);
-
-	return (error);
+	return (ifa_maintain_loopback_route(RTM_DELETE, "deletion", ifa, ia));
 }
 
 int
-ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *sa, int fib)
+ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 {
-	struct rtentry *rt;
 
-	rt = rtalloc1_fib(sa, 0, 0, fib);
-	if (rt == NULL) {
-		log(LOG_DEBUG, "%s: fail", __func__);
-		return (EHOSTUNREACH);
-	}
-	((struct sockaddr_dl *)rt->rt_gateway)->sdl_type =
-	    ifa->ifa_ifp->if_type;
-	((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
-	    ifa->ifa_ifp->if_index;
-	RTFREE_LOCKED(rt);
-
-	return (0);
+	return (ifa_maintain_loopback_route(RTM_CHANGE, "switch", ifa, ia));
 }
 
 /*
@@ -1624,18 +1605,18 @@ ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *sa, int fib)
  */
 
 #define	sa_dl_equal(a1, a2)	\
-	((((struct sockaddr_dl *)(a1))->sdl_len ==			\
-	 ((struct sockaddr_dl *)(a2))->sdl_len) &&			\
-	 (bcmp(LLADDR((struct sockaddr_dl *)(a1)),			\
-	       LLADDR((struct sockaddr_dl *)(a2)),			\
-	       ((struct sockaddr_dl *)(a1))->sdl_alen) == 0))
+	((((const struct sockaddr_dl *)(a1))->sdl_len ==		\
+	 ((const struct sockaddr_dl *)(a2))->sdl_len) &&		\
+	 (bcmp(CLLADDR((const struct sockaddr_dl *)(a1)),		\
+	       CLLADDR((const struct sockaddr_dl *)(a2)),		\
+	       ((const struct sockaddr_dl *)(a1))->sdl_alen) == 0))
 
 /*
  * Locate an interface based on a complete address.
  */
 /*ARGSUSED*/
 static struct ifaddr *
-ifa_ifwithaddr_internal(struct sockaddr *addr, int getref)
+ifa_ifwithaddr_internal(const struct sockaddr *addr, int getref)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1672,14 +1653,14 @@ done:
 }
 
 struct ifaddr *
-ifa_ifwithaddr(struct sockaddr *addr)
+ifa_ifwithaddr(const struct sockaddr *addr)
 {
 
 	return (ifa_ifwithaddr_internal(addr, 1));
 }
 
 int
-ifa_ifwithaddr_check(struct sockaddr *addr)
+ifa_ifwithaddr_check(const struct sockaddr *addr)
 {
 
 	return (ifa_ifwithaddr_internal(addr, 0) != NULL);
@@ -1690,7 +1671,7 @@ ifa_ifwithaddr_check(struct sockaddr *addr)
  */
 /* ARGSUSED */
 struct ifaddr *
-ifa_ifwithbroadaddr(struct sockaddr *addr, int fibnum)
+ifa_ifwithbroadaddr(const struct sockaddr *addr, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1725,7 +1706,7 @@ done:
  */
 /*ARGSUSED*/
 struct ifaddr *
-ifa_ifwithdstaddr(struct sockaddr *addr, int fibnum)
+ifa_ifwithdstaddr(const struct sockaddr *addr, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1760,20 +1741,20 @@ done:
  * is most specific found.
  */
 struct ifaddr *
-ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp, int fibnum)
+ifa_ifwithnet(const struct sockaddr *addr, int ignore_ptp, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 	struct ifaddr *ifa_maybe = NULL;
 	u_int af = addr->sa_family;
-	char *addr_data = addr->sa_data, *cplim;
+	const char *addr_data = addr->sa_data, *cplim;
 
 	/*
 	 * AF_LINK addresses can be looked up directly by their index number,
 	 * so do that if we can.
 	 */
 	if (af == AF_LINK) {
-	    struct sockaddr_dl *sdl = (struct sockaddr_dl *)addr;
+	    const struct sockaddr_dl *sdl = (const struct sockaddr_dl *)addr;
 	    if (sdl->sdl_index && sdl->sdl_index <= V_if_index)
 		return (ifaddr_byindex(sdl->sdl_index));
 	}
@@ -1790,7 +1771,7 @@ ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp, int fibnum)
 			continue;
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			char *cp, *cp2, *cp3;
+			const char *cp, *cp2, *cp3;
 
 			if (ifa->ifa_addr->sa_family != af)
 next:				continue;
@@ -1863,10 +1844,10 @@ done:
  * a given address.
  */
 struct ifaddr *
-ifaof_ifpforaddr(struct sockaddr *addr, struct ifnet *ifp)
+ifaof_ifpforaddr(const struct sockaddr *addr, struct ifnet *ifp)
 {
 	struct ifaddr *ifa;
-	char *cp, *cp2, *cp3;
+	const char *cp, *cp2, *cp3;
 	char *cplim;
 	struct ifaddr *ifa_maybe = NULL;
 	u_int af = addr->sa_family;
@@ -2535,7 +2516,6 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (error);
 		error = if_setlladdr(ifp,
 		    ifr->ifr_addr.sa_data, ifr->ifr_addr.sa_len);
-		EVENTHANDLER_INVOKE(iflladdr_event, ifp);
 		break;
 
 	case SIOCAIFGROUP:
@@ -2924,7 +2904,7 @@ if_allmulti(struct ifnet *ifp, int onswitch)
 }
 
 struct ifmultiaddr *
-if_findmulti(struct ifnet *ifp, struct sockaddr *sa)
+if_findmulti(struct ifnet *ifp, const struct sockaddr *sa)
 {
 	struct ifmultiaddr *ifma;
 
@@ -3337,8 +3317,10 @@ if_delmulti_locked(struct ifnet *ifp, struct ifmultiaddr *ifma, int detaching)
  *
  * At this time we only support certain types of interfaces,
  * and we don't allow the length of the address to change.
+ *
+ * Set noinline to be dtrace-friendly
  */
-int
+__noinline int
 if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 {
 	struct sockaddr_dl *sdl;
@@ -3396,17 +3378,8 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 			ifr.ifr_flagshigh = ifp->if_flags >> 16;
 			(*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
 		}
-#ifdef INET
-		/*
-		 * Also send gratuitous ARPs to notify other nodes about
-		 * the address change.
-		 */
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			if (ifa->ifa_addr->sa_family == AF_INET)
-				arp_ifinit(ifp, ifa);
-		}
-#endif
 	}
+	EVENTHANDLER_INVOKE(iflladdr_event, ifp);
 	return (0);
 }
 

@@ -142,9 +142,9 @@ static bool OnlyUsedBy(Value *V, Value *Usr) {
 static void RemoveDeadConstant(Constant *C) {
   assert(C->use_empty() && "Constant is not dead!");
   SmallPtrSet<Constant*, 4> Operands;
-  for (unsigned i = 0, e = C->getNumOperands(); i != e; ++i)
-    if (OnlyUsedBy(C->getOperand(i), C))
-      Operands.insert(cast<Constant>(C->getOperand(i)));
+  for (Value *Op : C->operands())
+    if (OnlyUsedBy(Op, C))
+      Operands.insert(cast<Constant>(Op));
   if (GlobalVariable *GV = dyn_cast<GlobalVariable>(C)) {
     if (!GV->hasLocalLinkage()) return;   // Don't delete non-static globals.
     GV->eraseFromParent();
@@ -305,41 +305,31 @@ bool StripDeadDebugInfo::runOnModule(Module &M) {
   SmallVector<Metadata *, 64> LiveSubprograms;
   DenseSet<const MDNode *> VisitedSet;
 
-  for (DICompileUnit DIC : F.compile_units()) {
-    assert(DIC.Verify() && "DIC must verify as a DICompileUnit.");
-
+  for (DICompileUnit *DIC : F.compile_units()) {
     // Create our live subprogram list.
-    DIArray SPs = DIC.getSubprograms();
     bool SubprogramChange = false;
-    for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
-      DISubprogram DISP(SPs.getElement(i));
-      assert(DISP.Verify() && "DISP must verify as a DISubprogram.");
-
+    for (DISubprogram *DISP : DIC->getSubprograms()) {
       // Make sure we visit each subprogram only once.
       if (!VisitedSet.insert(DISP).second)
         continue;
 
       // If the function referenced by DISP is not null, the function is live.
-      if (DISP.getFunction())
+      if (DISP->getFunction())
         LiveSubprograms.push_back(DISP);
       else
         SubprogramChange = true;
     }
 
     // Create our live global variable list.
-    DIArray GVs = DIC.getGlobalVariables();
     bool GlobalVariableChange = false;
-    for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i) {
-      DIGlobalVariable DIG(GVs.getElement(i));
-      assert(DIG.Verify() && "DIG must verify as DIGlobalVariable.");
-
+    for (DIGlobalVariable *DIG : DIC->getGlobalVariables()) {
       // Make sure we only visit each global variable only once.
       if (!VisitedSet.insert(DIG).second)
         continue;
 
       // If the global variable referenced by DIG is not null, the global
       // variable is live.
-      if (DIG.getGlobal())
+      if (DIG->getVariable())
         LiveGlobalVariables.push_back(DIG);
       else
         GlobalVariableChange = true;
@@ -349,12 +339,12 @@ bool StripDeadDebugInfo::runOnModule(Module &M) {
     // subprogram list/global variable list with our new live subprogram/global
     // variable list.
     if (SubprogramChange) {
-      DIC.replaceSubprograms(DIArray(MDNode::get(C, LiveSubprograms)));
+      DIC->replaceSubprograms(MDTuple::get(C, LiveSubprograms));
       Changed = true;
     }
 
     if (GlobalVariableChange) {
-      DIC.replaceGlobalVariables(DIArray(MDNode::get(C, LiveGlobalVariables)));
+      DIC->replaceGlobalVariables(MDTuple::get(C, LiveGlobalVariables));
       Changed = true;
     }
 

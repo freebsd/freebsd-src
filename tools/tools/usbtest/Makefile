@@ -26,6 +26,7 @@
 #
 PROG=	usbtest
 MAN=
+BINDIR?= /usr/sbin
 SRCS+=	usbtest.c
 SRCS+=	usb_msc_test.c
 SRCS+=	usb_modem_test.c

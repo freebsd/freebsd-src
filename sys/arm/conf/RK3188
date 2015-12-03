@@ -47,6 +47,8 @@ options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0\"
 
 # Interrupt controller
 device		gic
+# ARM MPCore timer
+device		mpcore_timer
 
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus

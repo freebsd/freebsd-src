@@ -28,8 +28,8 @@ class CommandTraits;
 
 /// Doxygen comment parser.
 class Parser {
-  Parser(const Parser &) LLVM_DELETED_FUNCTION;
-  void operator=(const Parser &) LLVM_DELETED_FUNCTION;
+  Parser(const Parser &) = delete;
+  void operator=(const Parser &) = delete;
 
   friend class TextTokenRetokenizer;
 
@@ -75,11 +75,7 @@ class Parser {
       return;
 
     MoreLATokens.push_back(Tok);
-    for (const Token *I = &Toks.back(),
-         *B = &Toks.front();
-         I != B; --I) {
-      MoreLATokens.push_back(*I);
-    }
+    MoreLATokens.append(Toks.rbegin(), std::prev(Toks.rend()));
 
     Tok = Toks[0];
   }

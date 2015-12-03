@@ -137,18 +137,13 @@ static bool GetX86CpuIDAndInfoEx(unsigned value, unsigned subleaf,
             "c" (subleaf));
     return false;
   #elif defined(_MSC_VER)
-    // __cpuidex was added in MSVC++ 9.0 SP1
-    #if (_MSC_VER > 1500) || (_MSC_VER == 1500 && _MSC_FULL_VER >= 150030729)
-      int registers[4];
-      __cpuidex(registers, value, subleaf);
-      *rEAX = registers[0];
-      *rEBX = registers[1];
-      *rECX = registers[2];
-      *rEDX = registers[3];
-      return false;
-    #else
-      return true;
-    #endif
+    int registers[4];
+    __cpuidex(registers, value, subleaf);
+    *rEAX = registers[0];
+    *rEBX = registers[1];
+    *rECX = registers[2];
+    *rEDX = registers[3];
+    return false;
   #else
     return true;
   #endif
@@ -187,19 +182,21 @@ static bool GetX86CpuIDAndInfoEx(unsigned value, unsigned subleaf,
 #endif
 }
 
-static bool OSHasAVXSupport() {
+static bool GetX86XCR0(unsigned *rEAX, unsigned *rEDX) {
 #if defined(__GNUC__)
   // Check xgetbv; this uses a .byte sequence instead of the instruction
   // directly because older assemblers do not include support for xgetbv and
   // there is no easy way to conditionally compile based on the assembler used.
-  int rEAX, rEDX;
-  __asm__ (".byte 0x0f, 0x01, 0xd0" : "=a" (rEAX), "=d" (rEDX) : "c" (0));
+  __asm__ (".byte 0x0f, 0x01, 0xd0" : "=a" (*rEAX), "=d" (*rEDX) : "c" (0));
+  return false;
 #elif defined(_MSC_FULL_VER) && defined(_XCR_XFEATURE_ENABLED_MASK)
-  unsigned long long rEAX = _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
+  unsigned long long Result = _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
+  *rEAX = Result;
+  *rEDX = Result >> 32;
+  return false;
 #else
-  int rEAX = 0; // Ensures we return false
+  return true;
 #endif
-  return (rEAX & 6) == 6;
 }
 
 static void DetectX86FamilyModel(unsigned EAX, unsigned &Family,
@@ -228,19 +225,30 @@ StringRef sys::getHostCPUName() {
     char     c[12];
   } text;
 
-  GetX86CpuIDAndInfo(0, &EAX, text.u+0, text.u+2, text.u+1);
+  unsigned MaxLeaf;
+  GetX86CpuIDAndInfo(0, &MaxLeaf, text.u+0, text.u+2, text.u+1);
 
-  unsigned MaxLeaf = EAX;
-  bool HasSSE3 = (ECX & 0x1);
-  bool HasSSE41 = (ECX & 0x80000);
-  // If CPUID indicates support for XSAVE, XRESTORE and AVX, and XGETBV 
+  bool HasMMX   = (EDX >> 23) & 1;
+  bool HasSSE   = (EDX >> 25) & 1;
+  bool HasSSE2  = (EDX >> 26) & 1;
+  bool HasSSE3  = (ECX >>  0) & 1;
+  bool HasSSSE3 = (ECX >>  9) & 1;
+  bool HasSSE41 = (ECX >> 19) & 1;
+  bool HasSSE42 = (ECX >> 20) & 1;
+  bool HasMOVBE = (ECX >> 22) & 1;
+  // If CPUID indicates support for XSAVE, XRESTORE and AVX, and XGETBV
   // indicates that the AVX registers will be saved and restored on context
   // switch, then we have full AVX support.
   const unsigned AVXBits = (1 << 27) | (1 << 28);
-  bool HasAVX = ((ECX & AVXBits) == AVXBits) && OSHasAVXSupport();
-  bool HasAVX2 = HasAVX && MaxLeaf >= 0x7 &&
-                 !GetX86CpuIDAndInfoEx(0x7, 0x0, &EAX, &EBX, &ECX, &EDX) &&
-                 (EBX & 0x20);
+  bool HasAVX = ((ECX & AVXBits) == AVXBits) && !GetX86XCR0(&EAX, &EDX) &&
+                ((EAX & 0x6) == 0x6);
+  bool HasAVX512Save = HasAVX && ((EAX & 0xe0) == 0xe0);
+  bool HasLeaf7 = MaxLeaf >= 0x7 &&
+                  !GetX86CpuIDAndInfoEx(0x7, 0x0, &EAX, &EBX, &ECX, &EDX);
+  bool HasADX = HasLeaf7 && ((EBX >> 19) & 1);
+  bool HasAVX2 = HasAVX && HasLeaf7 && (EBX & 0x20);
+  bool HasAVX512 = HasLeaf7 && HasAVX512Save && ((EBX >> 16) & 1);
+
   GetX86CpuIDAndInfo(0x80000001, &EAX, &EBX, &ECX, &EDX);
   bool Em64T = (EDX >> 29) & 0x1;
   bool HasTBM = (ECX >> 21) & 0x1;
@@ -303,6 +311,8 @@ StringRef sys::getHostCPUName() {
       case  9: // Intel Pentium M processor, Intel Celeron M processor model 09.
       case 13: // Intel Pentium M processor, Intel Celeron M processor, model
                // 0Dh. All processors are manufactured using the 90 nm process.
+      case 21: // Intel EP80579 Integrated Processor and Intel EP80579
+               // Integrated Processor with Intel QuickAssist Technology
         return "pentium-m";
 
       case 14: // Intel Core Duo processor, Intel Core Solo processor, model
@@ -318,68 +328,85 @@ StringRef sys::getHostCPUName() {
                // manufactured using the 65 nm process
         return "core2";
 
-      case 21: // Intel EP80579 Integrated Processor and Intel EP80579
-               // Integrated Processor with Intel QuickAssist Technology
-        return "i686"; // FIXME: ???
-
       case 23: // Intel Core 2 Extreme processor, Intel Xeon processor, model
                // 17h. All processors are manufactured using the 45 nm process.
                //
                // 45nm: Penryn , Wolfdale, Yorkfield (XE)
-        // Not all Penryn processors support SSE 4.1 (such as the Pentium brand)
-        return HasSSE41 ? "penryn" : "core2";
+      case 29: // Intel Xeon processor MP. All processors are manufactured using
+               // the 45 nm process.
+        return "penryn";
 
       case 26: // Intel Core i7 processor and Intel Xeon processor. All
                // processors are manufactured using the 45 nm process.
-      case 29: // Intel Xeon processor MP. All processors are manufactured using
-               // the 45 nm process.
       case 30: // Intel(R) Core(TM) i7 CPU         870  @ 2.93GHz.
                // As found in a Summer 2010 model iMac.
+      case 46: // Nehalem EX
+        return "nehalem";
       case 37: // Intel Core i7, laptop version.
       case 44: // Intel Core i7 processor and Intel Xeon processor. All
                // processors are manufactured using the 32 nm process.
-      case 46: // Nehalem EX
       case 47: // Westmere EX
-        return "corei7";
+        return "westmere";
 
       // SandyBridge:
       case 42: // Intel Core i7 processor. All processors are manufactured
                // using the 32 nm process.
       case 45:
-        // Not all Sandy Bridge processors support AVX (such as the Pentium
-        // versions instead of the i7 versions).
-        return HasAVX ? "corei7-avx" : "corei7";
+        return "sandybridge";
 
       // Ivy Bridge:
       case 58:
       case 62: // Ivy Bridge EP
-        // Not all Ivy Bridge processors support AVX (such as the Pentium
-        // versions instead of the i7 versions).
-        return HasAVX ? "core-avx-i" : "corei7";
+        return "ivybridge";
 
       // Haswell:
       case 60:
       case 63:
       case 69:
       case 70:
-        // Not all Haswell processors support AVX too (such as the Pentium
-        // versions instead of the i7 versions).
-        return HasAVX2 ? "core-avx2" : "corei7";
+        return "haswell";
+
+      // Broadwell:
+      case 61:
+        return "broadwell";
 
       case 28: // Most 45 nm Intel Atom processors
       case 38: // 45 nm Atom Lincroft
       case 39: // 32 nm Atom Medfield
       case 53: // 32 nm Atom Midview
       case 54: // 32 nm Atom Midview
-        return "atom";
+        return "bonnell";
 
       // Atom Silvermont codes from the Intel software optimization guide.
       case 55:
       case 74:
       case 77:
-        return "slm";
+        return "silvermont";
 
-      default: return (Em64T) ? "x86-64" : "i686";
+      default: // Unknown family 6 CPU, try to guess.
+        if (HasAVX512)
+          return "knl";
+        if (HasADX)
+          return "broadwell";
+        if (HasAVX2)
+          return "haswell";
+        if (HasAVX)
+          return "sandybridge";
+        if (HasSSE42)
+          return HasMOVBE ? "silvermont" : "nehalem";
+        if (HasSSE41)
+          return "penryn";
+        if (HasSSSE3)
+          return HasMOVBE ? "bonnell" : "core2";
+        if (Em64T)
+          return "x86-64";
+        if (HasSSE2)
+          return "pentium-m";
+        if (HasSSE)
+          return "pentium3";
+        if (HasMMX)
+          return "pentium2";
+        return "pentiumpro";
       }
     case 15: {
       switch (Model) {
@@ -655,6 +682,28 @@ StringRef sys::getHostCPUName() {
   StringRef Str(buffer, CPUInfoSize);
   SmallVector<StringRef, 32> Lines;
   Str.split(Lines, "\n");
+
+  // Look for the CPU features.
+  SmallVector<StringRef, 32> CPUFeatures;
+  for (unsigned I = 0, E = Lines.size(); I != E; ++I)
+    if (Lines[I].startswith("features")) {
+      size_t Pos = Lines[I].find(":");
+      if (Pos != StringRef::npos) {
+        Lines[I].drop_front(Pos + 1).split(CPUFeatures, " ");
+        break;
+      }
+    }
+
+  // We need to check for the presence of vector support independently of
+  // the machine type, since we may only use the vector register set when
+  // supported by the kernel (and hypervisor).
+  bool HaveVectorSupport = false;
+  for (unsigned I = 0, E = CPUFeatures.size(); I != E; ++I) {
+    if (CPUFeatures[I] == "vx")
+      HaveVectorSupport = true;
+  }
+
+  // Now check the processor machine type.
   for (unsigned I = 0, E = Lines.size(); I != E; ++I) {
     if (Lines[I].startswith("processor ")) {
       size_t Pos = Lines[I].find("machine = ");
@@ -662,6 +711,8 @@ StringRef sys::getHostCPUName() {
         Pos += sizeof("machine = ") - 1;
         unsigned int Id;
         if (!Lines[I].drop_front(Pos).getAsInteger(10, Id)) {
+          if (Id >= 2964 && HaveVectorSupport)
+            return "z13";
           if (Id >= 2827)
             return "zEC12";
           if (Id >= 2817)
@@ -680,7 +731,89 @@ StringRef sys::getHostCPUName() {
 }
 #endif
 
-#if defined(__linux__) && (defined(__arm__) || defined(__aarch64__))
+#if defined(i386) || defined(__i386__) || defined(__x86__) || defined(_M_IX86)\
+ || defined(__x86_64__) || defined(_M_AMD64) || defined (_M_X64)
+bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
+  unsigned EAX = 0, EBX = 0, ECX = 0, EDX = 0;
+  unsigned MaxLevel;
+  union {
+    unsigned u[3];
+    char     c[12];
+  } text;
+
+  if (GetX86CpuIDAndInfo(0, &MaxLevel, text.u+0, text.u+2, text.u+1) ||
+      MaxLevel < 1)
+    return false;
+
+  GetX86CpuIDAndInfo(1, &EAX, &EBX, &ECX, &EDX);
+
+  Features["cmov"]   = (EDX >> 15) & 1;
+  Features["mmx"]    = (EDX >> 23) & 1;
+  Features["sse"]    = (EDX >> 25) & 1;
+  Features["sse2"]   = (EDX >> 26) & 1;
+  Features["sse3"]   = (ECX >>  0) & 1;
+  Features["ssse3"]  = (ECX >>  9) & 1;
+  Features["sse4.1"] = (ECX >> 19) & 1;
+  Features["sse4.2"] = (ECX >> 20) & 1;
+
+  Features["pclmul"] = (ECX >>  1) & 1;
+  Features["cx16"]   = (ECX >> 13) & 1;
+  Features["movbe"]  = (ECX >> 22) & 1;
+  Features["popcnt"] = (ECX >> 23) & 1;
+  Features["aes"]    = (ECX >> 25) & 1;
+  Features["rdrnd"]  = (ECX >> 30) & 1;
+
+  // If CPUID indicates support for XSAVE, XRESTORE and AVX, and XGETBV
+  // indicates that the AVX registers will be saved and restored on context
+  // switch, then we have full AVX support.
+  bool HasAVX = ((ECX >> 27) & 1) && ((ECX >> 28) & 1) &&
+                !GetX86XCR0(&EAX, &EDX) && ((EAX & 0x6) == 0x6);
+  Features["avx"]    = HasAVX;
+  Features["fma"]    = HasAVX && (ECX >> 12) & 1;
+  Features["f16c"]   = HasAVX && (ECX >> 29) & 1;
+
+  // AVX512 requires additional context to be saved by the OS.
+  bool HasAVX512Save = HasAVX && ((EAX & 0xe0) == 0xe0);
+
+  unsigned MaxExtLevel;
+  GetX86CpuIDAndInfo(0x80000000, &MaxExtLevel, &EBX, &ECX, &EDX);
+
+  bool HasExtLeaf1 = MaxExtLevel >= 0x80000001 &&
+                     !GetX86CpuIDAndInfo(0x80000001, &EAX, &EBX, &ECX, &EDX);
+  Features["lzcnt"]  = HasExtLeaf1 && ((ECX >>  5) & 1);
+  Features["sse4a"]  = HasExtLeaf1 && ((ECX >>  6) & 1);
+  Features["prfchw"] = HasExtLeaf1 && ((ECX >>  8) & 1);
+  Features["xop"]    = HasAVX && HasExtLeaf1 && ((ECX >> 11) & 1);
+  Features["fma4"]   = HasAVX && HasExtLeaf1 && ((ECX >> 16) & 1);
+  Features["tbm"]    = HasExtLeaf1 && ((ECX >> 21) & 1);
+
+  bool HasLeaf7 = MaxLevel >= 7 &&
+                  !GetX86CpuIDAndInfoEx(0x7, 0x0, &EAX, &EBX, &ECX, &EDX);
+
+  // AVX2 is only supported if we have the OS save support from AVX.
+  Features["avx2"]     = HasAVX && HasLeaf7 && (EBX >>  5) & 1;
+
+  Features["fsgsbase"] = HasLeaf7 && ((EBX >>  0) & 1);
+  Features["bmi"]      = HasLeaf7 && ((EBX >>  3) & 1);
+  Features["hle"]      = HasLeaf7 && ((EBX >>  4) & 1);
+  Features["bmi2"]     = HasLeaf7 && ((EBX >>  8) & 1);
+  Features["rtm"]      = HasLeaf7 && ((EBX >> 11) & 1);
+  Features["rdseed"]   = HasLeaf7 && ((EBX >> 18) & 1);
+  Features["adx"]      = HasLeaf7 && ((EBX >> 19) & 1);
+  Features["sha"]      = HasLeaf7 && ((EBX >> 29) & 1);
+
+  // AVX512 is only supported if the OS supports the context save for it.
+  Features["avx512f"]  = HasLeaf7 && ((EBX >> 16) & 1) && HasAVX512Save;
+  Features["avx512dq"] = HasLeaf7 && ((EBX >> 17) & 1) && HasAVX512Save;
+  Features["avx512pf"] = HasLeaf7 && ((EBX >> 26) & 1) && HasAVX512Save;
+  Features["avx512er"] = HasLeaf7 && ((EBX >> 27) & 1) && HasAVX512Save;
+  Features["avx512cd"] = HasLeaf7 && ((EBX >> 28) & 1) && HasAVX512Save;
+  Features["avx512bw"] = HasLeaf7 && ((EBX >> 30) & 1) && HasAVX512Save;
+  Features["avx512vl"] = HasLeaf7 && ((EBX >> 31) & 1) && HasAVX512Save;
+
+  return true;
+}
+#elif defined(__linux__) && (defined(__arm__) || defined(__aarch64__))
 bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
   // Read 1024 bytes from /proc/cpuinfo, which should contain the Features line
   // in all cases.
