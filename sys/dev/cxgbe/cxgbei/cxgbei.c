@@ -175,7 +175,7 @@ ppod_write_idata(struct cxgbei_data *ci,
 	struct pagepod *ppod;
 	u_int i;
 	struct wrqe *wr;
-	struct adapter *sc = toep->port->adapter;
+	struct adapter *sc = toep->vi->pi->adapter;
 
 	wr = alloc_wrqe(wr_len, toep->ctrlq);
 	if (wr == NULL) {
@@ -215,8 +215,8 @@ t4_ddp_set_map(struct cxgbei_data *ci, void *iccp,
 	 * the order would not be garanteed, so we will stick with IMMD
 	 */
 	gl->tid = toep->tid;
-	gl->port_id = toep->port->port_id;
-	gl->egress_dev = (void *)toep->port->ifp;
+	gl->port_id = toep->vi->pi->port_id;
+	gl->egress_dev = (void *)toep->vi->ifp;
 
 	/* send via immediate data */
 	for (; w_npods < npods; idx += cnt, w_npods += cnt,
@@ -1046,7 +1046,7 @@ cxgbei_select_worker_thread(struct icl_cxgbei_conn *icc)
 
 	n = worker_thread_count / sc->sge.nofldrxq;
 	if (n > 0)
-		i = toep->port->port_id * n + arc4random() % n;
+		i = toep->vi->pi->port_id * n + arc4random() % n;
 	else
 		i = arc4random() % worker_thread_count;
 
