@@ -1358,10 +1358,10 @@ ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw, size_t size)
 	mw->virt_addr = contigmalloc(mw->buff_size, M_NTB_IF, M_ZERO, 0,
 	    mw->addr_limit, mw->xlat_align, 0);
 	if (mw->virt_addr == NULL) {
+		ntb_printf(0, "Unable to allocate MW buffer of size %zu/%zu\n",
+		    mw->buff_size, mw->xlat_size);
 		mw->xlat_size = 0;
 		mw->buff_size = 0;
-		printf("ntb: Unable to allocate MW buffer of size %zu\n",
-		    mw->xlat_size);
 		return (ENOMEM);
 	}
 	/* TODO: replace with bus_space_* functions */
