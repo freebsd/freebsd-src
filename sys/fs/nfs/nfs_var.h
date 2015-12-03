@@ -283,6 +283,7 @@ void nfsv4_getref(struct nfsv4lock *, int *, void *, struct mount *);
 int nfsv4_getref_nonblock(struct nfsv4lock *);
 int nfsv4_testlock(struct nfsv4lock *);
 int nfsrv_mtostr(struct nfsrv_descript *, char *, int);
+void nfsrv_cleanusergroup(void);
 int nfsrv_checkutf8(u_int8_t *, int);
 int newnfs_sndlock(int *);
 void newnfs_sndunlock(int *);

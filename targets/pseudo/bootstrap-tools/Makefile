@@ -20,7 +20,7 @@ BSENV= \
 	MAKESYSPATH=${SRCTOP}/tools/build/mk:${SRCTOP}/share/mk \
 	TARGET=${HOST_MACHINE} TARGET_ARCH=${HOST_MACHINE_ARCH} \
 	WITHOUT_STAGING=1 STAGE_ROOT= BOOTSTRAPPING_TOOLS=1 \
-	WORLDTMP=${BTOOLSDIR} LEGACY_TOOLS=${LEGACY_TOOLS} \
+	WORLDTMP=${BTOOLSDIR} \
 	INSTALL="sh ${SRCTOP}/tools/install.sh" \
 	PATH=${LEGACY_TOOLS}/usr/sbin:${LEGACY_TOOLS}/usr/bin:${LEGACY_TOOLS}/bin:${PATH}
 
@@ -43,6 +43,11 @@ BSARGS= 	DESTDIR= \
 		MK_LLDB=no MK_TESTS=no \
 		MK_INCLUDES=yes
 
+# Need to override these so OBJTOP uses are proper in the non-meta build.
+BSARGS+= OBJTOP=${BTOOLSDIR}${SRCTOP} OBJROOT='$${OBJTOP}/'
+# We will handle building the toolchain and cross-compiler.
+BSARGS+= MK_CROSS_COMPILER=no MK_CLANG=no MK_GCC=no
+
 DISTRIB_ENV=	INSTALL="sh ${SRCTOP}/tools/install.sh" NO_FSCHG=1 MK_TESTS=no
 legacy: .MAKE .META
 	mkdir -p ${LEGACY_TOOLS}
@@ -62,21 +67,22 @@ cross-tools build-tools bootstrap-tools: .MAKE .META
 	touch $@
 
 # MAKELEVEL=0 so that dirdeps.mk does its thing
-# LEGACY_TOOLS lets us use the bootstrapped stuff above
+# BSENV:MPATH=* lets us use the bootstrapped stuff in LEGACY_TOOLS above.
 # TARGET* is so that MK_CLANG gets set correctly.
 BSTCENV= \
 	MAKELEVEL=0 \
 	MACHINE=host \
-	LEGACY_TOOLS=${LEGACY_TOOLS} \
+	BOOTSTRAPPING_TOOLS=1 \
 	TARGET=${HOST_MACHINE} \
-	TARGET_ARCH=${HOST_MACHINE_ARCH}
+	TARGET_ARCH=${HOST_MACHINE_ARCH} \
+	${BSENV:MPATH=*}
 
 BSTCARGS= \
-	${BSARGS} \
+	${BSARGS:NDESTDIR=*:NOBJTOP=*:NOBJROOT=*:NMK_CROSS_COMPILER=*:NMK_CLANG=*:NMK_GCC=*} \
 	BUILD_DIRDEPS=yes \
 	-DWITH_STAGING \
 	-DWITH_TOOLSDIR
 
 # finally we build toolchain leveraging the above.
 bootstrap-toolchain:	.MAKE cross-tools
-	${BSTCENV} ${MAKE} -C ${.CURDIR:H:H} ${BSTCARGS:NDESTDIR=} toolchain
+	${BSTCENV} ${MAKE} -C ${.CURDIR:H:H} ${BSTCARGS} toolchain

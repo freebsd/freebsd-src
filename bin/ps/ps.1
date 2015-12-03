@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2015
+.Dd December 1, 2015
 .Dt PS 1
 .Os
 .Sh NAME
@@ -103,6 +103,13 @@ and associated command.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
 .It Fl a
 Display information about other users' processes as well as your own.
 If the
@@ -135,7 +142,7 @@ column is not the last column displayed.
 .It Fl e
 Display the environment as well.
 .It Fl f
-Show commandline and environment information about swapped out processes.
+Show command-line and environment information about swapped out processes.
 This option is honored only if the UID of the user is 0.
 .It Fl G
 Display information about processes which are running with the specified

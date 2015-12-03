@@ -24,6 +24,8 @@ configtest_cmd="local_unbound_configtest"
 setup_cmd="local_unbound_setup"
 pidfile="/var/run/${name}.pid"
 
+load_rc_config $name
+
 : ${local_unbound_workdir:=/var/unbound}
 : ${local_unbound_config:=${local_unbound_workdir}/unbound.conf}
 : ${local_unbound_flags:="-c ${local_unbound_config}"}
@@ -31,8 +33,6 @@ pidfile="/var/run/${name}.pid"
 : ${local_unbound_controlconf:=${local_unbound_workdir}/control.conf}
 : ${local_unbound_anchor:=${local_unbound_workdir}/root.key}
 : ${local_unbound_forwarders:=}
-
-load_rc_config $name
 
 do_as_unbound()
 {

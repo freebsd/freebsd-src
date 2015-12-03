@@ -1318,8 +1318,6 @@ print_intrcnts(unsigned long *intrcnts, unsigned long *old_intrcnts,
 	inttotal = 0;
 	old_inttotal = 0;
 	intrname = intrnames;
-	xo_emit("{T:/%-*s} {T:/%20s} {T:/%10s}\n",
-	        (int)istrnamlen, "interrupt", "total", "rate");
 	xo_open_list("interrupt");
 	for (i = 0, intrcnt=intrcnts, old_intrcnt=old_intrcnts; i < nintr; i++) {
 		if (intrname[0] != '\0' && (*intrcnt != 0 || aflag)) {
@@ -1328,8 +1326,10 @@ print_intrcnts(unsigned long *intrcnts, unsigned long *old_intrcnts,
 			count = *intrcnt - *old_intrcnt;
 			rate = (count * 1000 + period_ms / 2) / period_ms;
 			xo_open_instance("interrupt");
-			xo_emit("{k:name/%-*s} {:total/%20lu} {:rate/%10lu}\n",
-			        (int)istrnamlen, intrname, count, rate);
+			xo_emit("{d:name/%-*s}{ket:name/%s} "
+			    "{:total/%20lu} {:rate/%10lu}\n",
+			    (int)istrnamlen, intrname,
+			    intrname, count, rate);
 			xo_close_instance("interrupt");
 		}
 		intrname += strlen(intrname) + 1;
@@ -1380,13 +1380,15 @@ dointr(unsigned int interval, int reps)
 			istrnamlen = clen;
 		intrname += strlen(intrname) + 1;
 	}
-	xo_emit("%{T:/%-%s} {T:/%20s} {T:/%10s\n",
+	xo_emit("{T:/%-*s} {T:/%20s} {T:/%10s}\n",
 	        (int)istrnamlen, "interrupt", "total", "rate");
 
 	/* 
 	 * Loop reps times printing differential interrupt counts.  If reps is
 	 * zero, then run just once, printing total counts
 	 */
+	xo_open_container("interrupt-statistics");
+
 	period_ms = uptime / 1000000;
 	while(1) {
 		unsigned int nintr;
@@ -1405,6 +1407,7 @@ dointr(unsigned int interval, int reps)
 
 		print_intrcnts(intrcnts, old_intrcnts, intrnames, nintr,
 		    istrnamlen, period_ms);
+		xo_flush();
 
 		free(old_intrcnts);
 		old_intrcnts = intrcnts;
@@ -1415,6 +1418,8 @@ dointr(unsigned int interval, int reps)
 		uptime = getuptime();
 		period_ms = (uptime - old_uptime) / 1000000;
 	}
+
+	xo_close_container("interrupt-statistics");
 }
 
 static void
@@ -1446,6 +1451,7 @@ domemstat_malloc(void)
 				    memstat_strerror(error));
 		}
 	}
+	xo_open_container("malloc-statistics");
 	xo_emit("{T:/%13s} {T:/%5s} {T:/%6s} {T:/%7s} {T:/%8s}  {T:Size(s)}\n",
 		"Type", "InUse", "MemUse", "HighUse", "Requests");
 	xo_open_list("memory");
@@ -1455,7 +1461,7 @@ domemstat_malloc(void)
 		    memstat_get_count(mtp) == 0)
 			continue;
 		xo_open_instance("memory");
-		xo_emit("{k:type/%13s} {:in-use/%5" PRIu64 "} "
+		xo_emit("{k:type/%13s/%s} {:in-use/%5" PRIu64 "} "
 			"{:memory-use/%5" PRIu64 "}{U:K} {:high-use/%7s} "
 			"{:requests/%8" PRIu64 "}  ",
 		    memstat_get_name(mtp), memstat_get_count(mtp),
@@ -1476,6 +1482,7 @@ domemstat_malloc(void)
 		xo_emit("\n");
 	}
 	xo_close_list("memory");
+	xo_close_container("malloc-statistics");
 	memstat_mtl_free(mtlp);
 }
 
@@ -1509,6 +1516,7 @@ domemstat_zone(void)
 				    memstat_strerror(error));
 		}
 	}
+	xo_open_container("memory-zone-statistics");
 	xo_emit("{T:/%-20s} {T:/%6s} {T:/%6s} {T:/%8s} {T:/%8s} {T:/%8s} "
 		"{T:/%4s} {T:/%4s}\n\n", "ITEM", "SIZE",
 		"LIMIT", "USED", "FREE", "REQ", "FAIL", "SLEEP");
@@ -1518,10 +1526,11 @@ domemstat_zone(void)
 		strlcpy(name, memstat_get_name(mtp), MEMTYPE_MAXNAME);
 		strcat(name, ":");
 		xo_open_instance("zone");
-		xo_emit("{k:name/%-20s} {:size/%6" PRIu64 "}, "
+		xo_emit("{d:name/%-20s}{ke:name/%s} {:size/%6" PRIu64 "}, "
 			"{:limit/%6" PRIu64 "},{:used/%8" PRIu64 "},"
 			"{:free/%8" PRIu64 "},{:requests/%8" PRIu64 "},"
 			"{:fail/%4" PRIu64 "},{:sleep/%4" PRIu64 "}\n", name,
+			memstat_get_name(mtp),
 			memstat_get_size(mtp), memstat_get_countlimit(mtp),
 			memstat_get_count(mtp), memstat_get_free(mtp),
 			memstat_get_numallocs(mtp), memstat_get_failures(mtp),
@@ -1530,6 +1539,7 @@ domemstat_zone(void)
 	}
 	memstat_mtl_free(mtlp);
 	xo_close_list("zone");
+	xo_close_container("memory-zone-statistics");
 	xo_emit("\n");
 }
 
