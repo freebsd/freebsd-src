@@ -59,8 +59,6 @@
 #include "mlx4_stats.h"
 
 #define DRV_NAME	"mlx4_en"
-#define DRV_VERSION	"2.1"
-#define DRV_RELDATE	__DATE__
 
 #define MLX4_EN_MSG_LEVEL	(NETIF_MSG_LINK | NETIF_MSG_IFDOWN)
 
@@ -154,7 +152,7 @@ enum {
 #define MLX4_EN_NUM_UP			1
 
 #define MAX_TX_RINGS			(MLX4_EN_MAX_TX_RING_P_UP * \
-					 MLX4_EN_NUM_UP)
+					MLX4_EN_NUM_UP)
 
 #define MLX4_EN_DEF_TX_RING_SIZE	1024
 #define MLX4_EN_DEF_RX_RING_SIZE  	1024
@@ -265,8 +263,15 @@ struct mlx4_en_tx_desc {
 
 #define MLX4_EN_USE_SRQ		0x01000000
 
-#define MLX4_EN_TX_BUDGET 64*4 //Compensate for no NAPI in freeBSD - might need some fine tunning in the future.
 #define MLX4_EN_RX_BUDGET 64
+
+#define	MLX4_EN_TX_MAX_DESC_SIZE 512	/* bytes */
+#define	MLX4_EN_TX_MAX_MBUF_SIZE 65536	/* bytes */
+#define	MLX4_EN_TX_MAX_PAYLOAD_SIZE 65536	/* bytes */
+#define	MLX4_EN_TX_MAX_MBUF_FRAGS \
+    ((MLX4_EN_TX_MAX_DESC_SIZE - 128) / DS_SIZE_ALIGNMENT) /* units */
+#define	MLX4_EN_TX_WQE_MAX_WQEBBS			\
+    (MLX4_EN_TX_MAX_DESC_SIZE / TXBB_SIZE) /* units */
 
 #define MLX4_EN_CX3_LOW_ID	0x1000
 #define MLX4_EN_CX3_HIGH_ID	0x1005
@@ -282,7 +287,7 @@ struct mlx4_en_tx_ring {
 	u32 cons;
 	u32 buf_size;
 	u32 doorbell_qpn;
-	void *buf;
+	u8 *buf;
 	u16 poll_cnt;
 	int blocked;
 	struct mlx4_en_tx_info *tx_info;
@@ -300,6 +305,7 @@ struct mlx4_en_tx_ring {
 	unsigned long packets;
 	unsigned long tx_csum;
 	unsigned long queue_stopped;
+	unsigned long oversized_packets;
 	unsigned long wake_queue;
 	struct mlx4_bf bf;
 	bool bf_enabled;
@@ -339,7 +345,7 @@ struct mlx4_en_rx_ring {
 	u32 rx_buf_size;
 	u32 rx_mb_size;
 	int qpn;
-	void *buf;
+	u8 *buf;
 	void *rx_info;
 	unsigned long errors;
 	unsigned long bytes;
@@ -400,6 +406,7 @@ struct mlx4_en_cq {
 #define MLX4_EN_OPCODE_ERROR	0x1e
 	u32 tot_rx;
 	u32 tot_tx;
+	u32 curr_poll_rx_cpu_id;
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned int state;
@@ -641,7 +648,6 @@ struct mlx4_en_priv {
 	unsigned long last_ifq_jiffies;
 	u64 if_counters_rx_errors;
 	u64 if_counters_rx_no_buffer;
-
 };
 
 enum mlx4_en_wol {
