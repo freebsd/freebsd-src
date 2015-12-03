@@ -148,16 +148,9 @@ malloc(size_t nbytes)
 	 * align break pointer so all data will be page aligned.
 	 */
 	if (pagesz == 0) {
-		pagesz = n = PAGE_SIZE;
+		pagesz = PAGE_SIZE;
 		if (morepages(NPOOLPAGES) == 0)
 			return NULL;
-		op = (union overhead *)(void *)(pagepool_start);
-		n = n - sizeof (*op) - ((long)op & (n - 1));
-		if (n < 0)
-			n += pagesz;
-		if (n) {
-			pagepool_start += n;
-		}
 		bucket = 0;
 		amt = 8;
 		while ((unsigned)pagesz > amt) {
