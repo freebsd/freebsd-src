@@ -341,10 +341,7 @@ realloc(void *cp, size_t nbytes)
 		return (NULL);
 	i = op->ov_index;
 	onb = 1 << (i + 3);
-	if (onb < (u_int)pagesz)
-		onb -= sizeof (*op) + RSLOP;
-	else
-		onb += pagesz - sizeof (*op) - RSLOP;
+	onb -= sizeof (*op) + RSLOP;
 
 	/* avoid the copy if same size block */
 	if (i > 0) {
