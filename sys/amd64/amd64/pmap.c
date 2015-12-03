@@ -1321,7 +1321,7 @@ pmap_update_pde_invalidate(pmap_t pmap, vm_offset_t va, pd_entry_t newpde)
 		 * Promotion: flush every 4KB page mapping from the TLB,
 		 * including any global (PG_G) mappings.
 		 */
-		invltlb_globpcid();
+		invltlb_glob();
 	}
 }
 #ifdef SMP
@@ -1482,7 +1482,7 @@ pmap_invalidate_all(pmap_t pmap)
 			bzero(&d, sizeof(d));
 			invpcid(&d, INVPCID_CTXGLOB);
 		} else {
-			invltlb_globpcid();
+			invltlb_glob();
 		}
 		mask = &all_cpus;
 	} else {
@@ -1653,7 +1653,7 @@ pmap_invalidate_all(pmap_t pmap)
 			bzero(&d, sizeof(d));
 			invpcid(&d, INVPCID_CTXGLOB);
 		} else {
-			invltlb_globpcid();
+			invltlb_glob();
 		}
 	} else if (pmap == PCPU_GET(curpmap)) {
 		if (pmap_pcid_enabled) {
