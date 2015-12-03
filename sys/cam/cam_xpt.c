@@ -3333,7 +3333,8 @@ xpt_merge_ccb(union ccb *master_ccb, union ccb *slave_ccb)
 }
 
 void
-xpt_setup_ccb(struct ccb_hdr *ccb_h, struct cam_path *path, u_int32_t priority)
+xpt_setup_ccb_flags(struct ccb_hdr *ccb_h, struct cam_path *path,
+		    u_int32_t priority, u_int32_t flags)
 {
 
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_setup_ccb\n"));
@@ -3351,8 +3352,14 @@ xpt_setup_ccb(struct ccb_hdr *ccb_h, struct cam_path *path, u_int32_t priority)
 		ccb_h->target_lun = CAM_TARGET_WILDCARD;
 	}
 	ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
-	ccb_h->flags = 0;
+	ccb_h->flags = flags;
 	ccb_h->xflags = 0;
+}
+
+void
+xpt_setup_ccb(struct ccb_hdr *ccb_h, struct cam_path *path, u_int32_t priority)
+{
+	xpt_setup_ccb_flags(ccb_h, path, priority, /*flags*/ 0);
 }
 
 /* Path manipulation functions */

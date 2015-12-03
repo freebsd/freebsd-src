@@ -54,19 +54,32 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 /*
- * Load a list of virtual addresses.
+ * Load up data starting at offset within a region specified by a
+ * list of virtual address ranges until either length or the region
+ * are exhausted.
  */
 static int
 _bus_dmamap_load_vlist(bus_dma_tag_t dmat, bus_dmamap_t map,
     bus_dma_segment_t *list, int sglist_cnt, struct pmap *pmap, int *nsegs,
-    int flags)
+    int flags, size_t offset, size_t length)
 {
 	int error;
 
 	error = 0;
-	for (; sglist_cnt > 0; sglist_cnt--, list++) {
-		error = _bus_dmamap_load_buffer(dmat, map,
-		    (void *)(uintptr_t)list->ds_addr, list->ds_len, pmap,
+	for (; sglist_cnt > 0 && length != 0; sglist_cnt--, list++) {
+		char *addr;
+		size_t ds_len;
+
+		KASSERT((offset < list->ds_len),
+		    ("Invalid mid-segment offset"));
+		addr = (char *)(uintptr_t)list->ds_addr + offset;
+		ds_len = list->ds_len - offset;
+		offset = 0;
+		if (ds_len > length)
+			ds_len = length;
+		length -= ds_len;
+		KASSERT((ds_len != 0), ("Segment length is zero"));
+		error = _bus_dmamap_load_buffer(dmat, map, addr, ds_len, pmap,
 		    flags, NULL, nsegs);
 		if (error)
 			break;
@@ -118,22 +131,48 @@ _bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 }
 
 /*
+ * Load tlen data starting at offset within a region specified by a list of
+ * physical pages.
+ */
+static int
+_bus_dmamap_load_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
+    vm_page_t *pages, bus_size_t tlen, int offset, int *nsegs, int flags)
+{
+	vm_paddr_t paddr;
+	bus_size_t len;
+	int error, i;
+ 
+	for (i = 0, error = 0; error == 0 && tlen > 0; i++, tlen -= len) {
+		len = min(PAGE_SIZE - offset, tlen);
+		paddr = VM_PAGE_TO_PHYS(pages[i]) + offset;
+		error = _bus_dmamap_load_phys(dmat, map, paddr, len,
+		    flags, NULL, nsegs);
+		offset = 0;
+	}
+	return (error);
+}
+ 
+/*
  * Load from block io.
  */
 static int
 _bus_dmamap_load_bio(bus_dma_tag_t dmat, bus_dmamap_t map, struct bio *bio,
     int *nsegs, int flags)
 {
-	int error;
 
-	if ((bio->bio_flags & BIO_UNMAPPED) == 0) {
-		error = _bus_dmamap_load_buffer(dmat, map, bio->bio_data,
-		    bio->bio_bcount, kernel_pmap, flags, NULL, nsegs);
-	} else {
-		error = _bus_dmamap_load_ma(dmat, map, bio->bio_ma,
-		    bio->bio_bcount, bio->bio_ma_offset, flags, NULL, nsegs);
+	if ((bio->bio_flags & BIO_VLIST) != 0) {
+		bus_dma_segment_t *segs = (bus_dma_segment_t *)bio->bio_data;
+		return (_bus_dmamap_load_vlist(dmat, map, segs, bio->bio_ma_n,
+		    kernel_pmap, nsegs, flags, bio->bio_ma_offset,
+		    bio->bio_bcount));
 	}
-	return (error);
+
+	if ((bio->bio_flags & BIO_UNMAPPED) != 0)
+		return (_bus_dmamap_load_pages(dmat, map, bio->bio_ma,
+		    bio->bio_bcount, bio->bio_ma_offset, nsegs, flags));
+
+	return (_bus_dmamap_load_buffer(dmat, map, bio->bio_data,
+	    bio->bio_bcount, kernel_pmap, flags, NULL, nsegs));
 }
 
 int
@@ -219,7 +258,7 @@ _bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 	case CAM_DATA_SG:
 		error = _bus_dmamap_load_vlist(dmat, map,
 		    (bus_dma_segment_t *)data_ptr, sglist_cnt, kernel_pmap,
-		    nsegs, flags);
+		    nsegs, flags, 0, dxfer_len);
 		break;
 	case CAM_DATA_SG_PADDR:
 		error = _bus_dmamap_load_plist(dmat, map,
@@ -494,7 +533,7 @@ bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
 		break;
 	case MEMDESC_VLIST:
 		error = _bus_dmamap_load_vlist(dmat, map, mem->u.md_list,
-		    mem->md_opaque, kernel_pmap, &nsegs, flags);
+		    mem->md_opaque, kernel_pmap, &nsegs, flags, 0, SIZE_T_MAX);
 		break;
 	case MEMDESC_PLIST:
 		error = _bus_dmamap_load_plist(dmat, map, mem->u.md_list,
