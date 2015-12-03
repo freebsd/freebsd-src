@@ -249,7 +249,8 @@ static void mlx4_en_stamp_wqe(struct mlx4_en_priv *priv,
 		       int index, u8 owner)
 {
 	struct mlx4_en_tx_info *tx_info = &ring->tx_info[index];
-	struct mlx4_en_tx_desc *tx_desc = ring->buf + index * TXBB_SIZE;
+	struct mlx4_en_tx_desc *tx_desc = (struct mlx4_en_tx_desc *)
+	    (ring->buf + index * TXBB_SIZE);
 	void *end = ring->buf + ring->buf_size;
 	__be32 *ptr = (__be32 *)tx_desc;
 	__be32 stamp = cpu_to_be32(STAMP_VAL | (!!owner << STAMP_SHIFT));
@@ -268,7 +269,7 @@ static void mlx4_en_stamp_wqe(struct mlx4_en_priv *priv,
 			*ptr = stamp;
 			ptr += STAMP_DWORDS;
 			if ((void *)ptr >= end) {
-				ptr = ring->buf;
+				ptr = (__be32 *)ring->buf;
 				stamp ^= cpu_to_be32(0x80000000);
 			}
 		}
@@ -280,7 +281,8 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_tx_info *tx_info = &ring->tx_info[index];
-	struct mlx4_en_tx_desc *tx_desc = ring->buf + index * TXBB_SIZE;
+	struct mlx4_en_tx_desc *tx_desc = (struct mlx4_en_tx_desc *)
+	    (ring->buf + index * TXBB_SIZE);
 	struct mlx4_wqe_data_seg *data = (void *) tx_desc + tx_info->data_offset;
         struct mbuf *mb = tx_info->mb;
 	void *end = ring->buf + ring->buf_size;
@@ -307,7 +309,8 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 	} else {
 		if (!tx_info->inl) {
 			if ((void *) data >= end) {
-				data = ring->buf + ((void *)data - end);
+				data = (struct mlx4_wqe_data_seg *)
+				    (ring->buf + ((void *)data - end));
 			}
 
 			if (tx_info->linear) {
@@ -321,7 +324,7 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 			for (i = 0; i < frags; i++) {
 				/* Check for wraparound before unmapping */
 				if ((void *) data >= end)
-					data = ring->buf;
+					data = (struct mlx4_wqe_data_seg *)ring->buf;
                                 pci_unmap_single(mdev->pdev,
                                                 (dma_addr_t) be64_to_cpu(data->addr),
                                                 data->byte_count, PCI_DMA_TODEVICE);
@@ -522,7 +525,7 @@ static struct mlx4_en_tx_desc *mlx4_en_bounce_to_desc(struct mlx4_en_priv *priv,
 	}
 
 	/* Return real descriptor location */
-	return ring->buf + index * TXBB_SIZE;
+	return (struct mlx4_en_tx_desc *)(ring->buf + index * TXBB_SIZE);
 }
 
 static inline void mlx4_en_xmit_poll(struct mlx4_en_priv *priv, int tx_ind)
@@ -723,18 +726,14 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct mbuf *mb)
 	        up = (vlan_tag >> 13) % MLX4_EN_NUM_UP;
 	}
 #endif
-	/* check if flowid is set */
-	if (M_HASHTYPE_GET(mb) != M_HASHTYPE_NONE)
-		queue_index = mb->m_pkthdr.flowid;
-	else
-		queue_index = m_ether_tcpip_hash(MBUF_HASHFLAG_L3 | MBUF_HASHFLAG_L4, mb, hashrandom);
+	queue_index = m_ether_tcpip_hash(MBUF_HASHFLAG_L3 | MBUF_HASHFLAG_L4, mb, hashrandom);
 
 	return ((queue_index % rings_p_up) + (up * rings_p_up));
 }
 
-static void mlx4_bf_copy(void __iomem *dst, unsigned long *src, unsigned bytecnt)
+static void mlx4_bf_copy(void __iomem *dst, volatile unsigned long *src, unsigned bytecnt)
 {
-	__iowrite64_copy(dst, src, bytecnt / 8);
+	__iowrite64_copy(dst, __DEVOLATILE(void *, src), bytecnt / 8);
 }
 
 static u64 mlx4_en_mac_to_u64(u8 *addr)
@@ -843,7 +842,7 @@ retry:
 	/* See if we have enough space for whole descriptor TXBB for setting
 	 * SW ownership on next descriptor; if not, use a bounce buffer. */
 	if (likely(index + nr_txbb <= ring_size))
-		tx_desc = ring->buf + index * TXBB_SIZE;
+		tx_desc = (struct mlx4_en_tx_desc *)(ring->buf + index * TXBB_SIZE);
 	else {
 		tx_desc = (struct mlx4_en_tx_desc *) ring->bounce_buf;
 		bounce = true;
@@ -1018,10 +1017,13 @@ mlx4_en_transmit_locked(struct ifnet *dev, int tx_ind, struct mbuf *m)
 	}
 
 	enqueued = 0;
-	if (m != NULL) {
-		if ((err = drbr_enqueue(dev, ring->br, m)) != 0)
-			return (err);
-	}
+	if (m != NULL)
+		/*
+		 * If we can't insert mbuf into drbr, try to xmit anyway.
+		 * We keep the error we got so we could return that after xmit.
+		 */
+		err = drbr_enqueue(dev, ring->br, m);
+
 	/* Process the queue */
 	while ((next = drbr_peek(dev, ring->br)) != NULL) {
 		if ((err = mlx4_en_xmit(dev, tx_ind, &next)) != 0) {
@@ -1075,10 +1077,14 @@ mlx4_en_transmit(struct ifnet *dev, struct mbuf *m)
 	int i, err = 0;
 
 	/* Compute which queue to use */
-	i = mlx4_en_select_queue(dev, m);
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
+		i = m->m_pkthdr.flowid % priv->tx_ring_num;
+	}
+	else {
+		i = mlx4_en_select_queue(dev, m);
+	}
 
 	ring = priv->tx_ring[i];
-
 	if (spin_trylock(&ring->tx_lock)) {
 		err = mlx4_en_transmit_locked(dev, i, m);
 		spin_unlock(&ring->tx_lock);

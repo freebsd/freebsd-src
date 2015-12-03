@@ -139,7 +139,7 @@ enum {
 };
 
 static inline void mlx4_cq_arm(struct mlx4_cq *cq, u32 cmd,
-			       void __iomem *uar_page,
+			       u8 __iomem *uar_page,
 			       spinlock_t *doorbell_lock)
 {
 	__be32 doorbell[2];
