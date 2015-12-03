@@ -10,7 +10,7 @@ CLEANFILES+=	convert.c
 
 DPSRCS.acct_test=	convert.c
 
-convert.c: ${SRCTOP}/sys/kern/kern_acct.c
+convert.c: ${.CURDIR:H:H:H:H}/sys/kern/kern_acct.c
 	sed -n -e 's/log(/syslog(/g' \
 	       -e '/FLOAT_CONVERSION_START/,/FLOAT_CONVERSION_END/p' ${.ALLSRC} >>${.TARGET}
 
