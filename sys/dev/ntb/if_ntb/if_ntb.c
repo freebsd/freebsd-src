@@ -1342,7 +1342,7 @@ ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw, size_t size)
 		return (EINVAL);
 
 	xlat_size = roundup(size, mw->xlat_align_size);
-	buff_size = roundup(size, mw->xlat_align);
+	buff_size = xlat_size;
 
 	/* No need to re-setup */
 	if (mw->xlat_size == xlat_size)
