@@ -33,7 +33,7 @@
  * SOFTWARE.
  */
 
-#include <linux/kmod.h> 
+#include <linux/kmod.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
@@ -53,9 +53,7 @@
 #include "icm.h"
 #include "mlx4_stats.h"
 
-MODULE_AUTHOR("Roland Dreier");
-MODULE_DESCRIPTION("Mellanox ConnectX HCA low-level driver");
-MODULE_LICENSE("Dual BSD/GPL");
+/* Mellanox ConnectX HCA low-level driver */
 
 struct workqueue_struct *mlx4_wq;
 
@@ -173,7 +171,7 @@ MODULE_PARM_DESC(enable_64b_cqe_eqe,
 #define PF_CONTEXT_BEHAVIOUR_MASK	MLX4_FUNC_CAP_64B_EQE_CQE
 
 static char mlx4_version[] __devinitdata =
-	DRV_NAME ": Mellanox ConnectX core driver v"
+	DRV_NAME ": Mellanox ConnectX VPI driver v"
 	DRV_VERSION " (" DRV_RELDATE ")\n";
 
 static int log_num_mac = 7;
@@ -1293,6 +1291,43 @@ static inline int ibta_mtu_to_int(enum ibta_mtu mtu)
 	case IB_MTU_4096: return 4096;
 	default: return -1;
 	}
+}
+
+static ssize_t
+show_board(struct device *device, struct device_attribute *attr,
+			  char *buf)
+{
+	struct mlx4_hca_info *info = container_of(attr, struct mlx4_hca_info,
+						   board_attr);
+	struct mlx4_dev *mdev = info->dev;
+
+	return sprintf(buf, "%.*s\n", MLX4_BOARD_ID_LEN,
+		       mdev->board_id);
+}
+
+static ssize_t
+show_hca(struct device *device, struct device_attribute *attr,
+			char *buf)
+{
+	struct mlx4_hca_info *info = container_of(attr, struct mlx4_hca_info,
+						   hca_attr);
+	struct mlx4_dev *mdev = info->dev;
+
+	return sprintf(buf, "MT%d\n", mdev->pdev->device);
+}
+
+static ssize_t
+show_firmware_version(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct mlx4_hca_info *info = container_of(attr, struct mlx4_hca_info,
+						   firmware_attr);
+	struct mlx4_dev *mdev = info->dev;
+
+	return sprintf(buf, "%d.%d.%d\n", (int)(mdev->caps.fw_ver >> 32),
+		       (int)(mdev->caps.fw_ver >> 16) & 0xffff,
+		       (int)mdev->caps.fw_ver & 0xffff);
 }
 
 static ssize_t show_port_ib_mtu(struct device *dev,
@@ -2937,6 +2972,30 @@ no_msi:
 no_irq:
 	dev->caps.num_comp_vectors = 0;
 	dev->caps.comp_pool        = 0;
+	return;
+}
+
+static void
+mlx4_init_hca_info(struct mlx4_dev *dev)
+{
+	struct mlx4_hca_info *info = &mlx4_priv(dev)->hca_info;
+
+	info->dev = dev;
+
+	info->firmware_attr = (struct device_attribute)__ATTR(fw_ver, S_IRUGO,
+							show_firmware_version, NULL);
+	if (device_create_file(&dev->pdev->dev, &info->firmware_attr))
+		mlx4_err(dev, "Failed to add file firmware version");
+
+	info->hca_attr = (struct device_attribute)__ATTR(hca, S_IRUGO, show_hca,
+										NULL);
+	if (device_create_file(&dev->pdev->dev, &info->hca_attr))
+		mlx4_err(dev, "Failed to add file hca type");
+
+	info->board_attr = (struct device_attribute)__ATTR(board_id, S_IRUGO,
+							    show_board, NULL);
+	if (device_create_file(&dev->pdev->dev, &info->board_attr))
+		mlx4_err(dev, "Failed to add file board id type");
 }
 
 static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
@@ -2988,6 +3047,14 @@ static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
 	}
 
 	return err;
+}
+
+static void
+mlx4_cleanup_hca_info(struct mlx4_hca_info *info)
+{
+	device_remove_file(&info->dev->pdev->dev, &info->firmware_attr);
+	device_remove_file(&info->dev->pdev->dev, &info->board_attr);
+	device_remove_file(&info->dev->pdev->dev, &info->hca_attr);
 }
 
 static void mlx4_cleanup_port_info(struct mlx4_port_info *info)
@@ -3347,6 +3414,7 @@ slave_start:
 		goto err_steer;
 
 	mlx4_init_quotas(dev);
+	mlx4_init_hca_info(dev);
 
 	for (port = 1; port <= dev->caps.num_ports; port++) {
 		err = mlx4_init_port_info(dev, port);
@@ -3439,8 +3507,7 @@ err_disable_pdev:
 static int __devinit mlx4_init_one(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
-	printk_once(KERN_INFO "%s", mlx4_version);
-
+	device_set_desc(pdev->dev.bsddev, mlx4_version);
 	return __mlx4_init_one(pdev, id->driver_data);
 }
 
@@ -3460,6 +3527,7 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 		mlx4_stop_sense(dev);
 		mlx4_unregister_device(dev);
 
+		mlx4_cleanup_hca_info(&priv->hca_info);
 		for (p = 1; p <= dev->caps.num_ports; p++) {
 			mlx4_cleanup_port_info(&priv->port[p]);
 			mlx4_CLOSE_PORT(dev, p);
