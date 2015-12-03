@@ -442,6 +442,11 @@ sctp_recover_sent_list(struct sctp_tcb *stcb)
 					asoc->strmout[chk->rec.data.stream_number].chunks_on_queues--;
 				}
 			}
+			if ((asoc->strmout[chk->rec.data.stream_number].chunks_on_queues == 0) &&
+			    (asoc->strmout[chk->rec.data.stream_number].state == SCTP_STREAM_RESET_PENDING) &&
+			    TAILQ_EMPTY(&asoc->strmout[chk->rec.data.stream_number].outqueue)) {
+				asoc->trigger_reset = 1;
+			}
 			TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
 			if (PR_SCTP_ENABLED(chk->flags)) {
 				if (asoc->pr_sctp_cnt != 0)
