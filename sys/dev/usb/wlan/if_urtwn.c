@@ -2748,8 +2748,23 @@ fail:
 static __inline int
 urtwn_dma_init(struct urtwn_softc *sc)
 {
+	int error;
 
-	return sc->sc_dma_init(sc);
+	/* Initialize LLT table. */
+	error = urtwn_llt_init(sc);
+	if (error != 0)
+		return (error);
+
+	error = sc->sc_dma_init(sc);
+	if (error != 0)
+		return (error);
+
+	/* Set Tx/Rx transfer page size. */
+	urtwn_write_1(sc, R92C_PBP,
+	    SM(R92C_PBP_PSRX, R92C_PBP_128) |
+	    SM(R92C_PBP_PSTX, R92C_PBP_128));
+
+	return (0);
 }
 
 static int
@@ -2757,12 +2772,6 @@ urtwn_r92c_dma_init(struct urtwn_softc *sc)
 {
 	int hashq, hasnq, haslq, nqueues, nqpages, nrempages;
 	uint32_t reg;
-	int error;
-
-	/* Initialize LLT table. */
-	error = urtwn_llt_init(sc);
-	if (error != 0)
-		return (error);
 
 	/* Get Tx queues to USB endpoints mapping. */
 	hashq = hasnq = haslq = 0;
@@ -2825,10 +2834,6 @@ urtwn_r92c_dma_init(struct urtwn_softc *sc)
 	/* Set Tx/Rx transfer page boundary. */
 	urtwn_write_2(sc, R92C_TRXFF_BNDY + 2, 0x27ff);
 
-	/* Set Tx/Rx transfer page size. */
-	urtwn_write_1(sc, R92C_PBP,
-	    SM(R92C_PBP_PSRX, R92C_PBP_128) |
-	    SM(R92C_PBP_PSTX, R92C_PBP_128));
 	return (0);
 }
 
@@ -2838,12 +2843,6 @@ urtwn_r88e_dma_init(struct urtwn_softc *sc)
 	struct usb_interface *iface;
 	uint32_t reg;
 	int nqueues;
-	int error;
-
-	/* Initialize LLT table. */
-	error = urtwn_llt_init(sc);
-	if (error != 0)
-		return (error);
 
 	/* Get Tx queues to USB endpoints mapping. */
 	iface = usbd_get_iface(sc->sc_udev, 0);
@@ -2874,11 +2873,6 @@ urtwn_r88e_dma_init(struct urtwn_softc *sc)
 
 	/* Set Tx/Rx transfer page boundary. */
 	urtwn_write_2(sc, R92C_TRXFF_BNDY + 2, 0x23ff);
-
-	/* Set Tx/Rx transfer page size. */
-	urtwn_write_1(sc, R92C_PBP,
-	    SM(R92C_PBP_PSRX, R92C_PBP_128) |
-	    SM(R92C_PBP_PSTX, R92C_PBP_128));
 
 	return (0);
 }
