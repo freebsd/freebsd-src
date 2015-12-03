@@ -975,24 +975,24 @@ struct ops {
 	struct op op[5];
 };
 static const struct ops eval_ops[] = {
-	{ eval_table, { { "||", op_or } } },
-	{ eval_table, { { "&&", op_and } } },
+	{ eval_table, { { "||", op_or, NULL } } },
+	{ eval_table, { { "&&", op_and, NULL } } },
 	{ eval_table, { { "|", op_bor, "|" } } },
-	{ eval_table, { { "^", op_bxor } } },
+	{ eval_table, { { "^", op_bxor, NULL } } },
 	{ eval_table, { { "&", op_band, "&" } } },
-	{ eval_table, { { "==", op_eq },
-			{ "!=", op_ne } } },
-	{ eval_table, { { "<=", op_le },
-			{ ">=", op_ge },
+	{ eval_table, { { "==", op_eq, NULL },
+			{ "!=", op_ne, NULL } } },
+	{ eval_table, { { "<=", op_le, NULL },
+			{ ">=", op_ge, NULL },
 			{ "<", op_lt, "<=" },
 			{ ">", op_gt, ">=" } } },
-	{ eval_table, { { "<<", op_blsh },
-			{ ">>", op_brsh } } },
-	{ eval_table, { { "+", op_add },
-			{ "-", op_sub } } },
-	{ eval_unary, { { "*", op_mul },
-			{ "/", op_div },
-			{ "%", op_mod } } },
+	{ eval_table, { { "<<", op_blsh, NULL },
+			{ ">>", op_brsh, NULL } } },
+	{ eval_table, { { "+", op_add, NULL },
+			{ "-", op_sub, NULL } } },
+	{ eval_unary, { { "*", op_mul, NULL },
+			{ "/", op_div, NULL },
+			{ "%", op_mod, NULL } } },
 };
 
 /* Current operator precedence level */
