@@ -13,7 +13,7 @@ SRCS=		rtld_start.S \
 		malloc.c xmalloc.c debug.c libmap.c
 MAN=		rtld.1
 CSTD?=		gnu99
-CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD
+CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD -fno-builtin
 CFLAGS+=	-I${SRCTOP}/lib/csu/common
 .if exists(${.CURDIR}/${MACHINE_ARCH})
 RTLD_ARCH=	${MACHINE_ARCH}
@@ -22,7 +22,6 @@ RTLD_ARCH=	${MACHINE_CPUARCH}
 .endif
 CFLAGS+=	-I${.CURDIR}/${RTLD_ARCH} -I${.CURDIR}
 .if ${MACHINE_ARCH} == "powerpc64"
-CFLAGS+=	-mcall-aixdesc
 LDFLAGS+=	-nostdlib -e _rtld_start
 .else
 LDFLAGS+=	-nostdlib -e .rtld_start
