@@ -3205,7 +3205,7 @@ usage(void)
 "-o <arg=val>  Specify output device/file and parameters\n"
 "Input and Output parameters\n"
 "pass=name     Specify a pass(4) device like pass0 or /dev/pass0\n"
-"file=name     Specify a file or device, src/usr.sbin/camdd/camdd.c, /dev/da0, /dev/null\n"
+"file=name     Specify a file or device, /tmp/foo, /dev/da0, /dev/null\n"
 "              or - for stdin/stdout\n"
 "bs=blocksize  Specify blocksize in bytes, or using K, M, G, etc. suffix\n"
 "offset=len    Specify starting offset in bytes or using K, M, G suffix\n"
