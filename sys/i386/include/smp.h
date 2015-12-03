@@ -53,10 +53,6 @@ extern u_int ipi_global;
 extern u_int ipi_page;
 extern u_int ipi_range;
 extern u_int ipi_range_size;
-extern u_int ipi_masked_global;
-extern u_int ipi_masked_page;
-extern u_int ipi_masked_range;
-extern u_int ipi_masked_range_size;
 
 struct cpu_info {
 	int	cpu_present:1;
@@ -105,13 +101,10 @@ void	ipi_selected(cpuset_t cpus, u_int ipi);
 u_int	mp_bootaddress(u_int);
 void	set_interrupt_apic_ids(void);
 void	smp_cache_flush(void);
-void	smp_invlpg(vm_offset_t addr);
 void	smp_masked_invlpg(cpuset_t mask, vm_offset_t addr);
-void	smp_invlpg_range(vm_offset_t startva, vm_offset_t endva);
 void	smp_masked_invlpg_range(cpuset_t mask, vm_offset_t startva,
 	    vm_offset_t endva);
-void	smp_invltlb(void);
-void	smp_masked_invltlb(cpuset_t mask);
+void	smp_masked_invltlb(cpuset_t mask, struct pmap *pmap);
 void	mem_range_AP_init(void);
 void	topo_probe(void);
 void	ipi_send_cpu(int cpu, u_int ipi);
