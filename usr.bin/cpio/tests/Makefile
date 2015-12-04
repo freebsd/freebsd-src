@@ -78,9 +78,6 @@ SRCS.bsdcpio_test= list.h			\
 	${TESTS_SRCS}				\
 	main.c
 
-DPSRCS.bsdcpio_test= \
-	list.h
-
 .PATH:	${LIBARCHIVEDIR}/test_utils
 SRCS.bsdcpio_test+=	test_utils.c
 
