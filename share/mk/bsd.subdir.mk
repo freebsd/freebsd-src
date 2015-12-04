@@ -116,17 +116,17 @@ ${SUBDIR:N.WAIT}: .PHONY .MAKE
 # Work around parsing of .if nested in .for by putting .WAIT string into a var.
 __wait= .WAIT
 .for __target in ${ALL_SUBDIR_TARGETS}
+# Only recurse on directly-called targets.  I.e., don't recurse on dependencies
+# such as 'install' becoming {before,real,after}install, just recurse
+# 'install'.
+.if make(${__target})
 # Can ordering be skipped for this and SUBDIR_PARALLEL forced?
-.if make(${__target}) && ${STANDALONE_SUBDIR_TARGETS:M${__target}}
+.if ${STANDALONE_SUBDIR_TARGETS:M${__target}}
 _is_standalone_target=	1
 SUBDIR:=	${SUBDIR:N.WAIT}
 .else
 _is_standalone_target=	0
 .endif
-# Only recurse on directly-called targets.  I.e., don't recurse on dependencies
-# such as 'install' becoming {before,real,after}install, just recurse
-# 'install'.
-.if make(${__target})
 .if defined(SUBDIR_PARALLEL) || ${_is_standalone_target} == 1
 __subdir_targets=
 .for __dir in ${SUBDIR}
