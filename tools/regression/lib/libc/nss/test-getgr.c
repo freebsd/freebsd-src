@@ -63,14 +63,14 @@ static void free_group(struct group *);
 static void sdump_group(struct group *, char *, size_t);
 static int group_read_snapshot_func(struct group *, char *);
 
-static int group_check_ambiguity(struct group_test_data *, 
+static int group_check_ambiguity(struct group_test_data *,
 	struct group *);
 static int group_fill_test_data(struct group_test_data *);
 static int group_test_correctness(struct group *, void *);
 static int group_test_getgrnam(struct group *, void *);
 static int group_test_getgrgid(struct group *, void *);
 static int group_test_getgrent(struct group *, void *);
-	
+
 static void usage(void)  __attribute__((__noreturn__));
 
 IMPLEMENT_TEST_DATA(group)
@@ -83,33 +83,33 @@ clone_group(struct group *dest, struct group const *src)
 {
 	assert(dest != NULL);
 	assert(src != NULL);
-	
+
 	char **cp;
 	int members_num;
-		
+
 	memset(dest, 0, sizeof(struct group));
-	
+
 	if (src->gr_name != NULL) {
 		dest->gr_name = strdup(src->gr_name);
 		assert(dest->gr_name != NULL);
 	}
-	
+
 	if (src->gr_passwd != NULL) {
 		dest->gr_passwd = strdup(src->gr_passwd);
 		assert(dest->gr_passwd != NULL);
 	}
 	dest->gr_gid = src->gr_gid;
-	
+
 	if (src->gr_mem != NULL) {
 		members_num = 0;
 		for (cp = src->gr_mem; *cp; ++cp)
 			++members_num;
-	
+
 		dest->gr_mem = (char **)malloc(
 			(members_num + 1) * (sizeof(char *)));
 		assert(dest->gr_mem != NULL);
 		memset(dest->gr_mem, 0, (members_num+1) * (sizeof(char *)));
-	
+
 		for (cp = src->gr_mem; *cp; ++cp) {
 			dest->gr_mem[cp - src->gr_mem] = strdup(*cp);
 			assert(dest->gr_mem[cp - src->gr_mem] != NULL);
@@ -117,52 +117,52 @@ clone_group(struct group *dest, struct group const *src)
 	}
 }
 
-static void 
+static void
 free_group(struct group *grp)
 {
 	char **cp;
-	
+
 	assert(grp != NULL);
-	
+
 	free(grp->gr_name);
 	free(grp->gr_passwd);
-	
+
 	for (cp = grp->gr_mem; *cp; ++cp)
 		free(*cp);
 	free(grp->gr_mem);
 }
 
-static  int 
+static  int
 compare_group(struct group *grp1, struct group *grp2, void *mdata)
 {
 	char **c1, **c2;
-        
+
 	if (grp1 == grp2)
 		return (0);
-        
+
 	if ((grp1 == NULL) || (grp2 == NULL))
 		goto errfin;
-        
+
 	if ((strcmp(grp1->gr_name, grp2->gr_name) != 0) ||
 		(strcmp(grp1->gr_passwd, grp2->gr_passwd) != 0) ||
 		(grp1->gr_gid != grp2->gr_gid))
 			goto errfin;
-        
+
 	c1 = grp1->gr_mem;
 	c2 = grp2->gr_mem;
-	
+
 	if ((grp1->gr_mem == NULL) || (grp2->gr_mem == NULL))
 		goto errfin;
-	
+
 	for (;*c1 && *c2; ++c1, ++c2)
 		if (strcmp(*c1, *c2) != 0)
 			goto errfin;
-                
+
 	if ((*c1 != '\0') || (*c2 != '\0'))
 		goto errfin;
-        
+
 	return 0;
-	
+
 errfin:
 	if ((debug) && (mdata == NULL)) {
 		printf("following structures are not equal:\n");
@@ -178,14 +178,14 @@ sdump_group(struct group *grp, char *buffer, size_t buflen)
 {
 	char **cp;
 	int written;
-	
+
 	written = snprintf(buffer, buflen, "%s %s %d",
-		grp->gr_name, grp->gr_passwd, grp->gr_gid);	
+		grp->gr_name, grp->gr_passwd, grp->gr_gid);
 	buffer += written;
 	if (written > buflen)
 		return;
 	buflen -= written;
-			
+
 	if (grp->gr_mem != NULL) {
 		if (*(grp->gr_mem) != '\0') {
 			for (cp = grp->gr_mem; *cp; ++cp) {
@@ -194,9 +194,9 @@ sdump_group(struct group *grp, char *buffer, size_t buflen)
 				if (written > buflen)
 					return;
 				buflen -= written;
-				
+
 				if (buflen == 0)
-					return;				
+					return;
 			}
 		} else
 			snprintf(buffer, buflen, " nomem");
@@ -213,7 +213,7 @@ group_read_snapshot_func(struct group *grp, char *line)
 
 	if (debug)
 		printf("1 line read from snapshot:\n%s\n", line);
-	
+
 	i = 0;
 	sl = NULL;
 	ps = line;
@@ -243,10 +243,10 @@ group_read_snapshot_func(struct group *grp, char *line)
 				if (sl == NULL) {
 					if (strcmp(s, "(null)") == 0)
 						return (0);
-										
+
 					sl = sl_init();
 					assert(sl != NULL);
-					
+
 					if (strcmp(s, "nomem") != 0) {
 						ts = strdup(s);
 						assert(ts != NULL);
@@ -257,7 +257,7 @@ group_read_snapshot_func(struct group *grp, char *line)
 					assert(ts != NULL);
 					sl_add(sl, ts);
 				}
-			break;			
+			break;
 		};
 		++i;
 	}
@@ -268,16 +268,16 @@ group_read_snapshot_func(struct group *grp, char *line)
 		memset(grp, 0, sizeof(struct group));
 		return (-1);
 	}
-	
+
 	sl_add(sl, NULL);
 	grp->gr_mem = sl->sl_str;
 
 	/* NOTE: is it a dirty hack or not? */
-	free(sl);	
+	free(sl);
 	return (0);
 }
 
-static void 
+static void
 dump_group(struct group *result)
 {
 	if (result != NULL) {
@@ -292,7 +292,7 @@ static int
 group_fill_test_data(struct group_test_data *td)
 {
 	struct group *grp;
-		
+
 	setgroupent(1);
 	while ((grp = getgrent()) != NULL) {
 		if (group_test_correctness(grp, NULL) == 0)
@@ -301,7 +301,7 @@ group_fill_test_data(struct group_test_data *td)
 			return (-1);
 	}
 	endgrent();
-	
+
 	return (0);
 }
 
@@ -312,37 +312,37 @@ group_test_correctness(struct group *grp, void *mdata)
 		printf("testing correctness with the following data:\n");
 		dump_group(grp);
 	}
-	
+
 	if (grp == NULL)
 		goto errfin;
-	
+
 	if (grp->gr_name == NULL)
 		goto errfin;
-	
+
 	if (grp->gr_passwd == NULL)
 		goto errfin;
-	
+
 	if (grp->gr_mem == NULL)
 		goto errfin;
-	
+
 	if (debug)
 		printf("correct\n");
-	
-	return (0);	
+
+	return (0);
 errfin:
 	if (debug)
 		printf("incorrect\n");
-	
+
 	return (-1);
 }
 
 /* group_check_ambiguity() is needed here because when doing the getgrent()
- * calls sequence, records from different nsswitch sources can be different, 
+ * calls sequence, records from different nsswitch sources can be different,
  * though having the same pw_name/pw_uid */
 static int
 group_check_ambiguity(struct group_test_data *td, struct group *pwd)
 {
-	
+
 	return (TEST_DATA_FIND(group, td, pwd, compare_group,
 		NULL) != NULL ? 0 : -1);
 }
@@ -351,7 +351,7 @@ static int
 group_test_getgrnam(struct group *grp_model, void *mdata)
 {
 	struct group *grp;
-		
+
 	if (debug) {
 		printf("testing getgrnam() with the following data:\n");
 		dump_group(grp_model);
@@ -360,20 +360,20 @@ group_test_getgrnam(struct group *grp_model, void *mdata)
 	grp = getgrnam(grp_model->gr_name);
 	if (group_test_correctness(grp, NULL) != 0)
 		goto errfin;
-	
+
 	if ((compare_group(grp, grp_model, NULL) != 0) &&
-	    (group_check_ambiguity((struct group_test_data *)mdata, grp) 
+	    (group_check_ambiguity((struct group_test_data *)mdata, grp)
 	    !=0))
 	    goto errfin;
-		
+
 	if (debug)
 		printf("ok\n");
 	return (0);
-	
+
 errfin:
 	if (debug)
 		printf("not ok\n");
-	
+
 	return (-1);
 }
 
@@ -381,14 +381,14 @@ static int
 group_test_getgrgid(struct group *grp_model, void *mdata)
 {
 	struct group *grp;
-		
+
 	if (debug) {
 		printf("testing getgrgid() with the following data...\n");
 		dump_group(grp_model);
-	}	
-	
+	}
+
 	grp = getgrgid(grp_model->gr_gid);
-	if ((group_test_correctness(grp, NULL) != 0) || 
+	if ((group_test_correctness(grp, NULL) != 0) ||
 	    ((compare_group(grp, grp_model, NULL) != 0) &&
 	    (group_check_ambiguity((struct group_test_data *)mdata, grp)
 	    != 0))) {
@@ -402,7 +402,7 @@ group_test_getgrgid(struct group *grp_model, void *mdata)
 	}
 }
 
-static int 
+static int
 group_test_getgrent(struct group *grp, void *mdata)
 {
 	/* Only correctness can be checked when doing 1-pass test for
@@ -426,10 +426,10 @@ main(int argc, char **argv)
 	char *snapshot_file;
 	int rv;
 	int c;
-	
+
 	if (argc < 2)
 		usage();
-		
+
 	snapshot_file = NULL;
 	while ((c = getopt(argc, argv, "nge2ds:")) != -1)
 		switch (c) {
@@ -454,18 +454,18 @@ main(int argc, char **argv)
 		default:
 			usage();
 		}
-	
+
 	TEST_DATA_INIT(group, &td, clone_group, free_group);
 	TEST_DATA_INIT(group, &td_snap, clone_group, free_group);
 	if (snapshot_file != NULL) {
-		if (access(snapshot_file, W_OK | R_OK) != 0) {		
+		if (access(snapshot_file, W_OK | R_OK) != 0) {
 			if (errno == ENOENT)
 				method = TEST_BUILD_SNAPSHOT;
 			else {
 				if (debug)
 					printf("can't access the file %s\n",
 				snapshot_file);
-			
+
 				rv = -1;
 				goto fin;
 			}
@@ -474,12 +474,12 @@ main(int argc, char **argv)
 				rv = 0;
 				goto fin;
 			}
-			
+
 			TEST_SNAPSHOT_FILE_READ(group, snapshot_file,
 				&td_snap, group_read_snapshot_func);
 		}
 	}
-		
+
 	rv = group_fill_test_data(&td);
 	if (rv == -1)
 		return (-1);
@@ -489,7 +489,7 @@ main(int argc, char **argv)
 			rv = DO_1PASS_TEST(group, &td,
 				group_test_getgrnam, (void *)&td);
 		else
-			rv = DO_1PASS_TEST(group, &td_snap, 
+			rv = DO_1PASS_TEST(group, &td_snap,
 				group_test_getgrnam, (void *)&td_snap);
 		break;
 	case TEST_GETGRGID:
@@ -497,7 +497,7 @@ main(int argc, char **argv)
 			rv = DO_1PASS_TEST(group, &td,
 				group_test_getgrgid, (void *)&td);
 		else
-			rv = DO_1PASS_TEST(group, &td_snap, 
+			rv = DO_1PASS_TEST(group, &td_snap,
 				group_test_getgrgid, (void *)&td_snap);
 		break;
 	case TEST_GETGRENT:
@@ -510,7 +510,7 @@ main(int argc, char **argv)
 		break;
 	case TEST_GETGRENT_2PASS:
 			TEST_DATA_INIT(group, &td_2pass, clone_group, free_group);
-			rv = group_fill_test_data(&td_2pass);			
+			rv = group_fill_test_data(&td_2pass);
 			if (rv != -1)
 				rv = DO_2PASS_TEST(group, &td, &td_2pass,
 					compare_group, NULL);
@@ -518,7 +518,7 @@ main(int argc, char **argv)
 		break;
 	case TEST_BUILD_SNAPSHOT:
 		if (snapshot_file != NULL)
-		    rv = TEST_SNAPSHOT_FILE_WRITE(group, snapshot_file, &td, 
+		    rv = TEST_SNAPSHOT_FILE_WRITE(group, snapshot_file, &td,
 			sdump_group);
 		break;
 	default:
@@ -529,6 +529,6 @@ main(int argc, char **argv)
 fin:
 	TEST_DATA_DESTROY(group, &td_snap);
 	TEST_DATA_DESTROY(group, &td);
-	free(snapshot_file);	
+	free(snapshot_file);
 	return (rv);
 }
