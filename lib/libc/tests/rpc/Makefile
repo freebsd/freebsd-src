@@ -18,8 +18,7 @@ h_testbits_xdr.c: ${RPCSRC} h_testbits.h
 CLEANFILES+=	${RPCSRC:.x=.h} ${RPCSRC:.x=.c} h_testbits_xdr.c
 CFLAGS+=	-I${.OBJDIR}
 
-LDADD+=		-lrpcsvc -lutil
-DPADD+=		${LIBRPCSVC} ${LIBUTIL}
+LIBADD+=	rpcsvc util
 
 .include "../Makefile.netbsd-tests"
 
