@@ -9,8 +9,8 @@ FILESGRP=	${LIBGRP}
 FILESMODE=	${LIBMODE}
 FILESDIR=	${LIBDIR}/dtrace
 CLEANFILES=	${FILES}
-LIB=		drti-dummy
-INTERNALLIB=
+# These FILES qualify as libraries for the purpose of LIBRARIES_ONLY.
+.undef LIBRARIES_ONLY
 
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${.CURDIR}/../../../cddl/compat/opensolaris/include \
@@ -19,11 +19,5 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${OPENSOLARIS_USR_DISTDIR}/lib/libdtrace/common \
 		-I${OPENSOLARIS_SYS_DISTDIR}/uts/common \
 		-DPIC ${PICFLAG}
-
-.if make(install) && defined(LIBRARIES_ONLY)
-install:
-	${INSTALL} -o ${FILESOWN} -g ${FILESGRP} -m ${FILESMODE} \
-	    ${FILES} ${DESTDIR}${FILESDIR}
-.endif
 
 .include <bsd.lib.mk>
