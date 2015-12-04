@@ -508,7 +508,7 @@ nd6_llinfo_settimer_locked(struct llentry *ln, long tick)
 			    nd6_llinfo_timer, ln);
 		}
 	}
-	if (canceled > 0)
+	if (canceled == CALLOUT_RET_CANCELLED)
 		LLE_REMREF(ln);
 }
 
