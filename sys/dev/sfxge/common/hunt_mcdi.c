@@ -143,6 +143,7 @@ hunt_mcdi_request_copyin(
 	efsys_mem_t *esmp = emtp->emt_dma_mem;
 	efx_mcdi_header_type_t hdr_type;
 	efx_dword_t dword;
+	efx_dword_t hdr[2];
 	unsigned int xflags;
 	unsigned int pos;
 	size_t offset;
@@ -160,7 +161,7 @@ hunt_mcdi_request_copyin(
 
 	if (hdr_type == EFX_MCDI_HEADER_TYPE_V2) {
 		/* Construct MCDI v2 header */
-		EFX_POPULATE_DWORD_8(dword,
+		EFX_POPULATE_DWORD_8(hdr[0],
 		    MCDI_HEADER_CODE, MC_CMD_V2_EXTN,
 		    MCDI_HEADER_RESYNC, 1,
 		    MCDI_HEADER_DATALEN, 0,
@@ -169,17 +170,17 @@ hunt_mcdi_request_copyin(
 		    MCDI_HEADER_ERROR, 0,
 		    MCDI_HEADER_RESPONSE, 0,
 		    MCDI_HEADER_XFLAGS, xflags);
-		EFSYS_MEM_WRITED(esmp, offset, &dword);
-		offset += sizeof (dword);
+		EFSYS_MEM_WRITED(esmp, offset, &hdr[0]);
+		offset += sizeof (efx_dword_t);
 
-		EFX_POPULATE_DWORD_2(dword,
+		EFX_POPULATE_DWORD_2(hdr[1],
 		    MC_CMD_V2_EXTN_IN_EXTENDED_CMD, emrp->emr_cmd,
 		    MC_CMD_V2_EXTN_IN_ACTUAL_LEN, emrp->emr_in_length);
-		EFSYS_MEM_WRITED(esmp, offset, &dword);
-		offset += sizeof (dword);
+		EFSYS_MEM_WRITED(esmp, offset, &hdr[1]);
+		offset += sizeof (efx_dword_t);
 	} else {
 		/* Construct MCDI v1 header */
-		EFX_POPULATE_DWORD_8(dword,
+		EFX_POPULATE_DWORD_8(hdr[0],
 		    MCDI_HEADER_CODE, emrp->emr_cmd,
 		    MCDI_HEADER_RESYNC, 1,
 		    MCDI_HEADER_DATALEN, emrp->emr_in_length,
@@ -188,9 +189,17 @@ hunt_mcdi_request_copyin(
 		    MCDI_HEADER_ERROR, 0,
 		    MCDI_HEADER_RESPONSE, 0,
 		    MCDI_HEADER_XFLAGS, xflags);
-		EFSYS_MEM_WRITED(esmp, offset, &dword);
-		offset += sizeof (dword);
+		EFSYS_MEM_WRITED(esmp, 0, &hdr[0]);
+		offset += sizeof (efx_dword_t);
 	}
+
+#if EFSYS_OPT_MCDI_LOGGING
+	if (emtp->emt_logger != NULL) {
+		emtp->emt_logger(emtp->emt_context, EFX_LOG_MCDI_REQUEST,
+		    &hdr, offset,
+		    emrp->emr_in_buf, emrp->emr_in_length);
+	}
+#endif /* EFSYS_OPT_MCDI_LOGGING */
 
 	/* Construct the payload */
 	for (pos = 0; pos < emrp->emr_in_length; pos += sizeof (efx_dword_t)) {
@@ -224,8 +233,7 @@ hunt_mcdi_request_copyout(
 	efsys_mem_t *esmp = emtp->emt_dma_mem;
 	unsigned int pos;
 	unsigned int offset;
-	efx_dword_t hdr;
-	efx_dword_t hdr2;
+	efx_dword_t hdr[2];
 	efx_dword_t data;
 	size_t bytes;
 
@@ -233,16 +241,16 @@ hunt_mcdi_request_copyout(
 		return;
 
 	/* Read the command header to detect MCDI response format */
-	EFSYS_MEM_READD(esmp, 0, &hdr);
-	if (EFX_DWORD_FIELD(hdr, MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
+	EFSYS_MEM_READD(esmp, 0, &hdr[0]);
+	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
 		offset = 2 * sizeof (efx_dword_t);
 
 		/*
 		 * Read the actual payload length. The length given in the event
 		 * is only correct for responses with the V1 format.
 		 */
-		EFSYS_MEM_READD(esmp, sizeof (efx_dword_t), &hdr2);
-		emrp->emr_out_length_used = EFX_DWORD_FIELD(hdr2,
+		EFSYS_MEM_READD(esmp, sizeof (efx_dword_t), &hdr[1]);
+		emrp->emr_out_length_used = EFX_DWORD_FIELD(hdr[1],
 					    MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
 	} else {
 		offset = sizeof (efx_dword_t);
@@ -255,6 +263,15 @@ hunt_mcdi_request_copyout(
 		memcpy(MCDI_OUT(*emrp, efx_dword_t, pos), &data,
 		    MIN(sizeof (data), bytes - pos));
 	}
+
+#if EFSYS_OPT_MCDI_LOGGING
+	if (emtp->emt_logger != NULL) {
+		emtp->emt_logger(emtp->emt_context,
+		    EFX_LOG_MCDI_RESPONSE,
+		    &hdr, offset,
+		    emrp->emr_out_buf, emrp->emr_out_length_used);
+	}
+#endif /* EFSYS_OPT_MCDI_LOGGING */
 }
 
 	__checkReturn	boolean_t
@@ -265,7 +282,7 @@ hunt_mcdi_request_poll(
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
 	efsys_mem_t *esmp = emtp->emt_dma_mem;
 	efx_mcdi_req_t *emrp;
-	efx_dword_t dword;
+	efx_dword_t hdr[2];
 	unsigned int seq;
 	unsigned int cmd;
 	unsigned int length;
@@ -285,23 +302,21 @@ hunt_mcdi_request_poll(
 	offset = 0;
 
 	/* Read the command header */
-	EFSYS_MEM_READD(esmp, offset, &dword);
+	EFSYS_MEM_READD(esmp, offset, &hdr[0]);
 	offset += sizeof (efx_dword_t);
-	if (EFX_DWORD_FIELD(dword, MCDI_HEADER_RESPONSE) == 0) {
+	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_RESPONSE) == 0) {
 		EFSYS_UNLOCK(enp->en_eslp, state);
 		return (B_FALSE);
 	}
-	if (EFX_DWORD_FIELD(dword, MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
-		efx_dword_t dword2;
-
-		EFSYS_MEM_READD(esmp, offset, &dword2);
+	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
+		EFSYS_MEM_READD(esmp, offset, &hdr[1]);
 		offset += sizeof (efx_dword_t);
 
-		cmd = EFX_DWORD_FIELD(dword2, MC_CMD_V2_EXTN_IN_EXTENDED_CMD);
-		length = EFX_DWORD_FIELD(dword2, MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
+		cmd = EFX_DWORD_FIELD(hdr[1], MC_CMD_V2_EXTN_IN_EXTENDED_CMD);
+		length = EFX_DWORD_FIELD(hdr[1], MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
 	} else {
-		cmd = EFX_DWORD_FIELD(dword, MCDI_HEADER_CODE);
-		length = EFX_DWORD_FIELD(dword, MCDI_HEADER_DATALEN);
+		cmd = EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE);
+		length = EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_DATALEN);
 	}
 
 	/* Request complete */
@@ -309,7 +324,7 @@ hunt_mcdi_request_poll(
 	seq = (emip->emi_seq - 1) & EFX_MASK32(MCDI_HEADER_SEQ);
 
 	/* Check for synchronous reboot */
-	if (EFX_DWORD_FIELD(dword, MCDI_HEADER_ERROR) != 0 && length == 0) {
+	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_ERROR) != 0 && length == 0) {
 		/* The MC has rebooted since the request was sent. */
 		EFSYS_SPIN(EFX_MCDI_STATUS_SLEEP_US);
 		hunt_mcdi_poll_reboot(enp);
@@ -326,22 +341,31 @@ hunt_mcdi_request_poll(
 
 	/* Check that the returned data is consistent */
 	if (cmd != emrp->emr_cmd ||
-	    EFX_DWORD_FIELD(dword, MCDI_HEADER_SEQ) != seq) {
+	    EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_SEQ) != seq) {
 		/* Response is for a different request */
 		rc = EIO;
 		goto fail2;
 	}
-	if (EFX_DWORD_FIELD(dword, MCDI_HEADER_ERROR)) {
-		efx_dword_t errdword;
+	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_ERROR)) {
+		efx_dword_t err[2];
 		int errcode;
 		int argnum;
 
 		/* Read error code (and arg num for MCDI v2 commands) */
-		EFSYS_MEM_READD(esmp, offset + MC_CMD_ERR_CODE_OFST, &errdword);
-		errcode = EFX_DWORD_FIELD(errdword, EFX_DWORD_0);
+		EFSYS_MEM_READD(esmp, offset + MC_CMD_ERR_CODE_OFST, &err[0]);
+		errcode = EFX_DWORD_FIELD(err[0], EFX_DWORD_0);
 
-		EFSYS_MEM_READD(esmp, offset + MC_CMD_ERR_ARG_OFST, &errdword);
-		argnum = EFX_DWORD_FIELD(errdword, EFX_DWORD_0);
+		EFSYS_MEM_READD(esmp, offset + MC_CMD_ERR_ARG_OFST, &err[1]);
+		argnum = EFX_DWORD_FIELD(err[1], EFX_DWORD_0);
+
+#if EFSYS_OPT_MCDI_LOGGING
+		if (emtp->emt_logger != NULL) {
+			emtp->emt_logger(emtp->emt_context,
+			    EFX_LOG_MCDI_RESPONSE,
+			    &hdr, offset,
+			    &err, sizeof (err));
+		}
+#endif /* EFSYS_OPT_MCDI_LOGGING */
 
 		rc = efx_mcdi_request_errcode(errcode);
 		if (!emrp->emr_quiet) {

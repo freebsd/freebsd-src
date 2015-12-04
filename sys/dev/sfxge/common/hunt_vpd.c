@@ -113,7 +113,7 @@ hunt_vpd_size(
 	 * which is the size of the DYNAMIC_CONFIG partition.
 	 */
 	if ((rc = efx_mcdi_nvram_info(enp, NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,
-		    sizep, NULL, NULL)) != 0)
+		    sizep, NULL, NULL, NULL)) != 0)
 		goto fail1;
 
 	return (0);

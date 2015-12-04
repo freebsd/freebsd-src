@@ -194,6 +194,7 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 		priv->port_stats.tx_chksum_offload += priv->tx_ring[i]->tx_csum;
 		priv->port_stats.queue_stopped += priv->tx_ring[i]->queue_stopped;
 		priv->port_stats.wake_queue += priv->tx_ring[i]->wake_queue;
+		priv->port_stats.oversized_packets += priv->tx_ring[i]->oversized_packets;
 	}
 	/* RX Statistics */
 	priv->pkstats.rx_packets = be64_to_cpu(mlx4_en_stats->RTOT_prio_0) +
@@ -546,8 +547,9 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	}
 
 	if (!mlx4_is_mfunc(mdev->dev)) {
+/* netdevice stats format */
+#if __FreeBSD_version >= 1100000
 		if (reset == 0) {
-			/* netdevice stats format */
 			dev                     = mdev->pndev[port];
 			if_inc_counter(dev, IFCOUNTER_IPACKETS,
 			    priv->pkstats.rx_packets - priv->pkstats_last.rx_packets);
@@ -567,6 +569,18 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 			    priv->pkstats.tx_multicast_packets - priv->pkstats_last.tx_multicast_packets);
 		}
 		priv->pkstats_last = priv->pkstats;
+#else
+		dev			= mdev->pndev[port];
+		dev->if_ipackets        = priv->pkstats.rx_packets;
+		dev->if_opackets        = priv->pkstats.tx_packets;
+		dev->if_ibytes          = priv->pkstats.rx_bytes;
+		dev->if_obytes          = priv->pkstats.tx_bytes;
+		dev->if_ierrors         = priv->pkstats.rx_errors;
+		dev->if_iqdrops         = priv->pkstats.rx_dropped;
+		dev->if_imcasts         = priv->pkstats.rx_multicast_packets;
+		dev->if_omcasts         = priv->pkstats.tx_multicast_packets;
+		dev->if_collisions      = 0;
+#endif
 	}
 
 	spin_unlock(&priv->stats_lock);

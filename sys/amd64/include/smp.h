@@ -25,6 +25,8 @@
 #include <x86/apicvar.h>
 #include <machine/pcb.h>
 
+struct pmap;
+
 /* global symbols in mpboot.S */
 extern char			mptramp_start[];
 extern char			mptramp_end[];
@@ -53,6 +55,7 @@ extern u_int ipi_global;
 extern u_int ipi_page;
 extern u_int ipi_range;
 extern u_int ipi_range_size;
+extern struct pmap *smp_tlb_pmap;
 
 extern volatile int smp_tlb_wait;
 
@@ -85,8 +88,6 @@ inthand_t
 	IDTVEC(cpususpend),	/* CPU suspends & waits to be resumed */
 	IDTVEC(justreturn),	/* interrupt CPU with minimum overhead */
 	IDTVEC(rendezvous);	/* handle CPU rendezvous */
-
-struct pmap;
 
 /* functions in mp_machdep.c */
 void	assign_cpu_ids(void);

@@ -4,7 +4,6 @@
 PROG=	primes
 SRCS=	pattern.c pr_tbl.c primes.c spsp.c
 MAN=
-DPADD=	${LIBM}
-LDADD=	-lm
+LIBADD=	m
 
 .include <bsd.prog.mk>

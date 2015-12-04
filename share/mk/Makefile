@@ -6,6 +6,11 @@
 # will read this Makefile since it auto includes it into -I.
 .if ${.CURDIR} == ${.PARSEDIR}
 
+# Avoid creating a Makefile.depend here as it would get included anywhere
+# in the build, similar to the problem above.  It would cause dirdeps.mk
+# to be included more times than desired.
+UPDATE_DEPENDFILE= no
+
 .include <src.opts.mk>
 
 FILES=	\

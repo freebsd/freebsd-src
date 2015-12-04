@@ -3,8 +3,9 @@
 PROG_CXX=	troff
 SRCS=		dictionary.cpp div.cpp env.cpp input.cpp \
 		majorminor.cpp mtsm.cpp node.cpp number.cpp reg.cpp
-DPADD=		${LIBGROFF} ${LIBM}
-LDADD=		${LIBGROFF} -lm
+DPADD=		${LIBGROFF}
+LDADD=		${LIBGROFF}
+LIBADD=		m
 CLEANFILES=	majorminor.cpp ${MAN}
 
 .include <bsd.prog.mk>
