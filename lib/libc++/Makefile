@@ -206,9 +206,9 @@ EXTDIR=		${CXXINCLUDEDIR}/ext
 CLEANFILES+=	libstdc++.so libstdc++.a
 
 afterinstall:
-	ln -sf ${DESTDIR}${LIBDIR}/lib${LIB}.so \
+	${INSTALL_SYMLINK} ${DESTDIR}${LIBDIR}/lib${LIB}.so \
 		${.OBJDIR}/libstdc++.so
-	ln -sf ${DESTDIR}${LIBDIR}/lib${LIB}.a \
+	${INSTALL_SYMLINK} ${DESTDIR}${LIBDIR}/lib${LIB}.a \
 		${.OBJDIR}/libstdc++.a
 .endif
 
