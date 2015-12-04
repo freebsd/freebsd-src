@@ -1212,7 +1212,6 @@ bootstrap-tools: .PHONY
     ${_sed} \
     ${_yacc} \
     ${_lex} \
-    lib/libmd \
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config \
