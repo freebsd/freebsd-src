@@ -113,8 +113,6 @@ ${SUBDIR:N.WAIT}: .PHONY .MAKE
 	    dir=${.TARGET}; \
 	    ${_SUBDIR_SH};
 
-# Work around parsing of .if nested in .for by putting .WAIT string into a var.
-__wait= .WAIT
 .for __target in ${ALL_SUBDIR_TARGETS}
 # Only recurse on directly-called targets.  I.e., don't recurse on dependencies
 # such as 'install' becoming {before,real,after}install, just recurse
@@ -131,7 +129,7 @@ _is_standalone_target=	0
 .if defined(SUBDIR_PARALLEL) || ${_is_standalone_target} == 1
 __subdir_targets=
 .for __dir in ${SUBDIR}
-.if ${__wait} == ${__dir}
+.if ${__dir} == .WAIT
 __subdir_targets+= .WAIT
 .else
 __subdir_targets+= ${__target}_subdir_${__dir}
