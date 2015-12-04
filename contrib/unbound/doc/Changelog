@@ -1,5 +1,252 @@
+28 September 2015: Wouter
+	- MAX_TARGET_COUNT increased to 64, to fix up sporadic resolution
+	  failures.
+	- tag for 1.5.5rc1 release.
+	- makedist.sh: pgp sig echo commands.
+
+25 September 2015: Wouter
+	- Fix unbound-control flush that does not succeed in removing data.
+
+22 September 2015: Wouter
+	- Fix config globbed include chroot treatment, this fixes reload of
+	  globs (patch from Dag-Erling Smørgrav).
+	- iana portlist update.
+	- Fix #702: New IPs for for h.root-servers.net.
+	- Remove confusion comment from canonical_compare() function.
+	- Fix #705: ub_ctx_set_fwd() return value mishandled on windows.
+	- testbound selftest also works in non-debug mode.
+	- Fix minor error in unbound.conf.5.in
+	- Fix unbound.conf(5) access-control description for precedence
+	  and default.
+
+31 August 2015: Wouter
+	- changed windows setup compression to be more transparent.
+
+28 August 2015: Wouter
+	- Fix #697: Get PY_MAJOR_VERSION failure at configure for python
+	  2.4 to 2.6.
+	- Feature #699: --enable-pie option to that builds PIE binary.
+	- Feature #700: --enable-relro-now option that enables full read-only
+	  relocation.
+
+24 August 2015: Wouter
+	- Fix deadlock for local data add and zone add when unbound-control
+	  list_local_data printout is interrupted.
+	- iana portlist update.
+	- Change default of harden-algo-downgrade to off.  This is lenient
+	  for algorithm rollover.
+
+13 August 2015: Wouter
+	- 5011 implementation does not insist on all algorithms, when
+	  harden-algo-downgrade is turned off.
+	- Reap the child process that libunbound spawns.
+
+11 August 2015: Wouter
+	- Fix #694: configure script does not detect LibreSSL 2.2.2
+
+4 August 2015: Wouter
+	- Document that local-zone nodefault matches exactly and transparent
+	  can be used to release a subzone.
+
+3 August 2015: Wouter
+	- Document in the manual more text about configuring locally served
+	  zones.
+	- Fix 5011 anchor update timer after reload.
+	- Fix mktime in unbound-anchor not using UTC.
+
+30 July 2015: Wouter
+	- please afl-gcc (llvm) for uninitialised variable warning.
+	- Added permit-small-holddown config to debug fast 5011 rollover.
+
+24 July 2015: Wouter
+	- Fix #690: Reload fails when so-reuseport is yes after changing
+	  num-threads.
+	- iana portlist update.
+
+21 July 2015: Wouter
+	- Fix configure to detect SSL_CTX_set_ecdh_auto.
+	- iana portlist update.
+
+20 July 2015: Wouter
+	- Enable ECDHE for servers.  Where available, use
+	  SSL_CTX_set_ecdh_auto() for TLS-wrapped server configurations to
+	  enable ECDHE.  Otherwise, manually offer curve p256.
+	  Client connections should automatically use ECDHE when available.
+	  (thanks Daniel Kahn Gillmor)
+
+18 July 2015: Willem
+	- Allow certificate chain files to allow for intermediate certificates.
+	  (thanks Daniel Kahn Gillmor)
+
+13 July 2015: Wouter
+	- makedist produces sha1 and sha256 files for created binaries too.
+
+9 July 2015: Wouter
+	- 1.5.4 release tag
+	- trunk has 1.5.5 in development.
+	- Fix #681: Setting forwarders with unbound-control forward
+	  implicitly turns on forward-first.
+
+29 June 2015: Wouter
+	- iana portlist update.
+	- Fix alloc with log for allocation size checks.
+
+26 June 2015: Wouter
+	- Fix #677 Fix DNAME responses from cache that failed internal chain
+	  test.
+	- iana portlist update.
+
+22 June 2015: Wouter
+	- Fix #677 Fix CNAME corresponding to a DNAME was checked incorrectly
+	  and was therefore always synthesized (thanks to Valentin Dietrich).
+
+4 June 2015: Wouter
+	- RFC 7553 RR type URI support, is now enabled by default.
+
+2 June 2015: Wouter
+	- Fix #674: Do not free pointers given by getenv.
+
+29 May 2015: Wouter
+	- Fix that unparseable error responses are ratelimited.
+	- SOA negative TTL is capped at minimumttl in its rdata section.
+	- cache-max-negative-ttl config option, default 3600.
+
+26 May 2015: Wouter
+	- Document that ratelimit works with unbound-control set_option.
+
+21 May 2015: Wouter
+	- iana portlist update.
+	- documentation proposes ratelimit of 1000 (closer to what upstream
+	  servers expect from us).
+
+20 May 2015: Wouter
+	- DLV is going to be decommissioned.  Advice to stop using it, and
+	  put text in the example configuration and man page to that effect.
+
+10 May 2015: Wouter
+	- Change syntax of particular validator error to be easier for
+	  machine parse, swap rrset and ip adres info so it looks like:
+	  validation failure <www.example.nl. TXT IN>: signature crypto
+	  failed from 2001:DB8:7:bba4::53 for <*.example.nl. NSEC IN>
+
+1 May 2015: Wouter
+	- caps-whitelist in unbound.conf allows whitelist of loadbalancers
+	  that cannot work with caps-for-id or its fallback.
+
+30 April 2015: Wouter
+	- Unit test for type ANY synthesis.
+
+22 April 2015: Wouter
+	- Removed contrib/unbound_unixsock.diff, because it has been
+	  integrated, use control-interface: /path in unbound.conf.
+	- iana portlist update.
+
+17 April 2015: Wouter
+	- Synthesize ANY responses from cache.  Does not search exhaustively,
+	  but MX,A,AAAA,SOA,NS also CNAME.
+	- Fix leaked dns64prefix configuration string.
+
+16 April 2015: Wouter
+	- Add local-zone type inform_deny, that logs query and drops answer.
+	- Ratelimit does not apply to prefetched queries, and ratelimit-factor
+	  is default 10.  Repeated normal queries get resolved and with
+	  prefetch stay in the cache.
+	- Fix bug#664: libunbound python3 related fixes (from Tomas Hozza)
+	  Use print_function also for Python2.
+	  libunbound examples: produce sorted output.
+	  libunbound-Python: libldns is not used anymore.
+	  Fix issue with Python 3 mapping of FILE* using file_py3.i from ldns.
+
+10 April 2015: Wouter
+	- unbound-control ratelimit_list lists high rate domains.
+	- ratelimit feature, ratelimit: 100, or some sensible qps, can be
+	  used to turn it on.  It ratelimits recursion effort per zone.
+	  For particular names you can configure exceptions in unbound.conf.
+	- Fix that get_option for cache-sizes does not print double newline.
+	- Fix#663: ssl handshake fails when using unix socket because dh size
+	  is too small.
+
+8 April 2015: Wouter
+	- Fix crash in dnstap: Do not try to log TCP responses after timeout.
+
+7 April 2015: Wouter
+	- Libunbound skips dos-line-endings from etc/hosts.
+	- Unbound exits with a fatal error when the auto-trust-anchor-file
+	  fails to be writable.  This is seconds after startup.  You can
+	  load a readonly auto-trust-anchor-file with trust-anchor-file.
+	  The file has to be writable to notice the trust anchor change,
+	  without it, a trust anchor change will be unnoticed and the system
+	  will then become inoperable.
+	- unbound-control list_insecure command shows the negative trust
+	  anchors currently configured, patch from Jelte Jansen.
+
+2 April 2015: Wouter
+	- Fix #660: Fix interface-automatic broken in the presence of
+	  asymmetric routing.
+
+26 March 2015: Wouter
+	- remote.c probedelay line is easier to read.
+	- rename ldns subdirectory to sldns to avoid name collision.
+
+25 March 2015: Wouter
+	- Fix #657:  libunbound(3) recommends deprecated
+	  CRYPTO_set_id_callback.
+	- If unknown trust anchor algorithm, and libressl is used, error
+	  message encourages upgrade of the libressl package.
+
 23 March 2015: Wouter
 	- Fix segfault on user not found at startup (from Maciej Soltysiak).
+
+20 March 2015: Wouter
+	- Fixed to add integer overflow checks on allocation (defense in depth).
+
+19 March 2015: Wouter
+	- Add ip-transparent config option for bind to non-local addresses.
+
+17 March 2015: Wouter
+	- Use reallocarray for integer overflow protection, patch submitted
+	  by Loganaden Velvindron.
+
+16 March 2015: Wouter
+	- Fixup compile on cygwin, more portable openssl thread id.
+
+12 March 2015: Wouter
+	- Updated default keylength in unbound-control-setup to 3k.
+
+10 March 2015: Wouter
+	- Fix lintian warning in unbound-checkconf man page (from Andreas
+	  Schulze).
+	- print svnroot when building windows dist.
+	- iana portlist update.
+	- Fix warning on sign compare in getentropy_linux.
+
+9 March 2015: Wouter
+	- Fix #644: harden-algo-downgrade option, if turned off, fixes the
+	  reported excessive validation failure when multiple algorithms
+	  are present.  It allows the weakest algorithm to validate the zone.
+	- iana portlist update.
+
+5 March 2015: Wouter
+	- contrib/unbound_smf22.tar.gz: Solaris SMF installation/removal
+	  scripts.  Contributed by Yuri Voinov.
+	- Document that incoming-num-tcp increase is good for large servers.
+	- stats reports tcp usage, of incoming-num-tcp buffers.
+
+4 March 2015: Wouter
+	- Patch from Brad Smith that syncs compat/getentropy_linux with
+	  OpenBSD's version (2015-03-04).
+	- 0x20 fallback improved: servfail responses do not count as missing
+	  comparisons (except if all responses are errors),
+	  inability to find nameservers does not fail equality comparisons,
+	  many nameservers does not try to compare more than max-sent-count,
+	  parse failures start 0x20 fallback procedure.
+	- store caps_response with best response in case downgrade response
+	  happens to be the last one.
+	- Document windows 8 tests.
+
+3 March 2015: Wouter
+	- tag 1.5.3rc1
+	[ This became 1.5.3 on 10 March, trunk is 1.5.4 in development ]
 
 2 March 2015: Wouter
 	- iana portlist update.
