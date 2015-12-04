@@ -28,7 +28,7 @@
 .\"     @(#)mkdep.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd October 23, 2015
 .Dt MKDEP 1
 .Os
 .Sh NAME
@@ -60,11 +60,13 @@ CFLAGS is the list of flags for the C compiler.
 .Pp
 The user has the ability to change the preprocessor and preprocessor options
 used.
-For instance, to use gcc as the preprocessor and to ignore system
+For instance, to use
+.Sy cc
+as the preprocessor and to ignore system
 headers, one would use
 .Bd -literal -offset indent
 depend:
-	env MKDEP_CPP="gcc -E" MKDEP_CPP_OPTS=-MM mkdep \\
+	env MKDEP_CPP="cc -E" MKDEP_CPP_OPTS=-MM mkdep \\
 		${CFLAGS} ${SRCS}
 .Ed
 .Pp
@@ -101,6 +103,8 @@ module.
 Specifies the C compiler to use.
 The specified compiler is expected to have
 options consistent with the GNU C compiler.
+The default is
+.Sy cc .
 .It Ev MKDEP_CPP
 Specifies the preprocessor to use.
 The default is "${CC} -E".
