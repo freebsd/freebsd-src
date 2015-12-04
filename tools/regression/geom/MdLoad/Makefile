@@ -1,8 +1,7 @@
 # $FreeBSD$
 
 PROG=	MdLoad
-DPADD=	${LIBSBUF} ${LIBBSDXML}
-LDADD=	-lsbuf -lbsdxml
+LIBADD=	sbuf bsdxml
 
 MAN=
 

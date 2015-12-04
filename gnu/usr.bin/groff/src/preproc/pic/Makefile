@@ -4,8 +4,9 @@ PROG_CXX=	pic
 SRCS=		lex.cpp main.cpp object.cpp pic.cpp pic_tab.h \
 		common.cpp troff.cpp tex.cpp
 CFLAGS+=	-I${DIST_DIR} -I.
-DPADD=		${LIBGROFF} ${LIBM}
-LDADD=		${LIBGROFF} -lm
+DPADD=		${LIBGROFF}
+LDADD=		${LIBGROFF}
+LIBADD=		m
 CLEANFILES=	${MAN} pic.cpp pic_tab.h y.tab.c y.tab.h
 
 pic_tab.h: pic.cpp
