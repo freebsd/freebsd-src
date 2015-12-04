@@ -90,8 +90,11 @@ load(const char *fname)
 		char c = line[len];
 		char *ptr;
 		line[len] = '\0';
-		for (ptr = strtok(line, WS); ptr; ptr = strtok(NULL, WS))
+		for (ptr = strtok(line, WS); ptr; ptr = strtok(NULL, WS)) {
+			if (ptr == '\0' || ptr[0] == '#')
+				continue;
 			sl_add(hosts, strdup(ptr));
+		}
 		line[len] = c;
 	}
 
@@ -226,7 +229,7 @@ resolvloop(void *p)
 {
 	int *nhosts = (int *)p;
 	if (*nhosts == 0)
-		return;
+		return NULL;
 	do
 		resolvone(*nhosts);
 	while (--(*nhosts));
