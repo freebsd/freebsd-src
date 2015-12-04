@@ -44,7 +44,7 @@ LOCALES=	af_ZA.ISO8859-1 \
 		uk_UA.KOI8-U \
 		zh_CN.eucCN
 
-LOCALEDIR=	/usr/share/locale
+LOCALEDIR=	${SHAREDIR}/locale
 
 .SUFFIXES: .src .out
 
