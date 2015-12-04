@@ -63,12 +63,6 @@ __FBSDID("$FreeBSD$");
 NESTED(_setjmp, SETJMP_FRAME_SIZE, ra)
 	.set	noreorder
 
-	clc		$c3, sp, CALLFRAME_SIZ($c11)	# restore env pointer
-	clc		$c17, sp, CALLFRAME_C17($c11)	# restore return cap
-	cld		s8, sp, CALLFRAME_FP($c11)
-	cld		ra, sp, CALLFRAME_RA($c11)	# restore RA
-	PTR_ADDU	sp, sp, SETJMP_FRAME_SIZE	# pop stack frame
-
 	li		v0, _JB_MAGIC__SETJMP
 	csd		v0, zero, (_JB_MAGIC  * SZREG)($c3)
 	csd		ra, zero, (_JB_REG_RA * SZREG)($c3)
