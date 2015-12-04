@@ -358,7 +358,9 @@ static bool
 g_disk_limit(struct disk *dp, struct bio *bp)
 {
 	bool limited = false;
-	off_t maxsz = g_disk_maxsize(dp, bp);
+	off_t maxsz;
+
+	maxsz = g_disk_maxsize(dp, bp);
 
 	/*
 	 * XXX: If we have a stripesize we should really use it here.
