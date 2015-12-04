@@ -562,10 +562,10 @@ build32:
 	    -DEARLY_BUILD build-tools
 .endfor
 	cd ${.CURDIR}; \
-	    ${LIB32WMAKE} -f Makefile.inc1 libraries
+	    ${LIB32WMAKE} -f Makefile.inc1 -DNO_FSCHG libraries
 .for _t in obj depend all
 	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32WMAKE} \
-	    DIRPRFX=libexec/rtld-elf/ ${_t}
+	    -DNO_FSCHG DIRPRFX=libexec/rtld-elf/ ${_t}
 	cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32WMAKE} \
 	    DIRPRFX=usr.bin/ldd ${_t}
 .endfor
