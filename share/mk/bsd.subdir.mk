@@ -84,7 +84,7 @@ __deps=
 .for __dep in ${SUBDIR_DEPEND_${__dir}}
 __deps+= ${__target}_subdir_${__dep}
 .endfor
-${__target}_subdir_${__dir}: .MAKE ${__deps}
+${__target}_subdir_${__dir}: .PHONY .MAKE ${__deps}
 .if !defined(NO_SUBDIR)
 	@${_+_}set -e; \
 		if test -d ${.CURDIR}/${__dir}.${MACHINE_ARCH}; then \
