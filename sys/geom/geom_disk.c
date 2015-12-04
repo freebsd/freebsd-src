@@ -253,10 +253,18 @@ g_disk_ioctl(struct g_provider *pp, u_long cmd, void * data, int fflag, struct t
 	return (error);
 }
 
-static int
-g_disk_maxsegs(struct disk *dp)
+static off_t
+g_disk_maxsize(struct disk *dp, struct bio *bp)
 {
-	return ((dp->d_maxsize / PAGE_SIZE) + 1);
+	if (bp->bio_cmd == BIO_DELETE)
+		return (dp->d_delmaxsize);
+	return (dp->d_maxsize);
+}
+
+static int
+g_disk_maxsegs(struct disk *dp, struct bio *bp)
+{
+	return ((g_disk_maxsize(dp, bp) / PAGE_SIZE) + 1);
 }
 
 static void
@@ -334,7 +342,7 @@ g_disk_vlist_limit(struct disk *dp, struct bio *bp, bus_dma_segment_t **pendseg)
 	end = (bus_dma_segment_t *)bp->bio_data + bp->bio_ma_n;
 	residual = bp->bio_length;
 	offset = bp->bio_ma_offset;
-	pages = g_disk_maxsegs(dp);
+	pages = g_disk_maxsegs(dp, bp);
 	while (residual != 0 && pages != 0) {
 		KASSERT((seg != end),
 		    ("vlist limit runs off the end"));
@@ -350,10 +358,7 @@ static bool
 g_disk_limit(struct disk *dp, struct bio *bp)
 {
 	bool limited = false;
-	off_t d_maxsize;
-
-	d_maxsize = (bp->bio_cmd == BIO_DELETE) ?
-	    dp->d_delmaxsize : dp->d_maxsize;
+	off_t maxsz = g_disk_maxsize(dp, bp);
 
 	/*
 	 * XXX: If we have a stripesize we should really use it here.
@@ -361,8 +366,8 @@ g_disk_limit(struct disk *dp, struct bio *bp)
 	 *      as deletes can be very sensitive to size given how they
 	 *      are processed.
 	 */
-	if (bp->bio_length > d_maxsize) {
-		bp->bio_length = d_maxsize;
+	if (bp->bio_length > maxsz) {
+		bp->bio_length = maxsz;
 		limited = true;
 	}
 
