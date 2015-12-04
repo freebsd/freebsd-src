@@ -3,8 +3,7 @@
 NETBSD_ATF_TESTS_C=	setjmp_test
 NETBSD_ATF_TESTS_C+=	threadjmp_test
 
-DPADD.threadjmp_test+= ${LIBPTHREAD}
-LDADD.threadjmp_test+= -lpthread
+LIBADD.t_threadjmp+=	pthread
 
 WARNS?=	4
 

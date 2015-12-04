@@ -36,11 +36,9 @@ CFLAGS+=	-I${.CURDIR}
 CFLAGS.$t+=	-I${LIBNETBSD_SRCDIR} -I${SRCTOP}/contrib/netbsd-tests
 LDFLAGS.$t+=	-L${LIBNETBSD_OBJDIR}
 
-DPADD.$t+=	${LIBNETBSD} ${LIBUTIL}
-LDADD.$t+=	-lnetbsd -lutil
+LIBADD.${t}+=	netbsd util
 .endfor
 
-DPADD.strtod_test+=		${LIBM}
-LDADD.strtod_test+=		-lm
+LIBADD.strtod_test+=		m
 
 .include <bsd.test.mk>

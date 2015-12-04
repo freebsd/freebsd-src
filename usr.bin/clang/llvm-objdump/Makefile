@@ -69,7 +69,6 @@ LIBDEPS=llvmdebuginfodwarf \
 	llvmcore \
 	llvmsupport
 
-.include "../clang.prog.mk"
+LIBADD=	z
 
-DPADD+=	${LIBZ}
-LDADD+=	-lz
+.include "../clang.prog.mk"
