@@ -39,7 +39,7 @@ __<bsd.subdir.mk>__:
 ALL_SUBDIR_TARGETS= all all-man buildconfig buildfiles buildincludes \
 		    checkdpadd clean cleandepend cleandir cleanilinks \
 		    cleanobj depend distribute files includes installconfig \
-		    installfiles installincludes install lint maninstall \
+		    installfiles installincludes realinstall lint maninstall \
 		    manlint obj objlink regress tags \
 		    ${SUBDIR_TARGETS}
 
@@ -104,7 +104,7 @@ _SUBDIR_SH=	\
 
 _SUBDIR: .USEBEFORE
 .if defined(SUBDIR) && !empty(SUBDIR) && !defined(NO_SUBDIR)
-	@${_+_}target=${.TARGET}; \
+	@${_+_}target=${.TARGET:realinstall=install}; \
 	    for dir in ${SUBDIR:N.WAIT}; do ( ${_SUBDIR_SH} ); done
 .endif
 
@@ -118,8 +118,9 @@ __wait= .WAIT
 .for __target in ${ALL_SUBDIR_TARGETS}
 # Only recurse on directly-called targets.  I.e., don't recurse on dependencies
 # such as 'install' becoming {before,real,after}install, just recurse
-# 'install'.
-.if make(${__target})
+# 'install'.  Despite that, 'realinstall' is special due to ordering issues
+# with 'afterinstall'.
+.if make(${__target}) || (${__target} == realinstall && make(install))
 # Can ordering be skipped for this and SUBDIR_PARALLEL forced?
 .if ${STANDALONE_SUBDIR_TARGETS:M${__target}}
 _is_standalone_target=	1
@@ -142,7 +143,7 @@ __deps+= ${__target}_subdir_${__dep}
 .endif
 ${__target}_subdir_${__dir}: .PHONY .MAKE ${__deps}
 .if !defined(NO_SUBDIR)
-	@${_+_}target=${__target}; \
+	@${_+_}target=${__target:realinstall=install}; \
 	    dir=${__dir}; \
 	    ${_SUBDIR_SH};
 .endif
