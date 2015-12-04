@@ -78,10 +78,10 @@
 #include "iterator/iter_delegpt.h"
 #include "services/outbound_list.h"
 #include "services/outside_network.h"
-#include "ldns/str2wire.h"
-#include "ldns/parseutil.h"
-#include "ldns/wire2str.h"
-#include "ldns/sbuffer.h"
+#include "sldns/str2wire.h"
+#include "sldns/parseutil.h"
+#include "sldns/wire2str.h"
+#include "sldns/sbuffer.h"
 
 #ifdef HAVE_SYS_TYPES_H
 #  include <sys/types.h>
@@ -140,34 +140,45 @@ timeval_divide(struct timeval* avg, const struct timeval* sum, size_t d)
 
 /*
  * The following function was generated using the openssl utility, using
- * the command : "openssl dhparam -dsaparam -C 512"
+ * the command : "openssl dhparam -dsaparam -C 1024"
+ * (some openssl versions reject DH that is 'too small', eg. 512).
  */
 #ifndef S_SPLINT_S
-DH *get_dh512()
+DH *get_dh1024()
 {
-	static unsigned char dh512_p[]={
-		0xC9,0xD7,0x05,0xDA,0x5F,0xAB,0x14,0xE8,0x11,0x56,0x77,0x85,
-		0xB1,0x24,0x2C,0x95,0x60,0xEA,0xE2,0x10,0x6F,0x0F,0x84,0xEC,
-		0xF4,0x45,0xE8,0x90,0x7A,0xA7,0x03,0xFF,0x5B,0x88,0x53,0xDE,
-		0xC4,0xDE,0xBC,0x42,0x78,0x71,0x23,0x7E,0x24,0xA5,0x5E,0x4E,
-		0xEF,0x6F,0xFF,0x5F,0xAF,0xBE,0x8A,0x77,0x62,0xB4,0x65,0x82,
-		0x7E,0xC9,0xED,0x2F,
-	};
-	static unsigned char dh512_g[]={
-		0x8D,0x3A,0x52,0xBC,0x8A,0x71,0x94,0x33,0x2F,0xE1,0xE8,0x4C,
-		0x73,0x47,0x03,0x4E,0x7D,0x40,0xE5,0x84,0xA0,0xB5,0x6D,0x10,
-		0x6F,0x90,0x43,0x05,0x1A,0xF9,0x0B,0x6A,0xD1,0x2A,0x9C,0x25,
-		0x0A,0xB9,0xD1,0x14,0xDC,0x35,0x1C,0x48,0x7C,0xC6,0x0C,0x6D,
-		0x32,0x1D,0xD3,0xC8,0x10,0xA8,0x82,0x14,0xA2,0x1C,0xF4,0x53,
-		0x23,0x3B,0x1C,0xB9,
-	};
+	static unsigned char dh1024_p[]={
+		0xB3,0x67,0x2E,0x3B,0x68,0xC5,0xDA,0x58,0x46,0xD6,0x2B,0xD3,
+		0x41,0x78,0x97,0xE4,0xE1,0x61,0x71,0x68,0xE6,0x0F,0x1D,0x78,
+		0x05,0xAA,0xF0,0xFF,0x30,0xDF,0xAC,0x49,0x7F,0xE0,0x90,0xFE,
+		0xB9,0x56,0x4E,0x3F,0xE2,0x98,0x8A,0xED,0xF5,0x28,0x39,0xEF,
+		0x2E,0xA6,0xB7,0x67,0xB2,0x43,0xE4,0x53,0xF8,0xEB,0x2C,0x1F,
+		0x06,0x77,0x3A,0x6F,0x62,0x98,0xC1,0x3B,0xF7,0xBA,0x4D,0x93,
+		0xF7,0xEB,0x5A,0xAD,0xC5,0x5F,0xF0,0xB7,0x24,0x35,0x81,0xF7,
+		0x7F,0x1F,0x24,0xC0,0xDF,0xD3,0xD8,0x40,0x72,0x7E,0xF3,0x19,
+		0x2B,0x26,0x27,0xF4,0xB6,0xB3,0xD4,0x7D,0x08,0x23,0xBE,0x68,
+		0x2B,0xCA,0xB4,0x46,0xA8,0x9E,0xDD,0x6C,0x3D,0x75,0xA6,0x48,
+		0xF7,0x44,0x43,0xBF,0x91,0xC2,0xB4,0x49,
+		};
+	static unsigned char dh1024_g[]={
+		0x5F,0x37,0xB5,0x80,0x4D,0xB4,0xC4,0xB2,0x37,0x12,0xD5,0x2F,
+		0x56,0x81,0xB0,0xDF,0x3D,0x27,0xA2,0x54,0xE7,0x14,0x65,0x2D,
+		0x72,0xA8,0x97,0xE0,0xA9,0x4A,0x09,0x5E,0x89,0xBE,0x34,0x9A,
+		0x90,0x98,0xC1,0xE8,0xBB,0x01,0x2B,0xC2,0x74,0x74,0x90,0x59,
+		0x0B,0x72,0x62,0x5C,0xFD,0x49,0x63,0x4B,0x38,0x91,0xF1,0x7F,
+		0x13,0x25,0xEB,0x52,0x50,0x47,0xA2,0x8C,0x32,0x28,0x42,0xAC,
+		0xBD,0x7A,0xCC,0x58,0xBE,0x36,0xDA,0x6A,0x24,0x06,0xC7,0xF1,
+		0xDA,0x8D,0x8A,0x3B,0x03,0xFA,0x6F,0x25,0xE5,0x20,0xA7,0xD6,
+		0x6F,0x74,0x61,0x53,0x14,0x81,0x29,0x04,0xB5,0x61,0x12,0x53,
+		0xA3,0xD6,0x09,0x98,0x0C,0x8F,0x1C,0xBB,0xD7,0x1C,0x2C,0xEE,
+		0x56,0x4B,0x74,0x8F,0x4A,0xF8,0xA9,0xD5,
+		};
 	DH *dh;
 
 	if ((dh=DH_new()) == NULL) return(NULL);
-	dh->p=BN_bin2bn(dh512_p,sizeof(dh512_p),NULL);
-	dh->g=BN_bin2bn(dh512_g,sizeof(dh512_g),NULL);
+	dh->p=BN_bin2bn(dh1024_p,sizeof(dh1024_p),NULL);
+	dh->g=BN_bin2bn(dh1024_g,sizeof(dh1024_g),NULL);
 	if ((dh->p == NULL) || (dh->g == NULL))
-	{ DH_free(dh); return(NULL); }
+		{ DH_free(dh); return(NULL); }
 	dh->length = 160;
 	return(dh);
 }
@@ -218,7 +229,7 @@ daemon_remote_create(struct config_file* cfg)
 		/* Since we have no certificates and hence no source of
 		 * DH params, let's generate and set them
 		 */
-		if(!SSL_CTX_set_tmp_dh(rc->ctx,get_dh512())) {
+		if(!SSL_CTX_set_tmp_dh(rc->ctx,get_dh1024())) {
 			log_crypto_err("Wanted to set DH param, but failed");
 			return NULL;
 		}
@@ -232,9 +243,9 @@ daemon_remote_create(struct config_file* cfg)
 		goto setup_error;
 	}
 	verbose(VERB_ALGO, "setup SSL certificates");
-	if (!SSL_CTX_use_certificate_file(rc->ctx,s_cert,SSL_FILETYPE_PEM)) {
+	if (!SSL_CTX_use_certificate_chain_file(rc->ctx,s_cert)) {
 		log_err("Error for server-cert-file: %s", s_cert);
-		log_crypto_err("Error in SSL_CTX use_certificate_file");
+		log_crypto_err("Error in SSL_CTX use_certificate_chain_file");
 		goto setup_error;
 	}
 	if(!SSL_CTX_use_PrivateKey_file(rc->ctx,s_key,SSL_FILETYPE_PEM)) {
@@ -247,6 +258,23 @@ daemon_remote_create(struct config_file* cfg)
 		log_crypto_err("Error in SSL_CTX check_private_key");
 		goto setup_error;
 	}
+#if HAVE_DECL_SSL_CTX_SET_ECDH_AUTO
+	if(!SSL_CTX_set_ecdh_auto(rc->ctx,1)) {
+		log_crypto_err("Error in SSL_CTX_ecdh_auto, not enabling ECDHE");
+	}
+#elif defined(USE_ECDSA)
+	if(1) {
+		EC_KEY *ecdh = EC_KEY_new_by_curve_name (NID_X9_62_prime256v1);
+		if (!ecdh) {
+			log_crypto_err("could not find p256, not enabling ECDHE");
+		} else {
+			if (1 != SSL_CTX_set_tmp_ecdh (rc->ctx, ecdh)) {
+				log_crypto_err("Error in SSL_CTX_set_tmp_ecdh, not enabling ECDHE");
+			}
+			EC_KEY_free (ecdh);
+		}
+	}
+#endif
 	if(!SSL_CTX_load_verify_locations(rc->ctx, s_cert, NULL)) {
 		log_crypto_err("Error setting up SSL_CTX verify locations");
 	setup_error:
@@ -358,7 +386,8 @@ add_open(const char* ip, int nr, struct listen_port** list, int noproto_is_err,
 		}
 
 		/* open fd */
-		fd = create_tcp_accept_sock(res, 1, &noproto, 0);
+		fd = create_tcp_accept_sock(res, 1, &noproto, 0,
+			cfg->ip_transparent);
 		freeaddrinfo(res);
 	}
 
@@ -725,6 +754,8 @@ print_stats(SSL* ssl, const char* nm, struct stats_info* s)
 		(long long)avg.tv_sec, (int)avg.tv_usec)) return 0;
 	if(!ssl_printf(ssl, "%s.recursion.time.median"SQ"%g\n", nm, 
 		s->mesh_time_median)) return 0;
+	if(!ssl_printf(ssl, "%s.tcpusage"SQ"%lu\n", nm,
+		(unsigned long)s->svr.tcp_accept_usage)) return 0;
 	return 1;
 }
 
@@ -1228,8 +1259,6 @@ struct del_info {
 	size_t len;
 	/** labels */
 	int labs;
-	/** now */
-	time_t now;
 	/** time to invalidate to */
 	time_t expired;
 	/** number of rrsets removed */
@@ -1258,7 +1287,7 @@ infra_del_host(struct lruhash_entry* e, void* arg)
 		d->timeout_AAAA = 0;
 		d->timeout_other = 0;
 		rtt_init(&d->rtt);
-		if(d->ttl >= inf->now) {
+		if(d->ttl > inf->expired) {
 			d->ttl = inf->expired;
 			inf->num_keys++;
 		}
@@ -1287,7 +1316,6 @@ do_flush_infra(SSL* ssl, struct worker* worker, char* arg)
 	inf.name = 0;
 	inf.len = 0;
 	inf.labs = 0;
-	inf.now = *worker->env.now;
 	inf.expired = *worker->env.now;
 	inf.expired -= 3; /* handle 3 seconds skew between threads */
 	inf.num_rrsets = 0;
@@ -1318,7 +1346,7 @@ zone_del_rrset(struct lruhash_entry* e, void* arg)
 	if(dname_subdomain_c(k->rk.dname, inf->name)) {
 		struct packed_rrset_data* d = 
 			(struct packed_rrset_data*)e->data;
-		if(d->ttl >= inf->now) {
+		if(d->ttl > inf->expired) {
 			d->ttl = inf->expired;
 			inf->num_rrsets++;
 		}
@@ -1334,7 +1362,7 @@ zone_del_msg(struct lruhash_entry* e, void* arg)
 	struct msgreply_entry* k = (struct msgreply_entry*)e->key;
 	if(dname_subdomain_c(k->key.qname, inf->name)) {
 		struct reply_info* d = (struct reply_info*)e->data;
-		if(d->ttl >= inf->now) {
+		if(d->ttl > inf->expired) {
 			d->ttl = inf->expired;
 			inf->num_msgs++;
 		}
@@ -1350,7 +1378,7 @@ zone_del_kcache(struct lruhash_entry* e, void* arg)
 	struct key_entry_key* k = (struct key_entry_key*)e->key;
 	if(dname_subdomain_c(k->name, inf->name)) {
 		struct key_entry_data* d = (struct key_entry_data*)e->data;
-		if(d->ttl >= inf->now) {
+		if(d->ttl > inf->expired) {
 			d->ttl = inf->expired;
 			inf->num_keys++;
 		}
@@ -1373,7 +1401,6 @@ do_flush_zone(SSL* ssl, struct worker* worker, char* arg)
 	inf.name = nm;
 	inf.len = nmlen;
 	inf.labs = nmlabs;
-	inf.now = *worker->env.now;
 	inf.expired = *worker->env.now;
 	inf.expired -= 3; /* handle 3 seconds skew between threads */
 	inf.num_rrsets = 0;
@@ -1443,7 +1470,6 @@ do_flush_bogus(SSL* ssl, struct worker* worker)
 	struct del_info inf;
 	/* what we do is to set them all expired */
 	inf.worker = worker;
-	inf.now = *worker->env.now;
 	inf.expired = *worker->env.now;
 	inf.expired -= 3; /* handle 3 seconds skew between threads */
 	inf.num_rrsets = 0;
@@ -1519,7 +1545,6 @@ do_flush_negative(SSL* ssl, struct worker* worker)
 	struct del_info inf;
 	/* what we do is to set them all expired */
 	inf.worker = worker;
-	inf.now = *worker->env.now;
 	inf.expired = *worker->env.now;
 	inf.expired -= 3; /* handle 3 seconds skew between threads */
 	inf.num_rrsets = 0;
@@ -1669,6 +1694,7 @@ parse_delegpt(SSL* ssl, char* args, uint8_t* nm, int allow_names)
 			}
 		}
 	}
+	dp->has_parent_side_NS = 1;
 	return dp;
 }
 
@@ -1889,6 +1915,21 @@ do_insecure_remove(SSL* ssl, struct worker* worker, char* arg)
 	send_ok(ssl);
 }
 
+static void
+do_insecure_list(SSL* ssl, struct worker* worker)
+{
+	char buf[257];
+	struct trust_anchor* a;
+	if(worker->env.anchors) {
+		RBTREE_FOR(a, struct trust_anchor*, worker->env.anchors->tree) {
+			if(a->numDS == 0 && a->numDNSKEY == 0) {
+				dname_str(a->name, buf);
+				ssl_printf(ssl, "%s\n", buf);
+			}
+		}
+	}
+}
+
 /** do the status command */
 static void
 do_status(SSL* ssl, struct worker* worker)
@@ -2074,7 +2115,7 @@ dump_infra_host(struct lruhash_entry* e, void* arg)
 		d->rtt.srtt, d->rtt.rttvar, rtt_notimeout(&d->rtt), d->rtt.rto,
 		d->timeout_A, d->timeout_AAAA, d->timeout_other,
 		(int)d->edns_lame_known, (int)d->edns_version,
-		(int)(a->now<d->probedelay?d->probedelay-a->now:0),
+		(int)(a->now<d->probedelay?(d->probedelay - a->now):0),
 		(int)d->isdnsseclame, (int)d->rec_lame, (int)d->lame_type_A,
 		(int)d->lame_other)) {
 		a->ssl_failed = 1;
@@ -2236,17 +2277,71 @@ do_list_local_data(SSL* ssl, struct worker* worker)
 				for(i=0; i<d->count + d->rrsig_count; i++) {
 					if(!packed_rr_to_string(p->rrset, i,
 						0, s, slen)) {
-						if(!ssl_printf(ssl, "BADRR\n"))
+						if(!ssl_printf(ssl, "BADRR\n")) {
+							lock_rw_unlock(&z->lock);
+							lock_rw_unlock(&zones->lock);
 							return;
+						}
 					}
-				        if(!ssl_printf(ssl, "%s\n", s))
+				        if(!ssl_printf(ssl, "%s\n", s)) {
+						lock_rw_unlock(&z->lock);
+						lock_rw_unlock(&zones->lock);
 						return;
+					}
 				}
 			}
 		}
 		lock_rw_unlock(&z->lock);
 	}
 	lock_rw_unlock(&zones->lock);
+}
+
+/** struct for user arg ratelimit list */
+struct ratelimit_list_arg {
+	/** the infra cache */
+	struct infra_cache* infra;
+	/** the SSL to print to */
+	SSL* ssl;
+	/** all or only ratelimited */
+	int all;
+	/** current time */
+	time_t now;
+};
+
+/** list items in the ratelimit table */
+static void
+rate_list(struct lruhash_entry* e, void* arg)
+{
+	struct ratelimit_list_arg* a = (struct ratelimit_list_arg*)arg;
+	struct rate_key* k = (struct rate_key*)e->key;
+	struct rate_data* d = (struct rate_data*)e->data;
+	char buf[257];
+	int lim = infra_find_ratelimit(a->infra, k->name, k->namelen);
+	int max = infra_rate_max(d, a->now);
+	if(a->all == 0) {
+		if(max < lim)
+			return;
+	}
+	dname_str(k->name, buf);
+	ssl_printf(a->ssl, "%s %d limit %d\n", buf, max, lim);
+}
+
+/** do the ratelimit_list command */
+static void
+do_ratelimit_list(SSL* ssl, struct worker* worker, char* arg)
+{
+	struct ratelimit_list_arg a;
+	a.all = 0;
+	a.infra = worker->env.infra_cache;
+	a.now = *worker->env.now;
+	a.ssl = ssl;
+	arg = skipwhite(arg);
+	if(strcmp(arg, "+a") == 0)
+		a.all = 1;
+	if(a.infra->domain_rates==NULL ||
+		(a.all == 0 && infra_dp_ratelimit == 0))
+		return;
+	slabhash_traverse(a.infra->domain_rates, 0, rate_list, &a);
 }
 
 /** tell other processes to execute the command */
@@ -2309,11 +2404,17 @@ execute_cmd(struct daemon_remote* rc, SSL* ssl, char* cmd,
 	} else if(cmdcmp(p, "list_stubs", 10)) {
 		do_list_stubs(ssl, worker);
 		return;
+	} else if(cmdcmp(p, "list_insecure", 13)) {
+		do_insecure_list(ssl, worker);
+		return;
 	} else if(cmdcmp(p, "list_local_zones", 16)) {
 		do_list_local_zones(ssl, worker);
 		return;
 	} else if(cmdcmp(p, "list_local_data", 15)) {
 		do_list_local_data(ssl, worker);
+		return;
+	} else if(cmdcmp(p, "ratelimit_list", 14)) {
+		do_ratelimit_list(ssl, worker, p+14);
 		return;
 	} else if(cmdcmp(p, "stub_add", 8)) {
 		/* must always distribute this cmd */
