@@ -1402,7 +1402,9 @@ isp_put_icb_2400(ispsoftc_t *isp, isp_icb_2400_t *src, isp_icb_2400_t *dst)
 	for (i = 0; i < 4; i++) {
 		ISP_IOXPUT_16(isp, src->icb_priaddr[i], &dst->icb_priaddr[i]);
 	}
-	for (i = 0; i < 4; i++) {
+	ISP_IOXPUT_16(isp, src->icb_msixresp, &dst->icb_msixresp);
+	ISP_IOXPUT_16(isp, src->icb_msixatio, &dst->icb_msixatio);
+	for (i = 0; i < 2; i++) {
 		ISP_IOXPUT_16(isp, src->icb_reserved1[i], &dst->icb_reserved1[i]);
 	}
 	ISP_IOXPUT_16(isp, src->icb_atio_in, &dst->icb_atio_in);
@@ -1415,9 +1417,14 @@ isp_put_icb_2400(ispsoftc_t *isp, isp_icb_2400_t *src, isp_icb_2400_t *dst)
 	ISP_IOXPUT_32(isp, src->icb_fwoptions1, &dst->icb_fwoptions1);
 	ISP_IOXPUT_32(isp, src->icb_fwoptions2, &dst->icb_fwoptions2);
 	ISP_IOXPUT_32(isp, src->icb_fwoptions3, &dst->icb_fwoptions3);
-	for (i = 0; i < 12; i++) {
+	ISP_IOXPUT_16(isp, src->icb_qos, &dst->icb_qos);
+	for (i = 0; i < 3; i++)
 		ISP_IOXPUT_16(isp, src->icb_reserved2[i], &dst->icb_reserved2[i]);
-	}
+	for (i = 0; i < 3; i++)
+		ISP_IOXPUT_16(isp, src->icb_enodemac[i], &dst->icb_enodemac[i]);
+	ISP_IOXPUT_16(isp, src->icb_disctime, &dst->icb_disctime);
+	for (i = 0; i < 4; i++)
+		ISP_IOXPUT_16(isp, src->icb_reserved3[i], &dst->icb_reserved3[i]);
 }
 
 void
