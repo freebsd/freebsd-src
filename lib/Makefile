@@ -314,11 +314,6 @@ _libusbhid=	libusbhid
 _libusb=	libusb
 .endif
 
-.if !defined(LIBRARIES_ONLY)
-afterinstall:
-	${INSTALL_SYMLINK} ../include ${DESTDIR}/usr/lib/include
-.endif
-
 .if !make(install)
 SUBDIR_PARALLEL=
 .endif
