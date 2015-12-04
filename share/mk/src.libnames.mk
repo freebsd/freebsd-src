@@ -328,6 +328,16 @@ LDADD_${_l}+=	${LDADD_${_d}}
 DPADD_atf_cxx+=	${DPADD_atf_c}
 LDADD_atf_cxx+=	${LDADD_atf_c}
 
+# Detect LDADD/DPADD that should be LIBADD, before modifying LDADD here.
+.for _l in ${LDADD:M-l*:N-l*/*:C,^-l,,}
+.if ${_LIBRARIES:M${_l}}
+_BADLDADD+=	${_l}
+.endif
+.endfor
+.if !empty(_BADLDADD)
+.error ${.CURDIR}: These libraries should be LIBADD+=foo rather than DPADD/LDADD+=-lfoo: ${_BADLDADD}
+.endif
+
 .for _l in ${LIBADD}
 DPADD+=		${DPADD_${_l}}
 LDADD+=		${LDADD_${_l}}
