@@ -57,15 +57,19 @@ __FBSDID("$FreeBSD$");
 
 #define	cp_pct(x, y)	((y == 0) ? 0 : (int)(100.0 * (x) / (y)))
 
-/* Memory strategy threshold, in pages: if physmem is larger then this, use a 
- * large buffer */
+/*
+ * Memory strategy threshold, in pages: if physmem is larger then this, use a 
+ * large buffer.
+ */
 #define PHYSPAGES_THRESHOLD (32*1024)
 
-/* Maximum buffer size in bytes - do not allow it to grow larger than this */
+/* Maximum buffer size in bytes - do not allow it to grow larger than this. */
 #define BUFSIZE_MAX (2*1024*1024)
 
-/* Small (default) buffer size in bytes. It's inefficient for this to be
- * smaller than MAXPHYS */
+/*
+ * Small (default) buffer size in bytes. It's inefficient for this to be
+ * smaller than MAXPHYS.
+ */
 #define BUFSIZE_SMALL (MAXPHYS)
 
 int
@@ -77,13 +81,15 @@ copy_file(const FTSENT *entp, int dne)
 	ssize_t wcount;
 	size_t wresid;
 	off_t wtotal;
-	int ch, checkch, from_fd = 0, rcount, rval, to_fd = 0;
+	int ch, checkch, from_fd, rcount, rval, to_fd;
 	char *bufp;
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 	char *p;
 #endif
 
-	if ((from_fd = open(entp->fts_path, O_RDONLY, 0)) == -1) {
+	from_fd = to_fd = -1;
+	if (!lflag && !sflag &&
+	    (from_fd = open(entp->fts_path, O_RDONLY, 0)) == -1) {
 		warn("%s", entp->fts_path);
 		return (1);
 	}
@@ -103,63 +109,65 @@ copy_file(const FTSENT *entp, int dne)
 		if (nflag) {
 			if (vflag)
 				printf("%s not overwritten\n", to.p_path);
-			(void)close(from_fd);
-			return (1);
+			rval = 1;
+			goto done;
 		} else if (iflag) {
 			(void)fprintf(stderr, "overwrite %s? %s", 
-					to.p_path, YESNO);
+			    to.p_path, YESNO);
 			checkch = ch = getchar();
 			while (ch != '\n' && ch != EOF)
 				ch = getchar();
 			if (checkch != 'y' && checkch != 'Y') {
-				(void)close(from_fd);
 				(void)fprintf(stderr, "not overwritten\n");
-				return (1);
+				rval = 1;
+				goto done;
 			}
 		}
-		
+
 		if (fflag) {
-		    /* remove existing destination file name, 
-		     * create a new file  */
-		    (void)unlink(to.p_path);
-				if (!lflag)
-		    	to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
-				  fs->st_mode & ~(S_ISUID | S_ISGID));
-		} else {
-				if (!lflag)
-		    	/* overwrite existing destination file name */
-		    	to_fd = open(to.p_path, O_WRONLY | O_TRUNC, 0);
+			/*
+			 * Remove existing destination file name create a new
+			 * file.
+			 */
+			(void)unlink(to.p_path);
+			if (!lflag && !sflag) {
+				to_fd = open(to.p_path,
+				    O_WRONLY | O_TRUNC | O_CREAT,
+				    fs->st_mode & ~(S_ISUID | S_ISGID));
+			}
+		} else if (!lflag && !sflag) {
+			/* Overwrite existing destination file name. */
+			to_fd = open(to.p_path, O_WRONLY | O_TRUNC, 0);
 		}
-	} else {
-		if (!lflag)
-			to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
-		  fs->st_mode & ~(S_ISUID | S_ISGID));
+	} else if (!lflag && !sflag) {
+		to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
+		    fs->st_mode & ~(S_ISUID | S_ISGID));
 	}
-	
-	if (to_fd == -1) {
+
+	if (!lflag && !sflag && to_fd == -1) {
 		warn("%s", to.p_path);
-		(void)close(from_fd);
-		return (1);
+		rval = 1;
+		goto done;
 	}
 
 	rval = 0;
 
-	if (!lflag) {
+	if (!lflag && !sflag) {
 		/*
-		 * Mmap and write if less than 8M (the limit is so we don't totally
-		 * trash memory on big files.  This is really a minor hack, but it
-		 * wins some CPU back.
+		 * Mmap and write if less than 8M (the limit is so we don't
+		 * totally trash memory on big files.  This is really a minor
+		 * hack, but it wins some CPU back.
 		 * Some filesystems, such as smbnetfs, don't support mmap,
 		 * so this is a best-effort attempt.
 		 */
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 		if (S_ISREG(fs->st_mode) && fs->st_size > 0 &&
-	    	    fs->st_size <= 8 * 1024 * 1024 &&
+		    fs->st_size <= 8 * 1024 * 1024 &&
 		    (p = mmap(NULL, (size_t)fs->st_size, PROT_READ,
 		    MAP_SHARED, from_fd, (off_t)0)) != MAP_FAILED) {
 			wtotal = 0;
 			for (bufp = p, wresid = fs->st_size; ;
-			bufp += wcount, wresid -= (size_t)wcount) {
+			    bufp += wcount, wresid -= (size_t)wcount) {
 				wcount = write(to_fd, bufp, wresid);
 				if (wcount <= 0)
 					break;
@@ -204,7 +212,7 @@ copy_file(const FTSENT *entp, int dne)
 			wtotal = 0;
 			while ((rcount = read(from_fd, buf, bufsize)) > 0) {
 				for (bufp = buf, wresid = rcount; ;
-			    	bufp += wcount, wresid -= wcount) {
+				    bufp += wcount, wresid -= wcount) {
 					wcount = write(to_fd, bufp, wresid);
 					if (wcount <= 0)
 						break;
@@ -230,13 +238,18 @@ copy_file(const FTSENT *entp, int dne)
 				rval = 1;
 			}
 		}
-	} else {
+	} else if (lflag) {
 		if (link(entp->fts_path, to.p_path)) {
 			warn("%s", to.p_path);
 			rval = 1;
 		}
+	} else if (sflag) {
+		if (symlink(entp->fts_path, to.p_path)) {
+			warn("%s", to.p_path);
+			rval = 1;
+		}
 	}
-	
+
 	/*
 	 * Don't remove the target even after an error.  The target might
 	 * not be a regular file, or its attributes might be important,
@@ -244,7 +257,7 @@ copy_file(const FTSENT *entp, int dne)
 	 * to remove it if we created it and its length is 0.
 	 */
 
-	if (!lflag) {
+	if (!lflag && !sflag) {
 		if (pflag && setfile(fs, to_fd))
 			rval = 1;
 		if (pflag && preserve_fd_acls(from_fd, to_fd) != 0)
@@ -255,8 +268,9 @@ copy_file(const FTSENT *entp, int dne)
 		}
 	}
 
-	(void)close(from_fd);
-
+done:
+	if (from_fd != -1)
+		(void)close(from_fd);
 	return (rval);
 }
 
@@ -338,7 +352,7 @@ setfile(struct stat *fs, int fd)
 	fdval = fd != -1;
 	islink = !fdval && S_ISLNK(fs->st_mode);
 	fs->st_mode &= S_ISUID | S_ISGID | S_ISVTX |
-		       S_IRWXU | S_IRWXG | S_IRWXO;
+	    S_IRWXU | S_IRWXG | S_IRWXO;
 
 	TIMESPEC_TO_TIMEVAL(&tv[0], &fs->st_atim);
 	TIMESPEC_TO_TIMEVAL(&tv[1], &fs->st_mtim);
@@ -352,7 +366,7 @@ setfile(struct stat *fs, int fd)
 	else {
 		gotstat = 1;
 		ts.st_mode &= S_ISUID | S_ISGID | S_ISVTX |
-			      S_IRWXU | S_IRWXG | S_IRWXO;
+		    S_IRWXU | S_IRWXG | S_IRWXO;
 	}
 	/*
 	 * Changing the ownership probably won't succeed, unless we're root
@@ -476,7 +490,7 @@ preserve_dir_acls(struct stat *fs, char *source_dir, char *dest_dir)
 		return (0);
 
 	/*
-	 * If the file is a link we will not follow it
+	 * If the file is a link we will not follow it.
 	 */
 	if (S_ISLNK(fs->st_mode)) {
 		aclgetf = acl_get_link_np;
@@ -535,8 +549,10 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-"usage: cp [-R [-H | -L | -P]] [-f | -i | -n] [-alpvx] source_file target_file",
-"       cp [-R [-H | -L | -P]] [-f | -i | -n] [-alpvx] source_file ... "
-"target_directory");
+	    "usage: cp [-R [-H | -L | -P]] [-f | -i | -n] [-alpsvx] "
+	    "source_file target_file",
+	    "       cp [-R [-H | -L | -P]] [-f | -i | -n] [-alpsvx] "
+	    "source_file ... "
+	    "target_directory");
 	exit(EX_USAGE);
 }
