@@ -43,4 +43,6 @@ SRCS=		addicmp.c addipopt.c alist_free.c alist_new.c allocmbt.c \
 		tcp_flags.c tcpflags.c tcpoptnames.c v6ionames.c v6optvalue.c \
 		var.c verbose.c
 
+LIBADD=		kvm
+
 .include <bsd.lib.mk>
