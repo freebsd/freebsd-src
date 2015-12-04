@@ -54,7 +54,8 @@ siena_nvram_partn_size(
 		goto fail1;
 	}
 
-	if ((rc = efx_mcdi_nvram_info(enp, partn, sizep, NULL, NULL)) != 0) {
+	if ((rc = efx_mcdi_nvram_info(enp, partn, sizep,
+	    NULL, NULL, NULL)) != 0) {
 		goto fail2;
 	}
 
