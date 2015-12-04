@@ -42,7 +42,7 @@ LOCALES=	bg_BG.CP1251 \
 		uk_UA.ISO8859-5 \
 		uk_UA.KOI8-U
 
-LOCALEDIR=	/usr/share/locale
+LOCALEDIR=	${SHAREDIR}/locale
 
 .SUFFIXES: .src .out
 

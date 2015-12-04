@@ -90,7 +90,7 @@ LOCALES=	af_ZA.ISO8859-1 \
 		zh_HK.UTF-8 \
 		zh_TW.Big5
 
-LOCALEDIR=	/usr/share/locale
+LOCALEDIR=	${SHAREDIR}/locale
 
 .SUFFIXES: .src .out
 
