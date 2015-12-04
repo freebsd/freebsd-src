@@ -920,6 +920,14 @@ hunt_get_datapath_caps(
 		encp->enc_rx_batching_enabled = B_FALSE;
 	}
 
+	/* Check if the firmware supports disabling scatter on RXQs */
+	if (MCDI_CMD_DWORD_FIELD(&datapath_capabilities,
+			    GET_CAPABILITIES_OUT_RX_DISABLE_SCATTER) == 1) {
+		encp->enc_rx_disable_scatter_supported = B_TRUE;
+	} else {
+		encp->enc_rx_disable_scatter_supported = B_FALSE;
+	}
+
 	return (0);
 
 fail2:

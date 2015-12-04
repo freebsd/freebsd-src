@@ -1174,6 +1174,7 @@ typedef struct efx_nic_cfg_s {
 	boolean_t               enc_hw_tx_insert_vlan_enabled;
 	/* Datapath firmware vadapter/vport/vswitch support */
 	boolean_t		enc_datapath_cap_evb;
+	boolean_t               enc_rx_disable_scatter_supported;
 	/* External port identifier */
 	uint8_t			enc_external_port;
 } efx_nic_cfg_t;
