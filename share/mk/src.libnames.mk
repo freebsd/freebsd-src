@@ -131,6 +131,7 @@ _LIBRARIES=	\
 		nsfb \
 		nsgif \
 		nv \
+		nvpair \
 		opie \
 		pam \
 		panel \
@@ -166,9 +167,11 @@ _LIBRARIES=	\
 		ufs \
 		ugidfw \
 		ulog \
+		umem \
 		usb \
 		usbhid \
 		util \
+		uutil \
 		vmmapi \
 		wapcaplet \
 		wind \
@@ -176,7 +179,11 @@ _LIBRARIES=	\
 		xo \
 		y \
 		ypclnt \
-		z
+		z \
+		zfs_core \
+		zfs \
+		zpool \
+
 
 # Each library's LIBADD needs to be duplicated here for static linkage of
 # 2nd+ order consumers.  Auto-generating this would be better.
@@ -288,6 +295,10 @@ _DP_smb=	kiconv
 _DP_ulog=	md
 _DP_fifolog=	z
 _DP_ipf=	kvm
+_DP_zfs=	md pthread umem util uutil m nvpair avl bsdxml geom nvpair z \
+		zfs_core
+_DP_zfs_core=	nvpair
+_DP_zpool=	md pthread z nvpair avl umem
 
 _DP_helloworld=	cheri
 
