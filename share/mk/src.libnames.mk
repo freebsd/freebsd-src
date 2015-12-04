@@ -271,6 +271,8 @@ _DP_panelw=	ncursesw
 _DP_rpcsec_gss=	gssapi
 _DP_smb=	kiconv
 _DP_ulog=	md
+_DP_fifolog=	z
+_DP_ipf=	kvm
 
 # Define special cases
 LDADD_supcplusplus=	-lsupc++
@@ -293,7 +295,9 @@ LDADD_${_l}?=	-lprivate${_l}
 .else
 LDADD_${_l}?=	${LDADD_${_l}_L} -l${_l}
 .endif
-.if defined(_DP_${_l}) && defined(NO_SHARED) && (${NO_SHARED} != "no" && ${NO_SHARED} != "NO")
+# Add in all dependencies for static linkage.
+.if defined(_DP_${_l}) && (${_INTERNALLIBS:M${_l}} || \
+    (defined(NO_SHARED) && (${NO_SHARED} != "no" && ${NO_SHARED} != "NO")))
 .for _d in ${_DP_${_l}}
 DPADD_${_l}+=	${DPADD_${_d}}
 LDADD_${_l}+=	${LDADD_${_d}}
@@ -302,22 +306,16 @@ LDADD_${_l}+=	${LDADD_${_d}}
 .endfor
 
 # These are special cases where the library is broken and anything that uses
-# it needs to add more dependencies.  Many _INTERNALLIBS fall into this
-# category.  Unless the library itself is broken then the proper place to
-# define dependencies is _DP_* above.
+# it needs to add more dependencies.  Broken usually means that it has a
+# cyclic dependency and cannot link its own dependencies.  This is bad, please
+# fix the library instead.
+# Unless the library itself is broken then the proper place to define
+# dependencies is _DP_* above.
 
 # libatf-c++ exposes libatf-c abi hence we need to explicit link to atf_c for
 # atf_cxx
 DPADD_atf_cxx+=	${DPADD_atf_c}
 LDADD_atf_cxx+=	${LDADD_atf_c}
-
-# _INTERNALLIBS.
-# XXX: This should likely be reworked to have LIBADD in them and use normal
-# _DP_ lists just to avoid temptation to add more similar entries here.
-DPADD_fifolog+=	${DPADD_z}
-LDADD_fifolog+=	${LDADD_z}
-DPADD_ipf+=	${DPADD_kvm}
-LDADD_ipf+=	${LDADD_kvm}
 
 .for _l in ${LIBADD}
 DPADD+=		${DPADD_${_l}:Umissing-dpadd_${_l}}
