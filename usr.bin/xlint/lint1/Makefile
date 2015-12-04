@@ -12,7 +12,7 @@ DPADD=	${LIBL} ${LIBM}
 CFLAGS+= -I. -I${.CURDIR}
 LINTFLAGS=-aehpz
 
-BINDIR=	/usr/libexec
+BINDIR=	${LIBEXECDIR}
 
 .PATH: ${.CURDIR}/../common
 
