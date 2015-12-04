@@ -2,8 +2,6 @@
 
 .include <bsd.own.mk>
 
-SUBDIR_PARALLEL=
-
 .if ${MACHINE_CPUARCH} == "amd64"
 _i915kms=	i915kms
 _radeonkms=	radeonkms
