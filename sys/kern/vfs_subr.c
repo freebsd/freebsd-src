@@ -2770,6 +2770,8 @@ _vdrop(struct vnode *vp, bool locked)
 	VNASSERT(TAILQ_EMPTY(&vp->v_cache_dst), vp, ("vp has namecache dst"));
 	VNASSERT(LIST_EMPTY(&vp->v_cache_src), vp, ("vp has namecache src"));
 	VNASSERT(vp->v_cache_dd == NULL, vp, ("vp has namecache for .."));
+	VNASSERT(TAILQ_EMPTY(&vp->v_rl.rl_waiters), vp,
+	    ("Dangling rangelock waiters"));
 	VI_UNLOCK(vp);
 #ifdef MAC
 	mac_vnode_destroy(vp);
@@ -2783,6 +2785,7 @@ _vdrop(struct vnode *vp, bool locked)
 	vp->v_op = NULL;
 #endif
 	bzero(&vp->v_un, sizeof(vp->v_un));
+	vp->v_lasta = vp->v_clen = vp->v_cstart = vp->v_lastw = 0;
 	vp->v_iflag = 0;
 	vp->v_vflag = 0;
 	bo->bo_flag = 0;
