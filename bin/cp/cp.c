@@ -75,15 +75,15 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 #define	STRIP_TRAILING_SLASH(p) {					\
-        while ((p).p_end > (p).p_path + 1 && (p).p_end[-1] == '/')	\
-                *--(p).p_end = 0;					\
+	while ((p).p_end > (p).p_path + 1 && (p).p_end[-1] == '/')	\
+	*--(p).p_end = 0;						\
 }
 
 static char emptystring[] = "";
 
 PATH_T to = { to.p_path, emptystring, "" };
 
-int fflag, iflag, lflag, nflag, pflag, vflag;
+int fflag, iflag, lflag, nflag, pflag, sflag, vflag;
 static int Rflag, rflag;
 volatile sig_atomic_t info;
 
@@ -102,7 +102,7 @@ main(int argc, char *argv[])
 
 	fts_options = FTS_NOCHDIR | FTS_PHYSICAL;
 	Hflag = Lflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRafilnprvx")) != -1)
+	while ((ch = getopt(argc, argv, "HLPRafilnprsvx")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -145,6 +145,9 @@ main(int argc, char *argv[])
 			rflag = Lflag = 1;
 			Hflag = 0;
 			break;
+		case 's':
+			sflag = 1;
+			break;
 		case 'v':
 			vflag = 1;
 			break;
@@ -163,6 +166,8 @@ main(int argc, char *argv[])
 
 	if (Rflag && rflag)
 		errx(1, "the -R and -r options may not be specified together");
+	if (lflag && sflag)
+		errx(1, "the -l and -s options may not be specified together");
 	if (rflag)
 		Rflag = 1;
 	if (Rflag) {
@@ -183,7 +188,7 @@ main(int argc, char *argv[])
 	if (strlcpy(to.p_path, target, sizeof(to.p_path)) >= sizeof(to.p_path))
 		errx(1, "%s: name too long", target);
 	to.p_end = to.p_path + strlen(to.p_path);
-        if (to.p_path == to.p_end) {
+	if (to.p_path == to.p_end) {
 		*to.p_end++ = '.';
 		*to.p_end = 0;
 	}
@@ -240,10 +245,10 @@ main(int argc, char *argv[])
 			type = FILE_TO_FILE;
 
 		if (have_trailing_slash && type == FILE_TO_FILE) {
-			if (r == -1)
+			if (r == -1) {
 				errx(1, "directory %s does not exist",
-				     to.p_path);
-			else
+				    to.p_path);
+			} else
 				errx(1, "%s is not a directory", to.p_path);
 		}
 	} else
@@ -294,8 +299,8 @@ copy(char *argv[], enum op type, int fts_options)
 
 		/*
 		 * If we are in case (2) or (3) above, we need to append the
-                 * source name to the target name.
-                 */
+		 * source name to the target name.
+		 */
 		if (type != FILE_TO_FILE) {
 			/*
 			 * Need to remember the roots of traversals to create
@@ -374,7 +379,8 @@ copy(char *argv[], enum op type, int fts_options)
 				mode = curr->fts_statp->st_mode;
 				if ((mode & (S_ISUID | S_ISGID | S_ISTXT)) ||
 				    ((mode | S_IRWXU) & mask) != (mode & mask))
-					if (chmod(to.p_path, mode & mask) != 0){
+					if (chmod(to.p_path, mode & mask) !=
+					    0) {
 						warn("chmod: %s", to.p_path);
 						rval = 1;
 					}
@@ -382,7 +388,7 @@ copy(char *argv[], enum op type, int fts_options)
 			continue;
 		}
 
-		/* Not an error but need to remember it happened */
+		/* Not an error but need to remember it happened. */
 		if (stat(to.p_path, &to_stat) == -1)
 			dne = 1;
 		else {
@@ -408,7 +414,7 @@ copy(char *argv[], enum op type, int fts_options)
 
 		switch (curr->fts_statp->st_mode & S_IFMT) {
 		case S_IFLNK:
-			/* Catch special case of a non-dangling symlink */
+			/* Catch special case of a non-dangling symlink. */
 			if ((fts_options & FTS_LOGICAL) ||
 			    ((fts_options & FTS_COMFOLLOW) &&
 			    curr->fts_level == 0)) {
@@ -433,7 +439,7 @@ copy(char *argv[], enum op type, int fts_options)
 			 * modified by the umask.  Trade-off between being
 			 * able to write the directory (if from directory is
 			 * 555) and not causing a permissions race.  If the
-			 * umask blocks owner writes, we fail..
+			 * umask blocks owner writes, we fail.
 			 */
 			if (dne) {
 				if (mkdir(to.p_path,
@@ -452,7 +458,7 @@ copy(char *argv[], enum op type, int fts_options)
 			break;
 		case S_IFBLK:
 		case S_IFCHR:
-			if (Rflag) {
+			if (Rflag && !sflag) {
 				if (copy_special(curr->fts_statp, !dne))
 					badcp = rval = 1;
 			} else {
@@ -462,10 +468,10 @@ copy(char *argv[], enum op type, int fts_options)
 			break;
 		case S_IFSOCK:
 			warnx("%s is a socket (not copied).",
-				    curr->fts_path);
+			    curr->fts_path);
 			break;
 		case S_IFIFO:
-			if (Rflag) {
+			if (Rflag && !sflag) {
 				if (copy_fifo(curr->fts_statp, !dne))
 					badcp = rval = 1;
 			} else {
