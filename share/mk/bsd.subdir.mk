@@ -56,12 +56,6 @@ STANDALONE_SUBDIR_TARGETS?= obj checkdpadd clean cleandepend cleandir \
 _SUBDIR:
 .endif
 .endif
-.if !target(_SUBDIR)
-
-.if defined(SUBDIR)
-SUBDIR:=${SUBDIR} ${SUBDIR.yes}
-SUBDIR:=${SUBDIR:u}
-.endif
 
 DISTRIBUTION?=	base
 .if !target(distribute)
@@ -91,6 +85,14 @@ ${__stage}install:
 .endfor
 install:	beforeinstall realinstall afterinstall
 .ORDER:		beforeinstall realinstall afterinstall
+.endif
+
+# SUBDIR recursing may be disabled for MK_DIRDEPS_BUILD
+.if !target(_SUBDIR)
+
+.if defined(SUBDIR)
+SUBDIR:=${SUBDIR} ${SUBDIR.yes}
+SUBDIR:=${SUBDIR:u}
 .endif
 
 # Subdir code shared among 'make <subdir>', 'make <target>' and SUBDIR_PARALLEL.
@@ -151,11 +153,16 @@ ${__target}: ${__subdir_targets}
 .else
 ${__target}: _SUBDIR
 .endif	# SUBDIR_PARALLEL || _is_standalone_target
-.elif !target(${__target})
-${__target}:
 .endif	# make(${__target})
 .endfor	# __target in ${ALL_SUBDIR_TARGETS}
 
 .endif	# !target(_SUBDIR)
+
+# Ensure all targets exist
+.for __target in ${ALL_SUBDIR_TARGETS}
+.if !target(${__target})
+${__target}:
+.endif
+.endfor
 
 .endif
