@@ -329,13 +329,9 @@ DPADD_atf_cxx+=	${DPADD_atf_c}
 LDADD_atf_cxx+=	${LDADD_atf_c}
 
 .for _l in ${LIBADD}
-DPADD+=		${DPADD_${_l}:Umissing-dpadd_${_l}}
+DPADD+=		${DPADD_${_l}}
 LDADD+=		${LDADD_${_l}}
 .endfor
-
-.if defined(DPADD) && ${DPADD:Mmissing-dpadd_*}
-.error ${.CURDIR}: Missing ${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/DPADD_/} variable add "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//}" to _LIBRARIES, _INTERNALLIBS, or _PRIVATELIBS and define "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/LIB/:tu}".
-.endif
 
 # INTERNALLIB definitions.
 LIBELFTCDIR=	${OBJTOP}/lib/libelftc
@@ -462,6 +458,16 @@ LIBLNDIR=	${OBJTOP}/usr.bin/lex/lib
 .for lib in ${_LIBRARIES}
 LIB${lib:tu}DIR?=	${OBJTOP}/lib/lib${lib}
 .endfor
+
+# Validate that listed LIBADD are valid.
+.for _l in ${LIBADD}
+.if empty(_LIBRARIES:M${_l})
+_BADLIBADD+= ${_l}
+.endif
+.endfor
+.if !empty(_BADLIBADD)
+.error ${.CURDIR}: Invalid LIBADD used which may need to be added to ${_this:T}: ${_BADLIBADD}
+.endif
 
 # Sanity check that libraries are defined here properly when building them.
 .if defined(LIB) && ${_LIBRARIES:M${LIB}} != ""
