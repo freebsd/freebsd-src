@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-BINDIR= /usr/libexec/bsdinstall
+BINDIR= ${LIBEXECDIR}/bsdinstall
 PROG=	distfetch
 DPADD=	${LIBFETCH} ${LIBDIALOG} ${LIBM}
 LDADD=	-lfetch -ldialog -lm

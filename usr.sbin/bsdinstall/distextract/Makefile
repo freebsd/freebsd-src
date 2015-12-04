@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-BINDIR= /usr/libexec/bsdinstall
+BINDIR= ${LIBEXECDIR}/bsdinstall
 PROG=	distextract
 DPADD=	${LIBARCHIVE} ${LIBDPV} ${LIBFIGPAR} ${LIBDIALOG} ${LIBM}
 LDADD=	-larchive -ldpv -lfigpar -ldialog -lm
