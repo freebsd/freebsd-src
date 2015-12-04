@@ -8,8 +8,7 @@ SHLIB_MAJOR=    1
 SHLIB_NAME=	h_pthread_dlopen.so.${SHLIB_MAJOR}
 SRCS=		h_pthread_dlopen.c
 
-DPADD+=		${LIBPTHREAD}
-LDADD+=		-lpthread
+LIBADD+=	pthread
 
 LIBDIR=         ${TESTSBASE}/lib/libthr/dlopen
 

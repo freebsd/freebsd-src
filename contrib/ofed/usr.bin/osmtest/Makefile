@@ -22,7 +22,8 @@ LDADD=	-libcommon \
 	-losmvendor \
 	-losmcomp \
 	-lopensm \
-	-lpthread
+
+LIBADD+= pthread
 
 CFLAGS=	-DVENDOR_RMPP_SUPPORT -DDUAL_SIDED_RMPP \
 	-I${OPENSM}/osmtest/include

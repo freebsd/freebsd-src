@@ -3,6 +3,6 @@
 PROG=	grdc
 MAN=	grdc.6
 DPADD=	${LIBNCURSESW}
-LDADD=	-lncursesw
+LIBADD=	ncursesw
 
 .include <bsd.prog.mk>

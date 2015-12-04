@@ -3,7 +3,6 @@
 
 PROG=	pom
 MAN=	pom.6
-DPADD=	${LIBM}
-LDADD=	-lm
+LIBADD=	m
 
 .include <bsd.prog.mk>

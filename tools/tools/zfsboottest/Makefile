@@ -17,7 +17,7 @@ CFLAGS=	-O1 \
 	-fdiagnostics-show-option \
 	-W -Wextra -Wno-sign-compare -Wno-unused-parameter
 CFLAGS+=-m32
-LDADD+=	-lmd
+LIBADD+=	md
 
 .if ${MACHINE_CPUARCH} == "amd64"
 beforedepend zfsboottest.o: machine

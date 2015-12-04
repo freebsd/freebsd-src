@@ -28,11 +28,8 @@ NETBSD_ATF_TESTS_C+=	popen_test
 NETBSD_ATF_TESTS_C+=	printf_test
 NETBSD_ATF_TESTS_C+=	scanf_test
 
-DPADD.printfloat_test+=	${LIBM}
-LDADD.printfloat_test+=	-lm
-
-DPADD.scanfloat_test+=	${LIBM}
-LDADD.scanfloat_test+=	-lm
+LIBADD.printfloat_test+= m
+LIBADD.scanfloat_test+=  m
 
 .if ${COMPILER_TYPE} == "gcc"
 # 90: use of assignment suppression and length modifier together in scanf format

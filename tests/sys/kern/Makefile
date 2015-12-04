@@ -10,15 +10,14 @@ ATF_TESTS_C+=	ptrace_test
 ATF_TESTS_C+=	unix_seqpacket_test
 TEST_METADATA.unix_seqpacket_test+=	timeout="15"
 
-LDADD.ptrace_test+=			-lpthread
-LDADD.unix_seqpacket_test+=		-lpthread
+LIBADD.ptrace_test+=			pthread
+LIBADD.unix_seqpacket_test+=		pthread
 
 NETBSD_ATF_TESTS_C+=	lockf_test
 NETBSD_ATF_TESTS_C+=	mqueue_test
 
 CFLAGS.mqueue_test+=	-I${SRCTOP}/tests
-DPADD.mqueue_test+=	${LIBRT}
-LDADD.mqueue_test+=	-lrt
+LIBADD.mqueue_test+=	rt
 
 WARNS?=	5
 

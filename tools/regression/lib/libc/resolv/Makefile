@@ -6,8 +6,7 @@ MAN=
 
 # Note: this test relies on being dynamically linked.  You will get a
 # spurious PASS for a statically linked test.
-DPADD+=		${LIBPTHREAD}
-LDADD+=		-lpthread
+LIBADD+=	pthread
 
 regress: ${PROG}
 	./${PROG} -r ${.CURDIR}/mach

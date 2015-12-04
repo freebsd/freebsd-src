@@ -1,8 +1,7 @@
 # $FreeBSD$
 
 PROG=	ttls4
-DPADD=	${LIBPTHREAD}
-LDADD=	-lpthread
+LIBADD=	pthread
 MAN=
 DEBUG_FLAGS= -g
 

@@ -39,8 +39,7 @@ CFLAGS+=-I${.CURDIR}/../../sys
 LIBADD=	geom md
 
 .if ${MK_ZFS} != "no"
-DPADD += ${LIBNVPAIR} ${LIBZFS}
-LDADD += -lnvpair -lzfs
+LIBADD+=nvpair zfs
 .endif
 
 .include <bsd.prog.mk>

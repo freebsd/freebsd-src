@@ -4,7 +4,6 @@ PROG=	tscdrift
 MAN=
 WARNS?=	6
 
-LDADD=	-lpthread -lm
-DPADD=	${LIBPTHREAD} ${LIBM}
+LIBADD=	pthread m
 
 .include <bsd.prog.mk>

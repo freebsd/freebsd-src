@@ -10,7 +10,6 @@ SHLIBDIR=	${TESTSBASE}/libexec/rtld-elf
 
 SRCS=		pythagoras.c
 
-DPADD=		${LIBM}
-LDADD=		-lm
+LIBADD=		m
 
 .include <bsd.lib.mk>

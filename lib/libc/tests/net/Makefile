@@ -23,8 +23,7 @@ PROGS+=		h_protoent
 PROGS+=		h_servent
 PROGS+=		h_dns_server
 
-DPADD.h_nsd_recurse+=	${LIBPTHREAD}
-LDADD.h_nsd_recurse+=	-lpthread
+LIBADD.h_nsd_recurse+=	pthread
 
 CLEANFILES+=	aton_ether_subr.c
 aton_ether_subr.c: gen_ether_subr ${SRCTOP}/sys/net/if_ethersubr.c
