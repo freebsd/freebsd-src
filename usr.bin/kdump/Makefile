@@ -10,8 +10,7 @@ SFX=		32
 .PATH: ${.CURDIR}/../ktrace
 
 PROG=		kdump
-SRCS=		kdump_subr.c kdump.c ioctl.c subr.c
-DPSRCS=		kdump_subr.h 
+SRCS=		kdump_subr.c kdump_subr.h kdump.c ioctl.c subr.c
 CFLAGS+=	-I${.CURDIR}/../ktrace -I${.CURDIR} -I${.CURDIR}/../.. -I.
 
 .if ${MK_PF} != "no"
