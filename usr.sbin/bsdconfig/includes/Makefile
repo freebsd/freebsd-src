@@ -8,7 +8,7 @@ FILESDIR=	${LIBEXECDIR}/bsdconfig/includes
 FILES=		INDEX USAGE
 
 SCRIPTSDIR=	${FILESDIR}
-SCRIPTS=	includes
+SCRIPTS=	includes.sh
 
 beforeinstall:
 	mkdir -p ${DESTDIR}${FILESDIR}
