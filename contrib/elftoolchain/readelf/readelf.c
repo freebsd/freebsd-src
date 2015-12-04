@@ -332,6 +332,7 @@ static const char *note_type_gnu(unsigned int nt);
 static const char *note_type_netbsd(unsigned int nt);
 static const char *note_type_openbsd(unsigned int nt);
 static const char *note_type_unknown(unsigned int nt);
+static const char *note_type_xen(unsigned int nt);
 static const char *option_kind(uint8_t kind);
 static const char *phdr_type(unsigned int ptype);
 static const char *ppc_abi_fp(uint64_t fp);
@@ -1585,6 +1586,8 @@ note_type(const char *name, unsigned int et, unsigned int nt)
 		return note_type_netbsd(nt);
 	else if (strcmp(name, "OpenBSD") == 0 && et != ET_CORE)
 		return note_type_openbsd(nt);
+	else if (strcmp(name, "Xen") == 0 && et != ET_CORE)
+		return note_type_xen(nt);
 	return note_type_unknown(nt);
 }
 
@@ -1691,6 +1694,32 @@ note_type_unknown(unsigned int nt)
 	snprintf(s_nt, sizeof(s_nt),
 	    nt >= 0x100 ? "<unknown: 0x%x>" : "<unknown: %u>", nt);
 	return (s_nt);
+}
+
+static const char *
+note_type_xen(unsigned int nt)
+{
+	switch (nt) {
+	case 0: return "XEN_ELFNOTE_INFO";
+	case 1: return "XEN_ELFNOTE_ENTRY";
+	case 2: return "XEN_ELFNOTE_HYPERCALL_PAGE";
+	case 3: return "XEN_ELFNOTE_VIRT_BASE";
+	case 4: return "XEN_ELFNOTE_PADDR_OFFSET";
+	case 5: return "XEN_ELFNOTE_XEN_VERSION";
+	case 6: return "XEN_ELFNOTE_GUEST_OS";
+	case 7: return "XEN_ELFNOTE_GUEST_VERSION";
+	case 8: return "XEN_ELFNOTE_LOADER";
+	case 9: return "XEN_ELFNOTE_PAE_MODE";
+	case 10: return "XEN_ELFNOTE_FEATURES";
+	case 11: return "XEN_ELFNOTE_BSD_SYMTAB";
+	case 12: return "XEN_ELFNOTE_HV_START_LOW";
+	case 13: return "XEN_ELFNOTE_L1_MFN_VALID";
+	case 14: return "XEN_ELFNOTE_SUSPEND_CANCEL";
+	case 15: return "XEN_ELFNOTE_INIT_P2M";
+	case 16: return "XEN_ELFNOTE_MOD_START_PFN";
+	case 17: return "XEN_ELFNOTE_SUPPORTED_FEATURES";
+	default: return (note_type_unknown(nt));
+	}
 }
 
 static struct {

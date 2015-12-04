@@ -27,10 +27,7 @@ SRCS.strerror2_test=	strerror_test.c
 
 .include "../Makefile.netbsd-tests"
 
-LDADD.memchr_test+=	-lmd
-DPADD.memchr_test+=	${LIBMD}
-
-LDADD.memcpy_test+=	-lmd
-DPADD.memcpy_test+=	${LIBMD}
+LIBADD.memchr_test+=	md
+LIBADD.memcpy_test+=	md
 
 .include <bsd.test.mk>

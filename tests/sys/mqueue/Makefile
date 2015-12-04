@@ -14,8 +14,7 @@ PROGS+=		mqtest2
 #PROGS+=		mqtest4
 PROGS+=		mqtest5
 
-LDADD+=		-lrt
-DPADD+=		${LIBRT}
+LIBADD+=	rt
 
 WARNS?=		6
 

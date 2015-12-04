@@ -45,20 +45,14 @@ NETBSD_ATF_TESTS_C+=	vis_test
 
 .include "../Makefile.netbsd-tests"
 
-LDADD.humanize_number_test+=	-lutil
-DPADD.humanize_number_test+=	${LIBUTIL}
+LIBADD.humanize_number_test+=	util
 
-LDADD.fpclassify_test+=	-lm
-DPADD.fpclassify_test+=	${LIBM}
-LDADD.fpsetround_test+=	-lm
-DPADD.fpsetround_test+=	${LIBM}
-LDADD.siginfo_test+=	-lm
-DPADD.siginfo_test+=	${LIBM}
+LIBADD.fpclassify_test+=m
+LIBADD.fpsetround_test+=m
+LIBADD.siginfo_test+=	m
 
-LDADD.nice_test+=	-lpthread
-DPADD.nice_test+=	${LIBPTHREAD}
-LDADD.syslog_test+=	-lpthread
-DPADD.syslog_test+=	${LIBPTHREAD}
+LIBADD.nice_test+=	pthread
+LIBADD.syslog_test+=	pthread
 
 CFLAGS+=		-I${.CURDIR}
 
