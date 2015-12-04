@@ -96,8 +96,6 @@ mlx4_en_alloc_buf(struct mlx4_en_rx_ring *ring,
 			m_freem(mb);
 			return (err);
 		}
-		KASSERT(nsegs == 1,
-		    ("Number of segments is expected to be one"));
 
 		/* store spare info */
 		ring->spare.mbuf = mb;
@@ -127,7 +125,6 @@ mlx4_en_alloc_buf(struct mlx4_en_rx_ring *ring,
 		m_freem(mb);
 		goto use_spare;
 	}
-	KASSERT(nsegs == 1, ("Number of segments is expected to be one"));
 
 	*pdma = cpu_to_be64(segs[0].ds_addr);
 	mb_list->mbuf = mb;
