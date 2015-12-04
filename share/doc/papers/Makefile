@@ -16,4 +16,6 @@ SUBDIR=	beyond4.3 \
 	sysperf \
 	timecounter
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>

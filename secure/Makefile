@@ -2,7 +2,9 @@
 
 .include <bsd.own.mk>
 
-SUBDIR= lib libexec ${_tests} usr.bin usr.sbin
+SUBDIR= lib .WAIT \
+	libexec ${_tests} usr.bin usr.sbin
+SUBDIR_PARALLEL=
 
 .if ${MK_TESTS} != "no"
 _tests=	tests
