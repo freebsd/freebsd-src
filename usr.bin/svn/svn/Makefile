@@ -55,7 +55,7 @@ DPADD=	${LIBSVN_CLIENT} ${LIBSVN_WC} ${LIBSVN_RA} ${LIBSVN_RA_LOCAL} \
 
 CLEANFILES+=	svnlite.1
 .if(defined(ORGANIZATION) && !empty(ORGANIZATION))
-DPSRCS+=	freebsd-organization.h
+SRCS+=		freebsd-organization.h
 CLEANFILES+=	freebsd-organization.h
 CFLAGS+=	-I. -DHAS_ORGANIZATION_NAME
 freebsd-organization.h:
