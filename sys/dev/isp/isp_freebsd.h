@@ -38,6 +38,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+#include <sys/rman.h>
 #include <sys/sysctl.h>
 
 #include <sys/proc.h>
@@ -286,9 +287,9 @@ struct isposinfo {
 	/*
 	 * DMA related sdtuff
 	 */
-	bus_space_tag_t		bus_tag;
+	struct resource *	regs;
+	struct resource *	regs2;
 	bus_dma_tag_t		dmat;
-	bus_space_handle_t	bus_handle;
 	bus_dma_tag_t		cdmat;
 	bus_dmamap_t		cdmap;
 
@@ -361,8 +362,8 @@ struct isposinfo {
 
 #define	FCP_NEXT_CRN	isp_fcp_next_crn
 #define	isp_lock	isp_osinfo.lock
-#define	isp_bus_tag	isp_osinfo.bus_tag
-#define	isp_bus_handle	isp_osinfo.bus_handle
+#define	isp_regs	isp_osinfo.regs
+#define	isp_regs2	isp_osinfo.regs2
 
 /*
  * Locking macros...
@@ -430,8 +431,7 @@ case SYNC_RESULT:						\
 	   BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);	\
 	break;							\
 case SYNC_REG:							\
-	bus_space_barrier(isp->isp_osinfo.bus_tag,		\
-	    isp->isp_osinfo.bus_handle, offset, size,		\
+	bus_barrier(isp->isp_osinfo.regs, offset, size,		\
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);	\
 	break;							\
 default:							\
@@ -463,8 +463,7 @@ case SYNC_RESULT:						\
 	   isp->isp_osinfo.cdmap, BUS_DMASYNC_POSTWRITE);	\
 	break;							\
 case SYNC_REG:							\
-	bus_space_barrier(isp->isp_osinfo.bus_tag,		\
-	    isp->isp_osinfo.bus_handle, offset, size,		\
+	bus_barrier(isp->isp_osinfo.regs, offset, size,		\
 	    BUS_SPACE_BARRIER_WRITE);				\
 	break;							\
 default:							\
