@@ -141,6 +141,7 @@ static driver_t ioat_pci_driver = {
 
 static devclass_t ioat_devclass;
 DRIVER_MODULE(ioat, pci, ioat_pci_driver, ioat_devclass, 0, 0);
+MODULE_VERSION(ioat, 1);
 
 /*
  * Private data structures
