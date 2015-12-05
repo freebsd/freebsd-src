@@ -284,6 +284,7 @@ lltable_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
 
 	bcopy(lladdr, &lle->ll_addr, ifp->if_addrlen);
 	lle->la_flags |= LLE_VALID;
+	lle->r_flags |= RLLE_VALID;
 }
 
 /*
@@ -640,6 +641,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 		if ((rtm->rtm_flags & RTF_ANNOUNCE))
 			lle->la_flags |= LLE_PUB;
 		lle->la_flags |= LLE_VALID;
+		lle->r_flags |= RLLE_VALID;
 		lle->la_expire = rtm->rtm_rmx.rmx_expire;
 
 		laflags = lle->la_flags;
