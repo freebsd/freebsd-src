@@ -4,6 +4,8 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 
+#include "split.ih"
+
 /*
  - split - divide a string into fields, like awk split()
  == int split(char *string, char *fields[], int nfields, char *sep);
