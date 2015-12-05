@@ -177,6 +177,7 @@ ATF_TC_BODY(nul, tc)
 	char *line;
 	size_t linecap, n;
 
+	errno = 0;
 	line = NULL;
 	linecap = 0;
 	/* Make sure a NUL delimiter works. */
