@@ -488,7 +488,7 @@ main(void)
 	ldev = uboot_fmtdev(&currdev);
 	env_setenv("currdev", EV_VOLATILE, ldev, uboot_setcurrdev, env_nounset);
 	env_setenv("loaddev", EV_VOLATILE, ldev, env_noset, env_nounset);
-	printf("Booting from %s %\n", ldev);
+	printf("Booting from %s\n", ldev);
 
 	setenv("LINES", "24", 1);		/* optional */
 	setenv("prompt", "loader>", 1);
