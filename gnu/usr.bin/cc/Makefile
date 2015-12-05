@@ -26,6 +26,7 @@ SUBDIR+= gcov
 .endif
 
 SUBDIR_DEPEND_c++:=	libcpp libiberty
+SUBDIR_DEPEND_c++filt=	libiberty
 SUBDIR_DEPEND_cc=	libcpp libiberty
 SUBDIR_DEPEND_cpp=	libcpp libiberty
 SUBDIR_DEPEND_cc1plus=	cc_int libcpp libdecnumber libiberty
