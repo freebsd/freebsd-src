@@ -655,7 +655,7 @@ pmap_set_pg(void)
 		va = KERNBASE + KERNLOAD;
 		while (va  < endva) {
 			pdir_pde(PTD, va) |= pgeflag;
-			invltlb_glob();	/* Play it safe, invltlb() every time */
+			invltlb();	/* Flush non-PG_G entries. */
 			va += NBPDR;
 		}
 	} else {
@@ -664,7 +664,7 @@ pmap_set_pg(void)
 			pte = vtopte(va);
 			if (*pte)
 				*pte |= pgeflag;
-			invltlb_glob();	/* Play it safe, invltlb() every time */
+			invltlb();	/* Flush non-PG_G entries. */
 			va += PAGE_SIZE;
 		}
 	}
