@@ -3916,7 +3916,7 @@ vi_full_init(struct vi_info *vi)
 	for (i = 0; i < vi->rss_size;) {
 #ifdef RSS
 		j = rss_get_indirection_to_bucket(i);
-		j %= pi->vrxq;
+		j %= vi->nrxq;
 		rxq = &sc->sge.rxq[vi->first_rxq + j];
 		rss[i++] = rxq->iq.abs_id;
 #else
