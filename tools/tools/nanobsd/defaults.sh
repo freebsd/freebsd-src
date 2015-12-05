@@ -490,7 +490,9 @@ setup_nanobsd_etc ( ) (
 	touch etc/diskless
 
 	# Make root filesystem R/O by default
+	[ ! -z "${NANO_NOPRIV_BUILD}" ] && chmod 666 etc/defaults/rc.conf
 	echo "root_rw_mount=NO" >> etc/defaults/rc.conf
+	[ ! -z "${NANO_NOPRIV_BUILD}" ] && chmod 444 etc/defaults/rc.conf
 
 	# save config file for scripts
 	echo "NANO_DRIVE=${NANO_DRIVE}" > etc/nanobsd.conf
@@ -961,7 +963,7 @@ set_defaults_and_export ( ) {
 	[ ! -d "${NANO_TOOLS}" ] && [ -d "${NANO_SRC}/${NANO_TOOLS}" ] && \
 		NANO_TOOLS="${NANO_SRC}/${NANO_TOOLS}" || true
 
-	[ ! -z "${NANO_NOPRIV_BUILD}" ] && [ -z "${NANO_METALOG}"] && \
+	[ ! -z "${NANO_NOPRIV_BUILD}" ] && [ -z "${NANO_METALOG}" ] && \
 		NANO_METALOG=${NANO_OBJ}/_.metalog || true
 
 	NANO_STARTTIME=`date +%s`
