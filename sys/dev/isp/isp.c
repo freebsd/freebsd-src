@@ -658,8 +658,10 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	ISP_WRITE(isp, isp->isp_respinrp, 0);
 	ISP_WRITE(isp, isp->isp_respoutrp, 0);
 	if (IS_24XX(isp)) {
-		ISP_WRITE(isp, BIU2400_PRI_REQINP, 0);
-		ISP_WRITE(isp, BIU2400_PRI_REQOUTP, 0);
+		if (!IS_26XX(isp)) {
+			ISP_WRITE(isp, BIU2400_PRI_REQINP, 0);
+			ISP_WRITE(isp, BIU2400_PRI_REQOUTP, 0);
+		}
 		ISP_WRITE(isp, BIU2400_ATIO_RSPINP, 0);
 		ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, 0);
 	}
