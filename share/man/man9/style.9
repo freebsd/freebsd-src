@@ -26,7 +26,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2015
+.Dd December 5, 2015
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -287,6 +287,30 @@ there is no overriding reason to prefer the older
 Like white-space commits, care should be taken in making
 .Vt uintXX_t
 only commits.
+.Pp
+Similarly, the project is slowly moving to use the
+.St -isoC-99
+.Vt bool
+in preference to the older
+.Vt int
+or
+.Vt boolean_t .
+New code should use
+.Vt bool ,
+and old code may be converted if it is
+reasonable to do so.
+Literal values are named
+.Dv true
+and
+.Dv false .
+These are preferred to the old spellings
+.Dv TRUE
+and
+.Dv FALSE .
+Userspace code should include
+.In stdbool.h ,
+while kernel code should include
+.In sys/types.h .
 .Pp
 Enumeration values are all uppercase.
 .Bd -literal
