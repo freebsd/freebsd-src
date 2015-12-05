@@ -853,7 +853,6 @@ hunt_nvram_buf_segment_size(
 	efx_rc_t rc;
 	tlv_cursor_t cursor;
 	struct tlv_partition_header *header;
-	struct tlv_partition_trailer *trailer;
 	uint32_t cksum;
 	int pos;
 	uint32_t *end_tag_position;
@@ -883,7 +882,6 @@ hunt_nvram_buf_segment_size(
 		rc = EINVAL;
 		goto fail4;
 	}
-	trailer = (struct tlv_partition_trailer *)tlv_item(&cursor);
 
 	if ((rc = tlv_advance(&cursor)) != 0) {
 		rc = EINVAL;
