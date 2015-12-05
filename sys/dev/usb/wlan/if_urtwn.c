@@ -1601,14 +1601,16 @@ urtwn_init_beacon(struct urtwn_softc *sc, struct urtwn_vap *uvp)
 	    SM(R92C_TXDW1_QSEL, R92C_TXDW1_QSEL_BEACON) |
 	    SM(R92C_TXDW1_RAID, R92C_RAID_11B));
 
-	if (sc->chip & URTWN_CHIP_88E)
+	if (sc->chip & URTWN_CHIP_88E) {
 		txd->txdw1 |= htole32(SM(R88E_TXDW1_MACID, URTWN_MACID_BC));
-	else
+		txd->txdseq |= htole16(R88E_TXDSEQ_HWSEQ_EN);
+	} else {
 		txd->txdw1 |= htole32(SM(R92C_TXDW1_MACID, URTWN_MACID_BC));
+		txd->txdw4 |= htole32(R92C_TXDW4_HWSEQ_EN);
+	}
 
 	txd->txdw4 = htole32(R92C_TXDW4_DRVRATE);
 	txd->txdw5 = htole32(SM(R92C_TXDW5_DATARATE, URTWN_RIDX_CCK1));
-	txd->txdseq = htole16(R92C_TXDSEQ_HWSEQ_EN);
 }
 
 static int
@@ -2249,13 +2251,17 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 		txd->txdw1 |= htole32(SM(R92C_TXDW1_MACID, macid));
 
 	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, ridx));
-	/* not sure here */
-	if (ridx <= URTWN_RIDX_CCK11)
+	/* Force this rate if needed. */
+	if (ismcast || type != IEEE80211_FC0_TYPE_DATA ||
+	    (m->m_flags & M_EAPOL))
 		txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
 
 	if (!IEEE80211_QOS_HAS_SEQ(wh)) {
 		/* Use HW sequence numbering for non-QoS frames. */
-		txd->txdseq = htole16(R92C_TXDSEQ_HWSEQ_EN);
+		if (sc->chip & URTWN_CHIP_88E)
+			txd->txdseq = htole16(R88E_TXDSEQ_HWSEQ_EN);
+		else
+			txd->txdw4 |= htole32(R92C_TXDW4_HWSEQ_EN);
 	} else {
 		/* Set sequence number. */
 		txd->txdseq = htole16(M_SEQNO_GET(m) % IEEE80211_SEQ_RANGE);
