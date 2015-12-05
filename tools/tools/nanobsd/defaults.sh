@@ -164,7 +164,6 @@ NANO_SLICE_DATA=s4
 # conflates the two, so architectures where TARGET != TARGET_ARCH and
 # TARGET can't be guessed from TARGET_ARCH do not work.  This defaults
 # to the arch of the current machine.
-
 NANO_ARCH=`uname -p`
 
 # CPUTYPE defaults to "" which is the default when CPUTYPE isn't
@@ -177,9 +176,12 @@ NANO_CFGDIR=""
 # Directory to populate /data from
 NANO_DATADIR=""
 
-# src.conf to use when building the image. Defaults to /dev/null for the sake
-# of determinism.
-SRCCONF=${SRCCONF:=/dev/null}
+# We don't need SRCCONF or SRC_ENV_CONF. NanoBSD puts everything we
+# need for the build in files included with __MAKE_CONF. Override in your
+# config file if you really must. We set them unconditionally here, though
+# in case they are stray in the build environment
+SRCCONF=/dev/null
+SRC_ENV_CONF=/dev/null
  
 #######################################################################
 #
@@ -224,9 +226,8 @@ nano_make_kernel_env ( ) {
 }
 
 nano_global_make_env ( ) (
-	[ ! -z "${NANO_ARCH}" ] && echo TARGET_ARCH="${NANO_ARCH}"
-	[ ! -z "${NANO_CPUTYPE}" ] && echo TARGET_CPUTYPE="${NANO_CPUTYPE}"
-	echo SRCCONF=${SRCCONF}
+	[ ! -z "${NANO_ARCH}" ] && echo TARGET_ARCH="${NANO_ARCH}"  || true
+	[ ! -z "${NANO_CPUTYPE}" ] && echo TARGET_CPUTYPE="${NANO_CPUTYPE}" || true
 )
 
 # rm doesn't know -x prior to FreeBSD 10, so cope with a variety of build
@@ -985,4 +986,5 @@ set_defaults_and_export ( ) {
 	export_var NANO_LABEL
 	export_var NANO_MODULES
 	export_var SRCCONF
+	export_var SRC_ENV_CONF
 }
