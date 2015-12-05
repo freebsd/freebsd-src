@@ -26,9 +26,8 @@ extern void regprint();
 /*
  - main - do the simple case, hand off to regress() for regression
  */
-main(argc, argv)
-int argc;
-char *argv[];
+int
+main(int argc, char **argv)
 {
 	regex_t re;
 #	define	NS	10
@@ -126,8 +125,7 @@ char *argv[];
  == void regress(FILE *in);
  */
 void
-regress(in)
-FILE *in;
+regress(FILE *in)
 {
 	char inbuf[1000];
 #	define	MAXF	10
@@ -201,15 +199,10 @@ FILE *in;
 /*
  - try - try it, and report on problems
  == void try(char *f0, char *f1, char *f2, char *f3, char *f4, int opts);
+ - opts: may not match f1
  */
 void
-try(f0, f1, f2, f3, f4, opts)
-char *f0;
-char *f1;
-char *f2;
-char *f3;
-char *f4;
-int opts;			/* may not match f1 */
+try(char *f0, char *f1, char *f2, char *f3, char *f4, int opts)
 {
 	regex_t re;
 #	define	NSUBS	10
@@ -311,12 +304,11 @@ int opts;			/* may not match f1 */
 
 /*
  - options - pick options out of a regression-test string
+ - type: 'c' - compile, 'e' - exec
  == int options(int type, char *s);
  */
 int
-options(type, s)
-int type;			/* 'c' compile, 'e' exec */
-char *s;
+options(int type, char *s)
 {
 	char *p;
 	int o = (type == 'c') ? copts : eopts;
@@ -371,9 +363,7 @@ char *s;
  == int opt(int c, char *s);
  */
 int				/* predicate */
-opt(c, s)
-int c;
-char *s;
+opt(int c, char *s)
 {
 	return(strchr(s, c) != NULL);
 }
@@ -383,8 +373,7 @@ char *s;
  == void fixstr(char *p);
  */
 void
-fixstr(p)
-char *p;
+fixstr(char *p)
 {
 	if (p == NULL)
 		return;
@@ -405,10 +394,7 @@ char *p;
  == char *check(char *str, regmatch_t sub, char *should);
  */
 char *				/* NULL or complaint */
-check(str, sub, should)
-char *str;
-regmatch_t sub;
-char *should;
+check(char *str, regmatch_t sub, char *should)
 {
 	int len;
 	int shlen;
@@ -482,8 +468,7 @@ char *should;
  == static char *eprint(int err);
  */
 static char *
-eprint(err)
-int err;
+eprint(int err)
 {
 	static char epbuf[100];
 	size_t len;
@@ -498,8 +483,7 @@ int err;
  == static int efind(char *name);
  */
 static int
-efind(name)
-char *name;
+efind(char *name)
 {
 	static char efbuf[100];
 	size_t n;
