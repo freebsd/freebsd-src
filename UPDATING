@@ -11,6 +11,10 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20151205	p31	FreeBSD-SA-15:26.openssl
+
+	Fix OpenSSL X509_ATTRIBUTE memory leak. [SA-15:26]
+
 20151104	p30	FreeBSD-SA-15:25.ntp [revised]
 			FreeBSD-EN-15:19.kqueue
 			FreeBSD-EN-15:20.vm
