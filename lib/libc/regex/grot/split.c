@@ -7,13 +7,12 @@ __FBSDID("$FreeBSD$");
 /*
  - split - divide a string into fields, like awk split()
  = int split(char *string, char *fields[], int nfields, char *sep);
+ - fields: list is not NULL-terminated
+ - nfields: number of entries available in fields[]
+ - sep: "" white, "c" single char, "ab" [ab]+
  */
 int				/* number of fields, including overflow */
-split(string, fields, nfields, sep)
-char *string;
-char *fields[];			/* list is not NULL-terminated */
-int nfields;			/* number of entries available in fields[] */
-char *sep;			/* "" white, "c" single char, "ab" [ab]+ */
+split(char *string, char *fields[], int nfields, char *sep)
 {
 	char *p = string;
 	char c;			/* latest character */
@@ -151,9 +150,7 @@ char *sep;			/* "" white, "c" single char, "ab" [ab]+ */
  * pgm str sep n	splits str by sep n times
  */
 int
-main(argc, argv)
-int argc;
-char *argv[];
+main(int argc, char *argv[])
 {
 	char buf[512];
 	int n;
@@ -182,9 +179,8 @@ char *argv[];
 	exit(0);
 }
 
-dosplit(string, seps)
-char *string;
-char *seps;
+void
+dosplit(char *string, char *seps)
 {
 #	define	NF	5
 	char *fields[NF];
@@ -194,10 +190,8 @@ char *seps;
 	print(nf, NF, fields);
 }
 
-print(nf, nfp, fields)
-int nf;
-int nfp;
-char *fields[];
+void
+print(int nf, int nfp, char *fields[])
 {
 	int fn;
 	int bound;
@@ -277,7 +271,8 @@ struct {
 	NULL,		NULL,	0,	{ NULL },
 };
 
-regress()
+void
+regress(void)
 {
 	char buf[512];
 	int n;
