@@ -961,7 +961,7 @@ set_defaults_and_export ( ) {
 	[ ! -d "${NANO_TOOLS}" ] && [ -d "${NANO_SRC}/${NANO_TOOLS}" ] && \
 		NANO_TOOLS="${NANO_SRC}/${NANO_TOOLS}" || true
 
-	[ ! -z "${NANO_NOPRIV_BUILD" ] && [ -z "${NANO_METALOG}"] && \
+	[ ! -z "${NANO_NOPRIV_BUILD}" ] && [ -z "${NANO_METALOG}"] && \
 		NANO_METALOG=${NANO_OBJ}/_.metalog || true
 
 	NANO_STARTTIME=`date +%s`
