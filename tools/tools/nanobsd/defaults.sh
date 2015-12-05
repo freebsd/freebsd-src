@@ -340,6 +340,10 @@ make_conf_install ( ) (
 	nano_global_make_env
 	echo "${CONF_WORLD}"
 	echo "${CONF_INSTALL}"
+	if [ ! -z "${NANO_NOPRIV_BUILD}" ]; then
+	    echo NO_ROOT=t
+	    echo METALOG=${NANO_METALOG}
+	fi
 	) >  ${NANO_MAKE_CONF_INSTALL}
 )
 
@@ -951,11 +955,14 @@ set_defaults_and_export ( ) {
 	NANO_MAKE_CONF_INSTALL=${NANO_OBJ}/make.conf.install
 
 	# Override user's NANO_DRIVE if they specified a NANO_LABEL
-	[ ! -z "${NANO_LABEL}" ] && NANO_DRIVE="ufs/${NANO_LABEL}"
+	[ ! -z "${NANO_LABEL}" ] && NANO_DRIVE="ufs/${NANO_LABEL}" || true
 
 	# Set a default NANO_TOOLS to NANO_SRC/NANO_TOOLS if it exists.
 	[ ! -d "${NANO_TOOLS}" ] && [ -d "${NANO_SRC}/${NANO_TOOLS}" ] && \
-		NANO_TOOLS="${NANO_SRC}/${NANO_TOOLS}"
+		NANO_TOOLS="${NANO_SRC}/${NANO_TOOLS}" || true
+
+	[ ! -z "${NANO_NOPRIV_BUILD" ] && [ -z "${NANO_METALOG}"] && \
+		NANO_METALOG=${NANO_OBJ}/_.metalog || true
 
 	NANO_STARTTIME=`date +%s`
 	pprint 3 "Exporting NanoBSD variables"
@@ -985,6 +992,8 @@ set_defaults_and_export ( ) {
 	export_var NANO_BOOTLOADER
 	export_var NANO_LABEL
 	export_var NANO_MODULES
+	export_var NANO_NOPRIV_BUILD
+	export_var NANO_METALOG
 	export_var SRCCONF
 	export_var SRC_ENV_CONF
 }
