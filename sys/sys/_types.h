@@ -90,6 +90,12 @@ typedef	__ct_rune_t	__rune_t;	/* rune_t (see above) */
 typedef	__ct_rune_t	___wchar_t;	/* wchar_t (see above) */
 typedef	__ct_rune_t	__wint_t;	/* wint_t (see above) */
 
+/* Clang already provides these types as built-ins, but only in C++ mode. */
+#if !defined(__clang__) || !defined(__cplusplus)
+typedef	__uint_least16_t __char16_t;
+typedef	__uint_least32_t __char32_t;
+#endif
+
 typedef	__uint32_t	__dev_t;	/* device number */
 
 typedef	__uint32_t	__fixpt_t;	/* fixed point number */
