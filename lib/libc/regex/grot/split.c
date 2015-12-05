@@ -6,7 +6,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  - split - divide a string into fields, like awk split()
- = int split(char *string, char *fields[], int nfields, char *sep);
+ == int split(char *string, char *fields[], int nfields, char *sep);
  - fields: list is not NULL-terminated
  - nfields: number of entries available in fields[]
  - sep: "" white, "c" single char, "ab" [ab]+
