@@ -148,6 +148,14 @@ Number of packets with payload that must arrive in-order following loss
 before a connection is eligible for LRO.
 The idea is we should avoid coalescing segments when the sender is recovering
 from loss, because reducing the ACK rate can damage performance.
+.It Va hw.sfxge.mcdi_logging
+Enable logging of MCDI protocol messages  (only available if enabled at compile-time).
+.It Va hw.sfxge.N.mcdi_logging
+Enable or disable logging of MCDI protocol messages on a per-port basis. The default for each
+port will be the value of
+.Va hw.sfxge.mcdi_logging.
+The logging may also be enabled or disabled after the driver is loaded using the sysctl
+.Va dev.sfxge.%d.mcdi_logging.
 .El
 .Sh SUPPORT
 For general information and support,
