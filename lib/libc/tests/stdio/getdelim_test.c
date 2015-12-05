@@ -113,7 +113,6 @@ ATF_TC_BODY(getline_basic, tc)
 ATF_TC_WITHOUT_HEAD(stream_error);
 ATF_TC_BODY(stream_error, tc)
 {
-	FILE *fp;
 	char *line;
 	size_t linecap;
 

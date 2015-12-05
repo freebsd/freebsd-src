@@ -104,10 +104,9 @@ ATF_TC_WITHOUT_HEAD(test_autoalloc);
 ATF_TC_BODY(test_autoalloc, tc)
 {
 	/* Let fmemopen allocate the buffer. */
-	char str[] = "A quick test";
 	FILE *fp;
 	long pos;
-	size_t nofw, nofr, i;
+	size_t nofw, i;
 	int rc;
 
 	/* Open a FILE * using fmemopen. */
