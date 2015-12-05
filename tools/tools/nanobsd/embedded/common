@@ -359,6 +359,7 @@ create_diskimage ( ) (
 		mkimg -s mbr -p ${s1}:=${NANO_OBJ}/_.s1 \
 			-p ${s2}:=${NANO_OBJ}/_.s2
 			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}
+	fi
 	) > ${NANO_OBJ}/_.di 2>&1
 )
 
