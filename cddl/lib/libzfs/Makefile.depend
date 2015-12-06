@@ -19,6 +19,7 @@ DIRDEPS = \
 	lib/libmd \
 	lib/libthr \
 	lib/libutil \
+	lib/libz \
 	lib/msun \
 
 

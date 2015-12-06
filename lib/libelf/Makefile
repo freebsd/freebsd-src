@@ -1,4 +1,7 @@
 # $FreeBSD$
+
+SHLIBDIR?= /lib
+
 .include <bsd.own.mk>
 
 TOP=	${.CURDIR}/../../contrib/elftoolchain

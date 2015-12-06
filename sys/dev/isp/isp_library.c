@@ -394,33 +394,31 @@ isp_print_bytes(ispsoftc_t *isp, const char *msg, int amt, void *arg)
 int
 isp_fc_runstate(ispsoftc_t *isp, int chan, int tval)
 {
-	fcparam *fcp;
+	fcparam *fcp = FCPARAM(isp, chan);
+	int res;
 
-	fcp = FCPARAM(isp, chan);
-        if (fcp->role == ISP_ROLE_NONE) {
-		return (0);
-	}
-	if (isp_control(isp, ISPCTL_FCLINK_TEST, chan, tval) != 0) {
-		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: linktest failed for channel %d", chan);
+again:
+	if (fcp->role == ISP_ROLE_NONE)
 		return (-1);
-	}
-	if (isp_control(isp, ISPCTL_SCAN_LOOP, chan) != 0) {
-		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: scan loop failed on channel %d", chan);
-		return (LOOP_LTEST_DONE);
-	}
-	if (isp_control(isp, ISPCTL_SCAN_FABRIC, chan) != 0) {
-		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: scan fabric failed on channel %d", chan);
-		return (LOOP_LSCAN_DONE);
-	}
-	if (isp_control(isp, ISPCTL_PDB_SYNC, chan) != 0) {
-		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: pdb_sync failed on channel %d", chan);
-		return (LOOP_FSCAN_DONE);
-	}
-	if (fcp->isp_loopstate != LOOP_READY) {
-		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: not ready again on channel %d", chan);
-		return (-1);
-	}
-	return (0);
+	res = isp_control(isp, ISPCTL_FCLINK_TEST, chan, tval);
+	if (res > 0)
+		goto again;
+	if (res < 0)
+		return (fcp->isp_loopstate);
+	res = isp_control(isp, ISPCTL_SCAN_LOOP, chan);
+	if (res > 0)
+		goto again;
+	if (res < 0)
+		return (fcp->isp_loopstate);
+	res = isp_control(isp, ISPCTL_SCAN_FABRIC, chan);
+	if (res > 0)
+		goto again;
+	if (res < 0)
+		return (fcp->isp_loopstate);
+	res = isp_control(isp, ISPCTL_PDB_SYNC, chan);
+	if (res > 0)
+		goto again;
+	return (fcp->isp_loopstate);
 }
 
 /*
@@ -545,6 +543,7 @@ isp_fc_loop_statename(int state)
 {
 	switch (state) {
 	case LOOP_NIL:                  return "NIL";
+	case LOOP_HAVE_LINK:            return "Have Link";
 	case LOOP_TESTING_LINK:         return "Testing Link";
 	case LOOP_LTEST_DONE:           return "Link Test Done";
 	case LOOP_SCANNING_LOOP:        return "Scanning Loop";
@@ -1403,7 +1402,9 @@ isp_put_icb_2400(ispsoftc_t *isp, isp_icb_2400_t *src, isp_icb_2400_t *dst)
 	for (i = 0; i < 4; i++) {
 		ISP_IOXPUT_16(isp, src->icb_priaddr[i], &dst->icb_priaddr[i]);
 	}
-	for (i = 0; i < 4; i++) {
+	ISP_IOXPUT_16(isp, src->icb_msixresp, &dst->icb_msixresp);
+	ISP_IOXPUT_16(isp, src->icb_msixatio, &dst->icb_msixatio);
+	for (i = 0; i < 2; i++) {
 		ISP_IOXPUT_16(isp, src->icb_reserved1[i], &dst->icb_reserved1[i]);
 	}
 	ISP_IOXPUT_16(isp, src->icb_atio_in, &dst->icb_atio_in);
@@ -1416,9 +1417,14 @@ isp_put_icb_2400(ispsoftc_t *isp, isp_icb_2400_t *src, isp_icb_2400_t *dst)
 	ISP_IOXPUT_32(isp, src->icb_fwoptions1, &dst->icb_fwoptions1);
 	ISP_IOXPUT_32(isp, src->icb_fwoptions2, &dst->icb_fwoptions2);
 	ISP_IOXPUT_32(isp, src->icb_fwoptions3, &dst->icb_fwoptions3);
-	for (i = 0; i < 12; i++) {
+	ISP_IOXPUT_16(isp, src->icb_qos, &dst->icb_qos);
+	for (i = 0; i < 3; i++)
 		ISP_IOXPUT_16(isp, src->icb_reserved2[i], &dst->icb_reserved2[i]);
-	}
+	for (i = 0; i < 3; i++)
+		ISP_IOXPUT_16(isp, src->icb_enodemac[i], &dst->icb_enodemac[i]);
+	ISP_IOXPUT_16(isp, src->icb_disctime, &dst->icb_disctime);
+	for (i = 0; i < 4; i++)
+		ISP_IOXPUT_16(isp, src->icb_reserved3[i], &dst->icb_reserved3[i]);
 }
 
 void

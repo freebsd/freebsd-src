@@ -388,14 +388,14 @@ pmap_debug(int level)
 
 static uint32_t tex_class[8] = {
 /*	    type      inner cache outer cache */
-	TEX(PRRR_MEM, NMRR_WB_WA, NMRR_WB_WA, 0),  /* 0 - ATTR_WB_WA */
-	TEX(PRRR_MEM, NMRR_NC,	  NMRR_NC,    0),  /* 1 - ATTR_NOCACHE */
-	TEX(PRRR_DEV, NMRR_NC,	  NMRR_NC,    0),  /* 2 - ATTR_DEVICE */
-	TEX(PRRR_SO,  NMRR_NC,	  NMRR_NC,    0),  /* 3 - ATTR_SO    */
-	TEX(PRRR_MEM, NMRR_NC,	  NMRR_NC,    0),  /* 4 - NOT USED YET */
-	TEX(PRRR_MEM, NMRR_NC,	  NMRR_NC,    0),  /* 5 - NOT USED YET */
-	TEX(PRRR_MEM, NMRR_NC,	  NMRR_NC,    0),  /* 6 - NOT USED YET */
-	TEX(PRRR_MEM, NMRR_NC,	  NMRR_NC,    0),  /* 7 - NOT USED YET */
+	TEX(PRRR_MEM, NMRR_WB_WA, NMRR_WB_WA, 0),  /* 0 - ATTR_WB_WA	*/
+	TEX(PRRR_MEM, NMRR_NC,	  NMRR_NC,    0),  /* 1 - ATTR_NOCACHE	*/
+	TEX(PRRR_DEV, NMRR_NC,	  NMRR_NC,    0),  /* 2 - ATTR_DEVICE	*/
+	TEX(PRRR_SO,  NMRR_NC,	  NMRR_NC,    0),  /* 3 - ATTR_SO	*/
+	TEX(PRRR_MEM, NMRR_WT,	  NMRR_WT,    0),  /* 4 - ATTR_WT	*/
+	TEX(PRRR_MEM, NMRR_NC,	  NMRR_NC,    0),  /* 5 - NOT USED YET	*/
+	TEX(PRRR_MEM, NMRR_NC,	  NMRR_NC,    0),  /* 6 - NOT USED YET	*/
+	TEX(PRRR_MEM, NMRR_NC,	  NMRR_NC,    0),  /* 7 - NOT USED YET	*/
 };
 #undef TEX
 

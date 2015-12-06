@@ -225,6 +225,7 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	__deref_out_bcount_opt(n)
 
 #define	__checkReturn
+#define	__success(_x)
 
 #define	__drv_when(_p, _c)
 
@@ -244,6 +245,7 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #endif
 
 #define	EFSYS_OPT_MCDI 1
+#define	EFSYS_OPT_MCDI_LOGGING 0
 
 #define	EFSYS_OPT_MAC_FALCON_GMAC 0
 #define	EFSYS_OPT_MAC_FALCON_XMAC 0

@@ -104,7 +104,6 @@ imx6_lastaddr(platform_t plat)
 static int
 imx6_attach(platform_t plat)
 {
-
 	/* Inform the MPCore timer driver that its clock is variable. */
 	arm_tmr_change_frequency(ARM_TMR_FREQUENCY_VARIES);
 
@@ -114,6 +113,9 @@ imx6_attach(platform_t plat)
 static void
 imx6_late_init(platform_t plat)
 {
+	const uint32_t IMX6_WDOG_SR_PHYS = 0x020bc004;
+
+	imx_wdog_init_last_reset(IMX6_WDOG_SR_PHYS);
 
 	/* Cache the gpio1 node handle for imx6_decode_fdt() workaround code. */
 	gpio1_node = OF_node_from_xref(

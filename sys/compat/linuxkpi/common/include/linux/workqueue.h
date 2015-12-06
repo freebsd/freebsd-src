@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,6 +47,8 @@ struct work_struct {
 	struct	taskqueue	*taskqueue;
 	void			(*fn)(struct work_struct *);
 };
+
+typedef __typeof(((struct work_struct *)0)->fn) work_func_t;
 
 struct delayed_work {
 	struct work_struct	work;

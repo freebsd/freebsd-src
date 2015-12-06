@@ -277,6 +277,9 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		case ISP_HA_FC_2500:
 			btype = "2532";
 			break;
+		case ISP_HA_FC_2600:
+			btype = "2031";
+			break;
 		default:
 			break;
 		}
@@ -655,8 +658,10 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	ISP_WRITE(isp, isp->isp_respinrp, 0);
 	ISP_WRITE(isp, isp->isp_respoutrp, 0);
 	if (IS_24XX(isp)) {
-		ISP_WRITE(isp, BIU2400_PRI_REQINP, 0);
-		ISP_WRITE(isp, BIU2400_PRI_REQOUTP, 0);
+		if (!IS_26XX(isp)) {
+			ISP_WRITE(isp, BIU2400_PRI_REQINP, 0);
+			ISP_WRITE(isp, BIU2400_PRI_REQOUTP, 0);
+		}
 		ISP_WRITE(isp, BIU2400_ATIO_RSPINP, 0);
 		ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, 0);
 	}
@@ -761,6 +766,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		code_org = ISP_CODE_ORG;
 	}
 
+	isp->isp_loaded_fw = 0;
 	if (dodnld && IS_24XX(isp)) {
 		const uint32_t *ptr = isp->isp_mdvec->dv_ispfw;
 		int wordload;
@@ -956,8 +962,17 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			ISP_RESET0(isp);
 			return;
 		}
+	} else if (IS_26XX(isp)) {
+		MBSINIT(&mbs, MBOX_LOAD_FLASH_FIRMWARE, MBLOGALL, 5000000);
+		mbs.ibitm = 0x01;
+		mbs.obitm = 0x07;
+		isp_mboxcmd(isp, &mbs);
+		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+			isp_prt(isp, ISP_LOGERR, "Flash F/W load failed");
+			ISP_RESET0(isp);
+			return;
+		}
 	} else {
-		isp->isp_loaded_fw = 0;
 		isp_prt(isp, ISP_LOGDEBUG2, "skipping f/w download");
 	}
 
@@ -966,7 +981,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 */
 	if (isp->isp_loaded_fw) {
 		MBSINIT(&mbs, MBOX_VERIFY_CHECKSUM, MBLOGNONE, 0);
-		mbs.param[0] = MBOX_VERIFY_CHECKSUM;
 		if (IS_24XX(isp)) {
 			mbs.param[1] = code_org >> 16;
 			mbs.param[2] = code_org;
@@ -997,9 +1011,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			mbs.param[3] = 0;
 		} else {
 			mbs.param[3] = 1;
-		}
-		if (IS_25XX(isp)) {
-			mbs.ibits |= 0x10;
 		}
 	} else if (IS_2322(isp)) {
 		mbs.param[1] = code_org;
@@ -1861,16 +1872,16 @@ isp_fibre_init(ispsoftc_t *isp)
 				icbp->icb_idelaytimer = 10;
 			}
 			icbp->icb_zfwoptions = fcp->isp_zfwoptions;
-			if (isp->isp_confopts & ISP_CFG_ONEGB) {
+			if (isp->isp_confopts & ISP_CFG_1GB) {
 				icbp->icb_zfwoptions &= ~ICBZOPT_RATE_MASK;
-				icbp->icb_zfwoptions |= ICBZOPT_RATE_ONEGB;
-			} else if (isp->isp_confopts & ISP_CFG_TWOGB) {
+				icbp->icb_zfwoptions |= ICBZOPT_RATE_1GB;
+			} else if (isp->isp_confopts & ISP_CFG_2GB) {
 				icbp->icb_zfwoptions &= ~ICBZOPT_RATE_MASK;
-				icbp->icb_zfwoptions |= ICBZOPT_RATE_TWOGB;
+				icbp->icb_zfwoptions |= ICBZOPT_RATE_2GB;
 			} else {
 				switch (icbp->icb_zfwoptions & ICBZOPT_RATE_MASK) {
-				case ICBZOPT_RATE_ONEGB:
-				case ICBZOPT_RATE_TWOGB:
+				case ICBZOPT_RATE_1GB:
+				case ICBZOPT_RATE_2GB:
 				case ICBZOPT_RATE_AUTO:
 					break;
 				default:
@@ -2122,18 +2133,26 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		break;
 	}
 
+	if (IS_26XX(isp)) {
+		/* We don't support MSI-X yet, so set this unconditionally. */
+		icbp->icb_fwoptions2 |= ICB2400_OPT2_ENA_IHR;
+		icbp->icb_fwoptions2 |= ICB2400_OPT2_ENA_IHA;
+	}
+
 	if ((icbp->icb_fwoptions3 & ICB2400_OPT3_RSPSZ_MASK) == 0) {
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RSPSZ_24;
 	}
 	icbp->icb_fwoptions3 &= ~ICB2400_OPT3_RATE_AUTO;
-	if (isp->isp_confopts & ISP_CFG_ONEGB) {
-		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_ONEGB;
-	} else if (isp->isp_confopts & ISP_CFG_TWOGB) {
-		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_TWOGB;
-	} else if (isp->isp_confopts & ISP_CFG_FOURGB) {
-		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_FOURGB;
-	} else if (IS_25XX(isp) && (isp->isp_confopts & ISP_CFG_EIGHTGB)) {
-		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_EIGHTGB;
+	if (isp->isp_confopts & ISP_CFG_1GB) {
+		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_1GB;
+	} else if (isp->isp_confopts & ISP_CFG_2GB) {
+		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_2GB;
+	} else if (isp->isp_confopts & ISP_CFG_4GB) {
+		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_4GB;
+	} else if (isp->isp_confopts & ISP_CFG_8GB) {
+		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_8GB;
+	} else if (isp->isp_confopts & ISP_CFG_16GB) {
+		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_16GB;
 	} else {
 		icbp->icb_fwoptions3 |= ICB2400_OPT3_RATE_AUTO;
 	}
@@ -2810,6 +2829,8 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 
 	fcp = FCPARAM(isp, chan);
 
+	if (fcp->isp_loopstate < LOOP_HAVE_LINK)
+		return (-1);
 	if (fcp->isp_loopstate >= LOOP_LTEST_DONE)
 		return (0);
 
@@ -2825,15 +2846,13 @@ isp_fclink_test(ispsoftc_t *isp, int chan, int usdelay)
 		if (fcp->isp_fwstate == FW_READY) {
 			break;
 		}
+		if (fcp->isp_loopstate < LOOP_TESTING_LINK)
+			goto abort;
 		GET_NANOTIME(&hrb);
 		if ((NANOTIME_SUB(&hrb, &hra) / 1000 + 1000 >= usdelay))
 			break;
 		ISP_SLEEP(isp, 1000);
 	}
-
-	/*
-	 * If we haven't gone to 'ready' state, return.
-	 */
 	if (fcp->isp_fwstate != FW_READY) {
 		isp_prt(isp, ISP_LOG_SANCFG,
 		    "Chan %d Firmware is not ready (%s)",
@@ -2938,6 +2957,12 @@ not_on_fabric:
 		}
 	}
 
+	if (fcp->isp_loopstate < LOOP_TESTING_LINK) {
+abort:
+		isp_prt(isp, ISP_LOG_SANCFG,
+		    "Chan %d FC link test aborted", chan);
+		return (1);
+	}
 	fcp->isp_loopstate = LOOP_LTEST_DONE;
 	isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGCONFIG,
 	    "Chan %d WWPN %016jx WWNN %016jx",
@@ -2968,12 +2993,10 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 	fcportdb_t *lp;
 	uint16_t dbidx;
 
-	if (fcp->isp_loopstate < LOOP_FSCAN_DONE) {
+	if (fcp->isp_loopstate < LOOP_FSCAN_DONE)
 		return (-1);
-	}
-	if (fcp->isp_loopstate > LOOP_SYNCING_PDB) {
+	if (fcp->isp_loopstate >= LOOP_READY)
 		return (0);
-	}
 
 	isp_prt(isp, ISP_LOG_SANCFG, "Chan %d FC PDB sync", chan);
 
@@ -3025,12 +3048,12 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 		}
 	}
 
-	/*
-	 * If we get here, we've for sure seen not only a valid loop
-	 * but know what is or isn't on it, so mark this for usage
-	 * in isp_start.
-	 */
-	fcp->loop_seen_once = 1;
+	if (fcp->isp_loopstate < LOOP_SYNCING_PDB) {
+		isp_prt(isp, ISP_LOG_SANCFG,
+		    "Chan %d FC PDB sync aborted", chan);
+		return (1);
+	}
+
 	fcp->isp_loopstate = LOOP_READY;
 	isp_prt(isp, ISP_LOG_SANCFG, "Chan %d FC PDB sync done", chan);
 	return (0);
@@ -3154,12 +3177,11 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 	uint16_t handles[LOCAL_LOOP_LIM];
 	uint16_t handle;
 
-	if (fcp->isp_loopstate < LOOP_LTEST_DONE) {
+	if (fcp->isp_loopstate < LOOP_LTEST_DONE)
 		return (-1);
-	}
-	if (fcp->isp_loopstate > LOOP_SCANNING_LOOP) {
+	if (fcp->isp_loopstate >= LOOP_LSCAN_DONE)
 		return (0);
-	}
+
 	isp_prt(isp, ISP_LOG_SANCFG, "Chan %d FC loop scan", chan);
 	fcp->isp_loopstate = LOOP_SCANNING_LOOP;
 	if (TOPO_IS_FABRIC(fcp->isp_topo)) {
@@ -3214,8 +3236,8 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 			if (fcp->isp_loopstate < LOOP_SCANNING_LOOP) {
 abort:
 				isp_prt(isp, ISP_LOG_SANCFG,
-				    "Chan %d FC loop scan done (abort)", chan);
-				return (-1);
+				    "Chan %d FC loop scan aborted", chan);
+				return (1);
 			}
 			if (node_wwn == INI_NONE) {
 				continue;
@@ -3424,12 +3446,11 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 	int portidx, portlim, r;
 	sns_gid_ft_rsp_t *rs0, *rs1;
 
-	if (fcp->isp_loopstate < LOOP_LSCAN_DONE) {
+	if (fcp->isp_loopstate < LOOP_LSCAN_DONE)
 		return (-1);
-	}
-	if (fcp->isp_loopstate > LOOP_SCANNING_FABRIC) {
+	if (fcp->isp_loopstate >= LOOP_FSCAN_DONE)
 		return (0);
-	}
+
 	isp_prt(isp, ISP_LOG_SANCFG, "Chan %d FC fabric scan", chan);
 	fcp->isp_loopstate = LOOP_SCANNING_FABRIC;
 	if (!TOPO_IS_FABRIC(fcp->isp_topo)) {
@@ -3450,8 +3471,8 @@ fail:
 abort:
 		FC_SCRATCH_RELEASE(isp, chan);
 		isp_prt(isp, ISP_LOG_SANCFG,
-		    "Chan %d FC fabric scan done (abort)", chan);
-		return (-1);
+		    "Chan %d FC fabric scan aborted", chan);
+		return (1);
 	}
 
 	/*
@@ -3478,11 +3499,11 @@ abort:
 	if (r > 0) {
 		fcp->isp_loopstate = LOOP_FSCAN_DONE;
 		FC_SCRATCH_RELEASE(isp, chan);
-		return (0);
+		return (-1);
 	} else if (r < 0) {
 		fcp->isp_loopstate = LOOP_LTEST_DONE;	/* try again */
 		FC_SCRATCH_RELEASE(isp, chan);
-		return (0);
+		return (-1);
 	}
 
 	MEMORYBARRIER(isp, SYNC_SFORCPU, IGPOFF, GIDLEN, chan);
@@ -3504,7 +3525,7 @@ abort:
 		    rs1->snscb_cthdr.ct_explanation);
 		FC_SCRATCH_RELEASE(isp, chan);
 		fcp->isp_loopstate = LOOP_FSCAN_DONE;
-		return (0);
+		return (-1);
 	}
 
 	/* Check our buffer was big enough to get the full list. */
@@ -5657,11 +5678,10 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			fcp = FCPARAM(isp, chan);
 			int topo = fcp->isp_topo;
 
-			if (fcp->role == ISP_ROLE_NONE) {
+			if (fcp->role == ISP_ROLE_NONE)
 				continue;
-			}
-
-			fcp->isp_loopstate = LOOP_NIL;
+			if (fcp->isp_loopstate > LOOP_HAVE_LINK)
+				fcp->isp_loopstate = LOOP_HAVE_LINK;
 			ISP_SET_SENDMARKER(isp, chan, 1);
 			isp_async(isp, ISPASYNC_LIP, chan);
 #ifdef	ISP_TARGET_MODE
@@ -5714,6 +5734,9 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			fcp = FCPARAM(isp, chan);
 			if (fcp->role == ISP_ROLE_NONE)
 				continue;
+			fcp->isp_linkstate = 1;
+			if (fcp->isp_loopstate < LOOP_HAVE_LINK)
+				fcp->isp_loopstate = LOOP_HAVE_LINK;
 			ISP_SET_SENDMARKER(isp, chan, 1);
 			isp_async(isp, ISPASYNC_LOOP_UP, chan);
 #ifdef	ISP_TARGET_MODE
@@ -5734,6 +5757,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			if (fcp->role == ISP_ROLE_NONE)
 				continue;
 			ISP_SET_SENDMARKER(isp, chan, 1);
+			fcp->isp_linkstate = 0;
 			fcp->isp_loopstate = LOOP_NIL;
 			isp_async(isp, ISPASYNC_LOOP_DOWN, chan);
 #ifdef	ISP_TARGET_MODE
@@ -5754,7 +5778,8 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			if (fcp->role == ISP_ROLE_NONE)
 				continue;
 			ISP_SET_SENDMARKER(isp, chan, 1);
-			fcp->isp_loopstate = LOOP_NIL;
+			if (fcp->isp_loopstate > LOOP_HAVE_LINK)
+				fcp->isp_loopstate = LOOP_HAVE_LINK;
 			isp_async(isp, ISPASYNC_LOOP_RESET, chan);
 #ifdef	ISP_TARGET_MODE
 			if (isp_target_async(isp, chan, mbox)) {
@@ -5797,6 +5822,8 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 				continue;
 			if (fcp->isp_loopstate > LOOP_LTEST_DONE)
 				fcp->isp_loopstate = LOOP_LTEST_DONE;
+			else if (fcp->isp_loopstate < LOOP_HAVE_LINK)
+				fcp->isp_loopstate = LOOP_HAVE_LINK;
 			isp_async(isp, ISPASYNC_CHANGE_NOTIFY, chan,
 			    ISPASYNC_CHANGE_PDB, nphdl, nlstate, reason);
 		}
@@ -5820,6 +5847,8 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			break;
 		if (fcp->isp_loopstate > LOOP_LTEST_DONE)
 			fcp->isp_loopstate = LOOP_LTEST_DONE;
+		else if (fcp->isp_loopstate < LOOP_HAVE_LINK)
+			fcp->isp_loopstate = LOOP_HAVE_LINK;
 		isp_async(isp, ISPASYNC_CHANGE_NOTIFY, chan,
 		    ISPASYNC_CHANGE_SNS, portid);
 		break;
@@ -5867,7 +5896,7 @@ isp_parse_async_fc(ispsoftc_t *isp, uint16_t mbox)
 			break;
 		}
 		ISP_SET_SENDMARKER(isp, chan, 1);
-		FCPARAM(isp, chan)->isp_loopstate = LOOP_NIL;
+		FCPARAM(isp, chan)->isp_loopstate = LOOP_HAVE_LINK;
 		isp_async(isp, ISPASYNC_CHANGE_NOTIFY, chan, ISPASYNC_CHANGE_OTHER);
 		break;
 	case ASYNC_P2P_INIT_ERR:
@@ -5939,16 +5968,29 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 				if (fcp->role == ISP_ROLE_NONE)
 					continue;
 				c = (chan == 0) ? 127 : (chan - 1);
-				if (rid.ridacq_map[c / 16] & (1 << (c % 16))) {
-					fcp->isp_loopstate = LOOP_NIL;
+				if (rid.ridacq_map[c / 16] & (1 << (c % 16)) ||
+				    chan == 0) {
+					fcp->isp_loopstate = LOOP_HAVE_LINK;
 					isp_async(isp, ISPASYNC_CHANGE_NOTIFY,
 					    chan, ISPASYNC_CHANGE_OTHER);
+				} else {
+					fcp->isp_loopstate = LOOP_NIL;
+					isp_async(isp, ISPASYNC_LOOP_DOWN,
+					    chan);
 				}
 			}
 		} else {
-			FCPARAM(isp, rid.ridacq_vp_index)->isp_loopstate = LOOP_NIL;
-			isp_async(isp, ISPASYNC_CHANGE_NOTIFY,
-			    rid.ridacq_vp_index, ISPASYNC_CHANGE_OTHER);
+			fcparam *fcp = FCPARAM(isp, rid.ridacq_vp_index);
+			if (rid.ridacq_vp_status == RIDACQ_STS_COMPLETE ||
+			    rid.ridacq_vp_status == RIDACQ_STS_CHANGED) {
+				fcp->isp_loopstate = LOOP_HAVE_LINK;
+				isp_async(isp, ISPASYNC_CHANGE_NOTIFY,
+				    rid.ridacq_vp_index, ISPASYNC_CHANGE_OTHER);
+			} else {
+				fcp->isp_loopstate = LOOP_NIL;
+				isp_async(isp, ISPASYNC_LOOP_DOWN,
+				    rid.ridacq_vp_index);
+			}
 		}
 		return (1);
 	case RQSTYPE_ATIO:
@@ -6805,7 +6847,7 @@ static const char *scsi_mbcmd_names[] = {
 static const uint32_t mbpfc[] = {
 	ISP_FC_OPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
 	ISP_FC_OPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
-	ISP_FC_OPMAP(0x0f, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
+	ISP_FC_OPMAP_HALF(0x07, 0xff, 0x00, 0x03),	/* 0x02: MBOX_EXEC_FIRMWARE */
 	ISP_FC_OPMAP(0xdf, 0x01),	/* 0x03: MBOX_DUMP_RAM */
 	ISP_FC_OPMAP(0x07, 0x07),	/* 0x04: MBOX_WRITE_RAM_WORD */
 	ISP_FC_OPMAP(0x03, 0x07),	/* 0x05: MBOX_READ_RAM_WORD */
@@ -7579,6 +7621,8 @@ isp_setdfltfcparm(ispsoftc_t *isp, int chan)
 	fcp->isp_wwnn_nvram = DEFAULT_NODEWWN(isp, chan);
 	fcp->isp_wwpn_nvram = DEFAULT_PORTWWN(isp, chan);
 	fcp->isp_fwoptions = 0;
+	fcp->isp_xfwoptions = 0;
+	fcp->isp_zfwoptions = 0;
 	fcp->isp_lasthdl = NIL_HANDLE;
 
 	if (IS_24XX(isp)) {

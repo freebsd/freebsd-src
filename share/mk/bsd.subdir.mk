@@ -36,10 +36,11 @@
 .if !target(__<bsd.subdir.mk>__)
 __<bsd.subdir.mk>__:
 
-ALL_SUBDIR_TARGETS= all all-man buildconfig check checkdpadd clean cleandepend \
-		    cleandir cleanilinks cleanobj depend distribute \
-		    installconfig lint maninstall manlint obj objlink \
-		    realinstall tags \
+ALL_SUBDIR_TARGETS= all all-man buildconfig buildfiles buildincludes \
+		    check checkdpadd clean cleandepend cleandir cleanilinks \
+		    cleanobj depend distribute files includes installconfig \
+		    installfiles installincludes realinstall lint maninstall \
+		    manlint obj objlink tags \
 		    ${SUBDIR_TARGETS}
 
 # Described above.
@@ -55,12 +56,6 @@ STANDALONE_SUBDIR_TARGETS?= obj checkdpadd clean cleandepend cleandir \
 _SUBDIR:
 .endif
 .endif
-.if !target(_SUBDIR)
-
-.if defined(SUBDIR)
-SUBDIR:=${SUBDIR} ${SUBDIR.yes}
-SUBDIR:=${SUBDIR:u}
-.endif
 
 DISTRIBUTION?=	base
 .if !target(distribute)
@@ -69,6 +64,35 @@ distribute: .MAKE
 	${_+_}cd ${.CURDIR}; \
 	    ${MAKE} install -DNO_SUBDIR DESTDIR=${DISTDIR}/${dist} SHARED=copies
 .endfor
+.endif
+
+# Convenience targets to run 'build${target}' and 'install${target}' when
+# calling 'make ${target}'.
+.for __target in files includes
+.if !target(${__target})
+${__target}:	build${__target} install${__target}
+.ORDER:		build${__target} install${__target}
+.endif
+.endfor
+
+# Make 'install' supports a before and after target.  Actual install
+# hooks are placed in 'realinstall'.
+.if !target(install)
+.for __stage in before real after
+.if !target(${__stage}install)
+${__stage}install:
+.endif
+.endfor
+install:	beforeinstall realinstall afterinstall
+.ORDER:		beforeinstall realinstall afterinstall
+.endif
+
+# SUBDIR recursing may be disabled for MK_DIRDEPS_BUILD
+.if !target(_SUBDIR)
+
+.if defined(SUBDIR)
+SUBDIR:=${SUBDIR} ${SUBDIR.yes}
+SUBDIR:=${SUBDIR:u}
 .endif
 
 # Subdir code shared among 'make <subdir>', 'make <target>' and SUBDIR_PARALLEL.
@@ -82,7 +106,7 @@ _SUBDIR_SH=	\
 
 _SUBDIR: .USEBEFORE
 .if defined(SUBDIR) && !empty(SUBDIR) && !defined(NO_SUBDIR)
-	@${_+_}target=${.TARGET:S,realinstall,install,}; \
+	@${_+_}target=${.TARGET:realinstall=install}; \
 	    for dir in ${SUBDIR:N.WAIT}; do ( ${_SUBDIR_SH} ); done
 .endif
 
@@ -91,11 +115,14 @@ ${SUBDIR:N.WAIT}: .PHONY .MAKE
 	    dir=${.TARGET}; \
 	    ${_SUBDIR_SH};
 
-# Work around parsing of .if nested in .for by putting .WAIT string into a var.
-__wait= .WAIT
 .for __target in ${ALL_SUBDIR_TARGETS}
+# Only recurse on directly-called targets.  I.e., don't recurse on dependencies
+# such as 'install' becoming {before,real,after}install, just recurse
+# 'install'.  Despite that, 'realinstall' is special due to ordering issues
+# with 'afterinstall'.
+.if make(${__target}) || (${__target} == realinstall && make(install))
 # Can ordering be skipped for this and SUBDIR_PARALLEL forced?
-.if make(${__target}) && ${STANDALONE_SUBDIR_TARGETS:M${__target}}
+.if ${STANDALONE_SUBDIR_TARGETS:M${__target}}
 _is_standalone_target=	1
 SUBDIR:=	${SUBDIR:N.WAIT}
 .else
@@ -104,7 +131,7 @@ _is_standalone_target=	0
 .if defined(SUBDIR_PARALLEL) || ${_is_standalone_target} == 1
 __subdir_targets=
 .for __dir in ${SUBDIR}
-.if ${__wait} == ${__dir}
+.if ${__dir} == .WAIT
 __subdir_targets+= .WAIT
 .else
 __subdir_targets+= ${__target}_subdir_${__dir}
@@ -126,35 +153,16 @@ ${__target}: ${__subdir_targets}
 .else
 ${__target}: _SUBDIR
 .endif	# SUBDIR_PARALLEL || _is_standalone_target
+.endif	# make(${__target})
 .endfor	# __target in ${ALL_SUBDIR_TARGETS}
 
-# This is to support 'make includes' calling 'make buildincludes' and
-# 'make installincludes' in the proper order, and to support these
-# targets as SUBDIR_TARGETS.
-.for __target in files includes
-.for __stage in build install
-${__stage}${__target}:
-.if make(${__stage}${__target})
-${__stage}${__target}: _SUBDIR
-.endif
-.endfor
+.endif	# !target(_SUBDIR)
+
+# Ensure all targets exist
+.for __target in ${ALL_SUBDIR_TARGETS}
 .if !target(${__target})
-${__target}: .MAKE
-	${_+_}cd ${.CURDIR}; ${MAKE} build${__target}; ${MAKE} install${__target}
+${__target}:
 .endif
 .endfor
-
-.endif
-
-.if !target(install)
-.if !target(beforeinstall)
-beforeinstall:
-.endif
-.if !target(afterinstall)
-afterinstall:
-.endif
-install: beforeinstall realinstall afterinstall
-.ORDER: beforeinstall realinstall afterinstall
-.endif
 
 .endif

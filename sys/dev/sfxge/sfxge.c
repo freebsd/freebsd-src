@@ -95,6 +95,12 @@ SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_ring, CTLFLAG_RDTUN,
 	   &sfxge_tx_ring_entries, 0,
 	   "Maximum number of descriptors in a transmit ring");
 
+#if EFSYS_OPT_MCDI_LOGGING
+#define	SFXGE_PARAM_MCDI_LOGGING	SFXGE_PARAM(mcdi_logging)
+static int sfxge_mcdi_logging = 0;
+TUNABLE_INT(SFXGE_PARAM_MCDI_LOGGING, &sfxge_mcdi_logging);
+#endif
+
 static void
 sfxge_reset(void *arg, int npending);
 
@@ -538,6 +544,9 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 
 	ifp->if_capabilities = SFXGE_CAP;
 	ifp->if_capenable = SFXGE_CAP_ENABLE;
+	ifp->if_hw_tsomax = SFXGE_TSO_MAX_SIZE;
+	ifp->if_hw_tsomaxsegcount = SFXGE_TX_MAPPING_MAX_SEG;
+	ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
 
 #ifdef SFXGE_LRO
 	ifp->if_capabilities |= IFCAP_LRO;
@@ -617,6 +626,9 @@ sfxge_create(struct sfxge_softc *sc)
 	efx_nic_t *enp;
 	int error;
 	char rss_param_name[sizeof(SFXGE_PARAM(%d.max_rss_channels))];
+#if EFSYS_OPT_MCDI_LOGGING
+	char mcdi_log_param_name[sizeof(SFXGE_PARAM(%d.mcdi_logging))];
+#endif
 
 	dev = sc->dev;
 
@@ -627,6 +639,13 @@ sfxge_create(struct sfxge_softc *sc)
 		 SFXGE_PARAM(%d.max_rss_channels),
 		 (int)device_get_unit(dev));
 	TUNABLE_INT_FETCH(rss_param_name, &sc->max_rss_channels);
+#if EFSYS_OPT_MCDI_LOGGING
+	sc->mcdi_logging = sfxge_mcdi_logging;
+	snprintf(mcdi_log_param_name, sizeof(mcdi_log_param_name),
+		 SFXGE_PARAM(%d.mcdi_logging),
+		 (int)device_get_unit(dev));
+	TUNABLE_INT_FETCH(mcdi_log_param_name, &sc->mcdi_logging);
+#endif
 
 	sc->stats_node = SYSCTL_ADD_NODE(
 		device_get_sysctl_ctx(dev),

@@ -50,13 +50,13 @@ __FBSDID("$FreeBSD$");
 MODULE_VERSION(isp, 1);
 MODULE_DEPEND(isp, cam, 1, 1, 1);
 int isp_announced = 0;
-int isp_fabric_hysteresis = 5;
 int isp_loop_down_limit = 60;	/* default loop down limit */
 int isp_quickboot_time = 7;	/* don't wait more than N secs for loop up */
 int isp_gone_device_time = 30;	/* grace time before reporting device lost */
 static const char prom3[] = "Chan %d [%u] PortID 0x%06x Departed because of %s";
 
-static void isp_freeze_loopdown(ispsoftc_t *, int, char *);
+static void isp_freeze_loopdown(ispsoftc_t *, int);
+static void isp_loop_changed(ispsoftc_t *isp, int chan);
 static d_ioctl_t ispioctl;
 static void isp_intr_enable(void *);
 static void isp_cam_async(void *, uint32_t, struct cam_path *, void *);
@@ -64,8 +64,6 @@ static void isp_poll(struct cam_sim *);
 static timeout_t isp_watchdog;
 static timeout_t isp_gdt;
 static task_fn_t isp_gdt_task;
-static timeout_t isp_ldt;
-static task_fn_t isp_ldt_task;
 static void isp_kthread(void *);
 static void isp_action(struct cam_sim *, union ccb *);
 static int isp_timer_count;
@@ -168,25 +166,13 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		fc->isp = isp;
 		fc->ready = 1;
 
-		callout_init_mtx(&fc->ldt, &isp->isp_osinfo.lock, 0);
 		callout_init_mtx(&fc->gdt, &isp->isp_osinfo.lock, 0);
-		TASK_INIT(&fc->ltask, 1, isp_ldt_task, fc);
 		TASK_INIT(&fc->gtask, 1, isp_gdt_task, fc);
-
-		/*
-		 * We start by being "loop down" if we have an initiator role
-		 */
-		if (fcp->role & ISP_ROLE_INITIATOR) {
-			isp_freeze_loopdown(isp, chan, "isp_attach");
-			callout_reset(&fc->ldt, isp_quickboot_time * hz, isp_ldt, fc);
-			isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "Starting Initial Loop Down Timer @ %lu", (unsigned long) time_uptime);
-		}
+		isp_loop_changed(isp, chan);
 		ISP_UNLOCK(isp);
 		if (THREAD_CREATE(isp_kthread, fc, &fc->kproc, 0, 0, "%s: fc_thrd%d", device_get_nameunit(isp->isp_osinfo.dev), chan)) {
 			xpt_free_path(fc->path);
 			ISP_LOCK(isp);
-			if (callout_active(&fc->ldt))
-				callout_stop(&fc->ldt);
 			xpt_bus_deregister(cam_sim_path(fc->sim));
 			ISP_UNLOCK(isp);
 			cam_sim_free(fc->sim, FALSE);
@@ -377,13 +363,13 @@ isp_detach(ispsoftc_t *isp)
 }
 
 static void
-isp_freeze_loopdown(ispsoftc_t *isp, int chan, char *msg)
+isp_freeze_loopdown(ispsoftc_t *isp, int chan)
 {
 	if (IS_FC(isp)) {
 		struct isp_fc *fc = ISP_FC_PC(isp, chan);
 		if (fc->simqfrozen == 0) {
 			isp_prt(isp, ISP_LOGDEBUG0,
-			    "Chan %d %s -- freeze simq (loopdown)", chan, msg);
+			    "Chan %d Freeze simq (loopdown)", chan);
 			fc->simqfrozen = SIMQFRZ_LOOPDOWN;
 #if __FreeBSD_version >= 1000039
 			xpt_hold_boot();
@@ -391,7 +377,7 @@ isp_freeze_loopdown(ispsoftc_t *isp, int chan, char *msg)
 			xpt_freeze_simq(fc->sim, 1);
 		} else {
 			isp_prt(isp, ISP_LOGDEBUG0,
-			    "Chan %d %s -- mark frozen (loopdown)", chan, msg);
+			    "Chan %d Mark simq frozen (loopdown)", chan);
 			fc->simqfrozen |= SIMQFRZ_LOOPDOWN;
 		}
 	}
@@ -405,7 +391,8 @@ isp_unfreeze_loopdown(ispsoftc_t *isp, int chan)
 		int wasfrozen = fc->simqfrozen & SIMQFRZ_LOOPDOWN;
 		fc->simqfrozen &= ~SIMQFRZ_LOOPDOWN;
 		if (wasfrozen && fc->simqfrozen == 0) {
-			isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "%s: Chan %d releasing simq", __func__, chan);
+			isp_prt(isp, ISP_LOGDEBUG0,
+			    "Chan %d Release simq", chan);
 			xpt_release_simq(fc->sim, 1);
 #if __FreeBSD_version >= 1000039
 			xpt_release_boot();
@@ -481,7 +468,7 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 				break;
 			}
 			ISP_LOCK(isp);
-			if (isp_fc_runstate(isp, chan, 5 * 1000000)) {
+			if (isp_fc_runstate(isp, chan, 5 * 1000000) != LOOP_READY) {
 				retval = EIO;
 			} else {
 				retval = 0;
@@ -3270,41 +3257,59 @@ isp_gdt_task(void *arg, int pending)
 }
 
 /*
- * Loop Down Timer Function- when loop goes down, a timer is started and
- * and after it expires we come here and take all probational devices that
- * the OS knows about and the tell the OS that they've gone away.
- * 
+ * When loop goes down we remember the time and freeze CAM command queue.
+ * During some time period we are trying to reprobe the loop.  But if we
+ * fail, we tell the OS that devices have gone away and drop the freeze.
+ *
  * We don't clear the devices out of our port database because, when loop
  * come back up, we have to do some actual cleanup with the chip at that
  * point (implicit PLOGO, e.g., to get the chip's port database state right).
  */
 static void
-isp_ldt(void *arg)
+isp_loop_changed(ispsoftc_t *isp, int chan)
 {
-	struct isp_fc *fc = arg;
-	taskqueue_enqueue(taskqueue_thread, &fc->ltask);
+	fcparam *fcp = FCPARAM(isp, chan);
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
+
+	if (fc->loop_down_time)
+		return;
+	isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "Chan %d Loop changed", chan);
+	if (fcp->role & ISP_ROLE_INITIATOR)
+		isp_freeze_loopdown(isp, chan);
+	fc->loop_dead = 0;
+	fc->loop_down_time = time_uptime;
+	wakeup(fc);
 }
 
 static void
-isp_ldt_task(void *arg, int pending)
+isp_loop_up(ispsoftc_t *isp, int chan)
 {
-	struct isp_fc *fc = arg;
-	ispsoftc_t *isp = fc->isp;
-	int chan = fc - isp->isp_osinfo.pc.fc;
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
+
+	isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "Chan %d Loop is up", chan);
+	fc->loop_seen_once = 1;
+	fc->loop_dead = 0;
+	fc->loop_down_time = 0;
+	isp_unfreeze_loopdown(isp, chan);
+}
+
+static void
+isp_loop_dead(ispsoftc_t *isp, int chan)
+{
+	fcparam *fcp = FCPARAM(isp, chan);
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
 	fcportdb_t *lp;
 	struct ac_contract ac;
 	struct ac_device_changed *adc;
 	int dbidx, i;
 
-	ISP_LOCK(isp);
-	isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "Chan %d Loop Down Timer expired @ %lu", chan, (unsigned long) time_uptime);
-	callout_deactivate(&fc->ldt);
+	isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "Chan %d Loop is dead", chan);
 
 	/*
 	 * Notify to the OS all targets who we now consider have departed.
 	 */
 	for (dbidx = 0; dbidx < MAX_FC_TARG; dbidx++) {
-		lp = &FCPARAM(isp, chan)->portdb[dbidx];
+		lp = &fcp->portdb[dbidx];
 
 		if (lp->state == FC_PORTDB_STATE_NIL)
 			continue;
@@ -3347,14 +3352,8 @@ isp_ldt_task(void *arg, int pending)
 	}
 
 	isp_unfreeze_loopdown(isp, chan);
-	/*
-	 * The loop down timer has expired. Wake up the kthread
-	 * to notice that fact (or make it false).
-	 */
 	fc->loop_dead = 1;
-	fc->loop_down_time = fc->loop_down_limit+1;
-	wakeup(fc);
-	ISP_UNLOCK(isp);
+	fc->loop_down_time = 0;
 }
 
 static void
@@ -3363,15 +3362,18 @@ isp_kthread(void *arg)
 	struct isp_fc *fc = arg;
 	ispsoftc_t *isp = fc->isp;
 	int chan = fc - isp->isp_osinfo.pc.fc;
-	int slp = 0;
+	int slp = 0, d;
+	int lb, lim;
 
 	mtx_lock(&isp->isp_osinfo.lock);
 
 	while (isp->isp_osinfo.is_exiting == 0) {
-		int lb, lim;
-
-		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "%s: Chan %d checking FC state", __func__, chan);
+		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0,
+		    "Chan %d Checking FC state", chan);
 		lb = isp_fc_runstate(isp, chan, 250000);
+		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0,
+		    "Chan %d FC got to %s state", chan,
+		    isp_fc_loop_statename(lb));
 
 		/*
 		 * Our action is different based upon whether we're supporting
@@ -3381,87 +3383,44 @@ isp_kthread(void *arg)
 		 *
 		 * If not, we simply just wait for loop to come up.
 		 */
-		if (lb && (FCPARAM(isp, chan)->role & ISP_ROLE_INITIATOR)) {
-			/*
-			 * Increment loop down time by the last sleep interval
-			 */
-			fc->loop_down_time += slp;
-
-			if (lb < 0) {
-				isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "%s: Chan %d FC loop not up (down count %d)", __func__, chan, fc->loop_down_time);
-			} else {
-				isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "%s: Chan %d FC got to %d (down count %d)", __func__, chan, lb, fc->loop_down_time);
-			}
-
+		if (lb == LOOP_READY || lb < 0) {
+			slp = 0;
+		} else {
 			/*
 			 * If we've never seen loop up and we've waited longer
 			 * than quickboot time, or we've seen loop up but we've
 			 * waited longer than loop_down_limit, give up and go
 			 * to sleep until loop comes up.
 			 */
-			if (FCPARAM(isp, chan)->loop_seen_once == 0) {
+			if (fc->loop_seen_once == 0)
 				lim = isp_quickboot_time;
-			} else {
-				lim = fc->loop_down_limit;
-			}
-			if (fc->loop_down_time >= lim) {
-				isp_freeze_loopdown(isp, chan, "loop limit hit");
-				slp = 0;
-			} else if (fc->loop_down_time < 10) {
-				slp = 1;
-			} else if (fc->loop_down_time < 30) {
-				slp = 5;
-			} else if (fc->loop_down_time < 60) {
-				slp = 10;
-			} else if (fc->loop_down_time < 120) {
-				slp = 20;
-			} else {
-				slp = 30;
-			}
-
-		} else if (lb) {
-			isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "%s: Chan %d FC Loop Down", __func__, chan);
-			fc->loop_down_time += slp;
-			if (fc->loop_down_time > 300)
-				slp = 0;
 			else
-				slp = 60;
-		} else {
-			isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "%s: Chan %d FC state OK", __func__, chan);
-			fc->loop_down_time = 0;
-			slp = 0;
+				lim = fc->loop_down_limit;
+			d = time_uptime - fc->loop_down_time;
+			if (d >= lim)
+				slp = 0;
+			else if (d < 10)
+				slp = 1;
+			else if (d < 30)
+				slp = 5;
+			else if (d < 60)
+				slp = 10;
+			else if (d < 120)
+				slp = 20;
+			else
+				slp = 30;
 		}
 
-
-		/*
-		 * If this is past the first loop up or the loop is dead and if we'd frozen the simq, unfreeze it
-		 * now so that CAM can start sending us commands.
-		 *
-		 * If the FC state isn't okay yet, they'll hit that in isp_start which will freeze the queue again
-		 * or kill the commands, as appropriate.
-		 */
-
-		if (FCPARAM(isp, chan)->loop_seen_once || fc->loop_dead) {
-			isp_unfreeze_loopdown(isp, chan);
+		if (slp == 0) {
+			if (lb == LOOP_READY)
+				isp_loop_up(isp, chan);
+			else
+				isp_loop_dead(isp, chan);
 		}
 
-		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "%s: Chan %d sleep time %d", __func__, chan, slp);
-
+		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0,
+		    "Chan %d sleep for %d seconds", chan, slp);
 		msleep(fc, &isp->isp_osinfo.lock, PRIBIO, "ispf", slp * hz);
-
-		/*
-		 * If slp is zero, we're waking up for the first time after
-		 * things have been okay. In this case, we set a deferral state
-		 * for all commands and delay hysteresis seconds before starting
-		 * the FC state evaluation. This gives the loop/fabric a chance
-		 * to settle.
-		 */
-		if (slp == 0 && fc->hysteresis) {
-			isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "%s: Chan %d sleep hysteresis ticks %d", __func__, chan, fc->hysteresis * hz);
-			mtx_unlock(&isp->isp_osinfo.lock);
-			pause("ispt", fc->hysteresis * hz);
-			mtx_lock(&isp->isp_osinfo.lock);
-		}
 	}
 	fc->num_threads -= 1;
 	mtx_unlock(&isp->isp_osinfo.lock);
@@ -3471,7 +3430,7 @@ isp_kthread(void *arg)
 static void
 isp_action(struct cam_sim *sim, union ccb *ccb)
 {
-	int bus, tgt, ts, error, lim;
+	int bus, tgt, ts, error;
 	ispsoftc_t *isp;
 	struct ccb_trans_settings *cts;
 
@@ -3535,26 +3494,13 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 		case CMD_RQLATER:
 			/*
-			 * We get this result for FC devices if the loop state isn't ready yet
-			 * or if the device in question has gone zombie on us.
-			 *
-			 * If we've never seen Loop UP at all, we requeue this request and wait
-			 * for the initial loop up delay to expire.
+			 * We get this result if the loop isn't ready
+			 * or if the device in question has gone zombie.
 			 */
-			lim = ISP_FC_PC(isp, bus)->loop_down_limit;
-			if (FCPARAM(isp, bus)->loop_seen_once == 0 || ISP_FC_PC(isp, bus)->loop_down_time >= lim) {
-				if (FCPARAM(isp, bus)->loop_seen_once == 0) {
-					isp_prt(isp, ISP_LOGDEBUG0,
-					    "%d.%jx loop not seen yet @ %lu",
-					    XS_TGT(ccb), (uintmax_t)XS_LUN(ccb),
-					    (unsigned long) time_uptime);
-				} else {
-					isp_prt(isp, ISP_LOGDEBUG0,
-					    "%d.%jx downtime (%d) > lim (%d)",
-					    XS_TGT(ccb), (uintmax_t)XS_LUN(ccb),
-					    ISP_FC_PC(isp, bus)->loop_down_time,
-					    lim);
-				}
+			if (ISP_FC_PC(isp, bus)->loop_dead) {
+				isp_prt(isp, ISP_LOGDEBUG0,
+				    "%d.%jx loop is dead",
+				    XS_TGT(ccb), (uintmax_t)XS_LUN(ccb));
 				ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 				isp_done((struct ccb_scsiio *) ccb);
 				break;
@@ -4260,49 +4206,20 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			msg = "LOOP Reset";
 		/* FALLTHROUGH */
 	case ISPASYNC_LOOP_DOWN:
-	{
 		if (msg == NULL)
 			msg = "LOOP Down";
 		va_start(ap, cmd);
 		bus = va_arg(ap, int);
 		va_end(ap);
-
-		FCPARAM(isp, bus)->isp_linkstate = 0;
-
-		fc = ISP_FC_PC(isp, bus);
-		if (cmd == ISPASYNC_LOOP_DOWN && fc->ready) {
-			/*
-			 * We don't do any simq freezing if we are only in target mode
-			 */
-			if (FCPARAM(isp, bus)->role & ISP_ROLE_INITIATOR) {
-				if (fc->path) {
-					isp_freeze_loopdown(isp, bus, msg);
-				}
-			}
-			if (!callout_active(&fc->ldt)) {
-				callout_reset(&fc->ldt, fc->loop_down_limit * hz, isp_ldt, fc);
-				isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "Starting Loop Down Timer @ %lu", (unsigned long) time_uptime);
-			}
-		}
 		isp_fcp_reset_crn(isp, bus, /*tgt*/0, /*tgt_set*/ 0);
-
-		isp_prt(isp, ISP_LOGINFO, "Chan %d: %s", bus, msg);
+		isp_loop_changed(isp, bus);
+		isp_prt(isp, ISP_LOGINFO, "Chan %d %s", bus, msg);
 		break;
-	}
 	case ISPASYNC_LOOP_UP:
 		va_start(ap, cmd);
 		bus = va_arg(ap, int);
 		va_end(ap);
-		fc = ISP_FC_PC(isp, bus);
-		/*
-		 * Now we just note that Loop has come up. We don't
-		 * actually do anything because we're waiting for a
-		 * Change Notify before activating the FC cleanup
-		 * thread to look at the state of the loop again.
-		 */
-		FCPARAM(isp, bus)->isp_linkstate = 1;
-		fc->loop_dead = 0;
-		fc->loop_down_time = 0;
+		isp_loop_changed(isp, bus);
 		isp_prt(isp, ISP_LOGINFO, "Chan %d Loop UP", bus);
 		break;
 	case ISPASYNC_DEV_ARRIVED:
@@ -4435,18 +4352,7 @@ changed:
 			msg = "Other Change Notify";
 			isp_prt(isp, ISP_LOGINFO, "Chan %d %s", bus, msg);
 		}
-
-		/*
-		 * If the loop down timer is running, cancel it.
-		 */
-		if (fc->ready && callout_active(&fc->ldt)) {
-			isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "Stopping Loop Down Timer @ %lu", (unsigned long) time_uptime);
-			callout_stop(&fc->ldt);
-		}
-		if (FCPARAM(isp, bus)->role & ISP_ROLE_INITIATOR) {
-			isp_freeze_loopdown(isp, bus, msg);
-		}
-		wakeup(fc);
+		isp_loop_changed(isp, bus);
 		break;
 	}
 #ifdef	ISP_TARGET_MODE
@@ -4644,91 +4550,52 @@ isp_uninit(ispsoftc_t *isp)
 	ISP_DISABLE_INTS(isp);
 }
 
-/*
- * When we want to get the 'default' WWNs (when lacking NVRAM), we pick them
- * up from our platform default (defww{p|n}n) and morph them based upon
- * channel.
- * 
- * When we want to get the 'active' WWNs, we get NVRAM WWNs and then morph them
- * based upon channel.
- */
-
 uint64_t
 isp_default_wwn(ispsoftc_t * isp, int chan, int isactive, int iswwnn)
 {
 	uint64_t seed;
 	struct isp_fc *fc = ISP_FC_PC(isp, chan);
 
-	/*
-	 * If we're asking for a active WWN, the default overrides get
-	 * returned, otherwise the NVRAM value is picked.
-	 * 
-	 * If we're asking for a default WWN, we just pick the default override.
-	 */
-	if (isactive) {
-		seed = iswwnn ? fc->def_wwnn : fc->def_wwpn;
-		if (seed) {
-			return (seed);
-		}
-		seed = iswwnn ? FCPARAM(isp, chan)->isp_wwnn_nvram : FCPARAM(isp, chan)->isp_wwpn_nvram;
-		if (seed) {
-			return (seed);
-		}
-		return (0x400000007F000009ull);
-	}
-
+	/* First try to use explicitly configured WWNs. */
 	seed = iswwnn ? fc->def_wwnn : fc->def_wwpn;
-
-	/*
-	 * For channel zero just return what we have. For either ACTIVE or
-	 * DEFAULT cases, we depend on default override of NVRAM values for
-	 * channel zero.
-	 */
-	if (chan == 0) {
+	if (seed)
 		return (seed);
+
+	/* Otherwise try to use WWNs from NVRAM. */
+	if (isactive) {
+		seed = iswwnn ? FCPARAM(isp, chan)->isp_wwnn_nvram :
+		    FCPARAM(isp, chan)->isp_wwpn_nvram;
+		if (seed)
+			return (seed);
 	}
 
-	/*
-	 * For other channels, we are doing one of three things:
-	 * 
-	 * 1. If what we have now is non-zero, return it. Otherwise we morph
-	 * values from channel 0. 2. If we're here for a WWPN we synthesize
-	 * it if Channel 0's wwpn has a type 2 NAA. 3. If we're here for a
-	 * WWNN we synthesize it if Channel 0's wwnn has a type 2 NAA.
-	 */
-
-	if (seed) {
-		return (seed);
+	/* If still no WWNs, try to steal them from the first channel. */
+	if (chan > 0) {
+		seed = iswwnn ? ISP_FC_PC(isp, 0)->def_wwnn :
+		    ISP_FC_PC(isp, 0)->def_wwpn;
+		if (seed == 0) {
+			seed = iswwnn ? FCPARAM(isp, 0)->isp_wwnn_nvram :
+			    FCPARAM(isp, 0)->isp_wwpn_nvram;
+		}
 	}
-	seed = iswwnn ? ISP_FC_PC(isp, 0)->def_wwnn : ISP_FC_PC(isp, 0)->def_wwpn;
-	if (seed == 0)
-		seed = iswwnn ? FCPARAM(isp, 0)->isp_wwnn_nvram : FCPARAM(isp, 0)->isp_wwpn_nvram;
 
-	if (((seed >> 60) & 0xf) == 2) {
+	/* If still nothing -- improvise. */
+	if (seed == 0) {
+		seed = 0x400000007F000000ull + device_get_unit(isp->isp_dev);
+		if (!iswwnn)
+			seed ^= 0x0100000000000000ULL;
+	}
+
+	/* For additional channels we have to improvise even more. */
+	if (!iswwnn && chan > 0) {
 		/*
-		 * The type 2 NAA fields for QLogic cards appear be laid out
-		 * thusly:
-		 * 
-		 * bits 63..60 NAA == 2 bits 59..57 unused/zero bit 56
-		 * port (1) or node (0) WWN distinguishor bit 48
-		 * physical port on dual-port chips (23XX/24XX)
-		 * 
-		 * This is somewhat nutty, particularly since bit 48 is
-		 * irrelevant as they assign separate serial numbers to
-		 * different physical ports anyway.
-		 * 
 		 * We'll stick our channel number plus one first into bits
 		 * 57..59 and thence into bits 52..55 which allows for 8 bits
-		 * of channel which is comfortably more than our maximum
-		 * (126) now.
+		 * of channel which is enough for our maximum of 255 channels.
 		 */
-		seed &= ~0x0FF0000000000000ULL;
-		if (iswwnn == 0) {
-			seed |= ((uint64_t) (chan + 1) & 0xf) << 56;
-			seed |= ((uint64_t) ((chan + 1) >> 4) & 0xf) << 52;
-		}
-	} else {
-		seed = 0;
+		seed ^= 0x0100000000000000ULL;
+		seed ^= ((uint64_t) (chan + 1) & 0xf) << 56;
+		seed ^= ((uint64_t) ((chan + 1) >> 4) & 0xf) << 52;
 	}
 	return (seed);
 }

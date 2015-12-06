@@ -39,26 +39,6 @@ CXXFLAGS.clang+= -stdlib=libc++
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 
-.if ${MK_META_MODE} == "yes"
-.if empty(TOOLSDIR) || !exists(${TOOLSDIR}/usr/bin/clang-tblgen)
-.if ${MACHINE} == "host" && defined(BOOTSTRAPPING_TOOLS)
-.if !empty(LEGACY_TOOLS) && exists(${LEGACY_TOOLS}/usr/bin/tblgen)
-TOOLSDIR= ${LEGACY_TOOLS}
-.endif
-.endif
-.if ${MK_STAGING} == "yes" && exists(${STAGE_HOST_OBJTOP:Uno}/usr/bin/tblgen)
-TOOLSDIR= ${STAGE_HOST_OBJTOP}
-.endif
-.if exists(${LEGACY_TOOLS:Uno}/usr/bin/tblgen)
-TOOLSDIR= ${LEGACY_TOOLS}
-.endif
-.endif
-TOOLSDIR?=
-.if !empty(TOOLSDIR) && exists(${TOOLSDIR}/usr/bin/clang-tblgen)
-TBLGEN= ${TOOLSDIR}/usr/bin/tblgen
-CLANG_TBLGEN= ${TOOLSDIR}/usr/bin/clang-tblgen
-.endif
-.endif	# ${MK_META_MODE} == "yes"
 TBLGEN?=	tblgen
 CLANG_TBLGEN?=	clang-tblgen
 

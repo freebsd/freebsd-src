@@ -296,14 +296,14 @@ static efx_phy_ops_t	__efx_phy_hunt_ops = {
 };
 #endif	/* EFSYS_OPT_HUNTINGTON */
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_phy_probe(
 	__in		efx_nic_t *enp)
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_phy_ops_t *epop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 
@@ -372,7 +372,7 @@ efx_phy_probe(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	epp->ep_port = 0;
 	epp->ep_phy_type = 0;
@@ -380,7 +380,7 @@ fail1:
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_phy_verify(
 	__in		efx_nic_t *enp)
 {
@@ -395,7 +395,7 @@ efx_phy_verify(
 
 #if EFSYS_OPT_PHY_LED_CONTROL
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_phy_led_set(
 	__in		efx_nic_t *enp,
 	__in		efx_phy_led_mode_t mode)
@@ -404,7 +404,7 @@ efx_phy_led_set(
 	efx_port_t *epp = &(enp->en_port);
 	efx_phy_ops_t *epop = epp->ep_epop;
 	uint32_t mask;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
@@ -432,7 +432,7 @@ done:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -465,7 +465,7 @@ efx_phy_adv_cap_get(
 	}
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_phy_adv_cap_set(
 	__in		efx_nic_t *enp,
 	__in		uint32_t mask)
@@ -473,7 +473,7 @@ efx_phy_adv_cap_set(
 	efx_port_t *epp = &(enp->en_port);
 	efx_phy_ops_t *epop = epp->ep_epop;
 	uint32_t old_mask;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
@@ -509,7 +509,7 @@ fail2:
 	}
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -527,7 +527,7 @@ efx_phy_lp_cap_get(
 	*maskp = epp->ep_lp_cap_mask;
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_phy_oui_get(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *ouip)
@@ -627,11 +627,11 @@ efx_phy_stat_name(
 
 #endif	/* EFSYS_OPT_NAMES */
 
-	__checkReturn			int
+	__checkReturn			efx_rc_t
 efx_phy_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_PHY_NSTATS)	uint32_t *stat)
+	__inout_ecount(EFX_PHY_NSTATS)	uint32_t *stat)
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_phy_ops_t *epop = epp->ep_epop;
@@ -662,7 +662,7 @@ efx_phy_prop_name(
 }
 #endif	/* EFSYS_OPT_NAMES */
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_phy_prop_get(
 	__in		efx_nic_t *enp,
 	__in		unsigned int id,
@@ -678,7 +678,7 @@ efx_phy_prop_get(
 	return (epop->epo_prop_get(enp, id, flags, valp));
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 efx_phy_prop_set(
 	__in		efx_nic_t *enp,
 	__in		unsigned int id,
@@ -696,13 +696,13 @@ efx_phy_prop_set(
 
 #if EFSYS_OPT_BIST
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_bist_enable_offline(
 	__in			efx_nic_t *enp)
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_phy_ops_t *epop = epp->ep_epop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 
@@ -719,20 +719,20 @@ efx_bist_enable_offline(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_bist_start(
 	__in			efx_nic_t *enp,
 	__in			efx_bist_type_t type)
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_phy_ops_t *epop = epp->ep_epop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 
@@ -755,12 +755,12 @@ efx_bist_start(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn		int
+	__checkReturn		efx_rc_t
 efx_bist_poll(
 	__in			efx_nic_t *enp,
 	__in			efx_bist_type_t type,
@@ -771,7 +771,7 @@ efx_bist_poll(
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_phy_ops_t *epop = epp->ep_epop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 
@@ -794,7 +794,7 @@ efx_bist_poll(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }

@@ -39,14 +39,15 @@ __FBSDID("$FreeBSD$");
 #if EFSYS_OPT_HUNTINGTON
 
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_init_rxq(
 	__in		efx_nic_t *enp,
 	__in		uint32_t size,
 	__in		uint32_t target_evq,
 	__in		uint32_t label,
 	__in		uint32_t instance,
-	__in		efsys_mem_t *esmp)
+	__in		efsys_mem_t *esmp,
+	__in		boolean_t disable_scatter)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[
@@ -56,7 +57,7 @@ efx_mcdi_init_rxq(
 	int i;
 	efx_qword_t *dma_addr;
 	uint64_t addr;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(size, <=, EFX_RXQ_MAXNDESCS);
 
@@ -71,12 +72,13 @@ efx_mcdi_init_rxq(
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_IN_TARGET_EVQ, target_evq);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_IN_LABEL, label);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_IN_INSTANCE, instance);
-	MCDI_IN_POPULATE_DWORD_5(req, INIT_RXQ_IN_FLAGS,
-				    INIT_RXQ_IN_FLAG_BUFF_MODE, 0,
-				    INIT_RXQ_IN_FLAG_HDR_SPLIT, 0,
-				    INIT_RXQ_IN_FLAG_TIMESTAMP, 0,
-				    INIT_RXQ_IN_CRC_MODE, 0,
-				    INIT_RXQ_IN_FLAG_PREFIX, 1);
+	MCDI_IN_POPULATE_DWORD_6(req, INIT_RXQ_IN_FLAGS,
+			    INIT_RXQ_IN_FLAG_BUFF_MODE, 0,
+			    INIT_RXQ_IN_FLAG_HDR_SPLIT, 0,
+			    INIT_RXQ_IN_FLAG_TIMESTAMP, 0,
+			    INIT_RXQ_IN_CRC_MODE, 0,
+			    INIT_RXQ_IN_FLAG_PREFIX, 1,
+			    INIT_RXQ_IN_FLAG_DISABLE_SCATTER, disable_scatter);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_IN_OWNER_ID, 0);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_IN_PORT_ID, EVB_PORT_ID_ASSIGNED);
 
@@ -102,12 +104,12 @@ efx_mcdi_init_rxq(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_fini_rxq(
 	__in		efx_nic_t *enp,
 	__in		uint32_t instance)
@@ -115,7 +117,7 @@ efx_mcdi_fini_rxq(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_FINI_RXQ_IN_LEN,
 			    MC_CMD_FINI_RXQ_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FINI_RXQ;
@@ -136,13 +138,13 @@ efx_mcdi_fini_rxq(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 #if EFSYS_OPT_RX_SCALE
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_rss_context_alloc(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *rss_contextp)
@@ -151,7 +153,7 @@ efx_mcdi_rss_context_alloc(
 	uint8_t payload[MAX(MC_CMD_RSS_CONTEXT_ALLOC_IN_LEN,
 			    MC_CMD_RSS_CONTEXT_ALLOC_OUT_LEN)];
 	uint32_t rss_context;
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_RSS_CONTEXT_ALLOC;
@@ -194,14 +196,14 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 #endif /* EFSYS_OPT_RX_SCALE */
 
 #if EFSYS_OPT_RX_SCALE
-static	int
+static			efx_rc_t
 efx_mcdi_rss_context_free(
 	__in		efx_nic_t *enp,
 	__in		uint32_t rss_context)
@@ -209,7 +211,7 @@ efx_mcdi_rss_context_free(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_RSS_CONTEXT_FREE_IN_LEN,
 			    MC_CMD_RSS_CONTEXT_FREE_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	if (rss_context == HUNTINGTON_RSS_CONTEXT_INVALID) {
 		rc = EINVAL;
@@ -237,14 +239,14 @@ efx_mcdi_rss_context_free(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 #endif /* EFSYS_OPT_RX_SCALE */
 
 #if EFSYS_OPT_RX_SCALE
-static	int
+static			efx_rc_t
 efx_mcdi_rss_context_set_flags(
 	__in		efx_nic_t *enp,
 	__in		uint32_t rss_context,
@@ -253,7 +255,7 @@ efx_mcdi_rss_context_set_flags(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_LEN,
 			    MC_CMD_RSS_CONTEXT_SET_FLAGS_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	if (rss_context == HUNTINGTON_RSS_CONTEXT_INVALID) {
 		rc = EINVAL;
@@ -292,14 +294,14 @@ efx_mcdi_rss_context_set_flags(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 #endif /* EFSYS_OPT_RX_SCALE */
 
 #if EFSYS_OPT_RX_SCALE
-static	int
+static			efx_rc_t
 efx_mcdi_rss_context_set_key(
 	__in		efx_nic_t *enp,
 	__in		uint32_t rss_context,
@@ -309,7 +311,7 @@ efx_mcdi_rss_context_set_key(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_RSS_CONTEXT_SET_KEY_IN_LEN,
 			    MC_CMD_RSS_CONTEXT_SET_KEY_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	if (rss_context == HUNTINGTON_RSS_CONTEXT_INVALID) {
 		rc = EINVAL;
@@ -349,14 +351,14 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 #endif /* EFSYS_OPT_RX_SCALE */
 
 #if EFSYS_OPT_RX_SCALE
-static	int
+static			efx_rc_t
 efx_mcdi_rss_context_set_table(
 	__in		efx_nic_t *enp,
 	__in		uint32_t rss_context,
@@ -405,14 +407,14 @@ efx_mcdi_rss_context_set_table(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 #endif /* EFSYS_OPT_RX_SCALE */
 
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_rx_init(
 	__in		efx_nic_t *enp)
 {
@@ -441,13 +443,13 @@ hunt_rx_init(
 }
 
 #if EFSYS_OPT_RX_HDR_SPLIT
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_rx_hdr_split_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int hdr_buf_size,
 	__in		unsigned int pld_buf_size)
 {
-	int rc;
+	efx_rc_t rc;
 
 	/* FIXME */
 	_NOTE(ARGUNUSED(enp, hdr_buf_size, pld_buf_size))
@@ -460,14 +462,14 @@ hunt_rx_hdr_split_enable(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 #endif	/* EFSYS_OPT_RX_HDR_SPLIT */
 
 #if EFSYS_OPT_RX_SCATTER
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_rx_scatter_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int buf_size)
@@ -478,14 +480,14 @@ hunt_rx_scatter_enable(
 #endif	/* EFSYS_OPT_RX_SCATTER */
 
 #if EFSYS_OPT_RX_SCALE
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
 	__in		efx_rx_hash_alg_t alg,
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert)
 {
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(alg, ==, EFX_RX_HASHALG_TOEPLITZ);
 	EFSYS_ASSERT3U(insert, ==, B_TRUE);
@@ -511,20 +513,20 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 #endif /* EFSYS_OPT_RX_SCALE */
 
 #if EFSYS_OPT_RX_SCALE
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_rx_scale_key_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n)
 {
-	int rc;
+	efx_rc_t rc;
 
 	if (enp->en_rss_support == EFX_RX_SCALE_UNAVAILABLE) {
 		rc = ENOTSUP;
@@ -540,20 +542,20 @@ hunt_rx_scale_key_set(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 #endif /* EFSYS_OPT_RX_SCALE */
 
 #if EFSYS_OPT_RX_SCALE
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n)
 {
-	int rc;
+	efx_rc_t rc;
 
 	if (enp->en_rss_support == EFX_RX_SCALE_UNAVAILABLE) {
 		rc = ENOTSUP;
@@ -569,7 +571,7 @@ hunt_rx_scale_tbl_set(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -644,12 +646,12 @@ hunt_rx_qpush(
 			    erp->er_index, &dword, B_FALSE);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_rx_qflush(
 	__in	efx_rxq_t *erp)
 {
 	efx_nic_t *enp = erp->er_enp;
-	int rc;
+	efx_rc_t rc;
 
 	if ((rc = efx_mcdi_fini_rxq(enp, erp->er_index)) != 0)
 		goto fail1;
@@ -657,7 +659,7 @@ hunt_rx_qflush(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -671,7 +673,7 @@ hunt_rx_qenable(
 	/* FIXME */
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_rx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
@@ -684,7 +686,8 @@ hunt_rx_qcreate(
 	__in		efx_rxq_t *erp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	int rc;
+	efx_rc_t rc;
+	boolean_t disable_scatter;
 
 	_NOTE(ARGUNUSED(erp))
 
@@ -704,14 +707,21 @@ hunt_rx_qcreate(
 		goto fail2;
 	}
 
+	/* Scatter can only be disabled if the firmware supports doing so */
+	if ((type != EFX_RXQ_TYPE_SCATTER) &&
+	    enp->en_nic_cfg.enc_rx_disable_scatter_supported) {
+		disable_scatter = B_TRUE;
+	} else {
+		disable_scatter = B_FALSE;
+	}
+
 	/*
-	 * FIXME: Siena code handles different queue types (default, header
-	 * split, scatter); we'll need to do something more here later, but
-	 * all that stuff is TBD for now.
+	 * Note: EFX_RXQ_TYPE_SPLIT_HEADER and EFX_RXQ_TYPE_SPLIT_PAYLOAD are
+	 * not supported here.
 	 */
 
 	if ((rc = efx_mcdi_init_rxq(enp, n, eep->ee_index, label, index,
-	    esmp)) != 0)
+	    esmp, disable_scatter)) != 0)
 		goto fail3;
 
 	erp->er_eep = eep;
@@ -726,7 +736,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }

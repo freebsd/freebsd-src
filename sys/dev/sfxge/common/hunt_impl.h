@@ -55,7 +55,7 @@ extern "C" {
 
 /* EV */
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_ev_init(
 	__in		efx_nic_t *enp);
 
@@ -63,7 +63,7 @@ hunt_ev_init(
 hunt_ev_fini(
 	__in		efx_nic_t *enp);
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_ev_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
@@ -76,7 +76,7 @@ hunt_ev_qcreate(
 hunt_ev_qdestroy(
 	__in		efx_evq_t *eep);
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_ev_qprime(
 	__in		efx_evq_t *eep,
 	__in		unsigned int count);
@@ -86,7 +86,7 @@ hunt_ev_qpost(
 	__in	efx_evq_t *eep,
 	__in	uint16_t data);
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_ev_qmoderate(
 	__in		efx_evq_t *eep,
 	__in		unsigned int us);
@@ -111,7 +111,7 @@ hunt_ev_rxlabel_fini(
 
 /* INTR */
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_intr_init(
 	__in		efx_nic_t *enp,
 	__in		efx_intr_type_t type,
@@ -129,7 +129,7 @@ hunt_intr_disable(
 hunt_intr_disable_unlocked(
 	__in		efx_nic_t *enp);
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_intr_trigger(
 	__in		efx_nic_t *enp,
 	__in		unsigned int level);
@@ -140,38 +140,38 @@ hunt_intr_fini(
 
 /* NIC */
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_nic_probe(
 	__in		efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_nic_set_drv_limits(
 	__inout		efx_nic_t *enp,
 	__in		efx_drv_limits_t *edlp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_nic_get_vi_pool(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *vi_countp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_nic_get_bar_region(
 	__in		efx_nic_t *enp,
 	__in		efx_nic_region_t region,
 	__out		uint32_t *offsetp,
 	__out		size_t *sizep);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_nic_reset(
 	__in		efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_nic_init(
 	__in		efx_nic_t *enp);
 
 #if EFSYS_OPT_DIAG
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_nic_register_test(
 	__in		efx_nic_t *enp);
 
@@ -188,29 +188,29 @@ hunt_nic_unprobe(
 
 /* MAC */
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_mac_poll(
 	__in		efx_nic_t *enp,
 	__out		efx_link_mode_t *link_modep);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_mac_up(
 	__in		efx_nic_t *enp,
 	__out		boolean_t *mac_upp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_mac_addr_set(
 	__in	efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_mac_reconfigure(
 	__in	efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_mac_multicast_list_set(
 	__in				efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_mac_filter_default_rxq_set(
 	__in		efx_nic_t *enp,
 	__in		efx_rxq_t *erp,
@@ -222,7 +222,7 @@ hunt_mac_filter_default_rxq_clear(
 
 #if EFSYS_OPT_LOOPBACK
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_mac_loopback_set(
 	__in		efx_nic_t *enp,
 	__in		efx_link_mode_t link_mode,
@@ -232,12 +232,12 @@ hunt_mac_loopback_set(
 
 #if EFSYS_OPT_MAC_STATS
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 hunt_mac_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_MAC_NSTATS)	efsys_stat_t *stat,
-	__out_opt			uint32_t *generationp);
+	__inout_ecount(EFX_MAC_NSTATS)	efsys_stat_t *stat,
+	__inout_opt			uint32_t *generationp);
 
 #endif	/* EFSYS_OPT_MAC_STATS */
 
@@ -246,7 +246,7 @@ hunt_mac_stats_update(
 
 #if EFSYS_OPT_MCDI
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_mcdi_init(
 	__in		efx_nic_t *enp,
 	__in		const efx_mcdi_transport_t *mtp);
@@ -272,17 +272,22 @@ hunt_mcdi_request_copyout(
 	__in		efx_nic_t *enp,
 	__in		efx_mcdi_req_t *emrp);
 
-extern			int
+extern			efx_rc_t
 hunt_mcdi_poll_reboot(
 	__in		efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_mcdi_fw_update_supported(
 	__in		efx_nic_t *enp,
 	__out		boolean_t *supportedp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_mcdi_macaddr_change_supported(
+	__in		efx_nic_t *enp,
+	__out		boolean_t *supportedp);
+
+extern	__checkReturn	efx_rc_t
+hunt_mcdi_link_control_supported(
 	__in		efx_nic_t *enp,
 	__out		boolean_t *supportedp);
 
@@ -292,16 +297,16 @@ hunt_mcdi_macaddr_change_supported(
 
 #if EFSYS_OPT_NVRAM || EFSYS_OPT_VPD
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_nvram_buf_read_tlv(
 	__in				efx_nic_t *enp,
-	__in_bcount(partn_size)		caddr_t partn_data,
-	__in				size_t partn_size,
+	__in_bcount(max_seg_size)	caddr_t seg_data,
+	__in				size_t max_seg_size,
 	__in				uint32_t tag,
 	__deref_out_bcount_opt(*sizep)	caddr_t *datap,
 	__out				size_t *sizep);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_nvram_buf_write_tlv(
 	__inout_bcount(partn_size)	caddr_t partn_data,
 	__in				size_t partn_size,
@@ -310,7 +315,7 @@ hunt_nvram_buf_write_tlv(
 	__in				size_t tag_size,
 	__out				size_t *total_lengthp);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_nvram_partn_read_tlv(
 	__in				efx_nic_t *enp,
 	__in				uint32_t partn,
@@ -318,7 +323,7 @@ hunt_nvram_partn_read_tlv(
 	__deref_out_bcount_opt(*sizep)	caddr_t *datap,
 	__out				size_t *sizep);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_nvram_partn_write_tlv(
 	__in		   	efx_nic_t *enp,
 	__in		    	uint32_t partn,
@@ -326,18 +331,27 @@ hunt_nvram_partn_write_tlv(
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
+hunt_nvram_partn_write_segment_tlv(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in			uint32_t tag,
+	__in_bcount(size)	caddr_t data,
+	__in			size_t size,
+	__in			boolean_t all_segments);
+
+extern	__checkReturn		efx_rc_t
 hunt_nvram_partn_size(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn,
 	__out			size_t *sizep);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_nvram_partn_lock(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_nvram_partn_read(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn,
@@ -345,14 +359,14 @@ hunt_nvram_partn_read(
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_nvram_partn_erase(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn,
 	__in			unsigned int offset,
 	__in			size_t size);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_nvram_partn_write(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn,
@@ -371,32 +385,32 @@ hunt_nvram_partn_unlock(
 
 #if EFSYS_OPT_DIAG
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_nvram_test(
 	__in			efx_nic_t *enp);
 
 #endif	/* EFSYS_OPT_DIAG */
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_nvram_size(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__out			size_t *sizep);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_nvram_get_version(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__out			uint32_t *subtypep,
 	__out_ecount(4)		uint16_t version[4]);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_nvram_rw_start(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__out			size_t *pref_chunkp);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_nvram_read_chunk(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
@@ -404,12 +418,12 @@ hunt_nvram_read_chunk(
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size);
 
-extern	 __checkReturn		int
+extern	 __checkReturn		efx_rc_t
 hunt_nvram_erase(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_nvram_write_chunk(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
@@ -422,13 +436,13 @@ hunt_nvram_rw_finish(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_nvram_partn_set_version(
 	__in			efx_nic_t *enp,
 	__in			unsigned int partn,
 	__in_ecount(4)		uint16_t version[4]);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_nvram_set_version(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
@@ -456,36 +470,36 @@ hunt_phy_link_ev(
 	__in		efx_qword_t *eqp,
 	__out		efx_link_mode_t *link_modep);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_phy_get_link(
 	__in		efx_nic_t *enp,
 	__out		hunt_link_state_t *hlsp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_phy_power(
 	__in		efx_nic_t *enp,
 	__in		boolean_t on);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_phy_reconfigure(
 	__in		efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_phy_verify(
 	__in		efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_phy_oui_get(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *ouip);
 
 #if EFSYS_OPT_PHY_STATS
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 hunt_phy_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_PHY_NSTATS)	uint32_t *stat);
+	__inout_ecount(EFX_PHY_NSTATS)	uint32_t *stat);
 
 #endif	/* EFSYS_OPT_PHY_STATS */
 
@@ -500,14 +514,14 @@ hunt_phy_prop_name(
 
 #endif	/* EFSYS_OPT_NAMES */
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_phy_prop_get(
 	__in		efx_nic_t *enp,
 	__in		unsigned int id,
 	__in		uint32_t flags,
 	__out		uint32_t *valp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_phy_prop_set(
 	__in		efx_nic_t *enp,
 	__in		unsigned int id,
@@ -517,16 +531,16 @@ hunt_phy_prop_set(
 
 #if EFSYS_OPT_BIST
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_bist_enable_offline(
 	__in			efx_nic_t *enp);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_bist_start(
 	__in			efx_nic_t *enp,
 	__in			efx_bist_type_t type);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_bist_poll(
 	__in			efx_nic_t *enp,
 	__in			efx_bist_type_t type,
@@ -549,7 +563,7 @@ hunt_bist_stop(
 
 #if EFSYS_OPT_DIAG
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_sram_test(
 	__in		efx_nic_t *enp,
 	__in		efx_sram_pattern_fn_t func);
@@ -559,7 +573,7 @@ hunt_sram_test(
 
 /* TX */
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_tx_init(
 	__in		efx_nic_t *enp);
 
@@ -567,7 +581,7 @@ extern			void
 hunt_tx_fini(
 	__in		efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_tx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
@@ -584,7 +598,7 @@ extern		void
 hunt_tx_qdestroy(
 	__in		efx_txq_t *etp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_tx_qpost(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_buffer_t *eb,
@@ -598,12 +612,12 @@ hunt_tx_qpush(
 	__in		unsigned int added,
 	__in		unsigned int pushed);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_tx_qpace(
 	__in		efx_txq_t *etp,
 	__in		unsigned int ns);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_tx_qflush(
 	__in		efx_txq_t *etp);
 
@@ -611,7 +625,7 @@ extern			void
 hunt_tx_qenable(
 	__in		efx_txq_t *etp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_tx_qpio_enable(
 	__in		efx_txq_t *etp);
 
@@ -619,21 +633,21 @@ extern			void
 hunt_tx_qpio_disable(
 	__in		efx_txq_t *etp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_tx_qpio_write(
 	__in			efx_txq_t *etp,
 	__in_ecount(buf_length)	uint8_t *buffer,
 	__in			size_t buf_length,
 	__in                    size_t pio_buf_offset);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_tx_qpio_post(
 	__in			efx_txq_t *etp,
 	__in			size_t pkt_length,
 	__in			unsigned int completed,
 	__inout			unsigned int *addedp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_tx_qdesc_post(
 	__in		efx_txq_t *etp,
 	__in_ecount(n)	efx_desc_t *ed,
@@ -714,7 +728,7 @@ typedef uint32_t	efx_piobuf_handle_t;
 
 #define	EFX_PIOBUF_HANDLE_INVALID	((efx_piobuf_handle_t) -1)
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_nic_pio_alloc(
 	__inout		efx_nic_t *enp,
 	__out		uint32_t *bufnump,
@@ -723,19 +737,19 @@ hunt_nic_pio_alloc(
 	__out		uint32_t *offsetp,
 	__out		size_t *sizep);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_nic_pio_free(
 	__inout		efx_nic_t *enp,
 	__in		uint32_t bufnum,
 	__in		uint32_t blknum);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_nic_pio_link(
 	__inout		efx_nic_t *enp,
 	__in		uint32_t vi_index,
 	__in		efx_piobuf_handle_t handle);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_nic_pio_unlink(
 	__inout		efx_nic_t *enp,
 	__in		uint32_t vi_index);
@@ -745,48 +759,48 @@ hunt_nic_pio_unlink(
 
 #if EFSYS_OPT_VPD
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_vpd_init(
 	__in			efx_nic_t *enp);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_vpd_size(
 	__in			efx_nic_t *enp,
 	__out			size_t *sizep);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_vpd_read(
 	__in			efx_nic_t *enp,
 	__out_bcount(size)	caddr_t data,
 	__in			size_t size);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_vpd_verify(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_vpd_reinit(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_vpd_get(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size,
 	__inout			efx_vpd_value_t *evvp);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_vpd_set(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
 	__in			size_t size,
 	__in			efx_vpd_value_t *evvp);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 hunt_vpd_next(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
@@ -794,7 +808,7 @@ hunt_vpd_next(
 	__out			efx_vpd_value_t *evvp,
 	__inout			unsigned int *contp);
 
-extern __checkReturn		int
+extern __checkReturn		efx_rc_t
 hunt_vpd_write(
 	__in			efx_nic_t *enp,
 	__in_bcount(size)	caddr_t data,
@@ -809,12 +823,12 @@ hunt_vpd_fini(
 
 /* RX */
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_rx_init(
 	__in		efx_nic_t *enp);
 
 #if EFSYS_OPT_RX_HDR_SPLIT
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_rx_hdr_split_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int hdr_buf_size,
@@ -822,7 +836,7 @@ hunt_rx_hdr_split_enable(
 #endif	/* EFSYS_OPT_RX_HDR_SPLIT */
 
 #if EFSYS_OPT_RX_SCATTER
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_rx_scatter_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int buf_size);
@@ -831,20 +845,20 @@ hunt_rx_scatter_enable(
 
 #if EFSYS_OPT_RX_SCALE
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
 	__in		efx_rx_hash_alg_t alg,
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_rx_scale_key_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
 	__in_ecount(n)	unsigned int *table,
@@ -867,7 +881,7 @@ hunt_rx_qpush(
 	__in		unsigned int added,
 	__inout		unsigned int *pushedp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_rx_qflush(
 	__in		efx_rxq_t *erp);
 
@@ -875,7 +889,7 @@ extern		void
 hunt_rx_qenable(
 	__in		efx_rxq_t *erp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_rx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
@@ -931,7 +945,7 @@ typedef struct hunt_filter_table_s {
 	uint32_t 		hft_mulcst_filter_count;
 } hunt_filter_table_t;
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_filter_init(
 	__in		efx_nic_t *enp);
 
@@ -939,28 +953,28 @@ hunt_filter_init(
 hunt_filter_fini(
 	__in		efx_nic_t *enp);
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_filter_restore(
 	__in		efx_nic_t *enp);
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_filter_add(
 	__in		efx_nic_t *enp,
 	__inout		efx_filter_spec_t *spec,
 	__in		boolean_t may_replace);
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_filter_delete(
 	__in		efx_nic_t *enp,
 	__inout		efx_filter_spec_t *spec);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_filter_supported_filters(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *list,
 	__out		size_t *length);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 hunt_filter_reconfigure(
 	__in				efx_nic_t *enp,
 	__in_ecount(6)			uint8_t const *mac_addr,
@@ -990,7 +1004,7 @@ hunt_filter_default_rxq_clear(
 
 #endif /* EFSYS_OPT_FILTER */
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 hunt_pktfilter_set(
 	__in				efx_nic_t *enp,
 	__in				boolean_t unicst,
@@ -998,7 +1012,7 @@ hunt_pktfilter_set(
 
 #if EFSYS_OPT_MCAST_FILTER_LIST
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 hunt_pktfilter_mcast_set(
 	__in				efx_nic_t *enp,
 	__in				uint8_t const *addrs,
@@ -1006,17 +1020,17 @@ hunt_pktfilter_mcast_set(
 
 #endif /* EFSYS_OPT_MCAST_FILTER_LIST */
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 hunt_pktfilter_mcast_all(
 	__in				efx_nic_t *enp);
 
-extern	__checkReturn			int
+extern	__checkReturn			efx_rc_t
 efx_mcdi_get_function_info(
 	__in				efx_nic_t *enp,
 	__out				uint32_t *pfp,
 	__out_opt			uint32_t *vfp);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_mcdi_privilege_mask(
 	__in			efx_nic_t *enp,
 	__in			uint32_t pf,

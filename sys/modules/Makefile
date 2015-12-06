@@ -682,7 +682,7 @@ _cp=		cp
 _elink=		elink
 _glxiic=	glxiic
 _glxsb=		glxsb
-_ibcs2=		ibcs2
+#_ibcs2=		ibcs2
 _ie=		ie
 _mse=		mse
 _ncr=		ncr
@@ -770,6 +770,12 @@ afterinstall:
 .endif
 
 .include "${SYSDIR}/conf/config.mk"
+
+# Use sys/conf/kmod.mk's MPATH to avoid redundantly running in every subdir.
+.if !defined(__MPATH)
+__MPATH!=find ${SYSDIR:tA}/ -name \*_if.m
+.export __MPATH
+.endif
 
 SUBDIR:= ${SUBDIR:u:O}
 

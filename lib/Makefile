@@ -71,6 +71,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libmp} \
 	libmt \
 	${_libnandfs} \
+	lib80211 \
 	libnetbsd \
 	${_libnetgraph} \
 	${_libngatm} \
@@ -311,11 +312,6 @@ _libunbound=	libunbound
 .if ${MK_USB} != "no"
 _libusbhid=	libusbhid
 _libusb=	libusb
-.endif
-
-.if !defined(LIBRARIES_ONLY)
-afterinstall:
-	${INSTALL_SYMLINK} ../include ${DESTDIR}/usr/lib/include
 .endif
 
 .if !make(install)

@@ -408,7 +408,7 @@ distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 		    ${METALOG.add} ; \
 	done; true
 .endif
-	${INSTALL_SYMLINK} ${SRCTOP:C/^\///}/sys ${DESTDIR}/sys
+	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR}/sys
 .if ${MK_MAN} != "no"
 	cd ${DESTDIR}${SHAREDIR}/man; \
 	for mandir in man*; do \

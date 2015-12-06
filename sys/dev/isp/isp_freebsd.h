@@ -38,6 +38,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+#include <sys/rman.h>
 #include <sys/sysctl.h>
 
 #include <sys/proc.h>
@@ -228,9 +229,9 @@ struct isp_fc {
 	bus_dmamap_t tdmap;
 	uint64_t def_wwpn;
 	uint64_t def_wwnn;
-	uint32_t loop_down_time;
-	uint32_t loop_down_limit;
-	uint32_t gone_device_time;
+	time_t loop_down_time;
+	int loop_down_limit;
+	int gone_device_time;
 	/*
 	 * Per target/lun info- just to keep a per-ITL nexus crn count
 	 */
@@ -239,15 +240,13 @@ struct isp_fc {
 	uint32_t
 		simqfrozen	: 3,
 		default_id	: 8,
-		hysteresis	: 8,
 		def_role	: 2,	/* default role */
 		gdt_running	: 1,
 		loop_dead	: 1,
+		loop_seen_once	: 1,
 		fcbsy		: 1,
 		ready		: 1;
-	struct callout ldt;	/* loop down timer */
 	struct callout gdt;	/* gone device timer */
-	struct task ltask;
 	struct task gtask;
 #ifdef	ISP_TARGET_MODE
 	struct tslist lun_hash[LUN_HASH_SIZE];
@@ -288,9 +287,9 @@ struct isposinfo {
 	/*
 	 * DMA related sdtuff
 	 */
-	bus_space_tag_t		bus_tag;
+	struct resource *	regs;
+	struct resource *	regs2;
 	bus_dma_tag_t		dmat;
-	bus_space_handle_t	bus_handle;
 	bus_dma_tag_t		cdmat;
 	bus_dmamap_t		cdmap;
 
@@ -363,8 +362,8 @@ struct isposinfo {
 
 #define	FCP_NEXT_CRN	isp_fcp_next_crn
 #define	isp_lock	isp_osinfo.lock
-#define	isp_bus_tag	isp_osinfo.bus_tag
-#define	isp_bus_handle	isp_osinfo.bus_handle
+#define	isp_regs	isp_osinfo.regs
+#define	isp_regs2	isp_osinfo.regs2
 
 /*
  * Locking macros...
@@ -432,8 +431,7 @@ case SYNC_RESULT:						\
 	   BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);	\
 	break;							\
 case SYNC_REG:							\
-	bus_space_barrier(isp->isp_osinfo.bus_tag,		\
-	    isp->isp_osinfo.bus_handle, offset, size,		\
+	bus_barrier(isp->isp_osinfo.regs, offset, size,		\
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);	\
 	break;							\
 default:							\
@@ -465,8 +463,7 @@ case SYNC_RESULT:						\
 	   isp->isp_osinfo.cdmap, BUS_DMASYNC_POSTWRITE);	\
 	break;							\
 case SYNC_REG:							\
-	bus_space_barrier(isp->isp_osinfo.bus_tag,		\
-	    isp->isp_osinfo.bus_handle, offset, size,		\
+	bus_barrier(isp->isp_osinfo.regs, offset, size,		\
 	    BUS_SPACE_BARRIER_WRITE);				\
 	break;							\
 default:							\
@@ -698,7 +695,6 @@ extern uint64_t isp_default_wwn(ispsoftc_t *, int, int, int);
  * driver global data
  */
 extern int isp_announced;
-extern int isp_fabric_hysteresis;
 extern int isp_loop_down_limit;
 extern int isp_gone_device_time;
 extern int isp_quickboot_time;
