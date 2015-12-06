@@ -1032,12 +1032,20 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	sched_unpin();
 }
 
+/* 4k PTEs -- Chosen to exceed the total size of Broadwell L2 TLB */
+#define	PMAP_INVLPG_THRESHOLD	(4 * 1024 * PAGE_SIZE)
+
 void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	cpuset_t *mask, other_cpus;
 	vm_offset_t addr;
 	u_int cpuid;
+
+	if (eva - sva >= PMAP_INVLPG_THRESHOLD) {
+		pmap_invalidate_all(pmap);
+		return;
+	}
 
 	sched_pin();
 	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
