@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/condvar.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
@@ -70,6 +71,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
+#include <dev/usb/usb_device.h>
 #include "usbdevs.h"
 
 #define USB_DEBUG_VAR urtwn_debug
@@ -265,8 +267,7 @@ static void		urtwn_r88e_fw_reset(struct urtwn_softc *);
 static int		urtwn_fw_loadpage(struct urtwn_softc *, int,
 			    const uint8_t *, int);
 static int		urtwn_load_firmware(struct urtwn_softc *);
-static int		urtwn_r92c_dma_init(struct urtwn_softc *);
-static int		urtwn_r88e_dma_init(struct urtwn_softc *);
+static int		urtwn_dma_init(struct urtwn_softc *);
 static int		urtwn_mac_init(struct urtwn_softc *);
 static void		urtwn_bb_init(struct urtwn_softc *);
 static void		urtwn_rf_init(struct urtwn_softc *);
@@ -396,7 +397,7 @@ urtwn_attach(device_t self)
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct urtwn_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t iface_index, bands;
+	uint8_t bands;
 	int error;
 
 	device_set_usb_desc(self);
@@ -410,9 +411,9 @@ urtwn_attach(device_t self)
 	callout_init(&sc->sc_watchdog_ch, 0);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
 
-	iface_index = URTWN_IFACE_INDEX;
-	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
-	    urtwn_config, URTWN_N_TRANSFER, sc, &sc->sc_mtx);
+	sc->sc_iface_index = URTWN_IFACE_INDEX;
+	error = usbd_transfer_setup(uaa->device, &sc->sc_iface_index,
+	    sc->sc_xfer, urtwn_config, URTWN_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(self, "could not allocate USB transfers, "
 		    "err=%s\n", usbd_errstr(error));
@@ -1471,7 +1472,6 @@ urtwn_read_rom(struct urtwn_softc *sc)
 
 	sc->sc_rf_write = urtwn_r92c_rf_write;
 	sc->sc_power_on = urtwn_r92c_power_on;
-	sc->sc_dma_init = urtwn_r92c_dma_init;
 
 	return (0);
 }
@@ -1503,7 +1503,6 @@ urtwn_r88e_read_rom(struct urtwn_softc *sc)
 
 	sc->sc_rf_write = urtwn_r88e_rf_write;
 	sc->sc_power_on = urtwn_r88e_power_on;
-	sc->sc_dma_init = urtwn_r88e_dma_init;
 
 	return (0);
 }
@@ -2811,86 +2810,103 @@ fail:
 	return (error);
 }
 
-static __inline int
+static int
 urtwn_dma_init(struct urtwn_softc *sc)
 {
+	struct usb_endpoint *ep, *ep_end;
 	usb_error_t usb_err;
-	int error;
+	uint32_t reg;
+	int hashq, hasnq, haslq, nqueues, ntx;
+	int error, pagecount, npubqpages, nqpages, nrempages, tx_boundary;
 
 	/* Initialize LLT table. */
 	error = urtwn_llt_init(sc);
 	if (error != 0)
 		return (error);
 
-	error = sc->sc_dma_init(sc);
-	if (error != 0)
-		return (error);
-
-	/* Set Tx/Rx transfer page size. */
-	usb_err = urtwn_write_1(sc, R92C_PBP,
-	    SM(R92C_PBP_PSRX, R92C_PBP_128) |
-	    SM(R92C_PBP_PSTX, R92C_PBP_128));
-	if (usb_err != USB_ERR_NORMAL_COMPLETION)
+	/* Determine the number of bulk-out pipes. */
+	ntx = 0;
+	ep = sc->sc_udev->endpoints;
+	ep_end = sc->sc_udev->endpoints + sc->sc_udev->endpoints_max;
+	for (; ep != ep_end; ep++) {
+		if ((ep->edesc == NULL) ||
+		    (ep->iface_index != sc->sc_iface_index))
+			continue;
+		if (UE_GET_DIR(ep->edesc->bEndpointAddress) == UE_DIR_OUT)
+			ntx++;
+	}
+	if (ntx == 0) {
+		device_printf(sc->sc_dev,
+		    "%d: invalid number of Tx bulk pipes\n", ntx);
 		return (EIO);
-
-	return (0);
-}
-
-static int
-urtwn_r92c_dma_init(struct urtwn_softc *sc)
-{
-	int hashq, hasnq, haslq, nqueues, nqpages, nrempages;
-	usb_error_t error;
-	uint32_t reg;
+	}
 
 	/* Get Tx queues to USB endpoints mapping. */
-	hashq = hasnq = haslq = 0;
-	reg = urtwn_read_2(sc, R92C_USB_EP + 1);
-	DPRINTFN(2, "USB endpoints mapping 0x%x\n", reg);
-	if (MS(reg, R92C_USB_EP_HQ) != 0)
-		hashq = 1;
-	if (MS(reg, R92C_USB_EP_NQ) != 0)
-		hasnq = 1;
-	if (MS(reg, R92C_USB_EP_LQ) != 0)
-		haslq = 1;
+	hashq = hasnq = haslq = nqueues = 0;
+	switch (ntx) {
+	case 1: hashq = 1; break;
+	case 2: hashq = hasnq = 1; break;
+	case 3: case 4: hashq = hasnq = haslq = 1; break;
+	}
 	nqueues = hashq + hasnq + haslq;
 	if (nqueues == 0)
 		return (EIO);
-	/* Get the number of pages for each queue. */
-	nqpages = (R92C_TX_PAGE_COUNT - R92C_PUBQ_NPAGES) / nqueues;
-	/* The remaining pages are assigned to the high priority queue. */
-	nrempages = (R92C_TX_PAGE_COUNT - R92C_PUBQ_NPAGES) % nqueues;
+
+	npubqpages = nqpages = nrempages = pagecount = 0;
+	if (sc->chip & URTWN_CHIP_88E)
+		tx_boundary = R88E_TX_PAGE_BOUNDARY;
+	else {
+		pagecount = R92C_TX_PAGE_COUNT;
+		npubqpages = R92C_PUBQ_NPAGES;
+		tx_boundary = R92C_TX_PAGE_BOUNDARY;
+	}
 
 	/* Set number of pages for normal priority queue. */
-	error = urtwn_write_1(sc, R92C_RQPN_NPQ, hasnq ? nqpages : 0);
-	if (error != USB_ERR_NORMAL_COMPLETION)
-		return (EIO);
-	error = urtwn_write_4(sc, R92C_RQPN,
-	    /* Set number of pages for public queue. */
-	    SM(R92C_RQPN_PUBQ, R92C_PUBQ_NPAGES) |
-	    /* Set number of pages for high priority queue. */
-	    SM(R92C_RQPN_HPQ, hashq ? nqpages + nrempages : 0) |
-	    /* Set number of pages for low priority queue. */
-	    SM(R92C_RQPN_LPQ, haslq ? nqpages : 0) |
-	    /* Load values. */
-	    R92C_RQPN_LD);
-	if (error != USB_ERR_NORMAL_COMPLETION)
-		return (EIO);
+	if (sc->chip & URTWN_CHIP_88E) {
+		usb_err = urtwn_write_2(sc, R92C_RQPN_NPQ, 0xd);
+		if (usb_err != USB_ERR_NORMAL_COMPLETION)
+			return (EIO);
+		usb_err = urtwn_write_4(sc, R92C_RQPN, 0x808e000d);
+		if (usb_err != USB_ERR_NORMAL_COMPLETION)
+			return (EIO);
+	} else {
+		/* Get the number of pages for each queue. */
+		nqpages = (pagecount - npubqpages) / nqueues;
+		/* 
+		 * The remaining pages are assigned to the high priority
+		 * queue.
+		 */
+		nrempages = (pagecount - npubqpages) % nqueues;
+		usb_err = urtwn_write_1(sc, R92C_RQPN_NPQ, hasnq ? nqpages : 0);
+		if (usb_err != USB_ERR_NORMAL_COMPLETION)
+			return (EIO);
+		usb_err = urtwn_write_4(sc, R92C_RQPN,
+		    /* Set number of pages for public queue. */
+		    SM(R92C_RQPN_PUBQ, npubqpages) |
+		    /* Set number of pages for high priority queue. */
+		    SM(R92C_RQPN_HPQ, hashq ? nqpages + nrempages : 0) |
+		    /* Set number of pages for low priority queue. */
+		    SM(R92C_RQPN_LPQ, haslq ? nqpages : 0) |
+		    /* Load values. */
+		    R92C_RQPN_LD);
+		if (usb_err != USB_ERR_NORMAL_COMPLETION)
+			return (EIO);
+	}
 
-	error = urtwn_write_1(sc, R92C_TXPKTBUF_BCNQ_BDNY, R92C_TX_PAGE_BOUNDARY);
-	if (error != USB_ERR_NORMAL_COMPLETION)
+	usb_err = urtwn_write_1(sc, R92C_TXPKTBUF_BCNQ_BDNY, tx_boundary);
+	if (usb_err != USB_ERR_NORMAL_COMPLETION)
 		return (EIO);
-	error = urtwn_write_1(sc, R92C_TXPKTBUF_MGQ_BDNY, R92C_TX_PAGE_BOUNDARY);
-	if (error != USB_ERR_NORMAL_COMPLETION)
+	usb_err = urtwn_write_1(sc, R92C_TXPKTBUF_MGQ_BDNY, tx_boundary);
+	if (usb_err != USB_ERR_NORMAL_COMPLETION)
 		return (EIO);
-	error = urtwn_write_1(sc, R92C_TXPKTBUF_WMAC_LBK_BF_HD, R92C_TX_PAGE_BOUNDARY);
-	if (error != USB_ERR_NORMAL_COMPLETION)
+	usb_err = urtwn_write_1(sc, R92C_TXPKTBUF_WMAC_LBK_BF_HD, tx_boundary);
+	if (usb_err != USB_ERR_NORMAL_COMPLETION)
 		return (EIO);
-	error = urtwn_write_1(sc, R92C_TRXFF_BNDY, R92C_TX_PAGE_BOUNDARY);
-	if (error != USB_ERR_NORMAL_COMPLETION)
+	usb_err = urtwn_write_1(sc, R92C_TRXFF_BNDY, tx_boundary);
+	if (usb_err != USB_ERR_NORMAL_COMPLETION)
 		return (EIO);
-	error = urtwn_write_1(sc, R92C_TDECTRL + 1, R92C_TX_PAGE_BOUNDARY);
-	if (error != USB_ERR_NORMAL_COMPLETION)
+	usb_err = urtwn_write_1(sc, R92C_TDECTRL + 1, tx_boundary);
+	if (usb_err != USB_ERR_NORMAL_COMPLETION)
 		return (EIO);
 
 	/* Set queue to USB pipe mapping. */
@@ -2913,72 +2929,21 @@ urtwn_r92c_dma_init(struct urtwn_softc *sc)
 			reg |= R92C_TRXDMA_CTRL_QMAP_HQ_LQ;
 	} else
 		reg |= R92C_TRXDMA_CTRL_QMAP_3EP;
-	error = urtwn_write_2(sc, R92C_TRXDMA_CTRL, reg);
-	if (error != USB_ERR_NORMAL_COMPLETION)
+	usb_err = urtwn_write_2(sc, R92C_TRXDMA_CTRL, reg);
+	if (usb_err != USB_ERR_NORMAL_COMPLETION)
 		return (EIO);
 
 	/* Set Tx/Rx transfer page boundary. */
-	error = urtwn_write_2(sc, R92C_TRXFF_BNDY + 2, 0x27ff);
-	if (error != USB_ERR_NORMAL_COMPLETION)
+	usb_err = urtwn_write_2(sc, R92C_TRXFF_BNDY + 2,
+	    (sc->chip & URTWN_CHIP_88E) ? 0x23ff : 0x27ff);
+	if (usb_err != USB_ERR_NORMAL_COMPLETION)
 		return (EIO);
 
-	return (0);
-}
-
-static int
-urtwn_r88e_dma_init(struct urtwn_softc *sc)
-{
-	struct usb_interface *iface;
-	uint32_t reg;
-	usb_error_t error;
-	int nqueues;
-
-	/* Get Tx queues to USB endpoints mapping. */
-	iface = usbd_get_iface(sc->sc_udev, 0);
-	nqueues = iface->idesc->bNumEndpoints - 1;
-	if (nqueues == 0)
-		return (EIO);
-
-	/* Set number of pages for normal priority queue. */
-	error = urtwn_write_2(sc, R92C_RQPN_NPQ, 0x000d);
-	if (error != USB_ERR_NORMAL_COMPLETION)
-		return (EIO);
-	error = urtwn_write_4(sc, R92C_RQPN, 0x808e000d);
-	if (error != USB_ERR_NORMAL_COMPLETION)
-		return (EIO);
-
-	error = urtwn_write_1(sc, R92C_TXPKTBUF_BCNQ_BDNY, R88E_TX_PAGE_BOUNDARY);
-	if (error != USB_ERR_NORMAL_COMPLETION)
-		return (EIO);
-	error = urtwn_write_1(sc, R92C_TXPKTBUF_MGQ_BDNY, R88E_TX_PAGE_BOUNDARY);
-	if (error != USB_ERR_NORMAL_COMPLETION)
-		return (EIO);
-	error = urtwn_write_1(sc, R92C_TXPKTBUF_WMAC_LBK_BF_HD, R88E_TX_PAGE_BOUNDARY);
-	if (error != USB_ERR_NORMAL_COMPLETION)
-		return (EIO);
-	error = urtwn_write_1(sc, R92C_TRXFF_BNDY, R88E_TX_PAGE_BOUNDARY);
-	if (error != USB_ERR_NORMAL_COMPLETION)
-		return (EIO);
-	error = urtwn_write_1(sc, R92C_TDECTRL + 1, R88E_TX_PAGE_BOUNDARY);
-	if (error != USB_ERR_NORMAL_COMPLETION)
-		return (EIO);
-
-	/* Set queue to USB pipe mapping. */
-	reg = urtwn_read_2(sc, R92C_TRXDMA_CTRL);
-	reg &= ~R92C_TRXDMA_CTRL_QMAP_M;
-	if (nqueues == 1)
-		reg |= R92C_TRXDMA_CTRL_QMAP_LQ;
-	else if (nqueues == 2)
-		reg |= R92C_TRXDMA_CTRL_QMAP_HQ_NQ;
-	else
-		reg |= R92C_TRXDMA_CTRL_QMAP_3EP;
-	error = urtwn_write_2(sc, R92C_TRXDMA_CTRL, reg);
-	if (error != USB_ERR_NORMAL_COMPLETION)
-		return (EIO);
-
-	/* Set Tx/Rx transfer page boundary. */
-	error = urtwn_write_2(sc, R92C_TRXFF_BNDY + 2, 0x23ff);
-	if (error != USB_ERR_NORMAL_COMPLETION)
+	/* Set Tx/Rx transfer page size. */
+	usb_err = urtwn_write_1(sc, R92C_PBP,
+	    SM(R92C_PBP_PSRX, R92C_PBP_128) |
+	    SM(R92C_PBP_PSTX, R92C_PBP_128));
+	if (usb_err != USB_ERR_NORMAL_COMPLETION)
 		return (EIO);
 
 	return (0);
