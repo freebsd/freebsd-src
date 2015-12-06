@@ -139,6 +139,7 @@ struct urtwn_softc {
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 
+	uint8_t				sc_iface_index;
 	int				ac2idx[WME_NUM_AC];
 	u_int				sc_flags;
 #define URTWN_FLAG_CCK_HIPWR	0x01
@@ -155,7 +156,6 @@ struct urtwn_softc {
 	void				(*sc_rf_write)(struct urtwn_softc *,
 					    int, uint8_t, uint32_t);
 	int				(*sc_power_on)(struct urtwn_softc *);
-	int				(*sc_dma_init)(struct urtwn_softc *);
 
 	uint8_t				board_type;
 	uint8_t				regulatory;
