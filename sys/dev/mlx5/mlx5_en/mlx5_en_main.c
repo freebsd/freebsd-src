@@ -1324,13 +1324,25 @@ static int
 mlx5e_open_tx_cqs(struct mlx5e_channel *c,
     struct mlx5e_channel_param *cparam)
 {
+	u8 tx_moderation_mode;
 	int err;
 	int tc;
 
+	switch (c->priv->params.tx_cq_moderation_mode) {
+	case 0:
+		tx_moderation_mode = MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
+		break;
+	default:
+		if (MLX5_CAP_GEN(c->priv->mdev, cq_period_start_from_cqe))
+			tx_moderation_mode = MLX5_CQ_PERIOD_MODE_START_FROM_CQE;
+		else
+			tx_moderation_mode = MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
+		break;
+	}
 	for (tc = 0; tc < c->num_tc; tc++) {
 		/* open completion queue */
 		err = mlx5e_open_cq(c, &cparam->tx_cq, &c->sq[tc].cq,
-		    &mlx5e_tx_cq_comp, MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
+		    &mlx5e_tx_cq_comp, tx_moderation_mode);
 		if (err)
 			goto err_close_tx_cqs;
 	}
