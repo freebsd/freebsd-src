@@ -489,9 +489,13 @@ setup_nanobsd_etc ( ) (
 	# create diskless marker file
 	touch etc/diskless
 
-	# Make root filesystem R/O by default
 	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 666 etc/defaults/rc.conf
+
+	# Make root filesystem R/O by default
 	echo "root_rw_mount=NO" >> etc/defaults/rc.conf
+	# Disable entropy file, since / is read-only /var/db/entropy should be enough?
+	echo "entropy_file=NO" >> etc/defaults/rc.conf
+
 	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 444 etc/defaults/rc.conf
 
 	# save config file for scripts
