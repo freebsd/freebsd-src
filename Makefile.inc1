@@ -666,7 +666,7 @@ everything:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.4: building everything"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; _PARALLEL_SUBUDIR_OK=1 ${WMAKE} all
+	${_+_}cd ${.CURDIR}; _PARALLEL_SUBDIR_OK=1 ${WMAKE} all
 .if defined(LIB32TMP)
 build32: .PHONY
 	@echo
@@ -2008,14 +2008,14 @@ _prebuild_libs: ${_prebuild_libs:S/$/__L/}
 _generic_libs: ${_generic_libs:S/$/__L/}
 
 # Enable SUBDIR_PARALLEL when not calling 'make all', unless called from
-# 'everything' with _PARALLEL_SUBUDIR_OK set.  This is because it is unlikely
+# 'everything' with _PARALLEL_SUBDIR_OK set.  This is because it is unlikely
 # that running 'make all' from the top-level, especially with a SUBDIR_OVERRIDE
 # or LOCAL_DIRS set, will have a reliable build if SUBDIRs are built in
 # parallel.  This is safe for the world stage of buildworld though since it has
 # already built libraries in a proper order and installed includes into
 # WORLDTMP. Special handling is done for SUBDIR ordering for 'install*' to
 # avoid trashing a system if it crashes mid-install.
-.if !make(all) || defined(_PARALLEL_SUBUDIR_OK)
+.if !make(all) || defined(_PARALLEL_SUBDIR_OK)
 SUBDIR_PARALLEL=
 .endif
 
