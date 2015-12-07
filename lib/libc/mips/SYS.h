@@ -155,3 +155,14 @@ LEAF(__sys_ ## x);							\
 err:									\
 	PIC_TAILCALL(__cerror);						\
 	END(__sys_ ## x)
+
+/* Do a system call where the _ioctl() is also custom */
+#define NO_UNDERSCORE(x)							\
+LEAF(__sys_ ## x);							\
+	PIC_PROLOGUE(__sys_ ## x);					\
+	SYSTRAP(x);							\
+	bne a3,zero,err;						\
+	PIC_RETURN();							\
+err:									\
+	PIC_TAILCALL(__cerror);						\
+	END(__sys_ ## x)

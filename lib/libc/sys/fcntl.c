@@ -40,17 +40,33 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include "libc_private.h"
 
+#ifndef __CHERI_SANDBOX__
 #pragma weak fcntl
 int
 fcntl(int fd, int cmd, ...)
+#else
+__weak_reference(_fcntl, fcntl);
+#pragma weak _fcntl
+int
+_fcntl(int fd, int cmd, ...)
+#endif
 {
 	va_list args;
-	long arg;
+	intptr_t arg;
 
 	va_start(args, cmd);
-	arg = va_arg(args, long);
+	switch (cmd) {
+	case F_GETLK:
+	case F_SETLK:
+	case F_SETLKW:
+		arg = va_arg(args, intptr_t);
+		break;
+	default:
+		arg = va_arg(args, long);
+		break;
+	}
 	va_end(args);
 
-	return (((int (*)(int, int, ...))
+	return (((int (*)(int, int, intptr_t))
 	    __libc_interposing[INTERPOS_fcntl])(fd, cmd, arg));
 }

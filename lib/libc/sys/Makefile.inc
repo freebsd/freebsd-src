@@ -74,8 +74,14 @@ INTERPOSED+= sigaction
 .endif
 
 .if defined(LIBCHERI)
-# ioctl isn't actually interposed, but does need a top level C implementation.
-INTERPOSED+=	ioctl
+NO_UNDERSCORE=	fcntl ioctl open
+.for _nu in ${NO_UNDERSCORE}
+INTERPOSED:=	${INTERPOSED:N${_nu}}
+.endfor
+S_NU+=		${NO_UNDERSCORE:C/^.*$/_&.S/}
+SRCS+=		${NO_UNDERSCORE:S/$/.c/} ${S_NU}
+NOSASM+=	${NO_UNDERSCORE:S/^/.o/}
+OBJS+=		${S_NU:S/.S$/.o/}
 .endif
 
 SRCS+=	${INTERPOSED:S/$/.c/}
@@ -125,6 +131,12 @@ ${SASM}:
 ${SPSEUDO}:
 	printf '#include "compat.h"\n' > ${.TARGET}
 	printf '#include "SYS.h"\nPSEUDO(${.PREFIX:S/_//})\n' \
+	    >> ${.TARGET}
+	printf ${NOTE_GNU_STACK} >>${.TARGET}
+
+${S_NU}:
+	printf '#include "compat.h"\n' > ${.TARGET}
+	printf '#include "SYS.h"\nNO_UNDERSCORE(${.PREFIX:S/_//})\n' \
 	    >> ${.TARGET}
 	printf ${NOTE_GNU_STACK} >>${.TARGET}
 

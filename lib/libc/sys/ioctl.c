@@ -38,10 +38,19 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 __weak_reference(__sys_ioctl, __ioctl);
+#ifdef __CHERI_SANDBOX__
+__weak_reference(_ioctl, ioctl);
+#endif
 
+#ifndef __CHERI_SANDBOX__
 #pragma weak ioctl
 int
 ioctl(int fd, unsigned long com, ...)
+#else
+#pragma weak _ioctl
+int
+_ioctl(int fd, unsigned long com, ...)
+#endif
 {
 	unsigned int size;
 	va_list ap;
