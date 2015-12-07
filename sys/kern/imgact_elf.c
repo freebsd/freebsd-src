@@ -80,6 +80,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/elf.h>
 #include <machine/md_var.h>
+#ifdef __arm__
+#include <machine/acle-compat.h>
+#endif
 
 #define ELF_NOTE_ROUNDSIZE	4
 #define OLD_EI_BRAND	8
@@ -116,7 +119,8 @@ SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW,
     &elf_legacy_coredump, 0, "");
 
 int __elfN(nxstack) =
-#if defined(__amd64__) || defined(__powerpc64__) /* both 64 and 32 bit */
+#if defined(__amd64__) || defined(__powerpc64__) /* both 64 and 32 bit */ || \
+    (defined(__arm__) && __ARM_ARCH >= 7) || defined(__aarch64__)
 	1;
 #else
 	0;
