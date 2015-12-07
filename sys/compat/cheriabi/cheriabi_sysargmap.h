@@ -167,6 +167,7 @@ struct {
 	[CHERIABI_SYS_dup2] = {
 	},
 	[CHERIABI_SYS_fcntl] = {
+		.sam_ptrmask = 0x4
 	},
 	[CHERIABI_SYS_select] = {
 		.sam_ptrmask = 0x2 | 0x4 | 0x8 | 0x10

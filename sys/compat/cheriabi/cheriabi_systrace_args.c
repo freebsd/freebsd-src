@@ -541,7 +541,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct fcntl_args *p = params;
 		iarg[0] = p->fd; /* int */
 		iarg[1] = p->cmd; /* int */
-		iarg[2] = p->arg; /* long */
+		uarg[2] = (intptr_t) p->arg; /* intptr_t */
 		*n_args = 3;
 		break;
 	}
@@ -3948,7 +3948,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "long";
+			p = "intptr_t";
 			break;
 		default:
 			break;
