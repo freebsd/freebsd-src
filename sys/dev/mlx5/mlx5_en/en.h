@@ -50,6 +50,13 @@
 #include <net/ethernet.h>
 #include <sys/buf_ring.h>
 
+#include "opt_rss.h"
+
+#ifdef	RSS
+#include <net/rss_config.h>
+#include <netinet/in_rss.h>
+#endif
+
 #include <machine/bus.h>
 
 #ifdef HAVE_TURBO_LRO
