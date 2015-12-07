@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2006
+.Dd December 7, 2015
 .Dt G_BIO 9
 .Os
 .Sh NAME
@@ -253,7 +253,7 @@ example_start(struct bio *bp)
 	/* Ok, schedule it down. */
 	/*
 	 * The consumer can be obtained from
-	 * LIST_FIRST(&bp->bio_to->geom->consumers) as well,
+	 * LIST_FIRST(&bp->bio_to->geom->consumer) as well,
 	 * if there is only one in our geom.
 	 */
 	g_io_request(cbp, sc->ex_consumer);
