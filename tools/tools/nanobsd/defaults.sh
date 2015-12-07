@@ -134,7 +134,7 @@ NANO_BOOTLOADER="boot/boot0sio"
 
 # boot2 flags/options
 # default force serial console
-NANO_BOOT2CFG="-h"
+NANO_BOOT2CFG="-h -S115200"
 
 # Backing type of md(4) device
 # Can be "file" or "swap"
