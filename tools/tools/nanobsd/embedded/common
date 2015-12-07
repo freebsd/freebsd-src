@@ -138,16 +138,6 @@ cust_install_machine_files()
 customize_cmd cust_install_files
 customize_cmd cust_install_machine_files 
 
-buildenv()
-{
-	cd ${NANO_SRC}
-	env __MAKE_CONF=${NANO_MAKE_CONF_BUILD} DESTDIR=${NANO_WORLDDIR} make buildenv
-}
-
-NANO_MAKEFS="makefs -B big \
-	-o bsize=4096,fsize=512,density=8192,optimization=space"
-export NANO_MAKEFS
-
 # NB: leave c++ enabled so devd can be built
 CONF_BUILD="
 WITHOUT_ACPI=true
@@ -184,6 +174,7 @@ WITHOUT_SENDMAIL=true
 WITHOUT_SHAREDOCS=true
 WITHOUT_SYSCONS=true
 WITHOUT_LIB32=true
+WITHOUT_TESTS=true
 "
 CONF_INSTALL="$CONF_BUILD
 INSTALL_NODEBUG=t
@@ -313,8 +304,8 @@ create_diskimage ( ) (
 
 	(
 	set -o xtrace
-	if [ ! -z ${NANO_NOPRIV_BUILD} ]; then
-	    extra="-F ${NANO_OBJ}/_.metalog"
+	if [ -n ${NANO_NOPRIV_BUILD} ]; then
+	    extra="-F ${NANO_METALOG}"
 	fi
 
 	for i in s1 s2 s3 s4 empty; do
@@ -323,12 +314,13 @@ create_diskimage ( ) (
 
 	if [ ! -z "${NANO_SLICE_FAT}" ]; then
 		echo Creating MSDOS partition for kernel
-		newfs_msdos -C ${NANO_SLICE_FAT_SIZE:-100m} -F 16 -L ${NANO_NAME} \
+		newfs_msdos -C ${NANO_SLICE_FAT_SIZE:-32m} -F 16 -L ${NANO_NAME} \
 			${NANO_OBJ}/_.${NANO_SLICE_FAT}
 	fi
 	echo Creating main partition
 	sz=${NANO_SLICE_ROOT_SIZE:+-s ${NANO_SLICE_ROOT_SIZE}}
-	makefs ${extra} -B little $sz -t ffs ${NANO_OBJ}/_.${NANO_SLICE_ROOT}a "${NANO_WORLDDIR}"
+	makefs ${extra} -B little $sz -t ffs ${NANO_OBJ}/_.${NANO_SLICE_ROOT}a \
+		"${NANO_WORLDDIR}"
 	if [ -z "${NANO_CFGDIR}" ]; then
 		echo "Faking cfg dir, it's empty"
 		NANO_CFGDIR=${NANO_OBJ}/_.empty
@@ -336,12 +328,14 @@ create_diskimage ( ) (
 	fi
 	echo Creating cfg parittion
 # XXX -F cfg-mtree
+
 	makefs -B little -t ffs -s ${NANO_SLICE_CFG_SIZE:-100m} \
 		${NANO_OBJ}/_.${NANO_SLICE_CFG} "${NANO_CFGDIR}"
 	# data slice not supported since we need the part for FAT for 
 	# booting
 	echo Slicing up the main partition into a full bsd part
-	mkimg -s bsd -p freebsd-ufs:=${NANO_OBJ}/_.${NANO_SLICE_ROOT}a \
+	bootbsd="-b ${NANO_WORLDDIR}/boot/boot"
+	mkimg ${bootbsd} -s bsd -p freebsd-ufs:=${NANO_OBJ}/_.${NANO_SLICE_ROOT}a \
 		-o ${NANO_OBJ}/_.${NANO_SLICE_ROOT}
 	echo Making the whole shooting match
 	if [ ! -z $NANO_SLICE_FAT ]; then
@@ -351,15 +345,19 @@ create_diskimage ( ) (
 	eval $NANO_SLICE_ROOT=freebsd
 	[ -z ${NANO_DISKIMAGE_FORMAT} ] || fmtarg="-f ${NANO_DISKIMAGE_FORMAT}"
 	[ -z ${NANO_DISKIMAGE_FORMAT} ] || fmt=".${NANO_DISKIMAGE_FORMAT}"
+	bootmbr="-b ${NANO_WORLDDIR}/boot/boot0sio"
+	# below depends on https://reviews.freebsd.org/D4403 not yet in the tree
+	# but there's problems: it marks all partitions as active, so you have to
+	# boot off parittion 3 or 2 by hand if you're playing around with this WIP
 	if [ ! -z "${NANO_SLICE_FAT}" ]; then
-		mkimg -a 3 ${fmtarg} -s mbr -p ${s1}:=${NANO_OBJ}/_.s1 \
+		mkimg -a 3 ${fmtarg} ${bootmbr} -s mbr -p ${s1}:=${NANO_OBJ}/_.s1 \
 			-p ${s2}:=${NANO_OBJ}/_.s2 \
 			-p ${s3}:=${NANO_OBJ}/_.s3 \
 			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
 	else
 		# s1 is cfg, s2 is /, not sure how to make that
 		# boot (marked as active) with mkimg yet
-		mkimg -a 2 ${fmtarg} -s mbr -p ${s1}:=${NANO_OBJ}/_.s1 \
+		mkimg -a 2 ${fmtarg} ${bootmbr} -s mbr -p ${s1}:=${NANO_OBJ}/_.s1 \
 			-p ${s2}:=${NANO_OBJ}/_.s2 \
 			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
 	fi
@@ -462,21 +460,11 @@ shrink_md_fbsize()
 }
 customize_cmd shrink_md_fbsize
 
-if [ "${DEBUG}" = 1 ]; then
-
-unmute_console_logging()
-{
-	# /var is small. Don't fill it up with messages from console.log
-	# because it's a chatty log.
-	sed -i '' -e 's/#console.info/console.info/' \
-			"${NANO_WORLDDIR}/etc/syslog.conf"
-}
-customize_cmd unmute_console_logging
-
-fi
+customize_cmd cust_comconsole
 
 product_custom()
 {
+	# not quie ready to tweak these in nopriv build
 	if [ -z ${NANO_NOPRIV_BUILD} ]; then
 		# Last second tweaks -- generally not needed
 		chown -R root:wheel ${NANO_WORLDDIR}/root
@@ -486,85 +474,6 @@ product_custom()
 		chown -R root:wheel ${NANO_WORLDDIR}/boot
 		chown root:wheel ${NANO_WORLDDIR}/
 		chown root:wheel ${NANO_WORLDDIR}/usr
-	else
-		# Construct an mtree after our messing around with the tree
-		# Trim out all the uid / gid stuff, since for new files it
-		# is likely wrong, and for other files it doesn't matter.
-		mtree -p ${NANO_WORLDDIR} -c | \
-			mtree -C | \
-			sed -e 's/ uid=[0-9][0-9]* / /g;s/ gid=[0-9][0-9]* / /' \
-			> ${NANO_OBJ}/_.mtree.post
-
-		# Sort the metalog, and save the original. Sadly, this
-		# seems to expand the uname= and gname= to uid= and gid=
-		# which is lame and likely a bug in mtree. The man page
-		# is just vague enough to be infuriating as to the proper
-		# behavior. Happily, it removes all the // that can confound
-		# things.
-		mtree -C -S -f ${NANO_OBJ}/_.metalog > ${NANO_OBJ}/_.mtree.pre
-		mv ${NANO_OBJ}/_.metalog ${NANO_OBJ}/_.metalog.install
-
-		# mtree -f -f produces a comm-like output. The first column will
-		# be the files we deleted, so we ignore it. The second column is
-		# the same in both, so we pass it through. The third column is
-		# listed twice, so we ignore the second one. We also trim out
-		# the size, because size just doesn't matter as nanobsd and
-		# customizations often tweak files changing their size.  We also
-		# add 'optional' to every file in case something slipped through
-		# that's gone from the tree, though maybe that's a real bug.
-		#
-		# To make matters worse, currently mtree in freebsd uses the
-		# old 'file' keyword rather than the newer type=file. Ditto
-		# dir and link. Also, nlinks is output, which is lame. And
-		# there's a bloatload of extra flags=none, which I remove too.
-		#
-		# Even worse is that all the uid / gid stuff is also tossed
-		# into the scrap heap. Hope they weren't important.
-		#
-		# And somewhere along the way, flags seem to have gone missing.
-		#
-		# Oh, and we have to add back in ./ to keep makefs happy.
-		#
-		# And then we have to sort the damn hing so directories come
-		# before subdirectories
-		#
-		# Note: For reasons unknown, all the directories are changing
-		# from 755 to 775, so that's why we ignore the second line.
-		# We also get repeats for all the files whose size changed.
-		# Perhaps we should filter those going into the pre/post files
-		# and not here.
-		mtree -f ${NANO_OBJ}/_.mtree.pre -f ${NANO_OBJ}/_.mtree.post | \
-			awk '
-				function frob_bogus_mtree_line(old) {
-					line = "./" old " gid=0 uid=0"
-					# XXX make this a damn function
-					sub(/^\.\/\./, ".", line);
-					sub(/ file /, " type=file ", line);
-					sub(/ dir /, " type=dir ", line);
-					sub(/ link /, " type=link ", line);
-					sub(/ size=[0-9][0-9]*/, "", line);
-					sub(/ nlinks=[0-9][0-9]*/, "", line);
-					sub(/ flags=none*/, "", line);
-					return line;
-				}
-				BEGIN {
-					x = 0;
-					FS="\t";
-					print "#mtree 2.0";
-				}
-				$1 != "" {}
-				$2 != "" {
-					print frob_bogus_mtree_line($2);
-				}
-				$3 != "" {
-					if (x == 0) {
-						print frob_bogus_mtree_line($3);
-						x = 1;
-					} else {
-						x = 0;
-					}
-				}
-			' | sort > ${NANO_OBJ}/_.metalog
 	fi
 }
 late_customize_cmd product_custom
