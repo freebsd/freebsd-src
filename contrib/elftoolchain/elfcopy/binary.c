@@ -37,6 +37,16 @@
 
 ELFTC_VCSID("$Id: binary.c 3174 2015-03-27 17:13:41Z emaste $");
 
+static int
+basename_length(const char *filename)
+{
+	char *p;
+
+	if ((p = strchr(filename, '.')) != NULL)
+		return (p - filename);
+	return (strlen(filename));
+}
+
 /*
  * Convert ELF object to `binary'. Sections with SHF_ALLOC flag set
  * are copied to the result binary. The relative offsets for each section
@@ -211,7 +221,8 @@ create_elf_from_binary(struct elfcopy *ecp, int ifd, const char *ifn)
 	shtab->sz += gelf_fsize(ecp->eout, ELF_T_SHDR, 2, EV_CURRENT);
 
 #define	_GEN_SYMNAME(S) do {						\
-	snprintf(name, sizeof(name), "%s%s%s", "_binary_", ifn, S);	\
+	snprintf(name, sizeof(name), "%s%.*s%s", "_binary_",		\
+	    basename_length(ifn), ifn, S);				\
 } while (0)
 
 	/*
