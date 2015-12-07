@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20151207:
+	Debug data files are now built by default with 'make buildworld' and
+	installed with 'make installworld'. This facilitates debugging but
+	requires more disk space both during the build and for the installed
+	world. Debug files may be disabled by setting WITHOUT_DEBUG_FILES=yes
+	in src.conf(5).
+
 20151130:
 	r291527 changed the internal interface between the nfsd.ko and
 	nfscommon.ko modules. As such, they must both be upgraded to-gether.
