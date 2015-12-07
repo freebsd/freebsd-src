@@ -226,16 +226,18 @@ nano_make_kernel_env ( ) {
 }
 
 nano_global_make_env ( ) (
-	[ ! -z "${NANO_ARCH}" ] && echo TARGET_ARCH="${NANO_ARCH}"  || true
-	[ ! -z "${NANO_CPUTYPE}" ] && echo TARGET_CPUTYPE="${NANO_CPUTYPE}" || true
+	# global settings for the make.conf file, if set
+	[ -z "${NANO_ARCH}" ] || echo TARGET_ARCH="${NANO_ARCH}"
+	[ -z "${NANO_CPUTYPE}" ] || echo TARGET_CPUTYPE="${NANO_CPUTYPE}"
 )
 
 # rm doesn't know -x prior to FreeBSD 10, so cope with a variety of build
-# hosts for now.
-nano_rm ( ) {
+# hosts for now. This will go away when support in the base goes away.
+rm ( ) {
+    echo "NANO RM $*"
 	case $(uname -r) in
-	7*|8*|9*) rm $* ;;
-	*) rm -x $* ;;
+	7*|8*|9*) command rm $* ;;
+	*) command rm -x $* ;;
 	esac
 }
 
@@ -250,18 +252,16 @@ CR0 ( ) {
 }
 
 nano_cleanup ( ) (
-	if [ $? -ne 0 ]; then
-		echo "Error encountered.  Check for errors in last log file." 1>&2
-	fi
+	[ $? -eq 0 ] || echo "Error encountered.  Check for errors in last log file." 1>&2
 	exit $?
 )
 
 clean_build ( ) (
 	pprint 2 "Clean and create object directory (${MAKEOBJDIRPREFIX})"
 
-	if ! nano_rm -rf ${MAKEOBJDIRPREFIX}/ > /dev/null 2>&1 ; then
+	if ! rm -rf ${MAKEOBJDIRPREFIX}/ > /dev/null 2>&1 ; then
 		chflags -R noschg ${MAKEOBJDIRPREFIX}/
-		nano_rm -r ${MAKEOBJDIRPREFIX}/
+		rm -r ${MAKEOBJDIRPREFIX}/
 	fi
 )
 
@@ -315,17 +315,17 @@ build_kernel ( ) (
 clean_world ( ) (
 	if [ "${NANO_OBJ}" != "${MAKEOBJDIRPREFIX}" ]; then
 		pprint 2 "Clean and create object directory (${NANO_OBJ})"
-		if ! nano_rm -rf ${NANO_OBJ}/ > /dev/null 2>&1 ; then
+		if ! rm -rf ${NANO_OBJ}/ > /dev/null 2>&1 ; then
 			chflags -R noschg ${NANO_OBJ}
-			nano_rm -r ${NANO_OBJ}/
+			rm -r ${NANO_OBJ}/
 		fi
 		mkdir -p "${NANO_OBJ}" "${NANO_WORLDDIR}"
 		printenv > ${NANO_OBJ}/_.env
 	else
 		pprint 2 "Clean and create world directory (${NANO_WORLDDIR})"
-		if ! nano_rm -rf "${NANO_WORLDDIR}/" > /dev/null 2>&1 ; then
+		if ! rm -rf "${NANO_WORLDDIR}/" > /dev/null 2>&1 ; then
 			chflags -R noschg "${NANO_WORLDDIR}"
-			nano_rm -rf "${NANO_WORLDDIR}/"
+			rm -rf "${NANO_WORLDDIR}/"
 		fi
 		mkdir -p "${NANO_WORLDDIR}"
 	fi
@@ -340,7 +340,7 @@ make_conf_install ( ) (
 	nano_global_make_env
 	echo "${CONF_WORLD}"
 	echo "${CONF_INSTALL}"
-	if [ ! -z "${NANO_NOPRIV_BUILD}" ]; then
+	if [ -n "${NANO_NOPRIV_BUILD}" ]; then
 	    echo NO_ROOT=t
 	    echo METALOG=${NANO_METALOG}
 	fi
@@ -453,7 +453,7 @@ setup_nanobsd ( ) (
 		cd usr/local/etc
 		find . -print | cpio -dumpl ../../../etc/local
 		cd ..
-		nano_rm -rf etc
+		rm -rf etc
 		ln -s ../../etc/local etc
 		)
 	fi
@@ -474,7 +474,7 @@ setup_nanobsd ( ) (
 	echo "mount -o ro /dev/${NANO_DRIVE}${NANO_SLICE_CFG}" > conf/default/etc/remount
 
 	# Put /tmp on the /var ramdisk (could be symlink already)
-	nano_rm -rf tmp
+	rm -rf tmp
 	ln -s var/tmp tmp
 
 	) > ${NANO_OBJ}/_.dl 2>&1
@@ -490,9 +490,9 @@ setup_nanobsd_etc ( ) (
 	touch etc/diskless
 
 	# Make root filesystem R/O by default
-	[ ! -z "${NANO_NOPRIV_BUILD}" ] && chmod 666 etc/defaults/rc.conf
+	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 666 etc/defaults/rc.conf
 	echo "root_rw_mount=NO" >> etc/defaults/rc.conf
-	[ ! -z "${NANO_NOPRIV_BUILD}" ] && chmod 444 etc/defaults/rc.conf
+	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 444 etc/defaults/rc.conf
 
 	# save config file for scripts
 	echo "NANO_DRIVE=${NANO_DRIVE}" > etc/nanobsd.conf
@@ -636,7 +636,7 @@ create_diskimage ( ) (
 			-y ${NANO_HEADS}`
 	else
 		echo "Creating md backing file..."
-		nano_rm -f ${IMG}
+		rm -f ${IMG}
 		dd if=/dev/zero of=${IMG} seek=${NANO_MEDIASIZE} count=0
 		MD=`mdconfig -a -t vnode -f ${IMG} -x ${NANO_SECTS} \
 			-y ${NANO_HEADS}`
@@ -678,7 +678,7 @@ create_diskimage ( ) (
 		nano_umount ${MNT}
 		# Override the label from the first partition so we
 		# don't confuse glabel with duplicates.
-		if [ ! -z ${NANO_LABEL} ]; then
+		if [ -n ${NANO_LABEL} ]; then
 			tunefs -L ${NANO_LABEL}"${NANO_SLICE_ALTROOT}a" /dev/${MD}${NANO_SLICE_ALTROOT}a
 		fi
 	fi
@@ -687,12 +687,12 @@ create_diskimage ( ) (
 	populate_cfg_slice /dev/${MD}${NANO_SLICE_CFG} "${NANO_CFGDIR}" ${MNT} "${NANO_SLICE_CFG}"
 
 	# Create Data slice, if any.
-	if [ ! -z $NANO_SLICE_DATA -a $NANO_SLICE_CFG = $NANO_SLICE_DATA -a \
+	if [ -n $NANO_SLICE_DATA -a $NANO_SLICE_CFG = $NANO_SLICE_DATA -a \
 	   $NANO_DATASIZE -ne 0 ]; then
 		pprint 2 "NANO_SLICE_DATA is the same as NANO_SLICE_CFG, fix."
 		exit 2
 	fi
-	if [ $NANO_DATASIZE -ne 0 -a ! -z $NANO_SLICE_DATA ] ; then
+	if [ $NANO_DATASIZE -ne 0 -a -n $NANO_SLICE_DATA ] ; then
 		populate_data_slice /dev/${MD}${NANO_SLICE_DATA} "${NANO_DATADIR}" ${MNT} "${NANO_SLICE_DATA}"
 	fi
 
@@ -853,7 +853,7 @@ cust_pkgng ( ) (
 		echo "FAILED: pkg bootstrapping faied"
 		exit 2
 	fi
-	nano_rm -f ${NANO_WORLDDIR}/Pkg/pkg-*
+	rm -f ${NANO_WORLDDIR}/Pkg/pkg-*
 
 	# Count & report how many we have to install
 	todo=`ls ${NANO_WORLDDIR}/Pkg | /usr/bin/wc -l`
@@ -882,7 +882,7 @@ cust_pkgng ( ) (
 			exit 2
 		fi
 	done
-	nano_rm -rf ${NANO_WORLDDIR}/Pkg
+	rm -rf ${NANO_WORLDDIR}/Pkg
 )
 
 #######################################################################
@@ -949,21 +949,21 @@ export_var ( ) {		# Don't wawnt a subshell
 # Call this function to set defaults _after_ parsing options.
 # dont want a subshell otherwise variable setting is thrown away.
 set_defaults_and_export ( ) {
-	test -n "${NANO_OBJ}" || NANO_OBJ=/usr/obj/nanobsd.${NANO_NAME}
-	test -n "${MAKEOBJDIRPREFIX}" || MAKEOBJDIRPREFIX=${NANO_OBJ}
-	test -n "${NANO_DISKIMGDIR}" || NANO_DISKIMGDIR=${NANO_OBJ}
+	: ${NANO_OBJ:=/usr/obj/nanobsd.${NANO_NAME}}
+	: ${MAKEOBJDIRPREFIX:=${NANO_OBJ}}
+	: ${NANO_DISKIMGDIR=:${NANO_OBJ}}
 	NANO_WORLDDIR=${NANO_OBJ}/_.w
 	NANO_MAKE_CONF_BUILD=${MAKEOBJDIRPREFIX}/make.conf.build
 	NANO_MAKE_CONF_INSTALL=${NANO_OBJ}/make.conf.install
 
 	# Override user's NANO_DRIVE if they specified a NANO_LABEL
-	[ ! -z "${NANO_LABEL}" ] && NANO_DRIVE="ufs/${NANO_LABEL}" || true
+	[ -n "${NANO_LABEL}" ] && NANO_DRIVE="ufs/${NANO_LABEL}" || true
 
 	# Set a default NANO_TOOLS to NANO_SRC/NANO_TOOLS if it exists.
 	[ ! -d "${NANO_TOOLS}" ] && [ -d "${NANO_SRC}/${NANO_TOOLS}" ] && \
 		NANO_TOOLS="${NANO_SRC}/${NANO_TOOLS}" || true
 
-	[ ! -z "${NANO_NOPRIV_BUILD}" ] && [ -z "${NANO_METALOG}" ] && \
+	[ -n "${NANO_NOPRIV_BUILD}" ] && [ -z "${NANO_METALOG}" ] && \
 		NANO_METALOG=${NANO_OBJ}/_.metalog || true
 
 	NANO_STARTTIME=`date +%s`
