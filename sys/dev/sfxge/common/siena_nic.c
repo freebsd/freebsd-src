@@ -420,6 +420,8 @@ siena_nic_init(
 	if ((rc = siena_phy_reconfigure(enp)) != 0)
 		goto fail2;
 
+	enp->en_nic_cfg.enc_mcdi_max_payload_length = MCDI_CTL_SDU_LEN_MAX_V1;
+
 	return (0);
 
 fail2:
