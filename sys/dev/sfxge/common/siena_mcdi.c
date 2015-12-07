@@ -191,6 +191,21 @@ siena_mcdi_poll_reboot(
 #endif
 }
 
+static	__checkReturn	boolean_t
+siena_mcdi_poll_response(
+	__in		efx_nic_t *enp)
+{
+	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
+	efx_dword_t hdr;
+	unsigned int pdur;
+
+	EFSYS_ASSERT(emip->emi_port == 1 || emip->emi_port == 2);
+	pdur = SIENA_MCDI_PDU(emip);
+
+	EFX_BAR_TBL_READD(enp, FR_CZ_MC_TREG_SMEM, pdur, &hdr, B_FALSE);
+	return (EFX_DWORD_FIELD(hdr, MCDI_HEADER_RESPONSE) ? B_TRUE : B_FALSE);
+}
+
 	__checkReturn	boolean_t
 siena_mcdi_request_poll(
 	__in		efx_nic_t *enp)
@@ -229,12 +244,14 @@ siena_mcdi_request_poll(
 	EFSYS_ASSERT(emip->emi_port == 1 || emip->emi_port == 2);
 	pdur = SIENA_MCDI_PDU(emip);
 
-	/* Read the command header */
-	EFX_BAR_TBL_READD(enp, FR_CZ_MC_TREG_SMEM, pdur, &hdr, B_FALSE);
-	if (EFX_DWORD_FIELD(hdr, MCDI_HEADER_RESPONSE) == 0) {
+	/* Check if a response is available */
+	if (siena_mcdi_poll_response(enp) == B_FALSE) {
 		EFSYS_UNLOCK(enp->en_eslp, state);
 		return (B_FALSE);
 	}
+
+	/* Read the response header */
+	EFX_BAR_TBL_READD(enp, FR_CZ_MC_TREG_SMEM, pdur, &hdr, B_FALSE);
 
 	/* Request complete */
 	emip->emi_pending_req = NULL;
