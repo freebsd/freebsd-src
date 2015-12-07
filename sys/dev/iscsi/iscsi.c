@@ -2365,7 +2365,7 @@ iscsi_load(void)
 	sc->sc_cdev->si_drv1 = sc;
 
 	sc->sc_shutdown_eh = EVENTHANDLER_REGISTER(shutdown_pre_sync,
-	    iscsi_shutdown, sc, SHUTDOWN_PRI_FIRST);
+	    iscsi_shutdown, sc, SHUTDOWN_PRI_DEFAULT-1);
 
 	return (0);
 }
