@@ -312,6 +312,7 @@ create_diskimage ( ) (
 	pprint 3 "log: ${NANO_OBJ}/_.di"
 
 	(
+	set -o xtrace
 	if [ ! -z ${NANO_NOPRIV_BUILD} ]; then
 	    extra="-F ${NANO_OBJ}/_.metalog"
 	fi
@@ -348,17 +349,19 @@ create_diskimage ( ) (
 	fi
 	eval $NANO_SLICE_CFG=freebsd
 	eval $NANO_SLICE_ROOT=freebsd
+	[ -z ${NANO_DISKIMAGE_FORMAT} ] || fmtarg="-f ${NANO_DISKIMAGE_FORMAT}"
+	[ -z ${NANO_DISKIMAGE_FORMAT} ] || fmt=".${NANO_DISKIMAGE_FORMAT}"
 	if [ ! -z "${NANO_SLICE_FAT}" ]; then
-		mkimg -s mbr -p ${s1}:=${NANO_OBJ}/_.s1 \
+		mkimg -a 3 ${fmtarg} -s mbr -p ${s1}:=${NANO_OBJ}/_.s1 \
 			-p ${s2}:=${NANO_OBJ}/_.s2 \
 			-p ${s3}:=${NANO_OBJ}/_.s3 \
-			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}
+			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
 	else
 		# s1 is cfg, s2 is /, not sure how to make that
 		# boot (marked as active) with mkimg yet
-		mkimg -s mbr -p ${s1}:=${NANO_OBJ}/_.s1 \
+		mkimg -a 2 ${fmtarg} -s mbr -p ${s1}:=${NANO_OBJ}/_.s1 \
 			-p ${s2}:=${NANO_OBJ}/_.s2 \
-			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}
+			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
 	fi
 	) > ${NANO_OBJ}/_.di 2>&1
 )
