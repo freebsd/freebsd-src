@@ -194,7 +194,8 @@ extern vm_paddr_t dmap_phys_base;
 #define	VM_MAXUSER_ADDRESS	(VM_MAX_USER_ADDRESS)
 
 #define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
-#define	USRSTACK		(VM_MAX_USER_ADDRESS)
+#define	SHAREDPAGE		(VM_MAXUSER_ADDRESS - PAGE_SIZE)
+#define	USRSTACK		SHAREDPAGE
 
 /*
  * How many physical pages per kmem arena virtual page.
