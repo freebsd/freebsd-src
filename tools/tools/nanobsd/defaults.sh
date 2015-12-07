@@ -270,7 +270,7 @@ tgt_dir2symlink () (
 	cd "${NANO_WORLDDIR}"
 	rm -rf "$dir"
 	ln -s "$symlink" "$dir"
-	if [ -n $NANO_METALOG ]; then
+	if [ -n "$NANO_METALOG" ]; then
 		echo "./${dir} type=link mode=0777 link=${symlink}" >> ${NANO_METALOG}
 	fi
 )
@@ -497,7 +497,7 @@ fixup_before_diskimage ( ) (
 	# impossible to trap, so go ahead remove the size= keyword. For this
 	# narrow use, it doesn't buy us any protection and just gets in the way.
 	# The dedup tool's output must be sorted due to limitations in awk.
-	if [ -n ${NANO_METALOG} ]; then
+	if [ -n "${NANO_METALOG}" ]; then
 		pprint 2 "Fixing metalog"
 		cp ${NANO_METALOG} ${NANO_METALOG}.pre
 		(echo "/set uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" &&
@@ -751,7 +751,7 @@ create_diskimage ( ) (
 		nano_umount ${MNT}
 		# Override the label from the first partition so we
 		# don't confuse glabel with duplicates.
-		if [ -n ${NANO_LABEL} ]; then
+		if [ -n "${NANO_LABEL}" ]; then
 			tunefs -L ${NANO_LABEL}"${NANO_SLICE_ALTROOT}a" /dev/${MD}${NANO_SLICE_ALTROOT}a
 		fi
 	fi
@@ -760,12 +760,12 @@ create_diskimage ( ) (
 	populate_cfg_slice /dev/${MD}${NANO_SLICE_CFG} "${NANO_CFGDIR}" ${MNT} "${NANO_SLICE_CFG}"
 
 	# Create Data slice, if any.
-	if [ -n $NANO_SLICE_DATA -a $NANO_SLICE_CFG = $NANO_SLICE_DATA -a \
-	   $NANO_DATASIZE -ne 0 ]; then
+	if [ -n "$NANO_SLICE_DATA" -a "$NANO_SLICE_CFG" = "$NANO_SLICE_DATA" -a \
+	   "$NANO_DATASIZE" -ne 0 ]; then
 		pprint 2 "NANO_SLICE_DATA is the same as NANO_SLICE_CFG, fix."
 		exit 2
 	fi
-	if [ $NANO_DATASIZE -ne 0 -a -n $NANO_SLICE_DATA ] ; then
+	if [ $NANO_DATASIZE -ne 0 -a -n "$NANO_SLICE_DATA" ] ; then
 		populate_data_slice /dev/${MD}${NANO_SLICE_DATA} "${NANO_DATADIR}" ${MNT} "${NANO_SLICE_DATA}"
 	fi
 
