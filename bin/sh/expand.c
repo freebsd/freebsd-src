@@ -249,7 +249,8 @@ argstr(char *p, int flag)
 		case CTLQUOTEMARK:
 			lit_quoted = 1;
 			/* "$@" syntax adherence hack */
-			if (p[0] == CTLVAR && p[2] == '@' && p[3] == '=')
+			if (p[0] == CTLVAR && (p[1] & VSQUOTE) != 0 &&
+			    p[2] == '@' && p[3] == '=')
 				break;
 			if ((flag & EXP_FULL) != 0)
 				USTPUTC(c, expdest);

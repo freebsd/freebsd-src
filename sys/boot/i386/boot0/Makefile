@@ -80,5 +80,4 @@ LDFLAGS=-e start -Ttext ${BOOT_BOOT0_ORG} -Wl,-N,-S,--oformat,binary
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 CFLAGS.boot0.S=		${CLANG_NO_IAS}
-CFLAGS.boot0ext.S=	${CLANG_NO_IAS}
 CFLAGS+=		${CFLAGS.${.IMPSRC:T}}

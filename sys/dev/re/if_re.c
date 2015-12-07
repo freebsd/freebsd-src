@@ -1696,13 +1696,13 @@ re_attach(device_t dev)
 #ifdef DEV_NETMAP
 	re_netmap_attach(sc);
 #endif /* DEV_NETMAP */
+
 #ifdef RE_DIAG
 	/*
 	 * Perform hardware diagnostic on the original RTL8169.
 	 * Some 32-bit cards were incorrectly wired and would
 	 * malfunction if plugged into a 64-bit slot.
 	 */
-
 	if (hwrev == RL_HWREV_8169) {
 		error = re_diag(sc);
 		if (error) {
@@ -2939,6 +2939,7 @@ re_start_locked(struct ifnet *ifp)
 		return;
 	}
 #endif /* DEV_NETMAP */
+
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING || (sc->rl_flags & RL_FLAG_LINK) == 0)
 		return;
@@ -3851,6 +3852,11 @@ re_setwol(struct rl_softc *sc)
 			    CSR_READ_1(sc, RL_GPIO) & ~0x01);
 	}
 	if ((ifp->if_capenable & IFCAP_WOL) != 0) {
+		if ((sc->rl_flags & RL_FLAG_8168G_PLUS) != 0) {
+			/* Disable RXDV gate. */
+			CSR_WRITE_4(sc, RL_MISC, CSR_READ_4(sc, RL_MISC) &
+			    ~0x00080000);
+		}
 		re_set_rxmode(sc);
 		if ((sc->rl_flags & RL_FLAG_WOL_MANLINK) != 0)
 			re_set_linkspeed(sc);

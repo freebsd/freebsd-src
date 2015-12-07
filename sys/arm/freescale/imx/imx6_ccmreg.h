@@ -58,12 +58,57 @@
 #define	CCM_CGPR			0x064
 #define	  CCM_CGPR_INT_MEM_CLK_LPM	  (1 << 17)
 #define	CCM_CCGR0			0x068
+#define		CCGR0_AIPS_TZ1			(0x3 << 0)
+#define		CCGR0_AIPS_TZ2			(0x3 << 2)
+#define		CCGR0_ABPHDMA			(0x3 << 4)
 #define	CCM_CCGR1			0x06C
+#define		CCGR1_ENET			(0x3 << 10)
+#define		CCGR1_GPT			(0x3 << 20)
 #define	CCM_CCGR2			0x070
+#define		CCGR2_HDMI_TX			(0x3 << 0)
+#define		CCGR2_HDMI_TX_ISFR		(0x3 << 4)
+#define		CCGR2_I2C1			(0x3 << 6)
+#define		CCGR2_I2C2			(0x3 << 8)
+#define		CCGR2_I2C3			(0x3 << 10)
+#define		CCGR2_IIM			(0x3 << 12)
+#define		CCGR2_IOMUX_IPT			(0x3 << 14)
+#define		CCGR2_IPMUX1			(0x3 << 16)
+#define		CCGR2_IPMUX2			(0x3 << 18)
+#define		CCGR2_IPMUX3			(0x3 << 20)
+#define		CCGR2_IPSYNC_IP2APB_TZASC1	(0x3 << 22)
+#define		CCGR2_IPSYNC_IP2APB_TZASC2	(0x3 << 24)
+#define		CCGR2_IPSYNC_VDOA		(0x3 << 26)
 #define	CCM_CCGR3			0x074
+#define		CCGR3_IPU1_IPU			(0x3 << 0)
+#define		CCGR3_IPU1_DI0			(0x3 << 2)
+#define		CCGR3_IPU1_DI1			(0x3 << 4)
+#define		CCGR3_IPU2_IPU			(0x3 << 6)
+#define		CCGR3_IPU2_DI0			(0x3 << 8)
+#define		CCGR3_IPU2_DI1			(0x3 << 10)
+#define		CCGR3_LDB_DI0			(0x3 << 12)
+#define		CCGR3_LDB_DI1			(0x3 << 14)
+#define		CCGR3_MMDC_CORE_ACLK_FAST	(0x3 << 20)
+#define		CCGR3_CG11			(0x3 << 22)
+#define		CCGR3_MMDC_CORE_IPG		(0x3 << 24)
+#define		CCGR3_CG13			(0x3 << 26)
+#define		CCGR3_OCRAM			(0x3 << 28)
 #define	CCM_CCGR4			0x078
+#define		CCGR4_PL301_MX6QFAST1_S133	(0x3 << 8)
+#define		CCGR4_PL301_MX6QPER1_BCH	(0x3 << 12)
+#define		CCGR4_PL301_MX6QPER2_MAIN	(0x3 << 14)
 #define	CCM_CCGR5			0x07C
+#define		CCGR5_SDMA			(0x3 << 6)
+#define		CCGR5_SSI1			(0x3 << 18)
+#define		CCGR5_SSI2			(0x3 << 20)
+#define		CCGR5_SSI3			(0x3 << 22)
+#define		CCGR5_UART			(0x3 << 24)
+#define		CCGR5_UART_SERIAL		(0x3 << 26)
 #define	CCM_CCGR6			0x080
+#define		CCGR6_USBOH3			(0x3 << 0)
+#define		CCGR6_USDHC1			(0x3 << 2)
+#define		CCGR6_USDHC2			(0x3 << 4)
+#define		CCGR6_USDHC3			(0x3 << 6)
+#define		CCGR6_USDHC4			(0x3 << 8)
 #define	CCM_CMEOR			0x088
 
 #endif

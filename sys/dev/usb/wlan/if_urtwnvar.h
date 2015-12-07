@@ -128,12 +128,18 @@ enum {
 
 #define	URTWN_EP_QUEUES	URTWN_BULK_RX
 
+union urtwn_rom {
+	struct r92c_rom			r92c_rom;
+	uint8_t				r88e_rom[URTWN_EFUSE_MAX_LEN];
+};
+
 struct urtwn_softc {
 	struct ieee80211com		sc_ic;
 	struct mbufq			sc_snd;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 
+	uint8_t				sc_iface_index;
 	int				ac2idx[WME_NUM_AC];
 	u_int				sc_flags;
 #define URTWN_FLAG_CCK_HIPWR	0x01
@@ -150,7 +156,6 @@ struct urtwn_softc {
 	void				(*sc_rf_write)(struct urtwn_softc *,
 					    int, uint8_t, uint32_t);
 	int				(*sc_power_on)(struct urtwn_softc *);
-	int				(*sc_dma_init)(struct urtwn_softc *);
 
 	uint8_t				board_type;
 	uint8_t				regulatory;
@@ -177,12 +182,12 @@ struct urtwn_softc {
 	struct urtwn_fw_info		fw;
 	void				*fw_virtaddr;
 
-	struct r92c_rom			rom;
-	uint8_t				r88e_rom[512];
+	union urtwn_rom			rom;
 	uint8_t				cck_tx_pwr[6];
 	uint8_t				ht40_tx_pwr[5];
 	int8_t				bw20_tx_pwr_diff;
 	int8_t				ofdm_tx_pwr_diff;
+	uint16_t			last_rom_addr;
 		
 	struct callout			sc_watchdog_ch;
 	struct mtx			sc_mtx;

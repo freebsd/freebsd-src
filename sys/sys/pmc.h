@@ -96,6 +96,9 @@
 	__PMC_CPU(INTEL_WESTMERE_EX, 0x94,   "Intel Westmere Xeon E7")	\
 	__PMC_CPU(INTEL_HASWELL_XEON, 0x95,   "Intel Haswell Xeon E5 v3") \
 	__PMC_CPU(INTEL_BROADWELL, 0x96,   "Intel Broadwell") \
+	__PMC_CPU(INTEL_BROADWELL_XEON, 0x97,   "Intel Broadwell Xeon") \
+	__PMC_CPU(INTEL_SKYLAKE, 0x98,   "Intel Skylake")		\
+	__PMC_CPU(INTEL_SKYLAKE_XEON, 0x99,   "Intel Skylake Xeon")	\
 	__PMC_CPU(INTEL_XSCALE,	0x100,	"Intel XScale")		\
 	__PMC_CPU(MIPS_24K,     0x200,  "MIPS 24K")		\
 	__PMC_CPU(MIPS_OCTEON,  0x201,  "Cavium Octeon")	\
@@ -550,14 +553,15 @@ struct pmc_op_configurelog {
  */
 
 struct pmc_op_getdriverstats {
-	int	pm_intr_ignored;	/* #interrupts ignored */
-	int	pm_intr_processed;	/* #interrupts processed */
-	int	pm_intr_bufferfull;	/* #interrupts with ENOSPC */
-	int	pm_syscalls;		/* #syscalls */
-	int	pm_syscall_errors;	/* #syscalls with errors */
-	int	pm_buffer_requests;	/* #buffer requests */
-	int	pm_buffer_requests_failed; /* #failed buffer requests */
-	int	pm_log_sweeps;		/* #sample buffer processing passes */
+	unsigned int	pm_intr_ignored;	/* #interrupts ignored */
+	unsigned int	pm_intr_processed;	/* #interrupts processed */
+	unsigned int	pm_intr_bufferfull;	/* #interrupts with ENOSPC */
+	unsigned int	pm_syscalls;		/* #syscalls */
+	unsigned int	pm_syscall_errors;	/* #syscalls with errors */
+	unsigned int	pm_buffer_requests;	/* #buffer requests */
+	unsigned int	pm_buffer_requests_failed; /* #failed buffer requests */
+	unsigned int	pm_log_sweeps;		/* #sample buffer processing
+						   passes */
 };
 
 /*

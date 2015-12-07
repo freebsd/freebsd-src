@@ -6,8 +6,7 @@
 PROG=	netstat
 SRCS=	if.c inet.c main.c mbuf.c mroute.c netisr.c nl_symbols.c route.c \
 	unix.c mroute6.c ipsec.c bpf.c pfkey.c sctp.c \
-	flowtable.c
-DPSRCS=	nl_defs.h
+	flowtable.c nl_defs.h
 
 nl_symbols.c: nlist_symbols
 	awk '\

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 - 2014 Tony Finch <dot@dotat.at>
+ * Copyright (c) 2002 - 2015 Tony Finch <dot@dotat.at>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,7 +46,7 @@
 #include "unifdef.h"
 
 static const char copyright[] =
-    "@(#) $Version: unifdef-2.10 $\n"
+    "@(#) $Version: unifdef-2.11 $\n"
     "@(#) $FreeBSD$\n"
     "@(#) $Author: Tony Finch (dot@dotat.at) $\n"
     "@(#) $URL: http://dotat.at/prog/unifdef $\n"
@@ -208,6 +208,7 @@ static bool             firstsym;		/* ditto */
 
 static int              exitmode;		/* exit status mode */
 static int              exitstat;		/* program exit status */
+static bool             altered;		/* was this file modified? */
 
 static void             addsym1(bool, bool, char *);
 static void             addsym2(bool, const char *, const char *);
@@ -312,7 +313,8 @@ main(int argc, char *argv[])
 			break;
 		case 'M': /* modify in place and keep backup */
 			inplace = true;
-			backext = optarg;
+			if (strlen(optarg) > 0)
+				backext = optarg;
 			break;
 		case 'n': /* add #line directive after deleted lines */
 			lnnum = true;
@@ -350,6 +352,8 @@ main(int argc, char *argv[])
 		errx(2, "-o cannot be used with multiple input files");
 	if (argc > 1 && !inplace)
 		errx(2, "multiple input files require -m or -M");
+	if (argc == 0 && inplace)
+		errx(2, "-m requires an input file");
 	if (argc == 0)
 		argc = 1;
 	if (argc == 1 && !inplace && ofilename == NULL)
@@ -416,7 +420,11 @@ processinout(const char *ifn, const char *ofn)
 			err(2, "can't rename \"%s\" to \"%s\"", ofn, backname);
 		free(backname);
 	}
-	if (replace(tempname, ofn) < 0)
+	/* leave file unmodified if unifdef made no changes */
+	if (!altered && backext == NULL) {
+		if (remove(tempname) < 0)
+			warn("can't remove \"%s\"", tempname);
+	} else if (replace(tempname, ofn) < 0)
 		err(2, "can't rename \"%s\" to \"%s\"", tempname, ofn);
 	free(tempname);
 	tempname = NULL;
@@ -638,6 +646,7 @@ keywordedit(const char *replacement)
 {
 	snprintf(keyword, tline + sizeof(tline) - keyword,
 	    "%s%s", replacement, newline);
+	altered = true;
 	print();
 }
 static void
@@ -700,7 +709,7 @@ flushline(bool keep)
 	} else {
 		if (lnblank && fputs(newline, output) == EOF)
 			closeio();
-		exitstat = 1;
+		altered = true;
 		delcount += 1;
 		blankcount = 0;
 	}
@@ -752,6 +761,7 @@ process(void)
 	zerosyms = true;
 	newline = NULL;
 	linenum = 0;
+	altered = false;
 	while (lineval != LT_EOF) {
 		lineval = parseline();
 		trans_table[ifstate[depth]][lineval]();
@@ -759,6 +769,7 @@ process(void)
 		    linenum, linetype_name[lineval],
 		    ifstate_name[ifstate[depth]], depth);
 	}
+	exitstat |= altered;
 }
 
 /*
@@ -892,6 +903,40 @@ static Linetype op_and(long *p, Linetype at, long a, Linetype bt, long b) {
 		return (*p = 0, LT_FALSE);
 	return op_strict(p, a && b, at, bt);
 }
+static Linetype op_blsh(long *p, Linetype at, long a, Linetype bt, long b) {
+	return op_strict(p, a << b, at, bt);
+}
+static Linetype op_brsh(long *p, Linetype at, long a, Linetype bt, long b) {
+	return op_strict(p, a >> b, at, bt);
+}
+static Linetype op_add(long *p, Linetype at, long a, Linetype bt, long b) {
+	return op_strict(p, a + b, at, bt);
+}
+static Linetype op_sub(long *p, Linetype at, long a, Linetype bt, long b) {
+	return op_strict(p, a - b, at, bt);
+}
+static Linetype op_mul(long *p, Linetype at, long a, Linetype bt, long b) {
+	return op_strict(p, a * b, at, bt);
+}
+static Linetype op_div(long *p, Linetype at, long a, Linetype bt, long b) {
+	if (bt != LT_TRUE) {
+		debug("eval division by zero");
+		return (LT_ERROR);
+	}
+	return op_strict(p, a / b, at, bt);
+}
+static Linetype op_mod(long *p, Linetype at, long a, Linetype bt, long b) {
+	return op_strict(p, a % b, at, bt);
+}
+static Linetype op_bor(long *p, Linetype at, long a, Linetype bt, long b) {
+	return op_strict(p, a | b, at, bt);
+}
+static Linetype op_bxor(long *p, Linetype at, long a, Linetype bt, long b) {
+	return op_strict(p, a ^ b, at, bt);
+}
+static Linetype op_band(long *p, Linetype at, long a, Linetype bt, long b) {
+	return op_strict(p, a & b, at, bt);
+}
 
 /*
  * An evaluation function takes three arguments, as follows: (1) a pointer to
@@ -915,24 +960,39 @@ static eval_fn eval_table, eval_unary;
  * calls the inner function with its first argument pointing to the next
  * element of the table. Innermost expressions have special non-table-driven
  * handling.
+ *
+ * The stop characters help with lexical analysis: an operator is not
+ * recognized if it is followed by one of the stop characters because
+ * that would make it a different operator.
  */
 struct op {
 	const char *str;
 	Linetype (*fn)(long *, Linetype, long, Linetype, long);
+	const char *stop;
 };
 struct ops {
 	eval_fn *inner;
 	struct op op[5];
 };
 static const struct ops eval_ops[] = {
-	{ eval_table, { { "||", op_or } } },
-	{ eval_table, { { "&&", op_and } } },
-	{ eval_table, { { "==", op_eq },
-			{ "!=", op_ne } } },
-	{ eval_unary, { { "<=", op_le },
-			{ ">=", op_ge },
-			{ "<", op_lt },
-			{ ">", op_gt } } }
+	{ eval_table, { { "||", op_or, NULL } } },
+	{ eval_table, { { "&&", op_and, NULL } } },
+	{ eval_table, { { "|", op_bor, "|" } } },
+	{ eval_table, { { "^", op_bxor, NULL } } },
+	{ eval_table, { { "&", op_band, "&" } } },
+	{ eval_table, { { "==", op_eq, NULL },
+			{ "!=", op_ne, NULL } } },
+	{ eval_table, { { "<=", op_le, NULL },
+			{ ">=", op_ge, NULL },
+			{ "<", op_lt, "<=" },
+			{ ">", op_gt, ">=" } } },
+	{ eval_table, { { "<<", op_blsh, NULL },
+			{ ">>", op_brsh, NULL } } },
+	{ eval_table, { { "+", op_add, NULL },
+			{ "-", op_sub, NULL } } },
+	{ eval_unary, { { "*", op_mul, NULL },
+			{ "/", op_div, NULL },
+			{ "%", op_mod, NULL } } },
 };
 
 /* Current operator precedence level */
@@ -964,6 +1024,26 @@ eval_unary(const struct ops *ops, long *valp, const char **cpp)
 			return (LT_ERROR);
 		if (lt != LT_IF) {
 			*valp = !*valp;
+			lt = *valp ? LT_TRUE : LT_FALSE;
+		}
+	} else if (*cp == '~') {
+		debug("eval%d ~", prec(ops));
+		cp++;
+		lt = eval_unary(ops, valp, &cp);
+		if (lt == LT_ERROR)
+			return (LT_ERROR);
+		if (lt != LT_IF) {
+			*valp = ~(*valp);
+			lt = *valp ? LT_TRUE : LT_FALSE;
+		}
+	} else if (*cp == '-') {
+		debug("eval%d -", prec(ops));
+		cp++;
+		lt = eval_unary(ops, valp, &cp);
+		if (lt == LT_ERROR)
+			return (LT_ERROR);
+		if (lt != LT_IF) {
+			*valp = -(*valp);
 			lt = *valp ? LT_TRUE : LT_FALSE;
 		}
 	} else if (*cp == '(') {
@@ -1040,7 +1120,7 @@ eval_table(const struct ops *ops, long *valp, const char **cpp)
 {
 	const struct op *op;
 	const char *cp;
-	long val;
+	long val = 0;
 	Linetype lt, rt;
 
 	debug("eval%d", prec(ops));
@@ -1050,9 +1130,16 @@ eval_table(const struct ops *ops, long *valp, const char **cpp)
 		return (LT_ERROR);
 	for (;;) {
 		cp = skipcomment(cp);
-		for (op = ops->op; op->str != NULL; op++)
-			if (strncmp(cp, op->str, strlen(op->str)) == 0)
-				break;
+		for (op = ops->op; op->str != NULL; op++) {
+			if (strncmp(cp, op->str, strlen(op->str)) == 0) {
+				/* assume only one-char operators have stop chars */
+				if (op->stop != NULL && cp[1] != '\0' &&
+				    strchr(op->stop, cp[1]) != NULL)
+					continue;
+				else
+					break;
+			}
+		}
 		if (op->str == NULL)
 			break;
 		cp += strlen(op->str);
@@ -1123,10 +1210,14 @@ skiphash(void)
 static const char *
 skipline(const char *cp)
 {
+	const char *pcp;
 	if (*cp != '\0')
 		linestate = LS_DIRTY;
-	while (*cp != '\0')
-		cp = skipcomment(cp + 1);
+	while (*cp != '\0') {
+		cp = skipcomment(pcp = cp);
+		if (pcp == cp)
+			cp++;
+	}
 	return (cp);
 }
 
@@ -1202,9 +1293,9 @@ skipcomment(const char *cp)
 					cp += 2;
 			} else if (strncmp(cp, "\n", 1) == 0) {
 				if (incomment == CHAR_LITERAL)
-					error("unterminated char literal");
+					error("Unterminated char literal");
 				else
-					error("unterminated string literal");
+					error("Unterminated string literal");
 			} else
 				cp += 1;
 			continue;
@@ -1478,7 +1569,7 @@ defundef(void)
 	if ((cp = matchsym("define", kw)) != NULL) {
 		sym = getsym(&cp);
 		if (sym == NULL)
-			error("missing macro name in #define");
+			error("Missing macro name in #define");
 		if (*cp == '(') {
 			val = "1";
 		} else {
@@ -1490,12 +1581,12 @@ defundef(void)
 	} else if ((cp = matchsym("undef", kw)) != NULL) {
 		sym = getsym(&cp);
 		if (sym == NULL)
-			error("missing macro name in #undef");
+			error("Missing macro name in #undef");
 		cp = skipcomment(cp);
 		debug("#undef");
 		addsym2(false, sym, NULL);
 	} else {
-		error("unrecognized preprocessor directive");
+		error("Unrecognized preprocessor directive");
 	}
 	skipline(cp);
 done:
@@ -1567,5 +1658,5 @@ error(const char *msg)
 		warnx("%s: %d: %s (#if line %d depth %d)",
 		    filename, linenum, msg, stifline[depth], depth);
 	closeio();
-	errx(2, "output may be truncated");
+	errx(2, "Output may be truncated");
 }

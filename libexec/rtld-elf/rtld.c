@@ -1148,7 +1148,7 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 #ifdef __mips__
 	case DT_MIPS_LOCAL_GOTNO:
 		obj->local_gotno = dynp->d_un.d_val;
-	    break;
+		break;
 
 	case DT_MIPS_SYMTABNO:
 		obj->symtabno = dynp->d_un.d_val;
@@ -1160,6 +1160,12 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 
 	case DT_MIPS_RLD_MAP:
 		*((Elf_Addr *)(dynp->d_un.d_ptr)) = (Elf_Addr) &r_debug;
+		break;
+#endif
+
+#ifdef __powerpc64__
+	case DT_PPC64_GLINK:
+		obj->glink = (Elf_Addr) (obj->relocbase + dynp->d_un.d_ptr);
 		break;
 #endif
 

@@ -19,13 +19,12 @@ MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm
 
 # Some options we need now
 __DEFAULT_NO_OPTIONS= \
-	DIRDEPS_CACHE \
 	DIRDEPS_BUILD \
-	META_MODE \
-
+	DIRDEPS_CACHE
 
 __DEFAULT_DEPENDENT_OPTIONS= \
 	AUTO_OBJ/DIRDEPS_BUILD \
+	META_MODE/DIRDEPS_BUILD \
 	STAGING/DIRDEPS_BUILD \
 	SYSROOT/DIRDEPS_BUILD
 
@@ -52,11 +51,9 @@ __ENV_ONLY_OPTIONS:= \
 .endif
 .if ${MK_AUTO_OBJ} == "yes"
 # This needs to be done early - before .PATH is computed
-# Don't do this if just running 'make -V' (but do when inspecting .OBJDIR) or
-# 'make showconfig' (during makeman which enables all options when meta mode
-# is not expected)
-.if (${.MAKEFLAGS:M-V} == "" || ${.MAKEFLAGS:M.OBJDIR} != "") && \
-    !make(showconfig)
+# Don't do this for 'make showconfig' as it enables all options where meta mode
+# is not expected.
+.if !make(showconfig)
 .sinclude <auto.obj.mk>
 .endif
 .endif
@@ -275,7 +272,7 @@ YFLAGS		?=	-d
 
 # non-Posix rule set
 
-.sh:
+.sh: .NOMETA
 	cp -fp ${.IMPSRC} ${.TARGET}
 	chmod a+x ${.TARGET}
 

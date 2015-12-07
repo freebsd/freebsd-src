@@ -938,7 +938,7 @@ sctp_map_assoc_state(int kernel_state)
 
 int
 sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
-    uint32_t override_tag, uint32_t vrf_id)
+    uint32_t override_tag, uint32_t vrf_id, uint16_t o_strms)
 {
 	struct sctp_association *asoc;
 
@@ -1100,7 +1100,7 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	 * that we request by default.
 	 */
 	asoc->strm_realoutsize = asoc->streamoutcnt = asoc->pre_open_streams =
-	    inp->sctp_ep.pre_open_stream_count;
+	    o_strms;
 	SCTP_MALLOC(asoc->strmout, struct sctp_stream_out *,
 	    asoc->streamoutcnt * sizeof(struct sctp_stream_out),
 	    SCTP_M_STRMO);
@@ -6957,6 +6957,18 @@ sctp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
 	for (last = m; last->m_next; last = last->m_next);
 	last->m_next = sp;
 	m->m_pkthdr.len += sp->m_pkthdr.len;
+	/*
+	 * The CSUM_DATA_VALID flags indicates that the HW checked the UDP
+	 * checksum and it was valid. Since CSUM_DATA_VALID ==
+	 * CSUM_SCTP_VALID this would imply that the HW also verified the
+	 * SCTP checksum. Therefore, clear the bit.
+	 */
+	SCTPDBG(SCTP_DEBUG_CRCOFFLOAD,
+	    "sctp_recv_udp_tunneled_packet(): Packet of length %d received on %s with csum_flags 0x%b.\n",
+	    m->m_pkthdr.len,
+	    if_name(m->m_pkthdr.rcvif),
+	    (int)m->m_pkthdr.csum_flags, CSUM_BITS);
+	m->m_pkthdr.csum_flags &= ~CSUM_DATA_VALID;
 	iph = mtod(m, struct ip *);
 	switch (iph->ip_v) {
 #ifdef INET

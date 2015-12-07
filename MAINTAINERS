@@ -59,7 +59,6 @@ contrib/llvm		dim	Pre-commit review preferred.
 contrib/llvm/tools/lldb	emaste	Pre-commit review preferred.
 atf			freebsd-testing,jmmv,ngie	Pre-commit review requested.
 contrib/netbsd-tests	freebsd-testing,ngie	Pre-commit review requested.
-contrib/pf		kp,glebius	Pre-commit review recommended.
 contrib/pjdfstest	freebsd-testing,ngie,pjd	Pre-commit review requested.
 share/mk/*.test.mk	freebsd-testing,ngie (same list as share/mk too)	Pre-commit review requested.
 tests			freebsd-testing,ngie	Pre-commit review requested.
@@ -69,7 +68,12 @@ sys/compat/linuxkpi	hselasky	If in doubt, ask.
 sys/dev/e1000	erj	Pre-commit phabricator review requested.
 sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
 sys/dev/ixl	erj	Pre-commit phabricator review requested.
+sys/netinet/ip_carp.c	glebius	Pre-commit review recommended.
+sys/netpfil/pf	kp,glebius	Pre-commit review recommended.
 usr.sbin/pkg	pkg@	Please coordinate behavior or flag changes with pkg team.
+lpr		gad	Pre-commit review requested, particularly for
+			lpd/recvjob.c and lpd/printjob.c.
+nis(8), yp(8)	araujo	Pre-commit review requested.
 ---- OLD ----
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
@@ -100,8 +104,6 @@ etc/mail	gshapiro	Pre-commit review requested.
 				Keep in sync with -STABLE.
 etc/sendmail	gshapiro	Pre-commit review requested.
 				Keep in sync with -STABLE.
-lpr		gad	Pre-commit review requested, particularly for
-			lpd/recvjob.c and lpd/printjob.c.
 nvi		peter	Try not to break it.
 libz		peter	Try not to break it.
 groff		ru	Recommends pre-commit review.

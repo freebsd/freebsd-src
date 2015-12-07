@@ -1,16 +1,23 @@
 # $FreeBSD$
 
 LOCALEDIR=	${SHAREDIR}/locale
+LC_FILES=	LC_COLLATE LC_CTYPE LC_MESSAGES LC_MONETARY LC_NUMERIC \
+		LC_TIME
 
-# We need to keep zh_CN.* around as aliases to zh_Hans_CN.* because some
-# of the lang catalogs use zh_CN still (e.g. vi), plus people may expect it
-# We won't alias zh_Hans_CN or zh_Hans_UTF8 though
-.for CN in GB18030 GB2312 GBK UTF-8 eucCN
-SYMLINKS+=	zh_Hans_CN.${CN} ${LOCALEDIR}/zh_CN.${CN}
+ALIASES=	zh_Hans_CN.GB18030 zh_CN.GB18030 \
+		zh_Hans_CN.GB2312 zh_CN.GB2312 \
+		zh_Hans_CN.GBK zh_CN.GBK \
+		zh_Hans_CN.eucCN zh_CN.eucCN \
+		zh_Hans_CN.UTF-8 zh_CN.UTF-8 \
+		zh_Hant_HK.Big5HKSCS zh_HK.Big5HKSCS \
+		zh_Hant_HK.UTF-8 zh_HK.UTF-8 \
+		zh_Hant_TW.Big5 zh_TW.Big5 \
+		zh_Hant_TW.UTF-8 zh_TW.UTF-8
+
+.for from to in ${ALIASES}
+.for f in ${LC_FILES}
+SYMLINKS+=	../${from}/${f} ${LOCALEDIR}/${to}/${f}
 .endfor
-
-.for TW in Big5 UTF-8
-SYMLINKS+=	zh_Hant_TW.${TW} ${LOCALEDIR}/zh_TW.${TW}
 .endfor
 
 .include <bsd.prog.mk>

@@ -938,6 +938,8 @@ struct r92c_rom {
 	uint8_t		curstomer_id;
 } __packed;
 
+#define	URTWN_EFUSE_MAX_LEN		512
+
 /* Rx MAC descriptor. */
 struct r92c_rx_stat {
 	uint32_t	rxdw0;
@@ -1053,12 +1055,13 @@ struct r92c_tx_desc {
 
 	uint16_t	txdw3;
 	uint16_t	txdseq;
-#define R92C_TXDSEQ_HWSEQ_EN	0x8000
+#define R88E_TXDSEQ_HWSEQ_EN	0x8000
 
 	uint32_t	txdw4;
 #define R92C_TXDW4_RTSRATE_M	0x0000003f
 #define R92C_TXDW4_RTSRATE_S	0
 #define R92C_TXDW4_HWSEQ_QOS	0x00000040
+#define R92C_TXDW4_HWSEQ_EN	0x00000080
 #define R92C_TXDW4_DRVRATE	0x00000100
 #define R92C_TXDW4_CTS2SELF	0x00000800
 #define R92C_TXDW4_RTSEN	0x00001000

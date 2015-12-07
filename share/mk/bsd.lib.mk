@@ -182,6 +182,7 @@ lib${LIB_PRIVATE}${LIB}.a: ${OBJS} ${STATICOBJS}
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
 _LIBS+=		lib${LIB_PRIVATE}${LIB}_p.a
 POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
+DEPENDOBJS+=	${POBJS}
 CLEANFILES+=	${POBJS}
 
 lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
@@ -194,6 +195,7 @@ lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 SOBJS+=		${OBJS:.o=.So}
+DEPENDOBJS+=	${SOBJS}
 CLEANFILES+=	${SOBJS}
 .endif
 
@@ -419,7 +421,7 @@ lint: ${SRCS:M*.c}
 
 .if ${MK_FAST_DEPEND} == "yes" || !exists(${.OBJDIR}/${DEPENDFILE})
 .if defined(LIB) && !empty(LIB)
-.if ${MK_FAST_DEPEND} == "no"
+.if !exists(${.OBJDIR}/${DEPENDFILE})
 ${OBJS} ${STATICOBJS} ${POBJS}: ${SRCS:M*.h}
 .endif
 .for _S in ${SRCS:N*.[hly]}

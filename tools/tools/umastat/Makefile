@@ -4,7 +4,6 @@ PROG=	umastat
 MAN=
 WARNS?=	3
 
-DPADD=	${LIBKVM}
-LDADD=	-lkvm
+LIBADD=	kvm
 
 .include <bsd.prog.mk>

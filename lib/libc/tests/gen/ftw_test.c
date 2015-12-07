@@ -49,7 +49,6 @@ extern char **environ;
 
 static char template[] = "testftw.XXXXXXXXXX";
 static char dir[PATH_MAX];
-static int failures;
 static int ftwflags;
 
 static int

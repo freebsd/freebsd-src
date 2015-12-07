@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$NetBSD: mkfs_msdos.h,v 1.2 2013/01/23 15:29:15 christos Exp $	*/
+/*	$NetBSD: mkfs_msdos.h,v 1.3 2015/10/16 17:38:17 christos Exp $	*/
 
 /*-
  * Copyright (c) 2013 The NetBSD Foundation, Inc.

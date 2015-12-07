@@ -42,7 +42,7 @@ MAN+=	fclose.3 ferror.3 fflush.3 fgetln.3 fgets.3 fgetwln.3 fgetws.3 \
 	stdio.3 tmpnam.3 \
 	ungetc.3 ungetwc.3 wprintf.3 wscanf.3
 
-MLINKS+=fclose.3 fcloseall.3
+MLINKS+=fclose.3 fcloseall.3 fclose.3 fdclose.3
 MLINKS+=ferror.3 ferror_unlocked.3 \
 	ferror.3 clearerr.3 ferror.3 clearerr_unlocked.3 \
 	ferror.3 feof.3 ferror.3 feof_unlocked.3 \

@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
+#include <sys/vdso.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -271,6 +272,7 @@ sendsig(catcher, ksi, mask)
 	struct trapframe *tf;
 	struct sigframe *fp, frame;
 	struct sigacts *psp;
+	struct sysentvec *sysent;
 	int onstack;
 	int sig;
 	int code;
@@ -337,7 +339,12 @@ sendsig(catcher, ksi, mask)
 	tf->tf_r5 = (register_t)&fp->sf_uc;
 	tf->tf_pc = (register_t)catcher;
 	tf->tf_usr_sp = (register_t)fp;
-	tf->tf_usr_lr = (register_t)(PS_STRINGS - *(p->p_sysent->sv_szsigcode));
+	sysent = p->p_sysent;
+	if (sysent->sv_sigcode_base != 0)
+		tf->tf_usr_lr = (register_t)sysent->sv_sigcode_base;
+	else
+		tf->tf_usr_lr = (register_t)(sysent->sv_psstrings -
+		    *(sysent->sv_szsigcode));
 	/* Set the mode to enter in the signal handler */
 #if __ARM_ARCH >= 7
 	if ((register_t)catcher & 1)
@@ -591,41 +598,21 @@ set_dbregs(struct thread *td, struct dbreg *regs)
 
 
 static int
-ptrace_read_int(struct thread *td, vm_offset_t addr, u_int32_t *v)
+ptrace_read_int(struct thread *td, vm_offset_t addr, uint32_t *v)
 {
-	struct iovec iov;
-	struct uio uio;
 
-	PROC_LOCK_ASSERT(td->td_proc, MA_NOTOWNED);
-	iov.iov_base = (caddr_t) v;
-	iov.iov_len = sizeof(u_int32_t);
-	uio.uio_iov = &iov;
-	uio.uio_iovcnt = 1;
-	uio.uio_offset = (off_t)addr;
-	uio.uio_resid = sizeof(u_int32_t);
-	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_rw = UIO_READ;
-	uio.uio_td = td;
-	return proc_rwmem(td->td_proc, &uio);
+	if (proc_readmem(td, td->td_proc, addr, v, sizeof(*v)) != sizeof(*v))
+		return (ENOMEM);
+	return (0);
 }
 
 static int
-ptrace_write_int(struct thread *td, vm_offset_t addr, u_int32_t v)
+ptrace_write_int(struct thread *td, vm_offset_t addr, uint32_t v)
 {
-	struct iovec iov;
-	struct uio uio;
 
-	PROC_LOCK_ASSERT(td->td_proc, MA_NOTOWNED);
-	iov.iov_base = (caddr_t) &v;
-	iov.iov_len = sizeof(u_int32_t);
-	uio.uio_iov = &iov;
-	uio.uio_iovcnt = 1;
-	uio.uio_offset = (off_t)addr;
-	uio.uio_resid = sizeof(u_int32_t);
-	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_rw = UIO_WRITE;
-	uio.uio_td = td;
-	return proc_rwmem(td->td_proc, &uio);
+	if (proc_writemem(td, td->td_proc, addr, &v, sizeof(v)) != sizeof(v))
+		return (ENOMEM);
+	return (0);
 }
 
 static u_int
@@ -1910,3 +1897,14 @@ initarm(struct arm_boot_params *abp)
 
 #endif /* !ARM_NEW_PMAP */
 #endif /* FDT */
+
+uint32_t (*arm_cpu_fill_vdso_timehands)(struct vdso_timehands *,
+    struct timecounter *);
+
+uint32_t
+cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
+{
+
+	return (arm_cpu_fill_vdso_timehands != NULL ?
+	    arm_cpu_fill_vdso_timehands(vdso_th, tc) : 0);
+}

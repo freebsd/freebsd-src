@@ -53,9 +53,6 @@ extern int	in_inithead(void **head, int off);
 extern int	in_detachhead(void **head, int off);
 #endif
 
-static void in_setifarnh(struct radix_node_head *rnh, uint32_t fibnum,
-    int af, void *_arg);
-
 /*
  * Do what we need to do when inserting a route.
  */
@@ -150,56 +147,22 @@ in_detachhead(void **head, int off)
  * plug back in.
  */
 struct in_ifadown_arg {
-	struct radix_node_head *rnh;
 	struct ifaddr *ifa;
 	int del;
 };
 
 static int
-in_ifadownkill(struct rtentry *rt, void *xap)
+in_ifadownkill(const struct rtentry *rt, void *xap)
 {
 	struct in_ifadown_arg *ap = xap;
 
-	RT_LOCK(rt);
-	if (rt->rt_ifa == ap->ifa &&
-	    (ap->del || !(rt->rt_flags & RTF_STATIC))) {
-		/*
-		 * Aquire a reference so that it can later be freed
-		 * as the refcount would be 0 here in case of at least
-		 * ap->del.
-		 */
-		RT_ADDREF(rt);
-		/*
-		 * Disconnect it from the tree and permit protocols
-		 * to cleanup.
-		 */
-		rt_expunge(ap->rnh, rt);
-		/*
-		 * At this point it is an rttrash node, and in case
-		 * the above is the only reference we must free it.
-		 * If we do not noone will have a pointer and the
-		 * rtentry will be leaked forever.
-		 * In case someone else holds a reference, we are
-		 * fine as we only decrement the refcount. In that
-		 * case if the other entity calls RT_REMREF, we
-		 * will still be leaking but at least we tried.
-		 */
-		RTFREE_LOCKED(rt);
+	if (rt->rt_ifa != ap->ifa)
 		return (0);
-	}
-	RT_UNLOCK(rt);
-	return 0;
-}
 
-static void
-in_setifarnh(struct radix_node_head *rnh, uint32_t fibnum, int af,
-    void *_arg)
-{
-	struct in_ifadown_arg *arg;
+	if ((rt->rt_flags & RTF_STATIC) != 0 && ap->del == 0)
+		return (0);
 
-	arg = (struct in_ifadown_arg *)_arg;
-
-	arg->rnh = rnh;
+	return (1);
 }
 
 void
@@ -213,7 +176,7 @@ in_ifadown(struct ifaddr *ifa, int delete)
 	arg.ifa = ifa;
 	arg.del = delete;
 
-	rt_foreach_fib_walk(AF_INET, in_setifarnh, in_ifadownkill, &arg);
+	rt_foreach_fib_walk_del(AF_INET, in_ifadownkill, &arg);
 	ifa->ifa_flags &= ~IFA_ROUTE;		/* XXXlocking? */
 }
 

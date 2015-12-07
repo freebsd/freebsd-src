@@ -59,6 +59,8 @@ static uint32_t isp_pci_rd_reg_1080(ispsoftc_t *, int);
 static void isp_pci_wr_reg_1080(ispsoftc_t *, int, uint32_t);
 static uint32_t isp_pci_rd_reg_2400(ispsoftc_t *, int);
 static void isp_pci_wr_reg_2400(ispsoftc_t *, int, uint32_t);
+static uint32_t isp_pci_rd_reg_2600(ispsoftc_t *, int);
+static void isp_pci_wr_reg_2600(ispsoftc_t *, int, uint32_t);
 static int isp_pci_rd_isr(ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
 static int isp_pci_rd_isr_2300(ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
 static int isp_pci_rd_isr_2400(ispsoftc_t *, uint16_t *, uint16_t *, uint16_t *);
@@ -172,6 +174,18 @@ static struct ispmdvec mdvec_2500 = {
 	NULL
 };
 
+static struct ispmdvec mdvec_2600 = {
+	isp_pci_rd_isr_2400,
+	isp_pci_rd_reg_2600,
+	isp_pci_wr_reg_2600,
+	isp_pci_mbxdma,
+	isp_pci_dmasetup,
+	isp_common_dmateardown,
+	isp_pci_reset0,
+	isp_pci_reset1,
+	NULL
+};
+
 #ifndef	PCIM_CMD_INVEN
 #define	PCIM_CMD_INVEN			0x10
 #endif
@@ -276,6 +290,10 @@ static struct ispmdvec mdvec_2500 = {
 #define        PCI_PRODUCT_QLOGIC_ISP5432      0x5432
 #endif
 
+#ifndef	PCI_PRODUCT_QLOGIC_ISP2031
+#define	PCI_PRODUCT_QLOGIC_ISP2031	0x2031
+#endif
+
 #define        PCI_QLOGIC_ISP5432      \
        ((PCI_PRODUCT_QLOGIC_ISP5432 << 16) | PCI_VENDOR_QLOGIC)
 
@@ -327,13 +345,13 @@ static struct ispmdvec mdvec_2500 = {
 #define	PCI_QLOGIC_ISP6322	\
 	((PCI_PRODUCT_QLOGIC_ISP6322 << 16) | PCI_VENDOR_QLOGIC)
 
+#define	PCI_QLOGIC_ISP2031	\
+	((PCI_PRODUCT_QLOGIC_ISP2031 << 16) | PCI_VENDOR_QLOGIC)
+
 /*
  * Odd case for some AMI raid cards... We need to *not* attach to this.
  */
 #define	AMI_RAID_SUBVENDOR_ID	0x101e
-
-#define	IO_MAP_REG	0x10
-#define	MEM_MAP_REG	0x14
 
 #define	PCI_DFLT_LTNCY	0x40
 #define	PCI_DFLT_LNSZ	0x10
@@ -348,10 +366,13 @@ struct isp_pcisoftc {
 	ispsoftc_t			pci_isp;
 	device_t			pci_dev;
 	struct resource *		regs;
+	struct resource *		regs2;
 	void *				irq;
 	int				iqd;
 	int				rtp;
 	int				rgd;
+	int				rtp2;
+	int				rgd2;
 	void *				ih;
 	int16_t				pci_poff[_NREG_BLKS];
 	bus_dma_tag_t			dmat;
@@ -434,6 +455,9 @@ isp_pci_probe(device_t dev)
 	case PCI_QLOGIC_ISP6322:
 		device_set_desc(dev, "Qlogic ISP 6322 PCI FC-AL Adapter");
 		break;
+	case PCI_QLOGIC_ISP2031:
+		device_set_desc(dev, "Qlogic ISP 2031 PCI FC-AL Adapter");
+		break;
 	default:
 		return (ENXIO);
 	}
@@ -456,16 +480,6 @@ isp_get_generic_options(device_t dev, ispsoftc_t *isp)
 {
 	int tval;
 
-	/*
-	 * Figure out if we're supposed to skip this one.
-	 */
-	tval = 0;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "disable", &tval) == 0 && tval) {
-		device_printf(dev, "disabled at user request\n");
-		isp->isp_osinfo.disabled = 1;
-		return;
-	}
-	
 	tval = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "fwload_disable", &tval) == 0 && tval != 0) {
 		isp->isp_confopts |= ISP_CFG_NORELOAD;
@@ -486,37 +500,12 @@ isp_get_generic_options(device_t dev, ispsoftc_t *isp)
 	}
 	tval = -1;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "vports", &tval);
-	if (tval > 0 && tval < 127) {
+	if (tval > 0 && tval <= 254) {
 		isp_nvports = tval;
 	}
 	tval = 7;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev), "quickboot_time", &tval);
 	isp_quickboot_time = tval;
-}
-
-static void
-isp_get_pci_options(device_t dev, int *m1, int *m2)
-{
-	int tval;
-	/*
-	 * Which we should try first - memory mapping or i/o mapping?
-	 *
-	 * We used to try memory first followed by i/o on alpha, otherwise
-	 * the reverse, but we should just try memory first all the time now.
-	 */
-	*m1 = PCIM_CMD_MEMEN;
-	*m2 = PCIM_CMD_PORTEN;
-
-	tval = 0;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "prefer_iomap", &tval) == 0 && tval != 0) {
-		*m1 = PCIM_CMD_PORTEN;
-		*m2 = PCIM_CMD_MEMEN;
-	}
-	tval = 0;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev), "prefer_memmap", &tval) == 0 && tval != 0) {
-		*m1 = PCIM_CMD_MEMEN;
-		*m2 = PCIM_CMD_PORTEN;
-	}
 }
 
 static void
@@ -551,6 +540,9 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 		isp->isp_confopts |= ISP_CFG_OWNLOOPID;
 	}
 
+	if (IS_SCSI(isp))
+		return;
+
 	tval = -1;
 	snprintf(name, sizeof(name), "%srole", prefix);
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
@@ -569,11 +561,6 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 	}
 	if (tval == -1) {
 		tval = ISP_DEFAULT_ROLES;
-	}
-
-	if (IS_SCSI(isp)) {
-		ISP_SPI_PC(isp, chan)->def_role = tval;
-		return;
 	}
 	ISP_FC_PC(isp, chan)->def_role = tval;
 
@@ -650,16 +637,6 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 		}
 	}
 
-	tval = 0;
-	snprintf(name, sizeof(name), "%shysteresis", prefix);
-	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "name", &tval);
-	if (tval >= 0 && tval < 256) {
-		ISP_FC_PC(isp, chan)->hysteresis = tval;
-	} else {
-		ISP_FC_PC(isp, chan)->hysteresis = isp_fabric_hysteresis;
-	}
-
 	tval = -1;
 	snprintf(name, sizeof(name), "%sloop_down_limit", prefix);
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
@@ -684,7 +661,7 @@ isp_get_specific_options(device_t dev, int chan, ispsoftc_t *isp)
 static int
 isp_pci_attach(device_t dev)
 {
-	int i, m1, m2, locksetup = 0;
+	int i, locksetup = 0;
 	uint32_t data, cmd, linesz, did;
 	struct isp_pcisoftc *pcs;
 	ispsoftc_t *isp;
@@ -711,42 +688,9 @@ isp_pci_attach(device_t dev)
 	isp_nvports = 0;
 	isp_get_generic_options(dev, isp);
 
-	/*
-	 * Check to see if options have us disabled
-	 */
-	if (isp->isp_osinfo.disabled) {
-		/*
-		 * But return zero to preserve unit numbering
-		 */
-		return (0);
-	}
-
-	/*
-	 * Get PCI options- which in this case are just mapping preferences.
-	 */
-	isp_get_pci_options(dev, &m1, &m2);
-
 	linesz = PCI_DFLT_LNSZ;
-	pcs->irq = pcs->regs = NULL;
+	pcs->irq = pcs->regs = pcs->regs2 = NULL;
 	pcs->rgd = pcs->rtp = pcs->iqd = 0;
-
-	pcs->rtp = (m1 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
-	pcs->rgd = (m1 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
-	pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd, RF_ACTIVE);
-	if (pcs->regs == NULL) {
-		pcs->rtp = (m2 == PCIM_CMD_MEMEN)? SYS_RES_MEMORY : SYS_RES_IOPORT;
-		pcs->rgd = (m2 == PCIM_CMD_MEMEN)? MEM_MAP_REG : IO_MAP_REG;
-		pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd, RF_ACTIVE);
-	}
-	if (pcs->regs == NULL) {
-		device_printf(dev, "unable to map any ports\n");
-		goto bad;
-	}
-	if (bootverbose) {
-		device_printf(dev, "using %s space register mapping\n", (pcs->rgd == IO_MAP_REG)? "I/O" : "Memory");
-	}
-	isp->isp_bus_tag = rman_get_bustag(pcs->regs);
-	isp->isp_bus_handle = rman_get_bushandle(pcs->regs);
 
 	pcs->pci_dev = dev;
 	pcs->pci_poff[BIU_BLOCK >> _BLK_REG_SHFT] = BIU_REGS_OFF;
@@ -855,12 +799,51 @@ isp_pci_attach(device_t dev)
 		isp->isp_type = ISP_HA_FC_2500;
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] = PCI_MBOX_REGS2400_OFF;
 		break;
+	case PCI_QLOGIC_ISP2031:
+		did = 0x2600;
+		isp->isp_nchan += isp_nvports;
+		isp->isp_mdvec = &mdvec_2600;
+		isp->isp_type = ISP_HA_FC_2600;
+		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] = PCI_MBOX_REGS2400_OFF;
+		break;
 	default:
 		device_printf(dev, "unknown device type\n");
 		goto bad;
 		break;
 	}
 	isp->isp_revision = pci_get_revid(dev);
+
+	if (IS_26XX(isp)) {
+		pcs->rtp = SYS_RES_MEMORY;
+		pcs->rgd = PCIR_BAR(0);
+		pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd,
+		    RF_ACTIVE);
+		pcs->rtp2 = SYS_RES_MEMORY;
+		pcs->rgd2 = PCIR_BAR(4);
+		pcs->regs2 = bus_alloc_resource_any(dev, pcs->rtp2, &pcs->rgd2,
+		    RF_ACTIVE);
+	} else {
+		pcs->rtp = SYS_RES_MEMORY;
+		pcs->rgd = PCIR_BAR(1);
+		pcs->regs = bus_alloc_resource_any(dev, pcs->rtp, &pcs->rgd,
+		    RF_ACTIVE);
+		if (pcs->regs == NULL) {
+			pcs->rtp = SYS_RES_IOPORT;
+			pcs->rgd = PCIR_BAR(0);
+			pcs->regs = bus_alloc_resource_any(dev, pcs->rtp,
+			    &pcs->rgd, RF_ACTIVE);
+		}
+	}
+	if (pcs->regs == NULL) {
+		device_printf(dev, "Unable to map any ports\n");
+		goto bad;
+	}
+	if (bootverbose) {
+		device_printf(dev, "Using %s space register mapping\n",
+		    (pcs->rtp == SYS_RES_IOPORT)? "I/O" : "Memory");
+	}
+	isp->isp_regs = pcs->regs;
+	isp->isp_regs2 = pcs->regs2;
 
 	if (IS_FC(isp)) {
 		psize = sizeof (fcparam);
@@ -889,14 +872,7 @@ isp_pci_attach(device_t dev)
 		isp_get_specific_options(dev, i, isp);
 	}
 
-	/*
-	 * The 'it' suffix really only matters for SCSI cards in target mode.
-	 */
 	isp->isp_osinfo.fw = NULL;
-	if (IS_SCSI(isp) && (ISP_SPI_PC(isp, 0)->def_role & ISP_ROLE_TARGET)) {
-		snprintf(fwname, sizeof (fwname), "isp_%04x_it", did);
-		isp->isp_osinfo.fw = firmware_get(fwname);
-	}
 	if (isp->isp_osinfo.fw == NULL) {
 		snprintf(fwname, sizeof (fwname), "isp_%04x", did);
 		isp->isp_osinfo.fw = firmware_get(fwname);
@@ -1017,9 +993,10 @@ bad:
 	if (pcs->msicount) {
 		pci_release_msi(dev);
 	}
-	if (pcs->regs) {
+	if (pcs->regs)
 		(void) bus_release_resource(dev, pcs->rtp, pcs->rgd, pcs->regs);
-	}
+	if (pcs->regs2)
+		(void) bus_release_resource(dev, pcs->rtp2, pcs->rgd2, pcs->regs2);
 	if (pcs->pci_isp.isp_param) {
 		free(pcs->pci_isp.isp_param, M_DEVBUF);
 		pcs->pci_isp.isp_param = NULL;
@@ -1058,6 +1035,8 @@ isp_pci_detach(device_t dev)
 		pci_release_msi(dev);
 	}
 	(void) bus_release_resource(dev, pcs->rtp, pcs->rgd, pcs->regs);
+	if (pcs->regs2)
+		(void) bus_release_resource(dev, pcs->rtp2, pcs->rgd2, pcs->regs2);
 	/*
 	 * XXX: THERE IS A LOT OF LEAKAGE HERE
 	 */
@@ -1076,15 +1055,12 @@ isp_pci_detach(device_t dev)
 	(((struct isp_pcisoftc *)a)->pci_poff[((x) & _BLK_REG_MASK) >> \
 	_BLK_REG_SHFT] + ((x) & 0xfff))
 
-#define	BXR2(isp, off)		\
-	bus_space_read_2(isp->isp_bus_tag, isp->isp_bus_handle, off)
-#define	BXW2(isp, off, v)	\
-	bus_space_write_2(isp->isp_bus_tag, isp->isp_bus_handle, off, v)
-#define	BXR4(isp, off)		\
-	bus_space_read_4(isp->isp_bus_tag, isp->isp_bus_handle, off)
-#define	BXW4(isp, off, v)	\
-	bus_space_write_4(isp->isp_bus_tag, isp->isp_bus_handle, off, v)
-
+#define	BXR2(isp, off)		bus_read_2((isp)->isp_regs, (off))
+#define	BXW2(isp, off, v)	bus_write_2((isp)->isp_regs, (off), (v))
+#define	BXR4(isp, off)		bus_read_4((isp)->isp_regs, (off))
+#define	BXW4(isp, off, v)	bus_write_4((isp)->isp_regs, (off), (v))
+#define	B2R4(isp, off)		bus_read_4((isp)->isp_regs2, (off))
+#define	B2W4(isp, off, v)	bus_write_4((isp)->isp_regs2, (off), (v))
 
 static ISP_INLINE int
 isp_pci_rd_debounced(ispsoftc_t *isp, int off, uint16_t *rp)
@@ -1347,19 +1323,18 @@ isp_pci_rd_reg_2400(ispsoftc_t *isp, int regoff)
 	case MBOX_BLOCK:
 		return (BXR2(isp, IspVirt2Off(isp, regoff)));
 	case SXP_BLOCK:
-		isp_prt(isp, ISP_LOGWARN, "SXP_BLOCK read at 0x%x", regoff);
+		isp_prt(isp, ISP_LOGERR, "SXP_BLOCK read at 0x%x", regoff);
 		return (0xffffffff);
 	case RISC_BLOCK:
-		isp_prt(isp, ISP_LOGWARN, "RISC_BLOCK read at 0x%x", regoff);
+		isp_prt(isp, ISP_LOGERR, "RISC_BLOCK read at 0x%x", regoff);
 		return (0xffffffff);
 	case DMA_BLOCK:
-		isp_prt(isp, ISP_LOGWARN, "DMA_BLOCK read at 0x%x", regoff);
+		isp_prt(isp, ISP_LOGERR, "DMA_BLOCK read at 0x%x", regoff);
 		return (0xffffffff);
 	default:
-		isp_prt(isp, ISP_LOGWARN, "unknown block read at 0x%x", regoff);
+		isp_prt(isp, ISP_LOGERR, "unknown block read at 0x%x", regoff);
 		return (0xffffffff);
 	}
-
 
 	switch (regoff) {
 	case BIU2400_FLASH_ADDR:
@@ -1388,8 +1363,8 @@ isp_pci_rd_reg_2400(ispsoftc_t *isp, int regoff)
 		rv = BXR4(isp, IspVirt2Off(isp, regoff)) >> 16;
 		break;
 	default:
-		isp_prt(isp, ISP_LOGERR,
-		    "isp_pci_rd_reg_2400: unknown offset %x", regoff);
+		isp_prt(isp, ISP_LOGERR, "unknown register read at 0x%x",
+		    regoff);
 		rv = 0xffffffff;
 		break;
 	}
@@ -1409,17 +1384,16 @@ isp_pci_wr_reg_2400(ispsoftc_t *isp, int regoff, uint32_t val)
 		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, regoff), 2, -1);
 		return;
 	case SXP_BLOCK:
-		isp_prt(isp, ISP_LOGWARN, "SXP_BLOCK write at 0x%x", regoff);
+		isp_prt(isp, ISP_LOGERR, "SXP_BLOCK write at 0x%x", regoff);
 		return;
 	case RISC_BLOCK:
-		isp_prt(isp, ISP_LOGWARN, "RISC_BLOCK write at 0x%x", regoff);
+		isp_prt(isp, ISP_LOGERR, "RISC_BLOCK write at 0x%x", regoff);
 		return;
 	case DMA_BLOCK:
-		isp_prt(isp, ISP_LOGWARN, "DMA_BLOCK write at 0x%x", regoff);
+		isp_prt(isp, ISP_LOGERR, "DMA_BLOCK write at 0x%x", regoff);
 		return;
 	default:
-		isp_prt(isp, ISP_LOGWARN, "unknown block write at 0x%x",
-		    regoff);
+		isp_prt(isp, ISP_LOGERR, "unknown block write at 0x%x", regoff);
 		break;
 	}
 
@@ -1454,10 +1428,83 @@ isp_pci_wr_reg_2400(ispsoftc_t *isp, int regoff, uint32_t val)
 		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, regoff), 4, -1);
 		break;
 	default:
-		isp_prt(isp, ISP_LOGERR,
-		    "isp_pci_wr_reg_2400: bad offset 0x%x", regoff);
+		isp_prt(isp, ISP_LOGERR, "unknown register write at 0x%x",
+		    regoff);
 		break;
 	}
+}
+
+static uint32_t
+isp_pci_rd_reg_2600(ispsoftc_t *isp, int regoff)
+{
+	uint32_t rv;
+
+	switch (regoff) {
+	case BIU2400_PRI_REQINP:
+	case BIU2400_PRI_REQOUTP:
+		isp_prt(isp, ISP_LOGERR, "unknown register read at 0x%x",
+		    regoff);
+		rv = 0xffffffff;
+		break;
+	case BIU2400_REQINP:
+		rv = B2R4(isp, 0x00);
+		break;
+	case BIU2400_REQOUTP:
+		rv = B2R4(isp, 0x04);
+		break;
+	case BIU2400_RSPINP:
+		rv = B2R4(isp, 0x08);
+		break;
+	case BIU2400_RSPOUTP:
+		rv = B2R4(isp, 0x0c);
+		break;
+	case BIU2400_ATIO_RSPINP:
+		rv = B2R4(isp, 0x10);
+		break;
+	case BIU2400_ATIO_RSPOUTP:
+		rv = B2R4(isp, 0x14);
+		break;
+	default:
+		rv = isp_pci_rd_reg_2400(isp, regoff);
+		break;
+	}
+	return (rv);
+}
+
+static void
+isp_pci_wr_reg_2600(ispsoftc_t *isp, int regoff, uint32_t val)
+{
+	int off;
+
+	switch (regoff) {
+	case BIU2400_PRI_REQINP:
+	case BIU2400_PRI_REQOUTP:
+		isp_prt(isp, ISP_LOGERR, "unknown register write at 0x%x",
+		    regoff);
+		return;
+	case BIU2400_REQINP:
+		off = 0x00;
+		break;
+	case BIU2400_REQOUTP:
+		off = 0x04;
+		break;
+	case BIU2400_RSPINP:
+		off = 0x08;
+		break;
+	case BIU2400_RSPOUTP:
+		off = 0x0c;
+		break;
+	case BIU2400_ATIO_RSPINP:
+		off = 0x10;
+		break;
+	case BIU2400_ATIO_RSPOUTP:
+		off = 0x14;
+		break;
+	default:
+		isp_pci_wr_reg_2400(isp, regoff, val);
+		return;
+	}
+	B2W4(isp, off, val);
 }
 
 
@@ -1497,7 +1544,7 @@ imc(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	segs->ds_addr += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(imushp->isp));
 	imushp->vbase += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(imushp->isp));
 
-	if (imushp->isp->isp_type >= ISP_HA_FC_2300) {
+	if (imushp->isp->isp_type >= ISP_HA_FC_2200) {
         imushp->isp->isp_osinfo.ecmd_dma = segs->ds_addr;
         imushp->isp->isp_osinfo.ecmd_free = (isp_ecmd_t *)imushp->vbase;
         imushp->isp->isp_osinfo.ecmd_base = imushp->isp->isp_osinfo.ecmd_free;
@@ -1587,17 +1634,6 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	} else {
 		nsegs = ISP_NSEG_MAX;
 	}
-#ifdef	ISP_TARGET_MODE
-	/*
-	 * XXX: We don't really support 64 bit target mode for parallel scsi yet
-	 */
-	if (IS_SCSI(isp) && isp->isp_osinfo.sixtyfourbit) {
-		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
-		isp_prt(isp, ISP_LOGERR, "we cannot do DAC for SPI cards yet");
-		ISP_LOCK(isp);
-		return (1);
-	}
-#endif
 
 	if (isp_dma_tag_create(BUS_DMA_ROOTARG(ISP_PCD(isp)), 1, slim, llim, hlim, NULL, NULL, BUS_SPACE_MAXSIZE, nsegs, slim, 0, &isp->isp_osinfo.dmat)) {
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
@@ -1647,7 +1683,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		len += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
 	}
 #endif
-	if (isp->isp_type >= ISP_HA_FC_2300) {
+	if (isp->isp_type >= ISP_HA_FC_2200) {
 		len += (N_XCMDS * XCMD_SIZE);
 	}
 
@@ -1709,7 +1745,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 				bus_dma_tag_destroy(fc->tdmat);
 				goto bad;
 			}
-			if (isp->isp_type >= ISP_HA_FC_2300) {
+			if (!IS_2100(isp)) {
 				for (i = 0; i < INITIAL_NEXUS_COUNT; i++) {
 					struct isp_nexus *n = malloc(sizeof (struct isp_nexus), M_DEVBUF, M_NOWAIT | M_ZERO);
 					if (n == NULL) {

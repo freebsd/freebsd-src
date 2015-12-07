@@ -373,7 +373,11 @@
         file
         ..
         kern
+            acct
+            ..
             execve
+            ..
+            pipe
             ..
         ..
         kqueue

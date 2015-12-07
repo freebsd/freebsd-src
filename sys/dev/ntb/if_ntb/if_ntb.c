@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/pmap.h>
 
+#include <netinet/in.h>
+#include <netinet/ip.h>
+
 #include "../ntb_hw/ntb_hw.h"
 
 /*
@@ -101,7 +104,7 @@ SYSCTL_UINT(_hw_if_ntb, OID_AUTO, debug_level, CTLFLAG_RWTUN,
 	}						\
 } while (0)
 
-static unsigned transport_mtu = 0x10000 + ETHER_HDR_LEN + ETHER_CRC_LEN;
+static unsigned transport_mtu = IP_MAXPACKET + ETHER_HDR_LEN + ETHER_CRC_LEN;
 
 static uint64_t max_mw_size;
 SYSCTL_UQUAD(_hw_if_ntb, OID_AUTO, max_mw_size, CTLFLAG_RDTUN, &max_mw_size, 0,
@@ -114,9 +117,14 @@ SYSCTL_UINT(_hw_if_ntb, OID_AUTO, max_num_clients, CTLFLAG_RDTUN,
     "0 (default) - use all available NTB memory windows; "
     "positive integer N - Limit to N memory windows.");
 
+static unsigned enable_xeon_watchdog;
+SYSCTL_UINT(_hw_if_ntb, OID_AUTO, enable_xeon_watchdog, CTLFLAG_RDTUN,
+    &enable_xeon_watchdog, 0, "If non-zero, write a register every second to "
+    "keep a watchdog from tearing down the NTB link");
+
 STAILQ_HEAD(ntb_queue_list, ntb_queue_entry);
 
-typedef unsigned ntb_q_idx_t;
+typedef uint32_t ntb_q_idx_t;
 
 struct ntb_queue_entry {
 	/* ntb_queue list reference */
@@ -125,8 +133,8 @@ struct ntb_queue_entry {
 	/* info on data to be transferred */
 	void		*cb_data;
 	void		*buf;
-	unsigned	len;
-	unsigned	flags;
+	uint32_t	len;
+	uint32_t	flags;
 
 	struct ntb_transport_qp		*qp;
 	struct ntb_payload_header	*x_hdr;
@@ -164,7 +172,6 @@ struct ntb_transport_qp {
 	    void *data, int len);
 	struct ntb_queue_list	rx_post_q;
 	struct ntb_queue_list	rx_pend_q;
-	struct ntb_queue_list	rx_free_q;
 	/* ntb_rx_q_lock: synchronize access to rx_XXXX_q */
 	struct mtx		ntb_rx_q_lock;
 	struct task		rx_completion_task;
@@ -207,6 +214,7 @@ struct ntb_transport_mw {
 	size_t		phys_size;
 	size_t		xlat_align;
 	size_t		xlat_align_size;
+	bus_addr_t	addr_limit;
 	/* Tx buff is off vbase / phys_addr */
 	caddr_t		vbase;
 	size_t		xlat_size;
@@ -227,6 +235,7 @@ struct ntb_transport_ctx {
 	unsigned		qp_count;
 	volatile bool		link_is_up;
 	struct callout		link_work;
+	struct callout		link_watchdog;
 	struct task		link_cleanup;
 	uint64_t		bufsize;
 	u_char			eaddr[ETHER_ADDR_LEN];
@@ -245,9 +254,9 @@ enum {
 };
 
 struct ntb_payload_header {
-	uint64_t ver;
-	uint64_t len;
-	uint64_t flags;
+	ntb_q_idx_t ver;
+	uint32_t len;
+	uint32_t flags;
 };
 
 enum {
@@ -268,7 +277,17 @@ enum {
 	IF_NTB_MW1_SZ_HIGH,
 	IF_NTB_MW1_SZ_LOW,
 	IF_NTB_MAX_SPAD,
+
+	/*
+	 * Some NTB-using hardware have a watchdog to work around NTB hangs; if
+	 * a register or doorbell isn't written every few seconds, the link is
+	 * torn down.  Write an otherwise unused register every few seconds to
+	 * work around this watchdog.
+	 */
+	IF_NTB_WATCHDOG_SPAD = 15
 };
+CTASSERT(IF_NTB_WATCHDOG_SPAD < XEON_SPAD_COUNT &&
+    IF_NTB_WATCHDOG_SPAD < ATOM_SPAD_COUNT);
 
 #define QP_TO_MW(nt, qp)	((qp) % nt->mw_count)
 #define NTB_QP_DEF_NUM_ENTRIES	100
@@ -330,6 +349,7 @@ static struct ntb_queue_entry *ntb_list_mv(struct mtx *lock,
     struct ntb_queue_list *from, struct ntb_queue_list *to);
 static void create_random_local_eui48(u_char *eaddr);
 static unsigned int ntb_transport_max_size(struct ntb_transport_qp *qp);
+static void xeon_link_watchdog_hb(void *);
 
 static const struct ntb_ctx_ops ntb_transport_ops = {
 	.link_event = ntb_transport_event_callback,
@@ -337,6 +357,14 @@ static const struct ntb_ctx_ops ntb_transport_ops = {
 };
 
 MALLOC_DEFINE(M_NTB_IF, "if_ntb", "ntb network driver");
+
+static inline void
+iowrite32(uint32_t val, void *addr)
+{
+
+	bus_space_write_4(X86_BUS_SPACE_MEM, 0/* HACK */, (uintptr_t)addr,
+	    val);
+}
 
 /* Module setup and teardown */
 static int
@@ -410,6 +438,8 @@ ntb_setup_interface(void)
 	ether_ifattach(ifp, net_softc.eaddr);
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_JUMBO_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
+	ifp->if_mtu = ntb_transport_max_size(net_softc.qp) - ETHER_HDR_LEN -
+	    ETHER_CRC_LEN;
 
 	ntb_transport_link_up(net_softc.qp);
 	net_softc.bufsize = ntb_transport_max_size(net_softc.qp) +
@@ -554,6 +584,16 @@ ntb_net_event_handler(void *data, enum ntb_link_event status)
 
 /* Transport Init and teardown */
 
+static void
+xeon_link_watchdog_hb(void *arg)
+{
+	struct ntb_transport_ctx *nt;
+
+	nt = arg;
+	ntb_spad_write(nt->ntb, IF_NTB_WATCHDOG_SPAD, 0);
+	callout_reset(&nt->link_watchdog, 1 * hz, xeon_link_watchdog_hb, nt);
+}
+
 static int
 ntb_transport_probe(struct ntb_softc *ntb)
 {
@@ -568,7 +608,8 @@ ntb_transport_probe(struct ntb_softc *ntb)
 		mw = &nt->mw_vec[i];
 
 		rc = ntb_mw_get_range(ntb, i, &mw->phys_addr, &mw->vbase,
-		    &mw->phys_size, &mw->xlat_align, &mw->xlat_align_size);
+		    &mw->phys_size, &mw->xlat_align, &mw->xlat_align_size,
+		    &mw->addr_limit);
 		if (rc != 0)
 			goto err;
 
@@ -602,6 +643,7 @@ ntb_transport_probe(struct ntb_softc *ntb)
 	}
 
 	callout_init(&nt->link_work, 0);
+	callout_init(&nt->link_watchdog, 0);
 	TASK_INIT(&nt->link_cleanup, 0, ntb_transport_link_cleanup_work, nt);
 
 	rc = ntb_set_ctx(ntb, nt, &ntb_transport_ops);
@@ -613,6 +655,8 @@ ntb_transport_probe(struct ntb_softc *ntb)
 	ntb_link_event(ntb);
 
 	callout_reset(&nt->link_work, 0, ntb_transport_link_work, nt);
+	if (enable_xeon_watchdog != 0)
+		callout_reset(&nt->link_watchdog, 0, xeon_link_watchdog_hb, nt);
 	return (0);
 
 err:
@@ -631,6 +675,7 @@ ntb_transport_free(struct ntb_transport_ctx *nt)
 	ntb_transport_link_cleanup(nt);
 	taskqueue_drain(taskqueue_swi, &nt->link_cleanup);
 	callout_drain(&nt->link_work);
+	callout_drain(&nt->link_watchdog);
 
 	BIT_COPY(QP_SETSIZE, &nt->qp_bitmap, &qp_bitmap_alloc);
 	BIT_NAND(QP_SETSIZE, &qp_bitmap_alloc, &nt->qp_bitmap_free);
@@ -708,7 +753,6 @@ ntb_transport_init_queue(struct ntb_transport_ctx *nt, unsigned int qp_num)
 
 	STAILQ_INIT(&qp->rx_post_q);
 	STAILQ_INIT(&qp->rx_pend_q);
-	STAILQ_INIT(&qp->rx_free_q);
 	STAILQ_INIT(&qp->tx_free_q);
 
 	callout_reset(&qp->link_work, 0, ntb_qp_link_work, qp);
@@ -732,9 +776,6 @@ ntb_transport_free_queue(struct ntb_transport_qp *qp)
 	qp->rx_handler = NULL;
 	qp->tx_handler = NULL;
 	qp->event_handler = NULL;
-
-	while ((entry = ntb_list_rm(&qp->ntb_rx_q_lock, &qp->rx_free_q)))
-		free(entry, M_NTB_IF);
 
 	while ((entry = ntb_list_rm(&qp->ntb_rx_q_lock, &qp->rx_pend_q)))
 		free(entry, M_NTB_IF);
@@ -887,9 +928,9 @@ ntb_process_tx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry)
 {
 	void *offset;
 
-	offset = (char *)qp->tx_mw + qp->tx_max_frame * qp->tx_index;
+	offset = qp->tx_mw + qp->tx_max_frame * qp->tx_index;
 	CTR3(KTR_NTB,
-	    "TX: process_tx: tx_pkts=%u, tx_index=%u, remote entry=%u",
+	    "TX: process_tx: tx_pkts=%lu, tx_index=%u, remote entry=%u",
 	    qp->tx_pkts, qp->tx_index, qp->remote_rx_info->entry);
 	if (qp->tx_index == qp->remote_rx_info->entry) {
 		CTR0(KTR_NTB, "TX: ring full");
@@ -900,8 +941,11 @@ ntb_process_tx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry)
 	if (entry->len > qp->tx_max_frame - sizeof(struct ntb_payload_header)) {
 		if (qp->tx_handler != NULL)
 			qp->tx_handler(qp, qp->cb_data, entry->buf,
-				       EIO);
+			    EIO);
+		else
+			m_freem(entry->buf);
 
+		entry->buf = NULL;
 		ntb_list_add(&qp->ntb_tx_free_q_lock, entry, &qp->tx_free_q);
 		CTR1(KTR_NTB,
 		    "TX: frame too big. returning entry %p to tx_free_q",
@@ -929,8 +973,8 @@ ntb_memcpy_tx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry,
 	hdr = (struct ntb_payload_header *)((char *)offset + qp->tx_max_frame -
 	    sizeof(struct ntb_payload_header));
 	entry->x_hdr = hdr;
-	hdr->len = entry->len; /* TODO: replace with bus_space_write */
-	hdr->ver = qp->tx_pkts; /* TODO: replace with bus_space_write */
+	iowrite32(entry->len, &hdr->len);
+	iowrite32(qp->tx_pkts, &hdr->ver);
 
 	/* This piece is ntb_memcpy_tx() */
 	CTR2(KTR_NTB, "TX: copying %d bytes to offset %p", entry->len, offset);
@@ -945,8 +989,8 @@ ntb_memcpy_tx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry,
 	}
 
 	/* The rest is ntb_tx_copy_callback() */
-	/* TODO: replace with bus_space_write */
-	hdr->flags = entry->flags | IF_NTB_DESC_DONE_FLAG;
+	iowrite32(entry->flags | IF_NTB_DESC_DONE_FLAG, &hdr->flags);
+	CTR1(KTR_NTB, "TX: hdr %p set DESC_DONE", hdr);
 
 	ntb_peer_db_set(qp->ntb, 1ull << qp->qp_num);
 
@@ -959,13 +1003,16 @@ ntb_memcpy_tx(struct ntb_transport_qp *qp, struct ntb_queue_entry *entry,
 		qp->tx_bytes += entry->len;
 
 		if (qp->tx_handler)
-			qp->tx_handler(qp, qp->cb_data, entry->cb_data,
-				       entry->len);
+			qp->tx_handler(qp, qp->cb_data, entry->buf,
+			    entry->len);
+		else
+			m_freem(entry->buf);
+		entry->buf = NULL;
 	}
 
-	CTR2(KTR_NTB,
-	    "TX: entry %p sent. hdr->ver = %d, Returning to tx_free_q", entry,
-	    hdr->ver);
+	CTR3(KTR_NTB,
+	    "TX: entry %p sent. hdr->ver = %u, hdr->flags = 0x%x, Returning "
+	    "to tx_free_q", entry, hdr->ver, hdr->flags);
 	ntb_list_add(&qp->ntb_tx_free_q_lock, entry, &qp->tx_free_q);
 }
 
@@ -1021,13 +1068,11 @@ ntb_process_rxc(struct ntb_transport_qp *qp)
 {
 	struct ntb_payload_header *hdr;
 	struct ntb_queue_entry *entry;
-	void *offset;
+	caddr_t offset;
 
-	offset = (void *)
-	    ((char *)qp->rx_buff + qp->rx_max_frame * qp->rx_index);
-	hdr = (void *)
-	    ((char *)offset + qp->rx_max_frame -
-		sizeof(struct ntb_payload_header));
+	offset = qp->rx_buff + qp->rx_max_frame * qp->rx_index;
+	hdr = (void *)(offset + qp->rx_max_frame -
+	    sizeof(struct ntb_payload_header));
 
 	CTR1(KTR_NTB, "RX: process_rxc rx_index = %u", qp->rx_index);
 	if ((hdr->flags & IF_NTB_DESC_DONE_FLAG) == 0) {
@@ -1045,7 +1090,7 @@ ntb_process_rxc(struct ntb_transport_qp *qp)
 
 	if (hdr->ver != (uint32_t)qp->rx_pkts) {
 		CTR2(KTR_NTB,"RX: ver != rx_pkts (%x != %lx). "
-		    "Returning entry %p to rx_pend_q", hdr->ver, qp->rx_pkts);
+		    "Returning entry to rx_pend_q", hdr->ver, qp->rx_pkts);
 		qp->rx_err_ver++;
 		return (EIO);
 	}
@@ -1136,20 +1181,30 @@ ntb_complete_rxc(void *arg, int pending)
 			break;
 
 		entry->x_hdr->flags = 0;
-		/* XXX bus_space_write */
-		qp->rx_info->entry = entry->index;
+		iowrite32(entry->index, &qp->rx_info->entry);
+
+		STAILQ_REMOVE_HEAD(&qp->rx_post_q, entry);
 
 		len = entry->len;
 		m = entry->buf;
 
-		STAILQ_REMOVE_HEAD(&qp->rx_post_q, entry);
-		STAILQ_INSERT_TAIL(&qp->rx_free_q, entry, entry);
+		/*
+		 * Re-initialize queue_entry for reuse; rx_handler takes
+		 * ownership of the mbuf.
+		 */
+		entry->buf = NULL;
+		entry->len = transport_mtu;
+		entry->cb_data = qp->transport->ifp;
+
+		STAILQ_INSERT_TAIL(&qp->rx_pend_q, entry, entry);
 
 		mtx_unlock_spin(&qp->ntb_rx_q_lock);
 
 		CTR2(KTR_NTB, "RX: completing entry %p, mbuf %p", entry, m);
 		if (qp->rx_handler != NULL && qp->client_ready)
 			qp->rx_handler(qp, qp->cb_data, m, len);
+		else
+			m_freem(m);
 
 		mtx_lock_spin(&qp->ntb_rx_q_lock);
 	}
@@ -1287,7 +1342,7 @@ ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw, size_t size)
 		return (EINVAL);
 
 	xlat_size = roundup(size, mw->xlat_align_size);
-	buff_size = roundup(size, mw->xlat_align);
+	buff_size = xlat_size;
 
 	/* No need to re-setup */
 	if (mw->xlat_size == xlat_size)
@@ -1301,12 +1356,12 @@ ntb_set_mw(struct ntb_transport_ctx *nt, int num_mw, size_t size)
 	mw->buff_size = buff_size;
 
 	mw->virt_addr = contigmalloc(mw->buff_size, M_NTB_IF, M_ZERO, 0,
-	    BUS_SPACE_MAXADDR, mw->xlat_align, 0);
+	    mw->addr_limit, mw->xlat_align, 0);
 	if (mw->virt_addr == NULL) {
+		ntb_printf(0, "Unable to allocate MW buffer of size %zu/%zu\n",
+		    mw->buff_size, mw->xlat_size);
 		mw->xlat_size = 0;
 		mw->buff_size = 0;
-		printf("ntb: Unable to allocate MW buffer of size %zu\n",
-		    mw->xlat_size);
 		return (ENOMEM);
 	}
 	/* TODO: replace with bus_space_* functions */

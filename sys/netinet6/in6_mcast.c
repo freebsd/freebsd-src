@@ -469,9 +469,9 @@ in6_mc_get(struct ifnet *ifp, const struct in6_addr *group,
 	 */
 	inm = malloc(sizeof(*inm), M_IP6MADDR, M_NOWAIT | M_ZERO);
 	if (inm == NULL) {
+		IF_ADDR_WUNLOCK(ifp);
 		if_delmulti_ifma(ifma);
-		error = ENOMEM;
-		goto out_locked;
+		return (ENOMEM);
 	}
 	inm->in6m_addr = *group;
 	inm->in6m_ifp = ifp;

@@ -71,7 +71,7 @@ check_cloexec(FILE *fp, const char *mode)
 ATF_TC_WITHOUT_HEAD(popen_all_modes_test);
 ATF_TC_BODY(popen_all_modes_test, tc)
 {
-	FILE *fp, *fp2;
+	FILE *fp;
 	int i, status;
 	const char *mode;
 	const char *allmodes[] = { "r", "w", "r+", "re", "we", "r+e", "re+" };
@@ -92,7 +92,7 @@ ATF_TC_BODY(popen_all_modes_test, tc)
 ATF_TC_WITHOUT_HEAD(popen_rmodes_test);
 ATF_TC_BODY(popen_rmodes_test, tc)
 {
-	FILE *fp, *fp2;
+	FILE *fp;
 	const char *rmodes[] = { "r", "r+", "re", "r+e", "re+" };
 	const char *mode;
 	char buf[80];
@@ -211,7 +211,7 @@ ATF_TC_WITHOUT_HEAD(popen_rwmodes_test);
 ATF_TC_BODY(popen_rwmodes_test, tc)
 {
 	const char *rwmodes[] = { "r+", "r+e", "re+" };
-	FILE *fp, *fp2;
+	FILE *fp;
 	const char *mode;
 	char *sres;
 	char buf[80];

@@ -57,6 +57,7 @@ arm64/cloudabi64/cloudabi64_sysvec.c	optional compat_cloudabi64
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/acpica/acpi_if.m		optional	acpi
+dev/ahci/ahci_generic.c		optional ahci fdt
 dev/fdt/fdt_arm64.c		optional	fdt
 dev/hwpmc/hwpmc_arm64.c		optional	hwpmc
 dev/hwpmc/hwpmc_arm64_md.c	optional	hwpmc
@@ -78,7 +79,6 @@ dev/vnic/thunder_mdio_fdt.c	optional	vnic fdt
 dev/vnic/thunder_mdio.c		optional	vnic
 dev/vnic/lmac_if.m		optional	vnic
 kern/kern_clocksource.c		standard
-kern/subr_dummy_vdso_tc.c	standard
 libkern/bcmp.c			standard
 libkern/ffs.c			standard
 libkern/ffsl.c			standard

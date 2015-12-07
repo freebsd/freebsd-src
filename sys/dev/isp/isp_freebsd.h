@@ -38,6 +38,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+#include <sys/rman.h>
 #include <sys/sysctl.h>
 
 #include <sys/proc.h>
@@ -169,11 +170,9 @@ typedef struct tstate {
 	struct isp_ccbq waitq;		/* waiting CCBs */
 	struct ccb_hdr_slist atios;
 	struct ccb_hdr_slist inots;
-	uint32_t hold;
-	uint32_t
-		enabled		: 1,
-		atio_count	: 15,
-		inot_count	: 15;
+	uint32_t		hold;
+	uint16_t		atio_count;
+	uint16_t		inot_count;
 	inot_private_data_t *	restart_queue;
 	inot_private_data_t *	ntfree;
 	inot_private_data_t	ntpool[ATPDPSIZE];
@@ -230,31 +229,24 @@ struct isp_fc {
 	bus_dmamap_t tdmap;
 	uint64_t def_wwpn;
 	uint64_t def_wwnn;
-	uint32_t loop_down_time;
-	uint32_t loop_down_limit;
-	uint32_t gone_device_time;
+	time_t loop_down_time;
+	int loop_down_limit;
+	int gone_device_time;
 	/*
 	 * Per target/lun info- just to keep a per-ITL nexus crn count
 	 */
 	struct isp_nexus *nexus_hash[NEXUS_HASH_WIDTH];
 	struct isp_nexus *nexus_free_list;
 	uint32_t
-#ifdef	ISP_TARGET_MODE
-		tm_luns_enabled	: 1,
-		tm_enable_defer	: 1,
-		tm_enabled	: 1,
-#endif
 		simqfrozen	: 3,
 		default_id	: 8,
-		hysteresis	: 8,
 		def_role	: 2,	/* default role */
 		gdt_running	: 1,
 		loop_dead	: 1,
+		loop_seen_once	: 1,
 		fcbsy		: 1,
 		ready		: 1;
-	struct callout ldt;	/* loop down timer */
 	struct callout gdt;	/* gone device timer */
-	struct task ltask;
 	struct task gtask;
 #ifdef	ISP_TARGET_MODE
 	struct tslist lun_hash[LUN_HASH_SIZE];
@@ -269,13 +261,7 @@ struct isp_spi {
 	struct cam_sim *sim;
 	struct cam_path *path;
 	uint32_t
-#ifdef	ISP_TARGET_MODE
-		tm_luns_enabled	: 1,
-		tm_enable_defer	: 1,
-		tm_enabled	: 1,
-#endif
 		simqfrozen	: 3,
-		def_role	: 2,
 		iid		: 4;
 #ifdef	ISP_TARGET_MODE
 	struct tslist lun_hash[LUN_HASH_SIZE];
@@ -301,9 +287,9 @@ struct isposinfo {
 	/*
 	 * DMA related sdtuff
 	 */
-	bus_space_tag_t		bus_tag;
+	struct resource *	regs;
+	struct resource *	regs2;
 	bus_dma_tag_t		dmat;
-	bus_space_handle_t	bus_handle;
 	bus_dma_tag_t		cdmat;
 	bus_dmamap_t		cdmap;
 
@@ -324,7 +310,6 @@ struct isposinfo {
 		timer_active	: 1,
 		autoconf	: 1,
 		ehook_active	: 1,
-		disabled	: 1,
 		mbox_sleeping	: 1,
 		mbox_sleep_ok	: 1,
 		mboxcmd_done	: 1,
@@ -338,10 +323,6 @@ struct isposinfo {
 	int			framesize;
 	int			exec_throttle;
 	int			cont_max;
-
-#ifdef	ISP_TARGET_MODE
-	cam_status *		rptr;
-#endif
 
 	bus_addr_t		ecmd_dma;
 	isp_ecmd_t *		ecmd_base;
@@ -381,8 +362,8 @@ struct isposinfo {
 
 #define	FCP_NEXT_CRN	isp_fcp_next_crn
 #define	isp_lock	isp_osinfo.lock
-#define	isp_bus_tag	isp_osinfo.bus_tag
-#define	isp_bus_handle	isp_osinfo.bus_handle
+#define	isp_regs	isp_osinfo.regs
+#define	isp_regs2	isp_osinfo.regs2
 
 /*
  * Locking macros...
@@ -450,8 +431,7 @@ case SYNC_RESULT:						\
 	   BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);	\
 	break;							\
 case SYNC_REG:							\
-	bus_space_barrier(isp->isp_osinfo.bus_tag,		\
-	    isp->isp_osinfo.bus_handle, offset, size,		\
+	bus_barrier(isp->isp_osinfo.regs, offset, size,		\
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);	\
 	break;							\
 default:							\
@@ -483,8 +463,7 @@ case SYNC_RESULT:						\
 	   isp->isp_osinfo.cdmap, BUS_DMASYNC_POSTWRITE);	\
 	break;							\
 case SYNC_REG:							\
-	bus_space_barrier(isp->isp_osinfo.bus_tag,		\
-	    isp->isp_osinfo.bus_handle, offset, size,		\
+	bus_barrier(isp->isp_osinfo.regs, offset, size,		\
 	    BUS_SPACE_BARRIER_WRITE);				\
 	break;							\
 default:							\
@@ -617,14 +596,8 @@ default:							\
 #define	DEFAULT_FRAMESIZE(isp)		isp->isp_osinfo.framesize
 #define	DEFAULT_EXEC_THROTTLE(isp)	isp->isp_osinfo.exec_throttle
 
-#define	GET_DEFAULT_ROLE(isp, chan)	\
-	(IS_FC(isp)? ISP_FC_PC(isp, chan)->def_role : ISP_SPI_PC(isp, chan)->def_role)
-#define	SET_DEFAULT_ROLE(isp, chan, val)		\
-	if (IS_FC(isp)) { 				\
-		ISP_FC_PC(isp, chan)->def_role = val;	\
-	} else {					\
-		ISP_SPI_PC(isp, chan)->def_role = val;	\
-	}
+#define	DEFAULT_ROLE(isp, chan)	\
+	(IS_FC(isp)? ISP_FC_PC(isp, chan)->def_role : ISP_ROLE_INITIATOR)
 
 #define	DEFAULT_IID(isp, chan)		isp->isp_osinfo.pc.spi[chan].iid
 
@@ -722,7 +695,6 @@ extern uint64_t isp_default_wwn(ispsoftc_t *, int, int, int);
  * driver global data
  */
 extern int isp_announced;
-extern int isp_fabric_hysteresis;
 extern int isp_loop_down_limit;
 extern int isp_gone_device_time;
 extern int isp_quickboot_time;

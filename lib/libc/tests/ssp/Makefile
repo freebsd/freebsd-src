@@ -10,8 +10,7 @@ CFLAGS.h_raw+=	-fstack-protector-all -Wstack-protector
 CFLAGS.h_raw+=	-fsanitize=bounds
 .elif ${COMPILER_TYPE} == "gcc"
 CFLAGS.h_raw+=	--param ssp-buffer-size=1
-DPADD+=		${LIBSSP}
-LDADD+=		-lssp
+LDADD+=	-lssp
 .endif
 
 NETBSD_ATF_TESTS_SH=	ssp_test

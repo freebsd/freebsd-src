@@ -2763,6 +2763,11 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 							panic("No chunks on the queues for sid %u.", tp1->rec.data.stream_number);
 #endif
 						}
+						if ((stcb->asoc.strmout[tp1->rec.data.stream_number].chunks_on_queues == 0) &&
+						    (stcb->asoc.strmout[tp1->rec.data.stream_number].state == SCTP_STREAM_RESET_PENDING) &&
+						    TAILQ_EMPTY(&stcb->asoc.strmout[tp1->rec.data.stream_number].outqueue)) {
+							stcb->asoc.trigger_reset = 1;
+						}
 						tp1->sent = SCTP_DATAGRAM_NR_ACKED;
 						if (tp1->data) {
 							/*
@@ -3736,6 +3741,11 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 #endif
 					}
 				}
+				if ((asoc->strmout[tp1->rec.data.stream_number].chunks_on_queues == 0) &&
+				    (asoc->strmout[tp1->rec.data.stream_number].state == SCTP_STREAM_RESET_PENDING) &&
+				    TAILQ_EMPTY(&asoc->strmout[tp1->rec.data.stream_number].outqueue)) {
+					asoc->trigger_reset = 1;
+				}
 				TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
 				if (tp1->data) {
 					/* sa_ignore NO_NULL_CHK */
@@ -4460,6 +4470,11 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 				panic("No chunks on the queues for sid %u.", tp1->rec.data.stream_number);
 #endif
 			}
+		}
+		if ((asoc->strmout[tp1->rec.data.stream_number].chunks_on_queues == 0) &&
+		    (asoc->strmout[tp1->rec.data.stream_number].state == SCTP_STREAM_RESET_PENDING) &&
+		    TAILQ_EMPTY(&asoc->strmout[tp1->rec.data.stream_number].outqueue)) {
+			asoc->trigger_reset = 1;
 		}
 		TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
 		if (PR_SCTP_ENABLED(tp1->flags)) {

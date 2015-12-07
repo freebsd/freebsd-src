@@ -48,7 +48,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libdwarf \
 	libedit \
 	${_libelftc} \
-	${_libevent} \
+	libevent \
 	libexecinfo \
 	libexpat \
 	libfetch \
@@ -71,6 +71,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libmp} \
 	libmt \
 	${_libnandfs} \
+	lib80211 \
 	libnetbsd \
 	${_libnetgraph} \
 	${_libngatm} \
@@ -240,10 +241,6 @@ _libnetgraph=	libnetgraph
 _libypclnt=	libypclnt
 .endif
 
-.if ${MK_PF} != "no"
-_libevent=	libevent
-.endif
-
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _libsmb=	libsmb
 _libvgl=	libvgl
@@ -315,11 +312,6 @@ _libunbound=	libunbound
 .if ${MK_USB} != "no"
 _libusbhid=	libusbhid
 _libusb=	libusb
-.endif
-
-.if !defined(LIBRARIES_ONLY)
-afterinstall:
-	${INSTALL_SYMLINK} ../include ${DESTDIR}/usr/lib/include
 .endif
 
 .if !make(install)
