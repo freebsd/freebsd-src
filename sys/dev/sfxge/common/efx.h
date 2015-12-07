@@ -1176,6 +1176,7 @@ typedef struct efx_nic_cfg_s {
 	boolean_t               enc_allow_set_mac_with_installed_filters;
 	/* External port identifier */
 	uint8_t			enc_external_port;
+	uint32_t		enc_mcdi_max_payload_length;
 } efx_nic_cfg_t;
 
 #define	EFX_PCI_FUNCTION_IS_PF(_encp)	((_encp)->enc_vf == 0xffff)

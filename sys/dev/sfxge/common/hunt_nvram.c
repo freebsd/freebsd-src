@@ -1409,14 +1409,32 @@ hunt_nvram_partn_write(
 	__in			size_t size)
 {
 	size_t chunk;
+	uint32_t write_size;
 	efx_rc_t rc;
 
+	if ((rc = efx_mcdi_nvram_info(enp, partn, NULL, NULL,
+	    NULL, &write_size)) != 0)
+		goto fail1;
+
+	if (write_size != 0) {
+		/*
+		 * Check that the size is a multiple of the write chunk size if
+		 * the write chunk size is available.
+		 */
+		if (size % write_size != 0) {
+			rc = EINVAL;
+			goto fail2;
+		}
+	} else {
+		write_size = HUNTINGTON_NVRAM_CHUNK;
+	}
+
 	while (size > 0) {
-		chunk = MIN(size, HUNTINGTON_NVRAM_CHUNK);
+		chunk = MIN(size, write_size);
 
 		if ((rc = efx_mcdi_nvram_write(enp, partn, offset,
 			    data, chunk)) != 0) {
-			goto fail1;
+			goto fail3;
 		}
 
 		size -= chunk;
@@ -1426,6 +1444,10 @@ hunt_nvram_partn_write(
 
 	return (0);
 
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
