@@ -158,7 +158,14 @@ DEPEND_MP?=	-MP
 DEPEND_FILTER=	C,/,_,g
 DEPEND_CFLAGS+=	-MD ${DEPEND_MP} -MF${DEPENDFILE}.${.TARGET:${DEPEND_FILTER}}
 DEPEND_CFLAGS+=	-MT${.TARGET}
+.if defined(.PARSEDIR)
+# Only add in DEPEND_CFLAGS for CFLAGS on files we expect from DEPENDOBJS
+# as those are the only ones we will include.
+DEPEND_CFLAGS_CONDITION= !empty(DEPENDOBJS:M${.TARGET:${DEPEND_FILTER}})
+CFLAGS+=	${${DEPEND_CFLAGS_CONDITION}:?${DEPEND_CFLAGS}:}
+.else
 CFLAGS+=	${DEPEND_CFLAGS}
+.endif
 DEPENDSRCS=	${SRCS:M*.[cSC]} ${SRCS:M*.cxx} ${SRCS:M*.cpp} ${SRCS:M*.cc}
 .if !empty(DEPENDSRCS)
 DEPENDOBJS+=	${DEPENDSRCS:R:S,$,.o,}
