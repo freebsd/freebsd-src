@@ -157,6 +157,9 @@ NANO_SLICE_ALTROOT=s2
 NANO_SLICE_CFG=s3
 NANO_SLICE_DATA=s4
 
+# Default ownwership for nopriv build
+NANO_DEF_UNAME=root
+NANO_DEF_GNAME=wheel
 
 #######################################################################
 # Architecture to build.  Corresponds to TARGET_ARCH in a buildworld.
@@ -240,6 +243,37 @@ rm ( ) {
 	*) command rm -x $* ;;
 	esac
 }
+
+#
+# Create empty files in the target tree, and record the fact.  All paths
+# are relative to NANO_WORLDDIR.
+#
+tgt_touch ( ) (
+
+	cd "${NANO_WORLDDIR}"
+	for i; do
+		touch $i
+		echo "./${i} type=file" >> ${NANO_METALOG}
+	done
+)
+
+#
+# Convert a directory into a symlink. Takes two arguments, the
+# current directory and what it should become a symlink to. The
+# directory is removed and a symlink is created. If we're doing
+# a nopriv build, then append this fact to the metalog
+#
+tgt_dir2symlink () (
+	dir=$1
+	symlink=$2
+
+	cd "${NANO_WORLDDIR}"
+	rm -rf "$dir"
+	ln -s "$symlink" "$dir"
+	if [ -n $NANO_METALOG ]; then
+		echo "./${dir} type=link mode=0777 link=${symlink}" >> ${NANO_METALOG}
+	fi
+)
 
 # run in the world chroot, errors fatal
 CR ( ) {
@@ -413,6 +447,11 @@ native_xtools ( ) (
 	) > ${NANO_OBJ}/_.native_xtools 2>&1
 )
 
+#
+# Run the requested set of customization scripts, run after we've
+# done an installworld, installed the etc files, installed the kernel
+# and tweaked them in the standard way.
+#
 run_customize ( ) (
 
 	pprint 2 "run customize scripts"
@@ -425,6 +464,10 @@ run_customize ( ) (
 	done
 )
 
+#
+# Run any last-minute customization commands after we've had a chance to
+# setup nanobsd, prune empty dirs from /usr, etc
+#
 run_late_customize ( ) (
 
 	pprint 2 "run late customize scripts"
@@ -435,6 +478,33 @@ run_late_customize ( ) (
 		pprint 4 "`type $c`"
 		( set -x ; $c ) > ${NANO_OBJ}/_.late_cust.$c 2>&1
 	done
+)
+
+#
+# Hook called after we run all the late customize commands, but
+# before we invoke the disk imager. The nopriv build uses it to
+# read in the meta log, apply the changes other parts of nanobsd
+# have been recording their actions. It's not anticipated that
+# a user's cfg file would override this.
+#
+fixup_before_diskimage ( ) (
+
+	# Run the deduplication script that takes the matalog journal and
+	# combines multiple entries for the same file (see source for
+	# details). We take the extra step of removing the size keywords. This
+	# script, and many of the user scripts, copies, appeneds and otherwise
+	# modifies files in the build, changing their sizes.  These actions are
+	# impossible to trap, so go ahead remove the size= keyword. For this
+	# narrow use, it doesn't buy us any protection and just gets in the way.
+	# The dedup tool's output must be sorted due to limitations in awk.
+	if [ -n ${NANO_METALOG} ]; then
+		pprint 2 "Fixing metalog"
+		cp ${NANO_METALOG} ${NANO_METALOG}.pre
+		(echo "/set uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" &&
+			cat ${NANO_METALOG}.pre) | \
+		    ${NANO_TOOLS}/mtree-dedup.awk | \
+		    sed -e 's/ size=[0-9][0-9]*//' | sort > ${NANO_METALOG}
+	fi	
 )
 
 setup_nanobsd ( ) (
@@ -474,8 +544,7 @@ setup_nanobsd ( ) (
 	echo "mount -o ro /dev/${NANO_DRIVE}${NANO_SLICE_CFG}" > conf/default/etc/remount
 
 	# Put /tmp on the /var ramdisk (could be symlink already)
-	rm -rf tmp
-	ln -s var/tmp tmp
+	tgt_dir2symlink tmp var/tmp
 
 	) > ${NANO_OBJ}/_.dl 2>&1
 )
