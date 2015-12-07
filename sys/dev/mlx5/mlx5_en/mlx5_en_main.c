@@ -2005,32 +2005,15 @@ mlx5e_set_dev_port_mtu(struct ifnet *ifp, int sw_mtu)
 	struct mlx5e_priv *priv = ifp->if_softc;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int hw_mtu;
-	int min_mtu;
 	int err;
 
-	/*
-	 * Trying to set MTU to zero, in order
-	 * to find out the FW's minimal MTU
-	 */
-	err = mlx5_set_port_mtu(mdev, 0);
-	if (err)
-		return (err);
-
-	err = mlx5_query_port_oper_mtu(mdev, &min_mtu);
-	if (err) {
-		if_printf(ifp, "Query port minimal MTU failed\n");
-		return (err);
-	}
-
-	if (sw_mtu < MLX5E_HW2SW_MTU(min_mtu)) {
-		ifp->if_mtu = sw_mtu;
-		return (0);
-	}
 
 	err = mlx5_set_port_mtu(mdev, MLX5E_SW2HW_MTU(sw_mtu));
-	if (err)
+	if (err) {
+		if_printf(ifp, "%s: mlx5_set_port_mtu failed setting %d, err=%d\n",
+		    __func__, sw_mtu, err);
 		return (err);
-
+	}
 	err = mlx5_query_port_oper_mtu(mdev, &hw_mtu);
 	if (!err) {
 		ifp->if_mtu = MLX5E_HW2SW_MTU(hw_mtu);
