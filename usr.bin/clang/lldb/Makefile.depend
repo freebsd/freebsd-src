@@ -143,6 +143,7 @@ DIRDEPS = \
 	lib/libthr \
 	lib/libz \
 	lib/msun \
+	lib/ncurses/ncurses \
 	lib/ncurses/ncursesw \
 	lib/ncurses/panel \
 
