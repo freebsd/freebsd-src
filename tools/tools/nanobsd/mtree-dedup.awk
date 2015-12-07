@@ -178,6 +178,8 @@ BEGIN {
 	nv = "___NO__VALUE___";
 
 	while ((getline < "/dev/stdin") > 0) {
+		if ($1 ~ "^#")
+			continue;
 		if ($1 == "/set") {
 			for (i = 2; i <= NF; i++) {
 				kv($i);
@@ -192,6 +194,9 @@ BEGIN {
 			process_line($1, $0);
 	}
 
+	# Print the last set of defaults. This will carry
+	# over, I think, to makefs' defaults
+	print mtree_from_kvs("/set", defaults)
 	for (x in tree)
 		print tree[x];
 }
