@@ -136,6 +136,11 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		priv->params_ethtool.rx_coalesce_mode = 1;
 	priv->params.rx_cq_moderation_mode = priv->params_ethtool.rx_coalesce_mode;
 
+	/* import TX mode */
+	if (priv->params_ethtool.tx_coalesce_mode != 0)
+		priv->params_ethtool.tx_coalesce_mode = 1;
+	priv->params.tx_cq_moderation_mode = priv->params_ethtool.tx_coalesce_mode;
+
 	/* import RX coal time */
 	if (priv->params_ethtool.rx_coalesce_usecs < 1)
 		priv->params_ethtool.rx_coalesce_usecs = 0;
@@ -460,6 +465,7 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 	priv->params_ethtool.rx_coalesce_mode = priv->params.rx_cq_moderation_mode;
 	priv->params_ethtool.rx_coalesce_usecs = priv->params.rx_cq_moderation_usec;
 	priv->params_ethtool.rx_coalesce_pkts = priv->params.rx_cq_moderation_pkts;
+	priv->params_ethtool.tx_coalesce_mode = priv->params.tx_cq_moderation_mode;
 	priv->params_ethtool.tx_coalesce_usecs = priv->params.tx_cq_moderation_usec;
 	priv->params_ethtool.tx_coalesce_pkts = priv->params.tx_cq_moderation_pkts;
 	priv->params_ethtool.hw_lro = priv->params.hw_lro_en;

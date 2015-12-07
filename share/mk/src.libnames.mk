@@ -121,6 +121,7 @@ _LIBRARIES=	\
 		netgraph \
 		ngatm \
 		nv \
+		nvpair \
 		opie \
 		pam \
 		panel \
@@ -152,16 +153,22 @@ _LIBRARIES=	\
 		ufs \
 		ugidfw \
 		ulog \
+		umem \
 		usb \
 		usbhid \
 		util \
+		uutil \
 		vmmapi \
 		wind \
 		wrap \
 		xo \
 		y \
 		ypclnt \
-		z
+		z \
+		zfs_core \
+		zfs \
+		zpool \
+
 
 # Each library's LIBADD needs to be duplicated here for static linkage of
 # 2nd+ order consumers.  Auto-generating this would be better.
@@ -271,6 +278,12 @@ _DP_panelw=	ncursesw
 _DP_rpcsec_gss=	gssapi
 _DP_smb=	kiconv
 _DP_ulog=	md
+_DP_fifolog=	z
+_DP_ipf=	kvm
+_DP_zfs=	md pthread umem util uutil m nvpair avl bsdxml geom nvpair z \
+		zfs_core
+_DP_zfs_core=	nvpair
+_DP_zpool=	md pthread z nvpair avl umem
 
 # Define special cases
 LDADD_supcplusplus=	-lsupc++
@@ -293,7 +306,9 @@ LDADD_${_l}?=	-lprivate${_l}
 .else
 LDADD_${_l}?=	${LDADD_${_l}_L} -l${_l}
 .endif
-.if defined(_DP_${_l}) && defined(NO_SHARED) && (${NO_SHARED} != "no" && ${NO_SHARED} != "NO")
+# Add in all dependencies for static linkage.
+.if defined(_DP_${_l}) && (${_INTERNALLIBS:M${_l}} || \
+    (defined(NO_SHARED) && (${NO_SHARED} != "no" && ${NO_SHARED} != "NO")))
 .for _d in ${_DP_${_l}}
 DPADD_${_l}+=	${DPADD_${_d}}
 LDADD_${_l}+=	${LDADD_${_d}}
@@ -302,31 +317,31 @@ LDADD_${_l}+=	${LDADD_${_d}}
 .endfor
 
 # These are special cases where the library is broken and anything that uses
-# it needs to add more dependencies.  Many _INTERNALLIBS fall into this
-# category.  Unless the library itself is broken then the proper place to
-# define dependencies is _DP_* above.
+# it needs to add more dependencies.  Broken usually means that it has a
+# cyclic dependency and cannot link its own dependencies.  This is bad, please
+# fix the library instead.
+# Unless the library itself is broken then the proper place to define
+# dependencies is _DP_* above.
 
 # libatf-c++ exposes libatf-c abi hence we need to explicit link to atf_c for
 # atf_cxx
 DPADD_atf_cxx+=	${DPADD_atf_c}
 LDADD_atf_cxx+=	${LDADD_atf_c}
 
-# _INTERNALLIBS.
-# XXX: This should likely be reworked to have LIBADD in them and use normal
-# _DP_ lists just to avoid temptation to add more similar entries here.
-DPADD_fifolog+=	${DPADD_z}
-LDADD_fifolog+=	${LDADD_z}
-DPADD_ipf+=	${DPADD_kvm}
-LDADD_ipf+=	${LDADD_kvm}
+# Detect LDADD/DPADD that should be LIBADD, before modifying LDADD here.
+.for _l in ${LDADD:M-l*:N-l*/*:C,^-l,,}
+.if ${_LIBRARIES:M${_l}}
+_BADLDADD+=	${_l}
+.endif
+.endfor
+.if !empty(_BADLDADD)
+.error ${.CURDIR}: These libraries should be LIBADD+=foo rather than DPADD/LDADD+=-lfoo: ${_BADLDADD}
+.endif
 
 .for _l in ${LIBADD}
-DPADD+=		${DPADD_${_l}:Umissing-dpadd_${_l}}
+DPADD+=		${DPADD_${_l}}
 LDADD+=		${LDADD_${_l}}
 .endfor
-
-.if defined(DPADD) && ${DPADD:Mmissing-dpadd_*}
-.error ${.CURDIR}: Missing ${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/DPADD_/} variable add "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//}" to _LIBRARIES, _INTERNALLIBS, or _PRIVATELIBS and define "${DPADD:Mmissing-dpadd_*:S/missing-dpadd_//:S/^/LIB/:tu}".
-.endif
 
 # INTERNALLIB definitions.
 LIBELFTCDIR=	${OBJTOP}/lib/libelftc
@@ -453,6 +468,16 @@ LIBLNDIR=	${OBJTOP}/usr.bin/lex/lib
 .for lib in ${_LIBRARIES}
 LIB${lib:tu}DIR?=	${OBJTOP}/lib/lib${lib}
 .endfor
+
+# Validate that listed LIBADD are valid.
+.for _l in ${LIBADD}
+.if empty(_LIBRARIES:M${_l})
+_BADLIBADD+= ${_l}
+.endif
+.endfor
+.if !empty(_BADLIBADD)
+.error ${.CURDIR}: Invalid LIBADD used which may need to be added to ${_this:T}: ${_BADLIBADD}
+.endif
 
 # Sanity check that libraries are defined here properly when building them.
 .if defined(LIB) && ${_LIBRARIES:M${LIB}} != ""

@@ -658,8 +658,10 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	ISP_WRITE(isp, isp->isp_respinrp, 0);
 	ISP_WRITE(isp, isp->isp_respoutrp, 0);
 	if (IS_24XX(isp)) {
-		ISP_WRITE(isp, BIU2400_PRI_REQINP, 0);
-		ISP_WRITE(isp, BIU2400_PRI_REQOUTP, 0);
+		if (!IS_26XX(isp)) {
+			ISP_WRITE(isp, BIU2400_PRI_REQINP, 0);
+			ISP_WRITE(isp, BIU2400_PRI_REQOUTP, 0);
+		}
 		ISP_WRITE(isp, BIU2400_ATIO_RSPINP, 0);
 		ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, 0);
 	}
@@ -2129,6 +2131,12 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		isp_prt(isp, ISP_LOGWARN, "bad value %x in fwopt2 timer field", icbp->icb_fwoptions2 & ICB2400_OPT2_TIMER_MASK);
 		icbp->icb_fwoptions2 &= ~ICB2400_OPT2_TIMER_MASK;
 		break;
+	}
+
+	if (IS_26XX(isp)) {
+		/* We don't support MSI-X yet, so set this unconditionally. */
+		icbp->icb_fwoptions2 |= ICB2400_OPT2_ENA_IHR;
+		icbp->icb_fwoptions2 |= ICB2400_OPT2_ENA_IHA;
 	}
 
 	if ((icbp->icb_fwoptions3 & ICB2400_OPT3_RSPSZ_MASK) == 0) {
@@ -7613,6 +7621,8 @@ isp_setdfltfcparm(ispsoftc_t *isp, int chan)
 	fcp->isp_wwnn_nvram = DEFAULT_NODEWWN(isp, chan);
 	fcp->isp_wwpn_nvram = DEFAULT_PORTWWN(isp, chan);
 	fcp->isp_fwoptions = 0;
+	fcp->isp_xfwoptions = 0;
+	fcp->isp_zfwoptions = 0;
 	fcp->isp_lasthdl = NIL_HANDLE;
 
 	if (IS_24XX(isp)) {

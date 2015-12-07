@@ -170,8 +170,6 @@ B_flag_head()
 
 B_flag_body()
 {
-	atf_skip "kyua report-jenkins doesn't properly escape non-printable chars: https://github.com/jmmv/kyua/issues/136"
-
 	atf_check -e empty -o empty -s exit:0 touch "$(printf "y\013z")"
 	atf_check -e empty -o match:'y\\013z' -s exit:0 ls -B
 }
@@ -467,8 +465,6 @@ b_flag_head()
 
 b_flag_body()
 {
-	atf_skip "kyua report-jenkins doesn't properly escape non-printable chars: https://github.com/jmmv/kyua/issues/136"
-
 	atf_check -e empty -o empty -s exit:0 touch "$(printf "y\013z")"
 	atf_check -e empty -o match:'y\\vz' -s exit:0 ls -b
 }
@@ -747,8 +743,6 @@ q_flag_and_w_flag_head()
 
 q_flag_and_w_flag_body()
 {
-	atf_skip "kyua report-jenkins doesn't properly escape non-printable chars: https://github.com/jmmv/kyua/issues/136"
-
 	create_test_dir
 
 	test_file="$(printf "y\01z")"

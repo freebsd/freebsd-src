@@ -51,7 +51,6 @@ CFLAGS.$t+=	-I${TESTSRC} ${IMPLEMENTATION}
 
 .include "../Makefile.netbsd-tests"
 
-DPADD.regex_att_test+=	${LIBUTIL}
-LDADD.regex_att_test+=	-lutil
+LIBADD.regex_att_test+=	util
 
 .include <bsd.test.mk>

@@ -536,7 +536,8 @@ efx_mcdi_nvram_info(
 	__in			uint32_t partn,
 	__out_opt		size_t *sizep,
 	__out_opt		uint32_t *addressp,
-	__out_opt		uint32_t *erase_sizep);
+	__out_opt		uint32_t *erase_sizep,
+	__out_opt		uint32_t *write_sizep);
 
 	__checkReturn		efx_rc_t
 efx_mcdi_nvram_update_start(

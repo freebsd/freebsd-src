@@ -192,12 +192,43 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
 
 	mb->m_pkthdr.len = mb->m_len = cqe_bcnt;
 	/* check if a Toeplitz hash was computed */
-	if (cqe->rss_hash_type != 0)
+	if (cqe->rss_hash_type != 0) {
 		mb->m_pkthdr.flowid = be32_to_cpu(cqe->rss_hash_result);
-	else
+#ifdef RSS
+		/* decode the RSS hash type */
+		switch (cqe->rss_hash_type &
+		    (CQE_RSS_DST_HTYPE_L4 | CQE_RSS_DST_HTYPE_IP)) {
+		/* IPv4 */
+		case (CQE_RSS_DST_HTYPE_TCP | CQE_RSS_DST_HTYPE_IPV4):
+			M_HASHTYPE_SET(mb, M_HASHTYPE_RSS_TCP_IPV4);
+			break;
+		case (CQE_RSS_DST_HTYPE_UDP | CQE_RSS_DST_HTYPE_IPV4):
+			M_HASHTYPE_SET(mb, M_HASHTYPE_RSS_UDP_IPV4);
+			break;
+		case CQE_RSS_DST_HTYPE_IPV4:
+			M_HASHTYPE_SET(mb, M_HASHTYPE_RSS_IPV4);
+			break;
+		/* IPv6 */
+		case (CQE_RSS_DST_HTYPE_TCP | CQE_RSS_DST_HTYPE_IPV6):
+			M_HASHTYPE_SET(mb, M_HASHTYPE_RSS_TCP_IPV6);
+			break;
+		case (CQE_RSS_DST_HTYPE_UDP | CQE_RSS_DST_HTYPE_IPV6):
+			M_HASHTYPE_SET(mb, M_HASHTYPE_RSS_UDP_IPV6);
+			break;
+		case CQE_RSS_DST_HTYPE_IPV6:
+			M_HASHTYPE_SET(mb, M_HASHTYPE_RSS_IPV6);
+			break;
+		default:	/* Other */
+			M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE);
+			break;
+		}
+#else
+		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE);
+#endif
+	} else {
 		mb->m_pkthdr.flowid = rq->ix;
-
-	M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE);
+		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE);
+	}
 	mb->m_pkthdr.rcvif = ifp;
 
 	if (likely(ifp->if_capenable & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) &&

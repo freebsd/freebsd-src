@@ -492,7 +492,9 @@ hunt_ev_rx(
 {
 	efx_nic_t *enp = eep->ee_enp;
 	uint32_t size;
+#if 0
 	boolean_t parse_err;
+#endif
 	uint32_t label;
 	uint32_t mcast;
 	uint32_t eth_base_class;
@@ -528,14 +530,21 @@ hunt_ev_rx(
 
 	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_CONT) != 0) {
 		/*
+		 * This may be part of a scattered frame, or it may be a
+		 * truncated frame if scatter is disabled on this RXQ.
+		 * Overlength frames can be received if e.g. a VF is configured
+		 * for 1500 MTU but connected to a port set to 9000 MTU
+		 * (see bug56567).
 		 * FIXME: There is not yet any driver that supports scatter on
 		 * Huntington.  Scatter support is required for OSX.
 		 */
-		EFSYS_ASSERT(0);
 		flags |= EFX_PKT_CONT;
 	}
 
+#if 0
+	/* TODO What to do if the packet is flagged with parsing error */
 	parse_err = (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_PARSE_INCOMPLETE) != 0);
+#endif
 	label = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_QLABEL);
 
 	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ECRC_ERR) != 0) {
@@ -619,7 +628,9 @@ hunt_ev_rx(
 
 	switch (l3_class) {
 	case ESE_DZ_L3_CLASS_RSVD7: /* Used by firmware for packet overrun */
+#if 0
 		parse_err = B_TRUE;
+#endif
 		flags |= EFX_DISCARD;
 		break;
 

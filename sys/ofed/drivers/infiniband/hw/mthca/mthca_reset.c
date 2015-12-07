@@ -43,9 +43,13 @@ int mthca_reset(struct mthca_dev *mdev)
 	int i;
 	int err = 0;
 	u32 *hca_header    = NULL;
+#ifdef __linux__
 	u32 *bridge_header = NULL;
+#endif
 	struct pci_dev *bridge = NULL;
+#ifdef __linux__
 	int bridge_pcix_cap = 0;
+#endif
 	int hca_pcie_cap = 0;
 	int hca_pcix_cap = 0;
 
@@ -195,6 +199,7 @@ int mthca_reset(struct mthca_dev *mdev)
 	}
 
 good:
+#ifdef __linux__
 	/* Now restore the PCI headers */
 	if (bridge) {
 		if (pci_write_config_dword(bridge, bridge_pcix_cap + 0x8,
@@ -235,6 +240,7 @@ good:
 			goto out;
 		}
 	}
+#endif
 
 	if (hca_pcix_cap) {
 		if (pci_write_config_dword(mdev->pdev, hca_pcix_cap,
@@ -289,8 +295,8 @@ out:
 #ifdef __linux__
 	if (bridge)
 		pci_dev_put(bridge);
-#endif
 	kfree(bridge_header);
+#endif
 	kfree(hca_header);
 
 	return err;
