@@ -749,6 +749,11 @@ fail1:
 	return (rc);
 }
 
+/*
+ * The NVRAM_WRITE MCDI command is a V1 command and so is supported by both
+ * Sienna and EF10 based boards.  However EF10 based boards support the use
+ * of this command with payloads up to the maximum MCDI V2 payload length.
+ */
 	__checkReturn		efx_rc_t
 efx_mcdi_nvram_write(
 	__in			efx_nic_t *enp,
@@ -758,11 +763,18 @@ efx_mcdi_nvram_write(
 	__in			size_t size)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_NVRAM_WRITE_IN_LENMAX,
-			    MC_CMD_NVRAM_WRITE_OUT_LEN)];
+	uint8_t payload[MAX(MCDI_CTL_SDU_LEN_MAX_V1,
+			    MCDI_CTL_SDU_LEN_MAX_V2)];
 	efx_rc_t rc;
+	size_t max_data_size;
 
-	if (size > MC_CMD_NVRAM_WRITE_IN_LENMAX) {
+	max_data_size = enp->en_nic_cfg.enc_mcdi_max_payload_length
+	    - MC_CMD_NVRAM_WRITE_IN_LEN(0);
+	EFSYS_ASSERT3U(enp->en_nic_cfg.enc_mcdi_max_payload_length, >, 0);
+	EFSYS_ASSERT3U(max_data_size, <,
+		    enp->en_nic_cfg.enc_mcdi_max_payload_length);
+
+	if (size > max_data_size) {
 		rc = EINVAL;
 		goto fail1;
 	}
