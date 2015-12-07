@@ -24,6 +24,7 @@ SRCS+=	gss-genr.c
 
 MAN=	sshd.8 sshd_config.5
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
+SRCS+=	ssh_namespace.h
 
 # pam should always happen before ssh here for static linking
 LIBADD=	pam ssh util wrap
@@ -41,6 +42,7 @@ LIBADD+=	bsm
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -include krb5_config.h
+SRCS+=	krb5_config.h
 LIBADD+=	gssapi_krb5 gssapi krb5
 .endif
 
@@ -53,8 +55,3 @@ CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE}/bin/xauth\"
 .include <bsd.prog.mk>
 
 .PATH:	${SSHDIR}
-
-${OBJS} ${POBJS} ${SOBJS}: ssh_namespace.h
-.if ${MK_KERBEROS_SUPPORT} != "no"
-${OBJS} ${POBJS} ${SOBJS}: krb5_config.h
-.endif
