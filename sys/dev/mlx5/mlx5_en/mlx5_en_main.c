@@ -931,6 +931,10 @@ mlx5e_create_sq(struct mlx5e_channel *c,
 
 	void *sqc = param->sqc;
 	void *sqc_wq = MLX5_ADDR_OF(sqc, sqc, wq);
+#ifdef RSS
+	cpuset_t cpu_mask;
+	int cpu_id;
+#endif
 	int err;
 
 	/* Create DMA descriptor TAG */
@@ -991,9 +995,15 @@ mlx5e_create_sq(struct mlx5e_channel *c,
 	}
 
 	TASK_INIT(&sq->sq_task, 0, mlx5e_tx_que, sq);
-	taskqueue_start_threads(&sq->sq_tq, 1, PI_NET, "%s tx sq",
-	    c->ifp->if_xname);
-
+#ifdef RSS
+	cpu_id = rss_getcpu(c->ix % rss_getnumbuckets());
+	CPU_SETOF(cpu_id, &cpu_mask);
+	taskqueue_start_threads_cpuset(&sq->sq_tq, 1, PI_NET, &cpu_mask,
+	    "%s TX SQ%d.%d CPU%d", c->ifp->if_xname, c->ix, tc, cpu_id);
+#else
+	taskqueue_start_threads(&sq->sq_tq, 1, PI_NET,
+	    "%s TX SQ%d.%d", c->ifp->if_xname, c->ix, tc);
+#endif
 	snprintf(buffer, sizeof(buffer), "txstat%dtc%d", c->ix, tc);
 	mlx5e_create_stats(&sq->stats.ctx, SYSCTL_CHILDREN(priv->sysctl_ifnet),
 	    buffer, mlx5e_sq_stats_desc, MLX5E_SQ_STATS_NUM,
@@ -1768,8 +1778,14 @@ mlx5e_open_rqt(struct mlx5e_priv *priv)
 	MLX5_SET(rqtc, rqtc, rqt_max_size, sz);
 
 	for (i = 0; i < sz; i++) {
-		int ix = i % priv->params.num_channels;
-
+		int ix;
+#ifdef RSS
+		ix = rss_get_indirection_to_bucket(i);
+#else
+		ix = i;
+#endif
+		/* ensure we don't overflow */
+		ix %= priv->params.num_channels;
 		MLX5_SET(rqtc, rqtc, rq_num[i], priv->channel[ix]->rq.rqn);
 	}
 
@@ -1834,6 +1850,8 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt)
 		    MLX5_CAP_ETH(priv->mdev,
 		    lro_timer_supported_periods[2]));
 	}
+
+	/* setup parameters for hashing TIR type, if any */
 	switch (tt) {
 	case MLX5E_TT_ANY:
 		MLX5_SET(tirc, tirc, disp_type,
@@ -1848,8 +1866,16 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt)
 		    priv->rqtn);
 		MLX5_SET(tirc, tirc, rx_hash_fn,
 		    MLX5_TIRC_RX_HASH_FN_HASH_TOEPLITZ);
-		MLX5_SET(tirc, tirc, rx_hash_symmetric, 1);
 		hkey = (__be32 *) MLX5_ADDR_OF(tirc, tirc, rx_hash_toeplitz_key);
+#ifdef RSS
+		/*
+		 * The FreeBSD RSS implementation does currently not
+		 * support symmetric Toeplitz hashes:
+		 */
+		MLX5_SET(tirc, tirc, rx_hash_symmetric, 0);
+		rss_getkey((uint8_t *)hkey);
+#else
+		MLX5_SET(tirc, tirc, rx_hash_symmetric, 1);
 		hkey[0] = cpu_to_be32(0xD181C62C);
 		hkey[1] = cpu_to_be32(0xF7F4DB5B);
 		hkey[2] = cpu_to_be32(0x1983A2FC);
@@ -1860,6 +1886,7 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt)
 		hkey[7] = cpu_to_be32(0x593D56D9);
 		hkey[8] = cpu_to_be32(0xF3253C06);
 		hkey[9] = cpu_to_be32(0x2ADC1FFC);
+#endif
 		break;
 	}
 
@@ -1869,6 +1896,12 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt)
 		    MLX5_L3_PROT_TYPE_IPV4);
 		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
 		    MLX5_L4_PROT_TYPE_TCP);
+#ifdef RSS
+		if (!(rss_gethashconfig() & RSS_HASHTYPE_RSS_TCP_IPV4)) {
+			MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+			    MLX5_HASH_IP);
+		} else
+#endif
 		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
 		    MLX5_HASH_ALL);
 		break;
@@ -1878,6 +1911,12 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt)
 		    MLX5_L3_PROT_TYPE_IPV6);
 		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
 		    MLX5_L4_PROT_TYPE_TCP);
+#ifdef RSS
+		if (!(rss_gethashconfig() & RSS_HASHTYPE_RSS_TCP_IPV6)) {
+			MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+			    MLX5_HASH_IP);
+		} else
+#endif
 		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
 		    MLX5_HASH_ALL);
 		break;
@@ -1887,6 +1926,12 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt)
 		    MLX5_L3_PROT_TYPE_IPV4);
 		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
 		    MLX5_L4_PROT_TYPE_UDP);
+#ifdef RSS
+		if (!(rss_gethashconfig() & RSS_HASHTYPE_RSS_UDP_IPV4)) {
+			MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+			    MLX5_HASH_IP);
+		} else
+#endif
 		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
 		    MLX5_HASH_ALL);
 		break;
@@ -1896,6 +1941,12 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt)
 		    MLX5_L3_PROT_TYPE_IPV6);
 		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
 		    MLX5_L4_PROT_TYPE_UDP);
+#ifdef RSS
+		if (!(rss_gethashconfig() & RSS_HASHTYPE_RSS_UDP_IPV6)) {
+			MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+			    MLX5_HASH_IP);
+		} else
+#endif
 		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
 		    MLX5_HASH_ALL);
 		break;
@@ -2052,6 +2103,13 @@ mlx5e_open_locked(struct ifnet *ifp)
 	if (test_bit(MLX5E_STATE_OPENED, &priv->state) != 0)
 		return (0);
 
+#ifdef RSS
+	if (rss_getnumbuckets() > priv->params.num_channels) {
+		if_printf(ifp, "NOTE: There are more RSS buckets(%u) than "
+		    "channels(%u) available\n", rss_getnumbuckets(),
+		    priv->params.num_channels);
+	}
+#endif
 	err = mlx5e_open_tises(priv);
 	if (err) {
 		if_printf(ifp, "%s: mlx5e_open_tises failed, %d\n",
