@@ -301,10 +301,6 @@ init_secondary(void)
 	init_secondary_tail();
 }
 
-/*******************************************************************
- * local functions and data
- */
-
 /*
  * start each AP in our list
  */
