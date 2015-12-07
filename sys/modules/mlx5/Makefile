@@ -7,6 +7,7 @@ mlx5_alloc.c \
 mlx5_cmd.c \
 mlx5_cq.c \
 mlx5_eq.c \
+mlx5_eswitch_vacl.c \
 mlx5_flow_table.c \
 mlx5_fw.c \
 mlx5_health.c \
