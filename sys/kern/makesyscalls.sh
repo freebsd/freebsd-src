@@ -428,7 +428,7 @@ s/\$//g
 				arg = argtype[i]
 				sub("__restrict$", "", arg)
 				printf("\t\tcase %d:\n\t\t\tp = \"%s\";\n\t\t\tbreak;\n", i - 1, arg) > systracetmp
-				if (index(arg, "*") > 0 || arg == "caddr_t")
+				if (index(arg, "*") > 0 || arg == "caddr_t" || arg ~ /intptr_t/)
 					printf("\t\tuarg[%d] = (intptr_t) p->%s; /* %s */\n", \
 					     i - 1, \
 					     argname[i], arg) > systrace
@@ -467,20 +467,22 @@ s/\$//g
 		if (argc != 0 && !flag("NOARGS") && !flag("NODEF")) {
 			printf("\t[%s%s] = {\n",
 			     syscallprefix, funcalias) > sysargmap
-			if (syscallret ~ /\*/ || syscallret ~ /caddr_t/)
+			if (syscallret ~ /\*/ || syscallret ~ /caddr_t/ || syscallret ~ /intptr_t/)
 				printf "\t\t.sam_return_ptr = 1,\n" > sysargmap
 			if (argc > 0) {
 				pointers = 0
 				for (i = 1; i <= argc; i++)
 					if (argtype[i] ~ /\*/ ||
-					    argtype[i] ~ /caddr_t/)
+					    argtype[i] ~ /caddr_t/ ||
+					    argtype[i] ~ /intptr_t/)
 						pointers++
 				if (pointers > 0) {
 					printf "\t\t.sam_ptrmask =" > sysargmap
 					or_space = ""
 					for (i = 1; i <= argc; i++)
 						if (argtype[i] ~ /\*/ ||
-						    argtype[i] ~ /caddr_t/) {
+						    argtype[i] ~ /caddr_t/ ||
+						    argtype[i] ~ /intptr_t/) {
 							printf(" %s0x%x",
 							    or_space,
 							    2 ^ (i - 1)) > sysargmap
