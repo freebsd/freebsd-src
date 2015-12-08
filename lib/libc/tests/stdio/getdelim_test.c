@@ -207,7 +207,6 @@ ATF_TC_BODY(empty_NULL_buffer, tc)
 
 	/* Make sure NULL *linep and zero *linecapp are handled. */
 	fp = mkfilebuf();
-	free(line);
 	line = NULL;
 	linecap = 42;
 	ATF_REQUIRE(getline(&line, &linecap, fp) == sizeof(apothegm) - 1);
