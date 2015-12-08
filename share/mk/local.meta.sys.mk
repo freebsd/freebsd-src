@@ -148,7 +148,11 @@ STAGE_MACHINE:= ${TARGET_OBJ_SPEC}
 .endif
 STAGE_OBJTOP:= ${STAGE_ROOT}/${STAGE_MACHINE}
 STAGE_COMMON_OBJTOP:= ${STAGE_ROOT}/common
+STAGE_TARGET_OBJTOP:= ${STAGE_ROOT}/${TARGET_OBJ_SPEC}
 STAGE_HOST_OBJTOP:= ${STAGE_ROOT}/${HOST_TARGET}
+# These are exported for hooking in out-of-tree builds.  They will always
+# be overridden in sub-makes above when building in-tree.
+.export STAGE_OBJTOP STAGE_TARGET_OBJTOP STAGE_HOST_OBJTOP
 
 # Use tools/install.sh which can avoid the need for xinstall for simple cases.
 INSTALL?=	sh ${SRCTOP}/tools/install.sh
