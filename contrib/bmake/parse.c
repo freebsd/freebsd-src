@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.205 2015/10/11 04:51:24 sjg Exp $	*/
+/*	$NetBSD: parse.c,v 1.206 2015/11/26 00:23:04 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: parse.c,v 1.205 2015/10/11 04:51:24 sjg Exp $";
+static char rcsid[] = "$NetBSD: parse.c,v 1.206 2015/11/26 00:23:04 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)parse.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: parse.c,v 1.205 2015/10/11 04:51:24 sjg Exp $");
+__RCSID("$NetBSD: parse.c,v 1.206 2015/11/26 00:23:04 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -508,7 +508,11 @@ loadfile(const char *path, int fd)
 #ifdef HAVE_MMAP
 	if (load_getsize(fd, &lf->len) == SUCCESS) {
 		/* found a size, try mmap */
+#ifdef _SC_PAGESIZE
 		pagesize = sysconf(_SC_PAGESIZE);
+#else
+		pagesize = 0;
+#endif
 		if (pagesize <= 0) {
 			pagesize = 0x1000;
 		}

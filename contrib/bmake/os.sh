@@ -17,7 +17,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.47 2015/09/10 05:53:10 sjg Exp $
+#	$Id: os.sh,v 1.49 2015/10/25 00:05:40 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -44,7 +44,7 @@ MACHINE_ARCH=`uname -p 2>/dev/null || echo $MACHINE`
 # there is at least one case of `uname -p` outputting
 # a bunch of usless drivel
 case "$MACHINE_ARCH" in
-*[!A-Za-z0-9_-]*) MACHINE_ARCH="$MACHINE";;
+unknown|*[!A-Za-z0-9_-]*) MACHINE_ARCH="$MACHINE";;
 esac
         
 # we need this here, and it is not always available...
@@ -213,7 +213,7 @@ LN=${LN:-ln}
 TR=${TR:-tr}
 
 # Some people like have /share/$HOST_TARGET/bin etc.
-HOST_TARGET=`echo ${OS}${OSMAJOR}-$HOST_ARCH | toLower`
+HOST_TARGET=`echo ${OS}${OSMAJOR}-$HOST_ARCH | tr -d / | toLower`
 export HOST_TARGET
 
 case `echo -n .` in -n*) N=; C="\c";; *) N=-n; C=;; esac

@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.40 2015/10/04 17:36:54 sjg Exp $
+# $Id: meta.stage.mk,v 1.41 2015/11/13 17:34:04 sjg Exp $
 #
 #	@(#) Copyright (c) 2011, Simon J. Gerraty
 #
@@ -155,7 +155,7 @@ stage_libs:	.dirdep
 	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} \
 	${SHLIB_LINKS:@t@${STAGE_LIBS:T:M$t.*} $t@}
 .elif !empty(SHLIB_LINK) && !empty(SHLIB_NAME)
-	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} ${SHLIB_NAME} ${SHLIB_LINK} ${SYMLINKS:T}
+	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 .endif
 	@touch $@

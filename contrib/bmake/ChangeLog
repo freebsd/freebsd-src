@@ -1,3 +1,35 @@
+2015-12-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20151201
+	  Merge with NetBSD make, pick up
+	  o cond.c: CondCvtArg: avoid access beyond end of empty buffer.
+	  o meta.c: meta_oodate: use lstat(2) for checking link target
+	    in case it is a symlink.
+	  o var.c: avoid calling brk_string and Var_Export1 with empty
+	    strings.
+	
+2015-11-26  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20151126
+	  Merge with NetBSD make, pick up
+	  o parse.c: ParseTrackInput don't access beyond 
+	    end of old value.
+	
+2015-10-22  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20151022
+
+	* Add support for BSD/OS which lacks inttypes.h
+	  and really needs sys/param.h for sys/sysctl.h
+	  also 'type' is not a shell builtin.
+
+	* var.c: eliminate uint32_t and need for inttypes.h
+	
+	* main.c: PrintOnError flush stdout before run .ERROR
+
+	* parse.c: cope with _SC_PAGESIZE not being defined.
+
+	
 2015-10-20  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (MAKE_VERSION): 20151020

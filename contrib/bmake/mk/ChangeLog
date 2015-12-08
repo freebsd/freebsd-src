@@ -1,3 +1,29 @@
+2015-11-14  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20151111
+
+	* meta.sys.mk: include sys.dependfile.mk
+
+	* sys.mk (OPTIONS_DEFAULT_NO): use options.mk
+	  to set MK_AUTO_OBJ and MK_DIRDEPS_BUILD
+	  include local.sys.env.mk early
+	  include local.sys.mk later
+	
+	* own.mk (OPTIONS_DEFAULT_NO): AUTO_OBJ etc moved to sys.mk
+
+2015-11-13  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* meta.sys.mk (META_COOKIE_TOUCH):
+	  add ${META_COOKIE_TOUCH} to the end of scripts to touch cookie
+
+	* meta.stage.mk: stage_libs should ignore SYMLINKS.
+
+2015-10-23  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20151022
+
+	* sys.mk: BSD/OS does not have 'type' as a shell builtin.
+
 2015-10-20  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20151020
@@ -460,7 +486,7 @@
 	  needed.
 	* gendirdeps.mk: only produce unqualified deps if no
 	  .MAKE.DEPENDFILE_PREFERENCE ends in .${MACHINE}
-	* meta.subdir.mk: apply SUBDIREPS_FILTER
+	* meta.subdir.mk: apply SUBDIRDEPS_FILTER
 	
 2012-04-20  Simon J. Gerraty  <sjg@bad.crufty.net>
 
