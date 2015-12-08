@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_ecn.h>
 #ifdef INET6
 #include <netinet6/ip6_ecn.h>
+#include <netinet6/in6_fib.h>
 #endif
 
 #include <net/if_gif.h>
@@ -203,23 +204,15 @@ in6_gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 
 	/* ingress filters on outer source */
 	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0) {
-		struct sockaddr_in6 sin6;
-		struct rtentry *rt;
+		struct nhop6_basic nh6;
+		struct in6_addr *dst;
 
-		bzero(&sin6, sizeof(sin6));
-		sin6.sin6_family = AF_INET6;
-		sin6.sin6_len = sizeof(struct sockaddr_in6);
-		sin6.sin6_addr = ip6->ip6_src;
-		sin6.sin6_scope_id = 0; /* XXX */
-
-		rt = in6_rtalloc1((struct sockaddr *)&sin6, 0, 0UL,
-		    sc->gif_fibnum);
-		if (rt == NULL || rt->rt_ifp != m->m_pkthdr.rcvif) {
-			if (rt != NULL)
-				RTFREE_LOCKED(rt);
+		/* XXX empty scope id */
+		if (fib6_lookup_nh_basic(sc->gif_fibnum, dst, 0, 0, 0, &nh6)!=0)
 			return (0);
-		}
-		RTFREE_LOCKED(rt);
+
+		if (nh6.nh_ifp != m->m_pkthdr.rcvif)
+			return (0);
 	}
 	return (ret);
 }
