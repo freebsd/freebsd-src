@@ -86,6 +86,8 @@ _testfmt(const char *result, const char *argstr, const char *fmt,...)
 		    "wprintf(\"%ls\", %s) ==> [%ls], expected [%ls]\n",
 		    wfmt, argstr, ws, wresult);
 	}
+	va_end(ap);
+	va_end(ap2);
 }
 
 ATF_TC_WITHOUT_HEAD(float_within_limits);
