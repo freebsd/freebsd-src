@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.199 2015/10/20 21:30:57 sjg Exp $	*/
+/*	$NetBSD: var.c,v 1.200 2015/12/01 07:26:08 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: var.c,v 1.199 2015/10/20 21:30:57 sjg Exp $";
+static char rcsid[] = "$NetBSD: var.c,v 1.200 2015/12/01 07:26:08 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: var.c,v 1.199 2015/10/20 21:30:57 sjg Exp $");
+__RCSID("$NetBSD: var.c,v 1.200 2015/12/01 07:26:08 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -129,7 +129,6 @@ __RCSID("$NetBSD: var.c,v 1.199 2015/10/20 21:30:57 sjg Exp $");
 #include    <regex.h>
 #endif
 #include    <ctype.h>
-#include    <inttypes.h>
 #include    <stdlib.h>
 #include    <limits.h>
 #include    <time.h>
@@ -702,13 +701,15 @@ Var_ExportVars(void)
 	int i;
 
 	val = Var_Subst(NULL, tmp, VAR_GLOBAL, FALSE, TRUE);
-	av = brk_string(val, &ac, FALSE, &as);
-	for (i = 0; i < ac; i++) {
-	    Var_Export1(av[i], 0);
+	if (*val) {
+	    av = brk_string(val, &ac, FALSE, &as);
+	    for (i = 0; i < ac; i++) {
+		Var_Export1(av[i], 0);
+	    }
+	    free(as);
+	    free(av);
 	}
 	free(val);
-	free(as);
-	free(av);
     }
 }
 
@@ -740,35 +741,37 @@ Var_Export(char *str, int isExport)
 	track = VAR_EXPORT_PARENT;
     }
     val = Var_Subst(NULL, str, VAR_GLOBAL, FALSE, TRUE);
-    av = brk_string(val, &ac, FALSE, &as);
-    for (i = 0; i < ac; i++) {
-	name = av[i];
-	if (!name[1]) {
-	    /*
-	     * A single char.
-	     * If it is one of the vars that should only appear in
-	     * local context, skip it, else we can get Var_Subst
-	     * into a loop.
-	     */
-	    switch (name[0]) {
-	    case '@':
-	    case '%':
-	    case '*':
-	    case '!':
-		continue;
+    if (*val) {
+	av = brk_string(val, &ac, FALSE, &as);
+	for (i = 0; i < ac; i++) {
+	    name = av[i];
+	    if (!name[1]) {
+		/*
+		 * A single char.
+		 * If it is one of the vars that should only appear in
+		 * local context, skip it, else we can get Var_Subst
+		 * into a loop.
+		 */
+		switch (name[0]) {
+		case '@':
+		case '%':
+		case '*':
+		case '!':
+		    continue;
+		}
+	    }
+	    if (Var_Export1(name, track)) {
+		if (VAR_EXPORTED_ALL != var_exportedVars)
+		    var_exportedVars = VAR_EXPORTED_YES;
+		if (isExport && track) {
+		    Var_Append(MAKE_EXPORTED, name, VAR_GLOBAL);
+		}
 	    }
 	}
-	if (Var_Export1(name, track)) {
-	    if (VAR_EXPORTED_ALL != var_exportedVars)
-		var_exportedVars = VAR_EXPORTED_YES;
-	    if (isExport && track) {
-		Var_Append(MAKE_EXPORTED, name, VAR_GLOBAL);
-	    }
-	}
+	free(as);
+	free(av);
     }
     free(val);
-    free(as);
-    free(av);
 }
 
 
@@ -2306,7 +2309,7 @@ VarHash(char *str)
     Buffer         buf;
     size_t         len, len2;
     unsigned char  *ustr = (unsigned char *)str;
-    uint32_t       h, k, c1, c2;
+    unsigned int   h, k, c1, c2;
 
     h  = 0x971e137bU;
     c1 = 0x95543787U;
