@@ -741,7 +741,7 @@ void	 tcp_hc_update(struct in_conninfo *, struct hc_metrics_lite *);
 extern	struct pr_usrreqs tcp_usrreqs;
 tcp_seq tcp_new_isn(struct tcpcb *);
 
-void	 tcp_sack_doack(struct tcpcb *, struct tcpopt *, tcp_seq);
+int	 tcp_sack_doack(struct tcpcb *, struct tcpopt *, tcp_seq);
 void	 tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_laststart, tcp_seq rcv_lastend);
 void	 tcp_clean_sackreport(struct tcpcb *tp);
 void	 tcp_sack_adjust(struct tcpcb *tp);
