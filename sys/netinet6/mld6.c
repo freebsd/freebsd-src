@@ -2989,6 +2989,15 @@ mld_v2_dispatch_general_query(struct mld_ifinfo *mli)
 	KASSERT(mli->mli_version == MLD_VERSION_2,
 	    ("%s: called when version %d", __func__, mli->mli_version));
 
+	/*
+	 * Check that there are some packets queued. If so, send them first.
+	 * For large number of groups the reply to general query can take
+	 * many packets, we should finish sending them before starting of
+	 * queuing the new reply.
+	 */
+	if (mli->mli_gq.ifq_head != NULL)
+		goto send;
+
 	ifp = mli->mli_ifp;
 
 	IF_ADDR_RLOCK(ifp);
@@ -3024,6 +3033,7 @@ mld_v2_dispatch_general_query(struct mld_ifinfo *mli)
 	}
 	IF_ADDR_RUNLOCK(ifp);
 
+send:
 	mld_dispatch_queue(&mli->mli_gq, MLD_MAX_RESPONSE_BURST);
 
 	/*
