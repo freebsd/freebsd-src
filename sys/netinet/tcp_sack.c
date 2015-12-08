@@ -345,17 +345,22 @@ tcp_sackhole_remove(struct tcpcb *tp, struct sackhole *hole)
  * Process cumulative ACK and the TCP SACK option to update the scoreboard.
  * tp->snd_holes is an ordered list of holes (oldest to newest, in terms of
  * the sequence space).
+ * Returns 1 if incoming ACK has previously unknown SACK information,
+ * 0 otherwise. Note: We treat (snd_una, th_ack) as a sack block so any changes
+ * to that (i.e. left edge moving) would also be considered a change in SACK
+ * information which is slightly different than rfc6675.
  */
-void
+int
 tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 {
 	struct sackhole *cur, *temp;
 	struct sackblk sack, sack_blocks[TCP_MAX_SACK + 1], *sblkp;
-	int i, j, num_sack_blks;
+	int i, j, num_sack_blks, sack_changed;
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	num_sack_blks = 0;
+	sack_changed = 0;
 	/*
 	 * If SND.UNA will be advanced by SEG.ACK, and if SACK holes exist,
 	 * treat [SND.UNA, SEG.ACK) as if it is a SACK block.
@@ -392,7 +397,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 	 * received.
 	 */
 	if (num_sack_blks == 0)
-		return;
+		return (sack_changed);
 
 	/*
 	 * Sort the SACK blocks so we can update the scoreboard with just one
@@ -443,6 +448,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 			tp->snd_fack = sblkp->end;
 			/* Go to the previous sack block. */
 			sblkp--;
+			sack_changed = 1;
 		} else {
 			/* 
 			 * We failed to add a new hole based on the current 
@@ -459,9 +465,11 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 			    SEQ_LT(tp->snd_fack, sblkp->end))
 				tp->snd_fack = sblkp->end;
 		}
-	} else if (SEQ_LT(tp->snd_fack, sblkp->end))
+	} else if (SEQ_LT(tp->snd_fack, sblkp->end)) {
 		/* fack is advanced. */
 		tp->snd_fack = sblkp->end;
+		sack_changed = 1;
+	}
 	/* We must have at least one SACK hole in scoreboard. */
 	KASSERT(!TAILQ_EMPTY(&tp->snd_holes),
 	    ("SACK scoreboard must not be empty"));
@@ -490,6 +498,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 		tp->sackhint.sack_bytes_rexmit -= (cur->rxmit - cur->start);
 		KASSERT(tp->sackhint.sack_bytes_rexmit >= 0,
 		    ("sackhint bytes rtx >= 0"));
+		sack_changed = 1;
 		if (SEQ_LEQ(sblkp->start, cur->start)) {
 			/* Data acks at least the beginning of hole. */
 			if (SEQ_GEQ(sblkp->end, cur->end)) {
@@ -545,6 +554,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 		else
 			sblkp--;
 	}
+	return (sack_changed);
 }
 
 /*

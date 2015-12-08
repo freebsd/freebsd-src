@@ -1481,7 +1481,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, int drop_hdrlen, int tlen, uint8_t iptos,
     int ti_locked)
 {
-	int thflags, acked, ourfinisacked, needoutput = 0;
+	int thflags, acked, ourfinisacked, needoutput = 0, sack_changed;
 	int rstreason, todrop, win;
 	u_long tiwin;
 	char *s;
@@ -1501,6 +1501,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	thflags = th->th_flags;
 	inc = &tp->t_inpcb->inp_inc;
 	tp->sackhint.last_sack_ack = 0;
+	sack_changed = 0;
 
 	/*
 	 * If this is either a state-changing packet or current state isn't
@@ -2424,7 +2425,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if ((tp->t_flags & TF_SACK_PERMIT) &&
 		    ((to.to_flags & TOF_SACK) ||
 		     !TAILQ_EMPTY(&tp->snd_holes)))
-			tcp_sack_doack(tp, &to, th->th_ack);
+			sack_changed = tcp_sack_doack(tp, &to, th->th_ack);
 		else
 			/*
 			 * Reset the value so that previous (valid) value
@@ -2436,7 +2437,9 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		hhook_run_tcp_est_in(tp, th, &to);
 
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
-			if (tlen == 0 && tiwin == tp->snd_wnd) {
+			if (tlen == 0 &&
+			    (tiwin == tp->snd_wnd ||
+			    (tp->t_flags & TF_SACK_PERMIT))) {
 				/*
 				 * If this is the first time we've seen a
 				 * FIN from the remote, this is not a
@@ -2478,8 +2481,20 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * When using TCP ECN, notify the peer that
 				 * we reduced the cwnd.
 				 */
-				if (!tcp_timer_active(tp, TT_REXMT) ||
-				    th->th_ack != tp->snd_una)
+				/*
+				 * Following 2 kinds of acks should not affect
+				 * dupack counting:
+				 * 1) Old acks
+				 * 2) Acks with SACK but without any new SACK
+				 * information in them. These could result from
+				 * any anomaly in the network like a switch
+				 * duplicating packets or a possible DoS attack.
+				 */
+				if (th->th_ack != tp->snd_una ||
+				    ((tp->t_flags & TF_SACK_PERMIT) &&
+				    !sack_changed))
+					break;
+				else if (!tcp_timer_active(tp, TT_REXMT))
 					tp->t_dupacks = 0;
 				else if (++tp->t_dupacks > tcprexmtthresh ||
 				     IN_FASTRECOVERY(tp->t_flags)) {
@@ -2608,9 +2623,20 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					tp->snd_cwnd = oldcwnd;
 					goto drop;
 				}
-			} else
-				tp->t_dupacks = 0;
+			}
 			break;
+		} else {
+			/*
+			 * This ack is advancing the left edge, reset the
+			 * counter.
+			 */
+			tp->t_dupacks = 0;
+			/*
+			 * If this ack also has new SACK info, increment the
+			 * counter as per rfc6675.
+			 */
+			if ((tp->t_flags & TF_SACK_PERMIT) && sack_changed)
+				tp->t_dupacks++;
 		}
 
 		KASSERT(SEQ_GT(th->th_ack, tp->snd_una),
@@ -2629,7 +2655,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			} else
 				cc_post_recovery(tp, th);
 		}
-		tp->t_dupacks = 0;
 		/*
 		 * If we reach this point, ACK is not a duplicate,
 		 *     i.e., it ACKs something we sent.
