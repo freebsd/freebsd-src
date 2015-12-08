@@ -1280,7 +1280,7 @@ bufshutdown(int show_busybufs)
 		/*
 		 * Unmount filesystems
 		 */
-		if (panicstr == 0)
+		if (panicstr == NULL)
 			vfs_unmountall();
 	}
 	swapoff_all();
