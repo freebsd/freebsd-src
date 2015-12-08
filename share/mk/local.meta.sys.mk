@@ -215,6 +215,7 @@ TOOLSDIR?= ${STAGE_HOST_OBJTOP}
 .endif
 # Don't use the bootstrap tools logic on itself.
 .if ${.TARGETS:Mbootstrap-tools} == "" && \
+    !make(showconfig) && \
     !defined(BOOTSTRAPPING_TOOLS) && !empty(TOOLSDIR) && ${.MAKE.LEVEL} == 0
 .for dir in /sbin /bin /usr/sbin /usr/bin
 PATH:= ${TOOLSDIR}${dir}:${PATH}
