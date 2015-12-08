@@ -37,10 +37,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: head/lib/csu/mips/crt1_c.c 245133 2013-01-07 17:58:27Z kib $");
 
-#ifndef __GNUC__
-#error "GCC is needed to compile this file"
-#endif
-
 #include <stdlib.h>
 #include "libc_private.h"
 #include "crtbrand.c"
