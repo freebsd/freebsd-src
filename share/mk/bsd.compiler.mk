@@ -30,6 +30,7 @@ __<bsd.compiler.mk>__:
 # Handle ccache after CC is determined, but not if CC/CXX are already
 # overridden with a manual setup.
 .if ${MK_CCACHE_BUILD:Uno} == "yes" && \
+    !make(showconfig) && \
     (${CC:M*ccache/world/*} == "" || ${CXX:M*ccache/world/*} == "")
 # CC is always prepended with the ccache wrapper rather than modifying
 # PATH since it is more clear that ccache is used and avoids wasting time
