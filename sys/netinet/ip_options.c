@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -104,6 +105,7 @@ ip_dooptions(struct mbuf *m, int pass)
 	int opt, optlen, cnt, off, code, type = ICMP_PARAMPROB, forward = 0;
 	struct in_addr *sin, dst;
 	uint32_t ntime;
+	struct nhop4_extended nh_ext;
 	struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
 
 	/* Ignore or reject packets with IP options. */
@@ -227,6 +229,9 @@ dropit:
 			(void)memcpy(&ipaddr.sin_addr, cp + off,
 			    sizeof(ipaddr.sin_addr));
 
+			type = ICMP_UNREACH;
+			code = ICMP_UNREACH_SRCFAIL;
+
 			if (opt == IPOPT_SSRR) {
 #define	INA	struct in_ifaddr *
 #define	SA	struct sockaddr *
@@ -235,18 +240,23 @@ dropit:
 			    if (ia == NULL)
 				    ia = (INA)ifa_ifwithnet((SA)&ipaddr, 0,
 						    RT_ALL_FIBS);
-			} else
-/* XXX MRT 0 for routing */
-				ia = ip_rtaddr(ipaddr.sin_addr, M_GETFIB(m));
-			if (ia == NULL) {
-				type = ICMP_UNREACH;
-				code = ICMP_UNREACH_SRCFAIL;
-				goto bad;
+				if (ia == NULL)
+					goto bad;
+
+				memcpy(cp + off, &(IA_SIN(ia)->sin_addr),
+				    sizeof(struct in_addr));
+				ifa_free(&ia->ia_ifa);
+			} else {
+				/* XXX MRT 0 for routing */
+				if (fib4_lookup_nh_ext(M_GETFIB(m),
+				    ipaddr.sin_addr, 0, 0, &nh_ext) != 0)
+					goto bad;
+
+				memcpy(cp + off, &nh_ext.nh_src,
+				    sizeof(struct in_addr));
 			}
+
 			ip->ip_dst = ipaddr.sin_addr;
-			(void)memcpy(cp + off, &(IA_SIN(ia)->sin_addr),
-			    sizeof(struct in_addr));
-			ifa_free(&ia->ia_ifa);
 			cp[IPOPT_OFFSET] += sizeof(struct in_addr);
 			/*
 			 * Let ip_intr's mcast routing check handle mcast pkts
