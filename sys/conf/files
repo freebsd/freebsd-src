@@ -3643,6 +3643,7 @@ netinet/in.c			optional inet
 netinet/in_debug.c		optional inet ddb
 netinet/in_kdtrace.c		optional inet | inet6
 netinet/ip_carp.c		optional inet carp | inet6 carp
+netinet/in_fib.c		optional inet
 netinet/in_gif.c		optional gif inet | netgraph_gif inet
 netinet/ip_gre.c		optional gre inet
 netinet/ip_id.c			optional inet
@@ -3709,6 +3710,7 @@ netinet6/frag6.c		optional inet6
 netinet6/icmp6.c		optional inet6
 netinet6/in6.c			optional inet6
 netinet6/in6_cksum.c		optional inet6
+netinet6/in6_fib.c		optional inet6
 netinet6/in6_gif.c		optional gif inet6 | netgraph_gif inet6
 netinet6/in6_ifattach.c		optional inet6
 netinet6/in6_mcast.c		optional inet6
