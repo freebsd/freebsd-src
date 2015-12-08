@@ -147,8 +147,14 @@ CTASSERT(sizeof(struct cheri_frame) == (29 * CHERICAP_SIZE));
  * expanded to include a full set of caller-save registers.
  */
 struct cheri_kframe {
-	struct chericap	ckf_c11;
-	struct chericap	ckf_c12;
+	struct chericap	ckf_c17;
+	struct chericap	ckf_c18;
+	struct chericap ckf_c19;
+	struct chericap ckf_c20;
+	struct chericap ckf_c21;
+	struct chericap ckf_c22;
+	struct chericap ckf_c23;
+	struct chericap ckf_rcc;
 };
 #endif
 

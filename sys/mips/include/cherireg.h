@@ -250,8 +250,14 @@
  * Offsets of registers in struct cheri_kframe -- must match the definition in
  * cheri.h.
  */
-#define	CHERIKFRAME_OFF_C11	0
-#define	CHERIKFRAME_OFF_C12	1
+#define	CHERIKFRAME_OFF_C17	0
+#define	CHERIKFRAME_OFF_C18	1
+#define	CHERIKFRAME_OFF_C19	2
+#define	CHERIKFRAME_OFF_C20	3
+#define	CHERIKFRAME_OFF_C21	4
+#define	CHERIKFRAME_OFF_C22	5
+#define	CHERIKFRAME_OFF_C23	6
+#define	CHERIKFRAME_OFF_RCC	7
 
 /*
  * List of CHERI capability cause code constants, which are used to
