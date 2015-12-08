@@ -64,8 +64,10 @@ CCACHE_COMPILERCHECK?=	mtime
 # Remove ccache from the PATH to prevent double calls and wasted CPP/LD time.
 PATH:=	${PATH:C,:?${CCACHE_WRAPPER_PATH}(/world)?(:$)?,,g}
 # Ensure no bogus CCACHE_PATH leaks in which might avoid the in-tree compiler.
+.if !empty(CCACHE_PATH)
 CCACHE_PATH=
 .export CCACHE_PATH
+.endif
 # Override various toolchain vars.
 .for var in CC CXX HOST_CC HOST_CXX
 .if defined(${var}) && ${${var}:M${CCACHE_BIN}} == ""
