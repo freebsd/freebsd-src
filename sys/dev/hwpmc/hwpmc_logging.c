@@ -70,6 +70,9 @@ SYSCTL_DECL(_kern_hwpmc);
  */
 
 static int pmclog_buffer_size = PMC_LOG_BUFFER_SIZE;
+#if (__FreeBSD_version < 1100000)
+TUNABLE_INT(PMC_SYSCTL_NAME_PREFIX "logbuffersize", &pmclog_buffer_size);
+#endif
 SYSCTL_INT(_kern_hwpmc, OID_AUTO, logbuffersize, CTLFLAG_RDTUN,
     &pmclog_buffer_size, 0, "size of log buffers in kilobytes");
 
@@ -78,6 +81,9 @@ SYSCTL_INT(_kern_hwpmc, OID_AUTO, logbuffersize, CTLFLAG_RDTUN,
  */
 
 static int pmc_nlogbuffers = PMC_NLOGBUFFERS;
+#if (__FreeBSD_version < 1100000)
+TUNABLE_INT(PMC_SYSCTL_NAME_PREFIX "nbuffers", &pmc_nlogbuffers);
+#endif
 SYSCTL_INT(_kern_hwpmc, OID_AUTO, nbuffers, CTLFLAG_RDTUN,
     &pmc_nlogbuffers, 0, "number of global log buffers");
 
