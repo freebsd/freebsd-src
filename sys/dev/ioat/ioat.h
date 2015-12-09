@@ -84,6 +84,19 @@ struct bus_dmadesc *ioat_copy(bus_dmaengine_t dmaengine, bus_addr_t dst,
     void *callback_arg, uint32_t flags);
 
 /*
+ * Issue a copy data operation, with constraints:
+ *  - src1, src2, dst1, dst2 are all page-aligned addresses
+ *  - The quantity to copy is exactly 2 pages;
+ *  - src1 -> dst1, src2 -> dst2
+ *
+ * Why use this instead of normal _copy()?  You can copy two non-contiguous
+ * pages (src, dst, or both) with one descriptor.
+ */
+struct bus_dmadesc *ioat_copy_8k_aligned(bus_dmaengine_t dmaengine,
+    bus_addr_t dst1, bus_addr_t dst2, bus_addr_t src1, bus_addr_t src2,
+    bus_dmaengine_callback_t callback_fn, void *callback_arg, uint32_t flags);
+
+/*
  * Issues a null operation. This issues the operation to the hardware, but the
  * hardware doesn't do anything with it.
  */
