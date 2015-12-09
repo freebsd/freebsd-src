@@ -833,6 +833,51 @@ ioat_copy(bus_dmaengine_t dmaengine, bus_addr_t dst,
 }
 
 struct bus_dmadesc *
+ioat_copy_8k_aligned(bus_dmaengine_t dmaengine, bus_addr_t dst1,
+    bus_addr_t dst2, bus_addr_t src1, bus_addr_t src2,
+    bus_dmaengine_callback_t callback_fn, void *callback_arg, uint32_t flags)
+{
+	struct ioat_dma_hw_descriptor *hw_desc;
+	struct ioat_descriptor *desc;
+	struct ioat_softc *ioat;
+
+	CTR0(KTR_IOAT, __func__);
+	ioat = to_ioat_softc(dmaengine);
+
+	if (((src1 | src2 | dst1 | dst2) & (0xffffull << 48)) != 0) {
+		ioat_log_message(0, "%s: High 16 bits of src/dst invalid\n",
+		    __func__);
+		return (NULL);
+	}
+	if (((src1 | src2 | dst1 | dst2) & PAGE_MASK) != 0) {
+		ioat_log_message(0, "%s: Addresses must be page-aligned\n",
+		    __func__);
+		return (NULL);
+	}
+
+	desc = ioat_op_generic(ioat, IOAT_OP_COPY, 2 * PAGE_SIZE, src1, dst1,
+	    callback_fn, callback_arg, flags);
+	if (desc == NULL)
+		return (NULL);
+
+	hw_desc = desc->u.dma;
+	if (src2 != src1 + PAGE_SIZE) {
+		hw_desc->u.control.src_page_break = 1;
+		hw_desc->next_src_addr = src2;
+	}
+	if (dst2 != dst1 + PAGE_SIZE) {
+		hw_desc->u.control.dest_page_break = 1;
+		hw_desc->next_dest_addr = dst2;
+	}
+
+	if (g_ioat_debug_level >= 3)
+		dump_descriptor(hw_desc);
+
+	ioat_submit_single(ioat);
+	return (&desc->bus_dmadesc);
+}
+
+struct bus_dmadesc *
 ioat_blockfill(bus_dmaengine_t dmaengine, bus_addr_t dst, uint64_t fillpattern,
     bus_size_t len, bus_dmaengine_callback_t callback_fn, void *callback_arg,
     uint32_t flags)
