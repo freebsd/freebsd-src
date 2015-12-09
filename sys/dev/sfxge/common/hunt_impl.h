@@ -298,6 +298,12 @@ hunt_mcdi_link_control_supported(
 	__in		efx_nic_t *enp,
 	__out		boolean_t *supportedp);
 
+extern	__checkReturn	efx_rc_t
+hunt_mcdi_mac_spoofing_supported(
+	__in		efx_nic_t *enp,
+	__out		boolean_t *supportedp);
+
+
 #endif /* EFSYS_OPT_MCDI */
 
 /* NVRAM */
