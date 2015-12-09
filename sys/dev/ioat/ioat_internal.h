@@ -175,8 +175,8 @@ struct ioat_dma_hw_descriptor {
 	uint64_t src_addr;
 	uint64_t dest_addr;
 	uint64_t next;
-	uint64_t reserved;
-	uint64_t reserved2;
+	uint64_t next_src_addr;
+	uint64_t next_dest_addr;
 	uint64_t user1;
 	uint64_t user2;
 };

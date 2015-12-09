@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 31, 2015
+.Dd December 9, 2015
 .Dt IOAT 4
 .Os
 .Sh NAME
@@ -73,6 +73,17 @@ In
 .Fa "bus_addr_t dst"
 .Fa "bus_addr_t src"
 .Fa "bus_size_t len"
+.Fa "bus_dmaengine_callback_t callback_fn"
+.Fa "void *callback_arg"
+.Fa "uint32_t flags"
+.Fc
+.Ft struct bus_dmadesc *
+.Fo ioat_copy_8k_aligned
+.Fa "bus_dmaengine_t dmaengine"
+.Fa "bus_addr_t dst1"
+.Fa "bus_addr_t dst2"
+.Fa "bus_addr_t src1"
+.Fa "bus_addr_t src2"
 .Fa "bus_dmaengine_callback_t callback_fn"
 .Fa "void *callback_arg"
 .Fa "uint32_t flags"
@@ -150,7 +161,7 @@ Then, they will submit one or more operations using
 .Fn ioat_copy ,
 or
 .Fn ioat_null .
-After queueing one or more individual DMA operations, they will
+After queuing one or more individual DMA operations, they will
 .Fn ioat_release
 the
 .Ar bus_dmaengine_t
