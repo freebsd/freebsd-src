@@ -205,10 +205,10 @@ in6_gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 	/* ingress filters on outer source */
 	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0) {
 		struct nhop6_basic nh6;
-		struct in6_addr *dst;
 
 		/* XXX empty scope id */
-		if (fib6_lookup_nh_basic(sc->gif_fibnum, dst, 0, 0, 0, &nh6)!=0)
+		if (fib6_lookup_nh_basic(sc->gif_fibnum, &ip6->ip6_src, 0, 0, 0,
+		    &nh6) != 0)
 			return (0);
 
 		if (nh6.nh_ifp != m->m_pkthdr.rcvif)
