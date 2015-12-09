@@ -26,8 +26,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/token.l#2 $
  */
 
 #include <config/config.h>
@@ -74,7 +72,7 @@ sender			{ DP; return SENDER; }
 source			{ DP; return SOURCE; }
 timeout			{ DP; return TIMEOUT; }
 [0-9]+			{ DP; yylval.num = atoi(yytext); return NUM; }
-\"[a-zA-Z0-9_/ !@#\$%\^\&\*\(\)\+\=\|\;\?\,\.\-\:]*\" { DP; yylval.str = strndup(yytext + 1, strlen(yytext) - 2); return STR; }
+\"[a-zA-Z0-9_/ !@#\$%\^\&\*\(\)\+\=\|\;\?\,\.\[\]\-\:]*\" { DP; yylval.str = strndup(yytext + 1, strlen(yytext) - 2); return STR; }
 \{			{ DP; depth++; return OB; }
 \}			{ DP; depth--; return CB; }
 #.*$			/* ignore comments */;

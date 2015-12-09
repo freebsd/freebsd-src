@@ -25,8 +25,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/sender.c#3 $
  */
 
 #include <config/config.h>
@@ -394,6 +392,7 @@ read_thread_wait(void)
 
 	mtx_lock(&adist_remote_mtx);
 	if (adhost->adh_reset) {
+reset:
 		adhost->adh_reset = false;
 		if (trail_filefd(adist_trail) != -1)
 			trail_close(adist_trail);
@@ -408,6 +407,14 @@ read_thread_wait(void)
 	while (trail_filefd(adist_trail) == -1) {
 		newfile = true;
 		wait_for_dir();
+		/*
+		 * We may have been disconnected and reconnected in the
+		 * meantime, check if reset is set.
+		 */
+		mtx_lock(&adist_remote_mtx);
+		if (adhost->adh_reset)
+			goto reset;
+		mtx_unlock(&adist_remote_mtx);
 		if (trail_filefd(adist_trail) == -1)
 			trail_next(adist_trail);
 	}
@@ -634,7 +641,7 @@ recv_thread(void *arg __unused)
 			 * we can use that.
 			 */
 			if (TAILQ_EMPTY(&adist_recv_list)) {
-				rw_unlock(&adist_remote_lock);
+				mtx_unlock(&adist_recv_list_lock);
 				continue;
 			}
 			mtx_unlock(&adist_recv_list_lock);
