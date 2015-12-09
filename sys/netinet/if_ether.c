@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_var.h>
 #include <net/if_llatbl.h>
 #include <netinet/if_ether.h>
@@ -671,7 +672,6 @@ in_arpinput(struct mbuf *m)
 	struct arphdr *ah;
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct llentry *la = NULL, *la_tmp;
-	struct rtentry *rt;
 	struct ifaddr *ifa;
 	struct in_ifaddr *ia;
 	struct sockaddr sa;
@@ -682,6 +682,8 @@ in_arpinput(struct mbuf *m)
 	int carped;
 	struct sockaddr_in sin;
 	struct sockaddr *dst;
+	struct nhop4_basic nh4;
+
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = 0;
@@ -921,10 +923,8 @@ reply:
 			if (!V_arp_proxyall)
 				goto drop;
 
-			sin.sin_addr = itaddr;
 			/* XXX MRT use table 0 for arp reply  */
-			rt = in_rtalloc1((struct sockaddr *)&sin, 0, 0UL, 0);
-			if (!rt)
+			if (fib4_lookup_nh_basic(0, itaddr, 0, 0, &nh4) != 0)
 				goto drop;
 
 			/*
@@ -932,11 +932,8 @@ reply:
 			 * as this one came out of, or we'll get into a fight
 			 * over who claims what Ether address.
 			 */
-			if (!rt->rt_ifp || rt->rt_ifp == ifp) {
-				RTFREE_LOCKED(rt);
+			if (nh4.nh_ifp == ifp)
 				goto drop;
-			}
-			RTFREE_LOCKED(rt);
 
 			(void)memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);
 			(void)memcpy(ar_sha(ah), enaddr, ah->ar_hln);
@@ -947,21 +944,16 @@ reply:
 			 * avoids ARP chaos if an interface is connected to the
 			 * wrong network.
 			 */
-			sin.sin_addr = isaddr;
 
 			/* XXX MRT use table 0 for arp checks */
-			rt = in_rtalloc1((struct sockaddr *)&sin, 0, 0UL, 0);
-			if (!rt)
+			if (fib4_lookup_nh_basic(0, isaddr, 0, 0, &nh4) != 0)
 				goto drop;
-			if (rt->rt_ifp != ifp) {
+			if (nh4.nh_ifp != ifp) {
 				ARP_LOG(LOG_INFO, "proxy: ignoring request"
-				    " from %s via %s, expecting %s\n",
-				    inet_ntoa(isaddr), ifp->if_xname,
-				    rt->rt_ifp->if_xname);
-				RTFREE_LOCKED(rt);
+				    " from %s via %s\n",
+				    inet_ntoa(isaddr), ifp->if_xname);
 				goto drop;
 			}
-			RTFREE_LOCKED(rt);
 
 #ifdef DEBUG_PROXY
 			printf("arp: proxying for %s\n", inet_ntoa(itaddr));
