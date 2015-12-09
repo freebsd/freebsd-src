@@ -59,6 +59,9 @@ struct efx_mcdi_req_s {
 	uint8_t		*emr_out_buf;
 	size_t		emr_out_length;
 	size_t		emr_out_length_used;
+	/* Internals: low level transport details */
+	unsigned int	emr_err_code;
+	unsigned int	emr_err_arg;
 };
 
 typedef struct efx_mcdi_iface_s {
@@ -79,6 +82,11 @@ efx_mcdi_execute(
 
 extern			void
 efx_mcdi_execute_quiet(
+	__in		efx_nic_t *enp,
+	__inout		efx_mcdi_req_t *emrp);
+
+ extern			void
+efx_mcdi_read_response_header(
 	__in		efx_nic_t *enp,
 	__inout		efx_mcdi_req_t *emrp);
 
