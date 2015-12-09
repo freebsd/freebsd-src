@@ -105,6 +105,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
@@ -860,19 +861,16 @@ in6_selecthlim(struct inpcb *in6p, struct ifnet *ifp)
 	else if (ifp)
 		return (ND_IFINFO(ifp)->chlim);
 	else if (in6p && !IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr)) {
-		struct route_in6 ro6;
-		struct ifnet *lifp;
+		struct nhop6_basic nh6;
+		struct in6_addr dst;
+		uint32_t fibnum, scopeid;
+		int hlim;
 
-		bzero(&ro6, sizeof(ro6));
-		ro6.ro_dst.sin6_family = AF_INET6;
-		ro6.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
-		ro6.ro_dst.sin6_addr = in6p->in6p_faddr;
-		in6_rtalloc(&ro6, in6p->inp_inc.inc_fibnum);
-		if (ro6.ro_rt) {
-			lifp = ro6.ro_rt->rt_ifp;
-			RTFREE(ro6.ro_rt);
-			if (lifp)
-				return (ND_IFINFO(lifp)->chlim);
+		fibnum = in6p->inp_inc.inc_fibnum;
+		in6_splitscope(&in6p->in6p_faddr, &dst, &scopeid);
+		if (fib6_lookup_nh_basic(fibnum, &dst, scopeid, 0, 0, &nh6)==0){
+			hlim = ND_IFINFO(nh6.nh_ifp)->chlim;
+			return (hlim);
 		}
 	}
 	return (V_ip6_defhlim);

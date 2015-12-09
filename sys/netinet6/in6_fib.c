@@ -164,6 +164,7 @@ fib6_rte_to_nh_extended(struct rtentry *rte, const struct in6_addr *dst,
  *   interface "ix0" pointer to "ix0" interface will be returned instead
  *   of "lo0")
  * - howewer mtu from "transmit" interface will be returned.
+ * - scope will be embedded in nh_addr
  */
 int
 fib6_lookup_nh_basic(uint32_t fibnum, const struct in6_addr *dst, uint32_t scopeid,
@@ -182,6 +183,7 @@ fib6_lookup_nh_basic(uint32_t fibnum, const struct in6_addr *dst, uint32_t scope
 	/* Prepare lookup key */
 	memset(&sin6, 0, sizeof(sin6));
 	sin6.sin6_addr = *dst;
+	sin6.sin6_len = sizeof(struct sockaddr_in6);
 	/* Assume scopeid is valid and embed it directly */
 	if (IN6_IS_SCOPE_LINKLOCAL(dst))
 		sin6.sin6_addr.s6_addr16[1] = htons(scopeid & 0xffff);
@@ -192,7 +194,7 @@ fib6_lookup_nh_basic(uint32_t fibnum, const struct in6_addr *dst, uint32_t scope
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
-			fib6_rte_to_nh_basic(rte, dst, flags, pnh6);
+			fib6_rte_to_nh_basic(rte, &sin6.sin6_addr, flags, pnh6);
 			RADIX_NODE_HEAD_RUNLOCK(rh);
 			return (0);
 		}
@@ -211,6 +213,7 @@ fib6_lookup_nh_basic(uint32_t fibnum, const struct in6_addr *dst, uint32_t scope
  * - nh_ifp represents logical transmit interface (rt_ifp) by default
  * - nh_ifp represents "address" interface if NHR_IFAIF flag is passed
  * - mtu from logical transmit interface will be returned.
+ * - scope will be embedded in nh_addr
  */
 int
 fib6_lookup_nh_ext(uint32_t fibnum, const struct in6_addr *dst,uint32_t scopeid,
@@ -240,7 +243,8 @@ fib6_lookup_nh_ext(uint32_t fibnum, const struct in6_addr *dst,uint32_t scopeid,
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
-			fib6_rte_to_nh_extended(rte, dst, flags, pnh6);
+			fib6_rte_to_nh_extended(rte, &sin6.sin6_addr, flags,
+			    pnh6);
 			if ((flags & NHR_REF) != 0) {
 				/* TODO: Do lwref on egress ifp's */
 			}

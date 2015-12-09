@@ -107,6 +107,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_mroute.h>
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/scope6_var.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/in6_pcb.h>
 
 VNET_DECLARE(int, icmp6_nodeinfo_oldmcprefix);
@@ -2144,17 +2145,22 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 		    u_int flags,
 		    const struct sockaddr *l3addr)
 {
-	struct rtentry *rt;
+	const struct sockaddr_in6 *sin6;
+	struct nhop6_basic nh6;
+	struct in6_addr dst;
+	uint32_t scopeid;
+	int error;
 	char ip6buf[INET6_ADDRSTRLEN];
 
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
 
 	/* Our local addresses are always only installed on the default FIB. */
-	/* XXX rtalloc1 should take a const param */
-	rt = in6_rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0,
-	    RT_DEFAULT_FIB);
-	if (rt == NULL || (rt->rt_flags & RTF_GATEWAY) || rt->rt_ifp != ifp) {
+
+	sin6 = (const struct sockaddr_in6 *)l3addr;
+	in6_splitscope(&sin6->sin6_addr, &dst, &scopeid);
+	error = fib6_lookup_nh_basic(RT_DEFAULT_FIB, &dst, scopeid, 0, 0, &nh6);
+	if (error != 0 || (nh6.nh_flags & NHF_GATEWAY) || nh6.nh_ifp != ifp) {
 		struct ifaddr *ifa;
 		/*
 		 * Create an ND6 cache for an IPv6 neighbor
@@ -2163,17 +2169,12 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 		ifa = ifaof_ifpforaddr(l3addr, ifp);
 		if (ifa != NULL) {
 			ifa_free(ifa);
-			if (rt != NULL)
-				RTFREE_LOCKED(rt);
 			return 0;
 		}
 		log(LOG_INFO, "IPv6 address: \"%s\" is not on the network\n",
-		    ip6_sprintf(ip6buf, &((const struct sockaddr_in6 *)l3addr)->sin6_addr));
-		if (rt != NULL)
-			RTFREE_LOCKED(rt);
+		    ip6_sprintf(ip6buf, &sin6->sin6_addr));
 		return EINVAL;
 	}
-	RTFREE_LOCKED(rt);
 	return 0;
 }
 

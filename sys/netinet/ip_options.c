@@ -290,15 +290,19 @@ dropit:
 			 * destination, use the incoming interface (should be
 			 * same).
 			 */
-			if ((ia = (INA)ifa_ifwithaddr((SA)&ipaddr)) == NULL &&
-			    (ia = ip_rtaddr(ipaddr.sin_addr, M_GETFIB(m))) == NULL) {
+			if ((ia = (INA)ifa_ifwithaddr((SA)&ipaddr)) != NULL) {
+				memcpy(cp + off, &(IA_SIN(ia)->sin_addr),
+				    sizeof(struct in_addr));
+				ifa_free(&ia->ia_ifa);
+			} else if (fib4_lookup_nh_ext(M_GETFIB(m),
+			    ipaddr.sin_addr, 0, 0, &nh_ext) == 0) {
+				memcpy(cp + off, &nh_ext.nh_src,
+				    sizeof(struct in_addr));
+			} else {
 				type = ICMP_UNREACH;
 				code = ICMP_UNREACH_HOST;
 				goto bad;
 			}
-			(void)memcpy(cp + off, &(IA_SIN(ia)->sin_addr),
-			    sizeof(struct in_addr));
-			ifa_free(&ia->ia_ifa);
 			cp[IPOPT_OFFSET] += sizeof(struct in_addr);
 			break;
 
