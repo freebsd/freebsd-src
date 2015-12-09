@@ -1,6 +1,3 @@
-#
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_control#9 $
-#
 dir:/var/audit
 dist:off
 flags:lo,aa
