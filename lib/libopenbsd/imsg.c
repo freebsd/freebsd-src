@@ -1,4 +1,4 @@
-/*	$OpenBSD: imsg.c,v 1.10 2015/07/19 07:18:59 nicm Exp $	*/
+/*	$OpenBSD: imsg.c,v 1.11 2015/11/27 01:57:59 mmcc Exp $	*/
 
 /*
  * Copyright (c) 2003, 2004 Henning Brauer <henning@openbsd.org>
@@ -120,8 +120,7 @@ again:
 	}
 
 fail:
-	if (ifd)
-		free(ifd);
+	free(ifd);
 	return (n);
 }
 
