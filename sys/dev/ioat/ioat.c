@@ -219,6 +219,17 @@ static struct _pcsid
 	{ 0x6f528086, "BDXDE IOAT Ch2" },
 	{ 0x6f538086, "BDXDE IOAT Ch3" },
 
+	{ 0x6f208086, "BDX IOAT Ch0" },
+	{ 0x6f218086, "BDX IOAT Ch1" },
+	{ 0x6f228086, "BDX IOAT Ch2" },
+	{ 0x6f238086, "BDX IOAT Ch3" },
+	{ 0x6f248086, "BDX IOAT Ch4" },
+	{ 0x6f258086, "BDX IOAT Ch5" },
+	{ 0x6f268086, "BDX IOAT Ch6" },
+	{ 0x6f278086, "BDX IOAT Ch7" },
+	{ 0x6f2e8086, "BDX IOAT Ch0 (RAID)" },
+	{ 0x6f2f8086, "BDX IOAT Ch1 (RAID)" },
+
 	{ 0x00000000, NULL           }
 };
 
