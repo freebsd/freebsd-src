@@ -294,6 +294,10 @@ static struct ispmdvec mdvec_2600 = {
 #define	PCI_PRODUCT_QLOGIC_ISP2031	0x2031
 #endif
 
+#ifndef	PCI_PRODUCT_QLOGIC_ISP8031
+#define	PCI_PRODUCT_QLOGIC_ISP8031	0x8031
+#endif
+
 #define        PCI_QLOGIC_ISP5432      \
        ((PCI_PRODUCT_QLOGIC_ISP5432 << 16) | PCI_VENDOR_QLOGIC)
 
@@ -347,6 +351,9 @@ static struct ispmdvec mdvec_2600 = {
 
 #define	PCI_QLOGIC_ISP2031	\
 	((PCI_PRODUCT_QLOGIC_ISP2031 << 16) | PCI_VENDOR_QLOGIC)
+
+#define	PCI_QLOGIC_ISP8031	\
+	((PCI_PRODUCT_QLOGIC_ISP8031 << 16) | PCI_VENDOR_QLOGIC)
 
 /*
  * Odd case for some AMI raid cards... We need to *not* attach to this.
@@ -457,6 +464,9 @@ isp_pci_probe(device_t dev)
 		break;
 	case PCI_QLOGIC_ISP2031:
 		device_set_desc(dev, "Qlogic ISP 2031 PCI FC-AL Adapter");
+		break;
+	case PCI_QLOGIC_ISP8031:
+		device_set_desc(dev, "Qlogic ISP 8031 PCI FCoE Adapter");
 		break;
 	default:
 		return (ENXIO);
@@ -800,6 +810,7 @@ isp_pci_attach(device_t dev)
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] = PCI_MBOX_REGS2400_OFF;
 		break;
 	case PCI_QLOGIC_ISP2031:
+	case PCI_QLOGIC_ISP8031:
 		did = 0x2600;
 		isp->isp_nchan += isp_nvports;
 		isp->isp_mdvec = &mdvec_2600;
