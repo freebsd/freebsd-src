@@ -50,6 +50,13 @@
 #include <net/ethernet.h>
 #include <sys/buf_ring.h>
 
+#include "opt_rss.h"
+
+#ifdef	RSS
+#include <net/rss_config.h>
+#include <netinet/in_rss.h>
+#endif
+
 #include <machine/bus.h>
 
 #ifdef HAVE_TURBO_LRO
@@ -356,6 +363,7 @@ struct mlx5e_params {
 	u8	default_vlan_prio;
 	u8	num_tc;
 	u8	rx_cq_moderation_mode;
+	u8	tx_cq_moderation_mode;
 	u16	rx_cq_moderation_usec;
 	u16	rx_cq_moderation_pkts;
 	u16	tx_cq_moderation_usec;
@@ -381,6 +389,7 @@ struct mlx5e_params {
   m(+1, u64 rx_coalesce_mode, "rx_coalesce_mode", "0: EQE mode 1: CQE mode") \
   m(+1, u64 tx_coalesce_usecs, "tx_coalesce_usecs", "Limit in usec for joining tx packets") \
   m(+1, u64 tx_coalesce_pkts, "tx_coalesce_pkts", "Maximum number of tx packets to join") \
+  m(+1, u64 tx_coalesce_mode, "tx_coalesce_mode", "0: EQE mode 1: CQE mode") \
   m(+1, u64 hw_lro, "hw_lro", "set to enable hw_lro")
 
 #define	MLX5E_PARAMS_NUM (0 MLX5E_PARAMS(MLX5E_STATS_COUNT))

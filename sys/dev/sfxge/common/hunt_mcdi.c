@@ -229,64 +229,90 @@ hunt_mcdi_request_copyout(
 	__in		efx_nic_t *enp,
 	__in		efx_mcdi_req_t *emrp)
 {
+#if EFSYS_OPT_MCDI_LOGGING
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
-	efsys_mem_t *esmp = emtp->emt_dma_mem;
-	unsigned int pos;
-	unsigned int offset;
+#endif /* EFSYS_OPT_MCDI_LOGGING */
 	efx_dword_t hdr[2];
-	efx_dword_t data;
+	unsigned int hdr_len;
 	size_t bytes;
 
 	if (emrp->emr_out_buf == NULL)
 		return;
 
 	/* Read the command header to detect MCDI response format */
-	EFSYS_MEM_READD(esmp, 0, &hdr[0]);
+	hdr_len = sizeof (hdr[0]);
+	hunt_mcdi_read_response(enp, &hdr[0], 0, hdr_len);
 	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
-		offset = 2 * sizeof (efx_dword_t);
-
 		/*
 		 * Read the actual payload length. The length given in the event
 		 * is only correct for responses with the V1 format.
 		 */
-		EFSYS_MEM_READD(esmp, sizeof (efx_dword_t), &hdr[1]);
+		hunt_mcdi_read_response(enp, &hdr[1], hdr_len, sizeof (hdr[1]));
+		hdr_len += sizeof (hdr[1]);
+
 		emrp->emr_out_length_used = EFX_DWORD_FIELD(hdr[1],
 					    MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
-	} else {
-		offset = sizeof (efx_dword_t);
 	}
 
 	/* Copy payload out into caller supplied buffer */
 	bytes = MIN(emrp->emr_out_length_used, emrp->emr_out_length);
-	for (pos = 0; pos < bytes; pos += sizeof (efx_dword_t)) {
-		EFSYS_MEM_READD(esmp, offset + pos, &data);
-		memcpy(MCDI_OUT(*emrp, efx_dword_t, pos), &data,
-		    MIN(sizeof (data), bytes - pos));
-	}
+	hunt_mcdi_read_response(enp, emrp->emr_out_buf, hdr_len, bytes);
 
 #if EFSYS_OPT_MCDI_LOGGING
 	if (emtp->emt_logger != NULL) {
 		emtp->emt_logger(emtp->emt_context,
 		    EFX_LOG_MCDI_RESPONSE,
-		    &hdr, offset,
-		    emrp->emr_out_buf, emrp->emr_out_length_used);
+		    &hdr, hdr_len,
+		    emrp->emr_out_buf, bytes);
 	}
 #endif /* EFSYS_OPT_MCDI_LOGGING */
+}
+
+static	__checkReturn	boolean_t
+hunt_mcdi_poll_response(
+	__in		efx_nic_t *enp)
+{
+	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
+	efsys_mem_t *esmp = emtp->emt_dma_mem;
+	efx_dword_t hdr;
+
+	EFSYS_MEM_READD(esmp, 0, &hdr);
+	return (EFX_DWORD_FIELD(hdr, MCDI_HEADER_RESPONSE) ? B_TRUE : B_FALSE);
+}
+
+			void
+hunt_mcdi_read_response(
+	__in		efx_nic_t *enp,
+	__out		void *bufferp,
+	__in		size_t offset,
+	__in		size_t length)
+{
+	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
+	efsys_mem_t *esmp = emtp->emt_dma_mem;
+	unsigned int pos;
+	efx_dword_t data;
+
+	for (pos = 0; pos < length; pos += sizeof (efx_dword_t)) {
+		EFSYS_MEM_READD(esmp, offset + pos, &data);
+		memcpy((uint8_t *)bufferp + pos, &data,
+		    MIN(sizeof (data), length - pos));
+	}
 }
 
 	__checkReturn	boolean_t
 hunt_mcdi_request_poll(
 	__in		efx_nic_t *enp)
 {
-	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
+#if EFSYS_OPT_MCDI_LOGGING
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
-	efsys_mem_t *esmp = emtp->emt_dma_mem;
+#endif /* EFSYS_OPT_MCDI_LOGGING */
+	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_mcdi_req_t *emrp;
 	efx_dword_t hdr[2];
+	unsigned int hdr_len;
+	unsigned int data_len;
 	unsigned int seq;
 	unsigned int cmd;
-	unsigned int length;
-	size_t offset;
 	int state;
 	efx_rc_t rc;
 
@@ -299,24 +325,26 @@ hunt_mcdi_request_poll(
 	EFSYS_ASSERT(!emip->emi_ev_cpl);
 	emrp = emip->emi_pending_req;
 
-	offset = 0;
-
-	/* Read the command header */
-	EFSYS_MEM_READD(esmp, offset, &hdr[0]);
-	offset += sizeof (efx_dword_t);
-	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_RESPONSE) == 0) {
+	/* Check if a response is available */
+	if (hunt_mcdi_poll_response(enp) == B_FALSE) {
 		EFSYS_UNLOCK(enp->en_eslp, state);
 		return (B_FALSE);
 	}
+
+	/* Read the response header */
+	hdr_len = sizeof (hdr[0]);
+	hunt_mcdi_read_response(enp, &hdr[0], 0, hdr_len);
+
 	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
-		EFSYS_MEM_READD(esmp, offset, &hdr[1]);
-		offset += sizeof (efx_dword_t);
+		hunt_mcdi_read_response(enp, &hdr[1], hdr_len, sizeof (hdr[1]));
+		hdr_len += sizeof (hdr[1]);
 
 		cmd = EFX_DWORD_FIELD(hdr[1], MC_CMD_V2_EXTN_IN_EXTENDED_CMD);
-		length = EFX_DWORD_FIELD(hdr[1], MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
+		data_len =
+		    EFX_DWORD_FIELD(hdr[1], MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
 	} else {
 		cmd = EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE);
-		length = EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_DATALEN);
+		data_len = EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_DATALEN);
 	}
 
 	/* Request complete */
@@ -324,7 +352,7 @@ hunt_mcdi_request_poll(
 	seq = (emip->emi_seq - 1) & EFX_MASK32(MCDI_HEADER_SEQ);
 
 	/* Check for synchronous reboot */
-	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_ERROR) != 0 && length == 0) {
+	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_ERROR) != 0 && data_len == 0) {
 		/* The MC has rebooted since the request was sent. */
 		EFSYS_SPIN(EFX_MCDI_STATUS_SLEEP_US);
 		hunt_mcdi_poll_reboot(enp);
@@ -348,34 +376,37 @@ hunt_mcdi_request_poll(
 	}
 	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_ERROR)) {
 		efx_dword_t err[2];
-		int errcode;
-		int argnum;
+		unsigned int err_len = MIN(data_len, sizeof (err));
+		int err_code = MC_CMD_ERR_EPROTO;
+		int err_arg = 0;
 
 		/* Read error code (and arg num for MCDI v2 commands) */
-		EFSYS_MEM_READD(esmp, offset + MC_CMD_ERR_CODE_OFST, &err[0]);
-		errcode = EFX_DWORD_FIELD(err[0], EFX_DWORD_0);
+		hunt_mcdi_read_response(enp, &err[0], hdr_len, err_len);
 
-		EFSYS_MEM_READD(esmp, offset + MC_CMD_ERR_ARG_OFST, &err[1]);
-		argnum = EFX_DWORD_FIELD(err[1], EFX_DWORD_0);
+		if (err_len >= MC_CMD_ERR_CODE_OFST + sizeof (efx_dword_t))
+			err_code = EFX_DWORD_FIELD(err[0], EFX_DWORD_0);
+
+		if (err_len >= MC_CMD_ERR_ARG_OFST + sizeof (efx_dword_t))
+			err_arg = EFX_DWORD_FIELD(err[1], EFX_DWORD_0);
 
 #if EFSYS_OPT_MCDI_LOGGING
 		if (emtp->emt_logger != NULL) {
 			emtp->emt_logger(emtp->emt_context,
 			    EFX_LOG_MCDI_RESPONSE,
-			    &hdr, offset,
-			    &err, sizeof (err));
+			    &hdr, hdr_len,
+			    &err, err_len);
 		}
 #endif /* EFSYS_OPT_MCDI_LOGGING */
 
-		rc = efx_mcdi_request_errcode(errcode);
+		rc = efx_mcdi_request_errcode(err_code);
 		if (!emrp->emr_quiet) {
 			EFSYS_PROBE3(mcdi_err_arg, int, emrp->emr_cmd,
-			    int, errcode, int, argnum);
+			    int, err_code, int, err_arg);
 		}
 		goto fail3;
 
 	} else {
-		emrp->emr_out_length_used = length;
+		emrp->emr_out_length_used = data_len;
 		emrp->emr_rc = 0;
 		hunt_mcdi_request_copyout(enp, emrp);
 	}

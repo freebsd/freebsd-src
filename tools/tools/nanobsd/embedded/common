@@ -73,26 +73,6 @@ if [ -z $NANO_NAME ]; then
 	echo "NANO_NAME not defined. Use foo.cfg instead."
 fi
 
-# Slice 1: FAT for ROM loading bootstrap
-# Slice 2: Config partition
-# Slice 3: FreeBSD partition (sized exactly)
-# Slice 4: FreeBSD partition (empty)
-# on first boot, we resize slice 3 & 4 to be 1/2 of what's
-# left over on the SD card after slice 1 and 2 are taken
-# off the top. We also resize the 'a' partion on first boot
-# to the size of the partition for the ping/pong upgrade.
-if [ -z "$EMBED_OMIT_FAT" ]; then
-	NANO_SLICE_FAT=s1
-	NANO_SLICE_CFG=s2
-	NANO_SLICE_ROOT=s3
-	NANO_SLICE_ALTROOT=s4
-else
-	NANO_SLICE_CFG=s1
-	NANO_SLICE_ROOT=s2
-	NANO_SLICE_ALTROOT=s3
-fi	
-NANO_SLICE_DATA=		# Not included
-
 NANO_SLICE_FAT_SIZE=32m
 NANO_SLICE_CFG_SIZE=32m
 
@@ -138,16 +118,6 @@ cust_install_machine_files()
 customize_cmd cust_install_files
 customize_cmd cust_install_machine_files 
 
-buildenv()
-{
-	cd ${NANO_SRC}
-	env __MAKE_CONF=${NANO_MAKE_CONF_BUILD} DESTDIR=${NANO_WORLDDIR} make buildenv
-}
-
-NANO_MAKEFS="makefs -B big \
-	-o bsize=4096,fsize=512,density=8192,optimization=space"
-export NANO_MAKEFS
-
 # NB: leave c++ enabled so devd can be built
 CONF_BUILD="
 WITHOUT_ACPI=true
@@ -184,6 +154,7 @@ WITHOUT_SENDMAIL=true
 WITHOUT_SHAREDOCS=true
 WITHOUT_SYSCONS=true
 WITHOUT_LIB32=true
+WITHOUT_TESTS=true
 "
 CONF_INSTALL="$CONF_BUILD
 INSTALL_NODEBUG=t
@@ -305,61 +276,93 @@ add_port () {
     fi
 }
 
-create_diskimage ( ) (
-	local extra
+# Creates images for all the formats that use MBR
+create_diskimage_mbr ( ) (
 
 	pprint 2 "build diskimage ${NANO_NAME}"
 	pprint 3 "log: ${NANO_OBJ}/_.di"
 
 	(
-	if [ ! -z ${NANO_NOPRIV_BUILD} ]; then
-	    extra="-F ${NANO_OBJ}/_.metalog"
-	fi
+	local extra i sz fmt fmtarg bootmbr bootbsd skiparg
+	set -o xtrace
+
+	[ -z ${NANO_DISKIMAGE_FORMAT} ] || fmtarg="-f ${NANO_DISKIMAGE_FORMAT}"
+	[ -z ${NANO_DISKIMAGE_FORMAT} ] || fmt=".${NANO_DISKIMAGE_FORMAT}"
+	bootmbr=${NANO_BOOT_MBR:+-b ${NANO_BOOT_MBR}}
+	bootbsd=${NANO_BOOT_BSD:+-b ${NANO_BOOT_BSD}}
+	skiparg=${NANO_MBR_FIRST_SKIP:+-S ${NANO_MBR_FIRST_SKIP}}
 
 	for i in s1 s2 s3 s4 empty; do
 		rm -fr ${NANO_OBJ}/_.${i}*
 	done
 
-	if [ ! -z "${NANO_SLICE_FAT}" ]; then
+	# Populate the FAT partition
+	if [-n "${NANO_SLICE_FAT}" ]; then
 		echo Creating MSDOS partition for kernel
-		newfs_msdos -C ${NANO_SLICE_FAT_SIZE:-100m} -F 16 -L ${NANO_NAME} \
+		newfs_msdos -C ${NANO_SLICE_FAT_SIZE} -F 16 -L ${NANO_NAME} \
 			${NANO_OBJ}/_.${NANO_SLICE_FAT}
+		# Need to copy files from ${NANO_FATDIR} with mtools, or use
+		# makefs -t msdos once that's supported
 	fi
-	echo Creating main partition
+
+	# Populate the / partition, and place it into a slice with a
+	# bsd label
+	[ -z ${NANO_NOPRIV_BUILD} ] || extra="-F ${NANO_METALOG}"
 	sz=${NANO_SLICE_ROOT_SIZE:+-s ${NANO_SLICE_ROOT_SIZE}}
-	makefs ${extra} -B little $sz -t ffs ${NANO_OBJ}/_.${NANO_SLICE_ROOT}a "${NANO_WORLDDIR}"
+	eval "${NANO_MAKEFS_UFS}" ${extra} $sz "${NANO_OBJ}/_.${NANO_SLICE_ROOT}a" \
+		"${NANO_WORLDDIR}"
+	mkimg -s bsd ${bootbsd} -p freebsd-ufs:=${NANO_OBJ}/_.${NANO_SLICE_ROOT}a \
+		-o ${NANO_OBJ}/_.${NANO_SLICE_ROOT}
+
+	# Populate the /cfg partition, empty if none given
 	if [ -z "${NANO_CFGDIR}" ]; then
 		echo "Faking cfg dir, it's empty"
 		NANO_CFGDIR=${NANO_OBJ}/_.empty
 		mkdir ${NANO_CFGDIR}
 	fi
-	echo Creating cfg parittion
-# XXX -F cfg-mtree
-	makefs -B little -t ffs -s ${NANO_SLICE_CFG_SIZE:-100m} \
-		${NANO_OBJ}/_.${NANO_SLICE_CFG} "${NANO_CFGDIR}"
+	# XXX -F cfg-mtree
+	eval "${NANO_MAKEFS_UFS}" -s ${NANO_SLICE_CFG_SIZE} \
+		"${NANO_OBJ}/_.${NANO_SLICE_CFG}" "${NANO_CFGDIR}"
+
 	# data slice not supported since we need the part for FAT for 
 	# booting
-	echo Slicing up the main partition into a full bsd part
-	mkimg -s bsd -p freebsd-ufs:=${NANO_OBJ}/_.${NANO_SLICE_ROOT}a \
-		-o ${NANO_OBJ}/_.${NANO_SLICE_ROOT}
-	echo Making the whole shooting match
-	if [ ! -z $NANO_SLICE_FAT ]; then
+
+	# Now shuffle all the slices together into the proper layout
+	if [ -n "$NANO_SLICE_FAT" ]; then
 		eval $NANO_SLICE_FAT=fat16b
 	fi
 	eval $NANO_SLICE_CFG=freebsd
 	eval $NANO_SLICE_ROOT=freebsd
-	if [ ! -z "${NANO_SLICE_FAT}" ]; then
-		mkimg -s mbr -p ${s1}:=${NANO_OBJ}/_.s1 \
+	# below depends on https://reviews.freebsd.org/D4403 not yet in the tree
+	# but there's problems: it marks all partitions as active, so you have to
+	# boot off parittion 3 or 2 by hand if you're playing around with this WIP
+	case ${NANO_LAYOUT} in
+	std-embedded)
+		mkimg -a 3 ${skiparg} ${fmtarg} ${bootmbr} -s mbr -p ${s1}:=${NANO_OBJ}/_.s1 \
 			-p ${s2}:=${NANO_OBJ}/_.s2 \
 			-p ${s3}:=${NANO_OBJ}/_.s3 \
-			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}
-	else
+			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
+		;;
+	std-x86)
 		# s1 is cfg, s2 is /, not sure how to make that
 		# boot (marked as active) with mkimg yet
-		mkimg -s mbr -p ${s1}:=${NANO_OBJ}/_.s1 \
+		mkimg -a 2 ${fmtarg} ${bootmbr} -s mbr -p ${s1}:=${NANO_OBJ}/_.s1 \
 			-p ${s2}:=${NANO_OBJ}/_.s2 \
-			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}
-	fi
+			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
+		;;
+	powerpc64-ibm)
+		# A lie to make the boot loader work, it boots the first BSD partition
+		# it finds, regardless of the active flag.
+		s2=fat16b
+		# boot image is on a special partition, ala std-embedded, but that
+		# partition isn't FAT with special files, but a copy of the boot
+		# loader itself.
+		mkimg ${fmtarg} -s mbr -p ppcboot:=${NANO_WORLDDIR}/boot/boot1.elf \
+			-p ${s2}:=${NANO_OBJ}/_.s2 \
+			-p ${s3}:=${NANO_OBJ}/_.s3 \
+			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
+		;;
+	esac
 	) > ${NANO_OBJ}/_.di 2>&1
 )
 
@@ -371,7 +374,9 @@ die()
 
 # Automatically include the packaging port here so it is always first so it
 # builds the port and adds the package so we can add other packages.
-#XXX Not sure this works for cross build, so punting for the moment
+#XXX Doesn't work for cross build, so punting until I can integreate qemu-static
+#XXX or poudere, both of which require priv'd execution. Or qemu-system, which
+#XXX is super, super slow.
 #add_port ports-mgmt/pkg
 #add_port security/sudo
 #add_port ftp/curl
@@ -382,8 +387,6 @@ if [ -n "$__a" ]; then
     echo "unmounting $__a"
     umount $__a
 fi
-
-NANO_BOOTLOADER="boot/boot0"
 
 if [ "$DEBUG" = 1 ]; then
 	DEBUG_BUILD="
@@ -421,15 +424,6 @@ $var=$val"
 	fi
 done
 
-hack_nsswitch_conf ( )
-{
-	# Remove all references to NIS in the nsswitch.conf file
-	# Not sure this is still needed, but FreeNAS has it...
-	sed -i.bak -es/nis/files/g ${NANO_WORLDDIR}/etc/nsswitch.conf
-	rm -f ${NANO_WORLDDIR}/etc/nsswitch.conf.bak
-}
-customize_cmd hack_nsswitch_conf
-
 save_build ( )
 {
 	VERSION_FILE=${NANO_WORLDDIR}/etc/version
@@ -440,12 +434,6 @@ save_build ( )
 	fi
 }
 customize_cmd save_build
-
-remove_patch_divots ( )
-{
-	find ${NANO_WORLDDIR} -name \*.orig -or -name \*.rej -delete
-}
-customize_cmd remove_patch_divots
 
 shrink_md_fbsize()
 {
@@ -459,21 +447,11 @@ shrink_md_fbsize()
 }
 customize_cmd shrink_md_fbsize
 
-if [ "${DEBUG}" = 1 ]; then
-
-unmute_console_logging()
-{
-	# /var is small. Don't fill it up with messages from console.log
-	# because it's a chatty log.
-	sed -i '' -e 's/#console.info/console.info/' \
-			"${NANO_WORLDDIR}/etc/syslog.conf"
-}
-customize_cmd unmute_console_logging
-
-fi
+customize_cmd cust_comconsole
 
 product_custom()
 {
+	# not quie ready to tweak these in nopriv build
 	if [ -z ${NANO_NOPRIV_BUILD} ]; then
 		# Last second tweaks -- generally not needed
 		chown -R root:wheel ${NANO_WORLDDIR}/root
@@ -483,85 +461,133 @@ product_custom()
 		chown -R root:wheel ${NANO_WORLDDIR}/boot
 		chown root:wheel ${NANO_WORLDDIR}/
 		chown root:wheel ${NANO_WORLDDIR}/usr
-	else
-		# Construct an mtree after our messing around with the tree
-		# Trim out all the uid / gid stuff, since for new files it
-		# is likely wrong, and for other files it doesn't matter.
-		mtree -p ${NANO_WORLDDIR} -c | \
-			mtree -C | \
-			sed -e 's/ uid=[0-9][0-9]* / /g;s/ gid=[0-9][0-9]* / /' \
-			> ${NANO_OBJ}/_.mtree.post
-
-		# Sort the metalog, and save the original. Sadly, this
-		# seems to expand the uname= and gname= to uid= and gid=
-		# which is lame and likely a bug in mtree. The man page
-		# is just vague enough to be infuriating as to the proper
-		# behavior. Happily, it removes all the // that can confound
-		# things.
-		mtree -C -S -f ${NANO_OBJ}/_.metalog > ${NANO_OBJ}/_.mtree.pre
-		mv ${NANO_OBJ}/_.metalog ${NANO_OBJ}/_.metalog.install
-
-		# mtree -f -f produces a comm-like output. The first column will
-		# be the files we deleted, so we ignore it. The second column is
-		# the same in both, so we pass it through. The third column is
-		# listed twice, so we ignore the second one. We also trim out
-		# the size, because size just doesn't matter as nanobsd and
-		# customizations often tweak files changing their size.  We also
-		# add 'optional' to every file in case something slipped through
-		# that's gone from the tree, though maybe that's a real bug.
-		#
-		# To make matters worse, currently mtree in freebsd uses the
-		# old 'file' keyword rather than the newer type=file. Ditto
-		# dir and link. Also, nlinks is output, which is lame. And
-		# there's a bloatload of extra flags=none, which I remove too.
-		#
-		# Even worse is that all the uid / gid stuff is also tossed
-		# into the scrap heap. Hope they weren't important.
-		#
-		# And somewhere along the way, flags seem to have gone missing.
-		#
-		# Oh, and we have to add back in ./ to keep makefs happy.
-		#
-		# And then we have to sort the damn hing so directories come
-		# before subdirectories
-		#
-		# Note: For reasons unknown, all the directories are changing
-		# from 755 to 775, so that's why we ignore the second line.
-		# We also get repeats for all the files whose size changed.
-		# Perhaps we should filter those going into the pre/post files
-		# and not here.
-		mtree -f ${NANO_OBJ}/_.mtree.pre -f ${NANO_OBJ}/_.mtree.post | \
-			awk '
-				function frob_bogus_mtree_line(old) {
-					line = "./" old " gid=0 uid=0"
-					# XXX make this a damn function
-					sub(/^\.\/\./, ".", line);
-					sub(/ file /, " type=file ", line);
-					sub(/ dir /, " type=dir ", line);
-					sub(/ link /, " type=link ", line);
-					sub(/ size=[0-9][0-9]*/, "", line);
-					sub(/ nlinks=[0-9][0-9]*/, "", line);
-					sub(/ flags=none*/, "", line);
-					return line;
-				}
-				BEGIN {
-					x = 0;
-					FS="\t";
-					print "#mtree 2.0";
-				}
-				$1 != "" {}
-				$2 != "" {
-					print frob_bogus_mtree_line($2);
-				}
-				$3 != "" {
-					if (x == 0) {
-						print frob_bogus_mtree_line($3);
-						x = 1;
-					} else {
-						x = 0;
-					}
-				}
-			' | sort > ${NANO_OBJ}/_.metalog
 	fi
 }
 late_customize_cmd product_custom
+
+#
+# Convenience routines to bring up many settings for standard environments
+#
+
+#
+# For each architecture, we have a standard set of settings to the extent
+# it makes sense. For architectures that don't have a standard environment
+# cfg files need to either define a lot of settings, provide their own disk
+# imaging, or set which of the variants we support.
+#
+
+std_aarch64 ( ) {
+}
+
+std_amd64 ( ) {
+	std_i386
+}
+
+std_arm ( ) {
+}
+
+std_armeb ( ) {
+	NANO_ENDIAN=big
+}
+
+std_armv6 ( ) {
+}
+
+std_i386 ( ) {
+	# Default values, if not overridden in .cfg file
+	: ${NANO_KERNEL:=GENERIC}
+	: ${NANO_DRIVE:=ada0}
+	: ${NANO_LAYOUT:=std-x86}
+	: ${NANO_BOOT_MBR:=${NANO_WORLDDIR}/boot/boot0sio}
+	: ${NANO_BOOT_BSD:=${NANO_WORLDDIR}/boot/boot}
+}
+
+std_mips ( ) {
+	NANO_ENDIAN=big
+}
+
+std_mipsel ( ) {
+}
+
+std_mips64 ( ) {
+	NANO_ENDIAN=big
+}
+
+std_mips64el ( ) {
+}
+
+std_powerpc ( ) {
+	NANO_ENDIAN=big
+}
+
+std_powerpc64 ( ) {
+	NANO_LAYOUT=powerpc64-ibm
+	NANO_ENDIAN=big
+}
+
+std_sparc64 ( ) {
+	NANO_ENDIAN=big
+}
+
+#
+# QEMU settings for the standard environments
+#
+qemu_env ( ) {
+
+	NANO_DISKIMAGE_FORMAT=qcow2
+}
+
+# other standard environments will go here
+
+eval std_${NANO_ARCH}
+
+# Slice 1: FAT for ROM loading bootstrap
+# Slice 2: Config partition
+# Slice 3: FreeBSD partition (sized exactly)
+# Slice 4: FreeBSD partition (empty)
+# on first boot, we resize slice 3 & 4 to be 1/2 of what's
+# left over on the SD card after slice 1 and 2 are taken
+# off the top. We also resize the 'a' partion on first boot
+# to the size of the partition for the ping/pong upgrade.
+# This feature needs support in the rc.d bootup script.
+
+: ${NANO_ENDIAN:=little}	# make -V something to figure it out?
+: ${NANO_LAYOUT:=std-embedded}
+: ${NANO_MAKEFS_UFS:=makefs -t ffs -B ${NANO_ENDIAN}}
+: ${NANO_DISK_SCHEME:=mbr}  	# No others really supported ATM
+case ${NANO_LAYOUT} in
+std-embedded)
+	NANO_SLICE_FAT=s1
+	NANO_SLICE_CFG=s2
+	NANO_SLICE_ROOT=s3
+	NANO_SLICE_ALTROOT=s4
+	;;
+std-x86)
+	NANO_SLICE_CFG=s1
+	NANO_SLICE_ROOT=s2
+	NANO_SLICE_ALTROOT=s3
+	;;
+powerpc64-ibm)
+	NANO_SLICE_PPCBOOT=s1
+	NANO_SLICE_CFG=s2
+	NANO_SLICE_ROOT=s3
+	NANO_SLICE_ALTROOT=s4
+	;;
+powerpc64-apple)
+	echo Not yet
+	exit 1
+	;;
+*)
+	echo Unknown Layout ${NANO_LAYOUT}
+	exit 1
+	;;
+esac
+
+NANO_SLICE_DATA=		# Not included
+
+# Each major disk scheme has its own routine. Generally
+# this is for mbr, gpt, etc. These are generally are widely
+# shared, but some specialized formats won't be shared.
+create_diskimage ( ) (
+	eval create_diskimage_${NANO_DISK_SCHEME}
+)

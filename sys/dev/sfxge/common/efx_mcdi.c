@@ -52,9 +52,10 @@ static efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 	siena_mcdi_fini,		/* emco_fini */
 	siena_mcdi_fw_update_supported,	/* emco_fw_update_supported */
 	siena_mcdi_macaddr_change_supported,
-				/* emco_macaddr_change_supported */
+					/* emco_macaddr_change_supported */
 	siena_mcdi_link_control_supported,
-				/* emco_link_control_supported */
+					/* emco_link_control_supported */
+	siena_mcdi_read_response,	/* emco_read_response */
 };
 
 #endif	/* EFSYS_OPT_SIENA */
@@ -70,9 +71,10 @@ static efx_mcdi_ops_t	__efx_mcdi_hunt_ops = {
 	hunt_mcdi_fini,			/* emco_fini */
 	hunt_mcdi_fw_update_supported,	/* emco_fw_update_supported */
 	hunt_mcdi_macaddr_change_supported,
-				/* emco_macaddr_change_supported */
+					/* emco_macaddr_change_supported */
 	hunt_mcdi_link_control_supported,
-				/* emco_link_control_supported */
+					/* emco_link_control_supported */
+	hunt_mcdi_read_response,	/* emco_read_response */
 };
 
 #endif	/* EFSYS_OPT_HUNTINGTON */

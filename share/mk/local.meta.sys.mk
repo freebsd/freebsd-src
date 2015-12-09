@@ -148,7 +148,11 @@ STAGE_MACHINE:= ${TARGET_OBJ_SPEC}
 .endif
 STAGE_OBJTOP:= ${STAGE_ROOT}/${STAGE_MACHINE}
 STAGE_COMMON_OBJTOP:= ${STAGE_ROOT}/common
+STAGE_TARGET_OBJTOP:= ${STAGE_ROOT}/${TARGET_OBJ_SPEC}
 STAGE_HOST_OBJTOP:= ${STAGE_ROOT}/${HOST_TARGET}
+# These are exported for hooking in out-of-tree builds.  They will always
+# be overridden in sub-makes above when building in-tree.
+.export STAGE_OBJTOP STAGE_TARGET_OBJTOP STAGE_HOST_OBJTOP
 
 # Use tools/install.sh which can avoid the need for xinstall for simple cases.
 INSTALL?=	sh ${SRCTOP}/tools/install.sh
@@ -215,6 +219,7 @@ TOOLSDIR?= ${STAGE_HOST_OBJTOP}
 .endif
 # Don't use the bootstrap tools logic on itself.
 .if ${.TARGETS:Mbootstrap-tools} == "" && \
+    !make(showconfig) && \
     !defined(BOOTSTRAPPING_TOOLS) && !empty(TOOLSDIR) && ${.MAKE.LEVEL} == 0
 .for dir in /sbin /bin /usr/sbin /usr/bin
 PATH:= ${TOOLSDIR}${dir}:${PATH}

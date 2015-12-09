@@ -239,6 +239,7 @@ MAN=	accept_filter.9 \
 	printf.9 \
 	prison_check.9 \
 	priv.9 \
+	proc_rwmem.9 \
 	pseudofs.9 \
 	psignal.9 \
 	random.9 \
@@ -1053,6 +1054,7 @@ MLINKS+=\
 	mbuf.9 m_cat.9 \
 	mbuf.9 MCHTYPE.9 \
 	mbuf.9 MCLGET.9 \
+	mbuf.9 m_collapse.9 \
 	mbuf.9 m_copyback.9 \
 	mbuf.9 m_copydata.9 \
 	mbuf.9 m_copym.9 \
@@ -1339,6 +1341,8 @@ MLINKS+=printf.9 log.9 \
 	printf.9 uprintf.9
 MLINKS+=priv.9 priv_check.9 \
 	priv.9 priv_check_cred.9
+MLINKS+=proc_rwmem.9 proc_readmem.9 \
+	proc_rwmem.9 proc_writemem.9
 MLINKS+=psignal.9 gsignal.9 \
 	psignal.9 pgsignal.9 \
 	psignal.9 tdsignal.9
