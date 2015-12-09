@@ -291,6 +291,7 @@ static void		urtwn_set_gain(struct urtwn_softc *, uint8_t);
 static void		urtwn_scan_start(struct ieee80211com *);
 static void		urtwn_scan_end(struct ieee80211com *);
 static void		urtwn_set_channel(struct ieee80211com *);
+static int		urtwn_wme_update(struct ieee80211com *);
 static void		urtwn_set_promisc(struct urtwn_softc *);
 static void		urtwn_update_promisc(struct ieee80211com *);
 static void		urtwn_update_mcast(struct ieee80211com *);
@@ -374,6 +375,16 @@ static const struct usb_config urtwn_config[URTWN_N_TRANSFER] = {
 		.callback = urtwn_bulk_tx_callback,
 		.timeout = URTWN_TX_TIMEOUT,	/* ms */
 	},
+};
+
+static const struct wme_to_queue {
+	uint16_t reg;
+	uint8_t qid;
+} wme2queue[WME_NUM_AC] = {
+	{ R92C_EDCA_BE_PARAM, URTWN_BULK_TX_BE},
+	{ R92C_EDCA_BK_PARAM, URTWN_BULK_TX_BK},
+	{ R92C_EDCA_VI_PARAM, URTWN_BULK_TX_VI},
+	{ R92C_EDCA_VO_PARAM, URTWN_BULK_TX_VO}
 };
 
 static int
@@ -473,6 +484,7 @@ urtwn_attach(device_t self)
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */
 		| IEEE80211_C_WPA		/* 802.11i */
+		| IEEE80211_C_WME		/* 802.11e */
 		;
 
 	bands = 0;
@@ -489,6 +501,7 @@ urtwn_attach(device_t self)
 	ic->ic_parent = urtwn_parent;
 	ic->ic_vap_create = urtwn_vap_create;
 	ic->ic_vap_delete = urtwn_vap_delete;
+	ic->ic_wme.wme_update = urtwn_wme_update;
 	ic->ic_update_promisc = urtwn_update_promisc;
 	ic->ic_update_mcast = urtwn_update_mcast;
 
@@ -2158,8 +2171,8 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct r92c_tx_desc *txd;
-	uint8_t macid, raid, ridx, subtype, type, qsel;
-	int ismcast;
+	uint8_t macid, raid, ridx, subtype, type, tid, qsel;
+	int hasqos, ismcast;
 
 	URTWN_ASSERT_LOCKED(sc);
 
@@ -2169,7 +2182,15 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 	wh = mtod(m, struct ieee80211_frame *);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
+	hasqos = IEEE80211_QOS_HAS_SEQ(wh);
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
+
+	/* Select TX ring for this frame. */
+	if (hasqos) {
+		tid = ((const struct ieee80211_qosframe *)wh)->i_qos[0];
+		tid &= IEEE80211_QOS_TID;
+	} else
+		tid = 0;
 
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m);
@@ -2199,7 +2220,7 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 		macid = URTWN_MACID_BSS;
 
 		if (type == IEEE80211_FC0_TYPE_DATA) {
-			qsel = R92C_TXDW1_QSEL_BE;
+			qsel = tid % URTWN_MAX_TID;
 
 			if (!(m->m_flags & M_EAPOL)) {
 				if (ic->ic_curmode != IEEE80211_MODE_11B) {
@@ -2255,7 +2276,7 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 	    (m->m_flags & M_EAPOL))
 		txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
 
-	if (!IEEE80211_QOS_HAS_SEQ(wh)) {
+	if (!hasqos) {
 		/* Use HW sequence numbering for non-QoS frames. */
 		if (sc->chip & URTWN_CHIP_88E)
 			txd->txdseq = htole16(R88E_TXDSEQ_HWSEQ_EN);
@@ -2292,12 +2313,6 @@ urtwn_tx_start(struct urtwn_softc *sc, struct mbuf *m, uint8_t type,
 	struct r92c_tx_desc *txd;
 	uint16_t ac, sum;
 	int i, xferlen;
-	struct usb_xfer *urtwn_pipes[WME_NUM_AC] = {
-		sc->sc_xfer[URTWN_BULK_TX_BE],
-		sc->sc_xfer[URTWN_BULK_TX_BK],
-		sc->sc_xfer[URTWN_BULK_TX_VI],
-		sc->sc_xfer[URTWN_BULK_TX_VO]
-	};
 
 	URTWN_ASSERT_LOCKED(sc);
 
@@ -2309,7 +2324,7 @@ urtwn_tx_start(struct urtwn_softc *sc, struct mbuf *m, uint8_t type,
 		xfer = sc->sc_xfer[URTWN_BULK_TX_VO];
 		break;
 	default:
-		xfer = urtwn_pipes[ac];
+		xfer = sc->sc_xfer[wme2queue[ac].qid];
 		break;
 	}
 
@@ -3596,6 +3611,43 @@ urtwn_set_channel(struct ieee80211com *ic)
 	}
 	urtwn_set_chan(sc, ic->ic_curchan, NULL);
 	URTWN_UNLOCK(sc);
+}
+
+static int
+urtwn_wme_update(struct ieee80211com *ic)
+{
+	const struct wmeParams *wmep =
+	    ic->ic_wme.wme_chanParams.cap_wmeParams;
+	struct urtwn_softc *sc = ic->ic_softc;
+	uint8_t aifs, acm, slottime;
+	int ac;
+
+	acm = 0;
+	slottime = (ic->ic_flags & IEEE80211_F_SHSLOT) ?
+	    IEEE80211_DUR_SHSLOT : IEEE80211_DUR_SLOT;
+
+	URTWN_LOCK(sc);
+	for (ac = WME_AC_BE; ac < WME_NUM_AC; ac++) {
+		/* AIFS[AC] = AIFSN[AC] * aSlotTime + aSIFSTime. */
+		aifs = wmep[ac].wmep_aifsn * slottime + IEEE80211_DUR_SIFS;
+		urtwn_write_4(sc, wme2queue[ac].reg,
+		    SM(R92C_EDCA_PARAM_TXOP, wmep[ac].wmep_txopLimit) |
+		    SM(R92C_EDCA_PARAM_ECWMIN, wmep[ac].wmep_logcwmin) |
+		    SM(R92C_EDCA_PARAM_ECWMAX, wmep[ac].wmep_logcwmax) |
+		    SM(R92C_EDCA_PARAM_AIFS, aifs));
+		if (ac != WME_AC_BE)
+			acm |= wmep[ac].wmep_acm << ac;
+	}
+
+	if (acm != 0)
+		acm |= R92C_ACMHWCTRL_EN;
+	urtwn_write_1(sc, R92C_ACMHWCTRL,
+	    (urtwn_read_1(sc, R92C_ACMHWCTRL) & ~R92C_ACMHWCTRL_ACM_MASK) |
+	    acm);
+
+	URTWN_UNLOCK(sc);
+
+	return 0;
 }
 
 static void
