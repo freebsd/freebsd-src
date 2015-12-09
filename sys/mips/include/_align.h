@@ -51,6 +51,6 @@
  * to change (u_long) below to (uintptr_t)?
  */
 #define	_ALIGNBYTES	(sizeof(void *) - 1)
-#define	_ALIGN(p)	(((u_long)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
+#define	_ALIGN(p)	(((uintptr_t)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
 
 #endif /* !_MIPS_INCLUDE__ALIGN_H_ */
