@@ -543,6 +543,7 @@ efx_mcdi_ev_cpl(
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
 	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	efx_mcdi_req_t *emrp;
 	int state;
 
@@ -567,20 +568,21 @@ efx_mcdi_ev_cpl(
 	emip->emi_pending_req = NULL;
 	EFSYS_UNLOCK(enp->en_eslp, state);
 
-	/*
-	 * Fill out the remaining hdr fields, and copyout the payload
-	 * if the user supplied an output buffer.
-	 */
-	if (errcode != 0) {
-		if (!emrp->emr_quiet) {
-			EFSYS_PROBE2(mcdi_err, int, emrp->emr_cmd,
-			    int, errcode);
-		}
-		emrp->emr_out_length_used = 0;
-		emrp->emr_rc = efx_mcdi_request_errcode(errcode);
+	if (encp->enc_mcdi_max_payload_length > MCDI_CTL_SDU_LEN_MAX_V1) {
+		/* MCDIv2 response details do not fit into an event. */
+		efx_mcdi_read_response_header(enp, emrp);
 	} else {
-		emrp->emr_out_length_used = outlen;
-		emrp->emr_rc = 0;
+		if (errcode != 0) {
+			if (!emrp->emr_quiet) {
+				EFSYS_PROBE2(mcdi_err, int, emrp->emr_cmd,
+				    int, errcode);
+			}
+			emrp->emr_out_length_used = 0;
+			emrp->emr_rc = efx_mcdi_request_errcode(errcode);
+		} else {
+			emrp->emr_out_length_used = outlen;
+			emrp->emr_rc = 0;
+		}
 	}
 	emcop->emco_request_copyout(enp, emrp);
 
