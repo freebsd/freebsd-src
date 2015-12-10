@@ -386,6 +386,11 @@ efx_mcdi_get_loopback_modes(
 #define	MCDI_CMD_DWORD_FIELD(_edp, _field)				\
 	EFX_DWORD_FIELD(*_edp, MC_CMD_ ## _field)
 
+#define EFX_MCDI_HAVE_PRIVILEGE(mask, priv)              \
+	(((mask) &                                  \
+	(MC_CMD_PRIVILEGE_MASK_IN_GRP_ ## priv)) == \
+	(MC_CMD_PRIVILEGE_MASK_IN_GRP_ ## priv))
+
 #ifdef	__cplusplus
 }
 #endif
