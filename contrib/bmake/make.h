@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.92 2013/09/04 15:38:26 sjg Exp $	*/
+/*	$NetBSD: make.h,v 1.96 2015/09/21 21:50:16 pooka Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -289,6 +289,7 @@ typedef struct GNode {
 #define OP_NOMETA	0x00080000  /* .NOMETA do not create a .meta file */
 #define OP_META		0x00100000  /* .META we _do_ want a .meta file */
 #define OP_NOMETA_CMP	0x00200000  /* Do not compare commands in .meta file */
+#define OP_SUBMAKE	0x00400000  /* Possibly a submake node */
 /* Attributes applied by PMake */
 #define OP_TRANSFORM	0x80000000  /* The node is a transformation rule */
 #define OP_MEMBER 	0x40000000  /* Target is a member of an archive */
@@ -518,8 +519,15 @@ int str2Lst_Append(Lst, char *, const char *);
 #define MAX(a, b) ((a > b) ? a : b)
 #endif
 
+/* At least GNU/Hurd systems lack hardcoded MAXPATHLEN/PATH_MAX */
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifndef MAXPATHLEN
-#define MAXPATHLEN BMAKE_PATH_MAX
+#define MAXPATHLEN	BMAKE_PATH_MAX
+#endif
+#ifndef PATH_MAX
+#define PATH_MAX	MAXPATHLEN
 #endif
 
 #endif /* _MAKE_H_ */

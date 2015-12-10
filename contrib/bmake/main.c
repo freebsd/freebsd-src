@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.226 2014/02/07 17:23:35 pooka Exp $	*/
+/*	$NetBSD: main.c,v 1.235 2015/10/25 05:24:44 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.226 2014/02/07 17:23:35 pooka Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.235 2015/10/25 05:24:44 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.226 2014/02/07 17:23:35 pooka Exp $");
+__RCSID("$NetBSD: main.c,v 1.235 2015/10/25 05:24:44 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -99,14 +99,14 @@ __RCSID("$NetBSD: main.c,v 1.226 2014/02/07 17:23:35 pooka Exp $");
  *
  *	Error			Print a tagged error message. The global
  *				MAKE variable must have been defined. This
- *				takes a format string and two optional
- *				arguments for it.
+ *				takes a format string and optional arguments
+ *				for it.
  *
  *	Fatal			Print an error message and exit. Also takes
- *				a format string and two arguments.
+ *				a format string and arguments for it.
  *
  *	Punt			Aborts all jobs and exits with a message. Also
- *				takes a format string and two arguments.
+ *				takes a format string and arguments for it.
  *
  *	Finish			Finish things up by printing the number of
  *				errors which occurred, as passed to it, and
@@ -172,6 +172,7 @@ Boolean			keepgoing;	/* -k flag */
 Boolean			queryFlag;	/* -q flag */
 Boolean			touchFlag;	/* -t flag */
 Boolean			enterFlag;	/* -w flag */
+Boolean			enterFlagObj;	/* -w and objdir != srcdir */
 Boolean			ignoreErrors;	/* -i flag */
 Boolean			beSilent;	/* -s flag */
 Boolean			oldVars;	/* variable substitution style */
@@ -722,7 +723,7 @@ Main_SetObjdir(const char *path)
 	/* expand variable substitutions */
 	if (strchr(path, '$') != 0) {
 		snprintf(buf, MAXPATHLEN, "%s", path);
-		path = p = Var_Subst(NULL, buf, VAR_GLOBAL, 0);
+		path = p = Var_Subst(NULL, buf, VAR_GLOBAL, FALSE, TRUE);
 	}
 
 	if (path[0] != '/') {
@@ -741,6 +742,8 @@ Main_SetObjdir(const char *path)
 			setenv("PWD", objdir, 1);
 			Dir_InitDot();
 			rc = TRUE;
+			if (enterFlag && strcmp(objdir, curdir) != 0)
+				enterFlagObj = TRUE;
 		}
 	}
 
@@ -803,7 +806,8 @@ MakeMode(const char *mode)
     char *mp = NULL;
 
     if (!mode)
-	mode = mp = Var_Subst(NULL, "${" MAKE_MODE ":tl}", VAR_GLOBAL, 0);
+	mode = mp = Var_Subst(NULL, "${" MAKE_MODE ":tl}",
+			      VAR_GLOBAL, FALSE, TRUE);
 
     if (mode && *mode) {
 	if (strstr(mode, "compat")) {
@@ -1249,7 +1253,7 @@ main(int argc, char **argv)
 			    (char *)Lst_Datum(ln));
 	} else {
 	    p1 = Var_Subst(NULL, "${" MAKEFILE_PREFERENCE "}",
-		VAR_CMD, 0);
+	        VAR_CMD, FALSE, TRUE);
 	    if (p1) {
 		(void)str2Lst_Append(makefiles, p1, NULL);
 		(void)Lst_Find(makefiles, NULL, ReadMakefile);
@@ -1260,12 +1264,15 @@ main(int argc, char **argv)
 	/* In particular suppress .depend for '-r -V .OBJDIR -f /dev/null' */
 	if (!noBuiltins || !printVars) {
 	    makeDependfile = Var_Subst(NULL, "${.MAKE.DEPENDFILE:T}",
-		VAR_CMD, 0);
+		VAR_CMD, FALSE, TRUE);
 	    doing_depend = TRUE;
 	    (void)ReadMakefile(makeDependfile, NULL);
 	    doing_depend = FALSE;
 	}
 
+	if (enterFlagObj)
+		printf("%s: Entering directory `%s'\n", progname, objdir);
+	
 	MakeMode(NULL);
 
 	Var_Append("MFLAGS", Var_Value(MAKEFLAGS, VAR_GLOBAL, &p1), VAR_GLOBAL);
@@ -1295,7 +1302,7 @@ main(int argc, char **argv)
 		 */
 		static char VPATH[] = "${VPATH}";
 
-		vpath = Var_Subst(NULL, VPATH, VAR_CMD, FALSE);
+		vpath = Var_Subst(NULL, VPATH, VAR_CMD, FALSE, TRUE);
 		path = vpath;
 		do {
 			/* skip to end of directory */
@@ -1342,14 +1349,16 @@ main(int argc, char **argv)
 			char *value;
 			
 			if (strchr(var, '$')) {
-				value = p1 = Var_Subst(NULL, var, VAR_GLOBAL, 0);
+			    value = p1 = Var_Subst(NULL, var, VAR_GLOBAL,
+						   FALSE, TRUE);
 			} else if (expandVars) {
 				char tmp[128];
 								
 				if (snprintf(tmp, sizeof(tmp), "${%s}", var) >= (int)(sizeof(tmp)))
 					Fatal("%s: variable name too big: %s",
 					      progname, var);
-				value = p1 = Var_Subst(NULL, tmp, VAR_GLOBAL, 0);
+				value = p1 = Var_Subst(NULL, tmp, VAR_GLOBAL,
+						       FALSE, TRUE);
 			} else {
 				value = Var_Value(var, VAR_GLOBAL, &p1);
 			}
@@ -1406,6 +1415,8 @@ main(int argc, char **argv)
 
 	Trace_Log(MAKEEND, 0);
 
+	if (enterFlagObj)
+		printf("%s: Leaving directory `%s'\n", progname, objdir);
 	if (enterFlag)
 		printf("%s: Leaving directory `%s'\n", progname, curdir);
 
@@ -1522,7 +1533,8 @@ Cmd_Exec(const char *cmd, const char **errnum)
     WAIT_T	status;		/* command exit status */
     Buffer	buf;		/* buffer to store the result */
     char	*cp;
-    int		cc;
+    int		cc;		/* bytes read, or -1 */
+    int		savederr;	/* saved errno */
 
 
     *errnum = NULL;
@@ -1579,6 +1591,7 @@ Cmd_Exec(const char *cmd, const char **errnum)
 	 */
 	(void)close(fds[1]);
 
+	savederr = 0;
 	Buf_Init(&buf, 0);
 
 	do {
@@ -1588,6 +1601,8 @@ Cmd_Exec(const char *cmd, const char **errnum)
 		Buf_AddBytes(&buf, cc, result);
 	}
 	while (cc > 0 || (cc == -1 && errno == EINTR));
+	if (cc == -1)
+	    savederr = errno;
 
 	/*
 	 * Close the input side of the pipe.
@@ -1604,7 +1619,7 @@ Cmd_Exec(const char *cmd, const char **errnum)
 	cc = Buf_Size(&buf);
 	res = Buf_Destroy(&buf, FALSE);
 
-	if (cc == 0)
+	if (savederr != 0)
 	    *errnum = "Couldn't read shell's output for \"%s\"";
 
 	if (WIFSIGNALED(status))
@@ -1881,12 +1896,14 @@ PrintOnError(GNode *gn, const char *s)
     }
     strncpy(tmp, "${MAKE_PRINT_VAR_ON_ERROR:@v@$v='${$v}'\n@}",
 	    sizeof(tmp) - 1);
-    cp = Var_Subst(NULL, tmp, VAR_GLOBAL, 0);
+    cp = Var_Subst(NULL, tmp, VAR_GLOBAL, FALSE, TRUE);
     if (cp) {
 	if (*cp)
 	    printf("%s", cp);
 	free(cp);
     }
+    fflush(stdout);
+
     /*
      * Finally, see if there is a .ERROR target, and run it if so.
      */
@@ -1910,7 +1927,7 @@ Main_ExportMAKEFLAGS(Boolean first)
     
     strncpy(tmp, "${.MAKEFLAGS} ${.MAKEOVERRIDES:O:u:@v@$v=${$v:Q}@}",
 	    sizeof(tmp));
-    s = Var_Subst(NULL, tmp, VAR_CMD, 0);
+    s = Var_Subst(NULL, tmp, VAR_CMD, FALSE, TRUE);
     if (s && *s) {
 #ifdef POSIX
 	setenv("MAKEFLAGS", s, 1);
@@ -1932,7 +1949,8 @@ getTmpdir(void)
 	 * Honor $TMPDIR but only if it is valid.
 	 * Ensure it ends with /.
 	 */
-	tmpdir = Var_Subst(NULL, "${TMPDIR:tA:U" _PATH_TMP "}/", VAR_GLOBAL, 0);
+	tmpdir = Var_Subst(NULL, "${TMPDIR:tA:U" _PATH_TMP "}/", VAR_GLOBAL,
+			   FALSE, TRUE);
 	if (stat(tmpdir, &st) < 0 || !S_ISDIR(st.st_mode)) {
 	    free(tmpdir);
 	    tmpdir = bmake_strdup(_PATH_TMP);
@@ -1987,7 +2005,7 @@ getBoolean(const char *name, Boolean bf)
     char *cp;
 
     if (snprintf(tmp, sizeof(tmp), "${%s:tl}", name) < (int)(sizeof(tmp))) {
-	cp = Var_Subst(NULL, tmp, VAR_GLOBAL, 0);
+	cp = Var_Subst(NULL, tmp, VAR_GLOBAL, FALSE, TRUE);
 
 	if (cp) {
 	    switch(*cp) {

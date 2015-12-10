@@ -1,4 +1,4 @@
-/*	$NetBSD: targ.c,v 1.57 2012/06/12 19:21:51 joerg Exp $	*/
+/*	$NetBSD: targ.c,v 1.60 2015/05/25 09:01:06 manu Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: targ.c,v 1.57 2012/06/12 19:21:51 joerg Exp $";
+static char rcsid[] = "$NetBSD: targ.c,v 1.60 2015/05/25 09:01:06 manu Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)targ.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: targ.c,v 1.57 2012/06/12 19:21:51 joerg Exp $");
+__RCSID("$NetBSD: targ.c,v 1.60 2015/05/25 09:01:06 manu Exp $");
 #endif
 #endif /* not lint */
 #endif

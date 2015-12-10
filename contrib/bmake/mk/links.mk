@@ -1,4 +1,4 @@
-# $Id: links.mk,v 1.5 2005/07/11 18:01:05 sjg Exp $
+# $Id: links.mk,v 1.6 2014/09/29 17:14:40 sjg Exp $
 #
 #	@(#) Copyright (c) 2005, Simon J. Gerraty
 #
@@ -22,9 +22,14 @@ SYMLINKS?=
 
 __SYMLINK_SCRIPT= \
 		${ECHO} "$$t -> $$l"; \
-		mkdir -p `dirname $$t`; \
-		rm -f $$t; \
-		${LN} -s $$l $$t
+		case `'ls' -l $$t 2> /dev/null` in \
+		*"> $$l") ;; \
+		*) \
+			mkdir -p `dirname $$t`; \
+			rm -f $$t; \
+			${LN} -s $$l $$t;; \
+		esac
+
 
 __LINK_SCRIPT= \
 		${ECHO} "$$t -> $$l"; \

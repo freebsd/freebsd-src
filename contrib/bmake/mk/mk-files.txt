@@ -432,13 +432,27 @@ You should never need to edit ``warnings.mk``, it will include
 ``warnings-sets.mk`` if it exists and you use that to make any local
 customizations. 
 
+rst2htm.mk
+----------
+
+Logic to simplify generating HTML (and PDF) documents from ReStructuredText.
+
+cython.mk
+---------
+
+Logic to build Python C interface modules using Cython_
+
+.. _Cython: http://www.cython.org/
+
 Meta mode
 =========
 
 The 20110505 and later versions of ``mk-files`` include a number of
-makefile contributed by Juniper Networks, Inc.  
-These allow the latest version of bmake_ to run in `meta mode`_.
+makefiles contributed by Juniper Networks, Inc.  
+These allow the latest version of bmake_ to run in `meta mode`_
+see `dirdeps.mk`_
 
+.. _`dirdeps.mk`: /help/sjg/dirdeps.htm
 .. _`meta mode`: bmake-meta-mode.htm
 
 Install
@@ -463,5 +477,5 @@ where you unpacked the tar file, you can::
 .. _mk.tar.gz: http://www.crufty.net/ftp/pub/sjg/mk.tar.gz
 
 :Author: sjg@crufty.net
-:Revision: $Id: mk-files.txt,v 1.15 2011/06/08 07:06:18 sjg Exp $
+:Revision: $Id: mk-files.txt,v 1.16 2014/09/05 04:41:16 sjg Exp $
 :Copyright: Crufty.NET

@@ -1,4 +1,4 @@
-/*	$NetBSD: make.c,v 1.88 2012/11/09 18:53:05 sjg Exp $	*/
+/*	$NetBSD: make.c,v 1.92 2015/10/11 04:51:24 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: make.c,v 1.88 2012/11/09 18:53:05 sjg Exp $";
+static char rcsid[] = "$NetBSD: make.c,v 1.92 2015/10/11 04:51:24 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)make.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: make.c,v 1.88 2012/11/09 18:53:05 sjg Exp $");
+__RCSID("$NetBSD: make.c,v 1.92 2015/10/11 04:51:24 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -485,7 +485,7 @@ Make_HandleUse(GNode *cgn, GNode *pgn)
 		if (gn->name)
 		    free(gn->name);
 	    }
-	    gn->name = Var_Subst(NULL, gn->uname, pgn, FALSE);
+	    gn->name = Var_Subst(NULL, gn->uname, pgn, FALSE, TRUE);
 	    if (gn->name && gn->uname && strcmp(gn->name, gn->uname) != 0) {
 		/* See if we have a target for this node. */
 		tgn = Targ_FindNode(gn->name, TARG_NOCREATE);
@@ -563,7 +563,7 @@ MakeHandleUse(void *cgnp, void *pgnp)
  *	in the comments below.
  *
  * Results:
- *	returns 0 if the gnode does not exist, or it's filesystem
+ *	returns 0 if the gnode does not exist, or its filesystem
  *	time if it does.
  *
  * Side Effects:
