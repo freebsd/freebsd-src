@@ -303,16 +303,8 @@ hunt_mcdi_read_response(
 hunt_mcdi_request_poll(
 	__in		efx_nic_t *enp)
 {
-#if EFSYS_OPT_MCDI_LOGGING
-	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
-#endif /* EFSYS_OPT_MCDI_LOGGING */
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_mcdi_req_t *emrp;
-	efx_dword_t hdr[2];
-	unsigned int hdr_len;
-	unsigned int data_len;
-	unsigned int seq;
-	unsigned int cmd;
 	int state;
 	efx_rc_t rc;
 
@@ -332,100 +324,25 @@ hunt_mcdi_request_poll(
 	}
 
 	/* Read the response header */
-	hdr_len = sizeof (hdr[0]);
-	hunt_mcdi_read_response(enp, &hdr[0], 0, hdr_len);
-
-	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
-		hunt_mcdi_read_response(enp, &hdr[1], hdr_len, sizeof (hdr[1]));
-		hdr_len += sizeof (hdr[1]);
-
-		cmd = EFX_DWORD_FIELD(hdr[1], MC_CMD_V2_EXTN_IN_EXTENDED_CMD);
-		data_len =
-		    EFX_DWORD_FIELD(hdr[1], MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
-	} else {
-		cmd = EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE);
-		data_len = EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_DATALEN);
-	}
+	efx_mcdi_read_response_header(enp, emrp);
 
 	/* Request complete */
 	emip->emi_pending_req = NULL;
-	seq = (emip->emi_seq - 1) & EFX_MASK32(MCDI_HEADER_SEQ);
-
-	/* Check for synchronous reboot */
-	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_ERROR) != 0 && data_len == 0) {
-		/* The MC has rebooted since the request was sent. */
-		EFSYS_SPIN(EFX_MCDI_STATUS_SLEEP_US);
-		hunt_mcdi_poll_reboot(enp);
-
-		EFSYS_UNLOCK(enp->en_eslp, state);
-		rc = EIO;
-		goto fail1;
-	}
 
 	/* Ensure stale MCDI requests fail after an MC reboot. */
 	emip->emi_new_epoch = B_FALSE;
 
 	EFSYS_UNLOCK(enp->en_eslp, state);
 
-	/* Check that the returned data is consistent */
-	if (cmd != emrp->emr_cmd ||
-	    EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_SEQ) != seq) {
-		/* Response is for a different request */
-		rc = EIO;
-		goto fail2;
-	}
-	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_ERROR)) {
-		efx_dword_t err[2];
-		unsigned int err_len = MIN(data_len, sizeof (err));
-		int err_code = MC_CMD_ERR_EPROTO;
-		int err_arg = 0;
+	if ((rc = emrp->emr_rc) != 0)
+		goto fail1;
 
-		/* Read error code (and arg num for MCDI v2 commands) */
-		hunt_mcdi_read_response(enp, &err[0], hdr_len, err_len);
-
-		if (err_len >= MC_CMD_ERR_CODE_OFST + sizeof (efx_dword_t))
-			err_code = EFX_DWORD_FIELD(err[0], EFX_DWORD_0);
-
-		if (err_len >= MC_CMD_ERR_ARG_OFST + sizeof (efx_dword_t))
-			err_arg = EFX_DWORD_FIELD(err[1], EFX_DWORD_0);
-
-#if EFSYS_OPT_MCDI_LOGGING
-		if (emtp->emt_logger != NULL) {
-			emtp->emt_logger(emtp->emt_context,
-			    EFX_LOG_MCDI_RESPONSE,
-			    &hdr, hdr_len,
-			    &err, err_len);
-		}
-#endif /* EFSYS_OPT_MCDI_LOGGING */
-
-		rc = efx_mcdi_request_errcode(err_code);
-		if (!emrp->emr_quiet) {
-			EFSYS_PROBE3(mcdi_err_arg, int, emrp->emr_cmd,
-			    int, err_code, int, err_arg);
-		}
-		goto fail3;
-
-	} else {
-		emrp->emr_out_length_used = data_len;
-		emrp->emr_rc = 0;
-		hunt_mcdi_request_copyout(enp, emrp);
-	}
-
+	hunt_mcdi_request_copyout(enp, emrp);
 	goto out;
 
-fail3:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE(fail3);
-fail2:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE(fail2);
 fail1:
 	if (!emrp->emr_quiet)
 		EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	/* Fill out error state */
-	emrp->emr_rc = rc;
-	emrp->emr_out_length_used = 0;
 
 	/* Reboot/Assertion */
 	if (rc == EIO || rc == EINTR)
@@ -495,9 +412,8 @@ hunt_mcdi_fw_update_supported(
 	 * Admin privilege must be used prior to introduction of
 	 * specific flag.
 	 */
-	*supportedp = (encp->enc_privilege_mask &
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN)
-	    == MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN;
+	*supportedp =
+	    EFX_MCDI_HAVE_PRIVILEGE(encp->enc_privilege_mask, ADMIN);
 
 	return (0);
 }
@@ -515,16 +431,41 @@ hunt_mcdi_macaddr_change_supported(
 	/*
 	 * Use privilege mask state at MCDI attach.
 	 * Admin privilege must be used prior to introduction of
-	 * specific flag (at v4.6).
+	 * mac spoofing privilege (at v4.6), which is used up to
+	 * introduction of change mac spoofing privilege (at v4.7)
 	 */
 	*supportedp =
-	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING) ==
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING) ||
-	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN) ==
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN);
+	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, CHANGE_MAC) ||
+	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, MAC_SPOOFING) ||
+	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
 
 	return (0);
 }
+
+	__checkReturn	efx_rc_t
+hunt_mcdi_mac_spoofing_supported(
+	__in		efx_nic_t *enp,
+	__out		boolean_t *supportedp)
+{
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	uint32_t privilege_mask = encp->enc_privilege_mask;
+
+	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
+
+	/*
+	 * Use privilege mask state at MCDI attach.
+	 * Admin privilege must be used prior to introduction of
+	 * mac spoofing privilege (at v4.6), which is used up to
+	 * introduction of mac spoofing TX privilege (at v4.7)
+	 */
+	*supportedp =
+	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, MAC_SPOOFING_TX) ||
+	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, MAC_SPOOFING) ||
+	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
+
+	return (0);
+}
+
 
 	__checkReturn	efx_rc_t
 hunt_mcdi_link_control_supported(
@@ -542,10 +483,8 @@ hunt_mcdi_link_control_supported(
 	 * specific flag.
 	 */
 	*supportedp =
-	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_LINK) ==
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_LINK) ||
-	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN) ==
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN);
+	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, LINK) ||
+	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
 
 	return (0);
 }

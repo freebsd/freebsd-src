@@ -78,6 +78,7 @@ struct sackhint {
 					 * Total sacked bytes reported by the
 					 * receiver via sack option
 					 */
+	uint32_t	_pad1[1];	/* TBD */
 	uint64_t	_pad[1];	/* TBD */
 };
 

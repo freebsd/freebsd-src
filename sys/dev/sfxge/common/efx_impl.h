@@ -463,6 +463,7 @@ typedef struct efx_mcdi_ops_s {
 	efx_rc_t	(*emco_fw_update_supported)(efx_nic_t *, boolean_t *);
 	efx_rc_t	(*emco_macaddr_change_supported)(efx_nic_t *, boolean_t *);
 	efx_rc_t	(*emco_link_control_supported)(efx_nic_t *, boolean_t *);
+	efx_rc_t	(*emco_mac_spoofing_supported)(efx_nic_t *, boolean_t *);
 	void		(*emco_read_response)(efx_nic_t *, void *, size_t, size_t);
 } efx_mcdi_ops_t;
 

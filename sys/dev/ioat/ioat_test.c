@@ -84,11 +84,17 @@ static inline void _ioat_test_log(int verbosity, const char *fmt, ...);
 static void
 ioat_test_transaction_destroy(struct test_transaction *tx)
 {
+	struct ioat_test *test;
 	int i;
+
+	test = tx->test;
 
 	for (i = 0; i < IOAT_MAX_BUFS; i++) {
 		if (tx->buf[i] != NULL) {
-			contigfree(tx->buf[i], tx->length, M_IOAT_TEST);
+			if (test->testkind == IOAT_TEST_DMA_8K)
+				free(tx->buf[i], M_IOAT_TEST);
+			else
+				contigfree(tx->buf[i], tx->length, M_IOAT_TEST);
 			tx->buf[i] = NULL;
 		}
 	}
@@ -97,8 +103,8 @@ ioat_test_transaction_destroy(struct test_transaction *tx)
 }
 
 static struct
-test_transaction *ioat_test_transaction_create(unsigned num_buffers,
-    uint32_t buffer_size)
+test_transaction *ioat_test_transaction_create(struct ioat_test *test,
+    unsigned num_buffers)
 {
 	struct test_transaction *tx;
 	unsigned i;
@@ -107,11 +113,16 @@ test_transaction *ioat_test_transaction_create(unsigned num_buffers,
 	if (tx == NULL)
 		return (NULL);
 
-	tx->length = buffer_size;
+	tx->length = test->buffer_size;
 
 	for (i = 0; i < num_buffers; i++) {
-		tx->buf[i] = contigmalloc(buffer_size, M_IOAT_TEST, M_NOWAIT,
-		    0, BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
+		if (test->testkind == IOAT_TEST_DMA_8K)
+			tx->buf[i] = malloc(test->buffer_size, M_IOAT_TEST,
+			    M_NOWAIT);
+		else
+			tx->buf[i] = contigmalloc(test->buffer_size,
+			    M_IOAT_TEST, M_NOWAIT, 0, BUS_SPACE_MAXADDR,
+			    PAGE_SIZE, 0);
 
 		if (tx->buf[i] == NULL) {
 			ioat_test_transaction_destroy(tx);
@@ -197,8 +208,7 @@ ioat_test_prealloc_memory(struct ioat_test *test, int index)
 	struct test_transaction *tx;
 
 	for (i = 0; i < test->transactions; i++) {
-		tx = ioat_test_transaction_create(test->chain_depth * 2,
-		    test->buffer_size);
+		tx = ioat_test_transaction_create(test, test->chain_depth * 2);
 		if (tx == NULL) {
 			ioat_test_log(0, "tx == NULL - memory exhausted\n");
 			test->status[IOAT_TEST_NO_MEMORY]++;
@@ -258,8 +268,16 @@ ioat_test_submit_1_tx(struct ioat_test *test, bus_dmaengine_t dma)
 	TAILQ_INSERT_HEAD(&test->pend_q, tx, entry);
 	IT_UNLOCK();
 
-	ioat_acquire(dma);
+	if (test->testkind != IOAT_TEST_MEMCPY)
+		ioat_acquire(dma);
 	for (i = 0; i < tx->depth; i++) {
+		if (test->testkind == IOAT_TEST_MEMCPY) {
+			memcpy(tx->buf[2 * i + 1], tx->buf[2 * i], tx->length);
+			if (i == tx->depth - 1)
+				ioat_dma_test_callback(tx, 0);
+			continue;
+		}
+
 		src = vtophys((vm_offset_t)tx->buf[2*i]);
 		dest = vtophys((vm_offset_t)tx->buf[2*i+1]);
 
@@ -286,10 +304,20 @@ ioat_test_submit_1_tx(struct ioat_test *test, bus_dmaengine_t dma)
 			fillpattern = *(uint64_t *)tx->buf[2*i];
 			desc = ioat_blockfill(dma, dest, fillpattern,
 			    tx->length, cb, tx, flags);
+		} else if (test->testkind == IOAT_TEST_DMA_8K) {
+			bus_addr_t src2, dst2;
+
+			src2 = vtophys((vm_offset_t)tx->buf[2*i] + PAGE_SIZE);
+			dst2 = vtophys((vm_offset_t)tx->buf[2*i+1] + PAGE_SIZE);
+
+			desc = ioat_copy_8k_aligned(dma, dest, dst2, src, src2,
+			    cb, tx, flags);
 		}
 		if (desc == NULL)
 			break;
 	}
+	if (test->testkind == IOAT_TEST_MEMCPY)
+		return;
 	ioat_release(dma);
 
 	/*
@@ -316,6 +344,13 @@ ioat_dma_test(void *arg)
 
 	test = arg;
 	memset(__DEVOLATILE(void *, test->status), 0, sizeof(test->status));
+
+	if (test->testkind == IOAT_TEST_DMA_8K &&
+	    test->buffer_size != 2 * PAGE_SIZE) {
+		ioat_test_log(0, "Asked for 8k test and buffer size isn't 8k\n");
+		test->status[IOAT_TEST_INVALID_INPUT]++;
+		return;
+	}
 
 	if (test->buffer_size > 1024 * 1024) {
 		ioat_test_log(0, "Buffer size too large >1MB\n");
