@@ -77,6 +77,7 @@ usr.sbin/pkg	pkg@	Please coordinate behavior or flag changes with pkg team.
 lpr		gad	Pre-commit review requested, particularly for
 			lpd/recvjob.c and lpd/printjob.c.
 nis(8), yp(8)	araujo	Pre-commit review requested.
+vmm(4)		neel,grehan	Pre-commit review requested.
 ---- OLD ----
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
@@ -156,4 +157,4 @@ cmx		daniel@roe.ch	Pre-commit review preferred.
 filemon		obrien		Pre-commit review preferred.
 sysdoc		trhodes		Pre-commit review preferred.
 nanobsd		imp	Pre-commit review requested for coordination.
-vmm(4)		neel,grehan	Pre-commit review requested.
+
