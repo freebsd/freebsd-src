@@ -2935,13 +2935,11 @@ urtwn_dma_init(struct urtwn_softc *sc)
 		else
 			reg |= R92C_TRXDMA_CTRL_QMAP_LQ;
 	} else if (nqueues == 2) {
-		/* All 2-endpoints configs have a high priority queue. */
-		if (!hashq)
-			return (EIO);
-		if (hasnq)
-			reg |= R92C_TRXDMA_CTRL_QMAP_HQ_NQ;
-		else
-			reg |= R92C_TRXDMA_CTRL_QMAP_HQ_LQ;
+		/* 
+		 * All 2-endpoints configs have high and normal 
+		 * priority queues.
+		 */
+		reg |= R92C_TRXDMA_CTRL_QMAP_HQ_NQ;
 	} else
 		reg |= R92C_TRXDMA_CTRL_QMAP_3EP;
 	usb_err = urtwn_write_2(sc, R92C_TRXDMA_CTRL, reg);
