@@ -412,9 +412,8 @@ hunt_mcdi_fw_update_supported(
 	 * Admin privilege must be used prior to introduction of
 	 * specific flag.
 	 */
-	*supportedp = (encp->enc_privilege_mask &
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN)
-	    == MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN;
+	*supportedp =
+	    EFX_MCDI_HAVE_PRIVILEGE(encp->enc_privilege_mask, ADMIN);
 
 	return (0);
 }
@@ -436,12 +435,9 @@ hunt_mcdi_macaddr_change_supported(
 	 * introduction of change mac spoofing privilege (at v4.7)
 	 */
 	*supportedp =
-	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_CHANGE_MAC) ==
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_CHANGE_MAC) ||
-	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING) ==
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING) ||
-	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN) ==
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN);
+	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, CHANGE_MAC) ||
+	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, MAC_SPOOFING) ||
+	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
 
 	return (0);
 }
@@ -463,12 +459,9 @@ hunt_mcdi_mac_spoofing_supported(
 	 * introduction of mac spoofing TX privilege (at v4.7)
 	 */
 	*supportedp =
-	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING_TX) ==
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING_TX) ||
-	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING) ==
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING) ||
-	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN) ==
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN);
+	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, MAC_SPOOFING_TX) ||
+	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, MAC_SPOOFING) ||
+	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
 
 	return (0);
 }
@@ -490,10 +483,8 @@ hunt_mcdi_link_control_supported(
 	 * specific flag.
 	 */
 	*supportedp =
-	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_LINK) ==
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_LINK) ||
-	    ((privilege_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN) ==
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN);
+	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, LINK) ||
+	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
 
 	return (0);
 }
