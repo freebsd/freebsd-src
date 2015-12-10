@@ -252,13 +252,6 @@ arm_release_msix(device_t pci, device_t child, int irq)
 }
 
 
-int
-arm_map_msix(device_t pci, device_t child, int irq, uint64_t *addr, uint32_t *data)
-{
-
-	return (PIC_MAP_MSIX(msi_pic, child, irq, addr, data));
-}
-
 /*
  * Finalize interrupts bring-up (should be called from configure_final()).
  * Enables all interrupts registered by bus_setup_intr() during boot

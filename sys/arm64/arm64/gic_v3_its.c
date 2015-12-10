@@ -74,10 +74,9 @@ static device_method_t gic_v3_its_methods[] = {
 	 */
 	/* MSI-X */
 	DEVMETHOD(pic_alloc_msix,	gic_v3_its_alloc_msix),
-	DEVMETHOD(pic_map_msix,		gic_v3_its_map_msix),
 	/* MSI */
 	DEVMETHOD(pic_alloc_msi,	gic_v3_its_alloc_msi),
-	DEVMETHOD(pic_map_msi,		gic_v3_its_map_msix),
+	DEVMETHOD(pic_map_msi,		gic_v3_its_map_msi),
 
 	/* End */
 	DEVMETHOD_END
@@ -1658,7 +1657,7 @@ gic_v3_its_alloc_msi(device_t dev, device_t pci_dev, int count, int *irqs)
 }
 
 int
-gic_v3_its_map_msix(device_t dev, device_t pci_dev, int irq, uint64_t *addr,
+gic_v3_its_map_msi(device_t dev, device_t pci_dev, int irq, uint64_t *addr,
     uint32_t *data)
 {
 	struct gic_v3_its_softc *sc;
