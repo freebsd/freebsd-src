@@ -32,7 +32,7 @@
 .Nd Perform various studies on a system's overall PMCs.
 .Sh SYNOPSIS
 .Nm
-.Oo Fl i Ar inputfile | Fl T | Fl v | Fl m Ar max | Fl e exp | Fl Ar E | Fl h | fl H Oc
+.Oo Fl i Ar inputfile | Fl A |  Fl T | Fl v | Fl m Ar max | Fl e exp | Fl Ar E | Fl h | fl H Oc
 .Nm
 .Fl i Ar inputfile
 .Nm
@@ -128,6 +128,8 @@ test like
 "UOPS_RETIRED.RETIRE_SLOTS / (4 * CPU_CLK_UNHALTED.THREAD_P)".
 .It Fl L
 This option will list all known PMCs and their abbreviation (%NNN).
+.It Fl A
+Run all canned tests.
 .El
 .Sh SEE ALSO
 .Xr pmc 3 ,
