@@ -571,11 +571,12 @@ static device_method_t thunder_pcie_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
-	DEVMETHOD(pcib_map_msi,			thunder_common_map_msi),
-	DEVMETHOD(pcib_alloc_msix,		thunder_common_alloc_msix),
-	DEVMETHOD(pcib_release_msix,		thunder_common_release_msix),
-	DEVMETHOD(pcib_alloc_msi,		thunder_common_alloc_msi),
-	DEVMETHOD(pcib_release_msi,		thunder_common_release_msi),
+
+	DEVMETHOD(pcib_map_msi,			arm_map_msi),
+	DEVMETHOD(pcib_alloc_msix,		arm_alloc_msix),
+	DEVMETHOD(pcib_release_msix,		arm_release_msix),
+	DEVMETHOD(pcib_alloc_msi,		arm_alloc_msi),
+	DEVMETHOD(pcib_release_msi,		arm_release_msi),
 
 	DEVMETHOD_END
 };
