@@ -50,12 +50,7 @@ static efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 	siena_mcdi_request_copyout,	/* emco_request_copyout */
 	siena_mcdi_poll_reboot,		/* emco_poll_reboot */
 	siena_mcdi_fini,		/* emco_fini */
-	siena_mcdi_fw_update_supported,	/* emco_fw_update_supported */
-	siena_mcdi_macaddr_change_supported,
-					/* emco_macaddr_change_supported */
-	siena_mcdi_link_control_supported,
-					/* emco_link_control_supported */
-	NULL,				/* emco_mac_spoofing_supported */
+	siena_mcdi_feature_supported,	/* emco_feature_supported */
 	siena_mcdi_read_response,	/* emco_read_response */
 };
 
@@ -70,13 +65,7 @@ static efx_mcdi_ops_t	__efx_mcdi_hunt_ops = {
 	hunt_mcdi_request_copyout,	/* emco_request_copyout */
 	hunt_mcdi_poll_reboot,		/* emco_poll_reboot */
 	hunt_mcdi_fini,			/* emco_fini */
-	hunt_mcdi_fw_update_supported,	/* emco_fw_update_supported */
-	hunt_mcdi_macaddr_change_supported,
-					/* emco_macaddr_change_supported */
-	hunt_mcdi_link_control_supported,
-					/* emco_link_control_supported */
-	hunt_mcdi_mac_spoofing_supported,
-					/* emco_mac_spoofing_supported */
+	hunt_mcdi_feature_supported,	/* emco_feature_supported */
 	hunt_mcdi_read_response,	/* emco_read_response */
 };
 
@@ -1316,7 +1305,6 @@ fail1:
 	return (rc);
 }
 
-
 	__checkReturn		efx_rc_t
 efx_mcdi_firmware_update_supported(
 	__in			efx_nic_t *enp,
@@ -1325,9 +1313,9 @@ efx_mcdi_firmware_update_supported(
 	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
-	if (emcop != NULL && emcop->emco_fw_update_supported != NULL) {
-		if ((rc = emcop->emco_fw_update_supported(enp, supportedp))
-		    != 0)
+	if (emcop != NULL) {
+		if ((rc = emcop->emco_feature_supported(enp,
+			    EFX_MCDI_FEATURE_FW_UPDATE, supportedp)) != 0)
 			goto fail1;
 	} else {
 		/* Earlier devices always supported updates */
@@ -1350,9 +1338,9 @@ efx_mcdi_macaddr_change_supported(
 	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
-	if (emcop != NULL && emcop->emco_macaddr_change_supported != NULL) {
-		if ((rc = emcop->emco_macaddr_change_supported(enp, supportedp))
-		    != 0)
+	if (emcop != NULL) {
+		if ((rc = emcop->emco_feature_supported(enp,
+			    EFX_MCDI_FEATURE_MACADDR_CHANGE, supportedp)) != 0)
 			goto fail1;
 	} else {
 		/* Earlier devices always supported MAC changes */
@@ -1375,9 +1363,9 @@ efx_mcdi_link_control_supported(
 	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
-	if (emcop != NULL && emcop->emco_link_control_supported != NULL) {
-		if ((rc = emcop->emco_link_control_supported(enp, supportedp))
-		    != 0)
+	if (emcop != NULL) {
+		if ((rc = emcop->emco_feature_supported(enp,
+			    EFX_MCDI_FEATURE_LINK_CONTROL, supportedp)) != 0)
 			goto fail1;
 	} else {
 		/* Earlier devices always supported link control */
@@ -1400,9 +1388,9 @@ efx_mcdi_mac_spoofing_supported(
 	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_rc_t rc;
 
-	if (emcop != NULL && emcop->emco_mac_spoofing_supported != NULL) {
-		if ((rc = emcop->emco_mac_spoofing_supported(enp, supportedp))
-		    != 0)
+	if (emcop != NULL) {
+		if ((rc = emcop->emco_feature_supported(enp,
+			    EFX_MCDI_FEATURE_MAC_SPOOFING, supportedp)) != 0)
 			goto fail1;
 	} else {
 		/* Earlier devices always supported MAC spoofing */
