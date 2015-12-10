@@ -95,5 +95,10 @@ int tls_prf_sha1_md5(const u8 *secret, size_t secret_len, const char *label,
 		SHA1_pos++;
 	}
 
+	os_memset(A_MD5, 0, MD5_MAC_LEN);
+	os_memset(P_MD5, 0, MD5_MAC_LEN);
+	os_memset(A_SHA1, 0, SHA1_MAC_LEN);
+	os_memset(P_SHA1, 0, SHA1_MAC_LEN);
+
 	return 0;
 }

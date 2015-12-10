@@ -32,9 +32,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drm.h>
 #include <dev/drm2/drm_crtc.h>
 #include <dev/drm2/drm_fb_helper.h>
+#include <dev/drm2/i915/intel_drv.h>
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
-#include <dev/drm2/i915/intel_drv.h>
 
 static int intelfb_create(struct intel_fbdev *ifbdev,
 			  struct drm_fb_helper_surface_size *sizes)
@@ -45,7 +45,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 #endif
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
-	struct drm_mode_fb_cmd2 mode_cmd;
+	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct drm_i915_gem_object *obj;
 	int size, ret;
 
@@ -57,7 +57,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	mode_cmd.height = sizes->surface_height;
 
 	mode_cmd.pitches[0] = roundup2(mode_cmd.width * ((sizes->surface_bpp + 7) /
-							 8), 64);
+						      8), 64);
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 							  sizes->surface_depth);
 
@@ -143,6 +143,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	drm_fb_helper_fill_var(info, &ifbdev->helper, sizes->fb_width, sizes->fb_height);
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
+
 	DRM_DEBUG_KMS("allocated %dx%d (s %dbits) fb: 0x%08x, bo %p\n",
 		      fb->width, fb->height, fb->depth,
 		      obj->gtt_offset, obj);
@@ -222,8 +223,7 @@ int intel_fbdev_init(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
 
-	ifbdev = malloc(sizeof(struct intel_fbdev), DRM_MEM_KMS,
-	    M_WAITOK | M_ZERO);
+	ifbdev = malloc(sizeof(struct intel_fbdev), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 
 	dev_priv->fbdev = ifbdev;
 	ifbdev->helper.funcs = &intel_fb_helper_funcs;

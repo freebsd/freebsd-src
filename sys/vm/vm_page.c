@@ -149,6 +149,8 @@ static int sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_vm, OID_AUTO, page_blacklist, CTLTYPE_STRING | CTLFLAG_RD |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_vm_page_blacklist, "A", "Blacklist pages");
 
+/* Is the page daemon waiting for free pages? */
+static int vm_pageout_pages_needed;
 
 static uma_zone_t fakepg_zone;
 
@@ -2476,42 +2478,46 @@ vm_page_wire(vm_page_t m)
 /*
  * vm_page_unwire:
  *
- * Release one wiring of the specified page, potentially enabling it to be
- * paged again.  If paging is enabled, then the value of the parameter
- * "queue" determines the queue to which the page is added.
+ * Release one wiring of the specified page, potentially allowing it to be
+ * paged out.  Returns TRUE if the number of wirings transitions to zero and
+ * FALSE otherwise.
  *
- * However, unless the page belongs to an object, it is not enqueued because
- * it cannot be paged out.
+ * Only managed pages belonging to an object can be paged out.  If the number
+ * of wirings transitions to zero and the page is eligible for page out, then
+ * the page is added to the specified paging queue (unless PQ_NONE is
+ * specified).
  *
  * If a page is fictitious, then its wire count must always be one.
  *
  * A managed page must be locked.
  */
-void
+boolean_t
 vm_page_unwire(vm_page_t m, uint8_t queue)
 {
 
-	KASSERT(queue < PQ_COUNT,
+	KASSERT(queue < PQ_COUNT || queue == PQ_NONE,
 	    ("vm_page_unwire: invalid queue %u request for page %p",
 	    queue, m));
 	if ((m->oflags & VPO_UNMANAGED) == 0)
-		vm_page_lock_assert(m, MA_OWNED);
+		vm_page_assert_locked(m);
 	if ((m->flags & PG_FICTITIOUS) != 0) {
 		KASSERT(m->wire_count == 1,
 	    ("vm_page_unwire: fictitious page %p's wire count isn't one", m));
-		return;
+		return (FALSE);
 	}
 	if (m->wire_count > 0) {
 		m->wire_count--;
 		if (m->wire_count == 0) {
 			atomic_subtract_int(&vm_cnt.v_wire_count, 1);
-			if ((m->oflags & VPO_UNMANAGED) != 0 ||
-			    m->object == NULL)
-				return;
-			if (queue == PQ_INACTIVE)
-				m->flags &= ~PG_WINATCFLS;
-			vm_page_enqueue(queue, m);
-		}
+			if ((m->oflags & VPO_UNMANAGED) == 0 &&
+			    m->object != NULL && queue != PQ_NONE) {
+				if (queue == PQ_INACTIVE)
+					m->flags &= ~PG_WINATCFLS;
+				vm_page_enqueue(queue, m);
+			}
+			return (TRUE);
+		} else
+			return (FALSE);
 	} else
 		panic("vm_page_unwire: page %p's wire count is zero", m);
 }
@@ -2530,14 +2536,16 @@ vm_page_unwire(vm_page_t m, uint8_t queue)
  * processes.  This optimization causes one-time-use metadata to be
  * reused more quickly.
  *
- * Normally athead is 0 resulting in LRU operation.  athead is set
- * to 1 if we want this page to be 'as if it were placed in the cache',
- * except without unmapping it from the process address space.
+ * Normally noreuse is FALSE, resulting in LRU operation.  noreuse is set
+ * to TRUE if we want this page to be 'as if it were placed in the cache',
+ * except without unmapping it from the process address space.  In
+ * practice this is implemented by inserting the page at the head of the
+ * queue, using a marker page to guide FIFO insertion ordering.
  *
  * The page must be locked.
  */
 static inline void
-_vm_page_deactivate(vm_page_t m, int athead)
+_vm_page_deactivate(vm_page_t m, boolean_t noreuse)
 {
 	struct vm_pagequeue *pq;
 	int queue;
@@ -2548,7 +2556,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 	 * Ignore if the page is already inactive, unless it is unlikely to be
 	 * reactivated.
 	 */
-	if ((queue = m->queue) == PQ_INACTIVE && !athead)
+	if ((queue = m->queue) == PQ_INACTIVE && !noreuse)
 		return;
 	if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
 		pq = &vm_phys_domain(m)->vmd_pagequeues[PQ_INACTIVE];
@@ -2563,8 +2571,9 @@ _vm_page_deactivate(vm_page_t m, int athead)
 			vm_pagequeue_lock(pq);
 		}
 		m->queue = PQ_INACTIVE;
-		if (athead)
-			TAILQ_INSERT_HEAD(&pq->pq_pl, m, plinks.q);
+		if (noreuse)
+			TAILQ_INSERT_BEFORE(&vm_phys_domain(m)->vmd_inacthead,
+			    m, plinks.q);
 		else
 			TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
 		vm_pagequeue_cnt_inc(pq);
@@ -2581,7 +2590,20 @@ void
 vm_page_deactivate(vm_page_t m)
 {
 
-	_vm_page_deactivate(m, 0);
+	_vm_page_deactivate(m, FALSE);
+}
+
+/*
+ * Move the specified page to the inactive queue with the expectation
+ * that it is unlikely to be reused.
+ *
+ * The page must be locked.
+ */
+void
+vm_page_deactivate_noreuse(vm_page_t m)
+{
+
+	_vm_page_deactivate(m, TRUE);
 }
 
 /*
@@ -2736,8 +2758,7 @@ vm_page_cache(vm_page_t m)
 /*
  * vm_page_advise
  *
- * 	Deactivate or do nothing, as appropriate.  This routine is used
- * 	by madvise() and vop_stdadvise().
+ * 	Deactivate or do nothing, as appropriate.
  *
  *	The object and page must be locked.
  */
@@ -3096,7 +3117,8 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 		bits = VM_PAGE_BITS_ALL;
 	else
 		bits = vm_page_bits(base, size);
-	if (m->valid == VM_PAGE_BITS_ALL && bits != 0)
+	if (object->ref_count != 0 && m->valid == VM_PAGE_BITS_ALL &&
+	    bits != 0)
 		pmap_remove_all(m);
 	KASSERT((bits == 0 && m->valid == VM_PAGE_BITS_ALL) ||
 	    !pmap_page_is_mapped(m),

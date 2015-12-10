@@ -67,6 +67,7 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -86,11 +87,12 @@ namespace {
 class AArch64ConditionOptimizer : public MachineFunctionPass {
   const TargetInstrInfo *TII;
   MachineDominatorTree *DomTree;
+  const MachineRegisterInfo *MRI;
 
 public:
   // Stores immediate, compare instruction opcode and branch condition (in this
   // order) of adjusted comparison.
-  typedef std::tuple<int, int, AArch64CC::CondCode> CmpInfo;
+  typedef std::tuple<int, unsigned, AArch64CC::CondCode> CmpInfo;
 
   static char ID;
   AArch64ConditionOptimizer() : MachineFunctionPass(ID) {}
@@ -116,7 +118,6 @@ void initializeAArch64ConditionOptimizerPass(PassRegistry &);
 INITIALIZE_PASS_BEGIN(AArch64ConditionOptimizer, "aarch64-condopt",
                       "AArch64 CondOpt Pass", false, false)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
-INITIALIZE_PASS_DEPENDENCY(LiveIntervals)
 INITIALIZE_PASS_END(AArch64ConditionOptimizer, "aarch64-condopt",
                     "AArch64 CondOpt Pass", false, false)
 
@@ -127,8 +128,6 @@ FunctionPass *llvm::createAArch64ConditionOptimizerPass() {
 void AArch64ConditionOptimizer::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<MachineDominatorTree>();
   AU.addPreserved<MachineDominatorTree>();
-  AU.addRequired<LiveIntervals>();
-  AU.addPreserved<LiveIntervals>();
   MachineFunctionPass::getAnalysisUsage(AU);
 }
 
@@ -155,7 +154,7 @@ MachineInstr *AArch64ConditionOptimizer::findSuitableCompare(
     // cmn is an alias for adds with a dead destination register.
     case AArch64::ADDSWri:
     case AArch64::ADDSXri:
-      if (I->getOperand(0).isDead())
+      if (MRI->use_empty(I->getOperand(0).getReg()))
         return I;
 
       DEBUG(dbgs() << "Destination of cmp is not dead, " << *I << '\n');
@@ -216,7 +215,7 @@ static AArch64CC::CondCode getAdjustedCmp(AArch64CC::CondCode Cmp) {
 // operator and condition code.
 AArch64ConditionOptimizer::CmpInfo AArch64ConditionOptimizer::adjustCmp(
     MachineInstr *CmpMI, AArch64CC::CondCode Cmp) {
-  int Opc = CmpMI->getOpcode();
+  unsigned Opc = CmpMI->getOpcode();
 
   // CMN (compare with negative immediate) is an alias to ADDS (as
   // "operand - negative" == "operand + positive")
@@ -245,7 +244,7 @@ AArch64ConditionOptimizer::CmpInfo AArch64ConditionOptimizer::adjustCmp(
 void AArch64ConditionOptimizer::modifyCmp(MachineInstr *CmpMI,
     const CmpInfo &Info) {
   int Imm;
-  int Opc;
+  unsigned Opc;
   AArch64CC::CondCode Cmp;
   std::tie(Imm, Opc, Cmp) = Info;
 
@@ -304,8 +303,9 @@ bool AArch64ConditionOptimizer::adjustTo(MachineInstr *CmpMI,
 bool AArch64ConditionOptimizer::runOnMachineFunction(MachineFunction &MF) {
   DEBUG(dbgs() << "********** AArch64 Conditional Compares **********\n"
                << "********** Function: " << MF.getName() << '\n');
-  TII = MF.getTarget().getSubtargetImpl()->getInstrInfo();
+  TII = MF.getSubtarget().getInstrInfo();
   DomTree = &getAnalysis<MachineDominatorTree>();
+  MRI = &MF.getRegInfo();
 
   bool Changed = false;
 

@@ -13,6 +13,7 @@
 
 #include "llvm/Object/ELFYAML.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/MipsABIFlags.h"
 
 namespace llvm {
 
@@ -30,6 +31,7 @@ ScalarEnumerationTraits<ELFYAML::ELF_ET>::enumeration(IO &IO,
   ECase(ET_DYN)
   ECase(ET_CORE)
 #undef ECase
+  IO.enumFallback<Hex16>(Value);
 }
 
 void
@@ -42,7 +44,7 @@ ScalarEnumerationTraits<ELFYAML::ELF_EM>::enumeration(IO &IO,
   ECase(EM_386)
   ECase(EM_68K)
   ECase(EM_88K)
-  ECase(EM_486)
+  ECase(EM_IAMCU)
   ECase(EM_860)
   ECase(EM_MIPS)
   ECase(EM_S370)
@@ -234,6 +236,7 @@ void ScalarEnumerationTraits<ELFYAML::ELF_ELFOSABI>::enumeration(
   ECase(ELFOSABI_NSK)
   ECase(ELFOSABI_AROS)
   ECase(ELFOSABI_FENIXOS)
+  ECase(ELFOSABI_CLOUDABI)
   ECase(ELFOSABI_C6000_ELFABI)
   ECase(ELFOSABI_C6000_LINUX)
   ECase(ELFOSABI_ARM)
@@ -264,10 +267,33 @@ void ScalarBitSetTraits<ELFYAML::ELF_EF>::bitset(IO &IO,
     BCase(EF_MIPS_CPIC)
     BCase(EF_MIPS_ABI2)
     BCase(EF_MIPS_32BITMODE)
+    BCase(EF_MIPS_FP64)
     BCase(EF_MIPS_NAN2008)
-    BCase(EF_MIPS_ABI_O32)
     BCase(EF_MIPS_MICROMIPS)
     BCase(EF_MIPS_ARCH_ASE_M16)
+    BCase(EF_MIPS_ARCH_ASE_MDMX)
+    BCaseMask(EF_MIPS_ABI_O32, EF_MIPS_ABI)
+    BCaseMask(EF_MIPS_ABI_O64, EF_MIPS_ABI)
+    BCaseMask(EF_MIPS_ABI_EABI32, EF_MIPS_ABI)
+    BCaseMask(EF_MIPS_ABI_EABI64, EF_MIPS_ABI)
+    BCaseMask(EF_MIPS_MACH_3900, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_4010, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_4100, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_4650, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_4120, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_4111, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_SB1, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_OCTEON, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_XLR, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_OCTEON2, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_OCTEON3, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_5400, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_5900, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_5500, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_9000, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_LS2E, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_LS2F, EF_MIPS_MACH)
+    BCaseMask(EF_MIPS_MACH_LS3A, EF_MIPS_MACH)
     BCaseMask(EF_MIPS_ARCH_1, EF_MIPS_ARCH)
     BCaseMask(EF_MIPS_ARCH_2, EF_MIPS_ARCH)
     BCaseMask(EF_MIPS_ARCH_3, EF_MIPS_ARCH)
@@ -414,6 +440,16 @@ void ScalarBitSetTraits<ELFYAML::ELF_STO>::bitset(IO &IO,
 #undef BCaseMask
 }
 
+void ScalarEnumerationTraits<ELFYAML::ELF_RSS>::enumeration(
+    IO &IO, ELFYAML::ELF_RSS &Value) {
+#define ECase(X) IO.enumCase(Value, #X, ELF::X);
+  ECase(RSS_UNDEF)
+  ECase(RSS_GP)
+  ECase(RSS_GP0)
+  ECase(RSS_LOC)
+#undef ECase
+}
+
 void ScalarEnumerationTraits<ELFYAML::ELF_REL>::enumeration(
     IO &IO, ELFYAML::ELF_REL &Value) {
   const auto *Object = static_cast<ELFYAML::Object *>(IO.getContext());
@@ -442,6 +478,93 @@ void ScalarEnumerationTraits<ELFYAML::ELF_REL>::enumeration(
     llvm_unreachable("Unsupported architecture");
   }
 #undef ELF_RELOC
+}
+
+void ScalarEnumerationTraits<ELFYAML::MIPS_AFL_REG>::enumeration(
+    IO &IO, ELFYAML::MIPS_AFL_REG &Value) {
+#define ECase(X) IO.enumCase(Value, #X, Mips::AFL_##X);
+  ECase(REG_NONE)
+  ECase(REG_32)
+  ECase(REG_64)
+  ECase(REG_128)
+#undef ECase
+}
+
+void ScalarEnumerationTraits<ELFYAML::MIPS_ABI_FP>::enumeration(
+    IO &IO, ELFYAML::MIPS_ABI_FP &Value) {
+#define ECase(X) IO.enumCase(Value, #X, Mips::Val_GNU_MIPS_ABI_##X);
+  ECase(FP_ANY)
+  ECase(FP_DOUBLE)
+  ECase(FP_SINGLE)
+  ECase(FP_SOFT)
+  ECase(FP_OLD_64)
+  ECase(FP_XX)
+  ECase(FP_64)
+  ECase(FP_64A)
+#undef ECase
+}
+
+void ScalarEnumerationTraits<ELFYAML::MIPS_AFL_EXT>::enumeration(
+    IO &IO, ELFYAML::MIPS_AFL_EXT &Value) {
+#define ECase(X) IO.enumCase(Value, #X, Mips::AFL_##X);
+  ECase(EXT_NONE)
+  ECase(EXT_XLR)
+  ECase(EXT_OCTEON2)
+  ECase(EXT_OCTEONP)
+  ECase(EXT_LOONGSON_3A)
+  ECase(EXT_OCTEON)
+  ECase(EXT_5900)
+  ECase(EXT_4650)
+  ECase(EXT_4010)
+  ECase(EXT_4100)
+  ECase(EXT_3900)
+  ECase(EXT_10000)
+  ECase(EXT_SB1)
+  ECase(EXT_4111)
+  ECase(EXT_4120)
+  ECase(EXT_5400)
+  ECase(EXT_5500)
+  ECase(EXT_LOONGSON_2E)
+  ECase(EXT_LOONGSON_2F)
+  ECase(EXT_OCTEON3)
+#undef ECase
+}
+
+void ScalarEnumerationTraits<ELFYAML::MIPS_ISA>::enumeration(
+    IO &IO, ELFYAML::MIPS_ISA &Value) {
+  IO.enumCase(Value, "MIPS1", 1);
+  IO.enumCase(Value, "MIPS2", 2);
+  IO.enumCase(Value, "MIPS3", 3);
+  IO.enumCase(Value, "MIPS4", 4);
+  IO.enumCase(Value, "MIPS5", 5);
+  IO.enumCase(Value, "MIPS32", 32);
+  IO.enumCase(Value, "MIPS64", 64);
+}
+
+void ScalarBitSetTraits<ELFYAML::MIPS_AFL_ASE>::bitset(
+    IO &IO, ELFYAML::MIPS_AFL_ASE &Value) {
+#define BCase(X) IO.bitSetCase(Value, #X, Mips::AFL_ASE_##X);
+  BCase(DSP)
+  BCase(DSPR2)
+  BCase(EVA)
+  BCase(MCU)
+  BCase(MDMX)
+  BCase(MIPS3D)
+  BCase(MT)
+  BCase(SMARTMIPS)
+  BCase(VIRT)
+  BCase(MSA)
+  BCase(MIPS16)
+  BCase(MICROMIPS)
+  BCase(XPA)
+#undef BCase
+}
+
+void ScalarBitSetTraits<ELFYAML::MIPS_AFL_FLAGS1>::bitset(
+    IO &IO, ELFYAML::MIPS_AFL_FLAGS1 &Value) {
+#define BCase(X) IO.bitSetCase(Value, #X, Mips::AFL_FLAGS1_##X);
+  BCase(ODDSPREG)
+#undef BCase
 }
 
 void MappingTraits<ELFYAML::FileHeader>::mapping(IO &IO,
@@ -495,6 +618,7 @@ static void commonSectionMapping(IO &IO, ELFYAML::Section &Section) {
   IO.mapOptional("Address", Section.Address, Hex64(0));
   IO.mapOptional("Link", Section.Link, StringRef());
   IO.mapOptional("AddressAlign", Section.AddressAlign, Hex64(0));
+  IO.mapOptional("Info", Section.Info, StringRef());
 }
 
 static void sectionMapping(IO &IO, ELFYAML::RawContentSection &Section) {
@@ -503,10 +627,44 @@ static void sectionMapping(IO &IO, ELFYAML::RawContentSection &Section) {
   IO.mapOptional("Size", Section.Size, Hex64(Section.Content.binary_size()));
 }
 
+static void sectionMapping(IO &IO, ELFYAML::NoBitsSection &Section) {
+  commonSectionMapping(IO, Section);
+  IO.mapOptional("Size", Section.Size, Hex64(0));
+}
+
 static void sectionMapping(IO &IO, ELFYAML::RelocationSection &Section) {
   commonSectionMapping(IO, Section);
-  IO.mapOptional("Info", Section.Info, StringRef());
   IO.mapOptional("Relocations", Section.Relocations);
+}
+
+static void groupSectionMapping(IO &IO, ELFYAML::Group &group) {
+  commonSectionMapping(IO, group);
+  IO.mapRequired("Members", group.Members);
+}
+
+void MappingTraits<ELFYAML::SectionOrType>::mapping(
+    IO &IO, ELFYAML::SectionOrType &sectionOrType) {
+  IO.mapRequired("SectionOrType", sectionOrType.sectionNameOrType);
+}
+
+static void sectionMapping(IO &IO, ELFYAML::MipsABIFlags &Section) {
+  commonSectionMapping(IO, Section);
+  IO.mapOptional("Version", Section.Version, Hex16(0));
+  IO.mapRequired("ISA", Section.ISALevel);
+  IO.mapOptional("ISARevision", Section.ISARevision, Hex8(0));
+  IO.mapOptional("ISAExtension", Section.ISAExtension,
+                 ELFYAML::MIPS_AFL_EXT(Mips::AFL_EXT_NONE));
+  IO.mapOptional("ASEs", Section.ASEs, ELFYAML::MIPS_AFL_ASE(0));
+  IO.mapOptional("FpABI", Section.FpABI,
+                 ELFYAML::MIPS_ABI_FP(Mips::Val_GNU_MIPS_ABI_FP_ANY));
+  IO.mapOptional("GPRSize", Section.GPRSize,
+                 ELFYAML::MIPS_AFL_REG(Mips::AFL_REG_NONE));
+  IO.mapOptional("CPR1Size", Section.CPR1Size,
+                 ELFYAML::MIPS_AFL_REG(Mips::AFL_REG_NONE));
+  IO.mapOptional("CPR2Size", Section.CPR2Size,
+                 ELFYAML::MIPS_AFL_REG(Mips::AFL_REG_NONE));
+  IO.mapOptional("Flags1", Section.Flags1, ELFYAML::MIPS_AFL_FLAGS1(0));
+  IO.mapOptional("Flags2", Section.Flags2, Hex32(0));
 }
 
 void MappingTraits<std::unique_ptr<ELFYAML::Section>>::mapping(
@@ -524,6 +682,21 @@ void MappingTraits<std::unique_ptr<ELFYAML::Section>>::mapping(
       Section.reset(new ELFYAML::RelocationSection());
     sectionMapping(IO, *cast<ELFYAML::RelocationSection>(Section.get()));
     break;
+  case ELF::SHT_GROUP:
+    if (!IO.outputting())
+      Section.reset(new ELFYAML::Group());
+    groupSectionMapping(IO, *cast<ELFYAML::Group>(Section.get()));
+    break;
+  case ELF::SHT_NOBITS:
+    if (!IO.outputting())
+      Section.reset(new ELFYAML::NoBitsSection());
+    sectionMapping(IO, *cast<ELFYAML::NoBitsSection>(Section.get()));
+    break;
+  case ELF::SHT_MIPS_ABIFLAGS:
+    if (!IO.outputting())
+      Section.reset(new ELFYAML::MipsABIFlags());
+    sectionMapping(IO, *cast<ELFYAML::MipsABIFlags>(Section.get()));
+    break;
   default:
     if (!IO.outputting())
       Section.reset(new ELFYAML::RawContentSection());
@@ -539,12 +712,49 @@ StringRef MappingTraits<std::unique_ptr<ELFYAML::Section>>::validate(
   return "Section size must be greater or equal to the content size";
 }
 
+namespace {
+struct NormalizedMips64RelType {
+  NormalizedMips64RelType(IO &)
+      : Type(ELFYAML::ELF_REL(ELF::R_MIPS_NONE)),
+        Type2(ELFYAML::ELF_REL(ELF::R_MIPS_NONE)),
+        Type3(ELFYAML::ELF_REL(ELF::R_MIPS_NONE)),
+        SpecSym(ELFYAML::ELF_REL(ELF::RSS_UNDEF)) {}
+  NormalizedMips64RelType(IO &, ELFYAML::ELF_REL Original)
+      : Type(Original & 0xFF), Type2(Original >> 8 & 0xFF),
+        Type3(Original >> 16 & 0xFF), SpecSym(Original >> 24 & 0xFF) {}
+
+  ELFYAML::ELF_REL denormalize(IO &) {
+    ELFYAML::ELF_REL Res = Type | Type2 << 8 | Type3 << 16 | SpecSym << 24;
+    return Res;
+  }
+
+  ELFYAML::ELF_REL Type;
+  ELFYAML::ELF_REL Type2;
+  ELFYAML::ELF_REL Type3;
+  ELFYAML::ELF_RSS SpecSym;
+};
+}
+
 void MappingTraits<ELFYAML::Relocation>::mapping(IO &IO,
                                                  ELFYAML::Relocation &Rel) {
+  const auto *Object = static_cast<ELFYAML::Object *>(IO.getContext());
+  assert(Object && "The IO context is not initialized");
+
   IO.mapRequired("Offset", Rel.Offset);
   IO.mapRequired("Symbol", Rel.Symbol);
-  IO.mapRequired("Type", Rel.Type);
-  IO.mapOptional("Addend", Rel.Addend);
+
+  if (Object->Header.Machine == ELFYAML::ELF_EM(ELF::EM_MIPS) &&
+      Object->Header.Class == ELFYAML::ELF_ELFCLASS(ELF::ELFCLASS64)) {
+    MappingNormalization<NormalizedMips64RelType, ELFYAML::ELF_REL> Key(
+        IO, Rel.Type);
+    IO.mapRequired("Type", Key->Type);
+    IO.mapOptional("Type2", Key->Type2, ELFYAML::ELF_REL(ELF::R_MIPS_NONE));
+    IO.mapOptional("Type3", Key->Type3, ELFYAML::ELF_REL(ELF::R_MIPS_NONE));
+    IO.mapOptional("SpecSym", Key->SpecSym, ELFYAML::ELF_RSS(ELF::RSS_UNDEF));
+  } else
+    IO.mapRequired("Type", Rel.Type);
+
+  IO.mapOptional("Addend", Rel.Addend, (int64_t)0);
 }
 
 void MappingTraits<ELFYAML::Object>::mapping(IO &IO, ELFYAML::Object &Object) {
@@ -555,6 +765,12 @@ void MappingTraits<ELFYAML::Object>::mapping(IO &IO, ELFYAML::Object &Object) {
   IO.mapOptional("Symbols", Object.Symbols);
   IO.setContext(nullptr);
 }
+
+LLVM_YAML_STRONG_TYPEDEF(uint8_t, MIPS_AFL_REG)
+LLVM_YAML_STRONG_TYPEDEF(uint8_t, MIPS_ABI_FP)
+LLVM_YAML_STRONG_TYPEDEF(uint32_t, MIPS_AFL_EXT)
+LLVM_YAML_STRONG_TYPEDEF(uint32_t, MIPS_AFL_ASE)
+LLVM_YAML_STRONG_TYPEDEF(uint32_t, MIPS_AFL_FLAGS1)
 
 } // end namespace yaml
 } // end namespace llvm

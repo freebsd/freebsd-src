@@ -24,6 +24,7 @@
 #define LLVM_LIB_TRANSFORMS_OBJCARC_OBJCARC_H
 
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -33,6 +34,7 @@
 #include "llvm/Pass.h"
 #include "llvm/Transforms/ObjCARC.h"
 #include "llvm/Transforms/Utils/Local.h"
+#include "ARCInstKind.h"
 
 namespace llvm {
 class raw_ostream;
@@ -68,160 +70,14 @@ static inline bool ModuleHasARC(const Module &M) {
     M.getNamedValue("clang.arc.use");
 }
 
-/// \enum InstructionClass
-/// \brief A simple classification for instructions.
-enum InstructionClass {
-  IC_Retain,              ///< objc_retain
-  IC_RetainRV,            ///< objc_retainAutoreleasedReturnValue
-  IC_RetainBlock,         ///< objc_retainBlock
-  IC_Release,             ///< objc_release
-  IC_Autorelease,         ///< objc_autorelease
-  IC_AutoreleaseRV,       ///< objc_autoreleaseReturnValue
-  IC_AutoreleasepoolPush, ///< objc_autoreleasePoolPush
-  IC_AutoreleasepoolPop,  ///< objc_autoreleasePoolPop
-  IC_NoopCast,            ///< objc_retainedObject, etc.
-  IC_FusedRetainAutorelease, ///< objc_retainAutorelease
-  IC_FusedRetainAutoreleaseRV, ///< objc_retainAutoreleaseReturnValue
-  IC_LoadWeakRetained,    ///< objc_loadWeakRetained (primitive)
-  IC_StoreWeak,           ///< objc_storeWeak (primitive)
-  IC_InitWeak,            ///< objc_initWeak (derived)
-  IC_LoadWeak,            ///< objc_loadWeak (derived)
-  IC_MoveWeak,            ///< objc_moveWeak (derived)
-  IC_CopyWeak,            ///< objc_copyWeak (derived)
-  IC_DestroyWeak,         ///< objc_destroyWeak (derived)
-  IC_StoreStrong,         ///< objc_storeStrong (derived)
-  IC_IntrinsicUser,       ///< clang.arc.use
-  IC_CallOrUser,          ///< could call objc_release and/or "use" pointers
-  IC_Call,                ///< could call objc_release
-  IC_User,                ///< could "use" a pointer
-  IC_None                 ///< anything else
-};
-
-raw_ostream &operator<<(raw_ostream &OS, const InstructionClass Class);
-
-/// \brief Test if the given class is a kind of user.
-inline static bool IsUser(InstructionClass Class) {
-  return Class == IC_User ||
-         Class == IC_CallOrUser ||
-         Class == IC_IntrinsicUser;
-}
-
-/// \brief Test if the given class is objc_retain or equivalent.
-static inline bool IsRetain(InstructionClass Class) {
-  return Class == IC_Retain ||
-         Class == IC_RetainRV;
-}
-
-/// \brief Test if the given class is objc_autorelease or equivalent.
-static inline bool IsAutorelease(InstructionClass Class) {
-  return Class == IC_Autorelease ||
-         Class == IC_AutoreleaseRV;
-}
-
-/// \brief Test if the given class represents instructions which return their
-/// argument verbatim.
-static inline bool IsForwarding(InstructionClass Class) {
-  return Class == IC_Retain ||
-         Class == IC_RetainRV ||
-         Class == IC_Autorelease ||
-         Class == IC_AutoreleaseRV ||
-         Class == IC_NoopCast;
-}
-
-/// \brief Test if the given class represents instructions which do nothing if
-/// passed a null pointer.
-static inline bool IsNoopOnNull(InstructionClass Class) {
-  return Class == IC_Retain ||
-         Class == IC_RetainRV ||
-         Class == IC_Release ||
-         Class == IC_Autorelease ||
-         Class == IC_AutoreleaseRV ||
-         Class == IC_RetainBlock;
-}
-
-/// \brief Test if the given class represents instructions which are always safe
-/// to mark with the "tail" keyword.
-static inline bool IsAlwaysTail(InstructionClass Class) {
-  // IC_RetainBlock may be given a stack argument.
-  return Class == IC_Retain ||
-         Class == IC_RetainRV ||
-         Class == IC_AutoreleaseRV;
-}
-
-/// \brief Test if the given class represents instructions which are never safe
-/// to mark with the "tail" keyword.
-static inline bool IsNeverTail(InstructionClass Class) {
-  /// It is never safe to tail call objc_autorelease since by tail calling
-  /// objc_autorelease, we also tail call -[NSObject autorelease] which supports
-  /// fast autoreleasing causing our object to be potentially reclaimed from the
-  /// autorelease pool which violates the semantics of __autoreleasing types in
-  /// ARC.
-  return Class == IC_Autorelease;
-}
-
-/// \brief Test if the given class represents instructions which are always safe
-/// to mark with the nounwind attribute.
-static inline bool IsNoThrow(InstructionClass Class) {
-  // objc_retainBlock is not nounwind because it calls user copy constructors
-  // which could theoretically throw.
-  return Class == IC_Retain ||
-         Class == IC_RetainRV ||
-         Class == IC_Release ||
-         Class == IC_Autorelease ||
-         Class == IC_AutoreleaseRV ||
-         Class == IC_AutoreleasepoolPush ||
-         Class == IC_AutoreleasepoolPop;
-}
-
-/// Test whether the given instruction can autorelease any pointer or cause an
-/// autoreleasepool pop.
-static inline bool
-CanInterruptRV(InstructionClass Class) {
-  switch (Class) {
-  case IC_AutoreleasepoolPop:
-  case IC_CallOrUser:
-  case IC_Call:
-  case IC_Autorelease:
-  case IC_AutoreleaseRV:
-  case IC_FusedRetainAutorelease:
-  case IC_FusedRetainAutoreleaseRV:
-    return true;
-  default:
-    return false;
-  }
-}
-
-/// \brief Determine if F is one of the special known Functions.  If it isn't,
-/// return IC_CallOrUser.
-InstructionClass GetFunctionClass(const Function *F);
-
-/// \brief Determine which objc runtime call instruction class V belongs to.
-///
-/// This is similar to GetInstructionClass except that it only detects objc
-/// runtime calls. This allows it to be faster.
-///
-static inline InstructionClass GetBasicInstructionClass(const Value *V) {
-  if (const CallInst *CI = dyn_cast<CallInst>(V)) {
-    if (const Function *F = CI->getCalledFunction())
-      return GetFunctionClass(F);
-    // Otherwise, be conservative.
-    return IC_CallOrUser;
-  }
-
-  // Otherwise, be conservative.
-  return isa<InvokeInst>(V) ? IC_CallOrUser : IC_User;
-}
-
-/// \brief Determine what kind of construct V is.
-InstructionClass GetInstructionClass(const Value *V);
-
 /// \brief This is a wrapper around getUnderlyingObject which also knows how to
 /// look through objc_retain and objc_autorelease calls, which we know to return
 /// their argument verbatim.
-static inline const Value *GetUnderlyingObjCPtr(const Value *V) {
+static inline const Value *GetUnderlyingObjCPtr(const Value *V,
+                                                const DataLayout &DL) {
   for (;;) {
-    V = GetUnderlyingObject(V);
-    if (!IsForwarding(GetBasicInstructionClass(V)))
+    V = GetUnderlyingObject(V, DL);
+    if (!IsForwarding(GetBasicARCInstKind(V)))
       break;
     V = cast<CallInst>(V)->getArgOperand(0);
   }
@@ -229,37 +85,44 @@ static inline const Value *GetUnderlyingObjCPtr(const Value *V) {
   return V;
 }
 
-/// \brief This is a wrapper around Value::stripPointerCasts which also knows
-/// how to look through objc_retain and objc_autorelease calls, which we know to
-/// return their argument verbatim.
-static inline const Value *StripPointerCastsAndObjCCalls(const Value *V) {
+/// The RCIdentity root of a value \p V is a dominating value U for which
+/// retaining or releasing U is equivalent to retaining or releasing V. In other
+/// words, ARC operations on \p V are equivalent to ARC operations on \p U.
+///
+/// We use this in the ARC optimizer to make it easier to match up ARC
+/// operations by always mapping ARC operations to RCIdentityRoots instead of
+/// pointers themselves.
+///
+/// The two ways that we see RCIdentical values in ObjC are via:
+///
+///   1. PointerCasts
+///   2. Forwarding Calls that return their argument verbatim.
+///
+/// Thus this function strips off pointer casts and forwarding calls. *NOTE*
+/// This implies that two RCIdentical values must alias.
+static inline const Value *GetRCIdentityRoot(const Value *V) {
   for (;;) {
     V = V->stripPointerCasts();
-    if (!IsForwarding(GetBasicInstructionClass(V)))
+    if (!IsForwarding(GetBasicARCInstKind(V)))
       break;
     V = cast<CallInst>(V)->getArgOperand(0);
   }
   return V;
 }
 
-/// \brief This is a wrapper around Value::stripPointerCasts which also knows
-/// how to look through objc_retain and objc_autorelease calls, which we know to
-/// return their argument verbatim.
-static inline Value *StripPointerCastsAndObjCCalls(Value *V) {
-  for (;;) {
-    V = V->stripPointerCasts();
-    if (!IsForwarding(GetBasicInstructionClass(V)))
-      break;
-    V = cast<CallInst>(V)->getArgOperand(0);
-  }
-  return V;
+/// Helper which calls const Value *GetRCIdentityRoot(const Value *V) and just
+/// casts away the const of the result. For documentation about what an
+/// RCIdentityRoot (and by extension GetRCIdentityRoot is) look at that
+/// function.
+static inline Value *GetRCIdentityRoot(Value *V) {
+  return const_cast<Value *>(GetRCIdentityRoot((const Value *)V));
 }
 
 /// \brief Assuming the given instruction is one of the special calls such as
-/// objc_retain or objc_release, return the argument value, stripped of no-op
-/// casts and forwarding calls.
-static inline Value *GetObjCArg(Value *Inst) {
-  return StripPointerCastsAndObjCCalls(cast<CallInst>(Inst)->getArgOperand(0));
+/// objc_retain or objc_release, return the RCIdentity root of the argument of
+/// the call.
+static inline Value *GetArgRCIdentityRoot(Value *Inst) {
+  return GetRCIdentityRoot(cast<CallInst>(Inst)->getArgOperand(0));
 }
 
 static inline bool IsNullOrUndef(const Value *V) {
@@ -286,8 +149,8 @@ static inline void EraseInstruction(Instruction *CI) {
 
   if (!Unused) {
     // Replace the return value with the argument.
-    assert((IsForwarding(GetBasicInstructionClass(CI)) ||
-            (IsNoopOnNull(GetBasicInstructionClass(CI)) &&
+    assert((IsForwarding(GetBasicARCInstKind(CI)) ||
+            (IsNoopOnNull(GetBasicARCInstKind(CI)) &&
              isa<ConstantPointerNull>(OldArg))) &&
            "Can't delete non-forwarding instruction with users!");
     CI->replaceAllUsesWith(OldArg);
@@ -344,15 +207,15 @@ static inline bool IsPotentialRetainableObjPtr(const Value *Op,
   return true;
 }
 
-/// \brief Helper for GetInstructionClass. Determines what kind of construct CS
+/// \brief Helper for GetARCInstKind. Determines what kind of construct CS
 /// is.
-static inline InstructionClass GetCallSiteClass(ImmutableCallSite CS) {
+static inline ARCInstKind GetCallSiteClass(ImmutableCallSite CS) {
   for (ImmutableCallSite::arg_iterator I = CS.arg_begin(), E = CS.arg_end();
        I != E; ++I)
     if (IsPotentialRetainableObjPtr(*I))
-      return CS.onlyReadsMemory() ? IC_User : IC_CallOrUser;
+      return CS.onlyReadsMemory() ? ARCInstKind::User : ARCInstKind::CallOrUser;
 
-  return CS.onlyReadsMemory() ? IC_None : IC_Call;
+  return CS.onlyReadsMemory() ? ARCInstKind::None : ARCInstKind::Call;
 }
 
 /// \brief Return true if this value refers to a distinct and identifiable
@@ -371,7 +234,7 @@ static inline bool IsObjCIdentifiedObject(const Value *V) {
 
   if (const LoadInst *LI = dyn_cast<LoadInst>(V)) {
     const Value *Pointer =
-      StripPointerCastsAndObjCCalls(LI->getPointerOperand());
+      GetRCIdentityRoot(LI->getPointerOperand());
     if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(Pointer)) {
       // A constant pointer can't be pointing to an object on the heap. It may
       // be reference-counted, but it won't be deleted.
@@ -395,6 +258,55 @@ static inline bool IsObjCIdentifiedObject(const Value *V) {
 
   return false;
 }
+
+enum class ARCMDKindID {
+  ImpreciseRelease,
+  CopyOnEscape,
+  NoObjCARCExceptions,
+};
+
+/// A cache of MDKinds used by various ARC optimizations.
+class ARCMDKindCache {
+  Module *M;
+
+  /// The Metadata Kind for clang.imprecise_release metadata.
+  llvm::Optional<unsigned> ImpreciseReleaseMDKind;
+
+  /// The Metadata Kind for clang.arc.copy_on_escape metadata.
+  llvm::Optional<unsigned> CopyOnEscapeMDKind;
+
+  /// The Metadata Kind for clang.arc.no_objc_arc_exceptions metadata.
+  llvm::Optional<unsigned> NoObjCARCExceptionsMDKind;
+
+public:
+  void init(Module *Mod) {
+    M = Mod;
+    ImpreciseReleaseMDKind = NoneType::None;
+    CopyOnEscapeMDKind = NoneType::None;
+    NoObjCARCExceptionsMDKind = NoneType::None;
+  }
+
+  unsigned get(ARCMDKindID ID) {
+    switch (ID) {
+    case ARCMDKindID::ImpreciseRelease:
+      if (!ImpreciseReleaseMDKind)
+        ImpreciseReleaseMDKind =
+            M->getContext().getMDKindID("clang.imprecise_release");
+      return *ImpreciseReleaseMDKind;
+    case ARCMDKindID::CopyOnEscape:
+      if (!CopyOnEscapeMDKind)
+        CopyOnEscapeMDKind =
+            M->getContext().getMDKindID("clang.arc.copy_on_escape");
+      return *CopyOnEscapeMDKind;
+    case ARCMDKindID::NoObjCARCExceptions:
+      if (!NoObjCARCExceptionsMDKind)
+        NoObjCARCExceptionsMDKind =
+            M->getContext().getMDKindID("clang.arc.no_objc_arc_exceptions");
+      return *NoObjCARCExceptionsMDKind;
+    }
+    llvm_unreachable("Covered switch isn't covered?!");
+  }
+};
 
 } // end namespace objcarc
 } // end namespace llvm

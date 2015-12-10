@@ -2,12 +2,6 @@
 
 kern/kern_clocksource.c				standard
 
-arm/arm/bus_space_generic.c			standard
-arm/arm/bus_space_asm_generic.S			standard
-
-arm/arm/bus_space_base.c			standard
-arm/arm/mpcore_timer.c				standard
-
 arm/altera/socfpga/socfpga_common.c		standard
 arm/altera/socfpga/socfpga_machdep.c		standard
 arm/altera/socfpga/socfpga_manager.c		standard
@@ -15,7 +9,6 @@ arm/altera/socfpga/socfpga_rstmgr.c		standard
 arm/altera/socfpga/socfpga_mp.c			optional smp
 arm/altera/socfpga/socfpga_gpio.c		optional gpio
 
-dev/dwc/if_dwc.c				optional dwc
 dev/mii/micphy.c				optional micphy
 dev/mmc/host/dwmmc.c				optional dwmmc
 

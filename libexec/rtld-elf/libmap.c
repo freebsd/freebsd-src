@@ -16,15 +16,7 @@
 #include "debug.h"
 #include "rtld.h"
 #include "libmap.h"
-
-#ifndef _PATH_LIBMAP_CONF
-#define	_PATH_LIBMAP_CONF	"/etc/libmap.conf"
-#endif
-
-#ifdef COMPAT_32BIT
-#undef _PATH_LIBMAP_CONF
-#define	_PATH_LIBMAP_CONF	"/etc/libmap32.conf"
-#endif
+#include "paths.h"
 
 TAILQ_HEAD(lm_list, lm);
 struct lm {
@@ -76,7 +68,7 @@ lm_init(char *libmap_override)
 	dbg("lm_init(\"%s\")", libmap_override);
 	TAILQ_INIT(&lmp_head);
 
-	lmc_parse_file(_PATH_LIBMAP_CONF);
+	lmc_parse_file(ld_path_libmap_conf);
 
 	if (libmap_override) {
 		/*

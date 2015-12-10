@@ -113,7 +113,7 @@ moreglue(int n)
  * Find a free FILE for fopen et al.
  */
 FILE *
-__sfp()
+__sfp(void)
 {
 	FILE	*fp;
 	int	n;
@@ -155,6 +155,7 @@ found:
 /*	fp->_fl_mutex = NULL; */ /* once set always set (reused) */
 	fp->_orientation = 0;
 	memset(&fp->_mbstate, 0, sizeof(mbstate_t));
+	fp->_flags2 = 0;
 	return (fp);
 }
 
@@ -164,6 +165,7 @@ found:
  */
 __warn_references(f_prealloc, 
 	"warning: this program uses f_prealloc(), which is not recommended.");
+void f_prealloc(void);
 
 void
 f_prealloc(void)
@@ -195,7 +197,7 @@ f_prealloc(void)
  * The name `_cleanup' is, alas, fairly well known outside stdio.
  */
 void
-_cleanup()
+_cleanup(void)
 {
 	/* (void) _fwalk(fclose); */
 	(void) _fwalk(__sflush);		/* `cheating' */
@@ -205,7 +207,7 @@ _cleanup()
  * __sinit() is called whenever stdio's internal variables must be set up.
  */
 void
-__sinit()
+__sinit(void)
 {
 
 	/* Make sure we clean up on exit. */

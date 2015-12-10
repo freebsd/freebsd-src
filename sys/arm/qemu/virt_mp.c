@@ -49,17 +49,8 @@ static int running_cpus;
 int
 platform_mp_probe(void)
 {
-	int ncpus;
 
-	ncpus = ofw_cpu_early_foreach(NULL, true);
-	if (ncpus <= 1) {
-		mp_ncpus = 1;
-		return (0);
-	}
-
-	mp_ncpus = MIN(ncpus, MAXCPU);
-
-	return (1);
+	return (mp_ncpus > 1);
 }
 
 static boolean_t
@@ -77,7 +68,10 @@ platform_mp_setmaxid(void)
 {
 
 	mp_maxid = PCPU_GET(cpuid);
-	ofw_cpu_early_foreach(virt_maxid, true);
+	mp_ncpus = ofw_cpu_early_foreach(virt_maxid, true);
+	if (mp_ncpus < 1)
+		mp_ncpus = 1;
+	mp_ncpus = MIN(mp_ncpus, MAXCPU);
 }
 
 static boolean_t
@@ -108,7 +102,7 @@ void
 platform_mp_init_secondary(void)
 {
 
-	arm_init_secondary_ic();
+	arm_pic_init_secondary();
 }
 
 void

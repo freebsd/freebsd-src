@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: images,v 1.106 2015/02/22 01:26:05 christos Exp $
+# $File: images,v 1.107 2015/07/11 14:40:10 christos Exp $
 # images:  file(1) magic for image formats (see also "iff", and "c-lang" for
 # XPM bitmaps)
 #
@@ -37,7 +37,7 @@
 # The next byte following the magic is always whitespace.
 # strength is changed to try these patterns before "x86 boot sector"
 0	name		netpbm
->3	regex/s		=[0-9]{1,50}\ [0-9]{1,50}	Netpbm PPM image data
+>3	regex/s		=[0-9]{1,50}\ [0-9]{1,50}	Netpbm image data
 >>&0	regex		=[0-9]{1,50} 			\b, size = %s x
 >>>&0	regex		=[0-9]{1,50}			\b %s
 
@@ -58,7 +58,6 @@
 >>0	string		x	\b, pixmap
 !:strength + 45
 !:mime	image/x-portable-pixmap
-
 
 0	string		P4		
 >0	use		netpbm

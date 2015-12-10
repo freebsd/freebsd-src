@@ -93,6 +93,14 @@ TAILQ_HEAD(ifgrouphead, ifg_group);
 #ifdef _KERNEL
 VNET_DECLARE(struct pfil_head, link_pfil_hook);	/* packet filter hooks */
 #define	V_link_pfil_hook	VNET(link_pfil_hook)
+
+#define	HHOOK_IPSEC_INET	0
+#define	HHOOK_IPSEC_INET6	1
+#define	HHOOK_IPSEC_COUNT	2
+VNET_DECLARE(struct hhook_head *, ipsec_hhh_in[HHOOK_IPSEC_COUNT]);
+VNET_DECLARE(struct hhook_head *, ipsec_hhh_out[HHOOK_IPSEC_COUNT]);
+#define	V_ipsec_hhh_in	VNET(ipsec_hhh_in)
+#define	V_ipsec_hhh_out	VNET(ipsec_hhh_out)
 #endif /* _KERNEL */
 
 typedef enum {
@@ -504,7 +512,7 @@ struct	ifnet *ifunit_ref(const char *);
 
 int	ifa_add_loopback_route(struct ifaddr *, struct sockaddr *);
 int	ifa_del_loopback_route(struct ifaddr *, struct sockaddr *);
-int	ifa_switch_loopback_route(struct ifaddr *, struct sockaddr *, int fib);
+int	ifa_switch_loopback_route(struct ifaddr *, struct sockaddr *);
 
 struct	ifaddr *ifa_ifwithaddr(const struct sockaddr *);
 int		ifa_ifwithaddr_check(const struct sockaddr *);

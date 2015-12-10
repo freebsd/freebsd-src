@@ -4,8 +4,6 @@
 
 # this is not normally needed, but we are not normal
 .if ${.MAKE.LEVEL} == 0
-DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
-
 # our role here is to build all the host tools etc.
 DIRDEPS = \
 	targets/pseudo/hosttools.host \

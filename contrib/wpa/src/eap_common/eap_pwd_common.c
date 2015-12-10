@@ -86,9 +86,10 @@ static int eap_pwd_kdf(const u8 *key, size_t keylen, const u8 *label,
  * on the password and identities.
  */
 int compute_password_element(EAP_PWD_group *grp, u16 num,
-			     u8 *password, int password_len,
-			     u8 *id_server, int id_server_len,
-			     u8 *id_peer, int id_peer_len, u8 *token)
+			     const u8 *password, size_t password_len,
+			     const u8 *id_server, size_t id_server_len,
+			     const u8 *id_peer, size_t id_peer_len,
+			     const u8 *token)
 {
 	BIGNUM *x_candidate = NULL, *rnd = NULL, *cofactor = NULL;
 	struct crypto_hash *hash;
@@ -283,10 +284,10 @@ int compute_password_element(EAP_PWD_group *grp, u16 num,
 }
 
 
-int compute_keys(EAP_PWD_group *grp, BN_CTX *bnctx, BIGNUM *k,
-		 BIGNUM *peer_scalar, BIGNUM *server_scalar,
-		 u8 *confirm_peer, u8 *confirm_server,
-		 u32 *ciphersuite, u8 *msk, u8 *emsk, u8 *session_id)
+int compute_keys(EAP_PWD_group *grp, BN_CTX *bnctx, const BIGNUM *k,
+		 const BIGNUM *peer_scalar, const BIGNUM *server_scalar,
+		 const u8 *confirm_peer, const u8 *confirm_server,
+		 const u32 *ciphersuite, u8 *msk, u8 *emsk, u8 *session_id)
 {
 	struct crypto_hash *hash;
 	u8 mk[SHA256_MAC_LEN], *cruft;
@@ -306,7 +307,7 @@ int compute_keys(EAP_PWD_group *grp, BN_CTX *bnctx, BIGNUM *k,
 		os_free(cruft);
 		return -1;
 	}
-	eap_pwd_h_update(hash, (u8 *) ciphersuite, sizeof(u32));
+	eap_pwd_h_update(hash, (const u8 *) ciphersuite, sizeof(u32));
 	offset = BN_num_bytes(grp->order) - BN_num_bytes(peer_scalar);
 	os_memset(cruft, 0, BN_num_bytes(grp->prime));
 	BN_bn2bin(peer_scalar, cruft + offset);

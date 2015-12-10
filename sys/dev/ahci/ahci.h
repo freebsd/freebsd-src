@@ -562,6 +562,20 @@ enum ahci_err_type {
 #define ATA_OUTSL_STRM(res, offset, addr, count) \
 	bus_write_multi_stream_4((res), (offset), (addr), (count))
 
+/*
+ * On some platforms, we must ensure proper interdevice write ordering.
+ * The AHCI interrupt status register must be updated in HW before
+ * registers in interrupt controller.
+ * Unfortunately, only way how we can do it is readback.
+ *
+ * Currently, only ARM is known to have this issue.
+ */
+#if defined(__arm__)
+#define ATA_RBL(res, offset) \
+	bus_read_4((res), (offset))
+#else
+#define ATA_RBL(res, offset)
+#endif
 
 #define AHCI_Q_NOFORCE		0x00000001
 #define AHCI_Q_NOPMP		0x00000002

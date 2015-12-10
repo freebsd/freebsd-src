@@ -15,8 +15,8 @@
 #include "AArch64MCExpr.h"
 #include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCContext.h"
-#include "llvm/MC/MCELF.h"
-#include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCStreamer.h"
+#include "llvm/MC/MCSymbolELF.h"
 #include "llvm/MC/MCValue.h"
 #include "llvm/Object/ELF.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -25,7 +25,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "aarch64symbolrefexpr"
 
-const AArch64MCExpr *AArch64MCExpr::Create(const MCExpr *Expr, VariantKind Kind,
+const AArch64MCExpr *AArch64MCExpr::create(const MCExpr *Expr, VariantKind Kind,
                                        MCContext &Ctx) {
   return new (Ctx) AArch64MCExpr(Expr, Kind);
 }
@@ -75,24 +75,24 @@ StringRef AArch64MCExpr::getVariantKindName() const {
   }
 }
 
-void AArch64MCExpr::PrintImpl(raw_ostream &OS) const {
+void AArch64MCExpr::printImpl(raw_ostream &OS, const MCAsmInfo *MAI) const {
   if (getKind() != VK_NONE)
     OS << getVariantKindName();
-  OS << *Expr;
+  Expr->print(OS, MAI);
 }
 
 void AArch64MCExpr::visitUsedExpr(MCStreamer &Streamer) const {
   Streamer.visitUsedExpr(*getSubExpr());
 }
 
-const MCSection *AArch64MCExpr::FindAssociatedSection() const {
+MCSection *AArch64MCExpr::findAssociatedSection() const {
   llvm_unreachable("FIXME: what goes here?");
 }
 
-bool AArch64MCExpr::EvaluateAsRelocatableImpl(MCValue &Res,
+bool AArch64MCExpr::evaluateAsRelocatableImpl(MCValue &Res,
                                             const MCAsmLayout *Layout,
 					    const MCFixup *Fixup) const {
-  if (!getSubExpr()->EvaluateAsRelocatable(Res, Layout, Fixup))
+  if (!getSubExpr()->evaluateAsRelocatable(Res, Layout, Fixup))
     return false;
 
   Res =
@@ -120,8 +120,7 @@ static void fixELFSymbolsInTLSFixupsImpl(const MCExpr *Expr, MCAssembler &Asm) {
     // We're known to be under a TLS fixup, so any symbol should be
     // modified. There should be only one.
     const MCSymbolRefExpr &SymRef = *cast<MCSymbolRefExpr>(Expr);
-    MCSymbolData &SD = Asm.getOrCreateSymbolData(SymRef.getSymbol());
-    MCELF::SetType(SD, ELF::STT_TLS);
+    cast<MCSymbolELF>(SymRef.getSymbol()).setType(ELF::STT_TLS);
     break;
   }
 

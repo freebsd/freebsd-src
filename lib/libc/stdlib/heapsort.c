@@ -138,6 +138,12 @@ typedef DECLARE_BLOCK(int, heapsort_block, const void *, const void *);
 	} \
 }
 
+#ifdef I_AM_HEAPSORT_B
+int heapsort_b(void *, size_t, size_t, heapsort_block);
+#else
+int heapsort(void *, size_t, size_t,
+    int (*)(const void *, const void *));
+#endif
 /*
  * Heapsort -- Knuth, Vol. 3, page 145.  Runs in O (N lg N), both average
  * and worst.  While heapsort is faster than the worst case of quicksort,

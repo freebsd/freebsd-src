@@ -2684,29 +2684,26 @@ bwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct ieee80211com *ic = ni->ni_ic;
 	struct bwn_softc *sc = ic->ic_softc;
 	struct bwn_mac *mac = sc->sc_curmac;
+	int error;
 
 	if ((sc->sc_flags & BWN_FLAG_RUNNING) == 0 ||
 	    mac->mac_status < BWN_MAC_STATUS_STARTED) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		return (ENETDOWN);
 	}
 
 	BWN_LOCK(sc);
 	if (bwn_tx_isfull(sc, m)) {
-		ieee80211_free_node(ni);
 		m_freem(m);
 		BWN_UNLOCK(sc);
 		return (ENOBUFS);
 	}
 
-	if (bwn_tx_start(sc, ni, m) != 0) {
-		if (ni != NULL)
-			ieee80211_free_node(ni);
-	}
-	sc->sc_watchdog_timer = 5;
+	error = bwn_tx_start(sc, ni, m);
+	if (error == 0)
+		sc->sc_watchdog_timer = 5;
 	BWN_UNLOCK(sc);
-	return (0);
+	return (error);
 }
 
 /*

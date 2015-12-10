@@ -1,6 +1,16 @@
 # $FreeBSD$
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
 
+# Only parse this if executing make in this directory, not in other places
+# in src that lack a Makefile, such as sys/dev/*.  Otherwise the MAKESYSPATH
+# will read this Makefile since it auto includes it into -I.
+.if ${.CURDIR} == ${.PARSEDIR}
+
+# Avoid creating a Makefile.depend here as it would get included anywhere
+# in the build, similar to the problem above.  It would cause dirdeps.mk
+# to be included more times than desired.
+UPDATE_DEPENDFILE= no
+
 .include <src.opts.mk>
 
 FILES=	\
@@ -8,6 +18,7 @@ FILES=	\
 	bsd.README \
 	bsd.arch.inc.mk \
 	bsd.compiler.mk \
+	bsd.confs.mk \
 	bsd.cpu.mk \
 	bsd.crunchgen.mk \
 	bsd.dep.mk \
@@ -52,7 +63,6 @@ FILES=	\
 	sys.dependfile.mk \
 	version_gen.awk
 
-NO_OBJ=
 FILESDIR=	${BINDIR}/mk
 
 .if ${MK_TESTS} != "no"
@@ -63,3 +73,4 @@ FILES+=	tap.test.mk
 .endif
 
 .include <bsd.prog.mk>
+.endif	# CURDIR == PARSEDIR

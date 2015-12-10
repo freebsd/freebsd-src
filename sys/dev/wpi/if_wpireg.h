@@ -520,6 +520,8 @@ struct wpi_cmd_data {
 	uint8_t		key[IEEE80211_KEYBUF_SIZE];
 	uint8_t		tkip[IEEE80211_WEP_MICLEN];
 	uint32_t	fnext;
+#define WPI_NEXT_STA_ID(id)	((id) << 8)
+
 	uint32_t	lifetime;
 #define WPI_LIFETIME_INFINITE	0xffffffff
 
@@ -978,7 +980,7 @@ static const struct wpi_pmgt {
 	uint32_t	rxtimeout;
 	uint32_t	txtimeout;
 	uint32_t	intval[5];
-	int		skip_dtim;
+	uint8_t		skip_dtim;
 } wpi_pmgt[WPI_NDTIMRANGES][WPI_NPOWERLEVELS] = {
 	/* DTIM <= 10 */
 	{

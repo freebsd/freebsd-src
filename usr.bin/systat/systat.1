@@ -28,7 +28,7 @@
 .\"	@(#)systat.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2013
+.Dd October 24, 2015
 .Dt SYSTAT 1
 .Os
 .Sh NAME
@@ -96,10 +96,12 @@ to be one of:
 .Ic ip6 ,
 .Ic netstat ,
 .Ic pigs ,
+.Ic sctp ,
 .Ic swap ,
 .Ic tcp ,
+.Ic vmstat ,
 or
-.Ic vmstat .
+.Ic zarc ,
 These displays can also be requested interactively (without the
 .Dq Fl )
 and are described in
@@ -241,6 +243,12 @@ except that it displays
 statistics.
 It does not display
 .Tn UDP statistics.
+.It Ic sctp
+Like
+.Ic icmp ,
+but with
+.Tn SCTP
+statistics.
 .It Ic tcp
 Like
 .Ic icmp ,
@@ -441,6 +449,8 @@ Display statistics averaged over the refresh interval (the default).
 .It Cm zero
 Reset running statistics to zero.
 .El
+.It Ic zarc
+display arc cache usage and hit/miss statistics.
 .It Ic netstat
 Display, in the lower window, network connections.
 By default,

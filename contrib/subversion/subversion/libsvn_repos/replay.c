@@ -39,6 +39,7 @@
 #include "private/svn_fspath.h"
 #include "private/svn_repos_private.h"
 #include "private/svn_delta_private.h"
+#include "private/svn_sorts_private.h"
 
 
 /*** Backstory ***/
@@ -183,11 +184,10 @@ add_subdir(svn_fs_root_t *source_root,
 
   for (phi = apr_hash_first(pool, props); phi; phi = apr_hash_next(phi))
     {
-      const void *key;
-      void *val;
+      const char *key = apr_hash_this_key(phi);
+      svn_string_t *val = apr_hash_this_val(phi);
 
       svn_pool_clear(subpool);
-      apr_hash_this(phi, &key, NULL, &val);
       SVN_ERR(editor->change_dir_prop(*dir_baton, key, val, subpool));
     }
 
@@ -200,17 +200,12 @@ add_subdir(svn_fs_root_t *source_root,
     {
       svn_fs_path_change2_t *change;
       svn_boolean_t readable = TRUE;
-      svn_fs_dirent_t *dent;
+      svn_fs_dirent_t *dent = apr_hash_this_val(hi);
       const char *copyfrom_path = NULL;
       svn_revnum_t copyfrom_rev = SVN_INVALID_REVNUM;
       const char *new_edit_path;
-      void *val;
 
       svn_pool_clear(subpool);
-
-      apr_hash_this(hi, NULL, NULL, &val);
-
-      dent = val;
 
       new_edit_path = svn_relpath_join(edit_path, dent->name, subpool);
 
@@ -308,9 +303,9 @@ add_subdir(svn_fs_root_t *source_root,
 
           for (phi = apr_hash_first(pool, props); phi; phi = apr_hash_next(phi))
             {
-              const void *key;
+              const char *key = apr_hash_this_key(phi);
+              svn_string_t *val = apr_hash_this_val(phi);
 
-              apr_hash_this(phi, &key, NULL, &val);
               SVN_ERR(editor->change_file_prop(file_baton, key, val, subpool));
             }
 
@@ -552,6 +547,17 @@ path_driver_cb_func(void **dir_baton,
     {
       svn_boolean_t src_readable;
       svn_fs_root_t *copyfrom_root;
+
+      /* E.g. when verifying corrupted repositories, their changed path
+         lists may contain an ADD for "/".  The delta path driver will
+         call us with a NULL parent in that case. */
+      if (*edit_path == 0)
+        return svn_error_create(SVN_ERR_FS_ALREADY_EXISTS, NULL,
+                                _("Root directory already exists."));
+
+      /* A NULL parent_baton will cause a segfault.  It should never be
+          NULL for non-root paths. */
+      SVN_ERR_ASSERT(parent_baton);
 
       /* Was this node copied? */
       SVN_ERR(fill_copyfrom(&copyfrom_root, &copyfrom_path, &copyfrom_rev,
@@ -882,16 +888,10 @@ svn_repos_replay2(svn_fs_root_t *root,
   changed_paths = apr_hash_make(pool);
   for (hi = apr_hash_first(pool, fs_changes); hi; hi = apr_hash_next(hi))
     {
-      const void *key;
-      void *val;
-      apr_ssize_t keylen;
-      const char *path;
-      svn_fs_path_change2_t *change;
+      const char *path = apr_hash_this_key(hi);
+      apr_ssize_t keylen = apr_hash_this_key_len(hi);
+      svn_fs_path_change2_t *change = apr_hash_this_val(hi);
       svn_boolean_t allowed = TRUE;
-
-      apr_hash_this(hi, &key, &keylen, &val);
-      path = key;
-      change = val;
 
       if (authz_read_func)
         SVN_ERR(authz_read_func(&allowed, root, path, authz_read_baton,
@@ -1063,7 +1063,7 @@ add_subdir_ev2(svn_fs_root_t *source_root,
     {
       svn_fs_path_change2_t *change;
       svn_boolean_t readable = TRUE;
-      svn_fs_dirent_t *dent = svn__apr_hash_index_val(hi);
+      svn_fs_dirent_t *dent = apr_hash_this_val(hi);
       const char *copyfrom_path = NULL;
       svn_revnum_t copyfrom_rev = SVN_INVALID_REVNUM;
       const char *child_relpath;
@@ -1457,8 +1457,8 @@ replay_node(svn_fs_root_t *root,
             }
 
           SVN_ERR(svn_editor_alter_file(editor, repos_relpath,
-                                        SVN_INVALID_REVNUM, props, checksum,
-                                        contents));
+                                        SVN_INVALID_REVNUM,
+                                        checksum, contents, props));
         }
 
       if (change->node_kind == svn_node_dir
@@ -1514,16 +1514,10 @@ svn_repos__replay_ev2(svn_fs_root_t *root,
   for (hi = apr_hash_first(scratch_pool, fs_changes); hi;
         hi = apr_hash_next(hi))
     {
-      const void *key;
-      void *val;
-      apr_ssize_t keylen;
-      const char *path;
-      svn_fs_path_change2_t *change;
+      const char *path = apr_hash_this_key(hi);
+      apr_ssize_t keylen = apr_hash_this_key_len(hi);
+      svn_fs_path_change2_t *change = apr_hash_this_val(hi);
       svn_boolean_t allowed = TRUE;
-
-      apr_hash_this(hi, &key, &keylen, &val);
-      path = key;
-      change = val;
 
       if (authz_read_func)
         SVN_ERR(authz_read_func(&allowed, root, path, authz_read_baton,
@@ -1564,7 +1558,7 @@ svn_repos__replay_ev2(svn_fs_root_t *root,
   /* Sort the paths.  Although not strictly required by the API, this has
      the pleasant side effect of maintaining a consistent ordering of
      dumpfile contents. */
-  qsort(paths->elts, paths->nelts, paths->elt_size, svn_sort_compare_paths);
+  svn_sort__array(paths, svn_sort_compare_paths);
 
   /* Now actually handle the various paths. */
   iterpool = svn_pool_create(scratch_pool);

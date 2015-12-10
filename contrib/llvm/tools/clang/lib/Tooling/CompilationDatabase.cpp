@@ -29,9 +29,8 @@
 #include "llvm/Support/Path.h"
 #include <sstream>
 #include <system_error>
-
-namespace clang {
-namespace tooling {
+using namespace clang;
+using namespace tooling;
 
 CompilationDatabase::~CompilationDatabase() {}
 
@@ -109,6 +108,7 @@ CompilationDatabase::autoDetectFromDirectory(StringRef SourceDir,
 
 CompilationDatabasePlugin::~CompilationDatabasePlugin() {}
 
+namespace {
 // Helper for recursively searching through a chain of actions and collecting
 // all inputs, direct and indirect, of compile jobs.
 struct CompileJobAnalyzer {
@@ -156,8 +156,8 @@ public:
   // recording for our own purposes.
   UnusedInputDiagConsumer(DiagnosticConsumer *Other) : Other(Other) {}
 
-  virtual void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
-                                const Diagnostic &Info) override {
+  void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
+                        const Diagnostic &Info) override {
     if (Info.getID() == clang::diag::warn_drv_input_file_unused) {
       // Arg 1 for this diagnostic is the option that didn't get used.
       UnusedInputs.push_back(Info.getArgStdStr(0));
@@ -183,6 +183,7 @@ struct MatchesAny {
 private:
   ArrayRef<std::string> Arr;
 };
+} // namespace
 
 /// \brief Strips any positional args and possible argv[0] from a command-line
 /// provided by the user to construct a FixedCompilationDatabase.
@@ -249,14 +250,11 @@ static bool stripPositionalArgs(std::vector<const char *> Args,
 
   CompileJobAnalyzer CompileAnalyzer;
 
-  for (const auto &Job : Jobs) {
-    if (Job.getKind() == driver::Job::CommandClass) {
-      const driver::Command &Cmd = cast<driver::Command>(Job);
-      // Collect only for Assemble jobs. If we do all jobs we get duplicates
-      // since Link jobs point to Assemble jobs as inputs.
-      if (Cmd.getSource().getKind() == driver::Action::AssembleJobClass)
-        CompileAnalyzer.run(&Cmd.getSource());
-    }
+  for (const auto &Cmd : Jobs) {
+    // Collect only for Assemble jobs. If we do all jobs we get duplicates
+    // since Link jobs point to Assemble jobs as inputs.
+    if (Cmd.getSource().getKind() == driver::Action::AssembleJobClass)
+      CompileAnalyzer.run(&Cmd.getSource());
   }
 
   if (CompileAnalyzer.Inputs.empty()) {
@@ -282,11 +280,9 @@ static bool stripPositionalArgs(std::vector<const char *> Args,
   return true;
 }
 
-FixedCompilationDatabase *
-FixedCompilationDatabase::loadFromCommandLine(int &Argc,
-                                              const char **Argv,
-                                              Twine Directory) {
-  const char **DoubleDash = std::find(Argv, Argv + Argc, StringRef("--"));
+FixedCompilationDatabase *FixedCompilationDatabase::loadFromCommandLine(
+    int &Argc, const char *const *Argv, Twine Directory) {
+  const char *const *DoubleDash = std::find(Argv, Argv + Argc, StringRef("--"));
   if (DoubleDash == Argv + Argc)
     return nullptr;
   std::vector<const char *> CommandLine(DoubleDash + 1, Argv + Argc);
@@ -303,8 +299,7 @@ FixedCompilationDatabase(Twine Directory, ArrayRef<std::string> CommandLine) {
   std::vector<std::string> ToolCommandLine(1, "clang-tool");
   ToolCommandLine.insert(ToolCommandLine.end(),
                          CommandLine.begin(), CommandLine.end());
-  CompileCommands.push_back(
-      CompileCommand(Directory, std::move(ToolCommandLine)));
+  CompileCommands.emplace_back(Directory, std::move(ToolCommandLine));
 }
 
 std::vector<CompileCommand>
@@ -323,6 +318,9 @@ std::vector<CompileCommand>
 FixedCompilationDatabase::getAllCompileCommands() const {
   return std::vector<CompileCommand>();
 }
+
+namespace clang {
+namespace tooling {
 
 // This anchor is used to force the linker to link in the generated object file
 // and thus register the JSONCompilationDatabasePlugin.

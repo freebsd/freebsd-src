@@ -109,7 +109,7 @@ protected:
   SymbolData(Kind k, SymbolID sym) : SymExpr(k), Sym(sym) {}
 
 public:
-  virtual ~SymbolData() {}
+  ~SymbolData() override {}
 
   SymbolID getSymbolID() const { return Sym; }
 
@@ -588,8 +588,6 @@ public:
                StoreManager &storeMgr)
    : LCtx(Ctx), Loc(s), SymMgr(symmgr),
      reapedStore(nullptr, storeMgr) {}
-
-  ~SymbolReaper() {}
 
   const LocationContext *getLocationContext() const { return LCtx; }
 

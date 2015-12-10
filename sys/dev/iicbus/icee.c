@@ -27,6 +27,9 @@ __FBSDID("$FreeBSD$");
 /*
  * Generic IIC eeprom support, modeled after the AT24C family of products.
  */
+
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -37,32 +40,73 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/uio.h>
 #include <machine/bus.h>
+
+#ifdef FDT
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
+
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
 
 #include "iicbus_if.h"
 
-#define	IIC_M_WR	0	/* write operation */
+/*
+ * AT24 parts have a "write page size" that differs per-device, and a "read page
+ * size" that is always equal to the full device size.  We define maximum values
+ * here to limit how long we occupy the bus with a single transfer, and because
+ * there are temporary buffers of these sizes allocated on the stack.
+ */
 #define	MAX_RD_SZ	256	/* Largest read size we support */
-#define MAX_WR_SZ	256	/* Largest write size we support */
+#define	MAX_WR_SZ	256	/* Largest write size we support */
 
 struct icee_softc {
-	device_t	sc_dev;		/* Myself */
-	struct sx	sc_lock;	/* basically a perimeter lock */
+	device_t	dev;		/* Myself */
 	struct cdev	*cdev;		/* user interface */
-	int		addr;
+	int		addr;		/* Slave address on the bus */
 	int		size;		/* How big am I? */
-	int		type;		/* What type 8 or 16 bit? */
-	int		rd_sz;		/* What's the read page size */
+	int		type;		/* What address type 8 or 16 bit? */
 	int		wr_sz;		/* What's the write page size */
 };
 
-#define ICEE_LOCK(_sc)		sx_xlock(&(_sc)->sc_lock)
-#define	ICEE_UNLOCK(_sc)	sx_xunlock(&(_sc)->sc_lock)
-#define ICEE_LOCK_INIT(_sc)	sx_init(&_sc->sc_lock, "icee")
-#define ICEE_LOCK_DESTROY(_sc)	sx_destroy(&_sc->sc_lock);
-#define ICEE_ASSERT_LOCKED(_sc)	sx_assert(&_sc->sc_lock, SA_XLOCKED);
-#define ICEE_ASSERT_UNLOCKED(_sc) sx_assert(&_sc->sc_lock, SA_UNLOCKED);
+#ifdef FDT
+struct eeprom_desc {
+	int	    type;
+	int	    size;
+	int	    wr_sz;
+	const char *name;
+};
+
+static struct eeprom_desc type_desc[] = {
+	{ 8,        128,   8, "AT24C01"},
+	{ 8,        256,   8, "AT24C02"},
+	{ 8,        512,  16, "AT24C04"},
+	{ 8,       1024,  16, "AT24C08"},
+	{ 8,   2 * 1024,  16, "AT24C16"},
+	{16,   4 * 1024,  32, "AT24C32"},
+	{16,   8 * 1024,  32, "AT24C64"},
+	{16,  16 * 1024,  64, "AT24C128"},
+	{16,  32 * 1024,  64, "AT24C256"},
+	{16,  64 * 1024, 128, "AT24C512"},
+	{16, 128 * 1024, 256, "AT24CM01"},
+};
+
+static struct ofw_compat_data compat_data[] = {
+	{"atmel,24c01",	  (uintptr_t)(&type_desc[0])},
+	{"atmel,24c02",	  (uintptr_t)(&type_desc[1])},
+	{"atmel,24c04",	  (uintptr_t)(&type_desc[2])},
+	{"atmel,24c08",	  (uintptr_t)(&type_desc[3])},
+	{"atmel,24c16",	  (uintptr_t)(&type_desc[4])},
+	{"atmel,24c32",	  (uintptr_t)(&type_desc[5])},
+	{"atmel,24c64",	  (uintptr_t)(&type_desc[6])},
+	{"atmel,24c128",  (uintptr_t)(&type_desc[7])},
+	{"atmel,24c256",  (uintptr_t)(&type_desc[8])},
+	{"atmel,24c512",  (uintptr_t)(&type_desc[9])},
+	{"atmel,24c1024", (uintptr_t)(&type_desc[10])},
+	{NULL,		  (uintptr_t)NULL},
+};
+#endif
+
 #define CDEV2SOFTC(dev)		((dev)->si_drv1)
 
 /* cdev routines */
@@ -81,52 +125,92 @@ static struct cdevsw icee_cdevsw =
 	.d_write = icee_write
 };
 
+#ifdef FDT
 static int
 icee_probe(device_t dev)
 {
-	/* XXX really probe? -- not until we know the size... */
+	struct eeprom_desc *d;
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	d = (struct eeprom_desc *)
+	    ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	if (d == NULL)
+		return (ENXIO);
+
+	device_set_desc(dev, d->name);
+	return (BUS_PROBE_DEFAULT);
+}
+
+static void
+icee_init(struct icee_softc *sc)
+{
+	struct eeprom_desc *d;
+
+	d = (struct eeprom_desc *)
+	    ofw_bus_search_compatible(sc->dev, compat_data)->ocd_data;
+	if (d == NULL)
+		return; /* attach will see sc->size == 0 and return error */
+
+	sc->size  = d->size;
+	sc->type  = d->type;
+	sc->wr_sz = d->wr_sz;
+}
+#else /* !FDT */
+static int
+icee_probe(device_t dev)
+{
+
 	device_set_desc(dev, "I2C EEPROM");
 	return (BUS_PROBE_NOWILDCARD);
 }
+
+static void
+icee_init(struct icee_softc *sc)
+{
+	const char *dname;
+	int dunit;
+
+	dname = device_get_name(sc->dev);
+	dunit = device_get_unit(sc->dev);
+	resource_int_value(dname, dunit, "size", &sc->size);
+	resource_int_value(dname, dunit, "type", &sc->type);
+	resource_int_value(dname, dunit, "wr_sz", &sc->wr_sz);
+}
+#endif /* FDT */
 
 static int
 icee_attach(device_t dev)
 {
 	struct icee_softc *sc = device_get_softc(dev);
-	const char *dname;
-	int dunit, err;
 
-	sc->sc_dev = dev;
+	sc->dev = dev;
 	sc->addr = iicbus_get_addr(dev);
-	err = 0;
-	dname = device_get_name(dev);
-	dunit = device_get_unit(dev);
-	resource_int_value(dname, dunit, "size", &sc->size);
-	resource_int_value(dname, dunit, "type", &sc->type);
-	resource_int_value(dname, dunit, "rd_sz", &sc->rd_sz);
-	if (sc->rd_sz > MAX_RD_SZ)
-		sc->rd_sz = MAX_RD_SZ;
-	resource_int_value(dname, dunit, "wr_sz", &sc->wr_sz);
+	icee_init(sc);
+	if (sc->size == 0 || sc->type == 0 || sc->wr_sz == 0) {
+		device_printf(sc->dev, "Missing config data, "
+		    "these cannot be zero: size %d type %d wr_sz %d\n",
+		    sc->size, sc->type, sc->wr_sz);
+		return (EINVAL);
+	}
 	if (bootverbose)
-		device_printf(dev, "size: %d bytes bus_width: %d-bits\n",
+		device_printf(dev, "size: %d bytes, addressing: %d-bits\n",
 		    sc->size, sc->type);
 	sc->cdev = make_dev(&icee_cdevsw, device_get_unit(dev), UID_ROOT,
 	    GID_WHEEL, 0600, "icee%d", device_get_unit(dev));
 	if (sc->cdev == NULL) {
-		err = ENOMEM;
-		goto out;
+		return (ENOMEM);
 	}
 	sc->cdev->si_drv1 = sc;
-	ICEE_LOCK_INIT(sc);
-out:;
-	return (err);
+	return (0);
 }
 
 static int 
 icee_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 
-    	return (0);
+	return (0);
 }
 
 static int
@@ -155,12 +239,11 @@ icee_read(struct cdev *dev, struct uio *uio, int ioflag)
 		return (EIO);
 	if (sc->type != 8 && sc->type != 16)
 		return (EINVAL);
-	ICEE_LOCK(sc);
 	slave = error = 0;
 	while (uio->uio_resid > 0) {
 		if (uio->uio_offset >= sc->size)
 			break;
-		len = MIN(sc->rd_sz - (uio->uio_offset & (sc->rd_sz - 1)),
+		len = MIN(MAX_RD_SZ - (uio->uio_offset & (MAX_RD_SZ - 1)),
 		    uio->uio_resid);
 		switch (sc->type) {
 		case 8:
@@ -179,14 +262,15 @@ icee_read(struct cdev *dev, struct uio *uio, int ioflag)
 		}
 		for (i = 0; i < 2; i++)
 			msgs[i].slave = slave;
-		error = iicbus_transfer(sc->sc_dev, msgs, 2);
-		if (error)
+		error = iicbus_transfer_excl(sc->dev, msgs, 2, IIC_INTRWAIT);
+		if (error) {
+			error = iic2errno(error);
 			break;
+		}
 		error = uiomove(data, len, uio);
 		if (error)
 			break;
 	}
-	ICEE_UNLOCK(sc);
 	return (error);
 }
 
@@ -214,7 +298,7 @@ icee_write(struct cdev *dev, struct uio *uio, int ioflag)
 		return (EIO);
 	if (sc->type != 8 && sc->type != 16)
 		return (EINVAL);
-	ICEE_LOCK(sc);
+
 	slave = error = 0;
 	while (uio->uio_resid > 0) {
 		if (uio->uio_offset >= sc->size)
@@ -238,23 +322,23 @@ icee_write(struct cdev *dev, struct uio *uio, int ioflag)
 		error = uiomove(data + sc->type / 8, len, uio);
 		if (error)
 			break;
-		error = iicbus_transfer(sc->sc_dev, wr, 1);
-		if (error)
+		error = iicbus_transfer_excl(sc->dev, wr, 1, IIC_INTRWAIT);
+		if (error) {
+			error = iic2errno(error);
 			break;
-		// Now wait for the write to be done by trying to read
-		// the part.
+		}
+		/* Read after write to wait for write-done. */
 		waitlimit = 10000;
 		rd[0].slave = slave;
-		do 
-		{
-		    error = iicbus_transfer(sc->sc_dev, rd, 1);
+		do {
+			error = iicbus_transfer_excl(sc->dev, rd, 1,
+			    IIC_INTRWAIT);
 		} while (waitlimit-- > 0 && error != 0);
 		if (error) {
-		    printf("waiting for write failed %d\n", error);
-		    break;
+			error = iic2errno(error);
+			break;
 		}
 	}
-	ICEE_UNLOCK(sc);
 	return error;
 }
 

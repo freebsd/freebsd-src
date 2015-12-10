@@ -7,13 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "lldb/lldb-python.h"
-
 #include "lldb/DataFormatters/CXXFormatterFunctions.h"
 
 #include "lldb/Core/DataBufferHeap.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Error.h"
+#include "lldb/Core/FormatEntity.h"
 #include "lldb/Core/Stream.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectConstResult.h"
@@ -139,7 +138,7 @@ lldb_private::formatters::LibcxxVectorBoolSyntheticFrontEnd::GetChildAtIndex (si
             return ValueObjectSP();
     }
     bool bit_set = ((byte & mask) != 0);
-    DataBufferSP buffer_sp(new DataBufferHeap(m_bool_type.GetByteSize(),0));
+    DataBufferSP buffer_sp(new DataBufferHeap(m_bool_type.GetByteSize(nullptr),0));
     if (bit_set && buffer_sp && buffer_sp->GetBytes())
         *(buffer_sp->GetBytes()) = 1; // regardless of endianness, anything non-zero is true
     StreamString name; name.Printf("[%" PRIu64 "]", (uint64_t)idx);
@@ -265,7 +264,7 @@ lldb_private::formatters::LibCxxMapIteratorSyntheticFrontEnd::Update()
                                                      NULL,
                                                      NULL,
                                                      NULL,
-                                                     ValueObject::GetValueForExpressionPathOptions().DontCheckDotVsArrowSyntax().DontAllowSyntheticChildren(),
+                                                     ValueObject::GetValueForExpressionPathOptions().DontCheckDotVsArrowSyntax().SetSyntheticChildrenTraversal(ValueObject::GetValueForExpressionPathOptions::SyntheticChildrenTraversal::None),
                                                      NULL).get();
     
     return false;
@@ -460,5 +459,5 @@ lldb_private::formatters::LibcxxContainerSummaryProvider (ValueObject& valobj, S
             return false;
         stream.Printf("0x%016" PRIx64 " ", value);
     }
-    return Debugger::FormatPrompt("size=${svar%#}", NULL, NULL, NULL, stream, &valobj);
+    return FormatEntity::FormatStringRef("size=${svar%#}", stream, NULL, NULL, NULL, &valobj, false, false);
 }

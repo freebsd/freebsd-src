@@ -5,7 +5,7 @@
 
 PROG=   ibsysstat
 SRCS=   ibsysstat.c ibdiag_common.c
-LDADD=	-libumad -libcommon -libmad
+LIBADD= ibumad ibcommon ibmad
 CFLAGS+= -I${DIAGPATH}/include
 MAN=	ibsysstat.8
 

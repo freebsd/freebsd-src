@@ -241,14 +241,6 @@ main(int argc, char *argv[])
 	/* timer initialization */
 	rtadvd_timer_init();
 
-#ifndef HAVE_ARC4RANDOM
-	/* random value initialization */
-#ifdef __FreeBSD__
-	srandomdev();
-#else
-	srandom((unsigned long)time(NULL));
-#endif
-#endif
 	pfh = pidfile_open(pidfilename, 0600, &otherpid);
 	if (pfh == NULL) {
 		if (errno == EEXIST)
@@ -1015,11 +1007,7 @@ set_short_delay(struct ifinfo *ifi)
 	 * delay and send the advertisement at the
 	 * already-scheduled time. RFC 4861 6.2.6
 	 */
-#ifdef HAVE_ARC4RANDOM
 	delay = arc4random_uniform(MAX_RA_DELAY_TIME);
-#else
-	delay = random() % MAX_RA_DELAY_TIME;
-#endif
 	interval.tv_sec = 0;
 	interval.tv_nsec = delay * 1000;
 	rest = rtadvd_timer_rest(ifi->ifi_ra_timer);
@@ -1893,13 +1881,8 @@ ra_timer_update(void *arg, struct timespec *tm)
 		 * MaxRtrAdvInterval (RFC4861 6.2.4).
 		 */
 		interval = rai->rai_mininterval;
-#ifdef HAVE_ARC4RANDOM
 		interval += arc4random_uniform(rai->rai_maxinterval -
 		    rai->rai_mininterval);
-#else
-		interval += random() % (rai->rai_maxinterval -
-		    rai->rai_mininterval);
-#endif
 		break;
 	case IFI_STATE_TRANSITIVE:
 		/*

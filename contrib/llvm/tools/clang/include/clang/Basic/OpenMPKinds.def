@@ -69,6 +69,9 @@
 #ifndef OPENMP_SCHEDULE_KIND
 #define OPENMP_SCHEDULE_KIND(Name)
 #endif
+#ifndef OPENMP_DEPEND_KIND
+#define OPENMP_DEPEND_KIND(Name)
+#endif
 
 // OpenMP directives.
 OPENMP_DIRECTIVE(threadprivate)
@@ -84,15 +87,18 @@ OPENMP_DIRECTIVE(critical)
 OPENMP_DIRECTIVE(taskyield)
 OPENMP_DIRECTIVE(barrier)
 OPENMP_DIRECTIVE(taskwait)
+OPENMP_DIRECTIVE(taskgroup)
 OPENMP_DIRECTIVE(flush)
 OPENMP_DIRECTIVE(ordered)
 OPENMP_DIRECTIVE(atomic)
 OPENMP_DIRECTIVE(target)
 OPENMP_DIRECTIVE(teams)
+OPENMP_DIRECTIVE(cancel)
 OPENMP_DIRECTIVE_EXT(parallel_for, "parallel for")
 OPENMP_DIRECTIVE_EXT(parallel_for_simd, "parallel for simd")
 OPENMP_DIRECTIVE_EXT(parallel_sections, "parallel sections")
 OPENMP_DIRECTIVE_EXT(for_simd, "for simd")
+OPENMP_DIRECTIVE_EXT(cancellation_point, "cancellation point")
 
 // OpenMP clauses.
 OPENMP_CLAUSE(if, OMPIfClause)
@@ -122,6 +128,7 @@ OPENMP_CLAUSE(write, OMPWriteClause)
 OPENMP_CLAUSE(update, OMPUpdateClause)
 OPENMP_CLAUSE(capture, OMPCaptureClause)
 OPENMP_CLAUSE(seq_cst, OMPSeqCstClause)
+OPENMP_CLAUSE(depend, OMPDependClause)
 
 // Clauses allowed for OpenMP directive 'parallel'.
 OPENMP_PARALLEL_CLAUSE(if)
@@ -194,6 +201,11 @@ OPENMP_SCHEDULE_KIND(guided)
 OPENMP_SCHEDULE_KIND(auto)
 OPENMP_SCHEDULE_KIND(runtime)
 
+// Static attributes for 'depend' clause.
+OPENMP_DEPEND_KIND(in)
+OPENMP_DEPEND_KIND(out)
+OPENMP_DEPEND_KIND(inout)
+
 // Clauses allowed for OpenMP directive 'parallel for'.
 OPENMP_PARALLEL_FOR_CLAUSE(if)
 OPENMP_PARALLEL_FOR_CLAUSE(num_threads)
@@ -247,6 +259,7 @@ OPENMP_TASK_CLAUSE(firstprivate)
 OPENMP_TASK_CLAUSE(shared)
 OPENMP_TASK_CLAUSE(untied)
 OPENMP_TASK_CLAUSE(mergeable)
+OPENMP_TASK_CLAUSE(depend)
 
 // Clauses allowed for OpenMP directive 'atomic'.
 OPENMP_ATOMIC_CLAUSE(read)
@@ -267,6 +280,7 @@ OPENMP_TEAMS_CLAUSE(firstprivate)
 OPENMP_TEAMS_CLAUSE(shared)
 OPENMP_TEAMS_CLAUSE(reduction)
 
+#undef OPENMP_DEPEND_KIND
 #undef OPENMP_SCHEDULE_KIND
 #undef OPENMP_PROC_BIND_KIND
 #undef OPENMP_DEFAULT_KIND

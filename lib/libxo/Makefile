@@ -1,21 +1,25 @@
 # $FreeBSD$
 
-LIBXO=	${.CURDIR:H:H}/contrib/libxo
+SHLIBDIR?=      /lib
 
-.PATH:	${LIBXO}/libxo
+.include <src.opts.mk>
+
+LIBXOSRC=	${SRCTOP}/contrib/libxo
+
+.PATH:	${LIBXOSRC}/libxo
 
 LIB=	xo
 SHLIB_MAJOR=0
 
-SHLIBDIR?=      /lib
-
 SRCS=	libxo.c xo_encoder.c xo_syslog.c
 
-CFLAGS+=-I${LIBXO}/libxo
+CFLAGS+=-I${LIBXOSRC}/libxo
 CFLAGS+=-DXO_ENCODERDIR=\"/usr/lib/libxo/encoder\"
 
 INCS=	xo.h xo_encoder.h
 INCSDIR=${INCLUDEDIR}/libxo
+
+LIBADD=	util
 
 WARNS?= 5
 
@@ -101,5 +105,9 @@ MLINKS=	xo_attr.3 xo_attr_h.3 \
 	xo_syslog.3 xo_open_log.3 \
 	xo_syslog.3 xo_set_logmask.3 \
 	xo_syslog.3 xo_vsyslog.3
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.lib.mk>

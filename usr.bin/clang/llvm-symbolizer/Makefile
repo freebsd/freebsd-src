@@ -8,7 +8,8 @@ SRCDIR=	tools/llvm-symbolizer
 SRCS=	llvm-symbolizer.cpp \
 	LLVMSymbolize.cpp
 
-LIBDEPS=llvmdebuginfo \
+LIBDEPS=llvmdebuginfopdb \
+	llvmdebuginfodwarf \
 	llvmobject \
 	llvmmcparser \
 	llvmmc \
@@ -16,7 +17,6 @@ LIBDEPS=llvmdebuginfo \
 	llvmcore \
 	llvmsupport
 
-.include "../clang.prog.mk"
+LIBADD=	z
 
-DPADD+= ${LIBZ}
-LDADD+= -lz
+.include "../clang.prog.mk"

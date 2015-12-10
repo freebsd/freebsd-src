@@ -131,19 +131,27 @@ using ::getenv;
 using ::system;
 using ::bsearch;
 using ::qsort;
+#undef abs
 using ::abs;
+#undef labs
 using ::labs;
 #ifndef _LIBCPP_HAS_NO_LONG_LONG
+#undef llabs
 using ::llabs;
 #endif // _LIBCPP_HAS_NO_LONG_LONG
+#undef div
 using ::div;
+#undef ldiv
 using ::ldiv;
 #ifndef _LIBCPP_HAS_NO_LONG_LONG
+#undef lldiv
 using ::lldiv;
 #endif // _LIBCPP_HAS_NO_LONG_LONG
+#ifndef _LIBCPP_HAS_NO_THREAD_UNSAFE_C_FUNCTIONS
 using ::mblen;
 using ::mbtowc;
 using ::wctomb;
+#endif
 using ::mbstowcs;
 using ::wcstombs;
 #ifdef _LIBCPP_HAS_QUICK_EXIT

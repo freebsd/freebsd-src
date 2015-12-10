@@ -457,12 +457,7 @@ pwrsave_flushq(struct ieee80211_node *ni)
 		KASSERT((m->m_flags & M_ENCAP),
 		    ("%s: parentq with non-M_ENCAP frame!\n",
 		    __func__));
-		/*
-		 * For encaped frames, we need to free the node
-		 * reference upon failure.
-		 */
-		if (ieee80211_parent_xmitpkt(ic, m) != 0)
-			ieee80211_free_node(ni);
+		(void) ieee80211_parent_xmitpkt(ic, m);
 	}
 
 	/* VAP frames, aren't encapsulated */

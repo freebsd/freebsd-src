@@ -270,7 +270,7 @@ __libc_free_tls(void *tcb __unused, size_t tcbsize __unused,
 extern char **environ;
 
 void
-_init_tls()
+_init_tls(void)
 {
 #ifndef PIC
 	Elf_Addr *sp;

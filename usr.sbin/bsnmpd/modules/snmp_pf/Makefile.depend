@@ -10,7 +10,6 @@ DIRDEPS = \
 	lib/libbsnmp/libbsnmp \
 	lib/libc \
 	lib/libcompiler_rt \
-	usr.bin/xinstall.host \
 	usr.sbin/bsnmpd/modules \
 
 

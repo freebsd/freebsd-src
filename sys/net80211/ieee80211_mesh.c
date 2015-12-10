@@ -434,13 +434,12 @@ mesh_rt_flush_invalid(struct ieee80211vap *vap)
 	MESH_RT_UNLOCK(ms);
 }
 
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 int
 ieee80211_mesh_register_proto_path(const struct ieee80211_mesh_proto_path *mpp)
 {
 	int i, firstempty = -1;
 
-	for (i = 0; i < N(mesh_proto_paths); i++) {
+	for (i = 0; i < nitems(mesh_proto_paths); i++) {
 		if (strncmp(mpp->mpp_descr, mesh_proto_paths[i].mpp_descr,
 		    IEEE80211_MESH_PROTO_DSZ) == 0)
 			return EEXIST;
@@ -460,7 +459,7 @@ ieee80211_mesh_register_proto_metric(const struct
 {
 	int i, firstempty = -1;
 
-	for (i = 0; i < N(mesh_proto_metrics); i++) {
+	for (i = 0; i < nitems(mesh_proto_metrics); i++) {
 		if (strncmp(mpm->mpm_descr, mesh_proto_metrics[i].mpm_descr,
 		    IEEE80211_MESH_PROTO_DSZ) == 0)
 			return EEXIST;
@@ -480,7 +479,7 @@ mesh_select_proto_path(struct ieee80211vap *vap, const char *name)
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 	int i;
 
-	for (i = 0; i < N(mesh_proto_paths); i++) {
+	for (i = 0; i < nitems(mesh_proto_paths); i++) {
 		if (strcasecmp(mesh_proto_paths[i].mpp_descr, name) == 0) {
 			ms->ms_ppath = &mesh_proto_paths[i];
 			return 0;
@@ -495,7 +494,7 @@ mesh_select_proto_metric(struct ieee80211vap *vap, const char *name)
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 	int i;
 
-	for (i = 0; i < N(mesh_proto_metrics); i++) {
+	for (i = 0; i < nitems(mesh_proto_metrics); i++) {
 		if (strcasecmp(mesh_proto_metrics[i].mpm_descr, name) == 0) {
 			ms->ms_pmetric = &mesh_proto_metrics[i];
 			return 0;
@@ -503,7 +502,6 @@ mesh_select_proto_metric(struct ieee80211vap *vap, const char *name)
 	}
 	return ENOENT;
 }
-#undef	N
 
 static void
 mesh_gatemode_setup(struct ieee80211vap *vap)
@@ -1241,12 +1239,8 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 	IEEE80211_TX_LOCK(ic);
 	err = ieee80211_parent_xmitpkt(ic, mcopy);
 	IEEE80211_TX_UNLOCK(ic);
-	if (err != 0) {
-		/* NB: IFQ_HANDOFF reclaims mbuf */
-		ieee80211_free_node(ni);
-	} else {
+	if (!err)
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-	}
 }
 
 static struct mbuf *

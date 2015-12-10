@@ -7,19 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MIUtilSystemLinux.cpp
-//
-// Overview:    CMIUtilSystemLinux implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
-#if defined(__FreeBSD__) || defined(__linux__)
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__linux__)
 
 // In-house headers:
 #include "MIUtilSystemLinux.h"
@@ -90,7 +78,7 @@ CMIUtilSystemLinux::GetOSLastError(void) const
 // Details: Retrieves the fully qualified path for the this application. If the function
 //          fails the string is filled with the error message.
 // Type:    Method.
-// Args:    vrwFileNamePath - (W) The excutable's name and path or last error description.
+// Args:    vrwFileNamePath - (W) The executable's name and path or last error description.
 // Return:  MIstatus::success - Functional succeeded.
 //          MIstatus::failure - Functional failed.
 // Throws:  None.

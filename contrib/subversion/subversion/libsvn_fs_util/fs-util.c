@@ -26,15 +26,25 @@
 #include <apr_pools.h>
 #include <apr_strings.h>
 
+#include "svn_private_config.h"
 #include "svn_hash.h"
 #include "svn_fs.h"
 #include "svn_dirent_uri.h"
 #include "svn_path.h"
-#include "svn_private_config.h"
+#include "svn_version.h"
 
 #include "private/svn_fs_util.h"
 #include "private/svn_fspath.h"
+#include "private/svn_subr_private.h"
 #include "../libsvn_fs/fs-loader.h"
+
+
+const svn_version_t *
+svn_fs_util__version(void)
+{
+  SVN_VERSION_BODY;
+}
+
 
 /* Return TRUE, if PATH of PATH_LEN > 0 chars starts with a '/' and does
  * not end with a '/' and does not contain duplicate '/'.
@@ -196,6 +206,8 @@ svn_fs__path_change_create_internal(const svn_fs_id_t *node_rev_id,
   change = apr_pcalloc(pool, sizeof(*change));
   change->node_rev_id = node_rev_id;
   change->change_kind = change_kind;
+  change->mergeinfo_mod = svn_tristate_unknown;
+  change->copyfrom_rev = SVN_INVALID_REVNUM;
 
   return change;
 }
@@ -211,8 +223,8 @@ svn_fs__append_to_merged_froms(svn_mergeinfo_t *output,
   *output = apr_hash_make(pool);
   for (hi = apr_hash_first(pool, input); hi; hi = apr_hash_next(hi))
     {
-      const char *path = svn__apr_hash_index_key(hi);
-      svn_rangelist_t *rangelist = svn__apr_hash_index_val(hi);
+      const char *path = apr_hash_this_key(hi);
+      svn_rangelist_t *rangelist = apr_hash_this_val(hi);
 
       svn_hash_sets(*output,
                     svn_fspath__join(path, rel_path, pool),
@@ -220,4 +232,103 @@ svn_fs__append_to_merged_froms(svn_mergeinfo_t *output,
     }
 
   return SVN_NO_ERROR;
+}
+
+/* Set the version info in *VERSION to COMPAT_MAJOR and COMPAT_MINOR, if
+   the current value refers to a newer version than that.
+ */
+static void
+add_compatility(svn_version_t *version,
+                int compat_major,
+                int compat_minor)
+{
+  if (   version->major > compat_major
+      || (version->major == compat_major && version->minor > compat_minor))
+    {
+      version->major = compat_major;
+      version->minor = compat_minor;
+    }
+}
+
+svn_error_t *
+svn_fs__compatible_version(svn_version_t **compatible_version,
+                           apr_hash_t *config,
+                           apr_pool_t *pool)
+{
+  svn_version_t *version;
+  const char *compatible;
+
+  /* set compatible version according to generic option.
+     Make sure, we are always compatible to the current SVN version
+     (or older). */
+  compatible = svn_hash_gets(config, SVN_FS_CONFIG_COMPATIBLE_VERSION);
+  if (compatible)
+    {
+      SVN_ERR(svn_version__parse_version_string(&version,
+                                                compatible, pool));
+      add_compatility(version,
+                      svn_subr_version()->major,
+                      svn_subr_version()->minor);
+    }
+  else
+    {
+      version = apr_pmemdup(pool, svn_subr_version(), sizeof(*version));
+    }
+
+  /* specific options take precedence.
+     Let the lowest version compatibility requirement win */
+  if (svn_hash_gets(config, SVN_FS_CONFIG_PRE_1_4_COMPATIBLE))
+    add_compatility(version, 1, 3);
+  else if (svn_hash_gets(config, SVN_FS_CONFIG_PRE_1_5_COMPATIBLE))
+    add_compatility(version, 1, 4);
+  else if (svn_hash_gets(config, SVN_FS_CONFIG_PRE_1_6_COMPATIBLE))
+    add_compatility(version, 1, 5);
+  else if (svn_hash_gets(config, SVN_FS_CONFIG_PRE_1_8_COMPATIBLE))
+    add_compatility(version, 1, 7);
+
+  /* we ignored the patch level and tag so far.
+   * Give them a defined value. */
+  version->patch = 0;
+  version->tag = "";
+
+  /* done here */
+  *compatible_version = version;
+  return SVN_NO_ERROR;
+}
+
+svn_boolean_t
+svn_fs__prop_lists_equal(apr_hash_t *a,
+                         apr_hash_t *b,
+                         apr_pool_t *pool)
+{
+  apr_hash_index_t *hi;
+
+  /* Quick checks and special cases. */
+  if (a == b)
+    return TRUE;
+
+  if (a == NULL)
+    return apr_hash_count(b) == 0;
+  if (b == NULL)
+    return apr_hash_count(a) == 0;
+
+  if (apr_hash_count(a) != apr_hash_count(b))
+    return FALSE;
+
+  /* Compare prop by prop. */
+  for (hi = apr_hash_first(pool, a); hi; hi = apr_hash_next(hi))
+    {
+      const char *key;
+      apr_ssize_t klen;
+      svn_string_t *val_a, *val_b;
+
+      apr_hash_this(hi, (const void **)&key, &klen, (void **)&val_a);
+      val_b = apr_hash_get(b, key, klen);
+
+      if (!val_b || !svn_string_compare(val_a, val_b))
+        return FALSE;
+    }
+
+  /* No difference found. */
+  return TRUE;
 }

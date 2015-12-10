@@ -77,7 +77,7 @@ FunctionInfo::GetDeclaration() const
     return m_declaration;
 }
 
-const ConstString&
+ConstString
 FunctionInfo::GetName() const
 {
     return m_name;
@@ -140,25 +140,32 @@ InlineFunctionInfo::Dump(Stream *s, bool show_fullpaths) const
 }
 
 void
-InlineFunctionInfo::DumpStopContext (Stream *s) const
+InlineFunctionInfo::DumpStopContext (Stream *s, LanguageType language) const
 {
 //    s->Indent("[inlined] ");
     s->Indent();
     if (m_mangled)
-        s->PutCString (m_mangled.GetName().AsCString());
+        s->PutCString (m_mangled.GetName(language).AsCString());
     else
         s->PutCString (m_name.AsCString());
 }
 
 
-const ConstString &
-InlineFunctionInfo::GetName () const
+ConstString
+InlineFunctionInfo::GetName (LanguageType language) const
 {
     if (m_mangled)
-        return m_mangled.GetName();
+        return m_mangled.GetName(language);
     return m_name;
 }
 
+ConstString
+InlineFunctionInfo::GetDisplayName (LanguageType language) const
+{
+    if (m_mangled)
+        return m_mangled.GetDisplayDemangledName(language);
+    return m_name;
+}
 
 Declaration &
 InlineFunctionInfo::GetCallSite ()
@@ -459,6 +466,14 @@ Function::MemorySize () const
     return mem_size;
 }
 
+ConstString
+Function::GetDisplayName () const
+{
+    if (!m_mangled)
+        return ConstString();
+    return m_mangled.GetDisplayDemangledName(GetLanguage());
+}
+
 clang::DeclContext *
 Function::GetClangDeclContext()
 {
@@ -600,6 +615,33 @@ Function::GetPrologueByteSize ()
         }
     }
     return m_prologue_byte_size;
+}
+
+lldb::LanguageType
+Function::GetLanguage() const
+{
+    if (m_comp_unit)
+        return m_comp_unit->GetLanguage();
+    else
+        return lldb::eLanguageTypeUnknown;
+}
+
+ConstString
+Function::GetName() const
+{
+    LanguageType language = lldb::eLanguageTypeUnknown;
+    if (m_comp_unit)
+        language = m_comp_unit->GetLanguage();
+    return m_mangled.GetName(language);
+}
+
+ConstString
+Function::GetNameNoArguments() const
+{
+    LanguageType language = lldb::eLanguageTypeUnknown;
+    if (m_comp_unit)
+        language = m_comp_unit->GetLanguage();
+    return m_mangled.GetName(language, Mangled::ePreferDemangledWithoutArguments);
 }
 
 

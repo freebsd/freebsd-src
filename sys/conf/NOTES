@@ -359,6 +359,9 @@ options 	COMPAT_FREEBSD9
 # Enable FreeBSD10 compatibility syscalls
 options 	COMPAT_FREEBSD10
 
+# Enable Linux Kernel Programming Interface
+options 	COMPAT_LINUXKPI
+
 #
 # These three options provide support for System V Interface
 # Definition-style interprocess communication, in the form of shared
@@ -960,6 +963,9 @@ device		lagg
 # for sockets with the SO_DEBUG option set, which can then be examined
 # using the trpt(8) utility.
 #
+# TCPPCAP enables code which keeps the last n packets sent and received
+# on a TCP socket.
+#
 # RADIX_MPATH provides support for equal-cost multi-path routing.
 #
 options 	MROUTING		# Multicast routing
@@ -976,6 +982,7 @@ options 	IPFILTER_DEFAULT_BLOCK	#block all packets by default
 options 	IPSTEALTH		#support for stealth forwarding
 options 	PF_DEFAULT_TO_DROP	#drop everything by default
 options 	TCPDEBUG
+options 	TCPPCAP
 options 	RADIX_MPATH
 
 # The MBUF_STRESS_TEST option enables options which create
@@ -1759,12 +1766,9 @@ hint.ata.1.irq="15"
 #
 # The following options are valid on the ATA driver:
 #
-# ATA_STATIC_ID:	controller numbering is static ie depends on location
-#			else the device numbers are dynamically allocated.
 # ATA_REQUEST_TIMEOUT:	the number of seconds to wait for an ATA request
 #			before timing out.
 
-options 	ATA_STATIC_ID
 #options 	ATA_REQUEST_TIMEOUT=10
 
 #
@@ -1959,6 +1963,8 @@ device		xmphy		# XaQti XMAC II
 #	88E8062, 88E8035, 88E8036, 88E8038, 88E8050, 88E8052, 88E8053,
 #	88E8055, 88E8056 and D-Link 560T/550SX.
 # lmc:	Support for the LMC/SBE wide-area network interface cards.
+# mlx5:	Mellanox ConnectX-4 and ConnectX-4 LX IB and Eth shared code module.
+# mlx5en:Mellanox ConnectX-4 and ConnectX-4 LX PCIe Ethernet adapters.
 # my:	Myson Fast Ethernet (MTD80X, MTD89X)
 # nge:	Support for PCI gigabit ethernet adapters based on the National
 #	Semiconductor DP83820 and DP83821 chipset. This includes the
@@ -2077,6 +2083,8 @@ device		gem		# Apple GMAC/Sun ERI/Sun GEM
 device		hme		# Sun HME (Happy Meal Ethernet)
 device		jme		# JMicron JMC250 Gigabit/JMC260 Fast Ethernet
 device		lge		# Level 1 LXT1001 gigabit Ethernet
+device		mlx5		# Shared code module between IB and Ethernet
+device		mlx5en		# Mellanox ConnectX-4 and ConnectX-4 LX
 device		msk		# Marvell/SysKonnect Yukon II Gigabit Ethernet
 device		my		# Myson Fast Ethernet (MTD80X, MTD89X)
 device		nge		# NatSemi DP83820 gigabit Ethernet
@@ -2694,6 +2702,8 @@ device		uvisor
 # USB serial support for DDI pocket's PHS
 device		uvscom
 #
+# USB ethernet support
+device		uether
 # ADMtek USB ethernet. Supports the LinkSys USB100TX,
 # the Billionton USB100, the Melco LU-ATX, the D-Link DSB-650TX
 # and the SMC 2202USB. Also works with the ADMtek AN986 Pegasus
@@ -2729,6 +2739,9 @@ device		rue
 #
 # Davicom DM9601E USB to fast ethernet. Supports the Corega FEther USB-TXC.
 device		udav
+#
+# RealTek RTL8152 USB to fast ethernet.
+device		ure
 #
 # Moschip MCS7730/MCS7840 USB to fast ethernet. Supports the Sitecom LN030.
 device		mos

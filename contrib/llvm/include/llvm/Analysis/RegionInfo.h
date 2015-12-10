@@ -115,8 +115,8 @@ public:
   typedef typename Tr::RegionT RegionT;
 
 private:
-  RegionNodeBase(const RegionNodeBase &) LLVM_DELETED_FUNCTION;
-  const RegionNodeBase &operator=(const RegionNodeBase &) LLVM_DELETED_FUNCTION;
+  RegionNodeBase(const RegionNodeBase &) = delete;
+  const RegionNodeBase &operator=(const RegionNodeBase &) = delete;
 
   /// This is the entry basic block that starts this region node.  If this is a
   /// BasicBlock RegionNode, then entry is just the basic block, that this
@@ -261,8 +261,8 @@ class RegionBase : public RegionNodeBase<Tr> {
   typedef typename InvBlockTraits::ChildIteratorType PredIterTy;
 
   friend class RegionInfoBase<Tr>;
-  RegionBase(const RegionBase &) LLVM_DELETED_FUNCTION;
-  const RegionBase &operator=(const RegionBase &) LLVM_DELETED_FUNCTION;
+  RegionBase(const RegionBase &) = delete;
+  const RegionBase &operator=(const RegionBase &) = delete;
 
   // Information necessary to manage this Region.
   RegionInfoT *RI;
@@ -674,8 +674,8 @@ class RegionInfoBase {
   RegionInfoBase();
   virtual ~RegionInfoBase();
 
-  RegionInfoBase(const RegionInfoBase &) LLVM_DELETED_FUNCTION;
-  const RegionInfoBase &operator=(const RegionInfoBase &) LLVM_DELETED_FUNCTION;
+  RegionInfoBase(const RegionInfoBase &) = delete;
+  const RegionInfoBase &operator=(const RegionInfoBase &) = delete;
 
   DomTreeT *DT;
   PostDomTreeT *PDT;
@@ -820,8 +820,6 @@ public:
   inline RegionNode(Region *Parent, BasicBlock *Entry, bool isSubRegion = false)
       : RegionNodeBase<RegionTraits<Function>>(Parent, Entry, isSubRegion) {}
 
-  ~RegionNode() {}
-
   bool operator==(const Region &RN) const {
     return this == reinterpret_cast<const RegionNode *>(&RN);
   }
@@ -842,7 +840,7 @@ class RegionInfo : public RegionInfoBase<RegionTraits<Function>> {
 public:
   explicit RegionInfo();
 
-  virtual ~RegionInfo();
+  ~RegionInfo() override;
 
   // updateStatistics - Update statistic about created regions.
   void updateStatistics(Region *R) final;
@@ -858,7 +856,7 @@ public:
   static char ID;
   explicit RegionInfoPass();
 
-  ~RegionInfoPass();
+  ~RegionInfoPass() override;
 
   RegionInfo &getRegionInfo() { return RI; }
 
@@ -904,9 +902,9 @@ inline raw_ostream &operator<<(raw_ostream &OS,
     return OS << Node.template getNodeAs<BlockT>()->getName();
 }
 
-EXTERN_TEMPLATE_INSTANTIATION(class RegionBase<RegionTraits<Function>>);
-EXTERN_TEMPLATE_INSTANTIATION(class RegionNodeBase<RegionTraits<Function>>);
-EXTERN_TEMPLATE_INSTANTIATION(class RegionInfoBase<RegionTraits<Function>>);
+extern template class RegionBase<RegionTraits<Function>>;
+extern template class RegionNodeBase<RegionTraits<Function>>;
+extern template class RegionInfoBase<RegionTraits<Function>>;
 
 } // End llvm namespace
 #endif

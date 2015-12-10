@@ -22,24 +22,18 @@ namespace llvm {
 
 class formatted_raw_ostream;
 
-class CPPSubtarget : public TargetSubtargetInfo {
-};
-
 struct CPPTargetMachine : public TargetMachine {
-  CPPTargetMachine(const Target &T, StringRef TT,
-                   StringRef CPU, StringRef FS, const TargetOptions &Options,
-                   Reloc::Model RM, CodeModel::Model CM,
-                   CodeGenOpt::Level OL)
-    : TargetMachine(T, TT, CPU, FS, Options), Subtarget() {}
-private:
-  CPPSubtarget Subtarget;
+  CPPTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+                   StringRef FS, const TargetOptions &Options, Reloc::Model RM,
+                   CodeModel::Model CM, CodeGenOpt::Level OL)
+      : TargetMachine(T, "", TT, CPU, FS, Options) {}
 
 public:
-  const CPPSubtarget *getSubtargetImpl() const override { return &Subtarget; }
-  bool addPassesToEmitFile(PassManagerBase &PM, formatted_raw_ostream &Out,
+  bool addPassesToEmitFile(PassManagerBase &PM, raw_pwrite_stream &Out,
                            CodeGenFileType FileType, bool DisableVerify,
-                           AnalysisID StartAfter,
-                           AnalysisID StopAfter) override;
+                           AnalysisID StartBefore, AnalysisID StartAfter,
+                           AnalysisID StopAfter,
+                           MachineFunctionInitializer *MFInitializer) override;
 };
 
 extern Target TheCppBackendTarget;

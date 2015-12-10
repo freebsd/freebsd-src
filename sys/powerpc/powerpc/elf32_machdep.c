@@ -68,8 +68,6 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_table	= sysent,
 #endif
 	.sv_mask	= 0,
-	.sv_sigsize	= 0,
-	.sv_sigtbl	= NULL,
 	.sv_errsize	= 0,
 	.sv_errtbl	= NULL,
 	.sv_transtrap	= NULL,
@@ -77,7 +75,6 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_sendsig	= sendsig,
 	.sv_sigcode	= sigcode32,
 	.sv_szsigcode	= &szsigcode32,
-	.sv_prepsyscall	= NULL,
 	.sv_name	= "FreeBSD ELF32",
 	.sv_coredump	= __elfN(coredump),
 	.sv_imgact_try	= NULL,
@@ -183,6 +180,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	Elf_Addr addend;
 	Elf_Word rtype, symidx;
 	const Elf_Rela *rela;
+	int error;
 
 	switch (type) {
 	case ELF_RELOC_REL:
@@ -202,19 +200,19 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 
 	switch (rtype) {
 
-       	case R_PPC_NONE:
-	       	break;
+	case R_PPC_NONE:
+		break;
 
 	case R_PPC_ADDR32: /* word32 S + A */
-       		addr = lookup(lf, symidx, 1);
-	       	if (addr == 0)
-	       		return -1;
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
+			return -1;
 		*where = elf_relocaddr(lf, addr + addend);
-	       	break;
+			break;
 
-       	case R_PPC_ADDR16_LO: /* #lo(S) */
-		addr = lookup(lf, symidx, 1);
-		if (addr == 0)
+	case R_PPC_ADDR16_LO: /* #lo(S) */
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
 			return -1;
 		/*
 		 * addend values are sometimes relative to sections
@@ -228,8 +226,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		break;
 
 	case R_PPC_ADDR16_HA: /* #ha(S) */
-		addr = lookup(lf, symidx, 1);
-		if (addr == 0)
+		error = lookup(lf, symidx, 1, &addr);
+		if (error != 0)
 			return -1;
 		/*
 		 * addend values are sometimes relative to sections
@@ -239,17 +237,17 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		if (addr > relocbase && addr <= (relocbase + addend))
 			addr = relocbase;
 		addr = elf_relocaddr(lf, addr + addend);
-	       	*hwhere = ((addr >> 16) + ((addr & 0x8000) ? 1 : 0))
+		*hwhere = ((addr >> 16) + ((addr & 0x8000) ? 1 : 0))
 		    & 0xffff;
 		break;
 
 	case R_PPC_RELATIVE: /* word32 B + A */
-       		*where = elf_relocaddr(lf, relocbase + addend);
-	       	break;
+		*where = elf_relocaddr(lf, relocbase + addend);
+		break;
 
 	default:
-       		printf("kldload: unexpected relocation type %d\n",
-	       	    (int) rtype);
+		printf("kldload: unexpected relocation type %d\n",
+		    (int) rtype);
 		return -1;
 	}
 	return(0);

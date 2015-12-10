@@ -957,7 +957,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 	case IEEE80211_IOC_WME_AIFS:		/* WME: AIFS */
 	case IEEE80211_IOC_WME_TXOPLIMIT:	/* WME: txops limit */
 	case IEEE80211_IOC_WME_ACM:		/* WME: ACM (bss only) */
-	case IEEE80211_IOC_WME_ACKPOLICY:	/* WME: ACK policy (bss only) */
+	case IEEE80211_IOC_WME_ACKPOLICY:	/* WME: ACK policy (!bss only) */
 		error = ieee80211_ioctl_getwmeparam(vap, ireq);
 		break;
 	case IEEE80211_IOC_DTIM_PERIOD:
@@ -1757,13 +1757,14 @@ ieee80211_ioctl_setwmeparam(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_wme_state *wme = &ic->ic_wme;
 	struct wmeParams *wmep, *chanp;
-	int isbss, ac;
+	int isbss, ac, aggrmode;
 
 	if ((ic->ic_caps & IEEE80211_C_WME) == 0)
 		return EOPNOTSUPP;
 
 	isbss = (ireq->i_len & IEEE80211_WMEPARAM_BSS);
 	ac = (ireq->i_len & IEEE80211_WMEPARAM_VAL);
+	aggrmode = (wme->wme_flags & WME_F_AGGRMODE);
 	if (ac >= WME_NUM_AC)
 		ac = WME_AC_BE;
 	if (isbss) {
@@ -1775,47 +1776,28 @@ ieee80211_ioctl_setwmeparam(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	}
 	switch (ireq->i_type) {
 	case IEEE80211_IOC_WME_CWMIN:		/* WME: CWmin */
-		if (isbss) {
-			wmep->wmep_logcwmin = ireq->i_val;
-			if ((wme->wme_flags & WME_F_AGGRMODE) == 0)
-				chanp->wmep_logcwmin = ireq->i_val;
-		} else {
-			wmep->wmep_logcwmin = chanp->wmep_logcwmin =
-				ireq->i_val;
-		}
+		wmep->wmep_logcwmin = ireq->i_val;
+		if (!isbss || !aggrmode)
+			chanp->wmep_logcwmin = ireq->i_val;
 		break;
 	case IEEE80211_IOC_WME_CWMAX:		/* WME: CWmax */
-		if (isbss) {
-			wmep->wmep_logcwmax = ireq->i_val;
-			if ((wme->wme_flags & WME_F_AGGRMODE) == 0)
-				chanp->wmep_logcwmax = ireq->i_val;
-		} else {
-			wmep->wmep_logcwmax = chanp->wmep_logcwmax =
-				ireq->i_val;
-		}
+		wmep->wmep_logcwmax = ireq->i_val;
+		if (!isbss || !aggrmode)
+			chanp->wmep_logcwmax = ireq->i_val;
 		break;
 	case IEEE80211_IOC_WME_AIFS:		/* WME: AIFS */
-		if (isbss) {
-			wmep->wmep_aifsn = ireq->i_val;
-			if ((wme->wme_flags & WME_F_AGGRMODE) == 0)
-				chanp->wmep_aifsn = ireq->i_val;
-		} else {
-			wmep->wmep_aifsn = chanp->wmep_aifsn = ireq->i_val;
-		}
+		wmep->wmep_aifsn = ireq->i_val;
+		if (!isbss || !aggrmode)
+			chanp->wmep_aifsn = ireq->i_val;
 		break;
 	case IEEE80211_IOC_WME_TXOPLIMIT:	/* WME: txops limit */
-		if (isbss) {
-			wmep->wmep_txopLimit = ireq->i_val;
-			if ((wme->wme_flags & WME_F_AGGRMODE) == 0)
-				chanp->wmep_txopLimit = ireq->i_val;
-		} else {
-			wmep->wmep_txopLimit = chanp->wmep_txopLimit =
-				ireq->i_val;
-		}
+		wmep->wmep_txopLimit = ireq->i_val;
+		if (!isbss || !aggrmode)
+			chanp->wmep_txopLimit = ireq->i_val;
 		break;
 	case IEEE80211_IOC_WME_ACM:		/* WME: ACM (bss only) */
 		wmep->wmep_acm = ireq->i_val;
-		if ((wme->wme_flags & WME_F_AGGRMODE) == 0)
+		if (!aggrmode)
 			chanp->wmep_acm = ireq->i_val;
 		break;
 	case IEEE80211_IOC_WME_ACKPOLICY:	/* WME: ACK policy (!bss only)*/
@@ -2825,6 +2807,9 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		/* XXX verify ciphers available */
 		flags = vap->iv_flags & ~IEEE80211_F_WPA;
 		switch (ireq->i_val) {
+		case 0:
+			/* wpa_supplicant calls this to clear the WPA config */
+			break;
 		case 1:
 			if (!(vap->iv_caps & IEEE80211_C_WPA1))
 				return EOPNOTSUPP;
@@ -2945,7 +2930,7 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 	case IEEE80211_IOC_WME_AIFS:		/* WME: AIFS */
 	case IEEE80211_IOC_WME_TXOPLIMIT:	/* WME: txops limit */
 	case IEEE80211_IOC_WME_ACM:		/* WME: ACM (bss only) */
-	case IEEE80211_IOC_WME_ACKPOLICY:	/* WME: ACK policy (bss only) */
+	case IEEE80211_IOC_WME_ACKPOLICY:	/* WME: ACK policy (!bss only) */
 		error = ieee80211_ioctl_setwmeparam(vap, ireq);
 		break;
 	case IEEE80211_IOC_DTIM_PERIOD:

@@ -183,7 +183,7 @@ wtap_reset_vap(struct ieee80211vap *vap, u_long cmd)
 static void
 wtap_beacon_update(struct ieee80211vap *vap, int item)
 {
-	struct ieee80211_beacon_offsets *bo = &WTAP_VAP(vap)->av_boff;
+	struct ieee80211_beacon_offsets *bo = &vap->iv_bcn_off;
 
 	DWTAP_PRINTF("%s\n", __func__);
 	setbit(bo->bo_flags, item);
@@ -205,7 +205,7 @@ wtap_beacon_alloc(struct wtap_softc *sc, struct ieee80211_node *ni)
 	 * we assume the mbuf routines will return us something
 	 * with this alignment (perhaps should assert).
 	 */
-	avp->beacon = ieee80211_beacon_alloc(ni, &avp->av_boff);
+	avp->beacon = ieee80211_beacon_alloc(ni);
 	if (avp->beacon == NULL) {
 		printf("%s: cannot get mbuf\n", __func__);
 		return ENOMEM;
@@ -242,7 +242,7 @@ wtap_beacon_intrp(void *arg)
 	 * of the TIM bitmap).
 	 */
 	m = m_dup(avp->beacon, M_NOWAIT);
-	if (ieee80211_beacon_update(avp->bf_node, &avp->av_boff, m, 0)) {
+	if (ieee80211_beacon_update(avp->bf_node, m, 0)) {
 		printf("%s, need to remap the memory because the beacon frame"
 		    " changed size.\n",__func__);
 	}
@@ -527,15 +527,9 @@ wtap_rx_proc(void *arg, int npending)
 			/*
 			 * Sending station is known, dispatch directly.
 			 */
-#if 0
-			ieee80211_radiotap_rx(ni->ni_vap, m);
-#endif
 			type = ieee80211_input(ni, m, 1<<7, 10);
 			ieee80211_free_node(ni);
 		} else {
-#if 0
-			ieee80211_radiotap_rx_all(ic, m);
-#endif
 			type = ieee80211_input_all(ic, m, 1<<7, 10);
 		}
 		

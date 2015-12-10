@@ -71,13 +71,13 @@
 #define EVTCHNOP_bind_vcpu        8
 #define EVTCHNOP_unmask           9
 #define EVTCHNOP_reset           10
+#define EVTCHNOP_init_control    11
+#define EVTCHNOP_expand_array    12
+#define EVTCHNOP_set_priority    13
 /* ` } */
 
-#ifndef __XEN_EVTCHN_PORT_DEFINED__
 typedef uint32_t evtchn_port_t;
 DEFINE_XEN_GUEST_HANDLE(evtchn_port_t);
-#define __XEN_EVTCHN_PORT_DEFINED__ 1
-#endif
 
 /*
  * EVTCHNOP_alloc_unbound: Allocate a port in domain <dom> and mark as
@@ -101,6 +101,17 @@ typedef struct evtchn_alloc_unbound evtchn_alloc_unbound_t;
  * a port that is unbound and marked as accepting bindings from the calling
  * domain. A fresh port is allocated in the calling domain and returned as
  * <local_port>.
+ *
+ * In case the peer domain has already tried to set our event channel
+ * pending, before it was bound, EVTCHNOP_bind_interdomain always sets
+ * the local event channel pending.
+ *
+ * The usual pattern of use, in the guest's upcall (or subsequent
+ * handler) is as follows: (Re-enable the event channel for subsequent
+ * signalling and then) check for the existence of whatever condition
+ * is being waited for by other means, and take whatever action is
+ * needed (if any).
+ *
  * NOTES:
  *  1. <remote_dom> may be DOMID_SELF, allowing loopback connections.
  */
@@ -253,12 +264,53 @@ typedef struct evtchn_unmask evtchn_unmask_t;
  * NOTES:
  *  1. <dom> may be specified as DOMID_SELF.
  *  2. Only a sufficiently-privileged domain may specify other than DOMID_SELF.
+ *  3. Destroys all control blocks and event array, resets event channel
+ *     operations to 2-level ABI if called with <dom> == DOMID_SELF and FIFO
+ *     ABI was used. Guests should not bind events during EVTCHNOP_reset call
+ *     as these events are likely to be lost.
  */
 struct evtchn_reset {
     /* IN parameters. */
     domid_t dom;
 };
 typedef struct evtchn_reset evtchn_reset_t;
+
+/*
+ * EVTCHNOP_init_control: initialize the control block for the FIFO ABI.
+ *
+ * Note: any events that are currently pending will not be resent and
+ * will be lost.  Guests should call this before binding any event to
+ * avoid losing any events.
+ */
+struct evtchn_init_control {
+    /* IN parameters. */
+    uint64_t control_gfn;
+    uint32_t offset;
+    uint32_t vcpu;
+    /* OUT parameters. */
+    uint8_t link_bits;
+    uint8_t _pad[7];
+};
+typedef struct evtchn_init_control evtchn_init_control_t;
+
+/*
+ * EVTCHNOP_expand_array: add an additional page to the event array.
+ */
+struct evtchn_expand_array {
+    /* IN parameters. */
+    uint64_t array_gfn;
+};
+typedef struct evtchn_expand_array evtchn_expand_array_t;
+
+/*
+ * EVTCHNOP_set_priority: set the priority for an event channel.
+ */
+struct evtchn_set_priority {
+    /* IN parameters. */
+    uint32_t port;
+    uint32_t priority;
+};
+typedef struct evtchn_set_priority evtchn_set_priority_t;
 
 /*
  * ` enum neg_errnoval
@@ -284,12 +336,48 @@ struct evtchn_op {
 typedef struct evtchn_op evtchn_op_t;
 DEFINE_XEN_GUEST_HANDLE(evtchn_op_t);
 
+/*
+ * 2-level ABI
+ */
+
+#define EVTCHN_2L_NR_CHANNELS (sizeof(xen_ulong_t) * sizeof(xen_ulong_t) * 64)
+
+/*
+ * FIFO ABI
+ */
+
+/* Events may have priorities from 0 (highest) to 15 (lowest). */
+#define EVTCHN_FIFO_PRIORITY_MAX     0
+#define EVTCHN_FIFO_PRIORITY_DEFAULT 7
+#define EVTCHN_FIFO_PRIORITY_MIN     15
+
+#define EVTCHN_FIFO_MAX_QUEUES (EVTCHN_FIFO_PRIORITY_MIN + 1)
+
+typedef uint32_t event_word_t;
+
+#define EVTCHN_FIFO_PENDING 31
+#define EVTCHN_FIFO_MASKED  30
+#define EVTCHN_FIFO_LINKED  29
+#define EVTCHN_FIFO_BUSY    28
+
+#define EVTCHN_FIFO_LINK_BITS 17
+#define EVTCHN_FIFO_LINK_MASK ((1 << EVTCHN_FIFO_LINK_BITS) - 1)
+
+#define EVTCHN_FIFO_NR_CHANNELS (1 << EVTCHN_FIFO_LINK_BITS)
+
+struct evtchn_fifo_control_block {
+    uint32_t ready;
+    uint32_t _rsvd;
+    uint32_t head[EVTCHN_FIFO_MAX_QUEUES];
+};
+typedef struct evtchn_fifo_control_block evtchn_fifo_control_block_t;
+
 #endif /* __XEN_PUBLIC_EVENT_CHANNEL_H__ */
 
 /*
  * Local variables:
  * mode: C
- * c-set-style: "BSD"
+ * c-file-style: "BSD"
  * c-basic-offset: 4
  * tab-width: 4
  * indent-tabs-mode: nil

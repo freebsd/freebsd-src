@@ -11,7 +11,7 @@ SRCS +=	zfs.c
 
 MAN=	fstyp.8
 
-WARNS?=	0
+WARNS?=	2
 
 .include <src.opts.mk>
 
@@ -36,12 +36,10 @@ CFLAGS+= -I${.CURDIR}/../../cddl/contrib/opensolaris/head
 
 CFLAGS+=-I${.CURDIR}/../../sys
 
-DPADD=   ${LIBGEOM} ${LIBMD}
-LDADD=   -lgeom -lmd
+LIBADD=	geom md
 
 .if ${MK_ZFS} != "no"
-DPADD += ${LIBNVPAIR} ${LIBZFS}
-LDADD += -lnvpair -lzfs
+LIBADD+=nvpair zfs
 .endif
 
 .include <bsd.prog.mk>

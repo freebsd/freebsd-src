@@ -38,7 +38,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: size.c 3183 2015-04-10 16:18:42Z emaste $");
+ELFTC_VCSID("$Id: size.c 3242 2015-08-07 12:47:11Z emaste $");
 
 #define	BUF_SIZE			1024
 #define	ELF_ALIGN(val,x) (((val)+(x)-1) & ~((x)-1))
@@ -444,7 +444,6 @@ handle_phdr(Elf *elf, GElf_Ehdr *elfhdr, GElf_Phdr *phdr,
 	if (elf == NULL || elfhdr == NULL || phdr == NULL)
 		return;
 
-	size = addr = 0;
 	split = (phdr->p_memsz > 0) && 	(phdr->p_filesz > 0) &&
 	    (phdr->p_memsz > phdr->p_filesz);
 

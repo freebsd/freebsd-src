@@ -29,11 +29,6 @@ SYSDIR?=${.CURDIR}/../..
 .include "${SYSDIR}/conf/kern.opts.mk"
 
 #
-# Allow USB modules to be built in parallel
-#
-SUBDIR_PARALLEL=
-
-#
 # Check for common USB debug flags to pass when building the USB
 # modules in this directory:
 #
@@ -58,7 +53,7 @@ SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
 	  umct umcs umodem umoscom uplcom uslcom uvisor uvscom
 SUBDIR += udl
 SUBDIR += uether aue axe axge cdce cue ${_kue} mos rue smsc udav uhso ipheth
-SUBDIR += urndis
+SUBDIR += ure urndis
 SUBDIR += usfs umass urio
 SUBDIR += quirk template
 SUBDIR += ${_g_audio} ${_g_keyboard} ${_g_modem} ${_g_mouse}

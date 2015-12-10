@@ -275,7 +275,7 @@ idtpci_attach(device_t dev)
 	        PCI_IRQ_END) != 0)
 		panic("idtpci_attach: failed to set up IRQ rman");
 
-	device_add_child(dev, "pci", busno);
+	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
 }
 

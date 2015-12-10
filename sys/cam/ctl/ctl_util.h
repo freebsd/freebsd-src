@@ -77,7 +77,7 @@ void ctl_scsi_mode_sense(union ctl_io *io, uint8_t *data_ptr,
 			 int minimum_cdb_size, ctl_tag_type tag_type,
 			 uint8_t control);
 void ctl_scsi_start_stop(union ctl_io *io, int start, int load_eject,
-			 int immediate, int power_conditions, int onoffline,
+			 int immediate, int power_conditions,
 			 ctl_tag_type tag_type, uint8_t control);
 void ctl_scsi_sync_cache(union ctl_io *io, int immed, int reladr,
 			 int minimum_cdb_size, uint64_t starting_lba,

@@ -23,6 +23,7 @@
 
 #include <apr_pools.h>
 
+#include "svn_private_config.h"
 #include "svn_types.h"
 #include "svn_pools.h"
 #include "svn_dirent_uri.h"
@@ -37,7 +38,7 @@
 #include "conflicts.h"
 #include "translate.h"
 
-#include "svn_private_config.h"
+#include "private/svn_io_private.h"
 #include "private/svn_skel.h"
 
 
@@ -142,8 +143,7 @@ run_base_remove(work_item_baton_t *wqb,
 
   SVN_ERR(svn_wc__db_base_remove(db, local_abspath,
                                  FALSE /* keep_as_working */,
-                                 TRUE /* queue_deletes */,
-                                 FALSE /* remove_locks */,
+                                 SVN_IS_VALID_REVNUM(not_present_rev), FALSE,
                                  not_present_rev,
                                  NULL, NULL, scratch_pool));
 
@@ -395,8 +395,6 @@ run_postupgrade(work_item_baton_t *wqb,
   const char *entries_path;
   const char *format_path;
   const char *wcroot_abspath;
-  const char *adm_path;
-  const char *temp_path;
   svn_error_t *err;
 
   err = svn_wc__wipe_postupgrade(wri_abspath, FALSE,
@@ -410,7 +408,6 @@ run_postupgrade(work_item_baton_t *wqb,
   SVN_ERR(svn_wc__db_get_wcroot(&wcroot_abspath, db, wri_abspath,
                                 scratch_pool, scratch_pool));
 
-  adm_path = svn_wc__adm_child(wcroot_abspath, NULL, scratch_pool);
   entries_path = svn_wc__adm_child(wcroot_abspath, SVN_WC__ADM_ENTRIES,
                                    scratch_pool);
   format_path = svn_wc__adm_child(wcroot_abspath, SVN_WC__ADM_FORMAT,
@@ -421,15 +418,13 @@ run_postupgrade(work_item_baton_t *wqb,
      ### The order may matter for some sufficiently old clients.. but
      ### this code only runs during upgrade after the files had been
      ### removed earlier during the upgrade. */
-  SVN_ERR(svn_io_write_unique(&temp_path, adm_path, SVN_WC__NON_ENTRIES_STRING,
+  SVN_ERR(svn_io_write_atomic(format_path, SVN_WC__NON_ENTRIES_STRING,
                               sizeof(SVN_WC__NON_ENTRIES_STRING) - 1,
-                              svn_io_file_del_none, scratch_pool));
-  SVN_ERR(svn_io_file_rename(temp_path, format_path, scratch_pool));
+                              NULL, scratch_pool));
 
-  SVN_ERR(svn_io_write_unique(&temp_path, adm_path, SVN_WC__NON_ENTRIES_STRING,
+  SVN_ERR(svn_io_write_atomic(entries_path, SVN_WC__NON_ENTRIES_STRING,
                               sizeof(SVN_WC__NON_ENTRIES_STRING) - 1,
-                              svn_io_file_del_none, scratch_pool));
-  SVN_ERR(svn_io_file_rename(temp_path, entries_path, scratch_pool));
+                              NULL, scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -474,7 +469,6 @@ run_file_install(work_item_baton_t *wqb,
   apr_hash_t *keywords;
   const char *temp_dir_abspath;
   svn_stream_t *dst_stream;
-  const char *dst_abspath;
   apr_int64_t val;
   const char *wcroot_abspath;
   const char *source_abspath;
@@ -577,10 +571,8 @@ run_file_install(work_item_baton_t *wqb,
   /* Translate to a temporary file. We don't want the user seeing a partial
      file, nor let them muck with it while we translate. We may also need to
      get its TRANSLATED_SIZE before the user can monkey it.  */
-  SVN_ERR(svn_stream_open_unique(&dst_stream, &dst_abspath,
-                                 temp_dir_abspath,
-                                 svn_io_file_del_none,
-                                 scratch_pool, scratch_pool));
+  SVN_ERR(svn_stream__create_for_install(&dst_stream, temp_dir_abspath,
+                                         scratch_pool, scratch_pool));
 
   /* Copy from the source to the dest, translating as we go. This will also
      close both streams.  */
@@ -589,35 +581,11 @@ run_file_install(work_item_baton_t *wqb,
                            scratch_pool));
 
   /* All done. Move the file into place.  */
-
-  {
-    svn_error_t *err;
-
-    err = svn_io_file_rename(dst_abspath, local_abspath, scratch_pool);
-
-    /* With a single db we might want to install files in a missing directory.
-       Simply trying this scenario on error won't do any harm and at least
-       one user reported this problem on IRC. */
-    if (err && APR_STATUS_IS_ENOENT(err->apr_err))
-      {
-        svn_error_t *err2;
-
-        err2 = svn_io_make_dir_recursively(svn_dirent_dirname(local_abspath,
-                                                              scratch_pool),
-                                           scratch_pool);
-
-        if (err2)
-          /* Creating directory didn't work: Return all errors */
-          return svn_error_trace(svn_error_compose_create(err, err2));
-        else
-          /* We could create a directory: retry install */
-          svn_error_clear(err);
-
-        SVN_ERR(svn_io_file_rename(dst_abspath, local_abspath, scratch_pool));
-      }
-    else
-      SVN_ERR(err);
-  }
+  /* With a single db we might want to install files in a missing directory.
+     Simply trying this scenario on error won't do any harm and at least
+     one user reported this problem on IRC. */
+  SVN_ERR(svn_stream__install_stream(dst_stream, local_abspath,
+                                     TRUE /* make_parents*/, scratch_pool));
 
   /* Tweak the on-disk file according to its properties.  */
 #ifndef WIN32
@@ -1047,8 +1015,8 @@ svn_error_t *
 svn_wc__wq_build_dir_install(svn_skel_t **work_item,
                              svn_wc__db_t *db,
                              const char *local_abspath,
-                             apr_pool_t *scratch_pool,
-                             apr_pool_t *result_pool)
+                             apr_pool_t *result_pool,
+                             apr_pool_t *scratch_pool)
 {
   const char *local_relpath;
 
@@ -1138,7 +1106,7 @@ run_prej_install(work_item_baton_t *wqb,
   SVN_ERR(svn_wc__db_from_relpath(&local_abspath, db, wri_abspath,
                                   local_relpath, scratch_pool, scratch_pool));
 
-  SVN_ERR(svn_wc__db_read_conflict(&conflicts, db, local_abspath,
+  SVN_ERR(svn_wc__db_read_conflict(&conflicts, NULL, NULL, db, local_abspath,
                                    scratch_pool, scratch_pool));
 
   SVN_ERR(svn_wc__conflict_read_prop_conflict(&prejfile_abspath,
@@ -1147,14 +1115,15 @@ run_prej_install(work_item_baton_t *wqb,
                                               scratch_pool, scratch_pool));
 
   if (arg1->next != NULL)
-    prop_conflict_skel = arg1->next;
+    prop_conflict_skel = arg1->next; /* Before Subversion 1.9 */
   else
-    SVN_ERR_MALFUNCTION();  /* ### wc_db can't provide it ... yet.  */
+    prop_conflict_skel = NULL; /* Read from DB */
 
   /* Construct a property reject file in the temporary area.  */
   SVN_ERR(svn_wc__create_prejfile(&tmp_prejfile_abspath,
                                   db, local_abspath,
                                   prop_conflict_skel,
+                                  cancel_func, cancel_baton,
                                   scratch_pool, scratch_pool));
 
   /* ... and atomically move it into place.  */
@@ -1170,21 +1139,21 @@ svn_error_t *
 svn_wc__wq_build_prej_install(svn_skel_t **work_item,
                               svn_wc__db_t *db,
                               const char *local_abspath,
-                              svn_skel_t *conflict_skel,
+                              /*svn_skel_t *conflict_skel,*/
                               apr_pool_t *result_pool,
                               apr_pool_t *scratch_pool)
 {
   const char *local_relpath;
   *work_item = svn_skel__make_empty_list(result_pool);
 
-  /* ### gotta have this, today  */
-  SVN_ERR_ASSERT(conflict_skel != NULL);
-
   SVN_ERR(svn_wc__db_to_relpath(&local_relpath, db, local_abspath,
                                 local_abspath, result_pool, scratch_pool));
 
-  if (conflict_skel != NULL)
-    svn_skel__prepend(conflict_skel, *work_item);
+  /* ### In Subversion 1.7 and 1.8 we created a legacy property conflict skel
+         here:
+    if (conflict_skel != NULL)
+      svn_skel__prepend(conflict_skel, *work_item);
+   */
   svn_skel__prepend_str(local_relpath, *work_item, result_pool);
   svn_skel__prepend_str(OP_PREJ_INSTALL, *work_item, result_pool);
 
@@ -1317,7 +1286,7 @@ run_set_text_conflict_markers(work_item_baton_t *wqb,
     /* Check if we should combine with a property conflict... */
     svn_skel_t *conflicts;
 
-    SVN_ERR(svn_wc__db_read_conflict(&conflicts, db, local_abspath,
+    SVN_ERR(svn_wc__db_read_conflict(&conflicts, NULL, NULL, db, local_abspath,
                                      scratch_pool, scratch_pool));
 
     if (! conflicts)
@@ -1383,7 +1352,8 @@ run_set_property_conflict_marker(work_item_baton_t *wqb,
     svn_skel_t *conflicts;
     apr_hash_t *prop_names;
 
-    SVN_ERR(svn_wc__db_read_conflict(&conflicts, db, local_abspath,
+    SVN_ERR(svn_wc__db_read_conflict(&conflicts, NULL, NULL,
+                                     db, local_abspath,
                                      scratch_pool, scratch_pool));
 
     if (! conflicts)
@@ -1520,8 +1490,11 @@ svn_wc__wq_run(svn_wc__db_t *db,
   {
     static int count = 0;
     const char *count_env_var = getenv("SVN_DEBUG_WORK_QUEUE");
+    int count_env_val;
 
-    if (count_env_var && ++count == atoi(count_env_var))
+    SVN_ERR(svn_cstring_atoi(&count_env_val, count_env_var));
+
+    if (count_env_var && ++count == count_env_val)
       return svn_error_create(SVN_ERR_CANCELLED, NULL, "fake cancel");
   }
 #endif

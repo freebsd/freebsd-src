@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-BINDIR= /usr/libexec/bsdinstall
+BINDIR= ${LIBEXECDIR}/bsdinstall
 PROG=	distfetch
 LIBADD=	fetch ncursesw dialog m
 

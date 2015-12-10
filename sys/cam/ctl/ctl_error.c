@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2003-2009 Silicon Graphics International Corp.
  * Copyright (c) 2011 Spectra Logic Corporation
+ * Copyright (c) 2014-2015 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -366,8 +367,8 @@ ctl_set_ua(struct ctl_scsiio *ctsio, int asc, int ascq)
 }
 
 static void
-ctl_ua_to_acsq(ctl_ua_type ua_to_build, int *asc, int *ascq,
-    ctl_ua_type *ua_to_clear)
+ctl_ua_to_acsq(struct ctl_lun *lun, ctl_ua_type ua_to_build, int *asc,
+    int *ascq, ctl_ua_type *ua_to_clear, uint8_t **info)
 {
 
 	switch (ua_to_build) {
@@ -444,7 +445,7 @@ ctl_ua_to_acsq(ctl_ua_type ua_to_build, int *asc, int *ascq,
 		*asc = 0x2A;
 		*ascq = 0x06;
 		break;
-	case CTL_UA_CAPACITY_CHANGED:
+	case CTL_UA_CAPACITY_CHANGE:
 		/* 2Ah/09h  CAPACITY DATA HAS CHANGED */
 		*asc = 0x2A;
 		*ascq = 0x09;
@@ -453,6 +454,12 @@ ctl_ua_to_acsq(ctl_ua_type ua_to_build, int *asc, int *ascq,
 		/* 38h/07h  THIN PROVISIONING SOFT THRESHOLD REACHED */
 		*asc = 0x38;
 		*ascq = 0x07;
+		*info = lun->ua_tpt_info;
+		break;
+	case CTL_UA_MEDIUM_CHANGE:
+		/* 28h/00h  NOT READY TO READY CHANGE, MEDIUM MAY HAVE CHANGED */
+		*asc = 0x28;
+		*ascq = 0x00;
 		break;
 	default:
 		panic("%s: Unknown UA %x", __func__, ua_to_build);
@@ -464,6 +471,7 @@ ctl_build_qae(struct ctl_lun *lun, uint32_t initidx, uint8_t *resp)
 {
 	ctl_ua_type ua;
 	ctl_ua_type ua_to_build, ua_to_clear;
+	uint8_t *info;
 	int asc, ascq;
 	uint32_t p, i;
 
@@ -479,7 +487,8 @@ ctl_build_qae(struct ctl_lun *lun, uint32_t initidx, uint8_t *resp)
 
 	ua_to_build = (1 << (ffs(ua) - 1));
 	ua_to_clear = ua_to_build;
-	ctl_ua_to_acsq(ua_to_build, &asc, &ascq, &ua_to_clear);
+	info = NULL;
+	ctl_ua_to_acsq(lun, ua_to_build, &asc, &ascq, &ua_to_clear, &info);
 
 	resp[0] = SSD_KEY_UNIT_ATTENTION;
 	if (ua_to_build == ua)
@@ -497,6 +506,7 @@ ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
 {
 	ctl_ua_type *ua;
 	ctl_ua_type ua_to_build, ua_to_clear;
+	uint8_t *info;
 	int asc, ascq;
 	uint32_t p, i;
 
@@ -522,16 +532,13 @@ ctl_build_ua(struct ctl_lun *lun, uint32_t initidx,
 
 	ua_to_build = (1 << (ffs(ua[i]) - 1));
 	ua_to_clear = ua_to_build;
-	ctl_ua_to_acsq(ua_to_build, &asc, &ascq, &ua_to_clear);
+	info = NULL;
+	ctl_ua_to_acsq(lun, ua_to_build, &asc, &ascq, &ua_to_clear, &info);
 
-	ctl_set_sense_data(sense,
-			   /*lun*/ NULL,
-			   sense_format,
-			   /*current_error*/ 1,
-			   /*sense_key*/ SSD_KEY_UNIT_ATTENTION,
-			   asc,
-			   ascq,
-			   SSD_ELEM_NONE);
+	ctl_set_sense_data(sense, lun, sense_format, /*current_error*/ 1,
+	    /*sense_key*/ SSD_KEY_UNIT_ATTENTION, asc, ascq,
+	    ((info != NULL) ? SSD_ELEM_INFO : SSD_ELEM_SKIP), 8, info,
+	    SSD_ELEM_NONE);
 
 	/* We're reporting this UA, so clear it */
 	ua[i] &= ~ua_to_clear;
@@ -605,10 +612,7 @@ ctl_set_invalid_field(struct ctl_scsiio *ctsio, int sks_valid, int command,
 void
 ctl_set_invalid_opcode(struct ctl_scsiio *ctsio)
 {
-	struct scsi_sense_data *sense;
 	uint8_t sks[3];
-
-	sense = &ctsio->sense_data;
 
 	sks[0] = SSD_SCS_VALID | SSD_FIELDPTR_CMD;
 	scsi_ulto2b(0, &sks[1]);
@@ -686,9 +690,9 @@ ctl_set_internal_failure(struct ctl_scsiio *ctsio, int sks_valid,
 }
 
 void
-ctl_set_medium_error(struct ctl_scsiio *ctsio)
+ctl_set_medium_error(struct ctl_scsiio *ctsio, int read)
 {
-	if ((ctsio->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_IN) {
+	if (read) {
 		/* "Unrecovered read error" */
 		ctl_set_sense(ctsio,
 			      /*current_error*/ 1,
@@ -743,7 +747,7 @@ ctl_set_lun_stopped(struct ctl_scsiio *ctsio)
 }
 
 void
-ctl_set_lun_not_ready(struct ctl_scsiio *ctsio)
+ctl_set_lun_int_reqd(struct ctl_scsiio *ctsio)
 {
 	/* "Logical unit not ready, manual intervention required" */
 	ctl_set_sense(ctsio,
@@ -751,6 +755,30 @@ ctl_set_lun_not_ready(struct ctl_scsiio *ctsio)
 		      /*sense_key*/ SSD_KEY_NOT_READY,
 		      /*asc*/ 0x04,
 		      /*ascq*/ 0x03,
+		      SSD_ELEM_NONE);
+}
+
+void
+ctl_set_lun_ejected(struct ctl_scsiio *ctsio)
+{
+	/* "Medium not present - tray open" */
+	ctl_set_sense(ctsio,
+		      /*current_error*/ 1,
+		      /*sense_key*/ SSD_KEY_NOT_READY,
+		      /*asc*/ 0x3A,
+		      /*ascq*/ 0x02,
+		      SSD_ELEM_NONE);
+}
+
+void
+ctl_set_lun_no_media(struct ctl_scsiio *ctsio)
+{
+	/* "Medium not present - tray closed" */
+	ctl_set_sense(ctsio,
+		      /*current_error*/ 1,
+		      /*sense_key*/ SSD_KEY_NOT_READY,
+		      /*asc*/ 0x3A,
+		      /*ascq*/ 0x01,
 		      SSD_ELEM_NONE);
 }
 

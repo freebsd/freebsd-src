@@ -119,6 +119,7 @@ art [label="Artem Belevich\nart@FreeBSD.org\n2011/03/29"]
 arybchik [label="Andrew Rybchenko\narybchik@FreeBSD.org\n2014/10/12"]
 asomers [label="Alan Somers\nasomers@FreeBSD.org\n2013/04/24"]
 avg [label="Andriy Gapon\navg@FreeBSD.org\n2009/02/18"]
+avos [label="Andriy Voskoboinyk\navos@FreeBSD.org\n2015/09/24"]
 bapt [label="Baptiste Daroussin\nbapt@FreeBSD.org\n2011/12/23"]
 bdrewery [label="Bryan Drewery\nbdrewery@FreeBSD.org\n2013/12/14"]
 benl [label="Ben Laurie\nbenl@FreeBSD.org\n2011/05/18"]
@@ -205,6 +206,7 @@ joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1993/11/14"]
 jon [label="Jonathan Chen\njon@FreeBSD.org\n2000/10/17"]
 jonathan [label="Jonathan Anderson\njonathan@FreeBSD.org\n2010/10/07"]
 jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2011/01/21"]
+jtl [label="Jonathan T. Looney\njtl@FreeBSD.org\n2015/10/26"]
 julian [label="Julian Elischer\njulian@FreeBSD.org\n1993/04/19"]
 jwd [label="John De Boskey\njwd@FreeBSD.org\n2000/05/19"]
 kaiw [label="Kai Wang\nkaiw@FreeBSD.org\n2007/09/26"]
@@ -216,6 +218,7 @@ kib [label="Konstantin Belousov\nkib@FreeBSD.org\n2006/06/03"]
 kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
 kp [label="Kristof Provost\nkp@FreeBSD.org\n2015/03/22"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
+lidl [label="Kurt Lidl\nlidl@FreeBSD.org\n2015/10/21"]
 loos [label="Luiz Otavio O Souza\nloos@FreeBSD.org\n2013/07/03"]
 lstewart [label="Lawrence Stewart\nlstewart@FreeBSD.org\n2008/10/06"]
 marcel [label="Marcel Moolenaar\nmarcel@FreeBSD.org\n1999/07/03"]
@@ -232,6 +235,7 @@ melifaro [label="Alexander V. Chernikov\nmelifaro@FreeBSD.org\n2011/10/04"]
 mjacob [label="Matt Jacob\nmjacob@FreeBSD.org\n1997/08/13"]
 mjg [label="Mateusz Guzik\nmjg@FreeBSD.org\n2012/06/04"]
 mlaier [label="Max Laier\nmlaier@FreeBSD.org\n2004/02/10"]
+mmel [label="Michal Meloun\nmmel@FreeBSD.org\n2015/11/01"]
 monthadar [label="Monthadar Al Jaberi\nmonthadar@FreeBSD.org\n2012/04/02"]
 mp [label="Mark Peek\nmp@FreeBSD.org\n2001/07/27"]
 mr [label="Michael Reifenberger\nmr@FreeBSD.org\n2001/09/30"]
@@ -267,6 +271,7 @@ roberto [label="Ollivier Robert\nroberto@FreeBSD.org\n1995/02/22"]
 rodrigc [label="Craig Rodrigues\nrodrigc@FreeBSD.org\n2005/05/14"]
 royger [label="Roger Pau Monne\nroyger@FreeBSD.org\n2013/11/26"]
 rpaulo [label="Rui Paulo\nrpaulo@FreeBSD.org\n2007/09/25"]
+rpokala [label="Ravi Pokala\nrpokala@FreeBSD.org\n2015/11/19"]
 rrs [label="Randall R Stewart\nrrs@FreeBSD.org\n2007/02/08"]
 rse [label="Ralf S. Engelschall\nrse@FreeBSD.org\n1997/07/31"]
 rstone [label="Ryan Stone\nrstone@FreeBSD.org\n2010/04/19"]
@@ -283,6 +288,7 @@ sephe [label="Sepherosa Ziehau\nsephe@FreeBSD.org\n2007/03/28"]
 sepotvin [label="Stephane E. Potvin\nsepotvin@FreeBSD.org\n2007/02/15"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
 sjg [label="Simon J. Gerraty\nsjg@FreeBSD.org\n2012/10/23"]
+skra [label="Svatopluk Kraus\nslm@FreeBSD.org\n2015/10/28"]
 slm [label="Stephen McConnell\nslm@FreeBSD.org\n2014/05/07"]
 smh [label="Steven Hartland\nsmh@FreeBSD.org\n2012/11/12"]
 sobomax [label="Maxim Sobolev\nsobomax@FreeBSD.org\n2001/07/25"]
@@ -332,6 +338,8 @@ day1 -> rgrimes
 day1 -> alm
 day1 -> dg
 
+adrian -> avos
+adrian -> lidl
 adrian -> loos
 adrian -> monthadar
 adrian -> ray
@@ -456,6 +464,7 @@ gnn -> davide
 gnn -> arybchik
 gnn -> erj
 gnn -> kp
+gnn -> jtl
 
 grehan -> bryanv
 
@@ -511,6 +520,7 @@ jhb -> kbyanc
 jhb -> peterj
 jhb -> pfg
 jhb -> rnoland
+jhb -> rpokala
 
 jimharris -> carl
 
@@ -565,11 +575,13 @@ kib -> jlh
 kib -> jpaetzel
 kib -> lulf
 kib -> melifaro
+kib -> mmel
 kib -> pho
 kib -> pluknet
 kib -> rdivacky
 kib -> rmacklem
 kib -> rmh
+kib -> skra
 kib -> stas
 kib -> tijl
 kib -> trociny
@@ -658,6 +670,7 @@ rpaulo -> avg
 rpaulo -> bschmidt
 rpaulo -> dim
 rpaulo -> jmmv
+rpaulo -> lidl
 rpaulo -> ngie
 
 rrs -> brucec

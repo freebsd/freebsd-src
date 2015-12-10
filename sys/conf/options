@@ -86,7 +86,7 @@ COMPAT_FREEBSD7	opt_compat.h
 COMPAT_FREEBSD9	opt_compat.h
 COMPAT_FREEBSD10	opt_compat.h
 COMPAT_CLOUDABI64	opt_dontuse.h
-COMPAT_LINUXAPI	opt_compat.h
+COMPAT_LINUXKPI	opt_compat.h
 COMPILING_LINT	opt_global.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
@@ -436,6 +436,7 @@ ROUTETABLES		opt_route.h
 RSS			opt_rss.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
+TCPPCAP		opt_global.h
 SIFTR
 TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
 TCP_SIGNATURE		opt_inet.h
@@ -649,6 +650,7 @@ BKTR_NEW_MSP34XX_DRIVER		opt_bktr.h
 # Options for uart(4)
 UART_PPS_ON_CTS		opt_uart.h
 UART_POLL_FREQ		opt_uart.h
+UART_DEV_TOLERANCE_PCT	opt_uart.h
 
 # options for bus/device framework
 BUS_DEBUG		opt_bus.h
@@ -705,7 +707,6 @@ ISAPNP			opt_isa.h
 # various 'device presence' options.
 DEV_BPF			opt_bpf.h
 DEV_CARP		opt_carp.h
-DEV_ENC			opt_enc.h
 DEV_MCA			opt_mca.h
 DEV_NETMAP		opt_global.h
 DEV_PCI			opt_pci.h
@@ -817,6 +818,7 @@ AH_SUPPORT_AR9130	opt_ah.h
 # This is required for AR933x SoC support
 AH_SUPPORT_AR9330	opt_ah.h
 AH_SUPPORT_AR9340	opt_ah.h
+AH_SUPPORT_QCA9530	opt_ah.h
 AH_SUPPORT_QCA9550	opt_ah.h
 
 AH_DEBUG		opt_ah.h

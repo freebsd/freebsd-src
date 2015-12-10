@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnStreamStderr.cpp
-//
-// Overview:    CMICmnStreamStderr implementation.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 // In-house headers:
 #include "MICmnStreamStderr.h"
 #include "MICmnLog.h"
@@ -105,7 +93,7 @@ CMICmnStreamStderr::Shutdown(void)
 
 //++ ------------------------------------------------------------------------------------
 // Details: Write text data to stderr. Prefix the message with "MI:". The text data does
-//          not need to include a carrage line return as this is added to the text. The
+//          not need to include a carriage line return as this is added to the text. The
 //          function also then passes the text data into the CMICmnLog logger.
 // Type:    Method.
 // Args:    vText       - (R) Text data.
@@ -127,7 +115,7 @@ CMICmnStreamStderr::Write(const CMIUtilString &vText, const bool vbSendToLog /* 
 
 //++ ------------------------------------------------------------------------------------
 // Details: Write an LLDB text message to stderr.
-//          The text data does not need to include a carrage line return as this is added
+//          The text data does not need to include a carriage line return as this is added
 //          to the text. The function also then passes the text data into the CMICmnLog
 //          logger.
 // Type:    Method.
@@ -150,7 +138,7 @@ CMICmnStreamStderr::WriteLLDBMsg(const CMIUtilString &vText, const bool vbSendTo
 
 //++ ------------------------------------------------------------------------------------
 // Details: Write text data to stderr. The text data does not need to
-//          include a carrage line return as this is added to the text. The function also
+//          include a carriage line return as this is added to the text. The function also
 //          then passes the text data into the CMICmnLog logger.
 // Type:    Method.
 // Args:    vText           - (R) Text data. May be prefixed with MI app's short name.

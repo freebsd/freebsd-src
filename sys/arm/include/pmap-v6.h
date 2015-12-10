@@ -201,7 +201,7 @@ void pmap_tlb_flush_ng(pmap_t );
 void pmap_dcache_wb_range(vm_paddr_t , vm_size_t , vm_memattr_t );
 
 vm_paddr_t pmap_kextract(vm_offset_t );
-int pmap_fault(pmap_t , vm_offset_t , uint32_t , int , int );
+int pmap_fault(pmap_t , vm_offset_t , uint32_t , int , bool);
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
 void pmap_set_tex(void);
@@ -263,11 +263,6 @@ void pmap_devmap_bootstrap(const struct pmap_devmap *);
  * sys/arm/xscale/pxa/pxa_machdep.c
  */
 #define	PMAP_DOMAIN_KERNEL	0	/* The kernel uses domain #0 */
-
-/*
- * sys/arm/arm/busdma_machdep-v6.c
- */
-int pmap_dmap_iscurrent(pmap_t pmap);
 
 /*
  * sys/arm/arm/cpufunc.c

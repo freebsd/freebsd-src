@@ -218,14 +218,13 @@ int int_rsa_verify(int dtype, const unsigned char *m,
             memcpy(rm, s + 2, 16);
             *prm_len = 16;
             ret = 1;
-        } else if (memcmp(m, s + 2, 16))
+        } else if (memcmp(m, s + 2, 16)) {
             RSAerr(RSA_F_INT_RSA_VERIFY, RSA_R_BAD_SIGNATURE);
-        else
+        } else {
             ret = 1;
-    }
-
-    /* Special case: SSL signature */
-    if (dtype == NID_md5_sha1) {
+        }
+    } else if (dtype == NID_md5_sha1) {
+        /* Special case: SSL signature */
         if ((i != SSL_SIG_LENGTH) || memcmp(s, m, SSL_SIG_LENGTH))
             RSAerr(RSA_F_INT_RSA_VERIFY, RSA_R_BAD_SIGNATURE);
         else
@@ -261,19 +260,8 @@ int int_rsa_verify(int dtype, const unsigned char *m,
                 OBJ_nid2ln(dtype));
 #endif
         if (sigtype != dtype) {
-            if (((dtype == NID_md5) &&
-                 (sigtype == NID_md5WithRSAEncryption)) ||
-                ((dtype == NID_md2) &&
-                 (sigtype == NID_md2WithRSAEncryption))) {
-                /* ok, we will let it through */
-#if !defined(OPENSSL_NO_STDIO) && !defined(OPENSSL_SYS_WIN16)
-                fprintf(stderr,
-                        "signature has problems, re-make with post SSLeay045\n");
-#endif
-            } else {
-                RSAerr(RSA_F_INT_RSA_VERIFY, RSA_R_ALGORITHM_MISMATCH);
-                goto err;
-            }
+            RSAerr(RSA_F_INT_RSA_VERIFY, RSA_R_ALGORITHM_MISMATCH);
+            goto err;
         }
         if (rm) {
             const EVP_MD *md;

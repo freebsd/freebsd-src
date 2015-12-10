@@ -23,9 +23,10 @@ class ARMAsmBackend : public MCAsmBackend {
   bool isThumbMode;    // Currently emitting Thumb code.
   bool IsLittleEndian; // Big or little endian.
 public:
-  ARMAsmBackend(const Target &T, StringRef TT, bool IsLittle)
+  ARMAsmBackend(const Target &T, const Triple &TT, bool IsLittle)
       : MCAsmBackend(), STI(ARM_MC::createARMMCSubtargetInfo(TT, "", "")),
-        isThumbMode(TT.startswith("thumb")), IsLittleEndian(IsLittle) {}
+        isThumbMode(TT.getArchName().startswith("thumb")),
+        IsLittleEndian(IsLittle) {}
 
   ~ARMAsmBackend() override { delete STI; }
 
@@ -33,7 +34,7 @@ public:
     return ARM::NumTargetFixupKinds;
   }
 
-  bool hasNOP() const { return (STI->getFeatureBits() & ARM::HasV6T2Ops) != 0; }
+  bool hasNOP() const { return STI->getFeatureBits()[ARM::HasV6T2Ops]; }
 
   const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const override;
 
@@ -46,6 +47,8 @@ public:
 
   void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
                   uint64_t Value, bool IsPCRel) const override;
+
+  unsigned getRelaxedOpcode(unsigned Op) const;
 
   bool mayNeedRelaxation(const MCInst &Inst) const override;
 

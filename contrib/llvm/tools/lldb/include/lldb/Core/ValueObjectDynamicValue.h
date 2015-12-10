@@ -56,6 +56,12 @@ public:
         return true;
     }
     
+    virtual bool
+    GetIsConstant () const
+    {
+        return false;
+    }
+    
     virtual ValueObject *
     GetParent()
     {
@@ -102,6 +108,12 @@ public:
 protected:
     virtual bool
     UpdateValue ();
+    
+    virtual bool
+    CanUpdateWithInvalidExecutionContext ()
+    {
+        return true;
+    }
     
     virtual lldb::DynamicValueType
     GetDynamicValueTypeImpl ()

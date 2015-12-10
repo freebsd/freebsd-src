@@ -8,6 +8,7 @@
 
 -->
 
+<!ENTITY abt		"ABT Systems, Ltd.">
 <!ENTITY afrl		"AFRL">
 
 <!ENTITY chelsio	"Chelsio Communications">
@@ -21,9 +22,12 @@
 <!ENTITY darpa_afrl	"DARPA, AFRL">
 <!ENTITY dell		"Dell, Inc.">
 
+<!ENTITY emcisilon	"EMC / Isilon Storage Division">
+
 <!ENTITY ff		"The&nbsp;&os;&nbsp;Foundation">
 <!ENTITY ff.url		"https://www.FreeBSDFoundation.org/">
 
+<!ENTITY gandi		"Gandi.net">
 <!ENTITY google		"Google">
 
 <!ENTITY juniper	"Juniper Networks, Inc.">
@@ -41,6 +45,7 @@
 <!ENTITY netflix	"Netflix">
 <!ENTITY netgate	"Netgate">
 <!ENTITY nginx		"Nginx, Inc.">
+<!ENTITY norse		"Norse Corporation">
 
 <!ENTITY sandvine	"Sandvine, Inc.">
 <!ENTITY scaleengine	"ScaleEngine, Inc.">

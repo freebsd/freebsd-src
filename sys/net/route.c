@@ -139,7 +139,14 @@ static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
 static int rtrequest1_fib_change(struct radix_node_head *, struct rt_addrinfo *,
     struct rtentry **, u_int);
 static void rt_setmetrics(const struct rt_addrinfo *, struct rtentry *);
-static int rt_ifdelroute(struct rtentry *rt, void *arg);
+static int rt_ifdelroute(const struct rtentry *rt, void *arg);
+static struct rtentry *rt_unlinkrte(struct radix_node_head *rnh,
+    struct rt_addrinfo *info, int *perror);
+static void rt_notifydelete(struct rtentry *rt, struct rt_addrinfo *info);
+#ifdef RADIX_MPATH
+static struct radix_node *rt_mpath_unlink(struct radix_node_head *rnh,
+    struct rt_addrinfo *info, struct rtentry *rto, int *perror);
+#endif
 
 struct if_mtuinfo
 {
@@ -237,6 +244,7 @@ rtentry_ctor(void *mem, int size, void *arg, int how)
 
 	bzero(rt, offsetof(struct rtentry, rt_endzero));
 	counter_u64_zero(rt->rt_pksent);
+	rt->rt_chain = NULL;
 
 	return (0);
 }
@@ -845,7 +853,7 @@ rt_foreach_fib_walk(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f,
 			if (rnh == NULL)
 				continue;
 			if (setwa_f != NULL)
-				setwa_f(rnh, fibnum, i, arg);
+				setwa_f(rnh, fibnum, af, arg);
 
 			RADIX_NODE_HEAD_LOCK(rnh);
 			rnh->rnh_walktree(rnh, (walktree_f_t *)wa_f, arg);
@@ -867,6 +875,108 @@ rt_foreach_fib_walk(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f,
 	}
 }
 
+struct rt_delinfo
+{
+	struct rt_addrinfo info;
+	struct radix_node_head *rnh;
+	struct rtentry *head;
+};
+
+/*
+ * Conditionally unlinks @rn from radix tree based
+ * on info data passed in @arg.
+ */
+static int
+rt_checkdelroute(struct radix_node *rn, void *arg)
+{
+	struct rt_delinfo *di;
+	struct rt_addrinfo *info;
+	struct rtentry *rt;
+	int error;
+
+	di = (struct rt_delinfo *)arg;
+	rt = (struct rtentry *)rn;
+	info = &di->info;
+	error = 0;
+
+	info->rti_info[RTAX_DST] = rt_key(rt);
+	info->rti_info[RTAX_NETMASK] = rt_mask(rt);
+	info->rti_info[RTAX_GATEWAY] = rt->rt_gateway;
+
+	rt = rt_unlinkrte(di->rnh, info, &error);
+	if (rt == NULL) {
+		/* Either not allowed or not matched. Skip entry */
+		return (0);
+	}
+
+	/* Entry was unlinked. Add to the list and return */
+	rt->rt_chain = di->head;
+	di->head = rt;
+
+	return (0);
+}
+
+/*
+ * Iterates over all existing fibs in system.
+ * Deletes each element for which @filter_f function returned
+ * non-zero value.
+ * If @af is not AF_UNSPEC, iterates over fibs in particular
+ * address family.
+ */
+void
+rt_foreach_fib_walk_del(int af, rt_filter_f_t *filter_f, void *arg)
+{
+	struct radix_node_head *rnh;
+	struct rt_delinfo di;
+	struct rtentry *rt;
+	uint32_t fibnum;
+	int i, start, end;
+
+	bzero(&di, sizeof(di));
+	di.info.rti_filter = filter_f;
+	di.info.rti_filterdata = arg;
+
+	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+		/* Do we want some specific family? */
+		if (af != AF_UNSPEC) {
+			start = af;
+			end = af;
+		} else {
+			start = 1;
+			end = AF_MAX;
+		}
+
+		for (i = start; i <= end; i++) {
+			rnh = rt_tables_get_rnh(fibnum, i);
+			if (rnh == NULL)
+				continue;
+			di.rnh = rnh;
+
+			RADIX_NODE_HEAD_LOCK(rnh);
+			rnh->rnh_walktree(rnh, rt_checkdelroute, &di);
+			RADIX_NODE_HEAD_UNLOCK(rnh);
+
+			if (di.head == NULL)
+				continue;
+
+			/* We might have something to reclaim */
+			while (di.head != NULL) {
+				rt = di.head;
+				di.head = rt->rt_chain;
+				rt->rt_chain = NULL;
+
+				/* TODO std rt -> rt_addrinfo export */
+				di.info.rti_info[RTAX_DST] = rt_key(rt);
+				di.info.rti_info[RTAX_NETMASK] = rt_mask(rt);
+
+				rt_notifydelete(rt, &di.info);
+				RTFREE_LOCKED(rt);
+			}
+
+		}
+	}
+}
+
 /*
  * Delete Routes for a Network Interface
  *
@@ -882,10 +992,9 @@ rt_foreach_fib_walk(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f,
  *	errno	failed - reason indicated
  */
 static int
-rt_ifdelroute(struct rtentry *rt, void *arg)
+rt_ifdelroute(const struct rtentry *rt, void *arg)
 {
 	struct ifnet	*ifp = arg;
-	int		err;
 
 	if (rt->rt_ifp != ifp)
 		return (0);
@@ -897,14 +1006,7 @@ rt_ifdelroute(struct rtentry *rt, void *arg)
 	if ((rt->rt_flags & RTF_UP) == 0)
 		return (0);
 
-	err = rtrequest_fib(RTM_DELETE, rt_key(rt), rt->rt_gateway,
-			rt_mask(rt),
-			rt->rt_flags | RTF_RNH_LOCKED | RTF_PINNED,
-			(struct rtentry **) NULL, rt->rt_fibnum);
-	if (err != 0)
-		log(LOG_WARNING, "rt_ifdelroute: error %d\n", err);
-
-	return (0);
+	return (1);
 }
 
 /*
@@ -917,8 +1019,103 @@ void
 rt_flushifroutes(struct ifnet *ifp)
 {
 
-	rt_foreach_fib_walk(AF_UNSPEC, NULL, rt_ifdelroute, ifp);
+	rt_foreach_fib_walk_del(AF_UNSPEC, rt_ifdelroute, ifp);
 }
+
+/*
+ * Conditionally unlinks rtentry matching data inside @info from @rnh.
+ * Returns unlinked, locked and referenced @rtentry on success,
+ * Returns NULL and sets @perror to:
+ * ESRCH - if prefix was not found,
+ * EADDRINUSE - if trying to delete PINNED route without appropriate flag.
+ * ENOENT - if supplied filter function returned 0 (not matched).
+ */
+static struct rtentry *
+rt_unlinkrte(struct radix_node_head *rnh, struct rt_addrinfo *info, int *perror)
+{
+	struct sockaddr *dst, *netmask;
+	struct rtentry *rt;
+	struct radix_node *rn;
+
+	dst = info->rti_info[RTAX_DST];
+	netmask = info->rti_info[RTAX_NETMASK];
+
+	rt = (struct rtentry *)rnh->rnh_lookup(dst, netmask, rnh);
+	if (rt == NULL) {
+		*perror = ESRCH;
+		return (NULL);
+	}
+
+	if ((info->rti_flags & RTF_PINNED) == 0) {
+		/* Check if target route can be deleted */
+		if (rt->rt_flags & RTF_PINNED) {
+			*perror = EADDRINUSE;
+			return (NULL);
+		}
+	}
+
+	if (info->rti_filter != NULL) {
+		if (info->rti_filter(rt, info->rti_filterdata) == 0) {
+			/* Not matched */
+			*perror = ENOENT;
+			return (NULL);
+		}
+
+		/*
+		 * Filter function requested rte deletion.
+		 * Ease the caller work by filling in remaining info
+		 * from that particular entry.
+		 */
+		info->rti_info[RTAX_GATEWAY] = rt->rt_gateway;
+	}
+
+	/*
+	 * Remove the item from the tree and return it.
+	 * Complain if it is not there and do no more processing.
+	 */
+	*perror = ESRCH;
+#ifdef RADIX_MPATH
+	if (rn_mpath_capable(rnh))
+		rn = rt_mpath_unlink(rnh, info, rt, perror);
+	else
+#endif
+	rn = rnh->rnh_deladdr(dst, netmask, rnh);
+	if (rn == NULL)
+		return (NULL);
+
+	if (rn->rn_flags & (RNF_ACTIVE | RNF_ROOT))
+		panic ("rtrequest delete");
+
+	rt = RNTORT(rn);
+	RT_LOCK(rt);
+	RT_ADDREF(rt);
+	rt->rt_flags &= ~RTF_UP;
+
+	*perror = 0;
+
+	return (rt);
+}
+
+static void
+rt_notifydelete(struct rtentry *rt, struct rt_addrinfo *info)
+{
+	struct ifaddr *ifa;
+
+	/*
+	 * give the protocol a chance to keep things in sync.
+	 */
+	ifa = rt->rt_ifa;
+	if (ifa != NULL && ifa->ifa_rtrequest != NULL)
+		ifa->ifa_rtrequest(RTM_DELETE, rt, info);
+
+	/*
+	 * One more rtentry floating around that is not
+	 * linked to the routing table. rttrash will be decremented
+	 * when RTFREE(rt) is eventually called.
+	 */
+	V_rttrash++;
+}
+
 
 /*
  * These (questionable) definitions of apparent local variables apply
@@ -930,13 +1127,6 @@ rt_flushifroutes(struct ifnet *ifp)
 #define	ifaaddr	info->rti_info[RTAX_IFA]
 #define	ifpaddr	info->rti_info[RTAX_IFP]
 #define	flags	info->rti_flags
-
-int
-rt_getifa(struct rt_addrinfo *info)
-{
-
-	return (rt_getifa_fib(info, RT_DEFAULT_FIB));
-}
 
 /*
  * Look up rt_addrinfo for a specific fib.  Note that if rti_ifa is defined,
@@ -979,87 +1169,6 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 			info->rti_ifp = ifa->ifa_ifp;
 	} else
 		error = ENETUNREACH;
-	return (error);
-}
-
-/*
- * Expunges references to a route that's about to be reclaimed.
- * The route must be locked.
- */
-int
-rt_expunge(struct radix_node_head *rnh, struct rtentry *rt)
-{
-#if !defined(RADIX_MPATH)
-	struct radix_node *rn;
-#else
-	struct rt_addrinfo info;
-	int fib;
-	struct rtentry *rt0;
-#endif
-	struct ifaddr *ifa;
-	int error = 0;
-
-	RT_LOCK_ASSERT(rt);
-	RADIX_NODE_HEAD_LOCK_ASSERT(rnh);
-
-#ifdef RADIX_MPATH
-	fib = rt->rt_fibnum;
-	bzero(&info, sizeof(info));
-	info.rti_ifp = rt->rt_ifp;
-	info.rti_flags = RTF_RNH_LOCKED;
-	info.rti_info[RTAX_DST] = rt_key(rt);
-	info.rti_info[RTAX_GATEWAY] = rt->rt_ifa->ifa_addr;
-
-	RT_UNLOCK(rt);
-	error = rtrequest1_fib(RTM_DELETE, &info, &rt0, fib);
-
-	if (error == 0 && rt0 != NULL) {
-		rt = rt0;
-		RT_LOCK(rt);
-	} else if (error != 0) {
-		RT_LOCK(rt);
-		return (error);
-	}
-#else
-	/*
-	 * Remove the item from the tree; it should be there,
-	 * but when callers invoke us blindly it may not (sigh).
-	 */
-	rn = rnh->rnh_deladdr(rt_key(rt), rt_mask(rt), rnh);
-	if (rn == NULL) {
-		error = ESRCH;
-		goto bad;
-	}
-	KASSERT((rn->rn_flags & (RNF_ACTIVE | RNF_ROOT)) == 0,
-		("unexpected flags 0x%x", rn->rn_flags));
-	KASSERT(rt == RNTORT(rn),
-		("lookup mismatch, rt %p rn %p", rt, rn));
-#endif /* RADIX_MPATH */
-
-	rt->rt_flags &= ~RTF_UP;
-
-	/*
-	 * Give the protocol a chance to keep things in sync.
-	 */
-	if ((ifa = rt->rt_ifa) && ifa->ifa_rtrequest) {
-		struct rt_addrinfo info;
-
-		bzero((caddr_t)&info, sizeof(info));
-		info.rti_flags = rt->rt_flags;
-		info.rti_info[RTAX_DST] = rt_key(rt);
-		info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
-		info.rti_info[RTAX_NETMASK] = rt_mask(rt);
-		ifa->ifa_rtrequest(RTM_DELETE, rt, &info);
-	}
-
-	/*
-	 * one more rtentry floating around that is not
-	 * linked to the routing table.
-	 */
-	V_rttrash++;
-#if !defined(RADIX_MPATH)
-bad:
-#endif
 	return (error);
 }
 
@@ -1179,26 +1288,32 @@ rt_print(char *buf, int buflen, struct rtentry *rt)
 #endif
 
 #ifdef RADIX_MPATH
-static int
-rn_mpath_update(int req, struct rt_addrinfo *info,
-    struct radix_node_head *rnh, struct rtentry **ret_nrt)
+/*
+ * Deletes key for single-path routes, unlinks rtentry with
+ * gateway specified in @info from multi-path routes.
+ *
+ * Returnes unlinked entry. In case of failure, returns NULL
+ * and sets @perror to ESRCH.
+ */
+static struct radix_node *
+rt_mpath_unlink(struct radix_node_head *rnh, struct rt_addrinfo *info,
+    struct rtentry *rto, int *perror)
 {
 	/*
 	 * if we got multipath routes, we require users to specify
 	 * a matching RTAX_GATEWAY.
 	 */
-	struct rtentry *rt, *rto = NULL;
+	struct rtentry *rt; // *rto = NULL;
 	struct radix_node *rn;
-	int error = 0;
+	struct sockaddr *gw;
 
-	rn = rnh->rnh_lookup(dst, netmask, rnh);
-	if (rn == NULL)
-		return (ESRCH);
-	rto = rt = RNTORT(rn);
+	gw = info->rti_info[RTAX_GATEWAY];
+	rt = rt_mpath_matchgate(rto, gw);
+	if (rt == NULL) {
+		*perror = ESRCH;
+		return (NULL);
+	}
 
-	rt = rt_mpath_matchgate(rt, gateway);
-	if (rt == NULL)
-		return (ESRCH);
 	/*
 	 * this is the first entry in the chain
 	 */
@@ -1221,67 +1336,95 @@ rn_mpath_update(int req, struct rt_addrinfo *info,
 			 * check the case when there is only
 			 * one route in the chain.  
 			 */
-			if (gateway &&
-			    (rt->rt_gateway->sa_len != gateway->sa_len ||
-				memcmp(rt->rt_gateway, gateway, gateway->sa_len)))
-				error = ESRCH;
-			else {
-				/*
-				 * remove from tree before returning it
-				 * to the caller
-				 */
-				rn = rnh->rnh_deladdr(dst, netmask, rnh);
-				KASSERT(rt == RNTORT(rn), ("radix node disappeared"));
-				goto gwdelete;
+			if (gw &&
+			    (rt->rt_gateway->sa_len != gw->sa_len ||
+				memcmp(rt->rt_gateway, gw, gw->sa_len))) {
+				*perror = ESRCH;
+				return (NULL);
 			}
-			
 		}
+
 		/*
 		 * use the normal delete code to remove
 		 * the first entry
 		 */
-		if (req != RTM_DELETE) 
-			goto nondelete;
-
-		error = ENOENT;
-		goto done;
+		rn = rnh->rnh_deladdr(dst, netmask, rnh);
+		*perror = 0;
+		return (rn);
 	}
 		
 	/*
 	 * if the entry is 2nd and on up
 	 */
-	if ((req == RTM_DELETE) && !rt_mpath_deldup(rto, rt))
+	if (rt_mpath_deldup(rto, rt) == 0)
 		panic ("rtrequest1: rt_mpath_deldup");
-gwdelete:
-	RT_LOCK(rt);
-	RT_ADDREF(rt);
-	if (req == RTM_DELETE) {
-		rt->rt_flags &= ~RTF_UP;
-		/*
-		 * One more rtentry floating around that is not
-		 * linked to the routing table. rttrash will be decremented
-		 * when RTFREE(rt) is eventually called.
-		 */
-		V_rttrash++;
-	}
-	
-nondelete:
-	if (req != RTM_DELETE)
-		panic("unrecognized request %d", req);
-	
+	*perror = 0;
+	rn = (struct radix_node *)rt;
+	return (rn);
+}
+#endif
 
-	/*
-	 * If the caller wants it, then it can have it,
-	 * but it's up to it to free the rtentry as we won't be
-	 * doing it.
-	 */
-	if (ret_nrt) {
-		*ret_nrt = rt;
-		RT_UNLOCK(rt);
-	} else
-		RTFREE_LOCKED(rt);
-done:
-	return (error);
+#ifdef FLOWTABLE
+static struct rtentry *
+rt_flowtable_check_route(struct radix_node_head *rnh, struct rt_addrinfo *info)
+{
+#if defined(INET6) || defined(INET)
+	struct radix_node *rn;
+#endif
+	struct rtentry *rt0;
+
+	rt0 = NULL;
+	/* "flow-table" only supports IPv6 and IPv4 at the moment. */
+	switch (dst->sa_family) {
+#ifdef INET6
+	case AF_INET6:
+#endif
+#ifdef INET
+	case AF_INET:
+#endif
+#if defined(INET6) || defined(INET)
+		rn = rnh->rnh_matchaddr(dst, rnh);
+		if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
+			struct sockaddr *mask;
+			u_char *m, *n;
+			int len;
+
+			/*
+			 * compare mask to see if the new route is
+			 * more specific than the existing one
+			 */
+			rt0 = RNTORT(rn);
+			RT_LOCK(rt0);
+			RT_ADDREF(rt0);
+			RT_UNLOCK(rt0);
+			/*
+			 * A host route is already present, so
+			 * leave the flow-table entries as is.
+			 */
+			if (rt0->rt_flags & RTF_HOST) {
+				RTFREE(rt0);
+				rt0 = NULL;
+			} else if (!(flags & RTF_HOST) && netmask) {
+				mask = rt_mask(rt0);
+				len = mask->sa_len;
+				m = (u_char *)mask;
+				n = (u_char *)netmask;
+				while (len-- > 0) {
+					if (*n != *m)
+						break;
+					n++;
+					m++;
+				}
+				if (len == 0 || (*n < *m)) {
+					RTFREE(rt0);
+					rt0 = NULL;
+				}
+			}
+		}
+#endif/* INET6 || INET */
+	}
+
+	return (rt0);
 }
 #endif
 
@@ -1290,7 +1433,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 				u_int fibnum)
 {
 	int error = 0, needlock = 0;
-	struct rtentry *rt;
+	struct rtentry *rt, *rt_old;
 #ifdef FLOWTABLE
 	struct rtentry *rt0;
 #endif
@@ -1337,52 +1480,12 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			rt_maskedcopy(dst, (struct sockaddr *)&mdst, netmask);
 			dst = (struct sockaddr *)&mdst;
 		}
-#ifdef RADIX_MPATH
-		if (rn_mpath_capable(rnh)) {
-			error = rn_mpath_update(req, info, rnh, ret_nrt);
-			/*
-			 * "bad" holds true for the success case
-			 * as well
-			 */
-			if (error != ENOENT)
-				goto bad;
-			error = 0;
-		}
-#endif
-		if ((flags & RTF_PINNED) == 0) {
-			/* Check if target route can be deleted */
-			rt = (struct rtentry *)rnh->rnh_lookup(dst,
-			    netmask, rnh);
-			if ((rt != NULL) && (rt->rt_flags & RTF_PINNED))
-				senderr(EADDRINUSE);
-		}
 
-		/*
-		 * Remove the item from the tree and return it.
-		 * Complain if it is not there and do no more processing.
-		 */
-		rn = rnh->rnh_deladdr(dst, netmask, rnh);
-		if (rn == NULL)
-			senderr(ESRCH);
-		if (rn->rn_flags & (RNF_ACTIVE | RNF_ROOT))
-			panic ("rtrequest delete");
-		rt = RNTORT(rn);
-		RT_LOCK(rt);
-		RT_ADDREF(rt);
-		rt->rt_flags &= ~RTF_UP;
+		rt = rt_unlinkrte(rnh, info, &error);
+		if (error != 0)
+			goto bad;
 
-		/*
-		 * give the protocol a chance to keep things in sync.
-		 */
-		if ((ifa = rt->rt_ifa) && ifa->ifa_rtrequest)
-			ifa->ifa_rtrequest(RTM_DELETE, rt, info);
-
-		/*
-		 * One more rtentry floating around that is not
-		 * linked to the routing table. rttrash will be decremented
-		 * when RTFREE(rt) is eventually called.
-		 */
-		V_rttrash++;
+		rt_notifydelete(rt, info);
 
 		/*
 		 * If the caller wants it, then it can have it,
@@ -1468,60 +1571,31 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 #endif
 
 #ifdef FLOWTABLE
-		rt0 = NULL;
-		/* "flow-table" only supports IPv6 and IPv4 at the moment. */
-		switch (dst->sa_family) {
-#ifdef INET6
-		case AF_INET6:
-#endif
-#ifdef INET
-		case AF_INET:
-#endif
-#if defined(INET6) || defined(INET)
-			rn = rnh->rnh_matchaddr(dst, rnh);
-			if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
-				struct sockaddr *mask;
-				u_char *m, *n;
-				int len;
-				
-				/*
-				 * compare mask to see if the new route is
-				 * more specific than the existing one
-				 */
-				rt0 = RNTORT(rn);
-				RT_LOCK(rt0);
-				RT_ADDREF(rt0);
-				RT_UNLOCK(rt0);
-				/*
-				 * A host route is already present, so 
-				 * leave the flow-table entries as is.
-				 */
-				if (rt0->rt_flags & RTF_HOST) {
-					RTFREE(rt0);
-					rt0 = NULL;
-				} else if (!(flags & RTF_HOST) && netmask) {
-					mask = rt_mask(rt0);
-					len = mask->sa_len;
-					m = (u_char *)mask;
-					n = (u_char *)netmask;
-					while (len-- > 0) {
-						if (*n != *m)
-							break;
-						n++;
-						m++;
-					}
-					if (len == 0 || (*n < *m)) {
-						RTFREE(rt0);
-						rt0 = NULL;
-					}
-				}
-			}
-#endif/* INET6 || INET */
-		}
+		rt0 = rt_flowtable_check_route(rnh, info);
 #endif /* FLOWTABLE */
 
 		/* XXX mtu manipulation will be done in rnh_addaddr -- itojun */
 		rn = rnh->rnh_addaddr(ndst, netmask, rnh, rt->rt_nodes);
+
+		rt_old = NULL;
+		if (rn == NULL && (info->rti_flags & RTF_PINNED) != 0) {
+
+			/*
+			 * Force removal and re-try addition
+			 * TODO: better multipath&pinned support
+			 */
+			struct sockaddr *info_dst = info->rti_info[RTAX_DST];
+			info->rti_info[RTAX_DST] = ndst;
+			rt_old = rt_unlinkrte(rnh, info, &error);
+			info->rti_info[RTAX_DST] = info_dst;
+			if (rt_old != NULL)
+				rn = rnh->rnh_addaddr(ndst, netmask, rnh,
+				    rt->rt_nodes);
+		}
+
+		if (rt_old != NULL)
+			RT_UNLOCK(rt_old);
+
 		/*
 		 * If it still failed to go into the tree,
 		 * then un-make it (this should be a function)
@@ -1542,6 +1616,11 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			RTFREE(rt0);
 		}
 #endif
+
+		if (rt_old != NULL) {
+			rt_notifydelete(rt_old, info);
+			RTFREE(rt_old);
+		}
 
 		/*
 		 * If this protocol has something to add to this then
@@ -1918,32 +1997,6 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			info.rti_info[RTAX_GATEWAY] = ifa->ifa_addr;
 		info.rti_info[RTAX_NETMASK] = netmask;
 		error = rtrequest1_fib(cmd, &info, &rt, fibnum);
-
-		if ((error == EEXIST) && (cmd == RTM_ADD)) {
-			/*
-			 * Interface route addition failed.
-			 * Atomically delete current prefix generating
-			 * RTM_DELETE message, and retry adding
-			 * interface prefix.
-			 */
-			rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
-			RADIX_NODE_HEAD_LOCK(rnh);
-
-			/* Delete old prefix */
-			info.rti_ifa = NULL;
-			info.rti_flags = RTF_RNH_LOCKED;
-
-			error = rtrequest1_fib(RTM_DELETE, &info, NULL, fibnum);
-			if (error == 0) {
-				info.rti_ifa = ifa;
-				info.rti_flags = flags | RTF_RNH_LOCKED |
-				    (ifa->ifa_flags & ~IFA_RTSELF) | RTF_PINNED;
-				error = rtrequest1_fib(cmd, &info, &rt, fibnum);
-			}
-
-			RADIX_NODE_HEAD_UNLOCK(rnh);
-		}
-
 
 		if (error == 0 && rt != NULL) {
 			/*

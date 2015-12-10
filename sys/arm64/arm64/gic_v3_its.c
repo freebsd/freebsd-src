@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include "gic_v3_reg.h"
 #include "gic_v3_var.h"
 
+#define	GIC_V3_ITS_QUIRK_THUNDERX_PEM_BUS_OFFSET	144
+
 #include "pic_if.h"
 
 /* Device and PIC methods */
@@ -178,6 +180,19 @@ gic_v3_its_attach(device_t dev)
 	int ret;
 
 	sc = device_get_softc(dev);
+
+	/*
+	 * XXX ARM64TODO: Avoid configuration of more than one ITS
+	 * device. To be removed when multi-PIC support is added
+	 * to FreeBSD (or at least multi-ITS is implemented). Limit
+	 * supported ITS sockets to '0' only.
+	 */
+	if (device_get_unit(dev) != 0) {
+		device_printf(dev,
+		    "Only single instance of ITS is supported, exiting...\n");
+		return (ENXIO);
+	}
+	sc->its_socket = 0;
 
 	/*
 	 * Initialize sleep & spin mutex for ITS
@@ -557,6 +572,10 @@ its_init_cpu(struct gic_v3_its_softc *sc)
 			 */
 			sc = its_sc;
 		} else
+			return (ENXIO);
+
+		/* Skip if running secondary init on a wrong socket */
+		if (sc->its_socket != CPU_CURRENT_SOCKET)
 			return (ENXIO);
 	}
 
@@ -1458,8 +1477,8 @@ its_get_devid_thunder(device_t pci_dev)
 	bsf = PCI_RID(pci_get_bus(pci_dev), pci_get_slot(pci_dev),
 	    pci_get_function(pci_dev));
 
-	/* ECAM is on bus=0 */
-	if (bus == 0) {
+	/* Check if accessing internal PCIe (low bus numbers) */
+	if (bus < GIC_V3_ITS_QUIRK_THUNDERX_PEM_BUS_OFFSET) {
 		return ((pci_get_domain(pci_dev) << PCI_RID_DOMAIN_SHIFT) |
 		    bsf);
 	/* PEM otherwise */

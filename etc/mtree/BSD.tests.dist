@@ -12,7 +12,11 @@
         ..
         date
         ..
+        dd
+        ..
         expr
+        ..
+        ls
         ..
         mv
         ..
@@ -240,6 +244,8 @@
             test-programs
             ..
         ..
+        libarchive
+        ..
         libc
             c063
             ..
@@ -268,6 +274,8 @@
             regex
                 data
                 ..
+            ..
+            rpc
             ..
             ssp
             ..
@@ -307,6 +315,8 @@
             ..
         ..
         libutil
+        ..
+        libxo
         ..
         msun
         ..
@@ -354,6 +364,8 @@
         ..
     ..
     sys
+        acl
+        ..
         aio
         ..
         fifo
@@ -361,7 +373,11 @@
         file
         ..
         kern
+            acct
+            ..
             execve
+            ..
+            pipe
             ..
         ..
         kqueue
@@ -403,6 +419,10 @@
             ..
             unlink
             ..
+        ..
+        posixshm
+        ..
+        vfs
         ..
         vm
         ..
@@ -514,6 +534,8 @@
         ..
         cmp
         ..
+        cpio
+        ..
         col
         ..
         comm
@@ -536,6 +558,8 @@
         ..
         lastcomm
         ..
+        limits
+        ..
         m4
         ..
         mkimg
@@ -552,6 +576,8 @@
         ..
         soelim
         ..
+        tar
+        ..
         timeout
         ..
         tr
@@ -566,6 +592,8 @@
         ..
         xargs
         ..
+        xo
+        ..
         yacc
             yacc
             ..
@@ -575,6 +603,8 @@
         etcupdate
         ..
         fstyp
+        ..
+        makefs
         ..
         newsyslog
         ..

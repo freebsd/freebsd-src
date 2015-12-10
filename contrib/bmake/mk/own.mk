@@ -1,4 +1,4 @@
-# $Id: own.mk,v 1.28 2015/04/16 16:59:00 sjg Exp $
+# $Id: own.mk,v 1.30 2015/11/14 18:09:57 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -89,12 +89,10 @@ OPTIONS_DEFAULT_NO+= DPADD_MK
 
 # process options
 OPTIONS_DEFAULT_NO+= \
-	AUTO_OBJ \
 	INSTALL_AS_USER \
 	GPROF \
 	LIBTOOL \
 	LINT \
-	META_MODE \
 
 OPTIONS_DEFAULT_YES+= \
 	ARCHIVE \
@@ -133,7 +131,9 @@ USERGRP!=  id -g
 .for x in BIN CONF DOC INFO KMOD LIB MAN NLS SHARE
 $xOWN=  ${USER}
 $xGRP=  ${USERGRP}
+$x_INSTALL_OWN=
 .endfor
+PROG_INSTALL_OWN=
 .endif
 .endif
 
@@ -143,6 +143,7 @@ BINGRP?=	${ROOT_GROUP}
 BINOWN?=	root
 BINMODE?=	555
 NONBINMODE?=	444
+DIRMODE?=	755
 
 # Define MANZ to have the man pages compressed (gzip)
 #MANZ=		1

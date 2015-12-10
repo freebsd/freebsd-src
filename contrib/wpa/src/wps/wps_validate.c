@@ -224,6 +224,8 @@ static int wps_validate_rf_bands(const u8 *rf_bands, int mandatory)
 		return 0;
 	}
 	if (*rf_bands != WPS_RF_24GHZ && *rf_bands != WPS_RF_50GHZ &&
+	    *rf_bands != WPS_RF_60GHZ &&
+	    *rf_bands != (WPS_RF_24GHZ | WPS_RF_50GHZ | WPS_RF_60GHZ) &&
 	    *rf_bands != (WPS_RF_24GHZ | WPS_RF_50GHZ)) {
 		wpa_printf(MSG_INFO, "WPS-STRICT: Invalid Rf Bands "
 			   "attribute value 0x%x", *rf_bands);

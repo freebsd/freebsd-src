@@ -566,10 +566,7 @@ ural_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 
 	if (!TAILQ_EMPTY(&ic->ic_vaps))		/* only one at a time */
 		return NULL;
-	uvp = (struct ural_vap *) malloc(sizeof(struct ural_vap),
-	    M_80211_VAP, M_NOWAIT | M_ZERO);
-	if (uvp == NULL)
-		return NULL;
+	uvp = malloc(sizeof(struct ural_vap), M_80211_VAP, M_WAITOK | M_ZERO);
 	vap = &uvp->vap;
 	/* enable s/w bmiss handling for sta mode */
 
@@ -701,12 +698,9 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ni = ieee80211_ref_node(vap->iv_bss);
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
-			if (ic->ic_bsschan == IEEE80211_CHAN_ANYC) {
-				RAL_UNLOCK(sc);
-				IEEE80211_LOCK(ic);
-				ieee80211_free_node(ni);
-				return (-1);
-			}
+			if (ic->ic_bsschan == IEEE80211_CHAN_ANYC)
+				goto fail;
+
 			ural_update_slot(sc);
 			ural_set_txpreamble(sc);
 			ural_set_basicrates(sc, ic->ic_bsschan);
@@ -716,23 +710,17 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
 		    vap->iv_opmode == IEEE80211_M_IBSS) {
-			m = ieee80211_beacon_alloc(ni, &uvp->bo);
+			m = ieee80211_beacon_alloc(ni);
 			if (m == NULL) {
 				device_printf(sc->sc_dev,
 				    "could not allocate beacon\n");
-				RAL_UNLOCK(sc);
-				IEEE80211_LOCK(ic);
-				ieee80211_free_node(ni);
-				return (-1);
+				goto fail;
 			}
 			ieee80211_ref_node(ni);
 			if (ural_tx_bcn(sc, m, ni) != 0) {
 				device_printf(sc->sc_dev,
 				    "could not send beacon\n");
-				RAL_UNLOCK(sc);
-				IEEE80211_LOCK(ic);
-				ieee80211_free_node(ni);
-				return (-1);
+				goto fail;
 			}
 		}
 
@@ -758,6 +746,12 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	RAL_UNLOCK(sc);
 	IEEE80211_LOCK(ic);
 	return (uvp->newstate(vap, nstate, arg));
+
+fail:
+	RAL_UNLOCK(sc);
+	IEEE80211_LOCK(ic);
+	ieee80211_free_node(ni);
+	return (-1);
 }
 
 
@@ -1932,7 +1926,6 @@ ural_read_eeprom(struct ural_softc *sc)
 static int
 ural_bbp_init(struct ural_softc *sc)
 {
-#define N(a)	((int)(sizeof (a) / sizeof ((a)[0])))
 	int i, ntries;
 
 	/* wait for BBP to be ready */
@@ -1948,7 +1941,7 @@ ural_bbp_init(struct ural_softc *sc)
 	}
 
 	/* initialize BBP registers to default values */
-	for (i = 0; i < N(ural_def_bbp); i++)
+	for (i = 0; i < nitems(ural_def_bbp); i++)
 		ural_bbp_write(sc, ural_def_bbp[i].reg, ural_def_bbp[i].val);
 
 #if 0
@@ -1961,7 +1954,6 @@ ural_bbp_init(struct ural_softc *sc)
 #endif
 
 	return 0;
-#undef N
 }
 
 static void
@@ -2016,7 +2008,6 @@ ural_set_rxantenna(struct ural_softc *sc, int antenna)
 static void
 ural_init(struct ural_softc *sc)
 {
-#define N(a)	((int)(sizeof (a) / sizeof ((a)[0])))
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	uint16_t tmp;
@@ -2030,7 +2021,7 @@ ural_init(struct ural_softc *sc)
 	ural_stop(sc);
 
 	/* initialize MAC registers to default values */
-	for (i = 0; i < N(ural_def_mac); i++)
+	for (i = 0; i < nitems(ural_def_mac); i++)
 		ural_write(sc, ural_def_mac[i].reg, ural_def_mac[i].val);
 
 	/* wait for BBP and RF to wake up (this can take a long time!) */
@@ -2089,7 +2080,6 @@ ural_init(struct ural_softc *sc)
 	return;
 
 fail:	ural_stop(sc);
-#undef N
 }
 
 static void
@@ -2133,13 +2123,11 @@ ural_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (!sc->sc_running) {
 		RAL_UNLOCK(sc);
 		m_freem(m);
-		ieee80211_free_node(ni);
 		return ENETDOWN;
 	}
 	if (sc->tx_nfree < RAL_TX_MINFREE) {
 		RAL_UNLOCK(sc);
 		m_freem(m);
-		ieee80211_free_node(ni);
 		return EIO;
 	}
 
@@ -2162,7 +2150,6 @@ ural_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	return 0;
 bad:
 	RAL_UNLOCK(sc);
-	ieee80211_free_node(ni);
 	return EIO;		/* XXX */
 }
 

@@ -52,16 +52,7 @@ extern "C" {
 /** This structure is used to hold a key/value from a hash table.
  * @note Private. For use by Subversion's own code only. See issue #1644.
  */
-typedef struct svn_sort__item_t {
-  /** pointer to the key */
-  const void *key;
-
-  /** size of the key */
-  apr_ssize_t klen;
-
-  /** pointer to the value */
-  void *value;
-} svn_sort__item_t;
+typedef struct svn_sort__item_t svn_sort__item_t;
 
 
 /** Compare two @c svn_sort__item_t's, returning an integer greater than,
@@ -148,73 +139,6 @@ svn_sort_compare_paths(const void *a,
 int
 svn_sort_compare_ranges(const void *a,
                         const void *b);
-
-/** Sort @a ht according to its keys, return an @c apr_array_header_t
- * containing @c svn_sort__item_t structures holding those keys and values
- * (i.e. for each @c svn_sort__item_t @a item in the returned array,
- * @a item->key and @a item->size are the hash key, and @a item->value points to
- * the hash value).
- *
- * Storage is shared with the original hash, not copied.
- *
- * @a comparison_func should take two @c svn_sort__item_t's and return an
- * integer greater than, equal to, or less than 0, according as the first item
- * is greater than, equal to, or less than the second.
- *
- * @note Private. For use by Subversion's own code only. See issue #1644.
- *
- * @note This function and the @c svn_sort__item_t should go over to APR.
- */
-apr_array_header_t *
-svn_sort__hash(apr_hash_t *ht,
-               int (*comparison_func)(const svn_sort__item_t *,
-                                      const svn_sort__item_t *),
-               apr_pool_t *pool);
-
-/* Return the lowest index at which the element @a *key should be inserted into
- * the array @a array, according to the ordering defined by @a compare_func.
- * The array must already be sorted in the ordering defined by @a compare_func.
- * @a compare_func is defined as for the C stdlib function bsearch().
- *
- * @note Private. For use by Subversion's own code only.
- */
-int
-svn_sort__bsearch_lower_bound(const void *key,
-                              const apr_array_header_t *array,
-                              int (*compare_func)(const void *, const void *));
-
-/* Insert a shallow copy of @a *new_element into the array @a array at the index
- * @a insert_index, growing the array and shuffling existing elements along to
- * make room.
- *
- * @note Private. For use by Subversion's own code only.
- */
-void
-svn_sort__array_insert(const void *new_element,
-                       apr_array_header_t *array,
-                       int insert_index);
-
-
-/* Remove @a elements_to_delete elements starting at @a delete_index from the
- * array @a arr. If @a delete_index is not a valid element of @a arr,
- * @a elements_to_delete is not greater than zero, or
- * @a delete_index + @a elements_to_delete is greater than @a arr->nelts,
- * then do nothing.
- *
- * @note Private. For use by Subversion's own code only.
- */
-void
-svn_sort__array_delete(apr_array_header_t *arr,
-                       int delete_index,
-                       int elements_to_delete);
-
-/* Reverse the order of elements in @a array, in place.
- *
- * @note Private. For use by Subversion's own code only.
- */
-void
-svn_sort__array_reverse(apr_array_header_t *array,
-                        apr_pool_t *scratch_pool);
 
 #ifdef __cplusplus
 }

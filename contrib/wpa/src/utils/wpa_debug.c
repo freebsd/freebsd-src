@@ -307,7 +307,7 @@ static void _wpa_hexdump(int level, const char *title, const u8 *buf,
 				    "%s - hexdump(len=%lu):%s%s",
 				    title, (long unsigned int) len, display,
 				    len > slen ? " ..." : "");
-		os_free(strbuf);
+		bin_clear_free(strbuf, 1 + 3 * slen);
 		return;
 	}
 #else /* CONFIG_ANDROID_LOG */
@@ -339,7 +339,7 @@ static void _wpa_hexdump(int level, const char *title, const u8 *buf,
 
 		syslog(syslog_priority(level), "%s - hexdump(len=%lu):%s",
 		       title, (unsigned long) len, display);
-		os_free(strbuf);
+		bin_clear_free(strbuf, 1 + 3 * len);
 		return;
 	}
 #endif /* CONFIG_DEBUG_SYSLOG */
@@ -635,8 +635,8 @@ void wpa_msg(void *ctx, int level, const char *fmt, ...)
 	va_end(ap);
 	wpa_printf(level, "%s%s", prefix, buf);
 	if (wpa_msg_cb)
-		wpa_msg_cb(ctx, level, 0, buf, len);
-	os_free(buf);
+		wpa_msg_cb(ctx, level, WPA_MSG_PER_INTERFACE, buf, len);
+	bin_clear_free(buf, buflen);
 }
 
 
@@ -663,8 +663,8 @@ void wpa_msg_ctrl(void *ctx, int level, const char *fmt, ...)
 	va_start(ap, fmt);
 	len = vsnprintf(buf, buflen, fmt, ap);
 	va_end(ap);
-	wpa_msg_cb(ctx, level, 0, buf, len);
-	os_free(buf);
+	wpa_msg_cb(ctx, level, WPA_MSG_PER_INTERFACE, buf, len);
+	bin_clear_free(buf, buflen);
 }
 
 
@@ -690,8 +690,8 @@ void wpa_msg_global(void *ctx, int level, const char *fmt, ...)
 	va_end(ap);
 	wpa_printf(level, "%s", buf);
 	if (wpa_msg_cb)
-		wpa_msg_cb(ctx, level, 1, buf, len);
-	os_free(buf);
+		wpa_msg_cb(ctx, level, WPA_MSG_GLOBAL, buf, len);
+	bin_clear_free(buf, buflen);
 }
 
 
@@ -718,8 +718,8 @@ void wpa_msg_global_ctrl(void *ctx, int level, const char *fmt, ...)
 	va_start(ap, fmt);
 	len = vsnprintf(buf, buflen, fmt, ap);
 	va_end(ap);
-	wpa_msg_cb(ctx, level, 1, buf, len);
-	os_free(buf);
+	wpa_msg_cb(ctx, level, WPA_MSG_GLOBAL, buf, len);
+	bin_clear_free(buf, buflen);
 }
 
 
@@ -745,7 +745,34 @@ void wpa_msg_no_global(void *ctx, int level, const char *fmt, ...)
 	va_end(ap);
 	wpa_printf(level, "%s", buf);
 	if (wpa_msg_cb)
-		wpa_msg_cb(ctx, level, 2, buf, len);
+		wpa_msg_cb(ctx, level, WPA_MSG_NO_GLOBAL, buf, len);
+	bin_clear_free(buf, buflen);
+}
+
+
+void wpa_msg_global_only(void *ctx, int level, const char *fmt, ...)
+{
+	va_list ap;
+	char *buf;
+	int buflen;
+	int len;
+
+	va_start(ap, fmt);
+	buflen = vsnprintf(NULL, 0, fmt, ap) + 1;
+	va_end(ap);
+
+	buf = os_malloc(buflen);
+	if (buf == NULL) {
+		wpa_printf(MSG_ERROR, "%s: Failed to allocate message buffer",
+			   __func__);
+		return;
+	}
+	va_start(ap, fmt);
+	len = vsnprintf(buf, buflen, fmt, ap);
+	va_end(ap);
+	wpa_printf(level, "%s", buf);
+	if (wpa_msg_cb)
+		wpa_msg_cb(ctx, level, WPA_MSG_ONLY_GLOBAL, buf, len);
 	os_free(buf);
 }
 
@@ -789,6 +816,45 @@ void hostapd_logger(void *ctx, const u8 *addr, unsigned int module, int level,
 			   MAC2STR(addr), buf);
 	else
 		wpa_printf(MSG_DEBUG, "hostapd_logger: %s", buf);
-	os_free(buf);
+	bin_clear_free(buf, buflen);
 }
 #endif /* CONFIG_NO_HOSTAPD_LOGGER */
+
+
+const char * debug_level_str(int level)
+{
+	switch (level) {
+	case MSG_EXCESSIVE:
+		return "EXCESSIVE";
+	case MSG_MSGDUMP:
+		return "MSGDUMP";
+	case MSG_DEBUG:
+		return "DEBUG";
+	case MSG_INFO:
+		return "INFO";
+	case MSG_WARNING:
+		return "WARNING";
+	case MSG_ERROR:
+		return "ERROR";
+	default:
+		return "?";
+	}
+}
+
+
+int str_to_debug_level(const char *s)
+{
+	if (os_strcasecmp(s, "EXCESSIVE") == 0)
+		return MSG_EXCESSIVE;
+	if (os_strcasecmp(s, "MSGDUMP") == 0)
+		return MSG_MSGDUMP;
+	if (os_strcasecmp(s, "DEBUG") == 0)
+		return MSG_DEBUG;
+	if (os_strcasecmp(s, "INFO") == 0)
+		return MSG_INFO;
+	if (os_strcasecmp(s, "WARNING") == 0)
+		return MSG_WARNING;
+	if (os_strcasecmp(s, "ERROR") == 0)
+		return MSG_ERROR;
+	return -1;
+}

@@ -68,6 +68,7 @@ static int	s_scale;
 
 void	moncontrol(int);
 static int hertz(void);
+void	_mcleanup(void);
 
 void
 monstartup(u_long lowpc, u_long highpc)

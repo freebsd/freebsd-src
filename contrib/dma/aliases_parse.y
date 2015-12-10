@@ -7,8 +7,6 @@
 
 extern int yylineno;
 static void yyerror(const char *);
-int yywrap(void);
-int yylex(void);
 
 static void
 yyerror(const char *msg)

@@ -16,8 +16,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "AArch64.h"
-#include "AArch64InstrInfo.h"
-#include "AArch64Subtarget.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -26,6 +24,8 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
 
 using namespace llvm;
 
@@ -48,7 +48,7 @@ static bool isFirstInstructionInSequence(MachineInstr *MI) {
   case AArch64::PRFUMi:
     return true;
   default:
-    return (MI->mayLoad() || MI->mayStore());
+    return MI->mayLoadOrStore();
   }
 }
 
@@ -79,7 +79,7 @@ static bool isSecondInstructionInSequence(MachineInstr *MI) {
 
 namespace {
 class AArch64A53Fix835769 : public MachineFunctionPass {
-  const AArch64InstrInfo *TII;
+  const TargetInstrInfo *TII;
 
 public:
   static char ID;
@@ -107,17 +107,13 @@ char AArch64A53Fix835769::ID = 0;
 
 bool
 AArch64A53Fix835769::runOnMachineFunction(MachineFunction &F) {
-  const TargetMachine &TM = F.getTarget();
-
-  bool Changed = false;
   DEBUG(dbgs() << "***** AArch64A53Fix835769 *****\n");
-
-  TII = TM.getSubtarget<AArch64Subtarget>().getInstrInfo();
+  bool Changed = false;
+  TII = F.getSubtarget().getInstrInfo();
 
   for (auto &MBB : F) {
     Changed |= runOnBasicBlock(MBB);
   }
-
   return Changed;
 }
 

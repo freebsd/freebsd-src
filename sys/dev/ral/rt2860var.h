@@ -139,7 +139,7 @@ struct rt2860_softc {
 #define RT2860_ENABLED		(1 << 0)
 #define RT2860_ADVANCED_PS	(1 << 1)
 #define RT2860_PCIE		(1 << 2)
-#define	RT2860_RUNNNING		(1 << 3)
+#define	RT2860_RUNNING		(1 << 3)
 
 	struct ieee80211_node		*wcid2ni[RT2860_WCID_MAX];
 
@@ -194,9 +194,7 @@ struct rt2860_softc {
 	uint32_t			txpow40mhz_5ghz[5];
 
 	struct rt2860_rx_radiotap_header sc_rxtap;
-	int				sc_rxtap_len;
 	struct rt2860_tx_radiotap_header sc_txtap;
-	int				sc_txtap_len;
 };
 
 int	rt2860_attach(device_t, int);

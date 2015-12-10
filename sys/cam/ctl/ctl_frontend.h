@@ -41,7 +41,8 @@
 
 typedef enum {
 	CTL_PORT_STATUS_NONE		= 0x00,
-	CTL_PORT_STATUS_ONLINE		= 0x01
+	CTL_PORT_STATUS_ONLINE		= 0x01,
+	CTL_PORT_STATUS_HA_SHARED	= 0x02
 } ctl_port_status;
 
 typedef int (*fe_init_t)(void);
@@ -211,6 +212,7 @@ struct ctl_wwpn_iid {
  *			  shouldn't touch this field.
  */
 struct ctl_port {
+	struct ctl_softc *ctl_softc;
 	struct ctl_frontend *frontend;
 	ctl_port_type	port_type;		/* passed to CTL */
 	int		num_requested_ctl_io;	/* passed to CTL */

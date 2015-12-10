@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "libc_private.h"
+
 extern int errno;
 
 static int *

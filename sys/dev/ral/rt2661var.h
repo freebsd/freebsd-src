@@ -157,9 +157,7 @@ struct rt2661_softc {
 	int				dwelltime;
 
 	struct rt2661_rx_radiotap_header sc_rxtap;
-	int				sc_rxtap_len;
 	struct rt2661_tx_radiotap_header sc_txtap;
-	int				sc_txtap_len;
 };
 
 int	rt2661_attach(device_t, int);

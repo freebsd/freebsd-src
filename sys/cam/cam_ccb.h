@@ -109,6 +109,12 @@ typedef enum {
 	CAM_UNLOCKED		= 0x80000000 /* Call callback without lock.   */
 } ccb_flags;
 
+typedef enum {
+	CAM_USER_DATA_ADDR	= 0x00000002,/* Userspace data pointers */
+	CAM_SG_FORMAT_IOVEC	= 0x00000004,/* iovec instead of busdma S/G*/
+	CAM_UNMAPPED_BUF	= 0x00000008 /* use unmapped I/O */
+} ccb_xflags;
+
 /* XPT Opcodes for xpt_action */
 typedef enum {
 /* Function code flags are bits greater than 0xff */

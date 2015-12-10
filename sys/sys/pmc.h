@@ -96,6 +96,9 @@
 	__PMC_CPU(INTEL_WESTMERE_EX, 0x94,   "Intel Westmere Xeon E7")	\
 	__PMC_CPU(INTEL_HASWELL_XEON, 0x95,   "Intel Haswell Xeon E5 v3") \
 	__PMC_CPU(INTEL_BROADWELL, 0x96,   "Intel Broadwell") \
+	__PMC_CPU(INTEL_BROADWELL_XEON, 0x97,   "Intel Broadwell Xeon") \
+	__PMC_CPU(INTEL_SKYLAKE, 0x98,   "Intel Skylake")		\
+	__PMC_CPU(INTEL_SKYLAKE_XEON, 0x99,   "Intel Skylake Xeon")	\
 	__PMC_CPU(INTEL_XSCALE,	0x100,	"Intel XScale")		\
 	__PMC_CPU(MIPS_24K,     0x200,  "MIPS 24K")		\
 	__PMC_CPU(MIPS_OCTEON,  0x201,  "Cavium Octeon")	\
@@ -128,26 +131,26 @@ enum pmc_cputype {
  */
 
 #define	__PMC_CLASSES()							\
-	__PMC_CLASS(TSC,	0x000,	"CPU Timestamp counter")	\
-	__PMC_CLASS(K7,		0x100,	"AMD K7 performance counters")	\
-	__PMC_CLASS(K8,		0x101,	"AMD K8 performance counters")	\
-	__PMC_CLASS(P5,		0x102,	"Intel Pentium counters")	\
-	__PMC_CLASS(P6,		0x103,	"Intel Pentium Pro counters")	\
-	__PMC_CLASS(P4,		0x104,	"Intel Pentium-IV counters")	\
-	__PMC_CLASS(IAF,	0x105,	"Intel Core2/Atom, fixed function") \
-	__PMC_CLASS(IAP,	0x106,	"Intel Core...Atom, programmable") \
-	__PMC_CLASS(UCF,	0x107,	"Intel Uncore fixed function")	\
-	__PMC_CLASS(UCP,	0x108,	"Intel Uncore programmable")	\
-	__PMC_CLASS(XSCALE,	0x200,	"Intel XScale counters")	\
-	__PMC_CLASS(ARMV7,	0x201,	"ARMv7")			\
-	__PMC_CLASS(ARMV8,	0x202,	"ARMv8")			\
-	__PMC_CLASS(MIPS24K,	0x300,	"MIPS 24K")			\
-	__PMC_CLASS(OCTEON,	0x301,	"Cavium Octeon")		\
-	__PMC_CLASS(MIPS74K,	0x302,	"MIPS 74K")			\
-	__PMC_CLASS(PPC7450,	0x400,	"Motorola MPC7450 class")	\
-	__PMC_CLASS(PPC970,	0x401,	"IBM PowerPC 970 class")	\
-	__PMC_CLASS(E500,	0x402,	"Freescale e500 class")		\
-	__PMC_CLASS(SOFT,	0x8000,	"Software events")
+	__PMC_CLASS(TSC,	0x00,	"CPU Timestamp counter")	\
+	__PMC_CLASS(K7,		0x01,	"AMD K7 performance counters")	\
+	__PMC_CLASS(K8,		0x02,	"AMD K8 performance counters")	\
+	__PMC_CLASS(P5,		0x03,	"Intel Pentium counters")	\
+	__PMC_CLASS(P6,		0x04,	"Intel Pentium Pro counters")	\
+	__PMC_CLASS(P4,		0x05,	"Intel Pentium-IV counters")	\
+	__PMC_CLASS(IAF,	0x06,	"Intel Core2/Atom, fixed function") \
+	__PMC_CLASS(IAP,	0x07,	"Intel Core...Atom, programmable") \
+	__PMC_CLASS(UCF,	0x08,	"Intel Uncore fixed function")	\
+	__PMC_CLASS(UCP,	0x09,	"Intel Uncore programmable")	\
+	__PMC_CLASS(XSCALE,	0x0A,	"Intel XScale counters")	\
+	__PMC_CLASS(MIPS24K,	0x0B,	"MIPS 24K")			\
+	__PMC_CLASS(OCTEON,	0x0C,	"Cavium Octeon")		\
+	__PMC_CLASS(PPC7450,	0x0D,	"Motorola MPC7450 class")	\
+	__PMC_CLASS(PPC970,	0x0E,	"IBM PowerPC 970 class")	\
+	__PMC_CLASS(SOFT,	0x0F,	"Software events")		\
+	__PMC_CLASS(ARMV7,	0x10,	"ARMv7")			\
+	__PMC_CLASS(ARMV8,	0x11,	"ARMv8")			\
+	__PMC_CLASS(MIPS74K,	0x12,	"MIPS 74K")			\
+	__PMC_CLASS(E500,	0x13,	"Freescale e500 class")
 
 enum pmc_class {
 #undef  __PMC_CLASS
@@ -156,7 +159,7 @@ enum pmc_class {
 };
 
 #define	PMC_CLASS_FIRST	PMC_CLASS_TSC
-#define	PMC_CLASS_LAST	PMC_CLASS_SOFT
+#define	PMC_CLASS_LAST	PMC_CLASS_E500
 
 /*
  * A PMC can be in the following states:
@@ -550,14 +553,15 @@ struct pmc_op_configurelog {
  */
 
 struct pmc_op_getdriverstats {
-	int	pm_intr_ignored;	/* #interrupts ignored */
-	int	pm_intr_processed;	/* #interrupts processed */
-	int	pm_intr_bufferfull;	/* #interrupts with ENOSPC */
-	int	pm_syscalls;		/* #syscalls */
-	int	pm_syscall_errors;	/* #syscalls with errors */
-	int	pm_buffer_requests;	/* #buffer requests */
-	int	pm_buffer_requests_failed; /* #failed buffer requests */
-	int	pm_log_sweeps;		/* #sample buffer processing passes */
+	unsigned int	pm_intr_ignored;	/* #interrupts ignored */
+	unsigned int	pm_intr_processed;	/* #interrupts processed */
+	unsigned int	pm_intr_bufferfull;	/* #interrupts with ENOSPC */
+	unsigned int	pm_syscalls;		/* #syscalls */
+	unsigned int	pm_syscall_errors;	/* #syscalls with errors */
+	unsigned int	pm_buffer_requests;	/* #buffer requests */
+	unsigned int	pm_buffer_requests_failed; /* #failed buffer requests */
+	unsigned int	pm_log_sweeps;		/* #sample buffer processing
+						   passes */
 };
 
 /*
@@ -614,6 +618,7 @@ struct pmc_op_getdyneventinfo {
 
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
+#include <sys/_cpuset.h>
 
 #include <machine/frame.h>
 
@@ -729,7 +734,8 @@ struct pmc {
 		pmc_value_t	pm_initial;	/* counting PMC modes */
 	} pm_sc;
 
-	uint32_t	pm_stalled;	/* marks stalled sampling PMCs */
+	volatile cpuset_t pm_stalled;	/* marks stalled sampling PMCs */
+	volatile cpuset_t pm_cpustate;	/* CPUs where PMC should be active */
 	uint32_t	pm_caps;	/* PMC capabilities */
 	enum pmc_event	pm_event;	/* event being measured */
 	uint32_t	pm_flags;	/* additional flags PMC_F_... */

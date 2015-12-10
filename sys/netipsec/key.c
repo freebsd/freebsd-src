@@ -473,7 +473,7 @@ static void key_porttosaddr(struct sockaddr *, u_int16_t);
 	key_porttosaddr((struct sockaddr *)(saddr), (port))
 static struct mbuf *key_setsadbxsa2(u_int8_t, u_int32_t, u_int32_t);
 static struct mbuf *key_setsadbxpolicy(u_int16_t, u_int8_t,
-	u_int32_t);
+	u_int32_t, u_int32_t);
 static struct seckey *key_dup_keymsg(const struct sadb_key *, u_int, 
 				     struct malloc_type *);
 static struct seclifetime *key_dup_lifemsg(const struct sadb_lifetime *src,
@@ -1209,6 +1209,29 @@ key_unlink(struct secpolicy *sp)
 }
 
 /*
+ * insert a secpolicy into the SP database. Lower priorities first
+ */
+static void
+key_insertsp(struct secpolicy *newsp)
+{
+	struct secpolicy *sp;
+
+	SPTREE_WLOCK();
+	TAILQ_FOREACH(sp, &V_sptree[newsp->spidx.dir], chain) {
+		if (newsp->priority < sp->priority) {
+			TAILQ_INSERT_BEFORE(sp, newsp, chain);
+			goto done;
+		}
+	}
+
+	TAILQ_INSERT_TAIL(&V_sptree[newsp->spidx.dir], newsp, chain);
+
+done:
+	newsp->state = IPSEC_SPSTATE_ALIVE;
+	SPTREE_WUNLOCK();
+}
+
+/*
  * Must be called after calling key_allocsp().
  * For the packet with socket.
  */
@@ -1391,6 +1414,7 @@ key_msg2sp(struct sadb_x_policy *xpl0, size_t len, int *error)
 
 	newsp->spidx.dir = xpl0->sadb_x_policy_dir;
 	newsp->policy = xpl0->sadb_x_policy_type;
+	newsp->priority = xpl0->sadb_x_policy_priority;
 
 	/* check policy */
 	switch (xpl0->sadb_x_policy_type) {
@@ -1627,6 +1651,7 @@ key_sp2msg(struct secpolicy *sp)
 	xpl->sadb_x_policy_type = sp->policy;
 	xpl->sadb_x_policy_dir = sp->spidx.dir;
 	xpl->sadb_x_policy_id = sp->id;
+	xpl->sadb_x_policy_priority = sp->priority;
 	p = (caddr_t)xpl + sizeof(*xpl);
 
 	/* if is the policy for ipsec ? */
@@ -1904,10 +1929,7 @@ key_spdadd(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	newsp->lifetime = lft ? lft->sadb_lifetime_addtime : 0;
 	newsp->validtime = lft ? lft->sadb_lifetime_usetime : 0;
 
-	SPTREE_WLOCK();
-	TAILQ_INSERT_TAIL(&V_sptree[newsp->spidx.dir], newsp, chain);
-	newsp->state = IPSEC_SPSTATE_ALIVE;
-	SPTREE_WUNLOCK();
+	key_insertsp(newsp);
 
 	/* delete the entry in spacqtree */
 	if (mhp->msg->sadb_msg_type == SADB_X_SPDUPDATE) {
@@ -3744,7 +3766,7 @@ key_porttosaddr(struct sockaddr *sa, u_int16_t port)
  * set data into sadb_x_policy
  */
 static struct mbuf *
-key_setsadbxpolicy(u_int16_t type, u_int8_t dir, u_int32_t id)
+key_setsadbxpolicy(u_int16_t type, u_int8_t dir, u_int32_t id, u_int32_t priority)
 {
 	struct mbuf *m;
 	struct sadb_x_policy *p;
@@ -3764,6 +3786,7 @@ key_setsadbxpolicy(u_int16_t type, u_int8_t dir, u_int32_t id)
 	p->sadb_x_policy_type = type;
 	p->sadb_x_policy_dir = dir;
 	p->sadb_x_policy_id = id;
+	p->sadb_x_policy_priority = priority;
 
 	return m;
 }
@@ -6205,7 +6228,7 @@ key_acquire(const struct secasindex *saidx, struct secpolicy *sp)
 
 	/* set sadb_x_policy */
 	if (sp) {
-		m = key_setsadbxpolicy(sp->policy, sp->spidx.dir, sp->id);
+		m = key_setsadbxpolicy(sp->policy, sp->spidx.dir, sp->id, sp->priority);
 		if (!m) {
 			error = ENOBUFS;
 			goto fail;
@@ -6706,7 +6729,7 @@ key_register(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 				continue;
 			alg = (struct sadb_alg *)(mtod(n, caddr_t) + off);
 			alg->sadb_alg_id = i;
-			alg->sadb_alg_ivlen = ealgo->blocksize;
+			alg->sadb_alg_ivlen = ealgo->ivsize;
 			alg->sadb_alg_minbits = _BITS(ealgo->minkey);
 			alg->sadb_alg_maxbits = _BITS(ealgo->maxkey);
 			off += PFKEY_ALIGN8(sizeof(struct sadb_alg));

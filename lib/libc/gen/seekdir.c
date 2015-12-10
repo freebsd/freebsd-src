@@ -48,9 +48,7 @@ __FBSDID("$FreeBSD$");
  * _seekdir is in telldir.c so that it can share opaque data structures.
  */
 void
-seekdir(dirp, loc)
-	DIR *dirp;
-	long loc;
+seekdir(DIR *dirp, long loc)
 {
 	if (__isthreaded)
 		_pthread_mutex_lock(&dirp->dd_lock);

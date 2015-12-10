@@ -24,11 +24,12 @@ class MCSubtargetInfo;
 class MCSymbol;
 class StringRef;
 class raw_ostream;
+class raw_pwrite_stream;
 
 class MCWinCOFFStreamer : public MCObjectStreamer {
 public:
   MCWinCOFFStreamer(MCContext &Context, MCAsmBackend &MAB, MCCodeEmitter &CE,
-                    raw_ostream &OS);
+                    raw_pwrite_stream &OS);
 
   /// state management
   void reset() override {
@@ -49,16 +50,16 @@ public:
   void EmitCOFFSymbolStorageClass(int StorageClass) override;
   void EmitCOFFSymbolType(int Type) override;
   void EndCOFFSymbolDef() override;
+  void EmitCOFFSafeSEH(MCSymbol const *Symbol) override;
   void EmitCOFFSectionIndex(MCSymbol const *Symbol) override;
   void EmitCOFFSecRel32(MCSymbol const *Symbol) override;
-  void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) override;
   void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                         unsigned ByteAlignment) override;
   void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                              unsigned ByteAlignment) override;
-  void EmitZerofill(const MCSection *Section, MCSymbol *Symbol, uint64_t Size,
+  void EmitZerofill(MCSection *Section, MCSymbol *Symbol, uint64_t Size,
                     unsigned ByteAlignment) override;
-  void EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol, uint64_t Size,
+  void EmitTBSSSymbol(MCSection *Section, MCSymbol *Symbol, uint64_t Size,
                       unsigned ByteAlignment) override;
   void EmitFileDirective(StringRef Filename) override;
   void EmitIdent(StringRef IdentString) override;

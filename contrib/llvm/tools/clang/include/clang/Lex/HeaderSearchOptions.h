@@ -92,14 +92,18 @@ public:
   /// \brief The directory used for a user build.
   std::string ModuleUserBuildPath;
 
+  /// The module/pch container format.
+  std::string ModuleFormat;
+
   /// \brief Whether we should disable the use of the hash string within the
   /// module cache.
   ///
   /// Note: Only used for testing!
   unsigned DisableModuleHash : 1;
 
-  /// \brief Interpret module maps.  This option is implied by full modules.
-  unsigned ModuleMaps : 1;
+  /// \brief Implicit module maps.  This option is enabld by default when
+  /// modules is enabled.
+  unsigned ImplicitModuleMaps : 1;
 
   /// \brief Set the 'home directory' of a module map file to the current
   /// working directory (or the home directory of the module map file that
@@ -166,28 +170,26 @@ public:
 
 public:
   HeaderSearchOptions(StringRef _Sysroot = "/")
-    : Sysroot(_Sysroot), DisableModuleHash(0), ModuleMaps(0),
-      ModuleMapFileHomeIsCwd(0),
-      ModuleCachePruneInterval(7*24*60*60),
-      ModuleCachePruneAfter(31*24*60*60),
-      BuildSessionTimestamp(0),
-      UseBuiltinIncludes(true),
-      UseStandardSystemIncludes(true), UseStandardCXXIncludes(true),
-      UseLibcxx(false), Verbose(false),
-      ModulesValidateOncePerBuildSession(false),
-      ModulesValidateSystemHeaders(false) {}
+      : Sysroot(_Sysroot), ModuleFormat("raw"), DisableModuleHash(0),
+        ImplicitModuleMaps(0), ModuleMapFileHomeIsCwd(0),
+        ModuleCachePruneInterval(7 * 24 * 60 * 60),
+        ModuleCachePruneAfter(31 * 24 * 60 * 60), BuildSessionTimestamp(0),
+        UseBuiltinIncludes(true), UseStandardSystemIncludes(true),
+        UseStandardCXXIncludes(true), UseLibcxx(false), Verbose(false),
+        ModulesValidateOncePerBuildSession(false),
+        ModulesValidateSystemHeaders(false) {}
 
   /// AddPath - Add the \p Path path to the specified \p Group list.
   void AddPath(StringRef Path, frontend::IncludeDirGroup Group,
                bool IsFramework, bool IgnoreSysRoot) {
-    UserEntries.push_back(Entry(Path, Group, IsFramework, IgnoreSysRoot));
+    UserEntries.emplace_back(Path, Group, IsFramework, IgnoreSysRoot);
   }
 
   /// AddSystemHeaderPrefix - Override whether \#include directives naming a
   /// path starting with \p Prefix should be considered as naming a system
   /// header.
   void AddSystemHeaderPrefix(StringRef Prefix, bool IsSystemHeader) {
-    SystemHeaderPrefixes.push_back(SystemHeaderPrefix(Prefix, IsSystemHeader));
+    SystemHeaderPrefixes.emplace_back(Prefix, IsSystemHeader);
   }
 
   void AddVFSOverlayFile(StringRef Name) {

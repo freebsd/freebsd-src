@@ -41,19 +41,24 @@ DIALOG_TAGS=""
 : ${DIALOG_ITEM_HELP=4}
 : ${DIALOG_ESC=255}
 
-# Do a dirty check to see if this a wireless interface -- there should be a
-# better way
-is_wireless_if() {
-	ifconfig $1 | grep -q 'media: IEEE 802.11 Wireless'
-}
-
 for IF in `ifconfig -l`; do
 	test "$IF" = "lo0" && continue
 	(ifconfig -g wlan | egrep -wq $IF) && continue
 	INTERFACES="$INTERFACES $IF"
+done
+
+INTERFACES="$INTERFACES $(sysctl -in net.wlan.devices)"
+is_wireless_if() {
+	for IF in $(sysctl -in net.wlan.devices); do
+		if [ $IF = $1 ]; then
+			return 0
+		fi
+	done
+	return 1
+}
+
+for IF in $INTERFACES; do
 	DESC=`sysctl -n dev.$(echo $IF | sed -E 's/([[:alpha:]]*)([[:digit:]]*)/\1.\2/g').%desc`
-	is_wireless_if $IF && echo $DESC |
-		grep -iqv wireless && DESC="Wireless $DESC"
 	DIALOG_TAGS="$DIALOG_TAGS $IF \"$DESC\""
 done
 

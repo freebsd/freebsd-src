@@ -7,26 +7,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmnLLDBDebugger.h
-//
-// Overview:    CMICmnLLDBDebugger interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // Third party headers
-#include <queue>
+#include <condition_variable>
 #include <map>
-#include <lldb/API/SBDebugger.h>
-#include <lldb/API/SBListener.h>
-#include <lldb/API/SBEvent.h>
+#include <mutex>
+#include "lldb/API/SBDebugger.h"
+#include "lldb/API/SBListener.h"
+#include "lldb/API/SBEvent.h"
 
 // In-house headers:
 #include "MICmnBase.h"
@@ -53,13 +42,16 @@ class CMICmnLLDBDebugger : public CMICmnBase, public CMIUtilThreadActiveObjBase,
 
     // Methods:
   public:
-    bool Initialize(void);
-    bool Shutdown(void);
+    bool Initialize(void) override;
+    bool Shutdown(void) override;
 
     bool SetDriver(const CMIDriverBase &vClientDriver);
     CMIDriverBase &GetDriver(void) const;
     lldb::SBDebugger &GetTheDebugger(void);
     lldb::SBListener &GetTheListener(void);
+    void WaitForHandleEvent(void);
+    bool CheckIfNeedToRebroadcastStopEvent(void);
+    void RebroadcastStopEvent(void);
 
     // MI Commands can use these functions to listen for events they require
     bool RegisterForEvent(const CMIUtilString &vClientName, const CMIUtilString &vBroadcasterClass, const MIuint vEventMask);
@@ -70,13 +62,13 @@ class CMICmnLLDBDebugger : public CMICmnBase, public CMIUtilThreadActiveObjBase,
     // Overridden:
   public:
     // From CMIUtilThreadActiveObjBase
-    virtual const CMIUtilString &ThreadGetName(void) const;
+    const CMIUtilString &ThreadGetName(void) const override;
 
     // Overridden:
   protected:
     // From CMIUtilThreadActiveObjBase
-    virtual bool ThreadRun(bool &vrIsAlive);
-    virtual bool ThreadFinish(void);
+    bool ThreadRun(bool &vrIsAlive) override;
+    bool ThreadFinish(void) override;
 
     // Typedefs:
   private:
@@ -108,7 +100,7 @@ class CMICmnLLDBDebugger : public CMICmnBase, public CMIUtilThreadActiveObjBase,
     // Overridden:
   private:
     // From CMICmnBase
-    /* dtor */ virtual ~CMICmnLLDBDebugger(void);
+    /* dtor */ ~CMICmnLLDBDebugger(void) override;
 
     // Attributes:
   private:
@@ -118,4 +110,7 @@ class CMICmnLLDBDebugger : public CMICmnBase, public CMIUtilThreadActiveObjBase,
     const CMIUtilString m_constStrThisThreadId;
     MapBroadcastClassNameToEventMask_t m_mapBroadcastClassNameToEventMask;
     MapIdToEventMask_t m_mapIdToEventMask;
+    std::mutex m_mutexEventQueue;
+    std::condition_variable m_conditionEventQueueEmpty;
+    uint32_t m_nLastStopId;
 };

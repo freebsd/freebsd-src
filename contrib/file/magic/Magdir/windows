@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: windows,v 1.10 2014/09/24 19:52:46 christos Exp $
+# $File: windows,v 1.12 2015/08/29 07:10:35 christos Exp $
 # windows:  file(1) magic for Microsoft Windows
 #
 # This file is mainly reserved for files where programs
@@ -89,7 +89,7 @@
 >20	lelong&16	16	\b, Has Working directory
 >20	lelong&32	32	\b, Has command line arguments
 >20	lelong&64	64	\b, Icon
->>56	lelong			\b number=%d
+>>56	lelong		x	\b number=%d
 >24	lelong&1	1	\b, Read-Only
 >24	lelong&2	2	\b, Hidden
 >24	lelong&4	4	\b, System
@@ -239,6 +239,7 @@
 # http://read.pudn.com/downloads3/sourcecode/windows/248345/win2k/private/windows/setup/setupapi/inf.h__.htm
 # GRR: line below too general as it catches also PDP-11 UNIX/RT ldp
 0		leshort&0xFeFe	0x0000		
+!:strength -5
 # test for unused null bits in PNF_FLAGs
 >4	ulelong&0xFCffFe00	0x00000000	
 # only found 58h for Offset of WinDirPath immediately after _PNF_HEADER structure

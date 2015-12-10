@@ -137,7 +137,9 @@ svn_cl__commit(apr_getopt_t *os,
   if (opt_state->depth == svn_depth_unknown)
     opt_state->depth = svn_depth_infinity;
 
-  cfg = svn_hash_gets(ctx->config, SVN_CONFIG_CATEGORY_CONFIG);
+  cfg = ctx->config
+           ? svn_hash_gets(ctx->config, SVN_CONFIG_CATEGORY_CONFIG)
+           : NULL;
   if (cfg)
     SVN_ERR(svn_config_get_bool(cfg, &no_unlock,
                                 SVN_CONFIG_SECTION_MISCELLANY,

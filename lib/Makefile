@@ -48,7 +48,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libdwarf \
 	libedit \
 	${_libelftc} \
-	${_libevent} \
+	libevent \
 	libexecinfo \
 	libexpat \
 	libfetch \
@@ -71,11 +71,12 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libmp} \
 	libmt \
 	${_libnandfs} \
+	lib80211 \
 	libnetbsd \
 	${_libnetgraph} \
 	${_libngatm} \
 	libnv \
-	libohash \
+	libopenbsd \
 	libopie \
 	libpam \
 	libpcap \
@@ -129,7 +130,7 @@ SUBDIR_DEPEND_libarchive= libz libbz2 libexpat liblzma libmd
 SUBDIR_DEPEND_libatm= libmd
 SUBDIR_DEPEND_libauditdm= libbsm
 SUBDIR_DEPEND_libbsnmp= ${_libnetgraph}
-SUBDIR_DEPEND_libc++= libcxxrt
+SUBDIR_DEPEND_libc++:= libcxxrt
 SUBDIR_DEPEND_libc= libcompiler_rt
 SUBDIR_DEPEND_libcam= libsbuf
 SUBDIR_DEPEND_libcapsicum= libnv
@@ -137,7 +138,6 @@ SUBDIR_DEPEND_libcasper= libcapsicum libnv libpjdlog
 SUBDIR_DEPEND_libdevstat= libkvm
 SUBDIR_DEPEND_libdpv= libfigpar ncurses libutil
 SUBDIR_DEPEND_libedit= ncurses
-SUBDIR_DEPEND_libg++= msun
 SUBDIR_DEPEND_libgeom= libexpat libsbuf
 SUBDIR_DEPEND_liblibrpcsec_gss= libgssapi
 SUBDIR_DEPEND_libmagic= libz
@@ -148,7 +148,6 @@ SUBDIR_DEPEND_libpjdlog= libutil
 SUBDIR_DEPEND_libprocstat= libkvm libutil
 SUBDIR_DEPEND_libradius= libmd
 SUBDIR_DEPEND_libsmb= libkiconv
-SUBDIR_DEPEND_libstdc++= msun
 SUBDIR_DEPEND_libtacplus= libmd
 SUBDIR_DEPEND_libulog= libmd
 SUBDIR_DEPEND_libunbound= ${_libldns}
@@ -242,10 +241,6 @@ _libnetgraph=	libnetgraph
 _libypclnt=	libypclnt
 .endif
 
-.if ${MK_PF} != "no"
-_libevent=	libevent
-.endif
-
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _libsmb=	libsmb
 _libvgl=	libvgl
@@ -317,11 +312,6 @@ _libunbound=	libunbound
 .if ${MK_USB} != "no"
 _libusbhid=	libusbhid
 _libusb=	libusb
-.endif
-
-.if !defined(LIBRARIES_ONLY)
-afterinstall:
-	${INSTALL_SYMLINK} ../include ${DESTDIR}/usr/lib/include
 .endif
 
 .if !make(install)

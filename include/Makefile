@@ -5,8 +5,9 @@
 
 .include <src.opts.mk>
 
-CLEANFILES= osreldate.h version vers.c
+CLEANFILES= osreldate.h version
 SUBDIR= arpa protocols rpcsvc rpc xlocale
+SUBDIR_PARALLEL=
 INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	db.h \
 	dirent.h dlfcn.h elf.h elf-hints.h err.h fmtmsg.h fnmatch.h fstab.h \
@@ -103,12 +104,10 @@ NEWVERS_SH=		${SYSDIR}/conf/newvers.sh
 PARAM_H=		${SYSDIR}/sys/param.h
 MK_OSRELDATE_SH=	${.CURDIR}/mk-osreldate.sh
 
-osreldate.h vers.c: ${NEWVERS_SH} ${PARAM_H} ${MK_OSRELDATE_SH}
-	env ECHO="${ECHO}" \
-	    MAKE="${MAKE}" \
-	    NEWVERS_SH=${NEWVERS_SH} \
-	    PARAM_H=${PARAM_H} \
-	    SYSDIR=${SYSDIR} \
+SYMLINKS+= ${INCLUDEDIR} ${LIBDIR}/include
+
+osreldate.h: ${NEWVERS_SH} ${PARAM_H} ${MK_OSRELDATE_SH}
+	env NEWVERS_SH=${NEWVERS_SH} PARAMFILE=${PARAM_H} SYSDIR=${SYSDIR} \
 	    sh ${MK_OSRELDATE_SH}
 
 .for i in ${LHDRS}
@@ -165,19 +164,19 @@ compat:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR} > /dev/null
-.if ${MK_META_MODE} == "yes"
-	touch ${.TARGET}
+.if ${MK_DIRDEPS_BUILD} == "yes"
+	@touch ${.TARGET}
 .endif
 
 copies:
 .for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto machine machine/pc \
 	${_MARCHS}
-.if exists(${DESTDIR}${INCLUDEDIR}/$i)
-	cd ${DESTDIR}${INCLUDEDIR}/$i; \
-	for h in *.h; do \
-		if [ -L $$h ]; then rm -f $$h; fi; \
-	done
-.endif
+	if [ -d ${DESTDIR}${INCLUDEDIR}/$i ]; then \
+		cd ${DESTDIR}${INCLUDEDIR}/$i; \
+		for h in *.h; do \
+			if [ -L $$h ]; then rm -f $$h; fi; \
+		done; \
+	fi
 .endfor
 .for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/nand:Ndev/pci} ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys; \
@@ -254,8 +253,8 @@ copies:
 	cd ${.CURDIR}/../sys/teken; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
 	    ${DESTDIR}${INCLUDEDIR}/teken
-.if ${MK_META_MODE} == "yes"
-	touch ${.TARGET}
+.if ${MK_DIRDEPS_BUILD} == "yes"
+	@touch ${.OBJDIR}/${.TARGET}
 .endif
 
 symlinks:
@@ -263,81 +262,81 @@ symlinks:
 .for i in ${LDIRS}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \
-		ln -fs ../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
+		${INSTALL_SYMLINK} ../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
 .for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/nand:Ndev/pci}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \
-		ln -fs ../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
+		${INSTALL_SYMLINK} ../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
 	cd ${.CURDIR}/../sys/dev/acpica; \
 	for h in acpiio.h acpi_hpet.h; do \
-		ln -fs ../../../../sys/dev/acpica/$$h \
+		${INSTALL_SYMLINK} ../../../../sys/dev/acpica/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/acpica; \
 	done
 	cd ${.CURDIR}/../sys/dev/agp; \
 	for h in agpreg.h; do \
-		ln -fs ../../../../sys/dev/agp/$$h \
+		${INSTALL_SYMLINK} ../../../../sys/dev/agp/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/agp; \
 	done
 	cd ${.CURDIR}/../sys/dev/bktr; \
 	for h in ioctl_*.h; do \
-		ln -fs ../../../../sys/dev/bktr/$$h \
+		${INSTALL_SYMLINK} ../../../../sys/dev/bktr/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/bktr; \
 	done
 .if ${MK_NAND} != "no"
 	cd ${.CURDIR}/../sys/dev/nand; \
 	for h in nandsim.h nand_dev.h; do \
-		ln -fs ../../../../sys/dev/nand/$$h \
+		${INSTALL_SYMLINK} ../../../../sys/dev/nand/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/nand; \
 	done
 .endif
 	cd ${.CURDIR}/../sys/dev/pci; \
 	for h in pcireg.h; do \
-		ln -fs ../../../../sys/dev/pci/$$h \
+		${INSTALL_SYMLINK} ../../../../sys/dev/pci/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/pci; \
 	done
 .for i in ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \
-		ln -fs ../../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
+		${INSTALL_SYMLINK} ../../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
 .if ${MK_IPFILTER} != "no"
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 	for h in *.h; do \
-		ln -fs ../../../sys/contrib/ipfilter/netinet/$$h \
+		${INSTALL_SYMLINK} ../../../sys/contrib/ipfilter/netinet/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/netinet; \
 	done
 .endif
 .if ${MK_PF} != "no"
 	cd ${.CURDIR}/../sys/netpfil/pf; \
 	for h in *.h; do \
-		ln -fs ../../../../sys/netpfil/pf/$$h \
+		${INSTALL_SYMLINK} ../../../../sys/netpfil/pf/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/netpfil/pf; \
 	done
 .endif
 	cd ${.CURDIR}/../sys/crypto; \
 	for h in rijndael/rijndael.h; do \
-		ln -fs ../../../sys/crypto/$$h \
+		${INSTALL_SYMLINK} ../../../sys/crypto/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/crypto; \
 	done
 	cd ${.CURDIR}/../sys/opencrypto; \
 	for h in *.h; do \
-		ln -fs ../../../sys/opencrypto/$$h \
+		${INSTALL_SYMLINK} ../../../sys/opencrypto/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/crypto; \
 	done
 	cd ${.CURDIR}/../sys/${MACHINE}/include; \
 	for h in *.h; do \
-		ln -fs ../../../sys/${MACHINE}/include/$$h \
+		${INSTALL_SYMLINK} ../../../sys/${MACHINE}/include/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/machine; \
 	done
 .if exists(${.CURDIR}/../sys/${MACHINE}/include/pc)
 	cd ${.CURDIR}/../sys/${MACHINE}/include/pc; \
 	for h in *.h; do \
-		ln -fs ../../../../sys/${MACHINE}/include/pc/$$h \
+		${INSTALL_SYMLINK} ../../../../sys/${MACHINE}/include/pc/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/machine/pc; \
 	done
 .endif
@@ -347,7 +346,7 @@ symlinks:
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	cd ${.CURDIR}/../sys/${_MARCH}/include; \
 	for h in *.h; do \
-		ln -fs ../../../sys/${_MARCH}/include/$$h \
+		${INSTALL_SYMLINK} ../../../sys/${_MARCH}/include/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	done
 .if exists(${.CURDIR}/../sys/${_MARCH}/include/pc)
@@ -355,7 +354,7 @@ symlinks:
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}/pc; \
 	cd ${.CURDIR}/../sys/${_MARCH}/include/pc; \
 	for h in *.h; do \
-		ln -fs ../../../../sys/${_MARCH}/include/pc/$$h \
+		${INSTALL_SYMLINK} ../../../../sys/${_MARCH}/include/pc/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/${_MARCH}/pc; \
 	done
 .endif
@@ -363,19 +362,19 @@ symlinks:
 .endfor
 	cd ${.CURDIR}/../sys/fs/cd9660; \
 	for h in *.h; do \
-		ln -fs ../../../../sys/fs/cd9660/$$h \
+		${INSTALL_SYMLINK} ../../../../sys/fs/cd9660/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/isofs/cd9660; \
 	done
 	cd ${.CURDIR}/../sys/rpc; \
 	for h in types.h; do \
-		ln -fs ../../../sys/rpc/$$h \
+		${INSTALL_SYMLINK} ../../../sys/rpc/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/rpc; \
 	done
-.if ${MK_META_MODE} == "yes"
-	touch ${.TARGET}
+.if ${MK_DIRDEPS_BUILD} == "yes"
+	@touch ${.OBJDIR}/${.TARGET}
 .endif
 
-.if ${MACHINE} == "host"
+.if ${MACHINE} == "host" && !defined(_SKIP_BUILD)
 # we're here because we are building a sysroot...
 # we need MACHINE et al set correctly
 HOST_MACHINE!= uname -m

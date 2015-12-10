@@ -343,6 +343,7 @@ StackFrameList::GetFramesUpTo(uint32_t end_idx)
                 m_frames.push_back (unwind_frame_sp);
             }
             
+            assert(unwind_frame_sp);
             SymbolContext unwind_sc = unwind_frame_sp->GetSymbolContext (eSymbolContextBlock | eSymbolContextFunction);
             Block *unwind_block = unwind_sc.block;
             if (unwind_block)
@@ -354,7 +355,21 @@ StackFrameList::GetFramesUpTo(uint32_t end_idx)
                 // address, else we decrement the address by one to get the correct
                 // location.
                 if (idx > 0)
-                    curr_frame_address.Slide(-1);
+                {
+                    if (curr_frame_address.GetOffset() == 0)
+                    {
+                        // If curr_frame_address points to the first address in a section then after
+                        // adjustment it will point to an other section. In that case resolve the
+                        // address again to the correct section plus offset form.
+                        TargetSP target = m_thread.CalculateTarget();
+                        addr_t load_addr = curr_frame_address.GetOpcodeLoadAddress(target.get());
+                        curr_frame_address.SetOpcodeLoadAddress(load_addr - 1, target.get());
+                    }
+                    else
+                    {
+                        curr_frame_address.Slide(-1);
+                    }
+                }
                     
                 SymbolContext next_frame_sc;
                 Address next_frame_address;

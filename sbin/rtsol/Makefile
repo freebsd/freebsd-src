@@ -21,6 +21,6 @@ SRCS=	rtsold.c rtsol.c if.c probe.c dump.c rtsock.c
 MAN=
 
 WARNS?=	3
-CFLAGS+= -DHAVE_ARC4RANDOM -DSMALL
+CFLAGS+= -DSMALL
 
 .include <bsd.prog.mk>

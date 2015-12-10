@@ -541,9 +541,9 @@ igb_attach(device_t dev)
 		    "Disable Energy Efficient Ethernet");
 		if (adapter->hw.phy.media_type == e1000_media_type_copper) {
 			if (adapter->hw.mac.type == e1000_i354)
-				e1000_set_eee_i354(&adapter->hw, TRUE, TRUE);
+				e1000_set_eee_i354(&adapter->hw);
 			else
-				e1000_set_eee_i350(&adapter->hw, TRUE, TRUE);
+				e1000_set_eee_i350(&adapter->hw);
 		}
 	}
 
@@ -1258,7 +1258,8 @@ igb_init_locked(struct adapter *adapter)
 	if (ifp->if_capenable & IFCAP_TXCSUM) {
 		ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
 #if __FreeBSD_version >= 800000
-		if (adapter->hw.mac.type == e1000_82576)
+		if ((adapter->hw.mac.type == e1000_82576) ||
+		    (adapter->hw.mac.type == e1000_82580))
 			ifp->if_hwassist |= CSUM_SCTP;
 #endif
 	}
@@ -1330,9 +1331,9 @@ igb_init_locked(struct adapter *adapter)
 	/* Set Energy Efficient Ethernet */
 	if (adapter->hw.phy.media_type == e1000_media_type_copper) {
 		if (adapter->hw.mac.type == e1000_i354)
-			e1000_set_eee_i354(&adapter->hw, TRUE, TRUE);
+			e1000_set_eee_i354(&adapter->hw);
 		else
-			e1000_set_eee_i350(&adapter->hw, TRUE, TRUE);
+			e1000_set_eee_i350(&adapter->hw);
 	}
 }
 
@@ -4681,8 +4682,9 @@ igb_initialize_receive_units(struct adapter *adapter)
 		rxcsum |= E1000_RXCSUM_PCSD;
 #if __FreeBSD_version >= 800000
 		/* For SCTP Offload */
-		if ((hw->mac.type == e1000_82576)
-		    && (ifp->if_capenable & IFCAP_RXCSUM))
+		if (((hw->mac.type == e1000_82576) ||
+		     (hw->mac.type == e1000_82580)) &&
+		    (ifp->if_capenable & IFCAP_RXCSUM))
 			rxcsum |= E1000_RXCSUM_CRCOFL;
 #endif
 	} else {
@@ -4690,7 +4692,8 @@ igb_initialize_receive_units(struct adapter *adapter)
 		if (ifp->if_capenable & IFCAP_RXCSUM) {
 			rxcsum |= E1000_RXCSUM_IPPCSE;
 #if __FreeBSD_version >= 800000
-			if (adapter->hw.mac.type == e1000_82576)
+			if ((adapter->hw.mac.type == e1000_82576) ||
+			    (adapter->hw.mac.type == e1000_82580))
 				rxcsum |= E1000_RXCSUM_CRCOFL;
 #endif
 		} else

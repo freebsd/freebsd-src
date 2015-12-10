@@ -10,6 +10,7 @@
 #include "UnwindAssembly-x86.h"
 
 #include "llvm-c/Disassembler.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/TargetSelect.h"
 
 #include "lldb/Core/Address.h"
@@ -17,6 +18,7 @@
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Symbol/UnwindPlan.h"
+#include "lldb/Target/ABI.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
@@ -146,6 +148,7 @@ private:
     bool mov_rsp_rbp_pattern_p ();
     bool sub_rsp_pattern_p (int& amount);
     bool add_rsp_pattern_p (int& amount);
+    bool lea_rsp_pattern_p (int& amount);
     bool push_reg_p (int& regno);
     bool pop_reg_p (int& regno);
     bool push_imm_pattern_p ();
@@ -408,6 +411,36 @@ AssemblyParse_x86::add_rsp_pattern_p (int& amount)
     return false;
 }
 
+// lea esp, [esp - 0x28]
+// lea esp, [esp + 0x28]
+bool
+AssemblyParse_x86::lea_rsp_pattern_p (int& amount)
+{
+    uint8_t *p = m_cur_insn_bytes;
+    if (m_wordsize == 8 && *p == 0x48)
+        p++;
+
+    // Check opcode
+    if (*p != 0x8d)
+        return false;
+
+    // 8 bit displacement
+    if (*(p + 1) == 0x64 && (*(p + 2) & 0x3f) == 0x24)
+    {
+        amount = (int8_t) *(p + 3);
+        return true;
+    }
+
+    // 32 bit displacement
+    if (*(p + 1) == 0xa4 && (*(p + 2) & 0x3f) == 0x24)
+    {
+        amount = (int32_t) extract_4 (p + 3);
+        return true;
+    }
+
+    return false;
+}
+
 // pushq %rbx
 // pushl %ebx
 bool 
@@ -615,7 +648,7 @@ AssemblyParse_x86::get_non_call_site_unwind_plan (UnwindPlan &unwind_plan)
 {
     UnwindPlan::RowSP row(new UnwindPlan::Row);
     m_cur_insn = m_func_bounds.GetBaseAddress ();
-    int current_func_text_offset = 0;
+    addr_t current_func_text_offset = 0;
     int current_sp_bytes_offset_from_cfa = 0;
     UnwindPlan::Row::RegisterLocation initial_regloc;
     Error error;
@@ -630,8 +663,7 @@ AssemblyParse_x86::get_non_call_site_unwind_plan (UnwindPlan &unwind_plan)
 
     // At the start of the function, find the CFA by adding wordsize to the SP register
     row->SetOffset (current_func_text_offset);
-    row->SetCFARegister (m_lldb_sp_regnum);
-    row->SetCFAOffset (m_wordsize);
+    row->GetCFAValue().SetIsRegisterPlusOffset(m_lldb_sp_regnum, m_wordsize);
 
     // caller's stack pointer value before the call insn is the CFA address
     initial_regloc.SetIsCFAPlusOffset (0);
@@ -691,9 +723,9 @@ AssemblyParse_x86::get_non_call_site_unwind_plan (UnwindPlan &unwind_plan)
         if (push_rbp_pattern_p ())
         {
             current_sp_bytes_offset_from_cfa += m_wordsize;
-            row->SetCFAOffset (current_sp_bytes_offset_from_cfa);
+            row->GetCFAValue().SetOffset (current_sp_bytes_offset_from_cfa);
             UnwindPlan::Row::RegisterLocation regloc;
-            regloc.SetAtCFAPlusOffset (-row->GetCFAOffset());
+            regloc.SetAtCFAPlusOffset (-row->GetCFAValue().GetOffset());
             row->SetRegisterInfo (m_lldb_fp_regnum, regloc);
             saved_registers[m_machine_fp_regnum] = true;
             row_updated = true;
@@ -701,7 +733,7 @@ AssemblyParse_x86::get_non_call_site_unwind_plan (UnwindPlan &unwind_plan)
 
         else if (mov_rsp_rbp_pattern_p ())
         {
-            row->SetCFARegister (m_lldb_fp_regnum);
+            row->GetCFAValue().SetIsRegisterPlusOffset(m_lldb_fp_regnum, row->GetCFAValue().GetOffset());
             row_updated = true;
         }
 
@@ -717,9 +749,9 @@ AssemblyParse_x86::get_non_call_site_unwind_plan (UnwindPlan &unwind_plan)
             current_sp_bytes_offset_from_cfa += m_wordsize;
             // the PUSH instruction has moved the stack pointer - if the CFA is set in terms of the stack pointer,
             // we need to add a new row of instructions.
-            if (row->GetCFARegister() == m_lldb_sp_regnum)
+            if (row->GetCFAValue().GetRegisterNumber() == m_lldb_sp_regnum)
             {
-                row->SetCFAOffset (current_sp_bytes_offset_from_cfa);
+                row->GetCFAValue().SetOffset (current_sp_bytes_offset_from_cfa);
                 row_updated = true;
             }
             // record where non-volatile (callee-saved, spilled) registers are saved on the stack
@@ -746,9 +778,10 @@ AssemblyParse_x86::get_non_call_site_unwind_plan (UnwindPlan &unwind_plan)
                 saved_registers[machine_regno] = false;
                 row->RemoveRegisterInfo (lldb_regno);
 
-                if (machine_regno == m_machine_fp_regnum)
+                if (machine_regno == (int)m_machine_fp_regnum)
                 {
-                    row->SetCFARegister (m_lldb_sp_regnum);
+                    row->GetCFAValue().SetIsRegisterPlusOffset (m_lldb_sp_regnum,
+                            row->GetCFAValue().GetOffset());
                 }
 
                 in_epilogue = true;
@@ -757,9 +790,10 @@ AssemblyParse_x86::get_non_call_site_unwind_plan (UnwindPlan &unwind_plan)
 
             // the POP instruction has moved the stack pointer - if the CFA is set in terms of the stack pointer,
             // we need to add a new row of instructions.
-            if (row->GetCFARegister() == m_lldb_sp_regnum)
+            if (row->GetCFAValue().GetRegisterNumber() == m_lldb_sp_regnum)
             {
-                row->SetCFAOffset (current_sp_bytes_offset_from_cfa);
+                row->GetCFAValue().SetIsRegisterPlusOffset(m_lldb_sp_regnum,
+                        current_sp_bytes_offset_from_cfa);
                 row_updated = true;
             }
         }
@@ -777,7 +811,7 @@ AssemblyParse_x86::get_non_call_site_unwind_plan (UnwindPlan &unwind_plan)
             // In the Row, we want to express this as the offset from the CFA.  If the frame base
             // is rbp (like the above instruction), the CFA offset for rbp is probably 16.  So we
             // want to say that the value is stored at the CFA address - 96.
-            regloc.SetAtCFAPlusOffset (-(stack_offset + row->GetCFAOffset()));
+            regloc.SetAtCFAPlusOffset (-(stack_offset + row->GetCFAValue().GetOffset()));
 
             row->SetRegisterInfo (lldb_regno, regloc);
 
@@ -787,9 +821,9 @@ AssemblyParse_x86::get_non_call_site_unwind_plan (UnwindPlan &unwind_plan)
         else if (sub_rsp_pattern_p (stack_offset))
         {
             current_sp_bytes_offset_from_cfa += stack_offset;
-            if (row->GetCFARegister() == m_lldb_sp_regnum)
+            if (row->GetCFAValue().GetRegisterNumber() == m_lldb_sp_regnum)
             {
-                row->SetCFAOffset (current_sp_bytes_offset_from_cfa);
+                row->GetCFAValue().SetOffset (current_sp_bytes_offset_from_cfa);
                 row_updated = true;
             }
         }
@@ -797,12 +831,24 @@ AssemblyParse_x86::get_non_call_site_unwind_plan (UnwindPlan &unwind_plan)
         else if (add_rsp_pattern_p (stack_offset))
         {
             current_sp_bytes_offset_from_cfa -= stack_offset;
-            if (row->GetCFARegister() == m_lldb_sp_regnum)
+            if (row->GetCFAValue().GetRegisterNumber() == m_lldb_sp_regnum)
             {
-                row->SetCFAOffset (current_sp_bytes_offset_from_cfa);
+                row->GetCFAValue().SetOffset (current_sp_bytes_offset_from_cfa);
                 row_updated = true;
             }
             in_epilogue = true;
+        }
+
+        else if (lea_rsp_pattern_p (stack_offset))
+        {
+            current_sp_bytes_offset_from_cfa -= stack_offset;
+            if (row->GetCFAValue().GetRegisterNumber() == m_lldb_sp_regnum)
+            {
+                row->GetCFAValue().SetOffset (current_sp_bytes_offset_from_cfa);
+                row_updated = true;
+            }
+            if (stack_offset > 0)
+                in_epilogue = true;
         }
 
         else if (ret_pattern_p () && prologue_completed_row.get())
@@ -833,9 +879,9 @@ AssemblyParse_x86::get_non_call_site_unwind_plan (UnwindPlan &unwind_plan)
         else if (call_next_insn_pattern_p ())
         {
             current_sp_bytes_offset_from_cfa += m_wordsize;
-            if (row->GetCFARegister() == m_lldb_sp_regnum)
+            if (row->GetCFAValue().GetRegisterNumber() == m_lldb_sp_regnum)
             {
-                row->SetCFAOffset (current_sp_bytes_offset_from_cfa);
+                row->GetCFAValue().SetOffset (current_sp_bytes_offset_from_cfa);
                 row_updated = true;
             }
         }
@@ -904,8 +950,8 @@ AssemblyParse_x86::augment_unwind_plan_from_call_site (AddressRange& func, Unwin
         return false;
     uint32_t cfa_reg = m_exe_ctx.GetThreadPtr()->GetRegisterContext()
                        ->ConvertRegisterKindToRegisterNumber (unwind_plan.GetRegisterKind(),
-                                                              first_row->GetCFARegister());
-    if (cfa_reg != m_lldb_sp_regnum || first_row->GetCFAOffset() != m_wordsize)
+                                                              first_row->GetCFAValue().GetRegisterNumber());
+    if (cfa_reg != m_lldb_sp_regnum || first_row->GetCFAValue().GetOffset() != m_wordsize)
         return false;
 
     UnwindPlan::RowSP original_last_row = unwind_plan.GetRowForFunctionOffset (-1);
@@ -985,7 +1031,7 @@ AssemblyParse_x86::augment_unwind_plan_from_call_site (AddressRange& func, Unwin
         // Inspect the instruction to check if we need a new row for it.
         cfa_reg = m_exe_ctx.GetThreadPtr()->GetRegisterContext()
                   ->ConvertRegisterKindToRegisterNumber (unwind_plan.GetRegisterKind(),
-                                                         row->GetCFARegister());
+                                                         row->GetCFAValue().GetRegisterNumber());
         if (cfa_reg == m_lldb_sp_regnum)
         {
             // CFA register is sp.
@@ -996,7 +1042,7 @@ AssemblyParse_x86::augment_unwind_plan_from_call_site (AddressRange& func, Unwin
             if (call_next_insn_pattern_p ())
             {
                 row->SetOffset (offset);
-                row->SetCFAOffset (m_wordsize + row->GetCFAOffset());
+                row->GetCFAValue().IncOffset (m_wordsize);
 
                 UnwindPlan::RowSP new_row(new UnwindPlan::Row(*row));
                 unwind_plan.InsertRow (new_row);
@@ -1009,7 +1055,7 @@ AssemblyParse_x86::augment_unwind_plan_from_call_site (AddressRange& func, Unwin
             if (push_reg_p (regno))
             {
                 row->SetOffset (offset);
-                row->SetCFAOffset (m_wordsize + row->GetCFAOffset());
+                row->GetCFAValue().IncOffset (m_wordsize);
 
                 UnwindPlan::RowSP new_row(new UnwindPlan::Row(*row));
                 unwind_plan.InsertRow (new_row);
@@ -1024,7 +1070,7 @@ AssemblyParse_x86::augment_unwind_plan_from_call_site (AddressRange& func, Unwin
                 // So we ignore this case.
 
                 row->SetOffset (offset);
-                row->SetCFAOffset (-m_wordsize + row->GetCFAOffset());
+                row->GetCFAValue().IncOffset (-m_wordsize);
 
                 UnwindPlan::RowSP new_row(new UnwindPlan::Row(*row));
                 unwind_plan.InsertRow (new_row);
@@ -1036,7 +1082,7 @@ AssemblyParse_x86::augment_unwind_plan_from_call_site (AddressRange& func, Unwin
             if (push_imm_pattern_p ())
             {
                 row->SetOffset (offset);
-                row->SetCFAOffset (m_wordsize + row->GetCFAOffset());
+                row->GetCFAValue().IncOffset (m_wordsize);
                 UnwindPlan::RowSP new_row(new UnwindPlan::Row(*row));
                 unwind_plan.InsertRow (new_row);
                 unwind_plan_updated = true;
@@ -1048,7 +1094,7 @@ AssemblyParse_x86::augment_unwind_plan_from_call_site (AddressRange& func, Unwin
             if (add_rsp_pattern_p (amount))
             {
                 row->SetOffset (offset);
-                row->SetCFAOffset (-amount + row->GetCFAOffset());
+                row->GetCFAValue().IncOffset (-amount);
 
                 UnwindPlan::RowSP new_row(new UnwindPlan::Row(*row));
                 unwind_plan.InsertRow (new_row);
@@ -1058,13 +1104,26 @@ AssemblyParse_x86::augment_unwind_plan_from_call_site (AddressRange& func, Unwin
             if (sub_rsp_pattern_p (amount))
             {
                 row->SetOffset (offset);
-                row->SetCFAOffset (amount + row->GetCFAOffset());
+                row->GetCFAValue().IncOffset (amount);
 
                 UnwindPlan::RowSP new_row(new UnwindPlan::Row(*row));
                 unwind_plan.InsertRow (new_row);
                 unwind_plan_updated = true;
                 continue;
             }
+
+            // lea %rsp, [%rsp + $offset]
+            if (lea_rsp_pattern_p (amount))
+            {
+                row->SetOffset (offset);
+                row->GetCFAValue().IncOffset (-amount);
+
+                UnwindPlan::RowSP new_row(new UnwindPlan::Row(*row));
+                unwind_plan.InsertRow (new_row);
+                unwind_plan_updated = true;
+                continue;
+            }
+
             if (ret_pattern_p ())
             {
                 reinstate_unwind_state = true;
@@ -1085,8 +1144,8 @@ AssemblyParse_x86::augment_unwind_plan_from_call_site (AddressRange& func, Unwin
                     && ret_pattern_p ())
                 {
                     row->SetOffset (offset);
-                    row->SetCFARegister (first_row->GetCFARegister());
-                    row->SetCFAOffset (m_wordsize);
+                    row->GetCFAValue().SetIsRegisterPlusOffset (
+                        first_row->GetCFAValue().GetRegisterNumber(), m_wordsize);
 
                     UnwindPlan::RowSP new_row(new UnwindPlan::Row(*row));
                     unwind_plan.InsertRow (new_row);
@@ -1169,8 +1228,7 @@ AssemblyParse_x86::get_fast_unwind_plan (AddressRange& func, UnwindPlan &unwind_
     row->SetRegisterInfo (m_lldb_sp_regnum, sp_reginfo);
 
     // Zero instructions into the function
-    row->SetCFARegister (m_lldb_sp_regnum);
-    row->SetCFAOffset (m_wordsize);
+    row->GetCFAValue().SetIsRegisterPlusOffset (m_lldb_sp_regnum, m_wordsize);
     row->SetOffset (0);
     unwind_plan.AppendRow (row);
     UnwindPlan::Row *newrow = new UnwindPlan::Row;
@@ -1178,7 +1236,7 @@ AssemblyParse_x86::get_fast_unwind_plan (AddressRange& func, UnwindPlan &unwind_
     row.reset(newrow);
 
     // push %rbp has executed - stack moved, rbp now saved
-    row->SetCFAOffset (2 * m_wordsize);
+    row->GetCFAValue().IncOffset (m_wordsize);
     fp_reginfo.SetAtCFAPlusOffset (2 * -m_wordsize);
     row->SetRegisterInfo (m_lldb_fp_regnum, fp_reginfo);
     row->SetOffset (1);
@@ -1189,8 +1247,7 @@ AssemblyParse_x86::get_fast_unwind_plan (AddressRange& func, UnwindPlan &unwind_
     row.reset(newrow);
 
     // mov %rsp, %rbp has executed
-    row->SetCFARegister (m_lldb_fp_regnum);
-    row->SetCFAOffset (2 * m_wordsize);
+    row->GetCFAValue().SetIsRegisterPlusOffset (m_lldb_fp_regnum, 2 * m_wordsize);
     row->SetOffset (prologue_size);     /// 3 or 4 bytes depending on arch
     unwind_plan.AppendRow (row);
 
@@ -1233,7 +1290,8 @@ AssemblyParse_x86::find_first_non_prologue_insn (Address &address)
         }
 
         if (push_rbp_pattern_p () || mov_rsp_rbp_pattern_p () || sub_rsp_pattern_p (offset)
-            || push_reg_p (regno) || mov_reg_to_local_stack_frame_p (regno, offset))
+            || push_reg_p (regno) || mov_reg_to_local_stack_frame_p (regno, offset)
+            || (lea_rsp_pattern_p (offset) && offset < 0))
         {
             m_cur_insn.SetOffset (m_cur_insn.GetOffset() + insn_len);
             continue;
@@ -1300,9 +1358,10 @@ UnwindAssembly_x86::AugmentUnwindPlanFromCallSite (AddressRange& func, Thread& t
     // If there is no description of the prologue, don't try to augment this eh_frame
     // unwinder code, fall back to assembly parsing instead.
 
-    if (first_row->GetCFAType() != UnwindPlan::Row::CFAType::CFAIsRegisterPlusOffset
-        || RegisterNumber (thread, unwind_plan.GetRegisterKind(), first_row->GetCFARegister()) != sp_regnum
-        || first_row->GetCFAOffset() != wordsize)
+    if (first_row->GetCFAValue().GetValueType() != UnwindPlan::Row::CFAValue::isRegisterPlusOffset
+        || RegisterNumber (thread, unwind_plan.GetRegisterKind(),
+            first_row->GetCFAValue().GetRegisterNumber()) != sp_regnum
+        || first_row->GetCFAValue().GetOffset() != wordsize)
     {
         return false;
     }
@@ -1326,9 +1385,9 @@ UnwindAssembly_x86::AugmentUnwindPlanFromCallSite (AddressRange& func, Thread& t
 
         // We're checking that both of them have an unwind rule like "CFA=esp+4" or CFA+rsp+8".
 
-        if (first_row->GetCFAType() == last_row->GetCFAType()
-            && first_row->GetCFARegister() == last_row->GetCFARegister()
-            && first_row->GetCFAOffset() == last_row->GetCFAOffset())
+        if (first_row->GetCFAValue().GetValueType() == last_row->GetCFAValue().GetValueType()
+            && first_row->GetCFAValue().GetRegisterNumber() == last_row->GetCFAValue().GetRegisterNumber()
+            && first_row->GetCFAValue().GetOffset() == last_row->GetCFAValue().GetOffset())
         {
             // Get the register locations for eip/rip from the first & last rows.
             // Are they both CFA plus an offset?  Is it the same offset?

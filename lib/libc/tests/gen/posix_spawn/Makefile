@@ -1,12 +1,6 @@
 # $FreeBSD$
 
-OBJTOP=		${.OBJDIR:H:H:H:H:H}
-SRCTOP=		${.CURDIR:H:H:H:H:H}
-TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libc/gen/${.CURDIR:T}
-
 .include <bsd.own.mk>
-
-TESTSDIR=	${TESTSBASE}/lib/libc/gen/posix_spawn
 
 BINDIR=		${TESTSDIR}
 
@@ -20,6 +14,8 @@ PROGS+=		h_spawnattr
 
 SCRIPTS=	h_nonexec
 SCRIPTS+=	h_zero
+
+CLEANFILES+=	h_nonexec
 
 .include "../../Makefile.netbsd-tests"
 

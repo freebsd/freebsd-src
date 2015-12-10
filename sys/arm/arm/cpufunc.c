@@ -910,7 +910,8 @@ set_cpufuncs()
 	    cputype == CPU_ID_CORTEXA15R1 ||
 	    cputype == CPU_ID_CORTEXA15R2 ||
 	    cputype == CPU_ID_CORTEXA15R3 ||
-	    cputype == CPU_ID_KRAIT ) {
+	    cputype == CPU_ID_KRAIT300R0 ||
+	    cputype == CPU_ID_KRAIT300R1 ) {
 		cpufuncs = cortexa_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;     /* V4 or higher */
 		get_cachetype_cp15();
@@ -1294,7 +1295,7 @@ cortexa_setup(void)
 
 	/* And again. */
 	cpu_idcache_wbinv_all();
-#ifdef SMP
+#if defined(SMP) && !defined(ARM_NEW_PMAP)
 	armv7_auxctrl((1 << 6) | (1 << 0), (1 << 6) | (1 << 0)); /* Enable SMP + TLB broadcasting  */
 #endif
 

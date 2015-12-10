@@ -1,12 +1,12 @@
 # $FreeBSD$
 .include <src.opts.mk>
 
-LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
+_LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
 
 PROG=	bsdtar
 BSDTAR_VERSION_STRING=	3.1.2
 
-.PATH: ${LIBARCHIVEDIR}/tar
+.PATH: ${_LIBARCHIVEDIR}/tar
 SRCS=	bsdtar.c	\
 	cmdline.c	\
 	creation_set.c	\
@@ -15,7 +15,7 @@ SRCS=	bsdtar.c	\
 	util.c		\
 	write.c
 
-.PATH: ${LIBARCHIVEDIR}/libarchive_fe
+.PATH: ${_LIBARCHIVEDIR}/libarchive_fe
 SRCS+=	err.c		\
 	line_reader.c
 
@@ -27,16 +27,13 @@ CFLAGS+=	-DHAVE_ICONV=1 -DHAVE_ICONV_H=1 -DICONV_CONST=const
 
 CFLAGS+=	-DBSDTAR_VERSION_STRING=\"${BSDTAR_VERSION_STRING}\"
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"${.CURDIR}/../../lib/libarchive/config_freebsd.h\"
-CFLAGS+=	-I${LIBARCHIVEDIR}/tar -I${LIBARCHIVEDIR}/libarchive
-CFLAGS+=	-I${LIBARCHIVEDIR}/libarchive_fe
+CFLAGS+=	-I${_LIBARCHIVEDIR}/tar -I${_LIBARCHIVEDIR}/libarchive
+CFLAGS+=	-I${_LIBARCHIVEDIR}/libarchive_fe
 SYMLINKS=	bsdtar ${BINDIR}/tar
 MLINKS=	bsdtar.1 tar.1
 
-.PHONY: check test clean-test
-check test: $(PROG) bsdtar.1.gz
-	cd ${.CURDIR}/test && make obj && make test
-
-clean-test:
-	cd ${.CURDIR}/test && make clean
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.prog.mk>

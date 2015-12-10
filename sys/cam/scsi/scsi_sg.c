@@ -99,6 +99,7 @@ struct sg_softc {
 	sg_state		state;
 	sg_flags		flags;
 	int			open_count;
+	u_int			maxio;
 	struct devstat		*device_stats;
 	TAILQ_HEAD(, sg_rdwr)	rdwr_done;
 	struct cdev		*dev;
@@ -324,6 +325,13 @@ sgregister(struct cam_periph *periph, void *arg)
 	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
+
+	if (cpi.maxio == 0)
+		softc->maxio = DFLTPHYS;	/* traditional default */
+	else if (cpi.maxio > MAXPHYS)
+		softc->maxio = MAXPHYS;		/* for safety */
+	else
+		softc->maxio = cpi.maxio;	/* real value */
 
 	/*
 	 * We pass in 0 for all blocksize, since we don't know what the
@@ -894,7 +902,7 @@ sgsendccb(struct cam_periph *periph, union ccb *ccb)
 	 * need for additional checks.
 	 */
 	cam_periph_unlock(periph);
-	error = cam_periph_mapmem(ccb, &mapinfo);
+	error = cam_periph_mapmem(ccb, &mapinfo, softc->maxio);
 	cam_periph_lock(periph);
 	if (error)
 		return (error);

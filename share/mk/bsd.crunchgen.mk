@@ -1,5 +1,7 @@
 #################################################################
 #
+# Generate crunched binaries using crunchgen(1).
+#
 # General notes:
 #
 # A number of Make variables are used to generate the crunchgen config file.
@@ -13,14 +15,14 @@
 #       local architecture.
 #
 # Special options can be specified for individual programs
-#  CRUNCH_SRCDIR_$(P): base source directory for program $(P)
-#  CRUNCH_BUILDOPTS_$(P): additional build options for $(P)
-#  CRUNCH_ALIAS_$(P): additional names to be used for $(P)
+#  CRUNCH_SRCDIR_${P}: base source directory for program ${P}
+#  CRUNCH_BUILDOPTS_${P}: additional build options for ${P}
+#  CRUNCH_ALIAS_${P}: additional names to be used for ${P}
 #
 # By default, any name appearing in CRUNCH_PROGS or CRUNCH_ALIAS_${P}
 # will be used to generate a hard link to the resulting binary.
 # Specific links can be suppressed by setting
-# CRUNCH_SUPPRESS_LINK_$(NAME) to 1.
+# CRUNCH_SUPPRESS_LINK_${NAME} to 1.
 #
 # If CRUNCH_GENERATE_LINKS is set to no, no links will be generated.
 #
@@ -31,138 +33,117 @@
 #  The following is pretty nearly a generic crunchgen-handling makefile
 #
 
-CONF=	$(PROG).conf
-OUTMK=	$(PROG).mk
-OUTC=   $(PROG).c
-OUTPUTS=$(OUTMK) $(OUTC) $(PROG).cache
+CONF=	${PROG}.conf
+OUTMK=	${PROG}.mk
+OUTC=	${PROG}.c
+OUTPUTS=${OUTMK} ${OUTC} ${PROG}.cache
 CRUNCHOBJS= ${.OBJDIR}
-.if defined(MAKEOBJDIRPREFIX)
-CANONICALOBJDIR:= ${MAKEOBJDIRPREFIX}${.CURDIR}
-.elif defined(MAKEOBJDIR) && ${MAKEOBJDIR:M/*} != ""
-CANONICALOBJDIR:=${MAKEOBJDIR}
-.else
-CANONICALOBJDIR:= /usr/obj${.CURDIR}
-.endif
-CRUNCH_GENERATE_LINKS?=	yes
+CRUNCH_GENERATE_LINKS?= yes
 
-CLEANFILES+= $(CONF) *.o *.lo *.c *.mk *.cache *.a *.h
+CLEANFILES+= ${CONF} *.o *.lo *.c *.mk *.cache *.a *.h
 
 # Don't try to extract debug info from ${PROG}.
-MK_DEBUG_FILES=no
+MK_DEBUG_FILES= no
+
+# Set a default SRCDIR for each for simpler handling below.
+.for D in ${CRUNCH_SRCDIRS}
+.for P in ${CRUNCH_PROGS_${D}}
+CRUNCH_SRCDIR_${P}?=	${.CURDIR}/../../${D}/${P}
+.endfor
+.endfor
 
 # Program names and their aliases contribute hardlinks to 'rescue' executable,
 # except for those that get suppressed.
-.for D in $(CRUNCH_SRCDIRS)
-.for P in $(CRUNCH_PROGS_$(D))
-.ifdef CRUNCH_SRCDIR_${P}
-$(OUTPUTS): $(CRUNCH_SRCDIR_${P})/Makefile
-.else
-$(OUTPUTS): $(.CURDIR)/../../$(D)/$(P)/Makefile
-.endif
+.for D in ${CRUNCH_SRCDIRS}
+.for P in ${CRUNCH_PROGS_${D}}
+${OUTPUTS}: ${CRUNCH_SRCDIR_${P}}/Makefile
 .if ${CRUNCH_GENERATE_LINKS} == "yes"
 .ifndef CRUNCH_SUPPRESS_LINK_${P}
-LINKS+= $(BINDIR)/$(PROG) $(BINDIR)/$(P)
+LINKS+= ${BINDIR}/${PROG} ${BINDIR}/${P}
 .endif
-.for A in $(CRUNCH_ALIAS_$(P))
+.for A in ${CRUNCH_ALIAS_${P}}
 .ifndef CRUNCH_SUPPRESS_LINK_${A}
-LINKS+= $(BINDIR)/$(PROG) $(BINDIR)/$(A)
+LINKS+= ${BINDIR}/${PROG} ${BINDIR}/${A}
 .endif
 .endfor
 .endif
 .endfor
 .endfor
 
-all: $(PROG)
-exe: $(PROG)
+all: ${PROG}
+exe: ${PROG}
 
-$(CONF): Makefile
-	echo \# Auto-generated, do not edit >$(.TARGET)
+${CONF}: Makefile
+	echo \# Auto-generated, do not edit >${.TARGET}
 .ifdef CRUNCH_BUILDOPTS
-	echo buildopts $(CRUNCH_BUILDOPTS) >>$(.TARGET)
+	echo buildopts ${CRUNCH_BUILDOPTS} >>${.TARGET}
 .endif
 .ifdef CRUNCH_LIBS
-	echo libs $(CRUNCH_LIBS) >>$(.TARGET)
+	echo libs ${CRUNCH_LIBS} >>${.TARGET}
 .endif
 .ifdef CRUNCH_SHLIBS
-	echo libs_so $(CRUNCH_SHLIBS) >>$(.TARGET)
+	echo libs_so ${CRUNCH_SHLIBS} >>${.TARGET}
 .endif
-.for D in $(CRUNCH_SRCDIRS)
-.for P in $(CRUNCH_PROGS_$(D))
-	echo progs $(P) >>$(.TARGET)
-.ifdef CRUNCH_SRCDIR_${P}
-	echo special $(P) srcdir $(CRUNCH_SRCDIR_${P}) >>$(.TARGET)
-.else
-	echo special $(P) srcdir $(.CURDIR)/../../$(D)/$(P) >>$(.TARGET)
-.endif
+.for D in ${CRUNCH_SRCDIRS}
+.for P in ${CRUNCH_PROGS_${D}}
+	echo progs ${P} >>${.TARGET}
+	echo special ${P} srcdir ${CRUNCH_SRCDIR_${P}} >>${.TARGET}
 .ifdef CRUNCH_BUILDOPTS_${P}
-	echo special $(P) buildopts DIRPRFX=${DIRPRFX}${P}/ \
-	    $(CRUNCH_BUILDOPTS_${P}) >>$(.TARGET)
+	echo special ${P} buildopts DIRPRFX=${DIRPRFX}${P}/ \
+	    ${CRUNCH_BUILDOPTS_${P}} >>${.TARGET}
 .else
-	echo special $(P) buildopts DIRPRFX=${DIRPRFX}${P}/ >>$(.TARGET)
+	echo special ${P} buildopts DIRPRFX=${DIRPRFX}${P}/ >>${.TARGET}
 .endif
-.for A in $(CRUNCH_ALIAS_$(P))
-	echo ln $(P) $(A) >>$(.TARGET)
+.for A in ${CRUNCH_ALIAS_${P}}
+	echo ln ${P} ${A} >>${.TARGET}
 .endfor
 .endfor
 .endfor
 
 CRUNCHGEN?= crunchgen
-# XXX Make sure we don't pass -P to crunchgen(1).
-.MAKEFLAGS:= ${.MAKEFLAGS:N-P}
-.ORDER: $(OUTPUTS) objs
-$(OUTPUTS): $(CONF) .META
-	MAKE=${MAKE} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${CRUNCHGEN} -fq -m $(OUTMK) \
-	    -c $(OUTC) $(CONF)
+CRUNCHENV?= MK_TESTS=no
+.ORDER: ${OUTPUTS} objs
+${OUTPUTS}: ${CONF} .META
+	MAKE=${MAKE} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${CRUNCHGEN} -fq \
+	    -m ${OUTMK} -c ${OUTC} ${CONF}
 
-$(PROG): $(OUTPUTS) objs
-	MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} -f $(OUTMK) exe
+# These 2 targets cannot use .MAKE since they depend on the generated
+# ${OUTMK} above.
+${PROG}: ${OUTPUTS} objs
+	${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} -f ${OUTMK} exe
 
-objs: $(OUTMK)
-	MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} -f $(OUTMK) objs
+objs: ${OUTMK}
+	${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} -f ${OUTMK} objs
 
 # <sigh> Someone should replace the bin/csh and bin/sh build-tools with
 # shell scripts so we can remove this nonsense.
-build-tools:
-.for _tool in $(CRUNCH_BUILDTOOLS)
-	cd $(.CURDIR)/../../${_tool}; \
-	MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} obj; \
-	MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} build-tools
+.for _tool in ${CRUNCH_BUILDTOOLS}
+build-tools-${_tool}:
+	${_+_}cd ${.CURDIR}/../../${_tool}; \
+	    ${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} obj; \
+	    ${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} build-tools
+build-tools: build-tools-${_tool}
 .endfor
 
 # Use a separate build tree to hold files compiled for this crunchgen binary
 # Yes, this does seem to partly duplicate bsd.subdir.mk, but I can't
 # get that to cooperate with bsd.prog.mk.  Besides, many of the standard
 # targets should NOT be propagated into the components.
-cleandepend cleandir obj objlink:
-.for D in $(CRUNCH_SRCDIRS)
-.for P in $(CRUNCH_PROGS_$(D))
-.ifdef CRUNCH_SRCDIR_${P}
-	cd ${CRUNCH_SRCDIR_$(P)} && \
-	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} \
-	    DIRPRFX=${DIRPRFX}${P}/ ${CRUNCH_BUILDOPTS} ${.TARGET}
-.else
-	cd $(.CURDIR)/../../${D}/${P} && \
-	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} \
-	    DIRPRFX=${DIRPRFX}${P}/ ${CRUNCH_BUILDOPTS} ${.TARGET}
-.endif
+.for __target in clean cleandepend cleandir obj objlink
+.for D in ${CRUNCH_SRCDIRS}
+.for P in ${CRUNCH_PROGS_${D}}
+${__target}_crunchdir_${P}: .PHONY .MAKE
+	${_+_}cd ${CRUNCH_SRCDIR_${P}} && \
+	    ${CRUNCHENV} MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} \
+	    DIRPRFX=${DIRPRFX}${P}/ ${CRUNCH_BUILDOPTS} ${__target}
+${__target}: ${__target}_crunchdir_${P}
+.endfor
 .endfor
 .endfor
 
 clean:
 	rm -f ${CLEANFILES}
-	if [ -e ${.OBJDIR}/$(OUTMK) ]; then				\
-		MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} -f $(OUTMK) clean;	\
+	${_+_}if [ -e ${.OBJDIR}/${OUTMK} ]; then			\
+		${CRUNCHENV} MAKEOBJDIRPREFIX=${CRUNCHOBJS} ${MAKE} 	\
+		-f ${OUTMK} clean;					\
 	fi
-.for D in $(CRUNCH_SRCDIRS)
-.for P in $(CRUNCH_PROGS_$(D))
-.ifdef CRUNCH_SRCDIR_${P}
-	cd ${CRUNCH_SRCDIR_$(P)} && \
-	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} \
-	    DIRPRFX=${DIRPRFX}${P}/ ${CRUNCH_BUILDOPTS} ${.TARGET}
-.else
-	cd $(.CURDIR)/../../${D}/${P} && \
-	    MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} \
-	    DIRPRFX=${DIRPRFX}${P}/ ${CRUNCH_BUILDOPTS} ${.TARGET}
-.endif
-.endfor
-.endfor

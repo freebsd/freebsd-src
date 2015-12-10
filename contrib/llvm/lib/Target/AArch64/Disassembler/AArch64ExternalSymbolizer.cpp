@@ -52,7 +52,7 @@ getVariant(uint64_t LLVMDisassembler_VariantKind) {
 /// returns zero and isBranch is Success then a symbol look up for
 /// Address + Value is done and if a symbol is found an MCExpr is created with
 /// that, else an MCExpr with Address + Value is created.  If GetOpInfo()
-/// returns zero and isBranch is Fail then the the Opcode of the MCInst is
+/// returns zero and isBranch is Fail then the Opcode of the MCInst is
 /// tested and for ADRP an other instructions that help to load of pointers
 /// a symbol look up is done to see it is returns a specific reference type
 /// to add to the comment stream.  This function returns Success if it adds
@@ -165,14 +165,14 @@ bool AArch64ExternalSymbolizer::tryAddingSymbolicOperand(
   if (SymbolicOp.AddSymbol.Present) {
     if (SymbolicOp.AddSymbol.Name) {
       StringRef Name(SymbolicOp.AddSymbol.Name);
-      MCSymbol *Sym = Ctx.GetOrCreateSymbol(Name);
+      MCSymbol *Sym = Ctx.getOrCreateSymbol(Name);
       MCSymbolRefExpr::VariantKind Variant = getVariant(SymbolicOp.VariantKind);
       if (Variant != MCSymbolRefExpr::VK_None)
-        Add = MCSymbolRefExpr::Create(Sym, Variant, Ctx);
+        Add = MCSymbolRefExpr::create(Sym, Variant, Ctx);
       else
-        Add = MCSymbolRefExpr::Create(Sym, Ctx);
+        Add = MCSymbolRefExpr::create(Sym, Ctx);
     } else {
-      Add = MCConstantExpr::Create(SymbolicOp.AddSymbol.Value, Ctx);
+      Add = MCConstantExpr::create(SymbolicOp.AddSymbol.Value, Ctx);
     }
   }
 
@@ -180,41 +180,41 @@ bool AArch64ExternalSymbolizer::tryAddingSymbolicOperand(
   if (SymbolicOp.SubtractSymbol.Present) {
     if (SymbolicOp.SubtractSymbol.Name) {
       StringRef Name(SymbolicOp.SubtractSymbol.Name);
-      MCSymbol *Sym = Ctx.GetOrCreateSymbol(Name);
-      Sub = MCSymbolRefExpr::Create(Sym, Ctx);
+      MCSymbol *Sym = Ctx.getOrCreateSymbol(Name);
+      Sub = MCSymbolRefExpr::create(Sym, Ctx);
     } else {
-      Sub = MCConstantExpr::Create(SymbolicOp.SubtractSymbol.Value, Ctx);
+      Sub = MCConstantExpr::create(SymbolicOp.SubtractSymbol.Value, Ctx);
     }
   }
 
   const MCExpr *Off = nullptr;
   if (SymbolicOp.Value != 0)
-    Off = MCConstantExpr::Create(SymbolicOp.Value, Ctx);
+    Off = MCConstantExpr::create(SymbolicOp.Value, Ctx);
 
   const MCExpr *Expr;
   if (Sub) {
     const MCExpr *LHS;
     if (Add)
-      LHS = MCBinaryExpr::CreateSub(Add, Sub, Ctx);
+      LHS = MCBinaryExpr::createSub(Add, Sub, Ctx);
     else
-      LHS = MCUnaryExpr::CreateMinus(Sub, Ctx);
+      LHS = MCUnaryExpr::createMinus(Sub, Ctx);
     if (Off)
-      Expr = MCBinaryExpr::CreateAdd(LHS, Off, Ctx);
+      Expr = MCBinaryExpr::createAdd(LHS, Off, Ctx);
     else
       Expr = LHS;
   } else if (Add) {
     if (Off)
-      Expr = MCBinaryExpr::CreateAdd(Add, Off, Ctx);
+      Expr = MCBinaryExpr::createAdd(Add, Off, Ctx);
     else
       Expr = Add;
   } else {
     if (Off)
       Expr = Off;
     else
-      Expr = MCConstantExpr::Create(0, Ctx);
+      Expr = MCConstantExpr::create(0, Ctx);
   }
 
-  MI.addOperand(MCOperand::CreateExpr(Expr));
+  MI.addOperand(MCOperand::createExpr(Expr));
 
   return true;
 }

@@ -216,7 +216,7 @@ static int	is_wildcard_addr	(const sockaddr_u *);
  * Multicast functions
  */
 static	isc_boolean_t	addr_ismulticast	(sockaddr_u *);
-static	isc_boolean_t	is_not_bindable		(sockaddr_u *,
+static	isc_boolean_t	is_anycast		(sockaddr_u *,
 						 const char *);
 
 /*
@@ -371,7 +371,7 @@ maintain_activefds(
 					maxactivefd = i;
 					break;
 				}
-			NTP_INSIST(fd != maxactivefd);
+			INSIST(fd != maxactivefd);
 		}
 	}
 }
@@ -687,8 +687,8 @@ addr_samesubnet(
 	const u_int32 *	pm;
 	size_t		loops;
 
-	NTP_REQUIRE(AF(a) == AF(a_mask));
-	NTP_REQUIRE(AF(b) == AF(b_mask));
+	REQUIRE(AF(a) == AF(a_mask));
+	REQUIRE(AF(b) == AF(b_mask));
 	/*
 	 * With address and mask families verified to match, comparing
 	 * the masks also validates the address's families match.
@@ -735,8 +735,8 @@ is_ip_address(
 	char tmpbuf[128];
 	char *pch;
 
-	NTP_REQUIRE(host != NULL);
-	NTP_REQUIRE(addr != NULL);
+	REQUIRE(host != NULL);
+	REQUIRE(addr != NULL);
 
 	ZERO_SOCK(addr);
 
@@ -1250,15 +1250,15 @@ add_nic_rule(
 	rule->action = action;
 
 	if (MATCH_IFNAME == match_type) {
-		NTP_REQUIRE(NULL != if_name);
+		REQUIRE(NULL != if_name);
 		rule->if_name = estrdup(if_name);
 	} else if (MATCH_IFADDR == match_type) {
-		NTP_REQUIRE(NULL != if_name);
+		REQUIRE(NULL != if_name);
 		/* set rule->addr */
 		is_ip = is_ip_address(if_name, AF_UNSPEC, &rule->addr);
-		NTP_REQUIRE(is_ip);
+		REQUIRE(is_ip);
 	} else
-		NTP_REQUIRE(NULL == if_name);
+		REQUIRE(NULL == if_name);
 
 	LINK_SLIST(nic_rule_list, rule, next);
 }
@@ -1278,7 +1278,7 @@ action_text(
 		t = "ERROR";	/* quiet uninit warning */
 		DPRINTF(1, ("fatal: unknown nic_rule_action %d\n",
 			    action));
-		NTP_ENSURE(0);
+		ENSURE(0);
 		break;
 
 	case ACTION_LISTEN:
@@ -1666,11 +1666,9 @@ check_flags6(
 	u_int32 flags6
 	)
 {
-#if defined(INCLUDE_IPV6_SUPPORT) && defined(SIOCGIFAFLAG_IN6) && \
-    (defined(IN6_IFF_ANYCAST) || defined(IN6_IFF_NOTREADY))
+#if defined(INCLUDE_IPV6_SUPPORT) && defined(SIOCGIFAFLAG_IN6)
 	struct in6_ifreq ifr6;
 	int fd;
-	u_int32 exclude = 0;
 
 	if (psau->sa.sa_family != AF_INET6)
 		return ISC_FALSE;
@@ -1684,21 +1682,14 @@ check_flags6(
 		return ISC_FALSE;
 	}
 	close(fd);
-	flags6 = ifr6.ifr_ifru.ifru_flags6;
-#if defined(IN6_IFF_ANYCAST)
-	exclude |= IN6_IFF_ANYCAST;
-#endif /* !IN6_IFF_ANYCAST */
-#if defined(IN6_IFF_NOTREADY)
-	exclude |= IN6_IFF_NOTREADY;
-#endif /* !IN6_IFF_NOTREADY */
-	if ((flags6 & exclude) != 0)
+	if ((ifr6.ifr_ifru.ifru_flags6 & flags6) != 0)
 		return ISC_TRUE;
-#endif	/* INCLUDE_IPV6_SUPPORT && SIOCGIFAFLAG_IN6 && (IN6_IFF_ANYCAST && IN6_IFF_NOTREADY) */
+#endif	/* INCLUDE_IPV6_SUPPORT && SIOCGIFAFLAG_IN6 */
 	return ISC_FALSE;
 }
 
 static isc_boolean_t
-is_not_bindable(
+is_anycast(
 	sockaddr_u *psau,
 	const char *name
 	)
@@ -1859,7 +1850,7 @@ update_interfaces(
 		if (is_wildcard_addr(&enumep.sin))
 			continue;
 
-		if (is_not_bindable(&enumep.sin, isc_if.name))
+		if (is_anycast(&enumep.sin, isc_if.name))
 			continue;
 
 		/*
@@ -2031,6 +2022,7 @@ update_interfaces(
 	if (sys_bclient)
 		io_setbclient();
 
+#ifdef MCAST
 	/*
 	 * Check multicast interfaces and try to join multicast groups if
          * not joined yet.
@@ -2056,6 +2048,7 @@ update_interfaces(
 			}
 		}
 	}
+#endif /* MCAST */
 
 	return new_interface_found;
 }
@@ -2406,7 +2399,7 @@ enable_multicast_if(
 	u_int off6 = 0;
 #endif
 
-	NTP_REQUIRE(AF(maddr) == AF(&iface->sin));
+	REQUIRE(AF(maddr) == AF(&iface->sin));
 
 	switch (AF(&iface->sin)) {
 
@@ -2466,9 +2459,9 @@ socket_multicast_enable(
 	)
 {
 	struct ip_mreq		mreq;
-#ifdef INCLUDE_IPV6_MULTICAST_SUPPORT
+# ifdef INCLUDE_IPV6_MULTICAST_SUPPORT
 	struct ipv6_mreq	mreq6;
-#endif
+# endif
 	switch (AF(maddr)) {
 
 	case AF_INET:
@@ -2495,7 +2488,7 @@ socket_multicast_enable(
 		break;
 
 	case AF_INET6:
-#ifdef INCLUDE_IPV6_MULTICAST_SUPPORT
+# ifdef INCLUDE_IPV6_MULTICAST_SUPPORT
 		/*
 		 * Enable reception of multicast packets.
 		 * If the address is link-local we can get the
@@ -2519,9 +2512,9 @@ socket_multicast_enable(
 		DPRINTF(4, ("Added IPv6 multicast group on socket %d, addr %s for interface %u (%s)\n",
 			    iface->fd, stoa(&iface->sin),
 			    mreq6.ipv6mr_interface, stoa(maddr)));
-#else
+# else
 		return ISC_FALSE;
-#endif	/* INCLUDE_IPV6_MULTICAST_SUPPORT */
+# endif	/* INCLUDE_IPV6_MULTICAST_SUPPORT */
 	}
 	iface->flags |= INT_MCASTOPEN;
 	iface->num_mcast++;
@@ -2543,9 +2536,9 @@ socket_multicast_disable(
 	sockaddr_u *		maddr
 	)
 {
-#ifdef INCLUDE_IPV6_MULTICAST_SUPPORT
+# ifdef INCLUDE_IPV6_MULTICAST_SUPPORT
 	struct ipv6_mreq mreq6;
-#endif
+# endif
 	struct ip_mreq mreq;
 
 	ZERO(mreq);
@@ -2574,7 +2567,7 @@ socket_multicast_disable(
 		}
 		break;
 	case AF_INET6:
-#ifdef INCLUDE_IPV6_MULTICAST_SUPPORT
+# ifdef INCLUDE_IPV6_MULTICAST_SUPPORT
 		/*
 		 * Disable reception of multicast packets
 		 * If the address is link-local we can get the
@@ -2596,9 +2589,9 @@ socket_multicast_disable(
 			return ISC_FALSE;
 		}
 		break;
-#else
+# else
 		return ISC_FALSE;
-#endif	/* INCLUDE_IPV6_MULTICAST_SUPPORT */
+# endif	/* INCLUDE_IPV6_MULTICAST_SUPPORT */
 	}
 
 	iface->num_mcast--;
@@ -2638,7 +2631,7 @@ io_setbclient(void)
 			continue;
 
 		/* Only IPv4 addresses are valid for broadcast */
-		NTP_REQUIRE(IS_IPV4(&interf->sin));
+		REQUIRE(IS_IPV4(&interf->sin));
 
 		/* Do we already have the broadcast address open? */
 		if (interf->flags & INT_BCASTOPEN) {
@@ -2744,7 +2737,7 @@ io_multicast_add(
 		return;
 	}
 
-#ifndef MULTICAST_NONEWSOCKET
+# ifndef MULTICAST_NONEWSOCKET
 	ep = new_interface(NULL);
 
 	/*
@@ -2794,7 +2787,7 @@ io_multicast_add(
 	}
 	{	/* in place of the { following for in #else clause */
 		one_ep = ep;
-#else	/* MULTICAST_NONEWSOCKET follows */
+# else	/* MULTICAST_NONEWSOCKET follows */
 	/*
 	 * For the case where we can't use a separate socket (Windows)
 	 * join each applicable endpoint socket to the group address.
@@ -2809,7 +2802,7 @@ io_multicast_add(
 		    (INT_LOOPBACK | INT_WILDCARD) & ep->flags)
 			continue;
 		one_ep = ep;
-#endif	/* MULTICAST_NONEWSOCKET */
+# endif	/* MULTICAST_NONEWSOCKET */
 		if (socket_multicast_enable(ep, addr))
 			msyslog(LOG_INFO,
 				"Joined %s socket to multicast group %s",
@@ -3249,7 +3242,7 @@ read_refclock_packet(
 	l_fp			ts
 	)
 {
-	int			i;
+	u_int			read_count;
 	int			buflen;
 	int			saved_errno;
 	int			consumed;
@@ -3268,12 +3261,15 @@ read_refclock_packet(
 		return (buflen);
 	}
 
-	i = (rp->datalen == 0
-	     || rp->datalen > (int)sizeof(rb->recv_space))
-		? (int)sizeof(rb->recv_space)
-		: rp->datalen;
+	/* TALOS-CAN-0064: avoid signed/unsigned clashes that can lead
+	 * to buffer overrun and memory corruption
+	 */
+	if (rp->datalen <= 0 || rp->datalen > sizeof(rb->recv_space))
+		read_count = sizeof(rb->recv_space);
+	else
+		read_count = (u_int)rp->datalen;
 	do {
-		buflen = read(fd, (char *)&rb->recv_space, (u_int)i);
+		buflen = read(fd, (char *)&rb->recv_space, read_count);
 	} while (buflen < 0 && EINTR == errno);
 
 	if (buflen <= 0) {
@@ -4088,7 +4084,7 @@ calc_addr_distance(
 	int	a1_greater;
 	int	i;
 
-	NTP_REQUIRE(AF(a1) == AF(a2));
+	REQUIRE(AF(a1) == AF(a2));
 
 	ZERO_SOCK(dist);
 	AF(dist) = AF(a1);
@@ -4139,7 +4135,7 @@ cmp_addr_distance(
 {
 	int	i;
 
-	NTP_REQUIRE(AF(d1) == AF(d2));
+	REQUIRE(AF(d1) == AF(d2));
 
 	if (IS_IPV4(d1)) {
 		if (SRCADR(d1) < SRCADR(d2))
@@ -4631,10 +4627,15 @@ process_routing_msgs(struct asyncio_reader *reader)
 	cnt = read(reader->fd, buffer, sizeof(buffer));
 
 	if (cnt < 0) {
-		msyslog(LOG_ERR,
-			"i/o error on routing socket %m - disabling");
-		remove_asyncio_reader(reader);
-		delete_asyncio_reader(reader);
+		if (errno == ENOBUFS) {
+			msyslog(LOG_ERR,
+				"routing socket reports: %m");
+		} else {
+			msyslog(LOG_ERR,
+				"routing socket reports: %m - disabling");
+			remove_asyncio_reader(reader);
+			delete_asyncio_reader(reader);
+		}
 		return;
 	}
 

@@ -19,37 +19,19 @@
 #define LLVM_IR_FUNCTION_H
 
 #include "llvm/ADT/iterator_range.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/IR/GlobalObject.h"
+#include "llvm/IR/OperandTraits.h"
 #include "llvm/Support/Compiler.h"
 
 namespace llvm {
 
 class FunctionType;
 class LLVMContext;
-
-// Traits for intrusive list of basic blocks...
-template<> struct ilist_traits<BasicBlock>
-  : public SymbolTableListTraits<BasicBlock, Function> {
-
-  // createSentinel is used to get hold of the node that marks the end of the
-  // list... (same trick used here as in ilist_traits<Instruction>)
-  BasicBlock *createSentinel() const {
-    return static_cast<BasicBlock*>(&Sentinel);
-  }
-  static void destroySentinel(BasicBlock*) {}
-
-  BasicBlock *provideInitialHead() const { return createSentinel(); }
-  BasicBlock *ensureHead(BasicBlock*) const { return createSentinel(); }
-  static void noteHead(BasicBlock*, BasicBlock*) {}
-
-  static ValueSymbolTable *getSymTab(Function *ItemParent);
-private:
-  mutable ilist_half_node<BasicBlock> Sentinel;
-};
 
 template<> struct ilist_traits<Argument>
   : public SymbolTableListTraits<Argument, Function> {
@@ -86,6 +68,7 @@ private:
   mutable ArgumentListType ArgumentList;  ///< The formal arguments
   ValueSymbolTable *SymTab;               ///< Symbol table of args/instructions
   AttributeSet AttributeSets;             ///< Parameter attributes
+  FunctionType *Ty;
 
   /*
    * Value::SubclassData
@@ -95,6 +78,17 @@ private:
    * bit 2  : HasPrologueData
    * bit 3-6: CallingConvention
    */
+
+  /// Bits from GlobalObject::GlobalObjectSubclassData.
+  enum {
+    /// Whether this function is materializable.
+    IsMaterializableBit = 1 << 0,
+    HasMetadataHashEntryBit = 1 << 1
+  };
+  void setGlobalObjectBit(unsigned Mask, bool Value) {
+    setGlobalObjectSubClassData((~Mask & getGlobalObjectSubClassData()) |
+                                (Value ? Mask : 0u));
+  }
 
   friend class SymbolTableListTraits<Function, Module>;
 
@@ -113,12 +107,8 @@ private:
   }
   void BuildLazyArguments() const;
 
-  Function(const Function&) LLVM_DELETED_FUNCTION;
-  void operator=(const Function&) LLVM_DELETED_FUNCTION;
-
-  /// Do the actual lookup of an intrinsic ID when the query could not be
-  /// answered from the cache.
-  unsigned lookupIntrinsicID() const LLVM_READONLY;
+  Function(const Function&) = delete;
+  void operator=(const Function&) = delete;
 
   /// Function ctor - If the (optional) Module argument is specified, the
   /// function is automatically inserted into the end of the function list for
@@ -130,16 +120,27 @@ private:
 public:
   static Function *Create(FunctionType *Ty, LinkageTypes Linkage,
                           const Twine &N = "", Module *M = nullptr) {
-    return new(0) Function(Ty, Linkage, N, M);
+    return new(1) Function(Ty, Linkage, N, M);
   }
 
-  ~Function();
+  ~Function() override;
+
+  /// \brief Provide fast operand accessors
+  DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
+
+  /// \brief Get the personality function associated with this function.
+  bool hasPersonalityFn() const { return getNumOperands() != 0; }
+  Constant *getPersonalityFn() const {
+    assert(hasPersonalityFn());
+    return cast<Constant>(Op<0>());
+  }
+  void setPersonalityFn(Constant *C);
 
   Type *getReturnType() const;           // Return the type of the ret val
   FunctionType *getFunctionType() const; // Return the FunctionType for me
 
-  /// getContext - Return a pointer to the LLVMContext associated with this
-  /// function, or NULL if this function is not bound to a context yet.
+  /// getContext - Return a reference to the LLVMContext associated with this
+  /// function.
   LLVMContext &getContext() const;
 
   /// isVarArg - Return true if this function takes a variable number of
@@ -154,12 +155,16 @@ public:
   /// intrinsic, or if the pointer is null.  This value is always defined to be
   /// zero to allow easy checking for whether a function is intrinsic or not.
   /// The particular intrinsic functions which correspond to this value are
-  /// defined in llvm/Intrinsics.h.  Results are cached in the LLVM context,
-  /// subsequent requests for the same ID return results much faster from the
-  /// cache.
-  ///
-  unsigned getIntrinsicID() const LLVM_READONLY;
+  /// defined in llvm/Intrinsics.h.
+  Intrinsic::ID getIntrinsicID() const LLVM_READONLY { return IntID; }
   bool isIntrinsic() const { return getName().startswith("llvm."); }
+
+  /// \brief Recalculate the ID for this function if it is an Intrinsic defined
+  /// in llvm/Intrinsics.h.  Sets the intrinsic ID to Intrinsic::not_intrinsic
+  /// if the name of this function does not match an intrinsic in that header.
+  /// Note, this method does not need to be called directly, as it is called
+  /// from Value::setName() whenever the name of this function changes.
+  void recalculateIntrinsicID();
 
   /// getCallingConv()/setCallingConv(CC) - These method get and set the
   /// calling convention of this function.  The enum values for the known
@@ -202,6 +207,12 @@ public:
                                  AttributeSet::FunctionIndex, Kind, Value));
   }
 
+  /// Set the entry count for this function.
+  void setEntryCount(uint64_t Count);
+
+  /// Get the entry count for this function.
+  Optional<uint64_t> getEntryCount() const;
+
   /// @brief Return true if the function has the attribute.
   bool hasFnAttribute(Attribute::AttrKind Kind) const {
     return AttributeSets.hasAttribute(AttributeSet::FunctionIndex, Kind);
@@ -216,6 +227,11 @@ public:
   }
   Attribute getFnAttribute(StringRef Kind) const {
     return AttributeSets.getAttribute(AttributeSet::FunctionIndex, Kind);
+  }
+
+  /// \brief Return the stack alignment for the function.
+  unsigned getFnStackAlignment() const {
+    return AttributeSets.getStackAlignment(AttributeSet::FunctionIndex);
   }
 
   /// hasGC/getGC/setGC/clearGC - The name of the garbage collection algorithm
@@ -234,6 +250,13 @@ public:
   /// @brief removes the attributes from the list of attributes.
   void removeAttributes(unsigned i, AttributeSet attr);
 
+  /// @brief adds the dereferenceable attribute to the list of attributes.
+  void addDereferenceableAttr(unsigned i, uint64_t Bytes);
+
+  /// @brief adds the dereferenceable_or_null attribute to the list of
+  /// attributes.
+  void addDereferenceableOrNullAttr(unsigned i, uint64_t Bytes);
+
   /// @brief Extract the alignment for a call or parameter (0=unknown).
   unsigned getParamAlignment(unsigned i) const {
     return AttributeSets.getParamAlignment(i);
@@ -244,7 +267,13 @@ public:
   uint64_t getDereferenceableBytes(unsigned i) const {
     return AttributeSets.getDereferenceableBytes(i);
   }
-
+  
+  /// @brief Extract the number of dereferenceable_or_null bytes for a call or
+  /// parameter (0=unknown).
+  uint64_t getDereferenceableOrNullBytes(unsigned i) const {
+    return AttributeSets.getDereferenceableOrNullBytes(i);
+  }
+  
   /// @brief Determine if the function does not access memory.
   bool doesNotAccessMemory() const {
     return AttributeSets.hasAttribute(AttributeSet::FunctionIndex,
@@ -264,6 +293,16 @@ public:
     addFnAttr(Attribute::ReadOnly);
   }
 
+  /// @brief Determine if the call can access memmory only using pointers based
+  /// on its arguments.
+  bool onlyAccessesArgMemory() const {
+    return AttributeSets.hasAttribute(AttributeSet::FunctionIndex,
+                                      Attribute::ArgMemOnly);
+  }
+  void setOnlyAccessesArgMemory() {
+    addFnAttr(Attribute::ArgMemOnly);
+  }
+  
   /// @brief Determine if the function cannot return.
   bool doesNotReturn() const {
     return AttributeSets.hasAttribute(AttributeSet::FunctionIndex,
@@ -290,6 +329,16 @@ public:
   void setCannotDuplicate() {
     addFnAttr(Attribute::NoDuplicate);
   }
+
+  /// @brief Determine if the call is convergent.
+  bool isConvergent() const {
+    return AttributeSets.hasAttribute(AttributeSet::FunctionIndex,
+                                      Attribute::Convergent);
+  }
+  void setConvergent() {
+    addFnAttr(Attribute::Convergent);
+  }
+
 
   /// @brief True if the ABI mandates (or the user requested) that this
   /// function be in a unwind table.
@@ -464,6 +513,10 @@ public:
   Constant *getPrologueData() const;
   void setPrologueData(Constant *PrologueData);
 
+  /// Print the function to an output stream with an optional
+  /// AssemblyAnnotationWriter.
+  void print(raw_ostream &OS, AssemblyAnnotationWriter *AAW = nullptr) const;
+
   /// viewCFG - This function is meant for use from the debugger.  You can just
   /// say 'call F->viewCFG()' and a ghostview window should pop up from the
   /// program, displaying the CFG of the current function with the code for each
@@ -514,12 +567,50 @@ public:
   /// setjmp or other function that gcc recognizes as "returning twice".
   bool callsFunctionThatReturnsTwice() const;
 
+  /// \brief Check if this has any metadata.
+  bool hasMetadata() const { return hasMetadataHashEntry(); }
+
+  /// \brief Get the current metadata attachment, if any.
+  ///
+  /// Returns \c nullptr if such an attachment is missing.
+  /// @{
+  MDNode *getMetadata(unsigned KindID) const;
+  MDNode *getMetadata(StringRef Kind) const;
+  /// @}
+
+  /// \brief Set a particular kind of metadata attachment.
+  ///
+  /// Sets the given attachment to \c MD, erasing it if \c MD is \c nullptr or
+  /// replacing it if it already exists.
+  /// @{
+  void setMetadata(unsigned KindID, MDNode *MD);
+  void setMetadata(StringRef Kind, MDNode *MD);
+  /// @}
+
+  /// \brief Get all current metadata attachments.
+  void
+  getAllMetadata(SmallVectorImpl<std::pair<unsigned, MDNode *>> &MDs) const;
+
+  /// \brief Drop metadata not in the given list.
+  ///
+  /// Drop all metadata from \c this not included in \c KnownIDs.
+  void dropUnknownMetadata(ArrayRef<unsigned> KnownIDs);
+
 private:
   // Shadow Value::setValueSubclassData with a private forwarding method so that
   // subclasses cannot accidentally use it.
   void setValueSubclassData(unsigned short D) {
     Value::setValueSubclassData(D);
   }
+
+  bool hasMetadataHashEntry() const {
+    return getGlobalObjectSubClassData() & HasMetadataHashEntryBit;
+  }
+  void setHasMetadataHashEntry(bool HasEntry) {
+    setGlobalObjectBit(HasMetadataHashEntryBit, HasEntry);
+  }
+
+  void clearMetadata();
 };
 
 inline ValueSymbolTable *
@@ -531,6 +622,11 @@ inline ValueSymbolTable *
 ilist_traits<Argument>::getSymTab(Function *F) {
   return F ? &F->getValueSymbolTable() : nullptr;
 }
+
+template <>
+struct OperandTraits<Function> : public OptionalOperandTraits<Function> {};
+
+DEFINE_TRANSPARENT_OPERAND_ACCESSORS(Function, Value)
 
 } // End llvm namespace
 

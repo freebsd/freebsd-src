@@ -177,7 +177,7 @@ macgpio_attach(device_t dev)
 			continue;
 		}
 
-		if (OF_getprop(child,"reg",&dinfo->gpio_num,
+		if (OF_getencprop(child, "reg", &dinfo->gpio_num,
 		    sizeof(dinfo->gpio_num)) != sizeof(dinfo->gpio_num)) {
 			/*
 			 * Some early GPIO controllers don't provide GPIO
@@ -191,9 +191,9 @@ macgpio_attach(device_t dev)
 
 		resource_list_init(&dinfo->mdi_resources);
 
-		if (OF_getprop(child, "interrupts", &irq, sizeof(irq)) == 
+		if (OF_getencprop(child, "interrupts", &irq, sizeof(irq)) == 
 		    sizeof(irq)) {
-			OF_searchprop(child, "interrupt-parent", &iparent,
+			OF_searchencprop(child, "interrupt-parent", &iparent,
 			    sizeof(iparent));
 			resource_list_add(&dinfo->mdi_resources, SYS_RES_IRQ,
 			    0, MAP_IRQ(iparent, irq), MAP_IRQ(iparent, irq),

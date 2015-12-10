@@ -231,8 +231,6 @@ switch_internal(svn_revnum_t *result_rev,
         yca = NULL; /* Not versioned */
       else
         {
-          /* ### It would be nice if this function could reuse the existing
-             ra session instead of opening two for its own use. */
           SVN_ERR(svn_client__get_youngest_common_ancestor(
                   &yca, switch_loc, target_base_loc, ra_session, ctx,
                   pool, pool));
@@ -340,8 +338,8 @@ switch_internal(svn_revnum_t *result_rev,
   *timestamp_sleep = TRUE;
 
   /* Drive the reporter structure, describing the revisions within
-     PATH.  When we call reporter->finish_report, the update_editor
-     will be driven by svn_repos_dir_delta2. */
+     LOCAL_ABSPATH.  When this calls reporter->finish_report, the
+     reporter will drive the switch_editor. */
   SVN_ERR(svn_wc_crawl_revisions5(ctx->wc_ctx, local_abspath, reporter,
                                   report_baton, TRUE,
                                   depth, (! depth_is_sticky),
@@ -367,7 +365,7 @@ switch_internal(svn_revnum_t *result_rev,
                                            new_depths,
                                            switch_loc->repos_root_url,
                                            local_abspath,
-                                           depth, timestamp_sleep,
+                                           depth, timestamp_sleep, ra_session,
                                            ctx, pool));
     }
 
@@ -382,7 +380,7 @@ switch_internal(svn_revnum_t *result_rev,
         = svn_wc_notify_state_inapplicable;
       notify->lock_state = svn_wc_notify_lock_state_inapplicable;
       notify->revision = revnum;
-      (*ctx->notify_func2)(ctx->notify_baton2, notify, pool);
+      ctx->notify_func2(ctx->notify_baton2, notify, pool);
     }
 
   /* If the caller wants the result revision, give it to them. */

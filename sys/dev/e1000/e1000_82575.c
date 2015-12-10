@@ -1235,7 +1235,7 @@ static s32 e1000_check_for_link_media_swap(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_check_for_link_media_swap");
 
-	/* Check for copper. */
+	/* Check the copper medium. */
 	ret_val = phy->ops.write_reg(hw, E1000_M88E1112_PAGE_ADDR, 0);
 	if (ret_val)
 		return ret_val;
@@ -1247,12 +1247,17 @@ static s32 e1000_check_for_link_media_swap(struct e1000_hw *hw)
 	if (data & E1000_M88E1112_STATUS_LINK)
 		port = E1000_MEDIA_PORT_COPPER;
 
-	/* Check for other. */
+	/* Check the other medium. */
 	ret_val = phy->ops.write_reg(hw, E1000_M88E1112_PAGE_ADDR, 1);
 	if (ret_val)
 		return ret_val;
 
 	ret_val = phy->ops.read_reg(hw, E1000_M88E1112_STATUS, &data);
+	if (ret_val)
+		return ret_val;
+
+	/* reset page to 0 */
+	ret_val = phy->ops.write_reg(hw, E1000_M88E1112_PAGE_ADDR, 0);
 	if (ret_val)
 		return ret_val;
 
@@ -1263,20 +1268,8 @@ static s32 e1000_check_for_link_media_swap(struct e1000_hw *hw)
 	if (port && (hw->dev_spec._82575.media_port != port)) {
 		hw->dev_spec._82575.media_port = port;
 		hw->dev_spec._82575.media_changed = TRUE;
-	}
-
-	if (port == E1000_MEDIA_PORT_COPPER) {
-		/* reset page to 0 */
-		ret_val = phy->ops.write_reg(hw, E1000_M88E1112_PAGE_ADDR, 0);
-		if (ret_val)
-			return ret_val;
-		e1000_check_for_link_82575(hw);
 	} else {
-		e1000_check_for_link_82575(hw);
-		/* reset page to 0 */
-		ret_val = phy->ops.write_reg(hw, E1000_M88E1112_PAGE_ADDR, 0);
-		if (ret_val)
-			return ret_val;
+		ret_val = e1000_check_for_link_82575(hw);
 	}
 
 	return E1000_SUCCESS;
@@ -2143,13 +2136,7 @@ void e1000_rx_fifo_flush_82575(struct e1000_hw *hw)
 	u32 rctl, rlpml, rxdctl[4], rfctl, temp_rctl, rx_enabled;
 	int i, ms_wait;
 
-	DEBUGFUNC("e1000_rx_fifo_flush_82575");
-
-	/* disable IPv6 options as per hardware errata */
-	rfctl = E1000_READ_REG(hw, E1000_RFCTL);
-	rfctl |= E1000_RFCTL_IPV6_EX_DIS;
-	E1000_WRITE_REG(hw, E1000_RFCTL, rfctl);
-
+	DEBUGFUNC("e1000_rx_fifo_workaround_82575");
 	if (hw->mac.type != e1000_82575 ||
 	    !(E1000_READ_REG(hw, E1000_MANC) & E1000_MANC_RCV_TCO_EN))
 		return;
@@ -2177,6 +2164,7 @@ void e1000_rx_fifo_flush_82575(struct e1000_hw *hw)
 	 * incoming packets are rejected.  Set enable and wait 2ms so that
 	 * any packet that was coming in as RCTL.EN was set is flushed
 	 */
+	rfctl = E1000_READ_REG(hw, E1000_RFCTL);
 	E1000_WRITE_REG(hw, E1000_RFCTL, rfctl & ~E1000_RFCTL_LEF);
 
 	rlpml = E1000_READ_REG(hw, E1000_RLPML);
@@ -2906,13 +2894,11 @@ out:
 /**
  *  e1000_set_eee_i350 - Enable/disable EEE support
  *  @hw: pointer to the HW structure
- *  @adv1g: boolean flag enabling 1G EEE advertisement
- *  @adv100m: boolean flag enabling 100M EEE advertisement
  *
  *  Enable/disable EEE based on setting in dev_spec structure.
  *
  **/
-s32 e1000_set_eee_i350(struct e1000_hw *hw, bool adv1G, bool adv100M)
+s32 e1000_set_eee_i350(struct e1000_hw *hw)
 {
 	u32 ipcnfg, eeer;
 
@@ -2928,16 +2914,7 @@ s32 e1000_set_eee_i350(struct e1000_hw *hw, bool adv1G, bool adv100M)
 	if (!(hw->dev_spec._82575.eee_disable)) {
 		u32 eee_su = E1000_READ_REG(hw, E1000_EEE_SU);
 
-		if (adv100M)
-			ipcnfg |= E1000_IPCNFG_EEE_100M_AN;
-		else
-			ipcnfg &= ~E1000_IPCNFG_EEE_100M_AN;
-
-		if (adv1G)
-			ipcnfg |= E1000_IPCNFG_EEE_1G_AN;
-		else
-			ipcnfg &= ~E1000_IPCNFG_EEE_1G_AN;
-
+		ipcnfg |= (E1000_IPCNFG_EEE_1G_AN | E1000_IPCNFG_EEE_100M_AN);
 		eeer |= (E1000_EEER_TX_LPI_EN | E1000_EEER_RX_LPI_EN |
 			 E1000_EEER_LPI_FC);
 
@@ -2961,13 +2938,11 @@ out:
 /**
  *  e1000_set_eee_i354 - Enable/disable EEE support
  *  @hw: pointer to the HW structure
- *  @adv1g: boolean flag enabling 1G EEE advertisement
- *  @adv100m: boolean flag enabling 100M EEE advertisement
  *
  *  Enable/disable EEE legacy mode based on setting in dev_spec structure.
  *
  **/
-s32 e1000_set_eee_i354(struct e1000_hw *hw, bool adv1G, bool adv100M)
+s32 e1000_set_eee_i354(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val = E1000_SUCCESS;
@@ -3009,16 +2984,8 @@ s32 e1000_set_eee_i354(struct e1000_hw *hw, bool adv1G, bool adv100M)
 		if (ret_val)
 			goto out;
 
-		if (adv100M)
-			phy_data |= E1000_EEE_ADV_100_SUPPORTED;
-		else
-			phy_data &= ~E1000_EEE_ADV_100_SUPPORTED;
-
-		if (adv1G)
-			phy_data |= E1000_EEE_ADV_1000_SUPPORTED;
-		else
-			phy_data &= ~E1000_EEE_ADV_1000_SUPPORTED;
-
+		phy_data |= E1000_EEE_ADV_100_SUPPORTED |
+			    E1000_EEE_ADV_1000_SUPPORTED;
 		ret_val = e1000_write_xmdio_reg(hw, E1000_EEE_ADV_ADDR_I354,
 						E1000_EEE_ADV_DEV_I354,
 						phy_data);

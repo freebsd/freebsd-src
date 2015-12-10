@@ -39,6 +39,7 @@ MCAsmInfo::MCAsmInfo() {
   CommentString = "#";
   LabelSuffix = ":";
   UseAssignmentForEHBegin = false;
+  NeedsLocalForSize = false;
   PrivateGlobalPrefix = "L";
   PrivateLabelPrefix = PrivateGlobalPrefix;
   LinkerPrivateGlobalPrefix = "";
@@ -49,6 +50,7 @@ MCAsmInfo::MCAsmInfo() {
   Code64Directive = ".code64";
   AssemblerDialect = 0;
   AllowAtInName = false;
+  SupportsQuotedNames = true;
   UseDataRegionDirectives = false;
   ZeroDirective = "\t.zero\t";
   AsciiDirective = "\t.ascii\t";
@@ -68,6 +70,7 @@ MCAsmInfo::MCAsmInfo() {
   HasAggressiveSymbolFolding = true;
   COMMDirectiveAlignmentIsInBytes = true;
   LCOMMDirectiveAlignmentType = LCOMM::NoAlignment;
+  HasFunctionAlignment = true;
   HasDotTypeDotSizeDirective = true;
   HasSingleParameterDotFile = true;
   HasIdentDirective = false;
@@ -88,6 +91,7 @@ MCAsmInfo::MCAsmInfo() {
   DwarfRegNumForCFI = false;
   NeedsDwarfSectionOffsetDirective = false;
   UseParensForSymbolVariant = false;
+  UseLogicalShr = true;
 
   // FIXME: Clang's logic should be synced with the logic used to initialize
   //        this member and the two implementations should be merged.
@@ -125,12 +129,31 @@ MCAsmInfo::getExprForFDESymbol(const MCSymbol *Sym,
                                unsigned Encoding,
                                MCStreamer &Streamer) const {
   if (!(Encoding & dwarf::DW_EH_PE_pcrel))
-    return MCSymbolRefExpr::Create(Sym, Streamer.getContext());
+    return MCSymbolRefExpr::create(Sym, Streamer.getContext());
 
   MCContext &Context = Streamer.getContext();
-  const MCExpr *Res = MCSymbolRefExpr::Create(Sym, Context);
-  MCSymbol *PCSym = Context.CreateTempSymbol();
+  const MCExpr *Res = MCSymbolRefExpr::create(Sym, Context);
+  MCSymbol *PCSym = Context.createTempSymbol();
   Streamer.EmitLabel(PCSym);
-  const MCExpr *PC = MCSymbolRefExpr::Create(PCSym, Context);
-  return MCBinaryExpr::CreateSub(Res, PC, Context);
+  const MCExpr *PC = MCSymbolRefExpr::create(PCSym, Context);
+  return MCBinaryExpr::createSub(Res, PC, Context);
+}
+
+static bool isAcceptableChar(char C) {
+  return (C >= 'a' && C <= 'z') || (C >= 'A' && C <= 'Z') ||
+         (C >= '0' && C <= '9') || C == '_' || C == '$' || C == '.' || C == '@';
+}
+
+bool MCAsmInfo::isValidUnquotedName(StringRef Name) const {
+  if (Name.empty())
+    return false;
+
+  // If any of the characters in the string is an unacceptable character, force
+  // quotes.
+  for (char C : Name) {
+    if (!isAcceptableChar(C))
+      return false;
+  }
+
+  return true;
 }

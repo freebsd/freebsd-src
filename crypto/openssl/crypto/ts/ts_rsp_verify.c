@@ -522,7 +522,7 @@ static int TS_check_status_info(TS_RESP *response)
             if (ASN1_BIT_STRING_get_bit(info->failure_info,
                                         TS_failure_info[i].code)) {
                 if (!first)
-                    strcpy(failure_text, ",");
+                    strcat(failure_text, ",");
                 else
                     first = 0;
                 strcat(failure_text, TS_failure_info[i].text);
@@ -637,7 +637,7 @@ static int TS_compute_imprint(BIO *data, TS_TST_INFO *tst_info,
     X509_ALGOR_free(*md_alg);
     OPENSSL_free(*imprint);
     *imprint_len = 0;
-    *imprint = NULL;
+    *imprint = 0;
     return 0;
 }
 

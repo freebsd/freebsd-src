@@ -9,7 +9,6 @@ SRCS+=	biosmptable.c
 BINDIR=	/usr/local/bin
 WARNS?=	6
 
-DPADD=	${LIBDEVINFO}
-LDADD=	-ldevinfo
+LIBADD=	devinfo
 
 .include <bsd.prog.mk>

@@ -27,12 +27,6 @@ S=	../../..
 
 INCLUDES+= -I$S/contrib/libfdt
 
-# We generally don't want fpu instructions in the kernel.
-CFLAGS += -mgeneral-regs-only
-
-# Reserve x18 for pcpu data
-CFLAGS += -ffixed-x18
-
 .if !empty(DDB_ENABLED)
 CFLAGS += -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif

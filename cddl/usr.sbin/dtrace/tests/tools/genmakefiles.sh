@@ -36,8 +36,7 @@ genmakefile()
     local special
     if [ "$basedir" = proc ]; then
         special="
-LDADD.tst.sigwait.exe+= -lrt
-DPADD.tst.sigwait.exe+= \${LIBRT}
+LIBADD.tst.sigwait.exe+= rt
 "
     elif [ "$basedir" = uctf ]; then
         special="
@@ -63,7 +62,7 @@ CFILES= \\
 $tcfiles
 
 $special
-.include "../../Makefile.inc1"
+.include "../../dtrace.test.mk"
 __EOF__
 
     mv -f $makefile ${ORIGINDIR}/../common/${basedir}/Makefile

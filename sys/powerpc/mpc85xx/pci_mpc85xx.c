@@ -104,9 +104,9 @@ struct fsl_pcib_softc {
 	device_t	sc_dev;
 
 	int		sc_iomem_target;
-	bus_addr_t	sc_iomem_alloc, sc_iomem_start, sc_iomem_end;
+	bus_addr_t	sc_iomem_start, sc_iomem_end;
 	int		sc_ioport_target;
-	bus_addr_t	sc_ioport_alloc, sc_ioport_start, sc_ioport_end;
+	bus_addr_t	sc_ioport_start, sc_ioport_end;
 
 	struct resource *sc_res;
 	bus_space_handle_t sc_bsh;
@@ -129,11 +129,11 @@ static void fsl_pcib_cfgwrite(struct fsl_pcib_softc *, u_int, u_int, u_int,
     u_int, uint32_t, int);
 static int fsl_pcib_decode_win(phandle_t, struct fsl_pcib_softc *);
 static void fsl_pcib_err_init(device_t);
-static void fsl_pcib_inbound(struct fsl_pcib_softc *, int, int, u_long,
-    u_long, u_long);
+static void fsl_pcib_inbound(struct fsl_pcib_softc *, int, int, uint64_t,
+    uint64_t, uint64_t);
 static int fsl_pcib_init(struct fsl_pcib_softc *, int, int);
-static void fsl_pcib_outbound(struct fsl_pcib_softc *, int, int, u_long,
-    u_long, u_long);
+static void fsl_pcib_outbound(struct fsl_pcib_softc *, int, int, uint64_t,
+    uint64_t, uint64_t);
 
 /* Forward declerations. */
 static int fsl_pcib_attach(device_t);
@@ -266,9 +266,8 @@ fsl_pcib_attach(device_t dev)
 	/*
 	 * Scan bus using firmware configured, 0 based bus numbering.
 	 */
-	sc->sc_busnr = 0;
 	maxslot = (sc->sc_pcie) ? 0 : PCI_SLOTMAX;
-	sc->sc_busnr = fsl_pcib_init(sc, sc->sc_busnr, maxslot);
+	fsl_pcib_init(sc, sc->sc_busnr, maxslot);
 
 	if (sc->sc_pcie) {
 		ltssm = fsl_pcib_cfgread(sc, 0, 0, 0, PCIR_LTSSM, 1);
@@ -293,9 +292,6 @@ fsl_pcib_cfgread(struct fsl_pcib_softc *sc, u_int bus, u_int slot, u_int func,
     u_int reg, int bytes)
 {
 	uint32_t addr, data;
-
-	if (bus == sc->sc_busnr - 1)
-		bus = 0;
 
 	addr = CONFIG_ACCESS_ENABLE;
 	addr |= (bus & 0xff) << 16;
@@ -334,9 +330,6 @@ fsl_pcib_cfgwrite(struct fsl_pcib_softc *sc, u_int bus, u_int slot, u_int func,
     u_int reg, uint32_t data, int bytes)
 {
 	uint32_t addr;
-
-	if (bus == sc->sc_busnr - 1)
-		bus = 0;
 
 	addr = CONFIG_ACCESS_ENABLE;
 	addr |= (bus & 0xff) << 16;
@@ -449,74 +442,14 @@ fsl_pcib_init_via(struct fsl_pcib_softc *sc, uint16_t device, int bus,
 }
 
 static int
-fsl_pcib_init_bar(struct fsl_pcib_softc *sc, int bus, int slot, int func,
-    int barno)
-{
-	bus_addr_t *allocp;
-	uint32_t addr, mask, size;
-	int reg, width;
-
-	reg = PCIR_BAR(barno);
-
-	if (DEVFN(bus, slot, func) == sc->sc_devfn_via_ide) {
-		switch (barno) {
-		case 0:	addr = 0x1f0; break;
-		case 1: addr = 0x3f4; break;
-		case 2: addr = 0x170; break;
-		case 3: addr = 0x374; break;
-		case 4: addr = 0xcc0; break;
-		default: return (1);
-		}
-		fsl_pcib_write_config(sc->sc_dev, bus, slot, func, reg, addr, 4);
-		return (1);
-	}
-
-	fsl_pcib_write_config(sc->sc_dev, bus, slot, func, reg, ~0, 4);
-	size = fsl_pcib_read_config(sc->sc_dev, bus, slot, func, reg, 4);
-	if (size == 0)
-		return (1);
-	width = ((size & 7) == 4) ? 2 : 1;
-
-	if (size & 1) {		/* I/O port */
-		allocp = &sc->sc_ioport_alloc;
-		size &= ~3;
-		if ((size & 0xffff0000) == 0)
-			size |= 0xffff0000;
-	} else {		/* memory */
-		allocp = &sc->sc_iomem_alloc;
-		size &= ~15;
-	}
-	mask = ~size;
-	size = mask + 1;
-	/* Sanity check (must be a power of 2). */
-	if (size & mask)
-		return (width);
-
-	addr = (*allocp + mask) & ~mask;
-	*allocp = addr + size;
-
-	if (bootverbose)
-		printf("PCI %u:%u:%u:%u: reg %x: size=%08x: addr=%08x\n",
-		    device_get_unit(sc->sc_dev), bus, slot, func, reg,
-		    size, addr);
-
-	fsl_pcib_write_config(sc->sc_dev, bus, slot, func, reg, addr, 4);
-	if (width == 2)
-		fsl_pcib_write_config(sc->sc_dev, bus, slot, func, reg + 4,
-		    0, 4);
-	return (width);
-}
-
-static int
 fsl_pcib_init(struct fsl_pcib_softc *sc, int bus, int maxslot)
 {
 	int secbus;
 	int old_pribus, old_secbus, old_subbus;
 	int new_pribus, new_secbus, new_subbus;
 	int slot, func, maxfunc;
-	int bar, maxbar;
 	uint16_t vendor, device;
-	uint8_t command, hdrtype, class, subclass;
+	uint8_t command, hdrtype, subclass;
 
 	secbus = bus;
 	for (slot = 0; slot <= maxslot; slot++) {
@@ -550,26 +483,9 @@ fsl_pcib_init(struct fsl_pcib_softc *sc, int bus, int maxslot)
 			if (vendor == 0x1106)
 				fsl_pcib_init_via(sc, device, bus, slot, func);
 
-			/* Program the base address registers. */
-			maxbar = (hdrtype & PCIM_HDRTYPE) ? 1 : 6;
-			bar = 0;
-			while (bar < maxbar)
-				bar += fsl_pcib_init_bar(sc, bus, slot, func,
-				    bar);
-
-			/* Put a placeholder interrupt value */
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_INTLINE, PCI_INVALID_IRQ, 1);
-
-			command |= PCIM_CMD_MEMEN | PCIM_CMD_PORTEN;
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_COMMAND, command, 1);
-
 			/*
 			 * Handle PCI-PCI bridges
 			 */
-			class = fsl_pcib_read_config(sc->sc_dev, bus, slot,
-			    func, PCIR_CLASS, 1);
 			subclass = fsl_pcib_read_config(sc->sc_dev, bus, slot,
 			    func, PCIR_SUBCLASS, 1);
 
@@ -578,32 +494,6 @@ fsl_pcib_init(struct fsl_pcib_softc *sc, int bus, int maxslot)
 				continue;
 
 			secbus++;
-
-			/* Program I/O decoder. */
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_IOBASEL_1, sc->sc_ioport_start >> 8, 1);
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_IOLIMITL_1, sc->sc_ioport_end >> 8, 1);
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_IOBASEH_1, sc->sc_ioport_start >> 16, 2);
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_IOLIMITH_1, sc->sc_ioport_end >> 16, 2);
-
-			/* Program (non-prefetchable) memory decoder. */
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_MEMBASE_1, sc->sc_iomem_start >> 16, 2);
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_MEMLIMIT_1, sc->sc_iomem_end >> 16, 2);
-
-			/* Program prefetchable memory decoder. */
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_PMBASEL_1, 0x0010, 2);
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_PMLIMITL_1, 0x000f, 2);
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_PMBASEH_1, 0x00000000, 4);
-			fsl_pcib_write_config(sc->sc_dev, bus, slot, func,
-			    PCIR_PMLIMITH_1, 0x00000000, 4);
 
 			/* Read currect bus register configuration */
 			old_pribus = fsl_pcib_read_config(sc->sc_dev, bus,
@@ -645,8 +535,8 @@ fsl_pcib_init(struct fsl_pcib_softc *sc, int bus, int maxslot)
 }
 
 static void
-fsl_pcib_inbound(struct fsl_pcib_softc *sc, int wnd, int tgt, u_long start,
-    u_long size, u_long pci_start)
+fsl_pcib_inbound(struct fsl_pcib_softc *sc, int wnd, int tgt, uint64_t start,
+    uint64_t size, uint64_t pci_start)
 {
 	uint32_t attr, bar, tar;
 
@@ -671,17 +561,17 @@ fsl_pcib_inbound(struct fsl_pcib_softc *sc, int wnd, int tgt, u_long start,
 }
 
 static void
-fsl_pcib_outbound(struct fsl_pcib_softc *sc, int wnd, int res, u_long start,
-    u_long size, u_long pci_start)
+fsl_pcib_outbound(struct fsl_pcib_softc *sc, int wnd, int res, uint64_t start,
+    uint64_t size, uint64_t pci_start)
 {
 	uint32_t attr, bar, tar;
 
 	switch (res) {
 	case SYS_RES_MEMORY:
-		attr = 0x80044000 | (ffsl(size) - 2);
+		attr = 0x80044000 | (ffsll(size) - 2);
 		break;
 	case SYS_RES_IOPORT:
-		attr = 0x80088000 | (ffsl(size) - 2);
+		attr = 0x80088000 | (ffsll(size) - 2);
 		break;
 	default:
 		attr = 0x0004401f;
@@ -782,10 +672,9 @@ fsl_pcib_decode_win(phandle_t node, struct fsl_pcib_softc *sc)
 			    sc->pci_sc.sc_range[i].host,
 			    sc->pci_sc.sc_range[i].size,
 			    sc->pci_sc.sc_range[i].pci);
-			sc->sc_ioport_start = sc->pci_sc.sc_range[i].host;
-			sc->sc_ioport_end = sc->pci_sc.sc_range[i].host +
-			    sc->pci_sc.sc_range[i].size;
-			sc->sc_ioport_alloc = 0x1000 + sc->pci_sc.sc_range[i].pci;
+			sc->sc_ioport_start = sc->pci_sc.sc_range[i].pci;
+			sc->sc_ioport_end = sc->pci_sc.sc_range[i].pci +
+			    sc->pci_sc.sc_range[i].size - 1;
 			break;
 		case OFW_PCI_PHYS_HI_SPACE_MEM32:
 		case OFW_PCI_PHYS_HI_SPACE_MEM64:
@@ -794,10 +683,9 @@ fsl_pcib_decode_win(phandle_t node, struct fsl_pcib_softc *sc)
 			    sc->pci_sc.sc_range[i].host,
 			    sc->pci_sc.sc_range[i].size,
 			    sc->pci_sc.sc_range[i].pci);
-			sc->sc_iomem_start = sc->pci_sc.sc_range[i].host;
-			sc->sc_iomem_end = sc->pci_sc.sc_range[i].host +
-			    sc->pci_sc.sc_range[i].size;
-			sc->sc_iomem_alloc = sc->pci_sc.sc_range[i].pci;
+			sc->sc_iomem_start = sc->pci_sc.sc_range[i].pci;
+			sc->sc_iomem_end = sc->pci_sc.sc_range[i].pci +
+			    sc->pci_sc.sc_range[i].size - 1;
 			break;
 		default:
 			panic("Unknown range type %#x\n",

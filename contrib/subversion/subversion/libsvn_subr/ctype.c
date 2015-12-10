@@ -25,6 +25,23 @@
 
 #include "svn_ctype.h"
 
+#ifndef WIN32
+static
+#else
+/* This variable is exported as 'CONSTANT' in our .def file for libsvn_subr,
+   with the name svn_ctype_table.
+
+   This long deprecated construct will export *a pointer to* the
+   variable exported.
+
+   See http://support.microsoft.com/kb/90530/en-us for the ugly details on
+   this system that was already deprecated when we started Subversion and
+   on why we should have used __declspec(dllexport) when initially exporting
+   this variable. (It would allow avoiding the pointer transformation).
+
+   But to keep backwards compatibility this symbol will have to stay public
+   on Windows until Subversion 2.0. */
+#endif
 const apr_uint32_t svn_ctype_table_internal[256] =
   {
     /* **** DO NOT EDIT! ****

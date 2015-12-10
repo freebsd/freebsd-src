@@ -56,6 +56,10 @@ DSRCS=		errno.d			\
 		udp.d			\
 		unistd.d
 
+FILES=		${DSRCS}
+FILESDIR=	/usr/lib/dtrace
+FILESMODE=	${NOBINMODE}
+
 WARNS?=		1
 
 CFLAGS+=	-I${.OBJDIR} -I${.CURDIR} \
@@ -119,12 +123,5 @@ dt_names.c:
 	sh ${OPENSOLARIS_USR_DISTDIR}/lib/libdtrace/common/mknames.sh < ${OPENSOLARIS_SYS_DISTDIR}/uts/common/sys/dtrace.h > dt_names.c
 
 beforedepend:	dt_errtags.c dt_names.c
-
-beforeinstall:
-.if !defined(LIBRARIES_ONLY) && exists(${DESTDIR}/usr/lib/dtrace)
-.for file in ${DSRCS}
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} ${.CURDIR}/${file} ${DESTDIR}/usr/lib/dtrace
-.endfor
-.endif
 
 .include <bsd.lib.mk>

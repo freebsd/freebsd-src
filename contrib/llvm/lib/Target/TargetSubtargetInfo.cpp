@@ -19,25 +19,16 @@ using namespace llvm;
 //---------------------------------------------------------------------------
 // TargetSubtargetInfo Class
 //
-TargetSubtargetInfo::TargetSubtargetInfo() {}
+TargetSubtargetInfo::TargetSubtargetInfo(
+    const Triple &TT, StringRef CPU, StringRef FS,
+    ArrayRef<SubtargetFeatureKV> PF, ArrayRef<SubtargetFeatureKV> PD,
+    const SubtargetInfoKV *ProcSched, const MCWriteProcResEntry *WPR,
+    const MCWriteLatencyEntry *WL, const MCReadAdvanceEntry *RA,
+    const InstrStage *IS, const unsigned *OC, const unsigned *FP)
+    : MCSubtargetInfo(TT, CPU, FS, PF, PD, ProcSched, WPR, WL, RA, IS, OC, FP) {
+}
 
 TargetSubtargetInfo::~TargetSubtargetInfo() {}
-
-// Temporary option to compare overall performance change when moving from the
-// SD scheduler to the MachineScheduler pass pipeline. This is convenient for
-// benchmarking during the transition from SD to MI scheduling. Once armv7 makes
-// the switch, it should go away. The normal way to enable/disable the
-// MachineScheduling pass itself is by using -enable-misched. For targets that
-// already use MI sched (via MySubTarget::enableMachineScheduler())
-// -misched-bench=false negates the subtarget hook.
-static cl::opt<bool> BenchMachineSched("misched-bench", cl::Hidden,
-    cl::desc("Migrate from the target's default SD scheduler to MI scheduler"));
-
-bool TargetSubtargetInfo::useMachineScheduler() const {
-  if (BenchMachineSched.getNumOccurrences())
-    return BenchMachineSched;
-  return enableMachineScheduler();
-}
 
 bool TargetSubtargetInfo::enableAtomicExpand() const {
   return true;
@@ -47,12 +38,16 @@ bool TargetSubtargetInfo::enableMachineScheduler() const {
   return false;
 }
 
+bool TargetSubtargetInfo::enableJoinGlobalCopies() const {
+  return enableMachineScheduler();
+}
+
 bool TargetSubtargetInfo::enableRALocalReassignment(
     CodeGenOpt::Level OptLevel) const {
   return true;
 }
 
-bool TargetSubtargetInfo::enablePostMachineScheduler() const {
+bool TargetSubtargetInfo::enablePostRAScheduler() const {
   return getSchedModel().PostRAScheduler;
 }
 

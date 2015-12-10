@@ -80,7 +80,6 @@ options 	ALT_BREAK_TO_DEBUGGER
 device		ata
 device		atapci			# Only for helper functions
 device		imxata
-options 	ATA_STATIC_ID		# Static device numbering
 
 device		gpio
 device		gpioled

@@ -295,7 +295,7 @@ pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size)
 
 	/*
 	 * The PCI standard only allows 4 and 8 byte accesses to the MSI-X
-	 * table but we also allow 1 byte access to accomodate reads from
+	 * table but we also allow 1 byte access to accommodate reads from
 	 * ddb.
 	 */
 	if (size != 1 && size != 4 && size != 8)

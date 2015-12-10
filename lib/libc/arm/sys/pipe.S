@@ -49,3 +49,5 @@ ENTRY(_pipe)
 	mov	r0, #0x00000000
 	RET
 END(_pipe)
+
+	.section .note.GNU-stack,"",%progbits

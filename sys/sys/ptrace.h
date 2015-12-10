@@ -112,7 +112,7 @@ struct ptrace_lwpinfo {
 	sigset_t	pl_siglist;	/* LWP pending signal */
 	struct __siginfo pl_siginfo;	/* siginfo for signal */
 	char		pl_tdname[MAXCOMLEN + 1]; /* LWP name */
-	int		pl_child_pid;	/* New child pid */
+	pid_t		pl_child_pid;	/* New child pid */
 	u_int		pl_syscall_code;
 	u_int		pl_syscall_narg;
 };
@@ -166,6 +166,10 @@ int	proc_read_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_write_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_sstep(struct thread *_td);
 int	proc_rwmem(struct proc *_p, struct uio *_uio);
+ssize_t	proc_readmem(struct thread *_td, struct proc *_p, vm_offset_t _va,
+	    void *_buf, size_t _len);
+ssize_t	proc_writemem(struct thread *_td, struct proc *_p, vm_offset_t _va,
+	    void *_buf, size_t _len);
 #ifdef COMPAT_FREEBSD32
 struct reg32;
 struct fpreg32;

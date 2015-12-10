@@ -24,6 +24,15 @@ ident		SAM9260EK
 include 	"std.arm"
 include 	"../at91/std.sam9260ek"
 
+# Coming soon, but not yet
+#options 	FDT
+#options 	FDT_DTB_STATIC
+#makeoptions	FDT_DTS_FILE=sam9260ek.dts
+
+options 	EARLY_PRINTF
+options 	SOCDEV_PA=0xfc000000
+options 	SOCDEV_VA=0xdc000000
+
 # To statically compile in device wiring instead of /boot/device.hints
 hints		"SAM9260EK.hints"
 
@@ -92,13 +101,14 @@ options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 #options 	BOOTP_NFSROOT
 #options 	BOOTP_COMPAT
 #options 	BOOTP_NFSV3
-#options 	BOOTP_WIRED_TO=ate0
+#options 	BOOTP_WIRED_TO=macb0
 
 # alternatively, boot from a MMC/SD memory card
-#options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s1a\"
+# s1 is FAT on this platform.
+options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s3a\"
 
 # Alternatively, boot from a USB card.
-options 	ROOTDEVNAME=\"ufs:/dev/da0s1a\"
+#options 	ROOTDEVNAME=\"ufs:/dev/da0s1a\"
 
 # kernel/memory size reduction
 options 	MUTEX_NOINLINE
@@ -114,7 +124,7 @@ device		bpf			# Berkeley packet filter
 
 # Ethernet
 device		mii			# Minimal MII support
-device		ate			# Atmel AT91 Ethernet driver
+device		macb			# Atmel AT91 Ethernet driver
 
 # I2C
 device		at91_twi		# Atmel AT91 Two-wire Interface
@@ -145,18 +155,18 @@ device		random			# Entropy device
 device		ether			# Ethernet support
 #device		vlan			# 802.1Q VLAN support
 #device		tun			# Packet tunnel.
-#device		md			# Memory "disks"
+device		md			# Memory "disks"
 #device		gif			# IPv6 and IPv4 tunneling
 #device		firmware		# firmware assist module
 
 # SCSI peripherals
-device		scbus			# SCSI bus (required for ATA/SCSI)
+#device		scbus			# SCSI bus (required for ATA/SCSI)
 #device		ch			# SCSI media changers
-device		da			# Direct Access (disks)
+#device		da			# Direct Access (disks)
 #device		sa			# Sequential Access (tape etc)
-device		cd			# CD/DVD
-device		pass			# Passthrough device (direct ATA/SCSI access)
-device		ses			# Enclosure Services (SES and SAF-TE)
+#device		cd			# CD/DVD
+#device		pass			# Passthrough device (direct ATA/SCSI access)
+#device		ses			# Enclosure Services (SES and SAF-TE)
 #device		ctl			# CAM Target Layer
 
 # Serial (COM) ports
@@ -165,9 +175,9 @@ options 	ALT_BREAK_TO_DEBUGGER
 
 # USB support
 #options 	USB_DEBUG		# enable debug msgs
-device		ohci			# OHCI USB interface
-device		usb			# USB Bus (required)
-device		umass			# Disks/Mass storage - Requires scbus and da
+#device		ohci			# OHCI USB interface
+#device		usb			# USB Bus (required)
+#device		umass			# Disks/Mass storage - Requires scbus and da
 
 # watchdog
 device		at91_wdt		# Atmel AT91 Watchdog Timer
@@ -175,11 +185,18 @@ device		at91_wdt		# Atmel AT91 Watchdog Timer
 # NAND Flash - Reference design has Samsung 256MB but others possible
 device		nand			# NAND interface on CS3
 
-# Coming soon, but not yet
-#options 	FDT
-#options 	FDT_DTB_STATIC
-#makeoptions	FDT_DTS_FILE=sam9260ek.dts
+options		NSFBUFS=128
+maxusers	32
 
-options 	EARLY_PRINTF
-options 	SOCDEV_PA=0xfc000000
-options 	SOCDEV_VA=0xdc000000
+# Limit IO size
+options		NBUF=128
+
+# Don't include the SCSI/CAM strings in the default build
+options 	SCSI_NO_SENSE_STRINGS
+options 	SCSI_NO_OP_STRINGS
+
+# .. And no sysctl strings
+options 	NO_SYSCTL_DESCR
+
+# For small memory footprints
+options		VM_KMEM_SIZE_SCALE=1

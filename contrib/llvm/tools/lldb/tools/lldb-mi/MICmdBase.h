@@ -7,18 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-//++
-// File:        MICmdBase.h
-//
-// Overview:    CMICmdBase interface.
-//
-// Environment: Compilers:  Visual C++ 12.
-//                          gcc (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1
-//              Libraries:  See MIReadmetxt.
-//
-// Copyright:   None.
-//--
-
 #pragma once
 
 // In-house headers:
@@ -37,7 +25,7 @@ class CMICmnLLDBDebugSessionInfo;
 //++ ============================================================================
 // Details: MI command base class. MI commands derive from this base class.
 //          The Command Factory creates command objects and passes them to the
-//          Command Invoker. The Invoker takes ownersip of any commands created
+//          Command Invoker. The Invoker takes ownership of any commands created
 //          which means it is the only object to delete them when a command is
 //          finished working. Commands do not delete themselves.
 //          There are two types of command implicitly defined by the state of

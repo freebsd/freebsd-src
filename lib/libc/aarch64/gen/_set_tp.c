@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/sysarch.h>
 
 #include <stdlib.h>
+#include "libc_private.h"
 
 void
 _set_tp(void *tp)

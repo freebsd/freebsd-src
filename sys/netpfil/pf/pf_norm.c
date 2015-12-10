@@ -1215,13 +1215,14 @@ pf_normalize_tcp(int dir, struct pfi_kif *kif, struct mbuf *m, int ipoff,
 		th->th_x2 = 0;
 		nv = *(u_int16_t *)(&th->th_ack + 1);
 
-		th->th_sum = pf_cksum_fixup(th->th_sum, ov, nv, 0);
+		th->th_sum = pf_proto_cksum_fixup(m, th->th_sum, ov, nv, 0);
 		rewrite = 1;
 	}
 
 	/* Remove urgent pointer, if TH_URG is not set */
 	if (!(flags & TH_URG) && th->th_urp) {
-		th->th_sum = pf_cksum_fixup(th->th_sum, th->th_urp, 0, 0);
+		th->th_sum = pf_proto_cksum_fixup(m, th->th_sum, th->th_urp,
+		    0, 0);
 		th->th_urp = 0;
 		rewrite = 1;
 	}
@@ -1422,7 +1423,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 					    (src->scrub->pfss_flags &
 					    PFSS_TIMESTAMP)) {
 						tsval = ntohl(tsval);
-						pf_change_a(&opt[2],
+						pf_change_proto_a(m, &opt[2],
 						    &th->th_sum,
 						    htonl(tsval +
 						    src->scrub->pfss_ts_mod),
@@ -1438,7 +1439,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 					    PFSS_TIMESTAMP)) {
 						tsecr = ntohl(tsecr)
 						    - dst->scrub->pfss_ts_mod;
-						pf_change_a(&opt[6],
+						pf_change_proto_a(m, &opt[6],
 						    &th->th_sum, htonl(tsecr),
 						    0);
 						copyback = 1;
@@ -1765,8 +1766,8 @@ pf_normalize_tcpopt(struct pf_rule *r, struct mbuf *m, struct tcphdr *th,
 		case TCPOPT_MAXSEG:
 			mss = (u_int16_t *)(optp + 2);
 			if ((ntohs(*mss)) > r->max_mss) {
-				th->th_sum = pf_cksum_fixup(th->th_sum,
-				    *mss, htons(r->max_mss), 0);
+				th->th_sum = pf_proto_cksum_fixup(m,
+				    th->th_sum, *mss, htons(r->max_mss), 0);
 				*mss = htons(r->max_mss);
 				rewrite = 1;
 			}

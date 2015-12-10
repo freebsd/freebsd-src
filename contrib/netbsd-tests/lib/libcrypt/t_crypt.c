@@ -125,6 +125,12 @@ ATF_TC_BODY(crypt_salts, tc)
 {
 	for (size_t i = 0; tests[i].hash; i++) {
 		char *hash = crypt(tests[i].pw, tests[i].hash);
+#if defined(__FreeBSD__)
+		if (i >= 22 && i != 24 && i != 25)
+			atf_tc_expect_fail("Old-style/bad inputs fail on FreeBSD");
+		else
+			atf_tc_expect_pass();
+#endif
 		if (!hash) {
 			ATF_CHECK_MSG(0, "Test %zu NULL\n", i);
 			continue;

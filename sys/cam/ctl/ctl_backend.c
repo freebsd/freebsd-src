@@ -65,10 +65,8 @@ extern struct ctl_softc *control_softc;
 int
 ctl_backend_register(struct ctl_backend_driver *be)
 {
-	struct ctl_softc *softc;
+	struct ctl_softc *softc = control_softc;
 	struct ctl_backend_driver *be_tmp;
-
-	softc = control_softc;
 
 	mtx_lock(&softc->ctl_lock);
 	/*
@@ -120,9 +118,7 @@ ctl_backend_register(struct ctl_backend_driver *be)
 int
 ctl_backend_deregister(struct ctl_backend_driver *be)
 {
-	struct ctl_softc *softc;
-
-	softc = control_softc;
+	struct ctl_softc *softc = control_softc;
 
 	mtx_lock(&softc->ctl_lock);
 
@@ -153,20 +149,16 @@ ctl_backend_deregister(struct ctl_backend_driver *be)
 struct ctl_backend_driver *
 ctl_backend_find(char *backend_name)
 {
-	struct ctl_softc *softc;
+	struct ctl_softc *softc = control_softc;
 	struct ctl_backend_driver *be_tmp;
 
-	softc = control_softc;
-
 	mtx_lock(&softc->ctl_lock);
-
 	STAILQ_FOREACH(be_tmp, &softc->be_list, links) {
 		if (strcmp(be_tmp->name, backend_name) == 0) {
 			mtx_unlock(&softc->ctl_lock);
 			return (be_tmp);
 		}
 	}
-
 	mtx_unlock(&softc->ctl_lock);
 
 	return (NULL);

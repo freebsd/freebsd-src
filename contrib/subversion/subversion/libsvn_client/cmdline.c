@@ -87,7 +87,7 @@ check_root_url_of_target(const char **root_url,
       if ((err->apr_err == SVN_ERR_ENTRY_NOT_FOUND)
           || (err->apr_err == SVN_ERR_WC_PATH_NOT_FOUND)
           || (err->apr_err == SVN_ERR_WC_NOT_WORKING_COPY)
-          || (err->apr_err == SVN_ERR_RA_LOCAL_REPOS_OPEN_FAILED)
+          || (err->apr_err == SVN_ERR_RA_CANNOT_CREATE_SESSION)
           || (err->apr_err == SVN_ERR_CLIENT_BAD_REVISION))
         {
           svn_error_clear(err);
@@ -200,6 +200,15 @@ svn_client_args_to_target_array2(apr_array_header_t **targets_p,
           SVN_ERR(svn_opt__split_arg_at_peg_revision(&true_target, &peg_rev,
                                                      utf8_target, pool));
 
+          /* Reject the form "@abc", a peg specifier with no path. */
+          if (true_target[0] == '\0' && peg_rev[0] != '\0')
+            {
+              return svn_error_createf(SVN_ERR_BAD_FILENAME, NULL,
+                                       _("'%s' is just a peg revision. "
+                                         "Maybe try '%s@' instead?"),
+                                       utf8_target, utf8_target);
+            }
+
           /* URLs and wc-paths get treated differently. */
           if (svn_path_is_url(true_target))
             {
@@ -278,7 +287,7 @@ svn_client_args_to_target_array2(apr_array_header_t **targets_p,
                 }
             }
 
-          target = apr_pstrcat(pool, true_target, peg_rev, (char *)NULL);
+          target = apr_pstrcat(pool, true_target, peg_rev, SVN_VA_NULL);
 
           if (rel_url_found)
             {
@@ -338,7 +347,7 @@ svn_client_args_to_target_array2(apr_array_header_t **targets_p,
               SVN_ERR(svn_opt__arg_canonicalize_url(&true_target, abs_target,
                                                     pool));
 
-              target = apr_pstrcat(pool, true_target, peg_rev, (char *)NULL);
+              target = apr_pstrcat(pool, true_target, peg_rev, SVN_VA_NULL);
             }
 
           APR_ARRAY_PUSH(*targets_p, const char *) = target;

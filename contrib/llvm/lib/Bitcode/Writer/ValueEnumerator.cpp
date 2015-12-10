@@ -15,6 +15,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
@@ -92,6 +93,9 @@ static OrderMap orderModule(const Module &M) {
     if (F.hasPrologueData())
       if (!isa<GlobalValue>(F.getPrologueData()))
         orderValue(F.getPrologueData(), OM);
+    if (F.hasPersonalityFn())
+      if (!isa<GlobalValue>(F.getPersonalityFn()))
+        orderValue(F.getPersonalityFn(), OM);
   }
   OM.LastGlobalConstantID = OM.size();
 
@@ -273,6 +277,8 @@ static UseListOrderStack predictUseListOrder(const Module &M) {
       predictValueUseListOrder(F.getPrefixData(), nullptr, OM, Stack);
     if (F.hasPrologueData())
       predictValueUseListOrder(F.getPrologueData(), nullptr, OM, Stack);
+    if (F.hasPersonalityFn())
+      predictValueUseListOrder(F.getPersonalityFn(), nullptr, OM, Stack);
   }
 
   return Stack;
@@ -282,50 +288,53 @@ static bool isIntOrIntVectorValue(const std::pair<const Value*, unsigned> &V) {
   return V.first->getType()->isIntOrIntVectorTy();
 }
 
-ValueEnumerator::ValueEnumerator(const Module &M)
-    : HasMDString(false), HasMDLocation(false) {
-  if (shouldPreserveBitcodeUseListOrder())
+ValueEnumerator::ValueEnumerator(const Module &M,
+                                 bool ShouldPreserveUseListOrder)
+    : HasMDString(false), HasDILocation(false), HasGenericDINode(false),
+      ShouldPreserveUseListOrder(ShouldPreserveUseListOrder) {
+  if (ShouldPreserveUseListOrder)
     UseListOrders = predictUseListOrder(M);
 
   // Enumerate the global variables.
-  for (Module::const_global_iterator I = M.global_begin(), E = M.global_end();
-       I != E; ++I)
-    EnumerateValue(I);
+  for (const GlobalVariable &GV : M.globals())
+    EnumerateValue(&GV);
 
   // Enumerate the functions.
-  for (Module::const_iterator I = M.begin(), E = M.end(); I != E; ++I) {
-    EnumerateValue(I);
-    EnumerateAttributes(cast<Function>(I)->getAttributes());
+  for (const Function & F : M) {
+    EnumerateValue(&F);
+    EnumerateAttributes(F.getAttributes());
   }
 
   // Enumerate the aliases.
-  for (Module::const_alias_iterator I = M.alias_begin(), E = M.alias_end();
-       I != E; ++I)
-    EnumerateValue(I);
+  for (const GlobalAlias &GA : M.aliases())
+    EnumerateValue(&GA);
 
   // Remember what is the cutoff between globalvalue's and other constants.
   unsigned FirstConstant = Values.size();
 
   // Enumerate the global variable initializers.
-  for (Module::const_global_iterator I = M.global_begin(), E = M.global_end();
-       I != E; ++I)
-    if (I->hasInitializer())
-      EnumerateValue(I->getInitializer());
+  for (const GlobalVariable &GV : M.globals())
+    if (GV.hasInitializer())
+      EnumerateValue(GV.getInitializer());
 
   // Enumerate the aliasees.
-  for (Module::const_alias_iterator I = M.alias_begin(), E = M.alias_end();
-       I != E; ++I)
-    EnumerateValue(I->getAliasee());
+  for (const GlobalAlias &GA : M.aliases())
+    EnumerateValue(GA.getAliasee());
 
   // Enumerate the prefix data constants.
-  for (Module::const_iterator I = M.begin(), E = M.end(); I != E; ++I)
-    if (I->hasPrefixData())
-      EnumerateValue(I->getPrefixData());
+  for (const Function &F : M)
+    if (F.hasPrefixData())
+      EnumerateValue(F.getPrefixData());
 
   // Enumerate the prologue data constants.
+  for (const Function &F : M)
+    if (F.hasPrologueData())
+      EnumerateValue(F.getPrologueData());
+
+  // Enumerate the personality functions.
   for (Module::const_iterator I = M.begin(), E = M.end(); I != E; ++I)
-    if (I->hasPrologueData())
-      EnumerateValue(I->getPrologueData());
+    if (I->hasPersonalityFn())
+      EnumerateValue(I->getPersonalityFn());
 
   // Enumerate the metadata type.
   //
@@ -344,6 +353,11 @@ ValueEnumerator::ValueEnumerator(const Module &M)
   for (const Function &F : M) {
     for (const Argument &A : F.args())
       EnumerateType(A.getType());
+
+    // Enumerate metadata attached to this function.
+    F.getAllMetadata(MDs);
+    for (const auto &I : MDs)
+      EnumerateMetadata(I.second);
 
     for (const BasicBlock &BB : F)
       for (const Instruction &I : BB) {
@@ -372,12 +386,10 @@ ValueEnumerator::ValueEnumerator(const Module &M)
         for (unsigned i = 0, e = MDs.size(); i != e; ++i)
           EnumerateMetadata(MDs[i].second);
 
-        if (!I.getDebugLoc().isUnknown()) {
-          MDNode *Scope, *IA;
-          I.getDebugLoc().getScopeAndInlinedAt(Scope, IA, I.getContext());
-          if (Scope) EnumerateMetadata(Scope);
-          if (IA) EnumerateMetadata(IA);
-        }
+        // Don't enumerate the location directly -- it has a special record
+        // type -- but enumerate its operands.
+        if (DILocation *L = I.getDebugLoc())
+          EnumerateMDNodeOperands(L);
       }
   }
 
@@ -408,12 +420,6 @@ unsigned ValueEnumerator::getValueID(const Value *V) const {
   ValueMapType::const_iterator I = ValueMap.find(V);
   assert(I != ValueMap.end() && "Value not in slotcalculator!");
   return I->second-1;
-}
-
-unsigned ValueEnumerator::getMetadataID(const Metadata *MD) const {
-  auto I = MDValueMap.find(MD);
-  assert(I != MDValueMap.end() && "Metadata not in slotcalculator!");
-  return I->second - 1;
 }
 
 void ValueEnumerator::dump() const {
@@ -468,7 +474,7 @@ void ValueEnumerator::print(raw_ostream &OS, const MetadataMapType &Map,
 void ValueEnumerator::OptimizeConstants(unsigned CstStart, unsigned CstEnd) {
   if (CstStart == CstEnd || CstStart+1 == CstEnd) return;
 
-  if (shouldPreserveBitcodeUseListOrder())
+  if (ShouldPreserveUseListOrder)
     // Optimizing constants makes the use-list order difficult to predict.
     // Disable it for now when trying to preserve the order.
     return;
@@ -548,7 +554,8 @@ void ValueEnumerator::EnumerateMetadata(const Metadata *MD) {
     EnumerateValue(C->getValue());
 
   HasMDString |= isa<MDString>(MD);
-  HasMDLocation |= isa<MDLocation>(MD);
+  HasDILocation |= isa<DILocation>(MD);
+  HasGenericDINode |= isa<GenericDINode>(MD);
 
   // Replace the dummy ID inserted above with the correct one.  MDValueMap may
   // have changed by inserting operands, so we need a fresh lookup here.
@@ -684,9 +691,7 @@ void ValueEnumerator::EnumerateOperandType(const Value *V) {
 
   // This constant may have operands, make sure to enumerate the types in
   // them.
-  for (unsigned i = 0, e = C->getNumOperands(); i != e; ++i) {
-    const Value *Op = C->getOperand(i);
-
+  for (const Value *Op : C->operands()) {
     // Don't enumerate basic blocks here, this happens as operands to
     // blockaddress.
     if (isa<BasicBlock>(Op))
@@ -806,4 +811,8 @@ unsigned ValueEnumerator::getGlobalBasicBlockID(const BasicBlock *BB) const {
 
   IncorporateFunctionInfoGlobalBBIDs(BB->getParent(), GlobalBasicBlockIDs);
   return getGlobalBasicBlockID(BB);
+}
+
+uint64_t ValueEnumerator::computeBitsRequiredForTypeIndicies() const {
+  return Log2_32_Ceil(getTypes().size() + 1);
 }

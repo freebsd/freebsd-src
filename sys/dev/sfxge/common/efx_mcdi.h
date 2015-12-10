@@ -59,6 +59,9 @@ struct efx_mcdi_req_s {
 	uint8_t		*emr_out_buf;
 	size_t		emr_out_length;
 	size_t		emr_out_length_used;
+	/* Internals: low level transport details */
+	unsigned int	emr_err_code;
+	unsigned int	emr_err_arg;
 };
 
 typedef struct efx_mcdi_iface_s {
@@ -82,6 +85,11 @@ efx_mcdi_execute_quiet(
 	__in		efx_nic_t *enp,
 	__inout		efx_mcdi_req_t *emrp);
 
+ extern			void
+efx_mcdi_read_response_header(
+	__in		efx_nic_t *enp,
+	__inout		efx_mcdi_req_t *emrp);
+
 extern			void
 efx_mcdi_ev_cpl(
 	__in		efx_nic_t *enp,
@@ -94,7 +102,7 @@ efx_mcdi_ev_death(
 	__in		efx_nic_t *enp,
 	__in		int rc);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_mcdi_request_errcode(
 	__in		unsigned int err);
 
@@ -110,80 +118,91 @@ typedef enum efx_mcdi_boot_e {
 	EFX_MCDI_BOOT_ROM,
 } efx_mcdi_boot_t;
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_mcdi_version(
 	__in			efx_nic_t *enp,
 	__out_ecount_opt(4)	uint16_t versionp[4],
 	__out_opt		uint32_t *buildp,
 	__out_opt		efx_mcdi_boot_t *statusp);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_mcdi_read_assertion(
 	__in			efx_nic_t *enp);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_mcdi_exit_assertion_handler(
 	__in			efx_nic_t *enp);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_mcdi_drv_attach(
 	__in			efx_nic_t *enp,
 	__in			boolean_t attach);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_mcdi_get_board_cfg(
 	__in			efx_nic_t *enp,
 	__out_opt		uint32_t *board_typep,
 	__out_opt		efx_dword_t *capabilitiesp,
 	__out_ecount_opt(6)	uint8_t mac_addrp[6]);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_mcdi_get_phy_cfg(
 	__in			efx_nic_t *enp);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_mcdi_firmware_update_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp);
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_mcdi_macaddr_change_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp);
 
+extern	__checkReturn		efx_rc_t
+efx_mcdi_link_control_supported(
+	__in			efx_nic_t *enp,
+	__out			boolean_t *supportedp);
+
+extern	__checkReturn		efx_rc_t
+efx_mcdi_mac_spoofing_supported(
+	__in			efx_nic_t *enp,
+	__out			boolean_t *supportedp);
+
+
 #if EFSYS_OPT_BIST
 #if EFSYS_OPT_HUNTINGTON
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_mcdi_bist_enable_offline(
 	__in			efx_nic_t *enp);
 #endif /* EFSYS_OPT_HUNTINGTON */
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_mcdi_bist_start(
 	__in			efx_nic_t *enp,
 	__in			efx_bist_type_t type);
 #endif /* EFSYS_OPT_BIST */
 
-extern	__checkReturn		int
+extern	__checkReturn		efx_rc_t
 efx_mcdi_get_resource_limits(
 	__in			efx_nic_t *enp,
 	__out_opt		uint32_t *nevqp,
 	__out_opt		uint32_t *nrxqp,
 	__out_opt		uint32_t *ntxqp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_mcdi_log_ctrl(
 	__in		efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_mcdi_mac_stats_clear(
 	__in		efx_nic_t *enp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_mcdi_mac_stats_upload(
 	__in		efx_nic_t *enp,
 	__in		efsys_mem_t *esmp);
 
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_mcdi_mac_stats_periodic(
 	__in		efx_nic_t *enp,
 	__in		efsys_mem_t *esmp,
@@ -192,7 +211,7 @@ efx_mcdi_mac_stats_periodic(
 
 
 #if EFSYS_OPT_LOOPBACK
-extern	__checkReturn	int
+extern	__checkReturn	efx_rc_t
 efx_mcdi_get_loopback_modes(
 	__in		efx_nic_t *enp);
 #endif /* EFSYS_OPT_LOOPBACK */

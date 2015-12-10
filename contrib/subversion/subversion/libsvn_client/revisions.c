@@ -92,6 +92,7 @@ svn_client__get_revision_number(svn_revnum_t *revnum,
           goto invalid_rev_arg;
 
         err = svn_wc__node_get_origin(NULL, revnum, NULL, NULL, NULL, NULL,
+                                      NULL,
                                       wc_ctx, local_abspath, TRUE,
                                       scratch_pool, scratch_pool);
 

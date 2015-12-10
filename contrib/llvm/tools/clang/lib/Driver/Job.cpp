@@ -25,16 +25,12 @@ using llvm::raw_ostream;
 using llvm::StringRef;
 using llvm::ArrayRef;
 
-Job::~Job() {}
+Command::Command(const Action &Source, const Tool &Creator,
+                 const char *Executable, const ArgStringList &Arguments)
+    : Source(Source), Creator(Creator), Executable(Executable),
+      Arguments(Arguments), ResponseFile(nullptr) {}
 
-Command::Command(const Action &_Source, const Tool &_Creator,
-                 const char *_Executable,
-                 const ArgStringList &_Arguments)
-    : Job(CommandClass), Source(_Source), Creator(_Creator),
-      Executable(_Executable), Arguments(_Arguments),
-      ResponseFile(nullptr) {}
-
-static int skipArgs(const char *Flag) {
+static int skipArgs(const char *Flag, bool HaveCrashVFS) {
   // These flags are all of the form -Flag <Arg> and are treated as two
   // arguments.  Therefore, we need to skip the flag and the next argument.
   bool Res = llvm::StringSwitch<bool>(Flag)
@@ -43,9 +39,11 @@ static int skipArgs(const char *Flag) {
     .Cases("-fdebug-compilation-dir", "-idirafter", true)
     .Cases("-include", "-include-pch", "-internal-isystem", true)
     .Cases("-internal-externc-isystem", "-iprefix", "-iwithprefix", true)
-    .Cases("-iwithprefixbefore", "-isysroot", "-isystem", "-iquote", true)
+    .Cases("-iwithprefixbefore", "-isystem", "-iquote", true)
     .Cases("-resource-dir", "-serialize-diagnostic-file", true)
     .Cases("-dwarf-debug-flags", "-ivfsoverlay", true)
+    // Some include flags shouldn't be skipped if we have a crash VFS
+    .Case("-isysroot", !HaveCrashVFS)
     .Default(false);
 
   // Match found.
@@ -73,7 +71,7 @@ static int skipArgs(const char *Flag) {
   return 0;
 }
 
-static void PrintArg(raw_ostream &OS, const char *Arg, bool Quote) {
+void Command::printArg(raw_ostream &OS, const char *Arg, bool Quote) {
   const bool Escape = std::strpbrk(Arg, "\"\\$");
 
   if (!Quote && !Escape) {
@@ -148,7 +146,7 @@ void Command::Print(raw_ostream &OS, const char *Terminator, bool Quote,
                     CrashReportInfo *CrashInfo) const {
   // Always quote the exe.
   OS << ' ';
-  PrintArg(OS, Executable, /*Quote=*/true);
+  printArg(OS, Executable, /*Quote=*/true);
 
   llvm::ArrayRef<const char *> Args = Arguments;
   llvm::SmallVector<const char *, 128> ArgsRespFile;
@@ -164,11 +162,12 @@ void Command::Print(raw_ostream &OS, const char *Terminator, bool Quote,
       if (StringRef(Args[I]).equals("-main-file-name"))
         MainFilename = Args[I + 1];
 
+  bool HaveCrashVFS = CrashInfo && !CrashInfo->VFSPath.empty();
   for (size_t i = 0, e = Args.size(); i < e; ++i) {
     const char *const Arg = Args[i];
 
     if (CrashInfo) {
-      if (int Skip = skipArgs(Arg)) {
+      if (int Skip = skipArgs(Arg, HaveCrashVFS)) {
         i += Skip - 1;
         continue;
       } else if (llvm::sys::path::filename(Arg) == MainFilename &&
@@ -176,20 +175,20 @@ void Command::Print(raw_ostream &OS, const char *Terminator, bool Quote,
         // Replace the input file name with the crashinfo's file name.
         OS << ' ';
         StringRef ShortName = llvm::sys::path::filename(CrashInfo->Filename);
-        PrintArg(OS, ShortName.str().c_str(), Quote);
+        printArg(OS, ShortName.str().c_str(), Quote);
         continue;
       }
     }
 
     OS << ' ';
-    PrintArg(OS, Arg, Quote);
+    printArg(OS, Arg, Quote);
   }
 
-  if (CrashInfo && !CrashInfo->VFSPath.empty()) {
+  if (CrashInfo && HaveCrashVFS) {
     OS << ' ';
-    PrintArg(OS, "-ivfsoverlay", Quote);
+    printArg(OS, "-ivfsoverlay", Quote);
     OS << ' ';
-    PrintArg(OS, CrashInfo->VFSPath.str().c_str(), Quote);
+    printArg(OS, CrashInfo->VFSPath.str().c_str(), Quote);
   }
 
   if (ResponseFile != nullptr) {
@@ -217,8 +216,7 @@ int Command::Execute(const StringRef **Redirects, std::string *ErrMsg,
 
   if (ResponseFile == nullptr) {
     Argv.push_back(Executable);
-    for (size_t i = 0, e = Arguments.size(); i != e; ++i)
-      Argv.push_back(Arguments[i]);
+    Argv.append(Arguments.begin(), Arguments.end());
     Argv.push_back(nullptr);
 
     return llvm::sys::ExecuteAndWait(Executable, Argv.data(), /*env*/ nullptr,
@@ -292,8 +290,6 @@ int FallbackCommand::Execute(const StringRef **Redirects, std::string *ErrMsg,
   int SecondaryStatus = Fallback->Execute(Redirects, ErrMsg, ExecutionFailed);
   return SecondaryStatus;
 }
-
-JobList::JobList() : Job(JobListClass) {}
 
 void JobList::Print(raw_ostream &OS, const char *Terminator, bool Quote,
                     CrashReportInfo *CrashInfo) const {

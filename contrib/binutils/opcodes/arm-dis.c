@@ -1767,7 +1767,7 @@ print_insn_coprocessor (bfd_vma pc, struct disassemble_info *info, long given,
 
 			/* Is ``imm'' a negative number?  */
 			if (imm & 0x40)
-			  imm |= (-1 << 7);
+			  imm |= -(1 << 7);
 
 			func (stream, "%d", imm);
 		      }

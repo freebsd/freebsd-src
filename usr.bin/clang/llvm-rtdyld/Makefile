@@ -8,7 +8,7 @@ PROG_CXX=llvm-rtdyld
 SRCDIR=	tools/llvm-rtdyld
 SRCS=	llvm-rtdyld.cpp
 
-LIBDEPS=llvmdebuginfo \
+LIBDEPS=llvmdebuginfodwarf \
 	llvmmcjit \
 	llvmexecutionengine \
 	llvmruntimedyld \
@@ -49,13 +49,14 @@ LIBDEPS=llvmdebuginfo \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmcodegen \
+	llvmtarget \
 	llvmscalaropts \
 	llvmprofiledata \
 	llvminstcombine \
+	llvminstrumentation \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmtarget \
 	llvmx86desc \
 	llvmobject \
 	llvmmcparser \
@@ -68,7 +69,6 @@ LIBDEPS=llvmdebuginfo \
 	llvmcore \
 	llvmsupport
 
-.include "../clang.prog.mk"
+LIBADD=	z
 
-DPADD+=	${LIBZ}
-LDADD+=	-lz
+.include "../clang.prog.mk"

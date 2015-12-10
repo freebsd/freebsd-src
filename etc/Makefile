@@ -151,6 +151,9 @@ BIN1+= regdomain.xml
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
 MTREE=	BSD.debug.dist BSD.include.dist BSD.root.dist BSD.usr.dist BSD.var.dist
+.if ${MK_LIB32} != "no"
+MTREE+=	BSD.lib32.dist
+.endif
 .if ${MK_TESTS} != "no"
 MTREE+=	BSD.tests.dist
 .endif
@@ -239,10 +242,10 @@ distribution:
 .endif
 	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install
 	${_+_}cd ${.CURDIR}/devd; ${MAKE} install
-.if ${MK_DMAGENT} != "no"
-	${_+_}cd ${.CURDIR}/dma; ${MAKE} install
-.endif
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
+.if ${MK_NTP} != "no"
+	${_+_}cd ${.CURDIR}/ntp; ${MAKE} install
+.endif
 	${_+_}cd ${.CURDIR}/periodic; ${MAKE} install
 .if ${MK_PKGBOOTSTRAP} != "no"
 	${_+_}cd ${.CURDIR}/pkg; ${MAKE} install
@@ -294,10 +297,6 @@ distribution:
 .endif
 	cd ${.CURDIR}/mtree; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${MTREE} ${DESTDIR}/etc/mtree
-.if ${MK_PPP} != "no"
-	cd ${.CURDIR}/ppp; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
-	    ${PPPCNF} ${DESTDIR}/etc/ppp
-.endif
 .if ${MK_MAIL} != "no"
 	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${ETCMAIL} ${DESTDIR}/etc/mail
@@ -338,6 +337,9 @@ MTREE_FILTER= sed -e 's,\([gu]\)name=,\1id=,g' \
 	-e 's,\(gid=\)[^ ]*$$,\1${_gid},' 
 .else
 MTREE_FILTER= cat
+.if !defined(NO_FSCHG)
+MTREE_FSCHG=	-i
+.endif
 .endif
 
 MTREES=		mtree/BSD.root.dist		/		\
@@ -348,8 +350,13 @@ MTREES=		mtree/BSD.root.dist		/		\
 .if ${MK_GROFF} != "no"
 MTREES+=	mtree/BSD.groff.dist		/usr
 .endif
+.if ${MK_LIB32} != "no"
+MTREES+=	mtree/BSD.lib32.dist		/usr
+MTREES+=	mtree/BSD.lib32.dist		/usr/lib/debug/usr
+.endif
 .if ${MK_TESTS} != "no"
 MTREES+=	mtree/BSD.tests.dist		${TESTSBASE}
+MTREES+=	mtree/BSD.tests.dist		/usr/lib/debug/${TESTSBASE}
 .endif
 .if ${MK_SENDMAIL} != "no"
 MTREES+=	mtree/BSD.sendmail.dist		/
@@ -358,7 +365,19 @@ MTREES+=	mtree/BSD.sendmail.dist		/
 MTREES+=	../${mtree}			/
 .endfor
 
-distrib-dirs: ${MTREES:N/*}
+# Clean up some directories that where mistakenly created as files that
+# should not have been as part of the nvi update in r281994.
+# This should be removed after 11.0-RELEASE.
+DISTRIB_CLEANUP_SHARE_FILES=	${SHAREDIR}/doc/usd/10.exref ${SHAREDIR}/doc/usd/11.edit
+DISTRIB_CLEANUP_SHARE_FILES+=	${SHAREDIR}/doc/usd/12.vi ${SHAREDIR}/doc/usd/13.viref
+distrib-cleanup: .PHONY
+	for file in ${DISTRIB_CLEANUP_SHARE_FILES}; do \
+		if [ -f ${DESTDIR}/$${file} ]; then \
+			rm -f ${DESTDIR}/$${file}; \
+		fi; \
+	done
+
+distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
 	@set ${MTREES}; \
 	while test $$# -ge 2; do \
 		m=${.CURDIR}/$$1; \
@@ -366,10 +385,11 @@ distrib-dirs: ${MTREES:N/*}
 		d=${DESTDIR}$$1; \
 		shift; \
 		test -d $$d || mkdir -p $$d; \
-		${ECHO} ${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} \
-		    -f $$m -p $$d; \
+		${ECHO} ${MTREE_CMD} -deU ${MTREE_FSCHG} \
+		    ${MTREE_FOLLOWS_SYMLINKS} -f $$m -p $$d; \
 		${MTREE_FILTER} $$m | \
-		${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} -p $$d; \
+		${MTREE_CMD} -deU ${MTREE_FSCHG} ${MTREE_FOLLOWS_SYMLINKS} \
+		    -p $$d; \
 	done; true
 .if defined(NO_ROOT)
 	@set ${MTREES}; \
@@ -390,26 +410,26 @@ distrib-dirs: ${MTREES:N/*}
 .endif
 	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR}/sys
 .if ${MK_MAN} != "no"
-	cd ${DESTDIR}/usr/share/man; \
+	cd ${DESTDIR}${SHAREDIR}/man; \
 	for mandir in man*; do \
 		${INSTALL_SYMLINK} ../$$mandir \
-		    ${DESTDIR}/usr/share/man/en.ISO8859-1/; \
+		    ${DESTDIR}${SHAREDIR}/man/en.ISO8859-1/; \
 		${INSTALL_SYMLINK} ../$$mandir \
-		    ${DESTDIR}/usr/share/man/en.UTF-8/; \
+		    ${DESTDIR}${SHAREDIR}/man/en.UTF-8/; \
 	done
 .if ${MK_OPENSSL} != "no"
-	cd ${DESTDIR}/usr/share/openssl/man; \
+	cd ${DESTDIR}${SHAREDIR}/openssl/man; \
 	for mandir in man*; do \
 		${INSTALL_SYMLINK} ../$$mandir \
-		    ${DESTDIR}/usr/share/openssl/man/en.ISO8859-1/; \
+		    ${DESTDIR}${SHAREDIR}/openssl/man/en.ISO8859-1/; \
 	done
 .endif
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/man.alias`; \
 	while [ $$# -gt 0 ] ; do \
-		${INSTALL_SYMLINK} "$$2" "${DESTDIR}/usr/share/man/$$1"; \
+		${INSTALL_SYMLINK} "$$2" "${DESTDIR}${SHAREDIR}/man/$$1"; \
 		if [ "${MK_OPENSSL}" != "no" ]; then \
 			${INSTALL_SYMLINK} "$$2" \
-			    "${DESTDIR}/usr/share/openssl/man/$$1"; \
+			    "${DESTDIR}${SHAREDIR}/openssl/man/$$1"; \
 		fi; \
 		shift; shift; \
 	done
@@ -417,7 +437,7 @@ distrib-dirs: ${MTREES:N/*}
 .if ${MK_NLS} != "no"
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/nls.alias`; \
 	while [ $$# -gt 0 ] ; do \
-		${INSTALL_SYMLINK} "$$2" "${DESTDIR}/usr/share/nls/$$1"; \
+		${INSTALL_SYMLINK} "$$2" "${DESTDIR}${SHAREDIR}/nls/$$1"; \
 		shift; shift; \
 	done
 .endif
@@ -425,8 +445,8 @@ distrib-dirs: ${MTREES:N/*}
 etc-examples:
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${BIN1} ${BIN2} nsmb.conf opieaccess \
-	    ${DESTDIR}/usr/share/examples/etc
+	    ${DESTDIR}${SHAREDIR}/examples/etc
 	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install \
-	    DESTDIR=${DESTDIR}/usr/share/examples
+	    DESTDIR=${DESTDIR}${SHAREDIR}/examples
 
 .include <bsd.prog.mk>

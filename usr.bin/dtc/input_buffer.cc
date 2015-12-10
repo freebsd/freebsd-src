@@ -113,7 +113,7 @@ input_buffer::consume(const char *str)
 }
 
 bool
-input_buffer::consume_integer(long long &outInt)
+input_buffer::consume_integer(unsigned long long &outInt)
 {
 	// The first character must be a digit.  Hex and octal strings
 	// are prefixed by 0 and 0x, respectively.
@@ -122,7 +122,7 @@ input_buffer::consume_integer(long long &outInt)
 		return false;
 	}
 	char *end=0;
-	outInt = strtoll(&buffer[cursor], &end, 0);
+	outInt = strtoull(&buffer[cursor], &end, 0);
 	if (end == &buffer[cursor])
 	{
 		return false;
@@ -168,9 +168,8 @@ input_buffer::next_token()
 			// Eat the /
 			++(*this);
 		}
-		// Parse // comments and # comments
-		if (((*this)[0] == '/' && (*this)[1] == '/') || 
-		     (*this)[0] == '#')
+		// Parse // comments
+		if (((*this)[0] == '/' && (*this)[1] == '/'))
 		{
 			// eat the start of the comment
 			++(*this);
@@ -238,11 +237,12 @@ mmap_input_buffer::mmap_input_buffer(int fd) : input_buffer(0, 0)
 		perror("Failed to stat file");
 	}
 	size = sb.st_size;
-	buffer = (const char*)mmap(0, size, PROT_READ,
-		MAP_PREFAULT_READ, fd, 0);
-	if (buffer == 0)
+	buffer = (const char*)mmap(0, size, PROT_READ, MAP_PRIVATE |
+			MAP_PREFAULT_READ, fd, 0);
+	if (buffer == MAP_FAILED)
 	{
 		perror("Failed to mmap file");
+		exit(EXIT_FAILURE);
 	}
 }
 

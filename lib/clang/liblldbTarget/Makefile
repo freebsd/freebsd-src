@@ -18,8 +18,6 @@ SRCS=	ABI.cpp \
 	LanguageRuntime.cpp \
 	Memory.cpp \
 	MemoryHistory.cpp \
-	NativeRegisterContext.cpp \
-	NativeRegisterContextRegisterInfo.cpp \
 	ObjCLanguageRuntime.cpp \
 	OperatingSystem.cpp \
 	PathMappingList.cpp \
@@ -46,6 +44,7 @@ SRCS=	ABI.cpp \
 	ThreadPlan.cpp \
 	ThreadPlanBase.cpp \
 	ThreadPlanCallFunction.cpp \
+	ThreadPlanCallFunctionUsingABI.cpp \
 	ThreadPlanCallUserExpression.cpp \
 	ThreadPlanPython.cpp \
 	ThreadPlanRunToAddress.cpp \

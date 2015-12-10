@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_HUNTINGTON
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_mac_poll(
 	__in		efx_nic_t *enp,
 	__out		efx_link_mode_t *link_modep)
@@ -50,7 +50,7 @@ hunt_mac_poll(
 
 	efx_port_t *epp = &(enp->en_port);
 	hunt_link_state_t hls;
-	int rc;
+	efx_rc_t rc;
 
 	if ((rc = hunt_phy_get_link(enp, &hls)) != 0)
 		goto fail1;
@@ -63,14 +63,14 @@ hunt_mac_poll(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	*link_modep = EFX_LINK_UNKNOWN;
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_mac_up(
 	__in		efx_nic_t *enp,
 	__out		boolean_t *mac_upp)
@@ -81,7 +81,7 @@ hunt_mac_up(
 	 */
 
 	hunt_link_state_t hls;
-	int rc;
+	efx_rc_t rc;
 
 	/*
 	 * Because Huntington doesn't *require* polling, we can't rely on
@@ -95,7 +95,7 @@ hunt_mac_up(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -107,7 +107,7 @@ fail1:
  * MC_CMD_VADAPTOR_SET_MAC requires mac-spoofing privilege and
  * the port to have no filters or queues active.
  */
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_vadapter_set_mac(
 	__in		efx_nic_t *enp)
 {
@@ -115,7 +115,7 @@ efx_mcdi_vadapter_set_mac(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_VADAPTOR_SET_MAC_IN_LEN,
 			    MC_CMD_VADAPTOR_SET_MAC_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_VADAPTOR_SET_MAC;
@@ -139,16 +139,16 @@ efx_mcdi_vadapter_set_mac(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_mac_addr_set(
 	__in		efx_nic_t *enp)
 {
-	int rc;
+	efx_rc_t rc;
 
 	if ((rc = efx_mcdi_vadapter_set_mac(enp)) != 0) {
 		if (rc != ENOTSUP)
@@ -165,12 +165,12 @@ fail2:
 	EFSYS_PROBE(fail2);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-__checkReturn	int
+__checkReturn	efx_rc_t
 hunt_mac_reconfigure(
 	__in		efx_nic_t *enp)
 {
@@ -178,7 +178,7 @@ hunt_mac_reconfigure(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_SET_MAC_IN_LEN,
 			    MC_CMD_SET_MAC_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_SET_MAC;
@@ -242,18 +242,18 @@ hunt_mac_reconfigure(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn			int
+	__checkReturn			efx_rc_t
 hunt_mac_multicast_list_set(
 	__in				efx_nic_t *enp)
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_mac_ops_t *emop = epp->ep_emop;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
 
@@ -265,12 +265,12 @@ hunt_mac_multicast_list_set(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_mac_filter_default_rxq_set(
 	__in		efx_nic_t *enp,
 	__in		efx_rxq_t *erp,
@@ -279,7 +279,7 @@ hunt_mac_filter_default_rxq_set(
 	efx_port_t *epp = &(enp->en_port);
 	efx_rxq_t *old_rxq;
 	boolean_t old_using_rss;
-	int rc;
+	efx_rc_t rc;
 
 	hunt_filter_get_default_rxq(enp, &old_rxq, &old_using_rss);
 
@@ -297,7 +297,7 @@ hunt_mac_filter_default_rxq_set(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	hunt_filter_default_rxq_set(enp, old_rxq, old_using_rss);
 
@@ -322,7 +322,7 @@ hunt_mac_filter_default_rxq_clear(
 
 #if EFSYS_OPT_LOOPBACK
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_mac_loopback_set(
 	__in		efx_nic_t *enp,
 	__in		efx_link_mode_t link_mode,
@@ -337,7 +337,7 @@ hunt_mac_loopback_set(
 	efx_phy_ops_t *epop = epp->ep_epop;
 	efx_loopback_type_t old_loopback_type;
 	efx_link_mode_t old_loopback_link_mode;
-	int rc;
+	efx_rc_t rc;
 
 	/* The PHY object handles this on Huntington */
 	old_loopback_type = epp->ep_loopback_type;
@@ -351,7 +351,7 @@ hunt_mac_loopback_set(
 	return (0);
 
 fail1:
-	EFSYS_PROBE(fail2);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	epp->ep_loopback_type = old_loopback_type;
 	epp->ep_loopback_link_mode = old_loopback_link_mode;
@@ -367,12 +367,12 @@ fail1:
 	EFSYS_MEM_READQ((_esmp), (_field) * sizeof (efx_qword_t), _eqp)
 
 
-	__checkReturn			int
+	__checkReturn			efx_rc_t
 hunt_mac_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_MAC_NSTATS)	efsys_stat_t *stat,
-	__out_opt			uint32_t *generationp)
+	__inout_ecount(EFX_MAC_NSTATS)	efsys_stat_t *stat,
+	__inout_opt			uint32_t *generationp)
 {
 	efx_qword_t value;
 	efx_qword_t generation_start;
