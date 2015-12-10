@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2015
+.Dd December 9, 2015
 .Dt IOATCONTROL 8
 .Os
 .Sh NAME
@@ -33,7 +33,9 @@
 .Xr ioat 4
 .Sh SYNOPSIS
 .Nm
+.Op Fl E
 .Op Fl f
+.Op Fl m
 .Op Fl V
 .Ar channel_number
 .Ar num_txns
@@ -55,10 +57,14 @@ allows one to issue some number of test operations to the
 driver on a specific hardware channel.
 The arguments are as follows:
 .Bl -tag -width Ds
+.It Fl E
+Test non-contiguous 8k copy.
 .It Fl f
 Test block fill (by default,
 .Nm
 tests copy)
+.It Fl m
+Test memcpy instead of DMA.
 .It Fl V
 Verify copies/fills for accuracy
 .El

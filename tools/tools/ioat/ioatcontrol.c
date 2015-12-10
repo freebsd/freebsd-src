@@ -48,7 +48,7 @@ static void
 usage(void)
 {
 
-	printf("Usage: %s [-fV] <channel #> <txns> [<bufsize> "
+	printf("Usage: %s [-E|-f|-m] [-V] <channel #> <txns> [<bufsize> "
 	    "[<chain-len> [duration]]]\n", getprogname());
 	printf("       %s -r [-vV] <channel #> <addr> [<bufsize>]\n",
 	    getprogname());
@@ -97,15 +97,29 @@ main(int argc, char **argv)
 {
 	struct ioat_test t;
 	int fd, ch;
-	bool fflag, rflag;
+	bool fflag, rflag, Eflag, mflag;
+	unsigned modeflags;
 
-	while ((ch = getopt(argc, argv, "rfvVw")) != -1) {
+	fflag = rflag = Eflag = mflag = false;
+	modeflags = 0;
+
+	while ((ch = getopt(argc, argv, "EfmrvVw")) != -1) {
 		switch (ch) {
+		case 'E':
+			Eflag = true;
+			modeflags++;
+			break;
 		case 'f':
 			fflag = true;
+			modeflags++;
+			break;
+		case 'm':
+			mflag = true;
+			modeflags++;
 			break;
 		case 'r':
 			rflag = true;
+			modeflags++;
 			break;
 		case 'v':
 			t.raw_is_virtual = true;
@@ -126,8 +140,8 @@ main(int argc, char **argv)
 	if (argc < 2)
 		usage();
 
-	if (rflag && fflag) {
-		printf("Invalid: -r and -f\n");
+	if (modeflags > 1) {
+		printf("Invalid: Cannot use >1 mode flag (-E, -f, -m, or -r)\n");
 		usage();
 	}
 
@@ -139,6 +153,11 @@ main(int argc, char **argv)
 
 	if (fflag)
 		t.testkind = IOAT_TEST_FILL;
+	else if (Eflag) {
+		t.testkind = IOAT_TEST_DMA_8K;
+		t.buffer_size = 8 * 1024;
+	} else if (mflag)
+		t.testkind = IOAT_TEST_MEMCPY;
 
 	t.channel_index = atoi(argv[0]);
 	if (t.channel_index > 8) {
