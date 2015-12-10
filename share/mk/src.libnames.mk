@@ -453,8 +453,6 @@ LIBMENUDIR=	${OBJTOP}/lib/ncurses/menu
 LIBMENULIBWDIR=	${OBJTOP}/lib/ncurses/menuw
 LIBNCURSESDIR=	${OBJTOP}/lib/ncurses/ncurses
 LIBNCURSESWDIR=	${OBJTOP}/lib/ncurses/ncursesw
-LIBTERMCAPDIR=	${LIBNCURSESDIR}
-LIBTERMCAPWDIR=	${LIBNCURSESWDIR}
 LIBPANELDIR=	${OBJTOP}/lib/ncurses/panel
 LIBPANELWDIR=	${OBJTOP}/lib/ncurses/panelw
 LIBCRYPTODIR=	${OBJTOP}/secure/lib/libcrypto
@@ -463,6 +461,9 @@ LIBSSLDIR=	${OBJTOP}/secure/lib/libssl
 LIBTEKENDIR=	${OBJTOP}/sys/teken/libteken
 LIBEGACYDIR=	${OBJTOP}/tools/build
 LIBLNDIR=	${OBJTOP}/usr.bin/lex/lib
+
+LIBTERMCAPDIR=	${LIBNCURSESDIR}
+LIBTERMCAPWDIR=	${LIBNCURSESWDIR}
 
 # Default other library directories to lib/libNAME.
 .for lib in ${_LIBRARIES}
