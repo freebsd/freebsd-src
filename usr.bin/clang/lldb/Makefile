@@ -161,6 +161,6 @@ LIBDEPS=\
 	llvmcore \
 	llvmsupport
 
-.include "../clang.prog.mk"
+LIBADD+=	pthread
 
-LDADD+=	-lpthread
+.include "../clang.prog.mk"
