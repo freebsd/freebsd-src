@@ -62,6 +62,9 @@ struct efx_mcdi_req_s {
 	/* Internals: low level transport details */
 	unsigned int	emr_err_code;
 	unsigned int	emr_err_arg;
+#if EFSYS_OPT_MCDI_PROXY_AUTH
+	uint32_t	emr_proxy_handle;
+#endif
 };
 
 typedef struct efx_mcdi_iface_s {
@@ -96,6 +99,20 @@ efx_mcdi_ev_cpl(
 	__in		unsigned int seq,
 	__in		unsigned int outlen,
 	__in		int errcode);
+
+#if EFSYS_OPT_MCDI_PROXY_AUTH
+	__checkReturn	efx_rc_t
+efx_mcdi_get_proxy_handle(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp,
+	__out		uint32_t *handlep);
+
+extern			void
+efx_mcdi_ev_proxy_response(
+	__in		efx_nic_t *enp,
+	__in		unsigned int handle,
+	__in		unsigned int status);
+#endif
 
 extern			void
 efx_mcdi_ev_death(

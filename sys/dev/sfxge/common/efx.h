@@ -218,6 +218,9 @@ typedef struct efx_mcdi_transport_s {
 	void		(*emt_logger)(void *, efx_log_msg_t,
 					void *, size_t, void *, size_t);
 #endif /* EFSYS_OPT_MCDI_LOGGING */
+#if EFSYS_OPT_MCDI_PROXY_AUTH
+	void		(*emt_ev_proxy_response)(void *, uint32_t, efx_rc_t);
+#endif /* EFSYS_OPT_MCDI_PROXY_AUTH */
 } efx_mcdi_transport_t;
 
 extern	__checkReturn	efx_rc_t
