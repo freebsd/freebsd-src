@@ -169,6 +169,23 @@ _LIBRARIES=	\
 		zfs \
 		zpool \
 
+.if ${MK_OFED} != "no"
+_LIBRARIES+= \
+		cxgb4 \
+		ibcm \
+		ibcommon \
+		ibmad \
+		ibsdp \
+		ibumad \
+		ibverbs \
+		mlx4 \
+		mthca \
+		opensm \
+		osmcomp \
+		osmvendor \
+		rdmacm \
+
+.endif
 
 # Each library's LIBADD needs to be duplicated here for static linkage of
 # 2nd+ order consumers.  Auto-generating this would be better.
@@ -416,6 +433,19 @@ LIBUUTILDIR=	${OBJTOP}/cddl/lib/libuutil
 LIBZFSDIR=	${OBJTOP}/cddl/lib/libzfs
 LIBZFS_COREDIR=	${OBJTOP}/cddl/lib/libzfs_core
 LIBZPOOLDIR=	${OBJTOP}/cddl/lib/libzpool
+LIBCXGB4DIR=	${OBJTOP}/contrib/ofed/usr.lib/libcxgb4
+LIBIBCMDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibcm
+LIBIBCOMMONDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibcommon
+LIBIBMADDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibmad
+LIBIBUMADDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibumad
+LIBIBVERBSDIR=	${OBJTOP}/contrib/ofed/usr.lib/libibverbs
+LIBMLX4DIR=	${OBJTOP}/contrib/ofed/usr.lib/libmlx4
+LIBMTHCADIR=	${OBJTOP}/contrib/ofed/usr.lib/libmthca
+LIBOPENSMDIR=	${OBJTOP}/contrib/ofed/usr.lib/libopensm
+LIBOSMCOMPDIR=	${OBJTOP}/contrib/ofed/usr.lib/libosmcomp
+LIBOSMVENDORDIR=	${OBJTOP}/contrib/ofed/usr.lib/libosmvendor
+LIBRDMACMDIR=	${OBJTOP}/contrib/ofed/usr.lib/librdmacm
+LIBIBSDPDIR=	${OBJTOP}/contrib/ofed/usr.lib/libsdp
 LIBDIALOGDIR=	${OBJTOP}/gnu/lib/libdialog
 LIBGCOVDIR=	${OBJTOP}/gnu/lib/libgcov
 LIBGOMPDIR=	${OBJTOP}/gnu/lib/libgomp
