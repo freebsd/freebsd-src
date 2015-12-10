@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.35 2014/05/09 00:05:46 sjg Exp $
+# $Id: meta.autodep.mk,v 1.39 2015/12/07 04:35:32 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -50,6 +50,9 @@ UPDATE_DEPENDFILE = NO
 .endif
 
 _CURDIR ?= ${.CURDIR}
+_OBJDIR ?= ${.OBJDIR}
+_OBJTOP ?= ${OBJTOP}
+_OBJROOT ?= ${OBJROOT:U${_OBJTOP}}
 _DEPENDFILE := ${_CURDIR}/${.MAKE.DEPENDFILE:T}
 
 .if ${.MAKE.LEVEL} == 0
@@ -97,6 +100,8 @@ UPDATE_DEPENDFILE = no
 # for example the result of running configure
 # just make sure this is not empty
 META_FILE_FILTER ?= N.meta
+# never consider these
+META_FILE_FILTER += Ndirdeps.cache*
 
 .if !empty(DPADD)
 # if we have any non-libs in DPADD, 
@@ -188,7 +193,7 @@ gendirdeps:	${_DEPENDFILE}
 # anything which matches ${_OBJROOT}* but not ${_OBJTOP}*
 # needs to be qualified in DIRDEPS
 # The pseudo machine "host" is used for HOST_TARGET
-DIRDEPS = \
+DIRDEPS += \
 	${DPADD:M${_OBJTOP}*:H:C,${_OBJTOP}[^/]*/,,:N.:O:u} \
 	${DPADD:M${_OBJROOT}*:N${_OBJTOP}*:H:S,${_OBJROOT},,:C,^([^/]+)/(.*),\2.\1,:S,${HOST_TARGET}$,host,:N.*:O:u}
 
@@ -254,6 +259,9 @@ ${_DEPENDFILE}: ${_depend} ${.PARSEDIR}/gendirdeps.mk  ${META2DEPS} $${.MAKE.MET
 .endif
 
 .if ${_bootstrap_dirdeps} == "yes"
+.if ${BUILD_AT_LEVEL0:Uno} == "no"
+DIRDEPS+= ${RELDIR}.${TARGET_SPEC:U${MACHINE}}
+.endif
 # make sure this is included at least once
 .include <dirdeps.mk>
 .else

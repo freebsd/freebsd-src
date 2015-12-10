@@ -1,4 +1,4 @@
-/*	$NetBSD: nonints.h,v 1.65 2012/08/30 21:17:05 sjg Exp $	*/
+/*	$NetBSD: nonints.h,v 1.69 2015/10/11 04:51:24 sjg Exp $	*/
 
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -91,7 +91,7 @@ int Compat_Make(void *, void *);
 
 /* cond.c */
 struct If;
-int Cond_EvalExpression(const struct If *, char *, Boolean *, int);
+int Cond_EvalExpression(const struct If *, char *, Boolean *, int, Boolean);
 int Cond_Eval(char *);
 void Cond_restore_depth(unsigned int);
 unsigned int Cond_save_depth(void);
@@ -184,8 +184,8 @@ void Var_Set(const char *, const char *, GNode *, int);
 void Var_Append(const char *, const char *, GNode *);
 Boolean Var_Exists(const char *, GNode *);
 char *Var_Value(const char *, GNode *, char **);
-char *Var_Parse(const char *, GNode *, Boolean, int *, void **);
-char *Var_Subst(const char *, const char *, GNode *, Boolean);
+char *Var_Parse(const char *, GNode *, Boolean, Boolean, int *, void **);
+char *Var_Subst(const char *, const char *, GNode *, Boolean, Boolean);
 char *Var_GetTail(const char *);
 char *Var_GetHead(const char *);
 void Var_Init(void);

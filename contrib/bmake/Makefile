@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.27 2014/06/20 14:51:54 sjg Exp $
+#	$Id: Makefile,v 1.48 2015/12/02 00:36:42 sjg Exp $
 
 # Base version on src date
-MAKE_VERSION= 20140620
+MAKE_VERSION= 20151201
 
 PROG=	bmake
 
@@ -18,6 +18,7 @@ SRCS= \
 	make.c \
 	make_malloc.c \
 	meta.c \
+	metachar.c \
 	parse.c \
 	str.c \
 	strlist.c \
@@ -94,7 +95,7 @@ SUBDIR+= unit-tests
 # we skip a lot of this when building as part of FreeBSD etc.
 
 # list of OS's which are derrived from BSD4.4
-BSD44_LIST= NetBSD FreeBSD OpenBSD DragonFly
+BSD44_LIST= NetBSD FreeBSD OpenBSD DragonFly MirBSD Bitrig
 # we are...
 OS!= uname -s
 # are we 4.4BSD ?
@@ -180,9 +181,9 @@ COPTS.parse.c += -Wno-format-nonliteral
 COPTS.var.c += -Wno-format-nonliteral
 
 # Force these
-SHAREDIR= ${prefix}/share
-BINDIR= ${prefix}/bin
-MANDIR= ${SHAREDIR}/man
+SHAREDIR= ${SHAREDIR.bmake:U${prefix}/share}
+BINDIR= ${BINDIR.bmake:U${prefix}/bin}
+MANDIR= ${MANDIR.bmake:U${SHAREDIR}/man}
 
 .if !exists(.depend)
 ${OBJS}: config.h

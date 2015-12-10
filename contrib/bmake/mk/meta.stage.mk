@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.30 2013/04/19 16:32:57 sjg Exp $
+# $Id: meta.stage.mk,v 1.41 2015/11/13 17:34:04 sjg Exp $
 #
 #	@(#) Copyright (c) 2011, Simon J. Gerraty
 #
@@ -23,6 +23,8 @@ _dirdep = ${RELDIR}.${MACHINE}
 _dirdep = ${RELDIR}
 .endif
 
+CLEANFILES+= .dirdep
+
 # this allows us to trace dependencies back to their src dir
 .dirdep:
 	@echo '${_dirdep}' > $@
@@ -35,7 +37,13 @@ _stage_file_basename = $${f\#\#*/}
 _stage_target_dirname = $${t%/*}
 .endif
 
+_OBJROOT ?= ${OBJROOT:U${OBJTOP:H}}
+.if ${_OBJROOT:M*/} != ""
+_objroot ?= ${_OBJROOT:tA}/
+.else
 _objroot ?= ${_OBJROOT:tA}
+.endif
+
 # make sure this is global
 _STAGED_DIRS ?=
 .export _STAGED_DIRS
@@ -46,12 +54,21 @@ STAGE_DIR_FILTER = tA:@d@$${_STAGED_DIRS::+=$$d}$$d@
 # convert _STAGED_DIRS into suitable filters
 GENDIRDEPS_FILTER += Nnot-empty-is-important \
 	${_STAGED_DIRS:O:u:M${OBJTOP}*:S,${OBJTOP}/,N,} \
-	${_STAGED_DIRS:O:u:N${OBJTOP}*:S,${_objroot},,:C,^([^/]+)/(.*),N\2.\1,:S,${HOST_TARGET},.host,}
+	${_STAGED_DIRS:O:u:M${_objroot}*:N${OBJTOP}*:S,${_objroot},,:C,^([^/]+)/(.*),N\2.\1,:S,${HOST_TARGET},.host,}
 
 LN_CP_SCRIPT = LnCp() { \
   rm -f $$2 2> /dev/null; \
   ln $$1 $$2 2> /dev/null || \
   cp -p $$1 $$2; }
+
+# a staging conflict should cause an error
+# a warning is handy when bootstapping different options.
+STAGE_CONFLICT?= ERROR
+.if ${STAGE_CONFLICT:tl} == "error"
+STAGE_CONFLICT_ACTION= exit 1;
+.else
+STAGE_CONFLICT_ACTION=
+.endif
 
 # it is an error for more than one src dir to try and stage
 # the same file
@@ -59,8 +76,8 @@ STAGE_DIRDEP_SCRIPT = ${LN_CP_SCRIPT}; StageDirdep() { \
   t=$$1; \
   if [ -s $$t.dirdep ]; then \
 	cmp -s .dirdep $$t.dirdep && return; \
-	echo "ERROR: $$t installed by `cat $$t.dirdep` not ${_dirdep}" >&2; \
-	exit 1; \
+	echo "${STAGE_CONFLICT}: $$t installed by `cat $$t.dirdep` not ${_dirdep}" >&2; \
+	${STAGE_CONFLICT_ACTION} \
   fi; \
   LnCp .dirdep $$t.dirdep || exit 1; }
 
@@ -113,10 +130,14 @@ STAGE_AS_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageAs() { \
 _STAGE_BASENAME_USE:	.USE ${.TARGET:T}
 	@${STAGE_FILE_SCRIPT}; StageFiles ${.TARGET:H:${STAGE_DIR_FILTER}} ${.TARGET:T}
 
+_STAGE_AS_BASENAME_USE:        .USE ${.TARGET:T}
+	@${STAGE_AS_SCRIPT}; StageAs ${.TARGET:H:${STAGE_DIR_FILTER}} ${.TARGET:T} ${STAGE_AS_${.TARGET:T}:U${.TARGET:T}}
+
 .if !empty(STAGE_INCSDIR)
 STAGE_TARGETS += stage_incs
-STAGE_INCS ?= ${.ALLSRC:N.dirdep}
+STAGE_INCS ?= ${.ALLSRC:N.dirdep:Nstage_*}
 
+stage_includes: stage_incs
 stage_incs:	.dirdep
 	@${STAGE_FILE_SCRIPT}; StageFiles ${STAGE_INCSDIR:${STAGE_DIR_FILTER}} ${STAGE_INCS}
 	@touch $@
@@ -125,15 +146,17 @@ stage_incs:	.dirdep
 .if !empty(STAGE_LIBDIR)
 STAGE_TARGETS += stage_libs
 
-STAGE_LIBS ?= ${.ALLSRC:N.dirdep}
+STAGE_LIBS ?= ${.ALLSRC:N.dirdep:Nstage_*}
 
 stage_libs:	.dirdep
 	@${STAGE_FILE_SCRIPT}; StageFiles ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} ${STAGE_LIBS}
+.if !defined(NO_SHLIB_LINKS)
 .if !empty(SHLIB_LINKS)
 	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} \
 	${SHLIB_LINKS:@t@${STAGE_LIBS:T:M$t.*} $t@}
 .elif !empty(SHLIB_LINK) && !empty(SHLIB_NAME)
-	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} ${SHLIB_NAME} ${SHLIB_LINK} ${SYMLINKS:T}
+	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_LIBDIR:${STAGE_DIR_FILTER}} ${SHLIB_NAME} ${SHLIB_LINK}
+.endif
 .endif
 	@touch $@
 .endif
@@ -155,8 +178,8 @@ CLEANFILES += ${STAGE_SETS:@s@stage*$s@}
 
 # some makefiles need to populate multiple directories
 .for s in ${STAGE_SETS:O:u}
-STAGE_FILES.$s ?= ${.ALLSRC:N.dirdep}
-STAGE_SYMLINKS.$s ?= ${.ALLSRC:N.dirdep}
+STAGE_FILES.$s ?= ${.ALLSRC:N.dirdep:Nstage_*}
+STAGE_SYMLINKS.$s ?= ${.ALLSRC:N.dirdep:Nstage_*}
 STAGE_LINKS_DIR.$s ?= ${STAGE_OBJTOP}
 STAGE_SYMLINKS_DIR.$s ?= ${STAGE_OBJTOP}
 
@@ -202,31 +225,35 @@ STAGE_TARGETS += stage_as
 # each ${file} will be staged as ${STAGE_AS_${file:T}}
 # one could achieve the same with SYMLINKS
 .for s in ${STAGE_AS_SETS:O:u}
-STAGE_AS.$s ?= ${.ALLSRC:N.dirdep}
+STAGE_AS.$s ?= ${.ALLSRC:N.dirdep:Nstage_*}
 
 stage_as:	stage_as.$s
 stage_as.$s:	.dirdep
-	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS.$s:@f@$f ${STAGE_AS_${f:T}:U${f:T}}@}
+	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS.$s:@f@$f ${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}}@}
 	@touch $@
 
 .endfor
 .endif
 
-CLEANFILES += ${STAGE_TARGETS}
+CLEANFILES += ${STAGE_TARGETS} stage_incs stage_includes
 
 # stage_*links usually needs to follow any others.
+# for non-jobs mode the order here matters
+staging: ${STAGE_TARGETS:N*_links} ${STAGE_TARGETS:M*_links}
+
+.if ${.MAKE.JOBS:U0} > 0 && ${STAGE_TARGETS:M*_links} != ""
+# the above isn't sufficient
 .for t in ${STAGE_TARGETS:N*links:O:u}
 .ORDER: $t stage_links
-.ORDER: $t stage_symlinks
 .endfor
-
-# make sure this exists
-staging:
+.endif
 
 # generally we want staging to wait until everything else is done
 STAGING_WAIT ?= .WAIT
 
+.if ${.MAKE.LEVEL} > 0
 all: ${STAGING_WAIT} staging
+.endif
 
 .if exists(${.PARSEDIR}/stage-install.sh) && !defined(STAGE_INSTALL)
 # this will run install(1) and then followup with .dirdep files.
@@ -240,5 +267,26 @@ INSTALL := ${STAGE_INSTALL}
 beforeinstall: .dirdep
 .endif
 .endif
+.NOPATH: ${STAGE_FILES}
 
+.if !empty(STAGE_TARGETS)
+MK_STALE_STAGED?= no
+.if ${MK_STALE_STAGED} == "yes"
+all: stale_staged
+# get a list of paths that we have just staged
+# get a list of paths that we have previously staged to those same dirs
+# anything in the 2nd list but not the first is stale - remove it.
+stale_staged: staging .NOMETA
+	@egrep '^[WL] .*${STAGE_OBJTOP}' /dev/null ${.MAKE.META.FILES:M*stage_*} | \
+	sed "/\.dirdep/d;s,.* '*\(${STAGE_OBJTOP}/[^ '][^ ']*\).*,\1," | \
+	sort > ${.TARGET}.staged1
+	@grep -l '${_dirdep}' /dev/null ${_STAGED_DIRS:M${STAGE_OBJTOP}*:O:u:@d@$d/*.dirdep@} | \
+	sed 's,\.dirdep,,' | sort > ${.TARGET}.staged2
+	@comm -13 ${.TARGET}.staged1 ${.TARGET}.staged2 > ${.TARGET}.stale
+	@test ! -s ${.TARGET}.stale || { \
+		echo "Removing stale staged files..."; \
+		sed 's,.*,& &.dirdep,' ${.TARGET}.stale | xargs rm -f; }
+
+.endif
+.endif
 .endif

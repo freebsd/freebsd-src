@@ -17,7 +17,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.46 2014/05/19 16:38:09 sjg Exp $
+#	$Id: os.sh,v 1.49 2015/10/25 00:05:40 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -44,7 +44,7 @@ MACHINE_ARCH=`uname -p 2>/dev/null || echo $MACHINE`
 # there is at least one case of `uname -p` outputting
 # a bunch of usless drivel
 case "$MACHINE_ARCH" in
-*[!A-Za-z0-9_-]*) MACHINE_ARCH="$MACHINE";;
+unknown|*[!A-Za-z0-9_-]*) MACHINE_ARCH="$MACHINE";;
 esac
         
 # we need this here, and it is not always available...
@@ -137,7 +137,10 @@ SunOS)
 	# NetBSD at least has good backward compatibility
 	# so NetBSD/i386 is good enough
 	case $OS in
-	NetBSD) SHARE_ARCH=$OS/${MACHINE_ARCH:-$MACHINE};;
+	NetBSD)
+		HOST_ARCH=$MACHINE
+		SHARE_ARCH=$OS/$HOST
+		;;
 	OpenBSD)
 	        arch=`Which arch /usr/bin:/usr/ucb:$PATH`
                 MACHINE_ARCH=`$arch -s`
@@ -203,13 +206,14 @@ esac
 
 TMP_DIRS=${TMP_DIRS:-"/tmp /var/tmp"}
 MACHINE_ARCH=${MACHINE_ARCH:-$MACHINE}
+HOST_ARCH=${HOST_ARCH:-$MACHINE_ARCH}
 # we mount server:/share/arch/$SHARE_ARCH as /usr/local
-SHARE_ARCH=${SHARE_ARCH:-$OS/$OSMAJOR.X/$MACHINE_ARCH}
+SHARE_ARCH=${SHARE_ARCH:-$OS/$OSMAJOR.X/$HOST_ARCH}
 LN=${LN:-ln}
 TR=${TR:-tr}
 
 # Some people like have /share/$HOST_TARGET/bin etc.
-HOST_TARGET=`echo ${OS}${OSMAJOR}-${MACHINE_ARCH} | toLower`
+HOST_TARGET=`echo ${OS}${OSMAJOR}-$HOST_ARCH | tr -d / | toLower`
 export HOST_TARGET
 
 case `echo -n .` in -n*) N=; C="\c";; *) N=-n; C=;; esac
