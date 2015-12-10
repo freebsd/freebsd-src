@@ -253,7 +253,7 @@ int gic_v3_its_detach(device_t);
 
 int gic_v3_its_alloc_msix(device_t, device_t, int *);
 int gic_v3_its_alloc_msi(device_t, device_t, int, int *);
-int gic_v3_its_map_msix(device_t, device_t, int, uint64_t *, uint32_t *);
+int gic_v3_its_map_msi(device_t, device_t, int, uint64_t *, uint32_t *);
 
 int its_init_cpu(struct gic_v3_its_softc *);
 
