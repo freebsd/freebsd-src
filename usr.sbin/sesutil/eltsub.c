@@ -185,10 +185,10 @@ stat2ascii(int eletype, u_char *cstat)
 	    (cstat[0] & 0x40) ? ", Prd.Fail" : "",
 	    (cstat[0] & 0x20) ? ", Disabled" : "",
 	    (cstat[0] & 0x10) ? ", Swapped" : "",
-	    (eletype == ELMTYP_DEVICE && (cstat[2] & 0x02)) ?
-		", LED=Locate" : "",
-	    (eletype == ELMTYP_DEVICE && (cstat[3] & 0x20)) ?
-		", LED=Fault" : "",
+	    ((eletype == ELMTYP_DEVICE || eletype == ELMTYP_ARRAY_DEV)
+	        && (cstat[2] & 0x02)) ?  ", LED=Locate" : "",
+	    ((eletype == ELMTYP_DEVICE || eletype == ELMTYP_ARRAY_DEV)
+	        && (cstat[3] & 0x20)) ?  ", LED=Fault" : "",
 	    cstat[0], cstat[1], cstat[2], cstat[3]);
 	return (ebuf);
 }
