@@ -6236,3 +6236,4 @@ MODULE_DEPEND(run, wlan, 1, 1, 1);
 MODULE_DEPEND(run, usb, 1, 1, 1);
 MODULE_DEPEND(run, firmware, 1, 1, 1);
 MODULE_VERSION(run, 1);
+USB_PNP_HOST_INFO(run_devs);
