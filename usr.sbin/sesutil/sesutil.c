@@ -392,7 +392,7 @@ objmap(int argc, char **argv __unused)
 			printf("\tElement %u, Type: %s\n", e_ptr[j].elm_idx,
 			    geteltnm(e_ptr[j].elm_type));
 			printf("\t\tStatus: %s\n",
-			    stat2ascii(e_ptr[i].elm_type, e_status.cstat));
+			    stat2ascii(e_ptr[j].elm_type, e_status.cstat));
 			if (e_desc.elm_desc_len > 0) {
 				printf("\t\tDescription: %s\n",
 				    e_desc.elm_desc_str);
