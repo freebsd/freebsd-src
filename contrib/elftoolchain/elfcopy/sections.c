@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: sections.c 3225 2015-06-06 02:35:23Z kaiwang27 $");
+ELFTC_VCSID("$Id: sections.c 3272 2015-12-11 20:00:54Z kaiwang27 $");
 
 static void	add_gnu_debuglink(struct elfcopy *ecp);
 static uint32_t calc_crc32(const char *p, size_t len, uint32_t crc);
@@ -457,11 +457,17 @@ create_scn(struct elfcopy *ecp)
 
 		/*
 		 * If strip action is STRIP_NONDEBUG(only keep debug),
-		 * change sections flags of loadable sections to SHF_NOBITS,
-		 * and the content of those sections will be ignored.
+		 * change sections type of loadable sections and section
+		 * groups to SHT_NOBITS, and the content of those sections
+		 * will be discarded. However, SHT_NOTE sections should
+		 * be kept.
 		 */
-		if (ecp->strip == STRIP_NONDEBUG && (ish.sh_flags & SHF_ALLOC))
-			s->type = SHT_NOBITS;
+		if (ecp->strip == STRIP_NONDEBUG) {
+			if (((ish.sh_flags & SHF_ALLOC) ||
+			    (ish.sh_flags & SHF_GROUP)) &&
+			    ish.sh_type != SHT_NOTE)
+				s->type = SHT_NOBITS;
+		}
 
 		check_section_rename(ecp, s);
 

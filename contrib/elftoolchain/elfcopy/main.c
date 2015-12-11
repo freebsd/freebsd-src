@@ -39,7 +39,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: main.c 3216 2015-05-23 21:16:36Z kaiwang27 $");
+ELFTC_VCSID("$Id: main.c 3268 2015-12-07 20:30:55Z emaste $");
 
 enum options
 {
@@ -1375,11 +1375,13 @@ Usage: %s [options] infile [outfile]\n\
   -w | --wildcard              Use shell-style patterns to name symbols.\n\
   -x | --discard-all           Do not copy non-globals to the output.\n\
   -I FORMAT | --input-target=FORMAT\n\
-                               (Accepted but ignored).\n\
+                               Specify object format for the input file.\n\
   -K SYM | --keep-symbol=SYM   Copy symbol SYM to the output.\n\
   -L SYM | --localize-symbol=SYM\n\
                                Make symbol SYM local to the output file.\n\
   -N SYM | --strip-symbol=SYM  Do not copy symbol SYM to the output.\n\
+  -O FORMAT | --output-target=FORMAT\n\
+                               Specify object format for the output file.\n\
   -R NAME | --remove-section=NAME\n\
                                Remove the named section.\n\
   -S | --strip-all             Remove all symbol and relocation information\n\
