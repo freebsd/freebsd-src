@@ -728,32 +728,33 @@ vm_pageout_grow_cache(int tries, vm_paddr_t low, vm_paddr_t high)
 	 * the specified address range, as indicated by segments
 	 * constituting the domain.
 	 */
-again:
+again_inact:
 	if (inactl < inactmax) {
 		if (vm_phys_domain_intersects(vm_dom[dom].vmd_segs,
 		    low, high) &&
 		    vm_pageout_launder(&vm_dom[dom].vmd_pagequeues[PQ_INACTIVE],
 		    tries, low, high)) {
 			inactl++;
-			goto again;
+			goto again_inact;
 		}
 		if (++dom == vm_ndomains)
 			dom = 0;
 		if (dom != initial_dom)
-			goto again;
+			goto again_inact;
 	}
+again_act:
 	if (actl < actmax) {
 		if (vm_phys_domain_intersects(vm_dom[dom].vmd_segs,
 		    low, high) &&
 		    vm_pageout_launder(&vm_dom[dom].vmd_pagequeues[PQ_ACTIVE],
 		      tries, low, high)) {
 			actl++;
-			goto again;
+			goto again_act;
 		}
 		if (++dom == vm_ndomains)
 			dom = 0;
 		if (dom != initial_dom)
-			goto again;
+			goto again_act;
 	}
 }
 
