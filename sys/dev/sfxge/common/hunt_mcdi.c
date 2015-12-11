@@ -268,7 +268,7 @@ hunt_mcdi_request_copyout(
 #endif /* EFSYS_OPT_MCDI_LOGGING */
 }
 
-static	__checkReturn	boolean_t
+	__checkReturn	boolean_t
 hunt_mcdi_poll_response(
 	__in		efx_nic_t *enp)
 {
@@ -297,59 +297,6 @@ hunt_mcdi_read_response(
 		memcpy((uint8_t *)bufferp + pos, &data,
 		    MIN(sizeof (data), length - pos));
 	}
-}
-
-	__checkReturn	boolean_t
-hunt_mcdi_request_poll(
-	__in		efx_nic_t *enp)
-{
-	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	efx_mcdi_req_t *emrp;
-	int state;
-	efx_rc_t rc;
-
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
-
-	/* Serialise against post-watchdog efx_mcdi_ev* */
-	EFSYS_LOCK(enp->en_eslp, state);
-
-	EFSYS_ASSERT(emip->emi_pending_req != NULL);
-	EFSYS_ASSERT(!emip->emi_ev_cpl);
-	emrp = emip->emi_pending_req;
-
-	/* Check if a response is available */
-	if (hunt_mcdi_poll_response(enp) == B_FALSE) {
-		EFSYS_UNLOCK(enp->en_eslp, state);
-		return (B_FALSE);
-	}
-
-	/* Read the response header */
-	efx_mcdi_read_response_header(enp, emrp);
-
-	/* Request complete */
-	emip->emi_pending_req = NULL;
-
-	/* Ensure stale MCDI requests fail after an MC reboot. */
-	emip->emi_new_epoch = B_FALSE;
-
-	EFSYS_UNLOCK(enp->en_eslp, state);
-
-	if ((rc = emrp->emr_rc) != 0)
-		goto fail1;
-
-	hunt_mcdi_request_copyout(enp, emrp);
-	goto out;
-
-fail1:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	/* Reboot/Assertion */
-	if (rc == EIO || rc == EINTR)
-		efx_mcdi_raise_exception(enp, emrp, rc);
-
-out:
-	return (B_TRUE);
 }
 
 			efx_rc_t
