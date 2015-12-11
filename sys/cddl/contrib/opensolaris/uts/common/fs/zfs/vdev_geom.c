@@ -523,7 +523,7 @@ vdev_geom_attach_by_guids(uint64_t pool_guid, uint64_t vdev_guid)
 					continue;
 				cp = vdev_geom_attach(pp);
 				if (cp == NULL) {
-					ZFS_LOG(1, "ZFS WARNING: Unable to "
+					printf("ZFS WARNING: Unable to "
 					    "attach to %s.\n", pp->name);
 					continue;
 				}
