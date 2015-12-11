@@ -220,6 +220,7 @@ struct sfxge_txq {
 
 struct sfxge_evq;
 
+extern void sfxge_tx_update_stats(struct sfxge_softc *sc);
 
 extern int sfxge_tx_init(struct sfxge_softc *sc);
 extern void sfxge_tx_fini(struct sfxge_softc *sc);

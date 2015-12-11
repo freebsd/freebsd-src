@@ -87,6 +87,41 @@ out:
 	return (rc);
 }
 
+void
+sfxge_port_update_stats(struct sfxge_softc *sc)
+{
+	struct ifnet *ifp;
+	uint64_t *mac_stats;
+
+	SFXGE_PORT_LOCK(&sc->port);
+
+	/* Ignore error and use old values */
+	(void)sfxge_mac_stat_update(sc);
+
+	ifp = sc->ifnet;
+	mac_stats = (uint64_t *)sc->port.mac_stats.decode_buf;
+
+	ifp->if_ipackets = mac_stats[EFX_MAC_RX_PKTS];
+	ifp->if_ierrors = mac_stats[EFX_MAC_RX_ERRORS];
+	ifp->if_opackets = mac_stats[EFX_MAC_TX_PKTS];
+	ifp->if_oerrors = mac_stats[EFX_MAC_TX_ERRORS];
+	ifp->if_collisions =
+	    mac_stats[EFX_MAC_TX_SGL_COL_PKTS] +
+	    mac_stats[EFX_MAC_TX_MULT_COL_PKTS] +
+	    mac_stats[EFX_MAC_TX_EX_COL_PKTS] +
+	    mac_stats[EFX_MAC_TX_LATE_COL_PKTS];
+	ifp->if_ibytes = mac_stats[EFX_MAC_RX_OCTETS];
+	ifp->if_obytes = mac_stats[EFX_MAC_TX_OCTETS];
+	/* if_imcasts is maintained in net/if_ethersubr.c */
+	ifp->if_omcasts =
+	    mac_stats[EFX_MAC_TX_MULTICST_PKTS] +
+	    mac_stats[EFX_MAC_TX_BRDCST_PKTS];
+	/* if_iqdrops is maintained in net/if_ethersubr.c */
+	/* if_noproto is maintained in net/if_ethersubr.c */
+
+	SFXGE_PORT_UNLOCK(&sc->port);
+}
+
 static int
 sfxge_mac_stat_handler(SYSCTL_HANDLER_ARGS)
 {
