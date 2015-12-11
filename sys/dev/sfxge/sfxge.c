@@ -69,10 +69,10 @@ __FBSDID("$FreeBSD$");
 		   IFCAP_RXCSUM_IPV6 | IFCAP_TXCSUM_IPV6 |		\
 		   IFCAP_TSO4 | IFCAP_TSO6 |				\
 		   IFCAP_JUMBO_MTU |					\
-		   IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE)
+		   IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWSTATS)
 #define	SFXGE_CAP_ENABLE SFXGE_CAP
 #define	SFXGE_CAP_FIXED (IFCAP_VLAN_MTU |				\
-			 IFCAP_JUMBO_MTU | IFCAP_LINKSTATE)
+			 IFCAP_JUMBO_MTU | IFCAP_LINKSTATE | IFCAP_HWSTATS)
 
 MALLOC_DEFINE(M_SFXGE, "sfxge", "Solarflare 10GigE driver");
 
@@ -93,6 +93,14 @@ TUNABLE_INT(SFXGE_PARAM_TX_RING, &sfxge_tx_ring_entries);
 SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_ring, CTLFLAG_RDTUN,
 	   &sfxge_tx_ring_entries, 0,
 	   "Maximum number of descriptors in a transmit ring");
+
+#define	SFXGE_PARAM_STATS_UPDATE_PERIOD	SFXGE_PARAM(stats_update_period)
+static int sfxge_stats_update_period = SFXGE_CALLOUT_TICKS;
+TUNABLE_INT(SFXGE_PARAM_STATS_UPDATE_PERIOD,
+	    &sfxge_stats_update_period);
+SYSCTL_INT(_hw_sfxge, OID_AUTO, stats_update_period, CTLFLAG_RDTUN,
+	   &sfxge_stats_update_period, 0,
+	   "netstat interface statistics update period in ticks");
 
 static void
 sfxge_reset(void *arg, int npending);
@@ -506,9 +514,23 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 }
 
 static void
+sfxge_tick(void *arg)
+{
+	struct sfxge_softc *sc = arg;
+
+	sfxge_port_update_stats(sc);
+	sfxge_tx_update_stats(sc);
+
+	callout_reset(&sc->tick_callout, sfxge_stats_update_period,
+		      sfxge_tick, sc);
+}
+
+static void
 sfxge_ifnet_fini(struct ifnet *ifp)
 {
 	struct sfxge_softc *sc = ifp->if_softc;
+
+	callout_drain(&sc->tick_callout);
 
 	SFXGE_ADAPTER_LOCK(sc);
 	sfxge_stop(sc);
@@ -555,9 +577,14 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 	ifp->if_transmit = sfxge_if_transmit;
 	ifp->if_qflush = sfxge_if_qflush;
 
+	callout_init(&sc->tick_callout, B_TRUE);
+
 	DBGPRINT(sc->dev, "ifmedia_init");
 	if ((rc = sfxge_port_ifmedia_init(sc)) != 0)
 		goto fail;
+
+	callout_reset(&sc->tick_callout, sfxge_stats_update_period,
+		      sfxge_tick, sc);
 
 	return (0);
 

@@ -121,6 +121,8 @@ enum sfxge_evq_state {
 
 #define	SFXGE_EV_BATCH	16384
 
+#define	SFXGE_CALLOUT_TICKS 100
+
 struct sfxge_evq {
 	/* Structure members below are sorted by usage order */
 	struct sfxge_softc	*sc;
@@ -274,6 +276,8 @@ struct sfxge_softc {
 	size_t				rx_buffer_align;
 	uma_zone_t			rx_buffer_zone;
 
+	struct callout			tick_callout;
+
 	unsigned int			evq_max;
 	unsigned int			evq_count;
 	unsigned int			rxq_count;
@@ -349,6 +353,7 @@ extern void sfxge_mac_link_update(struct sfxge_softc *sc,
 				  efx_link_mode_t mode);
 extern int sfxge_mac_filter_set(struct sfxge_softc *sc);
 extern int sfxge_port_ifmedia_init(struct sfxge_softc *sc);
+extern void sfxge_port_update_stats(struct sfxge_softc *sc);
 
 #define	SFXGE_MAX_MTU (9 * 1024)
 
