@@ -139,3 +139,4 @@ static driver_t fdc_pccard_driver = {
 };
 
 DRIVER_MODULE(fdc, pccard, fdc_pccard_driver, fdc_devclass, 0, 0);
+PCCARD_PNP_INFO(fdc_pccard_products);

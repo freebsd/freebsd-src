@@ -233,6 +233,7 @@ static devclass_t nsp_devclass;
 
 MODULE_DEPEND(nsp, scsi_low, 1, 1, 1);
 DRIVER_MODULE(nsp, pccard, nsp_pccard_driver, nsp_devclass, 0, 0);
+PCCARD_PNP_INFO(nsp_pccard_products);
 
 static void
 nsp_card_unload(device_t devi)

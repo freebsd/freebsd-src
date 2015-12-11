@@ -85,6 +85,16 @@ struct pccard_product {
 	const char	*pp_cis[4];
 };
 
+/**
+ * Note: There's no cis3 or cis4 reported for NOMATCH / pnpinfo events for pccard
+ * It's unclear if we actually need that for automatic loading or not. These stirngs
+ * are informative, according to the standard, but I have a dim memory of using these
+ * strings to match things, though I can't find the example right now.
+ */
+#define PCCARD_PNP_DESCR "D:human;V32:manufacturer;V32:product;Z:cisvendor;Z:cisproduct;"
+#define PCCARD_PNP_INFO(t) \
+	MODULE_PNP_INFO(PCCARD_PNP_DESCR, pccard, t, t, sizeof(t[0]), sizeof(t) / sizeof(t[0])); \
+
 typedef int (*pccard_product_match_fn) (device_t dev,
     const struct pccard_product *ent, int vpfmatch);
 

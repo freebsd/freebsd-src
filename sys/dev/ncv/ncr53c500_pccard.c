@@ -293,6 +293,7 @@ static devclass_t ncv_devclass;
 
 MODULE_DEPEND(ncv, scsi_low, 1, 1, 1);
 DRIVER_MODULE(ncv, pccard, ncv_pccard_driver, ncv_devclass, 0, 0);
+PCCARD_PNP_INFO(ncv_pccard_products);
 
 static void
 ncv_card_unload(device_t devi)
