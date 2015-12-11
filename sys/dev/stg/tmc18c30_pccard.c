@@ -136,4 +136,4 @@ static driver_t stg_pccard_driver = {
 
 DRIVER_MODULE(stg, pccard, stg_pccard_driver, stg_devclass, 0, 0);
 MODULE_DEPEND(stg, scsi_low, 1, 1, 1);
-PCCARD_PNP_INFO(stg_pccard_products);
+PCCARD_PNP_INFO(stg_products);
