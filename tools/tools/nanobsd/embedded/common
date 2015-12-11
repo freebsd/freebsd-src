@@ -362,7 +362,7 @@ create_diskimage_mbr ( ) (
 		# boot image is on a special partition, ala std-embedded, but that
 		# partition isn't FAT with special files, but a copy of the boot
 		# loader itself.
-		mkimg -a 1 ${fmtarg} -s mbr -p ppcboot:=${NANO_OBJ}/_.s1 \
+		mkimg -a 1 ${fmtarg} -s mbr -p prepboot:=${NANO_OBJ}/_.s1 \
 			-p ${s2}:=${NANO_OBJ}/_.s2 \
 			-p ${s3}:=${NANO_OBJ}/_.s3a \
 			-o ${NANO_OBJ}/_.disk.image.${NANO_NAME}${fmt}
