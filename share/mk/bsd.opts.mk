@@ -129,6 +129,8 @@ MK_${var}:=no
 MK_STALE_STAGED= no
 .endif
 
+.include <bsd.cpu.mk>
+
 .endif # !_WITHOUT_SRCCONF
 
 .endif
