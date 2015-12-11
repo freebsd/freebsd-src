@@ -296,7 +296,7 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	 *	relatively small number, such as 64K. arg2 is the
 	 *	physical address of the argv vector.
 	 *  -   ePAPR loaders pass an FDT blob in r3 (arg1) and the magic hex
-	 *      string 0x45504150 ('ePAP') in r6 (which has been lost by now).
+	 *      string 0x45504150 ('EPAP') in r6 (which has been lost by now).
 	 *      r4 (arg2) is supposed to be set to zero, but is not always.
 	 */
 	
@@ -313,9 +313,6 @@ booke_init(uint32_t arg1, uint32_t arg2)
 		mdp = (void *)arg1;
 	else					/* U-Boot */
 		mdp = NULL;
-
-	/* Reset TLB1 to get rid of temporary mappings */
-	tlb1_init();
 
 	ret = powerpc_init(dtbp, 0, 0, mdp);
 
