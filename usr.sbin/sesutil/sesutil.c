@@ -172,7 +172,7 @@ sesled(int argc, char **argv, bool setfault)
 	sesid = strtoul(disk, &endptr, 10);
 	if (*endptr == '\0') {
 		endptr = strrchr(uflag, '*');
-		if (*endptr == '*') {
+		if (endptr != NULL && *endptr == '*') {
 			warnx("Must specifying a SES device (-u) to use a SES "
 			    "id# to identify a disk");
 			usage(stderr, (setfault ? "fault" : "locate"));
