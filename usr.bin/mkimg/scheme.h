@@ -47,6 +47,7 @@ enum alias {
 	ALIAS_FREEBSD_ZFS,
 	ALIAS_MBR,
 	ALIAS_NTFS,
+	ALIAS_PPCBOOT,
 	/* end */
 	ALIAS_COUNT		/* Keep last! */
 };
