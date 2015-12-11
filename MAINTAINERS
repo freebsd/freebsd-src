@@ -37,6 +37,8 @@ contrib/llvm/tools/lldb	emaste	Pre-commit review preferred.
 contrib/netbsd-tests	freebsd-testing,ngie	Pre-commit review requested.
 contrib/pjdfstest	freebsd-testing,ngie,pjd	Pre-commit review requested.
 dev/usb/wlan	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+etc/mail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
+etc/sendmail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
 fetch		des	Pre-commit review requested.
 isci(4)		jimharris	Pre-commit review requested.
 iwm(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
@@ -63,6 +65,7 @@ pseudofs	des	Pre-commit review requested.
 release/release.sh	gjb,re	Pre-commit review and regression tests
 				requested.
 sctp		rrs,tuexen	Pre-commit review requested (changes need to be backported to github).
+sendmail	gshapiro	Pre-commit review requested.
 sh(1)		jilles		Pre-commit review requested. This also applies
 				to kill(1), printf(1) and test(1) which are
 				compiled in as builtins.
@@ -104,11 +107,6 @@ cd(4)		ken	Pre-commit review requested.
 pass(4)		ken	Pre-commit review requested.
 ch(4)		ken	Pre-commit review requested.
 em(4)		jfv	Pre-commit review requested.
-sendmail	gshapiro	Pre-commit review requested.
-etc/mail	gshapiro	Pre-commit review requested.
-				Keep in sync with -STABLE.
-etc/sendmail	gshapiro	Pre-commit review requested.
-				Keep in sync with -STABLE.
 nvi		peter	Try not to break it.
 libz		peter	Try not to break it.
 groff		ru	Recommends pre-commit review.
