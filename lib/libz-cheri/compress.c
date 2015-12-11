@@ -29,7 +29,7 @@ int ZEXPORT compress2 (dest, destLen, source, sourceLen, level)
     z_stream stream;
     int err;
 
-    stream.next_in = cheri_setlen((__capability Bytef *)source, sourceLen);
+    stream.next_in = cheri_csetbounds((__capability Bytef *)source, sourceLen);
     stream.avail_in = (uInt)sourceLen;
 #ifdef MAXSEG_64K
     /* Check for source > 64K on 16-bit machine: */

@@ -294,7 +294,7 @@ png_create_info_struct(png_structp png_ptr __unused)
 
 	v = sb_cinvoke(psp->objectp, LIBPNG_SB_HELPER_OP_CREATE_INFO_STRUCT,
 	    0, 0, 0, 0, 0, 0, 0,
-	    cheri_setlen((__capability void *)&pip->info_cap, sizeof(__capability void *)),
+	    cheri_csetbounds((__capability void *)&pip->info_cap, sizeof(__capability void *)),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (v != 0) {
 		warnx("%s: sb_cinvoke() returned %jx", __func__, (uintmax_t)v);

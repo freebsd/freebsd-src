@@ -122,7 +122,7 @@ sb_read_fn(png_structp png_ptr, png_bytep data, png_size_t length)
 	    cheri_getlen(data), length);
 #endif
 
-	libpng_sb_read_callback(io_ptr, cheri_setlen(data, length), length);
+	libpng_sb_read_callback(io_ptr, cheri_csetbounds(data, length), length);
 }
 
 static void

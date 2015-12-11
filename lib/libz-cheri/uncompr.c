@@ -30,12 +30,12 @@ int ZEXPORT uncompress (dest, destLen, source, sourceLen)
     z_stream stream;
     int err;
 
-    stream.next_in = cheri_setlen((__capability void *)source, sourceLen);
+    stream.next_in = cheri_csetbounds((__capability void *)source, sourceLen);
     stream.avail_in = (uInt)sourceLen;
     /* Check for source > 64K on 16-bit machine: */
     if ((uLong)stream.avail_in != sourceLen) return Z_BUF_ERROR;
 
-    stream.next_out = cheri_setlen((__capability void *)dest, *destLen);
+    stream.next_out = cheri_csetbounds((__capability void *)dest, *destLen);
     stream.avail_out = (uInt)*destLen;
     if ((uLong)stream.avail_out != *destLen) return Z_BUF_ERROR;
 
