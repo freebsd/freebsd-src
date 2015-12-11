@@ -26,4 +26,4 @@ opt_inet6.h:
 
 .include <bsd.kmod.mk>
 
-CFLAGS+= -Wno-cast-qual -Wno-pointer-arith ${GCC_MS_EXTENSIONS}
+CFLAGS+= ${GCC_MS_EXTENSIONS}

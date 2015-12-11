@@ -59,8 +59,6 @@
 #include "mlx4_stats.h"
 
 #define DRV_NAME	"mlx4_en"
-#define DRV_VERSION	"2.1"
-#define DRV_RELDATE	__DATE__
 
 #define MLX4_EN_MSG_LEVEL	(NETIF_MSG_LINK | NETIF_MSG_IFDOWN)
 
@@ -95,10 +93,6 @@
 #define VLAN_MIN_VALUE		1
 #define VLAN_MAX_VALUE		4094
 
-/* Typical TSO descriptor with 16 gather entries is 352 bytes... */
-#define MAX_DESC_SIZE		512
-#define MAX_DESC_TXBBS		(MAX_DESC_SIZE / TXBB_SIZE)
-
 /*
  * OS related constants and tunables
  */
@@ -112,26 +106,6 @@ enum mlx4_en_alloc_type {
 	MLX4_EN_ALLOC_NEW = 0,
 	MLX4_EN_ALLOC_REPLACEMENT = 1,
 };
-
-/* Receive fragment sizes; we use at most 3 fragments (for 9600 byte MTU
- * and 4K allocations) */
-#if MJUMPAGESIZE == 4096
-enum {
-	FRAG_SZ0 = MCLBYTES,
-	FRAG_SZ1 = MJUMPAGESIZE,
-	FRAG_SZ2 = MJUMPAGESIZE,
-};
-#define MLX4_EN_MAX_RX_FRAGS	3
-#elif MJUMPAGESIZE == 8192
-enum {
-	FRAG_SZ0 = MCLBYTES,
-	FRAG_SZ1 = MJUMPAGESIZE,
-};
-#define MLX4_EN_MAX_RX_FRAGS	2
-#elif MJUMPAGESIZE == 8192
-#else
-#error	"Unknown PAGE_SIZE"
-#endif
 
 /* Maximum ring sizes */
 #define MLX4_EN_DEF_TX_QUEUE_SIZE       4096
@@ -154,7 +128,7 @@ enum {
 #define MLX4_EN_NUM_UP			1
 
 #define MAX_TX_RINGS			(MLX4_EN_MAX_TX_RING_P_UP * \
-					 MLX4_EN_NUM_UP)
+					MLX4_EN_NUM_UP)
 
 #define MLX4_EN_DEF_TX_RING_SIZE	1024
 #define MLX4_EN_DEF_RX_RING_SIZE  	1024
@@ -235,16 +209,10 @@ enum cq_type {
 #define ILLEGAL_MAC(addr)	(addr == 0xffffffffffffULL || addr == 0x0)
 
 struct mlx4_en_tx_info {
+	bus_dmamap_t dma_map;
         struct mbuf *mb;
         u32 nr_txbb;
 	u32 nr_bytes;
-        u8 linear;
-        u8 nr_segs;
-        u8 data_offset;
-        u8 inl;
-#if 0
-	u8 ts_requested;
-#endif
 };
 
 
@@ -265,14 +233,22 @@ struct mlx4_en_tx_desc {
 
 #define MLX4_EN_USE_SRQ		0x01000000
 
-#define MLX4_EN_TX_BUDGET 64*4 //Compensate for no NAPI in freeBSD - might need some fine tunning in the future.
 #define MLX4_EN_RX_BUDGET 64
+
+#define	MLX4_EN_TX_MAX_DESC_SIZE 512	/* bytes */
+#define	MLX4_EN_TX_MAX_MBUF_SIZE 65536	/* bytes */
+#define	MLX4_EN_TX_MAX_PAYLOAD_SIZE 65536	/* bytes */
+#define	MLX4_EN_TX_MAX_MBUF_FRAGS \
+    ((MLX4_EN_TX_MAX_DESC_SIZE - 128) / DS_SIZE_ALIGNMENT) /* units */
+#define	MLX4_EN_TX_WQE_MAX_WQEBBS			\
+    (MLX4_EN_TX_MAX_DESC_SIZE / TXBB_SIZE) /* units */
 
 #define MLX4_EN_CX3_LOW_ID	0x1000
 #define MLX4_EN_CX3_HIGH_ID	0x1005
 
 struct mlx4_en_tx_ring {
         spinlock_t tx_lock;
+	bus_dma_tag_t dma_tag;
 	struct mlx4_hwq_resources wqres;
 	u32 size ; /* number of TXBBs */
 	u32 size_mask;
@@ -282,11 +258,10 @@ struct mlx4_en_tx_ring {
 	u32 cons;
 	u32 buf_size;
 	u32 doorbell_qpn;
-	void *buf;
+	u8 *buf;
 	u16 poll_cnt;
 	int blocked;
 	struct mlx4_en_tx_info *tx_info;
-	u8 *bounce_buf;
 	u8 queue_index;
 	cpuset_t affinity_mask;
 	struct buf_ring *br;
@@ -300,13 +275,12 @@ struct mlx4_en_tx_ring {
 	unsigned long packets;
 	unsigned long tx_csum;
 	unsigned long queue_stopped;
+	unsigned long oversized_packets;
 	unsigned long wake_queue;
 	struct mlx4_bf bf;
 	bool bf_enabled;
-	struct netdev_queue *tx_queue;
 	int hwtstamp_tx_type;
 	spinlock_t comp_lock;
-	int full_size;
 	int inline_thold;
 	u64 watchdog_time;
 };
@@ -316,14 +290,21 @@ struct mlx4_en_rx_desc {
 	struct mlx4_wqe_data_seg data[0];
 };
 
-struct mlx4_en_rx_buf {
-	dma_addr_t dma;
-	struct page *page;
-	unsigned int page_offset;
+struct mlx4_en_rx_mbuf {
+	bus_dmamap_t dma_map;
+	struct mbuf *mbuf;
+};
+
+struct mlx4_en_rx_spare {
+	bus_dmamap_t dma_map;
+	struct mbuf *mbuf;
+	u64 paddr_be;
 };
 
 struct mlx4_en_rx_ring {
 	struct mlx4_hwq_resources wqres;
+	bus_dma_tag_t dma_tag;
+	struct mlx4_en_rx_spare spare;
 	u32 size ;	/* number of Rx descs*/
 	u32 actual_size;
 	u32 size_mask;
@@ -339,8 +320,8 @@ struct mlx4_en_rx_ring {
 	u32 rx_buf_size;
 	u32 rx_mb_size;
 	int qpn;
-	void *buf;
-	void *rx_info;
+	u8 *buf;
+	struct mlx4_en_rx_mbuf *mbuf;
 	unsigned long errors;
 	unsigned long bytes;
 	unsigned long packets;
@@ -400,6 +381,7 @@ struct mlx4_en_cq {
 #define MLX4_EN_OPCODE_ERROR	0x1e
 	u32 tot_rx;
 	u32 tot_tx;
+	u32 curr_poll_rx_cpu_id;
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned int state;
@@ -524,12 +506,6 @@ struct en_port {
 	u8			vport_num;
 };
 
-struct mlx4_en_frag_info {
-        u16 frag_size;
-        u16 frag_prefix_size;
-};
-
-
 struct mlx4_en_priv {
 	struct mlx4_en_dev *mdev;
 	struct mlx4_en_port_profile *prof;
@@ -575,18 +551,14 @@ struct mlx4_en_priv {
 	int cqe_factor;
 
 	struct mlx4_en_rss_map rss_map;
-	__be32 ctrl_flags;
 	u32 flags;
 	u8 num_tx_rings_p_up;
 	u32 tx_ring_num;
 	u32 rx_ring_num;
 	u32 rx_mb_size;
-        struct mlx4_en_frag_info frag_info[MLX4_EN_MAX_RX_FRAGS];
 	u16 rx_alloc_order;
 	u32 rx_alloc_size;
 	u32 rx_buf_size;
-        u16 num_frags;
-	u16 log_rx_info;
 
 	struct mlx4_en_tx_ring **tx_ring;
 	struct mlx4_en_rx_ring *rx_ring[MAX_RX_RINGS];
@@ -640,7 +612,6 @@ struct mlx4_en_priv {
 	unsigned long last_ifq_jiffies;
 	u64 if_counters_rx_errors;
 	u64 if_counters_rx_no_buffer;
-
 };
 
 enum mlx4_en_wol {

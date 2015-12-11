@@ -42,14 +42,7 @@
 
 #include "mlx4_en.h"
 
-MODULE_AUTHOR("Liran Liss, Yevgeny Petrilin");
-MODULE_DESCRIPTION("Mellanox ConnectX HCA Ethernet driver");
-MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION " ("DRV_RELDATE")");
-
-static const char mlx4_en_version[] =
-	DRV_NAME ": Mellanox ConnectX HCA Ethernet driver v"
-	DRV_VERSION " (" DRV_RELDATE ")\n";
+/* Mellanox ConnectX HCA Ethernet driver */
 
 #define MLX4_EN_PARM_INT(X, def_val, desc) \
 	static unsigned int X = def_val;\
@@ -173,8 +166,6 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	struct mlx4_en_dev *mdev;
 	int i;
 	int err;
-
-	printk_once(KERN_INFO "%s", mlx4_en_version);
 
 	mdev = kzalloc(sizeof *mdev, GFP_KERNEL);
 	if (!mdev) {

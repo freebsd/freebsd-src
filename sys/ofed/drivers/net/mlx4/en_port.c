@@ -194,6 +194,7 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 		priv->port_stats.tx_chksum_offload += priv->tx_ring[i]->tx_csum;
 		priv->port_stats.queue_stopped += priv->tx_ring[i]->queue_stopped;
 		priv->port_stats.wake_queue += priv->tx_ring[i]->wake_queue;
+		priv->port_stats.oversized_packets += priv->tx_ring[i]->oversized_packets;
 	}
 	/* RX Statistics */
 	priv->pkstats.rx_packets = be64_to_cpu(mlx4_en_stats->RTOT_prio_0) +
