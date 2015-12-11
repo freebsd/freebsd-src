@@ -37,10 +37,14 @@
 #include "ixl.h"
 #include "ixlv.h"
 
+#ifdef RSS
+#include <net/rss_config.h>
+#endif
+
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixlv_driver_version[] = "1.1.18";
+char ixlv_driver_version[] = "1.2.1";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -1161,7 +1165,11 @@ ixlv_init_msix(struct ixlv_sc *sc)
 	/* Override with hardcoded value if sane */
 	if ((ixlv_max_queues != 0) && (ixlv_max_queues <= queues)) 
 		queues = ixlv_max_queues;
-
+#ifdef  RSS
+	/* If we're doing RSS, clamp at the number of RSS buckets */
+	if (queues > rss_getnumbuckets())
+		queues = rss_getnumbuckets();
+#endif
 	/* Enforce the VF max value */
 	if (queues > IXLV_MAX_QUEUES)
 		queues = IXLV_MAX_QUEUES;
@@ -1180,6 +1188,26 @@ ixlv_init_msix(struct ixlv_sc *sc)
 		    available, want);
 		goto fail;
 	}
+
+#ifdef RSS
+	/*
+	* If we're doing RSS, the number of queues needs to
+	* match the number of RSS buckets that are configured.
+	*
+	* + If there's more queues than RSS buckets, we'll end
+	*   up with queues that get no traffic.
+	*
+	* + If there's more RSS buckets than queues, we'll end
+	*   up having multiple RSS buckets map to the same queue,
+	*   so there'll be some contention.
+	*/
+	if (queues != rss_getnumbuckets()) {
+		device_printf(dev,
+		    "%s: queues (%d) != RSS buckets (%d)"
+		    "; performance will be impacted.\n",
+		     __func__, queues, rss_getnumbuckets());
+	}
+#endif
 
 	if (pci_alloc_msix(dev, &vectors) == 0) {
 		device_printf(sc->dev,
@@ -1352,6 +1380,7 @@ ixlv_assign_msix(struct ixlv_sc *sc)
 	int 		error, rid, vector = 1;
 
 	for (int i = 0; i < vsi->num_queues; i++, vector++, que++) {
+		int cpu_id = i;
 		rid = vector + 1;
 		txr = &que->txr;
 		que->res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
@@ -1372,15 +1401,25 @@ ixlv_assign_msix(struct ixlv_sc *sc)
 		}
 		bus_describe_intr(dev, que->res, que->tag, "que %d", i);
 		/* Bind the vector to a CPU */
-		bus_bind_intr(dev, que->res, i);
+#ifdef RSS
+		cpu_id = rss_getcpu(i % rss_getnumbuckets());
+#endif
+		bus_bind_intr(dev, que->res, cpu_id);
 		que->msix = vector;
         	vsi->que_mask |= (u64)(1 << que->msix);
 		TASK_INIT(&que->tx_task, 0, ixl_deferred_mq_start, que);
 		TASK_INIT(&que->task, 0, ixlv_handle_que, que);
 		que->tq = taskqueue_create_fast("ixlv_que", M_NOWAIT,
 		    taskqueue_thread_enqueue, &que->tq);
-		taskqueue_start_threads(&que->tq, 1, PI_NET, "%s que",
-		    device_get_nameunit(sc->dev));
+#ifdef RSS
+		taskqueue_start_threads_pinned(&que->tq, 1, PI_NET,
+		    cpu_id, "%s (bucket %d)",
+		    device_get_nameunit(dev), cpu_id);
+#else
+                taskqueue_start_threads(&que->tq, 1, PI_NET,
+                    "%s que", device_get_nameunit(dev));
+#endif
+
 	}
 
 	return (0);
@@ -2521,16 +2560,18 @@ ixlv_config_rss(struct ixlv_sc *sc)
 	struct i40e_hw	*hw = &sc->hw;
 	struct ixl_vsi	*vsi = &sc->vsi;
 	u32		lut = 0;
-	u64		set_hena, hena;
-	int		i, j;
-
-	/* set up random bits */
-	static const u32 seed[I40E_VFQF_HKEY_MAX_INDEX + 1] = {
-	    0x794221b4, 0xbca0c5ab, 0x6cd5ebd9, 0x1ada6127,
-	    0x983b3aa1, 0x1c4e71eb, 0x7f6328b2, 0xfcdc0da0,
-	    0xc135cafa, 0x7a6f7e2d, 0xe7102d28, 0x163cd12e,
-	    0x4954b126 };
-
+	u64		set_hena = 0, hena;
+	int		i, j, que_id;
+#ifdef RSS
+	u32		rss_hash_config;
+	u32		rss_seed[IXL_KEYSZ];
+#else
+	u32		rss_seed[IXL_KEYSZ] = {0x41b01687,
+			    0x183cfd8c, 0xce880440, 0x580cbc3c,
+			    0x35897377, 0x328b25e1, 0x4fa98922,
+			    0xb7d90c14, 0xd5bad70d, 0xcd15a2c1};
+#endif
+        
 	/* Don't set up RSS if using a single queue */
 	if (vsi->num_queues == 1) {
 		wr32(hw, I40E_VFQF_HENA(0), 0);
@@ -2539,11 +2580,32 @@ ixlv_config_rss(struct ixlv_sc *sc)
 		return;
 	}
 
+#ifdef RSS
+	/* Fetch the configured RSS key */
+	rss_getkey((uint8_t *) &rss_seed);
+#endif
 	/* Fill out hash function seed */
-	for (i = 0; i <= I40E_VFQF_HKEY_MAX_INDEX; i++)
-                wr32(hw, I40E_VFQF_HKEY(i), seed[i]);
+	for (i = 0; i <= IXL_KEYSZ; i++)
+                wr32(hw, I40E_VFQF_HKEY(i), rss_seed[i]);
 
 	/* Enable PCTYPES for RSS: */
+#ifdef RSS
+	rss_hash_config = rss_gethashconfig();
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV4)
+                set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_OTHER);
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV4)
+                set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4)
+                set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP);
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6)
+                set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER);
+        if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6_EX)
+		set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6);
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6)
+                set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
+        if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6)
+                set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP);
+#else
 	set_hena =
 		((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
 		((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP) |
@@ -2556,7 +2618,7 @@ ixlv_config_rss(struct ixlv_sc *sc)
 		((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER) |
 		((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6) |
 		((u64)1 << I40E_FILTER_PCTYPE_L2_PAYLOAD);
-
+#endif
 	hena = (u64)rd32(hw, I40E_VFQF_HENA(0)) |
 	    ((u64)rd32(hw, I40E_VFQF_HENA(1)) << 32);
 	hena |= set_hena;
@@ -2564,16 +2626,26 @@ ixlv_config_rss(struct ixlv_sc *sc)
 	wr32(hw, I40E_VFQF_HENA(1), (u32)(hena >> 32));
 
 	/* Populate the LUT with max no. of queues in round robin fashion */
-	for (i = 0, j = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; j++) {
+	for (i = 0, j = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++, j++) {
                 if (j == vsi->num_queues)
                         j = 0;
+#ifdef RSS
+		/*
+		 * Fetch the RSS bucket id for the given indirection entry.
+		 * Cap it at the number of configured buckets (which is
+		 * num_queues.)
+		 */
+		que_id = rss_get_indirection_to_bucket(i);
+		que_id = que_id % vsi->num_queues;
+#else
+		que_id = j;
+#endif
                 /* lut = 4-byte sliding window of 4 lut entries */
-                lut = (lut << 8) | (j & 0xF);
+                lut = (lut << 8) | (que_id & 0xF);
                 /* On i = 3, we have 4 entries in lut; write to the register */
-                if ((j & 3) == 3) {
+                if ((i & 3) == 3) {
                         wr32(hw, I40E_VFQF_HLUT(i), lut);
 			DDPRINTF(sc->dev, "HLUT(%2d): %#010x", i, lut);
-			i++;
 		}
         }
 	ixl_flush(hw);
