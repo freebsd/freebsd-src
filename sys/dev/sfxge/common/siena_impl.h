@@ -121,16 +121,16 @@ siena_mcdi_request_copyin(
 	__in		boolean_t ev_cpl,
 	__in		boolean_t new_epoch);
 
+extern	__checkReturn	boolean_t
+siena_mcdi_poll_response(
+	__in		efx_nic_t *enp);
+
 extern			void
 siena_mcdi_read_response(
 	__in		efx_nic_t *enp,
 	__out		void *bufferp,
 	__in		size_t offset,
 	__in		size_t length);
-
-extern	__checkReturn	boolean_t
-siena_mcdi_request_poll(
-	__in		efx_nic_t *enp);
 
 extern			void
 siena_mcdi_request_copyout(
