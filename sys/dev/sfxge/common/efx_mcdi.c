@@ -176,6 +176,51 @@ efx_mcdi_new_epoch(
 	EFSYS_UNLOCK(enp->en_eslp, state);
 }
 
+static			void
+efx_mcdi_request_copyin(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp,
+	__in		unsigned int seq,
+	__in		boolean_t ev_cpl,
+	__in		boolean_t new_epoch)
+{
+	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+
+	emcop->emco_request_copyin(enp, emrp, seq, ev_cpl, new_epoch);
+}
+
+static			void	__unused
+efx_mcdi_request_copyout(
+	__in		efx_nic_t *enp,
+	__in		efx_mcdi_req_t *emrp)
+{
+	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+
+	emcop->emco_request_copyout(enp, emrp);
+}
+
+static			efx_rc_t
+efx_mcdi_poll_reboot(
+	__in		efx_nic_t *enp)
+{
+	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+	efx_rc_t rc;
+
+	rc = emcop->emco_poll_reboot(enp);
+	return (rc);
+}
+
+static			void
+efx_mcdi_read_response(
+	__in		efx_nic_t *enp,
+	__out		void *bufferp,
+	__in		size_t offset,
+	__in		size_t length)
+{
+	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
+
+	emcop->emco_read_response(enp, bufferp, offset, length);
+}
 
 			void
 efx_mcdi_request_start(
@@ -184,7 +229,6 @@ efx_mcdi_request_start(
 	__in		boolean_t ev_cpl)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	unsigned int seq;
 	boolean_t new_epoch;
 	int state;
@@ -192,9 +236,6 @@ efx_mcdi_request_start(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_MCDI);
 	EFSYS_ASSERT3U(enp->en_features, &, EFX_FEATURE_MCDI);
-
-	if (emcop == NULL || emcop->emco_request_copyin == NULL)
-		return;
 
 	/*
 	 * efx_mcdi_request_start() is naturally serialised against both
@@ -217,7 +258,7 @@ efx_mcdi_request_start(
 	new_epoch = emip->emi_new_epoch;
 	EFSYS_UNLOCK(enp->en_eslp, state);
 
-	emcop->emco_request_copyin(enp, emrp, seq, ev_cpl, new_epoch);
+	efx_mcdi_request_copyin(enp, emrp, seq, ev_cpl, new_epoch);
 }
 
 
@@ -230,7 +271,6 @@ efx_mcdi_read_response_header(
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
 #endif /* EFSYS_OPT_MCDI_LOGGING */
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
 	efx_dword_t hdr[2];
 	unsigned int hdr_len;
 	unsigned int data_len;
@@ -241,7 +281,7 @@ efx_mcdi_read_response_header(
 
 	EFSYS_ASSERT(emrp != NULL);
 
-	emcop->emco_read_response(enp, &hdr[0], 0, sizeof (hdr[0]));
+	efx_mcdi_read_response(enp, &hdr[0], 0, sizeof (hdr[0]));
 	hdr_len = sizeof (hdr[0]);
 
 	cmd = EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE);
@@ -251,8 +291,7 @@ efx_mcdi_read_response_header(
 	if (cmd != MC_CMD_V2_EXTN) {
 		data_len = EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_DATALEN);
 	} else {
-		emcop->emco_read_response(enp, &hdr[1], hdr_len,
-		    sizeof (hdr[1]));
+		efx_mcdi_read_response(enp, &hdr[1], hdr_len, sizeof (hdr[1]));
 		hdr_len += sizeof (hdr[1]);
 
 		cmd = EFX_DWORD_FIELD(hdr[1], MC_CMD_V2_EXTN_IN_EXTENDED_CMD);
@@ -263,7 +302,7 @@ efx_mcdi_read_response_header(
 	if (error && (data_len == 0)) {
 		/* The MC has rebooted since the request was sent. */
 		EFSYS_SPIN(EFX_MCDI_STATUS_SLEEP_US);
-		emcop->emco_poll_reboot(enp);
+		efx_mcdi_poll_reboot(enp);
 		rc = EIO;
 		goto fail1;
 	}
@@ -280,7 +319,7 @@ efx_mcdi_read_response_header(
 		int err_arg = 0;
 
 		/* Read error code (and arg num for MCDI v2 commands) */
-		emcop->emco_read_response(enp, &err, hdr_len, err_len);
+		efx_mcdi_read_response(enp, &err, hdr_len, err_len);
 
 		if (err_len >= (MC_CMD_ERR_CODE_OFST + sizeof (efx_dword_t)))
 			err_code = EFX_DWORD_FIELD(err[0], EFX_DWORD_0);
@@ -504,16 +543,6 @@ efx_mcdi_raise_exception(
 
 	emtp->emt_exception(emtp->emt_context, exception);
 }
-
-static			efx_rc_t
-efx_mcdi_poll_reboot(
-	__in		efx_nic_t *enp)
-{
-	efx_mcdi_ops_t *emcop = enp->en_mcdi.em_emcop;
-
-	return (emcop->emco_poll_reboot(enp));
-}
-
 
 			void
 efx_mcdi_execute(
