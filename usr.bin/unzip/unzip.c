@@ -439,7 +439,7 @@ handle_existing_file(char **path)
 			(void)unlink(*path);
 			return 1;
 		case 'N':
-			n_opt = 1;			
+			n_opt = 1;
 			/* FALLTHROUGH */
 		case 'n':
 			return -1;
@@ -855,7 +855,6 @@ test(struct archive *a, struct archive_entry *e)
 	return error_count;
 }
 
-
 /*
  * Main loop: open the zipfile, iterate over its contents and decide what
  * to do with each entry.
@@ -1040,7 +1039,7 @@ main(int argc, char *argv[])
 	 */
 	nopts = getopts(argc, argv);
 
-	/* 
+	/*
 	 * When more of the zipinfo mode options are implemented, this
 	 * will need to change.
 	 */
