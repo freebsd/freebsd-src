@@ -249,6 +249,7 @@ MODULE_DEPEND(rsu, wlan, 1, 1, 1);
 MODULE_DEPEND(rsu, usb, 1, 1, 1);
 MODULE_DEPEND(rsu, firmware, 1, 1, 1);
 MODULE_VERSION(rsu, 1);
+USB_PNP_HOST_INFO(rsu_devs);
 
 static uint8_t rsu_wme_ac_xfer_map[4] = {
 	[WME_AC_BE] = RSU_BULK_TX_BE_BK,

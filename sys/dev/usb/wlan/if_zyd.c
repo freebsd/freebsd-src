@@ -2893,3 +2893,4 @@ DRIVER_MODULE(zyd, uhub, zyd_driver, zyd_devclass, NULL, 0);
 MODULE_DEPEND(zyd, usb, 1, 1, 1);
 MODULE_DEPEND(zyd, wlan, 1, 1, 1);
 MODULE_VERSION(zyd, 1);
+USB_PNP_HOST_INFO(zyd_devs);

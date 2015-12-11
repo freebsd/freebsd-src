@@ -273,6 +273,7 @@ DRIVER_MODULE(ubsa, uhub, ubsa_driver, ubsa_devclass, NULL, 0);
 MODULE_DEPEND(ubsa, ucom, 1, 1, 1);
 MODULE_DEPEND(ubsa, usb, 1, 1, 1);
 MODULE_VERSION(ubsa, 1);
+USB_PNP_HOST_INFO(ubsa_devs);
 
 static int
 ubsa_probe(device_t dev)

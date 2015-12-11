@@ -4156,3 +4156,4 @@ MODULE_DEPEND(urtwn, usb, 1, 1, 1);
 MODULE_DEPEND(urtwn, wlan, 1, 1, 1);
 MODULE_DEPEND(urtwn, firmware, 1, 1, 1);
 MODULE_VERSION(urtwn, 1);
+USB_PNP_HOST_INFO(urtwn_devs);
