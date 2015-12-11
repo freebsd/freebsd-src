@@ -18,6 +18,8 @@ MACHINE_CPU = i486
 MACHINE_CPU = mips
 . elif ${MACHINE_CPUARCH} == "powerpc"
 MACHINE_CPU = aim
+. elif ${MACHINE_CPUARCH} == "riscv"
+MACHINE_CPU = riscv
 . elif ${MACHINE_CPUARCH} == "sparc64"
 MACHINE_CPU = ultrasparc
 . endif
@@ -148,6 +150,8 @@ _CPUCFLAGS = -march=${CPUTYPE}
 #	sb1, xlp, xlr
 _CPUCFLAGS = -march=${CPUTYPE:S/^mips//}
 . endif
+. elif ${MACHINE_CPUARCH} == "riscv"
+_CPUCFLAGS = -msoft-float # -march="RV64I" # RISCVTODO
 . elif ${MACHINE_ARCH} == "sparc64"
 .  if ${CPUTYPE} == "v9"
 _CPUCFLAGS = -mcpu=v9
@@ -277,6 +281,9 @@ MACHINE_CPU = mips
 .  if ${CPUTYPE} == "e500"
 MACHINE_CPU = booke softfp
 .  endif
+########## riscv
+. elif ${MACHINE_CPUARCH} == "riscv"
+MACHINE_CPU = riscv
 ########## sparc64
 . elif ${MACHINE_ARCH} == "sparc64"
 .  if ${CPUTYPE} == "v9"
@@ -311,6 +318,10 @@ MACHINE_CPU += softfp
 # not a nice optimization.
 CFLAGS += -mfloat-abi=softfp
 .endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "riscv"
+CFLAGS += -msoft-float
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk
