@@ -97,6 +97,8 @@ _have_depfile=
 .endif
 .endfor
 .if !defined(_have_depfile)
+# KMOD does not use any stdlibs.
+.if !defined(KMOD)
 # Has C files. The C_DIRDEPS are shared with C++ files as well.
 C_DIRDEPS= \
 	gnu/lib/csu \
@@ -121,7 +123,8 @@ DIRDEPS+= gnu/lib/libstdc++ gnu/lib/libsupc++
 .endif
 # XXX: Clang and GCC always adds -lm currently, even when not needed.
 DIRDEPS+= lib/msun
-.endif
+.endif	# CXX
+.endif	# !defined(KMOD)
 # Has yacc files.
 .if !empty(SRCS:M*.y)
 DIRDEPS+=	usr.bin/yacc.host
