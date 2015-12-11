@@ -2347,3 +2347,4 @@ MODULE_VERSION(if_upgt, 1);
 MODULE_DEPEND(if_upgt, usb, 1, 1, 1);
 MODULE_DEPEND(if_upgt, wlan, 1, 1, 1);
 MODULE_DEPEND(if_upgt, upgtfw_fw, 1, 1, 1);
+USB_PNP_HOST_INFO(upgt_devs);

@@ -3016,3 +3016,4 @@ DRIVER_MODULE(rum, uhub, rum_driver, rum_devclass, NULL, 0);
 MODULE_DEPEND(rum, wlan, 1, 1, 1);
 MODULE_DEPEND(rum, usb, 1, 1, 1);
 MODULE_VERSION(rum, 1);
+USB_PNP_HOST_INFO(rum_devs);
