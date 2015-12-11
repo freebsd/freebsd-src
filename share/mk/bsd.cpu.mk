@@ -110,7 +110,12 @@ _CPUCFLAGS = -march=armv5te -D__XSCALE__
 _CPUCFLAGS = -march=${CPUTYPE} -DARM_ARCH_6=1
 . elif ${CPUTYPE} == "cortexa"
 _CPUCFLAGS = -march=armv7 -DARM_ARCH_6=1 -mfpu=vfp
-.  else
+. elif ${CPUTYPE:Marmv[4567]*} != ""
+# Handle all the armvX types that FreeBSD runs:
+#	armv4, armv4t, armv5, armv5te, armv6, armv6t2, armv7, armv7-a, armv7ve
+# they require -march=. All the others require -mcpu=.
+_CPUCFLAGS = -march=${CPUTYPE}
+. else
 # Common values for FreeBSD
 # arm:
 #	arm920t, arm926ej-s, marvell-pj4, fa526, fa626,
@@ -120,7 +125,7 @@ _CPUCFLAGS = -march=armv7 -DARM_ARCH_6=1 -mfpu=vfp
 #	cortex-a9, cortex-a12, cortex-a15, cortex-a17, cortex-a53, cortex-a57,
 #	cortex-a72, exynos-m1
 _CPUCFLAGS = -mcpu=${CPUTYPE}
-.  endif
+. endif
 . elif ${MACHINE_ARCH} == "powerpc"
 .  if ${CPUTYPE} == "e500"
 _CPUCFLAGS = -Wa,-me500 -msoft-float
