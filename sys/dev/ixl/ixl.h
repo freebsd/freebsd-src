@@ -90,6 +90,11 @@
 #include <sys/smp.h>
 #include <machine/smp.h>
 
+#ifdef PCI_IOV
+#include <sys/nv.h>
+#include <sys/iov_schema.h>
+#endif
+
 #include "i40e_type.h"
 #include "i40e_prototype.h"
 
@@ -224,6 +229,10 @@
 #define IXL_QUEUE_HUNG		0x80000000
 #define IXL_KEYSZ		10
 
+#define IXL_VF_MAX_BUFFER	0x3F80
+#define IXL_VF_MAX_HDR_BUFFER	0x840
+#define IXL_VF_MAX_FRAME	0x3FFF
+
 /* ERJ: hardware can support ~1.5k filters between all functions */
 #define IXL_MAX_FILTERS	256
 #define IXL_MAX_TX_BUSY	10
@@ -264,6 +273,35 @@
 /* Misc flags for ixl_vsi.flags */
 #define IXL_FLAGS_KEEP_TSO4	(1 << 0)
 #define IXL_FLAGS_KEEP_TSO6	(1 << 1)
+
+#define IXL_VF_RESET_TIMEOUT	100
+
+#define IXL_VSI_DATA_PORT	0x01
+
+#define IXLV_MAX_QUEUES		16
+#define IXL_MAX_VSI_QUEUES	(2 * (I40E_VSILAN_QTABLE_MAX_INDEX + 1))
+
+#define IXL_RX_CTX_BASE_UNITS	128
+#define IXL_TX_CTX_BASE_UNITS	128
+
+#define IXL_VPINT_LNKLSTN_REG(hw, vector, vf_num) \
+	I40E_VPINT_LNKLSTN(((vector) - 1) + \
+	    (((hw)->func_caps.num_msix_vectors_vf - 1) * (vf_num)))
+
+#define IXL_VFINT_DYN_CTLN_REG(hw, vector, vf_num) \
+	I40E_VFINT_DYN_CTLN(((vector) - 1) + \
+	    (((hw)->func_caps.num_msix_vectors_vf - 1) * (vf_num)))
+
+#define IXL_PF_PCI_CIAA_VF_DEVICE_STATUS	0xAA
+
+#define IXL_PF_PCI_CIAD_VF_TRANS_PENDING_MASK	0x20
+
+#define IXL_GLGEN_VFLRSTAT_INDEX(glb_vf)	((glb_vf) / 32)
+#define IXL_GLGEN_VFLRSTAT_MASK(glb_vf)	(1 << ((glb_vf) % 32))
+
+#define IXL_MAX_ITR_IDX		3
+
+#define IXL_END_OF_INTR_LNKLST	0x7FF
 
 #define IXL_TX_LOCK(_sc)                mtx_lock(&(_sc)->mtx)
 #define IXL_TX_UNLOCK(_sc)              mtx_unlock(&(_sc)->mtx)
@@ -461,19 +499,22 @@ struct ixl_vsi {
 	struct ifmedia		media;
 	u64			que_mask;
 	int			id;
+	u16			vsi_num;
 	u16			msix_base;	/* station base MSIX vector */
+	u16			first_queue;
 	u16			num_queues;
 	u16			rx_itr_setting;
 	u16			tx_itr_setting;
 	struct ixl_queue	*queues;	/* head of queues */
 	bool			link_active;
 	u16			seid;
+	u16			uplink_seid;
+	u16			downlink_seid;
 	u16			max_frame_size;
-	u32			link_speed;
-	bool			link_up;
 
 	/* MAC/VLAN Filter list */
 	struct ixl_ftl_head ftl;
+	u16			num_macs;
 
 	struct i40e_aqc_vsi_properties_data info;
 
@@ -505,6 +546,7 @@ struct ixl_vsi {
 	/* Misc. */
 	u64 			active_queues;
 	u64 			flags;
+	struct sysctl_oid	*vsi_node;
 };
 
 /*
@@ -543,7 +585,7 @@ ixl_get_filter(struct ixl_vsi *vsi)
 ** Compare two ethernet addresses
 */
 static inline bool
-cmp_etheraddr(u8 *ea1, u8 *ea2)
+cmp_etheraddr(const u8 *ea1, const u8 *ea2)
 {       
 	bool cmp = FALSE;
 
