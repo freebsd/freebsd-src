@@ -34,7 +34,7 @@
 .\" $Id: //depot/SpectraBSD/head/share/man/man4/mps.4#6 $
 .\" $FreeBSD$
 .\"
-.Dd January 3, 2013
+.Dd December 9, 2015
 .Dt MPS 4
 .Os
 .Sh NAME
@@ -129,6 +129,8 @@ driver instance, set the following tunable value in
 dev.mps.X.disable_msix=1
 .Ed
 .Pp
+where X is the adapter number.
+.Pp
 To set the maximum number of DMA chains allocated for all adapters,
 set the following variable in
 .Xr loader.conf 5 :
@@ -166,6 +168,39 @@ The maximum number of active I/O command seen since boot is shown in the
 dev.mps.X.io_cmds_highwater
 .Xr sysctl 8
 variable.
+.Pp
+The adapter can issue the
+.Sy StartStopUnit
+SCSI command to SATA direct-access devices during shutdown, to allow the
+device to quiesce before being powered down.
+To control this feature for all adapters, set the
+.Bd -literal -offset indent
+hw.mps.enable_ssu
+.Ed
+.Pp
+tunable value in
+.Xr loader.conf 5
+to one of the following values:
+.Bl -tag -width 6n -offset indent
+.It 0
+Do not send SSU to either HDDs or SSDs.
+.It 1
+Send SSU to SSDs, but not to HDDs; this is the default value.
+.It 2
+Send SSU to HDDs, but not to SSDs.
+.It 3
+Send SSU to both HDDs and SSDs.
+.El
+.Pp
+To control the feature for a specific adapter, set the following tunable
+value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+dev.mps.X.enable_ssu
+.Ed
+.Pp
+where X is the adapter number.
+The same set of values are valid as for all adapters.
 .Sh DEBUGGING
 To enable debugging prints from the
 .Nm
@@ -218,7 +253,7 @@ This man page was written by
 This driver has a couple of known shortcomings:
 .Bl -bullet -compact
 .It
-No userland utility available (e.g.
+No userland utility available (e.g.,
 .Xr mptutil 8 ) .
 .It
 The driver probes devices sequentially.
