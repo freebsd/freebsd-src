@@ -536,11 +536,11 @@
  * Config Register Fields
  * (See "MIPS Architecture for Programmers Volume III", MD00091, Table 9.39)
  */
-#define	MIPS_CONFIG0_M		0x80000000 	/* Flag: Config1 is present. */
-#define MIPS_CONFIG0_MT_MASK	0x00000380	/* bits 9..7 MMU Type */
-#define MIPS_CONFIG0_MT_SHIFT	7
-#define MIPS_CONFIG0_BE		0x00008000	/* data is big-endian */
-#define MIPS_CONFIG0_VI		0x00000004	/* instruction cache is virtual */
+#define	MIPS_CONFIG0_M			0x80000000 	/* Flag: Config1 is present. */
+#define MIPS_CONFIG0_MT_MASK		0x00000380	/* bits 9..7 MMU Type */
+#define MIPS_CONFIG0_MT_SHIFT		7
+#define MIPS_CONFIG0_BE			0x00008000	/* data is big-endian */
+#define MIPS_CONFIG0_VI			0x00000008	/* instruction cache is virtual */
 
 /*
  * Config1 Register Fields
