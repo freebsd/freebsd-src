@@ -42,7 +42,11 @@
  */
 
 #define I40E_FW_API_VERSION_MAJOR	0x0001
-#define I40E_FW_API_VERSION_MINOR	0x0002
+#ifdef X722_SUPPORT
+#define I40E_FW_API_VERSION_MINOR	0x0003
+#else
+#define I40E_FW_API_VERSION_MINOR	0x0004
+#endif
 
 struct i40e_aq_desc {
 	__le16 flags;
@@ -140,12 +144,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_list_func_capabilities	= 0x000A,
 	i40e_aqc_opc_list_dev_capabilities	= 0x000B,
 
-	i40e_aqc_opc_set_cppm_configuration	= 0x0103,
-	i40e_aqc_opc_set_arp_proxy_entry	= 0x0104,
-	i40e_aqc_opc_set_ns_proxy_entry		= 0x0105,
-
 	/* LAA */
-	i40e_aqc_opc_mng_laa		= 0x0106,   /* AQ obsolete */
 	i40e_aqc_opc_mac_address_read	= 0x0107,
 	i40e_aqc_opc_mac_address_write	= 0x0108,
 
@@ -240,6 +239,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_nvm_update			= 0x0703,
 	i40e_aqc_opc_nvm_config_read		= 0x0704,
 	i40e_aqc_opc_nvm_config_write		= 0x0705,
+	i40e_aqc_opc_oem_post_update		= 0x0720,
 
 	/* virtualization commands */
 	i40e_aqc_opc_send_msg_to_pf		= 0x0801,
@@ -270,7 +270,12 @@ enum i40e_admin_queue_opc {
 	/* Tunnel commands */
 	i40e_aqc_opc_add_udp_tunnel	= 0x0B00,
 	i40e_aqc_opc_del_udp_tunnel	= 0x0B01,
-	i40e_aqc_opc_tunnel_key_structure	= 0x0B10,
+#ifdef X722_SUPPORT
+	i40e_aqc_opc_set_rss_key	= 0x0B02,
+	i40e_aqc_opc_set_rss_lut	= 0x0B03,
+	i40e_aqc_opc_get_rss_key	= 0x0B04,
+	i40e_aqc_opc_get_rss_lut	= 0x0B05,
+#endif
 
 	/* Async Events */
 	i40e_aqc_opc_event_lan_overflow		= 0x1001,
@@ -282,8 +287,6 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_oem_ocbb_initialize	= 0xFE03,
 
 	/* debug commands */
-	i40e_aqc_opc_debug_get_deviceid		= 0xFF00,
-	i40e_aqc_opc_debug_set_mode		= 0xFF01,
 	i40e_aqc_opc_debug_read_reg		= 0xFF03,
 	i40e_aqc_opc_debug_write_reg		= 0xFF04,
 	i40e_aqc_opc_debug_modify_reg		= 0xFF07,
@@ -517,7 +520,8 @@ struct i40e_aqc_mac_address_read {
 #define I40E_AQC_SAN_ADDR_VALID		0x20
 #define I40E_AQC_PORT_ADDR_VALID	0x40
 #define I40E_AQC_WOL_ADDR_VALID		0x80
-#define I40E_AQC_ADDR_VALID_MASK	0xf0
+#define I40E_AQC_MC_MAG_EN_VALID	0x100
+#define I40E_AQC_ADDR_VALID_MASK	0x1F0
 	u8	reserved[6];
 	__le32	addr_high;
 	__le32	addr_low;
@@ -540,7 +544,9 @@ struct i40e_aqc_mac_address_write {
 #define I40E_AQC_WRITE_TYPE_LAA_ONLY	0x0000
 #define I40E_AQC_WRITE_TYPE_LAA_WOL	0x4000
 #define I40E_AQC_WRITE_TYPE_PORT	0x8000
-#define I40E_AQC_WRITE_TYPE_MASK	0xc000
+#define I40E_AQC_WRITE_TYPE_UPDATE_MC_MAG	0xC000
+#define I40E_AQC_WRITE_TYPE_MASK	0xC000
+
 	__le16	mac_sah;
 	__le32	mac_sal;
 	u8	reserved[8];
@@ -834,8 +840,16 @@ struct i40e_aqc_vsi_properties_data {
 					 I40E_AQ_VSI_TC_QUE_NUMBER_SHIFT)
 	/* queueing option section */
 	u8	queueing_opt_flags;
+#ifdef X722_SUPPORT
+#define I40E_AQ_VSI_QUE_OPT_MULTICAST_UDP_ENA	0x04
+#define I40E_AQ_VSI_QUE_OPT_UNICAST_UDP_ENA	0x08
+#endif
 #define I40E_AQ_VSI_QUE_OPT_TCP_ENA	0x10
 #define I40E_AQ_VSI_QUE_OPT_FCOE_ENA	0x20
+#ifdef X722_SUPPORT
+#define I40E_AQ_VSI_QUE_OPT_RSS_LUT_PF	0x00
+#define I40E_AQ_VSI_QUE_OPT_RSS_LUT_VSI	0x40
+#endif
 	u8	queueing_opt_reserved[3];
 	/* scheduler section */
 	u8	up_enable_bits;
@@ -1076,6 +1090,7 @@ struct i40e_aqc_set_vsi_promiscuous_modes {
 	__le16	seid;
 #define I40E_AQC_VSI_PROM_CMD_SEID_MASK		0x3FF
 	__le16	vlan_tag;
+#define I40E_AQC_SET_VSI_VLAN_MASK		0x0FFF
 #define I40E_AQC_SET_VSI_VLAN_VALID		0x8000
 	u8	reserved[8];
 };
@@ -1725,11 +1740,13 @@ struct i40e_aqc_get_link_status {
 	u8	phy_type;    /* i40e_aq_phy_type   */
 	u8	link_speed;  /* i40e_aq_link_speed */
 	u8	link_info;
-#define I40E_AQ_LINK_UP			0x01
+#define I40E_AQ_LINK_UP			0x01    /* obsolete */
+#define I40E_AQ_LINK_UP_FUNCTION	0x01
 #define I40E_AQ_LINK_FAULT		0x02
 #define I40E_AQ_LINK_FAULT_TX		0x04
 #define I40E_AQ_LINK_FAULT_RX		0x08
 #define I40E_AQ_LINK_FAULT_REMOTE	0x10
+#define I40E_AQ_LINK_UP_PORT		0x20
 #define I40E_AQ_MEDIA_AVAILABLE		0x40
 #define I40E_AQ_SIGNAL_DETECT		0x80
 	u8	an_info;
@@ -1890,6 +1907,26 @@ struct i40e_aqc_nvm_config_data_immediate_field {
 };
 
 I40E_CHECK_STRUCT_LEN(0xc, i40e_aqc_nvm_config_data_immediate_field);
+
+/* OEM Post Update (indirect 0x0720)
+ * no command data struct used
+ */
+ struct i40e_aqc_nvm_oem_post_update {
+#define I40E_AQ_NVM_OEM_POST_UPDATE_EXTERNAL_DATA	0x01
+	u8 sel_data;
+	u8 reserved[7];
+};
+
+I40E_CHECK_STRUCT_LEN(0x8, i40e_aqc_nvm_oem_post_update);
+
+struct i40e_aqc_nvm_oem_post_update_buffer {
+	u8 str_len;
+	u8 dev_addr;
+	__le16 eeprom_addr;
+	u8 data[36];
+};
+
+I40E_CHECK_STRUCT_LEN(0x28, i40e_aqc_nvm_oem_post_update_buffer);
 
 /* Send to PF command (indirect 0x0801) id is only used by PF
  * Send to VF command (indirect 0x0802) id is only used by PF
@@ -2064,12 +2101,28 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_start);
 #define I40E_AQC_CEE_APP_ISCSI_MASK	(0x7 << I40E_AQC_CEE_APP_ISCSI_SHIFT)
 #define I40E_AQC_CEE_APP_FIP_SHIFT	0x8
 #define I40E_AQC_CEE_APP_FIP_MASK	(0x7 << I40E_AQC_CEE_APP_FIP_SHIFT)
+
 #define I40E_AQC_CEE_PG_STATUS_SHIFT	0x0
 #define I40E_AQC_CEE_PG_STATUS_MASK	(0x7 << I40E_AQC_CEE_PG_STATUS_SHIFT)
 #define I40E_AQC_CEE_PFC_STATUS_SHIFT	0x3
 #define I40E_AQC_CEE_PFC_STATUS_MASK	(0x7 << I40E_AQC_CEE_PFC_STATUS_SHIFT)
 #define I40E_AQC_CEE_APP_STATUS_SHIFT	0x8
 #define I40E_AQC_CEE_APP_STATUS_MASK	(0x7 << I40E_AQC_CEE_APP_STATUS_SHIFT)
+#define I40E_AQC_CEE_FCOE_STATUS_SHIFT	0x8
+#define I40E_AQC_CEE_FCOE_STATUS_MASK	(0x7 << I40E_AQC_CEE_FCOE_STATUS_SHIFT)
+#define I40E_AQC_CEE_ISCSI_STATUS_SHIFT	0xB
+#define I40E_AQC_CEE_ISCSI_STATUS_MASK	(0x7 << I40E_AQC_CEE_ISCSI_STATUS_SHIFT)
+#define I40E_AQC_CEE_FIP_STATUS_SHIFT	0x10
+#define I40E_AQC_CEE_FIP_STATUS_MASK	(0x7 << I40E_AQC_CEE_FIP_STATUS_SHIFT)
+
+/* struct i40e_aqc_get_cee_dcb_cfg_v1_resp was originally defined with
+ * word boundary layout issues, which the Linux compilers silently deal
+ * with by adding padding, making the actual struct larger than designed.
+ * However, the FW compiler for the NIC is less lenient and complains
+ * about the struct.  Hence, the struct defined here has an extra byte in
+ * fields reserved3 and reserved4 to directly acknowledge that padding,
+ * and the new length is used in the length check macro.
+ */
 struct i40e_aqc_get_cee_dcb_cfg_v1_resp {
 	u8	reserved1;
 	u8	oper_num_tc;
@@ -2077,9 +2130,9 @@ struct i40e_aqc_get_cee_dcb_cfg_v1_resp {
 	u8	reserved2;
 	u8	oper_tc_bw[8];
 	u8	oper_pfc_en;
-	u8	reserved3;
+	u8	reserved3[2];
 	__le16	oper_app_prio;
-	u8	reserved4;
+	u8	reserved4[2];
 	__le16	tlv_status;
 };
 
@@ -2168,6 +2221,48 @@ struct i40e_aqc_del_udp_tunnel_completion {
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_del_udp_tunnel_completion);
+#ifdef X722_SUPPORT
+
+struct i40e_aqc_get_set_rss_key {
+#define I40E_AQC_SET_RSS_KEY_VSI_VALID		(0x1 << 15)
+#define I40E_AQC_SET_RSS_KEY_VSI_ID_SHIFT	0
+#define I40E_AQC_SET_RSS_KEY_VSI_ID_MASK	(0x3FF << \
+					I40E_AQC_SET_RSS_KEY_VSI_ID_SHIFT)
+	__le16	vsi_id;
+	u8	reserved[6];
+	__le32	addr_high;
+	__le32	addr_low;
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_get_set_rss_key);
+
+struct i40e_aqc_get_set_rss_key_data {
+	u8 standard_rss_key[0x28];
+	u8 extended_hash_key[0xc];
+};
+
+I40E_CHECK_STRUCT_LEN(0x34, i40e_aqc_get_set_rss_key_data);
+
+struct  i40e_aqc_get_set_rss_lut {
+#define I40E_AQC_SET_RSS_LUT_VSI_VALID		(0x1 << 15)
+#define I40E_AQC_SET_RSS_LUT_VSI_ID_SHIFT	0
+#define I40E_AQC_SET_RSS_LUT_VSI_ID_MASK	(0x3FF << \
+					I40E_AQC_SET_RSS_LUT_VSI_ID_SHIFT)
+	__le16	vsi_id;
+#define I40E_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT	0
+#define I40E_AQC_SET_RSS_LUT_TABLE_TYPE_MASK	(0x1 << \
+					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT)
+
+#define I40E_AQC_SET_RSS_LUT_TABLE_TYPE_VSI	0
+#define I40E_AQC_SET_RSS_LUT_TABLE_TYPE_PF	1
+	__le16	flags;
+	u8	reserved[4];
+	__le32	addr_high;
+	__le32	addr_low;
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_get_set_rss_lut);
+#endif
 
 /* tunnel key structure 0x0B10 */
 

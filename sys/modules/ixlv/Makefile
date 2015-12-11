@@ -10,7 +10,7 @@ SRCS    += opt_inet.h opt_inet6.h
 SRCS    += if_ixlv.c ixlvc.c ixl_txrx.c i40e_osdep.c
 
 # Shared source
-SRCS    += i40e_common.c i40e_nvm.c i40e_adminq.c i40e_lan_hmc.c i40e_hmc.c
+SRCS    += i40e_common.c i40e_nvm.c i40e_adminq.c
 
 CFLAGS	+= -DSMP
 
