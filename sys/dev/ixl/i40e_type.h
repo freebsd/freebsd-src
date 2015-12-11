@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -57,6 +57,7 @@
 #define I40E_DEV_ID_QSFP_B		0x1584
 #define I40E_DEV_ID_QSFP_C		0x1585
 #define I40E_DEV_ID_10G_BASE_T		0x1586
+#define I40E_DEV_ID_20G_KR2		0x1587
 #define I40E_DEV_ID_VF			0x154C
 #define I40E_DEV_ID_VF_HV		0x1571
 
@@ -286,7 +287,17 @@ struct i40e_hw_capabilities {
 	bool dcb;
 	bool fcoe;
 	bool iscsi; /* Indicates iSCSI enabled */
-	bool mfp_mode_1;
+	bool flex10_enable;
+	bool flex10_capable;
+	u32  flex10_mode;
+#define I40E_FLEX10_MODE_UNKNOWN	0x0
+#define I40E_FLEX10_MODE_DCC		0x1
+#define I40E_FLEX10_MODE_DCI		0x2
+
+	u32 flex10_status;
+#define I40E_FLEX10_STATUS_DCC_ERROR	0x1
+#define I40E_FLEX10_STATUS_VC_MODE	0x2
+
 	bool mgmt_cem;
 	bool ieee_1588;
 	bool iwarp;
@@ -315,6 +326,7 @@ struct i40e_hw_capabilities {
 	u8 rx_buf_chain_len;
 	u32 enabled_tcmap;
 	u32 maxtc;
+	u64 wr_csr_prot;
 };
 
 struct i40e_mac_info {
@@ -560,7 +572,11 @@ struct i40e_hw {
 	/* debug mask */
 	u32 debug_mask;
 };
-#define i40e_is_vf(_hw)	((_hw)->mac.type == I40E_MAC_VF)
+
+static INLINE bool i40e_is_vf(struct i40e_hw *hw)
+{
+	return hw->mac.type == I40E_MAC_VF;
+}
 
 struct i40e_driver_version {
 	u8 major_version;
@@ -1258,6 +1274,9 @@ struct i40e_hw_port_stats {
 	/* flow director stats */
 	u64 fd_atr_match;
 	u64 fd_sb_match;
+	u64 fd_atr_tunnel_match;
+	u32 fd_atr_status;
+	u32 fd_sb_status;
 	/* EEE LPI */
 	u32 tx_lpi_status;
 	u32 rx_lpi_status;

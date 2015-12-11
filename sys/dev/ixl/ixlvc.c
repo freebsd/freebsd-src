@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2013-2014, Intel Corporation 
+  Copyright (c) 2013-2015, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -770,11 +770,16 @@ void
 ixlv_request_stats(struct ixlv_sc *sc)
 {
 	struct i40e_virtchnl_queue_select vqs;
+	int error = 0;
 
 	vqs.vsi_id = sc->vsi_res->vsi_id;
 	/* Low priority, we don't need to error check */
-	ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_GET_STATS,
+	error = ixlv_send_pf_msg(sc, I40E_VIRTCHNL_OP_GET_STATS,
 	    (u8 *)&vqs, sizeof(vqs));
+#ifdef IXL_DEBUG
+	if (error)
+		device_printf(sc->dev, "Error sending stats request to PF: %d\n", error);
+#endif
 }
 
 /*
