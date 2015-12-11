@@ -32,6 +32,11 @@
  * mjacob@feral.com
  */
 
+#include <sys/endian.h>
+#include <sys/types.h>
+#include <sys/sbuf.h>
+
+#include <err.h>
 #include <unistd.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -42,6 +47,13 @@
 #include <cam/scsi/scsi_enc.h>
 
 #include "eltsub.h"
+
+/*
+ * offset by +20 degrees.
+ * The range of the value expresses a temperature between -19 and +235 degrees
+ * Celsius. A value of 00h is reserved.
+ */
+#define TEMPERATURE_OFFSET 20
 
 char *
 geteltnm(int type)
@@ -134,7 +146,7 @@ geteltnm(int type)
 	return (rbuf);
 }
 
-static char *
+char *
 scode2ascii(u_char code)
 {
 	static char rbuf[32];
@@ -173,22 +185,51 @@ scode2ascii(u_char code)
 	return (rbuf);
 }
 
-
-char *
-stat2ascii(int eletype, u_char *cstat)
+struct sbuf *
+stat2sbuf(int eletype, u_char *cstat)
 {
-	static char ebuf[256], *scode;
+	struct sbuf *buf;
 
-	scode = scode2ascii(cstat[0]);
-	sprintf(ebuf, "%s%s%s%s%s%s (0x%02x 0x%02x 0x%02x 0x%02x)",
-	    scode,
-	    (cstat[0] & 0x40) ? ", Prd.Fail" : "",
-	    (cstat[0] & 0x20) ? ", Disabled" : "",
-	    (cstat[0] & 0x10) ? ", Swapped" : "",
-	    ((eletype == ELMTYP_DEVICE || eletype == ELMTYP_ARRAY_DEV)
-	        && (cstat[2] & 0x02)) ?  ", LED=Locate" : "",
-	    ((eletype == ELMTYP_DEVICE || eletype == ELMTYP_ARRAY_DEV)
-	        && (cstat[3] & 0x20)) ?  ", LED=Fault" : "",
-	    cstat[0], cstat[1], cstat[2], cstat[3]);
-	return (ebuf);
+	buf = sbuf_new_auto();
+	if (buf == NULL)
+		err(EXIT_FAILURE, "sbuf_new_auto()");
+
+	if (cstat[0] & 0x40)
+		sbuf_printf(buf, "\t\t- Predicted Failure\n");
+	if (cstat[0] & 0x20)
+		sbuf_printf(buf, "\t\t- Disabled\n");
+	if (cstat[0] & 0x10)
+		sbuf_printf(buf, "\t\t- Swapped\n");
+	switch (eletype) {
+	case ELMTYP_DEVICE:
+		if (cstat[2] & 0x02)
+			sbuf_printf(buf, "\t\t- LED=locate\n");
+		if (cstat[2] & 0x20)
+			sbuf_printf(buf, "\t\t- LED=fault\n");
+		break;
+	case ELMTYP_ARRAY_DEV:
+		if (cstat[2] & 0x02)
+			sbuf_printf(buf, "\t\t- LED=locate\n");
+		if (cstat[2] & 0x20)
+			sbuf_printf(buf, "\t\t- LED=fault\n");
+		break;
+	case ELMTYP_FAN:
+		sbuf_printf(buf, "\t\t- Speed: %d rpm\n",
+		    (((0x7 & cstat[1]) << 8) + cstat[2]) * 10);
+		break;
+	case ELMTYP_THERM:
+		if (cstat[2]) {
+			sbuf_printf(buf, "\t\t- Temperature: %d C\n",
+			    cstat[2] - TEMPERATURE_OFFSET);
+		} else {
+			sbuf_printf(buf, "\t\t- Temperature: -reserved-\n");
+		}
+		break;
+	case ELMTYP_VOM:
+		sbuf_printf(buf, "\t\t- Voltage: %.2f V\n",
+		    be16dec(cstat + 2) / 100.0);
+		break;
+	}
+	sbuf_finish(buf);
+	return (buf);
 }
