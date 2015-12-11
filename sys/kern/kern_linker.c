@@ -1409,7 +1409,7 @@ linker_addmodules(linker_file_t lf, struct mod_metadata **start,
 		if (mp->md_type != MDT_VERSION)
 			continue;
 		modname = mp->md_cval;
-		ver = ((struct mod_version *)mp->md_data)->mv_version;
+		ver = ((const struct mod_version *)mp->md_data)->mv_version;
 		if (modlist_lookup(modname, ver) != NULL) {
 			printf("module %s already present!\n", modname);
 			/* XXX what can we do? this is a build error. :-( */
@@ -1530,7 +1530,7 @@ restart:
 					if (mp->md_type != MDT_VERSION)
 						continue;
 					modname = mp->md_cval;
-					nver = ((struct mod_version *)
+					nver = ((const struct mod_version *)
 					    mp->md_data)->mv_version;
 					if (modlist_lookup(modname,
 					    nver) != NULL) {
@@ -2056,7 +2056,7 @@ linker_load_dependencies(linker_file_t lf)
 		if (mp->md_type != MDT_VERSION)
 			continue;
 		modname = mp->md_cval;
-		ver = ((struct mod_version *)mp->md_data)->mv_version;
+		ver = ((const struct mod_version *)mp->md_data)->mv_version;
 		mod = modlist_lookup(modname, ver);
 		if (mod != NULL) {
 			printf("interface %s.%d already present in the KLD"
