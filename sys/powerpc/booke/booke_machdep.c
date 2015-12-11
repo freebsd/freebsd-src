@@ -142,7 +142,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
-#ifdef MPC85XX
+#if defined(MPC85XX) || defined(QORIQ_DPAA)
 #include <powerpc/mpc85xx/mpc85xx.h>
 #endif
 
@@ -183,6 +183,7 @@ extern void *int_data_storage;
 extern void *int_instr_storage;
 extern void *int_external_input;
 extern void *int_alignment;
+extern void *int_fpu;
 extern void *int_program;
 extern void *int_syscall;
 extern void *int_decrementer;
@@ -191,6 +192,8 @@ extern void *int_watchdog;
 extern void *int_data_tlb_error;
 extern void *int_inst_tlb_error;
 extern void *int_debug;
+extern void *int_vec;
+extern void *int_vecast;
 #ifdef HWPMC_HOOKS
 extern void *int_performance_counter;
 #endif
@@ -234,6 +237,15 @@ ivor_setup(void)
 #ifdef HWPMC_HOOKS
 	SET_TRAP(SPR_IVOR35, int_performance_counter);
 #endif
+	switch ((mfpvr() >> 16) & 0xffff) {
+	case FSL_E6500:
+		SET_TRAP(SPR_IVOR32, int_vec);
+		SET_TRAP(SPR_IVOR33, int_vecast);
+		/* FALLTHROUGH */
+	case FSL_E500mc:
+	case FSL_E5500:
+		SET_TRAP(SPR_IVOR7, int_fpu);
+	}
 }
 
 static int
