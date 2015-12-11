@@ -37,10 +37,14 @@
 #include "ixl.h"
 #include "ixl_pf.h"
 
+#ifdef RSS
+#include <net/rss_config.h>
+#endif
+
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixl_driver_version[] = "1.2.8";
+char ixl_driver_version[] = "1.3.1";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -174,7 +178,7 @@ static void	ixl_stat_update48(struct i40e_hw *, u32, u32, bool,
 static void	ixl_stat_update32(struct i40e_hw *, u32, bool,
 		    u64 *, u64 *);
 
-#ifdef IXL_DEBUG
+#ifdef IXL_DEBUG_SYSCTL
 static int 	ixl_sysctl_link_status(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_phy_abilities(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS);
@@ -427,7 +431,7 @@ ixl_attach(device_t dev)
 	    OID_AUTO, "dynamic_tx_itr", CTLFLAG_RW,
 	    &ixl_dynamic_tx_itr, 0, "Dynamic TX ITR");
 
-#ifdef IXL_DEBUG
+#ifdef IXL_DEBUG_SYSCTL
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "link_status", CTLTYPE_STRING | CTLFLAG_RD,
@@ -662,8 +666,9 @@ ixl_attach(device_t dev)
 
 	/* Reset port's advertised speeds */
 	if (!i40e_is_40G_device(hw->device_id)) {
-		pf->advertised_speed = 0x7;
-		ixl_set_advertised_speeds(pf, 0x7);
+		pf->advertised_speed =
+		    (hw->device_id == I40E_DEV_ID_10G_BASE_T) ? 0x7 : 0x6;
+		ixl_set_advertised_speeds(pf, pf->advertised_speed);
 	}
 
 	/* Register for VLAN events */
@@ -1407,6 +1412,12 @@ ixl_media_status(struct ifnet * ifp, struct ifmediareq * ifmr)
 		case I40E_PHY_TYPE_10GBASE_SFPP_CU:
 			ifmr->ifm_active |= IFM_10G_TWINAX;
 			break;
+		case I40E_PHY_TYPE_10GBASE_KR:
+			/* 
+			** this is not technically correct
+			** but FreeBSD does not have the media
+			** type defined yet, so its a compromise.
+			*/
 		case I40E_PHY_TYPE_10GBASE_SR:
 			ifmr->ifm_active |= IFM_10G_SR;
 			break;
@@ -1721,8 +1732,10 @@ ixl_local_timer(void *arg)
 				vsi->active_queues |= ((u64)1 << que->me);
 		}
 		if (que->busy >= IXL_MAX_TX_BUSY) {
+#ifdef IXL_DEBUG
 			device_printf(dev,"Warning queue %d "
 			    "appears to be hung!\n", i);
+#endif
 			que->busy = IXL_QUEUE_HUNG;
 			++hung;
 		}
@@ -1765,6 +1778,15 @@ ixl_update_link_status(struct ixl_pf *pf)
 				    "Full Duplex", ixl_fc_string[fc]);
 			}
 			vsi->link_active = TRUE;
+			/*
+			** Warn user if link speed on NPAR enabled
+			** partition is not at least 10GB
+			*/
+			if (hw->func_caps.npar_enable &&
+			   (hw->phy.link_info.link_speed == I40E_LINK_SPEED_1GB ||
+			   hw->phy.link_info.link_speed == I40E_LINK_SPEED_100MB))
+				device_printf(dev, "The partition detected link"
+				    "speed that is less than 10Gbps\n");
 			if_link_state_change(ifp, LINK_STATE_UP);
 		}
 	} else { /* Link down */
@@ -1901,6 +1923,7 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 
 	/* Now set up the stations */
 	for (int i = 0; i < vsi->num_queues; i++, vector++, que++) {
+		int cpu_id = i;
 		rid = vector + 1;
 		txr = &que->txr;
 		que->res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
@@ -1921,14 +1944,23 @@ ixl_assign_vsi_msix(struct ixl_pf *pf)
 		}
 		bus_describe_intr(dev, que->res, que->tag, "q%d", i);
 		/* Bind the vector to a CPU */
-		bus_bind_intr(dev, que->res, i);
+#ifdef RSS
+		cpu_id = rss_getcpu(i % rss_getnumbuckets());
+#endif
+		bus_bind_intr(dev, que->res, cpu_id);
 		que->msix = vector;
 		TASK_INIT(&que->tx_task, 0, ixl_deferred_mq_start, que);
 		TASK_INIT(&que->task, 0, ixl_handle_que, que);
 		que->tq = taskqueue_create_fast("ixl_que", M_NOWAIT,
 		    taskqueue_thread_enqueue, &que->tq);
-		taskqueue_start_threads(&que->tq, 1, PI_NET, "%s que",
-		    device_get_nameunit(pf->dev));
+#ifdef RSS
+		taskqueue_start_threads_pinned(&que->tq, 1, PI_NET,
+		    cpu_id, "%s (bucket %d)",
+		    device_get_nameunit(dev), cpu_id);
+#else
+		taskqueue_start_threads(&que->tq, 1, PI_NET,
+		    "%s que", device_get_nameunit(dev));
+#endif
 	}
 
 	return (0);
@@ -1995,6 +2027,12 @@ ixl_init_msix(struct ixl_pf *pf)
 	if ((ixl_max_queues != 0) && (ixl_max_queues <= queues)) 
 		queues = ixl_max_queues;
 
+#ifdef  RSS
+	/* If we're doing RSS, clamp at the number of RSS buckets */
+	if (queues > rss_getnumbuckets())
+		queues = rss_getnumbuckets();
+#endif
+
 	/*
 	** Want one vector (RX/TX pair) per queue
 	** plus an additional for the admin queue.
@@ -2015,6 +2053,25 @@ ixl_init_msix(struct ixl_pf *pf)
 		    "Using MSIX interrupts with %d vectors\n", vectors);
 		pf->msix = vectors;
 		pf->vsi.num_queues = queues;
+#ifdef RSS
+		/*
+		 * If we're doing RSS, the number of queues needs to
+		 * match the number of RSS buckets that are configured.
+		 *
+		 * + If there's more queues than RSS buckets, we'll end
+		 *   up with queues that get no traffic.
+		 *
+		 * + If there's more RSS buckets than queues, we'll end
+		 *   up having multiple RSS buckets map to the same queue,
+		 *   so there'll be some contention.
+		 */
+		if (queues != rss_getnumbuckets()) {
+			device_printf(dev,
+			    "%s: queues (%d) != RSS buckets (%d)"
+			    "; performance will be impacted.\n",
+			    __func__, queues, rss_getnumbuckets());
+		}
+#endif
 		return (vectors);
 	}
 msi:
@@ -2383,7 +2440,8 @@ ixl_setup_interface(device_t dev, struct ixl_vsi *vsi)
 	if (aq_error == I40E_ERR_UNKNOWN_PHY) {
 		/* Need delay to detect fiber correctly */
 		i40e_msec_delay(200);
-		aq_error = i40e_aq_get_phy_capabilities(hw, FALSE, TRUE, &abilities_resp, NULL);
+		aq_error = i40e_aq_get_phy_capabilities(hw, FALSE,
+		    TRUE, &abilities_resp, NULL);
 		if (aq_error == I40E_ERR_UNKNOWN_PHY)
 			device_printf(dev, "Unknown PHY type detected!\n");
 		else
@@ -3043,7 +3101,6 @@ ixl_add_sysctls_eth_stats(struct sysctl_ctx_list *ctx,
 			"Multicast Packets Transmitted"},
 		{&eth_stats->tx_broadcast, "bcast_pkts_txd",
 			"Broadcast Packets Transmitted"},
-		{&eth_stats->tx_discards, "tx_discards", "Discarded TX packets"},
 		// end
 		{0,0,0}
 	};
@@ -3126,19 +3183,45 @@ static void ixl_config_rss(struct ixl_vsi *vsi)
 	struct ixl_pf	*pf = (struct ixl_pf *)vsi->back;
 	struct i40e_hw	*hw = vsi->hw;
 	u32		lut = 0;
-	u64		set_hena, hena;
-	int		i, j;
+	u64		set_hena = 0, hena;
+	int		i, j, que_id;
+#ifdef RSS
+	u32		rss_hash_config;
+	u32		rss_seed[IXL_KEYSZ];
+#else
+	u32             rss_seed[IXL_KEYSZ] = {0x41b01687,
+			    0x183cfd8c, 0xce880440, 0x580cbc3c,
+			    0x35897377, 0x328b25e1, 0x4fa98922,
+			    0xb7d90c14, 0xd5bad70d, 0xcd15a2c1};
+#endif
 
-	static const u32 seed[I40E_PFQF_HKEY_MAX_INDEX + 1] = {0x41b01687,
-	    0x183cfd8c, 0xce880440, 0x580cbc3c, 0x35897377,
-	    0x328b25e1, 0x4fa98922, 0xb7d90c14, 0xd5bad70d,
-	    0xcd15a2c1, 0xe8580225, 0x4a1e9d11, 0xfe5731be};
+#ifdef RSS
+        /* Fetch the configured RSS key */
+        rss_getkey((uint8_t *) &rss_seed);
+#endif
 
 	/* Fill out hash function seed */
-	for (i = 0; i <= I40E_PFQF_HKEY_MAX_INDEX; i++)
-                wr32(hw, I40E_PFQF_HKEY(i), seed[i]);
+	for (i = 0; i < IXL_KEYSZ; i++)
+                wr32(hw, I40E_PFQF_HKEY(i), rss_seed[i]);
 
 	/* Enable PCTYPES for RSS: */
+#ifdef RSS
+	rss_hash_config = rss_gethashconfig();
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV4)
+                set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_OTHER);
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV4)
+                set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP);
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4)
+                set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP);
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6)
+                set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER);
+        if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6_EX)
+		set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6);
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6)
+                set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
+        if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6)
+                set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP);
+#else
 	set_hena =
 		((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
 		((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_TCP) |
@@ -3151,7 +3234,7 @@ static void ixl_config_rss(struct ixl_vsi *vsi)
 		((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER) |
 		((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6) |
 		((u64)1 << I40E_FILTER_PCTYPE_L2_PAYLOAD);
-
+#endif
 	hena = (u64)rd32(hw, I40E_PFQF_HENA(0)) |
 	    ((u64)rd32(hw, I40E_PFQF_HENA(1)) << 32);
 	hena |= set_hena;
@@ -3162,8 +3245,19 @@ static void ixl_config_rss(struct ixl_vsi *vsi)
 	for (i = j = 0; i < pf->hw.func_caps.rss_table_size; i++, j++) {
 		if (j == vsi->num_queues)
 			j = 0;
+#ifdef RSS
+		/*
+		 * Fetch the RSS bucket id for the given indirection entry.
+		 * Cap it at the number of configured buckets (which is
+		 * num_queues.)
+		 */
+		que_id = rss_get_indirection_to_bucket(i);
+		que_id = que_id % vsi->num_queues;
+#else
+		que_id = j;
+#endif
 		/* lut = 4-byte sliding window of 4 lut entries */
-		lut = (lut << 8) | (j &
+		lut = (lut << 8) | (que_id &
 		    ((0x1 << pf->hw.func_caps.rss_table_entry_width) - 1));
 		/* On i = 3, we have 4 entries in lut; write to the register */
 		if ((i & 3) == 3)
@@ -3401,7 +3495,7 @@ ixl_add_hw_filters(struct ixl_vsi *vsi, int flags, int cnt)
 	a = malloc(sizeof(struct i40e_aqc_add_macvlan_element_data) * cnt,
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (a == NULL) {
-		device_printf(dev, "add hw filter failed to get memory\n");
+		device_printf(dev, "add_hw_filters failed to get memory\n");
 		return;
 	}
 
@@ -3426,8 +3520,8 @@ ixl_add_hw_filters(struct ixl_vsi *vsi, int flags, int cnt)
 	if (j > 0) {
 		err = i40e_aq_add_macvlan(hw, vsi->seid, a, j, NULL);
 		if (err) 
-			device_printf(dev, "aq_add_macvlan failure %d\n",
-			    hw->aq.asq_last_status);
+			device_printf(dev, "aq_add_macvlan err %d, aq_error %d\n",
+			    err, hw->aq.asq_last_status);
 		else
 			vsi->hw_filters_add += j;
 	}
@@ -3476,6 +3570,7 @@ ixl_del_hw_filters(struct ixl_vsi *vsi, int cnt)
 		err = i40e_aq_remove_macvlan(hw, vsi->seid, d, j, NULL);
 		/* NOTE: returns ENOENT every time but seems to work fine,
 		   so we'll ignore that specific error. */
+		// TODO: Does this still occur on current firmwares?
 		if (err && hw->aq.asq_last_status != I40E_AQ_RC_ENOENT) {
 			int sc = 0;
 			for (int i = 0; i < j; i++)
@@ -3827,29 +3922,6 @@ ixl_update_stats_counters(struct ixl_pf *pf)
 	ixl_stat_update32(hw, I40E_GLPRT_LXOFFTXC(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->link_xoff_tx, &nsd->link_xoff_tx);
-
-	/* Priority flow control stats */
-#if 0
-	for (int i = 0; i < 8; i++) {
-		ixl_stat_update32(hw, I40E_GLPRT_PXONRXC(hw->port, i),
-				   pf->stat_offsets_loaded,
-				   &osd->priority_xon_rx[i],
-				   &nsd->priority_xon_rx[i]);
-		ixl_stat_update32(hw, I40E_GLPRT_PXONTXC(hw->port, i),
-				   pf->stat_offsets_loaded,
-				   &osd->priority_xon_tx[i],
-				   &nsd->priority_xon_tx[i]);
-		ixl_stat_update32(hw, I40E_GLPRT_PXOFFTXC(hw->port, i),
-				   pf->stat_offsets_loaded,
-				   &osd->priority_xoff_tx[i],
-				   &nsd->priority_xoff_tx[i]);
-		ixl_stat_update32(hw,
-				   I40E_GLPRT_RXON2OFFCNT(hw->port, i),
-				   pf->stat_offsets_loaded,
-				   &osd->priority_xon_2_xoff[i],
-				   &nsd->priority_xon_2_xoff[i]);
-	}
-#endif
 
 	/* Packet size stats rx */
 	ixl_stat_update48(hw, I40E_GLPRT_PRC64H(hw->port),
@@ -4377,6 +4449,15 @@ ixl_set_advertised_speeds(struct ixl_pf *pf, int speeds)
 		return (EAGAIN);
 	}
 
+	/*
+	** This seems a bit heavy handed, but we
+	** need to get a reinit on some devices
+	*/
+	IXL_PF_LOCK(pf);
+	ixl_stop(pf);
+	ixl_init_locked(pf);
+	IXL_PF_UNLOCK(pf);
+
 	return (0);
 }
 
@@ -4521,7 +4602,7 @@ ixl_sysctl_show_fw(SYSCTL_HANDLER_ARGS)
 }
 
 
-#ifdef IXL_DEBUG
+#ifdef IXL_DEBUG_SYSCTL
 static int
 ixl_sysctl_link_status(SYSCTL_HANDLER_ARGS)
 {
@@ -4630,6 +4711,16 @@ ixl_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS)
 
 #define IXL_SW_RES_SIZE 0x14
 static int
+ixl_res_alloc_cmp(const void *a, const void *b)
+{
+	const struct i40e_aqc_switch_resource_alloc_element_resp *one, *two;
+	one = (struct i40e_aqc_switch_resource_alloc_element_resp *)a;
+	two = (struct i40e_aqc_switch_resource_alloc_element_resp *)b;
+
+	return ((int)one->resource_type - (int)two->resource_type);
+}
+
+static int
 ixl_sysctl_hw_res_alloc(SYSCTL_HANDLER_ARGS)
 {
 	struct ixl_pf *pf = (struct ixl_pf *)arg1;
@@ -4647,6 +4738,7 @@ ixl_sysctl_hw_res_alloc(SYSCTL_HANDLER_ARGS)
 		return (ENOMEM);
 	}
 
+	bzero(resp, sizeof(resp));
 	error = i40e_aq_get_switch_resource_alloc(hw, &num_entries,
 				resp,
 				IXL_SW_RES_SIZE,
@@ -4657,9 +4749,14 @@ ixl_sysctl_hw_res_alloc(SYSCTL_HANDLER_ARGS)
 		sbuf_delete(buf);
 		return error;
 	}
-	device_printf(dev, "Num_entries: %d\n", num_entries);
+
+	/* Sort entries by type for display */
+	qsort(resp, num_entries,
+	    sizeof(struct i40e_aqc_switch_resource_alloc_element_resp),
+	    &ixl_res_alloc_cmp);
 
 	sbuf_cat(buf, "\n");
+	sbuf_printf(buf, "# of entries: %d\n", num_entries);
 	sbuf_printf(buf,
 	    "Type | Guaranteed | Total | Used   | Un-allocated\n"
 	    "     | (this)     | (all) | (this) | (all)       \n");
@@ -4847,5 +4944,5 @@ ixl_sysctl_dump_txd(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(buf);
 	return error;
 }
-#endif
+#endif /* IXL_DEBUG_SYSCTL */
 
