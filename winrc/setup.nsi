@@ -94,6 +94,7 @@ section "-hidden.postinstall"
 	File "unbound-website.url"
 	File "service.conf"
 	File "..\doc\example.conf"
+	File "..\doc\Changelog"
 
 	# Store Root Key choice
 	SectionGetFlags ${SectionRootKey} $R0
@@ -180,6 +181,7 @@ section "un.Unbound"
 	Delete "$INSTDIR\unbound-website.url"
 	Delete "$INSTDIR\service.conf"
 	Delete "$INSTDIR\example.conf"
+	Delete "$INSTDIR\Changelog"
 	Delete "$INSTDIR\root.key"
 	RMDir "$INSTDIR"
 
