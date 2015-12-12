@@ -28,7 +28,7 @@
 .\"     @(#)exec.3	8.3 (Berkeley) 1/24/94
 .\" $FreeBSD$
 .\"
-.Dd January 24, 1994
+.Dd December 12, 2015
 .Dt EXEC 3
 .Os
 .Sh NAME
@@ -223,7 +223,7 @@ and
 .Fn execvp
 functions was
 .Dq Pa :/bin:/usr/bin .
-This was changed to place the current directory last to enhance system
+This was changed to remove the current directory to enhance system
 security.
 .Pp
 The behavior of
