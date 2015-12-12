@@ -68,6 +68,9 @@
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
+#ifdef HAVE_TIME_H
+#include <time.h>
+#endif
 
 #if defined(UB_ON_WINDOWS) && defined (HAVE_WINDOWS_H)
 #include <windows.h>
