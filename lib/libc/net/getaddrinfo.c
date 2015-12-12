@@ -1563,7 +1563,7 @@ addrconfig(struct addrinfo *pai)
 			if (seen_inet)
 				continue;
 			sin = (struct sockaddr_in *)(ifa->ifa_addr);
-			if (IN_LOOPBACK(htonl(sin->sin_addr.s_addr)))
+			if (htonl(sin->sin_addr.s_addr) == INADDR_LOOPBACK)
 				continue;
 			seen_inet = 1;
 			break;
