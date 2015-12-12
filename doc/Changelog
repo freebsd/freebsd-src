@@ -1,3 +1,25 @@
+15 October 2015: Wouter
+	- Fix segfault in the dns64 module in the formaterror error path.
+	- Fix sldns_wire2str_rdata_scan for malformed RRs.
+	- tag for 1.5.6rc1 release.
+
+14 October 2015: Wouter
+	- ANY responses include DNAME records if present, as per Evan Hunt's
+	  remark in dnsop.
+	- Fix manpage to suggest using SIGTERM to terminate the server.
+
+9 October 2015: Wouter
+	- Default for ssl-port is port 853, the temporary port assignment
+	  for secure domain name system traffic.
+	  If you used to rely on the older default of port 443, you have
+	  to put a clause in unbound.conf for that.  The new value is likely
+	  going to be the standardised port number for this traffic.
+	- iana portlist update.
+
+6 October 2015: Wouter
+	- 1.5.5 release.
+	- trunk tracks the development of 1.5.6.
+
 28 September 2015: Wouter
 	- MAX_TARGET_COUNT increased to 64, to fix up sporadic resolution
 	  failures.

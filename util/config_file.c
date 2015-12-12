@@ -100,7 +100,7 @@ config_create(void)
 	cfg->tcp_upstream = 0;
 	cfg->ssl_service_key = NULL;
 	cfg->ssl_service_pem = NULL;
-	cfg->ssl_port = 443;
+	cfg->ssl_port = 853;
 	cfg->ssl_upstream = 0;
 	cfg->use_syslog = 1;
 	cfg->log_time_ascii = 0;

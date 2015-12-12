@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Oct  6, 2015" "NLnet Labs" "unbound 1.5.5"
+.TH "unbound.conf" "5" "Oct 20, 2015" "NLnet Labs" "unbound 1.5.6"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -362,7 +362,7 @@ The public key certificate pem file for the ssl service.  Default is "",
 turned off.
 .TP
 .B ssl\-port: \fI<number>
-The port number on which to provide TCP SSL service, default 443, only
+The port number on which to provide TCP SSL service, default 853, only
 interfaces configured with that port number as @number get the SSL service.
 .TP
 .B do\-daemonize: \fI<yes or no>
@@ -481,7 +481,7 @@ kill \-HUP `cat @UNBOUND_PIDFILE@`
 .fi
 triggers a reload,
 .nf
-kill \-QUIT `cat @UNBOUND_PIDFILE@` 
+kill \-TERM `cat @UNBOUND_PIDFILE@` 
 .fi
 gracefully terminates.
 .TP

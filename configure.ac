@@ -10,14 +10,14 @@ sinclude(dnstap/dnstap.m4)
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[5])
-m4_define([VERSION_MICRO],[5])
+m4_define([VERSION_MICRO],[6])
 AC_INIT(unbound, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), unbound-bugs@nlnetlabs.nl, unbound)
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=5
-LIBUNBOUND_REVISION=8
+LIBUNBOUND_REVISION=9
 LIBUNBOUND_AGE=3
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -62,6 +62,7 @@ LIBUNBOUND_AGE=3
 # 1.5.3 had 5:6:3
 # 1.5.4 had 5:7:3
 # 1.5.5 had 5:8:3
+# 1.5.6 had 5:9:3
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
