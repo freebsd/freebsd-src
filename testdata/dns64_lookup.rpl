@@ -15,7 +15,7 @@ SCENARIO_BEGIN Test dns64 lookup and synthesis.
 ; AAAA if present, is passed through unchanged.
 
 ; K.ROOT-SERVERS.NET.
-RANGE_BEGIN 0 100
+RANGE_BEGIN 0 200
 	ADDRESS 193.0.14.129 
 ENTRY_BEGIN
 MATCH opcode qtype qname
@@ -40,10 +40,23 @@ com.	IN NS	a.gtld-servers.net.
 SECTION ADDITIONAL
 a.gtld-servers.net.	IN 	A	192.5.6.30
 ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+7.6.5.in-addr.arpa. IN A
+SECTION AUTHORITY
+7.6.5.in-addr.arpa. IN NS ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN	A	1.2.3.4
+ENTRY_END
+
 RANGE_END
 
 ; a.gtld-servers.net.
-RANGE_BEGIN 0 100
+RANGE_BEGIN 0 200
 	ADDRESS 192.5.6.30
 ENTRY_BEGIN
 MATCH opcode qtype qname
@@ -71,7 +84,7 @@ ENTRY_END
 RANGE_END
 
 ; ns.example.com.
-RANGE_BEGIN 0 100
+RANGE_BEGIN 0 200
 	ADDRESS 1.2.3.4
 ENTRY_BEGIN
 MATCH opcode qtype qname
@@ -130,6 +143,33 @@ MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR NOERROR
 SECTION QUESTION
+broken.example.com. IN AAAA
+SECTION ANSWER
+; NO AAAA present
+SECTION AUTHORITY
+example.com.	IN SOA	a. b. 1 2 3 4 5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+broken.example.com. IN A
+SECTION ANSWER
+broken.example.com. IN A	5.6.7.8
+broken.example.com. IN A \# 3 030405
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
 ip6.example.com. IN AAAA
 SECTION ANSWER
 ip6.example.com. IN AAAA 1:2:3::4
@@ -138,6 +178,19 @@ example.com.	IN NS	ns.example.com.
 SECTION ADDITIONAL
 ns.example.com.		IN 	A	1.2.3.4
 ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+8.7.6.5.in-addr.arpa. IN PTR
+SECTION ANSWER
+8.7.6.5.in-addr.arpa. PTR ip4.example.com.
+SECTION AUTHORITY
+7.6.5.in-addr.arpa. IN NS ns.example.com.
+ENTRY_END
+
 RANGE_END
 
 STEP 1 QUERY
@@ -206,6 +259,48 @@ SECTION AUTHORITY
 example.com.	IN NS	ns.example.com.
 SECTION ADDITIONAL
 ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
+
+; test ptr lookup
+STEP 60 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+8.0.7.0.6.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.b.9.f.f.4.6.0.0.ip6.arpa. IN PTR
+ENTRY_END
+
+; recursion happens here.
+STEP 70 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+8.0.7.0.6.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.b.9.f.f.4.6.0.0.ip6.arpa. IN PTR
+SECTION ANSWER
+8.0.7.0.6.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.b.9.f.f.4.6.0.0.ip6.arpa. IN PTR ip4.example.com.
+SECTION AUTHORITY
+7.6.5.in-addr.arpa. IN NS ns.example.com.
+ENTRY_END
+
+; synthesize from broken, malformed A records 
+STEP 80 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+broken.example.com. IN AAAA
+ENTRY_END
+
+; recursion happens here.
+STEP 90 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+broken.example.com. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+example.com.	IN SOA	a. b. 1 2 3 4 5
+SECTION ADDITIONAL
 ENTRY_END
 
 SCENARIO_END

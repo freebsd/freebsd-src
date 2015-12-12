@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.5.5.
+# See unbound.conf(5) man page, version 1.5.6.
 #
 # this is a comment.
 
@@ -552,7 +552,7 @@ server:
 	# default is "" (disabled).  requires restart to take effect.
 	# ssl-service-key: "path/to/privatekeyfile.key"
 	# ssl-service-pem: "path/to/publiccertfile.pem"
-	# ssl-port: 443
+	# ssl-port: 853
 
 	# request upstream over SSL (with plain DNS inside the SSL stream).
 	# Default is no.  Can be turned on and off with unbound-control.
