@@ -1771,7 +1771,7 @@ ural_update_slot(struct ural_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint16_t slottime, sifs, eifs;
 
-	slottime = (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
+	slottime = IEEE80211_GET_SLOTTIME(ic);
 
 	/*
 	 * These settings may sound a bit inconsistent but this is what the

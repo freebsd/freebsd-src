@@ -4291,18 +4291,18 @@ urtw_updateslottask(void *arg, int pending)
 	if (sc->sc_flags & URTW_RTL8187B) {
 		urtw_write8_m(sc, URTW_SIFS, 0x22);
 		if (IEEE80211_IS_CHAN_ANYG(ic->ic_curchan))
-			urtw_write8_m(sc, URTW_SLOT, 0x9);
+			urtw_write8_m(sc, URTW_SLOT, IEEE80211_DUR_SHSLOT);
 		else
-			urtw_write8_m(sc, URTW_SLOT, 0x14);
+			urtw_write8_m(sc, URTW_SLOT, IEEE80211_DUR_SLOT);
 		urtw_write8_m(sc, URTW_8187B_EIFS, 0x5b);
 		urtw_write8_m(sc, URTW_CARRIER_SCOUNT, 0x5b);
 	} else {
 		urtw_write8_m(sc, URTW_SIFS, 0x22);
 		if (sc->sc_state == IEEE80211_S_ASSOC &&
 		    ic->ic_flags & IEEE80211_F_SHSLOT)
-			urtw_write8_m(sc, URTW_SLOT, 0x9);
+			urtw_write8_m(sc, URTW_SLOT, IEEE80211_DUR_SHSLOT);
 		else
-			urtw_write8_m(sc, URTW_SLOT, 0x14);
+			urtw_write8_m(sc, URTW_SLOT, IEEE80211_DUR_SLOT);
 		if (IEEE80211_IS_CHAN_ANYG(ic->ic_curchan)) {
 			urtw_write8_m(sc, URTW_DIFS, 0x14);
 			urtw_write8_m(sc, URTW_EIFS, 0x5b - 0x14);
