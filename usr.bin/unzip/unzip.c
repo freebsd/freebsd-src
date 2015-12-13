@@ -127,7 +127,6 @@ errorx(const char *fmt, ...)
 	exit(1);
 }
 
-#if 0
 /* non-fatal error message + errno */
 static void
 warning(const char *fmt, ...)
@@ -143,7 +142,6 @@ warning(const char *fmt, ...)
 	va_end(ap);
 	fprintf(stderr, ": %s\n", strerror(errno));
 }
-#endif
 
 /* non-fatal error message, no errno */
 static void
@@ -539,12 +537,21 @@ recheck:
 			return;
 	}
 
+	ts[0].tv_sec = 0;
+	ts[0].tv_nsec = UTIME_NOW;
+	ts[1] = mtime;
+
 	/* process symlinks */
 	linkname = archive_entry_symlink(e);
 	if (linkname != NULL) {
-		if (symlink(linkname, *path) < 0)
+		if (symlink(linkname, *path) != 0)
 			error("symlink('%s')", *path);
 		info(" extracting: %s -> %s\n", *path, linkname);
+		if (lchmod(*path, mode) != 0)
+			warning("Cannot set mode for '%s'", *path);
+		/* set access and modification time */
+		if (utimensat(AT_FDCWD, *path, ts, AT_SYMLINK_NOFOLLOW) != 0)
+			warning("utimensat('%s')", *path);
 		return;
 	}
 
@@ -629,9 +636,6 @@ recheck:
 	info("\n");
 
 	/* set access and modification time */
-	ts[0].tv_sec = 0;
-	ts[0].tv_nsec = UTIME_NOW;
-	ts[1] = mtime;
 	if (futimens(fd, ts) != 0)
 		error("futimens('%s')", *path);
 	if (close(fd) != 0)
