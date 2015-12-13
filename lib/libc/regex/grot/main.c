@@ -9,9 +9,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "debug.ih"
 #include "main.ih"
-#include "split.ih"
 
 char *progname;
 int debug = 0;
@@ -23,6 +21,9 @@ int eopts = 0;
 regoff_t startoff = 0;
 regoff_t endoff = 0;
 
+
+extern int split();
+extern void regprint();
 
 /*
  - main - do the simple case, hand off to regress() for regression
