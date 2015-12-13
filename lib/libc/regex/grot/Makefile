@@ -62,8 +62,7 @@ regexec.o:	engine.c engine.ih
 regerror.o:	regerror.ih
 regerror.o:	utils.h
 debug.o:	debug.ih
-main.o:	debug.ih main.ih split.ih
-split.o:	split.ih
+main.o:	main.ih
 
 r:	re tests
 	./re <tests
