@@ -288,6 +288,47 @@ lltable_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
 }
 
 /*
+ * Tries to update @lle link-level address.
+ * Since update requires AFDATA WLOCK, function
+ * drops @lle lock, acquires AFDATA lock and then acquires
+ * @lle lock to maintain lock order.
+ *
+ * Returns 1 on success.
+ */
+int
+lltable_try_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
+    const char *lladdr)
+{
+
+	/* Perform real LLE update */
+	/* use afdata WLOCK to update fields */
+	LLE_WLOCK_ASSERT(lle);
+	LLE_ADDREF(lle);
+	LLE_WUNLOCK(lle);
+	IF_AFDATA_WLOCK(ifp);
+	LLE_WLOCK(lle);
+
+	/*
+	 * Since we droppped LLE lock, other thread might have deleted
+	 * this lle. Check and return
+	 */
+	if ((lle->la_flags & LLE_DELETED) != 0) {
+		IF_AFDATA_WUNLOCK(ifp);
+		LLE_FREE_LOCKED(lle);
+		return (0);
+	}
+
+	/* Update data */
+	lltable_set_entry_addr(ifp, lle, lladdr);
+
+	IF_AFDATA_WUNLOCK(ifp);
+
+	LLE_REMREF(lle);
+
+	return (1);
+}
+
+/*
  *
  * Performes generic cleanup routines and frees lle.
  *

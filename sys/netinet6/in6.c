@@ -2064,6 +2064,7 @@ in6_lltable_destroy_lle(struct llentry *lle)
 
 	LLE_WUNLOCK(lle);
 	LLE_LOCK_DESTROY(lle);
+	LLE_REQ_DESTROY(lle);
 	free(lle, M_LLTABLE);
 }
 
@@ -2080,6 +2081,7 @@ in6_lltable_new(const struct in6_addr *addr6, u_int flags)
 	lle->base.lle_refcnt = 1;
 	lle->base.lle_free = in6_lltable_destroy_lle;
 	LLE_LOCK_INIT(&lle->base);
+	LLE_REQ_INIT(&lle->base);
 	callout_init(&lle->base.lle_timer, 1);
 
 	return (&lle->base);
@@ -2288,6 +2290,13 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 	if (lle == NULL)
 		return (NULL);
 
+	KASSERT((flags & (LLE_UNLOCKED|LLE_EXCLUSIVE)) !=
+	    (LLE_UNLOCKED|LLE_EXCLUSIVE),("wrong lle request flags: 0x%X",
+	    flags));
+
+	if (flags & LLE_UNLOCKED)
+		return (lle);
+
 	if (flags & LLE_EXCLUSIVE)
 		LLE_WLOCK(lle);
 	else
@@ -2350,8 +2359,8 @@ in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 			sdl->sdl_index = ifp->if_index;
 			sdl->sdl_type = ifp->if_type;
 			bcopy(&lle->ll_addr, LLADDR(sdl), ifp->if_addrlen);
-			ndpc.rtm.rtm_rmx.rmx_expire =
-			    lle->la_flags & LLE_STATIC ? 0 : lle->la_expire;
+			ndpc.rtm.rtm_rmx.rmx_expire = lle->la_expire +
+			    lle->lle_remtime / hz;
 			ndpc.rtm.rtm_flags |= (RTF_HOST | RTF_LLDATA);
 			if (lle->la_flags & LLE_STATIC)
 				ndpc.rtm.rtm_flags |= RTF_STATIC;
