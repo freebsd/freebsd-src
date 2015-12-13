@@ -4814,6 +4814,7 @@ dump_dwarf_line(struct readelf *re)
 		}
 
 		endoff = offset + length;
+		pe = (uint8_t *) d->d_buf + endoff;
 		version = re->dw_read(d, &offset, 2);
 		hdrlen = re->dw_read(d, &offset, dwarf_size);
 		minlen = re->dw_read(d, &offset, 1);
@@ -4879,7 +4880,6 @@ dump_dwarf_line(struct readelf *re)
 #define	ADDRESS(x) ((((x) - opbase) / lrange) * minlen)
 
 		p++;
-		pe = (uint8_t *) d->d_buf + endoff;
 		printf("\n");
 		printf(" Line Number Statements:\n");
 
@@ -7476,7 +7476,7 @@ static int64_t
 _decode_sleb128(uint8_t **dp, uint8_t *dpe)
 {
 	int64_t ret = 0;
-	uint8_t b;
+	uint8_t b = 0;
 	int shift = 0;
 
 	uint8_t *src = *dp;
