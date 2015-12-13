@@ -754,8 +754,6 @@ urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
 		}
 		tap->wr_dbm_antsignal = rssi;
 		tap->wr_dbm_antnoise = URTWN_NOISE_FLOOR;
-		tap->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 	}
 
 	*rssi_p = rssi;
@@ -2416,8 +2414,6 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 		struct urtwn_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		if (k != NULL)
 			tap->wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 		ieee80211_radiotap_tx(vap, m);
@@ -3725,6 +3721,7 @@ static void
 urtwn_set_channel(struct ieee80211com *ic)
 {
 	struct urtwn_softc *sc = ic->ic_softc;
+	struct ieee80211_channel *c = ic->ic_curchan;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	URTWN_LOCK(sc);
@@ -3732,7 +3729,11 @@ urtwn_set_channel(struct ieee80211com *ic)
 		/* Make link LED blink during scan. */
 		urtwn_set_led(sc, URTWN_LED_LINK, !sc->ledlink);
 	}
-	urtwn_set_chan(sc, ic->ic_curchan, NULL);
+	urtwn_set_chan(sc, c, NULL);
+	sc->sc_rxtap.wr_chan_freq = htole16(c->ic_freq);
+	sc->sc_rxtap.wr_chan_flags = htole16(c->ic_flags);
+	sc->sc_txtap.wt_chan_freq = htole16(c->ic_freq);
+	sc->sc_txtap.wt_chan_flags = htole16(c->ic_flags);
 	URTWN_UNLOCK(sc);
 }
 
