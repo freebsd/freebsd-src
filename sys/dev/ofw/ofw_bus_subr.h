@@ -110,4 +110,13 @@ phandle_t ofw_bus_find_child(phandle_t, const char *);
 /* Helper routine to find a device_t child matchig a given phandle_t */
 device_t ofw_bus_find_child_device_by_phandle(device_t bus, phandle_t node);
 
+/* Helper routines for parsing lists  */
+int ofw_bus_parse_xref_list_alloc(phandle_t node, const char *list_name,
+    const char *cells_name, int idx, phandle_t *producer, int *ncells,
+    pcell_t **cells);
+int ofw_bus_find_string_index(phandle_t node, const char *list_name,
+    const char *name, int *idx);
+int ofw_bus_string_list_to_array(phandle_t node, const char *list_name,
+    const char ***array);
+
 #endif /* !_DEV_OFW_OFW_BUS_SUBR_H_ */
