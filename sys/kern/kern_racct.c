@@ -501,7 +501,7 @@ racct_destroy(struct racct **racct)
  */
 static void
 racct_adjust_resource(struct racct *racct, int resource,
-    uint64_t amount)
+    int64_t amount)
 {
 
 	ASSERT_RACCT_ENABLED();
