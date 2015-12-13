@@ -99,7 +99,7 @@ struct mod_pnp_match_info
 	const char *bus;	/* Name of the bus for this table */
 	const void *table;	/* Pointer to pnp table */
 	int entry_len;		/* Length of each entry in the table (may be */
-				/*   logner than descr descriebs). */
+				/*   longer than descr describes). */
 	int num_entry;		/* Number of entries in the table */
 };
 #ifdef	_KERNEL
