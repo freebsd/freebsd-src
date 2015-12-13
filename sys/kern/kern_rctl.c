@@ -282,7 +282,7 @@ rctl_would_exceed(const struct proc *p, const struct rctl_rule *rule,
 }
 
 /*
- * Special version of rctl_available() function for the %cpu resource.
+ * Special version of rctl_get_available() for the %CPU resource.
  * We slightly cheat here and return less than we normally would.
  */
 int64_t
