@@ -160,6 +160,10 @@ FBSD_1.3 {
 	open_wmemstream;
 };
 
+FBSD_1.4 {
+	fdclose;
+};
+
 FBSDprivate_1.0 {
 	_flockfile;
 	_flockfile_debug_stub;
