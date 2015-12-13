@@ -213,6 +213,9 @@ static uint16_t		urtwn_read_2(struct urtwn_softc *, uint16_t);
 static uint32_t		urtwn_read_4(struct urtwn_softc *, uint16_t);
 static int		urtwn_fw_cmd(struct urtwn_softc *, uint8_t,
 			    const void *, int);
+static void		urtwn_cmdq_cb(void *, int);
+static int		urtwn_cmd_sleepable(struct urtwn_softc *, const void *,
+			    size_t, CMD_FUNC_PROTO);
 static void		urtwn_r92c_rf_write(struct urtwn_softc *, int,
 			    uint8_t, uint32_t);
 static void		urtwn_r88e_rf_write(struct urtwn_softc *, int,
@@ -427,6 +430,7 @@ urtwn_attach(device_t self)
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(self),
 	    MTX_NETWORK_LOCK, MTX_DEF);
+	URTWN_CMDQ_LOCK_INIT(sc);
 	URTWN_NT_LOCK_INIT(sc);
 	callout_init(&sc->sc_watchdog_ch, 0);
 	mbufq_init(&sc->sc_snd, ifqmaxlen);
@@ -525,6 +529,8 @@ urtwn_attach(device_t self)
 	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
 	    URTWN_RX_RADIOTAP_PRESENT);
 
+	TASK_INIT(&sc->cmdq_task, 0, urtwn_cmdq_cb, sc);
+
 	if (bootverbose)
 		ieee80211_announce(ic);
 
@@ -574,8 +580,13 @@ urtwn_detach(device_t self)
 	urtwn_free_rx_list(sc);
 	URTWN_UNLOCK(sc);
 
-	ieee80211_ifdetach(ic);
+	if (ic->ic_softc == sc) {
+		ieee80211_draintask(ic, &sc->cmdq_task);
+		ieee80211_ifdetach(ic);
+	}
+
 	URTWN_NT_LOCK_DESTROY(sc);
+	URTWN_CMDQ_LOCK_DESTROY(sc);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -1256,6 +1267,64 @@ urtwn_fw_cmd(struct urtwn_softc *sc, uint8_t id, const void *buf, int len)
 		return (EIO);
 
 	sc->fwcur = (sc->fwcur + 1) % R92C_H2C_NBOX;
+	return (0);
+}
+
+static void
+urtwn_cmdq_cb(void *arg, int pending)
+{
+	struct urtwn_softc *sc = arg;
+	struct urtwn_cmdq *item;
+
+	/*
+	 * Device must be powered on (via urtwn_power_on())
+	 * before any command may be sent.
+	 */
+	URTWN_LOCK(sc);
+	if (!(sc->sc_flags & URTWN_RUNNING)) {
+		URTWN_UNLOCK(sc);
+		return;
+	}
+
+	URTWN_CMDQ_LOCK(sc);
+	while (sc->cmdq[sc->cmdq_first].func != NULL) {
+		item = &sc->cmdq[sc->cmdq_first];
+		sc->cmdq_first = (sc->cmdq_first + 1) % URTWN_CMDQ_SIZE;
+		URTWN_CMDQ_UNLOCK(sc);
+
+		item->func(sc, &item->data);
+
+		URTWN_CMDQ_LOCK(sc);
+		memset(item, 0, sizeof (*item));
+	}
+	URTWN_CMDQ_UNLOCK(sc);
+	URTWN_UNLOCK(sc);
+}
+
+static int
+urtwn_cmd_sleepable(struct urtwn_softc *sc, const void *ptr, size_t len,
+    CMD_FUNC_PROTO)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+
+	KASSERT(len <= sizeof(union sec_param), ("buffer overflow"));
+
+	URTWN_CMDQ_LOCK(sc);
+	if (sc->cmdq[sc->cmdq_last].func != NULL) {
+		device_printf(sc->sc_dev, "%s: cmdq overflow\n", __func__);
+		URTWN_CMDQ_UNLOCK(sc);
+
+		return (EAGAIN);
+	}
+
+	if (ptr != NULL)
+		memcpy(&sc->cmdq[sc->cmdq_last].data, ptr, len);
+	sc->cmdq[sc->cmdq_last].func = func;
+	sc->cmdq_last = (sc->cmdq_last + 1) % URTWN_CMDQ_SIZE;
+	URTWN_CMDQ_UNLOCK(sc);
+
+	ieee80211_runtask(ic, &sc->cmdq_task);
+
 	return (0);
 }
 
