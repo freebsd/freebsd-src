@@ -2254,7 +2254,7 @@ rt2560_update_slot(struct ieee80211com *ic)
 	uint32_t tmp;
 
 #ifndef FORCE_SLOTTIME
-	slottime = (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
+	slottime = IEEE80211_GET_SLOTTIME(ic);
 #else
 	/*
 	 * Setting slot time according to "short slot time" capability
@@ -2272,13 +2272,13 @@ rt2560_update_slot(struct ieee80211com *ic)
 	 * (-1Mb~-2Mb lower) and the _whole_ BSS would stop using short
 	 * slot time.
 	 */
-	slottime = 20;
+	slottime = IEEE80211_DUR_SLOT;
 #endif
 
 	/* update the MAC slot boundaries */
 	tx_sifs = RAL_SIFS - RT2560_TXRX_TURNAROUND;
 	tx_pifs = tx_sifs + slottime;
-	tx_difs = tx_sifs + 2 * slottime;
+	tx_difs = IEEE80211_DUR_DIFS(tx_sifs, slottime);
 	eifs = (ic->ic_curmode == IEEE80211_MODE_11B) ? 364 : 60;
 
 	tmp = RAL_READ(sc, RT2560_CSR11);

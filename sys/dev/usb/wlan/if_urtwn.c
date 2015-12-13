@@ -3621,8 +3621,7 @@ urtwn_wme_update(struct ieee80211com *ic)
 	int ac;
 
 	acm = 0;
-	slottime = (ic->ic_flags & IEEE80211_F_SHSLOT) ?
-	    IEEE80211_DUR_SHSLOT : IEEE80211_DUR_SLOT;
+	slottime = IEEE80211_GET_SLOTTIME(ic);
 
 	URTWN_LOCK(sc);
 	for (ac = WME_AC_BE; ac < WME_NUM_AC; ac++) {

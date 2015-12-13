@@ -2068,7 +2068,7 @@ rum_update_slot_cb(struct rum_softc *sc, union sec_param *data, uint8_t rvp_id)
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint8_t slottime;
 
-	slottime = (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
+	slottime = IEEE80211_GET_SLOTTIME(ic);
 
 	rum_modbits(sc, RT2573_MAC_CSR9, slottime, 0xff);
 

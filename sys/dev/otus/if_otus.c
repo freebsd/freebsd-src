@@ -2423,7 +2423,7 @@ otus_updateslot(struct otus_softc *sc)
 
 	OTUS_LOCK_ASSERT(sc);
 
-	slottime = (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
+	slottime = IEEE80211_GET_SLOTTIME(ic);
 	otus_write(sc, AR_MAC_REG_SLOT_TIME, slottime << 10);
 	(void)otus_write_barrier(sc);
 }

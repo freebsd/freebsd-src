@@ -3048,7 +3048,7 @@ rt2860_updateslot(struct ieee80211com *ic)
 
 	tmp = RAL_READ(sc, RT2860_BKOFF_SLOT_CFG);
 	tmp &= ~0xff;
-	tmp |= (ic->ic_flags & IEEE80211_F_SHSLOT) ? 9 : 20;
+	tmp |= IEEE80211_GET_SLOTTIME(ic);
 	RAL_WRITE(sc, RT2860_BKOFF_SLOT_CFG, tmp);
 }
 

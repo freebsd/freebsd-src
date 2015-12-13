@@ -53,6 +53,10 @@
 #define IEEE80211_DUR_SHSLOT	9	/* ERP short slottime */
 #define IEEE80211_DUR_OFDM_SLOT	9	/* OFDM slottime */
 
+#define IEEE80211_GET_SLOTTIME(ic) \
+	((ic->ic_flags & IEEE80211_F_SHSLOT) ? \
+	    IEEE80211_DUR_SHSLOT : IEEE80211_DUR_SLOT)
+
 /*
  * DIFS (microseconds).
  */
