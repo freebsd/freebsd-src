@@ -1586,7 +1586,10 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			 */
 			struct sockaddr *info_dst = info->rti_info[RTAX_DST];
 			info->rti_info[RTAX_DST] = ndst;
+			/* Do not delete existing PINNED(interface) routes */
+			info->rti_flags &= ~RTF_PINNED;
 			rt_old = rt_unlinkrte(rnh, info, &error);
+			info->rti_flags |= RTF_PINNED;
 			info->rti_info[RTAX_DST] = info_dst;
 			if (rt_old != NULL)
 				rn = rnh->rnh_addaddr(ndst, netmask, rnh,
