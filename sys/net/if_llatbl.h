@@ -79,6 +79,8 @@ struct llentry {
 	int16_t			 ln_state;	/* IPv6 has ND6_LLINFO_NOSTATE == -2 */
 	uint16_t		 ln_router;
 	time_t			 ln_ntick;
+	time_t			lle_remtime;	/* Real time remaining */
+	time_t			lle_hittime;	/* Time when r_skip_req was unset */
 	int			 lle_refcnt;
 
 	LIST_ENTRY(llentry)	lle_chain;	/* chain of deleted items */
@@ -221,6 +223,8 @@ struct llentry  *llentry_alloc(struct ifnet *, struct lltable *,
 /* helper functions */
 size_t lltable_drop_entry_queue(struct llentry *);
 void lltable_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
+    const char *lladdr);
+int lltable_try_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
     const char *lladdr);
 
 struct llentry *lltable_alloc_entry(struct lltable *llt, u_int flags,

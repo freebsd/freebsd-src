@@ -765,7 +765,10 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		/*
 		 * Record link-layer address, and update the state.
 		 */
-		lltable_set_entry_addr(ifp, ln, lladdr);
+		if (lltable_try_set_entry_addr(ifp, ln, lladdr) == 0) {
+			ln = NULL;
+			goto freeit;
+		}
 		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
 		if (is_solicited)
 			nd6_llinfo_setstate(ln, ND6_LLINFO_REACHABLE);
@@ -831,7 +834,12 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * Update link-local address, if any.
 			 */
 			if (lladdr != NULL) {
-				lltable_set_entry_addr(ifp, ln, lladdr);
+				int ret;
+				ret = lltable_try_set_entry_addr(ifp, ln,lladdr);
+				if (ret == 0) {
+					ln = NULL;
+					goto freeit;
+				}
 				EVENTHANDLER_INVOKE(lle_event, ln,
 				    LLENTRY_RESOLVED);
 			}
