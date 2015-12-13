@@ -307,7 +307,7 @@ free(void *cp)
 	if (cp == NULL)
 		return;
 	op = (union overhead *)((char *)cp - sizeof (union overhead));
-	ASSERT(cheri_gettag(op) == 1);		/* is a capabiltiy */
+	ASSERT(cheri_gettag(op) == 1);		/* is a capability */
 	ASSERT(cheri_getoffset(op) == 0);	/* at the beginning */
 #ifdef MALLOC_DEBUG
 	ASSERT(op->ov_magic == MAGIC);		/* make sure it was in use */
