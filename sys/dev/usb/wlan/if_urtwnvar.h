@@ -205,6 +205,7 @@ struct urtwn_softc {
 		
 	struct callout			sc_watchdog_ch;
 	struct mtx			sc_mtx;
+	uint32_t			keys_bmap;
 
 	struct urtwn_cmdq		cmdq[URTWN_CMDQ_SIZE];
 	struct mtx			cmdq_mtx;
