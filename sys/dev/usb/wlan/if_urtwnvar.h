@@ -71,15 +71,18 @@ struct urtwn_data {
 };
 typedef STAILQ_HEAD(, urtwn_data) urtwn_datahead;
 
-struct urtwn_cmdq {
-	void			*arg0;
-	void			*arg1;
-	void			(*func)(void *);
-	struct ieee80211_key	*k;
-	struct ieee80211_key	key;
-	uint8_t			mac[IEEE80211_ADDR_LEN];
-	uint8_t			wcid;
+union sec_param {
+	struct ieee80211_key		key;
 };
+
+#define CMD_FUNC_PROTO			void (*func)(struct urtwn_softc *, \
+					    union sec_param *)
+
+struct urtwn_cmdq {
+	union sec_param			data;
+	CMD_FUNC_PROTO;
+};
+#define URTWN_CMDQ_SIZE			16
 
 struct urtwn_fw_info {
 	const uint8_t		*data;
@@ -203,17 +206,11 @@ struct urtwn_softc {
 	struct callout			sc_watchdog_ch;
 	struct mtx			sc_mtx;
 
-/* need to be power of 2, otherwise URTWN_CMDQ_GET fails */
-#define	URTWN_CMDQ_MAX	16
-#define	URTWN_CMDQ_MASQ	(URTWN_CMDQ_MAX - 1)
-	struct urtwn_cmdq		cmdq[URTWN_CMDQ_MAX];
+	struct urtwn_cmdq		cmdq[URTWN_CMDQ_SIZE];
+	struct mtx			cmdq_mtx;
 	struct task			cmdq_task;
-	uint32_t			cmdq_store;
-	uint8_t                         cmdq_exec;
-	uint8_t                         cmdq_run;
-	uint8_t                         cmdq_key_set;
-#define	URTWN_CMDQ_ABORT	0
-#define	URTWN_CMDQ_GO		1
+	uint8_t				cmdq_first;
+	uint8_t				cmdq_last;
 
 	uint32_t			rf_chnlbw[R92C_MAX_CHAINS];
 	struct usb_xfer			*sc_xfer[URTWN_N_TRANSFER];
@@ -225,6 +222,12 @@ struct urtwn_softc {
 #define	URTWN_LOCK(sc)			mtx_lock(&(sc)->sc_mtx)
 #define	URTWN_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
 #define	URTWN_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->sc_mtx, MA_OWNED)
+
+#define URTWN_CMDQ_LOCK_INIT(sc) \
+	mtx_init(&(sc)->cmdq_mtx, "cmdq lock", NULL, MTX_DEF)
+#define URTWN_CMDQ_LOCK(sc)		mtx_lock(&(sc)->cmdq_mtx)
+#define URTWN_CMDQ_UNLOCK(sc)		mtx_unlock(&(sc)->cmdq_mtx)
+#define URTWN_CMDQ_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->cmdq_mtx)
 
 #define URTWN_NT_LOCK_INIT(sc) \
 	mtx_init(&(sc)->nt_mtx, "node table lock", NULL, MTX_DEF)
