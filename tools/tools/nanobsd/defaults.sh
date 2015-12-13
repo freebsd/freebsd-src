@@ -1024,7 +1024,7 @@ export_var ( ) {		# Don't wawnt a subshell
 set_defaults_and_export ( ) {
 	: ${NANO_OBJ:=/usr/obj/nanobsd.${NANO_NAME}}
 	: ${MAKEOBJDIRPREFIX:=${NANO_OBJ}}
-	: ${NANO_DISKIMGDIR=:${NANO_OBJ}}
+	: ${NANO_DISKIMGDIR:=${NANO_OBJ}}
 	NANO_WORLDDIR=${NANO_OBJ}/_.w
 	NANO_MAKE_CONF_BUILD=${MAKEOBJDIRPREFIX}/make.conf.build
 	NANO_MAKE_CONF_INSTALL=${NANO_OBJ}/make.conf.install
