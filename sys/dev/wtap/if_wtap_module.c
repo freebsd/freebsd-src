@@ -41,7 +41,6 @@
 #include <sys/ucred.h>
 #include <sys/jail.h>
 
-#include <sys/types.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
