@@ -86,6 +86,12 @@ struct urtwn_fw_info {
 	size_t			size;
 };
 
+struct urtwn_node {
+	struct ieee80211_node	ni;	/* must be the first */
+	uint8_t			id;
+};
+#define URTWN_NODE(ni)	((struct urtwn_node *)(ni))
+
 struct urtwn_vap {
 	struct ieee80211vap	vap;
 
@@ -152,9 +158,15 @@ struct urtwn_softc {
 #define	URTWN_CHIP_UMC_A_CUT	0x08
 #define	URTWN_CHIP_88E		0x10
 
+#define URTWN_CHIP_HAS_RATECTL(_sc)	(!!((_sc)->chip & URTWN_CHIP_88E))
+
+	void				(*sc_node_free)(struct ieee80211_node *);
 	void				(*sc_rf_write)(struct urtwn_softc *,
 					    int, uint8_t, uint32_t);
 	int				(*sc_power_on)(struct urtwn_softc *);
+
+	struct ieee80211_node		*node_list[R88E_MACID_MAX];
+	struct mtx			nt_mtx;
 
 	uint8_t				board_type;
 	uint8_t				regulatory;
@@ -213,3 +225,9 @@ struct urtwn_softc {
 #define	URTWN_LOCK(sc)			mtx_lock(&(sc)->sc_mtx)
 #define	URTWN_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
 #define	URTWN_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->sc_mtx, MA_OWNED)
+
+#define URTWN_NT_LOCK_INIT(sc) \
+	mtx_init(&(sc)->nt_mtx, "node table lock", NULL, MTX_DEF)
+#define URTWN_NT_LOCK(sc)		mtx_lock(&(sc)->nt_mtx)
+#define URTWN_NT_UNLOCK(sc)		mtx_unlock(&(sc)->nt_mtx)
+#define URTWN_NT_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->nt_mtx)
