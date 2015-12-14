@@ -1158,12 +1158,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 };
 
 void
-setidt(idx, func, typ, dpl, ist)
-	int idx;
-	inthand_t *func;
-	int typ;
-	int dpl;
-	int ist;
+setidt(int idx, inthand_t *func, int typ, int dpl, int ist)
 {
 	struct gate_descriptor *ip;
 
