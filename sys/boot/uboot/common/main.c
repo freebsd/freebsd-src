@@ -573,17 +573,41 @@ enum ubenv_action {
 static void
 handle_uboot_env_var(enum ubenv_action action, const char * var)
 {
-	const char * val;
-	char ubv[128];
+	char ldvar[128];
+	const char *val;
+	char *wrk;
+	int len;
+
+	/*
+	 * On an import with the variable name formatted as ldname=ubname,
+	 * import the uboot variable ubname into the loader variable ldname,
+	 * otherwise the historical behavior is to import to uboot.ubname.
+	 */
+	if (action == UBENV_IMPORT) { 
+		len = strcspn(var, "=");
+		if (var[len] == 0) {
+			strcpy(ldvar, "uboot.");
+			strncat(ldvar, var, sizeof(ldvar) - 7);
+		} else {
+			len = MIN(len, sizeof(ldvar) - 1);
+			strncpy(ldvar, var, len);
+			ldvar[len] = 0;
+			var = &var[len + 1];
+		}
+	}
 
 	/*
 	 * If the user prepended "uboot." (which is how they usually see these
 	 * names) strip it off as a convenience.
 	 */
 	if (strncmp(var, "uboot.", 6) == 0) {
-		snprintf(ubv, sizeof(ubv), "%s", &var[6]);
-		var = ubv;
+		var = &var[6];
 	}
+
+	/* If ldvar is malformed or there's no variable name left, punt. */
+	if (ldvar[0] == 0 || var[0] == 0)
+		return;
+
 	val = ub_env_get(var);
 	if (action == UBENV_SHOW) {
 		if (val == NULL)
@@ -592,8 +616,7 @@ handle_uboot_env_var(enum ubenv_action action, const char * var)
 			printf("uboot.%s=%s\n", var, val);
 	} else if (action == UBENV_IMPORT) {
 		if (val != NULL) {
-			snprintf(ubv, sizeof(ubv), "uboot.%s", var);
-			setenv(ubv, val, 1);
+			setenv(ldvar, val, 1);
 		}
 	}
 }
