@@ -43,12 +43,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/cpuset.h>
 #include <sys/rwlock.h>
+
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/ofw/ofw_pci.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
+
 #include <machine/cpu.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
@@ -75,8 +78,6 @@ __FBSDID("$FreeBSD$");
 #define	MIN_RANGES_TUPLES	2
 
 #define	PCI_IO_WINDOW_OFFSET	0x1000
-#define	PCI_IRQ_START		32
-#define	PCI_IRQ_END		(PCI_IRQ_START + 4)
 
 #define	SPACE_CODE_SHIFT	24
 #define	SPACE_CODE_MASK		0x3
@@ -98,7 +99,6 @@ struct generic_pcie_softc {
 	int			nranges;
 	struct rman		mem_rman;
 	struct rman		io_rman;
-	struct rman		irq_rman;
 	struct resource		*res;
 	struct resource		*res1;
 	int			ecam;
@@ -106,6 +106,7 @@ struct generic_pcie_softc {
 	bus_space_handle_t	bsh;
 	device_t		dev;
 	bus_space_handle_t	ioh;
+	struct ofw_bus_iinfo    pci_iinfo;
 };
 
 /* Forward prototypes */
@@ -216,14 +217,9 @@ generic_pcie_attach(device_t dev)
 		}
 	}
 
-	/* TODO: get IRQ numbers from FDT */
-	sc->irq_rman.rm_type = RMAN_ARRAY;
-	sc->irq_rman.rm_descr = "Generic PCIe IRQs";
-	if (rman_init(&sc->irq_rman) != 0 ||
-	    rman_manage_region(&sc->irq_rman, PCI_IRQ_START,
-		PCI_IRQ_END) != 0) {
-		panic("Generic PCI: failed to set up IRQ rman");
-	}
+	ofw_bus_setup_iinfo(ofw_bus_get_node(dev), &sc->pci_iinfo,
+	    sizeof(cell_t));
+
 
 	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
@@ -341,10 +337,6 @@ generic_pcie_read_config(device_t dev, u_int bus, u_int slot,
 		return (~0U);
 	}
 
-	if (reg == PCIR_INTLINE) {
-		data += PCI_IRQ_START;
-	}
-
 	return (data);
 }
 
@@ -390,6 +382,37 @@ generic_pcie_maxslots(device_t dev)
 }
 
 static int
+generic_pcie_route_interrupt(device_t bus, device_t dev, int pin)
+{
+	struct generic_pcie_softc *sc;
+	struct ofw_pci_register reg;
+	uint32_t pintr, mintr[2];
+	phandle_t iparent;
+	int intrcells;
+
+	sc = device_get_softc(bus);
+	pintr = pin;
+
+	bzero(&reg, sizeof(reg));
+	reg.phys_hi = (pci_get_bus(dev) << OFW_PCI_PHYS_HI_BUSSHIFT) |
+	    (pci_get_slot(dev) << OFW_PCI_PHYS_HI_DEVICESHIFT) |
+	    (pci_get_function(dev) << OFW_PCI_PHYS_HI_FUNCTIONSHIFT);
+
+	intrcells = ofw_bus_lookup_imap(ofw_bus_get_node(dev),
+	    &sc->pci_iinfo, &reg, sizeof(reg), &pintr, sizeof(pintr),
+	    mintr, sizeof(mintr), &iparent);
+	if (intrcells) {
+		pintr = ofw_bus_map_intr(dev, iparent, intrcells, mintr);
+		return (pintr);
+	}
+
+	device_printf(bus, "could not route pin %d for device %d.%d\n",
+	    pin, pci_get_slot(dev), pci_get_function(dev));
+	return (PCI_INVALID_IRQ);
+}
+
+
+static int
 generic_pcie_read_ivar(device_t dev, device_t child, int index,
     uintptr_t *result)
 {
@@ -432,8 +455,6 @@ generic_pcie_rman(struct generic_pcie_softc *sc, int type)
 		return (&sc->io_rman);
 	case SYS_RES_MEMORY:
 		return (&sc->mem_rman);
-	case SYS_RES_IRQ:
-		return (&sc->irq_rman);
 	default:
 		break;
 	}
@@ -606,9 +627,20 @@ static device_method_t generic_pcie_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	generic_pcie_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
+
+	/* pcib interface */
 	DEVMETHOD(pcib_maxslots,		generic_pcie_maxslots),
+	DEVMETHOD(pcib_route_interrupt,		generic_pcie_route_interrupt),
 	DEVMETHOD(pcib_read_config,		generic_pcie_read_config),
 	DEVMETHOD(pcib_write_config,		generic_pcie_write_config),
+#if defined(__aarch64__)
+	DEVMETHOD(pcib_alloc_msi,		arm_alloc_msi),
+	DEVMETHOD(pcib_release_msi,		arm_release_msi),
+	DEVMETHOD(pcib_alloc_msix,		arm_alloc_msix),
+	DEVMETHOD(pcib_release_msix,		arm_release_msix),
+	DEVMETHOD(pcib_map_msi,			arm_map_msi),
+#endif
+
 	DEVMETHOD_END
 };
 
