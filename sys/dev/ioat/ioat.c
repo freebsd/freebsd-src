@@ -588,6 +588,7 @@ ioat_interrupt_handler(void *arg)
 {
 	struct ioat_softc *ioat = arg;
 
+	ioat->stats.interrupts++;
 	ioat_process_events(ioat);
 }
 
@@ -649,6 +650,8 @@ ioat_process_events(struct ioat_softc *ioat)
 		    ioat_timer_callback, ioat);
 	}
 
+	ioat->stats.descriptors_processed += completed;
+
 out:
 	ioat_write_chanctrl(ioat, IOAT_CHANCTRL_RUN);
 	mtx_unlock(&ioat->cleanup_lock);
@@ -658,6 +661,8 @@ out:
 
 	if (!is_ioat_halted(comp_update))
 		return;
+
+	ioat->stats.channel_halts++;
 
 	/*
 	 * Fatal programming error on this DMA channel.  Flush any outstanding
@@ -670,6 +675,7 @@ out:
 
 	chanerr = ioat_read_4(ioat, IOAT_CHANERR_OFFSET);
 	ioat_halted_debug(ioat, chanerr);
+	ioat->stats.last_halt_chanerr = chanerr;
 
 	while (ioat_get_active(ioat) > 0) {
 		desc = ioat_get_ring_entry(ioat, ioat->tail);
@@ -682,6 +688,8 @@ out:
 
 		ioat_putn_locked(ioat, 1, IOAT_ACTIVE_DESCR_REF);
 		ioat->tail++;
+		ioat->stats.descriptors_processed++;
+		ioat->stats.descriptors_error++;
 	}
 
 	/* Clear error status */
@@ -1363,6 +1371,8 @@ ioat_submit_single(struct ioat_softc *ioat)
 		callout_reset(&ioat->timer, IOAT_INTR_TIMO,
 		    ioat_timer_callback, ioat);
 	}
+
+	ioat->stats.descriptors_submitted++;
 }
 
 static int
@@ -1518,6 +1528,36 @@ sysctl_handle_chansts(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+sysctl_handle_dpi(SYSCTL_HANDLER_ARGS)
+{
+	struct ioat_softc *ioat;
+	struct sbuf sb;
+#define	PRECISION	"1"
+	const uintmax_t factor = 10;
+	uintmax_t rate;
+	int error;
+
+	ioat = arg1;
+	sbuf_new_for_sysctl(&sb, NULL, 16, req);
+
+	if (ioat->stats.interrupts == 0) {
+		sbuf_printf(&sb, "NaN");
+		goto out;
+	}
+	rate = ioat->stats.descriptors_processed * factor /
+	    ioat->stats.interrupts;
+	sbuf_printf(&sb, "%ju.%." PRECISION "ju", rate / factor,
+	    rate % factor);
+#undef	PRECISION
+out:
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	return (EINVAL);
+}
+
+static int
 sysctl_handle_error(SYSCTL_HANDLER_ARGS)
 {
 	struct ioat_descriptor *desc;
@@ -1587,9 +1627,9 @@ dump_descriptor(void *hw_desc)
 static void
 ioat_setup_sysctl(device_t device)
 {
-	struct sysctl_oid_list *par;
+	struct sysctl_oid_list *par, *statpar, *state, *hammer;
 	struct sysctl_ctx_list *ctx;
-	struct sysctl_oid *tree;
+	struct sysctl_oid *tree, *tmp;
 	struct ioat_softc *ioat;
 
 	ioat = DEVICE2SOFTC(device);
@@ -1602,36 +1642,72 @@ ioat_setup_sysctl(device_t device)
 	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "max_xfer_size", CTLFLAG_RD,
 	    &ioat->max_xfer_size, 0, "HW maximum transfer size");
 
-	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "ring_size_order", CTLFLAG_RD,
+	tmp = SYSCTL_ADD_NODE(ctx, par, OID_AUTO, "state", CTLFLAG_RD, NULL,
+	    "IOAT channel internal state");
+	state = SYSCTL_CHILDREN(tmp);
+
+	SYSCTL_ADD_UINT(ctx, state, OID_AUTO, "ring_size_order", CTLFLAG_RD,
 	    &ioat->ring_size_order, 0, "SW descriptor ring size order");
-	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "head", CTLFLAG_RD, &ioat->head, 0,
-	    "SW descriptor head pointer index");
-	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "tail", CTLFLAG_RD, &ioat->tail, 0,
-	    "SW descriptor tail pointer index");
-	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "hw_head", CTLFLAG_RD,
+	SYSCTL_ADD_UINT(ctx, state, OID_AUTO, "head", CTLFLAG_RD, &ioat->head,
+	    0, "SW descriptor head pointer index");
+	SYSCTL_ADD_UINT(ctx, state, OID_AUTO, "tail", CTLFLAG_RD, &ioat->tail,
+	    0, "SW descriptor tail pointer index");
+	SYSCTL_ADD_UINT(ctx, state, OID_AUTO, "hw_head", CTLFLAG_RD,
 	    &ioat->hw_head, 0, "HW DMACOUNT");
 
-	SYSCTL_ADD_UQUAD(ctx, par, OID_AUTO, "last_completion", CTLFLAG_RD,
+	SYSCTL_ADD_UQUAD(ctx, state, OID_AUTO, "last_completion", CTLFLAG_RD,
 	    ioat->comp_update, "HW addr of last completion");
 
-	SYSCTL_ADD_INT(ctx, par, OID_AUTO, "is_resize_pending", CTLFLAG_RD,
+	SYSCTL_ADD_INT(ctx, state, OID_AUTO, "is_resize_pending", CTLFLAG_RD,
 	    &ioat->is_resize_pending, 0, "resize pending");
-	SYSCTL_ADD_INT(ctx, par, OID_AUTO, "is_completion_pending", CTLFLAG_RD,
-	    &ioat->is_completion_pending, 0, "completion pending");
-	SYSCTL_ADD_INT(ctx, par, OID_AUTO, "is_reset_pending", CTLFLAG_RD,
+	SYSCTL_ADD_INT(ctx, state, OID_AUTO, "is_completion_pending",
+	    CTLFLAG_RD, &ioat->is_completion_pending, 0, "completion pending");
+	SYSCTL_ADD_INT(ctx, state, OID_AUTO, "is_reset_pending", CTLFLAG_RD,
 	    &ioat->is_reset_pending, 0, "reset pending");
-	SYSCTL_ADD_INT(ctx, par, OID_AUTO, "is_channel_running", CTLFLAG_RD,
+	SYSCTL_ADD_INT(ctx, state, OID_AUTO, "is_channel_running", CTLFLAG_RD,
 	    &ioat->is_channel_running, 0, "channel running");
 
-	SYSCTL_ADD_PROC(ctx, par, OID_AUTO, "force_hw_reset",
-	    CTLTYPE_INT | CTLFLAG_RW, ioat, 0, sysctl_handle_reset, "I",
-	    "Set to non-zero to reset the hardware");
-	SYSCTL_ADD_PROC(ctx, par, OID_AUTO, "force_hw_error",
-	    CTLTYPE_INT | CTLFLAG_RW, ioat, 0, sysctl_handle_error, "I",
-	    "Set to non-zero to inject a recoverable hardware error");
-	SYSCTL_ADD_PROC(ctx, par, OID_AUTO, "chansts",
+	SYSCTL_ADD_PROC(ctx, state, OID_AUTO, "chansts",
 	    CTLTYPE_STRING | CTLFLAG_RD, ioat, 0, sysctl_handle_chansts, "A",
 	    "String of the channel status");
+
+	tmp = SYSCTL_ADD_NODE(ctx, par, OID_AUTO, "hammer", CTLFLAG_RD, NULL,
+	    "Big hammers (mostly for testing)");
+	hammer = SYSCTL_CHILDREN(tmp);
+
+	SYSCTL_ADD_PROC(ctx, hammer, OID_AUTO, "force_hw_reset",
+	    CTLTYPE_INT | CTLFLAG_RW, ioat, 0, sysctl_handle_reset, "I",
+	    "Set to non-zero to reset the hardware");
+	SYSCTL_ADD_PROC(ctx, hammer, OID_AUTO, "force_hw_error",
+	    CTLTYPE_INT | CTLFLAG_RW, ioat, 0, sysctl_handle_error, "I",
+	    "Set to non-zero to inject a recoverable hardware error");
+
+	tmp = SYSCTL_ADD_NODE(ctx, par, OID_AUTO, "stats", CTLFLAG_RD, NULL,
+	    "IOAT channel statistics");
+	statpar = SYSCTL_CHILDREN(tmp);
+
+	SYSCTL_ADD_UQUAD(ctx, statpar, OID_AUTO, "interrupts", CTLFLAG_RW,
+	    &ioat->stats.interrupts,
+	    "Number of interrupts processed on this channel");
+	SYSCTL_ADD_UQUAD(ctx, statpar, OID_AUTO, "descriptors", CTLFLAG_RW,
+	    &ioat->stats.descriptors_processed,
+	    "Number of descriptors processed on this channel");
+	SYSCTL_ADD_UQUAD(ctx, statpar, OID_AUTO, "submitted", CTLFLAG_RW,
+	    &ioat->stats.descriptors_submitted,
+	    "Number of descriptors submitted to this channel");
+	SYSCTL_ADD_UQUAD(ctx, statpar, OID_AUTO, "errored", CTLFLAG_RW,
+	    &ioat->stats.descriptors_error,
+	    "Number of descriptors failed by channel errors");
+	SYSCTL_ADD_U32(ctx, statpar, OID_AUTO, "halts", CTLFLAG_RW,
+	    &ioat->stats.channel_halts, 0,
+	    "Number of times the channel has halted");
+	SYSCTL_ADD_U32(ctx, statpar, OID_AUTO, "last_halt_chanerr", CTLFLAG_RW,
+	    &ioat->stats.last_halt_chanerr, 0,
+	    "The raw CHANERR when the channel was last halted");
+
+	SYSCTL_ADD_PROC(ctx, statpar, OID_AUTO, "desc_per_interrupt",
+	    CTLTYPE_STRING | CTLFLAG_RD, ioat, 0, sysctl_handle_dpi, "A",
+	    "Descriptors per interrupt");
 }
 
 static inline struct ioat_softc *
