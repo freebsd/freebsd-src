@@ -2432,6 +2432,8 @@ in6_domifattach(struct ifnet *ifp)
 int
 in6_domifmtu(struct ifnet *ifp)
 {
+	if (ifp->if_afdata[AF_INET6] == NULL)
+		return ifp->if_mtu;
 
 	return (IN6_LINKMTU(ifp));
 }
