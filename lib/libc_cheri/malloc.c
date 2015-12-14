@@ -62,6 +62,9 @@ static int findbucket(union overhead *, int);
 /*
  * Location and size of the static sandbox heap.
  */
+extern register_t	_sb_heapbase;
+extern size_t		_sb_heaplen;
+
 register_t	_sb_heapbase;
 size_t		_sb_heaplen;
 
@@ -339,7 +342,7 @@ free(void *cp)
  * is extern so the caller can modify it).  If that fails we just copy
  * however many bytes was given to realloc() and hope it's not huge.
  */
-int realloc_srchlen = 4;	/* 4 should be plenty, -1 =>'s whole list */
+static int realloc_srchlen = 4;	/* 4 should be plenty, -1 =>'s whole list */
 
 void *
 realloc(void *cp, size_t nbytes)
