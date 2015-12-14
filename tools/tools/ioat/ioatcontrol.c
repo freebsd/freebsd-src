@@ -48,10 +48,14 @@ static void
 usage(void)
 {
 
-	printf("Usage: %s [-E|-f|-m] [-V] <channel #> <txns> [<bufsize> "
+	printf("Usage: %s [-E|-f|-m] OPTIONS <channel #> <txns> [<bufsize> "
 	    "[<chain-len> [duration]]]\n", getprogname());
-	printf("       %s -r [-vV] <channel #> <addr> [<bufsize>]\n",
+	printf("       %s -r [-v] OPTIONS <channel #> <addr> [<bufsize>]\n\n",
 	    getprogname());
+	printf("       OPTIONS:\n");
+	printf("           -c <period> - Enable interrupt coalescing (us)\n");
+	printf("           -V          - Enable verification\n");
+	printf("           -z          - Zero device stats before test\n");
 	exit(EX_USAGE);
 }
 
@@ -103,8 +107,11 @@ main(int argc, char **argv)
 	fflag = rflag = Eflag = mflag = false;
 	modeflags = 0;
 
-	while ((ch = getopt(argc, argv, "EfmrvVw")) != -1) {
+	while ((ch = getopt(argc, argv, "c:EfmrvVwz")) != -1) {
 		switch (ch) {
+		case 'c':
+			t.coalesce_period = atoi(optarg);
+			break;
 		case 'E':
 			Eflag = true;
 			modeflags++;
@@ -129,6 +136,9 @@ main(int argc, char **argv)
 			break;
 		case 'w':
 			t.raw_write = true;
+			break;
+		case 'z':
+			t.zero_stats = true;
 			break;
 		default:
 			usage();
