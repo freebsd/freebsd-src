@@ -50,6 +50,10 @@ __FBSDID("$FreeBSD$");
 #define	IOAT_VER_3_3			0x33
 
 #define	IOAT_INTRDELAY_OFFSET		0x0C
+#define	IOAT_INTRDELAY_SUPPORTED	(1 << 15)
+/* Reserved.				(1 << 14) */
+/* [13:0] is the coalesce period, in microseconds. */
+#define	IOAT_INTRDELAY_US_MASK		((1 << 14) - 1)
 
 #define	IOAT_CS_STATUS_OFFSET		0x0E
 

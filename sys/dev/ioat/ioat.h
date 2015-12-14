@@ -61,6 +61,28 @@ bus_dmaengine_t ioat_get_dmaengine(uint32_t channel_index);
 void ioat_put_dmaengine(bus_dmaengine_t dmaengine);
 
 /*
+ * Set interrupt coalescing on a DMA channel.
+ *
+ * The argument is in microseconds.  A zero value disables coalescing.  Any
+ * other value delays interrupt generation for N microseconds to provide
+ * opportunity to coalesce multiple operations into a single interrupt.
+ *
+ * Returns an error status, or zero on success.
+ *
+ * - ERANGE if the given value exceeds the delay supported by the hardware.
+ *   (All current hardware supports a maximum of 0x3fff microseconds delay.)
+ * - ENODEV if the hardware does not support interrupt coalescing.
+ */
+int ioat_set_interrupt_coalesce(bus_dmaengine_t dmaengine, uint16_t delay);
+
+/*
+ * Return the maximum supported coalescing period, for use in
+ * ioat_set_interrupt_coalesce().  If the hardware does not support coalescing,
+ * returns zero.
+ */
+uint16_t ioat_get_max_coalesce_period(bus_dmaengine_t dmaengine);
+
+/*
  * Acquire must be called before issuing an operation to perform. Release is
  * called after. Multiple operations can be issued within the context of one
  * acquire and release
