@@ -50,6 +50,15 @@
 #include <net/ethernet.h>
 #include <sys/buf_ring.h>
 
+#if (__FreeBSD_version >= 1100000)
+#include "opt_rss.h"
+#endif
+
+#ifdef	RSS
+#include <net/rss_config.h>
+#include <netinet/in_rss.h>
+#endif
+
 #include <machine/bus.h>
 
 #ifdef HAVE_TURBO_LRO
