@@ -259,6 +259,7 @@ static int		urtwn_key_delete(struct ieee80211vap *,
 static void		urtwn_tsf_task_adhoc(void *, int);
 static void		urtwn_tsf_sync_enable(struct urtwn_softc *,
 			    struct ieee80211vap *);
+static void		urtwn_get_tsf(struct urtwn_softc *, uint64_t *);
 static void		urtwn_set_led(struct urtwn_softc *, int, int);
 static void		urtwn_set_mode(struct urtwn_softc *, uint8_t);
 static void		urtwn_ibss_recv_mgmt(struct ieee80211_node *,
@@ -784,6 +785,16 @@ urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
 		struct urtwn_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		tap->wr_flags = 0;
+
+		urtwn_get_tsf(sc, &tap->wr_tsft);
+		if (__predict_false(le32toh((uint32_t)tap->wr_tsft) <
+		                    le32toh(stat->rxdw5))) {
+			tap->wr_tsft = le32toh(tap->wr_tsft  >> 32) - 1;
+			tap->wr_tsft = (uint64_t)htole32(tap->wr_tsft) << 32;
+		} else
+			tap->wr_tsft &= 0xffffffff00000000;
+		tap->wr_tsft += stat->rxdw5;
+
 		/* Map HW rate index to 802.11 rate. */
 		if (!(rxdw3 & R92C_RXDW3_HT)) {
 			tap->wr_rate = ridx2rate[rate];
@@ -2110,6 +2121,12 @@ urtwn_tsf_sync_enable(struct urtwn_softc *sc, struct ieee80211vap *vap)
 }
 
 static void
+urtwn_get_tsf(struct urtwn_softc *sc, uint64_t *buf)
+{
+	urtwn_read_region_1(sc, R92C_TSFTR, (uint8_t *)buf, sizeof(*buf));
+}
+
+static void
 urtwn_set_led(struct urtwn_softc *sc, int led, int on)
 {
 	uint8_t reg;
@@ -2162,7 +2179,6 @@ urtwn_ibss_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype,
 	    (subtype == IEEE80211_FC0_SUBTYPE_BEACON ||
 	    subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)) {
 		ni_tstamp = le64toh(ni->ni_tstamp.tsf);
-#ifdef D3831
 		URTWN_LOCK(sc);
 		urtwn_get_tsf(sc, &curr_tstamp);
 		URTWN_UNLOCK(sc);
@@ -2170,10 +2186,6 @@ urtwn_ibss_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype,
 
 		if (ni_tstamp >= curr_tstamp)
 			(void) ieee80211_ibss_merge(ni);
-#else
-		(void) sc;
-		(void) curr_tstamp;
-#endif
 	}
 }
 
