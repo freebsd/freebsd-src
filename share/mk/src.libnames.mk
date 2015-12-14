@@ -166,6 +166,7 @@ _LIBRARIES=	\
 		supcplusplus \
 		svgtiny \
 		tacplus \
+		termcap \
 		termcapw \
 		ufs \
 		ugidfw \
