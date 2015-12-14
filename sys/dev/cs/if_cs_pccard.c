@@ -56,6 +56,7 @@ static const struct pccard_product cs_pccard_products[] = {
 	PCMCIA_CARD(IBM, ETHERJET),
 	{ NULL }
 };
+
 static int
 cs_pccard_probe(device_t dev)
 {
@@ -115,3 +116,4 @@ extern devclass_t cs_devclass;
 
 DRIVER_MODULE(cs, pccard, cs_pccard_driver, cs_devclass, 0, 0);
 MODULE_DEPEND(cs, ether, 1, 1, 1);
+PCCARD_PNP_INFO(cs_pccard_products);

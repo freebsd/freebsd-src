@@ -268,7 +268,7 @@ hunt_mcdi_request_copyout(
 #endif /* EFSYS_OPT_MCDI_LOGGING */
 }
 
-static	__checkReturn	boolean_t
+	__checkReturn	boolean_t
 hunt_mcdi_poll_response(
 	__in		efx_nic_t *enp)
 {
@@ -297,59 +297,6 @@ hunt_mcdi_read_response(
 		memcpy((uint8_t *)bufferp + pos, &data,
 		    MIN(sizeof (data), length - pos));
 	}
-}
-
-	__checkReturn	boolean_t
-hunt_mcdi_request_poll(
-	__in		efx_nic_t *enp)
-{
-	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	efx_mcdi_req_t *emrp;
-	int state;
-	efx_rc_t rc;
-
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
-
-	/* Serialise against post-watchdog efx_mcdi_ev* */
-	EFSYS_LOCK(enp->en_eslp, state);
-
-	EFSYS_ASSERT(emip->emi_pending_req != NULL);
-	EFSYS_ASSERT(!emip->emi_ev_cpl);
-	emrp = emip->emi_pending_req;
-
-	/* Check if a response is available */
-	if (hunt_mcdi_poll_response(enp) == B_FALSE) {
-		EFSYS_UNLOCK(enp->en_eslp, state);
-		return (B_FALSE);
-	}
-
-	/* Read the response header */
-	efx_mcdi_read_response_header(enp, emrp);
-
-	/* Request complete */
-	emip->emi_pending_req = NULL;
-
-	/* Ensure stale MCDI requests fail after an MC reboot. */
-	emip->emi_new_epoch = B_FALSE;
-
-	EFSYS_UNLOCK(enp->en_eslp, state);
-
-	if ((rc = emrp->emr_rc) != 0)
-		goto fail1;
-
-	hunt_mcdi_request_copyout(enp, emrp);
-	goto out;
-
-fail1:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	/* Reboot/Assertion */
-	if (rc == EIO || rc == EINTR)
-		efx_mcdi_raise_exception(enp, emrp, rc);
-
-out:
-	return (B_TRUE);
 }
 
 			efx_rc_t
@@ -399,94 +346,73 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-hunt_mcdi_fw_update_supported(
+hunt_mcdi_feature_supported(
 	__in		efx_nic_t *enp,
-	__out		boolean_t *supportedp)
-{
-	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
-
-	/*
-	 * Use privilege mask state at MCDI attach.
-	 * Admin privilege must be used prior to introduction of
-	 * specific flag.
-	 */
-	*supportedp =
-	    EFX_MCDI_HAVE_PRIVILEGE(encp->enc_privilege_mask, ADMIN);
-
-	return (0);
-}
-
-	__checkReturn	efx_rc_t
-hunt_mcdi_macaddr_change_supported(
-	__in		efx_nic_t *enp,
+	__in		efx_mcdi_feature_id_t id,
 	__out		boolean_t *supportedp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint32_t privilege_mask = encp->enc_privilege_mask;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
 
 	/*
 	 * Use privilege mask state at MCDI attach.
-	 * Admin privilege must be used prior to introduction of
-	 * mac spoofing privilege (at v4.6), which is used up to
-	 * introduction of change mac spoofing privilege (at v4.7)
 	 */
-	*supportedp =
-	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, CHANGE_MAC) ||
-	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, MAC_SPOOFING) ||
-	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
+
+	switch (id) {
+	case EFX_MCDI_FEATURE_FW_UPDATE:
+		/*
+		 * Admin privilege must be used prior to introduction of
+		 * specific flag.
+		 */
+		*supportedp =
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
+		break;
+	case EFX_MCDI_FEATURE_LINK_CONTROL:
+		/*
+		 * Admin privilege used prior to introduction of
+		 * specific flag.
+		 */
+		*supportedp =
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, LINK) ||
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
+		break;
+	case EFX_MCDI_FEATURE_MACADDR_CHANGE:
+		/*
+		 * Admin privilege must be used prior to introduction of
+		 * mac spoofing privilege (at v4.6), which is used up to
+		 * introduction of change mac spoofing privilege (at v4.7)
+		 */
+		*supportedp =
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, CHANGE_MAC) ||
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, MAC_SPOOFING) ||
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
+		break;
+	case EFX_MCDI_FEATURE_MAC_SPOOFING:
+		/*
+		 * Admin privilege must be used prior to introduction of
+		 * mac spoofing privilege (at v4.6), which is used up to
+		 * introduction of mac spoofing TX privilege (at v4.7)
+		 */
+		*supportedp =
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, MAC_SPOOFING_TX) ||
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, MAC_SPOOFING) ||
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
+		break;
+	default:
+		rc = ENOTSUP;
+		goto fail1;
+		break;
+	}
 
 	return (0);
-}
 
-	__checkReturn	efx_rc_t
-hunt_mcdi_mac_spoofing_supported(
-	__in		efx_nic_t *enp,
-	__out		boolean_t *supportedp)
-{
-	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	uint32_t privilege_mask = encp->enc_privilege_mask;
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
-
-	/*
-	 * Use privilege mask state at MCDI attach.
-	 * Admin privilege must be used prior to introduction of
-	 * mac spoofing privilege (at v4.6), which is used up to
-	 * introduction of mac spoofing TX privilege (at v4.7)
-	 */
-	*supportedp =
-	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, MAC_SPOOFING_TX) ||
-	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, MAC_SPOOFING) ||
-	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
-
-	return (0);
-}
-
-
-	__checkReturn	efx_rc_t
-hunt_mcdi_link_control_supported(
-	__in		efx_nic_t *enp,
-	__out		boolean_t *supportedp)
-{
-	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	uint32_t privilege_mask = encp->enc_privilege_mask;
-
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
-
-	/*
-	 * Use privilege mask state at MCDI attach.
-	 * Admin privilege used prior to introduction of
-	 * specific flag.
-	 */
-	*supportedp =
-	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, LINK) ||
-	    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
-
-	return (0);
+	return (rc);
 }
 
 #endif	/* EFSYS_OPT_MCDI */

@@ -18,6 +18,8 @@ MACHINE_CPU = i486
 MACHINE_CPU = mips
 . elif ${MACHINE_CPUARCH} == "powerpc"
 MACHINE_CPU = aim
+. elif ${MACHINE_CPUARCH} == "riscv"
+MACHINE_CPU = riscv
 . elif ${MACHINE_CPUARCH} == "sparc64"
 MACHINE_CPU = ultrasparc
 . endif
@@ -110,7 +112,12 @@ _CPUCFLAGS = -march=armv5te -D__XSCALE__
 _CPUCFLAGS = -march=${CPUTYPE} -DARM_ARCH_6=1
 . elif ${CPUTYPE} == "cortexa"
 _CPUCFLAGS = -march=armv7 -DARM_ARCH_6=1 -mfpu=vfp
-.  else
+. elif ${CPUTYPE:Marmv[4567]*} != ""
+# Handle all the armvX types that FreeBSD runs:
+#	armv4, armv4t, armv5, armv5te, armv6, armv6t2, armv7, armv7-a, armv7ve
+# they require -march=. All the others require -mcpu=.
+_CPUCFLAGS = -march=${CPUTYPE}
+. else
 # Common values for FreeBSD
 # arm:
 #	arm920t, arm926ej-s, marvell-pj4, fa526, fa626,
@@ -120,7 +127,7 @@ _CPUCFLAGS = -march=armv7 -DARM_ARCH_6=1 -mfpu=vfp
 #	cortex-a9, cortex-a12, cortex-a15, cortex-a17, cortex-a53, cortex-a57,
 #	cortex-a72, exynos-m1
 _CPUCFLAGS = -mcpu=${CPUTYPE}
-.  endif
+. endif
 . elif ${MACHINE_ARCH} == "powerpc"
 .  if ${CPUTYPE} == "e500"
 _CPUCFLAGS = -Wa,-me500 -msoft-float
@@ -143,6 +150,8 @@ _CPUCFLAGS = -march=${CPUTYPE}
 #	sb1, xlp, xlr
 _CPUCFLAGS = -march=${CPUTYPE:S/^mips//}
 . endif
+. elif ${MACHINE_CPUARCH} == "riscv"
+_CPUCFLAGS = -msoft-float # -march="RV64I" # RISCVTODO
 . elif ${MACHINE_ARCH} == "sparc64"
 .  if ${CPUTYPE} == "v9"
 _CPUCFLAGS = -mcpu=v9
@@ -272,6 +281,9 @@ MACHINE_CPU = mips
 .  if ${CPUTYPE} == "e500"
 MACHINE_CPU = booke softfp
 .  endif
+########## riscv
+. elif ${MACHINE_CPUARCH} == "riscv"
+MACHINE_CPU = riscv
 ########## sparc64
 . elif ${MACHINE_ARCH} == "sparc64"
 .  if ${CPUTYPE} == "v9"
@@ -306,6 +318,10 @@ MACHINE_CPU += softfp
 # not a nice optimization.
 CFLAGS += -mfloat-abi=softfp
 .endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "riscv"
+CFLAGS += -msoft-float
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk

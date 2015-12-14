@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/sbuf.h>
 
 #include <err.h>
 #include <errno.h>
@@ -170,7 +172,7 @@ sesled(int argc, char **argv, bool setfault)
 	sesid = strtoul(disk, &endptr, 10);
 	if (*endptr == '\0') {
 		endptr = strrchr(uflag, '*');
-		if (*endptr == '*') {
+		if (endptr != NULL && *endptr == '*') {
 			warnx("Must specifying a SES device (-u) to use a SES "
 			    "id# to identify a disk");
 			usage(stderr, (setfault ? "fault" : "locate"));
@@ -299,6 +301,7 @@ fault(int argc, char **argv)
 static int
 objmap(int argc, char **argv __unused)
 {
+	struct sbuf *extra;
 	encioc_elm_devnames_t e_devname;
 	encioc_elm_status_t e_status;
 	encioc_elm_desc_t e_desc;
@@ -391,8 +394,10 @@ objmap(int argc, char **argv __unused)
 			}
 			printf("\tElement %u, Type: %s\n", e_ptr[j].elm_idx,
 			    geteltnm(e_ptr[j].elm_type));
-			printf("\t\tStatus: %s\n",
-			    stat2ascii(e_ptr[i].elm_type, e_status.cstat));
+			printf("\t\tStatus: %s (0x%02x 0x%02x 0x%02x 0x%02x)\n",
+			    scode2ascii(e_status.cstat[0]), e_status.cstat[0],
+			    e_status.cstat[1], e_status.cstat[2],
+			    e_status.cstat[3]);
 			if (e_desc.elm_desc_len > 0) {
 				printf("\t\tDescription: %s\n",
 				    e_desc.elm_desc_str);
@@ -401,6 +406,12 @@ objmap(int argc, char **argv __unused)
 				printf("\t\tDevice Names: %s\n",
 				    e_devname.elm_devnames);
 			}
+			extra = stat2sbuf(e_ptr[j].elm_type, e_status.cstat);
+			if (sbuf_len(extra) > 0) {
+				printf("\t\tExtra status:\n%s",
+				   sbuf_data(extra));
+			}
+			sbuf_delete(extra);
 			free(e_devname.elm_devnames);
 		}
 		close(fd);

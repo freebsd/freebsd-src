@@ -263,16 +263,16 @@ hunt_mcdi_request_copyin(
 	__in		boolean_t ev_cpl,
 	__in		boolean_t new_epoch);
 
+extern	__checkReturn	boolean_t
+hunt_mcdi_poll_response(
+	__in		efx_nic_t *enp);
+
 extern			void
 hunt_mcdi_read_response(
 	__in		efx_nic_t *enp,
 	__out		void *bufferp,
 	__in		size_t offset,
 	__in		size_t length);
-
-extern	__checkReturn	boolean_t
-hunt_mcdi_request_poll(
-	__in		efx_nic_t *enp);
 
 extern			void
 hunt_mcdi_request_copyout(
@@ -284,25 +284,10 @@ hunt_mcdi_poll_reboot(
 	__in		efx_nic_t *enp);
 
 extern	__checkReturn	efx_rc_t
-hunt_mcdi_fw_update_supported(
+hunt_mcdi_feature_supported(
 	__in		efx_nic_t *enp,
+	__in		efx_mcdi_feature_id_t id,
 	__out		boolean_t *supportedp);
-
-extern	__checkReturn	efx_rc_t
-hunt_mcdi_macaddr_change_supported(
-	__in		efx_nic_t *enp,
-	__out		boolean_t *supportedp);
-
-extern	__checkReturn	efx_rc_t
-hunt_mcdi_link_control_supported(
-	__in		efx_nic_t *enp,
-	__out		boolean_t *supportedp);
-
-extern	__checkReturn	efx_rc_t
-hunt_mcdi_mac_spoofing_supported(
-	__in		efx_nic_t *enp,
-	__out		boolean_t *supportedp);
-
 
 #endif /* EFSYS_OPT_MCDI */
 
@@ -722,7 +707,7 @@ hunt_tx_qstats_update(
 
 #define	HUNT_MIN_PIO_ALLOC_SIZE	(HUNT_PIOBUF_SIZE / 32)
 
-#define HUNT_LEGACY_PF_PRIVILEGE_MASK					\
+#define	HUNT_LEGACY_PF_PRIVILEGE_MASK					\
 	(MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN			|	\
 	MC_CMD_PRIVILEGE_MASK_IN_GRP_LINK			|	\
 	MC_CMD_PRIVILEGE_MASK_IN_GRP_ONLOAD			|	\
@@ -735,7 +720,7 @@ hunt_tx_qstats_update(
 	MC_CMD_PRIVILEGE_MASK_IN_GRP_ALL_MULTICAST		|	\
 	MC_CMD_PRIVILEGE_MASK_IN_GRP_PROMISCUOUS)
 
-#define HUNT_LEGACY_VF_PRIVILEGE_MASK	0
+#define	HUNT_LEGACY_VF_PRIVILEGE_MASK	0
 
 typedef uint32_t	efx_piobuf_handle_t;
 
