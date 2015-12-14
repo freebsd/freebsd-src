@@ -404,6 +404,11 @@ ioat3_attach(device_t device)
 	xfercap = ioat_read_xfercap(ioat);
 	ioat->max_xfer_size = 1 << xfercap;
 
+	ioat->intrdelay_supported = (ioat_read_2(ioat, IOAT_INTRDELAY_OFFSET) &
+	    IOAT_INTRDELAY_SUPPORTED) != 0;
+	if (ioat->intrdelay_supported)
+		ioat->intrdelay_max = IOAT_INTRDELAY_US_MASK;
+
 	/* TODO: need to check DCA here if we ever do XOR/PQ */
 
 	mtx_init(&ioat->submit_lock, "ioat_submit", NULL, MTX_DEF);
@@ -728,6 +733,32 @@ ioat_put_dmaengine(bus_dmaengine_t dmaengine)
 
 	ioat = to_ioat_softc(dmaengine);
 	ioat_put(ioat, IOAT_DMAENGINE_REF);
+}
+
+int
+ioat_set_interrupt_coalesce(bus_dmaengine_t dmaengine, uint16_t delay)
+{
+	struct ioat_softc *ioat;
+
+	ioat = to_ioat_softc(dmaengine);
+	if (!ioat->intrdelay_supported)
+		return (ENODEV);
+	if (delay > ioat->intrdelay_max)
+		return (ERANGE);
+
+	ioat_write_2(ioat, IOAT_INTRDELAY_OFFSET, delay);
+	ioat->cached_intrdelay =
+	    ioat_read_2(ioat, IOAT_INTRDELAY_OFFSET) & IOAT_INTRDELAY_US_MASK;
+	return (0);
+}
+
+uint16_t
+ioat_get_max_coalesce_period(bus_dmaengine_t dmaengine)
+{
+	struct ioat_softc *ioat;
+
+	ioat = to_ioat_softc(dmaengine);
+	return (ioat->intrdelay_max);
 }
 
 void
@@ -1641,6 +1672,11 @@ ioat_setup_sysctl(device_t device)
 	    &ioat->version, 0, "HW version (0xMM form)");
 	SYSCTL_ADD_UINT(ctx, par, OID_AUTO, "max_xfer_size", CTLFLAG_RD,
 	    &ioat->max_xfer_size, 0, "HW maximum transfer size");
+	SYSCTL_ADD_INT(ctx, par, OID_AUTO, "intrdelay_supported", CTLFLAG_RD,
+	    &ioat->intrdelay_supported, 0, "Is INTRDELAY supported");
+	SYSCTL_ADD_U16(ctx, par, OID_AUTO, "intrdelay_max", CTLFLAG_RD,
+	    &ioat->intrdelay_max, 0,
+	    "Maximum configurable INTRDELAY on this channel (microseconds)");
 
 	tmp = SYSCTL_ADD_NODE(ctx, par, OID_AUTO, "state", CTLFLAG_RD, NULL,
 	    "IOAT channel internal state");
@@ -1670,6 +1706,10 @@ ioat_setup_sysctl(device_t device)
 	SYSCTL_ADD_PROC(ctx, state, OID_AUTO, "chansts",
 	    CTLTYPE_STRING | CTLFLAG_RD, ioat, 0, sysctl_handle_chansts, "A",
 	    "String of the channel status");
+
+	SYSCTL_ADD_U16(ctx, state, OID_AUTO, "intrdelay", CTLFLAG_RD,
+	    &ioat->cached_intrdelay, 0,
+	    "Current INTRDELAY on this channel (cached, microseconds)");
 
 	tmp = SYSCTL_ADD_NODE(ctx, par, OID_AUTO, "hammer", CTLFLAG_RD, NULL,
 	    "Big hammers (mostly for testing)");
