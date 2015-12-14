@@ -75,6 +75,10 @@ struct ioat_test {
 	bool raw_write;
 	bool raw_is_virtual;
 
+	bool zero_stats;
+	/* Configure coalesce period */
+	uint16_t coalesce_period;
+
 	/* Internal usage -- not test inputs */
 	TAILQ_HEAD(, test_transaction) free_q;
 	TAILQ_HEAD(, test_transaction) pend_q;
