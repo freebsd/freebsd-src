@@ -90,15 +90,19 @@ __FBSDID("$FreeBSD$");
 	ldp	x14, x15, [sp, #(TF_X + 14 * 8)]
 	ldp	x16, x17, [sp, #(TF_X + 16 * 8)]
 .if \el == 0
+	/*
+	 * We only restore the callee saved registers when returning to
+	 * userland as they may have been updated by a system call or signal.
+	 */
 	ldp	x18, x19, [sp, #(TF_X + 18 * 8)]
-.else
-	ldr	     x19, [sp, #(TF_X + 19 * 8)]
-.endif
 	ldp	x20, x21, [sp, #(TF_X + 20 * 8)]
 	ldp	x22, x23, [sp, #(TF_X + 22 * 8)]
 	ldp	x24, x25, [sp, #(TF_X + 24 * 8)]
 	ldp	x26, x27, [sp, #(TF_X + 26 * 8)]
 	ldp	x28, x29, [sp, #(TF_X + 28 * 8)]
+.else
+	ldr	     x29, [sp, #(TF_X + 29 * 8)]
+.endif
 .if \el == 0
 	add	sp, sp, #(TF_SIZE + 16)
 .else
