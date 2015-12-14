@@ -407,6 +407,16 @@ struct ioat_softc {
 #ifdef INVARIANTS
 	volatile uint32_t	refkinds[IOAT_NUM_REF_KINDS];
 #endif
+
+	struct {
+		uint64_t	interrupts;
+		uint64_t	descriptors_processed;
+		uint64_t	descriptors_error;
+		uint64_t	descriptors_submitted;
+
+		uint32_t	channel_halts;
+		uint32_t	last_halt_chanerr;
+	} stats;
 };
 
 void ioat_test_attach(void);
