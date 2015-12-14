@@ -432,6 +432,39 @@ gicv2m_alloc_msix(device_t dev, device_t pci_dev, int *pirq)
 }
 
 static int
+gicv2m_alloc_msi(device_t dev, device_t pci_dev, int count, int *irqs)
+{
+	struct arm_gic_softc *psc;
+	struct gicv2m_softc *sc;
+	uint32_t reg;
+	int i, irq;
+
+	psc = device_get_softc(device_get_parent(dev));
+	sc = device_get_softc(dev);
+
+	mtx_lock(&sc->sc_mutex);
+	KASSERT(sc->sc_spi_offset + count <= sc->sc_spi_count,
+	    ("No free SPIs for %d MSI interrupts", count));
+
+	/* Find an unused interrupt */
+	for (i = 0; i < count; i++) {
+		irq = sc->sc_spi_start + sc->sc_spi_offset;
+		sc->sc_spi_offset++;
+
+		/* Interrupts need to be edge triggered, set this */
+		reg = gic_d_read_4(psc, GICD_ICFGR(irq >> 4));
+		reg |= (GICD_ICFGR_TRIG_EDGE | GICD_ICFGR_POL_HIGH) <<
+		    ((irq & 0xf) * 2);
+		gic_d_write_4(psc, GICD_ICFGR(irq >> 4), reg);
+
+		irqs[i] = irq;
+	}
+	mtx_unlock(&sc->sc_mutex);
+
+	return (0);
+}
+
+static int
 gicv2m_map_msi(device_t dev, device_t pci_dev, int irq, uint64_t *addr,
     uint32_t *data)
 {
@@ -448,8 +481,9 @@ static device_method_t arm_gicv2m_methods[] = {
 	DEVMETHOD(device_probe,		gicv2m_probe),
 	DEVMETHOD(device_attach,	gicv2m_attach),
 
-	/* MSI-X */
+	/* MSI/MSI-X */
 	DEVMETHOD(pic_alloc_msix,	gicv2m_alloc_msix),
+	DEVMETHOD(pic_alloc_msi,	gicv2m_alloc_msi),
 	DEVMETHOD(pic_map_msi,		gicv2m_map_msi),
 
 	{ 0, 0 }
