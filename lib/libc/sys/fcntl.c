@@ -61,6 +61,13 @@ _fcntl(int fd, int cmd, ...)
 	case F_SETLKW:
 		arg = va_arg(args, intptr_t);
 		break;
+
+	case F_GETFD:
+	case F_GETFL:
+	case F_GETOWN:
+		arg = 0;
+		break;
+
 	default:
 		arg = va_arg(args, long);
 		break;
