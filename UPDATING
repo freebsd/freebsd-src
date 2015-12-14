@@ -16,6 +16,11 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20151214:
+	r292223 changed the internal interface between the nfsd.ko and
+	nfscommon.ko modules. As such, they must both be upgraded to-gether.
+	__FreeBSD_version has been bumped because of this.
+
 20151113:
 	Qlogic 24xx/25xx firmware images were updated from 5.5.0 to 7.3.0.
 	Kernel modules isp_2400_multi and isp_2500_multi were removed and
