@@ -275,6 +275,10 @@ static int8_t		urtwn_r88e_get_rssi(struct urtwn_softc *, int, void *);
 static int		urtwn_tx_data(struct urtwn_softc *,
 			    struct ieee80211_node *, struct mbuf *,
 			    struct urtwn_data *);
+static int		urtwn_tx_raw(struct urtwn_softc *,
+			    struct ieee80211_node *, struct mbuf *,
+			    struct urtwn_data *,
+			    const struct ieee80211_bpf_params *);
 static void		urtwn_tx_start(struct urtwn_softc *, struct mbuf *,
 			    uint8_t, struct urtwn_data *);
 static int		urtwn_transmit(struct ieee80211com *, struct mbuf *);
@@ -2729,6 +2733,107 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 	return (0);
 }
 
+static int
+urtwn_tx_raw(struct urtwn_softc *sc, struct ieee80211_node *ni,
+    struct mbuf *m, struct urtwn_data *data,
+    const struct ieee80211_bpf_params *params)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_key *k = NULL;
+	struct ieee80211_frame *wh;
+	struct r92c_tx_desc *txd;
+	uint8_t cipher, ridx, type;
+
+	/* Encrypt the frame if need be. */
+	cipher = R92C_TXDW1_CIPHER_NONE;
+	if (params->ibp_flags & IEEE80211_BPF_CRYPTO) {
+		/* Retrieve key for TX. */
+		k = ieee80211_crypto_encap(ni, m);
+		if (k == NULL)
+			return (ENOBUFS);
+
+		if (!(k->wk_flags & IEEE80211_KEY_SWCRYPT)) {
+			switch (k->wk_cipher->ic_cipher) {
+			case IEEE80211_CIPHER_WEP:
+			case IEEE80211_CIPHER_TKIP:
+				cipher = R92C_TXDW1_CIPHER_RC4;
+				break;
+			case IEEE80211_CIPHER_AES_CCM:
+				cipher = R92C_TXDW1_CIPHER_AES;
+				break;
+			default:
+				device_printf(sc->sc_dev,
+				    "%s: unknown cipher %d\n",
+				    __func__, k->wk_cipher->ic_cipher);
+				return (EINVAL);
+			}
+		}
+	}
+
+	wh = mtod(m, struct ieee80211_frame *);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+
+	/* Fill Tx descriptor. */
+	txd = (struct r92c_tx_desc *)data->buf;
+	memset(txd, 0, sizeof(*txd));
+
+	txd->txdw0 |= htole32(
+	    SM(R92C_TXDW0_OFFSET, sizeof(*txd)) |
+	    R92C_TXDW0_OWN | R92C_TXDW0_FSG | R92C_TXDW0_LSG);
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+		txd->txdw0 |= htole32(R92C_TXDW0_BMCAST);
+
+	if (params->ibp_flags & IEEE80211_BPF_RTS)
+		txd->txdw4 |= htole32(R92C_TXDW4_RTSEN);
+	if (params->ibp_flags & IEEE80211_BPF_CTS)
+		txd->txdw4 |= htole32(R92C_TXDW4_CTS2SELF);
+	if (txd->txdw4 & htole32(R92C_TXDW4_RTSEN | R92C_TXDW4_CTS2SELF)) {
+		txd->txdw4 |= htole32(R92C_TXDW4_HWRTSEN);
+		txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE,
+		    URTWN_RIDX_OFDM24));
+	}
+
+	if (sc->chip & URTWN_CHIP_88E)
+		txd->txdw1 |= htole32(SM(R88E_TXDW1_MACID, URTWN_MACID_BC));
+	else
+		txd->txdw1 |= htole32(SM(R92C_TXDW1_MACID, URTWN_MACID_BC));
+
+	txd->txdw1 |= htole32(SM(R92C_TXDW1_QSEL, R92C_TXDW1_QSEL_MGNT));
+	txd->txdw1 |= htole32(SM(R92C_TXDW1_CIPHER, cipher));
+
+	/* Choose a TX rate index. */
+	ridx = rate2ridx(params->ibp_rate0);
+	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, ridx));
+	txd->txdw5 |= htole32(0x0001ff00);
+	txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
+
+	if (!IEEE80211_QOS_HAS_SEQ(wh)) {
+		/* Use HW sequence numbering for non-QoS frames. */
+		if (sc->chip & URTWN_CHIP_88E)
+			txd->txdseq = htole16(R88E_TXDSEQ_HWSEQ_EN);
+		else
+			txd->txdw4 |= htole32(R92C_TXDW4_HWSEQ_EN);
+	} else {
+		/* Set sequence number. */
+		txd->txdseq = htole16(M_SEQNO_GET(m) % IEEE80211_SEQ_RANGE);
+	}
+
+	if (ieee80211_radiotap_active_vap(vap)) {
+		struct urtwn_tx_radiotap_header *tap = &sc->sc_txtap;
+
+		tap->wt_flags = 0;
+		if (k != NULL)
+			tap->wt_flags |= IEEE80211_RADIOTAP_F_WEP;
+		ieee80211_radiotap_tx(vap, m);
+	}
+
+	data->ni = ni;
+
+	urtwn_tx_start(sc, m, type, data);
+
+	return (0);
+}
+
 static void
 urtwn_tx_start(struct urtwn_softc *sc, struct mbuf *m, uint8_t type,
     struct urtwn_data *data)
@@ -4631,7 +4736,20 @@ urtwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		goto end;
 	}
 
-	if ((error = urtwn_tx_data(sc, ni, m, bf)) != 0) {
+	if (params == NULL) {
+		/*
+		 * Legacy path; interpret frame contents to decide
+		 * precisely how to send the frame.
+		 */
+		error = urtwn_tx_data(sc, ni, m, bf);
+	} else {
+		/*
+		 * Caller supplied explicit parameters to use in
+		 * sending the frame.
+		 */
+		error = urtwn_tx_raw(sc, ni, m, bf, params);
+	}
+	if (error != 0) {
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 		goto end;
 	}
