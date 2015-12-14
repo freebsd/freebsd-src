@@ -373,6 +373,8 @@ struct ioat_softc {
 	struct resource		*pci_resource;
 	uint32_t		max_xfer_size;
 	uint32_t		capabilities;
+	uint16_t		intrdelay_max;
+	uint16_t		cached_intrdelay;
 
 	struct resource		*res;
 	int			rid;
@@ -393,6 +395,7 @@ struct ioat_softc {
 	boolean_t		is_completion_pending;
 	boolean_t		is_reset_pending;
 	boolean_t		is_channel_running;
+	boolean_t		intrdelay_supported;
 
 	uint32_t		head;
 	uint32_t		tail;

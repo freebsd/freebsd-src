@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2015
+.Dd December 14, 2015
 .Dt IOAT 4
 .Os
 .Sh NAME
@@ -63,6 +63,10 @@ In
 .Fn ioat_get_dmaengine "uint32_t channel_index"
 .Ft void
 .Fn ioat_put_dmaengine "bus_dmaengine_t dmaengine"
+.Ft int
+.Fn ioat_set_interrupt_coalesce "bus_dmaengine_t dmaengine" "uint16_t delay"
+.Ft uint16_t
+.Fn ioat_get_max_coalesce_period "bus_dmaengine_t dmaengine"
 .Ft void
 .Fn ioat_acquire "bus_dmaengine_t dmaengine"
 .Ft void
@@ -128,6 +132,20 @@ All operations can optionally trigger an interrupt at completion with the
 flag.
 For example, a user might submit multiple operations to the same channel and
 only enable an interrupt and callback for the last operation.
+.Pp
+The hardware can delay and coalesce interrupts on a given channel for a
+configurable period of time, in microseconds.
+This may be desired to reduce the processing and interrupt overhead per
+descriptor, especially for workflows consisting of many small operations.
+Software can control this on a per-channel basis with the
+.Fn ioat_set_interrupt_coalesce
+API.
+The
+.Fn ioat_get_max_coalesce_period
+API can be used to determine the maximum coalescing period supported by the
+hardware, in microseconds.
+Current platforms support up to a 16.383 millisecond coalescing period.
+Optimal configuration will vary by workflow and desired operation latency.
 .Pp
 All operations are safe to use in a non-blocking context with the
 .Ar DMA_NO_WAIT
