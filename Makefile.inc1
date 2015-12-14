@@ -146,7 +146,11 @@ CLEANDIR=	cleandir
 LOCAL_TOOL_DIRS?=
 PACKAGEDIR?=	${DESTDIR}/${DISTDIR}
 
+.if empty(SHELL:M*csh*)
 BUILDENV_SHELL?=${SHELL}
+.else
+BUILDENV_SHELL?=/bin/sh
+.endif
 
 SVN?=		/usr/local/bin/svn
 SVNFLAGS?=	-r HEAD
