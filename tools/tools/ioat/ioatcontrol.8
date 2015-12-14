@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2015
+.Dd December 14, 2015
 .Dt IOATCONTROL 8
 .Os
 .Sh NAME
@@ -33,10 +33,12 @@
 .Xr ioat 4
 .Sh SYNOPSIS
 .Nm
+.Op Fl c Ar period
 .Op Fl E
 .Op Fl f
 .Op Fl m
 .Op Fl V
+.Op Fl z
 .Ar channel_number
 .Ar num_txns
 .Ar [ bufsize
@@ -44,9 +46,11 @@
 .Ar [ duration ] ] ]
 .Nm
 .Fl r
+.Op Fl c Ar period
 .Op Fl v
 .Op Fl V
 .Op Fl w
+.Op Fl z
 .Ar channel_number
 .Ar address
 .Ar [ bufsize ]
@@ -57,6 +61,8 @@ allows one to issue some number of test operations to the
 driver on a specific hardware channel.
 The arguments are as follows:
 .Bl -tag -width Ds
+.It Fl c Ar period
+Configure the channel's interrupt coalescing period, in microseconds.
 .It Fl E
 Test non-contiguous 8k copy.
 .It Fl f
@@ -67,6 +73,8 @@ tests copy)
 Test memcpy instead of DMA.
 .It Fl V
 Verify copies/fills for accuracy
+.It Fl z
+Zero device statistics before running test.
 .El
 .Pp
 Alternatively one can use
@@ -76,6 +84,8 @@ to issue DMA to or from a specific
 .Ar address .
 The arguments in "raw" mode are:
 .Bl -tag -width Ds
+.It Fl c Ar period
+As above.
 .It Fl v
 .Ar address
 is a kernel virtual address (by default,
@@ -90,6 +100,8 @@ Write to the specified
 .Nm
 .Fl r
 reads)
+.It Fl z
+As above.
 .El
 .Pp
 .Nm
