@@ -2644,14 +2644,24 @@ nfsd_excred(struct nfsrv_descript *nd, struct nfsexstuff *exp,
 	 *  Fsinfo RPC. If set for anything else, this code might need
 	 *  to change.)
 	 */
-	if (NFSVNO_EXPORTED(exp) &&
-	    ((!(nd->nd_flag & ND_GSS) && nd->nd_cred->cr_uid == 0) ||
-	     NFSVNO_EXPORTANON(exp) ||
-	     (nd->nd_flag & ND_AUTHNONE))) {
-		nd->nd_cred->cr_uid = credanon->cr_uid;
-		nd->nd_cred->cr_gid = credanon->cr_gid;
-		crsetgroups(nd->nd_cred, credanon->cr_ngroups,
-		    credanon->cr_groups);
+	if (NFSVNO_EXPORTED(exp)) {
+		if (((nd->nd_flag & ND_GSS) == 0 && nd->nd_cred->cr_uid == 0) ||
+		     NFSVNO_EXPORTANON(exp) ||
+		     (nd->nd_flag & ND_AUTHNONE) != 0) {
+			nd->nd_cred->cr_uid = credanon->cr_uid;
+			nd->nd_cred->cr_gid = credanon->cr_gid;
+			crsetgroups(nd->nd_cred, credanon->cr_ngroups,
+			    credanon->cr_groups);
+		} else if ((nd->nd_flag & ND_GSS) == 0) {
+			/*
+			 * If using AUTH_SYS, call nfsrv_getgrpscred() to see
+			 * if there is a replacement credential with a group
+			 * list set up by "nfsuserd -manage-gids".
+			 * If there is no replacement, nfsrv_getgrpscred()
+			 * simply returns its argument.
+			 */
+			nd->nd_cred = nfsrv_getgrpscred(nd->nd_cred);
+		}
 	}
 
 out:
