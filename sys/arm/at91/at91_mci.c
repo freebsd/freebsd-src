@@ -1412,3 +1412,4 @@ DRIVER_MODULE(at91_mci, simplebus, at91_mci_driver, at91_mci_devclass, NULL,
 DRIVER_MODULE(at91_mci, atmelarm, at91_mci_driver, at91_mci_devclass, NULL,
     NULL);
 #endif
+DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, NULL, NULL);

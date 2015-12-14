@@ -1805,22 +1805,9 @@ static device_method_t mmc_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t mmc_driver = {
+driver_t mmc_driver = {
 	"mmc",
 	mmc_methods,
 	sizeof(struct mmc_softc),
 };
-static devclass_t mmc_devclass;
-
-DRIVER_MODULE(mmc, a10_mmc, mmc_driver, mmc_devclass, NULL, NULL);
-DRIVER_MODULE(mmc, aml8726_mmc, mmc_driver, mmc_devclass, NULL, NULL);
-DRIVER_MODULE(mmc, aml8726_sdxc, mmc_driver, mmc_devclass, NULL, NULL);
-DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, NULL, NULL);
-DRIVER_MODULE(mmc, sdhci_bcm, mmc_driver, mmc_devclass, NULL, NULL);
-DRIVER_MODULE(mmc, sdhci_fdt, mmc_driver, mmc_devclass, NULL, NULL);
-DRIVER_MODULE(mmc, sdhci_fsl, mmc_driver, mmc_devclass, NULL, NULL);
-DRIVER_MODULE(mmc, sdhci_imx, mmc_driver, mmc_devclass, NULL, NULL);
-DRIVER_MODULE(mmc, sdhci_pci, mmc_driver, mmc_devclass, NULL, NULL);
-DRIVER_MODULE(mmc, sdhci_ti, mmc_driver, mmc_devclass, NULL, NULL);
-DRIVER_MODULE(mmc, ti_mmchs, mmc_driver, mmc_devclass, NULL, NULL);
-DRIVER_MODULE(mmc, dwmmc, mmc_driver, mmc_devclass, NULL, NULL);
+devclass_t mmc_devclass;
