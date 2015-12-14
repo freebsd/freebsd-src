@@ -14,6 +14,9 @@ makeoptions	WITHOUT_MODULES="ctl cxgb dpt drm drm2 hptmv ida rdma"
 # The following drivers don't work with PAE enabled.
 makeoptions	WITHOUT_MODULES+="asr ncr pst"
 
+# The following drivers don't build with XEN enabled.
+makeoptions	WITHOUT_MODULES+="mlx5 mlx5en"
+
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
 
