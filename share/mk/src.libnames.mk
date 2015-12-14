@@ -149,6 +149,7 @@ _LIBRARIES=	\
 		stdthreads \
 		supcplusplus \
 		tacplus \
+		termcap \
 		termcapw \
 		ufs \
 		ugidfw \
