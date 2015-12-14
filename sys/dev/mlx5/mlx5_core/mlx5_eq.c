@@ -64,7 +64,6 @@ enum {
 			       (1ull << MLX5_EVENT_TYPE_WQ_INVAL_REQ_ERROR) | \
 			       (1ull << MLX5_EVENT_TYPE_WQ_ACCESS_ERROR)    | \
 			       (1ull << MLX5_EVENT_TYPE_PORT_CHANGE)	    | \
-			       (1ull << MLX5_EVENT_TYPE_NIC_VPORT_CHANGE)   | \
 			       (1ull << MLX5_EVENT_TYPE_SRQ_CATAS_ERROR)    | \
 			       (1ull << MLX5_EVENT_TYPE_SRQ_LAST_WQE)	    | \
 			       (1ull << MLX5_EVENT_TYPE_SRQ_RQ_LIMIT))
@@ -474,6 +473,10 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 	if (MLX5_CAP_GEN(dev, port_module_event))
 		async_event_mask |= (1ull <<
 				     MLX5_EVENT_TYPE_CODING_PORT_MODULE_EVENT);
+
+	if (MLX5_CAP_GEN(dev, nic_vport_change_event))
+		async_event_mask |= (1ull <<
+				     MLX5_EVENT_TYPE_NIC_VPORT_CHANGE);
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,
