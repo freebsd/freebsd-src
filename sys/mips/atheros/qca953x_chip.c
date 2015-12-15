@@ -196,7 +196,7 @@ qca953x_chip_set_pll_ge(int unit, int speed, uint32_t pll)
 		ATH_WRITE_REG(QCA953X_PLL_ETH_XMII_CONTROL_REG, pll);
 		break;
 	case 1:
-		ATH_WRITE_REG(QCA953X_PLL_ETH_SGMII_CONTROL_REG, pll);
+		/* nothing */
 		break;
 	default:
 		printf("%s: invalid PLL set for arge unit: %d\n",
