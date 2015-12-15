@@ -106,7 +106,7 @@ static int	lagg_port_create(struct lagg_softc *, struct ifnet *);
 static int	lagg_port_destroy(struct lagg_port *, int);
 static struct mbuf *lagg_input(struct ifnet *, struct mbuf *);
 static void	lagg_linkstate(struct lagg_softc *);
-static void	lagg_port_state(struct ifnet *, int);
+static void	lagg_port_state(struct ifnet *);
 static int	lagg_port_ioctl(struct ifnet *, u_long, caddr_t);
 static int	lagg_port_output(struct ifnet *, struct mbuf *,
 		    const struct sockaddr *, struct route *);
@@ -1774,7 +1774,12 @@ lagg_linkstate(struct lagg_softc *sc)
 			break;
 		}
 	}
-	if_link_state_change(sc->sc_ifp, new_link);
+
+	/*
+	 * Force state change to ensure ifnet_link_event is generated allowing
+	 * protocols to notify other nodes of potential address move.
+	 */
+	if_link_state_change_cond(sc->sc_ifp, new_link, 1);
 
 	/* Update if_baudrate to reflect the max possible speed */
 	switch (sc->sc_proto) {
@@ -1797,7 +1802,7 @@ lagg_linkstate(struct lagg_softc *sc)
 }
 
 static void
-lagg_port_state(struct ifnet *ifp, int state)
+lagg_port_state(struct ifnet *ifp)
 {
 	struct lagg_port *lp = (struct lagg_port *)ifp->if_lagg;
 	struct lagg_softc *sc = NULL;
@@ -1813,7 +1818,7 @@ lagg_port_state(struct ifnet *ifp, int state)
 	LAGG_WUNLOCK(sc);
 }
 
-struct lagg_port *
+static struct lagg_port *
 lagg_link_active(struct lagg_softc *sc, struct lagg_port *lp)
 {
 	struct lagg_port *lp_next, *rval = NULL;
