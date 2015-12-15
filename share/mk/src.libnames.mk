@@ -148,6 +148,7 @@ _LIBRARIES=	\
 		ssp_nonshared \
 		stdthreads \
 		supcplusplus \
+		sysdecode \
 		tacplus \
 		termcap \
 		termcapw \
