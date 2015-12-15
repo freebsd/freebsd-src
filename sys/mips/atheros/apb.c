@@ -378,6 +378,8 @@ apb_filter(void *arg)
 			}
 
 			event = sc->sc_eventstab[irq];
+			/* always count interrupts; spurious or otherwise */
+			mips_intrcnt_inc(sc->sc_intr_counter[irq]);
 			if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
 				if (irq == APB_INTR_PMC) {
 					td = PCPU_GET(curthread);
@@ -385,9 +387,6 @@ apb_filter(void *arg)
 
 					if (pmc_intr)
 						(*pmc_intr)(PCPU_GET(cpuid), tf);
-
-					mips_intrcnt_inc(sc->sc_intr_counter[irq]);
-
 					continue;
 				}
 				/* Ignore timer interrupts */
@@ -397,7 +396,6 @@ apb_filter(void *arg)
 			}
 
 			intr_event_handle(event, PCPU_GET(curthread)->td_intr_frame);
-			mips_intrcnt_inc(sc->sc_intr_counter[irq]);
 		}
 	}
 
