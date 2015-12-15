@@ -49,7 +49,6 @@
 #include <sys/types.h>
 #include <machine/armreg.h>
 #include <machine/cpuconf.h>
-#include <machine/katelib.h> /* For in[bwl] and out[bwl] */
 
 static __inline void
 breakpoint(void)
