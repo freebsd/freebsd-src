@@ -320,7 +320,7 @@ __cheri_ptr_alt(void *pointer, CHAR *cp, const char *xdigs)
 	while (scp - cp < 8)
 		*--cp = '0';
 	*--cp = ':';
-	*--cp = 'b';
+	*--cp = 'p';
 	*--cp = ' ';
 
 	ujval = cheri_getsealed(pointer);
