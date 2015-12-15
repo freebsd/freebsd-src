@@ -154,10 +154,10 @@ ar9340_hw_global_setup(struct arswitch_softc *sc)
 		arswitch_modifyreg(sc->sc_dev, AR934X_REG_OPER_MODE1,
 		    AR934X_REG_OPER_MODE1_PHY4_MII_EN,
 		    AR934X_REG_OPER_MODE1_PHY4_MII_EN);
-		sc->info.es_nports = 4;
+		sc->info.es_nports = 5;
 	} else {
 		device_printf(sc->sc_dev, "%s: PHY4 - Local\n", __func__);
-		sc->info.es_nports = 5;
+		sc->info.es_nports = 6;
 	}
 
 	/* Settle time */
