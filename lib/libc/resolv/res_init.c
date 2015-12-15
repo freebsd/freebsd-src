@@ -116,7 +116,9 @@ __FBSDID("$FreeBSD$");
 
 /*% Options.  Should all be left alone. */
 #define RESOLVSORT
-#define DEBUG
+#ifndef	DEBUG
+#define	DEBUG
+#endif
 
 #ifdef SOLARIS2
 #include <sys/systeminfo.h>
