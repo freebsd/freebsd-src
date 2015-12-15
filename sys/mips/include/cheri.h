@@ -269,6 +269,26 @@ struct cheri_stack {
 } while (0)
 
 /*
+ * Implement a CToInt similar to CToPtr but without the tag check, which will
+ * be useful to extract integer interpretations of untagged capabilities.  One
+ * property of this conversion is that, since the capability might be
+ * untagged, we can't assume that (base + offset) < (max capability address),
+ * and so significant care should be taken -- ideally this variant would only
+ * be used when we know that the capability is untagged and holds a value that
+ * must be an integer (due to types or other compile-time information).
+ *
+ * This may someday be an instruction.  If so, it could directly return the
+ * cursor, rather than extract (base, offset).
+ */
+#define	CHERI_CTOINT(v, cb) do {					\
+	register_t _base, _offset;					\
+									\
+	CHERI_CGETBASE(_base, cb);					\
+	CHERI_CGETOFFSET(_offset, cb);					\
+	v = _base + _offset;						\
+} while (0)
+
+/*
  * Note that despite effectively being a CMove, CGetDefault doesn't require a
  * memory clobber: if it's writing to $c0, it's a nop; otherwise, it's not
  * writing to $c0 so no clobber is needed.
