@@ -46,9 +46,12 @@ __<bsd.obj.mk>__:
 CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
 .elif defined(MAKEOBJDIR) && ${MAKEOBJDIR:M/*} != ""
 CANONICALOBJDIR:=${MAKEOBJDIR}
+OBJTOP?= ${MAKEOBJDIR}
 .else
 CANONICALOBJDIR:=/usr/obj${.CURDIR}
 .endif
+
+OBJTOP?= ${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
 
 #
 # Warn of unorthodox object directory.
