@@ -34,65 +34,21 @@
 # $FreeBSD$
 
 . $STF_SUITE/tests/hotspare/hotspare.kshlib
+. $STF_SUITE/tests/zfsd/zfsd.kshlib
 . $STF_SUITE/include/libtest.kshlib
 . $STF_SUITE/include/libsas.kshlib
 
 verify_runnable "global"
 
-function cleanup
-{
-	if [[ -n "$child_pids" ]]; then
-		for wait_pid in $child_pids
-		do
-		        $KILL $wait_pid
-		done
-	fi
-
-	if poolexists $TESTPOOL; then
-		destroy_pool $TESTPOOL
-	fi
-
-	# See if the phy has been disabled, and try to re-enable it if possible.
-	if [ ! -z "$TMPDISK" ]; then
-		if [ ! -z "$EXPANDER" ] && [ ! -z "$PHY" ]; then
-			enable_sas_disk $EXPANDER $PHY
-		fi
-	fi
-
-	[[ -e $TESTDIR ]] && log_must $RM -rf $TESTDIR/*
-}
-
 log_assert "Failing a disk from a SAS expander is recognized by ZFS"
 
-log_onexit cleanup
+log_onexit autoreplace_cleanup
 
 child_pids=""
 
-function run_io
-{
-	typeset -i processes=$1
-	typeset -i mbcount=$2
-	typeset i=0
-
-	while [[ $i -lt $processes ]]; do
-		log_note "Invoking dd if=/dev/zero of=$TESTDIR/$TESTFILE.$i &"
-		dd if=/dev/zero of=$TESTDIR/$TESTFILE.$i bs=1m count=$mbcount &
-		typeset pid=$!
-
-		$SLEEP 1
-		if ! $PS -p $pid > /dev/null 2>&1; then
-			log_fail "dd if=/dev/zero $TESTDIR/$TESTFILE.$i"
-		fi
-
-		child_pids="$child_pids $pid"
-		((i = i + 1))
-	done
-
-}
-
 set -A TMPDISKS $DISKS
-typeset TMPDISK=${TMPDISKS[0]}
-TMPDISK=${TMPDISK##*/}
+typeset REMOVAL_DISK=${TMPDISKS[0]}
+REMOVAL_DISK=${REMOVAL_DISK##*/}
 
 for type in "raidz" "mirror"; do
 	# Create a pool on the supplied disks
@@ -101,36 +57,32 @@ for type in "raidz" "mirror"; do
 	log_must $ZFS set mountpoint=$TESTDIR $TESTPOOL/$TESTFS
 
 	# Find the first disk, get the expander and phy
-	log_note "Looking for expander and phy information for $TMPDISK"
-	find_verify_sas_disk $TMPDISK
+	log_note "Looking for expander and phy information for $REMOVAL_DISK"
+	find_verify_sas_disk $REMOVAL_DISK
 
-	log_note "Disabling \"$TMPDISK\" on expander $EXPANDER phy $PHY"
+	log_note "Disabling \"$REMOVAL_DISK\" on expander $EXPANDER phy $PHY"
 	# Disable the first disk.  We have to do this first, because if
 	# there is I/O active to the
 	disable_sas_disk $EXPANDER $PHY
 
 	# Check to make sure disk is gone.
-	camcontrol inquiry $TMPDISK > /dev/null 2>&1
+	camcontrol inquiry $REMOVAL_DISK > /dev/null 2>&1
 	if [ $? = 0 ]; then
-		log_fail "Disk \"$TMPDISK\" was not removed"
+		log_fail "Disk \"$REMOVAL_DISK\" was not removed"
 	fi
 
 	# Write out data to make sure we can do I/O after the disk failure
 	# XXX KDM should check the status returned from the dd instances
-	log_note "Running $SAS_IO_PROCESSES dd runs of $SAS_IO_MB_PER_PROC MB"
-	run_io $SAS_IO_PROCESSES $SAS_IO_MB_PER_PROC
-
-	# Wait for the I/O to complete
-	wait
+	log_must dd if=/dev/zero of=$TESTDIR/$TESTFILE bs=1m count=512
 
 	# We waited for the child processes to complete, so they're done.
 	child_pids=""
 
 	# Check to make sure ZFS sees the disk as removed
-	$ZPOOL status $TESTPOOL |grep $TMPDISK |egrep -q 'REMOVED'
+	$ZPOOL status $TESTPOOL |grep $REMOVAL_DISK |egrep -q 'REMOVED'
 	if [ $? != 0 ]; then
 		$ZPOOL status $TESTPOOL
-		log_fail "disk $TMPDISK not listed as removed"
+		log_fail "disk $REMOVAL_DISK not listed as removed"
 	fi
 
 	# Make sure that the pool is degraded
@@ -155,18 +107,18 @@ for type in "raidz" "mirror"; do
 
 	if [ -z "$FOUNDDISK" ]; then
 		camcontrol $EXPANDER
-		log_fail "Disk $TMPDISK has not appeared at phy $PHY on expander $EXPANDER after 50 seconds"
+		log_fail "Disk $REMOVAL_DISK has not appeared at phy $PHY on expander $EXPANDER after 50 seconds"
 	else
-		log_note "Disk $TMPDISK is back as $FOUNDDISK"
+		log_note "Disk $REMOVAL_DISK is back as $FOUNDDISK"
 	fi
 
 	log_note "Raid type is $type"
 
 	#Disk should have auto-joined the zpool. Verify it's status is online.
-	$ZPOOL status |grep $TMPDISK |grep ONLINE > /dev/null
+	$ZPOOL status |grep $REMOVAL_DISK |grep ONLINE > /dev/null
 	if [ $? != 0 ]; then
 		$ZPOOL status $TESTPOOL
-		log_fail "disk $TMPDISK did not automatically join the $TESTPOOL"
+		log_fail "disk $REMOVAL_DISK did not automatically join the $TESTPOOL"
 	else 
 		log_note "After reinsertion, disk is back in pool and online"
 	fi

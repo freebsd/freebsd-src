@@ -33,7 +33,7 @@
 function cleanup_devices_all
 {
 	$RM -f ${devarray[*]}
-	rmdir $HOTSPARE_TMPDIR
+	[ -n "$HOTSPARE_TMPDIR" ] && rmdir $HOTSPARE_TMPDIR
 
 	return 0
 }

@@ -131,3 +131,26 @@ function do_autoreplace
 	fi
 }
 
+function autoreplace_cleanup
+{
+	poolexists $TESTPOOL && \
+		destroy_pool $TESTPOOL
+
+	# See if the phy has been disabled, and try to re-enable it if possible.
+	echo DISK params are "$REMOVAL_DISK" $EXPANDER $PHY
+	if [ -n "$REMOVAL_DISK" ]; then
+		if [ -n "$EXPANDER" ] && [ -n "$PHY" ]; then
+			log_note "Renabling ${EXPANDER}:${PHY} for disk ${REMOVAL_DISK}"
+			enable_sas_disk $EXPANDER $PHY
+			# For debugging purposes, log the partial output of
+			# camcontrol to see if the disk actually came back.
+			log_note `camcontrol smpphylist ${EXPANDER} | ${GREP} "^ *${PHY}"`
+		fi
+	fi
+
+	[[ -e $TESTDIR ]] && log_must $RM -rf $TESTDIR/*
+
+	partition_cleanup
+}
+
+

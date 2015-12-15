@@ -27,6 +27,7 @@
 # ident	"@(#)zfsd_zfsd_002_pos.ksh	1.0	12/08/10 SL"
 #
 . $STF_SUITE/tests/hotspare/hotspare.kshlib
+. $STF_SUITE/tests/zfsd/zfsd.kshlib
 . $STF_SUITE/include/libsas.kshlib
 
 ################################################################################
@@ -64,24 +65,6 @@
 ###############################################################################
 
 verify_runnable "global"
-
-function cleanup
-{
-  	# See if the phy has been disabled, and try to re-enable it if possible.
-	if [ ! -z "$REMOVAL_DISK" ]; then
-		if [ ! -z "$EXPANDER" ] && [ ! -z "$PHY" ]; then
-			enable_sas_disk $EXPANDER $PHY
-		fi
-	fi
-
-	[[ -e $TESTDIR ]] && log_must $RM -rf $TESTDIR/*
-
-	poolexists "$TESTPOOL" && \
-		destroy_pool "$TESTPOOL"
-
-
-	partition_cleanup
-}
 
 function verify_assertion # spare_dev
 {
@@ -206,7 +189,7 @@ fi
 
 log_assert "If a removed drive gets reinserted while the pool is exported, it will replace its spare when reinserted."
 
-log_onexit cleanup
+log_onexit autoreplace_cleanup
 
 set_devs
 

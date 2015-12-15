@@ -43,6 +43,7 @@
 function find_verify_sas_disk
 {
 	typeset DISK=${1##*/}
+	typeset i
 
 	if [ ! -c /dev/$DISK ]; then
 		log_fail "Cannot find device \"/dev/$DISK\", arg is \"$1\""

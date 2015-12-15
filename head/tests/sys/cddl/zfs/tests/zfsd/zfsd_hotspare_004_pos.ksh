@@ -27,6 +27,7 @@
 # ident	"@(#)hotspare_replace_006_pos.ksh	1.0	12/08/10 SL"
 #
 . $STF_SUITE/tests/hotspare/hotspare.kshlib
+. $STF_SUITE/tests/zfsd/zfsd.kshlib
 . $STF_SUITE/include/libsas.kshlib
 
 ################################################################################
@@ -61,27 +62,10 @@
 verify_runnable "global"
 verify_disk_count "$DISKS" 5
 
-function cleanup
-{
-	poolexists $TESTPOOL && \
-		destroy_pool $TESTPOOL
-
-	# See if the phy has been disabled, and try to re-enable it if possible.
-	if [ ! -z "$REMOVAL_DISK" ]; then
-		if [ ! -z "$EXPANDER" ] && [ ! -z "$PHY" ]; then
-			enable_sas_disk $EXPANDER $PHY
-		fi
-	fi
-
-	[[ -e $TESTDIR ]] && log_must $RM -rf $TESTDIR/*
-
-	partition_cleanup
-}
-
 
 log_assert "Removing a disk from a pool results in the spare activating"
 
-log_onexit cleanup
+log_onexit autoreplace_cleanup
 
 
 function verify_assertion # spare_dev

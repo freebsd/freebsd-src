@@ -64,27 +64,10 @@
 verify_runnable "global"
 verify_disk_count "$DISKS" 5
 
-function cleanup
-{
-	poolexists $TESTPOOL && \
-		destroy_pool $TESTPOOL
-
-	# See if the phy has been disabled, and try to re-enable it if possible.
-	if [ ! -z "$REMOVAL_DISK" ]; then
-		if [ ! -z "$EXPANDER" ] && [ ! -z "$PHY" ]; then
-			enable_sas_disk $EXPANDER $PHY
-		fi
-	fi
-
-	[[ -e $TESTDIR ]] && log_must $RM -rf $TESTDIR/*
-
-	partition_cleanup
-}
-
 
 log_assert "A pool with the autoreplace property will replace disks by physical path"
 
-log_onexit cleanup
+log_onexit autoreplace_cleanup
 
 function verify_assertion
 {

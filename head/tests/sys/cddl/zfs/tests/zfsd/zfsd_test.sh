@@ -458,7 +458,6 @@ zfsd_replace_001_pos_head()
 }
 zfsd_replace_001_pos_body()
 {
-	atf_expect_fail "TeamTrack P3_29531 zpool status prematurely indicates resilver completion"
 	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/zfsd.cfg
