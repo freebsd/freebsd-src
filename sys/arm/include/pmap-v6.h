@@ -196,7 +196,6 @@ void pmap_set_pcb_pagedir(pmap_t , struct pcb *);
 
 void pmap_tlb_flush(pmap_t , vm_offset_t );
 void pmap_tlb_flush_range(pmap_t , vm_offset_t , vm_size_t );
-void pmap_tlb_flush_ng(pmap_t );
 
 void pmap_dcache_wb_range(vm_paddr_t , vm_size_t , vm_memattr_t );
 

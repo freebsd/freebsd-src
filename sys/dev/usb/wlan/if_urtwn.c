@@ -182,14 +182,15 @@ static struct ieee80211vap *urtwn_vap_create(struct ieee80211com *,
                     const uint8_t [IEEE80211_ADDR_LEN],
                     const uint8_t [IEEE80211_ADDR_LEN]);
 static void		urtwn_vap_delete(struct ieee80211vap *);
-static struct mbuf *	urtwn_rx_frame(struct urtwn_softc *, uint8_t *, int,
-			    int *);
-static struct mbuf *	urtwn_report_intr(struct usb_xfer *, struct urtwn_data *,
-			    int *, int8_t *);
-static struct mbuf *	urtwn_rxeof(struct urtwn_softc *, uint8_t *, int,
-			    int *, int8_t *);
+static struct mbuf *	urtwn_rx_copy_to_mbuf(struct urtwn_softc *,
+			    struct r92c_rx_stat *, int);
+static struct mbuf *	urtwn_report_intr(struct usb_xfer *,
+			    struct urtwn_data *);
+static struct mbuf *	urtwn_rxeof(struct urtwn_softc *, uint8_t *, int);
 static void		urtwn_r88e_ratectl_tx_complete(struct urtwn_softc *,
 			    void *);
+static struct ieee80211_node *urtwn_rx_frame(struct urtwn_softc *,
+			    struct mbuf *, int8_t *);
 static void		urtwn_txeof(struct urtwn_softc *, struct urtwn_data *,
 			    int);
 static int		urtwn_alloc_list(struct urtwn_softc *,
@@ -259,6 +260,7 @@ static int		urtwn_key_delete(struct ieee80211vap *,
 static void		urtwn_tsf_task_adhoc(void *, int);
 static void		urtwn_tsf_sync_enable(struct urtwn_softc *,
 			    struct ieee80211vap *);
+static void		urtwn_get_tsf(struct urtwn_softc *, uint64_t *);
 static void		urtwn_set_led(struct urtwn_softc *, int, int);
 static void		urtwn_set_mode(struct urtwn_softc *, uint8_t);
 static void		urtwn_ibss_recv_mgmt(struct ieee80211_node *,
@@ -273,6 +275,10 @@ static int8_t		urtwn_r88e_get_rssi(struct urtwn_softc *, int, void *);
 static int		urtwn_tx_data(struct urtwn_softc *,
 			    struct ieee80211_node *, struct mbuf *,
 			    struct urtwn_data *);
+static int		urtwn_tx_raw(struct urtwn_softc *,
+			    struct ieee80211_node *, struct mbuf *,
+			    struct urtwn_data *,
+			    const struct ieee80211_bpf_params *);
 static void		urtwn_tx_start(struct urtwn_softc *, struct mbuf *,
 			    uint8_t, struct urtwn_data *);
 static int		urtwn_transmit(struct ieee80211com *, struct mbuf *);
@@ -714,16 +720,13 @@ urtwn_vap_delete(struct ieee80211vap *vap)
 }
 
 static struct mbuf *
-urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
+urtwn_rx_copy_to_mbuf(struct urtwn_softc *sc, struct r92c_rx_stat *stat,
+    int totlen)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211_frame *wh;
 	struct mbuf *m;
-	struct r92c_rx_stat *stat;
-	uint32_t rxdw0, rxdw3;
-	uint8_t rate, cipher;
-	int8_t rssi = 0;
-	int infosz;
+	uint32_t rxdw0;
+	int pktlen;
 
 	/*
 	 * don't pass packets to the ieee80211 framework if the driver isn't
@@ -732,77 +735,49 @@ urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
 	if (!(sc->sc_flags & URTWN_RUNNING))
 		return (NULL);
 
-	stat = (struct r92c_rx_stat *)buf;
 	rxdw0 = le32toh(stat->rxdw0);
-	rxdw3 = le32toh(stat->rxdw3);
-
 	if (rxdw0 & (R92C_RXDW0_CRCERR | R92C_RXDW0_ICVERR)) {
 		/*
 		 * This should not happen since we setup our Rx filter
 		 * to not receive these frames.
 		 */
-		counter_u64_add(ic->ic_ierrors, 1);
-		return (NULL);
-	}
-	if (pktlen < sizeof(struct ieee80211_frame_ack) ||
-	    pktlen > MCLBYTES) {
-		counter_u64_add(ic->ic_ierrors, 1);
-		return (NULL);
+		DPRINTFN(6, "RX flags error (%s)\n",
+		    rxdw0 & R92C_RXDW0_CRCERR ? "CRC" : "ICV");
+		goto fail;
 	}
 
-	rate = MS(rxdw3, R92C_RXDW3_RATE);
-	cipher = MS(rxdw0, R92C_RXDW0_CIPHER);
-	infosz = MS(rxdw0, R92C_RXDW0_INFOSZ) * 8;
+	pktlen = MS(rxdw0, R92C_RXDW0_PKTLEN);
+	if (pktlen < sizeof(struct ieee80211_frame_ack)) {
+		DPRINTFN(6, "frame too short: %d\n", pktlen);
+		goto fail;
+	}
 
-	/* Get RSSI from PHY status descriptor if present. */
-	if (infosz != 0 && (rxdw0 & R92C_RXDW0_PHYST)) {
-		if (sc->chip & URTWN_CHIP_88E)
-			rssi = urtwn_r88e_get_rssi(sc, rate, &stat[1]);
-		else
-			rssi = urtwn_get_rssi(sc, rate, &stat[1]);
-		/* Update our average RSSI. */
-		urtwn_update_avgrssi(sc, rate, rssi);
+	if (__predict_false(totlen > MCLBYTES)) {
+		/* convert to m_getjcl if this happens */
+		device_printf(sc->sc_dev, "%s: frame too long: %d (%d)\n",
+		    __func__, pktlen, totlen);
+		goto fail;
 	}
 
 	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-	if (m == NULL) {
-		device_printf(sc->sc_dev, "could not create RX mbuf\n");
-		return (NULL);
+	if (__predict_false(m == NULL)) {
+		device_printf(sc->sc_dev, "%s: could not allocate RX mbuf\n",
+		    __func__);
+		goto fail;
 	}
 
 	/* Finalize mbuf. */
-	memcpy(mtod(m, uint8_t *), (uint8_t *)&stat[1] + infosz, pktlen);
- 	m->m_pkthdr.len = m->m_len = pktlen; 
-	wh = mtod(m, struct ieee80211_frame *);
-
-	if ((wh->i_fc[1] & IEEE80211_FC1_PROTECTED) &&
-	    cipher != R92C_CAM_ALGO_NONE) {
-		m->m_flags |= M_WEP;
-	}
-
-	if (ieee80211_radiotap_active(ic)) {
-		struct urtwn_rx_radiotap_header *tap = &sc->sc_rxtap;
-
-		tap->wr_flags = 0;
-		/* Map HW rate index to 802.11 rate. */
-		if (!(rxdw3 & R92C_RXDW3_HT)) {
-			tap->wr_rate = ridx2rate[rate];
-		} else if (rate >= 12) {	/* MCS0~15. */
-			/* Bit 7 set means HT MCS instead of rate. */
-			tap->wr_rate = 0x80 | (rate - 12);
-		}
-		tap->wr_dbm_antsignal = rssi;
-		tap->wr_dbm_antnoise = URTWN_NOISE_FLOOR;
-	}
-
-	*rssi_p = rssi;
-
+	memcpy(mtod(m, uint8_t *), (uint8_t *)stat, totlen);
+	m->m_pkthdr.len = m->m_len = totlen;
+ 
 	return (m);
+fail:
+	counter_u64_add(ic->ic_ierrors, 1);
+	return (NULL);
 }
 
 static struct mbuf *
-urtwn_report_intr(struct usb_xfer *xfer, struct urtwn_data *data, int *rssi,
-    int8_t *nf)
+urtwn_report_intr(struct usb_xfer *xfer, struct urtwn_data *data)
 {
 	struct urtwn_softc *sc = data->sc;
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -825,7 +800,7 @@ urtwn_report_intr(struct usb_xfer *xfer, struct urtwn_data *data, int *rssi,
 
 		switch (report_sel) {
 		case R88E_RXDW3_RPT_RX:
-			return (urtwn_rxeof(sc, buf, len, rssi, nf));
+			return (urtwn_rxeof(sc, buf, len));
 		case R88E_RXDW3_RPT_TX1:
 			urtwn_r88e_ratectl_tx_complete(sc, &stat[1]);
 			break;
@@ -834,14 +809,13 @@ urtwn_report_intr(struct usb_xfer *xfer, struct urtwn_data *data, int *rssi,
 			break;
 		}
 	} else
-		return (urtwn_rxeof(sc, buf, len, rssi, nf));
+		return (urtwn_rxeof(sc, buf, len));
 
 	return (NULL);
 }
 
 static struct mbuf *
-urtwn_rxeof(struct urtwn_softc *sc, uint8_t *buf, int len, int *rssi,
-    int8_t *nf)
+urtwn_rxeof(struct urtwn_softc *sc, uint8_t *buf, int len)
 {
 	struct r92c_rx_stat *stat;
 	struct mbuf *m, *m0 = NULL, *prevm = NULL;
@@ -871,7 +845,7 @@ urtwn_rxeof(struct urtwn_softc *sc, uint8_t *buf, int len, int *rssi,
 		if (totlen > len)
 			break;
 
-		m = urtwn_rx_frame(sc, buf, pktlen, rssi);
+		m = urtwn_rx_copy_to_mbuf(sc, stat, totlen);
 		if (m0 == NULL)
 			m0 = m;
 		if (prevm == NULL)
@@ -919,17 +893,86 @@ urtwn_r88e_ratectl_tx_complete(struct urtwn_softc *sc, void *arg)
 	URTWN_NT_UNLOCK(sc);
 }
 
+static struct ieee80211_node *
+urtwn_rx_frame(struct urtwn_softc *sc, struct mbuf *m, int8_t *rssi_p)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211_frame_min *wh;
+	struct r92c_rx_stat *stat;
+	uint32_t rxdw0, rxdw3;
+	uint8_t rate, cipher;
+	int8_t rssi = URTWN_NOISE_FLOOR + 1;
+	int infosz;
+
+	stat = mtod(m, struct r92c_rx_stat *);
+	rxdw0 = le32toh(stat->rxdw0);
+	rxdw3 = le32toh(stat->rxdw3);
+
+	rate = MS(rxdw3, R92C_RXDW3_RATE);
+	cipher = MS(rxdw0, R92C_RXDW0_CIPHER);
+	infosz = MS(rxdw0, R92C_RXDW0_INFOSZ) * 8;
+
+	/* Get RSSI from PHY status descriptor if present. */
+	if (infosz != 0 && (rxdw0 & R92C_RXDW0_PHYST)) {
+		if (sc->chip & URTWN_CHIP_88E)
+			rssi = urtwn_r88e_get_rssi(sc, rate, &stat[1]);
+		else
+			rssi = urtwn_get_rssi(sc, rate, &stat[1]);
+		/* Update our average RSSI. */
+		urtwn_update_avgrssi(sc, rate, rssi);
+	}
+
+	if (ieee80211_radiotap_active(ic)) {
+		struct urtwn_rx_radiotap_header *tap = &sc->sc_rxtap;
+
+		tap->wr_flags = 0;
+
+		urtwn_get_tsf(sc, &tap->wr_tsft);
+		if (__predict_false(le32toh((uint32_t)tap->wr_tsft) <
+				    le32toh(stat->rxdw5))) {
+			tap->wr_tsft = le32toh(tap->wr_tsft  >> 32) - 1;
+			tap->wr_tsft = (uint64_t)htole32(tap->wr_tsft) << 32;
+		} else
+			tap->wr_tsft &= 0xffffffff00000000;
+		tap->wr_tsft += stat->rxdw5;
+
+		/* Map HW rate index to 802.11 rate. */
+		if (!(rxdw3 & R92C_RXDW3_HT)) {
+			tap->wr_rate = ridx2rate[rate];
+		} else if (rate >= 12) {	/* MCS0~15. */
+			/* Bit 7 set means HT MCS instead of rate. */
+			tap->wr_rate = 0x80 | (rate - 12);
+		}
+		tap->wr_dbm_antsignal = rssi;
+		tap->wr_dbm_antnoise = URTWN_NOISE_FLOOR;
+	}
+
+	*rssi_p = rssi;
+
+	/* Drop descriptor. */
+	m_adj(m, sizeof(*stat) + infosz);
+	wh = mtod(m, struct ieee80211_frame_min *);
+
+	if ((wh->i_fc[1] & IEEE80211_FC1_PROTECTED) &&
+	    cipher != R92C_CAM_ALGO_NONE) {
+		m->m_flags |= M_WEP;
+	}
+
+	if (m->m_len >= sizeof(*wh))
+		return (ieee80211_find_rxnode(ic, wh));
+
+	return (NULL);
+}
+
 static void
 urtwn_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct urtwn_softc *sc = usbd_xfer_softc(xfer);
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211_frame_min *wh;
 	struct ieee80211_node *ni;
 	struct mbuf *m = NULL, *next;
 	struct urtwn_data *data;
-	int8_t nf;
-	int rssi = 1;
+	int8_t nf, rssi;
 
 	URTWN_ASSERT_LOCKED(sc);
 
@@ -939,7 +982,7 @@ urtwn_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (data == NULL)
 			goto tr_setup;
 		STAILQ_REMOVE_HEAD(&sc->sc_rx_active, next);
-		m = urtwn_report_intr(xfer, data, &rssi, &nf);
+		m = urtwn_report_intr(xfer, data);
 		STAILQ_INSERT_TAIL(&sc->sc_rx_inactive, data, next);
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -960,15 +1003,13 @@ tr_setup:
 		 * ieee80211_input() because here is at the end of a USB
 		 * callback and safe to unlock.
 		 */
-		URTWN_UNLOCK(sc);
 		while (m != NULL) {
 			next = m->m_next;
 			m->m_next = NULL;
-			wh = mtod(m, struct ieee80211_frame_min *);
-			if (m->m_len >= sizeof(*wh))
-				ni = ieee80211_find_rxnode(ic, wh);
-			else
-				ni = NULL;
+
+			ni = urtwn_rx_frame(sc, m, &rssi);
+			URTWN_UNLOCK(sc);
+
 			nf = URTWN_NOISE_FLOOR;
 			if (ni != NULL) {
 				(void)ieee80211_input(ni, m, rssi - nf, nf);
@@ -977,9 +1018,10 @@ tr_setup:
 				(void)ieee80211_input_all(ic, m, rssi - nf,
 				    nf);
 			}
+
+			URTWN_LOCK(sc);
 			m = next;
 		}
-		URTWN_LOCK(sc);
 		break;
 	default:
 		/* needs it to the inactive queue due to a error. */
@@ -2110,6 +2152,12 @@ urtwn_tsf_sync_enable(struct urtwn_softc *sc, struct ieee80211vap *vap)
 }
 
 static void
+urtwn_get_tsf(struct urtwn_softc *sc, uint64_t *buf)
+{
+	urtwn_read_region_1(sc, R92C_TSFTR, (uint8_t *)buf, sizeof(*buf));
+}
+
+static void
 urtwn_set_led(struct urtwn_softc *sc, int led, int on)
 {
 	uint8_t reg;
@@ -2162,7 +2210,6 @@ urtwn_ibss_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype,
 	    (subtype == IEEE80211_FC0_SUBTYPE_BEACON ||
 	    subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)) {
 		ni_tstamp = le64toh(ni->ni_tstamp.tsf);
-#ifdef D3831
 		URTWN_LOCK(sc);
 		urtwn_get_tsf(sc, &curr_tstamp);
 		URTWN_UNLOCK(sc);
@@ -2170,10 +2217,6 @@ urtwn_ibss_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m, int subtype,
 
 		if (ni_tstamp >= curr_tstamp)
 			(void) ieee80211_ibss_merge(ni);
-#else
-		(void) sc;
-		(void) curr_tstamp;
-#endif
 	}
 }
 
@@ -2672,6 +2715,107 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 		}
 
 		txd->txdw1 |= htole32(SM(R92C_TXDW1_CIPHER, cipher));
+	}
+
+	if (ieee80211_radiotap_active_vap(vap)) {
+		struct urtwn_tx_radiotap_header *tap = &sc->sc_txtap;
+
+		tap->wt_flags = 0;
+		if (k != NULL)
+			tap->wt_flags |= IEEE80211_RADIOTAP_F_WEP;
+		ieee80211_radiotap_tx(vap, m);
+	}
+
+	data->ni = ni;
+
+	urtwn_tx_start(sc, m, type, data);
+
+	return (0);
+}
+
+static int
+urtwn_tx_raw(struct urtwn_softc *sc, struct ieee80211_node *ni,
+    struct mbuf *m, struct urtwn_data *data,
+    const struct ieee80211_bpf_params *params)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_key *k = NULL;
+	struct ieee80211_frame *wh;
+	struct r92c_tx_desc *txd;
+	uint8_t cipher, ridx, type;
+
+	/* Encrypt the frame if need be. */
+	cipher = R92C_TXDW1_CIPHER_NONE;
+	if (params->ibp_flags & IEEE80211_BPF_CRYPTO) {
+		/* Retrieve key for TX. */
+		k = ieee80211_crypto_encap(ni, m);
+		if (k == NULL)
+			return (ENOBUFS);
+
+		if (!(k->wk_flags & IEEE80211_KEY_SWCRYPT)) {
+			switch (k->wk_cipher->ic_cipher) {
+			case IEEE80211_CIPHER_WEP:
+			case IEEE80211_CIPHER_TKIP:
+				cipher = R92C_TXDW1_CIPHER_RC4;
+				break;
+			case IEEE80211_CIPHER_AES_CCM:
+				cipher = R92C_TXDW1_CIPHER_AES;
+				break;
+			default:
+				device_printf(sc->sc_dev,
+				    "%s: unknown cipher %d\n",
+				    __func__, k->wk_cipher->ic_cipher);
+				return (EINVAL);
+			}
+		}
+	}
+
+	wh = mtod(m, struct ieee80211_frame *);
+	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+
+	/* Fill Tx descriptor. */
+	txd = (struct r92c_tx_desc *)data->buf;
+	memset(txd, 0, sizeof(*txd));
+
+	txd->txdw0 |= htole32(
+	    SM(R92C_TXDW0_OFFSET, sizeof(*txd)) |
+	    R92C_TXDW0_OWN | R92C_TXDW0_FSG | R92C_TXDW0_LSG);
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+		txd->txdw0 |= htole32(R92C_TXDW0_BMCAST);
+
+	if (params->ibp_flags & IEEE80211_BPF_RTS)
+		txd->txdw4 |= htole32(R92C_TXDW4_RTSEN);
+	if (params->ibp_flags & IEEE80211_BPF_CTS)
+		txd->txdw4 |= htole32(R92C_TXDW4_CTS2SELF);
+	if (txd->txdw4 & htole32(R92C_TXDW4_RTSEN | R92C_TXDW4_CTS2SELF)) {
+		txd->txdw4 |= htole32(R92C_TXDW4_HWRTSEN);
+		txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE,
+		    URTWN_RIDX_OFDM24));
+	}
+
+	if (sc->chip & URTWN_CHIP_88E)
+		txd->txdw1 |= htole32(SM(R88E_TXDW1_MACID, URTWN_MACID_BC));
+	else
+		txd->txdw1 |= htole32(SM(R92C_TXDW1_MACID, URTWN_MACID_BC));
+
+	txd->txdw1 |= htole32(SM(R92C_TXDW1_QSEL, R92C_TXDW1_QSEL_MGNT));
+	txd->txdw1 |= htole32(SM(R92C_TXDW1_CIPHER, cipher));
+
+	/* Choose a TX rate index. */
+	ridx = rate2ridx(params->ibp_rate0);
+	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, ridx));
+	txd->txdw5 |= htole32(0x0001ff00);
+	txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
+
+	if (!IEEE80211_QOS_HAS_SEQ(wh)) {
+		/* Use HW sequence numbering for non-QoS frames. */
+		if (sc->chip & URTWN_CHIP_88E)
+			txd->txdseq = htole16(R88E_TXDSEQ_HWSEQ_EN);
+		else
+			txd->txdw4 |= htole32(R92C_TXDW4_HWSEQ_EN);
+	} else {
+		/* Set sequence number. */
+		txd->txdseq = htole16(M_SEQNO_GET(m) % IEEE80211_SEQ_RANGE);
 	}
 
 	if (ieee80211_radiotap_active_vap(vap)) {
@@ -4592,7 +4736,20 @@ urtwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		goto end;
 	}
 
-	if ((error = urtwn_tx_data(sc, ni, m, bf)) != 0) {
+	if (params == NULL) {
+		/*
+		 * Legacy path; interpret frame contents to decide
+		 * precisely how to send the frame.
+		 */
+		error = urtwn_tx_data(sc, ni, m, bf);
+	} else {
+		/*
+		 * Caller supplied explicit parameters to use in
+		 * sending the frame.
+		 */
+		error = urtwn_tx_raw(sc, ni, m, bf, params);
+	}
+	if (error != 0) {
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 		goto end;
 	}

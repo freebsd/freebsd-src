@@ -1380,14 +1380,6 @@ pmap_tlb_flush_range(pmap_t pmap, vm_offset_t sva, vm_size_t size)
 		tlb_flush_range(sva, size);
 }
 
-PMAP_INLINE void
-pmap_tlb_flush_ng(pmap_t pmap)
-{
-
-	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
-		tlb_flush_all_ng();
-}
-
 /*
  *  Abuse the pte2 nodes for unmapped kva to thread a kva freelist through.
  *  Requirements:
@@ -2508,8 +2500,13 @@ pmap_unwire_pt2pg(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		KASSERT(m->md.pt2_wirecount[i] == 0,
 		    ("%s: pmap %p PT2 %u (PG %p) wired", __func__, pmap, i, m));
 		opte1 = pte1_load(pte1p);
-		if (pte1_is_link(opte1))
+		if (pte1_is_link(opte1)) {
 			pte1_clear(pte1p);
+			/*
+			 * Flush intermediate TLB cache.
+			 */
+			pmap_tlb_flush(pmap, (m->pindex + i) << PTE1_SHIFT);
+		}
 #ifdef INVARIANTS
 		else
 			KASSERT((opte1 == 0) || pte1_is_section(opte1),
@@ -2743,7 +2740,6 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 		TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
 		if (pmap != pc->pc_pmap) {
 			if (pmap != NULL) {
-				pmap_tlb_flush_ng(pmap);
 				if (pmap != locked_pmap)
 					PMAP_UNLOCK(pmap);
 			}
@@ -2781,8 +2777,7 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 				KASSERT(tpte2 != 0,
 				    ("pmap_pv_reclaim: pmap %p va %#x zero pte",
 				    pmap, va));
-				if (pte2_is_global(tpte2))
-					tlb_flush(va);
+				pmap_tlb_flush(pmap, va);
 				m = PHYS_TO_VM_PAGE(pte2_pa(tpte2));
 				if (pte2_is_dirty(tpte2))
 					vm_page_dirty(m);
@@ -2840,7 +2835,6 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 out:
 	TAILQ_CONCAT(&pv_chunks, &newtail, pc_lru);
 	if (pmap != NULL) {
-		pmap_tlb_flush_ng(pmap);
 		if (pmap != locked_pmap)
 			PMAP_UNLOCK(pmap);
 	}
@@ -3370,18 +3364,16 @@ pmap_remove_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t sva,
 	KASSERT((sva & PTE1_OFFSET) == 0,
 	    ("%s: sva is not 1mpage aligned", __func__));
 
+	/*
+	 * Clear and invalidate the mapping. It should occupy one and only TLB
+	 * entry. So, pmap_tlb_flush() called with aligned address should be
+	 * sufficient.
+	 */
 	opte1 = pte1_load_clear(pte1p);
+	pmap_tlb_flush(pmap, sva);
+
 	if (pte1_is_wired(opte1))
 		pmap->pm_stats.wired_count -= PTE1_SIZE / PAGE_SIZE;
-
-	/*
-	 * If the mapping was global, invalidate it even if given pmap
-	 * is not active (kernel_pmap is active always). The mapping should
-	 * occupy one and only TLB entry. So, pmap_tlb_flush() called
-	 * with aligned address should be sufficient.
-	 */
-	if (pte1_is_global(opte1))
-		tlb_flush(sva);
 	pmap->pm_stats.resident_count -= PTE1_SIZE / PAGE_SIZE;
 	if (pte1_is_managed(opte1)) {
 		pvh = pa_to_pvh(pte1_pa(opte1));
@@ -3465,7 +3457,6 @@ pmap_demote_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t va)
 		    VM_ALLOC_NORMAL | VM_ALLOC_WIRED)) == NULL) {
 			SLIST_INIT(&free);
 			pmap_remove_pte1(pmap, pte1p, pte1_trunc(va), &free);
-			pmap_tlb_flush(pmap, pte1_trunc(va));
 			pmap_free_zero_pages(&free);
 			CTR3(KTR_PMAP, "%s: failure for va %#x in pmap %p",
 			    __func__, va, pmap);
@@ -3851,17 +3842,15 @@ pmap_remove_pte2(pmap_t pmap, pt2_entry_t *pte2p, vm_offset_t va,
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
+	/* Clear and invalidate the mapping. */
 	opte2 = pte2_load_clear(pte2p);
+	pmap_tlb_flush(pmap, va);
+
 	KASSERT(pte2_is_valid(opte2), ("%s: pmap %p va %#x not link pte2 %#x",
 	    __func__, pmap, va, opte2));
+
 	if (opte2 & PTE2_W)
 		pmap->pm_stats.wired_count -= 1;
-	/*
-	 * If the mapping was global, invalidate it even if given pmap
-	 * is not active (kernel_pmap is active always).
-	 */
-	if (pte2_is_global(opte2))
-		tlb_flush(va);
 	pmap->pm_stats.resident_count -= 1;
 	if (pte2_is_managed(opte2)) {
 		m = PHYS_TO_VM_PAGE(pte2_pa(opte2));
@@ -3890,7 +3879,6 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va, struct spglist *free)
 	    !pte2_is_valid(pte2_load(pte2p)))
 		return;
 	pmap_remove_pte2(pmap, pte2p, va, free);
-	pmap_tlb_flush(pmap, va);
 }
 
 /*
@@ -3906,7 +3894,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	pt1_entry_t *pte1p, pte1;
 	pt2_entry_t *pte2p, pte2;
 	struct spglist free;
-	int anyvalid;
 
 	/*
 	 * Perform an unsynchronized read. This is, however, safe.
@@ -3914,7 +3901,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (pmap->pm_stats.resident_count == 0)
 		return;
 
-	anyvalid = 0;
 	SLIST_INIT(&free);
 
 	rw_wlock(&pvh_global_lock);
@@ -3959,12 +3945,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			 * demote the mapping and fall through.
 			 */
 			if (sva + PTE1_SIZE == nextva && eva >= nextva) {
-				/*
-				 * The TLB entry for global mapping is
-				 * invalidated by pmap_remove_pte1().
-				 */
-				if (!pte1_is_global(pte1))
-					anyvalid = 1;
 				pmap_remove_pte1(pmap, pte1p, sva, &free);
 				continue;
 			} else if (!pmap_demote_pte1(pmap, pte1p, sva)) {
@@ -3995,21 +3975,12 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			pte2 = pte2_load(pte2p);
 			if (!pte2_is_valid(pte2))
 				continue;
-
-			/*
-			 * The TLB entry for global mapping is invalidated
-			 * by pmap_remove_pte2().
-			 */
-			if (!pte2_is_global(pte2))
-				anyvalid = 1;
 			if (pmap_remove_pte2(pmap, pte2p, sva, &free))
 				break;
 		}
 	}
 out:
 	sched_unpin();
-	if (anyvalid)
-		pmap_tlb_flush_ng(pmap);
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
 	pmap_free_zero_pages(&free);
@@ -4065,6 +4036,7 @@ small_mappings:
 		    "a 1mpage in page %p's pv list", __func__, m));
 		pte2p = pmap_pte2_quick(pmap, pv->pv_va);
 		opte2 = pte2_load_clear(pte2p);
+		pmap_tlb_flush(pmap, pv->pv_va);
 		KASSERT(pte2_is_valid(opte2), ("%s: pmap %p va %x zero pte2",
 		    __func__, pmap, pv->pv_va));
 		if (pte2_is_wired(opte2))
@@ -4078,7 +4050,6 @@ small_mappings:
 		if (pte2_is_dirty(opte2))
 			vm_page_dirty(m);
 		pmap_unuse_pt2(pmap, pv->pv_va, &free);
-		pmap_tlb_flush(pmap, pv->pv_va);
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 		free_pv_entry(pmap, pv);
 		PMAP_UNLOCK(pmap);
@@ -4254,8 +4225,8 @@ pmap_remove_pages(pmap_t pmap)
 			free_pv_chunk(pc);
 		}
 	}
+	tlb_flush_all_ng_local();
 	sched_unpin();
-	pmap_tlb_flush_ng(pmap);
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
 	pmap_free_zero_pages(&free);
@@ -4597,19 +4568,17 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 /*
  *  Do the things to protect a 1mpage in a process.
  */
-static boolean_t
+static void
 pmap_protect_pte1(pmap_t pmap, pt1_entry_t *pte1p, vm_offset_t sva,
     vm_prot_t prot)
 {
 	pt1_entry_t npte1, opte1;
 	vm_offset_t eva, va;
 	vm_page_t m;
-	boolean_t anychanged;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT((sva & PTE1_OFFSET) == 0,
 	    ("%s: sva is not 1mpage aligned", __func__));
-	anychanged = FALSE;
 retry:
 	opte1 = npte1 = pte1_load(pte1p);
 	if (pte1_is_managed(opte1)) {
@@ -4633,12 +4602,8 @@ retry:
 	if (npte1 != opte1) {
 		if (!pte1_cmpset(pte1p, opte1, npte1))
 			goto retry;
-		if (pte1_is_global(opte1))
-			tlb_flush(sva);
-		else
-			anychanged = TRUE;
+		pmap_tlb_flush(pmap, sva);
 	}
-	return (anychanged);
 }
 
 /*
@@ -4648,7 +4613,7 @@ retry:
 void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
-	boolean_t anychanged, pv_lists_locked;
+	boolean_t pv_lists_locked;
 	vm_offset_t nextva;
 	pt1_entry_t *pte1p, pte1;
 	pt2_entry_t *pte2p, opte2, npte2;
@@ -4671,7 +4636,6 @@ resume:
 		rw_wlock(&pvh_global_lock);
 		sched_pin();
 	}
-	anychanged = FALSE;
 
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = nextva) {
@@ -4698,19 +4662,12 @@ resume:
 			 * demote the mapping and fall through.
 			 */
 			if (sva + PTE1_SIZE == nextva && eva >= nextva) {
-				/*
-				 * The TLB entry for global mapping is
-				 * invalidated by pmap_protect_pte1().
-				 */
-				if (pmap_protect_pte1(pmap, pte1p, sva, prot))
-					anychanged = TRUE;
+				pmap_protect_pte1(pmap, pte1p, sva, prot);
 				continue;
 			} else {
 				if (!pv_lists_locked) {
 					pv_lists_locked = TRUE;
 					if (!rw_try_wlock(&pvh_global_lock)) {
-						if (anychanged)
-							pmap_tlb_flush_ng(pmap);
 						PMAP_UNLOCK(pmap);
 						goto resume;
 					}
@@ -4773,16 +4730,10 @@ retry:
 
 				if (!pte2_cmpset(pte2p, opte2, npte2))
 					goto retry;
-
-				if (pte2_is_global(opte2))
-					tlb_flush(sva);
-				else
-					anychanged = TRUE;
+				pmap_tlb_flush(pmap, sva);
 			}
 		}
 	}
-	if (anychanged)
-		pmap_tlb_flush_ng(pmap);
 	if (pv_lists_locked) {
 		sched_unpin();
 		rw_wunlock(&pvh_global_lock);
@@ -5289,7 +5240,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 	pt2_entry_t *pte2p, pte2;
 	vm_offset_t pdnxt;
 	vm_page_t m;
-	boolean_t anychanged, pv_lists_locked;
+	boolean_t pv_lists_locked;
 
 	if (advice != MADV_DONTNEED && advice != MADV_FREE)
 		return;
@@ -5301,7 +5252,6 @@ resume:
 		rw_wlock(&pvh_global_lock);
 		sched_pin();
 	}
-	anychanged = FALSE;
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = pdnxt) {
 		pdnxt = pte1_trunc(sva + PTE1_SIZE);
@@ -5317,8 +5267,6 @@ resume:
 			if (!pv_lists_locked) {
 				pv_lists_locked = TRUE;
 				if (!rw_try_wlock(&pvh_global_lock)) {
-					if (anychanged)
-						pmap_tlb_flush_ng(pmap);
 					PMAP_UNLOCK(pmap);
 					goto resume;
 				}
@@ -5343,7 +5291,6 @@ resume:
 				KASSERT(pte2_is_valid(pte2_load(pte2p)),
 				    ("%s: invalid PTE2", __func__));
 				pmap_remove_pte2(pmap, pte2p, sva, NULL);
-				anychanged = TRUE;
 			}
 		}
 		if (pdnxt > eva)
@@ -5369,14 +5316,9 @@ resume:
 				pte2_clear_bit(pte2p, PTE2_A);
 			else
 				continue;
-			if (pte2_is_global(pte2))
-				tlb_flush(sva);
-			else
-				anychanged = TRUE;
+			pmap_tlb_flush(pmap, sva);
 		}
 	}
-	if (anychanged)
-		pmap_tlb_flush_ng(pmap);
 	if (pv_lists_locked) {
 		sched_unpin();
 		rw_wunlock(&pvh_global_lock);

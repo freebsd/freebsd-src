@@ -361,7 +361,7 @@ main_dispatch_client(int fd, short events, void *p)
 		fatalx("unknown event");
 
 	if (events & EV_READ) {
-		if ((n = imsg_read(ibuf)) == -1)
+		if ((n = imsg_read(ibuf)) == -1 && errno != EAGAIN)
 			fatal("imsg_read error");
 		if (n == 0)
 			shut = 1;
