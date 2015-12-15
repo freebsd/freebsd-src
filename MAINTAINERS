@@ -51,6 +51,7 @@ lpr		gad	Pre-commit review requested, particularly for
 			lpd/recvjob.c and lpd/printjob.c.
 nanobsd		imp	Pre-commit phabricator review requested.
 net80211	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+nfs		freebsd-fs@FreeBSD.org, rmacklem is best for reviews.
 nis(8), yp(8)	araujo	Pre-commit review requested.
 nvd(4)		jimharris	Pre-commit review requested.
 nvme(4)		jimharris	Pre-commit review requested.
@@ -59,6 +60,7 @@ opencrypto	jmg	Pre-commit review requested.  Documentation Required.
 openssh		des	Pre-commit review requested.
 openssl		benl,jkim	Pre-commit review requested.
 otus(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
+pci bus		imp,jhb	Pre-commit review requested.
 pmcstudy(8)	rrs		Pre-commit review requested.
 procfs		des	Pre-commit review requested.
 pseudofs	des	Pre-commit review requested.
@@ -92,7 +94,6 @@ contrib/openbsm	rwatson	Pre-commit review requested.
 sys/security/audit	rwatson	Pre-commit review requested.
 ahc(4)		gibbs	Pre-commit review requested.
 ahd(4)		gibbs	Pre-commit review requested.
-pci bus		imp,jhb	Pre-commit review requested.
 cdboot		jhb	Pre-commit review requested.
 pxeboot		jhb	Pre-commit review requested.
 witness		jhb	Pre-commit review requested.
@@ -133,7 +134,6 @@ geom_stripe	pjd	Pre-commit review preferred.
 geom_zero	pjd	Pre-commit review preferred.
 sbin/geom	pjd	Pre-commit review preferred.
 zfs		freebsd-fs@FreeBSD.org
-nfs		freebsd-fs@FreeBSD.org, rmacklem is best for reviews.
 linux emul	emulation	Please discuss changes here.
 bs{diff,patch}	cperciva	Pre-commit review requested.
 portsnap	cperciva	Pre-commit review requested.
