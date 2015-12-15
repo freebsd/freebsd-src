@@ -158,14 +158,6 @@ METHOD int map_msi {
 	uint32_t	*data;
 };
 
-METHOD int map_msix {
-	device_t	dev;
-	device_t	pci_dev;
-	int		irq;
-	uint64_t	*addr;
-	uint32_t	*data;
-};
-
 METHOD int release_msi {
 	device_t	dev;
 	device_t	pci_dev;

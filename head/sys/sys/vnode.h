@@ -234,7 +234,6 @@ struct xvnode {
  *	are required for writing but the status may be checked with either.
  */
 #define	VI_MOUNT	0x0020	/* Mount in progress */
-#define	VI_AGE		0x0040	/* Insert vnode at head of free list */
 #define	VI_DOOMED	0x0080	/* This vnode is being recycled */
 #define	VI_FREE		0x0100	/* This vnode is on the freelist */
 #define	VI_ACTIVE	0x0200	/* This vnode is on the active list */

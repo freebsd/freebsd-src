@@ -1,6 +1,5 @@
 # $FreeBSD$
 .PATH:  ${.CURDIR}/../../ofed/drivers/infiniband/ulp/ipoib
-.PATH:  ${.CURDIR}/../../ofed/include/linux
 
 KMOD=	ipoib
 SRCS=	device_if.h bus_if.h vnode_if.h pci_if.h \
@@ -9,9 +8,8 @@ SRCS=	device_if.h bus_if.h vnode_if.h pci_if.h \
 	ipoib_multicast.c ipoib_verbs.c
 
 CFLAGS+= -I${.CURDIR}/../../ofed/drivers/infiniband/ulp/ipoib
-CFLAGS+= -I${.CURDIR}/../ibcore
-CFLAGS+= -I${.CURDIR}/../../ofed/include/
-CFLAGS+= -DINET6 -DINET
+CFLAGS+= -I${.CURDIR}/../../ofed/include
+CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
 
 .include <bsd.kmod.mk>
 

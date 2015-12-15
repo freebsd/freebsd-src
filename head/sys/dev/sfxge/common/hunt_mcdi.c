@@ -76,14 +76,14 @@ typedef enum efx_mcdi_header_type_e {
  */
 
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_mcdi_init(
 	__in		efx_nic_t *enp,
 	__in		const efx_mcdi_transport_t *emtp)
 {
 	efsys_mem_t *esmp = emtp->emt_dma_mem;
 	efx_dword_t dword;
-	int rc;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON);
 	EFSYS_ASSERT(enp->en_features & EFX_FEATURE_MCDI_DMA);
@@ -117,7 +117,7 @@ hunt_mcdi_init(
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -143,6 +143,7 @@ hunt_mcdi_request_copyin(
 	efsys_mem_t *esmp = emtp->emt_dma_mem;
 	efx_mcdi_header_type_t hdr_type;
 	efx_dword_t dword;
+	efx_dword_t hdr[2];
 	unsigned int xflags;
 	unsigned int pos;
 	size_t offset;
@@ -160,7 +161,7 @@ hunt_mcdi_request_copyin(
 
 	if (hdr_type == EFX_MCDI_HEADER_TYPE_V2) {
 		/* Construct MCDI v2 header */
-		EFX_POPULATE_DWORD_8(dword,
+		EFX_POPULATE_DWORD_8(hdr[0],
 		    MCDI_HEADER_CODE, MC_CMD_V2_EXTN,
 		    MCDI_HEADER_RESYNC, 1,
 		    MCDI_HEADER_DATALEN, 0,
@@ -169,17 +170,17 @@ hunt_mcdi_request_copyin(
 		    MCDI_HEADER_ERROR, 0,
 		    MCDI_HEADER_RESPONSE, 0,
 		    MCDI_HEADER_XFLAGS, xflags);
-		EFSYS_MEM_WRITED(esmp, offset, &dword);
-		offset += sizeof (dword);
+		EFSYS_MEM_WRITED(esmp, offset, &hdr[0]);
+		offset += sizeof (efx_dword_t);
 
-		EFX_POPULATE_DWORD_2(dword,
+		EFX_POPULATE_DWORD_2(hdr[1],
 		    MC_CMD_V2_EXTN_IN_EXTENDED_CMD, emrp->emr_cmd,
 		    MC_CMD_V2_EXTN_IN_ACTUAL_LEN, emrp->emr_in_length);
-		EFSYS_MEM_WRITED(esmp, offset, &dword);
-		offset += sizeof (dword);
+		EFSYS_MEM_WRITED(esmp, offset, &hdr[1]);
+		offset += sizeof (efx_dword_t);
 	} else {
 		/* Construct MCDI v1 header */
-		EFX_POPULATE_DWORD_8(dword,
+		EFX_POPULATE_DWORD_8(hdr[0],
 		    MCDI_HEADER_CODE, emrp->emr_cmd,
 		    MCDI_HEADER_RESYNC, 1,
 		    MCDI_HEADER_DATALEN, emrp->emr_in_length,
@@ -188,9 +189,17 @@ hunt_mcdi_request_copyin(
 		    MCDI_HEADER_ERROR, 0,
 		    MCDI_HEADER_RESPONSE, 0,
 		    MCDI_HEADER_XFLAGS, xflags);
-		EFSYS_MEM_WRITED(esmp, offset, &dword);
-		offset += sizeof (dword);
+		EFSYS_MEM_WRITED(esmp, 0, &hdr[0]);
+		offset += sizeof (efx_dword_t);
 	}
+
+#if EFSYS_OPT_MCDI_LOGGING
+	if (emtp->emt_logger != NULL) {
+		emtp->emt_logger(emtp->emt_context, EFX_LOG_MCDI_REQUEST,
+		    &hdr, offset,
+		    emrp->emr_in_buf, emrp->emr_in_length);
+	}
+#endif /* EFSYS_OPT_MCDI_LOGGING */
 
 	/* Construct the payload */
 	for (pos = 0; pos < emrp->emr_in_length; pos += sizeof (efx_dword_t)) {
@@ -220,167 +229,77 @@ hunt_mcdi_request_copyout(
 	__in		efx_nic_t *enp,
 	__in		efx_mcdi_req_t *emrp)
 {
+#if EFSYS_OPT_MCDI_LOGGING
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
-	efsys_mem_t *esmp = emtp->emt_dma_mem;
-	unsigned int pos;
-	unsigned int offset;
-	efx_dword_t hdr;
-	efx_dword_t hdr2;
-	efx_dword_t data;
+#endif /* EFSYS_OPT_MCDI_LOGGING */
+	efx_dword_t hdr[2];
+	unsigned int hdr_len;
 	size_t bytes;
 
 	if (emrp->emr_out_buf == NULL)
 		return;
 
 	/* Read the command header to detect MCDI response format */
-	EFSYS_MEM_READD(esmp, 0, &hdr);
-	if (EFX_DWORD_FIELD(hdr, MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
-		offset = 2 * sizeof (efx_dword_t);
-
+	hdr_len = sizeof (hdr[0]);
+	hunt_mcdi_read_response(enp, &hdr[0], 0, hdr_len);
+	if (EFX_DWORD_FIELD(hdr[0], MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
 		/*
 		 * Read the actual payload length. The length given in the event
 		 * is only correct for responses with the V1 format.
 		 */
-		EFSYS_MEM_READD(esmp, sizeof (efx_dword_t), &hdr2);
-		emrp->emr_out_length_used = EFX_DWORD_FIELD(hdr2,
+		hunt_mcdi_read_response(enp, &hdr[1], hdr_len, sizeof (hdr[1]));
+		hdr_len += sizeof (hdr[1]);
+
+		emrp->emr_out_length_used = EFX_DWORD_FIELD(hdr[1],
 					    MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
-	} else {
-		offset = sizeof (efx_dword_t);
 	}
 
 	/* Copy payload out into caller supplied buffer */
 	bytes = MIN(emrp->emr_out_length_used, emrp->emr_out_length);
-	for (pos = 0; pos < bytes; pos += sizeof (efx_dword_t)) {
-		EFSYS_MEM_READD(esmp, offset + pos, &data);
-		memcpy(MCDI_OUT(*emrp, efx_dword_t, pos), &data,
-		    MIN(sizeof (data), bytes - pos));
+	hunt_mcdi_read_response(enp, emrp->emr_out_buf, hdr_len, bytes);
+
+#if EFSYS_OPT_MCDI_LOGGING
+	if (emtp->emt_logger != NULL) {
+		emtp->emt_logger(emtp->emt_context,
+		    EFX_LOG_MCDI_RESPONSE,
+		    &hdr, hdr_len,
+		    emrp->emr_out_buf, bytes);
 	}
+#endif /* EFSYS_OPT_MCDI_LOGGING */
 }
 
 	__checkReturn	boolean_t
-hunt_mcdi_request_poll(
+hunt_mcdi_poll_response(
 	__in		efx_nic_t *enp)
 {
-	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
 	efsys_mem_t *esmp = emtp->emt_dma_mem;
-	efx_mcdi_req_t *emrp;
-	efx_dword_t dword;
-	unsigned int seq;
-	unsigned int cmd;
-	unsigned int length;
-	size_t offset;
-	int state;
-	int rc;
+	efx_dword_t hdr;
 
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
-
-	/* Serialise against post-watchdog efx_mcdi_ev* */
-	EFSYS_LOCK(enp->en_eslp, state);
-
-	EFSYS_ASSERT(emip->emi_pending_req != NULL);
-	EFSYS_ASSERT(!emip->emi_ev_cpl);
-	emrp = emip->emi_pending_req;
-
-	offset = 0;
-
-	/* Read the command header */
-	EFSYS_MEM_READD(esmp, offset, &dword);
-	offset += sizeof (efx_dword_t);
-	if (EFX_DWORD_FIELD(dword, MCDI_HEADER_RESPONSE) == 0) {
-		EFSYS_UNLOCK(enp->en_eslp, state);
-		return (B_FALSE);
-	}
-	if (EFX_DWORD_FIELD(dword, MCDI_HEADER_CODE) == MC_CMD_V2_EXTN) {
-		efx_dword_t dword2;
-
-		EFSYS_MEM_READD(esmp, offset, &dword2);
-		offset += sizeof (efx_dword_t);
-
-		cmd = EFX_DWORD_FIELD(dword2, MC_CMD_V2_EXTN_IN_EXTENDED_CMD);
-		length = EFX_DWORD_FIELD(dword2, MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
-	} else {
-		cmd = EFX_DWORD_FIELD(dword, MCDI_HEADER_CODE);
-		length = EFX_DWORD_FIELD(dword, MCDI_HEADER_DATALEN);
-	}
-
-	/* Request complete */
-	emip->emi_pending_req = NULL;
-	seq = (emip->emi_seq - 1) & EFX_MASK32(MCDI_HEADER_SEQ);
-
-	/* Check for synchronous reboot */
-	if (EFX_DWORD_FIELD(dword, MCDI_HEADER_ERROR) != 0 && length == 0) {
-		/* The MC has rebooted since the request was sent. */
-		EFSYS_SPIN(EFX_MCDI_STATUS_SLEEP_US);
-		hunt_mcdi_poll_reboot(enp);
-
-		EFSYS_UNLOCK(enp->en_eslp, state);
-		rc = EIO;
-		goto fail1;
-	}
-
-	/* Ensure stale MCDI requests fail after an MC reboot. */
-	emip->emi_new_epoch = B_FALSE;
-
-	EFSYS_UNLOCK(enp->en_eslp, state);
-
-	/* Check that the returned data is consistent */
-	if (cmd != emrp->emr_cmd ||
-	    EFX_DWORD_FIELD(dword, MCDI_HEADER_SEQ) != seq) {
-		/* Response is for a different request */
-		rc = EIO;
-		goto fail2;
-	}
-	if (EFX_DWORD_FIELD(dword, MCDI_HEADER_ERROR)) {
-		efx_dword_t errdword;
-		int errcode;
-		int argnum;
-
-		/* Read error code (and arg num for MCDI v2 commands) */
-		EFSYS_MEM_READD(esmp, offset + MC_CMD_ERR_CODE_OFST, &errdword);
-		errcode = EFX_DWORD_FIELD(errdword, EFX_DWORD_0);
-
-		EFSYS_MEM_READD(esmp, offset + MC_CMD_ERR_ARG_OFST, &errdword);
-		argnum = EFX_DWORD_FIELD(errdword, EFX_DWORD_0);
-
-		rc = efx_mcdi_request_errcode(errcode);
-		if (!emrp->emr_quiet) {
-			EFSYS_PROBE3(mcdi_err_arg, int, emrp->emr_cmd,
-			    int, errcode, int, argnum);
-		}
-		goto fail3;
-
-	} else {
-		emrp->emr_out_length_used = length;
-		emrp->emr_rc = 0;
-		hunt_mcdi_request_copyout(enp, emrp);
-	}
-
-	goto out;
-
-fail3:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE(fail3);
-fail2:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE(fail2);
-fail1:
-	if (!emrp->emr_quiet)
-		EFSYS_PROBE1(fail1, int, rc);
-
-	/* Fill out error state */
-	emrp->emr_rc = rc;
-	emrp->emr_out_length_used = 0;
-
-	/* Reboot/Assertion */
-	if (rc == EIO || rc == EINTR)
-		efx_mcdi_raise_exception(enp, emrp, rc);
-
-out:
-	return (B_TRUE);
+	EFSYS_MEM_READD(esmp, 0, &hdr);
+	return (EFX_DWORD_FIELD(hdr, MCDI_HEADER_RESPONSE) ? B_TRUE : B_FALSE);
 }
 
-			int
+			void
+hunt_mcdi_read_response(
+	__in		efx_nic_t *enp,
+	__out		void *bufferp,
+	__in		size_t offset,
+	__in		size_t length)
+{
+	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
+	efsys_mem_t *esmp = emtp->emt_dma_mem;
+	unsigned int pos;
+	efx_dword_t data;
+
+	for (pos = 0; pos < length; pos += sizeof (efx_dword_t)) {
+		EFSYS_MEM_READD(esmp, offset + pos, &data);
+		memcpy((uint8_t *)bufferp + pos, &data,
+		    MIN(sizeof (data), length - pos));
+	}
+}
+
+			efx_rc_t
 hunt_mcdi_poll_reboot(
 	__in		efx_nic_t *enp)
 {
@@ -388,7 +307,7 @@ hunt_mcdi_poll_reboot(
 	efx_dword_t dword;
 	uint32_t old_status;
 	uint32_t new_status;
-	int rc;
+	efx_rc_t rc;
 
 	old_status = emip->emi_mc_reboot_status;
 
@@ -421,43 +340,79 @@ hunt_mcdi_poll_reboot(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-	__checkReturn	int
-hunt_mcdi_fw_update_supported(
+	__checkReturn	efx_rc_t
+hunt_mcdi_feature_supported(
 	__in		efx_nic_t *enp,
+	__in		efx_mcdi_feature_id_t id,
 	__out		boolean_t *supportedp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	uint32_t privilege_mask = encp->enc_privilege_mask;
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
 
-	/* use privilege mask state at MCDI attach */
-	*supportedp = (encp->enc_privilege_mask &
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN)
-	    == MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN;
+	/*
+	 * Use privilege mask state at MCDI attach.
+	 */
+
+	switch (id) {
+	case EFX_MCDI_FEATURE_FW_UPDATE:
+		/*
+		 * Admin privilege must be used prior to introduction of
+		 * specific flag.
+		 */
+		*supportedp =
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
+		break;
+	case EFX_MCDI_FEATURE_LINK_CONTROL:
+		/*
+		 * Admin privilege used prior to introduction of
+		 * specific flag.
+		 */
+		*supportedp =
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, LINK) ||
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
+		break;
+	case EFX_MCDI_FEATURE_MACADDR_CHANGE:
+		/*
+		 * Admin privilege must be used prior to introduction of
+		 * mac spoofing privilege (at v4.6), which is used up to
+		 * introduction of change mac spoofing privilege (at v4.7)
+		 */
+		*supportedp =
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, CHANGE_MAC) ||
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, MAC_SPOOFING) ||
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
+		break;
+	case EFX_MCDI_FEATURE_MAC_SPOOFING:
+		/*
+		 * Admin privilege must be used prior to introduction of
+		 * mac spoofing privilege (at v4.6), which is used up to
+		 * introduction of mac spoofing TX privilege (at v4.7)
+		 */
+		*supportedp =
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, MAC_SPOOFING_TX) ||
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, MAC_SPOOFING) ||
+		    EFX_MCDI_HAVE_PRIVILEGE(privilege_mask, ADMIN);
+		break;
+	default:
+		rc = ENOTSUP;
+		goto fail1;
+		break;
+	}
 
 	return (0);
-}
 
-	__checkReturn	int
-hunt_mcdi_macaddr_change_supported(
-	__in		efx_nic_t *enp,
-	__out		boolean_t *supportedp)
-{
-	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
-	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_HUNTINGTON);
-
-	/* use privilege mask state at MCDI attach */
-	*supportedp = (encp->enc_privilege_mask &
-	    MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING)
-	    == MC_CMD_PRIVILEGE_MASK_IN_GRP_MAC_SPOOFING;
-
-	return (0);
+	return (rc);
 }
 
 #endif	/* EFSYS_OPT_MCDI */

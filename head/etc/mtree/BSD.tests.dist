@@ -275,6 +275,8 @@
                 data
                 ..
             ..
+            rpc
+            ..
             ssp
             ..
             stdio
@@ -371,7 +373,11 @@
         file
         ..
         kern
+            acct
+            ..
             execve
+            ..
+            pipe
             ..
         ..
         kqueue
@@ -552,6 +558,8 @@
         ..
         lastcomm
         ..
+        limits
+        ..
         m4
         ..
         mkimg
@@ -595,6 +603,8 @@
         etcupdate
         ..
         fstyp
+        ..
+        makefs
         ..
         newsyslog
         ..

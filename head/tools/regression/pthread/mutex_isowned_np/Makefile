@@ -2,7 +2,6 @@
 
 PROG=	mutex_isowned_np
 MAN=
-DPADD=	${LIBPTHREAD}
-LDADD=	-lpthread
+LIBADD=	pthread
 
 .include <bsd.prog.mk>

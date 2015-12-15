@@ -168,8 +168,7 @@ static int test_alt_chains_cert_forgery(void)
 
     i = X509_verify_cert(sctx);
 
-    if(i == 0 && X509_STORE_CTX_get_error(sctx)
-                 == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT) {
+    if(i == 0 && X509_STORE_CTX_get_error(sctx) == X509_V_ERR_INVALID_CA) {
         /* This is the result we were expecting: Test passed */
         ret = 1;
     }

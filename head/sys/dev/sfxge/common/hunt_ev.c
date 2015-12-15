@@ -89,7 +89,7 @@ hunt_ev_mcdi(
 	__in_opt	void *arg);
 
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_init_evq(
 	__in		efx_nic_t *enp,
 	__in		unsigned int instance,
@@ -107,7 +107,7 @@ efx_mcdi_init_evq(
 	int npages;
 	int i;
 	int supports_rx_batching;
-	int rc;
+	efx_rc_t rc;
 
 	npages = EFX_EVQ_NBUFS(nevs);
 	if (MC_CMD_INIT_EVQ_IN_LEN(npages) > MC_CMD_INIT_EVQ_IN_LENMAX) {
@@ -188,12 +188,12 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_fini_evq(
 	__in		efx_nic_t *enp,
 	__in		uint32_t instance)
@@ -201,7 +201,7 @@ efx_mcdi_fini_evq(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_FINI_EVQ_IN_LEN,
 			    MC_CMD_FINI_EVQ_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FINI_EVQ;
@@ -222,14 +222,14 @@ efx_mcdi_fini_evq(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
 
 
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_ev_init(
 	__in		efx_nic_t *enp)
 {
@@ -244,7 +244,7 @@ hunt_ev_fini(
 	_NOTE(ARGUNUSED(enp))
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_ev_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
@@ -255,7 +255,7 @@ hunt_ev_qcreate(
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint32_t irq;
-	int rc;
+	efx_rc_t rc;
 
 	_NOTE(ARGUNUSED(id))	/* buftbl id managed by MC */
 	EFX_STATIC_ASSERT(ISP2(EFX_EVQ_MAXNEVS));
@@ -293,7 +293,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -309,7 +309,7 @@ hunt_ev_qdestroy(
 	(void) efx_mcdi_fini_evq(eep->ee_enp, eep->ee_index);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_ev_qprime(
 	__in		efx_evq_t *eep,
 	__in		unsigned int count)
@@ -350,7 +350,7 @@ hunt_ev_qprime(
 	return (0);
 }
 
-static	__checkReturn	int
+static	__checkReturn	efx_rc_t
 efx_mcdi_driver_event(
 	__in		efx_nic_t *enp,
 	__in		uint32_t evq,
@@ -359,7 +359,7 @@ efx_mcdi_driver_event(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_DRIVER_EVENT_IN_LEN,
 			    MC_CMD_DRIVER_EVENT_OUT_LEN)];
-	int rc;
+	efx_rc_t rc;
 
 	req.emr_cmd = MC_CMD_DRIVER_EVENT;
 	req.emr_in_buf = payload;
@@ -384,7 +384,7 @@ efx_mcdi_driver_event(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -405,7 +405,7 @@ hunt_ev_qpost(
 	(void) efx_mcdi_driver_event(enp, eep->ee_index, event);
 }
 
-	__checkReturn	int
+	__checkReturn	efx_rc_t
 hunt_ev_qmoderate(
 	__in		efx_evq_t *eep,
 	__in		unsigned int us)
@@ -414,7 +414,7 @@ hunt_ev_qmoderate(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_dword_t dword;
 	uint32_t timer_val, mode;
-	int rc;
+	efx_rc_t rc;
 
 	if (us > encp->enc_evq_timer_max_us) {
 		rc = EINVAL;
@@ -455,7 +455,7 @@ hunt_ev_qmoderate(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, int, rc);
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -492,7 +492,9 @@ hunt_ev_rx(
 {
 	efx_nic_t *enp = eep->ee_enp;
 	uint32_t size;
+#if 0
 	boolean_t parse_err;
+#endif
 	uint32_t label;
 	uint32_t mcast;
 	uint32_t eth_base_class;
@@ -528,14 +530,21 @@ hunt_ev_rx(
 
 	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_CONT) != 0) {
 		/*
+		 * This may be part of a scattered frame, or it may be a
+		 * truncated frame if scatter is disabled on this RXQ.
+		 * Overlength frames can be received if e.g. a VF is configured
+		 * for 1500 MTU but connected to a port set to 9000 MTU
+		 * (see bug56567).
 		 * FIXME: There is not yet any driver that supports scatter on
 		 * Huntington.  Scatter support is required for OSX.
 		 */
-		EFSYS_ASSERT(0);
 		flags |= EFX_PKT_CONT;
 	}
 
+#if 0
+	/* TODO What to do if the packet is flagged with parsing error */
 	parse_err = (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_PARSE_INCOMPLETE) != 0);
+#endif
 	label = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_QLABEL);
 
 	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ECRC_ERR) != 0) {
@@ -619,7 +628,9 @@ hunt_ev_rx(
 
 	switch (l3_class) {
 	case ESE_DZ_L3_CLASS_RSVD7: /* Used by firmware for packet overrun */
+#if 0
 		parse_err = B_TRUE;
+#endif
 		flags |= EFX_DISCARD;
 		break;
 
@@ -818,6 +829,20 @@ hunt_ev_mcdi(
 		    MCDI_EV_FIELD(eqp, CMDDONE_ERRNO));
 		break;
 
+#if EFSYS_OPT_MCDI_PROXY_AUTH
+	case MCDI_EVENT_CODE_PROXY_RESPONSE:
+		/*
+		 * This event notifies a function that an authorization request
+		 * has been processed. If the request was authorized then the
+		 * function can now re-send the original MCDI request.
+		 * See SF-113652-SW "SR-IOV Proxied Network Access Control".
+		 */
+		efx_mcdi_ev_proxy_response(enp,
+		    MCDI_EV_FIELD(eqp, PROXY_RESPONSE_HANDLE),
+		    MCDI_EV_FIELD(eqp, PROXY_RESPONSE_RC));
+		break;
+#endif /* EFSYS_OPT_MCDI_PROXY_AUTH */
+
 	case MCDI_EVENT_CODE_LINKCHANGE: {
 		efx_link_mode_t link_mode;
 
@@ -830,7 +855,7 @@ hunt_ev_mcdi(
 #if EFSYS_OPT_MON_STATS
 		efx_mon_stat_t id;
 		efx_mon_stat_value_t value;
-		int rc;
+		efx_rc_t rc;
 
 		/* Decode monitor stat for MCDI sensor (if supported) */
 		if ((rc = mcdi_mon_ev(enp, eqp, &id, &value)) == 0) {

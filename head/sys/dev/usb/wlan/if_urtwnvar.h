@@ -26,8 +26,6 @@
 #define	URTWN_RX_DESC_SIZE	(sizeof(struct r92c_rx_stat))
 #define	URTWN_TX_DESC_SIZE	(sizeof(struct r92c_tx_desc))
 
-#define URTWN_RIDX_COUNT	28
-
 #define URTWN_TX_TIMEOUT	5000	/* ms */
 
 #define URTWN_LED_LINK	0
@@ -35,18 +33,22 @@
 
 struct urtwn_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
+	uint64_t	wr_tsft;
 	uint8_t		wr_flags;
 	uint8_t		wr_rate;
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
-	uint8_t		wr_dbm_antsignal;
+	int8_t		wr_dbm_antsignal;
+	int8_t		wr_dbm_antnoise;
 } __packed __aligned(8);
 
 #define URTWN_RX_RADIOTAP_PRESENT			\
-	(1 << IEEE80211_RADIOTAP_FLAGS |		\
+	(1 << IEEE80211_RADIOTAP_TSFT |			\
+	 1 << IEEE80211_RADIOTAP_FLAGS |		\
 	 1 << IEEE80211_RADIOTAP_RATE |			\
 	 1 << IEEE80211_RADIOTAP_CHANNEL |		\
-	 1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL)
+	 1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL |	\
+	 1 << IEEE80211_RADIOTAP_DBM_ANTNOISE)
 
 struct urtwn_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;
@@ -71,26 +73,43 @@ struct urtwn_data {
 };
 typedef STAILQ_HEAD(, urtwn_data) urtwn_datahead;
 
-struct urtwn_cmdq {
-	void			*arg0;
-	void			*arg1;
-	void			(*func)(void *);
-	struct ieee80211_key	*k;
-	struct ieee80211_key	key;
-	uint8_t			mac[IEEE80211_ADDR_LEN];
-	uint8_t			wcid;
+union sec_param {
+	struct ieee80211_key		key;
 };
+
+#define CMD_FUNC_PROTO			void (*func)(struct urtwn_softc *, \
+					    union sec_param *)
+
+struct urtwn_cmdq {
+	union sec_param			data;
+	CMD_FUNC_PROTO;
+};
+#define URTWN_CMDQ_SIZE			16
 
 struct urtwn_fw_info {
 	const uint8_t		*data;
 	size_t			size;
 };
 
-struct urtwn_vap {
-	struct ieee80211vap		vap;
+struct urtwn_node {
+	struct ieee80211_node	ni;	/* must be the first */
+	uint8_t			id;
+};
+#define URTWN_NODE(ni)	((struct urtwn_node *)(ni))
 
-	int				(*newstate)(struct ieee80211vap *,
-					    enum ieee80211_state, int);
+struct urtwn_vap {
+	struct ieee80211vap	vap;
+
+	struct r92c_tx_desc	bcn_desc;
+	struct mbuf		*bcn_mbuf;
+	struct task		tsf_task_adhoc;
+
+	int			(*newstate)(struct ieee80211vap *,
+				    enum ieee80211_state, int);
+	void			(*recv_mgmt)(struct ieee80211_node *,
+				    struct mbuf *, int,
+				    const struct ieee80211_rx_stats *,
+				    int, int);
 };
 #define	URTWN_VAP(vap)	((struct urtwn_vap *)(vap))
 
@@ -120,13 +139,18 @@ enum {
 
 #define	URTWN_EP_QUEUES	URTWN_BULK_RX
 
+union urtwn_rom {
+	struct r92c_rom			r92c_rom;
+	uint8_t				r88e_rom[URTWN_EFUSE_MAX_LEN];
+};
+
 struct urtwn_softc {
 	struct ieee80211com		sc_ic;
 	struct mbufq			sc_snd;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 
-	int				ac2idx[WME_NUM_AC];
+	uint8_t				sc_iface_index;
 	u_int				sc_flags;
 #define URTWN_FLAG_CCK_HIPWR	0x01
 #define URTWN_DETACHED		0x02
@@ -139,10 +163,15 @@ struct urtwn_softc {
 #define	URTWN_CHIP_UMC_A_CUT	0x08
 #define	URTWN_CHIP_88E		0x10
 
+#define URTWN_CHIP_HAS_RATECTL(_sc)	(!!((_sc)->chip & URTWN_CHIP_88E))
+
+	void				(*sc_node_free)(struct ieee80211_node *);
 	void				(*sc_rf_write)(struct urtwn_softc *,
 					    int, uint8_t, uint32_t);
 	int				(*sc_power_on)(struct urtwn_softc *);
-	int				(*sc_dma_init)(struct urtwn_softc *);
+
+	struct ieee80211_node		*node_list[R88E_MACID_MAX + 1];
+	struct mtx			nt_mtx;
 
 	uint8_t				board_type;
 	uint8_t				regulatory;
@@ -169,27 +198,22 @@ struct urtwn_softc {
 	struct urtwn_fw_info		fw;
 	void				*fw_virtaddr;
 
-	struct r92c_rom			rom;
-	uint8_t				r88e_rom[512];
+	union urtwn_rom			rom;
 	uint8_t				cck_tx_pwr[6];
 	uint8_t				ht40_tx_pwr[5];
 	int8_t				bw20_tx_pwr_diff;
 	int8_t				ofdm_tx_pwr_diff;
+	uint16_t			last_rom_addr;
 		
 	struct callout			sc_watchdog_ch;
 	struct mtx			sc_mtx;
+	uint32_t			keys_bmap;
 
-/* need to be power of 2, otherwise URTWN_CMDQ_GET fails */
-#define	URTWN_CMDQ_MAX	16
-#define	URTWN_CMDQ_MASQ	(URTWN_CMDQ_MAX - 1)
-	struct urtwn_cmdq		cmdq[URTWN_CMDQ_MAX];
+	struct urtwn_cmdq		cmdq[URTWN_CMDQ_SIZE];
+	struct mtx			cmdq_mtx;
 	struct task			cmdq_task;
-	uint32_t			cmdq_store;
-	uint8_t                         cmdq_exec;
-	uint8_t                         cmdq_run;
-	uint8_t                         cmdq_key_set;
-#define	URTWN_CMDQ_ABORT	0
-#define	URTWN_CMDQ_GO		1
+	uint8_t				cmdq_first;
+	uint8_t				cmdq_last;
 
 	uint32_t			rf_chnlbw[R92C_MAX_CHAINS];
 	struct usb_xfer			*sc_xfer[URTWN_N_TRANSFER];
@@ -201,3 +225,15 @@ struct urtwn_softc {
 #define	URTWN_LOCK(sc)			mtx_lock(&(sc)->sc_mtx)
 #define	URTWN_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
 #define	URTWN_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->sc_mtx, MA_OWNED)
+
+#define URTWN_CMDQ_LOCK_INIT(sc) \
+	mtx_init(&(sc)->cmdq_mtx, "cmdq lock", NULL, MTX_DEF)
+#define URTWN_CMDQ_LOCK(sc)		mtx_lock(&(sc)->cmdq_mtx)
+#define URTWN_CMDQ_UNLOCK(sc)		mtx_unlock(&(sc)->cmdq_mtx)
+#define URTWN_CMDQ_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->cmdq_mtx)
+
+#define URTWN_NT_LOCK_INIT(sc) \
+	mtx_init(&(sc)->nt_mtx, "node table lock", NULL, MTX_DEF)
+#define URTWN_NT_LOCK(sc)		mtx_lock(&(sc)->nt_mtx)
+#define URTWN_NT_UNLOCK(sc)		mtx_unlock(&(sc)->nt_mtx)
+#define URTWN_NT_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->nt_mtx)

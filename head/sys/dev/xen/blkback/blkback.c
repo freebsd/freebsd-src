@@ -1741,7 +1741,7 @@ xbb_dispatch_io(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist)
 		if (__predict_false(map->status != 0)) {
 			DPRINTF("invalid buffer -- could not remap "
 			        "it (%d)\n", map->status);
-			DPRINTF("Mapping(%d): Host Addr 0x%lx, flags "
+			DPRINTF("Mapping(%d): Host Addr 0x%"PRIx64", flags "
 			        "0x%x ref 0x%x, dom %d\n", seg_idx,
 				map->host_addr, map->flags, map->ref,
 				map->dom);

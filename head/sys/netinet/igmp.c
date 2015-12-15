@@ -3334,6 +3334,15 @@ igmp_v3_dispatch_general_query(struct igmp_ifsoftc *igi)
 	KASSERT(igi->igi_version == IGMP_VERSION_3,
 	    ("%s: called when version %d", __func__, igi->igi_version));
 
+	/*
+	 * Check that there are some packets queued. If so, send them first.
+	 * For large number of groups the reply to general query can take
+	 * many packets, we should finish sending them before starting of
+	 * queuing the new reply.
+	 */
+	if (mbufq_len(&igi->igi_gq) != 0)
+		goto send;
+
 	ifp = igi->igi_ifp;
 
 	IF_ADDR_RLOCK(ifp);
@@ -3369,6 +3378,7 @@ igmp_v3_dispatch_general_query(struct igmp_ifsoftc *igi)
 	}
 	IF_ADDR_RUNLOCK(ifp);
 
+send:
 	loop = (igi->igi_flags & IGIF_LOOPBACK) ? 1 : 0;
 	igmp_dispatch_queue(&igi->igi_gq, IGMP_MAX_RESPONSE_BURST, loop);
 

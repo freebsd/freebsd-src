@@ -1,10 +1,9 @@
 # $FreeBSD$
 
-NETBSD_ATF_TESTS_C=	t_setjmp
-NETBSD_ATF_TESTS_C+=	t_threadjmp
+NETBSD_ATF_TESTS_C=	setjmp_test
+NETBSD_ATF_TESTS_C+=	threadjmp_test
 
-DPADD.t_threadjmp+= ${LIBPTHREAD}
-LDADD.t_threadjmp+= -lpthread
+LIBADD.t_threadjmp+=	pthread
 
 WARNS?=	4
 

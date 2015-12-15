@@ -1702,12 +1702,15 @@ pps_event(struct pps_state *pps, int event)
 	struct bintime bt;
 	struct timespec ts, *tsp, *osp;
 	u_int tcount, *pcount;
-	int foff, fhard;
+	int foff;
 	pps_seq_t *pseq;
 #ifdef FFCLOCK
 	struct timespec *tsp_ffc;
 	pps_seq_t *pseq_ffc;
 	ffcounter *ffcount;
+#endif
+#ifdef PPS_SYNC
+	int fhard;
 #endif
 
 	KASSERT(pps != NULL, ("NULL pps pointer in pps_event"));
@@ -1724,7 +1727,9 @@ pps_event(struct pps_state *pps, int event)
 		tsp = &pps->ppsinfo.assert_timestamp;
 		osp = &pps->ppsparam.assert_offset;
 		foff = pps->ppsparam.mode & PPS_OFFSETASSERT;
+#ifdef PPS_SYNC
 		fhard = pps->kcmode & PPS_CAPTUREASSERT;
+#endif
 		pcount = &pps->ppscount[0];
 		pseq = &pps->ppsinfo.assert_sequence;
 #ifdef FFCLOCK
@@ -1736,7 +1741,9 @@ pps_event(struct pps_state *pps, int event)
 		tsp = &pps->ppsinfo.clear_timestamp;
 		osp = &pps->ppsparam.clear_offset;
 		foff = pps->ppsparam.mode & PPS_OFFSETCLEAR;
+#ifdef PPS_SYNC
 		fhard = pps->kcmode & PPS_CAPTURECLEAR;
+#endif
 		pcount = &pps->ppscount[1];
 		pseq = &pps->ppsinfo.clear_sequence;
 #ifdef FFCLOCK

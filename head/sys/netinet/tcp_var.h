@@ -74,7 +74,12 @@ struct sackhint {
 	tcp_seq		last_sack_ack;	/* Most recent/largest sacked ack */
 
 	int		ispare;		/* explicit pad for 64bit alignment */
-	uint64_t	_pad[2];	/* 1 sacked_bytes, 1 TBD */
+	int             sacked_bytes;	/*
+					 * Total sacked bytes reported by the
+					 * receiver via sack option
+					 */
+	uint32_t	_pad1[1];	/* TBD */
+	uint64_t	_pad[1];	/* TBD */
 };
 
 struct tcptemp {
@@ -330,7 +335,6 @@ struct hc_metrics_lite {	/* must stay in sync with hc_metrics */
 	u_long	rmx_ssthresh;	/* outbound gateway buffer limit */
 	u_long	rmx_rtt;	/* estimated round trip time */
 	u_long	rmx_rttvar;	/* estimated rtt variance */
-	u_long	rmx_bandwidth;	/* estimated bandwidth */
 	u_long	rmx_cwnd;	/* congestion window */
 	u_long	rmx_sendpipe;   /* outbound delay-bandwidth product */
 	u_long	rmx_recvpipe;   /* inbound delay-bandwidth product */
@@ -621,7 +625,7 @@ VNET_DECLARE(int, tcp_mssdflt);	/* XXX */
 VNET_DECLARE(int, tcp_minmss);
 VNET_DECLARE(int, tcp_delack_enabled);
 VNET_DECLARE(int, tcp_do_rfc3390);
-VNET_DECLARE(int, tcp_do_initcwnd10);
+VNET_DECLARE(int, tcp_initcwnd_segments);
 VNET_DECLARE(int, tcp_sendspace);
 VNET_DECLARE(int, tcp_recvspace);
 VNET_DECLARE(int, path_mtu_discovery);
@@ -633,7 +637,7 @@ VNET_DECLARE(int, tcp_abc_l_var);
 #define	V_tcp_minmss		VNET(tcp_minmss)
 #define	V_tcp_delack_enabled	VNET(tcp_delack_enabled)
 #define	V_tcp_do_rfc3390	VNET(tcp_do_rfc3390)
-#define	V_tcp_do_initcwnd10	VNET(tcp_do_initcwnd10)
+#define	V_tcp_initcwnd_segments	VNET(tcp_initcwnd_segments)
 #define	V_tcp_sendspace		VNET(tcp_sendspace)
 #define	V_tcp_recvspace		VNET(tcp_recvspace)
 #define	V_path_mtu_discovery	VNET(path_mtu_discovery)
@@ -652,6 +656,9 @@ VNET_DECLARE(int, tcp_ecn_maxretries);
 
 VNET_DECLARE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST + 1]);
 #define	V_tcp_hhh		VNET(tcp_hhh)
+
+VNET_DECLARE(int, tcp_do_rfc6675_pipe);
+#define V_tcp_do_rfc6675_pipe	VNET(tcp_do_rfc6675_pipe)
 
 int	 tcp_addoptions(struct tcpopt *, u_char *);
 int	 tcp_ccalgounload(struct cc_algo *unload_algo);
@@ -734,7 +741,7 @@ void	 tcp_hc_update(struct in_conninfo *, struct hc_metrics_lite *);
 extern	struct pr_usrreqs tcp_usrreqs;
 tcp_seq tcp_new_isn(struct tcpcb *);
 
-void	 tcp_sack_doack(struct tcpcb *, struct tcpopt *, tcp_seq);
+int	 tcp_sack_doack(struct tcpcb *, struct tcpopt *, tcp_seq);
 void	 tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_laststart, tcp_seq rcv_lastend);
 void	 tcp_clean_sackreport(struct tcpcb *tp);
 void	 tcp_sack_adjust(struct tcpcb *tp);
@@ -743,6 +750,7 @@ void	 tcp_sack_partialack(struct tcpcb *, struct tcphdr *);
 void	 tcp_free_sackholes(struct tcpcb *tp);
 int	 tcp_newreno(struct tcpcb *, struct tcphdr *);
 u_long	 tcp_seq_subtract(u_long, u_long );
+int	 tcp_compute_pipe(struct tcpcb *);
 
 void	cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type);
 

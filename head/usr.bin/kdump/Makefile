@@ -6,12 +6,12 @@
 .PATH: ${.CURDIR}/../ktrace
 
 PROG=		kdump
-SRCS=		kdump_subr.c kdump.c ioctl.c subr.c utrace.c
-DPSRCS=		kdump_subr.h
+SRCS=		kdump_subr.c kdump_subr.h kdump.c ioctl.c subr.c
 CFLAGS+=	-I${.CURDIR}/../ktrace -I${.CURDIR} -I${.CURDIR}/../.. -I.
 
+LIBADD=		sysdecode
 .if ${MK_CASPER} != "no"
-LIBADD=	capsicum
+LIBADD+=	capsicum
 CFLAGS+=-DHAVE_LIBCAPSICUM
 .endif
 

@@ -775,3 +775,4 @@ static driver_t lpc_mmc_driver = {
 };
 
 DRIVER_MODULE(lpcmmc, simplebus, lpc_mmc_driver, lpc_mmc_devclass, 0, 0);
+DRIVER_MODULE(mmc, lpcmmc, mmc_driver, mmc_devclass, NULL, NULL);

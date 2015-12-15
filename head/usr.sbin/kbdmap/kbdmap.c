@@ -57,6 +57,7 @@ static const char *dir;
 static const char *menu = "";
 
 static int x11;
+static int using_vt;
 static int show;
 static int verbose;
 static int print;
@@ -150,7 +151,7 @@ add_keymap(const char *desc, int mark, const char *keym)
  * Return 0 if syscons is in use (to select legacy defaults).
  */
 static int
-check_newcons(void)
+check_vt(void)
 {
 	size_t len;
 	char term[3];
@@ -159,7 +160,7 @@ check_newcons(void)
 	if (sysctlbyname("kern.vty", &term, &len, NULL, 0) != 0 ||
 	    strcmp(term, "vt") != 0)
 		return 0;
-	return -1;
+	return 1;
 }
 
 /*
@@ -256,13 +257,20 @@ get_font(void)
 static void
 vidcontrol(const char *fnt)
 {
-	char *tmp, *p, *q;
+	char *tmp, *p, *q, *cmd;
 	char ch;
 	int i;
 
 	/* syscons test failed */
 	if (x11)
 		return;
+
+	if (using_vt) {
+		asprintf(&cmd, "vidcontrol -f %s", fnt);
+		system(cmd);
+		free(cmd);
+		return;
+	}
 
 	tmp = strdup(fnt);
 
@@ -281,7 +289,6 @@ vidcontrol(const char *fnt)
 		if (sscanf(p, "%dx%d%c", &i, &i, &ch) != 2)
 			fprintf(stderr, "Which font size? %s\n", fnt);
 		else {
-			char *cmd;
 			asprintf(&cmd, "vidcontrol -f %s %s", p, fnt);
 			if (verbose)
 				fprintf(stderr, "%s\n", cmd);
@@ -685,7 +692,7 @@ menu_read(void)
 		fclose(fp);
 
 	} else
-		printf("Could not open file\n");
+		fprintf(stderr, "Could not open %s for reading\n", filename);
 
 	if (show) {
 		qsort(lang_list->sl_str, lang_list->sl_cur, sizeof(char*),
@@ -832,7 +839,8 @@ main(int argc, char **argv)
 		sleep(2);
 	}
 
-	if (check_newcons() == 0) {
+	using_vt = check_vt();
+	if (using_vt == 0) {
 		keymapdir = DEFAULT_SC_KEYMAP_DIR;
 		fontdir = DEFAULT_SC_FONT_DIR;
 		font_default = DEFAULT_SC_FONT;

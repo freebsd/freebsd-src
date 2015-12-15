@@ -564,7 +564,12 @@ typedef struct named_object *(ipfw_obj_fidx_cb)(struct ip_fw_chain *ch,
  */
 typedef int (ipfw_obj_create_cb)(struct ip_fw_chain *ch, struct tid_info *ti,
     uint16_t *pkidx);
-
+/*
+ * Object destroy callback. Intended to free resources allocated by
+ * create_object callback.
+ */
+typedef void (ipfw_obj_destroy_cb)(struct ip_fw_chain *ch,
+    struct named_object *no);
 
 struct opcode_obj_rewrite {
 	uint32_t		opcode;		/* Opcode to act upon */
@@ -574,6 +579,7 @@ struct opcode_obj_rewrite {
 	ipfw_obj_fname_cb	*find_byname;	/* Find named object by name */
 	ipfw_obj_fidx_cb	*find_bykidx;	/* Find named object by kidx */
 	ipfw_obj_create_cb	*create_object;	/* Create named object */
+	ipfw_obj_destroy_cb	*destroy_object;/* Destroy named object */
 };
 
 #define	IPFW_ADD_OBJ_REWRITER(f, c)	do {	\
@@ -673,6 +679,7 @@ int ipfw_objhash_free_idx(struct namedobj_instance *ni, uint16_t idx);
 int ipfw_objhash_alloc_idx(void *n, uint16_t *pidx);
 void ipfw_objhash_set_funcs(struct namedobj_instance *ni,
     objhash_hash_f *hash_f, objhash_cmp_f *cmp_f);
+void ipfw_export_obj_ntlv(struct named_object *no, ipfw_obj_ntlv *ntlv);
 void ipfw_init_obj_rewriter(void);
 void ipfw_destroy_obj_rewriter(void);
 void ipfw_add_obj_rewriter(struct opcode_obj_rewrite *rw, size_t count);
@@ -692,6 +699,7 @@ void update_opcode_kidx(ipfw_insn *cmd, uint16_t idx);
 int classify_opcode_kidx(ipfw_insn *cmd, uint16_t *puidx);
 void ipfw_init_srv(struct ip_fw_chain *ch);
 void ipfw_destroy_srv(struct ip_fw_chain *ch);
+int ipfw_check_object_name_generic(const char *name);
 
 /* In ip_fw_table.c */
 struct table_info;

@@ -2081,7 +2081,7 @@ iwm_run_init_mvm_ucode(struct iwm_softc *sc, int justnvm)
 			device_printf(sc->sc_dev, "failed to read nvm\n");
 			return error;
 		}
-		IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, &sc->sc_nvm.hw_addr);
+		IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, sc->sc_nvm.hw_addr);
 
 		sc->sc_scan_cmd_len = sizeof(struct iwm_scan_cmd)
 		    + sc->sc_capa_max_probe_len

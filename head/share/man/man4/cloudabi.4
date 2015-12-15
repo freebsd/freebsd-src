@@ -22,7 +22,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd July 31, 2015
+.Dd October 22, 2015
 .Dt CLOUDABI 4
 .Os
 .Sh NAME
@@ -73,7 +73,7 @@ module can be loaded on any architecture supported by
 .Fx ,
 the
 .Nm cloudabi64
-module is only available for amd64.
+module is only available for amd64 and arm64.
 .Pp
 A full cross compilation toolchain for CloudABI is available in the
 .Pa devel/cloudabi-toolchain
@@ -95,6 +95,9 @@ restricted set of resources.
 .Pp
 cloudlibc on GitHub:
 .Pa https://github.com/NuxiNL/cloudlibc .
+.Pp
+The CloudABI Ports Collection on GitHub:
+.Pa https://github.com/NuxiNL/cloudabi-ports .
 .Sh HISTORY
 CloudABI support first appeared in
 .Fx 11.0 .

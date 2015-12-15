@@ -246,7 +246,7 @@ editentry_set(char *name, char *newvalue, int editonly)
  *     currently workaround it (even for int64's), so we have to kludge it.
  */
 #define	RESOLUTION_MAX(size) ((resolution * (size) == 32)? 		\
-	(int)0xffffffff: (1 << (resolution * (size))) - 1)
+	INT_MAX: (1 << (resolution * (size))) - 1)
 
 	assert(newvalue != NULL);
 	if (*newvalue == '\0')

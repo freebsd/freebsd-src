@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2015
+.Dd December 1, 2015
 .Dt ISCSICTL 8
 .Os
 .Sh NAME
@@ -80,6 +80,13 @@ utility is used to configure the iSCSI initiator.
 .Pp
 The following options are available:
 .Bl -tag -width ".Fl A"
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_parse_args 3
+for details on command line arguments.
 .It Fl A
 Add session.
 .It Fl M
@@ -182,7 +189,9 @@ Disconnect all iSCSI sessions:
 .Sh SEE ALSO
 .Xr iscsi 4 ,
 .Xr iscsi.conf 5 ,
-.Xr iscsid 8
+.Xr iscsid 8 ,
+.Xr libxo 3 ,
+.Xr xo_parse_args 3
 .Sh HISTORY
 The
 .Nm

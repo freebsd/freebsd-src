@@ -129,6 +129,9 @@ extern	struct rmlock in_ifaddr_lock;
 #define	IN_IFADDR_WLOCK_ASSERT()	rm_assert(&in_ifaddr_lock, RA_WLOCKED)
 #define	IN_IFADDR_WUNLOCK()	rm_wunlock(&in_ifaddr_lock)
 
+#define	IFA_IN(ifa) \
+	(&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr)
+
 /*
  * Macro for finding the internet address structure (in_ifaddr)
  * corresponding to one of our IP addresses (in_addr).
@@ -380,7 +383,7 @@ int	in_scrubprefix(struct in_ifaddr *, u_int);
 void	ip_input(struct mbuf *);
 void	ip_direct_input(struct mbuf *);
 void	in_ifadown(struct ifaddr *ifa, int);
-struct	mbuf	*ip_fastforward(struct mbuf *);
+struct	mbuf	*ip_tryforward(struct mbuf *);
 void	*in_domifattach(struct ifnet *);
 void	in_domifdetach(struct ifnet *, void *);
 

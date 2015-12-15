@@ -1563,7 +1563,7 @@ addrconfig(struct addrinfo *pai)
 			if (seen_inet)
 				continue;
 			sin = (struct sockaddr_in *)(ifa->ifa_addr);
-			if (IN_LOOPBACK(htonl(sin->sin_addr.s_addr)))
+			if (htonl(sin->sin_addr.s_addr) == INADDR_LOOPBACK)
 				continue;
 			seen_inet = 1;
 			break;
@@ -2208,6 +2208,8 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 	memset(&sentinel, 0, sizeof(sentinel));
 	cur = &sentinel;
 
+	res = __res_state();
+
 	buf = malloc(sizeof(*buf));
 	if (!buf) {
 		RES_SET_H_ERRNO(res, NETDB_INTERNAL);
@@ -2254,7 +2256,6 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 		return NS_UNAVAIL;
 	}
 
-	res = __res_state();
 	if ((res->options & RES_INIT) == 0 && res_ninit(res) == -1) {
 		RES_SET_H_ERRNO(res, NETDB_INTERNAL);
 		free(buf);

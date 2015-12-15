@@ -58,8 +58,8 @@ DEFINE_CLASS_1(thunder_mdio, thunder_mdio_fdt_driver, thunder_mdio_fdt_methods,
 
 static devclass_t thunder_mdio_fdt_devclass;
 
-DRIVER_MODULE(thunder_mdio, ofwbus, thunder_mdio_fdt_driver,
-    thunder_mdio_fdt_devclass, 0, 0);
+EARLY_DRIVER_MODULE(thunder_mdio, ofwbus, thunder_mdio_fdt_driver,
+    thunder_mdio_fdt_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 
 static int
 thunder_mdio_fdt_probe(device_t dev)

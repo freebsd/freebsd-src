@@ -210,7 +210,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 	}
 	np = uma_zalloc(newnfsnode_zone, M_WAITOK | M_ZERO);
 
-	error = getnewvnode("nfs", mntp, &newnfs_vnodeops, &nvp);
+	error = getnewvnode(nfs_vnode_tag, mntp, &newnfs_vnodeops, &nvp);
 	if (error) {
 		uma_zfree(newnfsnode_zone, np);
 		FREE((caddr_t)nfhp, M_NFSFH);

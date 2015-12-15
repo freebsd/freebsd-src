@@ -97,8 +97,10 @@ typedef struct {
 #define	FCP_CMND_TMF_CLEAR_ACA		0x40
 #define	FCP_CMND_TMF_TGT_RESET		0x20
 #define	FCP_CMND_TMF_LUN_RESET		0x10
+#define	FCP_CMND_TMF_QUERY_ASYNC_EVENT	0x08
 #define	FCP_CMND_TMF_CLEAR_TASK_SET	0x04
 #define	FCP_CMND_TMF_ABORT_TASK_SET	0x02
+#define	FCP_CMND_TMF_QUERY_TASK_SET	0x01
 
 /*
  * Basic CT IU Header
@@ -135,6 +137,20 @@ typedef struct {
 	uint8_t		rftid_portid[3];
 	uint32_t	rftid_fc4types[8];
 } rft_id_t;
+
+/*
+ * RFF_ID Requet CT_IU
+ *
+ * Source: INCITS 463-2010 Generic Services 6 Section 5.2.5.34
+ */
+typedef struct {
+	ct_hdr_t	rffid_hdr;
+	uint8_t		rffid_reserved;
+	uint8_t		rffid_portid[3];
+	uint16_t	rffid_reserved2;
+	uint8_t		rffid_fc4features;
+	uint8_t		rffid_fc4type;
+} rff_id_t;
 
 /*
  * FCP Response IU and bits of interest

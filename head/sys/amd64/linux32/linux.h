@@ -40,7 +40,7 @@
  * debugging support
  */
 extern u_char linux_debug_map[];
-#define	ldebug(name)	isclr(linux_debug_map, LINUX_SYS_linux_ ## name)
+#define	ldebug(name)	isclr(linux_debug_map, LINUX32_SYS_linux_ ## name)
 #define	ARGS(nm, fmt)	"linux(%ld/%ld): "#nm"("fmt")\n",			\
 			(long)td->td_proc->p_pid, (long)td->td_tid
 #define	LMSG(fmt)	"linux(%ld/%ld): "fmt"\n",				\

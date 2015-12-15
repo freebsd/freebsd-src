@@ -7,7 +7,9 @@ CFLAGS+=	-DHAVE_FENV_H
 
 # Not sure why this isn't defined for all architectures, since most
 # have long double.
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "aarch64" || \
+    ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "i386"
 CFLAGS+=	-D__HAVE_LONG_DOUBLE
 .endif
 

@@ -17,7 +17,8 @@ SRCS=		crypt.c misc.c \
 		crypt-sha512.c sha512c.c
 MAN=		crypt.3
 MLINKS=		crypt.3 crypt_get_format.3 crypt.3 crypt_set_format.3
-CFLAGS+=	-I${.CURDIR}/../libmd -I${.CURDIR}/../libutil
+CFLAGS+=	-I${.CURDIR}/../libmd -I${.CURDIR}/../libutil \
+		-I${.CURDIR}/../../sys/crypto/sha2
 
 # Pull in the strong crypto, if it is present.
 .if exists(${.CURDIR}/../../secure/lib/libcrypt) && ${MK_CRYPT} != "no"

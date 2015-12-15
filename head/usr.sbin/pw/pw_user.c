@@ -107,8 +107,10 @@ mkdir_home_parents(int dfd, const char *dir)
 		errx(EX_UNAVAILABLE, "out of memory");
 
 	tmp = strrchr(dirs, '/');
-	if (tmp == NULL)
+	if (tmp == NULL) {
+		free(dirs);
 		return;
+	}
 	tmp[0] = '\0';
 
 	/*
@@ -272,7 +274,7 @@ pw_userlock(char *arg1, int mode)
 	char *passtmp = NULL;
 	char *name;
 	bool locked = false;
-	uid_t id;
+	uid_t id = (uid_t)-1;
 
 	if (geteuid() != 0)
 		errx(EX_NOPERM, "you must be root");
@@ -280,15 +282,19 @@ pw_userlock(char *arg1, int mode)
 	if (arg1 == NULL)
 		errx(EX_DATAERR, "username or id required");
 
-	if (arg1[strspn(arg1, "0123456789")] == '\0')
-		id = pw_checkid(arg1, UID_MAX);
-	else
-		name = arg1;
+	name = arg1;
+	if (arg1[strspn(name, "0123456789")] == '\0')
+		id = pw_checkid(name, UID_MAX);
 
-	pwd = (name != NULL) ? GETPWNAM(pw_checkname(name, 0)) : GETPWUID(id);
+	pwd = GETPWNAM(pw_checkname(name, 0));
+	if (pwd == NULL && id != (uid_t)-1) {
+		pwd = GETPWUID(id);
+		if (pwd != NULL)
+			name = pwd->pw_name;
+	}
 	if (pwd == NULL) {
-		if (name == NULL)
-			errx(EX_NOUSER, "no such uid `%ju'", (uintmax_t) id);
+		if (id == (uid_t)-1)
+			errx(EX_NOUSER, "no such name or uid `%ju'", (uintmax_t) id);
 		errx(EX_NOUSER, "no such user `%s'", name);
 	}
 
@@ -636,7 +642,8 @@ pw_checkname(char *name, int gecos)
 	}
 	if (!reject) {
 		while (*ch) {
-			if (strchr(badchars, *ch) != NULL || *ch < ' ' ||
+			if (strchr(badchars, *ch) != NULL ||
+			    (!gecos && *ch < ' ') ||
 			    *ch == 127) {
 				reject = 1;
 				break;

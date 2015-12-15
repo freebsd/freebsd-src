@@ -2,8 +2,7 @@
 
 PROG=	dics
 BINDIR=	/usr/local/bin
-DPADD=	${LIBZ}
-LDADD=	-lz
+LIBADD=	z
 CFLAGS=-g
 MAN=
 

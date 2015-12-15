@@ -1,4 +1,6 @@
 /*-
+ * Copyright 2013 Garrett D'Amore <garrett@damore.org>
+ * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2004 Tim J. Robbins.
  * All rights reserved.
  *
@@ -37,6 +39,8 @@
 #include <runetype.h>
 #include "xlocale_private.h"
 
+#define	SS2	0x008e
+#define SS3	0x008f
 
 /*
  * Conversion function pointers for current encoding.
@@ -62,18 +66,25 @@ extern struct xlocale_ctype __xlocale_global_ctype;
  * Rune initialization function prototypes.
  */
 int	_none_init(struct xlocale_ctype *, _RuneLocale *);
-int	_ascii_init(struct xlocale_ctype *, _RuneLocale *);
 int	_UTF8_init(struct xlocale_ctype *, _RuneLocale *);
-int	_EUC_init(struct xlocale_ctype *, _RuneLocale *);
+int	_EUC_CN_init(struct xlocale_ctype *, _RuneLocale *);
+int	_EUC_JP_init(struct xlocale_ctype *, _RuneLocale *);
+int	_EUC_KR_init(struct xlocale_ctype *, _RuneLocale *);
+int	_EUC_TW_init(struct xlocale_ctype *, _RuneLocale *);
 int	_GB18030_init(struct xlocale_ctype *, _RuneLocale *);
 int	_GB2312_init(struct xlocale_ctype *, _RuneLocale *);
 int	_GBK_init(struct xlocale_ctype *, _RuneLocale *);
 int	_BIG5_init(struct xlocale_ctype *, _RuneLocale *);
 int	_MSKanji_init(struct xlocale_ctype *, _RuneLocale *);
+int	_ascii_init(struct xlocale_ctype *, _RuneLocale *);
 
-extern size_t __mbsnrtowcs_std(wchar_t * __restrict, const char ** __restrict,
-	size_t, size_t, mbstate_t * __restrict);
-extern size_t __wcsnrtombs_std(char * __restrict, const wchar_t ** __restrict,
-	size_t, size_t, mbstate_t * __restrict);
+typedef size_t (*mbrtowc_pfn_t)(wchar_t * __restrict,
+    const char * __restrict, size_t, mbstate_t * __restrict);
+typedef size_t (*wcrtomb_pfn_t)(char * __restrict, wchar_t,
+    mbstate_t * __restrict);
+size_t __mbsnrtowcs_std(wchar_t * __restrict, const char ** __restrict,
+    size_t, size_t, mbstate_t * __restrict, mbrtowc_pfn_t);
+size_t __wcsnrtombs_std(char * __restrict, const wchar_t ** __restrict,
+    size_t, size_t, mbstate_t * __restrict, wcrtomb_pfn_t);
 
 #endif	/* _MBLOCAL_H_ */

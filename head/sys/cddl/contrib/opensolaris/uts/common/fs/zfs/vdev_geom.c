@@ -268,18 +268,12 @@ vdev_geom_detach(void *arg, int flag __unused)
 	}
 }
 
-static uint64_t
-nvlist_get_guid(nvlist_t *list, uint64_t *pguid)
+static void
+nvlist_get_guids(nvlist_t *list, uint64_t *pguid, uint64_t *vguid)
 {
-	uint64_t value;
 
-	value = 0;
-	nvlist_lookup_uint64(list, ZPOOL_CONFIG_GUID, &value);
-	if (pguid) {
-		*pguid = 0;
-		nvlist_lookup_uint64(list, ZPOOL_CONFIG_POOL_GUID, pguid);
-	}
-	return (value);
+	nvlist_lookup_uint64(list, ZPOOL_CONFIG_GUID, vguid);
+	nvlist_lookup_uint64(list, ZPOOL_CONFIG_POOL_GUID, pguid);
 }
 
 static int
@@ -334,7 +328,7 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 	size_t buflen;
 	uint64_t psize;
 	off_t offset, size;
-	uint64_t guid, state, txg;
+	uint64_t state, txg;
 	int error, l, len;
 
 	g_topology_assert_not();
@@ -348,7 +342,6 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 	size = sizeof(*label) + pp->sectorsize -
 	    ((sizeof(*label) - 1) % pp->sectorsize) - 1;
 
-	guid = 0;
 	label = kmem_alloc(size, KM_SLEEP);
 	buflen = sizeof(label->vl_vdev_phys.vp_nvlist);
 
@@ -543,21 +536,20 @@ vdev_geom_read_pool_label(const char *name,
 	return (*count > 0 ? 0 : ENOENT);
 }
 
-static uint64_t
-vdev_geom_read_guid(struct g_consumer *cp, uint64_t *pguid)
+static void
+vdev_geom_read_guids(struct g_consumer *cp, uint64_t *pguid, uint64_t *vguid)
 {
 	nvlist_t *config;
-	uint64_t guid;
 
 	g_topology_assert_not();
 
-	guid = 0;
+	*pguid = 0;
+	*vguid = 0;
 	if (vdev_geom_read_config(cp, &config) == 0) {
-		guid = nvlist_get_guid(config, pguid);
+		nvlist_get_guids(config, pguid, vguid);
 		nvlist_free(config);
 	} else if (pguid)
 		*pguid = 0;
-	return (guid);
 }
 
 static struct g_consumer *
@@ -567,7 +559,7 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 	struct g_geom *gp, *zgp;
 	struct g_provider *pp;
 	struct g_consumer *cp, *zcp;
-	uint64_t pguid;
+	uint64_t pguid, vguid;
 	uint64_t vguid;
 
 	g_topology_assert();
@@ -588,7 +580,7 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 				if (vdev_geom_attach_taster(zcp, pp) != 0)
 					continue;
 				g_topology_unlock();
-				vguid = vdev_geom_read_guid(zcp, &pguid);
+				vdev_geom_read_guids(zcp, &pguid, &vguid);
 				g_topology_lock();
 				vdev_geom_detach_taster(zcp);
 				if (pguid != spa_guid(vd->vdev_spa) ||
@@ -596,8 +588,8 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 					continue;
 				cp = vdev_geom_attach(pp, vd);
 				if (cp == NULL) {
-					printf("ZFS WARNING: Unable to attach to %s.\n",
-					    pp->name);
+					printf("ZFS WARNING: Unable to "
+					    "attach to %s.\n", pp->name);
 					continue;
 				}
 				break;
@@ -651,8 +643,7 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 {
 	struct g_provider *pp;
 	struct g_consumer *cp;
-	uint64_t pguid;
-	uint64_t vguid;
+	uint64_t pguid, vguid;
 
 	g_topology_assert();
 
@@ -664,7 +655,7 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 		if (cp != NULL && check_guid && ISP2(pp->sectorsize) &&
 		    pp->sectorsize <= VDEV_PAD_SIZE) {
 			g_topology_unlock();
-			vguid = vdev_geom_read_guid(cp, &pguid);
+			vdev_geom_read_guids(cp, &pguid, &vguid);
 			g_topology_lock();
 			if (pguid != spa_guid(vd->vdev_spa) ||
 			    vguid != vd->vdev_guid) {
@@ -708,38 +699,39 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	g_topology_lock();
 	error = 0;
 
-	/*
-	 * Try using the recorded path for this device, but only
-	 * accept it if its label data contains the expected GUIDs.
-	 */
-	cp = vdev_geom_open_by_path(vd, 1);
-	if (cp == NULL) {
+	if (vd->vdev_spa->spa_splitting_newspa ||
+	    (vd->vdev_prevstate == VDEV_STATE_UNKNOWN &&
+	     vd->vdev_spa->spa_load_state == SPA_LOAD_NONE)) {
 		/*
-		 * The device at vd->vdev_path doesn't have the
-		 * expected GUIDs. The disks might have merely
-		 * moved around so try all other GEOM providers
-		 * to find one with the right GUIDs.
-		 */
-		cp = vdev_geom_open_by_guids(vd);
-	}
-
-	if (cp == NULL &&
-	    ((vd->vdev_prevstate == VDEV_STATE_UNKNOWN &&
-	      vd->vdev_spa->spa_load_state == SPA_LOAD_NONE) ||
-	     vd->vdev_spa->spa_splitting_newspa == B_TRUE)) {
-		/*
-		 * We are dealing with a vdev that hasn't been previosly
+		 * We are dealing with a vdev that hasn't been previously
 		 * opened (since boot), and we are not loading an
-		 * existing pool configuration (e.g. this operations is
-		 * an add of a vdev to new or * existing pool) or we are
-		 * in the process of splitting a pool.  Find the GEOM
-		 * provider by its name, ignoring GUID mismatches.
+		 * existing pool configuration.  This looks like a
+		 * vdev add operation to a new or existing pool.
+		 * Assume the user knows what he/she is doing and find
+		 * GEOM provider by its name, ignoring GUID mismatches.
 		 *
 		 * XXPOLICY: It would be safer to only allow a device
 		 *           that is unlabeled or labeled but missing
-		 *           GUID information to be opened in this fashion.
+		 *           GUID information to be opened in this fashion,
+		 *           unless we are doing a split, in which case we
+		 *           should allow any guid.
 		 */
 		cp = vdev_geom_open_by_path(vd, 0);
+	} else {
+		/*
+		 * Try using the recorded path for this device, but only
+		 * accept it if its label data contains the expected GUIDs.
+		 */
+		cp = vdev_geom_open_by_path(vd, 1);
+		if (cp == NULL) {
+			/*
+			 * The device at vd->vdev_path doesn't have the
+			 * expected GUIDs. The disks might have merely
+			 * moved around so try all other GEOM providers
+			 * to find one with the right GUIDs.
+			 */
+			cp = vdev_geom_open_by_guids(vd);
+		}
 	}
 
 	if (cp == NULL) {

@@ -28,7 +28,7 @@
 .\"	@(#)reboot.8	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd October 11, 2010
+.Dd Dec 12, 2015
 .Dt REBOOT 8
 .Os
 .Sh NAME
@@ -39,16 +39,16 @@
 .Nd stopping and restarting the system
 .Sh SYNOPSIS
 .Nm halt
-.Op Fl lnpq
+.Op Fl lNnpq
 .Op Fl k Ar kernel
 .Nm
-.Op Fl dlnpq
+.Op Fl dlNnpqr
 .Op Fl k Ar kernel
 .Nm fasthalt
-.Op Fl lnpq
+.Op Fl lNnpq
 .Op Fl k Ar kernel
 .Nm fastboot
-.Op Fl dlnpq
+.Op Fl dlNnpq
 .Op Fl k Ar kernel
 .Sh DESCRIPTION
 The
@@ -94,6 +94,16 @@ that call
 or
 .Nm halt
 and log this themselves.
+.It Fl N
+The file system cache is not flushed during the initial process clean-up,
+however the kernel level
+.Xr reboot 2
+is still processed with a sync.
+This option can be useful for performing a
+.Dq best-effort
+reboot when devices might be unavailable.
+This can happen when devices have been disconnected, such as with
+.Xr iscsi 4 .
 .It Fl n
 The file system cache is not flushed.
 This option should probably not be used.
@@ -111,6 +121,13 @@ the flushing of the file system cache is performed (if the
 .Fl n
 option is not specified).
 This option should probably not be used.
+.It Fl r
+The system kills all processes, unmounts all filesystems, mounts the new
+root filesystem, and begins the usual startup sequence.
+After changing vfs.root.mountfrom with
+.Xr kenv 8 ,
+.Nm Fl r
+can be used to change the root filesystem while preserving kernel state.
 .El
 .Pp
 The
@@ -128,6 +145,13 @@ Normally, the
 utility is used when the system needs to be halted or restarted, giving
 users advance warning of their impending doom and cleanly terminating
 specific programs.
+.Sh EXAMPLES
+Replace current root filesystem with UFS mounted from
+.Pa /dev/ada0s1a :
+.Bd -literal -offset indent
+kenv vfs.root.mountfrom=ufs:/dev/ada0s1a
+reboot -r
+.Ed
 .Sh SEE ALSO
 .Xr getutxent 3 ,
 .Xr boot 8 ,

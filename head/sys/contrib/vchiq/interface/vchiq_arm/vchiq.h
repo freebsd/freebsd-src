@@ -38,4 +38,3 @@
 #include "vchiq_util.h"
 
 #endif
-

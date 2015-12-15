@@ -146,6 +146,7 @@ DIRDEPS+= \
 	sbin/resolvconf \
 	sbin/restore \
 	sbin/route \
+	sbin/routed \
 	sbin/routed/rtquery \
 	sbin/rtsol \
 	sbin/savecore \
@@ -209,6 +210,8 @@ DIRDEPS+= \
 	usr.bin/dc \
 	usr.bin/dig \
 	usr.bin/dirname \
+	usr.bin/dpv \
+	usr.bin/drill \
 	usr.bin/du \
 	usr.bin/ee \
 	usr.bin/elf2aout \
@@ -239,10 +242,13 @@ DIRDEPS+= \
 	usr.bin/head \
 	usr.bin/hexdump \
 	usr.bin/host \
+	usr.bin/iconv \
 	usr.bin/id \
+	usr.bin/ident \
 	usr.bin/indent \
 	usr.bin/ipcrm \
 	usr.bin/ipcs \
+	usr.bin/iscsictl \
 	usr.bin/join \
 	usr.bin/jot \
 	usr.bin/kdump \
@@ -254,6 +260,7 @@ DIRDEPS+= \
 	usr.bin/lam \
 	usr.bin/last \
 	usr.bin/lastcomm \
+	usr.bin/lex \
 	usr.bin/ldd \
 	usr.bin/leave \
 	usr.bin/less \
@@ -282,8 +289,11 @@ DIRDEPS+= \
 	usr.bin/mesg \
 	usr.bin/minigzip \
 	usr.bin/ministat \
+	usr.bin/mkcsmapper \
 	usr.bin/mkdep \
+	usr.bin/mkesdb \
 	usr.bin/mkfifo \
+	usr.bin/mkimg \
 	usr.bin/mklocale \
 	usr.bin/mkstr \
 	usr.bin/mktemp \
@@ -309,12 +319,14 @@ DIRDEPS+= \
 	usr.bin/pagesize \
 	usr.bin/passwd \
 	usr.bin/paste \
+	usr.bin/patch \
 	usr.bin/pathchk \
 	usr.bin/perror \
 	usr.bin/pr \
 	usr.bin/printenv \
 	usr.bin/printf \
 	usr.bin/procstat \
+	usr.bin/protect \
 	usr.bin/quota \
 	usr.bin/rctl \
 	usr.bin/renice \
@@ -332,16 +344,30 @@ DIRDEPS+= \
 	usr.bin/rwho \
 	usr.bin/script \
 	usr.bin/sed \
+	usr.bin/send-pr \
 	usr.bin/seq \
 	usr.bin/shar \
 	usr.bin/showmount \
+	usr.bin/smbutil \
 	usr.bin/sockstat \
+	usr.bin/soelim \
 	usr.bin/sort \
 	usr.bin/split \
 	usr.bin/ssh-copy-id \
 	usr.bin/stat \
 	usr.bin/stdbuf \
 	usr.bin/su \
+	usr.bin/svn/svn \
+	usr.bin/svn/svnadmin \
+	usr.bin/svn/svnbench \
+	usr.bin/svn/svndumpfilter \
+	usr.bin/svn/svnfsfs \
+	usr.bin/svn/svnlook \
+	usr.bin/svn/svnmucc \
+	usr.bin/svn/svnrdump \
+	usr.bin/svn/svnserve \
+	usr.bin/svn/svnsync \
+	usr.bin/svn/svnversion \
 	usr.bin/systat \
 	usr.bin/tabs \
 	usr.bin/tail \
@@ -380,6 +406,7 @@ DIRDEPS+= \
 	usr.bin/vacation \
 	usr.bin/vgrind \
 	usr.bin/vi \
+	usr.bin/vi/catalog \
 	usr.bin/vis \
 	usr.bin/vmstat \
 	usr.bin/vtfontcvt \
@@ -396,8 +423,9 @@ DIRDEPS+= \
 	usr.bin/xinstall \
 	usr.bin/xlint/lint1 \
 	usr.bin/xlint/lint2 \
-	usr.bin/xlint/xlint \
 	usr.bin/xlint/llib \
+	usr.bin/xlint/xlint \
+	usr.bin/xo \
 	usr.bin/xstr \
 	usr.bin/xz \
 	usr.bin/xzdec \
@@ -410,14 +438,14 @@ DIRDEPS+= \
 	usr.sbin/ac \
 	usr.sbin/accton \
 	usr.sbin/adduser \
-	usr.sbin/amd/include \
-	usr.sbin/amd/libamu \
 	usr.sbin/amd/amd \
 	usr.sbin/amd/amq \
 	usr.sbin/amd/doc \
 	usr.sbin/amd/fixmount \
 	usr.sbin/amd/fsinfo \
 	usr.sbin/amd/hlfsd \
+	usr.sbin/amd/include \
+	usr.sbin/amd/libamu \
 	usr.sbin/amd/mk-amd-map \
 	usr.sbin/amd/pawd \
 	usr.sbin/amd/scripts \
@@ -428,9 +456,11 @@ DIRDEPS+= \
 	usr.sbin/arpaname \
 	usr.sbin/audit \
 	usr.sbin/auditd \
+	usr.sbin/auditdistd \
 	usr.sbin/auditreduce \
 	usr.sbin/authpf \
-	usr.sbin/bhyve \
+	usr.sbin/autofs \
+	usr.sbin/binmiscctl \
 	usr.sbin/bluetooth/ath3kfw \
 	usr.sbin/bluetooth/bcmfw \
 	usr.sbin/bluetooth/bt3cfw \
@@ -447,25 +477,65 @@ DIRDEPS+= \
 	usr.sbin/bluetooth/sdpd \
 	usr.sbin/bootparamd/bootparamd \
 	usr.sbin/bootparamd/callbootd \
+	usr.sbin/bsdconfig \
+	usr.sbin/bsdconfig/console \
+	usr.sbin/bsdconfig/console/include \
+	usr.sbin/bsdconfig/diskmgmt \
+	usr.sbin/bsdconfig/diskmgmt/include \
+	usr.sbin/bsdconfig/docsinstall \
+	usr.sbin/bsdconfig/docsinstall/include \
+	usr.sbin/bsdconfig/dot \
+	usr.sbin/bsdconfig/dot/include \
+	usr.sbin/bsdconfig/examples \
+	usr.sbin/bsdconfig/include \
+	usr.sbin/bsdconfig/includes \
+	usr.sbin/bsdconfig/includes/include \
+	usr.sbin/bsdconfig/mouse \
+	usr.sbin/bsdconfig/mouse/include \
+	usr.sbin/bsdconfig/networking \
+	usr.sbin/bsdconfig/networking/include \
+	usr.sbin/bsdconfig/networking/share \
+	usr.sbin/bsdconfig/packages \
+	usr.sbin/bsdconfig/packages/include \
+	usr.sbin/bsdconfig/password \
+	usr.sbin/bsdconfig/password/include \
+	usr.sbin/bsdconfig/password/share \
+	usr.sbin/bsdconfig/security \
+	usr.sbin/bsdconfig/security/include \
+	usr.sbin/bsdconfig/share \
+	usr.sbin/bsdconfig/share/media \
+	usr.sbin/bsdconfig/share/packages \
+	usr.sbin/bsdconfig/startup \
+	usr.sbin/bsdconfig/startup/include \
+	usr.sbin/bsdconfig/startup/share \
+	usr.sbin/bsdconfig/timezone \
+	usr.sbin/bsdconfig/timezone/include \
+	usr.sbin/bsdconfig/timezone/share \
+	usr.sbin/bsdconfig/ttys \
+	usr.sbin/bsdconfig/ttys/include \
+	usr.sbin/bsdconfig/usermgmt \
+	usr.sbin/bsdconfig/usermgmt/include \
+	usr.sbin/bsdconfig/usermgmt/share \
 	usr.sbin/bsdinstall/distextract \
 	usr.sbin/bsdinstall/distfetch \
 	usr.sbin/bsdinstall/partedit \
 	usr.sbin/bsdinstall/scripts \
-	usr.sbin/bsnmpd/gensnmptree \
 	usr.sbin/bsnmpd/bsnmpd \
+	usr.sbin/bsnmpd/gensnmptree \
 	usr.sbin/bsnmpd/modules/snmp_atm \
 	usr.sbin/bsnmpd/modules/snmp_bridge \
+	usr.sbin/bsnmpd/modules/snmp_hast \
 	usr.sbin/bsnmpd/modules/snmp_hostres \
 	usr.sbin/bsnmpd/modules/snmp_lm75 \
 	usr.sbin/bsnmpd/modules/snmp_mibII \
+	usr.sbin/bsnmpd/modules/snmp_netgraph \
 	usr.sbin/bsnmpd/modules/snmp_pf \
 	usr.sbin/bsnmpd/modules/snmp_target \
 	usr.sbin/bsnmpd/modules/snmp_usm \
 	usr.sbin/bsnmpd/modules/snmp_vacm \
 	usr.sbin/bsnmpd/modules/snmp_wlan \
-	usr.sbin/bsnmpd/modules/snmp_netgraph \
-	usr.sbin/bsnmpd/tools/libbsnmptools \
 	usr.sbin/bsnmpd/tools/bsnmptools \
+	usr.sbin/bsnmpd/tools/libbsnmptools \
 	usr.sbin/burncd \
 	usr.sbin/cdcontrol \
 	usr.sbin/chkgrp \
@@ -475,19 +545,21 @@ DIRDEPS+= \
 	usr.sbin/clear_locks \
 	usr.sbin/config \
 	usr.sbin/crashinfo \
-	usr.sbin/cron/lib \
 	usr.sbin/cron/cron \
 	usr.sbin/cron/crontab \
+	usr.sbin/cron/lib \
 	usr.sbin/crunch/crunchgen \
 	usr.sbin/crunch/crunchide \
 	usr.sbin/ctladm \
+	usr.sbin/ctld \
 	usr.sbin/ctm/ctm \
+	usr.sbin/ctm/ctm_dequeue \
 	usr.sbin/ctm/ctm_rmail \
 	usr.sbin/ctm/ctm_smail \
-	usr.sbin/ctm/ctm_dequeue \
 	usr.sbin/daemon \
 	usr.sbin/dconschat \
 	usr.sbin/ddns-confgen \
+	usr.sbin/devctl \
 	usr.sbin/devinfo \
 	usr.sbin/digictl \
 	usr.sbin/diskinfo \
@@ -507,12 +579,15 @@ DIRDEPS+= \
 	usr.sbin/fdformat \
 	usr.sbin/fdread \
 	usr.sbin/fdwrite \
-	usr.sbin/fifolog/lib \
 	usr.sbin/fifolog/fifolog_create \
-	usr.sbin/fifolog/fifolog_writer \
 	usr.sbin/fifolog/fifolog_reader \
+	usr.sbin/fifolog/fifolog_writer \
+	usr.sbin/fifolog/lib \
 	usr.sbin/flowctl \
+	usr.sbin/fmtree \
 	usr.sbin/freebsd-update \
+	usr.sbin/fstyp \
+	usr.sbin/ftp-proxy \
 	usr.sbin/fwcontrol \
 	usr.sbin/genrandom \
 	usr.sbin/getfmac \
@@ -524,9 +599,11 @@ DIRDEPS+= \
 	usr.sbin/ifmcstat \
 	usr.sbin/inetd \
 	usr.sbin/iostat \
+	usr.sbin/iovctl \
 	usr.sbin/ip6addrctl \
 	usr.sbin/ipfwpcap \
 	usr.sbin/isc-hmac-fixup \
+	usr.sbin/iscsid \
 	usr.sbin/isfctl \
 	usr.sbin/jail \
 	usr.sbin/jexec \
@@ -537,8 +614,11 @@ DIRDEPS+= \
 	usr.sbin/kldxref \
 	usr.sbin/lastlogin \
 	usr.sbin/lmcconfig \
-	usr.sbin/lpr/common_source \
 	usr.sbin/lpr/chkprintcap \
+	usr.sbin/lpr/common_source \
+	usr.sbin/lpr/filters \
+	usr.sbin/lpr/filters.ru/koi2855 \
+	usr.sbin/lpr/filters.ru/koi2alt \
 	usr.sbin/lpr/lp \
 	usr.sbin/lpr/lpc \
 	usr.sbin/lpr/lpd \
@@ -547,14 +627,10 @@ DIRDEPS+= \
 	usr.sbin/lpr/lprm \
 	usr.sbin/lpr/lptest \
 	usr.sbin/lpr/pac \
-	usr.sbin/lpr/filters \
-	usr.sbin/lpr/filters.ru/koi2alt \
-	usr.sbin/lpr/filters.ru/koi2855 \
 	usr.sbin/mailstats \
 	usr.sbin/mailwrapper \
 	usr.sbin/makefs \
 	usr.sbin/makemap \
-	usr.sbin/manctl \
 	usr.sbin/manctl \
 	usr.sbin/memcontrol \
 	usr.sbin/mergemaster \
@@ -562,11 +638,12 @@ DIRDEPS+= \
 	usr.sbin/mixer \
 	usr.sbin/mld6query \
 	usr.sbin/mlxcontrol \
+	usr.sbin/mount_smbfs \
 	usr.sbin/mountd \
 	usr.sbin/moused \
+	usr.sbin/mpsutil \
 	usr.sbin/mptutil \
 	usr.sbin/mtest \
-	usr.sbin/mtree \
 	usr.sbin/named \
 	usr.sbin/named-checkconf \
 	usr.sbin/named-checkzone \
@@ -580,20 +657,28 @@ DIRDEPS+= \
 	usr.sbin/nfsuserd \
 	usr.sbin/ngctl \
 	usr.sbin/nghook \
+	usr.sbin/nmtree \
 	usr.sbin/nologin \
 	usr.sbin/nscd \
 	usr.sbin/nsec3hash \
-	usr.sbin/ntp/libopts \
+	usr.sbin/ntp/doc \
+	usr.sbin/ntp/doc/drivers/icons \
+	usr.sbin/ntp/doc/drivers/scripts \
+	usr.sbin/ntp/doc/drivers \
+	usr.sbin/ntp/doc/hints \
+	usr.sbin/ntp/doc/icons \
+	usr.sbin/ntp/doc/pic \
+	usr.sbin/ntp/doc/scripts \
 	usr.sbin/ntp/libntp \
+	usr.sbin/ntp/libopts \
 	usr.sbin/ntp/libparse \
+	usr.sbin/ntp/ntp-keygen \
 	usr.sbin/ntp/ntpd \
+	usr.sbin/ntp/ntpdate \
 	usr.sbin/ntp/ntpdc \
 	usr.sbin/ntp/ntpq \
-	usr.sbin/ntp/ntpdate \
 	usr.sbin/ntp/ntptime \
-	usr.sbin/ntp/ntp-keygen \
 	usr.sbin/ntp/sntp \
-	usr.sbin/ntp/doc \
 	usr.sbin/pc-sysinstall/backend \
 	usr.sbin/pc-sysinstall/backend-partmanager \
 	usr.sbin/pc-sysinstall/backend-query \
@@ -604,19 +689,19 @@ DIRDEPS+= \
 	usr.sbin/pciconf \
 	usr.sbin/periodic \
 	usr.sbin/pkg \
-	usr.sbin/pkg_install/lib \
 	usr.sbin/pkg_install/add \
 	usr.sbin/pkg_install/create \
 	usr.sbin/pkg_install/delete \
 	usr.sbin/pkg_install/info \
+	usr.sbin/pkg_install/lib \
 	usr.sbin/pkg_install/updating \
 	usr.sbin/pkg_install/version \
 	usr.sbin/pmcannotate \
 	usr.sbin/pmccontrol \
 	usr.sbin/pmcstat \
-	usr.sbin/portsnap/portsnap \
 	usr.sbin/portsnap/make_index \
 	usr.sbin/portsnap/phttpget \
+	usr.sbin/portsnap/portsnap \
 	usr.sbin/powerd \
 	usr.sbin/ppp \
 	usr.sbin/pppctl \
@@ -660,6 +745,7 @@ DIRDEPS+= \
 	usr.sbin/snapinfo \
 	usr.sbin/spray \
 	usr.sbin/syslogd \
+	usr.sbin/sysrc \
 	usr.sbin/tcpdchk \
 	usr.sbin/tcpdmatch \
 	usr.sbin/tcpdrop \
@@ -671,39 +757,57 @@ DIRDEPS+= \
 	usr.sbin/trpt \
 	usr.sbin/tzsetup \
 	usr.sbin/uathload \
+	usr.sbin/uefisign \
 	usr.sbin/ugidfw \
 	usr.sbin/uhsoctl \
+	usr.sbin/unbound/anchor \
+	usr.sbin/unbound/checkconf \
+	usr.sbin/unbound/control \
+	usr.sbin/unbound/daemon \
+	usr.sbin/unbound/local-setup \
 	usr.sbin/usbconfig \
 	usr.sbin/usbdump \
 	usr.sbin/utx \
 	usr.sbin/vidcontrol \
+	usr.sbin/vigr \
 	usr.sbin/vipw \
 	usr.sbin/wake \
 	usr.sbin/watch \
 	usr.sbin/watchdogd \
 	usr.sbin/wlandebug \
-	usr.sbin/wpa/wpa_supplicant \
-	usr.sbin/wpa/wpa_cli \
-	usr.sbin/wpa/wpa_passphrase \
 	usr.sbin/wpa/hostapd \
 	usr.sbin/wpa/hostapd_cli \
 	usr.sbin/wpa/ndis_events \
+	usr.sbin/wpa/wpa_cli \
+	usr.sbin/wpa/wpa_passphrase \
+	usr.sbin/wpa/wpa_supplicant \
 	usr.sbin/yp_mkdb \
 	usr.sbin/ypbind \
 	usr.sbin/yppoll \
 	usr.sbin/yppush \
 	usr.sbin/ypserv \
 	usr.sbin/ypset \
-	usr.sbin/zic/zic \
 	usr.sbin/zic/zdump \
+	usr.sbin/zic/zic \
 	${DEP_RELDIR}/cddl \
 	${DEP_RELDIR}/games \
 	${DEP_RELDIR}/gnu \
 	${DEP_RELDIR}/include \
 	${DEP_RELDIR}/kerberos5 \
+	${DEP_RELDIR}/lib \
 	${DEP_RELDIR}/libexec \
+	${DEP_RELDIR}/misc \
 	${DEP_RELDIR}/secure \
 	${DEP_RELDIR}/share \
+
+.if ${MK_NAND} != "no"
+DIRDEPS+= \
+	sbin/nandfs \
+	sbin/newfs_nandfs \
+	usr.sbin/nandsim \
+	usr.sbin/nandtool \
+
+.endif
 
 DIRDEPS.amd64= \
 	sbin/bsdlabel \
@@ -715,9 +819,14 @@ DIRDEPS.amd64= \
 	usr.sbin/acpi/iasl \
 	usr.sbin/apm \
 	usr.sbin/asf \
+	usr.sbin/bhyve \
+	usr.sbin/bhyvectl \
+	usr.sbin/bhyveload \
 	usr.sbin/boot0cfg \
 	usr.sbin/btxld \
+	usr.sbin/camdd \
 	usr.sbin/cpucontrol \
+	usr.sbin/hyperv/tools \
 	usr.sbin/kgmon \
 	usr.sbin/lptcontrol \
 	usr.sbin/mptable \
@@ -743,6 +852,7 @@ DIRDEPS.i386= \
 	usr.sbin/asf \
 	usr.sbin/btxld \
 	usr.sbin/cpucontrol \
+	usr.sbin/hyperv/tools \
 	usr.sbin/kgmon \
 	usr.sbin/kgzip \
 	usr.sbin/lptcontrol \
@@ -757,11 +867,9 @@ DIRDEPS.i386= \
 	usr.sbin/boot0cfg \
 	usr.sbin/wlconfig
 
-DIRDEPS.ia64= \
-	sbin/mca \
+DIRDEPS.arm64= \
 	usr.sbin/acpi \
-	usr.sbin/kgmon \
-	usr.sbin/zzz
+	usr.sbin/ofwdump
 
 DIRDEPS.mips= \
 	sbin/bsdlabel \
@@ -782,6 +890,14 @@ DIRDEPS.sparc64= \
 DIRDEPS.powerpc= \
 	usr.sbin/nvram \
 	usr.sbin/ofwdump
+
+.if ${MK_GPL_DTC} != "yes"
+DIRDEPS+= usr.bin/dtc
+.endif
+
+.if ${MK_CASPER} == "yes"
+DIRDEPS+= sbin/casperd
+.endif
 
 DIRDEPS+= ${DIRDEPS.${MACHINE}:U}
 

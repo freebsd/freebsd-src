@@ -151,7 +151,7 @@
 
 #if defined(CPU_MIPS74KC)
 #define	MIPS_CCA_UNCACHED	0x02
-#define	MIPS_CCA_CACHED		0x00
+#define	MIPS_CCA_CACHED		0x03
 #endif
 
 #ifndef	MIPS_CCA_UNCACHED
@@ -524,7 +524,7 @@
 #define MIPS_CONFIG0_MT_MASK		0x00000380	/* bits 9..7 MMU Type */
 #define MIPS_CONFIG0_MT_SHIFT		7
 #define MIPS_CONFIG0_BE			0x00008000	/* data is big-endian */
-#define MIPS_CONFIG0_VI			0x00000004	/* instruction cache is virtual */
+#define MIPS_CONFIG0_VI			0x00000008	/* instruction cache is virtual */
 
 #define MIPS_CONFIG1_TLBSZ_MASK		0x7E000000	/* bits 30..25 # tlb entries minus one */
 #define MIPS_CONFIG1_TLBSZ_SHIFT	25

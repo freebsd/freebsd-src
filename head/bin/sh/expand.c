@@ -114,7 +114,6 @@ static void expmeta(char *, char *, struct arglist *);
 static int expsortcmp(const void *, const void *);
 static int patmatch(const char *, const char *, int);
 static char *cvtnum(int, char *);
-static void appendarglist(struct arglist *, char *);
 static int collate_range_cmp(wchar_t, wchar_t);
 
 void
@@ -126,7 +125,7 @@ emptyarglist(struct arglist *list)
 	list->capacity = sizeof(list->smallarg) / sizeof(list->smallarg[0]);
 }
 
-static void
+void
 appendarglist(struct arglist *list, char *str)
 {
 	char **newargs;
@@ -250,7 +249,8 @@ argstr(char *p, int flag)
 		case CTLQUOTEMARK:
 			lit_quoted = 1;
 			/* "$@" syntax adherence hack */
-			if (p[0] == CTLVAR && p[2] == '@' && p[3] == '=')
+			if (p[0] == CTLVAR && (p[1] & VSQUOTE) != 0 &&
+			    p[2] == '@' && p[3] == '=')
 				break;
 			if ((flag & EXP_FULL) != 0)
 				USTPUTC(c, expdest);

@@ -129,7 +129,7 @@ load_securenets(void)
 
 	if ((fp = fopen(path, "r")) == NULL) {
 		if (errno == ENOENT) {
-			securenets = (struct securenet *)malloc(sizeof(struct securenet));
+			securenets = malloc(sizeof(struct securenet));
 			securenets->net.s_addr = INADDR_ANY;
 			securenets->mask.s_addr = INADDR_ANY;
 			securenets->next = NULL;
@@ -154,7 +154,7 @@ load_securenets(void)
 			continue;
 		}
 
-		tmp = (struct securenet *)malloc(sizeof(struct securenet));
+		tmp = malloc(sizeof(struct securenet));
 
 		if (!inet_aton((char *)&addr1, (struct in_addr *)&tmp->net)) {
 			yp_error("badly formatted securenets entry: %s", addr1);

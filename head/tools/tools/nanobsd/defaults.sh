@@ -134,7 +134,7 @@ NANO_BOOTLOADER="boot/boot0sio"
 
 # boot2 flags/options
 # default force serial console
-NANO_BOOT2CFG="-h"
+NANO_BOOT2CFG="-h -S115200"
 
 # Backing type of md(4) device
 # Can be "file" or "swap"
@@ -152,14 +152,26 @@ PPLEVEL=3
 # /cfg partition will be ${NANO_LABEL}s3
 # /data partition will be ${NANO_LABEL}s4
 NANO_LABEL=""
+NANO_SLICE_ROOT=s1
+NANO_SLICE_ALTROOT=s2
+NANO_SLICE_CFG=s3
+NANO_SLICE_DATA=s4
+
+# Default ownwership for nopriv build
+NANO_DEF_UNAME=root
+NANO_DEF_GNAME=wheel
 
 #######################################################################
 # Architecture to build.  Corresponds to TARGET_ARCH in a buildworld.
 # Unfortunately, there's no way to set TARGET at this time, and it
-# conflates the two, so architectures where TARGET != TARGET_ARCH do
-# not work.  This defaults to the arch of the current machine.
-
+# conflates the two, so architectures where TARGET != TARGET_ARCH and
+# TARGET can't be guessed from TARGET_ARCH do not work.  This defaults
+# to the arch of the current machine.
 NANO_ARCH=`uname -p`
+
+# CPUTYPE defaults to "" which is the default when CPUTYPE isn't
+# defined.
+NANO_CPUTYPE=""
 
 # Directory to populate /cfg from
 NANO_CFGDIR=""
@@ -167,9 +179,12 @@ NANO_CFGDIR=""
 # Directory to populate /data from
 NANO_DATADIR=""
 
-# src.conf to use when building the image. Defaults to /dev/null for the sake
-# of determinism.
-SRCCONF=${SRCCONF:=/dev/null}
+# We don't need SRCCONF or SRC_ENV_CONF. NanoBSD puts everything we
+# need for the build in files included with __MAKE_CONF. Override in your
+# config file if you really must. We set them unconditionally here, though
+# in case they are stray in the build environment
+SRCCONF=/dev/null
+SRC_ENV_CONF=/dev/null
  
 #######################################################################
 #
@@ -178,40 +193,109 @@ SRCCONF=${SRCCONF:=/dev/null}
 #
 #######################################################################
 
+# Export values into the shell. Must use { } instead of ( ) like
+# other functions to avoid a subshell.
+# We set __MAKE_CONF as a global since it is easier to get quoting
+# right for paths with spaces in them.
+make_export ( ) {
+	# Similar to export_var, except puts the data out to stdout
+	var=$1
+	eval val=\$$var
+	echo "Setting variable: $var=\"$val\""
+	export $1
+}
+
+nano_make_build_env ( ) {
+	__MAKE_CONF="${NANO_MAKE_CONF_BUILD}"
+	make_export __MAKE_CONF
+}
+
+nano_make_install_env ( ) {
+	__MAKE_CONF="${NANO_MAKE_CONF_INSTALL}"
+	make_export __MAKE_CONF
+}
+
+# Extra environment variables for kernel builds
+nano_make_kernel_env ( ) {
+	if [ -f ${NANO_KERNEL} ] ; then
+		KERNCONFDIR="$(realpath $(dirname ${NANO_KERNEL}))"
+		KERNCONF="$(basename ${NANO_KERNEL})"
+		make_export KERNCONFDIR
+		make_export KERNCONF
+	else
+		export KERNCONF="${NANO_KERNEL}"
+		make_export KERNCONF
+	fi
+}
+
+nano_global_make_env ( ) (
+	# global settings for the make.conf file, if set
+	[ -z "${NANO_ARCH}" ] || echo TARGET_ARCH="${NANO_ARCH}"
+	[ -z "${NANO_CPUTYPE}" ] || echo TARGET_CPUTYPE="${NANO_CPUTYPE}"
+)
+
 # rm doesn't know -x prior to FreeBSD 10, so cope with a variety of build
-# hosts for now.
-nano_rm ( ) {
+# hosts for now. This will go away when support in the base goes away.
+rm ( ) {
+    echo "NANO RM $*"
 	case $(uname -r) in
-	7*|8*|9*) rm $* ;;
-	*) rm -x $* ;;
+	7*|8*|9*) command rm $* ;;
+	*) command rm -x $* ;;
 	esac
 }
 
+#
+# Create empty files in the target tree, and record the fact.  All paths
+# are relative to NANO_WORLDDIR.
+#
+tgt_touch ( ) (
+
+	cd "${NANO_WORLDDIR}"
+	for i; do
+		touch $i
+		echo "./${i} type=file" >> ${NANO_METALOG}
+	done
+)
+
+#
+# Convert a directory into a symlink. Takes two arguments, the
+# current directory and what it should become a symlink to. The
+# directory is removed and a symlink is created. If we're doing
+# a nopriv build, then append this fact to the metalog
+#
+tgt_dir2symlink () (
+	dir=$1
+	symlink=$2
+
+	cd "${NANO_WORLDDIR}"
+	rm -rf "$dir"
+	ln -s "$symlink" "$dir"
+	if [ -n "$NANO_METALOG" ]; then
+		echo "./${dir} type=link mode=0777 link=${symlink}" >> ${NANO_METALOG}
+	fi
+)
+
 # run in the world chroot, errors fatal
-CR()
-{
-	chroot ${NANO_WORLDDIR} /bin/sh -exc "$*"
+CR ( ) {
+	chroot "${NANO_WORLDDIR}" /bin/sh -exc "$*"
 }
 
 # run in the world chroot, errors not fatal
-CR0()
-{
-	chroot ${NANO_WORLDDIR} /bin/sh -c "$*" || true
+CR0 ( ) {
+	chroot "${NANO_WORLDDIR}" /bin/sh -c "$*" || true
 }
 
 nano_cleanup ( ) (
-	if [ $? -ne 0 ]; then
-		echo "Error encountered.  Check for errors in last log file." 1>&2
-	fi
+	[ $? -eq 0 ] || echo "Error encountered.  Check for errors in last log file." 1>&2
 	exit $?
 )
 
 clean_build ( ) (
 	pprint 2 "Clean and create object directory (${MAKEOBJDIRPREFIX})"
 
-	if ! nano_rm -rf ${MAKEOBJDIRPREFIX}/ > /dev/null 2>&1 ; then
+	if ! rm -rf ${MAKEOBJDIRPREFIX}/ > /dev/null 2>&1 ; then
 		chflags -R noschg ${MAKEOBJDIRPREFIX}/
-		nano_rm -r ${MAKEOBJDIRPREFIX}/
+		rm -r ${MAKEOBJDIRPREFIX}/
 	fi
 )
 
@@ -221,19 +305,25 @@ make_conf_build ( ) (
 	mkdir -p ${MAKEOBJDIRPREFIX}
 	printenv > ${MAKEOBJDIRPREFIX}/_.env
 
-	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF_BUILD}
-	echo "${CONF_BUILD}" >> ${NANO_MAKE_CONF_BUILD}
+	# Make sure we get all the global settings that NanoBSD wants
+	# in addition to the user's global settings
+	(
+	nano_global_make_env
+	echo "${CONF_WORLD}" 
+	echo "${CONF_BUILD}"
+	) > ${NANO_MAKE_CONF_BUILD}
 )
 
 build_world ( ) (
 	pprint 2 "run buildworld"
 	pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.bw"
 
-	cd ${NANO_SRC}
-	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} \
-		SRCCONF=${SRCCONF} \
-		__MAKE_CONF=${NANO_MAKE_CONF_BUILD} buildworld \
-		> ${MAKEOBJDIRPREFIX}/_.bw 2>&1
+	(
+	nano_make_build_env
+	set -o xtrace
+	cd "${NANO_SRC}"
+	${NANO_PMAKE} buildworld
+	) > ${MAKEOBJDIRPREFIX}/_.bw 2>&1
 )
 
 build_kernel ( ) (
@@ -243,63 +333,65 @@ build_kernel ( ) (
 	pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.bk"
 
 	(
-	if [ -f ${NANO_KERNEL} ] ; then
-		kernconfdir_arg="KERNCONFDIR='$(realpath $(dirname ${NANO_KERNEL}))'"
-		kernconf=$(basename ${NANO_KERNEL})
-	else
-		kernconf=${NANO_KERNEL}
-	fi
+	nano_make_build_env
+	nano_make_kernel_env
 
-	cd ${NANO_SRC};
-	# unset these just in case to avoid compiler complaints
-	# when cross-building
-	unset TARGET_CPUTYPE
 	# Note: We intentionally build all modules, not only the ones in
 	# NANO_MODULES so the built world can be reused by multiple images.
-	eval "TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} buildkernel \
-		SRCCONF='${SRCCONF}' \
-		__MAKE_CONF='${NANO_MAKE_CONF_BUILD}' \
-		${kernconfdir_arg} KERNCONF=${kernconf}"
+	# Although MODULES_OVERRIDE can be defined in the kenrel config
+	# file to override this behavior. Just set NANO_MODULES=default.
+	set -o xtrace
+	cd "${NANO_SRC}"
+	${NANO_PMAKE} buildkernel
 	) > ${MAKEOBJDIRPREFIX}/_.bk 2>&1
 )
 
 clean_world ( ) (
 	if [ "${NANO_OBJ}" != "${MAKEOBJDIRPREFIX}" ]; then
 		pprint 2 "Clean and create object directory (${NANO_OBJ})"
-		if ! nano_rm -rf ${NANO_OBJ}/ > /dev/null 2>&1 ; then
+		if ! rm -rf ${NANO_OBJ}/ > /dev/null 2>&1 ; then
 			chflags -R noschg ${NANO_OBJ}
-			nano_rm -r ${NANO_OBJ}/
+			rm -r ${NANO_OBJ}/
 		fi
-		mkdir -p ${NANO_OBJ} ${NANO_WORLDDIR}
+		mkdir -p "${NANO_OBJ}" "${NANO_WORLDDIR}"
 		printenv > ${NANO_OBJ}/_.env
 	else
 		pprint 2 "Clean and create world directory (${NANO_WORLDDIR})"
-		if ! nano_rm -rf ${NANO_WORLDDIR}/ > /dev/null 2>&1 ; then
-			chflags -R noschg ${NANO_WORLDDIR}
-			nano_rm -rf ${NANO_WORLDDIR}/
+		if ! rm -rf "${NANO_WORLDDIR}/" > /dev/null 2>&1 ; then
+			chflags -R noschg "${NANO_WORLDDIR}"
+			rm -rf "${NANO_WORLDDIR}/"
 		fi
-		mkdir -p ${NANO_WORLDDIR}
+		mkdir -p "${NANO_WORLDDIR}"
 	fi
 )
 
 make_conf_install ( ) (
 	pprint 2 "Construct install make.conf ($NANO_MAKE_CONF_INSTALL)"
 
-	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF_INSTALL}
-	echo "${CONF_INSTALL}" >> ${NANO_MAKE_CONF_INSTALL}
+	# Make sure we get all the global settings that NanoBSD wants
+	# in addition to the user's global settings
+	(
+	nano_global_make_env
+	echo "${CONF_WORLD}"
+	echo "${CONF_INSTALL}"
+	if [ -n "${NANO_NOPRIV_BUILD}" ]; then
+	    echo NO_ROOT=t
+	    echo METALOG=${NANO_METALOG}
+	fi
+	) >  ${NANO_MAKE_CONF_INSTALL}
 )
 
 install_world ( ) (
 	pprint 2 "installworld"
 	pprint 3 "log: ${NANO_OBJ}/_.iw"
 
-	cd ${NANO_SRC}
-	env TARGET_ARCH=${NANO_ARCH} \
-	${NANO_MAKE} SRCCONF=${SRCCONF} \
-		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} installworld \
-		DESTDIR=${NANO_WORLDDIR} \
-		> ${NANO_OBJ}/_.iw 2>&1
-	chflags -R noschg ${NANO_WORLDDIR}
+	(
+	nano_make_install_env
+	set -o xtrace
+	cd "${NANO_SRC}"
+	${NANO_MAKE} installworld DESTDIR="${NANO_WORLDDIR}"
+	chflags -R noschg "${NANO_WORLDDIR}"
+	) > ${NANO_OBJ}/_.iw 2>&1
 )
 
 install_etc ( ) (
@@ -307,15 +399,15 @@ install_etc ( ) (
 	pprint 2 "install /etc"
 	pprint 3 "log: ${NANO_OBJ}/_.etc"
 
-	cd ${NANO_SRC}
-	env TARGET_ARCH=${NANO_ARCH} \
-	${NANO_MAKE} SRCCONF=${SRCCONF} \
-		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} distribution \
-		DESTDIR=${NANO_WORLDDIR} \
-		> ${NANO_OBJ}/_.etc 2>&1
+	(
+	nano_make_install_env
+	set -o xtrace
+	cd "${NANO_SRC}"
+	${NANO_MAKE} distribution DESTDIR="${NANO_WORLDDIR}"
 	# make.conf doesn't get created by default, but some ports need it
 	# so they can spam it.
-	cp /dev/null ${NANO_WORLDDIR}/etc/make.conf
+	cp /dev/null "${NANO_WORLDDIR}"/etc/make.conf
+	) > ${NANO_OBJ}/_.etc 2>&1
 )
 
 install_kernel ( ) (
@@ -325,26 +417,19 @@ install_kernel ( ) (
 	pprint 3 "log: ${NANO_OBJ}/_.ik"
 
 	(
-	if [ -f ${NANO_KERNEL} ] ; then
-		kernconfdir_arg="KERNCONFDIR='$(realpath $(dirname ${NANO_KERNEL}))'"
-		kernconf=$(basename ${NANO_KERNEL})
-	else
-		kernconf=${NANO_KERNEL}
-	fi
 
-	# Install all built modules if NANO_MODULES=default,
-	# else install only listed modules (none if NANO_MODULES is empty).
+	nano_make_install_env
+	nano_make_kernel_env    
+
 	if [ "${NANO_MODULES}" != "default" ]; then
-		modules_override_arg="MODULES_OVERRIDE='${NANO_MODULES}'"
+		MODULES_OVERRIDE="${NANO_MODULES}"
+		make_export MODULES_OVERRIDE
 	fi
 
-	cd ${NANO_SRC}
-	eval "TARGET_ARCH=${NANO_ARCH} ${NANO_MAKE} installkernel \
-		DESTDIR='${NANO_WORLDDIR}' \
-		SRCCONF='${SRCCONF}' \
-		__MAKE_CONF='${NANO_MAKE_CONF_INSTALL}' \
-		${kernconfdir_arg} KERNCONF=${kernconf} \
-		${modules_override_arg}"
+	set -o xtrace
+	cd "${NANO_SRC}"
+	${NANO_MAKE} installkernel DESTDIR="${NANO_WORLDDIR}"
+
 	) > ${NANO_OBJ}/_.ik 2>&1
 )
 
@@ -352,15 +437,22 @@ native_xtools ( ) (
 	print 2 "Installing the optimized native build tools for cross env"
 	pprint 3 "log: ${NANO_OBJ}/_.native_xtools"
 
-	cd ${NANO_SRC}
-	env TARGET_ARCH=${NANO_ARCH} \
-	${NANO_MAKE} SRCCONF=${SRCCONF} \
-		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} native-xtools \
-		DESTDIR=${NANO_WORLDDIR} \
-		> ${NANO_OBJ}/_.native_xtools 2>&1
+	(
+
+	nano_make_install_env
+	set -o xtrace
+	cd "${NANO_SRC}"
+	${NANO_MAKE} native-xtools DESTDIR="${NANO_WORLDDIR}"
+
+	) > ${NANO_OBJ}/_.native_xtools 2>&1
 )
 
-run_customize() (
+#
+# Run the requested set of customization scripts, run after we've
+# done an installworld, installed the etc files, installed the kernel
+# and tweaked them in the standard way.
+#
+run_customize ( ) (
 
 	pprint 2 "run customize scripts"
 	for c in $NANO_CUSTOMIZE
@@ -372,7 +464,11 @@ run_customize() (
 	done
 )
 
-run_late_customize() (
+#
+# Run any last-minute customization commands after we've had a chance to
+# setup nanobsd, prune empty dirs from /usr, etc
+#
+run_late_customize ( ) (
 
 	pprint 2 "run late customize scripts"
 	for c in $NANO_LATE_CUSTOMIZE
@@ -384,12 +480,39 @@ run_late_customize() (
 	done
 )
 
+#
+# Hook called after we run all the late customize commands, but
+# before we invoke the disk imager. The nopriv build uses it to
+# read in the meta log, apply the changes other parts of nanobsd
+# have been recording their actions. It's not anticipated that
+# a user's cfg file would override this.
+#
+fixup_before_diskimage ( ) (
+
+	# Run the deduplication script that takes the matalog journal and
+	# combines multiple entries for the same file (see source for
+	# details). We take the extra step of removing the size keywords. This
+	# script, and many of the user scripts, copies, appeneds and otherwise
+	# modifies files in the build, changing their sizes.  These actions are
+	# impossible to trap, so go ahead remove the size= keyword. For this
+	# narrow use, it doesn't buy us any protection and just gets in the way.
+	# The dedup tool's output must be sorted due to limitations in awk.
+	if [ -n "${NANO_METALOG}" ]; then
+		pprint 2 "Fixing metalog"
+		cp ${NANO_METALOG} ${NANO_METALOG}.pre
+		(echo "/set uname=${NANO_DEF_UNAME} gname=${NANO_DEF_GNAME}" &&
+			cat ${NANO_METALOG}.pre) | \
+		    ${NANO_TOOLS}/mtree-dedup.awk | \
+		    sed -e 's/ size=[0-9][0-9]*//' | sort > ${NANO_METALOG}
+	fi	
+)
+
 setup_nanobsd ( ) (
 	pprint 2 "configure nanobsd setup"
 	pprint 3 "log: ${NANO_OBJ}/_.dl"
 
 	(
-	cd ${NANO_WORLDDIR}
+	cd "${NANO_WORLDDIR}"
 
 	# Move /usr/local/etc to /etc/local so that the /cfg stuff
 	# can stomp on it.  Otherwise packages like ipsec-tools which
@@ -400,7 +523,7 @@ setup_nanobsd ( ) (
 		cd usr/local/etc
 		find . -print | cpio -dumpl ../../../etc/local
 		cd ..
-		nano_rm -rf etc
+		rm -rf etc
 		ln -s ../../etc/local etc
 		)
 	fi
@@ -410,7 +533,6 @@ setup_nanobsd ( ) (
 		# link /$d under /conf
 		# we use hard links so we have them both places.
 		# the files in /$d will be hidden by the mount.
-		# XXX: configure /$d ramdisk size
 		mkdir -p conf/base/$d conf/default/$d
 		find $d -print | cpio -dumpl conf/base/
 	done
@@ -419,11 +541,10 @@ setup_nanobsd ( ) (
 	echo "$NANO_RAM_TMPVARSIZE" > conf/base/var/md_size
 
 	# pick up config files from the special partition
-	echo "mount -o ro /dev/${NANO_DRIVE}s3" > conf/default/etc/remount
+	echo "mount -o ro /dev/${NANO_DRIVE}${NANO_SLICE_CFG}" > conf/default/etc/remount
 
 	# Put /tmp on the /var ramdisk (could be symlink already)
-	nano_rm -rf tmp
-	ln -s var/tmp tmp
+	tgt_dir2symlink tmp var/tmp
 
 	) > ${NANO_OBJ}/_.dl 2>&1
 )
@@ -432,27 +553,33 @@ setup_nanobsd_etc ( ) (
 	pprint 2 "configure nanobsd /etc"
 
 	(
-	cd ${NANO_WORLDDIR}
+	cd "${NANO_WORLDDIR}"
 
 	# create diskless marker file
 	touch etc/diskless
 
+	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 666 etc/defaults/rc.conf
+
 	# Make root filesystem R/O by default
 	echo "root_rw_mount=NO" >> etc/defaults/rc.conf
+	# Disable entropy file, since / is read-only /var/db/entropy should be enough?
+	echo "entropy_file=NO" >> etc/defaults/rc.conf
+
+	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 444 etc/defaults/rc.conf
 
 	# save config file for scripts
 	echo "NANO_DRIVE=${NANO_DRIVE}" > etc/nanobsd.conf
 
-	echo "/dev/${NANO_DRIVE}s1a / ufs ro 1 1" > etc/fstab
-	echo "/dev/${NANO_DRIVE}s3 /cfg ufs rw,noauto 2 2" >> etc/fstab
+	echo "/dev/${NANO_DRIVE}${NANO_SLICE_ROOT}a / ufs ro 1 1" > etc/fstab
+	echo "/dev/${NANO_DRIVE}${NANO_SLICE_CFG} /cfg ufs rw,noauto 2 2" >> etc/fstab
 	mkdir -p cfg
 	)
 )
 
-prune_usr() (
+prune_usr ( ) (
 
 	# Remove all empty directories in /usr 
-	find ${NANO_WORLDDIR}/usr -type d -depth -print |
+	find "${NANO_WORLDDIR}"/usr -type d -depth -print |
 		while read d
 		do
 			rmdir $d > /dev/null 2>&1 || true 
@@ -471,7 +598,7 @@ newfs_part ( ) (
 
 # Convenient spot to work around any umount issues that your build environment
 # hits by overriding this method.
-nano_umount () (
+nano_umount ( ) (
 	umount ${1}
 )
 
@@ -485,7 +612,7 @@ populate_slice ( ) (
 	newfs_part ${dev} ${mnt} ${lbl}
 	if [ -n "${dir}" -a -d "${dir}" ]; then
 		echo "Populating ${lbl} from ${dir}"
-		cd ${dir}
+		cd "${dir}"
 		find . -print | grep -Ev '/(CVS|\.svn|\.hg|\.git)' | cpio -dumpv ${mnt}
 	fi
 	df -i ${mnt}
@@ -582,7 +709,7 @@ create_diskimage ( ) (
 			-y ${NANO_HEADS}`
 	else
 		echo "Creating md backing file..."
-		nano_rm -f ${IMG}
+		rm -f ${IMG}
 		dd if=/dev/zero of=${IMG} seek=${NANO_MEDIASIZE} count=0
 		MD=`mdconfig -a -t vnode -f ${IMG} -x ${NANO_SECTS} \
 			-y ${NANO_HEADS}`
@@ -598,43 +725,48 @@ create_diskimage ( ) (
 		boot0cfg -B -b ${NANO_WORLDDIR}/${NANO_BOOTLOADER} ${NANO_BOOT0CFG} ${MD}
 	fi
 	if [ -f ${NANO_WORLDDIR}/boot/boot ]; then
-		bsdlabel -w -B -b ${NANO_WORLDDIR}/boot/boot ${MD}s1
+		bsdlabel -w -B -b ${NANO_WORLDDIR}/boot/boot ${MD}${NANO_SLICE_ROOT}
 	else
-		bsdlabel -w ${MD}s1
+		bsdlabel -w ${MD}${NANO_SLICE_ROOT}
 	fi
-	bsdlabel ${MD}s1
+	bsdlabel ${MD}${NANO_SLICE_ROOT}
 
 	# Create first image
-	populate_slice /dev/${MD}s1a ${NANO_WORLDDIR} ${MNT} "s1a"
-	mount /dev/${MD}s1a ${MNT}
+	populate_slice /dev/${MD}${NANO_SLICE_ROOT}a ${NANO_WORLDDIR} ${MNT} "${NANO_SLICE_ROOT}a"
+	mount /dev/${MD}${NANO_SLICE_ROOT}a ${MNT}
 	echo "Generating mtree..."
-	( cd ${MNT} && mtree -c ) > ${NANO_OBJ}/_.mtree
-	( cd ${MNT} && du -k ) > ${NANO_OBJ}/_.du
-	nano_umount ${MNT}
+	( cd "${MNT}" && mtree -c ) > ${NANO_OBJ}/_.mtree
+	( cd "${MNT}" && du -k ) > ${NANO_OBJ}/_.du
+	nano_umount "${MNT}"
 
 	if [ $NANO_IMAGES -gt 1 -a $NANO_INIT_IMG2 -gt 0 ] ; then
 		# Duplicate to second image (if present)
 		echo "Duplicating to second image..."
-		dd conv=sparse if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
-		mount /dev/${MD}s2a ${MNT}
+		dd conv=sparse if=/dev/${MD}${NANO_SLICE_ROOT} of=/dev/${MD}${NANO_SLICE_ALTROOT} bs=64k
+		mount /dev/${MD}${NANO_SLICE_ALTROOT}a ${MNT}
 		for f in ${MNT}/etc/fstab ${MNT}/conf/base/etc/fstab
 		do
-			sed -i "" "s=${NANO_DRIVE}s1=${NANO_DRIVE}s2=g" $f
+			sed -i "" "s=${NANO_DRIVE}${NANO_SLICE_ROOT}=${NANO_DRIVE}${NANO_SLICE_ALTROOT}=g" $f
 		done
 		nano_umount ${MNT}
 		# Override the label from the first partition so we
 		# don't confuse glabel with duplicates.
-		if [ ! -z ${NANO_LABEL} ]; then
-			tunefs -L ${NANO_LABEL}"s2a" /dev/${MD}s2a
+		if [ -n "${NANO_LABEL}" ]; then
+			tunefs -L ${NANO_LABEL}"${NANO_SLICE_ALTROOT}a" /dev/${MD}${NANO_SLICE_ALTROOT}a
 		fi
 	fi
 	
 	# Create Config slice
-	populate_cfg_slice /dev/${MD}s3 "${NANO_CFGDIR}" ${MNT} "s3"
+	populate_cfg_slice /dev/${MD}${NANO_SLICE_CFG} "${NANO_CFGDIR}" ${MNT} "${NANO_SLICE_CFG}"
 
 	# Create Data slice, if any.
-	if [ $NANO_DATASIZE -ne 0 ] ; then
-		populate_data_slice /dev/${MD}s4 "${NANO_DATADIR}" ${MNT} "s4"
+	if [ -n "$NANO_SLICE_DATA" -a "$NANO_SLICE_CFG" = "$NANO_SLICE_DATA" -a \
+	   "$NANO_DATASIZE" -ne 0 ]; then
+		pprint 2 "NANO_SLICE_DATA is the same as NANO_SLICE_CFG, fix."
+		exit 2
+	fi
+	if [ $NANO_DATASIZE -ne 0 -a -n "$NANO_SLICE_DATA" ] ; then
+		populate_data_slice /dev/${MD}${NANO_SLICE_DATA} "${NANO_DATADIR}" ${MNT} "${NANO_SLICE_DATA}"
 	fi
 
 	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
@@ -652,7 +784,7 @@ create_diskimage ( ) (
 
 	if ${do_copyout_partition} ; then
 		echo "Writing out _.disk.image..."
-		dd conv=sparse if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
+		dd conv=sparse if=/dev/${MD}${NANO_SLICE_ROOT} of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
 	fi
 	mdconfig -d -u $MD
 
@@ -662,7 +794,7 @@ create_diskimage ( ) (
 	) > ${NANO_OBJ}/_.di 2>&1
 )
 
-last_orders () (
+last_orders ( ) (
 	# Redefine this function with any last orders you may have
 	# after the build completed, for instance to copy the finished
 	# image to a more convenient place:
@@ -680,7 +812,7 @@ last_orders () (
 # Common Flash device geometries
 #
 
-FlashDevice () {
+FlashDevice ( ) {
 	if [ -d ${NANO_TOOLS} ] ; then
 		. ${NANO_TOOLS}/FlashDevice.sub
 	else
@@ -709,7 +841,7 @@ FlashDevice () {
 # The generic-hdd device is preferred for flash devices larger than 1GB.
 #
 
-UsbDevice () {
+UsbDevice ( ) {
 	a1=`echo $1 | tr '[:upper:]' '[:lower:]'`
 	case $a1 in
 	generic-fdd)
@@ -732,7 +864,7 @@ UsbDevice () {
 #######################################################################
 # Setup serial console
 
-cust_comconsole () (
+cust_comconsole ( ) (
 	# Enable getty on console
 	sed -i "" -e /tty[du]0/s/off/on/ ${NANO_WORLDDIR}/etc/ttys
 
@@ -746,7 +878,7 @@ cust_comconsole () (
 #######################################################################
 # Allow root login via ssh
 
-cust_allow_ssh_root () (
+cust_allow_ssh_root ( ) (
 	sed -i "" -e '/PermitRootLogin/s/.*/PermitRootLogin yes/' \
 	    ${NANO_WORLDDIR}/etc/ssh/sshd_config
 )
@@ -754,15 +886,15 @@ cust_allow_ssh_root () (
 #######################################################################
 # Install the stuff under ./Files
 
-cust_install_files () (
-	cd ${NANO_TOOLS}/Files
+cust_install_files ( ) (
+	cd "${NANO_TOOLS}/Files"
 	find . -print | grep -Ev '/(CVS|\.svn|\.hg|\.git)' | cpio -Ldumpv ${NANO_WORLDDIR}
 )
 
 #######################################################################
 # Install packages from ${NANO_PACKAGE_DIR}
 
-cust_pkgng () (
+cust_pkgng ( ) (
 
 	# If the package directory doesn't exist, we're done.
 	if [ ! -d ${NANO_PACKAGE_DIR} ]; then
@@ -782,8 +914,8 @@ cust_pkgng () (
 	# Copy packages into chroot
 	mkdir -p ${NANO_WORLDDIR}/Pkg
 	(
-		cd ${NANO_PACKAGE_DIR}
-		find ${NANO_PACKAGE_LIST} -print |
+		cd "${NANO_PACKAGE_DIR}"
+		find "${NANO_PACKAGE_LIST}" -print |
 		cpio -Ldumpv ${NANO_WORLDDIR}/Pkg
 	)
 
@@ -794,7 +926,7 @@ cust_pkgng () (
 		echo "FAILED: pkg bootstrapping faied"
 		exit 2
 	fi
-	nano_rm -f ${NANO_WORLDDIR}/Pkg/pkg-*
+	rm -f ${NANO_WORLDDIR}/Pkg/pkg-*
 
 	# Count & report how many we have to install
 	todo=`ls ${NANO_WORLDDIR}/Pkg | /usr/bin/wc -l`
@@ -823,14 +955,14 @@ cust_pkgng () (
 			exit 2
 		fi
 	done
-	nano_rm -rf ${NANO_WORLDDIR}/Pkg
+	rm -rf ${NANO_WORLDDIR}/Pkg
 )
 
 #######################################################################
 # Convenience function:
 # 	Register all args as customize function.
 
-customize_cmd () {
+customize_cmd ( ) {
 	NANO_CUSTOMIZE="$NANO_CUSTOMIZE $*"
 }
 
@@ -839,7 +971,7 @@ customize_cmd () {
 # 	Register all args as late customize function to run just before
 #	image creation.
 
-late_customize_cmd () {
+late_customize_cmd ( ) {
 	NANO_LATE_CUSTOMIZE="$NANO_LATE_CUSTOMIZE $*"
 }
 
@@ -851,14 +983,14 @@ late_customize_cmd () {
 
 # Progress Print
 #	Print $2 at level $1.
-pprint() (
+pprint ( ) (
     if [ "$1" -le $PPLEVEL ]; then
 	runtime=$(( `date +%s` - $NANO_STARTTIME ))
 	printf "%s %.${1}s %s\n" "`date -u -r $runtime +%H:%M:%S`" "#####" "$2" 1>&3
     fi
 )
 
-usage () {
+usage ( ) {
 	(
 	echo "Usage: $0 [-bfiKknqvw] [-c config_file]"
 	echo "	-b	suppress builds (both kernel and world)"
@@ -879,7 +1011,7 @@ usage () {
 # Setup and Export Internal variables
 #
 
-export_var() {
+export_var ( ) {		# Don't wawnt a subshell
 	var=$1
 	# Lookup value of the variable.
 	eval val=\$$var
@@ -888,20 +1020,24 @@ export_var() {
 }
 
 # Call this function to set defaults _after_ parsing options.
-set_defaults_and_export() {
-	test -n "${NANO_OBJ}" || NANO_OBJ=/usr/obj/nanobsd.${NANO_NAME}
-	test -n "${MAKEOBJDIRPREFIX}" || MAKEOBJDIRPREFIX=${NANO_OBJ}
-	test -n "${NANO_DISKIMGDIR}" || NANO_DISKIMGDIR=${NANO_OBJ}
+# dont want a subshell otherwise variable setting is thrown away.
+set_defaults_and_export ( ) {
+	: ${NANO_OBJ:=/usr/obj/nanobsd.${NANO_NAME}}
+	: ${MAKEOBJDIRPREFIX:=${NANO_OBJ}}
+	: ${NANO_DISKIMGDIR:=${NANO_OBJ}}
 	NANO_WORLDDIR=${NANO_OBJ}/_.w
 	NANO_MAKE_CONF_BUILD=${MAKEOBJDIRPREFIX}/make.conf.build
 	NANO_MAKE_CONF_INSTALL=${NANO_OBJ}/make.conf.install
 
 	# Override user's NANO_DRIVE if they specified a NANO_LABEL
-	[ ! -z "${NANO_LABEL}" ] && NANO_DRIVE="ufs/${NANO_LABEL}"
+	[ -n "${NANO_LABEL}" ] && NANO_DRIVE="ufs/${NANO_LABEL}" || true
 
 	# Set a default NANO_TOOLS to NANO_SRC/NANO_TOOLS if it exists.
 	[ ! -d "${NANO_TOOLS}" ] && [ -d "${NANO_SRC}/${NANO_TOOLS}" ] && \
-		NANO_TOOLS="${NANO_SRC}/${NANO_TOOLS}"
+		NANO_TOOLS="${NANO_SRC}/${NANO_TOOLS}" || true
+
+	[ -n "${NANO_NOPRIV_BUILD}" ] && [ -z "${NANO_METALOG}" ] && \
+		NANO_METALOG=${NANO_OBJ}/_.metalog || true
 
 	NANO_STARTTIME=`date +%s`
 	pprint 3 "Exporting NanoBSD variables"
@@ -931,4 +1067,8 @@ set_defaults_and_export() {
 	export_var NANO_BOOTLOADER
 	export_var NANO_LABEL
 	export_var NANO_MODULES
+	export_var NANO_NOPRIV_BUILD
+	export_var NANO_METALOG
+	export_var SRCCONF
+	export_var SRC_ENV_CONF
 }

@@ -3,7 +3,7 @@
 # This file is in the public domain.
 
 set -o errexit
-LC_ALL=C
+export LC_ALL=C
 
 ident='$FreeBSD$'
 
@@ -33,7 +33,7 @@ show_options()
 	ALL_TARGETS=$(echo $(${make} targets | tail -n +2))
 	rm -f $t/settings
 	for target in ${ALL_TARGETS} ; do
-		${make} showconfig \
+		env -i ${make} showconfig \
 		    SRC_ENV_CONF=/dev/null SRCCONF=/dev/null \
 		    __MAKE_CONF=/dev/null \
 		    TARGET_ARCH=${target#*/} TARGET=${target%/*} |
@@ -97,7 +97,7 @@ show()
 		exit 1
 		;;
 	esac
-	${make} .MAKE.MODE=normal "$@" showconfig __MAKE_CONF=/dev/null \
+	env -i ${make} .MAKE.MODE=normal "$@" showconfig __MAKE_CONF=/dev/null \
 	    SRCCONF=/dev/null |
 	while read var _ val ; do
 		opt=${var#MK_}
@@ -198,6 +198,7 @@ variable, which defaults to
 .Pa /etc/src-env.conf .
 Some examples that may only be set in this file are
 .Va MAKEOBJDIRPREFIX ,
+.Va WITH_DIRDEPS_BUILD ,
 and
 .Va WITH_META_MODE
 as they are environment-only variables.

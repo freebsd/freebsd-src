@@ -77,9 +77,13 @@ void ntb_clear_ctx(struct ntb_softc *);
 
 uint8_t ntb_mw_count(struct ntb_softc *);
 int ntb_mw_get_range(struct ntb_softc *, unsigned mw_idx, vm_paddr_t *base,
-    void **vbase, size_t *size, size_t *align, size_t *align_size);
+    caddr_t *vbase, size_t *size, size_t *align, size_t *align_size,
+    bus_addr_t *plimit);
 int ntb_mw_set_trans(struct ntb_softc *, unsigned mw_idx, bus_addr_t, size_t);
 int ntb_mw_clear_trans(struct ntb_softc *, unsigned mw_idx);
+
+int ntb_mw_get_wc(struct ntb_softc *, unsigned mw_idx, vm_memattr_t *mode);
+int ntb_mw_set_wc(struct ntb_softc *, unsigned mw_idx, vm_memattr_t mode);
 
 uint8_t ntb_get_max_spads(struct ntb_softc *ntb);
 int ntb_spad_write(struct ntb_softc *ntb, unsigned int idx, uint32_t val);
@@ -99,13 +103,21 @@ uint64_t ntb_db_read(struct ntb_softc *);
 void ntb_db_set_mask(struct ntb_softc *, uint64_t bits);
 void ntb_peer_db_set(struct ntb_softc *, uint64_t bits);
 
-/* Hardware owns the low 32 bits of features. */
+#define XEON_SPAD_COUNT		16
+#define ATOM_SPAD_COUNT		16
+
+/* Hardware owns the low 16 bits of features. */
 #define NTB_BAR_SIZE_4K		(1 << 0)
 #define NTB_SDOORBELL_LOCKUP	(1 << 1)
 #define NTB_SB01BASE_LOCKUP	(1 << 2)
 #define NTB_B2BDOORBELL_BIT14	(1 << 3)
-/* Software/configuration owns the top 32 bits. */
-#define NTB_SPLIT_BAR		(1ull << 32)
-bool ntb_has_feature(struct ntb_softc *, uint64_t);
+/* Software/configuration owns the top 16 bits. */
+#define NTB_SPLIT_BAR		(1ull << 16)
+
+#define NTB_FEATURES_STR \
+    "\20\21SPLIT_BAR4\04B2B_DOORBELL_BIT14\03SB01BASE_LOCKUP" \
+    "\02SDOORBELL_LOCKUP\01BAR_SIZE_4K"
+
+bool ntb_has_feature(struct ntb_softc *, uint32_t);
 
 #endif /* _NTB_HW_H_ */

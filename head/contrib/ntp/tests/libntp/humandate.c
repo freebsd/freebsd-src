@@ -5,32 +5,38 @@
 
 #include "unity.h"
 
-void test_RegularTime(void)
+void test_RegularTime(void);
+void test_CurrentTime(void);
+
+
+void
+test_RegularTime(void)
 {
 	time_t sample = 1276601278;
 	char expected[15];
+	struct tm* tm;
 
-	struct tm* time;
-	time = localtime(&sample);
+	tm = localtime(&sample);
 	TEST_ASSERT_TRUE(time != NULL);
 
-	snprintf(expected, 15, "%02d:%02d:%02d", time->tm_hour, time->tm_min, time->tm_sec);
+	snprintf(expected, 15, "%02d:%02d:%02d", tm->tm_hour, tm->tm_min, tm->tm_sec);
 
 	TEST_ASSERT_EQUAL_STRING(expected, humantime(sample));
 }
 
-void test_CurrentTime(void)
+void
+test_CurrentTime(void)
 {
 	time_t sample;
 	char expected[15];
+	struct tm* tm;
 
 	time(&sample);
 
-	struct tm* time;
-	time = localtime(&sample);
+	tm = localtime(&sample);
 	TEST_ASSERT_TRUE(time != NULL);
 
-	snprintf(expected, 15, "%02d:%02d:%02d", time->tm_hour, time->tm_min, time->tm_sec);
+	snprintf(expected, 15, "%02d:%02d:%02d", tm->tm_hour, tm->tm_min, tm->tm_sec);
 
 	TEST_ASSERT_EQUAL_STRING(expected, humantime(sample));
 }

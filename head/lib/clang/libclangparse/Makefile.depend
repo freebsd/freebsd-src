@@ -128,6 +128,7 @@ ParseInit.po: StmtNodes.inc.h
 ParseObjc.o: AttrList.inc.h
 ParseObjc.o: AttrParsedAttrList.inc.h
 ParseObjc.o: Attrs.inc.h
+ParseObjc.o: CommentCommandList.inc.h
 ParseObjc.o: DeclNodes.inc.h
 ParseObjc.o: DiagnosticCommonKinds.inc.h
 ParseObjc.o: DiagnosticParseKinds.inc.h
@@ -135,6 +136,7 @@ ParseObjc.o: StmtNodes.inc.h
 ParseObjc.po: AttrList.inc.h
 ParseObjc.po: AttrParsedAttrList.inc.h
 ParseObjc.po: Attrs.inc.h
+ParseObjc.po: CommentCommandList.inc.h
 ParseObjc.po: DeclNodes.inc.h
 ParseObjc.po: DiagnosticCommonKinds.inc.h
 ParseObjc.po: DiagnosticParseKinds.inc.h
@@ -206,6 +208,7 @@ ParseStmtAsm.po: StmtNodes.inc.h
 ParseTemplate.o: AttrList.inc.h
 ParseTemplate.o: AttrParsedAttrList.inc.h
 ParseTemplate.o: Attrs.inc.h
+ParseTemplate.o: CommentCommandList.inc.h
 ParseTemplate.o: DeclNodes.inc.h
 ParseTemplate.o: DiagnosticCommonKinds.inc.h
 ParseTemplate.o: DiagnosticParseKinds.inc.h
@@ -213,6 +216,7 @@ ParseTemplate.o: StmtNodes.inc.h
 ParseTemplate.po: AttrList.inc.h
 ParseTemplate.po: AttrParsedAttrList.inc.h
 ParseTemplate.po: Attrs.inc.h
+ParseTemplate.po: CommentCommandList.inc.h
 ParseTemplate.po: DeclNodes.inc.h
 ParseTemplate.po: DiagnosticCommonKinds.inc.h
 ParseTemplate.po: DiagnosticParseKinds.inc.h

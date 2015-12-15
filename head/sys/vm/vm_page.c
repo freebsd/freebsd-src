@@ -1324,22 +1324,17 @@ vm_page_prev(vm_page_t m)
 vm_page_t
 vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 {
-	vm_page_t mold, mpred;
+	vm_page_t mold;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
+	KASSERT(mnew->object == NULL,
+	    ("vm_page_replace: page already in object"));
 
 	/*
 	 * This function mostly follows vm_page_insert() and
 	 * vm_page_remove() without the radix, object count and vnode
 	 * dance.  Double check such functions for more comments.
 	 */
-	mpred = vm_radix_lookup(&object->rtree, pindex);
-	KASSERT(mpred != NULL,
-	    ("vm_page_replace: replacing page not present with pindex"));
-	mpred = TAILQ_PREV(mpred, respgs, listq);
-	if (mpred != NULL)
-		KASSERT(mpred->pindex < pindex,
-		    ("vm_page_insert_after: mpred doesn't precede pindex"));
 
 	mnew->object = object;
 	mnew->pindex = pindex;
@@ -1347,17 +1342,17 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 	KASSERT(mold->queue == PQ_NONE,
 	    ("vm_page_replace: mold is on a paging queue"));
 
-	/* Detach the old page from the resident tailq. */
+	/* Keep the resident page list in sorted order. */
+	TAILQ_INSERT_AFTER(&object->memq, mold, mnew, listq);
 	TAILQ_REMOVE(&object->memq, mold, listq);
 
 	mold->object = NULL;
 	vm_page_xunbusy(mold);
 
-	/* Insert the new page in the resident tailq. */
-	if (mpred != NULL)
-		TAILQ_INSERT_AFTER(&object->memq, mpred, mnew, listq);
-	else
-		TAILQ_INSERT_HEAD(&object->memq, mnew, listq);
+	/*
+	 * The object's resident_page_count does not change because we have
+	 * swapped one page for another, but OBJ_MIGHTBEDIRTY.
+	 */
 	if (pmap_page_is_write_mapped(mnew))
 		vm_object_set_writeable_dirty(object);
 	return (mold);
@@ -2536,14 +2531,16 @@ vm_page_unwire(vm_page_t m, uint8_t queue)
  * processes.  This optimization causes one-time-use metadata to be
  * reused more quickly.
  *
- * Normally athead is 0 resulting in LRU operation.  athead is set
- * to 1 if we want this page to be 'as if it were placed in the cache',
- * except without unmapping it from the process address space.
+ * Normally noreuse is FALSE, resulting in LRU operation.  noreuse is set
+ * to TRUE if we want this page to be 'as if it were placed in the cache',
+ * except without unmapping it from the process address space.  In
+ * practice this is implemented by inserting the page at the head of the
+ * queue, using a marker page to guide FIFO insertion ordering.
  *
  * The page must be locked.
  */
 static inline void
-_vm_page_deactivate(vm_page_t m, int athead)
+_vm_page_deactivate(vm_page_t m, boolean_t noreuse)
 {
 	struct vm_pagequeue *pq;
 	int queue;
@@ -2554,7 +2551,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 	 * Ignore if the page is already inactive, unless it is unlikely to be
 	 * reactivated.
 	 */
-	if ((queue = m->queue) == PQ_INACTIVE && !athead)
+	if ((queue = m->queue) == PQ_INACTIVE && !noreuse)
 		return;
 	if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
 		pq = &vm_phys_domain(m)->vmd_pagequeues[PQ_INACTIVE];
@@ -2569,8 +2566,9 @@ _vm_page_deactivate(vm_page_t m, int athead)
 			vm_pagequeue_lock(pq);
 		}
 		m->queue = PQ_INACTIVE;
-		if (athead)
-			TAILQ_INSERT_HEAD(&pq->pq_pl, m, plinks.q);
+		if (noreuse)
+			TAILQ_INSERT_BEFORE(&vm_phys_domain(m)->vmd_inacthead,
+			    m, plinks.q);
 		else
 			TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
 		vm_pagequeue_cnt_inc(pq);
@@ -2587,7 +2585,7 @@ void
 vm_page_deactivate(vm_page_t m)
 {
 
-	_vm_page_deactivate(m, 0);
+	_vm_page_deactivate(m, FALSE);
 }
 
 /*
@@ -2600,7 +2598,7 @@ void
 vm_page_deactivate_noreuse(vm_page_t m)
 {
 
-	_vm_page_deactivate(m, 1);
+	_vm_page_deactivate(m, TRUE);
 }
 
 /*

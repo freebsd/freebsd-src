@@ -2,8 +2,7 @@
 # $FreeBSD$
 
 PROG=	caesar
-DPADD=	${LIBM}
-LDADD=	-lm
+LIBADD=	m
 SCRIPTS=rot13.sh
 MAN=	caesar.6
 MLINKS=	caesar.6 rot13.6

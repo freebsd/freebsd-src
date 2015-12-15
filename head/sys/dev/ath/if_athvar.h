@@ -1035,8 +1035,9 @@ void	ath_intr(void *);
  */
 #define	ath_hal_detach(_ah) \
 	((*(_ah)->ah_detach)((_ah)))
-#define	ath_hal_reset(_ah, _opmode, _chan, _outdoor, _pstatus) \
-	((*(_ah)->ah_reset)((_ah), (_opmode), (_chan), (_outdoor), (_pstatus)))
+#define	ath_hal_reset(_ah, _opmode, _chan, _fullreset, _resettype, _pstatus) \
+	((*(_ah)->ah_reset)((_ah), (_opmode), (_chan), (_fullreset), \
+	    (_resettype), (_pstatus)))
 #define	ath_hal_macversion(_ah) \
 	(((_ah)->ah_macVersion << 4) | ((_ah)->ah_macRev))
 #define	ath_hal_getratetable(_ah, _mode) \

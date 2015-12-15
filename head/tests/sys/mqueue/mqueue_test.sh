@@ -75,7 +75,7 @@ atf_init_test_cases()
 {
 	atf_add_test_case mqtest1
 	atf_add_test_case mqtest2
-	atf_add_test_case mqtest3
-	atf_add_test_case mqtest4
+	#atf_add_test_case mqtest3
+	#atf_add_test_case mqtest4
 	atf_add_test_case mqtest5
 }

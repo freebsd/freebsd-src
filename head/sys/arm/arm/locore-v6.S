@@ -74,9 +74,11 @@ __FBSDID("$FreeBSD$");
 	teq	r0, #(PSR_HYP32_MODE) /* Hyp Mode? */			;\
 	bne	1f							;\
 	/* Ensure that IRQ, FIQ and Aborts will be disabled after eret */ ;\
-	mrs	r0, spsr						;\
+	mrs	r0, cpsr						;\
+	bic	r0, r0, #(PSR_MODE)					;\
+	orr	r0, r0, #(PSR_SVC32_MODE)				;\
 	orr	r0, r0, #(PSR_I | PSR_F | PSR_A)			;\
-	msr	spsr, r0						;\
+	msr	spsr_cxsf, r0						;\
 	/* Exit hypervisor mode */					;\
 	adr	lr, 1f							;\
 	MSR_ELR_HYP(14)							;\
@@ -140,9 +142,11 @@ ASENTRY_NP(_start)
 	orr	r7, #CPU_CONTROL_AFLT_ENABLE
 	orr	r7, #CPU_CONTROL_VECRELOC
 	mcr	CP15_SCTLR(r7)
+	DSB
 	ISB
 	bl	dcache_inv_poc_all
 	mcr	CP15_ICIALLU
+	DSB
 	ISB
 
 	/*
@@ -152,6 +156,14 @@ ASENTRY_NP(_start)
 	/* Calculate the physical address of the startup pagetable. */
 	adr	r0, Lpagetable
 	bl	translate_va_to_pa
+
+	/* Clear boot page table */
+	mov	r1, r0
+	mov	r2, L1_TABLE_SIZE
+	mov	r3,#0
+1:	str	r3, [r1], #4
+	subs	r2, #4
+	bgt	1b
 
 	/*
 	 * Map PA == VA
@@ -172,9 +184,10 @@ ASENTRY_NP(_start)
 	bl	build_pagetables
 
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
-	/* Create the custom map used for early_printf(). */
+	/* Create the custom map (1MB) used for early_printf(). */
 	ldr	r1, =SOCDEV_PA
 	ldr	r2, =SOCDEV_VA
+	mov	r3, #1
 	bl	build_pagetables
 #endif
 	bl	init_mmu
@@ -298,7 +311,9 @@ ASENTRY_NP(init_mmu)
 	ISB
 	mcr	CP15_TLBIALL		/* Flush TLB */
 	mcr	CP15_BPIALL		/* Flush Branch predictor */
+	DSB
 	ISB
+
 	mov	pc, lr
 END(init_mmu)
 
@@ -326,6 +341,7 @@ ASENTRY_NP(reinit_mmu)
 	bl	dcache_inv_pou_all
 #endif
 	mcr	CP15_ICIALLU
+	DSB
 	ISB
 
 	/* Set auxiliary register */
@@ -334,6 +350,7 @@ ASENTRY_NP(reinit_mmu)
 	eor 	r8, r8, r6		/* Set bits */
 	teq 	r7, r8
 	mcrne 	CP15_ACTLR(r8)
+	DSB
 	ISB
 
 	/* Enable caches. */
@@ -348,8 +365,8 @@ ASENTRY_NP(reinit_mmu)
 	DSB
 	ISB
 
-	/* Flush all TLBs */
-	mcr	CP15_TLBIALL
+	mcr	CP15_TLBIALL		/* Flush TLB */
+	mcr	CP15_BPIALL		/* Flush Branch predictor */
 	DSB
 	ISB
 
@@ -360,6 +377,7 @@ ASENTRY_NP(reinit_mmu)
 	bl	dcache_inv_pou_all
 #endif
 	mcr	CP15_ICIALLU
+	DSB
 	ISB
 
 	pop	{r4-r11, pc}
@@ -451,11 +469,13 @@ ASENTRY_NP(mpentry)
 	orr	r0, #CPU_CONTROL_AFLT_ENABLE
 	orr	r0, #CPU_CONTROL_VECRELOC
 	mcr	CP15_SCTLR(r0)
+	DSB
 	ISB
 
 	/* Invalidate L1 cache I+D cache */
 	bl	dcache_inv_pou_all
 	mcr	CP15_ICIALLU
+	DSB
 	ISB
 
 	/* Find the delta between VA and PA */
