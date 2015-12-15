@@ -348,8 +348,9 @@ DPADD_atf_cxx+=	${DPADD_atf_c}
 LDADD_atf_cxx+=	${LDADD_atf_c}
 
 # Detect LDADD/DPADD that should be LIBADD, before modifying LDADD here.
+_BADLDADD=
 .for _l in ${LDADD:M-l*:N-l*/*:C,^-l,,}
-.if ${_LIBRARIES:M${_l}}
+.if ${_LIBRARIES:M${_l}} && !${_PRIVATELIBS:M${_l}}
 _BADLDADD+=	${_l}
 .endif
 .endfor
