@@ -2508,8 +2508,13 @@ pmap_unwire_pt2pg(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		KASSERT(m->md.pt2_wirecount[i] == 0,
 		    ("%s: pmap %p PT2 %u (PG %p) wired", __func__, pmap, i, m));
 		opte1 = pte1_load(pte1p);
-		if (pte1_is_link(opte1))
+		if (pte1_is_link(opte1)) {
 			pte1_clear(pte1p);
+			/*
+			 * Flush intermediate TLB cache.
+			 */
+			pmap_tlb_flush(pmap, (m->pindex + i) << PTE1_SHIFT);
+		}
 #ifdef INVARIANTS
 		else
 			KASSERT((opte1 == 0) || pte1_is_section(opte1),
