@@ -281,7 +281,7 @@ struct lagg_port {
 #define	LAGG_UNLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_UNLOCKED)
 
 extern struct mbuf *(*lagg_input_p)(struct ifnet *, struct mbuf *);
-extern void	(*lagg_linkstate_p)(struct ifnet *, int );
+extern void	(*lagg_linkstate_p)(struct ifnet *);
 
 int		lagg_enqueue(struct ifnet *, struct mbuf *);
 

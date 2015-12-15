@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/callout.h>
+#include <sys/random.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -102,8 +103,12 @@ VNET_DEFINE(int, nd6_maxnudhint) = 0;	/* max # of subsequent upper
 					 * layer hints */
 static VNET_DEFINE(int, nd6_maxqueuelen) = 1; /* max pkts cached in unresolved
 					 * ND entries */
+
+static VNET_DEFINE(int, nd6_on_link) = 1; /* Send unsolicited ND's on link up */
+
 #define	V_nd6_maxndopt			VNET(nd6_maxndopt)
 #define	V_nd6_maxqueuelen		VNET(nd6_maxqueuelen)
+#define	V_nd6_on_link			VNET(nd6_on_link)
 
 #ifdef ND6_DEBUG
 VNET_DEFINE(int, nd6_debug) = 1;
@@ -112,6 +117,7 @@ VNET_DEFINE(int, nd6_debug) = 0;
 #endif
 
 static eventhandler_tag lle_event_eh;
+static eventhandler_tag ifnet_link_event_eh;
 
 /* for debugging? */
 #if 0
@@ -196,6 +202,13 @@ nd6_lle_event(void *arg __unused, struct llentry *lle, int evt)
 	    type == RTM_ADD ? RTF_UP: 0), 0, RT_DEFAULT_FIB);
 }
 
+static void
+nd6_ifnet_link_event(void *arg __unused, struct ifnet *ifp, int linkstate)
+{
+
+	if (linkstate == LINK_STATE_UP && V_nd6_on_link)
+		nd6_na_output_unsolicited(ifp);
+}
 void
 nd6_init(void)
 {
@@ -211,9 +224,12 @@ nd6_init(void)
 	    nd6_slowtimo, curvnet);
 
 	nd6_dad_init();
-	if (IS_DEFAULT_VNET(curvnet))
+	if (IS_DEFAULT_VNET(curvnet)) {
 		lle_event_eh = EVENTHANDLER_REGISTER(lle_event, nd6_lle_event,
 		    NULL, EVENTHANDLER_PRI_ANY);
+		ifnet_link_event_eh = EVENTHANDLER_REGISTER(ifnet_link_event,
+		    nd6_ifnet_link_event, NULL, EVENTHANDLER_PRI_ANY);
+	}
 }
 
 #ifdef VIMAGE
@@ -223,8 +239,10 @@ nd6_destroy()
 
 	callout_drain(&V_nd6_slowtimo_ch);
 	callout_drain(&V_nd6_timer_ch);
-	if (IS_DEFAULT_VNET(curvnet))
+	if (IS_DEFAULT_VNET(curvnet)) {
 		EVENTHANDLER_DEREGISTER(lle_event, lle_event_eh);
+		EVENTHANDLER_DEREGISTER(ifnet_link_event, ifnet_link_event_eh);
+	}
 }
 #endif
 
@@ -2457,13 +2475,18 @@ static int nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS);
 SYSCTL_DECL(_net_inet6_icmp6);
 #endif
 SYSCTL_NODE(_net_inet6_icmp6, ICMPV6CTL_ND6_DRLIST, nd6_drlist,
-	CTLFLAG_RD, nd6_sysctl_drlist, "");
+    CTLFLAG_RD, nd6_sysctl_drlist, "List default routers");
 SYSCTL_NODE(_net_inet6_icmp6, ICMPV6CTL_ND6_PRLIST, nd6_prlist,
-	CTLFLAG_RD, nd6_sysctl_prlist, "");
+    CTLFLAG_RD, nd6_sysctl_prlist, "List prefixes");
 SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXQLEN, nd6_maxqueuelen,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_maxqueuelen), 1, "");
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_maxqueuelen), 1,
+    "Max packets cached in unresolved ND entries");
 SYSCTL_INT(_net_inet6_icmp6, OID_AUTO, nd6_gctimer,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_gctimer), (60 * 60 * 24), "");
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_gctimer), (60 * 60 * 24),
+    "Interface in seconds between garbage collection passes");
+SYSCTL_INT(_net_inet6_icmp6, OID_AUTO, nd6_on_link, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(nd6_on_link), 0,
+    "Send unsolicited neighbor discovery on interface link up events");
 
 static int
 nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
