@@ -88,6 +88,7 @@ extern int errno;
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysdecode.h>
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
@@ -124,7 +125,6 @@ void ktrcexception(struct ktr_cexception *);
 void limitfd(int fd);
 void usage(void);
 void ioctlname(unsigned long, int);
-int kdump_print_utrace(FILE *, void *, size_t, int);
 
 #define	TIMESTAMP_NONE		0x0
 #define	TIMESTAMP_ABSOLUTE	0x1
@@ -1567,7 +1567,7 @@ ktruser(int len, void *p)
 {
 	unsigned char *cp;
 
-	if (kdump_print_utrace(stdout, p, len, decimal)) {
+	if (sysdecode_utrace(stdout, p, len)) {
 		printf("\n");
 		return;
 	}

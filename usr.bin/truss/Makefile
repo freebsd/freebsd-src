@@ -4,8 +4,7 @@ NO_WERROR=
 PROG=	truss
 SRCS=	cloudabi.c ioctl.c main.c setup.c syscalls.c
 
-.PATH:	${.CURDIR:H}/kdump
-SRCS+=	utrace.c
+LIBADD=	sysdecode
 
 CFLAGS+= -I${.CURDIR} -I. -I${.CURDIR}/../../sys
 CLEANFILES= ioctl.c

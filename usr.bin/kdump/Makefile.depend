@@ -13,6 +13,7 @@ DIRDEPS = \
 	lib/libcapsicum \
 	lib/libcompiler_rt \
 	lib/libnv \
+	lib/libsysdecode \
 
 
 .include <dirdeps.mk>

@@ -165,6 +165,7 @@ _LIBRARIES=	\
 		stdthreads \
 		supcplusplus \
 		svgtiny \
+		sysdecode \
 		tacplus \
 		termcap \
 		termcapw \
