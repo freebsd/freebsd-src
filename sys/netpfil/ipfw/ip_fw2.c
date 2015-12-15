@@ -2814,11 +2814,10 @@ vnet_ipfw_uninit(const void *unused)
 
 	IPFW_UH_WLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);
-	IPFW_UH_WLOCK(chain);
 
-	IPFW_WLOCK(chain);
 	ipfw_dyn_uninit(0);	/* run the callout_drain */
-	IPFW_WUNLOCK(chain);
+
+	IPFW_UH_WLOCK(chain);
 
 	reap = NULL;
 	IPFW_WLOCK(chain);
