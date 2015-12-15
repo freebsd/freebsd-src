@@ -110,6 +110,7 @@ LINE("libsdp",		"Bluetooth Service Discovery Protocol User Library (libsdp, \\-l
 LINE("libssp",		"Buffer Overflow Protection Library (libssp, \\-lssp)")
 LINE("libstdthreads",	"C11 Threads Library (libstdthreads, \\-lstdthreads)")
 LINE("libSystem",	"System Library (libSystem, \\-lSystem)")
+LINE("libsysdcode",	"System Argument Decoding Library (libsysdecode, \\-lsysdecode)")
 LINE("libtacplus",	"TACACS+ Client Library (libtacplus, \\-ltacplus)")
 LINE("libtcplay",	"TrueCrypt-compatible API library (libtcplay, \\-ltcplay)")
 LINE("libtermcap",	"Termcap Access Library (libtermcap, \\-ltermcap)")

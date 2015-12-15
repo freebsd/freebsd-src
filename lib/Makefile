@@ -98,6 +98,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libstand \
 	libstdbuf \
 	libstdthreads \
+	libsysdecode \
 	libtacplus \
 	${_libtelnet} \
 	${_libthr} \
