@@ -398,6 +398,10 @@ void nd6_init(void);
 #ifdef VIMAGE
 void nd6_destroy(void);
 #endif
+void nd6_na_output_unsolicited(struct ifnet *);
+void nd6_na_output_unsolicited_addr(struct ifnet *, const struct in6_addr *,
+    u_long);
+int nd6_na_unsolicited_addr_delay(struct ifaddr *);
 struct nd_ifinfo *nd6_ifattach(struct ifnet *);
 void nd6_ifdetach(struct nd_ifinfo *);
 int nd6_is_addr_neighbor(const struct sockaddr_in6 *, struct ifnet *);

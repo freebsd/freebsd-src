@@ -119,7 +119,8 @@ int	arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 void	arprequest(struct ifnet *, const struct in_addr *,
 	    const struct in_addr *, u_char *);
 void	arp_ifinit(struct ifnet *, struct ifaddr *);
-void	arp_announce_ifaddr(struct ifnet *, struct in_addr addr, u_char *);
+void	arp_announce(struct ifnet *);
+void	arp_announce_addr(struct ifnet *, const struct in_addr *addr, u_char *);
 #endif
 
 #endif
