@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2015
+.Dd December 15, 2015
 .Dt 80211 3
 .Os
 .Sh NAME
@@ -87,14 +87,14 @@ The
 .Fn lib80211_regdomain_findbysku
 and
 .Fn lib80211_regdomain_findbyname
-functions lookup a regulatory domain entry by SKU enum and SKU name
+functions look up a regulatory domain entry by SKU enum and SKU name
 respectively.
 .Pp
 The
 .Fn lib80211_country_findbycc
 and
 .Fn lib80211_country_findbyname
-functions lookup a country information entry by ISO country enum and
+functions look up a country information entry by ISO country enum and
 ISO country code string respectively.
 .Sh RETURN VALUES
 The
@@ -104,11 +104,12 @@ The
 .Fn lib80211_regdomain_findbyname ,
 .Fn lib80211_country_findbycc ,
 .Fn lib80211_country_findbyname
-return NULL upon error.
-
+return
+.Dv NULL
+upon error.
 .Sh SEE ALSO
-.Xr ifconfig 8 ,
-.Xr net80211 4
+.Xr net80211 4 ,
+.Xr ifconfig 8
 .Sh HISTORY
 The
 .Nm lib80211
