@@ -377,10 +377,8 @@ ldapclient(int pipe_main2client[2])
 	bzero(&env, sizeof(env));
 	TAILQ_INIT(&env.sc_idms);
 
-	if ((pw = getpwnam(YPLDAP_USER)) == NULL) {
-        printf("ldapclient.c error\n");
+	if ((pw = getpwnam(YPLDAP_USER)) == NULL)
 		fatal("getpwnam");
-    }
 
 	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, pipe_dns) == -1)
 		fatal("socketpair");
