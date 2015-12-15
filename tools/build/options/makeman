@@ -197,11 +197,14 @@ for the build can be controlled via the
 variable, which defaults to
 .Pa /etc/src-env.conf .
 Some examples that may only be set in this file are
-.Va MAKEOBJDIRPREFIX ,
 .Va WITH_DIRDEPS_BUILD ,
 and
 .Va WITH_META_MODE
 as they are environment-only variables.
+Note that
+.Va MAKEOBJDIRPREFIX
+may be set here only when using
+.Va WITH_DIRDEPS_BUILD .
 .Pp
 The values of variables are ignored regardless of their setting;
 even if they would be set to
