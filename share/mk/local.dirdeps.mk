@@ -135,11 +135,13 @@ DIRDEPS+=	usr.bin/yacc.host
 # This only works for DPADD with full OBJ/SRC paths, which is mostly just
 # _INTERNALLIBS.
 _DP_DIRDEPS= \
-	${DPADD:M${OBJTOP}*:H:tA:C,${OBJTOP}[^/]*/,,:N.:O:u} \
+	${DPADD:M${OBJTOP}*:H:N.:tA:C,${OBJTOP}[^/]*/,,:N.:O:u} \
 	${DPADD:M${OBJROOT}*:N${OBJTOP}*:N${STAGE_ROOT}/*:H:S,${OBJROOT},,:C,^([^/]+)/(.*),\2.\1,:S,${HOST_TARGET}$,host,:N.*:O:u}
 # Resolve the paths to RELDIRs
+.if !empty(_DP_DIRDEPS)
 DIRDEPS+= ${_DP_DIRDEPS:C,^,${SRCTOP}/,:tA:C,^${SRCTOP}/,,}
 .endif
+.endif	# !empty(DPADD)
 .if !empty(LIBADD)
 # Also handle LIBADD for non-internal libraries.
 .for _lib in ${LIBADD}
