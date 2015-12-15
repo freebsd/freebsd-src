@@ -148,7 +148,7 @@ ${PROG_INSTALL}: ${PROG}
 
 .if defined(WANT_DUMP)
 ${PROGNAME}.dump: ${PROG_FULL}
-	${OBJDUMP} -xsSD ${PROG_FULL} > ${.TARGET}
+	${OBJDUMP} -xrsSD ${PROG_FULL} > ${.TARGET}
 .endif
 
 .if	${MK_MAN} != "no" && !defined(MAN) && \
