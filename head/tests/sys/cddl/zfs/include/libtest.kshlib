@@ -1762,6 +1762,33 @@ function find_disks
 	done
 }
 
+# A function to set convenience variables for disks.
+function set_disks
+{
+	set -A disk_array $(find_disks $DISKS)
+	[[ -z "$DISK_ARRAY_LIMIT" ]] && typeset -i DISK_ARRAY_LIMIT=5
+
+	if (( ${#disk_array[*]} <= 1 )); then
+		export DISK=${DISKS%% *}
+	else 
+		export DISK=""
+        	typeset -i i=0
+		while (( i < ${#disk_array[*]} && i <= $DISK_ARRAY_LIMIT )); do
+			export DISK${i}="${disk_array[$i]}"
+			DISKSARRAY="$DISKSARRAY ${disk_array[$i]}"
+			(( i = i + 1 ))
+		done
+		export DISK_ARRAY_NUM=$i
+		export DISKSARRAY
+	fi
+
+	if (( $DISK_ARRAY_NUM == 0 )); then
+		export disk=$DISK
+	else
+		export disk=$DISK0
+	fi
+}
+
 #
 # Add specified user to specified group
 #
@@ -2828,5 +2855,3 @@ function restart_zfsd
 	fi
 	$RM -f $TMPDIR/.zfsd_enabled_during_stf_zfs_tests
 }
-
-
