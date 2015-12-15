@@ -144,6 +144,7 @@ cheriabi_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	register_t intargs[8];
 	uintptr_t ptrargs[8];
 	struct sysentvec *se;
+	u_int tag;
 	int error, i, isaved, psaved, curint, curptr, nintargs, nptrargs;
 
 	error = 0;
@@ -195,25 +196,66 @@ cheriabi_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 #error	CHERIABI does not support fewer than 8 argument registers
 #endif
 	/*
-	 * XXXBD: we should idealy use a user capability rather than KDC
+	 * XXXBD: We should ideally use a user capability rather than KDC
 	 * to generate the pointers, but then we have to answer: which one?
+	 *
+	 * XXXRW: The kernel cannot distinguish between pointers with tags vs.
+	 * untagged (possible) integers, which is problematic when a
+	 * system-call argument is an intptr_t.  We used to just use CToPtr
+	 * here, but this caused untagged integer arguments to be lost.  Now
+	 * we pick one of CToPtr and CToInt based on the tag -- but this is
+	 * not really ideal.  Instead, we'd prefer that the kernel could
+	 * differentiate between the two explicitly using tagged capabilities,
+	 * which we're not yet ready to do.
 	 */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c3, 0);
-	CHERI_CTOPTR(ptrargs[0], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+	if (tag)
+		CHERI_CTOPTR(ptrargs[0], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	else
+		CHERI_CTOINT(ptrargs[0], CHERI_CR_CTEMP0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c4, 0);
-	CHERI_CTOPTR(ptrargs[1], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+	if (tag)
+		CHERI_CTOPTR(ptrargs[1], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	else
+		CHERI_CTOINT(ptrargs[1], CHERI_CR_CTEMP0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c5, 0);
-	CHERI_CTOPTR(ptrargs[2], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+	if (tag)
+		CHERI_CTOPTR(ptrargs[2], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	else
+		CHERI_CTOINT(ptrargs[2], CHERI_CR_CTEMP0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c6, 0);
-	CHERI_CTOPTR(ptrargs[3], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+	if (tag)
+		CHERI_CTOPTR(ptrargs[3], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	else
+		CHERI_CTOINT(ptrargs[3], CHERI_CR_CTEMP0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c7, 0);
-	CHERI_CTOPTR(ptrargs[4], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+	if (tag)
+		CHERI_CTOPTR(ptrargs[4], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	else
+		CHERI_CTOINT(ptrargs[4], CHERI_CR_CTEMP0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c8, 0);
-	CHERI_CTOPTR(ptrargs[5], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+	if (tag)
+		CHERI_CTOPTR(ptrargs[5], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	else
+		CHERI_CTOINT(ptrargs[5], CHERI_CR_CTEMP0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c9, 0);
-	CHERI_CTOPTR(ptrargs[6], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+	if (tag)
+		CHERI_CTOPTR(ptrargs[6], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	else
+		CHERI_CTOINT(ptrargs[6], CHERI_CR_CTEMP0);
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &capreg->cf_c10, 0);
-	CHERI_CTOPTR(ptrargs[7], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	CHERI_CGETTAG(tag, CHERI_CR_CTEMP0);
+	if (tag)
+		CHERI_CTOPTR(ptrargs[7], CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	else
+		CHERI_CTOINT(ptrargs[7], CHERI_CR_CTEMP0);
 	psaved = 8;
 
 #ifdef TRAP_DEBUG
