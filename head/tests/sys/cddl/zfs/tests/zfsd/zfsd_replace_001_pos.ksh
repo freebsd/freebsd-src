@@ -54,12 +54,8 @@ function cleanup
 
 	# See if the phy has been disabled, and try to re-enable it if possible.
 	if [ ! -z "$TMPDISK" ]; then
-		echo "TMPDISK is $TMPDISK"
-		camcontrol inquiry $TMPDISK > /dev/null
-		if [ $? != 0 ]; then
-			if [ ! -z "$EXPANDER" ] && [ ! -z "$PHY" ]; then
-				enable_sas_disk $EXPANDER $PHY
-			fi
+		if [ ! -z "$EXPANDER" ] && [ ! -z "$PHY" ]; then
+			enable_sas_disk $EXPANDER $PHY
 		fi
 	fi
 

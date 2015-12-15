@@ -68,11 +68,8 @@ function cleanup
 
 	# See if the phy has been disabled, and try to re-enable it if possible.
 	if [ ! -z "$REMOVAL_DISK" ]; then
-		camcontrol inquiry $REMOVAL_DISK > /dev/null
-		if [ $? != 0 ]; then
-			if [ ! -z "$EXPANDER" ] && [ ! -z "$PHY" ]; then
-				enable_sas_disk $EXPANDER $PHY
-			fi
+		if [ ! -z "$EXPANDER" ] && [ ! -z "$PHY" ]; then
+			enable_sas_disk $EXPANDER $PHY
 		fi
 	fi
 
