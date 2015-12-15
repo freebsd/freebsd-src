@@ -1380,14 +1380,6 @@ pmap_tlb_flush_range(pmap_t pmap, vm_offset_t sva, vm_size_t size)
 		tlb_flush_range(sva, size);
 }
 
-PMAP_INLINE void
-pmap_tlb_flush_ng(pmap_t pmap)
-{
-
-	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
-		tlb_flush_all_ng();
-}
-
 /*
  *  Abuse the pte2 nodes for unmapped kva to thread a kva freelist through.
  *  Requirements:
@@ -4233,8 +4225,8 @@ pmap_remove_pages(pmap_t pmap)
 			free_pv_chunk(pc);
 		}
 	}
+	tlb_flush_all_ng_local();
 	sched_unpin();
-	pmap_tlb_flush_ng(pmap);
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
 	pmap_free_zero_pages(&free);
