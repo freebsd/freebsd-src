@@ -21,6 +21,7 @@ SCRIPTS+=	groupmod.ksh
 SCRIPTS+=	groupshow.ksh
 SCRIPTS+=	svcs.ksh
 SCRIPTS+=	swap.ksh
+SCRIPTS+=	testenv.ksh
 SCRIPTS+=	useradd.ksh
 SCRIPTS+=	userdel.ksh
 SCRIPTS+=	usermod.ksh

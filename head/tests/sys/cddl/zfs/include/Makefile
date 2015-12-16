@@ -6,11 +6,13 @@ STFSUITEDIR=${TESTSBASE}/sys/cddl/zfs
 
 MAN=
 FILESDIR=	${TESTSBASE}/sys/cddl/zfs/include
+FILES+=		constants.cfg
 FILES+=		libremote.kshlib
 FILES+=		libsas.kshlib
 FILES+=		logapi.kshlib
 FILES+=		libtest.kshlib
 FILES+=		stf.shlib
+FILES+=		testenv.kshlib
 
 FILES+=		commands.cfg
 CLEANFILES+=	commands.cfg
