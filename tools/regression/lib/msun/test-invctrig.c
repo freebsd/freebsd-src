@@ -281,21 +281,21 @@ test_axes(void)
 	for (i = 0; i < sizeof(nums) / sizeof(nums[0]); i++) {
 		/* Real axis */
 		z = CMPLXL(nums[i], 0.0);
-		if (fabs(nums[i]) <= 1) {
+		if (fabsl(nums[i]) <= 1) {
 			testall_tol(cacosh, z, CMPLXL(0.0, acos(nums[i])), 1);
 			testall_tol(cacos, z, CMPLXL(acosl(nums[i]), -0.0), 1);
 			testall_tol(casin, z, CMPLXL(asinl(nums[i]), 0.0), 1);
 			testall_tol(catanh, z, CMPLXL(atanh(nums[i]), 0.0), 1);
 		} else {
 			testall_tol(cacosh, z,
-				    CMPLXL(acosh(fabs(nums[i])),
+				    CMPLXL(acosh(fabsl(nums[i])),
 					   (nums[i] < 0) ? pi : 0), 1);
 			testall_tol(cacos, z,
 				    CMPLXL((nums[i] < 0) ? pi : 0,
-					   -acosh(fabs(nums[i]))), 1);
+					   -acosh(fabsl(nums[i]))), 1);
 			testall_tol(casin, z,
 				    CMPLXL(copysign(pi / 2, nums[i]),
-					   acosh(fabs(nums[i]))), 1);
+					   acosh(fabsl(nums[i]))), 1);
 			testall_tol(catanh, z,
 				    CMPLXL(atanh(1 / nums[i]), pi / 2), 1);
 		}
