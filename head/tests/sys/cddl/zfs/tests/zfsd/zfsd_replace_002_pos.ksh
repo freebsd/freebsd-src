@@ -51,33 +51,19 @@ function cleanup
 		destroy_pool $TESTPOOL
 	fi
 
-	# Tell the enable/disable SAS disk routines that we don't want to
-	# wait for the disk to disappear or reappear.  We'll do the wait at
-	# the end.
-	export NO_SAS_DISK_WAIT=1
-
 	# See if the phy has been disabled, and try to re-enable it if possible.
 	for CURDISK in $TMPDISKS[*]
 	do
-		if [ ! -z ${EXPANDER_LIST[$CURDISK]} ] && [ ! -z ${PHY_LIST[$CURDISK]} ]; then
+		if [ ! -z ${EXPANDER_LIST[$CURDISK]} -a ! -z ${PHY_LIST[$CURDISK]} ]; then
 			find_disk_by_phy ${EXPANDER_LIST[$CURDISK]} ${PHY_LIST[$CURDISK]}
-			if [ ! -z "$FOUNDDISK" ]; then
-				continue
-			fi
+			[ -n "$FOUNDDISK" ] && continue
 		fi
 		enable_sas_disk ${EXPANDER_LIST[$CURDISK]} ${PHY_LIST[$CURDISK]}
 	done
+	rescan_disks
 
 	[[ -e $TESTDIR ]] && log_must $RM -rf $TESTDIR/*
 }
-
-log_assert "A pool can come back online after all disks are failed and reactivated"
-
-log_unsupported "This test is currently unsupported, ZFS hangs when all drives fail and come back"
-
-log_onexit cleanup
-
-child_pids=""
 
 function run_io
 {
@@ -101,6 +87,15 @@ function run_io
 
 }
 
+log_assert "A pool can come back online after all disks are failed and reactivated"
+
+log_unsupported "This test is currently unsupported, ZFS hangs when all drives fail and come back"
+
+log_onexit cleanup
+
+child_pids=""
+
+ensure_zfsd_running
 set -A TMPDISKS $DISKS
 NUMDISKS=${#TMPDISKS[*]}
 
@@ -144,10 +139,7 @@ for type in "raidz" "mirror"; do
 		# there is I/O active to the
 		disable_sas_disk $EXPANDER $PHY
 	done
-
-	# Wait for 10 seconds to make sure a rescan has happened, and the
-	# disks have had a chance to go away.
-	$SLEEP 10
+	rescan_disks
 
 	# Now go through the list of disks, and make sure they are all gone.
 	for CURDISK in ${TMPDISKS[*]}
@@ -174,10 +166,7 @@ for type in "raidz" "mirror"; do
 		log_note "Re-enabling phy ${PHY_LIST[$CURDISK]} on expander ${EXPANDER_LIST[$CURDISK]}"
 		enable_sas_disk ${EXPANDER_LIST[$CURDISK]} ${PHY_LIST[$CURDISK]}
 	done
-
-	# Wait for 10 seconds to make sure a rescan has happened, and the
-	# disks have had a chance to reappear.
-	$SLEEP 10
+	rescan_disks
 
 	unset DISK_FOUND
 	typeset -A DISK_FOUND

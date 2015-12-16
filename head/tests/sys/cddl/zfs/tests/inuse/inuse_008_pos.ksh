@@ -90,6 +90,7 @@ set -A vdevs "" "mirror" "raidz" "raidz1" "raidz2"
 
 typeset -i i=0
 
+wipe_partition_table $disk
 for num in 0 1 2 3 ; do
 	eval typeset partition=\${FS_SIDE$num}
 	disk=${partition%p*}

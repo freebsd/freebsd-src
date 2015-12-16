@@ -40,8 +40,9 @@ if [[ -n $DISK ]]; then
         log_must partition_disk $SIZE $DISK 2
         tmp=${DISK}p1
 else
-        log_must set_partition $PARTITION "" $SIZE $DISK0
-        log_must set_partition $PARTITION "" $SIZE $DISK1
+	wipe_partition_table $DISK0 $DISK1
+	log_must set_partition $PARTITION "" $SIZE $DISK0
+	log_must set_partition $PARTITION "" $SIZE $DISK1
 	tmp=$DISK0"p"$PARTITION
 fi
 

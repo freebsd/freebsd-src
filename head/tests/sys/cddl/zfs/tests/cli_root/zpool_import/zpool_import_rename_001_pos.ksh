@@ -104,6 +104,40 @@ function cleanup
 		log_must $RM -rf $ALTER_ROOT
 }
 
+function perform_inner_test
+{
+	target=$1
+
+	log_must $ZPOOL import ${devs[i]} ${options[j]} \
+		$target ${pools[i]}-new
+
+	log_must poolexists "${pools[i]}-new"
+
+	log_must ismounted ${pools[i]}-new/$TESTFS
+
+	basedir=${mtpts[i]}
+	[[ -n ${options[j]} ]] && \
+		basedir=$ALTER_ROOT/${mtpts[i]}
+
+	[[ ! -e $basedir/$TESTFILE0 ]] && \
+		log_fail "$basedir/$TESTFILE0 missing after import."
+
+	checksum2=$($SUM $basedir/$TESTFILE0 | $AWK '{print $1}')
+	[[ "$checksum1" != "$checksum2" ]] && \
+		log_fail "Checksums differ ($checksum1 != $checksum2)"
+
+	log_must $ZPOOL export "${pools[i]}-new"
+
+	[[ -d /${pools[i]}-new ]] && \
+		log_must $RM -rf /${pools[i]}-new
+
+	target=${pools[i]}-new
+	if (( RANDOM % 2 == 0 )) ; then
+		target=$guid
+	fi
+	log_must $ZPOOL import ${devs[i]} $target ${pools[i]}
+}
+
 log_onexit cleanup
 
 log_assert "Verify that an imported pool can be renamed."
@@ -128,40 +162,13 @@ while (( i < ${#pools[*]} )); do
 		[[ -d /${pools[i]} ]] && \
 			log_must $RM -rf /${pools[i]}
 
-		typeset target=${pools[i]}
-		if (( RANDOM % 2 == 0 )) ; then
-			target=$guid
-			log_note "Import by guid."
-		fi
-		
-		log_must $ZPOOL import ${devs[i]} ${options[j]} \
-			$target ${pools[i]}-new
+		log_note "Testing import by name."
+		perform_inner_test ${pools[i]}
 
-		log_must poolexists "${pools[i]}-new"
+		log_must $ZPOOL export ${pools[i]}
 
-		log_must ismounted ${pools[i]}-new/$TESTFS
-
-		basedir=${mtpts[i]}
-		[[ -n ${options[j]} ]] && \
-			basedir=$ALTER_ROOT/${mtpts[i]}
-	
-		[[ ! -e $basedir/$TESTFILE0 ]] && \
-			log_fail "$basedir/$TESTFILE0 missing after import."
-
-		checksum2=$($SUM $basedir/$TESTFILE0 | $AWK '{print $1}')
-		[[ "$checksum1" != "$checksum2" ]] && \
-			log_fail "Checksums differ ($checksum1 != $checksum2)"
-
-		log_must $ZPOOL export "${pools[i]}-new"
-
-		[[ -d /${pools[i]}-new ]] && \
-			log_must $RM -rf /${pools[i]}-new
-
-		target=${pools[i]}-new
-		if (( RANDOM % 2 == 0 )) ; then
-			target=$guid
-		fi
-		log_must $ZPOOL import ${devs[i]} $target ${pools[i]}
+		log_note "Testing import by GUID."
+		perform_inner_test $guid
 
 		((j = j + 1))
 	done

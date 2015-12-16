@@ -74,28 +74,36 @@ log_assert "For raidz, one destroyed pools devices was removed or used by " \
 	"other pool, it still can be imported correctly."
 log_onexit cleanup
 
+function perform_test
+{
+	typeset target=$1
+
+	assert_pool_in_cachefile $TESTPOOL1
+	log_must $ZPOOL destroy $TESTPOOL1
+
+	log_must $ZPOOL create $TESTPOOL2 $VDEV0 
+	log_must $ZPOOL import -d $DEVICE_DIR -D -f $target
+	log_must $ZPOOL destroy $TESTPOOL1
+
+	log_must $ZPOOL destroy $TESTPOOL2
+	log_must $RM -rf $VDEV0
+	log_must $ZPOOL import -d $DEVICE_DIR -D -f $target
+	log_must $ZPOOL destroy $TESTPOOL1
+
+	log_note "For raidz, two destroyed pool's devices were used, import failed."
+	log_must $MKFILE $FILE_SIZE $VDEV0
+	log_must $ZPOOL create $TESTPOOL2 $VDEV0 $VDEV1
+	log_mustnot $ZPOOL import -d $DEVICE_DIR -D -f $target
+	log_must $ZPOOL destroy $TESTPOOL2
+}
+
+log_note "Testing import by name."
+log_must $ZPOOL create $TESTPOOL1 raidz $VDEV0 $VDEV1 $VDEV2 $VDIV3
+perform_test $TESTPOOL1
+
+log_note "Testing import by GUID."
 log_must $ZPOOL create $TESTPOOL1 raidz $VDEV0 $VDEV1 $VDEV2 $VDIV3
 typeset guid=$(get_config $TESTPOOL1 pool_guid)
-typeset target=$TESTPOOL1
-if (( RANDOM % 2 == 0 )) ; then
-	target=$guid
-	log_note "Import by guid."
-fi
-log_must $ZPOOL destroy $TESTPOOL1
-
-log_must $ZPOOL create $TESTPOOL2 $VDEV0 
-log_must $ZPOOL import -d $DEVICE_DIR -D -f $target
-log_must $ZPOOL destroy $TESTPOOL1
-
-log_must $ZPOOL destroy $TESTPOOL2
-log_must $RM -rf $VDEV0
-log_must $ZPOOL import -d $DEVICE_DIR -D -f $target
-log_must $ZPOOL destroy $TESTPOOL1
-
-log_note "For raidz, two destroyed pool's devices were used, import failed."
-log_must $MKFILE $FILE_SIZE $VDEV0
-log_must $ZPOOL create $TESTPOOL2 $VDEV0 $VDEV1
-log_mustnot $ZPOOL import -d $DEVICE_DIR -D -f $target
-log_must $ZPOOL destroy $TESTPOOL2
+perform_test $guid
 
 log_pass "zpool import -D raidz passed."

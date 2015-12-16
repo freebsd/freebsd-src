@@ -68,39 +68,22 @@ verify_runnable "global"
 
 function verify_assertion # spare_dev
 {
-	typeset sdev=$1
+	typeset spare_dev=$1
 	find_verify_sas_disk $REMOVAL_DISK
 	log_note "Disabling \"$REMOVAL_DISK\" on expander $EXPANDER phy $PHY"
 	disable_sas_disk $EXPANDER $PHY
 
-	#Check to make sure the disk is gone
-	camcontrol inquiry $REMOVAL_DISK > /dev/null 2>&1
-	if [ $? = 0 ]; then
-		log_fail "Disk \"$REMOVAL_DISK\" was not removed"
-	fi
+	# Check to make sure the disk is gone
+	find_disk_by_phy $EXPANDER $PHY
+	[ -n "$FOUNDDISK" ] && log_fail "Disk \"$REMOVAL_DISK\" was not removed"
 
 	# Check to make sure ZFS sees the disk as removed
-	for ((timeout=0; $timeout<20; timeout=$timeout+1)); do
-		check_state $TESTPOOL "$REMOVAL_DISK" "REMOVED"
-		is_removed=$?
-		if [[ $is_removed == 0 ]]; then
-			break
-		fi
-		$SLEEP 3
-	done
-	log_must check_state $TESTPOOL "$REMOVAL_DISK" "REMOVED"
+	wait_for_pool_removal 20
 
 	# Wait for zfsd to activate the spare
-	for ((timeout=0; $timeout<20; timeout=$timeout+1)); do
-		check_state $TESTPOOL "$sdev" "INUSE"
-		spare_inuse=$?
-		if [[ $spare_inuse == 0 ]]; then
-			break
-		fi
-		$SLEEP 3
-	done
-	log_must check_state $TESTPOOL "$sdev" "INUSE"
-	
+	wait_for_pool_dev_state_change 20 $spare_dev INUSE
+	log_must $ZPOOL status $TESTPOOL
+
 	# Export the pool
 	log_must $ZPOOL export $TESTPOOL
 
@@ -109,48 +92,22 @@ function verify_assertion # spare_dev
 	enable_sas_disk $EXPANDER $PHY
 
 	# Check that the disk has returned
-	for ((timeout=0; $timeout<20; timeout=$timeout+1)); do
-		find_disk_by_phy $EXPANDER $PHY
-		if [[ -n "$FOUNDDISK" ]]; then
-			break
-		fi
-		$SLEEP 3
-	done
-
-	if [[ -z "$FOUNDDISK" ]]; then
-		log_fail "Disk $REMOVAL_DISK never reappeared"
-	fi
+	wait_for_disk_to_reappear 20
 
 	# Import the pool
 	log_must $ZPOOL import $TESTPOOL
 
-	#Check that the disk has rejoined the pool
-	for ((timeout=0; $timeout<20; timeout=$timeout+1)); do
-		check_state $TESTPOOL $REMOVAL_DISK ONLINE
-		rejoined=$?
-		if [[ $rejoined == 0 ]]; then
-			break
-		fi
-		$SLEEP 3
-	done
-	log_must check_state $TESTPOOL $REMOVAL_DISK ONLINE
+	# Check that the disk has rejoined the pool
+	wait_for_pool_dev_state_change 20 $REMOVAL_DISK ONLINE
 
-	#Check that the pool resilvered
+	# Check that the pool resilvered
 	while ! is_pool_resilvered $TESTPOOL; do
 		$SLEEP 2
 	done
-	log_must is_pool_resilvered $TESTPOOL
+	log_must $ZPOOL status
 
 	#Finally, check that the spare deactivated
-	for ((timeout=0; $timeout<20; timeout=$timeout+1)); do
-		check_state $TESTPOOL "$sdev" "AVAIL"
-		deactivated=$?
-		if [[ $deactivated == 0 ]]; then
-			break
-		fi
-		$SLEEP 3
-	done
-	log_must check_state $TESTPOOL "$sdev" "AVAIL"
+	wait_for_pool_dev_state_change 20 $spare_dev AVAIL
 
 	# Verify that the spare was detached after the scrub was complete
 	# Note that resilvers and scrubs are recorded identically in zpool
@@ -175,22 +132,20 @@ function verify_assertion # spare_dev
 			print("Spare detached at txg", detach_txg);
 			exit(detach_txg > scrub_txg)
 		}'
-	if [[ $? -ne 0 ]]; then
-		log_fail "The spare detached before the resilver completed"
-	fi
+	[ $? -ne 0 ] && log_fail "The spare detached before the resilver completed"
 }
-
-
 
 
 if ! $(is_physical_device $DISKS) ; then
 	log_unsupported "This directory cannot be run on raw files."
 fi
 
-log_assert "If a removed drive gets reinserted while the pool is exported, it will replace its spare when reinserted."
+log_assert "If a removed drive gets reinserted while the pool is exported, \
+	    it will replace its spare when reinserted."
 
 log_onexit autoreplace_cleanup
 
+ensure_zfsd_running
 set_devs
 
 typeset REMOVAL_DISK=$DISK0

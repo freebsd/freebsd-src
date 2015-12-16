@@ -106,6 +106,31 @@ typeset -i i=0
 typeset -i j=0
 typeset basedir
 
+function inner_test
+{
+	typeset pool=$1
+	typeset target=$2
+	typeset devs=$3
+	typeset opts=$4
+	typeset mtpt=$5
+
+	log_must $ZPOOL import ${devs} ${opts} $target
+	log_must poolexists $pool
+	log_must ismounted $pool/$TESTFS
+
+	basedir=$mtpt
+	[ -n "$opts" ] && basedir="$ALTER_ROOT/$mtpt"
+
+	[ ! -e "$basedir/$TESTFILE0" ] && \
+		log_fail "ERROR: $basedir/$TESTFILE0 missing after import."
+
+	checksum2=$($SUM $basedir/$TESTFILE0 | $AWK '{print $1}')
+	[[ "$checksum1" != "$checksum2" ]] && \
+		log_fail "ERROR: Checksums differ ($checksum1 != $checksum2)"
+
+	log_mustnot $ZPOOL import $devs $target
+}
+
 while (( i < ${#pools[*]} )); do
 	log_must $CP $MYTESTFILE ${mtpts[i]}/$TESTFILE0
 
@@ -114,40 +139,20 @@ while (( i < ${#pools[*]} )); do
 	j=0
 	while (( j <  ${#options[*]} )); do
 		typeset pool=${pools[i]}
-		k=0
-		while (( k < 2 )); do
-			typeset target=$pool
-			log_must $ZPOOL export $pool
+		typeset vdevdir=""
 
-			if (( k == 1 )); then
-				typeset vdevdir=""
-				if [[ "$pool" = "$TESTPOOL1" ]]; then
-					vdevdir="$DEVICE_DIR"
-				fi
-				target=$(get_config $pool pool_guid $vdevdir)
-				log_must test -n "$target"
-				log_note "Importing '$pool' by guid '$target'."
-			fi
+		log_must $ZPOOL export $pool
 
-			log_must $ZPOOL import ${devs[i]} ${options[j]} $target
-			log_must poolexists $pool
-			log_must ismounted $pool/$TESTFS
+		[ "$pool" = "$TESTPOOL1" ] && vdevdir="$DEVICE_DIR"
+		guid=$(get_config $pool pool_guid $vdevdir)
+		log_must test -n "$guid"
+		log_note "Importing '$pool' by guid '$guid'"
+		inner_test $pool $guid "${devs[i]}" "${options[j]}" ${mtpts[i]}
 
-			basedir=${mtpts[i]}
-			[[ -n ${options[j]} ]] && \
-				basedir=$ALTER_ROOT/${mtpts[i]}
+		log_must $ZPOOL export $pool
 
-			[[ ! -e $basedir/$TESTFILE0 ]] && log_fail \
-				"$basedir/$TESTFILE0 missing after import."
-
-			checksum2=$($SUM $basedir/$TESTFILE0 | $AWK '{print $1}')
-			[[ "$checksum1" != "$checksum2" ]] && log_fail \
-				"Checksums differ ($checksum1 != $checksum2)"
-
-			log_mustnot $ZPOOL import ${devs[i]} $target
-
-			(( k = k + 1 ))
-		done
+		log_note "Importing '$pool' by name."
+		inner_test $pool $pool "${devs[i]}" "${options[j]}" ${mtpts[i]}
 
 		((j = j + 1))
 	done

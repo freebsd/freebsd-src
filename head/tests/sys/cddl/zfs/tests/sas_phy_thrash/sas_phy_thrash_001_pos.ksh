@@ -109,6 +109,8 @@ do
 		fi
 		$SLEEP 10
 		find_disk_by_phy $EXPANDER $PHY
+		[ -z "$FOUNDDISK" ] && \
+			log_fail "Disk for ${EXPANDER}:${PHY} didn't return"
 		camcontrol inquiry $FOUNDDISK -v
 		if [ $? != 0 ]; then
 			log_note "Failed on $EXPANDER phy $PHY attempt $x"

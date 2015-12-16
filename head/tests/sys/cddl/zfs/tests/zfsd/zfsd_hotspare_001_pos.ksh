@@ -133,6 +133,7 @@ log_onexit cleanup
 
 log_assert "An active damaged spare will be replaced by an available spare"
 
+ensure_zfsd_running
 set_devs
 
 typeset  fail_spare="${devarray[0]}"
@@ -147,4 +148,3 @@ for keyword in "${my_keywords[@]}"; do
 done
 
 log_pass "If one of the spare fail, the other available spare will be in use"
-

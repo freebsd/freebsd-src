@@ -70,85 +70,33 @@ log_onexit autoreplace_cleanup
 
 function verify_assertion # spare_dev
 {
-	typeset sdev=$1
+	typeset spare_dev=$1
 	find_verify_sas_disk $REMOVAL_DISK
 	log_note "Disabling \"$REMOVAL_DISK\" on expander $EXPANDER phy $PHY"
 	disable_sas_disk $EXPANDER $PHY
 
-	#Check to make sure the disk is gone
-	camcontrol inquiry $REMOVAL_DISK > /dev/null 2>&1
-	if [ $? = 0 ]; then
-		log_fail "Disk \"$REMOVAL_DISK\" was not removed"
-	fi
+	# Check to make sure the disk is gone
+	find_disk_by_phy $EXPANDER $PHY
+	[ -n "$FOUNDDISK" ] && log_fail "Disk \"$REMOVAL_DISK\" was not removed"
 
 	# Check to make sure ZFS sees the disk as removed
-	for ((timeout=0; $timeout<20; timeout=$timeout+1)); do
-		check_state $TESTPOOL "$REMOVAL_DISK" "REMOVED"
-		is_removed=$?
-		if [[ $is_removed == 0 ]]; then
-			break
-		fi
-		$SLEEP 3
-	done
-	log_must check_state $TESTPOOL "$REMOVAL_DISK" "REMOVED"
+	wait_for_pool_removal 20
 
 	# Check that the spare was activated
-	for ((timeout=0; $timeout<20; timeout=$timeout+1)); do
-		check_state $TESTPOOL "$sdev" "INUSE"
-		spare_inuse=$?
-		if [[ $spare_inuse == 0 ]]; then
-			break
-		fi
-		$SLEEP 3
-	done
+	wait_for_pool_dev_state_change 20 $spare_dev INUSE
 	log_must $ZPOOL status $TESTPOOL
-	log_must check_state $TESTPOOL "$sdev" "INUSE"
 
 	# Reenable the  missing disk
 	log_note "Reenabling phy on expander $EXPANDER phy $PHY"
 	enable_sas_disk $EXPANDER $PHY
+	wait_for_disk_to_reappear 20
 
-	# Check that the disk has returned
-	for ((timeout=0; $timeout<20; timeout=$timeout+1)); do
-		find_disk_by_phy $EXPANDER $PHY
-		if [[ -n "$FOUNDDISK" ]]; then
-			break
-		fi
-		$SLEEP 3
-	done
+	# Check that the disk has rejoined the pool & resilvered
+	wait_for_pool_dev_state_change 20 $REMOVAL_DISK ONLINE
+	wait_until_resilvered
 
-	if [[ -z "$FOUNDDISK" ]]; then
-		log_fail "Disk $REMOVAL_DISK never reappeared"
-	fi
-
-	#Check that the disk has rejoined the pool
-	for ((timeout=0; $timeout<20; timeout=$timeout+1)); do
-		check_state $TESTPOOL $REMOVAL_DISK ONLINE
-		rejoined=$?
-		if [[ $rejoined == 0 ]]; then
-			break
-		fi
-		$SLEEP 3
-	done
-	log_must check_state $TESTPOOL $REMOVAL_DISK ONLINE
-
-	#Check that the pool resilvered
-	while ! is_pool_resilvered $TESTPOOL; do
-		$SLEEP 2
-	done
-	log_must is_pool_resilvered $TESTPOOL
-	log_must $ZPOOL status
-
-	#Finally, check that the spare deactivated
-	for ((timeout=0; $timeout<20; timeout=$timeout+1)); do
-		check_state $TESTPOOL "$sdev" "AVAIL"
-		deactivated=$?
-		if [[ $deactivated == 0 ]]; then
-			break
-		fi
-		$SLEEP 3
-	done
-	log_must check_state $TESTPOOL "$sdev" "AVAIL"
+	# Finally, check that the spare deactivated
+	wait_for_pool_state_change $spare_dev AVAIL
 }
 
 
@@ -156,6 +104,7 @@ typeset REMOVAL_DISK=$DISK0
 typeset SDEV=$DISK4
 typeset POOLDEVS="$DISK0 $DISK1 $DISK2 $DISK3"
 set -A MY_KEYWORDS "mirror" "raidz1" "raidz2"
+ensure_zfsd_running
 for keyword in "${MY_KEYWORDS[@]}" ; do
 	log_must create_pool $TESTPOOL $keyword $POOLDEVS spare $SDEV
 	log_must poolexists "$TESTPOOL"

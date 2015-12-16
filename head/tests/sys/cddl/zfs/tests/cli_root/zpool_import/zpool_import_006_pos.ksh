@@ -74,21 +74,32 @@ log_assert "For mirror, N-1 destroyed pools devices was removed or used " \
 	"by other pool, it still can be imported correctly."
 log_onexit cleanup
 
-log_must $ZPOOL create $TESTPOOL1 mirror $VDEV0 $VDEV1 $VDEV2
+function perform_test
+{
+	typeset target=$1
+
+	assert_pool_in_cachefile $TESTPOOL1
+	log_must $ZPOOL destroy $TESTPOOL1
+
+	create_pool $TESTPOOL2 $VDEV0 $VDEV2
+	log_must $ZPOOL import -d $DEVICE_DIR -D -f $target
+	log_must $ZPOOL destroy $TESTPOOL1
+
+	log_must $ZPOOL destroy $TESTPOOL2
+	log_must $RM -rf $VDEV2
+	log_must $ZPOOL import -d $DEVICE_DIR -D -f $target
+
+	# Restore the vdev.
+	log_must $MKFILE $FILE_SIZE $VDEV2
+}
+
+log_note "Testing import by name."
+create_pool $TESTPOOL1 mirror $VDEV0 $VDEV1 $VDEV2
+perform_test $TESTPOOL1
+
+log_note "Testing import by GUID."
+create_pool $TESTPOOL1 mirror $VDEV0 $VDEV1 $VDEV2
 typeset guid=$(get_config $TESTPOOL1 pool_guid)
-typeset target=$TESTPOOL1
-if (( RANDOM % 2 == 0 )) ; then
-	target=$guid
-	log_note "Import by guid."
-fi
-log_must $ZPOOL destroy $TESTPOOL1
-
-log_must $ZPOOL create $TESTPOOL2 $VDEV0 $VDEV2
-log_must $ZPOOL import -d $DEVICE_DIR -D -f $target
-log_must $ZPOOL destroy $TESTPOOL1
-
-log_must $ZPOOL destroy $TESTPOOL2
-log_must $RM -rf $VDEV2
-log_must $ZPOOL import -d $DEVICE_DIR -D -f $target
+perform_test $guid
 
 log_pass "zpool import -D mirror passed."

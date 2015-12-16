@@ -126,21 +126,15 @@ function check_poolversion { # pool version
 	VERSION=$2
 
 	# check version using zdb
-	ACTUAL=$($ZDB -eC -p $TMPDIR $POOL | $GREP version: | \
-	 $SED -e 's/ //g' -e 's/version://g')
-
-	if [ "$ACTUAL" != "$VERSION" ]
-	then
-		log_fail "$POOL not upgraded, ver. $ACTUAL, expected $VERSION"
-	fi
+	ACTUAL=$(get_config $POOL version)
+	[ "$ACTUAL" != "$VERSION" ] && log_fail \
+		"ERROR: $POOL not upgraded: wanted '$VERSION', got '$ACTUAL'"
 
 	# check version using zpool upgrade
 	ACTUAL=$($ZPOOL upgrade | $GREP $POOL$ | \
 	 $AWK '{print $1}' | $SED -e 's/ //g')
-	if [ "$ACTUAL" != "$VERSION" ]
-	then
-		log_fail "$POOL reported version $ACTUAL, expected $VERSION"
-	fi
+	[ "$ACTUAL" != "$VERSION" ] &&
+		log_fail "$POOL reported version '$ACTUAL', expected '$VERSION'"
 }
 
 # A simple function to get a random number between two bounds

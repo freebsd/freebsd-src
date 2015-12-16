@@ -43,6 +43,7 @@ case $DISK_COUNT in
 	;;
 esac
 
+wipe_partition_table $ZFS_DISK $NONZFS_DISK
 set_partition ${ZFSSIDE_DISK##*p} "" $FS_SIZE $ZFS_DISK
 set_partition ${NONZFSSIDE_DISK##*p} "" $FS_SIZE $NONZFS_DISK
 

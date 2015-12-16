@@ -38,16 +38,17 @@ fi
 log_note "Creating pool type: $POOLTYPE"
 
 if [[ -n $DISK ]]; then
-        log_note "No spare disks available. Using slices on $DISK"
-        partition_disk $SIZE $DISK 4
-        create_pool $TESTPOOL $POOLTYPE ${DISK}p1 \
+	log_note "No spare disks available. Using slices on $DISK"
+	partition_disk $SIZE $DISK 4
+	create_pool $TESTPOOL $POOLTYPE ${DISK}p1 \
 	    ${DISK}p2
 else
-        log_must set_partition $PARTITION "" $SIZE $DISK0
-        log_must set_partition $PARTITION "" $SIZE $DISK1
-        log_must set_partition $PARTITION "" $SIZE $DISK2
-        log_must set_partition $PARTITION "" $SIZE $DISK3
-        create_pool $TESTPOOL $POOLTYPE ${DISK0}p${PARTITION} \
+	wipe_partition_table $DISK0 $DISK1 $DISK2 $DISK3
+	log_must set_partition $PARTITION "" $SIZE $DISK0
+	log_must set_partition $PARTITION "" $SIZE $DISK1
+	log_must set_partition $PARTITION "" $SIZE $DISK2
+	log_must set_partition $PARTITION "" $SIZE $DISK3
+	create_pool $TESTPOOL $POOLTYPE ${DISK0}p${PARTITION} \
 	    ${DISK1}p${PARTITION}
 fi
 

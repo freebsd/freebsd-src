@@ -97,9 +97,7 @@ function cleanup_all
 	typeset i=0
 	while (( i < $MAX_NUM )); do
 		typeset dev_file=${DEVICE_DIR}/${DEVICE_FILE}$i
-		if [[ ! -e ${dev_file} ]]; then
-			log_must $MKFILE $FILE_SIZE ${dev_file}
-		fi
+		[ ! -e ${dev_file} ] && log_must $MKFILE $FILE_SIZE ${dev_file}
 		((i += 1))
 	done
 
@@ -186,14 +184,18 @@ while (( i < ${#vdevs[*]} )); do
 					;;
  			esac
 
-			typeset target=$TESTPOOL1
-			if (( RANDOM % 2 == 0 )) ; then
-				target=$guid
-				log_note "Import by guid."
-			fi
+			log_note "Testing import by name."
 			$action $ZPOOL import \
-				-d $DEVICE_DIR ${options[j]} $target
+				-d $DEVICE_DIR ${options[j]} $TESTPOOL1
 
+			# We have to test for pool existence since action
+			# may be 'log_mustnot'.
+			poolexists $TESTPOOL1 && \
+				log_must $ZPOOL export $TESTPOOL1
+
+			log_note "Testing import by GUID."
+			$action $ZPOOL import \
+				-d $DEVICE_DIR ${options[j]} $guid
 		done
 
 		((j = j + 1))

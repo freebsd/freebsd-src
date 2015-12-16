@@ -43,6 +43,7 @@ verify_runnable "global"
 log_assert "Failing a disk from a SAS expander is recognized by ZFS"
 
 log_onexit autoreplace_cleanup
+ensure_zfsd_running
 
 child_pids=""
 
@@ -66,82 +67,22 @@ for type in "raidz" "mirror"; do
 	disable_sas_disk $EXPANDER $PHY
 
 	# Check to make sure disk is gone.
-	camcontrol inquiry $REMOVAL_DISK > /dev/null 2>&1
-	if [ $? = 0 ]; then
-		log_fail "Disk \"$REMOVAL_DISK\" was not removed"
-	fi
+	find_disk_by_phy $EXPANDER $PHY
+	[ -n "$FOUNDDISK" ] && log_fail "Disk \"$REMOVAL_DISK\" was not removed"
 
 	# Write out data to make sure we can do I/O after the disk failure
-	# XXX KDM should check the status returned from the dd instances
 	log_must dd if=/dev/zero of=$TESTDIR/$TESTFILE bs=1m count=512
 
-	# We waited for the child processes to complete, so they're done.
-	child_pids=""
-
 	# Check to make sure ZFS sees the disk as removed
-	$ZPOOL status $TESTPOOL |grep $REMOVAL_DISK |egrep -q 'REMOVED'
-	if [ $? != 0 ]; then
-		$ZPOOL status $TESTPOOL
-		log_fail "disk $REMOVAL_DISK not listed as removed"
-	fi
-
-	# Make sure that the pool is degraded
-	$ZPOOL status $TESTPOOL |grep "state:" |grep DEGRADED > /dev/null
-	if [ $? != 0 ]; then
-		$ZPOOL status $TESTPOOL
-		log_fail "Pool $TESTPOOL not listed as DEGRADED"
-	fi
+	wait_for_pool_removal 20
 
 	# Re-enable the disk, we don't want to leave it turned off
 	log_note "Re-enabling phy $PHY on expander $EXPANDER"
 	enable_sas_disk $EXPANDER $PHY
+	wait_for_disk_to_reappear 20
 
-	log_note "Checking to see whether disk has reappeared"
-	# Make sure the disk is back in the topology
-	find_disk_by_phy $EXPANDER $PHY
-	((retries=0))
-	while [ -z "$FOUNDDISK" ] && [ "$retries" -lt 10 ]; do
-		$SLEEP 5
-		find_disk_by_phy $EXPANDER $PHY
-	done
-
-	if [ -z "$FOUNDDISK" ]; then
-		camcontrol $EXPANDER
-		log_fail "Disk $REMOVAL_DISK has not appeared at phy $PHY on expander $EXPANDER after 50 seconds"
-	else
-		log_note "Disk $REMOVAL_DISK is back as $FOUNDDISK"
-	fi
-
-	log_note "Raid type is $type"
-
-	#Disk should have auto-joined the zpool. Verify it's status is online.
-	$ZPOOL status |grep $REMOVAL_DISK |grep ONLINE > /dev/null
-	if [ $? != 0 ]; then
-		$ZPOOL status $TESTPOOL
-		log_fail "disk $REMOVAL_DISK did not automatically join the $TESTPOOL"
-	else 
-		log_note "After reinsertion, disk is back in pool and online"
-	fi
-
-	#Make sure auto resilver has begun
-	((retries=5))
-        $ZPOOL status $TESTPOOL | egrep "scan:.*(resilver.in.progress|resilvered)" > /dev/null
-	while [ $? != 0 ] && [ "$retries" -gt 0 ]; do
-		log_note "Waiting for autoresilver to start: Retry $retries"
-		$SLEEP 2
-		((retries--))
-                $ZPOOL status $TESTPOOL | egrep "scan:.*(resilver.in.progress|resilvered)" > /dev/null
-	done
-
-        $ZPOOL status $TESTPOOL | egrep "scan:.*(resilver.in.progress|resilvered)" > /dev/null
-	if [ $? != 0 ]; then
-		$ZPOOL status $TESTPOOL
-		log_fail "Pool $TESTPOOL did not auto-resilver"
-	else
-		log_note "Auto-resilver of disk has started sucessfully."
-	fi
-
-	#Wait, then verify resilver done, and that pool optimal
+	# Disk should auto-join the zpool & be resilvered.
+	wait_for_pool_dev_state_change 20 $REMOVAL_DISK ONLINE
 	wait_until_resilvered
 
 	$ZPOOL status $TESTPOOL

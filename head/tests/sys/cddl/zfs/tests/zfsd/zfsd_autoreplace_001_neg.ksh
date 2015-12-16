@@ -83,6 +83,7 @@ function verify_assertion
 typeset REMOVAL_DISK=$DISK0
 typeset POOLDEVS="$DISK0 $DISK1 $DISK2 $DISK3"
 set -A MY_KEYWORDS "mirror" "raidz1" "raidz2"
+ensure_zfsd_running
 for keyword in "${MY_KEYWORDS[@]}" ; do
 	log_must create_pool $TESTPOOL $keyword $POOLDEVS
 	log_must poolexists "$TESTPOOL"

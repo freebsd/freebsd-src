@@ -31,6 +31,15 @@
 # $FreeBSD$
 #
 
+# Get all PHYs for a given expander.
+# Returns formatting suitable for iteration.
+function get_all_phys
+{
+	typeset expander=$1
+	camcontrol smpphylist $expander -q | awk '{print $1" "$NF}' | \
+		tr -d '()' | tr ',' ' ' | tr '\n' ','
+}
+
 #
 # Given a disk (e.g. /dev/da0 or da0), determine the following:
 #	- Does it exist in CAM?
@@ -45,9 +54,7 @@ function find_verify_sas_disk
 	typeset DISK=${1##*/}
 	typeset i
 
-	if [ ! -c /dev/$DISK ]; then
-		log_fail "Cannot find device \"/dev/$DISK\", arg is \"$1\""
-	fi
+	[ ! -c /dev/$DISK ] && log_fail "\"/dev/$DISK\" is not a char device"
 
 	# Make sure this device exists.  An inquiry should always succeed,
 	# even if there is a pending error.
@@ -61,14 +68,11 @@ function find_verify_sas_disk
 
 	typeset FOUND=0
 
-	for i in $PASSLIST;
-	do
+	for i in $PASSLIST; do
 		# Make sure this particular device supports SMP.  If not,
 		# no big deal, keep going.
 		camcontrol smprg $i > /dev/null 2>&1
-		if [ $? != 0 ]; then
-			continue
-		fi
+		[ $? -ne 0 ] && continue
 
 		# Make sure this particular device is an Enclosure Services
 		# device.  That way, we won't wind up removing the device
@@ -78,17 +82,13 @@ function find_verify_sas_disk
 		# advantage of the fact that most (all?) expanders include
 		# a SES device.
 		camcontrol inquiry $i |grep "Enclosure Services" > /dev/null
-		if [ $? != 0 ]; then
-			continue
-		fi
+		[ $? -ne 0 ] && continue
 
 		# For every peripheral, we go through and pull out the
 		# list of devices and their phys that we can see via this
 		# peripheral.
 		IFS=","
-		for j in `camcontrol smpphylist $i -q |awk '{print $1" "$NF}' |\
-			tr -d '()' |tr ',' ' ' |tr '\n' ','`
-		do
+		for j in $(get_all_phys $i); do
 			IFS=", \n"
 			set -A PERIPHLIST $j
 			unset IFS
@@ -108,21 +108,15 @@ function find_verify_sas_disk
 				break;
 			fi
 		done
-
 		unset IFS
 
-		if [ $FOUND != 0 ]; then
-			break;
-		fi
+		[ $FOUND -ne 0 ] && break
 	done
-
-	if [ $FOUND = 0 ]; then
-		log_fail "Could not find PHY for disk $DISK"
-	fi
-
+	[ $FOUND -eq 0 ] && log_fail "Could not find PHY for disk $DISK"
 }
 
-# Given an expander and phy number, find the 
+#
+# Given an expander and phy number, find the disk device name.
 # 
 function find_disk_by_phy
 {
@@ -133,35 +127,25 @@ function find_disk_by_phy
 	unset FOUNDDISK
 
 	IFS=","
-	for j in `camcontrol smpphylist $1 -q |awk '{print $1" "$NF}' |\
-		tr -d '()' |tr ',' ' ' |tr '\n' ','`
-	do
+	for j in $(get_all_phys $EXPANDER); do
 		IFS=", \n"
 		set -A PERIPHLIST $j
 		unset IFS
-		if [ ${PERIPHLIST[0]} != $2 ]; then
-			continue;
-		fi
+		[ "${PERIPHLIST[0]}" != "$2" ] && continue
 
 		typeset NUMPERIPHS=${#PERIPHLIST[*]}
 
-		((k=1))
-		while [ $k -lt $NUMPERIPHS ]; do 
+		for ((k=1; $k < $NUMPERIPHS; k=$k + 1)); do
 			((PSTOP=$NUMPERIPHS-1))
 			if [ "${PERIPHLIST[$k]%%[0-9]*}" != "pass" ] || \
 			   [ "$k" -eq $PSTOP ]; then
 				export FOUNDDISK=${PERIPHLIST[$k]}
 				break;
 			fi
-			((k=k+1))
 		done
 		FOUND=1
 		break;
 	done
-
-	if [ "$FOUND" = 0 ]; then
-		log_fail "could not find peripheral for phy $2 on expander $1"
-	fi
 }
 
 # Given an expander and phy on that expander, disable the phy.
@@ -173,36 +157,29 @@ function disable_sas_disk
 	typeset PHY=$2
 
 	# Disable the phy for this particular device
-	camcontrol smppc $EXPANDER -v -p $PHY -o disable
-	if [ $? != 0 ]; then
-		log_fail "error disabling phy $PHY on $EXPANDER to remove $DISK"
-	fi
-
-	# Wait for the rescan to happen
-	if [ -z $NO_SAS_DISK_WAIT ]; then
-		log_note "waiting 10 seconds for device to go away"
-		$SLEEP 10
-	fi
+	log_must camcontrol smppc $EXPANDER -v -p $PHY -o disable
 }
 
 # Given an expander and phy on that expander, enable the phy.
 # This function will exit (via log_fail) if it can't send the link reset
 # request.
-#
-# XXX KDM in tests, the link reset doesn't always cause the disk to show
-# up.  A rescan does seem to work in that situation, however.
 function enable_sas_disk
 {
 	typeset EXPANDER=$1
 	typeset PHY=$2
 
 	# Send a link reset to bring the device back
-	camcontrol smppc $EXPANDER -p $PHY -o linkreset
-	if [ $? != 0 ]; then
-		log_fail "error sending a linkreset to phy $PHY on $EXPANDER"
+	log_must camcontrol smppc $EXPANDER -p $PHY -o linkreset
+}
+
+function rescan_disks
+{
+	if [[ -z "$1" ]]; then
+		log_must camcontrol rescan all >/dev/null
+		return
 	fi
 
-	if [ -z $NO_SAS_DISK_WAIT ]; then
-		$SLEEP 10
-	fi
+	for device in $(echo $* | sort -u); do
+		log_must camcontrol rescan $device >/dev/null
+	done
 }

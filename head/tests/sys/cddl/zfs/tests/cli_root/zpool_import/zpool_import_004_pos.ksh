@@ -60,13 +60,34 @@ verify_runnable "global"
 function cleanup
 {
 	destroy_pool $TESTPOOL1
-
 	log_must $RM -rf $DEVICE_DIR/*
-	typeset i=0
-	while (( i < $MAX_NUM )); do
-		log_must $MKFILE $FILE_SIZE ${DEVICE_DIR}/${DEVICE_FILE}$i
-		((i += 1))
-	done
+}
+
+function perform_test
+{
+	target=$1
+
+	assert_pool_in_cachefile $TESTPOOL1
+	log_must $ZPOOL destroy $TESTPOOL1
+
+	log_note "Devices was moved to different directories."
+	log_must $MKDIR -p $DEVICE_DIR/newdir1 $DEVICE_DIR/newdir2
+	log_must $MV $VDEV1 $DEVICE_DIR/newdir1
+	log_must $MV $VDEV2 $DEVICE_DIR/newdir2
+	log_must $ZPOOL import -d $DEVICE_DIR/newdir1 -d $DEVICE_DIR/newdir2 \
+		-d $DEVICE_DIR -D -f $target
+	log_must $ZPOOL destroy -f $TESTPOOL1
+
+	log_note "Devices was moved to same directory."
+	log_must $MV $VDEV0 $DEVICE_DIR/newdir2
+	log_must $MV $DEVICE_DIR/newdir1/* $DEVICE_DIR/newdir2
+	log_must $ZPOOL import -d $DEVICE_DIR/newdir2 -D -f $target
+	log_must $ZPOOL destroy -f $TESTPOOL1
+
+	# Revert at the end so this test can be rerun.
+	log_must $MV $DEVICE_DIR/newdir2/$(basename $VDEV0) $VDEV0
+	log_must $MV $DEVICE_DIR/newdir2/$(basename $VDEV1) $VDEV1
+	log_must $MV $DEVICE_DIR/newdir2/$(basename $VDEV2) $VDEV2
 }
 
 log_assert "Destroyed pools devices was moved to another directory," \
@@ -74,26 +95,14 @@ log_assert "Destroyed pools devices was moved to another directory," \
 log_onexit cleanup
 
 log_must $ZPOOL create $TESTPOOL1 $VDEV0 $VDEV1 $VDEV2
+log_note "Testing import by name '$TESTPOOL1'."
+perform_test $TESTPOOL1
+
+log_must $ZPOOL create $TESTPOOL1 $VDEV0 $VDEV1 $VDEV2
+log_must $ZPOOL status $TESTPOOL1
+log_must $ZDB -C $TESTPOOL1
 typeset guid=$(get_config $TESTPOOL1 pool_guid)
-typeset target=$TESTPOOL1
-if (( RANDOM % 2 == 0 )) ; then
-	target=$guid
-	log_note "Import by guid."
-fi
-log_must $ZPOOL destroy $TESTPOOL1
-
-log_note "Devices was moved to different directories."
-log_must $MKDIR $DEVICE_DIR/newdir1 $DEVICE_DIR/newdir2
-log_must $MV $VDEV1 $DEVICE_DIR/newdir1
-log_must $MV $VDEV2 $DEVICE_DIR/newdir2
-log_must $ZPOOL import -d $DEVICE_DIR/newdir1 -d $DEVICE_DIR/newdir2 \
-	-d $DEVICE_DIR -D -f $target
-log_must $ZPOOL destroy -f $TESTPOOL1
-
-log_note "Devices was moved to same directory."
-log_must $MV $VDEV0 $DEVICE_DIR/newdir2
-log_must $MV $DEVICE_DIR/newdir1/* $DEVICE_DIR/newdir2
-log_must $ZPOOL import -d $DEVICE_DIR/newdir2 -D -f $target
-log_must $ZPOOL destroy -f $TESTPOOL1
+log_note "Testing import by GUID '${guid}'."
+perform_test $guid
 
 log_pass "Destroyed pools devices was moved, 'zpool import -D' passed."

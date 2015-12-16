@@ -91,6 +91,7 @@ log_onexit cleanup
 
 log_assert "A spare that is added to a degraded pool will be activated"
 
+ensure_zfsd_running
 set_devs
 
 typeset  sdev="${sparedevs[0]}"

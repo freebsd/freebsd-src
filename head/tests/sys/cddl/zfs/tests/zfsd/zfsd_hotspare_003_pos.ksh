@@ -95,6 +95,7 @@ log_assert "A faulted vdev will be replaced by an available spare"
 
 log_onexit cleanup
 
+ensure_zfsd_running
 set_devs
 typeset  sdev="${devarray[0]}"
 

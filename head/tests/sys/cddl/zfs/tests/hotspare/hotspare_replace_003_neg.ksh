@@ -49,15 +49,16 @@
 # 8.  Destroy the pool.
 
 cleanup() {
+	[[ $DISK0_PHY != 0 ]] && enable_sas_disk $DISK0_EXPANDER $DISK0_PHY
+	[[ $SPARE0_PHY != 0 ]] && enable_sas_disk $SPARE0_EXPANDER $SPARE0_PHY
+	[[ $SPARE1_PHY != 0 ]] && enable_sas_disk $SPARE1_EXPANDER $SPARE1_PHY
+	rescan_disks
 	if poolexists $TESTPOOL; then
 		# Test failed, provide something useful.
 		log_note "For reference, here is the final $TESTPOOL status:"
 		zpool status $TESTPOOL
 		log_must destroy_pool $TESTPOOL
 	fi
-	[[ $DISK0_PHY != 0 ]] && enable_sas_disk $DISK0_EXPANDER $DISK0_PHY
-	[[ $SPARE0_PHY != 0 ]] && enable_sas_disk $SPARE0_EXPANDER $SPARE0_PHY
-	[[ $SPARE1_PHY != 0 ]] && enable_sas_disk $SPARE1_EXPANDER $SPARE1_PHY
 }
 
 log_onexit cleanup
@@ -127,6 +128,7 @@ wait_until_resilvered
 
 log_must enable_sas_disk $SPARE0_EXPANDER $SPARE0_PHY
 log_must enable_sas_disk $DISK0_EXPANDER $DISK0_PHY
+log_must rescan_disks
 
 log_must destroy_pool $TESTPOOL
 

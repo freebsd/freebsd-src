@@ -629,7 +629,13 @@ function wipe_partition_table #<whole_disk_name> [<whole_disk_name> ...]
 {
 	while [[ -n $* ]]; do
 		typeset diskname=$1
-		$GPART destroy -F $diskname >/dev/null 2>&1
+		[ ! -e $diskname ] && log_fail "ERROR: $diskname doesn't exist"
+		if gpart list $(basename $diskname) >/dev/null 2>&1; then
+			log_must $GPART destroy -F $diskname
+		else
+			log_note "No GPT partitions detected on $diskname"
+		fi
+		log_must $GPART create -s gpt $diskname
 		shift
 	done
 }
@@ -655,8 +661,6 @@ function set_partition #<slice_num> <slice_start> <size_plus_units>  <whole_disk
 	size=`$ECHO $size| sed s/gb/G/`
 	size=`$ECHO $size| sed s/g/G/`
 	[[ -n $start ]] && start="-b $start"
-	# Ignore the return value; it will fail if $disk is already partitioned
-	$GPART create -s GPT $disk > /dev/null 2>&1
 	log_must $GPART add -t efi $start -s $size -i $slicenum $disk
 	return 0
 }
@@ -1617,8 +1621,14 @@ function is_pool_scrub_stopped #pool
 function cleanup_devices #vdevs
 {
 	for device in $@; do
-		wipe_partition_table $device
-		$ZPOOL labelclear -f $device
+		# Labelclear must happen first, otherwise it may interfere
+		# with the teardown/setup of GPT labels.
+		log_must $ZPOOL labelclear -f $device
+		# Only wipe partition tables for arguments that are disks,
+		# as opposed to slices (which are valid arguments here).
+		if camcontrol inquiry $device >/dev/null 2>&1; then
+			wipe_partition_table $device
+		fi
 	done
 	return 0
 }
@@ -2284,6 +2294,74 @@ function get_disk_guid
 }
 
 #
+# Get cachefile for a pool.
+# Prints the cache file, if there is one.
+# Returns 0 for a default zpool.cache, 1 for an explicit one, and 2 for none.
+#
+function cachefile_for_pool
+{
+	typeset pool=$1
+
+	cachefile=$(get_pool_prop cachefile $pool)
+	[[ $? != 0 ]] && return 1
+
+	case "$cachefile" in
+		none)	ret=2 ;;
+		"-")
+			ret=2
+			for dir in /boot/zfs /etc/zfs; do
+				if [[ -f "${dir}/zpool.cache" ]]; then
+					cachefile="${dir}/zpool.cache"
+					ret=0
+					break
+				fi
+			done
+			;;
+		*)	ret=1;
+	esac
+	[[ $ret -eq 0 || $ret -eq 1 ]] && print "$cachefile"
+	return $ret
+}
+
+#
+# Assert that the pool is in the appropriate cachefile.
+#
+function assert_pool_in_cachefile
+{
+	typeset pool=$1
+
+	cachefile=$(cachefile_for_pool $pool)
+	[ $? -ne 0 ] && log_fail "ERROR: Cachefile not created for '$pool'?"
+	log_must test -e "${cachefile}"
+	log_must zdb -U ${cachefile} -C ${pool}
+}
+
+#
+# Get the zdb options given the cachefile state of the pool.
+#
+function zdb_cachefile_opts
+{
+	typeset pool=$1
+	typeset vdevdir=$2
+	typeset opts
+
+	if poolexists "$pool"; then
+		cachefile=$(cachefile_for_pool $pool)
+		typeset -i ret=$?
+		case $ret in
+			0)	opts="-C" ;;
+			1)	opts="-U $cachefile -C" ;;
+			2)	opts="-eC" ;;
+			*)	log_fail "Unknown return '$ret'" ;;
+		esac
+	else
+		opts="-eC"
+		[[ -n "$vdevdir" ]] && opts="$opts -p $vdevdir"
+	fi
+	echo "$opts"
+}
+
+#
 # Get configuration of pool
 # $1 pool name
 # $2 config name
@@ -2296,35 +2374,7 @@ function get_config
 	typeset alt_root
 	typeset zdb_opts
 
-	if poolexists "$pool"; then
-		cachefile=$(get_pool_prop cachefile $pool)
-		if [[ $? != 0 ]]; then
-			# Shouldn't get here.  Try treating as an exported pool
-			zdb_opts="-eC"
-		else
-			case $cachefile in
-				none)
-					# Treat as exported pool
-					zdb_opts="-eC"
-					break
-					;;
-				"-")
-					# Normal pool
-					zdb_opts="-C"
-					break
-					;;
-				*)
-					zdb_opts="-U $cachefile -C"
-					break
-					;;
-			esac
-		fi
-	else
-		# use -e for exported pools
-		zdb_opts="-eC"
-		[[ -n "$vdevdir" ]] && zdb_opts="$zdb_opts -p $vdevdir"
-	fi
-
+	zdb_opts=$(zdb_cachefile_opts $pool $vdevdir)
 	value=$($ZDB $zdb_opts $pool | $GREP "$config:" | $AWK -F: '{print $2}')
 	if [[ -n $value ]] ; then
 		value=${value#'}
@@ -2332,7 +2382,7 @@ function get_config
 	else
 		return 1
 	fi
-	print $value
+	echo $value
 
 	return 0
 }
@@ -2844,6 +2894,17 @@ function get_zpool_version
 	echo $ZPOOL_VERSION
 }
 
+# Ensures that zfsd is running, starting it if necessary.  Every test that
+# interacts with zfsd must call this at startup.  This is intended primarily
+# to eliminate interference from outside the test suite.
+function ensure_zfsd_running
+{
+	if ! service zfsd status > /dev/null 2>&1; then
+		service zfsd start || service zfsd onestart
+		service zfsd status > /dev/null 2>&1 ||
+			log_unsupported "Test requires zfsd"
+	fi
+}
 
 # Temporarily stops ZFSD, because it can interfere with some tests.  If this
 # function is used, then restart_zfsd _must_ be called in the cleanup routine.

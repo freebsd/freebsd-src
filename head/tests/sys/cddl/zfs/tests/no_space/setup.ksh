@@ -36,6 +36,7 @@ fi
 
 DISK=${DISKS%% *}
 
+wipe_partition_table $DISK
 log_must set_partition 1 "" $SIZE $DISK
 
 default_setup $DISK"p1"

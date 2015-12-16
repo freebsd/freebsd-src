@@ -71,26 +71,40 @@ log_assert "Destroyed pools devices was renamed, it still can be imported " \
 	"correctly."
 log_onexit cleanup
 
+function perform_test
+{
+	typeset target=$1
+
+	assert_pool_in_cachefile $TESTPOOL1
+	log_must $ZPOOL destroy $TESTPOOL1
+
+	log_note "Testing some devices renamed in the same directory."
+	log_must $MV $VDEV0 $DEVICE_DIR/vdev0-new
+	log_must $ZPOOL import -d $DEVICE_DIR -D -f $target
+	log_must $ZPOOL destroy -f $TESTPOOL1
+
+	log_note "Testing all devices moved to different directories."
+	log_must $MKDIR -p $DEVICE_DIR/newdir1 $DEVICE_DIR/newdir2
+	log_must $MV $VDEV1 $DEVICE_DIR/newdir1/vdev1-new
+	log_must $MV $VDEV2 $DEVICE_DIR/newdir2/vdev2-new
+	log_must $ZPOOL import -d $DEVICE_DIR/newdir1 -d $DEVICE_DIR/newdir2 \
+		-d $DEVICE_DIR -D -f $target
+	log_must $ZPOOL destroy -f $TESTPOOL1
+
+	# Restore the vdevs to their old location so this can be re-run
+	log_note "Restoring vdev files for any further runs."
+	log_must $MV $DEVICE_DIR/vdev0-new $VDEV0
+	log_must $MV $DEVICE_DIR/newdir1/vdev1-new $VDEV1
+	log_must $MV $DEVICE_DIR/newdir2/vdev2-new $VDEV2
+}
+
+log_note "Testing import by name."
+log_must $ZPOOL create $TESTPOOL1 $VDEV0 $VDEV1 $VDEV2
+perform_test $TESTPOOL1
+
+log_note "Testing import by GUID."
 log_must $ZPOOL create $TESTPOOL1 $VDEV0 $VDEV1 $VDEV2
 typeset guid=$(get_config $TESTPOOL1 pool_guid)
-typeset target=$TESTPOOL1
-if (( RANDOM % 2 == 0 )) ; then
-	target=$guid
-	log_note "Import by guid."
-fi
-log_must $ZPOOL destroy $TESTPOOL1
-
-log_note "Part of devices was renamed in the same directory."
-log_must $MV $VDEV0 $DEVICE_DIR/vdev0-new
-log_must $ZPOOL import -d $DEVICE_DIR -D -f $target
-log_must $ZPOOL destroy -f $TESTPOOL1
-
-log_note "All of devices was rename to different directories."
-log_must $MKDIR $DEVICE_DIR/newdir1 $DEVICE_DIR/newdir2
-log_must $MV $VDEV1 $DEVICE_DIR/newdir1/vdev1-new
-log_must $MV $VDEV2 $DEVICE_DIR/newdir2/vdev2-new
-log_must $ZPOOL import -d $DEVICE_DIR/newdir1 -d $DEVICE_DIR/newdir2 \
-	-d $DEVICE_DIR -D -f $target
-log_must $ZPOOL destroy -f $TESTPOOL1
+perform_test $guid
 
 log_pass "Destroyed pools devices was renamed, 'zpool import -D' passed."

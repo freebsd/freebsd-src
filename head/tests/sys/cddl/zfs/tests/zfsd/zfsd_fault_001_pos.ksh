@@ -76,7 +76,7 @@ function cleanup
 log_assert "ZFS will fault a vdev that produces IO errors"
 
 log_onexit cleanup
-
+ensure_zfsd_running
 
 # Make sure that at least one of the disks is using the da driver, and use
 # that disk for inject errors

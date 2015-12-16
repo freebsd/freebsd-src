@@ -27,6 +27,72 @@
 
 # Common routines used by multiple zfsd tests
 
+function wait_for_disk_to_reappear
+{
+	typeset -i timeout=$1
+	typeset EXPECTED_DISK=$2
+
+	for ((; $timeout > 0; timeout=$timeout-1)); do
+		find_disk_by_phy $EXPANDER $PHY
+		[ -n "$FOUNDDISK" ] && return
+		$SLEEP 3
+	done
+	log_fail "ERROR: Disk ${EXPECTED_DISK} never reappeared"
+}
+
+function wait_for_pool_dev_state_change
+{
+	typeset -i timeout=$1
+	typeset disk=$2
+	typeset state=$3
+
+	log_note "Waiting up to $timeout seconds for $disk to become $state ..."
+	for ((; $timeout > 0; timeout=$timeout-1)); do
+		check_state $TESTPOOL "$disk" "$state"
+		[ $? -eq 0 ] && return
+		$SLEEP 1
+	done
+	log_must $ZPOOL status $TESTPOOL
+	log_fail "ERROR: Disk $disk not marked as $state in $TESTPOOL"
+}
+
+function wait_for_pool_removal
+{
+	typeset -i timeout=$1
+	wait_for_pool_dev_state_change $timeout $REMOVAL_DISK REMOVED
+}
+
+function wait_until_scrubbed
+{
+	typeset pool=$1
+
+	while is_pool_scrubbing $pool; do
+		log_note "$pool still scrubbing..."
+		$SLEEP 1
+	done
+}
+
+function corrupt_pool_vdev
+{
+	typeset pool=$1
+	typeset vdev=$2
+	typeset file=$3
+
+	# do some IO on the pool
+	log_must $DD if=/dev/zero of=$file bs=1024k count=16
+	# scribble on the underlying file to corrupt the vdev
+	log_must $DD if=/dev/urandom of=$vdev bs=1024k count=64 conv=notrunc
+
+	# Scrub the pool to detect the corruption
+	$SYNC
+	log_must $ZPOOL scrub $pool
+	wait_until_scrubbed $pool
+
+	# ZFSD can take up to 60 seconds to degrade an array in response to
+	# errors (though it's usually faster).  
+	wait_for_pool_dev_state_change 60 $vdev DEGRADED
+}
+
 #
 # do_autoreplace
 # Common code that walks through an autoreplace scenario
@@ -43,29 +109,16 @@ function do_autoreplace
 	log_note "Disabling \"$REMOVAL_DISK\" on expander $EXPANDER phy $PHY"
 	disable_sas_disk $EXPANDER $PHY
 
-	#Check to make sure the disk is gone
-	camcontrol inquiry $REMOVAL_DISK > /dev/null 2>&1
-	if [ $? = 0 ]; then
-		log_fail "Disk \"$REMOVAL_DISK\" was not removed"
-	fi
+	# Check to make sure the disk is gone
+	log_mustnot camcontrol inquiry $REMOVAL_DISK
 
 	# Check to make sure ZFS sees the disk as removed
-	for ((timeout=0; $timeout<30; timeout=$timeout+1)); do
-		check_state $TESTPOOL "$REMOVAL_DISK" "REMOVED"
-		is_removed=$?
-		if [[ $is_removed == 0 ]]; then
-			break
-		fi
-		$SLEEP 3
-	done
-	log_must check_state $TESTPOOL "$REMOVAL_DISK" "REMOVED"
+	wait_for_pool_removal 30
 
 	if [ -n "$SPARE_DISK" ]; then
 		# Verify that the spare activates
 		for ((timeout=0; $timeout<10; timeout=$timeout+1)); do
-			if check_state $TESTPOOL $SPARE_DISK "ONLINE"; then
-				break
-			fi
+			check_state $TESTPOOL $SPARE_DISK "ONLINE" && break
 			$SLEEP 6
 		done
 		log_must check_state $TESTPOOL "$SPARE_DISK" "ONLINE"
@@ -81,18 +134,8 @@ function do_autoreplace
 	# Reenable the missing dev's SAS phy
 	log_note "Reenabling phy on expander $EXPANDER phy $PHY"
 	enable_sas_disk $EXPANDER $PHY
-	# Check that the disk has returned
-	for ((timeout=0; $timeout<30; timeout=$timeout+1)); do
-		find_disk_by_phy $EXPANDER $PHY
-		if [[ -n "$FOUNDDISK" ]]; then
-			break
-		fi
-		$SLEEP 3
-	done
-
-	if [[ -z "$FOUNDDISK" ]]; then
-		log_fail "Disk $REMOVAL_DISK never reappeared"
-	fi
+	rescan_disks $EXPANDER
+	wait_for_disk_to_reappear 30 $REMOVAL_DISK
 
 	# Erase the missing dev's ZFS label
 	log_must $ZPOOL labelclear -f $( find_disks $FOUNDDISK )
@@ -102,11 +145,8 @@ function do_autoreplace
 	log_note "Disabling \"$FOUNDDISK\" on expander $EXPANDER phy $PHY"
 	disable_sas_disk $EXPANDER $PHY
 
-	#Check to make sure the disk is gone
-	camcontrol inquiry $FOUNDDISK > /dev/null 2>&1
-	if [ $? = 0 ]; then
-		log_fail "Disk \"$FOUNDDISK\" was not removed"
-	fi
+	# Check to make sure the disk is gone
+	log_mustnot camcontrol inquiry $REMOVAL_DISK
 
 	# Import the pool
 	log_must $ZPOOL import $TESTPOOL
@@ -117,40 +157,28 @@ function do_autoreplace
 	# Reenable the missing dev's SAS phy
 	log_note "Reenabling phy on expander $EXPANDER phy $PHY"
 	enable_sas_disk $EXPANDER $PHY
-	# Check that the disk has returned
-	for ((timeout=0; $timeout<30; timeout=$timeout+1)); do
-		find_disk_by_phy $EXPANDER $PHY
-		if [[ -n "$FOUNDDISK" ]]; then
-			break
-		fi
-		$SLEEP 3
-	done
-
-	if [[ -z "$FOUNDDISK" ]]; then
-		log_fail "Disk $FOUNDDISK never reappeared"
-	fi
+	rescan_disks $EXPANDER
+	wait_for_disk_to_reappear 30 $REMOVAL_DISK
 }
 
 function autoreplace_cleanup
 {
-	poolexists $TESTPOOL && \
-		destroy_pool $TESTPOOL
+	destroy_pool $TESTPOOL
 
 	# See if the phy has been disabled, and try to re-enable it if possible.
-	echo DISK params are "$REMOVAL_DISK" $EXPANDER $PHY
-	if [ -n "$REMOVAL_DISK" ]; then
-		if [ -n "$EXPANDER" ] && [ -n "$PHY" ]; then
-			log_note "Renabling ${EXPANDER}:${PHY} for disk ${REMOVAL_DISK}"
-			enable_sas_disk $EXPANDER $PHY
-			# For debugging purposes, log the partial output of
-			# camcontrol to see if the disk actually came back.
-			log_note `camcontrol smpphylist ${EXPANDER} | ${GREP} "^ *${PHY}"`
-		fi
+	if [ -n "$REMOVAL_DISK" -a -n "$EXPANDER" -a -n "$PHY" ]; then
+		log_note "Renabling ${EXPANDER}:${PHY} for disk ${REMOVAL_DISK}"
+		enable_sas_disk $EXPANDER $PHY
+		rescan_disks $EXPANDER
+
+		# For debugging purposes, log the partial output of
+		# camcontrol to see if the disk actually came back.
+		out=$(camcontrol smpphylist ${EXPANDER} | ${GREP} "^ *${PHY}")
+		log_note "Expander has: ${out}"
 	fi
 
 	[[ -e $TESTDIR ]] && log_must $RM -rf $TESTDIR/*
 
 	partition_cleanup
+	restart_zfsd
 }
-
-

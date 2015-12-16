@@ -75,13 +75,7 @@ function verify_assertion
 {
 	do_autoreplace "$SPARE_DISK"
 	# Verify that the original disk gets added to the pool
-	for ((timeout=0; $timeout<10; timeout=$timeout+1)); do
-		if check_state $TESTPOOL $REMOVAL_DISK "ONLINE"; then
-			break
-		fi
-		$SLEEP 6
-	done
-	log_must check_state $TESTPOOL "$REMOVAL_DISK" "ONLINE"
+	wait_for_pool_dev_state_change 20 $REMOVAL_DISK ONLINE
 
 	# Wait for resilvering to complete
 	wait_until_resilvered
@@ -95,6 +89,7 @@ typeset SPARE_DISK=$DISK0
 typeset REMOVAL_DISK=$DISK1
 typeset POOLDEVS="$DISK1 $DISK2 $DISK3 $DISK4"
 set -A MY_KEYWORDS "mirror" "raidz1" "raidz2"
+ensure_zfsd_running
 for keyword in "${MY_KEYWORDS[@]}" ; do
 	log_must create_pool $TESTPOOL $keyword $POOLDEVS spare $SPARE_DISK
 	log_must poolexists "$TESTPOOL"

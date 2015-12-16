@@ -40,6 +40,7 @@ if [[ -n $SINGLE_DISK ]]; then
 else
 	log_note "Partitioning disks ($MIRROR_PRIMARY $MIRROR_SECONDARY)"
 fi
+wipe_partition_table ${SINGLE_DISK} ${MIRROR_PRIMARY} ${MIRROR_SECONDARY}
 log_must set_partition ${SIDE_PRIMARY##*p} "" $MIRROR_SIZE $MIRROR_PRIMARY
 log_must set_partition ${SIDE_SECONDARY##*p} "" $MIRROR_SIZE $MIRROR_SECONDARY
 

@@ -104,12 +104,40 @@ function recreate_files
 	done
 }
 
+function perform_inner_test
+{
+	typeset action=$1
+	typeset import_opts=$2
+	typeset target=$3
+
+	$action $ZPOOL import -d $DEVICE_DIR ${import_opts} $target
+	[[ $action == "log_mustnot" ]] && return
+
+	log_must poolexists $TESTPOOL1
+
+	health=$($ZPOOL list -H -o health $TESTPOOL1)
+	[[ "$health" == "DEGRADED" ]] || \
+		log_fail "ERROR: $TESTPOOL1: Incorrect health '$health'"
+	log_must ismounted $TESTPOOL1/$TESTFS
+
+	basedir=$TESTDIR1
+	[[ -n "${import_opts}" ]] && basedir=$ALTER_ROOT/$TESTDIR1
+	[[ ! -e "$basedir/$TESTFILE0" ]] && \
+		log_fail "ERROR: $basedir/$TESTFILE0 missing after import."
+
+	checksum2=$($SUM $basedir/$TESTFILE0 | $AWK '{print $1}')
+	[[ "$checksum1" != "$checksum2" ]] && \
+		log_fail "ERROR: Checksums differ ($checksum1 != $checksum2)"
+
+	log_must $ZPOOL export $TESTPOOL1
+}
+
 log_onexit cleanup
 
 log_assert "Verify that import could handle damaged or missing device."
 
 CWD=$PWD
-cd $DEVICE_DIR || log_fail "Unable change directory to $DEVICE_DIR"
+cd $DEVICE_DIR || log_fail "ERROR: Unable change directory to $DEVICE_DIR"
 
 checksum1=$($SUM $MYTESTFILE | $AWK '{print $1}')
 
@@ -171,35 +199,11 @@ while (( i < ${#vdevs[*]} )); do
 					;;
  			esac
 
-			typeset target=$TESTPOOL1
-			if (( RANDOM % 2 == 0 )) ; then
-				target=$guid
-				log_note "Import by guid."
-			fi
-			$action $ZPOOL import \
-				-d $DEVICE_DIR ${options[j]} $target
+			log_note "Testing import by name."
+			perform_inner_test $action "${options[j]}" $TESTPOOL1
 
-			[[ $action == "log_mustnot" ]] && continue
-
-			log_must poolexists $TESTPOOL1
-
-			health=$($ZPOOL list -H -o health $TESTPOOL1)
-
-			[[ $health == "DEGRADED" ]] || \
-				log_fail "$TESTPOOL1: Incorrect health($health)" 
-			log_must ismounted $TESTPOOL1/$TESTFS
-
-			basedir=$TESTDIR1
-			[[ -n ${options[j]} ]] && \
-				basedir=$ALTER_ROOT/$TESTDIR1
-
-			[[ ! -e $basedir/$TESTFILE0 ]] && \
-				log_fail "$basedir/$TESTFILE0 missing after import."
-
-			checksum2=$($SUM $basedir/$TESTFILE0 | $AWK '{print $1}')
-			[[ "$checksum1" != "$checksum2" ]] && \
-				log_fail "Checksums differ ($checksum1 != $checksum2)"
-
+			log_note "Testing import by GUID."
+			perform_inner_test $action "${options[j]}" $guid
 		done
 
 		((j = j + 1))

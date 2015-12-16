@@ -129,6 +129,7 @@ log_assert "Two simultaneously faulted vdevs will be replaced by available spare
 
 log_onexit cleanup
 
+ensure_zfsd_running
 set_devs
 typeset  sdev0="${devarray[0]}"
 typeset  sdev1="${devarray[1]}"

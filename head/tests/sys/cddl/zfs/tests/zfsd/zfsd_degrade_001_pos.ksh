@@ -75,43 +75,15 @@ log_assert "ZFS will degrade a vdev that produces checksum errors"
 
 log_onexit cleanup
 
-log_must $MKFILE 100M ${VDEV0}
-log_must $MKFILE 100M ${VDEV1}
-
-
+log_must $MKFILE 64M ${VDEV0} ${VDEV1}
+ensure_zfsd_running
 for type in "raidz" "mirror"; do
 	log_note "Testing raid type $type"
 
 	create_pool $TESTPOOL $type ${VDEVS}
-
-	# do some IO on the pool
-	log_must $DD if=/dev/random of=$TESTFILE bs=1024 count=32768
-	# Scribble on the underlying file to corrupt the vdev
-	log_must $DD if=/dev/zero bs=1024k count=64 conv=notrunc of=$VDEV1
-
-	# Scrub the pool to detect the corruption
-	$SYNC
-	log_must $ZPOOL scrub $TESTPOOL
-	while is_pool_scrubbing $TESTPOOL ; do
-		$SLEEP 2
-	done
-
-	# ZFSD can take up to 60 seconds to degrade an array in response to
-	# errors (though it's usually faster).  
-	for ((timeout=0; $timeout<10; timeout=$timeout+1)); do
-		check_state $TESTPOOL "$VDEV1" "DEGRADED"
-		degraded=$?
-		if [[ $degraded == 0 ]]; then
-			break
-		fi
-		$SLEEP 6
-	done
-	log_must $ZPOOL status $TESTPOOL
-	log_must check_state $TESTPOOL "$VDEV1" "DEGRADED"
-
+	corrupt_pool $TESTPOOL $VDEV1 $TESTFILE
 	destroy_pool $TESTPOOL
 done
 
 cleanup
 log_pass
-

@@ -78,10 +78,10 @@ log_assert "ZFS will degrade a vdev that produces checksum errors"
 
 log_onexit cleanup
 
+ensure_zfsd_running
 log_must $MKFILE 100M ${VDEV0}
 log_must $MKFILE 100M ${VDEV1}
 log_must $MKFILE 100M ${SPARE_VDEV}
-
 
 for type in "mirror" "raidz"; do
 	log_note "Testing raid type $type"
@@ -93,45 +93,11 @@ for type in "mirror" "raidz"; do
 
 	# ZFSD can take up to 60 seconds to replace a failed device
 	# (though it's usually faster).  
-	for ((timeout=0; $timeout<10; timeout=$timeout+1)); do
-		check_state $TESTPOOL "$SPARE_VDEV" "INUSE"
-		spare_inuse=$?
-		if [[ $spare_inuse == 0 ]]; then
-			break
-		fi
-		$SLEEP 6
-	done
-	log_must $ZPOOL status $TESTPOOL
-	log_must check_state $TESTPOOL "$SPARE_VDEV" "ONLINE"
+	wait_for_pool_dev_state_change 60 $SPARE_VDEV INUSE
 
-	# do some IO on the pool
-	log_must $DD if=/dev/random of=$TESTFILE bs=512 count=4096
-	# Scribble on the underlying file to corrupt the vdev
-	log_must $DD if=/dev/zero bs=1024k count=64 conv=notrunc of=$SPARE_VDEV
-		
-	# Scrub the pool to detect the corruption
-	$SYNC
-	log_must $ZPOOL scrub $TESTPOOL
-	while is_pool_scrubbing $TESTPOOL ; do
-		$SLEEP 2
-	done
-
-	# ZFSD can take up to 60 seconds to degrade an array in response to
-	# errors (though it's usually faster).  
-	for ((timeout=0; $timeout<10; timeout=$timeout+1)); do
-		check_state $TESTPOOL "$SPARE_VDEV" "DEGRADED"
-		degraded=$?
-		if [[ $degraded == 0 ]]; then
-			break
-		fi
-		$SLEEP 6
-	done
-	log_must $ZPOOL status $TESTPOOL
-	log_must check_state $TESTPOOL "$SPARE_VDEV" "DEGRADED"
-
+	corrupt_pool $TESTPOOL $SPARE_VDEV $TESTFILE
 	destroy_pool $TESTPOOL
 done
 
 cleanup
 log_pass
-

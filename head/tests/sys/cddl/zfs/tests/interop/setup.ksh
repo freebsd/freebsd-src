@@ -46,6 +46,7 @@ case $DISK_COUNT in
 	;;
 esac
 
+wipe_partition_table $META_DISK0
 log_must set_partition ${META_SIDE0##*s} "" $FS_SIZE $META_DISK0
 if [[ $WRAPPER == *"smi"* && $META_DISK1 == $META_DISK0 ]]; then
 	typeset i=${META_SIDE0##*s}

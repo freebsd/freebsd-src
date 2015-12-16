@@ -99,6 +99,7 @@ log_onexit cleanup
 
 log_assert "If a vdev becomes degraded, the spare will be activated."
 
+ensure_zfsd_running
 set_devs
 
 typeset  sdev="${devarray[0]}"

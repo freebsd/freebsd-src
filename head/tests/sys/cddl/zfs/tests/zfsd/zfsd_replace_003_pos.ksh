@@ -41,20 +41,11 @@ verify_runnable "global"
 function cleanup
 {
 	# See if the phy has been disabled, and try to re-enable it if possible.
-	if [[ -n $EXPANDER0 && -n $PHY0 ]]; then
-		enable_sas_disk $EXPANDER0 $PHY0
-	fi
-	if [[ -n $EXPANDER1 && -n $PHY1 ]]; then
-		enable_sas_disk $EXPANDER1 $PHY1
-	fi
-	if [[ -n $EXPANDER && -n $PHY ]]; then
-		enable_sas_disk $EXPANDER $PHY
-	fi
+	[ -n "$EXPANDER0" -a -n "$PHY0" ] && enable_sas_disk $EXPANDER0 $PHY0
+	[ -n "$EXPANDER1" -a -n "$PHY1" ] && enable_sas_disk $EXPANDER1 $PHY1
+	[ -n "$EXPANDER" -a -n "$PHY" ] && enable_sas_disk $EXPANDER $PHY
 
-	if poolexists $TESTPOOL; then
-		destroy_pool $TESTPOOL
-	fi
-
+	destroy_pool $TESTPOOL
 	[[ -e $TESTDIR ]] && log_must $RM -rf $TESTDIR/*
 }
 
@@ -72,58 +63,49 @@ function remove_disk
 	disable_sas_disk $EXPANDER $PHY
 
 	# Check to make sure disk is gone.
-	camcontrol inquiry $DISK > /dev/null 2>&1
-	if [ $? = 0 ]; then
-		log_fail "Disk \"$DISK\" was not removed"
-	fi
+	find_disk_by_phy $EXPANDER $PHY
+	[ -n "$FOUNDDISK" ] && log_fail "Disk \"$DISK\" was not removed"
 
 	# Check to make sure ZFS sees the disk as removed
-	$ZPOOL status $TESTPOOL |grep $DISK |grep REMOVED > /dev/null
-	if [ $? != 0 ]; then
-		log_fail "disk $DISK not listed as removed"
-	fi
+	wait_for_pool_removal 20
 }
 
 # arg1: disk's old devname
 # arg2: disk's expander's devname
 # arg3: disk's phy number
+# arg4: whether the devname must differ after reconnecting
 function reconnect_disk
 {
 	typeset DISK=$1
 	typeset EXPANDER=$2
 	typeset PHY=$3
+	typeset DEVNAME_DIFFERS=$4
+
 	# Re-enable the disk, we don't want to leave it turned off
 	log_note "Re-enabling phy $PHY on expander $EXPANDER"
 	enable_sas_disk $EXPANDER $PHY
 
 	log_note "Checking to see whether disk has reappeared"
 	# Make sure the disk is back in the topology
-	find_disk_by_phy $EXPANDER $PHY
-	((retries=0))
-	while [ -z "$FOUNDDISK" ] && [ "$retries" -lt 10 ]; do
-		$SLEEP 5
-		find_disk_by_phy $EXPANDER $PHY
-	done
+	wait_for_disk_to_reappear 20
 
-	if [ -z "$FOUNDDISK" ]; then
-		log_fail "A disk has not appeared at phy $PHY on expander $EXPANDER after 50 seconds"
-	else
-		log_note "Disk $DISK is back as $FOUNDDISK"
-	fi
-	if [[ $(find_disks $FOUNDDISK) = $(find_disks $DISK) ]]; then
-		log_unsupported "Disk $DISK reappeared with the same devname.  The test must be fixed to guarantee that it will reappear with a different name"
+	if [ -n "$DEVNAME_MUST_DIFFER" ]; then
+		prev_disks=$(find_disks $FOUNDDISK)
+		cur_disks=$(find_disks $DISK)
+
+		# If you get this, the test must be fixed to guarantee that
+		# it will reappear with a different name.
+		[ "${prev_disk}" = "${cur_disk}" ] && log_unsupported \
+			"Disk $DISK reappeared with the same devname."
 	fi
 
 	#Disk should have auto-joined the zpool. Verify it's status is online.
-	if [[ $(get_device_state $TESTPOOL $FOUNDDISK "") != ONLINE ]]; then
-		log_fail "disk $FOUNDDISK did not automatically join $TESTPOOL"
-	else 
-		log_note "After reinsertion, disk $FOUNDDISK is back in pool and online"
-	fi
-
+	wait_for_pool_dev_state_change 20 $DISK ONLINE
 }
 
-log_assert "ZFSD will correctly replace disks that dissapear and reappear with different devnames"
+log_assert "ZFSD will correctly replace disks that disappear and reappear \
+	   with different devnames"
+
 # Outline
 # Create a double-parity pool
 # Remove two disks by disabling their SAS phys
@@ -132,6 +114,7 @@ log_assert "ZFSD will correctly replace disks that dissapear and reappear with d
 # Verify that the pool regains its health
 
 log_onexit cleanup
+ensure_zfsd_running
 
 child_pids=""
 
@@ -158,24 +141,7 @@ for type in "raidz2" "mirror"; do
 
 	reconnect_disk $DISK1 $EXPANDER1 $PHY1
 	reconnect_disk $DISK0 $EXPANDER0 $PHY0
-
-	#Wait, then verify resilver done, and that pool is optimal
-	((retries=24))
-	$ZPOOL status $TESTPOOL |grep "scan:" |grep "resilvered" > /dev/null
-	while [ $? != 0  ] && [ "$retries" -gt 0 ]; do
-		log_note "Retry $retries"
-		$SLEEP 5
-		((retries--))
-		$ZPOOL status $TESTPOOL |grep "scan:" |grep "resilvered" > /dev/null
-	done
-
-	$ZPOOL status $TESTPOOL |grep "scan:" |grep "resilvered" > /dev/null
-	if [ $? != 0 ]; then
-		log_fail "Pool $TESTPOOL did not finish resilvering in 120 seconds"
-	else
-		log_note "Auto-resilver completed sucessfully"
-	fi
-
+	wait_until_resilvered
 	destroy_pool $TESTPOOL
 	log_must $RM -rf /$TESTPOOL
 done
