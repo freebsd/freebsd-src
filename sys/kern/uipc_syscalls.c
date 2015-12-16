@@ -2161,6 +2161,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		if (vm_page_is_valid(pa[i], vmoff(i, off) & PAGE_MASK,
 		    xfsize(i, npages, off, len))) {
 			vm_page_xunbusy(pa[i]);
+			SFSTAT_INC(sf_pages_valid);
 			i++;
 			continue;
 		}
@@ -2172,8 +2173,10 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		 */
 		for (j = i + 1; j < npages; j++)
 			if (vm_page_is_valid(pa[j], vmoff(j, off) & PAGE_MASK,
-			    xfsize(j, npages, off, len)))
+			    xfsize(j, npages, off, len))) {
+				SFSTAT_INC(sf_pages_valid);
 				break;
+			}
 
 		/*
 		 * Now we got region of invalid pages between 'i' and 'j'.
@@ -2220,15 +2223,19 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 			}
 		}
 
+		SFSTAT_INC(sf_iocnt);
+		if (j > npages) {
+			SFSTAT_ADD(sf_pages_read, npages - i);
+			SFSTAT_ADD(sf_rhpages_read, j - npages);
+		} else
+			SFSTAT_ADD(sf_pages_read, count);
+
+		nios++;
 		refcount_acquire(&sfio->nios);
 		rv = vm_pager_get_pages_async(obj, pa + i, count, NULL, NULL,
 		    &sf_iodone, sfio);
-
 		KASSERT(rv == VM_PAGER_OK, ("%s: pager fail obj %p page %p",
 		    __func__, obj, pa[i]));
-
-		SFSTAT_INC(sf_iocnt);
-		nios++;
 
 		for (j = i; j < i + count && j < npages; j++)
 			KASSERT(pa[j] == vm_page_lookup(obj,
@@ -2240,6 +2247,9 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 	}
 
 	VM_OBJECT_WUNLOCK(obj);
+
+	if (nios == 0 && npages != 0)
+		SFSTAT_INC(sf_noiocnt);
 
 	return (nios);
 }
@@ -2372,17 +2382,20 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	if (error != 0)
 		goto out;
 
-	if (flags & SF_SYNC) {
-		sfs = malloc(sizeof *sfs, M_TEMP, M_WAITOK | M_ZERO);
-		mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
-		cv_init(&sfs->cv, "sendfile");
-	}
-
 #ifdef MAC
 	error = mac_socket_check_send(td->td_ucred, so);
 	if (error != 0)
 		goto out;
 #endif
+
+	SFSTAT_INC(sf_syscalls);
+	SFSTAT_ADD(sf_rhpages_requested, SF_READAHEAD(flags));
+
+	if (flags & SF_SYNC) {
+		sfs = malloc(sizeof *sfs, M_TEMP, M_WAITOK | M_ZERO);
+		mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
+		cv_init(&sfs->cv, "sendfile");
+	}
 
 	/* If headers are specified copy them into mbufs. */
 	if (hdr_uio != NULL && hdr_uio->uio_resid > 0) {
