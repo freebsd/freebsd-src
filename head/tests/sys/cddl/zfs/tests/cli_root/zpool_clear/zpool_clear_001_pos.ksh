@@ -147,6 +147,8 @@ function do_testing #<clear type> <vdevs>
 	shift
 	typeset vdev="$@"
 
+	log_note "Testing with vdevs ${vdev} ..."
+
 	log_must $ZPOOL create -f $TESTPOOL1 $vdev
 	log_must $ZFS create $FS
 	#
@@ -162,12 +164,12 @@ function do_testing #<clear type> <vdevs>
         	(( $ret != 0 )) && break
         	(( i = i + 1 ))
 	done
-	(( $ret != 28 )) && log_fail "$FILE_WRITE fails to fully fill up the $FS." 
+	(( $ret != 28 )) && log_fail "ERROR: $FILE_WRITE failed with error $ret"
+	log_note "$FILE_WRITE has filled up $FS."
 	
 	#
-	#Make errors to the testing pool by overwrite the vdev device with  
-	#/bin/dd command. We donot want to have a full overwrite. That 
-	#may cause the system panic. So, we should skip the vdev label space. 
+	# Make errors to the testing pool by overwrite the vdev device with  
+	# the dd command, taking care to skip the first and last labels.
 	#
 	(( i = $RANDOM % 3 ))
 	typeset -i wcount=0

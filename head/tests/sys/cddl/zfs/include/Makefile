@@ -13,13 +13,13 @@ FILES+=		libtest.kshlib
 FILES+=		stf.shlib
 
 FILES+=		commands.cfg
+CLEANFILES+=	commands.cfg
 commands.cfg:	translatecommands.awk commands.txt
 	awk -v stfsuitedir=${STFSUITEDIR} -f ${.ALLSRC} > ${.TARGET}
-CLEANFILES+=	commands.cfg
 
 FILES+=		default.cfg
+CLEANFILES+=	default.cfg
 default.cfg:	default.cfg.in
 	sed "s:%%STFSUITEDIR%%:${STFSUITEDIR}:" ${.ALLSRC} > ${.TARGET}
-CLEANFILES+=	default.cfg
 
 .include <bsd.prog.mk>

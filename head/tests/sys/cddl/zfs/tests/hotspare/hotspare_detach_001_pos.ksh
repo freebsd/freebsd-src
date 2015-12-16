@@ -79,9 +79,7 @@ function verify_assertion # dev
 	log_must $SYNC
 	log_must $ZPOOL replace $TESTPOOL $odev $dev
 
-	is_pool_resilvering "$TESTPOOL" || is_pool_resilvered "$TESTPOOL"
-	resilver_happened=$?
-	log_must test $resilver_happened -eq 0
+	log_must resilver_happened $TESTPOOL
 	log_must check_hotspare_state "$TESTPOOL" "$dev" "INUSE"
 
 	log_must $ZPOOL detach $TESTPOOL $dev

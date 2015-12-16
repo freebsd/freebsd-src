@@ -1652,6 +1652,12 @@ function is_pool_resilvered #pool
 	return $?
 }
 
+function resilver_happened # pool
+{
+	typeset pool=$1
+	is_pool_resilvering "$pool" || is_pool_resilvered "$pool"
+}
+
 function is_pool_scrubbing #pool
 {
 	check_pool_status "$1" "scan" "scrub in progress"
