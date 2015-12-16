@@ -323,10 +323,9 @@ pxe_open(struct open_file *f, ...)
 #endif
 		setenv("dhcp.host-name", hostname, 1);
 
-		sprintf(temp, "%08X", ntohl(myip.s_addr));
-		setenv("pxeboot.ip", temp, 1);
+		setenv("pxeboot.ip", inet_ntoa(myip), 1);
 		if (bootplayer.Hardware == ETHER_TYPE) {
-		    sprintf(temp, "%6D", bootplayer.CAddr, "-");
+		    sprintf(temp, "%6D", bootplayer.CAddr, ":");
 		    setenv("pxeboot.hwaddr", temp, 1);
 		}
 	}
