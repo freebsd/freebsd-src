@@ -57,7 +57,7 @@
 verify_runnable "both"
 
 # Define uninherited properties and their short name.
-typeset props_str="type used available avail creation referenced refer \
+typeset props_str="type creation \
 		compressratio ratio mounted origin quota reservation \
 		reserv volsize volblocksize volblock"
 

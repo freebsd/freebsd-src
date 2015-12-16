@@ -78,7 +78,7 @@ function verify_assertion # odev
 	log_must check_state $TESTPOOL "$sdev" "INUSE"
 
 	# corrupt out the $TESTPOOL to make sdev in use
-	# Skip the first input block so we don't override the vdev label
+	# Skip the first input block so we don't overwrite the vdev label
 	log_must $DD if=/dev/zero bs=1024k count=63 oseek=1 conv=notrunc of=$sdev
 
 	$SYNC
