@@ -855,12 +855,20 @@ match:
 		arp_check_update_lle(ah, isaddr, ifp, bridged, la);
 	else if (itaddr.s_addr == myaddr.s_addr) {
 		/*
-		 * Reply to our address, but no lle exists yet.
-		 * do we really have to create an entry?
+		 * Request/reply to our address, but no lle exists yet.
+		 * Try to create new llentry.
 		 */
 		la = lltable_alloc_entry(LLTABLE(ifp), 0, dst);
-		if (la == NULL)
-			goto drop;
+		if (la == NULL) {
+
+			/*
+			 * lle creation may fail if source address belongs
+			 * to non-directly connected subnet. However, we
+			 * will try to answer the request instead of dropping
+			 * frame.
+			 */
+			goto reply;
+		}
 		lltable_set_entry_addr(ifp, la, ar_sha(ah));
 
 		IF_AFDATA_WLOCK(ifp);
