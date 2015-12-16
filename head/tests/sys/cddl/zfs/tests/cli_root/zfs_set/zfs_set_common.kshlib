@@ -64,6 +64,7 @@ function set_n_check_prop
 
 	err="ERROR: Dataset '$dataset': '$prop' value '$cur_value'"
 	if [ "$expect_result" = "true" ]; then
+		[ "$expect_value" = "gzip-6" ] && expect_value="gzip"
 		case "$prop" in
 		reservation|reserv|quota)
 			if [ "$expect_value" = "none" -a "$cur_value" != "0" ]; then
