@@ -310,14 +310,14 @@ function _endlog
 	_recursive_output $logfile
 
 	export STF_EXITCODE=$1
+	shift
+	(( ${#@} > 0 )) && _printline "$@"
 	if [[ -n $_CLEANUP ]] ; then
 		typeset cleanup=$_CLEANUP
 		log_onexit ""
 		log_note "Performing local cleanup via log_onexit ($cleanup)"
 		$cleanup
 	fi
-	shift
-	(( ${#@} > 0 )) && _printline "$@"
 	exit $STF_EXITCODE
 }
 
