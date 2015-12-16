@@ -326,7 +326,6 @@ zfsd_hotspare_007_pos_head()
 }
 zfsd_hotspare_007_pos_body()
 {
-	atf_expect_fail "P3_28731: ZFSD will not replace a vdev that dissappears while power is off"
 	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../include/default.cfg
 	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib

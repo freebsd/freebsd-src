@@ -212,14 +212,48 @@ ZfsDaemon::VdevAddCaseFile(Vdev &vdev, void *cbArg)
 void
 ZfsDaemon::BuildCaseFiles()
 {
-	/* Add CaseFiles for vdevs with issues. */
 	ZpoolList zpl;
+	ZpoolList::iterator pool;
 
-	for (ZpoolList::iterator pool = zpl.begin(); pool != zpl.end(); pool++)
+	/* Add CaseFiles for vdevs with issues. */
+	for (pool = zpl.begin(); pool != zpl.end(); pool++)
 		VdevIterator(*pool).Each(VdevAddCaseFile, NULL);
 
 	/* De-serialize any saved cases. */
 	CaseFile::DeSerialize();
+
+	/* Simulate config_sync events to force CaseFile reevaluation */
+	for (pool = zpl.begin(); pool != zpl.end(); pool++) {
+		char evString[160];
+		Event *event;
+		nvlist_t *config;
+		uint64_t poolGUID;
+		const char *poolname;
+
+		poolname = zpool_get_name(*pool);
+		config = zpool_get_config(*pool, NULL);
+		if (config == NULL) {
+			syslog(LOG_ERR, "ZFSDaemon::BuildCaseFiles: Could not "
+			    "find pool config for pool %s", poolname);
+			continue;
+		}
+		if (nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_GUID,
+				     &poolGUID) != 0) {
+			syslog(LOG_ERR, "ZFSDaemon::BuildCaseFiles: Could not "
+			    "find pool guid for pool %s", poolname);
+			continue;
+		}
+
+		
+		snprintf(evString, 160, "!system=ZFS subsystem=ZFS "
+		    "type=misc.fs.zfs.config_sync sub_type=synthesized "
+		    "pool_name=%s pool_guid=%lu\n", poolname, poolGUID);
+		event = Event::CreateEvent(GetFactory(), string(evString));
+		if (event != NULL) {
+			event->Process();
+			delete event;
+		}
+	}
 }
 
 void
@@ -254,10 +288,11 @@ ZfsDaemon::RescanSystem()
 				string evString(evStart + pp->lg_name + "\n");
 				event = Event::CreateEvent(GetFactory(),
 							   evString);
-				if (event != NULL)
+				if (event != NULL) {
 					if (event->Process())
 						SaveEvent(*event);
 					delete event;
+				}
                         }
                 }
 	}
