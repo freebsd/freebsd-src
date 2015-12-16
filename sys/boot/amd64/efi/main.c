@@ -54,6 +54,10 @@ EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
 EFI_GUID mps = MPS_TABLE_GUID;
 EFI_GUID netid = EFI_SIMPLE_NETWORK_PROTOCOL;
 EFI_GUID smbios = SMBIOS_TABLE_GUID;
+EFI_GUID dxe = DXE_SERVICES_TABLE_GUID;
+EFI_GUID hoblist = HOB_LIST_TABLE_GUID;
+EFI_GUID memtype = MEMORY_TYPE_INFORMATION_TABLE_GUID;
+EFI_GUID debugimg = DEBUG_IMAGE_INFO_TABLE_GUID;
 
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
@@ -274,6 +278,14 @@ command_configuration(int argc, char *argv[])
 			printf("ACPI 2.0 Table");
 		else if (!memcmp(guid, &smbios, sizeof(EFI_GUID)))
 			printf("SMBIOS Table");
+		else if (!memcmp(guid, &dxe, sizeof(EFI_GUID)))
+			printf("DXE Table");
+		else if (!memcmp(guid, &hoblist, sizeof(EFI_GUID)))
+			printf("HOB List Table");
+		else if (!memcmp(guid, &memtype, sizeof(EFI_GUID)))
+			printf("Memory Type Information Table");
+		else if (!memcmp(guid, &debugimg, sizeof(EFI_GUID)))
+			printf("Debug Image Info Table");
 		else
 			printf("Unknown Table (%s)", guid_to_string(guid));
 		printf(" at %p\n", ST->ConfigurationTable[i].VendorTable);
@@ -329,7 +341,7 @@ command_mode(int argc, char *argv[])
 	}
 
 	if (i != 0)
-		printf("Choose the mode with \"col <mode number>\"\n");	
+		printf("Choose the mode with \"col <mode number>\"\n");
 
 	return (CMD_OK);
 }
